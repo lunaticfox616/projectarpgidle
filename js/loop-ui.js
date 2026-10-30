@@ -25,7 +25,7 @@ const loopSettlementUi = {
         const time = record ? formatRecordDuration(record.activeMs) : '기록 없음';
         return `<section class="loop-settlement-story" data-loop-section="1">${this.storyHtml()}</section>
             <section class="loop-settlement-result" data-loop-section="2"><h2 aria-label="루프 ${loop + 1} 달성">루프 <span class="loop-settlement-count${this.rolledLoop === loop ? ' is-rolled' : ''}" data-loop-count aria-hidden="true"><span><b>${loop}</b><b>${loop + 1}</b></span></span> 달성</h2>
-            <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>${this.barkHtml(loop)}
+            <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>${worldTreeBarkUi.barkSettlementHtml()}
             <div class="loop-settlement-next"><ul>${this.nextLoopLines(loop).map(row => `<li class="is-${row.kind}">${escapeHTML(row.text).replace(/\+\d+/g, gain => `<b>${gain}</b>`)}</li>`).join('')}</ul></div>
             <p class="loop-settlement-reset">루프 시 레벨, 장비 및 재화를 포함한 대부분의 진행도가 초기화됩니다.</p></section>
             <section class="loop-settlement-controls" data-loop-section="3">${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}</section>
@@ -40,6 +40,7 @@ const loopSettlementUi = {
             { kind: 'unlock', text: game.contentProgression ? this.unlockRewardText() : '' },
             { kind: 'stump', text: this.stumpCellLine() },
             { kind: 'loop', text: `루프 포인트 +1${this.loopPointLockText()}` },
+            { kind: 'loop', text: worldTreeBark.nextLoopBarkLine(loop + 1) },
             ...roadmap.map(text => ({ kind: 'road', text })),
             ...loopMutationUi.nextLoopLines(loop + 1).map(text => ({ kind: 'mutation', text }))
         ].filter(row => row.text);
@@ -100,11 +101,6 @@ const loopSettlementUi = {
         if (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) roll();
         else setTimeout(roll, 650);
     },
-    /** 세계수 껍질 the hero wears at this loop (data/maps.js WORLD_TREE_BARK), nothing before loop 55. */
-    barkHtml(loop) {
-        const layers = getWorldTreeBarkLayers(loop);
-        return layers ? `<p class="loop-settlement-bark">세계수 껍질 ${layers}겹: 최대 생명력 +${layers * WORLD_TREE_BARK.pctHp}%, 받는 피해 -${layers * WORLD_TREE_BARK.taken}%</p>` : '';
-    },
     /** What the next loop adds beside unlock points (the unlock map's roadmap lines), only that loop's: the nearest milestone ahead
      * ("루프 N까지 M루프 남음") is not shown (2026-10-27 사용자). */
     milestoneLines(next) {
@@ -135,7 +131,7 @@ const loopSettlementUi = {
         overlay.classList.toggle('active', ready && this.dismissedReadyLoop !== game.season);
         document.getElementById('loop-decision-overlay').classList.toggle('active', decision);
         if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
-        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${getHeldGearLoopBlockReason()}:${game.settings.autoLoop}:${game.settings.autoLoopClass}`;
+        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${getHeldGearLoopBlockReason()}:${game.settings.autoLoop}:${game.settings.autoLoopClass}:${worldTreeBark.barkPoints(game).free}`;
         if (key === this.renderedKey) return;
         // A new loop's summary starts at its top: shown again, the cards came back at the last loop's scroll spot.
         if (!this.renderedKey.startsWith(`${game.season}:`)) document.querySelectorAll('#loop-ready-overlay .tutorial-card, #loop-decision-overlay .tutorial-card').forEach(card => card.scrollTo(0, 0));

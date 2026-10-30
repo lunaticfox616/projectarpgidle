@@ -87,17 +87,25 @@ function accumulateCombatLoopStats(bucket, loopBonus, deepBonus, season) {
     accumulateWorldTreeBarkStats(bucket, season);
 }
 
-/** Layers of 세계수 껍질 (data/maps.js WORLD_TREE_BARK) at this loop: one per milestone loop reached. */
-function getWorldTreeBarkLayers(season) {
-    const loop = Math.max(1, Math.floor(Number(season) || 1));
-    return WORLD_TREE_BARK.loops.filter(at => loop >= at).length;
+/** Every bark step: 최대 생명력 +pctHp%, 받는 피해 -taken% (summed with the other generic taken-damage reductions); in the bark zone also what the points give. */
+function accumulateWorldTreeBarkStats(bucket, season) {
+    const layers = getWorldTreeBarkLayers(season), effect = getWorldTreeBarkEffect();
+    addStatToBucket(bucket, 'pctHp', layers * WORLD_TREE_BARK.pctHp);
+    addStatToBucket(bucket, 'genericTakenDamageReducePct', layers * WORLD_TREE_BARK.taken + effect.takenPct);
+    addStatToBucket(bucket, 'move', effect.movePct);
 }
 
-/** Every bark layer: 최대 생명력 +pctHp%, 받는 피해 -taken% (summed with the other generic taken-damage reductions). */
-function accumulateWorldTreeBarkStats(bucket, season) {
-    const layers = getWorldTreeBarkLayers(season);
-    addStatToBucket(bucket, 'pctHp', layers * WORLD_TREE_BARK.pctHp);
-    addStatToBucket(bucket, 'genericTakenDamageReducePct', layers * WORLD_TREE_BARK.taken);
+const WORLD_TREE_BARK_NO_EFFECT = Object.freeze({ on: false, damagePct: 0, takenPct: 0, movePct: 0 });
+/** The bark effect holds here: an act or chaos zone within the reach that this loop has not cleared yet. Its boss and retries after a death are in, a return after the clear is not. */
+function isWorldTreeBarkZone(zone, owner = game) {
+    if (!zone || !['act', 'abyss'].includes(zone.type) || !getWorldTreeBarkLayers(owner.season)) return false;
+    return Number(zone.id) < getWorldTreeBarkReach(owner) && Number(zone.id) >= Math.max(0, Math.floor(owner.maxZoneId || 0));
+}
+/** What the 껍질 포인트 give in the zone the hero stands in (data/maps.js WORLD_TREE_BARK.stats). */
+function getWorldTreeBarkEffect(owner = game) {
+    if (!isWorldTreeBarkZone(getZone(owner.currentZoneId), owner)) return WORLD_TREE_BARK_NO_EFFECT;
+    const total = key => Math.max(0, Math.floor(Number(owner.worldTreeBark[key]) || 0)) * WORLD_TREE_BARK.stats.find(def => def.key === key).per;
+    return { on: true, damagePct: total('damage'), takenPct: total('taken'), movePct: total('move') };
 }
 
 /** Deep loop levels (data/maps.js LOOP_DEEP_STATS); the multiplicative damage line is applied by combat (getLoopDeepMorePct). */

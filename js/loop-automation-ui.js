@@ -31,7 +31,7 @@ const loopAutomationUi = (() => {
     }
     /** Nothing else holds the screen: the game has started (no title or loading screen) and no dialog or reward pick is open. */
     const screenFree = () => gameplayStarted && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !isRewardOpen()
-        && !document.getElementById('game-dialog-overlay')?.classList.contains('active');
+        && !document.getElementById('game-dialog-overlay')?.classList.contains('active') && !worldTreeBarkUi.barkDialogOpen();
     /** The loop screen is up (not put aside for 장비 정리), automation is on, the gate was reached while the page was open
      * (offline auto-loop stays off), the page is visible and nothing (the stall, the hall) blocks the reset. */
     const armed = () => !!(game.pendingLoopReady || game.pendingLoopDecision) && game.settings.autoLoop && !game.loopGateOffline

@@ -3909,6 +3909,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let finalDamageMultiplier = (1 + cosmosMasteryFinalDamagePct / 100) * oceanPressureDamageMul;
     finalDamageMultiplier *= 1 + Math.max(0, authoredPassiveRules.combatDamageMorePct) / 100;
     finalDamageMultiplier *= 1 + getLoopDeepMorePct(game.loopDeepStats) / 100;
+    finalDamageMultiplier *= 1 + getWorldTreeBarkEffect().damagePct / 100;
     let wisdomLeapActive = typeof findAllocatedPassiveKeystone === 'function'
         && !!findAllocatedPassiveKeystone('지혜의 도약');
     let passiveWisdomElement = wisdomLeapActive ? authoredPassiveRules.wisdomElement : '';
@@ -11984,6 +11985,7 @@ const ACT_CLEAR_JOURNAL_ENTRIES = new Map(['act_1', 'act_2', 'act_3', 'act_4', '
 function markActZoneClear(zone, ui) {
     if (zone.id <= 9) markActRewardReady(zone.id);
     // 전적: 이번 루프 시작 기준 액트 돌파 경과 시간(루프당 첫 돌파만).
+    worldTreeBark.noteActTenClear(zone);
     if (typeof recordActClear === 'function') recordActClear(zone.id);
     sayActClearStory(zone, ui);
     const journalEntry = ACT_CLEAR_JOURNAL_ENTRIES.get(zone.id);
@@ -15037,6 +15039,7 @@ function triggerSeasonReset(options) {
     game.playerHp = getPlayerHpCap(getPlayerStats());
     ensureActJournalCompletionForLoop({ silent: false });
     addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
+    worldTreeBark.noticeFirstBark();
     checkUnlocks();
     saveGame({ skipCloudSync: true });
     if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 진행');
@@ -15196,8 +15199,8 @@ function resetLoopItems(kept, codexReveal) {
     game.currencies = { ...defaultGame.currencies };
     preservedAltarMaterials.forEach(([key, value]) => { game.currencies[key] = value; });
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
-    Object.keys(preservedSealedEquipment).forEach(slot => { game.equipment[slot] = Object.assign(preservedSealedEquipment[slot], { inheritedLevelExempt: true }); });
-    if (preservedSealedInventory.length > 0) game.inventory.push(...preservedSealedInventory.map(item => Object.assign(item, { inheritedLevelExempt: true })));
+    // 봉인 장비도 요구 레벨과 능력치를 따른다(2026-10-31 사용자). 입던 칸에 두면 1레벨 영웅의 칸이 꺼진 채 막히므로 가방으로 돌아온다.
+    game.inventory.push(...Object.values(preservedSealedEquipment), ...preservedSealedInventory);
     if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
     game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
     game.labyrinthFloor = 1;

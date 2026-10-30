@@ -11,7 +11,7 @@ const levelProgressionUi = (() => {
         const required = levelProgression.requirements(item);
         const attributes = Object.entries(required.attributes).filter(([, value]) => value > 0)
             .map(([key, value]) => `${getStatName(key)} ${value}`);
-        const level = item.inheritedLevelExempt ? '계승, 요구 레벨 면제' : `요구 Lv.${required.level}`;
+        const level = `요구 Lv.${required.level}`;
         const { reason, available } = itemRequirementStatus(item, equipped, slot);
         const warning = reason ? `<div class="tooltip-line" style="color:var(--danger,#ed8d83)">${equipped ? '효과 비활성, ' : ''}${escapeHTML(reason)}</div>` : '';
         const grace = equipped && item.legacyRequirementGrace ? ', 기존 장착 유예' : '';

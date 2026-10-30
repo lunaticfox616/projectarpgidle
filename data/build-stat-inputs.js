@@ -3,7 +3,7 @@ const BUILD_STAT_FIELDS = [
     'inventory', 'equipment', 'level', 'season', 'loopCount', 'maxZoneId',
     'selectedHeroId', 'selectedClassId', 'ascendClass', 'ascendNodes', 'ascendKeystones', 'cosmosTwinKeystones',
     'passives', 'voidPassives', 'passiveAttributePreference', 'passiveAttributeChoices',
-    'passiveStarEvolution', 'seasonNodes', 'seasonNodeLevels', 'loop10BonusStats', 'loopDeepStats',
+    'passiveStarEvolution', 'seasonNodes', 'seasonNodeLevels', 'loop10BonusStats', 'loopDeepStats', 'worldTreeBark',
     'actRewardBonuses', 'journalBonuses', 'journalEntries', 'activeSkill', 'weaponBlockedSkill', 'mobilitySkill', 'skills', 'supports',
     'equippedSupports', 'equippedSummonSkills', 'summonSkillCounts', 'gemData', 'supportGemData',
     'skillAutoRules',

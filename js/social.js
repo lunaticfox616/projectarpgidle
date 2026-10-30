@@ -273,7 +273,7 @@ function profileItemLevel(item) {
 function buildRequirementSnapshot(item) {
     if (typeof levelProgression !== 'object' || typeof levelProgression.requirements !== 'function') return undefined;
     let required = levelProgression.requirements(item);
-    return { level: required.level, attributes: required.attributes, exempt: !!item.inheritedLevelExempt };
+    return { level: required.level, attributes: required.attributes };
 }
 
 /** Sockets with the jewel in each, as the game's item tooltip lists them once jewels are open. */
@@ -382,8 +382,14 @@ const PROFILE_STAT_TONES = Object.freeze({ dps: '#ffcf6e', summonDps: '#ffcf6e',
     maxHp: '#ff6b6b', regen: '#ff9c9c', energyShield: '#7fd3ff', armor: '#d2b98c', dr: '#d2b98c', evasion: '#8fe08f', deflectChance: '#8fe08f',
     blockChance: '#b8c4cc', resF: '#ff8a50', resC: '#6cb8ff', resL: '#ffd54f', resChaos: '#c39bff' });
 
+/** What other players see: the bark zone's effect holds only in that zone, so it stays out. */
+function statsWithoutBarkZone() {
+    if (!getWorldTreeBarkEffect().on) return getPlayerStats();
+    return previewBuildStats(clone => { Object.assign(clone.worldTreeBark, { damage: 0, taken: 0, move: 0 }); }).after;
+}
+
 function buildProfileStats() {
-    let s = typeof getPlayerStats === 'function' ? getPlayerStats() : null;
+    let s = typeof getPlayerStats === 'function' ? statsWithoutBarkZone() : null;
     if (!s) return { stats: [], power: 0 };
     let rows = PROFILE_STAT_KEYS.filter(([key]) => key !== 'summonDps' || Number(s.summonDps) > 0)
         // dps는 직접 DPS다(캐릭터 창과 같은 이름). 머리 띠의 큰 수가 총 DPS라, 'DPS'로 두면 둘이 다른 수로 보였다.
@@ -1677,7 +1683,7 @@ function profileRequirementText(req) {
     if (!req || typeof req !== 'object') return '';
     let attributes = Object.entries(req.attributes || {}).filter(([, value]) => Number(value) > 0)
         .map(([key, value]) => `${profileStatLabel({ id: key })} ${Math.floor(Number(value))}`);
-    return [req.exempt ? '계승, 요구 레벨 면제' : `요구 Lv.${Math.max(1, Math.floor(Number(req.level) || 1))}`, ...attributes].join(', ');
+    return [`요구 Lv.${Math.max(1, Math.floor(Number(req.level) || 1))}`, ...attributes].join(', ');
 }
 
 function profileItemUniqueHtml(item) {

@@ -1904,7 +1904,7 @@ function getTabNotiSignature() {
 
 /** 쓸 포인트가 남은 동안 스킬트리와 전직 알림 점을 켜 둔다(2026-10-26 사용자: "1포인트라도 있으면"). 그 화면을 보는 동안은 끈다. */
 function applyStandingTabNotices() {
-    const standing = { char: game.passivePoints > 0, traits: !!game.unlocks.traits && (game.ascendPoints > 0 || game.ascendKeystonePoints > 0) };
+    const standing = { char: game.passivePoints > 0, traits: !!game.unlocks.traits && (game.ascendPoints > 0 || game.ascendKeystonePoints > 0), season: worldTreeBark.barkHasFreePoints(game) };
     Object.entries(standing).forEach(([key, on]) => { if (on && lastActiveTabId !== 'tab-' + key) game.noti[key] = true; });
 }
 
@@ -9793,7 +9793,7 @@ function buildCraftActionButtons(item) {
     let seasonVisible = game.season > 1 || game.seasonPoints > 0;
     document.getElementById('trait-season-section').style.display = seasonVisible ? 'block' : 'none';
     document.getElementById('season-content-section').style.display = seasonVisible ? 'block' : 'none';
-    loopClimbUi.render();
+    loopClimbUi.render(); worldTreeBarkUi.renderBarkPanel();
     let seasonRoadmapKeys = Object.keys(SEASON_CONTENT_ROADMAP).map(Number).filter(v => Number.isFinite(v) && v >= 1).sort((a, b) => a - b);
     let collapsePast = game.settings.collapsePastLoopMilestones !== false;
     let roadmapToggle = document.getElementById('btn-toggle-past-loop-milestones');

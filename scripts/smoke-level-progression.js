@@ -54,10 +54,13 @@ assert.equal(notices.length,noticeCount+1,'explicit-slot rejection uses the same
 assert.equal(run('JSON.stringify(game.inventory)'),before,'rejected equip is atomic');
 run("game.actRewardBonuses[0].value=52;game.level=1");
 assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false);
-run('weapon.inheritedLevelExempt=true');
-assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),true,'inherited gear exempts level only');
+run('weapon.loopSealed=true');
+assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false,'sealed gear keeps its level requirement');
+run('game.level=100');
+assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),true);
 run('game.actRewardBonuses[0].value=0');
-assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false,'inheritance does not exempt attributes');
+assert.equal(run("combatEquipmentStats.inspect(weapon,'무기').ok"),false,'sealed gear keeps its attribute requirement');
+run('delete weapon.loopSealed;game.level=1');
 run(`var legacy=JSON.parse(JSON.stringify(defaultGame));
     legacy.equipment['무기']=JSON.parse(JSON.stringify(weapon));
     delete legacy.equipment['무기'].requirementsVersion;

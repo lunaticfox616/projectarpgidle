@@ -8,7 +8,7 @@ const combatEquipmentStats = (() => {
     function missing(item, attributes, owner, maintaining, slot) {
         if (maintaining && item.legacyRequirementGrace) return [];
         const req = levelProgression.requirements(item), result = [];
-        if (!item.inheritedLevelExempt && owner.level < req.level) result.push(`레벨 ${req.level}`);
+        if (owner.level < req.level) result.push(`레벨 ${req.level}`);
         for (const [key, value] of Object.entries(req.attributes)) {
             if ((attributes[key] || 0) < value) result.push(`${getStatName(key)} ${value}`);
         }
@@ -95,7 +95,7 @@ const combatEquipmentStats = (() => {
     }
     function inspect(item, slot, owner = game) {
         const current = evaluate(owner);
-        const key = JSON.stringify([slot, item.baseId, item.baseName, item.inheritedLevelExempt, item.rarity, item.name]);
+        const key = JSON.stringify([slot, item.baseId, item.baseName, item.rarity, item.name]);
         if (current.inspections.has(key)) return current.inspections.get(key);
         const equipment = { ...owner.equipment, [slot]: null };
         for (const key of Object.keys(current.disabled)) equipment[key] = null;
