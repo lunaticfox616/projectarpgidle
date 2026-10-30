@@ -323,7 +323,7 @@ begin
         raise exception 'HALL_ITEM_REJECTED';
     end if;
     if jsonb_typeof(item_data -> 'stats') is distinct from 'array'
-       or jsonb_array_length(public.hall_array(item_data -> 'stats')) > case when item_data ->> 'rarity' = 'rare' then 7 else 8 end
+       or jsonb_array_length(public.hall_array(item_data -> 'stats')) > (case when item_data ->> 'rarity' = 'rare' then 7 else 8 end)
        or jsonb_typeof(item_data -> 'baseStats') is distinct from 'array'
        or jsonb_array_length(public.hall_array(item_data -> 'baseStats')) > 8
        or exists (select 1 from (
@@ -518,7 +518,7 @@ begin
         revision = revision + 1, updated_at = now() where user_id = account_id;
     update public.hall_listings set copies_sold = copies_sold + 1,
         status = case when copies_sold + 1 >= copy_cap then 'sold_out' else status end,
-        retired_at = case when copies_sold + 1 >= copy_cap then now() else retired_at end
+        retired_at = (case when copies_sold + 1 >= copy_cap then now() else retired_at end)
      where id = listing_row.id;
     insert into public.hall_curator_profiles(user_id, honor, copies_shared)
     values (listing_row.curator_id, listing_row.honor_per_copy, 1)
