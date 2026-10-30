@@ -21,7 +21,7 @@ const npcRosterUi = (() => {
         const met = game.npcMet[npc.id], zone = getZone(met.zoneId);
         const where = `${zone && zone.name ? `${escapeHTML(zone.name)}, ` : ''}${met.count}번 만남`;
         return `<li><button type="button" class="npc-roster-card" data-npc-open="${npc.id}" data-tone="${escapeHTML(met.tone || 'gold')}">
-            <span class="npc-roster-face"><img class="npc-roster-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.png" alt=""></span>
+            <span class="npc-roster-face"><img class="npc-roster-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.webp" alt=""></span>
             <span class="npc-roster-text"><strong>${escapeHTML(npc.name)}</strong><small>${escapeHTML(npc.title)}</small>
             <span class="npc-roster-where">${where}</span><span class="npc-roster-tags">${rosterTagsHtml(npc)}</span></span></button></li>`;
     }

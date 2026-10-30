@@ -6079,7 +6079,7 @@ function itemExplicitAffixHeaderHtml(item, count) {
         ? { text: `추가 옵션 ${count}개 (계승 ${item.stats.filter(stat => stat.fusedFromRare).length}개)`, over: false }
         : equipmentCrafting.affixHeader(item.rarity, count, used);
     const style = header.over ? ' style="color:#ffb454;"' : '';
-    const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">예전 규칙으로 한도를 넘은 장비: 넘친 종류에는 더 붙지 않습니다.</div>' : '';
+    const note = header.over ? '<div class="tooltip-line" style="color:#ffb454;">레거시 아이템</div>' : '';
     return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${header.text}</span></div>${note}`;
 }
 

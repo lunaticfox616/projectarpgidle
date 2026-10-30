@@ -623,7 +623,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice::before { content: none; }
 :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice:hover:not(:disabled) { box-shadow: var(--px-gold-rim); transform: translateY(-2px); }
-:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { position: static; flex: 0 0 auto; width: 100%; height: 150px; border-radius: 0; object-position: center bottom; filter: none; }
+:root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { position: static; flex: 0 0 auto; width: 100%; height: auto; aspect-ratio: 2 / 3; border-radius: 0; object-position: center top; filter: none; }
 :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice strong {
   flex: 1 1 auto;
   margin: 0;
@@ -655,6 +655,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   :root body[data-ui-skin] :is(#loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #death-overlay, #patch-notes-overlay) .tutorial-card { max-height: calc(100dvh - 16px); overflow-y: auto; }
   /* 직업 선택: 카드 목록만 스크롤하고 확인 판("이 직업으로 시작")은 늘 판 아래에 보인다. 노치 · 홈 막대(안전 영역)는 비운다. */
   :root body[data-ui-skin] #loop-hero-select-overlay { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  /* 카드가 넓은 화면(한 줄 여섯 칸이 아닌 때): 2:3 초상의 위쪽, 머리와 어깨까지 */
+  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { aspect-ratio: 3 / 2; }
   :root body[data-ui-skin] #loop-hero-select-overlay .tutorial-card { display: flex; flex-direction: column; box-sizing: border-box; max-height: calc(100% - 16px); overflow: hidden; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-confirm { display: flex; flex: none; flex-direction: column; gap: 8px; margin-top: 10px; }
@@ -683,17 +685,12 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-detail .tooltip-line { margin: 0; color: var(--px-copy); line-height: 1.5; text-shadow: var(--px-text-edge); }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-start { width: 100%; min-height: 44px; font-size: 12px; }
 }
-@media (max-width: 760px) {
-  /* 좁은 화면: 초상은 작게 */
-  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { height: 84px; }
-}
 @media (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
   /* 가로로 눕힌 휴대폰: 아래 확인 판이 카드 목록 높이를 다 먹었다 — 판을 목록 오른쪽에 세우고 긴 설명은 판 안에서 스크롤한다 */
   :root body[data-ui-skin] #loop-hero-select-overlay .tutorial-card { flex-direction: row; gap: 12px; padding: 12px; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-scroll { min-width: 0; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-confirm { width: min(260px, 38%); margin-top: 0; }
   :root body[data-ui-skin] #loop-hero-select-overlay :is(.hero-choice-detail, .hero-choice-hint) { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-portrait { height: 84px; }
 }
 
 /* ─── 역할별 글꼴 규칙 (docs/ui-display.md) ───────────────────────────────────────────
