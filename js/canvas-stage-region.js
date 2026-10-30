@@ -121,7 +121,7 @@ const stageRegion = (() => {
     }
     function drawRoomPicture(ctx, view, p, area) {
         const room = view.room, dot = p.tileW / WIDE, fit = roomPictureFit(view.map, room, dot), region = fit.region, scale = fit.scale;
-        const w = region.width * scale, h = region.height * scale;
+        const w = stageDots.span(region.width * scale), h = stageDots.span(region.height * scale);
         const x = Math.round(p.mapX + (room.x0 + room.x1 + 1) / 2 * p.tileW - w / 2), y = Math.round(p.mapY + room.y0 * p.tileH - region.ground * scale);
         ctx.fillStyle = region.earth;
         ctx.fillRect(0, 0, area.width, area.height);
@@ -129,11 +129,11 @@ const stageRegion = (() => {
         ctx.fillRect(0, 0, area.width, Math.max(0, y + 2));
         ctx.imageSmoothingEnabled = false;
         // 이웃한 방이 똑같아 보이지 않게, 정해진 방은 좌우로 뒤집어 그린다(js/act-exploration-rooms.js roomMirrored)
-        if (room.mirror) { ctx.save(); ctx.translate(x * 2 + Math.round(w), 0); ctx.scale(-1, 1); }
-        ctx.drawImage(roomPictureSource(fit), x, y, Math.round(w), Math.round(h));
-        if (typeof stageOcean === 'object') stageOcean.light(ctx, view.map.region, { x, y, w: Math.round(w), h: Math.round(h) }); // 심해 띠의 빛줄기, 같은 뒤집기
+        if (room.mirror) { ctx.save(); ctx.translate(x * 2 + w, 0); ctx.scale(-1, 1); }
+        ctx.drawImage(roomPictureSource(fit), x, y, w, h);
+        if (typeof stageOcean === 'object') stageOcean.light(ctx, view.map.region, { x, y, w, h }); // 심해 띠의 빛줄기, 같은 뒤집기
         if (room.mirror) ctx.restore();
-        blendPictureEdges(ctx, region, { y, h: Math.round(h), reach: Math.round(BLEND_DOTS * dot) }, area);
+        blendPictureEdges(ctx, region, { y, h, reach: Math.round(BLEND_DOTS * dot) }, area);
     }
     /** 방 그림이 방 바닥의 뒤쪽 끝(바닥선) 위로 올라가는 높이(칸 너비 단위, js/canvas-stage-scene.js coverTile). 지역 그림이 없는 지도는 0. */
     function pictureRise(map) {
@@ -292,7 +292,7 @@ const stageRegion = (() => {
         if (pieceHidesHero(actor, state, size, drawnDot)) ctx.globalAlpha *= 0.5;
         if (piece.flip) { ctx.translate(Math.round(actor.point.x) * 2, 0); ctx.scale(-1, 1); }
         const file = regionPieceFile(piece.region, piece.name), shade = typeof stageOcean === 'object' ? stageOcean.shade() : null;
-        ctx.drawImage(shade ? shadedRegionPiece(file, dot, shade) : fittedRegionPiece(file, dot), at.x, at.y, size[0] * drawnDot, size[1] * drawnDot);
+        ctx.drawImage(shade ? shadedRegionPiece(file, dot, shade) : fittedRegionPiece(file, dot), at.x, at.y, stageDots.span(size[0] * drawnDot), stageDots.span(size[1] * drawnDot));
         ctx.restore();
     }
     /** 어두운 심해 띠의 소품(js/canvas-stage-ocean.js shade): 화면 배율로 옮겨 둔 조각에 그 띠의 어둠을 얹은 그림. 공용 심해 소품은
