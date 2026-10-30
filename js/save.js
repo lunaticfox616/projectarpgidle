@@ -241,7 +241,7 @@ function dropRuntimeOnlySaveFields(target) {
 }
 
 function createSaveSnapshot(sourceGame) {
-    let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
+    let snapshot = JSON.parse(JSON.stringify(itemSaveSlim.slimTree(sourceGame || game || {})));
     snapshot.craftingWorkspace = craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
     snapshot.actExploration = actExplorationRooms.seal(snapshot.actExploration);
     dropRuntimeOnlySaveFields(snapshot);
@@ -257,7 +257,7 @@ function serializeSaveState(sourceGame) {
     serializable.craftingWorkspace = craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
     serializable.actExploration = actExplorationRooms.seal(root.actExploration);   // 방 단위 탐험: 앞선 판이 탐험만 버리고 읽는 모양으로
     dropRuntimeOnlySaveFields(serializable);
-    return JSON.stringify(serializable);
+    return JSON.stringify(itemSaveSlim.slimTree(serializable));   // 장비 줄은 다시 만들 수 있는 칸을 뺀 복사본으로(js/item-save-slim.js)
 }
 
 function createCloudSavePayload(sourceGame) {
@@ -304,7 +304,7 @@ function createCloudSyncPayload(sourceGame) {
     payload.craftingWorkspace = craftingWorkspaceState.normalize(payload.craftingWorkspace, payload.currencies);
     payload.actExploration = actExplorationRooms.seal(payload.actExploration);
     dropRuntimeOnlySaveFields(payload);
-    return payload;
+    return itemSaveSlim.slimTree(payload);   // 올리는 본문과 그 지문(cloudSaveFingerprint)이 같은 축약 모양을 쓴다
 }
 function createCloudSaveRequestBody(userId, sourceGame) {
     return JSON.stringify({ user_id: userId, save_data: createCloudSyncPayload(sourceGame) });
