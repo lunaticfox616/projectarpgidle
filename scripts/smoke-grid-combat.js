@@ -38,7 +38,7 @@ const files = [
   'js/save.js',
   'js/items.js', 'js/weapon-categories.js',
   'js/equipment-crafting.js',
-  'js/passive-routing.js', 'js/passives.js',
+  'js/passive-routing.js', 'js/passives.js', 'js/item-save-slim.js',
   'js/loot.js', 'js/gem-drop-rewards.js',
   'js/unique-hunt.js',
   'js/background-build-cache.js',

@@ -95,25 +95,29 @@ $$;
 -- 장비 한 줄이 게임에서 나올 수 없는 수치인가(js/guest-save-check.js statProblem, data/constants.js GUEST_SAVE_CHECK와 같다):
 -- 값이 천만을 넘거나, 티어가 20을 넘거나, 그 줄의 굴림 범위 최댓값보다 범위 크기 + 1만큼 넘게 크다(최댓값의 2배쯤).
 -- 뛰어난 기반(1.2배), 오염(1.15배), 잉걸불(0.8~1.2배)을 겹쳐도 이 여유 안에 든다. 굴림 범위가 없는 줄은 앞의 두 기준만 본다.
+-- 굴림 범위는 2026-10-30부터 hall_line_bounds(db/equipment-hall.sql)가 준다: 추가 옵션 줄은 추가 옵션 표, 베이스 줄은 베이스 옵션 표,
+-- 표에 없는 줄과 그 밖의 줄만 줄에 적힌 범위(클라이언트는 다시 만들 수 있는 범위를 빼고 저장한다, js/item-save-slim.js).
 -- 보는 줄은 게임이 능력치에 더하는 줄 모두다(js/equipment-stat-resolution.js): 추가 옵션과 그 둘째 수치(extraStats), 베이스 옵션,
 -- 잿불 줄(emberLines), 하급 부여(underEnchant), 혼돈 주입(chaosInfusion), 고른 잠식 줄(encroached.chosen). 없는 칸은 null이라 빠진다.
 create or replace function public.hall_item_out_of_range(item_data jsonb)
-returns boolean language sql immutable set search_path = public as $$
+returns boolean language sql stable set search_path = public as $$
     select exists (
         select 1
-          from jsonb_array_elements(public.hall_array(item_data -> 'stats') || public.hall_array(item_data -> 'baseStats')
-                   || public.hall_array(item_data -> 'emberLines') || jsonb_path_query_array(item_data, '$.stats[*].extraStats[*]')
-                   || jsonb_build_array(item_data -> 'underEnchant', item_data -> 'chaosInfusion', item_data #> '{encroached,chosen}')) line
+          from (select value as line, 'stat' as line_kind from jsonb_array_elements(public.hall_array(item_data -> 'stats'))
+                union all
+                select value, 'base' from jsonb_array_elements(public.hall_array(item_data -> 'baseStats'))
+                union all
+                select value, 'other' from jsonb_array_elements(public.hall_array(item_data -> 'emberLines')
+                    || jsonb_path_query_array(item_data, '$.stats[*].extraStats[*]')
+                    || jsonb_build_array(item_data -> 'underEnchant', item_data -> 'chaosInfusion', item_data #> '{encroached,chosen}'))) lines
          cross join lateral (
-               select public.cheat_number(line -> 'val') as val,
-                      coalesce(nullif(line -> 'valMin', 'null'::jsonb), line -> 'baseRollMin') as low_data,
-                      coalesce(nullif(line -> 'valMax', 'null'::jsonb), line -> 'baseRollMax') as high_data) roll
-         where jsonb_typeof(line -> 'val') = 'number'
+               select public.cheat_number(lines.line -> 'val') as val,
+                      public.hall_line_bounds(item_data, lines.line, lines.line_kind) as bounds) roll
+         where jsonb_typeof(lines.line -> 'val') = 'number'
            and (abs(roll.val) > 10000000
-                or public.cheat_number(line -> 'tier') > 20
-                or (jsonb_typeof(roll.low_data) = 'number' and jsonb_typeof(roll.high_data) = 'number'
-                    and roll.val > greatest(public.cheat_number(roll.low_data), public.cheat_number(roll.high_data))
-                                 + greatest(abs(public.cheat_number(roll.low_data)), abs(public.cheat_number(roll.high_data)), 1) + 1))
+                or public.cheat_number(lines.line -> 'tier') > 20
+                or (roll.bounds is not null
+                    and roll.val > roll.bounds[2] + greatest(abs(roll.bounds[1]), abs(roll.bounds[2]), 1) + 1))
     );
 $$;
 

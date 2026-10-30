@@ -2,7 +2,6 @@ function normalizeCloudUploadProfile(profile) {
     if (!profile || typeof profile !== 'object') return null;
     return {
         at: Math.max(0, Math.floor(Number(profile.at) || 0)),
-        fetchMs: Math.max(0, Math.floor(Number(profile.fetchMs) || 0)),
         serializeMs: Math.max(0, Math.floor(Number(profile.serializeMs) || 0)),
         uploadMs: Math.max(0, Math.floor(Number(profile.uploadMs) || 0)),
         totalMs: Math.max(0, Math.floor(Number(profile.totalMs) || 0)),
@@ -12,6 +11,63 @@ function normalizeCloudUploadProfile(profile) {
 
 
 // Phase-2 extracted save helpers and persistence flow.
+
+/** The save slot this page reads and writes (2026-10-30). The guest slot (LOCAL_SAVE_KEY) lives on this device only and never goes to
+ * the server. An account's slot (ACCOUNT_SAVE_KEY_PREFIX + account id) holds this device's copy of that account's server save plus
+ * what it has not uploaded yet (saveMeta.cloudPending); the account mode reads and writes only that slot. userId is null for the guest. */
+const saveSlot = { kind: 'guest', key: LOCAL_SAVE_KEY, userId: null };
+
+function accountSaveKey(userId) {
+    return `${ACCOUNT_SAVE_KEY_PREFIX}${userId}`;
+}
+
+/** Makes an account's slot (userId) or the guest slot (null) the one loadGame and persistLocalSave use. */
+function selectSaveSlot(userId) {
+    saveSlot.kind = userId ? 'account' : 'guest';
+    saveSlot.userId = userId || null;
+    saveSlot.key = userId ? accountSaveKey(userId) : LOCAL_SAVE_KEY;
+}
+
+function getSaveSlot() {
+    return { ...saveSlot };
+}
+
+/** The guest slot's save as parsed data, whichever slot is active; null when there is none or it cannot be read. */
+function readGuestSave() {
+    try {
+        const raw = localStorage.getItem(LOCAL_SAVE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        console.warn('guest save could not be read:', error);
+        return null;
+    }
+}
+
+/** Removes the guest save (after it moved into an account), with its earlier key names and corrupt copies. */
+function removeGuestSave() {
+    const earlier = /^[a-z]{3}IdleSaveData_/i;
+    Object.keys(localStorage).filter(key => key === LOCAL_SAVE_KEY || earlier.test(key) || key.startsWith(`${LOCAL_SAVE_KEY}_corrupt_`))
+        .forEach(key => localStorage.removeItem(key));
+}
+
+/** Before the slots (2026-10-30) one key held whichever save was last played, so the guest slot may hold an account's save
+ * (saveMeta.cloudUserId). Once, at boot: it moves into that account's slot (unless that slot already exists) and the guest slot
+ * empties, so an account save never shows up as a guest save (which could be moved into another account). Returns the moved key or null. */
+function migrateOwnedGuestSave() {
+    try {
+        const raw = localStorage.getItem(LOCAL_SAVE_KEY);
+        const owner = raw ? JSON.parse(raw)?.saveMeta?.cloudUserId : null;
+        if (typeof owner !== 'string' || !owner.trim()) return null;
+        const key = accountSaveKey(owner);
+        if (!localStorage.getItem(key)) localStorage.setItem(key, raw);
+        localStorage.removeItem(LOCAL_SAVE_KEY);
+        return key;
+    } catch (error) {
+        console.warn('owned guest save migration skipped:', error);
+        return null;
+    }
+}
+
 const localSaveRuntimeState = {
     status: 'uninitialized',
     writable: true,
@@ -84,9 +140,9 @@ function canPersistLocalSave(options = {}) {
 
 function readLocalSaveResult() {
     try {
-        let save = localStorage.getItem(LOCAL_SAVE_KEY);
-        if (save) return { status: 'ok', save, sourceKey: LOCAL_SAVE_KEY };
-        for (const key of getLegacySaveKeys()) {
+        let save = localStorage.getItem(saveSlot.key);
+        if (save) return { status: 'ok', save, sourceKey: saveSlot.key };
+        for (const key of saveSlot.kind === 'guest' ? getLegacySaveKeys() : []) {
             save = localStorage.getItem(key);
             if (save) return { status: 'ok', save, sourceKey: key };
         }
@@ -96,7 +152,7 @@ function readLocalSaveResult() {
     }
 }
 
-/** Saves under an earlier key name (LEGACY_SAVE_KEY_PATTERN), the newest key version first. The next save writes LOCAL_SAVE_KEY. */
+/** Guest saves under an earlier key name (LEGACY_SAVE_KEY_PATTERN), the newest key version first. The next save writes LOCAL_SAVE_KEY. */
 function getLegacySaveKeys() {
     return Object.keys(localStorage).map(key => [key, LEGACY_SAVE_KEY_PATTERN.exec(key)]).filter(([, match]) => match)
         .sort((a, b) => Number(b[1][1]) - Number(a[1][1])).map(([key]) => key);
@@ -108,11 +164,15 @@ function readLocalSaveString() {
     return result.save;
 }
 
-const CORRUPT_SAVE_BACKUP_PREFIX = `${LOCAL_SAVE_KEY}_corrupt_`;
-/** The corrupt save's backups, newest first. */
+/** Where the active slot's corrupt copies go: its key plus _corrupt_ and the time. */
+function corruptSaveBackupPrefix() {
+    return `${saveSlot.key}_corrupt_`;
+}
+/** The active slot's corrupt save backups, newest first. */
 function corruptSaveBackupKeys() {
-    return Object.keys(localStorage).filter(key => key.startsWith(CORRUPT_SAVE_BACKUP_PREFIX))
-        .sort((a, b) => Number(b.slice(CORRUPT_SAVE_BACKUP_PREFIX.length)) - Number(a.slice(CORRUPT_SAVE_BACKUP_PREFIX.length)));
+    const prefix = corruptSaveBackupPrefix();
+    return Object.keys(localStorage).filter(key => key.startsWith(prefix))
+        .sort((a, b) => Number(b.slice(prefix.length)) - Number(a.slice(prefix.length)));
 }
 /** Keeps a copy of a save that failed to load. The same corrupt save is kept once, and only the two newest copies stay (2026-10-26:
  * every page load with the corrupt save still in place wrote another full copy, until the storage quota was used up). */
@@ -123,7 +183,7 @@ function preserveCorruptLocalSave(rawSave) {
         const same = kept.find(key => localStorage.getItem(key) === rawSave);
         if (same) return same;
         kept.slice(1).forEach(key => localStorage.removeItem(key));
-        let backupKey = `${CORRUPT_SAVE_BACKUP_PREFIX}${Date.now()}`;
+        let backupKey = `${corruptSaveBackupPrefix()}${Date.now()}`;
         localStorage.setItem(backupKey, rawSave);
         return backupKey;
     } catch (error) {
@@ -143,17 +203,18 @@ function ensureSaveMeta() {
         game.saveMeta.cloudUserId = null;
     }
     game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(game.saveMeta.cloudRevision) || 0));
-    if (!Number.isSafeInteger(game.saveMeta.cloudResetRevision) || game.saveMeta.cloudResetRevision < 0) game.saveMeta.cloudResetRevision = 0;
+    // cloudPending: an account slot has been written since its last commit to the server (the next account entry uploads it first).
+    game.saveMeta.cloudPending = game.saveMeta.cloudPending === true;
 }
 
 /** Persist a fresh save atomically before removing legacy copies; unrelated browser data stays intact. */
 function resetLocalSave(snapshot) {
-    localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(snapshot));
+    localStorage.setItem(saveSlot.key, serializeSaveState(snapshot));
     // Once the canonical save exists, legacy copies are never selected by loadGame().
     try {
-        // Earlier key names (and their corrupt backups) and this key's corrupt backups.
+        // This slot's corrupt backups, and for the guest slot its earlier key names (with their corrupt backups).
         let earlier = /^[a-z]{3}IdleSaveData_/i;
-        Object.keys(localStorage).filter(key => key !== LOCAL_SAVE_KEY && (earlier.test(key) || key.startsWith(`${LOCAL_SAVE_KEY}_`)))
+        Object.keys(localStorage).filter(key => key !== saveSlot.key && (key.startsWith(corruptSaveBackupPrefix()) || (saveSlot.kind === 'guest' && earlier.test(key))))
             .forEach(key => localStorage.removeItem(key));
     } catch (error) {
         console.warn('새 진행은 저장했지만 이전 세이브 사본 정리에 실패했습니다:', error);
@@ -180,7 +241,7 @@ function dropRuntimeOnlySaveFields(target) {
 }
 
 function createSaveSnapshot(sourceGame) {
-    let snapshot = JSON.parse(JSON.stringify(sourceGame || game || {}));
+    let snapshot = JSON.parse(JSON.stringify(itemSaveSlim.slimTree(sourceGame || game || {})));
     snapshot.craftingWorkspace = craftingWorkspaceState.normalize(snapshot.craftingWorkspace, snapshot.currencies);
     snapshot.actExploration = actExplorationRooms.seal(snapshot.actExploration);
     dropRuntimeOnlySaveFields(snapshot);
@@ -196,7 +257,7 @@ function serializeSaveState(sourceGame) {
     serializable.craftingWorkspace = craftingWorkspaceState.normalize(root.craftingWorkspace, root.currencies);
     serializable.actExploration = actExplorationRooms.seal(root.actExploration);   // 방 단위 탐험: 앞선 판이 탐험만 버리고 읽는 모양으로
     dropRuntimeOnlySaveFields(serializable);
-    return JSON.stringify(serializable);
+    return JSON.stringify(itemSaveSlim.slimTree(serializable));   // 장비 줄은 다시 만들 수 있는 칸을 뺀 복사본으로(js/item-save-slim.js)
 }
 
 function createCloudSavePayload(sourceGame) {
@@ -243,7 +304,7 @@ function createCloudSyncPayload(sourceGame) {
     payload.craftingWorkspace = craftingWorkspaceState.normalize(payload.craftingWorkspace, payload.currencies);
     payload.actExploration = actExplorationRooms.seal(payload.actExploration);
     dropRuntimeOnlySaveFields(payload);
-    return payload;
+    return itemSaveSlim.slimTree(payload);   // 올리는 본문과 그 지문(cloudSaveFingerprint)이 같은 축약 모양을 쓴다
 }
 function createCloudSaveRequestBody(userId, sourceGame) {
     return JSON.stringify({ user_id: userId, save_data: createCloudSyncPayload(sourceGame) });
@@ -298,20 +359,27 @@ function getSaveModifiedAt() {
     return still && at > 0 ? Math.min(at, now) : now;
 }
 
+/** A write that carries a change: the save's modified time, and in an account slot the pending mark (cleared by the commit that
+ * carries the change, js/ui.js rememberCloudCommit). */
+function touchSaveMeta() {
+    game.saveMeta.lastModifiedAt = getSaveModifiedAt();
+    if (saveSlot.kind === 'account') game.saveMeta.cloudPending = true;
+}
+
 function persistLocalSave(options = {}) {
     if (!canPersistLocalSave(options)) return false;
     ensureSaveMeta();
     noteSaveClock(game.saveMeta);
     stampGameBuild(game.saveMeta);
-    if (options.touchModifiedAt !== false) game.saveMeta.lastModifiedAt = getSaveModifiedAt();
+    if (options.touchModifiedAt !== false) touchSaveMeta();
     try {
-        localStorage.setItem(LOCAL_SAVE_KEY, serializeSaveState(game));
+        localStorage.setItem(saveSlot.key, serializeSaveState(game));
     } catch (error) {
         try {
             let sanitized = sanitizeForSave(game || {});
             if (!sanitized.saveMeta || typeof sanitized.saveMeta !== 'object') sanitized.saveMeta = {};
             delete sanitized.talentCardRuntime;
-            localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(sanitized));
+            localStorage.setItem(saveSlot.key, JSON.stringify(sanitized));
             if (typeof addLog === 'function') addLog('💾 저장 데이터 정리 후 로컬 저장을 복구했습니다.', 'season-up');
         } catch (retryError) {
             console.error('local save failed:', error, retryError);
@@ -324,7 +392,7 @@ function persistLocalSave(options = {}) {
             return false;
         }
     }
-    setLocalSaveRuntimeState('ok', { writable: true, sourceKey: LOCAL_SAVE_KEY });
+    setLocalSaveRuntimeState('ok', { writable: true, sourceKey: saveSlot.key });
     refreshItemIdCounter();
     return true;
 }
@@ -401,6 +469,12 @@ function loadGame() {
     return getLocalSaveStatus();
 }
 
+/** The boot's load (js/main.js init): the one-time move of an account save out of the guest slot, then the guest slot. */
+function loadGameAtBoot() {
+    migrateOwnedGuestSave();
+    return loadGame();
+}
+
 function saveGame(options = {}) {
     let manual = !!options.manual;
     // Only a known write failure may be retried. Unread/corrupt saves and ongoing
@@ -448,4 +522,4 @@ function setCloudMessage(message) {
 }
 
 
-safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, resetLocalSave, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSaveRequestBody, persistLocalSave, loadGame, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
+safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, resetLocalSave, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSaveRequestBody, persistLocalSave, loadGame, loadGameAtBoot, saveGame, queueImportantSave, formatCloudTime, setCloudMessage, selectSaveSlot, getSaveSlot, accountSaveKey, readGuestSave, removeGuestSave, migrateOwnedGuestSave });

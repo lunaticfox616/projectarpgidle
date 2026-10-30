@@ -3248,8 +3248,8 @@ const CHAOS_REALM_BONUS_CHIPS = [['피해', 'pctDmg', 1], ['이동 속도', 'mov
     ['저항 관통', 'resPen', 0], ['방어, 회피, 보호막', 'armorPct', 0], ['치명타 피해', 'critDmg', 0], ['공격 속도', 'aspd', 0]];
 function chaosRealmDetailHtml(st, best) {
     let floor = Math.max(1, Math.floor(st.currentFloor || 1)), zone = getZone(CHAOS_REALM_ZONE_ID), bonus = st.permanentBonuses || {};
-    let traits = getChaosRealmAffixes(floor).map(affix => `<span><b>${affix.name}</b> ${affix.desc}</span>`).join('');
-    let bonuses = CHAOS_REALM_BONUS_CHIPS.map(([name, key, digits]) => `<span class="${bonus[key] ? '' : 'is-zero'}">${name} <b>+${(Number(bonus[key]) || 0).toFixed(digits)}%</b></span>`).join('');
+    let traits = getChaosRealmAffixes(floor).map(affix => `<span class="is-affix"><b>${affix.name}</b> ${affix.desc}</span>`).join('');
+    let bonuses = CHAOS_REALM_BONUS_CHIPS.map(([name, key, digits]) => `<span class="has-stat${bonus[key] ? '' : ' is-zero'}" style="--stat-tone:${getItemStatToneColor(key)}">${name} <b>+${(Number(bonus[key]) || 0).toFixed(digits)}%</b></span>`).join('');
     return `<div class="chaos-realm-body"><section class="underworld-upgrade-card underworld-reward-card"><div><strong>${floor}층 특징</strong>`
         + `<span>난이도 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급</span></div><div class="underworld-ticket-strip">${traits}</div></section>`
         + `<section class="underworld-upgrade-card underworld-reward-card"><div><strong>영구 보너스</strong><span>층을 처음 깰 때 쌓이고, 루프가 지나도 남습니다.`
@@ -11104,18 +11104,32 @@ function getStartupStatusText() {
     return STARTUP_IDLE_MESSAGES.has(message) ? '' : message;
 }
 
-/** 이 기기 저장의 시각. 저장이 있으면 게스트 단추는 "이어하기"(처음이면 "게스트로 시작"), 저장이 없으면 요약 칸 대신
- * "새 모험"만 보인다(처음 온 사람에게 Lv.1 · 루프 1 · 마지막 저장 없음이라는 빈 저장을 보여 주지 않는다). */
+/** The summary card and the guest button. In the guest slot (boot, or after leaving an account) the card is this device's guest save:
+ * with a save the guest button says "이어하기" (else "게스트로 시작"), without one the card says "새 모험" and shows no grid (a first visitor
+ * is not shown Lv.1, 루프 1, 마지막 저장 없음). The gate reopened from an account shows the account save instead, and the guest button
+ * follows the guest save noted at the account entry (cloudState.guestSaveSummary). */
 function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
-    const hasSave = localStamp > 0;
+    const card = startupSaveCardState(localStamp);
     if (timeEl) timeEl.innerText = formatCloudTime(localStamp);
-    if (guestBtn) guestBtn.textContent = hasSave ? '이 기기 저장으로 이어하기' : '게스트로 시작';
-    const card = document.querySelector('.startup-summary-card');
-    if (!card) return;
-    card.querySelector('.startup-summary-grid').hidden = !hasSave;
+    if (guestBtn) guestBtn.textContent = card.hasGuestSave ? '이 기기 저장으로 이어하기' : '게스트로 시작';
+    const cardEl = document.querySelector('.startup-summary-card');
+    if (!cardEl) return;
+    cardEl.querySelector('.startup-summary-grid').hidden = !card.hasSave;
     const blocked = getStartupBlockedSaveNotice(getLocalSaveStatus());
-    renderStartupSaveHint(card.querySelector('.startup-summary-hint'), hasSave, blocked && blocked.hint);
-    card.querySelector('.startup-summary-title').textContent = blocked ? blocked.title : (hasSave ? '이 기기 저장' : '새 모험');
+    renderStartupSaveHint(cardEl.querySelector('.startup-summary-hint'), card.hasSave, blocked && blocked.hint, card.emptyText);
+    cardEl.querySelector('.startup-summary-title').textContent = blocked ? blocked.title : card.title;
+}
+
+/** What the summary card and the guest button show for the slot in use (renderStartupLocalSave). */
+function startupSaveCardState(localStamp) {
+    const account = getSaveSlot().kind === 'account';
+    const hasSave = account || localStamp > 0;
+    return {
+        hasSave,
+        hasGuestSave: account ? !!cloudState.guestSaveSummary : hasSave,
+        title: account ? '계정 저장' : (hasSave ? '이 기기 저장' : '새 모험'),
+        emptyText: cloudState.user ? '이 기기에는 게스트 저장이 없습니다. 계정 저장으로 이어 할 수 있습니다.' : null
+    };
 }
 
 /** 이 기기 저장을 쓸 수 없어 멈춘 경우의 제목과 안내(js/save.js loadGame): 읽지 못한 저장(corrupt, 원래 저장은 따로 보관한다)과
@@ -11128,10 +11142,10 @@ function getStartupBlockedSaveNotice(status) {
 
 /** 요약 칸 아래 한 줄. 이 기기 저장을 쓸 수 없으면(warning) "저장된 모험이 없습니다" 대신 그 까닭을 알린다(2026-10-27: 새 모험으로 보여
  * 시작한 진행이 말없이 저장되지 않았다). */
-function renderStartupSaveHint(hint, hasSave, warning) {
+function renderStartupSaveHint(hint, hasSave, warning, emptyText) {
     if (!hint) return;
     hint.dataset.emptyText ??= hint.textContent;
-    hint.textContent = warning || hint.dataset.emptyText;
+    hint.textContent = warning || emptyText || hint.dataset.emptyText;
     hint.classList.toggle('is-warning', !!warning);
     hint.hidden = hasSave && !warning;
 }
@@ -11550,10 +11564,10 @@ function applyCloudSession(session) {
     let previousUserId = cloudState.user && cloudState.user.id;
     let nextUserId = session && session.user && session.user.id;
     if (previousUserId !== nextUserId) {
-        cloudState.lastSyncedLocalModifiedAt = 0;
         cloudState.lastRemoteRevision = 0;
-        cloudState.lastRemoteResetRevision = 0;
-        cloudState.pendingAutoSyncDirty = false;
+        cloudState.syncHalted = false;
+        cloudState.uploadFailureNoticed = false;
+        cloudState.lastUploadedFingerprint = null;
         cloudState.pendingForcedSyncOptions = null;
         if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
         cloudSyncTimer = null;
@@ -11803,24 +11817,24 @@ async function continueWithCloudSession() {
     if (!cloudState.user || cloudState.busy) return;
     cloudState.busy = true;
     setLoadingOverlayState(true, {
-        title: '클라우드 세이브를 여는 중...',
-        detail: '계정 연결을 확인하고 최신 진행도를 비교하고 있습니다.',
-        caption: '클라우드 확인',
+        title: '계정 저장을 여는 중...',
+        detail: '서버 저장을 확인하고 있습니다.',
+        caption: '서버 확인',
         progress: 14
     });
-    setCloudMessage('클라우드 세이브를 확인하고 있습니다...');
+    setCloudMessage('서버 저장을 확인하고 있습니다...');
     updateCloudSaveUI();
     try {
         advanceLoadingOverlay({
-            title: '클라우드 저장을 불러오는 중...',
-            detail: '같은 계정의 로컬과 클라우드 저장을 비교해 더 앞선 진행도를 적용합니다.',
-            caption: '진행도 비교',
+            title: '계정 저장을 불러오는 중...',
+            detail: '서버 저장과 이 기기의 계정 저장을 맞추고 있습니다.',
+            caption: '계정 저장',
             progress: 48
         });
-        await reconcileCloudSaveState({ preferRemoteOnResume: true, strictRemoteResume: true });
+        await enterAccountSave();
         await enterGameWorld();
     } catch (error) {
-        setCloudMessage('클라우드 세이브 연결 실패: ' + (error.message || error));
+        setCloudMessage('계정 저장 열기 실패: ' + (error.message || error));
         setLoadingOverlayState(false);
     } finally {
         cloudState.busy = false;
@@ -11829,13 +11843,12 @@ async function continueWithCloudSession() {
     }
 }
 
-function prepareStartupAccountSwitch() {
+/** 시작 화면의 다른 계정 사용: 계정 모드였으면 그 계정에서 나오고(leaveAccountForGuest), 이 기기의 로그인을 지운다. */
+async function prepareStartupAccountSwitch() {
+    if (cloudState.busy) return;
     setStartupRegistrationMode(false);
-    markSkipOAuthRestoreOnce();
-    clearSupabasePersistedSession();
-    applyCloudSession(null);
-    cloudState.lastRemoteUpdatedAt = 0;
-    cloudState.lastRemoteLoop = 0;
+    if (getSaveSlot().kind === 'account') await leaveAccountForGuest();
+    else detachCloudSessionLocally();
     setCloudMessage('다른 계정으로 로그인할 수 있습니다.');
     updateCloudSaveUI();
 }
@@ -11848,12 +11861,12 @@ function returnFromStartupGate() {
 
 async function startGuestMode() {
     if (cloudState.busy) return;
-    if (cloudState.user && !await requestGameConfirmation('복원된 로그인 세션을 사용하지 않고 이 기기의 로컬 저장으로 시작합니다.', {
-        title: '게스트 모드로 시작',
+    if (cloudState.user && !await requestGameConfirmation('계정에서 나와 이 기기의 게스트 저장으로 시작합니다. 계정 저장은 서버와 이 기기에 남습니다.', {
+        title: '게스트로 시작',
         tone: 'warning',
-        confirmLabel: '로컬 저장으로 시작'
+        confirmLabel: '게스트로 시작'
     })) return;
-    if (cloudState.user) detachCloudSessionLocally();
+    if (cloudState.user) await leaveAccountForGuest();
     setCloudMessage('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.');
     setLoadingOverlayState(true, {
         title: '게스트 세션을 준비하는 중...',
@@ -11986,42 +11999,29 @@ function updateCloudSaveUI() {
     let hintEl = document.getElementById('ui-cloud-config-hint');
     let userEl = document.getElementById('ui-cloud-user');
     let localEl = document.getElementById('ui-cloud-local-save');
-    let remoteEl = document.getElementById('ui-cloud-remote-save');
     let uploadProfileEl = document.getElementById('ui-cloud-upload-profile');
     let msgEl = document.getElementById('ui-cloud-message');
     let openGateBtn = document.getElementById('btn-cloud-open-gate');
     let canSync = config.enabled && !cloudState.busy && !!cloudState.user;
 
-    if (pill) {
-        pill.className = 'cloud-status-pill';
-        if (!config.enabled) {
-            pill.innerText = '미설정';
-        } else if (cloudState.busy) {
-            pill.classList.add('syncing');
-            pill.innerText = '처리 중';
-        } else if (cloudState.user) {
-            pill.classList.add('online');
-            pill.innerText = '연결됨';
-        } else {
-            pill.innerText = '대기 중';
-        }
-    }
+    if (pill) renderCloudStatusPill(pill, config);
     if (!config.enabled) {
         if (hintEl) hintEl.innerText = '이 버전은 클라우드 저장을 쓰지 않습니다. 진행은 이 기기에 저장됩니다.';
     } else if (cloudState.busy) {
-        if (hintEl) hintEl.innerText = '시작 화면 또는 현재 세션에서 저장 데이터를 서버와 동기화하고 있습니다.';
+        if (hintEl) hintEl.innerText = '서버와 저장을 맞추고 있습니다.';
     } else if (cloudState.user) {
-        if (hintEl) hintEl.innerText = '로그인된 계정은 수동 저장 시 자동 업로드됩니다. 계정 변경은 시작 화면을 다시 열어 진행할 수 있습니다.';
+        if (hintEl) hintEl.innerText = '서버 저장이 기준입니다. 이 기기의 변경은 자동으로 서버에 올립니다. 계정 변경은 시작 화면에서 합니다.';
     } else {
-        if (hintEl) hintEl.innerText = '로그인과 회원가입은 시작 화면에서 진행합니다. 여기서는 상태 확인과 시작 화면 재열기만 제공합니다.';
+        if (hintEl) hintEl.innerText = '게스트 저장은 이 기기에만 있습니다. 로그인과 회원가입은 시작 화면에서 합니다.';
     }
     if (pill && cloudState.lastMessage && /실패|오류/.test(cloudState.lastMessage) && !cloudState.busy) pill.classList.add('error');
 
     if (openGateBtn) openGateBtn.disabled = cloudState.busy;
-    ['btn-cloud-logout', 'btn-cloud-push', 'btn-cloud-pull', 'btn-cloud-delete'].forEach(id => {
+    ['btn-cloud-logout', 'btn-cloud-pull', 'btn-cloud-delete'].forEach(id => {
         let el = document.getElementById(id);
         if (el) el.disabled = !canSync;
     });
+    renderCloudSlotStatus(canSync);
     let linkedProviders = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders.map(it => String(it || '').toLowerCase()) : [];
     let isGoogleLinked = linkedProviders.includes('google');
     let isKakaoLinked = linkedProviders.includes('kakao');
@@ -12041,7 +12041,6 @@ function updateCloudSaveUI() {
     }
     if (userEl) userEl.innerText = cloudState.user && cloudState.user.email ? cloudState.user.email : (cloudState.user && cloudState.user.id ? cloudState.user.id : (config.enabled ? '로그인 안 됨' : '설정 필요'));
     if (localEl) localEl.innerText = formatCloudTime(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0);
-    if (remoteEl) remoteEl.innerText = formatCloudTime(cloudState.lastRemoteUpdatedAt || (game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0));
     if (uploadProfileEl) uploadProfileEl.innerText = formatCloudUploadProfile(game && game.saveMeta ? game.saveMeta.lastCloudUploadProfile : null);
     let identitiesEl = document.getElementById('ui-cloud-identities');
     if (identitiesEl) {
@@ -12056,12 +12055,41 @@ function updateCloudSaveUI() {
     updateStartupScreenUI();
 }
 
+/** The cloud panel's status pill: not configured, busy, signed in (with pending changes or not), or a guest. */
+function renderCloudStatusPill(pill, config) {
+    pill.className = 'cloud-status-pill';
+    if (!config.enabled) {
+        pill.innerText = '미설정';
+    } else if (cloudState.busy) {
+        pill.classList.add('syncing');
+        pill.innerText = '처리 중';
+    } else if (cloudState.user) {
+        pill.classList.add('online');
+        pill.innerText = isCloudSaveDirty() ? '연결됨, 안 올린 변경 있음' : '연결됨';
+    } else {
+        pill.innerText = '게스트';
+    }
+}
+
+/** The slot lines of the cloud panel: the server's last save time, pending changes, and the guest save move button. */
+function renderCloudSlotStatus(canSync) {
+    const account = !!cloudState.user && getSaveSlot().kind === 'account';
+    let remoteEl = document.getElementById('ui-cloud-remote-save');
+    if (remoteEl) remoteEl.innerText = account ? formatCloudTime(game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0) : '없음';
+    let pendingEl = document.getElementById('ui-cloud-pending');
+    if (pendingEl) pendingEl.innerText = cloudState.user ? (isCloudSaveDirty() ? '있음' : '없음') : '게스트 저장은 올리지 않습니다';
+    let moveGuestBtn = document.getElementById('btn-cloud-move-guest');
+    if (!moveGuestBtn) return;
+    moveGuestBtn.hidden = !canMoveGuestSaveIntoAccount();
+    moveGuestBtn.disabled = !canSync;
+}
+
 
 function formatCloudUploadProfile(profile) {
     let normalized = normalizeCloudUploadProfile(profile);
     if (!normalized || normalized.totalMs <= 0) return '없음';
     let sizeKb = (normalized.payloadBytes / 1024).toFixed(1);
-    return `${normalized.totalMs}ms (조회 ${normalized.fetchMs}ms, 직렬화 ${normalized.serializeMs}ms, 전송 ${normalized.uploadMs}ms, ${sizeKb}KB)`;
+    return `${normalized.totalMs}ms (직렬화 ${normalized.serializeMs}ms, 전송 ${normalized.uploadMs}ms, ${sizeKb}KB)`;
 }
 
 function rememberCloudUploadProfile(profile) {
@@ -12092,43 +12120,9 @@ function markCurrentSaveCloudOwner() {
     return true;
 }
 
-function replaceLocalSaveForCloudUser() {
-    game = cloneDefaultGame();
-    if (!markCurrentSaveCloudOwner()) throw new Error('로그인한 클라우드 계정을 확인하지 못했습니다.');
-    if (!persistLocalSave({ touchModifiedAt: false, allowRecoveryWrite: true })) {
-        throw new Error('계정 전환용 로컬 저장을 기록하지 못했습니다.');
-    }
-}
-
-function prepareLocalSaveForCloudSession(options = {}) {
-    let userId = getActiveCloudUserId();
-    if (!userId) throw new Error('로그인이 필요합니다.');
-    let ownerId = getCloudSaveOwnerId();
-    if (ownerId === userId) return { replaced: false, adoptedUnowned: false };
-    if (!ownerId && options.allowUnownedLocal === true) {
-        markCurrentSaveCloudOwner();
-        return { replaced: false, adoptedUnowned: true };
-    }
-    replaceLocalSaveForCloudUser();
-    return { replaced: true, adoptedUnowned: false };
-}
-
-function applyExternalSave(snapshot, sourceStamp) {
-    assertSaveFromKnownBuild(snapshot);
-    game = mergeDefaults(snapshot || {});
-    applySeasonContentProgression({ silent: true });
-    ensureSaveMeta();
-    markCurrentSaveCloudOwner();
-    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(cloudState.lastRemoteRevision) || 0));
-    if (sourceStamp) {
-        cloudState.lastRemoteUpdatedAt = sourceStamp;
-        cloudState.lastRemoteLoop = getSaveLoopNumber(game);
-        game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, sourceStamp);
-        if (!game.saveMeta.lastModifiedAt) game.saveMeta.lastModifiedAt = sourceStamp;
-    }
-    if (!persistLocalSave({ touchModifiedAt: false, allowRecoveryWrite: true })) {
-        throw new Error('클라우드 저장을 로컬에 기록하지 못했습니다.');
-    }
+/** The running game was replaced by a loaded save (a server save, or a slot just selected): restarts what depends on it, combat runtimes,
+ * hero selection, passives and the screens. */
+function refreshRuntimeForLoadedSave() {
     recoverRuntimeState();
     resetCombatRuntimesForLoadedSave();
     resetHeroSelectionForSave();
@@ -12139,7 +12133,7 @@ function applyExternalSave(snapshot, sourceStamp) {
     try {
         updateStaticUI();
     } catch (error) {
-        console.error('updateStaticUI after cloud load failed:', error);
+        console.error('updateStaticUI after save load failed:', error);
     }
     try {
         updateMobileBattlePipVisibility();
@@ -12147,9 +12141,31 @@ function applyExternalSave(snapshot, sourceStamp) {
         updateMobileBattlePipVisibility();
         renderMobileBattlePipFrame();
     } catch (error) {
-        console.error('renderBattlefield after cloud load failed:', error);
+        console.error('renderBattlefield after save load failed:', error);
     }
     updateCloudSaveUI();
+}
+
+/** The server save becomes this device's copy of the account save: the slot takes it with the server's revision and time and nothing
+ * pending (progress this device had not uploaded is gone from here on; enterAccountSave offered it as a file first). */
+function applyExternalSave(snapshot, sourceStamp) {
+    assertSaveFromKnownBuild(snapshot);
+    game = mergeDefaults(snapshot || {});
+    applySeasonContentProgression({ silent: true });
+    ensureSaveMeta();
+    markCurrentSaveCloudOwner();
+    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(cloudState.lastRemoteRevision) || 0));
+    game.saveMeta.cloudPending = false;
+    if (sourceStamp) {
+        cloudState.lastRemoteUpdatedAt = sourceStamp;
+        game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, sourceStamp);
+        if (!game.saveMeta.lastModifiedAt) game.saveMeta.lastModifiedAt = sourceStamp;
+    }
+    cloudState.syncHalted = false;
+    if (!persistLocalSave({ touchModifiedAt: false, allowRecoveryWrite: true })) {
+        throw new Error('클라우드 저장을 로컬에 기록하지 못했습니다.');
+    }
+    refreshRuntimeForLoadedSave();
 }
 
 async function restoreCloudSession() {
@@ -12176,10 +12192,6 @@ async function restoreCloudSession() {
     return false;
 }
 
-function isMissingCloudRevisionSchemaError(error) {
-    return /revision.*does not exist|column.*revision|schema cache/i.test(String((error && error.message) || error || ''));
-}
-
 async function fetchLatestCloudSaveRow(userId, select) {
     let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=${select}&order=updated_at.desc.nullslast&limit=1`, {
         headers: { Accept: 'application/json' }
@@ -12195,18 +12207,18 @@ async function fetchLatestCloudSaveRow(userId, select) {
     })[0] || null;
 }
 
-/** What every server read leaves behind: revision, update time and the remote loop for the guards and the cloud panel. */
+/** What every server read leaves behind: revision and update time, for the account entry, the hall and the cloud panel. */
 function rememberCloudRecord(record) {
     cloudState.isLoaded = true;
+    cloudState.revisionSupported = true;
     cloudState.lastRemoteCheckedAt = Date.now();
     if (record && record.updated_at) cloudState.lastRemoteUpdatedAt = new Date(record.updated_at).getTime() || 0;
     cloudState.lastRemoteRevision = record ? Math.max(0, Math.floor(Number(record.revision) || 0)) : 0;
-    if (record && record.save_data) updateRemoteLoopFromRecord(record);
     updateCloudSaveUI();
     return record;
 }
 
-// 업로드 전 확인은 세이브에서 루프, 초기화 번호, 저장 시각만 읽는다. 그 값만 받고(세이브 전체는 수백 KB), 전체는 불러올 때만 받는다.
+// 계정에 들어갈 때의 확인은 세이브에서 루프, 저장 시각만 읽는다. 그 값만 받고(세이브 전체는 수백 KB), 전체는 불러올 때만 받는다.
 const CLOUD_SAVE_SUMMARY_FIELDS = 'season:save_data->season,loopCount:save_data->loopCount,saveMeta:save_data->saveMeta';
 
 /** A summary row as a record whose save_data holds only season, loopCount and saveMeta. A full row passes through. */
@@ -12217,47 +12229,24 @@ function cloudSummaryRecord(row) {
         save_data: empty ? null : { season: row.season, loopCount: row.loopCount, saveMeta: row.saveMeta || {} } };
 }
 
-/** The upload checks' read: a few hundred bytes instead of the whole save. Any doubt (old schema, odd row) reads the full save. */
+/** The entry check's read: a few hundred bytes instead of the whole save. An odd row (no summary fields) reads the full save. */
 async function fetchCloudSaveSummary() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
-    let row;
-    try {
-        row = await fetchLatestCloudSaveRow(encodeURIComponent(cloudState.user.id), `user_id,updated_at,revision,${CLOUD_SAVE_SUMMARY_FIELDS}`);
-    } catch (error) {
-        console.warn('cloud summary read failed, reading the full save:', error);
-        return await fetchCloudSaveRecord();
-    }
+    let row = await fetchLatestCloudSaveRow(encodeURIComponent(cloudState.user.id), `user_id,updated_at,revision,${CLOUD_SAVE_SUMMARY_FIELDS}`);
     let record = cloudSummaryRecord(row);
     if (row && !record.save_data) return await fetchCloudSaveRecord();
-    cloudState.revisionSupported = true;
     return rememberCloudRecord(record);
 }
 
 async function fetchCloudSaveRecord() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
     try {
-        let userId = encodeURIComponent(cloudState.user.id);
-        let record;
-        try {
-            record = await fetchLatestCloudSaveRow(userId, 'user_id,save_data,updated_at,revision');
-            cloudState.revisionSupported = true;
-        } catch (error) {
-            if (!isMissingCloudRevisionSchemaError(error)) throw error;
-            cloudState.revisionSupported = false;
-            record = await fetchLatestCloudSaveRow(userId, 'user_id,save_data,updated_at');
-            if (record) record.revision = 0;
-        }
-        return rememberCloudRecord(record);
+        return rememberCloudRecord(await fetchLatestCloudSaveRow(encodeURIComponent(cloudState.user.id), 'user_id,save_data,updated_at,revision'));
     } catch (error) {
         cloudState.isLoaded = false;
         updateCloudSaveUI();
         throw error;
     }
-}
-
-function getLocalSaveStamp() {
-    ensureSaveMeta();
-    return game.saveMeta.lastModifiedAt || 0;
 }
 
 function getLocalCloudRevision() {
@@ -12277,41 +12266,7 @@ function getSaveLoopNumber(snapshot) {
     return Math.max(season, loopCount + 1);
 }
 
-function updateRemoteLoopFromRecord(record) {
-    cloudState.lastRemoteResetRevision = 0;
-    if (!record || !record.save_data) return 0;
-    let remoteLoop = getSaveLoopNumber(record.save_data);
-    cloudState.lastRemoteLoop = remoteLoop;
-    let resetRevision = record.save_data.saveMeta && record.save_data.saveMeta.cloudResetRevision;
-    cloudState.lastRemoteResetRevision = Number.isSafeInteger(resetRevision) && resetRevision > 0 ? resetRevision : 0;
-    return remoteLoop;
-}
-
-function shouldBlockLocalPushForRemoteLoop(record, localSnapshot = game) {
-    let localLoop = getSaveLoopNumber(localSnapshot || {});
-    let remoteLoop = updateRemoteLoopFromRecord(record);
-    let localResetRevision = localSnapshot?.saveMeta?.cloudResetRevision ?? 0;
-    if (cloudState.lastRemoteResetRevision > localResetRevision) return {
-        blocked: true, reason: 'remote-reset', localLoop, remoteLoop,
-        message: '계정의 진행 데이터가 초기화되어 초기화 이전 기기 기록으로 서버 저장을 덮어쓸 수 없습니다.'
-    };
-    if (remoteLoop > localLoop) return {
-        blocked: true, reason: 'higher-loop', localLoop, remoteLoop,
-        message: `클라우드 루프(${remoteLoop})가 로컬 루프(${localLoop})보다 높아 로컬 저장으로 덮어쓸 수 없습니다.`
-    };
-    if (record && record.save_data && isLikelyBootstrapLocalSave(localSnapshot)) return {
-        blocked: true, reason: 'bootstrap-local', localLoop, remoteLoop,
-        message: '로컬 세이브가 새로 생성된 기본 상태라 기존 클라우드 저장을 덮어쓸 수 없습니다.'
-    };
-    return { blocked: false, reason: 'safe', localLoop, remoteLoop };
-}
-
-function getLoopCompareSummary(record, localSnapshot = game) {
-    let localLoop = getSaveLoopNumber(localSnapshot || {});
-    let remoteLoop = updateRemoteLoopFromRecord(record);
-    return { localLoop, remoteLoop, safeToPush: localLoop >= remoteLoop };
-}
-
+/** A save nobody has played yet (a fresh default): the guest save moves into an account only over such a save. */
 function isLikelyBootstrapLocalSave(snapshot) {
     let s = snapshot || game || {};
     let hasProgress = false;
@@ -12329,43 +12284,12 @@ function isLikelyBootstrapLocalSave(snapshot) {
     if ((s.passivePoints || 0) > 0) hasProgress = true;
     if (Array.isArray(s.skills) && s.skills.some(name => name && name !== '기본 공격')) hasProgress = true;
     if (s.activeSkill && s.activeSkill !== '기본 공격') hasProgress = true;
-    if (s.gemData && Object.keys(s.gemData).length > 0) hasProgress = true;
+    // 기본 공격의 젬은 새 게임에도 있다(defaultGame.gemData): 그 밖의 젬이 있어야 진행이다.
+    if (Object.keys(s.gemData || {}).some(key => !(key in (defaultGame.gemData || {})))) hasProgress = true;
     if (Array.isArray(s.supports) && s.supports.length > 0) hasProgress = true;
     if (s.supportGemData && Object.keys(s.supportGemData).length > 0) hasProgress = true;
     if (s.currencies && Object.keys(s.currencies).some(key => (s.currencies[key] || 0) > 0)) hasProgress = true;
     return !hasProgress;
-}
-
-function shouldPreferRemoteOverBootstrapLocal(record) {
-    if (!record || !record.save_data) return false;
-    return getRemoteSaveStamp(record) > 0 && isLikelyBootstrapLocalSave(game);
-}
-
-async function guardAgainstStaleLocalOverwrite(options = {}) {
-    let record = await fetchCloudSaveSummary();
-    if (!record || !record.save_data) return { record, status: 'no-remote' };
-    let localStamp = getLocalSaveStamp();
-    let remoteStamp = getRemoteSaveStamp(record);
-    cloudState.lastRemoteUpdatedAt = remoteStamp;
-    let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
-    if (loopGuard.blocked) {
-        record = await readFullCloudSaveForPull();
-        applyExternalSave(record.save_data, getRemoteSaveStamp(record));
-        setCloudMessage(loopGuard.message);
-        if (!options.silentLog) addLog(loopGuard.message, 'loot-magic');
-        return { record, status: 'pulled-remote-higher-loop' };
-    }
-    if (loopGuard.localLoop > loopGuard.remoteLoop) {
-        return { record, status: 'safe-to-push-higher-loop' };
-    }
-    if (remoteStamp > localStamp + CLOUD_STALE_OVERWRITE_GUARD_MS) {
-        record = await readFullCloudSaveForPull();
-        applyExternalSave(record.save_data, getRemoteSaveStamp(record));
-        setCloudMessage(options.automatic ? '클라우드 저장이 더 최신이라 로컬에 먼저 반영했습니다.' : '클라우드 저장이 더 최신이라 덮어쓰기를 막고 자동으로 불러왔습니다.');
-        if (!options.silentLog) addLog('클라우드가 더 최신이라 자동으로 불러왔습니다.', 'loot-magic');
-        return { record, status: 'pulled-remote' };
-    }
-    return { record, status: 'safe-to-push' };
 }
 
 /** The summary decided to pull: read the whole save once (a summary is never applied). */
@@ -12375,16 +12299,15 @@ async function readFullCloudSaveForPull() {
     return record;
 }
 
-async function commitCloudSavePayload(payload, legacyBody, options = {}) {
-    if (cloudState.revisionSupported !== true) {
-        let rows = await cloudJsonRequest('/rest/v1/cloud_saves', {
-            method: 'POST',
-            expectedUserId: options.expectedUserId,
-            headers: { Prefer: 'resolution=merge-duplicates,return=representation', 'Content-Type': 'application/json' },
-            body: legacyBody || { user_id: cloudState.user.id, save_data: payload }
-        });
-        return Array.isArray(rows) ? rows[0] : null;
-    }
+const CLOUD_REVISION_CONFLICT_CODE = 'CLOUD_REVISION_CONFLICT';
+/** The server save moved past this device's copy (another device committed): nothing from here goes up until the account is entered again. */
+function cloudRevisionConflictError() {
+    return Object.assign(new Error('다른 기기에서 서버 저장이 바뀌어 이 기기의 진행은 올리지 않았습니다. 시작 화면에서 계정 저장으로 다시 들어가면 서버 저장으로 이어집니다.'),
+        { code: CLOUD_REVISION_CONFLICT_CODE });
+}
+
+/** One commit (db/cloud-and-playtest.sql commit_cloud_save): the server takes the save only at the revision this copy was taken from. */
+async function commitCloudSavePayload(payload, options = {}) {
     let rows = await cloudJsonRequest('/rest/v1/rpc/commit_cloud_save', {
         method: 'POST',
         expectedUserId: options.expectedUserId,
@@ -12394,75 +12317,52 @@ async function commitCloudSavePayload(payload, legacyBody, options = {}) {
     let result = Array.isArray(rows) ? rows[0] : rows;
     if (!result || result.committed !== true) {
         cloudState.lastRemoteRevision = Math.max(0, Math.floor(Number(result && result.current_revision) || 0));
-        throw new Error('다른 기기에서 서버 저장이 변경되었습니다. 서버 저장을 불러온 뒤 다시 시도해주세요.');
+        throw cloudRevisionConflictError();
     }
+    cloudState.revisionSupported = true;
     return {
         revision: Math.max(0, Math.floor(Number(result.current_revision) || 0)),
         updated_at: result.saved_at || new Date().toISOString()
     };
 }
 
-/** After a commit the server matches this device: its time, loop and content print (the next unchanged auto upload is skipped). */
-function rememberCloudUpload(saveData, syncedAt) {
-    cloudState.lastRemoteUpdatedAt = syncedAt;
-    cloudState.lastRemoteLoop = getSaveLoopNumber(game);
+/** After a commit the server holds this device's copy: its revision and time, nothing pending, and the content print (an unchanged
+ * page-exit upload is skipped). The slot is written so a closed page keeps the revision. */
+function rememberCloudCommit(row, fingerprint) {
+    ensureSaveMeta();
+    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(row.revision) || 0));
+    game.saveMeta.lastCloudSyncAt = row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
+    game.saveMeta.cloudPending = false;
+    cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
+    cloudState.lastRemoteUpdatedAt = game.saveMeta.lastCloudSyncAt;
     cloudState.lastCloudCommitAt = Date.now();
-    cloudState.autoSyncConflictNoticed = false;   // 다시 충돌하면 다시 알린다
-    cloudState.lastUploadedFingerprint = cloudSaveFingerprint(saveData);
+    cloudState.syncHalted = false;
+    cloudState.uploadFailureNoticed = false;
+    cloudState.lastUploadedFingerprint = fingerprint;
+    persistLocalSave({ touchModifiedAt: false });
 }
 
-async function pushCloudSave(options = {}) {
-    if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
+/** Uploads this device's copy of the account save as the next revision. The server refuses it when another device committed since
+ * (commitCloudSavePayload); clocks and loop numbers decide nothing. Only the signed-in account's own slot goes up. */
+async function pushCloudSave() {
     const uploadOwner = game, uploadUserId = getActiveCloudUserId();
+    if (!uploadUserId) throw new Error('로그인이 필요합니다.');
+    if (getCloudSaveOwnerId() !== uploadUserId || getSaveSlot().userId !== uploadUserId) throw new Error('이 계정의 저장 칸이 아니라 서버에 올리지 않았습니다.');
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) {
-        let status = getLocalSaveStatus();
-        throw new Error(status.message || '로컬 저장이 차단되어 클라우드 업로드를 중단했습니다.');
+        throw new Error(getLocalSaveStatus().message || '로컬 저장이 차단되어 클라우드 업로드를 중단했습니다.');
     }
     let t0 = Date.now();
-    let remoteRecord = null;
-    try {
-        remoteRecord = await fetchCloudSaveSummary();
-    } catch (loadError) {
-        console.warn('cloud push preflight remote load failed:', loadError);
-        throw new Error('클라우드 상태를 확인할 수 없어 업로드를 중단했습니다: ' + (loadError.message || loadError));
-    }
-    cloudRecordForThisBuild(remoteRecord);   // never upload over a later release's save
-    let tFetch = Date.now();
-    checkCloudUploadOwner(uploadOwner, uploadUserId);
-    let loopGuard = shouldBlockLocalPushForRemoteLoop(remoteRecord);
-    if (loopGuard.blocked) {
-        setCloudMessage(loopGuard.message);
-        throw new Error(loopGuard.message);
-    }
-    if (cloudState.revisionSupported === true && remoteRecord && getLocalCloudRevision() !== cloudState.lastRemoteRevision) {
-        throw new Error('다른 기기에서 서버 저장이 변경되었습니다. 서버 저장을 불러온 뒤 다시 시도해주세요.');
-    }
-    markCurrentSaveCloudOwner();
-    if (!persistLocalSave({ touchModifiedAt: options.touchModifiedAt === true })) {
-        throw new Error('로컬 저장에 실패하여 클라우드 업로드를 중단했습니다.');
-    }
+    if (!persistLocalSave({ touchModifiedAt: false })) throw new Error('로컬 저장에 실패하여 클라우드 업로드를 중단했습니다.');
     const requestBody = createCloudSaveRequestBody(uploadUserId, uploadOwner);
     let payloadSize = requestBody.length;
     if (payloadSize > 900000 && typeof addLog === 'function') addLog(`☁️ 클라우드 저장 데이터 최적화 적용 (${Math.round(payloadSize / 1024)}KB)`, 'attack-monster', { noToast: true });
     let tSerialize = Date.now();
     let request = JSON.parse(requestBody);
-    let row = await commitCloudSavePayload(request.save_data, requestBody, { expectedUserId: uploadUserId });
+    let row = await commitCloudSavePayload(request.save_data, { expectedUserId: uploadUserId });
     checkCloudUploadOwner(uploadOwner, uploadUserId);
     let tUpload = Date.now();
-    let syncedAt = row && row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
-    ensureSaveMeta();
-    if (row && Number.isFinite(Number(row.revision))) {
-        game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(row.revision)));
-        cloudState.lastRemoteRevision = getLocalCloudRevision();
-    }
-    game.saveMeta.lastCloudSyncAt = syncedAt;
-    rememberCloudUpload(request.save_data, syncedAt);
-    persistLocalSave({ touchModifiedAt: false });
-    let fetchMs = Math.max(0, tFetch - t0);
-    let serializeMs = Math.max(0, tSerialize - tFetch);
-    let uploadMs = Math.max(0, tUpload - tSerialize);
-    let totalMs = Math.max(0, tUpload - t0);
-    rememberCloudUploadProfile({ at: syncedAt, fetchMs, serializeMs, uploadMs, totalMs, payloadBytes: payloadSize });
+    rememberCloudCommit(row, cloudSaveFingerprint(request.save_data));
+    rememberCloudUploadProfile({ at: game.saveMeta.lastCloudSyncAt, serializeMs: tSerialize - t0, uploadMs: tUpload - tSerialize, totalMs: tUpload - t0, payloadBytes: payloadSize });
     persistLocalSave({ touchModifiedAt: false });
     updateCloudSaveUI();
     if (typeof syncPlayerProfileQuiet === 'function') syncPlayerProfileQuiet();
@@ -12470,215 +12370,189 @@ async function pushCloudSave(options = {}) {
 }
 
 /** The cloud record (a full row or a summary, both carry saveMeta), passed through; throws when this page is an older release than the
- * one that wrote it (js/save.js outdatedBuildError), before any pull, upload or conflict question. */
+ * one that wrote it (js/save.js outdatedBuildError), before any pull, upload or question. */
 function cloudRecordForThisBuild(record) {
     assertSaveFromKnownBuild(record && record.save_data);
     return record;
 }
 
-/** A preflight/upload may finish after logout or a different save load. Never commit that upload into the new session. */
+/** An upload may finish after logout or a different save load. Never commit that upload into the new session. */
 function checkCloudUploadOwner(owner, userId) {
     if (game !== owner || getActiveCloudUserId() !== userId) throw new Error('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.');
 }
 
+/** The server save replaces this device's copy of the account save (설정의 서버 저장 다시 받기). */
 async function pullCloudSave(options = {}) {
-    let record = await fetchCloudSaveRecord();
+    let record = cloudRecordForThisBuild(await fetchCloudSaveRecord());
     if (!record || !record.save_data) {
-        setCloudMessage('클라우드에 저장된 데이터가 아직 없습니다.');
+        setCloudMessage('서버에 저장이 없습니다.');
         return null;
     }
-    let remoteStamp = record.updated_at ? (new Date(record.updated_at).getTime() || 0) : 0;
-    applyExternalSave(record.save_data, remoteStamp);
-    setCloudMessage('클라우드 저장을 로컬로 불러왔습니다.');
-    if (!options.silent) addLog('클라우드 세이브를 불러왔습니다.', 'loot-magic');
+    applyExternalSave(record.save_data, getRemoteSaveStamp(record));
+    setCloudMessage('서버 저장을 이 기기에 받았습니다.');
+    if (!options.silent) addLog('서버 저장을 받았습니다.', 'loot-magic');
     return record;
 }
 
-async function resolveCloudRevisionConflict(record, options = {}) {
-    if (cloudState.revisionSupported !== true || !record || !record.save_data) return null;
-    if (getLocalCloudRevision() === cloudState.lastRemoteRevision) return keepLocalOnSameRevision(record);
-    if (!options.preferRemoteOnResume) return null;
-    let loopSummary = getLoopCompareSummary(record);
-    if (loopSummary.localLoop > loopSummary.remoteLoop) {
-        ensureSaveMeta();
-        game.saveMeta.cloudRevision = cloudState.lastRemoteRevision;
-        await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage(`로컬 루프(${loopSummary.localLoop})가 클라우드 루프(${loopSummary.remoteLoop})보다 높아 로컬 진행을 보존했습니다.`);
-        return 'pushed-local-higher-loop-conflict';
-    }
-    let localStamp = getLocalSaveStamp();
-    let remoteStamp = getRemoteSaveStamp(record);
-    let keepLocal = false;
-    if (localStamp > remoteStamp) {
-        let localChoice = `루프 ${getSaveLoopNumber(game)}, 마지막 저장 ${formatCloudTime(localStamp)}`;
-        let remoteChoice = `루프 ${getSaveLoopNumber(record.save_data)}, 마지막 저장 ${formatCloudTime(remoteStamp)}`;
-        keepLocal = await requestGameConfirmation(
-            `현재 기기 기록\n${localChoice}\n\n서버 기록\n${remoteChoice}`,
-            { title: '저장 충돌', tone: 'danger', confirmLabel: '현재 기기 사용', cancelLabel: '서버 기록 사용' }
-        );
-    }
-    if (keepLocal) {
-        ensureSaveMeta();
-        game.saveMeta.cloudRevision = cloudState.lastRemoteRevision;
-        await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage('사용자 선택에 따라 현재 기기 진행으로 서버 저장을 교체했습니다.');
-        return 'pushed-local-conflict-confirmed';
-    }
-    applyExternalSave(record.save_data, remoteStamp);
-    setCloudMessage('저장 충돌에서 서버 저장을 선택했습니다.');
-    return 'pulled-remote-conflict';
+/** Entering the account (login, sign-up, 계정 저장으로 이어하기): the server save is the truth (2026-10-30, user decision). The
+ * account's slot on this device (js/save.js saveSlot) is read and compared with the server by revision alone:
+ * - no server save: this device's copy (or the guest save on sign-up) becomes the first server save;
+ * - the server is at this copy's revision: what the copy has not uploaded yet goes up, and play continues from the copy;
+ * - the server moved on (another device committed): its save replaces the copy; progress the copy had not uploaded is offered as a file
+ *   first and then dropped.
+ * Clocks and loop numbers decide nothing, and a failed server read leaves every slot as it was (the guest slot is never touched). */
+async function enterAccountSave(options = {}) {
+    const userId = getActiveCloudUserId();
+    if (!userId) throw new Error('로그인이 필요합니다.');
+    const record = cloudRecordForThisBuild(await fetchCloudSaveSummary());
+    activateAccountSaveSlot(userId);
+    if (!record || !record.save_data) return await createFirstCloudSave(options.signUp === true);
+    const kept = await continueFromAccountCopy(userId);
+    if (kept) return kept;
+    if (getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending) await offerUnsyncedProgressFile(record);
+    const full = await readFullCloudSaveForPull();
+    applyExternalSave(full.save_data, getRemoteSaveStamp(full));
+    setCloudMessage('서버 저장으로 이어서 합니다.');
+    if (!options.silent) addLog('서버 저장으로 이어서 합니다.', 'loot-magic');
+    return 'pulled-server';
 }
 
-/** Same revision: the server row is still the one this device last committed or loaded, so this save is that one or newer. When the
- * save times still say the server is newer (the device clock runs behind the server's commit time), the steps after this would put the
- * server copy over the progress made since the last upload; it goes up instead (2026-10-21). A higher local loop, a newer local time and
- * a new-device default save keep their usual steps, and so does a device that cannot write its save (the server copy repairs it there).
- */
-async function keepLocalOnSameRevision(record) {
-    if (isLikelyBootstrapLocalSave(game) || (typeof canPersistLocalSave === 'function' && !canPersistLocalSave())) return null;
-    if (getLocalSaveStamp() > getRemoteSaveStamp(record)) return null;
-    const loops = getLoopCompareSummary(record);
-    if (loops.localLoop !== loops.remoteLoop) return null;
-    await pushCloudSave({ touchModifiedAt: false });
-    setCloudMessage('서버 저장이 이 기기의 마지막 동기화와 같아 현재 진행을 이어서 올렸습니다.');
-    return 'pushed-local-same-revision';
+/** The slot holds this account's copy at the server's revision, read and written without fault: what it has not uploaded yet goes up,
+ * and play continues from it (the outcome). Otherwise null, and the server save replaces the copy (a copy that could not be written,
+ * write-failed or corrupt, is repaired that way). */
+async function continueFromAccountCopy(userId) {
+    if (getCloudSaveOwnerId() !== userId || getLocalCloudRevision() !== cloudState.lastRemoteRevision || getLocalSaveStatus().status !== 'ok') return null;
+    if (!game.saveMeta.cloudPending) {
+        setCloudMessage('이 기기의 계정 저장이 서버와 같아 그대로 이어서 합니다.');
+        return 'cached-current';
+    }
+    await pushCloudSave();
+    setCloudMessage('이 기기에서 아직 올리지 않았던 진행을 서버에 올렸습니다.');
+    return 'pushed-pending';
 }
 
-async function reconcileCloudSaveState(options = {}) {
-    let preferRemoteOnResume = options.preferRemoteOnResume === true;
-    // Keep the previous local cache intact until the active account's remote row is confirmed.
-    // A temporary network failure must not erase an otherwise recoverable local cache.
-    let record = cloudRecordForThisBuild(await fetchCloudSaveRecord());
-    let localPreparation = prepareLocalSaveForCloudSession({
-        allowUnownedLocal: await settleUnlinkedLocalSave(record, options)
-    });
-    if (!record || !record.save_data) {
-        if (localPreparation.adoptedUnowned || (options.createRemoteFromLocal && !localPreparation.replaced)) {
-            await pushCloudSave({ touchModifiedAt: false });
-            setCloudMessage('클라우드에 저장이 없어 현재 로컬 세이브를 업로드했습니다.');
-            return 'pushed-local';
-        }
-        setCloudMessage('클라우드 저장을 찾지 못했습니다. 데이터를 확인한 뒤 수동 업로드를 진행해주세요.');
-        return 'no-remote';
+/** Leaves the slot in use (its last state written, when it holds a save) and loads the account's slot into the running game: its copy of
+ * the server save, or a fresh default when this device has none. The guest save that stays behind is noted for the move button. */
+function activateAccountSaveSlot(userId) {
+    if (getSaveSlot().userId === userId) return;
+    if (getLocalSaveStatus().status === 'ok' && canPersistLocalSave()) persistLocalSave({ touchModifiedAt: false });
+    selectSaveSlot(userId);
+    loadGame();
+    applySeasonContentProgression({ silent: true });
+    cloudState.guestSaveSummary = summarizeGuestSave(readGuestSave());
+    refreshRuntimeForLoadedSave();
+}
+
+/** Loads the guest slot back into the running game (leaving an account). */
+function activateGuestSaveSlot() {
+    if (getSaveSlot().kind === 'guest') return;
+    selectSaveSlot(null);
+    loadGame();
+    applySeasonContentProgression({ silent: true });
+    cloudState.guestSaveSummary = null;
+    refreshRuntimeForLoadedSave();
+}
+
+/** Loop and level of a guest save with progress, or null (none, or a fresh default). Read once per account entry, not per screen update. */
+function summarizeGuestSave(guestSave) {
+    if (!guestSave || isLikelyBootstrapLocalSave(guestSave)) return null;
+    return { loop: getSaveLoopNumber(guestSave), level: Math.max(1, Math.floor(Number(guestSave.level) || 1)) };
+}
+
+/** The account has no server save: the game in its slot (a fresh default, a copy whose first upload failed, or on sign-up this device's
+ * guest save) goes up as revision 1. */
+async function createFirstCloudSave(signUp) {
+    const guestSave = signUp ? readGuestSave() : null;
+    const wanted = !!summarizeGuestSave(guestSave);
+    const adopted = wanted && adoptGuestSaveIntoAccount(guestSave);
+    markCurrentSaveCloudOwner();
+    game.saveMeta.cloudRevision = 0;
+    await pushCloudSave();
+    if (wanted && !adopted) {   // the refusal (why the guest save stayed a guest save) is the message to keep, and to show
+        showGameToast(cloudState.lastMessage, { tone: 'warning', duration: 9000 });
+        return 'pushed-first';
     }
+    setCloudMessage(adopted ? '게스트 저장을 이 계정의 첫 서버 저장으로 올렸습니다.' : '이 계정의 첫 서버 저장을 올렸습니다.');
+    return adopted ? 'pushed-guest' : 'pushed-first';
+}
+
+/** Moves the guest save into the account's slot as this device's copy, keeping the slot's revision; the guest slot empties, so one guest
+ * save never lives in two accounts. Returns false (and says why) when the check (js/guest-save-check.js) refuses it. */
+function adoptGuestSaveIntoAccount(guestSave) {
+    const candidate = mergeDefaults(guestSave);
+    const verdict = guestSaveCheck.inspect(candidate, Date.now());
+    if (!verdict.ok) {
+        setCloudMessage(`정상 플레이로는 나올 수 없는 값이 있어 게스트 저장을 옮기지 않았습니다: ${verdict.problems.join(', ')}`);
+        return false;
+    }
+    const revision = getLocalCloudRevision();
+    game = candidate;
+    applySeasonContentProgression({ silent: true });
     ensureSaveMeta();
-    let localStamp = getLocalSaveStamp();
-    let remoteStamp = getRemoteSaveStamp(record);
-    cloudState.lastRemoteUpdatedAt = remoteStamp;
-    if (options.strictRemoteResume === true && localPreparation.replaced) {
-        applyExternalSave(record.save_data, remoteStamp);
-        setCloudMessage('계정에 연결된 클라우드 저장을 로컬에 적용했습니다.');
-        if (!options.silent) addLog('계정 전환 시 클라우드 저장을 우선 적용했습니다.', 'loot-magic');
-        return 'pulled-remote-strict-resume';
-    }
-    let loopGuard = shouldBlockLocalPushForRemoteLoop(record);
-    if (loopGuard.blocked) {
-        applyExternalSave(record.save_data, remoteStamp);
-        setCloudMessage(loopGuard.message);
-        if (!options.silent) addLog(loopGuard.message, 'loot-magic');
-        return 'pulled-remote-higher-loop';
-    }
-    let revisionResolution = cloudState.revisionSupported === true
-        ? await resolveCloudRevisionConflict(record, options) : null;
-    if (revisionResolution) return revisionResolution;
-    let loopSummary = getLoopCompareSummary(record);
-    if (loopSummary.localLoop > loopSummary.remoteLoop) {
-        await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage(`로컬 루프(${loopSummary.localLoop})가 클라우드 루프(${loopSummary.remoteLoop})보다 높아 로컬 진행을 보존했습니다.`);
-        if (!options.silent) addLog('더 높은 로컬 루프를 클라우드에 저장했습니다.', 'loot-magic');
-        return 'pushed-local-higher-loop';
-    }
-    if (preferRemoteOnResume) {
-        if (remoteStamp >= localStamp) {
-            applyExternalSave(record.save_data, remoteStamp);
-            setCloudMessage('이어하기는 서버 저장이 로컬보다 최신이거나 같은 상태라 클라우드를 적용했습니다.');
-            if (!options.silent) addLog('이어하기(클라우드 우선)로 서버 저장을 적용했습니다.', 'loot-magic');
-            return 'pulled-remote-resume-preferred';
-        }
-        if (!loopSummary.safeToPush) {
-            applyExternalSave(record.save_data, remoteStamp);
-            setCloudMessage(`클라우드 루프(${loopSummary.remoteLoop})가 로컬 루프(${loopSummary.localLoop})보다 높아 클라우드를 적용했습니다.`);
-            if (!options.silent) addLog('루프 비교 결과 클라우드 진행이 더 높아 서버 저장을 적용했습니다.', 'loot-magic');
-            return 'pulled-remote-higher-loop-late-guard';
-        }
-        await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 로컬 저장을 업로드했습니다.`);
-        if (!options.silent) addLog(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 클라우드에 업로드했습니다.`, 'loot-magic');
-        return 'pushed-local-newer-than-remote-resume';
-    }
-    if (isLikelyBootstrapLocalSave(game) && remoteStamp > 0) {
-        applyExternalSave(record.save_data, remoteStamp);
-        setCloudMessage('새 기기 기본 로컬 저장으로 판단되어 클라우드 세이브를 우선 적용했습니다.');
-        if (!options.silent) addLog('클라우드 세이브를 우선 적용했습니다.', 'loot-magic');
-        return 'pulled-remote-bootstrap';
-    }
-    if (remoteStamp > localStamp + CLOUD_REMOTE_TIME_SKEW_MS) {
-        applyExternalSave(record.save_data, remoteStamp);
-        setCloudMessage('클라우드 저장이 더 최신이라 자동으로 불러왔습니다.');
-        if (!options.silent) addLog('더 최신인 클라우드 세이브를 적용했습니다.', 'loot-magic');
-        return 'pulled-remote';
-    }
-    if (localStamp > remoteStamp) {
-        if (!loopSummary.safeToPush) {
-            applyExternalSave(record.save_data, remoteStamp);
-            setCloudMessage(`클라우드 루프(${loopSummary.remoteLoop})가 로컬 루프(${loopSummary.localLoop})보다 높아 클라우드를 적용했습니다.`);
-            if (!options.silent) addLog('루프 비교 결과 클라우드 진행이 더 높아 서버 저장을 적용했습니다.', 'loot-magic');
-            return 'pulled-remote-higher-loop-late-guard';
-        }
-        await pushCloudSave({ touchModifiedAt: false });
-        setCloudMessage(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 로컬 저장을 업로드했습니다.`);
-        if (!options.silent) addLog(`루프 비교(로컬 ${loopSummary.localLoop} / 클라우드 ${loopSummary.remoteLoop}) 후 클라우드에 업로드했습니다.`, 'loot-magic');
-        return localStamp > remoteStamp + CLOUD_REMOTE_TIME_SKEW_MS ? 'pushed-local' : 'pushed-local-within-skew';
-    }
-    applyExternalSave(record.save_data, remoteStamp);
-    setCloudMessage('로컬과 클라우드 저장 시간이 같거나 클라우드가 근소하게 최신이라 클라우드 저장을 우선 적용했습니다.');
-    if (!options.silent) addLog('저장 시간 차이가 작아 클라우드 세이브를 우선 적용했습니다.', 'loot-magic');
-    return 'pulled-remote-within-skew';
+    markCurrentSaveCloudOwner();
+    game.saveMeta.cloudRevision = revision;
+    game.saveMeta.cloudPending = true;
+    if (!persistLocalSave({ touchModifiedAt: false, allowRecoveryWrite: true })) throw new Error('계정 저장 칸에 기록하지 못해 게스트 저장을 옮기지 않았습니다.');
+    removeGuestSave();
+    cloudState.guestSaveSummary = null;
+    refreshRuntimeForLoadedSave();
+    return true;
 }
 
-/** This device's guest save (unlinked, with progress) when an account takes the save slot (2026-10-03). It moves into the
- * account (only an account without a cloud save, and only past the simple tamper check in js/guest-save-check.js) or it is
- * deleted after asking. Nothing is copied aside, so one guest save never ends up in two accounts. Cancelling keeps the guest
- * save and drops the account link on this device. Returns whether the account adopts it. */
-async function settleUnlinkedLocalSave(record, options) {
-    if (getCloudSaveOwnerId() || isLikelyBootstrapLocalSave(game)) return options.allowLocalBootstrap === true;
-    let fate = await chooseGuestSaveFate(record, options);
-    if (fate !== 'keep') return fate === 'move';
-    detachCloudSessionLocally();
-    throw new Error('게스트 저장을 지키려고 계정 연결을 취소했습니다.');
+/** 설정 > 클라우드 세이브의 게스트 저장 옮기기 단추가 보이는 때: 계정 모드이고, 이 기기에 진행이 있는 게스트 저장이 있고, 계정의 저장은 아직
+ * 아무것도 하지 않은 새 게임일 때(한 번 진행한 계정 저장은 게스트 저장으로 바꿀 수 없다). */
+function canMoveGuestSaveIntoAccount() {
+    return !!(cloudState.user && cloudState.guestSaveSummary && getSaveSlot().kind === 'account' && isLikelyBootstrapLocalSave(game));
 }
 
-async function chooseGuestSaveFate(record, options) {
-    let label = `루프 ${getSaveLoopNumber(game)}, 레벨 ${Math.floor(Number(game.level) || 1)}`;
-    if (record && record.save_data) return await confirmGuestSaveDeletion(`이 계정에는 이미 저장이 있어 이 기기의 게스트 저장(${label})은 옮길 수 없습니다.`);
-    if (options.allowLocalBootstrap !== true) {
-        let fate = await askGuestSaveFate(label);
-        if (fate !== 'move') return fate;
+/** 설정 > 클라우드 세이브의 게스트 저장 옮기기: the guest save replaces the account's untouched save and goes up. */
+async function moveGuestSaveIntoAccount() {
+    if (!cloudState.user || cloudState.busy) return;
+    const guestSave = readGuestSave();
+    if (!canMoveGuestSaveIntoAccount() || !summarizeGuestSave(guestSave)) return setCloudMessage('옮길 게스트 저장이 없거나, 이 계정에 이미 진행이 있어 옮길 수 없습니다.');
+    const summary = summarizeGuestSave(guestSave);
+    if (!await requestGameConfirmation(`이 기기의 게스트 저장(루프 ${summary.loop}, 레벨 ${summary.level})을 이 계정의 저장으로 옮깁니다.\n옮긴 뒤 게스트 저장은 이 기기에서 지워지고, 다른 계정으로는 옮길 수 없습니다.`,
+        { title: '게스트 저장 옮기기', tone: 'warning', confirmLabel: '옮기기' })) return;
+    cloudState.busy = true;
+    updateCloudSaveUI();
+    try {
+        if (!adoptGuestSaveIntoAccount(guestSave)) return;
+        await pushCloudSave();
+        setCloudMessage('게스트 저장을 이 계정으로 옮겼습니다.');
+        showGameToast('게스트 저장을 이 계정으로 옮겼습니다.', 'success');
+    } catch (error) {
+        setCloudMessage('게스트 저장 옮기기 실패: ' + (error.message || error));
+        showGameToast('게스트 저장을 옮기지 못했습니다: ' + (error.message || error), 'danger');
+    } finally {
+        cloudState.busy = false;
+        updateCloudSaveUI();
     }
-    let verdict = guestSaveCheck.inspect(game, Date.now());
-    if (verdict.ok) return 'move';
-    return await confirmGuestSaveDeletion(`정상 플레이로는 나올 수 없는 값이 있어 게스트 저장(${label})을 옮길 수 없습니다: ${verdict.problems.join(', ')}`);
 }
 
-async function askGuestSaveFate(label) {
-    let fate = await requestGameChoice({
-        kicker: '게스트 저장',
-        title: '이 기기의 게스트 저장을 어떻게 할까요?',
-        message: `게스트 저장(${label})은 계정 하나로 한 번만 옮길 수 있습니다.`,
-        submitOnChoice: true,
-        cancelLabel: '게스트로 계속',
-        choices: [
-            { value: 'move', label: '이 계정으로 옮기기', detail: '옮긴 저장은 다른 계정으로 옮길 수 없습니다.' },
-            { value: 'discard', label: '지우고 새로 시작', detail: '게스트 저장은 지워집니다.' }
-        ]
-    });
-    return fate || 'keep';
+/** Another device committed after this copy's revision: the progress this copy never uploaded is lost to the server save. Before that,
+ * once, it can be kept as a file (for keeping, not for loading: the game reads no files, so a copy cannot come back twice). */
+async function offerUnsyncedProgressFile(record) {
+    const mine = `루프 ${getSaveLoopNumber(game)}, 레벨 ${Math.floor(Number(game.level) || 1)}, 마지막 저장 ${formatCloudTime(game.saveMeta.lastModifiedAt)}`;
+    const theirs = `루프 ${getSaveLoopNumber(record.save_data)}, 마지막 저장 ${formatCloudTime(getRemoteSaveStamp(record))}`;
+    const keep = await requestGameConfirmation(`다른 기기에서 저장한 뒤라 서버 저장으로 이어서 합니다.\n이 기기에서 아직 올리지 못한 진행(${mine})은 지워집니다.\n\n서버 저장\n${theirs}`,
+        { title: '서버 저장이 바뀌었습니다', tone: 'warning', confirmLabel: '파일로 받고 계속', cancelLabel: '그냥 계속' });
+    if (keep) downloadSaveFile(createSaveSnapshot(game), `rignin-이기기진행-${new Date().toISOString().slice(0, 10)}.json`);
 }
 
-async function confirmGuestSaveDeletion(reason) {
-    let accepted = await requestGameConfirmation(`${reason}\n계속하면 게스트 저장은 지워집니다.`,
-        { title: '게스트 저장 지우기', tone: 'danger', confirmLabel: '지우고 계속', cancelLabel: '게스트로 계속' });
-    return accepted ? 'discard' : 'keep';
+/** Hands the viewer a JSON file of a save (a browser download). */
+function downloadSaveFile(data, name) {
+    try {
+        let link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    } catch (error) {
+        console.warn('save file download failed:', error);
+        showGameToast('파일로 받지 못했습니다.', { tone: 'warning' });
+    }
 }
 
 /** Leave the signed-in account on this device only (the server session is not revoked) and keep using this device's save. */
@@ -12688,17 +12562,50 @@ function detachCloudSessionLocally() {
     applyCloudSession(null);
     cloudState.linkedProviders = [];
     cloudState.lastRemoteUpdatedAt = 0;
-    cloudState.lastRemoteLoop = 0;
+}
+
+/** Before leaving the account: what the copy has not uploaded goes up when the server can be reached (else it waits in the slot for
+ * the next entry), and the slot is written as it stands. */
+async function uploadPendingBeforeLeaving() {
+    cloudState.busy = true;
+    updateCloudSaveUI();
+    try {
+        if (isCloudSaveDirty()) {
+            try {
+                await pushCloudSave();
+            } catch (error) {
+                console.warn('upload before leaving the account failed:', error);
+            }
+        } else if (getSaveSlot().kind === 'account' && canPersistLocalSave()) persistLocalSave({ touchModifiedAt: false });
+    } finally {
+        cloudState.busy = false;
+    }
+}
+
+/** Leaves the account on this device (다른 계정 사용, 게스트로 시작): pending changes go up, the session is dropped here (the server
+ * session stays), and the guest slot comes back. */
+async function leaveAccountForGuest() {
+    await uploadPendingBeforeLeaving();
+    detachCloudSessionLocally();
+    activateGuestSaveSlot();
+}
+
+/** A deleted account (js/cloud-tools-ui.js deleteCloudAccount): its slot leaves this device too, and the start screen opens on the guest slot. */
+function forgetDeletedAccountSave(userId) {
+    try {
+        if (userId) localStorage.removeItem(accountSaveKey(userId));
+    } catch (error) {
+        console.warn('deleted account slot removal failed:', error);
+    }
+    activateGuestSaveSlot();
+    openStartupGate();
 }
 
 let cloudSyncTimer = null;
 let lastPageExitCloudPushAt = 0;
+/** The account slot holds changes the server does not have (js/save.js persistLocalSave sets it, rememberCloudCommit clears it). */
 function isCloudSaveDirty() {
-    let localStamp = game && game.saveMeta ? Math.max(0, Number(game.saveMeta.lastModifiedAt || 0)) : 0;
-    // IMPORTANT: only use confirmed sync watermark.
-    // game.saveMeta.lastCloudSyncAt can be set optimistically in page-exit path before network success.
-    let syncedStamp = Math.max(0, Number(cloudState.lastSyncedLocalModifiedAt || 0));
-    return localStamp > syncedStamp;
+    return getSaveSlot().kind === 'account' && !!(game && game.saveMeta && game.saveMeta.cloudPending);
 }
 /** Only clocks moved since the last upload: an upload would change nothing on the server. */
 function isCloudSaveUnchangedSinceUpload() {
@@ -12707,24 +12614,21 @@ function isCloudSaveUnchangedSinceUpload() {
 
 function markCloudSaveUnchanged() {
     cloudState.lastSyncAttemptAt = Date.now();
-    cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0));
+    ensureSaveMeta();
+    game.saveMeta.cloudPending = false;
+    persistLocalSave({ touchModifiedAt: false });
 }
 
 function scheduleCloudAutoSync() {
-    // 숨겨진 화면에서는 게임이 멈춰 있어 올릴 것이 없다(숨겨지는 순간의 업로드는 pushCloudSaveOnPageExit가 한다).
-    if (!cloudState.configured || !cloudState.user || cloudState.busy || isStartupOverlayOpen() || document.hidden) return;
-    if (!isCloudSaveDirty()) {
-        cloudState.pendingAutoSyncDirty = false;
-        return;
-    }
-    let now = Date.now();
-    cloudState.pendingAutoSyncDirty = true;
-    if (now - cloudState.lastSyncAttemptAt < CLOUD_SYNC_MIN_INTERVAL_MS) return;
+    // 숨겨진 화면에서는 게임이 멈춰 있어 올릴 것이 없다(숨겨지는 순간의 업로드는 pushCloudSaveOnPageExit가 한다). 다른 기기에 밀린 뒤에는
+    // 계정에 다시 들어갈 때까지 올리지 않는다(syncHalted).
+    if (!cloudState.configured || !cloudState.user || cloudState.busy || cloudState.syncHalted || isStartupOverlayOpen() || document.hidden) return;
+    if (!isCloudSaveDirty()) return;
+    if (Date.now() - cloudState.lastSyncAttemptAt < CLOUD_SYNC_MIN_INTERVAL_MS) return;
     if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
     cloudSyncTimer = setTimeout(() => {
         cloudSyncTimer = null;
-        if (!cloudState.pendingAutoSyncDirty || !isCloudSaveDirty() || document.hidden) return;
-        cloudState.pendingAutoSyncDirty = false;
+        if (!isCloudSaveDirty() || cloudState.syncHalted || document.hidden) return;
         if (isCloudSaveUnchangedSinceUpload()) return markCloudSaveUnchanged();
         syncCloudSave({ automatic: true }).catch(error => {
             console.warn('auto cloud sync failed:', error);
@@ -12770,12 +12674,9 @@ async function syncCloudSave(options = {}) {
     try {
         let fresh = await ensureCloudSessionFresh(options.reason || '클라우드 저장');
         if (!fresh) return;
-        let guardResult = await guardAgainstStaleLocalOverwrite({ automatic: !!options.automatic, silentLog: !!options.automatic });
-        if (guardResult.status === 'pulled-remote' || guardResult.status === 'pulled-remote-higher-loop') return;
-        await pushCloudSave({ touchModifiedAt: options.automatic !== true });
-        cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0));
-        setCloudMessage(options.automatic ? '클라우드 자동 저장을 완료했습니다.' : '클라우드 업로드를 완료했습니다.');
-        if (!options.automatic) addLog('클라우드 세이브를 업로드했습니다.', 'loot-magic');
+        await pushCloudSave();
+        setCloudMessage(options.automatic ? '서버에 자동으로 올렸습니다.' : '서버에 올렸습니다.');
+        if (!options.automatic) addLog('서버에 저장을 올렸습니다.', 'loot-magic');
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
@@ -12783,17 +12684,22 @@ async function syncCloudSave(options = {}) {
     }
 }
 
-/** An auto upload that lost to another device stops every later auto upload, so the player hears it once as a toast and not only
- * in the cloud panel line (2026-10-27 review: the losing device played on without knowing its progress stayed local). So does a
- * server save from a later release (2026-10-28), whose toast says to update instead (loading it here is refused too). */
+/** An auto upload that failed. A conflict (another device committed since this copy's revision) halts every later auto upload until the
+ * account is entered again, and says so once as a toast (2026-10-27 review: the losing device played on without knowing). A connection
+ * failure says so once per streak: the progress stays in this device's slot and goes up when an attempt reaches the server. */
 function noteAutoCloudSyncFailure(error) {
     let text = String(error && error.message || error);
-    setCloudMessage('자동 클라우드 저장 실패: ' + text);
-    const outdated = error && error.code === OUTDATED_BUILD_ERROR_CODE;
-    if (!(outdated || /다른 기기에서/.test(text)) || cloudState.autoSyncConflictNoticed || typeof showGameToast !== 'function') return;
-    cloudState.autoSyncConflictNoticed = true;
-    showGameToast(outdated ? `${text} 그때까지 이 기기의 진행은 서버에 올리지 않습니다.`
-        : '다른 기기에서 서버 저장이 바뀌어 이 기기의 자동 저장이 멈췄습니다. 서버 저장을 불러오면 이어집니다.', { tone: 'warning', duration: 9000 });
+    setCloudMessage('자동 서버 저장 실패: ' + text);
+    if (typeof showGameToast !== 'function') return;
+    if (error && error.code === CLOUD_REVISION_CONFLICT_CODE) {
+        if (cloudState.syncHalted) return;
+        cloudState.syncHalted = true;
+        showGameToast(text, { tone: 'warning', duration: 9000 });
+        return;
+    }
+    if (cloudState.uploadFailureNoticed) return;
+    cloudState.uploadFailureNoticed = true;
+    showGameToast('서버에 올리지 못했습니다. 진행은 이 기기에 남아 있고, 연결되면 다시 올립니다.', { tone: 'warning', duration: 7000 });
 }
 
 /** 부팅 복원이나 대조의 실패: 서버가 토큰을 거절했을 때(401)만 로그아웃한다. 업무 오류(400, 예: SAVE_TOO_LARGE)나 망 오류면
@@ -12832,11 +12738,8 @@ async function initializeCloudSave() {
         if (!restored) restored = await restoreCloudSession();
         if (restored && cloudState.user) {
             await refreshCloudLinkedIdentities();
-            if (isStartupOverlayOpen()) setCloudMessage('이전 로그인 세션을 복원했습니다. 클라우드 세이브로 계속할 수 있습니다.');
-            else {
-                setCloudMessage('이전 로그인 세션을 복원했습니다.');
-                await reconcileCloudSaveState({ silent: true, strictRemoteResume: true });
-            }
+            // 부팅 중이라 시작 화면이 열려 있다: 계정 저장은 "계정 저장으로 이어하기"를 누를 때 연다(enterAccountSave).
+            setCloudMessage('이전 로그인 세션을 복원했습니다. 계정 저장으로 이어 할 수 있습니다.');
         } else if (!loadStoredCloudSession()) {
             setCloudMessage('로그인하면 클라우드 저장을 사용할 수 있습니다.');
         }
@@ -12874,11 +12777,11 @@ async function cloudSignUp(options = {}) {
             clearCloudPasswordInput();
             advanceLoadingOverlay({
                 title: '첫 세이브를 연결하는 중...',
-                detail: '새 계정에 현재 진행도를 연결하고 있습니다.',
+                detail: '새 계정의 첫 서버 저장을 올리고 있습니다.',
                 caption: '저장 연결',
                 progress: 54
             });
-            await reconcileCloudSaveState({ createRemoteFromLocal: true, allowLocalBootstrap: true });
+            await enterAccountSave({ signUp: true });
             addLog('클라우드 계정을 만들고 저장을 연결했습니다.', 'loot-magic');
             if (options.enterGame) await enterGameWorld();
         } else {
@@ -12972,15 +12875,12 @@ async function cloudLogin(options = {}) {
         await refreshCloudLinkedIdentities();
         clearCloudPasswordInput();
         advanceLoadingOverlay({
-            title: '저장 데이터를 불러오는 중...',
-            detail: '같은 계정의 로컬과 클라우드 저장을 비교해 더 앞선 진행도를 적용합니다.',
-            caption: '저장 동기화',
+            title: '계정 저장을 불러오는 중...',
+            detail: '서버 저장과 이 기기의 계정 저장을 맞추고 있습니다.',
+            caption: '계정 저장',
             progress: 58
         });
-        await reconcileCloudSaveState({
-            preferRemoteOnResume: true,
-            strictRemoteResume: true
-        });
+        await enterAccountSave();
         addLog('클라우드 세이브 계정에 로그인했습니다.', 'loot-magic');
         if (options.enterGame) await enterGameWorld();
     } catch (error) {
@@ -12998,34 +12898,39 @@ function clearCloudSessionLocally() {
     applyCloudSession(null);
     cloudState.linkedProviders = [];
     cloudState.lastRemoteUpdatedAt = 0;
-    cloudState.lastRemoteLoop = 0;
 }
 
-async function cloudLogout() {
-    if (!cloudState.user) return setCloudMessage('이미 로그아웃 상태입니다.');
-    cloudState.busy = true;
-    setCloudMessage('로그아웃하는 중입니다...');
-    updateCloudSaveUI();
-    try {
-        let client = getSupabaseClient();
-        if (client) {
-            try { await client.auth.signOut(); } catch (oauthLogoutError) { console.warn('supabase oauth logout failed:', oauthLogoutError); }
+/** Tells the server the session is over (supabase-js first, then the game's own token). Failures are logged: the device forgets the
+ * session either way. */
+async function requestServerLogout() {
+    let client = getSupabaseClient();
+    if (client) {
+        try { await client.auth.signOut(); } catch (oauthLogoutError) { console.warn('supabase oauth logout failed:', oauthLogoutError); }
+    }
+    if (cloudState.session && cloudState.session.access_token) {
+        try {
+            await cloudJsonRequest('/auth/v1/logout', { method: 'POST' });
+        } catch (logoutError) {
+            console.warn('cloud logout request failed:', logoutError);
         }
-        if (cloudState.session && cloudState.session.access_token) {
-            try {
-                await cloudJsonRequest('/auth/v1/logout', { method: 'POST' });
-            } catch (logoutError) {
-                console.warn('cloud logout request failed:', logoutError);
-            }
-        }
-        clearCloudSessionLocally();
-        setCloudMessage('클라우드 계정에서 로그아웃했습니다.');
-    } finally {
-        cloudState.busy = false;
-        updateCloudSaveUI();
     }
 }
 
+/** 설정의 로그아웃: 안 올린 진행을 올리고(leaveAccountForGuest), 서버 세션을 끝내고, 게스트 칸으로 시작 화면을 연다. 계정 칸은 이 기기에 남는다. */
+async function cloudLogout() {
+    if (!cloudState.user) return setCloudMessage('이미 로그아웃 상태입니다.');
+    if (cloudState.busy) return;
+    if (!await requestGameConfirmation('로그아웃하면 시작 화면으로 돌아갑니다. 계정 저장은 서버에 올린 뒤 이 기기에도 남겨 둡니다.',
+        { title: '로그아웃', confirmLabel: '로그아웃' })) return;
+    setCloudMessage('로그아웃하는 중입니다...');
+    updateCloudSaveUI();
+    await uploadPendingBeforeLeaving();
+    await requestServerLogout();
+    clearCloudSessionLocally();
+    activateGuestSaveSlot();
+    openStartupGate();
+    setCloudMessage('로그아웃했습니다. 이 기기 저장으로 이어 하거나 다시 로그인할 수 있습니다.');
+}
 
 function requestImmediateCloudSave(reason) {
     if (!cloudState.configured || !cloudState.user) return false;
@@ -13038,38 +12943,32 @@ function requestImmediateCloudSave(reason) {
 }
 
 
+/** The page-exit commit answered: committed, the slot takes the revision; refused (another device committed), uploads halt until the
+ * account is entered again. */
 function applyPageExitCloudSaveResult(text, exitSave, fingerprint) {
     if (cloudState.busy || game !== exitSave || !text) return;
     let result = JSON.parse(text);
     result = Array.isArray(result) ? result[0] : result;
-    if (!result || !result.committed) return;
-    ensureSaveMeta();
-    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(result.current_revision) || 0));
-    game.saveMeta.lastCloudSyncAt = result.saved_at ? (new Date(result.saved_at).getTime() || Date.now()) : Date.now();
-    cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
-    cloudState.lastSyncedLocalModifiedAt = Math.max(0, Number(game.saveMeta.lastModifiedAt || 0));
-    cloudState.lastCloudCommitAt = Date.now();
-    cloudState.autoSyncConflictNoticed = false;   // 다시 충돌하면 다시 알린다
-    cloudState.lastUploadedFingerprint = fingerprint;
-    persistLocalSave({ touchModifiedAt: false });
+    if (!result) return;
+    if (!result.committed) {
+        cloudState.syncHalted = true;
+        return;
+    }
+    rememberCloudCommit({ revision: result.current_revision, updated_at: result.saved_at }, fingerprint);
 }
 
 /** Body, headers and endpoint of the page-exit upload (the same RPC as a normal sync), with the content print. */
 function buildPageExitCloudRequest(config) {
-    let payload = typeof createCloudSavePayload === 'function' ? createCloudSavePayload(game) : JSON.parse(JSON.stringify(game));
-    let revisionEnabled = cloudState.revisionSupported === true;
-    let body = JSON.stringify(revisionEnabled
-        ? { expected_revision: getLocalCloudRevision(), next_save_data: payload }
-        : { user_id: cloudState.user.id, save_data: payload });
+    let payload = createCloudSavePayload(game);
+    let body = JSON.stringify({ expected_revision: getLocalCloudRevision(), next_save_data: payload });
     let headers = {
         apikey: config.supabaseAnonKey,
         ...cloudSessionGuard.requestHeaders(),
         Authorization: `Bearer ${cloudState.session.access_token}`,
         'Content-Type': 'application/json',
-        Prefer: revisionEnabled ? 'return=representation' : 'resolution=merge-duplicates,return=minimal'
+        Prefer: 'return=representation'
     };
-    let endpoint = config.supabaseUrl + (revisionEnabled ? '/rest/v1/rpc/commit_cloud_save' : '/rest/v1/cloud_saves');
-    return { body, headers, endpoint, revisionEnabled, fingerprint: cloudSaveFingerprint(createCloudSyncPayload(game)) };
+    return { body, headers, endpoint: config.supabaseUrl + '/rest/v1/rpc/commit_cloud_save', fingerprint: cloudSaveFingerprint(createCloudSyncPayload(game)) };
 }
 
 /** Uploaded a moment ago, or only clocks moved since the last upload: switching apps back and forth uploads once. */
@@ -13078,7 +12977,8 @@ function isPageExitCloudPushRedundant(fingerprint) {
 }
 
 /** Browsers refuse keepalive bodies over 64 KiB (most saves). A bigger save goes as a normal request: when the page is
- * only hidden (switching tabs or apps) it still finishes. sendBeacon cannot carry the Supabase auth headers. */
+ * only hidden (switching tabs or apps) it still finishes; a closed page may lose it, and the slot keeps it pending for the next
+ * account entry (enterAccountSave). sendBeacon cannot carry the Supabase auth headers. */
 function sendPageExitCloudSave(request, reason, exitSave) {
     fetch(request.endpoint, {
         method: 'POST',
@@ -13089,7 +12989,7 @@ function sendPageExitCloudSave(request, reason, exitSave) {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.text();
     }).then(text => {
-        if (request.revisionEnabled) applyPageExitCloudSaveResult(text, exitSave, request.fingerprint);
+        applyPageExitCloudSaveResult(text, exitSave, request.fingerprint);
     }).catch(error => {
         let msg = String((error && error.message) || error || '');
         let expectedAbort = /failed to fetch|networkerror|abort|cancel/i.test(msg);
@@ -13111,28 +13011,17 @@ function hasUsableCloudSessionToken() {
 
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
-    if (cloudState.busy || cloudState.lastRemoteResetRevision > (game.saveMeta.cloudResetRevision || 0)) return false;
+    if (cloudState.busy || cloudState.syncHalted) return false;
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) return false;
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !hasUsableCloudSessionToken()) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;
     if (!gameplayStarted) return false;
-    if (getCloudSaveOwnerId() !== getActiveCloudUserId()) return false;
-    let localLoop = getSaveLoopNumber(game);
-    if ((cloudState.lastRemoteLoop || 0) > localLoop) {
-        setCloudMessage(`클라우드 루프(${cloudState.lastRemoteLoop})가 로컬 루프(${localLoop})보다 높아 종료 전 업로드를 차단했습니다.`);
-        return false;
-    }
-    if ((cloudState.lastRemoteLoop || 0) > 0 && isLikelyBootstrapLocalSave(game)) {
-        setCloudMessage('로컬 세이브가 새로 생성된 기본 상태라 종료 전 클라우드 업로드를 차단했습니다.');
-        return false;
-    }
+    if (getCloudSaveOwnerId() !== getActiveCloudUserId() || getSaveSlot().userId !== getActiveCloudUserId()) return false;
     let exitPushStartedAt = Date.now();
     let exitSave = game;
     if (exitPushStartedAt - lastPageExitCloudPushAt < 1500) return false;
     try {
-        markCurrentSaveCloudOwner();
         if (!persistLocalSave({ touchModifiedAt: true })) return false;
-        ensureSaveMeta();
         let request = buildPageExitCloudRequest(config);
         if (isPageExitCloudPushRedundant(request.fingerprint)) return false;
         sendPageExitCloudSave(request, reason, exitSave);
@@ -13146,42 +13035,24 @@ function pushCloudSaveOnPageExit(reason) {
     }
 }
 
-async function cloudForcePullNow() {
-    if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
-    if (!await requestGameConfirmation('서버 저장으로 현재 기기의 진행 데이터를 강제로 교체합니다.\n복구하기 어려운 작업입니다.', {
-        title: '서버 저장 강제 불러오기',
-        tone: 'danger',
-        confirmLabel: '기기 저장 교체'
-    })) return;
-    cloudState.busy = true;
-    setCloudMessage('서버 저장을 강제로 불러오는 중입니다...');
-    updateCloudSaveUI();
-    try {
-        await pullCloudSave({ silent: false });
-        setCloudMessage('서버 저장을 현재 기기에 강제로 적용했습니다.');
-        addLog('☁️ 서버 저장 강제 불러오기를 완료했습니다.', 'loot-magic');
-    } catch (error) {
-        setCloudMessage('서버 강제 불러오기 실패: ' + (error.message || error));
-    } finally {
-        cloudState.busy = false;
-        updateCloudSaveUI();
-    }
-}
-
+/** 설정의 서버 저장 다시 받기: the server save replaces this device's copy, pending changes included. */
 async function cloudPullNow() {
     if (!cloudState.user) return setCloudMessage('먼저 로그인해주세요.');
-    if (!await requestGameConfirmation('클라우드 저장으로 현재 기기의 진행 데이터를 교체합니다.', {
-        title: '클라우드 저장 불러오기',
+    if (cloudState.busy) return;
+    if (!await requestGameConfirmation(isCloudSaveDirty()
+        ? '서버 저장으로 이 기기의 계정 저장을 바꿉니다.\n이 기기에서 아직 올리지 않은 진행은 지워집니다.'
+        : '서버 저장으로 이 기기의 계정 저장을 바꿉니다.', {
+        title: '서버 저장 다시 받기',
         tone: 'danger',
-        confirmLabel: '불러오기'
+        confirmLabel: '다시 받기'
     })) return;
     cloudState.busy = true;
-    setCloudMessage('클라우드 저장을 불러오는 중입니다...');
+    setCloudMessage('서버 저장을 받는 중입니다...');
     updateCloudSaveUI();
     try {
         await pullCloudSave();
     } catch (error) {
-        setCloudMessage('클라우드 불러오기 실패: ' + (error.message || error));
+        setCloudMessage('서버 저장 받기 실패: ' + (error.message || error));
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
@@ -13258,20 +13129,18 @@ function runStartupSmokeChecks() {
     if (issues.length > 0) console.warn('[SmokeCheck] startup issues:', issues.join(', '));
 }
 
-/** Explicit reset only: commit a blank account save using the just-read server revision. */
+/** Explicit reset only: commit a blank account save at the just-read server revision. Another device still holding the old save
+ * cannot commit over it (its revision is behind) and takes the fresh save at its next account entry. */
 async function resetCloudSaveProgress(userId, freshGame) {
-    await fetchCloudSaveRecord();
-    if (cloudState.revisionSupported !== true) throw new Error('안전한 초기화를 위해 서버의 저장 버전 기능 업데이트가 필요합니다.');
+    await fetchCloudSaveSummary();
     let expectedRevision = cloudState.lastRemoteRevision;
     freshGame.saveMeta.cloudUserId = userId;
-    freshGame.saveMeta.cloudResetRevision = expectedRevision + 1;
-    let row = await commitCloudSavePayload(createCloudSavePayload(freshGame), undefined, { expectedRevision, expectedUserId: userId });
+    let row = await commitCloudSavePayload(createCloudSavePayload(freshGame), { expectedRevision, expectedUserId: userId });
     freshGame.saveMeta.cloudRevision = row.revision;
     freshGame.saveMeta.lastCloudSyncAt = new Date(row.updated_at).getTime();
+    freshGame.saveMeta.cloudPending = false;
     cloudState.lastRemoteRevision = row.revision;
-    cloudState.lastRemoteResetRevision = freshGame.saveMeta.cloudResetRevision;
-    cloudState.lastRemoteLoop = 1;
-    cloudState.lastSyncedLocalModifiedAt = freshGame.saveMeta.lastModifiedAt;
+    cloudState.lastRemoteUpdatedAt = freshGame.saveMeta.lastCloudSyncAt;
 }
 
 async function resetProgressStorage(userId) {
@@ -13293,7 +13162,6 @@ async function resetProgressStorage(userId) {
         }
         resetLocalSave(freshGame);
         game = freshGame;
-        cloudState.pendingAutoSyncDirty = false;
         cloudState.pendingForcedSyncOptions = null;
         location.reload();
     } catch (error) {

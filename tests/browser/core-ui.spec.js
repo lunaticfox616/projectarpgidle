@@ -129,6 +129,7 @@ async function prepareResetCase(page, cloud = false) {
             cloudState.configured = true;
             applyCloudSession({ access_token: 'reset-test-token', refresh_token: 'reset-refresh', expires_at: 4102444800,
                 user: { id: 'reset-account', email: 'reset@example.invalid' } });
+            selectSaveSlot('reset-account');   // 계정 모드: 계정 저장 칸(js/save.js saveSlot)
             game.saveMeta.cloudUserId = 'reset-account';
             game.saveMeta.cloudRevision = 2;
         }
@@ -168,7 +169,7 @@ test('save reset clears only local progress for a guest after one confirmation',
 test('save reset replaces the signed-in account and does not restore old high-loop progress', async ({ page }, testInfo) => {
     const failures = watchRuntimeFailures(page);
     await prepareResetCase(page, true);
-    const oldSave = await page.evaluate(() => JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)));
+    const oldSave = await page.evaluate(() => JSON.parse(localStorage.getItem(getSaveSlot().key)));
     let remote = { user_id: 'reset-account', save_data: oldSave, revision: 7, updated_at: new Date().toISOString() };
     const writes = [];
     await page.route('https://reset-test.invalid/**', async route => {
@@ -208,17 +209,22 @@ test('save reset replaces the signed-in account and does not restore old high-lo
     expect(await page.evaluate(() => cloudState.user.id)).toBe('reset-account');
     expect(remote.save_data.season).toBe(1);
     expect(remote.save_data.saveMeta.cloudUserId).toBe('reset-account');
-    expect(remote.save_data.saveMeta.cloudResetRevision).toBe(8);
-    // Simulate another device still holding the pre-reset save. Use real reconciliation and transport.
+    expect(remote.revision).toBe(8);
+    // Simulate another device still holding the pre-reset save (revision 7, changes not uploaded). Use the real account entry and transport:
+    // the server (revision 8) wins, the old progress is offered as a file (declined here) and never goes up.
     await page.evaluate(oldSave => {
         window.CLOUD_SAVE_CONFIG = { enabled: true, supabaseUrl: 'https://reset-test.invalid', supabaseAnonKey: 'test-only' };
         cloudState.configured = true;
         applyCloudSession({ access_token: 'reset-test-token', user: { id: 'reset-account' } });
+        selectSaveSlot('reset-account');
         game = mergeDefaults(oldSave);
-        game.saveMeta.lastModifiedAt = Date.now() + 60000;
+        game.saveMeta.cloudPending = true;
+        persistLocalSave({ touchModifiedAt: false });
+        window.__fileOffers = 0;
+        requestGameConfirmation = async () => { window.__fileOffers += 1; return false; };
     }, oldSave);
-    await page.evaluate(() => reconcileCloudSaveState({ preferRemoteOnResume: true }));
-    expect(await page.evaluate(() => game.season)).toBe(1);
+    await page.evaluate(() => enterAccountSave());
+    expect(await page.evaluate(() => ({ loop: game.season, offers: window.__fileOffers, revision: game.saveMeta.cloudRevision }))).toEqual({ loop: 1, offers: 1, revision: 8 });
     expect(writes).toHaveLength(1);
     expect(await page.evaluate(() => cloudState.user.id)).toBe('reset-account');
     expect(failures).toEqual([]);
@@ -227,7 +233,7 @@ test('save reset replaces the signed-in account and does not restore old high-lo
 for (const failure of ['network', 'revision-conflict', 'account-change']) {
     test(`save reset preserves local progress on ${failure}`, async ({ page }) => {
         await prepareResetCase(page, true);
-        const before = await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY));
+        const before = await page.evaluate(() => localStorage.getItem(getSaveSlot().key));
         let writes = 0;
         await page.route('https://reset-test.invalid/**', async route => {
             if (!/\/cloud_saves\?|\/rpc\/commit_cloud_save$/.test(route.request().url())) return route.fulfill({ json: [] });
@@ -243,7 +249,7 @@ for (const failure of ['network', 'revision-conflict', 'account-change']) {
         await page.locator('#game-dialog-confirm').click();
         await expect(page.locator('#game-toast-region')).toContainText('초기화하지 못했습니다');
         expect(await page.evaluate(() => game.season)).toBe(17);
-        expect(await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY))).toBe(before);
+        expect(await page.evaluate(() => localStorage.getItem(getSaveSlot().key))).toBe(before);
         expect(await page.evaluate(() => ({ busy: cloudState.busy, writable: canPersistLocalSave(), skip: !!window.__skipUnloadSaveOnce })))
             .toEqual({ busy: false, writable: true, skip: false });
         expect(writes).toBe(failure === 'revision-conflict' ? 1 : 0);
@@ -254,7 +260,7 @@ for (const failure of ['network', 'revision-conflict', 'account-change']) {
 for (const cloud of [false, true]) {
     test(`save reset handles local storage failure with cloud=${cloud}`, async ({ page }) => {
         await prepareResetCase(page, cloud);
-        const before = await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY));
+        const before = await page.evaluate(() => localStorage.getItem(getSaveSlot().key));
         let remote = { user_id: 'reset-account', revision: 7, save_data: JSON.parse(before) };
         let writes = 0;
         await page.route('https://reset-test.invalid/**', async route => {
@@ -268,21 +274,21 @@ for (const cloud of [false, true]) {
             const setItem = Storage.prototype.setItem;
             window.restoreTestStorage = () => { Storage.prototype.setItem = setItem; };
             Storage.prototype.setItem = function (key, value) {
-                if (key === LOCAL_SAVE_KEY) throw new DOMException('test quota exceeded', 'QuotaExceededError');
+                if (key === getSaveSlot().key) throw new DOMException('test quota exceeded', 'QuotaExceededError');
                 return setItem.call(this, key, value);
             };
         });
         await page.locator('[onclick="resetGame()"]').click();
         await page.locator('#game-dialog-confirm').click();
         await expect(page.locator('#game-toast-region')).toContainText('초기화하지 못했습니다');
-        expect(await page.evaluate(() => localStorage.getItem(LOCAL_SAVE_KEY))).toBe(before);
+        expect(await page.evaluate(() => localStorage.getItem(getSaveSlot().key))).toBe(before);
         expect(await page.evaluate(() => ({ loop: game.season, writable: canPersistLocalSave(), skip: !!window.__skipUnloadSaveOnce })))
             .toEqual({ loop: cloud ? 1 : 17, writable: !cloud, skip: false });
         expect(writes).toBe(cloud ? 1 : 0);
         await page.evaluate(() => window.restoreTestStorage());
         if (cloud) {
-            await page.evaluate(() => reconcileCloudSaveState({ preferRemoteOnResume: true }));
-            expect(await page.evaluate(() => JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY)).season)).toBe(1);
+            await page.evaluate(() => enterAccountSave());
+            expect(await page.evaluate(() => JSON.parse(localStorage.getItem(getSaveSlot().key)).season)).toBe(1);
             expect(writes).toBe(1);
         }
     });
@@ -562,6 +568,7 @@ test('cloud sync reads only a save summary before uploading, and a big save stil
         cloudState.configured = true;
         applyCloudSession({ access_token: 'traffic-token', refresh_token: 'traffic-refresh', expires_at: 4102444800,
             user: { id: 'traffic-account', email: 'traffic@example.invalid' } });
+        selectSaveSlot('traffic-account');
         game.saveMeta.cloudUserId = 'traffic-account';
         game.saveMeta.cloudRevision = 2;
         game.level = Math.max(game.level, 5);
@@ -569,8 +576,7 @@ test('cloud sync reads only a save summary before uploading, and a big save stil
     });
     await page.evaluate(() => syncCloudSave({ automatic: true }));
     await expect.poll(() => commits.length).toBe(1);
-    expect(reads.length).toBeGreaterThan(0);
-    expect(reads.filter(url => /[=,]save_data(?=[,&]|$)/.test(url)), 'no read before an upload selects the whole save').toEqual([]);
+    expect(reads, 'an upload reads nothing first: the commit itself checks the revision').toEqual([]);
 
     await page.evaluate(() => {
         game.records = { ...(game.records || {}), trafficPad: 'x'.repeat(90000) };
