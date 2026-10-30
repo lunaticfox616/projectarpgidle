@@ -40,6 +40,7 @@
 .unlock-upgrade>div>span b{color:var(--skin-accent);font-weight:600}
 #content-unlock-panel .unlock-upgrade button{min-height:30px;padding:2px 10px;font-size:12px}
 .unlock-upgrade-max{font-size:12px;color:var(--color-success)}
+.unlock-upgrade-strip{display:none}
 .unlock-map{overflow:auto;max-height:390px;padding:0 18px 18px;scrollbar-color:var(--skin-line-strong) var(--skin-panel);background:radial-gradient(ellipse at 40% 45%,rgba(136,123,65,.08),transparent 65%)}
 .unlock-branch{position:relative;min-width:max-content;padding:17px 0 22px 48px}
 .unlock-trunk{position:absolute;left:33px;top:0;bottom:0;border-left:1px solid var(--skin-line-strong);transform-origin:top;pointer-events:none}
@@ -180,6 +181,36 @@ body.desktop-windowed-ui #content-unlock-panel>.unlock-workspace{flex:1 0 auto}
  body.desktop-windowed-ui #content-unlock-panel :is(.unlock-map,.unlock-milestones){flex:1 1 0;min-height:0;max-height:none}
  body.desktop-windowed-ui #content-unlock-panel .unlock-start{flex:1 0 auto}
 }
+/* 세로로 짧은 창(2026-10-30 사용자: 가로는 그대로 세로만 줄이면 강화가 크기 그대로라 아래를 거의 볼 수 없다): 머리줄과 탭, 강화와 필터가 저마다 한 줄이 되고
+   강화 카드는 접혀 눌렀을 때 연결도 위로 펼쳐진다(js/content-progression-ui.js upgradeStrip). 설명 칸의 큰 그림도 뺀다. 남는 높이는 연결도와 설명이 쓴다. */
+body.desktop-windowed-ui #tab-unlocks>.ui-window-body,body.desktop-windowed-ui .merged-tab-panels>#tab-unlocks.merged-subtab-pane.active{container:unlock-window/size}
+body.desktop-windowed-ui #content-unlock-panel{position:relative}
+@container(min-width:841px){@container unlock-window (max-height:660px){
+ .content-unlock-heading{position:absolute;top:0;right:0;height:46px;padding:0 18px;background:none}
+ .unlock-toolbar{border-top:0}
+ body.desktop-windowed-ui #content-unlock-panel .unlock-content:has(>.unlock-upgrades){display:grid;position:relative;grid-template-columns:minmax(max-content,1fr) minmax(0,auto);grid-template-rows:46px minmax(0,1fr)}
+ .unlock-upgrades{padding:0 8px 0 16px}
+ .unlock-upgrades>h3{display:none}
+ #content-unlock-panel .unlock-upgrade-strip{display:flex;align-items:center;gap:6px;width:100%;height:100%;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--color-text);white-space:nowrap}
+ .unlock-upgrade-strip>strong{margin-right:4px;font-size:13px;font-weight:600;color:var(--skin-accent)}
+ .unlock-upgrade-strip::after{content:'';margin-left:2px;border:4px solid transparent;border-top-color:currentColor;transform:translateY(2px)}
+ #content-unlock-panel .unlock-upgrade-strip[aria-expanded=true]::after{transform:translateY(-2px) rotate(180deg)}
+ .unlock-upgrade-chip{display:inline-flex;align-items:center;gap:3px;height:30px;padding:0 5px 0 2px;border:1px solid var(--skin-line);background:var(--skin-panel-raised)}
+ .unlock-upgrade-chip.is-ready{border-color:var(--skin-accent)}
+ .unlock-upgrade-chip.is-max{opacity:.7}
+ .unlock-upgrade-chip>img{width:24px;height:24px;object-fit:contain;image-rendering:pixelated}
+ .unlock-upgrade-chip>small{font-size:12px;color:var(--color-text-secondary)}
+ .unlock-upgrade-ready{margin-left:4px;font-size:12px;color:var(--skin-accent)}
+ .unlock-upgrade-list{display:none}
+ .unlock-upgrades.is-open .unlock-upgrade-list{display:grid;position:absolute;top:46px;left:0;right:0;z-index:3;padding:12px 16px;border-bottom:1px solid var(--skin-line-strong);background:var(--skin-panel);box-shadow:0 10px 18px rgba(0,0,0,.5)}
+ .unlock-filters{flex-wrap:nowrap;align-items:center;padding:0 16px 0 8px;overflow-x:auto;scrollbar-width:none}
+ .unlock-filters button{flex:none}
+ /* 연결도의 내용 폭이 윗줄의 칸 나누기에 끼어들면 필터가 잘린다 */
+ body.desktop-windowed-ui #content-unlock-panel :is(.unlock-map,.unlock-start){grid-column:1/-1;contain:inline-size}
+ body.desktop-windowed-ui #content-unlock-panel .unlock-start{min-height:0;gap:12px;justify-content:safe center;padding:12px;overflow-y:auto}
+ .unlock-detail-art{display:none}
+ .unlock-detail{gap:10px}
+}}
 /* 이야기 NPC의 창(js/content-progression-ui.js openNpc): 왼쪽에 초상, 오른쪽에 이름, 말 상자, 이야깃거리, 아래에 즉시 해금과 상점(css/npc-shop.css).
    말 상자와 표식은 NPC의 색(data-tone, 무대의 이름표와 같다)을 쓴다. */
 .npc-dialog{--npc-tone:#e0c27e;--npc-glow:rgba(224,194,126,.16);width:min(880px,94vw);height:fit-content;max-height:min(640px,90vh);padding:0;border:1px solid var(--skin-line);background:linear-gradient(180deg,rgba(169,145,84,.07),transparent 140px),#110e0b;color:var(--color-text);overflow:hidden;box-shadow:0 26px 80px rgba(0,0,0,.72)}

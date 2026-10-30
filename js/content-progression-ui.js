@@ -23,6 +23,7 @@ const contentUnlockUi = {
     view: 'choice',
     group: 'all',
     showAllMilestones: false,
+    upgradesOpen: false,
     announceStarterGem(name) {
         if (!name || (game.seenTutorials || []).includes('tutorial_starter_gem_equip')) return;
         game.unlocks.skills = true;
@@ -125,17 +126,27 @@ const contentUnlockUi = {
     /** 강화(2026-10-25 사용자: 영구 방치 성장, 가방 쪽, 그루터기 보관함을 해금으로): 시리즈마다 한 장. 지금 효과 → 다음 단계, 그리고
      * 다음 단계를 사는 단추(값 또는 아직 모자란 조건). 다 사면 최대. */
     upgradesHtml() {
-        const cards = CONTENT_UNLOCK_SERIES.map(spec => {
-            const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.series === spec.series), rank = contentProgression.rank(spec.series);
-            const next = rows[rank] || null, status = next && contentProgression.status(next.id);
-            const now = this.upgradeEffect(spec, rank), then = next ? ` → <b>${escapeHTML(this.upgradeEffect(spec, rank + 1))}</b>` : '';
-            const action = !next ? '<span class="unlock-upgrade-max">최대</span>'
-                : `<button type="button" data-unlock-content="${next.id}"${status.available ? '' : ' disabled'}><span class="px-center">${escapeHTML(status.available ? next.cost + 'P' : status.reason)}</span></button>`;
-            return `<article class="unlock-upgrade${next && status.available ? ' is-ready' : ''}${next ? '' : ' is-max'}" title="${escapeHTML(spec.description)}">`
-                + `<img src="assets/${spec.art}" alt=""><div><strong>${escapeHTML(spec.name)}<small>${rank}/${rows.length}</small></strong>`
-                + `<span>${escapeHTML(now)}${then}</span></div>${action}</article>`;
-        }).join('');
-        return `<section class="unlock-upgrades" aria-label="강화"><h3>강화</h3><div class="unlock-upgrade-list">${cards}</div></section>`;
+        const series = CONTENT_UNLOCK_SERIES.map(spec => this.upgradeState(spec)), cards = series.map(row => this.upgradeCard(row)).join('');
+        return `<section class="unlock-upgrades${this.upgradesOpen ? ' is-open' : ''}" aria-label="강화"><h3>강화</h3>${this.upgradeStrip(series)}<div class="unlock-upgrade-list">${cards}</div></section>`;
+    },
+    upgradeState(spec) {
+        const rows = CONTENT_UNLOCK_CATALOG.filter(row => row.series === spec.series), rank = contentProgression.rank(spec.series);
+        const next = rows[rank] || null, status = next && contentProgression.status(next.id);
+        return { spec, steps: rows.length, rank, next, status, ready: !!next && status.available };
+    },
+    upgradeCard({ spec, steps, rank, next, status, ready }) {
+        const now = this.upgradeEffect(spec, rank), then = next ? ` → <b>${escapeHTML(this.upgradeEffect(spec, rank + 1))}</b>` : '';
+        const action = !next ? '<span class="unlock-upgrade-max">최대</span>'
+            : `<button type="button" data-unlock-content="${next.id}"${ready ? '' : ' disabled'}><span class="px-center">${escapeHTML(ready ? next.cost + 'P' : status.reason)}</span></button>`;
+        return `<article class="unlock-upgrade${ready ? ' is-ready' : ''}${next ? '' : ' is-max'}" title="${escapeHTML(spec.description)}">`
+            + `<img src="assets/${spec.art}" alt=""><div><strong>${escapeHTML(spec.name)}<small>${rank}/${steps}</small></strong>`
+            + `<span>${escapeHTML(now)}${then}</span></div>${action}</article>`;
+    },
+    /** 세로로 짧은 창에서 강화 카드 대신 보이는 한 줄(css/content-progression.css): 시리즈마다 그림과 단계, 살 수 있는 수. 누르면 카드가 연결도 위로 펼쳐진다. */
+    upgradeStrip(series) {
+        const chips = series.map(row => `<span class="unlock-upgrade-chip${row.ready ? ' is-ready' : ''}${row.next ? '' : ' is-max'}" title="${escapeHTML(row.spec.name)}"><img src="assets/${row.spec.art}" alt=""><small>${row.rank}/${row.steps}</small></span>`).join('');
+        const ready = series.filter(row => row.ready).length;
+        return `<button type="button" class="unlock-upgrade-strip" data-unlock-upgrades="toggle" aria-expanded="${this.upgradesOpen}"><strong>강화</strong>${chips}${ready ? `<span class="unlock-upgrade-ready">구매 가능 ${ready}</span>` : ''}</button>`;
     },
     upgradeEffect(spec, rank) {
         if (spec.series === 'offlineHours') return `${OFFLINE_PROGRESS_RECOGNITION_HOURS[rank]}시간`;
@@ -341,7 +352,7 @@ const contentUnlockUi = {
         const root = document.getElementById('content-unlock-panel');
         if (!root || !game.contentProgression) return;
         const states = CONTENT_UNLOCK_CATALOG.map(def => [def.id, contentProgression.status(def.id), contentProgression.requirements(def.id)]);
-        const key = JSON.stringify([game.season, contentProgression.balance(), states, this.view, this.group, this.selectedId, this.showAllMilestones, Object.keys(game.npcMet).length]);
+        const key = JSON.stringify([game.season, contentProgression.balance(), states, this.view, this.group, this.selectedId, this.showAllMilestones, this.upgradesOpen, Object.keys(game.npcMet).length]);
         if (this.renderedKey === key && root.childNodes.length) return;
         this.renderedKey = key;
         const starter = root.querySelector('.unlock-start .unlock-node-art')?.getBoundingClientRect();
@@ -363,6 +374,13 @@ const contentUnlockUi = {
         if (data.unlockView) this.setView(data.unlockView);
         if (data.unlockGroup) this.group = data.unlockGroup;
         if (data.unlockHorizon) this.showAllMilestones = !this.showAllMilestones;
+        if (data.unlockUpgrades) this.upgradesOpen = !this.upgradesOpen;
+        this.render();
+    },
+    /** 펼친 강화 카드는 바깥을 누르면 접힌다(연결도를 가린다). */
+    foldUpgrades(target) {
+        if (!this.upgradesOpen || target.closest('.unlock-upgrades')) return;
+        this.upgradesOpen = false;
         this.render();
     },
     select(id) {
@@ -577,6 +595,7 @@ const contentUnlockUi = {
     }
 };
 document.addEventListener('click', event => {
+    contentUnlockUi.foldUpgrades(event.target);
     contentUnlockUi.handleControl(event.target.closest('button'));
     const button = event.target.closest('[data-unlock-content]');
     if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail') || document);
