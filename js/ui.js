@@ -3248,8 +3248,8 @@ const CHAOS_REALM_BONUS_CHIPS = [['피해', 'pctDmg', 1], ['이동 속도', 'mov
     ['저항 관통', 'resPen', 0], ['방어, 회피, 보호막', 'armorPct', 0], ['치명타 피해', 'critDmg', 0], ['공격 속도', 'aspd', 0]];
 function chaosRealmDetailHtml(st, best) {
     let floor = Math.max(1, Math.floor(st.currentFloor || 1)), zone = getZone(CHAOS_REALM_ZONE_ID), bonus = st.permanentBonuses || {};
-    let traits = getChaosRealmAffixes(floor).map(affix => `<span><b>${affix.name}</b> ${affix.desc}</span>`).join('');
-    let bonuses = CHAOS_REALM_BONUS_CHIPS.map(([name, key, digits]) => `<span class="${bonus[key] ? '' : 'is-zero'}">${name} <b>+${(Number(bonus[key]) || 0).toFixed(digits)}%</b></span>`).join('');
+    let traits = getChaosRealmAffixes(floor).map(affix => `<span class="is-affix"><b>${affix.name}</b> ${affix.desc}</span>`).join('');
+    let bonuses = CHAOS_REALM_BONUS_CHIPS.map(([name, key, digits]) => `<span class="has-stat${bonus[key] ? '' : ' is-zero'}" style="--stat-tone:${getItemStatToneColor(key)}">${name} <b>+${(Number(bonus[key]) || 0).toFixed(digits)}%</b></span>`).join('');
     return `<div class="chaos-realm-body"><section class="underworld-upgrade-card underworld-reward-card"><div><strong>${floor}층 특징</strong>`
         + `<span>난이도 혼돈 심화 ${zone ? zone.tier : getChaosRealmTier(floor)}급</span></div><div class="underworld-ticket-strip">${traits}</div></section>`
         + `<section class="underworld-upgrade-card underworld-reward-card"><div><strong>영구 보너스</strong><span>층을 처음 깰 때 쌓이고, 루프가 지나도 남습니다.`

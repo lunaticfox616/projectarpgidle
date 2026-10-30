@@ -44,14 +44,14 @@
 #ui-exploration-atlas .atlas-regions{display:grid;grid-template-columns:minmax(0,1fr) round(down,calc((100% - 10px) / 2),1px);gap:10px;padding:14px}
 #ui-exploration-atlas button{font:inherit;cursor:pointer;box-shadow:none}
 #ui-exploration-atlas button:focus-visible{outline:2px solid #efd6a2;outline-offset:2px}
-#tab-map .atlas-theme-tree{--region-tint:#a4b57d;--region-shade:#142015}
-#tab-map .atlas-theme-trail{--region-tint:#c6b07a;--region-shade:#1d1a10}
-#tab-map .atlas-theme-worldtree{--region-tint:#e2c27a;--region-shade:#241b0e}
-#tab-map .atlas-theme-roots{--region-tint:#baa0cc;--region-shade:#1b1224}
-#tab-map .atlas-theme-underworld{--region-tint:#d5a16f;--region-shade:#291b12}
-#tab-map .atlas-theme-sky{--region-tint:#dbcf9b;--region-shade:#282616}
-#tab-map .atlas-theme-sea{--region-tint:#8fc5d3;--region-shade:#10232c}
-#tab-map .atlas-theme-cosmos{--region-tint:#aaa6e6;--region-shade:#19172e}
+#tab-map .atlas-theme-tree,#tab-map[data-map-region=tree]{--region-tint:#a4b57d;--region-shade:#142015}
+#tab-map .atlas-theme-trail,#tab-map[data-map-region=trail]{--region-tint:#c6b07a;--region-shade:#1d1a10}
+#tab-map .atlas-theme-worldtree,#tab-map[data-map-region=worldtree]{--region-tint:#e2c27a;--region-shade:#241b0e}
+#tab-map .atlas-theme-roots,#tab-map[data-map-region=roots]{--region-tint:#baa0cc;--region-shade:#1b1224}
+#tab-map .atlas-theme-underworld,#tab-map[data-map-region=underworld]{--region-tint:#d5a16f;--region-shade:#291b12}
+#tab-map .atlas-theme-sky,#tab-map[data-map-region=sky]{--region-tint:#dbcf9b;--region-shade:#282616}
+#tab-map .atlas-theme-sea,#tab-map[data-map-region=sea]{--region-tint:#8fc5d3;--region-shade:#10232c}
+#tab-map .atlas-theme-cosmos,#tab-map[data-map-region=cosmos]{--region-tint:#aaa6e6;--region-shade:#19172e}
 #ui-exploration-atlas .atlas-region{position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;min-width:0;min-height:126px;padding:16px;text-align:left;border:1px solid #b6a57850;border-radius:4px;background:var(--region-shade);color:#efecdf}
 #ui-exploration-atlas .atlas-region img,#exploration-region-banner img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 25%;z-index:-2;opacity:.8}
 #ui-exploration-atlas .atlas-region::before,#exploration-region-banner::before{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,var(--region-shade),transparent 95%),linear-gradient(0deg,#050908c9,transparent 90%)}

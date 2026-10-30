@@ -38,9 +38,11 @@ const underworldRuneUi = (() => {
             : {underCopper:260+level*220,underSilver:150+level*150,underGold:55+level*58,runeShard:120+level*90};
     }
 
+    const COST_NAMES = Object.freeze({underCopper:'구리',underSilver:'은',underGold:'금',runeShard:'지하석 조각'});
+    /** 재화 이름과 수를 제 색으로(css/map-tones.css). */
+    const costHtml = cost => Object.entries(cost).map(([key, value]) => `<i class="is-${key}">${COST_NAMES[key]} ${value}</i>`).join(', ');
     function costText(cost) {
-        const names = {underCopper:'구리',underSilver:'은',underGold:'금',runeShard:'지하석 조각'};
-        return Object.entries(cost).map(([key, value]) => `${names[key]} ${value}`).join(', ');
+        return Object.entries(cost).map(([key, value]) => `${COST_NAMES[key]} ${value}`).join(', ');
     }
 
     function growthChoice(state, no, reroll) {
@@ -99,7 +101,7 @@ const underworldRuneUi = (() => {
     const rangeText = (stat, min, max) => `${formatValue(stat, min)}${max === min ? '' : `~${formatValue(stat, max)}`}${pct(stat)}`;
     const RESOURCES = Object.freeze([['runeShard', '지하석 조각'], ['underCopper', '구리'], ['underSilver', '은'], ['underGold', '금']]);
     const resourcesHtml = keys => `<div class="underworld-resource-strip">${RESOURCES.filter(([key]) => keys.includes(key))
-        .map(([key, name]) => `<span>${name} <b>${held(key)}</b></span>`).join('')}</div>`;
+        .map(([key, name]) => `<span class="is-${key}">${name} <b>${held(key)}</b></span>`).join('')}</div>`;
     /** 장비 인챈트 한 줄의 비용(data/constants.js UNDERWORLD_ENCHANT_POOLS의 세기). */
     function enchantCost(strength) {
         return {underCopper: Math.max(4, strength * 6), underSilver: Math.max(2, strength * 3), underGold: Math.max(1, strength - 1)};
@@ -129,9 +131,9 @@ const underworldRuneUi = (() => {
             + `${other}<button type="button" data-exploration-departure onclick="enterUnderworldPrompt()" ${off}>다른 층…</button></div></section>`;
     }
     function entryPageHtml() {
-        const tickets = [['uberRootTicketFlame', '화염'], ['uberRootTicketFrost', '냉기'], ['uberRootTicketStorm', '번개'], ['uberRootTicketChaos', '카오스']];
+        const tickets = [['uberRootTicketFlame', '화염', 'is-fire'], ['uberRootTicketFrost', '냉기', 'is-cold'], ['uberRootTicketStorm', '번개', 'is-light'], ['uberRootTicketChaos', '카오스', 'is-chaos']];
         return `<div class="underworld-lower-grid">${skyStoneHtml()}<section class="underworld-upgrade-card underworld-reward-card">${nextRewardHtml()}`
-            + `<div class="underworld-ticket-strip"><small>그림자 뿌리 입장권</small>${tickets.map(([key, name]) => `<span>${name} <b>${held(key)}</b></span>`).join('')}</div></section></div>`;
+            + `<div class="underworld-ticket-strip"><small>그림자 뿌리 입장권</small>${tickets.map(([key, name, tone]) => `<span class="has-stat ${tone}">${name} <b>${held(key)}</b></span>`).join('')}</div></section></div>`;
     }
     function nextRewardHtml() {
         const state = ensureUnderworldRuneState(), rule = UNDERWORLD_DEEP_FLOOR_REWARD;
@@ -142,7 +144,7 @@ const underworldRuneUi = (() => {
         const slots = reward.slots > state.unlockedSlots ? `<span>지하석 슬롯 ${reward.slots}/6</span>` : '';
         const stone = reward.rune ? `<div class="underworld-next-stone">${iconHtml(reward.rune.no)}<div><strong>${escapeHTML(reward.rune.name)} 지하석 1개</strong>
             <small>${getUnderworldRuneEffectHtml(reward.rune.no)}</small><span>지하석 1~${reward.rune.no} 해금</span>${slots}</div></div>` : '';
-        const materials = RESOURCES.filter(([key]) => reward.currencies[key]).map(([key, name]) => `<span>${name} <b>${reward.currencies[key]}개</b></span>`).join('');
+        const materials = RESOURCES.filter(([key]) => reward.currencies[key]).map(([key, name]) => `<span class="is-${key}">${name} <b>${reward.currencies[key]}개</b></span>`).join('');
         return `<div><strong>${floor}층 보상</strong>${stone}<div class="underworld-ticket-strip">${materials}</div><small>15층부터 지속 피해</small></div>`;
     }
     function skyStoneHtml() {
@@ -179,10 +181,10 @@ const underworldRuneUi = (() => {
     }
     function stoneActionsHtml(state) {
         const blocked = held('runeShard') < 10 || !state.unlockedRunesMaxNumber || game.woodsmanBuildLock;
-        const actions = [['craftUnderworldRune()', '가공', '해금된 번호 가운데 하나', '지하석 조각 10', blocked],
-            ['openUnderworldRuneUpgradeOverlay()', '승급', '같은 번호 3개를 다음 번호 1개로', '지하석 조각, 번호만큼(최소 5)', false],
-            ['enhanceUnderworldRune()', '강화', '능력치 +1%씩, 5, 10, 15단계에 보너스 옵션', `${costText(growthCost(0, false))}부터`, false],
-            ['rerollUnderworldRuneBonus()', '보너스 다시', '+5 이상 지하석의 보너스 옵션을 다시 굴림', `${costText(growthCost(0, true))}부터`, false]];
+        const actions = [['craftUnderworldRune()', '가공', '해금된 번호 가운데 하나', costHtml({runeShard: 10}), blocked],
+            ['openUnderworldRuneUpgradeOverlay()', '승급', '같은 번호 3개를 다음 번호 1개로', '<i class="is-runeShard">지하석 조각, 번호만큼(최소 5)</i>', false],
+            ['enhanceUnderworldRune()', '강화', '능력치 +1%씩, 5, 10, 15단계에 보너스 옵션', `${costHtml(growthCost(0, false))}부터`, false],
+            ['rerollUnderworldRuneBonus()', '보너스 다시', '+5 이상 지하석의 보너스 옵션을 다시 굴림', `${costHtml(growthCost(0, true))}부터`, false]];
         return `<div class="underworld-action-grid underworld-stone-actions">${actions.map(([call, title, effect, cost, off]) =>
             `<button onclick="${call}" ${off ? 'disabled' : ''}><strong>${title}</strong><span>${effect}</span><small>${cost}</small></button>`).join('')}</div>`;
     }
@@ -196,17 +198,17 @@ const underworldRuneUi = (() => {
         const item = game.equipment && game.equipment[slot], now = item && item.underEnchant;
         const rows = pool.map(([stat, min, max, strength]) => {
             const cost = enchantCost(strength);
-            return `<li><span>${statName(stat)} +${rangeText(stat, min, max)}</span><small>${cost.underCopper}/${cost.underSilver}/${cost.underGold}</small></li>`;
+            return `<li class="has-stat" style="--stat-tone:${getItemStatToneColor(stat)}"><span>${statName(stat)} +${rangeText(stat, min, max)}</span><small><i class="is-underCopper">${cost.underCopper}</i>/<i class="is-underSilver">${cost.underSilver}</i>/<i class="is-underGold">${cost.underGold}</i></small></li>`;
         }).join('');
         return `<article class="underworld-enchant-card"><header><strong>${slot}</strong><span>${item ? escapeHTML(item.name) : '장비 없음'}</span></header>`
             + `<p class="${now ? 'is-on' : ''}">${now ? `지금 ${statText(now.id, now.val)}` : '인챈트 없음'}</p>`
-            + `<ul><li class="is-head"><span>나올 수 있는 효과</span><small>구리/은/금</small></li>${rows}</ul>`
+            + `<ul><li class="is-head"><span>나올 수 있는 효과</span><small><i class="is-underCopper">구리</i>/<i class="is-underSilver">은</i>/<i class="is-underGold">금</i></small></li>${rows}</ul>`
             + `<button type="button" onclick="applyUnderworldEnchant('${slot}')" ${item ? '' : 'disabled'}>인챈트</button></article>`;
     }
     function limitBreakHtml() {
         const rule = UNDERWORLD_LIMIT_BREAK;
         const costs = [['무기', 'weapon'], ['방어구', 'armour'], ['장신구', 'accessory']]
-            .map(([name, key]) => `<span>${name} 구리 ${rule.costs[key][0]}, 은 ${rule.costs[key][1]}, 금 ${rule.costs[key][2]}</span>`).join('');
+            .map(([name, key]) => `<span>${name} ${costHtml({underCopper: rule.costs[key][0], underSilver: rule.costs[key][1], underGold: rule.costs[key][2]})}</span>`).join('');
         const ready = Object.entries(game.equipment || {}).filter(([, item]) => item && Math.floor(item.quality || 0) === rule.quality && !item.qualityLockedByLimitBreak);
         const buttons = ready.length ? ready.map(([slot, item]) => `<button type="button" onclick="attemptUnderworldLimitBreak('${slot}')">${slot}, ${escapeHTML(item.name)}</button>`).join('')
             : `<span>퀄리티 ${rule.quality}%인 장착 장비가 없습니다</span>`;
