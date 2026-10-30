@@ -21,6 +21,8 @@ const stageRegion = (() => {
     const shades = new Map();                   // "파일|어둠" → 화면 배율의 조각에 어두운 심해 띠의 어둠을 얹은 그림
     const layouts = new WeakMap();              // 지도 → Map(방 번호 → 소품 자리)
     let fitDot = 0, fitFamily = '';
+    // 방 그림을 화면 배율로 옮겨 둔 것(파일 → { scale, canvas }, 가장 오래 안 쓴 것이 맨 앞): 지금 방과 다음 방의 그림만 둔다(125%에서 한 장이 18MB쯤)
+    const sceneries = new Map(), SCENERY_KEEP = 2;
     /** 문 봉인의 발 자리(도트): 뒤쪽 문은 바닥선 아래로, 앞쪽 문은 바닥의 앞쪽 끝 아래로 내려 서고, 좌우 문은 문 칸의 가운데에서
      * 방 쪽으로 조금 들어와 선다(묶음의 조립 화면의 자리를 도트로 옮긴 값). */
     const DOOR = Object.freeze({ north: [0, 12], south: [0, 19], west: [8, 0], east: [-8, 0] });
@@ -86,11 +88,40 @@ const stageRegion = (() => {
 
     // ---------------------------------------------------------------- room regionPicture
     /** 방 그림: 가운데를 방의 가운데에, 바닥이 시작하는 줄을 방 바닥의 뒤쪽 끝에 맞춘다. */
+    /** 그 방의 그림 파일과 배율(그림 1px의 화면 크기). 배율은 그 지도의 기준 방(map.frame)에 맞춘 하나다: 좁거나 얕은 방에서도 풍경과
+     * 구조물의 크기가 같다. 판(고정 전장)은 제 크기다. */
+    function roomPictureFit(map, room, dot) {
+        const region = regionOfMap(map), frame = map.frame || { columns: room.x1 - room.x0 + 1, rows: room.y1 - room.y0 + 1 };
+        return { region, file: roomPictureName(map.region, region, room) + '.png', scale: stageRegionFit.scale(region, frame.columns, frame.rows) * dot };
+    }
+    /** 화면 배율로 옮겨 둔 방 그림. 2026-10-30 사용자 "맵들이 이상하게 찌그러져보이고": 2px 격자로 그린 방 그림을 1.7배 같은 배율에 보간 없이
+     * 찍으면 도트가 2px, 3px로 들쭉날쭉했다. 캐릭터처럼 정수배로 키웠다가 줄여 도트마다 같은 넓이를 준다(js/canvas-stage-dots.js).
+     * 아직 옮기지 못했으면(고정 전장, 창 크기를 바꾼 직후) 그림 그대로다. */
+    function roomPictureSource(fit) {
+        const kept = sceneries.get(fit.file);
+        return kept && kept.scale === fit.scale ? kept.canvas : regionPicture(fit.file).image;
+    }
+    function keepScenery(file, row) {
+        sceneries.delete(file);
+        sceneries.set(file, row);
+        for (const [old, entry] of [...sceneries].slice(0, Math.max(0, sceneries.size - SCENERY_KEEP))) {
+            sceneries.delete(old);
+            if (entry.canvas instanceof HTMLCanvasElement) entry.canvas.width = entry.canvas.height = 1;
+        }
+    }
+    /** 방 그림을 화면 배율로 옮기는 일들(뒤에서부터 하나씩 한다): 옮기기를 시작하고, 한 조각씩 옮기고, 마지막은 남은 것을 마저 옮긴다. */
+    function sceneryJobs(map, room, dot) {
+        const fit = roomPictureFit(map, room, dot), kept = sceneries.get(fit.file), image = regionPicture(fit.file).image;
+        if (kept && kept.scale === fit.scale) return [];
+        let job = null;
+        const step = () => job && job.step();
+        const finish = () => { while (!job.step()) { /* 남은 조각 */ } keepScenery(fit.file, { scale: fit.scale, canvas: job.canvas }); };
+        const tiles = Math.ceil(image.naturalWidth / 512) * Math.ceil(image.naturalHeight / 512);
+        return [finish, ...Array(Math.max(0, tiles - 1)).fill(step), () => { job = stageDots.fitter(image, fit.scale); }];
+    }
     function drawRoomPicture(ctx, view, p, area) {
-        const region = regionOfMap(view.map), room = view.room, dot = p.tileW / WIDE;
-        // 배율은 그 지도의 기준 방(map.frame)에 맞춘 하나다: 좁거나 얕은 방에서도 풍경과 구조물의 크기가 같다. 판(고정 전장)은 제 크기다.
-        const frame = view.map.frame || { columns: room.x1 - room.x0 + 1, rows: room.y1 - room.y0 + 1 };
-        const scale = stageRegionFit.scale(region, frame.columns, frame.rows) * dot, w = region.width * scale, h = region.height * scale;
+        const room = view.room, dot = p.tileW / WIDE, fit = roomPictureFit(view.map, room, dot), region = fit.region, scale = fit.scale;
+        const w = region.width * scale, h = region.height * scale;
         const x = Math.round(p.mapX + (room.x0 + room.x1 + 1) / 2 * p.tileW - w / 2), y = Math.round(p.mapY + room.y0 * p.tileH - region.ground * scale);
         ctx.fillStyle = region.earth;
         ctx.fillRect(0, 0, area.width, area.height);
@@ -99,7 +130,7 @@ const stageRegion = (() => {
         ctx.imageSmoothingEnabled = false;
         // 이웃한 방이 똑같아 보이지 않게, 정해진 방은 좌우로 뒤집어 그린다(js/act-exploration-rooms.js roomMirrored)
         if (room.mirror) { ctx.save(); ctx.translate(x * 2 + Math.round(w), 0); ctx.scale(-1, 1); }
-        ctx.drawImage(regionPicture(roomPictureName(view.map.region, region, room) + '.png').image, x, y, Math.round(w), Math.round(h));
+        ctx.drawImage(roomPictureSource(fit), x, y, Math.round(w), Math.round(h));
         if (typeof stageOcean === 'object') stageOcean.light(ctx, view.map.region, { x, y, w: Math.round(w), h: Math.round(h) }); // 심해 띠의 빛줄기, 같은 뒤집기
         if (room.mirror) ctx.restore();
         blendPictureEdges(ctx, region, { y, h: Math.round(h), reach: Math.round(BLEND_DOTS * dot) }, area);
@@ -349,7 +380,8 @@ const stageRegion = (() => {
     function regionFitJobs(map, room, dot) {
         const region = regionOfMap(map), family = regionFamily(region), names = regionRoomPieces(map, room, region)
             .concat(specialRoomPieces(map)).map(piece => piece.name);
-        return [...new Set(names)].filter(name => family.pieces[name]).map(name => () => fittedRegionPiece(regionPieceFile(region, name), dot));
+        return [...new Set(names)].filter(name => family.pieces[name]).map(name => () => fittedRegionPiece(regionPieceFile(region, name), dot))
+            .concat(sceneryJobs(map, room, dot));
     }
     /** 곧 쓸 지역의 방 그림을 미리 불러 둔다(그림이 없는 지역이면 아무 일도 없다). */
     function warmRegion(id) {

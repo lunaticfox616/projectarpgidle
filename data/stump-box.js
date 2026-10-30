@@ -100,6 +100,27 @@ const STUMP_BOX_UNLOCKS = Object.freeze([
 // STUMP_BOX_BREEDING). 추가 줄 수는 품질이 확률만 바꾼다(사용자: 품질로 정해지면 재미없다): lineOdds의 품질 사이는 선형으로 잇는다.
 // 줄 값은 STUMP_BOX_EXTRA_LINES 기준값의 lineValue배(무작위)다. 확률은 사용자가 두 번 낮췄다(2026-10-08).
 const STUMP_BOX_RIPENING = Object.freeze({
+    // Once per bloom. These unique lines never scale with quality, resonance or grafts.
+    albino: Object.freeze({ chance: 0.0001, tone: '#e8ddff', variants: Object.freeze({
+        flower: Object.freeze({
+            fire: [{ stat: 'fireGemLevel', value: 3, text: '화염 스킬룬 레벨 +{v}' }],
+            cold: [{ stat: 'coldGemLevel', value: 3, text: '냉기 스킬룬 레벨 +{v}' }],
+            lightning: [{ stat: 'lightGemLevel', value: 3, text: '번개 스킬룬 레벨 +{v}' }],
+            chaos: [{ stat: 'chaosGemLevel', value: 3, text: '카오스 스킬룬 레벨 +{v}' }]
+        }),
+        fruit: Object.freeze({
+            fire: [{ stat: 'meleeGemLevel', value: 3, text: '근접 스킬룬 레벨 +{v}' }, { stat: 'slamGemLevel', value: 2, text: '강타 스킬룬 레벨 +{v}' }],
+            cold: [{ stat: 'spellGemLevel', value: 3, text: '주문 스킬룬 레벨 +{v}' }],
+            lightning: [{ stat: 'projectileGemLevel', value: 3, text: '투사체 스킬룬 레벨 +{v}' }],
+            chaos: [{ stat: 'summonGemLevel', value: 3, text: '소환수 공격 스킬룬 레벨 +{v}' }, { stat: 'dotGemLevel', value: 2, text: '지속 스킬룬 레벨 +{v}' }]
+        }),
+        amber: Object.freeze({
+            fire: [{ stat: 'runeResonancePower', value: 50, text: '공명력 +{v}' }],
+            cold: [{ stat: 'spellRepeatChance', value: 25, text: '주문 이중 시전 확률 +{v}%' }],
+            lightning: [{ stat: 'projectileExtraShots', value: 2, text: '투사체 추가 발사 +{v}' }],
+            chaos: [{ stat: 'suppCap', value: 1, text: '보조스킬룬 한도 +{v}' }, { stat: 'runeResonancePower', value: 20, text: '공명력 +{v}' }]
+        })
+    }) }),
     bumper: Object.freeze({ chance: 0.08, quality: 0.1 }),
     golden: Object.freeze({ chance: 0.005, dropChance: 0.001, mul: 1.2 }),
     lineOdds: Object.freeze([

@@ -826,7 +826,9 @@ function createGemBonusEvaluation(resolvedStats) {
     const gearLines = sources.map(resolved => collectGemLevelStatLines([...resolved.baseStats, ...resolved.explicitStats], ids));
     const passiveEffects = (game.passives || []).flatMap(id => getPassiveGemLevelEffects(PASSIVE_TREE.nodes[id])
         .filter(effect => ids.has(effect.stat)));
-    return { gearLines, passiveEffects, memo: new Map() };
+    const stumpStats = game.stumpBox?.acquired ? stumpBox.evaluate(game).stats : {};
+    const rewardLines = Object.entries(stumpStats).map(([id, val]) => ({ id, val }));
+    return { gearLines, passiveEffects, rewardLines, memo: new Map() };
 }
 
 function collectGemLevelStatLines(stats, ids) {
@@ -870,6 +872,7 @@ function getGemBonusSources(target, resolvedStats, evaluation) {
         if (entry && entry.stat === 'gemLevel') reward += entry.value;
     });
     reward += getTalismanGemBonusSources(activeTags);
+    reward += getGemLevelValueFromStatLines(inputs.rewardLines, activeTags);
     const result = { gear: gear, passive: passive, reward: reward, total: gear + passive + reward };
     memo?.set(memoKey, result);
     return result;

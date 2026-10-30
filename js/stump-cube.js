@@ -376,7 +376,7 @@ const stumpCube = (() => {
 
     /** Stored materials that make this recipe exactly and fit the empty cube, largest first; null when there are none. */
     function readyCubeSet(recipe, stock) {
-        const rest = stock.slice(), set = [];
+        const rest = stock.filter(entry => !entry.item.albino), set = [];
         for (const rule of recipe.inputs) {
             const picked = pickCubeRow(rule, rest.filter(entry => fitsRule(rule, entry)));
             if (!picked) return null;

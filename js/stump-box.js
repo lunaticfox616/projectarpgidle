@@ -19,10 +19,11 @@ const stumpBox = (() => {
     /** Every line the box can give: the main lines (STUMP_BOX_YIELDS), then the extra lines (STUMP_BOX_EXTRA_LINES). */
     const LINE_ROWS = Object.freeze(Object.values(STUMP_BOX_YIELDS).flatMap(Object.values)
         .concat(Object.values(STUMP_BOX_EXTRA_LINES).flatMap(Object.values).flat()));
+    const ALBINO_ROWS = Object.freeze(Object.values(STUMP_BOX_RIPENING.albino.variants).flatMap(Object.values).flat());
     /** The most one stat can hold on a scar: its largest base value (a main or an extra line) × capMul. */
     const SCAR_CAPS = (() => {
         const out = {};
-        LINE_ROWS.forEach(row => { out[row.stat] = Math.max(out[row.stat] || 0, row.value * STUMP_BOX_SCAR.capMul); });
+        LINE_ROWS.concat(ALBINO_ROWS).forEach(row => { out[row.stat] = Math.max(out[row.stat] || 0, row.value * STUMP_BOX_SCAR.capMul); });
         return Object.freeze(out);
     })();
     const HARVEST_ROWS = Object.keys(STUMP_BOX_HARVEST.rows);
@@ -81,7 +82,7 @@ const stumpBox = (() => {
     function shortName(item) {
         if (item.family === 'talisman') return isMature(item) ? item.name : `${item.name} (잠듦)`;
         if (item.family === 'scar') return isMature(item) ? STUMP_BOX_SCAR.name : `${STUMP_BOX_SCAR.name} (잠듦)`;
-        return `${goldenMul(item) > 1 ? '황금 ' : ''}${item.ancient ? '고대 ' : ''}${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stageOf(item)].label}`;
+        return `${item.albino ? '알비노 ' : ''}${goldenMul(item) > 1 ? '황금 ' : ''}${item.ancient ? '고대 ' : ''}${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stageOf(item)].label}`;
     }
     /** shortName, plus what a growing seed or sap turns into ('화염 새싹 → 꽃'). */
     function label(item) {
@@ -90,10 +91,13 @@ const stumpBox = (() => {
     }
     /** A stat line in the box's own words ('점화 확률 +3%'): main lines, extra lines and a scar's lines share them. */
     function lineText(stat, value) {
-        const row = LINE_ROWS.find(entry => entry.stat === stat), shown = String(Math.round(value * 10) / 10);
+        const row = LINE_ROWS.concat(ALBINO_ROWS).find(entry => entry.stat === stat);
+        const shown = String(Math.round(value * 10) / 10);
         return row ? row.text.replace('{v}', shown) : `${getStatName(stat)} +${shown}`;
     }
     function iconPath(item) {
+        if (item.albino) return `assets/items/stump-albino-v1/${yieldKind(item)}-${item.color}.png`;
+        if (item.family === 'scar' && isMature(item)) return 'assets/items/stump-albino-v1/scar-ember.png';
         const icon = STUMP_BOX_STAGES[stageOf(item)].icon, suffix = item.family === 'talisman' ? item.rarity : item.color;
         return `assets/items/stump-pixel-v1/${icon}${suffix ? `-${suffix}` : ''}.png`;
     }
@@ -180,9 +184,17 @@ const stumpBox = (() => {
 
     // ── 배치(나무꾼 전투 중에는 세팅을 바꾸지 않는다) ─────────────
     function editable(state) { return of(state).acquired && !state.woodsmanBuildLock; }
+    /** One albino across the board; a stored one may replace the worn one directly. */
+    function albinoPlacementReason(state, id, cell) {
+        const box = of(state), item = findItem(box, id);
+        if (!item || !item.albino) return '';
+        const from = box.board.indexOf(id);
+        const conflict = box.board.some((other, at) => other !== id && (from >= 0 || at !== cell) && findItem(box, other)?.albino);
+        return conflict ? '알비노는 그루터기 함 전체에 하나만 놓을 수 있습니다.' : '';
+    }
     function placeOnBoard(state, id, cell) {
         const box = of(state), item = findItem(box, id);
-        if (!editable(state) || !item || !isOpen(state, cell) || box.board[cell] !== null) return false;
+        if (!editable(state) || !item || !isOpen(state, cell) || box.board[cell] !== null || albinoPlacementReason(state, id, cell)) return false;
         const from = box.board.indexOf(id);
         if (from >= 0) box.board[from] = null;
         box.board[cell] = id;
@@ -201,7 +213,7 @@ const stumpBox = (() => {
      */
     function moveOnBoard(state, id, cell) {
         const box = of(state), item = findItem(box, id), from = box.board.indexOf(id), occupant = box.board[cell];
-        if (!editable(state) || !item || !isOpen(state, cell) || from === cell) return false;
+        if (!editable(state) || !item || !isOpen(state, cell) || from === cell || albinoPlacementReason(state, id, cell)) return false;
         if (occupant === null) return placeOnBoard(state, id, cell);
         box.board[cell] = id;
         if (from >= 0) box.board[from] = occupant;
@@ -283,7 +295,7 @@ const stumpBox = (() => {
     function itemSignature(item) {
         const lines = item.harvest ? `h${item.harvest.bonus}${item.harvest.golden ? 'G' : ''}${item.harvest.lines.map(line => line.stat + line.value).join(',')}` : '';
         const absorbed = item.absorbed ? Object.entries(item.absorbed).map(([stat, value]) => stat + value).join(',') : '';
-        return `${item.id}${item.color}${item.path || ''}${item.ripe ? 'R' : ''}${item.roll}${item.golden ? 'G' : ''}${item.ancient ? 'A' : ''}${lines}${absorbed}`;
+        return `${item.id}${item.color}${item.path || ''}${item.ripe ? 'R' : ''}${item.roll}${item.golden ? 'G' : ''}${item.ancient ? 'A' : ''}${item.albino ? 'U' : ''}${lines}${absorbed}`;
     }
     function signature(box) {
         return box.board.map((id, cell) => {
@@ -321,7 +333,11 @@ const stumpBox = (() => {
     /** The ripening roll's extra lines at the item's quality, golden, resonance and graft. */
     function lineValues(item, resonant, graft) {
         const scale = itemScale(item, resonant, graft);
-        return ((item.harvest && item.harvest.lines) || []).map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 }));
+        return ((item.harvest && item.harvest.lines) || []).map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 })).concat(albinoLines(item));
+    }
+    /** Fixed unique options, also shown in storage. */
+    function albinoLines(item) {
+        return item.albino && isMature(item) ? STUMP_BOX_RIPENING.albino.variants[yieldKind(item)][item.color] : [];
     }
     /** A placed, awake scar's absorbed lines at its cell's graft (no resonance: it has no colour). */
     function scarValues(item, graft) {
@@ -359,7 +375,7 @@ const stumpBox = (() => {
         if (result.extras[item.id]) return result.extras[item.id];
         if (item.family === 'scar') return Object.entries(item.absorbed || {}).map(([stat, value]) => ({ stat, value }));
         const scale = qualityOf(item) * goldenMul(item), lines = isMature(item) && item.harvest ? item.harvest.lines : [];
-        return lines.map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 }));
+        return lines.map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 })).concat(albinoLines(item));
     }
     /** Adds the box's grown, unsuppressed yields to a stat bucket (the pipeline's reward bucket). */
     function applyStats(bucket, state) {
@@ -467,10 +483,21 @@ const stumpBox = (() => {
         const bonus = random() < STUMP_BOX_RIPENING.bumper.chance ? STUMP_BOX_RIPENING.bumper.quality : 0;
         const golden = random() < STUMP_BOX_RIPENING.golden.chance;
         item.harvest = { bonus, golden, lines: rollLines(item, pickCount(lineOdds(item.roll + bonus), random), random) };
+        if (random() < STUMP_BOX_RIPENING.albino.chance) item.albino = true;
+    }
+    /** Preserve surplus albinos in storage, even when full; applies to simultaneous blooms and save repair. */
+    function enforceAlbinoLimit(box, wornId = null) {
+        let kept = wornId !== null;
+        box.board.forEach((id, cell) => {
+            if (id === wornId || !findItem(box, id)?.albino) return;
+            if (kept) box.board[cell] = null;
+            kept = true;
+        });
     }
     /** Grows every growing item by `amount` and writes first harvests into the journal. @returns {object[]} items that ripened. */
     function growBy(state, amount, random = Math.random) {
         const ripened = [];
+        const wornId = placedItems(of(state)).find(item => item.albino)?.id ?? null;
         for (const item of growingItems(state)) {
             item.xp = Math.min(need(item), item.xp + amount);
             if (item.xp >= need(item)) {
@@ -478,6 +505,10 @@ const stumpBox = (() => {
                 ripen(item, random);
                 ripened.push(item);
             }
+        }
+        if (ripened.some(item => item.albino)) {
+            enforceAlbinoLimit(of(state), wornId);
+            invalidatePlacementUndo(state);
         }
         recordHarvest(of(state), ripened);
         return ripened;
@@ -493,6 +524,7 @@ const stumpBox = (() => {
         const box = of(state), item = findItem(box, id);
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
         if (item && item.locked) return '잠긴 아이템은 거름으로 쓸 수 없습니다.';
+        if (item && item.albino) return '알비노는 거름 대신 조합 재료로 사용할 수 있습니다.';
         if (!item || !FAMILIES.includes(item.family) || box.board.includes(id)) return '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.';
         return growingItems(state).length ? '' : '그루터기 함에서 성장 중인 그루터기 아이템이 없습니다.';
     }
@@ -532,13 +564,13 @@ const stumpBox = (() => {
             groups.set(key, (groups.get(key) || []).concat(item));
         });
         return [...groups.values()].flatMap(list => list.sort((a, b) => b.roll - a.roll || a.id - b.id).slice(STUMP_BOX_BULK_COMPOST.keep))
-            .filter(item => !item.golden && !item.ancient && !item.locked);
+            .filter(item => !item.golden && !item.ancient && !item.albino && !item.locked);
     }
     /** What 일괄 버리기 takes of a storage filter: every stored seed and sap but golden, ancient and grown ones (any growth, cube
      * material), and under 전체 and 부적 the stored talismans but unique and grown ones (2026-10-23 사용자: 부적이 빠져 있었다).
      * Locked items always stay. It used to keep the best three of each kind as compost does (2026-10-17 사용자: 75개 중 25개만). */
     function bulkDiscardItems(state, filter) {
-        const seeds = storedSeedsAndSaps(state, filter).filter(item => !item.golden && !item.ancient && !item.xp && !isMature(item));
+        const seeds = storedSeedsAndSaps(state, filter).filter(item => !item.golden && !item.ancient && !item.albino && !item.xp && !isMature(item));
         const talismanItems = filter === 'all' || filter === 'talisman'
             ? storage(state).filter(item => item.family === 'talisman' && item.rarity !== 'unique' && !item.xp && !isMature(item)) : [];
         return seeds.concat(talismanItems).filter(item => !item.locked);
@@ -759,7 +791,8 @@ const stumpBox = (() => {
         const ripe = isMature(item), share = ripe ? STUMP_BOX_SCAR.absorb.ripe : STUMP_BOX_SCAR.absorb.growing;
         const scale = qualityOf(item) * goldenMul(item) * share, gain = yieldOf(item);
         const lines = [{ stat: gain.stat, value: gain.value }].concat(ripe && item.harvest ? item.harvest.lines : []);
-        return lines.map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 }));
+        return lines.map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 }))
+            .concat(albinoLines(item).map(line => ({ stat: line.stat, value: line.value * share })));
     }
     function absorb(scar, meal) {
         meal.forEach(line => {
@@ -819,6 +852,7 @@ const stumpBox = (() => {
             item.xp = Math.floor(need(item) * keepPct / 100);
             item.ripe = false;
             delete item.harvest;
+            delete item.albino;
             count++;
         });
         return { count, keepPct, sealed: box.items.filter(item => item.ripe && kept.has(item.id)).length };
@@ -961,6 +995,11 @@ const stumpBox = (() => {
     function cleanMarks(raw, item) {
         if (raw.golden === true) item.golden = true;
         if (raw.ancient === true && raw.family === 'seed') item.ancient = true;
+        if (raw.albino === true) {
+            item.albino = true;
+            item.xp = need(item);
+            item.ripe = true;
+        }
     }
     /** cap: the most the save could have made (rollCeiling), so a restored roll never tops what it could have been made at. */
     /** A saved item read back, keeping its lock (toggleLock). */
@@ -1013,6 +1052,7 @@ const stumpBox = (() => {
         (Array.isArray(raw.board) ? raw.board : []).slice(0, CELLS).forEach((id, cell) => {
             if (seen.has(id) && !used.has(id)) { used.add(id); box.board[cell] = id; }
         });
+        enforceAlbinoLimit(box);
     }
     /** Known journal keys only, plus whatever is grown right now (saves from before the journal); gift receipts stay. */
     function restoreHarvest(raw, box) {
@@ -1068,7 +1108,7 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace,
+        empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace, albinoPlacementReason,
         unplaceAll, unplaceAllReason, canUndoPlacement, undoPlacement, invalidatePlacementUndo,
         evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
