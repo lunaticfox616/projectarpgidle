@@ -27,10 +27,11 @@
   margin-bottom: 4px;
 }
 
+/* 탐사 기록(2026-10-30 사용자: 가로 창 크기가 작아지면 텍스트가 찌그러진다): 칸 셋을 옆으로 나누지 않고 위에서 아래로 쌓는다. 안의 칸 수는 창의 폭을 따른다
+   (화면 폭이 아니라: 창은 화면 폭과 따로 줄어든다). */
 .cosmos-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, .8fr);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   color: var(--color-text);
   font-size: .82em;
@@ -47,7 +48,7 @@
 
 .cosmos-summary-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 124px), 1fr));
   gap: 6px;
 }
 
@@ -76,13 +77,13 @@
 
 .cosmos-galaxy-progress {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 136px), 1fr));
+  gap: 4px 10px;
 }
 
 .cosmos-galaxy-progress > span {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(24px, 1fr) auto;
   align-items: center;
   gap: 4px;
   color: var(--copy-muted);
@@ -107,8 +108,9 @@
 
 .cosmos-resource-line {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
   color: var(--copy-muted);
   font-size: 12px;
 }
@@ -193,7 +195,7 @@
 
 .cosmos-capstone-bosses {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 132px), 1fr));
   gap: 4px;
 }
 
@@ -201,12 +203,13 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 3px;
+  gap: 6px;
   min-width: 0;
-  padding: 4px 5px;
+  padding: 4px 8px;
   border: 1px solid var(--color-line);
   border-radius: 6px;
   color: var(--color-text);
+  white-space: nowrap;
   background: var(--color-surface-raised);
   font-size: 12px;
   text-align: left;
@@ -797,15 +800,6 @@
 
 @media (max-width: 1080px) {
 
-  .cosmos-summary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    min-width: 0;
-  }
-
-  .cosmos-capstone-card {
-    grid-column: 1 / -1;
-  }
-
   .cosmos-mastery-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -820,18 +814,11 @@
     padding: 8px;
   }
 
-  .cosmos-summary,
-  .cosmos-summary-metrics,
   .cosmos-mastery-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .cosmos-summary > * {
-    grid-column: 1 / -1;
-  }
-
-  .cosmos-mastery-header,
-  .cosmos-resource-line {
+  .cosmos-mastery-header {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -844,9 +831,6 @@
     flex: 1;
   }
 
-  .cosmos-capstone-bosses {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 } .cosmos-records-disclosure { border:1px solid var(--color-line); border-radius:6px; margin-top:10px; } .cosmos-records-disclosure > summary { cursor:pointer; padding:12px; color:var(--color-text-secondary); }
 @media (max-width:1080px) {
   .cosmos-detail{ scroll-margin-top:70px; }

@@ -810,6 +810,7 @@ mergeDefaults.enemyCasts = function (state) {
 };
 
 function mergeDefaults(save) {
+    if (save && typeof save === 'object') itemSaveSlim.expandTree(save); // 축약 저장된 장비 줄을 되살린다(saveVersion 20, js/item-save-slim.js)
     function clampFiniteNumber(value, fallback, min, max) {
         let num = Number(value);
         if (!Number.isFinite(num)) num = fallback;

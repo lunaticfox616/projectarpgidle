@@ -319,11 +319,11 @@ let laterReleaseResetOutcome = 'not run';
     assert.strictEqual(ctx.outdatedBuildError({ saveMeta: { gameBuild: later } }), null);
 }
 
-// An explicit account reset marker survives reloads; old/invalid metadata cannot become a reset.
-for (const value of [undefined, null, -1, 1.5, 'bad', Infinity, 0, 8]) {
-    ctx.__loaded = merge({ saveMeta: { cloudResetRevision: value } });
+// The pending mark of an account slot (js/save.js cloudPending) is a plain boolean after a load; anything else reads as "nothing pending".
+for (const value of [undefined, null, -1, 1, 'true', true, false]) {
+    ctx.__loaded = merge({ saveMeta: { cloudPending: value } });
     vm.runInContext('game = __loaded; ensureSaveMeta();', ctx);
-    assert.strictEqual(ctx.__loaded.saveMeta.cloudResetRevision, value === 8 ? 8 : 0);
+    assert.strictEqual(ctx.__loaded.saveMeta.cloudPending, value === true);
 }
 
 // 없어진 지역(예전 세계수 지역)에서 저장했으면 액트 1이 아니라 도달한 진행 지역에서 이어 한다(PR #1030 리뷰).

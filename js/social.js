@@ -2440,6 +2440,7 @@ function injectSocialStyles() {
     .social-chat-online:not([hidden]) + .social-chat-list{margin-top:28px;} /* 접속 인원 칸 자리는 목록 밖에: 목록의 padding은 PC 창과 휴대폰 규칙에 덮였고, 스크롤과 함께 올라가 맨 위 줄의 시각을 가렸다. */
     .social-chat-list{height:calc(46vh / var(--scale-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
     .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:12px;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:12px;}
+    .social-chat-list>.social-chat-msg:first-child{margin-top:auto;} /* 메시지가 적을 때는 아래에 모인다(2026-10-30 사용자 요청). 넘치면 auto 여백이 0이 되어 그대로 스크롤된다. */
     .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
     .social-chat-msg.mine{align-self:flex-end;background:#1b1914;border-color:#5b4930;}
     .social-chat-head{display:flex;align-items:center;gap:6px;min-width:0;}.social-chat-author{display:inline-flex;align-items:center;min-width:0;padding:0;border:0;background:none;color:inherit;cursor:pointer;}.social-chat-self{padding:1px 4px;border:1px solid #675132;border-radius:2px;color:#c9aa70;font-size:12px;}

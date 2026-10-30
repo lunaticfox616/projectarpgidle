@@ -8179,8 +8179,14 @@ function migrateVowBlockAffix(item) {
     }
 }
 
+/** Retired stat ids renamed, then the slim-saved fields of every line put back (js/item-save-slim.js): the bag, a cloud save and the
+ * equipment received from the hall and the stall all pass here. @returns {object|null} the item, or null for nothing */
+function renameAndExpandItemLines(item) {
+    return renameRetiredItemStatIds(item) ? itemSaveSlim.expandItem(item) : null;
+}
+
 function normalizeItem(item) {
-    if (!renameRetiredItemStatIds(item)) return null;
+    if (!renameAndExpandItemLines(item)) return null;
     if (typeof bagItems === 'object' && bagItems.ownShape(item)) return bagItems.normalize(item); // 가방의 주얼과 코어는 제 모양(js/bag-items.js)
     function coerceFiniteNumber(value, fallback) {
         let num = Number(value);
@@ -8470,33 +8476,43 @@ function getBaseStatRollRange(stat) {
     return { scaledMin, scaledMax, usesDecimalRoll };
 }
 
-function rollBaseStat(stat, percentile = Math.random()) {
+/** The bounds a base line rolls between, on the line's grid (tenths for leech/regen lines, whole numbers at least 1 for the rest,
+ * 기본 피해 at least 1): what rollBaseStat writes as valMin/valMax and baseRollMin/baseRollMax, and what the slim save remakes
+ * (js/item-save-slim.js) and the hall base table lists (scripts/export-hall-affix-table.cjs). */
+function baseStatRollBounds(stat) {
     let { scaledMin, scaledMax, usesDecimalRoll } = getBaseStatRollRange(stat);
-    let val;
     if (usesDecimalRoll) {
-        let minStep = Math.round(scaledMin * 10);
-        let maxStep = Math.round(scaledMax * 10);
-        val = Math.min(maxStep, minStep + Math.floor(percentile * (maxStep - minStep + 1))) / 10;
-        scaledMin = minStep / 10;
-        scaledMax = maxStep / 10;
+        scaledMin = Math.round(scaledMin * 10) / 10;
+        scaledMax = Math.round(scaledMax * 10) / 10;
     } else {
         scaledMin = Math.floor(scaledMin);
         scaledMax = Math.floor(scaledMax);
         if (scaledMax > 0) scaledMin = Math.max(1, scaledMin);
-        val = Math.min(scaledMax, scaledMin + Math.floor(percentile * (scaledMax - scaledMin + 1)));
     }
     if (stat.id === 'flatDmg') {
         scaledMin = Math.max(1, scaledMin);
         scaledMax = Math.max(scaledMin, scaledMax);
-        val = Math.max(1, val);
     }
+    return { min: scaledMin, max: scaledMax, usesDecimalRoll };
+}
+
+function rollBaseStat(stat, percentile = Math.random()) {
+    const { min, max, usesDecimalRoll } = baseStatRollBounds(stat);
+    let val;
+    if (usesDecimalRoll) {
+        const minStep = Math.round(min * 10), maxStep = Math.round(max * 10);
+        val = Math.min(maxStep, minStep + Math.floor(percentile * (maxStep - minStep + 1))) / 10;
+    } else {
+        val = Math.min(max, min + Math.floor(percentile * (max - min + 1)));
+    }
+    if (stat.id === 'flatDmg') val = Math.max(1, val);
     return {
         id: stat.id,
         val: val,
-        valMin: scaledMin,
-        valMax: scaledMax,
-        baseRollMin: scaledMin,
-        baseRollMax: scaledMax,
+        valMin: min,
+        valMax: max,
+        baseRollMin: min,
+        baseRollMax: max,
         ...(stat.legacyDamageBase > 0 ? { baseDamageBalanceVersion: 1 } : {}),
         tier: 0,
         statName: getStatName(stat.id)

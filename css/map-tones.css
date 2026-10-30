@@ -1,0 +1,142 @@
+/* 지도 창 세부 화면의 색(2026-10-30 사용자: 혼돈계, 지하계, 장비 가공 등 지도 탭 세부 내용에도 색감). 권역 탭과 배너에만 있던 색을 내용으로 잇는다.
+   화면마다 색 하나(--map-tone, 정하지 않은 화면은 권역의 색)를 두고 판의 테두리와 바탕 빛, 제목, 주 단추가 그 색을 쓴다. js/exploration-atlas-ui.js가
+   #tab-map에 data-map-region, data-map-route를 적는다. 구리, 은, 금과 능력치, 속성은 화면과 상관없이 제 색이다(js/underworld-rune-ui.js). */
+@layer overrides {
+  #tab-map {
+    --map-tone: var(--region-tint, #c6b07a);
+    --map-tone-text: color-mix(in srgb, var(--map-tone) 62%, #f4ecdc);
+    --map-tone-label: color-mix(in srgb, var(--map-tone) 42%, #b3a88f);
+    --map-tone-line: color-mix(in srgb, var(--map-tone) 38%, #2b2730);
+    --map-tone-edge: color-mix(in srgb, var(--map-tone) 72%, #2b2730);
+    --map-tone-wash: color-mix(in srgb, var(--map-tone) 15%, #1a1720);
+    --map-tone-soft: color-mix(in srgb, var(--map-tone) 7%, #1c1922);
+    --map-tone-cell: color-mix(in srgb, var(--map-tone) 10%, #211e27);
+  }
+  #tab-map[data-map-route="map-explore-root-boss"] { --map-tone: #dc7f68; }
+  #tab-map[data-map-route="map-explore-trials"] { --map-tone: #e2bd6a; }
+  #tab-map[data-map-route="map-explore-beehive"] { --map-tone: #e8b54a; }
+  #tab-map[data-map-route="map-explore-colony"] { --map-tone: #86c98a; }
+  #tab-map[data-map-route="map-explore-chaos"] { --map-tone: #b98ae6; }
+  #tab-map[data-map-route="map-tab-chaos-realm"] { --map-tone: #d96ba6; }
+  #tab-map[data-map-route="map-explore-labyrinth"] { --map-tone: #86b2ea; }
+  #tab-map[data-map-route="map-explore-voidrift"] { --map-tone: #8f83f0; }
+  #tab-map[data-map-route="map-explore-timerift"] { --map-tone: #69cfd8; }
+  #tab-map[data-map-route="map-tab-underworld"] { --map-tone: #e58f52; }
+  #tab-map[data-map-route="map-tab-sky"] { --map-tone: #8fc4ee; }
+  #tab-map[data-map-route="map-explore-meteor"] { --map-tone: #ec7f55; }
+  #tab-map[data-map-route="map-tab-ocean"] { --map-tone: #5fbfdc; }
+  #tab-map[data-map-route="map-tab-fishing"] { --map-tone: #62cdb4; }
+  #tab-map[data-map-route="map-tab-cosmos"] { --map-tone: #9d9cf0; }
+
+  /* 탭 줄과 배너: 어느 권역에서나 녹색이던 바탕이 그 화면의 색을 따른다. */
+  #tab-map .exploration-toolbar { border-color: var(--map-tone-line); background: var(--map-tone-soft); }
+  #tab-map #exploration-region-banner { border-color: var(--map-tone-line); }
+  #tab-map #exploration-region-banner h2 { color: var(--map-tone-text); }
+
+  /* 사냥과 강대한 적의 목록 뒤 */
+  #tab-map .map-explore-layout > .vertical-tab-panels { background: linear-gradient(180deg, var(--map-tone-soft), #131118); }
+
+  /* 큰 판 */
+  #tab-map :is(.map-expedition-intro, .underworld-entry-card, .underworld-panel, .time-rift-panel, .ocean-panel-shell, .colony-ward-panel) {
+    border-color: var(--map-tone-line);
+    background: linear-gradient(115deg, var(--map-tone-wash), var(--map-tone-soft) 55%, #1c1922);
+    box-shadow: inset 0 2px 0 var(--map-tone-edge);
+  }
+  #tab-map .underworld-entry-card.current { box-shadow: inset 0 2px 0 var(--map-tone-edge), inset 3px 0 0 var(--map-tone); }
+  /* 판 안의 칸 */
+  #tab-map :is(.underworld-upgrade-card, .underworld-enchant-card, .underworld-inventory-card, .underworld-rune-chip, .map-expedition-result, .map-expedition-intro dl > div) {
+    border-color: var(--map-tone-line);
+    background: var(--map-tone-cell);
+  }
+  #tab-map .map-item--deep-chaos { border-color: var(--map-tone-line); background: var(--map-tone-cell); }
+  #tab-map .map-expedition-intro dl > div { border-left-color: var(--map-tone-edge); }
+  #tab-map .map-expedition-result { border-left-color: var(--map-tone); }
+  #tab-map .map-expedition-result b { color: var(--map-tone-text); }
+  #tab-map .map-expedition-intro dt { color: var(--map-tone-label); }
+
+  /* 제목 */
+  #tab-map :is(.map-expedition-heading > strong, .underworld-entry-copy > strong, .underworld-upgrade-card > div > strong, .underworld-inventory-card > strong,
+    .underworld-panel-head > div > strong, .underworld-enchant-card header > strong, .underworld-rune-slot.unlocked > strong, .underworld-stone-actions button > strong,
+    .map-expedition-intro > strong, .time-rift-panel h3, .colony-ward-panel h3, .colony-ward-panel h4, .ocean-panel-shell h3, .map-zone-group-title) {
+    color: var(--map-tone-text);
+  }
+  #tab-map .map-list-head strong { color: var(--map-tone-text); }
+  #tab-map .map-list-bar > i { background: linear-gradient(90deg, color-mix(in srgb, var(--map-tone) 50%, #0c0a08), var(--map-tone)); }
+
+  /* 주 단추 */
+  #tab-map :is(.underworld-primary-action, .map-expedition-actions > button:first-child):enabled {
+    border-color: var(--map-tone-edge);
+    background: color-mix(in srgb, var(--map-tone) 20%, #1c1922);
+    color: var(--map-tone-text);
+  }
+
+  /* 지하석 칸과 동작 */
+  #tab-map .underworld-rune-slot.unlocked { border-color: var(--map-tone-line); background: var(--map-tone-cell); }
+  #tab-map .underworld-rune-slot.unlocked .underworld-rune-slot-no { color: var(--map-tone-text); }
+  #tab-map .underworld-stone-actions button:enabled { border-color: var(--map-tone-line); background: var(--map-tone-cell); }
+  #tab-map .underworld-stone-actions button:enabled:hover { border-color: var(--map-tone-edge); }
+
+  /* 구리, 은, 금, 지하석 조각: 어디에 적혀 있든 같은 색이다. */
+  #tab-map :is(.is-underCopper, .is-underSilver, .is-underGold, .is-runeShard) { font-style: normal; color: var(--metal); }
+  #tab-map :is(.is-underCopper, .is-underSilver, .is-underGold, .is-runeShard) b { color: inherit; }
+  #tab-map .is-underCopper { --metal: #e59a63; }
+  #tab-map .is-underSilver { --metal: #cdd9e6; }
+  #tab-map .is-underGold { --metal: #f4cb5e; }
+  #tab-map .is-runeShard { --metal: #c9a3ff; }
+  #tab-map :is(.underworld-resource-strip, .underworld-ticket-strip) > span:is(.is-underCopper, .is-underSilver, .is-underGold, .is-runeShard) {
+    border-color: color-mix(in srgb, var(--metal) 45%, #2b2730);
+    background: color-mix(in srgb, var(--metal) 10%, #1c1922);
+  }
+  /* 한 줄의 비용(구리/은/금)을 잇는 글자는 흐리게 둔다. */
+  #tab-map .underworld-enchant-card li small { color: #6f6858; }
+  #tab-map .underworld-enchant-card li.is-head { border-color: var(--map-tone-line); }
+
+  /* 능력치와 속성: 장비 툴팁의 색(js/ui.js getItemStatToneColor)과 같다. */
+  #tab-map .underworld-enchant-card li.has-stat > span { color: var(--stat-tone); }
+  #tab-map .underworld-ticket-strip > span.has-stat {
+    border-color: color-mix(in srgb, var(--stat-tone) 42%, #2b2730);
+    background: color-mix(in srgb, var(--stat-tone) 9%, #1c1922);
+    color: color-mix(in srgb, var(--stat-tone) 72%, #b3a88f);
+  }
+  #tab-map .underworld-ticket-strip > span.has-stat b { color: var(--stat-tone); }
+  #tab-map .underworld-ticket-strip > span.is-fire { --stat-tone: #ff9a76; }
+  #tab-map .underworld-ticket-strip > span.is-cold { --stat-tone: #8fd3ff; }
+  #tab-map .underworld-ticket-strip > span.is-light { --stat-tone: #ffe083; }
+  #tab-map .underworld-ticket-strip > span.is-chaos { --stat-tone: #c7a6ff; }
+  /* 층의 특징: 그 층이 거는 불리한 효과 */
+  #tab-map .underworld-ticket-strip > span.is-affix { border-color: var(--map-tone-edge); background: var(--map-tone-wash); color: #e6dcc6; }
+  #tab-map .underworld-ticket-strip > span.is-affix b { color: var(--map-tone-text); }
+
+  /* 우주계 탐사 기록: 지표마다, 은하마다 제 색 */
+  #tab-map .cosmos-records-disclosure { border-color: var(--map-tone-line); background: linear-gradient(115deg, var(--map-tone-wash), var(--map-tone-soft) 55%, #1c1922); }
+  #tab-map .cosmos-records-disclosure > summary { color: var(--map-tone-text); }
+  #tab-map .cosmos-summary { margin-bottom: 0; border: 0; border-top: 1px solid var(--map-tone-line); border-radius: 0; background: none; }
+  #tab-map .cosmos-summary-metrics > div { --record-tone: var(--map-tone); border-color: color-mix(in srgb, var(--record-tone) 42%, #2b2730); background: color-mix(in srgb, var(--record-tone) 11%, #1c1922); }
+  #tab-map .cosmos-summary-metrics > div:nth-child(2) { --record-tone: #7fd3c8; }
+  #tab-map .cosmos-summary-metrics > div:nth-child(3) { --record-tone: #c7a6ff; }
+  #tab-map .cosmos-summary-metrics > div:nth-child(4) { --record-tone: #8fc4ee; }
+  #tab-map .cosmos-summary-metrics span { color: color-mix(in srgb, var(--record-tone) 50%, #b3a88f); }
+  #tab-map .cosmos-summary-metrics strong { color: color-mix(in srgb, var(--record-tone) 72%, #f4ecdc); }
+  #tab-map :is(.cosmos-galaxy-progress > span, .cosmos-capstone-boss):nth-child(5n+1) { --galaxy: #7fb4ee; }
+  #tab-map :is(.cosmos-galaxy-progress > span, .cosmos-capstone-boss):nth-child(5n+2) { --galaxy: #7fd3c8; }
+  #tab-map :is(.cosmos-galaxy-progress > span, .cosmos-capstone-boss):nth-child(5n+3) { --galaxy: #b8d47e; }
+  #tab-map :is(.cosmos-galaxy-progress > span, .cosmos-capstone-boss):nth-child(5n+4) { --galaxy: #e8b85e; }
+  #tab-map :is(.cosmos-galaxy-progress > span, .cosmos-capstone-boss):nth-child(5n) { --galaxy: #e08ab8; }
+  #tab-map .cosmos-galaxy-progress b { color: var(--galaxy); }
+  #tab-map .cosmos-galaxy-progress small { color: #c4baa3; }
+  #tab-map .cosmos-galaxy-progress i { background: color-mix(in srgb, var(--galaxy) 20%, #0f0d14); }
+  #tab-map .cosmos-galaxy-progress em { background: var(--galaxy); }
+  #tab-map .cosmos-resource-line { color: var(--map-tone-label); }
+  #tab-map .cosmos-capstone-card { border-color: var(--map-tone-line); background: var(--map-tone-cell); }
+  #tab-map .cosmos-capstone-head strong { color: var(--map-tone-text); }
+  #tab-map .cosmos-capstone-head span { color: var(--map-tone-label); }
+  #tab-map .cosmos-capstone-card[open] .cosmos-capstone-bosses { background: none; }
+  #tab-map .cosmos-capstone-boss { border-color: color-mix(in srgb, var(--galaxy) 38%, #2b2730); background: color-mix(in srgb, var(--galaxy) 9%, #1c1922); }
+  #tab-map .cosmos-capstone-boss span { color: var(--galaxy); }
+  #tab-map .cosmos-capstone-boss.cleared { border-color: var(--galaxy); background: color-mix(in srgb, var(--galaxy) 24%, #1c1922); color: #f4ecdc; }
+  #tab-map .cosmos-capstone-boss.cleared b { color: #9fd46a; }
+  #tab-map .cosmos-capstone-footer b { color: var(--map-tone-text); }
+
+  /* 강대한 적: 그 보스의 속성이 카드에 비친다. */
+  #tab-map .map-boss-card { background: linear-gradient(100deg, color-mix(in srgb, var(--boss-tone) 11%, transparent), transparent 62%); }
+}

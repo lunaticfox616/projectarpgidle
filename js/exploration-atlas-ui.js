@@ -227,15 +227,22 @@ const explorationAtlasUi = (() => {
     // 길이 여럿인 권역을 고른 화면(권역 고르기)도 위 두 줄과 권역 띠를 쓴다(2026-10-26 사용자: 이 중간 화면에만 위 탭이 없었다).
     // 그때 둘째 줄은 그 권역의 길들이고 눌린 것이 없다.
     const hubRegion = () => EXPLORATION_REGIONS.regions.find(region => region.id === selected && region.routes.filter(available).length > 1) || null;
+    /** 세부 화면의 색(css/map-tones.css): 그 화면, 없으면 그 권역의 색. */
+    function markMapTone(panel,region,route) {
+        panel.dataset.mapRegion = region ? region.id : '';
+        panel.dataset.mapRoute = route || '';
+    }
     function syncLocation() {
         const host = document.getElementById('exploration-location');
         if (!host) return;
         const route = game.mapSubtab === 'map-tab-zones' ? game.mapExploreSubtab : game.mapSubtab;
         const hub = route === 'map-explore-atlas' ? hubRegion() : null, overview = route === 'map-explore-atlas' && !hub;
         host.hidden = overview;
-        document.getElementById('tab-map').classList.toggle('is-atlas-overview',overview);
-        if (overview) return;
+        const panel = document.getElementById('tab-map');
+        panel.classList.toggle('is-atlas-overview',overview);
+        if (overview) { markMapTone(panel,null,null); return; }
         const region = hub || regionFor(route), shown = hub ? null : route;
+        markMapTone(panel,region,shown);
         if (region && region.routes.filter(available).length > 1) selected = region.id;
         writeHtmlIfChanged(host, locationHtml(region,shown));
         syncRegionBanner(region,shown);

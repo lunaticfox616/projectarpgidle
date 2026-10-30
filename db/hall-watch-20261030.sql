@@ -89,6 +89,8 @@ $$;
 -- 추가 옵션 표(hall_affix_table_rejects)로도 본다. 표를 읽으므로 immutable이 아니라 stable이다.
 create or replace function public.validate_hall_item(item_data jsonb)
 returns void language plpgsql stable set search_path = public as $$
+declare
+    stat_cap integer := case when item_data ->> 'rarity' = 'rare' then 7 else 8 end;   -- 줄 끝의 맨 case ... end는 Supabase SQL Editor가 문장을 거기서 끊는다(2026-10-30)
 begin
     if jsonb_typeof(item_data) is distinct from 'object'
        or length(coalesce(item_data ->> 'name', '')) not between 1 and 80
@@ -103,7 +105,7 @@ begin
         raise exception 'HALL_ITEM_REJECTED';
     end if;
     if jsonb_typeof(item_data -> 'stats') is distinct from 'array'
-       or jsonb_array_length(public.hall_array(item_data -> 'stats')) > case when item_data ->> 'rarity' = 'rare' then 7 else 8 end
+       or jsonb_array_length(public.hall_array(item_data -> 'stats')) > stat_cap
        or jsonb_typeof(item_data -> 'baseStats') is distinct from 'array'
        or jsonb_array_length(public.hall_array(item_data -> 'baseStats')) > 8
        or exists (select 1 from (
