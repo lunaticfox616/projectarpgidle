@@ -176,7 +176,7 @@
   body.mobile-battle-tab #tab-battle #enemy-area,
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { box-sizing: border-box; }
   body.mobile-battle-tab #tab-battle .enemy-card.targeted { padding: 7px 8px; }
-  body.mobile-battle-tab #tab-battle #log { display: block; flex: 1 1 auto; font-size: 11px; }
+  body.mobile-battle-tab #tab-battle #log { display: flex; flex-direction: column; flex: 1 1 auto; font-size: 11px; }
   #btn-map-complete-action-picker {
     flex: 0 0 112px;
     max-width: 112px;

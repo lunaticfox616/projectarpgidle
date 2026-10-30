@@ -46,7 +46,7 @@ function init() {
         setStartupOverlayActive(true);
         renderPatchNotes();
         setLoadingOverlayState(false);
-        let localSaveStatus = loadGame();
+        let localSaveStatus = loadGameAtBoot();
         playerStallUi.settleSales(Date.now());
         if (localSaveStatus.writable === false) {
             setCloudMessage(localSaveStatus.message);

@@ -2301,13 +2301,11 @@ let cloudState = {
     isLoaded: false,
     lastMessage: '설정 전',
     lastRemoteUpdatedAt: 0,
-    lastRemoteLoop: 0,
     lastRemoteRevision: 0,
-    lastRemoteResetRevision: 0,
     revisionSupported: null,
     lastSyncAttemptAt: 0,
-    lastSyncedLocalModifiedAt: 0,
-    pendingAutoSyncDirty: false,
+    syncHalted: false,
+    uploadFailureNoticed: false,
     tokenRefreshPromise: null,
     tokenExpiryWarned: false,
     pendingForcedSyncOptions: null,
@@ -2771,9 +2769,9 @@ const defaultGame = {
         constellationBuff: null,
         entriesCleared: 0
     },
-    // cloudResetRevision: last explicit account reset's server revision (0 for pre-reset saves).
+    // cloudPending: this account slot was written since its last commit to the server (js/save.js persistLocalSave); never true in the guest slot.
     // gameBuild: the release that last wrote this save (its commit time, ISO; null before 2026-10-28 and on an unbuilt page), js/save.js.
-    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudResetRevision: 0, maxSeenAt: 0, gameBuild: null },
+    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudPending: false, maxSeenAt: 0, gameBuild: null },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, jewel: false, stump: false, npcs: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false, npcs: false },
     mapAlarmSeen: {},

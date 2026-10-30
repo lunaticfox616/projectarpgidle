@@ -167,7 +167,7 @@
 .cloud-link { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 0 6px; }
 .cloud-link > span { margin-right: auto; color: #eee4cf; font-size: 14px; }
 .cloud-panel > .cfg-disclosure { margin-top: 6px; border-top: 1px solid rgba(255, 255, 255, .06); }
-.cloud-panel:has(#ui-cloud-status-pill:not(.online, .syncing)) :is(#btn-cloud-logout, #btn-cloud-pull, #btn-cloud-delete, .cloud-link) { display: none; }
+.cloud-panel:has(#ui-cloud-status-pill:not(.online, .syncing)) :is(#btn-cloud-logout, #btn-cloud-pull, #btn-cloud-move-guest, #btn-cloud-delete, .cloud-link) { display: none; }
 /* 계정 삭제: 보통 동작과 떨어진 오른쪽 자리. 글자색은 아래 overrides 층에 있다. */
 #tab-settings .cloud-actions > #btn-cloud-delete { margin-left: auto; }
 .cloud-policy-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 6px; font-size: 12px; }
