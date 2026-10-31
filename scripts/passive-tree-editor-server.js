@@ -42,7 +42,8 @@ const FORWARDED_HEADERS = ['x-forwarded-for', 'cf-connecting-ip', 'forwarded'];
 let room = null;
 const ICON_FAMILIES = [
     'blade', 'projectile', 'shield', 'potion', 'strength', 'mystique', 'devotion', 'cycle', 'elemental',
-    'dexterity', 'chaos', 'life', 'arcane', 'summon', 'intelligence', 'precision', 'wind', 'void', 'constellation'
+    'dexterity', 'chaos', 'life', 'arcane', 'summon', 'intelligence', 'precision', 'wind', 'void', 'constellation',
+    'fire', 'cold', 'lightning', 'cooldown', 'critical', 'armor', 'evasion', 'energyShield', 'ignite', 'chill', 'freeze', 'shock', 'bleed', 'poison'
 ];
 
 function readTree() {

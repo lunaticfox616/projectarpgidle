@@ -1,9 +1,9 @@
 // 여러 노드를 고른 때와 연결을 고른 때의 패널(2026-10-28 사용자: 설계자의 다중 선택 패널). 고른 노드 수와 등급별 수, 등급과 분류 일괄 변경,
-// 능력 일괄 적용(전체 교체, 첫 옵션 교체, 옵션 추가)과 비우기, 회전(15°)과 반전(화면 기준, 트리 기준), 복사, 복제, 삭제.
+// 능력 일괄 적용(전체 교체, 첫 옵션 교체, 옵션 추가)과 비우기, 그림(아이콘 계열, 업로드, 해제: 2026-11-01 사용자), 회전(15°)과 반전(화면 기준, 트리 기준), 복사, 복제, 삭제.
 import { CATEGORIES, NODE_TYPES, applyEffectToNodes, arrangeNodes, mirrorNodes, ringEdges, rotateNodes } from './edit-tools.js';
 
 /** @param {object} ctx from editor.js: elements, canvas, getConfig, selectedNodes(), selectedIds(), change, syncEffects, statOptions, setStatus,
- *   escapeHtml, nodeName(id), duplicate(), copy(), deleteSelected(), deleteEdge(key) */
+ *   escapeHtml, nodeName(id), duplicate(), copy(), deleteSelected(), deleteEdge(key), iconChoicesHtml(), setIconField(field, value), uploadCustomIcon(file, input) */
 export function createBulkPanel(ctx) {
     const { elements, escapeHtml } = ctx;
     const ids = () => new Set(ctx.selectedIds());
@@ -17,6 +17,7 @@ export function createBulkPanel(ctx) {
         elements['multi-title'].textContent = `노드 ${nodes.length}개`;
         elements['multi-counts'].textContent = counts.map(([label, count]) => `${label} ${count}`).join(', ');
         if (!elements['bulk-stat'].options.length) elements['bulk-stat'].innerHTML = ctx.statOptions('');
+        if (!elements['bulk-icon-gallery'].childElementCount) elements['bulk-icon-gallery'].innerHTML = ctx.iconChoicesHtml();
     }
 
     function setField(field, value, label) {
@@ -71,6 +72,10 @@ export function createBulkPanel(ctx) {
         elements['bulk-type'].onchange = event => { setField('type', event.target.value, '등급을'); event.target.value = ''; };
         elements['bulk-cat'].onchange = event => { setField('cat', event.target.value, '분류를'); event.target.value = ''; };
         elements['bulk-apply-button'].onclick = applyEffect;
+        elements['bulk-icon-gallery'].onclick = event => { const button = event.target.closest('[data-family]'); if (button) ctx.setIconField('iconFamily', button.dataset.family); };
+        elements['bulk-icon-auto'].onclick = () => ctx.setIconField('iconFamily', '');
+        elements['bulk-icon-clear'].onclick = () => ctx.setIconField('iconAsset', '');
+        elements['bulk-icon-input'].onchange = event => ctx.uploadCustomIcon(event.target.files[0], event.target);
         elements['bulk-clear-button'].onclick = () => ctx.change(tree => picked(tree).forEach(node => ctx.syncEffects(node, [])), `노드 ${ids().size}개의 옵션을 비웠습니다.`);
         document.querySelectorAll('[data-arrange]').forEach(button => { button.onclick = () => arrange(button.dataset.arrange); });
         document.querySelectorAll('[data-relink]').forEach(button => { button.onclick = () => relink(button.dataset.relink); });
