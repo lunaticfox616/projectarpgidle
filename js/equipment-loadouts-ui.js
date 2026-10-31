@@ -27,7 +27,7 @@ function renderEquipmentLoadoutPresetSlot(preset, index, selectedSlot) {
     let blocked = presetBlocked(inspection);
     let stateClass = !preset ? ' empty' : inspection.applied ? ' applied' : blocked ? ' missing' : '';
     let name = `${index + 1}번 빌드 세팅${preset ? ` [${preset.name}]` : ''}`;
-    return `<button type="button" class="equipment-preset-slot${index === selectedSlot ? ' selected' : ''}${stateClass}" title="${escapeHTML(`${name}, ${describeLoadoutPresetSlot(preset, inspection)}`)}"
+    return `<button type="button" class="equipment-preset-slot${index === selectedSlot ? ' selected' : ''}${stateClass}" data-tip="${escapeHTML(`${name}, ${describeLoadoutPresetSlot(preset, inspection)}`)}"
         aria-label="${escapeHTML(name)}" aria-pressed="${index === selectedSlot}" onclick="equipmentLoadoutUi.pick(${index})"><span class="px-center">${LOADOUT_SLOT_NUMERALS[index] || index + 1}</span></button>`;
 }
 
@@ -51,7 +51,7 @@ function renderEquipmentLoadoutPresetPanel() {
     let preset = state.presets[selected];
     let html = `<section class="equipment-preset-panel" aria-label="통합 빌드 세팅">
         <div class="equipment-preset-row">${state.presets.map((row, index) => renderEquipmentLoadoutPresetSlot(row, index, selected)).join('')}
-            <button type="button" class="equipment-preset-save" onclick="equipmentLoadoutUi.save()" title="현재 장비와 주 공격, 이동, 소환, 보조 등급을 ${selected + 1}번 빌드에 저장">저장</button>
+            <button type="button" class="equipment-preset-save" onclick="equipmentLoadoutUi.save()" data-tip="현재 장비와 주 공격, 이동, 소환, 보조 등급을 ${selected + 1}번 빌드에 저장">저장</button>
             <details class="eqw-more equipment-preset-more"><summary aria-label="세팅 관리">⋯</summary><div class="eqw-more-panel">
                 <button type="button" onclick="equipmentLoadoutUi.rename()" ${preset ? '' : 'disabled'}>이름 바꾸기</button>
                 <button type="button" onclick="equipmentLoadoutUi.clear()" ${preset ? '' : 'disabled'}>비우기</button></div></details>

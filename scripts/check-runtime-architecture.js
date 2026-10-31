@@ -154,13 +154,31 @@ function cyclePath(edge,calls) {
 
 const closesCycle=(edge,calls)=>!!cyclePath(edge,calls);
 
+// 브라우저 기본 툴팁은 쓰지 않는다(2026-10-31 사용자, 기준선 없이 0개): 설명은 data-tip으로 단다(js/plain-tip-ui.js).
+const NATIVE_TIP_MARKUP = /(?<![\w-])title=|<title[\s>]/;
+const DATA_TITLE_OWNERS = new Set(['node','pick','activeTutorial']);   // 패시브 노드와 튜토리얼의 제목 칸: 화면 속성이 아니다
+function isNativeTooltip(node) {
+    if (node.type === 'Literal') return typeof node.value === 'string' && NATIVE_TIP_MARKUP.test(node.value);
+    if (node.type === 'TemplateElement') return NATIVE_TIP_MARKUP.test(node.value.raw);
+    if (node.type === 'AssignmentExpression') return node.left.type === 'MemberExpression' && node.left.property.name === 'title' && !DATA_TITLE_OWNERS.has(node.left.object.name);
+    if (node.type === 'CallExpression') return node.callee.type === 'MemberExpression' && node.callee.property.name === 'setAttribute' && node.arguments[0]?.value === 'title';
+    return false;
+}
+function nativeTooltipFailures(rows,html) {
+    const hint = '브라우저 기본 툴팁 금지, data-tip을 쓴다(js/plain-tip-ui.js)';
+    const failures = html.replace(/<title>[^<]*<\/title>/,'').split(/\r?\n/).flatMap((line,index) => (NATIVE_TIP_MARKUP.test(line) ? [`index.html:${index+1}: ${hint}`] : []));
+    for (const row of rows.filter(row => row.file.startsWith('js/'))) walk(row.ast, node => { if (isNativeTooltip(node)) failures.push(`${row.file}:${node.loc.start.line}: ${hint}`); });
+    return failures;
+}
+
 if(require.main===module){
     if(process.argv.includes('--baseline-from-head')) {
         fs.writeFileSync(baselinePath,JSON.stringify(analyze(readSources(true)),null,2)+'\n');
     } else {
-        const failures=compare(analyze(readSources(false)),JSON.parse(fs.readFileSync(baselinePath,'utf8')));
+        const sources=readSources(false);
+        const failures=[...compare(analyze(sources),JSON.parse(fs.readFileSync(baselinePath,'utf8'))),...nativeTooltipFailures(sources,fs.readFileSync('index.html','utf8'))];
         if(failures.length){console.error(failures.join('\n'));process.exitCode=1;}
         else console.log('runtime architecture/lint ratchet passed');
     }
 }
-module.exports={analyze,compare,closesCycle};
+module.exports={analyze,compare,closesCycle,nativeTooltipFailures};

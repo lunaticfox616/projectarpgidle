@@ -5152,7 +5152,7 @@ function applyPanelLayoutSettings() {
     // 정적 UI를 새로 그릴 때마다 불린다. 같은 글자와 속성을 다시 쓰고 innerText를 읽으면 문서 스타일과 배치를 강제로 다시
     // 계산했다(2026-10-07 프레임 드랍: 몇 초마다 한 번씩 튀던 프레임). 바뀐 것만 쓴다.
     const leftLabel = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
-    leftToggleButtons.forEach(button => syncPanelToggle(button, isLeftCollapsed ? '▶' : '◀', { title: leftLabel, 'aria-label': leftLabel }));
+    leftToggleButtons.forEach(button => syncPanelToggle(button, isLeftCollapsed ? '▶' : '◀', { 'data-tip': leftLabel, 'aria-label': leftLabel }));
     if (leftExpandFab) syncPanelToggle(leftExpandFab, '▶', {});
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     document.body.classList.toggle('combat-log-collapsed', isLogCollapsed);

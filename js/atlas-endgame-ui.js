@@ -70,7 +70,7 @@ const atlasEndgameUi = (() => {
             ${powerHtml(row, tier)}<div class="atlas-late-entry">${entryHtml(fight.entry)}</div>
             ${sourcesHtml(fight)}${fight.lock ? `<p class="atlas-lock" id="${lockId}">${escapeHTML(fight.lock)}</p>` : ''}
             <button class="atlas-primary" data-exploration-departure onclick="atlasEndgameUi.challenge('${row.id}')" aria-label="${escapeHTML(who)} 도전"
-                ${fight.lock ? `aria-describedby="${lockId}"` : ''} ${why ? `disabled title="${escapeHTML(why)}"` : ''}>도전</button></div>`;
+                ${fight.lock ? `aria-describedby="${lockId}"` : ''} ${why ? `disabled data-tip="${escapeHTML(why)}"` : ''}>도전</button></div>`;
     }
     /** Why no late fight can depart right now (said once): the atlas's own lock, an open map, or another content's run. */
     function departBlock() {

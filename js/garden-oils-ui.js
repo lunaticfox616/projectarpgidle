@@ -35,7 +35,7 @@ const gardenOilsUi = (() => {
         const reason = gardenOils.anointReason(game, item, bowl);
         return `<div class="selection-overlay-grid">${gardenOils.offers(game, bowl).map(node => {
             const why = reason || gardenOils.slotReason(game, item, node.id, slot);
-            return `<button type="button" class="selection-overlay-option" onclick="gardenOilsUi.choose('${node.id}')" ${why ? `disabled title="${esc(why)}"` : ''}>
+            return `<button type="button" class="selection-overlay-option" onclick="gardenOilsUi.choose('${node.id}')" ${why ? `disabled data-tip="${esc(why)}"` : ''}>
                 ${esc(node.title)}<br><span>${esc(effectText(node))}</span></button>`;
         }).join('')}</div>`;
     }

@@ -43,7 +43,7 @@ const shopView = (() => {
     /** The currencies a shop prices in (keys), in the wallet order, with what the hero holds. */
     function walletHtml(keys) {
         const shown = [...WALLET_ORDER.filter(key => keys.includes(key)), ...[...new Set(keys)].filter(key => !WALLET_ORDER.includes(key))];
-        return `<span class="shop-wallet">${shown.map(key => `<span title="${escapeHTML(currencyName(key))}">${coinHtml(key)}${held(key).toLocaleString()}</span>`).join('')}</span>`;
+        return `<span class="shop-wallet">${shown.map(key => `<span data-tip="${escapeHTML(currencyName(key))}">${coinHtml(key)}${held(key).toLocaleString()}</span>`).join('')}</span>`;
     }
 
     function cellsHtml(columns, rows, mark = () => '') {

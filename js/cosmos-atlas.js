@@ -1557,7 +1557,7 @@
             const usableRelic = Array.isArray(state.bossRelics) && findCosmosBossRelicIndexForStone(state.bossRelics, g) >= 0;
             const options = acquired ? ensureCosmosStoneOptions(state, g) : [];
             const optionHtml = options.map(option => `<div class="cosmos-stone-option ${option.boss ? 'boss' : ''}">${escapeHTML(getCosmosStoneOptionText(option))}</div>`).join('') || '<div class="cosmos-stone-option empty">미획득</div>';
-            return `<article class="cosmos-stone-card ${acquired ? 'acquired' : 'locked'} ${equipped ? 'equipped' : ''}" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()"><div class="cosmos-stone-orb"><i></i><b>G${g}</b></div><div class="cosmos-stone-card-body"><header><b>${escapeHTML(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착 중' : (acquired ? '보유' : '미획득')}</span></header><small>최소 티어 T${getCosmosTierFloor()}</small><div class="cosmos-stone-options">${optionHtml}</div><div class="cosmos-stone-actions"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} title="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">유물 각인</button></div></div></article>`;
+            return `<article class="cosmos-stone-card ${acquired ? 'acquired' : 'locked'} ${equipped ? 'equipped' : ''}" data-info-tooltip-anchor="1" onmouseenter="showCosmosStoneTooltip(event,${g})" onmousemove="showCosmosStoneTooltip(event,${g})" onmouseleave="hideInfoTooltip()"><div class="cosmos-stone-orb"><i></i><b>G${g}</b></div><div class="cosmos-stone-card-body"><header><b>${escapeHTML(getCosmosStoneNameByGalaxy(g))}</b><span>${equipped ? '장착 중' : (acquired ? '보유' : '미획득')}</span></header><small>최소 티어 T${getCosmosTierFloor()}</small><div class="cosmos-stone-options">${optionHtml}</div><div class="cosmos-stone-actions"><button onclick="equipBossStoneByGalaxy(${g})" ${acquired && !equipped ? '' : 'disabled'}>장착</button><button onclick="unequipBossStoneByGalaxy(${g})" ${equipped ? '' : 'disabled'}>해제</button><button onclick="applyCosmosBossRelicToStone(${g})" ${acquired && usableRelic ? '' : 'disabled'} data-tip="${usableRelic ? '이 우주석 전용 보스 유물 사용' : '이 우주석에 맞는 보스 유물이 없습니다'}">유물 각인</button></div></div></article>`;
         }).join('');
         return `<section class="cosmos-stone-panel"><header><strong>우주석 성좌</strong><span>보스 유물 ${relicCount}개</span></header><div class="cosmos-stone-grid">${cards}</div></section>`;
     }
@@ -1598,7 +1598,7 @@
         const capstoneBosses = capstone.bosses.map(row => `
             <button type="button" class="cosmos-capstone-boss ${row.cleared ? 'cleared' : 'missing'}"
                 onclick="focusCosmosCapstoneBoss('${row.id}')"
-                title="${row.cleared ? '이번 루프 격파 완료' : '아틀라스에서 위치 확인'}">
+                data-tip="${row.cleared ? '이번 루프 격파 완료' : '아틀라스에서 위치 확인'}">
                 <span>G${row.galaxy}</span>${escapeHTML(row.name)}<b>${row.cleared ? '✓' : '○'}</b>
             </button>`).join('');
         const capstoneAction = capstone.ready
@@ -1609,7 +1609,7 @@
                 <div><span>탐사 완료</span><strong>${cleared}<small> / ${ATLAS.nodes.length}</small></strong></div>
                 <div><span>개별 탐사 가능</span><strong>${unlocked ? available : 0}<small>개</small></strong></div>
                 <div><span>성도술</span><strong>${getCosmosMasteryFreePoints()}<small> / ${getCosmosMasteryTotalPoints()}</small></strong></div>
-                <div title="창공의 정수는 우주계 탐사, 은하 보스에서 얻고 룬 각인, 창공 가공에 씁니다."><span>창공의 정수</span><strong>${getSkyPowerBalance()}</strong></div>
+                <div data-tip="창공의 정수는 우주계 탐사, 은하 보스에서 얻고 룬 각인, 창공 가공에 씁니다."><span>창공의 정수</span><strong>${getSkyPowerBalance()}</strong></div>
             </div>
             <div class="cosmos-progress-overview"><div class="cosmos-galaxy-progress">${galaxyProgress}</div>
                 <div class="cosmos-resource-line"><span>행성 ${planetsCleared}/50, 소행성 ${asteroidsCleared}/75</span><span>보스 유물 ${(state.bossRelics || []).length}, 우주석 ${getEquippedCosmosStoneCount(state)}/${hasSixthCosmosStoneUnlock() ? 6 : 5}</span></div></div>

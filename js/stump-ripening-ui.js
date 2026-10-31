@@ -79,7 +79,7 @@ const stumpRipeningUi = (() => {
     // ── 일괄 거름 사용 · 일괄 버리기 ───────────────────────────
     /** One bulk button: the count it would take, or muted when it cannot run (pressing it then says why, touch has no hover). */
     function bulkButton(kind, label, reason, count) {
-        return `<button type="button" class="${reason ? 'is-idle' : ''}" data-stump-action="bulk" data-kind="${kind}"${reason ? ` title="${esc(reason)}"` : ''}>`
+        return `<button type="button" class="${reason ? 'is-idle' : ''}" data-stump-action="bulk" data-kind="${kind}"${reason ? ` data-tip="${esc(reason)}"` : ''}>`
             + `${label}${reason ? '' : ` ${count}`}</button>`;
     }
     /** The storage filter's bulk buttons (none on the talisman filter). */
@@ -162,7 +162,7 @@ const stumpRipeningUi = (() => {
     /** A codex tile: the awake unique talisman and its name once found, a sleeping one and ??? before. */
     function codexEntry(row, owned) {
         const on = owned.has(row.id);
-        return `<li class="${on ? 'is-on' : ''}" title="${esc(on ? row.name : '아직 얻지 못함')}">`
+        return `<li class="${on ? 'is-on' : ''}" data-tip="${esc(on ? row.name : '아직 얻지 못함')}">`
             + `<img src="assets/items/stump-pixel-v1/${on ? 'talisman' : 'sealed'}-unique.png" alt="" draggable="false"><span>${esc(on ? row.name : '???')}</span></li>`;
     }
     /** First finds of the unique and wild unique talismans (a progress bar, then the tiles); every few add storage. */

@@ -257,7 +257,7 @@ const atlasUi = (() => {
         const chips = shown.map(fragment => {
             const count = st.fragments[fragment.id] || 0, on = st.loadout.includes(fragment.id);
             return `<button class="atlas-fragment${on ? ' is-on' : ''}" aria-pressed="${on}" onclick="atlasUi.toggleFragment('${fragment.id}')"
-                ${!on && !count ? 'disabled' : ''} title="${escapeHTML(fragmentText(fragment))}"><span>${fragment.name}</span><small>${count}</small></button>`;
+                ${!on && !count ? 'disabled' : ''} data-tip="${escapeHTML(fragmentText(fragment))}"><span>${fragment.name}</span><small>${count}</small></button>`;
         }).join('');
         return `<div class="atlas-fragments" aria-label="각인 홈"><p class="atlas-muted">각인 홈 ${st.loadout.length}/${slots}, 지도를 열 때 하나씩 씀</p>${chips}</div>`;
     }
@@ -294,7 +294,7 @@ const atlasUi = (() => {
     }
     function craftButtonHtml(map, key) {
         const have = Math.floor(game.currencies[key] || 0), reason = atlasMaps.craftReason(map, key);
-        return `<button onclick="atlasUi.craft('${key}')" ${reason || have < 1 ? 'disabled' : ''} title="${escapeHTML(reason || atlasMaps.crafts[key].label)}">
+        return `<button onclick="atlasUi.craft('${key}')" ${reason || have < 1 ? 'disabled' : ''}${reason ? ` data-tip="${escapeHTML(reason)}"` : ''}>
             <span>${window.getStyledOrbName(key)}</span><small>${atlasMaps.crafts[key].label}, ${have}</small></button>`;
     }
     const TICKET = key => ORB_DB[key].name.replace('그림자 뿌리 입장권: ', '');
@@ -342,7 +342,7 @@ const atlasUi = (() => {
     const LEAF_RANK = 1.5;
     function itemFind(row) {
         const name = row.rarity === 'unique' ? `「${escapeHTML(row.name)}」` : escapeHTML(row.name);
-        return { rank: lootMoments.rank(row.moment), html: `<span class="atlas-find rarity-${row.rarity}${momentClass(row.moment)}" title="${escapeHTML(getItemSlotDisplayLabel(null, row.slot))}">${row.fresh ? '<em>새</em>' : ''}${name}</span>` };
+        return { rank: lootMoments.rank(row.moment), html: `<span class="atlas-find rarity-${row.rarity}${momentClass(row.moment)}" data-tip="${escapeHTML(getItemSlotDisplayLabel(null, row.slot))}">${row.fresh ? '<em>새</em>' : ''}${name}</span>` };
     }
     function leafFind([id, count]) {
         const leaf = memoryLeaves.leaf(id);
@@ -435,7 +435,7 @@ const atlasUi = (() => {
         const stats = stat('완료', `${st.completed.length}/${total}`, '#d9b066') + stat('보너스', st.bonus.length, '#9fd46a')
             + stat('씨앗', `${st.seeds}/${ATLAS.seeds.max}`, '#c9a0f0') + stat('포인트', `${atlas.points(game)}${free ? ` (남음 ${free})` : ''}`, '#7fd6cf');
         return `<header class="atlas-head"><span class="atlas-stats">${stats}</span>
-            <label class="atlas-auto" title="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
+            <label class="atlas-auto" data-tip="완료하면 같은 등급 이하에서 다음 지도석을 연다"><input type="checkbox" ${st.autoMap ? 'checked' : ''} onchange="atlasUi.toggleAuto(this.checked)"><span>자동 지도</span>
             <small>완료하면 같은 등급 이하에서 다음 지도석을 연다</small></label></header>`;
     }
     /** Navigation only: preparing a suggested map never spends its stone or starts combat. */

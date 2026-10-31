@@ -15,7 +15,7 @@ const combatCurrencyHud = (() => {
         root.hidden = !held.length;
         root.innerHTML = held.map(([key, count]) => {
             const name = escapeHTML(ORB_DB[key].name);
-            return `<span title="${name}" aria-label="${name} ${count}개"><img src="${ORB_DB[key].icon}" alt="">${count.toLocaleString('ko-KR')}</span>`;
+            return `<span data-tip="${name}" aria-label="${name} ${count}개"><img src="${ORB_DB[key].icon}" alt="">${count.toLocaleString('ko-KR')}</span>`;
         }).join('');
     }
     return Object.freeze({ update });

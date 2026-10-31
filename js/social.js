@@ -786,7 +786,7 @@ function renderChatOnlineCount(active, recent) {
         badge.dataset.text = text;
         badge.innerHTML = `<i class="social-presence-dot active" aria-hidden="true"></i>${text}`;
     }
-    badge.title = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${recent}명`;
+    badge.dataset.tip = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${recent}명`;
 }
 /** 인원 수만 받았을 때(loadOnlineUsers의 { counts }): 배지만 그린다. */
 function renderOnlineCounts(counts) {
@@ -1385,7 +1385,7 @@ function renderPendingChatItems() {
     host.style.display = 'flex';
     host.innerHTML = socialState.pendingChatItems.map((it, i) => {
         let color = socialRarityColor(it.rarity);
-        return `<span class="social-pending-chip" style="border-color:${color};color:${color};">${socialEscape(chatItemLabel(it))}<button onclick="removePendingChatItem(${i})" title="첨부 취소">✕</button></span>`;
+        return `<span class="social-pending-chip" style="border-color:${color};color:${color};">${socialEscape(chatItemLabel(it))}<button onclick="removePendingChatItem(${i})" aria-label="첨부 취소" data-tip="첨부 취소">✕</button></span>`;
     }).join('');
 }
 function updateChatCounter() {
@@ -2348,7 +2348,7 @@ function renderSocialTab() {
             <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>대화를 불러오는 중</strong></div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
             <div class="social-chat-inputbar">
-                <button class="social-attach-btn" onclick="openItemPicker()" title="아이템 첨부" aria-label="아이템 첨부" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> 첨부</button>
+                <button class="social-attach-btn" onclick="openItemPicker()" data-tip="아이템 첨부" aria-label="아이템 첨부" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> 첨부</button>
                 <div class="social-chat-input-shell">
                     <input id="social-chat-input" name="social-chat-message" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? '메시지를 입력하세요…' : '먼저 닉네임을 설정하세요'}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
                     <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
@@ -2384,7 +2384,7 @@ function chatSettingsBody() {
             <button type="button" onclick="promptAndSetNickname()">${nickname ? '바꾸기' : '정하기'}</button></div>
         <div class="chat-settings-row"><span>공개 프로필</span>
             <button type="button" onclick="openMyProfilePreview()">보기</button>
-            <button type="button" onclick="syncPlayerProfile()" title="지금 장비와 능력치를 공개 프로필에 올립니다">동기화</button></div>
+            <button type="button" onclick="syncPlayerProfile()" data-tip="지금 장비와 능력치를 공개 프로필에 올립니다">동기화</button></div>
         ${renderBlockedUsersRow()}
         <div id="social-online" class="social-online" style="display:none;"></div>
     </div>`;
@@ -2393,7 +2393,7 @@ function chatSettingsBody() {
 function renderBlockedUsersRow() {
     let blocked = getBlockedUsers();
     if (!blocked.length) return '';
-    let chips = blocked.map(entry => `<button type="button" data-user-id="${socialEscape(entry.id)}" onclick="unblockUser(this.dataset.userId)" title="차단 풀기">${socialEscape(entry.name || entry.id.slice(0, 8))} 풀기</button>`).join('');
+    let chips = blocked.map(entry => `<button type="button" data-user-id="${socialEscape(entry.id)}" onclick="unblockUser(this.dataset.userId)">${socialEscape(entry.name || entry.id.slice(0, 8))} 풀기</button>`).join('');
     return `<div class="chat-settings-row"><span>차단한 사람</span>${chips}</div>`;
 }
 

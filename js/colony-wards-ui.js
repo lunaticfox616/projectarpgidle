@@ -18,13 +18,13 @@ const colonyWardsUi = (() => {
         return `<div class="slot-box equipment-slot ward-slot rarity-${item.rarity || 'magic'}${open ? '' : ' is-off'}" data-slot="${slot}"
             data-item-tooltip-anchor="1" onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')"
             ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}', false)"
-            onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)"${open ? '' : ' title="비활성화: 칸이 모자랍니다"'}>
+            onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)">
             <img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false">
-            <span class="ward-slot-line">${escapeHTML(line ? lineText(line.id, line.val) : item.rarity === 'unique' ? item.name : '')}</span></div>`;
+            <span class="ward-slot-line">${open ? escapeHTML(line ? lineText(line.id, line.val) : item.rarity === 'unique' ? item.name : '') : '칸 부족'}</span></div>`;
     }
     const emptyCell = slot => `<div class="slot-box equipment-slot equipment-slot-empty ward-slot" data-slot="${slot}"
         onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')"><span class="ward-slot-plus">＋</span></div>`;
-    const lockedCell = () => `<div class="ward-slot is-locked" title="${LOCK_HINT}" aria-label="잠긴 액막이 칸"><span aria-hidden="true">🔒</span></div>`;
+    const lockedCell = () => `<div class="ward-slot is-locked" data-tip="${LOCK_HINT}" aria-label="잠긴 액막이 칸"><span aria-hidden="true">🔒</span></div>`;
 
     /** The ward row under the equipped gear (once the colony is open, or while a ward is still in a slot). */
     function slotsHtml() {

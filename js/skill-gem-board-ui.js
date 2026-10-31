@@ -114,7 +114,7 @@
         for (let i = worn.length; i < cap; i++) slots.push('<button type="button" class="support-slot is-empty" data-board-pick="support" aria-label="빈 보조스킬룬 칸, 룬 고르기"><i>+</i><b>빈 칸</b><small>&nbsp;</small></button>');
         slots.push('<div class="support-slot is-lock" aria-label="다음 보조스킬룬 칸은 장비, 패시브로 늘어납니다"><i></i><b>다음 칸</b><small>장비, 패시브</small></div>');
         return `<div class="support-slots-head"><span>보조스킬룬</span><em>칸 ${worn.length} / ${cap}</em>
-                <div class="support-resonance" title="장착 보조스킬룬이 쓰는 공명력"><small>공명력</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${used}</b><small>/ ${resonanceCap}</small></div></div>
+                <div class="support-resonance" data-tip="장착 보조스킬룬이 쓰는 공명력"><small>공명력</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${used}</b><small>/ ${resonanceCap}</small></div></div>
             <div class="support-slots-row">${slots.join('')}</div>${gemSelectionUi.skillSummary(focusedSkill.kind, focusedName(), stats)}<div class="support-indicator-key">● 적용, ○ 태그 불일치, ◌ 빈 칸, ◉ 소환 대응 없음, ⊙ 사역룬 제외</div>`;
     }
 

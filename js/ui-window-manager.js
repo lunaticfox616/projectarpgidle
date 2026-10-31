@@ -267,7 +267,7 @@
         while (el.firstChild) body.appendChild(el.firstChild);
         let titlebar = document.createElement('div');
         titlebar.className = 'ui-window-titlebar';
-        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="창 위치와 크기 되돌리기" title="창 위치와 크기 되돌리기">↺</button><button type="button" data-window-action="minimize" aria-label="최소화" title="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 원래 크기" title="최대화 / 원래 크기">□</button><button type="button" data-window-action="close" aria-label="닫기" title="닫기 (Esc)">✕</button></div>`;
+        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="창 위치와 크기 되돌리기" data-tip="창 위치와 크기 되돌리기">↺</button><button type="button" data-window-action="minimize" aria-label="최소화" data-tip="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 원래 크기" data-tip="최대화 / 원래 크기">□</button><button type="button" data-window-action="close" aria-label="닫기" data-tip="닫기 (Esc)">✕</button></div>`;
         el.classList.add('ui-window');
         el.setAttribute('role', 'dialog');
         el.setAttribute('aria-labelledby', `ui-window-title-${tabId}`);
@@ -839,7 +839,7 @@
         logo.id = 'ui-rail-logo';
         logo.type = 'button';
         logo.setAttribute('aria-label', 'RIGNIN, 열린 창 모두 닫기');
-        logo.title = '열린 창 모두 닫기';
+        logo.dataset.tip = '열린 창 모두 닫기';
         logo.innerHTML = '<img src="assets/ui/pixel/rignin-logo-52.png" alt="" width="52" height="52">';
         logo.addEventListener('click', closeAllWindows);
         header.prepend(logo);
@@ -874,7 +874,7 @@
             + '<div id="ui-goal-body">'
             + '<div class="ui-goal-head-row">'
             + '<span id="ui-goal-badge" class="ui-goal-badge"></span>'
-            + '<button type="button" id="ui-goal-pin" aria-pressed="false" title="고정" aria-label="목표 서랍 고정">고정</button>'
+            + '<button type="button" id="ui-goal-pin" aria-pressed="false" aria-label="목표 서랍 고정">고정</button>'
             + '</div>'
             + '<div id="ui-goal-title" class="ui-goal-title"></div>'
             + '<div id="ui-goal-desc" class="ui-goal-desc"></div>'
@@ -927,7 +927,6 @@
             access.hidden = !goal;
             access.setAttribute('aria-expanded', expanded ? 'true' : 'false');
             access.classList.toggle('mandatory', !!(goal && goal.mandatory));
-            access.title = goal ? `목표: ${goal.title}` : '목표';
         });
     }
 
@@ -1027,7 +1026,6 @@
         if (!el) return;
         let cleanText = stripDecorativeEmoji(text);
         el.textContent = cleanText;
-        el.title = cleanText;
         el.style.display = cleanText ? '' : 'none';
     }
 

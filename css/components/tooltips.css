@@ -66,6 +66,10 @@ body #info-tooltip {
   border-left: 2px solid var(--color-reward-gold);
   background: linear-gradient(155deg, rgba(18,30,45,.98), rgba(3,7,12,.99));
 }
+/* 짧은 글 툴팁(js/plain-tip-ui.js, data-tip): 글 길이만큼만 차지한다. 막힌 단추의 글은 못 하는 까닭이라 붉게 */
+:root body #info-tooltip:has(.plain-tip) { width: max-content; min-width: 0; padding: 6px 10px; }
+:root body #info-tooltip .plain-tip { margin: 0; color: #f0e2c0; white-space: pre-line; word-break: keep-all; overflow-wrap: anywhere; }
+:root body #info-tooltip .plain-tip.is-refused { color: #f4a98c; }
 #gem-selection .tooltip-title { margin-top: 0; }
 .tooltip-line .gem-tooltip-tags { display: inline-flex; min-height: 0; margin-left: 4px; overflow: visible; vertical-align: middle; flex-wrap: wrap; }
 }

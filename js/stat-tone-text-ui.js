@@ -84,7 +84,7 @@ const statToneText = (() => {
     function markup(source) {
         const stack = [];
         let coloured = false;
-        // 따옴표 안의 '>'는 태그를 끝내지 않는다(title="a > b" 같은 속성이 태그를 깨뜨렸다, 2026-10-07 검토).
+        // 따옴표 안의 '>'는 태그를 끝내지 않는다(data-tip="a > b" 같은 속성이 태그를 깨뜨렸다, 2026-10-07 검토).
         return String(source == null ? '' : source).split(/(<(?:[^>"']|"[^"]*"|'[^']*')*>)/).map(part => {
             if (part.startsWith('<')) { coloured = tagStep(stack, part); return part; }
             if (coloured || !part) return part;

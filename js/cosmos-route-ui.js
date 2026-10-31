@@ -75,7 +75,7 @@ const cosmosRouteUi = (() => {
         return `<nav class="cosmos-galaxies" aria-label="은하">${[1, 2, 3, 4, 5].map(id => {
             const open = cosmosRouteRuntime.unlocked(game, id);
             return `<button type="button" style="--galaxy-tone:${GALAXY_TONES[id]}" data-route-action="galaxy" data-route-value="${id}" aria-pressed="${galaxy === id}"`
-                + `${open ? '' : ` title="${id - 1}은하 보스 격파 후 탐사"`} class="${open ? '' : 'is-locked'}">${id}은하</button>`;
+                + `${open ? '' : ` data-tip="${id - 1}은하 보스 격파 후 탐사"`} class="${open ? '' : 'is-locked'}">${id}은하</button>`;
         }).join('')}</nav>`;
     }
 
