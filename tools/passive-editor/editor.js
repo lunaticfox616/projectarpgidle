@@ -1,4 +1,4 @@
-import { createTreeCanvas } from './canvas.js';
+import { ICON_CELLS, createTreeCanvas } from './canvas.js';
 import { joinTogether } from './together.js';
 import { CATEGORIES, categoryOf } from './edit-tools.js';
 import { createModes } from './modes.js';
@@ -15,7 +15,9 @@ const CORE_FIELDS = new Set([
 const ICON_FAMILY_LABELS = Object.freeze({
     blade: '칼날', projectile: '투사체', shield: '방패', potion: '물약', strength: '힘', mystique: '신비', devotion: '헌신', cycle: '순환',
     elemental: '원소', dexterity: '민첩', chaos: '카오스', life: '생명', arcane: '비전', summon: '소환', intelligence: '지능',
-    precision: '정밀', wind: '바람', void: '공허', constellation: '별자리'
+    precision: '정밀', wind: '바람', void: '공허', constellation: '별자리',
+    fire: '화염', cold: '냉기', lightning: '번개', cooldown: '재사용 대기시간', critical: '치명타', armor: '방어도', evasion: '회피',
+    energyShield: '에너지 보호막', ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', bleed: '출혈', poison: '중독'
 });
 const iconFamilyLabel = family => ICON_FAMILY_LABELS[family] || family;
 
@@ -40,13 +42,6 @@ const ARCHETYPE_WORDS = Object.freeze({
     dot: '지속 피해', recharge: '재충전', mobility: '기동', targets: '대상', arcane: '비전'
 });
 const archetypeLabel = id => ARCHETYPE_LABELS[id] || String(id).split('_').map(word => ARCHETYPE_WORDS[word] || word).join(' ');
-const ICON_CELLS = Object.freeze({
-    blade: [0, 0], projectile: [1, 0], shield: [2, 0], potion: [3, 0], strength: [4, 0],
-    mystique: [0, 1], devotion: [1, 1], cycle: [2, 1], elemental: [3, 1], dexterity: [4, 1],
-    chaos: [0, 2], life: [1, 2], arcane: [2, 2], summon: [3, 2], intelligence: [4, 2],
-    precision: [0, 3], wind: [1, 3], void: [2, 3], constellation: [3, 3]
-});
-
 const elements = Object.fromEntries([...document.querySelectorAll('[id]')].map(element => [element.id, element]));
 let tree = null, config = null, nodeMap = new Map(), history = [], future = [], dirty = false;
 // 함께 편집(together.js): null when the server runs alone. guest: opened from the shared address (no save, apply or icon upload).
@@ -538,7 +533,7 @@ function bindField(id, field, transform = value => value) {
 function iconChoicesHtml() {
     return config.iconFamilies.map(family => {
         const [x, y] = ICON_CELLS[family] || [0, 0];
-        const position = `${x / 4 * 100}% ${y / 3 * 100}%`;
+        const position = `${x / 4 * 100}% ${y / 6 * 100}%`; // 5 columns, 7 rows on the v5 sheet
         return `<button class="icon-choice" type="button" data-family="${family}" data-tip="${escapeHtml(iconFamilyLabel(family))}" aria-label="${escapeHtml(iconFamilyLabel(family))}" style="background-position:${position}"></button>`;
     }).join('');
 }
