@@ -259,7 +259,7 @@ const stageRoster = (() => {
     }
     /** How the figure is dressed this frame: its rim (an entrance's, else the monster's own), the flash of a hit, the dark of an entrance. */
     const lookOf = (enemy, p) => ({ outline: p.rim || getEnemyOutlineStyle(enemy), flash: p.flash, shade: p.shade || 0,
-        glaze: typeof combatIncidents === 'object' ? combatIncidents.glazeOf(enemy) : null }); // 금빛 수액 슬라임의 빛깔(js/combat-incidents.js)
+        glaze: stageNewRunes.glazeOf(enemy) || (typeof combatIncidents === 'object' ? combatIncidents.glazeOf(enemy) : null) }); // 석화의 돌빛과 둔화의 잿빛(js/canvas-stage-new-runes.js), 금빛 수액 슬라임의 빛깔(js/combat-incidents.js)
     /** Draws a roster monster with its feet on (p.x, p.y). p as in monsterActors.draw, plus (a boss entrance) p.shade: how dark
      * the figure is (0 to 1) and p.rim: { color, alpha } its rim meanwhile. False → not in the roster, the stage is off, or its
      * pictures are missing here. */
@@ -270,7 +270,8 @@ const stageRoster = (() => {
         if (!pair) return false;
         const dot = dotFor(enemy, actor, p);
         if (pair === 'loading') { shadow(ctx, actor, p, dot, 0); return true; }
-        const pose = poseOf(enemy, actor, p), hop = pose.hop || 0;
+        const held = stageNewRunes.heldAt(enemy);     // 굳은 몬스터는 자세가 멈춘다
+        const pose = poseOf(enemy, actor, held === null ? p : { ...p, now: held, moving: false }), hop = pose.hop || 0;
         const size = picture(pair, actor, pose, lookOf(enemy, p));
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다

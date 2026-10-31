@@ -193,7 +193,7 @@ function getHanaSwingTiming(swing, direction) {
     let channelUntil = swing.duration > windup + 40 ? swing.start + swing.duration : 0;
     // A projectile leaves the hand before the swing's impact (js/combat.js PROJECTILE_RELEASE_SHARE): the release frame plays then.
     let release = Number.isFinite(swing.releaseDelayMs) ? Math.max(1, Math.min(windup, swing.releaseDelayMs)) : windup;
-    return { start: swing.start, impactAt: swing.start + release, direction, channelUntil, skillName: swing.skillName, pose: swing.pose || null, kickoff: !!swing.kickoff };
+    return { start: swing.start, impactAt: swing.start + release, direction, channelUntil, skillName: swing.skillName, pose: swing.pose || null, kickoff: !!swing.kickoff, contactFrame: swing.contactFrame };
 }
 
 /** A hit worth at least 6% of max life tints the body harder than chip damage from archers. */

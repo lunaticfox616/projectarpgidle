@@ -162,7 +162,8 @@ const stageSkillSigil = (() => {
             ctx.fillRect(x0 + Math.round(one.x * dot), y0 + Math.round(one.y * dot), size, size);
         }
     }
-    /** 마법진을 세운다. @param {{spot:{gx:number,gy:number}, face:number, element:string, ms:number}} cast */
+    /** 마법진을 세운다. hand가 거짓이면 손의 마법진은 그리지 않고 외곽선 오라만 돈다(바닥 고리가 대신한다: js/canvas-stage-skill-polish.js).
+     * @param {{spot:{gx:number,gy:number}, face:number, element:string, ms:number, hand?:boolean}} cast */
     function castSigil(cast) {
         if (live.length < 4) live.push({ ...cast, start: stageSkillVfx.now() });
     }
@@ -172,7 +173,7 @@ const stageSkillSigil = (() => {
         for (let i = live.length - 1; i >= 0; i--) {
             const age = now - live[i].start;
             if (age >= live[i].ms || age < -50) live.splice(i, 1);
-            else if (age >= 0) drawSigil(ctx, live[i], p, dot, age);
+            else if (age >= 0 && live[i].hand !== false) drawSigil(ctx, live[i], p, dot, age);
         }
     }
     /** 시전 오라의 지금 색: 떠 있는 마법진의 속성 색 둘이 120ms마다 번갈아 돈다(분광은 속성이 돌아간다). 마법진이 없으면 null. */

@@ -17,10 +17,10 @@ const redrawnSkillArtMoves = (() => {
     // ---------------------------------------------------------------- 위습 정령 공격 6종 (소환 룬): t = 0 when the wisp's strike frame fires
     // W = the wisp, T = the target. fire: lobbed fireball → burst; cold: ice shard thrown straight → shatter; light: bolts,
     // the target crackles; phys: a crack runs to the target, roots burst up and wrap it; chaos: lobbed void orb → mist left
-    // on the floor (ground layer); spectral: a beam braided from fire / cold / lightning strands → tri-colour sparks.
+    // on the floor (ground layer).
     const WOODC = { K: '#4d3817', D: '#703f25', M: '#8c5222', L: '#b6854c', H: '#e0af4a' };
     const WISP_PAL = { fire: R, cold: F, light: Y, chaos: C };
-    const WISP_TAIL = { fire: 460, cold: 260, light: 520, phys: 720, chaos: 760, spectral: 520 };
+    const WISP_TAIL = { fire: 460, cold: 260, light: 520, phys: 720, chaos: 760 };
     function wispFlight(el, d) {
         if (el === 'fire' || el === 'chaos') return 260 + d * 2;
         if (el === 'cold') return 110 + d * 2;
@@ -147,36 +147,12 @@ const redrawnSkillArtMoves = (() => {
         if (age < s.fly + 120) rootCrack(put, s, age);
         if (age - s.fly >= 0) rootBind(put, s, age - s.fly);
     }
-    function braidStrands(put, s, age, at) {
-        const thin = age > 320 ? (age - 320) / 120 : 0, cols = [R.L, F.L, Y.L], dark = [R.M, F.M, Y.M];
-        put(Math.round(s.W.x + s.dir.x * at), Math.round(s.W.y + s.dir.y * at), thin > .5 ? Y.H : '#ffffff', 5);
-        if (thin > .8) return;
-        for (let k = 0; k < 3; k++) {
-            const ph = at * .45 - age * .02 + k * TAU / 3, off = Math.sin(ph) * 2.4 * (1 - thin), front = Math.cos(ph) > 0;
-            put(Math.round(s.W.x + s.dir.x * at + s.n.x * off), Math.round(s.W.y + s.dir.y * at + s.n.y * off), front ? cols[k] : dark[k], front ? 4 : 2);
-        }
-    }
-    /** spectral: a beam braided from fire / cold / lightning strands round a white core, then tri-colour sparks. */
-    function spectralBeam(dot, lay, s, age) {
-        if (age < 440) {
-            const reach = s.d * Math.min(1, age / 80);
-            for (let at = 3; at <= reach; at++) braidStrands(lay.put, s, age, at);
-            if (age < 90) {
-                const X = Math.round(s.W.x + s.dir.x * 3), Y0 = Math.round(s.W.y + s.dir.y * 3);
-                lay.put(X, Y0, '#ffffff', 6);
-                for (const [ox, oy] of PLUS) lay.put(X + ox, Y0 + oy, Y.H, 5);
-            }
-        }
-        lay.flush(dot);
-        if (age >= 80) for (let k = 0; k < 3; k++) A.TriWave.spark(dot, s.TX + (k - 1) * 4, s.TY + (k === 1 ? -3 : 1), age - 80 - k * 60, { el: ['fire', 'cold', 'light'][k], seed: k + 1 });
-    }
     /** Paints one attack; returns true when the element's own drawing already flushed everything. */
     function wispStrike(dot, lay, s, age) {
         if (s.el === 'fire' || s.el === 'chaos') return lobbedOrb(dot, lay, s, age);
         if (s.el === 'cold') return coldShard(dot, lay, s, age);
         if (s.el === 'light') electrocute(lay.put, s, age);
         if (s.el === 'phys') physRoots(lay.put, s, age);
-        if (s.el === 'spectral') { spectralBeam(dot, lay, s, age); return true; }
         return false;
     }
     function wispAttack(dot, el, W, T, age) {

@@ -2643,7 +2643,6 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(continuationRuntimeRemaining <= cycleMs + 100, '이어지는 집중 주기에 최초 시전 선딜이 다시 붙으면 안 된다');
   assert.ok(new Set(continuationRows.map(row => row.channelId)).size === 1 && continuationRows[0].channelId > 0, '이어지는 집중 틱은 하나의 새 채널 주기에 속해야 한다');
 
-  assert.strictEqual(context.getSummonProfile('분광 위습 소환').gridRange, 4, '분광 위습은 원거리(4칸) 소환수 계약을 사용해야 한다');
   assert.ok(Object.keys(context.WISP_SUMMONS).every(name => context.getSummonProfile(name).gridRange >= 3), '위습 정령은 모두 3칸 이상 떨어져서 공격한다');
   resetGame();
 }

@@ -1427,7 +1427,7 @@ function getActiveSummonGemDefs() {
 
 function getSummonProfile(gemName) {
     // 위습 정령 6종(스킬 변경분 2, 2026-09-30)은 대신한 동물의 수치를 그대로 물려받았다(임시): 화염←불곰, 냉기←서리늑대,
-    // 번개←벼락멧돼지, 물리←칼날까마귀, 카오스←공허 유충, 분광←폭풍 정령. 사거리는 인계 4/4/3/3/4/4.
+    // 번개←벼락멧돼지, 물리←칼날까마귀, 카오스←공허 유충. 사거리는 인계 4/4/3/3/4.
     // baseHp는 기존 수치의 50% 수준으로 너프됨(성장 배율 hpScaleBase/Exp는 그대로라 모든
     // 레벨에서 균일하게 50% 낮은 생명력이 됨). dmgRollMinPct는 일격 편차의 하한(%) —
     // 버스트형(화염 위습)은 편차가 크고, 연사형(냉기 위습)은 편차가 작음.
@@ -1437,7 +1437,6 @@ function getSummonProfile(gemName) {
         '번개 위습 소환': { role: 'attack', ele: 'light', gridRange: 3, trait: '높은 저항 관통', baseHp: 65, baseArmor: 36, baseEvasion: 45, baseRes: { fire: 8, cold: 8, light: 30, chaos: 0 }, baseDamage: 62, dmgRollMinPct: 40, attackSpeedMul: 1.02, baseCrit: 7, baseCritDmg: 150, resPenBonus: 18, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.112, armorScaleBase: 0.017, armorScaleExp: 1.1, evasionScaleBase: 0.018, evasionScaleExp: 1.11 },
         '물리 위습 소환': { role: 'attack', ele: 'phys', gridRange: 3, trait: '치명타 특화', baseHp: 55, baseArmor: 27, baseEvasion: 87, baseRes: { fire: 12, cold: 12, light: 12, chaos: 0 }, baseDamage: 50, dmgRollMinPct: 35, attackSpeedMul: 1.18, baseCrit: 22, baseCritDmg: 190, physIgnoreBonus: 8, respawnMs: 4000, hpScaleBase: 0.036, hpScaleExp: 1.1, dmgPerLevelPct: 0.108, armorScaleBase: 0.014, armorScaleExp: 1.08, evasionScaleBase: 0.03, evasionScaleExp: 1.13 },
         '카오스 위습 소환': { role: 'attack', ele: 'chaos', gridRange: 4, trait: '카오스 관통', baseHp: 71, baseArmor: 39, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 34 }, baseDamage: 63, dmgRollMinPct: 45, attackSpeedMul: 0.95, baseCrit: 6, baseCritDmg: 155, resPenBonus: 14, respawnMs: 4000, hpScaleBase: 0.042, hpScaleExp: 1.14, dmgPerLevelPct: 0.118, armorScaleBase: 0.019, armorScaleExp: 1.11, evasionScaleBase: 0.013, evasionScaleExp: 1.08 },
-        '분광 위습 소환': { role: 'attack', ele: 'light', gridRange: 4, trait: '공격마다 원소 무작위', baseHp: 48, baseArmor: 20, baseEvasion: 66, baseRes: { fire: 8, cold: 12, light: 34, chaos: 0 }, baseDamage: 48, dmgRollMinPct: 45, attackSpeedMul: 1.32, baseCrit: 12, baseCritDmg: 160, resPenBonus: 10, respawnMs: 4000, hpScaleBase: 0.032, hpScaleExp: 1.09, dmgPerLevelPct: 0.104, armorScaleBase: 0.011, armorScaleExp: 1.07, evasionScaleBase: 0.027, evasionScaleExp: 1.12 },
         '수액 골렘 소환': { role: 'guard', ele: 'phys', gridRange: 1, trait: '피해 대리', baseHp: 111, baseArmor: 90, baseEvasion: 18, baseRes: { fire: 15, cold: 15, light: 15, chaos: 10 }, baseDamage: 15, dmgRollMinPct: 45, attackSpeedMul: 0, baseCrit: 0, baseCritDmg: 130, respawnMs: 8000, redirectPct: 0, hpScaleBase: 0.055, hpScaleExp: 1.12, dmgPerLevelPct: 0.06, armorScaleBase: 0.032, armorScaleExp: 1.1, evasionScaleBase: 0.01, evasionScaleExp: 1.06 }
     };
     return table[gemName] || { role: 'attack', ele: 'phys', gridRange: 1, trait: '균형형', baseHp: 58, baseArmor: 30, baseEvasion: 30, baseRes: { fire: 10, cold: 10, light: 10, chaos: 0 }, baseDamage: 45, dmgRollMinPct: 40, attackSpeedMul: 1, baseCrit: 5, baseCritDmg: 140, respawnMs: 4000, hpScaleBase: 0.04, hpScaleExp: 1.12, dmgPerLevelPct: 0.1, armorScaleBase: 0.015, armorScaleExp: 1.1, evasionScaleBase: 0.015, evasionScaleExp: 1.1 };
@@ -7995,9 +7994,10 @@ function getSkillGridPullGeometry(skill, options) {
 }
 
 /** 맞은 몬스터를 주인공 반대쪽으로 skill.pushAwayCells칸 민다(불사르기, 돌진: 2026-10-17 스킬룬 인계). 보스는 밀리지 않는다. */
+const canPushEnemy = enemy => !enemy.isBoss && !isEnemyPetrified(enemy) && hasGridCell(enemy);
 function pushEnemyAwayOnHit(enemy, skill) {
     let cells = Math.max(0, Math.min(3, Math.floor(Number(skill && skill.pushAwayCells) || 0)));
-    if (cells <= 0 || enemy.isBoss || !hasGridCell(enemy) || !hasGridCell(game.gridPlayer)) return false;
+    if (cells <= 0 || !canPushEnemy(enemy) || !hasGridCell(game.gridPlayer)) return false;
     let moved = false;
     for (let step = 0; step < cells; step++) {
         const cell = findGridRetreatCell(enemy, game.gridPlayer, 99, null);
@@ -12195,7 +12195,7 @@ function startSkillGemCombat(stats, options) {
 function noteNativeGemSwing(name, stats) {
     const cast = skillGemCombatRuntime.casts.at(-1), swing = cast && (cast.move ? cast.move.swing : cast.swing);
     if (!swing || game.isBackgroundCalculation) return;
-    addBattleFx('playerSwing', { skillName: name, element: stats.sSkill.ele, color: getElementColor(stats.sSkill.ele), pose: swing.pose,
+    addBattleFx('playerSwing', { skillName: name, element: stats.sSkill.ele, color: getElementColor(stats.sSkill.ele), pose: swing.pose, contactFrame: swing.contactFrame,
         sourceCell: copyCombatGridCell(game.gridPlayer), impactDelayMs: swing.impact - cast.at, duration: Math.max(80, swing.until - cast.at) });
 }
 
@@ -12243,6 +12243,29 @@ function initializeSkillGemFacing() {
     for (const enemy of game.enemies) if (!enemy.facingDirection) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);
 }
 
+/** 석화(79 석화 혼합물, 2026-11-01): 움직이지도 공격하지도 못한다. 행동을 멈추는 일은 기절과 같고(js/enemy-attack-rules.js), 밀리지 않고(pushEnemyAwayOnHit) 그림은 돌빛이다.
+ * 보스는 굳지 않는다: 던지는 간격이 굳는 시간보다 짧아 보스의 패턴이 통째로 멈추기 때문이다. 이미 굳었으면 시간만 다시 채운다. */
+function petrifyEnemy(enemy,at,seconds) {
+    if (enemy.isBoss) return;
+    enemy.ailments=Array.isArray(enemy.ailments)?enemy.ailments:[];
+    const row=enemy.ailments.find(ail=>ail && ail.petrified);
+    if (row) row.time=Math.max(row.time || 0,seconds);
+    else enemy.ailments.push({type:'stun',time:seconds,power:0,petrified:true,petrifiedAt:at});
+}
+const isEnemyPetrified=enemy=>Array.isArray(enemy.ailments) && enemy.ailments.some(ail=>ail && ail.petrified && ail.time>0);
+/** 시간의 사선(80)의 이동 둔화가 남은 적인가: 저장에서 불러와 전투 시계가 앞서가도 그 길이 안에서만 믿는다. */
+const TIME_SLOW_MS=1300,TIME_SLOW_MOVE=0.3;
+function enemyTimeSlowed(enemy) {
+    const left=(Number(enemy.timeSlowUntil)||0)-getCombatTime();
+    return left>0 && left<=TIME_SLOW_MS;
+}
+/** 사슬처럼 따로 시전하는 룬이 적에게 남기는 표시(피해 없음). */
+const SKILL_GEM_MARKS=Object.freeze({
+    mist(command,targets) { for (const enemy of targets) enemy.holyMistUntil=command.at+4000; },
+    petrify(command,targets) { for (const enemy of targets) petrifyEnemy(enemy,command.at,command.ms/1000); },
+    timeSlow(command,targets) { for (const enemy of targets) enemy.timeSlowUntil=command.at+command.ms; }
+});
+
 function applySkillGemCommand(command,stats) {
     if (command.type==='pose') return noteNativeGemArrivalSwing(command);
     if (command.type==='teleport') {
@@ -12256,10 +12279,7 @@ function applySkillGemCommand(command,stats) {
     actExplorationProgress.objects.area(command.splashCells);
     actExplorationState.wake(game,getSplashDormantEnemies().filter(e=>command.targets.includes(e.id)));
     const targets=game.enemies.filter(e=>e.hp>0 && command.targets.includes(e.id));
-    if (command.type==='mist') {
-        for (const enemy of targets) enemy.holyMistUntil=command.at+4000;
-        return;
-    }
+    if (SKILL_GEM_MARKS[command.type]) return SKILL_GEM_MARKS[command.type](command,targets);
     if (command.type==='dot') return applySkillGemDot(command,targets);
     if (!targets.length) return;
     applySkillGemContact(command,targets,stats);
@@ -14004,7 +14024,7 @@ function performMonsterAttacks(pStats) {
         // 그리드 사거리 밖이면 공격 대신 선택한 목표에게 접근한다(냉각/둔화는 이동도 늦춘다).
         // 공격 게이지는 1회분까지만 유지해 도착 직후 바로 공격하게 한다.
         if (!pendingAttack && !enemy.patternArea && !enemy.attackCast && !canEnemyAttackFromHere(enemy, attackTarget)) {
-            advanceEnemyGridApproach(enemy, attackTarget, chillSlow);
+            advanceEnemyGridApproach(enemy, attackTarget, chillSlow + (enemyTimeSlowed(enemy) ? TIME_SLOW_MOVE : 0));
             enemy.attackTimer = Math.min(Number(enemy.attackTimer) || 0, 1);
             continue;
         }

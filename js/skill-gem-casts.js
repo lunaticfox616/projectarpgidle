@@ -62,7 +62,7 @@ const skillGemCasts = (() => {
         if(id===51)return live.filter(e=>cross(source,e,1+extra));
         if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4+extra && landing(e,source,live));
         if(id===70)return live.filter(e=>getGridUnitDistance(source,e)<=FLICKER.first && flickerLanding(e,cell(source),live));
-        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1+extra})[id];
+        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1+extra,78:HOMING.cells+extra,79:4,80:TIME_SLASH.range+extra})[id];
         return live.filter(e=>getGridUnitCells(e).some(c=>inArea(id,source,c,range)));
     }
     function inArea(id,source,c,range) {
@@ -93,7 +93,7 @@ const skillGemCasts = (() => {
     function event(cast,phase,at,duration,extra={}) {
         const keys={44:'flaskPhase',45:'lancePhase',46:'timePhase',47:'mixturePhase',48:'supercooledPhase',
             49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',
-            54:'riftPhase',55:'smokePhase',56:'harpoonPhase',70:'flickerPhase',77:'rockFlaskPhase'};
+            54:'riftPhase',55:'smokePhase',56:'harpoonPhase',70:'flickerPhase',77:'rockFlaskPhase',78:'homingPhase',79:'petrifyPhase',80:'timeSlashPhase'};
         const travel=['flight','flask','shard','fall'].includes(phase);
         const ground=['clock','wave','mist'].includes(phase);
         return {skillName:cast.name,kind:travel?'travel':'stage',[keys[cast.id]]:phase,at,duration,
@@ -118,7 +118,7 @@ const skillGemCasts = (() => {
     const contactAreas={45:c=>c.points,46:c=>cells(c.source,'circle',3),47:c=>cells(c.aim,'square',1+grow(c.stats)),
         48:c=>cells(c.aim,'ring',c.index+1).concat(c.index?[]:cells(c.aim,'square',.5)),
         50:c=>cells(c.source,'square',1+grow(c.stats)).filter(p=>!same(p,c.source)),51:c=>cells(c.aim,'cross',c.geometry.crossRadius),
-        54:c=>cells(c.move.to,'square',moveRadius(c)),77:c=>cells(c.move.foe,'square',moveRadius(c))};
+        54:c=>cells(c.move.to,'square',moveRadius(c)),55:c=>cells(c.move.to,'square',SMOKE_RADIUS),77:c=>cells(c.move.foe,'square',moveRadius(c)),79:c=>cells(c.aim,'circle',petrifyRadius(c))};
     function flight(cast,base,perCell) {
         return Math.max(1,Math.round((base+distance(cast.source,cast.aim)*perCell)/cast.speed/1.8));
     }
@@ -160,17 +160,24 @@ const skillGemCasts = (() => {
         c.event=visual(state,c,'clock',c.at,pattern.durationMs+200,{timeCenter:cell(c.source),timeRadius:3,
             timeTickTimes:Array.from({length:pattern.ticks},(_,i)=>c.at+(i+1)*pattern.intervalMs),timeTickTargets:[],sourcePath:[]});
     }
+    /** 신성한 안개(2026-11-01 전달본 V3.6): 향로 회전 동작(9장 0.69초)을 제 시간대로 튼다. 마지막 타격 장(7장)이 0.52초에 온다. 연기는 그 동작의 향로 머리에서 난다. */
+    const MIST_LAST_STRIKE=520;
     function launchMist(state,c) {
         c.nextAt=c.at+Math.round(330/c.speed);
-        letGo(c,c.at+ms(c,150),c.nextAt);
-        c.event=visual(state,c,'censer',c.at,Math.round(520/c.speed),{holySource:cell(c.source)});
+        const strike=c.at+ms(c,MIST_LAST_STRIKE);
+        letGo(c,strike,strike);
+        c.event=visual(state,c,'censer',c.at,ms(c,690),{holySource:cell(c.source),holyRate:c.speed});
     }
+    /** 파문심판(2026-11-01 전달본 V3.6): 향로 강타 동작이 바닥에 닿는 장에 맞춰 친다(비술사만 한 장 늦다). 낙뢰는 십자의 칸마다 가까운 곳부터 0.045초 간격으로 내려친다. */
+    const JUDGMENT=Object.freeze({contact:540,frame:6,mageContact:630,mageFrame:7,gap:45});
     function launchJudgment(state,c,enemies) {
-        const radius=1+grow(c.stats),plan=cross(c.source,enemies.find(e=>e.id===c.targetId),radius);
-        c.aim=plan.center;c.nextAt=c.at+Math.round(480/c.speed);c.direction=plan.direction;
-        c.geometry={judgmentDirection:c.direction,crossRadius:radius,impactOffsetMs:c.nextAt-c.at,
-            holdMs:Math.round(140/c.speed),footprint:{cells:cells(c.aim,'cross',radius)}};
+        const radius=1+grow(c.stats),plan=cross(c.source,enemies.find(e=>e.id===c.targetId),radius),mage=getHeroAppearanceId()==='occultist';
+        c.aim=plan.center;c.nextAt=c.at+Math.round((mage?JUDGMENT.mageContact:JUDGMENT.contact)/c.speed);c.direction=plan.direction;
+        const near=cells(c.aim,'cross',radius).sort((a,b)=>distance(c.source,a)-distance(c.source,b));
+        c.geometry={judgmentDirection:c.direction,crossRadius:radius,impactOffsetMs:c.nextAt-c.at,judgmentRate:c.speed,judgmentCells:near,
+            holdMs:Math.round(140/c.speed),footprint:{cells:near}};
         letGo(c,c.nextAt,c.nextAt+c.geometry.holdMs);
+        c.swing.contactFrame=mage?JUDGMENT.mageFrame:JUDGMENT.frame;
         visual(state,c,'censer',c.at,c.nextAt-c.at+c.geometry.holdMs,c.geometry);
     }
     /** 암살: 박차고 나간 뒤(2026-10-20 스킬룬 전달본 v42, 무대의 주인공은 한손검 이동 동작) 사라져 등 뒤에 나타나 찌른다. 사라짐은 박차고
@@ -267,6 +274,7 @@ const skillGemCasts = (() => {
         c.nextAt=tear+ms(c,210);
         visual(state,c,'move',c.at,c.move.burst+ms(c,520)-c.at,{move:c.move,targetCells:[to],footprint:{center:to,radius:moveRadius(c)}});
     }
+    const SMOKE_RADIUS=1;
     function launchSmoke(state,c,enemies) {                  // 55: a smoke puff, then out of another beside the target
         const {live,aim}=moveStart(state,c,enemies),to=besideTarget(c.source,aim,live);
         if(!to){c.done=true;return;}
@@ -332,8 +340,131 @@ const skillGemCasts = (() => {
         visual(state,c,'discharge',at+ms(c,40),ms(c,320),{sourceCell:spot,landingCell:spot,targetCells:[spot]});
         return [];
     }
+    // ---------------------------------------------------------------- 78 추적 사격 (2026-11-01 스킬 전체 전달본 V3.6)
+    // 쏜 화살이 가장 가까운 적 쪽으로 초당 11라디안까지 방향을 틀며 난다. 판정은 화면과 같은 도트 공간(칸 64×32)에서 20ms 걸음으로 본다. 대상이 쓰러지면
+    // 아직 안 맞힌 다음 적을 쫓고, 같은 발사의 화살끼리는 서로 다른 적을 고른다. 한 번 맞히면 사라지고, 8칸(효과 확장 +N칸)을 날면 사라진다.
+    // 속도는 전달본의 640(칸 72)을 칸 64로 옮긴 값이라 회전 반지름 약 0.8칸이 같다.
+    const HOMING={cells:8,wide:64,deep:32,speed:569,turn:11,stepMs:20,release:200,spread:.35,hitX:32,hitY:16};
+    function launchHoming(state,c,enemies) {
+        const release=c.at+ms(c,HOMING.release),shots=1+rollProjectileExtraShots(c.stats.projectileExtraShots);
+        const foe=getGridUnitCenter(enemies.find(e=>e.id===c.targetId)),base=Math.atan2((foe.gy-c.source.gy)*HOMING.deep,(foe.gx-c.source.gx)*HOMING.wide);
+        letGo(c,release,release+ms(c,160));
+        c.nextAt=release;c.flownTo=release;c.claimed=new Set();
+        c.arrows=Array.from({length:shots},(_,i)=>({gx:c.source.gx,gy:c.source.gy,angle:base+(i-(shots-1)/2)*HOMING.spread,flown:0,foe:null,dead:false,
+            path:[{at:release,gx:c.source.gx,gy:c.source.gy,angle:base+(i-(shots-1)/2)*HOMING.spread}]}));
+        c.arrows.forEach(arrow=>{arrow.event=visual(state,c,'fly',release,4000,{homingPath:arrow.path,sourceCell:cell(c.source)});});
+    }
+    /** 화살이 쫓는 적: 쫓던 적이 살아 있으면 그대로, 아니면 다른 화살이 안 고른 가장 가까운 적, 그것도 없으면 가장 가까운 적. */
+    function homingFoe(c,arrow,live) {
+        if(arrow.foe && live.includes(arrow.foe))return arrow.foe;
+        const pool=live.filter(e=>!c.claimed.has(e.id)),near=(a,b)=>homingGap(arrow,a)-homingGap(arrow,b);
+        arrow.foe=(pool.length?pool:live).slice().sort(near)[0]||null;
+        if(arrow.foe)c.claimed.add(arrow.foe.id);
+        return arrow.foe;
+    }
+    const homingGap=(arrow,e)=>{const p=getGridUnitCenter(e);return Math.hypot((p.gx-arrow.gx)*HOMING.wide,(p.gy-arrow.gy)*HOMING.deep);};
+    const homingTouches=(arrow,e)=>getGridUnitCells(e).some(p=>Math.abs((p.gx-arrow.gx)*HOMING.wide)<=HOMING.hitX && Math.abs((p.gy-arrow.gy)*HOMING.deep)<=HOMING.hitY);
+    /** 한 걸음: 쫓는 적 쪽으로 돌고 나아간다. 닿은 적을 돌려준다. */
+    function homingStep(c,arrow,live) {
+        const foe=homingFoe(c,arrow,live),step=HOMING.speed*HOMING.stepMs/1000;
+        if(foe) {
+            const p=getGridUnitCenter(foe),want=Math.atan2((p.gy-arrow.gy)*HOMING.deep,(p.gx-arrow.gx)*HOMING.wide),turn=Math.atan2(Math.sin(want-arrow.angle),Math.cos(want-arrow.angle)),limit=HOMING.turn*HOMING.stepMs/1000;
+            arrow.angle+=Math.max(-limit,Math.min(limit,turn));
+        }
+        arrow.gx+=Math.cos(arrow.angle)*step/HOMING.wide;arrow.gy+=Math.sin(arrow.angle)*step/HOMING.deep;arrow.flown+=step;
+        return live.find(e=>homingTouches(arrow,e))||null;
+    }
+    function homingEnd(arrow,at) {
+        arrow.dead=true;
+        arrow.event.duration=at-arrow.event.at+40;
+    }
+    /** 화살 하나를 지금까지 날린다: 닿으면 그때의 타격 명령을 돌려준다. */
+    function homingFly(c,arrow,live,at) {
+        const reach=(HOMING.cells+grow(c.stats))*HOMING.wide;
+        if(arrow.dead)return null;
+        const hit=homingStep(c,arrow,live);
+        arrow.path.push({at,gx:arrow.gx,gy:arrow.gy,angle:arrow.angle});
+        if(hit){homingEnd(arrow,at);return contact(c,[hit],at);}
+        if(arrow.flown>=reach){homingEnd(arrow,at);arrow.event.homingMissed=true;}
+        return null;
+    }
+    function stepHoming(state,c,input) {
+        const live=input.enemies.filter(e=>e.hp>0),commands=[];
+        for(;c.flownTo+HOMING.stepMs<=input.now;c.flownTo+=HOMING.stepMs) {
+            for(const arrow of c.arrows) {
+                const hit=homingFly(c,arrow,live,c.flownTo+HOMING.stepMs);
+                if(hit)commands.push(hit);
+            }
+        }
+        c.nextAt=input.now;
+        c.done=c.arrows.every(arrow=>arrow.dead);
+        return commands;
+    }
+    // ---------------------------------------------------------------- 79 석화 혼합물 (같은 전달본)
+    // 던진 병이 떨어진 자리 둘레 1.5칸(효과 확장 +N칸)을 치고 굳힌다. 굳히는 일은 js/combat.js가 맡는다(보스는 굳지 않는다).
+    const PETRIFY={radius:1.5,ms:1800};
+    const petrifyRadius=c=>PETRIFY.radius+grow(c.stats);
+    function stepPetrify(state,c,input) {
+        const radius=petrifyRadius(c),hit=area(input.enemies,c.aim,'circle',radius);
+        visual(state,c,'shatter',c.nextAt,700,{footprint:{center:cell(c.aim),radius}});
+        c.done=true;
+        return [contact(c,hit,c.nextAt),{type:'petrify',targets:hit.map(e=>e.id),at:c.nextAt,ms:PETRIFY.ms}];
+    }
+    // ---------------------------------------------------------------- 80 시간의 사선 (같은 전달본, 시뮬레이터 time-slash-homage.js)
+    // 공격 속도 1에서 찌르기 7장 0.89초. 2번째 장(0.23초)에 6칸 안의 적을 1.3초 둔화하고(이동만 30%, js/combat.js) 대상을 정한다. 칼날이 대상 머리 위에 서 있다가
+    // 0.12초에 날아가 맞힌다(궁수와 성직자는 칼이 앞으로 나오는 장이 하나 늦어 0.66초, 나머지 0.46초). 투사체 N발은 가까운 적 N명에게 먼저, 모자라면 0.06초 간격으로
+    // 다시 친다. 대상마다 첫 적중은 2칸 안의 다른 적 둘에게 20% 피해로 0.09초 뒤 튕긴다(주대상과 이미 튕긴 적은 빼고, 다시 튕기지 않는다). 칼날 일곱은 그림이고 피해는 한 번이다.
+    const TIME_SLASH={range:6,cycle:890,slowStart:229.7,slow:1300,hit:459.4,lateHit:660.3,lateClasses:new Set(['archer','cleric']),flight:120,again:60,bounce:90,bounceReach:2,bounceTargets:2,bouncePct:20};
+    function launchTimeSlash(state,c) {
+        const late=TIME_SLASH.lateClasses.has(getHeroAppearanceId());
+        c.hitDelay=ms(c,late?TIME_SLASH.lateHit:TIME_SLASH.hit);c.flightMs=ms(c,TIME_SLASH.flight);
+        letGo(c,c.at+ms(c,TIME_SLASH.hit),c.at+ms(c,TIME_SLASH.cycle));
+        c.nextAt=c.at+ms(c,TIME_SLASH.slowStart);c.queue=[];c.bounced=new Set();c.primary=new Set();
+    }
+    /** 찌르기가 나가는 때: 둔화할 적과 치는 차례(strikes)를 정한다. 대상이 없으면 둔화만 남는다(시뮬레이터의 빈 시간장). */
+    function timeSlashRelease(state,c,input) {
+        const range=TIME_SLASH.range+grow(c.stats),near=input.enemies.filter(e=>e.hp>0 && getGridUnitCells(e).some(p=>distance(input.source,p)<=range)).sort((a,b)=>getGridUnitDistance(input.source,a)-getGridUnitDistance(input.source,b));
+        const shots=1+rollProjectileExtraShots(c.stats.projectileExtraShots),aimed=near.slice(0,shots),at=c.at+c.hitDelay;
+        c.index=1;c.source=cell(input.source);
+        aimed.forEach(e=>c.primary.add(e.id));
+        visual(state,c,'field',c.nextAt,ms(c,TIME_SLASH.cycle-TIME_SLASH.slowStart)+TIME_SLASH.slow,{timeSlowUntil:c.nextAt+TIME_SLASH.slow,timeActorEnd:c.at+ms(c,TIME_SLASH.cycle),timeSpeed:c.speed,sourceCell:c.source});
+        for(let i=0;i<(aimed.length?shots:0);i++) {
+            const foe=aimed[i%aimed.length],again=i>=aimed.length,arrive=at+(again?(i-aimed.length+1)*ms(c,TIME_SLASH.again):0);
+            c.queue.push({at:arrive,kind:'strike',id:foe.id,first:!again,index:i});
+            visual(state,c,'blades',c.nextAt,arrive-c.nextAt+ms(c,200),{timeFoe:foe.id,timeCell:getGridUnitCenter(foe),timeArrive:arrive,timeFly:again?ms(c,TIME_SLASH.again):c.flightMs,timeShot:i,timeSpeed:c.speed});
+        }
+        return [{type:'timeSlow',targets:near.map(e=>e.id),at:c.nextAt,ms:TIME_SLASH.slow}];
+    }
+    /** 첫 적중의 튕김: 2칸 안의 다른 적 둘(가까운 순). */
+    function timeSlashBounces(state,c,foe,at,enemies) {
+        const near=enemies.filter(e=>e.hp>0 && !c.primary.has(e.id) && !c.bounced.has(e.id) && getGridUnitDistance(foe,e)<=TIME_SLASH.bounceReach)
+            .sort((a,b)=>getGridUnitDistance(foe,a)-getGridUnitDistance(foe,b)).slice(0,TIME_SLASH.bounceTargets);
+        for(const e of near) {
+            c.bounced.add(e.id);
+            const arrive=at+ms(c,TIME_SLASH.bounce);
+            c.queue.push({at:arrive,kind:'bounce',id:e.id});
+            visual(state,c,'bounce',at,arrive-at+ms(c,110),{sourceCell:getGridUnitCenter(foe),landingCell:getGridUnitCenter(e),targetCells:[getGridUnitCenter(e)],timeArrive:arrive});
+        }
+    }
+    function timeSlashContact(state,c,row,enemies) {
+        const foe=enemies.find(e=>e.id===row.id && e.hp>0);
+        if(!foe)return [];
+        if(row.kind==='bounce')return [contact(c,[foe],row.at,{damagePct:TIME_SLASH.bouncePct,key:c.key+':'+row.id})];
+        if(row.first)timeSlashBounces(state,c,foe,row.at,enemies);
+        return [contact(c,[foe],row.at,{key:c.key+':'+row.index})];
+    }
+    function stepTimeSlash(state,c,input) {
+        const commands=c.index?[]:timeSlashRelease(state,c,input);
+        for(const row of c.queue.filter(row=>row.at<=input.now)) {
+            c.queue.splice(c.queue.indexOf(row),1);
+            commands.push(...timeSlashContact(state,c,row,input.enemies));
+        }
+        c.done=!c.queue.length;
+        if(!c.done)c.nextAt=Math.min(...c.queue.map(row=>row.at));
+        return commands;
+    }
     const launch={44:bounce,45:launchLance,46:launchClock,47:launchFlask,48:launchFlask,49:launchFlask,
-        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon,70:launchFlicker,77:launchRockFlask};
+        50:launchMist,51:launchJudgment,52:launchAssassin,54:launchRift,55:launchSmoke,56:launchHarpoon,70:launchFlicker,77:launchRockFlask,78:launchHoming,79:launchFlask,80:launchTimeSlash};
     /** 튕길 때마다 떨어진 자리의 작은 중독 폭발: 1칸 안의 적에게 30%(인계의 제안 값). */
     const BOUNCE_POP_PCT=30;
     function stepBounce(state,c,input) {
@@ -391,9 +522,15 @@ const skillGemCasts = (() => {
         for(const row of state.mist.holyTargets)Object.assign(row,getGridUnitCenter(live.get(row.id)));
         if(!state.mist.holyTargets.length){state.mist.duration=0;state.mist=null;}
     }
+    /** 낙뢰 하나: 그 칸에 선 적(아직 안 맞은)을 친다. 마지막 차례에는 칸 목록에 없던 자리(벽에 걸친 큰 적)까지 빠짐없이 친다. */
     function stepJudgment(state,c,input) {
-        visual(state,c,'cross',c.nextAt,Math.round(420/c.speed),c.geometry);c.done=true;
-        return [contact(c,area(input.enemies,c.aim,'cross',c.geometry.crossRadius),c.nextAt)];
+        if(!c.bolts){visual(state,c,'cross',c.nextAt,Math.round(420/c.speed),c.geometry);c.bolts=[...c.geometry.judgmentCells];c.struck=new Set();c.index=0;}
+        const spot=c.bolts.shift(),inCross=area(input.enemies,c.aim,'cross',c.geometry.crossRadius),at=c.nextAt,step=c.index++;
+        c.done=!c.bolts.length;
+        const hit=inCross.filter(e=>!c.struck.has(e.id) && (c.done || !spot || getGridUnitCells(e).some(p=>same(p,spot))));
+        hit.forEach(e=>c.struck.add(e.id));
+        if(!c.done)c.nextAt+=ms(c,JUDGMENT.gap);
+        return hit.length ? [contact(c,hit,at,{key:c.key+':'+step})] : [];
     }
     function stepAssassin(state,c,input) {
         const target=input.enemies.find(e=>e.id===c.targetId && e.hp>0);
@@ -468,9 +605,13 @@ const skillGemCasts = (() => {
         c.done=true;
         return same(input.source,c.move.to) ? [contact(c,area(input.enemies,c.move.to,'square',moveRadius(c)),c.move.burst)] : [];
     }
+    /** 향로구름(2026-11-01 전달본 V3.6): 닿는 순간 그 자리와 주변 1칸에 물리 피해를 대상마다 한 번 준다. */
     function stepSmoke(state,c,input) {
         c.done=true;
-        return landingNow(c,input) ? [moveTo(c,'vanish')] : [];
+        if(!landingNow(c,input))return [];
+        const hit=area(input.enemies,c.move.to,'square',SMOKE_RADIUS),move=moveTo(c,'vanish');
+        c.source=c.move.to;
+        return [move,contact(c,hit,c.nextAt)];
     }
     function stepHarpoon(state,c,input) {                    // the strike, then (if it moved) the arrival at the rope's end
         if(!c.index) {
@@ -510,7 +651,7 @@ const skillGemCasts = (() => {
         return commands;
     }
     const steps={44:stepBounce,45:stepLance,46:stepClock,47:stepExplosion,48:stepCold,49:stepEmpty,
-        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon,70:stepFlicker,77:stepRockFlask};
+        50:stepMist,51:stepJudgment,52:stepAssassin,54:stepRift,55:stepSmoke,56:stepHarpoon,70:stepFlicker,77:stepRockFlask,78:stepHoming,79:stepPetrify,80:stepTimeSlash};
     function update(state,input) {
         const commands=[];
         updateMistTargets(state,input);

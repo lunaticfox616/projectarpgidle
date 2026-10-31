@@ -1165,10 +1165,15 @@ function getSlamAftershockProfile(skill) {
     };
 }
 
+/** 회전 룬의 타격 간격: 룬이 정하면 그 값(정화의 집행 0.12초), 아니면 공용 값. */
+function getWhirlSequenceProfile(skill) {
+    return { kind: 'whirl', intervalMs: skill.whirlIntervalMs || SKILL_HIT_SEQUENCE_CONFIG.whirlIntervalMs };
+}
+
 function getSkillHitSequenceProfile(skillName, skill) {
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
     let mode = skill && skill.targetMode;
-    if (mode === 'whirl') return { kind: 'whirl', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.whirlIntervalMs };
+    if (mode === 'whirl') return getWhirlSequenceProfile(skill);
     if (mode === 'chain') return { kind: 'chain', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.chainIntervalMs, fork: getSkillGridProfile(skillName, skill).fork };
     let gridProfile = getSkillGridProfile(skillName, skill || {});
     if (mode === 'pierce' || (gridProfile && gridProfile.kind === 'line')) return { kind: 'pierce', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.pierceIntervalMs };

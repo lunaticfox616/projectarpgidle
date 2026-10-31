@@ -308,19 +308,6 @@ const stageSkillStrokes = (() => {
                 g.globalAlpha = 1;
             } });
     }
-    /** 화염 검기(부싯돌 베기의 투사체): 바닥에 선 초승달 모양 불길(높이 60, 앞으로 볼록)과 뒤로 날리는 불혀. 붓의 자리가 바닥이고 오른쪽을 본다. */
-    function strokeFlameWave(g, t) {
-        const C = strokeRamp('fire'), r = strokeRandom(31 + Math.floor(t / 60));
-        for (let yy = 0; yy >= -60; yy--) {
-            const k = (yy + 30) / 30, bow = (1 - k * k) * 13, w = 2 + 7 * (1 - k * k);
-            for (let xx = -Math.ceil(w); xx <= 0; xx++) { const a = -xx / w; g.fillStyle = a < 0.3 ? C[5] : a < 0.6 ? C[4] : a < 0.85 ? C[3] : C[2]; g.globalAlpha = a < 0.85 ? 1 : 0.7; g.fillRect(Math.round(bow + xx), yy, 1, 1); }
-        }
-        for (let i = 0; i < 9; i++) {
-            const yy = -Math.round(r() * 58), len = 6 + Math.round(r() * 18), x0 = Math.round((1 - ((yy + 30) / 30) ** 2) * 13) - 9;
-            for (let j = 0; j < len; j++) { g.globalAlpha = 0.8 * (1 - j / len); g.fillStyle = j < len * 0.3 ? C[4] : C[3]; g.fillRect(x0 - j, yy - Math.round(j * 0.25), 1, 1); }
-        }
-        g.globalAlpha = 1;
-    }
     /** 화염 검기가 지나간 바닥: 그을린 줄과 불씨. 검기가 사라진 뒤 0.52초에 걸쳐 식는다. length(t): 그때까지 나아간 도트. */
     function strokeScorch(at, face, flight, length) {
         const C = strokeRamp('fire');
@@ -349,7 +336,7 @@ const stageSkillStrokes = (() => {
 
     return Object.freeze({ hang: strokeHang, random: strokeRandom, line: strokeLine, lens: strokeLens, ramp: strokeRamp, ink: strokeInk,
         crossCut: strokeCrossCut, vCut: strokeVCut, upCut: strokeUpCut, riseSwing: strokeRiseSwing, slashWave: strokeSlashWave, frostMist: strokeFrostMist,
-        flameFan: strokeFlameFan, dragSpark: strokeDragSpark, flameWave: strokeFlameWave, scorch: strokeScorch, fuse: strokeFuse,
+        flameFan: strokeFlameFan, dragSpark: strokeDragSpark, scorch: strokeScorch, fuse: strokeFuse,
         flickerTrail: strokeFlickerTrail, flickerCut: strokeFlickerCut });
 })();
 safeExposeGlobals({ stageSkillStrokes });

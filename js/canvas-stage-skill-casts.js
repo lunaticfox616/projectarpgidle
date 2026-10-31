@@ -4,7 +4,7 @@
  * - 따로 시전하는 룬(js/skill-gem-casts.js): 사건에 적힌 단계 이름마다 인계의 클립과 연출을 튼다. 탄성 플라스크(튕길 때마다 중독 폭발),
  *   신성한 기도(빛의 창), 폭발 혼합물, 과냉각 혼합물, 빈 플라스크(깨지는 병과 날아가는 유리 조각), 신성한 안개, 암살, 차원찢기(우주 구체),
  *   향로구름, 전도성 난격(v36: 떠난 자리 잔상과 번개 줄기, 점멸 베기, 끝의 바닥 방전), 바위 플라스크(v44: 줄 매단 바위 병, 바위 부서짐,
- *   줄 당겨 돌진). 시간 가속과 파문심판은 인계도 게임의 옛 그림을 쓴다.
+ *   줄 당겨 돌진), 시간 가속, 파문심판(전달본 V3.6, js/canvas-stage-rune-remakes.js).
  * - 이동기: 그림자 점멸의 연기, v32의 돌진, 도약 강타, 섬머솔트 슬래시(js/canvas-stage-skill-runes.js). 주인공이 사라지고 나타나는
  *   움직임은 게임의 것 그대로다. 활을 들고 쏘는 화살 룬은 몸 대신 마법 화살 클립이 난다.
  * - 위습: 소환된 위습의 몸과 쏘는 구슬을 그 속성의 클립으로 그린다.
@@ -15,10 +15,10 @@ const stageSkillCasts = (() => {
     const seen = new WeakSet();                   // 이미 클립으로 옮긴 사건
     /** 투사체의 몸: 룬 번호 → 인계의 생김새(js/canvas-stage-skill-draws.js). */
     const BODIES = Object.freeze({ 7: 'spear', 9: 'spear', 11: 'spear', 26: 'spear', 30: 'bigspear', 14: 'arrow', 25: 'arrow',
-        44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask' });
+        44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask', 79: 'flask' });
     /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
-        'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase', 'rockFlaskPhase']);
+        'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase', 'rockFlaskPhase', 'homingPhase', 'petrifyPhase', 'timeSlashPhase']);
     /** 위습이 쏜 구슬이 맞을 때의 타격 클립(속성별). */
     const WISP_HIT = Object.freeze({ fire: 'h_fire@fire', cold: 'h_ice@cold', light: 'h_lit@light', chaos: 'h_chaos@chaos', phys: 'h_xs@phys' });
     /** 제 때가 된 사건을 처음 보는가(때가 되기 전에 알려진 사건은 아직 틀지 않는다). */
@@ -101,27 +101,18 @@ const stageSkillCasts = (() => {
         if (c.first) stageSkillVfx.play(c.gem.map.area, K.at(c.event.landingCell, 0, -30), c.look);
         return true;
     }
-    /** 과냉각 혼합물: 떨어진 자리에서 얼음 터짐이 고리 셋으로 퍼져 나간다. */
+    /** 과냉각 혼합물(2026-11-01 전달본 V3.6 ice-vfx-tuning): 떨어진 자리가 조용히 깨지고, 바닥에 눕힌 서리 고리 하나가 단계마다 조용히 퍼진다. */
+    const RING_ALPHA = Object.freeze([0.28, 0.24, 0.21]);
     function castRings(c) {
         if (!c.first) return true;
-        const gap = Number(c.event.ringInterval) || 260, centre = c.event.landingCell;
-        // 과냉각 혼합물(2026-10-20 v42 burst): 플라스크에 맞은 자리가 깨진 냉기로 터진다(그 적은 첫 고리와 함께 한 번 맞는다, js/skill-gem-casts.js stepCold).
-        if (c.gem.map.burst) castStand(c.gem.map.burst, centre, { ...c.look, scale: 0.9 });
-        for (let ring = 0; ring < 3; ring++) for (let i = 0; i < 5; i++) {
-            const angle = i / 5 * Math.PI * 2 + ring, a = (ring + 1.5) * WIDE * 0.85, b = (ring + 1.5) * DEEP * 0.85;
-            stageSkillVfx.play(c.gem.map.area, K.at(centre, Math.cos(angle) * a, Math.sin(angle) * b - 30), { ...c.look, delay: ring * gap + i * 25, alpha: 0.85 });
-        }
-        return true;
-    }
-    /** 신성한 안개: 향로를 든 손에서 안개가 세 번 뿜어져 둘레 여섯 방향으로 흘러 나간다. */
-    function castMist(c) {
-        if (!c.first) return true;
-        const hero = c.event.holySource || K.heroSpot(), reach = (Number(c.event.holyRadius) || 1) + 0.5, hand = [c.look.face * 16, -56];
-        for (let burst = 0; burst < 3; burst++) for (let k = 0; k < 6; k++) {
-            const angle = k / 6 * Math.PI * 2 + burst * 0.5, x = Math.cos(angle) * reach * WIDE * 0.95, y = -16 + Math.sin(angle) * reach * DEEP * 0.95;
-            stageSkillVfx.play(c.gem.map.mist, K.at(hero, hand[0], hand[1]), { ramp: c.look.ramp, face: x < 0 ? -1 : 1, delay: burst * 230 + k * 30, alpha: 0.5,
-                move: { dx: x - hand[0], dy: y - hand[1], ms: 620 } });
-        }
+        const gap = Number(c.event.ringInterval) || 260, centre = c.event.landingCell, map = c.gem.map;
+        // 플라스크에 맞은 자리가 깨진 냉기로 터진다(그 적은 첫 고리와 함께 한 번 맞는다, js/skill-gem-casts.js stepCold)
+        if (map.burst) castStand(map.burst, centre, { ...c.look, scale: 0.63, alpha: 0.5, tail: 85 });
+        const row = STAGE_SKILL_VFX.atlas[stageSkillVfx.clipOf(map.quietRing).a];
+        RING_ALPHA.forEach((alpha, ring) => {
+            const a = (ring + 1.5) * WIDE, b = (ring + 1.5) * DEEP;
+            stageSkillVfx.play(map.quietRing, K.at(centre, 0, 0), { delay: ring * gap, layer: 'ground', alpha, scale: a * 2 / row.w, flat: (b * 2 / row.h) / (a * 2 / row.w), tail: 100 });
+        });
         return true;
     }
     /** 암살: 사라진 자리의 흙먼지, 나타난 자리의 흙먼지와 착지 먼지, 그리고 가는 급소 베기. */
@@ -161,12 +152,12 @@ const stageSkillCasts = (() => {
         stageSkillSpells.cosmos({ at: K.at(move.to), R: Math.min(110, (radius + 0.5) * WIDE * 0.75), delay: Math.max(0, move.burst - at), life: 520, mode: 'burst' });
         return true;
     }
-    /** 향로구름: 떠나는 자리와 닿는 자리에 연막이 차례로 핀다. */
+    /** 향로구름: 떠나는 자리에 연막이 피고, 닿는 자리에서 아홉 겹 안개가 터진다. */
     function castSmoke(c) {
         if (!c.first) return true;
         const move = c.event.move, at = c.event.at;
         castStand(c.gem.map.smoke, move.from, { ...c.look, delay: Math.max(0, move.puff - at) });
-        castStand(c.gem.map.smoke, move.to, { ...c.look, delay: Math.max(0, move.puffB - at) });
+        stageRuneRemakes.cloudBurst(move.to, Math.max(0, move.puffB - at));
         return true;
     }
     /** 작살화살: 쏘는 순간의 발사 섬광만 더한다. 작살과 밧줄, 끌려가는 움직임은 게임의 그림이 그린다. */
@@ -324,13 +315,18 @@ const stageSkillCasts = (() => {
         47: { flight: castBody, burst: castBurst },
         48: { flight: castBody, wave: castRings },
         49: { flask: castBody, shard: castShard, shatter: castShatter },
-        50: { censer: castTake, mist: castMist, debuff: castTake },
+        46: { clock: stageRuneRemakes.clock },
+        50: { censer: stageRuneRemakes.mistStart, mist: castTake, debuff: castTake },
+        51: { censer: castTake, cross: stageRuneRemakes.slam },
         52: { vanish: castVanish, arrive: castArrive, slash: castSlash },
         54: { move: castRift },
         55: { move: castSmoke },
         56: { move: castHarpoon },
         77: { move: castRockFlask },
-        70: { jump: castFlickerJump, cut: castFlickerCut, discharge: castFlickerDischarge }
+        70: { jump: castFlickerJump, cut: castFlickerCut, discharge: castFlickerDischarge },
+        78: { fly: stageNewRunes.homingFly },
+        79: { flight: castBody, shatter: stageNewRunes.petrifyBurst },
+        80: { field: stageNewRunes.timeField, blades: stageNewRunes.timeBlades, bounce: stageNewRunes.timeBounce }
     });
 
     // ---------------------------------------------------------------- movement gems
@@ -382,15 +378,33 @@ const stageSkillCasts = (() => {
         ctx.save();
         ctx.fillStyle = 'rgba(8,6,12,0.3)';
         ctx.fillRect(Math.round(at.x - 5 * dot), Math.round(at.y + dot), Math.round(11 * dot), Math.max(1, Math.round(2 * dot)));
-        stageSkillVfx.stamp(ctx, gem.map.body, view.now + phase * 500, { x: at.x, y: at.y + (bob - 76) * dot, dot, face: K.heroFace(), ramp: K.ramp(gem, gem.meta.el) });
+        const spot = { x: at.x, y: at.y + (bob - 76) * dot, dot, face: K.heroFace(), phase, t: view.now };
+        if (!wispSprite(ctx, gem.meta.el, spot)) stageSkillVfx.stamp(ctx, gem.map.body, view.now + phase * 500, { ...spot, ramp: K.ramp(gem, gem.meta.el) });
         ctx.restore();
         return at.y - 96 * dot;
+    }
+    const wispPictures = new Map();               // 원소 → 위습 그림(네 장, 오른쪽을 본다)
+    /** 소환 위습 그림(2026-11-01 전달본 V3.6 wisp-appearance.js): 네 장을 오른쪽을 보는 그림으로 틀고 보는 쪽으로 뒤집는다. 아직 안 왔으면 거짓(그때는 클립을 찍는다). */
+    function wispSprite(ctx, element, spot) {
+        const art = STAGE_SKILL_VFX.wisps, file = art.files[element];
+        if (!file) return false;
+        if (!wispPictures.has(element)) { const image = new Image(); image.src = art.path + file; wispPictures.set(element, image); }
+        const image = wispPictures.get(element);
+        if (!image.complete || !image.naturalWidth) return false;
+        const frame = ((Math.floor((spot.t + spot.phase * 500) / art.ms) % art.frames) + art.frames) % art.frames, size = art.size * spot.dot;
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+        ctx.translate(Math.round(spot.x), Math.round(spot.y));
+        if (spot.face < 0) ctx.scale(-1, 1);
+        ctx.drawImage(image, frame * art.size, 0, art.size, art.size, Math.round(-size / 2), Math.round(-size / 2), Math.round(size), Math.round(size));
+        ctx.restore();
+        return true;
     }
     /** 위습이 쏜 한 발: 구슬이 위습에게서 대상의 몸으로 날아가 닿는 자리에 속성 타격이 붙는다. */
     function wispShot(fx, gem) {
         const from = { gx: fx.sourceGx, gy: fx.sourceGy }, to = { gx: fx.targetGx, gy: fx.targetGy }, rule = (WISP_SUMMONS[fx.gemName] || {}).flight || { base: 120, perDot: 0 };
         const dx = (to.gx - from.gx) * WIDE, dy = (to.gy - from.gy) * DEEP, ms = Math.max(120, rule.base + rule.perDot * Math.hypot(to.gx - from.gx, to.gy - from.gy) * 16);
-        const element = gem.meta.el === 'prism' ? ['fire', 'cold', 'light'][(Number(fx.id) || 0) % 3] : gem.meta.el, ramp = STAGE_SKILL_VFX.elementRamp[element] || 'phys';
+        const element = gem.meta.el, ramp = STAGE_SKILL_VFX.elementRamp[element] || 'phys';
         stageSkillVfx.play(gem.map.shot, K.at(from, 0, -72), { ramp, face: Math.sign(dx) || 1, life: ms, move: { dx, dy: dy + 22, ms } });
         stageSkillVfx.play(WISP_HIT[element] || WISP_HIT.phys, K.at(to, 0, K.BODY), { ramp, face: Math.sign(dx) || 1, delay: ms, hit: true });
     }

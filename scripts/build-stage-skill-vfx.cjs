@@ -3,6 +3,7 @@
  * 구매 팩에서 고른 이펙트 그림과 룬마다의 연결표)을 게임이 읽는 모양으로 옮긴다(docs/stage-view-20261011.md).
  *
  *   node scripts/build-stage-skill-vfx.cjs <인계 폴더> [복사해 둘 폴더]
+ *   (표를 새로 쓰므로 그 뒤에 새 룬 넷의 추가분 scripts/build-stage-skill-vfx-v36.cjs를 다시 돌린다)
  *
  * <인계 폴더>는 00_먼저_읽기.md(v21은 00_먼저_읽기_인계서.md)가 있는 폴더다. 여기서
  *   2_시뮬레이터/vfx/vfx.json, vfx.png      이펙트 그림 첫 장과 그 칸의 자리

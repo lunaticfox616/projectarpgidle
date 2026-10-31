@@ -1,5 +1,5 @@
 /** 옆에서 보는 무대의 스킬 이펙트 (data/stage-skill-vfx.js, 2026-10-13 사용자: "첨부한 파일은 새로운 스킬 이펙트니까 이것도 게임에
- * 적용시켜줘"). 인계 받은 이펙트 그림(assets/stage-vfx/vfx.png, 2026-10-17 스킬룬 인계 v32부터 둘째 장 vfx2.png)에서 클립을 잘라 재생한다.
+ * 적용시켜줘"). 인계 받은 이펙트 그림(assets/stage-vfx/vfx.png, 2026-10-17 스킬룬 인계 v32부터 둘째 장 vfx2.png, 2026-11-01 전달본 V3.6부터 셋째 장 vfx3.png)에서 클립을 잘라 재생한다.
  * 인계 쪽 시뮬레이터의 재생기를 옮긴 것이다. 칸 표의 im이 그 클립 원본이 든 그림(STAGE_SKILL_VFX.files의 몇째 장)이다.
  * - 클립은 '이름@램프'로 부른다: 그림의 밝기를 램프의 여섯 색으로 다시 칠한다('@='는 원래 색). 색감은 인계의 기본값인 "옅게"다.
  * - 맞은 적에 붙는 타격 클립은 인계의 기본값 "약하게"로 낸다: 작게, 조금 투명하게, 다섯 칸까지만, 동시에 다섯 개까지.
@@ -16,8 +16,9 @@
  * - 그릴 때 띠가 아직 없으면 그 클립은 그 프레임을 건너뛰고, 띠를 만들어 달라고 해 둔다(미리 짚지 못한 램프의 클립).
  */
 const stageSkillVfx = (() => {
-    /** 타격 클립의 세기(인계의 "약하게"): 배율, 불투명도, 칸 수의 상한, 같은 적에게 다시 붙이는 간격(ms), 동시에 떠 있는 수. */
-    const HIT = Object.freeze({ scale: 0.65, alpha: 0.82, frames: 5, gap: 160, max: 5 });
+    /** 타격 클립의 세기(인계의 "약하게"): 배율, 불투명도, 칸 수의 상한, 같은 적에게 다시 붙이는 간격(ms), 동시에 떠 있는 수.
+     * 전달본 V3.6(vfx-polish.js): 잘리지 않게 일곱 칸까지 온전히 틀되 한 번은 longest(ms) 안에, 끝 tail(ms)에 옅어지고 가장 긴 변은 widest(도트)까지. */
+    const HIT = Object.freeze({ scale: 0.65, alpha: 0.82, frames: 7, gap: 160, max: 5, longest: 240, tail: 85, widest: 76 });
     /** 색감(인계의 "옅게"): 채도를 낮추고 밝기를 위로 모은다. */
     const TONE = Object.freeze({ s: 0.72, l0: 0.32, l1: 0.92 });
     const MAX_LIVE = 120;                         // 동시에 재생하는 클립의 상한(넘으면 새 클립을 틀지 않는다)
@@ -211,12 +212,17 @@ const stageSkillVfx = (() => {
         row.alpha *= HIT.alpha;
         row.frames = Math.min(row.frames, HIT.frames);
         row.next = null;
-        if (!row.clip.loop) row.life = Math.min(row.life, row.frames * row.ms);
+        if (row.clip.loop) return true;
+        row.ms = Math.max(26, Math.min(row.ms, HIT.longest / row.frames));
+        row.life = row.frames * row.ms;
+        row.tail = Math.min(HIT.tail, row.life * 0.43);
+        const longest = Math.max(row.box.w, row.box.h) * (row.clip.sc || 1) * row.scale;
+        if (longest > HIT.widest) row.scale *= HIT.widest / longest;
         return true;
     }
     /** 틀 때의 선택값: 주지 않은 것(undefined)은 바탕값을 쓴다. */
     const PLAY_DEFAULTS = Object.freeze({ face: 1, delay: 0, ramp: 'phys', life: 1000, layer: 'top', alpha: 1, scale: 1, rot: 0, move: null, fall: null, nextLife: 0, hit: false, fadeIn: 0,
-        follow: null, ms: 0, cut: 0 });
+        follow: null, ms: 0, cut: 0, tail: 0, flat: 0, pocket: null });
     function vfxOptions(options) {
         const o = { ...PLAY_DEFAULTS };
         for (const [key, value] of Object.entries(options || {})) if (value !== undefined) o[key] = value;
@@ -228,7 +234,8 @@ const stageSkillVfx = (() => {
      * @param {object} [o] face 방향(1 오른쪽, -1 왼쪽), delay 늦춤(ms), ramp 클립이 램프를 정하지 않았을 때의 램프, life 반복 클립의 길이,
      *   layer 'ground'|'top', alpha, scale, rot 돌림(라디안), hit 타격 클립, move { dx, dy, ms } 그동안 옮겨 가는 도트,
      *   fall { from, to, ms } 위에서 가속하며 떨어지는 도트, nextLife 이어지는 반복 클립의 길이, follow 프레임마다 자리(칸)를 돌려주는 함수(없어지면 null),
-     *   ms 한 칸의 시간을 바꿀 때, cut 이보다 길면 여기서 끊는다(ms)
+     *   ms 한 칸의 시간을 바꿀 때, cut 이보다 길면 여기서 끊는다(ms), tail 끝이 옅어지는 시간(ms, 클립의 fadeOut 대신), flat 눕히는 비율(클립의 flat 대신),
+     *   pocket 프레임마다 그리지 않을 네모({ spot, x, y, w, h }, 칸과 거기서의 도트)를 돌려주는 함수
      * @returns {?object} 튼 클립(틀지 못했으면 null). life를 줄이면 일찍 끝난다.
      */
     /** 틀 클립 하나의 줄: 클립의 길이와 속도, 옵션이 정한 모습을 한데 묶는다. */
@@ -236,7 +243,7 @@ const stageSkillVfx = (() => {
         const box = vfxClipBox(name), ms = o.ms || clip.ms || 70, whole = clip.loop ? o.life : box.frames * ms;
         return { name, clip, box, ramp: o.ramp, at: { dx: 0, dy: 0, ...at }, face: o.face, start: clock + o.delay, ms,
             frames: box.frames, life: o.cut ? Math.min(whole, o.cut) : whole, layer: o.layer, alpha: o.alpha, scale: o.scale, rot: o.rot, move: o.move, fall: o.fall,
-            next: clip.next || null, nextLife: o.nextLife, hit: false, fadeIn: o.fadeIn, follow: o.follow };
+            next: clip.next || null, nextLife: o.nextLife, hit: false, fadeIn: o.fadeIn || clip.fadeIn || 0, follow: o.follow, tail: o.tail, flat: o.flat || clip.flat || 0, pocket: o.pocket };
     }
     function vfxPlay(ref, at, options) {
         const text = String(Array.isArray(ref) ? ref[0] : ref), [name, rampName] = text.split('@'), clip = STAGE_SKILL_VFX.clips[name];
@@ -275,10 +282,11 @@ const stageSkillVfx = (() => {
         if (row.fall) { const k = Math.min(1, t / row.fall.ms); dy += row.fall.from + (row.fall.to - row.fall.from) * k * k; }
         return { dx, dy };
     }
-    function vfxAlphaOf(row, t, index) {
-        const last = row.hit && !row.clip.loop && index === row.frames - 1 ? 0.55 : 1, fadeIn = row.fadeIn ? Math.min(1, t / row.fadeIn) : 1;
-        const fadeOut = row.clip.loop && row.life - t < 120 ? Math.max(0, (row.life - t) / 120) : 1;
-        return row.alpha * last * fadeIn * fadeOut;
+    function vfxAlphaOf(row, t) {
+        const fadeIn = row.fadeIn ? Math.min(1, t / row.fadeIn) : 1;
+        // fadeOut(ms): 2026-11-01 V3.6 클립이 스스로 정한 끝의 옅어짐. 없으면 반복 클립만 0.12초에 옅어진다.
+        const tail = row.tail || row.clip.fadeOut || (row.clip.loop ? 120 : 0), fadeOut = tail && row.life - t < tail ? Math.max(0, (row.life - t) / tail) : 1;
+        return row.alpha * fadeIn * fadeOut;
     }
     /** 따라가는 클립은 그 몸의 지금 자리로 옮긴다(몸이 없어지면 마지막 자리에 남는다). */
     function vfxFollow(row) {
@@ -294,6 +302,16 @@ const stageSkillVfx = (() => {
         row.paint(ctx, t, dot);
         ctx.restore();
     }
+    /** 그 줄이 비워 달라는 네모를 뺀 곳에만 그리게 붓을 자른다(앞쪽 연기가 쇠 향로 머리를 덮지 않게). */
+    function vfxCutPocket(ctx, row, p, dot) {
+        const hole = row.pocket ? row.pocket() : null;
+        if (!hole) return;
+        const base = p.cellToScreen(hole.spot.gx, hole.spot.gy), lift = p.actorGroundOffsetY || 0, span = ctx.canvas.width + ctx.canvas.height;
+        ctx.beginPath();
+        ctx.rect(-span, -span, span * 2, span * 2);
+        ctx.rect(base.x + hole.x * dot, base.y + lift + hole.y * dot, hole.w * dot, hole.h * dot);
+        ctx.clip('evenodd');
+    }
     function vfxDrawRow(ctx, row, p, dot) {
         vfxFollow(row);
         if (row.paint) { vfxPaintRow(ctx, row, p, dot); return; }
@@ -304,11 +322,12 @@ const stageSkillVfx = (() => {
         const sheet = vfxSheetOf(row.clip.a, row.ramp), cell = STAGE_SKILL_VFX.atlas[row.clip.a];
         if (!sheet) return; // 띠를 만드는 중이다: 다 되면 그때부터 그린다
         ctx.save();
-        ctx.globalAlpha *= vfxAlphaOf(row, t, index);
+        vfxCutPocket(ctx, row, p, dot);
+        ctx.globalAlpha *= vfxAlphaOf(row, t);
         ctx.translate(Math.round(base.x + offset.dx * dot), Math.round(base.y + (p.actorGroundOffsetY || 0) + offset.dy * dot));
         if (row.face < 0) ctx.scale(-1, 1);
         if (row.rot) ctx.rotate(row.rot);
-        if (row.clip.flat) ctx.scale(1, row.clip.flat);
+        if (row.flat) ctx.scale(1, row.flat);
         ctx.imageSmoothingEnabled = row.scale < 1;   // 줄인 타격 클립은 부드럽게(도트가 깨지지 않게)
         ctx.drawImage(sheet, (row.box.f0 + index) * cell.w, 0, cell.w, cell.h, Math.round(-row.box.ax * size), Math.round(-row.box.ay * size), Math.round(cell.w * size), Math.round(cell.h * size));
         ctx.restore();
@@ -355,12 +374,14 @@ const stageSkillVfx = (() => {
         ctx.restore();
         return true;
     }
+    /** 원래 색 그대로 그릴 그림(STAGE_SKILL_VFX.files의 그 장). 아직 안 왔거나 이 판에 없으면 null(js/canvas-stage-new-runes.js). */
+    const vfxPicture = index => { loadVfxPicture(); return pictures && vfxPictureLoaded(pictures[index]) ? pictures[index] : null; };
     const vfxNow = () => clock;
     /** 마지막으로 그린 무대의 투영(그려진 주인공의 자리를 칸으로 되돌릴 때 쓴다: js/canvas-stage-skill-kit.js heroDrawn). 아직 없으면 null. */
     const vfxProjection = () => lastProjection;
     /** 재생 중인 클립과 걸어 둔 일을 모두 걷는다(방을 옮길 때: js/canvas-stage-rooms.js). */
     function vfxClear() { live.length = 0; watchers.length = 0; }
-    return Object.freeze({ ready: vfxReady, play: vfxPlay, paint: vfxPaint, watch: vfxWatch, draw: vfxDraw, tick: vfxTick, stamp: vfxStamp, now: vfxNow, projection: vfxProjection, clipOf: vfxClipOf,
+    return Object.freeze({ ready: vfxReady, play: vfxPlay, paint: vfxPaint, watch: vfxWatch, draw: vfxDraw, tick: vfxTick, stamp: vfxStamp, now: vfxNow, projection: vfxProjection, clipOf: vfxClipOf, picture: vfxPicture,
         clipWidth: vfxClipWidth, clipLength: vfxClipLength, keepStrips: vfxKeepStrips, clear: vfxClear, HIT });
 })();
 safeExposeGlobals({ stageSkillVfx });
