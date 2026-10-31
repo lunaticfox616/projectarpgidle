@@ -71,7 +71,9 @@ const FINE_STEP_STATS = new Set([
 ]);
 const HALF_STEP_STATS = new Set(['mystique', 'devotion', 'cycle']);
 
-const PASSIVE_TYPE_MULTIPLIER = Object.freeze({ minor: 1, assist: 1.15, normal: 1.6, major: 2.4 });
+/** 2026-11-01 (사용자: PoE1/2의 옵션처럼 예쁜 수치): 소형 1배, 주요 보조 1.5배, 일반 2배, 주요 3배. 아래 꾸러미의 기본값은 이 배율마다 끝이 깔끔하게 떨어지도록
+ * 골랐다(10% → 10/15/20/30, 힘 10 → 10/15/20/30, 치명타 1%p → 1/1.5/2/3, 재생 0.4% → 0.4/0.6/0.8/1.2). 편집기의 꾸러미 채우기는 거리 구간을 더 곱하지 않는다. */
+const PASSIVE_TYPE_MULTIPLIER = Object.freeze({ minor: 1, assist: 1.5, normal: 2, major: 3 });
 
 function passiveValueStep(statId) {
     const suffix = STAT_META[statId]?.[1];
@@ -107,143 +109,143 @@ function isAllAttributesEffects(effects) {
 
 const ARCHETYPE_PROFILES = Object.freeze({
     strength: Object.freeze([
-        profile('단단한 혈맥', line('strength', 6), line('flatHp', 15)),
-        profile('무거운 완력', line('strength', 6), line('physPctDmg', 3)),
-        profile('전열의 체력', line('pctHp', 2), line('armorPct', 4)),
-        profile('불굴의 힘줄', line('strength', 5), line('regen', 0.2))
+        profile('단단한 혈맥', line('strength', 10), line('flatHp', 20)),
+        profile('무거운 완력', line('strength', 10), line('physPctDmg', 10)),
+        profile('전열의 체력', line('pctHp', 4), line('armorPct', 10)),
+        profile('불굴의 힘줄', line('strength', 10), line('regen', 0.4))
     ]),
     dexterity: Object.freeze([
-        profile('민첩한 발놀림', line('dexterity', 6), line('move', 1.5)),
-        profile('정교한 손놀림', line('dexterity', 6), line('accuracy', 40)),
-        profile('바람의 반사', line('evasionPct', 4), line('aspd', 1.5)),
-        profile('기민한 감각', line('dexterity', 5), line('crit', 0.8))
+        profile('민첩한 발놀림', line('dexterity', 10), line('move', 2)),
+        profile('정교한 손놀림', line('dexterity', 10), line('accuracy', 40)),
+        profile('바람의 반사', line('evasionPct', 10), line('aspd', 4)),
+        profile('기민한 감각', line('dexterity', 10), line('crit', 1))
     ]),
     intelligence: Object.freeze([
-        profile('축적된 지식', line('intelligence', 6), line('energyShield', 10)),
-        profile('주문 해석', line('intelligence', 6), line('spellPctDmg', 4)),
-        profile('비전 장막', line('energyShieldPct', 4), line('resAll', 2)),
-        profile('정신의 가속', line('intelligence', 5), line('aspd', 1.5))
+        profile('축적된 지식', line('intelligence', 10), line('energyShield', 10)),
+        profile('주문 해석', line('intelligence', 10), line('spellPctDmg', 10)),
+        profile('비전 장막', line('energyShieldPct', 10), line('resAll', 4)),
+        profile('정신의 가속', line('intelligence', 10), line('aspd', 4))
     ]),
     projectile: Object.freeze([
-        profile('곧은 궤적', line('projectilePctDmg', 5), line('accuracy', 35)),
-        profile('빠른 시위', line('projectilePctDmg', 4), line('aspd', 1.5)),
-        profile('약점 조준', line('projectilePctDmg', 4), line('crit', 0.8)),
-        profile('갈라지는 탄도', line('projectilePctDmg', 3), line('projectileExtraShots', 1, { majorOnly: true, fixed: true }))
+        profile('곧은 궤적', line('projectilePctDmg', 10), line('accuracy', 40)),
+        profile('빠른 시위', line('projectilePctDmg', 10), line('aspd', 4)),
+        profile('약점 조준', line('projectilePctDmg', 10), line('crit', 1)),
+        profile('갈라지는 탄도', line('projectilePctDmg', 10), line('projectileExtraShots', 1, { majorOnly: true, fixed: true }))
     ]),
     melee: Object.freeze([
-        profile('날 선 일격', line('meleePctDmg', 5), line('flatDmg', 2)),
-        profile('이중 베기', line('meleePctDmg', 4), line('aspd', 1.5)),
-        profile('파고드는 칼끝', line('meleePctDmg', 4), line('physIgnore', 1.5)),
-        profile('급소 절개', line('meleePctDmg', 4), line('crit', 0.8))
+        profile('날 선 일격', line('meleePctDmg', 10), line('flatDmg', 2)),
+        profile('이중 베기', line('meleePctDmg', 10), line('aspd', 4)),
+        profile('파고드는 칼끝', line('meleePctDmg', 10), line('physIgnore', 2)),
+        profile('급소 절개', line('meleePctDmg', 10), line('crit', 1))
     ]),
     slam: Object.freeze([
-        profile('대지 충격', line('slamPctDmg', 6), line('aoePctDmg', 3)),
-        profile('무거운 낙하', line('slamPctDmg', 5), line('flatDmg', 3)),
-        profile('파쇄 여파', line('slamPctDmg', 5), line('physIgnore', 1.5)),
-        profile('흔들리지 않는 자세', line('slamPctDmg', 4), line('armorPct', 4))
+        profile('대지 충격', line('slamPctDmg', 10), line('aoePctDmg', 10)),
+        profile('무거운 낙하', line('slamPctDmg', 10), line('flatDmg', 2)),
+        profile('파쇄 여파', line('slamPctDmg', 10), line('physIgnore', 2)),
+        profile('흔들리지 않는 자세', line('slamPctDmg', 10), line('armorPct', 10))
     ]),
     physical: Object.freeze([
-        profile('철을 가르는 힘', line('physPctDmg', 5), line('physIgnore', 1)),
-        profile('깊은 상처', line('physPctDmg', 4), line('bleedChance', 3)),
-        profile('피의 궤적', line('dotPctDmg', 4), line('bleedChance', 3)),
-        profile('무거운 타격', line('physPctDmg', 4), line('flatDmg', 2))
+        profile('철을 가르는 힘', line('physPctDmg', 10), line('physIgnore', 2)),
+        profile('깊은 상처', line('physPctDmg', 10), line('bleedChance', 4)),
+        profile('피의 궤적', line('dotPctDmg', 10), line('bleedChance', 4)),
+        profile('무거운 타격', line('physPctDmg', 10), line('flatDmg', 2))
     ]),
     armor: Object.freeze([
-        profile('강철 외피', line('armor', 14), line('armorPct', 4)),
-        profile('전열 방벽', line('armorPct', 5), line('pctHp', 2)),
-        profile('완강한 수비', line('blockChance', 1), line('armorPct', 4)),
-        profile('충격 분산', line('armorPct', 4), line('dr', 1))
+        profile('강철 외피', line('armor', 20), line('armorPct', 10)),
+        profile('전열 방벽', line('armorPct', 10), line('pctHp', 4)),
+        profile('완강한 수비', line('blockChance', 2), line('armorPct', 10)),
+        profile('충격 분산', line('armorPct', 10), line('dr', 1))
     ]),
     evasion: Object.freeze([
-        profile('흐르는 몸놀림', line('evasion', 14), line('evasionPct', 4)),
-        profile('흔적 없는 걸음', line('evasionPct', 4), line('move', 1.5)),
-        profile('가속하는 몸놀림', line('mobilityPctDmg', 5), line('move', 1.5)),
-        profile('비스듬한 회피', line('deflectChance', 2), line('evasionPct', 3)),
-        profile('반격의 틈', line('evasionPct', 4), line('crit', 0.8))
+        profile('흐르는 몸놀림', line('evasion', 20), line('evasionPct', 10)),
+        profile('흔적 없는 걸음', line('evasionPct', 10), line('move', 2)),
+        profile('가속하는 몸놀림', line('mobilityPctDmg', 10), line('move', 2)),
+        profile('비스듬한 회피', line('deflectChance', 2), line('evasionPct', 10)),
+        profile('반격의 틈', line('evasionPct', 10), line('crit', 1))
     ]),
     energyShield: Object.freeze([
-        profile('비전 방벽', line('energyShield', 12), line('energyShieldPct', 4)),
-        profile('정신의 외피', line('energyShieldPct', 5), line('resAll', 2)),
-        profile('응축된 보호막', line('energyShield', 16), line('intelligence', 3)),
-        profile('차오르는 장막', line('energyShieldPct', 4), line('regen', 0.2))
+        profile('비전 방벽', line('energyShield', 10), line('energyShieldPct', 10)),
+        profile('정신의 외피', line('energyShieldPct', 10), line('resAll', 4)),
+        profile('응축된 보호막', line('energyShield', 20), line('intelligence', 10)),
+        profile('차오르는 장막', line('energyShieldPct', 10), line('regen', 0.4))
     ]),
     spell: Object.freeze([
-        profile('주문 직조', line('spellPctDmg', 5), line('aspd', 1.5)),
-        profile('집중된 술식', line('spellPctDmg', 5), line('crit', 0.8)),
-        profile('확장된 주문진', line('spellPctDmg', 4), line('aoePctDmg', 3)),
-        profile('고등 마도', line('spellPctDmg', 4), line('gemLevel', 1, { majorOnly: true, fixed: true }))
+        profile('주문 직조', line('spellPctDmg', 10), line('aspd', 4)),
+        profile('집중된 술식', line('spellPctDmg', 10), line('crit', 1)),
+        profile('확장된 주문진', line('spellPctDmg', 10), line('aoePctDmg', 10)),
+        profile('고등 마도', line('spellPctDmg', 10), line('gemLevel', 1, { majorOnly: true, fixed: true }))
     ]),
     chaos: Object.freeze([
-        profile('심연의 침식', line('chaosPctDmg', 5), line('resPen', 1)),
-        profile('독성 주입', line('chaosPctDmg', 4), line('poisonChance', 3)),
-        profile('느린 부패', line('chaosPctDmg', 4), line('dotPctDmg', 4)),
-        profile('공허의 장막', line('chaosPctDmg', 3), line('resChaos', 3))
+        profile('심연의 침식', line('chaosPctDmg', 10), line('resPen', 2)),
+        profile('독성 주입', line('chaosPctDmg', 10), line('poisonChance', 4)),
+        profile('느린 부패', line('chaosPctDmg', 10), line('dotPctDmg', 10)),
+        profile('공허의 장막', line('chaosPctDmg', 10), line('resChaos', 6))
     ]),
     elemental: Object.freeze([
-        profile('삼원 조율', line('elementalPctDmg', 5), line('resPen', 1)),
-        profile('불꽃 촉매', line('firePctDmg', 5), line('igniteChance', 3)),
-        profile('서리 촉매', line('coldPctDmg', 5), line('chillChance', 3)),
-        profile('전류 촉매', line('lightPctDmg', 5), line('shockChance', 3))
+        profile('삼원 조율', line('elementalPctDmg', 10), line('resPen', 2)),
+        profile('불꽃 촉매', line('firePctDmg', 10), line('igniteChance', 4)),
+        profile('서리 촉매', line('coldPctDmg', 10), line('chillChance', 4)),
+        profile('전류 촉매', line('lightPctDmg', 10), line('shockChance', 4))
     ]),
     fire: Object.freeze([
-        profile('타오르는 핵', line('firePctDmg', 5), line('igniteChance', 3)),
-        profile('번지는 불씨', line('firePctDmg', 4), line('aoePctDmg', 3)),
-        profile('잿불의 잔열', line('firePctDmg', 4), line('dotPctDmg', 4)),
-        profile('화염 관통', line('firePctDmg', 4), line('resPen', 1))
+        profile('타오르는 핵', line('firePctDmg', 10), line('igniteChance', 4)),
+        profile('번지는 불씨', line('firePctDmg', 10), line('aoePctDmg', 10)),
+        profile('잿불의 잔열', line('firePctDmg', 10), line('dotPctDmg', 10)),
+        profile('화염 관통', line('firePctDmg', 10), line('resPen', 2))
     ]),
     cold: Object.freeze([
-        profile('차가운 핵', line('coldPctDmg', 5), line('chillChance', 3)),
-        profile('깨지는 서리', line('coldPctDmg', 4), line('crit', 0.8)),
-        profile('빙결의 장막', line('coldPctDmg', 4), line('energyShieldPct', 3)),
-        profile('냉기 관통', line('coldPctDmg', 4), line('resPen', 1))
+        profile('차가운 핵', line('coldPctDmg', 10), line('chillChance', 4)),
+        profile('깨지는 서리', line('coldPctDmg', 10), line('crit', 1)),
+        profile('빙결의 장막', line('coldPctDmg', 10), line('energyShieldPct', 10)),
+        profile('냉기 관통', line('coldPctDmg', 10), line('resPen', 2))
     ]),
     lightning: Object.freeze([
-        profile('전도성 핵', line('lightPctDmg', 5), line('shockChance', 3)),
-        profile('연쇄 전류', line('lightPctDmg', 4), line('aspd', 1.5)),
-        profile('폭발하는 뇌광', line('lightPctDmg', 4), line('crit', 0.8)),
-        profile('번개 관통', line('lightPctDmg', 4), line('resPen', 1))
+        profile('전도성 핵', line('lightPctDmg', 10), line('shockChance', 4)),
+        profile('연쇄 전류', line('lightPctDmg', 10), line('aspd', 4)),
+        profile('폭발하는 뇌광', line('lightPctDmg', 10), line('crit', 1)),
+        profile('번개 관통', line('lightPctDmg', 10), line('resPen', 2))
     ]),
     ailment: Object.freeze([
-        profile('상처의 숙성', line('dotPctDmg', 5), line('bleedChance', 3)),
-        profile('독의 숙성', line('dotPctDmg', 5), line('poisonChance', 3)),
-        profile('원소 병증', line('dotPctDmg', 4), line('igniteChance', 2), line('shockChance', 2)),
-        profile('빠른 감염', line('dotPctDmg', 4), line('aspd', 1.5))
+        profile('상처의 숙성', line('dotPctDmg', 10), line('bleedChance', 4)),
+        profile('독의 숙성', line('dotPctDmg', 10), line('poisonChance', 4)),
+        profile('원소 병증', line('dotPctDmg', 10), line('igniteChance', 2), line('shockChance', 2)),
+        profile('빠른 감염', line('dotPctDmg', 10), line('aspd', 4))
     ]),
     potion: Object.freeze([
-        profile('농축 시약', line('potionPctDmg', 5), line('dotPctDmg', 3)),
-        profile('휘발성 혼합', line('potionPctDmg', 5), line('aoePctDmg', 3)),
-        profile('신속 투척', line('potionPctDmg', 4), line('aspd', 1.5)),
-        profile('맹독 용액', line('potionPctDmg', 4), line('poisonChance', 3))
+        profile('농축 시약', line('potionPctDmg', 10), line('dotPctDmg', 10)),
+        profile('휘발성 혼합', line('potionPctDmg', 10), line('aoePctDmg', 10)),
+        profile('신속 투척', line('potionPctDmg', 10), line('aspd', 4)),
+        profile('맹독 용액', line('potionPctDmg', 10), line('poisonChance', 4))
     ]),
     shield: Object.freeze([
-        profile('방패 강타', line('shieldPctDmg', 5), line('armorPct', 3)),
-        profile('반격 방벽', line('shieldPctDmg', 4), line('blockChance', 1)),
-        profile('성역의 방패', line('shieldPctDmg', 4), line('resAll', 2)),
-        profile('굳건한 진군', line('blockChance', 1), line('pctHp', 2))
+        profile('방패 강타', line('shieldPctDmg', 10), line('armorPct', 10)),
+        profile('반격 방벽', line('shieldPctDmg', 10), line('blockChance', 2)),
+        profile('성역의 방패', line('shieldPctDmg', 10), line('resAll', 4)),
+        profile('굳건한 진군', line('blockChance', 2), line('pctHp', 4))
     ]),
     summon: Object.freeze([
-        profile('사역 강화', line('summonPctDmg', 5), line('summonAspd', 3)),
-        profile('사역 보호', line('summonHpPct', 5), line('summonPctDmg', 3)),
-        profile('사역의 눈', line('summonCrit', 1), line('summonPctDmg', 4)),
-        profile('상위 사역술', line('summonPctDmg', 4), line('summonGemLevel', 1, { majorOnly: true, fixed: true }))
+        profile('사역 강화', line('summonPctDmg', 10), line('summonAspd', 4)),
+        profile('사역 보호', line('summonHpPct', 10), line('summonPctDmg', 10)),
+        profile('사역의 눈', line('summonCrit', 1), line('summonPctDmg', 10)),
+        profile('상위 사역술', line('summonPctDmg', 10), line('summonGemLevel', 1, { majorOnly: true, fixed: true }))
     ]),
     mystique: Object.freeze([
         profile('감긴 눈', line('mystique', 1, { fixed: true })),
-        profile('깊은 응시', line('mystique', 1, { fixed: true }), line('dotPctDmg', 3)),
-        profile('병증의 비의', line('mystique', 1, { fixed: true }), line('poisonChance', 2)),
-        profile('금단의 관측', line('mystique', 1, { fixed: true }), line('crit', 0.6))
+        profile('깊은 응시', line('mystique', 1, { fixed: true }), line('dotPctDmg', 10)),
+        profile('병증의 비의', line('mystique', 1, { fixed: true }), line('poisonChance', 4)),
+        profile('금단의 관측', line('mystique', 1, { fixed: true }), line('crit', 1))
     ]),
     devotion: Object.freeze([
         profile('작은 헌신', line('devotion', 1, { fixed: true })),
-        profile('전투의 헌신', line('devotion', 1, { fixed: true }), line('pctDmg', 3)),
-        profile('수호의 헌신', line('devotion', 1, { fixed: true }), line('resAll', 2)),
-        profile('생명의 헌신', line('devotion', 1, { fixed: true }), line('pctHp', 1.5))
+        profile('전투의 헌신', line('devotion', 1, { fixed: true }), line('pctDmg', 10)),
+        profile('수호의 헌신', line('devotion', 1, { fixed: true }), line('resAll', 4)),
+        profile('생명의 헌신', line('devotion', 1, { fixed: true }), line('pctHp', 4))
     ]),
     cycle: Object.freeze([
         profile('잔잔한 물결', line('cycle', 1, { fixed: true })),
-        profile('빠른 회귀', line('cycle', 1, { fixed: true }), line('move', 1.2)),
-        profile('되찾는 숨', line('cycle', 1, { fixed: true }), line('regen', 0.15)),
-        profile('반복되는 충격', line('cycle', 1, { fixed: true }), line('aspd', 1.2))
+        profile('빠른 회귀', line('cycle', 1, { fixed: true }), line('move', 2)),
+        profile('되찾는 숨', line('cycle', 1, { fixed: true }), line('regen', 0.4)),
+        profile('반복되는 충격', line('cycle', 1, { fixed: true }), line('aspd', 4))
     ])
 });
 

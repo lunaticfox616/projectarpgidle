@@ -5,12 +5,20 @@ import { createModes } from './modes.js';
 import { createBulkPanel } from './bulk-panel.js';
 import { createPlanning } from './planning.js';
 import { createAllocation } from './allocation.js';
-import { areaLayout, bandOf, bundleChoices, nodePower, powerYardstick, scaledBundle, startDistances, weakNodes, workAreaOf, zoneOf } from './insights.js';
+import { areaLayout, bundleChoices, nodePower, powerYardstick, scaledBundle, startDistances, weakNodes, workAreaOf, zoneOf } from './insights.js';
 
 const CORE_FIELDS = new Set([
     'id', 'x', 'y', 'type', 'cat', 'name', 'desc', 'mods', 'runtimeEffects', 'statAutoName',
     'archetype', 'optionProfile', 'intentionalNoEffect', 'iconFamily', 'iconAsset'
 ]);
+/** 아이콘 계열의 우리말 이름(갤러리 설명과 계열 고르기). 트리 파일에는 영어 id가 그대로 남는다. */
+const ICON_FAMILY_LABELS = Object.freeze({
+    blade: '칼날', projectile: '투사체', shield: '방패', potion: '물약', strength: '힘', mystique: '신비', devotion: '헌신', cycle: '순환',
+    elemental: '원소', dexterity: '민첩', chaos: '카오스', life: '생명', arcane: '비전', summon: '소환', intelligence: '지능',
+    precision: '정밀', wind: '바람', void: '공허', constellation: '별자리'
+});
+const iconFamilyLabel = family => ICON_FAMILY_LABELS[family] || family;
+
 const TYPE_LABELS = Object.freeze({
     minor: '소형', assist: '보조', normal: '일반', major: '주요', keystone: '키스톤',
     void: '공허', quatrefoil: '성률', start: '시작점'
@@ -189,12 +197,12 @@ function bundleLines(effects) {
 function selectedBundle(node) {
     const [archetype, index] = String(elements['bundle-select'].value || '').split(':');
     const bundle = config.catalog.profiles[archetype] && config.catalog.profiles[archetype][Number(index)];
-    return bundle ? { archetype, bundle, effects: scaledBundle(bundle, node, bandOf(insight.distances.get(String(node.id))), config.catalog) } : null;
+    return bundle ? { archetype, bundle, effects: scaledBundle(bundle, node, config.catalog) } : null;
 }
 
 function renderBundlePicker(node) {
     const power = nodePower(node, insight.yardstick), distance = insight.distances.get(String(node.id));
-    const zone = zoneOf(node, insight.layout), steps = distance === undefined ? '이어지지 않음' : `시작점에서 ${distance}칸, 값 구간 ${bandOf(distance)}`;
+    const zone = zoneOf(node, insight.layout), steps = distance === undefined ? '이어지지 않음' : `시작점에서 ${distance}칸`;
     elements['node-power'].textContent = power === null ? `${zone.label} 구역, ${steps}`
         : `${zone.label} 구역, ${steps}. 같은 종류 노드의 보통 값에 견줘 ${Math.round(power * 100)}%`;
     const choices = bundleChoices(node, config.catalog, insight.layout), groups = new Map();
@@ -531,13 +539,13 @@ function iconChoicesHtml() {
     return config.iconFamilies.map(family => {
         const [x, y] = ICON_CELLS[family] || [0, 0];
         const position = `${x / 4 * 100}% ${y / 3 * 100}%`;
-        return `<button class="icon-choice" type="button" data-family="${family}" title="${family}" style="background-position:${position}"></button>`;
+        return `<button class="icon-choice" type="button" data-family="${family}" data-tip="${escapeHtml(iconFamilyLabel(family))}" aria-label="${escapeHtml(iconFamilyLabel(family))}" style="background-position:${position}"></button>`;
     }).join('');
 }
 
 function renderIconGallery() {
     elements['node-icon-family'].innerHTML = '<option value="">효과에 따라 자동</option>'
-        + config.iconFamilies.map(family => `<option value="${family}">${family}</option>`).join('');
+        + config.iconFamilies.map(family => `<option value="${family}">${escapeHtml(iconFamilyLabel(family))}</option>`).join('');
     elements['icon-family-gallery'].innerHTML = iconChoicesHtml();
 }
 
@@ -906,6 +914,26 @@ const modes = createModes(editorCtx);
 const bulkPanel = createBulkPanel(editorCtx);
 const planning = createPlanning(editorCtx);
 const allocation = createAllocation(editorCtx);
+// 접기(2026-11-01 사용자): 위 도구 줄 둘과 오른쪽 창. 접힌 상태는 이 브라우저에 남는다.
+const FOLD_KEYS = { 'toolbars-hidden': 'rignin-passive-toolbars-hidden', 'inspector-hidden': 'rignin-passive-inspector-hidden' };
+function setFolded(className, folded) {
+    document.body.classList.toggle(className, folded);
+    const button = elements[className === 'toolbars-hidden' ? 'toolbars-toggle' : 'inspector-toggle'];
+    button.setAttribute('aria-expanded', String(!folded));
+    button.textContent = className === 'toolbars-hidden' ? (folded ? '도구 펼치기' : '도구 접기') : (folded ? '◂ 창 펼치기' : '창 접기 ▸');
+    try { localStorage.setItem(FOLD_KEYS[className], folded ? '1' : ''); } catch { /* 접힘 기억은 편의일 뿐 */ }
+}
+function bindFolding() {
+    Object.keys(FOLD_KEYS).forEach(className => {
+        let folded = false;
+        try { folded = localStorage.getItem(FOLD_KEYS[className]) === '1'; } catch { /* 기억이 없으면 펼친 채로 */ }
+        setFolded(className, folded);
+    });
+    elements['toolbars-toggle'].onclick = () => setFolded('toolbars-hidden', !document.body.classList.contains('toolbars-hidden'));
+    elements['inspector-toggle'].onclick = () => setFolded('inspector-hidden', !document.body.classList.contains('inspector-hidden'));
+}
+bindFolding();
+
 const COLOR_MODE_KEY = 'rignin-passive-color-mode';
 
 function setColorMode(value) {
