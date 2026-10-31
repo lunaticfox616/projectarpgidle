@@ -12412,9 +12412,12 @@ async function pullCloudSave(options = {}) {
  * account's slot on this device (js/save.js saveSlot) is read and compared with the server by revision alone:
  * - no server save: this device's copy (or the guest save on sign-up) becomes the first server save;
  * - the server is at this copy's revision: what the copy has not uploaded yet goes up, and play continues from the copy;
+ * - the server's latest save is this copy's own last upload (the page-exit upload answers after the page is gone, so the copy still
+ *   says pending at the old revision): the copy takes the server's revision and plays on;
  * - the server moved on (another device committed): its save replaces the copy; progress the copy had not uploaded is offered as a file
  *   first and then dropped.
- * Clocks and loop numbers decide nothing, and a failed server read leaves every slot as it was (the guest slot is never touched). */
+ * Clocks and loop numbers decide nothing (the own-upload check compares the save's own lastModifiedAt stamp, carried in the upload),
+ * and a failed server read leaves every slot as it was (the guest slot is never touched). */
 async function enterAccountSave(options = {}) {
     const userId = getActiveCloudUserId();
     if (!userId) throw new Error('로그인이 필요합니다.');
@@ -12423,12 +12426,29 @@ async function enterAccountSave(options = {}) {
     if (!record || !record.save_data) return await createFirstCloudSave(options.signUp === true);
     const kept = await continueFromAccountCopy(userId);
     if (kept) return kept;
+    if (adoptOwnUpload(record, userId)) return 'cached-current';
     if (getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending) await offerUnsyncedProgressFile(record);
     const full = await readFullCloudSaveForPull();
     applyExternalSave(full.save_data, getRemoteSaveStamp(full));
     setCloudMessage('서버 저장으로 이어서 합니다.');
     if (!options.silent) addLog('서버 저장으로 이어서 합니다.', 'loot-magic');
     return 'pulled-server';
+}
+
+/** The server's latest save carries the very stamp this copy was written with (saveMeta.lastModifiedAt goes up inside the upload), so it
+ * is this copy's own upload whose answer never came back (a page-exit upload): the copy takes the server's revision and nothing is
+ * pending. 2026-11-01: after every play session the next launch asked to keep "this device's progress" as a file against the player's
+ * own save. A save another device made after pulling this one carries a later stamp, so it still gets the question. */
+function adoptOwnUpload(record, userId) {
+    const remote = record && record.save_data && record.save_data.saveMeta;
+    const stamp = remote && Number(remote.lastModifiedAt);
+    if (getCloudSaveOwnerId() !== userId || !stamp || stamp !== Number(game.saveMeta.lastModifiedAt)) return false;
+    game.saveMeta.cloudRevision = cloudState.lastRemoteRevision;
+    game.saveMeta.cloudPending = false;
+    game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, getRemoteSaveStamp(record));
+    persistLocalSave({ touchModifiedAt: false });
+    setCloudMessage('이 기기에서 마지막으로 올린 저장이라 그대로 이어서 합니다.');
+    return true;
 }
 
 /** The slot holds this account's copy at the server's revision, read and written without fault: what it has not uploaded yet goes up,
