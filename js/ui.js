@@ -12414,8 +12414,8 @@ async function pullCloudSave(options = {}) {
  * - the server is at this copy's revision: what the copy has not uploaded yet goes up, and play continues from the copy;
  * - the server's latest save is this copy's own last upload (the page-exit upload answers after the page is gone, so the copy still
  *   says pending at the old revision): the copy takes the server's revision and plays on;
- * - the server moved on (another device committed): its save replaces the copy; progress the copy had not uploaded is offered as a file
- *   first and then dropped.
+ * - the server moved on (another device committed): its save replaces the copy; progress the copy had not uploaded is dropped, with one
+ *   log line (2026-11-01 사용자: 플레이어에게 파일을 받게 하지 않는다).
  * Clocks and loop numbers decide nothing (the own-upload check compares the save's own lastModifiedAt stamp, carried in the upload),
  * and a failed server read leaves every slot as it was (the guest slot is never touched). */
 async function enterAccountSave(options = {}) {
@@ -12427,11 +12427,12 @@ async function enterAccountSave(options = {}) {
     const kept = await continueFromAccountCopy(userId);
     if (kept) return kept;
     if (adoptOwnUpload(record, userId)) return 'cached-current';
-    if (getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending) await offerUnsyncedProgressFile(record);
+    const dropped = getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending;
     const full = await readFullCloudSaveForPull();
     applyExternalSave(full.save_data, getRemoteSaveStamp(full));
-    setCloudMessage('서버 저장으로 이어서 합니다.');
-    if (!options.silent) addLog('서버 저장으로 이어서 합니다.', 'loot-magic');
+    const note = dropped ? '다른 기기에서 저장한 뒤라 서버 저장으로 이어서 합니다. 이 기기에서 올리지 못한 진행은 지웠습니다.' : '서버 저장으로 이어서 합니다.';
+    setCloudMessage(note);
+    if (!options.silent) addLog(note, 'loot-magic');
     return 'pulled-server';
 }
 
@@ -12560,32 +12561,6 @@ async function moveGuestSaveIntoAccount() {
     } finally {
         cloudState.busy = false;
         updateCloudSaveUI();
-    }
-}
-
-/** Another device committed after this copy's revision: the progress this copy never uploaded is lost to the server save. Before that,
- * once, it can be kept as a file (for keeping, not for loading: the game reads no files, so a copy cannot come back twice). */
-async function offerUnsyncedProgressFile(record) {
-    const mine = `루프 ${getSaveLoopNumber(game)}, 레벨 ${Math.floor(Number(game.level) || 1)}, 마지막 저장 ${formatCloudTime(game.saveMeta.lastModifiedAt)}`;
-    const theirs = `루프 ${getSaveLoopNumber(record.save_data)}, 마지막 저장 ${formatCloudTime(getRemoteSaveStamp(record))}`;
-    const keep = await requestGameConfirmation(`다른 기기에서 저장한 뒤라 서버 저장으로 이어서 합니다.\n이 기기에서 아직 올리지 못한 진행(${mine})은 지워집니다.\n\n서버 저장\n${theirs}`,
-        { title: '서버 저장이 바뀌었습니다', tone: 'warning', confirmLabel: '파일로 받고 계속', cancelLabel: '그냥 계속' });
-    if (keep) downloadSaveFile(createSaveSnapshot(game), `rignin-이기기진행-${new Date().toISOString().slice(0, 10)}.json`);
-}
-
-/** Hands the viewer a JSON file of a save (a browser download). */
-function downloadSaveFile(data, name) {
-    try {
-        let link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: 'application/json' }));
-        link.download = name;
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-    } catch (error) {
-        console.warn('save file download failed:', error);
-        showGameToast('파일로 받지 못했습니다.', { tone: 'warning' });
     }
 }
 

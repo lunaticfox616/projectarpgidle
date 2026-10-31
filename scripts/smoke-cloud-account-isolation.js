@@ -147,15 +147,13 @@ async function run() {
         assert.strictEqual(await clean.runtime.enterAccountSave(), 'cached-current');
         assert.deepStrictEqual([clean.runtime.game.level, clean.server.commits.length], [50, 0]);
     }
-    // 6. Another device committed since: the server wins. Pending progress is offered as a file once, then dropped; nothing goes up.
+    // 6. Another device committed since: the server wins. Pending progress is dropped with a log line, no question, no file (2026-11-01); nothing goes up.
     {
         const d = createDevice({ guestSave, accountSave: ownedCopy(50, 7, true), serverSave: { ...serverSave, level: 70 }, serverRevision: 9 });
         d.signIn();
-        d.setAnswer(true);
         assert.strictEqual(await d.runtime.enterAccountSave(), 'pulled-server');
-        assert.strictEqual(d.confirmations.length, 1);
-        assert.match(d.confirmations[0].message, /아직 올리지 못한 진행\(루프 4, 레벨 50/);
-        assert.deepStrictEqual([d.downloads.length, d.runtime.game.level, d.runtime.game.saveMeta.cloudRevision, d.runtime.game.saveMeta.cloudPending, d.server.commits.length], [1, 70, 9, false, 0]);
+        assert.deepStrictEqual([d.confirmations.length, d.downloads.length, d.runtime.game.level, d.runtime.game.saveMeta.cloudRevision, d.runtime.game.saveMeta.cloudPending, d.server.commits.length], [0, 0, 70, 9, false, 0]);
+        assert.match(d.cloud().lastMessage, /올리지 못한 진행은 지웠습니다/);
         const quiet = createDevice({ guestSave, accountSave: ownedCopy(50, 7, false), serverSave: { ...serverSave, level: 70 }, serverRevision: 9 });
         quiet.signIn();
         assert.strictEqual(await quiet.runtime.enterAccountSave(), 'pulled-server');
