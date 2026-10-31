@@ -641,6 +641,18 @@ function plantSkippedStumpStarter(key) {
     if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗, 수액을 배치했습니다', { tone: 'success' });
 }
 
+/** The queue and the card on screen belonged to the game running until now; a loaded save brings its own (js/ui.js
+ * refreshRuntimeForLoadedSave). No skip bookkeeping: the keys were marked in the game that is gone. 2026-11-01: a signed-in player
+ * whose guest slot is empty booted into a fresh default, which queued the prologue, act 1 and first-journey cards, and the account save
+ * loaded under them, so they came back on every launch. */
+function discardQueuedNotices() {
+    tutorialQueue.length = 0;
+    if (!activeTutorial) return;
+    document.getElementById('tutorial-overlay').classList.remove('active');
+    activeTutorial = null;
+    activeTutorialStep = 0;
+}
+
 function dismissTutorial(openTarget) {
     if (!activeTutorial) return;
     const notice = activeTutorial, tabId = notice.tabId;

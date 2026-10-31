@@ -12136,6 +12136,7 @@ function markCurrentSaveCloudOwner() {
 /** The running game was replaced by a loaded save (a server save, or a slot just selected): restarts what depends on it, combat runtimes,
  * hero selection, passives and the screens. */
 function refreshRuntimeForLoadedSave() {
+    discardQueuedNotices();
     recoverRuntimeState();
     resetCombatRuntimesForLoadedSave();
     resetHeroSelectionForSave();
