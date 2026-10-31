@@ -31,8 +31,17 @@ const stageBlessing = (() => {
     function sparksFor(now) {
         return Array.from({ length: 10 }, () => ({ x: Math.random() * 60 - 30, y: -4 - Math.random() * 20, at: now - Math.random() * 120 }));
     }
-    /** 프레임마다: 걸린 가호가 바뀌었으면 새로 받고, 풀렸으면 걷기 시작한다. */
+    /** 프레임마다: 걸린 가호가 바뀌었으면 새로 받고, 풀렸으면 걷기 시작한다. 어느 가호가 걸렸는지는 장비, 소환 칸, 룬 수, 레벨이 바뀌었을 때와
+     * 1초에 한 번만 묻는다: 묻는 길이 장비 평가를 지나 빌드 서명(24KB JSON)을 프레임마다 다시 만들었다(2026-10-31 프로파일, 2분에 0.69초). */
+    let askedDigest = null, askedAt = -Infinity;
+    function buildDigest() {
+        const gear = Object.values(game.equipment || {}).map(item => (item ? item.id : 0)).join(',');
+        return gear + '|' + (game.equippedSummonSkills || []).join(',') + '|' + (game.skills || []).length + '|' + game.level + '|' + (game.playerHp > 0);
+    }
     function blessingFrame(now) {
+        const digest = buildDigest();
+        if (digest === askedDigest && now - askedAt < 1000) return;
+        askedDigest = digest; askedAt = now;
         const name = activeName();
         if ((current && current.name) === name) return;
         if (current) leaving = { ...current, until: now + FADE_OUT };

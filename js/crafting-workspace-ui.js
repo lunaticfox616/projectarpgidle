@@ -367,10 +367,19 @@ const craftingWorkspaceUi = (() => {
         if(renderKey!==empty){root.innerHTML=empty;renderKey=empty;}
     }
 
+    /** Whether the workspace is on screen, read from classes the way js/ui.js getRenderingUiTabIds reads them: asking the box
+     * (getClientRects) laid out the whole equipment window that had just opened, 27ms thrown away on every open (2026-10-31 profile). */
+    function workspaceShown() {
+        const panel=root.closest('.subtab-content'), pane=root.closest('.tab-content');
+        if(!panel||!pane||!panel.classList.contains('active')||document.hidden)return false;
+        if(pane.classList.contains('ui-window')&&document.body.classList.contains('desktop-windowed-ui'))return pane.classList.contains('ui-window-open')&&!pane.classList.contains('ui-window-minimized');
+        return pane.classList.contains('active');
+    }
+
     function workspaceRender(reveal=false, controls) {
         if(!workspaceMount(controls))return;
         const item=workspaceSyncTarget();
-        if(!root.getClientRects().length){if(auto)workspaceStopAuto('');return;}
+        if(!workspaceShown()){if(auto)workspaceStopAuto('');return;}
         if(!item){workspacePaintEmpty();return;}
         const state=workspaceUseState(), stopped=held();
         const html=`<div class="cl-heading">${adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">재화 인벤토리</button></div>

@@ -244,16 +244,32 @@ function getDefaultUiPlayerStats() {
     };
 }
 
+/** The default stat table is built once: a tick's HUD refresh built it twice and walked it with Number() for every one of its
+ * ~290 keys (2026-10-31 profile, 0.2% of a core). A kept number is taken as it is. */
+let uiPlayerStatDefaults = null;
+function uiPlayerStatDefaultTable() {
+    if (!uiPlayerStatDefaults) {
+        uiPlayerStatDefaults = getDefaultUiPlayerStats();
+        delete uiPlayerStatDefaults.breakdowns; // each normalized table gets its own breakdowns object below
+    }
+    return uiPlayerStatDefaults;
+}
+/** Every numeric default's key holds a finite number afterwards; a kept number is left as it is. */
+function coerceUiPlayerStatNumbers(normalized, defaults) {
+    for (const key in defaults) {
+        if (key === 'breakdowns') continue;
+        let value = normalized[key];
+        if (typeof value === 'number' && Number.isFinite(value)) continue;
+        value = Number(value);
+        normalized[key] = Number.isFinite(value) ? value : defaults[key];
+    }
+}
 function normalizeUiPlayerStats(stats, fallback = {}) {
     let fromFallback = !!((stats && stats.__uiFallbackStats) || (fallback && fallback.__uiFallbackStats));
-    let normalized = Object.assign(getDefaultUiPlayerStats(), fallback || {}, (stats && typeof stats === 'object') ? stats : {});
+    let numericDefaults = uiPlayerStatDefaultTable();
+    let normalized = Object.assign({}, numericDefaults, fallback || {}, (stats && typeof stats === 'object') ? stats : {});
     if (fromFallback) normalized.__uiFallbackStats = true;
-    let numericDefaults = getDefaultUiPlayerStats();
-    Object.keys(numericDefaults).forEach(key => {
-        if (key === 'breakdowns') return;
-        let value = Number(normalized[key]);
-        normalized[key] = Number.isFinite(value) ? value : numericDefaults[key];
-    });
+    coerceUiPlayerStatNumbers(normalized, numericDefaults);
     normalized.maxHp = Math.max(1, Number(normalized.maxHp) || 1);
     normalized.aspd = Math.max(0.01, Number(normalized.aspd) || 1);
     normalized.move = Math.max(0, Number(normalized.move) || 100);
