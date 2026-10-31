@@ -43,7 +43,8 @@ let room = null;
 const ICON_FAMILIES = [
     'blade', 'projectile', 'shield', 'potion', 'strength', 'mystique', 'devotion', 'cycle', 'elemental',
     'dexterity', 'chaos', 'life', 'arcane', 'summon', 'intelligence', 'precision', 'wind', 'void', 'constellation',
-    'fire', 'cold', 'lightning', 'cooldown', 'critical', 'armor', 'evasion', 'energyShield', 'ignite', 'chill', 'freeze', 'shock', 'bleed', 'poison'
+    'fire', 'cold', 'lightning', 'cooldown', 'critical', 'armor', 'evasion', 'energyShield', 'ignite', 'chill', 'freeze', 'shock', 'bleed', 'poison',
+    'wisp', 'blessing', 'mobility', 'area', 'slam', 'damageOverTime', 'spell', 'censer', 'greatsword', 'bow', 'orb'
 ];
 
 function readTree() {

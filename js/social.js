@@ -2491,7 +2491,7 @@ function injectSocialStyles() {
     .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:6px;padding:5px 9px;}
     .social-stat-label{display:inline-flex;align-items:center;color:var(--copy-bright);font-size:12px;}
     .social-stat-label .combat-log-icon,.social-stat-icon{flex:0 0 auto;width:16px;height:16px;margin-right:6px;}
-    .social-stat-icon{display:inline-block;background:url('assets/ui/passive-tree-icons-v5.png') no-repeat;background-size:110px 154px;}
+    .social-stat-icon{display:inline-block;background:url('assets/ui/passive-tree-icons-v5.png') no-repeat;background-size:110px 198px;}
     .social-stat-icon.is-none{background:none;}
     .social-stat-value{color:var(--color-text);font-weight:700;font-size:12px;}
     .social-mini-grid{display:flex;flex-direction:column;gap:6px;}

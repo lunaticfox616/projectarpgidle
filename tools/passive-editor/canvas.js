@@ -16,9 +16,12 @@ export const ICON_CELLS = Object.freeze({
     chaos: [0, 2], life: [1, 2], arcane: [2, 2], summon: [3, 2], intelligence: [4, 2],
     precision: [0, 3], wind: [1, 3], void: [2, 3], constellation: [3, 3],
     fire: [4, 3], cold: [0, 4], lightning: [1, 4], cooldown: [2, 4], critical: [3, 4], armor: [4, 4],
-    evasion: [0, 5], energyShield: [1, 5], ignite: [2, 5], chill: [3, 5], freeze: [4, 5], shock: [0, 6], bleed: [1, 6], poison: [2, 6]
+    evasion: [0, 5], energyShield: [1, 5], ignite: [2, 5], chill: [3, 5], freeze: [4, 5], shock: [0, 6], bleed: [1, 6], poison: [2, 6],
+    // 2026-11-01 expansion-02: skill kinds and weapons, picked by hand or by the stat below
+    wisp: [3, 6], blessing: [4, 6], mobility: [0, 7], area: [1, 7], slam: [2, 7], damageOverTime: [3, 7], spell: [4, 7],
+    censer: [0, 8], greatsword: [1, 8], bow: [2, 8], orb: [3, 8]
 });
-const ICON_ROWS = 7;
+const ICON_ROWS = 9;
 
 const STAT_FAMILY = Object.freeze({
     strength: 'strength', dexterity: 'dexterity', intelligence: 'intelligence', mystique: 'mystique',
@@ -27,8 +30,9 @@ const STAT_FAMILY = Object.freeze({
     // 2026-11-01: the same picks as PASSIVE_ICON_FAMILY in js/passives.js for the stats the editor's bundles use
     firePctDmg: 'fire', coldPctDmg: 'cold', lightPctDmg: 'lightning', elementalPctDmg: 'elemental', resF: 'fire', resC: 'cold', resL: 'lightning',
     igniteChance: 'ignite', chillChance: 'chill', freezeChance: 'freeze', shockChance: 'shock', bleedChance: 'bleed', poisonChance: 'poison',
-    chaosPctDmg: 'chaos', resChaos: 'chaos', flatHp: 'life', pctHp: 'life', regen: 'life',
-    energyShield: 'energyShield', energyShieldPct: 'energyShield', spellPctDmg: 'arcane', summonPctDmg: 'summon',
+    chaosPctDmg: 'chaos', resChaos: 'chaos', dotPctDmg: 'damageOverTime', aoePctDmg: 'area', slamPctDmg: 'slam', mobilityPctDmg: 'mobility',
+    flatHp: 'life', pctHp: 'life', regen: 'life',
+    energyShield: 'energyShield', energyShieldPct: 'energyShield', spellPctDmg: 'spell', summonPctDmg: 'summon',
     summonHpPct: 'summon', summonFlatDmg: 'summon', crit: 'critical', critDmg: 'critical', aspd: 'precision',
     cooldownRecovery: 'cooldown', cooldownReduction: 'cooldown', evasion: 'evasion', evasionPct: 'evasion', move: 'wind'
 });

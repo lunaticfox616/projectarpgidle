@@ -17,7 +17,9 @@ const ICON_FAMILY_LABELS = Object.freeze({
     elemental: '원소', dexterity: '민첩', chaos: '카오스', life: '생명', arcane: '비전', summon: '소환', intelligence: '지능',
     precision: '정밀', wind: '바람', void: '공허', constellation: '별자리',
     fire: '화염', cold: '냉기', lightning: '번개', cooldown: '재사용 대기시간', critical: '치명타', armor: '방어도', evasion: '회피',
-    energyShield: '에너지 보호막', ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', bleed: '출혈', poison: '중독'
+    energyShield: '에너지 보호막', ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', bleed: '출혈', poison: '중독',
+    wisp: '위습', blessing: '가호', mobility: '이동 스킬', area: '범위 피해', slam: '강타', damageOverTime: '지속 피해', spell: '주문',
+    censer: '향로', greatsword: '대검', bow: '활', orb: '오브'
 });
 const iconFamilyLabel = family => ICON_FAMILY_LABELS[family] || family;
 
@@ -533,7 +535,7 @@ function bindField(id, field, transform = value => value) {
 function iconChoicesHtml() {
     return config.iconFamilies.map(family => {
         const [x, y] = ICON_CELLS[family] || [0, 0];
-        const position = `${x / 4 * 100}% ${y / 6 * 100}%`; // 5 columns, 7 rows on the v5 sheet
+        const position = `${x / 4 * 100}% ${y / 8 * 100}%`; // 5 columns, 9 rows on the v5 sheet
         return `<button class="icon-choice" type="button" data-family="${family}" data-tip="${escapeHtml(iconFamilyLabel(family))}" aria-label="${escapeHtml(iconFamilyLabel(family))}" style="background-position:${position}"></button>`;
     }).join('');
 }

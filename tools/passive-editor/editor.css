@@ -97,7 +97,7 @@ fieldset > label, fieldset > .two-columns { margin-bottom: 9px; }
 .effect-row { display: grid; grid-template-columns: minmax(0, 1fr) 88px 32px; gap: 6px; }
 .effect-row button { padding: 5px; color: #ffb2b9; }
 .icon-family-gallery { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 8px 0 10px; }
-.icon-choice { aspect-ratio: 1; padding: 0; background-color: #09111a; background-image: url('/assets/ui/passive-tree-icons-v5.png'); background-size: 500% 700%; }
+.icon-choice { aspect-ratio: 1; padding: 0; background-color: #09111a; background-image: url('/assets/ui/passive-tree-icons-v5.png'); background-size: 500% 900%; }
 .icon-choice { position: relative; }
 .icon-choice.selected { border-color: #e1bd72; box-shadow: 0 0 0 2px rgba(225, 189, 114, .22); }
 /* 아이콘 이름은 CSS로 바로 띄운다(브라우저 툴팁은 늦게 뜨고 영어 id였다) */

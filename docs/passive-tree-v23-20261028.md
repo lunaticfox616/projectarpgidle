@@ -43,7 +43,7 @@
 - 아이콘 62종과 테두리 5종은 Codex 그림이다.
   - 원본 폴더: `proto-passive-layout-20261028` 작업본의 `artifacts/passive-node-icons-20261028`(브랜치 prototype/passive-layout-20261028).
   - `node scripts/build-passive-tree-art.js <그 폴더>`가 게임이 읽는 네 파일을 만든다.
-    - `assets/ui/passive-tree-icons-v5.png(5×7, 2026-11-01 Codex의 14종: 화염, 냉기, 번개, 재사용 대기시간, 치명타, 방어도, 회피, 에너지 보호막, 점화, 냉각, 동결, 감전, 출혈, 중독)`, `-notable-icons-v5.png`, `-keystone-icons-v2.png`(6×6, 피빛 요람 포함), `passive-tree-frames-v1.png`.
+    - `assets/ui/passive-tree-icons-v5.png(5×9, 2026-11-01 Codex의 25종: 화염, 냉기, 번개, 재사용 대기시간, 치명타, 방어도, 회피, 에너지 보호막, 점화, 냉각, 동결, 감전, 출혈, 중독, 위습, 가호, 이동 스킬, 범위 피해, 강타, 지속 피해, 주문, 향로, 대검, 활, 오브)`, `-notable-icons-v5.png`, `-keystone-icons-v2.png`(6×6, 피빛 요람 포함), `passive-tree-frames-v1.png`.
     - 칸 자리는 `js/passives.js`의 표(`PASSIVE_ICON_ATLAS_CELL` 들, `PASSIVE_TREE_FRAME_SHEET`)를 읽는다.
   - 프로필 능력치 아이콘(`js/social.js`)과 편집기도 같은 기본 아이콘 판을 쓴다.
 - 노드마다 모양, 상태, 아이콘, 화면 크기별 그림 조각을 한 번 그려 다시 쓴다. 조각이 1200개를 넘으면 처음부터 다시 그린다.
