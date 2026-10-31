@@ -266,7 +266,7 @@
         let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
         let share = Math.min(1, used / cells), fillClass = share >= 1 ? ' is-full' : share >= 0.75 ? ' is-high' : '';
         let text = `${index + 1}페이지, ${used}/${cells}칸${searchText}`;
-        return `<button type="button" class="${active ? 'active' : ''}${searchClass}${fillClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${active ? 'true' : 'false'}" aria-label="${text}" title="${text}">`
+        return `<button type="button" class="${active ? 'active' : ''}${searchClass}${fillClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${active ? 'true' : 'false'}" aria-label="${text}" data-tip="${text}">`
             + `<i class="page-fill" style="height:${Math.round(share * 100)}%" aria-hidden="true"></i><span>${index + 1}</span>${badge}</button>`;
     }
 

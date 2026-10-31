@@ -24,7 +24,7 @@ const equipmentWindowUi = (() => {
     function ehpItems(stats) {
         const profile = typeof calculatePlayerEhpProfile === 'function' ? calculatePlayerEhpProfile(stats) : null;
         if (!profile) return '';
-        return EHP.map(([name, key]) => `<span style="--c:${COLOR[key]}" title="직격 ${fmt(profile.elements[key].direct)}">${name} <b>${fmt(profile.elements[key].entropy)}</b></span>`).join('');
+        return EHP.map(([name, key]) => `<span style="--c:${COLOR[key]}" data-tip="직격 ${fmt(profile.elements[key].direct)}">${name} <b>${fmt(profile.elements[key].entropy)}</b></span>`).join('');
     }
     /** The phone's one-line summary: 유효 생명력 and the five values in one wrapping row. */
     function ehpHtml(stats) {
@@ -97,7 +97,7 @@ const equipmentWindowUi = (() => {
         const empty = !getSearchFilterState().equip.trim();
         document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) [data-search-salvage]').forEach(button => {
             button.disabled = empty;
-            button.title = empty ? '가방 검색어를 먼저 입력하세요.' : '';
+            button.dataset.tip = empty ? '가방 검색어를 먼저 입력하세요.' : '';
         });
     }
     /** Opening one panel closes the others (the toggle event does not bubble, so the document listens in the capture phase). */

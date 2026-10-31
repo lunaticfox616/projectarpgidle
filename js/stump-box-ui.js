@@ -115,16 +115,16 @@ const stumpBoxUi = (() => {
     }
     /** The cell's place on the board grid: the odd tracks are the frame's holes, the even ones its bars (css/stump-box.css). */
     const stumpCellPlace = cell => `grid-column:${cell % STUMP_BOX_SIZE * 2 + 1};grid-row:${Math.floor(cell / STUMP_BOX_SIZE) * 2 + 1}`;
-    /** What each frame button does now, as its name (aria-label and title). */
+    /** What each frame button does now, as its name (aria-label and tooltip). */
     function frameButtonLabels() {
         const cube = frameView === 'cube';
         return { top: `${cube ? '그루터기 함' : '조합창'}으로 바꾸기`, left: rightView === 'bag' ? '그루터기 보관함 보기' : '장비 인벤토리 보기',
-            right: '그루터기 함과 조합창 비우기', bottom: cube ? '조합하기' : '씨앗과 수액 합치기' };
+            right: cube ? '조합창 비우기' : '그루터기 함 비우기', bottom: cube ? '조합하기' : '씨앗과 수액 합치기' };
     }
     /** The frame art (the dark one holds the board, the ivory one the cube) and its four buttons, in the art's own 256px canvas. */
     function stumpFrameHtml() {
         const buttons = Object.entries(frameButtonLabels()).map(([side, label]) => `<button type="button" class="stump-frame-button is-${side}"`
-            + ` data-stump-action="frame-button" data-side="${side}" aria-label="${label}" title="${label}"`
+            + ` data-stump-action="frame-button" data-side="${side}" aria-label="${label}" data-tip="${label}"`
             + `${side === 'left' ? ` aria-pressed="${rightView === 'bag'}"` : ''}></button>`).join('');
         return `<div class="stump-frame">${buttons}</div>`;
     }
@@ -141,7 +141,7 @@ const stumpBoxUi = (() => {
     const FRAME_BUTTONS = Object.freeze({
         top: button => switchFrame(button),
         left: () => toggleRightView(),
-        right: () => emptyBoardAndCube(),
+        right: () => (frameView === 'cube' ? emptyStumpCube() : emptyStumpBoard()),
         bottom: () => (frameView === 'cube' ? stumpCubeUi.transmuteCube() : mergeStumpNow())
     });
     function pressFrameButton(side, button) {
@@ -158,16 +158,19 @@ const stumpBoxUi = (() => {
         clearTimeout(firedTimer);
         firedTimer = setTimeout(() => { delete holder.dataset.fired; }, FRAME_FIRE_MS);
     }
-    /** Right gem: the board's items back to storage (one move [배치 되돌리기] undoes) and the cube emptied, together. */
-    function emptyBoardAndCube() {
-        const placed = game.stumpBox.board.some(id => id !== null), inCube = stumpCube.entries().length > 0;
-        if (!placed && !inCube) return notifyStump('그루터기 함과 조합창이 비어 있습니다.');
-        // A board that may not be emptied (full storage, woodsman fight) keeps the cube as it is too.
-        const refusal = placed ? stumpBox.unplaceAllReason(game) : '';
+    /** Right gem empties only the window on show (2026-10-31 사용자). On the board: the items back to storage, one move [배치 되돌리기] undoes. */
+    function emptyStumpBoard() {
+        if (!game.stumpBox.board.some(id => id !== null)) return notifyStump('그루터기 함이 비어 있습니다.');
+        const refusal = stumpBox.unplaceAllReason(game);
         if (refusal) return notifyStump(refusal);
         playUiFeedbackSound('uiCancel');
-        if (inCube) stumpCube.clear();
-        if (placed) return unplaceAllStump();
+        unplaceAllStump();
+    }
+    /** Right gem on the cube: what lies in it goes back where it came from (stumpCube.clear). */
+    function emptyStumpCube() {
+        if (!stumpCube.entries().length) return notifyStump('조합창이 비어 있습니다.');
+        playUiFeedbackSound('uiCancel');
+        stumpCube.clear();
         commitStumpChange();
     }
     /** Bottom gem on the board: three stored seeds or saps alike merge now (stumpCube.mergeNow), the picked one among them when it can
@@ -447,6 +450,11 @@ const stumpBoxUi = (() => {
         if (key === 'all') return '전체';
         return key === 'talisman' ? '부적' : STUMP_BOX_COLORS[key].label;
     }
+    /** A filter wears its colour; 전체 the box's gold, 부적 the jade that no element uses (css/stump-box.css .stump-filter). */
+    function stumpFilterTone(key) {
+        if (key === 'all') return '#e8c872';
+        return key === 'talisman' ? '#6fd6b8' : stumpTone(key);
+    }
     function stumpFilterMatch(item) {
         if (colorFilter === 'all') return true;
         return colorFilter === 'talisman' ? item.family === 'talisman' : item.color === colorFilter;
@@ -465,7 +473,7 @@ const stumpBoxUi = (() => {
         return (a.color ? (a.roll - b.roll) * (storageSort === 'quality-asc' ? 1 : -1) : 0) || a.id - b.id;
     }
     function storageSelect(key, label, value, choices) {
-        return `<select data-stump-select="${key}" aria-label="보관함 ${label}" title="${label}">`
+        return `<select data-stump-select="${key}" aria-label="보관함 ${label}">`
             + Object.entries(choices).map(([id, name]) => `<option value="${id}"${id === value ? ' selected' : ''}>${name}</option>`).join('') + '</select>';
     }
     /** One row (2026-10-25 사용자 "압축할 수 있는 부분 압축"): 상태, 정렬, 일괄 거름 · 버리기, 거른 것이 있을 때만 몇 개 보이는지. */
@@ -489,7 +497,7 @@ const stumpBoxUi = (() => {
         const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch).filter(stumpStateMatch).sort(compareStorageItems);
         const keys = ['all'].concat(COLORS, all.some(item => item.family === 'talisman') || colorFilter === 'talisman' ? ['talisman'] : []);
         const filters = all.length ? keys.map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
-            + ` data-filter="${key}" aria-pressed="${colorFilter === key}">${stumpFilterLabel(key)}</button>`).join('') : '';
+            + ` data-filter="${key}" aria-pressed="${colorFilter === key}" style="--stump-tone:${stumpFilterTone(key)}">${stumpFilterLabel(key)}</button>`).join('') : '';
         const cells = stumpStorageCells(items.length), pages = Math.max(1, Math.ceil(cells / STORAGE_PAGE_CELLS));
         storagePage = Math.min(storagePage, pages - 1);
         const from = storagePage * STORAGE_PAGE_CELLS, shown = items.slice(from, from + STORAGE_PAGE_CELLS);

@@ -167,7 +167,7 @@ const messageFrames = (() => {
         const buttons = tabs.includes('chat') ? [['settings', '⚙', '채팅 설정']] : [];
         buttons.push(state.split ? ['merge', '⇲', '합치기'] : ['split', '⇱', '보는 탭을 따로 띄우기']);
         buttons.push(folded ? ['collapse', '▢', '펼치기'] : ['collapse', '—', '접기']);
-        return buttons.map(([action, glyph, label]) => `<button type="button" data-message-action="${action}" title="${label}" aria-label="${label}">${glyph}</button>`).join('');
+        return buttons.map(([action, glyph, label]) => `<button type="button" data-message-action="${action}" data-tip="${label}" aria-label="${label}">${glyph}</button>`).join('');
     }
 
     function renderBar(frame, tabs) {

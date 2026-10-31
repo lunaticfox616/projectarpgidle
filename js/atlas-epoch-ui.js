@@ -51,7 +51,7 @@ const atlasEpochUi = (() => {
     function perkHtml(perk) {
         const level = atlasEpoch.rank(game, perk.id), full = level >= perk.max, reason = atlasEpoch.buyReason(game, perk.id);
         return `<div class="atlas-perk${level ? ' is-taken' : ''}"><div><strong>${escapeHTML(perk.name)} <span>${level}/${perk.max}</span></strong><small>${escapeHTML(perkText(perk))}</small></div>
-            <button onclick="atlasEpochUi.buy('${perk.id}')" ${reason ? 'disabled' : ''} title="${escapeHTML(reason || '')}">${full ? '최대' : `정수 ${atlasEpoch.cost(game, perk.id)}`}</button></div>`;
+            <button onclick="atlasEpochUi.buy('${perk.id}')" ${reason ? 'disabled' : ''} data-tip="${escapeHTML(reason || '')}">${full ? '최대' : `정수 ${atlasEpoch.cost(game, perk.id)}`}</button></div>`;
     }
     function rebirthReceipt() {
         if (!lastRebirth || lastRebirth.owner !== game || lastRebirth.target !== game.atlas

@@ -173,7 +173,7 @@ const craftingWorkspaceUi = (() => {
             <div class="cl-imprint-actions">${workspaceImprintButton('engrave',imprint?'다시 새기기':'지금 옵션 새기기',equipmentCrafting.engraveReason(game,item))}${imprint?workspaceImprintButton('restore','새긴 옵션으로 되돌리기',equipmentCrafting.restoreReason(item)):''}</div>
             ${imprint?`<details><summary>기억 새겨짐, 새긴 옵션 ${imprint.stats.length}줄</summary><ul>${imprint.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}${getItemAffixTierHtml(stat)}</li>`).join('')}</ul></details>`:''}</div>`;
     }
-    const workspaceImprintButton=(command,label,reason)=>`<button type="button" data-command="${command}" ${reason?`disabled title="${esc(reason)}"`:''}>${label}</button>`;
+    const workspaceImprintButton=(command,label,reason)=>`<button type="button" data-command="${command}" ${reason?`disabled data-tip="${esc(reason)}"`:''}>${label}</button>`;
 
     function workspaceGoalHtml() {
         if(!['add','reroll','fossil','value'].includes(recipe.kind))return '';
@@ -187,7 +187,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceExtraGoalsHtml() {
         const rows=goal.rules.slice(1).map((rule,index)=>`<li>${esc(rule.tag?AFFIX_TAG_LABELS[rule.tag]+' '+rule.minCount+'줄':getStatName(rule.statId))}, ${rule.minTier?'T'+rule.minTier+' 이상':'티어 무관'} <button data-command="remove-goal:${index+1}" aria-label="목표 조건 제거">제거</button></li>`).join('');
         const simulator=contentProgression.status('craftSimulator');
-        return `<ul class="cl-extra-goals">${rows}</ul><div class="cl-study-controls"><button data-command="add-goal" ${goal.rules.length>=3||!goal.rules.length?'disabled':''}>조건 추가</button><label>목표 조합 <select id="cl-goal-match"><option value="all" ${goalMatch==='all'?'selected':''}>모두 충족</option><option value="any" ${goalMatch==='any'?'selected':''}>하나 이상</option></select></label><button data-command="study" ${simulator.unlocked?'':`disabled title="${esc(simulator.reason)}"`}>제작 시뮬레이터${simulator.unlocked?'':' (잠김)'}</button></div>`;
+        return `<ul class="cl-extra-goals">${rows}</ul><div class="cl-study-controls"><button data-command="add-goal" ${goal.rules.length>=3||!goal.rules.length?'disabled':''}>조건 추가</button><label>목표 조합 <select id="cl-goal-match"><option value="all" ${goalMatch==='all'?'selected':''}>모두 충족</option><option value="any" ${goalMatch==='any'?'selected':''}>하나 이상</option></select></label><button data-command="study" ${simulator.unlocked?'':`disabled data-tip="${esc(simulator.reason)}"`}>제작 시뮬레이터${simulator.unlocked?'':' (잠김)'}</button></div>`;
     }
 
     /** Tags the craft can roll first, then single options; a goal it can no longer reach stays listed as the current one. */

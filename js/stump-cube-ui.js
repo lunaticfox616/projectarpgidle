@@ -79,7 +79,7 @@ const stumpCubeUi = (() => {
         return `<button type="button" class="stump-cube-item${entry.w * entry.h > 1 ? ' is-multi' : ''}" data-stump-action="cube-cell" data-cell="${cell}" data-stump-drop-cube="${cell}"`
             + ` data-stump-drag-cube="${cell}" data-cube-w="${entry.w}" data-cube-h="${entry.h}"`
             + ` style="grid-column:${track(entry.x, entry.w)};grid-row:${track(entry.y, entry.h)};--cube-tone:${itemTone(entry.kind, entry.item)}"`
-            + ` title="${esc(name)}, 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
+            + ` data-tip="${esc(name)}, 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
     }
 
     function gridHtml(list) {
@@ -445,7 +445,7 @@ const stumpCubeUi = (() => {
     }
     /** The closed book under the frame (both sides of the frame: the board's bottom gem merges by one of its recipes). */
     function bookButtonHtml() {
-        return `<button type="button" class="stump-recipe-book" data-stump-action="recipe-book" aria-haspopup="dialog" title="조합법 ${bookCount()}">`
+        return `<button type="button" class="stump-recipe-book" data-stump-action="recipe-book" aria-haspopup="dialog">`
             + `<img src="assets/ui/grove/recipe-book.png" alt="" draggable="false"><span>조합법 ${bookCount()}</span></button>`;
     }
     function bookMarkup() {

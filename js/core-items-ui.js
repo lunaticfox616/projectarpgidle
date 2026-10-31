@@ -22,7 +22,7 @@ const coreItemsUi = (() => {
             ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${SLOT}', false)"
             onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)">
             <div class="equipment-slot-head"><span>${SLOT}</span></div><div class="equipment-slot-visual"><img src="${coreItems.icon(core)}" alt="" aria-hidden="true" draggable="false"></div>
-            <div class="item-title equipment-slot-name ${rarity}" title="${escapeHTML(core.name)}">${escapeHTML(core.name)}</div>
+            <div class="item-title equipment-slot-name ${rarity}">${escapeHTML(core.name)}</div>
         </div>`;
     }
 

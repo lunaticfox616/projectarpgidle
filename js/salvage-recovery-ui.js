@@ -33,7 +33,7 @@ function renderSalvageRecoveryEntry(entry) {
             <div class="salvage-recovery-meta">${escapeHTML(getItemSlotDisplayLabel(item))}, T${tier}</div>
             <div class="salvage-recovery-cost"><span>반환 비용</span><strong>${escapeHTML(cost)}</strong></div>
         </div>
-        <button type="button" onclick="salvageRecoveryUi.restore(${entry.id})" ${disabled} title="${escapeHTML(status)}">${availability.canRestore ? '재화 반환 후 복구' : escapeHTML(status)}</button>
+        <button type="button" onclick="salvageRecoveryUi.restore(${entry.id})" ${disabled} data-tip="${escapeHTML(status)}">${availability.canRestore ? '재화 반환 후 복구' : escapeHTML(status)}</button>
     </article>`;
 }
 

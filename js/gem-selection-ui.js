@@ -31,7 +31,7 @@
             const group = rows.filter(row => row.role === role);
             const status = ['on', 'na', 'off', 'buff', 'empty'].find(key => group.some(row => row.status === key)) || 'empty';
             const text = group.map(row => `${row.name || label}: ${row.reason || TARGET_STATES[row.status]}`).join(', ') || TARGET_STATES.empty;
-            return `<span class="support-target is-${status}" title="${escapeHTML(text)}" aria-label="${label}: ${escapeHTML(text)}"><i aria-hidden="true"></i>${label === '주 공격' ? '주' : label.slice(0, 1)}</span>`;
+            return `<span class="support-target is-${status}" data-tip="${escapeHTML(text)}" aria-label="${label}: ${escapeHTML(text)}"><i aria-hidden="true"></i>${label === '주 공격' ? '주' : label.slice(0, 1)}</span>`;
         }).join('') + '</span>';
     }
 
@@ -141,7 +141,7 @@
         const worn = anchor.classList.contains('active');
         const canUnequip = support || skillGemBoardUi.kindOf(name) === 'summon' || mobilitySkill.isMobilityGem(name);
         const refusal = getSkillGemSealRefusal(name, support);
-        const seal = !worn && name !== '기본 공격' ? `<button type="button" data-gem-action="seal" class="gem-selection-seal" ${refusal ? `disabled title="${escapeHTML(refusal)}"` : ''}>봉인</button>` : '';
+        const seal = !worn && name !== '기본 공격' ? `<button type="button" data-gem-action="seal" class="gem-selection-seal" ${refusal ? `disabled data-tip="${escapeHTML(refusal)}"` : ''}>봉인</button>` : '';
         return equipButton(anchor, canUnequip) + kindControls(type, name, worn) + seal + '<button type="button" data-gem-action="close" aria-label="룬 상세 닫기">닫기</button>';
     }
 

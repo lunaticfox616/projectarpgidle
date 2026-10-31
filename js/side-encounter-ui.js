@@ -348,7 +348,7 @@ const sideEncounterUi = (() => {
     }
     function labyrinthEntryActions(floor, max, current, blocked) {
         const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>'
-            : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})" ${blocked ? `disabled title="${escapeHTML(blocked)}"` : ''}>${floor}층 입장</button>`;
+            : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})" ${blocked ? `disabled data-tip="${escapeHTML(blocked)}"` : ''}>${floor}층 입장</button>`;
         const picks = [...new Set([1, Math.max(1, floor - 1), Math.min(max, floor + 1), max])].filter(value => value !== floor);
         const navigation = picks.map(value => `<button type="button" class="labyrinth-floor-link" onclick="sideEncounterUi.selectLabyrinthFloor(${value})">${value === max ? '최고 ' : ''}${value}층</button>`).join('');
         return `<div class="map-expedition-actions">${action}${navigation}${max > 1 ? '<button type="button" onclick="sideEncounterUi.chooseLabyrinthFloor()">층 선택</button>' : ''}</div>`;

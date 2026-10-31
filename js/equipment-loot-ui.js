@@ -3,7 +3,7 @@
     const rarityNames = ITEM_RARITY_LABELS;
 
     function renderPresets() {
-        const buttons = Object.entries(ITEM_PICKUP_PRESETS).map(([key, preset]) => `<button type="button" data-pickup-preset="${key}" title="${escapeHTML(preset.note)}" onclick="equipmentLootUi.applyPreset('${key}')">${escapeHTML(preset.label)}</button>`).join('');
+        const buttons = Object.entries(ITEM_PICKUP_PRESETS).map(([key, preset]) => `<button type="button" data-pickup-preset="${key}" data-tip="${escapeHTML(preset.note)}" onclick="equipmentLootUi.applyPreset('${key}')">${escapeHTML(preset.label)}</button>`).join('');
         const notes = Object.values(ITEM_PICKUP_PRESETS).map(preset => `${preset.label}: ${preset.note}`).join(' ');
         return `<div class="loot-filter-actions loot-pickup-presets"><span>빠른 설정</span>${buttons}</div><p class="loot-filter-note">${escapeHTML(notes)}</p>`;
     }

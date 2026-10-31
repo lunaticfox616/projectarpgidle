@@ -50,8 +50,9 @@ const actExplorationUi=(()=>{
         const remaining=actExplorationState.remainingElites(run),seal=document.getElementById('act-exploration-seal');
         // '봉인 n'은 무엇을 세는지 보이지 않았다(검토 4차): 남은 정예 수와, 다 잡으면 무엇이 열리는지.
         seal.textContent=remaining?'정예 '+remaining:'관문 개방';
-        seal.title=remaining?`남은 정예 ${remaining}, 모두 처치하면 보스 관문이 열립니다`:'보스 관문이 열렸습니다';
-        seal.setAttribute('aria-label',seal.title);
+        const sealText=remaining?`남은 정예 ${remaining}, 모두 처치하면 보스 관문이 열립니다`:'보스 관문이 열렸습니다';
+        seal.dataset.tip=sealText;
+        seal.setAttribute('aria-label',sealText);
     }
     /** 약도 한 장: 방 단위 무대는 방과 길의 약도(바탕과 표식을 따로 그린다), 이어진 지도는 주인공 둘레의 지형. */
     function paintMiniMap(canvas,run,map) {

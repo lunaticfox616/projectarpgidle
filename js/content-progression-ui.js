@@ -138,13 +138,13 @@ const contentUnlockUi = {
         const now = this.upgradeEffect(spec, rank), then = next ? ` → <b>${escapeHTML(this.upgradeEffect(spec, rank + 1))}</b>` : '';
         const action = !next ? '<span class="unlock-upgrade-max">최대</span>'
             : `<button type="button" data-unlock-content="${next.id}"${ready ? '' : ' disabled'}><span class="px-center">${escapeHTML(ready ? next.cost + 'P' : status.reason)}</span></button>`;
-        return `<article class="unlock-upgrade${ready ? ' is-ready' : ''}${next ? '' : ' is-max'}" title="${escapeHTML(spec.description)}">`
+        return `<article class="unlock-upgrade${ready ? ' is-ready' : ''}${next ? '' : ' is-max'}" data-tip="${escapeHTML(spec.description)}">`
             + `<img src="assets/${spec.art}" alt=""><div><strong>${escapeHTML(spec.name)}<small>${rank}/${steps}</small></strong>`
             + `<span>${escapeHTML(now)}${then}</span></div>${action}</article>`;
     },
     /** 세로로 짧은 창에서 강화 카드 대신 보이는 한 줄(css/content-progression.css): 시리즈마다 그림과 단계, 살 수 있는 수. 누르면 카드가 연결도 위로 펼쳐진다. */
     upgradeStrip(series) {
-        const chips = series.map(row => `<span class="unlock-upgrade-chip${row.ready ? ' is-ready' : ''}${row.next ? '' : ' is-max'}" title="${escapeHTML(row.spec.name)}"><img src="assets/${row.spec.art}" alt=""><small>${row.rank}/${row.steps}</small></span>`).join('');
+        const chips = series.map(row => `<span class="unlock-upgrade-chip${row.ready ? ' is-ready' : ''}${row.next ? '' : ' is-max'}" data-tip="${escapeHTML(row.spec.name)}"><img src="assets/${row.spec.art}" alt=""><small>${row.rank}/${row.steps}</small></span>`).join('');
         const ready = series.filter(row => row.ready).length;
         return `<button type="button" class="unlock-upgrade-strip" data-unlock-upgrades="toggle" aria-expanded="${this.upgradesOpen}"><strong>강화</strong>${chips}${ready ? `<span class="unlock-upgrade-ready">구매 가능 ${ready}</span>` : ''}</button>`;
     },
@@ -157,7 +157,7 @@ const contentUnlockUi = {
     /** An NPC unlock's mark: the face of the NPC who gives it, on the corner of its picture (stage art; a missing one is dropped). */
     npcFace(def) {
         if (!def.npc) return '';
-        return `<span class="unlock-npc-face" title="${escapeHTML(contentProgression.npcName(def.npc))}에게서 받는 해금"><img src="${STAGE_NPC_ART.path}${def.npc}-portrait.webp" alt=""></span>`;
+        return `<span class="unlock-npc-face" data-tip="${escapeHTML(contentProgression.npcName(def.npc))}에게서 받는 해금"><img src="${STAGE_NPC_ART.path}${def.npc}-portrait.webp" alt=""></span>`;
     },
     branchRoot(def) {
         if (def.displayBranch) return def.displayBranch;
@@ -343,10 +343,10 @@ const contentUnlockUi = {
     },
     pointBalanceHtml() {
         const points = contentProgression.points();
-        if (points.complete) return '<div class="content-unlock-balance" title="넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다.">전체 해금 완료</div>';
+        if (points.complete) return '<div class="content-unlock-balance" data-tip="넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다.">전체 해금 완료</div>';
         const title = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.'
             : `루프마다 ${CONTENT_UNLOCK_POINT_AWARDS.perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수. NPC 해금은 포인트 없이 그 NPC에게서 받습니다.`;
-        return `<div class="content-unlock-balance" title="${title}"><span>해금</span><strong>${points.balance}</strong><span>P</span></div>`;
+        return `<div class="content-unlock-balance" data-tip="${title}"><span>해금</span><strong>${points.balance}</strong><span>P</span></div>`;
     },
     render() {
         const root = document.getElementById('content-unlock-panel');

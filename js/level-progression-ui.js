@@ -45,7 +45,7 @@ const levelProgressionUi = (() => {
             let badge = card.querySelector('.equipment-requirement-badge');
             if (!reason) { if (badge) badge.remove(); return; }
             if (!badge) { badge = document.createElement('span'); badge.className = 'equipment-requirement-badge'; card.append(badge); }
-            badge.textContent = '조건 부족'; badge.title = reason.join(', ');
+            badge.textContent = '조건 부족';
         });
     }
     return Object.freeze({ item, area, rewardHint, rewardData, decorateSlots });

@@ -16,7 +16,7 @@ const chatItemPicker = (() => {
         const snap = opts.source ? getChatAttachSnapshot(opts.source, opts.key) : null;
         const classes = `chat-pick-cell rarity-${item.rarity || 'normal'}${item.corrupted ? ' is-corrupted' : ''} ${opts.cls || ''}`;
         const inner = `${opts.label ? `<small class="chat-pick-slot-name">${escapeHTML(opts.label)}</small>` : ''}<img src="${escapeHTML(opts.art)}" alt="" draggable="false">`;
-        if (!snap) return `<span class="${classes} is-locked" style="${opts.style || ''}" title="채팅에 붙일 수 없는 아이템">${inner}</span>`;
+        if (!snap) return `<span class="${classes} is-locked" style="${opts.style || ''}" data-tip="채팅에 붙일 수 없는 아이템">${inner}</span>`;
         const tipKey = `${opts.source}:${opts.key}`;
         socialState.pickTips[tipKey] = renderProfileItemCard(snap);
         return `<button type="button" class="${classes}" style="${opts.style || ''}" aria-label="${escapeHTML(`${snap.name} 첨부`)}"

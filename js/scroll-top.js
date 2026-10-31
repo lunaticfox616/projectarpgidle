@@ -75,7 +75,7 @@
         button.className = 'scroll-to-top-button';
         button.hidden = true;
         button.textContent = '↑';
-        button.title = '맨 위로';
+        button.dataset.tip = '맨 위로';
         button.setAttribute('aria-label', '현재 탭 맨 위로');
         button.addEventListener('click', scrollActiveSurfaceToTop);
         document.body.appendChild(button);

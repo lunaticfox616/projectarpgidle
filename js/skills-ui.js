@@ -295,7 +295,7 @@
             if (skillEnhanceBtn) {
                 skillEnhanceBtn.disabled = !gemEnhanceOpen;
                 skillEnhanceBtn.style.opacity = gemEnhanceOpen ? '1' : '0.45';
-                skillEnhanceBtn.title = gemEnhanceOpen ? '' : '해금 탭에서 룬 강화를 해금하세요.';
+                skillEnhanceBtn.dataset.tip = gemEnhanceOpen ? '' : '해금 탭에서 룬 강화를 해금하세요.';
             }
             if (!gemEnhanceOpen && game.skillSubtab === 'skill-tab-enhance') game.skillSubtab = 'skill-tab-equip';
             if (gemEnhanceOpen) {

@@ -721,7 +721,7 @@ function renderPaperdoll(targetId, forCrafting) {
             let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
             html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
                 <div class="equipment-slot-head"><span>${displaySlot}</span>${equipmentSocketsUi.pipsHtml(item)}</div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
-                <div class="item-title equipment-slot-name ${item.rarity}" title="${escapeHTML(item.name)}">${hi(paperdollItemLabel(item))}</div>
+                <div class="item-title equipment-slot-name ${item.rarity}">${hi(paperdollItemLabel(item))}</div>
                 ${footer}
             </div>`;
         } else {
@@ -750,12 +750,12 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
     let filterClass = filterState && filterState.filterActive
         ? (filterState.filterMatched ? 'is-filter-match' : 'is-filter-muted') : '';
     let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
-    // Opus 4차 검수: 비교 수치를 먼저 한 개만 표시. 잠금·세팅·특수와 다른 비교 수치는 툴팁/ARIA에 남긴다.
+    // Opus 4차 검수: 비교 수치를 먼저 한 개만 표시. 잠금·세팅·특수와 다른 비교 수치는 ARIA에 남긴다.
     const gains = triageResult ? [[triageResult.dpsGainPct, 'atk', '공격'], [triageResult.ehpGainPct, 'def', '생존']].filter(row => row[0] >= 1) : [];
     const status = item.locked ? '잠금' : presetProtected ? '장비 세팅에 포함' : '';
     const gain = gains[0];
-    const badges = gain ? `<span class="is-${gain[1]}" title="${gain[2]} +${gain[0]}%">+${Math.round(gain[0])}%</span>`
-        : status ? `<span title="${status}">${item.locked ? '잠금' : '세팅'}</span>` : '';
+    const badges = gain ? `<span class="is-${gain[1]}">+${Math.round(gain[0])}%</span>`
+        : status ? `<span>${item.locked ? '잠금' : '세팅'}</span>` : '';
     const details = [item.locked && '잠금', presetProtected && '장비 세팅에 포함', triageResult && triageResult.special && '특수 효과',
         ...gains.map(row => `${row[2]} +${row[0]}%`)].filter(Boolean).join(', ');
     let label = [`${rarityLabel} ${item.name || item.baseName || '장비'}`, getItemSlotDisplayLabel(item), `${footprint.columns}×${footprint.rows}`, details].filter(Boolean).join(', ');
@@ -814,7 +814,7 @@ function renderEquipmentInspectorActions(item, slot, presetProtected) {
 function renderEquipmentInventoryProtectionActions(item, presetProtected, middle = '') {
     let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.' : '장비를 해체합니다.';
     return `<button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})"><span class="px-center">${item.locked ? '잠금해제' : '잠금'}</span></button>${middle}
-        <button class="equipment-card-danger" title="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${item.locked || presetProtected ? 'disabled' : ''}><span class="px-center">${presetProtected ? '보호됨' : '해체'}</span></button>`;
+        <button class="equipment-card-danger" data-tip="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${item.locked || presetProtected ? 'disabled' : ''}><span class="px-center">${presetProtected ? '보호됨' : '해체'}</span></button>`;
 }
 
 function renderEquipmentInventoryInspector(rows) {
@@ -871,8 +871,8 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     if (triageResult) {
         let dpsSlot = triageResult.dpsSlot ? `, ${String(triageResult.dpsSlot).replace(/[12]$/, '')} 교체 기준` : '';
         let ehpSlot = triageResult.ehpSlot ? `, ${String(triageResult.ehpSlot).replace(/[12]$/, '')} 교체 기준` : '';
-        if (triageResult.dpsGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-damage" title="${escapeHTML(`현재 세팅${dpsSlot}`)}">공격 +${triageResult.dpsGainPct}%</span>`;
-        if (triageResult.ehpGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-defense" title="${escapeHTML(`현재 세팅${ehpSlot}`)}">생존 +${triageResult.ehpGainPct}%</span>`;
+        if (triageResult.dpsGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-damage" data-tip="${escapeHTML(`현재 세팅${dpsSlot}`)}">공격 +${triageResult.dpsGainPct}%</span>`;
+        if (triageResult.ehpGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-defense" data-tip="${escapeHTML(`현재 세팅${ehpSlot}`)}">생존 +${triageResult.ehpGainPct}%</span>`;
         if (triageResult.kind === 'keep') metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-keep">현 세팅 유지</span>';
         if (triageResult.special) metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-special">특수</span>';
     }
@@ -881,7 +881,7 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     let salvageDisabled = item.locked || presetProtected;
     let actions = '';
     if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
-    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" title="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button></div>`;
+    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" data-tip="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button></div>`;
     let cardClick = `selectForCrafting(${item.id}, false)`;
     let recordedTag = '';
     if (item.rarity === 'unique') {

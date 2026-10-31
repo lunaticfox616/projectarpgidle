@@ -733,7 +733,7 @@ function renderBackgroundResultLoot(summary) {
     const chips = ['unique', 'rare', 'magic', 'normal'].filter(rarity => gains[rarity] > 0)
         .map(rarity => `<span class="background-result-chip" style="--chip-tone:${getRarityColor(rarity)}">${ITEM_RARITY_LABELS[rarity]} <b>${gains[rarity]}</b></span>`);
     const salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
-    if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" title="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
+    if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" data-tip="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
     const row = chips.length ? `<div class="background-result-chips">${chips.join('')}</div>` : '';
     return row + equipmentLootUi.renderHighlights(summary.highlights);
 }
@@ -2573,7 +2573,7 @@ function getConditionRuleKind(action) {
     return tactic.positionMode ? '거리' : '귀환';
 }
 function renderConditionRuleHead(rule, idx, action) {
-    return `<div class="condition-rule-head"><b class="condition-rule-rank" title="우선순위">${idx + 1}</b><span class="condition-rule-kind">${getConditionRuleKind(action)}</span>
+    return `<div class="condition-rule-head"><b class="condition-rule-rank" data-tip="우선순위">${idx + 1}</b><span class="condition-rule-kind">${getConditionRuleKind(action)}</span>
             <span class="condition-rule-lamp"></span><span class="condition-rule-tools">
             <label><input type="checkbox" ${rule.enabled ? 'checked' : ''} onchange="game.skillAutoRules[${idx}].enabled=this.checked; renderSkillAutoRulePanel();"> 사용</label></span></div>`;
 }
@@ -3521,8 +3521,7 @@ function syncMapPrimaryContentTabs() {
         button.classList.toggle('map-primary-tab--entry-locked', !!condition);
         button.dataset.entryCondition = condition;
         button.setAttribute('aria-label', condition ? `${def.label}, ${condition}` : def.label);
-        if (condition) button.title = condition;
-        else button.removeAttribute('title');
+        button.dataset.tip = condition;
         if (unlocked) revealMapPrimaryTab(button, def.id);
     });
     if (!activeUnlocked && game.mapSubtab !== 'map-tab-zones') switchMapSubtab('map-tab-zones');
@@ -4072,7 +4071,7 @@ function renderSealedGemCard(name, highlightedName, isSupport) {
     let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
     let art = isSupport ? supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', 0) : renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art');
     const refusal = game.woodsmanBuildLock ? getSkillGemSealRefusal(name, isSupport) : (game.resonancePower < 1 ? '공명력이 부족합니다.' : '');
-    return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨, 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}" ${refusal ? `disabled title="${escapeHTML(refusal)}"` : ''}>봉인 해제</button></article>`;
+    return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">봉인됨, 공명력 1로 복원</small><button type="button" class="gem-card-utility" onclick="${releaseCall}" ${refusal ? `disabled data-tip="${escapeHTML(refusal)}"` : ''}>봉인 해제</button></article>`;
 }
 
 /** 룬 레벨 구성(2026-10-09): 최종 레벨을 크게, 기본/재료와 각성/장비와 패시브를 한 막대에 나눠 칠하고, 그 아래 전투 수치 칩. 작은 4칸 표였다. */
@@ -4165,7 +4164,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
         let orbitX = 50 + Math.cos(orbitAngle * Math.PI / 180) * orbitRadius;
         let orbitY = 50 + Math.sin(orbitAngle * Math.PI / 180) * orbitRadius;
         spokes.push(`<span class="gem-orbit-spoke" aria-hidden="true" style="--orbit-angle:${orbitAngle}deg"></span>`);
-        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${group ? `group-${group.className}` : ''}" style="--slot-x:${orbitX.toFixed(3)}%;--slot-y:${orbitY.toFixed(3)}%" title="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" aria-pressed="${enhancement ? 'true' : 'false'}" aria-disabled="${!unlocked && !nextUnlock ? 'true' : 'false'}" data-slot-index="${index}" data-slot-state="${stateClass}" ${!unlocked && !nextUnlock ? 'tabindex="-1"' : ''}><span class="gem-orbit-slot-glyph" aria-hidden="true"><b>${glyph}</b></span>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>${unlockReady ? '슬롯 해금' : '재화 부족'}</em>` : ''}</button>`);
+        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${group ? `group-${group.className}` : ''}" style="--slot-x:${orbitX.toFixed(3)}%;--slot-y:${orbitY.toFixed(3)}%" data-tip="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" aria-pressed="${enhancement ? 'true' : 'false'}" aria-disabled="${!unlocked && !nextUnlock ? 'true' : 'false'}" data-slot-index="${index}" data-slot-state="${stateClass}" ${!unlocked && !nextUnlock ? 'tabindex="-1"' : ''}><span class="gem-orbit-slot-glyph" aria-hidden="true"><b>${glyph}</b></span>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>${unlockReady ? '슬롯 해금' : '재화 부족'}</em>` : ''}</button>`);
     }
     root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div>${spokes.join('')}<div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>중앙 룬과 연결된 슬롯을 선택하세요</strong><span class="gem-orbit-legend"><b class="is-empty"><i></i>빈 슬롯</b><b class="is-filled"><i></i>각인됨</b><b class="is-unlockable"><i>+</i>해금 가능</b></span></div>`;
     root.dataset.renderSig = renderSignature;
@@ -4739,7 +4738,7 @@ function decorateCombatLogItemMessage(msg, item) {
     if (!item || typeof item !== 'object' || !item.name) return msg;
     let token = registerCombatLogItemSnapshot(item);
     let label = `[${item.name}]`;
-    let link = `<span class="combat-log-item-link" role="button" tabindex="0" title="장비창 열기" data-item-tooltip-anchor="1" data-log-item-token="${token}" onmouseenter="showCombatLogItemTooltip(event,${token})" onmousemove="showCombatLogItemTooltip(event,${token})" onmouseleave="hideCombatLogItemTooltip(event)" onclick="openCombatLogItemEquipment(event)" onkeydown="if(event.key==='Enter'||event.key===' '){openCombatLogItemEquipment(event)}">${escapeHTML(label)}</span>`;
+    let link = `<span class="combat-log-item-link" role="button" tabindex="0" data-item-tooltip-anchor="1" data-log-item-token="${token}" onmouseenter="showCombatLogItemTooltip(event,${token})" onmousemove="showCombatLogItemTooltip(event,${token})" onmouseleave="hideCombatLogItemTooltip(event)" onclick="openCombatLogItemEquipment(event)" onkeydown="if(event.key==='Enter'||event.key===' '){openCombatLogItemEquipment(event)}">${escapeHTML(label)}</span>`;
     return String(msg).replace(label, link);
 }
 
@@ -5002,13 +5001,13 @@ function renderHeroSelectionControls() {
         : (game.selectedClassId || 'archer');
     if (mode !== 'fixed') {
         selectEl.disabled = true;
-        selectEl.title = '루프마다 선택한 현재 직업의 외형을 사용합니다.';
+        selectEl.dataset.tip = '루프마다 선택한 현재 직업의 외형을 사용합니다.';
     } else if (!game.classFreeSwitchUnlocked) {
         selectEl.disabled = true;
-        selectEl.title = '다른 외형 선택은 여섯 직업을 한 번씩 경험하면 해금됩니다.';
+        selectEl.dataset.tip = '다른 외형 선택은 여섯 직업을 한 번씩 경험하면 해금됩니다.';
     } else {
         selectEl.disabled = false;
-        selectEl.title = '';
+        selectEl.dataset.tip = '';
     }
     syncHeroSelectionState();
 }
@@ -5220,7 +5219,7 @@ function syncMapCompleteActionQuickControl() {
     // 전체 메뉴 서랍에는 짧은 이름이 뜬다: "다음 지역"만으로는 이동 단추로 읽혀 무엇을 고르는 칸인지 붙인다.
     button.dataset.mobileLabel = `완료 후 행동: ${option.label}`;
     button.setAttribute('aria-label', `전투 완료 후 행동: ${option.label}`);
-    button.title = `현재: ${option.label}, ${option.detail}`;
+    button.dataset.tip = `현재: ${option.label}, ${option.detail}`;
 }
 
 function applyMapCompleteAction(action) {
@@ -5388,7 +5387,7 @@ safeExposeGlobals({ showSporeCraftTooltip });
 document.addEventListener('mousemove', function(evt) {
     let tt = document.getElementById('info-tooltip');
     if (!tt || tt.style.display === 'none') return;
-    let anchor = evt.target && evt.target.closest ? evt.target.closest('[data-info-tooltip-anchor="1"]') : null;
+    let anchor = evt.target && evt.target.closest ? evt.target.closest('[data-info-tooltip-anchor="1"], [data-tip]') : null;
     if (!anchor && evt.target && evt.target.closest) anchor = evt.target.closest('.tip, .skill-gem, .support-gem, .item-card, .currency-card');
     let overTooltip = evt.target && evt.target.closest ? evt.target.closest('#info-tooltip') : null;
     if (!anchor && !overTooltip) hideInfoTooltip();
@@ -5815,7 +5814,7 @@ function getItemStatRollRangeHtml(stat, options) {
 
 function getHoneyLockBadgeHtml(stat) {
     return stat && stat.lockedByHoney
-        ? ' <span class="item-affix-lock item-affix-lock--honey" title="마력 깃든 벌꿀로 고정되어 재련/소멸되지 않는 옵션">🍯 벌꿀 고정</span>'
+        ? ' <span class="item-affix-lock item-affix-lock--honey" data-tip="마력 깃든 벌꿀로 고정되어 재련/소멸되지 않는 옵션">🍯 벌꿀 고정</span>'
         : '';
 }
 
@@ -6103,10 +6102,10 @@ function itemExplicitAffixHeaderHtml(item, count) {
 function getItemBaseBadgesHtml(item) {
     let info = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     let step = info && info.total > 1
-        ? ` <span style="color:#7fd1a8;" title="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${info.step}/${info.total}]</span>` : '';
+        ? ` <span style="color:#7fd1a8;" data-tip="업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)">[${info.step}/${info.total}]</span>` : '';
     let base = BASE_ITEM_DB.find(row => row.id === item.baseId);
     let family = base && base.family
-        ? ' <span style="color:#e3c37a;" title="수평 베이스: 같은 등급 베이스보다 세지 않은 대신 기본 옵션이 다르고, 같은 계열 안에서만 승급합니다.">수평</span>' : '';
+        ? ' <span style="color:#e3c37a;" data-tip="수평 베이스: 같은 등급 베이스보다 세지 않은 대신 기본 옵션이 다르고, 같은 계열 안에서만 승급합니다.">수평</span>' : '';
     return step + family;
 }
 
@@ -6119,7 +6118,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     const inactiveAffixes = equipmentInspectionUi.getInactiveAffixIds(cachedTooltipStats, game.equippedSummonSkills);
     const affixClass = statId => inactiveAffixes.has(statId) ? ' class="equipment-affix-inactive"' : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}"><span class="px-center">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}${item.loopSealed ? ' <span style="color:#7fd99a;" title="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</span></div>${itemInfluencesUi.tooltipHtml(item)}`;
+    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}"><span class="px-center">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}${item.loopSealed ? ' <span style="color:#7fd99a;" data-tip="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</span></div>${itemInfluencesUi.tooltipHtml(item)}`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품, 전시자 ${escapeHTML(item.hallCuratorName || '익명')}, 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()}, 제작/재등록 불가</div>`;
     else if (item.hallRelistBlocked) html += '<div class="tooltip-line" style="color:#bda979;">🏛️ 전당 복제 이력, 재등록 불가</div>';
     html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${item.baseName}${getItemBaseBadgesHtml(item)}</div>`;
@@ -7997,7 +7996,6 @@ function updateUiEnemyTraitPanel(traitEl, labels, display, fullTooltip, isBoss) 
     if (!track) return;
     let visible = Array.isArray(labels) && labels.length > 0;
     traitEl.style.display = visible ? '' : 'none';
-    traitEl.removeAttribute('title');
     setElementAttribute(traitEl, 'data-enemy-trait-tooltip', fullTooltip || display.fullText || '');
     setElementAttribute(traitEl, 'data-enemy-trait-kind', isBoss ? '보스 특성' : '정예 특성');
     setElementAttribute(traitEl, 'aria-label', fullTooltip || display.fullText || '');
@@ -8856,8 +8854,7 @@ function updateInventoryFullWarnings() {
         let nextDisplay = full.length ? 'inline-block' : 'none';
         if (element.style.display !== nextDisplay) changed = true;
         element.style.display = nextDisplay;
-        element.title = full.map(([label, used, limit]) => `${label} ${used}/${limit}칸`).join(', ');
-        if (element.title) element.title += ', 공간을 확보하세요';
+        element.dataset.tip = full.length ? `${full.map(([label, used, limit]) => `${label} ${used}/${limit}칸`).join(', ')}, 공간을 확보하세요` : '';
     });
     if (changed && document.body.classList.contains('desktop-windowed-ui') && typeof syncDesktopRailGroups === 'function') {
         syncDesktopRailGroups();
@@ -10267,7 +10264,7 @@ function syncPassiveTreeHeader() {
     if (!button) return;
     const count = getPaidPassiveNodeIds(game.passives).length, title = `황금률 1개로 찍은 ${count}점을 모두 돌려받습니다. 루프 패시브, 심화 패시브와 전직은 그대로입니다.`;
     if (button.hidden !== count <= 0) button.hidden = count <= 0;
-    if (button.title !== title) button.title = title;
+    if (button.dataset.tip !== title) button.dataset.tip = title;
 }
 
 /** 기본 스킬트리 초기화를 지금 못 하는 까닭('' 이면 된다): 방치 전투 정산(끝나면 game이 바뀌어 초기화가 사라진다), 나무꾼 전투,
@@ -13560,7 +13557,7 @@ function loopNodeStateText(id, node, lv) {
 function loopNodeBuyHtml(id, node, lv) {
     const open = (game.season || 1) >= getSeasonPassiveUnlockLoop(id) && isSeasonNodeRequirementMet(node);
     if (!open || lv >= getSeasonNodeCap(node)) return '';
-    return `<button type="button" onclick="buySeason('${id}')" ${game.seasonPoints > 0 ? '' : 'disabled title="루프 포인트가 없습니다"'}>${lv > 0 ? '강화' : '활성화'}</button>`;
+    return `<button type="button" onclick="buySeason('${id}')" ${game.seasonPoints > 0 ? '' : 'disabled data-tip="루프 포인트가 없습니다"'}>${lv > 0 ? '강화' : '활성화'}</button>`;
 }
 function loopNodeActionsHtml(id, node, lv) {
     const buy = loopNodeBuyHtml(id, node, lv);

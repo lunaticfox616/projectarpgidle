@@ -14,7 +14,7 @@ const stumpHarvestUi = (() => {
     // ── 수확 일지 ───────────────────────────────────────────
     function journalCell(row, color, grown) {
         const key = `${row}-${color}`, on = grown.has(key), name = `${STUMP_BOX_COLORS[color].label} ${ROW_LABELS[row]}`;
-        return `<span class="stump-harvest-cell${on ? ' is-on' : ''}" style="--stump-tone:${tone(color)}" title="${esc(on ? name : `${name} (아직)`)}">`
+        return `<span class="stump-harvest-cell${on ? ' is-on' : ''}" style="--stump-tone:${tone(color)}" data-tip="${esc(on ? name : `${name} (아직)`)}">`
             + `<img src="assets/items/stump-pixel-v1/${key}.png" alt="${esc(name)}" draggable="false"></span>`;
     }
     function journalRow(row, grown) {
