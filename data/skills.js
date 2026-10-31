@@ -92,7 +92,6 @@ const SKILL_DB = {
     '번개 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 전기 구체 모양의 번개 위습 정령을 소환합니다. 위습이 대상에게 전류를 흘려 감전시키는 번개 피해를 줍니다.', tags: ['summon', 'summon_attack', 'lightning', 'elemental', 'intelligence'] },
     '물리 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'phys', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 고목 씨앗 모양의 물리 위습 정령을 소환합니다. 위습이 땅속으로 뿌리를 보내 대상을 옭아매는 물리 피해를 줍니다.', tags: ['summon', 'summon_attack', 'physical', 'intelligence'], supportTags: ['projectile'] },
     '카오스 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'chaos', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 눈이 하나 있는 보라빛 구체의 카오스 위습 정령을 소환합니다. 위습이 공허 구슬을 포물선으로 던지고 떨어진 자리에 카오스 안개를 남깁니다.', tags: ['summon', 'summon_attack', 'chaos', 'intelligence'], supportTags: ['projectile'] },
-    '분광 위습 소환': { isGem: true, baseDmg: 0.1, baseSpd: 1.0, leech: 0, crit: 0, dmgScale: 0, spdScale: 0, ele: 'light', elementLabel: '삼원소', targetMode: 'single', targets: 1, desc: '공격형 소환수 룬. 화염/냉기/번개 세 구체가 서로 도는 분광 위습 정령을 소환합니다. 위습이 삼원소가 꼬인 광선을 쏘아 공격마다 화염/냉기/번개 중 하나로 피해를 줍니다.', tags: ['summon', 'summon_attack', 'elemental', 'intelligence'] },
     '수액 골렘 소환': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, leech: 0, crit: 0, ele: 'phys', targetMode: 'single', targets: 1, guardRedirectPct: 35, desc: '소환 한도 1을 사용합니다. 수액 골렘이 살아 있는 동안 최종 적중 피해의 35%를 대신 받습니다. 지속 피해는 대신 받지 않습니다.', tags: ['summon', 'summon_guard', 'physical', 'intelligence'] },
     // 사역룬(2026-10-24 공용 보조 개편, 같은 날 스킬룬 추가본 v54의 이름 "장군의 가호, 화염의 가호, 한기의 가호, 낙뢰의 가호, 심연의 가호"와
     // 이름 제안 "수액의 가호"): 소환 칸에서 한도 1을 쓰지만 소환수를 만들지 않고 가호를 건다(js/combat-support-runes.js activeBlessing). 가호는
@@ -146,16 +145,16 @@ Object.assign(SKILL_DB, {
     "암살": {"isGem":true,"ele":"phys","category":"attack","baseSpd":0.74,"targetMode":"behind-target","targets":99,"desc":"적 뒤로 순간이동 후 찌르기(뒤가 막히면 가까운 옆, 그다음 반대쪽 옆), 중독 또는 출혈 30%","tags":["attack","melee","physical","mobility","dagger","strength","dexterity"],"combatPattern":{"kind":"assassination","range":4},"baseDmg":2.85,"dmgScale":0.16,"spdScale":0.012,"crit":10,"nativeCastId":52,"leech":0,"rangeText":"사거리 4칸, 뒤/좌우 칸 중 한 곳이 비어 있어야 함"},
 });
 // 이동기 4종 (스킬 변경분 2, 2026-09-30 · 인계 mob4_core.js). Worn in the 이동 스킬 slot (js/mobility-skill.js) and cast
-// by js/skill-gem-casts.js. Damage and cooldowns are provisional (handoff §8-5); 향로구름 deals no damage.
+// by js/skill-gem-casts.js. Damage and cooldowns are provisional (handoff §8-5).
 Object.assign(SKILL_DB, {
     "차원찢기": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":0.8,"targetMode":"aimed-cell","targets":99,"nativeCastId":54,
         "desc":"오브로 허공을 갈라 차원의 틈을 열고 들어가, 최대 4칸 떨어진 빈 칸의 틈에서 나옵니다. 두 틈이 닫히는 순간 도착 칸 둘레 8칸의 적에게 카오스 피해를 줍니다.",
         "tags":["spell","chaos","aoe","mobility","intelligence"],"baseDmg":1.6,"dmgScale":0.085,"spdScale":0.01,"spellFlatBase":22,"spellFlatScale":4.8,"crit":6,"leech":0,
         "mobilityCooldownMs":4000,"rangeText":"사거리 4칸, 도착 칸 둘레 8칸"},
-    "향로구름": {"isGem":true,"category":"spell","ele":"fire","baseSpd":0.9,"targetMode":"nearest-enemy","targets":99,"nativeCastId":55,
-        "desc":"향로를 휘둘러 연막 구름에 몸을 숨기고, 최대 5칸 안의 적 곁 빈 칸으로 순간이동합니다. 도착한 자리에도 연막이 피어오릅니다. 피해 없음.",
-        "tags":["spell","mobility","strength","intelligence"],"baseDmg":0,"dmgScale":0,"spdScale":0.01,"crit":0,"leech":0,
-        "mobilityCooldownMs":3000,"rangeText":"사거리 5칸, 적 곁으로 순간이동, 피해 없음"},
+    "향로구름": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.9,"targetMode":"nearest-enemy","targets":99,"nativeCastId":55,
+        "desc":"연막 속에서 사라졌다가 적 앞에 나타나, 도착 지점과 주변 1칸에 물리 피해를 한 번 줍니다.",
+        "tags":["attack","physical","aoe","mobility","strength","intelligence"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.01,"crit":5,"leech":0,
+        "mobilityCooldownMs":3000,"rangeText":"사거리 5칸, 적 앞으로 순간이동, 도착 지점 둘레 1칸"},
     "작살화살": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":56,
         "desc":"줄이 달린 작살화살을 쏴 최대 5칸 안의 적에게 물리 피해를 주고, 줄을 당겨 그 적 바로 앞 칸까지 끌려갑니다. 이미 붙어 있으면 끌려가지 않습니다.",
         "tags":["attack","projectile","physical","mobility","dexterity"],"baseDmg":1.7,"dmgScale":0.09,"spdScale":0.01,"crit":8,"leech":0,
@@ -166,11 +165,30 @@ Object.assign(SKILL_DB, {
         "tags":["attack","projectile","physical","aoe","mobility","potion","dexterity","intelligence"],"baseDmg":1.2,"dmgScale":0.06,"spdScale":0.01,"crit":6,"leech":0,
         "mobilityCooldownMs":4000,"rangeText":"사거리 5칸, 떨어진 자리 둘레 1칸, 그 앞 칸까지 돌진"}
 });
+// 2026-11-01 스킬 전체 전달본 V3.6의 새 룬 넷. 피해는 전달본의 기본 피해(150, 110, 160, 46) 그대로이고, 공격 속도와 레벨 성장은 같은 계열 룬에 맞춘 값이다.
+// 판정은 js/skill-gem-casts.js 78, 79, 80이, 정화의 집행은 회오리와 같은 회전 판정(js/combat-grid.js)이 맡는다.
+Object.assign(SKILL_DB, {
+    "추적 사격": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.9,"targetMode":"nearest-enemy","targets":99,"nativeCastId":78,
+        "desc":"쏜 화살이 가장 가까운 적을 쫓아가 맞힙니다. 대상이 쓰러지거나 비켜 가면 다음 적을 쫓고, 여러 발을 쏘면 서로 다른 적을 쫓습니다. 8칸을 날면 사라집니다.",
+        "tags":["attack","projectile","physical","dexterity"],"baseDmg":1.5,"dmgScale":0.08,"spdScale":0.02,"crit":7,"leech":0,
+        "projectilePattern":{"mode":"focus","kind":"line","fixed":true},"rangeText":"발사 방식: 사거리 8칸, 가까운 적을 쫓음, 고유 궤적"},
+    "석화 혼합물": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.78,"targetMode":"aimed-cell","targets":99,"nativeCastId":79,
+        "desc":"떨어진 자리 둘레 1.5칸의 적을 돌로 굳힙니다. 석화 1.8초 동안 움직이지도 공격하지도 못합니다. 풀릴 때 돌 껍질이 부서집니다. 보스는 굳지 않습니다.",
+        "tags":["attack","projectile","physical","aoe","potion","dexterity","intelligence"],"baseDmg":1.1,"dmgScale":0.06,"spdScale":0.014,"crit":6,"leech":0,
+        "rangeText":"사거리 4칸, 떨어진 자리 둘레 1.5칸"},
+    "시간의 사선": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.75,"targetMode":"nearest-enemy","targets":99,"nativeCastId":80,
+        "desc":"정면 찌르기로 시간의 칼날을 날립니다. 6칸 안 적의 이동을 1.3초 동안 30% 낮추고(공격 속도는 그대로), 가장 가까운 적을 칩니다. 투사체가 늘면 대상이 늘고, 대상이 모자라면 같은 적을 이어 칩니다. 대상마다 첫 적중은 주변 2칸 안 다른 적 둘에게 20% 피해로 튕깁니다.",
+        "tags":["attack","projectile","physical","strength","dexterity"],"baseDmg":1.6,"dmgScale":0.085,"spdScale":0.012,"crit":8,"leech":0,
+        "projectilePattern":{"mode":"focus","kind":"line","fixed":true},"rangeText":"발사 방식: 사거리 6칸, 주변 2칸 둘에게 20% 튕김, 고유 궤적"},
+    "정화의 집행": {"isGem":true,"category":"attack","ele":"fire","baseSpd":1.3,"targetMode":"whirl","targets":7,"whirlIntervalMs":120,"crowdDamageMorePerEnemyPct":4,"crowdDamageMoreCapPct":28,
+        "desc":"불붙은 향로를 사슬째 몸 둘레로 크게 돌려 여러 각도의 불의 고리를 그립니다. 0.12초마다 둘레 2.2칸 안의 적을 하나씩 태우고, 도는 동안 걸어 다닐 수 있습니다. 자신을 포위한 적 한 기당 피해가 4%씩 최대 28% 증폭됩니다. 지나간 자리에 불꽃이 잠깐 남습니다.",
+        "tags":["attack","melee","fire","aoe","elemental","strength","intelligence"],"baseDmg":0.46,"dmgScale":0.019,"spdScale":0.03,"crit":0,"leech":0}
+});
 // The mobility slot's cooldowns for the mobility gems that were main gems before (provisional).
 Object.assign(SKILL_DB['그림자 점멸'], { mobilityCooldownMs: 3500 });
 Object.assign(SKILL_DB['암살'], { mobilityCooldownMs: 4000 });
 // These authored flask trajectories own their contacts; generic pattern engraving cannot replace them.
-for (const name of ['탄성 플라스크','폭발 혼합물','과냉각 혼합물','빈 플라스크','바위 플라스크']) {
+for (const name of ['탄성 플라스크','폭발 혼합물','과냉각 혼합물','빈 플라스크','바위 플라스크','석화 혼합물']) {
     SKILL_DB[name].projectilePattern = { mode: 'lob', kind: 'blast', fixed: true };
     SKILL_DB[name].rangeText = '발사 방식: ' + SKILL_DB[name].rangeText + ', 고유 궤적';
 }
@@ -192,7 +210,9 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
     // 2026-10-19 스킬룬 인계(v36)가 지운 용화 숨결: 같은 속성에서 여러 번 치는 범위 주문
     '용화 숨결': '화염 폭풍핵',
     // 2026-10-20 스킬룬 인계(v42)가 지운 원소 포션 투척: 같은 플라스크 전용, 떨어진 자리를 치는 범위 룬
-    '원소 포션 투척': '폭발 혼합물'
+    '원소 포션 투척': '폭발 혼합물',
+    // 2026-11-01 스킬 전체 전달본 V3.6이 지운 분광 위습: 같은 번개 위습이 잇는다
+    '분광 위습 소환': '번개 위습 소환'
 });
 /** 지운 보조스킬룬: 대신 받는 룬 없이 저장에서 걷어 낸다(js/save-migrations.js dropRetiredSupportGems).
  * 2026-10-23 사용자 "방패 공명: 보조 스킬 룬 삭제"(방패가 완갑이 된 뒤). */
@@ -277,7 +297,6 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '번개 위습 소환': 'wisp',
     '물리 위습 소환': 'wisp',
     '카오스 위습 소환': 'wisp',
-    '분광 위습 소환': 'wisp',
     // servant(사역룬 가호, 2026-10-24 v54): 위습과 같이 맨손으로는 쓰지 못한다
     '장군의 가호': 'servant',
     '화염의 가호': 'servant',
@@ -288,6 +307,7 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     // bow
     '관통 사격': 'bow',
     '연발 사격': 'bow',
+    '추적 사격': 'bow',
     '화살비': 'bow',
     '작살화살': 'bow',
     // greatsword
@@ -297,18 +317,21 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     // sword
     '암살': 'sword',
     '그림자 점멸': 'sword',
+    '시간의 사선': 'sword',
     // orb
     '차원찢기': 'orb',
     // censer
     '신성한 안개': 'censer',
     '파문심판': 'censer',
     '향로구름': 'censer',
+    '정화의 집행': 'censer',
     // flask
     '탄성 플라스크': 'flask',
     '폭발 혼합물': 'flask',
     '과냉각 혼합물': 'flask',
     '빈 플라스크': 'flask',
     '바위 플라스크': 'flask',
+    '석화 혼합물': 'flask',
 });
 /** 낀 무기의 대분류(data/weapon-categories.js) → 무기 자세. 한손검(scimitar)은 방패를 함께 껴도 한손검 자세다(2026-10-20 새 그림에는 방패를 든 자세가 없다).
  * 무대의 주인공 그림(js/canvas-stage-actors.js)도 이 표로 자세를 정한다. */
@@ -328,6 +351,10 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '과냉각 혼합물': {family:'worldTree',scale:1,impactVfx:false},
     '빈 플라스크': {family:'worldTree',scale:1,impactVfx:false},
     '바위 플라스크': {family:'worldTree',scale:1,impactVfx:false},
+    '추적 사격': {family:'worldTree',scale:1,impactVfx:false},
+    '석화 혼합물': {family:'worldTree',scale:1,impactVfx:false},
+    '시간의 사선': {family:'worldTree',scale:1,impactVfx:false},
+    '정화의 집행': {family:'worldTree',scale:1,impactVfx:false},
     '신성한 안개': {family:'worldTree',scale:1,impactVfx:false},
     '파문심판': {family:'worldTree',scale:1,impactVfx:false},
     '암살': {family:'worldTree',scale:1,impactVfx:false},
@@ -385,8 +412,7 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '냉기 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
     '번개 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
     '물리 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
-    '카오스 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
-    '분광 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false }
+    '카오스 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false }
 });
 
 safeExposeData({ SKILL_GEM_VFX_PROFILES });
@@ -503,7 +529,6 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '번개 위습 소환': 'assets/gems/runes/113_summon-storm-wisp.png',
     '물리 위습 소환': 'assets/gems/runes/114_summon-iron-wisp.png',
     '카오스 위습 소환': 'assets/gems/runes/115_summon-void-wisp.png',
-    '분광 위습 소환': 'assets/gems/runes/116_summon-prism-wisp.png',
     // 사역룬 가호 6종: 인계 v54의 임시 아이콘(Claude가 코드로 그림, 정식 아이콘은 사용자 PixelLab 차례)
     '장군의 가호': 'assets/gems/runes/121_generals-blessing.png',
     '화염의 가호': 'assets/gems/runes/122_blessing-of-flame.png',
@@ -514,6 +539,11 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '차원찢기': 'assets/gems/runes/054_riftstep.png',
     '향로구름': 'assets/gems/runes/055_censer-cloud.png',
     '작살화살': 'assets/gems/runes/056_harpoon-arrow.png',
+    '바위 플라스크': 'assets/gems/runes/077_rock-flask.png',
+    '추적 사격': 'assets/gems/runes/078_tracking-shot.png',
+    '석화 혼합물': 'assets/gems/runes/079_petrifying-mixture.png',
+    '시간의 사선': 'assets/gems/runes/080_line-of-time.png',
+    '정화의 집행': 'assets/gems/runes/081_purifying-execution.png',
 });
 
 safeExposeData({ SKILL_GEM_ART_PATHS });
@@ -539,6 +569,10 @@ const SKILL_GRID_DB = {
     "과냉각 혼합물": {"kind":"blast","range":4,"radius":3,"shape":"ring","distanceMetric":"euclidean"},
     "빈 플라스크": {"kind":"chain","range":4},
     "바위 플라스크": {"kind":"blast","range":5,"radius":1,"shape":"square"},
+    "석화 혼합물": {"kind":"blast","range":4,"radius":1,"shape":"circle","distanceMetric":"euclidean"},
+    '추적 사격': { kind: 'line', range: 8 },
+    '시간의 사선': { kind: 'line', range: 6 },
+    '정화의 집행': { kind: 'nova', range: 2, radius: 2, shape: 'diamond' },
     "신성한 안개": {"kind":"nova","range":1,"radius":1,"shape":"square"},
     "파문심판": {"kind":"blast","range":2,"radius":1,"shape":"cross"},
     "암살": {"kind":"melee","range":4},
@@ -597,8 +631,7 @@ const SKILL_GRID_DB = {
     '냉기 위습 소환':   { kind: 'summon', range: 4 },
     '번개 위습 소환':   { kind: 'summon', range: 3 },
     '물리 위습 소환':   { kind: 'summon', range: 3 },
-    '카오스 위습 소환': { kind: 'summon', range: 4 },
-    '분광 위습 소환':   { kind: 'summon', range: 4 }
+    '카오스 위습 소환': { kind: 'summon', range: 4 }
 };
 
 safeExposeData({ SKILL_GRID_DB });

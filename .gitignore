@@ -50,6 +50,7 @@ __pycache__/
 /assets/stage-vfx/vfx.png
 # 두 번째 묶음(2026-10-17 스킬룬 인계 v32: Met.Pxl Mega Pack, vfx_slash, magic_arrow, Effect Pack 1~7, 9). 같은 약관이다.
 /assets/stage-vfx/vfx2.png
+/assets/stage-vfx/vfx3.png
 # 쓰지 않는 첫 무대 조각 키트(지금 배경은 assets/stage-scenes).
 /assets/playable/stage/scenes/
 /assets/summon/hana/

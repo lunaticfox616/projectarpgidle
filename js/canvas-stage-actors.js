@@ -171,9 +171,14 @@ const stageActors = (() => {
     function strikePose(set, state, now) {
         const id = swingClip(set, state);
         if (!id) return null;
-        const clip = set[id], volley = id === 'volley' && !!clip.hit, hit = clip.hit ? clip.hit[volley ? 0 : clip.hit.length - 1] : clip.frames - 1;
+        const clip = set[id], volley = id === 'volley' && !!clip.hit, hit = strikeFrame(clip, state.attack, volley);
         const pose = hanaActors.attackPose({ frames: clip.frames, ms: msOf(clip), hitFrame: hit, steady: volley }, state.attack, now);
         return pose ? { clip, frame: pose.frame } : null;
+    }
+    /** 타격 순간에 올 장: 그 시전이 정한 장(파문심판은 향로가 바닥에 닿는 장), 아니면 동작의 마지막 타격 장(연타사격은 첫 장), 그것도 없으면 끝 장. */
+    function strikeFrame(clip, attack, volley) {
+        if (Number.isInteger(attack.contactFrame)) return attack.contactFrame;
+        return clip.hit ? clip.hit[volley ? 0 : clip.hit.length - 1] : clip.frames - 1;
     }
     /** 그림자 점멸이 박차고 나가는 동안(STAGE_VIEW.kickoffMs, 휘두름 준비의 절반까지): 그 자세의 이동 동작, 미는 장이 끝 무렵에 온다. 그 뒤는 null. */
     const kickoffMs = attack => Math.min(STAGE_VIEW.kickoffMs, (attack.impactAt - attack.start) * 0.5);
@@ -349,6 +354,8 @@ const stageActors = (() => {
         };
     }
 
+    /** 지난번에 그린 주인공의 자세: { pose: { clip, frame }, left }. 아직 그린 적이 없으면 null(향로 머리에 연기를 붙일 때 읽는다). */
+    const lastPose = () => body;
     /** 주인공 그림이 지금 보는 쪽: 1 오른쪽, -1 왼쪽. */
     const facing = () => (facingLeft ? -1 : 1);
     /** The opening's hero pose (risePose): null, { start: null } lying, { start: visual ms } rising. */
@@ -357,7 +364,7 @@ const stageActors = (() => {
     const preloadRise = classId => { if (table() && classId) image(riseClip(classId).file); };
     /** The hero lies or is getting up (the overhead bar waits: it would float over the air where a standing head would be). */
     const down = () => !!rise;
-    return { drawPlayer: drawStageHero, headY, afterimage, isReady, stanceFor, motionFor, clipOf, scaleFor, available, stageArtKnown, whenStageArtKnown, facing, setRise, preloadRise, down };
+    return { drawPlayer: drawStageHero, headY, afterimage, pose: lastPose, isReady, stanceFor, motionFor, clipOf, scaleFor, available, stageArtKnown, whenStageArtKnown, facing, setRise, preloadRise, down };
 })();
 
 const sides = new WeakMap();

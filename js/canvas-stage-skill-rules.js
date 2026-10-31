@@ -7,8 +7,8 @@
  *   연쇄 번개, 지속 타격, 화염 부패의 구슬과 사망 폭발, 빙결 침식의 안개가 몸으로 감겨 드는 모습.
  * - 그림 사건(js/canvas-world-tree-fx.js renderEvent와 paintCast: 예비 windup, 날아가는 travel, 닿는 stage, 이동 mobility):
  *   범위 클립, 여진, 낙하, 파동, 발사 섬광. 투사체의 몸과 따로 시전하는 룬, 이동기는 js/canvas-stage-skill-casts.js가 맡는다.
- *   그 룬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 번개 각인, 시간 가속,
- *   파문심판(인계도 게임의 옛 그림을 쓴다). 인계에서 빠진 룬 다섯은 2026-10-13에 게임에서도 지웠다.
+ *   그 룬의 그때를 새 연출이 맡으면 참을 돌려 예전 그림을 대신한다. 맡지 않는 것은 예전 그림이 그대로 그린다: 번개 각인(인계도 게임의 옛 그림을 쓴다).
+ *   인계에서 빠진 룬 다섯은 2026-10-13에 게임에서도 지웠다.
  * 2026-10-17 스킬룬 인계 v32가 더한 연결(코드로 그리는 휘두름, 맞은 적마다의 연출, 새 룬의 그림 사건, 속성별 타격 묶음, 활의 마법 화살)은
  * js/canvas-stage-skill-runes.js가 맡고, 여기서 그때마다 부른다.
  * 룬의 판정, 대상, 피해는 게임의 것 그대로다: 여기는 사건을 읽기만 한다.
@@ -30,7 +30,7 @@ const stageSkillRules = (() => {
     /** 휘두름을 제 단계에서 내는 룬(암살은 도착한 뒤의 베기 단계가 낸다). */
     const CAST_SWING = new Set([52]);
     /** 닿는 순간(stage)을 새 클립이 맡게 하는 훅. */
-    const STAGE_HOOKS = Object.freeze(['shout', 'suck', 'area', 'ring', 'area2', 'land', 'seep', 'drop', 'orb', 'zone']);
+    const STAGE_HOOKS = Object.freeze(['shout', 'suck', 'area', 'ring', 'area2', 'land', 'seep', 'drop', 'orb', 'zone', 'warlock']);
     /** 불타는 지대가 폭발 뒤 나타나기까지(ms): 폭발이 잦아든 뒤(2026-10-20 스킬룬 전달본 v42의 유성 낙화). */
     const ZONE_DELAY = 330;
     function ruleForget(map, now, age) { for (const [key, time] of map) if (now - time > age || time > now) map.delete(key); }
@@ -97,7 +97,7 @@ const stageSkillRules = (() => {
         const ref = gem.map.swing ? K.ref(gem.map.swing, repeat) : PLAIN_SWING;
         if (gem.map.chop) { rulePlayChop(gem, ref, look); return; }
         const [dx, dy] = ruleSwingOffset(ref);
-        stageSkillVfx.play(ref, K.at(hero, look.face * dx, dy), { face: look.face, ramp: look.ramp, delay: repeat * 110 });
+        stageSkillVfx.play(ref, K.at(hero, look.face * dx, dy), { face: look.face, ramp: look.ramp, delay: repeat * 110, scale: gem.map.swingScale });
     }
     /** 휘두름을 새 연출로 그리는 룬인가: 휘두름, 회전, 우주 틈, 찌르기가 정해졌거나, 정해지지 않은 근접 룬(기본 클립). 휘두름을 끈 룬과
      * 휘두름 없는 이동기, 제 단계에서 휘두름을 내는 룬은 아니다. */
@@ -131,6 +131,17 @@ const stageSkillRules = (() => {
         const width = played.box.w * (played.clip.sc || 1), limit = fx.crit ? 64 : 48;
         played.scale = Math.min(played.scale, limit / width);
     }
+    /** 룬이 정한 타격의 모습(전달본 V3.6): alpha와 scale은 곱한다(과냉각 혼합물), most는 긴 변의 도트(부싯돌 베기, 1.2배까지만 키운다). */
+    function ruleHitLook(played, look) {
+        if (!played || !look) return;
+        if (look.most) {
+            played.scale *= Math.min(1.2, look.most / Math.max(1, Math.max(played.box.w, played.box.h) * (played.clip.sc || 1) * played.scale));
+            played.alpha = look.alpha;
+            return;
+        }
+        played.alpha *= look.alpha;
+        played.scale *= look.scale;
+    }
     /** 맞은 적의 타격 클립: 같은 적에게는 간격을 두고 붙인다(연타에 화면이 덮이지 않게). 클립은 룬이 정한 것, 없으면 속성의 묶음에서
      * 맞을 때마다 하나, 활로 쏜 화살 룬이면 마법 화살의 터짐(js/canvas-stage-skill-runes.js hitRef). */
     function rulePlayHit(gem, hit) {
@@ -138,6 +149,7 @@ const stageSkillRules = (() => {
         if (!ref || hit.now - last < stageSkillVfx.HIT.gap) return;
         const played = stageSkillVfx.play(ref, K.at(hit.victim, -hit.look.face * 8, K.onGround(ref) ? 2 : BODY), { face: hit.look.face, ramp: hit.look.ramp, hit: true });
         ruleFitContact(played, hit.fx);
+        ruleHitLook(played, gem.map.hitLook);
         if (played) struck.set(hit.fx.enemyId, hit.now);
     }
     /** 두 자리 사이를 클립으로 잇는다(연쇄 번개): 길이에 맞춰 몇 개를 돌려 늘어놓는다. */
@@ -276,22 +288,29 @@ const stageSkillRules = (() => {
         ruleForget(struck, hit.now, 2000);
         const lead = ruleSwingOnce(gem, fx, hit.look, hit.now);
         ruleChainLink(gem, hit);
+        if (gem.map.warlock) stageRuneRemakes.warlockHit(gem.map.warlock, hit);
         if (gem.map.seep) ruleSeepInto(gem, hit); else rulePlayHit(gem, hit);
         if (ruleFirstHit(fx)) ruleFirstExtras(gem, hit); else ruleTickExtras(gem, hit);
         stageSkillRunes.victim(gem, hit, lead);
     }
 
     // ---------------------------------------------------------------- cast start
+    /** 시전 시작에 룬마다 더 거는 것: 부싯돌 베기의 불티와 향로 고리, 준비와 놓음의 빛(전달본 V3.6), 암흑 파열의 조짐. */
+    function ruleWindupExtras(gem, fx) {
+        stageSkillRunes.windup(gem, fx);
+        stageSkillPolish.cast(gem, { wind: Number(fx.impactDelayMs) || 0, end: Number(fx.duration) || 0 });
+        if (gem.map.warlock) stageRuneRemakes.warlockWindup(gem.map.warlock, fx);
+    }
     /** 시전 시작: 주문, 위습, 시전과 집중 슬롯의 룬은 손 앞에 그 속성의 마법진이 서고 몸에 외곽선 오라가 돈다(예비 동작 동안).
      * 위습 소환은 예비 동작이 끝날 때 등 뒤에서 그 속성의 소환 클립이 튄다. */
     function ruleNoteWindup(fx) {
         const gem = fx.sourceCell && !handled.has(fx) && stageSkillVfx.ready() ? K.gemOf(fx.skillName) : null;
         if (!gem) return;
         handled.add(fx);
-        stageSkillRunes.windup(gem, fx);
+        ruleWindupExtras(gem, fx);
         if (!gem.meta.cast) return;
         const hero = K.heroSpot(), face = K.heroFace(), wind = Math.max(200, Number(fx.impactDelayMs) || 0);
-        stageSkillSigil.cast({ spot: hero, face, element: gem.meta.el, ms: wind + 60 });
+        stageSkillSigil.cast({ spot: hero, face, element: gem.meta.el, ms: wind + 60, hand: stageSkillPolish.handSigil(gem) });
         const summon = gem.meta.kind === 'wisp' ? gem.map.cast : null;
         if (summon) stageSkillVfx.play(summon, K.at(hero, -face * 34, K.onGround(summon) ? -29 : -76), { face, ramp: K.ramp(gem, fx.element), delay: wind });
     }
@@ -355,7 +374,9 @@ const stageSkillRules = (() => {
         const ticksMs = Math.max(1, Number(pattern.groundHits) || 1) * Math.max(0, Number(pattern.groundIntervalMs) || 0);
         stageSkillSpells.fireZone({ at: K.at(s.area.centre), radius: s.area.radius, delay: ZONE_DELAY, life: Math.max(400, ticksMs + 200 - ZONE_DELAY) });
     }
-    const STAGE_PLAYS = Object.freeze([['suck', rulePlaySuck], ['area', rulePlayArea], ['ring', rulePlayRing], ['area2', rulePlayRocks], ['land', rulePlayLand], ['seep', ruleSeepMist], ['drop', rulePlayDrops], ['zone', rulePlayZone]]);
+    /** 유성 낙화의 착탄: 원래 색 띠, 그 그림이 없는 판에서는 비행과 같이 예전 클립. */
+    const rulePlayMeteor = s => (stageRuneRemakes.hasRaw() ? stageRuneRemakes.meteorImpact(s) : stageSkillVfx.play('mush@fire', K.at(s.area.centre, 0, 1), { face: s.look.face, ramp: s.look.ramp }));
+    const STAGE_PLAYS = Object.freeze([['suck', rulePlaySuck], ['area', rulePlayArea], ['ring', rulePlayRing], ['area2', rulePlayRocks], ['land', rulePlayLand], ['seep', ruleSeepMist], ['drop', rulePlayDrops], ['meteor', rulePlayMeteor], ['zone', rulePlayZone]]);
     /** 닿는 순간의 범위 연출. 여진(강타의 둘째 단계)은 그 범위에 여진 클립을 깐다. */
     function rulePlayStage(gem, event, look) {
         const s = { gem, map: gem.map, area: ruleAreaOf(event), look, long: Math.max(400, event.duration || 0), first: !Number(event.stageIndex) };
@@ -366,6 +387,11 @@ const stageSkillRules = (() => {
     /** 여진(뒤 단계): 그 범위에 여진 클립을 깐다. afterOne이면 가운데 하나만 afterScale 크기로(폭발성 타격의 불씨 폭발). */
     function rulePlayAfter(gem, s, look) {
         const ref = gem.map.after;
+        if (gem.map.afterCore) {   // 폭발성 타격(전달본 V3.6 explosive-finish): 고리와 불 핵이 한 자리에서 같이 터진다
+            stageSkillVfx.play(ref, K.at(s.area.centre, 0, -gem.map.afterHeight), { face: look.face, alpha: 0.78 });
+            stageSkillVfx.play(gem.map.afterCore, K.at(s.area.centre, 0, -gem.map.afterHeight), { face: look.face });
+            return;
+        }
         if (!gem.map.afterOne) { ruleFillArea(ref, s.area, { face: look.face, ramp: look.ramp }); return; }
         stageSkillVfx.play(ref, K.at(s.area.centre, 0, K.onGround(ref) ? 1 : -30), { face: look.face, ramp: look.ramp, scale: gem.map.afterScale || 1 });
     }
@@ -373,6 +399,7 @@ const stageSkillRules = (() => {
     function rulePlayWindup(gem, event, look) {
         if (!gem.map.fall) return;
         const area = ruleAreaOf(event), ms = Math.max(200, event.duration || 360);
+        if (gem.map.meteor && stageRuneRemakes.hasRaw()) { stageRuneRemakes.meteorFlight(area.centre, look.face, ms); return; }
         stageSkillVfx.play(gem.map.fall, K.at(area.centre, look.face * 150, -360), { face: look.face, ramp: look.ramp, life: ms, move: { dx: -look.face * 150, dy: 320, ms } });
     }
     /** 날아가는 것(travel): 발사 섬광을 손 앞에 한 번 튼다. */
@@ -455,7 +482,7 @@ const stageSkillRules = (() => {
     function ruleGemClips(gem, element) {
         const names = ruleClipNames(gem.map);
         if (ruleSwings(gem) && !gem.map.swing) names.push(PLAIN_SWING);
-        names.push(...stageSkillRunes.hitRefs(gem, element), gem.map.bow ? stageSkillRunes.bowFlash(gem, element) : '', gem.meta.kind === 'wisp' ? stageSkillCasts.wispHit(element) : '');
+        names.push(...stageSkillRunes.hitRefs(gem, element), ...stageSkillPolish.refs(gem), gem.map.bow ? stageSkillRunes.bowFlash(gem, element) : '', gem.meta.kind === 'wisp' ? stageSkillCasts.wispHit(element) : '');
         return names.filter(Boolean);
     }
     /** 그 룬이 틀 수 있는 클립('이름@램프')을 모두 든다: 낀 룬의 띠를 미리 만들어 두려고 묻는다(js/canvas-stage-warmup.js).

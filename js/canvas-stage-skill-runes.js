@@ -3,7 +3,7 @@
  * 쓸 때 연출을 트는 자리와 때를 옮긴 것이고, 그리는 일은 js/canvas-stage-skill-strokes.js와 js/canvas-stage-skill-spells.js가 한다.
  * - 휘두름(swing): 이중 베기의 X자(xcut), 번개 타격의 세로 베기(vcut), 올려 베기(rise), 불사르기의 불길(fan), 얼어붙은 고리(icering).
  * - 맞은 적마다(victim): 올려 베기의 베임 선, 폭발성 타격의 불씨, 서리베기의 안개, 피뢰침의 첫 틱,
- *   공허 가르기에 끌려온 적의 꼬리, 단두대의 벼락, 고리의 큰 가시, 지진의 큰 기둥(실제로 맞은 적마다 따로).
+ *   공허 가르기에 끌려온 적의 꼬리, 단두대의 벼락, 지진의 얼음 더미(실제로 맞은 적마다 따로).
  * - 그림 사건(claim): 참격파, 서리 파동, 부싯돌 베기, 피뢰침, 신성한 단두대, 혹한의 지진, 불씨의 함성, 서리바람 내지르기, 화살비.
  *   옛 그림 표(data/skill-fx-atlas.js)에 없는 새 룬의 사건도 무대에서는 여기로 온다(js/canvas-world-tree-fx.js).
  * - 시전 시작(windup): 부싯돌 베기의 불티. 이동(mobility): 돌진, 도약 강타, 섬머솔트 슬래시. 활을 들면 화살 룬은 마법 화살(bow).
@@ -53,7 +53,6 @@ const stageSkillRunes = (() => {
     /** 앞으로 그릴 칸 수: 옆으로 치는 룬은 띠의 길이, 아니면 부채꼴 중심선의 길이(모르면 fallback). */
     const reachCellsOf = (footprint, fallback) => (footprint && footprint.band ? footprint.band.reach
         : Math.max(1, Math.round(((footprint && footprint.cone && footprint.cone.length) || fallback) - 0.5)));
-    const relative = (spot, from) => ({ dx: (spot.gx - from.gx) * WIDE, dy: (spot.gy - from.gy) * DEEP });
 
     // ---------------------------------------------------------------- swings
     /** 코드로 그리는 휘두름: 그렸으면 참(그 룬의 휘두름 클립은 틀지 않는다). */
@@ -63,7 +62,7 @@ const stageSkillRunes = (() => {
         else if (map.vcut) ST.vCut(K.at(hero), look.face, reach);
         else if (map.swing === 'rise') ST.riseSwing(K.at(hero), look.face, reach * 0.85, followHero);
         else if (map.fan) runeFan(gem, fx, look);
-        else if (map.icering) runeIceRing(fx, look);
+        else if (map.icering) runeIceRing(gem, fx, look);
         else return !!map.drag;   // 부싯돌 베기는 검기가 떠날 때 휘두른다(runeFlint)
         return true;
     }
@@ -82,14 +81,9 @@ const stageSkillRunes = (() => {
                 move: { dx: ex - sx - look.face * 20, dy: ey - sy, ms: 300 } });
         });
     }
-    /** 얼어붙은 고리: 휘두름마다 고리 하나. 실제 피격 대상의 큰 가시는 runeRingHit에서 따로 건다. */
-    function runeIceRing(fx, look) {
-        SP.iceRing({ at: K.at(K.heroSpot()), face: look.face, radius: ringRadius(fx) });
-    }
-    /** 첫 단계에 실제로 맞은 적의 큰 가시 셋. 고리를 세운 첫 타격과 같은 프레임에 온다. */
-    function runeRingHit(hit) {
-        const hero = K.heroSpot();
-        SP.iceRingSpikes({ at: K.at(hero), radius: ringRadius(hit.fx), victim: relative(hit.victim, hero) });
+    /** 얼어붙은 고리: 휘두름마다 고리 하나. */
+    function runeIceRing(gem, fx, look) {
+        SP.iceRing({ at: K.at(K.heroSpot()), face: look.face, radius: ringRadius(fx), wave: gem.map.iceWave, shard: gem.map.iceShard });
     }
 
     // ---------------------------------------------------------------- per victim
@@ -106,7 +100,6 @@ const stageSkillRunes = (() => {
         (gem, hit, o) => gem.map.strike && o.lead && stageSkillVfx.play(gem.map.strike, K.at(hit.victim, 0, K.onGround(gem.map.strike) ? 1 : -46), { face: hit.look.face, ramp: hit.look.ramp, delay: 50 }),
         (gem, hit) => gem.map.rod && hit.fx.stageKind === 'fieldStart' && gem.map.tick && runeRodTick(gem.map.tick, hit),
         (gem, hit) => gem.map.gash && runeGashPull(hit.fx, hit),
-        (gem, hit) => gem.map.icering && !Number(hit.fx.stageIndex) && !Number(hit.fx.repeatIndex) && runeRingHit(hit),
         (gem, hit) => gem.map.pillars && Number(hit.fx.stageIndex) > 0 && !Number(hit.fx.repeatIndex) && runePillarHit(gem, hit),
         (gem, hit) => gem.map.mark && gem.map.bolt && !Number(hit.fx.repeatIndex) && runeGuillotineBolt(gem, hit)
     ]);
@@ -161,8 +154,10 @@ const stageSkillRunes = (() => {
         }
         if (elapsed < 0 || elapsed >= event.duration) return;
         const spot = K.along(event, elapsed), at = K.screen(view.projection, { gx: spot.gx, gy: spot.gy + lift }), ctx = view.ctx;
+        // 뜨거운 초승달 한 장이 칼날이고 그 뒤로 불꼬리가 흐른다(전달본 V3.6 flint-slash-tuning)
         ctx.save(); ctx.translate(Math.round(at.x), Math.round(at.y)); ctx.scale(spot.face * at.dot, at.dot); ctx.imageSmoothingEnabled = false;
-        ST.flameWave(ctx, elapsed);
+        stageSkillVfx.stamp(ctx, gem.map.flintTail, elapsed, { x: -25, y: -3, dot: 1, face: 1, alpha: 0.38 });
+        stageSkillVfx.stamp(ctx, gem.map.flintBlade, 0, { x: 0, y: 0, dot: 1, face: 1 });
         ctx.restore();
     }
     /** 피뢰침: 검끝에서 번개가 치고, 검끝에 구슬이 맺혀 따라다니고, 틱마다 발밑에 번개 금이 퍼진다. */
@@ -191,16 +186,16 @@ const stageSkillRunes = (() => {
         stageSkillVfx.play(map.bolt, K.at(hit.victim, 0, 1), { face });
         if (map.boltGround) stageSkillVfx.play(map.boltGround, K.at(hit.victim, 0, 1), { face, layer: 'ground', delay: 30 });
     }
-    /** 혹한의 지진의 둘째 단계: 친 자리(몸 앞 반 칸)에서 앞 쐐기를 따라 얼음 기둥이 솟는다(옆으로 치는 띠면 줄마다). */
+    /** 혹한의 지진의 둘째 단계: 친 자리(몸 앞 반 칸)에서 앞 쐐기를 따라 얼음이 솟는다(옆으로 치는 띠면 줄마다). */
     function runePillars(gem, event) {
         const face = faceOf(event), from = event.sourceCell, origin = { gx: from.gx + face * 0.5, gy: from.gy };
-        SP.iceColumns({ at: K.at(origin), face, L: reachCellsOf(event.footprint, 3.5), rowMs: gem.map.pillars, rows: rowsOf(event.footprint) });
+        SP.frostQuake({ at: K.at(origin), face, L: reachCellsOf(event.footprint, 3.5), rowMs: gem.map.pillars, rows: rowsOf(event.footprint), clips: gem.map.quake });
     }
-    /** 실제 피격 대상의 큰 기둥. 전투 틱 때문에 늦게 온 타격은 기본 기둥 열의 시각으로 보정하고, 이미 지났으면 지금부터 온전히 그린다. */
+    /** 실제 피격 대상의 얼음 더미. 전투 틱 때문에 늦게 온 타격은 줄의 시각으로 보정하고, 이미 지났으면 지금부터 온전히 그린다. */
     function runePillarHit(gem, hit) {
         const from = hit.fx.sourceCell, ahead = Math.max(0, Math.abs(hit.victim.gx - from.gx) - 0.5), artAt = stageArtAt(hit.fx);
-        const delay = Math.max(0, ahead * gem.map.pillars - (artAt === null ? 0 : hit.now - artAt));
-        SP.iceColumn({ at: K.at(hit.victim), delay, face: Math.sign(hit.victim.gx - from.gx) || K.heroFace(), seed: Number(hit.fx.enemyId) || 0 });
+        const delay = Math.max(0, ahead * gem.map.pillars + 60 - (artAt === null ? 0 : hit.now - artAt));
+        SP.frostErupt({ at: K.at(hit.victim), delay, clips: gem.map.quake, seed: Number(hit.fx.enemyId) || 0 });
     }
     /** 불씨의 함성: 첫 단계에 외침, 불씨 앞면, 둘레 폭발, 타는 바닥을 한 번에 건다(뒤 단계는 바닥이 타는 동안이다). */
     function runeEmber(gem, event) {
@@ -245,6 +240,7 @@ const stageSkillRunes = (() => {
     // ---------------------------------------------------------------- windup, movement, bows, hits
     /** 시전 시작: 부싯돌 베기는 타격 전까지 무기 끝이 바닥을 긁어 불티가 튄다. */
     function runeWindup(gem, fx) {
+        if (gem.map.censer) stageNewRunes.censerStart(gem);   // 정화의 집행: 몸을 따라다니는 불의 고리
         if (!gem.map.drag) return;
         const hero = K.heroSpot();
         ST.dragSpark(K.at(hero), K.heroFace(), Math.max(200, Number(fx.impactDelayMs) || 0), hero.gx * 13 + hero.gy);
