@@ -9,7 +9,7 @@ const PASSIVE_KEYSTONE_CONTRACTS = Object.freeze([
     contract('pt_core_keystone_02', '타락한 복음',
         '보유한 모든 계시가 광신으로 대체됩니다.\n계시의 효과를 받을 수 없습니다.\n' +
         '같은 주력 스킬을 계속 사용하면 광신 수치까지 열광을 획득합니다.\n' +
-        '열광 1당 피해가 1.5% 증가하고 스킬 속도가 0.5% 증가하며, 총 방어도·회피·에너지 보호막이 0.75% 감폭됩니다.'),
+        '열광 1당 피해가 1.5% 증가하고 공격 속도가 0.5% 증가하며, 총 방어도·회피·에너지 보호막이 0.75% 감폭됩니다.'),
     contract('pt_core_keystone_03', '육신과 정신의 성약',
         '패시브 트리에서 배분한 힘과 지능은 해당 능력치를 제공하지 않습니다.\n' +
         '배분한 힘 10과 지능 10당 계시 1을 얻습니다.\n기본 능력치, 장비 및 일시적인 효과는 전환되지 않습니다.'),
@@ -72,14 +72,14 @@ const PASSIVE_KEYSTONE_CONTRACTS = Object.freeze([
     contract('backbone_branch_warrior_outer_1_cycle_reverse_keystone', '역행 순환',
         '순환 효과가 상태 이상 종료 시가 아니라 상태 이상 시작 시 발동합니다.\n순환 효과는 한 종류만 유지되며 효과가 50% 감폭됩니다.'),
     contract('backbone_branch_warrior_outer_4_warrior_bleed_keystone', '한 번의 중량',
-        '공격 피해 편차가 항상 최대 피해로 결정됩니다.\n공격 스킬 속도가 30% 감폭됩니다.'),
+        '공격 피해 편차가 항상 최대 피해로 결정됩니다.\n공격 속도가 30% 감폭됩니다.'),
     contract('backbone_branch_wanderer_outer_4_wanderer_duel_keystone', '완전 회피',
         '방어도와 막기 확률이 0이 됩니다.\n회피 확률이 15%p 증가합니다(최대 90%).\n공격을 회피하면 다음 근접 공격의 치명타가 확정됩니다.'),
     contract('backbone_branch_archer_outer_4_archer_physical_keystone', '관통 행렬',
         '투사체 스킬 대상 수가 2 증가합니다.\n두 번째 이후 대상에게 주는 투사체 피해가 40% 감폭됩니다.\n' +
         '하나의 스킬 행동으로 같은 적을 중복 타격할 수 없습니다. 단, 회귀 타격은 예외입니다.'),
     contract('backbone_branch_alchemist_outer_1_universal_flask_keystone', '과잉 투여',
-        '포션 스킬 피해가 50% 증폭됩니다.\n포션 스킬 속도가 25% 감폭됩니다.'),
+        '포션 스킬 피해가 50% 증폭됩니다.\n포션 스킬의 공격 속도가 25% 감폭됩니다.'),
     contract('backbone_branch_alchemist_outer_2_universal_summon_keystone', '단 하나의 사역',
         '공격형 소환수 최대 한도가 1이 됩니다.\n잃은 소환수 최대 한도 1당 남은 공격형 소환수의 피해가 75%, 생명력이 50% 증폭됩니다.\n' +
         '해당 소환수의 부활 대기시간이 100% 증가합니다.'),

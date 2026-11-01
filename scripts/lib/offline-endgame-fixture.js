@@ -15,7 +15,7 @@ module.exports = function configureOfflineEndgameFixture() {
     game.ascendNodes = Object.keys(getClassTreeDef('soulbinder'));
     game.ascendKeystones = ['sb1', 'sb3', 'sb7', 'sb9'];
     game.passives = Object.values(PASSIVE_TREE.nodes)
-        .filter(node => node.kind !== 'void' && !node.keystone && !node.intentionalNoEffect)
+        .filter(node => !['void', 'keystone', 'start'].includes(node.kind) && !node.intentionalNoEffect)
         .slice(0, 100).map(node => node.id);
     for (const slot of Object.keys(game.equipment)) {
         const baseSlot = slot.replace(/[123]$/, '');

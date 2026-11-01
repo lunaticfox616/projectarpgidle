@@ -5,7 +5,7 @@ function safeExposeData(map) {
 }
 
 // Phase-1 extracted runtime constants (kept global for backward compatibility).
-const PASSIVE_LAYOUT_VERSION = 22;
+const PASSIVE_LAYOUT_VERSION = 23;
 // 저장 키(2026-10-08 이름 바꿈): 예전 이름의 키(세 글자 앞말 + 'IdleSaveData_v숫자', 'IdleCloudSession_v1')는 처음 불러올 때
 // 읽고 그 뒤로는 아래 키에 쓴다(js/save.js getLegacySaveKeys, js/ui.js loadStoredCloudSession). 예전 키 이름은 꼴로만 알아본다.
 const LOCAL_SAVE_KEY = 'rigninSaveData_v9';

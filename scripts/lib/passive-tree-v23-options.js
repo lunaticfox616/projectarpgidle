@@ -150,7 +150,7 @@ function purifyMixedNotables(tree, context, report) {
     const graph = buildGraph(tree), nodes = nodeMap(tree);
     tree.nodes.filter(node => node.type === 'major' && rolesOf(node).has('A') && rolesOf(node).has('D')).forEach(node => {
         const effects = effectsOf(node), primary = roleOf(effects[0].statId) === 'D' ? 'D' : 'A', drop = primary === 'A' ? 'D' : 'A';
-        // The +30% goes to the first positive line of the kept half, never to a special option or a cost line (심연의 헌신: 헌신 3, 스킬 속도 -2).
+        // The +30% goes to the first positive line of the kept half, never to a special option or a cost line (심연의 헌신: 헌신 3, 공격 속도 -2).
         const remaining = effects.filter(effect => roleOf(effect.statId) !== drop);
         const boosted = remaining.findIndex(effect => roleOf(effect.statId) === primary && Number(effect.value) > 0);
         const kept = remaining.map((effect, index) => (index === boosted ? { ...effect, value: Number(effect.value) * 1.3 } : effect));

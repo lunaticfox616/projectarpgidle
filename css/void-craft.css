@@ -1,0 +1,70 @@
+/* 공허 제작 창의 색(2026-11-01 사용자). 픽셀 스킨(themes/pixel.css)이 창과 버튼을 덮으므로 같은 층에서 그 위에 얹는다.
+   보라 바탕에 재화마다 제 색을 쓰고, 금빛은 목표 줄과 획득 연출에만 쓴다. */
+@layer overrides {
+    :root body[data-ui-skin] .void-craft-dialog {
+        background: radial-gradient(120% 60% at 50% -8%, rgba(138, 100, 255, .34), transparent 64%), radial-gradient(90% 55% at 104% 104%, rgba(70, 190, 205, .18), transparent 62%), var(--px-wood), var(--px-stone);
+        background-clip: padding-box;
+    }
+    :root body[data-ui-skin] .void-craft-dialog.is-rolling { box-shadow: 6px 6px 0 rgba(0, 0, 0, .5), 0 0 42px rgba(150, 110, 255, .6); }
+    :root body[data-ui-skin] .void-craft-dialog.is-hit { animation: void-hit-dialog 1.5s ease-out; }
+    :root body[data-ui-skin] #void-craft-title { color: #d9c9ff; }
+    :root body[data-ui-skin] .void-craft-subtitle { color: #a99bd0; }
+    :root body[data-ui-skin] .void-craft-effect { min-height: 28px; border-color: #7a62c0; background: linear-gradient(135deg, rgba(118, 88, 220, .3), rgba(36, 28, 66, .5)); color: #e8e0ff; }
+    :root body[data-ui-skin] .is-rolling .void-craft-effect { animation: void-roll-flicker .26s steps(2) infinite; }
+    :root body[data-ui-skin] .void-craft-effect.is-hit { border-color: #e6c36a; animation: void-hit-card 1.5s ease-out; }
+    .void-craft-line.is-target { color: #ffe29a; font-weight: 700; text-shadow: 0 0 10px rgba(255, 214, 120, .55); }
+
+    /* 재화: 새싹 초록, 고리 분홍, 황금률 금빛. */
+    :root body[data-ui-skin] .void-craft-dialog .void-currency:not(:disabled) { border-color: var(--void-edge); background: linear-gradient(180deg, var(--void-top), var(--void-bottom)); color: var(--void-ink); }
+    :root body[data-ui-skin] .void-craft-dialog .void-currency:hover:not(:disabled) { filter: brightness(1.2); }
+    .void-currency.is-bud { --void-ink: #c9f2d8; --void-top: rgba(74, 170, 116, .5); --void-bottom: rgba(28, 62, 46, .75); --void-edge: #5fb98a; }
+    .void-currency.is-ring { --void-ink: #ffd6f2; --void-top: rgba(214, 104, 186, .5); --void-bottom: rgba(70, 28, 62, .75); --void-edge: #d67fc0; }
+    .void-currency.is-rule { --void-ink: #ffe9b4; --void-top: rgba(214, 170, 84, .48); --void-bottom: rgba(70, 52, 22, .75); --void-edge: #cda75a; }
+
+    /* 목표 옵션과 연속 사용(js/void-craft-ui.js). 묶음마다 칩 색이 다르다. */
+    .void-target { margin: 0 0 12px; padding: 10px 12px; background: rgba(20, 16, 40, .62); border: 1px solid rgba(122, 98, 192, .6); }
+    .void-target-head { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+    .void-target-head b { color: #d9c9ff; }
+    .void-target-head span, .void-run-status { color: #b3a8cc; font-size: 12px; }
+    .void-target-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+    :root body[data-ui-skin] .void-craft-dialog .void-chip { min-height: 26px; padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--void-chip) 50%, #050403); background: rgba(10, 8, 22, .7); color: var(--void-chip); font-size: 12px; font-weight: 400; line-height: 1.4; }
+    :root body[data-ui-skin] .void-craft-dialog .void-chip:hover { border-color: var(--void-chip); }
+    :root body[data-ui-skin] .void-craft-dialog .void-chip.is-on { border-color: var(--void-chip); background: var(--void-chip); color: #1c1408; font-weight: 700; text-shadow: none; }
+    .void-chip.is-damage { --void-chip: #f2a98a; }
+    .void-chip.is-speed { --void-chip: #f2d27e; }
+    .void-chip.is-ailment { --void-chip: #a4d98a; }
+    .void-chip.is-defence { --void-chip: #8cc8ea; }
+    .void-chip.is-attribute { --void-chip: #c9b4ff; }
+    .void-chip.is-weapon { --void-chip: #eea0ce; }
+    .void-target-picker { margin-bottom: 8px; }
+    .void-target-picker summary { cursor: pointer; color: #bfa9ff; font-size: 12px; }
+    .void-target-groups { max-height: 210px; margin-top: 6px; padding-right: 4px; overflow: auto; }
+    .void-target-group-name { margin-bottom: 3px; color: #b3a8cc; font-size: 12px; }
+    .void-run { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    :root body[data-ui-skin] .void-craft-dialog .void-run-button:not(:disabled) { border-color: #a78bff; background: linear-gradient(180deg, rgba(138, 100, 255, .62), rgba(70, 48, 140, .8)); color: #efe8ff; }
+    :root body[data-ui-skin] .void-craft-dialog .void-run-button:hover:not(:disabled) { filter: brightness(1.15); }
+    :root body[data-ui-skin] .void-craft-dialog .void-run-button.is-running:not(:disabled) { border-color: #d97a7a; background: linear-gradient(180deg, rgba(200, 84, 84, .6), rgba(96, 36, 36, .8)); color: #ffe0e0; }
+
+    /* 목표가 뜬 순간: 고리 두 겹, 빛 조각, 금빛 글자. 픽셀 스킨은 모서리를 깎지 않으므로 고리는 그라디언트로 그린다. */
+    .void-hit-fx { position: absolute; z-index: 2; width: 0; height: 0; pointer-events: none; }
+    .void-hit-ring { position: absolute; left: -70px; top: -70px; width: 140px; height: 140px; background: radial-gradient(circle closest-side, transparent 80%, #ffe29a 84%, #ffe29a 90%, rgba(255, 226, 154, 0) 98%); filter: drop-shadow(0 0 8px rgba(255, 214, 120, .85)); animation: void-hit-ring .9s ease-out both; }
+    .void-hit-ring.is-late { background: radial-gradient(circle closest-side, transparent 80%, #b39bff 84%, #b39bff 90%, rgba(179, 155, 255, 0) 98%); filter: drop-shadow(0 0 8px rgba(167, 139, 255, .85)); animation-delay: .16s; }
+    .void-hit-fx i { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; background: #ffe29a; box-shadow: 0 0 8px #ffd778; animation: void-hit-spark 1.05s ease-out var(--d) both; }
+    .void-hit-fx i:nth-child(3n) { background: #c9b4ff; box-shadow: 0 0 8px #a78bff; }
+    .void-hit-banner { position: absolute; left: 0; top: -66px; color: #ffe9b4; font-size: 22px; font-weight: 800; white-space: nowrap; text-shadow: 0 0 14px rgba(255, 214, 120, .9), 0 2px 0 #2a1c08, 2px 0 0 #2a1c08, -2px 0 0 #2a1c08, 0 -2px 0 #2a1c08; animation: void-hit-banner 1.8s ease-out both; }
+    @keyframes void-roll-flicker { 0% { opacity: 1; } 100% { opacity: .76; } }
+    @keyframes void-hit-dialog { 0%, 60% { box-shadow: 6px 6px 0 rgba(0, 0, 0, .5), 0 0 64px rgba(255, 214, 120, .6); } }
+    @keyframes void-hit-card { 0% { background-color: rgba(255, 214, 120, .6); transform: scale(1); } 18% { transform: scale(1.035); } 100% { background-color: transparent; transform: scale(1); } }
+    @keyframes void-hit-ring { 0% { opacity: 1; transform: scale(.25); } 100% { opacity: 0; transform: scale(2.6); } }
+    @keyframes void-hit-spark { 0% { opacity: 1; transform: rotate(var(--a)) translateX(10px); } 100% { opacity: 0; transform: rotate(var(--a)) translateX(var(--r)); } }
+    @keyframes void-hit-banner { 0% { opacity: 0; transform: translateX(-50%) scale(.6); } 16% { opacity: 1; transform: translateX(-50%) scale(1.1); } 28% { transform: translateX(-50%) scale(1); } 78% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) translateY(-10px); } }
+    @media (prefers-reduced-motion: reduce) {
+        :root body[data-ui-skin] .is-rolling .void-craft-effect, :root body[data-ui-skin] .void-craft-effect.is-hit, :root body[data-ui-skin] .void-craft-dialog.is-hit { animation: none; }
+        .void-hit-fx i, .void-hit-ring { display: none; }
+    }
+    @media (max-width: 600px) {
+        .void-run-button { width: 100%; }
+        .void-target-groups { max-height: 170px; }
+        .void-hit-banner { font-size: 18px; }
+    }
+}

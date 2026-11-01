@@ -43,6 +43,7 @@ const playerStatTick = (() => {
         },
         cycleBuffEffects: now => getActivePassiveCycleBuffEffects(now),
         fanaticismStacks: () => ensurePassiveSpecializationState().fanaticism.stacks,
+        playerAilmentCount: () => (game.playerAilments || []).filter(row => row && row.time > 0).length,
         leechActive: () => Array.isArray(game.playerLeechInstances)
             && game.playerLeechInstances.some(instance => instance && Number(instance.remaining) > 0),
         evasionDanceStacks: now => {

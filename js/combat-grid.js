@@ -1110,6 +1110,14 @@ function getGridPrimaryPool(candidates, options) {
     return splashOnly ? candidates.filter(row => !splashOnly.has(row.enemy)) : candidates;
 }
 
+/** 투사체 연쇄(패시브 트리의 무기 줄): 마지막으로 맞힌 적에서 연쇄 거리 안의 가장 가까운 안 맞은 적으로 chains번 튄다. */
+function extendGridTargetsByProjectileChain(hits, chains, candidates) {
+    let jumps = Math.floor(Number(chains) || 0), from = hits.at(-1);
+    if (jumps <= 0 || !from) return;
+    let fresh = candidates.filter(enemy => enemy === from || !hits.includes(enemy));
+    hits.push(...buildGridChainTargets({ jump: COMBAT_GRID_CONFIG.chainJumpRange }, jumps + 1, from, fresh).slice(1));
+}
+
 function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options) {
     if (!attackerCell || !isGridCellInBounds(attackerCell.gx, attackerCell.gy)) return [];
     let profile = getSkillGridProfile(skillName, skill);
@@ -1143,7 +1151,10 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options
     }
     let fanDamage = skill.projectilePattern && skill.projectilePattern.kind === 'fan'
         ? Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT) / 100 : null;
-    return hits.map((enemy, idx) => ({ enemy, mult: fanDamage !== null && idx > 0 ? fanDamage : getGridSkillTargetMult(mode, idx) }));
+    let directHits = hits.length;
+    extendGridTargetsByProjectileChain(hits, skill.projectileChain, orderedCandidates.map(row => row.enemy));
+    let directMult = idx => (fanDamage !== null && idx > 0 ? fanDamage : getGridSkillTargetMult(mode, idx));
+    return hits.map((enemy, idx) => ({ enemy, mult: idx < directHits ? directMult(idx) : PROJECTILE_BONUS_SHOT_DAMAGE_PCT / 100 }));
 }
 
 const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({

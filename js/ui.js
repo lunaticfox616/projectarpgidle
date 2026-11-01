@@ -10160,7 +10160,7 @@ function getAllocatedPassiveStatSummary() {
         if (node.kind === 'void') {
             voidCount++;
             const entry = game.voidPassives && game.voidPassives[String(id)];
-            passiveRouting.voidStats(entry, game).forEach(line => add(line && line.id, line && line.val));
+            passiveRouting.voidStats(entry, game, getVoidLinkScale(id)).forEach(line => add(line && line.id, line && line.val));
             getTranscendentVoidPassiveStats(id, entry, virtualVoidCount).forEach(line => add(line.stat, line.val));
             if (entry && entry.transcendent) {
                 const def = (typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' ? TRANSCENDENT_VOID_PASSIVE_DB : []).find(row => row.id === entry.transcendent.id);
@@ -10184,7 +10184,7 @@ function getAllocatedPassiveStatSummary() {
     } else if (typeof getPassiveConstellationAwakeningProgress === 'function') {
         const progress = getPassiveConstellationAwakeningProgress();
         if (progress.mode === 'outer_void' && progress.allocated > 0) {
-            specialEffects.push(`성좌 각성 ${progress.completed}/${progress.required}, 외곽 공허 소켓을 요정의 고리로 초월`);
+            specialEffects.push(`성좌 각성 ${progress.completed}/${progress.required}, 직업 공허 소켓을 모두 활성화`);
         }
     }
     return {
@@ -10433,6 +10433,7 @@ Object.assign(window, { getPassiveTreeSearchState, getPassiveNodeSearchMatch, se
 
 
 function closeVoidPassiveCraftOverlay() {
+    voidCraftUi.stopRun();
     let overlay = document.getElementById('void-passive-craft-overlay');
     if (overlay) overlay.remove();
 }
@@ -10459,7 +10460,7 @@ function craftVoidPassiveFromOverlay(nodeId, currencyKey) {
 }
 
 function canUseFairyRingOnVoid(entry, active) {
-    return active && (game.currencies.fairyRing || 0) > 0 && (!!entry.transcendent || (entry.stats || []).length > 0);
+    return active && !entry.fairyLocked && (game.currencies.fairyRing || 0) > 0 && (!!entry.transcendent || (entry.stats || []).length > 0);
 }
 
 function getVoidCraftResultText(nodeId, currencyKey) {
@@ -10485,13 +10486,13 @@ async function askRefundPassiveNode(id) {
     refundPassiveNode(id);
 }
 
-/** 공허 제작 창 안내: 세 오브가 하는 일과, 외곽 공허 소켓이면 성좌 각성 진행(초월은 이 창에서 시도한다). */
+/** 공허 제작 창 안내: 세 재화가 하는 일과, 직업 공허 소켓이면 성좌 각성 진행. */
 function getVoidCraftGuide(node, active) {
     if (!active) return '먼저 패시브 트리에서 이 공허 패시브를 활성화해야 제작할 수 있습니다.';
-    const base = '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다. 요정의 고리는 옵션이 있는 공허를 25% 확률로 초월시키고, 실패하면 옵션이 지워집니다. 황금률은 초월 수치를 다시 굴립니다.';
+    const base = '마법의 새싹은 현재 옵션을 지우고 공허 옵션 1~2줄을 다시 굴립니다. 요정의 고리는 옵션이 있는 공허를 25% 확률로 초월시키고, 실패하면 옵션이 지워지며 이번 루프에는 이 소켓에 다시 쓸 수 없습니다. 황금률은 초월 수치를 다시 굴립니다.';
     if (node.voidRing !== 'outer' || game.passiveStarEvolution) return base;
     const progress = getPassiveConstellationAwakeningProgress();
-    return `${base}<br>외곽 공허 소켓, 성좌 각성 ${progress.completed}/${progress.required}: 여섯을 모두 초월시키면 성좌가 각성합니다.`;
+    return `${base}<br>직업 공허 소켓, 성좌 각성 ${progress.completed}/${progress.required}: 여섯을 모두 활성화하면 성좌가 각성합니다.`;
 }
 
 /** 초월 하나의 설명을 수치 범위로(카멜레온 목록): "5~10", 고정값은 그 값. */
@@ -10528,7 +10529,6 @@ function openVoidPassiveCraftOverlay(nodeId, result = '') {
     let active = (game.passives || []).includes(node.id);
     let entry = typeof getVoidPassiveCraft === 'function' ? getVoidPassiveCraft(node.id) : { stats: [] };
     let refundState = getVoidPassiveRefundState(node.id);
-    let effectLabel = typeof getVoidPassiveEffectLabel === 'function' ? getVoidPassiveEffectLabel(node.id) : getPassiveEffectLabel(node);
     let overlay = document.createElement('div');
     overlay.id = 'void-passive-craft-overlay';
     overlay.className = 'void-craft-overlay';
@@ -10538,14 +10538,15 @@ function openVoidPassiveCraftOverlay(nodeId, result = '') {
             <div><div id="void-craft-title">${escapeHTML(getPassiveNodeDisplayName(node))}</div><div class="void-craft-subtitle">공허 패시브 제작</div></div>
             <button type="button" onclick="closeVoidPassiveCraftOverlay()">닫기</button>
         </div>
-        <div class="void-craft-effect">${effectLabel}</div>${chameleonChoicesHtml(node, entry, active)}
+        <div class="void-craft-effect" id="void-craft-effect">${voidCraftUi.effectHtml(node.id)}</div>${chameleonChoicesHtml(node, entry, active)}
         ${result ? `<div class="void-craft-result" role="status">${escapeHTML(result)}</div>` : ''}
         <div class="void-craft-hint">${getVoidCraftGuide(node, active)}</div>
         <div class="void-craft-actions">
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 ? '' : 'disabled'}>마법의 새싹, 1~2줄 재굴림<br><span>보유 ${game.currencies.magicBud || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${canUseFairyRingOnVoid(entry, active) ? '' : 'disabled'}>요정의 고리<br><span>보유 ${game.currencies.fairyRing || 0}</span></button>
-            <button type="button" onclick="craftVoidPassiveFromOverlay('${node.id}','goldenRule')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.goldenRule || 0) > 0 ? '' : 'disabled'}>황금률<br><span>보유 ${game.currencies.goldenRule || 0}</span></button>
+            <button type="button" class="void-currency is-bud" onclick="craftVoidPassiveFromOverlay('${node.id}','magicBud')" ${active && !entry.transcendent && (game.currencies.magicBud || 0) > 0 ? '' : 'disabled'}>마법의 새싹, 1~2줄 재굴림<br><span id="void-bud-count">보유 ${game.currencies.magicBud || 0}</span></button>
+            <button type="button" class="void-currency is-ring" onclick="craftVoidPassiveFromOverlay('${node.id}','fairyRing')" ${canUseFairyRingOnVoid(entry, active) ? '' : 'disabled'}>요정의 고리<br><span>${entry.fairyLocked ? '이번 루프 사용 불가' : `보유 ${game.currencies.fairyRing || 0}`}</span></button>
+            <button type="button" class="void-currency is-rule" onclick="craftVoidPassiveFromOverlay('${node.id}','goldenRule')" ${active && entry.transcendent && typeof TRANSCENDENT_VOID_PASSIVE_DB !== 'undefined' && TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min))) && (game.currencies.goldenRule || 0) > 0 ? '' : 'disabled'}>황금률<br><span>보유 ${game.currencies.goldenRule || 0}</span></button>
         </div>
+        ${voidCraftUi.panelHtml(node, entry, active)}
         <div class="void-craft-footer">
             <div class="void-craft-hint">${refundState.reason}</div>
             <button type="button" onclick="refundVoidPassiveFromOverlay('${node.id}')" ${refundState.enabled ? '' : 'disabled'}>공허 패시브 반환 (마름병 포자 1)</button>
@@ -10738,7 +10739,7 @@ function setupCanvasEvents() {
                 : '✨ 성좌 진화 이후 드러난 강력한 외곽 노드입니다.';
         } else if (node.voidRing === 'outer' && !game.passiveStarEvolution) {
             const progress = getPassiveConstellationAwakeningProgress();
-            msg += `, 성좌 각성 ${progress.completed}/${progress.required}: 외곽 공허 소켓 여섯을 모두 초월시키면 각성합니다.`;
+            msg += `, 성좌 각성 ${progress.completed}/${progress.required}: 직업 공허 소켓 여섯을 모두 활성화하면 각성합니다.`;
         }
 
         // 효과 글씨는 능력치 종류의 색(장비 옵션과 같은 getItemStatToneColor): 노드 테두리 색의 옅은 글씨는 흰색과 구분되지 않았다(2026-10-06).

@@ -137,7 +137,38 @@ const skillGemCasts = (() => {
         if(id===44)cast.targetId=null;
         launch[id](state,cast,enemies);
         state.casts.push(cast);
+        if(THROWN_FLASKS.has(id))throwExtraFlasks(state,input,cast,options.filter(enemy=>enemy!==target));
         return true;
+    }
+    /** 플라스크의 투사체 추가 발사(패시브 트리, 장비): 병이 더 날아간다. 병마다 아직 안 노린 가까운 적을, 없으면 같은 적을 노리고 피해는 추가 발사 배율이다.
+     * 궤적이 따로 짜인 룬이라 공용 추가 발사(js/combat.js)가 닿지 않는다. 빈 플라스크는 파편이 늘고, 바위 플라스크는 주인공이 따라 날아가 늘지 않는다. */
+    const THROWN_FLASKS=new Set([44,47,48,79]);
+    function throwExtraFlasks(state,input,first,others) {
+        const extra=rollProjectileExtraShots(first.stats.projectileExtraShots),rest=others.slice();
+        for(let shot=0;shot<extra;shot++) {
+            const foe=findNearestGridEnemy(first.source,rest)||input.enemies.find(enemy=>enemy.id===first.targetId)||null;
+            if(!foe)return;
+            rest.splice(rest.indexOf(foe),1);
+            const cast={...first,attackOptions:{...first.attackOptions,attackDamageMultiplier:(first.attackOptions?.attackDamageMultiplier??1)*PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100},
+                aim:getGridUnitCenter(foe),targetId:first.id===44?null:foe.id,firstFoe:foe,key:'gem-'+(++state.sequence),nextAt:first.at,struck:undefined};
+            launch[first.id](state,cast,input.enemies);
+            state.casts.push(cast);
+        }
+    }
+    /** 투사체 연쇄(패시브 트리의 무기 줄): 맞힌 적에서 안 맞은 가까운 적으로 튄다. 피해는 추가 발사 배율이다. 탄성 플라스크는 튀는 횟수가 늘어난다(stepBounce). */
+    const chainsOf=c=>Math.max(0,Math.floor(c.stats.sSkill.projectileChain||0));
+    function chainContacts(c,rows,enemies) {
+        const chains=c.id===44?0:chainsOf(c),hit=rows.find(row=>row.type==='hit' && row.targets.length);
+        if(!chains || !hit)return rows;
+        const struck=new Set(rows.flatMap(row=>row.targets||[]));
+        let from=enemies.find(enemy=>enemy.id===hit.targets[0]);
+        const chained=[];
+        while(from && chained.length<chains) {
+            const near=enemies.filter(e=>e.hp>0 && !struck.has(e.id) && getGridUnitDistance(from,e)<=COMBAT_GRID_CONFIG.chainJumpRange);
+            from=near.length?findNearestGridEnemy(from,near):null;
+            if(from){struck.add(from.id);chained.push(from);}
+        }
+        return chained.length?[...rows,contact(c,chained,hit.at,{damagePct:PROJECTILE_BONUS_SHOT_DAMAGE_PCT,key:hit.key+':chain'})]:rows;
     }
     /** 무대의 주인공이 놓는 순간(js/combat.js noteNativeGemSwing): 그 룬의 동작이 이때 타격 장에 온다. */
     const letGo=(c,impact,until)=>{c.swing={impact,until};};
@@ -193,7 +224,7 @@ const skillGemCasts = (() => {
     const BOUNCE_REACH=3;
     function bounceTarget(c,enemies) {
         const live=enemies.filter(e=>e.hp>0);
-        if(c.targetId===null)return findNearestGridEnemy(c.source,targets(44,c.source,live,grow(c.stats)));
+        if(c.targetId===null)return c.firstFoe || findNearestGridEnemy(c.source,targets(44,c.source,live,grow(c.stats)));
         const near=live.filter(e=>e.id!==c.targetId && distance(c.aim,getGridUnitCenter(e))<=BOUNCE_REACH);
         const fresh=near.filter(e=>!c.struck.has(e.id));
         if(fresh.length || near.length)return findNearestGridEnemy(c.aim,fresh.length?fresh:near);
@@ -472,7 +503,7 @@ const skillGemCasts = (() => {
         const pop=contact(c,area(input.enemies,c.aim,'circle',1),c.nextAt,{damagePct:BOUNCE_POP_PCT,key:c.key+':pop'});
         const result=contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.nextAt);
         c.index++;
-        if(c.index===4+grow(c.stats))c.done=true;
+        if(c.index===4+grow(c.stats)+chainsOf(c))c.done=true;
         else {c.source=cell(c.aim);c.nextAt+=80/c.speed;c.pendingBounce=true;}
         return pop.targets.length ? [result,pop] : [result];
     }
@@ -660,7 +691,7 @@ const skillGemCasts = (() => {
             if(c.id===50)c.event.holySource=cell(input.source);
             if(c.done || c.nextAt>input.now)continue;
             if(c.pendingBounce){c.pendingBounce=false;bounce(state,c,input.enemies);}
-            if(!c.done && c.nextAt<=input.now)commands.push(...steps[c.id](state,c,input));
+            if(!c.done && c.nextAt<=input.now)commands.push(...chainContacts(c,steps[c.id](state,c,input),input.enemies));
         }
         state.casts=state.casts.filter(c=>!c.done);
         state.events=state.events.filter(e=>input.now<e.at+e.duration);

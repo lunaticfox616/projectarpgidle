@@ -56,7 +56,7 @@ function getPassiveEffectLabel(node) {
             // STAT_DISPLAY_NAMES (2026-10-28: the tooltip showed "shockEffect +15").
             const statInfo = P_STATS[effect.stat] || {}, rawName = statInfo.name || getStatName(effect.stat);
             const sign = Number(effect.val) >= 0 ? '+' : '';
-            const statName = String(rawName).replace(/\s*\(%\)\s*/g, '').trim();
+            const statName = String(rawName).replace(/\s*\((\+%p|%)\)\s*/g, '').trim();
             const isPct = statInfo.name ? statInfo.isPct : /\(%\)/.test(rawName);
             return `${statName} ${sign}${formatValue(effect.stat, effect.val)}${isPct ? '%' : ''}`;
         });
@@ -89,7 +89,7 @@ function getPassiveKindLabel(node) {
     if (node.kind === 'transcendent') return '초월 성좌';
     if (node.kind === 'core') return '핵심 성좌';
     if (node.kind === 'deadend') return '막다른 길 거점';
-    if (node.kind === 'void') return node.voidRing === 'outer' ? '외곽 공허 소켓' : '공허 패시브';
+    if (node.kind === 'void') return node.voidRing === 'outer' ? '직업 공허 소켓' : '공허 패시브';
     if (node.kind === 'hub') return '교차 거점';
     if (node.sourceType === 'keystone' || node.kind === 'keystone') return '키스톤';
     if (node.sourceType === 'major' || node.kind === 'major') return '주요 패시브';
@@ -211,6 +211,9 @@ function tracePassiveLinkSegment(ctx, a, b) {
 }
 
 const PASSIVE_ICON_FAMILY = Object.freeze({
+    ...Object.fromEntries(Object.entries(WEAPON_CONDITION_STATS).map(([id, line]) => [id, { greatsword: 'blade', sword: 'blade', bow: 'projectile', orb: 'arcane', flask: 'potion', censer: 'arcane' }[line.stance]])),
+    voidLinkEfficiency: 'void', attackPctDmg: 'blade', projectileChain: 'projectile', skillDelayReduce: 'arcane', spellRepeatChance: 'arcane', igniteDurationPct: 'elemental', chillDurationPct: 'elemental', freezeDurationPct: 'elemental',
+    shockDurationPct: 'elemental', poisonDurationPct: 'potion', bleedDurationPct: 'blade',
     mystique: 'mystique', devotion: 'devotion', cycle: 'cycle', projectilePctDmg: 'projectile', projectileExtraShots: 'projectile',
     accuracy: 'projectile', accuracyBonusPct: 'projectile', meleePctDmg: 'blade', physPctDmg: 'blade', slamPctDmg: 'blade', flatDmg: 'blade',
     strength: 'strength', pctDmg: 'blade', ds: 'blade', bleedChance: 'blade', physIgnore: 'blade', doubleDamageChance: 'blade', addedPhysDamagePct: 'blade',
@@ -1504,6 +1507,7 @@ const PASSIVE_REVELATION_LABELS = Object.freeze({
 });
 const PASSIVE_WISDOM_ELEMENTS = Object.freeze(['fire', 'cold', 'lightning', 'chaos']);
 const PASSIVE_WISDOM_ELEMENT_BY_NODE_ID = Object.freeze({
+    nmvzwisdomf: 'fire', nmvzwisdomc: 'cold', nmvzwisdoml: 'lightning', nmvzwisdomd: 'chaos',
     nhenzv8gp4i: 'fire',
     nlwk06igprm: 'cold',
     ndru1xggqhg: 'lightning',
@@ -1656,7 +1660,15 @@ function getEffectivePassiveNodeEffects(node) {
         ? { ...effect, val: effect.val - penalty } : effect);
 }
 
-safeExposeGlobals({ getPassiveNodeActivationState, getEffectivePassiveNodeEffects });
+/** 공허제어(2026-11-01 사용자: 연결된 공허 소켓의 효율 25% 증가): 이 소켓과 이어진 할당 노드의 voidLinkEfficiency 합을 줄 배율로 바꾼다. 찍고 지울 때 어긋나지 않게 읽을 때 잰다. */
+function getVoidLinkScale(nodeId) {
+    const owned = game.passives || [], neighbors = getPassiveTreeAdjacency().get(String(nodeId)) || [];
+    const lines = neighbors.filter(id => owned.includes(id)).flatMap(id => getPassiveNodeRawEffects(PASSIVE_TREE.nodes[id]));
+    const constellation = findAllocatedPassiveKeystone('공허의 별자리') ? getVirtualVoidPassiveCount() : 0;
+    return 1 + (lines.filter(effect => effect.stat === 'voidLinkEfficiency').reduce((sum, effect) => sum + Number(effect.val), 0) + constellation) / 100;
+}
+
+safeExposeGlobals({ getPassiveNodeActivationState, getEffectivePassiveNodeEffects, getVoidLinkScale });
 
 function getAllocatedPassiveStatValue(statId) {
     const totals = {};
@@ -1700,9 +1712,30 @@ function findAllocatedPassiveKeystone(title) {
     }
     const id = (game.passives || []).find(id => {
         const node = PASSIVE_TREE.nodes[id];
-        return node && node.kind === 'keystone' && node.title === title;
+        return node && node.kind === 'keystone' && (node.title === title || node.keystoneEffectId === `keystone:${authoredNodeId}`);
     });
     return PASSIVE_TREE.nodes[id] || null;
+}
+
+/** 그 효과를 가진 트리의 키스톤 id: 라이브 id, 이름이 같은 노드, keystoneEffectId로 이어진 노드(이름을 따로 지은 키스톤). */
+function getPassiveKeystoneNodeId(title) {
+    const liveId = PASSIVE_KEYSTONE_NODE_ID_BY_TITLE[title];
+    if (PASSIVE_TREE.nodes[liveId]) return liveId;
+    const node = Object.values(PASSIVE_TREE.nodes).find(row => row.kind === 'keystone' && (row.title === title || row.keystoneEffectId === `keystone:${liveId}`));
+    return node ? node.id : liveId;
+}
+
+/** 통로 키스톤(2026-11-01 사용자 글 "…의 시작점을 통과할 수 있음"): 찍으면 그 직업의 시작점을 포인트 없이 지나간다. 통로 키스톤이 있는 트리에서는 다른 직업의 시작점이 막힌다. */
+const PASSIVE_START_GATE_CLASS_BY_TITLE = Object.freeze({ '연금술의 가지': 'alchemist', '지식의 가지': 'occultist', '바람결의 가지': 'archer', '믿음의 줄기': 'cleric', '자유의 줄기': 'wanderer', '힘의 뿌리': 'warrior' });
+function getPassiveGatedStartIds(owner = game) {
+    const opened = (owner.passives || []).map(id => PASSIVE_TREE.nodes[id]).filter(node => node && node.kind === 'keystone' && PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]);
+    return new Set(opened.map(node => PASSIVE_TREE_V22.classStarts[PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]]).filter(Boolean));
+}
+function getPassiveBlockedStartIds(owner = game) {
+    const hasGates = Object.values(PASSIVE_TREE.nodes).some(node => node.kind === 'keystone' && PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]);
+    if (!hasGates) return new Set();
+    const gated = getPassiveGatedStartIds(owner), rootId = getPassiveTreeRootNodeId(owner);
+    return new Set(Object.values(PASSIVE_TREE.nodes).filter(node => node.kind === 'start' && node.id !== rootId && !gated.has(node.id)).map(node => node.id));
 }
 
 function getMystiqueAffinity(mystique, damageByElement) {
@@ -1881,12 +1914,8 @@ function applyPassiveKeystoneBucketRules(buckets) {
     if (findAllocatedPassiveKeystone('관통 행렬')) passive.targetProjectile += 2;
     if (findAllocatedPassiveKeystone('남겨진 잠식')) passive.chaosErosionCap += 20;
     if (findAllocatedPassiveKeystone('야만')) {
-        Object.values(buckets).forEach(bucket => {
-            bucket.strength += Math.max(0, bucket.dexterity) + Math.max(0, bucket.intelligence);
-            bucket.dexterity = 0;
-            bucket.intelligence = 0;
-        });
-        passive.flatDmg += Math.max(1, Math.floor(game.level || 1)) * 5 + Math.floor(sumPassiveRuleStat(buckets, 'strength') / 10);
+        zeroPassiveRuleStats(buckets, ['dexterity', 'intelligence']);
+        passive.flatDmg += Math.max(1, Math.floor(game.level || 1)) * 3 + Math.floor(sumPassiveRuleStat(buckets, 'strength') / 10);
     }
     if (findAllocatedPassiveKeystone('순환의 원석')) {
         const strength = sumPassiveRuleStat(buckets, 'strength');
@@ -1895,6 +1924,30 @@ function applyPassiveKeystoneBucketRules(buckets) {
     }
     applyPassiveDefenseKeystoneRules(buckets);
     applyPassiveRecoveryKeystoneRules(buckets);
+    applyPassiveWrittenKeystoneRules(buckets);
+}
+
+/** 2026-11-01 사용자가 글로 쓴 키스톤: 면죄의 복음, 공허의 별자리, 지식의 반목. */
+function applyPassiveWrittenKeystoneRules(buckets) {
+    const passive = buckets.passive;
+    if (findAllocatedPassiveKeystone('면죄의 복음')) {
+        Object.values(buckets).forEach(bucket => {
+            bucket.elementalPctDmg += (Number(bucket.chaosPctDmg) || 0) * 0.5;
+            bucket.chaosPctDmg = 0;
+        });
+    }
+    if (findAllocatedPassiveKeystone('공허의 별자리')) {
+        const voids = getVirtualVoidPassiveCount();
+        passive.spellPctDmg += voids * 2;
+        passive.spellRepeatChance += voids;
+    }
+    if (findAllocatedPassiveKeystone('지식의 반목')) passive.attackPctDmg += sumPassiveRuleStat(buckets, 'spellPctDmg') * 0.75;
+}
+
+/** 칼날 다발(2026-11-01 사용자 글): 힘과 민첩이 같으면 둘의 합 100마다 한손검 투사체가 1개 는다. */
+function getBladeBundleShots(strength, dexterity, stance) {
+    if (stance !== 'sword' || !findAllocatedPassiveKeystone('칼날 다발')) return 0;
+    return Math.floor(strength) === Math.floor(dexterity) ? Math.floor((strength + dexterity) / 100) : 0;
 }
 
 function getPassiveKeystoneCombatFlags(skillTags) {
@@ -1918,7 +1971,10 @@ function getPassiveKeystoneCombatFlags(skillTags) {
         blackDistill: !!findAllocatedPassiveKeystone('검은 증류'),
         singleMystique: !!findAllocatedPassiveKeystone('단일 해석'),
         soleMinion: !!findAllocatedPassiveKeystone('단 하나의 사역'),
-        potionOverdose: tags.has('potion') && !!findAllocatedPassiveKeystone('과잉 투여')
+        potionOverdose: tags.has('potion') && !!findAllocatedPassiveKeystone('과잉 투여'),
+        selfExperiment: !!findAllocatedPassiveKeystone('자가실험'),
+        absolution: !!findAllocatedPassiveKeystone('면죄의 복음'),
+        timeWarp: !!findAllocatedPassiveKeystone('시간왜곡')
     };
 }
 
@@ -2019,8 +2075,8 @@ function getPassiveOuterVoidNodes() {
     return Object.values(PASSIVE_TREE.nodes || {}).filter(node => node.kind === 'void' && node.voidRing === 'outer');
 }
 
-/** 성좌 각성: 외곽 공허 소켓 여섯을 모두 할당하고 요정의 고리로 초월시키면 영구히 각성한다(2026-10-01, 별쐐기 성률 대체).
- * allocated는 할당만 한 수, completed는 초월까지 마친 수다. 외곽 공허가 없는 옛 트리는 별끝 노드 규칙을 쓴다. */
+/** 성좌 각성: 직업 방향의 공허 소켓 여섯(voidRing 'outer')을 모두 찍으면 영구히 각성한다(2026-11-01 사용자, 초월 조건을 뺐다).
+ * 그 소켓이 없는 옛 트리는 별끝 노드 규칙을 쓴다. */
 function getPassiveConstellationAwakeningProgress() {
     const outerVoids = getPassiveOuterVoidNodes();
     const owned = new Set(game && game.passives || []);
@@ -2028,10 +2084,8 @@ function getPassiveConstellationAwakeningProgress() {
         const apexIds = getPassiveApexNodeIds();
         return { mode: 'legacy_apex', required: apexIds.length, completed: apexIds.filter(id => owned.has(id)).length, allocated: 0 };
     }
-    const crafts = game && game.voidPassives || {};
     const allocated = outerVoids.filter(node => owned.has(node.id));
-    return { mode: 'outer_void', required: outerVoids.length, allocated: allocated.length,
-        completed: allocated.filter(node => crafts[node.id] && crafts[node.id].transcendent).length };
+    return { mode: 'outer_void', required: outerVoids.length, allocated: allocated.length, completed: allocated.length };
 }
 
 function unlockPassiveStarEvolution(options) {
@@ -2060,7 +2114,7 @@ function unlockPassiveStarEvolution(options) {
             'passive_star_evolution',
             '성좌 각성',
             progress.mode === 'outer_void'
-                ? '외곽 공허 소켓 여섯이 모두 초월해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해/생명력/이동 속도가 오릅니다.'
+                ? '직업 공허 소켓 여섯을 모두 활성화해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해/생명력/이동 속도가 오릅니다.'
                 : '별끝 특수 노드를 모두 활성화해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해/생명력/이동 속도가 오릅니다.',
             'tab-char'
         );
@@ -2095,38 +2149,25 @@ function ensureMeteorSiteState(owner = game) {
     return site;
 }
 
+/** 공허 옵션(2026-11-01 사용자): 조건이 까다로운 줄일수록 수치가 높다. 피해 < 공격, 주문, 원소 < 근접, 투사체, 물리, 범위, 지속 < 화염, 냉기, 번개, 카오스 < 강타, 포션, 기동, 소환수 < 무기 사용 시.
+ * group은 제작 창의 목표 옵션 묶음이다(js/void-craft-ui.js). 트리의 설계 옵션(신비, 헌신, 순환, 공명력, 보조룬 한도, 룬 레벨, 추가 발사, 연쇄, 두 배 피해, 최대 저항, 피해 전환)은 넣지 않는다. */
+function voidOptionRows(group, rows) {
+    return rows.map(([id, min, max, step]) => ({ id, min, max, step, group }));
+}
 const VOID_PASSIVE_OPTION_POOL = [
-    { id: 'pctDmg', min: 5, max: 9 },
-    { id: 'flatHp', min: 20, max: 40 },
-    { id: 'flatDmg', min: 3, max: 6 },
-    { id: 'resAll', min: 4, max: 7 },
-    { id: 'resChaos', min: 5, max: 9 },
-    { id: 'crit', min: 2, max: 4 },
-    { id: 'critDmg', min: 8, max: 15 },
-    { id: 'aspd', min: 3, max: 5 },
-    { id: 'move', min: 4, max: 7 },
-    { id: 'armorPct', min: 8, max: 15 },
-    { id: 'evasionPct', min: 8, max: 15 },
-    { id: 'energyShieldPct', min: 8, max: 15 },
-    { id: 'dotPctDmg', min: 7, max: 12 },
-    { id: 'resPen', min: 2, max: 4 },
-    { id: 'strength', min: 8, max: 16 },
-    { id: 'dexterity', min: 8, max: 16 },
-    { id: 'intelligence', min: 8, max: 16 },
-    { id: 'accuracy', min: 40, max: 90 },
-    { id: 'pctHp', min: 3, max: 6 },
-    { id: 'energyShield', min: 16, max: 32 },
-    { id: 'meleePctDmg', min: 8, max: 14 },
-    { id: 'projectilePctDmg', min: 8, max: 14 },
-    { id: 'spellPctDmg', min: 8, max: 14 },
-    { id: 'physPctDmg', min: 8, max: 14 },
-    { id: 'elementalPctDmg', min: 7, max: 12 },
-    { id: 'chaosPctDmg', min: 8, max: 14 },
-    { id: 'summonPctDmg', min: 8, max: 16 },
-    { id: 'poisonChance', min: 4, max: 8 },
-    { id: 'bleedChance', min: 4, max: 8 },
-    { id: 'igniteChance', min: 4, max: 8 },
-    { id: 'blockChance', min: 1, max: 3 }
+    ...voidOptionRows('피해', [['pctDmg', 5, 9], ['attackPctDmg', 8, 13], ['spellPctDmg', 9, 15], ['elementalPctDmg', 8, 13], ['meleePctDmg', 10, 16], ['projectilePctDmg', 10, 16], ['physPctDmg', 10, 16],
+        ['aoePctDmg', 10, 16], ['dotPctDmg', 10, 16], ['firePctDmg', 11, 18], ['coldPctDmg', 11, 18], ['lightPctDmg', 11, 18], ['chaosPctDmg', 11, 18], ['slamPctDmg', 12, 20], ['potionPctDmg', 12, 20],
+        ['mobilityPctDmg', 12, 20], ['summonPctDmg', 12, 20], ['flatDmg', 5, 10], ['resPen', 2, 4]]),
+    ...voidOptionRows('치명타와 속도', [['crit', 2, 4], ['critDmg', 8, 15], ['aspd', 3, 5], ['ds', 3, 6], ['minDmgRoll', 3, 6], ['maxDmgRoll', 3, 6], ['physIgnore', 3, 6], ['spellRepeatChance', 2, 4],
+        ['skillDelayReduce', 1, 3], ['cooldownRecovery', 5, 10], ['cooldownReduction', 2, 4], ['move', 4, 7]]),
+    ...voidOptionRows('상태이상', [['igniteChance', 4, 8], ['chillChance', 4, 8], ['shockChance', 4, 8], ['poisonChance', 4, 8], ['bleedChance', 4, 8], ['freezeChance', 2, 4],
+        ['igniteDurationPct', 8, 14], ['chillDurationPct', 8, 14], ['freezeDurationPct', 8, 14], ['shockDurationPct', 8, 14], ['poisonDurationPct', 8, 14], ['bleedDurationPct', 8, 14]]),
+    ...voidOptionRows('방어', [['flatHp', 20, 40], ['pctHp', 3, 6], ['regen', 0.5, 1, 0.1], ['leech', 0.2, 0.5, 0.1], ['armorPct', 8, 15], ['evasionPct', 8, 15], ['energyShieldPct', 8, 15], ['energyShield', 16, 32],
+        ['blockChance', 1, 3], ['deflectChance', 2, 4], ['resAll', 4, 7], ['resF', 8, 14], ['resC', 8, 14], ['resL', 8, 14], ['resChaos', 5, 9],
+        ['ailResIgnite', 8, 14], ['ailResFreeze', 8, 14], ['ailResShock', 8, 14], ['ailResPoison', 8, 14], ['ailResBleed', 8, 14]]),
+    ...voidOptionRows('능력치', [['strength', 8, 16], ['dexterity', 8, 16], ['intelligence', 8, 16], ['accuracy', 40, 90]]),
+    ...voidOptionRows('무기', Object.keys(SKILL_RUNE_STANCE_LABELS).filter(stance => stance !== 'unarmed')
+        .flatMap(stance => [[`${stance}PctDmg`, 14, 22], [`${stance}Crit`, 3, 5], [`${stance}Aspd`, 5, 8]]))
 ];
 
 function getVoidPassiveNodeIds() {
@@ -2147,7 +2188,7 @@ function ensureVoidPassiveState() {
         let entry = game.voidPassives[nodeId] && typeof game.voidPassives[nodeId] === 'object' ? game.voidPassives[nodeId] : {};
         let stats = Array.isArray(entry.stats) ? entry.stats : [];
         entry.stats = stats
-            .filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val)))
+            .filter(line => line && isVoidPassiveLineStat(line.id) && Number.isFinite(Number(line.val)))
             .slice(0, 2)
             .map(line => ({ id: line.id, val: Number(line.val) }));
         entry.transcendent = normalizeTranscendentVoidPassive(entry.transcendent);
@@ -2164,16 +2205,25 @@ function getVoidPassiveCraft(nodeId) {
     return state[key];
 }
 
+/** 줄이 될 수 있는 능력치: 아이템 능력치와, 이름만 있는 패시브 전용 능력치(무기 조건 줄, 지속시간). */
+function isVoidPassiveLineStat(statId) {
+    return !!(P_STATS[statId] || STAT_DISPLAY_NAMES[statId]);
+}
+
 function formatVoidPassiveStatLine(line) {
-    if (!line || !P_STATS[line.id]) return '';
-    return `${getStatName(line.id)} +${formatValue(line.id, line.val)}${P_STATS[line.id].isPct ? '%' : ''}`;
+    if (!line || !isVoidPassiveLineStat(line.id)) return '';
+    const isPct = P_STATS[line.id] ? P_STATS[line.id].isPct : /\(%\)/.test(STAT_DISPLAY_NAMES[line.id]);
+    return `${String(getStatName(line.id)).replace(/\s*\((\+%p|%)\)\s*/g, '').trim()} +${formatValue(line.id, line.val)}${isPct ? '%' : ''}`;
 }
 
 function getVoidPassiveEffectLabel(nodeId) {
     let entry = getVoidPassiveCraft(nodeId);
-    if (entry.transcendent) return formatTranscendentVoidPassive(entry.transcendent);
-    if (!entry.stats.length) return '공허 옵션 없음 <span style="color:var(--copy-muted);">(오브로 최대 2줄 부여)</span>';
-    return passiveRouting.voidStats(entry, game).map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
+    if (entry.transcendent) {
+        const linkPct = TRANSCENDENT_VOID_STAT_LINES[entry.transcendent.id] ? Math.round((getVoidLinkScale(nodeId) - 1) * 100) : 0;
+        return formatTranscendentVoidPassive(entry.transcendent) + (linkPct > 0 ? ` (효율 +${linkPct}%)` : '');
+    }
+    if (!entry.stats.length) return '공허 옵션 없음';
+    return passiveRouting.voidStats(entry, game, getVoidLinkScale(nodeId)).map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
 }
 
 const TRANSCENDENT_VOID_PASSIVE_DB = [
@@ -2254,7 +2304,8 @@ function getTranscendentVoidPassiveStats(nodeId, entry, voidCount, owner = game)
     if (!rule) return [];
     const ctx = { voidCount, loopCount: Math.max(0, Math.floor(owner.loopCount || 0)),
         allocatedWithin: radius => countAllocatedPassivesWithin(nodeId, radius, owner) };
-    return rule(tr, ctx).map(([stat, val]) => ({ stat, val: Number(val) || 0 }));
+    const linkScale = getVoidLinkScale(nodeId);   // 투영의 문양은 초월에도 곱한다(2026-11-01 사용자). 포인트와 보조룬 한도는 정수라 그대로 둔다.
+    return rule(tr, ctx).map(([stat, val]) => ({ stat, val: (Number(val) || 0) * (['passivePoint', 'suppCap'].includes(stat) ? 1 : linkScale) }));
 }
 
 function normalizeTranscendentVoidPassive(raw) {
@@ -2280,11 +2331,22 @@ function formatTranscendentVoidPassive(entry) {
 
 function rollVoidPassiveOption(existingStats) {
     let used = new Set((existingStats || []).map(line => line && line.id));
-    let pool = VOID_PASSIVE_OPTION_POOL.filter(opt => P_STATS[opt.id] && !used.has(opt.id));
+    let pool = VOID_PASSIVE_OPTION_POOL.filter(opt => !used.has(opt.id));
     if (!pool.length) return null;
     let pick = rndChoice(pool);
-    let val = Math.floor(pick.min + Math.random() * (pick.max - pick.min + 1));
-    return { id: pick.id, val };
+    const step = pick.step || 1, slots = Math.round((pick.max - pick.min) / step);
+    return { id: pick.id, val: Number((pick.min + Math.floor(Math.random() * (slots + 1)) * step).toFixed(2)) };
+}
+
+/** 마법의 새싹 하나: 옵션을 지우고 1~2줄을 다시 굴린다(제작 창의 한 번 쓰기와 연속 사용이 같이 쓴다). 재화는 부르는 쪽이 줄인다. */
+function rollMagicBudOnVoid(entry) {
+    const nextStats = [], optionCount = 1 + Math.floor(Math.random() * 2);
+    for (let index = 0; index < optionCount; index++) {
+        const next = rollVoidPassiveOption(nextStats);
+        if (next) nextStats.push(next);
+    }
+    entry.stats = nextStats;
+    entry.rarity = nextStats.length > 0 ? 'magic' : 'normal';
 }
 
 function getOwnedTranscendentVoidPassiveIds(exceptNodeId) {
@@ -2403,8 +2465,10 @@ function rollFairyRingOnCraftedVoid(entry, nodeId) {
     if (!entry.transcendent && !(entry.stats || []).length) {
         return { text: '요정의 고리는 옵션이 있는 공허 패시브에만 쓸 수 있습니다. 마법의 새싹으로 먼저 옵션을 굴리세요.', tone: 'attack-monster' };
     }
+    if (entry.fairyLocked) return { text: '이 소켓에는 이번 루프에 요정의 고리를 다시 쓸 수 없습니다.', tone: 'attack-monster' };
     game.currencies.fairyRing--;
     rollFairyRingOnVoid(entry, nodeId);
+    if (!entry.transcendent) entry.fairyLocked = true;   // 실패: 이번 루프 동안 이 소켓은 잠긴다. 루프가 끝나면 game.voidPassives와 함께 풀린다.
     return entry.transcendent
         ? { text: `🌌 공허 패시브 초월: ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}`, tone: 'loot-unique' }
         : { text: '💥 요정의 고리: 초월에 실패해 공허 패시브의 옵션이 지워졌습니다.', tone: 'attack-monster' };
@@ -2437,16 +2501,7 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
     }
     if (entry.transcendent) return addLog('초월 공허 패시브에는 마법의 새싹을 사용할 수 없습니다.', 'attack-monster');
     game.currencies[currencyKey]--;
-    if (currencyKey === 'magicBud') {
-        let nextStats = [];
-        let optionCount = 1 + Math.floor(Math.random() * 2);
-        for (let index = 0; index < optionCount; index++) {
-            let next = rollVoidPassiveOption(nextStats);
-            if (next) nextStats.push(next);
-        }
-        entry.stats = nextStats;
-    }
-    entry.rarity = entry.stats.length > 0 ? 'magic' : 'normal';
+    rollMagicBudOnVoid(entry);
     addLog(`🕳️ 공허 패시브에 ${ORB_DB[currencyKey].name} 사용: ${getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '')}`, 'loot-magic');
     updateStaticUI();
 }
@@ -2767,7 +2822,7 @@ function installOceanReefFragment() {
 function getPassiveRouting(owner = game) {
     const allocated = new Set(owner.passives || []);
     return { root: getPassiveTreeRootNodeId(owner), virtual: passiveRouting.transcendentNodeIds(owner, 'blackHole'),
-        free: passiveRouting.freeNodes(PASSIVE_TREE, owner), edges: PASSIVE_TREE.edges.filter(edge => isPassiveTreePathEdge(edge, allocated)) };
+        free: passiveRouting.freeNodes(PASSIVE_TREE, owner), passable: getPassiveGatedStartIds(owner), edges: PASSIVE_TREE.edges.filter(edge => isPassiveTreePathEdge(edge, allocated)) };
 }
 
 /** 체크포인트부터 잠수를 시작한다. 떠오르면 지금 있던 사냥터로 돌아온다(takeOceanReturnZone). auto: 자동 재잠수(js/combat.js
@@ -3532,11 +3587,12 @@ function getPassiveActivationPath(targetNodeId) {
     let queue = startNodes.slice();
     let queueIndex = 0;
     let previous = new Map(queue.map(id => [id, null]));
-    const adjacency = getPassiveTreeAdjacency();
+    const adjacency = getPassiveTreeAdjacency(), blockedStarts = getPassiveBlockedStartIds(), openedStarts = getPassiveGatedStartIds();
+    const walkable = id => isPassiveNodeAvailable(id) && !blockedStarts.has(id);
     while (queueIndex < queue.length && !previous.has(targetNodeId)) {
         let current = queue[queueIndex++];
         (adjacency.get(String(current)) || []).forEach(next => {
-            if (previous.has(next) || !isPassiveNodeAvailable(next)) return;
+            if (previous.has(next) || !walkable(next)) return;
             previous.set(next, current);
             queue.push(next);
         });
@@ -3549,15 +3605,15 @@ function getPassiveActivationPath(targetNodeId) {
         path.push(current);
         current = previous.get(current);
     }
-    return path.reverse();
+    return path.reverse().filter(id => !openedStarts.has(id));
 }
 
 function getPassiveKeystoneConflict(path) {
     const owned = new Set(game.passives || []), pending = new Set(path || []);
-    const corruptId = PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['타락한 복음'];
-    const tripleId = PASSIVE_KEYSTONE_NODE_ID_BY_TITLE['삼중 계시'];
+    const corruptId = getPassiveKeystoneNodeId('타락한 복음');
+    const tripleId = getPassiveKeystoneNodeId('삼중 계시');
     if ((owned.has(corruptId) && pending.has(tripleId)) || (owned.has(tripleId) && pending.has(corruptId))) {
-        return '타락한 복음과 삼중 계시는 동시에 할당할 수 없습니다.';
+        return `${PASSIVE_TREE.nodes[corruptId].title}, ${PASSIVE_TREE.nodes[tripleId].title}는 동시에 할당할 수 없습니다.`;
     }
     return '';
 }

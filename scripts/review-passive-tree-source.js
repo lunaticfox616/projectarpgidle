@@ -212,7 +212,7 @@ function choiceRecommendation(nodes) {
     const statId = nodes[0]?.mods?.[0]?.statId;
     if (statId === 'mystique') return '신비 유지 + 중독/지속 피해/치명타 중 갈래별 보조 효과';
     if (statId === 'devotion') return '계시 유지 + 생명/저항/피해 중 갈래별 보조 효과';
-    if (statId === 'cycle') return '순환 유지 + 이동/재생/스킬 속도 중 갈래별 보조 효과';
+    if (statId === 'cycle') return '순환 유지 + 이동/재생/공격 속도 중 갈래별 보조 효과';
     if (statId === 'damage_method') return '투사체 피해 유지 + 정확도/공속/치명타/추가 투사체 역할 분리';
     return '주요 노드와 양쪽 갈래에 서로 다른 보조 효과 배정';
 }

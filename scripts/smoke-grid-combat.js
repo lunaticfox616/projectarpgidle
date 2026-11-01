@@ -1618,7 +1618,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     '카오스 선택 시 물리 본체와 다른 속성의 추가 피해는 피해를 주지 않아야 한다');
 
   target.hp = target.maxHp;
-  context.game.passives = ['nkf64engb6m', 'nwn5msikamo'];
+  context.game.passives = vm.runInContext(`[
+    Object.values(PASSIVE_TREE.nodes).find(node => node.kind === 'keystone' && node.title === '지혜의 도약').id,
+    Object.keys(PASSIVE_WISDOM_ELEMENT_BY_NODE_ID).find(id => PASSIVE_TREE.nodes[id] && PASSIVE_WISDOM_ELEMENT_BY_NODE_ID[id] === 'chaos')
+  ]`, context);
   context.game.passiveSpecialization = { keystoneChoices: { wisdom_leap_element: 'chaos' } };
   context.game.activeSkill = '암흑 파열';
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '암흑 파열']));

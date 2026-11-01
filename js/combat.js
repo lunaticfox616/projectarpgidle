@@ -10,6 +10,7 @@ const LEECH_BASE_INSTANCE_CAP_PCT = 20;
 const LEECH_BASE_TOTAL_CAP_PCT = 40;
 const LEECH_BASE_RATE_CAP_PCT = 4;
 const ARMOR_MITIGATION_SCALE = 24;
+const SKILL_DELAY_REDUCE_CAP = 50;   // 스킬 딜레이 감소(%)의 한도: 공격 간격이 절반 아래로 줄지 않는다
 const EVASION_ACCURACY_SCALE = 3.5;
 const EVASION_ENTROPY_RESET_MS = 3330;
 const SUMMON_EVASION_CAP_PCT = 85;
@@ -1700,10 +1701,20 @@ function getLimitedSummonPenetrationStats(pStats, summon) {
 }
 
 function getPassiveWisdomLeapDamageMultiplier(pStats, element) {
+    let damageElement = String(element || '').replace('lightning', 'light');
+    if (damageElement === 'chaos' && pStats && pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.absolution) return 0;   // 면죄의 복음
     let selectedElement = pStats && pStats.passiveWisdomElement;
     if (!selectedElement) return 1;
-    let damageElement = String(element || '').replace('lightning', 'light');
     return damageElement === selectedElement ? 1.2 : 0;
+}
+
+/** 피해의 몇 할이 카오스로 바뀌는가: 검은 증류(원소의 50%), 시간왜곡(재사용 대기시간 감소 1%당 2%). */
+function getPassiveChaosConversionShare(pStats, element) {
+    const flags = (pStats && pStats.passiveKeystoneFlags) || {};
+    if (element === 'chaos') return 0;
+    const distill = flags.blackDistill && ['fire', 'cold', 'light'].includes(element) ? 0.5 : 0;
+    const warp = flags.timeWarp ? Math.min(1, Math.max(0, Number(pStats.cooldownReduction) || 0) * 0.02) : 0;
+    return Math.max(distill, warp);
 }
 
 function getLimitedSummonFinalDamageMultiplier(pStats, summon) {
@@ -3287,7 +3298,7 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
     } else if (devotion > 0 && rules.revelation === 'life') {
         revelationEffect = `최대 생명력/에너지 보호막/초당 재생 각각 +${formatValue('regen', rules.lifeBonusPct)}%`;
     } else if (devotion > 0 && rules.revelation === 'fanaticism') {
-        revelationEffect = `열광 ${rules.fanaticismStacks}/${Math.floor(devotion)}, 1당 피해 1.5%, 스킬 속도 0.5% 증가`;
+        revelationEffect = `열광 ${rules.fanaticismStacks}/${Math.floor(devotion)}, 1당 피해 1.5%, 공격 속도 0.5% 증가`;
     }
     return {
         mystique: {
@@ -3553,17 +3564,17 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         }
     });
 
-    let virtualVoidCount = getVirtualVoidPassiveCount();
+    let virtualVoidCount = getVirtualVoidPassiveCount(), weaponStance = getEquippedWeaponStance();
     safePassives.forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
         if (!node) return;
         if (node.kind === 'void') {
             let entry = getVoidPassiveCraft(id);
-            passiveRouting.voidStats(entry, game).forEach(line => addStatToBucket(passive, line.id, line.val));
+            passiveRouting.voidStats(entry, game, getVoidLinkScale(id)).forEach(line => addPassiveLineToBucket(passive, line.id, line.val, weaponStance));
             getTranscendentVoidPassiveStats(id, entry, virtualVoidCount).forEach(line => addStatToBucket(passive, line.stat, line.val));
             return;
         }
-        getEffectivePassiveNodeEffects(node).forEach(effect => addStatToBucket(passive, effect.stat, effect.val));
+        getEffectivePassiveNodeEffects(node).forEach(effect => addPassiveLineToBucket(passive, effect.stat, effect.val, weaponStance));
     });
 
     accumulateCombatSeasonStats(season, safeSeasonNodes, game.seasonNodeLevels);
@@ -3643,6 +3654,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let flatAccuracy = Math.max(0, sumStatAcrossBuckets('accuracy'));
     let accuracyBonusPct = Math.max(0, sumStatAcrossBuckets('accuracyBonusPct'));
     let playerAccuracy = calculatePlayerAccuracy(game.level, totalDexterity, flatAccuracy, accuracyBonusPct);
+    passive.projectileExtraShots += getBladeBundleShots(totalStrength, totalDexterity, weaponStance);
     let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots + sumStatAcrossBuckets('projectileExtraChance') / 100;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
@@ -3650,6 +3662,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
     addUncappedSkillTargets(skill, game.activeSkill); // 각인의 대상 수, 효과 확장 +N: more targets for target gems, the keystone's cost
+    skill.projectileChain = (skill.tags || []).includes('projectile') ? sumStatAcrossBuckets('projectileChain') : 0;   // js/combat-grid.js, js/skill-gem-casts.js
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses(tick));
@@ -3757,7 +3770,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     ailmentCritChance.bleed *= bleedChanceMultiplier;
     let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
     // Reuse extra casts; this source applies to spells only and cannot recursively repeat itself.
-    if (isSpellSkill) reward.ds += Number(reward.spellRepeatChance) || 0;
+    if (isSpellSkill) reward.ds += sumStatAcrossBuckets('spellRepeatChance');
     let isDotSkill = window.GameModules.combat.supports.nativeDot(skill);
     let spellFlatDmg = 0;
     if (isSpellSkill) {
@@ -3840,7 +3853,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let aspdSoftCapKnee = (hasKeystone('r9')) ? 7 : 5;
     if (typeof getTalentAttackSpeedSoftcapKnee === 'function') aspdSoftCapKnee = getTalentAttackSpeedSoftcapKnee(aspdSoftCapKnee);
     let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : (aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72));
-    finalAspd = Math.min(12, finalAspd);
+    finalAspd = Math.min(12, finalAspd / (1 - Math.min(SKILL_DELAY_REDUCE_CAP, sumStatAcrossBuckets('skillDelayReduce')) / 100));
     finalAspd = scaleKeystoneAttackSpeed(finalAspd, authoredPassiveRules.flags);
     if (authoredPassiveRules.flags.bloodAcceleration && tick.get('leechActive')) {
         finalAspd = Math.min(12, finalAspd * 1.15);
@@ -3909,6 +3922,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     finalDamageMultiplier *= 1 + Math.max(0, authoredPassiveRules.combatDamageMorePct) / 100;
     finalDamageMultiplier *= 1 + getLoopDeepMorePct(game.loopDeepStats) / 100;
     finalDamageMultiplier *= 1 + getWorldTreeBarkEffect().damagePct / 100;
+    if (authoredPassiveRules.flags.selfExperiment) finalDamageMultiplier *= 1 + tick.get('playerAilmentCount') * 0.05;   // 자가실험
     let wisdomLeapActive = typeof findAllocatedPassiveKeystone === 'function'
         && !!findAllocatedPassiveKeystone('지혜의 도약');
     let passiveWisdomElement = wisdomLeapActive ? authoredPassiveRules.wisdomElement : '';
@@ -4598,7 +4612,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let coreCubeAddedDamageParts = Object.keys(coreCubeAddedDamagePct)
         .filter(ele => Math.max(0, Number(coreCubeAddedDamagePct[ele] || 0)) > 0)
         .map(ele => `${coreCubeAddedDamageLabels[ele]} ${Math.floor(coreCubeAddedDamagePct[ele])}%`);
-    let wisdomPreviewStats = { passiveWisdomElement };
+    let wisdomPreviewStats = { passiveWisdomElement, passiveKeystoneFlags: authoredPassiveRules.flags };
     let previewTalentConversion = wisdomLeapActive && typeof getTalentDamageConversion === 'function'
         ? getTalentDamageConversion(skill.ele)
         : { element: skill.ele, mainPct: 1, added: {} };
@@ -4880,7 +4894,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('보조스킬룬', support.aspd, '%', value => `${Math.floor(value)}%`),
                 talentLine('aspd'),
                 glovePairAspdBonus > 0 ? `동형 장갑 세트 보너스 +${glovePairAspdBonus.toFixed(2)} 기본 공속` : null,
-                `스킬 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`,
+                `공격 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`,
                 rawAspd > 5 ? `소프트캡 적용중 (원시 ${rawAspd.toFixed(2)} → 최종 ${finalAspd.toFixed(2)})` : null
             ].filter(Boolean),
             final: `${finalAspd.toFixed(2)}`
@@ -5376,6 +5390,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         chaosDamageMultiplier: chaosDamageMultiplier,
         dotTickIntervalMultiplier: dotTickIntervalMultiplier,
         dotDurationMultiplier: dotDurationMultiplier,
+        ailmentDurationPct: Object.fromEntries(['ignite', 'chill', 'freeze', 'shock', 'poison', 'bleed'].map(type => [type, sumStatAcrossBuckets(`${type}DurationPct`)])),
         igniteChance: finalIgniteChance,
         chillChance: finalChillChance,
         freezeChance: finalFreezeChance,
@@ -8404,7 +8419,12 @@ function getPlayerDamageAilmentDps(ail, pStats) {
 function getAilmentDurationMultiplier(type, damageAilment, pStats) {
     let durationMul = damageAilment ? Math.max(0.05, (pStats && Number.isFinite(pStats.dotDurationMultiplier)) ? pStats.dotDurationMultiplier : 1) : 1;
     if (type === 'poison' && pStats && (pStats.uniquePoisonDurationPct || 0) > 0) durationMul *= 1 + Math.max(0, Number(pStats.uniquePoisonDurationPct) || 0) / 100;
-    return durationMul * regionAffixEffects.ailmentDurationMultiplier(pStats, type);
+    return durationMul * getPassiveAilmentDurationMultiplier(type, pStats) * regionAffixEffects.ailmentDurationMultiplier(pStats, type);
+}
+/** 패시브 트리의 상태이상별 지속시간(getPlayerStats의 ailmentDurationPct). 줄이 없는 능력치 묶음(소환수 등)은 1이다. */
+function getPassiveAilmentDurationMultiplier(type, pStats) {
+    const table = pStats && pStats.ailmentDurationPct;
+    return 1 + ((table && table[type]) || 0) / 100;
 }
 
 /** One ailment from a hit (hit: the target, the hero's stats, crit, options, the hit's ratio and power, its ailment source damage
@@ -12585,10 +12605,10 @@ function performPlayerAttack(pStats, attackOptions) {
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy, pStats);
             let enemyRes = getHitEnemyResistance(hitElement, zoneTier, targetEnemy, pStats, curseFx);
-            if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.blackDistill
-                && ['fire', 'cold', 'light'].includes(hitElement)) {
+            if (getPassiveChaosConversionShare(pStats, hitElement) > 0) {
+                let chaosShare = getPassiveChaosConversionShare(pStats, hitElement);
                 let chaosRes = getEffectiveEnemyMitigation('chaos', zoneTier, targetEnemy, pStats) - (curseFx.resChaosShred || 0);
-                enemyRes = (enemyRes + chaosRes) * 0.5;
+                enemyRes = enemyRes * (1 - chaosShare) + chaosRes * chaosShare;
             }
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let cj = targetEnemy.ailments.find(a => a && a.type === 'cosmosJudgment' && (a.time || 0) > 0); if (cj) enemyRes -= Math.max(0, Number(cj.power || 0)); }
             if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let rs = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown' && (a.time || 0) > 0); if (rs) enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number((pStats.uniqueAllResDownOnHit && pStats.uniqueAllResDownOnHit.perHit) || 0)); }
@@ -12738,9 +12758,9 @@ function performPlayerAttack(pStats, attackOptions) {
                 let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
                 dmg = Math.floor(dmg * chaosMultiplier);
                 ailmentSourceDamage = Math.floor(ailmentSourceDamage * chaosMultiplier);
-            } else if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.blackDistill
-                && ['fire', 'cold', 'light'].includes(hitElement)) {
-                let convertedMultiplier = 0.5 + Math.max(0, Number(pStats.chaosDamageMultiplier) || 1) * 0.5;
+            } else if (getPassiveChaosConversionShare(pStats, hitElement) > 0) {
+                let chaosShare = getPassiveChaosConversionShare(pStats, hitElement);
+                let convertedMultiplier = 1 - chaosShare + Math.max(0, Number(pStats.chaosDamageMultiplier) || 1) * chaosShare;
                 dmg = Math.floor(dmg * convertedMultiplier);
                 ailmentSourceDamage = Math.floor(ailmentSourceDamage * convertedMultiplier);
             }
@@ -13514,11 +13534,22 @@ function getPlayerAilmentResistChance(type, pStats) {
     else if (type === 'shock') res = pStats.ailResShock || 0;
     else if (type === 'poison') res = pStats.ailResPoison || 0;
     else if (type === 'bleed') res = pStats.ailResBleed || 0;
-    return Math.max(0, Math.min(1.00, (res + (pStats.ailmentResistBonusPct || 0)) / 100));
+    return getSelfExperimentAilmentResist(Math.max(0, Math.min(1.00, (res + (pStats.ailmentResistBonusPct || 0)) / 100)), pStats);
+}
+
+/** 자가실험: 걸릴 확률 50% 감소. */
+function getSelfExperimentAilmentResist(resist, pStats) {
+    return pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.selfExperiment ? 1 - (1 - resist) * 0.5 : resist;
+}
+
+/** 자가실험: 나에게 걸리는 상태이상 지속시간 100% 증가. */
+function getSelfExperimentAilmentDuration(duration, pStats) {
+    return pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.selfExperiment ? duration * 2 : duration;
 }
 
 function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, options) {
     if (!type || duration <= 0) return;
+    duration = getSelfExperimentAilmentDuration(duration, pStats);
     if ((type === 'ignite' && pStats.immuneIgnite) || (type === 'chill' && pStats.immuneChill) || (type === 'freeze' && pStats.immuneFreeze) || (type === 'shock' && pStats.immuneShock) || (type === 'bleed' && pStats.immuneBleed)) return;
     if (Math.random() < getPlayerAilmentResistChance(type, pStats)) return;
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];

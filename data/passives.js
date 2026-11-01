@@ -277,7 +277,7 @@ const PASSIVE_SECTOR_TITLES = {
 
 const PASSIVE_CORE_GENERIC_STATS = ['flatHp', 'flatDmg', 'pctDmg', 'aspd', 'move', 'crit', 'regen', 'pctHp', 'energyShieldPct', 'evasionPct', 'armorPct', 'projectilePctDmg', 'meleePctDmg', 'physPctDmg'];
 
-const PASSIVE_STAR_BLESSING = { flatHp: 140, pctDmg: 24, move: 10 };
+const PASSIVE_STAR_BLESSING = { flatHp: 70, pctDmg: 12, move: 5 };
 
 // 별쐐기를 대신한 초월 공허 패시브의 반경(트리 좌표). 안드로메다: 이 거리 안의 노드는 연결 없이 할당.
 // 소행성대: 이 거리 안에 할당한 패시브 하나마다 피해(js/combat.js). 9단계 균형에서 다시 잰다.
