@@ -1,16 +1,28 @@
-import { createTreeCanvas } from './canvas.js';
+import { ICON_CELLS, createTreeCanvas } from './canvas.js';
 import { joinTogether } from './together.js';
 import { CATEGORIES, categoryOf } from './edit-tools.js';
 import { createModes } from './modes.js';
 import { createBulkPanel } from './bulk-panel.js';
 import { createPlanning } from './planning.js';
 import { createAllocation } from './allocation.js';
-import { areaLayout, bandOf, bundleChoices, nodePower, powerYardstick, scaledBundle, startDistances, weakNodes, workAreaOf, zoneOf } from './insights.js';
+import { areaLayout, bundleChoices, nodePower, powerYardstick, scaledBundle, startDistances, weakNodes, workAreaOf, zoneOf } from './insights.js';
 
 const CORE_FIELDS = new Set([
     'id', 'x', 'y', 'type', 'cat', 'name', 'desc', 'mods', 'runtimeEffects', 'statAutoName',
     'archetype', 'optionProfile', 'intentionalNoEffect', 'iconFamily', 'iconAsset'
 ]);
+/** 아이콘 계열의 우리말 이름(갤러리 설명과 계열 고르기). 트리 파일에는 영어 id가 그대로 남는다. */
+const ICON_FAMILY_LABELS = Object.freeze({
+    blade: '칼날', projectile: '투사체', shield: '방패', potion: '물약', strength: '힘', mystique: '신비', devotion: '헌신', cycle: '순환',
+    elemental: '원소', dexterity: '민첩', chaos: '카오스', life: '생명', arcane: '비전', summon: '소환', intelligence: '지능',
+    precision: '정밀', wind: '바람', void: '공허', constellation: '별자리',
+    fire: '화염', cold: '냉기', lightning: '번개', cooldown: '재사용 대기시간', critical: '치명타', armor: '방어도', evasion: '회피',
+    energyShield: '에너지 보호막', ignite: '점화', chill: '냉각', freeze: '동결', shock: '감전', bleed: '출혈', poison: '중독',
+    wisp: '위습', blessing: '가호', mobility: '이동 스킬', area: '범위 피해', slam: '강타', damageOverTime: '지속 피해', spell: '주문',
+    censer: '향로', greatsword: '대검', bow: '활', orb: '오브'
+});
+const iconFamilyLabel = family => ICON_FAMILY_LABELS[family] || family;
+
 const TYPE_LABELS = Object.freeze({
     minor: '소형', assist: '보조', normal: '일반', major: '주요', keystone: '키스톤',
     void: '공허', quatrefoil: '성률', start: '시작점'
@@ -32,13 +44,6 @@ const ARCHETYPE_WORDS = Object.freeze({
     dot: '지속 피해', recharge: '재충전', mobility: '기동', targets: '대상', arcane: '비전'
 });
 const archetypeLabel = id => ARCHETYPE_LABELS[id] || String(id).split('_').map(word => ARCHETYPE_WORDS[word] || word).join(' ');
-const ICON_CELLS = Object.freeze({
-    blade: [0, 0], projectile: [1, 0], shield: [2, 0], potion: [3, 0], strength: [4, 0],
-    mystique: [0, 1], devotion: [1, 1], cycle: [2, 1], elemental: [3, 1], dexterity: [4, 1],
-    chaos: [0, 2], life: [1, 2], arcane: [2, 2], summon: [3, 2], intelligence: [4, 2],
-    precision: [0, 3], wind: [1, 3], void: [2, 3], constellation: [3, 3]
-});
-
 const elements = Object.fromEntries([...document.querySelectorAll('[id]')].map(element => [element.id, element]));
 let tree = null, config = null, nodeMap = new Map(), history = [], future = [], dirty = false;
 // 함께 편집(together.js): null when the server runs alone. guest: opened from the shared address (no save, apply or icon upload).
@@ -141,6 +146,14 @@ function syncEffects(node, effects) {
     }));
 }
 
+/** 옵션 비우기: the node keeps its place, type, links and a name of its own; everything that came with its options goes (effects, the
+ * bundle's 주제 and name, the picked picture, the generated 설명). 2026-11-01 사용자: 비우기가 그림만 칼로 바꾸는 것처럼 보였다. */
+function emptyNode(node) {
+    syncEffects(node, []);
+    if (node.name && node.name === node.optionProfile) delete node.name;
+    ['archetype', 'optionProfile', 'iconFamily', 'desc'].forEach(field => delete node[field]);
+}
+
 function statOptions(selectedId) {
     return config.stats.map(stat => `<option value="${escapeHtml(stat.id)}" ${stat.id === selectedId ? 'selected' : ''}>${escapeHtml(stat.name)} · ${escapeHtml(stat.id)}</option>`).join('');
 }
@@ -189,12 +202,12 @@ function bundleLines(effects) {
 function selectedBundle(node) {
     const [archetype, index] = String(elements['bundle-select'].value || '').split(':');
     const bundle = config.catalog.profiles[archetype] && config.catalog.profiles[archetype][Number(index)];
-    return bundle ? { archetype, bundle, effects: scaledBundle(bundle, node, bandOf(insight.distances.get(String(node.id))), config.catalog) } : null;
+    return bundle ? { archetype, bundle, effects: scaledBundle(bundle, node, config.catalog) } : null;
 }
 
 function renderBundlePicker(node) {
     const power = nodePower(node, insight.yardstick), distance = insight.distances.get(String(node.id));
-    const zone = zoneOf(node, insight.layout), steps = distance === undefined ? '이어지지 않음' : `시작점에서 ${distance}칸, 값 구간 ${bandOf(distance)}`;
+    const zone = zoneOf(node, insight.layout), steps = distance === undefined ? '이어지지 않음' : `시작점에서 ${distance}칸`;
     elements['node-power'].textContent = power === null ? `${zone.label} 구역, ${steps}`
         : `${zone.label} 구역, ${steps}. 같은 종류 노드의 보통 값에 견줘 ${Math.round(power * 100)}%`;
     const choices = bundleChoices(node, config.catalog, insight.layout), groups = new Map();
@@ -512,18 +525,33 @@ function changeNodeField(field, value) {
     renderInspector();
 }
 
+/** The picture fields (icon family, custom picture) go to every picked node, not only the first (2026-11-01 사용자: 여러 개 클릭해서 이미지 바꾸기).
+ * '' clears the field, as changeNodeField does. */
+function setIconField(field, value) {
+    const nodes = selectedNodes();
+    if (nodes.length < 2) return changeNodeField(field, value);
+    const ids = new Set(nodes.map(node => String(node.id)));
+    const label = field === 'iconFamily' ? (value ? '아이콘 계열을 바꿨습니다' : '아이콘 계열을 자동으로 돌렸습니다') : (value ? '그림을 바꿨습니다' : '커스텀 그림을 해제했습니다');
+    change(tree => tree.nodes.filter(node => ids.has(String(node.id))).forEach(node => { if (value === '') delete node[field]; else node[field] = value; }), `노드 ${ids.size}개의 ${label}.`);
+}
+
 function bindField(id, field, transform = value => value) {
     elements[id].addEventListener('change', event => changeNodeField(field, transform(event.target.value)));
 }
 
+/** The icon family buttons, one per family on the icon sheet (the node form and the several-nodes panel share them). */
+function iconChoicesHtml() {
+    return config.iconFamilies.map(family => {
+        const [x, y] = ICON_CELLS[family] || [0, 0];
+        const position = `${x / 4 * 100}% ${y / 8 * 100}%`; // 5 columns, 9 rows on the v5 sheet
+        return `<button class="icon-choice" type="button" data-family="${family}" data-tip="${escapeHtml(iconFamilyLabel(family))}" aria-label="${escapeHtml(iconFamilyLabel(family))}" style="background-position:${position}"></button>`;
+    }).join('');
+}
+
 function renderIconGallery() {
     elements['node-icon-family'].innerHTML = '<option value="">효과에 따라 자동</option>'
-        + config.iconFamilies.map(family => `<option value="${family}">${family}</option>`).join('');
-    elements['icon-family-gallery'].innerHTML = config.iconFamilies.map(family => {
-        const [x, y] = ICON_CELLS[family] || [0, 0];
-        const position = `${x / 4 * 100}% ${y / 3 * 100}%`;
-        return `<button class="icon-choice" type="button" data-family="${family}" title="${family}" style="background-position:${position}"></button>`;
-    }).join('');
+        + config.iconFamilies.map(family => `<option value="${family}">${escapeHtml(iconFamilyLabel(family))}</option>`).join('');
+    elements['icon-family-gallery'].innerHTML = iconChoicesHtml();
 }
 
 function setConnectionMode(enabled) {
@@ -723,23 +751,20 @@ async function normalizeIcon(file) {
     return blobToDataUrl(blob);
 }
 
-async function uploadCustomIcon(file) {
+async function uploadCustomIcon(file, input = elements['custom-icon-input']) {
     const node = primaryNode();
     if (!node || !file) return;
     try {
         setStatus('아이콘을 128×128 WebP로 정리하는 중…');
         const data = await normalizeIcon(file);
         const result = await apiRequest('/api/icon', { name: `${node.id}-${file.name}`, data });
-        checkpoint();
-        node.iconAsset = result.iconAsset;
-        canvasEditor.setTree(tree);
-        setDirty(true);
-        renderInspector();
-        setStatus('커스텀 아이콘을 등록했습니다.', 'success');
+        const picked = selectedNodes().length;
+        setIconField('iconAsset', result.iconAsset);
+        setStatus(picked > 1 ? `노드 ${picked}개에 커스텀 아이콘을 등록했습니다.` : '커스텀 아이콘을 등록했습니다.', 'success');
     } catch (error) {
         setStatus(error.message, 'error');
     } finally {
-        elements['custom-icon-input'].value = '';
+        input.value = '';
     }
 }
 
@@ -796,7 +821,8 @@ function bindEvents() {
     elements['node-form'].addEventListener('submit', event => event.preventDefault());
     bindField('node-x', 'x', Number); bindField('node-y', 'y', Number); bindField('node-type', 'type');
     bindField('node-cat', 'cat'); bindField('node-name', 'name'); bindField('node-archetype', 'archetype');
-    bindField('node-option-profile', 'optionProfile'); bindField('node-desc', 'desc'); bindField('node-icon-family', 'iconFamily');
+    bindField('node-option-profile', 'optionProfile'); bindField('node-desc', 'desc');
+    elements['node-icon-family'].addEventListener('change', event => setIconField('iconFamily', event.target.value));
     elements['node-auto-name'].addEventListener('change', event => changeNodeField('statAutoName', event.target.checked));
     elements['node-no-effect'].addEventListener('change', event => changeNodeField('intentionalNoEffect', event.target.checked));
     elements['undo-button'].onclick = undo; elements['redo-button'].onclick = redo;
@@ -814,7 +840,7 @@ function bindEvents() {
     elements['generate-description-button'].onclick = generateDescription;
     elements['apply-metadata-button'].onclick = applyMetadata;
     elements['custom-icon-input'].onchange = event => uploadCustomIcon(event.target.files[0]);
-    elements['clear-custom-icon-button'].onclick = () => changeNodeField('iconAsset', '');
+    elements['clear-custom-icon-button'].onclick = () => setIconField('iconAsset', '');
     elements['zones-input'].onchange = refreshInsights; elements['weak-input'].onchange = refreshInsights;
     elements['bundle-select'].onchange = pickBundle;
     elements['apply-bundle-button'].onclick = applyBundle;
@@ -867,7 +893,7 @@ elements['add-effect-button'].onclick = () => {
 
 elements['icon-family-gallery'].onclick = event => {
     const button = event.target.closest('[data-family]');
-    if (button) changeNodeField('iconFamily', button.dataset.family);
+    if (button) setIconField('iconFamily', button.dataset.family);
 };
 
 // ── 설계자 기능(2026-10-28 사용자: 설계자에서 쓰던 기능이 없어 불편해 작업을 못 한다) ─────────────
@@ -877,7 +903,7 @@ const TYPE_ROWS = Object.entries(TYPE_LABELS).map(([id, label]) => ({ id, label 
 const isTyping = target => ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || !!target.isContentEditable;
 const statSuffix = id => ((config.stats.find(row => row.id === id) || {}).isPct ? '%' : '');
 const editorCtx = {
-    elements, canvas: canvasEditor, getTree: () => tree, change, setStatus, escapeHtml, syncEffects, statOptions, statLabel, statSuffix,
+    elements, canvas: canvasEditor, getTree: () => tree, change, setStatus, escapeHtml, syncEffects, emptyNode, statOptions, statLabel, statSuffix,
     selectedIds: () => canvasEditor.getSelection().map(String), selectedNodes, setSelection: ids => canvasEditor.setSelection(ids),
     nodeName: id => (nodeMap.get(String(id)) || {}).name || String(id), gridSize: () => Math.max(5, Number(elements['grid-size-input'].value) || 20),
     snapOn: () => elements['snap-input'].checked, isTyping, redo, renderInspector, deleteNodes, deleteEdge, deleteSelected: deleteSelection,
@@ -886,12 +912,33 @@ const editorCtx = {
         const area = focusedArea();
         canvasEditor.setSelection(tree.nodes.filter(node => !area || workAreaOf(node, insight.layout) === area).map(node => String(node.id)));
     },
-    duplicate: () => modes.duplicate(), copy: () => modes.copySelected()
+    duplicate: () => modes.duplicate(), copy: () => modes.copySelected(),
+    iconChoicesHtml, setIconField, uploadCustomIcon
 };
 const modes = createModes(editorCtx);
 const bulkPanel = createBulkPanel(editorCtx);
 const planning = createPlanning(editorCtx);
 const allocation = createAllocation(editorCtx);
+// 접기(2026-11-01 사용자): 위 도구 줄 둘과 오른쪽 창. 접힌 상태는 이 브라우저에 남는다.
+const FOLD_KEYS = { 'toolbars-hidden': 'rignin-passive-toolbars-hidden', 'inspector-hidden': 'rignin-passive-inspector-hidden' };
+function setFolded(className, folded) {
+    document.body.classList.toggle(className, folded);
+    const button = elements[className === 'toolbars-hidden' ? 'toolbars-toggle' : 'inspector-toggle'];
+    button.setAttribute('aria-expanded', String(!folded));
+    button.textContent = className === 'toolbars-hidden' ? (folded ? '도구 펼치기' : '도구 접기') : (folded ? '◂ 창 펼치기' : '창 접기 ▸');
+    try { localStorage.setItem(FOLD_KEYS[className], folded ? '1' : ''); } catch { /* 접힘 기억은 편의일 뿐 */ }
+}
+function bindFolding() {
+    Object.keys(FOLD_KEYS).forEach(className => {
+        let folded = false;
+        try { folded = localStorage.getItem(FOLD_KEYS[className]) === '1'; } catch { /* 기억이 없으면 펼친 채로 */ }
+        setFolded(className, folded);
+    });
+    elements['toolbars-toggle'].onclick = () => setFolded('toolbars-hidden', !document.body.classList.contains('toolbars-hidden'));
+    elements['inspector-toggle'].onclick = () => setFolded('inspector-hidden', !document.body.classList.contains('inspector-hidden'));
+}
+bindFolding();
+
 const COLOR_MODE_KEY = 'rignin-passive-color-mode';
 
 function setColorMode(value) {
@@ -985,7 +1032,7 @@ function showPeers(peers, me) {
 }
 
 function limitGuest() {
-    ['save-button', 'apply-button', 'custom-icon-input', 'apply-area-button'].forEach(id => {
+    ['save-button', 'apply-button', 'custom-icon-input', 'bulk-icon-input', 'apply-area-button'].forEach(id => {
         elements[id].disabled = true;
         elements[id].title = '호스트만 할 수 있습니다.';
     });

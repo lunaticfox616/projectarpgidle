@@ -56,7 +56,7 @@ const passiveRouting = (() => {
         const queue = [...roots], seen = new Set(roots);
         for (let i = 0; i < queue.length; i++) {
             (adjacency.get(queue[i]) || []).forEach(id => {
-                if (!owned.has(id) || seen.has(id)) return;
+                if ((!owned.has(id) && !(routing.passable && routing.passable.has(id))) || seen.has(id)) return;   // passable: a start opened by its route keystone
                 seen.add(id); queue.push(id);
             });
         }
@@ -81,10 +81,10 @@ const passiveRouting = (() => {
     }
     /** A void's ordinary lines after the transcendents that scale them: 태양 keeps its own lines ×3, 암흑물질 doubles one-line voids
      * that are not transcendent, 초신성 raises every other void's lines by its value. Other transcendent voids have no lines. */
-    function voidStats(entry, state) {
+    function voidStats(entry, state, linkScale = 1) {   // linkScale: the 공허제어 nodes linked to this socket (js/passives.js getVoidLinkScale)
         const lines = (entry && entry.stats) || [];
         if (!lines.length || !keepsLines(entry)) return [];
-        const scale = voidLineScale(entry, state);
+        const scale = voidLineScale(entry, state) * linkScale;
         return scale === 1 ? lines : lines.map(line => ({ ...line, val: line.val * scale }));
     }
     return { transcendentNodeIds, transcendentValue, freeNodes, paleBonus, pointBudget, settlePoints, connected, reconcile, voidStats };

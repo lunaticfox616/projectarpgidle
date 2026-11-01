@@ -155,12 +155,12 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.ok(g.journalEntries.includes('passive_star_evolution'), '옛 각성 저장은 영구 보너스 저널을 복구해야 한다');
 }
 
-// ── 외부 레퍼런스 식별자가 남아 있던 v22 패시브 저장 ────────────────────
+// ── 트리 배치가 바뀐 저장: 옛 투자는 한 번만 전부 환불하고, 옛 소켓의 공허 옵션과 프리셋은 남지 않는다 ────
 {
     const g = merge({
         saveVersion: vm.runInContext('defaultGame.saveVersion', ctx), passiveLayoutVersion: 22,
         selectedClassId: 'warrior', inventory: [], equipment: {}, currencies: {}, unlocks: {},
-        passives: ['n7xf9g8ilhr', 'nzv2zn1wqtc', 'old2_22290'],
+        passives: ['n7xf9g8ilhr', 'nzv2zn1wqtc', 'old2_22290', 'pt_start_warrior'], passivePoints: 2,
         discoveredPassives: ['old2_22290', 'old2_26725'],
         voidPassives: { old2_26725: { stats: [{ id: 'flatHp', val: 12 }] } },
         retiredVoidPassives: { old2_26196: { stats: [{ id: 'resAll', val: 3 }] } },
@@ -168,13 +168,15 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
             { name: '옛 ID', nodeIds: ['old2_22290', 'old2_1207'], attributeChoices: {} }
         ] } }
     });
-    assert.ok(g.passives.includes('pt_spine_warrior_left_01'), '기존 투자 노드를 새 식별자로 복구해야 한다');
-    assert.ok(!g.passives.includes('old2_22290'), '구 식별자가 현재 투자 목록에 남으면 안 된다');
-    assert.ok(g.discoveredPassives.includes('pt_void_south'), '발견한 공허 노드도 새 식별자로 복구해야 한다');
-    assert.strictEqual(g.voidPassives.pt_void_south.stats[0].val, 12, '공허 패시브 옵션을 보존해야 한다');
-    assert.ok(g.retiredVoidPassives.pt_void_southeast, '보관된 공허 패시브도 새 식별자로 복구해야 한다');
-    assert.deepStrictEqual(Array.from(g.settings.passiveTreePlanner.presets[0].nodeIds),
-        ['pt_spine_warrior_left_01', 'pt_base_path_001'], '패시브 프리셋 순서와 노드를 보존해야 한다');
+    assert.deepStrictEqual(Array.from(g.passives), [], '옛 트리의 투자는 남지 않는다');
+    assert.strictEqual(g.passivePoints, 5, '시작 노드를 뺀 투자 노드 수만큼 돌려줘야 한다');
+    assert.strictEqual(g.passiveLayoutVersion, vm.runInContext('PASSIVE_LAYOUT_VERSION', ctx));
+    assert.deepStrictEqual(Array.from(g.discoveredPassives), [vm.runInContext('PASSIVE_TREE_V22.classStarts.warrior', ctx)], '발견 목록은 새 시작 노드부터 다시 쌓는다');
+    assert.ok(!Object.keys(g.voidPassives).some(id => id.startsWith('old2_') || id.startsWith('pt_')), '옛 소켓의 공허 옵션은 남지 않는다');
+    assert.deepStrictEqual(Object.keys(g.retiredVoidPassives), [], '보관된 옛 공허 옵션도 남지 않는다');
+    assert.strictEqual(g.settings.passiveTreePlanner.presets[0], null, '옛 트리의 프리셋은 남지 않는다');
+    const again = merge(JSON.parse(JSON.stringify(g)));
+    assert.strictEqual(again.passivePoints, 5, '다시 불러와도 환불이 또 들어오면 안 된다');
 }
 
 // ── 계시 UI는 실제 할당된 헌신을 잠금 조건으로 사용한다 ──────────────────

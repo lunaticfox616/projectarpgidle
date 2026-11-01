@@ -20,7 +20,8 @@ button, .button-link {
     border: 1px solid #3a4b5e; border-radius: 7px; background: #172331; color: var(--text);
     padding: 7px 11px; cursor: pointer; text-decoration: none;
 }
-button:hover, .button-link:hover { border-color: #6d8da9; background: #1c2c3d; }
+/* background-color, not the shorthand: the shorthand wiped the icon sheet off a hovered icon button (2026-11-01) */
+button:hover, .button-link:hover { border-color: #6d8da9; background-color: #1c2c3d; }
 button:disabled { opacity: .4; cursor: default; }
 button.primary { border-color: #b58a48; background: #5c431f; color: #fff2cf; }
 button.danger { border-color: #75414a; color: #ffc2c8; }
@@ -49,6 +50,11 @@ label { display: grid; gap: 4px; color: #b6c2ce; font-size: 12px; }
 .tree-summary { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
 
 .editor-main { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 380px; }
+/* 접기(2026-11-01 사용자): 위 도구 줄 둘과 오른쪽 창. 접힌 상태는 이 브라우저에 남는다 */
+body.toolbars-hidden .editor-toolbar { display: none; }
+body.inspector-hidden .editor-main { grid-template-columns: minmax(0, 1fr) 0; }
+body.inspector-hidden .inspector { display: none; }
+.inspector-toggle { position: absolute; top: 12px; right: 12px; z-index: 3; padding: 5px 9px; font-size: 12px; background-color: rgba(5, 9, 14, .82); }
 .canvas-shell { position: relative; min-width: 0; overflow: hidden; background: radial-gradient(circle at 50% 45%, #101b27, #06090e 62%); }
 #tree-editor-canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: default; }
 .canvas-help, .connection-hint {
@@ -91,8 +97,11 @@ fieldset > label, fieldset > .two-columns { margin-bottom: 9px; }
 .effect-row { display: grid; grid-template-columns: minmax(0, 1fr) 88px 32px; gap: 6px; }
 .effect-row button { padding: 5px; color: #ffb2b9; }
 .icon-family-gallery { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 8px 0 10px; }
-.icon-choice { aspect-ratio: 1; padding: 0; background-color: #09111a; background-image: url('/assets/ui/passive-tree-icons-v4.png'); background-size: 500% 400%; }
+.icon-choice { aspect-ratio: 1; padding: 0; background-color: #09111a; background-image: url('/assets/ui/passive-tree-icons-v5.png'); background-size: 500% 900%; }
+.icon-choice { position: relative; }
 .icon-choice.selected { border-color: #e1bd72; box-shadow: 0 0 0 2px rgba(225, 189, 114, .22); }
+/* 아이콘 이름은 CSS로 바로 띄운다(브라우저 툴팁은 늦게 뜨고 영어 id였다) */
+.icon-choice[data-tip]:hover::after { content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 4px); transform: translateX(-50%); z-index: 4; padding: 3px 8px; border: 1px solid #b58a48; border-radius: 6px; background: #0a1119; color: #f1d69f; font-size: 12px; white-space: nowrap; pointer-events: none; }
 .custom-icon-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 10px; }
 .custom-icon-preview { width: 88px; height: 88px; display: grid; place-items: center; border: 1px dashed #40536a; border-radius: 9px; color: var(--muted); background-size: contain; background-position: center; background-repeat: no-repeat; }
 .custom-icon-row > div:last-child { display: grid; gap: 7px; }

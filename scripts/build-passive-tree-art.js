@@ -17,7 +17,7 @@ const { buildGameRuntime } = require('./lib/game-runtime');
 const ROOT = path.resolve(__dirname, '..');
 const CELL = 64;
 const OUTPUT = Object.freeze({
-    basic: 'assets/ui/passive-tree-icons-v4.png',
+    basic: 'assets/ui/passive-tree-icons-v5.png',
     notable: 'assets/ui/passive-tree-notable-icons-v5.png',
     keystone: 'assets/ui/passive-tree-keystone-icons-v2.png',
     frames: 'assets/ui/passive-tree-frames-v1.png'
@@ -26,7 +26,7 @@ const FRAME_IDS = Object.freeze({ small: 'small', medium: 'normal', notable: 'no
 
 function gameTables() {
     const context = buildGameRuntime();
-    return JSON.parse(vm.runInContext(`JSON.stringify({ basic: PASSIVE_ICON_ATLAS_CELL, notable: PASSIVE_NOTABLE_ICON_ATLAS_CELL,
+    return JSON.parse(vm.runInContext(`JSON.stringify({ basic: PASSIVE_ICON_ATLAS_CELL, basicRows: PASSIVE_ICON_ATLAS_ROWS, notable: PASSIVE_NOTABLE_ICON_ATLAS_CELL,
         keystone: PASSIVE_KEYSTONE_ICON_CELL_BY_ID, keystoneRows: PASSIVE_KEYSTONE_ICON_ATLAS_ROWS, frames: PASSIVE_TREE_FRAME_SHEET })`, context));
 }
 
@@ -47,7 +47,7 @@ function plan(artDir, tables) {
     });
     const columns = group => Math.max(...Object.values(tables[group]).map(cell => cell[0])) + 1;
     return {
-        basic: { width: columns('basic') * CELL, height: 4 * CELL, entries: sheets.basic },
+        basic: { width: columns('basic') * CELL, height: tables.basicRows * CELL, entries: sheets.basic },
         notable: { width: columns('notable') * CELL, height: 3 * CELL, entries: sheets.notable },
         keystone: { width: columns('keystone') * CELL, height: tables.keystoneRows * CELL, entries: sheets.keystone },
         frames: framePlan(artDir, tables.frames)

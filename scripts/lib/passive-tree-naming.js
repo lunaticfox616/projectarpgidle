@@ -48,6 +48,7 @@ function distinctivePassiveName(node, effects) {
 function resolvePassiveNodeName(node) {
     const effects = Array.isArray(node.runtimeEffects) ? node.runtimeEffects : [];
     if (effects.length === 0) return node.name || null;
+    if (node.statAutoName === false && node.keepOwnName && node.name) return node.name;   // 투영의 문양, 지혜의 도약 갈래: 효과 이름이 아니라 제 이름
     const simpleTier = ['minor', 'assist'].includes(node.type);
     if (simpleTier && effects.length === 1) return simpleEffectName(effects[0]);
     if (simpleTier && isAllAttributes(effects)) return '모든 능력치';

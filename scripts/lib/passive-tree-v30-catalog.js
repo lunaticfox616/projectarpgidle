@@ -136,7 +136,7 @@ const SPECIAL_THEMES = Object.freeze([
 const KEYSTONES = Object.freeze({
     occultist: { name: '남겨진 잠식', desc: '적 처치 시 해당 적의 카오스 잠식 중첩 50%를 다음 공격 대상으로 이전합니다.\n카오스 잠식 최대치가 20 증가합니다.\n카오스 명중 피해가 15% 감폭됩니다.', icon: 'chaos' },
     cleric: { name: '대리 성약', desc: '방어형 소환수의 피해 대리 비율이 50%p 증가하고 생명력이 100% 증폭됩니다.\n플레이어는 막기와 비껴내기를 사용할 수 없습니다.\n방어형 소환수의 부활 대기시간이 100% 증가합니다.', icon: 'devotion' },
-    warrior: { name: '한 번의 중량', desc: '공격 피해 편차가 항상 최대 피해로 결정됩니다.\n공격 스킬 속도가 30% 감폭됩니다.', icon: 'strength' },
+    warrior: { name: '한 번의 중량', desc: '공격 피해 편차가 항상 최대 피해로 결정됩니다.\n공격 속도가 30% 감폭됩니다.', icon: 'strength' },
     wanderer: { name: '완전 회피', desc: '방어도와 막기 확률이 0이 됩니다.\n회피 확률이 15%p 증가합니다(최대 90%).\n공격을 회피하면 다음 근접 공격의 치명타가 확정됩니다.', icon: 'wind' },
     archer: { name: '관통 행렬', desc: '투사체 스킬 타겟 수가 2 증가합니다.\n두 번째 이후 대상에게 주는 투사체 피해가 40% 감폭됩니다.\n하나의 스킬 행동으로 같은 적을 중복 타격할 수 없습니다. 단, 회귀 타격은 예외입니다.', icon: 'projectile' },
     alchemist: { name: '폭발성 증류', desc: '포션 스킬은 치명타를 가할 수 없고 명중 피해가 25% 감폭됩니다.\n포션 스킬의 상태이상 유발 확률이 25%p 증가하고 상태이상 피해가 75% 증폭됩니다.', icon: 'potion' },
@@ -150,7 +150,7 @@ const KEYSTONES = Object.freeze({
     cycle_reverse: { name: '역행 순환', desc: '순환 효과가 상태이상 종료 시가 아니라 상태이상 시작 시 발동합니다.\n순환 효과는 한 종류만 유지되며 효과가 50% 감폭됩니다.', icon: 'cycle' },
     devotion_triple: { name: '삼중 계시', desc: '계시 방향을 선택할 수 없습니다.\n전투, 수호 및 생명 계시 효과를 각각 40%의 효과로 모두 받습니다.\n타락한 복음과 동시에 할당할 수 없습니다.', icon: 'devotion' },
     universal_summon: { name: '단 하나의 사역', desc: '공격형 소환수 최대 한도가 1이 됩니다.\n잃은 소환수 최대 한도 1당 남은 공격형 소환수의 피해가 75%, 생명력이 50% 증폭됩니다.\n해당 소환수의 부활 대기시간이 100% 증가합니다.', icon: 'summon' },
-    universal_flask: { name: '과잉 투여', desc: '포션 스킬 피해가 50% 증폭됩니다.\n포션 스킬 속도가 25% 감폭됩니다.', icon: 'potion' }
+    universal_flask: { name: '과잉 투여', desc: '포션 스킬 피해가 50% 증폭됩니다.\n포션 스킬의 공격 속도가 25% 감폭됩니다.', icon: 'potion' }
 });
 
 module.exports = { CLASS_SECTORS, HYBRID_SECTORS, KEYSTONES, SPECIAL_THEMES };

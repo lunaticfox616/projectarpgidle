@@ -395,11 +395,15 @@ const STAT_DISPLAY_NAMES = {
         projectileExtraShots: '투사체 추가 발사',
         firstHitDamageMorePct: '첫 공격 피해 증폭(%)',
         projectileExtraChance: '투사체 추가 발사 확률(%)',
+        projectileChain: '투사체 연쇄', voidLinkEfficiency: '연결된 공허 소켓의 효율(%)',
+        igniteDurationPct: '점화 지속시간(%)', chillDurationPct: '냉각 지속시간(%)', freezeDurationPct: '동결 지속시간(%)',
+        shockDurationPct: '감전 지속시간(%)', poisonDurationPct: '중독 지속시간(%)', bleedDurationPct: '출혈 지속시간(%)',
+        skillDelayReduce: '스킬 딜레이 감소(%)', cooldownReductionCapBonus: '재사용 대기시간 감소 한도(%)',
         attackPctDmg: '공격 피해 증가(%)',
         spellFlatDmg: '주문 내장 피해',
         spellFlatPct: '주문 내장 피해 증가(%)',
         spellPctDmg: '주문 피해(%)',
-        spellRepeatChance: '주문 이중 시전 확률(%)',
+        spellRepeatChance: '연속 주문 확률(%)',
         shieldPctDmg: '완갑 착용 근접 피해(%)',
         minePctDmg: '지뢰 피해(%)',
         potionPctDmg: '포션 투척 피해(%)',
@@ -523,6 +527,7 @@ const STAT_DISPLAY_NAMES = {
         doubleDamageChance: '확률로 2배의 피해를 줌(%)',
         slamEchoDamagePct: '여진 피해량(%)'
     };
+Object.entries(WEAPON_CONDITION_STATS).forEach(([id, line]) => { STAT_DISPLAY_NAMES[id] = `${SKILL_RUNE_STANCE_LABELS[line.stance]} 사용 시 ${STAT_DISPLAY_NAMES[line.stat].replace(' 증가', '')}`; });
 function getStatName(statId) {
     return STAT_DISPLAY_NAMES[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
 }
@@ -550,7 +555,8 @@ function createEmptyStatBucket() {
         addedFireDamagePct: 0, addedColdDamagePct: 0, addedLightDamagePct: 0, addedChaosDamagePct: 0, addedPhysDamagePct: 0,
         fireFlatDmg: 0, coldFlatDmg: 0, lightFlatDmg: 0, chaosFlatDmg: 0, physFlatDmg: 0,
         meleePctDmg: 0, slamPctDmg: 0, projectilePctDmg: 0, physPctDmg: 0, elementalPctDmg: 0, firePctDmg: 0, coldPctDmg: 0, lightPctDmg: 0, chaosPctDmg: 0, aoePctDmg: 0, dotPctDmg: 0, spellPctDmg: 0, shieldPctDmg: 0, minePctDmg: 0, potionPctDmg: 0, mobilityPctDmg: 0, channelingPctDmg: 0, igniteChance: 0, chillChance: 0, freezeChance: 0, shockChance: 0, poisonChance: 0, bleedChance: 0, spellFlatDmg: 0, spellFlatPct: 0,
-        targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0, projectileExtraChance: 0,
+        targetAny: 0, targetProjectile: 0, targetSlam: 0, projectileExtraShots: 0, projectileExtraChance: 0, projectileChain: 0,
+        igniteDurationPct: 0, chillDurationPct: 0, freezeDurationPct: 0, shockDurationPct: 0, poisonDurationPct: 0, bleedDurationPct: 0, skillDelayReduce: 0,
         attackPctDmg: 0, spellLeech: 0, spellCritDmg: 0, spellRepeatChance: 0,
         strength: 0, dexterity: 0, intelligence: 0, accuracy: 0,
         mystique: 0, devotion: 0, cycle: 0, ailmentDamagePct: 0, ailmentPotencyPct: 0,
@@ -592,6 +598,13 @@ function addStatToBucket(bucket, statId, value) {
     for (const [key, multiplier, flat] of COMPOSITE_STAT_BUCKET_LINES[statId]) {
         bucket[key] += value * multiplier + flat;
     }
+}
+
+/** A passive line. A weapon line (WEAPON_CONDITION_STATS) counts as its base stat only while that stance is held. */
+function addPassiveLineToBucket(bucket, statId, value, stance) {
+    const weaponLine = WEAPON_CONDITION_STATS[statId];
+    if (!weaponLine) addStatToBucket(bucket, statId, value);
+    else if (weaponLine.stance === stance) addStatToBucket(bucket, weaponLine.stat, value);
 }
 
 function applyStatsToBucket(bucket, stats) {

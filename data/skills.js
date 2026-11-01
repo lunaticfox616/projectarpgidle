@@ -339,7 +339,12 @@ const SKILL_RUNE_STANCE_BY_CATEGORY = Object.freeze({ greatsword: 'greatsword', 
 const SKILL_RUNE_STANCE_LABELS = Object.freeze({ unarmed: '맨손', greatsword: '대검', sword: '한손검', bow: '활', orb: '오브', flask: '플라스크', censer: '향로' });
 /** 지금 무기로 못 쓰는 룬의 카드와 알림에 붙는 이유(계열마다). 전용 계열은 그 무기 이름이 붙는다. */
 const SKILL_RUNE_WEAPON_NOTES = Object.freeze({ melee: '근접 무기 필요', projectile: '활, 오브, 한손검 필요', spell: '무기 필요', wisp: '무기 필요', servant: '무기 필요' });
-safeExposeData({ SKILL_RUNE_WEAPONS, SKILL_RUNE_FAMILY, SKILL_RUNE_STANCE_BY_CATEGORY, SKILL_RUNE_STANCE_LABELS, SKILL_RUNE_WEAPON_NOTES });
+/** 패시브 트리의 무기 조건 줄(2026-11-01 사용자: "오브 사용 시" 옵션). id는 자세 + 능력치(swordCrit, bowProjectileChain)이고, 그 자세로 든 동안만 바탕 능력치로 더한다(js/utils.js addPassiveLineToBucket). */
+const WEAPON_CONDITION_BASE_STATS = Object.freeze(['pctDmg', 'attackPctDmg', 'spellPctDmg', 'dotPctDmg', 'crit', 'critDmg', 'aspd', 'ds', 'minDmgRoll', 'maxDmgRoll', 'physIgnore', 'move',
+    'bleedChance', 'igniteChance', 'poisonChance', 'leech', 'pctHp', 'cooldownRecovery', 'projectileExtraShots', 'projectileChain']);
+const WEAPON_CONDITION_STATS = Object.freeze(Object.fromEntries(Object.keys(SKILL_RUNE_STANCE_LABELS).filter(stance => stance !== 'unarmed')
+    .flatMap(stance => WEAPON_CONDITION_BASE_STATS.map(stat => [`${stance}${stat[0].toUpperCase()}${stat.slice(1)}`, Object.freeze({ stance, stat })]))));
+safeExposeData({ SKILL_RUNE_WEAPONS, SKILL_RUNE_FAMILY, SKILL_RUNE_STANCE_BY_CATEGORY, SKILL_RUNE_STANCE_LABELS, SKILL_RUNE_WEAPON_NOTES, WEAPON_CONDITION_STATS });
 
 
 // signature 스킬은 전용 이미지 프레임을 재생한다. 모든 액티브 룬을 명시하여 누락을 검사한다.

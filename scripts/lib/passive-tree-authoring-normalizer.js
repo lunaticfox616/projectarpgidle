@@ -169,7 +169,7 @@ function normalizeAuthoringTree(source, options) {
 const builder = (to, label, near = false) => Object.freeze({ to: [].concat(to), label, near });
 const BUILDER_OPTIONS = Object.freeze({
     attack_power: builder('flatDmg', '공격력', true), base_damage: builder('flatDmg', '기본 피해'), damage: builder('pctDmg', '피해'),
-    attack_speed: builder('aspd', '스킬 속도'), critical_strike_chance: builder('crit', '치명타 확률'),
+    attack_speed: builder('aspd', '공격 속도'), critical_strike_chance: builder('crit', '치명타 확률'),
     critical_damage_multiplier: builder('critDmg', '치명타 피해 배율'), movement_speed: builder('move', '이동 속도'),
     cooldown_reduction: builder('cooldownReduction', '재사용 대기시간 감소'), buff_duration: builder([], '버프 지속시간'),
     'attribute:strength': builder('strength', '힘'), 'attribute:dexterity': builder('dexterity', '민첩'),

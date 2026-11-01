@@ -809,6 +809,11 @@ mergeDefaults.enemyCasts = function (state) {
     });
 };
 
+// 요정의 고리 실패 잠금은 이번 루프 동안 저장에 남는다. 잠기지 않은 소켓에는 칸을 만들지 않는다.
+function voidPassiveLockField(rawEntry) {
+    return rawEntry.fairyLocked ? { fairyLocked: true } : {};
+}
+
 function mergeDefaults(save) {
     if (save && typeof save === 'object') itemSaveSlim.expandTree(save); // 축약 저장된 장비 줄을 되살린다(saveVersion 20, js/item-save-slim.js)
     function clampFiniteNumber(value, fallback, min, max) {
@@ -1176,8 +1181,8 @@ function mergeDefaults(save) {
         if (typeof merged.currentZoneId === 'number' && merged.currentZoneId >= 5) merged.currentZoneId -= 1;
         if (typeof merged.maxZoneId === 'number' && merged.maxZoneId >= 5) merged.maxZoneId -= 1;
     }
-    const legacyPassiveRefundCount = Number(merged.passiveLayoutVersion || 0) < 22
-        ? (Array.isArray(save.passives) ? save.passives.filter(id => id !== 'n0').length : 0)
+    const legacyPassiveRefundCount = Number(merged.passiveLayoutVersion || 0) < PASSIVE_LAYOUT_VERSION
+        ? (Array.isArray(save.passives) ? save.passives.filter(id => id !== 'n0' && !String(id).startsWith('pt_start_')).length : 0)
         : 0;
     moveStarWedgeSaveToMeteorSite(merged, save);
     let passiveAllocationNormalization = normalizeAllocatedPassiveTreeNodes(merged.passives, !!merged.passiveStarEvolution, merged);
@@ -1203,12 +1208,14 @@ function mergeDefaults(save) {
         ? normalizePassiveSpecializationState(merged.passiveSpecialization, passiveSpecializationOptions)
         : JSON.parse(JSON.stringify(defaultGame.passiveSpecialization));
     if (merged.passiveLayoutVersion !== PASSIVE_LAYOUT_VERSION) {
-        // Version 22 replaces the generated tree with the authored six-class layout.
-        // Refund once rather than silently mapping old node ids onto unrelated effects.
-        if (Number(merged.passiveLayoutVersion || 0) < 22) {
-            merged.autoRefundedPassivePoints = Math.max(merged.autoRefundedPassivePoints, legacyPassiveRefundCount);
+        // Version 22 replaced the generated tree with the authored six-class layout, version 23 with the co-edited one.
+        // Refund once rather than silently mapping old node ids onto unrelated effects. Void options sat on the old sockets.
+        if (Number(merged.passiveLayoutVersion || 0) < PASSIVE_LAYOUT_VERSION) {
+            merged.autoRefundedPassivePoints = legacyPassiveRefundCount;
             merged.passives = [];
             merged.passiveAttributeChoices = {};
+            merged.voidPassives = {};
+            merged.retiredVoidPassives = {};
         }
         merged.discoveredPassives = Array.from(new Set([getPassiveTreeRootNodeId(merged)].concat(merged.passives || [])));
         merged.passiveLayoutVersion = PASSIVE_LAYOUT_VERSION;
@@ -1318,9 +1325,9 @@ function mergeDefaults(save) {
                 stats = [{ id: node.legacyVoidStat, val: Number(node.legacyVoidVal) }];
             }
         }
-        stats = stats.filter(line => line && P_STATS[line.id] && Number.isFinite(Number(line.val))).slice(0, 2).map(line => ({ id: line.id, val: Number(line.val) }));
+        stats = stats.filter(line => line && isVoidPassiveLineStat(line.id) && Number.isFinite(Number(line.val))).slice(0, 2).map(line => ({ id: line.id, val: Number(line.val) }));
         let transcendent = (typeof normalizeTranscendentVoidPassive === 'function') ? normalizeTranscendentVoidPassive(rawEntry.transcendent) : null;
-        if (stats.length > 0 || transcendent || rawVoidPassives[nodeId] || allocatedVoidIds.has(String(nodeId))) merged.voidPassives[nodeId] = { rarity: transcendent ? 'transcendent' : (stats.length > 0 ? 'magic' : 'normal'), stats, transcendent };
+        if (stats.length > 0 || transcendent || rawVoidPassives[nodeId] || allocatedVoidIds.has(String(nodeId))) merged.voidPassives[nodeId] = { rarity: transcendent ? 'transcendent' : (stats.length > 0 ? 'magic' : 'normal'), stats, transcendent, ...voidPassiveLockField(rawEntry) };
     });
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];

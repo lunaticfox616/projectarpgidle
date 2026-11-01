@@ -128,9 +128,14 @@ export function applyOps(tree, ops) {
         } else if (op.kind === 'nodeRemove') {
             tree.nodes = tree.nodes.filter(node => String(node.id) !== op.id);
             index.delete(op.id);
+            // A link someone else tied to this node meanwhile goes with it (2026-11-01: such a link, invisible, blocked 원본 저장 with
+            // '존재하지 않는 노드 연결').
+            tree.edges = tree.edges.filter(edge => String(edge.a) !== op.id && String(edge.b) !== op.id);
             result.structure = true;
         } else if (op.kind === 'edge' || op.kind === 'edgeRemove') {
-            applyListOp(tree.edges, edgeKey, op.key, op.kind === 'edge' ? op.value : undefined);
+            // A link to a node this tree no longer has is dropped instead of kept (the node went in an earlier batch).
+            const whole = op.kind === 'edge' && op.value && index.has(String(op.value.a)) && index.has(String(op.value.b));
+            applyListOp(tree.edges, edgeKey, op.key, whole ? op.value : undefined);
             result.structure = true;
         } else if (op.kind === 'motif' || op.kind === 'motifRemove') {
             tree.backgroundMotifs = tree.backgroundMotifs || [];
