@@ -1,5 +1,5 @@
-/** 전직 트리 보기 (2026-10-09 목표 "전직노드 UI/UX 개선", 2026-10-22 "전직 노드창 개선"). 왼쪽에 노드 나무(칸마다 그림, 값,
- * 능력치 이름, 궁극과 4차 핵심과 특화 줄에는 이름표), 오른쪽에 키스톤과 자세히 카드를 둔다. 좁은 창에서는 나무, 자세히, 키스톤 차례로
+/** 전직 트리 보기 (2026-10-09 목표 "전직노드 UI/UX 개선", 2026-10-22 "전직 노드창 개선", 2026-11-02 색과 스킬트리 노드 그림). 왼쪽에 노드 나무(스킬트리의 틀과 아이콘, 값,
+ * 능력치 이름, 궁극과 4차 핵심과 특화 줄에는 이름표), 오른쪽에 키스톤과 자세히 카드를 둔다. 칸은 불투명하고 선은 칸 밑으로 지나가지 않는다. 좁은 창에서는 나무, 자세히, 키스톤 차례로
  * 쌓고 자세히 카드가 아래에 붙는다. 자세히 카드는 가리키거나 누른 칸의 효과, 찍으면 바뀌는 값, 할 수 있는 일과 그 단추를 보인다. 사고 되돌리는 규칙은 js/ui.js(buyAscend, askRefundAscendNode, buyAscendKeystone,
  * refundAscendKeystone)를 그대로 부른다. 마우스로는 누르면 바로 찍고, 가리킬 수 없는 화면(터치)에서는 첫 탭이 고르기, 같은 칸을
  * 한 번 더 누르면 찍는다(잘못 눌러 되돌리느라 마름병 포자를 쓰지 않게).
@@ -22,8 +22,14 @@ const ascendancyTreeUi = (() => {
     let focus = null; // { kind: 'node' | 'keystone', id } 마지막으로 누른 칸
     let shown = null; // 자세히 카드가 읽는 칸: 마지막으로 가리키거나 누른 칸
     const ROW_LABEL = Object.freeze({ n10: '궁극', n11: '4차 핵심', n13a: '특화' });
+    const KEYSTONE_HALF_WIDTH = 14; // 키스톤 칸 반폭(판 폭의 %): 선이 이 안을 지나면 돌아간다
     const NODE_ACTIONS = Object.freeze({ taken: '되돌리기', open: '찍기' });
     const KEYSTONE_ACTIONS = Object.freeze({ taken: '되돌리기', open: '고르기' });
+    // 키스톤 설명의 낱말 → 스킬트리 아이콘. 설명에서 가장 먼저 나오는 낱말의 그림을 쓴다.
+    const KEYSTONE_ART = Object.freeze([['소환', 'summon'], ['카오스', 'chaos'], ['화염', 'fire'], ['점화', 'ignite'], ['냉기', 'cold'], ['동결', 'freeze'], ['냉각', 'chill'],
+        ['번개', 'lightning'], ['감전', 'shock'], ['중독', 'poison'], ['출혈', 'bleed'], ['지속', 'damageOverTime'], ['투사체', 'projectile'], ['강타', 'slam'], ['근접', 'blade'],
+        ['주문', 'spell'], ['에너지', 'energyShield'], ['ES', 'energyShield'], ['회피', 'evasion'], ['막기', 'shield'], ['방어', 'armor'], ['생명력', 'life'], ['재생', 'life'], ['흡수', 'life'],
+        ['이동', 'wind'], ['공격 속도', 'precision'], ['치명타', 'critical'], ['원소', 'elemental'], ['저항', 'elemental'], ['물리', 'blade'], ['연속', 'cycle'], ['보조스킬룬', 'arcane'], ['룬', 'arcane']]);
     /** The stat's dot picture (the talent window marks each ascendancy with its main stat's, js/talent-ui.js). */
     const iconOf = stat => ICONS[stat] || 'star';
 
@@ -65,18 +71,32 @@ const ascendancyTreeUi = (() => {
         rows.forEach((ids, row) => ids.forEach((id, index) => at.set(id, { x: (index + 1) * 100 / (ids.length + 1), y: (row + 0.5) * 100 / rows.length })));
         return at;
     }
-    function linkHtml(from, to, state) {
-        return `<line class="is-${state}" x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" vector-effect="non-scaling-stroke"></line>`;
+    function linkHtml(points, state) {
+        return `<polyline class="is-${state}" points="${points.map(point => `${point.x},${point.y}`).join(' ')}" vector-effect="non-scaling-stroke"></polyline>`;
+    }
+    /** The skill tree's picture for a family, sized by CSS (--cell): the sheet cell goes in as --cx, --cy. */
+    function artHtml(family) {
+        const cell = PASSIVE_ICON_ATLAS_CELL[family] || PASSIVE_ICON_ATLAS_CELL.constellation;
+        return `<span class="ascend-socket"><span class="ascend-art" style="--cx:${cell[0]};--cy:${cell[1]}"></span></span>`;
+    }
+    const statFamily = stat => PASSIVE_ICON_FAMILY[stat] || (stat ? 'arcane' : 'constellation');
+    function keystoneFamily(desc) {
+        const text = String(desc || '');
+        const found = KEYSTONE_ART.map(([word, family]) => [text.indexOf(word), family]).filter(([at]) => at >= 0).sort((a, b) => a[0] - b[0]);
+        return found.length ? found[0][1] : 'constellation';
     }
     /** Both ends taken: gold; the way on from a taken node: lit; the rest waits dim. */
     const linkState = (a, b) => (a === 'taken' && b === 'taken' ? 'done' : (a === 'taken' ? 'lit' : 'dim'));
+    function nodeClass(id, state, tight) {
+        const focused = focus && focus.kind === 'node' && focus.id === id;
+        return `ascend-node is-${state}${RANK[id] ? ' is-major' : ''}${id === 'n10' ? ' is-peak' : ''}${tight ? ' is-tight' : ''}${focused ? ' is-focus' : ''}`;
+    }
     function nodeButton(id, node, pos, state, tight) {
-        const lines = linesOf(node), icon = iconOf((lines[0] || {}).stat), label = lines.length ? shortValue(lines[0]) : '?';
-        const stat = lines.length ? statName(lines[0].stat) : '재능 특화', name = `${RANK[id] || stat}, ${NODE_TEXT[state]}`;
-        const focused = focus && focus.kind === 'node' && focus.id === id ? ' is-focus' : '';
-        return `<button type="button" class="ascend-node is-${state}${RANK[id] ? ' is-major' : ''}${tight ? ' is-tight' : ''}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
+        const lines = linesOf(node), first = (lines[0] || {}).stat, label = lines.length ? shortValue(lines[0]) : '?';
+        const stat = lines.length ? statName(first) : '재능 특화', name = `${RANK[id] || stat}, ${NODE_TEXT[state]}`;
+        return `<button type="button" class="${nodeClass(id, state, tight)}" style="--x:${pos.x}%;--y:${pos.y}%;--tone:${getItemStatToneColor(first)}"
             aria-label="${esc(name)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('node','${id}')"
-            onmouseenter="ascendancyTreeUi.hint('node','${id}')" onfocus="ascendancyTreeUi.hint('node','${id}')"><span class="ascend-node-head">${renderPixelIcon(icon, 'ascend-node-icon')}<b>${esc(label)}</b></span><span class="ascend-node-name">${esc(stat)}</span></button>`;
+            onmouseenter="ascendancyTreeUi.hint('node','${id}')" onfocus="ascendancyTreeUi.hint('node','${id}')">${artHtml(statFamily(first))}<span class="ascend-plate"><b>${esc(label)}</b><span class="ascend-node-name">${esc(stat)}</span></span></button>`;
     }
     /** The prerequisites a node's lines come from. Nodes of one row that share the same choice of several prerequisites (n13a~d
      * after n11 or n12) draw only from the nearest one, or their lines cross into an X; a lone node (n10 after n7~n9) keeps them all. */
@@ -91,7 +111,7 @@ const ascendancyTreeUi = (() => {
         const rows = ROWS.map(ids => ids.filter(id => tree[id])).filter(ids => ids.length), at = layout(rows);
         const states = new Map([...at.keys()].map(id => [id, nodeState(tree[id], id)]));
         const links = [...at.keys()].flatMap(id => linkSources(tree, rows, at, id)
-            .map(req => linkHtml(at.get(req), at.get(id), linkState(states.get(req), states.get(id)))));
+            .map(req => linkHtml([at.get(req), at.get(id)], linkState(states.get(req), states.get(id)))));
         const tight = new Set(rows.filter(ids => ids.length > 3).flat());
         const buttons = [...at.keys()].map(id => nodeButton(id, tree[id], at.get(id), states.get(id), tight.has(id)));
         const labels = rows.map(ids => ids.find(id => ROW_LABEL[id])).filter(Boolean)
@@ -125,16 +145,52 @@ const ascendancyTreeUi = (() => {
         const focused = focus && focus.kind === 'keystone' && focus.id === k.id ? ' is-focus' : '';
         return `<button type="button" class="ascend-node ascend-keystone is-${state}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
             aria-label="${esc(`${k.name}, ${KEYSTONE_TEXT[state]}`)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('keystone','${k.id}')"
-            onmouseenter="ascendancyTreeUi.hint('keystone','${k.id}')" onfocus="ascendancyTreeUi.hint('keystone','${k.id}')">${renderPixelIcon('star', 'ascend-node-icon')}<span>${esc(k.name)}</span></button>`;
+            onmouseenter="ascendancyTreeUi.hint('keystone','${k.id}')" onfocus="ascendancyTreeUi.hint('keystone','${k.id}')">${artHtml(keystoneFamily(k.desc))}<span class="ascend-plate"><span class="ascend-node-name">${esc(k.name)}</span></span></button>`;
+    }
+    /** Where keystones sit: the first row spread over three columns, a later one under the middle of its prerequisites so links run down;
+     * a 5th-job keystone, tied to nothing, beside the deepest row in the column farthest from the others, or below it when none is free. */
+    function keystoneSpots(defs) {
+        const fifth = defs.filter(k => k.fifthJobOnly).map(k => k.id);
+        const rows = keystoneRows(defs).map(ids => ids.filter(id => !fifth.includes(id))).filter(ids => ids.length);
+        const spots = new Map();
+        rows.forEach((ids, row) => ids.forEach((id, index) => {
+            const reqs = keystoneReqs(defs.find(k => k.id === id)).filter(req => spots.has(req)).map(req => spots.get(req).x);
+            const x = reqs.length ? reqs.reduce((sum, value) => sum + value, 0) / reqs.length : (index + 0.5) * 100 / ids.length;
+            spots.set(id, { x, row });
+        }));
+        const last = rows.length - 1, taken = [...spots.values()].filter(spot => spot.row === last).map(spot => spot.x);
+        const clearance = x => Math.min(...taken.map(other => Math.abs(other - x)), 100);
+        const column = [100 / 6, 50, 500 / 6].reduce((best, x) => (clearance(x) > clearance(best) ? x : best));
+        const beside = clearance(column) >= KEYSTONE_HALF_WIDTH * 2;
+        fifth.forEach(id => spots.set(id, beside ? { x: column, row: last } : { x: 50, row: last + 1 }));
+        const count = rows.length + (fifth.length && !beside ? 1 : 0);
+        spots.forEach(spot => { spot.y = (spot.row + 0.5) * 100 / count; });
+        return { spots, rows: count };
+    }
+    /** A link that skips a row must not run under a keystone of that row: it goes straight down the nearest gap for that whole row. */
+    function keystoneLinkPoints(from, to, spots) {
+        const points = [from];
+        const span = to.row - from.row, reach = Math.abs(to.y - from.y) / span * 0.48;
+        for (let row = from.row + 1; row < to.row; row++) {
+            const y = from.y + (to.y - from.y) * (row - from.row) / span;
+            const xAt = at => from.x + (to.x - from.x) * (at - from.y) / (to.y - from.y);
+            const straight = xAt(y), passes = [xAt(y - reach), straight, xAt(y + reach)];
+            const inRow = [...spots.values()].filter(spot => spot.row === row).map(spot => spot.x).sort((a, b) => a - b);
+            if (!inRow.some(x => passes.some(pass => Math.abs(x - pass) < KEYSTONE_HALF_WIDTH))) continue;
+            const gaps = [...inRow, 100].map((x, index) => (x + [0, ...inRow][index]) / 2);
+            const x = gaps.reduce((best, gap) => (Math.abs(gap - straight) < Math.abs(best - straight) ? gap : best));
+            points.push({ x, y: y - reach }, { x, y: y + reach });
+        }
+        return [...points, to];
     }
     function keystoneGraphHtml(defs) {
         if (!defs.length) return '<p class="ascend-muted">이 전직에는 키스톤이 없습니다.</p>';
-        const rows = keystoneRows(defs), at = layout(rows);
+        const { spots, rows } = keystoneSpots(defs);
         const states = new Map(defs.map(k => [k.id, keystoneState(k)]));
-        const links = defs.flatMap(k => keystoneReqs(k).filter(id => at.has(id))
-            .map(id => linkHtml(at.get(id), at.get(k.id), linkState(states.get(id), states.get(k.id)))));
-        const buttons = defs.map(k => keystoneButton(k, at.get(k.id), states.get(k.id)));
-        return `<div class="ascend-graph is-keystones" style="--rows:${rows.length}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join('')}</svg>${buttons.join('')}</div>`;
+        const links = defs.flatMap(k => keystoneReqs(k).filter(id => spots.has(id))
+            .map(id => linkHtml(keystoneLinkPoints(spots.get(id), spots.get(k.id), spots), linkState(states.get(id), states.get(k.id)))));
+        const buttons = defs.map(k => keystoneButton(k, spots.get(k.id), states.get(k.id)));
+        return `<div class="ascend-graph is-keystones" style="--rows:${rows}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join('')}</svg>${buttons.join('')}</div>`;
     }
 
     // ---------------------------------------------------------------- summary and the note
@@ -153,9 +209,9 @@ const ascendancyTreeUi = (() => {
     function summaryHtml(cls, tree) {
         const template = CLASS_TEMPLATES[cls], total = totalsText(tree), ks = game.ascendKeystones.length;
         return `<div class="ascend-summary"><div class="ascend-summary-name"><strong>${esc(template.name)}</strong><span>${esc(template.desc)}</span></div>
-            <div class="ascend-summary-chips"><span>노드 포인트 <b>${Math.max(0, Math.floor(game.ascendPoints || 0))}</b></span>
-            <span>키스톤 <b>${ks}/${CLASS_KEYSTONE_PICK_LIMIT}</b>, 포인트 <b>${Math.max(0, Math.floor(game.ascendKeystonePoints || 0))}</b></span>
-            <span>찍은 노드 <b>${game.ascendNodes.length}</b></span>
+            <div class="ascend-summary-chips"><span class="is-node">노드 포인트 <b>${Math.max(0, Math.floor(game.ascendPoints || 0))}</b></span>
+            <span class="is-key">키스톤 <b>${ks}/${CLASS_KEYSTONE_PICK_LIMIT}</b>, 포인트 <b>${Math.max(0, Math.floor(game.ascendKeystonePoints || 0))}</b></span>
+            <span class="is-taken">찍은 노드 <b>${game.ascendNodes.length}</b></span>
             ${game.ascendNodes.length ? '<button type="button" class="ascend-reset" onclick="resetAscendNodes()">노드 초기화</button>' : ''}</div>
             <p class="ascend-muted">${esc(nextPoints())}. 이번 루프의 노드 포인트는 최대 9점이라 다 찍을 수는 없습니다.</p>
             ${total ? `<p class="ascend-total">합계: ${statToneText.html(total)}</p>` : ''}${getAscendancyPlanContinueHtml()}</div>`;
@@ -215,6 +271,7 @@ const ascendancyTreeUi = (() => {
         game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
         game.ascendKeystones = Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
         const tree = fullTree(cls), defs = getClassKeystoneDefs(cls);
+        box.dataset.ascend = cls;
         box.innerHTML = `${summaryHtml(cls, tree)}<div class="ascend-layout">
             <section class="ascend-board is-nodes" aria-label="전직 노드"><h3>전직 노드</h3>${nodeGraphHtml(tree)}</section>
             <section class="ascend-board is-keystones" aria-label="키스톤"><h3>키스톤 <button type="button" class="ascend-reset" onclick="resetAscendKeystones()">키스톤 초기화</button></h3>${keystoneGraphHtml(defs)}</section>

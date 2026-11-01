@@ -89,7 +89,7 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(folded.width).toBeCloseTo(feed.width, 0);
     expect(folded.bottom).toBeCloseTo(feed.bottom, 0);
     await expect(page.locator('#message-frame-main [data-message-tab]').first()).toBeVisible();
-    await expect(fold).toHaveAttribute('title', '펼치기');
+    await expect(fold).toHaveAttribute('data-tip', '펼치기');
     await fold.click();
     await expect(page.locator('#log')).toBeVisible();
     expect((await rectOf(page, '#message-frame-main')).height).toBeCloseTo(feed.height, 0);

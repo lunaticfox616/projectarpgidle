@@ -211,7 +211,7 @@ test('save reset replaces the signed-in account and does not restore old high-lo
     expect(remote.save_data.saveMeta.cloudUserId).toBe('reset-account');
     expect(remote.revision).toBe(8);
     // Simulate another device still holding the pre-reset save (revision 7, changes not uploaded). Use the real account entry and transport:
-    // the server (revision 8) wins, the old progress is offered as a file (declined here) and never goes up.
+    // the server (revision 8) wins with no question and no file (2026-11-01), and the old progress never goes up.
     await page.evaluate(oldSave => {
         window.CLOUD_SAVE_CONFIG = { enabled: true, supabaseUrl: 'https://reset-test.invalid', supabaseAnonKey: 'test-only' };
         cloudState.configured = true;
@@ -224,7 +224,7 @@ test('save reset replaces the signed-in account and does not restore old high-lo
         requestGameConfirmation = async () => { window.__fileOffers += 1; return false; };
     }, oldSave);
     await page.evaluate(() => enterAccountSave());
-    expect(await page.evaluate(() => ({ loop: game.season, offers: window.__fileOffers, revision: game.saveMeta.cloudRevision }))).toEqual({ loop: 1, offers: 1, revision: 8 });
+    expect(await page.evaluate(() => ({ loop: game.season, offers: window.__fileOffers, revision: game.saveMeta.cloudRevision }))).toEqual({ loop: 1, offers: 0, revision: 8 });
     expect(writes).toHaveLength(1);
     expect(await page.evaluate(() => cloudState.user.id)).toBe('reset-account');
     expect(failures).toEqual([]);
@@ -466,13 +466,13 @@ test('equipment presets swap owned gear atomically and stay usable on narrow scr
     await openLoadout();
     await expect(panel).toBeVisible();
     await expect(panel.locator('.equipment-preset-slot')).toHaveCount(3);
-    // 세팅 한 줄(2026-10-10 장비창 개편): 저장 단추, 적용 중인 세팅은 .applied, 부위 수는 title.
+    // 세팅 한 줄(2026-10-10 장비창 개편): 저장 단추, 적용 중인 세팅은 .applied, 부위 수는 툴팁(data-tip).
     // 저장과 번호는 세트 창을 열고, 창의 확인 단추로 저장하거나 바꾼다(2026-10-24 통합 빌드 세트).
     const confirmSet = page.locator('#equipment-build-review [data-build-confirm]');
     await panel.getByRole('button', { name: '저장', exact: true }).click();
     await confirmSet.click();
     await expect(panel.locator('.equipment-preset-slot').first()).toHaveClass(/applied/);
-    await expect(panel.locator('.equipment-preset-slot').first()).toHaveAttribute('title', /2부위/);
+    await expect(panel.locator('.equipment-preset-slot').first()).toHaveAttribute('data-tip', /2부위/);
 
     await page.evaluate(ids => {
         const savedSword = game.equipment['무기'];
