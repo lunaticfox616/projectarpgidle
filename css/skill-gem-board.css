@@ -163,7 +163,7 @@
   min-width: 0; min-height: 0; padding: 0; overflow: visible; border: 0; background: none; box-shadow: none; cursor: pointer;
 }
 .support-slot > i {
-  position: relative; display: grid; place-items: center; width: 100%; max-width: 56px; height: 48px;
+  position: relative; display: grid; place-items: center; width: 100%; max-width: 64px; height: 64px;
   border: 1px solid var(--board-ink);
   background: linear-gradient(160deg, #1f5446, var(--board-support-deep) 70%);
   box-shadow: inset 0 0 0 1px #3f9c80, inset 0 1px 0 rgba(180, 255, 228, .25), 0 0 8px rgba(111, 211, 176, .18);
@@ -172,7 +172,7 @@
 /* 칸 안의 그림과 글은 칸 왼쪽에서 절반(정수 px) 옮기고 제 폭의 절반(정수 px)만큼 되돌린다: 가운데 맞춤은 폭의 홀짝이 다르면 반 화소에 놓였다. */
 .support-slot > * { position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px); }
 .support-slot > i > em { position: absolute; right: 3px; bottom: 1px; color: var(--board-gold-hi); font: normal var(--font-size-meta) var(--font-pixel-meta, 'Galmuri9', sans-serif); letter-spacing: -1px; }
-.support-slot > b { color: var(--board-copy); font: 400 12px var(--board-label); }
+.support-slot > b { margin-top: 3px; color: var(--board-copy); font: 400 12px var(--board-label); }
 .support-slot > small { color: var(--board-muted); font: 12px var(--board-label); }
 /* 칸이 65px 남짓이라 한 줄이면 "근접 물…", "장비, 패…"로 잘렸다: 단어째 두 줄까지 쓴다. */
 .support-slot > :is(b, small) { display: -webkit-box; max-width: 100%; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.2;

@@ -1433,7 +1433,30 @@ function hasAuthoredPassiveTree() {
     return Object.values(PASSIVE_TREE_V22.classStarts || {}).some(nodeId => !!PASSIVE_TREE.nodes[nodeId]);
 }
 
+// 스킬트리 시점(2026-11-02 사용자: 내 직업 시작 노드가 항상 맨 아래). 트리 전체를 중심 둘레로 돌린다. 거리와 연결은 그대로라 규칙에 영향이 없다.
+let passiveTreeViewAngle = 0;
+function getPassiveTreeViewAngle() {
+    return passiveTreeViewAngle;
+}
+/** Turns the nodes for the current class, only when the class changed. The camera then fits again; ensurePassiveRenderCache sees the new angle. */
+function syncPassiveTreeView() {
+    if (!hasAuthoredPassiveTree()) return;
+    const start = PASSIVE_TREE_V22.nodes[getPassiveTreeRootNodeId()];
+    const angle = Math.PI / 2 - Math.atan2(start.y, start.x);
+    if (angle === passiveTreeViewAngle) return;
+    passiveTreeViewAngle = angle;
+    const cos = Math.cos(angle), sin = Math.sin(angle);
+    Object.entries(PASSIVE_TREE_V22.nodes).forEach(([id, source]) => {
+        const node = PASSIVE_TREE.nodes[id];
+        if (!node) return;
+        node.x = source.x * cos - source.y * sin;
+        node.y = source.x * sin + source.y * cos;
+    });
+    passiveCameraInitialized = false;
+}
+
 function loadAuthoredPassiveTree() {
+    passiveTreeViewAngle = 0;
     Object.keys(PASSIVE_TREE.nodes).forEach(key => delete PASSIVE_TREE.nodes[key]);
     PASSIVE_TREE.edges.length = 0;
     Object.entries(PASSIVE_TREE_V22.nodes).forEach(([id, source]) => {
@@ -4275,17 +4298,18 @@ function getPassiveViewBounds(viewNodes) {
     return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
 }
 
-/** 아직 투자하지 않은 캐릭터: 시작점 이웃이 한쪽에만 있어 경계 가운데로 맞추면 시작점이 화면 끝(휴대폰은 안내 카드 밑)에
- * 걸렸다 — 시작점이 가운데보다 높이의 10% 넘게 아래, 또는 가장자리 60px 안에 있지 않게 카메라만 옮긴다(배율은 그대로). */
-function keepPassiveRootInView(width, height) {
+/** 시작점을 화면 아래쪽에 두어 위로 트리가 펼쳐지게 한다. 휴대폰은 안내 카드와 작은 전투 창이 아래를 가리므로 덜 내린다.
+ * 맞출 범위가 그 위에 다 들어갈 때만 옮기고, 아직 투자하지 않았으면 가로로 가운데에 둔다. 카메라만 옮긴다(배율은 그대로). */
+function placePassiveRootLow(width, height, bounds, invested) {
     const root = getPassiveTreeRootNode();
     if (!root) return;
-    const dx = camX + root.x * camZoom, dy = camY + root.y * camZoom, limitX = width / 2 - 60;
-    camX -= dx - Math.max(-limitX, Math.min(limitX, dx));
-    camY -= dy - Math.max(-(height / 2 - 60), Math.min(height * 0.1, dy));
+    if (!invested) camX = -root.x * camZoom;
+    const low = height * (width < 768 ? 0.1 : 0.32);
+    if ((bounds.maxY - bounds.minY) * camZoom <= height / 2 + low - 60) camY = low - root.y * camZoom;
 }
 
 function fitPassiveCameraToBounds(force) {
+    syncPassiveTreeView();
     if (passiveCameraInitialized && !force) return;
     let container = document.getElementById('tree-container');
     if (!container || container.offsetParent === null) return;
@@ -4300,11 +4324,12 @@ function fitPassiveCameraToBounds(force) {
     const spanX = Math.max(1, (bounds.maxX - bounds.minX) + viewPadding * 2);
     const spanY = Math.max(1, (bounds.maxY - bounds.minY) + viewPadding * 2);
     const defaultZoom = Math.min((width - 64) / spanX, (height - 72) / spanY);
-    camZoom = clampNumber(defaultZoom, 0.1, 0.72);
+    // 휴대폰 첫 화면: 시작점 양옆의 바깥 원까지 폭에 맞추면 노드가 읽히지 않는다(0.16). 위로 뻗는 갈래가 읽히는 배율을 먼저 둔다.
+    camZoom = clampNumber(invested || width >= 768 ? defaultZoom : Math.max(defaultZoom, 0.3), 0.1, 0.72);
     const toolbarOffsetY = invested ? 0 : 56;
     camX = -(bounds.minX + bounds.maxX) * 0.5 * camZoom;
     camY = -(bounds.minY + bounds.maxY) * 0.5 * camZoom + toolbarOffsetY;
-    if (!invested) keepPassiveRootInView(width, height);
+    placePassiveRootLow(width, height, bounds, invested);
     passiveCameraInitialized = true;
 }
 

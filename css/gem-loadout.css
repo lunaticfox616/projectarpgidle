@@ -33,14 +33,19 @@
 .support-sigil-icon .m { fill: color-mix(in srgb, var(--sigil) 34%, #fff); }
 .support-sigil-icon .f { fill: color-mix(in srgb, var(--sigil) 78%, #17141b); }
 .support-sigil > em { position: absolute; right: 3px; bottom: 1px; color: var(--px-gold-bright, #e0c283); font: normal var(--font-size-meta) var(--font-pixel-meta, 'Galmuri9', sans-serif); letter-spacing: -1px; text-shadow: 1px 1px 0 #000; }
+/* 보조스킬룬 그림(js/support-gem-sigil-ui.js): 그림 안에 틀과 검은 바탕이 있어 계열 색 상자를 얹지 않는다. 도트가 고르게 32px판과 64px판을 제 크기로만 쓴다 */
+.support-sigil.is-art { border: 0; background: none; box-shadow: none; }
+.support-rune-art { display: block; width: 32px; height: 32px; background: url(../assets/ui/support-rune-icons-32.png) calc(var(--col) * -32px) calc(var(--row) * -32px) / 320px 192px no-repeat; image-rendering: pixelated; }
+:is(.support-slot > .support-sigil, .gem-slot-current-art) .support-rune-art { width: 64px; height: 64px; background: url(../assets/ui/support-rune-icons-64.png) calc(var(--col) * -64px) calc(var(--row) * -64px) / 640px 384px no-repeat; }
 /* 보드의 보조스킬룬 칸 */
-.support-slot > .support-sigil { width: 100%; max-width: 56px; height: 48px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sigil) 62%, #17141b), inset 0 1px 0 color-mix(in srgb, var(--sigil) 26%, transparent), 0 0 8px color-mix(in srgb, var(--sigil) 22%, transparent); }
+.support-slot > .support-sigil { width: 100%; max-width: 64px; height: 64px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sigil) 62%, #17141b), inset 0 1px 0 color-mix(in srgb, var(--sigil) 26%, transparent), 0 0 8px color-mix(in srgb, var(--sigil) 22%, transparent); }
 .support-slot:hover > .support-sigil { filter: brightness(1.2); }
 /* 목록 타일: 예전의 청록 한 가지 대신 계열 색. 타일 윗줄과 그림 뒤 빛도 같은 색을 따른다. */
 #tab-skills .gem-tile .gem-tile-support-art.support-sigil {
   background: linear-gradient(160deg, color-mix(in srgb, var(--sigil) 30%, #17141b), color-mix(in srgb, var(--sigil) 8%, #0d0b0f) 72%);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sigil) 62%, #17141b);
 }
+#tab-skills .gem-tile .gem-tile-support-art.support-sigil.is-art { border: 0; background: none; box-shadow: none; }
 #tab-skills .gem-tile.support-gem[class*="is-tone-"] { --gem-accent: var(--sigil); }
 #tab-skills .gem-tile.sealed-gem-card .support-sigil { --sigil: #8d8794; }
 /* 지금 못 끼는 보조스킬룬(칸이 다 찼을 때는 거의 모든 타일): 색을 빼면 문양의 계열 색이 사라져 다시 구별이 안 된다. 어둡게만 한다. */
@@ -258,6 +263,7 @@
   .gem-slot-current-main { grid-template-columns: 54px minmax(0, 1fr); gap: 9px; }
   .gem-slot-current-art { width: 54px; height: 54px; }
   .gem-slot-current-art .support-sigil-icon { width: 33px; height: 33px; }
+  .gem-slot-current-art .support-rune-art { width: 32px; height: 32px; background: url(../assets/ui/support-rune-icons-32.png) calc(var(--col) * -32px) calc(var(--row) * -32px) / 320px 192px no-repeat; }
 }
 @media (max-width: 700px), (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {
   /* 높이 상한은 안쪽 높이라 도트 테두리와 여백이 더해져 화면을 넘었다(가로 휴대폰에서 위아래 3px) */

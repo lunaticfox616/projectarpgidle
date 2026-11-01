@@ -33,7 +33,7 @@ const passiveTreeArt = (() => {
     const sprites = new Map(), shadedImages = new Map(), imageIds = new WeakMap(), nodeIcons = new WeakMap(), nodeInfo = new WeakMap();
     /** Sprites kept before the cache starts over (a long session of zooming must not grow memory without bound). */
     const SPRITE_LIMIT = 1200;
-    let nextImageId = 1, structure = { nodes: null, arcs: new Map() }, linkCache = { signature: null, layers: null };
+    let nextImageId = 1, linkCache = { nodes: null, signature: null, layers: null };
 
     // ── painting primitives (world units, centred on the node) ─────────────────────────────────────────────────────────────────
     function artDisc(ctx, r, fill) {
@@ -252,61 +252,7 @@ const passiveTreeArt = (() => {
         ctx.drawImage(sprite, node.x - width / 2, node.y - width / 2, width, width);
     }
 
-    // ── orbit arcs (built once per tree) ─────────────────────────────────────────────────────────────────────────────────────────
-    const ORBIT_CENTRE_KINDS = new Set(['major', 'keystone', 'void', 'node', 'start']);
-    function twoStepIds(adjacency, id) {
-        const near = new Set(adjacency.get(id) || []);
-        Array.from(near).forEach(other => (adjacency.get(other) || []).forEach(far => near.add(far)));
-        near.delete(id);
-        return near;
-    }
-    /** The ring a link follows when both ends sit at about the same distance from a notable two steps away; null for a straight link. */
-    function orbitArc(a, b, centre) {
-        const ra = Math.hypot(a.x - centre.x, a.y - centre.y), rb = Math.hypot(b.x - centre.x, b.y - centre.y);
-        if (Math.min(ra, rb) < 30 || Math.max(ra, rb) > 170 || Math.abs(ra - rb) > Math.max(ra, rb) * 0.22) return null;
-        const ta = Math.atan2(a.y - centre.y, a.x - centre.x);
-        let td = Math.atan2(b.y - centre.y, b.x - centre.x) - ta;
-        if (td > Math.PI) td -= TAU;
-        if (td < -Math.PI) td += TAU;
-        if (Math.abs(td) < 0.25 || Math.abs(td) > 2.2) return null;
-        return { centre, a: a.id, ra, rb, ta, td, miss: Math.abs(ra - rb) / Math.max(ra, rb) };
-    }
-    function bestOrbit(edge, adjacency) {
-        const ids = new Set([...twoStepIds(adjacency, edge.a.id), ...twoStepIds(adjacency, edge.b.id)]);
-        let best = null;
-        ids.forEach(id => {
-            const centre = PASSIVE_TREE.nodes[id];
-            if (!centre || id === edge.a.id || id === edge.b.id || !ORBIT_CENTRE_KINDS.has(centre.kind)) return;
-            const arc = orbitArc(edge.a, edge.b, centre);
-            if (arc && (!best || arc.miss < best.miss)) best = arc;
-        });
-        return best;
-    }
-    /** Points along the ring from a to b; the radius moves from one end's distance to the other so both ends land on their nodes. */
-    function orbitPoints(arc, a, b) {
-        const flip = a.id !== arc.a, r0 = flip ? arc.rb : arc.ra, r1 = flip ? arc.ra : arc.rb;
-        const t0 = flip ? arc.ta + arc.td : arc.ta, total = Math.abs(arc.td), dir = Math.sign(flip ? -arc.td : arc.td);
-        const s0 = (getPassiveNodeVisualRadius(a) + 2) / r0, s1 = (getPassiveNodeVisualRadius(b) + 2) / r1, span = total - s0 - s1;
-        if (span <= 0) return null;
-        const steps = Math.max(4, Math.ceil(total * 12)), points = [];
-        for (let i = 0; i <= steps; i++) {
-            const along = s0 + span * i / steps, r = r0 + (r1 - r0) * along / total, t = t0 + dir * along;
-            points.push(arc.centre.x + Math.cos(t) * r, arc.centre.y + Math.sin(t) * r);
-        }
-        return points;
-    }
-    function ensureStructure() {
-        if (structure.nodes === passiveRenderCache.nodes) return structure;
-        const adjacency = passiveRenderCache.adjacency || new Map(), arcs = new Map();
-        (passiveRenderCache.edges || []).forEach(edge => {
-            const arc = bestOrbit(edge, adjacency), points = arc && orbitPoints(arc, edge.a, edge.b);
-            if (points) arcs.set(edge, points);
-        });
-        structure = { nodes: passiveRenderCache.nodes, arcs };
-        linkCache = { signature: null, layers: null };
-        return structure;
-    }
-
+    // 선은 편집기에서 놓은 그대로 곧게 긋는다(2026-11-02 사용자: 곡선 보정이 선을 겹치게 했다. 280개를 휘게 해 곧으면 0곳인 교차가 14곳 생겼다).
     // ── links: ash wood grey, brass once taken ─────────────────────────────────────────────────────────────────────────────────────
     const LINK_STYLES = Object.freeze({
         idle: [['rgba(6,5,4,0.85)', 4.6, 4.4], ['#4a443c', 2.2, 2.1]],
@@ -318,24 +264,17 @@ const passiveTreeArt = (() => {
     });
     /** Screen width that thins a little when the whole tree is in view, never under minWorld world units. */
     const linkWidth = (px, minWorld) => Math.max(minWorld * Math.min(1, camZoom / 0.35), px * Math.min(1, Math.max(0.55, camZoom / 0.6)) / camZoom);
-    function traceArtLink(path, edge) {
-        const points = structure.arcs.get(edge);
-        if (!points) return tracePassiveLinkSegment(path, edge.a, edge.b);
-        path.moveTo(points[0], points[1]);
-        for (let i = 2; i < points.length; i += 2) path.lineTo(points[i], points[i + 1]);
-        return true;
-    }
     function baseLayerOf(edge, frame) {
         if (frame.isActive(edge.a.id) && frame.isActive(edge.b.id)) return 'active';
         return reachableNodes.has(edge.a.id) || reachableNodes.has(edge.b.id) ? 'reach' : 'idle';
     }
     function baseLayers(frame) {
-        if (linkCache.signature === passiveRenderCache.stateSignature && linkCache.layers) return linkCache.layers;
+        if (linkCache.nodes === passiveRenderCache.nodes && linkCache.signature === passiveRenderCache.stateSignature && linkCache.layers) return linkCache.layers;
         const layers = { idle: new Path2D(), reach: new Path2D(), active: new Path2D() };
         passiveRenderCache.activeEdges.forEach(edge => {
-            if (isPassiveNodeAvailable(edge.a) && isPassiveNodeAvailable(edge.b)) traceArtLink(layers[baseLayerOf(edge, frame)], edge);
+            if (isPassiveNodeAvailable(edge.a) && isPassiveNodeAvailable(edge.b)) tracePassiveLinkSegment(layers[baseLayerOf(edge, frame)], edge.a, edge.b);
         });
-        linkCache = { signature: passiveRenderCache.stateSignature, layers };
+        linkCache = { nodes: passiveRenderCache.nodes, signature: passiveRenderCache.stateSignature, layers };
         return layers;
     }
     function hoverLayers(frame) {
@@ -343,7 +282,7 @@ const passiveTreeArt = (() => {
         const layers = { chain: new Path2D(), path: new Path2D(), hover: new Path2D() };
         passiveRenderCache.activeEdges.forEach(edge => {
             const layer = getPassiveHoverLinkLayer(edge.a, edge.b, frame);
-            if (layer) traceArtLink(layers[layer], edge);
+            if (layer) tracePassiveLinkSegment(layers[layer], edge.a, edge.b);
         });
         return layers;
     }
@@ -356,7 +295,6 @@ const passiveTreeArt = (() => {
         });
     }
     function drawLinks(ctx, frame) {
-        ensureStructure();
         const base = baseLayers(frame), hover = hoverLayers(frame);
         ctx.save();
         ctx.lineCap = 'round';
@@ -396,19 +334,20 @@ const passiveTreeArt = (() => {
         }
         ctx.restore();
     }
-    const motifOutside = (item, view) => {
+    const motifOutside = ({ item, x, y }, view) => {
         const reach = item.size * 0.75;
-        return item.x + reach < view.minX || item.x - reach > view.maxX || item.y + reach < view.minY || item.y - reach > view.maxY;
+        return x + reach < view.minX || x - reach > view.maxX || y + reach < view.minY || y - reach > view.maxY;
     };
-    /** World coordinates, before the links: only the motifs that reach the view. */
+    /** World coordinates, before the links: only the motifs that reach the view. They turn with the nodes (syncPassiveTreeView). */
     function drawMotifs(ctx, view) {
         const items = PASSIVE_TREE_V22.backgrounds ? PASSIVE_TREE_V22.backgrounds.items : [];
         const drawings = items.length ? motifPaths() : null;
-        items.filter(item => !motifOutside(item, view)).forEach(item => {
+        const angle = getPassiveTreeViewAngle(), cos = Math.cos(angle), sin = Math.sin(angle);
+        items.map(item => ({ item, x: item.x * cos - item.y * sin, y: item.x * sin + item.y * cos })).filter(place => !motifOutside(place, view)).forEach(({ item, x, y }) => {
             const motif = drawings[item.motif];
             ctx.save();
-            ctx.translate(item.x, item.y);
-            ctx.rotate(item.rotation * Math.PI / 180);
+            ctx.translate(x, y);
+            ctx.rotate(item.rotation * Math.PI / 180 + angle);
             ctx.scale(item.size / 200, item.size / 200);
             ctx.strokeStyle = ctx.fillStyle = motif.color;
             ctx.lineJoin = 'miter';

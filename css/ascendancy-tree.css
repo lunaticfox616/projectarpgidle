@@ -1,58 +1,92 @@
 @layer components{
 /* 전직 트리 보기(2026-10-09, 2026-10-22 다시 짬, js/ascendancy-tree-ui.js): 왼쪽에 노드 나무, 오른쪽에 키스톤과 자세히 카드. 좁은 창은
    나무, 키스톤, 자세히 차례로 쌓는다(창 폭으로 가른다: container). 도트 테마의 각진 청동 틀. */
-#tab-traits #ui-ascend-tree-container{display:block;container-type:inline-size}
+#tab-traits #ui-ascend-tree-container{display:block;container-type:inline-size;--asc:#d9a24c}
+/* 전직마다 제 색(2026-11-02 사용자: 전직 탭에 색감). 판의 바탕, 틀, 찍을 수 있는 칸의 빛이 이 색을 따른다. 금빛은 찍은 칸에만 쓴다 */
+#tab-traits #ui-ascend-tree-container[data-ascend=warrior]{--asc:#e0784a}
+#tab-traits #ui-ascend-tree-container[data-ascend=gladiator]{--asc:#d9564a}
+#tab-traits #ui-ascend-tree-container[data-ascend=assassin]{--asc:#a173dc}
+#tab-traits #ui-ascend-tree-container[data-ascend=ranger]{--asc:#74c27a}
+#tab-traits #ui-ascend-tree-container[data-ascend=elementalist]{--asc:#5fb8e8}
+#tab-traits #ui-ascend-tree-container[data-ascend=warlock]{--asc:#a860d6}
+#tab-traits #ui-ascend-tree-container[data-ascend=guardian]{--asc:#7fa8d8}
+#tab-traits #ui-ascend-tree-container[data-ascend=inquisitor]{--asc:#e0b860}
+#tab-traits #ui-ascend-tree-container[data-ascend=soulbinder]{--asc:#7f8fe8}
+#tab-traits #ui-ascend-tree-container[data-ascend=catalyst]{--asc:#4fc8a8}
+#tab-traits #ui-ascend-tree-container[data-ascend=hunter]{--asc:#a2c25a}
+#tab-traits #ui-ascend-tree-container[data-ascend=crusader]{--asc:#e8cc7a}
+#tab-traits #ui-ascend-tree-container[data-ascend=berserker]{--asc:#e25454}
+#tab-traits #ui-ascend-tree-container[data-ascend=juggernaut]{--asc:#c88f58}
+#tab-traits #ui-ascend-tree-container[data-ascend=bladedancer]{--asc:#e274b4}
+#tab-traits #ui-ascend-tree-container[data-ascend=stormarcher]{--asc:#62cbe2}
+#tab-traits #ui-ascend-tree-container[data-ascend=grovewarden]{--asc:#5cbc7c}
+#tab-traits #ui-ascend-tree-container[data-ascend=bombardier]{--asc:#ea9c44}
 #tab-traits .ascend-points{color:#f1c40f;font-weight:700}
-#tab-traits .ascend-summary{display:grid;gap:6px;margin:0 0 12px;padding:10px 12px;border:2px solid #4b4136;background:rgba(18,14,10,.72)}
+#tab-traits .ascend-summary{display:grid;gap:6px;margin:0 0 12px;padding:10px 12px;border:2px solid color-mix(in srgb,var(--asc) 45%,#2a2219);background:linear-gradient(100deg,color-mix(in srgb,var(--asc) 24%,#120e0a),#120e0a 62%)}
 #tab-traits .ascend-summary-name{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
-#tab-traits .ascend-summary-name strong{color:#f3dc9a;font-size:var(--font-size-reading)}
+#tab-traits .ascend-summary-name strong{color:color-mix(in srgb,var(--asc) 50%,#fff2cf);font-size:var(--font-size-reading)}
 #tab-traits .ascend-summary-name span{color:#a99d84;font-size:12px}
 #tab-traits .ascend-summary-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-#tab-traits .ascend-summary-chips>span{padding:3px 8px;border:1px solid #4b4136;background:rgba(0,0,0,.25);font-size:12px;color:#d9ceb0}
-#tab-traits .ascend-summary-chips b{color:#f6dc8c}
+#tab-traits .ascend-summary-chips>span{padding:3px 8px;border:1px solid var(--chip,#4b4136);background:color-mix(in srgb,var(--chip,#4b4136) 16%,#0d0a07);font-size:12px;color:#d9ceb0}
+#tab-traits .ascend-summary-chips>.is-node{--chip:#62b98a}
+#tab-traits .ascend-summary-chips>.is-key{--chip:#a585e0}
+#tab-traits .ascend-summary-chips>.is-taken{--chip:#c9a052}
+#tab-traits .ascend-summary-chips b{color:color-mix(in srgb,var(--chip,#f6dc8c) 45%,#fff6d8)}
 #tab-traits .ascend-muted{margin:0;font-size:12px;line-height:1.5;color:#a99d84}
 #tab-traits .ascend-total{margin:0;font-size:12px;line-height:1.5;color:#d9ceb0}
 #tab-traits .ascend-reset,#tab-traits .ascend-plan-continue{min-height:30px;padding:3px 10px;font-size:12px;justify-self:start}
-#tab-traits .ascend-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,420px);grid-template-areas:"nodes keys" "nodes detail";grid-template-rows:auto 1fr;gap:12px;align-items:start}
-#tab-traits .ascend-board{min-width:0;margin:0;padding:8px 10px 10px;border:2px solid #3a3229;background:rgba(10,8,6,.55)}
+#tab-traits .ascend-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,440px);grid-template-areas:"nodes keys" "nodes detail";grid-template-rows:auto 1fr;gap:12px;align-items:start}
+#tab-traits .ascend-board{min-width:0;margin:0;padding:8px 10px 10px;border:2px solid color-mix(in srgb,var(--asc) 38%,#2b241c);background:radial-gradient(85% 58% at 50% 0,color-mix(in srgb,var(--asc) 22%,transparent),transparent 72%),repeating-radial-gradient(circle at 50% 48%,transparent 0 62px,color-mix(in srgb,var(--asc) 7%,transparent) 62px 64px),#0e0b08}
 #tab-traits .ascend-board.is-nodes{grid-area:nodes}
 #tab-traits .ascend-board.is-keystones{grid-area:keys}
-#tab-traits .ascend-board h3{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;font-size:12px;color:#e6c068}
-#tab-traits .ascend-graph{position:relative;width:round(down,min(100%,640px),2px);height:calc(var(--rows) * 76px);margin:0;left:round(down,50%,1px);translate:round(up,-50%,1px)}
-#tab-traits .ascend-graph.is-keystones{width:round(down,min(100%,400px),2px);height:calc(var(--rows) * 66px)}
+#tab-traits .ascend-board h3{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 6px;padding-bottom:4px;border-bottom:1px solid color-mix(in srgb,var(--asc) 34%,transparent);font-size:12px;color:color-mix(in srgb,var(--asc) 55%,#fff2cf)}
+#tab-traits .ascend-graph{--row:92px;--scale:1;position:relative;width:round(down,min(100%,860px),2px);height:calc(var(--rows) * var(--row));margin:0;left:round(down,50%,1px);translate:round(up,-50%,1px)}
+#tab-traits .ascend-graph.is-keystones{--row:108px;width:100%}
 #tab-traits .ascend-links{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
-#tab-traits .ascend-links line{stroke:#4b4136;stroke-width:2}
-#tab-traits .ascend-links line.is-lit{stroke:#8f7a4c}
-#tab-traits .ascend-links line.is-done{stroke:#e6c068}
+#tab-traits .ascend-links polyline{fill:none;stroke:#5a4c3a;stroke-width:2}
+#tab-traits .ascend-links polyline.is-lit{stroke:var(--asc)}
+#tab-traits .ascend-links polyline.is-done{stroke:#e6c068;stroke-width:3}
 /* 궁극, 4차 핵심, 특화 줄의 이름표: 나무 왼쪽 끝 */
-#tab-traits .ascend-row-label{position:absolute;left:0;top:round(var(--y),1px);translate:0 round(up,-50%,1px);padding:2px 6px;border:1px solid #4b4136;background:rgba(0,0,0,.45);color:#e6c068;font-size:12px;line-height:14px;white-space:nowrap;pointer-events:none}
-#tab-traits .ascend-node{position:absolute;left:round(var(--x),1px);top:round(var(--y),1px);transform:translate(round(-50%,1px),round(-50%,1px));display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;width:104px;height:60px;min-width:0;min-height:0;margin:0;padding:3px 4px;border:2px solid #5d554a;border-radius:0;background:#1a1510;color:#d9ceb0;font-size:12px;line-height:14px;box-shadow:none;cursor:pointer}
-#tab-traits .ascend-node>*{position:relative;left:round(down,50%,1px);translate:round(up,-50%,1px)}
-#tab-traits .ascend-node-head{display:flex;align-items:center;gap:4px}
-#tab-traits .ascend-node .ascend-node-icon{width:18px;height:18px}
-/* 칸과 고르기 카드의 그림(js/ui.js renderPixelIcon): 채우기를 정하지 않아 검게 그려져, 찍지 않은 어두운 칸에서는 보이지 않았다. 글자색을 따른다 */
-#tab-traits :is(.ascend-node-icon,.ascend-pick-icon,.ascend-pick-chip-icon) .m{fill:currentColor}
-#tab-traits :is(.ascend-node-icon,.ascend-pick-icon,.ascend-pick-chip-icon) .f{fill:color-mix(in srgb,currentColor 55%,transparent)}
-#tab-traits .ascend-node-head b{font-weight:normal;color:#f6dc8c;white-space:nowrap}
-/* 능력치 이름: 두 줄까지(긴 이름은 자세히 카드가 다 쓴다) */
-#tab-traits .ascend-node-name{display:-webkit-box;max-width:100%;max-height:28px;overflow:hidden;color:#b8ad96;text-align:center;word-break:keep-all;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-#tab-traits .ascend-node.is-major{border-color:#7a6a4a}
-#tab-traits .ascend-node.is-taken{border-color:#e6c068;background:#3a2c14;color:#f6dc8c}
-#tab-traits .ascend-node.is-open{border-color:#8fd0ff;color:#e8f4ff}
-#tab-traits .ascend-node.is-nopoint{border-color:#6f86a0}
-#tab-traits .ascend-node.is-locked,#tab-traits .ascend-node.is-full{opacity:.72}
-#tab-traits .ascend-node.is-closed,#tab-traits .ascend-node.is-future,#tab-traits .ascend-node.is-fifth{opacity:.5;border-style:dashed}
-#tab-traits .ascend-node:hover{border-color:#f6dc8c;background:#241c12}
-#tab-traits .ascend-node.is-focus{outline:2px solid #f6dc8c;outline-offset:2px}
-#tab-traits .ascend-keystone{width:92px;height:54px}
-#tab-traits .ascend-keystone span{white-space:normal;text-align:center;word-break:keep-all}
+#tab-traits .ascend-row-label{position:absolute;left:0;top:round(var(--y),1px);translate:0 round(up,-50%,1px);padding:2px 6px;border:1px solid color-mix(in srgb,var(--asc) 55%,#2b241c);background:color-mix(in srgb,var(--asc) 18%,#0d0a07);color:color-mix(in srgb,var(--asc) 50%,#fff2cf);font-size:12px;line-height:14px;white-space:nowrap;pointer-events:none}
+/* 칸: 스킬트리의 틀과 아이콘에 이름표를 붙였다. 받침과 이름표가 불투명해 선이 비치지 않고, 잠긴 칸은 투명도 대신 어두운 색으로 낮춘다 */
+#tab-traits .ascend-node{--socket:calc(56px * var(--scale));--sheet-x:-68px;--cell:calc(36px * var(--scale));position:absolute;left:round(var(--x),1px);top:round(var(--y),1px);transform:translate(round(-50%,1px),round(-50%,1px));display:flex;flex-direction:column;align-items:center;width:112px;min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:#d9ceb0;font-size:12px;line-height:14px;cursor:pointer}
+#tab-traits .ascend-node.is-peak,#tab-traits .ascend-keystone{--socket:calc(72px * var(--scale));--sheet-x:-126px;--cell:calc(44px * var(--scale))}
+#tab-traits .ascend-socket{position:relative;flex:none;width:var(--socket);height:var(--socket)}
+#tab-traits .ascend-socket::before{content:"";position:absolute;inset:0;background:radial-gradient(circle closest-side,#1d1813 84%,transparent 86%)}
+#tab-traits .ascend-socket::after{content:"";position:absolute;inset:0;background:url(../assets/ui/passive-tree-frames-v1.png) calc(var(--sheet-x) * var(--scale)) 0/calc(256px * var(--scale)) calc(72px * var(--scale)) no-repeat;image-rendering:pixelated}
+#tab-traits .ascend-art{position:absolute;left:50%;top:50%;width:var(--cell);height:var(--cell);translate:-50% -50%;background:url(../assets/ui/passive-tree-icons-v5.png) calc(var(--cell) * var(--cx) * -1) calc(var(--cell) * var(--cy) * -1)/calc(var(--cell) * 5) calc(var(--cell) * 9) no-repeat}
+#tab-traits .ascend-plate{position:relative;display:grid;justify-items:center;width:100%;margin-top:-5px;padding:1px 4px 2px;border:1px solid var(--plate,#4b4136);background:#14100b}
+#tab-traits .ascend-plate b{font-weight:normal;color:var(--tone,#f6dc8c);white-space:nowrap}
+#tab-traits .ascend-node-name{max-width:100%;overflow:hidden;color:#cfc3a8;text-align:center;text-overflow:ellipsis;white-space:nowrap}
+#tab-traits .ascend-keystone .ascend-node-name{white-space:normal;word-break:keep-all}
+/* 상태: 찍음은 놋쇠와 금빛, 찍을 수 있음은 전직의 색으로 빛나고, 포인트만 없으면 그대로, 잠김은 어둡게, 닫힘과 앞으로 열릴 칸은 빛을 빼고 점선 */
+#tab-traits .ascend-node.is-taken{--plate:#e6c068}
+#tab-traits .ascend-node.is-taken .ascend-socket::after{filter:sepia(1) saturate(2.6) hue-rotate(-8deg) brightness(1.08) drop-shadow(0 0 7px rgba(255,196,96,.75))}
+#tab-traits .ascend-node.is-taken .ascend-socket::before{background:radial-gradient(circle closest-side,#3a2a12 84%,transparent 86%)}
+#tab-traits .ascend-node.is-taken .ascend-node-name{color:#f6e4b0}
+#tab-traits .ascend-node.is-open{--plate:var(--asc)}
+#tab-traits .ascend-node.is-open .ascend-socket::after{filter:brightness(1.3) drop-shadow(0 0 7px var(--asc))}
+#tab-traits .ascend-node.is-open .ascend-node-name{color:#fff}
+#tab-traits .ascend-node.is-nopoint{--plate:color-mix(in srgb,var(--asc) 44%,#3a3229)}
+#tab-traits .ascend-node:is(.is-locked,.is-full) .ascend-art{filter:saturate(.45) brightness(.6)}
+#tab-traits .ascend-node:is(.is-locked,.is-full) .ascend-socket::after{filter:brightness(.55)}
+#tab-traits .ascend-node:is(.is-locked,.is-full) :is(.ascend-plate b,.ascend-node-name){color:#8d8371}
+#tab-traits .ascend-node:is(.is-closed,.is-future,.is-fifth){--plate:#3f382e}
+#tab-traits .ascend-node:is(.is-closed,.is-future,.is-fifth) .ascend-art{filter:grayscale(1) brightness(.5)}
+#tab-traits .ascend-node:is(.is-closed,.is-future,.is-fifth) .ascend-socket::after{filter:grayscale(1) brightness(.42)}
+#tab-traits .ascend-node:is(.is-closed,.is-future,.is-fifth) .ascend-plate{border-style:dashed}
+#tab-traits .ascend-node:is(.is-closed,.is-future,.is-fifth) :is(.ascend-plate b,.ascend-node-name){color:#7c7364}
+#tab-traits .ascend-node:hover{--plate:#f6dc8c;background:none}
+#tab-traits .ascend-node:hover .ascend-socket::after{filter:brightness(1.45)}
+#tab-traits .ascend-node.is-focus{outline:0}
+#tab-traits .ascend-node.is-focus .ascend-plate{outline:2px solid #f6dc8c;outline-offset:1px}
 /* 자세히 카드: 가리키거나 누른 칸의 효과, 찍으면 바뀌는 값, 할 수 있는 일과 그 단추 */
-#tab-traits .ascend-detail{grid-area:detail;display:grid;gap:6px;align-content:start;min-height:132px;margin:0;padding:10px 12px;border:2px solid #4b4136;background:rgba(16,12,9,.96);font-size:12px;line-height:18px;color:#d9ceb0}
+#tab-traits .ascend-detail{grid-area:detail;display:grid;gap:6px;align-content:start;min-height:132px;margin:0;padding:10px 12px;border:2px solid color-mix(in srgb,var(--asc) 34%,#2b241c);border-left:4px solid var(--asc);background:#100c09;font-size:12px;line-height:18px;color:#d9ceb0}
 #tab-traits .ascend-detail p{margin:0}
 #tab-traits .ascend-detail-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-#tab-traits .ascend-detail-head strong{color:#f3dc9a;font-size:15px}
+#tab-traits .ascend-detail-head strong{color:color-mix(in srgb,var(--asc) 45%,#fff2cf);font-size:15px}
 #tab-traits .ascend-detail-head small{color:#a99d84;white-space:nowrap}
-#tab-traits .ascend-detail-head small.is-open{color:#8fd0ff}
+#tab-traits .ascend-detail-head small.is-open{color:color-mix(in srgb,var(--asc) 60%,#fff)}
 #tab-traits .ascend-detail-head small.is-taken{color:#e6c068}
 #tab-traits .ascend-detail-advice{color:#a99d84}
 #tab-traits .ascend-preview{color:#9fe0b0}
@@ -67,6 +101,9 @@
     #tab-traits .ascend-detail{position:sticky;bottom:0;z-index:3;min-height:0;gap:4px;padding:8px 10px;background:#100c09;box-shadow:0 -8px 14px rgba(0,0,0,.65)}
 }
 /* 전직 고르기 */
+/* 고르기 카드의 그림(js/ui.js renderPixelIcon): 채우기를 정하지 않아 검게 그려져, 어두운 칸에서는 보이지 않았다. 글자색을 따른다 */
+#tab-traits :is(.ascend-pick-icon,.ascend-pick-chip-icon) .m{fill:currentColor}
+#tab-traits :is(.ascend-pick-icon,.ascend-pick-chip-icon) .f{fill:color-mix(in srgb,currentColor 55%,transparent)}
 #tab-traits .ascend-pick-intro{margin:0 0 12px;text-align:center;color:#ddd;line-height:1.5}
 #tab-traits .ascend-pick-warning{color:#e7967f;font-size:12px}
 #tab-traits .ascend-pick-plan{margin:0 0 12px}
@@ -90,15 +127,14 @@
 #tab-traits .ascend-plan-card strong{color:#8fe7b0}
 #tab-traits .ascend-pick-card span,#tab-traits .ascend-plan-card span{font-size:12px;line-height:1.45;color:#b8ad96}
 @media (max-width:720px){
-    #tab-traits .ascend-graph{height:calc(var(--rows) * 66px)}
-    #tab-traits .ascend-graph.is-keystones{height:calc(var(--rows) * 62px)}
-    #tab-traits .ascend-node{width:66px;height:54px;padding:2px;font-size:10px;line-height:12px}
-    #tab-traits .ascend-node .ascend-node-icon{width:16px;height:16px}
-    #tab-traits .ascend-node-name{max-height:24px}
+    #tab-traits .ascend-graph{--row:84px;--scale:.75}
+    /* 휴대폰 칸은 좁아 이름을 두 줄까지 쓴다 */
+    #tab-traits .ascend-node-name{display:-webkit-box;white-space:normal;word-break:keep-all;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+    #tab-traits .ascend-graph.is-keystones{--row:92px}
+    #tab-traits .ascend-node{width:68px;font-size:10px;line-height:12px}
     /* 넷짜리 줄(특화)은 칸 사이가 좁아 칸을 줄이고, 줄 이름표는 그 칸과 겹쳐 숨긴다(이름은 자세히 카드에 나온다) */
-    #tab-traits .ascend-node.is-tight{width:56px}
+    #tab-traits .ascend-node.is-tight{width:54px}
     #tab-traits .ascend-row-label{display:none}
-    #tab-traits .ascend-keystone{width:80px;height:50px}
-    #tab-traits .ascend-keystone span{font-size:10px}
+    #tab-traits .ascend-keystone{width:84px}
 }
 }

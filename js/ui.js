@@ -8506,6 +8506,11 @@ function rebuildPassiveStateCache() {
 }
 
 function ensurePassiveRenderCache() {
+    syncPassiveTreeView();
+    if (passiveRenderCache.viewAngle !== getPassiveTreeViewAngle()) {
+        passiveRenderCache.viewAngle = getPassiveTreeViewAngle();
+        markPassiveRenderCacheDirty('structure');
+    }
     if (passiveRenderCache.structureDirty) rebuildPassiveStructureCache();
     if (passiveRenderCache.stateDirty) rebuildPassiveStateCache();
 }
@@ -12440,11 +12445,12 @@ async function enterAccountSave(options = {}) {
 /** The server's latest save carries the very stamp this copy was written with (saveMeta.lastModifiedAt goes up inside the upload), so it
  * is this copy's own upload whose answer never came back (a page-exit upload): the copy takes the server's revision and nothing is
  * pending. 2026-11-01: after every play session the next launch asked to keep "this device's progress" as a file against the player's
- * own save. A save another device made after pulling this one carries a later stamp, so it still gets the question. */
+ * own save. A save another device made after pulling this one carries a later stamp, so the server save replaces the copy.
+ * So does a copy that could not be written: the slot still holds the old game and saving stays off until the server save repairs it. */
 function adoptOwnUpload(record, userId) {
     const remote = record && record.save_data && record.save_data.saveMeta;
     const stamp = remote && Number(remote.lastModifiedAt);
-    if (getCloudSaveOwnerId() !== userId || !stamp || stamp !== Number(game.saveMeta.lastModifiedAt)) return false;
+    if (getCloudSaveOwnerId() !== userId || !stamp || stamp !== Number(game.saveMeta.lastModifiedAt) || getLocalSaveStatus().status !== 'ok') return false;
     game.saveMeta.cloudRevision = cloudState.lastRemoteRevision;
     game.saveMeta.cloudPending = false;
     game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, getRemoteSaveStamp(record));
