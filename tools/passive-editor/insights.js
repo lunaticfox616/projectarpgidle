@@ -121,13 +121,14 @@ function roundToStep(value, step) {
     return Number(rounded.toFixed(step === 0.1 ? 1 : 2));
 }
 
-/** A catalog bundle's lines at this node's type and distance band (minor 1 line, medium 2, notable up to 3, as the catalog does). */
-export function scaledBundle(bundle, node, band, catalog) {
+/** A catalog bundle's lines at this node's type (minor 1 line, medium 2, notable up to 3, as the catalog does). The distance band no longer
+ * moves the values: the catalog's numbers stay round at every type (2026-11-01 사용자: 예쁜 수치, 거리별 파워는 두지 않는다). */
+export function scaledBundle(bundle, node, catalog) {
     const limit = node.type === 'major' ? 3 : node.type === 'normal' ? 2 : 1;
     const multiplier = catalog.typeMultiplier[node.type] || 1;
     return bundle.lines.filter(line => !line.majorOnly || node.type === 'major').slice(0, limit).map(line => ({
         statId: line.statId,
-        value: roundToStep(line.fixed ? line.value : line.value * multiplier * (1 + band * 0.05), catalog.steps[line.statId] || 1)
+        value: roundToStep(line.fixed ? line.value : line.value * multiplier, catalog.steps[line.statId] || 1)
     }));
 }
 

@@ -215,22 +215,24 @@ const PASSIVE_ICON_FAMILY = Object.freeze({
     voidLinkEfficiency: 'void', attackPctDmg: 'blade', projectileChain: 'projectile', skillDelayReduce: 'arcane', spellRepeatChance: 'arcane', igniteDurationPct: 'elemental', chillDurationPct: 'elemental', freezeDurationPct: 'elemental',
     shockDurationPct: 'elemental', poisonDurationPct: 'potion', bleedDurationPct: 'blade',
     mystique: 'mystique', devotion: 'devotion', cycle: 'cycle', projectilePctDmg: 'projectile', projectileExtraShots: 'projectile',
-    accuracy: 'projectile', accuracyBonusPct: 'projectile', meleePctDmg: 'blade', physPctDmg: 'blade', slamPctDmg: 'blade', flatDmg: 'blade',
-    strength: 'strength', pctDmg: 'blade', ds: 'blade', bleedChance: 'blade', physIgnore: 'blade', doubleDamageChance: 'blade', addedPhysDamagePct: 'blade',
-    blockChance: 'shield', blockChanceMax: 'shield', shieldPctDmg: 'shield', armor: 'shield', armorPct: 'shield', dr: 'shield', deflectChance: 'shield',
+    accuracy: 'projectile', accuracyBonusPct: 'projectile', meleePctDmg: 'blade', physPctDmg: 'blade', slamPctDmg: 'slam', flatDmg: 'blade',
+    strength: 'strength', pctDmg: 'blade', ds: 'blade', bleedChance: 'bleed', physIgnore: 'blade', doubleDamageChance: 'blade', addedPhysDamagePct: 'blade',
+    blockChance: 'shield', blockChanceMax: 'shield', shieldPctDmg: 'shield', armor: 'armor', armorPct: 'armor', dr: 'armor', deflectChance: 'shield',
     takenDamageReduceWhen1EnemyPct: 'shield', takenDamageReduceWhen2EnemiesPct: 'shield',
-    potionPctDmg: 'potion', poisonChance: 'potion', summonPctDmg: 'summon', summonHpPct: 'summon', summonGemLevel: 'summon',
+    potionPctDmg: 'potion', poisonChance: 'poison', summonPctDmg: 'summon', summonHpPct: 'summon', summonGemLevel: 'summon',
     summonCrit: 'summon', summonCritDmg: 'summon', summonFlatDmg: 'summon', summonAspd: 'summon', summonResPen: 'summon',
-    firePctDmg: 'elemental', coldPctDmg: 'elemental', lightPctDmg: 'elemental', elementalPctDmg: 'elemental', resPen: 'elemental',
-    igniteChance: 'elemental', chillChance: 'elemental', shockChance: 'elemental', resF: 'elemental', resC: 'elemental',
-    resL: 'elemental', resAll: 'elemental', aoePctDmg: 'elemental', chillEffect: 'elemental', shockEffect: 'elemental',
-    igniteDamageMultiplierPct: 'elemental', shockedEnemyHitDamagePct: 'elemental', shockedEnemyHitDamageMorePct: 'elemental', addedFireDamagePct: 'elemental',
-    addedColdDamagePct: 'elemental', addedLightDamagePct: 'elemental', physTakenAsFire: 'elemental', physTakenAsCold: 'elemental', physTakenAsLight: 'elemental',
-    chaosPctDmg: 'chaos', dotPctDmg: 'chaos', resChaos: 'chaos', poisonDamageMultiplierPct: 'chaos', addedChaosDamagePct: 'chaos', physTakenAsChaos: 'chaos',
-    flatHp: 'life', pctHp: 'life', regen: 'life', leech: 'life', leechTotalCap: 'life', energyShield: 'arcane', energyShieldPct: 'arcane',
-    energyShieldRegen: 'arcane', energyShieldRechargeFaster: 'arcane', spellPctDmg: 'arcane', spellFlatDmg: 'arcane', spellFlatPct: 'arcane',
-    intelligence: 'intelligence', dexterity: 'dexterity', crit: 'precision', critDmg: 'precision', aspd: 'precision',
-    evasion: 'wind', evasionPct: 'wind', move: 'wind', mobilityPctDmg: 'wind'
+    // 2026-11-01: Codex's 14 new pictures take the stats that used to share elemental, shield, precision, wind and arcane.
+    firePctDmg: 'fire', coldPctDmg: 'cold', lightPctDmg: 'lightning', elementalPctDmg: 'elemental', resPen: 'elemental',
+    igniteChance: 'ignite', chillChance: 'chill', freezeChance: 'freeze', shockChance: 'shock', resF: 'fire', resC: 'cold',
+    resL: 'lightning', resAll: 'elemental', aoePctDmg: 'area', chillEffect: 'chill', shockEffect: 'shock',
+    igniteDamageMultiplierPct: 'ignite', shockedEnemyHitDamagePct: 'shock', shockedEnemyHitDamageMorePct: 'shock', addedFireDamagePct: 'fire',
+    addedColdDamagePct: 'cold', addedLightDamagePct: 'lightning', physTakenAsFire: 'fire', physTakenAsCold: 'cold', physTakenAsLight: 'lightning',
+    chaosPctDmg: 'chaos', dotPctDmg: 'damageOverTime', resChaos: 'chaos', poisonDamageMultiplierPct: 'poison', addedChaosDamagePct: 'chaos', physTakenAsChaos: 'chaos',
+    flatHp: 'life', pctHp: 'life', regen: 'life', leech: 'life', leechTotalCap: 'life', energyShield: 'energyShield', energyShieldPct: 'energyShield',
+    energyShieldRegen: 'energyShield', energyShieldRechargeFaster: 'energyShield', spellPctDmg: 'spell', spellFlatDmg: 'spell', spellFlatPct: 'spell',
+    intelligence: 'intelligence', dexterity: 'dexterity', crit: 'critical', critDmg: 'critical', aspd: 'precision',
+    cooldownRecovery: 'cooldown', cooldownReduction: 'cooldown', mobilityCooldownRecovery: 'mobility', mobilityCooldownReduction: 'mobility',
+    evasion: 'evasion', evasionPct: 'evasion', move: 'wind', mobilityPctDmg: 'mobility'
 });
 
 const PASSIVE_START_ICON_FAMILY = Object.freeze({
@@ -246,10 +248,15 @@ const PASSIVE_ICON_ATLAS_CELL = Object.freeze({
     blade: [0, 0], projectile: [1, 0], shield: [2, 0], potion: [3, 0], strength: [4, 0],
     mystique: [0, 1], devotion: [1, 1], cycle: [2, 1], elemental: [3, 1], dexterity: [4, 1],
     chaos: [0, 2], life: [1, 2], arcane: [2, 2], summon: [3, 2], intelligence: [4, 2],
-    precision: [0, 3], wind: [1, 3], void: [2, 3], constellation: [3, 3]
+    precision: [0, 3], wind: [1, 3], void: [2, 3], constellation: [3, 3],
+    fire: [4, 3], cold: [0, 4], lightning: [1, 4], cooldown: [2, 4], critical: [3, 4], armor: [4, 4],
+    evasion: [0, 5], energyShield: [1, 5], ignite: [2, 5], chill: [3, 5], freeze: [4, 5], shock: [0, 6], bleed: [1, 6], poison: [2, 6],
+    // 2026-11-01 expansion-02: skill kinds and weapons, picked by hand or by the stat below
+    wisp: [3, 6], blessing: [4, 6], mobility: [0, 7], area: [1, 7], slam: [2, 7], damageOverTime: [3, 7], spell: [4, 7],
+    censer: [0, 8], greatsword: [1, 8], bow: [2, 8], orb: [3, 8]
 });
 const PASSIVE_ICON_ATLAS_COLUMNS = 5;
-const PASSIVE_ICON_ATLAS_ROWS = 4;
+const PASSIVE_ICON_ATLAS_ROWS = 9;
 const PASSIVE_NOTABLE_ICON_ATLAS_CELL = Object.freeze({
     notableEnergyShield: [0, 0], notableArmor: [1, 0], notableFire: [2, 0], notableCold: [3, 0],
     notableLightning: [0, 1], notableElementalResist: [1, 1], notableBleed: [2, 1], notableGem: [3, 1],
@@ -450,7 +457,15 @@ const PASSIVE_ICON_TRACERS = Object.freeze({
     life: tracePassiveLifeIcon, arcane: tracePassiveArcaneIcon, summon: tracePassiveSummonIcon,
     precision: tracePassivePrecisionIcon, wind: tracePassiveWindIcon,
     strength: tracePassiveAttributeIcon, dexterity: tracePassiveAttributeIcon, intelligence: tracePassiveAttributeIcon,
-    void: tracePassiveVoidIcon, constellation: tracePassiveConstellationIcon
+    void: tracePassiveVoidIcon, constellation: tracePassiveConstellationIcon,
+    // the 2026-11-01 families fall back to the nearest older tracer while the sheet is still loading
+    fire: tracePassiveElementIcon, cold: tracePassiveElementIcon, lightning: tracePassiveElementIcon, ignite: tracePassiveElementIcon,
+    chill: tracePassiveElementIcon, freeze: tracePassiveElementIcon, shock: tracePassiveElementIcon, critical: tracePassivePrecisionIcon,
+    armor: tracePassiveShieldIcon, evasion: tracePassiveWindIcon, energyShield: tracePassiveArcaneIcon, cooldown: tracePassiveCycleIcon,
+    bleed: tracePassiveBladeIcon, poison: tracePassivePotionIcon,
+    wisp: tracePassiveSummonIcon, blessing: tracePassiveCubeIcon, mobility: tracePassiveWindIcon, area: tracePassiveElementIcon, slam: tracePassiveBladeIcon,
+    damageOverTime: tracePassiveChaosIcon, spell: tracePassiveArcaneIcon, censer: tracePassivePotionIcon, greatsword: tracePassiveBladeIcon,
+    bow: tracePassiveProjectileIcon, orb: tracePassiveArcaneIcon
 });
 
 function drawPassiveNodeIcon(ctx, node, radius, color) {
@@ -6290,7 +6305,7 @@ function initBattleAssets() {
         skillFxEarthSpike: 'assets/effects/pixel-earth-spike-v1.png',
         skillFxDotField: 'assets/effects/skill-dot-field-v2.png',
         skillFxSummonStrike: 'assets/effects/skill-summon-strike-v1.png',
-        passiveTreeIcons: 'assets/ui/passive-tree-icons-v4.png',
+        passiveTreeIcons: 'assets/ui/passive-tree-icons-v5.png',
         passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v2.png',
         passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v5.png',
         passiveTreeFrames: 'assets/ui/passive-tree-frames-v1.png',

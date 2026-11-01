@@ -9,22 +9,32 @@ const TYPE_STYLE = Object.freeze({
     quatrefoil: { radius: 28, fill: '#d6b455' }, start: { radius: 34, fill: '#f6e7c2' }
 });
 
-const ICON_CELLS = Object.freeze({
+/** Family � [column, row] on assets/ui/passive-tree-icons-v5.png (5 columns, ICON_ROWS rows), the same table as PASSIVE_ICON_ATLAS_CELL in js/passives.js. */
+export const ICON_CELLS = Object.freeze({
     blade: [0, 0], projectile: [1, 0], shield: [2, 0], potion: [3, 0], strength: [4, 0],
     mystique: [0, 1], devotion: [1, 1], cycle: [2, 1], elemental: [3, 1], dexterity: [4, 1],
     chaos: [0, 2], life: [1, 2], arcane: [2, 2], summon: [3, 2], intelligence: [4, 2],
-    precision: [0, 3], wind: [1, 3], void: [2, 3], constellation: [3, 3]
+    precision: [0, 3], wind: [1, 3], void: [2, 3], constellation: [3, 3],
+    fire: [4, 3], cold: [0, 4], lightning: [1, 4], cooldown: [2, 4], critical: [3, 4], armor: [4, 4],
+    evasion: [0, 5], energyShield: [1, 5], ignite: [2, 5], chill: [3, 5], freeze: [4, 5], shock: [0, 6], bleed: [1, 6], poison: [2, 6],
+    // 2026-11-01 expansion-02: skill kinds and weapons, picked by hand or by the stat below
+    wisp: [3, 6], blessing: [4, 6], mobility: [0, 7], area: [1, 7], slam: [2, 7], damageOverTime: [3, 7], spell: [4, 7],
+    censer: [0, 8], greatsword: [1, 8], bow: [2, 8], orb: [3, 8]
 });
+const ICON_ROWS = 9;
 
 const STAT_FAMILY = Object.freeze({
     strength: 'strength', dexterity: 'dexterity', intelligence: 'intelligence', mystique: 'mystique',
-    devotion: 'devotion', cycle: 'cycle', blockChance: 'shield', armor: 'shield', armorPct: 'shield',
+    devotion: 'devotion', cycle: 'cycle', blockChance: 'shield', armor: 'armor', armorPct: 'armor', dr: 'armor',
     projectilePctDmg: 'projectile', projectileExtraShots: 'projectile', potionPctDmg: 'potion',
-    firePctDmg: 'elemental', coldPctDmg: 'elemental', lightPctDmg: 'elemental', elementalPctDmg: 'elemental',
-    chaosPctDmg: 'chaos', resChaos: 'chaos', flatHp: 'life', pctHp: 'life', regen: 'life',
-    energyShield: 'arcane', energyShieldPct: 'arcane', spellPctDmg: 'arcane', summonPctDmg: 'summon',
-    summonHpPct: 'summon', summonFlatDmg: 'summon', crit: 'precision', critDmg: 'precision',
-    evasion: 'wind', evasionPct: 'wind', move: 'wind'
+    // 2026-11-01: the same picks as PASSIVE_ICON_FAMILY in js/passives.js for the stats the editor's bundles use
+    firePctDmg: 'fire', coldPctDmg: 'cold', lightPctDmg: 'lightning', elementalPctDmg: 'elemental', resF: 'fire', resC: 'cold', resL: 'lightning',
+    igniteChance: 'ignite', chillChance: 'chill', freezeChance: 'freeze', shockChance: 'shock', bleedChance: 'bleed', poisonChance: 'poison',
+    chaosPctDmg: 'chaos', resChaos: 'chaos', dotPctDmg: 'damageOverTime', aoePctDmg: 'area', slamPctDmg: 'slam', mobilityPctDmg: 'mobility',
+    flatHp: 'life', pctHp: 'life', regen: 'life',
+    energyShield: 'energyShield', energyShieldPct: 'energyShield', spellPctDmg: 'spell', summonPctDmg: 'summon',
+    summonHpPct: 'summon', summonFlatDmg: 'summon', crit: 'critical', critDmg: 'critical', aspd: 'precision',
+    cooldownRecovery: 'cooldown', cooldownReduction: 'cooldown', evasion: 'evasion', evasionPct: 'evasion', move: 'wind'
 });
 
 function nodeRadius(node) {
@@ -36,7 +46,9 @@ function nodeFamily(node) {
     if (node.type === 'void') return 'void';
     if (node.type === 'quatrefoil') return 'constellation';
     const primary = Array.isArray(node.runtimeEffects) && node.runtimeEffects[0];
-    return STAT_FAMILY[primary && primary.statId] || STAT_FAMILY[node.archetype] || 'blade';
+    // A node with no options draws no picture, as in the game (getPassiveNodeIconFamily); 2026-11-01 the blade fallback made
+    // 옵션 비우기 look like a change of picture. A start node keeps the blade (the game draws its class there).
+    return STAT_FAMILY[primary && primary.statId] || STAT_FAMILY[node.archetype] || STAT_FAMILY[node.cat] || (node.type === 'start' ? 'blade' : null);
 }
 
 class PassiveTreeCanvas {
@@ -45,7 +57,7 @@ class PassiveTreeCanvas {
         this.callbacks = callbacks;
         this.ctx = canvas.getContext('2d');
         this.atlas = new Image();
-        this.atlas.src = '/assets/ui/passive-tree-icons-v4.png';
+        this.atlas.src = '/assets/ui/passive-tree-icons-v5.png';
         this.atlas.onload = () => this.requestDraw();
         this.customImages = new Map();
         this.tree = { nodes: [], edges: [] };
@@ -304,7 +316,7 @@ class PassiveTreeCanvas {
         const cell = ICON_CELLS[nodeFamily(node)];
         if (!cell || !this.atlas.complete || !this.atlas.naturalWidth) return;
         const sourceWidth = this.atlas.naturalWidth / 5;
-        const sourceHeight = this.atlas.naturalHeight / 4;
+        const sourceHeight = this.atlas.naturalHeight / ICON_ROWS;
         const atlasSize = radius * 1.45;
         this.ctx.drawImage(this.atlas, cell[0] * sourceWidth, cell[1] * sourceHeight,
             sourceWidth, sourceHeight, point.x - atlasSize / 2, point.y - atlasSize / 2, atlasSize, atlasSize);
