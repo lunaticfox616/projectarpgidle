@@ -146,6 +146,14 @@ function syncEffects(node, effects) {
     }));
 }
 
+/** 옵션 비우기: the node keeps its place, type, links and a name of its own; everything that came with its options goes (effects, the
+ * bundle's 주제 and name, the picked picture, the generated 설명). 2026-11-01 사용자: 비우기가 그림만 칼로 바꾸는 것처럼 보였다. */
+function emptyNode(node) {
+    syncEffects(node, []);
+    if (node.name && node.name === node.optionProfile) delete node.name;
+    ['archetype', 'optionProfile', 'iconFamily', 'desc'].forEach(field => delete node[field]);
+}
+
 function statOptions(selectedId) {
     return config.stats.map(stat => `<option value="${escapeHtml(stat.id)}" ${stat.id === selectedId ? 'selected' : ''}>${escapeHtml(stat.name)} · ${escapeHtml(stat.id)}</option>`).join('');
 }
@@ -895,7 +903,7 @@ const TYPE_ROWS = Object.entries(TYPE_LABELS).map(([id, label]) => ({ id, label 
 const isTyping = target => ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || !!target.isContentEditable;
 const statSuffix = id => ((config.stats.find(row => row.id === id) || {}).isPct ? '%' : '');
 const editorCtx = {
-    elements, canvas: canvasEditor, getTree: () => tree, change, setStatus, escapeHtml, syncEffects, statOptions, statLabel, statSuffix,
+    elements, canvas: canvasEditor, getTree: () => tree, change, setStatus, escapeHtml, syncEffects, emptyNode, statOptions, statLabel, statSuffix,
     selectedIds: () => canvasEditor.getSelection().map(String), selectedNodes, setSelection: ids => canvasEditor.setSelection(ids),
     nodeName: id => (nodeMap.get(String(id)) || {}).name || String(id), gridSize: () => Math.max(5, Number(elements['grid-size-input'].value) || 20),
     snapOn: () => elements['snap-input'].checked, isTyping, redo, renderInspector, deleteNodes, deleteEdge, deleteSelected: deleteSelection,

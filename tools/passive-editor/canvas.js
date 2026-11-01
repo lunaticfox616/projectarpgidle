@@ -9,7 +9,7 @@ const TYPE_STYLE = Object.freeze({
     quatrefoil: { radius: 28, fill: '#d6b455' }, start: { radius: 34, fill: '#f6e7c2' }
 });
 
-/** Family � [column, row] on assets/ui/passive-tree-icons-v5.png (5 columns, ICON_ROWS rows), the same table as PASSIVE_ICON_ATLAS_CELL in js/passives.js. */
+/** Family � [column, row] on assets/ui/passive-tree-icons-v5.png (5 columns, ICON_ROWS rows), the same table as PASSIVE_ICON_ATLAS_CELL in js/passives.js. */
 export const ICON_CELLS = Object.freeze({
     blade: [0, 0], projectile: [1, 0], shield: [2, 0], potion: [3, 0], strength: [4, 0],
     mystique: [0, 1], devotion: [1, 1], cycle: [2, 1], elemental: [3, 1], dexterity: [4, 1],
@@ -46,7 +46,9 @@ function nodeFamily(node) {
     if (node.type === 'void') return 'void';
     if (node.type === 'quatrefoil') return 'constellation';
     const primary = Array.isArray(node.runtimeEffects) && node.runtimeEffects[0];
-    return STAT_FAMILY[primary && primary.statId] || STAT_FAMILY[node.archetype] || 'blade';
+    // A node with no options draws no picture, as in the game (getPassiveNodeIconFamily); 2026-11-01 the blade fallback made
+    // 옵션 비우기 look like a change of picture. A start node keeps the blade (the game draws its class there).
+    return STAT_FAMILY[primary && primary.statId] || STAT_FAMILY[node.archetype] || STAT_FAMILY[node.cat] || (node.type === 'start' ? 'blade' : null);
 }
 
 class PassiveTreeCanvas {

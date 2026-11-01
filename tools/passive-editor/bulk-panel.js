@@ -76,7 +76,7 @@ export function createBulkPanel(ctx) {
         elements['bulk-icon-auto'].onclick = () => ctx.setIconField('iconFamily', '');
         elements['bulk-icon-clear'].onclick = () => ctx.setIconField('iconAsset', '');
         elements['bulk-icon-input'].onchange = event => ctx.uploadCustomIcon(event.target.files[0], event.target);
-        elements['bulk-clear-button'].onclick = () => ctx.change(tree => picked(tree).forEach(node => ctx.syncEffects(node, [])), `노드 ${ids().size}개의 옵션을 비웠습니다.`);
+        elements['bulk-clear-button'].onclick = () => ctx.change(tree => picked(tree).forEach(ctx.emptyNode), `노드 ${ids().size}개를 옵션 없는 상태로 비웠습니다.`);
         document.querySelectorAll('[data-arrange]').forEach(button => { button.onclick = () => arrange(button.dataset.arrange); });
         document.querySelectorAll('[data-relink]').forEach(button => { button.onclick = () => relink(button.dataset.relink); });
         elements['bulk-copy-button'].onclick = () => { const copied = ctx.copy(); ctx.setStatus(`노드 ${copied.nodes.length}개를 복사했습니다. Ctrl+V로 마우스 자리에 붙여 넣습니다.`, 'success'); };
