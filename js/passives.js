@@ -214,6 +214,8 @@ const PASSIVE_ICON_FAMILY = Object.freeze({
     ...Object.fromEntries(Object.entries(WEAPON_CONDITION_STATS).map(([id, line]) => [id, { greatsword: 'blade', sword: 'blade', bow: 'projectile', orb: 'arcane', flask: 'potion', censer: 'arcane' }[line.stance]])),
     voidLinkEfficiency: 'void', attackPctDmg: 'blade', projectileChain: 'projectile', skillDelayReduce: 'arcane', spellRepeatChance: 'arcane', igniteDurationPct: 'elemental', chillDurationPct: 'elemental', freezeDurationPct: 'elemental',
     shockDurationPct: 'elemental', poisonDurationPct: 'potion', bleedDurationPct: 'blade',
+    minDmgRoll: 'blade', maxDmgRoll: 'blade', ailmentPotencyPct: 'damageOverTime', ailmentDamagePct: 'damageOverTime', summonEfficiency: 'summon',
+    atk: 'spell', utility: 'cooldown',
     mystique: 'mystique', devotion: 'devotion', cycle: 'cycle', projectilePctDmg: 'projectile', projectileExtraShots: 'projectile',
     accuracy: 'projectile', accuracyBonusPct: 'projectile', meleePctDmg: 'blade', physPctDmg: 'blade', slamPctDmg: 'slam', flatDmg: 'blade',
     strength: 'strength', pctDmg: 'blade', ds: 'blade', bleedChance: 'bleed', physIgnore: 'blade', doubleDamageChance: 'blade', addedPhysDamagePct: 'blade',
@@ -328,8 +330,13 @@ function getPassiveTreeArtImage(key) {
     return image;
 }
 
+/** 새 트리의 키스톤은 옛 키스톤의 효과를 이름만 바꿔 쓰기도 한다(keystoneEffectId). 그때는 그 키스톤의 그림을 쓴다. */
+function getPassiveKeystoneIconCell(node) {
+    return PASSIVE_KEYSTONE_ICON_CELL_BY_ID[node.id] || PASSIVE_KEYSTONE_ICON_CELL_BY_ID[String(node.keystoneEffectId || '').replace('keystone:', '')];
+}
+
 function getPassiveNodeAtlasArt(node) {
-    let keystoneCell = node && node.kind === 'keystone' ? PASSIVE_KEYSTONE_ICON_CELL_BY_ID[node.id] : null;
+    let keystoneCell = node && node.kind === 'keystone' ? getPassiveKeystoneIconCell(node) : null;
     let keystoneImage = keystoneCell && getPassiveTreeArtImage('passiveTreeKeystoneIcons');
     if (keystoneImage) return { image: keystoneImage, cell: keystoneCell, columns: 6, rows: PASSIVE_KEYSTONE_ICON_ATLAS_ROWS };
     let family = node && (PASSIVE_NOTABLE_ICON_ATLAS_CELL[node.iconFamily]

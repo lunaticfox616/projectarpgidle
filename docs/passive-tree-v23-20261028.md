@@ -10,7 +10,7 @@
 
 - 편집 원본: `artifacts/passive-tree/260831_2passive-normalized.json`.
   - 이 원본을 `scripts/build-passive-tree-runtime.js`가 `data/passive-tree-v22.js`로 만든다.
-  - 배치 버전 `PASSIVE_LAYOUT_VERSION`은 22 그대로다. 노드 id를 지우거나 바꾸지 않았다.
+  - 이때 배치 버전 `PASSIVE_LAYOUT_VERSION`은 22 그대로였고 노드 id를 지우거나 바꾸지 않았다. v0.3.39의 함께 편집 트리부터 배치 23이며, 옛 저장의 투자는 전부 환불된다.
   - 끊긴 노드는 불러올 때 포인트로 돌아온다(`normalizeAllocatedPassiveTreeNodes`).
 - 개편은 `scripts/rework-passive-tree-v23.js`가 개편 전 원본(`git show 8054fd52:artifacts/passive-tree/260831_2passive-normalized.json`)에
   한 번 적용했다. 원본에 `layoutRework: 'v23'`이 남아 두 번 돌지 않는다. 같은 입력이면 같은 출력이 나온다.
