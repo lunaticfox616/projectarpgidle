@@ -586,10 +586,12 @@
   }
   #tab-stump :is(.stump-cell, .stump-item).is-golden:not(.is-suppressed) img { filter: drop-shadow(0 0 3px #f3c64a); }
   .stump-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; vertical-align: middle; }
-  .stump-badges > span { padding: 0 4px; border: 1px solid currentColor; font-size: 11px; line-height: 1.4; }
+  .stump-badges > span { padding: 0 4px; border: 1px solid currentColor; font-size: 12px; line-height: 16px; }
   .stump-badges > .is-golden { color: #f3c64a; }
   .stump-badges > .is-ancient { color: #b8f0a0; }
   .stump-badges > .is-albino { color: #e8ddff; }
+  .stump-badges > .is-albino.is-worn { color: #7be38a; }
+  .stump-badges > .is-albino.is-full { color: #ff7a6b; }
   #tab-stump :is(.stump-cell, .stump-item).is-albino {
     background: radial-gradient(ellipse at center, #62556f 0%, #3b344c 60%, #282435 100%);
     border-color: #d8c8ed;

@@ -3128,7 +3128,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
 function getBattleCameraShake(now) {
     if (worldTreeSkillFx.feedback.reduced()) return { x: 0, y: 0 };
     if (typeof game !== 'undefined' && game.settings && game.settings.cameraShake === false) return { x: 0, y: 0 };
-    let amplitude = bossEntranceView.shake(now);
+    let amplitude = Math.max(bossEntranceView.shake(now), stageProjectileImpact.shake(now));
     (battleFx || []).forEach(fx => {
         if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath', 'enemySpawn', 'bossAreaImpact'].includes(fx.type)) return;
         let profile = typeof getBattleFeedbackProfile === 'function' ? getBattleFeedbackProfile(fx) : null;

@@ -1435,7 +1435,7 @@ const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'm
 // 장비 단추는 장비와 스킬룬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
 // 단추는 마지막에 보던 화면을 연다. icon: 창 머리 탭의 그림(assets/ui/pixel/menu-icons.png의 번호), count: 탭에 적는 수(쓸 포인트).
 const MERGED_TAB_GROUPS = Object.freeze({
-    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직과 키스톤을 선택합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
+    growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직을 고르고 노드와 키스톤을 할당합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
     gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬룬', icon: 9, detail: '룬을 장착하고 키웁니다.' }] },
     loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: () => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: () => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
     records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '이야기 저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }, { id: 'tab-npcs', gate: 'npcs', label: 'NPC', icon: 16, detail: '만난 NPC의 해금과 상점을 봅니다.' }] }
@@ -13375,8 +13375,8 @@ function checkUnlocks() {
     if (((game.completedTrials || []).length > 0 || game.ascendPoints > 0 || !!game.ascendClass) && !u.traits) {
         u.traits = true;
         game.noti.traits = true;
-        queueContentNotice('unlock_traits', '전직', 'trials', { open: '전직을 고를 수 있게 되었습니다.\n‘스킬트리 → 전직’에서 직업의 전직 셋 중 하나를 고르세요.\n전직 패시브 포인트와 키스톤 포인트는 서로 다른 노드에 씁니다.',
-            locked: '전직을 고를 수 있게 되었습니다.\n‘해금’에서 전직을 열면 전직과 전직 패시브를 고를 수 있습니다.' }, 'tab-traits');
+        queueContentNotice('unlock_traits', '전직', 'trials', { open: '전직을 고를 수 있게 되었습니다.\n‘스킬트리 → 전직’에서 직업의 전직 셋 중 하나를 고르세요.\n전직 노드 포인트와 키스톤 포인트는 서로 다른 노드에 씁니다.',
+            locked: '전직을 고를 수 있게 되었습니다.\n‘해금’에서 전직을 열면 전직을 고르고 전직 노드를 할당할 수 있습니다.' }, 'tab-traits');
     }
     if (typeof isChaosInfuserUnlocked === 'function' && isChaosInfuserUnlocked() && !game.chaosInfuserUnlocked) {
         game.chaosInfuserUnlocked = true;
@@ -13478,8 +13478,8 @@ function refundSeasonNode(id) { if (!assertBuildEditable()) return;
 }
 
 async function askRefundAscendNode(id) { if (!assertBuildEditable()) return;
-    if (!await requestGameConfirmation('선택한 전직 패시브를 반환하고 마름병 포자 1개를 소모합니다.', {
-        title: '전직 패시브 반환',
+    if (!await requestGameConfirmation('할당한 전직 노드를 반환하고 마름병 포자 1개를 소모합니다.', {
+        title: '전직 노드 반환',
         tone: 'danger',
         confirmLabel: '노드 반환'
     })) return;
@@ -13503,8 +13503,8 @@ function refundAscendNode(id) { if (!assertBuildEditable()) return;
         let blockedByReqAny = reqAny.includes(id) && reqAny.filter(v => v !== id).every(v => !game.ascendNodes.includes(v));
         return blockedByReq || blockedByReqAny;
     });
-    if (blockers.length > 0) return addLog('선행 조건으로 연결된 전직 패시브가 있어 반환할 수 없습니다.', 'attack-monster');
-    if ((game.currencies.blightSpore || 0) < 1) return addLog('전직 패시브 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
+    if (blockers.length > 0) return addLog('이 노드를 선행으로 둔 전직 노드가 있어 반환할 수 없습니다.', 'attack-monster');
+    if ((game.currencies.blightSpore || 0) < 1) return addLog('전직 노드 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
     game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
     game.ascendNodes = game.ascendNodes.filter(nodeId => nodeId !== id);
     game.ascendPoints = Math.max(0, Math.floor(game.ascendPoints || 0)) + 1;
@@ -13669,8 +13669,8 @@ function buyAscendKeystone(id) { if (!assertBuildEditable()) return;
     if (game.ascendKeystones.includes(id)) return;
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0));
     if (game.ascendKeystonePoints <= 0) return addLog('키스톤 포인트가 부족합니다.', 'attack-monster');
-    if (game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT) return addLog(`키스톤은 최대 ${CLASS_KEYSTONE_PICK_LIMIT}개 선택할 수 있습니다.`, 'attack-monster');
-    if (!isAscendKeystoneRequirementMet(node)) return addLog('선행 키스톤 조건이 필요합니다.', 'attack-monster');
+    if (game.ascendKeystones.length >= CLASS_KEYSTONE_PICK_LIMIT) return addLog(`키스톤은 최대 ${CLASS_KEYSTONE_PICK_LIMIT}개 할당할 수 있습니다.`, 'attack-monster');
+    if (!isAscendKeystoneRequirementMet(node)) return addLog('선행 키스톤이 필요합니다.', 'attack-monster');
     if (id === 'w3' && !enforceWarriorDualTrainingEquipment(true)) return;
     game.ascendKeystones.push(id);
     game.ascendKeystonePoints -= 1;
@@ -13689,9 +13689,9 @@ async function refundAscendKeystone(id) { if (!assertBuildEditable()) return;
         }
         return false;
     });
-    if (blockers.length > 0) return addLog(`선행 키스톤입니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
-    if ((game.currencies.blightSpore || 0) < 1) return addLog('키스톤 환불에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
-    if (!await requestGameConfirmation('선택한 키스톤을 반환하고 마름병 포자 1개를 소모합니다.', {
+    if (blockers.length > 0) return addLog(`이 키스톤을 선행으로 둔 키스톤이 있어 반환할 수 없습니다: ${blockers.map(v => v.name).join(', ')}`, 'attack-monster');
+    if ((game.currencies.blightSpore || 0) < 1) return addLog('키스톤 반환에는 마름병 포자 1개가 필요합니다.', 'attack-monster');
+    if (!await requestGameConfirmation('할당한 키스톤을 반환하고 마름병 포자 1개를 소모합니다.', {
         title: '키스톤 반환',
         tone: 'danger',
         confirmLabel: '키스톤 반환'
@@ -13720,7 +13720,7 @@ async function resetAscendKeystones() { if (!assertBuildEditable()) return;
     if (game.ascendKeystones.length <= 0) return;
     let cost = game.ascendKeystones.length;
     if ((game.currencies.blightSpore || 0) < cost) return addLog(`키스톤 전체 초기화에는 마름병 포자 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!await requestGameConfirmation(`선택한 키스톤을 모두 반환하고 마름병 포자 ${cost}개를 소모합니다.`, {
+    if (!await requestGameConfirmation(`할당한 키스톤을 모두 반환하고 마름병 포자 ${cost}개를 소모합니다.`, {
         title: '키스톤 전체 초기화',
         tone: 'danger',
         confirmLabel: '전체 초기화'
@@ -13769,15 +13769,15 @@ async function resetAscendNodes() { if (!assertBuildEditable()) return;
     game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
     if (game.ascendNodes.length <= 0) return;
     let cost = game.ascendNodes.length;
-    if ((game.currencies.blightSpore || 0) < cost) return addLog(`전직 패시브 트리 전체 초기화에는 마름병 포자 ${cost}개가 필요합니다.`, 'attack-monster');
-    if (!await requestGameConfirmation(`전직 패시브 트리를 모두 초기화하고 마름병 포자 ${cost}개를 소모합니다.`, {
-        title: '전직 패시브 전체 초기화',
+    if ((game.currencies.blightSpore || 0) < cost) return addLog(`전직 노드 전체 초기화에는 마름병 포자 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!await requestGameConfirmation(`전직 노드를 모두 초기화하고 마름병 포자 ${cost}개를 소모합니다.`, {
+        title: '전직 노드 전체 초기화',
         tone: 'danger',
         confirmLabel: '전체 초기화'
     })) return;
     if (!assertBuildEditable()) return;
     game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
-    if (game.ascendNodes.length <= 0) return addLog('확인 중 전직 패시브 상태가 변경되어 초기화를 취소했습니다.', 'attack-monster');
+    if (game.ascendNodes.length <= 0) return addLog('확인 중 전직 노드 상태가 변경되어 초기화를 취소했습니다.', 'attack-monster');
     cost = game.ascendNodes.length;
     if ((game.currencies.blightSpore || 0) < cost) return addLog(`확인 중 마름병 포자가 부족해졌습니다. (필요: ${cost})`, 'attack-monster');
     game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - cost);
@@ -13815,7 +13815,7 @@ function fillAscendancyPickScreen() {
 
 function renderLastLoopPlanCard() {
     const plan = getUsableLastLoopAscendPlan();
-    return plan ? `<button type="button" class="class-card ascend-plan-card" onclick="chooseLastLoopAscendPlan()"><strong>지난 루프처럼: ${CLASS_TEMPLATES[plan.ascendClass].name}</strong><span>노드 ${plan.nodes.length}개와 키스톤 ${plan.keystones.length}개를 포인트만큼 같은 순서로 다시 고릅니다.</span></button>` : '';
+    return plan ? `<button type="button" class="class-card ascend-plan-card" onclick="chooseLastLoopAscendPlan()"><strong>지난 루프처럼: ${CLASS_TEMPLATES[plan.ascendClass].name}</strong><span>노드 ${plan.nodes.length}개와 키스톤 ${plan.keystones.length}개를 포인트만큼 같은 순서로 다시 할당합니다.</span></button>` : '';
 }
 
 /** 루프 초기화 때 기억한 전직 배치(state.js rememberLoopAscendancyPlan). 지금 직업이 고를 수 있는 전직일 때만 쓴다. */
@@ -13848,7 +13848,7 @@ async function chooseLastLoopAscendPlan() {
     const plan = getUsableLastLoopAscendPlan();
     if (!plan || game.ascendClass || !assertBuildEditable()) return;
     const name = CLASS_TEMPLATES[plan.ascendClass].name;
-    if (!await requestGameConfirmation(`[${name}] 전직을 선택하고 지난 루프의 배치를 다시 고릅니다.\n이번 루프에는 전직을 다시 변경할 수 없습니다.`, { title: '지난 루프처럼', confirmLabel: '이 전직 선택' })) return;
+    if (!await requestGameConfirmation(`[${name}] 전직을 선택하고 지난 루프의 배치를 다시 할당합니다.\n이번 루프에는 전직을 다시 변경할 수 없습니다.`, { title: '지난 루프처럼', confirmLabel: '이 전직 선택' })) return;
     game.ascendClass = plan.ascendClass;
     game.ascendKeystones = [];
     game.ascendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
@@ -13870,7 +13870,7 @@ function continueLastLoopAscendPlan() {
     const plan = getUsableLastLoopAscendPlan();
     if (!plan || plan.ascendClass !== game.ascendClass || !assertBuildEditable()) return;
     const placed = allocateLastLoopAscendPlan(plan);
-    addLog(placed > 0 ? `지난 루프 배치: ${placed}개를 더 골랐습니다.` : '지금 고를 수 있는 다음 노드나 키스톤이 없습니다.', placed > 0 ? 'season-up' : 'attack-monster');
+    addLog(placed > 0 ? `지난 루프 배치: ${placed}개를 더 할당했습니다.` : '지금 할당할 수 있는 다음 노드나 키스톤이 없습니다.', placed > 0 ? 'season-up' : 'attack-monster');
     updateStaticUI();
 }
 
@@ -13879,7 +13879,7 @@ function buyAscend(id) { if (!assertBuildEditable()) return;
     let tree = getClassTreeDef(game.ascendClass);
     let node = tree[id];
     let reqMet = isAscendNodeRequirementMet(node);
-    if (node && node.exclusive && game.ascendNodes.includes(node.exclusive)) return addLog('같은 계열의 노드는 둘 중 하나만 선택할 수 있습니다.', 'attack-monster');
+    if (node && node.exclusive && game.ascendNodes.includes(node.exclusive)) return addLog('같은 계열의 노드는 둘 중 하나만 할당할 수 있습니다.', 'attack-monster');
     if (!node || game.ascendPoints <= 0 || game.ascendNodes.includes(id) || !reqMet) return;
     game.ascendNodes.push(id);
     game.ascendPoints--;

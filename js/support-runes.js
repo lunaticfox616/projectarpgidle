@@ -198,7 +198,7 @@
     const describeBehavior = {
         conversion: (def, val) => `피해 ${val}% ${def.name}`,
         repeat: (def, val) => `한 번 더 발동, 두 번째 피해 ${val}%`,
-        projectiles: (def, val) => `부채꼴 투사체 +${val}발`, chain: (def, val) => `추가 연쇄 ${val}회`,
+        projectiles: (def, val) => `투사체 +${val}발`, chain: (def, val) => `추가 연쇄 ${val}회`,
         sweep: (def, val) => `주변 ${val}기 추가 타격, 추가 피해 70%`,
         transform: (def, val) => `${def.name} ${val > 0 ? '+' : ''}${val}${def.isPct ? '%' : '칸'}`
     };

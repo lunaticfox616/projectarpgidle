@@ -5,7 +5,9 @@
     let focusedEquipmentSlot = null;
     let carryState = null;
     let pointerState = null;
-    let suppressClickUntil = 0;
+    let swallowClick = false;
+    let inspectorGuard = 0;
+    const INSPECTOR_GUARD_MS = 450;
     let carryFrame = 0;
     let pendingPointer = null;
     let activePage = 0;
@@ -312,6 +314,16 @@
         return true;
     }
 
+    /** Floating over the bag (the stump tab has no room beside its window), a just-picked panel lets presses through for a moment: the
+     * second press of a double-click reaches the item, not the panel or its buttons (js/stump-box-ui.js openStumpDetail does the same). */
+    function guardInspector() {
+        const inspector = document.getElementById('ui-equipment-inventory-inspector');
+        if (!inspector?.matches(':popover-open')) return;
+        inspector.inert = true;
+        clearTimeout(inspectorGuard);
+        inspectorGuard = setTimeout(() => { inspector.inert = false; }, INSPECTOR_GUARD_MS);
+    }
+
     function focus(itemKey, equippedSlot = null) {
         const sameSelection = focusedItemKey === itemKey && focusedEquipmentSlot === equippedSlot;
         setFocusedKey(itemKey);
@@ -328,6 +340,7 @@
         if (typeof renderEquipmentInventoryInspector === 'function') {
             renderEquipmentInventoryInspector(game.inventory.map((item, idx) => ({ item, idx })));
         }
+        if (!sameSelection) guardInspector();
         if (typeof tutorialActionUi === 'object') tutorialActionUi.refresh();
     }
 
@@ -374,7 +387,6 @@
     }
     function dropOnChat(event) {
         if (!chatDropZoneAt(event) || typeof attachChatItemOf !== 'function') return false;
-        suppressClickUntil = Date.now() + 350;
         event.preventDefault();
         attachChatItemOf(carryState.entry.item, carryState.sourceSlot);
         cancelCarry();
@@ -385,7 +397,6 @@
     function dropOnStumpCube(event) {
         const cell = elementUnderCarry(event)?.closest?.('[data-stump-drop-cube]');
         if (!cell || !stumpCubeUi.putBagItem(carryState.entry.item, Number(cell.dataset.stumpDropCube))) return false;
-        suppressClickUntil = Date.now() + 350;
         event.preventDefault();
         cancelCarry();
         return true;
@@ -652,7 +663,6 @@
         }
         let itemKey = carryState.itemKey;
         playUiFeedbackSound.inventory(carryState.entry.item, 'place');
-        suppressClickUntil = Date.now() + 250;
         endCarry();
         focusedItemKey = itemKey;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
@@ -675,7 +685,6 @@
         let equipped = equipItemById(itemId, slot);
         if (!equipped) return false;
         if (!bagItems.isJewel(item)) playUiFeedbackSound.inventory(item, 'place');
-        suppressClickUntil = Date.now() + 250;
         focusedItemKey = null;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         return true;
@@ -686,7 +695,6 @@
         if (carryState.mode === 'inventory') return commitInventoryCarry(column, row);
         let slot = carryState.sourceSlot;
         let item = carryState.entry.item;
-        suppressClickUntil = Date.now() + 250;
         endCarry();
         let moved = unequipItemToGrid(slot, column, row);
         if (!moved) notify('그 위치에는 장비를 놓을 수 없습니다.', 'warning');
@@ -711,7 +719,7 @@
 
     function handleItemClick(event, itemKey) {
         if (event) event.stopPropagation();
-        if (Date.now() < suppressClickUntil || carryState) return;
+        if (swallowClick || carryState) return;
         doubleClickCandidateKey = itemKey;
         focus(itemKey);
     }
@@ -733,7 +741,6 @@
         let equipped = equipItemById(itemId);
         if (!equipped) return false;
         playUiFeedbackSound.inventory(item, 'equip');
-        suppressClickUntil = Date.now() + 250;
         focusedItemKey = null;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         return true;
@@ -741,7 +748,7 @@
 
     function handleEquippedItemClick(event, slot) {
         if (event) event.stopPropagation();
-        if (Date.now() < suppressClickUntil) return;
+        if (swallowClick) return;
         if (carryState) {
             if (carryState.mode === 'inventory') return equipCarriedItemToSlot(slot);
             return false;
@@ -812,7 +819,6 @@
     function dropOnEquipmentSlot(event) {
         let equipmentTarget = updateEquipmentDropTarget(event);
         if (!equipmentTarget) return false;
-        suppressClickUntil = Date.now() + 350;
         event.preventDefault();
         equipCarriedItemToSlot(equipmentTarget.slot);
         cancelCarry();
@@ -825,12 +831,14 @@
         pointerState = null;
         if (!wasDragging) return;
         doubleClickCandidateKey = null;
+        // 놓을 때 나오는 클릭 하나만 삼킨다(js/stump-box-drag-ui.js와 같다). 시간으로 막으면 바로 이어 누른 장착까지 사라졌다.
+        swallowClick = true;
+        setTimeout(() => { swallowClick = false; }, 0);
         if (carryFrame) cancelAnimationFrame(carryFrame);
         carryFrame = 0;
         pendingPointer = null;
         if (CARRY_DROPS.some(drop => drop(event))) return;
         if (carryState) updateCarry(event);
-        suppressClickUntil = Date.now() + 350;
         event.preventDefault();
         if (carryState && carryState.moveResult && carryState.moveResult.ok && carryState.placement) {
             commitCarry(carryState.placement.column, carryState.placement.row);

@@ -130,8 +130,8 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
 }
 :root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }
 /* 도트로 다시 찍은 아이콘(assets/px/, scripts/build-pixel-icons.cjs), 32도트 세계수 룬, 처음부터 도트로 그린 장비 아이콘
-   (assets/items/illustrated/pixel/), 그루터기 도트 아이콘(stump-pixel-v1)도 확대할 때 번지지 않게 */
-body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/runes/"], img[src*="assets/items/illustrated/pixel/"], img[src*="assets/items/stump-pixel-v1/"]) { image-rendering: pixelated; }
+   (assets/items/illustrated/pixel/), 그루터기 도트 아이콘(stump-pixel-v1, 알비노 stump-albino-v1)도 확대할 때 번지지 않게 */
+body[data-ui-skin] :is(img[src*="assets/px/"], img[src*="assets/gems/runes/"], img[src*="assets/items/illustrated/pixel/"], img[src*="assets/items/stump-pixel-v1/"], img[src*="assets/items/stump-albino-v1/"]) { image-rendering: pixelated; }
 /* 장비 도트 그림(pixel-v1, pixel-v2)은 도트 하나를 3×3 점으로 저장해 두었다(큰 그림은 2×2나 1×1). 2026-10-24 사용자: 검과 활의 직선이
    구불구불하다. 칸 크기가 그림의 정수배가 아니면(가방 무기 1.84배, 휴대폰 2.9배) 점을 그대로 키울 때 어떤 점은 2px, 어떤 점은 1px이 되어
    곧은 선이 구불거렸다. 키워 둔 그림을 부드럽게 줄이면 모든 점이 같은 폭이다. */
@@ -259,6 +259,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip, .shop-tooltip) :is(.tooltip-line:not(.tooltip-meta):not(.tooltip-section), .tooltip-final) {
   font-family: var(--font-pixel-read); font-size: var(--font-size-reading); line-height: 1.6;
 }
+/* 그루터기 표식(알비노 1/1, 황금, 풍작)은 짧은 정보다: 툴팁 줄의 갈무리14를 물려받아 작은 크기로 번졌다(2026-11-03 사용자 "흐릿하지 않게"). */
+:root body[data-ui-skin] .stump-badges > span { font-family: var(--font-pixel); font-size: var(--font-size-ui); }
 :root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip, .shop-tooltip) .tooltip-title {
   font-family: var(--font-pixel); font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis);
 }

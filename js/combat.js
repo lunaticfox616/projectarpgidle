@@ -2872,11 +2872,13 @@ function buildLinearSkillVisualRow(rows) {
     const end = first.options.attackFootprint.cells.reduce((a, b) => distance(b) > distance(a) ? b : a);
     const path = [{ ...source, offsetMs: 0 }];
     const dx = end.gx-source.gx, dy = end.gy-source.gy, lengthSq = dx*dx+dy*dy;
-    rows.forEach(row => {
+    rows.forEach((row, index) => {
         const cell = row.targetCells[0];
         const progress = lengthSq ? clampNumber(((cell.gx-source.gx)*dx+(cell.gy-source.gy)*dy)/lengthSq,0,1) : 0;
-        path.push({gx:source.gx+dx*progress,gy:source.gy+dy*progress,
-            offsetMs:Math.max(path[path.length-1].offsetMs,row.at-first.launchAt)});
+        const point = {gx:source.gx+dx*progress,gy:source.gy+dy*progress,offsetMs:Math.max(path[path.length-1].offsetMs,row.at-first.launchAt)};
+        const next = rows[index + 1];
+        path.push(point);
+        if (next) path.push({ ...point, offsetMs: point.offsetMs + Math.min(SKILL_HIT_SEQUENCE_CONFIG.pierceHoldMs.longest, Math.max(0, (Number(next.holdMs) || 0) - (Number(row.holdMs) || 0))) });
     });
     const tip = path[path.length - 1];
     const remaining = gridChebyshevDist(tip.gx, tip.gy, end.gx, end.gy);
@@ -2899,9 +2901,14 @@ function groupsSkillTravelOnRay(row) {
     return row.patternKind === 'moving' || (row.delivery === 'projectileCell' && !row.patternKind);
 }
 
+/** 발마다 제 길로 난다(js/combat-projectile-shots.js). 더 나가는 발이 없으면 전부 한 발이다. */
 function addPendingSkillTravelFxRows(rows, attackContext, now) {
-    let queuedRows = (rows || []).filter(Boolean);
-    if (queuedRows.length <= 0) return;
+    const shots = new Map();
+    (rows || []).filter(Boolean).forEach(row => shots.set(row.shot, (shots.get(row.shot) || []).concat(row)));
+    shots.forEach(shotRows => addShotTravelFx(shotRows, attackContext, now));
+}
+
+function addShotTravelFx(queuedRows, attackContext, now) {
     let firstRow = queuedRows[0];
     if (attackContext.skillName === '빙결 침식') {
         const last = queuedRows[queuedRows.length - 1];
@@ -2936,7 +2943,9 @@ function getAttackMotionMs(tags) {
  *   landingMs: actual airborne movement duration in combat milliseconds; zero when this attack did not move the hero.
  */
 function queuePlayerAttackSequence(pStats, stages, context) {
-    stages = window.GameModules.combat.supports.stages(stages, pStats.sSkill);
+    const shots = projectileShots.plan(context.skillName, pStats, stages);   // 더 나가는 발은 저마다 제 길로 난다. 다 나눴으니 타격 때 다시 늘지 않는다
+    stages = shots || window.GameModules.combat.supports.stages(stages, pStats.sSkill);
+    if (shots) pStats = { ...pStats, projectileExtraShots: 0, uniqueProjExtraShotChance: null };
     if (pStats.sSkill.nativeCastId) return startSkillGemCombat(pStats, context);
     let tags = pStats.sSkill.tags || [], now = getCombatTime();
     let motionMs = getAttackMotionMs(tags);
@@ -2978,10 +2987,10 @@ const PROJECTILE_RELEASE_SHARE = 0.55;
 function getPendingStageTimes(stage, delivery, cells, timing) {
     const { now, baseDelay, skill } = timing;
     const through = delivery.startsWith('projectile') && stage.kind === 'pierceThrough';
-    const stageDelay = through ? 0 : Math.max(0, Math.floor(stage.delayMs));
+    const stageDelay = (through ? 0 : Math.max(0, Math.floor(stage.delayMs))) + (Number(stage.shotDelayMs) || 0);
     if (delivery.startsWith('projectile')) {
         const launchAt = now + Math.floor(baseDelay * PROJECTILE_RELEASE_SHARE) + stageDelay;
-        return { stageDelay, launchAt, at: launchAt + getCombatTravelMs(through ? game.gridPlayer : cells.source, cells.target, skill) };
+        return { stageDelay, launchAt, at: launchAt + getCombatTravelMs(through ? game.gridPlayer : cells.source, cells.target, skill) + (Number(stage.holdMs) || 0) };
     }
     if (delivery === 'magicMoving') {
         const launchAt = now + baseDelay + stageDelay;
@@ -2989,6 +2998,9 @@ function getPendingStageTimes(stage, delivery, cells, timing) {
     }
     return { stageDelay, launchAt: now, at: now + baseDelay + stageDelay };
 }
+
+/** 발이 나뉜 공격(js/combat-projectile-shots.js)은 발마다 첫 단계부터 센다: 착탄 폭발 같은 첫 타격의 연출이 발마다 나온다. */
+const getStageIndexInShot = (stage, offset) => (stage.shotStage === undefined ? offset : stage.shotStage);
 
 function queuePendingSkillStageHits(stages, pStats, attackContext) {
     let now = getCombatTime();
@@ -3011,8 +3023,8 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
         let { stageDelay, launchAt, at } = getPendingStageTimes(stage, stageDelivery, { source: sourceCell, target: targetCells[0] },
             { now, baseDelay, skill: pStats.sSkill });
         let row = {
-            at, launchAt,
-            zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
+            at, launchAt, holdMs: stage.holdMs,
+            zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries, shot: stage.shot,
             contactState: {resolved: false}, whirl: stage.whirl, wave: stage.wave, advanceHero: !!stage.advanceHero,
             aimCell: copyCombatGridCell(stage.aimCell),
             waveDurationMs: Math.max(0, Number(stage.waveDurationMs) || 0),
@@ -3023,7 +3035,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
                 sourceCell, stageReplay: true, skipSlamEcho: stageOffset > 0, skillName: attackContext.skillName, channelId: attackContext.channelId, // 강타 여진은 첫 타격에서만
                 forcedCrit: !!attackContext.forcedCrit, forcedElement: stage.element || attackContext.forcedElement,
                 talentAttackMultiplier: Number.isFinite(Number(attackContext.talentAttackMultiplier)) ? Math.max(0, Number(attackContext.talentAttackMultiplier)) : 1,
-                stageKind: stage.kind, stageLabel: stage.label, stageIndex: stageOffset, stageDelayMs: stageDelay, targetLimit: stage.targetLimit,
+                stageKind: stage.kind, stageLabel: stage.label, stageIndex: getStageIndexInShot(stage, stageOffset), stageDelayMs: stageDelay, targetLimit: stage.targetLimit,
                 stageCount: attackContext.stageCount, chainFromEnemyId: stage.chainFromEnemyId || null,
                 stageRepeatOnce: !!stage.singleRepeat, skipGridControl: stage.skipGridControl,
                 restrictRandomTargets: !!stage.singleRepeat,
@@ -11751,7 +11763,7 @@ function finishTrialEncounter(zone, mapAction, ui) {
     if (!game.unlocks.traits) game.unlocks.traits = true;
     game.noti.traits = true;
     if (zone.id === 'trial_1' && isFirstClear) {
-        queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 전직을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
+        queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 전직을 고르고 전직 노드를 할당하세요.', 'tab-traits');
     }
     ui.unlocks();
     if (zone.id !== 'trial_4') {

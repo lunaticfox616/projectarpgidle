@@ -290,6 +290,7 @@ const stageSkillRules = (() => {
         ruleChainLink(gem, hit);
         if (gem.map.warlock) stageRuneRemakes.warlockHit(gem.map.warlock, hit);
         if (gem.map.seep) ruleSeepInto(gem, hit); else rulePlayHit(gem, hit);
+        stageProjectileImpact.note(gem, hit);
         if (ruleFirstHit(fx)) ruleFirstExtras(gem, hit); else ruleTickExtras(gem, hit);
         stageSkillRunes.victim(gem, hit, lead);
     }
@@ -483,7 +484,7 @@ const stageSkillRules = (() => {
     function ruleGemClips(gem, element) {
         const names = ruleClipNames(gem.map);
         if (ruleSwings(gem) && !gem.map.swing) names.push(PLAIN_SWING);
-        names.push(...stageSkillRunes.hitRefs(gem, element), ...stageSkillPolish.refs(gem), gem.map.bow ? stageSkillRunes.bowFlash(gem, element) : '', gem.meta.kind === 'wisp' ? stageSkillCasts.wispHit(element) : '');
+        names.push(...stageSkillRunes.hitRefs(gem, element), ...stageProjectileImpact.refs(gem, element), ...stageSkillPolish.refs(gem), gem.map.bow ? stageSkillRunes.bowFlash(gem, element) : '', gem.meta.kind === 'wisp' ? stageSkillCasts.wispHit(element) : '');
         return names.filter(Boolean);
     }
     /** 그 룬이 틀 수 있는 클립('이름@램프')을 모두 든다: 낀 룬의 띠를 미리 만들어 두려고 묻는다(js/canvas-stage-warmup.js).

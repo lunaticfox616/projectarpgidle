@@ -1161,6 +1161,8 @@ const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
     whirlIntervalMs: 80,
     chainIntervalMs: 110,
     pierceIntervalMs: 30,
+    // 관통하는 발이 맞은 자리에 잠깐 멈췄다 지나간다(2026-11-02 전달본 V3.8, 무게별). 맞는 때만 그만큼 늦는다.
+    pierceHoldMs: Object.freeze({ longest: 54, plain: 46, '관통 사격': 40, '부싯돌 베기': 48, '빙결 파열창': 54 }),
     slamAftershockDelayMs: 360,
     slamAftershockDamagePct: 32
 });
@@ -1181,13 +1183,18 @@ function getWhirlSequenceProfile(skill) {
     return { kind: 'whirl', intervalMs: skill.whirlIntervalMs || SKILL_HIT_SEQUENCE_CONFIG.whirlIntervalMs };
 }
 
+function getPierceSequenceProfile(skillName) {
+    const holds = SKILL_HIT_SEQUENCE_CONFIG.pierceHoldMs;
+    return { kind: 'pierce', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.pierceIntervalMs, holdMs: holds[skillName] || holds.plain };
+}
+
 function getSkillHitSequenceProfile(skillName, skill) {
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
     let mode = skill && skill.targetMode;
     if (mode === 'whirl') return getWhirlSequenceProfile(skill);
     if (mode === 'chain') return { kind: 'chain', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.chainIntervalMs, fork: getSkillGridProfile(skillName, skill).fork };
     let gridProfile = getSkillGridProfile(skillName, skill || {});
-    if (mode === 'pierce' || (gridProfile && gridProfile.kind === 'line')) return { kind: 'pierce', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.pierceIntervalMs };
+    if (mode === 'pierce' || (gridProfile && gridProfile.kind === 'line')) return getPierceSequenceProfile(skillName);
     if (tags.includes('slam')) return getSlamAftershockProfile(skill) || { kind: 'instant' };
     return { kind: 'instant' };
 }
@@ -1396,7 +1403,7 @@ function buildPierceSkillHitSequence(profile, skill, targets) {
     let ordered = sortSkillHitTargetsByDistance(targets);
     let boomerang = skill && skill.combatPattern && skill.combatPattern.kind === 'boomerang';
     let outbound = ordered.map((entry, idx) => ({
-        kind: idx === 0 ? 'piercePrimary' : 'pierceThrough',
+        kind: idx === 0 ? 'piercePrimary' : 'pierceThrough', holdMs: idx * profile.holdMs,
         label: idx === 0 ? '관통 직격' : `${idx + 1}번째 관통`,
         delayMs: idx * profile.intervalMs, damageMultiplier: 1,
         chainFromEnemyId: idx > 0 ? ordered[idx - 1].enemy.id : null,

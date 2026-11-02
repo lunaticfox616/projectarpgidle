@@ -295,7 +295,7 @@
 | `js/stump-box.js` | 도메인(`stumpBox`): 획득 판정, 배치, 처치 성장, 억제·공명·능력치 계산, 드랍, 루프 회귀, 저장 경계 |
 | `js/stump-box-ui.js` | 화면(`stumpBoxUi`): 판·설명·요약·시작 선물·보관함, 획득 안내, 처치 소식 로그 |
 | `css/stump-box.css` | 판 그림(`assets/ui/grove/stump-board-v1.png`) 위 칸 겹치기, 좁은 화면 한 열 |
-| `assets/items/stump-pixel-v1/` | 게임에서 쓰는 48×48 도트 아이콘 36장. `assets/px/stump/`와 이전 생성 스크립트는 원본 보존용이며 새 그림을 덮어쓰지 않는다 |
+| `assets/items/stump-pixel-v1/` | 게임에서 쓰는 48×48 도트 아이콘 36장(2026-11-03 알비노 13장과 함께 PixelLab Pro 리메이크로 교체, 출처는 작업 자료 `artifacts/item-icons-49-20261103/`). `assets/px/stump/`와 이전 생성 스크립트는 원본 보존용이며 새 그림을 덮어쓰지 않는다 |
 | `scripts/smoke-stump-box.js` | 획득·해금·배치·성장·억제·공명·드랍·루프·저장 검사 |
 
 도트 자산 규칙(2026-10-23): 48×48, 투명 알파 0/255, 투명색 포함 32색 이하로 내보낸다.

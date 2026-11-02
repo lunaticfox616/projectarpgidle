@@ -69,7 +69,8 @@ const stageSkillKit = (() => {
         let i = 0;
         while (i < path.length - 2 && path[i + 1].offsetMs <= elapsed) i++;
         const a = path[i], b = path[i + 1], u = Math.max(0, Math.min(1, (elapsed - a.offsetMs) / Math.max(1, b.offsetMs - a.offsetMs)));
-        return { gx: a.gx + (b.gx - a.gx) * u, gy: a.gy + (b.gy - a.gy) * u, face: Math.sign(b.gx - a.gx) || lastFace, from: a, to: b };
+        const face = Math.sign(b.gx - a.gx) || Math.sign(path[path.length - 1].gx - path[0].gx) || lastFace;   // 맞은 자리에 멈춘 동안(같은 칸 두 점)에도 나아가던 쪽을 본다
+        return { gx: a.gx + (b.gx - a.gx) * u, gy: a.gy + (b.gy - a.gy) * u, face, from: a, to: b };
     }
     const EMERGE = 10;  // 쓴 자리에서 앞으로 내민 손까지(도트)
     /** 쓴 자리에서 나아가는 그림(파동, 곧게 나는 투사체)을 쓴 사람이 내민 손보다 앞쪽에만 그리게 한다. 그런 그림은 앞머리가 기준점이라
