@@ -157,10 +157,10 @@ const talismans = (() => {
         return enemy && enemy.isBoss ? 'boss' : enemy && enemy.isElite ? 'elite' : 'normal';
     }
 
-    /** 야생 부적 드랍이 열렸는가: 부적 해금 · 그루터기 함 · 최고 도달 루프 25. */
+    /** 야생 부적 드랍이 열렸는가: 부적 해금, 그루터기 함, 야생 부적 드랍 해금. */
     function wildDropsOpen(state = game) {
         return contentProgression.isUnlocked('talisman', state) && stumpBox.of(state).acquired
-            && stumpBox.highestLoop(state) >= TALISMAN_WILD_DROPS.minLoop;
+            && contentProgression.holds('wildTalisman', state);
     }
 
     /** 적 등급의 야생 부적 하나(고유면 야생 고유에서). */

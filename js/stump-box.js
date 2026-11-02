@@ -462,7 +462,7 @@ const stumpBox = (() => {
         const suppressed = suppressedIds(box);
         return near.filter(item => !suppressed.has(item.id)).length * STUMP_BOX_ANCIENT.graftRanks;
     }
-    function graftOpen(state) { return of(state).acquired && highestLoop(state) >= STUMP_BOX_GRAFT.startLoop; }
+    function graftOpen(state) { return of(state).acquired && contentProgression.holds('graft', state); }
     /** Points from journal pages (STUMP_BOX_GRAFT.journalPoints), counted once per page. */
     function graftJournalPoints(state) {
         const journal = Array.isArray(state.journalEntries) ? state.journalEntries : [];
@@ -820,8 +820,8 @@ const stumpBox = (() => {
     function isSealed(box, cell) { return Array.isArray(box.sealed) && box.sealed.includes(cell); }
     /** '' when the cell can be sealed (or unsealed) now, otherwise why not. */
     function sealReason(state, cell) {
-        const box = of(state), first = STUMP_BOX_UNLOCKS.find(row => row.sealSlots);
-        if (!sealLimit(state)) return `봉인 칸은 루프 ${first.when.loop}부터 열립니다.`;
+        const box = of(state);
+        if (!sealLimit(state)) return '봉인 칸 해금 뒤에 열립니다.';
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
         if (!isOpen(state, cell)) return '닫힌 칸입니다.';
         if (isSealed(box, cell)) return '';
@@ -1019,6 +1019,7 @@ const stumpBox = (() => {
     /** A STUMP_BOX_UNLOCKS condition (computed, never saved). */
     function unlockMet(state, when) {
         if (when.loop && highestLoop(state) < when.loop) return false;
+        if (when.content && !contentProgression.holds(when.content, state)) return false;
         if (when.journal && !(Array.isArray(state.journalEntries) && state.journalEntries.includes(when.journal))) return false;
         return harvestMet(state, when);
     }

@@ -1,394 +1,499 @@
-/** 해금 탭(2026-11-02 사용자: NPC에게 받는 해금, 포인트로 여는 해금, 기타 강화를 나눠 알기 쉽게. 이어서 "스킬트리처럼 연결성, 선행조건, 할당 여부가 한눈에").
- * 위에 해금 포인트와 탭, 왼쪽에 판, 오른쪽에 고른 해금의 설명. 판은 탭마다 다르다: 전체, 포인트, NPC 탭은 선행 해금(def.after)을 선으로 이은 트리이고 포인트와
- * NPC 탭은 다른 종류를 흐리게 둔다(연결은 그대로 보인다). 강화 탭은 단계 사슬, 자동 개방 탭은 루프 줄이다. 설명 안에 NPC 그림은 넣지 않는다.
- * 규칙과 장부는 contentProgression, 사고 받는 일은 contentUnlockUi의 것이다. */
-const UNLOCK_TABS = Object.freeze([
-    { id: 'all', label: '전체 트리' },
-    { id: 'points', label: '포인트 해금', kind: 'paid' },
-    { id: 'npc', label: 'NPC 해금', kind: 'npc' },
-    { id: 'upgrades', label: '강화', note: '해금 포인트로 단계를 올립니다.' },
-    { id: 'auto', label: '자동 개방', note: '조건을 채우면 저절로 열립니다.' }
+/** 해금 탭(2026-11-02 사용자: 선행 조건 2~3개에서 갈래로 뻗어, 다음 해금만 고민하게. 한눈에 보이고 가로 스크롤로. 분류로 나누지 말 것).
+ * 세 뿌리(장비 제련, 보조스킬룬, 루프 패시브)에서 뻗는 한 나무: 가로축은 루프, 줄은 unlockBoard가 채운다. 위에 해금 포인트, 지금 가능, 판 전체 지도, 아래에 고른 해금의 설명.
+ * 규칙과 장부는 contentProgression, 사고 받는 일은 contentUnlockUi의 것이다. 칸에 NPC 그림은 넣지 않는다. */
+const UNLOCK_BOARD_SIZE = Object.freeze({ cardCol: 146, cardGap: 10, pipCol: 54, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 30, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
+// side: 가지가 먼저 뻗는 쪽(위 -1, 아래 1), at: 뿌리가 놓이는 높이(줄 수에 대한 몫). 심화 혼돈은 어느 뿌리에도 묶지 않지만 빛깔은 전투 쪽을 쓴다.
+const UNLOCK_FAMILIES = Object.freeze([
+    { id: 'gear', root: 'craft', side: -1, at: 0.22 },
+    { id: 'rune', root: 'support', side: 1, at: 0.56 },
+    { id: 'growth', root: 'loopTree', side: 1, at: 0.84 }
 ]);
-const UNLOCK_KIND_LABEL = Object.freeze({ paid: '포인트 해금', npc: 'NPC 해금', auto: '자동 개방' });
-const UNLOCK_TREE_TABS = Object.freeze(['all', 'points', 'npc']);
+const UNLOCK_LOOSE_FAMILY = Object.freeze({ deepChaos: 'rune' });
 
-/** 해금 트리의 자리: 뿌리(장비 제련)에서 def.after를 따라 왼쪽에서 오른쪽으로 편다. 깊이가 열, 잎이 줄이고 부모는 자식들의 가운데에 선다. 깊은 가지가 위로 온다. */
-const unlockTree = (() => {
-    const GRID = Object.freeze({ col: 118, row: 68, padX: 58, padY: 30, nodeW: 108, icon: 44, root: 'craft' });
-    let built = null;
-    function unlockTreeChildren() {
-        const kids = new Map();
-        CONTENT_UNLOCK_CATALOG.filter(def => def.after && !def.series).forEach(def => {
-            if (!kids.has(def.after)) kids.set(def.after, []);
-            kids.get(def.after).push(def);
-        });
-        // 가지의 길이: 해금마다 조상을 따라 올라가며 잰다.
-        const byId = new Map(CONTENT_UNLOCK_CATALOG.map(def => [def.id, def])), reach = new Map();
-        CONTENT_UNLOCK_CATALOG.filter(def => !def.series).forEach(def => {
-            for (let up = def, length = 1; up; up = byId.get(up.after), length++) reach.set(up.id, Math.max(reach.get(up.id) || 0, length));
-        });
-        kids.forEach(list => list.sort((a, b) => reach.get(b.id) - reach.get(a.id) || a.minLoop - b.minLoop));
-        return kids;
+/** 판의 자리: 시간을 따라 앞에서부터 빈 줄을 찾아 채운다. 끝난 가지의 줄은 다음 가지가 쓰고, 그 많은 칸을 담는 가장 적은 줄 수를 고른다. 게임 상태를 읽지 않으니 한 번만 잰다. */
+const unlockBoard = (() => {
+    const SIZE = UNLOCK_BOARD_SIZE, byId = new Map(CONTENT_UNLOCK_CATALOG.map(def => [def.id, def]));
+    const rows = CONTENT_UNLOCK_CATALOG.filter(def => def.minLoop > 1);
+    const isStep = def => !!def.rail && byId.get(def.after)?.rail === def.rail;
+    /** 줄기를 따라 뿌리까지 올라간 뿌리의 빛깔. */
+    function familyOf(def) {
+        let row = def;
+        while (row.after && !UNLOCK_LOOSE_FAMILY[row.id]) row = byId.get(row.after);
+        return UNLOCK_LOOSE_FAMILY[row.id] || UNLOCK_FAMILIES.find(family => family.root === row.id).id;
     }
-    /** 뿌리부터 위에서 아래로 도는 차례(깊이 우선): 잎이 이 차례로 줄을 받는다. */
-    function unlockTreeWalk(kids) {
-        const walk = [], stack = [{ def: CONTENT_UNLOCK_CATALOG.find(def => def.id === GRID.root), depth: 0, parent: null }];
-        while (stack.length) {
-            const entry = stack.pop(), list = kids.get(entry.def.id) || [];
-            walk.push(entry);
-            for (let index = list.length - 1; index >= 0; index--) stack.push({ def: list[index], depth: entry.depth + 1, parent: entry.def.id });
+    const slotKey = (loop, sub) => loop + sub / 10;
+    let base = null;
+
+    /** 앞 해금이 먼저 오는 차례. */
+    function treeOrder() {
+        const done = new Set(), order = [];
+        while (order.length < rows.length) {
+            const before = order.length;
+            for (const def of rows) {
+                if (done.has(def.id) || !contentProgression.parents(def).every(id => done.has(id))) continue;
+                done.add(def.id);
+                order.push(def);
+            }
+            if (order.length === before) throw new Error('unlock board: a cycle in the prerequisites');
         }
-        return walk;
+        return order;
     }
-    function buildUnlockTree() {
-        const kids = unlockTreeChildren(), walk = unlockTreeWalk(kids), rows = new Map(), nodes = new Map();
-        walk.filter(entry => !kids.has(entry.def.id)).forEach((entry, leaf) => rows.set(entry.def.id, leaf));
-        // 부모는 자식들의 가운데: 돈 차례를 거꾸로 읽으면 자식이 먼저 정해져 있다.
-        [...walk].reverse().filter(entry => kids.has(entry.def.id)).forEach(entry => {
-            const list = kids.get(entry.def.id);
-            rows.set(entry.def.id, (rows.get(list[0].id) + rows.get(list[list.length - 1].id)) / 2);
+    function readTree() {
+        const sorted = treeOrder(), loopOf = new Map(), depthOf = new Map(), kids = new Map(), sizes = new Map();
+        for (const def of sorted) {
+            const earlier = contentProgression.parents(def);
+            const at = Math.max(def.minLoop, ...earlier.map(id => loopOf.get(id)));
+            loopOf.set(def.id, at);
+            depthOf.set(def.id, earlier.filter(id => loopOf.get(id) === at).reduce((best, id) => Math.max(best, depthOf.get(id) + 1), 0));
+            if (def.after) kids.set(def.after, [...(kids.get(def.after) || []), def]);
+        }
+        for (const def of [...sorted].reverse()) sizes.set(def.id, 1 + (kids.get(def.id) || []).reduce((sum, kid) => sum + sizes.get(kid.id), 0));
+        const familyRank = def => UNLOCK_FAMILIES.findIndex(row => row.id === familyOf(def));
+        const order = rows.map((def, index) => ({ def, index, loop: loopOf.get(def.id), depth: depthOf.get(def.id), family: familyRank(def) }))
+            .sort((p, q) => p.loop - q.loop || p.depth - q.depth || p.family - q.family || p.index - q.index).map(row => row.def);
+        // 줄기: 부모의 줄을 그대로 잇는 자식. 강화 줄의 다음 단계가 먼저, 그다음 딸린 칸이 가장 많은 자식.
+        const stems = new Map();
+        kids.forEach((list, id) => stems.set(id, (list.find(isStep) || list.reduce((best, kid) => (sizes.get(kid.id) > sizes.get(best.id) ? kid : best))).id));
+        return { loopOf, order, stems };
+    }
+    const free = (plan, row, from, to) => row >= 0 && row < plan.count && !plan.rows[row].some(([a, b, owner]) => owner !== plan.me && a < to && b > from);
+    function nearRows(plan, start, side) {
+        const list = [];
+        for (let step = 1; step < plan.count; step++) list.push(start + side * step, start - side * step);
+        return list;
+    }
+    /** 칸을 놓고, 줄기 자식이 올 때까지 그 줄을 맡아 둔다(강화 줄과 긴 가지가 끊기지 않게). from: 선이 이 줄에 들어오는 자리. */
+    function putCell(plan, def, spot, from) {
+        const here = slotKey(spot.loop, spot.sub), stem = plan.tree.stems.get(def.id);
+        plan.rows[spot.row].push([from === null ? here - 0.01 : from, here + 0.01, '']);
+        plan.spots.set(def.id, { def, ...spot });
+        if (stem && plan.tree.loopOf.get(stem) > spot.loop) plan.rows[spot.row].push([here + 0.01, slotKey(plan.tree.loopOf.get(stem), 0) + 0.01, stem]);
+        return true;
+    }
+    function placeRoot(plan, def) {
+        const loop = plan.tree.loopOf.get(def.id), family = UNLOCK_FAMILIES.find(row => row.id === familyOf(def));
+        const start = Math.round((plan.count - 1) * family.at), spot = slotKey(loop, 0);
+        const row = [start, ...nearRows(plan, start, family.side)].find(value => free(plan, value, spot - 0.01, spot + 0.01));
+        return row !== undefined && putCell(plan, def, { loop, sub: 0, row }, null);
+    }
+    function placeStep(plan, def, parent) {
+        const loop = plan.tree.loopOf.get(def.id), from = slotKey(parent.loop, parent.sub) + 0.01;
+        let sub = parent.loop === loop ? parent.sub + 1 : 0;
+        while (sub < 9 && !free(plan, parent.row, slotKey(loop, sub) - 0.01, slotKey(loop, sub) + 0.01)) sub++;
+        return free(plan, parent.row, from, slotKey(loop, sub) + 0.01) && putCell(plan, def, { loop, sub, row: parent.row }, from);
+    }
+    /** 부모가 맡아 둔 줄 또는 가까운 빈 줄에서, 부모부터 이 칸까지 비어 있는 곳을 찾는다. */
+    function placeAlong(plan, def, parent, firstSub, withParentRow) {
+        const loop = plan.tree.loopOf.get(def.id), side = UNLOCK_FAMILIES.find(row => row.id === familyOf(def)).side, parentKey = slotKey(parent.loop, parent.sub);
+        const candidates = [...(withParentRow ? [parent.row] : []), ...nearRows(plan, parent.row, side)];
+        const fromOf = row => parentKey + (row === parent.row ? 0.01 : 0.05);
+        for (let sub = firstSub; sub < 9; sub++) {
+            const row = candidates.find(value => free(plan, value, fromOf(value), slotKey(loop, sub) + 0.01));
+            if (row !== undefined) return putCell(plan, def, { loop, sub, row }, fromOf(row));
+        }
+        return false;
+    }
+    /** 같은 루프의 이어짐: 바로 위아래에 쌓고, 자리가 없으면 칸을 나눈다. */
+    function placeStacked(plan, def, parent) {
+        const side = UNLOCK_FAMILIES.find(row => row.id === familyOf(def)).side, here = slotKey(parent.loop, parent.sub);
+        const row = [parent.row + side, parent.row - side].find(value => free(plan, value, here - 0.01, here + 0.01));
+        return row !== undefined ? putCell(plan, def, { loop: parent.loop, sub: parent.sub, row }, null) : placeAlong(plan, def, parent, parent.sub + 1, true);
+    }
+    function placeRow(plan, def) {
+        const parent = def.after ? plan.spots.get(def.after) : null;
+        if (!parent) return placeRoot(plan, def);
+        if (isStep(def)) return placeStep(plan, def, parent);
+        if (plan.tree.loopOf.get(def.id) === parent.loop) return placeStacked(plan, def, parent);
+        return placeAlong(plan, def, parent, 0, plan.tree.stems.get(parent.def.id) === def.id);
+    }
+    function tryCount(count, tree) {
+        const plan = { count, tree, rows: Array.from({ length: count }, () => []), spots: new Map(), me: '' };
+        for (const def of tree.order) {
+            plan.me = def.id;
+            if (!placeRow(plan, def)) return null;
+        }
+        return plan.spots;
+    }
+    /** 칸마다 가로 자리: 카드가 있는 칸은 넓게, 강화 단계만 있는 칸은 좁게. 같은 루프의 칸들을 한 눈금으로 묶는다. */
+    function measureColumns(spots) {
+        const slots = new Map();
+        spots.forEach(spot => {
+            const name = `${spot.loop}.${spot.sub}`, slot = slots.get(name) || { loop: spot.loop, sub: spot.sub, card: false };
+            slot.card = slot.card || !isStep(spot.def);
+            slots.set(name, slot);
         });
-        walk.forEach(({ def, depth, parent }) => {
-            const row = rows.get(def.id);
-            nodes.set(def.id, { def, parent, depth, row, x: GRID.padX + depth * GRID.col, y: Math.round(GRID.padY + row * GRID.row) });
+        let x = SIZE.left;
+        const columns = [...slots.values()].sort((a, b) => a.loop - b.loop || a.sub - b.sub), loops = [];
+        columns.forEach(slot => {
+            Object.assign(slot, { x, w: slot.card ? SIZE.cardCol : SIZE.pipCol });
+            x += slot.w;
+            const last = loops[loops.length - 1];
+            if (last && last.loop === slot.loop) last.w += slot.w;
+            else loops.push({ loop: slot.loop, x: slot.x, w: slot.w });
         });
-        const list = [...nodes.values()].sort((a, b) => a.row - b.row);
-        return { nodes, list, kids, width: Math.max(...list.map(node => node.x)) + GRID.padX, height: Math.max(...list.map(node => node.y)) + GRID.padY + 24 };
+        spots.forEach(spot => { spot.col = slots.get(`${spot.loop}.${spot.sub}`); });
+        return { loops, width: x + 40 };
     }
-    const tree = () => built || (built = buildUnlockTree());
-    /** 그 해금에서 뿌리까지의 선행 줄(자기 포함). */
-    function pathTo(id) {
-        const path = [];
-        for (let node = tree().nodes.get(id); node; node = tree().nodes.get(node.parent)) path.push(node.def.id);
-        return path;
+    function buildBase() {
+        const tree = readTree();
+        for (let count = SIZE.minRows; count <= SIZE.maxRows; count++) {
+            const spots = tryCount(count, tree);
+            if (spots) return { spots, count, ...measureColumns(spots) };
+        }
+        throw new Error('unlock board: no row count fits the tree');
     }
-    return Object.freeze({ grid: GRID, tree, pathTo, has: id => tree().nodes.has(id), childrenOf: id => tree().kids.get(id) || [] });
+    const built = () => base || (base = buildBase());
+    /** 판 높이에 맞춘 칸의 자리. */
+    function layout(height) {
+        const board = built(), pitch = Math.max(SIZE.minPitch, Math.min(SIZE.maxPitch, Math.floor((height - SIZE.ruler) / board.count)));
+        const cardH = Math.min(pitch - 4, SIZE.maxCard), pos = new Map();
+        board.spots.forEach((spot, id) => {
+            const step = isStep(spot.def), rowTop = SIZE.ruler + spot.row * pitch, y = rowTop + Math.floor(pitch / 2);
+            const w = step ? SIZE.pip : SIZE.cardCol - SIZE.cardGap, h = step ? SIZE.pipH : cardH, left = spot.col.x + Math.floor((spot.col.w - w) / 2);
+            pos.set(id, { def: spot.def, step, row: spot.row, loop: spot.loop, left, right: left + w, y, top: y - Math.floor(h / 2), w, h, cx: left + Math.floor(w / 2), rowTop, rowBottom: rowTop + pitch, col: spot.col });
+        });
+        return { board, pos, pitch, cardH, height };
+    }
+    const clearRun = (L, y, from, to, skip) => ![...L.pos.values()].some(row => !skip.includes(row.def.id) && row.y === y && row.left < to && row.right > from);
+    /** 선: 줄기 선은 부모 칸을 나서자 꺾어 자식 줄을 따라간다(배치가 그 길을 비워 두었다). 다른 선행은 비어 있는 길을 찾고, 없으면 줄 사이 틈으로 간다. */
+    function edgePoints(L, from, to) {
+        const p = L.pos.get(from), c = L.pos.get(to), skip = [from, to], out = p.col.x + p.col.w, inn = c.col.x;
+        if (p.col === c.col) return c.y > p.y ? [[p.cx, p.top + p.h], [p.cx, c.top]] : [[p.cx, p.top], [p.cx, c.top + c.h]];
+        const toward = (x, y) => [[p.right, p.y], [x, p.y], [x, y], [c.left, c.y]];
+        if (byId.get(to).after === from) return p.y === c.y ? [[p.right, p.y], [c.left, c.y]] : toward(out, c.y);
+        if (clearRun(L, p.y, p.right, inn, skip)) return toward(inn, c.y);
+        if (clearRun(L, c.y, out, c.left, skip)) return toward(out, c.y);
+        const gap = c.y < p.y ? p.rowTop : p.rowBottom;
+        return [[p.right, p.y], [out, p.y], [out, gap], [inn, gap], [inn, c.y], [c.left, c.y]];
+    }
+    return Object.freeze({ rows, built, layout, edgePoints, familyOf, isStep, has: id => rows.some(def => def.id === id) });
 })();
 
 const unlockTabUi = {
-    tab: '',
     selectedId: '',
     shownKey: '',
-    shownTab: '',
-    allLoops: false,
-    boughtId: '',
+    centerNow: true,
     revealId: '',
+    jump: 0,
+    shownOwned: null,
+    shownOpenParents: null,
+    layoutNow: null,
 
-    tabForUnlock(def) {
-        if (def.series) return 'upgrades';
-        if (!unlockTree.has(def.id)) return 'auto';
-        return UNLOCK_TREE_TABS.includes(this.tab) ? this.tab : 'all';
-    },
-    /** 강화 줄마다 단계와 다음 단계. */
-    upgradeRows() {
-        return CONTENT_UNLOCK_SERIES.map(spec => {
-            const steps = CONTENT_UNLOCK_CATALOG.filter(row => row.series === spec.series), rank = contentProgression.rank(spec.series);
-            const next = steps[rank] || null;
-            return { spec, steps, rank, next, ready: !!next && contentProgression.status(next.id).available };
-        });
-    },
-    treeDefs(kind) {
-        return unlockTree.tree().list.map(node => node.def).filter(def => !kind || contentProgression.kind(def) === kind);
-    },
-    readyCount(tabId) {
-        if (tabId === 'auto') return 0;
-        if (tabId === 'upgrades') return this.upgradeRows().filter(row => row.ready).length;
-        const kinds = tabId === 'all' ? ['paid', 'npc'] : [UNLOCK_TABS.find(row => row.id === tabId).kind];
-        return kinds.flatMap(kind => this.treeDefs(kind)).filter(def => contentProgression.status(def.id).available).length;
-    },
-    currentTab() {
-        if (!this.tab) this.tab = 'all';
-        return this.tab;
-    },
-    nodeState(status) {
+    // ---------------------------------------------------------------- 칸의 상태
+    /** owned 열림, ready 지금 가능, short 포인트 모자람, soon 앞 해금은 열렸고 루프나 조건을 기다림, far 앞 해금이 아직. */
+    stateOf(def) {
+        const status = contentProgression.status(def.id);
         if (status.unlocked) return 'owned';
-        return status.available ? 'ready' : 'waiting';
+        if (status.available) return 'ready';
+        if (!this.parentsOpen(def)) return 'far';
+        return contentProgression.requirements(def.id).every(row => row.met) ? 'short' : 'soon';
     },
-    stateLine(status) {
-        if (status.unlocked) return '해금 완료';
-        if (status.available) return status.npc ? '받을 수 있음' : '지금 열 수 있음';
-        return status.reason;
+    parentsOpen: def => contentProgression.parents(def).every(id => contentProgression.isUnlocked(id)),
+    readyRows() {
+        return unlockBoard.rows.filter(def => contentProgression.kind(def) === 'paid' && contentProgression.status(def.id).available);
     },
+    openCount: () => unlockBoard.rows.filter(def => contentProgression.isUnlocked(def.id)).length,
+    /** 강화 단계에서 되는 값: 칸에 그대로 적는다. rank 0은 강화 전. */
+    upgradeEffect(series, rank) {
+        const spec = CONTENT_UNLOCK_SERIES.find(row => row.series === series);
+        if (series === 'offlineHours') return `${OFFLINE_PROGRESS_RECOGNITION_HOURS[rank]}시간`;
+        if (series === 'offlineRate') return `${Math.round(OFFLINE_PROGRESS_EFFICIENCY_RATES[rank] * 100)}%`;
+        if (series === 'bagPage') return `${1 + rank}쪽`;
+        if (series === 'stumpSeal') return `${rank}칸`;
+        if (series === 'stumpQuality') return `${130 + rank * 10}%`;
+        return `+${rank * spec.storage}`;
+    },
+    gainOf(def) {
+        if (!def.series) return def.gain || '';
+        const after = this.upgradeEffect(def.series, def.rank);
+        if (def.series === 'stumpSeal') return `봉인 칸 ${after}`;
+        if (def.series === 'stumpQuality') return `품질 상한 ${after}${def.rank > 1 ? `, 접붙이기 ${def.rank + 4}단계` : ''}`;
+        if (def.series === 'stumpStorage') return `보관함 ${after}칸`;
+        return `${this.upgradeEffect(def.series, def.rank - 1)} → ${after}`;
+    },
+    cardName: def => (def.rail ? CONTENT_UNLOCK_RAILS.find(row => row.rail === def.rail).name : def.name),
 
-    // ---------------------------------------------------------------- 트리
-    /** 그림 위의 표: 포인트 값, 아직 닿지 않은 루프. 해금한 것에는 달지 않는다. */
-    nodeBadgesHtml(def, status) {
-        if (status.unlocked) return '';
-        const loop = game.season < def.minLoop ? `<b class="unlock-node-loop">L${def.minLoop}</b>` : '';
-        return `${loop}${def.cost ? `<b class="unlock-node-cost">${def.cost}P</b>` : ''}`;
+    // ---------------------------------------------------------------- 판
+    nodeClass(def, state, marks) {
+        const lit = marks.lit.has(def.id) ? ' is-lit' : '', fresh = marks.fresh.has(def.id) ? ' is-fresh' : '', chosen = this.selectedId === def.id ? ' is-chosen' : '';
+        return `fam-${unlockBoard.familyOf(def)} kind-${contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}`;
     },
-    treeNodeHtml(node) {
-        const def = node.def, status = contentProgression.status(def.id), chosen = this.selectedId === def.id, grid = unlockTree.grid;
-        const line = this.stateLine(status), kind = contentProgression.kind(def);
-        return `<button type="button" class="unlock-node kind-${kind} is-${this.nodeState(status)}${chosen ? ' is-chosen' : ''}" style="left:${node.x - grid.nodeW / 2}px;top:${node.y - grid.icon / 2}px"
-            data-unlock-select="${def.id}" data-tip="${escapeHTML(line)}" aria-pressed="${chosen}" aria-label="${escapeHTML(def.name)}, ${escapeHTML(line)}">
-            <span class="unlock-node-icon"><span class="unlock-node-frame"><img src="${contentUnlockUi.art(def)}" alt="" loading="lazy" draggable="false"></span>${this.nodeBadgesHtml(def, status)}</span>
-            <span class="unlock-node-name">${escapeHTML(def.name)}</span></button>`;
+    nodeHtml(def, L, marks) {
+        const at = L.pos.get(def.id), state = this.stateOf(def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = escapeHTML(def.name);
+        if (at.step) return `<button type="button" class="unlock-pip ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${name}, ${def.cost}P" aria-label="${name}" style="${style}">${escapeHTML(this.upgradeEffect(def.series, def.rank))}</button>`;
+        const chip = state !== 'owned' && def.cost ? `<small class="unlock-chip">${def.cost}P</small>` : '';
+        const gain = this.gainOf(def) || (def.cost ? '' : '자동');
+        const second = L.cardH >= 32 ? `<small class="unlock-card-gain">${escapeHTML(gain)}</small>` : '';
+        return `<button type="button" class="unlock-card ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" aria-label="${name}" style="${style};--icon:${at.h - 2}px">
+            <span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt="" draggable="false" loading="lazy">${chip}</span><span class="unlock-card-text"><b>${escapeHTML(this.cardName(def))}</b>${second}</span></button>`;
     },
-    /** 선: 둘 다 열렸으면 밝고, 부모만 열렸으면 다음 차례로 점선, 나머지는 어둡다. 고른 해금의 선행 줄은 더 굵다. */
-    treeEdgeClass(node, path) {
-        const parentOwned = contentProgression.isUnlocked(node.parent), owned = contentProgression.isUnlocked(node.def.id);
-        const state = parentOwned ? (owned ? 'is-lit' : 'is-next') : '';
-        return `${state}${path.includes(node.def.id) ? ' is-path' : ''}`;
-    },
-    /** 선은 꺾은 직선이다: 부모 오른쪽에서 두 열 사이의 줄기로 나와 자식에게 들어간다. 대각선은 아래 칸들의 이름 위를 지났다. 밝은 선이 위에 오도록 어두운 선부터 그린다. */
-    treeLinesHtml(tree) {
-        const path = unlockTree.pathTo(this.selectedId), rank = name => (name.includes('is-path') ? 3 : name.includes('is-lit') ? 2 : name ? 1 : 0);
-        const edges = tree.list.filter(node => node.parent).map(node => ({ node, name: this.treeEdgeClass(node, path) }));
-        return edges.sort((a, b) => rank(a.name) - rank(b.name)).map(({ node, name }) => {
-            const from = tree.nodes.get(node.parent), mid = from.x + unlockTree.grid.col / 2;
-            return `<polyline points="${from.x},${from.y} ${mid},${from.y} ${mid},${node.y} ${node.x},${node.y}" class="${name}" data-edge-to="${node.def.id}"/>`;
+    edgesHtml(L, marks) {
+        const rank = { 'is-dim': 0, 'is-next': 1, 'is-lit': 2 }, edges = [];
+        unlockBoard.rows.forEach(def => contentProgression.parents(def).forEach(from => {
+            const points = unlockBoard.edgePoints(L, from, def.id), long = Math.abs(points[points.length - 1][0] - points[0][0]) > 300;
+            const state = contentProgression.isUnlocked(def.id) ? 'is-lit' : contentProgression.isUnlocked(from) ? 'is-next' : 'is-dim';
+            edges.push({ from, to: def.id, points, long, state, side: def.after !== from, fresh: marks.lit.has(from) && marks.fresh.has(def.id) });
+        }));
+        return edges.sort((a, b) => rank[a.state] - rank[b.state]).map(edge => {
+            const name = `fam-${unlockBoard.familyOf(CONTENT_UNLOCK_CATALOG.find(row => row.id === edge.from))} ${edge.state}${edge.fresh ? ' is-new' : ''}${edge.long ? ' is-long' : ''}${edge.side ? ' is-side' : ''}`;
+            return `<polyline class="${name}"${edge.fresh ? ' pathLength="1"' : ''} data-from="${edge.from}" data-to="${edge.to}" points="${edge.points.map(point => point.join(',')).join(' ')}"/>`;
         }).join('');
     },
-    legendHtml() {
-        const shape = (kind, label) => `<span class="unlock-legend-item"><i class="unlock-node kind-${kind} is-owned"><span class="unlock-node-frame"></span></i>${label}</span>`;
-        const state = (name, label) => `<span class="unlock-legend-item"><i class="unlock-node kind-paid is-${name}"><span class="unlock-node-frame"></span></i>${label}</span>`;
-        return `<div class="unlocks-legend">${shape('paid', '포인트')}${shape('npc', 'NPC')}${shape('auto', '자동')}<span class="unlocks-legend-gap"></span>
-            ${state('owned', '해금 완료')}${state('ready', '지금 가능')}${state('waiting', '조건 대기')}</div>`;
+    nowEntry(board) {
+        return board.loops.filter(row => row.loop <= game.season).pop() || board.loops[0];
     },
-    treeHtml() {
-        const tree = unlockTree.tree();
-        return `${this.legendHtml()}<div class="unlock-tree" style="width:${tree.width}px;height:${tree.height}px">
-            <svg class="unlock-tree-lines" width="${tree.width}" height="${tree.height}" aria-hidden="true">${this.treeLinesHtml(tree)}</svg>
-            ${tree.list.map(node => this.treeNodeHtml(node)).join('')}</div>`;
+    /** 고를 수 있는 칸은 늘 지금 루프나 그 왼쪽에 있다: 지금 칸을 오른쪽에 두어 왼쪽을 넓게 보여 준다. */
+    nowLeft(scroller) {
+        const now = this.nowEntry(this.layoutNow.board);
+        return Math.max(0, now.x + now.w - scroller.clientWidth * 0.72);
     },
-
-    // ---------------------------------------------------------------- 강화
-    upgradeEffect(spec, rank) {
-        if (spec.series === 'offlineHours') return `${OFFLINE_PROGRESS_RECOGNITION_HOURS[rank]}시간`;
-        if (spec.series === 'offlineRate') return `${Math.round(OFFLINE_PROGRESS_EFFICIENCY_RATES[rank] * 100)}%`;
-        if (spec.series === 'bagPage') return `${1 + rank}쪽`;
-        return `+${rank * spec.storage}칸`;
+    railLabelsHtml(L) {
+        const rails = new Map();
+        unlockBoard.rows.filter(def => def.rail).forEach(def => {
+            const at = L.pos.get(def.id), span = rails.get(def.rail) || { left: at.left, right: at.right, first: at.right, y: at.y, def };
+            span.right = Math.max(span.right, at.right);
+            rails.set(def.rail, span);
+        });
+        return [...rails.values()].map(span => `<div class="unlock-rail fam-${unlockBoard.familyOf(span.def)}" data-card-end="${span.first}" style="left:${span.left}px;width:${span.right - span.left}px;top:${span.y - 24}px"><span>${escapeHTML(this.cardName(span.def))}</span></div>`).join('');
     },
-    upgradeStepHtml(def, index) {
-        const status = contentProgression.status(def.id), chosen = this.selectedId === def.id, line = this.stateLine(status);
-        return `<button type="button" class="unlock-step is-${this.nodeState(status)}${chosen ? ' is-chosen' : ''}" data-unlock-select="${def.id}" aria-pressed="${chosen}"
-            data-tip="${escapeHTML(`${def.cost}P, ${line}`)}" aria-label="${escapeHTML(def.name)}, ${escapeHTML(line)}">${index + 1}</button>`;
+    canvasHtml(L, marks, height) {
+        const board = L.board, now = this.nowEntry(board);
+        const ticks = board.loops.map(row => `<span class="unlock-tick${row === now ? ' is-now' : ''}${row.loop < now.loop ? ' is-past' : ''}${row.loop % 5 === 0 ? ' is-major' : ''}" style="left:${row.x}px;width:${row.w}px">${row.loop}</span>`).join('');
+        const bands = board.loops.map(row => `<span class="unlock-col${Math.floor(row.loop / 5) % 2 ? ' is-alt' : ''}" style="left:${row.x}px;width:${row.w}px"></span>`).join('');
+        return `${bands}<div class="unlock-past" style="width:${now.x}px"></div><div class="unlock-now" style="left:${now.x}px;width:${now.w}px"></div><div class="unlock-ruler">${ticks}</div>
+            <svg class="unlock-lines" width="${board.width}" height="${height}" aria-hidden="true">${this.edgesHtml(L, marks)}</svg>${this.railLabelsHtml(L)}${unlockBoard.rows.map(def => this.nodeHtml(def, L, marks)).join('')}`;
     },
-    upgradeRowHtml({ spec, steps, rank, next, ready }) {
-        const effect = next ? `${escapeHTML(this.upgradeEffect(spec, rank))} → <b>${escapeHTML(this.upgradeEffect(spec, rank + 1))}</b>` : `<b>${escapeHTML(this.upgradeEffect(spec, rank))}</b>`;
-        return `<article class="unlock-upgrade${ready ? ' is-ready' : ''}${next ? '' : ' is-max'}"><img src="assets/${spec.art}" alt="">
-            <div class="unlock-upgrade-text"><strong>${escapeHTML(spec.name)}<small>${rank}/${steps.length}단계</small></strong><span class="unlock-upgrade-effect">${effect}</span>
-            <div class="unlock-chain" role="group" aria-label="${escapeHTML(spec.name)} 단계">${steps.map((def, index) => this.upgradeStepHtml(def, index)).join('')}</div></div></article>`;
-    },
-    upgradeListHtml() {
-        return `<div class="unlock-upgrades">${this.upgradeRows().map(row => this.upgradeRowHtml(row)).join('')}</div>`;
-    },
-
-    // ---------------------------------------------------------------- 자동 개방
-    autoLoopHtml(loop) {
-        const rows = contentUnlockUi.listed(loop).filter(def => contentProgression.kind(def) === 'auto' && !unlockTree.has(def.id));
-        const additions = contentUnlockUi.roadmapAdditions(loop);
-        const state = loop < game.season ? '지난 루프' : loop === game.season ? '지금 루프' : '';
-        const items = rows.map(def => {
-            const status = contentProgression.status(def.id), chosen = this.selectedId === def.id;
-            return `<button type="button" class="unlock-auto-item${status.unlocked ? ' is-owned' : ''}${chosen ? ' is-chosen' : ''}" data-unlock-select="${def.id}" aria-pressed="${chosen}"><span>${escapeHTML(def.name)}</span><small>${escapeHTML(status.unlocked ? '열림' : status.reason)}</small></button>`;
+    /** 판 전체 지도: 칸 하나가 점 하나. 눌러 옮기고 끌어서 훑는다. */
+    overviewHtml(L) {
+        const total = L.board.width, step = 38 / L.board.count;
+        const ticks = unlockBoard.rows.map(def => {
+            const at = L.pos.get(def.id);
+            return `<i class="fam-${unlockBoard.familyOf(def)} is-${this.stateOf(def)}" style="left:${(at.cx / total * 100).toFixed(2)}%;top:${Math.round(at.row * step) + 1}px"></i>`;
         }).join('');
-        return `<article class="unlock-auto-loop${loop === game.season ? ' is-now' : ''}${loop < game.season ? ' is-past' : ''}"><header><strong>루프 ${loop}</strong>${state ? `<small>${state}</small>` : ''}</header>
-            <p class="unlock-auto-need">${escapeHTML(getLoopAbyssRequirementText(loop))}</p>${items ? `<div class="unlock-auto-items">${items}</div>` : ''}
-            ${additions.length ? `<p class="unlock-auto-extra">${additions.map(escapeHTML).join('<br>')}</p>` : ''}</article>`;
-    },
-    autoListHtml() {
-        const loops = Object.keys(SEASON_CONTENT_ROADMAP).map(Number);
-        const shown = this.allLoops ? loops : loops.filter(loop => loop >= game.season && loop <= game.season + 4);
-        return `<button type="button" class="unlock-auto-toggle" data-unlocks-loops="toggle">${this.allLoops ? '앞으로 다섯 루프만' : '모든 루프 보기'}</button>
-            <div class="unlock-auto-list">${shown.map(loop => this.autoLoopHtml(loop)).join('')}</div>`;
+        const now = this.nowEntry(L.board);
+        return `<div class="unlock-over" data-unlock-over="1">${ticks}<span class="unlock-over-now" style="left:${((now.x + now.w / 2) / total * 100).toFixed(2)}%"></span><span class="unlock-over-win"></span></div>`;
     },
 
-    // ---------------------------------------------------------------- 설명 칸
+    // ---------------------------------------------------------------- 머리와 설명
+    pointsHtml() {
+        const points = contentProgression.points();
+        if (points.complete) return '<div class="unlock-stat is-points" data-tip="넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다."><strong class="is-done">전체 해금 완료</strong></div>';
+        const tip = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.'
+            : `루프마다 ${CONTENT_UNLOCK_POINT_AWARDS.perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수가 됩니다.`;
+        return `<div class="unlock-stat is-points" data-tip="${tip}"><span>해금 포인트</span><strong>${points.balance}<small>P</small></strong></div>`;
+    },
+    headHtml() {
+        const ready = this.readyRows().length;
+        return `<header class="unlocks-head">${this.pointsHtml()}<button type="button" class="unlock-stat is-ready" data-unlock-next="1"${ready ? '' : ' disabled'}><span>지금 가능</span><strong>${ready}</strong></button>
+            <div class="unlock-over-slot"></div><div class="unlock-stat is-total"><span>전체</span><strong>${this.openCount()}<small>/${unlockBoard.rows.length}</small></strong></div></header>`;
+    },
     lifecycleHtml(def) {
         const life = def.lifecycle;
         if (!life) return '<p class="unlock-lifetime-note">기능 해금은 다음 루프에도 유지됩니다.</p>';
-        return `<details class="unlock-lifetime" id="unlock-lifetime-${def.id}"><summary>루프 전환 시, ${escapeHTML(life.label)}</summary><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
-            ${life.kept ? `<p><b>유지</b>${escapeHTML(life.kept)}</p>` : ''}${life.reset ? `<p><b>초기화</b>${escapeHTML(life.reset)}</p>` : ''}</details>`;
+        return `<div class="unlock-lifetime"><h5>루프 전환 시, ${escapeHTML(life.label)}</h5><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
+            ${life.kept ? `<p><b>유지</b>${escapeHTML(life.kept)}</p>` : ''}${life.reset ? `<p><b>초기화</b>${escapeHTML(life.reset)}</p>` : ''}</div>`;
     },
     relatedHtml(def) {
         if (!def.features) return '';
-        return `<details class="unlock-related" id="unlock-related-${def.id}"><summary>포함된 성장 요소</summary>${def.features.map(row =>
-            `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</details>`;
+        return `<div class="unlock-related"><h5>포함된 성장 요소</h5>${def.features.map(row => `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</div>`;
     },
     /** 이 해금을 두고 누가 한 말(data/story-journal.js STORY_LOOP_MILESTONES). 글만 보인다. */
     loreHtml(id) {
         const lore = STORY_LOOP_MILESTONES[id];
         if (!lore) return '';
-        return `<blockquote class="story-scene-quote"><p>${lore.narration.map(escapeHTML).join(' ')}</p>
-            <p><strong>${escapeHTML(lore.speaker)}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
+        return `<blockquote class="story-scene-quote"><p>${lore.narration.map(escapeHTML).join(' ')}</p><p><strong>${escapeHTML(lore.speaker)}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
     },
-    /** 이 해금 뒤에 열리는 해금: 누르면 그쪽으로 간다. */
-    nextUnlocksHtml(def) {
-        const kids = unlockTree.childrenOf(def.id);
-        if (!kids.length) return '';
-        return `<div class="unlock-next"><h4>다음 해금</h4><div>${kids.map(kid => `<button type="button" data-unlock-select="${kid.id}">${escapeHTML(kid.name)}</button>`).join('')}</div></div>`;
+    moreHtml(def) {
+        return `<details class="unlock-more" id="unlock-more-${def.id}"><summary>자세히</summary><div class="unlock-more-body">${this.loreHtml(def.id)}${this.lifecycleHtml(def)}${this.relatedHtml(def)}</div></details>`;
     },
-    openButtonHtml(def) {
-        return contentUnlockUi.routeAction(def) ? `<button type="button" data-open-content="${def.id}"><span class="px-center">바로 사용하기</span></button>` : '<span class="content-unlock-owned">해금 완료</span>';
+    nextHtml(def) {
+        const kids = unlockBoard.rows.filter(row => contentProgression.parents(row).includes(def.id));
+        if (!kids.length) return '<div class="unlock-next"></div>';
+        return `<div class="unlock-next"><h5>이어지는 해금</h5><div>${kids.map(kid => `<button type="button" class="unlock-next-chip fam-${unlockBoard.familyOf(kid)}" data-unlock-select="${kid.id}">
+            <span class="unlock-ic"><img src="${contentUnlockUi.art(kid)}" alt="" loading="lazy"></span><span>${escapeHTML(unlockBoard.isStep(kid) ? kid.name : this.cardName(kid))}</span></button>`).join('')}</div></div>`;
     },
-    actionHtml(def, status, kind) {
-        if (status.unlocked) return this.openButtonHtml(def);
-        if (kind === 'auto') return '<button type="button" disabled><span class="px-center">조건 달성 시 자동 개방</span></button>';
-        const reason = escapeHTML(status.reason), disabled = status.available ? '' : 'disabled';
-        if (kind === 'npc') return `<button type="button" class="unlock-npc-gift" data-npc-open="${def.npc}" ${disabled}><span class="px-center">${reason}</span></button>`;
-        return `<button type="button" data-unlock-content="${def.id}" ${disabled}><span class="px-center">${status.available ? `${def.cost}P 해금` : reason}</span></button>`;
+    actionHtml(def, status) {
+        if (status.unlocked) return contentUnlockUi.routeAction(def) ? `<button type="button" class="unlock-act" data-open-content="${def.id}">바로 사용하기</button>` : '<button type="button" class="unlock-act" disabled>해금 완료</button>';
+        if (contentProgression.kind(def) === 'auto') return `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
+        return status.available ? `<button type="button" class="unlock-act is-go" data-unlock-content="${def.id}">${def.cost}P 해금</button>` : `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
     },
-    /** 강화 단계는 그 단계가 올려 주는 값, 다른 해금은 gain. */
-    detailGainHtml(def) {
-        if (!def.series) return def.gain ? `<p class="unlock-gain">${escapeHTML(def.gain)}</p>` : '';
-        const spec = CONTENT_UNLOCK_SERIES.find(row => row.series === def.series);
-        return `<p class="unlock-gain">${escapeHTML(this.upgradeEffect(spec, def.rank - 1))} → ${escapeHTML(this.upgradeEffect(spec, def.rank))}</p>`;
-    },
-    /** 고른 해금의 설명. 해금 단추는 맨 아래에 붙어 늘 보인다(1366×768에서 스크롤 밖으로 밀려났다). */
     detailHtml(def) {
-        const status = contentProgression.status(def.id), kind = contentProgression.kind(def), conditions = contentProgression.requirements(def.id);
-        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">${escapeHTML(def.group)}, ${UNLOCK_KIND_LABEL[kind]}</span>
-            <div class="unlock-detail-art"><img src="${contentUnlockUi.art(def)}" alt=""></div><h3>${escapeHTML(def.name)}</h3>${this.detailGainHtml(def)}<p>${escapeHTML(def.description)}</p>${this.loreHtml(def.id)}</div>
-            <div class="unlock-detail-reward">${contentUnlockUi.entryReward(def, status)}</div>
-            <div class="unlock-requirements"><h4>${status.unlocked ? '해금 완료' : `해금 조건${kind === 'paid' ? ', ' + def.cost + 'P' : ''}`}</h4>${conditions.map(row => `<div class="${row.met ? 'is-met' : ''}"><span>${escapeHTML(row.label)}</span><small>${row.met ? '달성' : '미달성'}</small></div>`).join('')}</div>
-            ${this.nextUnlocksHtml(def)}${this.lifecycleHtml(def)}${this.relatedHtml(def)}
-            <div class="unlock-detail-action">${this.actionHtml(def, status, kind)}</div>`;
-    },
-    autoSummaryHtml() {
-        const next = game.season + 1;
-        return `<div class="unlock-detail-top"><span class="unlock-eyebrow">자동 개방</span><h3>루프 ${game.season}</h3>
-            <p>항목을 누르면 설명이 여기에 나옵니다.</p></div>
-            <div class="unlock-requirements"><h4>다음 루프 ${next}</h4><div><span>${escapeHTML(getLoopAbyssRequirementText(next))}</span></div></div>`;
-    },
-    /** 먼저 고를 해금: 지금 할 수 있는 것, 다음으로 가장 가까운 루프의 것. */
-    firstOfUnlocks(defs) {
-        const by = name => defs.filter(def => this.nodeState(contentProgression.status(def.id)) === name);
-        return by('ready')[0] || by('waiting').sort((a, b) => a.minLoop - b.minLoop)[0] || defs[0] || null;
-    },
-    /** 강화 단계를 산 직후에는 그 줄의 다음 단계를 고른다(연달아 올리기 좋게). */
-    stepAfterPurchase(held) {
-        if (!held || !held.series || this.boughtId !== held.id || !contentProgression.isUnlocked(held.id)) return null;
-        this.boughtId = '';
-        return CONTENT_UNLOCK_CATALOG.find(row => row.after === held.id) || null;
-    },
-    selectablePool(tabId) {
-        if (tabId === 'upgrades') return CONTENT_UNLOCK_CATALOG.filter(def => def.series);
-        if (tabId === 'auto') return CONTENT_UNLOCK_CATALOG.filter(def => contentProgression.kind(def) === 'auto' && !unlockTree.has(def.id));
-        return this.treeDefs();
-    },
-    /** 고른 것이 이 탭에 없으면 이 탭의 첫 차례를 고른다. 자동 개방 탭은 비워 둔다. */
-    settleSelection(tabId) {
-        const pool = this.selectablePool(tabId), held = pool.find(def => def.id === this.selectedId), next = this.stepAfterPurchase(held);
-        if (held && !next) return held;
-        if (!next && tabId === 'auto') { this.selectedId = ''; return null; }
-        const kind = UNLOCK_TABS.find(row => row.id === tabId).kind;
-        const first = next || this.firstOfUnlocks(kind ? this.treeDefs(kind) : pool);
-        this.selectedId = first ? first.id : '';
-        return first;
+        const status = contentProgression.status(def.id), kind = contentProgression.kind(def), kindName = kind === 'auto' ? '자동 개방' : def.rail ? '강화' : '포인트 해금';
+        const conditions = contentProgression.requirements(def.id).map(row => `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(row.label)}</span>`).join('');
+        const gain = this.gainOf(def);
+        return `<div class="unlock-detail-art fam-${unlockBoard.familyOf(def)} kind-${kind} is-${this.stateOf(def)}"><span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt=""></span></div>
+            <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${unlockBoard.familyOf(def)}">${def.rail ? kindName : `${escapeHTML(def.group)}, ${kindName}`}</span><h4>${escapeHTML(def.name)}${gain ? `<em>${escapeHTML(gain)}</em>` : ''}</h4>
+            <p class="unlock-desc">${escapeHTML(def.description)}</p><div class="unlock-reqs">${status.unlocked ? '' : conditions}</div></div>
+            ${this.nextHtml(def)}<div class="unlock-detail-action">${contentUnlockUi.entryReward(def, status)}${this.actionHtml(def, status)}${this.moreHtml(def)}</div>`;
     },
 
-    // ---------------------------------------------------------------- 화면
-    pointsHtml() {
-        const points = contentProgression.points();
-        if (points.complete) return '<div class="unlocks-points is-complete" data-tip="넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다."><strong>전체 해금 완료</strong></div>';
-        const tip = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.'
-            : `루프마다 ${CONTENT_UNLOCK_POINT_AWARDS.perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수가 됩니다.`;
-        return `<div class="unlocks-points" data-tip="${tip}"><span>해금 포인트</span><strong>${points.balance}<small>P</small></strong></div>`;
+    // ---------------------------------------------------------------- 그리기
+    /** 고른 칸: 다른 창이 고른 칸, 없으면 지금 살 수 있는 첫 칸, 그것도 없으면 첫 뿌리. */
+    settleSelection() {
+        if (!unlockBoard.has(this.selectedId)) {
+            const ready = this.readyRows();
+            this.selectedId = (ready.find(def => !def.rail) || ready[0] || unlockBoard.rows.find(def => def.id === UNLOCK_FAMILIES[0].root)).id;
+        }
+        return CONTENT_UNLOCK_CATALOG.find(def => def.id === this.selectedId);
     },
-    tabsHtml(current) {
-        return `<nav class="unlocks-tabs" aria-label="해금 종류">${UNLOCK_TABS.map(row => {
-            const count = this.readyCount(row.id);
-            return `<button type="button" class="unlocks-tab is-${row.id}" data-unlocks-tab="${row.id}" aria-pressed="${row.id === current}"><span class="px-center">${row.label}${count ? `<b>${count}</b>` : ''}</span></button>`;
-        }).join('')}</nav>`;
-    },
-    listHtml(tabId) {
-        const note = UNLOCK_TABS.find(row => row.id === tabId).note;
-        const head = note ? `<p class="unlocks-note">${note}</p>` : '';
-        if (tabId === 'upgrades') return head + this.upgradeListHtml();
-        return tabId === 'auto' ? head + this.autoListHtml() : this.treeHtml();
+    /** 지난번 그림과 달라진 칸: 방금 열린 칸은 번쩍이고, 앞 해금이 막 열린 칸은 튀어나온다. 처음 그릴 때는 소식이 아니다. */
+    readMarks() {
+        const owned = new Set(unlockBoard.rows.filter(def => contentProgression.isUnlocked(def.id)).map(def => def.id));
+        const open = new Set(unlockBoard.rows.filter(def => this.parentsOpen(def)).map(def => def.id));
+        const marks = { lit: new Set(), fresh: new Set() };
+        if (this.shownOwned) {
+            owned.forEach(id => { if (!this.shownOwned.has(id)) marks.lit.add(id); });
+            open.forEach(id => { if (!this.shownOpenParents.has(id) && !owned.has(id)) marks.fresh.add(id); });
+        }
+        this.shownOwned = owned;
+        this.shownOpenParents = open;
+        return marks;
     },
     render() {
         const root = document.getElementById('content-unlock-panel');
         if (!root || !game.contentProgression) return;
-        const tabId = this.currentTab(), selected = this.settleSelection(tabId);
-        const states = CONTENT_UNLOCK_CATALOG.map(def => [def.id, contentProgression.status(def.id), contentProgression.requirements(def.id)]);
-        const key = JSON.stringify([game.season, contentProgression.balance(), states, tabId, this.selectedId, this.allLoops, Object.keys(game.npcMet).length]);
+        const selected = this.settleSelection();
+        const states = unlockBoard.rows.map(def => this.stateOf(def)).join();
+        const key = JSON.stringify([game.season, contentProgression.balance(), states, this.selectedId, root.clientHeight, root.clientWidth]);
         if (this.shownKey === key && root.childNodes.length) return;
         this.shownKey = key;
-        this.bindUnlockPanel(root);
-        const list = root.querySelector('.unlocks-list'), kept = list && this.shownTab === tabId ? [list.scrollLeft, list.scrollTop] : [0, 0];
+        this.bindPanel(root);
+        const keep = root.querySelector('.unlocks-scroll')?.scrollLeft || 0;
         captureUiDisclosureState(root);
-        root.innerHTML = `<header class="unlocks-head">${this.pointsHtml()}${this.tabsHtml(tabId)}</header>
-            <div class="unlocks-body is-${tabId}"><div class="unlocks-list">${this.listHtml(tabId)}</div>
-            <aside class="unlock-detail" aria-label="고른 해금">${selected ? this.detailHtml(selected) : this.autoSummaryHtml()}</aside></div>`;
+        root.innerHTML = `${this.headHtml()}<div class="unlocks-view"><div class="unlocks-scroll"><div class="unlocks-canvas"></div></div>
+            <div class="unlock-fade is-left"></div><div class="unlock-fade is-right"></div><div class="unlock-corner">루프</div>
+            <button type="button" class="unlock-edge is-left" data-unlock-edge="-1"></button><button type="button" class="unlock-edge is-right" data-unlock-edge="1"></button>
+            <button type="button" class="unlock-to-now" data-unlock-now="1">지금으로</button></div><aside class="unlock-detail" aria-label="고른 해금">${this.detailHtml(selected)}</aside>`;
         restoreUiDisclosureState(root);
-        this.shownTab = tabId;
-        this.placeUnlockList(root, kept);
+        this.fillBoard(root, keep);
     },
-    /** 판의 스크롤을 지키고, 다른 창에서 고른 해금은 보이는 자리로 끌어온다. */
-    placeUnlockList(root, [left, top]) {
-        const list = root.querySelector('.unlocks-list');
-        if (!list) return;
-        list.scrollLeft = left;
-        list.scrollTop = top;
-        if (this.revealId) root.querySelector(`.unlocks-list [data-unlock-select="${this.revealId}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    fillBoard(root, keep) {
+        const view = root.querySelector('.unlocks-view'), height = view.clientHeight;
+        if (!height) return; // 창이 닫혀 있다: 열려서 크기가 생기면 다시 그린다(bindPanel).
+        const L = this.layoutNow = unlockBoard.layout(height), marks = this.readMarks();
+        const canvas = root.querySelector('.unlocks-canvas'), scroller = root.querySelector('.unlocks-scroll');
+        canvas.style.width = `${L.board.width}px`;
+        canvas.innerHTML = this.canvasHtml(L, marks, height);
+        root.querySelector('.unlock-over-slot').innerHTML = this.overviewHtml(L);
+        scroller.scrollLeft = this.centerNow || this.shownSeason !== game.season ? this.nowLeft(scroller) : keep;
+        if (scroller.clientWidth) { this.centerNow = false; this.shownSeason = game.season; }
+        this.syncOverlays(root);
+        if (this.revealId) this.scrollToNode(root, this.revealId);
         this.revealId = '';
     },
-    /** 고르기: 그 해금이 있는 탭으로 간다(다른 창에서 불러도 된다). */
+    /** 지도 창과 화면 밖의 고를 거리: 스크롤마다 다시 그리지 않고 값만 옮긴다. */
+    syncOverlays(root) {
+        const scroller = root.querySelector('.unlocks-scroll'), win = root.querySelector('.unlock-over-win');
+        if (!scroller || !win || !this.layoutNow) return;
+        const total = this.layoutNow.board.width, left = scroller.scrollLeft, width = scroller.clientWidth;
+        win.style.left = `${(left / total * 100).toFixed(2)}%`;
+        win.style.width = `${(width / total * 100).toFixed(2)}%`;
+        const spots = this.readyRows().map(def => this.layoutNow.pos.get(def.id));
+        const paint = (selector, count, label) => {
+            const el = root.querySelector(selector);
+            el.textContent = label(count);
+            el.classList.toggle('is-on', count > 0);
+        };
+        paint('.unlock-edge.is-left', spots.filter(at => at.left < left).length, count => `◀ 가능 ${count}`);
+        paint('.unlock-edge.is-right', spots.filter(at => at.right > left + width).length, count => `가능 ${count} ▶`);
+        root.querySelectorAll('.unlock-rail').forEach(el => el.classList.toggle('is-stuck', Number(el.dataset.cardEnd) < left));
+        root.querySelector('.unlock-fade.is-left').classList.toggle('is-on', left > 2);
+        root.querySelector('.unlock-fade.is-right').classList.toggle('is-on', left + width < total - 2);
+    },
+    scrollToNode(root, id) {
+        const scroller = root.querySelector('.unlocks-scroll'), at = this.layoutNow?.pos.get(id);
+        if (at && scroller) scroller.scrollTo({ left: at.cx - scroller.clientWidth / 2, behavior: 'smooth' });
+    },
+    /** 고르기: 다른 창에서 불러도 된다. 판 밖의 줄(루프 1에 열리는 전술, 저널 들)은 고르지 않는다. */
     select(id) {
-        const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
-        if (!def) return;
-        this.tab = this.tabForUnlock(def);
+        if (!unlockBoard.has(id)) return;
         this.selectedId = id;
         this.revealId = id;
         this.render();
-        const root = document.getElementById('content-unlock-panel');
-        if (root && root.clientWidth <= 720) root.querySelector('.unlock-detail')?.scrollIntoView({ block: 'nearest' });
+    },
+
+    // ---------------------------------------------------------------- 손놀림
+    jumpOffscreen(root, direction) {
+        const scroller = root.querySelector('.unlocks-scroll'), seenFrom = scroller.scrollLeft, seenTo = seenFrom + scroller.clientWidth;
+        const list = this.readyRows().map(def => this.layoutNow.pos.get(def.id)).filter(at => (direction < 0 ? at.left < seenFrom : at.right > seenTo)).sort((a, b) => a.left - b.left);
+        if (list.length) this.select((direction < 0 ? list[list.length - 1] : list[0]).def.id);
+    },
+    cycleReady() {
+        const list = this.readyRows().sort((a, b) => this.layoutNow.pos.get(a.id).left - this.layoutNow.pos.get(b.id).left);
+        if (!list.length) return;
+        this.jump = (this.jump + 1) % list.length;
+        this.select(list[this.jump].id);
     },
     handleClick(event) {
         const control = event.target.closest?.('#content-unlock-panel button');
         if (!control) return;
-        const data = control.dataset;
-        if (data.unlockContent) this.boughtId = data.unlockContent;
+        const root = document.getElementById('content-unlock-panel'), data = control.dataset;
         if (data.unlockSelect) { this.select(data.unlockSelect); return; }
-        if (data.unlocksTab) this.tab = data.unlocksTab;
-        if (data.unlocksLoops) this.allLoops = !this.allLoops;
-        if (data.unlocksTab || data.unlocksLoops) this.render();
+        if (data.unlockNext) { this.cycleReady(); return; }
+        if (data.unlockEdge) { this.jumpOffscreen(root, Number(data.unlockEdge)); return; }
+        if (data.unlockNow) { const scroller = root.querySelector('.unlocks-scroll'); scroller.scrollTo({ left: this.nowLeft(scroller), behavior: 'smooth' }); }
     },
-
-    // ---------------------------------------------------------------- 판 위의 손놀림
-    /** 해금 위에 마우스를 올리면 뿌리까지의 선행 줄이 밝아진다(다시 그리지 않고 표시만 옮긴다). */
-    markUnlockPath(root, id) {
-        root.querySelectorAll('.is-hover-path').forEach(el => el.classList.remove('is-hover-path'));
+    /** 칸 위에 마우스를 올리면 뿌리까지의 선행이 밝아진다(다시 그리지 않고 표시만 옮긴다). */
+    markPath(root, id) {
+        root.querySelectorAll('.is-path').forEach(el => el.classList.remove('is-path'));
         if (!id) return;
-        unlockTree.pathTo(id).forEach(step => {
-            const edge = root.querySelector(`[data-edge-to="${step}"]`);
-            edge?.classList.add('is-hover-path');
-            edge?.parentNode.appendChild(edge); // 줄기를 함께 쓰는 다른 선 위로
-            root.querySelector(`.unlock-tree .unlock-node[data-unlock-select="${step}"]`)?.classList.add('is-hover-path');
+        const path = new Set(), waiting = [id];
+        while (waiting.length) {
+            const step = waiting.pop();
+            path.add(step);
+            waiting.push(...contentProgression.parents(CONTENT_UNLOCK_CATALOG.find(def => def.id === step)));
+        }
+        root.querySelectorAll('.unlocks-canvas [data-unlock-select]').forEach(el => { if (path.has(el.dataset.unlockSelect)) el.classList.add('is-path'); });
+        root.querySelectorAll('polyline[data-to]').forEach(el => {
+            if (!path.has(el.dataset.to) || !path.has(el.dataset.from)) return;
+            el.classList.add('is-path');
+            el.parentNode.appendChild(el);
         });
     },
     /** 마우스로 판의 빈 곳을 끌면 판이 움직인다(스킬트리처럼). 손가락은 그대로 스크롤한다. */
-    startUnlockTreePan(event, list) {
-        if (event.pointerType !== 'mouse' || event.button || event.target.closest('button, a, input, select, summary')) return;
-        const scale = uiDisplay.factor || 1, from = { x: event.clientX, y: event.clientY, left: list.scrollLeft, top: list.scrollTop };
-        const pan = move => {
-            list.scrollLeft = from.left - (move.clientX - from.x) / scale;
-            list.scrollTop = from.top - (move.clientY - from.y) / scale;
-        };
-        const release = () => {
-            window.removeEventListener('pointermove', pan);
-            list.classList.remove('is-panning');
-        };
-        list.classList.add('is-panning');
+    startPan(event, root) {
+        if (event.pointerType !== 'mouse' || event.target.closest('button')) return;
+        const scroller = root.querySelector('.unlocks-scroll'), scale = uiDisplay.factor || 1, from = { x: event.clientX, left: scroller.scrollLeft };
+        const pan = move => { scroller.scrollLeft = from.left - (move.clientX - from.x) / scale; };
+        const release = () => { window.removeEventListener('pointermove', pan); scroller.classList.remove('is-panning'); };
+        scroller.classList.add('is-panning');
         window.addEventListener('pointermove', pan);
         window.addEventListener('pointerup', release, { once: true });
     },
-    bindUnlockPanel(root) {
-        if (root.dataset.unlockTreeBound) return;
-        root.dataset.unlockTreeBound = '1';
+    startOverview(event, root) {
+        const box = root.querySelector('.unlock-over'), scroller = root.querySelector('.unlocks-scroll');
+        const go = move => {
+            const rect = box.getBoundingClientRect();
+            scroller.scrollLeft = (move.clientX - rect.left) / rect.width * this.layoutNow.board.width - scroller.clientWidth / 2;
+        };
+        go(event);
+        window.addEventListener('pointermove', go);
+        window.addEventListener('pointerup', () => window.removeEventListener('pointermove', go), { once: true });
+    },
+    onPointerDown(event, root) {
+        if (event.button) return;
+        if (event.target.closest?.('.unlock-over')) { this.startOverview(event, root); return; }
+        if (event.target.closest?.('.unlocks-scroll')) this.startPan(event, root);
+    },
+    /** 세로 휠은 판을 가로로 민다. */
+    onWheel(event, root) {
+        if (!event.target.closest?.('.unlocks-view')) return;
+        event.preventDefault();
+        root.querySelector('.unlocks-scroll').scrollLeft += event.deltaY || event.deltaX;
+    },
+    bindPanel(root) {
+        if (root.dataset.unlockBound) return;
+        root.dataset.unlockBound = '1';
         root.addEventListener('pointerover', event => {
-            const node = event.target.closest?.('.unlock-tree .unlock-node');
-            this.markUnlockPath(root, node ? node.dataset.unlockSelect : '');
+            const node = event.target.closest?.('.unlocks-canvas [data-unlock-select]');
+            this.markPath(root, node ? node.dataset.unlockSelect : '');
         });
-        root.addEventListener('pointerleave', () => this.markUnlockPath(root, ''));
-        root.addEventListener('pointerdown', event => {
-            const list = event.target.closest?.('.unlocks-list');
-            if (list) this.startUnlockTreePan(event, list);
-        });
+        root.addEventListener('pointerleave', () => this.markPath(root, ''));
+        root.addEventListener('pointerdown', event => this.onPointerDown(event, root));
+        root.addEventListener('wheel', event => this.onWheel(event, root), { passive: false });
+        root.addEventListener('scroll', () => this.syncOverlays(root), true);
+        new ResizeObserver(() => { if (root.clientWidth) this.render(); }).observe(root);
     }
 };
 document.addEventListener('click', event => unlockTabUi.handleClick(event));
-safeExposeGlobals({ unlockTabUi });
+safeExposeGlobals({ unlockTabUi, unlockBoard });

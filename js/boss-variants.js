@@ -7,7 +7,7 @@ const bossVariants = (() => {
     const IDS = Object.freeze(V.kinds.map(kind => kind.id));
     // 나무꾼, 경계 너머, 정점 관문과 아스트라는 이미 정해진 싸움이라 변이하지 않는다.
     const FIXED_ZONE_TYPES = new Set(['outsideChaos', 'beyondBoundary']);
-    const open = state => (Number(state.season) || 1) >= V.minLoop;
+    const open = state => contentProgression.holds('bossVariant', state);
     const eligible = (enemy, zone) => !!enemy && enemy.isBoss && !enemy.bossVariant && !!zone && !FIXED_ZONE_TYPES.has(zone.type)
         && !zone.milestonePinnacle && zone.id !== 'cosmos_astra';
     const pick = random => V.kinds[Math.min(V.kinds.length - 1, Math.floor(random() * V.kinds.length))];

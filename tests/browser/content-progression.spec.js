@@ -44,21 +44,18 @@ test('the unlock buy button stays visible in a small desktop window', async ({ p
     expect(hit).toBe(true);
 });
 
-// 2026-11-02: the unlock tab draws the prerequisites as a tree; it stays inside the window, and the kinds have their tabs.
-test('the unlock tab draws a prerequisite tree and its kinds fit the window', async ({ page }, info) => {
+// 2026-11-02: the unlock tab is one tree from three roots: it scrolls along the loops and the panel itself stays inside the window.
+test('the unlock tab draws one tree that scrolls by loop', async ({ page }, info) => {
     await page.evaluate(() => {
         game.season = 20; game.contentProgression.highestLoop = 20;
-        contentProgression.sync(); updateStaticUI(); openTabPane('tab-unlocks'); unlockTabUi.tab = 'all'; unlockTabUi.render();
+        contentProgression.sync(); updateStaticUI(); openTabPane('tab-unlocks'); unlockTabUi.render();
     });
     const panel = page.locator('#content-unlock-panel');
-    await expect(panel.locator('.unlock-tree [data-unlock-select="gemAwakening"]')).toBeVisible();
-    await expect(panel.locator('.unlock-tree-lines [data-edge-to="gemAwakening"]')).toHaveCount(1);
+    await expect(panel.locator('.unlocks-canvas [data-unlock-select="gemAwakening"]')).toHaveCount(1);
+    await expect(panel.locator('.unlock-lines [data-to="gemAwakening"]')).toHaveCount(2);
     expect(await panel.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
-    await panel.locator('[data-unlocks-tab="npc"]').click();
-    await expect(panel.locator('.unlock-tree .unlock-node.kind-npc[data-unlock-select="fossil"]')).toBeVisible();
+    expect(await panel.locator('.unlocks-scroll').evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
     await expect(panel.locator('.unlock-detail img[src*="portrait"]')).toHaveCount(0);
-    await panel.locator('[data-unlocks-tab="upgrades"]').click();
-    await expect(panel.locator('.unlock-upgrade')).toHaveCount(4);
     await page.screenshot({ path: info.outputPath('unlock-tab.png') });
 });
 

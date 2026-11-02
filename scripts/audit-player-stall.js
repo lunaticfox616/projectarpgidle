@@ -61,8 +61,7 @@ function seededRandom(initial) {
 function freshShop() {
     const owner = runtime.mergeDefaults({ season: 2, contentProgression: clone(read('defaultGame.contentProgression')) });
     runtime.contentProgression.sync(owner);
-    owner.npcMet.orga = { count: 1 };
-    assert.equal(runtime.contentProgression.gift('craft', owner).ok, true);
+    owner.contentProgression.inherited.push('craft', 'market');
     assert.equal(runtime.playerStall.unlocked(owner), true, 'Use the real marketplace unlock path');
     runtime.playerStall.advance(owner, startAt);
     return owner;

@@ -6,7 +6,7 @@ const gardenOils = (() => {
     const BY_KEY = new Map(G.oils.map(oil => [oil.key, oil]));
     const BY_COLOR = new Map(G.oils.map(oil => [oil.color, oil]));
     const KEYS = Object.freeze(G.oils.map(oil => oil.key));
-    const open = state => (Number(state.season) || 1) >= G.minLoop;
+    const open = state => contentProgression.holds('garden', state);
     let poolCache = null;
 
     /** Anointable major nodes per colour: plain stat effects the equipment stats carry, in a stable order. */
@@ -38,7 +38,7 @@ const gardenOils = (() => {
     const needs = bowl => (Array.isArray(bowl) ? bowl : []).reduce((out, key) => ({ ...out, [key]: (out[key] || 0) + 1 }), {});
     /** '' when this bowl can go on this amulet now, otherwise why not. */
     function anointReason(state, item, bowl) {
-        if (!open(state)) return `루프 ${G.minLoop}부터 바를 수 있습니다.`;
+        if (!open(state)) return '시든 정원 해금 뒤에 바를 수 있습니다.';
         if (!item || item.slot !== '목걸이') return '목걸이에만 바를 수 있습니다.';
         if (colorsOf(bowl).length !== G.perAnoint) return `기름 ${G.perAnoint}개를 고르세요.`;
         const short = Object.entries(needs(bowl)).find(([key, need]) => (state.currencies[key] || 0) < need);
@@ -48,11 +48,11 @@ const gardenOils = (() => {
     /** The engraved nodes by slot, [first, second] (null for an empty slot). */
     const nodesOf = item => (item && item.anoint ? [majorOf(item.anoint.nodeId), majorOf(item.anoint.second)] : [null, null]);
     const nodeOf = item => nodesOf(item)[0];
-    /** Slots open now: one, two from loop 48. */
-    const slotCount = state => ((Number(state.season) || 1) >= G.secondSlotLoop ? 2 : 1);
-    /** '' when the node may go in this slot: the second slot opens at loop 48 after the first, and one node fills one slot only. */
+    /** Slots open now: one, two with the 기름 둘째 자리 unlock. */
+    const slotCount = state => (contentProgression.holds('oilSecond', state) ? 2 : 1);
+    /** '' when the node may go in this slot: the second slot opens with its unlock after the first, and one node fills one slot only. */
     function slotReason(state, item, nodeId, slot) {
-        if (slot !== 0 && (slot !== 1 || slotCount(state) < 2)) return `둘째 자리는 루프 ${G.secondSlotLoop}부터 열립니다.`;
+        if (slot !== 0 && (slot !== 1 || slotCount(state) < 2)) return '둘째 자리는 기름 둘째 자리 해금 뒤에 열립니다.';
         const [first, second] = nodesOf(item), other = slot === 0 ? second : first;
         if (slot === 1 && !first) return '첫째 자리부터 바르세요.';
         return other && other.id === nodeId ? '같은 노드를 두 자리에 새길 수 없습니다.' : '';
@@ -89,7 +89,7 @@ const gardenOils = (() => {
     }
     /** 열매 기름(data/stump-cube.js fruit_oil): two ripe fruits of one colour → that colour's oil. */
     function fruitRecipe([group], state) {
-        if (!open(state)) return { ok: false, reason: `루프 ${G.minLoop}부터 만들 수 있습니다.` };
+        if (!open(state)) return { ok: false, reason: '시든 정원 해금 뒤에 만들 수 있습니다.' };
         const oil = BY_COLOR.get(group[0] && group[0].item && group[0].item.color);
         return oil ? { ok: true, consumed: group, outputs: [{ kind: 'currency', key: oil.key, amount: 1 }] } : { ok: false, reason: '이 색의 기름은 없습니다.' };
     }

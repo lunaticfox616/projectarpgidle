@@ -13330,7 +13330,7 @@ function checkUnlocks() {
             u.codex = true;
             game.noti.codex = true;
             queueContentNotice('unlock_codex', '첫 고유 장비', 'codex', { open: '고유 장비를 처음 얻었습니다.\n‘기록 → 도감’에 등록하면 도감 보너스를 받습니다.',
-                locked: '고유 장비를 처음 얻었습니다.\n베른에게서 고유 도감을 받으면 등록해 도감 보너스를 얻습니다.' }, 'tab-codex');
+                locked: '고유 장비를 처음 얻었습니다.\n고유 도감을 해금하면 등록해 도감 보너스를 얻습니다.' }, 'tab-codex');
         }
     }
     if (game.maxZoneId >= 1 && !u.map) {
@@ -13349,7 +13349,7 @@ function checkUnlocks() {
             boundaryButton.classList.add('map-explore-tab-unlock-reveal');
             setTimeout(() => boundaryButton.classList.remove('map-explore-tab-unlock-reveal'), 1400);
         }
-        queueTutorialNotice('unlock_beyond_boundary', '경계 너머', '완전한 수관과 최종 관문 너머로 끝없는 도전이 열렸습니다.\n‘지도 → 탐험 → 경계 너머’에서 단계를 고르고 키울 경계 인장을 정하세요.', 'tab-map');
+        queueOpenContentNotice('beyond', 'unlock_beyond_boundary', '경계 너머', '완전한 수관과 최종 관문 너머로 끝없는 도전이 열렸습니다.\n‘지도 → 탐험 → 경계 너머’에서 단계를 고르고 키울 경계 인장을 정하세요.', 'tab-map');
     }
     if (game.season > 1 && !u.season) {
         u.season = true;

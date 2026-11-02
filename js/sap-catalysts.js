@@ -6,7 +6,7 @@ const sapCatalysts = (() => {
     const BY_KEY = new Map(C.kinds.map(kind => [kind.key, kind]));
     const BY_COLOR = new Map(C.kinds.filter(kind => kind.color).map(kind => [kind.color, kind]));
     const KEYS = Object.freeze(C.kinds.map(kind => kind.key));
-    const open = state => (Number(state.season) || 1) >= C.minLoop;
+    const open = state => contentProgression.holds('sapWound', state);
     const quality = item => Math.max(0, Math.floor(Number(item.quality) || 0));
 
     /** '' when this catalyst can go on the item, otherwise why not (crafting rules: no corrupted item; a full same-tag quality is pointless). */
@@ -36,7 +36,7 @@ const sapCatalysts = (() => {
     }
     /** 호박석 조합(data/stump-cube.js amber_catalyst): two ripe saps of one colour → that colour's catalyst. */
     function amberRecipe([group], state) {
-        if (!open(state)) return { ok: false, reason: `루프 ${C.minLoop}부터 만들 수 있습니다.` };
+        if (!open(state)) return { ok: false, reason: '수액 상처 해금 뒤에 만들 수 있습니다.' };
         const kind = BY_COLOR.get(group[0] && group[0].item && group[0].item.color);
         if (!kind) return { ok: false, reason: '이 색의 기폭제는 없습니다.' };
         return { ok: true, consumed: group, outputs: [{ kind: 'currency', key: kind.key, amount: 1 }] };
@@ -44,7 +44,7 @@ const sapCatalysts = (() => {
     /** 기폭제 바꾸기(data/stump-cube.js catalyst_exchange, 2026-10-30 사용자): the sap colour's catalyst, and the held catalysts of
      * other kinds that may be turned into it (STUMP_CUBE_CATALYST_EXCHANGE of them), or why it cannot be made. */
     function exchangePlan(amber, state) {
-        if (!open(state)) return { reason: `루프 ${C.minLoop}부터 만들 수 있습니다.` };
+        if (!open(state)) return { reason: '수액 상처 해금 뒤에 만들 수 있습니다.' };
         const kind = BY_COLOR.get(amber && amber.color);
         if (!kind) return { reason: '이 색의 기폭제는 없습니다.' };
         const held = KEYS.filter(key => key !== kind.key && (state.currencies[key] || 0) > 0);

@@ -213,7 +213,7 @@ const actTitleCard = (() => {
         const tabShown = !!game.unlocks.npcs;
         npcShop.meet(npc, zone);
         // 해금할 것이 있거나 진열대가 새로 놓였으면(만날 때마다 새로 놓인다, 1회차 첫 만남의 하켄만 닫혀 있다) NPC 탭에 점을 켠다.
-        if (contentUnlockUi.npcNews(npc) === 'unlock' || npcShop.stock(npc.id)) game.noti.npcs = true;
+        if (npcShop.stock(npc.id)) game.noti.npcs = true;
         if (!tabShown) updateTabUnlockButtons();
     }
     const greets = row => !!row && GREET.keys.has(row.key) && row.zone === zone;
@@ -303,18 +303,16 @@ const actTitleCard = (() => {
         drawCrispCanvasText(ctx, npc.name, x, y, 'strokeText');
         drawCrispCanvasText(ctx, npc.name, x, y);
     }
-    /** The mark over the name in a dark square: a gold "!" for an unlock to offer, three pale dots for a keyword not yet heard
-     * (js/content-progression-ui.js npcNews). */
-    function npcOfferMark(ctx, x, y, kind) {
-        const colour = kind === 'unlock' ? TONES.gold : '#d9cfb8';
+    /** The mark over the name in a dark square: three pale dots for a keyword not yet heard (js/content-progression-ui.js npcNews). */
+    function npcOfferMark(ctx, x, y) {
+        const colour = '#d9cfb8';
         ctx.fillStyle = 'rgba(12,10,12,0.92)';
         ctx.fillRect(x - 8, y - 9, 16, 18);
         ctx.strokeStyle = colour;
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 7.5, y - 8.5, 15, 17);
         ctx.fillStyle = colour;
-        if (kind === 'unlock') drawCrispCanvasText(ctx, '!', x, y + 1);
-        else for (let dot = -1; dot <= 1; dot++) ctx.fillRect(x + dot * 4 - 1, y + 2, 2, 2);
+        for (let dot = -1; dot <= 1; dot++) ctx.fillRect(x + dot * 4 - 1, y + 2, 2, 2);
     }
     // A monster striking the NPC (act 1's first monster, js/combat.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
     // flashes white and a few sparks burst on it. The picture itself never moves (no code-made motion).

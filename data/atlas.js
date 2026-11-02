@@ -140,13 +140,13 @@ const ATLAS = Object.freeze({
             golden: Object.freeze([['skyEssence', 3]]), chest: Object.freeze(['skyEssence', 1]) }),
         // 잿불 터(12번 루프 30, data/ember-corruption.js): 잿불 무리(화염으로 치고, 잿불 테와 불씨가 보인다)가 잿불가지와 드물게
         // 타오른 잿불가지를 떨어뜨린다. 루프 30부터(minLoop), 잊힌 정원(화염 지역) 지도에서는 두 배로 자주(regionChance).
-        emberField: Object.freeze({ name: '잿불 터', chance: 8, packExtra: 3, prefix: '잿불', minLoop: 30, regionChance: Object.freeze({ garden: 2 }),
+        emberField: Object.freeze({ name: '잿불 터', chance: 8, packExtra: 3, prefix: '잿불', minLoop: 30, unlock: 'emberField', regionChance: Object.freeze({ garden: 2 }),
             ele: 'fire', outline: '#ffb347', sparks: '#ff9a3c', enemy: Object.freeze({ hp: 1.5, damage: 1.25, attack: 1.15, exp: 1.6 }),
             rewards: Object.freeze([['emberBranch', 2, 0.1], ['burningEmberBranch', 0.1, 0]]), mapChance: 0.15,
             golden: Object.freeze([['burningEmberBranch', 1]]), chest: Object.freeze(['emberBranch', 2]) }),
         // 수액 상처(12번 루프 32, data/sap-catalysts.js): 세계수의 상처에서 굳은 수액 무리(단단하다, 호박 테와 수액 방울)가 기폭제를
         // 떨어뜨린다. 루프 32부터, 고목 줄기 지도에서 두 배. 방을 비우면 무작위 한 종류의 기폭제(키 목록이면 하나를 고른다).
-        sapWound: Object.freeze({ name: '수액 상처', chance: 8, packExtra: 3, prefix: '수액', minLoop: 32, regionChance: Object.freeze({ trunk: 2 }),
+        sapWound: Object.freeze({ name: '수액 상처', chance: 8, packExtra: 3, prefix: '수액', minLoop: 32, unlock: 'sapWound', regionChance: Object.freeze({ trunk: 2 }),
             outline: '#e8c15a', sparks: '#f2b33d', enemy: Object.freeze({ hp: 2, damage: 1.1, attack: 0.95, exp: 1.7 }),
             rewards: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 1, 0.1]]), mapChance: 0.15,
             golden: Object.freeze([[Object.freeze(['catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon']), 2]]),
@@ -157,11 +157,11 @@ const ATLAS = Object.freeze({
         // 깊은 뿌리 지도에서 두 배. 방을 비우면 무작위 한 색의 기름 2 + 등급당 0.15.
         // 묘목장(12번 루프 39, data/stump-nursery.js): 묘목 무리(초록 테와 잎사귀)가 그 지도 지역 색의 씨앗과 수액을 떨어뜨리고, 방을 비우면
         // 하나는 반드시(js/atlas-run.js clearRoom). 루프 39부터, 하늘 가지 지도에서 두 배.
-        nursery: Object.freeze({ name: '묘목장', chance: 8, packExtra: 2, prefix: '묘목', minLoop: 39, regionChance: Object.freeze({ canopy: 2 }),
+        nursery: Object.freeze({ name: '묘목장', chance: 8, packExtra: 2, prefix: '묘목', minLoop: 39, unlock: 'nursery', regionChance: Object.freeze({ canopy: 2 }),
             ordinaryRoster: Object.freeze(['atlas-canopy-leafglider', 'atlas-canopy-leafglider', 'postchaos-inverted-sapling']),
             outline: '#7fd99a', sparks: '#b8f0a0', enemy: Object.freeze({ hp: 1.3, damage: 1.1, attack: 1.05, exp: 1.5 }),
             rewards: Object.freeze([['magicBud', 3, 0.2]]), mapChance: 0.15 }),
-        witheredGarden: Object.freeze({ name: '시든 정원', chance: 8, packExtra: 3, prefix: '시든', minLoop: 36, regionChance: Object.freeze({ roots: 2 }),
+        witheredGarden: Object.freeze({ name: '시든 정원', chance: 8, packExtra: 3, prefix: '시든', minLoop: 36, unlock: 'garden', regionChance: Object.freeze({ roots: 2 }),
             // 희귀 굴림과 정예를 남기고 보통 슬롯 최대 둘에만 전열·후열을 지정한다. ownLook을 켜는 roster와 다르다.
             ordinaryRoster: Object.freeze(['atlas-garden-bonsai-snail', 'act9-chorus-bulbs']),
             ele: 'chaos', outline: '#a8c97f', sparks: '#cfe0a0', enemy: Object.freeze({ hp: 1.4, damage: 1.2, attack: 1.1, exp: 1.6 }),
@@ -186,7 +186,7 @@ const ATLAS = Object.freeze({
     encounterRegionShare: 0.5,
     // 깊어지는 해금(12번 루프 50): 지도마다 콘텐츠 방이 하나 더(패시브와 각인의 몫과 따로). 루프 75에 하나 더(2026-10-09,
     // 루프 50 이후 이정표).
-    encounterLoopBonus: Object.freeze([Object.freeze({ loop: 50, extra: 1 }), Object.freeze({ loop: 75, extra: 1 })]),
+    encounterLoopBonus: Object.freeze([Object.freeze({ loop: 50, extra: 1, unlock: 'roomOne' }), Object.freeze({ loop: 75, extra: 1, unlock: 'roomTwo' })]),
     // 깨어난 뒤의 제단(late)은 콘텐츠 방 자리를 나눠 쓰지 않고 따로 이만큼까지(그래서 깨어나도 기존 방 확률이 줄지 않는다).
     altarLimit: 1,
     // 지역 수호자: 지역의 가장 안쪽 노드(칸 7 · 8)와 이어진 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형].

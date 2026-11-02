@@ -11,7 +11,7 @@ const CONTENT_ROUTE_PATHS = Object.freeze({
     'map-explore-voidrift': '지도 → 혼돈의 뿌리 → 대균열', 'map-explore-colony': '지도 → 탐험 → 군락지',
     'map-explore-trials': '지도 → 탐험 → 전직 시련', 'map-explore-chaos': '지도 → 혼돈의 뿌리 → 혼돈 심화', 'map-explore-meteor': '지도 → 탐험 → 운석 낙하'
 });
-// 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 해금 카드는 띄우지 않는다.
+// 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 그 카드를 이미 띄웠으면 해금 카드는 띄우지 않는다.
 const CONTENT_CARD_DEDICATED = Object.freeze({
     stump: 'unlock_stump_box', timerift: 'unlock_time_rift',
     chaosRealm: 'unlock_chaos_realm', sky: 'unlock_sky_tower', underworld: 'unlock_underworld', cosmos: 'unlock_cosmos',
@@ -33,14 +33,12 @@ const contentUnlockUi = {
                 `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`, 'tab-unlocks');
             return;
         }
-        const added = this.listed(game.season).filter(def => contentProgression.kind(def) !== 'auto' && !contentProgression.isUnlocked(def.id));
-        const paid = added.filter(def => contentProgression.kind(def) === 'paid').map(def => `[${def.name}]`);
-        const byNpc = new Map();
-        added.filter(def => def.npc).forEach(def => byNpc.set(def.npc, [...(byNpc.get(def.npc) || []), `[${def.name}]`]));
+        const added = this.listed(game.season).filter(def => contentProgression.kind(def) === 'paid' && !contentProgression.isUnlocked(def.id)
+            && contentProgression.parents(def).every(id => contentProgression.isUnlocked(id)));
+        const paid = added.map(def => `[${def.name}]`);
         if (contentProgression.points().complete && !added.length) return;
         const lines = [`해금 포인트 ${contentProgression.balance()}P`];
         if (paid.length) lines.push(`새 해금: ${paid.join(', ')}`);
-        byNpc.forEach((names, npc) => lines.push(`${contentProgression.npcName(npc)}: ${names.join(', ')}`));
         // 고를 것이 새로 없는 루프(7, 9)는 다음에 열리는 루프를 한 줄 미리 보인다.
         if (!added.length) {
             const ahead = CONTENT_UNLOCK_CATALOG.filter(def => !def.series && def.minLoop > game.season).reduce((min, def) => Math.min(min, def.minLoop), Infinity);
@@ -95,22 +93,14 @@ const contentUnlockUi = {
     roadmapAdditions(loop) {
         return (SEASON_CONTENT_ROADMAP[loop]?.features || []).filter(text => /심화:|그루터기 함|아틀라스:|야생 부적|전환점:|전술 조건|버려진 날붙이|최종 관문|세계수 껍질/.test(text));
     },
-    /** hides(id): in the NPC window's 즉시 해금, whether an unlock is still hidden there (npcKnows); its name is left out of the first reward. */
-    entryReward(def, status, hides) {
-        const text = hides ? this.withoutHidden(def.rewardText, hides) : def.rewardText;
+    entryReward(def, status) {
+        const text = def.rewardText;
         const reward = !status.unlocked && text ? `<p class="unlock-reward">${escapeHTML(text)}</p>` : '';
         const picker = !status.unlocked && def.rewardChoices?.length > 1 ? `<label class="content-unlock-choice">첫 보상<select data-unlock-reward="${def.id}" aria-label="${escapeHTML(def.name)} 첫 보상">${def.rewardChoices.map(row => `<option value="${row.key}">${escapeHTML(row.label)}</option>`).join('')}</select></label>` : '';
         return reward + picker;
     },
     lockAttribute(id) {
         return contentProgression.isUnlocked(id) ? '' : 'data-content-locked';
-    },
-    /** The parts of a ", " list that name no unlock still hidden in the NPC window. A name followed by 의 is part of another noun
-     * (the gem material 창공의 정수 is not the 창공 unlock). */
-    withoutHidden(text, hides) {
-        const names = CONTENT_UNLOCK_CATALOG.filter(row => hides(row.id)).map(row => row.name);
-        const named = part => names.some(name => part.split(name).slice(1).some(rest => !rest.startsWith('의 ')));
-        return String(text || '').split(', ').filter(part => !named(part)).join(', ');
     },
     render() {
         if (typeof unlockTabUi === 'object') unlockTabUi.render();
@@ -120,20 +110,16 @@ const contentUnlockUi = {
     },
     /** scope: the detail the button was pressed in (its first reward choice). */
     purchase(id, scope = document) {
-        this.takeContent(id, scope, contentProgression.purchase);
+        this.takeContent(id, scope);
     },
-    /** An NPC's 즉시 해금: the same as purchase, for no points (contentProgression.gift). */
-    gift(id, scope) {
-        this.takeContent(id, scope, contentProgression.gift);
-    },
-    takeContent(id, scope, take) {
+    takeContent(id, scope) {
         const key = scope.querySelector(`[data-unlock-reward="${id}"]`)?.value, opened = this.openedContents();
-        const result = take(id, game, key);
+        const result = contentProgression.purchase(id, game, key);
         if (!result.ok) { addLog(result.message, 'attack-monster', { toast: true }); return; }
         // The unlock card says the same and more: no toast (PC) or bottom notice (phone) on top of it.
         const carded = this.announceContent(id);
         addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
-        this.announceOpenedSince(opened); // free content that comes with it (거래소 · 장비 전당 with 장비 제련)
+        this.announceOpenedSince(opened); // free content that comes with it (장비 전당 with 고유 도감)
         // 지금 살 수 있는 해금이 남았을 때만 알림: 뒤 루프의 강화 단계를 기다리는 포인트는 소식이 아니다(2026-10-25).
         game.noti.season = CONTENT_UNLOCK_CATALOG.some(def => contentProgression.kind(def) === 'paid' && contentProgression.status(def.id).available);
         checkUnlocks();
@@ -166,7 +152,7 @@ const contentUnlockUi = {
     announceContent(id) {
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
         // 강화 단계(def.series)는 카드 없이 기록만 남긴다: 가방 쪽, 그루터기 보관함은 새 콘텐츠가 아니다.
-        if (!def || def.series || (def.minLoop <= 1 && id !== 'tactics') || CONTENT_CARD_DEDICATED[id]) return false;
+        if (!def || def.series || (def.minLoop <= 1 && id !== 'tactics') || (game.seenTutorials || []).includes(CONTENT_CARD_DEDICATED[id])) return false;
         const action = this.routeAction(def), route = action ? this.routeKey(action) : null;
         const path = CONTENT_ROUTE_PATHS[route];
         const before = tutorialQueue.length;
@@ -188,31 +174,17 @@ const contentUnlockUi = {
         contentProgression.sync();
         this.announceOpenedSince(before);
     },
-    /** Whether the hero may know of an unlock now: bought, or its loop, progress, earlier-unlock (and meeting) conditions are met. */
-    npcKnows(id) {
-        return contentProgression.isUnlocked(id) || contentProgression.requirements(id).every(row => row.met);
-    },
     personal: text => String(text || '').split(/[\s,]+/).pop(),
-    /** What the NPC has for the hero, for the mark over it on the stage (js/canvas-act-title-card.js) and in the NPC tab: 'unlock'
-     * while one of its unlocks can be opened now (npcReady), 'talk' while a keyword it can speak of has not been heard, else ''.
-     * npc: { id, name }. */
+    /** What the NPC has for the hero, for the mark over it on the stage (js/canvas-act-title-card.js) and in the NPC tab: 'talk' while
+     * a keyword it can speak of has not been heard, else ''. npc: { id, name }. */
     npcNews(npc) {
         if (!game.contentProgression) return '';
-        if (this.npcReady(npc.id).length) return 'unlock';
         return this.npcTopics(npc).open.some(row => !this.npcHeard(npc, row.topic)) ? 'talk' : '';
-    },
-    /** 즉시 해금: the NPC's own unlocks (catalog npc, contentProgression.kind 'npc') not opened yet whose conditions are met, opened
-     * here for no points (2026-10-16 사용자: 조우 후 NPC를 누르면 그 NPC의 콘텐츠를 바로 해금, 포인트 없이 공짜로). Since 2026-10-21 only
-     * these few early unlocks (사용자: NPC 해금과 일반 해금 분리); the unlock tab sells the rest. Ones still behind a loop, a progress step
-     * or another unlock stay hidden, so the window spoils nothing (2026-10-16 사용자: 아직 알지 못하는 정보의 해금과 불가능한 해금은
-     * 안 보이게). npcId: STORY_NPCS id. */
-    npcReady(npcId) {
-        return CONTENT_UNLOCK_CATALOG.filter(def => def.npc === npcId && !contentProgression.isUnlocked(def.id) && this.npcKnows(def.id));
     },
     /** The NPC's window, an ARPG's NPC talk (2026-10-15 사용자: "POE처럼 키워드 누르면 관련 스크립트만", "NPC 대화창도 정성들여서"):
      * the NPC's portrait on the left; on the right its name, a speech box with what it says (its line on the stage when the window
      * opens, then the chosen keyword's), the keywords it can speak of (STORY_NPCS dialogues, new ones marked until heard, heard ones
-     * grey) and, under them, its unlocks to open now (즉시 해금) and the door to its shop (js/npc-shop-ui.js), which takes the body.
+     * grey) and, under them, the door to its shop (js/npc-shop-ui.js), which takes the body.
      * npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt, js/npc-roster-ui.js). */
     openNpc(npc) {
         const old = document.getElementById('npc-dialog');
@@ -253,16 +225,10 @@ const contentUnlockUi = {
             <nav class="npc-dialog-talk" aria-label="이야깃거리"><h4>이야기</h4><ul class="npc-dialog-topics">${keys}</ul></nav>
             ${this.npcFoot(view)}`;
     },
-    /** 즉시 해금 (npcReady), each opened right here for no points with its first reward choice; then the door to the shop. */
+    /** The door to the shop. */
     npcFoot(view) {
-        const hides = id => !this.npcKnows(id);
-        const rows = this.npcReady(view.npc.id).map(def => `<li class="npc-instant-row"><img src="${this.art(def)}" alt="">
-            <div><strong>${escapeHTML(def.name)}</strong><p>${escapeHTML(def.description)}</p>${this.entryReward(def, contentProgression.status(def.id), hides)}</div>
-            <button type="button" data-npc-gift="${def.id}">해금</button></li>`).join('');
-        const instant = rows ? `<section class="npc-dialog-instant" aria-label="즉시 해금"><h4>즉시 해금<small>포인트 없이 바로 엽니다</small></h4>
-            <ul>${rows}</ul></section>` : '';
         const shop = npcShopUi.door(view.npc);
-        return instant || shop ? `<footer class="npc-dialog-foot">${instant}${shop}</footer>` : '';
+        return shop ? `<footer class="npc-dialog-foot">${shop}</footer>` : '';
     },
     /** The keywords the NPC can speak of now (STORY_NPCS dialogues, docs/story-bible.md section 4): a keyword waits for the act it
      * speaks of (reqAct, any act after a first loop) and for its loop (reqLoop). */
@@ -292,14 +258,13 @@ const contentUnlockUi = {
     hearNpcTopic(npc, topic) {
         if (!this.npcHeard(npc, topic)) game.npcHeard.push(this.npcHeardKey(npc, topic));
     },
-    /** A keyword shows its line (and counts as heard; 상점 opens the shop, its 대화 the talk again); 해금 opens the content for no
-     * points (gift). The shop's own presses are js/npc-shop-ui.js's. */
+    /** A keyword shows its line (and counts as heard; 상점 opens the shop, its 대화 the talk again). The shop's own presses are
+     * js/npc-shop-ui.js's. */
     npcClick(dialog, view, event) {
         const control = event.target.closest('button');
         if (!control) return;
         if (control.dataset.npcClose !== undefined) { dialog.close(); return; }
-        if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); return; }
-        if (control.dataset.npcGift) { this.gift(control.dataset.npcGift, control.closest('.npc-instant-row')); this.renderNpc(dialog, view); }
+        if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); }
     },
     npcPickTopic(view, topic) {
         if (topic === 'shop') { view.mode = 'shop'; return; }

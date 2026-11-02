@@ -13,7 +13,7 @@
 .npc-dialog[data-tone="violet"]{--npc-tone:#c9a4f2;--npc-glow:rgba(201,164,242,.16)}
 .npc-dialog[data-tone="cyan"]{--npc-tone:#8fe3d6;--npc-glow:rgba(143,227,214,.14)}
 .npc-dialog[data-tone="crimson"]{--npc-tone:#ef9a92;--npc-glow:rgba(239,154,146,.15)}
-/* PC: 작은 초상 액자 옆에 이름과 말 상자, 그 아래로 이야깃거리와 즉시 해금, 상점이 창 폭을 다 쓴다(2026-10-16 사용자: 일러스트가 크게 나와 부담스러워
+/* PC: 작은 초상 액자 옆에 이름과 말 상자, 그 아래로 이야깃거리와 상점이 창 폭을 다 쓴다(2026-10-16 사용자: 일러스트가 크게 나와 부담스러워
    "작은 초상 액자 + 대사창을 그 옆에 압축"을 골랐다). 본문 묶음(.npc-dialog-main)은 칸을 나누지 않고 그 안의 줄들이 창의 칸에 선다. */
 .npc-dialog[open]{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto}
 .npc-dialog::backdrop{background:rgba(6,5,4,.66)}

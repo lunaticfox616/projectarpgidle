@@ -125,8 +125,8 @@ const memoryDungeonUi = (() => {
     }
     function html() {
         const rows = memoryDungeon.overview(game), selected = selectedPreview(), shown = visibleRows(rows), block = departBlock();
-        const head = memoryDungeon.open(game) ? '' : `루프 ${M.minLoop}부터 아틀라스의 보스가 기억을 남깁니다.`;
-        const tiers = game.season < M.highTiers.loop ? `1~${M.highTiers.from - 1}단계 (${M.highTiers.from}~${M.tiers}단계는 루프 ${M.highTiers.loop}부터)` : `1~${M.tiers}단계 도전 가능`;
+        const head = memoryDungeon.open(game) ? '' : '기억 던전 해금 뒤에 아틀라스의 보스가 기억을 남깁니다.';
+        const tiers = memoryDungeon.maxTier(game) < M.tiers ? `1~${M.highTiers.from - 1}단계 (${M.highTiers.from}~${M.tiers}단계는 기억 던전 4, 5 해금 뒤)` : `1~${M.tiers}단계 도전 가능`;
         const list = shown.length ? `<div class="memory-cards">${shown.map(row => cardHtml(row, selected)).join('')}</div>` : emptyHtml();
         return `<div class="atlas-late memory-dungeon"><section class="atlas-late-head"><h3>기억 던전</h3>${head ? `<p class="atlas-muted">${head}</p>` : ''}<p class="atlas-muted">${tiers}, 보유 ${memoryDungeon.total(game)}개</p>
             ${block && !game.atlas.run ? `<p class="atlas-lock">${esc(block)}</p>` : ''}</section>${currentRunHtml()}${preparationHtml(selected)}${controlsHtml(rows)}${list}${bossVariantsUi.recordHtml()}</div>`;

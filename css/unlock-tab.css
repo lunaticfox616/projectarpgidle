@@ -1,155 +1,163 @@
 @layer components{
-/* 해금 탭(js/unlock-tab-ui.js, 2026-11-02): 위에 해금 포인트와 종류 탭, 왼쪽 판, 오른쪽 설명. 종류마다 제 색(--cat, 해금의 --node)을 쓴다:
-   포인트 해금은 금빛 네모, NPC 해금은 청록 팔각, 강화는 보라, 자동 개방은 회청 마름모. 해금한 것은 밝고, 지금 가능한 것은 흰 테, 조건을 기다리는 것은 무채색이다. */
-#content-unlock-panel{--cat:#e0c27e;container-type:inline-size;margin-bottom:18px;color:var(--color-text);word-break:keep-all;overflow-wrap:anywhere;border:1px solid var(--skin-line-strong);background:var(--skin-panel)}
-#content-unlock-panel button,#content-unlock-panel select{font:inherit;touch-action:manipulation}
-#content-unlock-panel button:focus-visible,#content-unlock-panel select:focus-visible{outline:2px solid var(--skin-accent);outline-offset:2px}
-.unlocks-head{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px 18px;padding:10px 14px;border-bottom:1px solid var(--skin-line);background:linear-gradient(110deg,rgba(156,128,65,.14),transparent 55%)}
-.unlocks-points{display:flex;align-items:baseline;gap:8px;padding:2px 14px 2px 0;border-right:1px solid var(--skin-line);color:var(--color-text-secondary);font-size:13px}
-.unlocks-points strong{color:#ffe3a0;font-size:26px;line-height:1.2;font-weight:600}
-.unlocks-points strong small{margin-left:2px;font-size:14px;color:var(--skin-accent)}
-.unlocks-points.is-complete strong{font-size:15px;line-height:34px}
-.unlocks-tabs{display:flex;flex:1;flex-wrap:wrap;gap:6px;min-width:0}
-#content-unlock-panel .unlocks-tab{--cat:#e0c27e;flex:1 1 92px;min-height:40px;padding:4px 8px;border:1px solid var(--skin-line);border-bottom:3px solid var(--skin-line);border-radius:0;background:rgba(0,0,0,.26);box-shadow:none;color:var(--color-text-secondary);font-size:13px}
-#content-unlock-panel .unlocks-tab.is-npc{--cat:#8fe3d6}
-#content-unlock-panel .unlocks-tab.is-upgrades{--cat:#b9a4f2}
-#content-unlock-panel .unlocks-tab.is-auto{--cat:#a9b6c9}
-#content-unlock-panel .unlocks-tab:hover{color:var(--color-text);border-bottom-color:color-mix(in srgb,var(--cat) 55%,transparent)}
-#content-unlock-panel .unlocks-tab[aria-pressed=true]{border-color:color-mix(in srgb,var(--cat) 45%,var(--skin-line));border-bottom-color:var(--cat);background:color-mix(in srgb,var(--cat) 16%,#100c08);color:color-mix(in srgb,var(--cat) 60%,#fff)}
-.unlocks-tab b{display:inline-block;min-width:18px;margin-left:6px;padding:0 4px;background:var(--cat);color:#17120a;font-weight:600;font-size:12px;line-height:18px;text-align:center}
-.unlocks-body{--cat:#e0c27e;display:grid;grid-template-columns:minmax(0,1fr) 280px;align-items:stretch}
-.unlocks-body.is-npc{--cat:#8fe3d6}
-.unlocks-body.is-upgrades{--cat:#b9a4f2}
-.unlocks-body.is-auto{--cat:#a9b6c9}
-.unlocks-list{min-width:0;overflow:auto;padding:10px 14px 14px;scrollbar-width:thin;cursor:grab}
-.unlocks-list.is-panning{cursor:grabbing;user-select:none}
-.unlocks-note{margin:0 0 8px;color:var(--color-text-secondary);font-size:12px}
-/* 범례: 트리의 모양과 밝기가 무슨 뜻인지 */
-.unlocks-legend{position:sticky;left:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-bottom:6px;color:var(--color-text-secondary);font-size:12px}
-.unlocks-legend-gap{width:6px}
-.unlock-legend-item{display:inline-flex;align-items:center;gap:5px}
-#content-unlock-panel .unlock-legend-item .unlock-node{position:static;display:block;width:14px;height:14px}
-.unlock-legend-item .unlock-node-frame{width:14px;height:14px;padding:2px}
-.unlock-legend-item .unlock-node-frame::before{content:'';display:block;width:100%;height:100%;background:#17120c;clip-path:var(--node-shape)}
-/* 트리 */
-.unlock-tree{position:relative}
-.unlock-tree-lines{position:absolute;inset:0;pointer-events:none}
-.unlock-tree-lines polyline{fill:none;stroke:#3f3a31;stroke-width:2;shape-rendering:crispEdges}
-.unlock-tree-lines polyline.is-next{stroke:#a98f5c;stroke-dasharray:4 4}
-.unlock-tree-lines polyline.is-lit{stroke:#c9a860}
-.unlock-tree-lines polyline.is-path,.unlock-tree-lines polyline.is-hover-path{stroke:#ffe9b0;stroke-dasharray:none}
-#content-unlock-panel .unlock-node{--node:#e0c27e;--node-shape:none;position:absolute;display:grid;justify-items:center;gap:3px;width:108px;min-height:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--color-text);font-size:12px;white-space:nowrap;overflow:visible;cursor:pointer}
-#content-unlock-panel .unlock-node.kind-npc{--node:#8fe3d6;--node-shape:polygon(29% 0,71% 0,100% 29%,100% 71%,71% 100%,29% 100%,0 71%,0 29%)}
-#content-unlock-panel .unlock-node.kind-auto{--node:#a9b6c9;--node-shape:polygon(50% 0,100% 50%,50% 100%,0 50%)}
-.unlock-node-icon{position:relative;display:block;width:44px;height:44px}
-.unlock-node-frame{display:grid;place-items:center;box-sizing:border-box;width:44px;height:44px;padding:2px;background:var(--node);clip-path:var(--node-shape)}
-.unlock-node-frame img{box-sizing:border-box;display:block;width:100%;height:100%;padding:3px;object-fit:contain;background:#17120c;clip-path:var(--node-shape)}
-.unlock-node.kind-auto .unlock-node-frame img{padding:9px}
-.unlock-node-name{max-width:108px;overflow:hidden;text-overflow:ellipsis}
-.unlock-node-cost,.unlock-node-loop{position:absolute;padding:0 3px;font-weight:400;font-size:12px;line-height:15px;pointer-events:none}
-.unlock-node-cost{right:-9px;bottom:-3px;background:#17120c;color:#ffe3a0;box-shadow:0 0 0 1px currentColor}
-.unlock-node-loop{left:-11px;top:-4px;background:#17120c;color:#c9c0ae;box-shadow:0 0 0 1px rgba(201,192,174,.6)}
-.unlock-node.is-owned .unlock-node-frame{filter:drop-shadow(0 0 3px var(--node))}
-#content-unlock-panel .unlock-node.is-ready{--node:#fff6dc}
-.unlock-node.is-ready .unlock-node-name{color:#fff1c8}
-.unlock-node.is-ready .unlock-node-cost{background:#e0c27e;color:#17120a;box-shadow:none}
-#content-unlock-panel .unlock-node.is-waiting{--node:#4c463b}
-.unlock-node.is-waiting .unlock-node-frame img{filter:grayscale(1) brightness(.5)}
-.unlock-node.is-waiting .unlock-node-name{color:var(--color-text-secondary)}
-.unlock-node.is-chosen .unlock-node-icon::after{content:'';position:absolute;inset:-5px;border:1px solid #fff;pointer-events:none}
-.unlock-node.is-hover-path .unlock-node-name{color:#fff}
-.unlock-node.is-hover-path .unlock-node-frame{filter:brightness(1.25)}
-#content-unlock-panel .unlocks-body.is-points .unlock-tree .unlock-node:not(.kind-paid),#content-unlock-panel .unlocks-body.is-npc .unlock-tree .unlock-node:not(.kind-npc){opacity:.32}
-/* 강화: 단계 사슬. 해금한 단계까지 이어지고 다음 단계가 흰 테로 빛난다 */
-.unlock-upgrades{display:grid;gap:8px}
-.unlock-upgrade{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:start;gap:10px;padding:10px;border:1px solid var(--skin-line);background:var(--skin-panel-raised)}
-.unlock-upgrade.is-ready{border-color:color-mix(in srgb,var(--cat) 70%,transparent);box-shadow:inset 3px 0 0 var(--cat)}
-.unlock-upgrade>img{width:44px;height:44px;object-fit:contain;image-rendering:pixelated}
-.unlock-upgrade-text{display:grid;gap:4px;min-width:0}
-.unlock-upgrade-text strong{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:600}
-.unlock-upgrade-text strong small{color:var(--color-text-secondary);font-size:12px;font-weight:400}
-.unlock-upgrade-effect{color:var(--color-text-secondary);font-size:13px}
-.unlock-upgrade-effect b{color:color-mix(in srgb,var(--cat) 70%,#fff);font-weight:600}
-.unlock-chain{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:2px}
-#content-unlock-panel .unlock-step{position:relative;width:28px;height:28px;min-height:0;padding:0;border:2px solid #4c463b;border-radius:0;background:#17120c;box-shadow:none;color:var(--color-text-secondary);font-size:12px;line-height:24px;text-align:center;cursor:pointer}
-.unlock-step+.unlock-step::before{content:'';position:absolute;left:-10px;top:10px;width:8px;height:2px;background:#4c463b}
-.unlock-step.is-owned+.unlock-step::before{background:#b9a4f2}
-#content-unlock-panel .unlock-step.is-owned{border-color:#b9a4f2;background:rgba(185,164,242,.3);color:#efe9ff}
-#content-unlock-panel .unlock-step.is-ready{border-color:#fff6dc;color:#fff6dc}
-#content-unlock-panel .unlock-step.is-chosen{outline:1px solid #fff;outline-offset:2px}
-/* 자동 개방: 루프 줄. 왼쪽 선 위에 루프가 차례로 놓인다 */
-#content-unlock-panel .unlock-auto-toggle{min-height:30px;margin-bottom:8px;padding:2px 10px;font-size:12px}
-.unlock-auto-list{position:relative;display:grid;gap:6px;padding-left:16px}
-.unlock-auto-list::before{content:'';position:absolute;left:4px;top:8px;bottom:8px;width:2px;background:var(--skin-line)}
-.unlock-auto-loop{position:relative;padding:8px 10px;border:1px solid var(--skin-line);background:var(--skin-panel-raised)}
-.unlock-auto-loop::before{content:'';position:absolute;left:-16px;top:12px;width:10px;height:10px;background:var(--skin-line)}
-.unlock-auto-loop.is-now{border-color:color-mix(in srgb,var(--cat) 60%,transparent)}
-.unlock-auto-loop.is-now::before{background:var(--cat)}
-.unlock-auto-loop.is-past::before{background:color-mix(in srgb,var(--cat) 50%,transparent)}
-.unlock-auto-loop>header{display:flex;align-items:baseline;gap:8px}
-.unlock-auto-loop>header strong{font-size:14px;color:color-mix(in srgb,var(--cat) 70%,#fff)}
-.unlock-auto-loop>header small{color:var(--color-text-secondary);font-size:12px}
-.unlock-auto-need,.unlock-auto-extra{margin:4px 0;color:var(--color-text-secondary);font-size:12px;line-height:1.6}
-.unlock-auto-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px;margin-top:6px}
-#content-unlock-panel .unlock-auto-item{display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-height:30px;padding:3px 8px;border:1px solid var(--skin-line);border-radius:0;background:rgba(0,0,0,.2);box-shadow:none;color:var(--color-text);font-size:13px;text-align:left;white-space:normal}
-#content-unlock-panel .unlock-auto-item small{color:var(--color-text-secondary);font-size:12px;text-align:right}
-#content-unlock-panel .unlock-auto-item.is-owned small{color:var(--color-success)}
-#content-unlock-panel .unlock-auto-item.is-chosen{border-color:var(--cat)}
-/* 설명 칸 */
-.unlock-eyebrow{font-size:11px;color:color-mix(in srgb,var(--cat) 75%,#fff);letter-spacing:1px}
-.unlock-detail{display:flex;flex-direction:column;gap:12px;min-width:0;padding:14px;border-left:1px solid var(--skin-line);background:linear-gradient(150deg,color-mix(in srgb,var(--cat) 9%,transparent),transparent 60%)}
-.unlock-detail-art{display:grid;place-items:center;height:76px;margin:6px 0}
-.unlock-detail-art img{width:68px;height:68px;object-fit:contain}
-#content-unlock-panel .unlock-detail h3{margin:0 0 8px;font-size:21px;font-weight:500;color:var(--color-text)}
-.unlock-gain{display:block;font-size:12px;line-height:1.4;color:color-mix(in srgb,var(--cat) 75%,#fff)}
-.unlock-detail .unlock-gain{margin:2px 0 6px}
-.unlock-detail-top>p{margin:0;color:var(--color-text-secondary);font-size:var(--font-size-ui);line-height:1.75}
-.unlock-detail-reward:empty{display:none}
-.unlock-detail-reward>p{margin:0;color:var(--color-text-tertiary);font-size:11px;line-height:1.7}
-.unlock-detail-reward .unlock-reward{color:var(--skin-accent)}
-.content-unlock-choice{display:grid;gap:8px;margin:12px 0;color:var(--color-text-secondary);font-size:12px}
-.content-unlock-choice select{width:100%;min-width:0;min-height:40px;padding:7px;background:var(--skin-control);color:var(--color-text);border:1px solid var(--skin-line-strong);border-radius:0}
-.unlock-next{padding-top:10px;border-top:1px solid var(--skin-line)}
-.unlock-next h4{margin:0 0 6px;color:var(--color-text-tertiary);font-size:11px;font-weight:400}
-.unlock-next>div{display:flex;flex-wrap:wrap;gap:4px}
-#content-unlock-panel .unlock-next button{min-height:26px;padding:1px 8px;border:1px solid var(--skin-line);border-radius:0;background:rgba(0,0,0,.2);box-shadow:none;color:var(--color-text);font-size:12px}
-#content-unlock-panel .unlock-next button:hover{border-color:var(--cat)}
-.unlock-lifetime{padding-top:10px;border-top:1px solid var(--skin-line)}
-.unlock-lifetime summary{padding:4px 0;color:var(--skin-accent);font-size:11px;font-weight:500;line-height:1.6;cursor:pointer}
-.unlock-lifetime p,.unlock-lifetime-note{margin:5px 0;color:var(--color-text-secondary);font-size:11px;line-height:1.65}
-.unlock-lifetime b{display:inline-block;margin-right:7px;color:var(--color-text);font-weight:500}
-.unlock-lifetime .unlock-lifetime-note{color:var(--color-text-tertiary);font-size:10px}
-.unlock-related{color:var(--color-text-secondary);font-size:11px;line-height:1.7}
-.unlock-related summary{padding:8px 0;color:var(--skin-accent);cursor:pointer}
-.unlock-related p{margin:10px 0}
-.unlock-related strong{display:block;color:var(--color-text);font-weight:500}
-.unlock-requirements{padding-top:12px;border-top:1px solid var(--skin-line)}
-.unlock-requirements h4{margin:0 0 8px;color:var(--color-text-tertiary);font-size:11px;font-weight:400}
-.unlock-requirements>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px;color:var(--color-text-secondary);font-size:12px}
-.unlock-requirements small{flex-shrink:0;color:var(--color-text-tertiary);font-size:10px}
-.unlock-requirements .is-met small{color:var(--color-success)}
-/* 해금 단추는 창 본문 아래쪽에 붙어 늘 보인다. bottom이 음수인 까닭: sticky는 창 본문의 아래 여백 위에서 멈춰 그 틈으로 뒤 글자가 비쳤다. */
-.unlock-detail-action{position:sticky;bottom:-26px;z-index:2;margin:auto -14px -14px;padding:10px 14px 26px;border-top:1px solid var(--skin-line);background:var(--skin-panel)}
-#content-unlock-panel .unlock-detail-action>button{width:100%;min-height:44px;border:1px solid var(--cat);border-radius:0;background:color-mix(in srgb,var(--cat) 22%,var(--skin-panel));color:color-mix(in srgb,var(--cat) 40%,#fff);font-size:13px;white-space:normal}
-#content-unlock-panel .unlock-detail-action>button:disabled{border-color:var(--skin-line);background:none;color:var(--color-text-secondary);opacity:.75}
+/* 해금 탭(js/unlock-tab-ui.js, 2026-11-02): 세 뿌리에서 뻗는 한 나무. 위에 해금 포인트, 지금 가능, 판 전체 지도, 가운데 가로 스크롤 판, 아래에 고른 해금의 설명.
+   뿌리마다 제 빛깔(--fam)이 가지 끝까지 이어진다. 네모는 포인트 해금, 팔각은 자동 개방. 열린 칸은 빛깔을 채우고, 지금 가능한 칸은 흰 테, 조건을 기다리는 칸은 무채색이다. */
+#content-unlock-panel{container-type:inline-size;margin-bottom:18px;color:var(--color-text);word-break:keep-all;overflow-wrap:anywhere;border:1px solid var(--skin-line-strong);background:var(--skin-panel)}
+#content-unlock-panel .fam-gear{--fam:#d8a46a}
+#content-unlock-panel .fam-rune{--fam:#8fb4ee}
+#content-unlock-panel .fam-growth{--fam:#93d18c}
+#content-unlock-panel .kind-auto{--shape:polygon(29% 0,71% 0,100% 29%,100% 71%,71% 100%,29% 100%,0 71%,0 29%)}
+#content-unlock-panel button:focus-visible,#content-unlock-panel select:focus-visible{outline:2px solid var(--skin-accent);outline-offset:1px}
+#content-unlock-panel .unlock-card,#content-unlock-panel .unlock-pip,#content-unlock-panel .unlock-stat.is-ready,#content-unlock-panel .unlock-edge,#content-unlock-panel .unlock-to-now,#content-unlock-panel .unlock-next-chip,#content-unlock-panel .unlock-act{box-sizing:border-box;min-width:0;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;font:inherit;color:inherit;text-shadow:none;cursor:pointer;touch-action:manipulation}
+
+/* 머리 */
+.unlocks-head{display:flex;align-items:center;gap:14px;padding:4px 14px;border-bottom:1px solid var(--skin-line);background:rgba(0,0,0,.2)}
+.unlock-stat,#content-unlock-panel .unlock-stat.is-ready{display:flex;align-items:baseline;gap:8px;padding-right:14px;border-right:1px solid var(--skin-line);font-size:12px;color:var(--color-text-secondary);white-space:nowrap}
+.unlock-stat strong{font-family:var(--font-pixel-read);font-size:28px;line-height:32px;font-weight:400;color:#ffe3a0}
+.unlock-stat strong small{margin-left:2px;font-size:14px;color:var(--skin-accent)}
+.unlock-stat strong.is-done{font-size:14px;line-height:32px}
+.unlock-stat.is-ready strong{color:#fff6dc}
+#content-unlock-panel .unlock-stat.is-ready:hover span{color:#fff6dc}
+#content-unlock-panel .unlock-stat.is-ready:disabled{cursor:default;opacity:.7}
+.unlock-stat.is-total{padding:0 0 0 14px;border-right:0;border-left:1px solid var(--skin-line)}
+.unlock-stat.is-total strong{font-size:21px;line-height:26px;color:var(--color-text)}
+.unlock-stat.is-total strong small{font-size:12px;color:var(--color-text-secondary)}
+/* 판 전체 지도: 칸 하나가 점 하나, 창을 끌면 판이 움직인다 */
+.unlock-over-slot{flex:1;min-width:0;height:42px;background:rgba(0,0,0,.3);box-shadow:inset 0 0 0 1px var(--skin-line)}
+.unlock-over{position:relative;height:100%;cursor:pointer;touch-action:none}
+.unlock-over i{position:absolute;width:4px;height:2px;background:#4a453b;pointer-events:none}
+.unlock-over i.is-owned{background:var(--fam)}
+.unlock-over i.is-soon,.unlock-over i.is-short{background:color-mix(in srgb,var(--fam) 40%,#3a3630)}
+.unlock-over i.is-ready{z-index:1;width:5px;height:3px;background:#fff6dc;box-shadow:0 0 0 1px rgba(255,246,220,.3)}
+.unlock-over-now{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,241,200,.55);pointer-events:none}
+.unlock-over-win{position:absolute;top:1px;bottom:1px;background:rgba(255,241,200,.07);box-shadow:inset 0 0 0 1px rgba(255,241,200,.55);pointer-events:none}
+
+/* 판: 가로 스크롤. 스크롤바는 숨기고 전체 지도가 대신한다 */
+.unlocks-view{position:relative;height:420px;min-height:0;overflow:hidden}
+.unlocks-scroll{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;cursor:grab}
+.unlocks-scroll::-webkit-scrollbar{display:none}
+.unlocks-scroll.is-panning{cursor:grabbing;user-select:none}
+.unlocks-canvas{position:relative;height:100%}
+.unlock-corner{position:absolute;left:0;top:0;z-index:4;box-sizing:border-box;width:38px;height:24px;font-size:12px;line-height:23px;text-align:center;color:var(--color-text-tertiary);background:#14100b;border-bottom:1px solid var(--skin-line);box-shadow:1px 0 0 var(--skin-line);pointer-events:none}
+.unlock-fade{position:absolute;top:24px;bottom:0;z-index:3;width:36px;opacity:0;pointer-events:none;transition:opacity .15s}
+.unlock-fade.is-on{opacity:1}
+.unlock-fade.is-left{left:0;background:linear-gradient(90deg,rgba(14,11,8,.85),transparent)}
+.unlock-fade.is-right{right:0;background:linear-gradient(270deg,rgba(14,11,8,.85),transparent)}
+#content-unlock-panel .unlock-edge{position:absolute;top:2px;z-index:5;display:none;padding:0 7px;font-size:12px;line-height:20px;background:#e0c27e;color:#17120a}
+#content-unlock-panel .unlock-edge.is-on{display:block}
+#content-unlock-panel .unlock-edge.is-left{left:44px}
+#content-unlock-panel .unlock-edge.is-right{right:84px}
+#content-unlock-panel .unlock-to-now{position:absolute;right:8px;top:2px;z-index:5;padding:0 8px;font-size:12px;line-height:20px;background:#201b13;color:#fff1c8;box-shadow:inset 0 0 0 1px rgba(255,241,200,.45)}
+#content-unlock-panel .unlock-to-now:hover{background:#3a3120}
+
+/* 눈금과 지금 */
+.unlock-ruler{position:absolute;left:0;right:0;top:0;height:24px;border-bottom:1px solid var(--skin-line);background:rgba(0,0,0,.18)}
+.unlock-tick{position:absolute;top:0;height:23px;font-size:12px;line-height:23px;text-align:center;color:var(--color-text-tertiary);box-shadow:inset 1px 0 0 rgba(255,255,255,.07)}
+.unlock-tick.is-major{color:var(--color-text-secondary)}
+.unlock-tick.is-past{opacity:.55}
+.unlock-tick.is-now{font-family:var(--font-pixel-read);font-size:14px;color:#17120a;background:#fff1c8}
+.unlock-col{position:absolute;top:24px;bottom:0;box-shadow:inset 1px 0 0 rgba(255,255,255,.035)}
+.unlock-col.is-alt{background:rgba(255,255,255,.018)}
+.unlock-past{position:absolute;left:0;top:24px;bottom:0;background:rgba(0,0,0,.2)}
+.unlock-now{position:absolute;top:24px;bottom:0;background:rgba(255,241,200,.06);box-shadow:inset 1px 0 0 rgba(255,241,200,.2),inset -1px 0 0 rgba(255,241,200,.2)}
+
+/* 가지: 뿌리의 빛깔을 끝까지 잇는다 */
+.unlock-lines{position:absolute;left:0;top:0;pointer-events:none}
+.unlock-lines polyline{fill:none;stroke-width:2;shape-rendering:crispEdges}
+.unlock-lines .is-dim{stroke:color-mix(in srgb,var(--fam) 30%,#27231c)}
+.unlock-lines .is-next{stroke:color-mix(in srgb,var(--fam) 80%,#fff);stroke-dasharray:6 5}
+.unlock-lines .is-lit{stroke:var(--fam);stroke-width:4}
+.unlock-lines .is-long.is-next{stroke:color-mix(in srgb,var(--fam) 62%,#27231c);stroke-dasharray:none}
+.unlock-lines .is-side{stroke-width:1;stroke-dasharray:2 3}
+.unlock-lines .is-side.is-lit{stroke-width:2;stroke-dasharray:none}
+.unlock-lines .is-path{stroke:#fff3cf;stroke-dasharray:none}
+.unlock-lines .is-new{stroke:#fff3cf;stroke-dasharray:1;stroke-dashoffset:1;animation:unlock-draw .35s linear forwards}
+@keyframes unlock-draw{to{stroke-dashoffset:0}}
+.unlock-rail{position:absolute;height:16px;pointer-events:none}
+.unlock-rail span{position:sticky;left:6px;display:none;padding:0 2px;font-size:12px;line-height:14px;color:color-mix(in srgb,var(--fam) 70%,#fff)}
+.unlock-rail.is-stuck span{display:inline-block}
+
+/* 칸: 상태마다 틀과 밝기 */
+#content-unlock-panel .is-owned{--frame:var(--fam)}
+#content-unlock-panel .is-ready{--frame:#fff6dc}
+#content-unlock-panel .is-short{--frame:color-mix(in srgb,var(--fam) 60%,#2a2620)}
+#content-unlock-panel .is-soon{--frame:#6d6555}
+#content-unlock-panel .is-far{--frame:#39352d}
+.unlock-ic{--ic:var(--icon,26px);position:relative;display:block;box-sizing:border-box;flex:none;width:var(--ic);height:var(--ic);padding:2px;background:var(--frame,#3a3630);clip-path:var(--shape,none)}
+.unlock-ic img{display:block;box-sizing:border-box;width:100%;height:100%;padding:1px;background:#17120c;object-fit:contain;clip-path:var(--shape,none)}
+.is-short .unlock-ic img{filter:brightness(.8)}
+.is-soon .unlock-ic img{filter:grayscale(.6) brightness(.72)}
+.is-far .unlock-ic img{filter:grayscale(1) brightness(.55)}
+.is-lit .unlock-ic,.unlock-pip.is-lit{animation:unlock-flash .6s steps(6)}
+.is-fresh .unlock-ic,.unlock-pip.is-fresh{animation:unlock-pop .45s steps(5) .25s both}
+@keyframes unlock-flash{0%{filter:brightness(2.6)}100%{filter:none}}
+@keyframes unlock-pop{0%{transform:scale(.55);opacity:.2}70%{transform:scale(1.14);opacity:1}100%{transform:scale(1)}}
+#content-unlock-panel .unlock-card{position:absolute;display:flex;align-items:center;gap:5px;padding:1px 3px 1px 1px;background:#1b1610;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 26%,transparent);text-align:left}
+#content-unlock-panel .unlock-card.kind-auto{background:color-mix(in srgb,var(--fam) 7%,#15110c);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 18%,transparent)}
+#content-unlock-panel .unlock-card.is-short{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 50%,transparent)}
+#content-unlock-panel .unlock-card.is-owned{background:color-mix(in srgb,var(--fam) 24%,#17130e);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 60%,transparent)}
+#content-unlock-panel .unlock-card.is-ready{background:#30281a;box-shadow:inset 0 0 0 1px #fff6dc,0 0 0 1px rgba(255,246,220,.25)}
+#content-unlock-panel .unlock-card.is-chosen,#content-unlock-panel .unlock-pip.is-chosen{outline:2px solid #fff;outline-offset:1px}
+#content-unlock-panel .unlock-card:hover,#content-unlock-panel .unlock-card.is-path,#content-unlock-panel .unlock-pip:hover,#content-unlock-panel .unlock-pip.is-path{filter:brightness(1.2)}
+.unlock-card-text{display:grid;gap:1px;min-width:0;flex:1}
+.unlock-card-text b,.unlock-card-gain{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;line-height:14px;font-weight:400}
+.unlock-card-text b{color:var(--color-text)}
+.unlock-card-gain{color:color-mix(in srgb,var(--fam) 60%,#a59c8b)}
+.unlock-card.is-ready .unlock-card-text b{color:#fff1c8}
+.unlock-card.is-soon .unlock-card-text b{color:var(--color-text-secondary)}
+.unlock-card.is-far .unlock-card-text b{color:var(--color-text-tertiary)}
+.unlock-card.is-far .unlock-card-gain{color:#6f685b}
+.unlock-chip{position:absolute;right:0;bottom:0;padding:0 2px;font-size:12px;line-height:12px;font-weight:400;background:#26201a;color:#c9b483}
+.is-ready .unlock-chip{background:#e0c27e;color:#17120a}
+#content-unlock-panel .unlock-pip{position:absolute;display:block;text-align:center;white-space:nowrap;font-size:12px;line-height:18px;border:2px solid color-mix(in srgb,var(--frame) 80%,transparent);background:#1b1610;color:var(--color-text-secondary)}
+#content-unlock-panel .unlock-pip.is-far{color:var(--color-text-tertiary)}
+#content-unlock-panel .unlock-pip.is-owned{background:color-mix(in srgb,var(--fam) 38%,#17120c);color:#fff}
+#content-unlock-panel .unlock-pip.is-ready{background:#30281a;color:#fff6dc}
+
+/* 설명 */
+.unlock-detail{position:relative;flex:none;display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,170px) 170px;align-items:start;gap:12px;box-sizing:border-box;height:124px;padding:6px 14px;border-top:1px solid var(--skin-line);background:rgba(0,0,0,.22)}
+.unlock-detail-art .unlock-ic{--ic:52px}
+.unlock-eyebrow{display:block;font-size:12px;line-height:14px;color:color-mix(in srgb,var(--fam) 80%,#fff)}
+#content-unlock-panel .unlock-detail h4{margin:1px 0;font-family:var(--font-pixel-read);font-size:14px;line-height:18px;font-weight:400;color:var(--color-text)}
+#content-unlock-panel .unlock-detail h4 em{margin-left:8px;font-family:var(--font-pixel);font-size:12px;font-style:normal;color:#ffe3a0}
+.unlock-desc{margin:0;overflow:hidden;font-size:12px;line-height:16px;white-space:nowrap;text-overflow:ellipsis;color:var(--color-text-secondary)}
+.unlock-reqs{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
+.unlock-reqs span{padding:0 5px;font-size:12px;line-height:16px;background:rgba(0,0,0,.3);color:#a59c8b;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.unlock-reqs span.is-met{color:#a8d8a0;box-shadow:inset 0 0 0 1px rgba(168,216,160,.35)}
+.unlock-next h5,.unlock-more h5{margin:0 0 3px;font-size:12px;line-height:14px;font-weight:400;color:var(--color-text-tertiary)}
+.unlock-next>div{display:flex;flex-wrap:wrap;gap:3px}
+#content-unlock-panel .unlock-next-chip{display:inline-flex;align-items:center;gap:4px;padding:1px 5px 1px 1px;background:rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(255,255,255,.09);font-size:12px;line-height:14px;color:var(--color-text)}
+#content-unlock-panel .unlock-next-chip:hover{box-shadow:inset 0 0 0 1px var(--fam)}
+.unlock-next-chip .unlock-ic{--ic:20px;--frame:var(--fam);padding:1px}
+.unlock-next-chip .unlock-ic img{padding:0}
+.unlock-detail-action{display:grid;gap:3px;align-self:center}
+#content-unlock-panel .unlock-act{display:block;width:100%;min-height:34px;padding:3px 6px;text-align:center;font-size:12px;line-height:16px;color:var(--color-text-secondary);background:rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px var(--skin-line);white-space:normal}
+#content-unlock-panel .unlock-act:disabled{cursor:default}
+#content-unlock-panel .unlock-act.is-go,#content-unlock-panel .unlock-act[data-open-content]{background:color-mix(in srgb,var(--skin-accent) 22%,var(--skin-panel));color:#fff1c8;box-shadow:inset 0 0 0 1px var(--skin-accent)}
+#content-unlock-panel .unlock-act.is-go{background:#e0c27e;color:#17120a;box-shadow:none}
+#content-unlock-panel .unlock-act.is-go:hover{background:#f2d893}
+.content-unlock-choice{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px;margin:0;color:var(--color-text-secondary);font-size:12px}
+.content-unlock-choice select{width:100%;min-width:0;min-height:24px;padding:0 2px;background:var(--skin-control);color:var(--color-text);border:1px solid var(--skin-line-strong);border-radius:0;font:inherit}
+.unlock-reward{margin:0;overflow:hidden;font-size:12px;line-height:14px;white-space:nowrap;text-overflow:ellipsis;color:var(--skin-accent)}
+/* 자세히: 설명 칸 위로 펼친다 */
+.unlock-more summary{font-size:12px;line-height:16px;text-align:center;color:var(--skin-accent);cursor:pointer}
+.unlock-more-body{position:absolute;right:14px;bottom:100%;z-index:6;box-sizing:border-box;width:min(420px,calc(100% - 28px));max-height:300px;overflow:auto;padding:10px 12px;border:1px solid var(--skin-line-strong);background:var(--skin-panel);box-shadow:0 -4px 14px rgba(0,0,0,.5);font-size:12px;line-height:1.6;color:var(--color-text-secondary)}
+.unlock-more-body p{margin:4px 0}
+.unlock-more-body b{display:inline-block;margin-right:7px;color:var(--color-text);font-weight:400}
+.unlock-more-body strong{display:block;color:var(--color-text);font-weight:400}
+.unlock-lifetime-note{color:var(--color-text-tertiary)}
 @container(max-width:720px){
- .unlocks-body{grid-template-columns:minmax(0,1fr)}
- .unlocks-list{max-height:62vh}
- .unlock-detail{border-left:0;border-top:1px solid var(--skin-line)}
-}
-@container(max-width:480px){
- .unlocks-head{padding:8px 10px}
- .unlocks-points{width:100%;border-right:0;padding-right:0}
- #content-unlock-panel .unlocks-tab{flex:1 1 calc(33% - 6px)}
- .unlocks-list{padding:8px 10px 12px}
+ .unlocks-head{flex-wrap:wrap;gap:6px 12px;padding:6px 10px}
+ .unlock-reward{white-space:normal}
+ .unlock-over-slot{order:9;flex:1 0 100%}
+ .unlock-detail{grid-template-columns:auto minmax(0,1fr);height:auto;padding:8px 10px}
+ .unlock-desc{white-space:normal}
+ .unlock-next,.unlock-detail-action{grid-column:1/-1}
+ .unlock-more-body{right:10px;width:calc(100% - 20px)}
 }
 }
 @layer features{
-/* 창 UI에서 해금 판이 창 높이를 채운다. 창 몸통은 스크롤하지 않고 판과 설명이 저마다 스크롤한다. */
+/* 창 UI에서 해금 판이 창 높이를 채운다. 창 몸통은 스크롤하지 않는다. */
 body.desktop-windowed-ui #tab-unlocks>.ui-window-body,body.desktop-windowed-ui .merged-tab-panels>#tab-unlocks.merged-subtab-pane.active{display:flex;flex-direction:column}
-body.desktop-windowed-ui #content-unlock-panel{flex:1 0 auto;display:flex;flex-direction:column;margin-bottom:0}
-@container(min-width:721px){
- body.desktop-windowed-ui #content-unlock-panel>.unlocks-body{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr)}
- body.desktop-windowed-ui #content-unlock-panel .unlocks-list,body.desktop-windowed-ui #content-unlock-panel .unlock-detail{min-height:0;overflow:auto}
-}
+body.desktop-windowed-ui #content-unlock-panel{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;margin-bottom:0}
+body.desktop-windowed-ui #content-unlock-panel>.unlocks-view{flex:1 1 0;height:auto}
 }

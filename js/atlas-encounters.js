@@ -20,9 +20,9 @@ const atlasEncounters = (() => {
         const altars = awake ? passing(true).slice(0, ATLAS.altarLimit) : [];
         return [...fixed, ...passing(false).slice(0, limit), ...altars].slice(0, capacity);
     }
-    /** Content rooms a map may hold: the base, the passives' extra and one more from loops 50 and 75 (data/atlas.js encounterLoopBonus). */
+    /** Content rooms a map may hold: the base, the passives' extra and one more for each 콘텐츠 방 unlock (data/atlas.js encounterLoopBonus). */
     function roomLimit(bonus, loop) {
-        const deepening = ATLAS.encounterLoopBonus.filter(row => loop >= row.loop).reduce((sum, row) => sum + row.extra, 0);
+        const deepening = ATLAS.encounterLoopBonus.filter(row => contentProgression.holds(row.unlock, game, loop)).reduce((sum, row) => sum + row.extra, 0);
         return ATLAS.encounterLimit + (Number(bonus.encounterExtra) || 0) + deepening;
     }
     /** A type's room chance in %: base + passives, × the map region's share (잿불 터 in the garden). */
@@ -30,9 +30,10 @@ const atlasEncounters = (() => {
         const rule = ATLAS.encounters[type];
         return (rule.chance + (bonus[type] || 0)) * ((rule.regionChance && rule.regionChance[region]) || 1);
     }
-    /** Whether the type can appear in this loop (minLoop: 잿불 터 from loop 30). */
+    /** Whether the type can appear now: a late room waits for its unlock (data/atlas.js encounters unlock: 잿불 터 and the rest). */
     function isOpen(type, loop) {
-        return (ATLAS.encounters[type].minLoop || 0) <= loop;
+        const rule = ATLAS.encounters[type];
+        return (rule.minLoop || 0) <= loop && (!rule.unlock || contentProgression.holds(rule.unlock, game, loop));
     }
     function shuffledTypes(list, random) {
         const out = [...list];

@@ -2601,7 +2601,7 @@ function tryUnlockMeteorContentByProgress() {
     if (st.unlocked || !getMeteorSiteUnlockReady()) return false;
     st.unlocked = true;
     addLog('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.', 'loot-unique');
-    queueTutorialNotice('meteor_unlocked', '운석 낙하 지점', '검은 별이 떨어지기 시작했습니다.\n액트 7을 넘긴 사냥터에서 사냥하면 하늘의 균열 게이지가 찹니다.\n게이지가 100%가 되면 ‘지도 → 탐험 → 운석 낙하’에 한 번 들어갈 수 있습니다.', 'tab-map');
+    queueOpenContentNotice('meteorSite', 'meteor_unlocked', '운석 낙하 지점', '검은 별이 떨어지기 시작했습니다.\n액트 7을 넘긴 사냥터에서 사냥하면 하늘의 균열 게이지가 찹니다.\n게이지가 100%가 되면 ‘지도 → 탐험 → 운석 낙하’에 한 번 들어갈 수 있습니다.', 'tab-map');
     return true;
 }
 
@@ -9055,10 +9055,9 @@ function normalizeDropRegion(value) {
     return typeof value === 'string' && regions.some(row => row.id === value) ? value : null;
 }
 
-/** The region an equipment drop remembers: an atlas map's region from the loop REGION_AFFIX_RULES opens, none elsewhere. */
+/** The region an equipment drop remembers: an atlas map's region once 세계수 기운 is open, none elsewhere. */
 function getEquipmentDropRegion(zone, state = game) {
-    const loop = Math.max(Math.floor(Number(state?.season) || 1), Math.floor(Number(state?.contentProgression?.highestLoop) || 1));
-    if (!zone || zone.type !== 'atlasMap' || loop < REGION_AFFIX_RULES.minLoop) return null;
+    if (!zone || zone.type !== 'atlasMap' || !contentProgression.holds('regionAffix', state)) return null;
     return normalizeDropRegion(zone.atlasRegion);
 }
 
@@ -10473,7 +10472,7 @@ function getAvailableSporeCraftModes() {
 
 /** 혼돈 · 피해 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통). */
 function getSporeCraftBlockReason(item, actionKey, mode, omen = null) {
-    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.';
+    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 고급 홀씨를 해금해야 쓸 수 있습니다.';
     const reason = equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
     if (reason || mode === 'none' || !equipmentCrafting.basicActions.includes(actionKey)) return reason;
     return equipmentCrafting.sporePool(item, actionKey, mode, omen).length ? '' : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다.';
@@ -10488,7 +10487,7 @@ function isSporeCraftEquipment(item) {
 // The elemental lines a rot spore removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
 const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 고급 홀씨를 해금해야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
@@ -10510,7 +10509,7 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
 }
 
 function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 이벨에게서 고급 홀씨를 받아야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 고급 홀씨를 해금해야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');

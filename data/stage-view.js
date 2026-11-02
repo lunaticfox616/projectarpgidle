@@ -302,7 +302,7 @@ const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-
 
 /** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서 그 대사의 NPC(data/story-journal.js
  * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",
- * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(대사, 즉시 해금, 상점)이 열린다(js/content-progression-ui.js openNpc).
+ * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(대사, 상점)이 열린다(js/content-progression-ui.js openNpc).
  * 그림은 assets/stage-npcs/<id>-idle.png(대기 6프레임 한 줄, 칸 cell, 발 feet, 머리 꼭대기 head, 프레임마다 frameMs)와
  * <id>-portrait.webp(일러스트, 480×720, scripts/build-portraits.cjs). scripts/build-stage-npcs.cjs가 그림 도구의 시트를 검사해 옮긴다. 그림이 없으면 NPC는 서지 않고
  * 대사만 띠에 나온다. 2026-10-21 새 주인공 비율로 다시 그린 판(artifacts/npc-idle-revision-20261021, 키 112~120도트, 머리 23~25도트)이라
