@@ -195,7 +195,7 @@ const ATLAS_ENDGAME = Object.freeze({
             item: 'royalHoney', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '벌집 여왕', bossAct: 8, mechanic: 'sting' }),
-                Object.freeze({ name: '분노한 벌집 여왕', bossAct: 8, mechanic: 'sting' })
+                Object.freeze({ name: '분노한 벌집 여왕', bossAct: 8, bodyVisual: 'league_hive-stage2', mechanic: 'sting' })
             ]),
             rewards: Object.freeze([['venomStinger', 3], ['enchantedHoney', 1], ['pollen', 30]]), unique: '벌집 여왕의 명령'
         }),
@@ -210,12 +210,12 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['magicBud', 30], ['formlessDew', 10], ['sapBud', 3], ['goldenRule', 1]]), unique: '금고지기의 열쇠꾸러미'
         }),
         Object.freeze({
-            id: 'league_meteor', room: 'meteor', name: '운석 분화구', boss: '검은 별의 심장', act: 7, bossAct: 9, ele: 'light', tier: 16,
+            id: 'league_meteor', room: 'meteor', name: '운석 분화구', boss: '검은 별의 심장', act: 7, bossAct: 9, ele: 'light', tier: 16, bodyVisual: 'league_meteor',
             how: '지도 속 운석 분화구를 비우면 별 조각을 줍니다.',
             item: 'starShard', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '검은 별의 심장', bossAct: 9, mechanic: 'starfall' }),
-                Object.freeze({ name: '타오르는 검은 별', bossAct: 9, mechanic: 'starfall' })
+                Object.freeze({ name: '타오르는 검은 별', bossAct: 9, bodyVisual: 'league_meteor-stage2', mechanic: 'starfall' })
             ]),
             rewards: Object.freeze([['skyEssence', 6], ['goldenRule', 1]]), unique: '낙성의 발자취'
         }),
@@ -252,12 +252,12 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['oilFire', 2], ['oilCold', 2], ['oilLight', 2], ['oilChaos', 2]]), unique: '마른 꽃잎 고리'
         }),
         Object.freeze({
-            id: 'league_nursery', room: 'nursery', name: '묘목장', boss: '묘목장의 어미나무', act: 3, bossAct: 8, ele: 'light', tier: 18,
+            id: 'league_nursery', room: 'nursery', name: '묘목장', boss: '묘목장의 어미나무', act: 3, bossAct: 8, ele: 'light', tier: 18, bodyVisual: 'league_nursery',
             how: '지도 속 묘목장을 비우면 어린 눈을 줍니다.',
             item: 'saplingBud', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '묘목장의 어미나무', bossAct: 8, mechanic: 'saplingRush' }),
-                Object.freeze({ name: '뿌리를 뻗은 어미나무', bossAct: 8, mechanic: 'rootSnare' })
+                Object.freeze({ name: '뿌리를 뻗은 어미나무', bossAct: 8, bodyVisual: 'league_nursery-stage2', mechanic: 'rootSnare' })
             ]),
             rewards: Object.freeze([['blightSpore', 6], ['magicBud', 20], ['sapBud', 2]]), unique: '어미나무의 손길'
         })

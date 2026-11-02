@@ -192,15 +192,15 @@ const ATLAS = Object.freeze({
     // 지역 수호자: 지역의 가장 안쪽 노드(칸 7 · 8)와 이어진 투기장. [보스 이름, 처치마다 주는 정점 파편(뿌리 입장권, null = 가장 적은 것), 보스 외형].
     // 수호자 지도석은 그 지역 13등급 이상 지도의 보스가 떨어뜨린다(수호자 노드가 열려 있을 때).
     guardians: Object.freeze({
-        roots: Object.freeze(['수호자 「검은 뿌리」', 'uberRootTicketChaos', 9]),
+        roots: Object.freeze(['수호자 「검은 뿌리」', 'uberRootTicketChaos', 9, 'guardian-roots']),
         trunk: Object.freeze(['수호자 「나이테 왕」', null, 7]),
-        canopy: Object.freeze(['수호자 「폭풍 날개」', 'uberRootTicketStorm', 8]),
+        canopy: Object.freeze(['수호자 「폭풍 날개」', 'uberRootTicketStorm', 8, 'guardian-canopy']),
         garden: Object.freeze(['수호자 「잿불 정원사」', 'uberRootTicketFlame', 4]),
-        sanctum: Object.freeze(['수호자 「서리 눈」', 'uberRootTicketFrost', 3])
+        sanctum: Object.freeze(['수호자 「서리 눈」', 'uberRootTicketFrost', 3, 'guardian-sanctum'])
     }),
     guardianRules: Object.freeze({ tier: 16, minTier: 13, dropChance: 0.15, hpMul: 2.5, damageMul: 1.3, radius: 9 }),
     // 정점: 뿌리 입장권 4종을 하나씩 바쳐 여는 세계수의 그림자(3단계 보스). 처치마다 씨앗 하나(최대 4).
-    pinnacle: Object.freeze({ name: '세계수의 그림자', boss: '세계수의 그림자', bossAct: 9, act: 1, stages: 3, hpMul: 4, damageMul: 1.5,
+    pinnacle: Object.freeze({ name: '세계수의 그림자', boss: '세계수의 그림자', bossAct: 9, bossVisualId: 'atlas_pinnacle', act: 1, stages: 3, hpMul: 4, damageMul: 1.5,
         tickets: Object.freeze(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']),
         rewards: Object.freeze([['goldenRule', 2], ['sapBud', 3], ['formlessDew', 8]]) }),
     // 세계수 씨앗: 하나마다 모든 노드 등급 +2(최대 4개 → 24등급). 4개면 경계 너머의 루프 50 조건을 대신한다
