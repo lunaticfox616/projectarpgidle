@@ -160,14 +160,15 @@ const shopView = (() => {
 
     /** A rune's picture: a support rune's sigil or the attack rune's art. gem: { kind: 'attack' | 'support', name, tier }. */
     function gemArtHtml(gem) {
-        return gem.kind === 'support' ? supportGemSigil.html(gem.name, 'shop-gem', 0) : renderSkillGemArt(gem.name, 'shop-gem', { eager: true });
+        return gem.kind === 'support' ? supportGemSigil.html(gem.name, 'shop-gem', 0) : renderSkillGemArt(gem.name, 'shop-gem', { eager: true, plain: true });
     }
 
     /** A rune's card: its kind and text, and for an attack rune why the weapon in hand cannot use it, else what wearing it brings. */
     function gemCardHtml(gem) {
         const support = gem.kind === 'support', def = (support ? SUPPORT_GEM_DB : SKILL_DB)[gem.name] || {};
         const need = getRuneLevelReq(gem.name, support);
-        const kind = `${support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬'}${need ? `, Lv.${need}` : ''}`;
+        const copies = support ? 0 : gemDropRewards.copyCount(game, gem.name);
+        const kind = `${support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬'}${need ? `, Lv.${need}` : ''}${copies ? `, 보유 ${copies}개` : ''}`;
         return `<div class="shop-gem-card"><div class="shop-gem-head">${gemArtHtml(gem)}<div><small>${escapeHTML(kind)}</small>
             <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
     }

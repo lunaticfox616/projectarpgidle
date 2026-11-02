@@ -370,7 +370,7 @@ function tutorialMarkup(line) {
  * data/story-journal.js STORY_LOOP_MILESTONES (the stump box card: who hands the box over says it as it is given). */
 function tutorialQuoteHtml(lore) {
     if (!lore || !lore.quote) return '';
-    return `<blockquote class="story-scene-quote"><p><strong>${escapeHTML(lore.speaker || '')}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
+    return `<blockquote class="story-scene-quote"><p>${escapeHTML(lore.quote)} - ${escapeHTML(speakerShortName(lore.speaker))}</p></blockquote>`;
 }
 function tutorialBodyHtml(body) {
     const [lead = '', ...rest] = String(body || '').split('\n').map(line => line.trim()).filter(Boolean);

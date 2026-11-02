@@ -248,6 +248,8 @@ const stumpBox = (() => {
 
     // ── 배치(나무꾼 전투 중에는 세팅을 바꾸지 않는다) ─────────────
     function editable(state) { return of(state).acquired && !state.woodsmanBuildLock; }
+    /** The albino on the board, or null. */
+    const wornAlbinoId = state => placedItems(of(state)).find(item => item.albino)?.id ?? null;
     /** One albino across the board; a stored one may replace the worn one directly. */
     function albinoPlacementReason(state, id, cell) {
         const box = of(state), item = findItem(box, id);
@@ -561,7 +563,7 @@ const stumpBox = (() => {
     /** Grows every growing item by `amount` and writes first harvests into the journal. @returns {object[]} items that ripened. */
     function growBy(state, amount, random = Math.random) {
         const ripened = [];
-        const wornId = placedItems(of(state)).find(item => item.albino)?.id ?? null;
+        const wornId = wornAlbinoId(state);
         for (const item of growingItems(state)) {
             item.xp = Math.min(need(item), item.xp + amount);
             if (item.xp >= need(item)) {
@@ -1189,7 +1191,7 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace, albinoPlacementReason,
+        empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace, albinoPlacementReason, wornAlbinoId,
         unplaceAll, unplaceAllReason, canUndoPlacement, undoPlacement, invalidatePlacementUndo,
         evaluate, applyStats, onEnemyKilled, rollKillDrop, receiveDrop, dropIcon, dropName, validDrop, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,

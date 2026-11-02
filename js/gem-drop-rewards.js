@@ -8,9 +8,25 @@ const gemDropRewards=(()=>{
         const runes = Math.max(0, Math.floor(stats?.runeResonancePower || 0));
         return Math.max(base, floor) + inquisitor + runes;
     }
-    function missingAttacks(state) {
-        const owned=new Set(getOwnedSkillGemNames(state));
-        return Object.keys(SKILL_DB).filter(name=>SKILL_DB[name].isGem&&!owned.has(name));
+    /** Every attack rune: one already held drops and sells again and adds a spare (2026-11-02 사용자). */
+    function attackRunes() {
+        return Object.keys(SKILL_DB).filter(name=>SKILL_DB[name].isGem);
+    }
+    /** Copies beyond the one in use. A broken rune takes one (js/gem-core-forge.js). */
+    function spareCount(state,name) {
+        return Math.max(0,Math.floor(Number(state.runeSpares?.[name])||0));
+    }
+    function copyCount(state,name) {
+        return hasSkillGemOwned(name,state)?1+spareCount(state,name):0;
+    }
+    /** @returns {boolean} whether a spare was there to take. */
+    function takeSpare(state,name) {
+        const left=spareCount(state,name)-1;
+        if(left<0)return false;
+        state.runeSpares={...state.runeSpares};
+        if(left)state.runeSpares[name]=left;
+        else delete state.runeSpares[name];
+        return true;
     }
     function nextSupport(state,name) {
         let before=0;
@@ -24,6 +40,7 @@ const gemDropRewards=(()=>{
         const keys=new Set();
         for(const row of rewards) {
             validateGem(row);
+            if(row.kind==='attack')continue;   // 같은 공격 룬이 또 떨어지면 여분이 된다
             const key=row.kind+':'+row.name;
             if(keys.has(key))throw Error('중복된 탐험 룬 저장');
             keys.add(key);
@@ -45,7 +62,7 @@ const gemDropRewards=(()=>{
     function prepare(state,rewards) {
         validate(rewards);
         if(!rewards.length)return {};
-        const result={skills:[...state.skills],supports:[...state.supports],
+        const result={skills:[...state.skills],supports:[...state.supports],runeSpares:{...state.runeSpares},
             gemData:{...state.gemData},supportGemData:{...state.supportGemData}};
         for(const row of rewards) {
             if(row.kind==='attack')mergeAttack(result,state,row);
@@ -54,8 +71,9 @@ const gemDropRewards=(()=>{
         return result;
     }
     function mergeAttack(result,state,row) {
-        if(!hasSkillGemOwned(row.name,state))result.skills.push(row.name);
-        const record=normalizeGemRecord(state.gemData[row.name]);
+        if(hasSkillGemOwned(row.name,{...state,skills:result.skills}))result.runeSpares[row.name]=spareCount(result,row.name)+1;
+        else result.skills.push(row.name);
+        const record=normalizeGemRecord(result.gemData[row.name]);
         result.gemData[row.name]={...record,awakened:record.awakened||row.awakened};
     }
     function mergeSupport(result,state,row) {
@@ -78,6 +96,6 @@ const gemDropRewards=(()=>{
         const extra=getSupportResonanceCostAtTier(name,record.unlockedTier)-getSupportResonanceCostAtTier(name,before);
         if(!state.equippedSupports.includes(name)||Math.max(0,cap-used)>=extra)record.activeTier=record.unlockedTier;
     }
-    return {resonanceCap,missingAttacks,nextSupport,validate,validateGem,prepare,grant};
+    return {resonanceCap,attackRunes,spareCount,copyCount,takeSpare,nextSupport,validate,validateGem,prepare,grant};
 })();
 safeExposeGlobals({gemDropRewards});

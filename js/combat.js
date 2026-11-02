@@ -2255,6 +2255,7 @@ function prepareCombatTick(nowMs) {
     callOceanGuardianAdds(addLog);
     combatIncidents.tick(); // 잔잔한 사건: 달아나는 금빛 수액 슬라임, 세계수의 하품
     releaseExplorationWave(addLog); // 이어지는 무리: 정예 방과 막다른 방이 비면 문이 닫힌 채 새 무리가 선다
+    roomInvaders.tick(); // 보스 방의 불청객: 보스가 맞아 내려가면 난입 보스가 들이닥친다
     releaseClosedThirdRing(addLog); // 세 번째 손가락이 사라진 반지3의 반지는 가방으로
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
@@ -2871,11 +2872,13 @@ function buildLinearSkillVisualRow(rows) {
     const end = first.options.attackFootprint.cells.reduce((a, b) => distance(b) > distance(a) ? b : a);
     const path = [{ ...source, offsetMs: 0 }];
     const dx = end.gx-source.gx, dy = end.gy-source.gy, lengthSq = dx*dx+dy*dy;
-    rows.forEach(row => {
+    rows.forEach((row, index) => {
         const cell = row.targetCells[0];
         const progress = lengthSq ? clampNumber(((cell.gx-source.gx)*dx+(cell.gy-source.gy)*dy)/lengthSq,0,1) : 0;
-        path.push({gx:source.gx+dx*progress,gy:source.gy+dy*progress,
-            offsetMs:Math.max(path[path.length-1].offsetMs,row.at-first.launchAt)});
+        const point = {gx:source.gx+dx*progress,gy:source.gy+dy*progress,offsetMs:Math.max(path[path.length-1].offsetMs,row.at-first.launchAt)};
+        const next = rows[index + 1];
+        path.push(point);
+        if (next) path.push({ ...point, offsetMs: point.offsetMs + Math.min(SKILL_HIT_SEQUENCE_CONFIG.pierceHoldMs.longest, Math.max(0, (Number(next.holdMs) || 0) - (Number(row.holdMs) || 0))) });
     });
     const tip = path[path.length - 1];
     const remaining = gridChebyshevDist(tip.gx, tip.gy, end.gx, end.gy);
@@ -2898,9 +2901,14 @@ function groupsSkillTravelOnRay(row) {
     return row.patternKind === 'moving' || (row.delivery === 'projectileCell' && !row.patternKind);
 }
 
+/** 발마다 제 길로 난다(js/combat-projectile-shots.js). 더 나가는 발이 없으면 전부 한 발이다. */
 function addPendingSkillTravelFxRows(rows, attackContext, now) {
-    let queuedRows = (rows || []).filter(Boolean);
-    if (queuedRows.length <= 0) return;
+    const shots = new Map();
+    (rows || []).filter(Boolean).forEach(row => shots.set(row.shot, (shots.get(row.shot) || []).concat(row)));
+    shots.forEach(shotRows => addShotTravelFx(shotRows, attackContext, now));
+}
+
+function addShotTravelFx(queuedRows, attackContext, now) {
     let firstRow = queuedRows[0];
     if (attackContext.skillName === '빙결 침식') {
         const last = queuedRows[queuedRows.length - 1];
@@ -2935,7 +2943,9 @@ function getAttackMotionMs(tags) {
  *   landingMs: actual airborne movement duration in combat milliseconds; zero when this attack did not move the hero.
  */
 function queuePlayerAttackSequence(pStats, stages, context) {
-    stages = window.GameModules.combat.supports.stages(stages, pStats.sSkill);
+    const shots = projectileShots.plan(context.skillName, pStats, stages);   // 더 나가는 발은 저마다 제 길로 난다. 다 나눴으니 타격 때 다시 늘지 않는다
+    stages = shots || window.GameModules.combat.supports.stages(stages, pStats.sSkill);
+    if (shots) pStats = { ...pStats, projectileExtraShots: 0, uniqueProjExtraShotChance: null };
     if (pStats.sSkill.nativeCastId) return startSkillGemCombat(pStats, context);
     let tags = pStats.sSkill.tags || [], now = getCombatTime();
     let motionMs = getAttackMotionMs(tags);
@@ -2977,10 +2987,10 @@ const PROJECTILE_RELEASE_SHARE = 0.55;
 function getPendingStageTimes(stage, delivery, cells, timing) {
     const { now, baseDelay, skill } = timing;
     const through = delivery.startsWith('projectile') && stage.kind === 'pierceThrough';
-    const stageDelay = through ? 0 : Math.max(0, Math.floor(stage.delayMs));
+    const stageDelay = (through ? 0 : Math.max(0, Math.floor(stage.delayMs))) + (Number(stage.shotDelayMs) || 0);
     if (delivery.startsWith('projectile')) {
         const launchAt = now + Math.floor(baseDelay * PROJECTILE_RELEASE_SHARE) + stageDelay;
-        return { stageDelay, launchAt, at: launchAt + getCombatTravelMs(through ? game.gridPlayer : cells.source, cells.target, skill) };
+        return { stageDelay, launchAt, at: launchAt + getCombatTravelMs(through ? game.gridPlayer : cells.source, cells.target, skill) + (Number(stage.holdMs) || 0) };
     }
     if (delivery === 'magicMoving') {
         const launchAt = now + baseDelay + stageDelay;
@@ -2988,6 +2998,9 @@ function getPendingStageTimes(stage, delivery, cells, timing) {
     }
     return { stageDelay, launchAt: now, at: now + baseDelay + stageDelay };
 }
+
+/** 발이 나뉜 공격(js/combat-projectile-shots.js)은 발마다 첫 단계부터 센다: 착탄 폭발 같은 첫 타격의 연출이 발마다 나온다. */
+const getStageIndexInShot = (stage, offset) => (stage.shotStage === undefined ? offset : stage.shotStage);
 
 function queuePendingSkillStageHits(stages, pStats, attackContext) {
     let now = getCombatTime();
@@ -3010,8 +3023,8 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
         let { stageDelay, launchAt, at } = getPendingStageTimes(stage, stageDelivery, { source: sourceCell, target: targetCells[0] },
             { now, baseDelay, skill: pStats.sSkill });
         let row = {
-            at, launchAt,
-            zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries,
+            at, launchAt, holdMs: stage.holdMs,
+            zoneId: game.currentZoneId, pStats, delivery: stageDelivery, patternKind, sourceCell, targetCells, targetEntries, shot: stage.shot,
             contactState: {resolved: false}, whirl: stage.whirl, wave: stage.wave, advanceHero: !!stage.advanceHero,
             aimCell: copyCombatGridCell(stage.aimCell),
             waveDurationMs: Math.max(0, Number(stage.waveDurationMs) || 0),
@@ -3022,7 +3035,7 @@ function queuePendingSkillStageHits(stages, pStats, attackContext) {
                 sourceCell, stageReplay: true, skipSlamEcho: stageOffset > 0, skillName: attackContext.skillName, channelId: attackContext.channelId, // 강타 여진은 첫 타격에서만
                 forcedCrit: !!attackContext.forcedCrit, forcedElement: stage.element || attackContext.forcedElement,
                 talentAttackMultiplier: Number.isFinite(Number(attackContext.talentAttackMultiplier)) ? Math.max(0, Number(attackContext.talentAttackMultiplier)) : 1,
-                stageKind: stage.kind, stageLabel: stage.label, stageIndex: stageOffset, stageDelayMs: stageDelay, targetLimit: stage.targetLimit,
+                stageKind: stage.kind, stageLabel: stage.label, stageIndex: getStageIndexInShot(stage, stageOffset), stageDelayMs: stageDelay, targetLimit: stage.targetLimit,
                 stageCount: attackContext.stageCount, chainFromEnemyId: stage.chainFromEnemyId || null,
                 stageRepeatOnce: !!stage.singleRepeat, skipGridControl: stage.skipGridControl,
                 restrictRandomTargets: !!stage.singleRepeat,
@@ -4477,7 +4490,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     }
     // 9) 무한한 권능: 확보한 보조스킬룬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
     if (hasKeystone('iq9')) inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
-    const bonusResonancePower = getBonusResonancePower(runeResonancePower, reward, passive);
+    const bonusResonancePower = getBonusResonancePower(runeResonancePower, reward, passive, gearExplicit);
     let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + bonusResonancePower + inquisitorResonanceBonus));
     if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
     let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
@@ -5273,6 +5286,12 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         rawCrit: finalCrit,
         moveSpeed: finalMove, sightRange: Math.max(0, gearBase.sight + gearExplicit.sight), sightCap: Math.max(0, gearExplicit.sightCap), chestGrade: Math.max(0, gearExplicit.chestGrade),
         chillEffectReducePct: finalChillEffectReducePct,
+        critTakenDamageReducePct: sumStatAcrossBuckets('critTakenDamageReducePct'),
+        igniteTakenDurationReducePct: sumStatAcrossBuckets('igniteTakenDurationReducePct'),
+        shockTakenDurationReducePct: sumStatAcrossBuckets('shockTakenDurationReducePct'),
+        coldTakenDurationReducePct: sumStatAcrossBuckets('coldTakenDurationReducePct'),
+        poisonTakenDurationReducePct: sumStatAcrossBuckets('poisonTakenDurationReducePct'),
+        bleedTakenDurationReducePct: sumStatAcrossBuckets('bleedTakenDurationReducePct'),
         freezeDurationReducePct: finalFreezeDurationReducePct,
         shockEffectReducePct: finalShockEffectReducePct,
         igniteDamageReducePct: finalIgniteDamageReducePct,
@@ -5681,7 +5700,7 @@ function applyGemPresentationPattern(name, skill, stats) {
     return skill;
 }
 function getSkillGemCoreFields(gem) {
-    return { bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened };
+    return { enhanceLevel: gem.enhanceLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened };
 }
 
 /** Targets of the active gem in range now. dormant: monsters that have not noticed the hero yet, which only the attack itself
@@ -6815,7 +6834,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (isSky) name = `부유하는 ${name}`;
     const defence = getEnemyDefence(zone, { enemyEle, isBoss, isElite, loopInputs, wispDefense: look.wispDefense });
     const rolled = { hybridElement: rollEnemyHybridElement(zone, isBoss), patternMode: rollEnemyPatternMode(cosmosMods, isBoss) };
-    const spawn = { level, hp, name, isElite, isBoss, groupIndex, zoneSeed, variantSeed, enemyEle, abyssScale, look, mods, defence, rolled, isSky };
+    const spawn = { level, hp, name, isElite, isBoss, groupIndex, zoneSeed, variantSeed, enemyEle, abyssScale, look, mods, defence, rolled, isSky, plainBoss: !!marker.plainBoss };
     const enemy = buildEnemyRecord(zone, marker, spawn);
     finishEnemySpawn(enemy, zone, spawn);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
@@ -7135,7 +7154,7 @@ function finishEnemySpawn(enemy, zone, spawn) {
     assignEnemyGridCombatProfile(enemy);
     tuneMeteorEnemy(enemy, zone);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, spawn.isElite, spawn.isBoss);
-    finishBossSpawn(enemy, zone);
+    if (!spawn.plainBoss) finishBossSpawn(enemy, zone);
     atlasBoard.markCarrier(game, enemy, zone);
     atlasEndgame.markOmenBearer(game, enemy, zone);
 }
@@ -10442,7 +10461,8 @@ function keepCurrencyDrop(enemy, currencyKey, amount) {
  * picked up at once (the loot log names the first); floor items log when collected. */
 function grantEquipmentPick(enemy, zone, minimumRarity, slot) {
     const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone, slot }));
-    return drop.items.filter(item => keepEquipmentDrop(enemy, item) === 'kept');
+    const keep = enemy.roomInvader ? { guaranteedKeep: true } : undefined; // 뿌리 절단자의 보상은 줍기 필터에도 사라지지 않는다
+    return drop.items.filter(item => keepEquipmentDrop(enemy, item, keep) === 'kept');
 }
 
 /** A weapon root (data/bosses.js ROOT_MONSTER_RULES) drops a weapon of its own category on weaponDropChance of its kills, apart
@@ -10452,10 +10472,21 @@ function grantRootWeaponPick(enemy, zone) {
     return grantEquipmentPick(enemy, zone, null, '무기');
 }
 
-/** itemChance is the kill's expected equipment count (js/loot.js rollEquipmentDrop): above 1 a kill drops several items, each
- * with its own rarity; the drought guarantee lifts only the first. Returns the first kept item for the loot log. */
-const rollEquipmentLoot = function (enemy, zone, itemChance) {
-    const roll = rollEquipmentDrop(zone, enemy, itemChance);
+/** One kill's currency and gear rolls, not yet applied. itemChance is the kill's expected equipment count (js/loot.js rollEquipmentDrop).
+ * 뿌리 절단자 throws away a roll with neither, so the odds between them stay the table's (data/bosses.js lootRolls); after emptyRollRetries
+ * empty rolls the last one has an item. */
+function rollCurrencyAndGear(enemy, zone, itemChance) {
+    let drops = getCurrencyDrops(enemy), gear = rollEquipmentDrop(zone, enemy, itemChance);
+    for (let tries = 1; enemy.roomInvader && !drops.length && !gear.count; tries++) {
+        drops = getCurrencyDrops(enemy);
+        gear = rollEquipmentDrop(zone, enemy, tries >= ROOM_INVADER.emptyRollRetries ? Math.max(1, itemChance) : itemChance);
+    }
+    return { drops, gear };
+}
+
+/** roll (rollEquipmentDrop): above 1 expected item a kill drops several, each with its own rarity; the drought guarantee lifts only the
+ * first. Returns the first kept item for the loot log. */
+const rollEquipmentLoot = function (enemy, zone, roll) {
     const kept = [];
     for (let i = 0; i < roll.count; i++) kept.push(...grantEquipmentPick(enemy, zone, i === 0 ? roll.minimumRarity : null));
     game.equipmentDropProgress = roll.nextProgress;
@@ -10473,7 +10504,7 @@ function grantEnemyLoot(enemy) {
     return combatLootReceipts.capture(game,()=>{
         // 한 몸의 처치에서 기존 정예 머리 몫도 한 번만 지급한다. 떨어지는 자리는 본체의 발밑이다.
         for(const part of enemy.cerberusRewards||[])rollLootForEnemy({...part,gx:enemy.gx,gy:enemy.gy},addLog);
-        atlasRun.onKill(enemy);return rollLootForEnemy(enemy,addLog);
+        atlasRun.onKill(enemy);roomInvaders.grantExtraLoot(enemy);return rollLootForEnemy(enemy,addLog);
     });
 }
 
@@ -10494,9 +10525,7 @@ function rollEnemyGemReward(awakening) {
 }
 
 function rollEnemyAttackGem(awakening) {
-    const names=gemDropRewards.missingAttacks(ownedAndReservedRuneState());
-    if(!names.length)return null;
-    const name=pickSkillRuneReward(names),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
+    const name=pickSkillRuneReward(gemDropRewards.attackRunes()),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
     return {kind:'attack',name,awakened};
 }
 /** Count reserved runes when rolling the next drop, without granting their skills or tiers early. */
@@ -10524,9 +10553,10 @@ function rollLootForEnemy(enemy, say = addLog) {
         get resonanceCap() { return getEffectiveResonanceCap; } };
     rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui);
     rollEnemyRuneDrop(enemy, contentDropMul, gemAwakening, ui);
-    getCurrencyDrops(enemy).forEach(drop => keepEnemyCurrencyDrop(enemy, drop, ui));
     let { equipment: itemChance, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
-    const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
+    const { drops, gear } = rollCurrencyAndGear(enemy, zone, itemChance);
+    drops.forEach(drop => keepEnemyCurrencyDrop(enemy, drop, ui));
+    const keptItem = rollEquipmentLoot(enemy, zone, gear);
     grantRealmBossUniqueLoot(enemy, zone);
     if (keptItem && game.settings.showLootLog) addLog(`🛡️ <span class='loot-${keptItem.rarity}'>[${keptItem.name}]</span> 획득!`, '', { item: keptItem });
     rollWildTalismanDrop(enemy, talismanChance);
@@ -11314,18 +11344,8 @@ function continueMapAfterClear(zone) {
 }
 
 function grantGuaranteedTrialSkillGem() {
-    game.skills = Array.isArray(game.skills) ? game.skills : [];
-    game.gemData = game.gemData || {};
-    game.noti = game.noti || {};
-    let available = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem && !hasSkillGemOwned(name));
-    if (available.length === 0) {
-        addLog('✨ 전직 시련 보상: 모든 공격 룬을 이미 보유했습니다.', 'loot-magic');
-        return true;
-    }
-    let skill = pickSkillRuneReward(available);
-    game.skills.push(skill);
-    game.gemData[skill] = { level: 1, exp: 0, awakened: false };
-    game.noti.skills = true;
+    let skill = pickSkillRuneReward(gemDropRewards.attackRunes());
+    gemDropRewards.grant(game, { kind: 'attack', name: skill, awakened: false }, 0);
     addLog(`✨ 전직 시련 보상: 공격 룬 <span class='loot-magic'>[${skill}]</span> 획득!`, 'loot-magic');
     return true;
 }
@@ -11743,7 +11763,7 @@ function finishTrialEncounter(zone, mapAction, ui) {
     if (!game.unlocks.traits) game.unlocks.traits = true;
     game.noti.traits = true;
     if (zone.id === 'trial_1' && isFirstClear) {
-        queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 전직을 고르고 전직 노드를 활성화하세요.', 'tab-traits');
+        queueTutorialNotice('unlock_first_ascend', '1차 전직', '1차 전직 시련을 통과했습니다.\n‘스킬트리 → 전직’에서 전직을 고르고 전직 노드를 할당하세요.', 'tab-traits');
     }
     ui.unlocks();
     if (zone.id !== 'trial_4') {
@@ -13554,9 +13574,22 @@ function getSelfExperimentAilmentDuration(duration, pStats) {
     return pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.selfExperiment ? duration * 2 : duration;
 }
 
+/** 적 치명타의 배율: 받는 치명타 피해 감소(갑옷 옵션, 90%까지)는 치명타로 늘어나는 몫을 줄인다. */
+function getEnemyCritTakenMul(enemy, pStats) {
+    const mul = enemy.critDamageMul || ENEMY_CRITICAL_DAMAGE_MULTIPLIER;
+    return 1 + Math.max(0, mul - 1) * (1 - clampNumber(pStats.critTakenDamageReducePct || 0, 0, 90) / 100);
+}
+
+/** 주인공에게 걸리는 상태이상의 지속 시간 감소(갑옷 옵션, 75%까지). 냉기는 냉각과 동결이 함께 줄어든다. */
+const PLAYER_AILMENT_DURATION_STATS = Object.freeze({ ignite: 'igniteTakenDurationReducePct', shock: 'shockTakenDurationReducePct', chill: 'coldTakenDurationReducePct',
+    freeze: 'coldTakenDurationReducePct', poison: 'poisonTakenDurationReducePct', bleed: 'bleedTakenDurationReducePct' });
+function getPlayerAilmentTakenDuration(type, duration, pStats) {
+    return duration * (1 - clampNumber(pStats[PLAYER_AILMENT_DURATION_STATS[type]] || 0, 0, 75) / 100);
+}
+
 function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, options) {
     if (!type || duration <= 0) return;
-    duration = getSelfExperimentAilmentDuration(duration, pStats);
+    duration = getPlayerAilmentTakenDuration(type, getSelfExperimentAilmentDuration(duration, pStats), pStats);
     if ((type === 'ignite' && pStats.immuneIgnite) || (type === 'chill' && pStats.immuneChill) || (type === 'freeze' && pStats.immuneFreeze) || (type === 'shock' && pStats.immuneShock) || (type === 'bleed' && pStats.immuneBleed)) return;
     if (Math.random() < getPlayerAilmentResistChance(type, pStats)) return;
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
@@ -13781,7 +13814,7 @@ function isEnemyInGridAttackRange(enemy, target) {
 /** 사거리 밖에서도 그 자리에서 쓰는 공격인가: 보스의 다음 공격이 예고하는 특수기이고 대상이 BOSS_REACH.castRange칸 안일 때.
  * 근접 보스도 지면 강타는 떨어진 곳에 내리친다(달아나기만 하면 아무것도 맞지 않는 싸움이 되지 않게). */
 function canBossCastFromAfar(enemy, target) {
-    if (!enemy.isBoss || !hasGridCell(enemy) || !hasGridCell(target)) return false;
+    if (!enemy.isBoss || enemy.roomInvader || !hasGridCell(enemy) || !hasGridCell(target)) return false; // 뿌리 절단자는 붙어서 간다
     const next = getBossPatternPreview(enemy);
     return !!next && next.isSpecial === true && getGridUnitDistance(enemy, target) <= BOSS_REACH.castRange;
 }
@@ -14281,7 +14314,7 @@ function performMonsterAttacks(pStats) {
             let enemyCritDotBonusPct = 0;
             let enemyCritChance = Math.max(0, (enemy.critChance || 0) - Math.max(0, Math.min(80, pStats.critResist || 0)));
             if (enemyCritChance > 0 && Math.random() < (enemyCritChance / 100)) {
-                scaleBreakdown(enemy.critDamageMul || ENEMY_CRITICAL_DAMAGE_MULTIPLIER);
+                scaleBreakdown(getEnemyCritTakenMul(enemy, pStats));
                 dmg = Math.max(1, sumBreakdown());
                 enemyCritDotBonusPct = 50;
             }
@@ -15199,6 +15232,7 @@ function resetLoopBuild() {
     game.pendingStarterRuneChoice = null;
     game.starterGemTutorialPending = null; // 루프 1의 장착 안내 표시가 남아 다음 루프의 그 룬 봉인을 막았다
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
+    game.runeSpares = {};
     game.skyGemEnhancements = {};
     game.supports = [];
     game.equippedSupports = [];

@@ -17,14 +17,14 @@ const ascendancyTreeUi = (() => {
         evasion: 'boot', evasionPct: 'boot', energyShield: 'shield', resAll: 'shield', resChaos: 'shield', blockChance: 'shield',
         aspd: 'speed', ds: 'speed', move: 'boot', crit: 'crit', critDmg: 'eye', resPen: 'pierce', physIgnore: 'physIgnore', suppCap: 'star'
     });
-    const NODE_TEXT = Object.freeze({ taken: '찍음', open: '찍을 수 있음', nopoint: '포인트 없음', locked: '이어진 노드가 먼저', closed: '짝 노드를 골라 닫힘', future: '아직 열리지 않음' });
-    const KEYSTONE_TEXT = Object.freeze({ taken: '고름', open: '고를 수 있음', nopoint: '키스톤 포인트 없음', full: '다섯 개를 다 고름', locked: '선행 키스톤이 먼저', fifth: '5차 전직 뒤' });
+    const NODE_TEXT = Object.freeze({ taken: '할당', open: '할당 가능', nopoint: '포인트 없음', locked: '선행 노드 필요', closed: '짝 노드를 할당해 닫힘', future: '아직 열리지 않음' });
+    const KEYSTONE_TEXT = Object.freeze({ taken: '할당', open: '할당 가능', nopoint: '키스톤 포인트 없음', full: '5개 모두 할당', locked: '선행 키스톤 필요', fifth: '5차 전직 필요' });
     let focus = null; // { kind: 'node' | 'keystone', id } 마지막으로 누른 칸
     let shown = null; // 자세히 카드가 읽는 칸: 마지막으로 가리키거나 누른 칸
     const ROW_LABEL = Object.freeze({ n10: '궁극', n11: '4차 핵심', n13a: '특화' });
     const KEYSTONE_HALF_WIDTH = 14; // 키스톤 칸 반폭(판 폭의 %): 선이 이 안을 지나면 돌아간다
-    const NODE_ACTIONS = Object.freeze({ taken: '되돌리기', open: '찍기' });
-    const KEYSTONE_ACTIONS = Object.freeze({ taken: '되돌리기', open: '고르기' });
+    const NODE_ACTIONS = Object.freeze({ taken: '반환', open: '할당' });
+    const KEYSTONE_ACTIONS = Object.freeze({ taken: '반환', open: '할당' });
     // 키스톤 설명의 낱말 → 스킬트리 아이콘. 설명에서 가장 먼저 나오는 낱말의 그림을 쓴다.
     const KEYSTONE_ART = Object.freeze([['소환', 'summon'], ['카오스', 'chaos'], ['화염', 'fire'], ['점화', 'ignite'], ['냉기', 'cold'], ['동결', 'freeze'], ['냉각', 'chill'],
         ['번개', 'lightning'], ['감전', 'shock'], ['중독', 'poison'], ['출혈', 'bleed'], ['지속', 'damageOverTime'], ['투사체', 'projectile'], ['강타', 'slam'], ['근접', 'blade'],
@@ -213,9 +213,9 @@ const ascendancyTreeUi = (() => {
         return `<div class="ascend-summary"><div class="ascend-summary-name"><strong>${esc(template.name)}</strong><span>${esc(template.desc)}</span></div>
             <div class="ascend-summary-chips"><span class="is-node">노드 포인트 <b>${Math.max(0, Math.floor(game.ascendPoints || 0))}</b></span>
             <span class="is-key">키스톤 <b>${ks}/${CLASS_KEYSTONE_PICK_LIMIT}</b>, 포인트 <b>${Math.max(0, Math.floor(game.ascendKeystonePoints || 0))}</b></span>
-            <span class="is-taken">찍은 노드 <b>${game.ascendNodes.length}</b></span>
+            <span class="is-taken">할당한 노드 <b>${game.ascendNodes.length}</b></span>
             ${game.ascendNodes.length ? '<button type="button" class="ascend-reset" onclick="resetAscendNodes()">노드 초기화</button>' : ''}</div>
-            <p class="ascend-muted">${esc(nextPoints())}. 이번 루프의 노드 포인트는 최대 9점이라 다 찍을 수는 없습니다.</p>
+            <p class="ascend-muted">${esc(nextPoints())}. 이번 루프의 노드 포인트는 최대 9점이라 전부 할당할 수는 없습니다.</p>
             ${total ? `<p class="ascend-total">합계: ${statToneText.html(total)}</p>` : ''}${getAscendancyPlanContinueHtml()}</div>`;
     }
     function nodeNote(tree, id) {
@@ -224,42 +224,42 @@ const ascendancyTreeUi = (() => {
         const state = nodeState(node, id), lines = linesOf(node);
         const body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : '개화한 재능에 따라 정해집니다.';
         return `${detailHead(RANK[id] || '전직 노드', NODE_TEXT[state], state)}<p class="ascend-detail-lines">${body}</p>
-            ${canTake(state) ? previewHtml('ascendNodes', id, '찍으면') : ''}<p class="ascend-detail-advice">${esc(nodeAdvice(tree, node, id, state))}</p>${actionHtml(NODE_ACTIONS[state])}`;
+            ${canTake(state) ? previewHtml('ascendNodes', id, '할당하면') : ''}<p class="ascend-detail-advice">${esc(nodeAdvice(tree, node, id, state))}</p>${actionHtml(NODE_ACTIONS[state])}`;
     }
     /** A node or keystone the hero can take now or once a point comes. */
     const canTake = state => state === 'open' || state === 'nopoint';
     /** The card's title line: the cell's name and its state. */
     const detailHead = (title, stateText, state) => `<p class="ascend-detail-head"><strong>${esc(title)}</strong><small class="is-${state}">${esc(stateText)}</small>
         <button type="button" class="ascend-detail-close" onclick="ascendancyTreeUi.clear()">닫기</button></p>`;
-    /** The card's button (찍기, 고르기, 되돌리기) for what it shows; nothing when the cell waits on something else. */
+    /** The card's button (할당, 반환) for what it shows; nothing when the cell waits on something else. */
     const actionHtml = label => (label ? `<button type="button" class="ascend-detail-act" onclick="ascendancyTreeUi.act()">${esc(label)}</button>` : '');
-    /** "찍으면 DPS 61 → 64, 생명력 186 → 196": the stats with id added to game[field], read on a copy (js/passives.js previewBuildStats). */
+    /** "할당하면 DPS 61 → 64, 생명력 186 → 196": the stats with id added to game[field], read on a copy (js/passives.js previewBuildStats). */
     function previewHtml(field, id, verb) {
         const parts = buildStatPreviewParts(previewBuildStats(copy => { copy[field] = [...(copy[field] || []), id]; }));
         return parts ? `<p class="ascend-preview">${verb} ${parts}</p>` : '';
     }
     function nodeAdvice(tree, node, id, state) {
         if (state === 'future') return node.future;
-        if (state === 'taken') return '다시 누르면 되돌립니다(마름병 포자 1개, 이 노드에 기대는 노드가 없을 때).';
-        if (state === 'closed') return '둘 중 하나만 고를 수 있습니다. 짝 노드를 되돌리면 고를 수 있습니다.';
-        if (state === 'locked') return `먼저 찍을 노드: ${reqIds(node.req).map(req => linesOf(tree[req]).map(lineText).join(', ')).join(' 또는 ')}`;
+        if (state === 'taken') return '다시 누르면 반환합니다(마름병 포자 1개, 이 노드를 선행으로 둔 노드가 없을 때).';
+        if (state === 'closed') return '둘 중 하나만 할당할 수 있습니다. 짝 노드를 반환하면 할당할 수 있습니다.';
+        if (state === 'locked') return `선행 노드 필요: ${reqIds(node.req).map(req => linesOf(tree[req]).map(lineText).join(', ')).join(' 또는 ')}`;
         if (state === 'nopoint') return `전직 포인트가 없습니다. ${nextPoints()}.`;
-        return `${touchOnly() ? '한 번 더 누르면' : '누르면'} 찍습니다${node.exclusive ? '(짝 노드와 둘 중 하나)' : ''}.`;
+        return `${touchOnly() ? '한 번 더 누르면' : '누르면'} 할당합니다${node.exclusive ? '(짝 노드와 둘 중 하나)' : ''}.`;
     }
     function keystoneNote(defs, id) {
         const k = defs.find(row => row.id === id);
         if (!k) return '';
         const state = keystoneState(k), names = keystoneReqs(k).map(req => (defs.find(row => row.id === req) || {}).name).filter(Boolean);
         const advice = {
-            taken: '다시 누르면 되돌립니다(마름병 포자 1개, 이 키스톤에 기대는 키스톤이 없을 때).',
-            fifth: '재능 개화(5차 전직)를 하면 고를 수 있습니다.',
-            locked: `먼저 고를 키스톤: ${names.join(Array.isArray(k.reqAny) ? ' 또는 ' : ', ')}`,
-            full: `키스톤은 ${CLASS_KEYSTONE_PICK_LIMIT}개까지 고릅니다. 하나를 되돌리면 바꿀 수 있습니다.`,
+            taken: '다시 누르면 반환합니다(마름병 포자 1개, 이 키스톤을 선행으로 둔 키스톤이 없을 때).',
+            fifth: '재능 개화(5차 전직)를 하면 할당할 수 있습니다.',
+            locked: `선행 키스톤 필요: ${names.join(Array.isArray(k.reqAny) ? ' 또는 ' : ', ')}`,
+            full: `키스톤은 ${CLASS_KEYSTONE_PICK_LIMIT}개까지 할당할 수 있습니다. 하나를 반환하면 바꿀 수 있습니다.`,
             nopoint: '키스톤 포인트가 없습니다. 전직 시련을 처음 통과할 때마다 1점씩 받습니다.',
-            open: `${touchOnly() ? '한 번 더 누르면' : '누르면'} 고릅니다.`
+            open: `${touchOnly() ? '한 번 더 누르면' : '누르면'} 할당합니다.`
         }[state];
         return `${detailHead(k.name, KEYSTONE_TEXT[state], state)}<p class="ascend-detail-lines">${statToneText.html(k.desc)}</p>
-            ${canTake(state) ? previewHtml('ascendKeystones', id, '고르면') : ''}<p class="ascend-detail-advice">${esc(advice)}</p>${actionHtml(KEYSTONE_ACTIONS[state])}`;
+            ${canTake(state) ? previewHtml('ascendKeystones', id, '할당하면') : ''}<p class="ascend-detail-advice">${esc(advice)}</p>${actionHtml(KEYSTONE_ACTIONS[state])}`;
     }
     function detailBody(tree, defs) {
         const body = shown ? (shown.kind === 'node' ? nodeNote(tree, shown.id) : keystoneNote(defs, shown.id)) : '';
@@ -381,7 +381,7 @@ const ascendancyTreeUi = (() => {
             <span class="ascend-pick-head">${renderPixelIcon(iconOf(stats[0]), 'ascend-pick-icon')}<strong>${esc(template.name)}</strong></span>
             <span class="ascend-pick-desc">${esc(template.desc)}</span>
             <span class="ascend-pick-section">노드</span><span class="ascend-pick-chips">${chips}</span>
-            <span class="ascend-pick-section">첫 키스톤 (${defs.length}개 가운데 ${CLASS_KEYSTONE_PICK_LIMIT}개를 고릅니다)</span><span class="ascend-pick-keys">${keys}</span>
+            <span class="ascend-pick-section">첫 키스톤 (${defs.length}개 가운데 ${CLASS_KEYSTONE_PICK_LIMIT}개 할당)</span><span class="ascend-pick-keys">${keys}</span>
             <span class="ascend-pick-cta">이 전직 고르기</span></button>`;
     }
     return Object.freeze({ render, hint, tip, press, act, clear, pickCardHtml, icon: iconOf });

@@ -9,6 +9,7 @@
  *   rings   이중 파동: the inner cells of a wide diamond burst first, its outer ring a little later (step out, then back in).
  *   cross   십자 강타: the middle first, then the four arms.
  *   scatter 흩뿌리기: the cells of a square burst in three waves, in a random order.
+ *   grind   회전 톱날(뿌리 절단자, js/combat-room-invader.js): the warned cells are ground again and again, a share of the damage at every tick.
  * A special left as it was (one cell, a melee boss's square) lands at once as before. A cell hits what stands in it when it
  * lands, at the special's damage multiplier (a beam's tick at tickShare of it), so standing still takes one hit as before.
  * The pending attack (js/combat.js) carries the move: each stage resolves as one hit and the rest goes back in the queue with
@@ -19,7 +20,8 @@ const BOSS_MOVE_RULES = Object.freeze({
     beam: Object.freeze({ firstMs: 320, tickMs: 450, ticks: 4, tickShare: 0.45 }),
     rings: Object.freeze({ firstMs: 500, gapMs: 650 }),
     cross: Object.freeze({ firstMs: 500, gapMs: 300 }),
-    scatter: Object.freeze({ firstMs: 420, gapMs: 300, waves: 3 })
+    scatter: Object.freeze({ firstMs: 420, gapMs: 300, waves: 3 }),
+    grind: Object.freeze({ firstMs: 120, tickMs: 190, ticks: 7, tickShare: 0.3 })
 });
 // The first loops' specials of each boss style (data/boss-fx.js kind): three shapes (data/constants.js bossPatternProfiles) in turn,
 // the gentlest first. A boss with no style keeps the old pair (one cell, then the cross).
@@ -77,6 +79,7 @@ const bossMoves = (() => {
     }
 
     function moveKind(area, telegraph, style) {
+        if (telegraph === 'grind') return 'grind';
         if (area.kind === 'fan') return ['melee', 'ground'].includes(style) ? 'chain' : 'volley';
         if (area.kind === 'line') return telegraph === 'beam' ? 'beam' : 'chain';
         return area.kind === 'blast' ? blastMove(area, style) : null;
@@ -115,6 +118,10 @@ const bossMoves = (() => {
         return Array.from({ length: rule.ticks }, (_, k) => ({ ms: rule.firstMs + k * rule.tickMs, cells, share: rule.tickShare }));
     }
     const plain = cell => ({ gx: cell.gx, gy: cell.gy, lane: 0 });
+    function grindStages(area) {
+        const rule = BOSS_MOVE_RULES.grind, cells = area.cells.map(plain);
+        return Array.from({ length: rule.ticks }, (_, k) => ({ ms: rule.firstMs + k * rule.tickMs, cells, share: rule.tickShare }));
+    }
     function ringStages(area) {
         const rule = BOSS_MOVE_RULES.rings, centre = area.center, near = cell => Math.abs(cell.gx - centre.gx) + Math.abs(cell.gy - centre.gy) <= 1;
         return [{ ms: rule.firstMs, cells: area.cells.filter(near).map(plain) },
@@ -138,6 +145,7 @@ const bossMoves = (() => {
     function stagesOf(kind, area, source) {
         if (kind === 'volley' || kind === 'chain') return laneStages(lanesOf(area, source), BOSS_MOVE_RULES[kind]);
         if (kind === 'beam') return beamStages(area, source);
+        if (kind === 'grind') return grindStages(area);
         if (kind === 'rings') return ringStages(area);
         return kind === 'cross' ? crossStages(area) : scatterStages(area);
     }

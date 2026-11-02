@@ -455,6 +455,9 @@ const STAT_DISPLAY_NAMES = {
         dexGemLevel: '민첩 스킬룬 레벨',
         intGemLevel: '지능 스킬룬 레벨',
         runeResonancePower: '공명력',
+        critTakenDamageReducePct: '받는 치명타 피해 감소(%)',
+        igniteTakenDurationReducePct: '점화 지속 시간 감소(%)', shockTakenDurationReducePct: '감전 지속 시간 감소(%)', coldTakenDurationReducePct: '냉기 지속 시간 감소(%)',
+        poisonTakenDurationReducePct: '중독 지속 시간 감소(%)', bleedTakenDurationReducePct: '출혈 지속 시간 감소(%)',
         dr: '물리 피해 감소(%)',
         physIgnore: '물리 피해 감소 무시(%)',
         ds: '연속 타격(%)',
@@ -566,7 +569,8 @@ function createEmptyStatBucket() {
         armor: 0, evasion: 0, energyShield: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, energyShieldRegen: 0, energyShieldRechargeFaster: 0, deflectChance: 0, deflectDamageReduce: 0, blockChance: 0, blockChancePct: 0,
         ailResIgnite: 0, ailResShock: 0, ailResFreeze: 0, ailResPoison: 0, ailResBleed: 0,
         chillEffectReducePct: 0, freezeDurationReducePct: 0, shockEffectReducePct: 0, igniteDamageReducePct: 0, bleedDamageReducePct: 0, poisonDamageReducePct: 0, dotTakenDamageReducePct: 0,
-        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, genericTakenDamageReducePct: 0,
+        takenDamageReduceWhen2EnemiesPct: 0, takenDamageReduceWhen1EnemyPct: 0, genericTakenDamageReducePct: 0, critTakenDamageReducePct: 0,
+        igniteTakenDurationReducePct: 0, shockTakenDurationReducePct: 0, coldTakenDurationReducePct: 0, poisonTakenDurationReducePct: 0, bleedTakenDurationReducePct: 0,
         shockedEnemyHitDamageMorePct: 0, shockedEnemyHitDamagePct: 0, igniteDamageMultiplierPct: 0,
         poisonDamageMultiplierPct: 0, accuracyBonusPct: 0, chillEffect: 0, shockEffect: 0,
         summonFlatDmg: 0, summonPctDmg: 0, summonAspd: 0, summonHpPct: 0, summonCrit: 0, summonCritDmg: 0, summonCap: 0, summonEfficiency: 0, summonGuardRedirectPct: 0, summonResPen: 0, summonGemLevel: 0,
@@ -710,6 +714,11 @@ function withSubjectParticle(word) {
     return String(word || '') + pickParticle(word, '이', '가');
 }
 /** Text made safe for HTML: & < > " and ' as entities; null and undefined as an empty string. */
+/** 말한 이의 짧은 이름: '관측자의 그림자, 베일라'는 베일라, '벼림꾼 오르가'는 오르가(2026-11-02 사용자: 인용 뒤에 - 베일라로 적는다). */
+function speakerShortName(speaker) {
+    return String(speaker || '').split(' (')[0].split(/[\s,]+/).pop();
+}
+
 function escapeHTML(value) {
     return String(value == null ? '' : value)
         .replace(/&/g, '&amp;')

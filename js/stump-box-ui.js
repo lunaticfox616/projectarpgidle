@@ -650,7 +650,8 @@ const stumpBoxUi = (() => {
     const frameShowsCube = () => frameView === 'cube';
 
     function refreshStumpTabIfVisible() {
-        if (typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump')) renderStumpBoxTab();
+        if (typeof getRenderingUiTabIds !== 'function' || !getRenderingUiTabIds().has('tab-stump')) return;
+        if (!isUiPointerInteractionActive()) renderStumpBoxTab(); // 누르는 중인 칸을 바꾸면 그 클릭이 칸에 닿지 않는다
     }
 
     // ── 조작 ───────────────────────────────────────────────
@@ -1000,6 +1001,11 @@ const stumpBoxUi = (() => {
     function dropCubeItem(from, to) {
         return to === null ? stumpCubeUi.takeOutCubeCell(from) : stumpCubeUi.moveCubeItem(from, to);
     }
+    /** Where a double-clicked stored item goes: an albino trades places with the one on the board (one fits on it), the rest take the best empty cell. */
+    function quickStumpCell(item) {
+        const worn = item.albino ? stumpBox.wornAlbinoId(game) : null;
+        return worn === null ? bestStumpCell(item.id) : game.stumpBox.board.indexOf(worn);
+    }
     /** A board item goes to storage; a stored one onto the best empty cell, or into the cube while the frame shows it. */
     function quickMoveStumpItem(id) {
         const item = stumpBox.itemById(game, id);
@@ -1008,7 +1014,7 @@ const stumpBoxUi = (() => {
         if (game.stumpBox.board.includes(id)) return dropOnStorage(id);
         if (frameView === 'cube') return dropOnCube(id);
         if (game.woodsmanBuildLock) return notifyStump(stumpRefusal(item));
-        const cell = bestStumpCell(id);
+        const cell = quickStumpCell(item);
         if (cell === null) return notifyStump('그루터기 함에 빈 칸이 없습니다.');
         dropOnCell(id, cell);
     }
@@ -1018,11 +1024,12 @@ const stumpBoxUi = (() => {
         const id = game.stumpBox.board[Number(target.dataset.cell)];
         return id === undefined ? null : id;
     }
-    /** The second click of a double-click on an item or a cell is left to the double-click: no toggling the first click's pick back. */
-    function isSecondPress(target, event) {
-        const pick = target.dataset.stumpAction === 'item' || target.dataset.stumpAction === 'cell';
-        if (event.detail > 1) return pick && firstClickFree;
-        if (pick) firstClickFree = selectedId === null || selectedId === stumpTargetItem(target);
+    /** The second click of a double-click on an item or a cell is left to the double-click: no toggling the first click's pick back.
+     * The first press on a stored card only picks it, so that double-click works with another item picked; on a cell it places the picked item. */
+    function isSecondPress(target) {
+        const card = target.dataset.stumpAction === 'item', pick = card || target.dataset.stumpAction === 'cell';
+        if (clickPairs.isSecond()) return pick && firstClickFree;
+        if (pick) firstClickFree = card || selectedId === null || selectedId === stumpTargetItem(target);
         return false;
     }
     function onStumpTabDoubleClick(event) {
@@ -1031,6 +1038,8 @@ const stumpBoxUi = (() => {
         if (id === null) return;
         event.preventDefault();
         quickMoveStumpItem(id);
+        // Refused (no empty cell): the first press's pick does not stay, or the next press on a cell would place it.
+        if (selectedId === id) selectStumpItem(null);
     }
     function unplaceAllStump() {
         const reason = stumpBox.unplaceAllReason(game);
@@ -1145,7 +1154,7 @@ const stumpBoxUi = (() => {
     };
     function onStumpTabClick(event) {
         const target = event.target.closest('[data-stump-action]');
-        if (!target || !ACTIONS[target.dataset.stumpAction] || isSecondPress(target, event)) return;
+        if (!target || !ACTIONS[target.dataset.stumpAction] || isSecondPress(target)) return;
         ACTIONS[target.dataset.stumpAction](target.dataset, target, event);
     }
     function onStumpSelectionChange(event) {

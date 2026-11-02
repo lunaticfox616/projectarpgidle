@@ -1,5 +1,5 @@
 /** 옆에서 보는 무대의 스킬 이펙트 (data/stage-skill-vfx.js, 2026-10-13 사용자: "첨부한 파일은 새로운 스킬 이펙트니까 이것도 게임에
- * 적용시켜줘"). 인계 받은 이펙트 그림(assets/stage-vfx/vfx.png, 2026-10-17 스킬룬 인계 v32부터 둘째 장 vfx2.png, 2026-11-01 전달본 V3.6부터 셋째 장 vfx3.png)에서 클립을 잘라 재생한다.
+ * 적용시켜줘"). 인계 받은 이펙트 그림(assets/stage-vfx/vfx.png, 2026-10-17 스킬룬 인계 v32부터 둘째 장 vfx2.png, 2026-11-01 전달본 V3.6부터 셋째 장 vfx3.png, 2026-11-02 V3.9.1부터 넷째 장 vfx5.png)에서 클립을 잘라 재생한다.
  * 인계 쪽 시뮬레이터의 재생기를 옮긴 것이다. 칸 표의 im이 그 클립 원본이 든 그림(STAGE_SKILL_VFX.files의 몇째 장)이다.
  * - 클립은 '이름@램프'로 부른다: 그림의 밝기를 램프의 여섯 색으로 다시 칠한다('@='는 원래 색). 색감은 인계의 기본값인 "옅게"다.
  * - 맞은 적에 붙는 타격 클립은 인계의 기본값 "약하게"로 낸다: 작게, 조금 투명하게, 다섯 칸까지만, 동시에 다섯 개까지.
@@ -193,7 +193,8 @@ const stageSkillVfx = (() => {
         const clip = STAGE_SKILL_VFX.clips[name], row = STAGE_SKILL_VFX.atlas[clip.a];
         const [f0, f1] = clip.f || [0, row.n - 1], b = vfxFramesBox(row, f0, f1);
         const ax = { left: b[0], right: b[2] }[clip.an] ?? (b[0] + b[2]) / 2, ay = clip.an === 'bottom' ? b[3] : (b[1] + b[3]) / 2;
-        const box = { ax, ay, w: b[2] - b[0], h: b[3] - b[1], f0, f1, frames: f1 - f0 + 1 };
+        // pivot: 칸 안의 자리로 정한 기준점(pixelfx로 구운 클립의 원점, 2026-11-02 전달본 V3.9.1)
+        const box = { ax: clip.pivot ? clip.pivot[0] : ax, ay: clip.pivot ? clip.pivot[1] : ay, w: b[2] - b[0], h: b[3] - b[1], f0, f1, frames: f1 - f0 + 1 };
         boxes.set(name, box);
         return box;
     }

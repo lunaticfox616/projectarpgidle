@@ -234,7 +234,7 @@
 #tab-skills .gem-tile:focus-visible { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; }
 #tab-skills .gem-tile .gem-tile-art { width: 44px; height: 44px; border-radius: 0; background: none; }
 /* 카드 안의 그림과 글(가운데 맞춤)은 카드 폭과 제 폭이 홀수일 때 생기는 반 화소를 되돌린다(2026-10-21). */
-#tab-skills .gem-tile > :not(.gem-tile-level, .gem-tile-worn, .starter-gem-equip-guide) { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
+#tab-skills .gem-tile > :not(.gem-tile-level, .gem-tile-worn, .gem-tile-copies, .starter-gem-equip-guide) { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 #tab-skills .gem-tile .gem-tile-art img { image-rendering: pixelated; }
 #tab-skills .gem-tile .gem-tile-name { max-width: 100%; overflow: hidden; color: #fff; font: 400 var(--font-size-ui) var(--board-label); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
 /* 쓰임("전방 부채꼴, 1칸")은 휴대폰 카드에서 한 줄이면 잘렸다: 단어째 두 줄까지 쓴다. */
@@ -242,6 +242,7 @@
   font: 12px var(--board-label); line-height: 1.2; text-align: center; white-space: normal; word-break: keep-all; }
 #tab-skills .gem-tile .gem-tile-level { position: absolute; right: 4px; top: 3px; color: var(--board-gold-hi); font: 12px var(--board-label); }
 #tab-skills .gem-tile .gem-tile-level.effective { color: #8fe0a8; }
+#tab-skills .gem-tile .gem-tile-copies { position: absolute; left: 4px; bottom: 3px; color: var(--board-gold-hi); font: 12px var(--board-label); text-shadow: 1px 1px 0 #000; }
 #tab-skills .gem-tile .gem-tile-worn { position: absolute; left: 0; top: 0; padding: 1px 5px; background: #3a2c22; box-shadow: inset 0 -1px 0 var(--board-gold); color: var(--board-gold-hi); font: 12px var(--board-label); }
 #tab-skills .gem-tile.active { border-color: var(--board-gold); border-top-color: var(--board-gold-hi); background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--gem-accent) 24%, transparent), transparent 48px), linear-gradient(180deg, #2a2219, #16120f); }
 #tab-skills .gem-tile.equipment-blocked { filter: saturate(.35) brightness(.85); }

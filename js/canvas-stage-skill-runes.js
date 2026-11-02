@@ -139,6 +139,11 @@ const stageSkillRunes = (() => {
         for (let i = 0; i < cells; i++) lanes.forEach((k, j) => stageSkillVfx.play(gem.map.iceTrail, K.at(from, face * (i + 0.55 + (j % 2) * 0.25) * WIDE, k * DEEP),
             { face: (i + j) % 2 ? -face : face, delay: i * cellMs + j * 50, layer: k < 0 ? 'ground' : 'top' }));
     }
+    /** 서리 파동(2026-11-02 전달본 V3.9.1): 바닥을 달리는 서리 선 뒤로 얼음 칼날이 물결처럼 솟았다 부서진다. 옆으로 치는 띠면 줄마다. */
+    function runePfxWave(gem, event) {
+        const face = faceOf(event), rows = rowsOf(event.footprint);
+        for (let lane = -rows; lane <= rows; lane++) stageSkillVfx.play(gem.map.pfxWave, K.at(event.sourceCell, face * 8, 1 + lane * DEEP), { face, delay: Math.abs(lane) * 30, alpha: lane ? 0.8 : 1 });
+    }
     /** 나아가는 그림이 지나는 칸 수: 띠의 길이, 아니면 대상 칸까지의 가로 칸 수. */
     function cellsAhead(event) {
         const band = event.footprint && event.footprint.band;
@@ -178,6 +183,8 @@ const stageSkillRunes = (() => {
             const spot = K.enemySpot(enemy);
             if (map.mark) stageSkillVfx.play(map.mark, K.at(spot, 0, K.onGround(map.mark) ? 1 : -46), { face, alpha: 0.85, delay: Math.max(0, wait - 300) });
             SP.guillotine(K.at(spot), Math.max(0, wait - 150));
+            // 2026-11-02 전달본 V3.9.1: 빛의 일격이 내리꽂히는 때가 칼날이 닿는 때에 맞는다
+            if (map.pfxSmite) stageSkillVfx.play(map.pfxSmite, K.at(spot, 0, 1), { face, delay: Math.max(0, wait - 190) });
         }
     }
     /** 첫 반복의 실제 피격 위치에만 낙뢰를 낸다. 이번 타격으로 쓰러진 적도 같은 연출을 받는다. */
@@ -219,8 +226,9 @@ const stageSkillRunes = (() => {
     const CLAIMS = Object.freeze([
         [map => map.slashwave, { travel: runeSlashWave }],
         [map => map.iceTrail, { travel: runeIceTrail }],
+        [map => map.pfxWave, { travel: runePfxWave }],
         [map => map.rod, { stage: (gem, event) => (Number(event.stageIndex) ? null : runeRod(gem, event)) }],
-        [map => map.mark && map.bolt, { windup: runeGuillotineStart }], // 타격은 victim이 맡고 단계 사건의 옛 그림은 막는다.
+        [map => map.mark && (map.bolt || map.pfxSmite), { windup: runeGuillotineStart }], // 타격은 victim이 맡고 단계 사건의 옛 그림은 막는다.
         [map => map.pillars, { stage: (gem, event) => (Number(event.stageIndex) ? runePillars(gem, event) : null) }],
         [map => map.ember, { stage: (gem, event) => (Number(event.stageIndex) ? null : runeEmber(gem, event)) }],
         [map => map.frostcone, { stage: runeFrostCone }],

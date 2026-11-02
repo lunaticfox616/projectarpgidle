@@ -38,6 +38,9 @@ const STAGE_VIEW = Object.freeze({
     /** 전투가 휘두름에 적는 자세 이름(js/combat.js, js/skill-gem-casts.js) → 무대 주인공의 동작(2026-10-20 스킬룬 전달본 v42의 이동 모션):
      * kickoff 사라지기 전에 박차고 나가기(암살, 그림자 점멸: 한손검 이동), pull 끌려가는 동안 밧줄 당기기(작살화살: 활 이동). */
     poseMotions: Object.freeze({ kickoff: 'move', pull: 'move' }),
+    /** 룬이 동작 표(data/stage-skill-vfx.js motions, 전달본에서 만드는 표)와 다른 동작을 쓰는 자세: 룬 → 자세 → 동작.
+     * 빙결 파열창은 주문 룬이지만 창을 날리므로 활을 들면 다른 원소 창처럼 활을 쏜다(2026-11-02 사용자). */
+    runeStanceMotions: Object.freeze({ '빙결 파열창': Object.freeze({ bow: 'attack' }) }),
     /** 그림자 점멸이 박차고 나가는 시간(ms): 그동안 그림은 떠난 칸에 있고 휘두름 앞부분에 이동 동작을 그린 뒤 사라져 닿는 칸에 나타난다. */
     kickoffMs: 200
 });

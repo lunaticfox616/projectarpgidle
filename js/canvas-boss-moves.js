@@ -105,6 +105,35 @@ const bossMoveView = (() => {
             if (frame) drawFrame(ctx, row.clips.impact, frame, floor, { scale });
         }
     }
+    const HELD_MOVES = Object.freeze(['beam', 'grind']);
+    /** 톱날이 가는 칸: 맞을 때마다 붉게 뛴다. */
+    function drawGrindGround(ctx, move, now, projection) {
+        const rule = BOSS_MOVE_RULES.grind, first = move.releasedAt + move.stages[0].ms, since = now - first;
+        if (!move.stages.length || since > rule.tickMs * move.stages.length) return;
+        const beat = since < 0 ? 0 : 1 - (since % rule.tickMs) / rule.tickMs, cells = move.stages[0].cells;
+        const footprint = projectSkillFootprint({ cells, kind: 'blast', center: cells[0] }, projection);
+        if (footprint) drawSkillFootprintGround(ctx, footprint, '#ff3a24', 1.2 + beat * 3.2);
+    }
+    /** 톱날에서 튀는 불꽃(도트 네모): 맞을 때마다 한 번, 무대 그림의 원판 앞쪽에서 앞과 아래로. 원판 자리는 그림에서 잰 값이다. */
+    const SAW_RIM = Object.freeze({ x: 172, y: -52 }), SPARK_COLOURS = Object.freeze(['#fff4cf', '#ffc24d', '#ff7a2e', '#ff3a24']);
+    function drawGrindSparks(ctx, entry, now) {
+        const placed = typeof stageRoster === 'object' ? stageRoster.placementOf(entry.source.id) : null;
+        if (!placed) return;
+        const rule = BOSS_MOVE_RULES.grind, move = entry.move, side = placed.west ? -1 : 1, size = Math.max(3, Math.round(placed.dot * 3));
+        ctx.save();
+        move.stages.forEach((stage, tick) => {
+            const age = (now - (move.releasedAt + stage.ms)) / rule.tickMs / 2;
+            if (age < 0 || age > 1) return;
+            for (let i = 0; i < 16; i++) {
+                const spread = (hashSeed(`${tick}:${i}`) >>> 0) / 4294967296, far = (20 + spread * 64) * age, drop = 40 * age * age * (0.4 + spread);
+                ctx.globalAlpha = 1 - age;
+                ctx.fillStyle = SPARK_COLOURS[i % SPARK_COLOURS.length];
+                const dx = SAW_RIM.x + far * Math.cos((i - 8) * 0.2), dy = SAW_RIM.y + far * Math.sin((i - 8) * 0.2) + drop;
+                ctx.fillRect(Math.round(placed.x + side * dx * placed.dot), Math.round(placed.y + dy * placed.dot), size, size);
+            }
+        });
+        ctx.restore();
+    }
     function drawGround(ctx, projection) {
         if (!projection) return;
         const now = bossAttackView.now();
@@ -112,8 +141,9 @@ const bossMoveView = (() => {
             const move = entry.move, found = bossMoves.fxOf(entry.source);
             for (const stage of move.stages) {
                 const cells = stage.cells.filter(cell => !move.spent.includes(cell.lane) || move.kind !== 'volley');
-                if (cells.length && move.kind !== 'beam') drawStageWarning(ctx, { cells }, move.releasedAt + stage.ms, now, projection);
+                if (cells.length && !HELD_MOVES.includes(move.kind)) drawStageWarning(ctx, { cells }, move.releasedAt + stage.ms, now, projection);
             }
+            if (move.kind === 'grind') drawGrindGround(ctx, move, now, projection);
             if (found && fx()) drawBursts(ctx, entry, found.row, now, projection);
         }
     }
@@ -211,6 +241,7 @@ const bossMoveView = (() => {
         const now = bossAttackView.now();
         drawCharges(ctx, projection);
         for (const entry of bossMoves.live(now)) {
+            if (entry.move.kind === 'grind') drawGrindSparks(ctx, entry, now);
             const found = bossMoves.fxOf(entry.source);
             if (!found) continue;
             if (entry.move.kind === 'volley') drawShots(ctx, entry, found.row, now, projection);
@@ -218,6 +249,19 @@ const bossMoveView = (() => {
         }
     }
 
+    /** 뿌리 절단자는 예고한 칸 쪽을 본 채 톱날을 간다: 칸은 그대로인데 주인공을 따라 몸만 돌면 톱날과 칸이 어긋난다. 예고와 갈기 사이에만 'west' 또는 'east', 그 밖에는 null. */
+    function heldSide(enemy) {
+        if (!enemy || !enemy.roomInvader) return null;
+        const cells = grindCells(enemy, bossAttackView.now());
+        if (!cells) return null;
+        return cells.reduce((sum, cell) => sum + cell.gx, 0) / cells.length < getGridUnitCenter(enemy).gx ? 'west' : 'east';
+    }
+    function grindCells(enemy, now) {
+        if (enemy.patternArea) return enemy.patternArea.cells;
+        const entry = bossMoves.live(now).find(row => row.source === enemy && row.move.kind === 'grind');
+        const stages = entry ? entry.move.stages : [];
+        return stages.length && now <= entry.move.releasedAt + stages[stages.length - 1].ms ? stages[0].cells : null;
+    }
     /** How long the boss holds its strike frame after letting go (js/canvas-monster-actors.js): a beam's whole length, else 0. */
     function strikeHoldMs(enemy) {
         const entry = bossMoves.live(bossAttackView.now()).find(row => row.source === enemy && row.move.kind === 'beam');
@@ -226,6 +270,6 @@ const bossMoveView = (() => {
         return stages[stages.length - 1].ms + BOSS_MOVE_RULES.beam.tickMs;
     }
 
-    return Object.freeze({ drawGround, drawAir, strikeHoldMs });
+    return Object.freeze({ drawGround, drawAir, strikeHoldMs, heldSide });
 })();
 safeExposeGlobals({ bossMoveView });

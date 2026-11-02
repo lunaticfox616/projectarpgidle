@@ -43,7 +43,7 @@ const files = [
   'js/unique-hunt.js',
   'js/background-build-cache.js',
   'js/equipment-stat-resolution.js',
-  'js/gem-core-forge.js', 'js/skills.js', 'js/support-runes.js', 'js/combat-support-runes.js', 'js/combat-support-summons.js',
+  'js/gem-core-forge.js', 'js/skills.js', 'js/support-runes.js', 'js/combat-support-runes.js', 'js/combat-projectile-shots.js', 'js/combat-support-summons.js',
   'js/core-items.js', 'js/talismans.js', 'js/talisman-effects.js', 'js/talisman-combat.js', 'js/stump-cube-recipes.js', 'js/stump-cube.js',
   'js/skill-effect-expansion.js', 'js/combat-grid.js',
   'js/act-exploration-progress.js', 'js/exploration-object-combat.js',
@@ -51,7 +51,7 @@ const files = [
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
-  'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/boss-moves.js',
+  'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/boss-moves.js', 'js/combat-room-invader.js',
   'js/cosmos-rules.js',
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
@@ -1904,7 +1904,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.ok(interceptor.hp < interceptor.maxHp, '직선 투사체는 목표까지의 중간 경로에 들어온 다른 적과 충돌해야 한다');
   const projectileHitGroups = vm.runInContext("battleFx.filter(fx => fx.type === 'hit' && fx.enemyId === 62).map(fx => fx.damageTextGroupId)", context);
   assert.ok(projectileHitGroups.length >= 3, '추가 발사 +2는 실제 피해 타격을 그대로 유지해야 한다');
-  assert.strictEqual(new Set(projectileHitGroups).size, 1, '한 단계의 추가 투사체 타격은 동일한 피해 숫자 그룹을 공유해야 한다');
+  assert.strictEqual(new Set(projectileHitGroups).size, 3, '추가 발사는 발마다 따로 맞으므로 피해 숫자 그룹도 발마다 따로다(전달본 V3.7)');
   assert.ok(projectileHitGroups[0], '추가 투사체 피해 숫자 그룹은 비어 있으면 안 된다');
 
   resetGame();

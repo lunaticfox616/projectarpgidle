@@ -416,6 +416,25 @@ function getMonsterVisualAttackKind(visualId) {
 //   ranged 사거리 있음: range칸 안에서 쏜다. 사거리 밖이면 사거리 안까지 걸어 들어온다.
 //   far    사거리 무한: 제자리에서 방 어디든 닿는다(전과 같다).
 // 전투 규칙은 js/combat-grid.js(사거리 배정)와 js/combat.js(다가가기, 떨어진 곳에서 쓰는 특수기)가 읽는다.
+/** 난입 보스(2026-11-02 사용자: 디아블로의 도살자처럼 방을 넘어갈 때 아주 낮은 확률로, js/combat-room-invader.js). roomChance: 처음 들어서는 방마다.
+ * 들이닥치는 보스는 otherBosses의 그림에 그 구역 보스의 수치이고, grinderShare만큼만 뿌리 절단자다(사용자: 보스 난입 중에서도 낮은 확률로). 보스 방의 불청객도 같다.
+ * 아래는 뿌리 절단자의 값이다. hpMul, damageMul: 그 구역 보스의 수치에 곱한다. stepSec: 한 칸 걷는 시간(주인공 0.4초, 다른 보스 0.3초). grind: 공격, 다단 히트는 js/boss-moves.js rules.grind.
+ * lootRolls: 보스 드랍을 굴리는 횟수, 장비도 재화도 없는 결과는 다시 굴려 장비와 재화의 비율은 드랍 표 그대로다(사용자: 노드랍 없는 드랍 10개, 장비만 10개는 아니다).
+ * emptyRollRetries: 그만큼 비면(주인공이 구역보다 너무 높아 표가 거의 빌 때) 장비 하나를 준다. expMul: 경험치.
+ * zoneTypes: 나오는 구역. 시련, 벌집, 군락, 대균열, 나무꾼, 심해처럼 제 규칙으로 싸우는 곳은 뺐다. */
+const ROOM_INVADER = Object.freeze({
+    actor: 'root-grinder', name: '뿌리 절단자', fromLoop: 2, roomChance: 0.003, grinderShare: 0.05,
+    zoneTypes: Object.freeze(['act', 'abyss', 'chaosRealm', 'skyTower', 'underworld', 'atlasMap', 'meteor', 'timeRift', 'cosmos']),
+    hpMul: 15, damageMul: 4.5, expMul: 15, stepSec: 0.2, entranceMs: 2400, outline: '#ff3a24',
+    grind: Object.freeze({ label: '회전 톱날', damageMul: 1, warningMs: 500, recoveryMs: 500 }),
+    lootRolls: 10, emptyRollRetries: 100,
+    otherBosses: Object.freeze(['guardian-roots', 'guardian-trunk', 'guardian-canopy', 'guardian-garden', 'guardian-sanctum', 'league_breach', 'league_treasure', 'league_ember', 'league_sap',
+        'league_withered', 'league_nursery', 'famine_beast', 'atlas-roots-1', 'atlas-roots-3', 'atlas-roots-6', 'atlas-roots-7', 'atlas-trunk-0', 'atlas-trunk-4', 'atlas-trunk-6', 'atlas-trunk-7',
+        'atlas-canopy-0', 'atlas-canopy-4', 'atlas-canopy-7', 'atlas-garden-1', 'atlas-garden-2', 'atlas-garden-7', 'atlas-sanctum-0', 'atlas-sanctum-4', 'atlas-sanctum-5', 'atlas-sanctum-7'])
+});
+/** 보스 방의 불청객(2026-11-02 사용자: 높은 루프로 갈수록 확률이 조금씩). 확률은 fromLoop부터 루프마다 perLoop씩, cap까지(0~1). twinShare: 그 가운데 보스가 둘인 몫, 나머지는
+ * 싸우는 도중 난입 보스(ROOM_INVADER)가 들이닥친다(보스 생명력이 extraAtHpShare 아래로 내려갈 때). twinHpMul: 둘일 때 하나의 생명력. */
+const BOSS_ROOM_SURPRISE = Object.freeze({ fromLoop: 10, perLoop: 0.0005, cap: 0.03, twinShare: 0.5, extraAtHpShare: 0.6, twinHpMul: 0.8 });
 const BOSS_REACH = Object.freeze({
     kinds: Object.freeze({
         melee: Object.freeze({ id: 'melee', label: '근접', range: COMBAT_GRID_CONFIG.meleeAttackRange }),
@@ -430,7 +449,7 @@ const BOSS_REACH = Object.freeze({
         bossAct6: 'far', bossAct7: 'ranged', bossAct8_1: 'ranged', bossAct8_2: 'melee', bossAct8_3: 'melee', bossAct9: 'far',
         bossAct10_1: 'far', bossAct10_2: 'far', bossAct10_3: 'far', bossAct10_4: 'far', bossAct10_5: 'far'
     }),
-    byVisual: Object.freeze({ 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
+    byVisual: Object.freeze({ 'root-grinder': 'polearm', 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
         'atlas-sanctum-5': 'far', 'colony-boss': 'melee',
         // 제 그림으로 나오는 지도, 수호자, 리그 보스: 공격 효과 종류(data/boss-fx.js)대로. 효과가 없는 꼭대기 보스 다섯과 정점은 액트 그림의 거리를 잇는다.
         'atlas-roots-1': 'melee', 'atlas-roots-3': 'melee', 'atlas-roots-6': 'melee', 'atlas-roots-7': 'melee',

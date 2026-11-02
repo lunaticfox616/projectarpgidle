@@ -47,11 +47,12 @@ const npcShop = (() => {
 
     const allRunesOpen = () => !!game.npcMet[ALL_RUNES.npc] && (game.maxZoneId || 0) >= ALL_RUNES.act;
     /** What the whole shelf holds: supports join once their unlock opens, so the mark tells when to lay it again. */
-    const allRunesMark = () => (contentProgression.isUnlocked('support') ? 'full' : 'attacks');
+    // 이름이 달라지면 진열대를 다시 편다(2026-11-02: 가진 룬도 팔게 되어 옛 진열대에는 빠진 룬이 있다).
+    const allRunesMark = () => (contentProgression.isUnlocked('support') ? 'full-copies' : 'attacks-copies');
 
     function rollAllRunes() {
-        const missing = gemDropRewards.missingAttacks(game), weights = getSkillRuneRewardWeights(missing);
-        const attacks = missing.slice().sort((a, b) => weights.get(b) - weights.get(a)).map(name => ({ kind: 'attack', name, awakened: false }));
+        const runes = gemDropRewards.attackRunes(), weights = getSkillRuneRewardWeights(runes);
+        const attacks = runes.sort((a, b) => weights.get(b) - weights.get(a)).map(name => ({ kind: 'attack', name, awakened: false }));
         const supports = allRunesMark() === 'full' ? Object.keys(SUPPORT_GEM_DB).map(name => gemDropRewards.nextSupport(game, name)).filter(Boolean) : [];
         // 칸 자리는 저장하지 않는다: 검색과 쪽에 맞춰 화면이 채운다(js/npc-shop-ui.js runeShelfHtml).
         const offers = [...attacks, ...supports].map(gem => ({ gem, priceKey: allRunePriceKey(gem), price: 1, columns: 1, rows: 1 }));
@@ -124,14 +125,14 @@ const npcShop = (() => {
         }).filter(Boolean);
     }
 
-    /** Attack gems the hero lacks and, once support gems are open, the next tier of support gems (as a gem drop gives them). Runes the
+    /** Attack gems and, once support gems are open, the next tier of support gems (as a gem drop gives them). Runes the
      * worn weapon can use come up three times as often (getSkillRuneRewardWeights); a support weighs as much as an average rune. */
     function rollGemWares(count) {
-        const missing = gemDropRewards.missingAttacks(game), weights = getSkillRuneRewardWeights(missing);
-        const attacks = missing.map(name => ({ kind: 'attack', name, awakened: false }));
+        const runes = gemDropRewards.attackRunes(), weights = getSkillRuneRewardWeights(runes);
+        const attacks = runes.map(name => ({ kind: 'attack', name, awakened: false }));
         const supports = contentProgression.isUnlocked('support')
             ? Object.keys(SUPPORT_GEM_DB).map(name => gemDropRewards.nextSupport(game, name)).filter(Boolean) : [];
-        const average = missing.length ? [...weights.values()].reduce((sum, weight) => sum + weight, 0) / missing.length : 1;
+        const average = [...weights.values()].reduce((sum, weight) => sum + weight, 0) / runes.length;
         const weightOf = gem => (gem.kind === 'attack' ? weights.get(gem.name) : average);
         return pickShopWeighted([...attacks, ...supports], count, weightOf).map(gem => ({ gem, priceKey: 'formlessDew',
             price: gem.kind === 'support' ? PRICE.supportGem + gem.tier : PRICE.attackGem }));
@@ -198,7 +199,7 @@ const npcShop = (() => {
     }
 
     function checkGemWare(gem) {
-        if (gem.kind === 'attack') return hasSkillGemOwned(gem.name) ? { ok: false, reason: '이미 가진 룬입니다.' } : { ok: true };
+        if (gem.kind === 'attack') return { ok: true };
         const next = gemDropRewards.nextSupport(game, gem.name);
         return next && next.tier === gem.tier ? { ok: true } : { ok: false, reason: '이미 가진 룬입니다.' };
     }
@@ -224,8 +225,9 @@ const npcShop = (() => {
         return { ok: true, offer };
     }
 
-    /** The sold ware leaves its cell; on the every-rune shelf a support's next tier takes the cell instead. */
+    /** The sold ware leaves its cell; on the every-rune shelf a support's next tier takes the cell instead. An attack rune stays: it sells as long as the price is there. */
     function refillSoldShelfCell(shop, index, offer) {
+        if (offer.gem?.kind === 'attack') return;
         const next = shop.allRunes && offer.gem?.kind === 'support' ? gemDropRewards.nextSupport(game, offer.gem.name) : null;
         if (next) shop.offers[index] = { ...offer, gem: next };
         else shop.offers.splice(index, 1);

@@ -157,7 +157,7 @@ const npcShopUi = (() => {
         if (!result.ok) { chosen = { id, index }; redrawShop(root, result.reason); return; }
         const who = contentUnlockUi.personal(STORY_NPCS[id].name);
         addLog(`${who}에게서 [${escapeHTML(wareName(result.offer))}] 구매, ${npcShop.currencyName(result.offer.priceKey)} ${result.offer.price}`, 'loot-magic');
-        chosen = null;
+        chosen = result.offer.gem?.kind === 'attack' ? { id, index } : null;
         checkUnlocks();
         updateStaticUI();
         saveGame({ skipCloudSync: true });

@@ -13,6 +13,10 @@ const bossEntranceView = (() => {
     /** 무대의 입장: fadeIn, rimFrom, burstAt은 입장 길이의 몫(형체가 다 보이는 때, 테가 차오르기 시작하는 때, 드러나는 때).
      * flashMs 드러나며 하얗게 번쩍이는 시간, dim 방이 어두워지는 정도, light 발밑에 고이는 빛의 반지름(도트)과 세기. */
     const STAGE = Object.freeze({ fadeIn: 0.1, rimFrom: 0.14, burstAt: 0.5, flashMs: 340, dim: 0.6, light: Object.freeze({ dots: 120, alpha: 0.5 }) });
+    /** 들이닥치는 보스(fx.red, 2026-11-02 사용자 "등장할 때 연출 붉은색 계열", js/combat-room-invader.js): 방이 더 어두워지고, 테와 빛, 알갱이가 붉고, 화면 가장자리에
+     * 붉은 기운이 맥박 치며 위아래로 붉은 띠가 닫혀 든다. 드러나는 순간의 번쩍임과 흔들림도 붉고 크다. */
+    const RED = Object.freeze({ color: '#ff3a24', dim: 0.8, flash: '#ff4a2e', flashAlpha: 0.42, veil: '176, 14, 10', shake: 1.7, bar: 0.085, ember: '#ff7a3c' });
+    const colorOf = (fx, enemy) => (fx.red ? RED.color : getElementColor(enemy.ele) || '#9ed6ff');
     let spot = null;        // 입장 중인 보스가 선 화면 자리 { id, top, feet }
 
     function active(now) {
@@ -33,7 +37,7 @@ const bossEntranceView = (() => {
     function stageLook(enemy, now) {
         const fx = onStage() ? active(now) : null;
         if (!fx || !fx.enemyIds.includes(enemy.id)) return null;
-        const hold = holdOf(fx), t = now - fx.start, burst = burstOf(fx), color = getElementColor(enemy.ele) || '#9ed6ff';
+        const hold = holdOf(fx), t = now - fx.start, burst = burstOf(fx), color = colorOf(fx, enemy);
         if (t >= burst) return { alpha: 1, shade: 0, rim: 0, flash: 1 - share(t, burst, burst + STAGE.flashMs), color };
         return { alpha: ease(t / (hold * STAGE.fadeIn)), shade: 1, rim: share(t, hold * STAGE.rimFrom, burst), flash: 0, color };
     }
@@ -53,9 +57,9 @@ const bossEntranceView = (() => {
     function shake(now) {
         const fx = active(now);
         if (!fx) return 0;
-        const t = now - fx.start, burst = burstOf(fx);
-        if (t < burst) return 0.5 + t / burst * 1.5;
-        return Math.max(0, 7 * (1 - (t - burst) / 420));
+        const t = now - fx.start, burst = burstOf(fx), big = fx.red ? RED.shake : 1;
+        if (t < burst) return (0.5 + t / burst * 1.5) * big;
+        return Math.max(0, 7 * big * (1 - (t - burst) / 420));
     }
 
     /** Under the actors: the room dims (the rising boss and the player stay lit above it), the waking rift ring,
@@ -65,15 +69,15 @@ const bossEntranceView = (() => {
         if (!boss) return;
         const at = getBattleLayout([boss], 0, 0, state.gridProj)[0];
         if (!at) return;
-        const t = state.now - fx.start, dot = Math.max(2, state.gridProj.tileW / 16), color = getElementColor(boss.ele) || '#9ed6ff';
+        const t = state.now - fx.start, dot = Math.max(2, state.gridProj.tileW / 16), color = colorOf(fx, boss);
         spot = { id: boss.id, top: at.y - state.gridProj.tileW * BOSS_TILES, feet: at.y };
         const hold = holdOf(fx), dim = t < hold ? ease(t / 350) : Math.max(0, 1 - (t - hold) / 500);
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        ctx.globalAlpha = dim * (onStage() ? STAGE.dim : 0.5);
+        ctx.globalAlpha = dim * (fx.red ? RED.dim : onStage() ? STAGE.dim : 0.5);
         ctx.fillStyle = '#040302';
         ctx.fillRect(-4000, -4000, 8000, 8000);
-        if (onStage()) stageGround(ctx, at, { t, hold, dim, dot: state.gridProj.tileW / 64, color, seed: boss.id });
+        if (onStage()) groundOfBosses(ctx, state, { fx, t, hold, dim, at });
         else {
             wakingRing(ctx, at, { t, dot, color });
             if (t >= RISE_AT - 200) pillar(ctx, at, { t, dot, color });
@@ -81,13 +85,18 @@ const bossEntranceView = (() => {
         }
         ctx.restore();
     }
+    /** 입장하는 보스마다의 무대 바닥: 보스가 둘이면 둘 다 발밑에 빛이 고인다. */
+    function groundOfBosses(ctx, state, o) {
+        const bosses = o.fx.enemies.filter(enemy => enemy.isBoss), spots = getBattleLayout(bosses, 0, 0, state.gridProj);
+        bosses.forEach((boss, index) => stageGround(ctx, spots[index] || o.at, { t: o.t, hold: o.hold, dim: o.dim, dot: state.gridProj.tileW / 64, color: colorOf(o.fx, boss), seed: boss.id, red: o.fx.red }));
+    }
     /** 무대의 바닥: 테가 차오르는 만큼 발밑에 속성 색 빛이 고이고 그 위로 빛 알갱이가 오른다. 드러나는 순간 먼지가 좌우로 퍼진다.
      * o.dot: 무대 그림의 도트 하나(화면 px). */
     function stageGround(ctx, at, o) {
         const burst = o.hold * STAGE.burstAt, lit = o.t < burst ? share(o.t, o.hold * STAGE.rimFrom, burst) : 1;
         floorLight(ctx, at, { dot: o.dot, color: o.color, strength: lit * o.dim });
-        if (o.t < burst) motes(ctx, at, { t: o.t, dot: Math.max(1, Math.round(o.dot * 2)), mote: o.color }, o.dot * 26, lit);
-        else floorDust(ctx, at, { t: o.t - burst, dot: Math.max(1, Math.round(o.dot * 2)), seed: o.seed });
+        if (o.t < burst) motes(ctx, at, { t: o.t, dot: Math.max(1, Math.round(o.dot * 2)), mote: o.red ? RED.ember : o.color }, o.dot * 26, lit);
+        else floorDust(ctx, at, { t: o.t - burst, dot: Math.max(1, Math.round(o.dot * 2)), seed: o.seed, dust: o.red ? RED.ember : '#9a8a78' });
     }
     /** 발밑에 고인 빛: 바닥에 누운 둥근 빛을 더해 그린다(어두워진 방에서 보스가 선 자리만 밝다). 바깥은 검정이 아니라 같은 색의 투명으로
      * 끝난다: 바닥에 아이템이 있으면 캐릭터를 투명한 판(js/battle-ground-loot-ui.js actorContext)에 그리는데, 그 판에서는 더한 검정이
@@ -110,7 +119,7 @@ const bossEntranceView = (() => {
     function floorDust(ctx, at, o) {
         if (o.t > 760) return;
         const k = o.t / 760, out = ease(k);
-        ctx.fillStyle = '#9a8a78';
+        ctx.fillStyle = o.dust;
         for (let i = 0; i < 22; i++) {
             const side = i % 2 ? 1 : -1, far = 6 + ((i * 7 + o.seed) % 11) * 4.2, lift = Math.sin(k * Math.PI) * (2 + (i % 4) * 2.5);
             ctx.globalAlpha = (1 - k) * (0.5 + (i % 3) * 0.2);
@@ -209,11 +218,33 @@ const bossEntranceView = (() => {
     /** Over everything, in screen space: the flash of the burst. area = { width, height, now }. */
     function drawScreen(ctx, area) {
         const fx = active(area.now), burst = fx ? burstOf(fx) : 0, t = fx ? area.now - fx.start : -1;
+        if (fx && fx.red) drawRedVeil(ctx, area, { t, hold: holdOf(fx) });
         if (t < burst || t >= burst + 240) return;
         ctx.save();
-        ctx.globalAlpha = (onStage() ? 0.24 : 0.38) * (1 - (t - burst) / 240);
-        ctx.fillStyle = '#fff6e6';
+        ctx.globalAlpha = (fx.red ? RED.flashAlpha : onStage() ? 0.24 : 0.38) * (1 - (t - burst) / 240);
+        ctx.fillStyle = fx.red ? RED.flash : '#fff6e6';
         ctx.fillRect(0, 0, area.width, area.height);
+        ctx.restore();
+    }
+    /** 붉은 입장의 화면: 가장자리의 붉은 맥박과 위아래에서 닫혀 드는 띠. o.t: 입장이 시작된 뒤 ms, o.hold: 입장 길이. */
+    function drawRedVeil(ctx, area, o) {
+        const fade = o.t < o.hold ? ease(o.t / 320) : Math.max(0, 1 - (o.t - o.hold) / 500), beat = 0.72 + 0.28 * Math.abs(Math.sin(o.t / 240));
+        if (!(fade > 0)) return;
+        const cx = area.width / 2, cy = area.height / 2, reach = Math.hypot(cx, cy);
+        const veil = ctx.createRadialGradient(cx, cy, reach * 0.42, cx, cy, reach);
+        veil.addColorStop(0, `rgba(${RED.veil}, 0)`);
+        veil.addColorStop(1, `rgba(${RED.veil}, ${0.62 * beat})`);
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = veil;
+        ctx.fillRect(0, 0, area.width, area.height);
+        const bar = Math.round(area.height * RED.bar * fade);
+        ctx.fillStyle = '#120202';
+        ctx.fillRect(0, 0, area.width, bar);
+        ctx.fillRect(0, area.height - bar, area.width, bar);
+        ctx.fillStyle = RED.color;
+        ctx.fillRect(0, bar, area.width, 2);
+        ctx.fillRect(0, area.height - bar - 2, area.width, 2);
         ctx.restore();
     }
 

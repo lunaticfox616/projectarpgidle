@@ -1,7 +1,7 @@
 /** 해금 탭(2026-11-02 사용자: 선행 조건 2~3개에서 갈래로 뻗어, 다음 해금만 고민하게. 한눈에 보이고 가로 스크롤로. 분류로 나누지 말 것).
- * 세 뿌리(장비 제련, 보조스킬룬, 루프 패시브)에서 뻗는 한 나무: 가로축은 루프, 줄은 unlockBoard가 채운다. 위에 해금 포인트, 지금 가능, 판 전체 지도, 아래에 고른 해금의 설명.
+ * 세 뿌리(장비 제련, 보조스킬룬, 루프 패시브)에서 뻗는 한 나무: 가로축은 루프, 줄은 unlockBoard가 채운다. 위에 해금 포인트, 해금 가능, 판 전체 지도, 아래에 고른 해금의 설명.
  * 규칙과 장부는 contentProgression, 사고 받는 일은 contentUnlockUi의 것이다. 칸에 NPC 그림은 넣지 않는다. */
-const UNLOCK_BOARD_SIZE = Object.freeze({ cardCol: 146, cardGap: 10, pipCol: 54, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 30, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
+const UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 30, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
 // side: 가지가 먼저 뻗는 쪽(위 -1, 아래 1), at: 뿌리가 놓이는 높이(줄 수에 대한 몫). 심화 혼돈은 어느 뿌리에도 묶지 않지만 빛깔은 전투 쪽을 쓴다.
 const UNLOCK_FAMILIES = Object.freeze([
     { id: 'gear', root: 'craft', side: -1, at: 0.22 },
@@ -23,6 +23,15 @@ const unlockBoard = (() => {
     }
     const slotKey = (loop, sub) => loop + sub / 10;
     let base = null;
+    /** 칸 글의 폭: 갈무리 12px에서 한글은 12, 나머지는 8을 넘지 않는다. 글꼴이 늦게 와도 자리가 흔들리지 않게 글자로 센다. */
+    const textWidth = text => [...String(text)].reduce((sum, letter) => sum + (letter.charCodeAt(0) > 0x2000 ? 12 : 8), 0);
+    /** 카드 너비: 아이콘과, 이름과 얻는 글 중 긴 쪽이 한 줄에 들어가는 만큼(2026-11-02 사용자: 박스 크기를 글에 맞춘다). 칸이 낮으면 얻는 글은 안 보인다. */
+    function cardWidth(def, height) {
+        const texts = [unlockTabUi.cardName(def), ...(height >= SIZE.gainFrom ? [unlockTabUi.cardGain(def)] : [])];
+        return height - 2 + 5 + Math.max(SIZE.minCardText, ...texts.map(textWidth)) + 8;
+    }
+    const pipWidth = def => Math.max(SIZE.pip, textWidth(unlockTabUi.upgradeEffect(def.series, def.rank)) + 10);
+    const cellWidth = (def, height) => (isStep(def) ? pipWidth(def) : cardWidth(def, height));
 
     /** 앞 해금이 먼저 오는 차례. */
     function treeOrder() {
@@ -114,18 +123,18 @@ const unlockBoard = (() => {
         }
         return plan.spots;
     }
-    /** 칸마다 가로 자리: 카드가 있는 칸은 넓게, 강화 단계만 있는 칸은 좁게. 같은 루프의 칸들을 한 눈금으로 묶는다. */
+    /** 칸마다 가로 자리: 그 칸에 놓인 가장 넓은 칸만큼. 같은 루프의 칸들을 한 눈금으로 묶는다. */
     function measureColumns(spots) {
         const slots = new Map();
         spots.forEach(spot => {
-            const name = `${spot.loop}.${spot.sub}`, slot = slots.get(name) || { loop: spot.loop, sub: spot.sub, card: false };
-            slot.card = slot.card || !isStep(spot.def);
+            const name = `${spot.loop}.${spot.sub}`, slot = slots.get(name) || { loop: spot.loop, sub: spot.sub, w: 0 };
+            slot.w = Math.max(slot.w, cellWidth(spot.def, SIZE.maxCard) + SIZE.cardGap);
             slots.set(name, slot);
         });
         let x = SIZE.left;
         const columns = [...slots.values()].sort((a, b) => a.loop - b.loop || a.sub - b.sub), loops = [];
         columns.forEach(slot => {
-            Object.assign(slot, { x, w: slot.card ? SIZE.cardCol : SIZE.pipCol });
+            slot.x = x;
             x += slot.w;
             const last = loops[loops.length - 1];
             if (last && last.loop === slot.loop) last.w += slot.w;
@@ -149,10 +158,10 @@ const unlockBoard = (() => {
         const cardH = Math.min(pitch - 4, SIZE.maxCard), pos = new Map();
         board.spots.forEach((spot, id) => {
             const step = isStep(spot.def), rowTop = SIZE.ruler + spot.row * pitch, y = rowTop + Math.floor(pitch / 2);
-            const w = step ? SIZE.pip : SIZE.cardCol - SIZE.cardGap, h = step ? SIZE.pipH : cardH, left = spot.col.x + Math.floor((spot.col.w - w) / 2);
+            const w = cellWidth(spot.def, cardH), h = step ? SIZE.pipH : cardH, left = spot.col.x + Math.floor((spot.col.w - w) / 2);
             pos.set(id, { def: spot.def, step, row: spot.row, loop: spot.loop, left, right: left + w, y, top: y - Math.floor(h / 2), w, h, cx: left + Math.floor(w / 2), rowTop, rowBottom: rowTop + pitch, col: spot.col });
         });
-        return { board, pos, pitch, cardH, height };
+        return { board, pos, pitch, cardH, height, fullHeight: Math.max(height, SIZE.ruler + board.count * pitch) };
     }
     const clearRun = (L, y, from, to, skip) => ![...L.pos.values()].some(row => !skip.includes(row.def.id) && row.y === y && row.left < to && row.right > from);
     /** 선: 줄기 선은 부모 칸을 나서자 꺾어 자식 줄을 따라간다(배치가 그 길을 비워 두었다). 다른 선행은 비어 있는 길을 찾고, 없으면 줄 사이 틈으로 간다. */
@@ -198,7 +207,7 @@ const unlockTabUi = {
         const spec = CONTENT_UNLOCK_SERIES.find(row => row.series === series);
         if (series === 'offlineHours') return `${OFFLINE_PROGRESS_RECOGNITION_HOURS[rank]}시간`;
         if (series === 'offlineRate') return `${Math.round(OFFLINE_PROGRESS_EFFICIENCY_RATES[rank] * 100)}%`;
-        if (series === 'bagPage') return `${1 + rank}쪽`;
+        if (series === 'bagPage') return `${1 + rank}페이지`;
         if (series === 'stumpSeal') return `${rank}칸`;
         if (series === 'stumpQuality') return `${130 + rank * 10}%`;
         return `+${rank * spec.storage}`;
@@ -212,6 +221,12 @@ const unlockTabUi = {
         return `${this.upgradeEffect(def.series, def.rank - 1)} → ${after}`;
     },
     cardName: def => (def.rail ? CONTENT_UNLOCK_RAILS.find(row => row.rail === def.rail).name : def.name),
+    cardGain(def) { return this.gainOf(def) || (def.cost ? '' : '자동'); },
+    /** 칸을 잠시 가리키면 나오는 설명: 칸에 보이지 않는 효과. 강화 단계는 칸에 값만 있어 이름과 값도 적는다. */
+    tipOf(def, step) {
+        const lines = step ? [`${def.name}, ${def.cost}P`, this.gainOf(def), def.description] : [this.gainOf(def), def.description];
+        return escapeHTML(lines.filter(Boolean).join('\n'));
+    },
 
     // ---------------------------------------------------------------- 판
     nodeClass(def, state, marks) {
@@ -220,11 +235,10 @@ const unlockTabUi = {
     },
     nodeHtml(def, L, marks) {
         const at = L.pos.get(def.id), state = this.stateOf(def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = escapeHTML(def.name);
-        if (at.step) return `<button type="button" class="unlock-pip ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${name}, ${def.cost}P" aria-label="${name}" style="${style}">${escapeHTML(this.upgradeEffect(def.series, def.rank))}</button>`;
+        if (at.step) return `<button type="button" class="unlock-pip ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, true)}" aria-label="${name}" style="${style}">${escapeHTML(this.upgradeEffect(def.series, def.rank))}</button>`;
         const chip = state !== 'owned' && def.cost ? `<small class="unlock-chip">${def.cost}P</small>` : '';
-        const gain = this.gainOf(def) || (def.cost ? '' : '자동');
-        const second = L.cardH >= 32 ? `<small class="unlock-card-gain">${escapeHTML(gain)}</small>` : '';
-        return `<button type="button" class="unlock-card ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" aria-label="${name}" style="${style};--icon:${at.h - 2}px">
+        const second = L.cardH >= UNLOCK_BOARD_SIZE.gainFrom ? `<small class="unlock-card-gain">${escapeHTML(this.cardGain(def))}</small>` : '';
+        return `<button type="button" class="unlock-card ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, false)}" aria-label="${name}" style="${style};--icon:${at.h - 2}px">
             <span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt="" draggable="false" loading="lazy">${chip}</span><span class="unlock-card-text"><b>${escapeHTML(this.cardName(def))}</b>${second}</span></button>`;
     },
     edgesHtml(L, marks) {
@@ -284,7 +298,7 @@ const unlockTabUi = {
     },
     headHtml() {
         const ready = this.readyRows().length;
-        return `<header class="unlocks-head">${this.pointsHtml()}<button type="button" class="unlock-stat is-ready" data-unlock-next="1"${ready ? '' : ' disabled'}><span>지금 가능</span><strong>${ready}</strong></button>
+        return `<header class="unlocks-head">${this.pointsHtml()}<button type="button" class="unlock-stat is-ready" data-unlock-next="1"${ready ? '' : ' disabled'}><span>해금 가능</span><strong>${ready}</strong></button>
             <div class="unlock-over-slot"></div><div class="unlock-stat is-total"><span>전체</span><strong>${this.openCount()}<small>/${unlockBoard.rows.length}</small></strong></div></header>`;
     },
     lifecycleHtml(def) {
@@ -301,7 +315,7 @@ const unlockTabUi = {
     loreHtml(id) {
         const lore = STORY_LOOP_MILESTONES[id];
         if (!lore) return '';
-        return `<blockquote class="story-scene-quote"><p>${lore.narration.map(escapeHTML).join(' ')}</p><p><strong>${escapeHTML(lore.speaker)}</strong> ${escapeHTML(lore.quote)}</p></blockquote>`;
+        return `<blockquote class="story-scene-quote"><p>${lore.narration.map(escapeHTML).join(' ')}</p><p>${escapeHTML(lore.quote)} - ${escapeHTML(speakerShortName(lore.speaker))}</p></blockquote>`;
     },
     moreHtml(def) {
         return `<details class="unlock-more" id="unlock-more-${def.id}"><summary>자세히</summary><div class="unlock-more-body">${this.loreHtml(def.id)}${this.lifecycleHtml(def)}${this.relatedHtml(def)}</div></details>`;
@@ -358,24 +372,26 @@ const unlockTabUi = {
         if (this.shownKey === key && root.childNodes.length) return;
         this.shownKey = key;
         this.bindPanel(root);
-        const keep = root.querySelector('.unlocks-scroll')?.scrollLeft || 0;
+        const keep = root.querySelector('.unlocks-scroll')?.scrollLeft || 0, keepTop = root.querySelector('.unlocks-scroll')?.scrollTop || 0;
         captureUiDisclosureState(root);
         root.innerHTML = `${this.headHtml()}<div class="unlocks-view"><div class="unlocks-scroll"><div class="unlocks-canvas"></div></div>
             <div class="unlock-fade is-left"></div><div class="unlock-fade is-right"></div><div class="unlock-corner">루프</div>
             <button type="button" class="unlock-edge is-left" data-unlock-edge="-1"></button><button type="button" class="unlock-edge is-right" data-unlock-edge="1"></button>
             <button type="button" class="unlock-to-now" data-unlock-now="1">지금으로</button></div><aside class="unlock-detail" aria-label="고른 해금">${this.detailHtml(selected)}</aside>`;
         restoreUiDisclosureState(root);
-        this.fillBoard(root, keep);
+        this.fillBoard(root, keep, keepTop);
     },
-    fillBoard(root, keep) {
+    fillBoard(root, keep, keepTop) {
         const view = root.querySelector('.unlocks-view'), height = view.clientHeight;
         if (!height) return; // 창이 닫혀 있다: 열려서 크기가 생기면 다시 그린다(bindPanel).
         const L = this.layoutNow = unlockBoard.layout(height), marks = this.readMarks();
         const canvas = root.querySelector('.unlocks-canvas'), scroller = root.querySelector('.unlocks-scroll');
         canvas.style.width = `${L.board.width}px`;
-        canvas.innerHTML = this.canvasHtml(L, marks, height);
+        canvas.style.height = `${L.fullHeight}px`;   // 창이 낮으면 판이 더 높다: 끌어서 위아래로 본다(startPan)
+        canvas.innerHTML = this.canvasHtml(L, marks, L.fullHeight);
         root.querySelector('.unlock-over-slot').innerHTML = this.overviewHtml(L);
         scroller.scrollLeft = this.centerNow || this.shownSeason !== game.season ? this.nowLeft(scroller) : keep;
+        scroller.scrollTop = keepTop;
         if (scroller.clientWidth) { this.centerNow = false; this.shownSeason = game.season; }
         this.syncOverlays(root);
         if (this.revealId) this.scrollToNode(root, this.revealId);
@@ -402,7 +418,7 @@ const unlockTabUi = {
     },
     scrollToNode(root, id) {
         const scroller = root.querySelector('.unlocks-scroll'), at = this.layoutNow?.pos.get(id);
-        if (at && scroller) scroller.scrollTo({ left: at.cx - scroller.clientWidth / 2, behavior: 'smooth' });
+        if (at && scroller) scroller.scrollTo({ left: at.cx - scroller.clientWidth / 2, top: at.y - scroller.clientHeight / 2, behavior: 'smooth' });
     },
     /** 고르기: 다른 창에서 불러도 된다. 판 밖의 줄(루프 1에 열리는 전술, 저널 들)은 고르지 않는다. */
     select(id) {
@@ -453,8 +469,11 @@ const unlockTabUi = {
     /** 마우스로 판의 빈 곳을 끌면 판이 움직인다(스킬트리처럼). 손가락은 그대로 스크롤한다. */
     startPan(event, root) {
         if (event.pointerType !== 'mouse' || event.target.closest('button')) return;
-        const scroller = root.querySelector('.unlocks-scroll'), scale = uiDisplay.factor || 1, from = { x: event.clientX, left: scroller.scrollLeft };
-        const pan = move => { scroller.scrollLeft = from.left - (move.clientX - from.x) / scale; };
+        const scroller = root.querySelector('.unlocks-scroll'), scale = uiDisplay.factor || 1, from = { x: event.clientX, y: event.clientY, left: scroller.scrollLeft, top: scroller.scrollTop };
+        const pan = move => {
+            scroller.scrollLeft = from.left - (move.clientX - from.x) / scale;
+            scroller.scrollTop = from.top - (move.clientY - from.y) / scale;
+        };
         const release = () => { window.removeEventListener('pointermove', pan); scroller.classList.remove('is-panning'); };
         scroller.classList.add('is-panning');
         window.addEventListener('pointermove', pan);

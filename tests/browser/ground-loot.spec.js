@@ -38,7 +38,7 @@ test('a kill drops one floor pile that a click picks up exactly once', async ({ 
         const enemy = Object.assign(createEnemy(getZone(game.currentZoneId), { at: 0, count: 1 }, 0), cell);
         const currency = Object.keys(ORB_DB).find(key => contentProgression.canDropCurrency(key));
         const wallet = game.currencies[currency] || 0, inventory = game.inventory.length;
-        rollEquipmentLoot(enemy, getZone(game.currentZoneId), 1);
+        rollEquipmentLoot(enemy, getZone(game.currentZoneId), rollEquipmentDrop(getZone(game.currentZoneId), enemy, 1));
         keepCurrencyDrop(enemy, currency, 2);
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         return { currency, wallet, inventory, ids: run.groundLoot.filter(row => row.item).map(row => row.item.id),

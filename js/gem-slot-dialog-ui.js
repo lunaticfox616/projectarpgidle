@@ -95,7 +95,7 @@
         if (isSupportSlot()) return supportCandidateHtml(name, stats, state);
         const level = getUiGemPresentation(name, isSupportSlot(), stats).totalLevel;
         return `<button type="button" class="gem-slot-card${slotToneClass(name)}${state.blocked ? ' is-blocked' : ''}" data-slot-gem="${escapeHTML(name)}" aria-disabled="${state.blocked}" ${HINT_HANDLERS}>
-            ${slotArtHtml(name, 'gem-slot-card-art', false)}<span class="gem-slot-card-copy"><strong>${escapeHTML(name)}${level ? `<small>Lv.${formatValue('', level)}</small>` : ''}</strong>
+            ${slotArtHtml(name, 'gem-slot-card-art', false)}<span class="gem-slot-card-copy"><strong>${escapeHTML(name)}${level ? `<small>Lv.${formatValue('', level)}</small>` : ''}${!isSupportSlot() && gemDropRewards.spareCount(game, name) ? `<small>×${gemDropRewards.spareCount(game, name) + 1}</small>` : ''}</strong>
             <span class="gem-slot-numbers">${gemNumbersHtml(name, stats)}</span><em>${escapeHTML(state.note)}</em></span></button>`;
     }
 

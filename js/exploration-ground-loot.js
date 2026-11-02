@@ -6,6 +6,7 @@ actExplorationState.groundLoot = (() => {
     // The hero picks a pile up by stepping onto its cell: drops beside a melee fight stay until it walks over.
     const PICKUP_RANGE = 0;
     const distance = (a, b) => Math.max(Math.abs(a.gx - b.gx), Math.abs(a.gy - b.gy));
+    const cellOf = row => `${row.gx},${row.gy}`;
     /**
      * @typedef {{gx:number, gy:number, item:object, highlight:boolean, guaranteed:boolean,
      *   filterOnPickup?:boolean, ignoreAutoSalvage?:boolean}} GroundLootEquipmentRow equipment;
@@ -25,10 +26,19 @@ actExplorationState.groundLoot = (() => {
      * @typedef {{gx:number, gy:number, kind:'rune', gem:{kind:'attack'|'support',name:string,awakened?:boolean,tier?:number}}} GroundLootRuneRow an exact gem reward (gemDropRewards.validateGem).
      * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootStumpRow|GroundLootLeafRow|GroundLootGemRow|GroundLootRuneRow} GroundLootRow
      */
-    // 놓인 줄마다의 전투 시각: 그림이 바닥에 닿아 이름이 뜬 뒤(GROUND_LOOT_DROP.readyMs)에야 주인공이 줍거나 주우러 간다
+    // 놓인 줄마다 떨어지기 시작하는 전투 시각: 한꺼번에 떨어지지 않고 줄마다 GROUND_LOOT_DROP.gapMs씩 차례를 기다린다(2026-11-02 사용자: "약간의 텀을 두고 쌓이도록")
+    // 그래서 앞날일 수 있다. 그림이 바닥에 닿아 이름이 뜬 뒤(readyMs)에야 주인공이 줍거나 주우러 간다
     // (2026-10-13 사용자: "아이템이 완전히 떨어지고 나서 캐릭터가 아이템을 줍거나 주우러 가도록"). 저장하지 않는다: 불러온 줄은 이미 바닥에 있다.
     const laidAt = new WeakMap();
+    const queueEnds = new WeakMap(); // run → 다음 줄의 차례(전투 시각)
+    function dropTurn(run) {
+        const now = getCombatTime(), turn = Math.max(now, Math.min(queueEnds.get(run) || 0, now + GROUND_LOOT_DROP.queueCapMs));
+        queueEnds.set(run, turn + GROUND_LOOT_DROP.gapMs);
+        return turn;
+    }
     const landed = (row, now) => !laidAt.has(row) || now - laidAt.get(row) >= GROUND_LOOT_DROP.readyMs;
+    /** 그림이 바닥에 닿았는지: 닿은 줄이 더미에 든다. */
+    const touchedDown = (row, now) => !laidAt.has(row) || now - laidAt.get(row) >= GROUND_LOOT_DROP.flightMs;
     const rows = run => (run && Array.isArray(run.groundLoot) ? run.groundLoot : []);
     const floor = run => (Array.isArray(run.groundLoot) ? run.groundLoot : (run.groundLoot = []));
     /** The kind of a row: 'equipment', 'currency', 'jewel', 'core', 'talisman', 'leaf', 'gem' or 'rune'. */
@@ -69,7 +79,7 @@ actExplorationState.groundLoot = (() => {
     function lay(run, row) {
         Object.assign(row, clearOfDoors(run, row));
         floor(run).push(row);
-        laidAt.set(row, getCombatTime());
+        laidAt.set(row, dropTurn(run));
         combatLootReceipts.floorRow(game, row);
     }
     /** Lays an already generated equipment item on a walkable cell of the run's map. */
@@ -100,34 +110,41 @@ actExplorationState.groundLoot = (() => {
         if (row) { row.count += count; return; }
         const fresh = { gx: cell.gx, gy: cell.gy, currency, count };
         run.groundLoot.push(fresh);
-        laidAt.set(fresh, getCombatTime());
+        laidAt.set(fresh, dropTurn(run));
     }
     function take(run, test) {
         const taken = rows(run).filter(test);
         if (taken.length) run.groundLoot = rows(run).filter(row => !taken.includes(row));
         return taken;
     }
-    /** Rows on the hero's cell that have landed by `now` (combat time). */
-    const takeNear = (run, cell, now) => take(run, row => distance(row, cell) <= PICKUP_RANGE && landed(row, now));
+    /** Rows on the hero's cell (combat time `now`), once all of them have landed: the hero waits for a whole pile. */
+    function takeNear(run, cell, now) {
+        const here = rows(run).filter(row => distance(row, cell) <= PICKUP_RANGE);
+        return here.length && here.every(row => landed(row, now)) ? take(run, row => here.includes(row)) : [];
+    }
     /** Every row of one pile (a clicked cell), wherever the hero stands. */
     const takeAt = (run, cell) => take(run, row => row.gx === cell.gx && row.gy === cell.gy);
     const takeAll = run => take(run, () => true);
-    /** The pile closest to `from` (ties: the first dropped), or null. With `now` (combat time) only rows that have landed count. */
+    /** The pile closest to `from` (ties: the first dropped), or null. With `now` (combat time) only piles that have all landed count. */
     function nearest(run, from, now) {
+        const busy = new Set(now === undefined ? [] : rows(run).filter(row => !landed(row, now)).map(cellOf));
         let best = null;
         for (const row of rows(run)) {
-            if (now !== undefined && !landed(row, now)) continue;
+            if (busy.has(cellOf(row))) continue;
             if (!best || distance(row, from) < distance(best, from)) best = row;
         }
         return best;
     }
     /** Whether something is still on its way down at `now` (combat time). */
     const falling = (run, now) => rows(run).some(row => !landed(row, now));
-    /** One pile per cell, in drop order: the read model the battlefield draws and makes clickable. */
-    function piles(run) {
+    /** Rows whose picture is on its way down at `now` (combat time). Their turn has come and they have not reached a pile yet. */
+    const inAir = (run, now) => rows(run).filter(row => laidAt.get(row) <= now && !touchedDown(row, now));
+    /** One pile per cell, in drop order: the read model the battlefield draws and makes clickable. With `now` (combat time) only the rows that have reached the ground. */
+    function piles(run, now) {
         const byCell = new Map();
         for (const row of rows(run)) {
-            const key = `${row.gx},${row.gy}`;
+            if (now !== undefined && !touchedDown(row, now)) continue;
+            const key = cellOf(row);
             if (!byCell.has(key)) byCell.set(key, { gx: row.gx, gy: row.gy, rows: [] });
             byCell.get(key).rows.push(row);
         }
@@ -310,6 +327,6 @@ actExplorationState.groundLoot = (() => {
         return !!check && check(row);
     }
 
-    return { PICKUP_RANGE, kindOf, place, placeItem, placeLeaf, placeYarn, placeGem, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, piles,
+    return { PICKUP_RANGE, kindOf, place, placeItem, placeLeaf, placeYarn, placeGem, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, inAir, piles,
         encounterOwner, reserve, releaseEncounter, discardEncounter, normalizeEncounter, reservedItems, settleOnLoad, validate };
 })();

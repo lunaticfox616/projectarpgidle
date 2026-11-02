@@ -64,5 +64,6 @@
         /* 줄이 적을 때는 아래에 모이고(첫 줄의 margin-top: auto), 넘치면 그대로 위로 스크롤된다(2026-10-30 사용자 요청: 비어 있을 때 위에서부터 나오지 않게). */
         #log { display: flex; flex-direction: column; }
         #log > .log-msg:first-child { margin-top: auto; }
-        #log:empty::before { content: '전투 로그가 여기에 표시됩니다.'; display: block; color: var(--copy-muted); padding-top: 4px; }
+        #log:empty { justify-content: center; align-items: center; }
+        #log:empty::before { content: '전투 로그가 여기에 표시됩니다.'; display: block; color: var(--copy-muted); text-align: center; }
 }

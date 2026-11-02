@@ -35,7 +35,7 @@
         return out;
     }
     function projectileGrid(out,fx,authored) {
-        if (['throwRange','sweep','pierce','chain','projectiles'].some(key=>fx[key])) delete out.band;
+        if (['throwRange','sweep','pierce','chain','projectiles','aimedShots'].some(key=>fx[key])) delete out.band;
         if (fx.throwRange) Object.assign(out, {kind:'line', range:fx.throwRange, radius:0});
         if (fx.sweep) Object.assign(out, {kind:'cone', range:Math.max(1,out.range)});
         if (fx.pierce) Object.assign(out, {kind:'line', range:Math.max(4,out.range)});
@@ -47,7 +47,7 @@
         if (!fx || !rows.length) return rows;
         let result = rows.map(row => ({...row, targets:row.targets.map((entry,i)=>({...entry,
             mult:stageTargetMultiplier(entry,i,skill)}))}));
-        if (fx.chain) result = skill.combatPattern ? appendAuthoredChain(result,fx.chain) : chainStages(uniqueStageTargets(result), fx.chain);
+        if (fx.chain) result = skill.combatPattern ? appendAuthoredChain(result,fx.chain,skill.combatPattern.kind==='authored') : chainStages(uniqueStageTargets(result), fx.chain);
         if (fx.repeat) {
             const delay = Math.max(...result.map(row=>row.delayMs || 0)) + 180;
             result = result.concat(result.map(row=>({...row, kind:'supportRepeat', label:'반복',
@@ -67,10 +67,11 @@
             damageMultiplier:Math.pow(1+config.stepDamagePct/100,i),chainFromEnemyId:i?targets[i-1].enemy.id:null,targets:[{...entry,mult:1}]}));
     }
     function uniqueStageTargets(rows) { return Array.from(new Map(rows.flatMap(row=>row.targets).map(entry=>[entry.enemy.id,entry])).values()); }
-    function appendAuthoredChain(rows,chain) {
-        return rows.flatMap(row=>{
+    /** once: 떨어진 자리에서 한 번만 건너간다(화살비, 2026-11-02 전달본 V3.7). */
+    function appendAuthoredChain(rows,chain,once) {
+        return rows.flatMap((row,index)=>{
             const first=row.targets[0]?.enemy;
-            if(!first)return [row];
+            if(!first || (once && index))return [row];
             const plan=[],seen=new Set(row.targets.map(entry=>entry.enemy.id));
             nativeChain(plan,first,seen,chain);
             const extra=plan.map(contact=>({...row,kind:'supportChain',label:'추가 연쇄',
@@ -101,7 +102,13 @@
     function expectedMultiplier(skill) {
         const fx=skill.supportEffects;
         if(!fx)return 1;
-        return (1+(fx.repeat?.damagePct || 0)/100)*(1+(fx.dot?.damagePct || 0)/100);
+        return (1+(fx.repeat?.damagePct || 0)/100)*(1+(fx.dot?.damagePct || 0)/100)*shotsMultiplier(skill,fx);
+    }
+    /** 한 대상이 받는 갈래 투사체의 몫: 모자란 발이 같은 적에게 간다. 탄성 플라스크는 네 번 튀는 데 더 튄다. 부채꼴과 이동기는 늘지 않는다. */
+    function shotsMultiplier(skill,fx) {
+        const extra=fx.projectiles?.extra || 0,id=skill.nativeCastId;
+        if(id===44)return 1+(extra+(fx.chain?.count || 0))/4;
+        return !extra || skill.projectilePattern?.kind==='fan' || LEAPS.has(id) ? 1 : 1+extra;
     }
     function nativeDot(skill) { return (skill.supportBaseTags || skill.tags || []).includes('dot'); }
     function repeatNative(command,targets) {
@@ -111,13 +118,16 @@
             targets:targets.map(enemy=>({enemy,mult:1})),singleRepeat:true}];
         queuePendingSkillStageHits(stages,stats,{...command.attackOptions,skillName:command.name,baseDelayMs:0,forcedElement:stats.sSkill.ele});
     }
-    /** Native casts retain their own bounce, shard, wave and movement stages; supports append contacts only. */
+    const LEAPS=new Set([56,77]);                  // 작살화살, 바위 플라스크: 주인공이 따라 날아가 발이 늘지 않는다
+    const LANDS_ONCE=new Set([47,48,49,79]);       // 떨어진 자리에서 한 번만 연쇄한다(병 하나에 한 번)
+    /** Native casts retain their own bounce, shard, wave and movement stages; supports append contacts only.
+     * 갈래 투사체의 발은 그 룬이 스스로 낸다(js/skill-gem-casts.js). 탄성 플라스크의 연쇄는 튕김이 된다. */
     function augmentNative(command, targets) {
         const fx=command.stats.sSkill.supportEffects, first=targets[0], seen=new Set(targets.map(enemy=>enemy.id));
         if(!fx || !first)return;
-        const plan=[];
-        nativeChain(plan,first,seen,fx.chain);
-        nativeRays(plan,command.sourceCell || game.gridPlayer,first,seen,fx);
+        const plan=[],id=command.stats.sSkill.nativeCastId;
+        if(id!==44 && (command.leadContact || !LANDS_ONCE.has(id)))nativeChain(plan,first,seen,fx.chain);
+        nativeRays(plan,command.sourceCell || game.gridPlayer,first,seen,LEAPS.has(id) ? fx : {pierce:fx.pierce});
         if(fx.sweep) nativeCandidates(first,seen,1).slice(0,fx.sweep.extra).forEach(enemy=>{
             seen.add(enemy.id);plan.push({enemy,mult:fx.sweep.damagePct/100,delay:0,from:first.id,kind:'supportSweep'});
         });

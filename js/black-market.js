@@ -287,8 +287,7 @@ function buildBlackMarketOffer(index) {
         return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, affixTierCap:hiddenTier, priceKey:'formlessDew', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base:false, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
     }
     if (roll < 0.9) {
-        let missing = Object.keys(SKILL_DB).filter(k => SKILL_DB[k].isGem && !hasSkillGemOwned(k));
-        if (missing.length>0) return { type:'skillGem', name:pickSkillRuneReward(missing), priceKey:'formlessDew', price:5 };
+        return { type:'skillGem', name:pickSkillRuneReward(gemDropRewards.attackRunes()), priceKey:'formlessDew', price:5 };
     }
     let preferredUniqueSlot = bm.preferredSlot !== 'any' && Math.random() < 0.35 ? bm.preferredSlot : 'any';
     let uniqPool = getBlackMarketUniquePool(tier, preferredUniqueSlot, { includeChase: true });
@@ -465,7 +464,7 @@ function checkBlackMarketOffer(index, place = null) {
     if (!offer) return { ok: false, reason: '이미 팔린 물건입니다.' };
     const price = getBlackMarketOfferPrice(offer), have = Math.floor(Number(game.currencies[price.key]) || 0);
     if (have < price.amount) return { ok: false, reason: `${ORB_DB[price.key].name} 부족, ${have}/${price.amount}` };
-    if (offer.type === 'skillGem') return hasSkillGemOwned(offer.name) ? { ok: false, reason: '이미 가진 룬입니다.' } : { ok: true };
+    if (offer.type === 'skillGem') return { ok: true };
     return offer.type === 'baseItem' || offer.type === 'unique' ? checkBlackMarketRoom(offer, place) : { ok: true };
 }
 

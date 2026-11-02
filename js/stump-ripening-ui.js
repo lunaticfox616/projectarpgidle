@@ -11,10 +11,16 @@ const stumpRipeningUi = (() => {
     function isGolden(item) { return !!item && stumpBox.goldenMul(item) > 1; }
 
     // ── 다 자란 씨앗과 수액: 추가 줄과 표식 ───────────────────────
+    /** 알비노는 함 전체에 하나(2026-11-03 사용자): 아직 없으면 0/1, 이 알비노가 놓여 있으면 초록 1/1, 다른 알비노가 놓여 있어 더 못 놓으면 빨강 1/1. */
+    function albinoBadge(item) {
+        const worn = stumpBox.wornAlbinoId(game);
+        if (worn === null) return ['is-albino', '알비노 0/1'];
+        return [worn === item.id ? 'is-albino is-worn' : 'is-albino is-full', '알비노 1/1'];
+    }
     /** 황금, 풍작 and 만개 (three extra lines). */
     function badges(item) {
         const out = [];
-        if (item.albino) out.push(['is-albino', '고유 알비노: 하나만 배치, 봉인해야 다음 루프에 유지']);
+        if (item.albino) out.push(albinoBadge(item));
         if (isGolden(item)) out.push(['is-golden', `황금 ×${STUMP_BOX_RIPENING.golden.mul}`]);
         if (item.ancient) out.push(['is-ancient', `고대: 모든 색 공명, 이웃 접붙이기 +${STUMP_BOX_ANCIENT.graftRanks}`]);
         if (item.harvest && item.harvest.bonus) out.push(['is-bumper', `풍작 +${Math.round(item.harvest.bonus * 100)}%`]);

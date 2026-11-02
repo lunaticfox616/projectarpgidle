@@ -85,6 +85,12 @@ safeExposeGlobals({ combatCurrencyHud });
         else addLog(`🟢 보조스킬룬 <span class='loot-rare'>[${gem.name}]</span> 획득! (해금: ${getSupportTierLabel(gem.name,gem.tier)})`);
     }
     window.addEventListener('project-idle:currency-acquired',announce);
+    /** 난입 보스와 보스 방의 불청객(js/combat-room-invader.js). */
+    const ROOM_INVADER_LINES=Object.freeze({arrived:[name=>`🩸 ${name}${pickParticle(name,'이','가')} 들이닥쳤습니다!`,'attack-monster'],twin:[()=>'🩸 보스가 둘입니다!','attack-monster'],slain:[name=>`🩸 ${name}${pickParticle(name,'을','를')} 쓰러뜨렸습니다!`,'loot-unique']});
+    window.addEventListener('project-idle:room-invader',event=>{
+        const [line,tone]=ROOM_INVADER_LINES[event.detail.kind];
+        addLog(line(event.detail.name),tone);
+    });
     window.addEventListener('project-idle:gem-loot-received',event=>{
         if (event.detail?.deferred) checkUnlocks();
         announceGemReward(event.detail);

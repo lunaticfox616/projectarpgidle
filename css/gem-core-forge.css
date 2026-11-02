@@ -2,78 +2,133 @@
 .gem-core-tone { color: #e4ba79; }
 .gem-sky-tone { color: #8cd8ef; }
 .gem-core-section h3 { margin: 0 0 12px; font-size: 15px; color: #eee3cb; }
-#ui-gem-core-forge { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.gem-forge-track, .gem-forge-dialog { --forge-accent: #e4ba79; --forge-on-accent: #171914; --forge-muted: #b8ac99; --forge-line: #514635; --forge-bg: #151410; --forge-text: #f3eddf; }
-.gem-forge-track.sky, .gem-forge-dialog.sky { --forge-accent: #8cd8ef; --forge-line: #34505c; }
-button.gem-forge-track { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--forge-line); border-radius: 8px; background: linear-gradient(140deg, #211c14, #121311 70%); color: var(--forge-text); text-align: left; cursor: pointer; }
-button.gem-forge-track.sky { background: linear-gradient(140deg, #14252d, #111619 70%); }
+#ui-gem-core-forge { display: block; }
+/* 강화 단계의 색(data/gem-core-forge.js tierColours): 5, 10, 15, 20강에서 바뀐다. */
+.gem-forge-track, .gem-forge-dialog { --forge-accent: #e4ba79; --forge-on-accent: #171914; --forge-muted: #b8ac99; --forge-line: color-mix(in srgb, var(--forge-accent) 34%, #2a241a); --forge-bg: #151410; --forge-text: #f3eddf; --forge-success: #8fd47a; --forge-risk: #e8604f; --forge-heat: 0; --forge-reveal: 450ms; }
+.forge-tier-1 { --forge-accent: #8cd8ef; }
+.forge-tier-2 { --forge-accent: #c7a0ff; }
+.forge-tier-3 { --forge-accent: #ff9a55; }
+.forge-tier-4 { --forge-accent: #ffe9a8; }
+button.gem-forge-track { display: flex; flex-direction: column; gap: 12px; width: 100%; min-width: 0; padding: 16px; border: 1px solid var(--forge-line); border-radius: 8px; background: linear-gradient(140deg, color-mix(in srgb, var(--forge-accent) 12%, #181510), #121311 70%); color: var(--forge-text); text-align: left; cursor: pointer; }
 button.gem-forge-track:hover, button.gem-forge-track:focus-visible { border-color: var(--forge-accent); outline: 1px solid var(--forge-accent); outline-offset: 2px; }
 .gem-forge-track-head, .gem-forge-track-foot { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .gem-forge-track-head strong { font-size: 15px; color: var(--forge-accent); }
-.gem-forge-track-head b { font-size: 23px; font-variant-numeric: tabular-nums; }
+.gem-forge-track-head b { font-size: 23px; color: var(--forge-accent); font-variant-numeric: tabular-nums; }
 .gem-forge-track-effect { color: var(--forge-text); font-size: 13px; }
 .gem-forge-track-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--forge-line); font-size: 12px; color: var(--forge-muted); }
 .gem-forge-track-foot b { color: var(--forge-accent); }
-.gem-forge-steps { display: flex; gap: 6px; }
-.gem-forge-steps span { flex: 1; padding: 4px 0; border: 1px solid var(--forge-line); border-radius: 3px; color: var(--forge-muted); text-align: center; font-size: 11px; }
-.gem-forge-steps span.filled { background: var(--forge-accent); color: var(--forge-on-accent); border-color: var(--forge-accent); font-weight: 700; }
-.gem-forge-cap { display: flex; flex-wrap: wrap; gap: 6px 10px; color: var(--forge-muted); font-size: 12px; }
-.gem-forge-cap b { color: var(--forge-accent); }
-.gem-forge-cap.complete { color: var(--forge-accent); }
-dialog.gem-forge-dialog { box-sizing: border-box; width: min(500px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); margin: auto; padding: 24px; overflow: auto; border: 1px solid var(--forge-line); border-radius: 14px; background: radial-gradient(ellipse at 50% 20%, #282319, var(--forge-bg) 62%); color: var(--forge-text); box-shadow: 0 24px 80px #0009, inset 0 1px 0 #e4ba791f; font-family: inherit; font-size: 14px; line-height: 1.45; }
-dialog.gem-forge-dialog.sky { background: radial-gradient(ellipse at 50% 20%, #162c36, var(--forge-bg) 62%); }
+/* 20칸: 5칸마다 도드라지고(룬 레벨 +1), 11칸째부터 파괴 위험의 붉은 테 */
+.gem-forge-steps { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 2px; }
+.gem-forge-steps span { height: 8px; background: #ffffff0d; box-shadow: inset 0 0 0 1px #ffffff1f; }
+.gem-forge-steps span.mile { height: 12px; margin-top: -2px; box-shadow: inset 0 0 0 1px #ffffff55; }
+.gem-forge-steps span.risk { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--forge-risk) 62%, transparent); }
+.gem-forge-steps span.filled { background: var(--forge-accent); box-shadow: 0 0 4px color-mix(in srgb, var(--forge-accent) 60%, transparent); }
+dialog.gem-forge-dialog { box-sizing: border-box; width: min(520px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); margin: auto; padding: 18px 22px; overflow: auto; border: 1px solid var(--forge-line); border-radius: 14px; background: radial-gradient(ellipse at 50% 22%, color-mix(in srgb, var(--forge-accent) calc(10% + 22% * var(--forge-heat)), #1a1712), var(--forge-bg) 64%); color: var(--forge-text); box-shadow: 0 24px 80px #0009, inset 0 1px 0 color-mix(in srgb, var(--forge-accent) 22%, transparent); font-family: inherit; font-size: 14px; line-height: 1.45; }
 .gem-forge-dialog::backdrop { background: #030507ce; }
-.gem-forge-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--forge-line); }
+.gem-forge-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 24%, var(--forge-accent), transparent 68%); }
+.gem-forge-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid var(--forge-line); }
 .gem-forge-header small { font-size: 12px; color: var(--forge-muted); }
-.gem-forge-header h2 { margin: 2px 0 0; padding: 0; border: 0; font-size: 23px; letter-spacing: -.5px; color: var(--forge-accent); }
+.gem-forge-header h2 { margin: 2px 0 0; padding: 0; border: 0; font-size: 20px; letter-spacing: -.5px; color: var(--forge-text); }
 .gem-forge-dialog button { font: inherit; cursor: pointer; }
 #gem-core-forge-overlay .gem-forge-header button { padding: 7px 12px; border: 1px solid var(--forge-line); border-radius: 5px; }
-.gem-forge-materials { display: flex; gap: 6px; margin-top: 16px; }
-#gem-core-forge-overlay .gem-forge-materials button { flex: 1; padding: 9px; border-radius: 5px; }
-.gem-forge-stage { position: relative; isolation: isolate; display: flex; align-items: center; flex-direction: column; padding: 20px 0 16px; }
-.gem-forge-stage .gem-forge-art { position: relative; width: 56px; height: 56px; display: inline-block; object-fit: contain; }
-.gem-forge-art img { width: 100%; height: 100%; object-fit: contain; }
-.gem-forge-stage > strong { margin-top: 10px; font-size: 16px; }
-.gem-forge-level { color: var(--forge-accent); font-size: 32px; line-height: 1.3; }
-.gem-forge-stage .gem-forge-steps { width: 190px; margin-top: 10px; }
-.gem-forge-halo { position: absolute; top: 10px; width: 76px; height: 76px; border-radius: 50%; border: 1px solid var(--forge-line); box-shadow: 0 0 30px #e4ba7912; z-index: -1; }
-.gem-forge-effects { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid var(--forge-line); border-bottom: 1px solid var(--forge-line); }
-.gem-forge-effects > div { display: flex; flex-direction: column; gap: 5px; }
+/* 무대: 단계가 오를수록 고리가 커지고(--forge-heat), 10강부터 돌기 시작한다 */
+.gem-forge-stage { position: relative; isolation: isolate; display: flex; align-items: center; flex-direction: column; padding: 14px 0 12px; }
+.gem-forge-stage .gem-forge-art { position: relative; width: 64px; height: 64px; display: inline-block; object-fit: contain; filter: drop-shadow(0 0 calc(2px + 12px * var(--forge-heat)) var(--forge-accent)); }
+.gem-forge-art img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.gem-forge-level { color: var(--forge-accent); font-size: calc(30px + 14px * var(--forge-heat)); line-height: 1.2; text-shadow: 0 0 calc(16px * var(--forge-heat)) var(--forge-accent); font-variant-numeric: tabular-nums; }
+.gem-forge-stage .gem-forge-steps { width: 300px; max-width: 100%; margin-top: 8px; }
+.gem-forge-halo { position: absolute; top: calc(46px - (40px + 26px * var(--forge-heat))); width: calc(80px + 52px * var(--forge-heat)); height: calc(80px + 52px * var(--forge-heat)); background: radial-gradient(closest-side, color-mix(in srgb, var(--forge-accent) calc(24% + 44% * var(--forge-heat)), transparent), transparent); z-index: -1; }
+.forge-tier-2 .gem-forge-halo::before, .forge-tier-3 .gem-forge-halo::before, .forge-tier-4 .gem-forge-halo::before { content: ''; position: absolute; inset: -6px; background: conic-gradient(from 0deg, transparent, var(--forge-accent), transparent 34%, var(--forge-accent), transparent 68%); -webkit-mask: radial-gradient(closest-side, transparent 84%, #000 86%, #000 96%, transparent 100%); mask: radial-gradient(closest-side, transparent 84%, #000 86%, #000 96%, transparent 100%); animation: gem-forge-spin 5s linear infinite; }
+.forge-tier-3 .gem-forge-halo::before { animation-duration: 3s; }
+.forge-tier-4 .gem-forge-halo::before { animation-duration: 1.8s; inset: -10px; }
+.forge-tier-4 .gem-forge-halo::after { content: ''; position: absolute; inset: 8px; background: radial-gradient(closest-side, transparent 58%, var(--forge-accent) 74%, transparent 100%); animation: gem-forge-breathe 1.2s ease-in-out infinite alternate; }
+.gem-forge-fx { position: absolute; left: 50%; top: 46px; width: 0; height: 0; pointer-events: none; z-index: 2; }
+.gem-forge-fx i { position: absolute; width: var(--size); height: var(--size); background: var(--forge-accent); box-shadow: 0 0 6px var(--forge-accent); animation: gem-forge-spark calc(520ms + 380ms * var(--forge-heat)) var(--delay) ease-out both; }
+.gem-forge-effects { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 10px 0; border-top: 1px solid var(--forge-line); border-bottom: 1px solid var(--forge-line); }
+.gem-forge-effects > div { display: flex; flex-direction: column; gap: 3px; }
 .gem-forge-effects small { color: var(--forge-muted); }
 .gem-forge-effects strong { font-size: 13px; font-weight: 600; }
 .gem-forge-effects > div:last-child strong { color: var(--forge-accent); }
-.gem-forge-dialog > .gem-forge-cap { margin-top: 12px; }
-.gem-forge-cap > span { margin-left: auto; }
-.gem-forge-result { min-height: 52px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 10px 0; color: var(--forge-muted); font-size: 12px; }
+.gem-forge-result { min-height: 58px; display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 8px 0; color: var(--forge-muted); font-size: 12px; text-align: center; }
 .gem-forge-result strong { font-size: 18px; color: var(--forge-accent); }
-.gem-forge-level-bonus { font-size: 21px; font-weight: 800; color: var(--forge-accent); }
-.gem-forge-dialog.mastered { border-color: var(--forge-accent); }
-.gem-forge-dialog.mastered .gem-forge-result > strong { font-size: 13px; color: var(--forge-muted); }
-.gem-forge-dialog.mastered.success .gem-forge-level-bonus { animation: gem-forge-reward 850ms ease-out both; }
-.gem-forge-dialog.mastered.success .gem-forge-halo { animation-duration: 850ms; }
+.gem-forge-level-bonus { font-size: 16px; font-weight: 800; color: var(--forge-accent); }
+.gem-forge-dialog.success .gem-forge-level-bonus { animation: gem-forge-reward 850ms ease-out both; }
 .gem-forge-result em { font-style: normal; color: #8cd8ef; margin-left: 8px; }
 .gem-forge-dialog.failure .gem-forge-result > strong { color: #d5b9a0; }
-.gem-forge-chance { display: flex; align-items: end; justify-content: space-between; gap: 8px; }
-.gem-forge-chance > span { display: flex; flex-direction: column; font-size: 12px; }
-.gem-forge-chance small { color: var(--forge-accent); margin-top: 3px; }
-.gem-forge-chance > strong { color: var(--forge-accent); font-size: 27px; font-variant-numeric: tabular-nums; }
-.gem-forge-chance-bar { height: 4px; margin-top: 6px; background: #ffffff12; border-radius: 3px; overflow: hidden; }
-.gem-forge-chance-bar > span { display: block; height: 100%; background: var(--forge-accent); }
-.gem-forge-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 18px; }
+.gem-forge-dialog.destroyed .gem-forge-result > strong { color: var(--forge-risk); font-size: 22px; }
+/* 담금질: 칸은 단계가 오를수록 좁고 표시는 빠르다(js/gem-core-forge-ui.js) */
+.gem-forge-timing { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; width: 100%; }
+.gem-forge-timing > small { grid-column: 1 / -1; color: var(--forge-accent); font-size: 12px; text-align: left; }
+.gem-forge-timing-bar { position: relative; height: 20px; background: #0b0a08; box-shadow: inset 0 0 0 1px var(--forge-line); }
+.gem-forge-timing-zone { position: absolute; top: 2px; bottom: 2px; background: color-mix(in srgb, var(--forge-accent) 70%, transparent); box-shadow: 0 0 8px var(--forge-accent); }
+.gem-forge-timing-marker { position: absolute; top: -3px; bottom: -3px; width: 4px; margin-left: -2px; background: #fff; box-shadow: 0 0 6px #fff; }
+#gem-core-forge-overlay .gem-forge-timing > button { min-width: 96px; min-height: 40px; border-radius: 6px; font-weight: 800; }
+.gem-forge-timing.is-hit .gem-forge-timing-zone { background: var(--forge-success); box-shadow: 0 0 16px var(--forge-success); }
+.gem-forge-timing.is-miss .gem-forge-timing-marker { background: var(--forge-risk); box-shadow: none; }
+/* 성공, 유지, 파괴의 몫 */
+.gem-forge-odds { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--forge-muted); }
+.gem-forge-odds b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.gem-forge-odds .is-success b { color: var(--forge-success); font-size: 21px; }
+.gem-forge-odds .is-destroy b { color: var(--forge-risk); }
+.gem-forge-odds-bar { display: flex; height: 6px; margin-top: 4px; background: #ffffff12; overflow: hidden; }
+.gem-forge-odds-bar > i { display: block; height: 100%; }
+.gem-forge-odds-bar > .is-success { background: var(--forge-success); }
+.gem-forge-odds-bar > .is-keep { background: #6f675a; }
+.gem-forge-odds-bar > .is-destroy { background: var(--forge-risk); }
+.gem-forge-odds-bonus { display: block; margin-top: 3px; color: var(--forge-accent); font-size: 12px; }
+.gem-forge-booster { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; padding: 8px 10px; background: #0000002e; box-shadow: inset 0 0 0 1px var(--forge-line); }
+.gem-forge-booster > span { display: flex; flex-direction: column; font-size: 12px; }
+.gem-forge-booster strong { color: #e4ba79; }
+.gem-forge-booster small { color: var(--forge-muted); }
+.gem-forge-stepper { display: flex; align-items: center; gap: 4px; }
+.gem-forge-stepper output { min-width: 30px; text-align: center; font-size: 16px; font-variant-numeric: tabular-nums; }
+#gem-core-forge-overlay .gem-forge-stepper button { min-width: 30px; min-height: 28px; padding: 0 8px; border: 1px solid var(--forge-line); border-radius: 4px; }
+.gem-forge-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 12px; }
 .gem-forge-footer > div { display: flex; flex-direction: column; font-size: 12px; }
 .gem-forge-footer small { color: var(--forge-muted); }
-#gem-core-forge-overlay .gem-forge-footer > button { min-width: 150px; min-height: 46px; border-radius: 6px; font-weight: 800; }
+.gem-forge-footer .is-none { color: var(--forge-risk); }
+#gem-core-forge-overlay .gem-forge-footer > button { min-width: 150px; min-height: 44px; border-radius: 6px; font-weight: 800; }
+.gem-forge-skip { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-top: 6px; color: var(--forge-muted); font-size: 12px; cursor: pointer; }
 .gem-forge-dialog button:disabled { opacity: .45; cursor: default; }
 .gem-forge-dialog button:focus-visible { outline: 2px solid var(--forge-accent); outline-offset: 3px; }
-.gem-forge-dialog.charging .gem-forge-art { animation: gem-forge-charge 450ms ease-in both; }
-.gem-forge-dialog.charging .gem-forge-halo { animation: gem-forge-focus 450ms ease-in both; }
+/* 결과: 모으는 시간과 흔들림, 터지는 빛은 단계가 높을수록 세다 */
+.gem-forge-dialog.charging .gem-forge-art { animation: gem-forge-charge var(--forge-reveal) ease-in both; }
+.gem-forge-dialog.charging .gem-forge-halo { animation: gem-forge-focus var(--forge-reveal) ease-in both; }
+.gem-forge-dialog.charging .gem-forge-stage { animation: gem-forge-tremble 90ms linear infinite; }
 .gem-forge-dialog.success .gem-forge-art { animation: gem-forge-impact 500ms ease-out both; }
-.gem-forge-dialog.success .gem-forge-halo { animation: gem-forge-burst 650ms ease-out both; }
-@keyframes gem-forge-charge { to { transform: scale(.83); filter: brightness(1.7); } }
+.gem-forge-dialog.success .gem-forge-level { animation: gem-forge-reward 700ms ease-out both; }
+.gem-forge-dialog.success .gem-forge-flash { animation: gem-forge-flash calc(320ms + 500ms * var(--forge-heat)) ease-out both; }
+.gem-forge-dialog.failure .gem-forge-art { animation: gem-forge-dim 460ms ease-out both; }
+.gem-forge-dialog.destroyed { animation: gem-forge-shake 520ms ease-out both; }
+.gem-forge-dialog.destroyed .gem-forge-art { animation: gem-forge-shatter 700ms ease-out both; }
+.gem-forge-dialog.destroyed .gem-forge-flash { background: radial-gradient(circle at 50% 24%, var(--forge-risk), transparent 72%); animation: gem-forge-flash 620ms ease-out both; }
+.gem-forge-dialog.destroyed .gem-forge-fx i { background: var(--forge-risk); box-shadow: none; }
+.gem-forge-dialog.forge-tier-3.success, .gem-forge-dialog.forge-tier-4.success { animation: gem-forge-shake 420ms ease-out both; }
+.gem-forge-dialog.forge-tier-3.success::backdrop, .gem-forge-dialog.forge-tier-4.success::backdrop { animation: gem-forge-backdrop 900ms ease-out both; }
+@keyframes gem-forge-charge { 70% { transform: scale(.86); filter: brightness(1.6) drop-shadow(0 0 10px var(--forge-accent)); } to { transform: scale(.74); filter: brightness(2.6) drop-shadow(0 0 22px var(--forge-accent)); } }
 @keyframes gem-forge-focus { to { transform: scale(.4); opacity: .35; } }
-@keyframes gem-forge-impact { 0% { transform: scale(.8); } 30% { transform: scale(1.16); } 100% { transform: scale(1); } }
-@keyframes gem-forge-burst { from { transform: scale(.55); opacity: 1; border-color: var(--forge-accent); } to { transform: scale(1.65); opacity: 0; border-color: var(--forge-accent); } }
-@keyframes gem-forge-reward { 0% { transform: scale(.92); opacity: .4; } 35% { transform: scale(1.06); text-shadow: 0 0 18px var(--forge-accent); } 100% { transform: scale(1); opacity: 1; text-shadow: none; } }
+@keyframes gem-forge-tremble { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(calc(var(--forge-heat) * 3px), calc(var(--forge-heat) * -2px)); } 75% { transform: translate(calc(var(--forge-heat) * -3px), calc(var(--forge-heat) * 2px)); } }
+@keyframes gem-forge-impact { 0% { transform: scale(.8); } 30% { transform: scale(calc(1.16 + .3 * var(--forge-heat))); } 100% { transform: scale(1); } }
+@keyframes gem-forge-reward { 0% { transform: scale(.82); opacity: .4; } 35% { transform: scale(calc(1.08 + .3 * var(--forge-heat))); text-shadow: 0 0 22px var(--forge-accent); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes gem-forge-spark { from { transform: rotate(var(--angle)) translateX(10px); opacity: 1; } to { transform: rotate(var(--angle)) translateX(var(--reach)) scale(.3); opacity: 0; } }
+@keyframes gem-forge-flash { from { opacity: calc(.35 + .6 * var(--forge-heat)); } to { opacity: 0; } }
+@keyframes gem-forge-dim { 0% { filter: brightness(.45) grayscale(.8); transform: translateY(3px); } 100% { filter: none; transform: none; } }
+@keyframes gem-forge-shake { 0%, 100% { transform: translate(0, 0); } 15% { transform: translate(-7px, 3px); } 35% { transform: translate(6px, -4px); } 55% { transform: translate(-4px, 2px); } 75% { transform: translate(3px, -1px); } }
+@keyframes gem-forge-shatter { 0% { transform: scale(1.2); filter: brightness(2.4); } 40% { transform: scale(.9); filter: brightness(.6) grayscale(1); } 100% { transform: scale(.82); filter: grayscale(1) brightness(.45); opacity: .55; } }
+@keyframes gem-forge-backdrop { from { background: color-mix(in srgb, var(--forge-accent) 42%, #030507ce); } to { background: #030507ce; } }
+@keyframes gem-forge-spin { to { transform: rotate(360deg); } }
+@keyframes gem-forge-breathe { from { opacity: .35; } to { opacity: 1; } }
+/* 강화된 룬 그림(js/ui.js getRuneForgeAttrs): 단계 글자와 고정된 빛. 전투 화면에도 있어 움직이지 않는다. */
+[data-forge-tier] { --forge-plus: #e4ba79; position: relative; }
+[data-forge-tier="1"] { --forge-plus: #8cd8ef; }
+[data-forge-tier="2"] { --forge-plus: #c7a0ff; }
+[data-forge-tier="3"] { --forge-plus: #ff9a55; }
+[data-forge-tier="4"] { --forge-plus: #ffe9a8; }
+[data-forge-tier]::after { content: attr(data-forge-plus); position: absolute; right: -2px; bottom: -2px; z-index: 1; padding: 0 2px; background: #0b0908d9; color: var(--forge-plus); font-size: 12px; line-height: 14px; font-style: normal; font-weight: 400; white-space: nowrap; pointer-events: none; }
+[data-forge-tier="1"] > img, [data-forge-tier="1"] > svg { filter: drop-shadow(0 0 2px var(--forge-plus)); }
+[data-forge-tier="2"] > img, [data-forge-tier="2"] > svg { filter: drop-shadow(0 0 3px var(--forge-plus)); }
+[data-forge-tier="3"] > img, [data-forge-tier="3"] > svg { filter: drop-shadow(0 0 3px var(--forge-plus)) drop-shadow(0 0 7px var(--forge-plus)); }
+[data-forge-tier="4"] > img, [data-forge-tier="4"] > svg { filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px var(--forge-plus)) drop-shadow(0 0 10px var(--forge-plus)); }
 /* 룬 성장 왼쪽 레벨 구성(js/ui.js getGemGrowthSummaryHtml): 최종 레벨, 기본(금)/재료와 각성(파랑)/장비와 패시브(초록) 막대, 전투 수치 칩 */
 .gem-target-kicker { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .gem-target-kicker > i { padding: 0 6px; color: var(--gem-accent); font-style: normal; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gem-accent) 55%, transparent); }
@@ -98,23 +153,20 @@ dialog.gem-forge-dialog.sky { background: radial-gradient(ellipse at 50% 20%, #1
 .gem-level-stats small { color: #a39883; }
 .gem-level-stats b { color: #f3eddf; font-size: 14px; }
 @media (max-width: 560px) {
-    #ui-gem-core-forge { gap: 8px; }
     button.gem-forge-track { padding: 12px; }
     .gem-forge-track-head strong { font-size: 13px; }
-    dialog.gem-forge-dialog { padding: 16px; }
-    .gem-forge-header h2 { font-size: 20px; }
-    .gem-forge-stage { padding: 14px 0 12px; }
+    dialog.gem-forge-dialog { padding: 14px; }
+    .gem-forge-header h2 { font-size: 18px; }
+    .gem-forge-stage { padding: 10px 0; }
     .gem-forge-stage .gem-forge-art { width: 48px; height: 48px; }
-    .gem-forge-halo { top: 6px; width: 64px; height: 64px; }
-    .gem-forge-result { min-height: 46px; }
+    .gem-forge-result { min-height: 50px; }
     #gem-core-forge-overlay .gem-forge-footer > button { min-width: 130px; }
 } }
 
 @layer overrides {
 #gem-core-forge-overlay .gem-forge-header button { color: var(--forge-text); background: transparent; }
-#gem-core-forge-overlay .gem-forge-materials button { background: transparent; border: 1px solid transparent; color: var(--forge-muted); box-shadow: none; }
-#gem-core-forge-overlay .gem-forge-materials button[aria-pressed="true"] { background: color-mix(in srgb, var(--forge-accent) 10%, transparent); color: var(--forge-accent); border-color: var(--forge-line); }
-#gem-core-forge-overlay .gem-forge-footer > button { border: 1px solid var(--forge-accent); background: var(--forge-accent); color: var(--forge-on-accent); }
+#gem-core-forge-overlay .gem-forge-stepper button { color: var(--forge-text); background: #ffffff0d; box-shadow: none; }
+#gem-core-forge-overlay .gem-forge-footer > button, #gem-core-forge-overlay .gem-forge-timing > button { border: 1px solid var(--forge-accent); background: var(--forge-accent); color: var(--forge-on-accent); }
 @media (prefers-reduced-motion: reduce) {
-    .gem-forge-dialog .gem-forge-art, .gem-forge-dialog .gem-forge-halo, .gem-forge-dialog .gem-forge-level-bonus { animation: none; }
+    .gem-forge-dialog, .gem-forge-dialog::backdrop, .gem-forge-dialog .gem-forge-stage, .gem-forge-dialog .gem-forge-art, .gem-forge-dialog .gem-forge-halo, .gem-forge-dialog .gem-forge-halo::before, .gem-forge-dialog .gem-forge-halo::after, .gem-forge-dialog .gem-forge-level, .gem-forge-dialog .gem-forge-level-bonus, .gem-forge-dialog .gem-forge-flash, .gem-forge-dialog .gem-forge-fx i { animation: none; }
 } }

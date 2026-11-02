@@ -53,7 +53,7 @@ const stageSkillCasts = (() => {
         stageSkillDraws.body(ctx, look, { x: at.x, y: at.y + K.HAND * at.dot, dot: at.dot, face: spot.face, angle, t: elapsed, element: c.element });
         ctx.restore();
     }
-    /** 활로 쏜 마법 화살: 몸 대신 그 화살 클립이 손 높이로 나아가는 쪽을 보며 난다. */
+    /** 활로 쏜 마법 화살과 그림으로 나는 창: 몸 대신 그 클립이 손 높이로 나아가는 쪽을 보며 난다. */
     function castDrawArrow(c, ref) {
         const event = c.event, elapsed = c.view.now - event.at, spot = K.along(event, elapsed), lift = event.aloft ? PROJECTILE_FLIGHT_LIFT : 0;
         const at = K.screen(c.view.projection, { gx: spot.gx, gy: spot.gy + lift }), ctx = c.view.ctx;
@@ -68,11 +68,14 @@ const stageSkillCasts = (() => {
         const look = BODIES[c.gem.id], elapsed = c.view.now - c.event.at, bow = stageSkillRunes.bow(c.gem);
         const flash = bow ? stageSkillRunes.bowFlash(c.gem, c.element) : c.gem.map.muzzle;
         if (c.first && flash) stageSkillVfx.play(flash, K.at(K.heroSpot(), c.look.face * (bow ? 30 : 26), bow ? -54 : -52), c.look);
-        if (elapsed < 0 || elapsed >= c.event.duration) return true;
-        if (bow) castDrawArrow(c, bow.arrow);
+        if (elapsed >= 0 && elapsed < c.event.duration) castDrawBody(c, look, bow ? bow.arrow : c.gem.map.proj);
+        return true;
+    }
+    /** clip: 활의 화살, 아니면 pixelfx로 구운 창과 불덩이(2026-11-02 전달본 V3.9.1). 없으면 코드로 그린 몸. */
+    function castDrawBody(c, look, clip) {
+        if (clip) castDrawArrow(c, clip);
         else if (look === 'flask') castDrawLob(c, look);
         else castDrawShot(c, look);
-        return true;
     }
 
     // ---------------------------------------------------------------- natively cast gems

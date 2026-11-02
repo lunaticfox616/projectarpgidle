@@ -23,8 +23,14 @@
 
 - 수호자 나이테 왕·잿불 정원사, 리그 우두머리 공허를 여는 자·금고지기·잿불 군주·호박 거인·시든 꽃의 여왕,
   독낭 파열체를 내장 이미지 생성 도구로 새로 그렸다. 큰 색면과 식별되는 특징에 집중하고 잔무늬와 장식을 줄였다.
-  32색 기준의 게임 크기·완전 투명 도트로 정리해 `assets/enemies/roster/<id>-walk.png`에 넣었다.
-  새 7보스는 기본 자세 한 장이다. 독낭 파열체는 기본 자세와 별도로 그린 공격 자세 한 장씩이며 새 애니메이션은 아니다.
+  기존 색상표 기준의 게임 크기·완전 투명 도트로 정리해 `assets/enemies/roster/<id>-walk.png`에 넣었다.
+  같은 날 8종 모두 대기·공격을 함께 다시 그렸다. 같은 제작 묶음의 대기 → 준비 → 타격 → 후속 → 복귀 → 대기로 이어진다.
+  내장 이미지 생성으로 각 개체의 6자세를 한 묶음으로 그렸고 Grok 영상은 쓰지 않았다. 예전 정지 그림을 섞지 않는다.
+  기존 색상표와 렌더링 몸 크기를 유지하며,
+  공격 시트와 대기 시트는 같은 칸과 발 기준점을 쓴다. `impactFrame: 2`로 기존 예고·방출 이벤트에 맞춰 재생한다.
+  동작만 추가하는 납품은 `animation.json`의 `body: {height, width, reach}`로 기존 배율과 발판 너비를 유지한다.
+  제작본·검증은 `artifacts/new-boss-attacks-20261102/v2/`, 프레임별 전후 비교 화면은 부모 폴더의 `index.html`이다.
+  재반영은 `v2` 폴더를 `--append-pack`에 넣는다.
   리그의 앞뒤 단계는 `ATLAS_ENDGAME.leagues[].bodyVisual`로 같은 몸을 사용하고 단계 이름과 패턴은 기존 규칙을 따른다.
 - 뿌리 문의 정면·측면 9프레임을 각 지역 배경 팔레트에 맞춘 PNG 68장으로 저장했다(`assets/stage-scenes/root-seal-v3/regions/`).
   33개 지역과 액트 1(root)의 색을 사용하며 원래 프레임 크기, 알파, 기준점과 열리는 시간은 그대로다. 렌더러는 현재 지도 지역의
@@ -1048,6 +1054,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
 
 ## 스킬 전체 전달본 V3.6 (2026-11-01, 사용자 "신규 스킬들 게임에 적용시켜줄 수 있어?", 이어서 "넣지 않은 것도 전부")
 - 표와 그림: scripts/build-stage-skill-vfx-v36.cjs가 룬 74종의 연결(데이터/skills.json vfx, 게임에서 코드가 맡는 룬은 그 표시로 바꾼다), 클립, 아틀라스 줄, 보강 갈래(polish), 향로 머리 자리(censerHeads), 위습 그림(wisps)을 data/stage-skill-vfx.js에 덧붙인다.
+- 전달본 V3.9.1(2026-11-02): 투사체 수와 연쇄(V3.7)는 js/combat-projectile-shots.js와 js/skill-gem-casts.js, 적중 타격감(V3.8)은 js/canvas-stage-proj-impact.js와 js/combat-grid.js pierceHoldMs. 그림(V3.9.1)은 scripts/build-stage-skill-vfx-v39.cjs가 assets/stage-vfx/vfx5.png(pixelfx로 구운 그림, 구매 그림이 아니라 저장소에 있다, 고지는 pixelfx-LICENSE.txt)와 표를 옮긴다. 시뮬레이터의 "판정 표시" 칠은 게임에 그 설정이 없어 넣지 않았다.
   구매 그림은 셋째 장 assets/stage-vfx/vfx3.png(같은 약관, .gitignore, 비공개 저장소)에 모은다. 소환 위습 그림은 구매 그림이 아니라 assets/stage-vfx/wisps/에 있다. 없으면 그 그림을 쓰는 연출만 빠진다.
 - 새 룬 78 추적 사격, 79 석화 혼합물, 80 시간의 사선(규칙은 js/skill-gem-casts.js), 81 정화의 집행(회오리 방식, data/skills.js). 연출은 js/canvas-stage-new-runes.js.
 - 석화: 기절 줄(type stun, petrified)을 쓰므로 행동이 멈춘다(js/combat.js petrifyEnemy). 보스는 굳지 않는다. 시간 둔화: 적의 이동만 낮추고 공격 주기는 그대로다(enemyTimeSlowed).

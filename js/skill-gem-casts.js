@@ -137,28 +137,36 @@ const skillGemCasts = (() => {
         if(id===44)cast.targetId=null;
         launch[id](state,cast,enemies);
         state.casts.push(cast);
-        if(THROWN_FLASKS.has(id))throwExtraFlasks(state,input,cast,options.filter(enemy=>enemy!==target));
+        if(THROWN_FLASKS.has(id))throwExtraFlasks(state,input,cast,target,options.filter(enemy=>enemy!==target));
         return true;
     }
-    /** 플라스크의 투사체 추가 발사(패시브 트리, 장비): 병이 더 날아간다. 병마다 아직 안 노린 가까운 적을, 없으면 같은 적을 노리고 피해는 추가 발사 배율이다.
-     * 궤적이 따로 짜인 룬이라 공용 추가 발사(js/combat.js)가 닿지 않는다. 빈 플라스크는 파편이 늘고, 바위 플라스크는 주인공이 따라 날아가 늘지 않는다. */
-    const THROWN_FLASKS=new Set([44,47,48,79]);
-    function throwExtraFlasks(state,input,first,others) {
-        const extra=rollProjectileExtraShots(first.stats.projectileExtraShots),rest=others.slice();
-        for(let shot=0;shot<extra;shot++) {
-            const foe=findNearestGridEnemy(first.source,rest)||input.enemies.find(enemy=>enemy.id===first.targetId)||null;
-            if(!foe)return;
-            rest.splice(rest.indexOf(foe),1);
-            const cast={...first,attackOptions:{...first.attackOptions,attackDamageMultiplier:(first.attackOptions?.attackDamageMultiplier??1)*PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100},
-                aim:getGridUnitCenter(foe),targetId:first.id===44?null:foe.id,firstFoe:foe,key:'gem-'+(++state.sequence),nextAt:first.at,struck:undefined};
+    /** 플라스크가 더 날아간다(2026-11-02 전달본 V3.7, js/combat-projectile-shots.js): 본 대상, 가까운 다른 적 차례로, 모자라면 같은 적에게 다시. 갈래 투사체의 병은 제 피해, 패시브와 장비의
+     * 추가 발사는 보너스 샷 배율이다. 궤적이 따로 짜인 룬이라 공용 추가 발사(js/combat.js)가 닿지 않는다. 탄성 플라스크의 갈래 투사체는 튕김이 되고, 빈 플라스크의 추가 발사는 파편이 된다.
+     * 바위 플라스크는 주인공이 따라 날아가 늘지 않는다. */
+    const THROWN_FLASKS=new Set([44,47,48,49,79]);
+    const supportShots=c=>projectileShots.supportExtra(c.stats.sSkill);
+    function throwExtraFlasks(state,input,first,target,others) {
+        const plain=first.id===44?0:supportShots(first),bonus=first.id===49?0:rollProjectileExtraShots(first.stats.projectileExtraShots);
+        const order=[target,...others.slice().sort((a,b)=>getGridUnitDistance(first.source,a)-getGridUnitDistance(first.source,b))];
+        for(let shot=1;shot<=plain+bonus;shot++) {
+            const foe=order[shot%order.length],at=first.at+projectileShots.gapOf(shot,order.length,true);
+            const mul=(first.attackOptions?.attackDamageMultiplier??1)*(shot>plain?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1);
+            const cast={...first,at,attackOptions:{...first.attackOptions,attackDamageMultiplier:mul},
+                aim:getGridUnitCenter(foe),targetId:first.id===44?null:foe.id,firstFoe:foe,key:'gem-'+(++state.sequence),nextAt:at,struck:undefined};
             launch[first.id](state,cast,input.enemies);
             state.casts.push(cast);
         }
     }
     /** 투사체 연쇄(패시브 트리의 무기 줄): 맞힌 적에서 안 맞은 가까운 적으로 튄다. 피해는 추가 발사 배율이다. 탄성 플라스크는 튀는 횟수가 늘어난다(stepBounce). */
     const chainsOf=c=>Math.max(0,Math.floor(c.stats.sSkill.projectileChain||0));
+    /** 병이 처음 맞힌 때: 연쇄 투사체는 병 하나에 한 번이다(js/combat-support-runes.js augmentNative). */
+    function noteLeadContact(c,hit) {
+        if(!hit || c.led)return;
+        c.led=true;hit.leadContact=true;
+    }
     function chainContacts(c,rows,enemies) {
         const chains=c.id===44?0:chainsOf(c),hit=rows.find(row=>row.type==='hit' && row.targets.length);
+        noteLeadContact(c,hit);
         if(!chains || !hit)return rows;
         const struck=new Set(rows.flatMap(row=>row.targets||[]));
         let from=enemies.find(enemy=>enemy.id===hit.targets[0]);
@@ -373,17 +381,21 @@ const skillGemCasts = (() => {
     }
     // ---------------------------------------------------------------- 78 추적 사격 (2026-11-01 스킬 전체 전달본 V3.6)
     // 쏜 화살이 가장 가까운 적 쪽으로 초당 11라디안까지 방향을 틀며 난다. 판정은 화면과 같은 도트 공간(칸 64×32)에서 20ms 걸음으로 본다. 대상이 쓰러지면
-    // 아직 안 맞힌 다음 적을 쫓고, 같은 발사의 화살끼리는 서로 다른 적을 고른다. 한 번 맞히면 사라지고, 8칸(효과 확장 +N칸)을 날면 사라진다.
+    // 아직 안 맞힌 다음 적을 쫓는다. 화살 N발은 가까운 다른 적을 하나씩 겨누고 모자라면 같은 적에게 이어서 난다(V3.7). 한 번 맞히면 사라지고, 8칸(효과 확장 +N칸)을 날면 사라진다.
     // 속도는 전달본의 640(칸 72)을 칸 64로 옮긴 값이라 회전 반지름 약 0.8칸이 같다.
-    const HOMING={cells:8,wide:64,deep:32,speed:569,turn:11,stepMs:20,release:200,spread:.35,hitX:32,hitY:16};
+    const HOMING={cells:8,wide:64,deep:32,speed:569,turn:11,stepMs:20,release:200,hitX:32,hitY:16};
+    function homingArrow(c,foe,startAt) {
+        const p=getGridUnitCenter(foe),angle=Math.atan2((p.gy-c.source.gy)*HOMING.deep,(p.gx-c.source.gx)*HOMING.wide);
+        return {gx:c.source.gx,gy:c.source.gy,angle,flown:0,foe,dead:false,startAt,path:[{at:startAt,gx:c.source.gx,gy:c.source.gy,angle}]};
+    }
     function launchHoming(state,c,enemies) {
-        const release=c.at+ms(c,HOMING.release),shots=1+rollProjectileExtraShots(c.stats.projectileExtraShots);
-        const foe=getGridUnitCenter(enemies.find(e=>e.id===c.targetId)),base=Math.atan2((foe.gy-c.source.gy)*HOMING.deep,(foe.gx-c.source.gx)*HOMING.wide);
+        const release=c.at+ms(c,HOMING.release),shots=1+supportShots(c)+rollProjectileExtraShots(c.stats.projectileExtraShots);
+        const first=enemies.find(e=>e.id===c.targetId),near=(a,b)=>getGridUnitDistance(c.source,a)-getGridUnitDistance(c.source,b);
+        const aimed=[first,...targets(78,c.source,enemies,grow(c.stats)).filter(e=>e!==first).sort(near)].slice(0,shots);
         letGo(c,release,release+ms(c,160));
-        c.nextAt=release;c.flownTo=release;c.claimed=new Set();
-        c.arrows=Array.from({length:shots},(_,i)=>({gx:c.source.gx,gy:c.source.gy,angle:base+(i-(shots-1)/2)*HOMING.spread,flown:0,foe:null,dead:false,
-            path:[{at:release,gx:c.source.gx,gy:c.source.gy,angle:base+(i-(shots-1)/2)*HOMING.spread}]}));
-        c.arrows.forEach(arrow=>{arrow.event=visual(state,c,'fly',release,4000,{homingPath:arrow.path,sourceCell:cell(c.source)});});
+        c.nextAt=release;c.flownTo=release;c.claimed=new Set(aimed.map(e=>e.id));
+        c.arrows=Array.from({length:shots},(_,i)=>homingArrow(c,aimed[i%aimed.length],release+projectileShots.gapOf(i,aimed.length,false)));
+        c.arrows.forEach(arrow=>{arrow.event=visual(state,c,'fly',arrow.startAt,4000,{homingPath:arrow.path,sourceCell:cell(c.source)});});
     }
     /** 화살이 쫓는 적: 쫓던 적이 살아 있으면 그대로, 아니면 다른 화살이 안 고른 가장 가까운 적, 그것도 없으면 가장 가까운 적. */
     function homingFoe(c,arrow,live) {
@@ -412,7 +424,7 @@ const skillGemCasts = (() => {
     /** 화살 하나를 지금까지 날린다: 닿으면 그때의 타격 명령을 돌려준다. */
     function homingFly(c,arrow,live,at) {
         const reach=(HOMING.cells+grow(c.stats))*HOMING.wide;
-        if(arrow.dead)return null;
+        if(arrow.dead || at<=arrow.startAt)return null;
         const hit=homingStep(c,arrow,live);
         arrow.path.push({at,gx:arrow.gx,gy:arrow.gy,angle:arrow.angle});
         if(hit){homingEnd(arrow,at);return contact(c,[hit],at);}
@@ -455,7 +467,7 @@ const skillGemCasts = (() => {
     /** 찌르기가 나가는 때: 둔화할 적과 치는 차례(strikes)를 정한다. 대상이 없으면 둔화만 남는다(시뮬레이터의 빈 시간장). */
     function timeSlashRelease(state,c,input) {
         const range=TIME_SLASH.range+grow(c.stats),near=input.enemies.filter(e=>e.hp>0 && getGridUnitCells(e).some(p=>distance(input.source,p)<=range)).sort((a,b)=>getGridUnitDistance(input.source,a)-getGridUnitDistance(input.source,b));
-        const shots=1+rollProjectileExtraShots(c.stats.projectileExtraShots),aimed=near.slice(0,shots),at=c.at+c.hitDelay;
+        const shots=1+supportShots(c)+rollProjectileExtraShots(c.stats.projectileExtraShots),aimed=near.slice(0,shots),at=c.at+c.hitDelay;
         c.index=1;c.source=cell(input.source);
         aimed.forEach(e=>c.primary.add(e.id));
         visual(state,c,'field',c.nextAt,ms(c,TIME_SLASH.cycle-TIME_SLASH.slowStart)+TIME_SLASH.slow,{timeSlowUntil:c.nextAt+TIME_SLASH.slow,timeActorEnd:c.at+ms(c,TIME_SLASH.cycle),timeSpeed:c.speed,sourceCell:c.source});
@@ -503,7 +515,7 @@ const skillGemCasts = (() => {
         const pop=contact(c,area(input.enemies,c.aim,'circle',1),c.nextAt,{damagePct:BOUNCE_POP_PCT,key:c.key+':pop'});
         const result=contact(c,input.enemies.filter(e=>e.id===c.targetId && e.hp>0),c.nextAt);
         c.index++;
-        if(c.index===4+grow(c.stats)+chainsOf(c))c.done=true;
+        if(c.index===4+grow(c.stats)+chainsOf(c)+supportShots(c)+(c.stats.sSkill.supportEffects?.chain?.count || 0))c.done=true;
         else {c.source=cell(c.aim);c.nextAt+=80/c.speed;c.pendingBounce=true;}
         return pop.targets.length ? [result,pop] : [result];
     }

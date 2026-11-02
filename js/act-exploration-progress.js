@@ -190,7 +190,8 @@ const actExplorationProgress = (() => {
         const entrance=actExplorationState.entrance(run);
         if(!entrance || entrance===opened)return entrance;
         const pack=run.packs.find(row=>row.key===entrance.key);
-        addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs:entrance.holdMs,duration:entrance.holdMs+600});
+        roomInvaders.onBossEntrance(run,pack); // 보스 방의 불청객: 같은 보스가 하나 더 서면 함께 떠오른다
+        addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs:entrance.holdMs,duration:entrance.holdMs+600,red:pack.waiting.some(enemy=>enemy.redEntrance)});
         return entrance;
     }
     /** A listening pack (data ACT_EXPLORATION_ALERT) heard the fight and runs at the hero; the view marks it (js/canvas-combat-feedback.js). */
@@ -200,7 +201,7 @@ const actExplorationProgress = (() => {
     /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit) starts as they wake. */
     function wakeBosses(woken) {
         const zone=getZone(game.currentZoneId);
-        for(const enemy of woken)if(enemy.isBoss){restartHiddenJournalBossRun(enemy,zone);beginRoomBossRules(zone);}
+        for(const enemy of woken)if(enemy.isBoss && !enemy.roomInvader && !enemy.uninvited){restartHiddenJournalBossRun(enemy,zone);beginRoomBossRules(zone);}
     }
     /** Occupancy matters only when the authoritative hit cell crosses the tile boundary. */
     function canEnterMotionTile(run) {
