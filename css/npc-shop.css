@@ -1,17 +1,7 @@
 @layer features {
-/* NPC 창의 즉시 해금과 상점(js/content-progression-ui.js npcFoot, js/npc-shop-ui.js), NPC 탭(js/npc-roster-ui.js).
-   빛깔은 뜻이 있을 때만: 즉시 해금은 금빛 테두리, 상점 물건은 가방과 같은 희귀도 색, 살 수 없는 값은 붉게. */
+/* NPC 창의 상점(js/content-progression-ui.js npcFoot, js/npc-shop-ui.js), NPC 탭(js/npc-roster-ui.js).
+   빛깔은 뜻이 있을 때만: 상점 물건은 가방과 같은 희귀도 색, 살 수 없는 값은 붉게. */
 .npc-dialog-foot { display: grid; gap: 10px; }
-.npc-dialog-instant h4 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 6px; font-size: .78rem; font-weight: 600; letter-spacing: .06em; color: var(--color-text-secondary); }
-.npc-dialog-instant h4 small { margin-left: auto; font-size: .8rem; font-weight: 400; color: var(--color-accent-gold); }
-.npc-dialog-instant ul { display: grid; gap: 6px; max-height: 196px; margin: 0; padding: 0; overflow: auto; list-style: none; }
-.npc-instant-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid rgba(224, 194, 126, .5); background: linear-gradient(90deg, rgba(224, 194, 126, .09), transparent 70%); }
-.npc-instant-row > img { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
-.npc-instant-row strong { font-size: 14px; color: #f1e6cc; }
-.npc-instant-row p { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--color-text-secondary); word-break: keep-all; }
-.npc-instant-row .unlock-reward { color: #cdbb8e; }
-.npc-instant-row .content-unlock-choice { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 12px; }
-.npc-instant-row > button { min-height: 38px; padding: 6px 16px; border-color: var(--color-accent-gold); white-space: nowrap; }
 .npc-dialog-shop { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 14px; text-align: left; font: inherit; cursor: pointer; }
 .npc-dialog-shop > span { font-weight: 700; }
 .npc-dialog-shop > b { flex: 1; font-weight: 400; color: var(--color-text-secondary); }
@@ -28,7 +18,7 @@
    (고른 물건의 시트가 이 안에서 아래에 붙는다). 배치는 상점 화면의 것을 그대로 쓴다. */
 .npc-dialog .shop-view { --shop-tone: var(--npc-tone); grid-column: 1 / -1; grid-row: 2; min-height: 0; padding: 4px 20px 18px; overflow: auto; overscroll-behavior: contain; border-top: 1px solid var(--skin-line); }
 
-/* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(즉시 해금은 금빛, 새 이야기, 상점). */
+/* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(새 이야기, 상점). */
 .npc-roster-lead, .npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
 .npc-roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
 .npc-roster-card { --npc-tone: #e0c27e; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; width: 100%; min-height: 96px; padding: 10px; text-align: left; font: inherit; color: inherit; border: 1px solid var(--skin-line); background: linear-gradient(180deg, rgba(169, 145, 84, .06), transparent 60%), #110e0b; cursor: pointer; }
@@ -43,7 +33,6 @@
 .npc-roster-text small, .npc-roster-where { color: var(--color-text-secondary); font-size: 12px; }
 .npc-roster-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .npc-roster-tags em { padding: 1px 6px; border: 1px solid var(--skin-line); font-style: normal; font-size: 12px; color: var(--color-text); }
-.npc-roster-tags em.is-unlock { border-color: var(--color-accent-gold); color: var(--color-accent-gold); }
 
 /* 휴대폰: 상점은 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. 대화의 휴대폰 배치는 세로 화면만이라
    (css/content-progression.css) 가로 휴대폰의 상점은 한 칸 격자와 세로로 쌓는 본문을 여기서 받는다. */
@@ -54,8 +43,6 @@
   .npc-dialog.is-shop[open] { grid-template-columns: 1fr; }
   .npc-dialog.is-shop .npc-dialog-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .npc-dialog .shop-view { flex: 1; padding: 0 12px 14px; }
-  .npc-instant-row { grid-template-columns: 30px minmax(0, 1fr); }
-  .npc-instant-row > button { grid-column: 1 / -1; }
 }
 /* 낮은 가로 화면(721px 이상): 좌우를 좁혀 창 안의 상점 자리를 넓힌다(본문은 창 안에서 밀린다). */
 @media (min-width: 721px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {

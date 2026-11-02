@@ -201,32 +201,16 @@
         });
     }
 
-    /** Points call for a choice only when they buy something now; otherwise the goal counts toward the next unlock (2026-10-04),
-     * unless an NPC unlock can be taken now: 장비 제련 at loop 2 comes from 오르가 before any paid unlock opens (2026-10-21). */
+    /** Points call for a choice only when they buy something now; otherwise the goal counts toward the next unlock (2026-10-04). */
     function contentChoiceGuide(state) {
         const points = contentProgression.points(state);
-        const next = points.complete ? null : contentProgression.cheapestOpen(state);
-        const ready = points.balance > 0 && !!next && next.cost <= points.balance;
-        const npc = ready ? null : npcUnlockGuide(state);
-        if (npc || points.complete) return npc;
+        if (points.complete) return null;
+        const next = contentProgression.cheapestOpen(state), ready = points.balance > 0 && !!next && next.cost <= points.balance;
         return guide({
             id: 'content-choice', title: '콘텐츠 선택 해금',
             description: ready ? '해금 포인트로 원하는 콘텐츠를 선택하세요.' : contentWaitText(points, next),
             requirements: [requirement('해금 포인트', ready, points.balance, next ? Math.max(1, next.cost) : 1)],
             actionLabel: '콘텐츠 선택', actionTabId: state.season >= 2 ? 'tab-unlocks' : 'tab-items'
-        });
-    }
-
-    /** The first NPC unlock its NPC can give now (met, conditions met): taken in that NPC's window, found in the NPC tab. */
-    function npcUnlockGuide(state) {
-        const def = CONTENT_UNLOCK_CATALOG.find(row => row.npc && contentProgression.status(row.id, state).available);
-        if (!def) return null;
-        const name = contentProgression.npcName(def.npc);
-        return guide({
-            id: 'content-npc', title: def.name,
-            description: `${name}에게서 포인트 없이 받는 NPC 해금입니다. 기록 → NPC에서 ${name}의 창을 여세요.`,
-            requirements: [requirement(`${name}에게서 받기`, false)],
-            actionLabel: `${name} 만나기`, actionTabId: 'tab-npcs'
         });
     }
 

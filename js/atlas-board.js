@@ -7,7 +7,7 @@ const atlasBoard = (() => {
     const defaults = () => ({ version: 2, started: false, dice: 0, position: 0, lap: 0, risk: 0, boost: 0,
         bank: {}, gear: 0, pending: null, choice: false, promise: false, serial: 0, lastRoll: 0, trail: [], message: '' });
     const ledger = state => state.atlas.board;
-    const unlocked = state => state.season >= C.minLoop;
+    const unlocked = state => contentProgression.holds('ringRoute', state);
     function normalize(raw) {
         const s = { ...defaults(), ...(raw && typeof raw === 'object' ? raw : {}) };
         const out = { ...defaults(), started: s.started === true, dice: count(s.dice, C.diceCap), position: count(s.position, 23),
@@ -35,7 +35,7 @@ const atlasBoard = (() => {
         b.message = '첫 심재 주사위 3개를 받았습니다. 혼돈 20층 이상 또는 아틀라스 8등급 이상에서 길잡이를 찾으세요.';
     }
     function reason(state) {
-        if (!unlocked(state)) return `루프 ${C.minLoop}에 열립니다.`;
+        if (!unlocked(state)) return '나이테 원정 해금 뒤에 열립니다.';
         const b = ledger(state);
         if (state.atlas.run) return atlas.runOpenReason(state);
         if (b.pending) return '도착한 지도를 클리어하면 다시 굴릴 수 있습니다.';

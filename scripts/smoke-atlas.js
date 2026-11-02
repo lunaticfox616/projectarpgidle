@@ -3,8 +3,15 @@
 // at that depth's loop, and a map opened from the device is fought through the real combat loop to completion, auto-map,
 // portals, save round trips and the loop reset.
 const assert = require('node:assert/strict');
-const fixture = require('./lib/replay-fixture');
-const { runtime, run } = fixture(41);
+const replayFixture = require('./lib/replay-fixture');
+// 지도 콘텐츠를 보는 검사라 트리의 새 줄(기억 던전, 방, 변이체 들)은 모두 가진 채로 시작한다.
+const OWNED_ROWS = "game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.filter(def=>def.since===CONTENT_UNLOCK_TREE_VERSION).map(def=>def.id);";
+const fixture = seed => {
+    const made = replayFixture(seed);
+    made.run(OWNED_ROWS);
+    return made;
+};
+const { runtime, run } = replayFixture(41);
 const copy = code => JSON.parse(run(`JSON.stringify(${code})`));
 
 // ---------------------------------------------------------------- the graph
@@ -205,7 +212,7 @@ run('game.pendingLoopDecision=false;');
 {
     const {run: settle}=fixture(731);
     const read=code=>JSON.parse(settle(`JSON.stringify(${code})`));
-    settle(`game=mergeDefaults({...game,season:50});game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
+    settle(`game=mergeDefaults({...game,season:50});${OWNED_ROWS}game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;
         game.settings.mapCompleteAction='stop';atlas.sync(game);
         for(const key of ATLAS.pinnacle.tickets)game.currencies[key]=1;`);
     assert.equal(settle('atlasRun.openPinnacle()'),'');

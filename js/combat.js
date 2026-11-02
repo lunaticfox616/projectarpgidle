@@ -5987,7 +5987,7 @@ function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
         st.highestFloor = Math.max(1, Math.floor(st.highestFloor || 0));
         game.noti.map = true;
         addLog('🌌 나무꾼의 경계가 갈라지며 혼돈계가 해금되었습니다.', 'loot-unique');
-        if (typeof queueTutorialNotice === 'function') queueTutorialNotice('unlock_chaos_realm', '혼돈계', '나무꾼의 경계가 갈라져 혼돈계가 열렸습니다.\n‘지도 → 혼돈계’에서 루프가 바뀌어도 이어지는 영구 등반에 도전하세요.', 'tab-map', 'map-tab-chaos-realm');
+        if (typeof queueTutorialNotice === 'function') queueOpenContentNotice('chaosRealm', 'unlock_chaos_realm', '혼돈계', '나무꾼의 경계가 갈라져 혼돈계가 열렸습니다.\n‘지도 → 혼돈계’에서 루프가 바뀌어도 이어지는 영구 등반에 도전하세요.', 'tab-map', 'map-tab-chaos-realm');
     }
     if (options && options.log) {
         addLog(`🪓 나무꾼 피해율 기록: ${st.woodsmanBestDamagePct.toFixed(1)}% / 해금 조건 10%`, st.woodsmanBestDamagePct >= 10 ? 'season-up' : 'attack-monster');
@@ -15160,13 +15160,13 @@ function advanceLoopCounters(loopPath, say) {
 /** The one-time notices of the loop the hero arrives at (spores, exploration events, time rift, rival blades). */
 function queueLoopArrivalNotices() {
     if (game.season === 2 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 오르가에게서 화석 제작을 받으면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
+        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 화석 제작을 해금하면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
     }
     Object.entries(EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
         if (game.season === notice.loop) queueTutorialNotice('exploration_event_' + kind, notice.title, notice.body);
     });
     if (game.season === 13 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_time_rift', '시간의 균열', '루프 13에 도달해 시간의 균열이 열렸습니다.\n‘지도 → 탐험 → 시간의 균열’에서 과거를 클리어해 제단을 여세요.\n제단에 같은 부위의 고유 1개/희귀 1개를 올리고 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
+        queueOpenContentNotice('timerift', 'unlock_time_rift', '시간의 균열', '루프 13에 도달해 시간의 균열이 열렸습니다.\n‘지도 → 탐험 → 시간의 균열’에서 과거를 클리어해 제단을 여세요.\n제단에 같은 부위의 고유 1개/희귀 1개를 올리고 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
     }
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_rival_blades', '버려진 날붙이들', '나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n‘지도 → 탐험 → 강대한 적’에서 결투에 도전하세요.\n도전권 [표식: 버려진 날]은 심층 보스가 떨어뜨립니다.\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.', 'tab-map');

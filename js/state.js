@@ -109,9 +109,13 @@ function queueTutorialNotice(key, title, body, tabId, target) {
 function queueContentNotice(key, title, contentId, bodies, route) {
     const opened = typeof contentProgression !== 'object' || contentProgression.isUnlocked(contentId);
     if (opened) { queueTutorialNotice(key, title, bodies.open, route); return; }
-    // A locked NPC unlock is taken in its NPC's window (기록 → NPC), any other in the unlock tab.
-    const giver = CONTENT_UNLOCK_CATALOG.find(row => row.id === contentId)?.npc;
-    queueTutorialNotice(key, title, bodies.locked, giver ? 'tab-npcs' : 'tab-unlocks');
+    queueTutorialNotice(key, title, bodies.locked, 'tab-unlocks');
+}
+
+/** A notice about content the unlock tree may still hold shut: only when it is open (a card aimed at a closed screen is dropped unseen,
+ * and the row's own card comes when it opens, contentUnlockUi.announceContent). */
+function queueOpenContentNotice(contentId, ...notice) {
+    if (contentProgression.isUnlocked(contentId)) queueTutorialNotice(...notice);
 }
 
 // Phase-3 extracted world/season progression helpers.

@@ -46,15 +46,16 @@ const atlasEndgame = (() => {
     const entryOf = row => (row.kind === 'league' ? [[row.item, row.need]] : row.entry);
 
     // ---------------------------------------------------------------- what is open
-    /** A league waits for the loop its room starts appearing in (data/atlas.js encounters minLoop): before it there are no shards. */
+    /** A league waits for the unlock of its room (data/atlas.js encounters): before it there are no shards. */
     const roomLoop = row => (row.room && ATLAS.encounters[row.room] ? ATLAS.encounters[row.room].minLoop || 0 : 0);
+    const roomHeld = (state, row) => { const unlock = row.room && ATLAS.encounters[row.room]?.unlock; return !unlock || contentProgression.holds(unlock, state); };
     function unlocked(state, row) {
-        if (!awakened(state) || (Number(state.season) || 1) < roomLoop(row)) return false;
+        if (!awakened(state) || (Number(state.season) || 1) < roomLoop(row) || !roomHeld(state, row)) return false;
         return !(row.unlock && row.unlock.kill) || kills(state, row.unlock.kill) > 0;
     }
     function lockText(state, row) {
         if (row.unlock && row.unlock.kill) return `${def(row.unlock.kill).stages[0].name} 처치 뒤에 열립니다.`;
-        if (awakened(state) && roomLoop(row) > 0) return `루프 ${roomLoop(row)}부터 열립니다(${ATLAS.encounters[row.room].name} 방이 지도에 나오는 루프).`;
+        if (awakened(state) && roomLoop(row) > 0) return `${ATLAS.encounters[row.room].name} 해금 뒤에 열립니다.`;
         return '세계수의 그림자(정점)를 쓰러뜨리면 아틀라스가 깨어나 열립니다.';
     }
     const missingOf = (state, row) => entryOf(row).filter(([item, need]) => count(state, item) < need);
