@@ -29,12 +29,14 @@ const shopView = (() => {
     let floatCard = null; // the floating card of the thing under the mouse (in the shop's dialog or over the page)
     let bagPage = 0;
 
-    const held = key => Math.floor(Number(game.currencies[key]) || 0);
-    const currencyName = key => (ORB_DB[key] ? ORB_DB[key].name : key);
+    const isHarvest = key => stumpBox.isHarvestPrice(key);
+    const held = key => (isHarvest(key) ? stumpBox.harvestPriceHeld(game, key) : Math.floor(Number(game.currencies[key]) || 0));
+    const currencyName = key => (isHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? ORB_DB[key].name : key);
     const registerShop = (kind, adapter) => { adapters.set(kind, adapter); };
     const areaStyle = at => `grid-area:${at.row + 1}/${at.column + 1}/span ${at.rows}/span ${at.columns}`;
 
     function coinHtml(key) {
+        if (isHarvest(key)) return `<img class="shop-coin${/:\w+:/.test(key) ? '' : ' is-any-colour'}" src="${stumpBox.harvestPriceIcon(key)}" alt="">`;
         const icon = ORB_DB[key] && ORB_DB[key].icon;
         return icon ? `<img class="shop-coin" src="${icon}" alt="">` : '';
     }
@@ -43,7 +45,7 @@ const shopView = (() => {
     /** The currencies a shop prices in (keys), in the wallet order, with what the hero holds. */
     function walletHtml(keys) {
         const shown = [...WALLET_ORDER.filter(key => keys.includes(key)), ...[...new Set(keys)].filter(key => !WALLET_ORDER.includes(key))];
-        return `<span class="shop-wallet">${shown.map(key => `<span data-tip="${escapeHTML(currencyName(key))}">${coinHtml(key)}${held(key).toLocaleString()}</span>`).join('')}</span>`;
+        return `<span class="shop-wallet">${shown.map(key => `<span data-tip="${escapeHTML(currencyName(key))}">${coinHtml(key) || `<small>${escapeHTML(currencyName(key))}</small> `}${held(key).toLocaleString()}</span>`).join('')}</span>`;
     }
 
     function cellsHtml(columns, rows, mark = () => '') {
@@ -164,7 +166,8 @@ const shopView = (() => {
     /** A rune's card: its kind and text, and for an attack rune why the weapon in hand cannot use it, else what wearing it brings. */
     function gemCardHtml(gem) {
         const support = gem.kind === 'support', def = (support ? SUPPORT_GEM_DB : SKILL_DB)[gem.name] || {};
-        const kind = support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬';
+        const need = getRuneLevelReq(gem.name, support);
+        const kind = `${support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬'}${need ? `, Lv.${need}` : ''}`;
         return `<div class="shop-gem-card"><div class="shop-gem-head">${gemArtHtml(gem)}<div><small>${escapeHTML(kind)}</small>
             <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
     }
@@ -173,13 +176,15 @@ const shopView = (() => {
      * or what wearing it brings. Wisp runes summon instead of striking, and mobility runes go to their own slot (not the main attack's):
      * neither shows a line. */
     function runeFitHtml(name) {
-        const note = getSkillRuneWeaponNote(name);
-        if (note) return `<p class="shop-note">지금 무기로 쓸 수 없음: ${escapeHTML(note)}</p>`;
+        const note = getSkillRuneBlockedLine(name);
+        if (note) return `<p class="shop-note">${escapeHTML(note)}</p>`;
         return (SKILL_DB[name]?.tags || []).includes('summon') || isMobilityRuneName(name) ? '' : wearPreviewHtml(copy => { copy.activeSkill = name; });
     }
 
     /** A support rune the hero could wear at its shelf tier now: what wearing it brings (buying only grants it). */
     function supportFitHtml(gem) {
+        const levelNote = getRuneLevelNote(gem.name, true);
+        if (levelNote) return `<p class="shop-note">지금 쓸 수 없음: ${levelNote}</p>`;
         return supportFits(gem) ? wearPreviewHtml(copy => wearSupportOnCopy(copy, gem)) : '';
     }
 

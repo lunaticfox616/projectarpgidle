@@ -67,7 +67,7 @@
 | 소속 | 세부 해금 예시 | 확인 위치 |
 | --- | --- | --- |
 | 컨디션 젬 | 정예 등장, 상태이상, 거리, 최근 피격 등 발동 조건과 목표/위치 운용 | `data/skills.js`의 `CONDITION_PATTERN_TRIGGER_DB`, `CONDITION_PATTERN_ACTION_DB` |
-| 젬 성장 | 각인 슬롯, 젬 퀄리티, 보조 젬 창공 가공, 각성 후보 변환 | `js/skills.js` |
+| 젬 성장 | 각인 슬롯, 젬 퀄리티, 각성 후보 변환 | `js/skills.js` |
 | 전문가·제작 | 개별 전문가 조우, 전문가 레벨별 제작·정제 기능 | `js/ui.js`의 `checkUnlocks`, `js/skills.js` |
 | 인벤토리 | 보관 행·페이지 확장 | `js/equipment-inventory-grid.js` |
 | 생장판 | 배치 가능 칸과 시너지 확장 | `data/maps.js`의 기존 진행표, `data/growth-items.js` |

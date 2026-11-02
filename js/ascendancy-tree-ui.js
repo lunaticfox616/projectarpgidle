@@ -96,6 +96,7 @@ const ascendancyTreeUi = (() => {
         const stat = lines.length ? statName(first) : '재능 특화', name = `${RANK[id] || stat}, ${NODE_TEXT[state]}`;
         return `<button type="button" class="${nodeClass(id, state, tight)}" style="--x:${pos.x}%;--y:${pos.y}%;--tone:${getItemStatToneColor(first)}"
             aria-label="${esc(name)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('node','${id}')"
+            data-info-tooltip-anchor="1" onpointerenter="ascendancyTreeUi.tip(event,'node','${id}')" onpointermove="ascendancyTreeUi.tip(event,'node','${id}')" onpointerleave="hideInfoTooltip()"
             onmouseenter="ascendancyTreeUi.hint('node','${id}')" onfocus="ascendancyTreeUi.hint('node','${id}')">${artHtml(statFamily(first))}<span class="ascend-plate"><b>${esc(label)}</b><span class="ascend-node-name">${esc(stat)}</span></span></button>`;
     }
     /** The prerequisites a node's lines come from. Nodes of one row that share the same choice of several prerequisites (n13a~d
@@ -145,6 +146,7 @@ const ascendancyTreeUi = (() => {
         const focused = focus && focus.kind === 'keystone' && focus.id === k.id ? ' is-focus' : '';
         return `<button type="button" class="ascend-node ascend-keystone is-${state}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
             aria-label="${esc(`${k.name}, ${KEYSTONE_TEXT[state]}`)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('keystone','${k.id}')"
+            data-info-tooltip-anchor="1" onpointerenter="ascendancyTreeUi.tip(event,'keystone','${k.id}')" onpointermove="ascendancyTreeUi.tip(event,'keystone','${k.id}')" onpointerleave="hideInfoTooltip()"
             onmouseenter="ascendancyTreeUi.hint('keystone','${k.id}')" onfocus="ascendancyTreeUi.hint('keystone','${k.id}')">${artHtml(keystoneFamily(k.desc))}<span class="ascend-plate"><span class="ascend-node-name">${esc(k.name)}</span></span></button>`;
     }
     /** Where keystones sit: the first row spread over three columns, a later one under the middle of its prerequisites so links run down;
@@ -287,6 +289,23 @@ const ascendancyTreeUi = (() => {
         card.innerHTML = detailBody(fullTree(cls), getClassKeystoneDefs(cls));
         card.classList.remove('is-empty');
     }
+    /** 가리킨 칸의 효과를 커서 옆에(2026-11-02 사용자: 창에 스크롤이 생기면 오른쪽 아래 카드가 잘 안 보인다). 자세한 일은 카드가 맡는다. */
+    function tipHtml(kind, id, tree, defs) {
+        if (kind === 'keystone') {
+            const k = defs.find(row => row.id === id);
+            return k ? `<div class="tooltip-title">${esc(k.name)}</div><div class="tooltip-line">${statToneText.html(k.desc)}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(KEYSTONE_TEXT[keystoneState(k)])}</div>` : '';
+        }
+        const node = tree[id];
+        if (!node) return '';
+        const lines = linesOf(node), body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : '개화한 재능에 따라 정해집니다.';
+        return `<div class="tooltip-title">${esc(RANK[id] || '전직 노드')}</div><div class="tooltip-line">${body}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(NODE_TEXT[nodeState(node, id)])}</div>`;
+    }
+    function tip(event, kind, id) {
+        const cls = game.ascendClass;
+        if (!event || event.pointerType === 'touch' || !cls || typeof showInfoTooltipHtml !== 'function') return;
+        const html = tipHtml(kind, id, fullTree(cls), getClassKeystoneDefs(cls));
+        if (html) showInfoTooltipHtml(event.clientX, event.clientY, html, getComputedStyle(event.currentTarget).getPropertyValue('--asc') || '#c9a86a', `ascend:${kind}:${id}`);
+    }
     /** A press: on a touch screen the first one only reads the node; otherwise (and on the second touch) it buys or refunds. */
     function press(kind, id) {
         const again = !!focus && focus.kind === kind && focus.id === id;
@@ -365,6 +384,6 @@ const ascendancyTreeUi = (() => {
             <span class="ascend-pick-section">첫 키스톤 (${defs.length}개 가운데 ${CLASS_KEYSTONE_PICK_LIMIT}개를 고릅니다)</span><span class="ascend-pick-keys">${keys}</span>
             <span class="ascend-pick-cta">이 전직 고르기</span></button>`;
     }
-    return Object.freeze({ render, hint, press, act, clear, pickCardHtml, icon: iconOf });
+    return Object.freeze({ render, hint, tip, press, act, clear, pickCardHtml, icon: iconOf });
 })();
 safeExposeGlobals({ ascendancyTreeUi });

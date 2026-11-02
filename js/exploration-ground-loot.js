@@ -16,13 +16,14 @@ actExplorationState.groundLoot = (() => {
      * @typedef {{gx:number, gy:number, kind:'jewel'|'core', item:object}} GroundLootStoreRow a rolled jewel or core.
      * @typedef {{gx:number, gy:number, kind:'talisman', item:object, overflow:string}} GroundLootTalismanRow a rolled wild
      *   talisman (its fields, no stump box id yet) and the shard currency given instead when the stump box storage is full.
+     * @typedef {{gx:number, gy:number, kind:'stump', item:object}} GroundLootStumpRow a rolled stump box seed or sap (stumpBox.rollKillDrop:
+     *   no id until it reaches the box; compost when the storage is full by then).
      * @typedef {{gx:number, gy:number, kind:'leaf', leaf:string}} GroundLootLeafRow a memory leaf id (data/memory-leaves.js, 2026-10-09).
      * @typedef {{gx:number, gy:number, kind:'gem', gem:string, choices?:string[]}} GroundLootGemRow the loop's starter gem by name
      *   (SKILL_DB), dropped by the loop's first kill (js/combat.js grantLoopStarterGemOnFirstKill, 2026-10-15). In a mutation loop
      *   choices are the three runes offered (js/loop-mutation.js starterChoices) and gem is the first, taken when the row is settled.
-     * @typedef {{gx:number, gy:number, kind:'rune', gem:{kind:'attack'|'support',name:string,awakened?:boolean,tier?:number},
-     *   shards:number}} GroundLootRuneRow an exact gem reward (gemDropRewards.validateGem).
-     * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootLeafRow|GroundLootGemRow|GroundLootRuneRow} GroundLootRow
+     * @typedef {{gx:number, gy:number, kind:'rune', gem:{kind:'attack'|'support',name:string,awakened?:boolean,tier?:number}}} GroundLootRuneRow an exact gem reward (gemDropRewards.validateGem).
+     * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootStumpRow|GroundLootLeafRow|GroundLootGemRow|GroundLootRuneRow} GroundLootRow
      */
     // 놓인 줄마다의 전투 시각: 그림이 바닥에 닿아 이름이 뜬 뒤(GROUND_LOOT_DROP.readyMs)에야 주인공이 줍거나 주우러 간다
     // (2026-10-13 사용자: "아이템이 완전히 떨어지고 나서 캐릭터가 아이템을 줍거나 주우러 가도록"). 저장하지 않는다: 불러온 줄은 이미 바닥에 있다.
@@ -237,7 +238,7 @@ actExplorationState.groundLoot = (() => {
     /** Floor items holding an id from the shared item counter (wild talismans get their stump box id only when stored). */
     function reservedItems(state) {
         const held = ENCOUNTER_ZONES.flatMap(id => encounterRecord(state, id)?.pendingLoot || []);
-        return [...rows(state.actExploration), ...held].filter(row => row.item && row.kind !== 'talisman').map(row => row.item);
+        return [...rows(state.actExploration), ...held].filter(row => row.item && row.kind !== 'talisman' && row.kind !== 'stump').map(row => row.item);
     }
 
     // An ordinary retired or stale map settles its floor; a retired special encounter discards its attempt-owned floor and buffer.
@@ -250,12 +251,12 @@ actExplorationState.groundLoot = (() => {
         jewel: (state, row) => { bagItems.put(bagItems.asJewel(row.item), state, true); },
         core: (state, row) => { coreItems.keep(row.item, state); },
         talisman: (state, row) => { talismans.receiveWild(state, { talisman: row.item, overflow: row.overflow }); },
+        stump: (state, row) => { stumpBox.receiveDrop(state, row.item); },
         leaf: (state, row) => { memoryLeaves.receive(state, row.leaf); },
         yarn: (state, row) => { knitting.receive(state, row.yarn); },
         gem: (state, row) => { receiveStarterGem(state, row.gem); },
         rune: (state, row) => {
             gemDropRewards.grant(state, row.gem, 0);
-            state.currencies.gemShard = (state.currencies.gemShard || 0) + row.shards;
         }
     };
     function settleOnLoad(state, run) {
@@ -271,7 +272,7 @@ actExplorationState.groundLoot = (() => {
         const map = actExplorationMap.forRun(run), ids = new Set();
         for (const row of run.groundLoot) {
             if (!validRow(map, row)) throw Error('잘못된 탐험 바닥 아이템 저장');
-            if (['talisman', 'leaf', 'yarn', 'gem', 'rune'].includes(kindOf(row))) continue; // these rows do not own item ids
+            if (['talisman', 'stump', 'leaf', 'yarn', 'gem', 'rune'].includes(kindOf(row))) continue; // these rows do not own item ids
             const key = row.item ? `item:${row.item.id}` : `currency:${row.gx},${row.gy},${row.currency}`;
             if (ids.has(key)) throw Error('중복된 탐험 바닥 아이템 저장');
             ids.add(key);
@@ -287,6 +288,7 @@ actExplorationState.groundLoot = (() => {
         jewel: row => loot.validJewel(row.item),
         core: row => loot.validCore(row.item),
         talisman: row => !!talismans.normalizeTalisman(row.item) && loot.isCurrency(row.overflow),
+        stump: row => stumpBox.validDrop(row.item),
         leaf: row => memoryLeaves.validId(row.leaf) && !row.item,
         yarn: row => knitting.validId(row.yarn) && !row.item,
         gem: row => typeof row.gem === 'string' && !!SKILL_DB[row.gem] && !row.item,
@@ -294,7 +296,7 @@ actExplorationState.groundLoot = (() => {
     };
     /** gemDropRewards.validateGem throws on malformed records; turn that into the floor validator's boolean contract. */
     function validRune(row) {
-        if (!Number.isSafeInteger(row.shards) || row.shards < 0 || row.item) return false;
+        if (row.item) return false;
         try { gemDropRewards.validateGem(row.gem); return true; }
         catch { return false; }
     }

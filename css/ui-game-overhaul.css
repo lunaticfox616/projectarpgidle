@@ -1264,8 +1264,6 @@ body .item-card {
 }
 
 /* Skill gem management: loadout first, progression second. */
-/* 칸 폭은 정수 px: 똑같이 나눈 소수 폭이면 탭 글자가 화소 사이에서 시작해 번졌다(남는 1 ~ 3px은 줄 끝에 둔다). */
-#tab-skills .skill-subtab-row { display: grid; grid-template-columns: repeat(4, round(down, calc((100% - 21px) / 4), 1px)); gap: 7px; }
 
 .skill-panel-kicker { display: block; color: #eef2f6; font-size: 8px; font-weight: 900; letter-spacing: .16em; }
 .gem-forge-heading,
@@ -1317,44 +1315,6 @@ body .item-card {
   .condition-pattern-rule select { min-height: 44px; }
 }
 
-.gem-research-panel { margin-bottom: 9px; padding: 12px; border: 1px solid var(--skin-line); border-radius: 4px; background: var(--skin-panel); }
-.gem-research-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; margin-bottom: 10px; }
-.gem-research-summary h3 { margin: 0; color: var(--copy-bright); font-size: 16px; }
-.gem-research-summary p { margin: 5px 0 0; color: var(--copy-muted); font-size: 12px; line-height: 1.5; }
-.gem-research-resource { min-width: 84px; padding: 7px 12px; text-align: center; border: 1px solid var(--skin-line-strong); border-radius: 4px; background: var(--skin-panel-raised); }
-.gem-research-resource span,
-.gem-research-resource strong,
-.gem-research-resource small { display: block; }
-.gem-research-resource span { color: var(--copy-muted); font-size: 12px; }
-.gem-research-resource strong { margin: 2px 0; color: var(--skin-accent); font-size: 20px; }
-.gem-research-resource small { color: var(--copy-muted); font-size: 11px; }
-.gem-research-progress { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.gem-research-progress span { padding: 6px 8px; color: var(--copy-muted); border: 1px solid var(--skin-line); border-radius: 4px; background: var(--skin-panel-raised); font-size: 12px; white-space: nowrap; }
-.gem-research-progress b { color: var(--copy-bright); }
-.gem-research-columns { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 8px; }
-.gem-research-columns details { min-width: 0; border: 1px solid var(--skin-line); border-radius: 4px; background: var(--skin-panel); }
-.gem-research-columns summary { padding: 10px; color: var(--copy-bright); cursor: pointer; font-size: 13px; font-weight: 700; }
-.gem-research-columns summary b { color: var(--skin-accent); margin-left: 6px; }
-.gem-research-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 8px; padding: 0 10px 10px; }
-.gem-research-card { --gem-accent: #8395aa; display: flex; flex-direction: column; min-width: 0; padding: 10px; border: 1px solid var(--skin-line); border-left: 2px solid var(--gem-accent); border-radius: 4px; background: var(--skin-panel-raised); }
-.gem-research-card-head { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 8px; }
-.gem-research-card-head > span { display: grid; place-items: center; width: 32px; height: 32px; color: var(--copy-muted); font-size: 11px; }
-.gem-research-card-head > .gem-research-card-art { width: 34px; height: 34px; overflow: hidden; border: 0; }
-.gem-research-card-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.gem-research-card-head small,
-.gem-research-card-head strong { display: block; overflow-wrap: anywhere; }
-.gem-research-card-head small { color: var(--copy-muted); font-size: 11px; }
-.gem-research-card-head strong { margin-top: 3px; color: var(--copy-bright); font-size: 14px; }
-.gem-research-card > p { margin: 8px 0; color: var(--copy-bright); font-size: 12px; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
-.gem-research-card > button { min-height: 36px; margin-top: auto; padding: 7px 10px; color: var(--copy-bright); border-color: var(--skin-line-strong); background: var(--skin-control); font-size: 12px; }
-.gem-research-card > button:disabled { color: var(--copy-muted); border-color: var(--skin-line); background: var(--skin-panel); }
-.gem-research-complete { margin-top: 8px; padding: 12px; color: var(--copy-bright); border: 1px dashed var(--skin-line-strong); border-radius: 4px; font-size: 13px; text-align: center; }
-#ui-gem-research-results .gem-process-empty { color: var(--copy-muted); font-size: 13px; }
-#ui-gem-research-results .search-filter-input { font-size: 13px; }
-#ui-gem-research-results .search-filter-panel { box-sizing: border-box; }
-#tab-skills .gem-research-card .gem-card-tags { flex-wrap: wrap; margin-bottom: 8px; }
-#tab-skills .gem-research-card .gem-card-tags span { font-size: 11px; }
-#tab-skills .gem-research-card .gem-card-range { color: var(--copy-muted); font-size: 12px; line-height: 1.5; white-space: normal; }
 
 #tab-skills .search-filter-panel { padding: 8px; border: 1px solid rgba(47, 70, 94, .64); border-radius: 8px; background: rgba(5, 11, 18, .64); }
 #tab-skills .search-filter-input { min-height: 30px; font-size: 10px; }
@@ -1495,7 +1455,7 @@ body .item-card {
 .gem-current-inscriptions span { color: #eef2f6; font-size: 7px; }
 .gem-current-inscriptions strong { margin-top: 2px; color: #ffffff; font-size: 8px; line-height: 1.4; }
 
-.gem-resource-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); overflow: hidden; border: 1px solid rgba(51, 75, 100, .7); border-radius: 8px; background: rgba(5, 12, 20, .76); }
+.gem-resource-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: hidden; border: 1px solid rgba(51, 75, 100, .7); border-radius: 8px; background: rgba(5, 12, 20, .76); }
 .gem-resource-strip > div { min-width: 0; padding: 7px; border-left: 1px solid rgba(48, 70, 93, .52); text-align: center; }
 .gem-resource-strip > div:first-child { border-left: 0; }
 .gem-resource-strip span,
@@ -1505,7 +1465,6 @@ body .item-card {
 
 #tab-skills .gem-enhance-section { margin-top: 9px; padding: 10px; border-radius: 2px 11px 2px 11px; background: linear-gradient(155deg, rgba(17, 29, 43, .9), rgba(7, 13, 21, .94)); }
 #tab-skills .gem-inscription-section { border-color: rgba(88, 69, 120, .74); background: linear-gradient(155deg, rgba(29, 23, 43, .92), rgba(10, 10, 21, .96)); }
-#tab-skills .gem-support-process-section { border-color: rgba(48, 91, 85, .68); }
 .gem-enhance-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .gem-enhance-section-head > div:first-child { display: flex; align-items: center; gap: 8px; }
 .gem-section-index { display: grid; place-items: center; width: 26px; height: 26px; color: #eef2f6; border: 1px solid #36516a; border-radius: 50%; font-size: 8px; font-weight: 900; }
@@ -1600,16 +1559,6 @@ body .item-card {
 #tab-skills .gem-engrave-cap-card strong { grid-row: 1 / 3; grid-column: 2; align-self: center; color: #f0d58c; font-size: 19px; }
 #tab-skills .gem-engrave-cap-card small { color: #87754f; font-size: 8px; }
 
-.gem-support-process-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.gem-support-process-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 8px; border: 1px solid rgba(49, 83, 79, .72); border-radius: 8px; background: rgba(9, 26, 27, .72); }
-.gem-support-process-card > div { min-width: 0; }
-.gem-support-process-card small,
-.gem-support-process-card strong,
-.gem-support-process-card span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gem-support-process-card small { color: #659284; font-size: 7px; }
-.gem-support-process-card strong { margin-top: 2px; color: #d1e8e1; font-size: 9px; }
-.gem-support-process-card span { margin-top: 2px; color: #648079; font-size: 7px; }
-.gem-support-process-card button { min-height: 29px; max-width: 120px; padding: 4px 7px; color: #b8dacf; border-color: #3e6d61; background: #173b34; font-size: 8px; }
 .gem-process-empty { grid-column: 1 / -1; padding: 12px; color: #eef2f6; border: 1px dashed #3b5065; border-radius: 8px; background: rgba(7, 13, 21, .5); font-size: 9px; text-align: center; }
 
 .condition-gem-rule-list { display: grid; gap: 7px; }
@@ -1639,33 +1588,24 @@ body .item-card {
 #tab-skills .gem-orbit-legend b { font-size: 8.5px; }
 #tab-skills .gem-upgrade-btn strong,
 #tab-skills .gem-engrave-option > strong,
-#tab-skills .gem-support-process-card strong { color: #ffffff; font-size: 13px; }
 #tab-skills .gem-upgrade-btn small,
 #tab-skills .gem-engrave-option > small,
-#tab-skills .gem-support-process-card span { color: #eef2f6; font-size: 12px; }
 #tab-skills .gem-engrave-slot-guide strong { font-size: 10px; }
 #tab-skills .gem-engrave-slot-guide span { color: #ffffff; font-size: 9.5px; }
 #tab-skills .gem-engrave-top em,
 #tab-skills .gem-engrave-top b,
-#tab-skills .gem-support-process-card small { font-size: 8.5px; }
-#tab-skills .gem-support-process-card button { font-size: 12px; }
 #tab-skills .gem-process-empty { color: #eef2f6; font-size: 12px; }
 
 @container (max-width: 860px) {
   .gem-forge-heading,
   .condition-gem-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
   .gem-forge-workspace { grid-template-columns: 1fr; }
-  .gem-research-summary { grid-template-columns: minmax(0, 1fr) auto; }
-  .gem-research-progress { grid-column: 1 / -1; }
   .gem-target-list { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 220px; }
 }
 
 @container (max-width: 620px) {
-  #tab-skills .skill-subtab-row { grid-template-columns: repeat(2, round(down, calc((100% - 7px) / 2), 1px)); }
   #tab-skills .gem-enhance-actions,
   #tab-skills .gem-engrave-grid,
-  .gem-support-process-list { grid-template-columns: 1fr; }
-  .gem-research-columns { grid-template-columns: 1fr; }
   .gem-resource-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .gem-orbit-copy { padding: 8px 4px 1px; }
   .gem-resource-strip > div:nth-child(4),
@@ -1675,10 +1615,6 @@ body .item-card {
 @container (max-width: 430px) {
   .gem-resource-strip,
   .gem-target-list { grid-template-columns: 1fr 1fr; }
-  .gem-research-summary { grid-template-columns: 1fr; }
-  .gem-research-resource,
-  .gem-research-progress { grid-column: auto; }
-  .gem-research-grid { grid-template-columns: 1fr; }
   .gem-resource-strip > div { border-left: 1px solid rgba(48, 70, 93, .52); }
   .gem-resource-strip > div:nth-child(odd) { border-left: 0; }
   .gem-engrave-orbit { padding: 7px 4px 9px; }
@@ -1705,7 +1641,6 @@ body .item-card {
   body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(7) { border-left: 0; }
   /* 360px에서 2열 151px씩으로 눌려 있었다. (룬 보관함·각인·가공 격자는
      mobile.css가 이미 1열로 덮고 있어 여기서 다시 적지 않는다) */
-  body:not(.desktop-windowed-ui) .gem-research-columns { grid-template-columns: 1fr; }
   /* 장비 요약도 스킬 요약과 같은 모양의 문제다(4열 × 최소 폭 고정). */
   body:not(.desktop-windowed-ui) .equipment-loadout-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body:not(.desktop-windowed-ui) .equipment-salvage-actions { grid-template-columns: 1fr; }
@@ -1715,12 +1650,6 @@ body .item-card {
   body:not(.desktop-windowed-ui) .gem-resource-strip { grid-template-columns: 1fr 1fr; }
   body:not(.desktop-windowed-ui) .gem-resource-strip > div { border-left: 1px solid rgba(48, 70, 93, .52); }
   body:not(.desktop-windowed-ui) .gem-resource-strip > div:nth-child(odd) { border-left: 0; }
-  /* 룬 연구: 360px에서 요약이 3열(가장 좁은 칸 58px), 격자가 2열 65px씩이었다.
-     한글 한 글자도 온전히 못 담는 폭이다. */
-  body:not(.desktop-windowed-ui) .gem-research-summary,
-  body:not(.desktop-windowed-ui) .gem-research-grid { grid-template-columns: 1fr; }
-  body:not(.desktop-windowed-ui) .gem-research-resource,
-  body:not(.desktop-windowed-ui) .gem-research-progress { grid-column: auto; }
 }
 
 .game-choice-overlay.gem-engrave-slot-overlay {
@@ -1861,7 +1790,6 @@ body .item-card {
   .passive-special-stat-grid { grid-template-columns: 1fr; }
   .equipment-triage-host { flex: 1 1 100%; width: 100%; padding: 7px 0 0; border-top: 1px solid rgba(78, 105, 132, .48); border-left: 0; }
   .equipment-triage-copy small { max-width: 46vw; }
-  #tab-skills .skill-subtab-row { grid-template-columns: repeat(2, round(down, calc((100% - 7px) / 2), 1px)); }
 }
 
 @media (max-width: 430px) {

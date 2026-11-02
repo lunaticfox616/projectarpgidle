@@ -1428,8 +1428,8 @@ const ORB_DB = {
     blessing: { name: '축복의 꽃잎', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다. 허리띠는 액막이 칸 수(1~3)도 다시 굴립니다.' },
     bossCore: { name: '군주의 핵', desc: '루프2 뿌리 보스를 처치하면 얻는 룬 강화 재료입니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
-    fossilPrimal: { name: '원시 화석', desc: '오르가에게서 화석 복원을 받으면 미궁에서 발견되고, 남는 화석을 정제해도 얻는 복원 전용 화석입니다. 복원하면 화석과 재화를 얻습니다.' },
-    fossilAncientPrimal: { name: '원시 고대 화석', desc: '오르가에게서 화석 복원을 받으면 미궁에서 낮은 확률로 발견되는 복원 전용 화석입니다. 복원하면 전용 화석과 고급 재화 확률이 높습니다.' },
+    fossilPrimal: { name: '원시 화석', desc: '화석 복원을 해금하면 미궁에서 발견되고, 남는 화석을 정제해도 얻는 복원 전용 화석입니다. 복원하면 화석과 재화를 얻습니다.' },
+    fossilAncientPrimal: { name: '원시 고대 화석', desc: '화석 복원을 해금하면 미궁에서 낮은 확률로 발견되는 복원 전용 화석입니다. 복원하면 전용 화석과 고급 재화 확률이 높습니다.' },
     fossilPrimordial: { name: '태고 화석', desc: '원시 고대 화석 복원으로 얻습니다. 관통/카오스 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     fossilJagged: { name: '톱니 화석', desc: '물리/근접 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
     fossilBound: { name: '속박 화석', desc: '생명/방어 계열 옵션 하나를 확정하여 희귀 아이템의 옵션을 다시 굴립니다.' },
@@ -1463,7 +1463,6 @@ const ORB_DB = {
     underSilver: { name: '지하계 은', desc: '지하계 전용 희귀 재화. 중~고급 인챈트 및 한계돌파에 사용됩니다.' },
     underGold: { name: '지하계 금', desc: '지하계 전용 초희귀 재화. 강력한 인챈트, 고급 한계돌파, 지하석 강화에 사용됩니다.' },
     skyEssence: { name: '창공의 정수', desc: '루프4 창공 몬스터에게서 얻습니다. 룬 강화와 창공 각인에 사용합니다.' },
-    gemShard: { name: '룬 잔향', desc: '스킬룬 드랍과 중복 룬 환원으로 얻습니다. 스킬룬 탭의 룬 연구에서 원하는 미보유 공격 룬이나 보조스킬룬을 확정 해금합니다.' },
     condensedSkyPower: { name: '응축된 창공의 정수', desc: '창공의 탑에서 얻는 영구 재료입니다. 재화 목록에는 표시되지 않으며 창공석과 영구 룬 강화에 사용됩니다.' },
     emberBranch: { name: '잿불가지', desc: '아이템을 타락시킵니다. 추가 옵션 부여(가득 차 있어도 초과), 품질 +6~10%(최대 30%), 옵션 1줄 무작위 변경, 타락 소켓 추가(주얼 해금 뒤), 변화 없음 중 하나가 일어납니다. 타락 후 제작 불가.' },
     burningEmberBranch: { name: '타오른 잿불가지', desc: '장비를 한 번 더 타락시킵니다(장비 하나에 한 번). 이미 타락한 장비와 고유 장비에도 씁니다. 25% 확률로 장비가 타서 사라지고(재는 그루터기 함 거름), 아니면 타락 전용 줄 2개, 옵션 수치 다시 굽기(줄마다 80~120%), 품질 30% 가운데 하나가 일어나거나 변화가 없습니다. 아틀라스의 잿불 터에서 얻습니다.' },
@@ -1564,7 +1563,6 @@ function getStyledOrbName(orbKey) {
 for (const [unlock, keys] of [
     ['craft', ['omenPruning','omenCompost','omenWeave','omenPyre','omenHunger','memoryImprint','magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
-    ['research', ['gemShard']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
     ['jewel', ['jewelShard','voidChisel']],
     ['talisman', ['sealShard','strongSealShard','radiantSealShard']]

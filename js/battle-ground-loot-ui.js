@@ -31,8 +31,8 @@ const battleGroundLoot = (() => {
     /** A leaf shows the pixel leaf (PIXEL_ICONS.leaf); other items show their inventory art. */
     const LEAF_ART = 'pixel:leaf';
     // The loop's starter gem (a floor row by name, js/exploration-ground-loot.js placeGem) shows the gem's own art and name.
-    const leadArt = lead => (lead.yarn ? '' : lead.leaf ? LEAF_ART : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
-    const leadName = lead => (lead.yarn ? `실타래 ${knitting.row(lead.yarn).name}` : lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 룬` : shownName(lead));
+    const leadArt = lead => (lead.yarn ? '' : lead.leaf ? LEAF_ART : lead.stump ? stumpBox.dropIcon(lead.stump) : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
+    const leadName = lead => (lead.stump ? stumpBox.dropName(lead.stump) : lead.yarn ? `실타래 ${knitting.row(lead.yarn).name}` : lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 룬` : shownName(lead));
     /** The name a pile shows: an unidentified unique on the floor shows only its base (the name appears when picked up). */
     const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || getItemSlotDisplayLabel(receipt.item, '고유')}` : receipt.item.name);
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
@@ -432,6 +432,7 @@ const battleGroundLoot = (() => {
         jewel: row => ({ item: row.item, itemKind: 'jewel', color: getJewelLootColor(row.item) }),
         core: row => ({ item: row.item, itemKind: 'core' }),
         talisman: row => ({ item: row.item, itemKind: 'talisman', color: TALISMAN_RARITY_TONES[row.item.rarity] }),
+        stump: row => ({ stump: row.item, itemKind: 'stump', color: STUMP_BOX_COLORS[row.item.color].tone }),
         leaf: row => ({ leaf: row.leaf, itemKind: 'leaf', color: MEMORY_LEAVES.tone }),
         yarn: row => ({ yarn: row.yarn, itemKind: 'yarn', color: '#d7bb82' }),
         gem: row => ({ gem: row.gem, itemKind: 'gem', color: getRarityColor('rare') }),
@@ -462,7 +463,7 @@ const battleGroundLoot = (() => {
     }
 
     function floorRowKey(row) {
-        if (['talisman', 'leaf', 'yarn', 'gem', 'rune'].includes(row.kind)) {
+        if (['talisman', 'stump', 'leaf', 'yarn', 'gem', 'rune'].includes(row.kind)) {
             if (!talismanKeys.has(row)) talismanKeys.set(row, `talisman#${++nextTalismanKey}`);
             return talismanKeys.get(row);
         }

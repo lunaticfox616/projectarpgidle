@@ -102,7 +102,7 @@
     function candidateTierButtons(name, stats) {
         const free = getEffectiveResonanceCap(stats) - supportsInOtherSlots().reduce((sum, gem) => sum + getSupportTierResonanceCost(gem), 0);
         return `<div class="support-candidate-tiers" role="group" aria-label="${escapeHTML(name)} 등급">${supportTierRows(name, stats).map(row =>
-            `<button type="button" data-slot-action="${row.open ? 'candidate-tier' : 'process'}" data-name="${escapeHTML(name)}" data-tier="${row.tier}" aria-pressed="${row.active}" class="${row.open && row.cost <= free ? 'is-affordable' : ''}"><b>${row.label}</b><small>${row.open ? `공명 ${row.cost}` : '창공 가공으로'}</small></button>`).join('')}</div>`;
+            `<button type="button" data-slot-action="candidate-tier" data-name="${escapeHTML(name)}" data-tier="${row.tier}" aria-pressed="${row.active}"${row.open ? '' : ' disabled'} class="${row.open && row.cost <= free ? 'is-affordable' : ''}"><b>${row.label}</b><small>${row.open ? `공명 ${row.cost}` : '잠김'}</small></button>`).join('')}</div>`;
     }
 
     function candidateComparison(name) {
@@ -158,8 +158,7 @@
         if (rows.length < 2) return '';
         const buttons = rows.map(row => `<button type="button" class="gem-slot-tier" data-slot-action="tier" data-tier="${row.tier}" aria-pressed="${row.active}" ${row.open ? '' : 'disabled'}>
             <b>${row.label}</b><small>${row.open ? `공명 ${row.cost}` : '잠김'}</small></button>`).join('');
-        const note = rows.every(row => row.open) ? '' : `<button type="button" class="gem-slot-tier-note" data-slot-action="process" data-name="${escapeHTML(name)}">창공 가공으로 잠긴 등급 해금</button>`;
-        return `<div class="gem-slot-tiers" role="group" aria-label="보조스킬룬 등급">${buttons}</div>${note}`;
+        return `<div class="gem-slot-tiers" role="group" aria-label="보조스킬룬 등급">${buttons}</div>`;
     }
 
     function slotCountButtons(name) {
@@ -301,25 +300,9 @@
         choose: button => chooseSlotGem(button.dataset.name),
         preview: button => { slot.preview = button.dataset.name; },
         'candidate-tier': button => { setSupportActiveTier(button.dataset.name, Number(button.dataset.tier)); slot.preview = button.dataset.name; },
-        process: button => openSupportProcessing(button.dataset.name),
         'replace-slot': button => { slot.name = button.dataset.name; slot.preview = slot.pending; slot.pending = ''; },
         'cancel-replace': () => { slot.pending = ''; }
     });
-
-    function openSupportProcessing(name) {
-        selectionDialog.close(DIALOG_ID);
-        if (!contentProgression.canOpen('skill-tab-enhance')) {
-            switchTab('tab-unlocks');
-            contentUnlockUi.select('gemForge');
-            addLog('창공 가공을 사용하려면 룬 강화를 먼저 해금하세요.', 'loot-unique');
-            return;
-        }
-        switchSkillSubtab('skill-tab-enhance');
-        updateStaticUI();
-        const cards = document.querySelectorAll('.gem-support-process-card');
-        const card = [...cards].find(node => node.querySelector('strong')?.textContent === name);
-        card?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
 
     /** Runs one change through the existing handlers, then redraws the dialog in place with the new numbers. */
     function runSlotChange(change) {

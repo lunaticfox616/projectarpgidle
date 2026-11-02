@@ -305,11 +305,6 @@ const passiveTreeArt = (() => {
         ctx.restore();
     }
 
-    // ── ground ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    /** The centre, where the three transcendent voids sit: a faint violet pull, the colour of the void frames. */
-    function drawGround(ctx) {
-        artGlow(ctx, 620, 'rgba(92,66,132,0.17)');
-    }
     // 노드 뒤 배경 문양(2026-10-28 사용자: 편집기에서 놓은 패시브 트리 설계자 문양을 게임에도). PASSIVE_TREE_V22.backgrounds는
     // scripts/lib/passive-tree-background-motifs.js가 만든다: 문양 상자 200을 size로, 선은 문양 색, solid 도형은 옅게 채운다.
     /** How strongly motifs show over the ground: behind the links, never read as nodes. */
@@ -358,47 +353,39 @@ const passiveTreeArt = (() => {
             ctx.restore();
         });
     }
-    /** Ink mist and specks (one 512px tile, painted once, repeated and moving with the camera). */
-    let mistTile = null;
-    function mist(ctx) {
-        if (mistTile) return mistTile;
+    // 일식(2026-11-02 사용자: 안개를 지우고 시안 일식으로). 트리는 까만 원 안에 있고 둘레로 빛 한 바퀴만 번진다. 그라디언트 칠 한 번과 작은 타일 한 번이며 선은 없다
+    // (선은 노드 연결선과 섞여 "난도질"로 보였다). 반지름은 트리 단위다.
+    const ECLIPSE_REACH = 3800;
+    const ECLIPSE_STOPS = Object.freeze([[0, '#0e0f16'], [2300, '#090a0f'], [2405, '#090a0f'], [2470, '#39415a'], [2492, '#98a5c6'], [2520, '#4d576f'], [2720, '#1a1f2d'], [3150, '#0a0c12'], [ECLIPSE_REACH, '#050609']]);
+    /** 보이지 않을 만큼 옅은 점: 어두운 그라디언트에 띠가 지지 않게 한다(256px 타일, 한 번만 그린다). */
+    let grainPattern = null;
+    function backdropGrain(ctx) {
+        if (grainPattern) return grainPattern;
         const tile = document.createElement('canvas'), g = tile.getContext('2d');
-        tile.width = tile.height = 512;
+        tile.width = tile.height = 256;
         let seed = 11;
         const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-        for (let i = 0; i < 70; i++) {
-            const x = rand() * 512, y = rand() * 512, r = 50 + rand() * 150, alpha = (0.008 + rand() * 0.014).toFixed(3);
-            [[0, 0], [512, 0], [0, 512], [512, 512], [-512, 0], [0, -512]].forEach(([dx, dy]) => {
-                const gradient = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r);
-                gradient.addColorStop(0, `rgba(176,168,152,${alpha})`);
-                gradient.addColorStop(1, 'rgba(176,168,152,0)');
-                g.fillStyle = gradient;
-                g.fillRect(x + dx - r, y + dy - r, r * 2, r * 2);
-            });
+        for (let i = 0; i < 1500; i++) {
+            g.fillStyle = rand() < 0.5 ? 'rgba(255,255,255,.009)' : 'rgba(0,0,0,.06)';
+            g.fillRect(Math.floor(rand() * 128) * 2, Math.floor(rand() * 128) * 2, 2, 2);
         }
-        for (let i = 0; i < 700; i++) {
-            g.fillStyle = `rgba(214,204,186,${(rand() * 0.1 + 0.02).toFixed(3)})`;
-            g.fillRect(Math.floor(rand() * 512), Math.floor(rand() * 512), rand() < 0.15 ? 2 : 1, 1);
-        }
-        mistTile = ctx.createPattern(tile, 'repeat');
-        return mistTile;
+        grainPattern = ctx.createPattern(tile, 'repeat');
+        return grainPattern;
     }
-    /** Screen-space backdrop: a dark charcoal vignette around the tree centre and the ink mist moving with the camera. */
+    /** Screen-space backdrop: the eclipse around the tree centre, moving with the camera. */
     function drawBackdrop(ctx, width, height) {
         const cx = width / 2 + camX, cy = height / 2 + camY;
-        const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(Math.hypot(width, height) * 0.75, 3800 * camZoom));
-        glow.addColorStop(0, '#17140f');
-        glow.addColorStop(0.55, '#0c0b09');
-        glow.addColorStop(1, '#050404');
-        ctx.fillStyle = glow;
+        const fill = ctx.createRadialGradient(cx, cy, 0, cx, cy, ECLIPSE_REACH * camZoom);
+        ECLIPSE_STOPS.forEach(([radius, color]) => fill.addColorStop(radius / ECLIPSE_REACH, color));
+        ctx.fillStyle = fill;
         ctx.fillRect(0, 0, width, height);
         ctx.save();
-        ctx.translate(camX % 512, camY % 512);
-        ctx.fillStyle = mist(ctx);
-        ctx.fillRect(-512, -512, width + 1024, height + 1024);
+        ctx.translate(Math.round(camX) % 256, Math.round(camY) % 256);
+        ctx.fillStyle = backdropGrain(ctx);
+        ctx.fillRect(-256, -256, width + 512, height + 512);
         ctx.restore();
     }
 
-    return Object.freeze({ drawBackdrop, drawGround, drawMotifs, drawLinks, drawNode });
+    return Object.freeze({ drawBackdrop, drawMotifs, drawLinks, drawNode });
 })();
 safeExposeGlobals({ passiveTreeArt });

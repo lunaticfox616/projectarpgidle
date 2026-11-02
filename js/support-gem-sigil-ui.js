@@ -1,6 +1,6 @@
 // 보조스킬룬 그림(2026-11-02 사용자: 사각 아이콘 60종, 2026-10-11 문양을 대신한다)과 계열 색.
 // 보드의 보조스킬룬 칸(js/skill-gem-board-ui.js), 목록 타일(js/ui.js renderSupportGemCard), 룬 칸 창(js/gem-slot-dialog-ui.js),
-// 룬 연구 카드(js/skills-ui.js)가 함께 쓴다. 그림판은 assets/ui/support-rune-icons-32.png와 -64.png, 색은 css/gem-loadout.css의 .is-tone-*.
+// 상점(js/shop-view-ui.js)이 함께 쓴다. 그림판은 assets/ui/support-rune-icons-32.png와 -64.png, 색은 css/gem-loadout.css의 .is-tone-*.
 (function () {
     'use strict';
 

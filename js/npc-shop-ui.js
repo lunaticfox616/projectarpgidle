@@ -7,6 +7,7 @@
 const npcShopUi = (() => {
     let chosen = null;    // { id, index }: the chosen ware, the one the buy button buys
     let shown = null;     // { id, stock }: the shelf drawn last; a meeting on the next map lays out a new stock object
+    let runeQuery = '', runePage = 0;   // 모든 룬 진열대의 검색어와 보고 있는 쪽
     // Where a short currency comes from (js/passives.js getItemSalvageRewardProfile). Until 장비 제련 opens they never drop
     // (data/items.js dropUnlocks), so in loop 1 salvage is the only way.
     const EARN_HINTS = Object.freeze({ magicBud: '일반 장비나 마법 장비를 해체하면 마법의 새싹을 얻습니다.',
@@ -31,29 +32,78 @@ const npcShopUi = (() => {
     function shopBodyHtml(npc, note = '') {
         const shop = NPC_SHOPS[npc.id], stock = npcShop.stock(npc.id);
         shown = { id: npc.id, stock };
-        const shelf = stock && stock.offers.length ? shelfHtml(npc.id, stock) : '<p class="shop-empty">다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.</p>';
-        const keys = (stock ? stock.offers : []).map(ware => ware.priceKey);
+        const keys = stock && stock.allRunes ? stumpBox.harvestWalletKeys() : (stock ? stock.offers : []).map(ware => ware.priceKey);
         return `<div class="shop-view is-npc" data-shop-kind="npc" data-npc-shop="${npc.id}"><div class="shop-body">
             <section class="shop-shelf" aria-label="${escapeHTML(shop.label)} 상점"><header class="shop-bar">
                 <button type="button" class="shop-back" data-npc-topic="greet">대화</button><h3>${escapeHTML(shop.label)}</h3>${shopView.walletHtml(keys)}</header>
-                ${shelf}</section>
+                ${runeNoteHtml(shop, stock)}${shelfBlockHtml(npc.id, stock)}</section>
             <div class="shop-info" aria-live="polite">${wareInfoHtml(npc.id, note)}</div>
             <section class="shop-bag" aria-label="가방">${shopView.bagHtml()}</section></div></div>`;
     }
+
+    /** Haken's shelf says what it is now, or what turns it into every rune. */
+    function runeNoteHtml(shop, stock) {
+        if (shop.kind !== 'gem') return '';
+        if (!stock || !stock.allRunes) return `<p class="shop-rune-note">이번 루프에 액트 ${npcShop.allRunesAct}를 깨면 모든 룬을 판매합니다.</p>`;
+        return '<p class="shop-rune-note is-open">이번 루프에는 모든 룬을 판매합니다.</p>';
+    }
+    /** 검색칸과 쪽 단추: 가방의 쪽 단추와 같다. 쪽이 하나면 단추는 없다. */
+    function runeToolsHtml(stock) {
+        return `<div class="shop-rune-tools"><input type="search" class="shop-rune-search" data-npc-rune-search placeholder="룬 이름, 효과 검색" aria-label="룬 검색" value="${escapeHTML(runeQuery)}">
+            <nav class="shop-pages" aria-label="진열대 쪽" data-npc-rune-pages>${runePagesHtml(stock)}</nav></div>`;
+    }
+    const runePageCells = () => npcShop.grid.columns * npcShop.grid.rows;
+    /** 지금 보일 룬: 검색에 맞는 것만, 살 수 있는 것 먼저. { ware, index }(index는 진열대의 번호). */
+    function runeShelfRows(stock) {
+        const dear = ware => (shopView.held(ware.priceKey) < ware.price ? 1 : 0);
+        return stock.offers.map((ware, index) => ({ ware, index })).filter(row => !runeMissesQuery(row.ware))
+            .sort((a, b) => dear(a.ware) - dear(b.ware) || a.index - b.index);
+    }
+    function runePageCount(stock) {
+        return Math.max(1, Math.ceil(runeShelfRows(stock).length / runePageCells()));
+    }
+    function runePagesHtml(stock) {
+        const pages = runePageCount(stock);
+        runePage = Math.min(runePage, pages - 1);
+        if (pages <= 1) return '';
+        return Array.from({ length: pages }, (_, page) => `<button type="button" data-npc-rune-page="${page}" aria-pressed="${page === runePage}">${page + 1}</button>`).join('');
+    }
+    /** 쪽 단추와 진열대만 다시 그린다(검색칸의 글자와 포커스를 지킨다). */
+    function paintRuneShelf(root) {
+        const stock = npcShop.stock(root.dataset.npcShop), grid = root.querySelector('.shop-shelf > .shop-grid');
+        if (!stock || !grid) return;
+        root.querySelector('[data-npc-rune-pages]').innerHTML = runePagesHtml(stock);
+        grid.outerHTML = runeShelfHtml(root.dataset.npcShop, stock);
+    }
+    const gemDefOf = gem => (gem.kind === 'support' ? SUPPORT_GEM_DB[gem.name] : SKILL_DB[gem.name]);
+    const runeMissesQuery = ware => !!runeQuery && !matchSearchQuery(window.getGemSearchText(ware.gem.name, gemDefOf(ware.gem)), runeQuery);
 
     function wareArtHtml(ware) {
         return ware.gem ? shopView.gemArtHtml(ware.gem) : `<img src="${getEquipmentGridVisualAsset(ware.item)}" alt="" draggable="false">`;
     }
 
+    /** place: { column, row, columns, rows }, 진열대 칸 위의 자리. */
+    function wareCellHtml(id, ware, index, place) {
+        const rarity = ware.gem ? (ware.gem.kind === 'support' ? 'rare' : 'magic') : ware.item.rarity || 'normal';
+        const marks = `${shopView.held(ware.priceKey) < ware.price ? ' is-dear' : ''}${isChosen(id, index) ? ' is-chosen' : ''}`;
+        return `<button type="button" class="shop-item rarity-${rarity}${marks}" data-shop-pick="ware:${index}" style="${shopView.areaStyle(place)}"
+            aria-pressed="${isChosen(id, index)}" aria-label="${escapeHTML(wareName(ware))}, ${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}">
+            ${wareArtHtml(ware)}${shopView.priceHtml(ware.priceKey, ware.price)}</button>`;
+    }
+    /** 모든 룬 진열대의 한 쪽: 일곱 줄 그대로이고, 빈 칸 없이 앞에서부터 채운다. 팔리면 뒤의 룬이 앞으로 온다. */
+    function runeShelfHtml(id, stock) {
+        const cells = runePageCells(), columns = npcShop.grid.columns, from = runePage * cells;
+        const wares = runeShelfRows(stock).slice(from, from + cells).map((row, spot) =>
+            wareCellHtml(id, row.ware, row.index, { column: spot % columns, row: Math.floor(spot / columns), columns: 1, rows: 1 })).join('');
+        return shopView.gridHtml(columns, npcShop.grid.rows, wares);
+    }
+    /** 진열대 자리: 물건이 없으면 그 말, 모든 룬 진열대면 검색칸과 쪽 단추까지. */
+    function shelfBlockHtml(id, stock) {
+        if (!stock || !stock.offers.length) return `<p class="shop-empty">${stock && stock.allRunes ? '모든 룬을 가졌습니다.' : '다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.'}</p>`;
+        return stock.allRunes ? runeToolsHtml(stock) + runeShelfHtml(id, stock) : shelfHtml(id, stock);
+    }
     function shelfHtml(id, stock) {
-        const wares = stock.offers.map((ware, index) => {
-            const rarity = ware.gem ? (ware.gem.kind === 'support' ? 'rare' : 'magic') : ware.item.rarity || 'normal';
-            const marks = `${shopView.held(ware.priceKey) < ware.price ? ' is-dear' : ''}${isChosen(id, index) ? ' is-chosen' : ''}`;
-            return `<button type="button" class="shop-item rarity-${rarity}${marks}" data-shop-pick="ware:${index}" style="${shopView.areaStyle(ware)}"
-                aria-pressed="${isChosen(id, index)}" aria-label="${escapeHTML(wareName(ware))}, ${escapeHTML(npcShop.currencyName(ware.priceKey))} ${ware.price}">
-                ${wareArtHtml(ware)}${shopView.priceHtml(ware.priceKey, ware.price)}</button>`;
-        }).join('');
-        return shopView.gridHtml(npcShop.grid.columns, npcShop.grid.rows, wares);
+        return shopView.gridHtml(npcShop.grid.columns, npcShop.grid.rows, stock.offers.map((ware, index) => wareCellHtml(id, ware, index, ware)).join(''));
     }
 
     /** The chosen ware's sheet: the deal (its exact price, the purse before and after, the buy button or why not), why the last sale
@@ -71,9 +121,15 @@ const npcShopUi = (() => {
 
     function paintWareInfo(root, note = '') { shopView.paintInfo(root, wareInfoHtml(root.dataset.npcShop, note)); }
 
+    function harvestHint(key) {
+        const name = stumpBox.harvestPriceName(key);
+        return `그루터기 함 보관함의 다 자란 ${name}${pickParticle(name, '으로', '로')} 삽니다. 판에 놓인 것은 보관함으로 옮기세요.`;
+    }
+
     /** Where the currency of ware comes from, when the hero holds too little of it. */
     function earnHintHtml(ware) {
-        const hint = shopView.held(ware.priceKey) < ware.price ? EARN_HINTS[ware.priceKey] : '';
+        if (shopView.held(ware.priceKey) >= ware.price) return '';
+        const hint = stumpBox.isHarvestPrice(ware.priceKey) ? harvestHint(ware.priceKey) : EARN_HINTS[ware.priceKey];
         return hint ? `<p class="shop-hint">${hint}</p>` : '';
     }
 
@@ -150,11 +206,28 @@ const npcShopUi = (() => {
         },
         shopRedraw: root => redrawShop(root)
     });
+    // 조건을 채운 순간의 소식: 이번 루프에 한 번.
+    window.addEventListener('project-idle:npc-shop-all-runes', () => {
+        game.noti.npcs = true;
+        addLog('하켄이 이번 루프에 모든 룬을 판매합니다.', 'season-up', { toast: true });
+    });
+    document.addEventListener('input', event => {
+        if (!event.target.matches?.('[data-npc-rune-search]')) return;
+        runeQuery = event.target.value.trim();
+        runePage = 0;
+        paintRuneShelf(event.target.closest('.shop-view'));
+    });
     window.addEventListener('project-idle:npc-shop-stocked', event => {
         const root = document.querySelector(`.shop-view.is-npc[data-npc-shop="${CSS.escape(String(event.detail.id))}"]`);
         if (root) refreshStaleShelf(root);
     });
     document.addEventListener('click', event => {
+        const page = event.target.closest?.('.shop-view.is-npc [data-npc-rune-page]');
+        if (page) {
+            runePage = Number(page.dataset.npcRunePage);
+            paintRuneShelf(page.closest('.shop-view'));
+            return;
+        }
         const control = event.target.closest?.('.shop-view.is-npc [data-npc-buy]');
         if (control) buyShopWare(control.closest('.shop-view'), Number(control.dataset.npcBuy));
     });

@@ -20,7 +20,7 @@ const stumpBoxUi = (() => {
     const TALISMAN_CURRENCIES = ['sealShard', 'strongSealShard', 'radiantSealShard', 'beeswax'];
     let selectedId = null, selectedCell = null, moreTab = 'harvest', colorFilter = 'all', lastSignature = '', bound = false, ticker = null;
     let placement = null, placementKey = '';
-    let storageSort = 'quality-desc', stateFilter = 'all', compareOpen = false, comparedId = null;
+    let storageSort = 'manual', stateFilter = 'all', compareOpen = false, comparedId = null;
     // 틀이 보여 주는 것('box' 판, 'cube' 조합창), 접는 칸, 보관함 쪽: 화면만의 상태다(저장하지 않는다).
     let frameView = 'box', frameSwitching = false, summaryOpen = false, moreOpen = false, storagePage = 0;
     // 오른쪽 열: 'storage' 그루터기 보관함, 'bag' 장비 창의 인벤토리(왼쪽 보석). 화면만의 상태다.
@@ -36,7 +36,7 @@ const stumpBoxUi = (() => {
     const STORAGE_PAGE_CELLS = 100;
     // Storage items do not grow ("성장 중" means placed on the board), so an unripe stored item is "성장 전".
     const STORAGE_STATES = { all: '모든 상태', ripe: '성장 완료', unripe: '성장 전', locked: '잠금' };
-    const STORAGE_SORTS = { 'quality-desc': '품질 높은 순', 'quality-asc': '품질 낮은 순', name: '이름순', recent: '최근 획득순' };
+    const STORAGE_SORTS = { manual: '직접 배치', 'quality-desc': '품질 높은 순', 'quality-asc': '품질 낮은 순', name: '이름순', recent: '최근 획득순' };
 
     function escStump(text) { return escapeHTML(String(text)); }
     function stumpTone(color) { return STUMP_BOX_COLORS[color].tone; }
@@ -439,11 +439,12 @@ const stumpBoxUi = (() => {
     }
 
     // ── 보관함 ─────────────────────────────────────────────
+    /** slot: 끌어서 놓을 때 그 카드가 뜻하는 보관함 칸(js/stump-box-drag-ui.js). */
     function stumpStorageCard(item) {
         const growing = item.xp > 0 && !stumpBox.isMature(item) ? stumpBar(item) : '';
         const classes = `stump-item${item.id === selectedId ? ' is-selected' : ''}${stumpRipeningUi.isGolden(item) ? ' is-golden' : ''}${item.albino ? ' is-albino' : ''}${item.locked ? ' is-item-locked' : ''}`;
         return `<button type="button" class="${classes}" data-stump-action="item" data-item="${item.id}"`
-            + ` data-stump-drag="${item.id}" data-stump-tip="item" data-info-tooltip-anchor="1"`
+            + ` data-stump-drag="${item.id}" data-stump-storage-slot="${item.slot}" data-stump-tip="item" data-info-tooltip-anchor="1"`
             + ` aria-label="${escStump(comparisonLabel(item))}${item.locked ? ', 잠금' : ''}" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}${growing}${stumpLockMark(item)}</button>`;
     }
     function stumpFilterLabel(key) {
@@ -466,6 +467,7 @@ const stumpBoxUi = (() => {
         return true;
     }
     function compareStorageItems(a, b) {
+        if (storageSort === 'manual') return a.slot - b.slot;
         if (storageSort === 'recent') return b.id - a.id;
         if (storageSort === 'name') return stumpBox.label(a).localeCompare(stumpBox.label(b), 'ko') || a.id - b.id;
         // Talismans and scars have no displayed quality, so keep them after the quality-bearing items.
@@ -493,20 +495,42 @@ const stumpBoxUi = (() => {
         return '<div class="stump-pages" role="group" aria-label="보관함 쪽">' + Array.from({ length: pages }, (_, page) => `<button type="button"`
             + ` data-stump-action="storage-page" data-page="${page}" aria-pressed="${page === storagePage}">${page + 1}</button>`).join('') + '</div>';
     }
-    function stumpStorageHtml() {
-        const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch).filter(stumpStateMatch).sort(compareStorageItems);
+    /** 직접 배치에서 거르지 않은 보관함: 칸 번호대로 놓인다(빈칸 사이에도 놓을 수 있다). */
+    const storageShowsSlots = () => storageSort === 'manual' && colorFilter === 'all' && stateFilter === 'all';
+    function storageSlotCells(items, from, to) {
+        const bySlot = new Map(items.map(item => [item.slot, item]));
+        let cells = '';
+        for (let slot = from; slot < to; slot++) {
+            cells += bySlot.has(slot) ? stumpStorageCard(bySlot.get(slot)) : `<span class="stump-slot" data-stump-storage-slot="${slot}" aria-hidden="true"></span>`;
+        }
+        return cells;
+    }
+    /** 칸 수: 함의 크기, 또는 가장 뒤에 놓인 것까지. */
+    function storageSlotTotal(items) {
+        return Math.max(stumpBox.storageLimit(game), items.length, ...items.map(item => item.slot + 1));
+    }
+    function storageFiltersHtml(all) {
         const keys = ['all'].concat(COLORS, all.some(item => item.family === 'talisman') || colorFilter === 'talisman' ? ['talisman'] : []);
-        const filters = all.length ? keys.map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
+        return all.length ? keys.map(key => `<button type="button" class="stump-filter${colorFilter === key ? ' is-on' : ''}" data-stump-action="filter"`
             + ` data-filter="${key}" aria-pressed="${colorFilter === key}" style="--stump-tone:${stumpFilterTone(key)}">${stumpFilterLabel(key)}</button>`).join('') : '';
-        const cells = stumpStorageCells(items.length), pages = Math.max(1, Math.ceil(cells / STORAGE_PAGE_CELLS));
-        storagePage = Math.min(storagePage, pages - 1);
-        const from = storagePage * STORAGE_PAGE_CELLS, shown = items.slice(from, from + STORAGE_PAGE_CELLS);
+    }
+    /** 보이는 쪽의 칸들. 직접 배치는 칸 번호대로, 그 밖에는 차례대로 채운다. */
+    function storageCellsHtml(all, items, cells) {
+        const from = storagePage * STORAGE_PAGE_CELLS;
+        if (storageShowsSlots()) return storageSlotCells(items, from, Math.min(cells, from + STORAGE_PAGE_CELLS));
+        const shown = items.slice(from, from + STORAGE_PAGE_CELLS);
         const slots = '<span class="stump-slot" aria-hidden="true"></span>'.repeat(Math.max(0, Math.min(STORAGE_PAGE_CELLS, cells - from) - shown.length));
+        return `${shown.map(stumpStorageCard).join('') || (all.length ? '<p class="stump-hint">이 분류는 비어 있습니다.</p>' : '')}${slots}`;
+    }
+    function stumpStorageHtml() {
+        stumpBox.settleStorageSlots(game);
+        const all = stumpBox.storage(game), items = all.filter(stumpFilterMatch).filter(stumpStateMatch).sort(compareStorageItems);
+        const cells = storageShowsSlots() ? storageSlotTotal(items) : stumpStorageCells(items.length), pages = Math.max(1, Math.ceil(cells / STORAGE_PAGE_CELLS));
+        storagePage = Math.min(storagePage, pages - 1);
         const target = selectedId !== null && game.stumpBox.board.includes(selectedId) ? ' is-target' : '';
-        return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${stumpBox.storageLimit(game)}</h3><div class="stump-filters">${filters}</div>${storagePagesHtml(pages)}</div>`
+        return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${stumpBox.storageLimit(game)}</h3><div class="stump-filters">${storageFiltersHtml(all)}</div>${storagePagesHtml(pages)}</div>`
             + (all.length ? storageToolsHtml(items.length, all.length) : '')
-            + `<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1">`
-            + `${shown.map(stumpStorageCard).join('') || (all.length ? '<p class="stump-hint">이 분류는 비어 있습니다.</p>' : '')}${slots}</div>`;
+            + `<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1">${storageCellsHtml(all, items, cells)}</div>`;
     }
 
     // ── 수확 일지 · 함 해금 · 부적: 한 번에 하나씩 보는 탭(2026-10-09, 전에는 줄지어 쌓여 무엇이 무엇인지 몰랐다) ──────────
@@ -809,15 +833,39 @@ const stumpBoxUi = (() => {
         commitStumpChange();
         return true;
     }
-    /** Takes a board item back to storage (pressing the storage, dragging onto it, or [보관함으로]). */
-    function dropOnStorage(id) {
+    /** 다른 정렬에서 끌어 놓으면 지금 보이는 차례를 자리로 삼고 직접 배치로 간다(정렬이 그대로면 옮긴 것이 보이지 않는다). 카드가 뜻하는 칸은 그 뒤의 번호다. */
+    function adoptStorageOrder(slot) {
+        if (storageSort === 'manual') return slot;
+        const shown = stumpBox.storage(game).sort(compareStorageItems), over = shown.find(item => item.slot === slot);
+        stumpBox.orderStorage(game, shown);
+        storageSort = 'manual';
+        return over ? over.slot : shown.length;
+    }
+    /** 끌어 놓은 칸으로 옮긴다. slot이 null이면(칸 사이) 그대로 둔다. */
+    function arrangeStorage(id, slot) {
+        if (slot === null || slot === undefined) return false;
+        if (!stumpBox.moveInStorage(game, id, adoptStorageOrder(slot))) return false;
+        commitStumpChange();
+        return true;
+    }
+    /** 끄는 동안 쪽 단추 위에 머물면 그 쪽으로 넘어간다. */
+    function showStoragePage(page) {
+        if (page === storagePage) return;
+        storagePage = page;
+        renderStumpBoxTab(true);
+    }
+    /** Takes a board item back to storage (pressing the storage, dragging onto it, or [보관함으로]), onto slot when dragged onto a cell.
+     * An item already stored just moves to that cell. */
+    function dropOnStorage(id, slot = null) {
         const item = stumpBox.itemById(game, id);
-        if (!item || !game.stumpBox.board.includes(id)) return false;
+        if (item && !game.stumpBox.board.includes(id)) return arrangeStorage(id, slot);
+        if (!item) return false;
         if (!stumpBox.unplace(game, id)) {
             notifyStump(game.woodsmanBuildLock ? stumpRefusal(item) : '보관함이 가득 찼습니다.');
             return false;
         }
         selectedId = null;
+        if (slot !== null) stumpBox.moveInStorage(game, id, adoptStorageOrder(slot));
         commitStumpChange();
         return true;
     }
@@ -1243,7 +1291,7 @@ const stumpBoxUi = (() => {
         return stumpItemTipHtml(item, stumpBox.evaluate(state), -1);
     }
 
-    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, dropOnCube, dropCubeItem, claimReward,
+    return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, showStoragePage, dropOnCube, dropCubeItem, claimReward,
         itemTipHtml, previewCell, hoverCell, clearPlacementPreview, syncEquipmentBag, frameShowsCube };
 })();
 safeExposeGlobals({ stumpBoxUi });

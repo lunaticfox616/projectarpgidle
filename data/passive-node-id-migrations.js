@@ -42,5 +42,8 @@ const PASSIVE_NODE_ID_MIGRATIONS = Object.freeze({
     core_hex_06: 'pt_core_keystone_06'
 });
 
-if (typeof safeExposeData === 'function') safeExposeData({ PASSIVE_NODE_ID_LEGACY_PREFIX, PASSIVE_NODE_ID_MIGRATIONS });
-if (typeof module !== 'undefined' && module.exports) module.exports = { PASSIVE_NODE_ID_LEGACY_PREFIX, PASSIVE_NODE_ID_MIGRATIONS };
+// 같은 자리에 겹쳐 놓여 서로 이어지지 않았던 노드 넷을 하나로 합쳤다(2026-11-02 사용자: 지능의 정수가 2개로 따로 연결된다). 없어진 id -> 남은 id.
+const PASSIVE_NODE_ID_MERGED = Object.freeze({ nrxkff38o3uy: 'nc08jgv8ksc', nogqf1mkkass: 'nhaxusi8ksc', n6eq6pwlspwr: 'nvx9hwx8ksc', nxf83xf6a4tv: 'n3jcj848ksc' });
+
+if (typeof safeExposeData === 'function') safeExposeData({ PASSIVE_NODE_ID_LEGACY_PREFIX, PASSIVE_NODE_ID_MIGRATIONS, PASSIVE_NODE_ID_MERGED });
+if (typeof module !== 'undefined' && module.exports) module.exports = { PASSIVE_NODE_ID_LEGACY_PREFIX, PASSIVE_NODE_ID_MIGRATIONS, PASSIVE_NODE_ID_MERGED };

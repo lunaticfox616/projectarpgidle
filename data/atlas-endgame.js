@@ -180,7 +180,7 @@ const ATLAS_ENDGAME = Object.freeze({
     // need는 제단 재료(잉걸 10)와 지도 수가 비슷하도록: 방이 제단보다 드물고(5~9 %), 방마다 조각 3 + 0.15 × 등급.
     leagues: Object.freeze([
         Object.freeze({
-            id: 'league_breach', room: 'breach', name: '공허 균열', boss: '공허를 여는 자', act: 8, bossAct: 7, ele: 'chaos', tier: 16,
+            id: 'league_breach', room: 'breach', name: '공허 균열', boss: '공허를 여는 자', act: 8, bossAct: 7, ele: 'chaos', tier: 16, bodyVisual: 'league_breach',
             how: '지도 속 공허 균열을 비우면 공허 조각을 줍니다.',
             item: 'voidSplinter', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
@@ -195,12 +195,12 @@ const ATLAS_ENDGAME = Object.freeze({
             item: 'royalHoney', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '벌집 여왕', bossAct: 8, mechanic: 'sting' }),
-                Object.freeze({ name: '분노한 벌집 여왕', bossAct: 8, mechanic: 'sting' })
+                Object.freeze({ name: '분노한 벌집 여왕', bossAct: 8, bodyVisual: 'league_hive-stage2', mechanic: 'sting' })
             ]),
             rewards: Object.freeze([['venomStinger', 3], ['enchantedHoney', 1], ['pollen', 30]]), unique: '벌집 여왕의 명령'
         }),
         Object.freeze({
-            id: 'league_treasure', room: 'treasure', name: '보물 방', boss: '금고지기', act: 4, bossAct: 3, ele: 'phys', tier: 16,
+            id: 'league_treasure', room: 'treasure', name: '보물 방', boss: '금고지기', act: 4, bossAct: 3, ele: 'phys', tier: 16, bodyVisual: 'league_treasure',
             how: '지도 속 보물 방을 비우면 금고 열쇠 조각을 줍니다.',
             item: 'vaultKey', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
@@ -210,19 +210,19 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['magicBud', 30], ['formlessDew', 10], ['sapBud', 3], ['goldenRule', 1]]), unique: '금고지기의 열쇠꾸러미'
         }),
         Object.freeze({
-            id: 'league_meteor', room: 'meteor', name: '운석 분화구', boss: '검은 별의 심장', act: 7, bossAct: 9, ele: 'light', tier: 16,
+            id: 'league_meteor', room: 'meteor', name: '운석 분화구', boss: '검은 별의 심장', act: 7, bossAct: 9, ele: 'light', tier: 16, bodyVisual: 'league_meteor',
             how: '지도 속 운석 분화구를 비우면 별 조각을 줍니다.',
             item: 'starShard', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '검은 별의 심장', bossAct: 9, mechanic: 'starfall' }),
-                Object.freeze({ name: '타오르는 검은 별', bossAct: 9, mechanic: 'starfall' })
+                Object.freeze({ name: '타오르는 검은 별', bossAct: 9, bodyVisual: 'league_meteor-stage2', mechanic: 'starfall' })
             ]),
             rewards: Object.freeze([['skyEssence', 6], ['goldenRule', 1]]), unique: '낙성의 발자취'
         }),
         // 루프 30 뒤 방 넷(2026-10-09): 그 방의 지역 투기장(act)과 원소, 18등급. 카드는 방이 나오는 루프(minLoop)부터 열린다
         // (js/atlas-endgame.js unlocked). 고유는 이 우두머리만 준다(data/items.js 리그 우두머리 고유).
         Object.freeze({
-            id: 'league_ember', room: 'emberField', name: '잿불 터', boss: '잿불 군주', act: 2, bossAct: 4, ele: 'fire', tier: 18,
+            id: 'league_ember', room: 'emberField', name: '잿불 터', boss: '잿불 군주', act: 2, bossAct: 4, ele: 'fire', tier: 18, bodyVisual: 'league_ember',
             how: '지도 속 잿불 터를 비우면 타다 남은 불씨를 줍니다.',
             item: 'emberCinder', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
             stages: Object.freeze([
@@ -232,7 +232,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['burningEmberBranch', 2], ['emberBranch', 8], ['goldenRule', 1]]), unique: '잿불 군주의 심장'
         }),
         Object.freeze({
-            id: 'league_sap', room: 'sapWound', name: '수액 상처', boss: '호박 거인', act: 7, bossAct: 6, ele: 'phys', tier: 18,
+            id: 'league_sap', room: 'sapWound', name: '수액 상처', boss: '호박 거인', act: 7, bossAct: 6, ele: 'phys', tier: 18, bodyVisual: 'league_sap',
             how: '지도 속 수액 상처를 비우면 굳은 수액 방울을 줍니다.',
             item: 'amberDrop', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
             stages: Object.freeze([
@@ -242,7 +242,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['catalystCrit', 2], ['catalystSummon', 1], ['sapBud', 2]]), unique: '호박에 갇힌 시간'
         }),
         Object.freeze({
-            id: 'league_withered', room: 'witheredGarden', name: '시든 정원', boss: '시든 꽃의 여왕', act: 1, bossAct: 0, ele: 'chaos', tier: 18,
+            id: 'league_withered', room: 'witheredGarden', name: '시든 정원', boss: '시든 꽃의 여왕', act: 1, bossAct: 0, ele: 'chaos', tier: 18, bodyVisual: 'league_withered',
             how: '지도 속 시든 정원을 비우면 시든 꽃잎을 줍니다.',
             item: 'witheredPetal', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
             stages: Object.freeze([
@@ -252,12 +252,12 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['oilFire', 2], ['oilCold', 2], ['oilLight', 2], ['oilChaos', 2]]), unique: '마른 꽃잎 고리'
         }),
         Object.freeze({
-            id: 'league_nursery', room: 'nursery', name: '묘목장', boss: '묘목장의 어미나무', act: 3, bossAct: 8, ele: 'light', tier: 18,
+            id: 'league_nursery', room: 'nursery', name: '묘목장', boss: '묘목장의 어미나무', act: 3, bossAct: 8, ele: 'light', tier: 18, bodyVisual: 'league_nursery',
             how: '지도 속 묘목장을 비우면 어린 눈을 줍니다.',
             item: 'saplingBud', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
             stages: Object.freeze([
                 Object.freeze({ name: '묘목장의 어미나무', bossAct: 8, mechanic: 'saplingRush' }),
-                Object.freeze({ name: '뿌리를 뻗은 어미나무', bossAct: 8, mechanic: 'rootSnare' })
+                Object.freeze({ name: '뿌리를 뻗은 어미나무', bossAct: 8, bodyVisual: 'league_nursery-stage2', mechanic: 'rootSnare' })
             ]),
             rewards: Object.freeze([['blightSpore', 6], ['magicBud', 20], ['sapBud', 2]]), unique: '어미나무의 손길'
         })

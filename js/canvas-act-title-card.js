@@ -213,7 +213,7 @@ const actTitleCard = (() => {
         const tabShown = !!game.unlocks.npcs;
         npcShop.meet(npc, zone);
         // 해금할 것이 있거나 진열대가 새로 놓였으면(만날 때마다 새로 놓인다, 1회차 첫 만남의 하켄만 닫혀 있다) NPC 탭에 점을 켠다.
-        if (contentUnlockUi.npcNews(npc) === 'unlock' || npcShop.stock(npc.id)) game.noti.npcs = true;
+        if (npcShop.stock(npc.id)) game.noti.npcs = true;
         if (!tabShown) updateTabUnlockButtons();
     }
     const greets = row => !!row && GREET.keys.has(row.key) && row.zone === zone;
@@ -268,7 +268,7 @@ const actTitleCard = (() => {
     /** Adds the NPC to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js appendScenery),
      * so it stands in depth with the hero and the monsters. It stands on the entry room's post (js/act-exploration-rooms.js npcPost:
      * the back row, two cells from where the hero starts), where act 1's first monsters strike it from two cells away. Nobody
-     * stands on it or within two cells in front of or behind it (js/act-exploration-doors.js guideCells). */
+     * stands on its cell (js/act-exploration-doors.js guideCells). */
     function appendNpc(actors, state) {
         const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
         const npc = watch ? runNpc(watch) : null, map = npc ? actExplorationDoors.stageMap(run) : null;
@@ -303,18 +303,16 @@ const actTitleCard = (() => {
         drawCrispCanvasText(ctx, npc.name, x, y, 'strokeText');
         drawCrispCanvasText(ctx, npc.name, x, y);
     }
-    /** The mark over the name in a dark square: a gold "!" for an unlock to offer, three pale dots for a keyword not yet heard
-     * (js/content-progression-ui.js npcNews). */
-    function npcOfferMark(ctx, x, y, kind) {
-        const colour = kind === 'unlock' ? TONES.gold : '#d9cfb8';
+    /** The mark over the name in a dark square: three pale dots for a keyword not yet heard (js/content-progression-ui.js npcNews). */
+    function npcOfferMark(ctx, x, y) {
+        const colour = '#d9cfb8';
         ctx.fillStyle = 'rgba(12,10,12,0.92)';
         ctx.fillRect(x - 8, y - 9, 16, 18);
         ctx.strokeStyle = colour;
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 7.5, y - 8.5, 15, 17);
         ctx.fillStyle = colour;
-        if (kind === 'unlock') drawCrispCanvasText(ctx, '!', x, y + 1);
-        else for (let dot = -1; dot <= 1; dot++) ctx.fillRect(x + dot * 4 - 1, y + 2, 2, 2);
+        for (let dot = -1; dot <= 1; dot++) ctx.fillRect(x + dot * 4 - 1, y + 2, 2, 2);
     }
     // A monster striking the NPC (act 1's first monster, js/combat.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
     // flashes white and a few sparks burst on it. The picture itself never moves (no code-made motion).
@@ -374,8 +372,10 @@ const actTitleCard = (() => {
         const frame = npcFrame(state.now), struck = npcStruck(state.now);
         stageRings.shadow(ctx, { x: actor.x, y: actor.y, dot }, 18, 0.34);
         ctx.save();
-        if (state.playerPos.x < actor.x) { ctx.translate(actor.x * 2, 0); ctx.scale(-1, 1); }
-        const at = { x: Math.round(actor.x - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
+        // 거울 축도 정수 px에 둔다: 축이 화소 사이에 있으면 뒤집은 그림 전체가 화소 사이에 찍혀 번진다.
+        const axis = Math.round(actor.x);
+        if (state.playerPos.x < actor.x) { ctx.translate(axis * 2, 0); ctx.scale(-1, 1); }
+        const at = { x: Math.round(axis - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
         npcHoverRim(ctx, actor, sheet.source, frame, at);
         stageDots.blit(ctx, sheet.source, { x: frame * cell, y: 0, w: cell, h: cell }, at);
         if (struck > 0) {

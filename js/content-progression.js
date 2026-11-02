@@ -23,28 +23,23 @@ const contentProgression = (() => {
         stump: owner => [['액트 10 클리어', !!(owner.stumpBox && owner.stumpBox.acquired) || stumpBox.eligible(owner)]]
     };
 
-    /** How an unlock opens: 'paid' with 해금 points in the unlock tab, 'npc' for no points in its NPC's window only (def.npc,
-     * 2026-10-21 사용자: NPC 해금과 일반 해금 분리), 'auto' by itself once its conditions are met. */
+    /** How an unlock opens: 'paid' with 해금 points in the unlock tab, 'auto' by itself once its conditions are met.
+     * 2026-11-02 사용자: NPC에게서 무료로 받는 해금은 없앴다. */
     function kind(def) {
-        if (def.npc) return 'npc';
         return def.cost > 0 ? 'paid' : 'auto';
     }
 
-    /** An NPC's personal name, the last word of its STORY_NPCS name (벼림꾼 오르가 → 오르가). */
-    function npcName(id) {
-        return String(STORY_NPCS[id]?.name || id).split(/[\s,]+/).pop();
+    /** What must be open first: the row it grows from (after), then any other prerequisite (requires). */
+    function parents(def) {
+        return [...new Set([def.after, ...(def.requires || [])].filter(Boolean))];
     }
 
     function requirements(id, owner = game) {
         const def = definitions.get(id);
         if (!def) return [];
         const rows = [[`루프 ${def.minLoop}`, owner.season >= def.minLoop]];
-        for (const key of new Set([def.after, ...(def.requires || [])].filter(Boolean))) {
-            rows.push([definitions.get(key).name + ' 해금', isUnlocked(key, owner)]);
-        }
+        for (const key of parents(def)) rows.push([definitions.get(key).name + ' 해금', isUnlocked(key, owner)]);
         if (def.progress) rows.push(...progressChecks[def.progress](owner));
-        // Meetings are counted on the maps (js/npc-shop.js meet) and kept across loops.
-        if (def.npc) rows.push([npcName(def.npc) + ' 조우', !!owner.npcMet?.[def.npc]]);
         return rows.map(([label, met]) => ({ label, met: !!met }));
     }
 
@@ -70,12 +65,35 @@ const contentProgression = (() => {
     }
 
     function automaticAccess(def, owner) {
-        if (owner.season < def.minLoop) return false;
-        // Free bundles and ascension trials can require a matching growth purchase.
-        const owned = [...owner.contentProgression.unlocked, ...owner.contentProgression.inherited];
-        if (def.after && !owned.includes(def.after)) return false;
-        return !def.progress || progressChecks[def.progress](owner).every(row => row[1]);
+        if (!ownConditionsMet(def, owner)) return false;
+        // 자동 콘텐츠도 나무를 따른다(앞 해금이 열려야 열린다). 트리 전의 저장(looseContent)은 그때처럼 앞 해금을 따지지 않는다.
+        return !!owner.contentProgression.looseContent || earlierRowsOpen(def, owner);
     }
+    const ownConditionsMet = (def, owner) => owner.season >= def.minLoop && (!def.progress || progressChecks[def.progress](owner).every(row => row[1]));
+    /** Whether every row before this one is open: walked up the tree, so a chain of automatic rows reads as one. */
+    function earlierRowsOpen(def, owner) {
+        const state = owner.contentProgression, waiting = parents(def);
+        while (waiting.length) {
+            const row = definitions.get(waiting.pop());
+            if (!meetsUsageGate(row, owner)) return false;
+            if (state.unlocked.includes(row.id) || state.inherited.includes(row.id) || state.automatic.includes(row.id)) continue;
+            if (kind(row) !== 'auto' || !ownConditionsMet(row, owner)) return false;
+            waiting.push(...parents(row));
+        }
+        return true;
+    }
+
+    /** 나무에 새로 오른 줄(def.since)을 쓰는 코드의 읽기. 그루터기 함과 아틀라스는 불러오는 중에(장부 복원 전에) 이것을 읽어 봉인 칸, 품질, 접붙이기 단계를 깎으므로
+     * 적힌 기록을 그대로 본다: 트리 전의 기록이나 장부 없는 상태는 그때 규칙대로 루프만 보고(복원하면 그 줄을 물려받는다), 그 뒤의 기록은 산 줄과 물려받은 줄을 본다.
+     * loop: 잴 루프를 부르는 쪽이 정할 때(아틀라스 방 굴림). */
+    function holds(id, owner = game, loop = null) {
+        const def = definitions.get(id);
+        if (!def) return false;
+        return isTreeRecord(owner?.contentProgression) ? heldInRecord(owner.contentProgression, id) : reachedLoop(owner, loop) >= (def.formerLoop || def.minLoop);
+    }
+    const isTreeRecord = state => !!state && Number(state.version) >= LEDGER_VERSION;
+    const heldInRecord = (state, id) => [state.unlocked, state.inherited].some(list => Array.isArray(list) && list.includes(id));
+    const reachedLoop = (owner, loop) => (loop === null ? Math.max(Number(owner?.season) || 1, Number(owner?.contentProgression?.highestLoop) || 1) : loop);
 
     /** How many steps of a 강화 series (data/content-progression.js CONTENT_UNLOCK_SERIES) the ledger holds: bought or inherited.
      * It reads the record as it is, so it also counts a saved one before the load restores it, and no record counts none. */
@@ -129,7 +147,7 @@ const contentProgression = (() => {
     const AWARDS_BEFORE_NPC_SPLIT = Object.freeze({ early: Object.freeze([4, 4, 3, 3]), perLoop: 2 });
     // The awards before the 강화 series joined the catalog (2026-10-25, ledger version 10): a record from before then is read with them.
     const AWARDS_BEFORE_GROWTH = Object.freeze({ early: Object.freeze([2, 2, 3, 3, 2, 1, 1, 1, 2]), perLoop: 2 });
-    const NPC_SPLIT_VERSION = 9, LEDGER_VERSION = CONTENT_UNLOCK_SERIES_VERSION;
+    const NPC_SPLIT_VERSION = 9, SERIES_VERSION = CONTENT_UNLOCK_SERIES_VERSION, LEDGER_VERSION = CONTENT_UNLOCK_TREE_VERSION;
     const carryGap = loop => Math.max(0, earnedBy(loop, AWARDS_BEFORE_NPC_SPLIT) - earnedBy(loop, AWARDS_BEFORE_GROWTH));
     /** Points beyond the version-9 awards: a ledger from before version 9 is owed the whole gap at the loop it reached; a later one
      * keeps the carry fixed when it was first loaded (never more than that gap). */
@@ -142,18 +160,18 @@ const contentProgression = (() => {
     // made with those points survives the load; nobody earns more than either table gave.
     const paceGap = loop => Math.max(0, earnedBy(loop, AWARDS_BEFORE_GROWTH) - earnedBy(loop));
     function paceCarryOf(state, loop) {
-        if (!(Number(state.version) >= LEDGER_VERSION)) return 0;
+        if (!(Number(state.version) >= SERIES_VERSION)) return 0;
         return Math.min(paceGap(loop), Math.max(0, Math.floor(Number(state.paceCarry) || 0)));
     }
 
     /** Points earned by a loop, the points paid and what the catalog can still take (unbought paid unlocks). Only unlock-tab prices
      * count: points once paid for what is now an NPC unlock or automatic content come back. The record may still be the saved one: the
      * stump box restores its graft ranks (overflow) before mergeDefaults normalizes this ledger, so a record from before version 10 is
-     * read as it was then (no 강화 rows, the old awards). */
+     * read as it was then (no 강화 rows, the old awards), and one from before version 11 without the rows that took a price then (def.since). */
     function ledger(state, loop) {
         const unlocked = Array.isArray(state.unlocked) ? state.unlocked : [], inherited = Array.isArray(state.inherited) ? state.inherited : [];
-        const before = !(Number(state.version) >= LEDGER_VERSION);
-        const paid = def => !!def && kind(def) === 'paid' && !(before && def.series);
+        const version = Number(state.version), before = !(version >= SERIES_VERSION), beforeTree = !(version >= LEDGER_VERSION);
+        const paid = def => !!def && kind(def) === 'paid' && !(before && def.series) && !(beforeTree && def.since === LEDGER_VERSION);
         const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
             sum + (paid(def) && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
         const spent = unlocked.reduce((sum, id) => sum + (paid(definitions.get(id)) ? Number((state.paidCosts || {})[id]) || 0 : 0), 0);
@@ -184,7 +202,7 @@ const contentProgression = (() => {
      * bought stay. It adds no unlock points. */
     function overflowOf(state, loop) {
         const { remaining, spent, earned } = ledger(state, loop);
-        const floor = Number(state.version) >= LEDGER_VERSION ? Math.max(0, Math.floor(Number(state.graftFloor) || 0)) : 0;
+        const floor = Number(state.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(state.graftFloor) || 0)) : 0;
         return Math.max(floor, earned - spent - remaining, 0);
     }
 
@@ -206,8 +224,6 @@ const contentProgression = (() => {
         if (isUnlocked(id, owner)) return { available: false, reason: '해금 완료', unlocked: true };
         const missing = requirements(id, owner).filter(row => !row.met);
         if (missing.length) return { available: false, reason: missing[0].label + ' 필요' };
-        // npc: the NPC whose window opens it (gift); the unlock tab cannot buy it.
-        if (kind(def) === 'npc') return { available: true, npc: def.npc, reason: npcName(def.npc) + '에게서 받기' };
         if (balance(owner) < def.cost) return { available: false, reason: '해금 포인트 부족' };
         return { available: true, reason: `${def.cost}점으로 해금` };
     }
@@ -230,44 +246,26 @@ const contentProgression = (() => {
     function grantEntryReward(id, key, owner) {
         if (id === 'craft') owner.currencies[key]++;
         if (id === 'support') {
-            if (hasSupportGemOwned(key, owner)) owner.currencies.gemShard += 8;
-            else {
+            if (!hasSupportGemOwned(key, owner)) {
                 owner.supports.push(key);
                 owner.supportGemData[key] = normalizeGemRecord(null);
             }
         }
     }
 
-    /** Synchronous check-and-spend: validate choices before mutating any state. NPC unlocks are opened by their NPC (gift) only. */
+    /** Synchronous check-and-spend: validate choices before mutating any state. */
     function purchase(id, owner = game, rewardKey) {
-        const def = definitions.get(id);
-        if (def && kind(def) === 'npc') return { ok: false, message: npcName(def.npc) + '에게서 받는 해금입니다.' };
-        const check = status(id, owner);
+        const def = definitions.get(id), check = status(id, owner);
         if (!check.available) return { ok: false, message: check.reason };
-        return takeUnlock(id, owner, rewardKey, def.cost);
-    }
-
-    /** An NPC's 즉시 해금 (js/content-progression-ui.js npcReady; 2026-10-16 사용자: 포인트 없이 공짜로): one of its NPC unlocks with
-     * the first reward, for no points, once the hero has met that NPC and the loop, progress and earlier-unlock conditions are met.
-     * Paid unlocks are the unlock tab's alone since 2026-10-21. paidCosts 0 keeps it free across loads. */
-    function gift(id, owner = game, rewardKey) {
-        const def = definitions.get(id);
-        if (!def) return { ok: false, message: '알 수 없는 콘텐츠입니다.' };
-        if (kind(def) !== 'npc') return { ok: false, message: '해금 탭에서 여는 해금입니다.' };
-        const check = status(id, owner);
-        if (!check.available) return { ok: false, message: check.reason };
-        return takeUnlock(id, owner, rewardKey, 0);
-    }
-
-    function takeUnlock(id, owner, rewardKey, price) {
-        const choices = definitions.get(id).rewardChoices || [];
+        if (kind(def) !== 'paid') return { ok: false, message: '조건을 채우면 저절로 열립니다.' };
+        const choices = def.rewardChoices || [];
         const key = rewardKey === undefined ? choices[0]?.key : rewardKey;
         if (choices.length && !choices.some(row => row.key === key)) return { ok: false, message: '받을 보상을 선택하세요.' };
         grantEntryReward(id, key, owner);
         owner.contentProgression.unlocked.push(id);
-        owner.contentProgression.paidCosts[id] = price;
+        owner.contentProgression.paidCosts[id] = def.cost;
         sync(owner);
-        return { ok: true, message: definitions.get(id).name + ' 해금' };
+        return { ok: true, message: def.name + ' 해금' };
     }
 
     function legacyAccess(def, owner) {
@@ -279,33 +277,37 @@ const contentProgression = (() => {
         if (def.id === 'journal') return owner.journalEntries.length > 0;
         if (def.gate) return !!owner.unlocks[def.gate];
         if (def.flags) return def.flags.some(flag => owner[flag]);
-        return owner.season >= def.minLoop || ['support','craft','fossil','research','hall','records'].includes(def.id);
+        return owner.season >= def.minLoop || ['support','craft','fossil','hall','records'].includes(def.id);
     }
 
     function restorePurchases(purchased, next, record) {
-        const version = Number(record.version) || 0;
+        const version = Number(record.version) || 0, saved = new Set(purchased);
         let remaining = earnedBy(next.highestLoop) + next.carry + paceCarryOf(next, next.highestLoop);
         for (const id of purchased) {
             const def = definitions.get(id);
             if (!def || kind(def) === 'auto' || next.inherited.includes(id)) continue;
             const cost = restoredPrice(def, record);
             if (cost > remaining) continue;
-            if (version >= 4 && !next.grandfathered.includes(id) && !canRestoreChoice(def, next)) continue;
+            if (version >= 4 && !next.grandfathered.includes(id) && !canRestoreChoice(def, next, version, saved)) continue;
             next.unlocked.push(id); next.paidCosts[id] = cost; remaining -= cost;
         }
     }
 
-    function canRestoreChoice(def, next) {
+    /** A purchase from before the tree (version 11) stays whatever its new prerequisites are. Later ones need theirs among the saved rows,
+     * in any order (a save moved over from before the tree keeps its old order). An automatic prerequisite cannot be read here (it depends on
+     * the rest of the save), and a purchase needed it when it was made. */
+    function canRestoreChoice(def, next, version, saved) {
         if (next.highestLoop < def.minLoop) return false;
-        return [def.after, ...(def.requires || [])].filter(Boolean)
-            .every(key => next.unlocked.includes(key) || next.inherited.includes(key));
+        if (version < LEDGER_VERSION) return true;
+        return parents(def).every(key => saved.has(key) || next.inherited.includes(key) || kind(definitions.get(key)) === 'auto');
     }
 
-    // Save boundary: old 1P purchases are grandfathered and NPC gifts (gift, paid 0) stay free; invalid new prices use the catalog.
-    // An NPC unlock takes no points: one bought before the split (2026-10-21) gets its points back.
+    // Save boundary: old 1P purchases are grandfathered and rows that were free before the tree (def.since) stay free for whoever holds
+    // them; invalid new prices use the catalog.
     function restoredPrice(def, record) {
-        if (kind(def) === 'npc') return 0;
-        if ((Number(record.version) || 0) < 6) return 1;
+        const version = Number(record.version) || 0;
+        if (version < LEDGER_VERSION && def.since === LEDGER_VERSION) return 0;
+        if (version < 6) return 1;
         const paid = record.paidCosts?.[def.id];
         return paid === 0 || paid === 1 ? paid : def.cost;
     }
@@ -314,7 +316,7 @@ const contentProgression = (() => {
         if (!(Number(record.version) < 4)) return;
         const previous = new Set([...(Array.isArray(record.unlocked) ? record.unlocked : []), ...next.inherited]);
         if (record.version === 3) {
-            const bundled = [['research', 3], ['gemForge', 4]];
+            const bundled = [['gemForge', 4]];
             for (const [id, loop] of bundled) {
                 if (previous.has(id) || (previous.has('support') && next.highestLoop >= loop)) next.inherited.push(id);
             }
@@ -326,7 +328,7 @@ const contentProgression = (() => {
     /** The record's purchases. 강화 steps did not exist before version 10: such a record cannot hold them (ledger reads it without them). */
     function savedPurchases(record) {
         const ids = savedIds(record.unlocked);
-        return Number(record.version) >= LEDGER_VERSION ? ids : ids.filter(id => !definitions.get(id).series);
+        return Number(record.version) >= SERIES_VERSION ? ids : ids.filter(id => !definitions.get(id).series);
     }
 
     /** Only save-boundary arrays pass here; drop unknown/duplicate content IDs. */
@@ -342,8 +344,9 @@ const contentProgression = (() => {
         const savedChoices = savedIds(record.unlocked);
         const grandfathered = Number(record.version) < 5 ? savedChoices : record.grandfathered;
         return { version: LEDGER_VERSION, highestLoop, legacy: legacy || record.legacy === true, carry: carryOf(record, highestLoop),
-            graftFloor: Number(record.version) >= LEDGER_VERSION ? Math.max(0, Math.floor(Number(record.graftFloor) || 0)) : 0,
-            paceCarry: Number(record.version) >= LEDGER_VERSION ? Math.max(0, Math.floor(Number(record.paceCarry) || 0)) : paceGap(highestLoop),
+            looseContent: record.looseContent === true,
+            graftFloor: Number(record.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(record.graftFloor) || 0)) : 0,
+            paceCarry: Number(record.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(record.paceCarry) || 0)) : paceGap(highestLoop),
             unlocked: [], paidCosts: {}, inherited: savedIds(inherited), grandfathered: savedIds(grandfathered),
             automatic: savedIds(record.automatic).filter(id => kind(definitions.get(id)) === 'auto') };
     }
@@ -360,6 +363,7 @@ const contentProgression = (() => {
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
         inheritSplitGrowth(record, next);
         inheritGrowthSeries(record, next, owner, existingSave);
+        inheritTreeAccess(record, next, existingSave);
         return next;
     }
 
@@ -368,7 +372,7 @@ const contentProgression = (() => {
     // 줄었다). 그리고 그 장부가 접붙이기에 넘기던 점수(overflow)를 graftFloor로 남겨, 새 목록 때문에 넘치는 몫이 줄어도 접붙이기 단계가
     // 깎이지 않게 한다(js/stump-box.js restoreGraft는 이 복원보다 먼저 옛 장부로 센다).
     function inheritGrowthSeries(record, next, owner, existingSave) {
-        if (Number(record.version) >= LEDGER_VERSION || !existingSave) return;
+        if (Number(record.version) >= SERIES_VERSION || !existingSave) return;
         const offline = owner.offlineProgress || {}, level = key => Math.max(0, Math.floor(Number(offline[key]) || 0));
         const steps = { bagPage: getEquipmentInventoryPageCount({ ...owner, contentProgression: null }) - 1,
             offlineHours: level('recognitionLevel'), offlineRate: level('efficiencyLevel') };
@@ -376,6 +380,18 @@ const contentProgression = (() => {
             if (def.series && def.rank <= (steps[def.series] || 0) && !next.inherited.includes(def.id)) next.inherited.push(def.id);
         }
         next.graftFloor = overflowOf(record, next.highestLoop);
+    }
+
+    // 트리 전(장부 버전 11 미만)의 저장은 잃는 것이 없다(2026-11-02). 값이 새로 붙은 줄(def.since)은 그 루프에 닿았으면 물려받고(그때는 무료이거나 루프로 저절로
+    // 열렸다), 콘텐츠는 앞 해금을 따지지 않으며(looseContent), 접붙이기에 넘기던 점수는 graftFloor로 남긴다(새 비용 때문에 넘치는 몫이 줄어도 단계가 깎이지 않게).
+    function inheritTreeAccess(record, next, existingSave) {
+        if (Number(record.version) >= LEDGER_VERSION || !existingSave || next.highestLoop < 2) return;
+        next.looseContent = true;
+        for (const def of CONTENT_UNLOCK_CATALOG) {
+            const owned = next.unlocked.includes(def.id) || next.inherited.includes(def.id);
+            if (def.since === LEDGER_VERSION && !owned && next.highestLoop >= (def.formerLoop || def.minLoop)) next.inherited.push(def.id);
+        }
+        next.graftFloor = Math.max(next.graftFloor, overflowOf(record, next.highestLoop));
     }
 
     // 설정에서 쓰던 전술과 이전 유료 해금은 유지한다. 무료 전환된 구매 비용은 복원하지 않는다.
@@ -392,7 +408,7 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ kind, npcName, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
-        purchase, gift, restore });
+    return Object.freeze({ kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
+        purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });

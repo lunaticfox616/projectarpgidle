@@ -1076,13 +1076,11 @@ body :is(#item-tab-equip, #stump-equip-host) .equipment-card-slot {
 }
 
 :root 
-body #tab-skills .gem-research-panel,:root 
 body #tab-skills .search-filter-panel {
   border-radius: 4px;
 }
 
 :root 
-body #tab-skills .gem-research-panel,:root 
 body #tab-skills .search-filter-panel {
   border-color: #473d30;
   background: linear-gradient(155deg, #171713, #0b0c0a);

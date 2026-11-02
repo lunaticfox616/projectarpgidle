@@ -146,7 +146,7 @@ const STORY_CLASS_ORIGINS = Object.freeze({
 // The story's five NPCs (docs/story-bible.md section 4): id (also the stage art's id, data/stage-view.js STAGE_NPC_ART), name as
 // the encounters write it, title, and dialogues: the keywords of its window (js/content-progression-ui.js openNpc), each the NPC
 // alone speaking (line), shown once the hero has reached act reqAct and loop reqLoop (both optional). Each keeps the unlocks whose
-// loop lines it speaks (STORY_LOOP_MILESTONES speaker): its window sells those buyable now (즉시 해금), and its shop (js/npc-shop.js) one kind of ware.
+// loop lines it speaks (STORY_LOOP_MILESTONES speaker): its shop (js/npc-shop.js) sells one kind of ware.
 const STORY_NPCS = Object.freeze({
     haken: Object.freeze({
         id: 'haken',
@@ -479,11 +479,6 @@ const STORY_LOOP_MILESTONES = Object.freeze({
         narration: Object.freeze(['지주근 바닥에서 건져 올린 룬의 파편들이 주력 기술의 맥동에 공명하기 시작합니다.', '하나의 칼끝에 여러 갈래의 결을 덧대어 위력을 증폭시킬 수 있습니다.']),
         speaker: '뿌리끝의 드루이드, 하켄',
         quote: '“줄기 하나에 잔가지를 엮으면 수액의 물살도 배로 거세지는 법이지.”'
-    }),
-    research: Object.freeze({
-        narration: Object.freeze(['부서진 룬의 잔향 속에서 잊힌 전투 기법의 문양들이 떠오릅니다.', '흩어진 잔향을 모아 아직 손에 넣지 못한 새로운 기술을 복원합니다.']),
-        speaker: '뿌리끝의 드루이드, 하켄',
-        quote: '“부서진 잔향 속에도 우물로 버려졌던 옛 가지들의 기술이 남아 있다.”'
     }),
     gemForge: Object.freeze({
         narration: Object.freeze(['군주의 핵과 창공의 정수가 룬의 중심부에 뜨거운 압력을 불어넣습니다.', '불길 속에서 제련된 룬이 이전보다 훨씬 날카로운 기운을 내뿜습니다.']),

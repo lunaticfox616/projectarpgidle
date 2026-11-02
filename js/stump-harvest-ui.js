@@ -26,6 +26,7 @@ const stumpHarvestUi = (() => {
         if (when.harvestRows) return `수확 일지 ${when.harvestRows}줄`;
         if (when.harvestCells) return `수확 일지 ${when.harvestCells}칸`;
         if (when.harvestRow) return `수확 일지 ${ROW_LABELS[when.harvestRow]} 줄`;
+        if (when.content) return '해금 탭';
         if (when.loop) return `루프 ${when.loop}`;
         const page = JOURNAL_DB[when.journal];
         return open || !page.hidden ? `저널 '${page.title}'` : '숨은 저널';

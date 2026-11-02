@@ -20,6 +20,11 @@ const npcShop = (() => {
     const PRICE = Object.freeze({ normal: 1, magic: 2, rare: 1, tierStep: 4, rareTierStep: 6, attackGem: 3, supportGem: 1 });
     // 상점 장비에는 저항 옵션이 다른 옵션보다 조금 더 자주 붙는다(2026-10-26 사용자): 'resistance' 태그 옵션의 무게를 곱한다.
     const RESISTANCE_WEIGHT = 1.5;
+    // 룬 연구를 대신한다(2026-11-02 사용자: 매 루프 조건을 달성하면 룬을 파는 NPC가 모든 룬을 판매). 이번 루프에 액트 5를 깨면 하켄의 진열대가 아직 없는
+    // 공격 룬 전부와 보조스킬룬의 다음 등급 전부로 바뀐다. 루프가 끝나면 maxZoneId와 함께 닫힌다. 값(2026-11-02 사용자)은 그루터기 함에서 다 자란 것 하나다:
+    // 공격 룬은 그 속성의 꽃(물리는 어느 꽃이든), 보조스킬룬은 호박석, 이동 룬과 소환 룬은 열매. 랜덤 진열대는 그대로 이슬이다(함은 루프 1 액트 10에야 생긴다).
+    const ALL_RUNES = Object.freeze({ npc: 'haken', act: 5 });
+    const ELEMENT_FLOWER = Object.freeze({ fire: 'fire', cold: 'cold', light: 'lightning', chaos: 'chaos' });
     const weighShopMods = pool => pool.map(mod => getAffixTags(mod).includes('resistance')
         ? { ...mod, weight: (Number(mod.weight) || 1) * RESISTANCE_WEIGHT } : mod);
 
@@ -33,11 +38,42 @@ const npcShop = (() => {
         game.unlocks.npcs = true;
         // Saves from before the count met Haken in loop 1 already: only loop 1 has a first meeting.
         const first = before.count === 0 && (game.season || 1) === 1;
-        if (!(shop.firstMeetingClosed && first)) {
+        if (!allRunesOpen() && !(shop.firstMeetingClosed && first)) {
             game.npcShops[npc.id] = rollShopStock(npc.id, zoneId);
             dispatchRuntimeEvent('npc-shop-stocked', { id: npc.id });
         }
         return game.npcMet[npc.id];
+    }
+
+    const allRunesOpen = () => !!game.npcMet[ALL_RUNES.npc] && (game.maxZoneId || 0) >= ALL_RUNES.act;
+    /** What the whole shelf holds: supports join once their unlock opens, so the mark tells when to lay it again. */
+    const allRunesMark = () => (contentProgression.isUnlocked('support') ? 'full' : 'attacks');
+
+    function rollAllRunes() {
+        const missing = gemDropRewards.missingAttacks(game), weights = getSkillRuneRewardWeights(missing);
+        const attacks = missing.slice().sort((a, b) => weights.get(b) - weights.get(a)).map(name => ({ kind: 'attack', name, awakened: false }));
+        const supports = allRunesMark() === 'full' ? Object.keys(SUPPORT_GEM_DB).map(name => gemDropRewards.nextSupport(game, name)).filter(Boolean) : [];
+        // 칸 자리는 저장하지 않는다: 검색과 쪽에 맞춰 화면이 채운다(js/npc-shop-ui.js runeShelfHtml).
+        const offers = [...attacks, ...supports].map(gem => ({ gem, priceKey: allRunePriceKey(gem), price: 1, columns: 1, rows: 1 }));
+        return { loop: game.season || 1, zoneId: game.currentZoneId, offers, allRunes: allRunesMark() };
+    }
+
+    function allRunePriceKey(gem) {
+        if (gem.kind === 'support') return stumpBox.harvestPriceKey('amber');
+        const def = SKILL_DB[gem.name];
+        if (isMobilityRuneName(gem.name) || (def.tags || []).includes('summon')) return stumpBox.harvestPriceKey('fruit');
+        return stumpBox.harvestPriceKey('flower', ELEMENT_FLOWER[def.ele]);
+    }
+
+    /** Lays the whole shelf when the condition has just been met ('npc-shop-all-runes' tells the hero once a loop). */
+    function syncAllRunes() {
+        if (!allRunesOpen()) return;
+        const shop = game.npcShops[ALL_RUNES.npc], current = shop && shop.loop === (game.season || 1);
+        if (current && shop.allRunes === allRunesMark()) return;
+        const first = !(current && shop.allRunes);
+        game.npcShops[ALL_RUNES.npc] = rollAllRunes();
+        dispatchRuntimeEvent('npc-shop-stocked', { id: ALL_RUNES.npc });
+        if (first) dispatchRuntimeEvent('npc-shop-all-runes', { id: ALL_RUNES.npc });
     }
 
     function rollShopStock(id, zoneId) {
@@ -132,11 +168,18 @@ const npcShop = (() => {
 
     /** The NPC's stock of this loop, or null (never met yet here, or Haken at his first meeting). */
     function shopStock(id) {
+        if (id === ALL_RUNES.npc) syncAllRunes();
         const shop = game.npcShops[id];
         return shop && shop.loop === (game.season || 1) && Array.isArray(shop.offers) ? shop : null;
     }
 
-    const currencyName = key => (ORB_DB[key] ? ORB_DB[key].name : key);
+    const priceIsHarvest = key => stumpBox.isHarvestPrice(key);
+    const currencyName = key => (priceIsHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? ORB_DB[key].name : key);
+    const priceHeld = key => (priceIsHarvest(key) ? stumpBox.harvestPriceHeld(game, key) : Math.floor(Number(game.currencies[key]) || 0));
+    function payShopPrice({ priceKey, price }) {
+        if (priceIsHarvest(priceKey)) stumpBox.payHarvestPrice(game, priceKey);
+        else game.currencies[priceKey] -= price;
+    }
     const SHELF_CHANGED = '진열이 바뀌었습니다. 새 물건을 다시 확인하세요.';
 
     /** Whether offer index of the NPC's stock can be bought now: { ok, reason }. place: a bag cell { column, row } (row over all pages). */
@@ -144,7 +187,7 @@ const npcShop = (() => {
         if (game.woodsmanBuildLock) return { ok: false, reason: '☠️ 나무꾼 전투 중에는 살 수 없습니다.' };
         const offer = shopStock(id)?.offers[index];
         if (!offer) return { ok: false, reason: '이미 팔린 물건입니다.' };
-        const have = Math.floor(Number(game.currencies[offer.priceKey]) || 0);
+        const have = priceHeld(offer.priceKey);
         if (have < offer.price) return { ok: false, reason: `${currencyName(offer.priceKey)} 부족, ${have}/${offer.price}` };
         if (offer.gem) return checkGemWare(offer.gem);
         if (place) {
@@ -176,9 +219,16 @@ const npcShop = (() => {
         const shop = shopStock(id), offer = shop.offers[index];
         if (offer.gem) gemDropRewards.grant(game, offer.gem, offer.gem.kind === 'support' ? resonanceCap : 0);
         else if (!stowShopItem(offer.item, place)) return { ok: false, reason: '가방에 넣지 못했습니다.' };
-        game.currencies[offer.priceKey] -= offer.price;
-        shop.offers.splice(index, 1);
+        payShopPrice(offer);
+        refillSoldShelfCell(shop, index, offer);
         return { ok: true, offer };
+    }
+
+    /** The sold ware leaves its cell; on the every-rune shelf a support's next tier takes the cell instead. */
+    function refillSoldShelfCell(shop, index, offer) {
+        const next = shop.allRunes && offer.gem?.kind === 'support' ? gemDropRewards.nextSupport(game, offer.gem.name) : null;
+        if (next) shop.offers[index] = { ...offer, gem: next };
+        else shop.offers.splice(index, 1);
     }
 
     /** The bought item into the bag: a fresh id (the shelf's may be taken by drops since a reload), then the chosen place. */
@@ -193,7 +243,7 @@ const npcShop = (() => {
     function readyShopWares(id) {
         const spent = {}, stock = shopStock(id);
         const fits = ware => {
-            const left = (game.currencies[ware.priceKey] || 0) - (spent[ware.priceKey] || 0);
+            const left = priceHeld(ware.priceKey) - (spent[ware.priceKey] || 0);
             if (left < ware.price) return false;
             spent[ware.priceKey] = (spent[ware.priceKey] || 0) + ware.price;
             return true;
@@ -201,7 +251,7 @@ const npcShop = (() => {
         return stock ? stock.offers.filter((ware, index) => checkShopWare(id, index, null).ok).sort((a, b) => a.price - b.price).filter(fits).length : 0;
     }
 
-    return Object.freeze({ grid: GRID, meet: meetShopNpc, stock: shopStock, check: checkShopWare, buy: sellShopWare, ready: readyShopWares, currencyName,
+    return Object.freeze({ grid: GRID, allRunesAct: ALL_RUNES.act, syncAllRunes, meet: meetShopNpc, stock: shopStock, check: checkShopWare, buy: sellShopWare, ready: readyShopWares, currencyName,
         shelfChanged: SHELF_CHANGED });
 })();
 safeExposeGlobals({ NPC_SHOPS, npcShop });

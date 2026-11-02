@@ -17,7 +17,8 @@ const talentUi = (() => {
     const levelOf = card => Math.max(1, Math.floor(Number(card && card.level) || 1));
     const scoreLevel = () => getTalentCardLevel(getTalentBloomScore());
     const toneOf = ascendId => getItemStatToneColor(CLASS_TEMPLATES[ascendId].m1);
-    const portraitOf = heroId => (HERO_SELECTION_DEFS[heroId] || {}).portrait || '';
+    /** 재능의 직업 그림(assets/portraits/classes). 예전 영웅 그림(HERO_SELECTION_DEFS)은 2026-10-31에 직업 그림이 들어오며 이 창에만 남아 있었다. */
+    const portraitOf = heroId => (Object.values(PLAYER_CLASS_DEFS).find(def => def.recommendedTalentHeroId === heroId) || HERO_SELECTION_DEFS[heroId] || {}).portrait || '';
     const fill = (have, need) => Math.max(0, Math.min(100, need > 0 ? (have / need) * 100 : 100));
     const bar = (have, need) => `<i class="talent-bar"><i style="width:${fill(have, need).toFixed(1)}%"></i></i>`;
     const hintAttrs = key => `data-info-tooltip-anchor="1" onpointerenter="talentUi.hint(event,'${key}')" onpointermove="talentUi.hint(event,'${key}')" onpointerleave="hideInfoTooltip()"`;

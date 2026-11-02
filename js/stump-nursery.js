@@ -4,9 +4,8 @@
 // 보통 씨앗과 수액은 드롭처럼 거름이 된다(stumpBox.compostOverflow). 고대 씨앗의 효과는 js/stump-box.js가 계산한다.
 const stumpNursery = (() => {
     const N = STUMP_NURSERY;
-    const loopOf = state => Number(state.season) || 1;
-    const open = state => loopOf(state) >= N.minLoop;
-    const ancientOpen = state => loopOf(state) >= N.ancient.minLoop;
+    const open = state => contentProgression.holds('nursery', state);
+    const ancientOpen = state => contentProgression.holds('ancientSeed', state);
     const acquired = state => !!(state.stumpBox && state.stumpBox.acquired);
     const between = ([min, max], random) => min + random() * (max - min);
     const COLORS = Object.freeze(Object.keys(STUMP_BOX_COLORS));

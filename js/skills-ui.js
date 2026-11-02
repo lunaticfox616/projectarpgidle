@@ -133,71 +133,6 @@
         return kind === 'support' ? `<div class="support-library-footer">${button}</div>` : button;
     }
 
-    function renderGemResearchCandidate(kind, name, cost, availableFragments) {
-        let isSupport = kind === 'support';
-        let def = isSupport ? (SUPPORT_GEM_DB[name] || {}) : (SKILL_DB[name] || {});
-        let meta = getGemCardMeta(def);
-        let encodedName = encodeURIComponent(name);
-        let affordable = availableFragments >= cost;
-        let rangeText = !isSupport && typeof describeSkillGridProfile === 'function' ? describeSkillGridProfile(name, def) : '';
-        let tags = renderGemTagChips(def, 3);
-        if (!tags && isSupport) {
-            tags = `<span class="gem-tag gem-tag--support">${escapeHTML(def.name || getStatName(def.stat || '') || '보조 효과')}</span>`;
-        }
-        let art = isSupport ? supportGemSigil.html(name, 'gem-research-card-sigil', 0) : renderSkillGemArt(name, 'gem-research-card-art');
-        return `<article class="gem-research-card element-${meta.className}" aria-label="${escapeHTML(name)}">
-            <div class="gem-research-card-head">${art}<div><small>${isSupport ? '보조스킬룬' : `${meta.elementLabel}, ${meta.typeLabel}`}</small><strong>${escapeHTML(name)}</strong></div></div>
-            <p>${statToneText.html(def.desc || '연구를 완료하면 보유 룬 목록에 추가됩니다.')}</p>
-            ${rangeText ? `<div class="gem-card-range">${escapeHTML(rangeText)}</div>` : ''}
-            <div class="gem-card-tags">${tags}</div>
-            <button type="button" onclick="researchMissingGem('${kind}', decodeURIComponent('${encodedName}'))" ${affordable ? '' : 'disabled'}>
-                ${affordable ? `확정 연구, 잔향 ${cost}` : `잔향 부족, ${availableFragments}/${cost}`}
-            </button>
-        </article>`;
-    }
-    function renderGemResearchSection(kind, collection, options) {
-        const {query, cost, fragments, defaultOpen} = options;
-        const data = collection[kind];
-        const definitions = kind === 'support' ? SUPPORT_GEM_DB : SKILL_DB;
-        const matches = data.missing.filter(name => matchSearchQuery(window.getGemSearchText(name, definitions[name]), query));
-        if (query && !matches.length) return '';
-        const saved = game.gemResearchExpanded[kind];
-        const open = query ? true : (typeof saved === 'boolean' ? saved : defaultOpen);
-        const label = kind === 'support' ? '보조' : '공격';
-        const cards = matches.map(name => renderGemResearchCandidate(kind, name, cost, fragments)).join('');
-        return `<details data-gem-research-section="${kind}" ${open ? 'open' : ''}><summary>미보유 ${label} 룬 <b>${matches.length}</b></summary><div class="gem-research-grid">${cards || '<div class="gem-process-empty">수집 완료</div>'}</div></details>`;
-    }
-    function bindGemResearchSections(root, query) {
-        root.querySelectorAll('details[data-gem-research-section]').forEach(details => {
-            if (details.dataset.bound) return;
-            details.dataset.bound = 'true';
-            details.addEventListener('toggle', () => {
-                if (query) return;
-                game.gemResearchExpanded[details.dataset.gemResearchSection] = details.open;
-                queueImportantSave(500);
-            });
-        });
-    }
-    function renderGemResearchPanel() {
-        const root = document.getElementById('ui-gem-research-panel');
-        if (!root) return;
-        const state = getGemResearchCollectionState();
-        const fragments = Math.max(0, Math.floor(game.currencies.gemShard || 0));
-        const query = getSearchFilterState().gemResearch.trim();
-        const attackCost = getGemResearchCost('attack'), supportCost = getGemResearchCost('support');
-        if (!root.querySelector('#ui-gem-research-results')) {
-            root.innerHTML = '<div class="gem-research-summary"></div><div id="ui-gem-research-results"></div>';
-        }
-        root.querySelector('.gem-research-summary').innerHTML = `<div><h3>룬 연구</h3><p>룬 잔향으로 원하는 미보유 룬을 획득합니다.</p></div>
-            <div class="gem-research-resource"><span>룬 잔향</span><strong>${fragments}</strong><small>공격 ${attackCost}, 보조 ${supportCost}</small></div>
-            <div class="gem-research-progress"><span>공격 <b>${state.attack.owned}/${state.attack.total}</b></span><span>보조 <b>${state.support.owned}/${state.support.total}</b></span></div>`;
-        const sections = renderGemResearchSection('attack', state, {query, cost: attackCost, fragments, defaultOpen: fragments >= attackCost})
-            + renderGemResearchSection('support', state, {query, cost: supportCost, fragments, defaultOpen: fragments >= supportCost && !state.attack.missing.length});
-        const allComplete = !state.attack.missing.length && !state.support.missing.length;
-        const rows = allComplete ? '<div class="gem-research-complete">모든 룬 연구 완료</div>' : (sections ? `<div class="gem-research-columns">${sections}</div>` : '');
-        renderSearchSection('ui-gem-research-results', 'gemResearch', '룬 이름/효과/태그 검색', rows, '<div class="gem-process-empty">검색 결과가 없습니다.</div>', '');
-        bindGemResearchSections(root, query);
-    }
     /** The picker head: which slot it fills, how many gems it lists, and the "worn only" fold for that library. */
     function syncPickerHead(kind, fold) {
         document.getElementById('ui-skill-picker-count').textContent = `${libraryPages[kind === 'support' ? 'support' : 'skill'].total || 0}개`;
@@ -252,13 +187,12 @@
                 bossCore: game.currencies.bossCore || 0,
                 skyEssence: game.currencies.skyEssence || 0,
                 awakenedEcho: game.currencies.awakenedEcho || 0,
-                gemShard: game.currencies.gemShard || 0
             },
             skyTower: {
                 condensedPower: Math.max(0, Math.floor((skyTowerSignatureState && skyTowerSignatureState.condensedPower) || 0)),
                 gemBoosts: (skyTowerSignatureState && skyTowerSignatureState.gemBoosts) || {}
             },
-            filters: { skill: sf.skill || '', support: sf.support || '', gemResearch: sf.gemResearch || '' },
+            filters: { skill: sf.skill || '', support: sf.support || '' },
             foldAttackInactive: foldAttackInactive,
             foldSupportInactive: foldSupportInactive,
             suppCap: pStats.suppCap || 0,
@@ -270,7 +204,6 @@
         if (skillPanelRenderSignature !== lastSkillPanelRenderSignature) {
             lastSkillPanelRenderSignature = skillPanelRenderSignature;
         skillGemBoardUi.render(pStats);
-        renderGemResearchPanel();
         let sealedSupports = Array.isArray(game.sealedSupports) ? game.sealedSupports : [];
         renderAttackGemLibrary(pStats, sf.skill, foldAttackInactive);
 
@@ -335,7 +268,6 @@
                     : '<div class="gem-process-empty">공격 룬을 선택하면 성장 정보가 표시됩니다.</div>'));
                 renderGemResourceStrip(activeGem, condensedPower);
                 renderGemEngraveSlots(activeSlots, engraveCap);
-                renderSupportGemProcessList();
                 let currentTotalGemLevel = Math.max(1, Math.floor((activePresentation && activePresentation.totalLevel) || 1));
                 gemCoreForgeUi.renderSection(isGem ? active : null);
                 const upgrades = [

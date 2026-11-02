@@ -10,12 +10,12 @@ const atlas = (() => {
     })));
     // A guardian closes each region's innermost pair (slots 7 · 8); the pinnacle sits in the centre, opened with the four tickets.
     const GUARDIANS = ATLAS.regions.map((region, regionIndex) => {
-        const [name, ticket, bossAct] = ATLAS.guardians[region.id];
+        const [name, ticket, bossAct, bossVisualId] = ATLAS.guardians[region.id];
         return Object.freeze({ id: `${region.id}_g`, kind: 'guardian', region: region.id, regionIndex, slot: 9, name, tier: ATLAS.guardianRules.tier,
-            boss: name, arena: true, act: region.act, bossAct, ele: region.ele, ticket });
+            boss: name, arena: true, act: region.act, bossAct, bossVisualId, ele: region.ele, ticket });
     });
     const PINNACLE = Object.freeze({ id: 'pinnacle', kind: 'pinnacle', region: null, regionIndex: -1, slot: -1, name: ATLAS.pinnacle.name,
-        tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct, ele: 'chaos' });
+        tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct, bossVisualId: ATLAS.pinnacle.bossVisualId, ele: 'chaos' });
     const NODES = Object.freeze([...MAP_NODES, ...GUARDIANS, PINNACLE]);
     // 후반부 싸움(data/atlas-endgame.js, js/atlas-endgame.js): 그래프 밖의 투기장. 지도 장치 런 · 포털 · 정산은 같은 길을 쓴다.
     const lateNode = (row, kind, name) => Object.freeze({ id: row.id, kind, region: null, regionIndex: -1, slot: -1, name, tier: row.tier,
@@ -412,6 +412,7 @@ const atlas = (() => {
     /** A fragment drops and shows from its loop: its own minLoop, else its content room's (data/atlas.js fragments, encounters). */
     function fragmentOpen(fragment, loop) {
         const room = fragment.encounter ? ATLAS.encounters[fragment.encounter] : null;
+        if (room && room.unlock && !contentProgression.holds(room.unlock, game, Number(loop) || 1)) return false;
         return (Number(loop) || 1) >= Math.max(fragment.minLoop || 0, (room && room.minLoop) || 0);
     }
     /** Elites and bosses in a map sometimes drop a fragment (one open this loop); like maps it waits in the run until the boss falls. */

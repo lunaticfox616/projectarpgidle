@@ -52,9 +52,6 @@
 #tab-skills .gem-tile.support-gem.equipment-blocked { filter: brightness(.8); }
 /* 레벨 꼬리표가 그림 상자 모서리에 가리지 않게 위에 둔다. */
 #tab-skills .gem-tile .gem-tile-level { z-index: 1; text-shadow: 1px 1px 0 #000; }
-/* 룬 연구 카드 */
-.gem-research-card-head > .gem-research-card-sigil { width: 34px; height: 34px; }
-.gem-research-card-sigil .support-sigil-icon { width: 22px; height: 22px; }
 
 /* ── 보드의 각인 이름: 묶음 색, 한 단계 큰 글자 ───────────────────────────────────────── */
 .skill-board-engrave > span { font: 13px var(--font-pixel-read, 'Galmuri14', sans-serif); }
@@ -132,7 +129,6 @@
 .gem-slot-tier > small { color: var(--slot-muted); font: 12px var(--slot-label); }
 .gem-slot-tier[aria-pressed="true"] > b { color: var(--slot-gold); }
 .gem-slot-tier:disabled > span { color: var(--slot-muted); }
-.gem-slot-tier-note { color: var(--slot-muted); font: 12px var(--slot-label); }
 .gem-slot-buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px; }
 .gem-slot-count { display: inline-flex; align-items: center; gap: 3px; }
 .gem-slot-count > b { min-width: 38px; color: #fff; font: 400 15px var(--slot-read); text-align: center; }

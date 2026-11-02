@@ -9,9 +9,9 @@ const BOSS_BODY_ELEMENTS = Object.freeze({
     'atlas-sanctum-4': 'light', 'atlas-sanctum-5': 'cold',
     'meteor-heart': 'fire'
 });
-/** 아틀라스 지도 보스 가운데 제 몸(로스터 그림)으로 그리는 넷: 2026-10-22 검토한 몬스터 묶음의 지도 보스다. 나머지 지도, 수호자, 정점의
- * 몸은 크기와 정체성 결정을 기다려(2026-10-20 보스 그림 검토) 액트 보스 그림 그대로다. */
-const ATLAS_BOSS_BODIES = Object.freeze(['atlas-garden-1', 'atlas-garden-2', 'atlas-sanctum-4', 'atlas-sanctum-5']);
+/** 지도 45종 모두 로스터 몸을 쓴다. 전용 그림이 없는 22종의 기존 보스 연결은 로스터 wears가 소유한다. */
+const ATLAS_BOSS_BODIES = Object.freeze(['roots', 'trunk', 'canopy', 'garden', 'sanctum']
+    .flatMap(region => Array.from({ length: 9 }, (_, slot) => `atlas-${region}-${slot}`)));
 
 
 const ACT_BOSS_ASSET_KEYS = [
@@ -432,6 +432,13 @@ const BOSS_REACH = Object.freeze({
     }),
     byVisual: Object.freeze({ 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
         'atlas-sanctum-5': 'far', 'colony-boss': 'melee',
+        // 제 그림으로 나오는 지도, 수호자, 리그 보스: 공격 효과 종류(data/boss-fx.js)대로. 효과가 없는 꼭대기 보스 다섯과 정점은 액트 그림의 거리를 잇는다.
+        'atlas-roots-1': 'melee', 'atlas-roots-3': 'melee', 'atlas-roots-6': 'melee', 'atlas-roots-7': 'melee',
+        'atlas-trunk-0': 'melee', 'atlas-trunk-4': 'melee', 'atlas-trunk-6': 'melee', 'atlas-trunk-7': 'ranged',
+        'atlas-canopy-0': 'melee', 'atlas-canopy-4': 'ranged', 'atlas-canopy-7': 'melee', 'atlas-garden-7': 'melee',
+        'atlas-sanctum-0': 'melee', 'atlas-sanctum-7': 'ranged',
+        'guardian-roots': 'melee', 'guardian-canopy': 'melee', 'guardian-sanctum': 'ranged',
+        league_nursery: 'melee', 'league_nursery-stage2': 'melee', league_meteor: 'far', 'league_meteor-stage2': 'far', 'league_hive-stage2': 'ranged',
         // 칼날 앞다리와 겨울 짐승의 발구르기는 붙어서 친다. 예고 특수기는 castRange를 그대로 쓴다.
         trial_1: 'melee', trial_5: 'melee', labyrinth_guardian: 'melee',
         // 불칼은 붙어서 베고, 얼음 지팡이는 주문을 쏘며, 장창은 두 칸 앞까지 찌른다.

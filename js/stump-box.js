@@ -107,6 +107,70 @@ const stumpBox = (() => {
         const box = of(state), placed = new Set(box.board.filter(id => id !== null));
         return box.items.filter(item => !placed.has(item.id));
     }
+    // ── 보관함 자리 ─────────────────────────────────────────
+    // 끌어서 위치 조절(2026-11-02 사용자): item.slot은 보관함 칸 번호(쪽을 넘어 센다). 판에 놓인 동안 번호는 남고, 돌아올 때 그 칸이 차 있으면 앞의 빈칸으로 간다.
+    // 번호가 없는 것(새 아이템, 이 기능 전의 저장)도 앞의 빈칸으로 간다. 옛 저장의 첫 모습이 전과 같도록 품질 높은 순으로 채운다.
+    const storageSeedOrder = (a, b) => (!!b.color - !!a.color) || (a.color ? b.roll - a.roll : 0) || a.id - b.id;
+    function settleStorageSlots(state) {
+        const taken = new Set(), waiting = [];
+        storage(state).forEach(item => {
+            if (Number.isInteger(item.slot) && item.slot >= 0 && !taken.has(item.slot)) taken.add(item.slot);
+            else waiting.push(item);
+        });
+        let free = 0;
+        waiting.sort(storageSeedOrder).forEach(item => {
+            while (taken.has(free)) free++;
+            item.slot = free;
+            taken.add(free);
+        });
+    }
+    /** 지금 보이는 차례(다른 정렬)를 그대로 자리로 삼는다. */
+    function orderStorage(state, items) {
+        items.forEach((item, index) => { item.slot = index; });
+    }
+    /** 보관함 안에서 옮긴다. 그 칸에 다른 것이 있으면 자리를 바꾼다. @returns {boolean} 옮겼는지 */
+    function moveInStorage(state, id, slot) {
+        settleStorageSlots(state);
+        const items = storage(state), item = items.find(row => row.id === id);
+        if (!item || !Number.isInteger(slot) || slot < 0 || item.slot === slot) return false;
+        const other = items.find(row => row.slot === slot);
+        if (other) other.slot = item.slot;
+        item.slot = slot;
+        return true;
+    }
+
+    // ── 상점 값 ─────────────────────────────────────────────
+    // 하켄의 모든 룬 진열대(2026-11-02 사용자): 룬 하나의 값이 다 자란 꽃, 호박석, 열매 하나다. 값 키는 'harvest:flower:fire'처럼 쓰고, 색이 없으면
+    // 어느 색이든 된다. 조합창처럼 판에 놓이지 않은 것만 쓰고, 잠근 것은 쓰지 않는다. 평범하고 품질이 낮은 것부터 나간다.
+    const HARVEST_PRICE = /^harvest:(flower|fruit|amber)(?::(\w+))?$/;
+    const harvestPriceKey = (kind, color) => `harvest:${kind}${color ? `:${color}` : ''}`;
+    const isHarvestPrice = key => HARVEST_PRICE.test(key);
+    function parseHarvestPrice(key) {
+        const [, kind, color] = HARVEST_PRICE.exec(key);
+        return { kind, color: color || null };
+    }
+    function harvestPriceName(key) {
+        const { kind, color } = parseHarvestPrice(key), name = STUMP_BOX_STAGES[kind].label;
+        return color ? `${STUMP_BOX_COLORS[color].label} ${name}` : name;
+    }
+    /** 값 그림: 색이 없는 값은 화염 그림을 쓰고 화면이 무채색으로 칠한다(css/shop-view.css .is-any-colour). */
+    function harvestPriceIcon(key) {
+        const { kind, color } = parseHarvestPrice(key);
+        return `assets/items/stump-pixel-v1/${STUMP_BOX_STAGES[kind].icon}-${color || 'fire'}.png`;
+    }
+    const harvestWalletKeys = () => [...Object.keys(STUMP_BOX_COLORS).map(color => harvestPriceKey('flower', color)), harvestPriceKey('amber'), harvestPriceKey('fruit')];
+    const isPlainHarvest = item => !item.albino && !item.ancient && goldenMul(item) === 1;
+    function harvestForPrice(state, key) {
+        const { kind, color } = parseHarvestPrice(key);
+        return storage(state).filter(item => isMature(item) && !item.locked && yieldKind(item) === kind && (!color || item.color === color))
+            .sort((a, b) => isPlainHarvest(b) - isPlainHarvest(a) || qualityOf(a) - qualityOf(b));
+    }
+    const harvestPriceHeld = (state, key) => harvestForPrice(state, key).length;
+    /** 값을 치른다: 낸 것을 돌려주고, 가진 것이 없으면 null. */
+    function payHarvestPrice(state, key) {
+        const item = harvestForPrice(state, key)[0];
+        return item && discard(state, item.id) ? item : null;
+    }
     function clampRoll(value, cap = STUMP_BOX_ROLL_LIMIT.max) {
         return Math.round(Math.min(cap, Math.max(STUMP_BOX_ROLL_LIMIT.min, Number(value) || 1)) * 100) / 100;
     }
@@ -398,7 +462,7 @@ const stumpBox = (() => {
         const suppressed = suppressedIds(box);
         return near.filter(item => !suppressed.has(item.id)).length * STUMP_BOX_ANCIENT.graftRanks;
     }
-    function graftOpen(state) { return of(state).acquired && highestLoop(state) >= STUMP_BOX_GRAFT.startLoop; }
+    function graftOpen(state) { return of(state).acquired && contentProgression.holds('graft', state); }
     /** Points from journal pages (STUMP_BOX_GRAFT.journalPoints), counted once per page. */
     function graftJournalPoints(state) {
         const journal = Array.isArray(state.journalEntries) ? state.journalEntries : [];
@@ -636,21 +700,32 @@ const stumpBox = (() => {
         const pool = placed.length && random() < STUMP_BOX_DROPS.boardColorShare ? placed : COLORS;
         return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
     }
-    /**
-     * The box's own drop roll, independent of gear drops. random() → [0, 1). A drop that finds the storage full is not
-     * lost: it goes on the board as compost (nothing happens when nothing grows).
-     * @returns {?{item: ?object, compost: ?object}} null when nothing dropped; compost = { family, color, growth, fed, ripened }.
-     */
-    function rollDrop(state, enemy, random) {
+    /** What a kill dropped, not yet in the box: { family, color, roll, golden, path }, or null. random() → [0, 1). */
+    function rollDropSpec(state, enemy, random) {
         if (random() >= STUMP_BOX_DROPS.chance[killKind(enemy)]) return null;
         const family = random() < STUMP_BOX_DROPS.sapShare ? 'sap' : 'seed', color = dropColor(state, random);
         const spec = { family, color, roll: clampRoll(STUMP_BOX_DROPS.roll.min + random() * (STUMP_BOX_DROPS.roll.max - STUMP_BOX_DROPS.roll.min)) };
         spec.golden = random() < STUMP_BOX_RIPENING.golden.dropChance;
         if (family === 'seed') spec.path = seedPath(random);
+        return spec;
+    }
+    /** A rolled drop reaches the box. One that finds the storage full is not lost: it goes on the board as compost (nothing
+     * happens when nothing grows). @returns {{item: ?object, compost: ?object}} compost = { family, color, growth, fed, ripened }. */
+    function receiveDrop(state, spec, random = Math.random) {
         const item = createItem(state, spec);
         if (item) return { item, compost: null };
         return { item: null, compost: compostOverflow(state, spec, random) };
     }
+    /** The box's own drop roll, independent of gear drops. @returns {?{item: ?object, compost: ?object}} null when nothing dropped. */
+    function rollDrop(state, enemy, random) {
+        const spec = rollDropSpec(state, enemy, random);
+        return spec ? receiveDrop(state, spec, random) : null;
+    }
+    /** A floor row's rolled drop as a look-only item: its picture and name on the ground (js/battle-ground-loot-ui.js). */
+    const dropView = spec => ({ ...spec, xp: 0, ripe: false });
+    const dropIcon = spec => iconPath(dropView(spec));
+    const dropName = spec => label(dropView(spec));
+    const validDrop = spec => !!spec && FAMILIES.includes(spec.family) && COLORS.includes(spec.color) && Number.isFinite(spec.roll);
     /** A seed or sap a full storage could not take feeds the growing items as compost instead (drops, breeding, nursery gifts).
      * @returns {{family:string, color:string, growth:number, fed:number, ripened:object[]}} fed: growing items that got it */
     function compostOverflow(state, spec, random = Math.random) {
@@ -659,13 +734,17 @@ const stumpBox = (() => {
     }
     const NO_DROP = Object.freeze({ item: null, compost: null });
     function dropsHere(state) { return !(typeof actExplorationState === 'object' && actExplorationState.current(state)?.act != null); }
-    /** One call per kill (live and offline replay alike). Story-act expeditions escrow their loot until the act is
-     * settled, so the box's drops are not rolled there (growth still counts); generated maps — chaos, realm, the atlas … —
-     * roll them as the 9×8 board does. */
-    function onEnemyKilled(state, enemy) {
+    /** A kill's drop roll, where the box drops: story-act expeditions do not roll it (growth still counts); generated maps
+     * (chaos, realm, the atlas) and places without a map do. */
+    function rollKillDrop(state, enemy) {
+        return state.stumpBox && state.stumpBox.acquired && dropsHere(state) ? rollDropSpec(state, enemy, Math.random) : null;
+    }
+    /** One call per kill (live and offline replay alike). drop: what reaches the box from this kill; a live map's kill lays it on the
+     * floor instead and passes null (js/combat.js layStumpDrop, 2026-11-02 사용자: 그냥 획득되어 뭘 먹었는지 몰랐다). */
+    function onEnemyKilled(state, enemy, drop = rollKillDrop(state, enemy)) {
         const box = state.stumpBox;
         if (!box || !box.acquired) return;
-        const ripened = grow(state, enemy), rolled = (dropsHere(state) && rollDrop(state, enemy, Math.random)) || NO_DROP;
+        const ripened = grow(state, enemy), rolled = drop ? receiveDrop(state, drop) : NO_DROP;
         if (rolled.compost) ripened.push(...rolled.compost.ripened);
         if (!ripened.length && !rolled.item && !rolled.compost) return;
         if (state.noti) state.noti.stump = true;
@@ -741,8 +820,8 @@ const stumpBox = (() => {
     function isSealed(box, cell) { return Array.isArray(box.sealed) && box.sealed.includes(cell); }
     /** '' when the cell can be sealed (or unsealed) now, otherwise why not. */
     function sealReason(state, cell) {
-        const box = of(state), first = STUMP_BOX_UNLOCKS.find(row => row.sealSlots);
-        if (!sealLimit(state)) return `봉인 칸은 루프 ${first.when.loop}부터 열립니다.`;
+        const box = of(state);
+        if (!sealLimit(state)) return '봉인 칸 해금 뒤에 열립니다.';
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
         if (!isOpen(state, cell)) return '닫힌 칸입니다.';
         if (isSealed(box, cell)) return '';
@@ -940,6 +1019,7 @@ const stumpBox = (() => {
     /** A STUMP_BOX_UNLOCKS condition (computed, never saved). */
     function unlockMet(state, when) {
         if (when.loop && highestLoop(state) < when.loop) return false;
+        if (when.content && !contentProgression.holds(when.content, state)) return false;
         if (when.journal && !(Array.isArray(state.journalEntries) && state.journalEntries.includes(when.journal))) return false;
         return harvestMet(state, when);
     }
@@ -1006,6 +1086,7 @@ const stumpBox = (() => {
     function cleanItem(raw, cap) {
         const item = cleanItemFields(raw, cap);
         if (item && raw.locked === true) item.locked = true;
+        if (item && Number.isInteger(raw.slot) && raw.slot >= 0) item.slot = raw.slot;
         return item;
     }
     function cleanItemFields(raw, cap) {
@@ -1110,14 +1191,15 @@ const stumpBox = (() => {
     return {
         empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace, albinoPlacementReason,
         unplaceAll, unplaceAllReason, canUndoPlacement, undoPlacement, invalidatePlacementUndo,
-        evaluate, applyStats, onEnemyKilled, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
+        evaluate, applyStats, onEnemyKilled, rollKillDrop, receiveDrop, dropIcon, dropName, validDrop, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,
         rollCap, graftMaxRank, qualityOf, goldenMul, sealLimit, isSealed, sealReason, toggleSeal, devourOpen, addScar, grantScar, rollScarDrop, scarCaps: () => SCAR_CAPS,
         breedingOpen, bulkCompostOpen, bulkItems, bulkCompostPlan, bulkCompostReason, compostMany, bulkDiscardItems, bulkDiscardReason, discardMany, toggleLock, pendingPouches, pouchOffers, choosePouch,
         codexIds: () => CODEX_IDS,
-        itemById: (state, id) => findItem(of(state), id)
+        itemById: (state, id) => findItem(of(state), id),
+        settleStorageSlots, orderStorage, moveInStorage, harvestPriceKey, isHarvestPrice, harvestPriceName, harvestPriceIcon, harvestPriceHeld, payHarvestPrice, harvestWalletKeys
     };
 })();
 safeExposeGlobals({ stumpBox });

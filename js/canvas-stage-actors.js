@@ -394,16 +394,26 @@ const stageView = Object.freeze({
     backdrops: () => typeof game === 'object' && !!game.settings && game.settings.stageBackdrop !== 'off',
     /** Screen height of one depth cell ÷ its width: STAGE_VIEW.depth on the stage, 1 on the top-down field. */
     depth: () => (stageView.enabled() ? STAGE_VIEW.depth : 1),
-    /** Cell width of an exploration map on the stage: the view's width shared among STAGE_VIEW.minColumns cells, so the same
-     * stretch of a room shows at any window size (a whole number of px, and no smaller than minDot per character dot).
+    /** Cell width of an exploration map on the stage: the view's width shared among STAGE_VIEW.minColumns cells, then on a PC window the nearest step (steppedTile), so the same
+     * stretch of a room shows at about any window size (a whole number of px, and no smaller than minDot per character dot).
      * settings.stageZoom (test panel) sets the dots per pixel directly. */
     /** height와 rows(방이나 판의 깊이 칸 수)를 주면 화면 높이도 따른다: 바닥의 앞쪽 끝(floorShare)에서 뒤쪽 끝까지와 그 위의
      * 머리 높이(STAGE_VIEW.headroom)가 화면에 들어오는 칸까지만 커진다. 가로로 긴 창에서 뒤쪽 줄이 화면 위로 나가던 것을 막는다. */
     tile(width, height, rows) {
-        const rule = STAGE_VIEW.minColumns, columns = width < rule.narrowBelow ? rule.narrow : rule.wide;
+        const rule = STAGE_VIEW.minColumns, narrow = width < rule.narrowBelow, columns = narrow ? rule.narrow : rule.wide;
         if (Number(game.settings.stageZoom)) return STAGE_VIEW.heroTile * Number(game.settings.stageZoom);
         const widest = Math.floor(Math.min(width / columns, rows ? stageView.tallestTile(width, height, rows) : Infinity));
-        return STAGE_VIEW.heroTile * Math.max(STAGE_VIEW.minDot, widest / STAGE_VIEW.heroTile);
+        const free = STAGE_VIEW.heroTile * Math.max(STAGE_VIEW.minDot, widest / STAGE_VIEW.heroTile);
+        return narrow || stageView.phonePortrait(width, height) ? free : stageView.steppedTile(width, height, rows) || free;
+    },
+    /** PC 창의 칸 너비(STAGE_VIEW.tileSteps): 너비 ÷ 20칸에 가까운 단계. 위쪽 띠(headroom.top)까지는 뒤쪽 줄의 머리 높이에 내주어, 창이 조금 낮다고 단계가 떨어지지 않는다.
+     * 뒤쪽 줄이 화면에 들어오는 단계가 없거나 방 그림이 창을 덮지 못하면 0(이어지는 칸을 쓴다). */
+    steppedTile(width, height, rows) {
+        const rule = STAGE_VIEW.tileSteps, step = rule.canvasPx / (typeof uiDisplay === 'object' ? uiDisplay.battleRenderScale : 1);
+        const smallest = Math.ceil(STAGE_VIEW.heroTile * STAGE_VIEW.minDot / step);
+        const byWidth = Math.max(smallest, Math.round(width / STAGE_VIEW.minColumns.wide / step));
+        const steps = rows ? Math.min(byWidth, Math.floor(stageView.tallestTile(width, height, rows, 0) / step)) : byWidth;
+        return steps >= smallest && width / (steps * step) <= rule.maxColumns ? steps * step : 0;
     },
     /** 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 휴대폰과 태블릿 세로는 전투 기록과 HUD 높이만큼
      * (phoneClear), 가로 휴대폰은 HUD가 옆 칸이라 narrow. */
@@ -416,10 +426,10 @@ const stageView = Object.freeze({
     phonePortrait(width, height) {
         return height > width && width <= STAGE_ROOMS.phoneWidth;
     },
-    /** 깊이 rows칸의 바닥과 그 위의 머리 높이가 화면에 다 들어오는 가장 큰 칸 너비(px). */
-    tallestTile(width, height, rows) {
+    /** 깊이 rows칸의 바닥과 그 위의 머리 높이가 화면에 다 들어오는 가장 큰 칸 너비(px). top: 머리 위에 남기는 띠(px). */
+    tallestTile(width, height, rows, top = STAGE_VIEW.headroom.top) {
         const room = STAGE_VIEW.headroom, floor = height * stageView.floorShare(width, height);
-        return (floor - room.top) / (rows * STAGE_VIEW.depth + room.dots / STAGE_VIEW.heroTile);
+        return (floor - top) / (rows * STAGE_VIEW.depth + room.dots / STAGE_VIEW.heroTile);
     },
     /** Where the hero stands down the view (share of its height): the middle on the top-down field. */
     anchorY: () => (stageView.enabled() ? STAGE_VIEW.anchorY : 0.5),

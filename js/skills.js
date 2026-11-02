@@ -27,79 +27,6 @@ function gainGemExperience(gem, amount) {
     return gem.level - previousLevel;
 }
 
-function getGemResearchCollectionState() {
-    let attackPool = Object.keys(SKILL_DB || {}).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem);
-    let supportPool = Object.keys(SUPPORT_GEM_DB || {});
-    let ownedAttack = attackPool.filter(name => typeof hasSkillGemOwned === 'function'
-        ? hasSkillGemOwned(name)
-        : (game.skills || []).includes(name));
-    let ownedSupport = supportPool.filter(name => typeof hasSupportGemOwned === 'function'
-        ? hasSupportGemOwned(name)
-        : (game.supports || []).includes(name));
-    return {
-        attack: { owned: ownedAttack.length, total: attackPool.length, missing: attackPool.filter(name => !ownedAttack.includes(name)) },
-        support: { owned: ownedSupport.length, total: supportPool.length, missing: supportPool.filter(name => !ownedSupport.includes(name)) }
-    };
-}
-
-function getGemResearchCost(kind) {
-    return kind === 'support' ? 8 : 12;
-}
-
-/** Resolve fragments once and grant them to the wallet immediately. */
-function grantGemResearchFragments(amount, source = 'reward') {
-    if (source === 'drop' && !contentProgression.canDropCurrency('gemShard')) return 0;
-    let gain = Math.max(0, Math.floor(Number(amount) || 0));
-    if (gain <= 0) return 0;
-    game.currencies = game.currencies || {};
-    if (typeof awardCurrency === 'function') awardCurrency('gemShard', gain, 'reward');
-    else game.currencies.gemShard = Math.max(0, Math.floor(game.currencies.gemShard || 0)) + gain;
-    return gain;
-}
-
-function canResearchGemKind(kind) {
-    return contentProgression.isUnlocked('research') && (kind !== 'support' || contentProgression.isUnlocked('support'));
-}
-
-function ownsResearchGem(kind, name) {
-    if (kind === 'support') return hasSupportGemOwned(name);
-    return hasSkillGemOwned(name);
-}
-
-function researchMissingGem(kind, name) {
-    if (!canResearchGemKind(kind)) return;
-    if (game.woodsmanBuildLock) return addLog('나무꾼 전투 중에는 룬 구성을 변경할 수 없습니다.', 'attack-monster');
-    let isSupport = kind === 'support';
-    let db = isSupport ? SUPPORT_GEM_DB[name] : SKILL_DB[name];
-    if (!db || (!isSupport && !db.isGem)) return addLog('연구할 수 있는 룬이 아닙니다.', 'attack-monster');
-    let alreadyOwned = ownsResearchGem(kind, name);
-    if (alreadyOwned) return addLog('이미 보유한 룬입니다.', 'attack-monster');
-    let cost = getGemResearchCost(kind);
-    game.currencies = game.currencies || {};
-    if ((game.currencies.gemShard || 0) < cost) return addLog(`룬 잔향이 부족합니다. (필요: ${cost})`, 'attack-monster');
-
-    game.currencies.gemShard -= cost;
-    if (isSupport) {
-        game.supports = Array.isArray(game.supports) ? game.supports : [];
-        game.supportGemData = game.supportGemData || {};
-        game.supports.push(name);
-        game.supportGemData[name] = normalizeGemRecord({ level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
-    } else {
-        game.skills = Array.isArray(game.skills) ? game.skills : [];
-        game.gemData = game.gemData || {};
-        game.skills.push(name);
-        game.gemData[name] = normalizeGemRecord({ level: 1, exp: 0, awakened: false });
-    }
-    game.noti = game.noti || {};
-    game.noti.skills = true;
-    if (typeof checkUnlocks === 'function') checkUnlocks();
-    if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(false);
-    addLog(`🔬 룬 연구 완료: ${isSupport ? '보조' : '공격'} 룬 [${name}] 해금 (룬 잔향 ${cost} 소모)`, isSupport ? 'loot-rare' : 'loot-magic');
-    if (typeof queueImportantSave === 'function') queueImportantSave(180);
-    updateStaticUI();
-    return true;
-}
-
 // Phase-3 extracted gem/skill progression handlers.
 
 /** 각인은 '룬 각인' 해금과 함께 모두 열리고, 각성 각인만 '룬 각성' 해금이 따로 연다(2026-10-01, 룬 각인사 레벨 대신). */
@@ -433,50 +360,6 @@ function upgradeActiveGemQuality() {
     updateStaticUI();
 }
 
-function getSupportGemSkyProcessState(name) {
-    let rec = normalizeGemRecord(((game.supportGemData || {})[name]) || { level: 1, exp: 0, unlockedTier: 1, activeTier: 1 });
-    let tierCap = typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3;
-    let unlockedTier = Math.max(1, Math.min(tierCap, Math.floor(rec.unlockedTier || 1)));
-    rec.unlockedTier = unlockedTier;
-    rec.activeTier = Math.max(1, Math.min(unlockedTier, Math.floor(rec.activeTier || 1)));
-    let improvingTier = unlockedTier < tierCap;
-    let need = improvingTier ? unlockedTier + 1 : Math.max(3, Math.ceil((rec.level || 1) / 5));
-    return {
-        record: rec,
-        tierCap: tierCap,
-        improvingTier: improvingTier,
-        need: need,
-        maxed: !improvingTier && (rec.level || 1) >= 30,
-        nextTier: improvingTier ? Math.min(tierCap, unlockedTier + 1) : unlockedTier
-    };
-}
-
-function processSupportGemWithSkyEssence(name) {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!SUPPORT_GEM_DB[name]) return addLog('가공할 보조스킬룬을 찾을 수 없습니다.', 'attack-monster');
-    game.supports = Array.isArray(game.supports) ? game.supports : [];
-    if (!game.supports.includes(name)) return addLog('보유한 보조스킬룬만 가공할 수 있습니다.', 'attack-monster');
-    game.supportGemData = game.supportGemData || {};
-    let processState = getSupportGemSkyProcessState(name);
-    let rec = processState.record;
-    let improvingTier = processState.improvingTier;
-    let need = processState.need;
-    if (processState.maxed) return addLog('해당 보조스킬룬은 이미 최대 등급/레벨입니다.', 'attack-monster');
-    if ((game.currencies.skyEssence || 0) < need) return addLog(`창공의 정수가 부족합니다. (필요: ${need})`, 'attack-monster');
-    game.currencies.skyEssence -= need;
-    if (improvingTier) {
-        rec.unlockedTier = Math.min(processState.tierCap, Math.floor(rec.unlockedTier || 1) + 1);
-        addLog(`☁️ 보조스킬룬 [${name}] 창공 가공 완료: ${rec.unlockedTier === 3 ? '상급' : '중급'} 해금, 적용 등급은 현재 설정 유지 (소모 ${need})`, 'loot-unique');
-    } else {
-        rec.level = Math.min(30, Math.floor(rec.level || 1) + 1);
-        addLog(`☁️ 보조스킬룬 [${name}] 숙련 가공 완료: Lv.${rec.level} (소모 ${need})`, 'loot-unique');
-    }
-    game.supportGemData[name] = rec;
-    if (typeof normalizeSupportLoadout === 'function') normalizeSupportLoadout(false);
-    updateStaticUI();
-}
-
-
 /** Why the equipped attack rune cannot become an awakening candidate now, or '': no such rune, already awakened, below Lv.20, or
  * too few 각성 잔향. */
 function getGemAwakenRefusal(active, gem, echoNeed) {
@@ -554,7 +437,7 @@ function getFossilSurplusRefiningCost(fossilKey) {
 function refineFossilSurplus(fossilKey) {
     let cost = getFossilSurplusRefiningCost(fossilKey);
     if (!cost) return false;
-    if (!contentProgression.isUnlocked('fossilRestore')) return addLog('잉여 화석 정제는 오르가에게서 화석 복원을 받아야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog('잉여 화석 정제는 화석 복원을 해금해야 쓸 수 있습니다.', 'attack-monster');
     if ((game.currencies[fossilKey] || 0) < cost) return addLog(`잉여 화석 정제에는 같은 화석 ${cost}개가 필요합니다.`, 'attack-monster');
     game.currencies[fossilKey] -= cost;
     awardCurrency('fossilPrimal', 1);
@@ -685,7 +568,7 @@ function applyFossilChaosCraft(fossilKey) {
 function restorePrimalFossil(kind) {
     let key = kind === 'ancient' ? 'fossilAncientPrimal' : 'fossilPrimal';
     let isAncient = key === 'fossilAncientPrimal';
-    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 오르가에게서 화석 복원을 받아야 쓸 수 있습니다.`, 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 화석 복원을 해금해야 쓸 수 있습니다.`, 'attack-monster');
     if ((game.currencies[key] || 0) <= 0) return addLog(`${ORB_DB[key] ? ORB_DB[key].name : key}이 부족합니다.`, 'attack-monster');
     game.currencies[key]--;
     let rewardLines = [];
@@ -758,7 +641,7 @@ const GEM_LEVEL_TAG_RULES = [
     { stat: 'dotGemLevel', tag: 'dot' },
     { stat: 'aoeGemLevel', tag: 'aoe' },
     { stat: 'summonGemLevel', tag: 'summon' },
-    // 능력치 태그(2026-10-28 사용자: 설계자의 힘/민첩/지능 스킬 젬 레벨). 룬마다 data/skills.js tags에 하나나 둘이 붙는다.
+    // 능력치 태그(2026-10-28 사용자: 설계자의 힘/민첩/지능 스킬 룬 레벨). 룬마다 data/skills.js tags에 하나나 둘이 붙는다.
     { stat: 'strGemLevel', tag: 'strength' },
     { stat: 'dexGemLevel', tag: 'dexterity' },
     { stat: 'intGemLevel', tag: 'intelligence' }
@@ -928,18 +811,35 @@ function getSkillRuneRewardWeights(names) {
     return new Map(names.map(name => [name, getSkillRuneRewardWeight(name, stance)]));
 }
 
-/** 지금 장비로 못 쓰는 까닭(카드, 알림): '근접 무기 필요', '활 필요' 같은 한 줄. 쓸 수 있으면 ''. */
+/** 룬 요구 레벨(data/skills.js SKILL_RUNE_LEVEL_REQ, SUPPORT_RUNE_LEVEL_REQ). 제한이 없으면 0. */
+const getRuneLevelReq = (name, support = false) => (support ? SUPPORT_RUNE_LEVEL_REQ : SKILL_RUNE_LEVEL_REQ)[name] || 0;
+/** 레벨이 모자라면 'Lv.37 필요', 아니면 ''. */
+function getRuneLevelNote(name, support = false, state = game) {
+    const need = getRuneLevelReq(name, support);
+    return need > (state.level || 1) ? `Lv.${need} 필요` : '';
+}
+
+/** 지금 장비로 못 쓰는 까닭(카드, 알림): 'Lv.37 필요', '근접 무기 필요', '활 필요' 같은 한 줄. 쓸 수 있으면 ''. */
 function getSkillRuneWeaponNote(name) {
     if (canUseSkillWithCurrentEquipment(name)) return '';
+    const levelNote = getRuneLevelNote(name);
+    if (levelNote) return levelNote;
     const skill = SKILL_DB[name], family = SKILL_RUNE_FAMILY[name];
     if (isAttackRuneBlockedByMobilityBoots(name)) return `${MOBILITY_RUNE_ATTACK_UNIQUE} 착용 중, 이동 스킬룬만`;
     if (skill && skill.requiresShield && !hasEquippedShield()) return '완갑 필요';
     return SKILL_RUNE_WEAPON_NOTES[family] || `${SKILL_RUNE_WEAPONS[family].map(stance => SKILL_RUNE_STANCE_LABELS[stance]).join(', ')} 필요`;
 }
 
+/** 얻은 룬과 상점 카드의 한 줄: 왜 지금 못 쓰는지. 쓸 수 있으면 ''. */
+function getSkillRuneBlockedLine(name) {
+    if (canUseSkillWithCurrentEquipment(name)) return '';
+    return `${getRuneLevelNote(name) ? '지금 쓸 수 없음' : '지금 무기로 쓸 수 없음'}: ${getSkillRuneWeaponNote(name)}`;
+}
+
 function canUseSkillWithCurrentEquipment(name) {
     let skill = SKILL_DB[name];
     if (!skill) return true;
+    if (getRuneLevelNote(name)) return false;
     if (skill.requiresShield && !hasEquippedShield()) return false;
     if (isAttackRuneBlockedByMobilityBoots(name)) return false;
     return isSkillRuneUsableWithStance(name, getEquippedWeaponStance());
@@ -1100,12 +1000,12 @@ function getActiveSkillStats(bonusLevel, allowMobility) {
 
 safeExposeGlobals({
     hasEquippedShield, canUseSkillWithCurrentEquipment, getEquippedWeaponStance, getSkillDamageTagSet, isSkillRuneUsableWithStance, pickSkillRuneReward, getSkillRuneRewardWeights,
-    getSkillRuneWeaponNote, gainGemExperience,
+    getSkillRuneWeaponNote, getSkillRuneBlockedLine, getRuneLevelReq, getRuneLevelNote, gainGemExperience,
     getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage
 });
 
 
-safeExposeGlobals({ getGemResearchCollectionState, getGemResearchCost, grantGemResearchFragments, researchMissingGem, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, getSupportGemSkyProcessState, processSupportGemWithSkyEssence, awakenActiveGemCandidate, getSkyEnhancementUnlockId, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+safeExposeGlobals({ upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, awakenActiveGemCandidate, getSkyEnhancementUnlockId, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
 
 
 /** 공격·보조 룬을 봉인할 수 없는 까닭(없으면 ''). 나무꾼 전투 중에는 봉인과 해제를 거절한다: 잠금이 룬 기록을 매 틱 되돌리고 공명력은 그대로라

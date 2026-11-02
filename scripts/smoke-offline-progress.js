@@ -15,6 +15,7 @@ const { mergeDefaults, simulateBackgroundCombat, simulateBackgroundCombatChunked
 run('game = mergeDefaults({})');
 assert.deepStrictEqual(json('[getOfflineProgressConfig(game).recognitionHours, getOfflineProgressConfig(game).baseEfficiencyRate]'), [3, 0.3]);
 run(`game.season = 5; contentProgression.sync();
+    game.contentProgression.inherited.push('loopTree', 'stumpStorage1');
     for (const id of ['offlineHours1', 'offlineHours2', 'offlineRate1']) if (!contentProgression.purchase(id).ok) throw new Error(id);`);
 assert.deepStrictEqual(json('[getOfflineProgressConfig(game).recognitionHours, getOfflineProgressConfig(game).baseEfficiencyRate]'), [9, 0.32]);
 assert.strictEqual(run('getOfflineProgressConfig(game).effectiveLimitMs'), 9 * 3600000 * 0.32);

@@ -6,11 +6,11 @@ const memoryDungeon = (() => {
     const M = MEMORY_DUNGEON;
     const defaults = () => ({ tickets: {}, best: {}, variants: {} });
     const ledger = state => state.atlas.memory;
-    const open = state => (Number(state.season) || 1) >= M.minLoop;
+    const open = state => contentProgression.holds('memoryDungeon', state);
     const validTier = value => Number.isInteger(value) && value >= 1 && value <= M.tiers;
     const emptyRow = () => Array(M.tiers).fill(0);
-    /** The highest tier that drops and opens now: 3, then 5 from loop 44. */
-    const maxTier = state => ((Number(state.season) || 1) >= M.highTiers.loop ? M.tiers : M.highTiers.from - 1);
+    /** The highest tier that drops and opens now: 3, then 5 with the 기억 던전 4, 5 unlock. */
+    const maxTier = state => (contentProgression.holds('memoryDeep', state) ? M.tiers : M.highTiers.from - 1);
 
     function count(state, nodeId, tier) {
         return ((ledger(state).tickets[nodeId] || [])[tier - 1]) || 0;
@@ -33,9 +33,9 @@ const memoryDungeon = (() => {
 
     /** '' when the memory fight can open now, otherwise why not. */
     function entryReason(state, nodeId, tier) {
-        if (!open(state)) return `루프 ${M.minLoop}부터 열립니다.`;
+        if (!open(state)) return '기억 던전 해금 뒤에 열립니다.';
         if (!atlas.node(nodeId) || !validTier(tier)) return '없는 기억입니다.';
-        if (tier > maxTier(state)) return `${tier}단계는 루프 ${M.highTiers.loop}부터 도전할 수 있습니다.`;
+        if (tier > maxTier(state)) return `${tier}단계는 기억 던전 4, 5 해금 뒤에 도전할 수 있습니다.`;
         const lock = atlas.lockReason(state);
         if (lock) return lock;
         if (state.atlas.run) return atlas.runOpenReason(state);
@@ -105,7 +105,7 @@ const memoryDungeon = (() => {
     function nextMemoryPreview(state, node, tier) {
         if (tier >= M.tiers) return null;
         const nextTier = tier + 1, have = count(state, node.id, nextTier);
-        const reason = nextTier > maxTier(state) ? `${nextTier}단계 기억은 루프 ${M.highTiers.loop}부터 얻을 수 있습니다.`
+        const reason = nextTier > maxTier(state) ? `${nextTier}단계 기억은 기억 던전 4, 5 해금 뒤에 얻을 수 있습니다.`
             : have >= M.ticketCap ? `다음 단계 기억의 보관 한도 ${M.ticketCap}개에 도달했습니다.` : '';
         return { tier: nextTier, chance: reason ? 0 : M.ladder[tier - 1], reason, have, cap: M.ticketCap };
     }

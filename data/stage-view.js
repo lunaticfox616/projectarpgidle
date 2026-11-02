@@ -15,6 +15,11 @@ const STAGE_VIEW = Object.freeze({
      * 같은 칸 수가 보인다(도트가 캔버스 픽셀의 정수배가 아닌 배율은 js/canvas-stage-dots.js가 고르게 찍는다). 아주 작은 창에서는
      * 도트가 이보다 작아지지 않고 대신 보이는 칸이 준다. */
     minDot: 0.75,
+    /** 2026-11-02 사용자 "캐릭터랑 칸이랑 맵 크기랑 동기화": 칸 너비가 어중간하면 방 그림의 2px 도트가 캔버스 픽셀에 떨어지지 않아 옆 색과 섞인다. PC 창은 칸 너비를
+     * 캔버스 픽셀로 canvasPx의 배수(64, 96, 128)에서만 골라 칸, 캐릭터, 방 그림이 함께 옮겨 간다. 2026-10-11의 이어지는 칸과 달리 가로 1600 이상이면 전체화면과 같은
+     * 크기로 보이는 칸만 줄고, 그보다 좁으면 3분의 2 크기가 된다. 고른 칸에서 maxColumns칸(방 그림 1672도트의 폭)보다 많이 보이면 그림이 창을 덮지 못해 양옆이 비므로
+     * 그런 창(낮고 넓은 창)과 휴대폰, 태블릿 세로는 이어지는 칸 그대로다. */
+    tileSteps: Object.freeze({ canvasPx: 32, maxColumns: 26 }),
     /** 2026-10-13 (가로로 긴 창 2560×720에서 방의 뒤쪽 줄이 화면 위로 나가 몬스터의 머리와 체력바가 잘렸다): 칸 크기는 화면 높이도 따른다.
      * 방 바닥의 뒤쪽 끝 위로 dots도트(뒤쪽 줄에 선 몬스터의 키와 체력바, 이름표)와 화면 위쪽의 top px(구역 이름과 진행 막대의 줄)이
      * 남는 가장 큰 칸까지만 커진다. 그보다 작은 창에서는 전처럼 minDot이 아래 끝이다. */
@@ -140,6 +145,7 @@ const STAGE_ROOMS = Object.freeze({
      * 장이 닫힌 모습이다. ends = 앞의 여덟 장이 끝나는 시각(ms, 잠금이 풀릴 때 한 번), anchorY = 칸 위에서 잰 발 자리, half = 주인공이 그
      * 뒤에 서면 반투명해지는 가로 반폭, heights = 장마다 그림의 높이(모두 도트). 낱장과 출처는 같은 폴더의 seal.json. */
     rootSeal: Object.freeze({
+        regionPath: 'assets/stage-scenes/root-seal-v3/regions/', version: 'region-palette-20261102b',
         ends: Object.freeze([80, 160, 240, 320, 400, 480, 560, 640]),
         front: Object.freeze({ file: 'assets/stage-scenes/root-seal-v3/front.png', width: 256, height: 256, anchorY: 238, half: 105,
             heights: Object.freeze([217, 218, 215, 208, 197, 193, 195, 199, 196]) }),
@@ -296,7 +302,7 @@ const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-
 
 /** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서 그 대사의 NPC(data/story-journal.js
  * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",
- * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(대사, 즉시 해금, 상점)이 열린다(js/content-progression-ui.js openNpc).
+ * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(대사, 상점)이 열린다(js/content-progression-ui.js openNpc).
  * 그림은 assets/stage-npcs/<id>-idle.png(대기 6프레임 한 줄, 칸 cell, 발 feet, 머리 꼭대기 head, 프레임마다 frameMs)와
  * <id>-portrait.webp(일러스트, 480×720, scripts/build-portraits.cjs). scripts/build-stage-npcs.cjs가 그림 도구의 시트를 검사해 옮긴다. 그림이 없으면 NPC는 서지 않고
  * 대사만 띠에 나온다. 2026-10-21 새 주인공 비율로 다시 그린 판(artifacts/npc-idle-revision-20261021, 키 112~120도트, 머리 23~25도트)이라
@@ -306,8 +312,8 @@ const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-
 /** 쓰러진 자리에서 이야기가 다시 일으키는 보스(act bossId, js/canvas-boss-revive.js): 처치 대사가 나오는 동안 황금 수액 기둥과 다시 차오르는
  * 체력바를 그린다(2026-10-15: 2막 부제녀의 처치 대사는 "다시 일으킨다!"인데 화면에는 아무 일도 없었다). fillMs: 막대가 다 차는 데 걸리는 시간. */
 const STAGE_BOSS_REVIVAL = Object.freeze({ bosses: Object.freeze(['gardener_immortal']), fillMs: 1400 });
-const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', version: '20261021-1', cell: 160, feet: Object.freeze([80, 144]), head: 24, scale: 1,
-    frameMs: Object.freeze([720, 260, 460, 280, 140, 720]) });
+const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', version: '20261102-1', cell: 160, feet: Object.freeze([80, 144]), head: 24, scale: 1,
+    frameMs: Object.freeze([260, 460, 280, 140, 720]) });
 
 /** 판(9×8)에서 싸우던 콘텐츠가 방 단위 무대에서 걷는 지도(2026-10-13 밤 사용자: "그거 포함해서 아틀라스도, 옮겨줘". js/content-maps.js withRooms).
  * acts 구역 종류 → 바탕으로 빌리는 액트 지도(지도 id와 어둠 색, 입구와 끝 방의 이름만 쓴다. 무대 그림은 그 구역의 지역 그림이다),

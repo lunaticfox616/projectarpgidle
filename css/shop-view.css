@@ -26,6 +26,12 @@
 .shop-pages button[aria-pressed="true"] { border-color: var(--color-accent-gold); color: #ffe3a0; }
 
 .shop-grid { position: relative; display: grid; grid-template-columns: repeat(var(--grid-columns), var(--cell)); grid-template-rows: repeat(var(--grid-rows), var(--cell)); width: max-content; border: 1px solid rgba(64, 82, 102, .78); border-radius: 4px; background: #07101a; box-shadow: inset 0 0 22px rgba(0, 0, 0, .52); }
+/* 하켄의 모든 룬 진열대(js/npc-shop-ui.js): 칸은 일곱 줄 그대로이고 넘치면 쪽이 늘어난다. 쪽 단추는 가방과 같고 검색칸 옆에 선다. */
+.shop-rune-note { margin: 0 0 6px; color: var(--color-text-secondary); font-size: 12px; line-height: 1.5; }
+.shop-rune-note.is-open { color: #8fe3d6; }
+.shop-rune-tools { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; }
+.shop-rune-tools .shop-pages { flex: none; max-width: 50%; }
+.shop-rune-search { box-sizing: border-box; flex: 1 1 0; width: 0; min-width: 0; min-height: 30px; padding: 3px 8px; }
 .shop-cell { background: rgba(10, 20, 31, .5); box-shadow: inset -1px -1px rgba(89, 109, 129, .28); }
 .shop-cell.is-drop-ok { background: rgba(68, 171, 103, .36); }
 .shop-cell.is-drop-bad { background: rgba(188, 62, 62, .34); }
@@ -49,6 +55,8 @@
 /* 칸 위의 값과 개수, 진열대의 번호와 꼬리표는 좁은 칸의 표식: 갈무리9 10px(글꼴은 themes/pixel.css가 맡는다). */
 .shop-price { position: absolute; right: 1px; bottom: 1px; display: inline-flex; align-items: center; gap: 1px; padding: 0 3px; background: rgba(4, 8, 13, .84); color: #efe6d2; font-size: var(--font-size-meta); line-height: 12px; pointer-events: none; }
 .shop-price .shop-coin { width: 12px; height: 12px; }
+/* 어느 색이든 되는 값(하켄의 물리 룬): 꽃 그림을 무채색으로 칠한다. */
+.shop-coin.is-any-colour { filter: grayscale(1) brightness(1.3); }
 .shop-item.is-dear .shop-price { color: #e58a7f; }
 /* 단추와 진열대 값표 안의 값은 제자리에 쓴다(물건 칸의 값만 오른쪽 아래에 얹힌다). 단추 안은 단추 글(12px), 값표 안은 값표 글(10px). */
 :is(.shop-tools button, .shop-more) .shop-price { position: static; padding: 0; background: none; font-size: 12px; line-height: inherit; }

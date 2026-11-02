@@ -183,6 +183,8 @@
 
     /** Conflicts only when two conversions/transforms apply to the same ORIGINAL skill; changing tags cannot bypass this. */
     function conflictReason(candidate, state = game, replacedName = '') {
+        const levelNote = getRuneLevelNote(candidate, true, state);
+        if (levelNote) return `${candidate}: ${levelNote}`;
         const def = SUPPORT_GEM_DB[candidate];
         if (!def || !['conversion', 'transform'].includes(def.kind)) return '';
         const existing = (state.equippedSupports || []).filter(name => name !== candidate && name !== replacedName && SUPPORT_GEM_DB[name]?.kind === def.kind);
