@@ -17,6 +17,10 @@ const stageSkillKit = (() => {
         const spec = SKILL_FX_ATLAS[skillName], def = SKILL_DB[skillName];
         return (spec && spec.id) || (def && def.nativeCastId) || kitNames().get(skillName) || 0;
     }
+    /** 주문 룬인데 지금 활로 쏘는 룬(STAGE_VIEW.runeStanceMotions): 시전의 오라와 발밑 고리 대신 활의 빛을 쓴다. */
+    function kitFiredFromBow(skillName) {
+        return !!STAGE_VIEW.runeStanceMotions[skillName]?.bow && getEquippedWeaponStance() === 'bow';
+    }
     /** @returns {?{id:number, map:object, meta:object}} 그 룬의 연결표와 갈래. 인계에 없는 룬이면 null. */
     function kitGemOf(skillName) {
         const id = kitGemId(skillName), map = id ? STAGE_SKILL_VFX.gems[id] : null;
@@ -80,7 +84,7 @@ const stageSkillKit = (() => {
         ctx.rect(face < 0 ? x - span : x, -span, span, span * 2);
         ctx.clip();
     }
-    return Object.freeze({ WIDE, DEEP, BODY, HAND, gemId: kitGemId, gemOf: kitGemOf, ramp: kitRamp, ref: kitRef, onGround: kitOnGround, heroSpot: kitHeroSpot, enemy: kitEnemy,
+    return Object.freeze({ WIDE, DEEP, BODY, HAND, gemId: kitGemId, gemOf: kitGemOf, firedFromBow: kitFiredFromBow, ramp: kitRamp, ref: kitRef, onGround: kitOnGround, heroSpot: kitHeroSpot, enemy: kitEnemy,
         heroDrawn: kitHeroDrawn, enemySpot: kitEnemySpot, heroFace: kitHeroFace, noteFace: kitNoteFace, lastFace: kitLastFace, at: kitAt, screen: kitScreen, along: kitAlong, emerge: kitEmerge });
 })();
 safeExposeGlobals({ stageSkillKit });

@@ -2258,14 +2258,27 @@ function isVoidPassiveLineStat(statId) {
 function formatVoidPassiveStatLine(line) {
     if (!line || !isVoidPassiveLineStat(line.id)) return '';
     const isPct = P_STATS[line.id] ? P_STATS[line.id].isPct : /\(%\)/.test(STAT_DISPLAY_NAMES[line.id]);
-    return `${String(getStatName(line.id)).replace(/\s*\((\+%p|%)\)\s*/g, '').trim()} +${formatValue(line.id, line.val)}${isPct ? '%' : ''}`;
+    const shown = value => `+${formatValue(line.id, value)}${isPct ? '%' : ''}`, final = shown(line.val);
+    // 효율이 곱해진 줄(투영의 문양, 공허의 별자리 등)은 최종 수치 뒤에 굴린 원본을 적는다(2026-11-02 사용자).
+    const original = line.baseVal === undefined || shown(line.baseVal) === final ? '' : ` (원본 ${shown(line.baseVal)})`;
+    return `${String(getStatName(line.id)).replace(/\s*\((\+%p|%)\)\s*/g, '').trim()} ${final}${original}`;
+}
+
+/** 초월의 최종 수치와 원본: 값이 곱해지는 초월은 곱한 값으로 적고, 달라진 수치의 원본을 뒤에 적는다. 포인트와 보조룬 한도는 정수라 곱하지 않는다(getTranscendentVoidPassiveStats). */
+function getTranscendentVoidEffectLabel(nodeId, tr) {
+    const def = TRANSCENDENT_VOID_PASSIVE_DB.find(row => row.id === tr.id), scale = getVoidLinkScale(nodeId);
+    if (!def || scale === 1 || !TRANSCENDENT_VOID_STAT_LINES[tr.id] || ['paleBlueDot', 'resonantStar'].includes(tr.id)) return formatTranscendentVoidPassive(tr);
+    const round = value => Math.round(value * 100) / 100;
+    const value2 = tr.id === 'innateTalent' ? 1 + (tr.value2 - 1) * scale : tr.value2 * scale;
+    const scaled = { ...tr, value: round(tr.value * scale), value2: round(value2) }, after = def.desc(scaled.value, scaled.value2).split(' ');
+    const original = new Set(def.desc(tr.value, tr.value2).split(' ').filter((word, index) => word !== after[index]));
+    return `${formatTranscendentVoidPassive(scaled)}${original.size ? ` (원본 ${[...original].join(', ')})` : ''}`;
 }
 
 function getVoidPassiveEffectLabel(nodeId) {
     let entry = getVoidPassiveCraft(nodeId);
     if (entry.transcendent) {
-        const linkPct = TRANSCENDENT_VOID_STAT_LINES[entry.transcendent.id] ? Math.round((getVoidLinkScale(nodeId) - 1) * 100) : 0;
-        return formatTranscendentVoidPassive(entry.transcendent) + (linkPct > 0 ? ` (효율 +${linkPct}%)` : '');
+        return getTranscendentVoidEffectLabel(nodeId, entry.transcendent);
     }
     if (!entry.stats.length) return '공허 옵션 없음';
     return passiveRouting.voidStats(entry, game, getVoidLinkScale(nodeId)).map(formatVoidPassiveStatLine).filter(Boolean).join(' / ');
@@ -8067,7 +8080,7 @@ function migrateEquipmentAffixValue(stat, mod, preserveValue = stat.affixBalance
 }
 
 function findStoredEquipmentAffix(item, stat) {
-    const candidates = MOD_DB.filter(mod => mod.slots.includes(item.slot) && (mod.statId || mod.id) === stat.id)
+    const candidates = MOD_DB.filter(mod => (mod.slots.includes(item.slot) || mod.retiredSlots?.includes(item.slot)) && (mod.statId || mod.id) === stat.id)
         .map(mod => makeDualDefenseAffixMod(item, mod));
     const extraIds = (stat.extraStats || []).map(extra => extra.id);
     return candidates.find(row => row.id === stat.sourceModId)
@@ -9093,7 +9106,7 @@ function getAvailableModPoolKey(item) {
  * shield aside), summon lines on a weapon or ring without a summon base stat. */
 function getBlockedAvailableModStats(item) {
     const defenseTypes = getItemBaseDefenseTypes(item), blocked = new Set();
-    if (!defenseTypes.has('evasion')) blocked.add('deflectChance');
+    if (!defenseTypes.has('evasion')) { blocked.add('deflectChance'); blocked.add('deflectDamageReduce'); }
     if (item.slot === '방패' && !isKaleidoscopeShieldItem(item) && !defenseTypes.has('energyShield')) blocked.add('spellGemLevel');
     if ((item.slot === '무기' || item.slot === '반지') && !hasSummonBaseStat(item)) AVAILABLE_MOD_SUMMON_STAT_IDS.forEach(id => blocked.add(id));
     return blocked;

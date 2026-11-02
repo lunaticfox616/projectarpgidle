@@ -85,7 +85,7 @@ const passiveRouting = (() => {
         const lines = (entry && entry.stats) || [];
         if (!lines.length || !keepsLines(entry)) return [];
         const scale = voidLineScale(entry, state) * linkScale;
-        return scale === 1 ? lines : lines.map(line => ({ ...line, val: line.val * scale }));
+        return scale === 1 ? lines : lines.map(line => ({ ...line, val: line.val * scale, baseVal: line.val }));   // baseVal: 굴린 원본, 창에 함께 적는다
     }
     return { transcendentNodeIds, transcendentValue, freeNodes, paleBonus, pointBudget, settlePoints, connected, reconcile, voidStats };
 })();

@@ -51,7 +51,7 @@ const files = [
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
-  'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/boss-moves.js',
+  'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/boss-moves.js', 'js/combat-room-invader.js',
   'js/cosmos-rules.js',
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',

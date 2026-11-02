@@ -1169,6 +1169,8 @@ function mergeDefaults(save) {
     merged.gemData = (merged.gemData && typeof merged.gemData === 'object') ? merged.gemData : {};
     merged.gemData['기본 공격'] = normalizeGemRecord(merged.gemData['기본 공격']);
     Object.keys(merged.gemData).forEach(name => merged.gemData[name] = normalizeGemRecord(merged.gemData[name]));
+    merged.runeSpares = Object.fromEntries(Object.entries(merged.runeSpares && typeof merged.runeSpares === 'object' ? merged.runeSpares : {})
+        .filter(([name, count]) => SKILL_DB[name]?.isGem && Number.isInteger(count) && count > 0));
     merged.supportGemData = (merged.supportGemData && typeof merged.supportGemData === 'object') ? merged.supportGemData : {};
     Object.keys(merged.supportGemData).forEach(name => merged.supportGemData[name] = normalizeGemRecord(merged.supportGemData[name]));
     if ((save.saveVersion || 0) < 9) {
@@ -1445,6 +1447,7 @@ function mergeDefaults(save) {
         : null;
     merged.settings.showDeathNotice = merged.settings.showDeathNotice !== false;
     merged.settings.uiSounds = merged.settings.uiSounds !== false;
+    merged.settings.runeTimingOff = merged.settings.runeTimingOff === true;
     merged.settings.soundVolume = clampFiniteNumber(merged.settings.soundVolume, 100, 0, 100);
     // 라이트 모드는 2026-09 UI 개편에서 제거됐다(다크 전용). 이전 저장의 설정값은 버린다.
     delete merged.settings.themeMode;

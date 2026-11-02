@@ -2255,6 +2255,7 @@ function prepareCombatTick(nowMs) {
     callOceanGuardianAdds(addLog);
     combatIncidents.tick(); // 잔잔한 사건: 달아나는 금빛 수액 슬라임, 세계수의 하품
     releaseExplorationWave(addLog); // 이어지는 무리: 정예 방과 막다른 방이 비면 문이 닫힌 채 새 무리가 선다
+    roomInvaders.tick(); // 보스 방의 불청객: 보스가 맞아 내려가면 난입 보스가 들이닥친다
     releaseClosedThirdRing(addLog); // 세 번째 손가락이 사라진 반지3의 반지는 가방으로
     tickWoodsmanCurse();
     if (typeof trackRecordBests === 'function') trackRecordBests();
@@ -4477,7 +4478,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     }
     // 9) 무한한 권능: 확보한 보조스킬룬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
     if (hasKeystone('iq9')) inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
-    const bonusResonancePower = getBonusResonancePower(runeResonancePower, reward, passive);
+    const bonusResonancePower = getBonusResonancePower(runeResonancePower, reward, passive, gearExplicit);
     let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + bonusResonancePower + inquisitorResonanceBonus));
     if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
     let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
@@ -5273,6 +5274,12 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         rawCrit: finalCrit,
         moveSpeed: finalMove, sightRange: Math.max(0, gearBase.sight + gearExplicit.sight), sightCap: Math.max(0, gearExplicit.sightCap), chestGrade: Math.max(0, gearExplicit.chestGrade),
         chillEffectReducePct: finalChillEffectReducePct,
+        critTakenDamageReducePct: sumStatAcrossBuckets('critTakenDamageReducePct'),
+        igniteTakenDurationReducePct: sumStatAcrossBuckets('igniteTakenDurationReducePct'),
+        shockTakenDurationReducePct: sumStatAcrossBuckets('shockTakenDurationReducePct'),
+        coldTakenDurationReducePct: sumStatAcrossBuckets('coldTakenDurationReducePct'),
+        poisonTakenDurationReducePct: sumStatAcrossBuckets('poisonTakenDurationReducePct'),
+        bleedTakenDurationReducePct: sumStatAcrossBuckets('bleedTakenDurationReducePct'),
         freezeDurationReducePct: finalFreezeDurationReducePct,
         shockEffectReducePct: finalShockEffectReducePct,
         igniteDamageReducePct: finalIgniteDamageReducePct,
@@ -5681,7 +5688,7 @@ function applyGemPresentationPattern(name, skill, stats) {
     return skill;
 }
 function getSkillGemCoreFields(gem) {
-    return { bossCoreLevel: gem.bossCoreLevel || 0, skyCoreLevel: gem.skyCoreLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened };
+    return { enhanceLevel: gem.enhanceLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened };
 }
 
 /** Targets of the active gem in range now. dormant: monsters that have not noticed the hero yet, which only the attack itself
@@ -6815,7 +6822,7 @@ function createEnemy(zone, marker, groupIndex) {
     if (isSky) name = `부유하는 ${name}`;
     const defence = getEnemyDefence(zone, { enemyEle, isBoss, isElite, loopInputs, wispDefense: look.wispDefense });
     const rolled = { hybridElement: rollEnemyHybridElement(zone, isBoss), patternMode: rollEnemyPatternMode(cosmosMods, isBoss) };
-    const spawn = { level, hp, name, isElite, isBoss, groupIndex, zoneSeed, variantSeed, enemyEle, abyssScale, look, mods, defence, rolled, isSky };
+    const spawn = { level, hp, name, isElite, isBoss, groupIndex, zoneSeed, variantSeed, enemyEle, abyssScale, look, mods, defence, rolled, isSky, plainBoss: !!marker.plainBoss };
     const enemy = buildEnemyRecord(zone, marker, spawn);
     finishEnemySpawn(enemy, zone, spawn);
     if (typeof primeEnemyHpDamageGhost === 'function') primeEnemyHpDamageGhost(enemy.id, 100);
@@ -7135,7 +7142,7 @@ function finishEnemySpawn(enemy, zone, spawn) {
     assignEnemyGridCombatProfile(enemy);
     tuneMeteorEnemy(enemy, zone);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, spawn.isElite, spawn.isBoss);
-    finishBossSpawn(enemy, zone);
+    if (!spawn.plainBoss) finishBossSpawn(enemy, zone);
     atlasBoard.markCarrier(game, enemy, zone);
     atlasEndgame.markOmenBearer(game, enemy, zone);
 }
@@ -10442,7 +10449,8 @@ function keepCurrencyDrop(enemy, currencyKey, amount) {
  * picked up at once (the loot log names the first); floor items log when collected. */
 function grantEquipmentPick(enemy, zone, minimumRarity, slot) {
     const drop = equipmentDropVariants.expand(generateEquipmentDrop(enemy, { minimumRarity, zone, slot }));
-    return drop.items.filter(item => keepEquipmentDrop(enemy, item) === 'kept');
+    const keep = enemy.roomInvader ? { guaranteedKeep: true } : undefined; // 뿌리 절단자의 보상은 줍기 필터에도 사라지지 않는다
+    return drop.items.filter(item => keepEquipmentDrop(enemy, item, keep) === 'kept');
 }
 
 /** A weapon root (data/bosses.js ROOT_MONSTER_RULES) drops a weapon of its own category on weaponDropChance of its kills, apart
@@ -10452,10 +10460,21 @@ function grantRootWeaponPick(enemy, zone) {
     return grantEquipmentPick(enemy, zone, null, '무기');
 }
 
-/** itemChance is the kill's expected equipment count (js/loot.js rollEquipmentDrop): above 1 a kill drops several items, each
- * with its own rarity; the drought guarantee lifts only the first. Returns the first kept item for the loot log. */
-const rollEquipmentLoot = function (enemy, zone, itemChance) {
-    const roll = rollEquipmentDrop(zone, enemy, itemChance);
+/** One kill's currency and gear rolls, not yet applied. itemChance is the kill's expected equipment count (js/loot.js rollEquipmentDrop).
+ * 뿌리 절단자 throws away a roll with neither, so the odds between them stay the table's (data/bosses.js lootRolls); after emptyRollRetries
+ * empty rolls the last one has an item. */
+function rollCurrencyAndGear(enemy, zone, itemChance) {
+    let drops = getCurrencyDrops(enemy), gear = rollEquipmentDrop(zone, enemy, itemChance);
+    for (let tries = 1; enemy.roomInvader && !drops.length && !gear.count; tries++) {
+        drops = getCurrencyDrops(enemy);
+        gear = rollEquipmentDrop(zone, enemy, tries >= ROOM_INVADER.emptyRollRetries ? Math.max(1, itemChance) : itemChance);
+    }
+    return { drops, gear };
+}
+
+/** roll (rollEquipmentDrop): above 1 expected item a kill drops several, each with its own rarity; the drought guarantee lifts only the
+ * first. Returns the first kept item for the loot log. */
+const rollEquipmentLoot = function (enemy, zone, roll) {
     const kept = [];
     for (let i = 0; i < roll.count; i++) kept.push(...grantEquipmentPick(enemy, zone, i === 0 ? roll.minimumRarity : null));
     game.equipmentDropProgress = roll.nextProgress;
@@ -10473,7 +10492,7 @@ function grantEnemyLoot(enemy) {
     return combatLootReceipts.capture(game,()=>{
         // 한 몸의 처치에서 기존 정예 머리 몫도 한 번만 지급한다. 떨어지는 자리는 본체의 발밑이다.
         for(const part of enemy.cerberusRewards||[])rollLootForEnemy({...part,gx:enemy.gx,gy:enemy.gy},addLog);
-        atlasRun.onKill(enemy);return rollLootForEnemy(enemy,addLog);
+        atlasRun.onKill(enemy);roomInvaders.grantExtraLoot(enemy);return rollLootForEnemy(enemy,addLog);
     });
 }
 
@@ -10494,9 +10513,7 @@ function rollEnemyGemReward(awakening) {
 }
 
 function rollEnemyAttackGem(awakening) {
-    const names=gemDropRewards.missingAttacks(ownedAndReservedRuneState());
-    if(!names.length)return null;
-    const name=pickSkillRuneReward(names),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
+    const name=pickSkillRuneReward(gemDropRewards.attackRunes()),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
     return {kind:'attack',name,awakened};
 }
 /** Count reserved runes when rolling the next drop, without granting their skills or tiers early. */
@@ -10524,9 +10541,10 @@ function rollLootForEnemy(enemy, say = addLog) {
         get resonanceCap() { return getEffectiveResonanceCap; } };
     rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui);
     rollEnemyRuneDrop(enemy, contentDropMul, gemAwakening, ui);
-    getCurrencyDrops(enemy).forEach(drop => keepEnemyCurrencyDrop(enemy, drop, ui));
     let { equipment: itemChance, talisman: talismanChance } = getEquipmentDropChances(zone, enemy);
-    const keptItem = rollEquipmentLoot(enemy, zone, itemChance);
+    const { drops, gear } = rollCurrencyAndGear(enemy, zone, itemChance);
+    drops.forEach(drop => keepEnemyCurrencyDrop(enemy, drop, ui));
+    const keptItem = rollEquipmentLoot(enemy, zone, gear);
     grantRealmBossUniqueLoot(enemy, zone);
     if (keptItem && game.settings.showLootLog) addLog(`🛡️ <span class='loot-${keptItem.rarity}'>[${keptItem.name}]</span> 획득!`, '', { item: keptItem });
     rollWildTalismanDrop(enemy, talismanChance);
@@ -11314,18 +11332,8 @@ function continueMapAfterClear(zone) {
 }
 
 function grantGuaranteedTrialSkillGem() {
-    game.skills = Array.isArray(game.skills) ? game.skills : [];
-    game.gemData = game.gemData || {};
-    game.noti = game.noti || {};
-    let available = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem && !hasSkillGemOwned(name));
-    if (available.length === 0) {
-        addLog('✨ 전직 시련 보상: 모든 공격 룬을 이미 보유했습니다.', 'loot-magic');
-        return true;
-    }
-    let skill = pickSkillRuneReward(available);
-    game.skills.push(skill);
-    game.gemData[skill] = { level: 1, exp: 0, awakened: false };
-    game.noti.skills = true;
+    let skill = pickSkillRuneReward(gemDropRewards.attackRunes());
+    gemDropRewards.grant(game, { kind: 'attack', name: skill, awakened: false }, 0);
     addLog(`✨ 전직 시련 보상: 공격 룬 <span class='loot-magic'>[${skill}]</span> 획득!`, 'loot-magic');
     return true;
 }
@@ -13554,9 +13562,22 @@ function getSelfExperimentAilmentDuration(duration, pStats) {
     return pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.selfExperiment ? duration * 2 : duration;
 }
 
+/** 적 치명타의 배율: 받는 치명타 피해 감소(갑옷 옵션, 90%까지)는 치명타로 늘어나는 몫을 줄인다. */
+function getEnemyCritTakenMul(enemy, pStats) {
+    const mul = enemy.critDamageMul || ENEMY_CRITICAL_DAMAGE_MULTIPLIER;
+    return 1 + Math.max(0, mul - 1) * (1 - clampNumber(pStats.critTakenDamageReducePct || 0, 0, 90) / 100);
+}
+
+/** 주인공에게 걸리는 상태이상의 지속 시간 감소(갑옷 옵션, 75%까지). 냉기는 냉각과 동결이 함께 줄어든다. */
+const PLAYER_AILMENT_DURATION_STATS = Object.freeze({ ignite: 'igniteTakenDurationReducePct', shock: 'shockTakenDurationReducePct', chill: 'coldTakenDurationReducePct',
+    freeze: 'coldTakenDurationReducePct', poison: 'poisonTakenDurationReducePct', bleed: 'bleedTakenDurationReducePct' });
+function getPlayerAilmentTakenDuration(type, duration, pStats) {
+    return duration * (1 - clampNumber(pStats[PLAYER_AILMENT_DURATION_STATS[type]] || 0, 0, 75) / 100);
+}
+
 function applyPlayerAilment(type, duration, power, pStats, sourceHitDamage, options) {
     if (!type || duration <= 0) return;
-    duration = getSelfExperimentAilmentDuration(duration, pStats);
+    duration = getPlayerAilmentTakenDuration(type, getSelfExperimentAilmentDuration(duration, pStats), pStats);
     if ((type === 'ignite' && pStats.immuneIgnite) || (type === 'chill' && pStats.immuneChill) || (type === 'freeze' && pStats.immuneFreeze) || (type === 'shock' && pStats.immuneShock) || (type === 'bleed' && pStats.immuneBleed)) return;
     if (Math.random() < getPlayerAilmentResistChance(type, pStats)) return;
     game.playerAilments = Array.isArray(game.playerAilments) ? game.playerAilments : [];
@@ -13781,7 +13802,7 @@ function isEnemyInGridAttackRange(enemy, target) {
 /** 사거리 밖에서도 그 자리에서 쓰는 공격인가: 보스의 다음 공격이 예고하는 특수기이고 대상이 BOSS_REACH.castRange칸 안일 때.
  * 근접 보스도 지면 강타는 떨어진 곳에 내리친다(달아나기만 하면 아무것도 맞지 않는 싸움이 되지 않게). */
 function canBossCastFromAfar(enemy, target) {
-    if (!enemy.isBoss || !hasGridCell(enemy) || !hasGridCell(target)) return false;
+    if (!enemy.isBoss || enemy.roomInvader || !hasGridCell(enemy) || !hasGridCell(target)) return false; // 뿌리 절단자는 붙어서 간다
     const next = getBossPatternPreview(enemy);
     return !!next && next.isSpecial === true && getGridUnitDistance(enemy, target) <= BOSS_REACH.castRange;
 }
@@ -14281,7 +14302,7 @@ function performMonsterAttacks(pStats) {
             let enemyCritDotBonusPct = 0;
             let enemyCritChance = Math.max(0, (enemy.critChance || 0) - Math.max(0, Math.min(80, pStats.critResist || 0)));
             if (enemyCritChance > 0 && Math.random() < (enemyCritChance / 100)) {
-                scaleBreakdown(enemy.critDamageMul || ENEMY_CRITICAL_DAMAGE_MULTIPLIER);
+                scaleBreakdown(getEnemyCritTakenMul(enemy, pStats));
                 dmg = Math.max(1, sumBreakdown());
                 enemyCritDotBonusPct = 50;
             }
@@ -15199,6 +15220,7 @@ function resetLoopBuild() {
     game.pendingStarterRuneChoice = null;
     game.starterGemTutorialPending = null; // 루프 1의 장착 안내 표시가 남아 다음 루프의 그 룬 봉인을 막았다
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
+    game.runeSpares = {};
     game.skyGemEnhancements = {};
     game.supports = [];
     game.equippedSupports = [];

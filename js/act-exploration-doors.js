@@ -27,8 +27,10 @@ const actExplorationDoors = (() => {
         const map = stageMap(run), room = map && Number.isInteger(roomIndex) ? map.rooms[roomIndex] : null;
         const here = cell => !room || actExplorationRooms.roomAt(map, cell) === room;
         const bursting = row => (row.phase === 'warning' || row.phase === 'active') && here(row);
-        return game.enemies.some(enemy => enemy.hp > 0 && here(enemy)) || (run.objects?.entries || []).some(bursting) || (!!room && waveDue(run, room));
+        return game.enemies.some(enemy => enemy.hp > 0 && here(enemy)) || (run.objects?.entries || []).some(bursting) || (!!room && (waveDue(run, room) || invaderDue(run, room)));
     }
+    /** 난입 보스가 들이닥친 방(js/combat-room-invader.js): 입장 연출 동안에도 문이 닫혀 있다. */
+    const invaderDue = (run, room) => run.packs.some(pack => pack.invader && pack.roomId === room.id && pack.aliveIds.length > 0);
     /** 그 방에 이어지는 무리(data ACT_EXPLORATION_WAVES)가 남았고 지금 무리를 모두 쓰러뜨렸는가: 그동안도 싸우는 중이라 문이 닫혀 있고,
      * js/combat.js releaseExplorationWave가 잠시 뒤 새 무리를 세운다. */
     function waveDue(run, room) {
@@ -90,9 +92,14 @@ const actExplorationDoors = (() => {
         Object.assign(hero, { gx: spot.gx, gy: spot.gy, gridMoveTimer: 0 });
         actExplorationState.lockOn(run, null); // 락온은 그 방에서만: 방을 옮기면 풀린다
         actExplorationState.arrive(run, getCombatTime());
-        if(run.status==='active')springAmbush(run, map, spot);
         bringSummons(spot);
+        if(run.status==='active')enterRoomEvents(run, map, spot);
         return true;
+    }
+    /** 방에 들어선 순간의 일: 습격 무리가 다가오고, 처음 들어서는 방이면 난입을 굴린다(이 때는 방문 기록에 아직 없다). */
+    function enterRoomEvents(run, map, spot) {
+        springAmbush(run, map, spot);
+        roomInvaders.rollRoom(run, map, actExplorationRooms.roomAt(map, spot));
     }
     /** 주인공을 보스 방 문을 막 지난 자리에 세운다: 보스만 서는 싸움을 빈 입구 방을 걷지 않고 시작할 때(심해 가디언 판, js/combat.js
      * beginOceanRunRules). 문을 지날 때(cross)처럼 문 안쪽에서 한 칸 더 들어간 칸(막혔으면 문 안쪽)에 서고, 소환수가 따라오고, 방에

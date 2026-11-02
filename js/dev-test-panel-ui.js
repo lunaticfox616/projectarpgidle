@@ -23,6 +23,9 @@ const devTestPanel = (() => {
         children.forEach(child => node.append(child));
         return node;
     }
+    function testInvader(kind, label) {
+        note(roomInvaders.force(kind) ? label : '지금은 부를 수 없습니다(방 단위 지도의 보통 방에서)');
+    }
     function button(label, onClick, extra = {}) {
         return el('button', { type: 'button', textContent: label, onclick: onClick, ...extra });
     }
@@ -303,6 +306,8 @@ const devTestPanel = (() => {
             row([el('label', { textContent: '뒤쪽' }), button('배경 그림', () => setSetting('stageBackdrop', 'on', '방 뒤쪽: 배경 그림')),
                 button('벽돌 벽', () => setSetting('stageBackdrop', 'off', '방 뒤쪽: 벽돌 벽'))]),
             // 무대의 스킬 이펙트(js/canvas-stage-skill-vfx.js): 인계 받은 새 클립과 시전 마법진. 끄면 예전 이펙트가 나온다.
+            row([el('label', { textContent: '난입' }), button('방 난입', () => testInvader('room', '이 방에 다른 보스')), button('뿌리 절단자', () => testInvader('roomGrinder', '이 방에 뿌리 절단자')), button('보스 둘', () => testInvader('twin', '다음 보스 방: 보스 둘')),
+                button('추가 보스', () => testInvader('extra', '다음 보스 방: 싸우는 도중 다른 보스')), button('추가 절단자', () => testInvader('grinder', '다음 보스 방: 싸우는 도중 뿌리 절단자'))]),
             row([el('label', { textContent: '이펙트' }), button('새 그림', () => setSetting('stageSkillFx', 'on', '무대 스킬 이펙트: 새 그림')),
                 button('예전 그림', () => setSetting('stageSkillFx', 'off', '무대 스킬 이펙트: 예전 그림'))]),
             ...monsterRows()

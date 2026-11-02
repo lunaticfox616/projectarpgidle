@@ -44,7 +44,7 @@ function listedRows(mod, getAffixTierRange) {
     const statId = mod.statId || mod.id;
     return mod.tierValues.map((unused, index) => {
         const range = getAffixTierRange(mod, statId, index + 1);
-        return { modId: mod.id, statId, tier: index + 1, min: range.min, max: range.max, slots: mod.slots };
+        return { modId: mod.id, statId, tier: index + 1, min: range.min, max: range.max, slots: [...mod.slots, ...(mod.retiredSlots || [])] };
     });
 }
 

@@ -168,7 +168,9 @@ const COMBAT_GRID_CONFIG = {
         wave: { kind: 'blast', range: 8, radius: 1, shape: 'cross' },
         split: { kind: 'fan', range: 8, rays: 3 },
         beam: { kind: 'line', range: 8 },
-        charge: { kind: 'line', range: 8 }
+        charge: { kind: 'line', range: 8 },
+        // 뿌리 절단자의 회전 톱날: 주인공 칸 둘레 3칸 네모를 여러 번 갈아 낸다(js/boss-moves.js grind)
+        grind: { kind: 'blast', range: 8, radius: 1, shape: 'square' }
     }
 };
 

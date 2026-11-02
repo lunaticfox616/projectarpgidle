@@ -72,10 +72,8 @@
         return g.skills.some(name => {
             if (!SKILL_DB[name] || !SKILL_DB[name].isGem) return false;
             let gem = (g.gemData && g.gemData[name]) || {};
-            let bossLevel = Math.max(0, Math.floor(Number(gem.bossCoreLevel) || 0));
-            let skyLevel = Math.max(0, Math.floor(Number(gem.skyCoreLevel) || 0));
-            return (bossLevel < 5 && clampCount(currencies.bossCore) >= bossLevel + 1)
-                || (skyLevel < 5 && clampCount(currencies.skyEssence) >= skyLevel + 1);
+            let level = Math.max(0, Math.floor(Number(gem.enhanceLevel) || 0));
+            return level < GEM_CORE_FORGE.maxLevel && clampCount(currencies[GEM_CORE_FORGE.materialKey]) >= GEM_CORE_FORGE.costs[level];
         });
     }
 

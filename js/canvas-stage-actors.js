@@ -47,6 +47,8 @@ const stageActors = (() => {
     /** 그 룬을 그 직업이 그 자세로 쓸 때의 동작(스킬룬 전달본의 동작 표, data/stage-skill-vfx.js motions): 'slam', 'flurry', 'cast2',
      * 'throw' 같은 동작 이름. 표에 없으면 null(그 자세의 기본 휘두름을 쓴다). */
     function motionFor(skillName, classId, stance) {
+        const own = STAGE_VIEW.runeStanceMotions[skillName]?.[stance];
+        if (own) return own;
         const gem = typeof stageSkillKit === 'object' && typeof STAGE_SKILL_VFX === 'object' ? stageSkillKit.gemOf(skillName) : null;
         const row = gem && STAGE_SKILL_VFX.motions[gem.id];
         return (row && row[classId] && row[classId][stance]) || null;
@@ -272,7 +274,7 @@ const stageActors = (() => {
     /** 시전 오라(js/canvas-stage-skill-sigil.js): 주문을 쓰는 예비 동작 동안 몸의 테두리에 속성 색이 돈다. 바깥 두 도트는 옅게, 안쪽 한 도트는 또렷하게.
      * 사역룬 가호가 걸리는 순간에도 같은 테두리가 돈다(js/canvas-stage-blessing.js). */
     function drawAura(ctx, img, pose, dest) {
-        const colour = (typeof stageSkillSigil === 'object' ? stageSkillSigil.aura() : null) || (typeof stageBlessing === 'object' ? stageBlessing.aura() : null);
+        const colour = (typeof stageSkillSigil === 'object' ? stageSkillSigil.aura() : null) || (typeof stageBlessing === 'object' ? stageBlessing.aura() : null) || (typeof stageSkillPolish === 'object' ? stageSkillPolish.forgeAura() : null);
         if (!colour) return;
         const rim = silhouette(img, pose.clip, pose.frame, colour), alpha = ctx.globalAlpha;
         ctx.globalAlpha = alpha * 0.45;

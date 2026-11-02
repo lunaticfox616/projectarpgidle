@@ -179,10 +179,18 @@ const actExplorationState = (() => {
         entrances.delete(run);
         return true;
     }
+    /** 난입 보스가 들이닥치는 동안(js/combat-room-invader.js) 그 방의 다른 무리도 기다린다. */
+    function heldByEntrance(run,pack) {
+        const open=entrances.get(run);
+        return !!open && !!open.roomId && open.key!==pack.key && open.roomId===pack.roomId;
+    }
+    /** 입장을 지금 연다: 처음 들어선 방의 난입과 싸우는 도중의 불청객처럼 주인공이 관문을 밟지 않는 입장. { at, holdMs, roomId } */
+    function openEntrance(run,pack,o) {entrances.set(run,{key:pack.key,...o});}
     /** A visible boss keeps waiting through its entrance, and in background hunts set to stop before bosses. */
     function holdBoss(state,run,o) {
+        if(heldByEntrance(run,o.pack))return true;
         // 끝 방의 조용한 무리(quiet: 보스 없이 끝나는 한 줄 지도의 마지막 무리, js/combat.js createRoomPackOf)는 다른 방의 무리처럼 바로 덤빈다
-        if(o.pack.stage===null || o.pack.quiet)return false;
+        if((o.pack.stage===null && !o.pack.invader) || o.pack.quiet)return false;
         // Stop before transferring a visible boss: a strong build could otherwise kill it
         // in this same tick, before the replay's next safety-policy check can see it.
         return !bossAwake(state,run,o);
@@ -207,14 +215,14 @@ const actExplorationState = (() => {
     /** Ordinary monsters that have not noticed the hero yet, within reach tiles of cell (Chebyshev). Bosses wait for their entrance. */
     function dormantNear(state,cell,reach) {
         const run=current(state);if(!run || run.status!=='active')return [];
-        return run.packs.filter(pack=>pack.stage===null).flatMap(pack=>pack.waiting)
+        return run.packs.filter(pack=>pack.stage===null && !pack.invader).flatMap(pack=>pack.waiting)
             .filter(enemy=>enemy.hp>0 && Math.max(Math.abs(enemy.gx-cell.gx),Math.abs(enemy.gy-cell.gy))<=reach);
     }
     /** An attack reached these monsters: the ones still waiting join the fight, like noticed ones. Others are left alone. */
     function wake(state,enemies) {
         const run=current(state);if(!run || !enemies.length)return [];
         const ids=new Set(enemies.map(enemy=>enemy.id)),added=[];
-        for(const pack of run.packs.filter(row=>row.stage===null)) {
+        for(const pack of run.packs.filter(row=>row.stage===null && !row.invader)) {
             const struck=pack.waiting.filter(enemy=>ids.has(enemy.id));
             if(!struck.length)continue;
             pack.waiting=pack.waiting.filter(enemy=>!ids.has(enemy.id));
@@ -391,6 +399,12 @@ const actExplorationState = (() => {
         if(pack.anchor!==undefined)validatePatrol(map,pack,room);
         if(pack.extra!==undefined)validateExtra(map,pack,room);
         if(pack.wave!==undefined)validateWave(map,pack,room);
+        if(pack.invader!==undefined)validateInvader(map,pack,room);
+    }
+    /** 난입 보스의 무리(js/combat-room-invader.js): 방 단위 무대의 보통 방에, 열쇠는 "방:invader", 정예 없이. */
+    function validateInvader(map,pack,room) {
+        const known=map.stage && pack.invader===true && pack.key===`${room.id}:invader`;
+        if(!known || pack.stage!==null || pack.eliteIds.length || pack.anchor!==undefined || pack.extra!==undefined || pack.wave!==undefined)throw Error('탐험 저장의 난입 무리가 잘못되었습니다.');
     }
     /** 이어지는 무리의 가장 많은 번수(data ACT_EXPLORATION_WAVES counts). */
     const mostWaves=()=>Math.max(...ACT_EXPLORATION_WAVES.counts.map(row=>row[0]));
@@ -495,7 +509,7 @@ const actExplorationState = (() => {
     }
     function validateRoomPacks(run) {
         const rooms=packRooms(actExplorationMap.forRun(run));
-        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId && !pack.extra && !pack.wave).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
+        if(rooms.some(room=>run.packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.objectId && !pack.extra && !pack.wave && !pack.invader).length!==1))throw Error('탐험 저장에 탐색 구역이 누락되었습니다.');
         if(run.packs.filter(pack=>pack.anchor).length>1)throw Error('탐험 저장의 길목 무리가 중복되었습니다.');
     }
     function bossStageCount(run) {return run.source?run.bossStages:STORY_ACTS[run.zoneId].maxKills;}
@@ -603,6 +617,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,lockOn,lockedEnemy,destination,validate,restore,joinCerberus,dropRetired,upgradeRotation};
+    return {openEntrance,settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,lockOn,lockedEnemy,destination,validate,restore,joinCerberus,dropRetired,upgradeRotation};
 })();
 safeExposeGlobals({actExplorationState});

@@ -66,6 +66,8 @@ const battleGroundLoot = (() => {
     function clear() {
         entries.forEach(remove);
         floorPiles.clear();
+        flyers.clear();
+        dropQueue.length = 0;
         motes.forEach(mote => { mote.getAnimations().forEach(animation => animation.cancel()); mote.remove(); });
         motes.clear();
         if (foreground) { foreground.width = 1; foreground.height = 1; foreground.hidden = true; }
@@ -122,10 +124,10 @@ const battleGroundLoot = (() => {
     }
 
     function place(marker, point) {
-        const labels = marker.querySelector('.battle-loot-labels');
-        if (!labels) return; // a marker whose labels failed to build is rebuilt on the next frame (syncFloor)
         const x = Math.round(point.x), y = Math.round(point.y);
         setStyle(marker, 'left', x + 'px'); setStyle(marker, 'top', y + 'px');
+        const labels = marker.querySelector('.battle-loot-labels');
+        if (!labels) return; // a falling picture has no names; a marker whose labels failed to build is rebuilt on the next frame (syncFloor)
         if (marker.hidden) return; // Measure when shown again, not as a zero-width hidden element.
         if (!marker.dataset.labelRow) measure(marker, labels);
         const view = canvasBox(canvas), half = Number(marker.dataset.labelHalf), shift = edgeShift(x, half, view.width);
@@ -220,11 +222,12 @@ const battleGroundLoot = (() => {
         if (tone) label.style.setProperty('--loot-color', tone.style.getPropertyValue('--orb-tone'));
     }
 
-    /** One name; --row staggers the landing pop (nearest the picture first), majors get one shine. */
+    /** One name; --row staggers the landing pop (nearest the picture first), majors get one shine. A floor row that just landed pops at once, the names already there stay still. */
     function nameRow(receipt, index) {
         const label = document.createElement('span'); label.className = 'battle-loot-name';
         if (isMajor(receipt)) label.classList.add('is-major');
-        label.style.setProperty('--row', String(index));
+        if (receipt.settled) label.classList.add('is-settled');
+        label.style.setProperty('--row', String(receipt.settled === false ? 0 : index));
         label.dataset.rarity = receipt.item?.rarity || 'normal';
         label.dataset.moment = momentOf(receipt) || '';
         label.style.setProperty('--loot-color', receipt.color || getRarityColor(label.dataset.rarity));
@@ -315,7 +318,7 @@ const battleGroundLoot = (() => {
         return true;
     }
 
-    /** One pile: receipts sorted by importance. A kill drops one pile on one spot. */
+    /** One pile: receipts sorted by importance. */
     function spawn(receipts, cell, projection) {
         const important = receipts.some(isMajor);
         if (!room(important)) return;
@@ -331,14 +334,19 @@ const battleGroundLoot = (() => {
     }
 
     function launch(entry, flight, point, tier = entry.marker.dataset.tier) {
-        const dx = point.x - parseFloat(entry.marker.style.left), dy = point.y - parseFloat(entry.marker.style.top);
+        later(entry, () => land(entry, tier), fly(flight, entry.marker, point));
+    }
+
+    /** The picture's hop onto the ground. @returns {number} its length in ms */
+    function fly(flight, marker, point) {
+        const dx = point.x - parseFloat(marker.style.left), dy = point.y - parseFloat(marker.style.top);
         const frames = [0, .125, .25, .375, .5, .625, .75, .875, 1].map(t => ({ offset: t,
             transform: `translate(${dx * (1 - t)}px,${dy * (1 - t) - 4 * t * (1 - t) * Math.min(65, 35 + Math.hypot(dx, dy) * .2)}px)` }));
         const duration = reduced() ? 1 : GROUND_LOOT_DROP.flightMs + Math.abs(dx) % GROUND_LOOT_DROP.flightSpreadMs;
         flight.animate(frames, { duration, fill: 'backwards' });
         const art = flight.firstElementChild, rest = getComputedStyle(art).transform;
         art.animate([{ transform: rest + ' rotate(-45deg) scale(.75)' }, { transform: rest }], { duration, fill: 'backwards' });
-        later(entry, () => land(entry, tier), duration);
+        return duration;
     }
 
     function land(entry, tier) {
@@ -404,19 +412,20 @@ const battleGroundLoot = (() => {
         return { x: point.x, y: point.y + projection.actorGroundOffsetY };
     }
 
-    // 한 처치의 드랍은 한 자리에 한 더미로 떨어진다: 대표 그림 하나와 이름표 묶음(2026-10-03 사용자 요청).
-    // 화면 상한은 더미 수로 센다. 받은 순서대로 중요한 드랍이 든 더미가 먼저다.
+    // 탐험 바닥이 아닌 곳의 드랍도 차례로 떨어진다(2026-11-02 사용자, 바닥의 차례는 js/exploration-ground-loot.js dropTurn): 중요한 드랍이 먼저다. 화면 상한은 더미 수로 센다.
+    const dropQueue = [];
+    let dropQueueEnd = 0;
     function consume(now, projection) {
-        const piles = new Map();
         const pending = pendingDrops(now).sort((a, b) => importance(b.loot) - importance(a.loot));
         for (const fx of pending) {
             if (!hasGridCell(fx.loot.sourceCell) || (fx.loot.currency && !(fx.loot.count > 0))) continue;
-            const key = `${fx.loot.sourceCell.gx},${fx.loot.sourceCell.gy}`;
-            if (!piles.has(key)) piles.set(key, []);
-            piles.get(key).push(fx.loot);
+            const turn = Math.max(now, Math.min(dropQueueEnd, now + GROUND_LOOT_DROP.queueCapMs));
+            dropQueueEnd = turn + GROUND_LOOT_DROP.gapMs;
+            dropQueue.push({ receipt: fx.loot, turn });
         }
-        for (const receipts of [...piles.values()].slice(0, displayLimit())) {
-            spawn(receipts, receipts[0].sourceCell, projection);
+        while (dropQueue.length && dropQueue[0].turn <= now) {
+            const { receipt } = dropQueue.shift();
+            spawn([receipt], receipt.sourceCell, projection);
         }
     }
 
@@ -438,7 +447,8 @@ const battleGroundLoot = (() => {
         gem: row => ({ gem: row.gem, itemKind: 'gem', color: getRarityColor('rare') }),
         rune: row => ({ gem: row.gem.name, itemKind: 'gem', color: getRarityColor('rare') })
     };
-    const floorReceipts = pile => pile.rows.map(row => floorReceipt[actExplorationState.groundLoot.kindOf(row)](row))
+    /** The pile's receipts by importance; settled: the row's name already shows. */
+    const floorReceipts = (pile, fresh) => pile.rows.map(row => ({ ...floorReceipt[actExplorationState.groundLoot.kindOf(row)](row), row, settled: !fresh.includes(row) }))
         .sort((a, b) => importance(b) - importance(a));
     // A stable key per floor row: an item's id, the currency and cell (one row per currency and cell), or for a rolled talisman
     // (no id until stored) a per-row number kept for the row's life.
@@ -474,38 +484,71 @@ const battleGroundLoot = (() => {
         event.preventDefault(); event.stopPropagation();
         actExplorationProgress.collectPile(entry.cell);
     }
-    function floorMarker(entry, pile, projection, fresh) {
-        const marker = entry.marker, receipts = floorReceipts(pile);
+    const restAngle = receipt => (receipt.item?.slot === '무기' ? 54 : -16) + 'deg';
+    /** The picture and beam stay while the lead stays: a drop joining the pile only adds its name (a redraw per drop restarted the beam). */
+    function drawPile(entry, receipts) {
+        const marker = entry.marker, lead = floorRowKey(receipts[0].row);
+        if (entry.lead === lead) {
+            marker.querySelectorAll(':scope > .battle-loot-labels').forEach(arm => arm.remove());
+            marker.append(...labelArms(receipts));
+            return;
+        }
+        entry.lead = lead;
         marker.replaceChildren();
+        marker.style.setProperty('--rest-angle', restAngle(receipts[0]));
+        appearance(marker, receipts); beam(marker, receipts[0]);
+    }
+    function floorMarker(entry, pile, projection, fresh) {
+        const marker = entry.marker, receipts = floorReceipts(pile, fresh);
         delete marker.dataset.labelRow; // Changed contents need their new width, even on the same floor cell.
-        const flight = appearance(marker, receipts); beam(marker, receipts[0]);
+        drawPile(entry, receipts);
         const names = receipts.map(receipt => (receipt.currency ? `${getCurrencyInfo(receipt.currency).name} ×${receipt.count}` : leadName(receipt)));
         marker.setAttribute('aria-label', `줍기: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` 외 ${names.length - 3}개` : ''}`);
-        const point = originFor(entry.cell, projection);
-        place(marker, point); yieldCrowdedArms(marker);
-        // The permanent marker shows the best item in the pile, but only newly dropped rows choose the landing sound/pop.
-        // Capture their tier now: a different drop can join this cell before the flight finishes.
+        place(marker, originFor(entry.cell, projection)); yieldCrowdedArms(marker);
+        // The permanent marker shows the best item in the pile, but only newly landed rows choose the landing sound/pop.
         if (fresh.length) {
-            const lead = floorReceipts({ rows: fresh })[0];
-            launch(entry, flight, point, pileTier(lead, lead.item?.rarity || 'normal'));
+            const lead = floorReceipts({ rows: fresh }, fresh)[0];
+            land(entry, pileTier(lead, lead.item?.rarity || 'normal'));
         }
         else marker.classList.add('landed');
+    }
+    // 차례가 온 줄의 그림이 그 칸으로 떨어진다(2026-11-02 사용자: "약간의 텀을 두고 쌓이도록"). 땅에 닿으면 더미의 이름표가 되고 그림은 사라진다.
+    const flyers = new Map(); // row key → entry
+    function launchFlyer(key, row, projection) {
+        const marker = document.createElement('div'); marker.className = 'battle-loot-drop';
+        marker.setAttribute('aria-hidden', 'true');
+        const receipt = floorReceipts({ rows: [row] }, [row])[0];
+        marker.style.setProperty('--rest-angle', restAngle(receipt));
+        const flight = appearance(marker, [receipt]);
+        marker.querySelectorAll('.battle-loot-labels').forEach(arm => arm.remove());
+        marker.dataset.labelRow = '0'; // no names to measure (needsPlacement)
+        ground.append(marker);
+        const point = originFor(row, projection);
+        place(marker, point);
+        const entry = { marker, cell: { gx: row.gx, gy: row.gy }, timers: new Set(), floor: true };
+        entries.set(marker, entry); flyers.set(key, entry);
+        fly(flight, marker, point);
+    }
+    function syncFlyers(run, now, projection) {
+        const airborne = new Map((run ? actExplorationState.groundLoot.inAir(run, now) : []).map(row => [floorRowKey(row), row]));
+        airborne.forEach((row, key) => { if (!flyers.has(key)) launchFlyer(key, row, projection); });
+        flyers.forEach((entry, key) => { if (!airborne.has(key)) { flyers.delete(key); remove(entry); } });
     }
     function addFloorPile(key, pile) {
         const marker = document.createElement('div'); marker.className = 'battle-loot-drop is-floor';
         marker.setAttribute('role', 'button'); marker.tabIndex = 0;
         marker.dataset.gx = String(pile.gx); marker.dataset.gy = String(pile.gy);
-        marker.style.setProperty('--rest-angle', (pile.rows[0].item?.slot === '무기' ? 54 : -16) + 'deg');
         const entry = { marker, cell: { gx: pile.gx, gy: pile.gy }, timers: new Set(), floor: true, ids: '' };
         marker.addEventListener('click', event => pickFloor(event, entry));
         marker.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') pickFloor(event, entry); });
         ground.append(marker); entries.set(marker, entry); floorPiles.set(key, entry);
         return entry;
     }
-    /** Mirrors the run's floor: new piles land, changed piles redraw their names, picked-up piles fly to the hero. */
+    /** Mirrors the run's floor: falling rows hop onto their cell, landed rows join their pile, picked-up piles fly to the hero. */
     function syncFloor(projection) {
-        const run = actExplorationState.current(game);
-        const piles = run ? actExplorationState.groundLoot.piles(run) : [];
+        const run = actExplorationState.current(game), now = getCombatTime();
+        syncFlyers(run, now, projection);
+        const piles = run ? actExplorationState.groundLoot.piles(run, now) : [];
         const live = new Set(), liveRows = new Set();
         for (const pile of piles) {
             pile.rows.forEach(row => liveRows.add(floorRowKey(row)));

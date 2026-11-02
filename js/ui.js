@@ -671,8 +671,8 @@ function formatBackgroundRealLimits(result) {
     ];
 }
 
-/** 방치 결과 창(2026-10-09 사용자 "간단하면서도 필요한 정보만 딱 딱 강조해서 색상 배분한 깔끔한 ux"): 시간 한 줄, 큰 숫자 넷,
- * 장비, 재화, 성장, 알림 순. 색은 뜻마다 하나다: 경험치와 숙련은 초록, 재화 수는 금빛, 장비는 희귀도 색, 잃은 것은 빨강,
+/** 정산 결과 창(2026-10-09 사용자 "간단하면서도 필요한 정보만 딱 딱 강조해서 색상 배분한 깔끔한 ux"): 시간 한 줄, 큰 숫자 넷,
+ * 장비, 재화, 성장, 알림 순. 색은 뜻마다 하나다: 경험치와 숙련은 초록, 재화는 제 색(getCurrencyTone), 장비는 희귀도 색, 잃은 것은 빨강,
  * 한도와 멈춤은 주황, 계산 설명은 흐린 글. */
 function showBackgroundCombatResult(result) {
     if (typeof document === 'undefined' || !document.body) return;
@@ -696,7 +696,7 @@ function showBackgroundCombatResult(result) {
 function renderBackgroundResultHeader(result, limits) {
     const away = formatBackgroundResultTime(result.actualElapsedMs);
     const fought = formatBackgroundResultTime(result.effectiveProgressMs);
-    return `<header><h2 id="background-result-title">방치 결과</h2><p class="background-result-times"><span>자리 비움 <strong>${away}</strong></span>`
+    return `<header><h2 id="background-result-title">정산 결과</h2><p class="background-result-times"><span>자리 비움 <strong>${away}</strong></span>`
         + `<span class="background-result-arrow" aria-hidden="true">→</span><span class="fought">전투 진행 <strong>${fought}</strong></span></p>`
         + `<p class="background-result-formula">효율 ${Math.round(limits.efficiencyRate * 100)}%, 한도 ${limits.recognitionHours}시간.</p></header>`;
 }
@@ -750,20 +750,25 @@ function renderBackgroundResultAtlas(atlas) {
     return `<section class="background-result-section"><h3>아틀라스</h3><div class="background-result-chips">${chips.join('')}</div></section>`;
 }
 
-/** 재화 칩: 바닥에서 빛기둥을 세우는 재화(큰 발견 이상, js/loot.js lootMoments)는 금테로 맨 앞, 나머지는 지갑 순서. */
+/** 재화: 재화마다 제 색의 칸(2026-11-02 사용자). 바닥에서 빛기둥을 세우는 재화(js/loot.js lootMoments)가 높은 등급부터 앞에 오고 테가 빛난다. 나머지는 지갑 순서. */
 function renderBackgroundResultCurrencies(currencies) {
     const rows = (Array.isArray(currencies) ? currencies : []).filter(entry => entry && entry.gain > 0);
     if (!rows.length) return '';
-    const major = entry => lootMoments.rank(lootMoments.ofCurrency(entry.key)) >= 2;
-    const chips = rows.filter(major).concat(rows.filter(entry => !major(entry))).map(entry => `<span class="background-result-chip currency${major(entry) ? ' major' : ''}">`
-        + `${backgroundResultCurrencyIcon(entry.key)}${escapeHTML(entry.name)} <b>+${formatNumberKR(entry.gain)}</b></span>`);
-    return `<section class="background-result-section"><h3>재화</h3><div class="background-result-chips">${chips.join('')}</div></section>`;
+    const rank = entry => lootMoments.rank(lootMoments.ofCurrency(entry.key));
+    const coins = rows.slice().sort((a, b) => rank(b) - rank(a)).map(renderBackgroundResultCoin);
+    return `<section class="background-result-section"><h3>재화</h3><div class="background-result-wallet">${coins.join('')}</div></section>`;
 }
 
-/** 재화 원화. 지갑 창의 getCurrencyIconHtml은 performUpdateStaticUI 안에 있어 여기서 못 부른다. */
+function renderBackgroundResultCoin(entry) {
+    const moment = lootMoments.ofCurrency(entry.key);
+    return `<span class="background-result-coin${moment ? ` is-${moment}` : ''}" style="--coin-tone:${getCurrencyTone(entry.key)}">${backgroundResultCurrencyIcon(entry.key)}`
+        + `<span class="background-result-coin-name">${escapeHTML(entry.name)}</span><b>+${formatNumberKR(entry.gain)}</b></span>`;
+}
+
+/** 재화 원화, 그림이 없는 재화는 그 색의 작은 마름모. 지갑 창의 getCurrencyIconHtml은 performUpdateStaticUI 안에 있어 여기서 못 부른다. */
 function backgroundResultCurrencyIcon(key) {
     const icon = ORB_DB[key] && ORB_DB[key].icon;
-    return icon ? `<img class="background-result-icon" src="${icon}" alt="" aria-hidden="true">` : '';
+    return icon ? `<img class="background-result-icon" src="${icon}" alt="" aria-hidden="true">` : '<i class="background-result-coin-mark" aria-hidden="true"></i>';
 }
 
 /** 성장(초록): 오른 무기 숙련. */
@@ -3963,9 +3968,15 @@ function getSkillGemArtPath(name) {
         : '';
 }
 
+/** 강화된 룬 그림의 표시(단계 글자와 빛, css/gem-core-forge.css). 상점과 강화 창은 options.plain으로 뺀다. */
+function getRuneForgeAttrs(name, options) {
+    const level = options?.plain ? 0 : Math.floor(Number(game.gemData?.[name]?.enhanceLevel) || 0);
+    return level > 0 ? ` data-forge-plus="+${level}" data-forge-tier="${gemCoreForge.tierOf(level)}"` : '';
+}
 function renderSkillGemArt(name, className, options) {
+    const forgeAttrs = getRuneForgeAttrs(name, options);
     const summonArt = supportGemSigil.summonHtml(name, className);
-    if (summonArt) return summonArt;
+    if (summonArt) return summonArt.replace('<span ', `<span${forgeAttrs} `);
     let def = SKILL_DB[name] || {};
     let meta = getGemCardMeta(def);
     let artPath = getSkillGemArtPath(name);
@@ -3975,7 +3986,7 @@ function renderSkillGemArt(name, className, options) {
     let image = artPath
         ? `<img src="${escapeHTML(artPath)}" alt="" loading="${loading}" decoding="async" onerror="this.hidden=true; this.nextElementSibling.hidden=false">`
         : '';
-    return `<span class="${className || 'gem-art'}" aria-label="${escapeHTML(name)} 룬 이미지">${image}<span class="gem-art-fallback" aria-hidden="true"${fallbackHidden}>${meta.icon}</span></span>`;
+    return `<span${forgeAttrs} class="${className || 'gem-art'}" aria-label="${escapeHTML(name)} 룬 이미지">${image}<span class="gem-art-fallback" aria-hidden="true"${fallbackHidden}>${meta.icon}</span></span>`;
 }
 
 function renderGemTagChips(def, maxTags) {
@@ -4015,6 +4026,11 @@ function renderGemTileLevel(gemInfo) {
 
 /** 2026-10-04 룬 보드: the library lists compact tiles (art · name · Lv · one line). Range numbers, tags, seal and summon
  * count live in the detail the tile opens. */
+/** 같은 룬을 여럿 가지면 칸에 적는 개수. */
+function renderGemTileCopies(name) {
+    const spares = gemDropRewards.spareCount(game, name);
+    return spares ? `<span class="gem-tile-copies">×${spares + 1}</span>` : '';
+}
 function renderAttackGemCard(name, highlightedName, stats) {
     let def = SKILL_DB[name] || {};
     let gemInfo = getUiGemPresentation(name, false, stats);
@@ -4028,7 +4044,7 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? `소환 ×${getSummonSkillCount(name)}` : '장착'}</span>` : '';
     let guide = tutorialTarget ? '<span class="starter-gem-equip-guide">첫 스킬룬, 눌러서 장착</span>' : '';
     return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${formatValue('', gemInfo.totalLevel)}${active ? ', 장착 중' : ''}${equipmentReady ? '' : ', ' + escapeHTML(getSkillRuneWeaponNote(name))}">
-        ${guide}${renderGemTileLevel(gemInfo)}${worn}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
+        ${guide}${renderGemTileLevel(gemInfo)}${worn}${renderGemTileCopies(name)}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
         <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
 }
@@ -4098,7 +4114,7 @@ function renderGemEnhanceTargetCard(name, selected, stats) {
     let info = getUiGemPresentation(name, false, stats);
     let meta = getGemCardMeta(def);
     let enhanceCount = getSkyEnhancementForSkill(name).length;
-    return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${renderSkillGemArt(name, 'gem-target-icon')}<span><strong>${escapeHTML(name)}</strong><small>Lv.${formatValue('', info.totalLevel)}, 퀄리티 ${rec.quality || 0}%, 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}</small></span>${selected ? '<b>선택</b>' : ''}</button>`;
+    return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${renderSkillGemArt(name, 'gem-target-icon')}<span><strong>${escapeHTML(name)}</strong><small>Lv.${formatValue('', info.totalLevel)}, 퀄리티 ${rec.quality || 0}%, 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}${gemDropRewards.spareCount(game, name) ? `, 여분 ${gemDropRewards.spareCount(game, name)}개` : ''}</small></span>${selected ? '<b>선택</b>' : ''}</button>`;
 }
 
 function renderGemResourceStrip(activeGem, condensedPower) {
@@ -5696,14 +5712,14 @@ function showGemTooltip(event, type, name, target = null) {
         let gemBonusSources = info.gemBonusSources || stats.gemBonusSources;
         html += `<div class="tooltip-line" style="margin-top:8px; color:#2ecc71;">총 레벨 ${type === 'support' ? info.totalLevel : info.finalLevel}</div>`;
         const sources = [['패시브', gemBonusSources.passive], ['장비', gemBonusSources.gear], ['보상', gemBonusSources.reward],
-            ['군주의 핵', info.bossCoreLevel === 5 ? 1 : 0], ['창공의 정수', info.skyCoreLevel === 5 ? 1 : 0],
+            ['룬 강화', gemCoreForge.effects(info).levels],
             ['응축 창공', info.permanentSkyBonus], ['각성', info.awakened ? 2 : 0], ['창공 각인', info.engraveLevel]];
         const levels = sources.filter(([, value]) => value > 0).map(([label, value]) => `${label} +${value}`);
         levels.unshift(`룬 Lv.${type === 'support' ? info.baseLevel : Math.min(20, info.baseLevel)}`);
         html += `<div class="tooltip-line">${levels.join(', ')}</div>` + getGemAwakenedPerkLine(name, type, info);
     }
-    if (info.bossCoreLevel > 0) html += `<div class="tooltip-line gem-core-tone">군주의 핵 피해 ${info.bossCoreLevel * GEM_CORE_FORGE.tracks.bossCore.stepPct}% 증폭</div>`;
-    if (info.skyCoreLevel > 0) html += `<div class="tooltip-line gem-sky-tone">창공의 정수 공격/시전 속도 ${info.skyCoreLevel * GEM_CORE_FORGE.tracks.skyEssence.stepPct}% 증폭</div>`;
+    if (info.enhanceLevel > 0) html += `<div class="tooltip-line gem-sky-tone">룬 강화 +${info.enhanceLevel}: ${gemCoreForge.effectText(info.enhanceLevel)}</div>`;
+    if (type !== 'support' && gemDropRewards.spareCount(game, name) > 0) html += `<div class="tooltip-line">여분 ${gemDropRewards.spareCount(game, name)}개</div>`;
     let border = type === 'support' ? '#2bcbba' : '#ff5252';
     // 설명 글의 핵심어와 수치는 장비 옵션 색(2026-10-06). 이미 색이 있는 줄, 꼬리표, 제목은 그대로다.
     html = statToneText.markup(html);

@@ -76,8 +76,8 @@ const { ALTAR_INFLUENCE_LINES, INFLUENCE_AFFIX_MODS } = (() => {
     // 수호자와 마름의 전용 추가 옵션: MOD_DB 끝에 influences와 함께 들어간다(js/state.js). 그 영향을 띤 장비의 옵션 풀에만 있고, 다시
     // 굴려도 나올 수 있다. 일반 희귀에는 붙지 않는 능력치(고유에만 있던 줄 포함)로 부위마다 둘 이상.
     const affixMods = (() => {
-        const row = influence => ([id, statId], type, statName, slots, [min, max, decimal]) => Object.freeze({ id, statId, type, statName,
-            slots: Object.freeze(slots), influences: Object.freeze([influence]), weight: 0.6, affixBalanceVersion: 2,
+        const row = influence => ([id, statId], type, statName, slots, [min, max, decimal, retiredSlots]) => Object.freeze({ id, statId, type, statName,
+            slots: Object.freeze(slots), ...(retiredSlots ? { retiredSlots: Object.freeze(retiredSlots) } : {}), influences: Object.freeze([influence]), weight: 0.6, affixBalanceVersion: 2,
             tierValues: itemInfluenceTiers(min, max, decimal) });
         const [guardian, blight] = ['guardian', 'blight'].map(row);
         return Object.freeze([
@@ -95,7 +95,7 @@ const { ALTAR_INFLUENCE_LINES, INFLUENCE_AFFIX_MODS } = (() => {
             blight(['blightPoisonChance', 'poisonChance'], 'suffix', '중독 확률(%)', ['무기', '장갑', '반지', '목걸이', '방패'], [2, 25]),
             blight(['blightPoisonDamage', 'poisonDamageMultiplierPct'], 'prefix', '중독 피해 증가(%)', ['무기', '장갑', '반지', '허리띠'], [5, 50]),
             blight(['blightRegenSuppress', 'regenSuppress'], 'suffix', '재생 억제(%)', ['무기', '투구', '장갑'], [0.2, 1.6, true]),
-            blight(['blightRotDamage', 'dotPctDmg'], 'prefix', '지속 피해 배율(%)', ['투구', '갑옷', '허리띠', '신발'], [4, 40]),
+            blight(['blightRotDamage', 'dotPctDmg'], 'prefix', '지속 피해 배율(%)', ['투구', '허리띠', '신발'], [4, 40, false, ['갑옷']]),
             blight(['blightElite', 'eliteDamagePct'], 'prefix', '정예 처치 피해(%)', ['투구', '목걸이', '신발'], [4, 40]),
             blight(['blightMaxRoll', 'maxDmgRoll'], 'prefix', '최대 피해 보정(%)', ['장갑', '반지', '목걸이'], [3, 25]),
             blight(['blightChaosRes', 'maxResChaos'], 'suffix', '최대 카오스 저항(%)', ['갑옷', '방패', '허리띠'], [0.5, 3, true]),

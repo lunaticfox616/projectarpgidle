@@ -54,28 +54,46 @@ const stageSkillPolish = (() => {
         const chaos = gem.meta.el === 'chaos', name = gem.id === 77 ? 'pol_stone' : 'pol_dust';
         polishPlay(name, K.at(K.heroSpot(), 0, 2), { ramp: chaos ? 'chaos' : gem.id === 77 ? 'stone' : 'smoke', face: c.face, layer: 'ground', delay: c.end, alpha: 0.42, scale: chaos ? 0.7 : 0.8, follow: K.heroDrawn });
     }
-    /** 시전 시작에 한 번(js/canvas-stage-skill-rules.js). @param {object} gem @param {{wind:number, end:number}} o 놓기까지, 동작 끝까지(ms) */
+    const worn = () => gemCoreForge.tierOf(Number(game.gemData?.[game.activeSkill]?.enhanceLevel) || 0);
+    let forgeFlareAt = 0;
+    /** 강화 단계가 높은 주 공격 룬(2026-11-02 사용자): 10강부터 놓는 순간 발밑에 고리, 15강부터 몸 앞에 빛이 더 오른다. 빨리 치는 룬이 화면을 덮지 않게 0.45초에 한 번만. */
+    function polishForge(gem, c) {
+        const tier = worn(), now = stageSkillVfx.now();
+        if (tier < 2 || K.gemOf(game.activeSkill)?.id !== gem.id || now - forgeFlareAt < 450) return;
+        forgeFlareAt = now;
+        polishPlay('pol_release_ring', K.at(c.hero, 0, 2), { ramp: c.ramp, layer: 'ground', delay: c.wind, alpha: 0.4 + tier * 0.1, scale: 0.8 + tier * 0.25 });
+        if (tier >= 3) polishPlay('pol_focus', K.at(c.hero, 0, -46), { ramp: c.ramp, face: c.face, delay: c.wind, alpha: 0.7, scale: tier >= 4 ? 2 : 1.5 });
+    }
+    /** 15강부터 주 공격 룬을 낀 몸에 도는 빛의 색(js/canvas-stage-actors.js drawAura), 없으면 null. */
+    function polishForgeAura() {
+        const tier = worn();
+        return tier >= 3 ? `${GEM_CORE_FORGE.tierColours[tier]}${tier >= 4 ? 'cc' : '88'}` : null;
+    }
+    /** 시전 시작에 한 번(js/canvas-stage-skill-rules.js). @param {object} gem @param {{wind:number, end:number, mode:?string}} o 놓기까지, 동작 끝까지(ms), 표 대신 쓸 갈래 */
     function polishCast(gem, o) {
-        const mode = modeOf(gem);
+        const mode = o.mode || modeOf(gem);
         if (!mode) return;
         const c = { mode, heavy: heavyOf(gem), ramp: rampOf(gem), face: K.heroFace(), hero: K.heroSpot(), wind: Math.max(140, Math.min(900, o.wind)), end: Math.max(o.wind, o.end) };
         let spent = 0;
         const steps = [polishWindup, polishRelease, polishRecover];
         for (const step of steps) if (spent++ < MAX_CAST) step(gem, c);
+        polishForge(gem, c);
     }
     /** 갈래마다 놓는 순간의 클립(polishRelease). */
     const RELEASE_CLIPS = Object.freeze({ bow: 'pol_focus', projectile: 'pol_focus', spell: 'pol_focus', time: 'pol_focus', summon: 'pol_release_ring', shout: 'pol_release_ring', blessing: 'pol_bless_ring' });
+    /** 활로 쏘는 주문 룬(STAGE_VIEW.runeStanceMotions)은 표의 갈래에 없는 손의 빛도 쓴다. */
+    const bowDrawRef = gem => (STAGE_VIEW.runeStanceMotions[gem.meta.name]?.bow ? 'pol_draw' : '');
     /** 그 룬이 틀 수 있는 보강 클립: 끼면 띠를 미리 만들어 둔다. */
     function polishRefs(gem) {
         const mode = modeOf(gem);
         if (!mode) return [];
-        const ramp = rampOf(gem), names = [FLOOR_MODES.has(mode) && 'pol_cast_ring', HAND_MODES[mode] && 'pol_draw', RELEASE_CLIPS[mode]].filter(Boolean);
+        const ramp = rampOf(gem), names = [FLOOR_MODES.has(mode) && 'pol_cast_ring', HAND_MODES[mode] && 'pol_draw', RELEASE_CLIPS[mode], 'pol_release_ring', 'pol_focus', bowDrawRef(gem)].filter(Boolean);
         const refs = names.map(name => name + '@' + ramp);
         if (mode === 'flask') refs.push('pol_focus@stone');
         if (heavyOf(gem) || mode === 'movement') refs.push(gem.id === 77 ? 'pol_stone@stone' : 'pol_dust@' + (gem.meta.el === 'chaos' ? 'chaos' : 'smoke'));
         return refs;
     }
     const handSigil = gem => !NO_HAND_SIGIL.has(modeOf(gem));
-    return Object.freeze({ cast: polishCast, refs: polishRefs, handSigil });
+    return Object.freeze({ cast: polishCast, refs: polishRefs, handSigil, forgeAura: polishForgeAura });
 })();
 safeExposeGlobals({ stageSkillPolish });

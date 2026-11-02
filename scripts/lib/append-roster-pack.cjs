@@ -42,8 +42,11 @@ function actorRow(meta, dir, output, stamp) {
         fs.writeFileSync(path.join(output,file),bytes); stamp.update(file).update(bytes);
     }
     const gait=meta.gait || GAITS[meta.id] || 'legs', pace=['fly','float','swim'].includes(gait)?'time':'stride';
-    return [meta.id,meta.name,box[2]-box[0]+1,box[3]-box[1]+1,-box[0],-box[1],-a[1],a[2]-a[0]+1,gait,
-        [walk.count,walk.cols,walk.durationsMs,pace],[attack.count,attack.cols,attack.durationsMs,attack.impactFrame],[-a[0],a[2]],null]
+    // A motion-only pack can retain the accepted body's render scale and footprint independently of its larger motion canvas.
+    const body=meta.body || {height:-a[1],width:a[2]-a[0]+1,reach:[-a[0],a[2]]};
+    if(!Number.isFinite(body.height)||body.height<=0||!Number.isFinite(body.width)||body.width<=0||!Array.isArray(body.reach)||body.reach.length!==2||!body.reach.every(n=>Number.isFinite(n)&&n>=0)) throw Error('Invalid body dimensions: '+meta.id);
+    return [meta.id,meta.name,box[2]-box[0]+1,box[3]-box[1]+1,-box[0],-box[1],body.height,body.width,gait,
+        [walk.count,walk.cols,walk.durationsMs,pace],[attack.count,attack.cols,attack.durationsMs,attack.impactFrame],body.reach,null]
         .concat(special?[[special.count,special.cols,special.durationsMs,special.impactFrame]]:[]);
 }
 module.exports = function appendPack(root, dir) {

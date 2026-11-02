@@ -2367,6 +2367,8 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now, gridPro
 const STAGE_SIDE_DEAD_PX = 10;
 function resolveStageEnemySide(enemyPos, playerPos) {
     if (enemyPos.heading) return enemyPos.heading;
+    const held = bossMoveView.heldSide(enemyPos.enemy);
+    if (held) return held;
     // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat.js strikeRescueTarget).
     const rescue = enemyPos.enemy && enemyPos.enemy.rescue;
     if (rescue) return rescue.gx < enemyPos.enemy.gx ? 'west' : 'east';
@@ -3279,7 +3281,8 @@ function drawLowHealthEdge(ctx, scene) {
 // 보스가 처음 전장에 보이면 이름 배너를 잠깐 띄운다. 표시 전용이며 등장·판정 시점은 전투 쪽이 소유한다.
 const BOSS_BANNER_MS = 2600;
 function updateBossAnnouncement(enemies, now) {
-    const boss = (enemies || []).find(enemy => enemy && enemy.isBoss) || bossEntranceView.revealedBoss(now);
+    const revealed = bossEntranceView.revealedBoss(now);
+    const boss = (revealed && revealed.redEntrance ? revealed : null) || (enemies || []).find(enemy => enemy && enemy.isBoss) || revealed; // 들이닥치는 보스는 싸우는 보스를 앞서 이름이 뜬다
     battleVisualState.bossBannerFor = null; // the boss whose name is up: the camera keeps it in view (js/canvas-act-exploration.js)
     if (!boss) return null;
     if (battleVisualState.bossAnnounceId !== boss.id) {
@@ -3336,7 +3339,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.lineJoin = 'miter';
     ctx.strokeStyle = 'rgba(12,4,4,.95)';
     drawCrispCanvasText(ctx, name, mid, cy, 'strokeText');
-    ctx.fillStyle = '#f0c46a';
+    ctx.fillStyle = banner.boss.redEntrance ? '#ff6a4e' : '#f0c46a';
     drawCrispCanvasText(ctx, name, mid, cy);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     lines.forEach((line, index) => fillPixelToneText(ctx, line, mid, cy + 25 + index * 14, '#d98a6a'));

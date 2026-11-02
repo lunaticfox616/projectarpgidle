@@ -1741,7 +1741,7 @@ const MOD_DB = [
     {"id":"coldPctDmg","type":"prefix","statName":"냉기 피해(%)","slots":["무기","반지","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
     {"id":"lightPctDmg","type":"prefix","statName":"번개 피해(%)","slots":["무기","반지","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
     {"id":"chaosPctDmg","type":"prefix","statName":"카오스 피해(%)","slots":["무기","반지","목걸이","장갑","방패"],"affixBalanceVersion":2,"tierValues":[[12,14],[15,20],[21,26],[27,32],[33,38],[39,45],[46,51],[52,57],[58,63],[64,69],[70,75],[76,81],[82,87],[88,93],[94,99],[100,106],[107,112],[113,118],[119,124],[125,130]],"valueStep":1},
-    {"id":"aoePctDmg","type":"prefix","statName":"범위 피해(%)","slots":["무기","투구","목걸이","갑옷"],"affixBalanceVersion":2,"tierValues":[[11,13],[14,19],[20,24],[25,30],[31,36],[37,41],[42,47],[48,52],[53,58],[59,64],[65,69],[70,75],[76,81],[82,86],[87,92],[93,97],[98,103],[104,109],[110,114],[115,120]],"valueStep":1},
+    {"id":"aoePctDmg","type":"prefix","statName":"범위 피해(%)","slots":["무기","투구","목걸이"],"retiredSlots":["갑옷"],"affixBalanceVersion":2,"tierValues":[[11,13],[14,19],[20,24],[25,30],[31,36],[37,41],[42,47],[48,52],[53,58],[59,64],[65,69],[70,75],[76,81],[82,86],[87,92],[93,97],[98,103],[104,109],[110,114],[115,120]],"valueStep":1},
     {"id":"dotPctDmg","type":"prefix","statName":"지속 피해 배율(%)","slots":["무기","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[7,8],[9,11],[12,14],[15,17],[18,20],[21,23],[24,26],[27,29],[30,32],[33,35],[36,38],[39,41],[42,44],[45,47],[48,50],[51,53],[54,56],[57,59],[60,62],[63,65]],"valueStep":1},
     {"id":"summonFlatDmg","type":"prefix","statName":"소환수 기본 피해","slots":["무기"],"affixBalanceVersion":2,"tierValues":[[8,10],[11,14],[15,18],[19,22],[23,26],[27,30],[31,34],[35,38],[39,42],[43,46],[47,50],[51,54],[55,58],[59,62],[63,66],[67,70],[71,74],[75,78],[79,82],[83,86]],"valueStep":1},
     {"id":"summonPctDmg","type":"prefix","statName":"소환수 피해(%)","slots":["무기","반지"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
@@ -1770,7 +1770,7 @@ const MOD_DB = [
     {"id":"energyShieldPct","type":"suffix","statName":"에너지 보호막 증가(%)","slots":["투구","갑옷","장갑","신발","방패"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,16],[17,20],[21,24],[25,28],[29,32],[33,36],[37,40],[41,44],[45,48],[49,52],[53,56],[57,60],[61,64],[65,68],[69,72],[73,76],[77,80],[81,84],[85,88]],"valueStep":1},
     {"id":"pctHp","type":"suffix","statName":"생명력 증가(%)","slots":["갑옷","허리띠"],"affixBalanceVersion":2,"tierValues":[[7,8],[9,11],[12,14],[15,17],[18,20],[21,23],[24,26],[27,29],[30,32],[33,35],[36,38],[39,41],[42,44],[45,47],[48,50],[51,53],[54,56],[57,59],[60,62],[63,65]],"valueStep":1},
     {"id":"aspd","type":"suffix","statName":"공격 속도(%)","slots":["무기","반지","목걸이","허리띠","장갑"],"affixBalanceVersion":2,"tierValues":[[4,5],[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43]],"valueStep":1},
-    {"id":"crit","type":"suffix","statName":"치명타 확률(%)","slots":["무기","투구","갑옷","장갑","신발","목걸이","반지","허리띠"],"affixBalanceVersion":2,"tierValues":[[1,1.3],[1.31,1.8],[1.81,2.2],[2.21,2.7],[2.71,3.2],[3.21,3.7],[3.71,4.2],[4.21,4.7],[4.71,5.2],[5.21,5.7],[5.71,6.2],[6.21,6.8],[6.81,7.3],[7.31,7.8],[7.81,8.3],[8.31,8.8],[8.81,9.3],[9.31,9.8],[9.81,10.3],[10.31,10.8]],"valueStep":0.01},
+    {"id":"crit","type":"suffix","statName":"치명타 확률(%)","slots":["무기","투구","장갑","신발","목걸이","반지","허리띠"],"retiredSlots":["갑옷"],"affixBalanceVersion":2,"tierValues":[[1,1.3],[1.31,1.8],[1.81,2.2],[2.21,2.7],[2.71,3.2],[3.21,3.7],[3.71,4.2],[4.21,4.7],[4.71,5.2],[5.21,5.7],[5.71,6.2],[6.21,6.8],[6.81,7.3],[7.31,7.8],[7.81,8.3],[8.31,8.8],[8.81,9.3],[9.31,9.8],[9.81,10.3],[10.31,10.8]],"valueStep":0.01},
     {"id":"move","type":"prefix","statName":"이동 속도(%)","slots":["신발"],"affixBalanceVersion":2,"tierValues":[[6,7],[8,9],[10,11],[12,13],[14,15],[16,17],[18,19],[20,21],[22,23],[24,25],[26,27],[28,29],[30,31],[32,33],[34,35],[36,37],[38,39],[40,41],[42,43],[44,45]],"valueStep":1},
     // 시야(2026-10-09 사용자 "투구에 시야 +1~3칸"): 탐험 지도에서 더 멀리 밝힌다(data/act-exploration-maps.js ACT_EXPLORATION_VISION).
     // 등급 1~5 +1, 6~11 +2, 12~ +3: 실제 드랍에서 액트 10은 +2가 15%, 혼돈 20은 +2가 37%, 혼돈 심화는 +3이 5~7%다.
@@ -1781,7 +1781,7 @@ const MOD_DB = [
     {"id":"resC","type":"suffix","statName":"냉기 저항(%)","slots":["반지","목걸이","갑옷","투구","신발","장갑","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,9],[10,11],[12,13],[14,16],[17,18],[19,20],[21,22],[23,25],[26,27],[28,29],[30,31],[32,34],[35,36],[37,38],[39,40],[41,43],[44,45],[46,48]],"valueStep":1},
     {"id":"resL","type":"suffix","statName":"번개 저항(%)","slots":["반지","목걸이","갑옷","투구","신발","장갑","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,9],[10,11],[12,13],[14,16],[17,18],[19,20],[21,22],[23,25],[26,27],[28,29],[30,31],[32,34],[35,36],[37,38],[39,40],[41,43],[44,45],[46,48]],"valueStep":1},
     {"id":"resAll","type":"suffix","statName":"모든 원소 저항(%)","slots":["반지","목걸이","갑옷","방패"],"affixBalanceVersion":2,"tierValues":[[1,1],[2,3],[4,4],[5,6],[7,8],[9,9],[10,11],[12,12],[13,14],[15,15],[16,17],[18,18],[19,20],[21,21],[22,23],[24,24],[25,26],[27,27],[28,29],[30,32]],"valueStep":1},
-    {"id":"resChaos","type":"suffix","statName":"카오스 저항(%)","slots":["반지","방패"],"affixBalanceVersion":2,"tierValues":[[1,1],[2,3],[4,4],[5,6],[7,7],[8,9],[10,10],[11,11],[12,13],[14,14],[15,16],[17,17],[18,18],[19,20],[21,21],[22,23],[24,24],[25,26],[27,27],[28,30]],"valueStep":1},
+    {"id":"resChaos","type":"suffix","statName":"카오스 저항(%)","slots":["반지","방패","갑옷"],"affixBalanceVersion":2,"tierValues":[[1,1],[2,3],[4,4],[5,6],[7,7],[8,9],[10,10],[11,11],[12,13],[14,14],[15,16],[17,17],[18,18],[19,20],[21,21],[22,23],[24,24],[25,26],[27,27],[28,30]],"valueStep":1},
     {"id":"resPen","type":"suffix","statName":"저항 관통(%)","slots":["무기","반지","목걸이"],"affixBalanceVersion":2,"tierValues":[[0.8,1.2],[1.21,2],[2.01,2.8],[2.81,3.6],[3.61,4.4],[4.41,5.2],[5.21,6],[6.01,6.8],[6.81,7.6],[7.61,8.4],[8.41,9.2],[9.21,10],[10.01,10.8],[10.81,11.6],[11.61,12.4],[12.41,13.2],[13.21,14],[14.01,14.8],[14.81,15.6],[15.61,16.4]],"valueStep":0.01},
     {"id":"regen","type":"suffix","statName":"초당 재생(%)","slots":["갑옷","허리띠","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[0.3,0.3],[0.31,0.4],[0.41,0.5],[0.51,0.6],[0.61,0.7],[0.71,0.8],[0.81,0.9],[0.91,1],[1.01,1.1],[1.11,1.2],[1.21,1.3],[1.31,1.4],[1.41,1.5],[1.51,1.6],[1.61,1.7],[1.71,1.8],[1.81,1.9],[1.91,2],[2.01,2.1],[2.11,2.2]],"valueStep":0.01},
     {"id":"regenFlat","type":"suffix","statName":"생명력 재생(고정)","slots":["갑옷","목걸이","반지","허리띠","방패"],"affixBalanceVersion":2,"tierValues":[[32,39],[40,51],[52,63],[64,75],[76,87],[88,99],[100,111],[112,123],[124,135],[136,147],[148,159],[160,171],[172,183],[184,195],[196,207],[208,219],[220,231],[232,243],[244,255],[256,267]],"valueStep":1},
@@ -1848,6 +1848,23 @@ const MOD_DB = [
     {"id":"flaskPoisonChance","statId":"poisonChance","type":"suffix","statName":"중독 확률(%)","slots":["무기"],"weaponCategories":["flask"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,7],[8,9],[10,10],[11,12],[13,13],[14,15],[16,16],[17,18],[19,19],[20,21],[22,22],[23,24],[25,25],[26,27],[28,28],[29,30],[31,31],[32,33]],"valueStep":1},
     {"id":"censerLightGemLevel","statId":"lightGemLevel","type":"prefix","statName":"번개 스킬룬 레벨","slots":["무기"],"weaponCategories":["censer"],"weight":0.2,"affixBalanceVersion":3,"tierValues":[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[3,3],[3,3],[3,3],[3,3],[4,4]],"valueStep":1},
     {"id":"censerRegen","statId":"regen","type":"suffix","statName":"초당 재생(%)","slots":["무기"],"weaponCategories":["censer"],"affixBalanceVersion":2,"tierValues":[[0.3,0.3],[0.31,0.4],[0.41,0.5],[0.51,0.6],[0.61,0.7],[0.71,0.8],[0.81,0.9],[0.91,1],[1.01,1.1],[1.11,1.2],[1.21,1.3],[1.31,1.4],[1.41,1.5],[1.51,1.6],[1.61,1.7],[1.71,1.8],[1.81,1.9],[1.91,2],[2.01,2.1],[2.11,2.2]],"valueStep":0.01},
+    // 갑옷(2026-11-02 사용자): 고유와 지역 전용 줄을 빼면 피해 줄 없이 방어 줄과 공명력(드물게)을 굴린다. 빠진 줄은 retiredSlots에 남겨, 이미 붙은 장비의 범위와 전당 검사가 계속 읽는다.
+    {"id":"armorResonance","statId":"runeResonancePower","type":"prefix","statName":"공명력","slots":["갑옷"],"weight":0.15,"affixBalanceVersion":2,"tierValues":[[1,1],[1,1],[1,2],[2,2],[2,3],[3,3],[3,4],[4,4],[4,5],[5,5],[5,6],[6,6],[6,7],[7,7],[7,8],[8,8],[8,9],[9,9],[9,10],[10,10]]},
+    {"id":"armorTakenReduce","statId":"genericTakenDamageReducePct","type":"prefix","statName":"받는 피해 감소(%)","slots":["갑옷"],"weight":0.3,"affixBalanceVersion":2,"tierValues":[[1,1],[1,1],[1,1],[1,1],[1,2],[1,2],[1,2],[1,2],[2,3],[2,3],[2,3],[2,3],[3,4],[3,4],[3,4],[3,4],[4,5],[4,5],[4,5],[5,6]]},
+    {"id":"armorTakenCrowd","statId":"takenDamageReduceWhen2EnemiesPct","type":"prefix","statName":"적 2명 이상일 때 받는 피해 감소(%)","slots":["갑옷"],"weight":0.6,"affixBalanceVersion":2,"tierValues":[[2,2],[2,3],[3,3],[3,4],[4,4],[4,5],[5,5],[5,6],[6,6],[6,7],[7,7],[7,8],[8,8],[8,9],[9,9],[9,10],[10,10],[10,11],[11,11],[12,12]]},
+    {"id":"armorTakenDuel","statId":"takenDamageReduceWhen1EnemyPct","type":"prefix","statName":"적 1명일 때 받는 피해 감소(%)","slots":["갑옷"],"weight":0.6,"affixBalanceVersion":2,"tierValues":[[1,1],[1,2],[2,2],[2,2],[2,3],[3,3],[3,3],[3,4],[4,4],[4,4],[4,5],[5,5],[5,5],[5,6],[6,6],[6,6],[6,7],[7,7],[7,7],[8,8]]},
+    {"id":"armorAilResIgnite","statId":"ailResIgnite","type":"suffix","statName":"점화 저항 확률(%)","slots":["갑옷"],"weight":0.5,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorAilResShock","statId":"ailResShock","type":"suffix","statName":"감전 저항 확률(%)","slots":["갑옷"],"weight":0.5,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorAilResFreeze","statId":"ailResFreeze","type":"suffix","statName":"냉기 저항 확률(%)","slots":["갑옷"],"weight":0.5,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorAilResPoison","statId":"ailResPoison","type":"suffix","statName":"중독 저항 확률(%)","slots":["갑옷"],"weight":0.5,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorAilResBleed","statId":"ailResBleed","type":"suffix","statName":"출혈 저항 확률(%)","slots":["갑옷"],"weight":0.5,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorDeflectReduce","statId":"deflectDamageReduce","type":"suffix","statName":"비껴내기 피해 감소(%)","slots":["갑옷"],"weight":0.5,"affixBalanceVersion":2,"tierValues":[[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12],[12,13],[13,14],[14,15],[15,16],[16,17],[17,18],[18,19],[19,20],[20,21],[21,23]]},
+    {"id":"armorCritTaken","statId":"critTakenDamageReducePct","type":"suffix","statName":"받는 치명타 피해 감소(%)","slots":["갑옷"],"weight":0.5,"affixBalanceVersion":2,"tierValues":[[4,5],[5,7],[7,9],[9,11],[11,13],[13,15],[15,17],[17,19],[19,21],[21,23],[23,25],[25,27],[27,29],[29,31],[31,33],[33,35],[35,36],[36,37],[37,38],[38,40]]},
+    {"id":"armorIgniteDuration","statId":"igniteTakenDurationReducePct","type":"suffix","statName":"점화 지속 시간 감소(%)","slots":["갑옷"],"weight":0.4,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorShockDuration","statId":"shockTakenDurationReducePct","type":"suffix","statName":"감전 지속 시간 감소(%)","slots":["갑옷"],"weight":0.4,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorColdDuration","statId":"coldTakenDurationReducePct","type":"suffix","statName":"냉기 지속 시간 감소(%)","slots":["갑옷"],"weight":0.4,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorPoisonDuration","statId":"poisonTakenDurationReducePct","type":"suffix","statName":"중독 지속 시간 감소(%)","slots":["갑옷"],"weight":0.4,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
+    {"id":"armorBleedDuration","statId":"bleedTakenDurationReducePct","type":"suffix","statName":"출혈 지속 시간 감소(%)","slots":["갑옷"],"weight":0.4,"affixBalanceVersion":2,"tierValues":[[3,4],[4,5],[5,6],[6,7],[8,9],[9,10],[10,11],[12,13],[13,14],[14,15],[16,17],[17,18],[18,19],[20,21],[21,22],[22,23],[24,25],[25,26],[26,27],[28,30]]},
     // 세계수 기운(12번 루프 27): 지역 전용 줄(data/region-affixes.js, regions)은 그 지역 아틀라스 지도 장비에만 붙는다.
     ...REGION_AFFIX_MODS,
     // 영향 장비(2026-10-10): 수호자와 마름의 전용 줄(data/item-influences.js, influences)은 그 영향을 띤 장비에만 붙는다.
@@ -2509,6 +2526,7 @@ const defaultGame = {
             mobile: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] }
         },
         cameraShake: true,
+        runeTimingOff: false,   // 룬 강화의 담금질을 건너뛴다
         hitEmphasis: 'normal', // normal | mild; presentation only
         uiSounds: true,
         soundVolume: 100, // 0..100 percent of the existing sound mix; independent of mute
@@ -2785,6 +2803,7 @@ const defaultGame = {
     gemEnhanceUnlocked: false,
     gemEnhanceTargetSkill: null,
     gemEngraveSelectedSlot: 0,
+    runeSpares: {},     // 공격 룬 이름 → 쓰는 하나 말고 더 가진 개수. 루프가 비운다(js/gem-drop-rewards.js).
     uniqueCodex: {},
     uniqueHuntTargets: [],
     equipmentDropProgress: 0, // Drought credit; normal 1 / elite 4 / boss 16, reset on an equipment drop.
@@ -2839,23 +2858,26 @@ function getExpReq(level) {
 function getGemReqExp(level) { return LEVEL_PROGRESSION.gemExperienceRequired[Math.max(1, Math.min(20, Math.floor(level || 1))) - 1]; }
 // Save boundary: retain failures through the current stage's guaranteed attempt.
 function normalizeGemCoreFailures(value, level) {
-    return level === GEM_CORE_FORGE.maxLevel || !Number.isFinite(value) ? 0
-        : Math.min(GEM_CORE_FORGE.pityBonusPct.findIndex(bonus => GEM_CORE_FORGE.successPct[level] + bonus >= 100), Math.max(0, Math.floor(value)));
+    return level === GEM_CORE_FORGE.maxLevel || !Number.isFinite(value) ? 0 : Math.min(GEM_CORE_FORGE.pityBonusPct.length - 1, Math.max(0, Math.floor(value)));
+}
+/** 룬 강화 단계. 옛 저장의 군주의 핵 강화와 창공의 정수 강화(각 5강)는 합쳐서 옮긴다(2026-11-02). */
+function normalizeRuneEnhanceLevel(raw) {
+    const old = key => (Number.isFinite(raw[key]) ? Math.min(5, Math.max(0, Math.floor(raw[key]))) : 0);
+    const level = Number.isFinite(raw.enhanceLevel) ? Math.floor(raw.enhanceLevel) : old('bossCoreLevel') + old('skyCoreLevel');
+    return Math.min(GEM_CORE_FORGE.maxLevel, Math.max(0, level));
 }
 function normalizeGemRecord(raw) {
-    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, bossCoreLevel: 0, skyCoreLevel: 0, bossCoreFailures: 0, skyCoreFailures: 0, skyEnhanceCap: 1, unlockedTier: 1, activeTier: 1, quality: 0, awakened: false };
+    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, enhanceLevel: 0, enhanceFailures: 0, skyEnhanceCap: 1, unlockedTier: 1, activeTier: 1, quality: 0, awakened: false };
     let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
     let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
-    let bossCoreLevel = Number.isFinite(raw.bossCoreLevel) ? Math.min(5, Math.max(0, Math.floor(raw.bossCoreLevel))) : 0;
-    let skyCoreLevel = Number.isFinite(raw.skyCoreLevel) ? Math.min(5, Math.max(0, Math.floor(raw.skyCoreLevel))) : 0;
-    const bossCoreFailures = normalizeGemCoreFailures(raw.bossCoreFailures, bossCoreLevel);
-    const skyCoreFailures = normalizeGemCoreFailures(raw.skyCoreFailures, skyCoreLevel);
+    const enhanceLevel = normalizeRuneEnhanceLevel(raw);
+    const enhanceFailures = normalizeGemCoreFailures(raw.enhanceFailures, enhanceLevel);
     let skyEnhanceCap = Number.isFinite(raw.skyEnhanceCap) ? Math.min(5, Math.max(1, Math.floor(raw.skyEnhanceCap))) : 1;
     let unlockedTier = Number.isFinite(raw.unlockedTier) ? Math.max(1, Math.min(3, Math.floor(raw.unlockedTier))) : 1;
     let activeTier = Number.isFinite(raw.activeTier) ? Math.max(1, Math.min(unlockedTier, Math.floor(raw.activeTier))) : 1;
     let quality = Number.isFinite(raw.quality) ? Math.max(0, Math.min(20, Math.floor(raw.quality))) : 0;
     let awakened = !!raw.awakened;
-    return { level: level, exp: exp, bossCoreLevel: bossCoreLevel, skyCoreLevel: skyCoreLevel, bossCoreFailures, skyCoreFailures, skyEnhanceCap: skyEnhanceCap, unlockedTier: unlockedTier, activeTier: activeTier, quality: quality, awakened: awakened };
+    return { level: level, exp: exp, enhanceLevel, enhanceFailures, skyEnhanceCap: skyEnhanceCap, unlockedTier: unlockedTier, activeTier: activeTier, quality: quality, awakened: awakened };
 }
 
 

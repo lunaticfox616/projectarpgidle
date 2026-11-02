@@ -1426,7 +1426,7 @@ const ORB_DB = {
     rivalKey: { name: '표식: 버려진 날', desc: '루프31+ 심층(혼돈 심화 21+/혼돈계/지하계/창공의 탑) 보스가 드랍합니다. 버려진 날붙이 결투 도전권입니다.' },
     cosmosSovereignKey: { name: '표식: 잔향', desc: '루프31+ 우주계 은하 보스가 드물게 드랍합니다. 잔향체 아스트라 도전권입니다.' },
     blessing: { name: '축복의 꽃잎', desc: '장비의 베이스 옵션 값을 80%~120% 구간에서 다시 굴립니다. 허리띠는 액막이 칸 수(1~3)도 다시 굴립니다.' },
-    bossCore: { name: '군주의 핵', desc: '루프2 뿌리 보스를 처치하면 얻는 룬 강화 재료입니다.' },
+    bossCore: { name: '군주의 핵', desc: '루프2 뿌리 보스를 처치하면 얻습니다. 룬 강화의 성공 확률을 올리고 룬 퀄리티 강화에 사용합니다.' },
     fossil: { name: '미궁 화석', desc: '기본 화석 조각입니다. 미궁에서 다양한 타입의 화석으로 정제됩니다.' },
     fossilPrimal: { name: '원시 화석', desc: '화석 복원을 해금하면 미궁에서 발견되고, 남는 화석을 정제해도 얻는 복원 전용 화석입니다. 복원하면 화석과 재화를 얻습니다.' },
     fossilAncientPrimal: { name: '원시 고대 화석', desc: '화석 복원을 해금하면 미궁에서 낮은 확률로 발견되는 복원 전용 화석입니다. 복원하면 전용 화석과 고급 재화 확률이 높습니다.' },
@@ -1540,6 +1540,37 @@ function getCurrencyInfo(key) {
     if (Object.hasOwn(ORB_DB, key)) return ORB_DB[key];
     return Object.hasOwn(WALLET_CURRENCY_INFO, key) ? WALLET_CURRENCY_INFO[key] : { name: String(key || ''), desc: '' };
 }
+/** 이름에 색이 있는 재화: [색, 이름에 더 거는 꾸밈] (getStyledOrbName). */
+const CURRENCY_NAME_TONES = Object.freeze({
+    magicBud: ['#9fd3ff'], sapBud: ['#ffe07a'], blightSpore: ['#ffe07a'], blessing: ['#ffe07a'],
+    formlessDew: ['#ffbc8a'], pruningShears: ['#ffbc8a'],
+    jewelShard: ['#97dbd8'], colonyShard: ['#b4dba0'], colonyTrace: ['#c2a8e8'],
+    goldenRule: ['#ffffff', ' border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;'],
+    emberBranch: ['#8a2f3f'], burningEmberBranch: ['#ff8a3d', ' text-shadow:0 0 7px rgba(255,138,61,.45);'],
+    fairyRing: ['#82dc8b', ' text-shadow:0 0 7px rgba(105,238,143,.35);'], voidChisel: ['#d7a6ff', ' text-shadow:0 0 7px rgba(192,125,255,.4);'],
+    memoryImprint: ['#ece0ff', ' border:1px solid #6b4fa0; border-radius:4px; padding:0 4px; background:#120f1a; text-shadow:0 0 7px rgba(201,178,240,.5);']
+});
+/** 이름에는 색이 없거나 어두운 바탕에서 안 보이는 재화의 칸 색(정산 결과 창). 계열마다 한 색: 불, 얼음, 번개, 카오스는 옵션 색과 같다. */
+const CURRENCY_CARD_TONES = Object.freeze({
+    goldenRule: '#ffe9a8', emberBranch: '#d4596f', ouroboros: '#8fe0a8',
+    bossKeyFlame: '#ff9a76', bossKeyFrost: '#8fd3ff', bossKeyStorm: '#ffe083', beastKeyCerberus: '#ff8fa3', trialKey3: '#e9c46a', chaosKey: '#c7a6ff', coreKey: '#e9c46a', rivalKey: '#d8cfc0', cosmosSovereignKey: '#c2a8e8',
+    bossCore: '#e4ba79', skyEssence: '#8cd8ef', condensedSkyPower: '#bfeaff', awakenedEcho: '#c7a0ff',
+    fossil: '#d9c08a', fossilPrimal: '#e8c98a', fossilAncientPrimal: '#f0d59a', fossilPrimordial: '#f7e2b0', fossilJagged: '#d9c08a', fossilBound: '#d9c08a', fossilGale: '#d9c08a', fossilPrismatic: '#d9c08a', fossilAbyssal: '#c7a6ff', fossilBulwark: '#d9c08a', fossilWedge: '#d9c08a', fossilOld: '#d9c08a', fossilRift: '#c7a6ff',
+    deepWhetstone: '#aeb6c2', rootIron: '#c49a78', jewelPolish: '#97dbd8', jewelCore: '#97dbd8', abyssCatalyst: '#b48cff',
+    catalystFire: '#ff9a76', catalystCold: '#8fd3ff', catalystLight: '#ffe083', catalystChaos: '#c7a6ff', catalystCrit: '#ffd6f2', catalystSummon: '#a8e6cf',
+    oilFire: '#ff9a76', oilCold: '#8fd3ff', oilLight: '#ffe083', oilChaos: '#c7a6ff',
+    uberRootTicketFlame: '#ff9a76', uberRootTicketFrost: '#8fd3ff', uberRootTicketStorm: '#ffe083', uberRootTicketChaos: '#c7a6ff',
+    runeShard: '#b9a8e0', underCopper: '#d0926a', underSilver: '#cfd6e0', underGold: '#ffd56a',
+    hiveKey: '#ffd56a', enchantedHoney: '#ffc24d', venomStinger: '#b8e05a', pollen: '#f0e27a', beeswax: '#e8cf8a',
+    sporeFire: '#ff9a76', sporeCold: '#8fd3ff', sporeLight: '#ffe083',
+    sealShard: '#d8c8a0', strongSealShard: '#e9c46a', radiantSealShard: '#fff0b0',
+    reefFragment: '#7fd8c8', oceanRerollShard: '#6fb8e8', altarEmber: '#ff9a55', altarIchor: '#e07a8f',
+    omenPruning: '#a8e08a', omenCompost: '#c9a36a', omenWeave: '#9fd3ff', omenPyre: '#ff9a55', omenHunger: '#e07a8f'
+});
+/** 재화의 칸 색: 칸 색이 따로 있으면 그 색, 없으면 이름의 색. */
+function getCurrencyTone(key) {
+    return CURRENCY_CARD_TONES[key] || CURRENCY_NAME_TONES[key]?.[0] || '#d8cfc0';
+}
 /** A currency name in its colour (orb-tone): the woodsman's lettering for ouroboros, the plain name for the rest. It lives with the
  * currency data so that it exists from load: the floor loot labels (js/battle-ground-loot-ui.js) call it on the first battlefield
  * draw of the boot, before any UI refresh. 2026-10-11: while it was nested in performUpdateStaticUI (js/ui.js) that draw threw,
@@ -1547,17 +1578,9 @@ function getCurrencyInfo(key) {
 function getStyledOrbName(orbKey) {
     let name = getCurrencyInfo(orbKey).name;
     if (orbKey === 'ouroboros') return `<span class="woodsman-touch-name">${name}</span>`;
-    const tones = {
-        magicBud: '--orb-tone:#9fd3ff;', sapBud: '--orb-tone:#ffe07a;', blightSpore: '--orb-tone:#ffe07a;', blessing: '--orb-tone:#ffe07a;',
-        formlessDew: '--orb-tone:#ffbc8a;', pruningShears: '--orb-tone:#ffbc8a;',
-        jewelShard: '--orb-tone:#97dbd8;', colonyShard: '--orb-tone:#b4dba0;', colonyTrace: '--orb-tone:#c2a8e8;',
-        goldenRule: '--orb-tone:#ffffff; border:1px solid #7a1f1f; border-radius:4px; padding:0 4px; background:#0f1116;',
-        emberBranch: '--orb-tone:#8a2f3f;', burningEmberBranch: '--orb-tone:#ff8a3d; text-shadow:0 0 7px rgba(255,138,61,.45);',
-        fairyRing: '--orb-tone:#82dc8b; text-shadow:0 0 7px rgba(105,238,143,.35);', voidChisel: '--orb-tone:#d7a6ff; text-shadow:0 0 7px rgba(192,125,255,.4);',
-        memoryImprint: '--orb-tone:#ece0ff; border:1px solid #6b4fa0; border-radius:4px; padding:0 4px; background:#120f1a; text-shadow:0 0 7px rgba(201,178,240,.5);'
-    };
-    const tone = Object.hasOwn(tones, orbKey) ? tones[orbKey] : '';
-    return tone ? `<span class="orb-tone" style="${tone}">${name}</span>` : name;
+    if (!Object.hasOwn(CURRENCY_NAME_TONES, orbKey)) return name;
+    const [tone, extra = ''] = CURRENCY_NAME_TONES[orbKey];
+    return `<span class="orb-tone" style="--orb-tone:${tone};${extra}">${name}</span>`;
 }
 // Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [

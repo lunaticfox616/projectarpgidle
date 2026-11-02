@@ -1,5 +1,5 @@
 @layer components{
-/* 해금 탭(js/unlock-tab-ui.js, 2026-11-02): 세 뿌리에서 뻗는 한 나무. 위에 해금 포인트, 지금 가능, 판 전체 지도, 가운데 가로 스크롤 판, 아래에 고른 해금의 설명.
+/* 해금 탭(js/unlock-tab-ui.js, 2026-11-02): 세 뿌리에서 뻗는 한 나무. 위에 해금 포인트, 해금 가능, 판 전체 지도, 가운데 가로 스크롤 판, 아래에 고른 해금의 설명.
    뿌리마다 제 빛깔(--fam)이 가지 끝까지 이어진다. 네모는 포인트 해금, 팔각은 자동 개방. 열린 칸은 빛깔을 채우고, 지금 가능한 칸은 흰 테, 조건을 기다리는 칸은 무채색이다. */
 #content-unlock-panel{container-type:inline-size;margin-bottom:18px;color:var(--color-text);word-break:keep-all;overflow-wrap:anywhere;border:1px solid var(--skin-line-strong);background:var(--skin-panel)}
 #content-unlock-panel .fam-gear{--fam:#d8a46a}
@@ -33,10 +33,10 @@
 
 /* 판: 가로 스크롤. 스크롤바는 숨기고 전체 지도가 대신한다 */
 .unlocks-view{position:relative;height:420px;min-height:0;overflow:hidden}
-.unlocks-scroll{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;cursor:grab}
+.unlocks-scroll{position:absolute;inset:0;overflow:auto;scrollbar-width:none;cursor:grab}
 .unlocks-scroll::-webkit-scrollbar{display:none}
 .unlocks-scroll.is-panning{cursor:grabbing;user-select:none}
-.unlocks-canvas{position:relative;height:100%}
+.unlocks-canvas{position:relative;min-height:100%}
 .unlock-corner{position:absolute;left:0;top:0;z-index:4;box-sizing:border-box;width:38px;height:24px;font-size:12px;line-height:23px;text-align:center;color:var(--color-text-tertiary);background:#14100b;border-bottom:1px solid var(--skin-line);box-shadow:1px 0 0 var(--skin-line);pointer-events:none}
 .unlock-fade{position:absolute;top:24px;bottom:0;z-index:3;width:36px;opacity:0;pointer-events:none;transition:opacity .15s}
 .unlock-fade.is-on{opacity:1}
@@ -50,7 +50,7 @@
 #content-unlock-panel .unlock-to-now:hover{background:#3a3120}
 
 /* 눈금과 지금 */
-.unlock-ruler{position:absolute;left:0;right:0;top:0;height:24px;border-bottom:1px solid var(--skin-line);background:rgba(0,0,0,.18)}
+.unlock-ruler{position:sticky;top:0;z-index:2;height:24px;border-bottom:1px solid var(--skin-line);background:#14100b}
 .unlock-tick{position:absolute;top:0;height:23px;font-size:12px;line-height:23px;text-align:center;color:var(--color-text-tertiary);box-shadow:inset 1px 0 0 rgba(255,255,255,.07)}
 .unlock-tick.is-major{color:var(--color-text-secondary)}
 .unlock-tick.is-past{opacity:.55}
@@ -91,15 +91,15 @@
 .is-fresh .unlock-ic,.unlock-pip.is-fresh{animation:unlock-pop .45s steps(5) .25s both}
 @keyframes unlock-flash{0%{filter:brightness(2.6)}100%{filter:none}}
 @keyframes unlock-pop{0%{transform:scale(.55);opacity:.2}70%{transform:scale(1.14);opacity:1}100%{transform:scale(1)}}
-#content-unlock-panel .unlock-card{position:absolute;display:flex;align-items:center;gap:5px;padding:1px 3px 1px 1px;background:#1b1610;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 26%,transparent);text-align:left}
+#content-unlock-panel .unlock-card{position:absolute;display:flex;align-items:center;gap:5px;padding:1px 3px 1px 1px;background:#1b1610;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 26%,transparent);text-align:center}
 #content-unlock-panel .unlock-card.kind-auto{background:color-mix(in srgb,var(--fam) 7%,#15110c);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 18%,transparent)}
 #content-unlock-panel .unlock-card.is-short{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 50%,transparent)}
 #content-unlock-panel .unlock-card.is-owned{background:color-mix(in srgb,var(--fam) 24%,#17130e);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 60%,transparent)}
 #content-unlock-panel .unlock-card.is-ready{background:#30281a;box-shadow:inset 0 0 0 1px #fff6dc,0 0 0 1px rgba(255,246,220,.25)}
 #content-unlock-panel .unlock-card.is-chosen,#content-unlock-panel .unlock-pip.is-chosen{outline:2px solid #fff;outline-offset:1px}
 #content-unlock-panel .unlock-card:hover,#content-unlock-panel .unlock-card.is-path,#content-unlock-panel .unlock-pip:hover,#content-unlock-panel .unlock-pip.is-path{filter:brightness(1.2)}
-.unlock-card-text{display:grid;gap:1px;min-width:0;flex:1}
-.unlock-card-text b,.unlock-card-gain{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;line-height:14px;font-weight:400}
+.unlock-card-text{display:grid;gap:1px;min-width:0;flex:1;text-align:center}
+.unlock-card-text b,.unlock-card-gain{white-space:nowrap;font-size:12px;line-height:14px;font-weight:400}
 .unlock-card-text b{color:var(--color-text)}
 .unlock-card-gain{color:color-mix(in srgb,var(--fam) 60%,#a59c8b)}
 .unlock-card.is-ready .unlock-card-text b{color:#fff1c8}
@@ -119,7 +119,8 @@
 .unlock-eyebrow{display:block;font-size:12px;line-height:14px;color:color-mix(in srgb,var(--fam) 80%,#fff)}
 #content-unlock-panel .unlock-detail h4{margin:1px 0;font-family:var(--font-pixel-read);font-size:14px;line-height:18px;font-weight:400;color:var(--color-text)}
 #content-unlock-panel .unlock-detail h4 em{margin-left:8px;font-family:var(--font-pixel);font-size:12px;font-style:normal;color:#ffe3a0}
-.unlock-desc{margin:0;overflow:hidden;font-size:12px;line-height:16px;white-space:nowrap;text-overflow:ellipsis;color:var(--color-text-secondary)}
+.unlock-detail-text,.unlock-next{min-height:0;max-height:100%;overflow-y:auto;scrollbar-width:thin}
+.unlock-desc{margin:0;font-size:12px;line-height:16px;color:var(--color-text-secondary)}
 .unlock-reqs{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .unlock-reqs span{padding:0 5px;font-size:12px;line-height:16px;background:rgba(0,0,0,.3);color:#a59c8b;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
 .unlock-reqs span.is-met{color:#a8d8a0;box-shadow:inset 0 0 0 1px rgba(168,216,160,.35)}
@@ -137,7 +138,7 @@
 #content-unlock-panel .unlock-act.is-go:hover{background:#f2d893}
 .content-unlock-choice{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:4px;margin:0;color:var(--color-text-secondary);font-size:12px}
 .content-unlock-choice select{width:100%;min-width:0;min-height:24px;padding:0 2px;background:var(--skin-control);color:var(--color-text);border:1px solid var(--skin-line-strong);border-radius:0;font:inherit}
-.unlock-reward{margin:0;overflow:hidden;font-size:12px;line-height:14px;white-space:nowrap;text-overflow:ellipsis;color:var(--skin-accent)}
+.unlock-reward{margin:0;font-size:12px;line-height:14px;color:var(--skin-accent)}
 /* 자세히: 설명 칸 위로 펼친다 */
 .unlock-more summary{font-size:12px;line-height:16px;text-align:center;color:var(--skin-accent);cursor:pointer}
 .unlock-more-body{position:absolute;right:14px;bottom:100%;z-index:6;box-sizing:border-box;width:min(420px,calc(100% - 28px));max-height:300px;overflow:auto;padding:10px 12px;border:1px solid var(--skin-line-strong);background:var(--skin-panel);box-shadow:0 -4px 14px rgba(0,0,0,.5);font-size:12px;line-height:1.6;color:var(--color-text-secondary)}
@@ -147,10 +148,8 @@
 .unlock-lifetime-note{color:var(--color-text-tertiary)}
 @container(max-width:720px){
  .unlocks-head{flex-wrap:wrap;gap:6px 12px;padding:6px 10px}
- .unlock-reward{white-space:normal}
  .unlock-over-slot{order:9;flex:1 0 100%}
  .unlock-detail{grid-template-columns:auto minmax(0,1fr);height:auto;padding:8px 10px}
- .unlock-desc{white-space:normal}
  .unlock-next,.unlock-detail-action{grid-column:1/-1}
  .unlock-more-body{right:10px;width:calc(100% - 20px)}
 }

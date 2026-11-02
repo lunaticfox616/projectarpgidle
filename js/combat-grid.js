@@ -509,7 +509,7 @@ function advanceGridUnitMovement(unit, target, dtSec, intervalSec, avoid) {
 /** 적이 한 칸을 걷는 데 걸리는 기본 시간(초): 보스는 BOSS_REACH.stepSec, 그 밖에는 enemyMoveIntervalSec. 다가가는 규칙(js/combat.js)과
  * 걷는 모습(js/canvas-stage-stride.js)이 같은 값을 읽는다. */
 function getGridUnitStepSec(unit) {
-    if (unit && unit.isBoss) return BOSS_REACH.stepSec;
+    if (unit && unit.isBoss) return unit.stepSec || BOSS_REACH.stepSec;
     return MONSTER_COMBAT_ROLES.of(unit)?.stepSec || COMBAT_GRID_CONFIG.enemyMoveIntervalSec;
 }
 

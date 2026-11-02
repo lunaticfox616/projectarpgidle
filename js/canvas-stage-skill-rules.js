@@ -298,9 +298,10 @@ const stageSkillRules = (() => {
     /** 시전 시작에 룬마다 더 거는 것: 부싯돌 베기의 불티와 향로 고리, 준비와 놓음의 빛(전달본 V3.6), 암흑 파열의 조짐. */
     function ruleWindupExtras(gem, fx) {
         stageSkillRunes.windup(gem, fx);
-        stageSkillPolish.cast(gem, { wind: Number(fx.impactDelayMs) || 0, end: Number(fx.duration) || 0 });
+        stageSkillPolish.cast(gem, { wind: Number(fx.impactDelayMs) || 0, end: Number(fx.duration) || 0, mode: K.firedFromBow(fx.skillName) ? 'bow' : null });
         if (gem.map.warlock) stageRuneRemakes.warlockWindup(gem.map.warlock, fx);
     }
+    const ruleCastsAtHand = (gem, fx) => gem.meta.cast && !K.firedFromBow(fx.skillName);
     /** 시전 시작: 주문, 위습, 시전과 집중 슬롯의 룬은 손 앞에 그 속성의 마법진이 서고 몸에 외곽선 오라가 돈다(예비 동작 동안).
      * 위습 소환은 예비 동작이 끝날 때 등 뒤에서 그 속성의 소환 클립이 튄다. */
     function ruleNoteWindup(fx) {
@@ -308,7 +309,7 @@ const stageSkillRules = (() => {
         if (!gem) return;
         handled.add(fx);
         ruleWindupExtras(gem, fx);
-        if (!gem.meta.cast) return;
+        if (!ruleCastsAtHand(gem, fx)) return;
         const hero = K.heroSpot(), face = K.heroFace(), wind = Math.max(200, Number(fx.impactDelayMs) || 0);
         stageSkillSigil.cast({ spot: hero, face, element: gem.meta.el, ms: wind + 60, hand: stageSkillPolish.handSigil(gem) });
         const summon = gem.meta.kind === 'wisp' ? gem.map.cast : null;

@@ -9,7 +9,8 @@
         cosmos: '성좌 순환',
         coreFrenzy: '핵 폭주',
         cosmosBoss: '은하 고유 기믹',
-        apex: '후반부 보스 고유 기믹'
+        apex: '후반부 보스 고유 기믹',
+        rootGrinder: '회전 톱날'
     });
     const BOSS_PATTERN_DESCRIPTIONS = Object.freeze({
         intro: '때때로 예고한 칸에 특수기를 씁니다. 생명력이 적을수록 자주 쓰고, 보스마다 세 가지(갈래 사격, 연쇄 폭발, 이중 파동 등) 가운데 하나를 고르며 같은 특수기를 잇달아 쓰지 않습니다. 예고가 뜨면 이동 스킬을 눌러 범위를 벗어날 수 있습니다.',
@@ -19,7 +20,8 @@
         cosmos: '연속 참격/파쇄 강타/격앙을 차례로 순환합니다.',
         coreFrenzy: '연속 참격, 파쇄 강타, 격앙을 차례로 씁니다.',
         cosmosBoss: '은하 보스마다 고유한 공격 순서와 파훼 조건을 사용합니다.',
-        apex: '아틀라스 후반부 보스는 단계마다 이름이 붙은 특수기를 정해진 횟수마다 예고한 뒤 씁니다.'
+        apex: '아틀라스 후반부 보스는 단계마다 이름이 붙은 특수기를 정해진 횟수마다 예고한 뒤 씁니다.',
+        rootGrinder: '공격마다 예고한 칸을 톱날로 여러 번 갈아 냅니다. 칸에 머무르는 동안 계속 맞습니다.'
     });
     const BOSS_PATTERN_PEAK_DAMAGE_MULTIPLIERS = Object.freeze({
         intro: 1.15,
@@ -157,7 +159,7 @@
 
     // Bosses that carry their own special table: cosmos galaxy bosses (js/cosmos-rules.js) and the awakened atlas's late bosses
     // (js/atlas-endgame.js, a named special every n-th attack per stage).
-    const OWN_PATTERN_MODES = new Set(['cosmosBoss', 'apex']);
+    const OWN_PATTERN_MODES = new Set(['cosmosBoss', 'apex', 'rootGrinder']);
     // Time to resume filling the gauge after the last special impact. Own boss tables retain their authored timing.
     const SPECIAL_RECOVERY_MS = Object.freeze({ intro: 600, burst: 450, slam: 750, ramp: 350 });
     // 핵 폭주는 매 공격이 특수기라 숨 고르기를 절반만 둔다: 초당 피해가 파쇄 강타 단계와 같거나 조금(공격 속도에 따라 9%까지) 높다.
@@ -166,6 +168,7 @@
     const recoveryOf = state => state.recoveryMs ?? (state.isSpecial && !OWN_PATTERN_MODES.has(state.patternMode)
         && state.patternMode !== 'cosmos' ? (SPECIAL_RECOVERY_MS[state.mode] || 0) * (state.patternMode === 'coreFrenzy' ? CORE_FRENZY_RECOVERY_SHARE : 1) : 0);
     function getOwnPatternState(mode, enemy, attackNumber) {
+        if (mode === 'rootGrinder') return roomInvaders.patternState(attackNumber);
         if (mode === 'cosmosBoss') {
             return typeof globalThis.getCosmosBossPatternState === 'function' ? globalThis.getCosmosBossPatternState(enemy.cosmosBossId, attackNumber) : null;
         }
