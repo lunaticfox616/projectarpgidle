@@ -46,7 +46,7 @@ const actExplorationView=(()=>{
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
     }
     /** 무대의 칸 너비: 화면 너비와 높이를 따른다(stageView.tile). 휴대폰과 태블릿 세로에서는 방 그림이 화면 위끝까지 닿을 만큼은
-     * 키운다(stageScene.coverTile). PC 창은 창 모양이 달라도 가로로 같은 칸 수가 보이게 그대로 두고, 테스트 패널에서 고른 배율도 그대로다. */
+     * 키운다(stageScene.coverTile). PC 창은 stageView.tile이 고른 칸 그대로 두고, 테스트 패널에서 고른 배율도 그대로다. */
     function stageTile(run,map,width,height) {
         const tile=stageView.tile(width,height,stageRoomRows(run));
         if(Number(game.settings.stageZoom)||typeof stageScene!=='object'||!stageView.phonePortrait(width,height))return tile;
