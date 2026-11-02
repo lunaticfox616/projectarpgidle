@@ -202,7 +202,7 @@ const BUILDER_OPTIONS = Object.freeze({
     'skill_gem_level:chaos': builder('chaosGemLevel', '카오스 스킬 젬 레벨'), 'skill_gem_level:all': builder('gemLevel', '모든 스킬 젬 레벨'),
     'skill_gem_level:strength': builder('strGemLevel', '힘 스킬 젬 레벨'), 'skill_gem_level:dexterity': builder('dexGemLevel', '민첩 스킬 젬 레벨'),
     'skill_gem_level:intelligence': builder('intGemLevel', '지능 스킬 젬 레벨'),
-    support_gem_limit: builder('suppCap', '보조 스킬 젬 한도'), additional_projectiles: builder('projectileExtraShots', '투사체 추가 발사'),
+    support_gem_limit: builder('suppCap', '보조스킬룬 한도'), additional_projectiles: builder('projectileExtraShots', '투사체 추가 발사'),
     minion_damage: builder('summonPctDmg', '소환수 피해'), minion_attack_speed: builder('summonAspd', '소환수 공격 속도'),
     minion_maximum_life: builder('summonHpPct', '소환수 최대 생명력'),
     'ailment_chance:ignite': builder('igniteChance', '점화 확률'), 'ailment_chance:chill': builder('chillChance', '냉각 확률'),

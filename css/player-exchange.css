@@ -39,3 +39,60 @@ button.player-trade-item{width:100%;margin:0;color:inherit;font:inherit;text-ali
 @media(max-width:700px){.hall-browse-search{flex-basis:100%}.hall-browse select{flex:1 1 0}}}
 
 @layer overrides{.hall-appraisal{color:#d2b878}}
+/* 장비 전당의 전시장(2026-11-02 사용자: 색감, 전당이라는 웅장함). 포도주빛 어둠에 대리석 기둥과 위에서 내리는 빛. 금빛은 이름과 값에만 쓴다.
+   전시품은 희귀도 빛이 비치는 벽감 안 받침 위에 선다. 픽셀 스킨은 카드를 덮으므로 overrides 층에 둔다. */
+@layer overrides {
+    #map-player-hall { --hall-stone: #6d5f86; --hall-stone-light: #9c8eb6; --hall-stone-dark: #2b2339; --hall-wine: #4a1c2e; --hall-marble: #efe3cb; --hall-gold: #e5c98a; }
+    .hall-hero { position: relative; margin: 0 0 10px; padding: 18px 72px 14px; overflow: hidden; border: 1px solid var(--hall-stone); text-align: center;
+        background: radial-gradient(46% 130% at 50% -24%, rgba(255, 233, 186, .42), transparent 72%), radial-gradient(90% 90% at 50% 124%, rgba(150, 44, 76, .5), transparent 72%), linear-gradient(180deg, #2c2039, #150f1d); }
+    /* 기둥 둘: 머리, 세로 홈, 밑동. */
+    .hall-hero::before, .hall-hero::after { content: ''; position: absolute; top: 0; bottom: 0; width: 44px;
+        background: linear-gradient(var(--hall-stone-light), var(--hall-stone-light)) top / 100% 7px no-repeat, linear-gradient(var(--hall-stone), var(--hall-stone)) top 7px left 4px / calc(100% - 8px) 6px no-repeat, linear-gradient(var(--hall-stone-light), var(--hall-stone-light)) bottom / 100% 8px no-repeat,
+            repeating-linear-gradient(90deg, #4c4162 0 3px, #75678f 3px 6px, #352c47 6px 9px) top 13px left 6px / calc(100% - 12px) calc(100% - 21px) no-repeat; }
+    .hall-hero::before { left: 12px; }
+    .hall-hero::after { right: 12px; }
+    .hall-hero-title > span { color: var(--hall-stone-light); font-size: 12px; }
+    :root body[data-ui-skin] .tab-content:not(#tab-battle) #map-player-hall .hall-hero-title > h2, :root body[data-ui-skin].desktop-windowed-ui .ui-window-body #map-player-hall .hall-hero-title > h2 { display: block; margin: 2px 0 4px; padding: 0; border: 0; box-shadow: none; background: none; color: var(--hall-marble); font-size: 24px; text-align: center; text-shadow: 0 0 18px rgba(255, 225, 165, .5), 0 2px 0 #1a0f18; }
+    .hall-hero-title > p { margin: 0 0 10px; color: #c9bcd0; font-size: 12px; }
+    .hall-plaques { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; max-width: 640px; margin: 0 auto; }
+    .hall-plaque { display: flex; flex-direction: column; gap: 1px; padding: 5px 4px; border: 1px solid #5d4f73; background: linear-gradient(180deg, rgba(62, 50, 82, .9), rgba(26, 20, 36, .92)); box-shadow: inset 0 1px 0 rgba(255, 240, 210, .14); }
+    .hall-plaque > span { color: #b7a9c6; font-size: 12px; }
+    .hall-plaque > b { color: var(--hall-gold); font-size: 14px; }
+    .hall-rule { margin: 0 0 10px; padding: 7px 10px; border-left: 3px solid var(--hall-wine); background: rgba(74, 28, 46, .22); color: #bdb0bf; font-size: 12px; line-height: 1.6; }
+
+    :root body[data-ui-skin] #map-player-hall .player-exchange-card { --card: #6d5f86; border: 1px solid color-mix(in srgb, var(--card) 62%, #050404); background: linear-gradient(180deg, color-mix(in srgb, var(--card) 12%, #15101a), #120d16 200px); }
+    #map-player-hall .player-exchange-card.is-market { --card: #a6456a; }
+    #map-player-hall .player-exchange-card.is-register { --card: #7f6ab0; }
+    #map-player-hall .player-exchange-card.is-mine { --card: #4f8f8a; }
+    :root body[data-ui-skin] #map-player-hall .player-exchange-card > header { background: linear-gradient(90deg, color-mix(in srgb, var(--card) 34%, #15101a), transparent 80%); border-bottom: 1px solid color-mix(in srgb, var(--card) 44%, #050404); }
+    #map-player-hall .player-exchange-card > header strong { color: var(--hall-marble); }
+    #map-player-hall .player-exchange-card > header small { color: color-mix(in srgb, var(--card) 40%, #c9bcd0); }
+
+    /* 벽감: 위가 둥근 어둠에 희귀도 빛, 그림은 받침 위에 선다. 픽셀 스킨은 모서리를 깎지 않으므로 둥근 머리는 clip-path로 계단지게 깎는다. */
+    .hall-niche { position: relative; display: flex; flex: none; align-items: flex-end; justify-content: center; width: 52px; height: 58px; padding-bottom: 6px; box-sizing: border-box;
+        clip-path: polygon(16% 0, 84% 0, 84% 6%, 92% 6%, 92% 14%, 100% 14%, 100% 100%, 0 100%, 0 14%, 8% 14%, 8% 6%, 16% 6%);
+        background: linear-gradient(transparent 88%, #8d7ca6 88%, #8d7ca6 92%, #3c3050 92%), radial-gradient(70% 62% at 50% 62%, color-mix(in srgb, var(--trade-rarity) 42%, transparent), transparent 76%), linear-gradient(180deg, #120c18, #241b31); }
+    .hall-niche-art { position: relative; display: block; width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--trade-rarity) 70%, transparent)); }
+    :root body[data-ui-skin] #map-player-hall .player-trade-item.hall-item { justify-content: flex-start; background: linear-gradient(100deg, color-mix(in srgb, var(--trade-rarity) 12%, #17121d), #130f18 70%); }
+    #map-player-hall .player-trade-item.hall-item .hall-item-text { flex: 1 1 auto; }
+    #map-player-hall .player-trade-item.hall-item strong { color: color-mix(in srgb, var(--trade-rarity) 66%, #fff3df); }
+
+    /* 전당 소장품은 세로 전시장: 벽감을 위에 크게 둔다. */
+    #map-player-hall .is-market .player-trade-grid { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); max-height: 520px; }
+    :root body[data-ui-skin] #map-player-hall .player-trade-item.hall-pick { flex-direction: column; align-items: stretch; gap: 6px; padding: 6px; text-align: center; background: linear-gradient(180deg, color-mix(in srgb, var(--trade-rarity) 15%, #17121d), #130f18 76%); }
+    #map-player-hall .hall-pick .hall-niche { width: 100%; height: 84px; clip-path: polygon(10% 0, 90% 0, 90% 5%, 95% 5%, 95% 11%, 100% 11%, 100% 100%, 0 100%, 0 11%, 5% 11%, 5% 5%, 10% 5%); }
+    #map-player-hall .hall-pick .hall-niche-art { width: 64px; height: 64px; }
+    #map-player-hall .hall-pick .player-trade-price { align-items: center; padding-top: 5px; border-top: 1px solid color-mix(in srgb, var(--trade-rarity) 30%, #2a2233); }
+    :root body[data-ui-skin] #map-player-hall .player-trade-item.hall-pick:hover { border-color: var(--trade-rarity); filter: brightness(1.12); }
+    :root body[data-ui-skin] #map-player-hall .hall-detail { border-color: var(--hall-gold); background: linear-gradient(180deg, rgba(74, 28, 46, .34), #130e17); }
+
+    @media (max-width: 700px) {
+        .hall-hero { padding: 12px 10px 10px; }
+        .hall-hero::before, .hall-hero::after { width: 18px; opacity: .55; }
+        .hall-hero::before { left: 0; }
+        .hall-hero::after { right: 0; }
+        .hall-hero-title { padding: 0 16px; }
+        .hall-plaques { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 16px; }
+        #map-player-hall .is-market .player-trade-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+}

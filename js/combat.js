@@ -2314,8 +2314,11 @@ function coreLoop(nowMs) {
     }
     syncCrowdPauseState();
 
-    if (!holdMapProgress && actExplorationProgress.canFinish()) playerStatCache.during(finishEncounterRun);
+    if (!holdMapProgress && canFinishAfterTraps()) playerStatCache.during(finishEncounterRun);
 }
+
+/** 터지는 중인 함정이 있으면 그 뒤에 끝낸다(경고에서 터지기까지 3초 안쪽). */
+const canFinishAfterTraps = () => !trialHazardRuntime.active && actExplorationProgress.canFinish();
 
 /** Guard against malformed stat payloads from legacy saves/runtime merges. If ASPD becomes NaN/<=0, pTimer never advances and
  * combat appears frozen. Then the runtime state is made sane and the map progress reconciled. */
@@ -3853,7 +3856,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let aspdSoftCapKnee = (hasKeystone('r9')) ? 7 : 5;
     if (typeof getTalentAttackSpeedSoftcapKnee === 'function') aspdSoftCapKnee = getTalentAttackSpeedSoftcapKnee(aspdSoftCapKnee);
     let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : (aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72));
-    finalAspd = Math.min(12, finalAspd / (1 - Math.min(SKILL_DELAY_REDUCE_CAP, sumStatAcrossBuckets('skillDelayReduce')) / 100));
+    const skillDelayPct = Math.min(SKILL_DELAY_REDUCE_CAP, sumStatAcrossBuckets('skillDelayReduce'));
+    finalAspd = Math.min(12, finalAspd / (1 - skillDelayPct / 100));
     finalAspd = scaleKeystoneAttackSpeed(finalAspd, authoredPassiveRules.flags);
     if (authoredPassiveRules.flags.bloodAcceleration && tick.get('leechActive')) {
         finalAspd = Math.min(12, finalAspd * 1.15);
@@ -4895,6 +4899,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 talentLine('aspd'),
                 glovePairAspdBonus > 0 ? `동형 장갑 세트 보너스 +${glovePairAspdBonus.toFixed(2)} 기본 공속` : null,
                 `공격 속도 배율 ${formatPercentMultiplier(skill.spd || 1)}`,
+                skillDelayPct > 0 ? `스킬 딜레이 감소 ${skillDelayPct}%: 공격 횟수와 DPS ${formatPercentMultiplier(1 / (1 - skillDelayPct / 100))}` : null,
                 rawAspd > 5 ? `소프트캡 적용중 (원시 ${rawAspd.toFixed(2)} → 최종 ${finalAspd.toFixed(2)})` : null
             ].filter(Boolean),
             final: `${finalAspd.toFixed(2)}`
@@ -7735,11 +7740,11 @@ function resetBattleRuntimeVisuals() {
 function getTrialHazardProfile(zone) {
     let source = zone && zone.trialHazard ? zone.trialHazard : {};
     return {
-        pattern: ['line', 'doubleLine', 'pool', 'cross', 'block'].includes(source.pattern) ? source.pattern : 'line',
+        pattern: ['line', 'pool', 'cross', 'block'].includes(source.pattern) ? source.pattern : 'line',
+        reach: Math.max(1, Math.floor(Number(source.reach) || 1)),
         warningMs: Math.max(800, Math.min(3000, Number(source.warningMs) || 1700)),
         intervalMs: Math.max(2400, Math.min(12000, Number(source.intervalMs) || 6000)),
         initialDelayMs: Math.max(1000, Math.min(6000, Number(source.initialDelayMs) || 2200)),
-        avoidThresholdMul: Math.max(0.5, Math.min(1.5, Number(source.avoidThresholdMul) || 1)),
         persistent: source.persistent === true
     };
 }
@@ -8315,10 +8320,16 @@ function mergeEnemyAilment(target, incoming, pStats) {
 /** Kill records that grow outside the fight: the stump box, the boss variant record (12번 루프 33, js/boss-variants.js) and the nursery's
  * seeds and saps (루프 39, js/stump-nursery.js). */
 function recordKillProgress(enemy) {
-    if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy);
+    if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy, layStumpDrop(enemy));
     if (typeof bossVariants === 'object') combatLootReceipts.capture(game, () => bossVariants.onKilled(game, enemy));
     if (typeof stumpNursery === 'object') stumpNursery.onKilled(game, enemy);
     if (typeof weaponMastery === 'object') weaponMastery.onKilled(game, enemy);
+}
+
+/** The kill's stump box drop, on the floor when there is one; what is left reaches the box at once. */
+function layStumpDrop(enemy) {
+    const spec = stumpBox.rollKillDrop(game, enemy);
+    return spec && placeFloorItem(enemy, 'stump', spec) ? null : spec;
 }
 
 /** Core items, the stump box and weapon mastery (js/weapon-mastery.js): account-wide reward lines of getPlayerStats. */
@@ -10349,16 +10360,23 @@ const receiveFloorItem = {
     jewel: row => dispatchRuntimeEvent('jewel-drop-received', receiveJewelDrop(row.item)),
     core: row => { if (coreItems.keep(row.item)) dispatchRuntimeEvent('core-item-received', row.item); },
     talisman: row => announceWildTalisman(talismans.receiveWild(game, { talisman: row.item, overflow: row.overflow })),
+    stump: receiveStumpDropRow,
     leaf: row => atlasFinds.receiveMemoryLeaf(row.leaf),
     yarn: row => receiveKnittingYarn(row.yarn),
     gem: receiveStarterGemRow,
     rune: receiveDeferredRune
 };
+/** A floor seed or sap picked up: in the box, with the same notice a drop had. */
+function receiveStumpDropRow(row) {
+    const { item, compost } = stumpBox.receiveDrop(game, row.item);
+    if (game.noti) game.noti.stump = true;
+    dispatchRuntimeEvent('stump-box-changed', { ripened: compost ? compost.ripened : [], drop: item, compost });
+}
 /** Rolled combat runes stay unowned until the boss's floor pile is collected. */
 function receiveDeferredRune(row) {
     gemDropRewards.grant(game, row.gem, row.gem.kind === 'support' ? gemDropRewards.resonanceCap(game, getPlayerStats()) : 0);
     playerStatCache.invalidate();
-    dispatchRuntimeEvent('gem-loot-received', { kind: row.gem.kind, gem: row.gem, shards: 0, deferred: true });
+    dispatchRuntimeEvent('gem-loot-received', { kind: row.gem.kind, gem: row.gem, deferred: true });
 }
 /** The loop's starter gem picked up from the floor: the gem goes in here; the log line and, in a first loop, the equip guide come
  * from the UI at once (js/content-progression-ui.js, event starter-gem-received): a floor gem misses the checks a kill runs. */
@@ -10467,23 +10485,12 @@ function awardEnemyLootCurrency(key,amount,source='reward') {
     return award.gain;
 }
 
-function grantEnemyGemFragments(amount) {
-    return awardEnemyLootCurrency('gemShard',amount,'drop');
-}
-
-function rollEnemyGemReward(enemy,awakening) {
-    const shards=grantEnemyGemFragments(1);
-    const duplicateShards=enemy.isBoss?3:enemy.isElite?2:1;
-    if(!contentProgression.isUnlocked('support')||Math.random()<0.5) {
-        const gem=rollEnemyAttackGem(awakening);
-        const bonus=gem?0:grantEnemyGemFragments(duplicateShards+1);
-        return {kind:'attack',gem,shards:shards+bonus};
-    }
+function rollEnemyGemReward(awakening) {
+    if(!contentProgression.isUnlocked('support')||Math.random()<0.5) return {kind:'attack',gem:rollEnemyAttackGem(awakening)};
     const names=Object.keys(SUPPORT_GEM_DB);
-    if(!names.length)return {kind:'support',gem:null,shards};
-    const name=rndChoice(names),gem=gemDropRewards.nextSupport(ownedAndReservedRuneState(),name);
-    const bonus=gem?0:grantEnemyGemFragments(duplicateShards);
-    return {kind:'support',name,gem,shards:shards+bonus};
+    if(!names.length)return {kind:'support',gem:null};
+    const name=rndChoice(names);
+    return {kind:'support',name,gem:gemDropRewards.nextSupport(ownedAndReservedRuneState(),name)};
 }
 
 function rollEnemyAttackGem(awakening) {
@@ -10558,9 +10565,9 @@ function rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui) {
 }
 function rollEnemyRuneDrop(enemy, contentDropMul, gemAwakening, ui) {
     if (!(Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * contentDropMul * getEnemyGemDropMul(enemy))) return;
-    const reward=rollEnemyGemReward(enemy,gemAwakening);
+    const reward=rollEnemyGemReward(gemAwakening);
     if (reward.gem && actExplorationState.groundLoot.reserve({ gx: enemy.gx, gy: enemy.gy,
-        kind: 'rune', gem: reward.gem, shards: 0 })) return;
+        kind: 'rune', gem: reward.gem })) return;
     if (actExplorationState.groundLoot.encounterOwner()) return;
     if(reward.gem) {
         gemDropRewards.grant(game,reward.gem,reward.kind==='support'?ui.resonanceCap():0);
@@ -10601,13 +10608,15 @@ function rollBeeLoot(enemy, mappingZone, ui) {
     let beeUnlocked = !!(game.beehive && game.beehive.unlockedPermanent);
     if (!(beeUnlocked && mappingZone && !enemy.isBoss)) return;
     let beeLootLogs = [];
-    if (Math.random() < 0.05) {
-        let pollenAmount = enemy.isElite ? 2 : 1;
-        awardEnemyLootCurrency('pollen', pollenAmount);
-        beeLootLogs.push(`꽃가루 +${pollenAmount}`);
-    }
+    rollPollenDrop(enemy, beeLootLogs);
     if (enemy.isElite) rollEliteBeeLoot(beeLootLogs);
     if (game.settings.showLootLog && beeLootLogs.length > 0) beeLootLogs.forEach(msg => ui.say(`🐝 ${msg}`, 'loot-normal'));
+}
+/** 꽃가루: 드물게 처치 자리 바닥에(2026-11-02 사용자, 전에는 5% 확률로 바로 들어왔다). 바닥이 없는 곳에서만 바로 들어오며 그때 기록을 남긴다. */
+function rollPollenDrop(enemy, beeLootLogs) {
+    if (Math.random() >= 0.015) return;
+    const amount = enemy.isElite ? 2 : 1;
+    if (!keepCurrencyDrop(enemy, 'pollen', amount).floor) beeLootLogs.push(`꽃가루 +${amount}`);
 }
 function rollEliteBeeLoot(beeLootLogs) {
     if (Math.random() < 0.0048) {
@@ -10643,12 +10652,12 @@ function rollColonyTraceDrop(zone, ui) {
 function rollSporeDrop(enemy, zone, ui) {
     let sporeUnlocked = contentProgression.canDropCurrency('sporeFire') && Math.max(0, Math.floor(game.loopCount || 0)) >= 2;
     if (!(sporeUnlocked && zone && (zone.type === 'act' || zone.type === 'abyss'))) return;
-    let sporeChance = (enemy.isBoss ? 0.32 : (enemy.isElite ? 0.2 : 0.11));
-    if (!(Math.random() < sporeChance)) return;
+    if (!(Math.random() < sporeChanceOf(enemy))) return;
     let key = rndChoice(sporePoolFor(enemy));
-    awardEnemyLootCurrency(key, 1);
-    logSporeGain(key, ui);
+    if (!keepCurrencyDrop(enemy, key, 1).floor) logSporeGain(key, ui);
 }
+/** 홀씨는 드물다(2026-11-02 사용자, 전에는 보스 32%, 정예 20%, 일반 11%): 처치 자리 바닥에 떨어져 주울 때 기록이 남는다. */
+const sporeChanceOf = enemy => (enemy.isBoss ? 0.08 : (enemy.isElite ? 0.04 : 0.015));
 function logSporeGain(key, ui) {
     if (game.settings.showLootLog) ui.say(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
 }
@@ -11310,16 +11319,14 @@ function grantGuaranteedTrialSkillGem() {
     game.noti = game.noti || {};
     let available = Object.keys(SKILL_DB).filter(name => SKILL_DB[name] && SKILL_DB[name].isGem && !hasSkillGemOwned(name));
     if (available.length === 0) {
-        let fallbackGain = grantGemResearchFragments(6, 'drop');
-        if (fallbackGain > 0) addLog(`✨ 전직 시련 보상: 모든 공격 룬을 보유해 룬 잔향 +${withObjectParticle(fallbackGain)} 획득했습니다.`, 'loot-magic');
+        addLog('✨ 전직 시련 보상: 모든 공격 룬을 이미 보유했습니다.', 'loot-magic');
         return true;
     }
     let skill = pickSkillRuneReward(available);
     game.skills.push(skill);
     game.gemData[skill] = { level: 1, exp: 0, awakened: false };
     game.noti.skills = true;
-    let shardGain = grantGemResearchFragments(2, 'drop');
-    addLog(`✨ 전직 시련 보상: 공격 룬 <span class='loot-magic'>[${skill}]</span> 획득!${shardGain ? `, 룬 잔향 +${shardGain}` : ''}`, 'loot-magic');
+    addLog(`✨ 전직 시련 보상: 공격 룬 <span class='loot-magic'>[${skill}]</span> 획득!`, 'loot-magic');
     return true;
 }
 
@@ -11469,10 +11476,9 @@ function grantBeyondBoundaryJewelRewards(context) {
 }
 
 function grantBeyondBoundaryGemRewards(context) {
-    let amount = Math.max(1, Math.round((8 + getBeyondBoundaryPayoutTier(context.tier) / 4) * context.intensity.rewardMul));
-    let gained = typeof grantGemResearchFragments === 'function'
-        ? grantGemResearchFragments(amount, 'drop') : (awardCurrency('gemShard', amount), amount);
-    return `룬 잔향 ${gained}개`;
+    let amount = Math.max(1, Math.round((3 + getBeyondBoundaryPayoutTier(context.tier) / 10) * context.intensity.rewardMul));
+    awardCurrency('awakenedEcho', amount);
+    return `각성 잔향 ${amount}개`;
 }
 
 function grantBeyondBoundaryCurrencyRewards(context) {
@@ -12096,6 +12102,7 @@ function unlockNextZoneAfterClear(zone, ui) {
     let clearedAtFrontier = zone.id >= game.maxZoneId;
     if (!(clearedAtFrontier && game.maxZoneId < targetUnlockZone)) return;
     game.maxZoneId = targetUnlockZone;
+    if (typeof npcShop === 'object') npcShop.syncAllRunes();
     game.noti.map = true;
     ui.reveal(game.maxZoneId);
     let clearedStoryAct = getStoryActByZoneId(zone.id);
@@ -14570,59 +14577,38 @@ function getBloomTrialRegenSuppressNext(zone, currentSuppress) {
     return Math.min(cap, Math.max(0, Number(currentSuppress) || 0) + gain);
 }
 
+/** 함정이 덮는 칸: 주인공 칸을 가운데 두고 reach칸씩 넓힌다(2026-11-02 사용자: 범위가 작아 피하기 쉽다). line은 맵을 가로지르는 띠(차례마다 가로와 세로),
+ * cross는 그 띠 둘, pool은 마름모, block은 네모. */
 function buildTrialHazardCells(zone, origin, sequence) {
-    let columns = getCombatGridSize().columns;
-    let rows = getCombatGridSize().rows;
-    let profile = getTrialHazardProfile(zone);
-    let cells = [], seen = new Set();
-    let push = (gx, gy) => {
-        let key = gridCellKey(gx, gy);
+    const { columns, rows } = getCombatGridSize(), { pattern, reach } = getTrialHazardProfile(zone);
+    const cells = [], seen = new Set();
+    const push = (gx, gy) => {
+        const key = gridCellKey(gx, gy);
         if (!isGridCellInBounds(gx, gy) || seen.has(key)) return;
         seen.add(key);
         cells.push({ gx, gy });
     };
-    let horizontal = sequence % 2 === 0;
-    if (profile.pattern === 'line' || profile.pattern === 'doubleLine') {
-        let adjacent = horizontal
-            ? (origin.gy < rows - 1 ? origin.gy + 1 : origin.gy - 1)
-            : (origin.gx < columns - 1 ? origin.gx + 1 : origin.gx - 1);
-        let length = horizontal ? columns : rows;
-        for (let index = 0; index < length; index++) {
-            if (horizontal) {
-                push(index, origin.gy);
-                if (profile.pattern === 'doubleLine') push(index, adjacent);
-            } else {
-                push(origin.gx, index);
-                if (profile.pattern === 'doubleLine') push(adjacent, index);
+    const band = horizontal => {
+        for (let offset = -reach; offset <= reach; offset++) {
+            for (let index = 0; index < (horizontal ? columns : rows); index++) {
+                if (horizontal) push(index, origin.gy + offset);
+                else push(origin.gx + offset, index);
             }
         }
-    } else if (profile.pattern === 'cross') {
-        for (let gx = 0; gx < columns; gx++) push(gx, origin.gy);
-        for (let gy = 0; gy < rows; gy++) push(origin.gx, gy);
-    } else {
-        for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-                if (profile.pattern === 'pool' && Math.abs(dx) + Math.abs(dy) > 1) continue;
-                push(origin.gx + dx, origin.gy + dy);
+    };
+    if (pattern === 'line') band(sequence % 2 === 0);
+    else if (pattern === 'cross') { band(true); band(false); }
+    else {
+        for (let dx = -reach; dx <= reach; dx++) {
+            for (let dy = -reach; dy <= reach; dy++) {
+                if (pattern !== 'pool' || Math.abs(dx) + Math.abs(dy) <= reach) push(origin.gx + dx, origin.gy + dy);
             }
         }
     }
     return cells;
 }
 
-function getTrialHazardAvoidThreshold(profile) {
-    let mode = game.combatTacticsUnlocked ? normalizeCombatTacticsSettings(game.settings).positionMode : 'auto';
-    let baseThreshold = mode === 'keepRange' ? 0.1 : (mode === 'pressure' ? 0.32 : 0.18);
-    return baseThreshold * profile.avoidThresholdMul;
-}
-
-function shouldAvoidTrialHazard(zone, pStats, hazard) {
-    let predictedDamage = floorIncomingDamage(calculateTrialTrapDamage(zone, pStats, hazard.element));
-    let currentPool = Math.max(1, (Number(game.playerHp) || 0) + (Number(game.playerEnergyShield) || 0));
-    return predictedDamage >= currentPool || predictedDamage / currentPool >= hazard.avoidThreshold;
-}
-
-function createTrialHazard(zone, pStats, now) {
+function createTrialHazard(zone, now) {
     let index = Math.max(0, Math.floor(game.trialHazardIndex || 0));
     let elements = Array.isArray(zone.trapElements) && zone.trapElements.length > 0 ? zone.trapElements : ['phys'];
     let element = elements[index % elements.length];
@@ -14633,18 +14619,9 @@ function createTrialHazard(zone, pStats, now) {
     game.trialHazardIndex = index + 1;
     let color = { phys: '#ffd36b', fire: '#ff754f', cold: '#86dcff', light: '#e5d35b', chaos: '#c47cff' }[element] || '#ffd36b';
     addBattleFx('trialTrapWarning', { targetCells: cells, color, element, duration: profile.warningMs });
-    let hazard = {
-        cells,
-        element,
-        color,
-        impactAt: now + profile.warningMs,
-        intervalMs: profile.intervalMs,
-        avoidThreshold: getTrialHazardAvoidThreshold(profile),
-        shouldAvoid: false,
-        persistent: profile.persistent && !!COMBAT_GRID_CONFIG.ground[element]
-    };
-    hazard.shouldAvoid = hazard.persistent || shouldAvoidTrialHazard(zone, pStats, hazard);
-    return hazard;
+    const persistent = profile.persistent && !!COMBAT_GRID_CONFIG.ground[element];
+    // 시련 함정은 주인공이 알아서 피하지 않는다(2026-11-02 사용자): 피하려면 직접 걷는다. 오래 남는 지대는 전처럼 비켜 간다.
+    return { cells, element, color, impactAt: now + profile.warningMs, intervalMs: profile.intervalMs, shouldAvoid: persistent, persistent };
 }
 
 function isPlayerInsideCombatHazard(hazard) {
@@ -14720,7 +14697,7 @@ function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
     triggerUniqueEnergyShieldBreakRecharge(pStats, energyShieldBeforeTrap, getCombatTime());
     if (remaining > 0) remaining = absorbDamageWithTalentStoneShield(remaining);
     if (remaining > 0) remaining = absorbDamageWithRealmDeathWard(remaining, pStats);
-    game.playerHp = Math.floor(game.playerHp - remaining);
+    game.playerHp = hpAfterTrap(remaining);
     game.playerEsLastHitAt = getCombatTime();
     recordIncomingDamage(hazard.element, trapDamage, trapName);
     if (zone.bloomTrial && (zone.trapRegenSuppressPct || 0) > 0) {
@@ -14731,6 +14708,11 @@ function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
     if (game.playerHp <= 0) {
         handlePlayerDefeat(zone, pStats, `${trapName}에 쓰러졌습니다. 마을로 귀환합니다.`, { fatalElement: hazard.element, sourceName: trapName, noToast: true });
     }
+}
+/** 적이 다 쓰러진 뒤에 터진 함정은 아프기만 하다: 이긴 싸움을 남은 함정 하나로 잃지 않는다. */
+function hpAfterTrap(damage) {
+    const hp = Math.floor(game.playerHp - damage);
+    return hp <= 0 && !isAnyEnemyAlive() ? 1 : hp;
 }
 function logTrialDamage(name, hazard, damage) {
     if (!hazard.persistent) {
@@ -14796,25 +14778,31 @@ function applyGroundContact(zone, stats, area, now) {
 function hasGroundHazard(zone) {
     return !!zone && (zone.type === 'trial' || !!zone.trialHazard);
 }
+const isAnyEnemyAlive = () => (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
+/** 적이 다 쓰러진 뒤: 새 함정은 없고 남은 지대는 걷히지만, 경고를 시작한 함정은 마저 터진다(2026-11-02 사용자). */
+function settleTrapAfterFight(zone, pStats, now) {
+    const hazard = trialHazardRuntime.active;
+    trialHazardRuntime.ground = [];
+    trialHazardRuntime.nextAt = Math.max(trialHazardRuntime.nextAt, now + 500);
+    if (hazard && hazard.persistent) trialHazardRuntime.active = null;
+    else if (hazard && now >= hazard.impactAt) resolveTrialHazardImpact(zone, pStats, hazard, now);
+}
 function applyTrialTrapTick(pStats, deferEscape) {
     let zone = getZone(game.currentZoneId);
     if (!hasGroundHazard(zone) || game.moveTimer > 0) return false;
     let now = getCombatTime();
-    if (!(game.enemies || []).some(enemy => enemy && enemy.hp > 0)) {
-        trialHazardRuntime.active = null;
-        trialHazardRuntime.ground = [];
-        trialHazardRuntime.nextAt = Math.max(trialHazardRuntime.nextAt, now + 500);
+    if (!isAnyEnemyAlive()) {
+        settleTrapAfterFight(zone, pStats, now);
         return false;
     }
     tickPersistentGround(zone, pStats, now);
     if (game.playerHp <= 0) return false;
     if (!trialHazardRuntime.nextAt) trialHazardRuntime.nextAt = now + getTrialHazardProfile(zone).initialDelayMs;
     if (!trialHazardRuntime.active && now >= trialHazardRuntime.nextAt) {
-        trialHazardRuntime.active = createTrialHazard(zone, pStats, now);
+        trialHazardRuntime.active = createTrialHazard(zone, now);
     }
     let hazard = trialHazardRuntime.active;
     if (!hazard) return false;
-    if (!hazard.shouldAvoid) hazard.shouldAvoid = shouldAvoidTrialHazard(zone, pStats, hazard);
     if (now >= hazard.impactAt) {
         resolveTrialHazardImpact(zone, pStats, hazard, now);
         return false;

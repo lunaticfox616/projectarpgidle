@@ -42,7 +42,7 @@
 /* Playable phone layout: switch composition instead of shrinking the desktop UI. */
 @media (max-width: 1080px) {
   html, body { width: 100%; max-width: 100%; }
-  :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row {
+  :is(#tab-items, #tab-skills, #tab-items .merged-subtab-pane:is([data-tab-id="tab-items"], [data-tab-id="tab-skills"])) > .subtab-row {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
@@ -288,7 +288,7 @@
 
 @media (max-width: 1080px) {
   html, body { overflow-x: hidden; }
-  :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row {
+  :is(#tab-items, #tab-skills, #tab-items .merged-subtab-pane:is([data-tab-id="tab-items"], [data-tab-id="tab-skills"])) > .subtab-row {
     overflow: visible;
   }
   body { gap: 8px; }
@@ -334,7 +334,6 @@
   .item-actions, .equipment-card-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #tab-skills .gem-enhance-actions,
   #tab-skills .gem-engrave-grid,
-  .gem-support-process-list { grid-template-columns: minmax(0, 1fr); }
   .gem-resource-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .gem-target-list { grid-template-columns: minmax(0, 1fr); }
   #tree-container {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ width: 100% !important; }

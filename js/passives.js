@@ -3704,7 +3704,9 @@ const PASSIVE_TREE_PRESET_SLOTS = 3;
 
 function getCurrentPassiveNodeId(rawId) {
     if (typeof rawId !== 'string') return rawId;
-    if (typeof PASSIVE_NODE_ID_MIGRATIONS !== 'object' || !PASSIVE_NODE_ID_LEGACY_PREFIX.test(rawId)) return rawId;
+    if (typeof PASSIVE_NODE_ID_MIGRATIONS !== 'object') return rawId;
+    if (PASSIVE_NODE_ID_MERGED[rawId]) return PASSIVE_NODE_ID_MERGED[rawId];
+    if (!PASSIVE_NODE_ID_LEGACY_PREFIX.test(rawId)) return rawId;
     return PASSIVE_NODE_ID_MIGRATIONS[rawId.replace(PASSIVE_NODE_ID_LEGACY_PREFIX, '')] || rawId;
 }
 
@@ -3867,11 +3869,12 @@ function calculateReachableNodes() {
         if (isPassiveNodeAvailable(id)) reachableNodes.add(id);
     });
     passiveRouting.freeNodes(PASSIVE_TREE, game).forEach(id => { if (isPassiveNodeAvailable(id)) reachableNodes.add(id); });
+    const blockedStarts = getPassiveBlockedStartIds();
     PASSIVE_TREE.edges.forEach(edge => {
         if (!isPassiveTreePathEdge(edge)) return;
         if (!isPassiveNodeAvailable(edge.from) || !isPassiveNodeAvailable(edge.to)) return;
-        if (connectionNodes.has(String(edge.from))) reachableNodes.add(edge.to);
-        if (connectionNodes.has(String(edge.to))) reachableNodes.add(edge.from);
+        if (connectionNodes.has(String(edge.from)) && !blockedStarts.has(edge.to)) reachableNodes.add(edge.to);
+        if (connectionNodes.has(String(edge.to)) && !blockedStarts.has(edge.from)) reachableNodes.add(edge.from);
     });
     // reachable 집합이 바뀌면 링크/후광 상태 캐시 갱신
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
@@ -6034,8 +6037,7 @@ function grantActRewardEntry(zoneId, choice) {
             addLog(`🎁 액트 보상 룬 [${choice.skill}] 획득!`, 'loot-rare');
         } else {
             game.passivePoints += choice.fallbackValue || 1;
-            let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(4) : (awardCurrency('gemShard', 4), 4);
-            addLog(`🎁 이미 보유한 룬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}, 룬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 이미 보유한 룬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}`, 'loot-magic');
         }
         return;
     }
@@ -6053,8 +6055,7 @@ function grantActRewardEntry(zoneId, choice) {
             let fallback = getSupportActRewardFallback(choice);
             if (fallback.kind === 'points') game.passivePoints += fallback.amount;
             else awardCurrency(fallback.currency, fallback.amount);
-            let shardGain = typeof grantGemResearchFragments === 'function' ? grantGemResearchFragments(3) : (awardCurrency('gemShard', 3), 3);
-            addLog(`🎁 중복 보조스킬룬 대신 ${fallback.label}, 룬 잔향 +${shardGain}`, 'loot-magic');
+            addLog(`🎁 중복 보조스킬룬 대신 ${fallback.label}`, 'loot-magic');
         }
         return;
     }

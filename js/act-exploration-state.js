@@ -263,7 +263,7 @@ const actExplorationState = (() => {
         state.enemies=[];
     }
     /** A cell nobody walks to: a solid object's (unless walking up to that object) or the story guide's (js/act-exploration-doors.js
-     * guideCells: where it stands and two cells in front of and behind it). */
+     * guideCells: where it stands). */
     function standsTaken(run,cell,options) {
         const key=`${cell.gx},${cell.gy}`;
         return (!options.object && actExplorationState.objects.solidCells(run).has(key)) || actExplorationDoors.guideCells(run).includes(key);

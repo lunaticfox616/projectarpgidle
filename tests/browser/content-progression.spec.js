@@ -23,7 +23,7 @@ test('loop one exposes the four basics and prevents advanced shortcuts', async (
     await page.evaluate(() => { switchItemSubtab('item-tab-craft'); switchTab('tab-skills'); updateStaticUI(); });
     await expect(page.locator('.attack-library')).toBeVisible();
     await expect(page.locator('.support-library')).toBeHidden();
-    for (const id of ['enhance','research','condition']) await expect(page.locator('#btn-skill-tab-' + id)).toBeHidden();
+    for (const id of ['enhance','condition']) await expect(page.locator('#btn-skill-tab-' + id)).toBeHidden();
     await page.evaluate(() => { switchSkillSubtab('skill-tab-enhance'); switchTab('tab-unlocks'); });
     expect(await page.evaluate(() => game.skillSubtab)).toBe('skill-tab-equip');
     await page.screenshot({ path: info.outputPath('loop-one.png') });
@@ -44,24 +44,22 @@ test('the unlock buy button stays visible in a small desktop window', async ({ p
     expect(hit).toBe(true);
 });
 
-// Review round 4 #2 #16: the unlock tree's step columns fit the window (6단계 '룬 각성' hid under the detail panel behind a
-// scrollbar below the fold), and phones list the steps top to bottom instead of a hidden sideways scroll.
-test('the unlock tree fits its window without hidden columns', async ({ page }, info) => {
+// 2026-11-02: the unlock tab draws the prerequisites as a tree; it stays inside the window, and the kinds have their tabs.
+test('the unlock tab draws a prerequisite tree and its kinds fit the window', async ({ page }, info) => {
     await page.evaluate(() => {
         game.season = 20; game.contentProgression.highestLoop = 20;
-        for (const row of CONTENT_UNLOCK_CATALOG) {
-            if (row.id === 'gemAwakening' || game.contentProgression.unlocked.includes(row.id)) continue;
-            game.contentProgression.unlocked.push(row.id); game.contentProgression.paidCosts[row.id] = row.cost;
-        }
-        contentProgression.sync(); updateStaticUI(); openTabPane('tab-unlocks');
+        contentProgression.sync(); updateStaticUI(); openTabPane('tab-unlocks'); unlockTabUi.tab = 'all'; unlockTabUi.render();
     });
-    const map = page.locator('#content-unlock-panel .unlock-map');
-    await expect(map).toBeVisible();
-    const fit = await map.evaluate(el => ({ overflow: el.scrollWidth - el.clientWidth,
-        node: el.querySelector('[data-unlock-select="gemAwakening"]').getBoundingClientRect().right, edge: el.getBoundingClientRect().right }));
-    expect(fit.overflow).toBeLessThanOrEqual(1);
-    expect(fit.node).toBeLessThanOrEqual(fit.edge + 1);
-    await page.screenshot({ path: info.outputPath('unlock-tree.png') });
+    const panel = page.locator('#content-unlock-panel');
+    await expect(panel.locator('.unlock-tree [data-unlock-select="gemAwakening"]')).toBeVisible();
+    await expect(panel.locator('.unlock-tree-lines [data-edge-to="gemAwakening"]')).toHaveCount(1);
+    expect(await panel.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    await panel.locator('[data-unlocks-tab="npc"]').click();
+    await expect(panel.locator('.unlock-tree .unlock-node.kind-npc[data-unlock-select="fossil"]')).toBeVisible();
+    await expect(panel.locator('.unlock-detail img[src*="portrait"]')).toHaveCount(0);
+    await panel.locator('[data-unlocks-tab="upgrades"]').click();
+    await expect(panel.locator('.unlock-upgrade')).toHaveCount(4);
+    await page.screenshot({ path: info.outputPath('unlock-tab.png') });
 });
 
 // 2026-10-07 review: at loop 10 the atlas opened (혼돈 20) but its window stayed blank until the chaos realm gate. The window's

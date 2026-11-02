@@ -55,7 +55,7 @@ safeExposeGlobals({ combatCurrencyHud });
         if(currencyKey==='ouroboros' && gain>0) {
             addLog(`🌿✨ <strong>${ORB_DB.ouroboros.name} +${gain}</strong> 획득! 장비를 봉인해 루프가 지나도 지킬 수 있습니다.`,'loot-unique');
         }
-        if(unlocked.gem)addLog('☁️ 스킬룬 탭의 성장과 각인이 열렸습니다!','loot-unique');
+        if(unlocked.gem)addLog('☁️ 스킬룬 탭의 각인이 열렸습니다!','loot-unique');
     }
     /** 새 공격 룬이 지금 주 공격 룬보다 보이는 DPS가 10% 넘게 높으면 알림창에 알린다. 주 공격 칸을 잠시 그 룬으로 바꿔 한 번 잰다.
      * 이동 룬은 이동 칸에 끼므로 재지 않는다. */
@@ -75,20 +75,14 @@ safeExposeGlobals({ combatCurrencyHud });
         setTimeout(()=>noticeRuneUpgrade(gem.name),0);
     }
     /** 공격 룬 줄 끝: 지금 든 무기로 쓸 수 없으면 그 까닭. */
-    const runeWeaponNote=name=>(canUseSkillWithCurrentEquipment(name)?'':` (지금 무기로 쓸 수 없음: ${getSkillRuneWeaponNote(name)})`);
+    const runeWeaponNote=name=>{const line=getSkillRuneBlockedLine(name);return line?` (${line})`:'';};
     function announceGemReward(reward) {
         queueRuneUpgradeNotice(reward);
         if(!game.settings.showLootLog)return;
-        const {gem,kind,shards,name}=reward,suffix=shards?` 룬 잔향 +${shards}`:'';
-        if(gem) {
-            if(kind==='attack')addLog(`✨ 공격 룬 <span class='loot-magic'>[${gem.name}]</span> 획득!${gem.awakened?' (각성 후보)':''}${runeWeaponNote(gem.name)}${suffix}`);
-            else addLog(`🟢 보조스킬룬 <span class='loot-rare'>[${gem.name}]</span> 획득! (해금: ${getSupportTierLabel(gem.name,gem.tier)})${suffix}`);
-            return;
-        }
-        if(shards<=0)return;
-        const message=kind==='attack'?`모든 공격 룬을 보유해 드랍이 룬 잔향 +${shards}로 환원되었습니다.`
-            :`최고 등급 보조스킬룬 [${name}]${pickParticle(name, '이', '가')} 룬 잔향 +${shards}로 환원되었습니다.`;
-        addLog('💠 '+message,kind==='attack'?'loot-magic':'loot-rare');
+        const {gem,kind}=reward;
+        if(!gem)return;
+        if(kind==='attack')addLog(`✨ 공격 룬 <span class='loot-magic'>[${gem.name}]</span> 획득!${gem.awakened?' (각성 후보)':''}${runeWeaponNote(gem.name)}`);
+        else addLog(`🟢 보조스킬룬 <span class='loot-rare'>[${gem.name}]</span> 획득! (해금: ${getSupportTierLabel(gem.name,gem.tier)})`);
     }
     window.addEventListener('project-idle:currency-acquired',announce);
     window.addEventListener('project-idle:gem-loot-received',event=>{

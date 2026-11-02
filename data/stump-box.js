@@ -45,7 +45,7 @@ const STUMP_BOX_SEED_PATH = Object.freeze({ fruitShare: 0.5 });
 // 색(2026-10-06): 절반은 판에 놓인 것들의 색에서(놓인 개수만큼 무겁게), 나머지는 네 색에서 고르게 고른다.
 // 네 색을 고르게만 굴리면 넷 가운데 셋이 지금 판과 상관없는 색이라, 판이 오래 비어 있었다.
 const STUMP_BOX_DROPS = Object.freeze({
-    chance: Object.freeze({ normal: 0.004, elite: 0.04, boss: 0.35 }),
+    chance: Object.freeze({ normal: 0.003, elite: 0.03, boss: 0.28 }),
     sapShare: 0.4,
     boardColorShare: 0.5,
     roll: Object.freeze({ min: 0.8, max: 1.2 })

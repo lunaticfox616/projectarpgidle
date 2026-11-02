@@ -535,6 +535,11 @@ function hallTipAttrs(key) {
     return `data-info-tooltip-anchor="1" onmouseenter="showPlayerHallTooltip(event,'${arg}')" onmousemove="showPlayerHallTooltip(event,'${arg}')" onmouseleave="hideInfoTooltip()"`;
 }
 
+/** 전시장 칸: 장비 그림과 그 밑의 받침, 희귀도 빛(css/player-exchange.css). */
+function hallNicheHtml(item) {
+    return `<span class="hall-niche" aria-hidden="true">${renderInventoryItemVisual(item, 'equipment', 'hall-niche-art')}</span>`;
+}
+
 /** An item's name with its slot, rarity and tier, and metaHtml under them. */
 function hallItemText(item, metaHtml) {
     let tier = Math.max(1, Math.floor(Number(item.hiddenTier || item.itemTier) || 1));
@@ -543,7 +548,7 @@ function hallItemText(item, metaHtml) {
 
 function renderHallItemCard(item, key, actionHtml, metaHtml) {
     playerExchangeState.itemTips.set(String(key), item);
-    return `<article class="player-trade-item hall-item" style="--trade-rarity:${getRarityColor(item.rarity)}" ${hallTipAttrs(key)}>${hallItemText(item, metaHtml)}${actionHtml}</article>`;
+    return `<article class="player-trade-item hall-item" style="--trade-rarity:${getRarityColor(item.rarity)}" ${hallTipAttrs(key)}>${hallNicheHtml(item)}${hallItemText(item, metaHtml)}${actionHtml}</article>`;
 }
 
 /** A show in the hall list: pressed, its card and purchase open above the list (renderHallListingDetail). */
@@ -553,7 +558,7 @@ function renderHallListingCard(row) {
     let state = hallListingCaption(row);
     let meta = `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}, 전시자 명예 +${Number(row.honorPerCopy || 0)}</small>`;
     return `<button type="button" class="player-trade-item hall-item hall-pick${selected ? ' is-selected' : ''}" style="--trade-rarity:${getRarityColor(item.rarity)}"
-        aria-pressed="${selected}" onclick="hideInfoTooltip();selectPlayerHallListing(${Number(row.id)})" ${hallTipAttrs(key)}>${hallItemText(item, meta)}
+        aria-pressed="${selected}" onclick="hideInfoTooltip();selectPlayerHallListing(${Number(row.id)})" ${hallTipAttrs(key)}>${hallNicheHtml(item)}${hallItemText(item, meta)}
         <span class="player-trade-price"><b>황금률 ${Number(row.price || 0).toLocaleString()}</b><span>${escapeHTML(row.curatorName || '익명')}, ${state}</span></span></button>`;
 }
 
@@ -681,8 +686,17 @@ function renderMyHallListings() {
         `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}</small>`)).join('');
 }
 
+/** 전당의 머리(2026-11-02 사용자: 색감, 전당이라는 웅장함): 두 기둥 사이의 이름, 그 아래 명예, 소장, 공유, 황금률 현판. */
+function hallHeroHtml(plaques) {
+    const cells = plaques.map(([label, value]) => `<div class="hall-plaque"><span>${label}</span><b>${Number(value || 0).toLocaleString()}</b></div>`).join('');
+    return `<header class="hall-hero"><div class="hall-hero-title"><span>성소의 기록</span><h2>장비 전당</h2><p>장비를 서버 감정가로 전시하고 다른 플레이어의 소장품을 확인합니다.</p></div>${cells ? `<div class="hall-plaques">${cells}</div>` : ''}</header>`;
+}
+
 /** 전당을 못 여는 까닭: 로그인 전이면 로그인 단추, 로그인했는데 서버가 준비 전이면 기다려 달라는 말. */
 function playerHallUnavailableHtml() {
+    return hallHeroHtml([]) + playerHallUnavailableNote();
+}
+function playerHallUnavailableNote() {
     if (cloudState && cloudState.user) return '<div class="player-exchange-empty"><span class="px-center">장비 전당 서버를 준비 중입니다. 잠시 후 다시 열어주세요.</span></div>';
     return '<div class="player-exchange-empty"><span class="px-center">장비 전당은 클라우드 로그인 후 이용할 수 있습니다.<button type="button" onclick="openStartupGate({ accountOnly: true })">로그인 화면 열기</button></span></div>';
 }
@@ -695,10 +709,11 @@ function renderPlayerHallPanel() {
     let activeCount = (Array.isArray(data.mine) ? data.mine : [])
         .filter(row => ['open', 'sold_out'].includes(row.status)).length;
     let busy = playerExchangeState.loading || playerExchangeState.asking;
-    return `<section class="player-exchange-card hall-summary"><header><div><strong>장비 전당</strong><small>희귀/고유 원본 전시, 서버 감정가, 귀속 복제품 최대 5개</small></div><span>명예 ${Number(data.honor || 0).toLocaleString()}, 소장 ${Number(data.collectionCount || 0).toLocaleString()}</span></header><p>희귀는 베이스 종류/티어와 옵션 티어/롤, 고유는 옵션 롤과 타락 결과까지 서버가 감정합니다. 판매자는 재화 대신 구매자마다 명예를 얻고 구매 비용은 전부 소각됩니다.</p></section>`
-        + `<section class="player-exchange-card"><header><div><strong>전시 등록 ${activeCount}/3</strong><small>원본은 전시 종료 시 직접 회수할 수 있습니다.</small></div></header><div class="player-trade-register"><div class="player-trade-picker">${renderHallPicker()}</div>${renderHallRegisterButton(activeCount)}</div></section>`
-        + `<section class="player-exchange-card"><header><strong>전당 소장품</strong><span class="hall-market-tools"><span>보유 황금률 ${Math.floor(game.currencies.goldenRule || 0).toLocaleString()}</span><button onclick="loadPlayerExchange()" ${busy ? 'disabled' : ''}>새로고침</button></span></header>${renderHallBrowseTools()}<div id="hall-market-view">${renderHallMarketView()}</div></section>`
-        + `<section class="player-exchange-card"><header><strong>내 전시 원본</strong><span>공유 ${Number(data.copiesShared || 0).toLocaleString()}회</span></header><div class="player-trade-grid compact">${renderMyHallListings()}</div></section>`;
+    const plaques = [['명예', data.honor], ['소장', data.collectionCount], ['공유', data.copiesShared], ['보유 황금률', game.currencies.goldenRule]];
+    return `${hallHeroHtml(plaques)}<p class="hall-rule">희귀, 고유 원본을 전시하면 귀속 복제품이 최대 5개 나갑니다. 희귀는 베이스 종류/티어와 옵션 티어/롤, 고유는 옵션 롤과 타락 결과까지 서버가 감정합니다. 판매자는 재화 대신 구매자마다 명예를 얻고 구매 비용은 전부 소각됩니다.</p>`
+        + `<section class="player-exchange-card is-register"><header><div><strong>전시 등록 ${activeCount}/3</strong><small>원본은 전시 종료 시 직접 회수할 수 있습니다.</small></div></header><div class="player-trade-register"><div class="player-trade-picker">${renderHallPicker()}</div>${renderHallRegisterButton(activeCount)}</div></section>`
+        + `<section class="player-exchange-card is-market"><header><strong>전당 소장품</strong><span class="hall-market-tools"><button onclick="loadPlayerExchange()" ${busy ? 'disabled' : ''}>새로고침</button></span></header>${renderHallBrowseTools()}<div id="hall-market-view">${renderHallMarketView()}</div></section>`
+        + `<section class="player-exchange-card is-mine"><header><strong>내 전시 원본</strong></header><div class="player-trade-grid compact">${renderMyHallListings()}</div></section>`;
 }
 
 function renderPlayerExchange() {

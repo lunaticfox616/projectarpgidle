@@ -480,11 +480,6 @@ const STORY_LOOP_MILESTONES = Object.freeze({
         speaker: '뿌리끝의 드루이드, 하켄',
         quote: '“줄기 하나에 잔가지를 엮으면 수액의 물살도 배로 거세지는 법이지.”'
     }),
-    research: Object.freeze({
-        narration: Object.freeze(['부서진 룬의 잔향 속에서 잊힌 전투 기법의 문양들이 떠오릅니다.', '흩어진 잔향을 모아 아직 손에 넣지 못한 새로운 기술을 복원합니다.']),
-        speaker: '뿌리끝의 드루이드, 하켄',
-        quote: '“부서진 잔향 속에도 우물로 버려졌던 옛 가지들의 기술이 남아 있다.”'
-    }),
     gemForge: Object.freeze({
         narration: Object.freeze(['군주의 핵과 창공의 정수가 룬의 중심부에 뜨거운 압력을 불어넣습니다.', '불길 속에서 제련된 룬이 이전보다 훨씬 날카로운 기운을 내뿜습니다.']),
         speaker: '벼림꾼 오르가',

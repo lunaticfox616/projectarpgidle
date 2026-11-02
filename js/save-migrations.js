@@ -863,6 +863,10 @@ function mergeDefaults(save) {
     }
     function migratePassiveSaveNodeReferences(state) {
         if (typeof migratePassiveNodeIdList !== 'function' || typeof migratePassiveNodeIdRecord !== 'function') return;
+        // 겹친 노드를 둘 다 찍었던 저장은 합쳐지며 한 칸이 줄어든다: 그 포인트를 돌려준다. 옛 id가 사라지므로 한 번만 돈다.
+        const taken = new Set(Array.isArray(state.passives) ? state.passives : []);
+        const doubled = Object.entries(PASSIVE_NODE_ID_MERGED).filter(([gone, kept]) => taken.has(gone) && taken.has(kept)).length;
+        if (doubled) state.passivePoints = Math.max(0, Number(state.passivePoints) || 0) + doubled;
         state.passives = migratePassiveNodeIdList(state.passives);
         state.discoveredPassives = migratePassiveNodeIdList(state.discoveredPassives);
         state.passiveAttributeChoices = migratePassiveNodeIdRecord(state.passiveAttributeChoices);
@@ -1332,7 +1336,7 @@ function mergeDefaults(save) {
     merged.completedTrials = Array.isArray(merged.completedTrials) ? merged.completedTrials.filter(id => typeof id === 'string') : [];
     merged.unlockedTrials = Array.isArray(merged.unlockedTrials) ? merged.unlockedTrials.filter(id => typeof id === 'string') : [];
     Object.assign(merged, craftingWorkspaceState.restore(merged));
-    merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-research','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
+    merged.skillSubtab = ['skill-tab-equip','skill-tab-enhance','skill-tab-condition'].includes(merged.skillSubtab) ? merged.skillSubtab : 'skill-tab-equip';
     merged.skillAutoRules = normalizeSavedTacticRules(merged.skillAutoRules);
     // 컨디션 룬 → 부적 조건부 줄(2026-09-30): 룬 · 레벨 · 가공 선택 · 전투 중 버프 · 룬 규칙은 보상 없이 지운다. 전술 규칙은 남는다.
     ['conditionGemUnlocked', 'conditionGemPool', 'conditionGemLevels', 'pendingConditionGemChoices', 'conditionGemCooldowns', 'playerConditionBuffs',
@@ -1346,11 +1350,8 @@ function mergeDefaults(save) {
     merged.cores = coreItems.normalize(merged.cores);
     merged.gemFoldInactiveAttack = !!merged.gemFoldInactiveAttack;
     merged.gemFoldInactiveSupport = !!merged.gemFoldInactiveSupport;
-    let gemResearchExpanded = merged.gemResearchExpanded && typeof merged.gemResearchExpanded === 'object' && !Array.isArray(merged.gemResearchExpanded) ? merged.gemResearchExpanded : {};
-    merged.gemResearchExpanded = {};
-    ['attack', 'support'].forEach(section => {
-        if (typeof gemResearchExpanded[section] === 'boolean') merged.gemResearchExpanded[section] = gemResearchExpanded[section];
-    });
+    delete merged.gemResearchExpanded;
+    if (merged.currencies) delete merged.currencies.gemShard;
     if (merged.gemFoldInactive) {
         merged.gemFoldInactiveAttack = true;
         merged.gemFoldInactiveSupport = true;

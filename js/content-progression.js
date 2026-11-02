@@ -230,8 +230,7 @@ const contentProgression = (() => {
     function grantEntryReward(id, key, owner) {
         if (id === 'craft') owner.currencies[key]++;
         if (id === 'support') {
-            if (hasSupportGemOwned(key, owner)) owner.currencies.gemShard += 8;
-            else {
+            if (!hasSupportGemOwned(key, owner)) {
                 owner.supports.push(key);
                 owner.supportGemData[key] = normalizeGemRecord(null);
             }
@@ -279,7 +278,7 @@ const contentProgression = (() => {
         if (def.id === 'journal') return owner.journalEntries.length > 0;
         if (def.gate) return !!owner.unlocks[def.gate];
         if (def.flags) return def.flags.some(flag => owner[flag]);
-        return owner.season >= def.minLoop || ['support','craft','fossil','research','hall','records'].includes(def.id);
+        return owner.season >= def.minLoop || ['support','craft','fossil','hall','records'].includes(def.id);
     }
 
     function restorePurchases(purchased, next, record) {
@@ -314,7 +313,7 @@ const contentProgression = (() => {
         if (!(Number(record.version) < 4)) return;
         const previous = new Set([...(Array.isArray(record.unlocked) ? record.unlocked : []), ...next.inherited]);
         if (record.version === 3) {
-            const bundled = [['research', 3], ['gemForge', 4]];
+            const bundled = [['gemForge', 4]];
             for (const [id, loop] of bundled) {
                 if (previous.has(id) || (previous.has('support') && next.highestLoop >= loop)) next.inherited.push(id);
             }

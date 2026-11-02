@@ -19,6 +19,7 @@
 @import "./ui-windows.css";
 @import "./ui-feedback.css";
 @import "./content-progression.css";
+@import "./unlock-tab.css";
 @import "./mobile.css";
 @import "./ghost-pvp.css";
 @import "./player-exchange.css";
@@ -74,6 +75,7 @@
 @import "./themes/pixel-mobile.css";
 @import "./themes/pixel-menu.css";
 @import "./void-craft.css";
+@import "./character-tab.css";
 @import "./message-frames.css";
 @import "./social-profile.css";
 @import "./chat-item-picker.css";

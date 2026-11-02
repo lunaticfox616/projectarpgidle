@@ -3343,10 +3343,10 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.restore();
 }
 
-/** The band's small lines: element, reach and standout defenses, the defenses on a line of their own when the screen is too narrow
+/** The band's small lines: element and standout defenses, the defenses on a line of their own when the screen is too narrow
  * for one (2026-10-19: with two of them the line was 371 px wide, wider than a 360 px phone). */
 function getBossBannerSubLines(ctx, boss, width) {
-    const head = [`${getElementLabel(boss.ele)} 속성 보스`, getBossReach(boss).label], defenses = getEnemyDefenseHighlights(boss);
+    const head = [`${getElementLabel(boss.ele)} 속성 보스`], defenses = getEnemyDefenseHighlights(boss);
     ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
     const one = [...head, ...defenses].join(', ');
     return !defenses.length || ctx.measureText(one).width <= width - 24 ? [one] : [head.join(', '), defenses.join(', ')];

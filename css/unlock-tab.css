@@ -1,0 +1,155 @@
+@layer components{
+/* 해금 탭(js/unlock-tab-ui.js, 2026-11-02): 위에 해금 포인트와 종류 탭, 왼쪽 판, 오른쪽 설명. 종류마다 제 색(--cat, 해금의 --node)을 쓴다:
+   포인트 해금은 금빛 네모, NPC 해금은 청록 팔각, 강화는 보라, 자동 개방은 회청 마름모. 해금한 것은 밝고, 지금 가능한 것은 흰 테, 조건을 기다리는 것은 무채색이다. */
+#content-unlock-panel{--cat:#e0c27e;container-type:inline-size;margin-bottom:18px;color:var(--color-text);word-break:keep-all;overflow-wrap:anywhere;border:1px solid var(--skin-line-strong);background:var(--skin-panel)}
+#content-unlock-panel button,#content-unlock-panel select{font:inherit;touch-action:manipulation}
+#content-unlock-panel button:focus-visible,#content-unlock-panel select:focus-visible{outline:2px solid var(--skin-accent);outline-offset:2px}
+.unlocks-head{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px 18px;padding:10px 14px;border-bottom:1px solid var(--skin-line);background:linear-gradient(110deg,rgba(156,128,65,.14),transparent 55%)}
+.unlocks-points{display:flex;align-items:baseline;gap:8px;padding:2px 14px 2px 0;border-right:1px solid var(--skin-line);color:var(--color-text-secondary);font-size:13px}
+.unlocks-points strong{color:#ffe3a0;font-size:26px;line-height:1.2;font-weight:600}
+.unlocks-points strong small{margin-left:2px;font-size:14px;color:var(--skin-accent)}
+.unlocks-points.is-complete strong{font-size:15px;line-height:34px}
+.unlocks-tabs{display:flex;flex:1;flex-wrap:wrap;gap:6px;min-width:0}
+#content-unlock-panel .unlocks-tab{--cat:#e0c27e;flex:1 1 92px;min-height:40px;padding:4px 8px;border:1px solid var(--skin-line);border-bottom:3px solid var(--skin-line);border-radius:0;background:rgba(0,0,0,.26);box-shadow:none;color:var(--color-text-secondary);font-size:13px}
+#content-unlock-panel .unlocks-tab.is-npc{--cat:#8fe3d6}
+#content-unlock-panel .unlocks-tab.is-upgrades{--cat:#b9a4f2}
+#content-unlock-panel .unlocks-tab.is-auto{--cat:#a9b6c9}
+#content-unlock-panel .unlocks-tab:hover{color:var(--color-text);border-bottom-color:color-mix(in srgb,var(--cat) 55%,transparent)}
+#content-unlock-panel .unlocks-tab[aria-pressed=true]{border-color:color-mix(in srgb,var(--cat) 45%,var(--skin-line));border-bottom-color:var(--cat);background:color-mix(in srgb,var(--cat) 16%,#100c08);color:color-mix(in srgb,var(--cat) 60%,#fff)}
+.unlocks-tab b{display:inline-block;min-width:18px;margin-left:6px;padding:0 4px;background:var(--cat);color:#17120a;font-weight:600;font-size:12px;line-height:18px;text-align:center}
+.unlocks-body{--cat:#e0c27e;display:grid;grid-template-columns:minmax(0,1fr) 280px;align-items:stretch}
+.unlocks-body.is-npc{--cat:#8fe3d6}
+.unlocks-body.is-upgrades{--cat:#b9a4f2}
+.unlocks-body.is-auto{--cat:#a9b6c9}
+.unlocks-list{min-width:0;overflow:auto;padding:10px 14px 14px;scrollbar-width:thin;cursor:grab}
+.unlocks-list.is-panning{cursor:grabbing;user-select:none}
+.unlocks-note{margin:0 0 8px;color:var(--color-text-secondary);font-size:12px}
+/* 범례: 트리의 모양과 밝기가 무슨 뜻인지 */
+.unlocks-legend{position:sticky;left:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-bottom:6px;color:var(--color-text-secondary);font-size:12px}
+.unlocks-legend-gap{width:6px}
+.unlock-legend-item{display:inline-flex;align-items:center;gap:5px}
+#content-unlock-panel .unlock-legend-item .unlock-node{position:static;display:block;width:14px;height:14px}
+.unlock-legend-item .unlock-node-frame{width:14px;height:14px;padding:2px}
+.unlock-legend-item .unlock-node-frame::before{content:'';display:block;width:100%;height:100%;background:#17120c;clip-path:var(--node-shape)}
+/* 트리 */
+.unlock-tree{position:relative}
+.unlock-tree-lines{position:absolute;inset:0;pointer-events:none}
+.unlock-tree-lines polyline{fill:none;stroke:#3f3a31;stroke-width:2;shape-rendering:crispEdges}
+.unlock-tree-lines polyline.is-next{stroke:#a98f5c;stroke-dasharray:4 4}
+.unlock-tree-lines polyline.is-lit{stroke:#c9a860}
+.unlock-tree-lines polyline.is-path,.unlock-tree-lines polyline.is-hover-path{stroke:#ffe9b0;stroke-dasharray:none}
+#content-unlock-panel .unlock-node{--node:#e0c27e;--node-shape:none;position:absolute;display:grid;justify-items:center;gap:3px;width:108px;min-height:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;color:var(--color-text);font-size:12px;white-space:nowrap;overflow:visible;cursor:pointer}
+#content-unlock-panel .unlock-node.kind-npc{--node:#8fe3d6;--node-shape:polygon(29% 0,71% 0,100% 29%,100% 71%,71% 100%,29% 100%,0 71%,0 29%)}
+#content-unlock-panel .unlock-node.kind-auto{--node:#a9b6c9;--node-shape:polygon(50% 0,100% 50%,50% 100%,0 50%)}
+.unlock-node-icon{position:relative;display:block;width:44px;height:44px}
+.unlock-node-frame{display:grid;place-items:center;box-sizing:border-box;width:44px;height:44px;padding:2px;background:var(--node);clip-path:var(--node-shape)}
+.unlock-node-frame img{box-sizing:border-box;display:block;width:100%;height:100%;padding:3px;object-fit:contain;background:#17120c;clip-path:var(--node-shape)}
+.unlock-node.kind-auto .unlock-node-frame img{padding:9px}
+.unlock-node-name{max-width:108px;overflow:hidden;text-overflow:ellipsis}
+.unlock-node-cost,.unlock-node-loop{position:absolute;padding:0 3px;font-weight:400;font-size:12px;line-height:15px;pointer-events:none}
+.unlock-node-cost{right:-9px;bottom:-3px;background:#17120c;color:#ffe3a0;box-shadow:0 0 0 1px currentColor}
+.unlock-node-loop{left:-11px;top:-4px;background:#17120c;color:#c9c0ae;box-shadow:0 0 0 1px rgba(201,192,174,.6)}
+.unlock-node.is-owned .unlock-node-frame{filter:drop-shadow(0 0 3px var(--node))}
+#content-unlock-panel .unlock-node.is-ready{--node:#fff6dc}
+.unlock-node.is-ready .unlock-node-name{color:#fff1c8}
+.unlock-node.is-ready .unlock-node-cost{background:#e0c27e;color:#17120a;box-shadow:none}
+#content-unlock-panel .unlock-node.is-waiting{--node:#4c463b}
+.unlock-node.is-waiting .unlock-node-frame img{filter:grayscale(1) brightness(.5)}
+.unlock-node.is-waiting .unlock-node-name{color:var(--color-text-secondary)}
+.unlock-node.is-chosen .unlock-node-icon::after{content:'';position:absolute;inset:-5px;border:1px solid #fff;pointer-events:none}
+.unlock-node.is-hover-path .unlock-node-name{color:#fff}
+.unlock-node.is-hover-path .unlock-node-frame{filter:brightness(1.25)}
+#content-unlock-panel .unlocks-body.is-points .unlock-tree .unlock-node:not(.kind-paid),#content-unlock-panel .unlocks-body.is-npc .unlock-tree .unlock-node:not(.kind-npc){opacity:.32}
+/* 강화: 단계 사슬. 해금한 단계까지 이어지고 다음 단계가 흰 테로 빛난다 */
+.unlock-upgrades{display:grid;gap:8px}
+.unlock-upgrade{display:grid;grid-template-columns:44px minmax(0,1fr);align-items:start;gap:10px;padding:10px;border:1px solid var(--skin-line);background:var(--skin-panel-raised)}
+.unlock-upgrade.is-ready{border-color:color-mix(in srgb,var(--cat) 70%,transparent);box-shadow:inset 3px 0 0 var(--cat)}
+.unlock-upgrade>img{width:44px;height:44px;object-fit:contain;image-rendering:pixelated}
+.unlock-upgrade-text{display:grid;gap:4px;min-width:0}
+.unlock-upgrade-text strong{display:flex;align-items:baseline;gap:8px;font-size:14px;font-weight:600}
+.unlock-upgrade-text strong small{color:var(--color-text-secondary);font-size:12px;font-weight:400}
+.unlock-upgrade-effect{color:var(--color-text-secondary);font-size:13px}
+.unlock-upgrade-effect b{color:color-mix(in srgb,var(--cat) 70%,#fff);font-weight:600}
+.unlock-chain{display:flex;flex-wrap:wrap;gap:6px 8px;margin-top:2px}
+#content-unlock-panel .unlock-step{position:relative;width:28px;height:28px;min-height:0;padding:0;border:2px solid #4c463b;border-radius:0;background:#17120c;box-shadow:none;color:var(--color-text-secondary);font-size:12px;line-height:24px;text-align:center;cursor:pointer}
+.unlock-step+.unlock-step::before{content:'';position:absolute;left:-10px;top:10px;width:8px;height:2px;background:#4c463b}
+.unlock-step.is-owned+.unlock-step::before{background:#b9a4f2}
+#content-unlock-panel .unlock-step.is-owned{border-color:#b9a4f2;background:rgba(185,164,242,.3);color:#efe9ff}
+#content-unlock-panel .unlock-step.is-ready{border-color:#fff6dc;color:#fff6dc}
+#content-unlock-panel .unlock-step.is-chosen{outline:1px solid #fff;outline-offset:2px}
+/* 자동 개방: 루프 줄. 왼쪽 선 위에 루프가 차례로 놓인다 */
+#content-unlock-panel .unlock-auto-toggle{min-height:30px;margin-bottom:8px;padding:2px 10px;font-size:12px}
+.unlock-auto-list{position:relative;display:grid;gap:6px;padding-left:16px}
+.unlock-auto-list::before{content:'';position:absolute;left:4px;top:8px;bottom:8px;width:2px;background:var(--skin-line)}
+.unlock-auto-loop{position:relative;padding:8px 10px;border:1px solid var(--skin-line);background:var(--skin-panel-raised)}
+.unlock-auto-loop::before{content:'';position:absolute;left:-16px;top:12px;width:10px;height:10px;background:var(--skin-line)}
+.unlock-auto-loop.is-now{border-color:color-mix(in srgb,var(--cat) 60%,transparent)}
+.unlock-auto-loop.is-now::before{background:var(--cat)}
+.unlock-auto-loop.is-past::before{background:color-mix(in srgb,var(--cat) 50%,transparent)}
+.unlock-auto-loop>header{display:flex;align-items:baseline;gap:8px}
+.unlock-auto-loop>header strong{font-size:14px;color:color-mix(in srgb,var(--cat) 70%,#fff)}
+.unlock-auto-loop>header small{color:var(--color-text-secondary);font-size:12px}
+.unlock-auto-need,.unlock-auto-extra{margin:4px 0;color:var(--color-text-secondary);font-size:12px;line-height:1.6}
+.unlock-auto-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px;margin-top:6px}
+#content-unlock-panel .unlock-auto-item{display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-height:30px;padding:3px 8px;border:1px solid var(--skin-line);border-radius:0;background:rgba(0,0,0,.2);box-shadow:none;color:var(--color-text);font-size:13px;text-align:left;white-space:normal}
+#content-unlock-panel .unlock-auto-item small{color:var(--color-text-secondary);font-size:12px;text-align:right}
+#content-unlock-panel .unlock-auto-item.is-owned small{color:var(--color-success)}
+#content-unlock-panel .unlock-auto-item.is-chosen{border-color:var(--cat)}
+/* 설명 칸 */
+.unlock-eyebrow{font-size:11px;color:color-mix(in srgb,var(--cat) 75%,#fff);letter-spacing:1px}
+.unlock-detail{display:flex;flex-direction:column;gap:12px;min-width:0;padding:14px;border-left:1px solid var(--skin-line);background:linear-gradient(150deg,color-mix(in srgb,var(--cat) 9%,transparent),transparent 60%)}
+.unlock-detail-art{display:grid;place-items:center;height:76px;margin:6px 0}
+.unlock-detail-art img{width:68px;height:68px;object-fit:contain}
+#content-unlock-panel .unlock-detail h3{margin:0 0 8px;font-size:21px;font-weight:500;color:var(--color-text)}
+.unlock-gain{display:block;font-size:12px;line-height:1.4;color:color-mix(in srgb,var(--cat) 75%,#fff)}
+.unlock-detail .unlock-gain{margin:2px 0 6px}
+.unlock-detail-top>p{margin:0;color:var(--color-text-secondary);font-size:var(--font-size-ui);line-height:1.75}
+.unlock-detail-reward:empty{display:none}
+.unlock-detail-reward>p{margin:0;color:var(--color-text-tertiary);font-size:11px;line-height:1.7}
+.unlock-detail-reward .unlock-reward{color:var(--skin-accent)}
+.content-unlock-choice{display:grid;gap:8px;margin:12px 0;color:var(--color-text-secondary);font-size:12px}
+.content-unlock-choice select{width:100%;min-width:0;min-height:40px;padding:7px;background:var(--skin-control);color:var(--color-text);border:1px solid var(--skin-line-strong);border-radius:0}
+.unlock-next{padding-top:10px;border-top:1px solid var(--skin-line)}
+.unlock-next h4{margin:0 0 6px;color:var(--color-text-tertiary);font-size:11px;font-weight:400}
+.unlock-next>div{display:flex;flex-wrap:wrap;gap:4px}
+#content-unlock-panel .unlock-next button{min-height:26px;padding:1px 8px;border:1px solid var(--skin-line);border-radius:0;background:rgba(0,0,0,.2);box-shadow:none;color:var(--color-text);font-size:12px}
+#content-unlock-panel .unlock-next button:hover{border-color:var(--cat)}
+.unlock-lifetime{padding-top:10px;border-top:1px solid var(--skin-line)}
+.unlock-lifetime summary{padding:4px 0;color:var(--skin-accent);font-size:11px;font-weight:500;line-height:1.6;cursor:pointer}
+.unlock-lifetime p,.unlock-lifetime-note{margin:5px 0;color:var(--color-text-secondary);font-size:11px;line-height:1.65}
+.unlock-lifetime b{display:inline-block;margin-right:7px;color:var(--color-text);font-weight:500}
+.unlock-lifetime .unlock-lifetime-note{color:var(--color-text-tertiary);font-size:10px}
+.unlock-related{color:var(--color-text-secondary);font-size:11px;line-height:1.7}
+.unlock-related summary{padding:8px 0;color:var(--skin-accent);cursor:pointer}
+.unlock-related p{margin:10px 0}
+.unlock-related strong{display:block;color:var(--color-text);font-weight:500}
+.unlock-requirements{padding-top:12px;border-top:1px solid var(--skin-line)}
+.unlock-requirements h4{margin:0 0 8px;color:var(--color-text-tertiary);font-size:11px;font-weight:400}
+.unlock-requirements>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:6px;color:var(--color-text-secondary);font-size:12px}
+.unlock-requirements small{flex-shrink:0;color:var(--color-text-tertiary);font-size:10px}
+.unlock-requirements .is-met small{color:var(--color-success)}
+/* 해금 단추는 창 본문 아래쪽에 붙어 늘 보인다. bottom이 음수인 까닭: sticky는 창 본문의 아래 여백 위에서 멈춰 그 틈으로 뒤 글자가 비쳤다. */
+.unlock-detail-action{position:sticky;bottom:-26px;z-index:2;margin:auto -14px -14px;padding:10px 14px 26px;border-top:1px solid var(--skin-line);background:var(--skin-panel)}
+#content-unlock-panel .unlock-detail-action>button{width:100%;min-height:44px;border:1px solid var(--cat);border-radius:0;background:color-mix(in srgb,var(--cat) 22%,var(--skin-panel));color:color-mix(in srgb,var(--cat) 40%,#fff);font-size:13px;white-space:normal}
+#content-unlock-panel .unlock-detail-action>button:disabled{border-color:var(--skin-line);background:none;color:var(--color-text-secondary);opacity:.75}
+@container(max-width:720px){
+ .unlocks-body{grid-template-columns:minmax(0,1fr)}
+ .unlocks-list{max-height:62vh}
+ .unlock-detail{border-left:0;border-top:1px solid var(--skin-line)}
+}
+@container(max-width:480px){
+ .unlocks-head{padding:8px 10px}
+ .unlocks-points{width:100%;border-right:0;padding-right:0}
+ #content-unlock-panel .unlocks-tab{flex:1 1 calc(33% - 6px)}
+ .unlocks-list{padding:8px 10px 12px}
+}
+}
+@layer features{
+/* 창 UI에서 해금 판이 창 높이를 채운다. 창 몸통은 스크롤하지 않고 판과 설명이 저마다 스크롤한다. */
+body.desktop-windowed-ui #tab-unlocks>.ui-window-body,body.desktop-windowed-ui .merged-tab-panels>#tab-unlocks.merged-subtab-pane.active{display:flex;flex-direction:column}
+body.desktop-windowed-ui #content-unlock-panel{flex:1 0 auto;display:flex;flex-direction:column;margin-bottom:0}
+@container(min-width:721px){
+ body.desktop-windowed-ui #content-unlock-panel>.unlocks-body{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr)}
+ body.desktop-windowed-ui #content-unlock-panel .unlocks-list,body.desktop-windowed-ui #content-unlock-panel .unlock-detail{min-height:0;overflow:auto}
+}
+}

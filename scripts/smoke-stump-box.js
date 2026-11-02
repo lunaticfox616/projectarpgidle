@@ -119,7 +119,7 @@ assert.deepStrictEqual(json(`(() => { const item = stumpBox.rollDrop(game, { isB
 const colours = json(`(() => {
     const count = { fire: 0, cold: 0, lightning: 0, chaos: 0 };
     let value = 11; const random = () => { value = (Math.imul(value, 1664525) + 1013904223) >>> 0; return value / 4294967296; };
-    for (let i = 0; i < 6000; i++) {
+    for (let i = 0; i < 30000; i++) {
         const rolled = stumpBox.rollDrop(game, { isBoss: true }, random);
         if (rolled && rolled.item) { count[rolled.item.color]++; stumpBox.discard(game, rolled.item.id); }
     }

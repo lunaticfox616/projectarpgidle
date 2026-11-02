@@ -19,11 +19,11 @@ const npcRosterUi = (() => {
 
     function rosterCardHtml(npc) {
         const met = game.npcMet[npc.id], zone = getZone(met.zoneId);
-        const where = `${zone && zone.name ? `${escapeHTML(zone.name)}, ` : ''}${met.count}번 만남`;
+        const where = zone && zone.name ? `<span class="npc-roster-where">${escapeHTML(zone.name)}</span>` : '';
         return `<li><button type="button" class="npc-roster-card" data-npc-open="${npc.id}" data-tone="${escapeHTML(met.tone || 'gold')}">
             <span class="npc-roster-face"><img class="npc-roster-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.webp" alt=""></span>
             <span class="npc-roster-text"><strong>${escapeHTML(npc.name)}</strong><small>${escapeHTML(npc.title)}</small>
-            <span class="npc-roster-where">${where}</span><span class="npc-roster-tags">${rosterTagsHtml(npc)}</span></span></button></li>`;
+            ${where}<span class="npc-roster-tags">${rosterTagsHtml(npc)}</span></span></button></li>`;
     }
 
     /** Draws the tab while it shows (js/ui.js renderVisibleManagementPanels), again only when something on it changed. */

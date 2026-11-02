@@ -348,6 +348,21 @@ function getHoverAllocationNodeIds(hoveredNodeId) {
     return getHoveredPassivePathNodeIds(hoveredNodeId);
 }
 
+/** The shortest way from the hovered node to an owned one, around the blocked starts. @returns {{target: ?string, prev: Map}} */
+function findHoveredPassiveRoute(hoveredNodeId, adj, owned, blockedStarts) {
+    const queue = [hoveredNodeId], prev = new Map([[hoveredNodeId, null]]);
+    if (owned.has(hoveredNodeId)) return { target: hoveredNodeId, prev };
+    for (let index = 0; index < queue.length; index++) {
+        for (const next of adj.get(queue[index]) || []) {
+            if (prev.has(next) || blockedStarts.has(next)) continue;
+            prev.set(next, queue[index]);
+            if (owned.has(next)) return { target: next, prev };
+            queue.push(next);
+        }
+    }
+    return { target: null, prev };
+}
+
 function getHoveredPassivePathNodeIds(hoveredNodeId) {
     if (!hoveredNodeId) return new Set();
     const cacheKey = String(hoveredNodeId);
@@ -355,24 +370,14 @@ function getHoveredPassivePathNodeIds(hoveredNodeId) {
     if (cached && cached.nodeId === cacheKey && cached.stateSignature === passiveRenderCache.stateSignature) return cached.path;
     const adj = passiveRenderCache && passiveRenderCache.adjacency;
     if (!(adj instanceof Map) || adj.size === 0) return new Set([hoveredNodeId]);
+    // 다른 직업의 시작점은 통로 키스톤 없이 지나가지 못한다(js/passives.js getPassiveActivationPath): 툴팁의 포인트와 그려지는 길도 그 길을 따른다.
+    const blockedStarts = getPassiveBlockedStartIds();
+    if (blockedStarts.has(hoveredNodeId)) return new Set([hoveredNodeId]);
     let owned = typeof getPassiveConnectionNodeIds === 'function'
         ? getPassiveConnectionNodeIds()
         : new Set((game.passives || []).filter(Boolean));
     owned.add(typeof getPassiveTreeRootNodeId === 'function' ? getPassiveTreeRootNodeId() : 'n0');
-    let queue = [hoveredNodeId];
-    let queueIndex = 0;
-    let prev = new Map([[hoveredNodeId, null]]);
-    let target = owned.has(hoveredNodeId) ? hoveredNodeId : null;
-    while (queueIndex < queue.length && !target) {
-        let cur = queue[queueIndex++];
-        let nextList = adj.get(cur) || [];
-        for (let next of nextList) {
-            if (prev.has(next)) continue;
-            prev.set(next, cur);
-            if (owned.has(next)) { target = next; break; }
-            queue.push(next);
-        }
-    }
+    const { target, prev } = findHoveredPassiveRoute(hoveredNodeId, adj, owned, blockedStarts);
     let path = new Set([hoveredNodeId]);
     if (!target) return path;
     let cur = target;
@@ -571,7 +576,6 @@ function drawPassiveTree() {
     ctx.translate(size.width / 2 + camX, size.height / 2 + camY);
     ctx.scale(camZoom, camZoom);
     const frame = createPassiveDrawFrame();
-    passiveTreeArt.drawGround(ctx);
     passiveTreeArt.drawMotifs(ctx, viewport);
     passiveTreeArt.drawLinks(ctx, frame);
     // 노드 효과 라벨은 화면 좌표상 서로 겹치지 않는 것만 그린다.

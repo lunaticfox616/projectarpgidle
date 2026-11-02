@@ -1177,26 +1177,17 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.Date = NativeDate;
 }
 
-// ── 3-1-1. 전직 시련: 칸 경고 / 위험 기반 자동 회피 / 감수 선택 ──
+// ── 3-1-1. 전직 시련: 칸 경고 / 자동 회피 없음 / 적이 다 쓰러져도 터지는 함정 ──
 {
   resetGame();
   const origin = { gx: 3, gy: 3 };
-  const expectedCellCounts = { trial_1: 9, trial_2: 18, trial_3: 5, trial_4: 16, trial_5: 9 };
+  const expectedCellCounts = { trial_1: 27, trial_2: 45, trial_3: 25, trial_4: 42, trial_5: 49 };
   Object.entries(expectedCellCounts).forEach(([zoneId, expectedCount]) => {
     const zone = context.getZone(zoneId);
     const cells = context.buildTrialHazardCells(zone, origin, 0);
     assert.strictEqual(cells.length, expectedCount, `${zone.name} 함정 패턴은 의도한 칸 수를 경고해야 한다`);
     assert.ok(cells.some(cell => cell.gx === origin.gx && cell.gy === origin.gy), `${zone.name} 경고는 현재 플레이어 칸을 포함해야 한다`);
   });
-
-  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
-  context.game.enemies = [makeEnemy(301, 7, 7)];
-  const blockCells = context.buildTrialHazardCells(context.getZone('trial_5'), origin, 0);
-  let escapeResult;
-  for (let tick = 0; tick < 13; tick++) {
-    escapeResult = context.advanceGridHazardEscape(context.game.gridPlayer, blockCells, 0.1, 0.6);
-  }
-  assert.strictEqual(escapeResult.safe, true, '3×3 봉쇄는 기본 이동 속도로 경고 시간 안에 두 칸을 이동해 벗어날 수 있어야 한다');
 
   const NativeDate = context.Date;
   let hazardNow = 10000;
@@ -1205,84 +1196,67 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   const stats = { maxHp: 1000, armor: 0, dr: 0, moveSpeed: 100, energyShield: 0 };
   context.game.currentZoneId = trial.id;
   context.game.settings.combatPositionMode = 'auto';
+
+  // 주인공은 함정을 알아서 피하지 않는다: 생명력이 낮아도 제자리이고, 이동을 막지도 않고, 터지면 맞는다.
   context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
   context.game.enemies = [makeEnemy(302, 7, 7)];
-  context.game.playerHp = 50;
+  context.game.playerHp = 1000;
   context.game.playerEnergyShield = 0;
   context.primeTrialHazardTimer(trial);
   hazardNow += trial.trialHazard.initialDelayMs;
-  const hpBeforeAvoidance = context.game.playerHp;
-  let avoidedByMovement = false;
-  for (let tick = 0; tick < 7; tick++) avoidedByMovement = context.applyTrialTrapTick(stats) || avoidedByMovement;
-  assert.strictEqual(avoidedByMovement, true, '치명적인 함정은 공격보다 자동 이동을 우선해야 한다');
-  assert.notStrictEqual(context.game.gridPlayer.gy, 3, '자동 회피는 경고된 직선 밖의 실제 그리드 칸으로 이동해야 한다');
-  const heldSafeCell = { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy };
-  context.game.enemies = [makeEnemy(304, heldSafeCell.gx, heldSafeCell.gy + 2)];
-  for (let tick = 0; tick < 6; tick++) {
-    context.updatePlayerGridEngagement(
-      { ...stats, sSkill: context.SKILL_DB['기본 공격'] },
-      { holdPosition: context.isTrialHazardPositionHeld() }
-    );
-  }
-  assert.deepStrictEqual(
-    { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy },
-    heldSafeCell,
-    '함정 회피 후에는 충돌 시점까지 일반 추적 AI가 경고 칸으로 되돌아가면 안 된다'
-  );
-  assert.strictEqual(
-    context.updatePlayerGridEngagement(
-      { ...stats, sSkill: context.SKILL_DB['그림자 점멸'] },
-      { holdPosition: context.isTrialHazardPositionHeld() }
-    ),
-    false,
-    '안전 위치를 유지하는 동안 이동 스킬이 경고 칸으로 재진입하면 안 된다'
-  );
+  let moved = false;
+  for (let tick = 0; tick < 7; tick++) moved = context.applyTrialTrapTick(stats) || moved;
+  assert.strictEqual(moved, false, '시련 함정은 자동 이동을 일으키면 안 된다');
+  assert.deepStrictEqual({ gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy }, origin, '경고가 떠도 주인공은 제자리에 있어야 한다');
+  assert.strictEqual(context.isTrialHazardPositionHeld(), false, '경고가 떠도 걷거나 다가가는 것을 막으면 안 된다');
   hazardNow += trial.trialHazard.warningMs;
   context.applyTrialTrapTick(stats);
-  assert.strictEqual(context.game.playerHp, hpBeforeAvoidance, '안전 칸으로 벗어난 함정은 피해를 주면 안 된다');
+  assert.ok(context.game.playerHp < 1000, '예고된 칸에 남아 있으면 피해를 줘야 한다');
 
-  context.game.settings.combatPositionMode = 'auto';
+  // 직접 걸어 나가면 맞지 않는다.
   context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
-  context.game.enemies = [makeEnemy(305, 7, 7)];
   context.game.playerHp = 1000;
   context.primeTrialHazardTimer(trial);
   hazardNow += trial.trialHazard.initialDelayMs;
-  assert.strictEqual(context.applyTrialTrapTick(stats), false, '충분한 생명력일 때는 낮은 피해 함정을 감수할 수 있어야 한다');
-  context.game.playerHp = 1;
-  let reactedToHealthDrop = false;
-  for (let tick = 0; tick < 7; tick++) reactedToHealthDrop = context.applyTrialTrapTick(stats) || reactedToHealthDrop;
-  assert.strictEqual(reactedToHealthDrop, true, '경고 중 생명력이 치명 범위로 감소하면 회피 판단을 갱신해야 한다');
-  assert.notStrictEqual(context.game.gridPlayer.gy, 3, '생명력 급감 뒤 실제 안전 칸으로 이동해야 한다');
-
-  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
-  context.game.playerHp = 50;
-  const surroundingEnemies = [
-    [-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]
-  ].map((offset, index) => makeEnemy(310 + index, 3 + offset[0], 3 + offset[1]));
-  context.game.enemies = [makeEnemy(309, 7, 7), ...surroundingEnemies];
-  context.primeTrialHazardTimer(trial);
-  hazardNow += trial.trialHazard.initialDelayMs;
-  assert.strictEqual(context.applyTrialTrapTick(stats), true, '탈출로가 잠시 막혀도 위험 회피 상태는 유지해야 한다');
-  context.game.enemies = [makeEnemy(309, 7, 7)];
-  let escapedAfterOpening = false;
-  for (let tick = 0; tick < 7; tick++) escapedAfterOpening = context.applyTrialTrapTick(stats) || escapedAfterOpening;
-  assert.strictEqual(escapedAfterOpening, true, '막혔던 탈출로가 열리면 충돌 전에 다시 이동을 시도해야 한다');
-  assert.notStrictEqual(context.game.gridPlayer.gy, 3, '재탐색한 탈출로를 따라 실제 경고 칸을 벗어나야 한다');
-
-  context.game.settings.combatPositionMode = 'pressure';
-  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0.6 };
-  context.game.enemies = [makeEnemy(303, 7, 7)];
-  context.game.playerHp = 10000;
-  context.game.playerEnergyShield = 0;
-  const sturdyStats = { ...stats, maxHp: 10000 };
-  context.primeTrialHazardTimer(trial);
-  hazardNow += trial.trialHazard.initialDelayMs;
-  const tankCellBeforeWarning = { gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy };
-  assert.strictEqual(context.applyTrialTrapTick(sturdyStats), false, '압박 전술은 감당 가능한 함정까지 무조건 피하면 안 된다');
-  assert.deepStrictEqual({ gx: context.game.gridPlayer.gx, gy: context.game.gridPlayer.gy }, tankCellBeforeWarning, '함정 경고 생성 자체가 이동 타이머를 소비해 캐릭터를 움직이면 안 된다');
+  context.applyTrialTrapTick(stats);
+  context.game.gridPlayer = { gx: 3, gy: 6, gridMoveTimer: 0 };
   hazardNow += trial.trialHazard.warningMs;
-  context.applyTrialTrapTick(sturdyStats);
-  assert.ok(context.game.playerHp < 10000, '감수하기로 한 함정은 예고된 칸에 남아 있을 때 실제 피해를 줘야 한다');
+  context.applyTrialTrapTick(stats);
+  assert.strictEqual(context.game.playerHp, 1000, '띠 밖으로 걸어 나가면 피해가 없어야 한다');
+
+  // 경고를 시작한 뒤 적이 다 쓰러져도 함정은 마저 터진다. 새 함정은 없고, 터져도 쓰러지지는 않는다.
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(305, 7, 7)];
+  context.game.playerHp = 1;
+  context.primeTrialHazardTimer(trial);
+  hazardNow += trial.trialHazard.initialDelayMs;
+  context.applyTrialTrapTick(stats);
+  context.game.enemies = [];
+  context.applyTrialTrapTick(stats);
+  assert.ok(context.captureCombatRuntime().trialHazardRuntime.active, '적이 다 쓰러져도 경고 중인 함정이 남아 있어야 한다');
+  hazardNow += trial.trialHazard.warningMs;
+  context.applyTrialTrapTick(stats);
+  assert.strictEqual(context.captureCombatRuntime().trialHazardRuntime.active, null, '시간이 되면 함정이 터져야 한다');
+  assert.strictEqual(context.game.playerHp, 1, '이긴 뒤 터진 함정은 쓰러뜨리지 않는다');
+  hazardNow += 60000;
+  context.applyTrialTrapTick(stats);
+  assert.strictEqual(context.captureCombatRuntime().trialHazardRuntime.active, null, '적이 없으면 새 함정이 생기지 않는다');
+
+  // 오래 남는 지대(아틀라스)는 전처럼 비켜 가고, 적이 쓰러지면 걷힌다.
+  const arena = { ...trial, id: 'trial_1', trialHazard: { pattern: 'pool', warningMs: 1900, intervalMs: 6800, persistent: true }, trapElements: ['fire'] };
+  const realGetZone = context.getZone;
+  context.getZone = id => (id === trial.id ? arena : realGetZone(id));
+  context.game.gridPlayer = { gx: 3, gy: 3, gridMoveTimer: 0 };
+  context.game.enemies = [makeEnemy(306, 7, 7)];
+  context.game.playerHp = 1000;
+  context.primeTrialHazardTimer(arena);
+  hazardNow += 3000;
+  context.applyTrialTrapTick(stats);
+  assert.strictEqual(context.captureCombatRuntime().trialHazardRuntime.active.shouldAvoid, true, '오래 남는 지대는 피해 가는 위험으로 남아야 한다');
+  context.game.enemies = [];
+  context.applyTrialTrapTick(stats);
+  assert.strictEqual(context.captureCombatRuntime().trialHazardRuntime.active, null, '오래 남는 지대의 경고는 적이 쓰러지면 걷힌다');
+  context.getZone = realGetZone;
   context.Date = NativeDate;
 }
 
@@ -1704,6 +1678,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // ── 3-2. 실제 피해도 첫 단계와 후속 단계의 시점에 나뉘어 적용돼야 한다 ──
 {
   resetGame();
+  context.game.level = 17;
   context.game.activeSkill = '회오리';
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '회오리']));
   context.game.gemData['회오리'] = { level: 1, exp: 0, quality: 0 };
@@ -1726,6 +1701,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 
   // 09-30: 회전마다 그 순간 서 있는 칸 둘레에서 아직 안 맞은 적을 벤다 — 걷는 동안에도 칼바람이 따라간다.
   resetGame();
+  context.game.level = 17;
   context.game.activeSkill = '회오리';
   context.game.gridPlayer = { gx: 1, gy: 6, gridMoveTimer: 0 };
   const near = makeEnemy(44, 2, 6), far = makeEnemy(45, 4, 6);
@@ -1851,6 +1827,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   assert.strictEqual(cappedAreaTargets.length, 3, '넓어진 모양이 스킬의 최대 타겟 수까지 함께 늘리면 안 된다');
 
   resetGame();
+  context.game.level = 37;
   context.game.activeSkill = '난타 눈보라';
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '난타 눈보라']));
   context.game.gemData['난타 눈보라'] = { level: 1, exp: 0, quality: 0 };
@@ -1874,6 +1851,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   vm.runInContext('pendingSkillStageHits = [];', context);
 
   resetGame();
+  context.game.level = 37;
   context.game.activeSkill = '유성 낙화';
   context.game.skills = Array.from(new Set([...(context.game.skills || []), '유성 낙화']));
   context.game.gemData['유성 낙화'] = { level: 1, exp: 0, quality: 0 };
@@ -2579,6 +2557,10 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
   assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '한손검은 한손검 자세다');
   assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
+  // 룬 요구 레벨: 시작 룬은 제한이 없고, 레벨이 모자라면 무기보다 먼저 레벨을 말한다.
+  vm.runInContext("[...Object.values(LOOP_STARTER_GEM_BY_HERO),...Object.values(LOOP_MUTATION_STARTER_GEMS).flatMap(Object.values)].forEach(name=>{if(getRuneLevelReq(name))throw new Error('시작 룬에 요구 레벨: '+name);})", context);
+  assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), 'Lv.67 필요');
+  context.game.level = 100;
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('도약 강타'), false, '돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용이다');
   assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), '대검 필요');
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('전도성 난격'), true, '전도성 난격은 근접 무기 넷이 함께 쓴다');

@@ -309,7 +309,7 @@ body button[onclick*="salvage"]:not(.subtab-btn):hover:not(:disabled) {
 @media (max-width: 640px) {
   .tab-btn { font-size: 0.9em; }
   .tab-header,
-  .subtab-row:not(.skill-subtab-row) {
+  .subtab-row {
     overscroll-behavior-x: contain;
     scroll-snap-type: x proximity;
     align-items: center;
@@ -344,7 +344,7 @@ body button[onclick*="salvage"]:not(.subtab-btn):hover:not(:disabled) {
 @media (max-width: 640px) {
   .tab-header:not(.tab-header-bottom) > .tab-btn { min-width: 72px; }
   .tab-header,
-  .subtab-row:not(.skill-subtab-row) {
+  .subtab-row {
     overflow-y: hidden;
   }
   .tab-btn,
@@ -457,14 +457,7 @@ body.desktop-windowed-ui .tab-btn.ui-window-open {
 :root body button:not(.market-shell button):not(.tab-btn):not(.social-login-image-btn) {
   border-radius: 2px 9px 2px 9px;
 }
-#tab-skills .skill-subtab-row .subtab-btn { display: grid; gap: 2px; min-width: 0; text-align: left; }
-#tab-skills .skill-subtab-row .subtab-btn strong { font-size: 11px; letter-spacing: .05em; }
-#tab-skills .skill-subtab-row .subtab-btn small { color: #eef2f6; font-size: 8px; letter-spacing: 0; text-transform: none; }
-#tab-skills .skill-subtab-row .subtab-btn.active small { color: #c9ad70; }
 
-@container (max-width: 430px) {
-  #tab-skills .skill-subtab-row .subtab-btn small { display: none; }
-}
 
 body.desktop-windowed-ui .ui-rail-misc-panel .tab-btn {
   position: relative;

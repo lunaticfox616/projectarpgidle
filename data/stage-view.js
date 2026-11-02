@@ -140,6 +140,7 @@ const STAGE_ROOMS = Object.freeze({
      * 장이 닫힌 모습이다. ends = 앞의 여덟 장이 끝나는 시각(ms, 잠금이 풀릴 때 한 번), anchorY = 칸 위에서 잰 발 자리, half = 주인공이 그
      * 뒤에 서면 반투명해지는 가로 반폭, heights = 장마다 그림의 높이(모두 도트). 낱장과 출처는 같은 폴더의 seal.json. */
     rootSeal: Object.freeze({
+        regionPath: 'assets/stage-scenes/root-seal-v3/regions/', version: 'region-palette-20261102b',
         ends: Object.freeze([80, 160, 240, 320, 400, 480, 560, 640]),
         front: Object.freeze({ file: 'assets/stage-scenes/root-seal-v3/front.png', width: 256, height: 256, anchorY: 238, half: 105,
             heights: Object.freeze([217, 218, 215, 208, 197, 193, 195, 199, 196]) }),
@@ -306,8 +307,8 @@ const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-
 /** 쓰러진 자리에서 이야기가 다시 일으키는 보스(act bossId, js/canvas-boss-revive.js): 처치 대사가 나오는 동안 황금 수액 기둥과 다시 차오르는
  * 체력바를 그린다(2026-10-15: 2막 부제녀의 처치 대사는 "다시 일으킨다!"인데 화면에는 아무 일도 없었다). fillMs: 막대가 다 차는 데 걸리는 시간. */
 const STAGE_BOSS_REVIVAL = Object.freeze({ bosses: Object.freeze(['gardener_immortal']), fillMs: 1400 });
-const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', version: '20261021-1', cell: 160, feet: Object.freeze([80, 144]), head: 24, scale: 1,
-    frameMs: Object.freeze([720, 260, 460, 280, 140, 720]) });
+const STAGE_NPC_ART = Object.freeze({ path: 'assets/stage-npcs/', version: '20261102-1', cell: 160, feet: Object.freeze([80, 144]), head: 24, scale: 1,
+    frameMs: Object.freeze([260, 460, 280, 140, 720]) });
 
 /** 판(9×8)에서 싸우던 콘텐츠가 방 단위 무대에서 걷는 지도(2026-10-13 밤 사용자: "그거 포함해서 아틀라스도, 옮겨줘". js/content-maps.js withRooms).
  * acts 구역 종류 → 바탕으로 빌리는 액트 지도(지도 id와 어둠 색, 입구와 끝 방의 이름만 쓴다. 무대 그림은 그 구역의 지역 그림이다),

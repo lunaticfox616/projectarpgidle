@@ -160,7 +160,6 @@
 :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool svg .f { fill: #6d5426; }
 :root body :is(#item-tab-equip, #stump-equip-host) :is(.eqw-rail-tool:hover, .eqw-rail-menu[open] > .eqw-rail-tool, .eqw-rail-tool[aria-pressed="true"]) { border-color: #e3bd72; color: var(--eqw-gold); }
 :root body :is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool.is-danger { color: #f0b4a0; }
-:root body :is(#item-tab-equip, #stump-equip-host) #btn-salvage-recovery.has-items { border-color: rgba(105, 213, 159, .72); }
 /* 배치(손으로 끌어 옮기기)는 손가락으로 누르는 기기에서만 보인다 */
 :root body :is(#item-tab-equip, #stump-equip-host) #equipment-touch-arrange { display: none; }
 @media (pointer: coarse) { :root body :is(#item-tab-equip, #stump-equip-host) #equipment-touch-arrange { display: flex; } }
@@ -285,12 +284,12 @@
 
 /* 넓은 PC 창: 세 칸, 선택한 장비는 오른쪽에 붙는다 */
 @media (min-width: 1081px) {
-  /* 장비 창, 제작실, 거래소, 장비 전당 줄은 창 머리의 장비 탭 바로 밑에 얇게 붙는다(2026-10-21 사용자: "상위에있는 장비 탭에 거의 붙어있게").
+  /* 장비 창, 제작실, 거래소, 장비 전당 줄과 스킬룬의 룬, 각인, 전술 줄은 창 머리의 탭 바로 밑에 얇게 붙는다(2026-10-21 사용자: "상위에있는 장비 탭에 거의 붙어있게", 2026-11-02 스킬룬도 같게).
      줄이 보이는 동안만 창 몸통의 위 여백(최대 18px)을 2px로 줄인다. 줄을 끌어올리면 스크롤 상자인 칸(.merged-subtab-pane)이 위를 잘랐다.
-     탭이 하나뿐이라 줄이 숨은 때(루프 1, js/ui.js syncSingleSubtabRows)와 스킬룬 쪽은 그대로다 */
-  :root body.desktop-windowed-ui #tab-items > .ui-window-body:has(.merged-subtab-pane.active[data-tab-id="tab-items"] > .subtab-row:not([hidden])) { padding-top: 2px; }
-  :root body.desktop-windowed-ui :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row { margin: 0 0 8px; padding: 2px; }
-  :root body.desktop-windowed-ui :is(#tab-items, #tab-items .merged-subtab-pane[data-tab-id="tab-items"]) > .subtab-row > .subtab-btn { min-height: 0; height: 28px; padding-block: 0; }
+     탭이 하나뿐이라 줄이 숨은 때(루프 1, js/ui.js syncSingleSubtabRows)는 그대로다 */
+  :root body.desktop-windowed-ui #tab-items > .ui-window-body:has(.merged-subtab-pane.active:is([data-tab-id="tab-items"], [data-tab-id="tab-skills"]) > .subtab-row:not([hidden])) { padding-top: 2px; }
+  :root body.desktop-windowed-ui :is(#tab-items, #tab-skills, #tab-items .merged-subtab-pane:is([data-tab-id="tab-items"], [data-tab-id="tab-skills"])) > .subtab-row { margin: 0 0 8px; padding: 2px; }
+  :root body.desktop-windowed-ui :is(#tab-items, #tab-skills, #tab-items .merged-subtab-pane:is([data-tab-id="tab-items"], [data-tab-id="tab-skills"])) > .subtab-row > .subtab-btn { min-height: 0; height: 28px; padding-block: 0; }
   /* 가방 판은 칸 열 개 폭이고 도구 줄은 바로 옆이다: 판이 칸보다 넓으면 남는 폭이 가방의 검은 바탕으로 보였다(2026-10-21 사용자: "가방이랑
      옆메뉴 사이에 그 검은공간 없애주고"). 남는 폭은 도구 줄 바깥으로 간다 */
   :root body :is(#item-tab-equip, #stump-equip-host) .equipment-window .equipment-inventory-grid-shell { grid-template-columns: max-content 52px; justify-content: start; }

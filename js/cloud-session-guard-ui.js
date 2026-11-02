@@ -19,7 +19,7 @@ const cloudSessionGuard = (() => {
         blocked: '다른 기기에서 이 계정으로 접속해 이 화면은 저장하지 않습니다.',
         refused: '다른 기기에서 이 계정으로 접속해 이 화면에서는 서버 요청을 보내지 않습니다.'
     });
-    const guard = { token: null, armed: false, userId: null, superseded: false, disabled: false, timer: null, pending: null };
+    const guard = { token: null, tokenUser: null, armed: false, userId: null, superseded: false, disabled: false, timer: null, pending: null };
 
     function freshToken() {
         const random = typeof crypto === 'object' && crypto && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -52,13 +52,13 @@ const cloudSessionGuard = (() => {
         console.warn('cloud session guard ' + step + ' failed:', error);
     }
 
-    /** 이 화면의 표를 적는다. 성공해야 머리말을 싣고(armed) 읽기를 시작한다. */
+    /** 이 화면의 표를 적는다. 성공해야 머리말을 싣고(armed) 읽기를 시작한다. 적는 사이에 계정이 바뀌었으면 이 표는 쓰지 않고 다음 차례에 새 표를 적는다. */
     async function claimCloudSession() {
-        const userId = getActiveCloudUserId();
-        if (!userId || guard.disabled || guard.superseded) return;
-        if (!guard.token) guard.token = freshToken();
+        const userId = getActiveCloudUserId(), token = guard.token;
+        if (!userId || !token || guard.disabled || guard.superseded) return;
         try {
-            await cloudJsonRequest('/rest/v1/rpc/claim_cloud_session', { method: 'POST', expectedUserId: userId, body: { p_token: guard.token } });
+            await cloudJsonRequest('/rest/v1/rpc/claim_cloud_session', { method: 'POST', expectedUserId: userId, body: { p_token: token } });
+            if (guard.token !== token || getActiveCloudUserId() !== userId) return;
             guard.armed = true;
             guard.userId = userId;
         } catch (error) {
@@ -89,7 +89,9 @@ const cloudSessionGuard = (() => {
         guard.timer = null;
     }
 
-    /** 로그인 상태가 바뀔 때(js/ui.js applyCloudSession): 계정이 바뀌면 새 표를 적고, 로그아웃이면 머리말과 읽기를 멈춘다. */
+    /** 로그인 상태가 바뀔 때(js/ui.js applyCloudSession): 계정이 바뀌면 새 표를 적고, 로그아웃이면 머리말과 읽기를 멈춘다. 표는 화면마다 계정마다 하나다:
+     * 만료된 세션을 갱신하며 이 함수가 두 번 불리면 두 번째가 새 표를 만들어, 적는 중이던 첫 표가 서버에 남고 이 화면이 자기 표에 밀려나
+     * "다른 기기에서 접속 중"이 떴다(2026-11-02 사용자: 창을 닫고 한참 뒤 다시 켤 때, 세션이 만료된 뒤라 간헐적이었다). */
     function syncCloudSessionGuard() {
         const userId = getActiveCloudUserId();
         if (!userId) {
@@ -99,8 +101,11 @@ const cloudSessionGuard = (() => {
             return;
         }
         if (guard.armed && guard.userId === userId) return;
-        guard.armed = false;
-        guard.token = freshToken();
+        if (guard.tokenUser !== userId) {
+            guard.armed = false;
+            guard.token = freshToken();
+            guard.tokenUser = userId;
+        }
         if (!guard.timer) guard.timer = setInterval(pollCloudSession, POLL_MS);
         pollCloudSession();
     }

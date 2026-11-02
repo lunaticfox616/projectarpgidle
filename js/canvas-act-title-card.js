@@ -268,7 +268,7 @@ const actTitleCard = (() => {
     /** Adds the NPC to the battlefield's actors while the hero is in the entry room (js/canvas-act-exploration.js appendScenery),
      * so it stands in depth with the hero and the monsters. It stands on the entry room's post (js/act-exploration-rooms.js npcPost:
      * the back row, two cells from where the hero starts), where act 1's first monsters strike it from two cells away. Nobody
-     * stands on it or within two cells in front of or behind it (js/act-exploration-doors.js guideCells). */
+     * stands on its cell (js/act-exploration-doors.js guideCells). */
     function appendNpc(actors, state) {
         const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
         const npc = watch ? runNpc(watch) : null, map = npc ? actExplorationDoors.stageMap(run) : null;
@@ -374,8 +374,10 @@ const actTitleCard = (() => {
         const frame = npcFrame(state.now), struck = npcStruck(state.now);
         stageRings.shadow(ctx, { x: actor.x, y: actor.y, dot }, 18, 0.34);
         ctx.save();
-        if (state.playerPos.x < actor.x) { ctx.translate(actor.x * 2, 0); ctx.scale(-1, 1); }
-        const at = { x: Math.round(actor.x - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
+        // 거울 축도 정수 px에 둔다: 축이 화소 사이에 있으면 뒤집은 그림 전체가 화소 사이에 찍혀 번진다.
+        const axis = Math.round(actor.x);
+        if (state.playerPos.x < actor.x) { ctx.translate(axis * 2, 0); ctx.scale(-1, 1); }
+        const at = { x: Math.round(axis - art.feet[0] * dot), y: Math.round(actor.y - art.feet[1] * dot), scale: dot };
         npcHoverRim(ctx, actor, sheet.source, frame, at);
         stageDots.blit(ctx, sheet.source, { x: frame * cell, y: 0, w: cell, h: cell }, at);
         if (struck > 0) {

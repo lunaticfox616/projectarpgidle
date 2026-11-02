@@ -8802,7 +8802,7 @@
           "value": 5
         }
       ],
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 24,
       "powerBand": 3
     },
     {
@@ -8843,7 +8843,7 @@
           "value": 5
         }
       ],
-      "distanceFromClassStart": 26,
+      "distanceFromClassStart": 23,
       "powerBand": 3
     },
     {
@@ -8884,7 +8884,7 @@
           "value": 5
         }
       ],
-      "distanceFromClassStart": 27,
+      "distanceFromClassStart": 24,
       "powerBand": 3
     },
     {
@@ -8925,7 +8925,7 @@
           "value": 5
         }
       ],
-      "distanceFromClassStart": 26,
+      "distanceFromClassStart": 25,
       "powerBand": 3
     },
     {
@@ -9050,116 +9050,6 @@
       ],
       "distanceFromClassStart": 25,
       "powerBand": 3
-    },
-    {
-      "cat": "dex",
-      "id": "nxf83xf6a4tv",
-      "x": 499.32,
-      "y": 866.42,
-      "type": "minor",
-      "name": "민첩",
-      "desc": "민첩 +10",
-      "mods": [
-        {
-          "statId": "strength",
-          "value": 5
-        },
-        {
-          "statId": "dexterity",
-          "value": 5
-        }
-      ],
-      "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "strength",
-          "value": 5
-        },
-        {
-          "statId": "dexterity",
-          "value": 5
-        }
-      ],
-      "distanceFromClassStart": 16,
-      "powerBand": 2
-    },
-    {
-      "cat": "int",
-      "id": "n6eq6pwlspwr",
-      "x": -500.42,
-      "y": -865.78,
-      "type": "minor",
-      "name": "지능",
-      "desc": "지능 +10",
-      "mods": [
-        {
-          "statId": "intelligence",
-          "value": 10
-        }
-      ],
-      "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "intelligence",
-          "value": 10
-        }
-      ],
-      "distanceFromClassStart": 15,
-      "powerBand": 2
-    },
-    {
-      "cat": "int",
-      "id": "nrxkff38o3uy",
-      "x": 499.68,
-      "y": -866.21,
-      "type": "minor",
-      "name": "지능",
-      "mods": [
-        {
-          "statId": "intelligence",
-          "value": 5
-        },
-        {
-          "statId": "dexterity",
-          "value": 5
-        }
-      ],
-      "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "intelligence",
-          "value": 5
-        },
-        {
-          "statId": "dexterity",
-          "value": 5
-        }
-      ],
-      "distanceFromClassStart": 17,
-      "powerBand": 2
-    },
-    {
-      "cat": "dex",
-      "id": "nogqf1mkkass",
-      "x": 1000,
-      "y": -0.18,
-      "type": "minor",
-      "name": "민첩",
-      "mods": [
-        {
-          "statId": "dexterity",
-          "value": 10
-        }
-      ],
-      "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "dexterity",
-          "value": 10
-        }
-      ],
-      "distanceFromClassStart": 16,
-      "powerBand": 2
     },
     {
       "cat": "utility",
@@ -10284,7 +10174,7 @@
       ],
       "statAutoName": true,
       "archetype": "lightning",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -10346,7 +10236,7 @@
         }
       ],
       "statAutoName": true,
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -10531,7 +10421,7 @@
       ],
       "statAutoName": true,
       "archetype": "cooldown",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 16,
       "powerBand": 2
     },
     {
@@ -10564,7 +10454,7 @@
       ],
       "statAutoName": true,
       "archetype": "cooldown",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -10838,7 +10728,7 @@
       ],
       "statAutoName": true,
       "archetype": "life",
-      "distanceFromClassStart": 17,
+      "distanceFromClassStart": 16,
       "powerBand": 2
     },
     {
@@ -10863,7 +10753,7 @@
       ],
       "statAutoName": true,
       "archetype": "life",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 15,
       "powerBand": 2
     },
     {
@@ -10888,7 +10778,7 @@
       ],
       "statAutoName": true,
       "archetype": "energyShield",
-      "distanceFromClassStart": 17,
+      "distanceFromClassStart": 16,
       "powerBand": 2
     },
     {
@@ -29942,7 +29832,7 @@
       ],
       "desc": "주문 피해 +12%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 26,
+      "distanceFromClassStart": 23,
       "powerBand": 3
     },
     {
@@ -29967,7 +29857,7 @@
       ],
       "desc": "공격 피해 +12%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 26,
+      "distanceFromClassStart": 23,
       "powerBand": 3
     },
     {
@@ -29992,7 +29882,7 @@
       ],
       "desc": "주문 피해 +12%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -30017,7 +29907,7 @@
       ],
       "desc": "공격 피해 +12%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -30041,7 +29931,7 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 16,
       "powerBand": 2
     },
     {
@@ -30113,8 +30003,8 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 18,
+      "powerBand": 2
     },
     {
       "cat": "none",
@@ -30137,7 +30027,7 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -30162,7 +30052,7 @@
       ],
       "desc": "주문 피해 +12%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -30187,7 +30077,7 @@
       ],
       "desc": "주문 피해 +12%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -30212,8 +30102,8 @@
       ],
       "desc": "공격 피해 +10%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 23,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "atk",
@@ -30249,8 +30139,8 @@
       ],
       "desc": "주문 피해 +10%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 23,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "none",
@@ -30442,8 +30332,8 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "spell",
@@ -30467,8 +30357,8 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "spell",
@@ -30492,8 +30382,8 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "spell",
@@ -30517,8 +30407,8 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "spell",
@@ -30542,7 +30432,7 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 18,
       "powerBand": 2
     },
     {
@@ -30567,7 +30457,7 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 19,
       "powerBand": 2
     },
     {
@@ -30592,7 +30482,7 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 19,
       "powerBand": 2
     },
     {
@@ -30617,8 +30507,8 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "spell",
@@ -30643,8 +30533,8 @@
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "archetype": "shield",
       "keepOwnName": true,
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "spell",
@@ -30668,8 +30558,8 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "dex",
@@ -30693,8 +30583,8 @@
       ],
       "desc": "연결된 공허 소켓의 효율 25% 증가",
       "keepOwnName": true,
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "spell",
@@ -31929,7 +31819,7 @@
       ],
       "desc": "주문 피해 +10%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -31954,7 +31844,7 @@
       ],
       "desc": "주문 피해 +10%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -31979,7 +31869,7 @@
       ],
       "desc": "공격 피해 +10%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -32004,8 +31894,8 @@
       ],
       "desc": "공격 피해 +10%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 23,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "fire",
@@ -32029,8 +31919,8 @@
       ],
       "desc": "주문 피해 +10%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 22,
-      "powerBand": 3
+      "distanceFromClassStart": 19,
+      "powerBand": 2
     },
     {
       "cat": "fire",
@@ -32054,8 +31944,8 @@
       ],
       "desc": "주문 피해 +10%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 18,
+      "powerBand": 2
     },
     {
       "cat": "atk",
@@ -32079,7 +31969,7 @@
       ],
       "desc": "주문 피해 +10%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -32104,7 +31994,7 @@
       ],
       "desc": "공격 피해 +10%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 16,
       "powerBand": 2
     },
     {
@@ -32129,7 +32019,7 @@
       ],
       "desc": "공격 피해 +10%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -32154,8 +32044,8 @@
       ],
       "desc": "주문 피해 +10%",
       "iconFamily": "spell",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 18,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -32179,8 +32069,8 @@
       ],
       "desc": "공격 피해 +10%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 22,
-      "powerBand": 3
+      "distanceFromClassStart": 19,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -32204,8 +32094,8 @@
       ],
       "desc": "공격 피해 +10%",
       "iconFamily": "blade",
-      "distanceFromClassStart": 23,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "atk",
@@ -32538,7 +32428,7 @@
       "name": "두 갈래 배움",
       "optionProfile": "두 갈래 배움",
       "iconFamily": "spell",
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -32580,7 +32470,7 @@
       "name": "칼날에 새긴 주문",
       "optionProfile": "칼날에 새긴 주문",
       "iconFamily": "blade",
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -32614,7 +32504,7 @@
       "name": "주문의 메아리",
       "optionProfile": "주문의 메아리",
       "iconFamily": "spell",
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -32648,7 +32538,7 @@
       "name": "금단의 응시",
       "optionProfile": "금단의 응시",
       "iconFamily": "spell",
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -35265,7 +35155,7 @@
       ],
       "archetype": "melee",
       "optionProfile": "칼등 막기",
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 19,
       "powerBand": 2
     },
     {
@@ -35324,7 +35214,7 @@
         }
       ],
       "iconFamily": "evasion",
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 18,
       "powerBand": 2
     },
     {
@@ -35349,7 +35239,7 @@
         }
       ],
       "archetype": "wind",
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 18,
       "powerBand": 2
     },
     {
@@ -36299,7 +36189,7 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 27,
+      "distanceFromClassStart": 24,
       "powerBand": 3
     },
     {
@@ -36323,8 +36213,8 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 28,
-      "powerBand": 4
+      "distanceFromClassStart": 25,
+      "powerBand": 3
     },
     {
       "cat": "none",
@@ -40614,7 +40504,7 @@
     },
     {
       "a": "nys75joeinn",
-      "b": "nrxkff38o3uy"
+      "b": "nc08jgv8ksc"
     },
     {
       "a": "nzia7p4gqdo8",
@@ -40790,7 +40680,7 @@
     },
     {
       "a": "n4pbvnuw94r",
-      "b": "nrxkff38o3uy"
+      "b": "nc08jgv8ksc"
     },
     {
       "a": "n7k0kdn8ksc",
@@ -44194,11 +44084,11 @@
     },
     {
       "a": "ne2vabxf4dw",
-      "b": "nogqf1mkkass"
+      "b": "nhaxusi8ksc"
     },
     {
       "a": "nnd8y8scawv",
-      "b": "nxf83xf6a4tv"
+      "b": "n3jcj848ksc"
     },
     {
       "a": "n8az36vcawv",
@@ -44210,7 +44100,7 @@
     },
     {
       "a": "nzb5d2ldw7j",
-      "b": "n6eq6pwlspwr"
+      "b": "nvx9hwx8ksc"
     },
     {
       "a": "noli3nce3yp",
@@ -44302,11 +44192,11 @@
     },
     {
       "a": "nmvwr9v062v",
-      "b": "nxf83xf6a4tv"
+      "b": "n3jcj848ksc"
     },
     {
       "a": "nmvwr9v062l",
-      "b": "nogqf1mkkass"
+      "b": "nhaxusi8ksc"
     },
     {
       "a": "nmvwrbi4y3g",
@@ -44389,7 +44279,7 @@
       "b": "n07qhng8e21c"
     },
     {
-      "a": "nrxkff38o3uy",
+      "a": "nc08jgv8ksc",
       "b": "nmvwrm7qd6"
     },
     {
@@ -44678,7 +44568,7 @@
     },
     {
       "a": "nmvxc0puy37",
-      "b": "nxf83xf6a4tv"
+      "b": "n3jcj848ksc"
     },
     {
       "a": "nmvxc0puy31",
@@ -45754,7 +45644,7 @@
     },
     {
       "a": "nmvxbpxyo1v",
-      "b": "nrxkff38o3uy"
+      "b": "nc08jgv8ksc"
     },
     {
       "a": "nmvxbpxyo1y",

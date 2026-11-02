@@ -122,13 +122,14 @@ const LOOP_STARTER_GEM_BY_HERO = {
 };
 /** 변이 루프(data/maps.js LOOP_MUTATION)의 첫 처치 3택 후보: 직업마다 속성별 하나(js/loop-mutation.js starterChoices). 그 직업의 시작
  * 무기, 영웅 Lv.1, 룬 Lv.1에서 시트 DPS가 그 직업 시작 룬(LOOP_STARTER_GEM_BY_HERO)과 가장 가까운 룬이다(2026-10-23 측정: 대부분
- * 시작 룬의 ±20% 안, 연금술사의 번개는 플라스크로 쓸 번개 룬이 주문뿐이라 1.5배). 시작 룬은 자기 속성 칸에 그대로 둔다. */
+ * 시작 룬의 ±20% 안, 연금술사의 번개는 플라스크로 쓸 번개 룬이 주문뿐이라 1.5배). 시작 룬은 자기 속성 칸에 그대로 둔다. 첫 처치에 받는 룬이므로 요구 레벨(SKILL_RUNE_LEVEL_REQ)이 없는 룬만 둔다
+ * (2026-11-02: 전사 냉기 혹한의 지진 → 서리베기, 연금술사 번개 신성한 기도 → 뇌운 낙뢰). */
 const LOOP_MUTATION_STARTER_GEMS = Object.freeze({
-    warrior: Object.freeze({ phys: '이중 베기', fire: '부싯돌 베기', cold: '혹한의 지진', light: '번개 타격', chaos: '심연 전염' }),
+    warrior: Object.freeze({ phys: '이중 베기', fire: '부싯돌 베기', cold: '서리베기', light: '번개 타격', chaos: '심연 전염' }),
     wanderer: Object.freeze({ phys: '흡혈 관통', fire: '폭열 창탄', cold: '빙결 침식', light: '피뢰침', chaos: '심연 전염' }),
     archer: Object.freeze({ phys: '연발 사격', fire: '폭열 창탄', cold: '빙결 침식', light: '번개 창', chaos: '독창 투척' }),
     occultist: Object.freeze({ phys: '대지의 함성', fire: '불씨의 함성', cold: '서리바람 내지르기', light: '번개 창', chaos: '독창 투척' }),
-    alchemist: Object.freeze({ phys: '빈 플라스크', fire: '불씨의 함성', cold: '빙결 침식', light: '신성한 기도', chaos: '심연 전염' }),
+    alchemist: Object.freeze({ phys: '빈 플라스크', fire: '불씨의 함성', cold: '빙결 침식', light: '뇌운 낙뢰', chaos: '심연 전염' }),
     cleric: Object.freeze({ phys: '강타', fire: '화염 참격', cold: '얼어붙은 고리', light: '번개 타격', chaos: '심연 전염' })
 });
 
@@ -333,6 +334,20 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '바위 플라스크': 'flask',
     '석화 혼합물': 'flask',
 });
+/** 룬 요구 레벨(2026-11-02 사용자: 룬의 특이함, 강력함, 고급짐으로 17, 37, 67. 각 무기의 기본 룬은 제한 없음. 보조룬은 연속 발동처럼 고급진 룬만 60, 101).
+ * 여기에 없는 룬은 제한이 없다. 직업 시작 룬(LOOP_STARTER_GEM_BY_HERO, LOOP_MUTATION_STARTER_GEMS)과 액트 보상 룬은 넣지 않는다. 얻거나 사는 데에는 제한이 없고 장착만 막는다
+ * (js/skills.js canUseSkillWithCurrentEquipment, js/support-runes.js conflictReason). */
+const SKILL_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
+    17: ['회오리', '참격파', '올려 베기', '추적 사격', '빙결 파열창', '천뢰 분기',
+        '시간의 사선', '정화의 집행', '석화 혼합물', '돌진', '그림자 점멸', '작살화살', '향로구름', '바위 플라스크', '차원찢기', '수액 골렘 소환'],
+    37: ['공허 가르기', '불사르기', '폭발성 타격', '혹한의 지진', '전도성 난격', '화염 폭풍핵', '유성 낙화', '난타 눈보라', '번개 각인', '화살비', '도약 강타', '폭발 혼합물', '과냉각 혼합물',
+        '파문심판', '화염의 가호', '한기의 가호', '낙뢰의 가호', '심연의 가호', '수액의 가호'],
+    67: ['신성한 단두대', '신성한 기도', '암살', '섬머솔트 슬래시', '시간 가속', '장군의 가호']
+}).flatMap(([level, names]) => names.map(name => [name, Number(level)]))));
+const SUPPORT_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
+    60: ['갈래 투사체', '연쇄 투사체', '넓은 판정', '터지는 시체', '처형', '유지 시전', '집속', '분쇄의 일격', '비전 증폭', '화염 공명', '냉기 공명', '번개 공명', '혼돈 공명'],
+    101: ['이중 발동', '이중 시전', '증원']
+}).flatMap(([level, names]) => names.map(name => [name, Number(level)]))));
 /** 낀 무기의 대분류(data/weapon-categories.js) → 무기 자세. 한손검(scimitar)은 방패를 함께 껴도 한손검 자세다(2026-10-20 새 그림에는 방패를 든 자세가 없다).
  * 무대의 주인공 그림(js/canvas-stage-actors.js)도 이 표로 자세를 정한다. */
 const SKILL_RUNE_STANCE_BY_CATEGORY = Object.freeze({ greatsword: 'greatsword', scimitar: 'sword', shortbow: 'bow', orb: 'orb', flask: 'flask', censer: 'censer' });

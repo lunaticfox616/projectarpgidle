@@ -4104,7 +4104,7 @@ function renderGemEnhanceTargetCard(name, selected, stats) {
 function renderGemResourceStrip(activeGem, condensedPower) {
     let root = document.getElementById('ui-gem-resource-strip');
     if (!root) return;
-    root.innerHTML = `<div><span>룬 잔향</span><strong>${game.currencies.gemShard || 0}</strong></div><div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 정수</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>고른 룬</span><strong>${!activeGem ? '없음' : activeGem.awakened ? '각성' : '각성 전'}</strong></div>`;
+    root.innerHTML = `<div><span>군주의 핵</span><strong>${game.currencies.bossCore || 0}</strong></div><div><span>창공의 정수</span><strong>${game.currencies.skyEssence || 0}</strong></div><div><span>응축 창공</span><strong>${Math.floor(condensedPower || 0)}</strong></div><div><span>각성 잔향</span><strong>${game.currencies.awakenedEcho || 0}</strong></div><div><span>고른 룬</span><strong>${!activeGem ? '없음' : activeGem.awakened ? '각성' : '각성 전'}</strong></div>`;
 }
 
 function bindGemEngraveSlotControls(root) {
@@ -4327,26 +4327,6 @@ function openGemEngraveSlotOverlay(index) {
 window.openGemEngraveSlotOverlay = openGemEngraveSlotOverlay;
 window.closeGemEngraveSlotOverlay = closeGemEngraveSlotOverlay;
 
-function renderSupportGemProcessList() {
-    let root = document.getElementById('ui-support-process-list');
-    if (!root) return;
-    let supports = Array.isArray(game.supports) ? game.supports : [];
-    if (supports.length <= 0) {
-        root.innerHTML = '<div class="gem-process-empty">보유한 보조스킬룬이 없습니다.</div>';
-        return;
-    }
-    root.innerHTML = supports.map(name => {
-        let state = typeof getSupportGemSkyProcessState === 'function' ? getSupportGemSkyProcessState(name) : null;
-        let rec = state ? state.record : normalizeGemRecord(((game.supportGemData || {})[name]) || {});
-        let tierLabel = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, rec.unlockedTier || 1) : `${rec.unlockedTier || 1}등급`;
-        let nextLabel = state && state.improvingTier ? `${state.nextTier}등급 해금` : '룬 레벨 +1';
-        let disabled = !state || state.maxed || (game.currencies.skyEssence || 0) < state.need;
-        let actionLabel = state && state.maxed ? '최대 성장' : `${nextLabel}, 창공 ${state ? state.need : 0}`;
-        return `<div class="gem-support-process-card"><div><small>${tierLabel}, Lv.${rec.level || 1}</small><strong>${escapeHTML(name)}</strong><span>${statToneText.html((SUPPORT_GEM_DB[name] || {}).desc || '')}</span></div><button onclick="processSupportGemWithSkyEssence('${name}')" ${disabled ? 'disabled' : ''}>${actionLabel}</button></div>`;
-    }).join('');
-}
-
-
 function tryGrantCodexCompletionReward() {
     let progress = getUniqueCodexProgress();
     if (progress.total <= 0 || progress.stored < progress.total) return;
@@ -4476,7 +4456,7 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
 function changeSkill(name, slotKind) { if (!assertBuildEditable()) return;
     if (mobilitySkill.isMobilityGem(name) && game.mobilitySkill === name) return wearMobilityGem('');
     if (typeof canUseSkillWithCurrentEquipment === 'function' && !canUseSkillWithCurrentEquipment(name)) {
-        return addLog(`[${name}]${pickParticle(name, '은', '는')} 지금 장비로 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
+        return addLog(`[${name}]${pickParticle(name, '은', '는')} 지금 쓸 수 없습니다: ${getSkillRuneWeaponNote(name)}.`, 'attack-monster');
     }
     if ((SKILL_DB[name]?.tags || []).includes('summon')) return toggleSummonAttackGem(name);
     if (mobilitySkill.isMobilityGem(name)) return wearMobilityRune(name, slotKind);
@@ -5593,6 +5573,12 @@ function getGemAwakenedPerkLine(name, type, info) {
     if (!perk || (!info.awakened && info.baseLevel < 15)) return '';
     return `<div class="tooltip-line" style="color:#9fd6ff;">각성 효과: ${perk.label}${info.awakened ? '' : ' (각성 룬 변환 뒤)'}</div>`;
 }
+/** 룬 요구 레벨 줄: 제한이 없으면 없고, 모자라면 붉다. */
+function getRuneLevelTooltipLine(name, support) {
+    const need = getRuneLevelReq(name, support);
+    if (!need) return '';
+    return `<div class="tooltip-line"${getRuneLevelNote(name, support) ? ' style="color:#ff9b8a;"' : ''}>요구 레벨 ${need}</div>`;
+}
 function showGemTooltip(event, type, name, target = null) {
     if (!target && document.getElementById('gem-selection')?.matches(':popover-open')) return;
     let cacheKey = `${type || 'active'}:${name}`;
@@ -5604,7 +5590,7 @@ function showGemTooltip(event, type, name, target = null) {
         return;
     }
     let info = getUiGemPresentation(name, type === 'support', stats);
-    let html = `<div class="tooltip-title">${name}</div>`;
+    let html = `<div class="tooltip-title">${name}</div>${getRuneLevelTooltipLine(name, type === 'support')}`;
     if (type === 'support') {
         html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div>`;
         let tierText = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, info.activeTier) : (info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급');
@@ -8581,8 +8567,6 @@ function isUiPointerInteractionActive(now = Date.now()) {
 
 function getUiDisclosureKey(details) {
     if (!details || !details.dataset) return '';
-    // Research owns saved folds and temporarily opens matching search sections.
-    if (details.dataset.gemResearchSection) return '';
     if (details.dataset.uiDisclosure) return `named:${details.dataset.uiDisclosure}`;
     if (details.id) return `id:${details.id}`;
     let owner = typeof details.closest === 'function' ? details.closest('[id]') : null;
@@ -12304,7 +12288,7 @@ function isLikelyBootstrapLocalSave(snapshot) {
     if ((s.passivePoints || 0) > 0) hasProgress = true;
     if (Array.isArray(s.skills) && s.skills.some(name => name && name !== '기본 공격')) hasProgress = true;
     if (s.activeSkill && s.activeSkill !== '기본 공격') hasProgress = true;
-    // 기본 공격의 젬은 새 게임에도 있다(defaultGame.gemData): 그 밖의 젬이 있어야 진행이다.
+    // 기본 공격의 룬은 새 게임에도 있다(defaultGame.gemData): 그 밖의 룬이 있어야 진행이다.
     if (Object.keys(s.gemData || {}).some(key => !(key in (defaultGame.gemData || {})))) hasProgress = true;
     if (Array.isArray(s.supports) && s.supports.length > 0) hasProgress = true;
     if (s.supportGemData && Object.keys(s.supportGemData).length > 0) hasProgress = true;

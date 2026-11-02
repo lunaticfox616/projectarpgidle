@@ -217,7 +217,7 @@ function renderReviewBody(mode, index, state, current, notice) {
         ${warning ? `<p class="build-review-warning" role="status">${escapeHTML(warning)}</p>` : ''}
         ${renderSets(state, index, current)}<div class="build-review-footer">${renderReviewIntent(mode, index, preset)}
         ${renderReviewActions(mode, index, preset, inspection.applied)}</div>
-        <p class="build-review-note">룬 레벨, 경험치, 해금, 가공 진척, 패시브는 저장하거나 되돌리지 않습니다.</p>`;
+        <p class="build-review-note">룬 레벨, 경험치, 해금, 패시브는 저장하거나 되돌리지 않습니다.</p>`;
 }
 
 function openReview(mode, index, notice = '', view = mode === 'save' ? 'current' : String(index)) {

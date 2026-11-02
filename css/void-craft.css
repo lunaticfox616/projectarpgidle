@@ -27,19 +27,37 @@
     .void-target-head b { color: #d9c9ff; }
     .void-target-head span, .void-run-status { color: #b3a8cc; font-size: 12px; }
     .void-target-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
-    :root body[data-ui-skin] .void-craft-dialog .void-chip { min-height: 26px; padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--void-chip) 50%, #050403); background: rgba(10, 8, 22, .7); color: var(--void-chip); font-size: 12px; font-weight: 400; line-height: 1.4; }
-    :root body[data-ui-skin] .void-craft-dialog .void-chip:hover { border-color: var(--void-chip); }
-    :root body[data-ui-skin] .void-craft-dialog .void-chip.is-on { border-color: var(--void-chip); background: var(--void-chip); color: #1c1408; font-weight: 700; text-shadow: none; }
-    .void-chip.is-damage { --void-chip: #f2a98a; }
-    .void-chip.is-speed { --void-chip: #f2d27e; }
-    .void-chip.is-ailment { --void-chip: #a4d98a; }
-    .void-chip.is-defence { --void-chip: #8cc8ea; }
-    .void-chip.is-attribute { --void-chip: #c9b4ff; }
-    .void-chip.is-weapon { --void-chip: #eea0ce; }
-    .void-target-picker { margin-bottom: 8px; }
-    .void-target-picker summary { cursor: pointer; color: #bfa9ff; font-size: 12px; }
-    .void-target-groups { max-height: 210px; margin-top: 6px; padding-right: 4px; overflow: auto; }
-    .void-target-group-name { margin-bottom: 3px; color: #b3a8cc; font-size: 12px; }
+    :root body[data-ui-skin] :is(.void-craft-dialog, .void-target-window) .void-chip { min-height: 26px; padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--void-chip) 50%, #050403); background: rgba(10, 8, 22, .7); color: var(--void-chip); font-size: 12px; font-weight: 400; line-height: 1.4; }
+    :root body[data-ui-skin] :is(.void-craft-dialog, .void-target-window) .void-chip:hover { border-color: var(--void-chip); }
+    :root body[data-ui-skin] :is(.void-craft-dialog, .void-target-window) .void-chip.is-on { border-color: var(--void-chip); background: var(--void-chip); color: #1c1408; font-weight: 700; text-shadow: none; }
+    :is(.void-chip, .void-picker-tab).is-damage { --void-chip: #f2a98a; }
+    :is(.void-chip, .void-picker-tab).is-speed { --void-chip: #f2d27e; }
+    :is(.void-chip, .void-picker-tab).is-ailment { --void-chip: #a4d98a; }
+    :is(.void-chip, .void-picker-tab).is-defence { --void-chip: #8cc8ea; }
+    :is(.void-chip, .void-picker-tab).is-attribute { --void-chip: #c9b4ff; }
+    :is(.void-chip, .void-picker-tab).is-weapon { --void-chip: #eea0ce; }
+    :root body[data-ui-skin] .void-craft-dialog .void-picker-open { display: block; width: 100%; margin-bottom: 8px; border-color: #7a62c0; background: rgba(70, 48, 140, .55); color: #d9c9ff; }
+    :root body[data-ui-skin] .void-craft-dialog .void-picker-open:hover { filter: brightness(1.2); }
+
+    /* 목표 고르기 창: 공허 제작 창 위에 뜬다. 위에 분류 탭, 가운데 그 분류의 옵션, 아래 고른 것. 칸 수가 달라도 창 높이는 그대로다. */
+    .selection-overlay:has(.void-target-window) { z-index: 10050; }
+    :root body[data-ui-skin] .selection-overlay-panel.void-target-window { display: flex; flex-direction: column; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 48px - 2 * var(--px-window-edge, 0px)); background: radial-gradient(120% 60% at 50% -8%, rgba(138, 100, 255, .3), transparent 64%), #171228; background-clip: padding-box; }
+    .void-target-window .selection-overlay-title { color: #d9c9ff; }
+    .void-picker-tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; margin-bottom: 8px; }
+    :root body[data-ui-skin] .void-target-window .void-picker-tab { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 44px; padding: 5px 2px; border: 1px solid color-mix(in srgb, var(--void-chip) 34%, #050403); background: rgba(20, 16, 40, .7); color: color-mix(in srgb, var(--void-chip) 70%, #c9c2d6); }
+    :root body[data-ui-skin] .void-target-window .void-picker-tab:hover { border-color: var(--void-chip); }
+    :root body[data-ui-skin] .void-target-window .void-picker-tab.is-active { border-color: var(--void-chip); background: linear-gradient(180deg, color-mix(in srgb, var(--void-chip) 40%, #171228), color-mix(in srgb, var(--void-chip) 14%, #171228)); color: #fff6e6; }
+    .void-picker-tab small { color: #a59bbd; font-size: 12px; }
+    .void-picker-tab.has-picked small { color: #ffe29a; }
+    .void-picker-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 4px; height: 372px; padding-right: 4px; overflow: auto; }
+    :root body[data-ui-skin] .void-target-window .void-chip.void-picker-option { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 36px; padding: 4px 8px; text-align: left; }
+    .void-picker-option small { flex: none; color: color-mix(in srgb, var(--void-chip) 62%, #8d8598); font-size: 12px; }
+    .void-picker-option.is-on small { color: #3c2c10; }
+    .void-picker-option:disabled { opacity: .45; cursor: not-allowed; }
+    .void-picker-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(122, 98, 192, .5); }
+    .void-picker-foot > b { color: #d9c9ff; }
+    .void-picker-foot .void-target-chips { margin: 0; }
+    .void-picker-foot .void-run-status { flex: 1 1 auto; text-align: right; }
     .void-run { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     :root body[data-ui-skin] .void-craft-dialog .void-run-button:not(:disabled) { border-color: #a78bff; background: linear-gradient(180deg, rgba(138, 100, 255, .62), rgba(70, 48, 140, .8)); color: #efe8ff; }
     :root body[data-ui-skin] .void-craft-dialog .void-run-button:hover:not(:disabled) { filter: brightness(1.15); }
@@ -64,7 +82,8 @@
     }
     @media (max-width: 600px) {
         .void-run-button { width: 100%; }
-        .void-target-groups { max-height: 170px; }
+        .void-picker-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .void-picker-grid { grid-template-columns: minmax(0, 1fr); height: min(372px, 46dvh); }
         .void-hit-banner { font-size: 18px; }
     }
 }

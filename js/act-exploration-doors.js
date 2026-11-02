@@ -178,12 +178,9 @@ const actExplorationDoors = (() => {
         const pack = run.packs.find(row => row.rescue);
         return (pack && map.rooms.find(row => row.id === pack.roomId)) || map.entry;
     }
-    /** 이야기 NPC가 선 칸(actExplorationRooms.npcPost)과 같은 세로줄의 앞뒤 GUIDE_KEEP_ROWS칸: 주인공도 몬스터도 서지 않고 돌아간다
-     * (js/combat-grid.js addExplorationGridReservations, 2026-10-17 사용자 "NPC와 겹치지 않도록"). 사람 그림의 키가 세 줄 가까이라 한 줄만
-     * 비우면 두 줄 뒤에 선 주인공이 NPC의 머리와 이름 뒤로 반쯤 가렸다. 옆 칸은 그림이 맞닿기만 해서 비우지 않는다. 문 칸과 문 안쪽 칸은
-     * 막지 않는다: 막으면 그 문으로 드나들 수 없다. 방은 다섯 줄 넘게 깊어 맨 앞줄로는 언제나 지나간다. NPC가 서지 않는 지도는 빈 목록이다.
-     * 탐험마다 한 번 센다. @returns {string[]} 칸 열쇠(gridCellKey) */
-    const GUIDE_KEEP_ROWS = 2;
+    /** 이야기 NPC가 선 한 칸(actExplorationRooms.npcPost): 주인공도 몬스터도 서지 않고 돌아간다(js/combat-grid.js addExplorationGridReservations,
+     * 2026-10-17 사용자 "NPC와 겹치지 않도록", 2026-11-02 사용자: NPC는 한 칸만 차지한다. 전에는 앞뒤 두 칸씩 다섯 칸을 막았다). 문 칸과 문 안쪽 칸이면
+     * 막지 않는다: 막으면 그 문으로 드나들 수 없다. NPC가 서지 않는 지도는 빈 목록이다. 탐험마다 한 번 센다. @returns {string[]} 칸 열쇠(gridCellKey) */
     const guideKeys = new WeakMap();
     function guideCells(run) {
         if (!run) return [];
@@ -195,8 +192,8 @@ const actExplorationDoors = (() => {
         if (!map || !storyGuide(run.zoneId)) return [];
         const room = guideRoom(run, map), post = actExplorationRooms.npcPost(room);
         const doorways = new Set(map.doors.flatMap(door => door.cells.concat(door.landings)).map(cell => gridCellKey(cell.gx, cell.gy)));
-        const rows = Array.from({ length: GUIDE_KEEP_ROWS * 2 + 1 }, (_, index) => post.gy - GUIDE_KEEP_ROWS + index);
-        return rows.filter(gy => gy >= room.y0 && gy <= room.y1).map(gy => gridCellKey(post.gx, gy)).filter(key => !doorways.has(key));
+        const key = gridCellKey(post.gx, post.gy);
+        return doorways.has(key) ? [] : [key];
     }
     return Object.freeze({ session, planKey, stageMap, cross, startAtGate, toward, room, doorsHere, pace, fightingHere, waveDue, sendStraysBack, storyGuide, guideRoom,
         guideCells });

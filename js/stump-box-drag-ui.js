@@ -1,13 +1,13 @@
 // 그루터기 함: 끌어 옮기기와 마우스 툴팁(2026-10-04 사용자 요청, 장비 창 js/equipment-inventory-grid-ui.js와 같은 손맛).
 // 마우스 · 펜은 6px 움직이면 끌기가 시작되고, 손가락은 0.28초 누르고 있어야 시작된다(그 전에 움직이면 화면이 스크롤된다).
-// 판의 칸(빈 칸이면 옮기고, 찬 칸이면 자리를 바꾼다)이나 보관함, 틀이 조합창이면 조합창 칸(2026-10-28 사용자)에 놓는다. 조합창에 든
+// 판의 칸(빈 칸이면 옮기고, 찬 칸이면 자리를 바꾼다)이나 보관함의 칸(2026-11-02 사용자: 보관함 안에서도 위치 조절, 찬 칸이면 자리를 바꾼다), 틀이 조합창이면 조합창 칸(2026-10-28 사용자)에 놓는다. 조합창에 든
 // 아이템도 끌어서 다른 칸으로 옮기거나(같은 크기 아이템과는 자리를 바꾼다) 보관함, 장비 가방 쪽에 놓아 꺼낸다(2026-10-29 사용자).
 // 판정 · 다시 그리기 · 툴팁 내용은 stumpBoxUi가 맡고(dropOnCell · dropOnStorage · dropOnCube · dropCubeItem · tipFor), 이 모듈은
 // 포인터 상태와 끌리는 그림, 놓을 자리 표시만 다룬다.
 (function () {
     'use strict';
-    const DRAG_PX = 6, HOLD_MS = 280, TOUCH_SLOP_PX = 10;
-    let press = null, drag = null, swallowClick = false, frame = 0, pending = null;
+    const DRAG_PX = 6, HOLD_MS = 280, TOUCH_SLOP_PX = 10, PAGE_HOVER_MS = 380;
+    let press = null, drag = null, swallowClick = false, frame = 0, pending = null, pageHover = null;
 
     function stumpTarget(event) { return event.target && event.target.closest ? event.target.closest('#tab-stump') && event.target : null; }
 
@@ -86,14 +86,14 @@
     // ── 끄는 중 ────────────────────────────────────────────
     function zoneAt(x, y) {
         const hit = document.elementFromPoint(x, y), bag = drag?.cube ? ', #tab-stump #stump-equip-host' : '';
-        return hit && hit.closest ? hit.closest(`#tab-stump [data-stump-drop-cell], #tab-stump [data-stump-drop-storage], #tab-stump [data-stump-drop-cube]${bag}`) : null;
+        return hit && hit.closest ? hit.closest(`#tab-stump [data-stump-storage-slot], #tab-stump [data-stump-drop-cell], #tab-stump [data-stump-drop-storage], #tab-stump [data-stump-drop-cube]${bag}`) : null;
     }
-    /** Whether dropping here would do anything: another open cell, storage for an item that is on the board, or the cube for a stored
-     * item it can take. A cube item goes to a cube spot it fits, or out to the storage or the bag. */
+    /** Whether dropping here would do anything: another open cell, the storage (any item may go there or move inside it, so it never
+     * shows red), or the cube for a stored item it can take. A cube item goes to a cube spot it fits, or out to the storage or the bag. */
     function zoneAccepts(zone) {
         if (drag.cube) return zone.dataset.stumpDropCube === undefined ? zone.dataset.stumpDropCell === undefined
             : stumpCube.canMove(game, drag.cube.from, cubeTarget(zone, drag.point.clientX, drag.point.clientY));
-        if (zone.dataset.stumpDropStorage) return game.stumpBox.board.includes(drag.id);
+        if (zone.dataset.stumpDropStorage || zone.dataset.stumpStorageSlot !== undefined) return true;
         if (zone.dataset.stumpDropCube !== undefined) return stumpCube.candidates('stump').some(item => item.id === drag.id);
         const cell = Number(zone.dataset.stumpDropCell);
         return stumpBox.isOpen(game, cell) && game.stumpBox.board[cell] !== drag.id;
@@ -107,12 +107,21 @@
         if (!drag.cube && zone?.dataset.stumpDropCell !== undefined && zoneAccepts(zone)) stumpBoxUi.previewCell(drag.id, Number(zone.dataset.stumpDropCell));
         else stumpBoxUi.clearPlacementPreview(true);
     }
+    /** 끄는 동안 보관함 쪽 단추 위에 머물면 그 쪽을 연다(다른 쪽으로 옮기려고). */
+    function flipStoragePage(point) {
+        const hit = document.elementFromPoint(point.clientX, point.clientY);
+        const button = drag.cube || !hit || !hit.closest ? null : hit.closest('#tab-stump [data-stump-action="storage-page"]');
+        if (button === (pageHover && pageHover.button)) return;
+        clearTimeout(pageHover && pageHover.timer);
+        pageHover = button ? { button, timer: setTimeout(() => { if (drag) stumpBoxUi.showStoragePage(Number(button.dataset.page)); pageHover = null; }, PAGE_HOVER_MS) } : null;
+    }
     function follow(point) {
         if (!drag) return;
         const scale = uiDisplay.factor || 1;
         drag.point = point;
         drag.ghost.style.transform = `translate3d(${Math.round(point.clientX / scale)}px,${Math.round(point.clientY / scale)}px,0)`;
         markZone(zoneAt(point.clientX, point.clientY));
+        flipStoragePage(point);
     }
     function scheduleFollow(event) {
         pending = { clientX: event.clientX, clientY: event.clientY };
@@ -123,6 +132,8 @@
         if (!drag) return;
         if (frame) cancelAnimationFrame(frame);
         frame = 0;
+        clearTimeout(pageHover && pageHover.timer);
+        pageHover = null;
         drag.zone?.classList.remove('is-drop-ok', 'is-drop-bad');
         drag.source.classList.remove('is-dragging');
         drag.ghost.remove();
@@ -139,7 +150,11 @@
         setTimeout(() => { swallowClick = false; }, 0);
         if (!zone) return;
         if (cubeDrop !== undefined) return cubeDrop === false ? undefined : stumpBoxUi.dropCubeItem(from, cubeDrop);
-        if (zone.dataset.stumpDropStorage) stumpBoxUi.dropOnStorage(id);
+        dropStumpItem(id, zone, event);
+    }
+    function dropStumpItem(id, zone, event) {
+        if (zone.dataset.stumpStorageSlot !== undefined) stumpBoxUi.dropOnStorage(id, Number(zone.dataset.stumpStorageSlot));
+        else if (zone.dataset.stumpDropStorage) stumpBoxUi.dropOnStorage(id);
         else if (zone.dataset.stumpDropCube !== undefined) stumpBoxUi.dropOnCube(id, Number(zone.dataset.stumpDropCube));
         else if (event.pointerType === 'touch') stumpBoxUi.previewCell(id, Number(zone.dataset.stumpDropCell), true);
         else stumpBoxUi.dropOnCell(id, Number(zone.dataset.stumpDropCell));

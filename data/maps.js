@@ -63,11 +63,11 @@ const WORLD_MAP_HOTSPOTS = [
 // 이어지지 않아 예전 그림으로 섰다(사용자: 전직 시련 보스가 구 이미지를 쓴다).
 // 칼날/겨울 수호자는 근접으로 전환해 보통 공격의 500ms 비행 대기가 없다. 낮춘 공격 충전 속도로 연타 증가를 상쇄한다.
 const TRIAL_ZONES = [
-    { id: 'trial_1', name: "1차 전직 시련 (칼날 회랑)", type: "trial", bossVisualId: 'trial_1', tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialHazard: { pattern: 'line', warningMs: 1800, intervalMs: 6800, initialDelayMs: 2400, avoidThresholdMul: 1.1 }, trialDesc: '초벌 벼림의 칼날 직선 함정, 한 칸 회피와 방어도 점검', bossMods: { attackSpeedMul: 0.8 } },
-    { id: 'trial_2', name: "2차 전직 시련 (삼원 제단)", type: "trial", bossVisualId: 'trial_2', tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialHazard: { pattern: 'doubleLine', warningMs: 1750, intervalMs: 6200, initialDelayMs: 2300, avoidThresholdMul: 1 }, trialDesc: '화염, 냉기, 번개 삼원 담금질 함정, 경고 속성과 저항 점검' },
-    { id: 'trial_3', name: "3차 전직 시련 (독무 정원)", type: "trial", bossVisualId: 'trial_3', tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialHazard: { pattern: 'pool', warningMs: 1650, intervalMs: 5600, initialDelayMs: 2200, avoidThresholdMul: 0.9 }, trialDesc: '부식 수액의 독무 정원, 오염 지대를 벗어나 회복할 자리 확보' },
-    { id: 'trial_4', name: "4차 전직 미궁 시련 (십자 회랑)", type: "trial", bossVisualId: 'trial_4', tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialHazard: { pattern: 'cross', warningMs: 1550, intervalMs: 5000, initialDelayMs: 2100, avoidThresholdMul: 0.8 }, trialDesc: '피와 공허의 십자 회랑, 대각선 탈출과 복합 방어 점검' },
-    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", bossVisualId: 'trial_5', tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', underworldPenaltyFloor: 1, trapDamageMul: 0.72, trapRegenSuppressPct: 1, trapRegenSuppressCap: 0.3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialHazard: { pattern: 'block', warningMs: 1550, intervalMs: 4600, initialDelayMs: 2000, avoidThresholdMul: 0.7 }, trialDesc: '영구동토의 혹한 봉쇄, 두 칸 탈출과 지하계 1층급 수호자 점검', bossMods: { hpMul: 0.9, damageMul: 0.84, attackSpeedMul: 0.55, patternMode: 'slam', traitName: '백야의 심장: 파쇄 강타를 버티고 함정 사이에 회복하세요' } }
+    { id: 'trial_1', name: "1차 전직 시련 (칼날 회랑)", type: "trial", bossVisualId: 'trial_1', tier: 3, maxKills: 1, reqZone: 3, ele: 'phys', repeatGemChance: 0.05, fixedDifficultyMul: 1, trapElements: ['phys'], trialHazard: { pattern: 'line', reach: 1, warningMs: 1800, intervalMs: 6800, initialDelayMs: 2400 }, trialDesc: '초벌 벼림의 칼날 직선 함정, 두 칸 회피와 방어도 점검', bossMods: { attackSpeedMul: 0.8 } },
+    { id: 'trial_2', name: "2차 전직 시련 (삼원 제단)", type: "trial", bossVisualId: 'trial_2', tier: 6, maxKills: 1, reqZone: 8, ele: 'fire', repeatGemChance: 0.08, fixedDifficultyMul: 1, trapElements: ['fire', 'cold', 'light'], trialHazard: { pattern: 'line', reach: 2, warningMs: 1750, intervalMs: 6200, initialDelayMs: 2300 }, trialDesc: '화염, 냉기, 번개 삼원 담금질 함정, 경고 속성과 저항 점검' },
+    { id: 'trial_3', name: "3차 전직 시련 (독무 정원)", type: "trial", bossVisualId: 'trial_3', tier: 15, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['chaos'], trialHazard: { pattern: 'pool', reach: 3, warningMs: 1650, intervalMs: 5600, initialDelayMs: 2200 }, trialDesc: '부식 수액의 독무 정원, 오염 지대를 벗어나 회복할 자리 확보' },
+    { id: 'trial_4', name: "4차 전직 미궁 시련 (십자 회랑)", type: "trial", bossVisualId: 'trial_4', tier: 20, maxKills: 1, reqZone: -1, key: 'trialKey3', ele: 'chaos', repeatGemChance: 1, fixedDifficultyMul: 1, trapElements: ['phys', 'chaos'], trialHazard: { pattern: 'cross', reach: 1, warningMs: 1550, intervalMs: 5000, initialDelayMs: 2100 }, trialDesc: '피와 공허의 십자 회랑, 대각선 탈출과 복합 방어 점검' },
+    { id: 'trial_5', name: "혹독한 겨울의 미궁 (재능 개화)", type: "trial", bossVisualId: 'trial_5', tier: 57, maxKills: 1, reqZone: -1, bloomTrial: true, difficultyBenchmark: 'underworld1', underworldPenaltyFloor: 1, trapDamageMul: 0.72, trapRegenSuppressPct: 1, trapRegenSuppressCap: 0.3, ele: 'cold', fixedDifficultyMul: 1, trapElements: ['cold'], trialHazard: { pattern: 'block', reach: 3, warningMs: 1550, intervalMs: 4600, initialDelayMs: 2000 }, trialDesc: '영구동토의 혹한 봉쇄, 네 칸 탈출과 지하계 1층급 수호자 점검', bossMods: { hpMul: 0.9, damageMul: 0.84, attackSpeedMul: 0.55, patternMode: 'slam', traitName: '백야의 심장: 파쇄 강타를 버티고 함정 사이에 회복하세요' } }
 ];
 
 const METEOR_FALL_ZONE_ID = 'meteor_fall_site';
@@ -326,9 +326,9 @@ const TIME_RIFT_OPTION_KEEP_PAST_CAP = Object.freeze([0.03, 0.038, 0.046, 0.053,
 
 // 루프 1~10의 해금 줄은 data/content-progression.js CONTENT_UNLOCK_CATALOG의 minLoop와 맞춘다(2026-10-27).
 const SEASON_CONTENT_ROADMAP = {
-    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬룬 → 전술 규칙)'] },
+    1: { title: '루프 1', features: ['시작: 기본 전투/장비/지도', '액트 3 클리어: 전투 전술 무료 해금 (스킬룬 → 전술)'] },
     2: { title: '루프 2', features: ['해금: 장비 제련 / 보조스킬룬 / 루프 패시브', '그루터기 함: 루프마다 한 칸씩 열림 (9칸 → 루프 17에 25칸)'] },
-    3: { title: '루프 3', features: ['해금: 고대 미궁 / 대전 / 전직 / 화석 제작 / 룬 연구'] },
+    3: { title: '루프 3', features: ['해금: 고대 미궁 / 대전 / 전직 / 화석 제작'] },
     4: { title: '루프 4', features: ['해금: 룬 강화 / 룬 각인'] },
     5: { title: '루프 5', features: ['해금: 주얼 / 고유 도감 / 화석 복원'] },
     6: { title: '루프 6', features: ['해금: 부적 / 제작 시뮬레이터'] },

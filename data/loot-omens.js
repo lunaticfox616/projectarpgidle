@@ -57,7 +57,7 @@ const LOOT_OMENS = Object.freeze({
             ['fairyRing', 0.01]]) },
         // 2026-10-10 사용자: 룬의 정원, 보석 광맥, 지도 제작자가 밋밋하면 상향. 룬 보상, 좋은 주얼, 높고 희귀한 지도석이 눈에 띄게 늘었다.
         { id: 'gems', name: '룬의 정원', note: '룬과 각성 잔향이 자주 나옵니다', kind: 'drops', weight: 5, tone: '#7fd99a', drops: Object.freeze([
-            ['gemShard', 8], ['awakenedEcho', 3]]), gemMul: 4 },
+            ['awakenedEcho', 3]]), gemMul: 4 },
         { id: 'jewels', name: '보석 광맥', note: '주얼이 많이, 더 좋게 나옵니다', kind: 'drops', weight: 5, tone: '#78cfff', drops: Object.freeze([
             ['jewelShard', 6], ['@jewel', 5]]), jewel: Object.freeze({ rare: 0.35, unique: 0.03 }) },
         { id: 'armory', name: '무기고', note: '무기가 많이 나옵니다', kind: 'gear', weight: 6, tone: '#e0a070',

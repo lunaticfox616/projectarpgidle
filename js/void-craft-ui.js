@@ -2,8 +2,9 @@
 const voidCraftUi = (() => {
     const RUN_INTERVAL_MS = 130, MAX_TARGETS = 3, HIT_FX_MS = 1900, SPARKS = 22;
     const GROUP_CLASS = { 피해: 'damage', '치명타와 속도': 'speed', 상태이상: 'ailment', 방어: 'defence', 능력치: 'attribute', 무기: 'weapon' };
+    const PICKER_ID = 'void-target-dialog';
     const targets = new Map();
-    let run = null, pickerOpen = false;
+    let run = null, pickerNode = null, pickerGroup = Object.keys(GROUP_CLASS)[0];
 
     const targetsOf = nodeId => targets.get(String(nodeId)) || new Set();
     const lineName = statId => escapeHTML(String(getStatName(statId)).replace(/\s*\((\+%p|%)\)\s*/g, '').trim());
@@ -25,15 +26,33 @@ const voidCraftUi = (() => {
             .map(line => `<div class="void-craft-line${wanted.has(line.id) ? ' is-target' : ''}">${escapeHTML(formatVoidPassiveStatLine(line))}</div>`).join('');
     }
 
-    function pickerHtml(nodeId, wanted) {
-        const groups = Object.keys(GROUP_CLASS).map(group => {
-            const chips = VOID_PASSIVE_OPTION_POOL.filter(option => option.group === group).map(option => {
-                const on = wanted.has(option.id);
-                return `<button type="button" class="${chipClass(option.id)}${on ? ' is-on' : ''}" aria-pressed="${on}" onclick="voidCraftUi.toggleTarget('${nodeId}','${option.id}')">${lineName(option.id)}</button>`;
-            }).join('');
-            return `<div class="void-target-group"><div class="void-target-group-name">${group}</div><div class="void-target-chips">${chips}</div></div>`;
-        }).join('');
-        return `<details class="void-target-picker"${pickerOpen ? ' open' : ''} ontoggle="voidCraftUi.notePicker(this.open)"><summary>옵션 고르기</summary><div class="void-target-groups">${groups}</div></details>`;
+    // 목표 고르기 창(2026-11-02 사용자: 옵션이 한 줄로 쭉 늘어서 스크롤이 길었다): 분류 탭 하나에 그 분류의 옵션만, 값 범위와 함께.
+    const rangeText = option => `${option.min}~${option.max}${String(getStatName(option.id)).includes('%') ? '%' : ''}`;
+    function pickerOptionHtml(option, wanted) {
+        const on = wanted.has(option.id), full = !on && wanted.size >= MAX_TARGETS;
+        return `<button type="button" class="${chipClass(option.id)} void-picker-option${on ? ' is-on' : ''}" aria-pressed="${on}"${full ? ' disabled' : ''} onclick="voidCraftUi.toggleTarget('${pickerNode}','${option.id}')"><span>${lineName(option.id)}</span><small>${rangeText(option)}</small></button>`;
+    }
+    function pickerTabHtml(group, wanted) {
+        const rows = VOID_PASSIVE_OPTION_POOL.filter(option => option.group === group), picked = rows.filter(option => wanted.has(option.id)).length;
+        return `<button type="button" class="void-picker-tab is-${GROUP_CLASS[group]}${group === pickerGroup ? ' is-active' : ''}${picked ? ' has-picked' : ''}" aria-pressed="${group === pickerGroup}" onclick="voidCraftUi.showGroup('${group}')"><span>${group}</span><small>${picked ? `${picked}개 고름` : `${rows.length}종`}</small></button>`;
+    }
+    function drawPicker() {
+        const wanted = targetsOf(pickerNode);
+        const tabs = Object.keys(GROUP_CLASS).map(group => pickerTabHtml(group, wanted)).join('');
+        const options = VOID_PASSIVE_OPTION_POOL.filter(option => option.group === pickerGroup).map(option => pickerOptionHtml(option, wanted)).join('');
+        const picked = [...wanted].map(statId => `<button type="button" class="${chipClass(statId)} is-on" onclick="voidCraftUi.toggleTarget('${pickerNode}','${statId}')">${lineName(statId)}<span aria-hidden="true"> ✕</span></button>`).join('');
+        selectionDialog.show({ id: PICKER_ID, title: '목표 옵션 고르기', panelClass: 'void-target-window', body: `<nav class="void-picker-tabs" aria-label="옵션 분류">${tabs}</nav>
+            <div class="void-picker-grid">${options}</div>
+            <footer class="void-picker-foot"><b>${wanted.size}/${MAX_TARGETS}</b><div class="void-target-chips">${picked}</div><span class="void-run-status">${idleStatus(wanted)}</span><button type="button" class="void-picker-done" data-selection-close>완료</button></footer>` });
+    }
+    function openPicker(nodeId) {
+        pickerNode = String(nodeId);
+        drawPicker();
+    }
+    function showGroup(group) {
+        if (!GROUP_CLASS[group]) return;
+        pickerGroup = group;
+        drawPicker();
     }
 
     function idleStatus(wanted) {
@@ -48,7 +67,7 @@ const voidCraftUi = (() => {
         const disabled = !running && (!wanted.size || budCount() <= 0);
         return `<div class="void-target-head"><b>목표 옵션</b><span>${wanted.size}/${MAX_TARGETS}, 하나라도 나오면 멈춥니다</span></div>
             ${picked ? `<div class="void-target-chips">${picked}</div>` : ''}
-            ${running ? '' : pickerHtml(nodeId, wanted)}
+            ${running ? '' : `<button type="button" class="void-picker-open" onclick="voidCraftUi.openPicker('${nodeId}')">옵션 고르기</button>`}
             <div class="void-run">
                 <button type="button" id="void-run-button" class="void-run-button${running ? ' is-running' : ''}" onclick="voidCraftUi.toggleRun('${nodeId}')" ${disabled ? 'disabled' : ''}>${running ? '멈추기' : '목표까지 연속 사용'}</button>
                 <span id="void-run-status" class="void-run-status" role="status">${running ? runStatus() : idleStatus(wanted)}</span>
@@ -78,10 +97,7 @@ const voidCraftUi = (() => {
         targets.set(String(nodeId), wanted);
         refreshPanel(nodeId);
         refreshEffect(nodeId);
-    }
-
-    function notePicker(open) {
-        pickerOpen = !!open;
+        if (selectionDialog.isOpen(PICKER_ID)) drawPicker();
     }
 
     const runStatus = () => `${run.used}개 사용, 남은 새싹 ${budCount()}개`;
@@ -171,6 +187,6 @@ const voidCraftUi = (() => {
         }, HIT_FX_MS);
     }
 
-    return { effectHtml, panelHtml, toggleTarget, notePicker, toggleRun, stopRun };
+    return { effectHtml, panelHtml, toggleTarget, openPicker, showGroup, toggleRun, stopRun };
 })();
 safeExposeGlobals({ voidCraftUi });
