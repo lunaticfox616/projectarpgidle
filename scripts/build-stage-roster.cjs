@@ -21,6 +21,9 @@
  *     걷기와 공격의 칸과 발 자리는 그대로 두고 쓰러짐만 제 칸에 따로 둔다(<id>-death.png).
  *   --motions: Codex의 전체 몬스터 이동과 공격 6장 제작본(artifacts/endgame-boss-motion-20261020/all-monsters/motions, 2026-10-21 사용자:
  *     크기는 제작본의 목표 키를 따른다): 그 제작본에 있는 몬스터는 걷기와 공격을 모두 이것으로 쓴다(motionBatch). 쓰러짐은 그대로다.
+ *   node scripts/build-stage-roster.cjs --refresh-motions <제작본 motions 폴더> <id,id,...>: 표의 다른 몬스터는 그대로 두고 적은 외형의 걷기와
+ *     공격만 제작본으로 바꾼다. 쓰러짐과 특수 공격은 앞 줄 그대로다. 묶음을 덧붙인(--append-pack) 뒤로는 처음 받은 폴더로 표 전체를 다시 만들면
+ *     덧붙인 몬스터가 사라지므로, 지금 그림을 바꿀 때는 이쪽을 쓴다.
  *   새 묶음의 그림이 게임에서 다른 자리에 서면 FORGE_SLOT에 적는다(예: 부제나비는 액트 3 보스 그림 키 bossAct3).
  *   같은 생김새에 색만 다른 외형은 FORGE_TINTS에 적는다: 동작이 온 외형의 걷기와 공격을 제 색으로 옮겨 쓴다(--no-tint로 끈다).
  * 몬스터 하나는 한쪽 묶음의 그림만 쓴다: 새 묶음에 확인 끝난 동작이 있으면 그것(공격이 없으면 공격 그림 없이 간다), 없으면
@@ -44,9 +47,9 @@ const args = process.argv.slice(2), OPTIONS = ['--forge', '--looks', '--roots', 
 if (args[0] === '--append-pack') { require('./lib/append-roster-pack.cjs')(root, path.resolve(args[1])); process.exit(0); }
 const option = name => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
 const forge = option('--forge'), looksFile = option('--looks'), rootsDir = option('--roots'), actionsDir = option('--actions'), attacksDir = option('--attacks');
-const deathsDir = option('--deaths'), motionsDir = option('--motions');
-const [from, mirror] = args.filter((arg, index) => !arg.startsWith('--') && !OPTIONS.includes(args[index - 1]));
-if (!from) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>] [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>]'); process.exit(1); }
+const deathsDir = option('--deaths'), motionsDir = option('--motions'), refreshMotions = option('--refresh-motions');
+const [from, mirror] = refreshMotions ? [] : args.filter((arg, index) => !arg.startsWith('--') && !OPTIONS.includes(args[index - 1]));
+if (!from && !refreshMotions) { console.error('쓰는 법: node scripts/build-stage-roster.cjs <정리한 그림 폴더> [복사해 둘 폴더] [--forge <새 묶음 폴더>] [--looks <새 외형 선택.json>] [--roots <무기 뿌리 묶음 폴더>] [--actions <동작 묶음 폴더>]'); process.exit(1); }
 const PAD = 2, COLUMNS = 12;
 /** 걸음새: 걷는 그림을 고르는 방식과, 그림 없이 걷는 척할 때의 움직임을 정한다(js/canvas-stage-roster.js). */
 const GAIT_BY_TRAVEL = { 비행: 'fly', 부유: 'float', 유영: 'swim', 구르기: 'roll', 기어가기: 'crawl' };
@@ -94,8 +97,8 @@ function atlas(frames, box) {
 // ------------------------------------------------------------------ 처음 받은 88종
 const window = {};
 // eslint-disable-next-line no-eval -- 정리 폴더의 목록은 window.ROSTER = {...}; 한 줄짜리 자료 파일이다
-eval(fs.readFileSync(path.join(from, 'data.js'), 'utf8'));
-const motions = new Map(JSON.parse(fs.readFileSync(path.join(from, '..', 'motions.json'), 'utf8')).entries.map(entry => [entry.id, entry]));
+if (from) eval(fs.readFileSync(path.join(from, 'data.js'), 'utf8'));
+const motions = new Map(from ? JSON.parse(fs.readFileSync(path.join(from, '..', 'motions.json'), 'utf8')).entries.map(entry => [entry.id, entry]) : []);
 function firstBatch(actor) {
     const entry = motions.get(actor.id), size = [actor.size, actor.size];
     // 윗몸 움직임을 넣은 걷기가 따로 있으면 그것을 쓴다(받은 걷기는 윗몸이 굳어 있다)
@@ -249,10 +252,7 @@ function forgeBatch(dir) {
         if (clips && row && clips.walk.frames.length > 1 && row.walk.frames.length === 1) out.set(id, forgeTinted(dir, production, clips, row));
     }
     if (targeted.boss) {
-        // 그 자리에 앞서 넣은 그림은 견주어 볼 수 있게 다른 이름으로 남긴다(테스트 패널의 "몬스터 모습")
-        const slot = FORGE_SLOT.boss, before = out.get(slot.id);
-        if (before) out.set(slot.id + '-prev', { ...before, id: slot.id + '-prev', name: before.name + ' (이전 그림)' });
-        out.set(slot.id, forgeBoss(dir, targeted.boss, slot));
+        out.set(FORGE_SLOT.boss.id, forgeBoss(dir, targeted.boss, FORGE_SLOT.boss));
     }
     return out;
 }
@@ -330,13 +330,8 @@ function hoverOf(actor) {
     const box = boxOf(actor.walk.frames[0]);
     return box ? Math.max(0, -box[3] - 1) : 0;
 }
-/** 제작본의 6장이 앞선 그림보다 장 수가 적은 외형(걷기나 공격 가운데 하나라도: 위습 걷기 65~78장, 개미 48~49장, 슬라임 36장, 부제사와
- * 부제녀 24~32장, 이야기 보스 공격 16~17장 등)은 앞선 그림을 걷기와 공격 모두 그대로 쓴다(2026-10-21 사용자, 게임에서 두 판을 비교한 뒤:
- * "프레임이 줄어든 시트는 이전 판으로 되돌리고, 나머지는 고친 초안으로 가자"). 한 외형 안에서 두 판을 섞으면 걷다가 때릴 때 크기와 생김새가 바뀐다. */
-const MOTION_KEEP_EARLIER = Object.freeze(['league_nursery', 'league_nursery-stage2', 'sky-imp', 'act1-slime', 'ocean-oracle', 'atlas-trunk-6',
-    'wisp-b01', 'wisp-b03', 'wisp-b04', 'wisp-b05', 'act1-ant', 'act3-ant', 'act4-ant', 'act5-slime', 'act5-ant', 'atlas-sanctum-0', 'atlas-garden-7',
-    'deacon-act2-melee', 'deacon-act2-ranged', 'deacon-act6-melee', 'deacon-act6-ranged', 'deacon-act7-melee', 'deacon-act7-ranged',
-    'deacon-act8-melee', 'deacon-act8-ranged', 'bossAct2', 'bossAct4_2', 'bossAct5', 'bossAct6', 'bossAct8_1', 'bossAct10_2']);
+/** 제작본의 기준점이 몸 가운데서 크게 벗어난 외형: 오른쪽을 보게 놓은 뒤의 발 자리를 이만큼(도트) 옮긴다(고치에서 태어난 존재는 몸이 발 자리보다 29도트 왼쪽에 섰다). */
+const MOTION_FEET_NUDGE = Object.freeze({ bossAct10_2: -29 });
 /** 제작본은 원본 그림의 방향을 따른다(제작 지시: 장마다 같은 방향, 뒤집지 않는다). 원본은 대부분 왼쪽을 보지만 이 몬스터의 클립은 오른쪽을
  * 보고 그려져, 뒤집으면 게임에서 뒤로 걷고 몸 뒤를 때렸다(2026-10-21: 공격이 뒤로 뻗고 앞선 그림과 좌우가 반대였다). 그대로 쓴다. */
 const MOTION_FACES_RIGHT = Object.freeze({
@@ -440,16 +435,16 @@ function alignMotion(walk, attack, grounded) {
 /** clips.json의 몬스터마다 move와 attack: 가로 cols칸 시트(칸 width × height, 발 자리 anchor, 왼쪽을 본다), 프레임 시간 ticks(1/60초),
  * 공격의 타격 프레임 impactFrame. 칸마다 좌우를 뒤집어 오른쪽을 보게 한다. 원화 색상표로 마감된 그림이라 색을 다시 줄이지 않는다.
  * 이름, 걸음새, 떠 있는 높이는 같은 id의 앞선 그림 것을 잇는다. 다리로 걷는 몬스터는 걸어온 거리로, 떠 있는 몬스터는 시간으로 돈다. */
-function motionBatch(dir, previous) {
+function motionBatch(dir, previous, only = null) {
     const pairs = new Map(), out = new Map();
     for (const clip of JSON.parse(fs.readFileSync(path.join(dir, 'clips.json'), 'utf8'))) pairs.set(clip.id, { ...(pairs.get(clip.id) || {}), [clip.action]: clip });
     for (const [id, pair] of pairs) {
-        if (!pair.move || !pair.attack || MOTION_KEEP_EARLIER.includes(id)) continue;
+        if (!pair.move || !pair.attack || (only && !only.includes(id))) continue;
         const before = previous.get(id), gait = before ? before.gait : MOTION_GAITS[id] || 'legs', airborne = AIRBORNE.includes(gait);
         const hover = airborne ? (before ? hoverOf(before) : MOTION_HOVER) : 0;
         const clipOf = clip => {
             const right = (MOTION_FACES_RIGHT[id] || []).includes(clip.action), png = read(path.join(dir, clip.sheet));
-            const sheet = right ? png : mirrorCells(png, clip.width), feet = [right ? clip.anchor[0] : clip.width - 1 - clip.anchor[0], clip.anchor[1] + hover];
+            const sheet = right ? png : mirrorCells(png, clip.width), feet = [(right ? clip.anchor[0] : clip.width - 1 - clip.anchor[0]) + (MOTION_FEET_NUDGE[id] || 0), clip.anchor[1] + hover];
             return { frames: gridFrames(sheet, [clip.width, clip.height], clip.cols, clip.frames, feet), ms: clip.ticks.map(tick => +(tick * 1000 / 60).toFixed(2)) };
         };
         const walk = { ...clipOf(pair.move), pace: airborne ? 'time' : 'stride' }, attack = { ...clipOf(pair.attack), hit: pair.attack.impactFrame ?? 3 };
@@ -493,6 +488,51 @@ function wispWears(made, own) {
     const byElement = new Map();
     for (const id of made) if (data.WISP_SPRITE_BY_VISUAL[id] && !byElement.has(data.WISP_SPRITE_BY_VISUAL[id])) byElement.set(data.WISP_SPRITE_BY_VISUAL[id], id);
     return Object.entries(data.WISP_SPRITE_BY_VISUAL).filter(([id, element]) => !own.includes(id) && byElement.has(element)).map(([id, element]) => [id, byElement.get(element)]);
+}
+
+const clipText = clip => `[${clip.n}, ${clip.cols}, ${Array.isArray(clip.ms) ? `[${clip.ms.join(', ')}]` : clip.ms}, ${typeof clip.extra === 'string' ? `'${clip.extra}'` : clip.extra}]`;
+/** 표의 한 줄: 걷기와 공격 그림을 같은 상자로 잘라 write로 쓰고, 줄의 글을 돌려준다. tail: 쓰러짐과 그 뒤 칸의 글. */
+function rosterRowOf(actor, write, tail) {
+    const clips = [actor.walk, actor.attack].filter(Boolean), boxes = clips.flatMap(clip => clip.frames.map(boxOf)).filter(Boolean);
+    const box = [Math.min(...boxes.map(b => b[0])) - PAD, Math.min(...boxes.map(b => b[1])) - PAD, Math.max(...boxes.map(b => b[2])) + PAD, Math.max(...boxes.map(b => b[3])) + PAD];
+    const walk = atlas(actor.walk.frames, box), attack = actor.attack ? atlas(actor.attack.frames, box) : null;
+    write(`${actor.id}-walk.png`, walk.png);
+    if (attack) write(`${actor.id}-attack.png`, attack.png);
+    const walkBoxes = actor.walk.frames.map(boxOf).filter(Boolean), stand = boxOf((actor.attack || actor.walk).frames[0]), still = walkBoxes[0];
+    return `['${actor.id}', '${actor.name.replace(/'/g, "\\'")}', ${box[2] - box[0] + 1}, ${box[3] - box[1] + 1}, ${-box[0]}, ${-box[1]}, ${-stand[1]}, `
+        + `${middle(walkBoxes.map(b => b[2] - b[0] + 1))}, '${actor.gait}', `
+        + `${clipText({ n: actor.walk.frames.length, cols: walk.cols, ms: actor.walk.ms, extra: actor.walk.pace })}, `
+        + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}, [${-still[0]}, ${still[2]}], ${tail}]`;
+}
+
+/** --refresh-motions: 지금 표에서 적은 외형의 걷기와 공격만 제작본으로 바꾼다(머리말). 이름, 걸음새, 떠 있는 높이는 motionBatch가 지금 줄에서 잇는다. */
+function refreshRosterMotions(dir, ids) {
+    const file = path.join(root, 'data/monster-stage-roster.js'), old = fs.readFileSync(file, 'utf8'), outDir = path.join(root, 'assets/enemies/roster');
+    const rowPattern = /^ {8}\[['"]([^'"]+)['"].*$/gm, parsed = new Map(), stamp = crypto.createHash('sha1');
+    // eslint-disable-next-line no-new-func -- 이 도구가 쓴 표의 한 줄(배열 글)이다
+    for (const [line, id] of old.matchAll(rowPattern)) parsed.set(id, { line: line.replace(/\r$/, ''), row: new Function(`return ${line.trim().replace(/,$/, '')}`)() });
+    const previous = new Map(ids.filter(id => parsed.has(id)).map(id => {
+        const [, name, w, h, feetX, feetY, , , gait, walk] = parsed.get(id).row;
+        const frames = gridFrames(read(path.join(outDir, `${id}-walk.png`)), [w, h], walk[1], walk[0], [feetX, feetY]);
+        return [id, { id, name, gait, walk: { frames } }];
+    }));
+    const write = (name, png) => { stamp.update(name).update(png); fs.writeFileSync(path.join(outDir, name), png); };
+    let text = old, done = 0;
+    for (const [id, actor] of motionBatch(dir, previous, ids)) {
+        const { line, row } = parsed.get(id) || {};
+        if (!line) throw new Error(`표에 없는 외형입니다: ${id}`);
+        const tail = row.slice(12).map(value => JSON.stringify(value ?? null)).join(', ');
+        text = text.replace(line, () => `        ${rosterRowOf(actor, write, tail)}${line.trimEnd().endsWith(',') ? ',' : ''}`);
+        done++;
+    }
+    if (done !== ids.length) throw new Error(`제작본에 없는 외형이 있습니다: ${done}/${ids.length}`);
+    stamp.update(text.replace(/version: '[^']+'/, "version: 'content'"));
+    fs.writeFileSync(file, text.replace(/version: '[^']+'/, `version: '${stamp.digest('hex').slice(0, 10)}'`));
+    console.log(`걷기와 공격을 제작본으로 바꾼 외형 ${done}개`);
+}
+if (refreshMotions) {
+    refreshRosterMotions(path.resolve(refreshMotions), args[args.indexOf('--refresh-motions') + 2].split(','));
+    process.exit(0);
 }
 
 // ------------------------------------------------------------------ 옮기기
@@ -545,23 +585,12 @@ function save(file, png) {
     stamp.update(file).update(png);
     folders.forEach(folder => fs.writeFileSync(path.join(folder, file), png));
 }
-const clipText = clip => `[${clip.n}, ${clip.cols}, ${Array.isArray(clip.ms) ? `[${clip.ms.join(', ')}]` : clip.ms}, ${typeof clip.extra === 'string' ? `'${clip.extra}'` : clip.extra}]`;
 const rows = [];
-for (const actor of actors.values()) {
-    const clips = [actor.walk, actor.attack].filter(Boolean), boxes = clips.flatMap(clip => clip.frames.map(boxOf)).filter(Boolean);
-    const box = [Math.min(...boxes.map(b => b[0])) - PAD, Math.min(...boxes.map(b => b[1])) - PAD, Math.max(...boxes.map(b => b[2])) + PAD, Math.max(...boxes.map(b => b[3])) + PAD];
-    const walk = atlas(actor.walk.frames, box), attack = actor.attack ? atlas(actor.attack.frames, box) : null;
-    save(`${actor.id}-walk.png`, walk.png);
-    if (attack) save(`${actor.id}-attack.png`, attack.png);
-    const walkBoxes = actor.walk.frames.map(boxOf).filter(Boolean), stand = boxOf((actor.attack || actor.walk).frames[0]), still = walkBoxes[0];
-    rows.push(`        ['${actor.id}', '${actor.name.replace(/'/g, "\\'")}', ${box[2] - box[0] + 1}, ${box[3] - box[1] + 1}, ${-box[0]}, ${-box[1]}, ${-stand[1]}, `
-        + `${middle(walkBoxes.map(b => b[2] - b[0] + 1))}, '${actor.gait}', `
-        + `${clipText({ n: actor.walk.frames.length, cols: walk.cols, ms: actor.walk.ms, extra: actor.walk.pace })}, `
-        + `${attack ? clipText({ n: actor.attack.frames.length, cols: attack.cols, ms: actor.attack.ms, extra: actor.attack.hit }) : 'null'}, [${-still[0]}, ${still[2]}], ${deathRowOf(actor)}]`);
-}
+for (const actor of actors.values()) rows.push(`        ${rosterRowOf(actor, save, deathRowOf(actor))}`);
 
 const version = stamp.digest('hex').slice(0, 10), wears = wispWears(moving, fromForge).concat([
-    ['meteor-shard', 'cosmos-star'], ['meteor-melt', 'cosmos-ooze'], ['meteor-sentinel', 'cosmos-sentinel']
+    ['meteor-shard', 'cosmos-star'], ['meteor-melt', 'cosmos-ooze'], ['meteor-sentinel', 'cosmos-sentinel'],
+    ['underworld-king', 'realm_underking'], ['cosmos-colossus', 'realm_colossus'], ['sky-titan', 'realm_titan']
 ].filter(([id]) => !actors.has(id)));
 const text = `// 옆에서 보는 무대의 몬스터 새 그림(docs/stage-view-20261011.md): node scripts/build-stage-roster.cjs가 쓴다. 손으로 고치지 않는다.
 // 몬스터마다 걷기와 공격 두 장(오른쪽을 보는 그림, 한 줄에 cols칸, 도트 하나 = 캐릭터 도트 하나)이고, 두 장은 칸 크기와 발 자리가 같다.

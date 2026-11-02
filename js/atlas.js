@@ -15,7 +15,7 @@ const atlas = (() => {
             boss: name, arena: true, act: region.act, bossAct, bossVisualId, ele: region.ele, ticket });
     });
     const PINNACLE = Object.freeze({ id: 'pinnacle', kind: 'pinnacle', region: null, regionIndex: -1, slot: -1, name: ATLAS.pinnacle.name,
-        tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct, ele: 'chaos' });
+        tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct, bossVisualId: ATLAS.pinnacle.bossVisualId, ele: 'chaos' });
     const NODES = Object.freeze([...MAP_NODES, ...GUARDIANS, PINNACLE]);
     // 후반부 싸움(data/atlas-endgame.js, js/atlas-endgame.js): 그래프 밖의 투기장. 지도 장치 런 · 포털 · 정산은 같은 길을 쓴다.
     const lateNode = (row, kind, name) => Object.freeze({ id: row.id, kind, region: null, regionIndex: -1, slot: -1, name, tier: row.tier,

@@ -200,7 +200,7 @@ const ATLAS = Object.freeze({
     }),
     guardianRules: Object.freeze({ tier: 16, minTier: 13, dropChance: 0.15, hpMul: 2.5, damageMul: 1.3, radius: 9 }),
     // 정점: 뿌리 입장권 4종을 하나씩 바쳐 여는 세계수의 그림자(3단계 보스). 처치마다 씨앗 하나(최대 4).
-    pinnacle: Object.freeze({ name: '세계수의 그림자', boss: '세계수의 그림자', bossAct: 9, act: 1, stages: 3, hpMul: 4, damageMul: 1.5,
+    pinnacle: Object.freeze({ name: '세계수의 그림자', boss: '세계수의 그림자', bossAct: 9, bossVisualId: 'atlas_pinnacle', act: 1, stages: 3, hpMul: 4, damageMul: 1.5,
         tickets: Object.freeze(['uberRootTicketFlame', 'uberRootTicketFrost', 'uberRootTicketStorm', 'uberRootTicketChaos']),
         rewards: Object.freeze([['goldenRule', 2], ['sapBud', 3], ['formlessDew', 8]]) }),
     // 세계수 씨앗: 하나마다 모든 노드 등급 +2(최대 4개 → 24등급). 4개면 경계 너머의 루프 50 조건을 대신한다

@@ -432,6 +432,13 @@ const BOSS_REACH = Object.freeze({
     }),
     byVisual: Object.freeze({ 'atlas-garden-1': 'melee', 'atlas-garden-2': 'ranged', 'atlas-sanctum-4': 'ranged',
         'atlas-sanctum-5': 'far', 'colony-boss': 'melee',
+        // 제 그림으로 나오는 지도, 수호자, 리그 보스: 공격 효과 종류(data/boss-fx.js)대로. 효과가 없는 꼭대기 보스 다섯과 정점은 액트 그림의 거리를 잇는다.
+        'atlas-roots-1': 'melee', 'atlas-roots-3': 'melee', 'atlas-roots-6': 'melee', 'atlas-roots-7': 'melee',
+        'atlas-trunk-0': 'melee', 'atlas-trunk-4': 'melee', 'atlas-trunk-6': 'melee', 'atlas-trunk-7': 'ranged',
+        'atlas-canopy-0': 'melee', 'atlas-canopy-4': 'ranged', 'atlas-canopy-7': 'melee', 'atlas-garden-7': 'melee',
+        'atlas-sanctum-0': 'melee', 'atlas-sanctum-7': 'ranged',
+        'guardian-roots': 'melee', 'guardian-canopy': 'melee', 'guardian-sanctum': 'ranged',
+        league_nursery: 'melee', 'league_nursery-stage2': 'melee', league_meteor: 'far', 'league_meteor-stage2': 'far', 'league_hive-stage2': 'ranged',
         // 칼날 앞다리와 겨울 짐승의 발구르기는 붙어서 친다. 예고 특수기는 castRange를 그대로 쓴다.
         trial_1: 'melee', trial_5: 'melee', labyrinth_guardian: 'melee',
         // 불칼은 붙어서 베고, 얼음 지팡이는 주문을 쏘며, 장창은 두 칸 앞까지 찌른다.
