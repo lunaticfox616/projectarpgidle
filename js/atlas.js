@@ -10,9 +10,9 @@ const atlas = (() => {
     })));
     // A guardian closes each region's innermost pair (slots 7 · 8); the pinnacle sits in the centre, opened with the four tickets.
     const GUARDIANS = ATLAS.regions.map((region, regionIndex) => {
-        const [name, ticket, bossAct] = ATLAS.guardians[region.id];
+        const [name, ticket, bossAct, bossVisualId] = ATLAS.guardians[region.id];
         return Object.freeze({ id: `${region.id}_g`, kind: 'guardian', region: region.id, regionIndex, slot: 9, name, tier: ATLAS.guardianRules.tier,
-            boss: name, arena: true, act: region.act, bossAct, ele: region.ele, ticket });
+            boss: name, arena: true, act: region.act, bossAct, bossVisualId, ele: region.ele, ticket });
     });
     const PINNACLE = Object.freeze({ id: 'pinnacle', kind: 'pinnacle', region: null, regionIndex: -1, slot: -1, name: ATLAS.pinnacle.name,
         tier: ATLAS.guardianRules.tier, boss: ATLAS.pinnacle.boss, arena: true, act: ATLAS.pinnacle.act, bossAct: ATLAS.pinnacle.bossAct, ele: 'chaos' });

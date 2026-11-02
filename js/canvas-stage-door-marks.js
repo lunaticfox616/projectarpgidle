@@ -7,7 +7,8 @@ const stageDoorMarks = (() => {
     const INK = Object.freeze({ open: '#f3e5b4', gate: '#ff7a66', shade: '#1b171c' });
     const seals = new WeakMap(); // 탐험마다 현재 방의 연출만 기억한다. 저장·통행 상태에는 쓰지 않는다.
     const opened = new WeakMap(); // 탐험마다 한 번이라도 열린 채로 본 문(id). 저장하지 않는다.
-    const sheets = new Map();     // 'front' | 'side' → Image
+    const sheets = new Map();     // Only the current region's front/side images.
+    let sheetRegion = '';
     const fades = new WeakMap(); // door -> visual opacity; never saved or used for passage.
     const FADE = Object.freeze({ alpha: .3, ms: 120, enter: .2, leave: .12 });
     let marks = []; // This frame's visible open-door marks, including ones moved away from the log/screen edge.
@@ -22,10 +23,17 @@ const stageDoorMarks = (() => {
     }
     /** 그 쪽의 문이 쓰는 시트: 앞뒤 문은 정면, 좌우 문은 옆에서 본 그림. */
     const sheetOf = side => (side === 'west' || side === 'east' ? 'side' : 'front');
+    /** Match the actual room backdrop (atlas and content maps also carry region). */
+    function sealRegion() {
+        const run = actExplorationState.current(game), map = run && actExplorationMap.forRun(run);
+        return map && STAGE_REGIONS.regions[map.region] ? map.region : 'root';
+    }
     /** 그 시트의 그림: 다 불러왔으면 그림, 아니면 null(처음 부를 때 불러오기 시작한다). */
     function sheetImage(kind) {
+        const region = sealRegion();
+        if (region !== sheetRegion) { sheets.clear(); shadedSeals.clear(); sheetRegion = region; }
         if (!sheets.has(kind)) {
-            const image = new Image(), file = STAGE_ROOMS.rootSeal[kind].file;
+            const image = new Image(), file = `${STAGE_ROOMS.rootSeal.regionPath}${region}-${kind}.png?v=${STAGE_ROOMS.rootSeal.version}`;
             image.decoding = 'async';
             image.onerror = () => console.warn('Root seal image failed to load:', file);
             image.src = file;
@@ -39,7 +47,7 @@ const stageDoorMarks = (() => {
         const front = sheetImage('front'), side = sheetImage('side');
         return !!front && !!side;
     }
-    const shadedSeals = new Map(); // Two sheet kinds × (no ocean shade or either fixed deep-water shade): at most six sheets.
+    const shadedSeals = new Map(); // Current region only; at most six shaded sheets, cleared on region changes.
     function shadedSeal(kind, image, shade) {
         const key = kind + '|' + shade;
         if (!shadedSeals.has(key)) {

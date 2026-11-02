@@ -9,9 +9,9 @@ const BOSS_BODY_ELEMENTS = Object.freeze({
     'atlas-sanctum-4': 'light', 'atlas-sanctum-5': 'cold',
     'meteor-heart': 'fire'
 });
-/** 아틀라스 지도 보스 가운데 제 몸(로스터 그림)으로 그리는 넷: 2026-10-22 검토한 몬스터 묶음의 지도 보스다. 나머지 지도, 수호자, 정점의
- * 몸은 크기와 정체성 결정을 기다려(2026-10-20 보스 그림 검토) 액트 보스 그림 그대로다. */
-const ATLAS_BOSS_BODIES = Object.freeze(['atlas-garden-1', 'atlas-garden-2', 'atlas-sanctum-4', 'atlas-sanctum-5']);
+/** 지도 45종 모두 로스터 몸을 쓴다. 전용 그림이 없는 22종의 기존 보스 연결은 로스터 wears가 소유한다. */
+const ATLAS_BOSS_BODIES = Object.freeze(['roots', 'trunk', 'canopy', 'garden', 'sanctum']
+    .flatMap(region => Array.from({ length: 9 }, (_, slot) => `atlas-${region}-${slot}`)));
 
 
 const ACT_BOSS_ASSET_KEYS = [

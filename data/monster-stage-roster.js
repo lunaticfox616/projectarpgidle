@@ -12,11 +12,25 @@
 const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
-    version: 'cerberus-body-20261029',
+    version: 'fef532140c',
     /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
-    wears: Object.freeze({ 'meteor-shard': 'cosmos-star', 'meteor-melt': 'cosmos-ooze', 'meteor-sentinel': 'cosmos-sentinel', 'cerberus-head': 's6_beast_cerberus', 'cerberus-fang': 's6_beast_cerberus' }),
+    wears: Object.freeze({ 'meteor-shard': 'cosmos-star', 'meteor-melt': 'cosmos-ooze', 'meteor-sentinel': 'cosmos-sentinel', 'cerberus-head': 's6_beast_cerberus', 'cerberus-fang': 's6_beast_cerberus',
+        'atlas-roots-0': 'guardian-roots', 'atlas-roots-2': 'trial_3', 'atlas-roots-4': 'apex_compost', 'atlas-roots-5': 'realm_underking',
+        'atlas-trunk-1': 'apex_weaver', 'atlas-trunk-2': 'labyrinth_guardian', 'atlas-trunk-3': 'realm_colossus', 'atlas-trunk-5': 'rival_dull',
+        'atlas-canopy-1': 'sky-griffin', 'atlas-canopy-2': 'trial_4', 'atlas-canopy-3': 'woodsman_echo', 'atlas-canopy-5': 'realm_titan', 'atlas-canopy-6': 's2_boss_storm',
+        'atlas-garden-0': 'apex_gardener', 'atlas-garden-3': 's2_boss_flame', 'atlas-garden-4': 'trial_1', 'atlas-garden-5': 'apex_devourer', 'atlas-garden-6': 'pinnacle_observer',
+        'atlas-sanctum-1': 's2_boss_frost', 'atlas-sanctum-2': 'apex_archbishop', 'atlas-sanctum-3': 'time_rift_guardian', 'atlas-sanctum-6': 'trial_2'
+    }),
     // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐, 특수 공격]
     actors: Object.freeze(Object.fromEntries([
+        ["guardian-trunk","수호자 「나이테 왕」",223,183,111,178,175,215,"legs",[1,1,1000,"time"],null,[107,108],null],
+        ["guardian-garden","수호자 「잿불 정원사」",221,176,110,171,168,213,"legs",[1,1,1000,"time"],null,[106,107],null],
+        ["league_breach","공허를 여는 자",193,188,96,183,180,185,"float",[1,1,1000,"time"],null,[92,93],null],
+        ["league_treasure","금고지기",214,165,107,160,157,206,"legs",[1,1,1000,"time"],null,[103,103],null],
+        ["league_ember","잿불 군주",213,195,106,190,187,205,"legs",[1,1,1000,"time"],null,[102,103],null],
+        ["league_sap","호박 거인",251,179,125,174,171,243,"legs",[1,1,1000,"time"],null,[121,122],null],
+        ["league_withered","시든 꽃의 여왕",162,186,81,181,178,154,"float",[1,1,1000,"time"],null,[77,77],null],
+        ["breach-venom","독낭 파열체",147,104,73,99,96,139,"crawl",[1,1,1000,"time"],[1,1,180,0],[69,70],null],
         ['famine_beast', '기근의 맹수', 226, 140, 114, 135, 133, 201, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [100, 101], null],
         ['league_nursery', '묘목장의 어미나무', 284, 185, 91, 183, 180, 234, 'legs', [8, 8, [110, 110, 110, 110, 110, 110, 110, 110], 'stride'], [6, 6, [160, 130, 170, 70, 110, 220], 3], [74, 150], null],
         ['bossAct1', '썩은갈기의 잔뿌리', 296, 137, 138, 134, 130, 245, 'legs', [6, 6, [133.33, 133.33, 133.33, 133.33, 133.33, 133.33], 'stride'], [6, 6, [200, 166.67, 166.67, 83.33, 116.67, 200], 3], [135, 111], [4, 4, [200, 130, 150, 850], 215, 135, 107, 133]],

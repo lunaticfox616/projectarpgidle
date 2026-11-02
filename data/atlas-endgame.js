@@ -180,7 +180,7 @@ const ATLAS_ENDGAME = Object.freeze({
     // need는 제단 재료(잉걸 10)와 지도 수가 비슷하도록: 방이 제단보다 드물고(5~9 %), 방마다 조각 3 + 0.15 × 등급.
     leagues: Object.freeze([
         Object.freeze({
-            id: 'league_breach', room: 'breach', name: '공허 균열', boss: '공허를 여는 자', act: 8, bossAct: 7, ele: 'chaos', tier: 16,
+            id: 'league_breach', room: 'breach', name: '공허 균열', boss: '공허를 여는 자', act: 8, bossAct: 7, ele: 'chaos', tier: 16, bodyVisual: 'league_breach',
             how: '지도 속 공허 균열을 비우면 공허 조각을 줍니다.',
             item: 'voidSplinter', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
@@ -200,7 +200,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['venomStinger', 3], ['enchantedHoney', 1], ['pollen', 30]]), unique: '벌집 여왕의 명령'
         }),
         Object.freeze({
-            id: 'league_treasure', room: 'treasure', name: '보물 방', boss: '금고지기', act: 4, bossAct: 3, ele: 'phys', tier: 16,
+            id: 'league_treasure', room: 'treasure', name: '보물 방', boss: '금고지기', act: 4, bossAct: 3, ele: 'phys', tier: 16, bodyVisual: 'league_treasure',
             how: '지도 속 보물 방을 비우면 금고 열쇠 조각을 줍니다.',
             item: 'vaultKey', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
             stages: Object.freeze([
@@ -222,7 +222,7 @@ const ATLAS_ENDGAME = Object.freeze({
         // 루프 30 뒤 방 넷(2026-10-09): 그 방의 지역 투기장(act)과 원소, 18등급. 카드는 방이 나오는 루프(minLoop)부터 열린다
         // (js/atlas-endgame.js unlocked). 고유는 이 우두머리만 준다(data/items.js 리그 우두머리 고유).
         Object.freeze({
-            id: 'league_ember', room: 'emberField', name: '잿불 터', boss: '잿불 군주', act: 2, bossAct: 4, ele: 'fire', tier: 18,
+            id: 'league_ember', room: 'emberField', name: '잿불 터', boss: '잿불 군주', act: 2, bossAct: 4, ele: 'fire', tier: 18, bodyVisual: 'league_ember',
             how: '지도 속 잿불 터를 비우면 타다 남은 불씨를 줍니다.',
             item: 'emberCinder', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
             stages: Object.freeze([
@@ -232,7 +232,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['burningEmberBranch', 2], ['emberBranch', 8], ['goldenRule', 1]]), unique: '잿불 군주의 심장'
         }),
         Object.freeze({
-            id: 'league_sap', room: 'sapWound', name: '수액 상처', boss: '호박 거인', act: 7, bossAct: 6, ele: 'phys', tier: 18,
+            id: 'league_sap', room: 'sapWound', name: '수액 상처', boss: '호박 거인', act: 7, bossAct: 6, ele: 'phys', tier: 18, bodyVisual: 'league_sap',
             how: '지도 속 수액 상처를 비우면 굳은 수액 방울을 줍니다.',
             item: 'amberDrop', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
             stages: Object.freeze([
@@ -242,7 +242,7 @@ const ATLAS_ENDGAME = Object.freeze({
             rewards: Object.freeze([['catalystCrit', 2], ['catalystSummon', 1], ['sapBud', 2]]), unique: '호박에 갇힌 시간'
         }),
         Object.freeze({
-            id: 'league_withered', room: 'witheredGarden', name: '시든 정원', boss: '시든 꽃의 여왕', act: 1, bossAct: 0, ele: 'chaos', tier: 18,
+            id: 'league_withered', room: 'witheredGarden', name: '시든 정원', boss: '시든 꽃의 여왕', act: 1, bossAct: 0, ele: 'chaos', tier: 18, bodyVisual: 'league_withered',
             how: '지도 속 시든 정원을 비우면 시든 꽃잎을 줍니다.',
             item: 'witheredPetal', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
             stages: Object.freeze([
