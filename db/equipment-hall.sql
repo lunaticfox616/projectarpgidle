@@ -359,6 +359,7 @@ declare
     stat_cap integer := case when item_data ->> 'rarity' = 'rare' then 7 else 8 end;   -- 줄 끝의 맨 case ... end는 Supabase SQL Editor가 문장을 거기서 끊는다(2026-10-30)
 begin
     if jsonb_typeof(item_data) is distinct from 'object'
+       or item_data::text ~ '[<>]'
        or length(coalesce(item_data ->> 'name', '')) not between 1 and 80
        or length(coalesce(nullif(item_data ->> 'baseId', ''), item_data ->> 'baseName', '')) not between 1 and 80
        or coalesce(item_data ->> 'slot', '') not in ('무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패')
