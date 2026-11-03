@@ -396,7 +396,7 @@ const stageView = Object.freeze({
     backdrops: () => typeof game === 'object' && !!game.settings && game.settings.stageBackdrop !== 'off',
     /** Screen height of one depth cell ÷ its width: STAGE_VIEW.depth on the stage, 1 on the top-down field. */
     depth: () => (stageView.enabled() ? STAGE_VIEW.depth : 1),
-    /** Cell width of an exploration map on the stage: the view's width shared among STAGE_VIEW.minColumns cells, then on a PC window the nearest step (steppedTile), so the same
+    /** Cell width of an exploration map on the stage: the view's width shared among STAGE_VIEW.minColumns cells, then on a PC window a step of whole dots (steppedTile), so the same
      * stretch of a room shows at about any window size (a whole number of px, and no smaller than minDot per character dot).
      * settings.stageZoom (test panel) sets the dots per pixel directly. */
     /** height와 rows(방이나 판의 깊이 칸 수)를 주면 화면 높이도 따른다: 바닥의 앞쪽 끝(floorShare)에서 뒤쪽 끝까지와 그 위의
@@ -408,12 +408,12 @@ const stageView = Object.freeze({
         const free = STAGE_VIEW.heroTile * Math.max(STAGE_VIEW.minDot, widest / STAGE_VIEW.heroTile);
         return narrow || stageView.phonePortrait(width, height) ? free : stageView.steppedTile(width, height, rows) || free;
     },
-    /** PC 창의 칸 너비(STAGE_VIEW.tileSteps): 너비 ÷ 20칸에 가까운 단계. 위쪽 띠(headroom.top)까지는 뒤쪽 줄의 머리 높이에 내주어, 창이 조금 낮다고 단계가 떨어지지 않는다.
-     * 뒤쪽 줄이 화면에 들어오는 단계가 없거나 방 그림이 창을 덮지 못하면 0(이어지는 칸을 쓴다). */
+    /** PC 창의 칸 너비(STAGE_VIEW.tileSteps): 보이는 칸이 maxColumns를 넘지 않는 가장 작은 단계(도트가 캔버스 픽셀의 정수배). 위쪽 띠(headroom.top)까지는
+     * 뒤쪽 줄의 머리 높이에 내주어, 창이 조금 낮다고 단계가 떨어지지 않는다. 뒤쪽 줄이 화면에 들어오는 단계가 없으면 0(이어지는 칸을 쓴다). */
     steppedTile(width, height, rows) {
         const rule = STAGE_VIEW.tileSteps, step = rule.canvasPx / (typeof uiDisplay === 'object' ? uiDisplay.battleRenderScale : 1);
         const smallest = Math.ceil(STAGE_VIEW.heroTile * STAGE_VIEW.minDot / step);
-        const byWidth = Math.max(smallest, Math.round(width / STAGE_VIEW.minColumns.wide / step));
+        const byWidth = Math.max(smallest, Math.ceil(width / rule.maxColumns / step));
         const steps = rows ? Math.min(byWidth, Math.floor(stageView.tallestTile(width, height, rows, 0) / step)) : byWidth;
         return steps >= smallest && width / (steps * step) <= rule.maxColumns ? steps * step : 0;
     },
