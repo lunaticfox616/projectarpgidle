@@ -3853,7 +3853,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         ? getTalentPreciseDerivedBonuses({ ...talentSourceStats, skill })
         : { skillIncreasePct: 0 };
     taggedTotal += Math.max(0, Number(preciseTalentDerived.skillIncreasePct) || 0);
-    let baseDamageIncreaseMultiplier = (1 + (generalPctDmg + taggedTotal) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
+    let baseDamageIncreaseMultiplier = (1 + (generalPctDmg + taggedTotal + (Number(skill.forgeDmgPct) || 0)) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio; // + 룬 강화의 피해 증가
     baseDamageIncreaseMultiplier *= (1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100);
     let finalBaseDmg = Math.floor(scaledFlatDmg * baseDamageIncreaseMultiplier);
     let equippedShield = game.equipment && game.equipment['방패'];
@@ -3863,7 +3863,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
 
     let gearAspd = gearBase.aspd + gearExplicit.aspd;
     let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
-    let totalAspdPct = gearAspd + passiveAspd + support.aspd;
+    let totalAspdPct = gearAspd + passiveAspd + support.aspd + (Number(skill.forgeAspdPct) || 0);   // 룬 강화의 속도 증가도 합한다
     let rawAspd = (1.0 + glovePairAspdBonus) * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1) * 0.88;
     // 극한의 속사(레인저 r9): 공격 속도 소프트캡 기준치 +2
     let aspdSoftCapKnee = (hasKeystone('r9')) ? 7 : 5;
@@ -7123,15 +7123,23 @@ function getEnemyRewardRecord(zone, mods) {
     };
 }
 
+/** The meteor core resists its own element by 12 more (to 95); a physical one takes 12 less physical damage instead (to 90). */
+const METEOR_CORE_GUARD = Object.freeze({ fire: 'resF', cold: 'resC', light: 'resL', chaos: 'resChaos', phys: 'dr' });
+function hardenMeteorCore(enemy, ele) {
+    const key = METEOR_CORE_GUARD[ele] || 'resF';
+    enemy[key] = Math.min(key === 'dr' ? 90 : 95, (enemy[key] || 0) + 12);
+}
 /** The new monster's last steps: its defences, zone mods, the grand breach tuning, the grid profile, the severed wanderer, a boss's
  * last steps, the board carrier and root bearer marks. */
 function tuneMeteorEnemy(enemy, zone) {
     if (zone.type !== 'meteor') return;
+    // 운석의 종류(data/maps.js METEOR_KINDS)가 속성을 정한다: 핵은 제 속성의 저항(물리는 피해 감소)이 오르고, 호위 사수는 eliteEle.
+    const kind = METEOR_KINDS.find(row => row.id === zone.meteorKind) || METEOR_KINDS[0];
+    enemy.ele = kind.ele;
     if (enemy.isBoss) {
-        enemy.ele = 'fire';
-        enemy.resF = Math.min(95, enemy.resF + 12);
+        hardenMeteorCore(enemy, kind.ele);
     } else if (enemy.isElite) {
-        enemy.ele = 'light';
+        enemy.ele = kind.eliteEle || kind.ele;
         enemy.attackRange = COMBAT_GRID_CONFIG.rangedEnemyMaxRange;
         enemy.attackDelivery = 'projectileCell';
         enemy.projectileToEdge = true;
@@ -11002,8 +11010,8 @@ function completeColonyWave(zone, say, lastEnemy) {
     if(!game.colony?.inRun)return;
     const completedWave = Math.max(1, Math.floor(game.colony.wave || 1));
     const shardReward=grantColonyWaveCurrencies(completedWave);
-    // 액막이는 가방으로(5웨이브마다 반드시, 나머지 웨이브 28%, js/colony-wards.js rollColonyWave).
-    announceColonyWard(colonyWards.rollColonyWave(completedWave, zone), say);
+    // 액막이도 바닥에(5웨이브마다 반드시, 나머지 웨이브 28%, js/colony-wards.js rollColonyWave): 마지막 몬스터 자리에서 다른 드랍과 함께 기다린다.
+    announceColonyWard(colonyWards.rollColonyWave(completedWave, zone, Math.random, lastEnemy), say);
     releaseCompletedColonyWaveLoot(completedWave,lastEnemy);
     game.colony.wave = Math.max(1, Math.floor((game.colony.wave || 1) + 1));
     game.colony.highestWave = Math.max(Math.floor(game.colony.highestWave || 1), game.colony.wave);
@@ -11604,6 +11612,7 @@ function finishMeteorEncounter(zone, mapAction, ui) {
     let st = ensureMeteorSiteState();
     st.entriesCleared = (st.entriesCleared || 0) + 1;
     st.activeMeteorTier = null;
+    st.kind = null;
     clearWoodsmanBuildLock();
     let returnZoneId = st.meteorReturnZoneId;
     st.meteorReturnZoneId = null;
@@ -13477,6 +13486,7 @@ function defeatAtMeteor(zone, message, opts, ui) {
     ui.say(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
     let st = ensureMeteorSiteState();
     st.activeMeteorTier = null;
+    st.kind = null;
     let returnZoneId = st.meteorReturnZoneId;
     st.meteorReturnZoneId = null;
     game.currentZoneId = defeatReturnZone(returnZoneId);

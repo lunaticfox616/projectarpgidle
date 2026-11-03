@@ -480,10 +480,15 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 /* 목표 판의 빛깔(2026-10-27 사용자: "목표 탭 눌러서 나오는 카드에 색감좀넣어"): 목표 종류마다 한 빛깔(--goal-tone, js/ui-window-manager.js
    GOAL_TONES)이 판 바탕과 위 띠, 머리 꼬리표, 제목, 진행 막대, 이동 단추, 바로가기 줄 머리, 접힌 단추의 점에 든다. PC 판은 꼬리표 줄을
    다시 보인다(고정 단추는 전처럼 숨긴다). */
-:root body[data-ui-skin] .ui-goal-drawer { --goal-tone: #d9b066; }
+/* 판 바탕의 비침(2026-11-03 사용자: "목표 창도 약간 투명하게"): PC에서는 평소 바탕만 72%로 비치고, 마우스를 올리거나 단추에 포커스가 있으면
+   또렷해진다. 글자와 단추는 비치지 않는다. 고대비는 비치지 않는다. */
+@property --goal-glass { syntax: '<percentage>'; inherits: true; initial-value: 100%; }
+:root body[data-ui-skin] .ui-goal-drawer { --goal-tone: #d9b066; --goal-glass: 100%; transition: --goal-glass .18s; }
+:root body[data-ui-skin].desktop-windowed-ui:not(.high-contrast) .ui-goal-drawer:not(:hover, :focus-within) { --goal-glass: 72%; }
 :root body[data-ui-skin] .ui-goal-drawer.expanded #ui-goal-body {
   border-color: color-mix(in srgb, var(--goal-tone) 55%, #2a2418);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--goal-tone) 17%, #11110f), #11110f 68%);
+  background: linear-gradient(180deg, color-mix(in srgb, color-mix(in srgb, var(--goal-tone) 17%, #11110f) var(--goal-glass), transparent),
+    color-mix(in srgb, #11110f var(--goal-glass), transparent) 68%);
   box-shadow: inset 0 2px 0 color-mix(in srgb, var(--goal-tone) 85%, transparent), 0 8px 18px #0008;
 }
 :root body[data-ui-skin].desktop-windowed-ui .battlefield-wrap > .ui-goal-drawer .ui-goal-head-row { display: flex; align-items: center; }
@@ -502,6 +507,63 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] .ui-goal-drawer :is(.ui-goal-notice-action, .ui-goal-notice-text) { border-left: 3px solid color-mix(in srgb, var(--goal-tone) 55%, #000); padding-left: 8px; }
 :root body[data-ui-skin] .ui-goal-drawer .ui-goal-handle-title::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px;
   background: var(--goal-tone); box-shadow: 1px 1px 0 #000; vertical-align: 1px; }
+/* 전장 위 단추 줄(2026-11-03 사용자: 자동, 루프 진행, 귀환, 목표 단추를 통일, 루프 진행은 맨 왼쪽에 띄워 강조, 작은 화면도 큰 화면과 같게):
+   PC와 휴대폰이 같은 높이(28px) · 글씨 · 판을 쓴다. 순서는 루프 진행 | 자동 · 귀환 · 목표(index.html). 목표 단추의 점은 목표 종류의 빛깔
+   (js/ui-window-manager.js syncGoalAccessButtons의 --goal-tone)이고, PC에서는 이 단추가 목표 서랍을 연다(서랍의 손잡이는 숨는다). */
+:root body[data-ui-skin] .combat-zone-actions { align-items: center; gap: 4px; }
+:root body[data-ui-skin] .combat-zone-actions .combat-action-btn,
+:root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions .combat-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 9px;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  line-height: 12px;
+  white-space: nowrap;
+}
+:root body[data-ui-skin] .combat-zone-actions #btn-combat-loop-advance,
+:root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions #btn-combat-loop-advance {
+  margin-right: 10px;
+  border-color: #000;
+  background: linear-gradient(color-mix(in srgb, #b7a3e0 34%, #18121f), color-mix(in srgb, #b7a3e0 14%, #100c15)), var(--px-stone-control);
+  box-shadow: var(--px-bevel), 0 0 0 1px color-mix(in srgb, #b7a3e0 75%, transparent), 0 0 10px color-mix(in srgb, #b7a3e0 40%, transparent);
+  color: #f3ecff;
+}
+:root body[data-ui-skin] .combat-zone-actions #btn-combat-loop-advance:hover,
+:root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions #btn-combat-loop-advance:hover {
+  background: linear-gradient(color-mix(in srgb, #b7a3e0 48%, #18121f), color-mix(in srgb, #b7a3e0 22%, #100c15)), var(--px-stone-control);
+  color: #fff;
+}
+:root body[data-ui-skin] .combat-zone-actions .combat-goal-toggle::before { content: ''; display: block; width: 6px; height: 6px; background: var(--goal-tone, #d9b066); box-shadow: 1px 1px 0 #000; }
+:root body[data-ui-skin] .combat-zone-actions .combat-goal-toggle.mandatory { color: #f0cf94; }
+:root body[data-ui-skin] :is(.combat-zone-actions, .mobile-battle-tab #tab-battle .combat-zone-actions) .combat-goal-toggle[aria-expanded="true"] { background: var(--px-board-hot), var(--px-stone-control); color: var(--px-gold-bright); }
+/* 반드시 할 목표(2026-11-03 사용자: "중요한 목표가 더 잘 보이게", goal.mandatory: 필수 선택, 남은 보상, 루프 조건 달성)는 판이 다르다:
+   빛깔 두 줄 테와 바깥 빛, 빛깔로 채운 꼬리표와 이동 단추, 밝은 제목. 새로 생겨 펼칠 때 두 번 반짝인다(.ui-goal-flash, 판 위의 빛 막을 깜박인다). */
+:root body[data-ui-skin] .ui-goal-drawer.ui-goal-mandatory.expanded #ui-goal-body {
+  border: 2px solid var(--goal-tone);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--goal-tone) 85%, transparent), 0 0 0 1px #000,
+    0 0 12px color-mix(in srgb, var(--goal-tone) 45%, transparent), 0 8px 18px #0008;
+}
+:root body[data-ui-skin] .ui-goal-drawer.ui-goal-mandatory .ui-goal-badge { border-color: #000; background: var(--goal-tone); color: #15110a; text-shadow: none; }
+:root body[data-ui-skin] .ui-goal-drawer.ui-goal-mandatory .ui-goal-title { color: color-mix(in srgb, var(--goal-tone) 35%, #fff); font-weight: 700; }
+:root body[data-ui-skin] .ui-goal-drawer.ui-goal-mandatory .ui-goal-action { border-color: var(--goal-tone);
+  background: linear-gradient(color-mix(in srgb, var(--goal-tone) 58%, #000), color-mix(in srgb, var(--goal-tone) 36%, #000)), var(--px-stone-control);
+  color: #fff8e6; font-weight: 700; }
+:root body[data-ui-skin] .ui-goal-drawer.ui-goal-mandatory .ui-goal-action:hover { background: linear-gradient(color-mix(in srgb, var(--goal-tone) 72%, #000),
+  color-mix(in srgb, var(--goal-tone) 48%, #000)), var(--px-stone-control); color: #fff; }
+:root body[data-ui-skin] .ui-goal-drawer.ui-goal-flash.expanded #ui-goal-body::after {
+  content: ''; position: absolute; inset: -4px; pointer-events: none; border: 2px solid color-mix(in srgb, var(--goal-tone) 50%, #fff);
+  background: color-mix(in srgb, var(--goal-tone) 16%, transparent); box-shadow: 0 0 22px var(--goal-tone); opacity: 0;
+  animation: goal-flash 1.3s steps(8, end) 1;
+}
+@keyframes goal-flash { 0%, 50%, 100% { opacity: 0; } 22%, 72% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { :root body[data-ui-skin] .ui-goal-drawer.ui-goal-flash.expanded #ui-goal-body::after { animation: none; } }
 /* 커뮤니티 안내 글씨는 em 배율(11.18 · 9.5px)이라 도트가 번졌다 — 정수 크기로 */
 :root body[data-ui-skin] :is(.ui-community-dock, #tab-social) .social-notice,
 :root body[data-ui-skin] :is(.ui-community-dock, #tab-social) .social-notice :is(button, strong, p) { font-size: 12px; }

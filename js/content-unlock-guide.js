@@ -64,7 +64,7 @@
     function eventUnlockGuide(state) {
         let loop = Math.max(1, count(state.season) || 1);
         if (loop >= 4 && !state.gemEnhanceUnlocked) return guide({
-            id: 'gem-enhancement', title: '창공 강화',
+            id: 'gem-enhancement', title: '룬 강화',
             description: '군주의 핵 또는 창공의 정수를 얻으면 스킬룬 강화가 열립니다.',
             requirements: [requirement('루프 4', true), requirement('강화 재료 획득', false)],
             actionLabel: '스킬룬 보기', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance'
@@ -206,19 +206,20 @@
         const points = contentProgression.points(state);
         if (points.complete) return null;
         const next = contentProgression.cheapestOpen(state), ready = points.balance > 0 && !!next && next.cost <= points.balance;
+        // 글은 목표 창의 문체를 따른다(js/goal-system.js 규칙 머리말).
         return guide({
-            id: 'content-choice', title: '콘텐츠 선택 해금',
-            description: ready ? '해금 포인트로 원하는 콘텐츠를 선택하세요.' : contentWaitText(points, next),
+            id: 'content-choice', title: ready ? '해금 선택' : '다음 해금',
+            description: ready ? `해금 포인트 ${points.balance}점 사용` : contentWaitText(points, next),
             requirements: [requirement('해금 포인트', ready, points.balance, next ? Math.max(1, next.cost) : 1)],
-            actionLabel: '콘텐츠 선택', actionTabId: state.season >= 2 ? 'tab-unlocks' : 'tab-items'
+            actionLabel: state.season >= 2 ? '해금 열기' : '장비 열기', actionTabId: state.season >= 2 ? 'tab-unlocks' : 'tab-items'
         });
     }
 
     function contentWaitText(points, next) {
-        const award = points.nextAward > 0 ? `다음 루프에 도달하면 해금 포인트를 ${points.nextAward}점 얻습니다.` : '';
+        const award = points.nextAward > 0 ? `다음 루프에 도달하여 해금 포인트 ${points.nextAward}점 획득` : '';
         if (points.balance <= 0) return award;
-        const need = next ? `다음 해금에는 ${next.cost}점이 필요합니다.` : '지금 고를 수 있는 해금이 없습니다.';
-        return [need, award || '남은 해금은 조건을 채우면 열립니다.'].join(' ');
+        const need = next ? `다음 해금에 ${next.cost}점 필요` : '지금 고를 해금 없음';
+        return [need, award || '남은 해금은 조건 달성 후 열림'].join(', ');
     }
 
     function getNextMajorContentUnlock(state) {

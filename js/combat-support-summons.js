@@ -29,13 +29,20 @@
         const prepared = skill(summon), result = { ...stats, summonSupportOwner: key,
             summonSupportSkill: prepared, summonSupportEffects: prepared.supportEffects, summonSupportApplied: {} };
         Object.entries(stats.summonSupportApplied || {}).forEach(([stat, amount]) => { result[stat] -= amount; });
+        // Every local addition is noted in summonSupportApplied, so a local built from another summon's local takes it back out first.
+        const add = (target, amount) => {
+            result[target] = (result[target] || 0) + amount;
+            result.summonSupportApplied[target] = (result.summonSupportApplied[target] || 0) + amount;
+        };
         prepared.supportEffects.applied.forEach(name => {
             const def = SUPPORT_GEM_DB[name], target = api().summonStatMap[def.stat];
             if (!target) return;
-            const amount = stats.supportValues?.[name] ?? getSupportGemPresentation(name, stats, { total: 0 }, getSupportActiveTier).value;
-            result[target] = (result[target] || 0) + amount;
-            result.summonSupportApplied[target] = (result.summonSupportApplied[target] || 0) + amount;
+            add(target, stats.supportValues?.[name] ?? getSupportGemPresentation(name, stats, { total: 0 }, getSupportActiveTier).value);
         });
+        // 그 소환 룬의 강화(data/gem-core-forge.js): 피해 증가와 속도 증가는 이 소환수의 피해, 공격 속도 증가에 합한다. 증폭은 combat.js가 곱한다.
+        const forge = gemCoreForge.forSkill(summon && summon.gemName);
+        add('summonPctDmg', forge.damageInc);
+        add('summonAspd', forge.speedInc);
         return result;
     }
 

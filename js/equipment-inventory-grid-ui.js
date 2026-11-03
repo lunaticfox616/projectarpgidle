@@ -401,8 +401,32 @@
         cancelCarry();
         return true;
     }
-    /** Where a carried bag item may land besides the bag: the chat, a worn slot, a cube cell. */
-    const CARRY_DROPS = [dropOnChat, dropOnEquipmentSlot, dropOnStumpCube];
+    /** The socket picture under a carried bag jewel (js/equipment-sockets-ui.js badgesHtml): { host, at } or null. */
+    function socketUnderCarry(event) {
+        if (!carryState || carryState.mode !== 'inventory' || !bagItems.isJewel(carryState.entry.item)) return null;
+        const top = elementUnderCarry(event), host = top?.closest?.('[data-socket-host]');
+        if (!host) return null;
+        const socket = top.closest('[data-socket-kind]');
+        return { element: host, host: host.dataset.socketHost, at: socket ? { kind: socket.dataset.socketKind, index: Number(socket.dataset.socketIndex) } : null };
+    }
+    /** While a jewel is carried every empty socket calls for it, and the one under it lights up. */
+    function markSocketDrop(event) {
+        const carryingJewel = !!carryState && carryState.mode === 'inventory' && bagItems.isJewel(carryState.entry.item);
+        document.body.classList.toggle('is-jewel-carry', carryingJewel);
+        const target = carryingJewel ? socketUnderCarry(event) : null;
+        document.querySelectorAll('.item-sockets.is-socket-drop').forEach(node => { if (node !== target?.element) node.classList.remove('is-socket-drop'); });
+        if (target) target.element.classList.add('is-socket-drop');
+        return target;
+    }
+    function dropOnSocket(event) {
+        const target = socketUnderCarry(event);
+        if (!target || !equipmentSocketsUi.dropJewel(carryState.entry.item, target.host, target.at)) return false;
+        event.preventDefault();
+        cancelCarry();
+        return true;
+    }
+    /** Where a carried bag item may land besides the bag: the chat, an item's socket, a worn slot, a cube cell. */
+    const CARRY_DROPS = [dropOnChat, dropOnSocket, dropOnEquipmentSlot, dropOnStumpCube];
 
     function updateEquipmentDropTarget(event) {
         clearEquipmentDropTarget();
@@ -481,6 +505,8 @@
     function clearInteractionArtifacts() {
         document.querySelectorAll('.equipment-grid-cursor-item,.equipment-grid-drop-preview').forEach(element => element.remove());
         document.querySelectorAll('.social-chat-inputbar.is-item-drop').forEach(element => element.classList.remove('is-item-drop'));
+        document.querySelectorAll('.item-sockets.is-socket-drop').forEach(element => element.classList.remove('is-socket-drop'));
+        document.body.classList.remove('is-jewel-carry');
         document.querySelectorAll('.equipment-grid-item.is-carried,.equipment-grid-item.is-dragging,.equipment-slot.is-carried').forEach(element => {
             element.classList.remove('is-carried', 'is-dragging');
         });
@@ -537,6 +563,14 @@
         return localized;
     }
 
+    /** Lights what the carried item is over besides the bag (a worn slot, the chat, a socket) and tones the ghost for it. */
+    function markCarryTargets(event) {
+        let equipmentTarget = updateEquipmentDropTarget(event);
+        if (equipmentTarget) setGhostTone({ ok: equipmentTarget.valid });
+        if (markChatDropZone(event)) setGhostTone({ ok: true });
+        if (markSocketDrop(event)) setGhostTone({ ok: true });
+    }
+
     function updateCarry(event) {
         if (!carryState) return;
         carryState.pointer = { clientX: event.clientX, clientY: event.clientY };
@@ -553,9 +587,7 @@
         carryState.placement = placement;
         carryState.moveResult = result;
         setGhostTone(result);
-        let equipmentTarget = updateEquipmentDropTarget(event);
-        if (equipmentTarget) setGhostTone({ ok: equipmentTarget.valid });
-        if (markChatDropZone(event)) setGhostTone({ ok: true });
+        markCarryTargets(event);
         if (carryState.previewKey !== previewKey) paintDropPreview(carryState.grid, localPlacement, localizeMoveResult(result));
         carryState.previewKey = previewKey;
     }

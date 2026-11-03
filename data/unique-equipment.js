@@ -247,9 +247,12 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['큰뱀의 송곳니','serpent_kris',72,70,70,0],
     // 루프 30 뒤 아틀라스 방 넷의 리그 우두머리 고유(2026-10-09, data/atlas-endgame.js leagues)
     ['잿불 군주의 심장','world_tree_leaf_amulet',72,0,0,0],
-    ['호박에 갇힌 시간','alchemist_sash',72,60,0,60],
+    ['뿌리에 얽힌 시간','alchemist_sash',72,60,0,60],
     ['마른 꽃잎 고리','void_ring',72,0,0,0],
     ['어미나무의 손길','gen__armor_evasion_t20_2',72,90,90,0],
+    ['떨어지지 않는 열매','resin_amulet',72,0,0,0],
+    ['감기는 덩굴손','gen__evasion_t20_2',72,0,110,0],
+    ['풍작의 갑주','covenant_plate',72,140,0,0],
     // 뿌리 보스와 최종 관문의 대표 고유, 창공의 탑과 벌집, 군락지 보스의 고유(2026-10-19)
     ['야수왕의 세 목줄','resin_amulet',57,0,0,0],
     ['모르그란의 용광로 흉갑','gen__armor_t20_1',72,130,0,0],

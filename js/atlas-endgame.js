@@ -224,7 +224,9 @@ const atlasEndgame = (() => {
         if (!row) return;
         out.rewards = row.rewards.filter(([key]) => contentProgression.canDropCurrency(key));
         const chance = E.uniqueChance[row.kind] || 0;
-        if (row.unique && (first || Math.random() < chance)) out.unique = row.unique;
+        // 고유가 둘인 우두머리(묘목장: 어미나무의 손길, 떨어지지 않는 열매, 시든 정원: 마른 꽃잎 고리, 감기는 덩굴손)는 그 가운데 하나를 준다.
+        const uniques = [].concat(row.unique || []);
+        if (uniques.length && (first || Math.random() < chance)) out.unique = uniques[Math.floor(Math.random() * uniques.length)];
     }
     /** Counts the kill (late bosses and apostles) and says whether this kill woke the atlas. */
     function countKill(state, node, apostle) {

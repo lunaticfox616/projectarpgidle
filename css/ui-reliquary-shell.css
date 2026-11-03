@@ -2287,7 +2287,7 @@ body .hero-choice {
   background: var(--skin-canvas);
 }
 
-.combat-goal-toggle {
+.combat-goal-toggle[hidden] {
   display: none;
 }
 
@@ -2466,14 +2466,6 @@ body #tab-skills .gem-card-utility {
 
   body.mobile-primary-navigation .ui-goal-drawer.expanded {
     display: block;
-  }
-
-  body.mobile-battle-tab.mobile-primary-navigation #btn-combat-goal-toggle:not([hidden]) {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    display: inline-flex !important;
-  }
-
-  body.mobile-battle-tab #btn-combat-goal-toggle.mandatory {
-    color: #f0cf94;
   }
 
   body.mobile-primary-navigation #tab-header-main > #btn-map-complete-action-picker {

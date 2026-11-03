@@ -43,6 +43,7 @@ const playerStall = (() => {
         const flag = FLAG_REASONS.find(([key]) => item[key]);
         if (flag) return flag[1];
         if (equipmentSockets.jewels(item).length > 0) return '주얼을 빼야 올릴 수 있습니다.';
+        if (equipmentSockets.harvests(item).length > 0) return '소켓의 꽃, 열매, 덩굴, 뿌리를 빼야 올릴 수 있습니다.';
         if (Object.values(owner.equipment).some(equipped => equipped?.id === item.id)) return '장착한 장비입니다.';
         return equipmentLoadoutRuntime.isReferenced(item, owner) ? '프리셋에 쓰이는 장비입니다.' : '';
     }

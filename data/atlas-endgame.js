@@ -239,7 +239,7 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ name: '호박 거인', bossAct: 6, mechanic: 'amberSeal' }),
                 Object.freeze({ name: '금이 간 호박 거인', bossAct: 6, mechanic: 'sapBurst' })
             ]),
-            rewards: Object.freeze([['catalystCrit', 2], ['catalystSummon', 1], ['sapBud', 2]]), unique: '호박에 갇힌 시간'
+            rewards: Object.freeze([['catalystCrit', 2], ['catalystSummon', 1], ['sapBud', 2]]), unique: '뿌리에 얽힌 시간'
         }),
         Object.freeze({
             id: 'league_withered', room: 'witheredGarden', name: '시든 정원', boss: '시든 꽃의 여왕', act: 1, bossAct: 0, ele: 'chaos', tier: 18, bodyVisual: 'league_withered',
@@ -249,7 +249,7 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ name: '시든 꽃의 여왕', bossAct: 0, mechanic: 'witherBloom' }),
                 Object.freeze({ name: '가시를 두른 여왕', bossAct: 0, mechanic: 'thornLash' })
             ]),
-            rewards: Object.freeze([['oilFire', 2], ['oilCold', 2], ['oilLight', 2], ['oilChaos', 2]]), unique: '마른 꽃잎 고리'
+            rewards: Object.freeze([['oilFire', 2], ['oilCold', 2], ['oilLight', 2], ['oilChaos', 2]]), unique: Object.freeze(['마른 꽃잎 고리', '감기는 덩굴손'])
         }),
         Object.freeze({
             id: 'league_nursery', room: 'nursery', name: '묘목장', boss: '묘목장의 어미나무', act: 3, bossAct: 8, ele: 'light', tier: 18, bodyVisual: 'league_nursery',
@@ -259,7 +259,7 @@ const ATLAS_ENDGAME = Object.freeze({
                 Object.freeze({ name: '묘목장의 어미나무', bossAct: 8, mechanic: 'saplingRush' }),
                 Object.freeze({ name: '뿌리를 뻗은 어미나무', bossAct: 8, bodyVisual: 'league_nursery-stage2', mechanic: 'rootSnare' })
             ]),
-            rewards: Object.freeze([['blightSpore', 6], ['magicBud', 20], ['sapBud', 2]]), unique: '어미나무의 손길'
+            rewards: Object.freeze([['blightSpore', 6], ['magicBud', 20], ['sapBud', 2]]), unique: Object.freeze(['어미나무의 손길', '떨어지지 않는 열매'])
         })
     ]),
     // 정원사를 처음 쓰러뜨린 뒤부터 지도를 마칠 때마다 그 지역의 마름이 1씩 오른다(10까지). 마름 n인 지역의 지도는 n × chancePerLevel %로

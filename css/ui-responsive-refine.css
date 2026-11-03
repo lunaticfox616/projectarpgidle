@@ -82,19 +82,6 @@
     margin: 0;
   }
 
-  body.mobile-battle-tab #tab-battle #battlefield-wrap > #btn-combat-goal-toggle:not([hidden]) {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    z-index: 45;
-    align-items: center;
-    justify-content: center;
-    width: auto;
-    height: 44px;
-    line-height: 1;
-    pointer-events: auto;
-  }
-
   body.mobile-battle-tab #tab-battle #enemy-area {
     position: absolute;
     top: 5px;
@@ -306,18 +293,6 @@
   body.mobile-battle-tab #tab-battle .battlefield-wrap::after {
     content: none;
     box-shadow: none;
-  }
-
-  body.mobile-battle-tab #tab-battle #battlefield-wrap > #btn-combat-goal-toggle:not([hidden]) {
-    /* 모양(테 · 판 · 글씨 12px)은 도트 스킨(css/themes/pixel-mobile.css)이 귀환 단추와 같게 그린다. */
-/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    display: inline-flex !important;
-    /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    min-width: 44px !important;
-    /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    min-height: 44px !important;
-    /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */
-    padding: 2px 7px !important;
   }
 
   body.mobile-battle-tab #tab-battle #enemy-area {

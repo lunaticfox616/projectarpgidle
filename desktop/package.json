@@ -1,0 +1,14 @@
+{
+  "name": "rignin-desktop",
+  "private": true,
+  "description": "PC build of Rignin: the web game in an Electron window (docs/desktop-app-20261103.md)",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build": "node build.cjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "45.2.1"
+  }
+}

@@ -662,6 +662,7 @@ function resolveTimeRiftFusion() {
 // destination (an atlas map's chain goes on after the meteor).
 function prepareMeteorEncounterEntry(returnZoneId = Number.isInteger(game.currentZoneId) ? game.currentZoneId : null) {
     let st = ensureMeteorSiteState();
+    st.kind = st.kind || rollMeteorKind();
     st.activeMeteorTier = Math.max(8, getSkyRiftGaugeEffectiveTier({tier:st.skyRiftMinTier || 13}, st));
     st.meteorReturnZoneId = returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : null;
     st.skyRiftReady = false;

@@ -1,4 +1,4 @@
-// 그루터기 함(js/stump-box.js): 획득 판정, 칸 해금, 배치, 처치 성장, 억제·공명, 드랍, 루프 회귀, 저장 경계.
+// 그루터기 함(js/stump-box.js): 획득 판정, 칸 해금, 배치, 처치 성장, 오행 비활성화·공명, 드랍, 루프 회귀, 저장 경계.
 const assert = require('assert');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
@@ -38,11 +38,11 @@ assert.deepStrictEqual(json('[2, 22, 1, 0, 20].map(cell => stumpBox.opensAt(game
 assert.deepStrictEqual(json('stumpBox.nextOpening(game)'), { loop: 2, cells: 10 }, 'the next cell opens on the next loop');
 
 // ── 시작 선물과 배치 ─────────────────────────────────────────────────────────
-const seed = run('stumpBox.claimStarter(game, "seed", "fire", "flower").id');
-const sap = run('stumpBox.claimStarter(game, "sap", "cold").id');
+const seed = run('stumpBox.claimStarter(game, "seed", "fire").id');
+const sap = run('stumpBox.claimStarter(game, "second", "cold").id');
 assert.strictEqual(run('stumpBox.claimStarter(game, "seed", "cold")'), null, 'each starter gift is given once');
-assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).path`), 'flower', 'a gift seed grows into the path it was given');
-assert.ok(['flower', 'fruit'].includes(run('stumpBox.createItem(game, { family: "seed", color: "cold", roll: 1 }).path')), 'any other seed gets its path when it is made (2026-10-09)');
+assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).path`), null, 'a seed does not know what it grows into (2026-11-04)');
+assert.strictEqual(run('stumpBox.createItem(game, { family: "seed", color: "cold", roll: 1, path: "fruit" }).path'), null, 'not even when asked for a kind');
 run('game.stumpBox.items.pop();');
 assert.strictEqual(run(`stumpBox.place(game, ${seed}, 0)`), false, 'closed cells take nothing');
 assert.strictEqual(run(`stumpBox.place(game, ${seed}, 12)`), true);
@@ -51,12 +51,16 @@ assert.strictEqual(run(`stumpBox.place(game, ${sap}, 11)`), true);
 assert.strictEqual(run('stumpBox.storage(game).length'), 0, 'placed items leave storage without copies');
 assert.strictEqual(run('typeof stumpBox.setPath'), 'undefined', 'the path is never picked by hand');
 
-// ── 억제: 상극색이 상하좌우로 맞닿으면 둘 다 멈춘다 ──────────────────────────────────
-assert.deepStrictEqual(json(`[...stumpBox.evaluate(game).suppressed].sort()`), [seed, sap].sort(), 'fire beside cold suppresses both');
+// ── 오행(2026-11-04): 이기는 색이 상하좌우로 맞닿으면 진 쪽만 멈추고, 진 쪽을 낳는 색이 곁에 있으면 멈추지 않는다 ─────────
+assert.deepStrictEqual(json('[...stumpBox.evaluate(game).suppressed]'), [seed], 'cold beside fire stops only the fire (냉기가 화염을 이긴다)');
+const feeder = run('stumpBox.createItem(game, { family: "seed", color: "physical", roll: 1 }).id');
+run(`stumpBox.place(game, ${feeder}, 13)`);
+assert.strictEqual(run('stumpBox.evaluate(game).suppressed.size'), 0, 'a physical neighbour feeds the fire (물리가 화염을 낳는다) and keeps it working');
+run(`stumpBox.unplace(game, ${feeder}); stumpBox.discard(game, ${feeder});`);
 // No kill drop until the move checks below count storage exactly (a boss kill rolls one at random, so the run flaked).
 run('globalThis.realRandom = Math.random; Math.random = () => 0.999;');
 run('stumpBox.onEnemyKilled(game, { isBoss: true });');
-assert.deepStrictEqual(json(`[stumpBox.itemById(game, ${seed}).xp, stumpBox.itemById(game, ${sap}).xp]`), [0, 0], 'suppressed items do not grow');
+assert.deepStrictEqual(json(`[stumpBox.itemById(game, ${seed}).xp, stumpBox.itemById(game, ${sap}).xp]`), [0, 60], 'the stopped item does not grow, the winner does');
 assert.strictEqual(run(`stumpBox.place(game, ${seed}, 7) && stumpBox.place(game, ${sap}, 17)`), true, 'moving apart (top and bottom of the cross) ends it at once');
 assert.strictEqual(run('stumpBox.evaluate(game).suppressed.size'), 0);
 
@@ -73,7 +77,7 @@ assert.strictEqual(json('game.stumpBox.board.filter(id => id !== null).length'),
 run('game.woodsmanBuildLock = true;');
 assert.strictEqual(run(`stumpBox.move(game, ${sap}, 7)`), false, 'the woodsman fight locks moves too');
 run('game.woodsmanBuildLock = false;');
-// 뒤 검사들이 쓰는 배치(씨앗 7, 수액 17)로 되돌린다.
+// 뒤 검사들이 쓰는 배치(화염 씨앗 7, 냉기 씨앗 17)로 되돌린다.
 assert.strictEqual(run(`stumpBox.unplace(game, ${loose}) && stumpBox.discard(game, ${loose}) && stumpBox.move(game, ${seed}, 7) && stumpBox.move(game, ${sap}, 17)`), true);
 assert.deepStrictEqual(json('[game.stumpBox.board[7], game.stumpBox.board[17], stumpBox.storage(game).length]'), [seed, sap, 0]);
 run('Math.random = globalThis.realRandom;');
@@ -86,11 +90,11 @@ run('stumpBox.onEnemyKilled(game, {});');
 assert.strictEqual(run(`stumpBox.itemById(game, ${stored}).xp`), 0, 'storage items do not grow');
 assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 'seed');
 run(`{ const item = stumpBox.itemById(game, ${seed}); item.xp = stumpBox.need(item) / 2 - 1; } stumpBox.onEnemyKilled(game, {});`);
-assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 'sprout', 'half grown shows a sprout');
+assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 'seed', 'half grown is still a seed (no sprout since 2026-11-04)');
 assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), {}, 'nothing counts before it ripens');
-// 다 자랄 때의 굴림(16번)은 0.5로 고정해 추가 줄 없이 자라게 한다.
-run(`Math.random = () => 0.5; { const item = stumpBox.itemById(game, ${seed}); item.xp = stumpBox.need(item) - 1; } stumpBox.onEnemyKilled(game, {}); Math.random = globalThis.realRandom;`);
-assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 'flower');
+// 다 자랄 때의 굴림은 0.1로 고정한다: 종류는 꽃, 추가 줄, 풍작, 황금은 없다.
+run(`Math.random = () => 0.1; { const item = stumpBox.itemById(game, ${seed}); item.xp = stumpBox.need(item) - 1; } stumpBox.onEnemyKilled(game, {}); Math.random = globalThis.realRandom;`);
+assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 'flower', 'the kind is rolled as it ripens');
 assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 6 }, 'a grown fire flower gives fire damage');
 
 // ── 공명: 다 자란 같은 색 3개 이상이면 그 색 능력치 +10% ─────────────────────────────
@@ -98,26 +102,26 @@ run(`game.season = 2; game.contentProgression.highestLoop = 2;
     for (const cell of [6, 8]) { const item = stumpBox.createItem(game, { family: 'seed', color: 'fire', roll: 1 }); stumpBox.place(game, item.id, cell); item.path = 'flower'; item.xp = stumpBox.need(item); item.ripe = true; }`);
 assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 19.8 }, 'three grown fire flowers: 6 × 3 × 1.1');
 assert.deepStrictEqual(json('[...stumpBox.evaluate(game).resonant]'), ['fire']);
-run(`{ const cold = stumpBox.createItem(game, { family: 'sap', color: 'cold', roll: 1 }); stumpBox.place(game, cold.id, 16); cold.xp = stumpBox.need(cold); cold.ripe = true; }`);
-assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 19.8, resC: 5 }, 'a grown cold amber away from the fire adds cold resistance');
-run(`{ const cold = stumpBox.createItem(game, { family: 'sap', color: 'cold', roll: 1 }); stumpBox.place(game, cold.id, 12); }`);
+run(`{ const cold = stumpBox.createItem(game, { family: 'seed', color: 'cold', roll: 1 }); stumpBox.place(game, cold.id, 16); cold.xp = stumpBox.need(cold); cold.ripe = true; cold.path = 'root'; }`);
+assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 19.8, resC: 5 }, 'a grown cold root away from the fire adds cold resistance');
+run(`{ const cold = stumpBox.createItem(game, { family: 'seed', color: 'cold', roll: 1 }); stumpBox.place(game, cold.id, 12); }`);
 assert.deepStrictEqual(json('[stumpBox.evaluate(game).resonant.size, stumpBox.evaluate(game).stats.firePctDmg]'), [0, 12],
-    'even an unripe cold sap beside a flower suppresses it and breaks the resonance');
+    'even an unripe cold seed beside a fire flower stops it and breaks the resonance');
 
 // ── 능력치 파이프라인: 보상 버킷에 한 번 합산 ───────────────────────────────────────
 assert.strictEqual(run('(() => { const bucket = createEmptyStatBucket(); stumpBox.applyStats(bucket, game); return bucket.firePctDmg; })()'), 12);
-assert.strictEqual(run('(() => { const bucket = createEmptyStatBucket(); stumpBox.applyStats(bucket, game); return bucket.resC; })()'), 5, 'a grown cold amber gives cold resistance');
+assert.strictEqual(run('(() => { const bucket = createEmptyStatBucket(); stumpBox.applyStats(bucket, game); return bucket.resC; })()'), 5, 'a grown cold root gives cold resistance');
 assert.doesNotThrow(() => run('getPlayerStats(false, false, true)'), 'the stat pipeline reads the box');
 
 // ── 드랍: 함 전용 굴림, 색의 절반은 판의 색, 보관함이 차면 거름, 스토리 액트 탐험 중에는 굴리지 않음 ───────────────
 const sequence = values => `(() => { const values = ${JSON.stringify(values)}; return () => values.shift(); })()`;
 assert.strictEqual(run(`stumpBox.rollDrop(game, {}, ${sequence([0.5])})`), null, 'most kills drop nothing');
-// 굴림 순서: 확률 · 계열 · 색 몫(판에 놓인 것이 있을 때만) · 색 · 품질. 색 몫 0.9는 절반을 넘어 네 색에서 고른다.
-assert.deepStrictEqual(json(`(() => { const item = stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0.1, 0.9, 0.9, 0.3, 0.5])}).item; return [item.family, item.color, item.roll]; })()`),
-    ['seed', 'cold', 1], 'a boss drop picks family, colour and quality');
-// 판에는 화염 셋(6 · 7 · 8)과 냉기 셋(12 · 16 · 17)이 있다: 절반은 이 둘에서, 나머지는 네 색에서 고르게.
+// 굴림 순서: 확률 · 색 몫(판에 놓인 것이 있을 때만) · 색 · 품질 · 황금. 색 몫 0.9는 절반을 넘어 다섯 색(물리, 냉기, 번개, 화염, 카오스)에서 고른다.
+assert.deepStrictEqual(json(`(() => { const item = stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0.1, 0.9, 0.3, 0.5, 0.9])}).item; return [item.family, item.color, item.roll]; })()`),
+    ['seed', 'cold', 1], 'a boss drop is a seed of a rolled colour and quality');
+// 판에는 화염 셋(6 · 7 · 8)과 냉기 셋(12 · 16 · 17)이 있다: 절반은 이 둘에서, 나머지는 다섯 색에서 고르게.
 const colours = json(`(() => {
-    const count = { fire: 0, cold: 0, lightning: 0, chaos: 0 };
+    const count = { physical: 0, fire: 0, cold: 0, lightning: 0, chaos: 0 };
     let value = 11; const random = () => { value = (Math.imul(value, 1664525) + 1013904223) >>> 0; return value / 4294967296; };
     for (let i = 0; i < 30000; i++) {
         const rolled = stumpBox.rollDrop(game, { isBoss: true }, random);
@@ -125,15 +129,16 @@ const colours = json(`(() => {
     }
     return count; })()`);
 const dropped = Object.values(colours).reduce((sum, value) => sum + value, 0);
-assert.ok(Math.abs((colours.fire + colours.cold) / dropped - 0.75) < 0.03, `board colours take half the drops plus their even share: ${JSON.stringify(colours)}`);
-assert.ok(Math.abs(colours.lightning / dropped - 0.125) < 0.02 && Math.abs(colours.chaos / dropped - 0.125) < 0.02, 'other colours still drop');
-run('while (stumpBox.createItem(game, { family: "sap", color: "chaos" })) {}');
+assert.ok(Math.abs((colours.fire + colours.cold) / dropped - 0.7) < 0.03, `board colours take half the drops plus their even share: ${JSON.stringify(colours)}`);
+assert.ok(['physical', 'lightning', 'chaos'].every(color => Math.abs(colours[color] / dropped - 0.1) < 0.02), 'other colours still drop');
+run('while (stumpBox.createItem(game, { family: "seed", color: "chaos" })) {}');
 assert.strictEqual(run('stumpBox.storage(game).length'), 50, 'storage holds 50');
-// 꽉 찬 보관함: 떨어진 것은 거름이 되어 판에서 자라는 것(17번 칸 냉기 수액, 12번은 화염 꽃 옆이라 멈춤)을 키운다.
+// 꽉 찬 보관함: 떨어진 것은 거름이 되어 판에서 자라는 것(12번과 17번 칸 냉기 씨앗: 냉기는 화염에 지지 않는다)을 키운다.
 const growingSap = run('game.stumpBox.board[17]'), sapBefore = run(`stumpBox.itemById(game, ${growingSap}).xp`);
-assert.deepStrictEqual(json(`stumpBox.growingItems(game).map(item => item.id)`), [growingSap], 'only the unsuppressed unripe sap is growing');
+assert.deepStrictEqual(json(`stumpBox.growingItems(game).map(item => item.id).sort()`), json('[game.stumpBox.board[12], game.stumpBox.board[17]].sort()'),
+    'the two unripe cold seeds are growing');
 assert.deepStrictEqual(json(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0, 0, 0, 0])})`),
-    { item: null, compost: { family: 'sap', color: 'fire', growth: 96, fed: 1, ripened: [] } }, 'a full storage turns the drop into compost');
+    { item: null, compost: { family: 'seed', color: 'fire', growth: 96, fed: 2, ripened: [] } }, 'a full storage turns the drop into compost');
 assert.strictEqual(run(`stumpBox.itemById(game, ${growingSap}).xp`), sapBefore + 96, 'the compost grows what is growing (80% quality → 96)');
 assert.strictEqual(run('stumpBox.storage(game).length'), 50, 'and storage stays full');
 assert.strictEqual(run(`(() => { const id = game.stumpBox.board[12]; return stumpBox.unplace(game, id); })()`), false, 'nor items taken off the board');
@@ -147,13 +152,13 @@ assert.strictEqual(run('game.stumpBox.items.length'), before + 1, 'a generated m
 run('game.actExploration = null; stumpBox.onEnemyKilled(game, { isBoss: true });');
 assert.strictEqual(run('game.stumpBox.items.length'), before + 2, 'outside expeditions a kill can drop');
 
-// ── 거름(2026-10-06): 보관함의 씨앗 · 수액 하나를 써서 판에서 자라는 것을 모두 키운다 ─────────────────
-run(`globalThis.compostSap = stumpBox.createItem(game, { family: 'sap', color: 'lightning', roll: 1.2 });
+// ── 거름(2026-10-06): 보관함의 씨앗 하나를 써서 판에서 자라는 것을 모두 키운다 ─────────────────
+run(`globalThis.compostSap = stumpBox.createItem(game, { family: 'seed', color: 'lightning', roll: 1.2 });
     globalThis.growingBefore = stumpBox.growingItems(game).map(item => [item.id, item.xp]);`);
 const fed = run('growingBefore.length');
 assert.ok(fed > 0, 'something on the board is growing');
 assert.strictEqual(run('stumpBox.compostGrowth(compostSap)'), 144, 'compost growth follows quality (120 × 120%)');
-assert.strictEqual(run('stumpBox.compostReason(game, game.stumpBox.board[17])'), '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.', 'a placed item is not compost');
+assert.strictEqual(run('stumpBox.compostReason(game, game.stumpBox.board[17])'), '보관함의 씨앗만 거름으로 쓸 수 있습니다.', 'a placed item is not compost');
 run('game.woodsmanBuildLock = true;');
 assert.strictEqual(run('stumpBox.compost(game, compostSap.id)'), null, 'the woodsman fight locks compost too');
 run('game.woodsmanBuildLock = false;');
@@ -167,15 +172,15 @@ run('game.woodsmanBuildLock = true;');
 assert.strictEqual(run(`stumpBox.unplace(game, game.stumpBox.board[12])`), false);
 run('game.woodsmanBuildLock = false;');
 
-// ── 루프 전환: 배치·미성숙 진행 유지, 다 자란 것만 씨앗·수액으로 ───────────────────────────
+// ── 루프 전환: 배치·미성숙 진행 유지, 다 자란 것만 씨앗으로 ───────────────────────────
 // 앞 단계의 처치에서 무작위로 떨어진 번개 씨앗이 있을 수 있으므로 색이 아니라 id로 짚는다.
 const unripe = run(`(() => { const item = stumpBox.createItem(game, { family: 'seed', color: 'lightning' }); stumpBox.place(game, item.id, 18, 'fruit'); item.xp = 120; return item.id; })()`);
 const board = run('JSON.stringify(game.stumpBox.board)');
 run('stumpBox.regress(game);');
 assert.strictEqual(run('JSON.stringify(game.stumpBox.board)'), board, 'placements stay');
-assert.strictEqual(run('game.stumpBox.items.filter(item => item.ripe).length'), 0, 'grown items return to seed/sap');
+assert.strictEqual(run('game.stumpBox.items.filter(item => item.ripe).length'), 0, 'grown items return to seeds');
 assert.strictEqual(run(`stumpBox.itemById(game, ${unripe}).xp`), 120, 'unripe progress stays');
-assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).path`), 'flower', 'a regressed seed keeps its path');
+assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).path`), null, 'a regressed seed rolls its kind again when it ripens');
 
 // ── 저장 경계: 왕복 그대로, 손상 저장은 고친다 ─────────────────────────────────────
 const saved = run('JSON.stringify(game.stumpBox)');
@@ -187,7 +192,7 @@ run(`game = mergeDefaults({ ...JSON.parse(serializeSaveState(game)), stumpBox: {
         { id: 4, family: 'rock', color: 'fire' }, { id: 5, family: 'sap', color: 'cold', xp: -5 }],
     board: [3, 3, 99, 5] } }); window.game = game;`);
 assert.deepStrictEqual(json('game.stumpBox.items.map(item => [item.id, item.family, item.xp, item.ripe, item.roll])'),
-    [[3, 'seed', STUMP_GROWTH_NEED.seed, true, 1.41], [5, 'sap', 0, false, 1]], 'duplicate and unknown items drop, values clamp (stored quality tops out at 141%: the 130% cap and the rare merge past it)');
+    [[3, 'seed', STUMP_GROWTH_NEED.seed, true, 1.41], [5, 'seed', 0, false, 1]], 'duplicate and unknown items drop, values clamp (stored quality tops out at 141%: the 130% cap and the rare merge past it), an old sap is a seed');
 assert.deepStrictEqual(json('game.stumpBox.board.slice(0, 5)'), [3, null, null, 5, null], 'each item sits on at most one cell');
 assert.strictEqual(run('game.stumpBox.nextId'), 6, 'new ids never reuse saved ones');
 run('game = mergeDefaults({ ...JSON.parse(serializeSaveState(game)), stumpBox: "broken" }); window.game = game;');
@@ -199,8 +204,8 @@ const idle = run('stumpBox.createItem(game, { family: "seed", color: "fire", rol
 assert.strictEqual(run(`stumpBox.compostReason(game, ${idle})`), '그루터기 함에서 성장 중인 그루터기 아이템이 없습니다.', 'compost needs something growing');
 assert.strictEqual(run(`stumpBox.compost(game, ${idle})`), null);
 assert.ok(run(`stumpBox.itemById(game, ${idle}) !== null`), 'a refused compost keeps the item');
-run('while (stumpBox.createItem(game, { family: "sap", color: "chaos" })) {}');
-assert.deepStrictEqual(json(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0.9, 0, 0])}).compost`),
+run('while (stumpBox.createItem(game, { family: "seed", color: "chaos" })) {}');
+assert.deepStrictEqual(json(`stumpBox.rollDrop(game, { isBoss: true }, ${sequence([0, 0.7, 0])}).compost`),
     { family: 'seed', color: 'fire', growth: 96, fed: 0, ripened: [] }, 'with nothing growing the full-storage drop is lost (and said so)');
 
 // ── 일괄 거름 사용 · 일괄 버리기(2026-10-09): 거름은 색과 종류마다 좋은 것 셋, 황금, 고대를 남기고 다 자랄 만큼만.
@@ -213,8 +218,8 @@ assert.deepStrictEqual(json('stumpBox.bulkItems(game, "fire").map(item => item.r
 assert.deepStrictEqual(json('stumpBox.bulkItems(game, "cold")'), [], 'another colour takes nothing');
 assert.strictEqual(run('stumpBox.bulkItems(game, "all").length'), 3, 'the all filter takes every colour');
 assert.strictEqual(run('stumpBox.bulkCompostReason(game, "fire")'), '그루터기 함에서 성장 중인 그루터기 아이템이 없습니다.', 'bulk compost needs something growing');
-run("{ const sap = stumpBox.createItem(game, { family: 'sap', color: 'lightning', roll: 1 }); stumpBox.place(game, sap.id, 12); sap.xp = stumpBox.need(sap) - 120; }");
-assert.deepStrictEqual(json('stumpBox.bulkCompostPlan(game, "fire").map(item => item.roll)'), [0.8, 0.85], 'the plan stops once the growing sap would ripen (96 + 102 ≥ 120)');
+run("{ const grower = stumpBox.createItem(game, { family: 'seed', color: 'lightning', roll: 1 }); stumpBox.place(game, grower.id, 12); grower.xp = stumpBox.need(grower) - 120; }");
+assert.deepStrictEqual(json('stumpBox.bulkCompostPlan(game, "fire").map(item => item.roll)'), [0.8, 0.85], 'the plan stops once the growing seed would ripen (96 + 102 ≥ 120)');
 assert.deepStrictEqual(json('(() => { const result = stumpBox.compostMany(game, "fire"); return [result.count, result.growth, result.ripened.length]; })()'), [2, 198, 1]);
 run("globalThis.bulkGrown = stumpBox.createItem(game, { family: 'seed', color: 'fire', roll: 1, path: 'fruit' }).id; stumpBox.itemById(game, bulkGrown).xp = 10;");
 assert.deepStrictEqual(json('stumpBox.discardMany(game, "fire").map(item => item.roll).sort()'), [0.9, 0.95, 1, 1.05],
@@ -222,16 +227,23 @@ assert.deepStrictEqual(json('stumpBox.discardMany(game, "fire").map(item => item
 assert.ok(run('stumpBox.itemById(game, bulkGold) !== null && stumpBox.itemById(game, bulkGrown) !== null'), 'golden and grown seeds stay');
 assert.strictEqual(run('stumpBox.discardMany(game, "fire")'), null, 'nothing left to throw away');
 
-// ── 판 1 저장(2026-10-09 전 필요량): 자라던 비율은 그대로, 다 자란 것은 다 자란 채로, 고르지 않은 씨앗은 id로 길이 정해진다 ─────
+// ── 판 1 저장(2026-10-09 전 필요량): 자라던 비율은 그대로, 다 자란 호박석은 뿌리로, 자라는 씨앗은 종류를 모른다(2026-11-04) ─────
 run(`game = mergeDefaults({ ...JSON.parse(serializeSaveState(game)), stumpBox: { version: 1, acquired: true, nextId: 9,
     items: [{ id: 1, family: 'seed', color: 'fire', path: 'fruit', xp: 200, roll: 1 }, { id: 2, family: 'sap', color: 'cold', xp: 500, ripe: true, roll: 1 },
         { id: 3, family: 'seed', color: 'chaos', xp: 0, roll: 1 }, { id: 4, family: 'seed', color: 'chaos', xp: 0, roll: 1 }], board: [] } }); window.game = game;`);
 assert.deepStrictEqual(json('game.stumpBox.items.map(item => [item.id, item.xp, item.ripe, item.path])'),
-    [[1, STUMP_GROWTH_NEED.seed / 2, false, 'fruit'], [2, STUMP_GROWTH_NEED.sap, true, null], [3, 0, false, 'fruit'], [4, 0, false, 'flower']],
-    'half grown stays half grown, grown stays grown, and a seed never planted gets a fixed path by id');
-assert.strictEqual(run('game.stumpBox.version'), 2);
+    [[1, STUMP_GROWTH_NEED.seed / 2, false, null], [2, STUMP_GROWTH_NEED.seed, true, 'root'], [3, 0, false, null], [4, 0, false, null]],
+    'half grown stays half grown, a grown amber is a grown root, and a growing seed forgets the kind it was given');
+assert.strictEqual(run('game.stumpBox.version'), 3);
 run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
-assert.strictEqual(run('stumpBox.itemById(game, 1).xp'), STUMP_GROWTH_NEED.seed / 2, 'a version-2 box is not scaled again');
+assert.strictEqual(run('stumpBox.itemById(game, 1).xp'), STUMP_GROWTH_NEED.seed / 2, 'a later box is not scaled again');
+// 판 2 저장의 네 색 줄: 물리가 더해져 다섯 색이 필요해도 채운 줄로 남는다(그 해금과 받은 보상이 닫히지 않는다).
+run(`game = mergeDefaults({ ...JSON.parse(serializeSaveState(game)), stumpBox: { version: 2, acquired: true, nextId: 1, items: [], board: [],
+    harvest: { grown: ['fruit-fire', 'fruit-cold', 'fruit-lightning', 'fruit-chaos', 'amber-fire'], gifts: { fruit: true } } } }); window.game = game;`);
+assert.deepStrictEqual(json('[stumpBox.harvestRows(game), game.stumpBox.harvest.grown.includes("root-fire"), stumpBox.breedingOpen(game)]'), [['fruit'], true, true],
+    'a row filled with the four old colours stays filled (its unlock too), and an old amber page is a root page');
+run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
+assert.deepStrictEqual(json('stumpBox.harvestRows(game)'), ['fruit'], 'and stays filled after another round trip');
 
 // ── 조합 잠금: 넣은 뒤 잠가도 다른 재료만으로 조합하지 않고, 불러오기와 화면 조회가 보호를 풀지 않는다 ──
 fresh({ season: 6 });
@@ -240,20 +252,20 @@ run(`globalThis.cubeSeed = stumpBox.createItem(game, { family: 'seed', color: 'f
 assert.strictEqual(run('stumpCube.candidates("stump").some(item => item.id === cubeSeed.id)'), false, 'locked seeds are not candidates');
 assert.notStrictEqual(run('stumpCube.put(game, "stump", cubeSeed)'), '', 'direct placement also refuses a locked seed');
 run(`stumpBox.toggleLock(game, cubeSeed.id); stumpCube.put(game, 'stump', cubeSeed);
-    for (let i = 0; i < 3; i++) stumpCube.put(game, 'stump', stumpBox.createItem(game, { family: 'sap', color: 'cold', roll: 1 }));
+    for (let i = 0; i < 3; i++) stumpCube.put(game, 'stump', stumpBox.createItem(game, { family: 'seed', color: 'cold', roll: 1 }));
     stumpBox.toggleLock(game, cubeSeed.id);`);
 for (const restore of [false, true]) {
     if (restore) run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
     const protectedState = run('JSON.stringify([game.stumpCube, game.stumpBox, game.currencies, game.inventory])');
     assert.strictEqual(run('stumpCube.entries().length'), 4, 'a locked cell remains available to take out');
-    assert.strictEqual(run('stumpCube.match()'), null, 'three remaining saps must not become an alternative match');
+    assert.strictEqual(run('stumpCube.match()'), null, 'three remaining seeds must not become an alternative match');
     assert.deepStrictEqual(json('stumpCube.missingRecipes()'), [], 'a protected input cannot suggest spending the other inputs');
     assert.strictEqual(run('stumpCube.transmute().ok'), false, 'locking after placement blocks the whole transaction');
     assert.strictEqual(run('JSON.stringify([game.stumpCube, game.stumpBox, game.currencies, game.inventory])'), protectedState,
         'a refusal keeps references, all materials and the wallet, including after a save round trip');
 }
 assert.strictEqual(run('stumpCube.takeOut(game, 0)'), true, 'a locked cell can be explicitly taken out');
-assert.strictEqual(run('stumpCube.transmute().ok'), true, 'the three unlocked saps still combine normally');
+assert.strictEqual(run('stumpCube.transmute().ok'), true, 'the three unlocked seeds still combine normally');
 assert.strictEqual(run('stumpBox.itemById(game, cubeSeed.id).locked'), true, 'the protected seed remains owned and locked');
 
 fresh({ season: 6 });
@@ -267,13 +279,13 @@ run('stumpCube.clear();');
 assert.strictEqual(run('stumpCube.candidates("stump").some(item => item.id === cubeTalismans[0].id)'), false);
 assert.notStrictEqual(run('stumpCube.put(game, "stump", cubeTalismans[0])'), '');
 run(`stumpBox.toggleLock(game,cubeTalismans[0].id);stumpCube.put(game,'stump',cubeTalismans[0]);
-    globalThis.paidAmber=stumpBox.createItem(game,{family:'sap',color:'fire',roll:1});paidAmber.ripe=true;
-    paidAmber.xp=stumpBox.need(paidAmber);stumpCube.put(game,'stump',paidAmber);game.currencies.sealShard=5;`);
+    globalThis.paidVine=stumpBox.createItem(game,{family:'seed',color:'fire',roll:1});paidVine.ripe=true;paidVine.path='vine';
+    paidVine.xp=stumpBox.need(paidVine);stumpCube.put(game,'stump',paidVine);game.currencies.sealShard=5;`);
 assert.strictEqual(run('stumpCube.match().recipe.id'), 'talisman_reroll_line', 'the protected paid recipe was valid before locking');
 run('stumpBox.toggleLock(game,cubeTalismans[0].id);');
 const paidState = run('JSON.stringify([game.stumpBox,game.stumpCube,game.currencies])');
 assert.strictEqual(run('stumpCube.transmute().ok'), false);
-assert.strictEqual(run('JSON.stringify([game.stumpBox,game.stumpCube,game.currencies])'), paidState, 'a blocked paid reroll keeps currency, amber and talisman lines');
+assert.strictEqual(run('JSON.stringify([game.stumpBox,game.stumpCube,game.currencies])'), paidState, 'a blocked paid reroll keeps currency, vine and talisman lines');
 
 // 잠근 주얼과 코어도 재료로 쓰지 않는다(2026-10-24 검토: 잠금 확인이 장비와 그루터기 아이템에만 있었다).
 for (const kind of ['jewel', 'core']) {
@@ -295,7 +307,7 @@ for (const kind of ['jewel', 'core']) {
 
 // 화폐화(2026-11-03): 칸을 비우고 실물로 돌아오지 않는다. 값은 재화부터 나가고, 잠긴 것과 판 위의 것은 나가지 않는다. 저장과 루프를 넘기고, 조합창은 쓸 때만 줄인다.
 run(`game.woodsmanBuildLock = false; game.stumpBox.board = game.stumpBox.board.map(() => null); game.stumpBox.items = []; game.stumpBox.wallet = {}; game.stumpCube.slots = [];
-    var grownFlower = spec => { const item = stumpBox.createItem(game, { family: 'seed', path: 'flower', color: 'fire', roll: 1, ...spec }); item.ripe = true; return item; };
+    var grownFlower = spec => { const item = stumpBox.createItem(game, { family: 'seed', color: 'fire', roll: 1, ...spec }); item.ripe = true; item.path = 'flower'; return item; };
     var walletA = grownFlower(), walletB = grownFlower(), walletLocked = grownFlower(), walletPlaced = grownFlower();
     walletLocked.locked = true; stumpBox.place(game, walletPlaced.id, 12);`);
 assert.strictEqual(run('stumpBox.monetize(game, walletA.id)'), true, 'a stored grown item becomes currency');
@@ -318,7 +330,7 @@ assert.strictEqual(run('stumpBox.walletCount(game, "flower-fire")'), 3, 'leaves 
 run('stumpBox.regress(game);');
 assert.strictEqual(run('stumpBox.walletCount(game, "flower-fire")'), 0, 'a new loop clears currency');
 run(`game.stumpBox.wallet = { 'flower-fire': 1 };`);
-assert.deepStrictEqual(json(`stumpBox.restore({ ...game, stumpBox: { ...game.stumpBox, wallet: { 'flower-fire': -3, 'amber-cold': 2.9, nope: 5, 'fruit-chaos': 'x' } } }).wallet`), { 'amber-cold': 2 }, 'a broken wallet is cleaned on load');
+assert.deepStrictEqual(json(`stumpBox.restore({ ...game, stumpBox: { ...game.stumpBox, wallet: { 'flower-fire': -3, 'amber-cold': 2.9, nope: 5, 'fruit-chaos': 'x' } } }).wallet`), { 'root-cold': 2 }, 'a broken wallet is cleaned on load, an old amber stack is a root stack');
 
 // 생육함(2026-11-03): 보관함 칸을 비우고, 효과 없이 경험치만 일부 받고, 저장을 넘기며, 판과 한 아이템을 나누지 않는다.
 run(`game.woodsmanBuildLock = false; game.stumpBox.board = game.stumpBox.board.map(() => null); game.stumpBox.items = []; game.stumpBox.wallet = {}; game.stumpBox.nursery = game.stumpBox.nursery.map(() => null);
@@ -335,4 +347,4 @@ run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = g
 assert.strictEqual(run('game.stumpBox.nursery[12] === nest.id'), true, 'the nursery survives a save round trip');
 assert.strictEqual(run('stumpBox.nurseryUnplace(game, nest.id) && stumpBox.storage(game).length'), 1, 'and gives the item back to storage');
 
-console.log('stump box: grant, unlocks, placement, growth, suppression, resonance, drops, loop regression, bulk actions, cube lock protection, currency, nursery and saves: OK');
+console.log('stump box: grant, unlocks, placement, growth, 오행 suppression, resonance, drops, loop regression, bulk actions, cube lock protection, currency, nursery and saves: OK');

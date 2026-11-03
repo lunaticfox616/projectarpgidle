@@ -48,9 +48,9 @@ function getPlayerExchangeError(error) {
     return code ? messages[code] : raw;
 }
 
-// Any socket counts (void and corruption sockets too): a listed item must never take a jewel with it.
+// Any socket counts (void and corruption sockets too): a listed item must never take a jewel, or a socketed grown item, with it.
 function hasSocketedHallJewel(item) {
-    return equipmentSockets.jewels(item).length > 0;
+    return equipmentSockets.jewels(item).length > 0 || equipmentSockets.harvests(item).length > 0;
 }
 
 function getHallEligibleItems() {

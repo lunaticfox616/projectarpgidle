@@ -178,7 +178,7 @@ const perCountLines = (count, max, lines) => lines.map(([id, per]) => ({ id, val
 
 /** 능력치 줄로만 동작하는 고유 효과(등급 17~20 일반 고유와 리그 우두머리 고유, 2026-10-09, data/items.js). 줄은 장비의 추가 옵션처럼
  * 더해진다. context(uniqueEffectContext): 지금 루프, 능력치를 주는 장비 중 수평 베이스 수, 타락한 장비 수, 장비 품질 합, 목걸이에
- * 새긴 노드 수, 그루터기 함 판의 다 자란 씨앗과 수액 수. */
+ * 새긴 노드 수, 그루터기 함 판의 다 자란 씨앗 수. */
 const UNIQUE_EFFECT_STAT_LINES = Object.freeze({
     loopGrowth: (p, context) => perCountLines(context.loop, p.maxLoops, [['pctHp', p.hpPerLoop], ['pctDmg', p.dmgPerLoop]]),
     familyBond: (p, context) => perCountLines(context.horizontal, p.maxPieces, [['pctDmg', p.dmgPer], ['resAll', p.resPer]]),
@@ -207,7 +207,7 @@ function countRipeStumpGrowth(owner) {
     const box = owner.stumpBox;
     if (!box || !Array.isArray(box.board) || !Array.isArray(box.items)) return 0;
     const onBoard = new Set(box.board.filter(id => id !== null));
-    return box.items.filter(item => onBoard.has(item.id) && item.ripe === true && (item.family === 'seed' || item.family === 'sap')).length;
+    return box.items.filter(item => onBoard.has(item.id) && item.ripe === true && item.family === 'seed').length;
 }
 
 /** What the stat-only unique effects count, from build values only: the loop, the stat-giving items (and among them the unique and the
@@ -255,11 +255,15 @@ function accumulateCombatEquipmentItem(result, [slotKey, item, resolved]) {
     accumulateCombatSocketJewels(result, item);
 }
 
-/** 장비 소켓의 주얼: 공허 · 타락 · 심연 소켓(황제의 심연띠는 심연 소켓을 증폭), 모두 소켓 주얼 배율을 받는다. */
+/** 장비 소켓의 주얼: 공허 · 타락 · 심연 소켓(황제의 심연띠는 심연 소켓을 증폭), 모두 소켓 주얼 배율을 받는다. 수확물 소켓의 꽃, 열매,
+ * 덩굴, 뿌리는 그루터기 함 판에서와 같은 줄을 준다(js/stump-box.js socketLines, 소켓 주얼 배율은 받지 않는다). */
 function accumulateCombatSocketJewels(result, item) {
     const socketMultiplier = getSocketJewelMultiplier();
     for (const row of equipmentSockets.jewels(item)) {
         addSocketJewelStats(result, row.jewel, socketMultiplier * (row.kind === 'abyss' ? getAbyssJewelMultiplier(item) : 1));
+    }
+    for (const row of equipmentSockets.harvests(item)) {
+        stumpBox.socketLines(row.harvest).forEach(line => addStatToBucket(result.gearExplicit, line.stat, line.value));
     }
 }
 

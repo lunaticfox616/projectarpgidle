@@ -2,7 +2,7 @@
 // 각 조합법은 재료 묶음(groups: 조합법 inputs 줄마다 재료 목록)을 받아 { ok, consumed, outputs }를 돌려준다.
 // consumed는 조합이 끝나면 없어질 재료, outputs는 보관할 결과다. 결과 종류:
 //   { kind: 'equipment', item } · { kind: 'jewel', item } · { kind: 'core', item }
-//   { kind: 'stump', spec }(새 씨앗 · 수액) · { kind: 'stump', talisman }(새 부적) · { kind: kind, existing }(바뀐 재료 그대로)
+//   { kind: 'stump', spec }(새 씨앗) · { kind: 'stump', talisman }(새 부적) · { kind: kind, existing }(바뀐 재료 그대로)
 //   { kind: 'currency', key, amount }(재화, 지갑으로).
 // 결과를 만들 수 없으면 아무것도 바꾸지 않고 { ok: false, reason }을 돌려준다.
 const stumpCubeRecipes = (() => {
@@ -48,6 +48,12 @@ const stumpCubeRecipes = (() => {
     function rareTier(groups, state) {
         const gear = groups[0][0].item;
         return equipmentResult(groups, makeEquipment(baseSlot(gear), rareTierTarget(gear, state), 'rare'));
+    }
+
+    /** 히든 조합: 세 수확물 고유 → 풍작의 갑주(data/items.js). 세 고유의 소켓에 든 것은 소모할 때 돌아간다(stump-cube.js REMOVERS). */
+    function harvestArmour(groups) {
+        const tier = topTier(groups.flat().map(entry => entry.item)), item = generateUniqueItem(tier, '갑옷', '풍작의 갑주', {});
+        return equipmentResult(groups, item ? levelProgression.stampItem(item, levelProgression.tierLevel(tier)) : null);
     }
 
     /** Another unique of the same slot and tier (a few tries to avoid handing back the same one). */
@@ -102,9 +108,10 @@ const stumpCubeRecipes = (() => {
         if (luck < rule.overChance + rule.bestChance) return { roll: Math.min(cap, Math.max(...rolls) + step()) };
         return { roll: Math.min(cap, average + step()) };
     }
-    /** The merged item: same colour, family and path, the rolled quality; golden if any was golden, ancient (고대 씨앗) if any was ancient. */
+    /** The merged seed: same colour, the rolled quality; golden if any was golden, ancient (고대 씨앗) if any was ancient. What it grows into
+     * is rolled when it ripens, like any seed. */
     function stumpMergeSpec(list, state, random) {
-        return { family: list[0].family, color: list[0].color, path: list[0].path, ...mergedRoll(list, state, random),
+        return { family: 'seed', color: list[0].color, ...mergedRoll(list, state, random),
             golden: list.some(item => item.golden === true), ancient: list.some(item => item.ancient === true) };
     }
 
@@ -112,12 +119,12 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: group, outputs: [{ kind: 'stump', spec: stumpMergeSpec(items(group), state, random) }] };
     }
 
-    /** Two saps of one colour turn a seed or sap of another colour into theirs: quality, golden and ancient stay, growth starts over. */
-    function stumpRecolor([saps, [target]], state) {
+    /** Two seeds of one colour turn a seed of another colour into theirs: quality, golden and ancient stay, growth starts over. */
+    function stumpRecolor([donors, [target]], state) {
         const item = target.item, roll = Number(item.roll) || 1;
-        const spec = { family: item.family, color: saps[0].item.color, path: item.path, roll, overCap: roll > stumpBox.rollCap(state),
+        const spec = { family: 'seed', color: donors[0].item.color, roll, overCap: roll > stumpBox.rollCap(state),
             golden: item.golden === true, ancient: item.ancient === true };
-        return { ok: true, consumed: [...saps, target], outputs: [{ kind: 'stump', spec }] };
+        return { ok: true, consumed: [...donors, target], outputs: [{ kind: 'stump', spec }] };
     }
 
     function talismanSource(group) {
@@ -128,9 +135,9 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: group, outputs: [{ kind: 'stump', talisman: talismans.roll(talismanSource(group), random) }] };
     }
 
-    function talismanRerollLine([[talisman], [amber]], state, random) {
+    function talismanRerollLine([[talisman], [vine]], state, random) {
         if (!talismans.rerollStatLine(talisman.item, random)) return { ok: false, reason: '다시 쓸 일반 줄이 없는 부적입니다.' };
-        return { ok: true, consumed: [amber], outputs: [{ kind: 'stump', existing: talisman.item }] };
+        return { ok: true, consumed: [vine], outputs: [{ kind: 'stump', existing: talisman.item }] };
     }
 
     function talismanUniqueReroll([group], state, random) {
@@ -152,9 +159,9 @@ const stumpCubeRecipes = (() => {
         return { ok: true, consumed: group, outputs: [{ kind: 'jewel', item: jewel }] };
     }
 
-    function coreRerollLine([[core], [amber]], state, random) {
+    function coreRerollLine([[core], [vine]], state, random) {
         if (!coreItems.rerollLine(core.item, random)) return { ok: false, reason: '다시 굴릴 수 없는 코어입니다.' };
-        return { ok: true, consumed: [amber], outputs: [{ kind: 'core', existing: core.item }] };
+        return { ok: true, consumed: [vine], outputs: [{ kind: 'core', existing: core.item }] };
     }
 
     function coreReroll([group]) {
@@ -163,11 +170,11 @@ const stumpCubeRecipes = (() => {
 
     const HANDLERS = Object.freeze({
         equip_magic_upgrade: magicUpgrade, equip_rare_tier: rareTier, equip_unique_remake: uniqueRemake, equip_unique_reroll: uniqueReroll,
-        equip_socket_jewel: socketJewel, equip_rare_exceptional: rareExceptional,
+        equip_socket_jewel: socketJewel, equip_rare_exceptional: rareExceptional, equip_harvest_armour: harvestArmour,
         stump_merge: stumpMerge, stump_recolor: stumpRecolor, talisman_upgrade: talismanUpgrade, talisman_reroll_line: talismanRerollLine,
         talisman_unique_reroll: talismanUniqueReroll, jewel_fuse: jewelFuse, core_reroll: coreReroll, core_reroll_line: coreRerollLine,
-        // 호박석 기폭제(12번 루프 32): 결과는 재화(stump-cube.js STORERS.currency).
-        amber_catalyst: (groups, state) => sapCatalysts.amberRecipe(groups, state),
+        // 뿌리 기폭제(12번 루프 32, 2026-11-04 전: 호박석 기폭제): 결과는 재화(stump-cube.js STORERS.currency).
+        root_catalyst: (groups, state) => sapCatalysts.rootRecipe(groups, state),
         // 열매 기름(12번 루프 36): 결과는 재화.
         fruit_oil: (groups, state) => gardenOils.fruitRecipe(groups, state),
         // 기폭제 바꾸기: 결과는 재화, 비용은 조합할 때 무작위로 정한다(result.paid).
@@ -225,18 +232,16 @@ const stumpCubeRecipes = (() => {
         return low === high ? String(low) : `${low}~${high}`;
     }
     function mergePreview([group], state) {
-        const list = items(group), first = list[0], color = STUMP_BOX_COLORS[first.color].label;
-        const label = first.family === 'sap' ? `${color} 수액` : `${color} ${STUMP_BOX_STAGES[first.path].label} 씨앗`;
+        const list = items(group), label = `${STUMP_BOX_COLORS[list[0].color].label} 씨앗`;
         const marks = [list.some(item => item.golden === true) ? '황금' : '', list.some(item => item.ancient === true) ? '고대' : ''].filter(Boolean);
         return { label, quality: mergeRange(list, state), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
-            keep: ['색과 종류', ...marks].join(', '), change: '성장 경험치와 수확 옵션 초기화', note: '새 재료 1개로 합쳐짐' };
+            keep: ['색', ...marks].join(', '), change: '성장 경험치 초기화', note: '새 씨앗 1개로 합쳐짐' };
     }
 
-    function recolorPreview([saps, [{ item }]], state) {
-        const color = STUMP_BOX_COLORS[saps[0].item.color].label;
-        const label = item.family === 'sap' ? `${color} 수액` : `${color} ${STUMP_BOX_STAGES[item.path].label} 씨앗`;
+    function recolorPreview([donors, [{ item }]], state) {
+        const label = `${STUMP_BOX_COLORS[donors[0].item.color].label} 씨앗`;
         return { label, quality: Math.round((Number(item.roll) || 1) * 100), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
-            keep: '품질과 종류', change: '색 바뀜, 성장 경험치와 수확 옵션 초기화' };
+            keep: '품질', change: '색 바뀜, 성장 경험치 초기화' };
     }
 
     function talismanUpgradePreview([group]) {
@@ -272,12 +277,12 @@ const stumpCubeRecipes = (() => {
         jewel_fuse: jewelPreview,
         core_reroll: () => ({ label: '새 코어 1개', keep: '', change: `옵션 ${CORE_ITEM_RULES.lines}줄 새로 굴림`, note: '완전한 코어 가능' }),
         core_reroll_line: ([[{ item }]]) => ({ label: item.name, keep: '코어와 나머지 옵션', change: '옵션 1줄의 종류와 수치 새로 굴림' }),
-        amber_catalyst: (groups, state) => currencyPreview(sapCatalysts.amberRecipe, groups, state),
+        root_catalyst: (groups, state) => currencyPreview(sapCatalysts.rootRecipe, groups, state),
         fruit_oil: (groups, state) => currencyPreview(gardenOils.fruitRecipe, groups, state),
         catalyst_exchange: ([[{ item }]], state) => {
             const plan = sapCatalysts.exchangePlan(item, state);
             return plan.reason ? { label: '', reason: plan.reason }
-                : { label: `${ORB_DB[plan.kind.key].name} ${STUMP_CUBE_CATALYST_EXCHANGE}개`, keep: '', change: `다른 기폭제 ${STUMP_CUBE_CATALYST_EXCHANGE}개를 호박석 색으로 변환` };
+                : { label: `${ORB_DB[plan.kind.key].name} ${STUMP_CUBE_CATALYST_EXCHANGE}개`, keep: '', change: `다른 기폭제 ${STUMP_CUBE_CATALYST_EXCHANGE}개를 덩굴 색으로 변환` };
         }
     });
 

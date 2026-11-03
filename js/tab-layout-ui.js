@@ -27,23 +27,36 @@ const tabLayoutUi = {
             .map(id => byId.get(id));
     },
 
+    /** Short names for a menu cell four characters wide (the PC HUD menu, the phone dock); the full name stays on the button. */
+    shortCaptions: Object.freeze({ 'btn-tab-season': '루프', 'btn-tab-stump': '그루터기' }),
+
+    /** A tab button's short name: its group's title for a button that opens several screens (js/ui.js MERGED_TAB_GROUPS), else the
+     * short name, else its own words. */
+    caption(button) {
+        const merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === 'object' ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
+        const own = Array.from(button.childNodes).filter(node => node.nodeType === 3).map(node => node.textContent.trim()).join(' ').trim();
+        return (merged && merged.title) || tabLayoutUi.shortCaptions[button.id] || own;
+    },
+
     isMisc(id, layout = tabLayoutUi.current()) {
         return id === 'btn-tab-settings' || id === 'btn-map-complete-action-picker'
             || layout.tabPlacement[id] === 'bottom';
     },
 
-    // The phone dock has three shortcuts plus battle; every other tab stays in the full menu.
+    // The phone dock: battle, as many shortcuts as fit the screen's width (a cell of about 52px, 3 to 7) and the full menu
+    // button; every other tab stays in the full menu (2026-11-03 사용자: 하단 탭이 너무 적다, 390px 휴대폰은 셋에서 다섯).
     mobilePrimaryIds(layout = game.settings.tabLayouts.mobile) {
         const preferred = layout.tabOrder.filter(id => layout.tabPlacement[id] === 'top');
         // 스킬룬은 장비 단추로 열린다(2026-10-13): 그 자리에는 스킬트리가 선다
-        const defaults = ['btn-tab-items', 'btn-tab-char', 'btn-tab-map']
+        const defaults = ['btn-tab-items', 'btn-tab-char', 'btn-tab-map', 'btn-tab-stump', 'btn-tab-season', 'btn-tab-character', 'btn-tab-journal']
             .filter(id => layout.tabPlacement[id] !== 'bottom');
         const candidates = [...new Set([...preferred, ...defaults])].filter(id => {
             const button = document.getElementById(id);
             return id.startsWith('btn-tab-') && button && button.style.display !== 'none' && !button.hidden
                 && button.dataset.mergedTabMember !== '1' && !['btn-tab-battle', 'btn-tab-settings'].includes(id);
         });
-        return ['btn-tab-battle', ...candidates.slice(0, 3)];
+        const fit = Math.max(3, Math.min(7, Math.floor(document.documentElement.clientWidth / 52) - 2));
+        return ['btn-tab-battle', ...candidates.slice(0, fit)];
     },
 
     placementOptions(id, target, layout) {
@@ -113,3 +126,8 @@ const tabLayoutUi = {
     },
 
 };
+
+// The phone dock shows each button's short name (css/themes/pixel-menu.css, attr(data-caption)); the PC HUD menu sets its own when it wraps the label.
+document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('.tab-header .tab-btn').forEach(button => {
+    if (!button.dataset.caption) button.dataset.caption = tabLayoutUi.caption(button);
+}), { once: true });

@@ -74,7 +74,7 @@ const devTestPanel = (() => {
         refresh();
         note(`레벨 ${game.level}`);
     }
-    /** 그루터기 함: 액트 10을 깨지 않고 받기, 씨앗·수액 몇 개, 판 위 아이템 처치 100회분 성장. */
+    /** 그루터기 함: 액트 10을 깨지 않고 받기, 씨앗 몇 개(다섯 색), 판 위 아이템 처치 100회분 성장. */
     function grantStumpBox() {
         const box = stumpBox.of(game);
         if (!box.acquired) { box.acquired = true; box.via = 'dev'; }
@@ -86,9 +86,9 @@ const devTestPanel = (() => {
     function giveStumpItems() {
         if (!game.stumpBox.acquired) grantStumpBox();
         const colors = Object.keys(STUMP_BOX_COLORS);
-        const made = Array.from({ length: 8 }, (_, i) => stumpBox.createItem(game, { family: i % 3 ? 'seed' : 'sap', color: colors[i % 4], roll: 0.8 + Math.random() * 0.4 }));
+        const made = Array.from({ length: 8 }, (_, i) => stumpBox.createItem(game, { family: 'seed', color: colors[i % colors.length], roll: 0.8 + Math.random() * 0.4 }));
         refresh();
-        note(`씨앗/수액 ${made.filter(Boolean).length}개`);
+        note(`씨앗 ${made.filter(Boolean).length}개`);
     }
     /** 고유 액막이 셋(js/colony-wards.js createUnique)을 가방에. */
     function giveUniqueWards() {
@@ -350,7 +350,7 @@ const devTestPanel = (() => {
             row([button('레벨 +1', () => addLevels(1)), button('레벨 +5', () => addLevels(5)), button('레벨 +20', () => addLevels(20))]),
             row([acts, button('이동', () => travelToAct(Number(acts.value)))]),
             row([zones, button('시험 입장', () => enterTestZone(Number(zones.value)))]),
-            row([button('그루터기 함 받기', grantStumpBox), button('씨앗/수액 +8', giveStumpItems), button('함 성장 +100', growStumpBox)]),
+            row([button('그루터기 함 받기', grantStumpBox), button('씨앗 +8', giveStumpItems), button('함 성장 +100', growStumpBox)]),
             row([button('고유 액막이 셋', giveUniqueWards), button('완전한 코어', () => { coreItems.keep(coreItems.rollPerfect()); refresh(); note('완전한 코어 1개'); })])
         ]);
     }

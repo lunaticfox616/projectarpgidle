@@ -18,7 +18,7 @@ const openingJourney = (() => {
     // it plays as before, auto hunt and all.
     const REPLACED = Object.freeze(['story_prologue']), STAGE_REPLACED = Object.freeze(['story_act_1_start', 'tutorial_battle_basics']);
     const TICK_MS = 150, LEAVE_MS = 900, REVEAL_MS = 1100, AUTO_HINT_MS = 45000, CARD_GAP = 8;
-    let intro = null, rising = null, movedFrom = null, hintEl = null, hintTop = 0, hintBelow = false, wakeEl = null, autoHintUntil = 0, heldAuto = null;
+    let intro = null, rising = null, movedFrom = null, hintEl = null, hintTop = 0, hintBelow = false, hintField = '', wakeEl = null, autoHintUntil = 0, heldAuto = null;
 
     const seen = key => Array.isArray(game.seenTutorials) && game.seenTutorials.includes(key);
     const mark = key => { if (!seen(key)) game.seenTutorials.push(key); };
@@ -269,7 +269,7 @@ const openingJourney = (() => {
         document.getElementById('btn-act-exploration-auto')?.classList.toggle('is-opening-glow', step === 'auto');
         const canvas = document.getElementById('battlefield-canvas');
         showWakeMark(step === 'rise' && !rising, canvas);
-        if (!step || !canvas) return;
+        if (!step || !canvas) return markLessonBottom(null);
         const fresh = hintEl.dataset.step !== step;
         if (fresh) {
             const [name, arg] = step.split(':');
@@ -277,22 +277,41 @@ const openingJourney = (() => {
             hintEl.classList.remove('is-compact');
             hintEl.innerHTML = lessonCardHtml(name, arg);
         }
-        const top = cardTop(canvas, fresh);
+        // A new battlefield size places the card afresh: kept from a wide window, its spot under the hero sat below a phone's short
+        // battlefield, out of sight (2026-11-03 사용자: 화면 크기를 왔다갔다 하면 알림창이 안 보이는 곳으로 내려간다).
+        const field = `${canvas.offsetWidth}x${canvas.offsetHeight}`, resized = field !== hintField;
+        hintField = field;
+        const top = cardTop(canvas, fresh || resized);
         place(hintEl, canvas.offsetLeft + (canvas.offsetWidth - hintEl.offsetWidth) / 2, canvas.offsetTop + top);
+        markLessonBottom(canvas.offsetTop + top + hintEl.offsetHeight);
+    }
+    /** The card's bottom (battlefield px), or null without a card: on a tall screen the targeted enemy's health bar stands under it
+     * (css/themes/rift-stage.css --lesson-bottom, 2026-11-03 사용자: 적 생명력 게이지는 안내창보다 밑에). Written only when it changes. */
+    function markLessonBottom(bottom) {
+        const tab = document.getElementById('tab-battle'), value = bottom === null ? '' : `${Math.round(bottom)}px`;
+        if (tab && tab.style.getPropertyValue('--lesson-bottom') !== value) tab.style.setProperty('--lesson-bottom', value);
     }
     /** The card's top in canvas pixels: 6% down, raised while its bottom would reach the standing hero's head (a short battlefield such as
      * 800×662 put it over the head), compact (is-compact) when even the top edge cannot clear it, and under the hero's feet when the
      * compact card still cannot (a phone on its side). Within a step it moves only away from the hero, so walking the rows does not
      * shake it. */
     function cardTop(canvas, fresh) {
-        const room = headRoom();
-        if (!hintEl.classList.contains('is-compact') && room - hintEl.offsetHeight < CARD_GAP) hintEl.classList.add('is-compact');
-        const height = hintEl.offsetHeight, fits = room - height >= CARD_GAP;
+        const room = headRoom(), clear = topClear(canvas), stacked = stageView.stacked();
+        if (!hintEl.classList.contains('is-compact') && room - hintEl.offsetHeight < clear) hintEl.classList.add('is-compact');
+        // 세로 화면은 주인공 발밑이 HUD 자리라(css/themes/rift-stage.css) 카드는 늘 지역 줄 밑에 선다: 머리에 조금 걸쳐도 그쪽이 보인다
+        const height = hintEl.offsetHeight, fits = stacked || room - height >= clear;
         hintBelow = fresh ? !fits : hintBelow || !fits;
         const want = hintBelow ? Math.min(battleVisualState.playerPos.y + CARD_GAP * 2, canvas.offsetHeight - height - CARD_GAP)
-            : Math.max(CARD_GAP, Math.min(canvas.offsetHeight * 0.06, room - height));
+            : Math.max(clear, Math.min(canvas.offsetHeight * 0.06, room - height));
         hintTop = fresh ? want : (hintBelow ? Math.max : Math.min)(hintTop, want);
         return hintTop;
+    }
+    /** The card's highest top in canvas pixels: on a tall screen the zone row and its buttons lie over the battlefield's top
+     * (css/themes/rift-stage.css, stageView.stacked), so the card starts under them; elsewhere a gap from the edge. */
+    function topClear(canvas) {
+        const row = stageView.stacked() && document.querySelector('#tab-battle .combat-zone-row');
+        if (!row) return CARD_GAP;
+        return Math.max(CARD_GAP, Math.round(row.getBoundingClientRect().bottom - canvas.getBoundingClientRect().top) + CARD_GAP);
     }
     /** Canvas pixels above the standing hero's head the card may reach (js/canvas-stage-actors.js headY; Infinity before it is drawn). */
     function headRoom() {

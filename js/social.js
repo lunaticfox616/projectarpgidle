@@ -454,7 +454,7 @@ function buildStumpCellSnapshot(state, result, id, cell) {
     if (card) row.item = card;
     return row;
 }
-/** 그루터기 함 아이템 하나의 카드(판 위든 보관함이든): 부적은 부적 카드, 씨앗과 수액과 흉터는 그루터기 카드, 거기에 그림 단계와 성장.
+/** 그루터기 함 아이템 하나의 카드(판 위든 보관함이든): 부적은 부적 카드, 씨앗과 흉터는 그루터기 카드, 거기에 그림 단계와 성장.
  * 장착 구성의 판 칸과 채팅 첨부가 쓴다. */
 function buildStumpItemCard(item, result) {
     let card = !item ? null : item.family === 'talisman' ? buildTalismanSnapshot(item) : buildStumpItemSnapshot(item, result);
@@ -462,7 +462,7 @@ function buildStumpItemCard(item, result) {
     return Object.assign(card, { stage: stumpBox.stageOf(item), ripe: stumpBox.isMature(item), xp: Math.floor(item.xp), need: stumpBox.need(item) });
 }
 
-/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 효과, 추가 줄, 황금, 비활성화와 공명.
+/** 씨앗(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 효과, 추가 줄, 황금, 비활성화와 공명.
  * 불씨의 흉터도 이 카드다(흡수한 줄이 추가 줄 자리에). */
 function buildStumpItemSnapshot(item, result) {
     let gain = stumpBox.yieldOf(item), suppressed = result.suppressed.has(item.id);
@@ -476,7 +476,7 @@ function buildStumpItemSnapshot(item, result) {
 
 /** 게임 그루터기 함의 상태 줄(js/stump-box-ui.js stumpStatus)과 같은 문장. 비활성화되었거나 공명할 때만. */
 function stumpItemNote(item, result) {
-    if (result.suppressed.has(item.id)) return `비활성화: ${STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label} 인접`;
+    if (result.suppressed.has(item.id)) return `비활성화: ${STUMP_BOX_COLORS[stumpBox.overcomerOf(item.color)].label} 인접`;
     if (!stumpBox.isMature(item) || !result.resonant.has(item.color)) return '';
     return `공명 +${STUMP_BOX_RESONANCE.bonusPct}%`;
 }
@@ -1946,7 +1946,7 @@ function renderProfileCoreCard(core) {
     return `<div class="social-item-card" style="border-color:${PROFILE_CORE_TONE};"><div class="social-item-title">${socialEscape(core.name || '코어')}</div>${lines}</div>`;
 }
 
-// ── 씨앗과 수액 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
+// ── 씨앗 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
 function renderProfileStumpCard(item) {
     let tone = profileStumpTone(item), scar = item.family === 'scar';
     let gain = item.yieldText ? `${item.yieldText}${item.ripe && !item.suppressed ? '' : ' (비활성)'}` : '';

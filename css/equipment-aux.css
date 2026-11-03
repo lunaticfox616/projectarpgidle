@@ -1,4 +1,4 @@
-/* 장비창의 보조 칸(2026-09-30 보조 콘텐츠 통합): 장비 그리드 왼쪽 위의 코어 칸, 장착 칸의 소켓 표시, 소켓 대화 상자.
+/* 장비창의 보조 칸(2026-09-30 보조 콘텐츠 통합): 장비 그리드 왼쪽 위의 코어 칸, 장비 그림 위의 소켓, 소켓 대화 상자.
    코어는 2026-10-10부터 가방에 들어가고 이 칸에 낀다. 코어 아이콘은 16도트 원본(scripts/build-core-icons.cjs)을 정수배로 키운다. */
 @layer features {
   .paperdoll .slot-코어 { grid-column: 1; grid-row: 1; }
@@ -9,11 +9,34 @@
     image-rendering: pixelated;
   }
 
-  /* 장착 장비 칸의 소켓 표시(찬 칸 · 빈 칸) */
+  /* 장비 그림 위의 소켓(js/equipment-sockets-ui.js badgesHtml): 그림 오른쪽 아래에 뚫린 구멍. 도트 스킨이 모서리를 각지게 하므로
+     둥근 구멍은 border-radius가 아니라 방사형 그러데이션으로 그린다(바깥 모서리는 투명). 테두리 색이 소켓 종류다. */
   .equipment-slot-head { justify-content: space-between; }
-  .equipment-socket-pips { display: inline-flex; gap: 2px; }
-  .equipment-socket-pips i { width: 6px; height: 6px; transform: rotate(45deg); border: 1px solid #7fa7c9; background: transparent; }
-  .equipment-socket-pips i.is-filled { background: #8fd3ff; border-color: #cfeaff; }
+  .item-sockets { position: absolute; right: 2px; bottom: 2px; z-index: 3; display: flex; gap: 2px; }
+  .item-socket { --rim: #9a7ae2; display: grid; place-items: center; width: 18px; height: 18px; cursor: pointer;
+    background: radial-gradient(circle closest-side, #06040b 0 50%, color-mix(in srgb, var(--rim) 40%, #06040b) 51% 68%,
+      var(--rim) 69% 86%, #050403 87% 100%, transparent 101%); }
+  .item-socket.is-corrupt { --rim: #e0703c; }
+  .item-socket.is-abyss { --rim: #52c2b8; }
+  /* 수확물 소켓: 풍작의 갑주는 종류 색 테두리, 장신구 고유의 공허 소켓은 보라 테두리 안쪽에 그 종류의 빛 */
+  .item-socket.takes-flower { --takes: #e88db4; }
+  .item-socket.takes-fruit { --takes: #dd5b45; }
+  .item-socket.takes-vine { --takes: #7cc9a0; }
+  .item-socket.takes-root { --takes: #d0a070; }
+  .item-socket.is-harvest { --rim: var(--takes); }
+  .item-socket.is-void:is(.takes-flower, .takes-fruit, .takes-vine, .takes-root):not(.is-filled) {
+    background: radial-gradient(circle closest-side, color-mix(in srgb, var(--takes) 45%, #06040b) 0 28%, #06040b 29% 50%,
+      color-mix(in srgb, var(--rim) 40%, #06040b) 51% 68%, var(--rim) 69% 86%, #050403 87% 100%, transparent 101%); }
+  .socket-row.takes-harvest .socket-row-label { color: #f0c27a; }
+  .socket-harvest-name { color: #f0d9a4; }
+  .tooltip-socket-line.is-harvest { color: #f0c27a; }
+  .item-socket.is-fused { --rim: #e6c46e; cursor: default; }
+  .item-socket img { width: 12px; height: 12px; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+  .item-socket:hover { filter: brightness(1.35) drop-shadow(0 0 2px var(--rim)); }
+  /* 주얼을 들고 있는 동안 빈 소켓이 깜박이고, 들고 있는 주얼 밑의 소켓은 밝게 빛난다. */
+  body.is-jewel-carry .item-socket:not(.is-filled, .is-harvest) { animation: item-socket-call .8s steps(4) infinite alternate; }
+  .item-sockets.is-socket-drop .item-socket:not(.is-filled, .is-harvest) { animation: none; filter: brightness(1.9) drop-shadow(0 0 4px #fff3d0); }
+  @keyframes item-socket-call { to { filter: brightness(1.7) drop-shadow(0 0 3px var(--rim)); } }
   .tooltip-socket-line { color: #9fd6ff; }
   .tooltip-socket-line.is-empty { color: var(--px-copy-muted, #a39883); }
 

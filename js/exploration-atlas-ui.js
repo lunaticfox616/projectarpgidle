@@ -147,7 +147,7 @@ const explorationAtlasUi = (() => {
         if (route === 'map-explore-labyrinth') return {status:`최고 입장 ${game.labyrinthUnlockedMaxFloor}층`};
         if (route === 'map-tab-chaos-realm') return {status:`최고 입장 ${game.chaosRealm.highestFloor}층`};
         if (route === 'map-explore-chaos') return {status:chaosDepthLine()};
-        if (route === 'map-explore-meteor') return {status:game.meteorSite.skyRiftReady ? '하늘의 균열 충전 완료' : `하늘의 균열 ${Math.min(100,Math.floor(game.meteorSite.skyRiftGauge))}%`};
+        if (route === 'map-explore-meteor') return {status:game.meteorSite.skyRiftReady ? `하늘의 균열 충전 완료, ${getMeteorKind().name}` : `하늘의 균열 ${Math.min(100,Math.floor(game.meteorSite.skyRiftGauge))}%`};
         return {status:''};
     }
     /** This loop's deep chaos floor; nothing before the first one (every loop starts at 0). */

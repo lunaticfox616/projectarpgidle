@@ -286,8 +286,11 @@ const sideEncounterUi = (() => {
         const site = getZone(METEOR_FALL_ZONE_ID);
         const reward = `희귀 이상 장비 ${site.rewardEquipmentCount}개 확정, 운석 고유 장비(낮은 확률). 가방이 차도 보상은 보관됩니다`;
         const escort = site.tier >= 40 ? '정예 호위 2기' : site.tier >= 20 ? '정예 호위 1기' : '보스 단독';
+        const kind = getMeteorKind();
+        const kindText = kind ? `<span class="meteor-kind is-${kind.id}">${kind.name}</span> (${kind.element})` : '충전 완료 시 정해짐';
         return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${active?'운석 원정 진행 중':ready?'원정 준비 완료':`하늘의 균열 충전 ${percent}%`}</strong>${power}</div>
-            <dl><div><dt>주요 전리품</dt><dd>${reward}</dd></div>
+            <dl><div><dt>운석</dt><dd>${kindText}</dd></div>
+            <div><dt>주요 전리품</dt><dd>${reward}</dd></div>
             <div><dt>난이도</dt><dd>티어 ${site.tier}<small>충전 중 기록한 최저 티어 기준</small></dd></div>
             <div><dt>전투 방식</dt><dd>파편 무리 → 별철 관통 사수 → 운석 핵(${escort}). 핵 체력 절반부터 연속 예고 공격</dd></div></dl>
             <div class="map-expedition-actions">${active?'<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>':

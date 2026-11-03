@@ -115,11 +115,12 @@
         const ids = ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
         const zones = ids.map(id => SEASON_BOSS_ZONES.find(zone => zone.id === id)).filter(Boolean);
         const cleared = new Set(Array.isArray(g.clearedRootBosses) ? g.clearedRootBosses : []);
-        const completeCount = zones.filter(zone => cleared.has(zone.id)).length;
         const next = zones.find(zone => !cleared.has(zone.id));
-        if (!next) return { complete: true, completeCount, total: zones.length };
-        const gate = getSeasonBossProgressGate(next, g);
-        return { complete: false, completeCount, total: zones.length, next, gate };
+        if (!next) return { complete: true };
+        // 최종 관문의 조건인 네 수호자(아스트라 포함)를 센다. 셋만 세어 3/3 옆에 관문 조건 3/4가 함께 보였다.
+        const guardians = (zones.find(zone => zone.pinnacleCapstone) || {}).requiresPinnacles || [];
+        const guardiansCleared = guardians.filter(id => cleared.has(id)).length;
+        return { complete: false, next, gate: getSeasonBossProgressGate(next, g), guardiansCleared, guardianTotal: guardians.length };
     }
 
     function getPinnacleJourneySubtab(journey, g) {
@@ -133,6 +134,8 @@
 
     // ── 규칙 레지스트리 ─────────────────────────────────────────────────
     // priority가 큰 규칙부터 검사해, matches가 참인 첫 규칙의 build 결과를 주 목표로 쓴다.
+    // 목표 글(2026-11-03 사용자): 문장 대신 짧은 이름. 지금 할 수 있으면 "~ 장착", "~ 선택", "~ 사용", 이뤄야 하면 "~ 돌파", "~ 도달", "~ 처치".
+    // 설명은 꼭 필요할 때만 한 줄로 둔다.
     const GOAL_RULES = [
         {
             id: 'first-skill-choice',
@@ -143,26 +146,9 @@
             },
             build(g) {
                 return buildTabAction({
-                    id: 'first-skill-choice', type: 'progression', categoryLabel: '첫 빌드 선택',
-                    title: `${g.starterGemTutorialPending} 룬을 장착해 보세요`,
-                    description: '기본 공격과 범위/발동 방식을 비교하세요. 장착하면 예상 능력치 변화도 표시됩니다.'
-                }, '스킬 비교하기', 'tab-skills');
-            }
-        },
-        {
-            id: 'recent-defeat-build',
-            priority: 800,
-            matches(g) {
-                if (!g.lastDeathLog || !g.unlocks || !g.unlocks.items) return false;
-                const age = getCombatTime() - g.lastDeathLog.at;
-                return age >= 0 && age < 60000;
-            },
-            build(g) {
-                return buildTabAction({
-                    id: 'recent-defeat-build', type: 'progression', categoryLabel: '재도전 준비',
-                    title: '쓰러진 원인에 맞춰 장비를 비교하세요',
-                    description: `${g.lastDeathLog.reasonText} 장비 화면의 방어 분석과 최근 사망 기록을 확인한 뒤 재도전하세요.`
-                }, '장비 비교하기', 'tab-items');
+                    id: 'first-skill-choice', type: 'progression', categoryLabel: '첫 룬',
+                    title: `${g.starterGemTutorialPending} 룬 장착`
+                }, '룬 비교하기', 'tab-skills');
             }
         },
         {
@@ -178,8 +164,7 @@
                         id: 'pending-hero-select',
                         type: 'blocking',
                         categoryLabel: '필수 선택',
-                        title: '새 루프 직업을 선택하세요',
-                        description: '직업을 선택해야 전투가 다시 시작됩니다.',
+                        title: '새 루프 직업 선택',
                         mandatory: true
                     };
                 }
@@ -187,8 +172,8 @@
                     id: 'pending-loop-advance',
                     type: 'blocking',
                     categoryLabel: '필수 선택',
-                    title: '다음 루프 진행을 결정하세요',
-                    description: '루프 조건을 달성했습니다. 진행하거나 이번 루프를 유지할 수 있습니다.',
+                    title: '다음 루프 진행 선택',
+                    description: '진행 또는 이번 루프 유지',
                     mandatory: true
                 };
                 return buildTabAction(goal, '루프 화면 열기', 'tab-season');
@@ -208,8 +193,8 @@
                     stage: `n${count}`,
                     type: 'claim',
                     categoryLabel: '보상',
-                    title: '남은 보상',
-                    description: `선택 가능한 보상 ${count}개`,
+                    title: '액트 보상 선택',
+                    description: `남은 보상 ${count}개`,
                     mandatory: true
                 };
                 // 보상 선택 카드는 탐험 > 나무(사냥터) 화면의 액트 목록에 붙는다.
@@ -232,17 +217,15 @@
                 let zone = (typeof getZone === 'function') ? getZone(frontier) : null;
                 if (!zone || !zone.name) return null;
                 let act = (typeof getStoryActByZoneId === 'function') ? getStoryActByZoneId(frontier) : null;
-                let title = act && act.bossName
-                    ? `${zone.name}의 보스 ${withObjectParticle(act.bossName)} 처치하세요`
-                    : `${withObjectParticle(zone.name)} 돌파하세요`;
+                let title = act && act.bossName ? `${zone.name}의 보스 ${act.bossName} 처치` : `${zone.name} 돌파`;
                 let onFrontier = clampCount(g.currentZoneId) === frontier && Number(g.currentZoneId) === frontier;
                 let goal = {
                     id: `story-zone-${frontier}`,
                     type: 'progression',
                     iconKind: 'attack',
-                    categoryLabel: '스토리',
+                    categoryLabel: '이야기',
                     title,
-                    description: onFrontier ? '' : '지도에서 최전선 지역으로 이동해 진행하세요.'
+                    description: onFrontier ? '' : `지도에서 ${zone.name} 선택`
                 };
                 if (onFrontier) {
                     goal.current = Math.max(0, Math.min(100, Math.floor(Number(g.runProgress) || 0)));
@@ -251,7 +234,7 @@
                     // 진행 상태는 바로만 보여 주고, 목표 카드의 중복 수치 문구는 생략한다.
                     goal.progressText = '';
                 }
-                return buildTabAction(goal, '사냥터 열기', 'tab-map', 'map-explore-hunting');
+                return buildTabAction(goal, '지도 열기', 'tab-map', 'map-explore-hunting');
             }
         },
         {
@@ -265,16 +248,15 @@
                 const journey = getCosmosJourney(g);
                 if (journey.stage === 'unlock') {
                     return buildTabAction({
-                        id: 'cosmos-unlock-underworld', type: 'progression', categoryLabel: '엔드게임',
-                        title: '지하계 30층에서 우주계를 여세요',
-                        description: '나무꾼 이후의 주 진행은 지하계 하강입니다. 지하석과 방어 장비를 모으며 30층 관문에 도달하세요.',
+                        id: 'cosmos-unlock-underworld', type: 'progression', categoryLabel: '지하계',
+                        title: '지하계 30층을 돌파하여 우주계 해금',
                         current: journey.highestFloor, target: 30, progressText: `현재 최고 ${journey.highestFloor}층`
                     }, '지하계 열기', 'tab-map', 'map-tab-underworld');
                 }
                 return buildTabAction({
                     id: `cosmos-galaxy-${journey.nextGalaxy}`, type: 'progression', categoryLabel: '우주계',
-                    title: `G${journey.nextGalaxy} 은하를 개척하세요`,
-                    description: '연결된 노드 15개를 안정화하고 은하 보스를 격파하면 다음 은하와 우주석이 열립니다.'
+                    title: `G${journey.nextGalaxy} 은하 보스 처치`,
+                    description: `별길 ${COSMOS_ROUTE_G1.requiredClears}개 안정화 후 도전`
                 }, '우주계 열기', 'tab-map', 'map-tab-cosmos');
             }
         },
@@ -298,8 +280,8 @@
                         stage: `season-${season}`,
                         type: 'progression',
                         categoryLabel: '루프',
-                        title: '루프 진행 조건을 달성했습니다',
-                        description: '전투 화면의 루프 진행 버튼으로 다음 루프를 시작할 수 있습니다.'
+                        title: '다음 루프 진행',
+                        mandatory: true
                     };
                     return buildTabAction(goal, '루프 화면 열기', 'tab-season');
                 }
@@ -310,13 +292,12 @@
                     stage: `season-${season}`,
                     type: 'progression',
                     categoryLabel: '루프 조건',
-                    title: `${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap}층을 돌파하세요`,
-                    description: '이번 루프를 진행하기 위한 필수 조건입니다.',
+                    title: `${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap}층 돌파`,
                     current: best,
                     target: cap,
                     progressText: `현재 최고 ${best}층`
                 };
-                return buildTabAction(goal, '혼돈 지도 열기', 'tab-map', CHAOS_EXPLORE_SUBTAB);
+                return buildTabAction(goal, '혼돈 열기', 'tab-map', CHAOS_EXPLORE_SUBTAB);
             }
         },
         {
@@ -336,13 +317,12 @@
                     id: `endless-chaos-${target}`,
                     type: 'record',
                     categoryLabel: '기록 갱신',
-                    title: `혼돈 심화 ${target}층에 도달하세요`,
-                    description: '더 깊은 심화층은 더 좋은 보상과 해금으로 이어집니다.',
+                    title: `혼돈 심화 ${target}층 도달`,
                     current: best,
                     target,
                     progressText: `현재 최고 ${best}층`
                 };
-                return buildTabAction(goal, '혼돈 심화 열기', 'tab-map', CHAOS_EXPLORE_SUBTAB);
+                return buildTabAction(goal, '혼돈 열기', 'tab-map', CHAOS_EXPLORE_SUBTAB);
             }
         },
         {
@@ -356,10 +336,9 @@
                 return buildTabAction({
                     id: 'journal-unread',
                     type: 'discovery',
-                    categoryLabel: '새 기록',
-                    title: '새로 해금된 저널을 확인하세요',
-                    description: '세계의 단서와 이번에 활성화된 영구 효과를 확인할 수 있습니다.'
-                }, '저널 열기', 'tab-journal');
+                    categoryLabel: '저널',
+                    title: '새 이야기 저널 확인'
+                }, '이야기 저널 열기', 'tab-journal');
             }
         }
     ].sort((a, b) => b.priority - a.priority);
@@ -372,14 +351,14 @@
             matches(g, primary) {
                 return primary !== 'journal-unread' && !!(g.noti && g.noti.journal);
             },
-            build() { return buildNotice('새로운 저널 기록이 해금되었습니다', 'tab-journal'); }
+            build() { return buildNotice('새 이야기 저널 확인', 'tab-journal'); }
         },
         {
             id: 'act-reward-notice',
             matches(g, primary) {
                 return primary !== 'claim-act-reward' && getAvailableActRewardZoneIds(g).length > 0;
             },
-            build(g) { return buildNotice(`선택하지 않은 액트 보상 ${getAvailableActRewardZoneIds(g).length}개`, 'tab-map', 'map-explore-hunting'); }
+            build(g) { return buildNotice(`액트 보상 ${getAvailableActRewardZoneIds(g).length}개 선택`, 'tab-map', 'map-explore-hunting'); }
         },
         {
             id: 'cosmos-journey-notice',
@@ -391,9 +370,9 @@
             build(g) {
                 let journey = getCosmosJourney(g);
                 if (journey.stage === 'unlock') {
-                    return buildNotice(`우주계 개방 목표, 지하계 ${journey.highestFloor}/30층`, 'tab-map', 'map-tab-underworld');
+                    return buildNotice(`지하계 30층을 돌파하여 우주계 해금 (현재 ${journey.highestFloor}층)`, 'tab-map', 'map-tab-underworld');
                 }
-                return buildNotice(`우주계 진행 목표, ${journey.nextGalaxy}은하 관문`, 'tab-map', 'map-tab-cosmos');
+                return buildNotice(`G${journey.nextGalaxy} 은하 보스 처치`, 'tab-map', 'map-tab-cosmos');
             }
         },
         {
@@ -403,9 +382,9 @@
             },
             build(g) {
                 let progress = getAstraProgress(g);
-                if (progress.canChallenge) return buildNotice('잔향체 아스트라 도전 가능', 'tab-map', 'map-explore-root-boss');
-                if (progress.ready) return buildNotice('아스트라 조건 완료, 표식: 잔향 필요', 'tab-map', 'map-tab-cosmos');
-                return buildNotice(`아스트라 은하 보스 ${progress.clearedCount}/${progress.total}`, 'tab-map', 'map-tab-cosmos');
+                if (progress.canChallenge) return buildNotice('잔향체 아스트라 도전', 'tab-map', 'map-explore-root-boss');
+                if (progress.ready) return buildNotice('아스트라 도전권(표식: 잔향) 획득', 'tab-map', 'map-tab-cosmos');
+                return buildNotice(`아스트라 조건, 은하 보스 ${progress.clearedCount}/${progress.total} 처치`, 'tab-map', 'map-tab-cosmos');
             }
         },
         {
@@ -416,25 +395,26 @@
             },
             build(g) {
                 let journey = getPinnacleJourney(g);
-                let progress = journey.next.pinnacleCapstone ? '최종 관문, 베일라' : `최종 관문으로, 수호자 격파 ${journey.completeCount}/3`;
-                let detail = journey.gate.met ? `${journey.next.name} 도전 가능` : journey.gate.label;
-                return buildNotice(`${progress}, ${detail}`, 'tab-map', getPinnacleJourneySubtab(journey, g));
+                let next = journey.next, text = journey.gate.met ? `${next.name} 도전` : `${next.name}, ${journey.gate.label}`;
+                // 최종 관문의 조건 줄(gate.label)이 이미 수호자 수를 세므로 관문 앞에서만 붙인다.
+                if (!next.pinnacleCapstone) text += ` (수호자 격파 ${journey.guardiansCleared}/${journey.guardianTotal})`;
+                return buildNotice(text, 'tab-map', getPinnacleJourneySubtab(journey, g));
             }
         },
         {
             id: 'passive-points',
             matches(g) { return clampCount(g.passivePoints) > 0 && !!(g.unlocks && g.unlocks.char); },
-            build(g) { return buildNotice(`남은 스킬트리 포인트 ${clampCount(g.passivePoints)}`, 'tab-char'); }
+            build(g) { return buildNotice(`스킬트리 포인트 ${clampCount(g.passivePoints)} 사용`, 'tab-char'); }
         },
         {
             id: 'equippable-equipment',
             matches(g) { return !!(g.unlocks && g.unlocks.items) && hasEquippableInventoryItem(g); },
-            build() { return buildNotice('빈 장비칸에 장착 가능한 장비가 있습니다', 'tab-items', 'item-tab-equip'); }
+            build() { return buildNotice('빈 장비 칸에 장비 장착', 'tab-items', 'item-tab-equip'); }
         },
         {
             id: 'gem-upgrade',
             matches(g) { return !!(g.unlocks && g.unlocks.skills) && hasAffordableGemUpgrade(g); },
-            build() { return buildNotice('강화 가능한 스킬룬이 있습니다', 'tab-skills', 'skill-tab-enhance'); }
+            build() { return buildNotice('룬 강화', 'tab-skills', 'skill-tab-enhance'); }
         },
         {
             id: 'season-points',
@@ -442,7 +422,7 @@
                 return clampCount(g.seasonPoints) > 0 && !!(g.unlocks && g.unlocks.season)
                     && (typeof hasSpendableSeasonPoint !== 'function' || hasSpendableSeasonPoint());
             },
-            build(g) { return buildNotice(`사용하지 않은 루프 포인트 ${clampCount(g.seasonPoints)}`, 'tab-season'); }
+            build(g) { return buildNotice(`루프 포인트 ${clampCount(g.seasonPoints)} 사용`, 'tab-season'); }
         },
         {
             id: 'cosmos-alt-path',
@@ -451,7 +431,7 @@
                 if (typeof getAvailableLoopAdvancePaths !== 'function') return false;
                 return getAvailableLoopAdvancePaths(Math.max(1, Math.floor(Number(g.season) || 1))).includes('cosmos');
             },
-            build() { return buildNotice('우주계 경로로도 루프 진행 가능', 'tab-map', 'map-tab-cosmos'); }
+            build() { return buildNotice('우주계 경로로도 루프 진행', 'tab-map', 'map-tab-cosmos'); }
         },
         {
             id: 'inventory-near-full',
@@ -463,7 +443,7 @@
             build(g) {
                 let used = getInventoryUsedCellCount(g);
                 let limit = Math.floor(getInventoryLimit(g));
-                return buildNotice(`인벤토리 ${used}/${limit}칸, 장비 분석으로 추천 교체 후 자동 해체를 설정하세요`, 'tab-items', 'item-tab-equip');
+                return buildNotice(`가방 ${used}/${limit}칸, 자동 해체 설정`, 'tab-items', 'item-tab-equip');
             }
         }
     ];

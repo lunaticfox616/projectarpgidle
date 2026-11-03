@@ -75,8 +75,8 @@ const actExplorationUi=(()=>{
         auto.setAttribute('aria-pressed',String(on));
         auto.disabled=run.status!=='active';
         auto.classList.toggle('is-locked',locked);
-        // 글자가 지금 상태를 말한다(예전 '자동 / 수동'은 누르면 바뀔 상태인지 헷갈렸다 — 가시성 정리 2026-10-04).
-        auto.querySelector('b').textContent=locked?'자동 잠김':on?'자동 켬':'자동 끔';
+        // 켜짐과 꺼짐은 단추 앞의 초록 점이 말한다(css/act-exploration.css, 2026-11-03 사용자: 켬/끔 글자는 빼기). 잠김만 글자로 남긴다.
+        auto.querySelector('b').textContent=locked?'자동 잠김':'자동';
         auto.setAttribute('aria-label',(on?'자동 이동 켜짐':'자동 이동 꺼짐(클릭한 곳으로만 이동)')+', 눌러서 바꾸기'+(key?' ('+key+')':''));
         const cap=auto.querySelector('.combat-hud-key');
         cap.textContent=key;cap.hidden=!key;

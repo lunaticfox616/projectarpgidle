@@ -70,7 +70,6 @@
 :root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-head > span:first-child { position: absolute; left: 15px; top: 1px; color: #d9cdb4;
   font-size: var(--font-size-ui); line-height: 14px; text-shadow: 1px 1px 0 #000, 0 0 3px #000; }
 :root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot.equipment-slot-empty .equipment-slot-head > span:first-child { left: 4px; color: var(--eqw-muted); }
-:root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-socket-pips { position: absolute; top: 3px; right: 3px; }
 :root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-requirement-badge { grid-area: 1 / 1; position: static; align-self: end; justify-self: end; z-index: 3; margin: 0 2px 1px 0; }
 :root body :is(#item-tab-equip, #stump-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-name { grid-area: 2 / 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 0 0 3px;
   justify-self: start; width: fit-content; max-width: 100%; position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px);

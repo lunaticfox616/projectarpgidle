@@ -214,7 +214,7 @@ const atlasRun = (() => {
         const rewards = atlasEncounters.rewards(zone, room, game.atlas.run.bonus, Math.random);
         for (const [key, amount] of rewards) awardEnemyLootCurrency(key, amount);
         if (Math.random() < ATLAS.encounters[room].mapChance) maps.push(...atlas.extraMap(game));
-        // 묘목장(12번 루프 39): 그 지역 색의 씨앗이나 수액(그루터기 함 보관함으로, 소식은 그 함이 알린다). 묘목장 보상 패시브와
+        // 묘목장(12번 루프 39): 그 지역 색의 씨앗(그루터기 함 보관함으로, 소식은 그 함이 알린다). 묘목장 보상 패시브와
         // 황금 방이 하나씩 더 준다(js/atlas-encounters.js nurseryGifts).
         if (room === 'nursery' && typeof stumpNursery === 'object') giveNurseryGifts(zone);
         return rewards;

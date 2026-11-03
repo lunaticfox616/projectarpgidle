@@ -75,7 +75,12 @@ const memoryDungeon = (() => {
         const chance = tier > 1 ? M.ladder[tier - 2] : (M.ticketDrop[node.kind] || 0) * memoryDropMul(bonus);
         return random() < chance && give(state, node.id, tier) ? { node: node.id, name: node.boss, tier } : null;
     }
-    const ownUnique = node => (atlasEndgame.def(node.id) || {}).unique || null;
+    /** The boss's own unique: one of them when random is given (a boss may have two, data/atlas-endgame.js), else their names for show. */
+    function ownUnique(node, random = null) {
+        const list = [].concat((atlasEndgame.def(node.id) || {}).unique || []);
+        if (!list.length) return null;
+        return random ? list[Math.floor(random() * list.length)] : list.join(' 또는 ');
+    }
     /** Shared reward expectations for settlement and the pre-entry preview; deriving them never rolls entropy. */
     function rewardExpectations(tier, mapTierValue) {
         const scale = Math.max(M.rewardScale.min, Math.min(M.rewardScale.max, mapTierValue / M.rewardTier));
@@ -90,7 +95,7 @@ const memoryDungeon = (() => {
     }
     /** A won memory fight: its spoils (currency by tier, a unique by chance, a rare piece from gearFrom) and the best tier record. */
     function spoils(state, node, tier, random) {
-        const own = ownUnique(node), book = ledger(state), best = (book.best[node.id] || 0) < tier;
+        const own = ownUnique(node, random), book = ledger(state), best = (book.best[node.id] || 0) < tier;
         if (best) book.best[node.id] = tier;
         const unique = random() < M.uniqueChance[own ? 'own' : 'other'][tier - 1] ? (own || 'any') : null;
         return { tier, rewards: rolledRewards(state, tier, mapTier(state, node, tier), random), unique, gear: tier >= M.gearFrom, best };

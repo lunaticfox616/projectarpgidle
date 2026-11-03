@@ -40,11 +40,11 @@ const stumpCubeUi = (() => {
         return rows.length ? rows.join(', ') : '비용 없음';
     }
 
-    // 조합법 글의 색(2026-10-25 사용자 "조합법에도 색감 좀 넣어줘"): 희귀도는 그 등급 색, 재료 종류(장비, 씨앗, 꽃, 열매, 수액, 호박석,
-    // 부적, 주얼, 코어)는 제 색, 화염 · 냉기 · 번개 · 카오스는 그루터기 함의 색, 수치는 조금 밝게. 나머지 글은 그대로 둔다.
+    // 조합법 글의 색(2026-10-25 사용자 "조합법에도 색감 좀 넣어줘"): 희귀도는 그 등급 색, 재료 종류(장비, 씨앗, 꽃, 열매, 덩굴, 뿌리,
+    // 부적, 주얼, 코어)는 제 색, 물리 · 화염 · 냉기 · 번개 · 카오스는 그루터기 함의 색, 수치는 조금 밝게. 나머지 글은 그대로 둔다.
     const GROUP_TONES = Object.freeze({ 장비: '#e6c67f', 그루터기: '#9fd46a', 부적: '#c9a0f0', 주얼: '#7fd6cf', 코어: '#f0a35a' });
     const KIND_TONES = Object.freeze([['장신구', '#e6c67f'], ['장비', '#e6c67f'], ['씨앗', '#9fd46a'], ['꽃', '#f0a8c8'], ['열매', '#e8955a'],
-        ['호박석', '#f0c060'], ['수액', '#e0b04a'], ['부적', '#c9a0f0'], ['주얼', '#7fd6cf'], ['코어', '#f0a35a'], ['기폭제', '#f3d28c'], ['기름', '#f3d28c']]);
+        ['덩굴', '#7cc9a0'], ['뿌리', '#d0a070'], ['부적', '#c9a0f0'], ['주얼', '#7fd6cf'], ['코어', '#f0a35a'], ['기폭제', '#f3d28c'], ['기름', '#f3d28c']]);
     let recipeTone = null;
     function recipeTones() {
         if (recipeTone) return recipeTone;
@@ -119,12 +119,11 @@ const stumpCubeUi = (() => {
         return (rule.same || []).includes(key) ? picked[0]?.item[key] : undefined;
     }
 
+    /** '꽃/열매', '뿌리', '성장 완료 씨앗' for a grown row, '씨앗류' for growing seeds (their kind is not known yet). */
     function missingFamilyLabel(family, ripe, path) {
-        if (family === 'sap') return ripe ? '호박석' : '수액류';
         if (family !== 'seed') return family === 'talisman' ? '부적' : '흉터';
-        const label = path ? STUMP_BOX_STAGES[path].label : '';
-        if (ripe) return label || '성장 완료 씨앗';
-        return `${label ? label + ' ' : ''}씨앗류`;
+        const label = [].concat(path || []).map(kind => STUMP_BOX_STAGES[kind].label).join('/');
+        return ripe ? label || '성장 완료 씨앗' : '씨앗류';
     }
 
     /** Describe the missing row using the same-kind/colour/name already placed, without revealing any hidden recipe. */
@@ -164,7 +163,7 @@ const stumpCubeUi = (() => {
         return Object.keys(recipe.cost || {}).length ? bookLineHtml('비용', bookCostHtml(recipe.cost)) : '';
     }
     const bookLineHtml = (label, html) => `<span class="stump-book-line"><b>${label}</b><span>${keepBracketsHtml(html)}</span></span>`;
-    /** A short bracket ("(꽃 씨앗, 열매 씨앗, 수액)") moves to the next line whole instead of breaking inside (2026-10-29 사용자: 설명 도중에
+    /** A short bracket ("(꽃, 열매, 덩굴, 뿌리 소켓)") moves to the next line whole instead of breaking inside (2026-10-29 사용자: 설명 도중에
      * 줄 바뀌는 부분은 미리 줄바꾸기). Long ones still wrap. The html holds only tone spans, which carry no brackets. */
     function keepBracketsHtml(html) {
         return html.replace(/\([^()]*\)/g, part => (part.replace(/<[^>]+>/g, '').length <= 18 ? `<span class="stump-book-keep">${part}</span>` : part));

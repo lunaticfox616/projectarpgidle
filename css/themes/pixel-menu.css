@@ -613,6 +613,23 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
     background: var(--px-button-art) center / 30px 30px no-repeat;
     image-rendering: auto;
   }
+  /* 아래 바의 이름은 짧은 이름(data-caption, js/tab-layout-ui.js caption): 칸이 다섯 넘게 서면서 "루프 패시브", "그루터기 함"이 옆 칸과 겹쳤다.
+     단추 글자는 크기 0으로 접고 짧은 이름을 아이콘 아래에 쓴다. */
+  /* 접은 글자의 줄 높이도 0(전: 12px 빈 줄이 아이콘과 이름을 위로 밀어 전체 단추만 가운데에 보였다) */
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn[data-caption] { font-size: 0; line-height: 0; }
+  :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn[data-caption]::before {
+    content: attr(data-caption);
+    position: static;
+    /* components/tabs.css가 아래 바 단추의 ::before를 display:none !important로 끈다(옛 이모지 아이콘) — 이 이름만 되살린다 */
+    display: block !important;
+    width: auto;
+    height: auto;
+    margin: 0;
+    background: none;
+    font-size: 12px;
+    line-height: 12px;
+    white-space: nowrap;
+  }
   /* 아직 잠긴 지도 칸: 열리면 들어갈 자리를 미리 지키는 흐린 칸(js/ui.js syncTabUnlockButton) */
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn.nav-locked { color: #6c6258; }
   :root body[data-ui-skin].mobile-primary-navigation #tab-header-bottom > .tab-btn.nav-locked::after { filter: grayscale(1) brightness(.5); }

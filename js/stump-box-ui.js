@@ -5,7 +5,8 @@
 // 부적(색 없는 세 번째 계열)의 설명 · 합계 · 봉인 풀기 조각은 js/stump-talisman-ui.js가, 5×5 조합창은 js/stump-cube-ui.js가 준다.
 // 틀(2026-10-28 디렉터 전달본, scripts/build-stump-frames.cjs): 다크 목재 틀은 판, 상아색 틀은 조합창이다. 틀의 버튼 넷(2026-10-29 사용자):
 // 위 생명의 나무는 판과 조합창을 바꾸고, 왼쪽 보석은 오른쪽 열을 보관함과 장비 창의 인벤토리로 바꾸고, 오른쪽 보석은 판과 조합창을 함께
-// 비우고, 아래 보석은 조합창이면 조합, 판이면 보관함의 씨앗과 수액을 바로 합친다. 올리거나 누르면 그 버튼 조각만 바뀌고 틀은 그대로다. 옵션 합계와 아래 탭(수확 일지, 함 해금, 부적)은 접혀 있다가 누르면 펼친다: 기본 화면에
+// 비우고, 아래 보석은 생육함과 오간다. 틀 아래 [조합하기]는 조합창에만 있고, 같은 색 씨앗을 모두 합치는 [자동합성]은 보관함 위
+// 일괄 거름 사용 옆에 있다(2026-11-04 사용자). 올리거나 누르면 그 버튼 조각만 바뀌고 틀은 그대로다. 옵션 합계와 아래 탭(수확 일지, 함 해금, 부적)은 접혀 있다가 누르면 펼친다: 기본 화면에
 // 스크롤이 생기지 않게(사용자). 보관함은 100칸씩 쪽으로 나눈다.
 // 접붙이기(루프 18부터): 판의 칸(빈 칸도 누르면 고른다)을 골라 [접붙이기]로 단계를 올린다. 단계는 칸 왼쪽 위 숫자로 보인다.
 // 수확 일지, 줄 선물, 함 해금 목록과 그 알림은 js/stump-harvest-ui.js가 준다(2026-10-07 해금 1차).
@@ -121,20 +122,32 @@ const stumpBoxUi = (() => {
     }
     /** The cell's place on the board grid: the odd tracks are the frame's holes, the even ones its bars (css/stump-box.css). */
     const stumpCellPlace = cell => `grid-column:${cell % STUMP_BOX_SIZE * 2 + 1};grid-row:${Math.floor(cell / STUMP_BOX_SIZE) * 2 + 1}`;
-    /** What each frame button does now, as its name (aria-label and tooltip). */
+    /** The three frames by name, each in its own colour wherever a button names it (2026-11-03 사용자: 색깔로 강조): the board's amber wood,
+     * the cube's teal (its ivory art read as plain tooltip text), the nursery's green. */
+    const FRAME_NAME_TONES = Object.freeze({ '그루터기 함': '#e8a95a', '조합창': '#6fd0e6', '생육함': '#8fd17a' });
+    /** What each frame button does now: its name (aria-label) and the part of it that names a frame (coloured in the tooltip). */
     function frameButtonLabels() {
         const box = frameView === 'box', cube = frameView === 'cube';
-        return { top: `${box ? '조합창' : '그루터기 함'}으로 바꾸기`, left: rightView === 'bag' ? '그루터기 보관함 보기' : '장비 인벤토리 보기',
-            right: cube ? '조합창 비우기' : box ? '그루터기 함 비우기' : '생육함 비우기', bottom: onNursery() ? '그루터기 함으로 바꾸기' : canEnterNursery() ? '생육함으로 바꾸기' : '생육함 (해금 필요)' };
+        const turn = (frame, rest = '') => ({ frame, text: `${frame}으로 전환${rest}` }), here = cube ? '조합창' : box ? '그루터기 함' : '생육함';
+        return { top: turn(box ? '조합창' : '그루터기 함'), left: { text: rightView === 'bag' ? '그루터기 보관함 보기' : '장비 인벤토리 보기' },
+            right: { frame: here, text: `${here} 비우기` },
+            bottom: onNursery() ? turn('그루터기 함') : turn('생육함', canEnterNursery() ? '' : ' (해금 필요)') };
     }
     /** Open, or left holding items after losing the unlock: they must stay reachable. */
     const canEnterNursery = () => stumpBox.nurseryOpen(game) || game.stumpBox.nursery.some(id => id !== null);
     /** The frame art (dark holds the board, ivory the cube, green the nursery) and its four buttons, in the art's own 256px canvas. */
     function stumpFrameHtml() {
         const buttons = Object.entries(frameButtonLabels()).map(([side, label]) => `<button type="button" class="stump-frame-button is-${side}"`
-            + ` data-stump-action="frame-button" data-side="${side}" aria-label="${label}" data-tip="${label}"`
+            + ` data-stump-action="frame-button" data-side="${side}" aria-label="${label.text}" data-stump-tip="frame" data-info-tooltip-anchor="1"`
             + `${side === 'left' ? ` aria-pressed="${rightView === 'bag'}"` : ''}></button>`).join('');
         return `<div class="stump-frame">${buttons}</div>`;
+    }
+    /** A frame button's tooltip: the frame it turns to in that frame's colour. */
+    function frameTipHtml(side) {
+        const label = frameButtonLabels()[side];
+        if (!label) return '';
+        const named = label.frame ? `<span style="color:${FRAME_NAME_TONES[label.frame]}">${label.frame}</span>${escStump(label.text.slice(label.frame.length))}` : escStump(label.text);
+        return `<div class="tooltip-line plain-tip">${named}</div>`;
     }
     function stumpBoardHtml(result) {
         const cube = frameView === 'cube', shown = onNursery() ? NO_EFFECT : result;
@@ -143,7 +156,7 @@ const stumpBoxUi = (() => {
         return `<div class="stump-board is-${frameView}"${cube ? '' : ` role="grid" aria-label="${onNursery() ? '생육함' : '그루터기 함'} 판"`}>`
             + `<div class="stump-board-grid">${grid}</div>${stumpFrameHtml()}</div>`
             + `<div class="stump-board-foot">${stumpCubeUi.bookButtonHtml()}`
-            + `<button type="button" class="stump-frame-action" data-stump-action="frame-action">${cube ? '조합하기' : '씨앗과 수액 합치기'}</button></div>`
+            + `${cube ? '<button type="button" class="stump-frame-action" data-stump-action="frame-action">조합하기</button>' : ''}</div>`
             + '<div id="stump-placement-preview" class="stump-placement-preview" role="status" aria-live="polite" hidden></div>';
     }
     // ── 틀의 버튼 넷 ───────────────────────────────────────
@@ -188,17 +201,24 @@ const stumpBoxUi = (() => {
         stumpCube.clear();
         commitStumpChange();
     }
-    /** The button under the frame on the board and the nursery: three stored seeds or saps alike merge now (stumpCube.mergeNow), the picked one among them when it can
-     * be. On a wide screen the new item is picked, so its floating detail shows what came out; up to 1080px that detail is a sheet over
-     * the box, so a toast says it instead. */
-    function mergeStumpNow() {
-        const result = stumpCube.mergeNow(game, selectedId);
+    /** 자동합성 above storage (2026-11-04 사용자): every set of three growing seeds of one colour in the storage filter merges after a
+     * confirmation that lists them (js/stump-ripening-ui.js confirmAutoMerge), checked again right before it runs. */
+    async function autoMergeStump() {
+        if (stateFilter !== 'all') return;
+        const filter = colorFilter, approval = await stumpRipeningUi.confirmAutoMerge(filter);
+        if (!approval) return;
+        if (stateFilter !== 'all' || colorFilter !== filter || !stumpRipeningUi.autoMergeCurrent(filter, approval)) {
+            notifyStump('대상이 바뀌었습니다. 확인 후 다시 눌러 주세요.');
+            renderStumpBoxTab(true);
+            return;
+        }
+        const result = stumpCube.autoMerge(game, filter);
         playUiFeedbackSound(result.ok ? 'craftSuccess' : 'craftFailure');
         if (!result.ok) return notifyStump(result.reason);
-        const made = `${result.recipe.name}: ${stumpBox.label(result.item)} 품질 ${Math.round(result.item.roll * 100)}%`;
-        addLog(`🧩 ${made}`, 'loot-rare');
-        if (uiDisplay.matches('(max-width: 1080px)')) notifyStump(made);
-        else { selectedId = result.item.id; selectedCell = null; }
+        const best = Math.max(...result.items.map(item => Math.round(item.roll * 100)));
+        addLog(`🧩 자동합성: 씨앗 ${result.items.length}개 (최고 품질 ${best}%)`, 'loot-rare');
+        notifyStump(`자동합성: 씨앗 ${result.items.length}개 (최고 품질 ${best}%)`);
+        if (selectedId !== null && !stumpBox.itemById(game, selectedId)) selectedId = null;
         commitStumpChange();
     }
     /** Left gem: the right column shows the stump storage or the equipment window's bag (drawn by updateStaticUI). */
@@ -283,13 +303,15 @@ const stumpBoxUi = (() => {
      * 성장 완료, 비활성화로 통일하고 "것" 같은 지칭은 쓰지 않는다). */
     function stumpRulesTipHtml() {
         const rules = ['그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.', `공명: 성장 완료된 같은 색 ${STUMP_BOX_RESONANCE.count}개 이상이면 그 색 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%`,
-            '비활성화: 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 비활성화됩니다.', '거름: 보관함의 씨앗이나 수액을 소모해 그루터기 함에서 성장 중인 그루터기 아이템의 경험치를 올립니다.',
+            '비활성화: 물리는 카오스를, 카오스는 냉기를, 냉기는 화염을, 화염은 번개를, 번개는 물리를 비활성화합니다.',
+            '상생: 화염은 물리, 카오스는 화염, 번개는 카오스, 냉기는 번개, 물리는 냉기가 옆에 있으면 비활성화되지 않습니다.',
+            '거름: 보관함의 씨앗을 소모해 그루터기 함에서 성장 중인 그루터기 아이템의 경험치를 올립니다.',
             stumpLoopRule()];
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%`);
         rules.push(...stumpRipeningUi.rulesLines());
         return '<div class="tooltip-title">그루터기 함</div><div class="stump-rules-tip">' + rules.map(stumpRuleLineHtml).join('') + '</div>';
     }
-    /** One rule in colour (2026-10-29 사용자: ? 도움말에 색감): the name before ':' in gold, stump words (화염, 씨앗, 수액, 호박석...) in their
+    /** One rule in colour (2026-10-29 사용자: ? 도움말에 색감): the name before ':' in gold, stump words (화염, 씨앗, 덩굴, 뿌리...) in their
      * own colours as in the recipe book, then the game's stat words and numbers (경험치, +25%) as everywhere else. */
     function stumpRuleLineHtml(rule) {
         const at = rule.indexOf(': '), head = at > 0 ? rule.slice(0, at) : '', body = at > 0 ? rule.slice(at + 2) : rule;
@@ -327,7 +349,8 @@ const stumpBoxUi = (() => {
         if (stumpBox.isMature(item)) return '';
         return `경험치 ${Math.floor(item.xp)} / ${stumpBox.need(item)}`;
     }
-    /** What a seed or sap gives: in its stat's colour while it works on the board, otherwise grey with (비활성). */
+    /** What a grown seed gives (nothing while it grows: its kind is not known yet): in its stat's colour while it works on the board,
+     * otherwise grey with (비활성). */
     function stumpYieldLine(item, result) {
         const gain = stumpBox.yieldOf(item);
         if (!gain) return null;
@@ -338,17 +361,17 @@ const stumpBoxUi = (() => {
     /** Only what changes the item's effect on the board: suppressed (red) or resonating. */
     function stumpStatus(item, result, cell) {
         if (cell < 0) return null;
-        if (result.suppressed.has(item.id)) return { text: `비활성화: ${STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label} 인접`, tone: 'is-bad' };
+        if (result.suppressed.has(item.id)) return { text: `비활성화: ${STUMP_BOX_COLORS[stumpBox.overcomerOf(item.color)].label} 인접`, tone: 'is-bad' };
         if (stumpBox.isMature(item) && result.resonant.has(item.color)) return { text: `공명 +${STUMP_BOX_RESONANCE.bonusPct}%`, tone: 'is-good' };
         return null;
     }
-    /** A stored seed or sap: compost (the button says the growth it gives) or throw it away; a grown one goes into currency instead. */
+    /** A stored seed: compost (the button says the growth it gives) or throw it away; a grown one goes into currency instead. */
     function stumpStoredSeedButtons(item) {
         const reason = stumpBox.compostReason(game, item.id), grown = stumpBox.isMature(item);
         return `<button type="button" data-stump-action="compost"${reason ? ' disabled' : ''}>거름 사용 (경험치 +${stumpBox.compostGrowth(item)})</button>`
             + `<button type="button" data-stump-action="${grown ? 'monetize' : 'discard'}"${item.locked ? ' disabled' : ''}>${grown ? '화폐화' : '버리기'}</button>`;
     }
-    /** In storage, a seed or sap goes as compost or away and a scar can be thrown away (talismans have their own buttons). */
+    /** In storage, a seed goes as compost or away and a scar can be thrown away (talismans have their own buttons). */
     function stumpStoredButton(item, cell) {
         if (cell >= 0) return '';
         if (item.family === 'scar') return `<button type="button" data-stump-action="scar-discard"${item.locked ? ' disabled' : ''}>버리기</button>`;
@@ -370,7 +393,7 @@ const stumpBoxUi = (() => {
         const growth = stumpGrowthText(item);
         return growth ? `<p class="stump-growth">${escStump(growth)}</p>${stumpBar(item, true)}` : '';
     }
-    /** A seed's or sap's yield, extra lines and status: p rows in the panel, div rows in the tooltip. */
+    /** A seed's yield, extra lines and status: p rows in the panel, div rows in the tooltip. */
     function stumpSeedRows(item, result, cell, tooltip) {
         const gain = stumpYieldLine(item, result), status = stumpStatus(item, result, cell), tag = tooltip ? 'div' : 'p';
         const yieldClass = tooltip ? 'tooltip-line stump-tip-yield' : 'stump-yield', statusClass = tooltip ? 'tooltip-line stump-tip-status' : 'stump-status';
@@ -394,7 +417,7 @@ const stumpBoxUi = (() => {
             + stumpGraftHtml(cell) + stumpRipeningUi.sealHtml(cell)
             + stumpActionsHtml(item, cell);
     }
-    /** Compare the same growth target, not just the current seed/sprout/flower stage. */
+    /** Compare like with like: growing seeds of a colour, or grown items of one colour and kind. */
     function comparisonKey(item) {
         if (item.family === 'talisman') return `talisman:${item.uniqueId || item.name}`;
         return [item.family, item.color, item.path, !!item.ancient].join(':');
@@ -454,6 +477,7 @@ const stumpBoxUi = (() => {
     function tipFor(element) {
         const kind = element.dataset.stumpTip;
         if (kind === 'rules') return { html: stumpRulesTipHtml(), tone: '#c9a45c' };
+        if (kind === 'frame') return { html: frameTipHtml(element.dataset.side), tone: '#a98546' };
         const id = element.dataset.stumpDrag !== undefined ? Number(element.dataset.stumpDrag) : null;
         const item = id === null ? null : stumpBox.itemById(game, id);
         if (item) return { html: stumpItemTipHtml(item, stumpBox.evaluate(game)), tone: itemTone(item) };
@@ -559,7 +583,7 @@ const stumpBoxUi = (() => {
 
     // ── 수확 일지 · 함 해금 · 부적: 한 번에 하나씩 보는 탭(2026-10-09, 전에는 줄지어 쌓여 무엇이 무엇인지 몰랐다) ──────────
     function stumpMoreTabs() {
-        const total = Object.keys(STUMP_BOX_HARVEST.rows).length * COLORS.length;
+        const total = STUMP_BOX_HARVEST.rows.length * COLORS.length;
         const tabs = [['harvest', `수확 일지 ${game.stumpBox.harvest.grown.length}/${total}`],
             ['unlocks', `함 해금 ${stumpBox.openUnlocks(game).length}/${STUMP_BOX_UNLOCKS.length}`], ['wallet', '재화']];
         return contentProgression.isUnlocked('talisman') ? tabs.concat([['talisman', '부적']]) : tabs;
@@ -735,13 +759,16 @@ const stumpBoxUi = (() => {
             node.classList.toggle('is-preview-on', result.enabled.includes(id));
         });
     }
+    /** @returns {boolean} whether a mouse-hover preview (a tooltip) was cleared. */
     function clearPlacementPreview(transientOnly = false) {
-        if (transientOnly && placement?.pinned) return;
+        if (transientOnly && placement?.pinned) return false;
+        const hovered = !!placement?.hover;
         placement = null;
         placementKey = '';
         clearPlacementMarks();
         const node = document.getElementById('stump-placement-preview');
         if (node) { node.hidden = true; node.replaceChildren(); }
+        return hovered;
     }
     /** Pointer movement updates this small region only; replacing the board would interrupt an active drag. */
     function renderPlacementPreview() {
@@ -756,28 +783,39 @@ const stumpBoxUi = (() => {
             placement.effectKey = JSON.stringify([game.stumpBox.board, result.rows, preview.stumpBox.board]);
             placementKey = key;
         }
-        const item = stumpBox.itemById(game, placement.id), occupant = game.stumpBox.board[placement.cell];
-        const title = `${stumpBox.shortName(item)}, ${Math.floor(placement.cell / STUMP_BOX_SIZE) + 1}행 ${placement.cell % STUMP_BOX_SIZE + 1}열`;
-        const verb = occupant === null ? '배치' : '자리 바꾸기';
+        markPlacement(placement.result);
+        // A mouse hover shows it as the tooltip at the pointer (2026-11-03 사용자: 탭 대신 호버 툴팁); a drag, a pinned touch or a keyboard focus keeps the box under the board.
+        if (placement.hover) { node.hidden = true; return; }
+        const { title, verb, rows } = placementParts();
         const buttons = placement.pinned ? `<div class="stump-actions"><button type="button" data-stump-action="placement-apply">${verb}</button>`
             + '<button type="button" data-stump-action="placement-cancel">취소</button></div>' : '';
-        const html = `<strong>${escStump(title)}</strong><span class="stump-placement-label">${verb} 미리보기</span>`
-            + (placement.result.rows.length ? `<ul>${placement.result.rows.join('')}</ul>` : '<p>효과 변화 없음</p>') + buttons;
+        const html = `<strong>${escStump(title)}</strong><span class="stump-placement-label">${verb} 미리보기</span>` + rows + buttons;
         if (node.__previewHtml !== html || node.hidden) { node.innerHTML = html; node.__previewHtml = html; }
         node.hidden = false;
-        markPlacement(placement.result);
     }
-    /** The nursery has no effects to compare: a touch drop (pinned) goes straight in. */
-    function previewCell(id, cell, pinned = false) {
-        if (!onNursery()) previewBoardCell(id, cell, pinned);
+    /** The preview's title (the item and the cell), its verb and its rows, shared by the box and the hover tooltip. */
+    function placementParts() {
+        const item = stumpBox.itemById(game, placement.id), occupant = game.stumpBox.board[placement.cell];
+        const title = `${stumpBox.shortName(item)}, ${Math.floor(placement.cell / STUMP_BOX_SIZE) + 1}행 ${placement.cell % STUMP_BOX_SIZE + 1}열`;
+        const rows = placement.result.rows.length ? `<ul>${placement.result.rows.join('')}</ul>` : '<p>효과 변화 없음</p>';
+        return { title, verb: occupant === null ? '배치' : '자리 바꾸기', rows };
+    }
+    function placementTipHtml() {
+        const { title, verb, rows } = placementParts(), item = stumpBox.itemById(game, placement.id);
+        return `<div class="tooltip-title" style="color:${itemTone(item)}">${escStump(title)}</div>`
+            + `<div class="tooltip-line stump-placement-label">${verb} 미리보기</div><div class="stump-placement-tip">${rows}</div>`;
+    }
+    /** The nursery has no effects to compare: a touch drop (pinned) goes straight in. hover: a mouse over the cell with an item selected. */
+    function previewCell(id, cell, pinned = false, hover = false) {
+        if (!onNursery()) previewBoardCell(id, cell, pinned, hover);
         else if (pinned) dropOnCell(id, cell);
     }
-    function previewBoardCell(id, cell, pinned) {
+    function previewBoardCell(id, cell, pinned, hover) {
         if (placement) {
             if (placement.pinned && !pinned) return;
-            if (placement.id === id && placement.cell === cell && placement.pinned === pinned) return;
+            if (placement.id === id && placement.cell === cell && placement.pinned === pinned && placement.hover === hover) return;
         }
-        placement = { id, cell, pinned };
+        placement = { id, cell, pinned, hover };
         placementKey = '';
         renderPlacementPreview();
         if (!pinned) return;
@@ -799,9 +837,15 @@ const stumpBoxUi = (() => {
     function refreshStumpTutorial() {
         if (tutorialActionUi.active) tutorialActionUi.refresh();
     }
-    function hoverCell(cell) {
-        if (selectedId !== null && !onNursery()) previewCell(selectedId, cell);
-        return !!placement;
+    /**
+     * A cell under the mouse (tip) or the keyboard focus with an item selected previews its placement.
+     * @returns {{ html: string, tone: string } | null} for the mouse: the preview as a tooltip, an empty html while a pinned preview holds
+     * the box (no tooltip then), null without a preview (the cell's own tooltip).
+     */
+    function hoverCell(cell, tip = false) {
+        if (selectedId !== null && !onNursery()) previewCell(selectedId, cell, false, tip);
+        if (!placement?.result) return null;
+        return placement.hover ? { html: placementTipHtml(), tone: itemTone(stumpBox.itemById(game, placement.id)) } : { html: '', tone: '' };
     }
     function applyPlacement() {
         if (!placement) return;
@@ -814,14 +858,14 @@ const stumpBoxUi = (() => {
     }
     function notifyStump(message) { showGameToast(message, { tone: 'info' }); }
     function commitStumpChange() {
-        clearPlacementPreview();
+        if (clearPlacementPreview()) hideInfoTooltip();
         lastSignature = '';
         queueImportantSave(300);
         renderStumpBoxTab(true);
         updateStaticUI();
     }
     function selectStumpItem(id) {
-        clearPlacementPreview();
+        if (clearPlacementPreview()) hideInfoTooltip();
         compareOpen = false;
         comparedId = null;
         selectedId = selectedId === id ? null : id;
@@ -974,7 +1018,7 @@ const stumpBoxUi = (() => {
         selectedId = null;
         commitStumpChange();
     }
-    /** A stored seed or sap thrown away (golden and ancient ones ask first). */
+    /** A stored seed thrown away (golden and ancient ones ask first). */
     async function discardStumpSeed() {
         const item = selectedItem();
         if (!item || !item.color || !await stumpRipeningUi.confirmDiscard(item) || !stumpBox.discard(game, item.id)) return;
@@ -1038,7 +1082,7 @@ const stumpBoxUi = (() => {
     }
 
     // ── 두 번 누르기 · 전체 해제(2026-10-28 사용자, 장비 창처럼) ─────────────────
-    /** The empty open cell where the item turns off the fewest board items (opposite colours touching), the earliest opened first. */
+    /** The empty open cell where the item turns off the fewest board items (상극 colours touching), the earliest opened first. */
     function bestStumpCell(id) {
         let best = null;
         for (const cell of STUMP_BOX_CELL_ORDER) {
@@ -1190,7 +1234,8 @@ const stumpBoxUi = (() => {
         bulk: data => bulkStump(data.kind),
         'more-tab': data => { moreOpen = !(moreOpen && moreTab === data.tab); moreTab = data.tab; renderStumpBoxTab(true); },
         'frame-button': (data, button) => pressFrameButton(data.side, button),
-        'frame-action': () => (frameView === 'cube' ? stumpCubeUi.transmuteCube() : mergeStumpNow()),
+        'frame-action': () => stumpCubeUi.transmuteCube(),
+        'auto-merge': () => autoMergeStump(),
         summary: () => { summaryOpen = !summaryOpen; renderStumpBoxTab(true); },
         'storage-page': data => { storagePage = Number(data.page) || 0; renderStumpBoxTab(true); },
         deselect: () => selectStumpItem(null),
@@ -1256,13 +1301,13 @@ const stumpBoxUi = (() => {
         stumpHarvestUi.announceGraftJournal();
         if (sawIntro) return given.length && announceStumpStarter();
         queueTutorialNotice('unlock_stump_box', '그루터기 함',
-            '액트 10 돌파 보상으로 그루터기 함과 시작 보상(씨앗, 수액 1개씩)을 받았습니다.\n그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.\n'
-            + '성장 완료된 같은 색 3개 이상은 공명(+10%), 화염과 냉기, 번개와 카오스가 맞닿으면 둘 다 비활성화됩니다.', 'tab-stump',
+            '액트 10 돌파 보상으로 그루터기 함과 시작 보상(씨앗 2개)을 받았습니다.\n그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.\n'
+            + '성장 완료된 같은 색 3개 이상은 공명(+10%), 이기는 색이 맞닿으면 지는 쪽이 비활성화됩니다.', 'tab-stump',
             { quote: STORY_LOOP_MILESTONES.stump });
     }
-    /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗은 지금 룬의 원소 꽃(물리면 화염 열매), 수액은 약한 저항. */
+    /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗 둘, 지금 룬의 원소와 가장 약한 저항의 색(2026-11-04 전: 씨앗과 수액). */
     function grantStumpStarter() {
-        // The stats (the weakest resistance picks the sap) only when a starter is still owed: this runs on every map completion.
+        // The stats (the weakest resistance picks the second seed) only when a starter is still owed: this runs on every map completion.
         const given = stumpBox.starterOwed(game) ? stumpBox.grantStarter(game, getUiPlayerStats()) : [];
         if (!given.length) return given;
         game.noti.stump = true;
@@ -1280,7 +1325,7 @@ const stumpBoxUi = (() => {
     }
     /** 함 안내를 예전에 보고 선물은 이번에 받은 저장: 놓는 법만 따로 한 번 안내한다. */
     function announceStumpStarter() {
-        queueTutorialNotice('tutorial_stump_starter', '그루터기 함 시작 보상', '씨앗, 수액 1개씩을 보관함에 넣었습니다.\n그루터기 함에 배치해야 처치 시 경험치를 얻습니다.', 'tab-stump');
+        queueTutorialNotice('tutorial_stump_starter', '그루터기 함 시작 보상', '씨앗 2개를 보관함에 넣었습니다.\n그루터기 함에 배치해야 처치 시 경험치를 얻습니다.', 'tab-stump');
     }
     /** Once, when the reached loop opens grafting (loop 18; saves already past it see it after this update). */
     function announceStumpGraft() {
@@ -1293,7 +1338,7 @@ const stumpBoxUi = (() => {
             'tab-stump');
     }
     const STUMP_LOG_ICONS = Object.freeze({ talisman: '🧿', scar: '🔥' });
-    /** A drop's log line and tone: talismans by rarity; scars and golden seeds and saps stand out. */
+    /** A drop's log line and tone: talismans by rarity; scars and golden seeds stand out. */
     function stumpDropLog(drop) {
         const name = drop.family === 'talisman' ? `[${drop.name}]` : stumpBox.label(drop);
         const rare = drop.rarity === 'unique' || drop.family === 'scar' || stumpRipeningUi.isGolden(drop);

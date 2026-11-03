@@ -5,16 +5,25 @@ const GEM_CORE_FORGE = Object.freeze({
     materialKey: 'skyEssence',
     boosterKey: 'bossCore',
     costs: Object.freeze([1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8, 10]),
-    successPct: Object.freeze([100, 90, 80, 70, 60, 55, 50, 45, 40, 35, 35, 32, 30, 27, 25, 22, 20, 17, 14, 11]),
+    // 2026-11-03 사용자: +5, +10, +15 뒤로 낮췄다(전: 55~35, 35~25, 22~11).
+    successPct: Object.freeze([100, 90, 80, 70, 60, 50, 45, 40, 36, 32, 30, 27, 24, 22, 20, 17, 15, 13, 11, 9]),
     // 룬이 파괴될 확률. 성공 확률이 오르면 남은 몫 안에서만 파괴된다.
     destroyPct: Object.freeze([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 3, 3, 4, 5, 6, 8, 10, 12]),
-    // Cumulative bonus: increments decrease through 10, 9.6, 9, 8.2, 7.2, 6, then stay at 5 points.
-    pityBonusPct: Object.freeze([0, 10, 19.6, 28.6, 36.8, 44, 50, 55, 60, 65, 70, 75, 80, 85, 90]),
+    // 실패 보정(2026-11-03 사용자: 기본 확률에 비례): 실패할 때마다 그 단계 기본 확률의 pityStepOfBase만큼 오르고, 기본 확률의
+    // pityMaxOfBase만큼에서 멈춘다(전: 정해진 표로 최대 +90%p, 같은 날 최대 +20%p). Measured with no 군주의 핵: about 36 창공의 정수
+    // to +10 (was 31), 151 to +15 (111), 2000 to +20 (710), about 13 breaks to +20.
+    pityStepOfBase: 0.1,
+    pityMaxOfBase: 1,
     riskFromLevel: 10,
-    riskPityMul: 0.75,      // riskFromLevel부터 실패 보정에 곱한다
-    speedStepPct: 2,        // 단계마다 공격/시전 속도
-    damageStepPct: 4,       // riskFromLevel 위의 단계마다 피해(옛 군주의 핵 강화의 값)
-    runeLevelEvery: 5,      // 이 단계마다 룬 레벨 +1
+    // 강화 효과(2026-11-03 사용자, 전: 단계마다 속도 +2% 증폭, +10 위로 단계마다 피해 +4% 증폭, 5단계마다 룬 레벨):
+    // 증가는 다른 증가 %와 합하고(js/skills.js applyRuneForgeToSkill → getPlayerStats, 소환 룬은 소환수의 피해와 공격 속도 증가),
+    // 증폭은 따로 곱한다. 낮은 단계는 조금, 높은 단계로 갈수록 많이 오른다(같은 날 사용자, +20의 합은 그대로).
+    // 피해 증가는 단계(번호)까지의 합 %이고, 나머지는 [단계, 그 단계까지의 합 %]: 그 단계에 닿으면 그 합이 된다.
+    damageIncPct: Object.freeze([0, 1, 3, 5, 8, 11, 14, 18, 22, 26, 31, 36, 41, 47, 53, 60, 67, 75, 83, 91, 100]),
+    speedIncAt: Object.freeze([[3, 1], [6, 3], [9, 5], [12, 8], [15, 12], [18, 18]].map(Object.freeze)),   // 공격/시전 속도 증가
+    damageMoreAt: Object.freeze([[5, 2], [10, 6], [15, 12], [20, 20]].map(Object.freeze)),                // 피해 증폭
+    speedMoreAt: Object.freeze([[20, 10]].map(Object.freeze)),                                           // 공격/시전 속도 증폭
+    runeLevelAt: Object.freeze([8, 15, 20]),   // 이 단계마다 룬 레벨 +1
     boosterPct: 2,          // 군주의 핵 하나당 성공 확률 %p
     boosterMax: 10,         // 한 번에 쓰는 군주의 핵
     // 담금질: 낮은 단계에서 높은 단계로 갈수록 칸이 좁고 표시가 빠르다. 맞히면 성공 확률에 mul을 곱한다.

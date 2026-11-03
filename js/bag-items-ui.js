@@ -6,7 +6,7 @@ const bagItemsUi = (() => {
     const hint = text => `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">${text}</div>`;
     // bagHints: the bag's how-to-equip line. Inline cards (the cube's material and result panels, inspectors) leave it out.
     const jewelHtml = (jewel, bagHints) => window.createJewelRangeTooltipHtml(jewel)
-        + (bagHints ? hint('장비의 빈 소켓에 끼웁니다(두 번 누르거나 장착 칸에 끌어 놓기).') : '');
+        + (bagHints ? hint('장비의 빈 소켓에 끼웁니다(두 번 누르거나 장비의 소켓에 끌어 놓기).') : '');
     function coreHtml(core, bagHints) {
         const lines = (core.lines || []).map(line => `<div class="tooltip-line">${escapeHTML(coreItems.describe(line))}</div>`).join('')
             + (core.perfect ? hint('한 계열의 네 줄이 모두 최대치입니다') : '');

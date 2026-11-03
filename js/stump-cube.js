@@ -40,6 +40,7 @@ const stumpCube = (() => {
     /** reveal.content: the unlock whose drops bring the material; reveal.harvest: one of these journal kinds grown once. */
     function isRevealed(recipe, state = game) {
         const rule = recipe.reveal || {};
+        if (rule.hidden) return false;
         if (rule.content && !contentProgression.isUnlocked(rule.content, state)) return false;
         if (rule.loop && (Number(state.season) || 1) < rule.loop) return false;
         return !rule.harvest || rule.harvest.some(kind => stumpBox.hasHarvested(state, kind));
@@ -188,8 +189,6 @@ const stumpCube = (() => {
         slot: entry => stumpCubeRecipes.baseSlot(entry.item),
         color: entry => entry.item.color,
         family: entry => entry.item.family,
-        // 씨앗이 자랄 길(꽃, 열매): 생길 때 정해지므로 합치기는 같은 길끼리만(2026-10-09).
-        path: entry => entry.item.path || '',
         // 고유 이름: 같은 고유 2개 다시 빚기(2026-10-10).
         name: entry => entry.item.name,
         // 베이스: 같은 베이스 희귀 3개 특출 베이스(2026-10-30).
@@ -200,17 +199,18 @@ const stumpCube = (() => {
         return allowed === undefined || [].concat(allowed).includes(value);
     }
 
-    /** A wallet piece stands in for a grown stump item, and only where a row asks for one. */
-    const fitsRipeness = (rule, entry) => (rule.ripe ? entry.item.ripe === true : entry.kind !== 'wallet');
+    /** ripe: true takes grown items (a wallet piece stands in for one, and only there), false only growing seeds. */
+    const fitsRipeness = (rule, entry) => (rule.ripe ? entry.item.ripe === true : entry.kind !== 'wallet' && !(rule.ripe === false && entry.item.ripe === true));
     const materialKind = entry => (entry.kind === 'wallet' ? 'stump' : entry.kind);
     function fitsRule(rule, entry) {
-        // path: 씨앗이 자란 길(꽃, 열매). 열매 기름(루프 36)이 열매만 받는다.
+        // path: 다 자란 씨앗의 종류(꽃, 열매, 덩굴, 뿌리). 열매 기름은 열매만, 희귀 장비 단련은 뿌리만 받는다.
         if (materialKind(entry) !== rule.kind || !oneOf(entry.item.family, rule.family) || !oneOf(entry.item.rarity, rule.rarity) || !oneOf(entry.item.path, rule.path)) return false;
+        if (!oneOf(entry.item.uniqueEffectKey, rule.uniqueKey)) return false;
         if (!fitsRipeness(rule, entry)) return false;
         return !rule.socketable || equipmentSockets.canChisel(entry.item);
     }
 
-    /** A row's picks: with same keys, the biggest set of fitting entries that agree on them (so two saps of one colour are found among
+    /** A row's picks: with same keys, the biggest set of fitting entries that agree on them (so two seeds of one colour are found among
      * three in any order), otherwise the first ones. */
     function pickAlike(rule, fitting) {
         if (!rule.same) return fitting.slice(0, rule.count);
@@ -221,7 +221,7 @@ const stumpCube = (() => {
         });
         return [...sets.values()].reduce((best, set) => (set.length > best.length ? set : best), []).slice(0, rule.count);
     }
-    /** unlike: the row's picks must differ from every earlier pick on that key (씨앗 색 바꾸기: another colour than the saps). */
+    /** unlike: the row's picks must differ from every earlier pick on that key (씨앗 색 바꾸기: another colour than the two). */
     const clashes = (rule, picked, groups) => !!rule.unlike
         && picked.some(entry => groups.flat().some(other => SAME_KEYS[rule.unlike](other) === SAME_KEYS[rule.unlike](entry)));
 
@@ -300,7 +300,7 @@ const stumpCube = (() => {
         stump: storeStump,
         jewel: (state, output) => { bagItems.put(bagItems.asJewel(output.item), state, true); return output.item; },
         core: (state, output) => { bagItems.addCore(output.item, state); return output.item; },
-        // 재화 결과(호박석 기폭제): 지갑으로. 조합창 칸에는 놓지 않고 이름만 결과 기록에 남긴다.
+        // 재화 결과(뿌리 기폭제): 지갑으로. 조합창 칸에는 놓지 않고 이름만 결과 기록에 남긴다.
         currency: (state, output) => { awardCurrency(output.key, output.amount); return { name: `${ORB_DB[output.key].name} ${output.amount}`, currency: output.key, amount: output.amount }; }
     });
 
@@ -410,33 +410,33 @@ const stumpCube = (() => {
         return '';
     }
 
-    // ── 바로 합치기(2026-10-29 사용자: 그루터기 함 틀의 아래 보석, 즉석 씨앗과 수액 합치기) ─────────────
-    const MERGE_ID = 'stump_merge';
-    /** Three stored seeds or saps alike (colour, family, path) for 씨앗과 수액 합치기, the plainest first (cubeSpendOrder). With pickId
-     * (a stored item the player picked) the three include it; otherwise the first set of three. Items in the cube stay there. */
-    function mergeSet(state, pickId) {
-        const rule = STUMP_CUBE_RECIPES.find(recipe => recipe.id === MERGE_ID).inputs[0];
-        const fitting = candidates('stump', state).map(item => ({ kind: 'stump', item })).filter(entry => fitsRule(rule, entry)).sort(cubeSpendOrder);
-        const picked = fitting.find(entry => entry.item.id === pickId);
-        if (!picked) return pickCubeRow(rule, fitting);
-        const key = entry => rule.same.map(name => SAME_KEYS[name](entry)).join('|');
-        const alike = fitting.filter(entry => entry !== picked && key(entry) === key(picked)).slice(0, rule.count - 1);
-        return alike.length === rule.count - 1 ? [picked, ...alike] : null;
+    // ── 자동합성(2026-11-04 사용자: 보관함 위 일괄 거름 사용 옆, 전에는 틀 아래의 씨앗과 수액 합치기) ─────────────
+    const MERGE_RULE = STUMP_CUBE_RECIPES.find(recipe => recipe.id === 'stump_merge').inputs[0];
+    /** Every set of three stored growing seeds of one colour (filter: 'all' or a colour), each colour's lowest quality first so a set
+     * holds near qualities. Locked, golden and ancient seeds and those in the cube stay out; what is merged now is not merged again.
+     * @returns {object[][]} the sets, each three stump items */
+    function autoMergeSets(state = game, filter = 'all') {
+        const byColor = new Map();
+        candidates('stump', state).filter(item => fitsRule(MERGE_RULE, { kind: 'stump', item }) && !item.golden && !item.ancient && (filter === 'all' || item.color === filter))
+            .sort((a, b) => a.roll - b.roll || a.id - b.id).forEach(item => byColor.set(item.color, [...(byColor.get(item.color) || []), item]));
+        return [...byColor.values()].flatMap(list => Array.from({ length: Math.floor(list.length / MERGE_RULE.count) },
+            (_, at) => list.slice(at * MERGE_RULE.count, (at + 1) * MERGE_RULE.count)));
     }
-    /** Merges three stored seeds or saps now (mergeSet). @returns {{ok: boolean, reason?: string, recipe?: object, item?: object}} */
-    function mergeNow(state = game, pickId = null, random = Math.random) {
+    /** Merges every set autoMergeSets finds (씨앗 합치기 each). @returns {{ok: boolean, reason?: string, items?: object[]}} the new seeds */
+    function autoMerge(state = game, filter = 'all', random = Math.random) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
-        const set = mergeSet(state, pickId);
-        if (!set) return { ok: false, reason: '같은 색, 같은 종류의 씨앗이나 수액 3개가 보관함에 없습니다.' };
-        const result = stumpCubeRecipes.run(MERGE_ID, [set], state, random);
-        if (!result.ok) return result;
-        result.consumed.forEach(entry => REMOVERS.stump(state, entry.item));
-        const item = storeStump(state, result.outputs[0]);
+        const sets = autoMergeSets(state, filter);
+        if (!sets.length) return { ok: false, reason: '같은 색 씨앗 3개가 보관함에 없습니다.' };
+        const items = sets.map(set => {
+            const result = stumpCubeRecipes.run('stump_merge', [set.map(item => ({ kind: 'stump', item }))], state, random);
+            result.consumed.forEach(entry => REMOVERS.stump(state, entry.item));
+            return storeStump(state, result.outputs[0]);
+        });
         stumpBox.invalidatePlacementUndo(state);
-        return { ok: true, recipe: STUMP_CUBE_RECIPES.find(recipe => recipe.id === MERGE_ID), item };
+        return { ok: true, items };
     }
 
     return Object.freeze({ SIZE, KINDS, empty, normalize, of, entries, put, takeOut, canMove, move, clear, match, missingRecipes, preview, missingCost, transmute, candidates, footprint,
-        isRevealed, revealed, learn, readyCubeSets, fillCubeRecipe, mergeNow });
+        isRevealed, revealed, learn, readyCubeSets, fillCubeRecipe, autoMergeSets, autoMerge });
 })();
 safeExposeGlobals({ stumpCube });

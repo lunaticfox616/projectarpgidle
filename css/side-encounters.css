@@ -22,6 +22,13 @@
 .map-expedition-intro dt { color:var(--color-text-secondary); font-size:12px; margin-bottom:5px; }
 .map-expedition-intro dd { margin:0; }
 .map-expedition-intro dd small { display:block; color:var(--color-text-secondary); }
+/* 운석의 종류(data/maps.js METEOR_KINDS)는 제 속성의 빛깔로 쓴다. */
+.meteor-kind { font-weight:var(--font-weight-emphasis); }
+.meteor-kind.is-fire { color:#ff9a6a; }
+.meteor-kind.is-chaos { color:#c99bff; }
+.meteor-kind.is-cold { color:#8fd3ff; }
+.meteor-kind.is-lightning { color:#ffe083; }
+.meteor-kind.is-giant { color:#d9c7a3; }
 .map-expedition-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px; }
 .map-expedition-actions button { min-height:44px; padding:9px 16px; font-size:15px; }
 .map-expedition-actions button:disabled { opacity:.45; cursor:not-allowed; }

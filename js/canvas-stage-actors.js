@@ -404,6 +404,7 @@ const stageView = Object.freeze({
     tile(width, height, rows) {
         const rule = STAGE_VIEW.minColumns, narrow = width < rule.narrowBelow, columns = narrow ? rule.narrow : rule.wide;
         if (Number(game.settings.stageZoom)) return STAGE_VIEW.heroTile * Number(game.settings.stageZoom);
+        if (stageView.stacked()) return Math.floor(width / STAGE_ROOMS.stacked.columns);
         const widest = Math.floor(Math.min(width / columns, rows ? stageView.tallestTile(width, height, rows) : Infinity));
         const free = STAGE_VIEW.heroTile * Math.max(STAGE_VIEW.minDot, widest / STAGE_VIEW.heroTile);
         return narrow || stageView.phonePortrait(width, height) ? free : stageView.steppedTile(width, height, rows) || free;
@@ -421,9 +422,14 @@ const stageView = Object.freeze({
      * (phoneClear), 가로 휴대폰은 HUD가 옆 칸이라 narrow. */
     floorShare(width, height) {
         const share = STAGE_ROOMS.floorBottom;
+        if (stageView.stacked()) return 1 - STAGE_ROOMS.stacked.clear / height;
         if (stageView.phonePortrait(width, height)) return Math.max(share.narrow, 1 - STAGE_ROOMS.phoneClear / height);
         return width >= STAGE_VIEW.minColumns.narrowBelow ? Math.min(share.wide, 1 - STAGE_ROOMS.hudClear / height) : share.narrow;
     },
+    /** 세로 화면의 전투 탭: 전장, HUD, 전투 기록이 위아래로 쌓인 배치(STAGE_ROOMS.stacked). css/themes/rift-stage.css와 같은 조건이다:
+     * 휴대폰 배치(.mobile-battle-tab, 폭 1080px까지)의 세로(orientation: portrait, 높이 ≥ 너비). 프레임마다 묻으므로 미디어 질의를 만들지 않는다. */
+    stacked: () => typeof document === 'object' && document.body.dataset.uiSkin === 'rift' && document.body.classList.contains('mobile-battle-tab')
+        && window.innerHeight >= window.innerWidth,
     /** 휴대폰과 태블릿 세로: 전장이 세로로 길고 폭이 휴대폰 배치(STAGE_ROOMS.phoneWidth)까지라 하단 HUD가 전장 아래를 덮는다. */
     phonePortrait(width, height) {
         return height > width && width <= STAGE_ROOMS.phoneWidth;

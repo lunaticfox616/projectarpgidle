@@ -1,6 +1,6 @@
-/** Android platform boundary. Browser gameplay and save formats remain shared. */
+/** Android platform boundary, plus the PC build's login callback. Browser gameplay and save formats remain shared. */
 (() => {
-    const { active, app, browser, redirectUrl } = appPlatform;
+    const { android: active, desktop, app, browser, redirectUrl } = appPlatform;
     let handlingCallback = false;
 
     async function receiveOAuth(event) {
@@ -70,6 +70,8 @@
     }
 
     async function init() {
+        // The PC build has none of the Android events below, only the login link coming back (desktop/main.cjs).
+        if (desktop) desktop.onOpenUrl(url => receiveOAuth({ url }));
         if (!active) return;
         document.addEventListener('click', event => {
             const link = event.target.closest('a[target="_blank"]');
