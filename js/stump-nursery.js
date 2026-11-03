@@ -1,7 +1,7 @@
 // 묘목장과 고대 씨앗(12번 루프 39, 42, 2026-10-08, data/stump-nursery.js): 묘목 무리의 처치 드롭(js/combat.js recordKillProgress),
 // 묘목장 정리의 선물(js/atlas-run.js clearRoom), 최종 보스의 고대 씨앗(js/atlas-endgame.js onComplete). 받은 것은 그루터기 함 보관함으로
 // 가고(stumpBox.createItem), 그 소식은 보통 드롭처럼 'stump-box-changed'로 알린다. 보관함이 가득 차면 고대 씨앗은 그래도 들어가고(보스 부적처럼),
-// 보통 씨앗과 수액은 드롭처럼 거름이 된다(stumpBox.compostOverflow). 고대 씨앗의 효과는 js/stump-box.js가 계산한다.
+// 보통 씨앗은 드롭처럼 거름이 된다(stumpBox.compostOverflow). 고대 씨앗의 효과는 js/stump-box.js가 계산한다.
 const stumpNursery = (() => {
     const N = STUMP_NURSERY;
     const open = state => contentProgression.holds('nursery', state);
@@ -20,17 +20,17 @@ const stumpNursery = (() => {
         return item;
     }
     function nurserySpec(zone, roll, random) {
-        return { family: random() < N.sapShare ? 'sap' : 'seed', color: colorOf(zone, random), roll: between(roll, random),
+        return { family: 'seed', color: colorOf(zone, random), roll: between(roll, random),
             golden: random() < STUMP_BOX_RIPENING.golden.dropChance * N.goldenMul };
     }
     const ancientSpec = (color, random) => ({ family: 'seed', color, roll: between(N.ancient.roll, random), ancient: true });
-    /** A nursery pack kill (data/atlas.js encounters.nursery): by chance a seed or sap of the region's colour. */
+    /** A nursery pack kill (data/atlas.js encounters.nursery): by chance a seed of the region's colour. */
     function onKilled(state, enemy, random = Math.random) {
         if (!enemy || enemy.atlasEncounter !== 'nursery' || enemy.isBoss || !acquired(state)) return null;
         if (random() >= N.killChance[enemy.isElite ? 'elite' : 'normal']) return null;
         return give(state, nurserySpec(getZone(state.currentZoneId), N.killRoll, random), random);
     }
-    /** An emptied nursery: one seed or sap for sure (from loop 42 sometimes an ancient seed), and by chance a scar. @returns {object[]} */
+    /** An emptied nursery: one seed for sure (from loop 42 sometimes an ancient seed), and by chance a scar. @returns {object[]} */
     function clearGift(state, zone, random = Math.random) {
         if (!acquired(state)) return [];
         const ancient = ancientOpen(state) && random() < N.ancient.roomChance;

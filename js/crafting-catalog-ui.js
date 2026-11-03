@@ -40,7 +40,7 @@ const craftingCatalogUi = (() => {
         deepWhetstone:'무기 퀄리티 강화',rootIron:'방어구 퀄리티 강화',jewelPolish:'장신구 퀄리티 강화',
         abyssCatalyst:'퀄리티 속성 변경',
         catalystFire:'품질 속성 화염, 품질 +2%',catalystCold:'품질 속성 냉기, 품질 +2%',catalystLight:'품질 속성 번개, 품질 +2%',
-        catalystChaos:'품질 속성 카오스, 품질 +2%',catalystCrit:'품질 속성 치명, 품질 +2%',catalystSummon:'품질 속성 소환, 품질 +2%',enchantedHoney:'옵션 1줄 영구 고정',
+        catalystPhys:'품질 속성 물리, 품질 +2%',catalystChaos:'품질 속성 카오스, 품질 +2%',catalystCrit:'품질 속성 치명, 품질 +2%',catalystSummon:'품질 속성 소환, 품질 +2%',enchantedHoney:'옵션 1줄 영구 고정',
         venomStinger:'무기 공격 옵션 추가/재설정',voidChisel:'장신구 소켓, 공허 주얼 제작',
         oceanRerollShard:'봉인되지 않은 무작위 추가 옵션 1줄 교체',
         altarEmber:'베이스 옵션 1줄을 태양 줄로',altarIchor:'베이스 옵션 1줄을 허기 줄로',memoryImprint:'추가 옵션 새기기, 한 번 되돌리기',

@@ -260,7 +260,7 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
             "비워 둔 자리": "assets/items/pixel-v2/unique/chase-5a913bc1853a.png",
             "편린을 꿴 허리띠": "assets/items/pixel-v2/unique/chase-075a250c2315.png",
             "잿불 군주의 심장": "assets/items/pixel-v2/unique/chase-afc9677d8580.png",
-            "호박에 갇힌 시간": "assets/items/pixel-v2/unique/chase-e463327141dc.png",
+            "뿌리에 얽힌 시간": "assets/items/pixel-v2/unique/chase-e463327141dc.png",
             "마른 꽃잎 고리": "assets/items/pixel-v2/unique/chase-c783df3ca43a.png",
             "어미나무의 손길": "assets/items/pixel-v2/unique/chase-4dfd9cee26ee.png",
             "모르그란의 용광로 흉갑": "assets/items/pixel-v2/unique/chase-5a6ed3509e00.png",
@@ -773,6 +773,8 @@ const ARM_GUARD_BASE_LEGACY_NAMES = Object.freeze({
     '월식 방패': 'gen__evasion_energyShield_t20_4'
 });
 const RENAMED_UNIQUES = Object.freeze({
+    // 2026-11-04 호박석이 뿌리가 되어(그루터기 함) 그 소켓의 허리띠 이름도 바꿨다. 효과 키 amberTime은 그대로다.
+    '호박에 갇힌 시간': '뿌리에 얽힌 시간',
     // 2026-10-23 무기 이름을 대분류에 맞춤(사용자 "무기 6종에 맞지 않는 분류도 다 바꿀 필요가 있음")
     '폭풍 군단장의 창끝': '폭풍 군단장의 칼날',
     '해구 작살': '해구의 대검',
@@ -969,9 +971,15 @@ const UNIQUE_DB = [
     // 루프 30 뒤 아틀라스 방 넷의 리그 우두머리(2026-10-09, data/atlas-endgame.js leagues): 자연 드롭은 없고 그 우두머리가 준다. 효과는 그
     // 방의 시스템을 센다(타락, 품질, 목걸이 기름, 그루터기 함; js/combat-build-stats.js UNIQUE_EFFECT_STAT_LINES).
     { name: "잿불 군주의 심장", slots: ["목걸이"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "타락한 장비 1개당 피해 +5%, 화염 저항 +4% (최대 6개)", uniqueEffectKey: "emberHeart", uniqueEffectParams: { dmgPer: 5, resPer: 4, max: 6 }, stats: [{ id: "flatHp", min: 120, max: 170 }, { id: "firePctDmg", min: 30, max: 44 }, { id: "resAll", min: 14, max: 20 }, { id: "critDmg", min: 30, max: 44 }] },
-    { name: "호박에 갇힌 시간", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "장착 장비 품질 합 10%당 피해 +1%, 최대 생명력 +1% (최대 30번)", uniqueEffectKey: "amberTime", uniqueEffectParams: { qualityStep: 10, dmgPer: 1, hpPer: 1, max: 30 }, stats: [{ id: "flatHp", min: 120, max: 170 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 5, max: 8 }, { id: "regen", min: 1, max: 1.5 }] },
+    { name: "뿌리에 얽힌 시간", slots: ["허리띠"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "장착 장비 품질 합 10%당 피해 +1%, 최대 생명력 +1% (최대 30번)", uniqueEffectKey: "amberTime", uniqueEffectParams: { qualityStep: 10, dmgPer: 1, hpPer: 1, max: 30 }, stats: [{ id: "flatHp", min: 120, max: 170 }, { id: "resAll", min: 14, max: 20 }, { id: "dr", min: 5, max: 8 }, { id: "regen", min: 1, max: 1.5 }] },
     { name: "마른 꽃잎 고리", slots: ["반지"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "목걸이에 새긴 노드 1개당 피해 +8%, 카오스 저항 +10% (최대 2개)", uniqueEffectKey: "witheredEcho", uniqueEffectParams: { dmgPer: 8, resPer: 10, max: 2 }, stats: [{ id: "chaosPctDmg", min: 26, max: 38 }, { id: "resAll", min: 10, max: 16 }, { id: "flatHp", min: 60, max: 90 }, { id: "crit", min: 4, max: 6 }] },
-    { name: "어미나무의 손길", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "그루터기 함의 성장 완료된 씨앗과 수액 1개당 최대 생명력 +1%, 피해 +1% (최대 25개)", uniqueEffectKey: "nurseryBloom", uniqueEffectParams: { hpPer: 1, dmgPer: 1, max: 25 }, stats: [{ id: "aspd", min: 8, max: 12 }, { id: "flatHp", min: 80, max: 120 }, { id: "resAll", min: 14, max: 20 }, { id: "critDmg", min: 26, max: 38 }] },
+    { name: "어미나무의 손길", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "그루터기 함의 성장 완료된 꽃, 열매, 덩굴, 뿌리 1개당 최대 생명력 +1%, 피해 +1% (최대 25개)", uniqueEffectKey: "nurseryBloom", uniqueEffectParams: { hpPer: 1, dmgPer: 1, max: 25 }, stats: [{ id: "aspd", min: 8, max: 12 }, { id: "flatHp", min: 80, max: 120 }, { id: "resAll", min: 14, max: 20 }, { id: "critDmg", min: 26, max: 38 }] },
+    // 수확물 소켓(2026-11-03 사용자, HARVEST_SOCKET_UNIQUES): 열매를 받는 목걸이는 묘목장 우두머리가 어미나무의 손길과 나눠 준다.
+    // 덩굴을 받는 장갑(2026-11-04 사용자: 덩굴 소켓 고유 하나 더)은 시든 정원 우두머리가 마른 꽃잎 고리와 나눠 준다.
+    // 풍작의 갑주는 떨어지지 않고 조합창의 히든 조합(data/stump-cube.js equip_harvest_armour)으로만 만든다(stumpCube는 지역이 아니다).
+    { name: "떨어지지 않는 열매", slots: ["목걸이"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "공허 소켓에 열매를 넣을 수 있습니다", uniqueEffectKey: "fruitSocket", stats: [{ id: "flatHp", min: 120, max: 170 }, { id: "pctHp", min: 6, max: 10 }, { id: "resAll", min: 14, max: 20 }, { id: "critDmg", min: 30, max: 44 }] },
+    { name: "감기는 덩굴손", slots: ["장갑"], reqTier: 20, ultraRare: true, dropOnly: { type: 'atlasLate' }, uniqueEffect: "덩굴 소켓이 하나 있습니다", uniqueEffectKey: "vineSocket", stats: [{ id: "aspd", min: 8, max: 12 }, { id: "move", min: 6, max: 10 }, { id: "flatHp", min: 60, max: 90 }, { id: "resAll", min: 10, max: 16 }] },
+    { name: "풍작의 갑주", slots: ["갑옷"], reqTier: 20, ultraRare: true, dropOnly: { type: 'stumpCube' }, uniqueEffect: "꽃, 열매, 덩굴, 뿌리 소켓이 하나씩 있습니다", uniqueEffectKey: "harvestSockets", stats: [{ id: "pctHp", min: 14, max: 20 }, { id: "armorPct", min: 30, max: 44 }, { id: "resAll", min: 14, max: 20 }, { id: "regen", min: 0.8, max: 1.2 }] },
     // 뿌리 보스와 최종 관문의 대표 고유(2026-10-19, data/maps.js signatureUnique). 원소 군주 셋은 이름이 같은 고유(위)가 대표다.
     // 뿌리 보스는 고유 굴림의 절반(ROOT_BOSS_UNIQUE_RULES), 최종 관문은 첫 격파에 확정이고 그 뒤 bossDropChance.
     { name: "야수왕의 세 목줄", slots: ["목걸이"], reqTier: 18, dropOnly: { type: 'seasonBoss', id: 's6_beast_cerberus' }, uniqueEffect: "타격 시 적 카오스 저항 -2% (최대 10중첩)", uniqueEffectKey: "hitApplyChaosResDown", uniqueEffectParams: { perHit: 2, maxStacks: 10 }, stats: [{ id: "chaosPctDmg", min: 30, max: 45 }, { id: "targetAny", min: 1, max: 1 }, { id: "resChaos", min: 18, max: 26 }, { id: "flatHp", min: 70, max: 100 }] },
@@ -1006,6 +1014,16 @@ const UNIQUE_DB = [
     { name: "되감긴 모래시계", slots: ["목걸이"], reqTier: 16, uniqueEffect: "재사용 대기시간 감소 상한 +10%p", uniqueEffectKey: "cooldownReductionCap", uniqueEffectParams: { pct: 10 }, stats: [{ id: "cooldownRecovery", min: 15, max: 25 }, { id: "cooldownReduction", min: 6, max: 10 }, { id: "pctHp", min: 6, max: 10 }, { id: "resAll", min: 10, max: 16 }, { id: "aspd", min: 4, max: 8 }] },
     { name: "마지막 수호의 향로", slots: ["무기"], reqTier: 15, dropOnly: { type: 'colony' }, uniqueEffect: "사망 방지 보호막(최대 생명력 15%) 25초마다 재생성", uniqueEffectKey: "realmDeathWard", uniqueEffectParams: { hpPct: 15, cooldown: 25 }, stats: [{ id: "flatDmg", min: 70, max: 100 }, { id: "lightPctDmg", min: 30, max: 40 }, { id: "lightFlatDmg", min: 30, max: 45 }, { id: "resAll", min: 8, max: 12 }] }
 ];
+
+// 수확물 소켓(2026-11-03 사용자): 이 고유들의 소켓에는 그루터기 함의 다 자란 꽃, 열매, 덩굴, 뿌리(STUMP_BOX_KINDS)를 넣는다.
+// 효과 키 → 받는 종류. 장신구는 늘 뚫린 공허 소켓 하나가 주얼이나 그 종류를 받고, 갑옷은 종류마다 소켓이 하나씩이다(js/equipment-sockets.js).
+const HARVEST_SOCKET_UNIQUES = Object.freeze({
+    witheredEcho: Object.freeze(['flower']),    // 마른 꽃잎 고리(반지)
+    fruitSocket: Object.freeze(['fruit']),      // 떨어지지 않는 열매(목걸이)
+    vineSocket: Object.freeze(['vine']),        // 감기는 덩굴손(장갑)
+    amberTime: Object.freeze(['root']),         // 뿌리에 얽힌 시간(허리띠, 키는 옛 이름 호박에 갇힌 시간의 것)
+    harvestSockets: Object.freeze(['flower', 'fruit', 'vine', 'root'])   // 풍작의 갑주(갑옷)
+});
 
 // 칼이 된 발걸음의 효과 키와 이름: 저장(js/save-migrations.js), 장착 규칙(js/skills.js), 전투(js/mobility-skill.js)가 함께 본다.
 const MOBILITY_RUNE_ATTACK_KEY = 'mobilityRuneAsAttack';
@@ -1444,10 +1462,11 @@ const ORB_DB = {
     rootIron: { name: '뿌리철', desc: '방어구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
     jewelPolish: { name: '보석연마제', desc: '장신구 전용 퀄리티 재화. 장비 퀄리티 1%당 베이스 옵션 효과가 1% 증가합니다.' },
     abyssCatalyst: { name: '심연 촉매', desc: '장비 퀄리티 속성을 순환 변경합니다. 기본 퀄리티는 베이스 옵션을, 속성 퀄리티는 해당 추가 옵션 수치를 증가시킵니다.' },
-    catalystFire: { name: '화염 기폭제', desc: '장비의 품질 속성을 화염으로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 화염 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 화염 호박석 둘로도 만듭니다.' },
-    catalystCold: { name: '냉기 기폭제', desc: '장비의 품질 속성을 냉기로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 냉기 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 냉기 호박석 둘로도 만듭니다.' },
-    catalystLight: { name: '번개 기폭제', desc: '장비의 품질 속성을 번개로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 번개 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 번개 호박석 둘로도 만듭니다.' },
-    catalystChaos: { name: '카오스 기폭제', desc: '장비의 품질 속성을 카오스로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 카오스 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 카오스 호박석 둘로도 만듭니다.' },
+    catalystFire: { name: '화염 기폭제', desc: '장비의 품질 속성을 화염으로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 화염 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 화염 뿌리 둘로도 만듭니다.' },
+    catalystCold: { name: '냉기 기폭제', desc: '장비의 품질 속성을 냉기로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 냉기 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 냉기 뿌리 둘로도 만듭니다.' },
+    catalystLight: { name: '번개 기폭제', desc: '장비의 품질 속성을 번개로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 번개 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 번개 뿌리 둘로도 만듭니다.' },
+    catalystChaos: { name: '카오스 기폭제', desc: '장비의 품질 속성을 카오스로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 카오스 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 카오스 뿌리 둘로도 만듭니다.' },
+    catalystPhys: { name: '물리 기폭제', desc: '장비의 품질 속성을 물리로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 물리 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다, 그루터기 함 물리 뿌리 둘로도 만듭니다.' },
     catalystCrit: { name: '치명 기폭제', desc: '장비의 품질 속성을 치명으로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 치명 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다.' },
     catalystSummon: { name: '소환 기폭제', desc: '장비의 품질 속성을 소환으로 바꾸고 품질을 2% 올립니다(20%까지, 타락한 장비 제외). 품질은 소환 태그 옵션을 그만큼 키웁니다. 아틀라스의 수액 상처에서 얻습니다.' },
     oilFire: { name: '불씨 기름', desc: '목걸이에 바르는 정원 기름(화염). 기름 셋을 바르면 그 조합이 이번 루프에 부르는 패시브 노드 셋 가운데 하나가 새겨집니다. 아틀라스의 시든 정원에서 얻고, 그루터기 함 화염 열매 둘로도 만듭니다.' },
@@ -1557,7 +1576,7 @@ const CURRENCY_CARD_TONES = Object.freeze({
     bossCore: '#e4ba79', skyEssence: '#8cd8ef', condensedSkyPower: '#bfeaff', awakenedEcho: '#c7a0ff',
     fossil: '#d9c08a', fossilPrimal: '#e8c98a', fossilAncientPrimal: '#f0d59a', fossilPrimordial: '#f7e2b0', fossilJagged: '#d9c08a', fossilBound: '#d9c08a', fossilGale: '#d9c08a', fossilPrismatic: '#d9c08a', fossilAbyssal: '#c7a6ff', fossilBulwark: '#d9c08a', fossilWedge: '#d9c08a', fossilOld: '#d9c08a', fossilRift: '#c7a6ff',
     deepWhetstone: '#aeb6c2', rootIron: '#c49a78', jewelPolish: '#97dbd8', jewelCore: '#97dbd8', abyssCatalyst: '#b48cff',
-    catalystFire: '#ff9a76', catalystCold: '#8fd3ff', catalystLight: '#ffe083', catalystChaos: '#c7a6ff', catalystCrit: '#ffd6f2', catalystSummon: '#a8e6cf',
+    catalystPhys: '#c9a27a', catalystFire: '#ff9a76', catalystCold: '#8fd3ff', catalystLight: '#ffe083', catalystChaos: '#c7a6ff', catalystCrit: '#ffd6f2', catalystSummon: '#a8e6cf',
     oilFire: '#ff9a76', oilCold: '#8fd3ff', oilLight: '#ffe083', oilChaos: '#c7a6ff',
     uberRootTicketFlame: '#ff9a76', uberRootTicketFrost: '#8fd3ff', uberRootTicketStorm: '#ffe083', uberRootTicketChaos: '#c7a6ff',
     runeShard: '#b9a8e0', underCopper: '#d0926a', underSilver: '#cfd6e0', underGold: '#ffd56a',
@@ -1584,7 +1603,7 @@ function getStyledOrbName(orbKey) {
 }
 // Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [
-    ['craft', ['omenPruning','omenCompost','omenWeave','omenPyre','omenHunger','memoryImprint','magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
+    ['craft', ['omenPruning','omenCompost','omenWeave','omenPyre','omenHunger','memoryImprint','magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
     ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
     ['jewel', ['jewelShard','voidChisel']],
@@ -1657,4 +1676,4 @@ const MARKET_EXCHANGES = [
     { id: 'm9', from: 'sapBud', to: 'formlessDew', need: 1, gain: 6 }
 ];
 
-safeExposeData({ UNIQUE_DB, ARM_GUARD_BASE_LEGACY_NAMES, WEAPON_BASE_LEGACY_NAMES, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, CRAFT_OMENS, normalizeCraftOmen, normalizeCraftChoice, WALLET_CURRENCY_INFO, getCurrencyInfo, getStyledOrbName, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });
+safeExposeData({ UNIQUE_DB, HARVEST_SOCKET_UNIQUES, ARM_GUARD_BASE_LEGACY_NAMES, WEAPON_BASE_LEGACY_NAMES, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, CRAFT_OMENS, normalizeCraftOmen, normalizeCraftChoice, WALLET_CURRENCY_INFO, getCurrencyInfo, getStyledOrbName, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });

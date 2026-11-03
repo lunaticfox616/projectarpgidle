@@ -142,7 +142,11 @@
 #social-profile-modal .social-profile-power { flex: 0 0 auto; text-align: right; }
 #social-profile-modal .social-profile-power span { display: block; color: #c9b48a; font-size: 12px; letter-spacing: 1px; }
 #social-profile-modal .social-profile-power b { color: #ffcf6e; font-size: 26px; line-height: 1.1; text-shadow: 0 0 12px rgba(255, 207, 110, .45); }
-#social-profile-modal .social-profile-duel { margin: 0 0 12px; }
+#social-profile-modal .social-profile-actions { margin: 0 0 12px; }
+/* 친선전, 차단, 신고 사유, 신고: 한 줄에 같은 모양(2026-11-04 사용자), 머리 띠의 칩과 같은 갈색 바탕 */
+#social-profile-modal .social-profile-actions :is(button, select) { height: 30px; min-height: 0; padding: 0 12px; border: 1px solid #6b5431; border-radius: 0;
+  background: linear-gradient(180deg, #241c14, #17120d); color: #e6dcc6; font-size: 12px; font-weight: 700; box-shadow: none; cursor: pointer; }
+#social-profile-modal .social-profile-actions :is(button, select):is(:hover, :focus-visible) { border-color: #c9a45c; color: #ecc982; outline: 0; }
 #social-profile-modal .social-profile-cols { grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr); gap: 14px; align-items: start; }
 #social-profile-modal .social-profile-card { padding: 0 12px 12px; border: 1px solid #5a4528;
   background: linear-gradient(180deg, rgba(29, 23, 18, .92), rgba(13, 10, 7, .92)); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .8), inset 0 1px 0 rgba(255, 226, 160, .1); }

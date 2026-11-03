@@ -22,7 +22,7 @@ const chronicle = (() => {
         depth: state => count(Math.max(0, (Number(state.records && state.records.best && state.records.best.abyssDepth) || 0) - 20), null),
         loops: state => count(completedLoops(state), null),
         harvest: state => count(list(state.stumpBox && state.stumpBox.harvest && state.stumpBox.harvest.grown).length,
-            Object.keys(STUMP_BOX_HARVEST.rows).length * Object.keys(STUMP_BOX_COLORS).length),
+            STUMP_BOX_HARVEST.rows.length * Object.keys(STUMP_BOX_COLORS).length),
         fishing: state => count(keysOf(state.ocean && state.ocean.fishCaughtTotal).filter(key => Object.hasOwn(OCEAN_FISH_DB, key)).length,
             Object.keys(OCEAN_FISH_DB).length),
         variants: state => count(state.atlas && state.atlas.memory ? bossVariants.records(state).filter(row => row.kills > 0).length : 0,

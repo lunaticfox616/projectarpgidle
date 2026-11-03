@@ -2,7 +2,7 @@
  * 가방의 장비 아닌 것(2026-10-10 사용자: "코어, 주얼, 기타 등 그루터기함에 들어가는 그루터기 아이템 제외하고는 가방에 같이 들어가있게"):
  * 주얼과 코어는 장비처럼 가방 칸(한 칸)에 들어간다. 주얼은 장비의 소켓에(js/equipment-sockets.js), 코어는 장비 칸 '코어'에 끼운다
  * (js/core-items.js). 가방에서는 slot('주얼', '코어')으로 가른다. 액막이(js/colony-wards.js)도 같은 가방의 한 칸짜리다.
- * 그루터기 함의 것(씨앗, 수액, 부적, 흉터)과 지도석은 그대로 제 보관함에 둔다. 예전 주얼 보관함과 코어 보관함은 불러올 때 옮긴다.
+ * 그루터기 함의 것(씨앗, 부적, 흉터)과 지도석은 그대로 제 보관함에 둔다. 예전 주얼 보관함과 코어 보관함은 불러올 때 옮긴다.
  */
 const bagItems = (() => {
     const JEWEL = '주얼', CORE = '코어';
@@ -101,7 +101,7 @@ const bagItems = (() => {
     /** The equipped slots a jewel can go into: items with an empty socket, in paperdoll order. */
     function jewelSlots(state = game) {
         return Object.entries(state.equipment || {})
-            .filter(([, item]) => item && !isSpecial(item) && equipmentSockets.list(item).some(row => !row.jewel)).map(([slot]) => slot);
+            .filter(([, item]) => item && !isSpecial(item) && equipmentSockets.list(item).some(equipmentSockets.takesJewel)).map(([slot]) => slot);
     }
     /** js/items.js getEquipCandidateSlots for the special kinds: a jewel goes to worn items with an empty socket, a core to the
      * core slot (once cores are open), a ward to the open ward slots. null for plain gear. */

@@ -8,6 +8,8 @@
     "setup:worktree": "node scripts/setup-worktree.js",
     "probe": "node scripts/probe-save.js",
     "build": "node scripts/build-web.js",
+    "desktop": "npm --prefix desktop start",
+    "desktop:build": "npm --prefix desktop run build",
     "review:css": "node scripts/review-css.cjs",
     "check:css": "node scripts/check-css.js",
     "check:architecture": "node scripts/check-runtime-architecture.js",

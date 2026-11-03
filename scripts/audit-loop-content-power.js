@@ -196,10 +196,10 @@ function auditTalismanOptions(slots, mul) {
 }
 var auditStumpMode = ${JSON.stringify(stumpMode)};
 var auditStumpPicks = [];
-const AUDIT_STUMP_KINDS = [['seed', 'flower'], ['seed', 'fruit'], ['sap', null]];
+const AUDIT_STUMP_KINDS = STUMP_BOX_KINDS.map(path => ['seed', path]);
 /** The ripening a picked item carries in this mode (see --stump above). */
 function auditRipen(item) {
-    const r = STUMP_BOX_RIPENING, pool = STUMP_BOX_EXTRA_LINES[item.family === 'sap' ? 'amber' : item.path][item.color];
+    const r = STUMP_BOX_RIPENING, pool = STUMP_BOX_EXTRA_LINES[item.path][item.color];
     if (auditStumpMode === 'expected') {
         const count = r.lineOdds.find(row => row.roll === 1).odds.reduce((sum, odd, k) => sum + odd * k, 0);
         item.roll = 1 + r.bumper.chance * r.bumper.quality + r.golden.chance * (r.golden.mul - 1);
@@ -212,15 +212,15 @@ function auditRipen(item) {
 function auditStumpCell(box, color) {
     const near = at => stumpBox.neighbors(at).map(next => box.items.find(item => item.id === box.board[next])).filter(Boolean);
     return STUMP_BOX_CELL_ORDER.find(at => stumpBox.isOpen(game, at) && box.board[at] === null
-        && !(color && near(at).some(item => item.color === STUMP_BOX_OPPOSITES[color])));
+        && !(color && near(at).some(item => item.color === stumpBox.overcomerOf(color) || stumpBox.overcomerOf(item.color) === color)));
 }
-/** Talismans stay; the picks go on the board in order (a pick with no cell clear of its opposite is left out). */
+/** Talismans stay; the picks go on the board in order (a pick with no cell clear of 상극 colours is left out). */
 function auditStumpBoard() {
     const box = stumpBox.of(game);
     box.items = box.items.filter(item => item.family === 'talisman');
     box.board = box.board.map(id => (box.items.some(item => item.id === id) ? id : null));
     if (auditStumpMode === 'max' && auditStumpPicks.length) {
-        const caps = stumpBox.scarCaps(), stats = [...new Set(auditStumpPicks.map(pick => STUMP_BOX_YIELDS[pick.path || 'amber'][pick.color].stat))];
+        const caps = stumpBox.scarCaps(), stats = [...new Set(auditStumpPicks.map(pick => STUMP_BOX_YIELDS[pick.path][pick.color].stat))];
         const scar = { id: box.nextId++, family: 'scar', color: null, path: null, xp: STUMP_BOX_GROWTH.need.scar, ripe: true, roll: 1,
             absorbed: Object.fromEntries(stats.map(stat => [stat, caps[stat]])), meals: 0, misses: 0 };
         const at = auditStumpCell(box, null);
@@ -296,7 +296,7 @@ function auditLoop(zone, season, deepPerLoop, stage) {
     auditTalismanLines.forEach(line => { talismanTally[line.id] = (talismanTally[line.id] || 0) + 1; });
     const stumpTally = {};
     stumpBox.of(game).items.filter(item => game.stumpBox.board.includes(item.id) && item.family !== 'talisman')
-        .forEach(item => { const key = item.family === 'scar' ? 'scar' : (item.path || 'amber') + '-' + item.color; stumpTally[key] = (stumpTally[key] || 0) + 1; });
+        .forEach(item => { const key = item.family === 'scar' ? 'scar' : item.path + '-' + item.color; stumpTally[key] = (stumpTally[key] || 0) + 1; });
     const emberTally = {};
     Object.values(game.equipment).forEach(item => (item && item.emberLines || []).forEach(line => { emberTally[line.id] = (emberTally[line.id] || 0) + 1; }));
     return { owned, loopPoints, deepPoints, ascend: game.ascendClass, supports: game.equippedSupports.slice(),

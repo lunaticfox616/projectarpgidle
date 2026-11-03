@@ -14,7 +14,7 @@ const gemCoreForgeUi = (() => {
 
     function steps(level) {
         const pips = Array.from({ length: FORGE.maxLevel }, (_, index) => {
-            const kinds = [index < level ? 'filled' : '', index >= FORGE.riskFromLevel ? 'risk' : '', (index + 1) % FORGE.runeLevelEvery === 0 ? 'mile' : ''];
+            const kinds = [index < level ? 'filled' : '', index >= FORGE.riskFromLevel ? 'risk' : '', FORGE.runeLevelAt.includes(index + 1) ? 'mile' : ''];
             return `<span class="${kinds.filter(Boolean).join(' ')}"></span>`;
         }).join('');
         return `<div class="gem-forge-steps" aria-label="${level}강 / 최대 ${FORGE.maxLevel}강">${pips}</div>`;
@@ -38,16 +38,17 @@ const gemCoreForgeUi = (() => {
     }
 
     function timingMarkup() {
-        const [from, to] = timing.zone, bonus = gemCoreForge.inspect(target, { cores, timed: true }).timingBonus;
-        return `<div class="gem-forge-timing"><small>담금질: 칸 안에서 멈추면 성공 +${percentText(bonus)}%p</small><div class="gem-forge-timing-bar"><i class="gem-forge-timing-zone" style="left:${from}%;width:${to - from}%"></i><b class="gem-forge-timing-marker"></b></div>
+        // 얼마나 오르는지는 알리지 않는다(2026-11-03 사용자).
+        const [from, to] = timing.zone;
+        return `<div class="gem-forge-timing"><small>담금질: 칸 안에서 멈추면 성공 확률이 오릅니다</small><div class="gem-forge-timing-bar"><i class="gem-forge-timing-zone" style="left:${from}%;width:${to - from}%"></i><b class="gem-forge-timing-marker"></b></div>
             <button type="button" data-forge-stop>멈추기</button></div>`;
     }
 
     function outcomeMarkup(state) {
-        const timed = result.timed ? `<em>담금질 +${percentText(result.timingBonus)}%p</em>` : '';
+        const timed = result.timed ? '<em>담금질 성공</em>' : '';
         if (result.status === 'destroyed') return `<strong>룬 파괴</strong><span>${result.lost ? '남은 룬이 없습니다.' : `여분 룬으로 +0부터 다시 시작합니다. 남은 여분 ${state.spares}개`}</span>`;
         if (result.status === 'failure') return `<strong>강화 실패</strong><span>다음 성공률 <b>${percentText(state.chance)}%</b>${timed}</span>`;
-        const milestone = state.level % FORGE.runeLevelEvery === 0 ? `<span class="gem-forge-level-bonus">+${state.level} 달성, 룬 레벨 +1</span>` : '';
+        const milestone = FORGE.runeLevelAt.includes(state.level) ? `<span class="gem-forge-level-bonus">+${state.level} 달성, 룬 레벨 +1</span>` : '';
         return `<strong>강화 성공</strong>${milestone}<span>${gemCoreForge.effectText(state.level)}${timed}</span>`;
     }
 

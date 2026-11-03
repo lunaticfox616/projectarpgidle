@@ -932,6 +932,15 @@ function getGemCritHitPerkMul(skillName, pStats) {
     const perk = Object.hasOwn(GEM_AWAKENED_PERKS, skillName) ? GEM_AWAKENED_PERKS[skillName] : null;
     return perk && perk.critHitMul && pStats.sSkill.awakened ? perk.critHitMul : 1;
 }
+/** 품질과 룬 강화(gem이 없으면 품질만): 증폭은 피해와 속도에 곱하고, 피해 증가와 속도 증가는 배율이 아니라
+ * getPlayerStats(js/combat.js)가 다른 증가 %와 합한다(forgeDmgPct, forgeAspdPct). */
+function applyRuneForgeToSkill(stats, gem, qualityMul) {
+    const forge = gem ? gemCoreForge.effects(gem) : null;
+    stats.dmg *= qualityMul * (forge ? forge.damage : 1);
+    stats.spd *= qualityMul * (forge ? forge.speed : 1);
+    stats.forgeDmgPct = forge ? forge.damageInc : 0;
+    stats.forgeAspdPct = forge ? forge.speedInc : 0;
+}
 function getActiveSkillStats(bonusLevel, allowMobility) {
     fitActiveSkillToWeapon(allowMobility);
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
@@ -953,8 +962,7 @@ function getActiveSkillStats(bonusLevel, allowMobility) {
     stats.spd = stats.baseSpd + (getGemLevelGrowthSteps(finalLevel) * stats.spdScale);
     if (stats.critScale) stats.crit = (stats.crit || 0) + (getGemLevelGrowthSteps(finalLevel, 0) * stats.critScale);
     let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
-    stats.dmg *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).damage : 1);
-    stats.spd *= qualityMul * (usesGemProgression ? gemCoreForge.effects(gem).speed : 1);
+    applyRuneForgeToSkill(stats, usesGemProgression ? gem : null, qualityMul);
     if (usesGemProgression && gem.awakened) applyGemAwakenedPerk(stats, GEM_AWAKENED_PERKS[game.activeSkill]);
     if (!usesGemProgression) return stats;
     getSkyEnhancementForSkill(game.activeSkill).forEach(id => {

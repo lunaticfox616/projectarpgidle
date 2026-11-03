@@ -9,7 +9,8 @@
     const own = (document.querySelector('meta[name="app-deploy"]') || {}).content || 'dev';
     let lastCheckAt = 0, quietUntil = 0, latest = '';
 
-    const native = () => !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+    // The PC build (window.rigninDesktop) is updated by Steam, not by reloading.
+    const native = () => !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) || !!window.rigninDesktop;
     const enabled = () => own !== 'dev' && location.protocol !== 'file:' && !native();
 
     function hideUpdateNotice(snooze) {

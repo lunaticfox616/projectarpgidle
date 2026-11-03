@@ -65,7 +65,8 @@ test('all unlocked mobile navigation entries open without page overflow or runti
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
         updateTabUnlockButtons(); applyTabHeaderOrder(); updateTabNotificationDots();
     });
-    await expect(page.locator('#tab-header-bottom > .tab-btn:visible')).toHaveCount(4);
+    // 2026-11-03 사용자: 하단 메뉴는 화면 너비만큼 바로가기를 싣는다(Pixel 5 폭에 전투와 바로가기 다섯).
+    await expect(page.locator('#tab-header-bottom > .tab-btn:visible')).toHaveCount(6);
     const ids = await page.locator('.tab-header > .tab-btn').evaluateAll(elements => elements
         .filter(el => el.id.startsWith('btn-tab-') && el.style.display !== 'none' && !el.hidden && el.dataset.mergedTabMember !== '1')
         .map(el => el.id));
@@ -98,10 +99,11 @@ test('the phone dock keeps its cells when the map unlocks', async ({ page }, inf
     await openMobile(page);
     // Review 2026-10-01 #24: the dock grew from 4 to 5 cells after act 1 and 스킬룬 moved under the thumb.
     // 2026-10-13: 스킬룬 opens from the 장비 button (one window, two tabs); the dock's third shortcut is 스킬트리.
+    // 2026-11-03 사용자: the dock fits as many shortcuts as its width holds, so a Pixel 5 also shows 캐릭터 and 기록.
     const cells = () => page.locator('#tab-header-bottom > :is(.tab-btn, .mobile-nav-more):visible').evaluateAll(elements =>
         elements.map(el => el.id + '@' + Math.round(el.getBoundingClientRect().left)));
     const before = await cells();
-    expect(before.map(cell => cell.split('@')[0]).sort()).toEqual(['btn-mobile-nav-more', 'btn-tab-battle', 'btn-tab-char', 'btn-tab-items', 'btn-tab-map']);
+    expect(before.map(cell => cell.split('@')[0]).sort()).toEqual(['btn-mobile-nav-more', 'btn-tab-battle', 'btn-tab-char', 'btn-tab-character', 'btn-tab-items', 'btn-tab-journal', 'btn-tab-map']);
     const map = page.locator('#btn-tab-map');
     await expect(map).toHaveClass(/nav-locked/);
     await expect(map).toHaveAttribute('aria-disabled', 'true');

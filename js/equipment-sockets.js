@@ -8,6 +8,9 @@
 // 주얼을 읽는 곳은 모두 jewels(item)을 써서 소켓 종류가 늘어도 빠지는 곳이 없게 한다.
 // 융합(2026-10-30 사용자, 그루터기 조합 장신구 주얼 융합): 공허 소켓의 주얼이 장비에 녹아 붙는다(voidSocket.fused). 뺄 수 없고,
 // 장비가 해체되거나 바뀌면 함께 없어진다.
+// 수확물 소켓(2026-11-03 사용자, data/items.js HARVEST_SOCKET_UNIQUES): 몇몇 고유의 소켓은 그루터기 함의 다 자란 꽃, 열매, 덩굴, 뿌리를 받는다.
+// 장신구 고유는 늘 뚫린 공허 소켓 하나가 주얼이나 그 종류를(voidSocket.harvest), 풍작의 갑주는 종류마다 소켓 하나를(harvestSockets) 갖는다.
+// 수확물은 그 사이 함을 떠나 소켓에 살고, 빼면 함 보관함으로 돌아간다(가득 차면 뺄 수 없다). 장비가 없어질 때는 가득 차도 함으로 돌아간다.
 const equipmentSockets = (() => {
     const ACCESSORY_SLOTS = new Set(['반지', '목걸이', '허리띠']);
     const SOCKETABLE_SLOTS = new Set(['무기', '투구', '갑옷', '방패', '장갑', '신발', '반지', '목걸이', '허리띠']);
@@ -32,21 +35,54 @@ const equipmentSockets = (() => {
 
     const jewelsUnlocked = () => typeof contentProgression === 'object' && contentProgression.isUnlocked('jewel');
 
-    /** Sockets as stored, without creating any: void, the corruption socket, then abyss sockets. A jewel left in a void record is
-     * listed even when the record lost its open flag, so no reader can let it go with the item. */
+    /** The grown kinds a unique's sockets take ('flower', 'fruit', 'vine', 'root'), or [] for any other item. */
+    const harvestKinds = item => (item && item.rarity === 'unique' && HARVEST_SOCKET_UNIQUES[item.uniqueEffectKey]) || [];
+    /** A harvest unique's sockets exist from the start: the accessories' void socket is always open, the armour has one per kind. */
+    function ensureHarvestSockets(item) {
+        const kinds = harvestKinds(item);
+        if (!kinds.length) return;
+        if (isAccessory(item)) {
+            if (!hasVoidSocket(item) && !item.fusedRelic) item.voidSocket = { ...(item.voidSocket || {}), open: true, jewel: (item.voidSocket && item.voidSocket.jewel) || null };
+        } else if (!Array.isArray(item.harvestSockets)) item.harvestSockets = kinds.map(accepts => ({ accepts, harvest: null }));
+    }
+
+    /** Save boundary (2026-11-04, 호박석이 뿌리가 되고 덩굴이 생겼다): a socketed old 호박석 becomes a 뿌리, and the harvest armour's sockets
+     * follow today's kinds in their order (data/items.js HARVEST_SOCKET_UNIQUES), each keeping what it holds. A held item no kind takes
+     * keeps a socket of its own, so nothing is lost. Idempotent. */
+    function migrateHarvest(item) {
+        if (!item || typeof item !== 'object') return;
+        if (item.voidSocket && item.voidSocket.harvest) item.voidSocket.harvest = stumpBox.currentSocketItem(item.voidSocket.harvest);
+        if (!Array.isArray(item.harvestSockets)) return;
+        const old = item.harvestSockets.filter(Boolean).map(socket => ({ accepts: socket.accepts === 'amber' ? 'root' : socket.accepts,
+            harvest: socket.harvest ? stumpBox.currentSocketItem(socket.harvest) : null }));
+        const kept = harvestKinds(item).map(accepts => old.find(socket => socket.accepts === accepts) || { accepts, harvest: null });
+        item.harvestSockets = kept.concat(old.filter(socket => socket.harvest && !kept.includes(socket)));
+    }
+
+    /** Sockets as stored, without creating any: void, the corruption socket, abyss sockets, then harvest sockets. A jewel or a grown
+     * item left in a void record is listed even when the record lost its open flag, so no reader can let it go with the item.
+     * accepts: the grown kinds the socket takes besides (void) or instead of (harvest) a jewel. */
+    function voidRows(item) {
+        const record = item.voidSocket || {}, jewel = record.jewel || null, harvest = record.harvest || null;
+        if (!hasVoidSocket(item) && !jewel && !harvest) return [];
+        return [{ kind: 'void', index: 0, jewel, harvest, accepts: isAccessory(item) ? harvestKinds(item) : [], fused: record.fused === true }];
+    }
     function storedRows(item) {
-        const voidJewel = (item.voidSocket && item.voidSocket.jewel) || null;
-        const rows = hasVoidSocket(item) || voidJewel ? [{ kind: 'void', index: 0, jewel: voidJewel, fused: item.voidSocket.fused === true }] : [];
-        if (item.corruptionSocket) rows.push({ kind: 'corrupt', index: 0, jewel: item.corruptionSocket.jewel || null });
+        const rows = voidRows(item);
+        if (item.corruptionSocket) rows.push({ kind: 'corrupt', index: 0, jewel: item.corruptionSocket.jewel || null, harvest: null, accepts: [] });
         const abyss = Array.isArray(item.abyssSockets) ? item.abyssSockets : [];
-        abyss.forEach((socket, index) => rows.push({ kind: 'abyss', index, jewel: (socket && socket.jewel) || null }));
+        abyss.forEach((socket, index) => rows.push({ kind: 'abyss', index, jewel: (socket && socket.jewel) || null, harvest: null, accepts: [] }));
+        const harvest = Array.isArray(item.harvestSockets) ? item.harvestSockets : [];
+        harvest.forEach((socket, index) => rows.push({ kind: 'harvest', index, jewel: null, harvest: (socket && socket.harvest) || null,
+            accepts: socket && socket.accepts ? [socket.accepts] : [] }));
         return rows;
     }
 
-    /** Every socket of the item in display order: its void socket, the corruption socket, then the abyss sockets of socketed uniques. */
+    /** Every socket of the item in display order: void, corruption, the abyss sockets of socketed uniques, the harvest armour's. */
     function list(item) {
         if (!item) return [];
         ensureAbyssSockets(item);
+        ensureHarvestSockets(item);
         return storedRows(item);
     }
 
@@ -54,10 +90,16 @@ const equipmentSockets = (() => {
     function jewels(item) {
         return item ? storedRows(item).filter(row => row.jewel) : [];
     }
+    /** The grown items sitting in the item's sockets ({kind, index, harvest}); reads only. */
+    function harvests(item) {
+        return item ? storedRows(item).filter(row => row.harvest) : [];
+    }
+    /** A socket a jewel may go into: empty, and not one of the harvest armour's. */
+    const takesJewel = row => !row.jewel && !row.harvest && row.kind !== 'harvest';
 
     /**
-     * Before an item is destroyed (salvage, a chance orb): every socketed jewel goes back to the bag, past a full bag into the
-     * temporary storage, so the player's jewel is never lost with the item.
+     * Before an item is destroyed (salvage, a chance orb, a cube recipe): every socketed jewel goes back to the bag, past a full bag
+     * into the temporary storage, and every socketed grown item back to the stump box, past a full storage, so neither is lost.
      * @returns {number} jewels returned
      */
     function returnJewels(item, state = game) {
@@ -65,6 +107,10 @@ const equipmentSockets = (() => {
         rows.forEach(row => {
             bagItems.put(bagItems.asJewel(row.jewel), state, true);
             socketRecord(item, row.kind, row.index).jewel = null;
+        });
+        harvests(item).forEach(row => {
+            stumpBox.returnFromSocket(state, row.harvest, true);
+            socketRecord(item, row.kind, row.index).harvest = null;
         });
         return rows.length;
     }
@@ -74,6 +120,7 @@ const equipmentSockets = (() => {
     }
 
     function label(row) {
+        if (row.kind === 'harvest') return `${STUMP_BOX_STAGES[row.accepts[0]].label} 소켓`;
         if (row.kind === 'void') return row.fused ? '융합 소켓' : '공허 소켓';
         return row.kind === 'corrupt' ? '타락 소켓' : `심연 소켓 ${row.index + 1}`;
     }
@@ -130,21 +177,23 @@ const equipmentSockets = (() => {
 
     function socketRecord(item, kind, index) {
         if (kind === 'abyss') return (Array.isArray(item.abyssSockets) && item.abyssSockets[index]) || null;
+        if (kind === 'harvest') return (Array.isArray(item.harvestSockets) && item.harvestSockets[index]) || null;
         if (kind === 'corrupt') return item.corruptionSocket || null;
         return voidRecord(item);
     }
 
-    /** The open void socket's record, or a closed record that still holds a jewel (so it can come out), or null. */
+    /** The open void socket's record, or a closed record that still holds a jewel or a grown item (so it can come out), or null. */
     function voidRecord(item) {
         if (hasVoidSocket(item)) return item.voidSocket;
-        return item.voidSocket && item.voidSocket.jewel ? item.voidSocket : null;
+        return item.voidSocket && (item.voidSocket.jewel || item.voidSocket.harvest) ? item.voidSocket : null;
     }
+    /** The socket `at` ({ kind, index }, the one something was dropped on) when it fits, else the first that fits. */
+    const pickSocket = (rows, fits, at) => (at && rows.find(row => fits(row) && row.kind === at.kind && row.index === at.index)) || rows.find(fits);
 
-    /** Moves a bag jewel into the item's first empty socket. */
-    function insert(item, jewelId, state = game) {
+    /** Moves a bag jewel into the item's socket `at` when that is empty, else into the first empty one. */
+    function insert(item, jewelId, state = game, at = null) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
-        const jewel = bagItems.jewels(state).find(row => row.id === jewelId);
-        const empty = list(item).find(row => !row.jewel);
+        const jewel = bagItems.jewels(state).find(row => row.id === jewelId), empty = pickSocket(list(item), takesJewel, at);
         if (!jewel) return { ok: false, reason: '가방에 없는 주얼입니다.' };
         if (!empty) return { ok: false, reason: '빈 소켓이 없습니다.' };
         bagItems.take(jewel, state);
@@ -152,9 +201,30 @@ const equipmentSockets = (() => {
         return { ok: true, jewel };
     }
 
+    /** Moves a stored grown flower, fruit, vine or root (stump box id) into a socket of this unique that takes its kind. */
+    function insertHarvest(item, stumpId, state = game, at = null) {
+        if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
+        const grown = stumpBox.socketable(state, stumpId);
+        if (!grown) return { ok: false, reason: '그루터기 함 보관함의 다 자란 꽃, 열매, 덩굴, 뿌리만 넣을 수 있습니다.' };
+        const kind = stumpBox.yieldKind(grown);
+        const empty = pickSocket(list(item), row => !row.jewel && !row.harvest && row.accepts.includes(kind), at);
+        if (!empty) return { ok: false, reason: `${STUMP_BOX_STAGES[kind].label}${pickParticle(STUMP_BOX_STAGES[kind].label, '을', '를')} 넣을 빈 소켓이 없습니다.` };
+        stumpBox.takeForSocket(state, grown);
+        socketRecord(item, empty.kind, empty.index).harvest = grown;
+        return { ok: true, harvest: grown };
+    }
+
+    function removeHarvest(record, state) {
+        if (!stumpBox.returnFromSocket(state, record.harvest)) return { ok: false, reason: '그루터기 함 보관함에 자리가 없습니다.' };
+        const harvest = record.harvest;
+        record.harvest = null;
+        return { ok: true, harvest };
+    }
+    /** Takes a jewel back to the bag, or a grown item back to the stump box storage (neither when it is full). */
     function remove(item, kind, index, state = game) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         const record = item ? socketRecord(item, kind, index) : null;
+        if (record && record.harvest) return removeHarvest(record, state);
         if (!record || !record.jewel) return { ok: false, reason: '빈 소켓입니다.' };
         if (record.fused) return { ok: false, reason: '융합된 주얼은 뺄 수 없습니다.' };
         const jewel = record.jewel;
@@ -163,7 +233,7 @@ const equipmentSockets = (() => {
         return { ok: true, jewel };
     }
 
-    return Object.freeze({ isSocketable, isAccessory, hasVoidSocket, list, jewels, returnJewels, count, label, canChisel, openVoidSocket, fuse,
-        rollDropSocket, keepLegacySocket, canAddCorruptionSocket, addCorruptionSocket, chisel, insert, remove });
+    return Object.freeze({ isSocketable, isAccessory, hasVoidSocket, list, jewels, harvests, harvestKinds, migrateHarvest, takesJewel, returnJewels, count, label, canChisel, openVoidSocket, fuse,
+        rollDropSocket, keepLegacySocket, canAddCorruptionSocket, addCorruptionSocket, chisel, insert, insertHarvest, remove });
 })();
 safeExposeGlobals({ equipmentSockets });

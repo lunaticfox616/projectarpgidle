@@ -27,7 +27,7 @@ const UNIQUE_HUNT_COSMOS_BOSSES = Object.freeze({
  * 원래 자리에 더해 그 우두머리나 보스를 적는다. */
 function describeUniqueHuntSource(entry) {
     let source = getUniqueHuntSource(entry);
-    let league = ATLAS_ENDGAME.leagues.find(row => row.unique === (entry && entry.name));
+    let league = ATLAS_ENDGAME.leagues.find(row => [].concat(row.unique || []).includes(entry && entry.name));
     if (league && source.exploreSubtab !== 'map-explore-worldtree') source.label += `, 아틀라스 ${league.boss}`;
     let boss = SEASON_BOSS_ZONES.find(row => row.signatureUnique === (entry && entry.name));
     if (boss) source.label += `, ${boss.name}`;

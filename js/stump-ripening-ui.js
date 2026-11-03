@@ -1,5 +1,5 @@
 // 그루터기 함 16번 화면 조각(2026-10-08): 다 자라는 순간의 굴림(추가 줄, 황금, 풍작, 만개), 불씨의 흉터(포식), 봉인 칸 단추,
-// 일괄 거름 사용과 일괄 버리기, 부적 도감, 루프 전환 알림(포식과 번식). 그리기와 클릭은 js/stump-box-ui.js가 부르고,
+// 자동합성, 일괄 거름 사용과 일괄 버리기, 부적 도감, 루프 전환 알림(포식과 번식). 그리기와 클릭은 js/stump-box-ui.js가 부르고,
 // 규칙과 계산은 js/stump-box.js, 수치는 data/stump-box.js.
 // 2026-10-09 사용자 "꼭 필요한 정보만": 아직 효과가 없는 줄은 회색 "(비활성)", 흉터의 먹은 횟수와 긴 설명, 일괄 거름의
 // "좋은 것 3개와 황금은 남김"은 뺐다. 일괄 단추는 누르면 무엇을 쓰는지 먼저 보여 준다.
@@ -10,7 +10,7 @@ const stumpRipeningUi = (() => {
     function lineText(stat, value) { return stumpBox.lineText(stat, value); }
     function isGolden(item) { return !!item && stumpBox.goldenMul(item) > 1; }
 
-    // ── 다 자란 씨앗과 수액: 추가 줄과 표식 ───────────────────────
+    // ── 다 자란 씨앗: 추가 줄과 표식 ───────────────────────
     /** 알비노는 함 전체에 하나(2026-11-03 사용자): 아직 없으면 0/1, 이 알비노가 놓여 있으면 초록 1/1, 다른 알비노가 놓여 있어 더 못 놓으면 빨강 1/1. */
     function albinoBadge(item) {
         const worn = stumpBox.wornAlbinoId(game);
@@ -37,7 +37,7 @@ const stumpRipeningUi = (() => {
         const style = active ? ` style="color:${getItemStatToneColor(line.stat)}"` : '';
         return `<${tag} class="${cls}"${style}>${esc(lineText(line.stat, line.value))}${active ? '' : ' (비활성)'}${note}</${tag}>`;
     }
-    /** Extra line rows of a grown seed or sap; they work while the board counts it (evaluate's extras). */
+    /** Extra line rows of a grown seed; they work while the board counts it (evaluate's extras). */
     function extraLinesHtml(item, result, tooltip) {
         if (!stumpBox.isMature(item)) return '';
         const active = !!result.extras[item.id];
@@ -60,7 +60,7 @@ const stumpRipeningUi = (() => {
         const message = `${withObjectParticle(STUMP_BOX_SCAR.name)} 버립니다. 흡수한 능력치도 사라지고 되돌릴 수 없습니다.`;
         return await requestGameConfirmation(message, options) && stumpBox.discard(game, id);
     }
-    /** A stored seed or sap thrown away: golden and ancient ones ask first, the rest go at once. */
+    /** A stored seed thrown away: golden and ancient ones ask first, the rest go at once. */
     async function confirmDiscard(item) {
         if (!isGolden(item) && !item.ancient && !item.albino) return true;
         const options = { title: '버리기', tone: 'danger', confirmLabel: '버리기', cancelLabel: '취소' };
@@ -85,17 +85,19 @@ const stumpRipeningUi = (() => {
             + `<div class="stump-actions"><button type="button" data-stump-action="seal" data-cell="${cell}"${reason ? ' disabled' : ''}>${label}</button></div></div>`;
     }
 
-    /** '화염 꽃 씨앗': what the seed grows into is rolled when it is made (2026-10-09). The seed pouch is in the rewards window
+    /** '화염 씨앗': what a seed grows into is rolled when it ripens (2026-11-04 사용자). The seed pouch is in the rewards window
      * (js/stump-harvest-ui.js). */
-    function seedName(spec) { return `${STUMP_BOX_COLORS[spec.color].label} ${STUMP_BOX_STAGES[spec.path || 'flower'].label} 씨앗`; }
+    function seedName(spec) { return `${STUMP_BOX_COLORS[spec.color].label} 씨앗`; }
 
-    // ── 일괄 거름 사용 · 일괄 버리기 ───────────────────────────
-    /** One bulk button: the count it would take, or muted when it cannot run (pressing it then says why, touch has no hover). */
+    // ── 자동합성 · 일괄 거름 사용 · 일괄 버리기 ───────────────────────────
+    /** One bulk button: the count it would take, or muted when it cannot run (pressing it then says why, touch has no hover).
+     * kind 'merge' is 자동합성 (its own action), the others go through the bulk action. */
     function bulkButton(kind, label, reason, count) {
-        return `<button type="button" class="${reason ? 'is-idle' : ''}" data-stump-action="bulk" data-kind="${kind}"${reason ? ` data-tip="${esc(reason)}"` : ''}>`
+        const action = kind === 'merge' ? 'data-stump-action="auto-merge"' : `data-stump-action="bulk" data-kind="${kind}"`;
+        return `<button type="button" class="${reason ? 'is-idle' : ''}" ${action}${reason ? ` data-tip="${esc(reason)}"` : ''}>`
             + `${label}${reason ? '' : ` ${count}`}</button>`;
     }
-    /** The storage filter's bulk buttons (none on the talisman filter). */
+    /** The storage filter's bulk buttons: 자동합성 beside 일괄 거름 사용 (2026-11-04 사용자), only 일괄 버리기 on the talisman filter. */
     function bulkHtml(filter) {
         const discardReason = stumpBox.bulkDiscardReason(game, filter);
         const discard = bulkButton('discard', '일괄 버리기', discardReason, discardReason ? 0 : stumpBox.bulkDiscardItems(game, filter).length);
@@ -103,24 +105,22 @@ const stumpRipeningUi = (() => {
         if (filter === 'talisman') return `<div class="stump-bulk">${discard}</div>`;
         const compostReason = stumpBox.bulkCompostReason(game, filter);
         const compost = stumpBox.bulkCompostOpen(game) ? bulkButton('compost', '일괄 거름 사용', compostReason, compostReason ? 0 : stumpBox.bulkCompostPlan(game, filter).length) : '';
-        return `<div class="stump-bulk">${compost}${discard}</div>`;
+        const sets = stumpCube.autoMergeSets(game, filter).length;
+        const merge = bulkButton('merge', '자동합성', sets ? '' : NO_MERGE, sets);
+        return `<div class="stump-bulk">${merge}${compost}${discard}</div>`;
     }
     function rollRange(rolls) {
         const low = Math.min(...rolls), high = Math.max(...rolls);
         return low === high ? `${low}%` : `${low}~${high}%`;
     }
-    /** '화염 꽃 씨앗 3개 (품질 80~95%)' per colour and kind, in the order given. */
+    /** '화염 씨앗 3개 (품질 80~95%)' per name, in the order given. */
     function bulkLines(items) {
         const groups = new Map();
-        items.forEach(item => {
-            const name = item.family === 'seed' ? seedName(item)
-                : item.family === 'sap' ? `${STUMP_BOX_COLORS[item.color].label} 수액` : stumpBox.shortName(item);
-            groups.set(name, (groups.get(name) || []).concat(item));
-        });
+        items.forEach(item => groups.set(stumpBox.shortName(item), (groups.get(stumpBox.shortName(item)) || []).concat(item)));
         return [...groups].map(([name, rows]) => `${name} ${rows.length}개`
             + (rows[0].color ? ` (품질 ${rollRange(rows.map(item => Math.round(item.roll * 100)))})` : ''));
     }
-    /** 일괄 버리기의 줄: 버리는 씨앗과 수액, 그다음 화폐화되는 다 자란 것. */
+    /** 일괄 버리기의 줄: 버리는 씨앗, 그다음 화폐화되는 다 자란 아이템. */
     function bulkDiscardLines(items) {
         const grown = new Map();
         items.filter(stumpBox.isMature).forEach(item => grown.set(stumpBox.shortName(item), (grown.get(stumpBox.shortName(item)) || 0) + 1));
@@ -177,6 +177,32 @@ const stumpRipeningUi = (() => {
         return await requestGameConfirmation(`${(compost ? bulkLines(items) : bulkDiscardLines(items)).join('\n')}\n\n${tail}`, options) ? confirmation.key : null;
     }
 
+    const NO_MERGE = '같은 색 씨앗 3개가 보관함에 없습니다.';
+    /** The sets 자동합성 would merge in this filter and a key of exactly them (a seed dropped, locked or merged since asks again). */
+    function autoMergeConfirmation(filter) {
+        const sets = stumpCube.autoMergeSets(game, filter);
+        return { sets, key: JSON.stringify([filter, game.season, game.loopCount, sets.map(set => set.map(item => [item.id, item.roll]))]) };
+    }
+    /** '화염 씨앗 9개 → 3개 (품질 80~95%)' per colour. */
+    function mergeLines(sets) {
+        const byColor = new Map();
+        sets.forEach(set => byColor.set(set[0].color, (byColor.get(set[0].color) || []).concat(set)));
+        return [...byColor].map(([color, items]) => `${seedName({ color })} ${items.length}개 → ${items.length / 3}개`
+            + ` (품질 ${rollRange(items.map(item => Math.round(item.roll * 100)))})`);
+    }
+    /** Asks before 자동합성. @returns {Promise<string|null>} the approved key (autoMergeCurrent checks it right before the merge), or null. */
+    async function confirmAutoMerge(filter) {
+        const { sets, key } = autoMergeConfirmation(filter);
+        if (!sets.length) {
+            showGameToast(NO_MERGE, { tone: 'warning' });
+            return null;
+        }
+        const [low, high] = STUMP_CUBE_MERGE.step;
+        const options = { title: '자동합성', tone: 'info', confirmLabel: `${sets.length}번 합성`, cancelLabel: '취소' };
+        return await requestGameConfirmation(`${mergeLines(sets).join('\n')}\n\n씨앗 3개를 1개로 합치고 품질은 평균 +${low}~${high}%입니다.`, options) ? key : null;
+    }
+    function autoMergeCurrent(filter, key) { return typeof key === 'string' && key === autoMergeConfirmation(filter).key; }
+
     // ── 부적 도감 ─────────────────────────────────────────
     /** A codex tile: the awake unique talisman and its name once found, a sleeping one and ??? before. */
     function codexEntry(row, owned) {
@@ -200,7 +226,7 @@ const stumpRipeningUi = (() => {
     function rulesLines() {
         return ['성장 완료 시 추가 옵션, 풍작, 황금 여부가 정해집니다.',
             stumpBox.sealLimit(game) ? '봉인 칸: 루프가 바뀌어도 성장 상태가 유지됩니다.' : '',
-            stumpBox.devourOpen(game) ? '불씨의 흉터: 루프가 바뀔 때 주변 8칸 중 무작위 1칸이 씨앗이나 수액이면 흡수합니다.' : '',
+            stumpBox.devourOpen(game) ? '불씨의 흉터: 루프가 바뀔 때 주변 8칸 중 무작위 1칸이 씨앗이면 흡수합니다.' : '',
             stumpBox.breedingOpen(game) ? '번식: 성장 완료된 열매는 루프가 바뀔 때 보관함에 씨앗 1개를 남깁니다.' : '',
             stumpBox.nurseryOpen(game) ? `생육함: 놓은 아이템은 효과 없이 경험치만 ${Math.round(stumpBox.nurseryRate(game) * 100)}% 받습니다.` : ''].filter(Boolean);
     }
@@ -214,7 +240,7 @@ const stumpRipeningUi = (() => {
         return notes.join(', ');
     }
     function biteLog(row) {
-        if (!row.ate) return '🔥 불씨의 흉터: 고른 칸에 씨앗이나 수액이 없어 이번 포식에 실패했습니다.';
+        if (!row.ate) return '🔥 불씨의 흉터: 고른 칸에 씨앗이 없어 이번 포식에 실패했습니다.';
         return `🔥 불씨의 흉터가 ${withObjectParticle(row.ate)} 먹었습니다: ${row.gained.map(line => lineText(line.stat, line.value)).join(', ')}`;
     }
     function bredLog(row) {
@@ -231,6 +257,6 @@ const stumpRipeningUi = (() => {
     }
 
     return Object.freeze({ lineText, isGolden, badgesHtml, extraLinesHtml, scarBodyHtml, discardScar, confirmDiscard, confirmMonetize, sealHtml, bulkHtml,
-        confirmBulk, bulkConfirmationCurrent, codexHtml, rulesLines, ripenNote, regressLog });
+        confirmBulk, bulkConfirmationCurrent, confirmAutoMerge, autoMergeCurrent, codexHtml, rulesLines, ripenNote, regressLog });
 })();
 safeExposeGlobals({ stumpRipeningUi });

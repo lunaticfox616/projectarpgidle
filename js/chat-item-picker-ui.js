@@ -3,7 +3,7 @@
  * 장착 장비는 장비 창의 장착 칸 배치(.build-set-paperdoll, css/equipment-window.css)와 그 아래 액막이 칸 줄, 인벤토리는 가방 쪽과 같은
  * 격자(장비, 주얼, 코어, 액막이가 제 자리와 크기로, 쪽 단추), 그루터기 함은 5×5 판(닫힌 칸까지)과 보관함이다. 아이템을 누르면 입력 줄에
  * [이름]으로 붙고 창이 닫힌다. 마우스를 올리면 옵션 카드가 뜬다. 2026-10-27 사용자 "액막이 부적도 링크 가능하게, 장비창 및 그루터기함에
- * 들어가는데 링크가 불가능한 아이템들도 가능하게": 코어, 액막이, 씨앗과 수액, 흉터도 붙는다. 첨부, 카드, 툴팁은 js/social.js가
+ * 들어가는데 링크가 불가능한 아이템들도 가능하게": 코어, 액막이, 씨앗, 흉터도 붙는다. 첨부, 카드, 툴팁은 js/social.js가
  * 만든다(getChatAttachSnapshot, attachChatSnapshot, renderProfileItemCard).
  */
 const chatItemPicker = (() => {

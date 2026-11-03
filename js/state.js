@@ -977,21 +977,30 @@ function getTimeRiftZone(id) {
         fixedSeason: getTimeRiftFixedSeason(activePressure), equivalentDepth: depth, equivalentChaosDepth: depth, areaLevel: areaLevel, mapHpMul: phase === 'past' ? 1 : 1.18,
         pressure: activePressure, ...contentMaps.timeRift(phase, activePressure) };
 }
+/** 운석 낙하 지점에 떨어질 운석(data/maps.js METEOR_KINDS, meteorSite.kind)의 속성과 그 지역 이름. 아직 정해지지 않았으면 예전의
+ * 불타는 운석으로 보이고 이름에 붙이지 않는다. */
+function meteorSiteKind(star) {
+    const decided = METEOR_KINDS.find(row => row.id === star.kind), kind = decided || METEOR_KINDS[0];
+    return { id: kind.id, ele: kind.ele, bossHpMul: kind.bossHpMul || 1, extraEquipment: kind.extraEquipment || 0,
+        zoneName: decided ? `운석 낙하 지점 (${decided.name})` : '운석 낙하 지점' };
+}
 function getMeteorSiteZone() {
     let star = (game && game.meteorSite) || {};
     let allowBeyond20 = !!star.skyRiftAllCosmos;
     let tierCap = allowBeyond20 ? 40 : 20;
     let tier = star.activeMeteorTier || Math.max(8, Math.min(tierCap, Math.floor(star.skyRiftMinTier || 13)));
     const rooms = typeof actExplorationDoors === 'object' && actExplorationDoors.session();
+    const kind = meteorSiteKind(star);
     return {
         id: METEOR_FALL_ZONE_ID,
-        name: '운석 낙하 지점',
+        name: kind.zoneName,
         type: 'meteor',
+        meteorKind: kind.id,
         tier: tier,
-        rewardEquipmentCount: 1 + Math.min(2, Math.floor(tier / 20)),
+        rewardEquipmentCount: 1 + Math.min(2, Math.floor(tier / 20)) + kind.extraEquipment,
         maxKills: 1,
-        ele: 'fire', bossVisualId: 'meteor-heart',
-        bossMods: { hpMul: 2.2, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' },
+        ele: kind.ele, bossVisualId: 'meteor-heart',
+        bossMods: { hpMul: 2.2 * kind.bossHpMul, atkMul: 1.1, damageMul: 1.4, patternMode: 'slam' },
         // 파편 무리 → 정예 호위 → 핵. 기존 운석 투기장은 핵만 세워 앞의 조우가 생략되었다.
         exploration: rooms ? { style: 'act', act: contentMaps.actForBiome('ruins'), seed: `meteor:${tier}`, chain: 2 }
             : contentMaps.arena('meteor', 'ruins')
@@ -2456,8 +2465,8 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * 16번(2026-10-08): a grown seed or sap keeps its ripening roll in harvest {bonus, golden, lines} until a new loop; golden marks
  * a golden item; a scar (불씨의 흉터, family 'scar') keeps absorbed stats and meal counts. sealed = sealed cells, pouches = seed
  * pouch receipts and offers kept until one is taken, codex = unique talismans first found, scarGift = the one free scar's receipt.
- * wallet = 화폐화한 꽃, 열매, 호박석 ('flower-fire': 개수, 실물로 돌아오지 않고 루프가 바뀌면 사라진다). nursery = 생육함 5×5(board와 같은 모양, 효과 없이 경험치만).
- * @typedef {{id:number, family:('seed'|'sap'|'talisman'|'scar'), color:(null|'fire'|'cold'|'lightning'|'chaos'), path:(null|'flower'|'fruit'), xp:number, ripe:boolean, roll:number,
+ * wallet = 화폐화한 꽃, 열매, 덩굴, 뿌리 ('flower-fire': 개수, 실물로 돌아오지 않고 루프가 바뀌면 사라진다). nursery = 생육함 5×5(board와 같은 모양, 효과 없이 경험치만).
+ * @typedef {{id:number, family:('seed'|'talisman'|'scar'), color:(null|'physical'|'fire'|'cold'|'lightning'|'chaos'), path:(null|'flower'|'fruit'|'vine'|'root'), xp:number, ripe:boolean, roll:number,
  *   golden?:boolean, harvest?:{bonus:number, golden:boolean, lines:{stat:string, value:number}[]}, absorbed?:Record<string, number>, meals?:number, misses?:number}} StumpBoxItem
  * @typedef {{version:number, acquired:boolean, via:(null|string), starter:{seed:boolean, sap:boolean}, nextId:number, items:StumpBoxItem[], board:Array<number|null>, graft:number[],
  *   harvest:{grown:string[], gifts:{flower:boolean, fruit:boolean, amber:boolean}}, sealed:number[], pouches:{opened:string[], offers:Record<string, object[]>},
@@ -2706,7 +2715,7 @@ const defaultGame = {
     chaosInfuserUnlocked: false,
     abyssClearedDepths: [],
     craftingWorkspace: { discovered: [], pins: ['formlessDew','sapBud','goldenRule','blightSpore'], goal: { statId: '', minTier: 0 } },
-    currencies: { magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, burningEmberBranch: 0, catalystFire: 0, catalystCold: 0, catalystLight: 0, catalystChaos: 0, catalystCrit: 0, catalystSummon: 0, oilFire: 0, oilCold: 0, oilLight: 0, oilChaos: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
+    currencies: { magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, burningEmberBranch: 0, catalystPhys: 0, catalystFire: 0, catalystCold: 0, catalystLight: 0, catalystChaos: 0, catalystCrit: 0, catalystSummon: 0, oilFire: 0, oilCold: 0, oilLight: 0, oilChaos: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, sporeFire: 0, sporeCold: 0, sporeLight: 0, underCopper: 0, underSilver: 0, underGold: 0 },
     ascendClass: null,
     lastLoopAscendPlan: null,
     ascendPoints: 0,
@@ -2821,6 +2830,8 @@ const defaultGame = {
         skyRiftMinTier: null,
         skyRiftAllCosmos: false,
         activeMeteorTier: null,
+        // 떨어질 운석의 종류(data/maps.js METEOR_KINDS id): 하늘 균열이 다 차면 정해지고 원정이 끝나면 비운다.
+        kind: null,
         meteorReturnZoneId: null,
         lastAnomalyAt: 0,
         skyRiftCarryGauge: 0,
@@ -2857,9 +2868,10 @@ function getExpReq(level) {
     return Math.floor(base * (1 + premium.increase * ramp));
 }
 function getGemReqExp(level) { return LEVEL_PROGRESSION.gemExperienceRequired[Math.max(1, Math.min(20, Math.floor(level || 1))) - 1]; }
-// Save boundary: retain failures through the current stage's guaranteed attempt.
+// Save boundary: failures count up to the streak that reaches the most 실패 보정 (data/gem-core-forge.js pityMaxOfBase).
 function normalizeGemCoreFailures(value, level) {
-    return level === GEM_CORE_FORGE.maxLevel || !Number.isFinite(value) ? 0 : Math.min(GEM_CORE_FORGE.pityBonusPct.length - 1, Math.max(0, Math.floor(value)));
+    const most = Math.ceil(GEM_CORE_FORGE.pityMaxOfBase / GEM_CORE_FORGE.pityStepOfBase);
+    return level === GEM_CORE_FORGE.maxLevel || !Number.isFinite(value) ? 0 : Math.min(most, Math.max(0, Math.floor(value)));
 }
 /** 룬 강화 단계. 옛 저장의 군주의 핵 강화와 창공의 정수 강화(각 5강)는 합쳐서 옮긴다(2026-11-02). */
 function normalizeRuneEnhanceLevel(raw) {

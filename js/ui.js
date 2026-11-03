@@ -5855,7 +5855,7 @@ function getUniqueEffectApplicationHint(item, isEquipped, equipSlotKey) {
         emberHeart: '장착한 타락 장비 수만큼 적용',
         amberTime: '장착한 장비의 품질 합만큼 적용',
         witheredEcho: '목걸이에 새긴 노드 수만큼 적용',
-        nurseryBloom: '그루터기 함의 성장 완료된 씨앗과 수액 수만큼 적용',
+        nurseryBloom: '그루터기 함의 성장 완료된 꽃, 열매, 덩굴, 뿌리 수만큼 적용',
         // 체이싱 고유(2026-10-20, data/items.js): 수만큼 자라는 넷과 잔잔한 사건(js/combat-incidents.js)을 바꾸는 넷, 액막이 허리띠.
         uniqueChorus: '장착한 고유 장비 수만큼 적용',
         rareBark: '장착한 희귀 장비 수만큼 적용',
@@ -6146,7 +6146,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
             let cur = Number(stat.val || 0);
             let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
-            let label = escapeHTML(stat.statName || getStatName(statKey) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
+            let label = escapeHTML(stat.statName || getStatName(statKey) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
             let valueColor = stat.exceptional ? '#ffb454' : resolveItemStatTone(statKey);
             let exMark = (stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '') + itemInfluencesUi.lineBadgeHtml(item, stat);
             html += `<div class="tooltip-line"><span${affixClass(statKey)}><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">${formatSignedValue(statKey, cur)}</span></span>${rangeText}${exMark}</div>`;
@@ -6180,7 +6180,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             let tierText = getItemAffixTierHtml(stat);
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
             let honeyLockText = getHoneyLockBadgeHtml(stat) + emberCorruptionUi.scaleBadgeHtml(stat) + itemInfluencesUi.lineBadgeHtml(item, stat);
-            let label = escapeHTML(stat.statName || getStatName(statKey) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
+            let label = escapeHTML(stat.statName || getStatName(statKey) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
                 let parts = [`<span${affixClass(statKey)} style="color:${resolveItemStatTone(statKey)};">${escapeHTML(getStatName(statKey))} +${formatValue(statKey, stat.val)}</span>`];

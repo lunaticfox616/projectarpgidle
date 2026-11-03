@@ -454,7 +454,7 @@ function buildStumpCellSnapshot(state, result, id, cell) {
     if (card) row.item = card;
     return row;
 }
-/** 그루터기 함 아이템 하나의 카드(판 위든 보관함이든): 부적은 부적 카드, 씨앗과 수액과 흉터는 그루터기 카드, 거기에 그림 단계와 성장.
+/** 그루터기 함 아이템 하나의 카드(판 위든 보관함이든): 부적은 부적 카드, 씨앗과 흉터는 그루터기 카드, 거기에 그림 단계와 성장.
  * 장착 구성의 판 칸과 채팅 첨부가 쓴다. */
 function buildStumpItemCard(item, result) {
     let card = !item ? null : item.family === 'talisman' ? buildTalismanSnapshot(item) : buildStumpItemSnapshot(item, result);
@@ -462,7 +462,7 @@ function buildStumpItemCard(item, result) {
     return Object.assign(card, { stage: stumpBox.stageOf(item), ripe: stumpBox.isMature(item), xp: Math.floor(item.xp), need: stumpBox.need(item) });
 }
 
-/** 씨앗과 수액(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 효과, 추가 줄, 황금, 비활성화와 공명.
+/** 씨앗(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 효과, 추가 줄, 황금, 비활성화와 공명.
  * 불씨의 흉터도 이 카드다(흡수한 줄이 추가 줄 자리에). */
 function buildStumpItemSnapshot(item, result) {
     let gain = stumpBox.yieldOf(item), suppressed = result.suppressed.has(item.id);
@@ -476,7 +476,7 @@ function buildStumpItemSnapshot(item, result) {
 
 /** 게임 그루터기 함의 상태 줄(js/stump-box-ui.js stumpStatus)과 같은 문장. 비활성화되었거나 공명할 때만. */
 function stumpItemNote(item, result) {
-    if (result.suppressed.has(item.id)) return `비활성화: ${STUMP_BOX_COLORS[STUMP_BOX_OPPOSITES[item.color]].label} 인접`;
+    if (result.suppressed.has(item.id)) return `비활성화: ${STUMP_BOX_COLORS[stumpBox.overcomerOf(item.color)].label} 인접`;
     if (!stumpBox.isMature(item) || !result.resonant.has(item.color)) return '';
     return `공명 +${STUMP_BOX_RESONANCE.bonusPct}%`;
 }
@@ -1946,7 +1946,7 @@ function renderProfileCoreCard(core) {
     return `<div class="social-item-card" style="border-color:${PROFILE_CORE_TONE};"><div class="social-item-title">${socialEscape(core.name || '코어')}</div>${lines}</div>`;
 }
 
-// ── 씨앗과 수액 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
+// ── 씨앗 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
 function renderProfileStumpCard(item) {
     let tone = profileStumpTone(item), scar = item.family === 'scar';
     let gain = item.yieldText ? `${item.yieldText}${item.ripe && !item.suppressed ? '' : ' (비활성)'}` : '';
@@ -2210,8 +2210,7 @@ function renderProfileData(profile) {
     let stats = Array.isArray(p.stats) ? p.stats : [];
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
-    let duelAction = canDuelFromProfile() ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 창의 대전 탭으로 이동합니다.</small></div>` : '';
-    duelAction += renderProfileModerationRow();
+    let actions = renderProfileActionsRow();
     // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
     body.innerHTML = `
         <div class="social-profile-header">
@@ -2222,7 +2221,7 @@ function renderProfileData(profile) {
             </div>
             ${profilePowerHtml(p)}
         </div>
-        ${duelAction}
+        ${actions}
         <div class="social-profile-cols">
             <section class="social-profile-col social-profile-card">
                 <h3>능력치</h3>
@@ -2242,16 +2241,16 @@ function canDuelFromProfile() {
     if (!target || target === socialLoggedInUserId()) return false;
     return contentProgression.canOpen('map-tab-pvp') && isMapPrimaryContentUnlocked(game, 'map-tab-pvp');
 }
-/** 남의 프로필 아래 줄(2026-10-27): 차단(이 기기에서 채팅 숨김)과 신고(사유를 골라 서버에 남김). 내 프로필에는 없다. */
-function renderProfileModerationRow() {
+/** 남의 프로필 머리 아래 한 줄(2026-11-04 사용자: 설명 없이 한 줄, 같은 모양의 단추). 내 프로필에는 없다: 친선전(대전이 열렸을 때, 지도 창의 대전 탭으로),
+ * 차단(2026-10-27, 이 기기에서 채팅 숨김), 신고 사유와 신고(서버에 남김). */
+function renderProfileActionsRow() {
     let target = socialState.currentProfileUserId;
     if (!target || target === socialLoggedInUserId()) return '';
-    let blocked = isUserBlocked(target);
-    return `<div class="social-profile-duel social-profile-moderation">`
-        + `<button type="button" onclick="toggleProfileBlock()">${blocked ? '차단 해제' : '차단'}</button>`
+    let duel = canDuelFromProfile() ? '<button type="button" onclick="fightCurrentProfileGhost()">친선전</button>' : '';
+    return `<div class="social-profile-actions">${duel}`
+        + `<button type="button" onclick="toggleProfileBlock()">${isUserBlocked(target) ? '차단 해제' : '차단'}</button>`
         + `<select id="social-report-reason" aria-label="신고 사유"><option value="욕설">욕설</option><option value="도배">도배</option><option value="사칭">사칭</option><option value="기타">기타</option></select>`
-        + `<button type="button" onclick="reportCurrentProfile()">신고</button>`
-        + `<small>${blocked ? '이 기기에서 이 사람의 채팅을 숨기는 중' : '차단은 이 기기에서 채팅을 숨기고, 신고는 운영자에게 갑니다'}</small></div>`;
+        + '<button type="button" onclick="reportCurrentProfile()">신고</button></div>';
 }
 function toggleProfileBlock() {
     let target = socialState.currentProfileUserId;
@@ -2473,7 +2472,7 @@ function injectSocialStyles() {
     .social-profile-name{font-size:1.4em;font-weight:800;color:var(--color-accent);}
     .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
     .social-profile-updated{color:var(--copy-muted);font-size:12px;margin-top:4px;}
-    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}.social-profile-moderation select{min-width:72px;padding:2px 6px;}
+    .social-profile-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;}
     .social-profile-col{min-width:0;}.social-profile-cols{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:16px;}
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
     .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}

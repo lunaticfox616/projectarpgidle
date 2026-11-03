@@ -1,31 +1,32 @@
-// 수확 일지와 그루터기 함 해금(2026-10-07 해금 1차, docs/stump-box-unlocks-review-20261007.md): 처음 성장 완료된 꽃, 열매, 호박석 × 4색
-// 12칸, 줄을 채우면 받는 보상(색을 골라 씨앗이나 수액 1개), 해금 목록(보관함, 뿌리 기억), 새로 열린 해금과 조합법, 뿌리 기억의 알림.
+// 수확 일지와 그루터기 함 해금(2026-10-07 해금 1차, docs/stump-box-unlocks-review-20261007.md): 처음 성장 완료된 꽃, 열매, 덩굴, 뿌리 × 5색
+// 20칸(2026-11-04 전: 꽃, 열매, 호박석 × 4색), 줄을 채우면 받는 보상(색을 골라 씨앗 1개), 해금 목록(보관함, 뿌리 기억), 새로 열린 해금과 조합법,
+// 뿌리 기억의 알림.
 // 수확 일지와 함 해금은 그루터기 함 아래 탭에 하나씩 보인다(2026-10-09). 받을 보상(줄 완성 보상과 씨앗 주머니)은 머리줄 단추 하나와
 // 그 단추가 여는 창이다. 16번의 부적 도감(부적 탭)과 루프 전환 소식(포식, 번식, 봉인 칸)은 js/stump-ripening-ui.js가 준다.
 // 탭 그리기와 클릭은 js/stump-box-ui.js가 맡고(#stump-box-more 탭, 'rewards'), 규칙과 계산은 js/stump-box.js와 js/stump-cube.js.
 const stumpHarvestUi = (() => {
     const COLORS = Object.keys(STUMP_BOX_COLORS);
-    const ROWS = Object.keys(STUMP_BOX_HARVEST.rows);
-    const ROW_LABELS = Object.freeze({ flower: '꽃', fruit: '열매', amber: '호박석' });
+    const ROWS = STUMP_BOX_HARVEST.rows;
+    const rowLabel = row => STUMP_BOX_STAGES[row].label;
 
     function esc(text) { return escapeHTML(String(text)); }
     function tone(color) { return STUMP_BOX_COLORS[color].tone; }
 
     // ── 수확 일지 ───────────────────────────────────────────
     function journalCell(row, color, grown) {
-        const key = `${row}-${color}`, on = grown.has(key), name = `${STUMP_BOX_COLORS[color].label} ${ROW_LABELS[row]}`;
+        const key = `${row}-${color}`, on = grown.has(key), name = `${STUMP_BOX_COLORS[color].label} ${rowLabel(row)}`;
         return `<span class="stump-harvest-cell${on ? ' is-on' : ''}" style="--stump-tone:${tone(color)}" data-tip="${esc(on ? name : `${name} (미수확)`)}">`
             + `<img src="assets/items/stump-pixel-v1/${key}.png" alt="${esc(name)}" draggable="false"></span>`;
     }
     function journalRow(row, grown) {
-        return `<div class="stump-harvest-row"><span>${ROW_LABELS[row]}</span>${COLORS.map(color => journalCell(row, color, grown)).join('')}</div>`;
+        return `<div class="stump-harvest-row"><span>${rowLabel(row)}</span>${COLORS.map(color => journalCell(row, color, grown)).join('')}</div>`;
     }
     /** Where an unlock comes from. A hidden journal page keeps its name until it is found. */
     function unlockWhen(row, open) {
         const when = row.when;
         if (when.harvestRows) return `수확 일지 ${when.harvestRows}줄`;
         if (when.harvestCells) return `수확 일지 ${when.harvestCells}칸`;
-        if (when.harvestRow) return `수확 일지 ${ROW_LABELS[when.harvestRow]} 줄`;
+        if (when.harvestRow) return `수확 일지 ${rowLabel(when.harvestRow)} 줄`;
         if (when.content) return '해금 탭';
         if (when.loop) return `루프 ${when.loop}`;
         const page = JOURNAL_DB[when.journal];
@@ -42,28 +43,28 @@ const stumpHarvestUi = (() => {
         return '<div class="stump-unlocks-head" aria-hidden="true"><span>조건</span><span>보상</span></div>'
             + `<ul class="stump-unlocks">${STUMP_BOX_UNLOCKS.map(row => unlockRow(row, open.has(row.id))).join('')}</ul>`;
     }
-    /** The 수확 일지 tab: 3 rows × 4 colours (grown ones lit; the count is on the tab) and what a full row gives. */
+    /** The 수확 일지 tab: 4 rows × 5 colours (grown ones lit; the count is on the tab) and what a full row gives. */
     function journalHtml() {
         const grown = new Set(game.stumpBox.harvest.grown);
         return `<div class="stump-harvest-grid">${ROWS.map(row => journalRow(row, grown)).join('')}</div>`
             + '<p class="stump-hint">한 줄을 채우면 보상을 받습니다.</p>';
     }
 
-    // ── 재화(2026-11-03 사용자): 꽃, 열매, 호박석 × 네 색의 총합. 가리키면 실제 아이템+화폐화(5+7). 실제 아이템은 값으로 쓸 수 있는 것만 센다(보관함, 잠기지 않음). ──
+    // ── 재화(2026-11-03 사용자): 꽃, 열매, 덩굴, 뿌리 × 다섯 색의 총합. 가리키면 실제 아이템+화폐화(5+7). 실제 아이템은 값으로 쓸 수 있는 것만 센다(보관함, 잠기지 않음). ──
     /** One cell; with the frame on the cube, a stack with currency is a button that puts one unit in. */
     function walletCell(row, color, canPut) {
-        const key = `${row}-${color}`, name = `${STUMP_BOX_COLORS[color].label} ${ROW_LABELS[row]}`, { real, wallet } = stumpBox.harvestHoldings(game, key);
+        const key = `${row}-${color}`, name = `${STUMP_BOX_COLORS[color].label} ${rowLabel(row)}`, { real, wallet } = stumpBox.harvestHoldings(game, key);
         const button = canPut && wallet > 0, tag = button ? 'button' : 'span', attrs = button ? ` type="button" data-stump-action="wallet-put" data-key="${key}"` : '';
         return `<${tag} class="stump-harvest-cell stump-wallet-cell${real + wallet ? ' is-on' : ''}"${attrs} style="--stump-tone:${tone(color)}" data-tip="${esc(`${name} ${real}+${wallet} (실제 아이템+화폐화)`)}">`
             + `<img src="assets/items/stump-pixel-v1/${key}.png" alt="${esc(name)}" draggable="false"><b>${real + wallet}</b></${tag}>`;
     }
     function walletHtml(canPut) {
-        return `<div class="stump-harvest-grid stump-wallet-grid">${ROWS.map(row => `<div class="stump-harvest-row"><span>${ROW_LABELS[row]}</span>`
+        return `<div class="stump-harvest-grid stump-wallet-grid">${ROWS.map(row => `<div class="stump-harvest-row"><span>${rowLabel(row)}</span>`
             + `${COLORS.map(color => walletCell(row, color, canPut)).join('')}</div>`).join('')}</div>`;
     }
 
     // ── 받을 보상(2026-10-09 사용자: 단추 하나로 줄이고, 누르면 창에서 왜 받는지 한 줄과 함께 고른다) ──────────
-    // 수확 일지 줄 완성 보상(색을 골라 씨앗이나 수액 1개)과 씨앗 주머니(셋 가운데 하나). 고르면 js/stump-box-ui.js claimReward가 받는다.
+    // 수확 일지 줄 완성 보상(색을 골라 씨앗 1개)과 씨앗 주머니(셋 가운데 하나). 고르면 js/stump-box-ui.js claimReward가 받는다.
     const REWARD_DIALOG = 'stump-reward-dialog';
     function pendingRewardCount() { return stumpBox.pendingGifts(game).length + stumpBox.pendingPouches(game).length; }
     /** The head's one button (gold while something waits); '' when nothing does. */
@@ -71,20 +72,16 @@ const stumpHarvestUi = (() => {
         const count = pendingRewardCount();
         return count ? `<button type="button" class="stump-reward-button" data-stump-action="rewards">받을 보상 ${count}</button>` : '';
     }
-    /** '화염 꽃 씨앗', '냉기 수액': what a choice gives. */
-    function rewardName(family, color, path) {
-        const colour = STUMP_BOX_COLORS[color].label;
-        return family === 'sap' ? `${colour} 수액` : `${colour} ${STUMP_BOX_STAGES[path || 'flower'].label} 씨앗`;
-    }
-    function rewardChoice(attrs, family, color, path, note) {
+    /** A choice of one seed ('화염 씨앗'): what it grows into is rolled when it ripens. */
+    function rewardChoice(attrs, color, note) {
         return `<button type="button" class="stump-reward-choice" ${attrs} style="--stump-tone:${tone(color)}">`
-            + `<img src="assets/items/stump-pixel-v1/${family}-${color}.png" alt="" draggable="false"><span>${esc(rewardName(family, color, path))}</span><small>${note}</small></button>`;
+            + `<img src="assets/items/stump-pixel-v1/seed-${color}.png" alt="" draggable="false"><span>${esc(`${STUMP_BOX_COLORS[color].label} 씨앗`)}</span><small>${note}</small></button>`;
     }
     function giftSection(row) {
-        const family = STUMP_BOX_HARVEST.rows[row], quality = `품질 ${Math.round(STUMP_BOX_HARVEST.giftRoll * 100)}%`;
-        const choices = COLORS.map(color => rewardChoice(`data-reward-gift="${row}" data-color="${color}"`, family, color, row, quality)).join('');
-        return `<section class="stump-reward"><h4>${ROW_LABELS[row]} 줄 완성 보상</h4>`
-            + `<p>수확 일지의 ${ROW_LABELS[row]} 4색을 모두 성장 완료한 보상입니다. 색을 하나 고르세요.</p>`
+        const quality = `품질 ${Math.round(STUMP_BOX_HARVEST.giftRoll * 100)}%`;
+        const choices = COLORS.map(color => rewardChoice(`data-reward-gift="${row}" data-color="${color}"`, color, quality)).join('');
+        return `<section class="stump-reward"><h4>${rowLabel(row)} 줄 완성 보상</h4>`
+            + `<p>수확 일지의 ${rowLabel(row)} ${COLORS.length}색을 모두 성장 완료한 보상입니다. 색을 하나 고르세요.</p>`
             + `<div class="stump-reward-choices">${choices}</div></section>`;
     }
     /** Why a seed pouch came: the journal page of its unlock row. */
@@ -94,7 +91,7 @@ const stumpHarvestUi = (() => {
     }
     function pouchSection(id) {
         const choices = stumpBox.pouchOffers(game, id).map((offer, index) => rewardChoice(`data-reward-pouch="${esc(id)}" data-index="${index}"`,
-            'seed', offer.color, offer.path, `품질 ${Math.round(offer.roll * 100)}%`)).join('');
+            offer.color, `품질 ${Math.round(offer.roll * 100)}%`)).join('');
         return `<section class="stump-reward"><h4>씨앗 주머니</h4><p>${esc(pouchReason(id))} 3개 중 1개를 고르세요.</p>`
             + `<div class="stump-reward-choices is-three">${choices}</div></section>`;
     }
@@ -130,7 +127,7 @@ const stumpHarvestUi = (() => {
     const UNLOCK_TEXTS = Object.freeze([
         [row => row.storage, row => `보관함 +${row.storage}칸`],
         [row => row.keepPct, row => `뿌리 기억 ${row.keepPct}%: 루프가 바뀌어도 성장 완료된 그루터기 아이템의 경험치 ${row.keepPct}% 유지`],
-        [row => row.bulkCompost, () => '일괄 거름 사용: 보관함의 씨앗, 수액을 한 번에 거름으로 사용'],
+        [row => row.bulkCompost, () => '일괄 거름 사용: 보관함의 씨앗을 한 번에 거름으로 사용'],
         [row => row.breeding, () => '번식: 루프가 바뀔 때 성장 완료된 열매마다 보관함에 씨앗 1개(가끔 다른 색, 황금)'],
         [row => row.pouch, () => '씨앗 주머니: 무작위 씨앗 3개 중 1개 선택'],
         [row => row.devour, () => '봉인 칸 1, 포식: 봉인 칸은 루프가 바뀌어도 성장 상태 유지. 불씨의 흉터 1개 지급(루프가 바뀔 때 주변 1칸 흡수)'],

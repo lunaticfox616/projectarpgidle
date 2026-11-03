@@ -4,12 +4,15 @@ const gemCoreForge = (() => {
     const held = key => Math.max(0, Math.floor(Number(game.currencies[key]) || 0));
     const levelOf = record => Math.min(FORGE.maxLevel, Math.max(0, Math.floor(Number(record?.enhanceLevel) || 0)));
 
-    /** Read-only effects from a gem record; absent enhancements grant no bonus. */
+    /** Read-only effects from a gem record; absent enhancements grant no bonus. damage and speed are the amplification multipliers,
+     * damageInc and speedInc the increased % added to the other increases. */
     function effects(record) {
         const level = levelOf(record);
-        return { damage: 1 + Math.max(0, level - FORGE.riskFromLevel) * FORGE.damageStepPct / 100,
-            speed: 1 + level * FORGE.speedStepPct / 100,
-            levels: Math.floor(level / FORGE.runeLevelEvery) };
+        // [단계, 그 단계까지의 합] 표에서 닿은 마지막 합(data/gem-core-forge.js)
+        const reached = table => table.reduce((total, [at, value]) => (level >= at ? value : total), 0);
+        return { damage: 1 + reached(FORGE.damageMoreAt) / 100, speed: 1 + reached(FORGE.speedMoreAt) / 100,
+            damageInc: FORGE.damageIncPct[level], speedInc: reached(FORGE.speedIncAt),
+            levels: FORGE.runeLevelAt.filter(at => level >= at).length };
     }
 
     function forSkill(name) { return effects(game.gemData[name]); }
@@ -20,14 +23,15 @@ const gemCoreForge = (() => {
     /** 그 단계의 효과를 적은 글. */
     function effectText(level) {
         if (level <= 0) return '강화 효과 없음';
-        const { damage, speed, levels } = effects({ enhanceLevel: level });
+        const { damage, speed, damageInc, speedInc, levels } = effects({ enhanceLevel: level });
         const percent = mul => Math.round((mul - 1) * 100);
-        return [`공격/시전 속도 ${percent(speed)}% 증폭`, damage > 1 ? `피해 ${percent(damage)}% 증폭` : '', levels ? `룬 레벨 +${levels}` : ''].filter(Boolean).join(', ');
+        return [`피해 ${damageInc}% 증가`, speedInc ? `공격/시전 속도 ${speedInc}% 증가` : '', damage > 1 ? `피해 ${percent(damage)}% 증폭` : '',
+            speed > 1 ? `공격/시전 속도 ${percent(speed)}% 증폭` : '', levels ? `룬 레벨 +${levels}` : ''].filter(Boolean).join(', ');
     }
 
+    /** 실패 보정 %p: 그 단계 기본 확률에 비례한다(data/gem-core-forge.js pityStepOfBase, pityMaxOfBase). */
     function pityOf(level, failures) {
-        const bonus = FORGE.pityBonusPct[Math.min(failures, FORGE.pityBonusPct.length - 1)];
-        return level >= FORGE.riskFromLevel ? bonus * FORGE.riskPityMul : bonus;
+        return Math.min(failures * FORGE.pityStepOfBase, FORGE.pityMaxOfBase) * FORGE.successPct[level];
     }
 
     function unavailable(name, done, owned, cost) {

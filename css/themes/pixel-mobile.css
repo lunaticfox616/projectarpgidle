@@ -106,7 +106,7 @@
   }
   /* 목표는 실제 44px 자리로 둔다. 아래로 넓힌 가상 누름 영역이 아틀라스 단추를 가로채던 문제를 막는다.
      귀환은 보이지 않는 누름 자리를 넓히고 공통 overflow:hidden에 잘리지 않게 한다. */
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(#btn-combat-goal-toggle, .combat-zone-actions button) { overflow: visible; }
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button) { overflow: visible; }
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-zone-actions button::after { content: ''; position: absolute; inset: -8px -6px; }
   /* 휴대폰 창 안의 누르는 것(단추 · 고르기 · 접는 머리)은 44px 이상: 도트 테를 입히며 27 ~ 36px로 줄어 있던 것들(룬 필터 · 등급 칩 ·
      지도 이동 · 설정 머리). 장비 가방 칸과 상점 진열칸은 격자 크기가 곧 자리라 뺀다(진열칸을 44px로 늘리면 32px 칸의 물건이 옆 물건과 그 가격을 덮었다). */
@@ -140,7 +140,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas: 'zone actions';
   }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle),
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle),
   :root body[data-ui-skin].mobile-battle-tab #tab-battle .combat-feed-title > :is(.ui-context-dock-tab, .combat-log-toggle) {
     border: 1px solid var(--px-ink);
     border-radius: 0;
@@ -151,7 +151,7 @@
     font-size: 12px;
     text-shadow: var(--px-text-edge);
   }
-  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, #btn-combat-goal-toggle, .ui-context-dock-tab, .combat-log-toggle):active {
+  :root body[data-ui-skin].mobile-battle-tab #tab-battle :is(.combat-zone-actions button, #ui-goal-toggle, .ui-context-dock-tab, .combat-log-toggle):active {
     box-shadow: var(--px-bevel-pressed);
   }
   /* 전투 기록 막대는 판 자체가 테두리라 안의 펼치기 버튼은 납작하게 */

@@ -46,10 +46,12 @@ const actExplorationView=(()=>{
             cellToScreen:(gx,gy)=>({x:mapX+(gx+.5)*tile,y:mapY+(gy+.5)*deep})};
     }
     /** 무대의 칸 너비: 화면 너비와 높이를 따른다(stageView.tile). 휴대폰과 태블릿 세로에서는 방 그림이 화면 위끝까지 닿을 만큼은
-     * 키운다(stageScene.coverTile). PC 창은 stageView.tile이 고른 칸 그대로 두고, 테스트 패널에서 고른 배율도 그대로다. */
+     * 키운다(stageScene.coverTile). 세로 화면의 전투 탭(stageView.stacked, 가로 20칸)도 그렇다(2026-11-03 사용자: 맨 위까지 전투 화면을
+     * 채워라 — 그림이 짧은 지역은 위에 어두운 띠가 남았다. 그만큼 가로 칸이 조금 준다). PC 창은 stageView.tile이 고른 칸 그대로 두고,
+     * 테스트 패널에서 고른 배율도 그대로다. */
     function stageTile(run,map,width,height) {
         const tile=stageView.tile(width,height,stageRoomRows(run));
-        if(Number(game.settings.stageZoom)||typeof stageScene!=='object'||!stageView.phonePortrait(width,height))return tile;
+        if(Number(game.settings.stageZoom)||typeof stageScene!=='object'||!(stageView.phonePortrait(width,height)||stageView.stacked()))return tile;
         return Math.max(tile,stageScene.coverTile(map,width,height));
     }
     /** 방 단위 무대에서 그 지도의 기준 방의 깊이(칸): 칸 크기가 화면 높이에 맞게 줄어들 기준이다(방마다 깊이가 달라도 칸 크기는

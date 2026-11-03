@@ -36,7 +36,8 @@ test('the first skill-tree open centres the chosen class start at a readable zoo
     const touch = !!info.project.use.isMobile;
     await openTreeAsPlayer(page, touch);
     expect(await page.evaluate(() => [...reachableNodes].filter(id => /^pt_start_/.test(id) && id !== getPassiveTreeRootNodeId()))).toEqual([]);
-    const start = await nodeOnScreen(page, 'pt_start_warrior');
+    // The class start's id comes from the tree (the authored tree renamed pt_start_warrior).
+    const start = await nodeOnScreen(page, await page.evaluate(() => getPassiveTreeRootNodeId()));
     expect(start.zoom).toBeGreaterThan(0.25);
     const middleX = (start.rect.left + start.rect.right) / 2;
     expect(Math.abs(start.x - middleX)).toBeLessThan(40);

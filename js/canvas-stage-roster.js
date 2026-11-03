@@ -18,8 +18,10 @@ const stageRoster = (() => {
     const BREATH_MS = 1700;          // 숨 한 번
     const HANG_DOTS = 4, HANG_MS = 2300;   // 그림이 한 장뿐인 떠 있는 몬스터가 오르내리는 높이(도트)와 한 번에 걸리는 시간
     const FLASH = '#fff4df', SHADE = '#0b090c';   // 맞았을 때 덮는 흰빛, 입장 전의 검은 형체
-    const PAD = 2;                   // 프레임 둘레에 두는 자리(도트): 테가 한 도트 나간다
+    const INK = '#120c0e';           // 제 선이 없는 외형에 두르는 검은 선(data/stage-view.js STAGE_INKED_LOOKS): 주인공 그림의 선만큼 어둡다
+    const PAD = 2;                   // 프레임 둘레에 두는 자리(도트): 테가 한 도트, 검은 선을 두르면 두 도트 나간다
     const RIM = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]), RIM_NONE = Object.freeze([0, 0]);
+    const RIM_OUTER = Object.freeze([[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [1, -1], [-1, 1], [-1, -1]]);   // 두 도트 밖의 테(한 도트 안쪽은 검은 선이 덮는다)
     const AIRBORNE = Object.freeze(['fly', 'float', 'swim']);
     const sheets = new Map();
     let mapLooks = new Set();        // 지금 지도의 무리가 쓰는 외형 id: 화면에 나오기 전에도 그림을 들고 있는다(keepFor)
@@ -184,17 +186,23 @@ const stageRoster = (() => {
         const cols = pose.clip === 'attack' ? actor.attackCols : (pose.clip === 'special' ? actor.special.cols : actor.walkCols);
         return { x: (pose.index % cols) * actor.w, y: Math.floor(pose.index / cols) * actor.h };
     }
-    /** The pose on the working surface: the rim (the silhouette a dot out on four sides), the frame, over it the dark of a
-     * figure not yet shown (look.shade) and the pale flash of a hit. Returns the size drawn and the room left around the cell (dots). */
+    /** The pose on the working surface: the rim (the silhouette a dot out on four sides; a look without its own dark line gets a
+     * black line there and the rim a dot further out), the frame, over it the dark of a figure not yet shown (look.shade) and the
+     * pale flash of a hit. Returns the size drawn and the room left around the cell (dots). */
     function compose(pair, actor, pose, look) {
         const pad = PAD, width = actor.w + pad * 2, height = actor.h + pad * 2, ctx = surface(width, height);
         const frame = { ...cellOf(actor, pose), w: actor.w, pad, rows: bands(actor, pose) };
         const own = { ...frame, x: 0, y: 0 }; // 한 가지 색 프레임은 제 칸만 담은 그림이다
+        const inked = inkedLook(actor);
         if (look.outline) {
             const rim = tintedFrame(pair, actor, pose, look.outline.color);
             ctx.globalAlpha = look.outline.alpha;
-            for (const shift of RIM) stamp(ctx, rim, own, shift);
+            for (const shift of inked ? RIM : RIM_OUTER) stamp(ctx, rim, own, shift);
             ctx.globalAlpha = 1;
+        }
+        if (!inked) {
+            const line = tintedFrame(pair, actor, pose, INK);
+            for (const shift of RIM) stamp(ctx, line, own, shift);
         }
         stamp(ctx, pair[pose.clip].source, frame, RIM_NONE);
         if (look.glaze) {
@@ -246,6 +254,8 @@ const stageRoster = (() => {
         if (!scales.has(actor.id)) scales.set(actor.id, getStageLookScale(actor.id));
         return scales.get(actor.id);
     }
+    /** 그림에 제 어두운 테두리 선이 있는 외형인가(data/stage-view.js STAGE_INKED_LOOKS). 없으면 compose가 검은 선을 두른다. */
+    const inkedLook = actor => STAGE_INKED_LOOKS.includes(actor.id);
     /** Stable body dimensions in screen pixels, excluding weapons, hopping and entrance scaling. */
     function bodySize(enemy, tile) {
         const actor = stageView.enabled() ? actorFor(enemy) : null;

@@ -94,6 +94,17 @@ const METEOR_SITE_UNLOCK_LOOP = 7;
 
 const METEOR_SITE_UNLOCK_ACT = 7;
 
+// 운석의 종류(2026-11-03 사용자: 화염뿐 아니라 카오스, 냉기, 번개, 물리): 하늘 균열이 다 차면 하나가 같은 확률로 정해지고(meteorSite.kind),
+// 들어가면 운석 핵, 호위, 파편이 모두 그 속성으로 싸운다. eliteEle: 호위 사수의 속성(불타는 운석은 예전처럼 번개). 거대한 운석은 핵의 생명력이
+// bossHpMul배이고 확정 장비가 하나 더 있다. 저항 대신 물리 피해 감소가 오른다(js/combat.js tuneMeteorEnemy).
+const METEOR_KINDS = Object.freeze([
+    Object.freeze({ id: 'fire', name: '불타는 운석', element: '화염', ele: 'fire', eliteEle: 'light' }),
+    Object.freeze({ id: 'chaos', name: '미지의 운석', element: '카오스', ele: 'chaos' }),
+    Object.freeze({ id: 'cold', name: '혜성', element: '냉기', ele: 'cold' }),
+    Object.freeze({ id: 'lightning', name: '초전도 운석', element: '번개', ele: 'light' }),
+    Object.freeze({ id: 'giant', name: '거대한 운석', element: '물리', ele: 'phys', bossHpMul: 1.3, extraEquipment: 1 })
+]);
+
 // 별자리 관측(아틀라스 패시브 '떨어지는 별'): 운석 정산마다 하나를 고르고 루프가 바뀌어도 남는다.
 const METEOR_CONSTELLATION_POOL = Object.freeze([
     Object.freeze({ stat: 'pctDmg', label: '피해', val: 4 }),
@@ -364,7 +375,7 @@ const SEASON_CONTENT_ROADMAP = {
     36: { title: '루프 36', features: ['아틀라스: 시든 정원 (목걸이에 기름 셋을 발라 패시브 노드 하나를 새김)', '심화: 혼돈 단계 상승'] },
     37: { title: '루프 37', features: ['그루터기 함: 봉인 칸 3', '심화: 혼돈 단계 상승'] },
     38: { title: '루프 38', features: ['심화: 혼돈 단계 상승'] },
-    39: { title: '루프 39', features: ['아틀라스: 묘목장 (그 지역 색의 씨앗과 수액, 불씨의 흉터)', '심화: 혼돈 단계 상승'] },
+    39: { title: '루프 39', features: ['아틀라스: 묘목장 (그 지역 색의 씨앗, 불씨의 흉터)', '심화: 혼돈 단계 상승'] },
     40: { title: '루프 40', features: ['해금: 뜨개질 (같은 실타래를 모아 정해진 보상으로 바꿈)', '심화: 혼돈 단계 상승'] },
     41: { title: '루프 41', features: ['심화: 혼돈 단계 상승'] },
     42: { title: '루프 42', features: ['그루터기 함: 고대 씨앗 (모든 색 공명, 이웃 접붙이기 +1, 묘목장과 최종 보스)', '심화: 혼돈 단계 상승'] },
@@ -481,4 +492,4 @@ const JOURNAL_DB = {
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
 safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, LOOP_MUTATION, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, WORLD_TREE_BARK, PINNACLE_FIRST_KILL_JOURNALS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
-safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_AUTO_REDIVE, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
+safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_KINDS, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_AUTO_REDIVE, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

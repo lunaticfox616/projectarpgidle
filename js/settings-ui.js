@@ -95,6 +95,20 @@
         return key;
     }
 
+    // PC build only: full screen or a window. The shell keeps the choice in its profile folder (desktop/main.cjs), not in the save,
+    // and reports F11 and Alt+Enter switches back here.
+    function initDisplayMode() {
+        const desktop = appPlatform.desktop, row = document.getElementById('cfg-row-display-mode'), control = document.getElementById('sel-display-mode');
+        if (!desktop || !row || !control) return;
+        row.hidden = false;
+        const show = full => { control.value = full ? 'full' : 'window'; };
+        const fail = error => console.error('[desktop] 화면 모드를 바꾸지 못했습니다.', error);
+        desktop.isFullScreen().then(show, fail);
+        desktop.onFullScreen(show);
+        control.addEventListener('change', () => desktop.setFullScreen(control.value === 'full').then(show, fail));
+    }
+    initDisplayMode();
+
     root?.addEventListener('change', event => {
         const key = writeControl(event.target);
         if (!key) return;

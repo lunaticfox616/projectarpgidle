@@ -59,13 +59,16 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(Math.abs((map.left + map.right) / 2 - (hud.left + hud.right) / 2)).toBeLessThan(2);
     expect(zone.left).toBeGreaterThanOrEqual(0);
     expect(zone.bottom).toBeLessThanOrEqual(hud.top);
-    // 귀환과 목표는 오른쪽 끝, 전투 기록 창과 같은 오른쪽 선에 모이고 기록 창 위에 있다(2026-10-07 사용자 요청).
+    // 루프 진행, 자동, 귀환, 목표는 지역 줄 안에 같은 크기로 한 줄로 서고(2026-11-03 사용자, 전: 귀환과 목표가 기록 창 위 오른쪽 끝), 기록 창 위에 있다.
     const back = await rectOf(page, '#btn-combat-return');
-    const goal = await rectOf(page, '#ui-goal-drawer .ui-goal-panel');
-    for (const box of [zone, back, goal]) expect(box.bottom).toBeLessThanOrEqual(feed.top);
-    expect(Math.abs(back.right - feed.right)).toBeLessThanOrEqual(2);
-    expect(Math.abs(goal.right - feed.right)).toBeLessThanOrEqual(2);
-    expect(goal.top).toBeGreaterThanOrEqual(back.bottom);
+    const goal = await rectOf(page, '#btn-combat-goal-toggle');
+    for (const box of [back, goal]) {
+        expect(box.top).toBeGreaterThanOrEqual(zone.top);
+        expect(box.bottom).toBeLessThanOrEqual(zone.bottom);
+    }
+    expect(goal.left).toBeGreaterThanOrEqual(back.right);
+    expect(Math.abs(goal.height - back.height)).toBeLessThanOrEqual(1);
+    expect(zone.bottom).toBeLessThanOrEqual(feed.top);
     expect(feed.bottom).toBeLessThanOrEqual(hud.top + 1);
     // 기록 글은 예전 기록 판처럼 보통 굵기, 줄 높이 1.5다(창으로 옮기며 굵고 빽빽해져 흰 글이 덩어리로 보였다, 2026-10-03).
     const logText = await page.locator('#log .log-msg').first().evaluate(el => {
@@ -159,7 +162,7 @@ test('desktop battlefield fills the screen and management windows overlay it', a
     expect(errors).toEqual([]);
 });
 
-test('mobile portrait battlefield runs under the HUD and log', async ({ page }, info) => {
+test('mobile portrait battlefield fills the top with the zone row and HUD over it and the log below', async ({ page }, info) => {
     test.skip(!info.project.use.isMobile, 'Mobile stage');
     const errors = await openGame(page, info);
     const zone = await rectOf(page, '#tab-battle .combat-zone-row');
@@ -167,13 +170,13 @@ test('mobile portrait battlefield runs under the HUD and log', async ({ page }, 
     const hud = await rectOf(page, '#tab-battle .player-hud');
     const feed = await rectOf(page, '#tab-battle .combat-feed');
     const nav = await rectOf(page, '#tab-header-bottom');
-    expect(field.top).toBeGreaterThanOrEqual(zone.bottom - 1);
-    expect(field.bottom).toBeLessThanOrEqual(nav.top + 1);
-    // HUD와 전투 기록 줄은 전장 아래쪽 위에 겹친다.
+    // 2026-11-03 사용자: 전투 화면이 맨 위까지 차고 지역 줄과 단추가 그 위쪽에, HUD가 그 아래쪽에 겹친다. 전투 기록은 그 아래 남는 자리를 채운다.
+    expect(field.top).toBeLessThanOrEqual(zone.top + 1);
+    expect(zone.bottom).toBeLessThan(field.top + field.height / 2);
     expect(hud.top).toBeGreaterThan(field.top + field.height / 2);
     expect(hud.bottom).toBeLessThanOrEqual(field.bottom + 1);
-    expect(feed.bottom).toBeLessThanOrEqual(hud.top + 1);
-    expect(feed.top).toBeGreaterThan(field.top);
+    expect(feed.top).toBeGreaterThanOrEqual(field.bottom - 1);
+    expect(feed.bottom).toBeLessThanOrEqual(nav.top + 1);
     expect(errors).toEqual([]);
 });
 

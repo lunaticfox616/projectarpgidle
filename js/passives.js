@@ -2190,8 +2190,21 @@ function ensureMeteorSiteState(owner = game) {
         site[key] = whole ? Math.floor(value) : value;
     });
     normalizeMeteorSiteTiers(site);
+    // 운석 종류가 생기기 전에 채운 하늘 균열과 원정은 그때처럼 불타는 운석이다.
+    const known = METEOR_KINDS.some(kind => kind.id === site.kind);
+    site.kind = known ? site.kind : (site.skyRiftReady || site.activeMeteorTier ? METEOR_KINDS[0].id : null);
     site.constellationBuff = site.constellationBuff && typeof site.constellationBuff === 'object' ? site.constellationBuff : null;
     return site;
+}
+
+/** 하늘 균열이 다 찼을 때 떨어질 운석: 다섯 종류가 같은 확률이다. */
+function rollMeteorKind(random = Math.random) {
+    return METEOR_KINDS[Math.min(METEOR_KINDS.length - 1, Math.floor(random() * METEOR_KINDS.length))].id;
+}
+
+/** 정해진 운석(하늘 균열이 다 찼거나 원정 중), 없으면 null. */
+function getMeteorKind(site = ensureMeteorSiteState()) {
+    return METEOR_KINDS.find(kind => kind.id === site.kind) || null;
 }
 
 /** 공허 옵션(2026-11-01 사용자): 조건이 까다로운 줄일수록 수치가 높다. 피해 < 공격, 주문, 원소 < 근접, 투사체, 물리, 범위, 지속 < 화염, 냉기, 번개, 카오스 < 강타, 포션, 기동, 소환수 < 무기 사용 시.
@@ -2685,7 +2698,9 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
         st.skyRiftGauge = 100;
         st.skyRiftCarryGauge = Math.min(99, Math.floor(overflow * 0.25));
         st.skyRiftReady = true;
-        addLog('☄️ 하늘 균열이 완전히 벌어졌다. 운석 낙하 지점으로 향할 수 있다.', 'loot-rare');
+        st.kind = rollMeteorKind();
+        const kind = getMeteorKind(st);
+        addLog(`☄️ 하늘 균열이 완전히 벌어졌다. 운석 낙하 지점으로 향할 수 있다. (${kind.name}, ${kind.element})`, 'loot-rare');
         game.noti.map = true;
     }
 }
@@ -9741,18 +9756,19 @@ function getAcquiredItemAutoEquipSlot(item, options) {
     return typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
 }
 
-/** guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등)과 목표·보호 장비.
- * 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다. */
+/** guaranteedKeep: 유실되면 안 되는 반환/정산 아이템(시간의 균열 융합·제단 회수 등)과 목표·보호 장비, 주얼과 코어.
+ * 습득 필터·자동해체를 우회하고, 가득 찬 인벤토리에서도 해체 대신 초과 보관한다. 항상 줍기의 액막이는 필터와 등급 해체만 건너뛰고,
+ * 가방이 차면 다른 장비처럼 해체된다(2026-11-03 사용자: 임시 보관함으로 들어오지 않게). */
 function isGuaranteedEquipmentPickup(item, options) {
     return !!(options && options.guaranteedKeep) || uniqueHuntRuntime.isTargetItem(item) || equipmentLootPolicy.matches(item)
-        || bagItems.keptOnPickup(item);
+        || bagItems.ownShape(item);
 }
 
 /** What picking `item` up would do before space is considered: 'kept', 'filtered' (pickup filter) or 'salvaged' (auto-salvage).
  * An exploration drop that would be kept waits on the floor (js/exploration-ground-loot.js); the others resolve at once. */
 function previewEquipmentPickup(item, options) {
     normalizeItem(item);
-    if (isGuaranteedEquipmentPickup(item, options)) return 'kept';
+    if (isGuaranteedEquipmentPickup(item, options) || bagItems.keptOnPickup(item)) return 'kept';
     if (!passesItemPickupFilter(item)) return 'filtered';
     return game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities?.[item.rarity] ? 'salvaged' : 'kept';
 }
@@ -9760,9 +9776,9 @@ function previewEquipmentPickup(item, options) {
 function addItemToInventory(item, options) {
     normalizeItem(item);
     const logLoot = game.settings.showLootLog;
-    let guaranteedKeep = isGuaranteedEquipmentPickup(item, options);
-    let ignoreFilter = guaranteedKeep || !!(options && options.ignoreFilter);
-    let ignoreAutoSalvage = guaranteedKeep || !!(options && options.ignoreAutoSalvage);
+    let guaranteedKeep = isGuaranteedEquipmentPickup(item, options), alwaysPicked = bagItems.keptOnPickup(item);
+    let ignoreFilter = guaranteedKeep || alwaysPicked || !!(options && options.ignoreFilter);
+    let ignoreAutoSalvage = guaranteedKeep || alwaysPicked || !!(options && options.ignoreAutoSalvage);
     let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options);
     if (autoEquipSlot) {
         recordEquipmentAcquisition(item);

@@ -71,7 +71,7 @@ const tutorialActionUi = {
             keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected', '#skill-tab-equip .skill-board-head']
         },
         unlock_stump_box: {
-            // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗이나 수액을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
+            // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
             // 휴대폰은 칸을 누르면 배치 미리보기가 먼저 뜨므로 그 [배치]를 가리킨다(2026-10-24).
             selector: ['#stump-placement-preview:not([hidden]) [data-stump-action="placement-apply"]',
                 '#stump-box-board .stump-cell.is-target', '#stump-box-storage .stump-item'],
@@ -635,10 +635,10 @@ function applySkippedGuide(key) {
     equipSkippedStarterGem(key);
     plantSkippedStumpStarter(key);
 }
-/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗과 수액을 판의 가운데부터 대신 놓는다(첫 스킬룬과 같은 이유). */
+/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗을 판의 가운데부터 대신 놓는다(첫 스킬룬과 같은 이유). */
 function plantSkippedStumpStarter(key) {
     if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
-    if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗, 수액을 배치했습니다', { tone: 'success' });
+    if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗을 배치했습니다', { tone: 'success' });
 }
 
 /** The queue and the card on screen belonged to the game running until now; a loaded save brings its own (js/ui.js

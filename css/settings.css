@@ -68,6 +68,7 @@
 .cfg-row-text > label { cursor: pointer; }
 .cfg-row-text > small { color: var(--color-text-secondary); font-size: var(--font-size-ui); line-height: 1.5; }
 .cfg-row-text > small[hidden] { display: none; }
+.cfg-row[hidden] { display: none; }
 #tab-settings .cfg-row > .cfg-select { flex: 0 1 230px; width: 230px; min-width: 130px; min-height: 36px; }
 .cfg-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex-shrink: 0; }
 /* 단추를 다른 모듈이 채우는 줄(창 배치는 PC 창 화면에서만)은 단추가 없으면 접는다. */

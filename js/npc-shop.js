@@ -22,9 +22,10 @@ const npcShop = (() => {
     const RESISTANCE_WEIGHT = 1.5;
     // 룬 연구를 대신한다(2026-11-02 사용자: 매 루프 조건을 달성하면 룬을 파는 NPC가 모든 룬을 판매). 이번 루프에 액트 5를 깨면 하켄의 진열대가 아직 없는
     // 공격 룬 전부와 보조스킬룬의 다음 등급 전부로 바뀐다. 루프가 끝나면 maxZoneId와 함께 닫힌다. 값(2026-11-02 사용자)은 그루터기 함에서 다 자란 것 하나다:
-    // 공격 룬은 그 속성의 꽃(물리는 어느 꽃이든), 보조스킬룬은 호박석, 이동 룬과 소환 룬은 열매. 랜덤 진열대는 그대로 이슬이다(함은 루프 1 액트 10에야 생긴다).
+    // 공격 룬은 그 속성의 꽃, 보조스킬룬은 룬마다 번갈아 뿌리와 덩굴, 이동 룬과 소환 룬은 열매(2026-11-04 사용자: 물리 룬은 물리 꽃, 호박석 대신 뿌리 반 덩굴 반).
+    // 랜덤 진열대는 그대로 이슬이다(함은 루프 1 액트 10에야 생긴다).
     const ALL_RUNES = Object.freeze({ npc: 'haken', act: 5 });
-    const ELEMENT_FLOWER = Object.freeze({ fire: 'fire', cold: 'cold', light: 'lightning', chaos: 'chaos' });
+    const ELEMENT_FLOWER = Object.freeze({ phys: 'physical', fire: 'fire', cold: 'cold', light: 'lightning', chaos: 'chaos' });
     const weighShopMods = pool => pool.map(mod => getAffixTags(mod).includes('resistance')
         ? { ...mod, weight: (Number(mod.weight) || 1) * RESISTANCE_WEIGHT } : mod);
 
@@ -47,20 +48,20 @@ const npcShop = (() => {
 
     const allRunesOpen = () => !!game.npcMet[ALL_RUNES.npc] && (game.maxZoneId || 0) >= ALL_RUNES.act;
     /** What the whole shelf holds: supports join once their unlock opens, so the mark tells when to lay it again. */
-    // 이름이 달라지면 진열대를 다시 편다(2026-11-02: 가진 룬도 팔게 되어 옛 진열대에는 빠진 룬이 있다).
-    const allRunesMark = () => (contentProgression.isUnlocked('support') ? 'full-copies' : 'attacks-copies');
+    // 이름이 달라지면 진열대를 다시 편다(2026-11-02: 가진 룬도 팔게 되어 옛 진열대에는 빠진 룬이 있다. 2026-11-04: 호박석 값이 뿌리와 덩굴이 됐다).
+    const allRunesMark = () => (contentProgression.isUnlocked('support') ? 'full-roots' : 'attacks-roots');
 
     function rollAllRunes() {
         const runes = gemDropRewards.attackRunes(), weights = getSkillRuneRewardWeights(runes);
         const attacks = runes.sort((a, b) => weights.get(b) - weights.get(a)).map(name => ({ kind: 'attack', name, awakened: false }));
-        const supports = allRunesMark() === 'full' ? Object.keys(SUPPORT_GEM_DB).map(name => gemDropRewards.nextSupport(game, name)).filter(Boolean) : [];
+        const supports = contentProgression.isUnlocked('support') ? Object.keys(SUPPORT_GEM_DB).map(name => gemDropRewards.nextSupport(game, name)).filter(Boolean) : [];
         // 칸 자리는 저장하지 않는다: 검색과 쪽에 맞춰 화면이 채운다(js/npc-shop-ui.js runeShelfHtml).
         const offers = [...attacks, ...supports].map(gem => ({ gem, priceKey: allRunePriceKey(gem), price: 1, columns: 1, rows: 1 }));
         return { loop: game.season || 1, zoneId: game.currentZoneId, offers, allRunes: allRunesMark() };
     }
 
     function allRunePriceKey(gem) {
-        if (gem.kind === 'support') return stumpBox.harvestPriceKey('amber');
+        if (gem.kind === 'support') return stumpBox.harvestPriceKey(Object.keys(SUPPORT_GEM_DB).indexOf(gem.name) % 2 ? 'vine' : 'root');
         const def = SKILL_DB[gem.name];
         if (isMobilityRuneName(gem.name) || (def.tags || []).includes('summon')) return stumpBox.harvestPriceKey('fruit');
         return stumpBox.harvestPriceKey('flower', ELEMENT_FLOWER[def.ele]);

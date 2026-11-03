@@ -210,19 +210,30 @@
     // ── 마우스 툴팁 ────────────────────────────────────────
     function onHover(event) {
         if (event.pointerType !== 'mouse' || drag || press) return;
-        const target = stumpTarget(event), cell = target && target.closest('[data-stump-drop-cell]');
-        if (cell && stumpBoxUi.hoverCell(Number(cell.dataset.stumpDropCell))) return hideInfoTooltip();
+        const target = stumpTarget(event);
+        if (showCellPreview(event, target && target.closest('[data-stump-drop-cell]'))) return;
         const anchor = target && target.closest('[data-stump-tip]');
         if (!anchor) return;
         const tip = stumpBoxUi.tipFor(anchor);
         if (tip) showInfoTooltipHtml(event.clientX, event.clientY, tip.html, tip.tone);
         else hideInfoTooltip();
     }
+    /** With an item selected, a cell shows where it would go (the placement preview) instead of its own tooltip; a pinned preview
+     * (the box under the board) shows no tooltip. Returns whether the cell had a preview. */
+    function showCellPreview(event, cell) {
+        const preview = cell && stumpBoxUi.hoverCell(Number(cell.dataset.stumpDropCell), true);
+        if (!preview) return false;
+        if (preview.html) showInfoTooltipHtml(event.clientX, event.clientY, preview.html, preview.tone);
+        else hideInfoTooltip();
+        return true;
+    }
     function onLeave(event) {
         const target = stumpTarget(event), anchor = target && target.closest('[data-stump-tip]');
         if (anchor && !anchor.contains(event.relatedTarget)) hideInfoTooltip();
         const cell = target && target.closest('[data-stump-drop-cell]');
-        if (cell && !cell.contains(event.relatedTarget)) stumpBoxUi.clearPlacementPreview(true);
+        if (!cell || cell.contains(event.relatedTarget)) return;
+        // An empty cell has no tooltip anchor of its own: its hover preview leaves with it.
+        if (stumpBoxUi.clearPlacementPreview(true) && !anchor) hideInfoTooltip();
     }
     /** Keyboard users reach the rules by focusing the ? button (pressing it is handled by stumpBoxUi). */
     function onRulesFocus(event) {

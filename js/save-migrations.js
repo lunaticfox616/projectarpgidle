@@ -368,6 +368,7 @@ function renameRetiredUniques(state) {
 
 function reconcileUniqueEquipmentSave(state) {
     renameRetiredUniques(state);
+    savedItemsOf(state).forEach(equipmentSockets.migrateHarvest);
     Object.values(state.npcShops || {}).forEach(shop => (Array.isArray(shop?.offers) ? shop.offers : []).forEach(ware => {
         if (ware?.item) ware.item = normalizeItem(ware.item);
     }));

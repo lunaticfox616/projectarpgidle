@@ -1,4 +1,4 @@
-// 부적(2026-09-30 개편): 그루터기 함 판에 놓는 한 칸짜리 조각(씨앗 · 수액 다음의 세 번째 계열, 색 없음).
+// 부적(2026-09-30 개편): 그루터기 함 판에 놓는 한 칸짜리 조각(씨앗 다음의 계열, 색 없음).
 // 예전 부적 판 · 생장판 · 컨디션 룬을 대신한다. 부적은 일반 줄(능력치)과 조건부 줄(수호 · 함성 · 저주)을 1~3개 갖고,
 // 고유 부적은 고정 줄이나 판의 상하좌우 이웃 효과를 가진다. 깨어나는 성장량은 data/stump-box.js(STUMP_BOX_GROWTH).
 
@@ -195,7 +195,7 @@ const TALISMAN_WILD_UNIQUE_DB = Object.freeze([
     { id: 'uw_boundary_stone', name: '경계석 가지', special: 'boundary', lines: [['flatHp', 27], ['armor', 30]],
         uniqueEffect: '그루터기 함 가장자리에 닿은 면 하나마다 모든 원소 저항 +4%, 받는 물리 피해 감소 +2%. 모서리면 생명력 +10%.' },
     { id: 'uw_ashen_sun', name: '재의 태양', special: 'ashenSun', lines: [['firePctDmg', 21], ['igniteChance', 18]],
-        uniqueEffect: '맞닿은 씨앗과 수액의 서로 다른 색 하나마다 화염 피해 +8%, 3색 이상이면 저항 관통 +5%.' },
+        uniqueEffect: '맞닿은 씨앗의 서로 다른 색 하나마다 화염 피해 +8%, 3색 이상이면 저항 관통 +5%.' },
     { id: 'uw_first_harvest', name: '첫 수확의 성배', special: 'firstHarvest', lines: [['crit', 6], ['critDmg', 21]],
         uniqueEffect: '그루터기 함의 성장 완료된 씨앗 하나마다 이 부적의 일반 줄 +10%(최대 30%).' },
     { id: 'uw_inverted_root', name: '거꾸로 자란 뿌리', special: 'invertedRoot', lines: [['flatHp', 48], ['armor', 105]],

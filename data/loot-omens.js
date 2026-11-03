@@ -2,7 +2,7 @@
 // 기운: 아틀라스 지도석(지도 노드의 것)마다 하나가 붙어 그 지도에서 무엇이 잘 나오는지 정한다(js/loot-omens.js). 지도석 희귀도가 세기를
 // 정한다(strength, 타락이면 corrupted만큼 더). weight는 뽑힐 비중이고, 그 기운이 줄 것이 아직 하나도 열리지 않았으면 뽑히지 않는다.
 //   drops: 처치마다 chance[등급] × 세기로 목록에서 가중치로 하나를 떨어뜨린다(보스는 bossRolls번 더). '@jewel'은 재화가 아니라 주얼
-//          한 개. [키, 가중치, 개수]. gemMul: 그 지도 몬스터의 룬 보상 확률 배율(세기만큼). jewel: 그 지도의 '@jewel'이 희귀(rare),
+//          한 개, '@seed'는 그루터기 함 씨앗 한 개(처치 드랍 씨앗과 같은 굴림). [키, 가중치, 개수]. gemMul: 그 지도 몬스터의 룬 보상 확률 배율(세기만큼). jewel: 그 지도의 '@jewel'이 희귀(rare),
 //          고유(unique)일 확률(세기를 곱한다).
 //   gear: 장비 기대 개수 배율(quantity), 부위 가중치(slots), 고유 확률 배율(unique), 드랍 변형 배율(variant: 복제, 묶음, 타락).
 //          배율은 세기만큼 커진다: 1 + (값 − 1) × 세기.
@@ -41,6 +41,11 @@ const LOOT_OMENS = Object.freeze({
             ['pollen', 10, 3], ['beeswax', 4], ['venomStinger', 2], ['hiveKey', 0.6], ['enchantedHoney', 0.3]]) },
         { id: 'sky', name: '별똥 비', note: '창공의 정수와 각성 잔향이 나옵니다', kind: 'drops', weight: 6, tone: '#8fd3ff', drops: Object.freeze([
             ['skyEssence', 10], ['condensedSkyPower', 2], ['awakenedEcho', 1.2]]) },
+        // 물리 꽃 묶음(2026-11-04): 씨앗과 룬 강화 재료.
+        { id: 'seeds', name: '씨앗 비', note: '그루터기 함 씨앗이 자주 나옵니다', kind: 'drops', weight: 5, tone: '#c9a27a', drops: Object.freeze([
+            ['@seed', 1]]) },
+        { id: 'cores', name: '군주의 잔해', note: '군주의 핵과 창공의 정수가 나옵니다', kind: 'drops', weight: 3, tone: '#e4ba79', drops: Object.freeze([
+            ['bossCore', 2], ['skyEssence', 6]]) },
         { id: 'under', name: '지하 광맥', note: '지하계 광석과 지하석 조각이 나옵니다', kind: 'drops', weight: 6, tone: '#d8a060', drops: Object.freeze([
             ['underCopper', 8], ['underSilver', 4], ['underGold', 2], ['runeShard', 3]]) },
         { id: 'seal', name: '봉인된 숨결', note: '봉인편린이 나옵니다', kind: 'drops', weight: 6, tone: '#c58cff', drops: Object.freeze([
@@ -91,10 +96,11 @@ const LOOT_OMENS = Object.freeze({
     // 꽃으로 기운 바꾸기(2026-11-02 사용자): 보관함의 다 자란 꽃 하나로 지도석의 기운을 그 꽃 색의 묶음 안에서 다시 굴린다(지금 기운은 빼고, weight대로).
     // 황금 꽃은 묶음 안에서 직접 고른다(js/atlas.js changeOmen). 기운마다 한 묶음에 든다. label은 단추에 쓰는 묶음 이름이다.
     flowers: Object.freeze({
+        physical: Object.freeze({ label: '그루터기', omens: Object.freeze(['seeds', 'cores', 'sky']) }),
         fire: Object.freeze({ label: '장비', omens: Object.freeze(['armory', 'jewelry', 'armour', 'unique', 'corrupt', 'twins', 'ember']) }),
         cold: Object.freeze({ label: '제작', omens: Object.freeze(['orbs', 'tools', 'fossil', 'spore', 'jewels', 'seal', 'craftOmens']) }),
         lightning: Object.freeze({ label: '지도와 콘텐츠', omens: Object.freeze(['maps', 'rooms', 'keys', 'chests', 'fragments', 'hive', 'ocean']) }),
-        chaos: Object.freeze({ label: '룬과 보스', omens: Object.freeze(['gems', 'dreams', 'elites', 'sky', 'under']) })
+        chaos: Object.freeze({ label: '룬과 보스', omens: Object.freeze(['gems', 'dreams', 'elites', 'under']) })
     }),
     treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.1, prefix: '보물을 품은', outline: '#ffd75e',
         sparks: '#fff1a8',

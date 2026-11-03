@@ -42,9 +42,9 @@ module.exports = function configureOfflineEndgameFixture() {
     const colors = Object.keys(STUMP_BOX_COLORS);
     STUMP_BOX_CELL_ORDER.forEach((cell, index) => {
         const item = index % 3 === 0 ? stumpBox.addTalisman(game, talismans.rollWild(index % 2 ? 'boss' : 'elite'), true)
-            : stumpBox.createItem(game, { family: index % 3 === 1 ? 'seed' : 'sap', color: colors[index % colors.length], roll: 1 });
+            : stumpBox.createItem(game, { family: 'seed', color: colors[index % colors.length], roll: 1 });
         stumpBox.place(game, item.id, cell, 'flower');
-        Object.assign(item, { xp: stumpBox.need(item), ripe: true });
+        Object.assign(item, { xp: stumpBox.need(item), ripe: true }, item.family === 'seed' ? { path: STUMP_BOX_KINDS[index % STUMP_BOX_KINDS.length] } : {});
     });
     game.playerHp = getPlayerStats().maxHp;
     startEncounterRun();

@@ -55,3 +55,7 @@ __pycache__/
 /assets/playable/stage/scenes/
 /assets/summon/hana/
 /docs/skill-assets-hana/reference/
+# PC build (desktop/build.cjs): its own Electron install, the staged app and the packed Windows folder.
+/desktop/node_modules/
+/desktop/stage/
+/desktop/out/

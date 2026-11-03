@@ -1,5 +1,5 @@
 // 기폭제(12번 루프 32, 2026-10-08, data/sap-catalysts.js): 장비의 품질 속성을 그 태그로 바꾸고 품질을 2% 올린다(20%까지). 수액 상처
-// 무리의 처치 드롭과, 그루터기 함 호박석 조합(stumpCubeRecipes amber_catalyst)이 여기서 정한다. 품질 속성이 키우는 줄은 태그 규칙
+// 무리의 처치 드롭과, 그루터기 함 뿌리 조합(stumpCubeRecipes root_catalyst), 덩굴의 기폭제 바꾸기가 여기서 정한다. 품질 속성이 키우는 줄은 태그 규칙
 // (data/affix-tags.js AFFIX_TAG_LISTS.quality)이 정하고, 스탯 계산은 js/equipment-stat-resolution.js가 그대로 한다.
 const sapCatalysts = (() => {
     const C = SAP_CATALYSTS;
@@ -34,27 +34,27 @@ const sapCatalysts = (() => {
         if (!enemy || enemy.atlasEncounter !== 'sapWound' || enemy.isBoss) return [];
         return random() < C.killDrops[enemy.isElite ? 'elite' : 'normal'] ? [[pick(random), 1]] : [];
     }
-    /** 호박석 조합(data/stump-cube.js amber_catalyst): two ripe saps of one colour → that colour's catalyst. */
-    function amberRecipe([group], state) {
+    /** 뿌리 조합(data/stump-cube.js root_catalyst): two grown roots of one colour → that colour's catalyst. */
+    function rootRecipe([group], state) {
         if (!open(state)) return { ok: false, reason: '수액 상처 해금 뒤에 만들 수 있습니다.' };
         const kind = BY_COLOR.get(group[0] && group[0].item && group[0].item.color);
         if (!kind) return { ok: false, reason: '이 색의 기폭제는 없습니다.' };
         return { ok: true, consumed: group, outputs: [{ kind: 'currency', key: kind.key, amount: 1 }] };
     }
-    /** 기폭제 바꾸기(data/stump-cube.js catalyst_exchange, 2026-10-30 사용자): the sap colour's catalyst, and the held catalysts of
+    /** 기폭제 바꾸기(data/stump-cube.js catalyst_exchange, 2026-10-30 사용자): the vine colour's catalyst, and the held catalysts of
      * other kinds that may be turned into it (STUMP_CUBE_CATALYST_EXCHANGE of them), or why it cannot be made. */
-    function exchangePlan(amber, state) {
+    function exchangePlan(vine, state) {
         if (!open(state)) return { reason: '수액 상처 해금 뒤에 만들 수 있습니다.' };
-        const kind = BY_COLOR.get(amber && amber.color);
+        const kind = BY_COLOR.get(vine && vine.color);
         if (!kind) return { reason: '이 색의 기폭제는 없습니다.' };
         const held = KEYS.filter(key => key !== kind.key && (state.currencies[key] || 0) > 0);
         const total = held.reduce((sum, key) => sum + Math.floor(state.currencies[key] || 0), 0);
         return total >= STUMP_CUBE_CATALYST_EXCHANGE ? { kind, held } : { reason: `바꿀 다른 기폭제가 ${STUMP_CUBE_CATALYST_EXCHANGE}개 필요합니다.` };
     }
-    /** A ripe sap turns STUMP_CUBE_CATALYST_EXCHANGE held catalysts of other kinds, each picked at random among the kinds still held, into as many of
-     * the sap colour's catalyst. */
-    function exchangeRecipe([[amber]], state, random = Math.random) {
-        const plan = exchangePlan(amber.item, state);
+    /** A grown vine turns STUMP_CUBE_CATALYST_EXCHANGE held catalysts of other kinds, each picked at random among the kinds still held, into as many of
+     * the vine colour's catalyst. */
+    function exchangeRecipe([[vine]], state, random = Math.random) {
+        const plan = exchangePlan(vine.item, state);
         if (plan.reason) return { ok: false, reason: plan.reason };
         const paid = {};
         for (let i = 0; i < STUMP_CUBE_CATALYST_EXCHANGE; i++) {
@@ -62,9 +62,9 @@ const sapCatalysts = (() => {
             const key = left[Math.min(left.length - 1, Math.floor(random() * left.length))];
             paid[key] = (paid[key] || 0) + 1;
         }
-        return { ok: true, consumed: [amber], paid, outputs: [{ kind: 'currency', key: plan.kind.key, amount: STUMP_CUBE_CATALYST_EXCHANGE }] };
+        return { ok: true, consumed: [vine], paid, outputs: [{ kind: 'currency', key: plan.kind.key, amount: STUMP_CUBE_CATALYST_EXCHANGE }] };
     }
-    return Object.freeze({ keys: KEYS, open, useReason, apply, killDrops, amberRecipe, exchangePlan, exchangeRecipe, kind: key => BY_KEY.get(key) || null,
+    return Object.freeze({ keys: KEYS, open, useReason, apply, killDrops, rootRecipe, exchangePlan, exchangeRecipe, kind: key => BY_KEY.get(key) || null,
         isCatalyst: key => BY_KEY.has(key) });
 })();
 safeExposeGlobals({ sapCatalysts });

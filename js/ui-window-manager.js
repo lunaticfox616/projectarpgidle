@@ -18,8 +18,6 @@
     const DESKTOP_RAIL_WIDTH = 140;
     const WORKSPACE_GAP = 10;
     const WORKSPACE_EDGE = 8;
-    // PC HUD 메뉴 이름(아이콘 아래 한 줄)은 네 글자 폭에 맞춘다. 긴 이름은 줄이고, 전체 이름은 올려 두면 뜨는 이름표에 남는다.
-    const RAIL_SHORT_CAPTIONS = Object.freeze({ 'btn-tab-season': '루프', 'btn-tab-stump': '그루터기' });
     // 바에 다 못 실을 때 기타로 보내는 순서: 나중에 열리는 부가 메뉴(뒤쪽부터)가 먼저, 이 핵심 창들은 마지막까지 바에 남는다.
     const RAIL_CORE_TAB_IDS = new Set(['btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-map', 'btn-tab-journal']);
     const RAIL_EXTERNAL_TAB_IDS = new Set([
@@ -571,8 +569,9 @@
         return ordered;
     }
 
+    // PC HUD 메뉴 이름(아이콘 아래 한 줄)은 네 글자 폭에 맞춘다(tabLayoutUi.shortCaptions). 전체 이름은 올려 두면 뜨는 이름표에 남는다.
     function railCaption(id, label) {
-        return RAIL_SHORT_CAPTIONS[id] || label;
+        return tabLayoutUi.shortCaptions[id] || label;
     }
 
     function wrapRailButtonLabel(button) {
@@ -848,7 +847,8 @@
     }
 
     const GOAL_AUTO_COLLAPSE_MS = 7000;
-    let goalRuntime = { signature: '', collapseTimer: null, currentGoal: null, pendingAutoExpand: false };
+    const GOAL_FLASH_MS = 1400;   // the goal-flash animation (1.3s) and a little more
+    let goalRuntime = { signature: '', collapseTimer: null, flashTimer: null, currentGoal: null, pendingAutoExpand: false };
 
     function mountGoalDrawer(drawer) {
         let battlefield = isDesktopWindowed() ? document.getElementById('battlefield-wrap') : null;
@@ -927,6 +927,7 @@
             access.hidden = !goal;
             access.setAttribute('aria-expanded', expanded ? 'true' : 'false');
             access.classList.toggle('mandatory', !!(goal && goal.mandatory));
+            if (goal) access.style.setProperty('--goal-tone', goalTone(goal));
         });
     }
 
@@ -1093,8 +1094,8 @@
 
     // 목표 판의 빛깔(2026-10-27 사용자: "목표 탭 눌러서 나오는 카드에 색감좀넣어"): 머리 꼬리표(categoryLabel)마다 하나, 반드시 고를 목표는
     // 주황, 그 밖은 금색. 판 바탕, 위 띠, 꼬리표, 제목, 진행 막대, 이동 단추가 이 빛깔을 쓴다(css/themes/pixel.css).
-    const GOAL_TONES = Object.freeze({ '필수 선택': '#f0a04a', '첫 빌드 선택': '#f0a04a', '재도전 준비': '#e8c15a', '보상': '#8fd17a', '스토리': '#d6a8ff',
-        '루프': '#b7a3e0', '루프 조건': '#b7a3e0', '다음 주요 해금': '#7fd1c4', '기록 갱신': '#7fb6ef', '새 기록': '#7fb6ef', '엔드게임': '#ff8a5c', '우주계': '#8fb8ff' });
+    const GOAL_TONES = Object.freeze({ '필수 선택': '#f0a04a', '첫 룬': '#f0a04a', '보상': '#8fd17a', '이야기': '#d6a8ff',
+        '루프': '#b7a3e0', '루프 조건': '#b7a3e0', '다음 주요 해금': '#7fd1c4', '기록 갱신': '#7fb6ef', '저널': '#7fb6ef', '지하계': '#ff8a5c', '우주계': '#8fb8ff' });
     const goalTone = goal => GOAL_TONES[stripDecorativeEmoji(goal.categoryLabel || '')] || (goal.mandatory ? '#f0a04a' : '#d9b066');
 
     /**
@@ -1131,7 +1132,18 @@
         // 사용자가 손잡이를 누른 경우에만 상세 목표를 펼친다.
         if (!isDesktopWindowed()) return;
         toggleGoalDrawer(true);
+        flashImportantGoal(drawer, goal);
         scheduleGoalAutoCollapse();
+    }
+
+    /** 반드시 할 목표가 새로 펼쳐지면 판이 두 번 반짝인다(css/themes/pixel.css .ui-goal-flash). 이어서 오면 처음부터 다시 반짝인다. */
+    function flashImportantGoal(drawer, goal) {
+        if (!goal.mandatory) return;
+        clearTimeout(goalRuntime.flashTimer);
+        drawer.classList.remove('ui-goal-flash');
+        void drawer.offsetWidth;
+        drawer.classList.add('ui-goal-flash');
+        goalRuntime.flashTimer = setTimeout(() => drawer.classList.remove('ui-goal-flash'), GOAL_FLASH_MS);
     }
 
     function installSettingsReset() {
@@ -1294,7 +1306,19 @@
         originalSwitchTab(tabId || (layoutState.community.open ? 'tab-social' : 'tab-battle'));
     }
 
+    /** 세로 화면에서 지역 줄은 전장 위쪽에 겹친다(css/themes/rift-stage.css): 그 아래 끝(전장 위에서 px)을 #tab-battle의 --zone-row-bottom에
+     * 적어 적 생명력 게이지가 그 밑에 선다. 줄이 두 줄로 접히거나 루프 진행 단추가 나타나면 다시 잰다. */
+    let zoneRowWatch = null;
+    function watchZoneRowClearance() {
+        // 줄은 부팅 뒤에 전투 탭 안으로 옮겨질 수 있어 자리와 상관없이 그 요소를 지켜본다
+        let row = document.querySelector('.combat-zone-row'), tab = document.getElementById('tab-battle');
+        if (zoneRowWatch || !row || !tab || typeof ResizeObserver !== 'function') return;
+        zoneRowWatch = new ResizeObserver(() => tab.style.setProperty('--zone-row-bottom', `${Math.ceil(row.offsetTop + row.offsetHeight)}px`));
+        zoneRowWatch.observe(row);
+    }
+
     function applyResponsiveMode() {
+        watchZoneRowClearance();
         let desktop = isDesktopWindowed();
         // Mobile selection does not write desktop window state. Transfer it
         // only when crossing the breakpoint, never on boot/ordinary resize.

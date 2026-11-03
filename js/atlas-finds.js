@@ -4,9 +4,10 @@
  * 보물이 터지면 'atlas-find' 이벤트로 알린다(기록과 화면은 UI가).
  */
 const atlasFinds = (() => {
-    /** One omen draw: a currency (count) or '@jewel'. Returns whether something was granted. */
+    /** One omen draw: a currency (count), '@jewel' or '@seed'. Returns whether something was granted. */
     function grantOmenDrop(enemy, zone, [key, count]) {
         if (key === '@jewel') return grantOmenJewel(enemy, zone);
+        if (key === '@seed') return grantOmenSeed(enemy);
         return keepCurrencyDrop(enemy, key, count).gain > 0;
     }
     function grantOmenJewel(enemy, zone) {
@@ -15,6 +16,14 @@ const atlasFinds = (() => {
         const receipt = receiveJewelDrop(jewel);
         if (receipt.stored) queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: getJewelLootColor(jewel) });
         dispatchRuntimeEvent('jewel-drop-received', receipt);
+        return true;
+    }
+    /** 씨앗 비(data/loot-omens.js): a stump seed rolled as a kill's, on the floor like one (js/combat.js layStumpDrop), else into the box. */
+    function grantOmenSeed(enemy) {
+        const spec = stumpBox.seedDropSpec(game, Math.random);
+        if (placeFloorItem(enemy, 'stump', spec)) return true;
+        const { item, compost } = stumpBox.receiveDrop(game, spec);
+        dispatchRuntimeEvent('stump-box-changed', { ripened: compost ? compost.ripened : [], drop: item, compost });
         return true;
     }
     /** A unique of the zone's pools at the kill's item level (as an equipment drop rolling unique would make it), or the named one. */

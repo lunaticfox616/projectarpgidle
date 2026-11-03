@@ -4,7 +4,7 @@
  */
 const lootOmens = (() => {
     const BY_ID = new Map(LOOT_OMENS.list.map(omen => [omen.id, omen]));
-    const ITEM_KINDS = Object.freeze({ '@jewel': state => contentProgression.isUnlocked('jewel', state) });
+    const ITEM_KINDS = Object.freeze({ '@jewel': state => contentProgression.isUnlocked('jewel', state), '@seed': state => !!(state.stumpBox && state.stumpBox.acquired) });
     const isItemKind = key => Object.hasOwn(ITEM_KINDS, key);
 
     /** Whether one drop key can reach this hero now: a currency its unlocks allow, or an open item kind. */
