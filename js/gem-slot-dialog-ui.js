@@ -12,7 +12,7 @@
     let slot = null;
 
     const isSupportSlot = () => slot.kind === 'support';
-    const wholeNumber = value => Math.floor(Number(value) || 0).toLocaleString('ko-KR');
+    const wholeNumber = value => Math.floor(Number(value) || 0).toLocaleString(i18n.locale);
     const supportIsFull = stats => !slot.name && game.equippedSupports.length >= Math.floor(stats.suppCap || 0);
 
     /** Every tier of a support gem: its value (the worn tier's value scaled by the tier multipliers), resonance cost and state.

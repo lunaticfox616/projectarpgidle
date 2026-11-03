@@ -38,6 +38,11 @@ function revealStartupScreen() {
         shown();
     })));
 }
+/** 저장에서 읽은 표현 설정: 언어(설정 창과 정적 글, docs/i18n.md)와 화면 배율. 첫 렌더 전에 둘 다 정한다. */
+function applySavedPresentation(settings) {
+    i18n.applySaved(settings);
+    uiDisplay.applySaved(settings);
+}
 // Bootstrap and scheduling own orchestration; render functions remain in ui.js.
 function init() {
     if (!window.__startupFirstPaintDone) {
@@ -69,7 +74,7 @@ function init() {
     applyUiSkin(game.settings.uiSkin);
     applyHighContrast(game.settings.highContrast);
     hotkeysUi.init();
-    uiDisplay.applySaved(game.settings);
+    applySavedPresentation(game.settings);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
     settingsUi.sync();

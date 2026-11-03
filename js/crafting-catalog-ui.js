@@ -69,7 +69,7 @@ const craftingCatalogUi = (() => {
         const selected=key===(inspected||active);
         const state=useState(key), blocked=state&&!state.enabled;
         return `<button type="button" class="cl-resource ${amount?'':'is-empty'} ${selected?'is-selected':''} ${blocked?'is-unavailable':''}" data-theme="${theme(key)}" data-resource="${key}" aria-pressed="${selected}">
-            <span class="cl-resource-head">${def.icon?`<img src="${esc(def.icon)}" alt="">`:''}<strong>${styledName(key)}</strong><b>${amount.toLocaleString('ko-KR')}</b></span>
+            <span class="cl-resource-head">${def.icon?`<img src="${esc(def.icon)}" alt="">`:''}<strong>${styledName(key)}</strong><b>${amount.toLocaleString(i18n.locale)}</b></span>
             <span class="cl-resource-desc">${catalogDescription(key,true)}</span><small>${esc(catalogActionLabel(key,state))}</small></button>`;
     }
 

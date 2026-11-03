@@ -498,7 +498,7 @@ const combatIncidents = (() => {
         if (!host) return;
         joinFight(host, makeCritter(zone, { gx: enemy.gx, gy: enemy.gy }, kind !== 'gold'));
         if (kind !== 'lucky') return;
-        tell(`이번 루프의 ${rule().lucky.kill.toLocaleString('ko-KR')}번째 처치입니다.`, 'chase', true);
+        tell(`이번 루프의 ${rule().lucky.kill.toLocaleString(i18n.locale)}번째 처치입니다.`, 'chase', true);
         note('luckyKill');
     }
     /** 이 처치가 일어나는 슬라임: 'lucky'(이번 루프의 lucky.kill번째, 무지갯빛), 'rainbow', 'gold', 아니면 ''. countKillForContent가 이
@@ -546,7 +546,7 @@ const combatIncidents = (() => {
         luckyAt = now;
         const rows = rule().lucky.rewards, [key, count] = rows[Math.min(rows.length - 1, hit.length - 3)];
         receipt(() => keepCurrencyDrop(enemy, key, count * hit.mul));
-        tell(`행운의 숫자 ${dealt.toLocaleString('ko-KR')}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
+        tell(`행운의 숫자 ${dealt.toLocaleString(i18n.locale)}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
         note('lucky');
     }
     return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar, testChallenge, testBreath, testShower, breathKind, breathStats });

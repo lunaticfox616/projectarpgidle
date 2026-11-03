@@ -36,7 +36,7 @@ const loopMutationUi = (() => {
         return `<button type="button" class="starter-rune-choice${weak ? ' is-weak' : ''}" data-starter-rune="${escapeHTML(name)}" style="--mutation-ele:${getElementColor(def.ele)}">
             ${art ? `<img src="${escapeHTML(art)}" alt="">` : ''}<strong>${escapeHTML(name)}</strong>
             <span class="starter-rune-element">${escapeHTML(DAMAGE_ELEMENT_LABELS[def.ele])}${weak ? `, 약점 피해 +${LOOP_MUTATION.weakTakenPct}%` : ''}</span>
-            ${line ? `<small>${escapeHTML(line)}.</small>` : ''}<span class="starter-rune-dps">DPS ${Math.round(dps).toLocaleString('ko-KR')}</span></button>`;
+            ${line ? `<small>${escapeHTML(line)}.</small>` : ''}<span class="starter-rune-dps">DPS ${Math.round(dps).toLocaleString(i18n.locale)}</span></button>`;
     }
     function openPick(gems) {
         const rule = loopMutation.current();

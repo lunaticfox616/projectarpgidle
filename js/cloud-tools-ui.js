@@ -5,7 +5,7 @@ function cloudToolsEscape(value) {
 }
 
 function cloudToolsNumber(value) {
-    return Math.floor(Number(value) || 0).toLocaleString('ko-KR');
+    return Math.floor(Number(value) || 0).toLocaleString(i18n.locale);
 }
 
 /** 운영 창과 문의 창의 단추들: data-* 이름 → 처리 함수. 단추 하나에 이 이름은 하나만 붙인다(값은 보통 대상 id). */
@@ -58,7 +58,7 @@ function closeCloudToolsDialog() {
 function renderCloudHistoryRows(rows) {
     if (!rows.length) return '<p class="cloud-tools-empty">저장 이력이 없습니다.</p>';
     return `<div class="cloud-history-list">${rows.map(row => {
-        let time = row.saved_at ? new Date(row.saved_at).toLocaleString('ko-KR') : '-';
+        let time = row.saved_at ? new Date(row.saved_at).toLocaleString(i18n.locale) : '-';
         let action = row.is_current
             ? '<span class="cloud-current-badge">현재</span>'
             : `<button type="button" onclick="restoreCloudSaveVersion(${Number(row.revision) || 0})">복구</button>`;
@@ -255,7 +255,7 @@ function renderCheatWatch(data) {
         { key: 'level_per_hour', label: '레벨/시간' }, { key: 'season_per_hour', label: '루프/시간' }, hold(row => `성장 ${row.seen_on}`)
     ], Array.isArray(data.rates) ? data.rates : []);
     html += renderOpsTable('보류한 계정', [
-        account, { key: 'note', label: '메모' }, { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        account, { key: 'note', label: '메모' }, { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
         { label: '보류', html: row => renderCheatHoldButton(row.user_id, true, '') }
     ], Array.isArray(data.holds) ? data.holds : []);
     return html;
@@ -374,13 +374,13 @@ function renderChatReports(data) {
     const muteButtons = row => renderMuteButtons(row.target_user_id || row.user_id, row.nickname, row.muted_until || row.until_at);
     let html = '<section><h3>채팅 신고</h3><p class="cloud-tools-note">신고는 플레이어가 프로필 창에서 보냅니다. 금지한 계정은 풀릴 때까지 채팅을 보낼 수 없고, 지운 줄은 모든 플레이어의 채팅창에서 사라집니다.</p></section>';
     html += renderOpsTable('신고, 최근 200건', [
-        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
         { label: '신고자', render: row => row.reporter_nickname || '' },
         { label: '대상', render: row => row.nickname || String(row.target_user_id || '').slice(0, 8) },
         { label: '24시간 신고', render: row => cloudToolsNumber(row.reports_24h) },
         { key: 'reason', label: '사유' },
         { label: '채팅', render: row => row.body ? (row.body.length > 60 ? `${row.body.slice(0, 60)}…` : row.body) : '' },
-        { label: '상태', render: row => row.muted_until ? `금지 중, ${new Date(row.muted_until).toLocaleString('ko-KR')}까지` : (row.message_id && !row.message_exists ? '줄 지워짐' : '') },
+        { label: '상태', render: row => row.muted_until ? `금지 중, ${new Date(row.muted_until).toLocaleString(i18n.locale)}까지` : (row.message_id && !row.message_exists ? '줄 지워짐' : '') },
         { label: '조치', html: row => muteButtons(row) + (row.message_id && row.message_exists ? `<button type="button" data-chat-delete="${cloudToolsEscape(row.message_id)}">줄 지우기</button>` : '')
             + peekButton(row.target_user_id, row.nickname) }
     ], Array.isArray(data.reports) ? data.reports : []);
@@ -390,7 +390,7 @@ function renderChatReports(data) {
         + '<button type="button" data-mute-nick="0">금지 풀기</button><button type="button" data-chat-clear="1">채팅 전체 비우기</button></div>';
     html += renderOpsTable('금지 중인 계정', [
         { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) },
-        { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString('ko-KR') }, { key: 'note', label: '메모' },
+        { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString(i18n.locale) }, { key: 'note', label: '메모' },
         { label: '조치', html: row => muteButtons(row) + peekButton(row.user_id, row.nickname) }
     ], Array.isArray(data.mutes) ? data.mutes : []);
     return html + renderBannedTerms(Array.isArray(data.terms) ? data.terms : null);
@@ -407,7 +407,7 @@ function renderBannedTerms(terms) {
     let html = renderOpsTable('금칙어(관리자 추가)', [
         { key: 'term', label: '낱말' },
         { label: '찾는 글', render: row => row.spaced === false ? '띄어쓰기 지운 글' : '띄어쓰기 남긴 글' },
-        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
         { label: '조치', html: row => `<button type="button" data-term-remove="${cloudToolsEscape(row.term)}">빼기</button>` }
     ], terms);
     return html + '<p class="cloud-tools-note">기본 목록은 서버 함수(chat_text_is_offensive)에 있고, 여기 더한 낱말은 바로 적용됩니다. '
@@ -502,7 +502,7 @@ async function peekPlayerChat(button) {
 }
 function renderChatPeek(name, rows) {
     return renderOpsTable(`${name || '이 플레이어'}의 최근 채팅`, [
-        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
         { key: 'body', label: '채팅' },
         { label: '조치', html: row => `<button type="button" data-chat-delete="${cloudToolsEscape(row.id)}">줄 지우기</button>` }
     ], rows);
@@ -711,7 +711,7 @@ let adminFeedbackFilter = '';
 let playerDetailUserId = null;   // 자세히 보기가 열려 있는 플레이어(조치 뒤 다시 그릴 때)
 
 function cloudToolsTime(value) {
-    return value ? new Date(value).toLocaleString('ko-KR') : '';
+    return value ? new Date(value).toLocaleString(i18n.locale) : '';
 }
 
 /** 설정 > 문의와 제보의 단추. 보내는 칸과 내가 보낸 글(운영자 답변 포함)을 한 창에 보인다. 로그인한 계정만 보낼 수 있다. */

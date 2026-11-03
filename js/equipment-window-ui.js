@@ -13,8 +13,8 @@ const equipmentWindowUi = (() => {
     /** 바꾸면 표의 이름 색: 요약과 같은 능력치는 요약과 같은 색. */
     const DELTA_TINT = Object.freeze({ dps: 'dps', summonDps: 'dps', maxHp: 'life', energyShield: 'es', resF: 'fire', resC: 'cold', resL: 'light',
         resChaos: 'chaos', armor: 'armor', evasion: 'evasion' });
-    const fmt = value => Math.floor(Number(value) || 0).toLocaleString('ko-KR');
-    const pretty = text => (/^-?\d{4,}$/.test(text) ? Number(text).toLocaleString('ko-KR') : text);
+    const fmt = value => Math.floor(Number(value) || 0).toLocaleString(i18n.locale);
+    const pretty = text => (/^-?\d{4,}$/.test(text) ? Number(text).toLocaleString(i18n.locale) : text);
     const slotName = slot => (typeof getDualSlotDisplayLabel === 'function' ? getDualSlotDisplayLabel(slot) : String(slot).replace(/[123]$/, ''));
     function setHtml(node, html) {
         if (node && node.__eqwHtml !== html) { node.innerHTML = html; node.__eqwHtml = html; }

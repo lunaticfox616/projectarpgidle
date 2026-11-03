@@ -1154,26 +1154,26 @@
         <!-- 설정(2026-10-16 사용자: "같은 계열인데 칸이 너무 나뉘어", "필요한 설정을 찾기 쉽도록", 오래된 설정 삭제): 왼쪽 분류 여섯,
              오른쪽은 분류 한 장에 묶음별 한 줄 항목(이름과 짧은 설명, 오른쪽 끝에 조절). 저장과 동작은 js/settings-ui.js. -->
         <div class="settings-workspace">
-            <nav class="settings-sections" aria-label="설정 분류">
-                <button type="button" data-settings-section="display" aria-pressed="true" onclick="settingsUi.select('display')"><b>화면과 소리</b></button>
-                <button type="button" data-settings-section="combat" aria-pressed="false" onclick="settingsUi.select('combat')"><b>전투</b></button>
-                <button type="button" data-settings-section="progress" aria-pressed="false" onclick="settingsUi.select('progress')"><b>자동 진행</b></button>
-                <button type="button" data-settings-section="items" aria-pressed="false" onclick="settingsUi.select('items')"><b>아이템 필터</b></button>
-                <button type="button" data-settings-section="notifications" aria-pressed="false" onclick="settingsUi.select('notifications')"><b>알림과 채팅</b></button>
-                <button type="button" data-settings-section="layout" aria-pressed="false" onclick="settingsUi.select('layout')"><b>조작</b></button>
-                <button type="button" data-settings-section="data" aria-pressed="false" onclick="settingsUi.select('data')"><b>저장과 계정</b></button>
-                <p class="settings-note">바꾸면 바로 적용되고 저장됩니다.</p>
+            <nav class="settings-sections" aria-label="설정 분류" data-i18n-attr="aria-label">
+                <button type="button" data-settings-section="display" aria-pressed="true" onclick="settingsUi.select('display')"><b data-i18n>화면과 소리</b></button>
+                <button type="button" data-settings-section="combat" aria-pressed="false" onclick="settingsUi.select('combat')"><b data-i18n>전투</b></button>
+                <button type="button" data-settings-section="progress" aria-pressed="false" onclick="settingsUi.select('progress')"><b data-i18n>자동 진행</b></button>
+                <button type="button" data-settings-section="items" aria-pressed="false" onclick="settingsUi.select('items')"><b data-i18n>아이템 필터</b></button>
+                <button type="button" data-settings-section="notifications" aria-pressed="false" onclick="settingsUi.select('notifications')"><b data-i18n>알림과 채팅</b></button>
+                <button type="button" data-settings-section="layout" aria-pressed="false" onclick="settingsUi.select('layout')"><b data-i18n>조작</b></button>
+                <button type="button" data-settings-section="data" aria-pressed="false" onclick="settingsUi.select('data')"><b data-i18n>저장과 계정</b></button>
+                <p class="settings-note" data-i18n>바꾸면 바로 적용되고 저장됩니다.</p>
             </nav>
             <div class="settings-content">
                 <section class="cfg-page" data-settings-group="display">
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">화면과 글자</h3>
+                        <h3 class="cfg-block-title" data-i18n>화면과 글자</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-ui-scale">화면 배율</label><small>메뉴와 글자의 크기</small></div>
+                            <div class="cfg-row-text"><label for="sel-ui-scale" data-i18n>화면 배율</label><small data-i18n>메뉴와 글자의 크기</small></div>
                             <select id="sel-ui-scale" class="cfg-select">
                                 <option value="80">80%</option>
                                 <option value="90">90%</option>
-                                <option value="100" selected>100% (기본)</option>
+                                <option value="100" selected data-i18n>100% (기본)</option>
                                 <option value="110">110%</option>
                                 <option value="125">125%</option>
                                 <option value="150">150%</option>
@@ -1185,49 +1185,55 @@
                         </div>
                         <!-- PC판에서만 보인다(js/settings-ui.js initDisplayMode, desktop/main.cjs가 프로필 폴더에 기억한다). -->
                         <div class="cfg-row" id="cfg-row-display-mode" hidden>
-                            <div class="cfg-row-text"><label for="sel-display-mode">화면 모드</label><small>F11이나 Alt+Enter로도 바꿉니다</small></div>
+                            <div class="cfg-row-text"><label for="sel-display-mode" data-i18n>화면 모드</label><small data-i18n>F11이나 Alt+Enter로도 바꿉니다</small></div>
                             <select id="sel-display-mode" class="cfg-select">
-                                <option value="full">전체 화면</option>
-                                <option value="window">창 모드</option>
+                                <option value="full" data-i18n>전체 화면</option>
+                                <option value="window" data-i18n>창 모드</option>
                             </select>
                         </div>
+                        <!-- 언어(2026-11-03, docs/i18n.md): 목록은 js/settings-ui.js initLanguageSelect가 i18n.languages로 채운다. 영어 팩이 다 찰 때까지
+                             배포에서는 숨긴다(settings-ui의 dev-only 줄이 개발에서만 hidden을 지운다). 출시할 때 hidden과 그 줄을 지운다. -->
+                        <div class="cfg-row" id="cfg-row-language" hidden>
+                            <div class="cfg-row-text"><label for="sel-language" data-i18n>언어</label><small data-i18n>글과 숫자 표기. 바꾸면 바로 적용됩니다</small></div>
+                            <select id="sel-language" class="cfg-select"></select>
+                        </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-high-contrast">고대비 모드</label><small>글자와 테두리를 또렷하게 하고 전장 가장자리의 어둠을 줄입니다</small></div>
+                            <div class="cfg-row-text"><label for="chk-high-contrast" data-i18n>고대비 모드</label><small data-i18n>글자와 테두리를 또렷하게 하고 전장 가장자리의 어둠을 줄입니다</small></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-high-contrast">
                         </div>
                     </div>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">소리</h3>
+                        <h3 class="cfg-block-title" data-i18n>소리</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-ui-sounds">효과음</label><small>공격, 피격, 처치, 전리품, 버튼 소리</small></div>
+                            <div class="cfg-row-text"><label for="chk-ui-sounds" data-i18n>효과음</label><small data-i18n>공격, 피격, 처치, 전리품, 버튼 소리</small></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-ui-sounds" checked>
                         </div>
                         <div class="cfg-row cfg-row--volume">
-                            <div class="cfg-row-text"><label for="range-sound-volume">음량</label></div>
+                            <div class="cfg-row-text"><label for="range-sound-volume" data-i18n>음량</label></div>
                             <div class="cfg-volume">
                                 <input type="range" id="range-sound-volume" min="0" max="100" step="5" value="100" aria-valuetext="100%">
                                 <output id="sound-volume-value" for="range-sound-volume">100%</output>
-                                <button type="button" class="cfg-btn" id="btn-sound-preview">미리 듣기</button>
+                                <button type="button" class="cfg-btn" id="btn-sound-preview" data-i18n>미리 듣기</button>
                             </div>
                         </div>
                     </div>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">캐릭터 외형</h3>
+                        <h3 class="cfg-block-title" data-i18n>캐릭터 외형</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-hero-appearance-mode">외형 방식</label></div>
+                            <div class="cfg-row-text"><label for="sel-hero-appearance-mode" data-i18n>외형 방식</label></div>
                             <select id="sel-hero-appearance-mode" class="cfg-select" onchange="onHeroAppearanceModeChanged()">
-                                <option value="fixed">외형 고정</option>
-                                <option value="loop">현재 직업 외형 사용</option>
+                                <option value="fixed" data-i18n>외형 고정</option>
+                                <option value="loop" data-i18n>현재 직업 외형 사용</option>
                             </select>
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-active-hero">고정 외형</label></div>
+                            <div class="cfg-row-text"><label for="sel-active-hero" data-i18n>고정 외형</label></div>
                             <select id="sel-active-hero" class="cfg-select" onchange="onHeroSelectionChanged()">
                             </select>
                         </div>
                         <div id="ui-hero-talent-summary" class="cfg-note">
                         </div>
-                        <p class="cfg-note">외형은 능력치에 영향을 주지 않습니다.</p>
+                        <p class="cfg-note" data-i18n>외형은 능력치에 영향을 주지 않습니다.</p>
                     </div>
                 </section>
                 <section class="cfg-page" data-settings-group="combat" hidden>
@@ -1591,7 +1597,10 @@
 <script defer src="data/talent-cards.js?v=20260722-templar-overheal1&treasure=20260907-1&aux=20260930-7&aux=20261002-5&aux=20261002-6&aux=20261002-15&aux=20261002-18&uiwords=20261009-1"></script>
 <script defer src="data/content-progression.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&flask-slots=20260906-1&reward-flow=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&market=20260907-1&unlock-path=20260908-1&world-tree-journey=20260913-1&first-journal=20260914-1&gem-forge=20260914-1&chat-dock=20260914-1&skill-delta2=20260930-10&aux=20260930-3&aux=20260930-5&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261002-1&aux=20261002-3&aux=20261002-8&realm=20261003-1&board=20261004-1&playtest=20261007-8&uiwords=20261009-1&points=20261015-1&ability=20261016-2&npcshop=20261016-1&runes=20261017-1&endgame=20261018-1&npcsplit=20261021-1&uipass=20261022-1&codexreview=20261023-1&blessing=20261024-1&growth=20261025-2&riftui=20261026-1&lines=20261027-1&runes=20261102-1&text=20261102-3&forge=20261102-1&20261103-6&stump=20261104-1&stumpsyn1104&stumploop1104b"></script>
 <script defer src="data/hotkeys.js?v=20260930-6&aux=20261001-1&review=20261003-1&wasd=20261009-1&runes=20261017-1&hotkeys=20261024-1"></script>
+<script defer src="data/locales/ko.js?v=20261103-1"></script>
+<script defer src="data/locales/en.js?v=20261103-1"></script>
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2&inventory-pages=20260827-1&vfx-icons=20260901-1&drop-balance=20260902-1&runtime=20260905-1&interface-fixes=20260906-2&display=20260906-1&thermal=20260907-1&ui-scale=20260909-1&affix-balance=20260910-1&research-review=20260914-2&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-7&aux=20261001-15&aux=20261001-17&font=20261006-1&goal=20261008-1&sight=20261009-1&uniq=20261009-1&bag=20261010-1&runes=20261017-1&tidy=20261018-1&oceansurface=20261019-1&cooldown=20261021-1&codexreview=20261023-1&growth=20261025-1&uibatch=20261027-1&attrrune=20261028-1&albino=20261030-1&v0339=20261102-1&levels=20261102-1&text=20261102-3"></script>
+<script defer src="js/i18n.js?v=20261103-1"></script>
 <script defer src="js/hotkeys.js"></script>
     <script defer src="js/app-platform.js?v=20260907-1&desktop=20261103-1"></script>
 <script defer src="js/ui-audio.js?v=20261006-boss-stage&ocean2=20261020-1&uipass=20261022-1&sound=20261023-1&stumpframe=20261027-1"></script>

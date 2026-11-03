@@ -312,7 +312,7 @@ safeExposeGlobals({ getCurrencyDrops });
         const ids = new Set(MOD_DB.flatMap(mod => [mod.statId || mod.id,
             ...(mod.compound || []).map(stat => stat.statId || stat.id)]));
         return [...ids].filter(Boolean).map(id => ({ id, name: getStatName(id) }))
-            .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+            .sort((a, b) => a.name.localeCompare(b.name, i18n.locale));
     }
 
     /** Affix tags a rule can count (data/affix-tags.js), in table order. */

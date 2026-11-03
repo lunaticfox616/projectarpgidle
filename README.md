@@ -41,6 +41,7 @@ Capacitor로 감쌉니다.
 npm test                    # scripts/smoke-*.js 전체
 npm run check:architecture  # 런타임 계층·전역·로드 순서 검사
 npm run check:css           # CSS 소유·레이어 검사
+npm run check:i18n          # 언어팩·고정 로캘·한국어 식별자 검사(--report: 번역 진행)
 npm run build               # 배포 파일·자산 경로 확인
 npm run test:browser        # tests/browser/ Playwright 검사
 ```

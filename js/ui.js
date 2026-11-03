@@ -61,7 +61,7 @@ function buildMapZoneGroupHtml(groupKey, title, cards, defaultCollapsed = false)
 }
 
 function formatApproximateMapPower(value) {
-    return Math.max(0, Math.round(Number(value) || 0)).toLocaleString('ko-KR', {
+    return Math.max(0, Math.round(Number(value) || 0)).toLocaleString(i18n.locale, {
         notation: 'compact', maximumSignificantDigits: 2
     });
 }
@@ -2488,7 +2488,7 @@ safeExposeGlobals({ setEquipmentMobilePane });
 function getSortedEquipmentInventoryRows(query, isItemRarityVisible) {
     game.settings = game.settings || {};
     let slotValue = game.settings.equipmentSlotFilter || 'all';
-    let slots = Array.from(new Set(game.inventory.map(item => item && item.slot).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ko'));
+    let slots = Array.from(new Set(game.inventory.map(item => item && item.slot).filter(Boolean))).sort((a, b) => a.localeCompare(b, i18n.locale));
     if (!slots.includes(slotValue)) slotValue = 'all';
     let slotSelect = document.getElementById('ui-equipment-slot-filter');
     syncEquipmentSlotFilterOptions(slotSelect, slots);
@@ -5787,7 +5787,8 @@ function getItemSlotDisplayLabel(item, fallbackLabel) {
     let rawSlot = item && item.slot !== undefined && item.slot !== null ? item.slot : null;
     if (rawSlot === null && item && Array.isArray(item.slots) && item.slots.length > 0) rawSlot = item.slots[0];
     let label = rawSlot !== null ? rawSlot : (fallbackLabel || '장비');
-    return weaponCategorySlotLabel(item, String(label || '장비').replace(/[12]$/, ''));
+    // 부위 이름은 저장 키이기도 해서 여기서만 현재 언어로 옮긴다(docs/i18n.md).
+    return _t(weaponCategorySlotLabel(item, String(label || '장비').replace(/[12]$/, '')));
 }
 
 
@@ -7295,7 +7296,7 @@ function shouldUseCommaSetting(settingKey) {
 function formatCommaNumber(value, options = {}) {
     let amount = Number(value) || 0;
     if (options.decimals !== undefined) return amount.toFixed(options.decimals);
-    return Math.floor(amount).toLocaleString('ko-KR');
+    return Math.floor(amount).toLocaleString(i18n.locale);
 }
 
 function formatSettingNumber(value, settingKey, options = {}) {

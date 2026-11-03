@@ -320,7 +320,7 @@ function getEnemyTotalEvadeChance(enemy, playerAccuracy) {
 function formatNumberKR(value) {
     let n = Number(value || 0);
     if (!Number.isFinite(n)) n = 0;
-    return Math.floor(n).toLocaleString('ko-KR');
+    return Math.floor(n).toLocaleString(i18n.locale);
 }
 
 function addEvasionCombatLog(target, isPlayer) {

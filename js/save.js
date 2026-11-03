@@ -513,7 +513,7 @@ function formatCloudTime(value) {
     if (!value) return '없음';
     let date = new Date(value);
     if (!Number.isFinite(date.getTime())) return '없음';
-    return date.toLocaleString('ko-KR');
+    return date.toLocaleString(i18n.locale);
 }
 
 function setCloudMessage(message) {

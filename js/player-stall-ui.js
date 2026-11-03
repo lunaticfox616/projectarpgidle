@@ -333,7 +333,7 @@ const playerStallUi = {
         const offer = row.offer;
         if (!offer) return '';
         const customer = PLAYER_STALL_CUSTOMERS[offer.customerId].name;
-        const expires = new Date(offer.expiresAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const expires = new Date(offer.expiresAt).toLocaleString(i18n.locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         return `<section class="stall-offer" aria-label="${escapeHTML(customer)}의 가격 제안"><div class="stall-offer-heading"><span>구매 제안</span><strong>${formatCurrencyCosts([{ key: row.currency, amount: offer.amount }])}개</strong></div>
             <p>${escapeHTML(customer)}<br><small>${expires}까지</small></p>
             <div class="stall-actions"><button type="button" class="stall-primary" data-stall-accept="${offer.id}" onclick="playerStallUi.respond(${row.id},${offer.id},true)">${offer.amount}개에 판매</button>
@@ -393,7 +393,7 @@ const playerStallUi = {
         lane.innerHTML = visible && this.visitors.length ? `<span class="stall-visitor-total">${this.visitors.length}명 구경 중</span>` : '';
     },
     saleRecord(sale) {
-        const date = new Date(sale.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        const date = new Date(sale.at).toLocaleString(i18n.locale, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
         const duration = sale.listedAt === null ? '' : ` (${formatRecordDuration(sale.at - sale.listedAt)} 만에 판매)`;
         const name = sale.item?.name || sale.name || '이전 거래';
         return `<details class="stall-sale" data-sale-id="${sale.id}" data-ui-disclosure="stall-sale-${sale.id}"><summary>${sale.item ? `<img src="${getEquipmentGridVisualAsset(sale.item)}" alt="">` : ''}<span>${escapeHTML(name)}</span><strong>${formatCurrencyCosts([{ key: sale.currency, amount: sale.price }])}개</strong></summary>
@@ -420,7 +420,7 @@ const playerStallUi = {
             <button type="button" onclick="playerStallUi.showSales(${this.ledgerPage + 1})" ${this.ledgerPage + 1 === pages ? 'disabled' : ''}>다음</button></div>` : ''}</details>`;
     },
     history(event) {
-        const time = new Date(event.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        const time = new Date(event.at).toLocaleTimeString(i18n.locale, { hour: '2-digit', minute: '2-digit' });
         const text = event.sold ? `${event.name} 구매 (${formatCurrencyCosts([{ key: event.currency, amount: event.price }])}개)` : event.reason;
         return `<li class="${event.sold ? 'stall-sold' : ''}"><time>${time}</time><span><strong>${escapeHTML(event.customer || '방문객')}</strong> ${escapeHTML(text || '')}</span></li>`;
     },

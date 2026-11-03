@@ -658,7 +658,7 @@ function renderHallBrowseTools() {
     let listings = getPlayerHallListings(), { slot, sort, query } = playerExchangeState.browse;
     if (!listings.length) return '';
     let slots = [...new Set(listings.map(row => row.item && row.item.slot).filter(Boolean).concat(slot === 'all' ? [] : [slot]))]
-        .sort((a, b) => a.localeCompare(b, 'ko'));
+        .sort((a, b) => a.localeCompare(b, i18n.locale));
     let option = (value, label, chosen) => `<option value="${escapeHTML(value)}" ${chosen ? 'selected' : ''}>${escapeHTML(label)}</option>`;
     let slotOptions = option('all', '전체 부위', slot === 'all') + slots.map(name => option(name, weaponCategorySlotLabel(null, name), name === slot)).join('');
     let sortOptions = Object.entries(HALL_SORTS).map(([value, label]) => option(value, label, value === sort)).join('');

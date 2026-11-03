@@ -2561,6 +2561,7 @@ const defaultGame = {
         showCharacterComma: true,
         uiScale: 100,
         uiScaleChosen: null,   // 사용자가 배율을 고른 적이 있는가(null: 모름 → 100이면 화면에 맞춰 고른다, js/ui-display.js applySaved)
+        language: 'ko',        // 글과 숫자 표기 언어(data/locales, js/i18n.js). 주소의 ?lang=은 저장을 바꾸지 않고 그 판에서만 덮는다.
         uiSkin: 'rift',
         highContrast: false,
         /** PC 단축키 중 기본값과 다른 것만: { 동작 id: KeyboardEvent.code | '' } (data/hotkeys.js) */
