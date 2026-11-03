@@ -16,7 +16,18 @@
   #tab-stump [data-stump-action="placement-undo"]:not(:disabled) { color: #a4d0ee; background: linear-gradient(180deg, #223a4c, #16242f); box-shadow: inset 0 0 0 1px #47708c; }
   #tab-stump .stump-rules-button { color: #f0cf86; background: linear-gradient(180deg, #43351b, #2a2112); box-shadow: inset 0 0 0 1px #8a6f3c; }
   #tab-stump .stump-rules-button { min-width: 26px; min-height: 26px; padding: 0 6px; line-height: 1; }
-  /* ? 규칙 카드(#info-tooltip, js/stump-box-ui.js stumpRuleLineHtml): 규칙 이름은 금빛, 그루터기 낱말은 제 색, 수치는 밝게 */
+  /* ? 규칙 창(js/stump-box-ui.js showStumpRules, 2026-11-04 사용자: 툴팁이 길어 창으로, 색감 그대로): 툴팁과 같은 판(픽셀 틀, 바탕)에
+     글은 스크롤된다. 규칙 이름은 금빛, 그루터기 낱말은 제 색, 수치는 밝게(stumpRuleLineHtml) */
+  .stump-rules-dialog { max-width: none; max-height: none; margin: auto; padding: 0; border: 0; background: none; color: #fff; overflow: visible; }
+  .stump-rules-dialog::backdrop { background: rgba(6, 4, 2, .66); }
+  .stump-rules-panel { box-sizing: border-box; display: flex; flex-direction: column; width: min(460px, calc(100vw - 24px)); max-height: min(600px, calc(100dvh - 48px));
+    padding: 12px; border: var(--px-light-border, 1px) solid #c9a45c; border-image: var(--px-light-frame, none); background: var(--px-panel, #1a181e);
+    background-clip: padding-box; box-shadow: var(--px-drop, 0 14px 34px rgba(0, 0, 0, .55)); font-family: var(--font-body); }
+  .stump-rules-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid #444; padding-bottom: 5px; margin-bottom: 6px; }
+  .stump-rules-top .tooltip-title { margin: 0; padding: 0; border: 0; color: #fff; }
+  .stump-rules-dialog .stump-rules-close { min-width: 28px; min-height: 28px; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: #f3d28c; font-size: 16px; cursor: pointer; }
+  .stump-rules-dialog .stump-rules-close:is(:hover, :focus-visible) { color: #fff1c8; outline: 1px solid #8a6f3c; }
+  .stump-rules-dialog .stump-rules-tip { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; }
   .stump-rules-tip .stump-rules-head { color: #e8c872; }
   .stump-rules-tip .stump-ink { color: var(--ink); }
   .stump-rules-tip .stump-ink.is-num { color: #f6e7c1; }

@@ -44,7 +44,7 @@ const STUMP_BOX_GROWTH = Object.freeze({
     legacySapNeed: 4000,
     perKill: Object.freeze({ normal: 2, elite: 12, boss: 60 })
 });
-// 씨앗이 무엇이 될지는 다 자라는 순간 같은 확률로 정해진다(2026-11-04 사용자: 키우기 전에는 모른다). 새 루프에 씨앗으로 돌아가면 다시 굴린다.
+// 씨앗이 무엇이 될지는 다 자라는 순간 같은 확률로 정해진다(2026-11-04 사용자: 키우기 전에는 모른다).
 const STUMP_BOX_KINDS = Object.freeze(['flower', 'fruit', 'vine', 'root']);
 
 // 전용 드랍: 함을 얻은 뒤 모든 처치에서 장비 드랍과 따로 굴린다. 모두 씨앗이다(2026-11-04, 전: 씨앗 60% · 수액 40%).
@@ -87,8 +87,10 @@ const STUMP_BOX_HARVEST = Object.freeze({ rows: STUMP_BOX_KINDS, giftRoll: STUMP
 const STUMP_BOX_UNLOCKS = Object.freeze([
     Object.freeze({ id: 'storage_harvest', label: '보관함 +25', when: Object.freeze({ harvestRows: 1 }), storage: 25 }),
     Object.freeze({ id: 'storage_labyrinth', label: '보관함 +25', when: Object.freeze({ journal: 'labyrinth_10' }), storage: 25 }),
-    Object.freeze({ id: 'root_memory_loop', label: '뿌리 기억 25%', when: Object.freeze({ content: 'rootMemory' }), keepPct: 25 }),
-    Object.freeze({ id: 'root_memory_echo', label: '뿌리 기억 50%', when: Object.freeze({ journal: 'woodsman_echo' }), keepPct: 50 }),
+    // 뿌리 기억(2026-11-04 사용자, 전: 루프가 바뀌어도 성장 완료된 아이템의 경험치 25%, 나무꾼의 잔상 저널로 50% 유지): 봉인 칸 밖이 모두
+    // 사라지게 되어 봉인 칸 +1이 됐다. id는 그대로다(본 해금 알림과 저장의 해금 기록).
+    Object.freeze({ id: 'root_memory_loop', label: '뿌리 기억, 봉인 칸 +1', when: Object.freeze({ content: 'rootMemory' }), sealSlots: 1, rootMemory: true }),
+    Object.freeze({ id: 'root_memory_echo', label: '뿌리 기억 2, 봉인 칸 +1', when: Object.freeze({ journal: 'woodsman_echo' }), sealSlots: 1, rootMemory: true }),
     Object.freeze({ id: 'compost_bulk', label: '일괄 거름 사용', when: Object.freeze({ harvestCells: 4 }), bulkCompost: true }),
     Object.freeze({ id: 'breeding', label: '번식', when: Object.freeze({ harvestRow: 'fruit' }), breeding: true }),
     Object.freeze({ id: 'pouch_meteor_fall', label: '씨앗 주머니', when: Object.freeze({ journal: 'meteor_fall' }), pouch: true }),
@@ -108,7 +110,7 @@ const STUMP_BOX_UNLOCKS = Object.freeze([
     Object.freeze({ id: 'quality_180', label: '품질 상한 180%, 접붙이기 9단계', when: Object.freeze({ content: 'stumpQuality5' }), qualityCap: 1.8, graftRanks: 1 })
 ]);
 
-// 다 자라는 순간(16번): 씨앗이 다 자라면 한 번 굴린다. 새 루프에 다시 자라면 다시 굴리고, 봉인 칸의 것은 그대로 남는다.
+// 다 자라는 순간(16번): 씨앗이 다 자라면 한 번 굴린다. 봉인 칸의 것은 굴린 그대로 루프를 넘긴다(그 밖의 것은 루프와 함께 사라진다).
 // bumper = 풍작(이번에 다 자란 동안 품질 +quality), golden = 황금(모든 줄 ×mul; 다 자랄 때 chance, 함 드랍 dropChance, 번식은
 // STUMP_BOX_BREEDING). 추가 줄 수는 품질이 확률만 바꾼다(사용자: 품질로 정해지면 재미없다): lineOdds의 품질 사이는 선형으로 잇는다.
 // 줄 값은 STUMP_BOX_EXTRA_LINES 기준값의 lineValue배(무작위)다. 확률은 사용자가 두 번 낮췄다(2026-10-08).
@@ -236,13 +238,14 @@ const STUMP_BOX_EXTRA_LINES = Object.freeze({
         chaos: linesOf({ stat: 'maxResChaos', value: 0.5, text: '최대 카오스 저항 +{v}%' }, 'hp', 'regen', 'flatHp', 'taken', 'critTaken')
     })
 });
-// 포식(16번, 사용자 설계): 불씨의 흉터는 씨앗처럼 판에서 자라 깨어나고, 깨어나면 흡수한 능력치를 준다. 루프를 넘길 때 깨어난
-// 흉터는 둘레 8칸(판 밖과 닫힌 칸도 센다)에서 한 칸을 똑같은 확률로 골라, 씨앗이면 먹고(자라던 씨앗은 그때 종류를 굴린다) 그 능력치를 흡수한다(다 자란 것
-// absorb.ripe, 자라는 중 absorb.growing; 공명과 접붙이기는 빼고 품질과 황금은 넣는다). 빈칸, 부적, 다른 흉터를 고르면 그 루프의
-// 기회가 사라진다(둘레를 비우면 원하는 것을 먹을 확률은 오르지만 못 먹을 확률도 오른다). 흡수는 능력치마다 그 능력치의 가장 큰
-// 기준값 × capMul까지 쌓인다. 봉인 칸의 흉터는 깨어난 채 루프를 넘긴다(그래서 봉인이 정석이다). 봉인 칸이 열려야(seal_1) 얻는다:
-// 포식이 열릴 때 하나(box.scarGift), 아틀라스 최종 보스(정점 다섯) 처치마다 bossChance, 번식 돌연변이. tone은 화면의 불씨 색.
-const STUMP_BOX_SCAR = Object.freeze({ name: '불씨의 흉터', absorb: Object.freeze({ ripe: 0.5, growing: 0.25 }), capMul: 3, bossChance: 0.15,
+// 포식(16번, 사용자 설계): 불씨의 흉터는 씨앗처럼 판에서 자라 깨어나고, 깨어나면 흡수한 능력치를 준다. 루프를 넘길 때 봉인 칸에서
+// 깨어난 흉터는 둘레 8칸(판 밖과 닫힌 칸도 센다)에서 한 칸을 똑같은 확률로 골라, 씨앗이면 먹고 그 기본, 추가, 알비노 줄을 absorb.ripe만큼
+// 흡수한다(공명과 접붙이기는 빼고 품질과 황금은 넣는다). 자라던 씨앗은 먹혀도 아무것도 주지 않는다(2026-11-04 사용자: 효과가 없으므로).
+// 빈칸, 부적, 다른 흉터를 고르면 그 루프의 기회가 사라진다. 흡수는 능력치마다 그 능력치의 가장 큰 기준값 × capMul까지 쌓이고, 능력치는
+// maxLines줄까지다(다 찬 뒤 새 능력치는 사라진다). 판에는 하나만 놓는다(js/stump-box.js ONE_ON_BOARD): 새 흉터는 옵션을 다시 뽑을 때 바꿔 쓴다.
+// 봉인 칸 밖의 흉터는 루프와 함께 사라진다. 봉인 칸이 열려야(seal_1) 얻는다: 포식이 열릴 때 하나(box.scarGift), 아틀라스 최종 보스(정점
+// 다섯) 처치마다 bossChance, 번식 돌연변이. tone은 화면의 불씨 색.
+const STUMP_BOX_SCAR = Object.freeze({ name: '불씨의 흉터', absorb: Object.freeze({ ripe: 0.5 }), capMul: 3, maxLines: 3, bossChance: 0.15,
     tone: '#e0561a' });
 // 번식(16번, 수확 일지 열매 줄): 루프를 넘길 때 다 자란 열매마다 씨앗 하나가 보관함으로(가득 차면 거름). 품질은 드랍처럼 굴린다.
 // 돌연변이: color = 다른 색, golden = 황금 씨앗, scar = 씨앗 대신 불씨의 흉터(포식이 열린 뒤).

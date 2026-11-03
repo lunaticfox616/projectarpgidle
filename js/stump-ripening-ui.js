@@ -6,6 +6,7 @@
 const stumpRipeningUi = (() => {
     function esc(text) { return escapeHTML(String(text)); }
     function number(value) { return String(Math.round(value * 10) / 10); }
+    const pct = share => Math.round(share * 100);
     /** A stat line in the box's own words (js/stump-box.js lineText; the public profile uses the same one). */
     function lineText(stat, value) { return stumpBox.lineText(stat, value); }
     function isGolden(item) { return !!item && stumpBox.goldenMul(item) > 1; }
@@ -221,12 +222,18 @@ const stumpRipeningUi = (() => {
             + `<p>야생 고유</p><ul>${TALISMAN_WILD_UNIQUE_DB.map(row => codexEntry(row, owned)).join('')}</ul></details>`;
     }
 
-    // ── 규칙 툴팁 ─────────────────────────────────────────
+    // ── 규칙 창 ───────────────────────────────────────────
+    /** 불씨의 흉터 rule (2026-11-04 사용자가 쓴 설명을 규칙에 맞춰): 봉인 칸에서만 먹고, 성장 중인 씨앗은 아무것도 주지 않고, 최대 3줄, 판에 하나. */
+    function scarRule() {
+        const { absorb, capMul, maxLines } = STUMP_BOX_SCAR;
+        return `불씨의 흉터: 루프가 바뀔 때 봉인 칸에서 성장 완료 상태라면 주변 8칸 중 무작위 한 칸을 선택하여, 그 칸의 씨앗을 먹고 추가 옵션까지 능력치를 ${pct(absorb.ripe)}% 흡수합니다`
+            + `(능력치마다 기본값의 ${capMul}배까지, 최대 ${maxLines}줄이고 ${maxLines}줄이 찬 뒤 새 능력치는 사라짐, 성장 중인 씨앗을 먹거나 칸에 씨앗이 없으면 얻지 못함). 그루터기 함에는 하나만 놓을 수 있습니다.`;
+    }
     /** The rules card's lines for the ripening roll and the later unlocks (봉인 칸, 포식, 번식), one short line each. */
     function rulesLines() {
         return ['성장 완료 시 추가 옵션, 풍작, 황금 여부가 정해집니다.',
-            stumpBox.sealLimit(game) ? '봉인 칸: 루프가 바뀌어도 성장 상태가 유지됩니다.' : '',
-            stumpBox.devourOpen(game) ? '불씨의 흉터: 루프가 바뀔 때 주변 8칸 중 무작위 1칸이 씨앗이면 흡수합니다.' : '',
+            stumpBox.sealLimit(game) ? '봉인 칸: 루프가 바뀌어도 아이템이 사라지지 않고 성장 상태도 그대로입니다.' : '',
+            stumpBox.devourOpen(game) ? scarRule() : '',
             stumpBox.breedingOpen(game) ? '번식: 성장 완료된 열매는 루프가 바뀔 때 보관함에 씨앗 1개를 남깁니다.' : '',
             stumpBox.nurseryOpen(game) ? `생육함: 놓은 아이템은 효과 없이 경험치만 ${Math.round(stumpBox.nurseryRate(game) * 100)}% 받습니다.` : ''].filter(Boolean);
     }
@@ -241,7 +248,9 @@ const stumpRipeningUi = (() => {
     }
     function biteLog(row) {
         if (!row.ate) return '🔥 불씨의 흉터: 고른 칸에 씨앗이 없어 이번 포식에 실패했습니다.';
-        return `🔥 불씨의 흉터가 ${withObjectParticle(row.ate)} 먹었습니다: ${row.gained.map(line => lineText(line.stat, line.value)).join(', ')}`;
+        const lost = row.lost && row.lost.length ? ` (${STUMP_BOX_SCAR.maxLines}줄이 차서 사라짐: ${row.lost.map(line => lineText(line.stat, line.value)).join(', ')})` : '';
+        if (!row.gained.length) return `🔥 불씨의 흉터가 ${withObjectParticle(row.ate)} 먹었지만 얻은 능력치가 없습니다${lost || '(성장 중인 씨앗)'}.`;
+        return `🔥 불씨의 흉터가 ${withObjectParticle(row.ate)} 먹었습니다: ${row.gained.map(line => lineText(line.stat, line.value)).join(', ')}${lost}`;
     }
     function bredLog(row) {
         if (row.spec.scar) return '🔥 번식 돌연변이: 성장 완료된 열매가 불씨의 흉터를 남겼습니다.';
@@ -253,7 +262,7 @@ const stumpRipeningUi = (() => {
     function regressLog(detail) {
         (detail.eaten || []).forEach(row => addLog(biteLog(row), row.ate ? 'loot-rare' : 'season-up'));
         (detail.bred || []).forEach(row => addLog(bredLog(row), row.item && (row.item.golden || row.item.family === 'scar') ? 'loot-unique' : 'loot-magic'));
-        if (detail.sealed) addLog(`🔒 그루터기 함: 봉인 칸 ${detail.sealed}개의 성장 상태가 유지됐습니다.`, 'season-up');
+        if (detail.sealed) addLog(`🔒 그루터기 함: 봉인 칸의 아이템 ${detail.sealed}개가 그대로 남았습니다.`, 'season-up');
     }
 
     return Object.freeze({ lineText, isGolden, badgesHtml, extraLinesHtml, scarBodyHtml, discardScar, confirmDiscard, confirmMonetize, sealHtml, bulkHtml,
