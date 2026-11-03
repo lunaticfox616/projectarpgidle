@@ -210,6 +210,7 @@ const unlockTabUi = {
         if (series === 'bagPage') return `${1 + rank}페이지`;
         if (series === 'stumpSeal') return `${rank}칸`;
         if (series === 'stumpQuality') return `${130 + rank * 10}%`;
+        if (series === 'stumpNurseryRate') return `${Math.round((STUMP_BOX_NURSERY.rate + rank * STUMP_BOX_NURSERY.ratePerRank) * 100)}%`;
         return `+${rank * spec.storage}`;
     },
     gainOf(def) {

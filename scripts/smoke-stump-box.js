@@ -293,4 +293,46 @@ for (const kind of ['jewel', 'core']) {
     assert.strictEqual(run('JSON.stringify([game.inventory, game.currencies, game.stumpCube])'), lockedState, `the locked ${kind} and the other materials stay`);
 }
 
-console.log('stump box: grant, unlocks, placement, growth, suppression, resonance, drops, loop regression, bulk actions, cube lock protection and saves: OK');
+// 화폐화(2026-11-03): 칸을 비우고 실물로 돌아오지 않는다. 값은 재화부터 나가고, 잠긴 것과 판 위의 것은 나가지 않는다. 저장과 루프를 넘기고, 조합창은 쓸 때만 줄인다.
+run(`game.woodsmanBuildLock = false; game.stumpBox.board = game.stumpBox.board.map(() => null); game.stumpBox.items = []; game.stumpBox.wallet = {}; game.stumpCube.slots = [];
+    var grownFlower = spec => { const item = stumpBox.createItem(game, { family: 'seed', path: 'flower', color: 'fire', roll: 1, ...spec }); item.ripe = true; return item; };
+    var walletA = grownFlower(), walletB = grownFlower(), walletLocked = grownFlower(), walletPlaced = grownFlower();
+    walletLocked.locked = true; stumpBox.place(game, walletPlaced.id, 12);`);
+assert.strictEqual(run('stumpBox.monetize(game, walletA.id)'), true, 'a stored grown item becomes currency');
+assert.strictEqual(run('stumpBox.itemById(game, walletA.id)'), null, 'and leaves storage for good');
+assert.strictEqual(run('stumpBox.monetize(game, walletLocked.id) || stumpBox.monetize(game, walletPlaced.id)'), false, 'locked and placed items stay items');
+assert.strictEqual(run('stumpBox.harvestPriceHeld(game, "harvest:flower:fire")'), 2, 'the price counts currency and stored unlocked items only');
+assert.strictEqual(run('stumpBox.payHarvestPrice(game, "harvest:flower:fire").walletKey'), 'flower-fire', 'currency pays first');
+assert.strictEqual(run('stumpBox.payHarvestPrice(game, "harvest:flower:fire").id === walletB.id'), true, 'then the stored item');
+assert.strictEqual(run('stumpBox.payHarvestPrice(game, "harvest:flower:fire")'), null, 'locked and placed items never pay');
+run(`game.stumpBox.wallet = { 'flower-fire': 3 };`);
+for (let i = 0; i < 3; i++) run(`stumpCube.put(game, 'wallet', stumpCube.candidates('wallet')[0])`);
+assert.strictEqual(run('stumpCube.entries().length'), 3, 'currency goes into the cube');
+assert.strictEqual(run('stumpCube.match()'), null, 'a merge does not take currency: it cannot come back as an item');
+assert.strictEqual(run('stumpBox.walletCount(game, "flower-fire")'), 3, 'the cube only points at it');
+run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
+assert.deepStrictEqual(json('game.stumpBox.wallet'), { 'flower-fire': 3 }, 'currency survives a save round trip');
+assert.strictEqual(run('stumpCube.entries().length'), 3, 'and so do its cube cells');
+assert.strictEqual(run('stumpCube.takeOut(game, 0)'), true, 'taking it out');
+assert.strictEqual(run('stumpBox.walletCount(game, "flower-fire")'), 3, 'leaves the currency whole');
+run('stumpBox.regress(game);');
+assert.strictEqual(run('stumpBox.walletCount(game, "flower-fire")'), 0, 'a new loop clears currency');
+run(`game.stumpBox.wallet = { 'flower-fire': 1 };`);
+assert.deepStrictEqual(json(`stumpBox.restore({ ...game, stumpBox: { ...game.stumpBox, wallet: { 'flower-fire': -3, 'amber-cold': 2.9, nope: 5, 'fruit-chaos': 'x' } } }).wallet`), { 'amber-cold': 2 }, 'a broken wallet is cleaned on load');
+
+// 생육함(2026-11-03): 보관함 칸을 비우고, 효과 없이 경험치만 일부 받고, 저장을 넘기며, 판과 한 아이템을 나누지 않는다.
+run(`game.woodsmanBuildLock = false; game.stumpBox.board = game.stumpBox.board.map(() => null); game.stumpBox.items = []; game.stumpBox.wallet = {}; game.stumpBox.nursery = game.stumpBox.nursery.map(() => null);
+    var nest = stumpBox.createItem(game, { family: 'seed', path: 'flower', color: 'fire', roll: 1 }), placedSeed = stumpBox.createItem(game, { family: 'seed', path: 'flower', color: 'fire', roll: 1 });
+    stumpBox.place(game, placedSeed.id, 12);`);
+assert.strictEqual(run('stumpBox.nurseryMove(game, nest.id, 12)'), true, 'an item goes on a nursery cell, even where the board holds another');
+assert.strictEqual(run('stumpBox.storage(game).length'), 0, 'and leaves storage');
+assert.strictEqual(run('stumpBox.move(game, nest.id, 13)'), false, 'a nursery item cannot also sit on the board');
+assert.strictEqual(run('stumpBox.evaluate(game).counts.fire'), 0, 'nursery items count for nothing (unripe board seed either)');
+run('stumpBox.growBy ? 0 : 0; stumpBox.grow(game, { isBoss: true });');
+assert.strictEqual(run('placedSeed.xp'), 60, 'the board grows at full rate');
+assert.strictEqual(run('nest.xp'), 6, 'the nursery at 10%');
+run('game = mergeDefaults(JSON.parse(serializeSaveState(game))); window.game = game;');
+assert.strictEqual(run('game.stumpBox.nursery[12] === nest.id'), true, 'the nursery survives a save round trip');
+assert.strictEqual(run('stumpBox.nurseryUnplace(game, nest.id) && stumpBox.storage(game).length'), 1, 'and gives the item back to storage');
+
+console.log('stump box: grant, unlocks, placement, growth, suppression, resonance, drops, loop regression, bulk actions, cube lock protection, currency, nursery and saves: OK');

@@ -292,7 +292,7 @@ for (const id of ['timerift','colony','beehive','voidrift']) {
 run('game=mergeDefaults({})');
 const totalCost=run('CONTENT_UNLOCK_CATALOG.reduce((sum,def)=>sum+def.cost,0)');
 assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:runtime.CONTENT_UNLOCK_POINT_AWARDS.perLoop,complete:false});
-run('game.season=48;contentProgression.sync()');
+run('game.season=54;contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),totalCost);
 assert(!run("contentProgression.status('beyond').available"),'future loop gates remain enforced after funding');
 before=json('game');
@@ -371,7 +371,7 @@ assert.equal(run(`contentProgression.overflow(mergeDefaults(${JSON.stringify(gif
 const treeSave={season:40,maxZoneId:9,contentProgression:{version:10,highestLoop:40,carry:0,graftFloor:0,paceCarry:0,unlocked:['support','loopTree','offlineHours1'],paidCosts:{support:2,loopTree:2,offlineHours1:1},inherited:[],automatic:['market','labyrinth','hall'],grandfathered:[]}};
 const treeOverflow=run(`contentProgression.overflow(${JSON.stringify(treeSave)})`);
 run(`game=mergeDefaults(${JSON.stringify(treeSave)})`);
-assert.equal(run('game.contentProgression.version'),runtime.CONTENT_UNLOCK_TREE_VERSION);
+assert.equal(run('game.contentProgression.version'),runtime.CONTENT_UNLOCK_RECORD_VERSION);
 for(const id of ['craft','market','codex','fossil','memoryDungeon','regionAffix','emberField','sapWound','bossVariant','ringRoute','garden','nursery','rootMemory','graft','stumpSeal1','stumpSeal3','stumpQuality1','knitting'])assert(run(`contentProgression.isUnlocked('${id}')`),`${id} was open at loop 40 and stays open for free`);
 for(const id of ['memoryDeep','ancientSeed','stumpSeal4','stumpQuality2','oilSecond','roomOne'])assert(!run(`contentProgression.isUnlocked('${id}')`),`${id} waits for its own loop`);
 assert(run("contentProgression.isUnlocked('labyrinth')&&contentProgression.isUnlocked('hall')&&contentProgression.isUnlocked('ocean')&&contentProgression.isUnlocked('colony')"),'content that opened by loop stays open without the rows before it');

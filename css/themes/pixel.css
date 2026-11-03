@@ -261,6 +261,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 }
 /* 그루터기 표식(알비노 1/1, 황금, 풍작)은 짧은 정보다: 툴팁 줄의 갈무리14를 물려받아 작은 크기로 번졌다(2026-11-03 사용자 "흐릿하지 않게"). */
 :root body[data-ui-skin] .stump-badges > span { font-family: var(--font-pixel); font-size: var(--font-size-ui); }
+:root body[data-ui-skin] .stump-wallet-cell b { font-family: var(--font-pixel); font-size: var(--font-size-ui); }
 :root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip, .shop-tooltip) .tooltip-title {
   font-family: var(--font-pixel); font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis);
 }

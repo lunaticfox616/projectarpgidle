@@ -14,7 +14,7 @@ const stumpHarvestUi = (() => {
     // ── 수확 일지 ───────────────────────────────────────────
     function journalCell(row, color, grown) {
         const key = `${row}-${color}`, on = grown.has(key), name = `${STUMP_BOX_COLORS[color].label} ${ROW_LABELS[row]}`;
-        return `<span class="stump-harvest-cell${on ? ' is-on' : ''}" style="--stump-tone:${tone(color)}" data-tip="${esc(on ? name : `${name} (아직)`)}">`
+        return `<span class="stump-harvest-cell${on ? ' is-on' : ''}" style="--stump-tone:${tone(color)}" data-tip="${esc(on ? name : `${name} (미수확)`)}">`
             + `<img src="assets/items/stump-pixel-v1/${key}.png" alt="${esc(name)}" draggable="false"></span>`;
     }
     function journalRow(row, grown) {
@@ -47,6 +47,19 @@ const stumpHarvestUi = (() => {
         const grown = new Set(game.stumpBox.harvest.grown);
         return `<div class="stump-harvest-grid">${ROWS.map(row => journalRow(row, grown)).join('')}</div>`
             + '<p class="stump-hint">한 줄을 채우면 보상을 받습니다.</p>';
+    }
+
+    // ── 재화(2026-11-03 사용자): 꽃, 열매, 호박석 × 네 색의 총합. 가리키면 실제 아이템+화폐화(5+7). 실제 아이템은 값으로 쓸 수 있는 것만 센다(보관함, 잠기지 않음). ──
+    /** One cell; with the frame on the cube, a stack with currency is a button that puts one unit in. */
+    function walletCell(row, color, canPut) {
+        const key = `${row}-${color}`, name = `${STUMP_BOX_COLORS[color].label} ${ROW_LABELS[row]}`, { real, wallet } = stumpBox.harvestHoldings(game, key);
+        const button = canPut && wallet > 0, tag = button ? 'button' : 'span', attrs = button ? ` type="button" data-stump-action="wallet-put" data-key="${key}"` : '';
+        return `<${tag} class="stump-harvest-cell stump-wallet-cell${real + wallet ? ' is-on' : ''}"${attrs} style="--stump-tone:${tone(color)}" data-tip="${esc(`${name} ${real}+${wallet} (실제 아이템+화폐화)`)}">`
+            + `<img src="assets/items/stump-pixel-v1/${key}.png" alt="${esc(name)}" draggable="false"><b>${real + wallet}</b></${tag}>`;
+    }
+    function walletHtml(canPut) {
+        return `<div class="stump-harvest-grid stump-wallet-grid">${ROWS.map(row => `<div class="stump-harvest-row"><span>${ROW_LABELS[row]}</span>`
+            + `${COLORS.map(color => walletCell(row, color, canPut)).join('')}</div>`).join('')}</div>`;
     }
 
     // ── 받을 보상(2026-10-09 사용자: 단추 하나로 줄이고, 누르면 창에서 왜 받는지 한 줄과 함께 고른다) ──────────
@@ -167,6 +180,6 @@ const stumpHarvestUi = (() => {
         window.addEventListener('project-idle:stump-box-regressed', event => announceRegress(event.detail || {}));
     }
 
-    return Object.freeze({ journalHtml, unlocksHtml, rewardButtonHtml, openRewards, announceUnlocks, announceRecipes, announceGraftJournal, describeUnlock });
+    return Object.freeze({ walletHtml, journalHtml, unlocksHtml, rewardButtonHtml, openRewards, announceUnlocks, announceRecipes, announceGraftJournal, describeUnlock });
 })();
 safeExposeGlobals({ stumpHarvestUi });

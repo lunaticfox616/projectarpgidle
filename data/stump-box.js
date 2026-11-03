@@ -56,6 +56,8 @@ const STUMP_BOX_DROPS = Object.freeze({
 // 120은 보통 처치 60번이다(씨앗 하나 3,200, 수액 4,000). 2026-10-09에 100에서 60으로 줄였고(필요량은 8배라 거름 하나의 몫은 약 1/13),
 // 2026-10-15 처치 성장과 함께 2배로 올렸다.
 const STUMP_BOX_COMPOST = Object.freeze({ growth: 120 });
+// 생육함(2026-11-03 사용자): 판처럼 놓지만 효과 없이 경험치만 받는다. 판이 받는 경험치의 rate배, 해금(stumpNurseryRate) 단계마다 ratePerRank씩 늘어 100%까지.
+const STUMP_BOX_NURSERY = Object.freeze({ rate: 0.1, ratePerRank: 0.1 });
 // 보관된 씨앗 · 수액의 품질 범위. 드랍은 위 roll 범위로 굴리고, 조합창 합치기만 130%까지 올린다(data/stump-cube.js).
 const STUMP_BOX_ROLL_LIMIT = Object.freeze({ min: 0.8, max: 1.3 });
 
@@ -99,6 +101,8 @@ const STUMP_BOX_UNLOCKS = Object.freeze([
 // bumper = 풍작(이번에 다 자란 동안 품질 +quality), golden = 황금(모든 줄 ×mul; 다 자랄 때 chance, 함 드랍 dropChance, 번식은
 // STUMP_BOX_BREEDING). 추가 줄 수는 품질이 확률만 바꾼다(사용자: 품질로 정해지면 재미없다): lineOdds의 품질 사이는 선형으로 잇는다.
 // 줄 값은 STUMP_BOX_EXTRA_LINES 기준값의 lineValue배(무작위)다. 확률은 사용자가 두 번 낮췄다(2026-10-08).
+// 보스 상대 피해 추가 줄(2026-11-03 사용자 너프): 기준값이 낮고, 다른 줄의 절반 확률로 뽑히며, 값의 폭도 더 낮은 곳에서 시작한다. weight, span이 없는 줄은 1과 lineValue.
+const BOSS_EXTRA_LINE = Object.freeze({ stat: 'bossDamagePct', value: 1.5, weight: 0.5, span: Object.freeze({ min: 0.4, max: 1 }), text: '보스 상대 피해 +{v}%' });
 const STUMP_BOX_RIPENING = Object.freeze({
     // Once per bloom. These unique lines never scale with quality, resonance or grafts.
     albino: Object.freeze({ chance: 0.0001, tone: '#e8ddff', variants: Object.freeze({
@@ -146,11 +150,11 @@ const STUMP_BOX_EXTRA_LINES = Object.freeze({
     fruit: Object.freeze({
         fire: Object.freeze([{ stat: 'eliteDamagePct', value: 2.5, text: '정예 상대 피해 +{v}%' }, { stat: 'firstStrikeDamagePct', value: 4, text: '첫 타격 피해 +{v}%' },
             { stat: 'takenDamageReduceWhen1EnemyPct', value: 1, text: '적이 하나일 때 받는 피해 -{v}%' }]),
-        cold: Object.freeze([{ stat: 'bossDamagePct', value: 2, text: '보스 상대 피해 +{v}%' }, { stat: 'eliteDamagePct', value: 2.5, text: '정예 상대 피해 +{v}%' },
+        cold: Object.freeze([BOSS_EXTRA_LINE, { stat: 'eliteDamagePct', value: 2.5, text: '정예 상대 피해 +{v}%' },
             { stat: 'firstStrikeDamagePct', value: 4, text: '첫 타격 피해 +{v}%' }]),
-        lightning: Object.freeze([{ stat: 'bossDamagePct', value: 2, text: '보스 상대 피해 +{v}%' }, { stat: 'firstStrikeDamagePct', value: 4, text: '첫 타격 피해 +{v}%' },
+        lightning: Object.freeze([BOSS_EXTRA_LINE, { stat: 'firstStrikeDamagePct', value: 4, text: '첫 타격 피해 +{v}%' },
             { stat: 'takenDamageReduceWhen1EnemyPct', value: 1, text: '적이 하나일 때 받는 피해 -{v}%' }]),
-        chaos: Object.freeze([{ stat: 'bossDamagePct', value: 2, text: '보스 상대 피해 +{v}%' }, { stat: 'eliteDamagePct', value: 2.5, text: '정예 상대 피해 +{v}%' },
+        chaos: Object.freeze([BOSS_EXTRA_LINE, { stat: 'eliteDamagePct', value: 2.5, text: '정예 상대 피해 +{v}%' },
             { stat: 'takenDamageReduceWhen1EnemyPct', value: 1, text: '적이 하나일 때 받는 피해 -{v}%' }])
     }),
     amber: Object.freeze({
@@ -204,7 +208,7 @@ const STUMP_BOX_YIELDS = Object.freeze({
         chaos: Object.freeze({ stat: 'chaosPctDmg', value: 6, text: '카오스 피해 +{v}%' })
     }),
     fruit: Object.freeze({
-        fire: Object.freeze({ stat: 'bossDamagePct', value: 4, text: '보스 상대 피해 +{v}%' }),
+        fire: Object.freeze({ stat: 'bossDamagePct', value: 3, text: '보스 상대 피해 +{v}%' }),
         cold: Object.freeze({ stat: 'takenDamageReduceWhen1EnemyPct', value: 2, text: '적이 하나일 때 받는 피해 -{v}%' }),
         lightning: Object.freeze({ stat: 'eliteDamagePct', value: 5, text: '정예 상대 피해 +{v}%' }),
         chaos: Object.freeze({ stat: 'firstStrikeDamagePct', value: 8, text: '첫 타격 피해 +{v}%' })
@@ -238,7 +242,7 @@ const STUMP_BOX_ANCIENT = Object.freeze({ graftRanks: 1 });
 
 safeExposeData({
     STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OPPOSITES, STUMP_BOX_CELL_ORDER, STUMP_BOX_OPENING,
-    STUMP_BOX_GROWTH, STUMP_BOX_SEED_PATH, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE_BASE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES,
+    STUMP_BOX_GROWTH, STUMP_BOX_SEED_PATH, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_NURSERY, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE_BASE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES,
     STUMP_BOX_HARVEST, STUMP_BOX_UNLOCKS, STUMP_BOX_RIPENING, STUMP_BOX_EXTRA_LINES, STUMP_BOX_SCAR, STUMP_BOX_BREEDING, STUMP_BOX_SEED_POUCH,
     STUMP_BOX_BULK_COMPOST, STUMP_BOX_TALISMAN_CODEX, STUMP_BOX_ANCIENT
 });

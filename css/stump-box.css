@@ -81,6 +81,7 @@
   #tab-stump .stump-more-tab { --tab-tone: #e8c872; font-size: 12px; color: var(--tab-tone); background: color-mix(in srgb, var(--tab-tone) 14%, #16120d); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tab-tone) 42%, transparent); }
   #tab-stump .stump-more-tab[data-tab="harvest"] { --tab-tone: #a8d870; }
   #tab-stump .stump-more-tab[data-tab="talisman"] { --tab-tone: #6fd6b8; }
+  #tab-stump .stump-more-tab[data-tab="wallet"] { --tab-tone: #f0c060; }
   #tab-stump .stump-more-tab:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--tab-tone) 26%, #16120d); }
   #tab-stump .stump-more-tab.is-on { color: #120d07; background: color-mix(in srgb, var(--tab-tone) 82%, #16120d); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tab-tone) 60%, #fff); }
   /* 수확 일지(js/stump-harvest-ui.js): 줄마다 이름과 네 색, 아직 자라지 않은 것은 흐리게 */
@@ -91,6 +92,12 @@
   .stump-harvest-cell img { width: 28px; height: 28px; image-rendering: pixelated; opacity: .25; filter: grayscale(1); }
   .stump-harvest-cell.is-on { box-shadow: inset 0 0 0 1px var(--stump-tone); }
   .stump-harvest-cell.is-on img { opacity: 1; filter: none; }
+  /* 재화 탭(js/stump-harvest-ui.js): 수확 일지와 같은 판에 총합. 숫자는 칸 오른쪽 아래. 조합창이 보일 때 재화가 있는 칸은 단추다 */
+  .stump-wallet-grid .stump-harvest-row { grid-template-columns: 3.5em repeat(4, 44px); }
+  .stump-wallet-cell { position: relative; width: 44px; height: 44px; padding: 0; }
+  .stump-wallet-cell img { width: 32px; height: 32px; }
+  .stump-wallet-cell b { position: absolute; right: 3px; bottom: 1px; color: #f6efdd; font-size: 12px; font-weight: 400; line-height: 16px; text-shadow: 1px 1px 0 #000; }
+  .stump-wallet-cell:not(.is-on) b { color: var(--px-copy-muted, #a39883); }
   /* 함 해금(2026-10-09 사용자: 조건 왼쪽, 보상 오른쪽): 줄마다 표식 | 조건 | → | 보상. 열린 줄은 잎색 표식과 금빛 보상, 잠긴 줄은 흐리게 */
   .stump-unlocks-head, .stump-unlocks li { display: grid; grid-template-columns: 14px minmax(0, 1fr) 16px minmax(0, 1fr); align-items: center; gap: 0 8px; }
   .stump-unlocks-head { padding: 0 8px 4px; color: var(--px-copy-muted, #a39883); font-size: 11px; }
@@ -131,6 +138,7 @@
     image-rendering: pixelated;
   }
   .stump-board.is-cube .stump-frame { background-image: url('../assets/ui/grove/stump-gems/ivory/normal.png'); }
+  .stump-board.is-nursery .stump-frame { background-image: url('../assets/ui/grove/stump-gems/green/normal.png'); }
   /* 버튼 넷(2026-10-29 사용자: 올리거나 눌러도 그루터기 함의 모양은 그대로, 그 버튼만 반응한다): 기본 틀 위의 그 버튼 자리에 전달본의
      올렸을 때 · 눌렀을 때 조각만 겹친다(틀 전체를 바꾸면 네 버튼이 다 바뀐다). 누른 뒤 잠깐(js/stump-box-ui.js fireFrameButton)
      눌린 조각과 보석의 빛이 남는다. */
@@ -170,6 +178,14 @@
   #tab-stump .is-cube .stump-frame-button.is-right:active, #stump-box-board[data-fired="right"] .is-cube .stump-frame-button.is-right { background-image: url('../assets/ui/grove/stump-gems/ivory/right-pressed.png'); }
   #tab-stump .is-cube .stump-frame-button.is-bottom:active, #stump-box-board[data-fired="bottom"] .is-cube .stump-frame-button.is-bottom { background-image: url('../assets/ui/grove/stump-gems/ivory/bottom-pressed.png'); }
   /* 누른 보석의 빛: 보석 자리에서 잠깐 번졌다 사라진다(판은 루비빛, 조합창은 자수정빛) */
+  #tab-stump .is-nursery .stump-frame-button.is-top:is(:hover, :focus-visible) { background-image: url('../assets/ui/grove/stump-gems/green/top-hover.png'); }
+  #tab-stump .is-nursery .stump-frame-button.is-left:is(:hover, :focus-visible) { background-image: url('../assets/ui/grove/stump-gems/green/left-hover.png'); }
+  #tab-stump .is-nursery .stump-frame-button.is-right:is(:hover, :focus-visible) { background-image: url('../assets/ui/grove/stump-gems/green/right-hover.png'); }
+  #tab-stump .is-nursery .stump-frame-button.is-bottom:is(:hover, :focus-visible) { background-image: url('../assets/ui/grove/stump-gems/green/bottom-hover.png'); }
+  #tab-stump .is-nursery .stump-frame-button.is-top:active, #stump-box-board[data-fired="top"] .is-nursery .stump-frame-button.is-top { background-image: url('../assets/ui/grove/stump-gems/green/top-pressed.png'); }
+  #tab-stump .is-nursery .stump-frame-button.is-left:active, #stump-box-board[data-fired="left"] .is-nursery .stump-frame-button.is-left { background-image: url('../assets/ui/grove/stump-gems/green/left-pressed.png'); }
+  #tab-stump .is-nursery .stump-frame-button.is-right:active, #stump-box-board[data-fired="right"] .is-nursery .stump-frame-button.is-right { background-image: url('../assets/ui/grove/stump-gems/green/right-pressed.png'); }
+  #tab-stump .is-nursery .stump-frame-button.is-bottom:active, #stump-box-board[data-fired="bottom"] .is-nursery .stump-frame-button.is-bottom { background-image: url('../assets/ui/grove/stump-gems/green/bottom-pressed.png'); }
   #tab-stump .stump-frame-button::after {
     content: '';
     position: absolute;
@@ -181,6 +197,8 @@
     mix-blend-mode: screen;
   }
   .stump-board.is-cube { --stump-gem-glow: rgba(198, 150, 255, .55); }
+  .stump-board.is-nursery { --stump-gem-glow: rgba(255, 96, 214, .55); }
+  .stump-board.is-nursery .stump-frame-button.is-top { --stump-gem-glow: rgba(170, 240, 150, .5); }
   .stump-board.is-box .stump-frame-button.is-top { --stump-gem-glow: rgba(255, 214, 130, .55); }
   .stump-board.is-cube .stump-frame-button.is-top { --stump-gem-glow: rgba(255, 226, 160, .5); }
   #stump-box-board[data-fired="top"] .stump-frame-button.is-top::after,
@@ -202,7 +220,14 @@
     grid-template-rows: 27fr 3fr 28fr 4fr 27fr 4fr 27fr 4fr 27fr;
   }
   /* 틀 아래 첫 줄: 조합법 책(누르면 화면 가운데로 커지며 펼쳐진다, js/stump-cube-ui.js openRecipeBook) */
-  .stump-board-foot { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .stump-board-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+  /* 틀 아래 단추(2026-11-03 사용자: 아래 보석이 하던 합치기와 조합): 틀이 보여 주는 쪽의 보석 색 */
+  #tab-stump .stump-frame-action { --action-tone: #e06a5c; min-height: 34px; margin: 0; padding: 4px 14px; border: 1px solid var(--action-tone); border-radius: 0;
+    background: color-mix(in srgb, var(--action-tone) 22%, #16120d); color: #f6efdd; font-size: var(--font-size-ui); cursor: pointer; }
+  #tab-stump .stump-frame-action:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--action-tone) 42%, #16120d); }
+  #tab-stump:has(.stump-board.is-cube) .stump-frame-action { --action-tone: #b48cf0; }
+  #tab-stump:has(.stump-board.is-nursery) .stump-frame-action { --action-tone: #e85cc4; }
+  .stump-nursery-rate { padding: 2px 8px; border: 1px solid #5cc46a; background: color-mix(in srgb, #5cc46a 18%, #16120d); color: #bff0c0; font-size: var(--font-size-ui); }
   #tab-stump .stump-recipe-book { display: inline-flex; align-items: center; gap: 8px; min-height: 0; margin: 0; padding: 2px 10px 2px 4px; border: 0;
     background: none; box-shadow: none; color: #e6c67f; font-size: var(--font-size-ui); cursor: pointer; }
   .stump-recipe-book img { width: 44px; height: 56px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 #050302); transition: transform .12s ease-out; }
@@ -213,14 +238,17 @@
      보인다(stump-frame-mask.png: 틀 모양에 칸 자리를 채운 가림판; 2026-10-27 사용자: 보석 빛 번짐, 그루터기 함 부분에만). */
   @property --stump-reveal { syntax: '<length>'; inherits: false; initial-value: 0px; }
   #stump-board-section { position: relative; }
+  /* 빛이 퍼져 나오는 자리: 위 생명의 나무, 아래 보석(생육함)이면 256px 그림의 128, 233 */
+  .stump-board { --stump-reveal-at: 50.45% 8.58%; }
+  .stump-board.is-from-bottom { --stump-reveal-at: 50.45% 98.3%; }
   #stump-board-section > .stump-board-ghost {
     position: absolute;
     z-index: 6;
     margin: 0;
     pointer-events: none;
-    /* 원의 가운데는 생명의 나무(256px 그림의 128, 24) */
-    -webkit-mask-image: radial-gradient(circle at 50.45% 8.58%, transparent var(--stump-reveal), #000 calc(var(--stump-reveal) + 28px));
-    mask-image: radial-gradient(circle at 50.45% 8.58%, transparent var(--stump-reveal), #000 calc(var(--stump-reveal) + 28px));
+    /* 원의 가운데는 누른 보석 */
+    -webkit-mask-image: radial-gradient(circle at var(--stump-reveal-at), transparent var(--stump-reveal), #000 calc(var(--stump-reveal) + 28px));
+    mask-image: radial-gradient(circle at var(--stump-reveal-at), transparent var(--stump-reveal), #000 calc(var(--stump-reveal) + 28px));
     animation: stump-reveal .7s cubic-bezier(.3, 0, .2, 1) forwards;
   }
   #tab-stump .stump-board.is-revealing::before {
@@ -230,13 +258,16 @@
     z-index: 4;
     pointer-events: none;
     mix-blend-mode: screen;
-    background: radial-gradient(circle at 50.45% 8.58%, transparent calc(var(--stump-reveal) - 10px), rgba(255, 222, 150, .55) calc(var(--stump-reveal) + 6px), transparent calc(var(--stump-reveal) + 30px));
+    background: radial-gradient(circle at var(--stump-reveal-at), transparent calc(var(--stump-reveal) - 10px), rgba(255, 222, 150, .55) calc(var(--stump-reveal) + 6px), transparent calc(var(--stump-reveal) + 30px));
     -webkit-mask: url('../assets/ui/grove/stump-gems/mask.png') 0 0 / 100% 100% no-repeat;
     mask: url('../assets/ui/grove/stump-gems/mask.png') 0 0 / 100% 100% no-repeat;
     animation: stump-reveal .7s cubic-bezier(.3, 0, .2, 1) both, stump-ring-fade .7s ease-in both;
   }
   #tab-stump .stump-board.is-cube.is-revealing::before {
-    background: radial-gradient(circle at 50.45% 8.58%, transparent calc(var(--stump-reveal) - 10px), rgba(206, 170, 255, .55) calc(var(--stump-reveal) + 6px), transparent calc(var(--stump-reveal) + 30px));
+    background: radial-gradient(circle at var(--stump-reveal-at), transparent calc(var(--stump-reveal) - 10px), rgba(206, 170, 255, .55) calc(var(--stump-reveal) + 6px), transparent calc(var(--stump-reveal) + 30px));
+  }
+  #tab-stump .stump-board.is-nursery.is-revealing::before {
+    background: radial-gradient(circle at var(--stump-reveal-at), transparent calc(var(--stump-reveal) - 10px), rgba(255, 110, 220, .55) calc(var(--stump-reveal) + 6px), transparent calc(var(--stump-reveal) + 26px));
   }
   @keyframes stump-reveal { from { --stump-reveal: 0px; } to { --stump-reveal: 560px; } }
   @keyframes stump-ring-fade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
@@ -457,6 +488,7 @@
   /* 여러 칸 재료(장비)는 틀 그림(.stump-frame, 층 2) 위에 그려 칸 사이 살을 가리고 한 덩어리로 보인다(2026-10-28 사용자). 한 칸 재료는
      전처럼 가장자리를 틀의 살이 덮는다. 보석 전환의 빛 고리(4)와 옛 판 그림(6)은 그 위다. */
   #tab-stump .stump-cube-item.is-multi { z-index: 3; }
+  #tab-stump .stump-cube-item.is-wallet { background: color-mix(in srgb, #f0c060 14%, #1a1510); box-shadow: inset 0 0 0 1px #f0c060, inset 0 0 0 2px #050404, inset 0 0 0 3px #f0c060; }
   #tab-stump .stump-cube-item img { width: 80%; height: 80%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
   /* 바로 넣기: 지금 보관한 재료로 만들 수 있는 조합법마다 단추 하나(분류 색), 누르면 조합창을 비우고 그 재료를 넣는다 */
   .stump-cube-quick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

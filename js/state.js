@@ -2456,11 +2456,12 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * 16번(2026-10-08): a grown seed or sap keeps its ripening roll in harvest {bonus, golden, lines} until a new loop; golden marks
  * a golden item; a scar (불씨의 흉터, family 'scar') keeps absorbed stats and meal counts. sealed = sealed cells, pouches = seed
  * pouch receipts and offers kept until one is taken, codex = unique talismans first found, scarGift = the one free scar's receipt.
+ * wallet = 화폐화한 꽃, 열매, 호박석 ('flower-fire': 개수, 실물로 돌아오지 않고 루프가 바뀌면 사라진다). nursery = 생육함 5×5(board와 같은 모양, 효과 없이 경험치만).
  * @typedef {{id:number, family:('seed'|'sap'|'talisman'|'scar'), color:(null|'fire'|'cold'|'lightning'|'chaos'), path:(null|'flower'|'fruit'), xp:number, ripe:boolean, roll:number,
  *   golden?:boolean, harvest?:{bonus:number, golden:boolean, lines:{stat:string, value:number}[]}, absorbed?:Record<string, number>, meals?:number, misses?:number}} StumpBoxItem
  * @typedef {{version:number, acquired:boolean, via:(null|string), starter:{seed:boolean, sap:boolean}, nextId:number, items:StumpBoxItem[], board:Array<number|null>, graft:number[],
  *   harvest:{grown:string[], gifts:{flower:boolean, fruit:boolean, amber:boolean}}, sealed:number[], pouches:{opened:string[], offers:Record<string, object[]>},
- *   codex:string[], scarGift:boolean}} StumpBoxState
+ *   codex:string[], scarGift:boolean, wallet:Record<string, number>, nursery:Array<number|null>}} StumpBoxState
  */
 /**
  * G1 expedition ledger. Rewards in history are already in the wallet, never claimable again.
@@ -2767,7 +2768,7 @@ const defaultGame = {
     /** @type {StumpBoxState} */
     stumpBox: { version: 1, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
         graft: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        harvest: { grown: [], gifts: { flower: false, fruit: false, amber: false } }, sealed: [], pouches: { opened: [], offers: {} }, codex: [], scarGift: false },
+        harvest: { grown: [], gifts: { flower: false, fruit: false, amber: false } }, sealed: [], pouches: { opened: [], offers: {} }, codex: [], scarGift: false, wallet: {}, nursery: Array(25).fill(null) },
     cores: { equipped: null, owned: [] },
     pendingLoopDecision: false,
     pendingLoopReady: false,

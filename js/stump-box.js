@@ -5,6 +5,8 @@
 // 부적의 줄과 이웃 효과는 talismans.js / talisman-effects.js가 맡고, 여기서는 보관 · 배치 · 깨어남 · 저장 경계만 다룬다.
 // 접붙이기(graft, 칸마다 0~5단계, 루프 45부터 6)는 칸에 붙는다: 아이템을 옮기면 새 칸의 단계를 따른다. 씨앗 · 수액 값은 여기서,
 // 부적 줄은 talisman-effects.js가 graftMultiplier로 키운다.
+// 화폐화(2026-11-03): 다 자란 꽃, 열매, 호박석은 칸을 차지하지 않는 재화(box.wallet)가 될 수 있고, 실물로는 돌아오지 않는다. 루프가 바뀌면 사라진다.
+// 생육함(2026-11-03, box.nursery): 판처럼 놓지만 효과, 공명, 비활성화, 접붙이기가 없고 경험치만 일부 받는다. 보관함 칸을 차지하지 않는다.
 // 16번(2026-10-08): 다 자라는 순간 풍작, 황금, 추가 줄을 굴리고(item.harvest, 새 루프에 지우고 다시 굴린다), 봉인 칸(box.sealed)의 것은
 // 그대로 루프를 넘긴다. 불씨의 흉터(family 'scar', 색 없음, 포식이 열릴 때 하나 box.scarGift)는 루프를 넘길 때 둘레 8칸 하나를 먹고 흡수한다(포식). 번식, 씨앗 주머니,
 // 일괄 거름 사용과 일괄 버리기, 부적 도감(box.codex)도 여기 있다. 수치는 data/stump-box.js.
@@ -39,21 +41,29 @@ const stumpBox = (() => {
     }
     function empty() {
         return { version: BOX_VERSION, acquired: false, via: null, starter: { seed: false, sap: false }, nextId: 1, items: [], board: Array(CELLS).fill(null),
-            graft: Array(CELLS).fill(0), harvest: emptyHarvest(), sealed: [], pouches: { opened: [], offers: {} }, codex: [], scarGift: false };
+            graft: Array(CELLS).fill(0), harvest: emptyHarvest(), sealed: [], pouches: { opened: [], offers: {} }, codex: [], scarGift: false, wallet: {}, nursery: Array(CELLS).fill(null) };
     }
     /** What a new seed grows into (꽃, 열매), rolled when it is made (2026-10-09 사용자: 고르지 않고 무작위). */
     function seedPath(random = Math.random) { return random() < STUMP_BOX_SEED_PATH.fruitShare ? 'fruit' : 'flower'; }
     /** A seed saved before paths were rolled at birth and never planted: a fixed half by id (restore stays repeatable). */
     function legacyPath(id) { return Number(id) % 2 ? 'fruit' : 'flower'; }
+    function fillLaterShapes(box) {
+        if (!Array.isArray(box.codex)) box.codex = [];
+        if (!box.wallet || typeof box.wallet !== 'object') box.wallet = {};
+        if (!Array.isArray(box.nursery)) box.nursery = Array(CELLS).fill(null);
+    }
+    function fillHarvestShape(box) {
+        if (!box.harvest || !Array.isArray(box.harvest.grown) || !box.harvest.gifts) box.harvest = { ...emptyHarvest(), ...(box.harvest && typeof box.harvest === 'object' ? box.harvest : {}) };
+        if (!Array.isArray(box.harvest.grown)) box.harvest.grown = [];
+    }
     /** @returns {object} The state's box, created empty when missing. A box from an older save without the harvest journal or the
      * codex gets their empty shapes here (restore fills the rest later): a load that stored a floor talisman before restore read them
      * and threw (2026-10-20). */
     function of(state) {
         if (!state.stumpBox || typeof state.stumpBox !== 'object') state.stumpBox = empty();
         const box = state.stumpBox;
-        if (!box.harvest || !Array.isArray(box.harvest.grown) || !box.harvest.gifts) box.harvest = { ...emptyHarvest(), ...(box.harvest && typeof box.harvest === 'object' ? box.harvest : {}) };
-        if (!Array.isArray(box.harvest.grown)) box.harvest.grown = [];
-        if (!Array.isArray(box.codex)) box.codex = [];
+        fillHarvestShape(box);
+        fillLaterShapes(box);
         return box;
     }
 
@@ -103,8 +113,10 @@ const stumpBox = (() => {
     }
     function findItem(box, id) { return box.items.find(item => item.id === id) || null; }
     function cellOf(state, id) { return of(state).board.indexOf(id); }
+    /** On the board or in the nursery: not in storage. */
+    function isPlaced(state, id) { const box = of(state); return box.board.includes(id) || box.nursery.includes(id); }
     function storage(state) {
-        const box = of(state), placed = new Set(box.board.filter(id => id !== null));
+        const box = of(state), placed = new Set([...box.board, ...box.nursery].filter(id => id !== null));
         return box.items.filter(item => !placed.has(item.id));
     }
     // ── 보관함 자리 ─────────────────────────────────────────
@@ -165,12 +177,71 @@ const stumpBox = (() => {
         return storage(state).filter(item => isMature(item) && !item.locked && yieldKind(item) === kind && (!color || item.color === color))
             .sort((a, b) => isPlainHarvest(b) - isPlainHarvest(a) || qualityOf(a) - qualityOf(b));
     }
-    const harvestPriceHeld = (state, key) => harvestForPrice(state, key).length;
-    /** 값을 치른다: 낸 것을 돌려주고, 가진 것이 없으면 null. */
+    const harvestPriceHeld = (state, key) => harvestForPrice(state, key).length + walletForPrice(state, key).reduce((sum, stack) => sum + walletCount(state, stack), 0);
+    /** 값을 치른다: 화폐화한 재화부터 내고, 없으면 보관함의 실물을 낸다. 낸 것을 돌려주고, 가진 것이 없으면 null. */
     function payHarvestPrice(state, key) {
+        const stack = walletForPrice(state, key)[0];
+        if (stack) return spendWallet(state, stack) ? { walletKey: stack } : null;
         const item = harvestForPrice(state, key)[0];
         return item && discard(state, item.id) ? item : null;
     }
+
+    // ── 화폐화(2026-11-03 사용자: 보관함 칸 이득) ───────────────
+    // box.wallet은 'flower-fire': 개수. 실물의 품질과 황금 같은 표식은 남지 않고, 루프가 바뀌면 사라진다(2026-11-03 사용자). 값을 치를 때 실물보다 먼저 나간다.
+    // 조합창은 재화 조각(walletPiece)을 가리키기만 해서, 꺼내면 그대로이고 조합할 때만 줄어든다(js/stump-cube.js).
+    const walletCount = (state, key) => Number(of(state).wallet[key]) || 0;
+    const walletTotal = state => HARVEST_KEYS.reduce((sum, key) => sum + walletCount(state, key), 0);
+    function addToWallet(box, item) {
+        const key = `${yieldKind(item)}-${item.color}`;
+        box.wallet[key] = (Number(box.wallet[key]) || 0) + 1;
+    }
+    /** The stacks a price can take: its colour's, or with no colour the biggest first. */
+    function walletForPrice(state, key) {
+        const { kind, color } = parseHarvestPrice(key);
+        return (color ? [color] : COLORS).map(one => `${kind}-${one}`).filter(stack => walletCount(state, stack) > 0)
+            .sort((a, b) => walletCount(state, b) - walletCount(state, a));
+    }
+    function spendWallet(state, key) {
+        const left = walletCount(state, key);
+        if (left < 1) return false;
+        if (left === 1) delete of(state).wallet[key];
+        else of(state).wallet[key] = left - 1;
+        return true;
+    }
+    /** A grown seed or sap in storage, not locked. */
+    function canMonetize(state, item) {
+        return !!item && editable(state) && FAMILIES.includes(item.family) && isMature(item) && !item.locked && !isPlaced(state, item.id);
+    }
+    /** Turns one stored grown item into currency for good. @returns {boolean} whether it went */
+    function monetize(state, id) {
+        const box = of(state), item = findItem(box, id);
+        if (!canMonetize(state, item)) return false;
+        box.items = box.items.filter(row => row !== item);
+        addToWallet(box, item);
+        return true;
+    }
+    /** What one kind and colour ('flower-fire') comes to as money: stored unlocked items and currency. */
+    function harvestHoldings(state, key) {
+        const [kind, color] = key.split('-');
+        return { real: harvestForPrice(state, harvestPriceKey(kind, color)).length, wallet: walletCount(state, key) };
+    }
+    const walletPieceMemo = new Map();
+    /** A cube material standing for one unit of a stack: always the same object for one id. */
+    function walletPiece(key, index) {
+        const id = `${key}#${index}`;
+        if (!walletPieceMemo.has(id)) {
+            const [kind, color] = key.split('-');
+            walletPieceMemo.set(id, Object.freeze({ id, walletKey: key, family: STUMP_BOX_HARVEST.rows[kind], path: kind === 'amber' ? null : kind, color, xp: 0, ripe: true, roll: STUMP_BOX_ROLL_LIMIT.min }));
+        }
+        return walletPieceMemo.get(id);
+    }
+    /** The piece of this id while the stack still holds it, else null. */
+    function walletPieceById(state, id) {
+        const [key, index] = String(id).split('#');
+        return HARVEST_KEYS.includes(key) && Number(index) < walletCount(state, key) ? walletPiece(key, Number(index)) : null;
+    }
+    /** Up to limit pieces of each stack. */
+    const walletPieces = (state, limit) => HARVEST_KEYS.flatMap(key => Array.from({ length: Math.min(limit, walletCount(state, key)) }, (_, index) => walletPiece(key, index)));
     function clampRoll(value, cap = STUMP_BOX_ROLL_LIMIT.max) {
         return Math.round(Math.min(cap, Math.max(STUMP_BOX_ROLL_LIMIT.min, Number(value) || 1)) * 100) / 100;
     }
@@ -206,7 +277,7 @@ const stumpBox = (() => {
     /** Throws away a stored (not placed) item. */
     function discard(state, id) {
         const box = of(state), item = findItem(box, id);
-        if (box.board.includes(id) || !item || item.locked) return false;
+        if (isPlaced(state, id) || !item || item.locked) return false;
         box.items = box.items.filter(item => item.id !== id);
         return true;
     }
@@ -260,7 +331,7 @@ const stumpBox = (() => {
     }
     function placeOnBoard(state, id, cell) {
         const box = of(state), item = findItem(box, id);
-        if (!editable(state) || !item || !isOpen(state, cell) || box.board[cell] !== null || albinoPlacementReason(state, id, cell)) return false;
+        if (!editable(state) || !item || !isOpen(state, cell) || box.board[cell] !== null || box.nursery.includes(id) || albinoPlacementReason(state, id, cell)) return false;
         const from = box.board.indexOf(id);
         if (from >= 0) box.board[from] = null;
         box.board[cell] = id;
@@ -279,7 +350,7 @@ const stumpBox = (() => {
      */
     function moveOnBoard(state, id, cell) {
         const box = of(state), item = findItem(box, id), from = box.board.indexOf(id), occupant = box.board[cell];
-        if (!editable(state) || !item || !isOpen(state, cell) || from === cell || albinoPlacementReason(state, id, cell)) return false;
+        if (!editable(state) || !item || !isOpen(state, cell) || from === cell || box.nursery.includes(id) || albinoPlacementReason(state, id, cell)) return false;
         if (occupant === null) return placeOnBoard(state, id, cell);
         box.board[cell] = id;
         if (from >= 0) box.board[from] = occupant;
@@ -319,6 +390,50 @@ const stumpBox = (() => {
         box.board = before.map(() => null);
         rememberPlacement(state, before);
         return before.filter(id => id !== null).length;
+    }
+
+    // ── 생육함 ─────────────────────────────────────────────
+    const nurseryOpen = state => contentProgression.holds('stumpNursery', state);
+    /** The share of the board's growth a nursery item gets. */
+    const nurseryRate = state => Math.min(1, Math.round((STUMP_BOX_NURSERY.rate + STUMP_BOX_NURSERY.ratePerRank * contentProgression.rank('stumpNurseryRate', state)) * 100) / 100);
+    const inNursery = (state, id) => of(state).nursery.includes(id);
+    /** The first open empty cell, or null. */
+    function firstNurseryCell(state) {
+        const cell = STUMP_BOX_CELL_ORDER.find(at => isOpen(state, at) && of(state).nursery[at] === null);
+        return cell === undefined ? null : cell;
+    }
+    /** Puts an item on a nursery cell. A filled cell trades places: its item takes the mover's old nursery cell, or goes to storage. */
+    function nurseryMove(state, id, cell) {
+        const box = of(state), item = findItem(box, id), from = box.nursery.indexOf(id), occupant = box.nursery[cell];
+        if (!editable(state) || !item || !isOpen(state, cell) || from === cell) return false;
+        const onBoard = box.board.indexOf(id);
+        if (onBoard >= 0 && occupant !== null && storageFull(state)) return false;
+        if (onBoard >= 0) box.board[onBoard] = null;
+        if (from >= 0) box.nursery[from] = occupant;
+        box.nursery[cell] = id;
+        invalidatePlacementUndo(state);
+        return true;
+    }
+    function nurseryUnplace(state, id) {
+        const box = of(state), from = box.nursery.indexOf(id);
+        if (!editable(state) || from < 0 || storageFull(state)) return false;
+        box.nursery[from] = null;
+        return true;
+    }
+    /** '' when every nursery item can go back to storage at once, otherwise why not. */
+    function nurseryClearReason(state) {
+        const placed = of(state).nursery.filter(id => id !== null).length;
+        if (!editable(state)) return '나무꾼 전투 중에는 생육함 배치를 바꿀 수 없습니다.';
+        if (!placed) return '생육함에 놓인 아이템이 없습니다.';
+        const room = storageLimit(state) - storage(state).length;
+        return room < placed ? `보관함에 ${placed - room}칸이 더 필요합니다.` : '';
+    }
+    /** @returns {number} how many went back (0 when refused). */
+    function nurseryClear(state) {
+        if (nurseryClearReason(state)) return 0;
+        const box = of(state), count = box.nursery.filter(id => id !== null).length;
+        box.nursery = box.nursery.map(() => null);
+        return count;
     }
 
     function invalidatePlacementUndo(state) { placementUndos.delete(state); }
@@ -534,11 +649,17 @@ const stumpBox = (() => {
         }
         return 0;
     }
+    /** A place in the pool by the lines' weights (1 unless a line says otherwise). */
+    function pickLineAt(left, random) {
+        let roll = random() * left.reduce((sum, line) => sum + (line.weight || 1), 0);
+        const at = left.findIndex(line => (roll -= line.weight || 1) < 0);
+        return at < 0 ? left.length - 1 : at;
+    }
     /** `count` different lines from the item's pool (STUMP_BOX_EXTRA_LINES), each at a rolled share of its base value. */
     function rollLines(item, count, random) {
-        const left = ((STUMP_BOX_EXTRA_LINES[yieldKind(item)] || {})[item.color] || []).slice(), span = STUMP_BOX_RIPENING.lineValue, lines = [];
+        const left = ((STUMP_BOX_EXTRA_LINES[yieldKind(item)] || {})[item.color] || []).slice(), lines = [];
         while (lines.length < count && left.length) {
-            const line = left.splice(Math.floor(random() * left.length), 1)[0];
+            const line = left.splice(pickLineAt(left, random), 1)[0], span = line.span || STUMP_BOX_RIPENING.lineValue;
             lines.push({ stat: line.stat, value: Math.round(line.value * (span.min + random() * (span.max - span.min)) * 100) / 100 });
         }
         return lines;
@@ -560,18 +681,26 @@ const stumpBox = (() => {
             kept = true;
         });
     }
-    /** Grows every growing item by `amount` and writes first harvests into the journal. @returns {object[]} items that ripened. */
+    /** One item gains `amount` (a nursery share may be a fraction); ripening rolls it and adds it to `ripened`. */
+    function growItem(item, amount, random, ripened) {
+        item.xp = Math.min(need(item), Math.round((item.xp + amount) * 100) / 100);
+        if (item.xp < need(item)) return;
+        item.ripe = true;
+        ripen(item, random);
+        ripened.push(item);
+    }
+    /** Nursery items still growing (nothing suppresses them). */
+    function nurseryGrowing(state) {
+        const box = of(state);
+        return box.nursery.filter(id => id !== null).map(id => findItem(box, id)).filter(item => item && !isMature(item) && targetStage(item));
+    }
+    /** Grows every growing item by `amount`, the nursery by its share, and writes first harvests into the journal. @returns {object[]} items that ripened. */
     function growBy(state, amount, random = Math.random) {
         const ripened = [];
         const wornId = wornAlbinoId(state);
-        for (const item of growingItems(state)) {
-            item.xp = Math.min(need(item), item.xp + amount);
-            if (item.xp >= need(item)) {
-                item.ripe = true;
-                ripen(item, random);
-                ripened.push(item);
-            }
-        }
+        growingItems(state).forEach(item => growItem(item, amount, random, ripened));
+        const share = amount * nurseryRate(state);
+        nurseryGrowing(state).forEach(item => growItem(item, share, random, ripened));
         if (ripened.some(item => item.albino)) {
             enforceAlbinoLimit(of(state), wornId);
             invalidatePlacementUndo(state);
@@ -591,7 +720,7 @@ const stumpBox = (() => {
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
         if (item && item.locked) return '잠긴 아이템은 거름으로 쓸 수 없습니다.';
         if (item && item.albino) return '알비노는 거름 대신 조합 재료로 사용할 수 있습니다.';
-        if (!item || !FAMILIES.includes(item.family) || box.board.includes(id)) return '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.';
+        if (!item || !FAMILIES.includes(item.family) || isPlaced(state, id)) return '보관함의 씨앗이나 수액만 거름으로 쓸 수 있습니다.';
         return growingItems(state).length ? '' : '그루터기 함에서 성장 중인 그루터기 아이템이 없습니다.';
     }
     /** Spreads a stored seed or sap: it is used up and every growing item gains its compost growth.
@@ -632,11 +761,11 @@ const stumpBox = (() => {
         return [...groups.values()].flatMap(list => list.sort((a, b) => b.roll - a.roll || a.id - b.id).slice(STUMP_BOX_BULK_COMPOST.keep))
             .filter(item => !item.golden && !item.ancient && !item.albino && !item.locked);
     }
-    /** What 일괄 버리기 takes of a storage filter: every stored seed and sap but golden, ancient and grown ones (any growth, cube
-     * material), and under 전체 and 부적 the stored talismans but unique and grown ones (2026-10-23 사용자: 부적이 빠져 있었다).
+    /** What 일괄 버리기 takes of a storage filter: every stored seed and sap but golden, ancient and growing ones, plain grown ones (they
+     * become currency, discardMany), and under 전체 and 부적 the stored talismans but unique and grown ones (2026-10-23 사용자: 부적이 빠져 있었다).
      * Locked items always stay. It used to keep the best three of each kind as compost does (2026-10-17 사용자: 75개 중 25개만). */
     function bulkDiscardItems(state, filter) {
-        const seeds = storedSeedsAndSaps(state, filter).filter(item => !item.golden && !item.ancient && !item.albino && !item.xp && !isMature(item));
+        const seeds = storedSeedsAndSaps(state, filter).filter(item => (isMature(item) ? isPlainHarvest(item) : !item.golden && !item.ancient && !item.albino && !item.xp));
         const talismanItems = filter === 'all' || filter === 'talisman'
             ? storage(state).filter(item => item.family === 'talisman' && item.rarity !== 'unique' && !item.xp && !isMature(item)) : [];
         return seeds.concat(talismanItems).filter(item => !item.locked);
@@ -687,11 +816,12 @@ const stumpBox = (() => {
         else item.locked = true;
         return true;
     }
-    /** 일괄 버리기: throws the filter's bulkDiscardItems away. @returns {?object[]} what went, null when not allowed. */
+    /** 일괄 버리기: throws the filter's bulkDiscardItems away, the grown ones into currency (2026-11-03 사용자). @returns {?object[]} what went, null when not allowed. */
     function discardMany(state, filter) {
         if (bulkDiscardReason(state, filter)) return null;
         const box = of(state), gone = bulkDiscardItems(state, filter), ids = new Set(gone.map(item => item.id));
         box.items = box.items.filter(item => !ids.has(item.id));
+        gone.filter(item => FAMILIES.includes(item.family) && isMature(item)).forEach(item => addToWallet(box, item));
         return gone;
     }
 
@@ -951,6 +1081,7 @@ const stumpBox = (() => {
         if (!Array.isArray(box.sealed)) box.sealed = [];
         const eaten = box.acquired ? devour(state, random) : [], fruits = grownFruits(state, box);
         const back = sendBack(state, box);
+        box.wallet = {}; // 화폐화한 재화도 초기화(2026-11-03 사용자)
         const bred = breed(state, fruits.map(fruit => breedSpec(state, fruit, random)), random);
         if (back.count || back.sealed || eaten.length || bred.length) dispatchRuntimeEvent('stump-box-regressed', { ...back, eaten, bred });
         return back.count;
@@ -1125,6 +1256,12 @@ const stumpBox = (() => {
             return old ? { ...item, xp: item.ripe === true || xp >= old ? now : Math.floor(xp * now / old) } : item;
         });
     }
+    /** Known ids onto target's cells, each id once across the board and the nursery. */
+    function restoreCells(list, target, seen, used) {
+        (Array.isArray(list) ? list : []).slice(0, CELLS).forEach((id, cell) => {
+            if (seen.has(id) && !used.has(id)) { used.add(id); target[cell] = id; }
+        });
+    }
     function restoreItems(raw, box, cap) {
         const seen = new Set();
         upgradeGrowth(raw).filter(validItem).forEach(item => {
@@ -1132,9 +1269,8 @@ const stumpBox = (() => {
             if (clean) { seen.add(clean.id); box.items.push(clean); }
         });
         const used = new Set();
-        (Array.isArray(raw.board) ? raw.board : []).slice(0, CELLS).forEach((id, cell) => {
-            if (seen.has(id) && !used.has(id)) { used.add(id); box.board[cell] = id; }
-        });
+        restoreCells(raw.board, box.board, seen, used);
+        restoreCells(raw.nursery, box.nursery, seen, used);
         enforceAlbinoLimit(box);
     }
     /** Known journal keys only, plus whatever is grown right now (saves from before the journal); gift receipts stay. */
@@ -1143,6 +1279,15 @@ const stumpBox = (() => {
         box.harvest.grown = HARVEST_KEYS.filter(key => Array.isArray(source.grown) && source.grown.includes(key));
         HARVEST_ROWS.forEach(row => { box.harvest.gifts[row] = !!(source.gifts && source.gifts[row] === true); });
         recordHarvest(box, box.items.filter(isMature));
+    }
+    /** Known stacks with whole positive counts. */
+    function restoreWallet(raw) {
+        const out = {};
+        HARVEST_KEYS.forEach(key => {
+            const count = Math.floor(Number(raw && raw[key]));
+            if (Number.isFinite(count) && count > 0) out[key] = count;
+        });
+        return out;
     }
     /** Sealed cells: distinct open cells, no more than the unlocks allow (the last ones give way). */
     function restoreSealed(raw, state) {
@@ -1185,6 +1330,7 @@ const stumpBox = (() => {
             box.graft = restoreGraft(raw.graft, state);
             box.sealed = restoreSealed(raw.sealed, state);
             box.scarGift = raw.scarGift === true;
+            box.wallet = restoreWallet(raw.wallet);
         }
         sync(state, 'migration');
         return box;
@@ -1201,7 +1347,9 @@ const stumpBox = (() => {
         breedingOpen, bulkCompostOpen, bulkItems, bulkCompostPlan, bulkCompostReason, compostMany, bulkDiscardItems, bulkDiscardReason, discardMany, toggleLock, pendingPouches, pouchOffers, choosePouch,
         codexIds: () => CODEX_IDS,
         itemById: (state, id) => findItem(of(state), id),
-        settleStorageSlots, orderStorage, moveInStorage, harvestPriceKey, isHarvestPrice, harvestPriceName, harvestPriceIcon, harvestPriceHeld, payHarvestPrice, harvestWalletKeys
+        settleStorageSlots, orderStorage, moveInStorage, harvestPriceKey, isHarvestPrice, harvestPriceName, harvestPriceIcon, harvestPriceHeld, payHarvestPrice, harvestWalletKeys,
+        canMonetize, monetize, spendWallet, walletCount, walletTotal, harvestHoldings, walletPieceById, walletPieces,
+        isPlaced, nurseryOpen, nurseryRate, inNursery, firstNurseryCell, nurseryMove, nurseryUnplace, nurseryClearReason, nurseryClear
     };
 })();
 safeExposeGlobals({ stumpBox });
