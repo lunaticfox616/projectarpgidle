@@ -331,13 +331,13 @@ function hoverOf(actor) {
     return box ? Math.max(0, -box[3] - 1) : 0;
 }
 /** 제작본의 기준점이 몸 가운데서 크게 벗어난 외형: 오른쪽을 보게 놓은 뒤의 발 자리를 이만큼(도트) 옮긴다(고치에서 태어난 존재는 몸이 발 자리보다 29도트 왼쪽에 섰다). */
-const MOTION_FEET_NUDGE = Object.freeze({ bossAct10_2: -29 });
+const MOTION_FEET_NUDGE = Object.freeze({ bossAct10_2: -29, 'deacon-act8-melee': 14 });
 /** 제작본은 원본 그림의 방향을 따른다(제작 지시: 장마다 같은 방향, 뒤집지 않는다). 원본은 대부분 왼쪽을 보지만 이 몬스터의 클립은 오른쪽을
- * 보고 그려져, 뒤집으면 게임에서 뒤로 걷고 몸 뒤를 때렸다(2026-10-21: 공격이 뒤로 뻗고 앞선 그림과 좌우가 반대였다). 그대로 쓴다. */
+ * 보고 그려져, 뒤집으면 게임에서 뒤로 걷고 몸 뒤를 때렸다(2026-10-21: 공격이 뒤로 뻗고 앞선 그림과 좌우가 반대였다, 2026-11-02: 장막 철퇴 부제사의 걷기도 그래서 뒤를 보며 걸었다). 그대로 쓴다. */
 const MOTION_FACES_RIGHT = Object.freeze({
     bossAct2: ['move', 'attack'], bossAct4_1: ['move', 'attack'], bossAct5: ['move', 'attack'], bossAct6: ['move', 'attack'],
     bossAct7: ['move', 'attack'], bossAct8_1: ['move', 'attack'], bossAct8_3: ['move', 'attack'], 'apex_devourer-stage2': ['move', 'attack'],
-    'sky-harpy': ['move', 'attack'], 'deacon-act8-melee': ['attack']
+    'sky-harpy': ['move', 'attack'], 'deacon-act8-melee': ['move', 'attack']
 });
 
 // 제작본 프레임 맞추기. 제작본은 장마다 몸을 칸 안의 다른 자리에 그렸고(장마다 따로 그린 그림) 클립마다 기준점이 하나뿐이라, 그대로 그리면

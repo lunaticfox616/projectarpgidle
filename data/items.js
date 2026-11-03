@@ -1652,7 +1652,9 @@ const MARKET_EXCHANGES = [
     { id: 'm5', from: 'sapBud', to: 'goldenRule', need: 5, gain: 1 },
     { id: 'm6', from: 'goldenRule', to: 'formlessDew', need: 1, gain: 30 },
     { id: 'm7', from: 'formlessDew', to: 'blessing', need: 5, gain: 1 },
-    { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 }
+    { id: 'm8', from: 'blessing', to: 'formlessDew', need: 3, gain: 1 },
+    // 2026-11-02 사용자: 황금률을 거치지 않고 한 번에. 값은 m5와 m6을 거친 값과 같다(봉오리 5개 → 황금률 1개 → 이슬 30개).
+    { id: 'm9', from: 'sapBud', to: 'formlessDew', need: 1, gain: 6 }
 ];
 
 safeExposeData({ UNIQUE_DB, ARM_GUARD_BASE_LEGACY_NAMES, WEAPON_BASE_LEGACY_NAMES, RENAMED_UNIQUES, CURRENCY_LEGACY_MERGE, getCanonicalCurrencyKey, ORB_DB, CRAFT_OMENS, normalizeCraftOmen, normalizeCraftChoice, WALLET_CURRENCY_INFO, getCurrencyInfo, getStyledOrbName, MARKET_EXCHANGES, OCEAN_FISH_DB, OCEAN_FISH_RARITY_META, OCEAN_FISHING_STRATEGIES, OCEAN_FISH_COLLECTION_MILESTONES, COSMOS_BOSS_REWARD_DB, COSMOS_BOSS_RELIC_DB, COSMOS_BOSS_STONE_OPTION_POOLS, COSMOS_BOSS_UNIQUE_EQUIPMENT, ITEM_VISUAL_ASSET_DB });

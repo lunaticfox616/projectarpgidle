@@ -242,6 +242,18 @@ const stumpBox = (() => {
     }
     /** Up to limit pieces of each stack. */
     const walletPieces = (state, limit) => HARVEST_KEYS.flatMap(key => Array.from({ length: Math.min(limit, walletCount(state, key)) }, (_, index) => walletPiece(key, index)));
+    // 지도석 기운 바꾸기(js/atlas.js changeOmen): 평범한 꽃은 다시 굴리고 황금 꽃은 고른다. 둘은 서로의 값을 대신하지 않고, 알비노와 고대 씨앗은 쓰지 않는다.
+    // 화폐화한 꽃은 표식이 없어 평범한 꽃으로 세고, 다른 값처럼 실물보다 먼저 낸다.
+    const isGoldenHarvest = item => !item.albino && !item.ancient && goldenMul(item) > 1;
+    const storedFlowers = (state, color, golden) => harvestForPrice(state, harvestPriceKey('flower', color)).filter(golden ? isGoldenHarvest : isPlainHarvest);
+    const storedFlowerCount = (state, color, golden) => storedFlowers(state, color, golden).length + (golden ? 0 : walletCount(state, `flower-${color}`));
+    /** 꽃 하나를 쓴다: 화폐화한 꽃이면 { walletKey }, 실물이면 낸 꽃을 돌려주고, 가진 것이 없으면 null. */
+    function payFlower(state, color, golden) {
+        const stack = `flower-${color}`;
+        if (!golden && spendWallet(state, stack)) return { walletKey: stack };
+        const item = storedFlowers(state, color, golden)[0];
+        return item && discard(state, item.id) ? item : null;
+    }
     function clampRoll(value, cap = STUMP_BOX_ROLL_LIMIT.max) {
         return Math.round(Math.min(cap, Math.max(STUMP_BOX_ROLL_LIMIT.min, Number(value) || 1)) * 100) / 100;
     }
@@ -1349,7 +1361,7 @@ const stumpBox = (() => {
         itemById: (state, id) => findItem(of(state), id),
         settleStorageSlots, orderStorage, moveInStorage, harvestPriceKey, isHarvestPrice, harvestPriceName, harvestPriceIcon, harvestPriceHeld, payHarvestPrice, harvestWalletKeys,
         canMonetize, monetize, spendWallet, walletCount, walletTotal, harvestHoldings, walletPieceById, walletPieces,
-        isPlaced, nurseryOpen, nurseryRate, inNursery, firstNurseryCell, nurseryMove, nurseryUnplace, nurseryClearReason, nurseryClear
+        isPlaced, nurseryOpen, nurseryRate, inNursery, firstNurseryCell, nurseryMove, nurseryUnplace, nurseryClearReason, nurseryClear, storedFlowerCount, payFlower
     };
 })();
 safeExposeGlobals({ stumpBox });

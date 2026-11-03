@@ -134,6 +134,8 @@
   처치 드랍 13(화석, 홀씨, 연장, 벌집, 별똥, 지하, 봉인, 심해, 잿불, 열쇠, 재화, 젬 잔향, 주얼), 장비 6(무기고, 장신구 함, 갑주 창고,
   고유의 메아리, 타락한 땅, 쌍둥이 그림자), 지도 효과 6(지도 제작자, 각인 무덤, 보급 행렬, 붐비는 방, 정예 행렬, 보스의 꿈).
   그 기운이 줄 것이 아직 열리지 않았으면 뽑히지 않는다(contentProgression.canDropCurrency). 세기는 일반 1, 마법 1.5, 희귀 2, 타락 +0.5.
+  2026-11-02: 꽃 하나로 그 색 묶음 안에서 다시 굴리고, 황금 꽃은 고른다(data/loot-omens.js flowers, js/atlas.js changeOmen).
+  화폐화한 꽃은 평범한 꽃으로 세고 보관함의 실물보다 먼저 나간다. 황금 꽃은 보관함의 실물만 쓴다(js/stump-box.js payFlower).
   처치 드랍은 js/atlas-finds.js가 atlasRun.onKill에서 보통 처치와 같은 길(keepCurrencyDrop, 바닥 더미)로 준다. 장비 기운은 적 배율
   (equipmentDropMul, uniqueChanceMul), 부위 가중치(getEquipmentDropSlot), 드랍 변형 배율(equipmentDropVariants)로, 지도 효과 기운은
   지도 런의 효과(startRun)로 들어간다. 지도석 카드, 보관함 줄, 지도 안 상단 줄에 기운이 보인다.

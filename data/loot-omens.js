@@ -88,6 +88,14 @@ const LOOT_OMENS = Object.freeze({
         { id: 'craftOmens', name: '뿌리의 메아리', note: '10등급 이상 지도에서 뿌리를 품은 몬스터가 자주 나옵니다', kind: 'bonus', weight: 3, tone: '#b98cff',
             needsFallenApex: true, bonus: Object.freeze({ omenBearer: 400 }) }
     ].map(Object.freeze)),
+    // 꽃으로 기운 바꾸기(2026-11-02 사용자): 보관함의 다 자란 꽃 하나로 지도석의 기운을 그 꽃 색의 묶음 안에서 다시 굴린다(지금 기운은 빼고, weight대로).
+    // 황금 꽃은 묶음 안에서 직접 고른다(js/atlas.js changeOmen). 기운마다 한 묶음에 든다. label은 단추에 쓰는 묶음 이름이다.
+    flowers: Object.freeze({
+        fire: Object.freeze({ label: '장비', omens: Object.freeze(['armory', 'jewelry', 'armour', 'unique', 'corrupt', 'twins', 'ember']) }),
+        cold: Object.freeze({ label: '제작', omens: Object.freeze(['orbs', 'tools', 'fossil', 'spore', 'jewels', 'seal', 'craftOmens']) }),
+        lightning: Object.freeze({ label: '지도와 콘텐츠', omens: Object.freeze(['maps', 'rooms', 'keys', 'chests', 'fragments', 'hive', 'ocean']) }),
+        chaos: Object.freeze({ label: '룬과 보스', omens: Object.freeze(['gems', 'dreams', 'elites', 'sky', 'under']) })
+    }),
     treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.1, prefix: '보물을 품은', outline: '#ffd75e',
         sparks: '#fff1a8',
         // 황금 보물(체이싱 티어의 갈래): 보물 무리 중 chance가 황금 보물이 되어 rolls번, 고유 하나, jackpot 중 하나(요정의 고리나 체이싱 고유

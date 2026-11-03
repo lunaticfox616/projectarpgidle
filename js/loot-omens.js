@@ -27,6 +27,15 @@ const lootOmens = (() => {
         const pick = pickWeighted(LOOT_OMENS.list.filter(omen => available(omen, state)), omen => omen.weight, random);
         return pick ? pick.id : null;
     }
+    /** 그 꽃 색의 묶음에서 지금 이 지도석에 붙을 수 있는 기운들(data/loot-omens.js flowers). 지금 기운은 빼서, 꽃을 쓰면 반드시 바뀐다. */
+    function flowerOmens(color, state, currentId) {
+        return LOOT_OMENS.flowers[color].omens.map(id => BY_ID.get(id)).filter(omen => omen.id !== currentId && available(omen, state));
+    }
+    /** @returns {string|null} the omen a plain flower of this colour rolls */
+    function rollFlowerOmen(color, state, currentId, random) {
+        const pick = pickWeighted(flowerOmens(color, state, currentId), omen => omen.weight, random);
+        return pick ? pick.id : null;
+    }
     const strengthOf = map => (LOOT_OMENS.strength[map.rarity] || 1) + (map.corrupted ? LOOT_OMENS.strength.corrupted : 0);
     /** A map stone's omen and strength, or null (an old stone, or a guardian or arena map). */
     function of(map) {
@@ -125,7 +134,7 @@ const lootOmens = (() => {
         return omen ? { id: omen.id, name: omen.name, note: omen.note, tone: omen.tone, kind: omen.kind } : null;
     };
     const validId = id => typeof id === 'string' && BY_ID.has(id);
-    return Object.freeze({ roll, of, inZone, runBonus, zoneFields, enemyMods, jewelOdds, slotWeights, variantMul, killDrops, strayDrops, treasureDrops,
+    return Object.freeze({ roll, flowerOmens, rollFlowerOmen, of, inZone, runBonus, zoneFields, enemyMods, jewelOdds, slotWeights, variantMul, killDrops, strayDrops, treasureDrops,
         goldenJackpot, isTreasurePack, isGoldenTreasure, describe, validId, strengthOf, isItemKind });
 })();
 safeExposeGlobals({ lootOmens });
