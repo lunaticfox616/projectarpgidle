@@ -296,7 +296,7 @@ async function setCheatHold(button) {
     await loadCheatWatch();
 }
 
-/** The profile window's 신고 button (js/social.js renderProfileModerationRow): the chosen reason and that player's newest chat row
+/** The profile window's 신고 button (js/social.js renderProfileActionsRow): the chosen reason and that player's newest chat row
  * held on this device go to the server (report_player_chat, one report per player per day). Lives here because social.js must not
  * reach the cloud through a ui file. */
 async function reportCurrentProfile() {

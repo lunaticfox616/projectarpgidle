@@ -2210,8 +2210,7 @@ function renderProfileData(profile) {
     let stats = Array.isArray(p.stats) ? p.stats : [];
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
     let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
-    let duelAction = canDuelFromProfile() ? `<div class="social-profile-duel"><button type="button" onclick="fightCurrentProfileGhost()">대전 탭에서 친선전</button><small>상대를 지정해 지도 창의 대전 탭으로 이동합니다.</small></div>` : '';
-    duelAction += renderProfileModerationRow();
+    let actions = renderProfileActionsRow();
     // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
     body.innerHTML = `
         <div class="social-profile-header">
@@ -2222,7 +2221,7 @@ function renderProfileData(profile) {
             </div>
             ${profilePowerHtml(p)}
         </div>
-        ${duelAction}
+        ${actions}
         <div class="social-profile-cols">
             <section class="social-profile-col social-profile-card">
                 <h3>능력치</h3>
@@ -2242,16 +2241,16 @@ function canDuelFromProfile() {
     if (!target || target === socialLoggedInUserId()) return false;
     return contentProgression.canOpen('map-tab-pvp') && isMapPrimaryContentUnlocked(game, 'map-tab-pvp');
 }
-/** 남의 프로필 아래 줄(2026-10-27): 차단(이 기기에서 채팅 숨김)과 신고(사유를 골라 서버에 남김). 내 프로필에는 없다. */
-function renderProfileModerationRow() {
+/** 남의 프로필 머리 아래 한 줄(2026-11-04 사용자: 설명 없이 한 줄, 같은 모양의 단추). 내 프로필에는 없다: 친선전(대전이 열렸을 때, 지도 창의 대전 탭으로),
+ * 차단(2026-10-27, 이 기기에서 채팅 숨김), 신고 사유와 신고(서버에 남김). */
+function renderProfileActionsRow() {
     let target = socialState.currentProfileUserId;
     if (!target || target === socialLoggedInUserId()) return '';
-    let blocked = isUserBlocked(target);
-    return `<div class="social-profile-duel social-profile-moderation">`
-        + `<button type="button" onclick="toggleProfileBlock()">${blocked ? '차단 해제' : '차단'}</button>`
+    let duel = canDuelFromProfile() ? '<button type="button" onclick="fightCurrentProfileGhost()">친선전</button>' : '';
+    return `<div class="social-profile-actions">${duel}`
+        + `<button type="button" onclick="toggleProfileBlock()">${isUserBlocked(target) ? '차단 해제' : '차단'}</button>`
         + `<select id="social-report-reason" aria-label="신고 사유"><option value="욕설">욕설</option><option value="도배">도배</option><option value="사칭">사칭</option><option value="기타">기타</option></select>`
-        + `<button type="button" onclick="reportCurrentProfile()">신고</button>`
-        + `<small>${blocked ? '이 기기에서 이 사람의 채팅을 숨기는 중' : '차단은 이 기기에서 채팅을 숨기고, 신고는 운영자에게 갑니다'}</small></div>`;
+        + '<button type="button" onclick="reportCurrentProfile()">신고</button></div>';
 }
 function toggleProfileBlock() {
     let target = socialState.currentProfileUserId;
@@ -2473,7 +2472,7 @@ function injectSocialStyles() {
     .social-profile-name{font-size:1.4em;font-weight:800;color:var(--color-accent);}
     .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
     .social-profile-updated{color:var(--copy-muted);font-size:12px;margin-top:4px;}
-    .social-profile-duel{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:9px;}.social-profile-duel small{color:var(--copy-muted);}.social-profile-moderation select{min-width:72px;padding:2px 6px;}
+    .social-profile-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;}
     .social-profile-col{min-width:0;}.social-profile-cols{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:16px;}
     @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
     .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
