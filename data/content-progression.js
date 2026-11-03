@@ -124,6 +124,6 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     { id: 'stumpNursery', name: '생육함', gain: '효과 없이 경험치', art: 'items/stump-pixel-v1/sprout-fire.png', group: '그루터기', minLoop: 10, cost: 2, addedIn: 12, after: 'deepTree',
         description: '그루터기 함 틀의 아래 보석으로 생육함을 엽니다. 생육함에 놓은 그루터기 아이템은 효과 없이 경험치만 받습니다.' },
     { id: 'graft', name: '접붙이기', gain: '루프마다 3점', art: 'ui/currency/pruning-shears.png', group: '그루터기', minLoop: 18, cost: 1, since: 11, after: 'rootMemory', description: '루프마다 3점을 받아 그루터기 아이템을 접붙일 수 있습니다.' },
-    { id: 'ancientSeed', name: '고대 씨앗', gain: '모든 색 공명', art: 'items/flower-growth-v3.png', group: '그루터기', minLoop: 42, cost: 1, since: 11, after: 'nursery', requires: ['stumpQuality1'], description: '모든 색과 공명하고 이웃 접붙이기가 +1 되는 씨앗이 묘목장과 최종 보스에서 나옵니다.' }
+    { id: 'ancientSeed', name: '고대 씨앗', gain: '공명, 규율에서 어느 색이든', art: 'items/flower-growth-v3.png', group: '그루터기', minLoop: 42, cost: 1, since: 11, after: 'nursery', requires: ['stumpQuality1'], description: '공명과 규율에서 어느 색이든 되고 이웃 접붙이기가 +1 되는 씨앗이 묘목장과 최종 보스에서 나옵니다.' }
 ]);
 safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINT_AWARDS, CONTENT_UNLOCK_SERIES, CONTENT_UNLOCK_RAILS, CONTENT_UNLOCK_SERIES_VERSION, CONTENT_UNLOCK_TREE_VERSION, CONTENT_UNLOCK_RECORD_VERSION });

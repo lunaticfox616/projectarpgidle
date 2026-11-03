@@ -42,8 +42,9 @@ const stumpBoxUi = (() => {
     const onNursery = () => frameView === 'nursery';
     /** The cells the frame shows: the board, or the nursery's. */
     const shownCells = () => (onNursery() ? game.stumpBox.nursery : game.stumpBox.board);
-    /** A nursery item has no effect: nothing is suppressed, resonant or counted. */
-    const NO_EFFECT = Object.freeze({ suppressed: new Set(), resonant: new Set(), values: {}, extras: {} });
+    /** A nursery item has no effect: nothing is suppressed, boosted or counted. */
+    const NO_EFFECT = Object.freeze({ suppressed: new Set(), stoppedBy: {}, synergy: {}, groups: { resonance: [], discipline: [], feed: [] },
+        resonant: new Set(), values: {}, extras: {} });
     const cellGraftRank = cell => (onNursery() ? 0 : stumpBox.graftRank(game.stumpBox, cell));
     function escStump(text) { return escapeHTML(String(text)); }
     function stumpTone(color) { return STUMP_BOX_COLORS[color].tone; }
@@ -70,7 +71,7 @@ const stumpBoxUi = (() => {
         if (stumpRipeningUi.isGolden(item)) out.push('is-golden');
         if (item.albino) out.push('is-albino');
         if (item.locked) out.push('is-item-locked');
-        if (!suppressed && stumpBox.isMature(item) && result.resonant.has(item.color)) out.push('is-resonant');
+        if (!suppressed && stumpBox.isMature(item) && result.synergy[item.id]) out.push('is-boosted');
         return out;
     }
     function stumpGraftLabel(cell) {
@@ -149,12 +150,32 @@ const stumpBoxUi = (() => {
         const named = label.frame ? `<span style="color:${FRAME_NAME_TONES[label.frame]}">${label.frame}</span>${escStump(label.text.slice(label.frame.length))}` : escStump(label.text);
         return `<div class="tooltip-line plain-tip">${named}</div>`;
     }
+    /** The grid area a run of cells covers, bars between them included. */
+    function stumpSpanPlace(cells) {
+        const cols = cells.map(cell => cell % STUMP_BOX_SIZE), rows = cells.map(cell => Math.floor(cell / STUMP_BOX_SIZE));
+        return `grid-column:${Math.min(...cols) * 2 + 1} / ${Math.max(...cols) * 2 + 2};grid-row:${Math.min(...rows) * 2 + 1} / ${Math.max(...rows) * 2 + 2}`;
+    }
+    /** The bar between two side-by-side cells. */
+    function stumpBarPlace(a, b) {
+        const [low, high] = [Math.min(a, b), Math.max(a, b)], col = low % STUMP_BOX_SIZE, row = Math.floor(low / STUMP_BOX_SIZE);
+        return high - low === 1 ? `grid-column:${col * 2 + 2};grid-row:${row * 2 + 1}` : `grid-column:${col * 2 + 1};grid-row:${row * 2 + 2}`;
+    }
+    /** The board's synergies drawn over the frame (2026-11-04 사용자: 해당 칸 묶어서 강조): each 공명 line in its colour, each 규율 line in
+     * its five colours, a green knot on the bar between a 상생 pair. */
+    function stumpLinksHtml(result) {
+        const toneOf = cell => itemTone(stumpBox.itemById(game, game.stumpBox.board[cell]));
+        const resonance = result.groups.resonance.map(line => `<span class="stump-link is-resonance" style="--stump-tone:${line.color ? stumpTone(line.color) : '#f3d28c'};${stumpSpanPlace(line.cells)}"></span>`);
+        const discipline = result.groups.discipline.map(line => `<span class="stump-link is-discipline" style="--rule-tones:linear-gradient(${line.axis === 'row' ? 90 : 180}deg,${line.cells.map(toneOf).join(',')});${stumpSpanPlace(line.cells)}"></span>`);
+        const feed = result.groups.feed.map(([a, b]) => `<span class="stump-link is-feed" style="${stumpBarPlace(a, b)}"></span>`);
+        return resonance.concat(discipline, feed).join('');
+    }
     function stumpBoardHtml(result) {
         const cube = frameView === 'cube', shown = onNursery() ? NO_EFFECT : result;
         const grid = cube ? stumpCubeUi.cubeGridHtml()
             : Array.from({ length: STUMP_BOX_SIZE * STUMP_BOX_SIZE }, (_, cell) => stumpCellHtml(cell, shown)).join('');
+        const links = frameView === 'box' ? `<div class="stump-board-links" aria-hidden="true">${stumpLinksHtml(result)}</div>` : '';
         return `<div class="stump-board is-${frameView}"${cube ? '' : ` role="grid" aria-label="${onNursery() ? '생육함' : '그루터기 함'} 판"`}>`
-            + `<div class="stump-board-grid">${grid}</div>${stumpFrameHtml()}</div>`
+            + `<div class="stump-board-grid">${grid}</div>${stumpFrameHtml()}${links}</div>`
             + `<div class="stump-board-foot">${stumpCubeUi.bookButtonHtml()}`
             + `${cube ? '<button type="button" class="stump-frame-action" data-stump-action="frame-action">조합하기</button>' : ''}</div>`
             + '<div id="stump-placement-preview" class="stump-placement-preview" role="status" aria-live="polite" hidden></div>';
@@ -302,9 +323,13 @@ const stumpBoxUi = (() => {
     /** The ? card: only the rules a player needs to play the board (2026-10-09 사용자: 꼭 필요한 정보만, 용어는 그루터기 아이템, 경험치,
      * 성장 완료, 비활성화로 통일하고 "것" 같은 지칭은 쓰지 않는다). */
     function stumpRulesTipHtml() {
-        const rules = ['그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.', `공명: 성장 완료된 같은 색 ${STUMP_BOX_RESONANCE.count}개 이상이면 그 색 능력치 +${STUMP_BOX_RESONANCE.bonusPct}%`,
+        const { resonance, feed, discipline } = STUMP_BOX_SYNERGY;
+        const rules = ['그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.',
+            `공명: 성장 완료된 같은 색 ${resonance.length}개가 가로나 세로로 한 줄이면 그 ${resonance.length}개 +${resonance.bonusPct}%. 옆에 같은 색이 하나라도 더 있으면 사라집니다.`,
+            '반극: 공명 중인 아이템은 비활성화되지 않고, 옆에서 그 색을 비활성화하는 아이템이 대신 비활성화됩니다.',
             '비활성화: 물리는 카오스를, 카오스는 냉기를, 냉기는 화염을, 화염은 번개를, 번개는 물리를 비활성화합니다.',
-            '상생: 화염은 물리, 카오스는 화염, 번개는 카오스, 냉기는 번개, 물리는 냉기가 옆에 있으면 비활성화되지 않습니다.',
+            `상생: 화염은 물리, 카오스는 화염, 번개는 카오스, 냉기는 번개, 물리는 냉기가 옆에 있으면 비활성화되지 않고, 둘 다 +${feed.bonusPct}%`,
+            `규율: 다섯 색이 가로나 세로 한 줄을 채우면 그 5개 +${discipline.bonusPct}%. 가로줄은 위아래, 세로줄은 양옆에 같은 색이 있으면 사라집니다.`,
             '거름: 보관함의 씨앗을 소모해 그루터기 함에서 성장 중인 그루터기 아이템의 경험치를 올립니다.',
             stumpLoopRule()];
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%`);
@@ -358,12 +383,10 @@ const stumpBoxUi = (() => {
         const value = active ? result.values[item.id] : gain.value * stumpBox.qualityOf(item) * stumpBox.goldenMul(item);
         return { text: gain.text.replace('{v}', stumpNumber(value)) + (active ? '' : ' (비활성)'), tone: active ? getItemStatToneColor(gain.stat) : '', active };
     }
-    /** Only what changes the item's effect on the board: suppressed (red) or resonating. */
+    /** Only what changes the item's effect on the board: suppressed (red) or its synergies (공명, 상생, 규율). */
     function stumpStatus(item, result, cell) {
-        if (cell < 0) return null;
-        if (result.suppressed.has(item.id)) return { text: `비활성화: ${STUMP_BOX_COLORS[stumpBox.overcomerOf(item.color)].label} 인접`, tone: 'is-bad' };
-        if (stumpBox.isMature(item) && result.resonant.has(item.color)) return { text: `공명 +${STUMP_BOX_RESONANCE.bonusPct}%`, tone: 'is-good' };
-        return null;
+        const note = cell < 0 ? null : stumpBox.boardNote(item, result);
+        return note && { text: note.text, tone: note.bad ? 'is-bad' : 'is-good' };
     }
     /** A stored seed: compost (the button says the growth it gives) or throw it away; a grown one goes into currency instead. */
     function stumpStoredSeedButtons(item) {
@@ -711,7 +734,7 @@ const stumpBoxUi = (() => {
         Object.entries(talismans.stats).forEach(([key, value]) => { stats[key] = (stats[key] || 0) + value; });
         // The combat contract takes the strongest copy of each conditional effect, not their sum.
         talismans.conditions.forEach(line => { conditions[line.id] = Math.max(conditions[line.id] || 0, line.value); });
-        return { stats, conditions, board: state.stumpBox.board, resonant: seeds.resonant, suppressed: new Set([...seeds.suppressed, ...talismans.suppressed]),
+        return { stats, conditions, board: state.stumpBox.board, groups: seeds.groups, suppressed: new Set([...seeds.suppressed, ...talismans.suppressed]),
             boss: talismans.bossFinalDmgBonusPct };
     }
     function placementItemNames(ids) {
@@ -722,10 +745,9 @@ const stumpBoxUi = (() => {
         const enabled = [...before.suppressed].filter(id => after.board.includes(id) && !after.suppressed.has(id));
         if (disabled.length) rows.push(`<li class="is-bad">비활성화: ${escStump(placementItemNames(disabled))}</li>`);
         if (enabled.length) rows.push(`<li class="is-good">비활성화 해제: ${escStump(placementItemNames(enabled))}</li>`);
-        COLORS.forEach(color => {
-            if (before.resonant.has(color) === after.resonant.has(color)) return;
-            const on = after.resonant.has(color), bonus = `+${STUMP_BOX_RESONANCE.bonusPct}%`;
-            rows.push(`<li class="${on ? 'is-good' : 'is-bad'}">${STUMP_BOX_COLORS[color].label} 공명: ${on ? `없음 → ${bonus}` : `${bonus} → 없음`}</li>`);
+        [['resonance', '줄'], ['discipline', '줄'], ['feed', '쌍']].forEach(([key, unit]) => {
+            const from = before.groups[key].length, to = after.groups[key].length;
+            if (from !== to) rows.push(`<li class="${to > from ? 'is-good' : 'is-bad'}">${STUMP_BOX_SYNERGY[key].label}: ${from}${unit} → ${to}${unit}</li>`);
         });
         return rows;
     }
@@ -1302,7 +1324,7 @@ const stumpBoxUi = (() => {
         if (sawIntro) return given.length && announceStumpStarter();
         queueTutorialNotice('unlock_stump_box', '그루터기 함',
             '액트 10 돌파 보상으로 그루터기 함과 시작 보상(씨앗 2개)을 받았습니다.\n그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.\n'
-            + '성장 완료된 같은 색 3개 이상은 공명(+10%), 이기는 색이 맞닿으면 지는 쪽이 비활성화됩니다.', 'tab-stump',
+            + '성장 완료된 같은 색 3개가 가로나 세로로 한 줄이면 공명(+10%), 이기는 색이 맞닿으면 지는 쪽이 비활성화됩니다.', 'tab-stump',
             { quote: STORY_LOOP_MILESTONES.stump });
     }
     /** 시작 선물은 함을 얻으면 바로 준다(2026-10-07 사용자 결정): 씨앗 둘, 지금 룬의 원소와 가장 약한 저항의 색(2026-11-04 전: 씨앗과 수액). */

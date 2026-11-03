@@ -3,9 +3,8 @@
 //
 // 씨앗(2026-11-04 사용자: 수액을 없애고 씨앗 하나로)은 다 자라는 순간 꽃, 열매, 덩굴, 뿌리 가운데 하나로 무작위로 정해진다. 그 전에는
 // 속성과 품질만 보인다. 판(5×5)에 놓인 것만 처치로 자라고, 다 자란 것만 능력치를 준다.
-// 같은 색 3개 이상이 다 자라 억제되지 않으면 그 색 능력치가 10% 오르고(공명), 오행의 상극(STUMP_BOX_OVERCOMES)이 상하좌우로 맞닿으면
-// 지는 쪽이 멈춘다(억제: 능력치·성장 0, 공명 개수에서 빠짐). 지는 쪽 곁에 그것을 낳는 상생(STUMP_BOX_FEEDS) 색이 있으면 풀린다.
-// 위치·줄·모양 규칙은 없다(생장판과 다른 점).
+// 오행의 상극(STUMP_BOX_OVERCOMES)이 상하좌우로 맞닿으면 지는 쪽이 멈춘다(억제: 능력치·성장 0). 지는 쪽 곁에 그것을 낳는
+// 상생(STUMP_BOX_FEEDS) 색이 있으면 풀린다. 공명, 반극, 상생, 규율의 자리 규칙(STUMP_BOX_SYNERGY)은 js/stump-box.js 판 시너지 절이 정한다.
 // 부적(2026-09-30, 예전 부적 판 · 생장판 · 컨디션 룬 자리)은 색 없는 세 번째 계열이다. 판에서 처치로 깨어나고,
 // 공명 · 억제에 끼지 않는다. 줄과 이웃 효과는 data/talismans.js.
 
@@ -69,7 +68,13 @@ const STUMP_BOX_ROLL_LIMIT = Object.freeze({ min: 0.8, max: 1.3 });
 
 // 보관함(부적과 같이 쓴다): 50칸에서 시작해 아래 해금 표의 storage만큼 늘어난다(stumpBox.storageLimit).
 const STUMP_BOX_STORAGE_BASE = 50;
-const STUMP_BOX_RESONANCE = Object.freeze({ count: 3, bonusPct: 10 });
+// 판 시너지(2026-11-04 사용자, 전: 다 자란 같은 색 3개 이상이면 판 어디에 있든 그 색 +10%): 공명은 곧은 줄 셋, 상생은 비활성화를
+// 막아 줄 때만, 규율은 다섯 색 한 줄. 한 아이템의 보너스는 더한다.
+const STUMP_BOX_SYNERGY = Object.freeze({
+    resonance: Object.freeze({ label: '공명', length: 3, bonusPct: 10 }),
+    feed: Object.freeze({ label: '상생', bonusPct: 10 }),
+    discipline: Object.freeze({ label: '규율', bonusPct: 15 })
+});
 
 // 수확 일지(2026-10-07 해금 1차 A1): 처음 다 자란 꽃, 열매, 덩굴, 뿌리 × 5색 20칸(키 = 아이콘 이름 '<모양>-<색>', 2026-11-04 전: 꽃, 열매, 호박석 × 4색).
 // 한 줄(같은 모양 다섯 색)을 채우면 한 번 선물: 색을 골라 받는 씨앗 1개, 품질은 드랍 최고.
@@ -301,13 +306,13 @@ const STUMP_BOX_STAGES = Object.freeze({
     scar: Object.freeze({ label: '불씨의 흉터', icon: 'scar-ember' })
 });
 
-// 고대 씨앗(12번 루프 42, data/stump-nursery.js, js/stump-nursery.js): 다 자라면 모든 색의 공명에 하나로 세고, 상하좌우 이웃 칸의 접붙이기를
-// 이만큼 올린다(자기 칸은 그대로).
+// 고대 씨앗(12번 루프 42, data/stump-nursery.js, js/stump-nursery.js): 다 자라면 공명과 규율의 줄에서 어느 색이든 되고(곁에 있어도 줄을
+// 깨지 않는다), 상하좌우 이웃 칸의 접붙이기를 이만큼 올린다(자기 칸은 그대로).
 const STUMP_BOX_ANCIENT = Object.freeze({ graftRanks: 1 });
 
 safeExposeData({
     STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OVERCOMES, STUMP_BOX_FEEDS, STUMP_BOX_CELL_ORDER, STUMP_BOX_OPENING,
-    STUMP_BOX_GROWTH, STUMP_BOX_KINDS, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_NURSERY, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE_BASE, STUMP_BOX_RESONANCE, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES,
+    STUMP_BOX_GROWTH, STUMP_BOX_KINDS, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_NURSERY, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE_BASE, STUMP_BOX_SYNERGY, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES,
     STUMP_BOX_HARVEST, STUMP_BOX_UNLOCKS, STUMP_BOX_RIPENING, STUMP_BOX_EXTRA_LINES, STUMP_BOX_SCAR, STUMP_BOX_BREEDING, STUMP_BOX_SEED_POUCH,
     STUMP_BOX_BULK_COMPOST, STUMP_BOX_TALISMAN_CODEX, STUMP_BOX_ANCIENT
 });

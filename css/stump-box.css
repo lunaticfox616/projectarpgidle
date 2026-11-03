@@ -209,7 +209,7 @@
   @media (prefers-reduced-motion: reduce) { #tab-stump .stump-frame-button::after { animation: none; } }
   /* 칸 격자: 틀의 구멍에 맞춘 줄(scripts/build-stump-frames.cjs의 columns, rows: 구멍과 그 사이 틀의 살, 256px 그림의 화소). 칸 25개는
      홀수 줄에 놓인다(js/stump-box-ui.js stumpCellPlace, js/stump-cube-ui.js track). */
-  .stump-board-grid {
+  .stump-board-grid, .stump-board-links {
     position: absolute;
     left: 16.216%;
     top: 21.03%;
@@ -219,6 +219,16 @@
     grid-template-columns: 27fr 3fr 29fr 3fr 28fr 3fr 28fr 3fr 27fr;
     grid-template-rows: 27fr 3fr 28fr 4fr 27fr 4fr 27fr 4fr 27fr;
   }
+  /* 판 시너지 묶음(2026-11-04 사용자: 해당 칸 묶어서 강조, js/stump-box-ui.js stumpLinksHtml): 틀 그림 위에 그려 칸 사이의 살을 건너
+     하나로 묶는다. 공명은 그 색, 규율은 줄의 다섯 색, 상생은 두 칸 사이 살 위의 초록 매듭 */
+  .stump-board-links { z-index: 3; pointer-events: none; }
+  .stump-link { position: relative; min-width: 0; min-height: 0; }
+  .stump-link.is-resonance { margin: -3px; border: 2px solid var(--stump-tone);
+    box-shadow: 0 0 0 1px #050404, 0 0 8px color-mix(in srgb, var(--stump-tone) 70%, transparent); }
+  .stump-link.is-discipline { margin: -6px; border: 2px solid transparent; border-image: var(--rule-tones) 1;
+    filter: drop-shadow(0 0 1px #050404) drop-shadow(0 0 4px rgba(243, 210, 140, .45)); }
+  .stump-link.is-feed::before { content: ''; position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%) rotate(45deg);
+    background: #8fd17a; box-shadow: 0 0 0 1px #050404, 0 0 6px #8fd17a; }
   /* 틀 아래 첫 줄: 조합법 책(누르면 화면 가운데로 커지며 펼쳐진다, js/stump-cube-ui.js openRecipeBook) */
   .stump-board-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
   /* 틀 아래 단추(2026-11-03 사용자: 아래 보석이 하던 합치기와 조합): 틀이 보여 주는 쪽의 보석 색 */
@@ -312,7 +322,8 @@
   #tab-stump .stump-cell.is-target { background: rgba(243, 210, 140, .12); box-shadow: inset 0 0 0 2px rgba(243, 210, 140, .55); }
   /* 찬 칸에 놓으면 자리를 바꾼다: 빈 칸보다 옅은 점선 테두리 */
   #tab-stump .stump-cell.is-swap { outline: 1px dashed rgba(243, 210, 140, .6); outline-offset: -3px; }
-  #tab-stump .stump-cell.is-resonant { box-shadow: inset 0 0 0 2px var(--stump-tone), inset 0 0 12px color-mix(in srgb, var(--stump-tone) 45%, transparent); }
+  /* 공명, 상생, 규율을 받는 칸: 안쪽이 그 색으로 은은하게 빛난다(묶음 테두리는 .stump-board-links) */
+  #tab-stump .stump-cell.is-boosted { box-shadow: inset 0 0 14px color-mix(in srgb, var(--stump-tone) 50%, transparent); }
   #tab-stump .stump-cell.is-selected { box-shadow: inset 0 0 0 2px #f3d28c, 0 0 0 2px #050404; }
   #tab-stump .stump-cell.is-preview-off { outline: 2px dashed #f29a88; outline-offset: -2px; }
   #tab-stump .stump-cell.is-preview-on { outline: 2px dashed #b4e07e; outline-offset: -2px; }

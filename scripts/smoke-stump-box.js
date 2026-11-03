@@ -97,16 +97,19 @@ run(`Math.random = () => 0.1; { const item = stumpBox.itemById(game, ${seed}); i
 assert.strictEqual(run(`stumpBox.stageOf(stumpBox.itemById(game, ${seed}))`), 'flower', 'the kind is rolled as it ripens');
 assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 6 }, 'a grown fire flower gives fire damage');
 
-// ── 공명: 다 자란 같은 색 3개 이상이면 그 색 능력치 +10% ─────────────────────────────
+// ── 공명(2026-11-04): 다 자란 같은 색 셋이 가로나 세로 한 줄이면 그 셋 +10%, 곁에 같은 색이 더 붙으면 없다 ─────────────
 run(`game.season = 2; game.contentProgression.highestLoop = 2;
     for (const cell of [6, 8]) { const item = stumpBox.createItem(game, { family: 'seed', color: 'fire', roll: 1 }); stumpBox.place(game, item.id, cell); item.path = 'flower'; item.xp = stumpBox.need(item); item.ripe = true; }`);
-assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 19.8 }, 'three grown fire flowers: 6 × 3 × 1.1');
-assert.deepStrictEqual(json('[...stumpBox.evaluate(game).resonant]'), ['fire']);
+assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 19.8 }, 'three grown fire flowers in a row: 6 × 3 × 1.1');
+assert.deepStrictEqual(json('stumpBox.evaluate(game).groups.resonance'), [{ color: 'fire', cells: [6, 7, 8] }]);
 run(`{ const cold = stumpBox.createItem(game, { family: 'seed', color: 'cold', roll: 1 }); stumpBox.place(game, cold.id, 16); cold.xp = stumpBox.need(cold); cold.ripe = true; cold.path = 'root'; }`);
 assert.deepStrictEqual(json('stumpBox.evaluate(game).stats'), { firePctDmg: 19.8, resC: 5 }, 'a grown cold root away from the fire adds cold resistance');
 run(`{ const cold = stumpBox.createItem(game, { family: 'seed', color: 'cold', roll: 1 }); stumpBox.place(game, cold.id, 12); }`);
-assert.deepStrictEqual(json('[stumpBox.evaluate(game).resonant.size, stumpBox.evaluate(game).stats.firePctDmg]'), [0, 12],
-    'even an unripe cold seed beside a fire flower stops it and breaks the resonance');
+assert.deepStrictEqual(json('[stumpBox.evaluate(game).stats.firePctDmg, stumpBox.evaluate(game).suppressed.has(game.stumpBox.board[12])]'), [19.8, true],
+    '반극: a cold seed beside the resonating fire stops instead of the fire');
+run(`{ const fire = stumpBox.createItem(game, { family: 'seed', color: 'fire', roll: 1 }); stumpBox.place(game, fire.id, 11); }`);
+assert.deepStrictEqual(json('[stumpBox.evaluate(game).groups.resonance.length, stumpBox.evaluate(game).stats.firePctDmg]'), [0, 12],
+    'a fourth fire, even unripe, breaks the resonance, so the cold seed stops the middle fire again');
 
 // ── 능력치 파이프라인: 보상 버킷에 한 번 합산 ───────────────────────────────────────
 assert.strictEqual(run('(() => { const bucket = createEmptyStatBucket(); stumpBox.applyStats(bucket, game); return bucket.firePctDmg; })()'), 12);
