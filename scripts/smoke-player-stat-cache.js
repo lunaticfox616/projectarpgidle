@@ -23,6 +23,7 @@ const MODULE_STATE = {
     passiveTreeAdjacencyCache: 'adjacency of the fixed passive tree',
     'combatEquipmentStats.tickResults': 'equipment evaluations shared within one tick',
     'stumpBox.memo': 'memo keyed by the stump board and its signature',
+    'stumpBox.effectsMemo': 'memo keyed by the stump board and its signature (board synergies)',
     'talismanEffects.memo': 'memo keyed by the stump board and its signature',
     'skillEffectExpansion.testLevel': 'test panel level; setTestLevel drops kept stat calculations',
     buildMemoPass: 'one synchronous screen draw (withBuildMemoPass) that cannot edit the build; values kept per equipment object'

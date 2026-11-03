@@ -502,36 +502,127 @@ const stumpBox = (() => {
     function placedCells(box) {
         return box.board.map((id, cell) => ({ item: id === null ? null : findItem(box, id), cell })).filter(entry => entry.item);
     }
+    // ── 판 시너지(2026-11-04 사용자): 공명, 반극, 상생, 규율. 저장하지 않고 배치에서 계산한다 ─────────
+    // 공명: 다 자란 같은 색 셋이 가로나 세로로 곧게 이어지면 그 셋 +10%. 셋의 상하좌우에 같은 색이 하나라도 더 있으면(자라는 중이어도) 없다.
+    // 반극: 공명 줄의 아이템은 상극에 멈추지 않고, 곁에서 그것을 이기는 색이 대신 멈춘다(그 색을 낳는 색이 곁에 있으면 풀린다).
+    // 상생: 상극(이나 반극)으로 멈출 아이템 곁에 그 색을 낳는 색이 있어 멈추지 않으면, 구해진 쪽과 구한 쪽이 +10%(몇 번 구해도 한 번).
+    // 규율: 다섯 색이 가로나 세로 한 줄(다섯 칸)을 채우고 모두 다 자라 일하면 그 다섯 +15%(가로와 세로가 겹친 칸도 한 번). 가로줄은
+    // 위아래, 세로줄은 양옆에 같은 색이 있으면 없다. 고대 씨앗은 줄을 셀 때 어느 색이든 되고, 곁에 있어도 줄을 깨지 않는다.
+    // 한 아이템의 보너스는 더한다(규율 15 + 상생 10 = +25%).
+    const SYNERGY_ORDER = Object.freeze(['resonance', 'feed', 'discipline']);
+    const LINES = Object.freeze([...Array(STUMP_BOX_SIZE).keys()].flatMap(at => [
+        { axis: 'row', cells: [...Array(STUMP_BOX_SIZE).keys()].map(step => at * STUMP_BOX_SIZE + step) },
+        { axis: 'col', cells: [...Array(STUMP_BOX_SIZE).keys()].map(step => step * STUMP_BOX_SIZE + at) }]));
+    const rowOf = cell => Math.floor(cell / STUMP_BOX_SIZE);
+    /** The neighbours across a line: above and below a row's cell, left and right of a column's. */
+    const crossNeighbors = (cell, axis) => neighbors(cell).filter(at => (rowOf(at) === rowOf(cell)) === (axis === 'col'));
+    /** Each board cell as the synergies read it: its item, colour, grown and ancient; null for empty cells, talismans and scars. */
+    function synergyCells(box) {
+        return box.board.map(id => {
+            const item = id === null ? null : findItem(box, id);
+            return item && item.color ? { item, color: item.color, grown: isMature(item), ancient: !!item.ancient } : null;
+        });
+    }
+    /** The colour a run shares (ancient seeds stand for any): '' when all are ancient, null when two colours meet. */
+    function sharedColor(run) {
+        const colors = new Set(run.filter(at => !at.ancient).map(at => at.color));
+        return colors.size > 1 ? null : [...colors][0] || '';
+    }
+    /** A same colour (not ancient) touching the run from outside it. */
+    function crowded(cells, run, color) {
+        return run.some(cell => neighbors(cell).some(at => !run.includes(at) && cells[at] && !cells[at].ancient && cells[at].color === color));
+    }
+    /** 공명 lines: { color (null for three ancients), cells }. */
+    function resonanceLines(cells) {
+        const length = STUMP_BOX_SYNERGY.resonance.length;
+        return LINES.flatMap(line => [...Array(STUMP_BOX_SIZE - length + 1).keys()].map(start => line.cells.slice(start, start + length)))
+            .filter(run => run.every(cell => cells[cell] && cells[cell].grown))
+            .map(run => ({ cells: run, color: sharedColor(run.map(cell => cells[cell])) }))
+            .filter(run => run.color === '' || (run.color !== null && !crowded(cells, run.cells, run.color)))
+            .map(run => ({ color: run.color || null, cells: run.cells }));
+    }
+    /** 오행 for one coloured cell: what stops it (상극 beside, or 반극: it overcomes a resonance cell beside) and the cells that feed it. */
+    function fiveElementsAt(cells, immune, cell) {
+        const at = cells[cell], near = neighbors(cell).filter(next => cells[next]);
+        const threat = near.find(next => cells[next].color === OVERCOMER[at.color]);
+        const counter = near.find(next => immune.has(next) && cells[next].color === STUMP_BOX_OVERCOMES[at.color]);
+        const by = threat !== undefined ? threat : counter;
+        return by === undefined ? null : { why: { color: cells[by].color, counter: threat === undefined },
+            feeders: near.filter(next => cells[next].color === FEEDER[at.color]) };
+    }
+    /** Stopped cells (with why) and the 상생 rescues ([rescued, rescuer] cell pairs). Resonance cells never stop. */
+    function fiveElements(cells, immune) {
+        const stopped = new Map(), links = [];
+        cells.forEach((at, cell) => {
+            const hit = at && !immune.has(cell) ? fiveElementsAt(cells, immune, cell) : null;
+            if (!hit) return;
+            if (hit.feeders.length) hit.feeders.forEach(feeder => links.push([cell, feeder]));
+            else stopped.set(cell, hit.why);
+        });
+        return { stopped, links };
+    }
+    /** Five different colours (ancient seeds fill any gap). */
+    const allColors = run => { const real = run.filter(at => !at.ancient).map(at => at.color); return new Set(real).size === real.length; };
+    /** 규율 lines: a full row or column of five colours, all grown and working, no same colour across it. */
+    function disciplineLines(cells, stopped) {
+        const sameAcross = (cell, axis) => !cells[cell].ancient
+            && crossNeighbors(cell, axis).some(at => cells[at] && !cells[at].ancient && cells[at].color === cells[cell].color);
+        return LINES.filter(line => line.cells.every(cell => cells[cell] && cells[cell].grown && !stopped.has(cell))
+            && allColors(line.cells.map(cell => cells[cell])) && !line.cells.some(cell => sameAcross(cell, line.axis)));
+    }
+    /** Item id → its synergies in SYNERGY_ORDER. */
+    function synergyTags(cells, resonance, links, discipline) {
+        const tags = {}, add = name => cell => { const id = cells[cell].item.id; (tags[id] = tags[id] || new Set()).add(name); };
+        resonance.forEach(line => line.cells.forEach(add('resonance')));
+        links.flat().forEach(add('feed'));
+        discipline.forEach(line => line.cells.forEach(add('discipline')));
+        return Object.fromEntries(Object.entries(tags).map(([id, set]) => [id, SYNERGY_ORDER.filter(name => set.has(name))]));
+    }
+    let effectsMemo = { key: null, box: null, value: null };
+    /** The board's 오행 and synergies now: suppressed ids, stoppedBy (id → { color, counter }), synergy (id → tags),
+     * groups (resonance and discipline lines, feed cell pairs) and resonant (colours with a resonance line). */
+    function boardEffects(box) {
+        const key = signature(box);
+        if (effectsMemo.key === key && effectsMemo.box === box) return effectsMemo.value;
+        const cells = synergyCells(box), resonance = resonanceLines(cells);
+        const { stopped, links } = fiveElements(cells, new Set(resonance.flatMap(line => line.cells)));
+        const discipline = disciplineLines(cells, stopped).map(line => ({ axis: line.axis, cells: line.cells }));
+        const idOf = cell => cells[cell].item.id;
+        const value = { suppressed: new Set([...stopped.keys()].map(idOf)),
+            stoppedBy: Object.fromEntries([...stopped].map(([cell, why]) => [idOf(cell), why])),
+            synergy: synergyTags(cells, resonance, links, discipline), groups: { resonance, discipline, feed: links },
+            resonant: new Set(resonance.map(line => line.color).filter(Boolean)) };
+        effectsMemo = { key, box, value };
+        return value;
+    }
+    function suppressedIds(box) { return boardEffects(box).suppressed; }
     /** The colours of the items beside a cell (상하좌우). */
     function neighbourColors(box, cell) {
         return neighbors(cell).map(at => box.board[at]).filter(id => id !== null).map(id => (findItem(box, id) || {}).color).filter(Boolean);
     }
-    /** 오행(2026-11-04 사용자): an item stops when a neighbour's colour overcomes its own (상극), unless a neighbour's colour feeds it (상생).
-     * Only the overcome side stops. */
-    function suppressedIds(box) {
-        const out = new Set();
-        box.board.forEach((id, cell) => {
-            const item = id === null ? null : findItem(box, id);
-            if (!item || !item.color) return;
-            const near = neighbourColors(box, cell);
-            if (near.includes(OVERCOMER[item.color]) && !near.includes(FEEDER[item.color])) out.add(item.id);
-        });
-        return out;
+    /** The bonus multiplier an item's synergies give (1 without any). */
+    function synergyMul(effects, item) {
+        return 1 + (effects.synergy[item.id] || []).reduce((sum, name) => sum + STUMP_BOX_SYNERGY[name].bonusPct, 0) / 100;
+    }
+    /** What changes a placed item's effect now, in the box's words: what stops it, or its bonuses while grown. null otherwise. */
+    function boardNote(item, result) {
+        const why = result.stoppedBy[item.id];
+        if (why) return { text: `비활성화: ${STUMP_BOX_COLORS[why.color].label}${why.counter ? ' 공명' : ''} 인접`, bad: true };
+        const tags = isMature(item) ? result.synergy[item.id] || [] : [];
+        return tags.length ? { text: tags.map(name => `${STUMP_BOX_SYNERGY[name].label} +${STUMP_BOX_SYNERGY[name].bonusPct}%`).join(', '), bad: false } : null;
     }
     /** Quality this ripening counts: the stored roll plus a bumper harvest's bonus (풍작). */
     function qualityOf(item) { return item.roll + ((item.harvest && item.harvest.bonus) || 0); }
     /** 황금(born golden or golden at ripening): every line × STUMP_BOX_RIPENING.golden.mul. */
     function goldenMul(item) { return item.golden || (item.harvest && item.harvest.golden) ? STUMP_BOX_RIPENING.golden.mul : 1; }
-    function itemScale(item, resonant, graft) {
-        const boost = resonant.has(item.color) ? 1 + STUMP_BOX_RESONANCE.bonusPct / 100 : 1;
-        return qualityOf(item) * goldenMul(item) * boost * graft;
+    /** Quality × golden × the board's multiplier (synergies × graft). */
+    function itemScale(item, boardMul) { return qualityOf(item) * goldenMul(item) * boardMul; }
+    function itemValue(item, boardMul) {
+        return Math.round(yieldOf(item).value * itemScale(item, boardMul) * 100) / 100;
     }
-    function itemValue(item, resonant, graft) {
-        return Math.round(yieldOf(item).value * itemScale(item, resonant, graft) * 100) / 100;
-    }
-    /** The ripening roll's extra lines at the item's quality, golden, resonance and graft. */
-    function lineValues(item, resonant, graft) {
-        const scale = itemScale(item, resonant, graft);
+    /** The ripening roll's extra lines at the item's quality, golden, synergies and graft. */
+    function lineValues(item, boardMul) {
+        const scale = itemScale(item, boardMul);
         return ((item.harvest && item.harvest.lines) || []).map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 })).concat(albinoLines(item));
     }
     /** Fixed unique options, also shown in storage. */
@@ -545,26 +636,25 @@ const stumpBox = (() => {
     function addLines(stats, lines) {
         lines.forEach(line => { stats[line.stat] = Math.round(((stats[line.stat] || 0) + line.value) * 100) / 100; });
     }
-    /** Suppression (오행 상극 beside, no 상생), resonance (3+ grown, unsuppressed of a colour) and stat totals. */
+    /** The board's 오행 and synergies (boardEffects), grown working items per colour (counts) and stat totals. */
     function evaluate(state) {
         const box = of(state), key = signature(box);
         if (memo.key === key && memo.box === box) return memo.value;
-        const suppressed = suppressedIds(box), counts = Object.fromEntries(COLORS.map(color => [color, 0]));
-        const grown = placedCells(box).filter(({ item }) => isMature(item) && yieldOf(item) && !suppressed.has(item.id));
-        // 고대 씨앗(루프 42)은 모든 색의 공명에 하나로 센다.
-        grown.forEach(({ item }) => (item.ancient ? COLORS : [item.color]).forEach(color => { counts[color]++; }));
-        const resonant = new Set(COLORS.filter(color => counts[color] >= STUMP_BOX_RESONANCE.count));
+        const effects = boardEffects(box), counts = Object.fromEntries(COLORS.map(color => [color, 0]));
+        const grown = placedCells(box).filter(({ item }) => isMature(item) && yieldOf(item) && !effects.suppressed.has(item.id));
+        grown.forEach(({ item }) => { counts[item.color]++; });
         const stats = {}, values = {}, extras = {};
         for (const { item, cell } of grown) {
-            values[item.id] = itemValue(item, resonant, graftMultiplier(box, cell));
-            extras[item.id] = lineValues(item, resonant, graftMultiplier(box, cell));
+            const boardMul = synergyMul(effects, item) * graftMultiplier(box, cell);
+            values[item.id] = itemValue(item, boardMul);
+            extras[item.id] = lineValues(item, boardMul);
             addLines(stats, [{ stat: yieldOf(item).stat, value: values[item.id] }].concat(extras[item.id]));
         }
         placedCells(box).filter(({ item }) => item.family === 'scar' && isMature(item)).forEach(({ item, cell }) => {
             extras[item.id] = scarValues(item, graftMultiplier(box, cell));
             addLines(stats, extras[item.id]);
         });
-        const value = { suppressed, counts, resonant, stats, values, extras };
+        const value = { ...effects, counts, stats, values, extras };
         memo = { key, box, value };
         return value;
     }
@@ -1411,7 +1501,7 @@ const stumpBox = (() => {
     return {
         empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace, albinoPlacementReason, wornAlbinoId,
         unplaceAll, unplaceAllReason, canUndoPlacement, undoPlacement, invalidatePlacementUndo,
-        evaluate, applyStats, onEnemyKilled, rollKillDrop, seedDropSpec, receiveDrop, dropIcon, dropName, validDrop, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
+        evaluate, boardNote, applyStats, onEnemyKilled, rollKillDrop, seedDropSpec, receiveDrop, dropIcon, dropName, validDrop, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
         harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,

@@ -469,16 +469,15 @@ function buildStumpItemSnapshot(item, result) {
     let value = result.values[item.id] ?? (gain ? gain.value * stumpBox.qualityOf(item) * stumpBox.goldenMul(item) : 0);
     return { kind: 'stump', family: item.family, color: item.color, name: stumpBox.label(item), quality: Math.round(item.roll * 100),
         yieldText: gain ? gain.text.replace('{v}', String(Math.round(value * 10) / 10)) : '', suppressed,
-        resonant: !suppressed && stumpBox.isMature(item) && result.resonant.has(item.color), note: stumpItemNote(item, result),
+        resonant: !suppressed && stumpBox.isMature(item) && !!result.synergy[item.id], note: stumpItemNote(item, result),
         extra: stumpBox.extraLinesOf(item, result).map(line => ({ id: line.stat, text: stumpBox.lineText(line.stat, line.value) })),
         golden: stumpBox.goldenMul(item) > 1 };
 }
 
-/** 게임 그루터기 함의 상태 줄(js/stump-box-ui.js stumpStatus)과 같은 문장. 비활성화되었거나 공명할 때만. */
+/** 게임 그루터기 함의 상태 줄(js/stump-box-ui.js stumpStatus)과 같은 문장. 비활성화되었거나 공명, 상생, 규율을 받을 때만. */
 function stumpItemNote(item, result) {
-    if (result.suppressed.has(item.id)) return `비활성화: ${STUMP_BOX_COLORS[stumpBox.overcomerOf(item.color)].label} 인접`;
-    if (!stumpBox.isMature(item) || !result.resonant.has(item.color)) return '';
-    return `공명 +${STUMP_BOX_RESONANCE.bonusPct}%`;
+    let note = stumpBox.boardNote(item, result);
+    return note ? note.text : '';
 }
 
 function buildProfileSnapshot() {
