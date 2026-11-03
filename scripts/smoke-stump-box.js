@@ -175,15 +175,15 @@ run('game.woodsmanBuildLock = true;');
 assert.strictEqual(run(`stumpBox.unplace(game, game.stumpBox.board[12])`), false);
 run('game.woodsmanBuildLock = false;');
 
-// ── 루프 전환: 배치·미성숙 진행 유지, 다 자란 것만 씨앗으로 ───────────────────────────
+// ── 루프 전환(2026-11-04 사용자): 봉인 칸의 것만 그대로 남고, 판, 보관함, 생육함의 나머지는 모두 사라진다 ─────────────
 // 앞 단계의 처치에서 무작위로 떨어진 번개 씨앗이 있을 수 있으므로 색이 아니라 id로 짚는다.
 const unripe = run(`(() => { const item = stumpBox.createItem(game, { family: 'seed', color: 'lightning' }); stumpBox.place(game, item.id, 18, 'fruit'); item.xp = 120; return item.id; })()`);
-const board = run('JSON.stringify(game.stumpBox.board)');
-run('stumpBox.regress(game);');
-assert.strictEqual(run('JSON.stringify(game.stumpBox.board)'), board, 'placements stay');
-assert.strictEqual(run('game.stumpBox.items.filter(item => item.ripe).length'), 0, 'grown items return to seeds');
-assert.strictEqual(run(`stumpBox.itemById(game, ${unripe}).xp`), 120, 'unripe progress stays');
-assert.strictEqual(run(`stumpBox.itemById(game, ${seed}).path`), null, 'a regressed seed rolls its kind again when it ripens');
+run('stumpBox.createItem(game, { family: "seed", color: "fire" }); game.stumpBox.sealed = [18];');
+assert.ok(run('stumpBox.regress(game)') > 0, 'items outside the seal cell go');
+assert.deepStrictEqual(json('game.stumpBox.items.map(item => item.id)'), [unripe], 'only the sealed item is left, storage included');
+assert.deepStrictEqual(json('game.stumpBox.board.flatMap((id, cell) => (id === null ? [] : [cell]))'), [18], 'and only its cell is filled');
+assert.strictEqual(run(`stumpBox.itemById(game, ${unripe}).xp`), 120, 'the sealed item keeps its growth');
+run('game.stumpBox.sealed = [];');
 
 // ── 저장 경계: 왕복 그대로, 손상 저장은 고친다 ─────────────────────────────────────
 const saved = run('JSON.stringify(game.stumpBox)');

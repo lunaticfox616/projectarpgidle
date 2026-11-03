@@ -1,6 +1,6 @@
 // 수확 일지와 그루터기 함 해금(2026-10-07 해금 1차, docs/stump-box-unlocks-review-20261007.md): 처음 성장 완료된 꽃, 열매, 덩굴, 뿌리 × 5색
 // 20칸(2026-11-04 전: 꽃, 열매, 호박석 × 4색), 줄을 채우면 받는 보상(색을 골라 씨앗 1개), 해금 목록(보관함, 뿌리 기억), 새로 열린 해금과 조합법,
-// 뿌리 기억의 알림.
+// 루프가 바뀔 때 사라진 아이템의 알림.
 // 수확 일지와 함 해금은 그루터기 함 아래 탭에 하나씩 보인다(2026-10-09). 받을 보상(줄 완성 보상과 씨앗 주머니)은 머리줄 단추 하나와
 // 그 단추가 여는 창이다. 16번의 부적 도감(부적 탭)과 루프 전환 소식(포식, 번식, 봉인 칸)은 js/stump-ripening-ui.js가 준다.
 // 탭 그리기와 클릭은 js/stump-box-ui.js가 맡고(#stump-box-more 탭, 'rewards'), 규칙과 계산은 js/stump-box.js와 js/stump-cube.js.
@@ -126,17 +126,17 @@ const stumpHarvestUi = (() => {
     // What each kind of unlock does, for its notice (the first match wins: 봉인 칸 1 also opens 포식).
     const UNLOCK_TEXTS = Object.freeze([
         [row => row.storage, row => `보관함 +${row.storage}칸`],
-        [row => row.keepPct, row => `뿌리 기억 ${row.keepPct}%: 루프가 바뀌어도 성장 완료된 그루터기 아이템의 경험치 ${row.keepPct}% 유지`],
         [row => row.bulkCompost, () => '일괄 거름 사용: 보관함의 씨앗을 한 번에 거름으로 사용'],
         [row => row.breeding, () => '번식: 루프가 바뀔 때 성장 완료된 열매마다 보관함에 씨앗 1개(가끔 다른 색, 황금)'],
         [row => row.pouch, () => '씨앗 주머니: 무작위 씨앗 3개 중 1개 선택'],
-        [row => row.devour, () => '봉인 칸 1, 포식: 봉인 칸은 루프가 바뀌어도 성장 상태 유지. 불씨의 흉터 1개 지급(루프가 바뀔 때 주변 1칸 흡수)'],
-        [row => row.sealSlots, row => `봉인 칸 +${row.sealSlots}: 루프가 바뀌어도 성장 상태 유지`],
+        [row => row.devour, () => '봉인 칸 1, 포식: 봉인 칸의 아이템은 루프가 바뀌어도 사라지지 않음. 불씨의 흉터 1개 지급(봉인 칸에서 루프가 바뀔 때 주변 1칸 흡수)'],
+        [row => row.rootMemory, row => `뿌리 기억: 봉인 칸 +${row.sealSlots}`],
+        [row => row.sealSlots, row => `봉인 칸 +${row.sealSlots}: 루프가 바뀌어도 그 칸의 아이템은 사라지지 않음`],
         [row => row.qualityCap, row => `품질 상한 ${Math.round(row.qualityCap * 100)}%${row.graftRanks ? `, 접붙이기 ${graftRankAt(row)}단계` : ''}`]
     ]);
     function describeUnlock(row) {
         const text = UNLOCK_TEXTS.find(([test]) => test(row));
-        return `${text ? text[1](row) : row.label} (${unlockWhen(row, true)})${row.keepPct ? '.' : ''}`;
+        return `${text ? text[1](row) : row.label} (${unlockWhen(row, true)})`;
     }
     /** Unlocks that opened since they were last announced, on one card (a veteran's first load opens several at once). */
     function announceUnlocks() {
@@ -165,13 +165,10 @@ const stumpHarvestUi = (() => {
         queueTutorialNotice('unlock_stump_graft_journal', '저널 접붙이기 점수',
             `정점 보스와 버려진 날의 저널이 접붙이기 점수를 더합니다(정점 +3, 버려진 날 +2, 지금 +${points}).`, 'tab-stump');
     }
-    /** A new loop (js/stump-box.js regress): what the scars ate, what bred, what the seal cells kept, and how far the grown
-     * items that went back kept growing. */
+    /** A new loop (js/stump-box.js regress): what the scars ate, what bred, what the seal cells kept, and how many items went. */
     function announceRegress(detail) {
         stumpRipeningUi.regressLog(detail);
-        if (!detail.count) return;
-        addLog(detail.keepPct > 0 ? `🌱 그루터기 함: 성장 완료된 ${detail.count}개의 경험치가 초기화됐습니다(뿌리 기억 ${detail.keepPct}% 유지).`
-            : `🌱 그루터기 함: 성장 완료된 ${detail.count}개의 경험치가 초기화됐습니다.`, 'season-up');
+        if (detail.count) addLog(`🌱 그루터기 함: 봉인 칸 밖의 아이템 ${detail.count}개가 루프와 함께 사라졌습니다.`, 'season-up');
     }
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('project-idle:stump-box-regressed', event => announceRegress(event.detail || {}));

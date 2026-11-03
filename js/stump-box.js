@@ -335,17 +335,26 @@ const stumpBox = (() => {
     function editable(state) { return of(state).acquired && !state.woodsmanBuildLock; }
     /** The albino on the board, or null. */
     const wornAlbinoId = state => placedItems(of(state)).find(item => item.albino)?.id ?? null;
-    /** One albino across the board; a stored one may replace the worn one directly. */
-    function albinoPlacementReason(state, id, cell) {
-        const box = of(state), item = findItem(box, id);
-        if (!item || !item.albino) return '';
+    /** What the board holds one of (알비노; 2026-11-04 사용자: 불씨의 흉터도 하나, 새 흉터는 옵션을 다시 뽑을 때 바꿔 쓴다). */
+    const ONE_ON_BOARD = Object.freeze([
+        Object.freeze({ test: item => !!item.albino, reason: '알비노는 그루터기 함 전체에 하나만 놓을 수 있습니다.' }),
+        Object.freeze({ test: item => item.family === 'scar', reason: '불씨의 흉터는 그루터기 함에 하나만 놓을 수 있습니다.' })]);
+    /** The other placed item of the item's one-on-the-board kind (albino or scar), or null. */
+    function wornOneId(state, item) {
+        const rule = item ? ONE_ON_BOARD.find(row => row.test(item)) : null;
+        return rule ? placedItems(of(state)).find(other => other.id !== item.id && rule.test(other))?.id ?? null : null;
+    }
+    /** One albino and one scar across the board; a stored one may replace the worn one directly. */
+    function onePerBoardReason(state, id, cell) {
+        const box = of(state), item = findItem(box, id), rule = item ? ONE_ON_BOARD.find(row => row.test(item)) : null;
+        if (!rule) return '';
         const from = box.board.indexOf(id);
-        const conflict = box.board.some((other, at) => other !== id && (from >= 0 || at !== cell) && findItem(box, other)?.albino);
-        return conflict ? '알비노는 그루터기 함 전체에 하나만 놓을 수 있습니다.' : '';
+        const conflict = box.board.some((other, at) => other !== null && other !== id && (from >= 0 || at !== cell) && rule.test(findItem(box, other) || {}));
+        return conflict ? rule.reason : '';
     }
     function placeOnBoard(state, id, cell) {
         const box = of(state), item = findItem(box, id);
-        if (!editable(state) || !item || !isOpen(state, cell) || box.board[cell] !== null || box.nursery.includes(id) || albinoPlacementReason(state, id, cell)) return false;
+        if (!editable(state) || !item || !isOpen(state, cell) || box.board[cell] !== null || box.nursery.includes(id) || onePerBoardReason(state, id, cell)) return false;
         const from = box.board.indexOf(id);
         if (from >= 0) box.board[from] = null;
         box.board[cell] = id;
@@ -364,7 +373,7 @@ const stumpBox = (() => {
      */
     function moveOnBoard(state, id, cell) {
         const box = of(state), item = findItem(box, id), from = box.board.indexOf(id), occupant = box.board[cell];
-        if (!editable(state) || !item || !isOpen(state, cell) || from === cell || box.nursery.includes(id) || albinoPlacementReason(state, id, cell)) return false;
+        if (!editable(state) || !item || !isOpen(state, cell) || from === cell || box.nursery.includes(id) || onePerBoardReason(state, id, cell)) return false;
         if (occupant === null) return placeOnBoard(state, id, cell);
         box.board[cell] = id;
         if (from >= 0) box.board[from] = occupant;
@@ -667,7 +676,7 @@ const stumpBox = (() => {
         return lines.map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 })).concat(albinoLines(item));
     }
     // ── 고유 장비의 수확물 소켓(2026-11-03 사용자, js/equipment-sockets.js) ─────────
-    // 소켓에 든 꽃, 열매, 덩굴, 뿌리는 함을 떠나 장비에 산다(판의 공명과 접붙이기는 없다). 새 루프의 되돌림은 함의 것만 하므로 소켓의 것은 다 자란 채 남는다.
+    // 소켓에 든 꽃, 열매, 덩굴, 뿌리는 함을 떠나 장비에 산다(판의 공명과 접붙이기는 없다). 새 루프에 사라지는 것은 함의 것뿐이라 소켓의 것은 다 자란 채 남는다.
     /** A stored, unlocked grown flower, fruit, vine or root that may go into a gear socket, else null. */
     function socketable(state, id) {
         const item = findItem(of(state), id);
@@ -1137,39 +1146,48 @@ const stumpBox = (() => {
         const x = cell % STUMP_BOX_SIZE + dx, y = Math.floor(cell / STUMP_BOX_SIZE) + dy;
         return x < 0 || y < 0 || x >= STUMP_BOX_SIZE || y >= STUMP_BOX_SIZE ? -1 : y * STUMP_BOX_SIZE + x;
     }
-    /** What eating a seed gives: its main and extra lines at its quality and golden (no resonance or graft), a share by ripeness. A growing
-     * seed has no kind yet: the bite rolls one (kind). */
-    function mealOf(item, kind) {
-        const ripe = isMature(item), share = ripe ? STUMP_BOX_SCAR.absorb.ripe : STUMP_BOX_SCAR.absorb.growing;
-        const scale = qualityOf(item) * goldenMul(item) * share, gain = STUMP_BOX_YIELDS[kind][item.color];
-        const lines = [{ stat: gain.stat, value: gain.value }].concat(ripe && item.harvest ? item.harvest.lines : []);
+    /** What eating a seed gives: its main, extra and albino lines at its quality and golden (no synergy or graft) × absorb.ripe.
+     * A growing seed gives nothing (2026-11-04 사용자: 효과가 없으므로 흡수해도 능력치를 얻지 못한다). */
+    function mealOf(item) {
+        const made = isMature(item) ? yieldOf(item) : null;
+        if (!made) return [];
+        const share = STUMP_BOX_SCAR.absorb.ripe, scale = qualityOf(item) * goldenMul(item) * share;
+        const lines = [{ stat: made.stat, value: made.value }].concat(item.harvest ? item.harvest.lines : []);
         return lines.map(line => ({ stat: line.stat, value: Math.round(line.value * scale * 100) / 100 }))
             .concat(albinoLines(item).map(line => ({ stat: line.stat, value: line.value * share })));
     }
+    /** Adds a meal in its order, each stat up to its cap. A scar holds maxLines stats (2026-11-04 사용자): once full, a new stat is lost.
+     * A save holding more keeps them and takes no new one. @returns {{kept: object[], lost: object[]}} */
     function absorb(scar, meal) {
+        const kept = [], lost = [];
         meal.forEach(line => {
+            const held = Object.hasOwn(scar.absorbed, line.stat);
+            if (!held && Object.keys(scar.absorbed).length >= STUMP_BOX_SCAR.maxLines) return lost.push(line);
             const total = (scar.absorbed[line.stat] || 0) + line.value;
             scar.absorbed[line.stat] = Math.round(Math.min(SCAR_CAPS[line.stat] || 0, total) * 100) / 100;
+            kept.push(line);
         });
+        return { kept, lost };
     }
-    /** One scar's bite at the end of a loop. A seed is eaten and absorbed; anything else spends the chance. */
+    /** One scar's bite at the end of a loop. A seed is eaten (a growing one for nothing); anything else spends the chance. */
     function bite(state, scar, cell, random) {
         const box = of(state), target = biteCell(cell, random);
         const preyId = target >= 0 && isOpen(state, target) ? box.board[target] : null, prey = preyId === null ? null : findItem(box, preyId);
         if (!prey || !FAMILIES.includes(prey.family)) {
             scar.misses = (scar.misses || 0) + 1;
-            return { scar, target, ate: null, gained: [] };
+            return { scar, target, ate: null, gained: [], lost: [] };
         }
-        const meal = mealOf(prey, yieldKind(prey) || growKind(random));
-        absorb(scar, meal);
+        const { kept, lost } = absorb(scar, mealOf(prey));
         scar.meals = (scar.meals || 0) + 1;
         box.board[target] = null;
         box.items = box.items.filter(item => item.id !== prey.id);
-        return { scar, target, ate: shortName(prey), gained: meal };
+        return { scar, target, ate: shortName(prey), gained: kept, lost };
     }
-    /** 포식: every awake scar on the board bites once as a loop ends. @returns {object[]} { scar, target, ate, gained } */
+    /** 포식: a grown scar in a seal cell bites once as a loop ends (2026-11-04 사용자: the rest of the box is gone with the loop).
+     * @returns {object[]} { scar, target, ate, gained, lost } */
     function devour(state, random) {
-        const scars = placedCells(of(state)).filter(({ item }) => item.family === 'scar' && isMature(item));
+        const box = of(state);
+        const scars = placedCells(box).filter(({ item, cell }) => item.family === 'scar' && isMature(item) && isSealed(box, cell));
         return scars.map(({ item, cell }) => bite(state, item, cell, random));
     }
 
@@ -1194,35 +1212,30 @@ const stumpBox = (() => {
         });
     }
 
-    /** Grown items outside sealed cells go back to seed, a sleeping talisman or scar, keeping rootMemoryPct of their growth (뿌리 기억);
-     * what a seed became and its ripening roll go, and are rolled again when it ripens (2026-11-04: the kind is not known before). */
-    function sendBack(state, box) {
-        const keepPct = rootMemoryPct(state), kept = new Set(box.sealed.map(cell => box.board[cell]).filter(id => id !== null));
-        let count = 0;
-        box.items.forEach(item => {
-            if (!item.ripe || kept.has(item.id)) return;
-            item.xp = Math.floor(need(item) * keepPct / 100);
-            item.ripe = false;
-            if (FAMILIES.includes(item.family)) item.path = null;
-            delete item.harvest;
-            delete item.albino;
-            count++;
-        });
-        return { count, keepPct, sealed: box.items.filter(item => item.ripe && kept.has(item.id)).length };
+    /** New loop (2026-11-04 사용자): every item outside the seal cells goes, on the board, in storage and in the nursery (seeds,
+     * talismans and scars); what the seal cells hold stays as it is. Gear sockets are not the box and keep theirs.
+     * @returns {{count: number, sealed: number}} items gone and items kept */
+    function clearUnsealed(box) {
+        const kept = new Set(box.sealed.map(cell => box.board[cell]).filter(id => id !== null));
+        const count = box.items.filter(item => !kept.has(item.id)).length;
+        box.items = box.items.filter(item => kept.has(item.id));
+        box.board = box.board.map(id => (id !== null && kept.has(id) ? id : null));
+        box.nursery = box.nursery.map(() => null);
+        return { count, sealed: box.items.length };
     }
     /** The grown fruits on the board that leave a seed this loop (번식 open). */
     function grownFruits(state, box) {
         return box.acquired && breedingOpen(state) ? placedItems(box).filter(item => item.path === 'fruit' && isMature(item)) : [];
     }
-    /** New loop: awake scars bite (포식), grown fruits are noted for breeding, grown items go back (봉인 칸 aside), then the bred
-     * seeds arrive. Placements and unripe progress stay. @returns {number} how many went back. */
+    /** New loop: grown scars in seal cells bite (포식), grown fruits are noted for breeding, everything outside the seal cells goes,
+     * then the bred seeds arrive in storage. @returns {number} how many items went. */
     function regress(state, random = Math.random) {
         invalidatePlacementUndo(state);
         const box = state.stumpBox;
         if (!box || !Array.isArray(box.items)) return 0;
         if (!Array.isArray(box.sealed)) box.sealed = [];
         const eaten = box.acquired ? devour(state, random) : [], fruits = grownFruits(state, box);
-        const back = sendBack(state, box);
+        const back = clearUnsealed(box);
         box.wallet = {}; // 화폐화한 재화도 초기화(2026-11-03 사용자)
         const bred = breed(state, fruits.map(fruit => breedSpec(state, fruit, random)), random);
         if (back.count || back.sealed || eaten.length || bred.length) dispatchRuntimeEvent('stump-box-regressed', { ...back, eaten, bred });
@@ -1312,8 +1325,6 @@ const stumpBox = (() => {
             + contentProgression.rank('stumpStorage', state) * SERIES_STORAGE;
     }
     function storageFull(state) { return storage(state).length >= storageLimit(state); }
-    /** Share of growth (%) a grown item keeps when a new loop starts (뿌리 기억). */
-    function rootMemoryPct(state) { return Math.max(0, ...openUnlocks(state).map(row => row.keepPct || 0)); }
 
     // ── 저장 경계 ───────────────────────────────────────────
     function validItem(raw) {
@@ -1499,12 +1510,12 @@ const stumpBox = (() => {
     }
 
     return {
-        empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace, albinoPlacementReason, wornAlbinoId,
+        empty, of, restore, sync, eligible, claimStarter, starterChoice, starterOwed, grantStarter, plantStored, createItem, addTalisman, discard, storage, place, move, previewMove, unplace, onePerBoardReason, wornAlbinoId, wornOneId,
         unplaceAll, unplaceAllReason, canUndoPlacement, undoPlacement, invalidatePlacementUndo,
         evaluate, boardNote, applyStats, onEnemyKilled, rollKillDrop, seedDropSpec, receiveDrop, dropIcon, dropName, validDrop, grow, ancientRanks, rollDrop, regress, compost, compostReason, compostGrowth, compostOverflow, feedAsh, growingItems, openCount, isOpen, opensAt, nextOpening, neighbors,
         stageOf, isMature, need, yieldOf, targetStage, label, shortName, lineText, extraLinesOf, iconPath, cellOf, editable, highestLoop,
         graftRank, graftMultiplier, graftOpen, graftPoints, graftJournalPoints, graftOverflowPoints, graftRaiseReason, graftRaise, graftLowerReason, graftLower,
-        harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull, rootMemoryPct,
+        harvestKey, harvestRows, hasHarvested, pendingGifts, claimHarvestGift, openUnlocks, storageLimit, storageFull,
         rollCap, graftMaxRank, qualityOf, goldenMul, sealLimit, isSealed, sealReason, toggleSeal, devourOpen, addScar, grantScar, rollScarDrop, scarCaps: () => SCAR_CAPS,
         breedingOpen, bulkCompostOpen, bulkItems, bulkCompostPlan, bulkCompostReason, compostMany, bulkDiscardItems, bulkDiscardReason, discardMany, toggleLock, pendingPouches, pouchOffers, choosePouch,
         codexIds: () => CODEX_IDS,

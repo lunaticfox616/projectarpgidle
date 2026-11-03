@@ -286,7 +286,7 @@ const stumpBoxUi = (() => {
     /** A summed stat in the box's own words (main lines, extra lines and a scar's lines share them). */
     function stumpStatText(stat, value) { return stumpBox.lineText(stat, value); }
     /** One line above the board: grown colours (resonance lit), open cells, suppression (red), graft points and the rules button. */
-    const RULES_BUTTON = '<button type="button" class="stump-rules-button" data-stump-action="rules" data-stump-tip="rules" data-info-tooltip-anchor="1" aria-label="그루터기 함 규칙"><span class="px-center">?</span></button>';
+    const RULES_BUTTON = '<button type="button" class="stump-rules-button" data-stump-action="rules" data-tip="그루터기 함 규칙" aria-label="그루터기 함 규칙" aria-haspopup="dialog"><span class="px-center">?</span></button>';
     /** The nursery's line above the frame: what it gives instead of the colours. */
     function nurseryHeadHtml() {
         return `<span class="stump-nursery-rate">생육함 경험치 효율 ${Math.round(stumpBox.nurseryRate(game) * 100)}%</span><span class="stump-line">칸 ${stumpBox.openCount(game)}/25</span>`
@@ -315,14 +315,13 @@ const stumpBoxUi = (() => {
         const stats = keys.map(stat => `<li style="color:${getItemStatToneColor(stat)}">${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
         return head + `<ul class="stump-stats">${stats || '<li class="is-empty">아직 없음</li>'}</ul>` + stumpTalismanUi.summaryHtml();
     }
-    /** 루프가 바뀔 때: 성장 완료된 그루터기 아이템의 경험치가 초기화된다(뿌리 기억은 그만큼 남긴다). */
+    /** 루프가 바뀔 때(2026-11-04 사용자): 봉인 칸 밖의 아이템은 판, 보관함, 생육함 모두 사라진다. */
     function stumpLoopRule() {
-        const keep = stumpBox.rootMemoryPct(game);
-        return `루프가 바뀌면 성장 완료된 그루터기 아이템의 경험치가 초기화됩니다${keep ? `(뿌리 기억 ${keep}% 유지)` : ''}.`;
+        return '루프가 바뀌면 봉인 칸에 있는 아이템을 빼고 그루터기 함, 보관함, 생육함의 아이템이 모두 사라집니다.';
     }
-    /** The ? card: only the rules a player needs to play the board (2026-10-09 사용자: 꼭 필요한 정보만, 용어는 그루터기 아이템, 경험치,
+    /** The ? window's rules: only what a player needs to play the board (2026-10-09 사용자: 꼭 필요한 정보만, 용어는 그루터기 아이템, 경험치,
      * 성장 완료, 비활성화로 통일하고 "것" 같은 지칭은 쓰지 않는다). */
-    function stumpRulesTipHtml() {
+    function stumpRulesHtml() {
         const { resonance, feed, discipline } = STUMP_BOX_SYNERGY;
         const rules = ['그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.',
             `공명: 성장 완료된 같은 색 ${resonance.length}개가 가로나 세로로 한 줄이면 그 ${resonance.length}개 +${resonance.bonusPct}%. 옆에 같은 색이 하나라도 더 있으면 사라집니다.`,
@@ -334,7 +333,7 @@ const stumpBoxUi = (() => {
             stumpLoopRule()];
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%`);
         rules.push(...stumpRipeningUi.rulesLines());
-        return '<div class="tooltip-title">그루터기 함</div><div class="stump-rules-tip">' + rules.map(stumpRuleLineHtml).join('') + '</div>';
+        return '<div class="stump-rules-tip">' + rules.map(stumpRuleLineHtml).join('') + '</div>';
     }
     /** One rule in colour (2026-10-29 사용자: ? 도움말에 색감): the name before ':' in gold, stump words (화염, 씨앗, 덩굴, 뿌리...) in their
      * own colours as in the recipe book, then the game's stat words and numbers (경험치, +25%) as everywhere else. */
@@ -494,12 +493,11 @@ const stumpBoxUi = (() => {
     }
     /**
      * Tooltip for a hovered stump element ([data-stump-tip]): an item on the board or in storage, a closed or grafted
-     * cell, or the rules button. Returns null when there is nothing to show.
+     * cell, or a frame button. Returns null when there is nothing to show.
      * @returns {{ html: string, tone: string } | null}
      */
     function tipFor(element) {
         const kind = element.dataset.stumpTip;
-        if (kind === 'rules') return { html: stumpRulesTipHtml(), tone: '#c9a45c' };
         if (kind === 'frame') return { html: frameTipHtml(element.dataset.side), tone: '#a98546' };
         const id = element.dataset.stumpDrag !== undefined ? Number(element.dataset.stumpDrag) : null;
         const item = id === null ? null : stumpBox.itemById(game, id);
@@ -806,7 +804,8 @@ const stumpBoxUi = (() => {
             placementKey = key;
         }
         markPlacement(placement.result);
-        // A mouse hover shows it as the tooltip at the pointer (2026-11-03 사용자: 탭 대신 호버 툴팁); a drag, a pinned touch or a keyboard focus keeps the box under the board.
+        // A mouse hover and a drag show it as the tooltip at the pointer (2026-11-03 사용자: 탭 대신 호버 툴팁, 2026-11-04: 끌어 바꿀 때도);
+        // a pinned touch or a keyboard focus keeps the box under the board.
         if (placement.hover) { node.hidden = true; return; }
         const { title, verb, rows } = placementParts();
         const buttons = placement.pinned ? `<div class="stump-actions"><button type="button" data-stump-action="placement-apply">${verb}</button>`
@@ -826,6 +825,10 @@ const stumpBoxUi = (() => {
         const { title, verb, rows } = placementParts(), item = stumpBox.itemById(game, placement.id);
         return `<div class="tooltip-title" style="color:${itemTone(item)}">${escStump(title)}</div>`
             + `<div class="tooltip-line stump-placement-label">${verb} 미리보기</div><div class="stump-placement-tip">${rows}</div>`;
+    }
+    /** The hover or drag preview as a tooltip, or null when there is none (or it is pinned in the box). */
+    function placementTip() {
+        return placement?.hover && placement.result ? { html: placementTipHtml(), tone: itemTone(stumpBox.itemById(game, placement.id)) } : null;
     }
     /** The nursery has no effects to compare: a touch drop (pinned) goes straight in. hover: a mouse over the cell with an item selected. */
     function previewCell(id, cell, pinned = false, hover = false) {
@@ -867,7 +870,7 @@ const stumpBoxUi = (() => {
     function hoverCell(cell, tip = false) {
         if (selectedId !== null && !onNursery()) previewCell(selectedId, cell, false, tip);
         if (!placement?.result) return null;
-        return placement.hover ? { html: placementTipHtml(), tone: itemTone(stumpBox.itemById(game, placement.id)) } : { html: '', tone: '' };
+        return placementTip() || { html: '', tone: '' };
     }
     function applyPlacement() {
         if (!placement) return;
@@ -916,7 +919,7 @@ const stumpBoxUi = (() => {
         const item = stumpBox.itemById(game, id);
         if (onNursery()) return dropOnNurseryCell(item, cell);
         if (!item || game.stumpBox.board[cell] === id) return false;
-        const uniqueReason = stumpBox.albinoPlacementReason(game, id, cell);
+        const uniqueReason = stumpBox.onePerBoardReason(game, id, cell);
         if (uniqueReason) { notifyStump(uniqueReason); return false; }
         if (!stumpBox.isOpen(game, cell)) {
             notifyStump(`이 칸은 루프 ${stumpBox.opensAt(game, cell)}에 열립니다.`);
@@ -1097,10 +1100,27 @@ const stumpBoxUi = (() => {
         if (selectedId !== null && !stumpBox.itemById(game, selectedId)) selectedId = null;
         commitStumpChange();
     }
-    /** Pressing ? (touch has no hover) opens the rules under the button; the next press elsewhere closes them. */
-    function showStumpRules(button) {
-        const rect = button.getBoundingClientRect();
-        showInfoTooltipHtml(rect.left, rect.bottom, stumpRulesTipHtml(), '#c9a45c');
+    /** ? opens the rules in a window that scrolls (2026-11-04 사용자: 툴팁이 길어 못 읽을 수 있다, 색감은 그대로). The backdrop, ✕ and
+     * Esc close it. */
+    let rulesDialog = null;
+    function ensureRulesDialog() {
+        if (rulesDialog) return rulesDialog;
+        rulesDialog = document.createElement('dialog');
+        rulesDialog.className = 'stump-rules-dialog';
+        rulesDialog.setAttribute('aria-labelledby', 'stump-rules-title');
+        rulesDialog.addEventListener('click', event => {
+            if (event.target === rulesDialog || event.target.closest('[data-rules-close]')) rulesDialog.close();
+        });
+        document.body.appendChild(rulesDialog);
+        return rulesDialog;
+    }
+    function showStumpRules() {
+        const dialog = ensureRulesDialog();
+        dialog.innerHTML = '<div class="stump-rules-panel"><div class="stump-rules-top"><h3 id="stump-rules-title" class="tooltip-title">그루터기 함</h3>'
+            + '<button type="button" class="stump-rules-close" data-rules-close aria-label="닫기">✕</button></div>' + stumpRulesHtml() + '</div>';
+        hideInfoTooltip();
+        dialog.showModal();
+        dialog.querySelector('.stump-rules-tip').scrollTop = 0;
     }
 
     // ── 두 번 누르기 · 전체 해제(2026-10-28 사용자, 장비 창처럼) ─────────────────
@@ -1123,9 +1143,10 @@ const stumpBoxUi = (() => {
     function dropCubeItem(from, to) {
         return to === null ? stumpCubeUi.takeOutCubeCell(from) : stumpCubeUi.moveCubeItem(from, to);
     }
-    /** Where a double-clicked stored item goes: an albino trades places with the one on the board (one fits on it), the rest take the best empty cell. */
+    /** Where a double-clicked stored item goes: an albino or a scar trades places with the one on the board (one fits on it), the rest take
+     * the best empty cell. */
     function quickStumpCell(item) {
-        const worn = item.albino ? stumpBox.wornAlbinoId(game) : null;
+        const worn = stumpBox.wornOneId(game, item);
         return worn === null ? bestStumpCell(item.id) : game.stumpBox.board.indexOf(worn);
     }
     /** A board item goes to storage; a stored one onto the best empty cell, or into the cube while the frame shows it. */
@@ -1237,7 +1258,7 @@ const stumpBoxUi = (() => {
         selectStumpItem(null);
     }
     const ACTIONS = {
-        rules: (data, button) => showStumpRules(button),
+        rules: () => showStumpRules(),
         cell: (data, button, event) => clickStumpCell(Number(data.cell), event.pointerType === 'touch' || event.detail === 0
             || uiDisplay.matches('(hover: none), (max-width: 680px)')),
         'placement-apply': () => applyPlacement(),
@@ -1427,6 +1448,6 @@ const stumpBoxUi = (() => {
     }
 
     return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, showStoragePage, dropOnCube, dropCubeItem, claimReward,
-        itemTipHtml, previewCell, hoverCell, clearPlacementPreview, syncEquipmentBag, frameShowsCube };
+        itemTipHtml, previewCell, hoverCell, placementTip, clearPlacementPreview, syncEquipmentBag, frameShowsCube };
 })();
 safeExposeGlobals({ stumpBoxUi });

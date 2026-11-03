@@ -254,15 +254,15 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(.story-scene-copy, .game-dialog-body) :is(p, b, strong, em) {
   font-family: inherit; font-size: inherit; font-weight: var(--font-weight-regular); font-style: normal;
 }
-/* 툴팁과 장비 창의 선택한 장비 판, 상점 카드(.shop-tooltip, 같은 툴팁 내용): 옵션 줄은 14/15, 제목은 11 Bold/12, 베이스, 레벨, 요구 줄과
+/* 툴팁과 장비 창의 선택한 장비 판, 상점 카드(.shop-tooltip, 같은 툴팁 내용), 그루터기 함 규칙 창(.stump-rules-dialog): 옵션 줄은 14/15, 제목은 11 Bold/12, 베이스, 레벨, 요구 줄과
    구획 이름은 11/12. 짧은 줄과 구획은 아래 층의 읽기 규칙(components/modals.css max(.86em, 13px))에 13px로 남아 번졌다(2026-10-21). */
-:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip, .shop-tooltip) :is(.tooltip-line:not(.tooltip-meta):not(.tooltip-section), .tooltip-final) {
+:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip, .shop-tooltip, .stump-rules-dialog) :is(.tooltip-line:not(.tooltip-meta):not(.tooltip-section), .tooltip-final) {
   font-family: var(--font-pixel-read); font-size: var(--font-size-reading); line-height: 1.6;
 }
 /* 그루터기 표식(알비노 1/1, 황금, 풍작)은 짧은 정보다: 툴팁 줄의 갈무리14를 물려받아 작은 크기로 번졌다(2026-11-03 사용자 "흐릿하지 않게"). */
 :root body[data-ui-skin] .stump-badges > span { font-family: var(--font-pixel); font-size: var(--font-size-ui); }
 :root body[data-ui-skin] .stump-wallet-cell b { font-family: var(--font-pixel); font-size: var(--font-size-ui); }
-:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip, .shop-tooltip) .tooltip-title {
+:root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip, .shop-tooltip, .stump-rules-dialog) .tooltip-title {
   font-family: var(--font-pixel); font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis);
 }
 :root body[data-ui-skin] :is(#item-tooltip-box, #canvas-tooltip, #info-tooltip, .equipment-inspection-tooltip, .shop-tooltip) :is(.tooltip-meta, .tooltip-section) {
