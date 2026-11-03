@@ -2,11 +2,13 @@
  * 패시브 보기는 js/atlas-passives-ui.js. 상태는 js/atlas.js, 런 흐름은 js/atlas-run.js가 맡고, 여기서는 고르기 · 보여주기 · 기록만 한다.
  */
 const atlasUi = (() => {
-    let signature = '', hudSignature = '', selectedNode = null, selectedUid = null, view = 'maps', panelObserver = null;
+    let signature = '', hudSignature = '', selectedNode = null, selectedUid = null, view = 'maps', panelObserver = null, bloomedUid = null;
     const STATUS = { locked: '잠김', open: '열림', complete: '완료', bonus: '보너스' };
     /** The painted act map a node walks (data/act-exploration-maps.js terrain). */
     const terrainOf = node => (ACT_EXPLORATION_MAPS.find(map => map.act === node.act) || {}).terrain || '';
     const CRAFT_ORDER = ['magicBud', 'sapBud', 'formlessDew', 'blightSpore', 'pruningShears', 'goldenRule', 'deepWhetstone', 'emberBranch'];
+    const FLOWER_COLORS = Object.keys(LOOT_OMENS.flowers);
+    const flowerWallet = () => FLOWER_COLORS.flatMap(color => [stumpBox.storedFlowerCount(game, color, false), stumpBox.storedFlowerCount(game, color, true)]);
     const ledger = () => game.atlas;
     const nodeName = id => atlas.node(id)?.name || '';
     const selectedMap = () => ledger().stash.find(map => map.uid === selectedUid) || null;
@@ -81,6 +83,31 @@ const atlasUi = (() => {
         addLog(`🗺️ ${nodeName(map.node)} 지도석에 ${ORB_DB[key].name} 사용: ${atlasMaps.crafts[key].label}`, 'loot-magic');
         queueImportantSave(200);
         refresh();
+    }
+    /** 꽃 하나로 지도석의 기운을 바꾼다(js/atlas.js changeOmen). 새 기운은 한 번 빛난다. */
+    function applyFlower(map, color, omenId) {
+        const result = atlas.changeOmen(game, map.uid, color, omenId);
+        if (result.reason) return addLog(result.reason, 'attack-monster');
+        addLog(`🗺️ ${nodeName(map.node)} 지도석에 ${omenId ? '황금 ' : ''}${STUMP_BOX_COLORS[color].label} 꽃 사용: ${lootOmens.describe(result.omen).name}`, 'loot-magic');
+        playUiFeedbackSound('gemSocket');
+        queueImportantSave(200);
+        bloomedUid = map.uid;
+        refresh();
+        bloomedUid = null;
+    }
+    function flowerOmen(color) {
+        const map = selectedMap();
+        if (map) applyFlower(map, color, null);
+    }
+    /** 황금 꽃: 그 색 묶음의 기운을 보여 주고 고른 것으로 바꾼다. 묻는 사이 지도석이 바뀌었으면 쓰지 않는다. */
+    async function goldenFlowerOmen(color) {
+        const map = selectedMap();
+        if (!map) return;
+        const choices = lootOmens.flowerOmens(color, game, map.omen).map(omen => ({ value: omen.id, label: omen.name, detail: omen.note }));
+        const picked = await requestGameChoice({ title: `황금 ${STUMP_BOX_COLORS[color].label} 꽃`, message: '지도석에 붙일 기운을 고르세요.', choices, confirmLabel: '이 기운으로', cancelLabel: '취소' });
+        if (!picked) return;
+        if (selectedMap() !== map) return addLog('선택한 지도석이 바뀌어 기운 바꾸기를 취소했습니다.', 'attack-monster');
+        applyFlower(map, color, picked);
     }
     /** 각인 홈: 누르면 끼우고, 다시 누르면 뺀다. 지도를 열 때마다(자동 지도 포함) 가진 것만 하나씩 쓴다. */
     function toggleFragment(id) {
@@ -217,7 +244,7 @@ const atlasUi = (() => {
         const found = lootOmens.of(map);
         if (!found) return '';
         const omen = lootOmens.describe(found.omen.id);
-        return `<p class="atlas-omen" style="--omen:${omen.tone}"><b>${escapeHTML(omen.name)}</b><small>세기 ×${found.strength}</small>`
+        return `<p class="atlas-omen${map.uid === bloomedUid ? ' is-bloomed' : ''}" style="--omen:${omen.tone}"><b>${escapeHTML(omen.name)}</b><small>세기 ×${found.strength}</small>`
             + `<span>${escapeHTML(omen.note)}</span></p>`;
     }
     function omenChipHtml(map) {
@@ -288,7 +315,7 @@ const atlasUi = (() => {
             ? '보관함이나 노드에서 지도석을 고르세요.' : '지도석이 없습니다. 혼돈 20 이상에서 보스를 잡거나 이번 루프의 혼돈 20을 깨면 들어옵니다.'}</p>${fragmentsHtml()}</section>`;
         const crafts = CRAFT_ORDER.map(key => craftButtonHtml(map, key)).join('');
         return `<section class="atlas-device" aria-label="지도 장치"><h3>지도 장치</h3>${mapCardHtml(map, buildMapPowerEstimateHtml(atlas.preview(game, map)))}
-            <div class="atlas-crafts" aria-label="지도석 제작">${crafts}</div>${fragmentsHtml()}${chancesHtml()}
+            <div class="atlas-crafts" aria-label="지도석 제작">${crafts}</div>${flowersHtml(map)}${fragmentsHtml()}${chancesHtml()}
             ${lock ? `<p class="atlas-lock">${lock}</p>` : ''}<div class="atlas-actions"><button class="atlas-primary" data-exploration-departure
             onclick="atlasUi.open()" ${lock ? 'disabled' : ''}>지도 열기</button></div></section>`;
     }
@@ -296,6 +323,22 @@ const atlasUi = (() => {
         const have = Math.floor(game.currencies[key] || 0), reason = atlasMaps.craftReason(map, key);
         return `<button onclick="atlasUi.craft('${key}')" ${reason || have < 1 ? 'disabled' : ''}${reason ? ` data-tip="${escapeHTML(reason)}"` : ''}>
             <span>${window.getStyledOrbName(key)}</span><small>${atlasMaps.crafts[key].label}, ${have}</small></button>`;
+    }
+    /** 꽃 한 색(data/loot-omens.js flowers): 평범한 꽃의 단추와, 황금 꽃을 가졌을 때만 고르는 단추. 툴팁은 그 색으로 나올 수 있는 기운이다. */
+    function flowerButtonsHtml(map, color) {
+        const name = `${STUMP_BOX_COLORS[color].label} 꽃`, blocked = atlas.omenChangeReason(map), names = lootOmens.flowerOmens(color, game, map.omen).map(omen => omen.name).join(', ');
+        const plain = stumpBox.storedFlowerCount(game, color, false), golden = stumpBox.storedFlowerCount(game, color, true), closed = blocked || !names;
+        const icon = `<img class="atlas-flower-icon" src="${stumpBox.harvestPriceIcon(stumpBox.harvestPriceKey('flower', color))}" alt="">`;
+        const tip = blocked || (plain ? names : `${name}이 없습니다. ${names}`);
+        const pick = golden ? `<button class="is-golden" onclick="atlasUi.goldenFlowerOmen('${color}')" ${closed ? 'disabled' : ''} data-tip="${escapeHTML(blocked || names)}">
+            ${icon}<span>황금 ${name}<small>직접 고르기, ${golden}</small></span></button>` : '';
+        return `<div class="atlas-flower" style="--flower:${STUMP_BOX_COLORS[color].tone}"><button onclick="atlasUi.flowerOmen('${color}')" ${closed || plain < 1 ? 'disabled' : ''} data-tip="${escapeHTML(tip)}">
+            ${icon}<span>${name}<small>${LOOT_OMENS.flowers[color].label}, ${plain}</small></span></button>${pick}</div>`;
+    }
+    /** 지도 노드의 지도석에만 기운이 있다(수호자 지도석은 없다). */
+    function flowersHtml(map) {
+        if (atlas.node(map.node)?.kind !== 'map') return '';
+        return `<div class="atlas-flowers" aria-label="꽃으로 기운 바꾸기"><p>꽃으로 기운 바꾸기</p>${FLOWER_COLORS.map(color => flowerButtonsHtml(map, color)).join('')}</div>`;
     }
     const TICKET = key => ORB_DB[key].name.replace('그림자 뿌리 입장권: ', '');
     function nodeDetailHtml() {
@@ -494,7 +537,7 @@ const atlasUi = (() => {
         if (!panel || !panelOpen()) return;
         atlas.sync(game);
         atlasBoard.sync(game);
-        const wallet = [...CRAFT_ORDER, ...ATLAS.pinnacle.tickets].map(key => game.currencies[key] || 0);
+        const wallet = [...[...CRAFT_ORDER, ...ATLAS.pinnacle.tickets].map(key => game.currencies[key] || 0), ...flowerWallet()];
         if (!viewOpen(view)) view = 'maps'; // 다른 저장을 불러와 원정이 닫힌 뒤
         const key = JSON.stringify([view, ledger(), selectedNode, selectedUid, wallet, atlasRun.blockReason(), game.currentZoneId, game.maxZoneId, game.settings.mapCompleteAction, getPersistentBuildSignature(game)]);
         if (key === signature && panel.innerHTML) return;
@@ -580,6 +623,6 @@ const atlasUi = (() => {
         signature = '';
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, selectNode, selectMap, revealDevice, revealStash, hint, craft, discard, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, selectNode, selectMap, revealDevice, revealStash, hint, craft, flowerOmen, goldenFlowerOmen, discard, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
 })();
 safeExposeGlobals({ atlasUi });

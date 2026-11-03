@@ -12,7 +12,7 @@
 const MONSTER_STAGE_ROSTER = Object.freeze({
     path: 'assets/enemies/roster/',
     /** 그림 묶음의 지문: 그림을 이 값과 함께 불러, 칸이 바뀐 그림을 브라우저가 예전 것으로 쓰지 않게 한다. */
-    version: '925221d80f',
+    version: 'c5c2b233ed',
     /** 제 새 그림이 아직 없어 다른 외형의 그림을 빌려 입는 외형(위습: 같은 속성의 새 그림). */
     wears: Object.freeze({ 'meteor-shard': 'cosmos-star', 'meteor-melt': 'cosmos-ooze', 'meteor-sentinel': 'cosmos-sentinel', 'cerberus-head': 's6_beast_cerberus', 'cerberus-fang': 's6_beast_cerberus', 'underworld-king': 'realm_underking', 'cosmos-colossus': 'realm_colossus', 'sky-titan': 'realm_titan',
         'atlas-roots-0': 'guardian-roots', 'atlas-roots-2': 'trial_3', 'atlas-roots-4': 'apex_compost', 'atlas-roots-5': 'realm_underking',
@@ -125,7 +125,7 @@ const MONSTER_STAGE_ROSTER = Object.freeze({
         ["deacon-act6-ranged","고갈 성수 부제녀",89,97,47,95,90,63,"legs",[6,6,[133.33,133.33,133.33,133.33,133.33,133.33],"stride"],[6,6,[200,166.67,166.67,83.33,116.67,200],3],[35,27],null],
         ["deacon-act7-melee","고목 철퇴 부제사",105,116,59,114,94,83,"legs",[6,6,[133.33,133.33,133.33,133.33,133.33,133.33],"stride"],[6,6,[200,166.67,166.67,83.33,116.67,200],3],[43,38],null],
         ["deacon-act7-ranged","고목 성수 부제녀",91,97,48,94,90,63,"legs",[6,6,[133.33,133.33,133.33,133.33,133.33,133.33],"stride"],[6,6,[200,166.67,166.67,83.33,116.67,200],3],[37,24],null],
-        ["deacon-act8-melee","장막 철퇴 부제사",119,118,65,114,94,88,"legs",[6,6,[133.33,133.33,133.33,133.33,133.33,133.33],"stride"],[6,6,[200,166.67,166.67,83.33,116.67,200],3],[36,49],null],
+        ["deacon-act8-melee","장막 철퇴 부제사",120,118,67,114,94,88,"legs",[6,6,[133.33,133.33,133.33,133.33,133.33,133.33],"stride"],[6,6,[200,166.67,166.67,83.33,116.67,200],3],[63,22],null],
         ["deacon-act8-ranged","장막 성수 부제녀",88,99,48,94,90,62,"legs",[6,6,[133.33,133.33,133.33,133.33,133.33,133.33],"stride"],[6,6,[200,166.67,166.67,83.33,116.67,200],3],[38,23],null],
         ["root-greatsword","대검 뿌리촉수",122,107,70,103,60,111,"legs",[6,6,[133.33,133.33,133.33,133.33,133.33,133.33],"stride"],[6,6,[200,166.67,166.67,83.33,116.67,200],3],[62,49],null],
         ["root-scimitar","한손검 뿌리촉수",103,98,53,95,66,81,"legs",[6,6,[133.33,133.33,133.33,133.33,133.33,133.33],"stride"],[6,6,[200,166.67,166.67,83.33,116.67,200],3],[44,34],null],

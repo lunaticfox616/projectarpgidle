@@ -173,6 +173,26 @@ const atlas = (() => {
         state.atlas.stash.splice(index, 1);
         return '';
     }
+    /** '' when a flower can change this stone's omen, otherwise why not: guardian stones carry none, and corruption closes a stone as it does for crafts. */
+    function omenChangeReason(map) {
+        if (BY_ID.get(map.node)?.kind !== 'map') return '지도 노드의 지도석에만 기운이 붙습니다.';
+        return map.corrupted ? '타락한 지도석은 더 바꿀 수 없습니다.' : '';
+    }
+    /** 꽃 하나로 지도석의 기운을 바꾼다(data/loot-omens.js flowers): omenId가 없으면 평범한 꽃으로 다시 굴리고, 있으면 황금 꽃으로 그 기운을 고른다.
+     * 바꿀 수 없으면 꽃도 지도석도 그대로다. @returns {{reason?:string, omen?:string}} */
+    function changeOmen(state, uid, color, omenId = null, random = Math.random) {
+        const map = state.atlas.stash.find(entry => entry.uid === uid);
+        if (!map) return { reason: '보관함에 없는 지도석입니다.' };
+        const reason = omenChangeReason(map);
+        if (reason) return { reason };
+        const open = lootOmens.flowerOmens(color, state, map.omen).some(omen => omen.id === omenId);
+        const next = omenId ? (open ? omenId : null) : lootOmens.rollFlowerOmen(color, state, map.omen, random);
+        if (!next) return { reason: '이 꽃으로 바꿀 수 있는 기운이 없습니다.' };
+        // 화폐화한 꽃도 평범한 꽃이라 '보관함에'는 황금 꽃에만 붙는다.
+        if (!stumpBox.payFlower(state, color, !!omenId)) return { reason: `${omenId ? '보관함에 황금 ' : ''}${STUMP_BOX_COLORS[color].label} 꽃이 없습니다.` };
+        map.omen = next;
+        return { omen: next };
+    }
     /** The loadout's first `slots` fragments in stock. Encounter fragments only while the map has ordinary rooms left for
      * them (guardian and pinnacle arenas have none) — the rest stay in the stock. */
     function activeFragments(state, rooms = Infinity) {
@@ -661,7 +681,7 @@ const atlas = (() => {
     return Object.freeze({ nodes: NODES, links: LINKS, renameSavedIds, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, beginBoard, lateNodes: LATE_NODES,
-        slots, setLoadout, beginReason, begin, discard, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
+        slots, setLoadout, beginReason, begin, discard, omenChangeReason, changeOmen, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
         zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();

@@ -104,6 +104,17 @@
 #ui-atlas .atlas-crafts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:10px}
 #ui-atlas .atlas-crafts button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-height:38px;padding:5px 7px;text-align:left}
 #ui-atlas .atlas-crafts small{color:var(--atlas-muted);font-size:10px}
+#ui-atlas .atlas-flowers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin-top:10px}
+#ui-atlas .atlas-flowers>p{grid-column:1/-1;margin:0;color:var(--atlas-muted);font-size:12px}
+#ui-atlas .atlas-flower{display:grid;align-content:start;gap:5px}
+#ui-atlas .atlas-flower button{display:grid;grid-template-columns:32px minmax(0,1fr);align-items:center;gap:6px;min-height:40px;padding:3px 7px 3px 4px;border-left:3px solid var(--flower);text-align:left}
+#ui-atlas .atlas-flower img{display:block;width:32px;height:32px;image-rendering:pixelated}
+#ui-atlas .atlas-flower button:disabled img{opacity:.45}
+#ui-atlas .atlas-flower span{display:grid;gap:1px;min-width:0}
+#ui-atlas .atlas-flower small{color:var(--atlas-muted);font-size:10px}
+#ui-atlas .atlas-flower .is-golden{border-color:#d9b066;background:linear-gradient(90deg,rgba(217,176,102,.22),transparent);color:#f0d9a4}
+#ui-atlas .atlas-omen.is-bloomed{animation:atlas-omen-bloom .6s steps(6) 1}
+@keyframes atlas-omen-bloom{from{box-shadow:0 0 0 2px var(--omen),0 0 14px var(--omen);filter:brightness(1.7)}to{box-shadow:none;filter:none}}
 #ui-atlas .atlas-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 #ui-atlas .atlas-actions button{min-height:34px;padding:6px 12px}
 #ui-atlas .atlas-primary{background:#cfb887;border-color:#e6cf9f;color:#17140f;font-weight:700;box-shadow:inset 1px 1px 0 #fff3cf,inset -1px -1px 0 #7a6440,2px 2px 0 #000}
