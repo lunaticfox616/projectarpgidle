@@ -18,8 +18,10 @@ const STAGE_VIEW = Object.freeze({
     /** 2026-11-02 사용자 "캐릭터랑 칸이랑 맵 크기랑 동기화": 칸 너비가 어중간하면 방 그림의 2px 도트가 캔버스 픽셀에 떨어지지 않아 옆 색과 섞인다. PC 창은 칸 너비를
      * 캔버스 픽셀로 canvasPx의 배수(64, 96, 128)에서만 골라 칸, 캐릭터, 방 그림이 함께 옮겨 간다. 2026-10-11의 이어지는 칸과 달리 가로 1600 이상이면 전체화면과 같은
      * 크기로 보이는 칸만 줄고, 그보다 좁으면 3분의 2 크기가 된다. 고른 칸에서 maxColumns칸(방 그림 1672도트의 폭)보다 많이 보이면 그림이 창을 덮지 못해 양옆이 비므로
-     * 그런 창(낮고 넓은 창)과 휴대폰, 태블릿 세로는 이어지는 칸 그대로다. */
-    tileSteps: Object.freeze({ canvasPx: 32, maxColumns: 26 }),
+     * 그런 창(낮고 넓은 창)과 휴대폰, 태블릿 세로는 이어지는 칸 그대로다.
+     * 2026-11-04 사용자 "1픽셀로 간다음": 1.5px 도트는 한 도트 걸러 옆 색과 섞여 흐려 보였다. 이제 칸은 64의 배수(도트 하나가 캔버스 픽셀의 정수배)이고,
+     * 보이는 칸이 maxColumns를 넘지 않는 가장 작은 칸을 고른다. 1080p(가로 1920)는 도트 1px에 30칸이 보이고, 방 그림보다 넓은 양옆 124px은 어둡게 빈다. */
+    tileSteps: Object.freeze({ canvasPx: 64, maxColumns: 32 }),
     /** 2026-10-13 (가로로 긴 창 2560×720에서 방의 뒤쪽 줄이 화면 위로 나가 몬스터의 머리와 체력바가 잘렸다): 칸 크기는 화면 높이도 따른다.
      * 방 바닥의 뒤쪽 끝 위로 dots도트(뒤쪽 줄에 선 몬스터의 키와 체력바, 이름표)와 화면 위쪽의 top px(구역 이름과 진행 막대의 줄)이
      * 남는 가장 큰 칸까지만 커진다. 그보다 작은 창에서는 전처럼 minDot이 아래 끝이다. */
@@ -307,6 +309,12 @@ const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-
     s2_boss_flame: 1.15, s2_boss_frost: 1.3, s2_boss_storm: 1.2,
     rival_overheat: 1.25, rival_dull: 1.4, rival_glutton: 1.2, rival_afterimage: 1.4, rival_backedge: 1.15, rival_masterwork: 1.1 });
 
+/** 그림에 제 어두운 테두리 선이 있는 몬스터 외형(js/canvas-stage-roster.js). 2026-11-03 Codex가 테두리를 다시 그린 외형은 검은 선이 빠져 주인공(도트 하나
+ * 굵기의 검은 선)과 화풍이 달라 보였다. 2026-11-04 사용자 "테두리에 까만선 없는 몬스터들만 까만선 + 빨간선으로 하자": 여기 없는 외형은 무대가
+ * 한 도트 검은 선을 두르고 빨간 테를 그 밖에 한 도트 더 두른다. 여기 있는 외형은 다시 그리지 않은 11종(검정, 남색, 갈색 선)이라 전처럼 빨간 테만 두른다. */
+const STAGE_INKED_LOOKS = Object.freeze(['league_nursery', 'pinnacle_leviathan', 'atlas-sanctum-7', 'bossAct10_2', 'apex_gardener', 's2_boss_frost',
+    's2_boss_storm', 'pinnacle_sky', 'atlas-trunk-8', 'atlas-garden-8', 'breach-reflux']);
+
 /** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서 그 대사의 NPC(data/story-journal.js
  * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",
  * 지도마다 같은 NPC가 앞질러 서 있는 게 어색했다). 누르면 그 NPC의 창(대사, 상점)이 열린다(js/content-progression-ui.js openNpc).
@@ -365,4 +373,4 @@ const STAGE_OCEAN = Object.freeze({
     lift: Object.freeze({ closed: 'ocean-lift-closed', open: 'ocean-lift-open', size: Object.freeze([160, 240]), feet: Object.freeze([80, 236]), below: 12 })
 });
 
-safeExposeData({ STAGE_HERO_RISE, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_STORY, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS, STAGE_OCEAN });
+safeExposeData({ STAGE_HERO_RISE, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_STORY, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_INKED_LOOKS, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS, STAGE_OCEAN });
