@@ -804,7 +804,8 @@ const stumpBoxUi = (() => {
             placementKey = key;
         }
         markPlacement(placement.result);
-        // A mouse hover shows it as the tooltip at the pointer (2026-11-03 사용자: 탭 대신 호버 툴팁); a drag, a pinned touch or a keyboard focus keeps the box under the board.
+        // A mouse hover and a drag show it as the tooltip at the pointer (2026-11-03 사용자: 탭 대신 호버 툴팁, 2026-11-04: 끌어 바꿀 때도);
+        // a pinned touch or a keyboard focus keeps the box under the board.
         if (placement.hover) { node.hidden = true; return; }
         const { title, verb, rows } = placementParts();
         const buttons = placement.pinned ? `<div class="stump-actions"><button type="button" data-stump-action="placement-apply">${verb}</button>`
@@ -824,6 +825,10 @@ const stumpBoxUi = (() => {
         const { title, verb, rows } = placementParts(), item = stumpBox.itemById(game, placement.id);
         return `<div class="tooltip-title" style="color:${itemTone(item)}">${escStump(title)}</div>`
             + `<div class="tooltip-line stump-placement-label">${verb} 미리보기</div><div class="stump-placement-tip">${rows}</div>`;
+    }
+    /** The hover or drag preview as a tooltip, or null when there is none (or it is pinned in the box). */
+    function placementTip() {
+        return placement?.hover && placement.result ? { html: placementTipHtml(), tone: itemTone(stumpBox.itemById(game, placement.id)) } : null;
     }
     /** The nursery has no effects to compare: a touch drop (pinned) goes straight in. hover: a mouse over the cell with an item selected. */
     function previewCell(id, cell, pinned = false, hover = false) {
@@ -865,7 +870,7 @@ const stumpBoxUi = (() => {
     function hoverCell(cell, tip = false) {
         if (selectedId !== null && !onNursery()) previewCell(selectedId, cell, false, tip);
         if (!placement?.result) return null;
-        return placement.hover ? { html: placementTipHtml(), tone: itemTone(stumpBox.itemById(game, placement.id)) } : { html: '', tone: '' };
+        return placementTip() || { html: '', tone: '' };
     }
     function applyPlacement() {
         if (!placement) return;
@@ -1443,6 +1448,6 @@ const stumpBoxUi = (() => {
     }
 
     return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, showStoragePage, dropOnCube, dropCubeItem, claimReward,
-        itemTipHtml, previewCell, hoverCell, clearPlacementPreview, syncEquipmentBag, frameShowsCube };
+        itemTipHtml, previewCell, hoverCell, placementTip, clearPlacementPreview, syncEquipmentBag, frameShowsCube };
 })();
 safeExposeGlobals({ stumpBoxUi });

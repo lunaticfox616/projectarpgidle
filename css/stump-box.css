@@ -306,7 +306,8 @@
   #tab-stump .stump-placement-preview button { min-height: 36px; }
   /* 마우스로 칸에 올렸을 때의 같은 비교는 툴팁에 뜬다(js/stump-box-ui.js placementTipHtml). */
   #info-tooltip .stump-placement-tip ul { margin: 2px 0 0; padding: 0; list-style: none; }
-  #info-tooltip .stump-placement-tip :is(li, p) { margin: 0; font-size: 12px; line-height: 18px; }
+  /* 줄은 툴팁의 다른 옵션 줄과 같은 갈무리14 15px(2026-11-04 사용자: 흐린 글씨, 갈무리14를 12px로 줄여 번졌다) */
+  #info-tooltip .stump-placement-tip :is(li, p) { margin: 0; }
   #info-tooltip .stump-placement-tip .is-bad { color: #f29a88; }
   #info-tooltip .stump-placement-tip .is-good { color: #b4e07e; }
   #tab-stump .stump-cell {
@@ -665,7 +666,8 @@
   .stump-badges > .is-bumper { color: #9fd46a; }
   .stump-badges > .is-bloom { color: #e8a0d8; }
   .stump-extra { margin: 2px 0; padding-left: 8px; border-left: 2px solid #3b2f1e; font-size: 12px; line-height: 1.5; }
-  .stump-extra small { color: var(--px-copy-muted, #a39883); }
+  /* 흉터 줄의 (최대 n): 줄과 같은 크기(작게 줄이면 도트 글꼴이 번졌다, 2026-11-04 사용자: 흐린 글씨)에 흐린 색만 */
+  :is(.stump-extra, .stump-tip-extra) small { color: var(--px-copy-muted, #a39883); font-size: inherit; }
   .stump-tip-extra { padding-left: 8px; border-left: 2px solid #3b2f1e; }
   .stump-tip-seal { color: #e08a5a; }
   .stump-seal { margin-top: 8px; padding-top: 6px; border-top: 1px solid #2a2218; }

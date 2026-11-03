@@ -104,8 +104,14 @@
         drag.zone?.classList.remove('is-drop-ok', 'is-drop-bad');
         drag.zone = zone;
         if (zone) zone.classList.add(zoneAccepts(zone) ? 'is-drop-ok' : 'is-drop-bad');
-        if (!drag.cube && zone?.dataset.stumpDropCell !== undefined && zoneAccepts(zone)) stumpBoxUi.previewCell(drag.id, Number(zone.dataset.stumpDropCell));
+        if (!drag.cube && zone?.dataset.stumpDropCell !== undefined && zoneAccepts(zone)) stumpBoxUi.previewCell(drag.id, Number(zone.dataset.stumpDropCell), false, true);
         else stumpBoxUi.clearPlacementPreview(true);
+    }
+    /** Over a board cell the placement preview rides with the pointer as a tooltip (2026-11-04 사용자: 끌어 바꿀 때도 탭 대신 툴팁). */
+    function showDragTip(point) {
+        const tip = drag.cube ? null : stumpBoxUi.placementTip();
+        if (tip) showInfoTooltipHtml(point.clientX, point.clientY, tip.html, tip.tone);
+        else hideInfoTooltip();
     }
     /** 끄는 동안 보관함 쪽 단추 위에 머물면 그 쪽을 연다(다른 쪽으로 옮기려고). */
     function flipStoragePage(point) {
@@ -121,6 +127,7 @@
         drag.point = point;
         drag.ghost.style.transform = `translate3d(${Math.round(point.clientX / scale)}px,${Math.round(point.clientY / scale)}px,0)`;
         markZone(zoneAt(point.clientX, point.clientY));
+        showDragTip(point);
         flipStoragePage(point);
     }
     function scheduleFollow(event) {
@@ -140,6 +147,7 @@
         document.getElementById('tab-stump')?.classList.remove('is-stump-dragging');
         drag = null;
         stumpBoxUi.clearPlacementPreview();
+        hideInfoTooltip();
     }
     function finishDrag(event) {
         const id = drag.id, zone = zoneAt(event.clientX, event.clientY);
@@ -235,18 +243,11 @@
         // An empty cell has no tooltip anchor of its own: its hover preview leaves with it.
         if (stumpBoxUi.clearPlacementPreview(true) && !anchor) hideInfoTooltip();
     }
-    /** Keyboard users reach the rules by focusing the ? button (pressing it is handled by stumpBoxUi). */
-    function onRulesFocus(event) {
-        const target = stumpTarget(event), button = target && target.closest('[data-stump-tip="rules"]');
-        const cell = target && target.closest('[data-stump-drop-cell]');
+    /** A keyboard-focused cell previews the selected item's placement in the box under the board. The ? button opens its rules
+     * window when pressed (stumpBoxUi), so it has no focus tooltip. */
+    function onCellFocus(event) {
+        const target = stumpTarget(event), cell = target && target.closest('[data-stump-drop-cell]');
         if (cell?.matches(':focus-visible')) stumpBoxUi.hoverCell(Number(cell.dataset.stumpDropCell));
-        if (!button || !button.matches(':focus-visible')) return;
-        const rect = button.getBoundingClientRect(), tip = stumpBoxUi.tipFor(button);
-        showInfoTooltipHtml(rect.left, rect.bottom, tip.html, tip.tone);
-    }
-    function onRulesBlur(event) {
-        const target = stumpTarget(event);
-        if (target && target.closest('[data-stump-tip="rules"]')) hideInfoTooltip();
     }
 
     function bind() {
@@ -260,8 +261,7 @@
         document.addEventListener('pointerover', onHover);
         document.addEventListener('pointermove', onHover, { passive: true });
         document.addEventListener('pointerout', onLeave);
-        document.addEventListener('focusin', onRulesFocus);
-        document.addEventListener('focusout', onRulesBlur);
+        document.addEventListener('focusin', onCellFocus);
         document.addEventListener('contextmenu', event => { if (press || drag) event.preventDefault(); });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind, { once: true });
