@@ -48,5 +48,9 @@ runtime.setTimeout = fn => setImmediate(fn);
 const asyncResult = await simulateBackgroundCombatChunked({ elapsedMs: 360000, snapshot });
 assert.strictEqual(asyncResult.processedMs, syncResult.processedMs);
 
+// Away in a root boss fight: the result applies. It was refused after the whole replay, so every retry and reload failed (2026-11-03).
+run("game = mergeDefaults({ season: 2, currentZoneId: 's2_boss_frost', inTicketBossFight: true, heroSelectionInitialized: true, playerHp: 100 })");
+assert.strictEqual(run('shouldApplyBackgroundCombatResult(getBackgroundCombatSignature(game))'), true, 'a ticket boss fight settles');
+
 console.log('smoke-offline-progress: ok');
 }()).catch(error => { console.error(error); process.exitCode = 1; });
