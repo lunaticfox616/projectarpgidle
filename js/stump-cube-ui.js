@@ -1,10 +1,11 @@
 // 조합창 화면: 5×5 칸(그루터기 함 판과 같은 틀 자리, 틀 위 생명의 나무로 서로 바꾼다: js/stump-box-ui.js), 틀 아래에 맞는 조합법과 비용,
-// 바로 넣기, 최근 결과. 조합은 틀의 아래 보석, 비우기는 오른쪽 보석이 한다(2026-10-29 사용자: 틀 아래 단추 넷을 지웠다). 빈 칸을 누르면
+// 바로 넣기, 최근 결과. 조합은 틀 아래 단추(2026-11-03, 아래 보석은 생육함으로 바꾼다), 비우기는 오른쪽 보석이 한다. 빈 칸을 누르면
 // 재료 고르기(선택 대화 상자: 장비 · 그루터기 · 주얼 · 코어)가 열린다. 조합법은 틀 아래의 책: 누르면 책이 화면 가운데로 커지며 펼쳐진다.
 // 칸과 책 단추는 stump-box-ui.js의 클릭 위임(data-stump-action)이 이 모듈의 동작을 부르고, 대화 상자 단추는 직접 부른다. 규칙은 stump-cube.js.
 const stumpCubeUi = (() => {
     const OVERLAY_ID = 'stump-cube-picker';
-    const KIND_LABELS = { equipment: '장비', stump: '그루터기', jewel: '주얼', core: '코어' };
+    const KIND_LABELS = { equipment: '장비', stump: '그루터기', jewel: '주얼', core: '코어', wallet: '화폐화' };
+    const isStumpKind = kind => kind === 'stump' || kind === 'wallet';
     let pickerKind = 'equipment';
     let pickerItems = [], pickerSelection = null, lastResult = null;
 
@@ -13,18 +14,19 @@ const stumpCubeUi = (() => {
     const ICONS = Object.freeze({
         equipment: item => getEquipmentGridVisualAsset(item),
         stump: item => stumpBox.iconPath(item),
+        wallet: item => stumpBox.iconPath(item),
         jewel: item => getInventoryItemVisualAsset(item, 'jewel'),
         core: item => coreItems.icon(item)
     });
 
     function itemName(kind, item) {
         if (kind === 'currency') return ORB_DB[item.currency].name;
-        return kind === 'stump' ? stumpBox.label(item) : String(item.name || KIND_LABELS[kind]);
+        return isStumpKind(kind) ? stumpBox.label(item) : String(item.name || KIND_LABELS[kind]);
     }
 
     function itemTone(kind, item) {
         if (kind === 'stump' && item.albino) return STUMP_BOX_RIPENING.albino.tone;
-        if (kind === 'stump' && item.color) return STUMP_BOX_COLORS[item.color].tone;
+        if (isStumpKind(kind) && item.color) return STUMP_BOX_COLORS[item.color].tone;
         if (kind === 'stump' && item.family === 'scar') return STUMP_BOX_SCAR.tone;
         return getRarityColor(item.rarity || 'normal');
     }
@@ -74,9 +76,9 @@ const stumpCubeUi = (() => {
     // 덮어 한 덩어리로 보인다(2026-10-28 사용자: 중앙의 선을 가리도록, css/stump-box.css .is-multi).
     const track = (at, span = 1) => `${at * 2 + 1} / span ${span * 2 - 1}`;
     function entryHtml(entry) {
-        const name = itemName(entry.kind, entry.item), cell = entry.y * stumpCube.SIZE + entry.x;
+        const wallet = entry.kind === 'wallet', name = `${itemName(entry.kind, entry.item)}${wallet ? ' (화폐화)' : ''}`, cell = entry.y * stumpCube.SIZE + entry.x;
         // data-stump-drag-cube: the item can be dragged to another cube cell or out to the storage or bag (js/stump-box-drag-ui.js).
-        return `<button type="button" class="stump-cube-item${entry.w * entry.h > 1 ? ' is-multi' : ''}" data-stump-action="cube-cell" data-cell="${cell}" data-stump-drop-cube="${cell}"`
+        return `<button type="button" class="stump-cube-item${entry.w * entry.h > 1 ? ' is-multi' : ''}${wallet ? ' is-wallet' : ''}" data-stump-action="cube-cell" data-cell="${cell}" data-stump-drop-cube="${cell}"`
             + ` data-stump-drag-cube="${cell}" data-cube-w="${entry.w}" data-cube-h="${entry.h}"`
             + ` style="grid-column:${track(entry.x, entry.w)};grid-row:${track(entry.y, entry.h)};--cube-tone:${itemTone(entry.kind, entry.item)}"`
             + ` data-tip="${esc(name)}, 누르면 꺼냅니다" aria-label="${esc(name)} 꺼내기"><img src="${ICONS[entry.kind](entry.item)}" alt="" draggable="false"></button>`;
@@ -209,7 +211,8 @@ const stumpCubeUi = (() => {
     }
 
     // ── 재료 고르기 ─────────────────────────────────────────
-    function candidateMeta(kind, item) {
+    const candidateMeta = (kind, item) => (kind === 'wallet' ? `화폐화 ${stumpBox.walletCount(game, item.walletKey)}개` : storedItemMeta(kind, item));
+    function storedItemMeta(kind, item) {
         // Candidates and results are stored, so an unripe one is not growing yet ("성장 중" means placed on the board).
         if (kind === 'stump' && item.color) return `품질 ${Math.round(item.roll * 100)}%, ${stumpBox.isMature(item) ? '성장 완료' : '성장 전'}`;
         const rarity = ITEM_RARITY_LABELS[item.rarity] || '';
@@ -227,7 +230,7 @@ const stumpCubeUi = (() => {
     function firstOption(kind, item) {
         if (kind === 'core') return item.lines[0] ? coreItems.describe(item.lines[0]) : '';
         if (kind === 'stump') return stumpFirstOption(item);
-        if (kind === 'currency') return '';
+        if (kind === 'currency' || kind === 'wallet') return '';
         return firstStatOption(kind, item);
     }
 
@@ -264,7 +267,8 @@ const stumpCubeUi = (() => {
     }
 
     function renderItemDetails(body, kind, item, snapshot = false) {
-        if (kind === 'stump') body.innerHTML = statToneText.markup(stumpBoxUi.itemTipHtml(item, snapshot));
+        if (kind === 'wallet') body.innerHTML = `<h3>${esc(itemName(kind, item))}</h3>`;
+        else if (kind === 'stump') body.innerHTML = statToneText.markup(stumpBoxUi.itemTipHtml(item, snapshot));
         else if (kind === 'currency') body.innerHTML = `<h3>${esc(ORB_DB[item.currency].name)}</h3><p>${statToneText.html(ORB_DB[item.currency].desc || '')}</p>`;
         else showItemTooltip(null, null, false, item, { target: body });
     }
@@ -334,9 +338,12 @@ const stumpCubeUi = (() => {
             + `${option ? `<span class="stump-cube-candidate-option">${statToneText.html(option)}</span>` : ''}</span></button>`;
     }
 
+    /** A tab's count; currency counts its units. No currency, no tab (unless it is the one showing). */
+    const pickerCount = kind => (kind === 'wallet' ? stumpBox.walletTotal(game) : stumpCube.candidates(kind).length);
     function pickerBodyHtml() {
-        const tabs = stumpCube.KINDS.map(kind => `<button type="button" class="${kind === pickerKind ? 'is-on' : ''}" aria-pressed="${kind === pickerKind}"`
-            + ` onclick="stumpCubeUi.openCubePicker('${kind}')">${KIND_LABELS[kind]} ${stumpCube.candidates(kind).length}</button>`).join('');
+        const tabs = stumpCube.KINDS.filter(kind => kind !== 'wallet' || kind === pickerKind || pickerCount(kind) > 0)
+            .map(kind => `<button type="button" class="${kind === pickerKind ? 'is-on' : ''}" aria-pressed="${kind === pickerKind}"`
+            + ` onclick="stumpCubeUi.openCubePicker('${kind}')">${KIND_LABELS[kind]} ${pickerCount(kind)}</button>`).join('');
         pickerItems = stumpCube.candidates(pickerKind);
         if (pickerSelection && !pickerItems.includes(pickerSelection.item)) pickerSelection = null;
         const list = pickerItems.map((item, index) => candidateHtml(pickerKind, item, index)).join('');
@@ -392,13 +399,21 @@ const stumpCubeUi = (() => {
         return !reason;
     }
 
+    /** One unit of currency into the cube (a press on the 재화 tab while the frame shows the cube). It stays in the wallet until a recipe spends it. */
+    function putWalletUnit(key) {
+        const piece = stumpCube.candidates('wallet').find(row => row.walletKey === key);
+        const reason = piece ? stumpCube.put(game, 'wallet', piece) : '조합창에 더 넣을 수 없습니다.';
+        if (reason) showGameToast(reason, { tone: 'warning' });
+        refreshCube();
+    }
+
     function quickFillCube(recipeId) {
         const reason = stumpCube.fillCubeRecipe(game, recipeId);
         if (reason) showGameToast(reason, { tone: 'warning' });
         refreshCube();
     }
 
-    /** 아래 보석(조합창): 맞는 조합법대로 조합한다. */
+    /** 틀 아래 단추(조합창): 맞는 조합법대로 조합한다. */
     function transmuteCube() {
         const result = stumpCube.transmute();
         playUiFeedbackSound(result.ok ? 'craftSuccess' : 'craftFailure');
@@ -575,6 +590,6 @@ const stumpCubeUi = (() => {
     // recipeToneHtml is also the ? rules card's colouring (js/stump-box-ui.js stumpRulesTipHtml), so stump words read the same everywhere.
     return Object.freeze({ cubeHtml, cubeGridHtml, cubeSignature, openCubePicker, closeCubePicker, selectCubeItem, pickCubeItem, inspectCubeResult, takeOutCubeCell, moveCubeItem, transmuteCube,
         recipeToneHtml,
-        putStumpItem, quickFillCube, putBagItem, bookButtonHtml, openRecipeBook });
+        putStumpItem, putWalletUnit, quickFillCube, putBagItem, bookButtonHtml, openRecipeBook });
 })();
 safeExposeGlobals({ stumpCubeUi });

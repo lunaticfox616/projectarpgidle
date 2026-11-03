@@ -2,9 +2,10 @@
 // 칸에는 재료를 옮기지 않고 가리키기만 한다: 재료는 원래 보관 자리(장비 인벤토리 · 그루터기 함 보관함 · 주얼 보관함 · 코어
 // 보관함)에 그대로 있고, 그 자리를 떠나면(장착 · 해체 · 판에 놓기 · 루프 초기화) 칸에서도 빠진다. [조합]하면 맞는 조합법의
 // 재료를 없애고 결과를 원래 보관 자리에 넣은 뒤, 결과를 다시 칸에 보여 준다. 조합법 표는 data/stump-cube.js,
-// 결과 만들기는 stump-cube-recipes.js, 화면은 stump-cube-ui.js.
+// 결과 만들기는 stump-cube-recipes.js, 화면은 stump-cube-ui.js. 화폐화한 재화(kind 'wallet', js/stump-box.js)도 조각으로 가리키기만 해서,
+// 꺼내면 그대로이고 조합할 때만 줄어든다. 다 자란 재료 자리에만 들어가므로 합치기와 색 바꾸기로 실물이 되어 돌아오지 않는다.
 const stumpCube = (() => {
-    const KINDS = ['equipment', 'stump', 'jewel', 'core'];
+    const KINDS = ['equipment', 'stump', 'jewel', 'core', 'wallet'];
     const SIZE = STUMP_CUBE_SIZE;
     const LOCK_REASON = '☠️ 나무꾼 전투 중에는 조합할 수 없습니다.';
 
@@ -24,6 +25,7 @@ const stumpCube = (() => {
     /** Save boundary: keeps well-formed references only (whether they still point at something is checked when read). */
     function normalize(raw) {
         const slots = (raw && Array.isArray(raw.slots) ? raw.slots : []).filter(validSlot).slice(0, SIZE * SIZE)
+            .filter((slot, at, all) => all.findIndex(other => other.kind === slot.kind && other.id === slot.id) === at)
             .map(({ kind, id, x, y }) => ({ kind, id, x, y }));
         const known = raw && Array.isArray(raw.known) ? STUMP_CUBE_RECIPES.map(recipe => recipe.id).filter(id => raw.known.includes(id)) : null;
         return { slots, known };
@@ -57,7 +59,7 @@ const stumpCube = (() => {
 
     function stumpItem(state, id) {
         const box = state.stumpBox;
-        if (!box || !Array.isArray(box.items) || box.board.includes(id)) return null;
+        if (!box || !Array.isArray(box.items) || stumpBox.isPlaced(state, id)) return null;
         return box.items.find(item => item.id === id) || null;
     }
 
@@ -65,7 +67,8 @@ const stumpCube = (() => {
         equipment: (state, id) => (state.inventory || []).find(item => item && !bagItems.isSpecial(item) && equipmentLoadoutRuntime.getItemIdentity(item) === id) || null,
         stump: stumpItem,
         jewel: (state, id) => bagItems.jewels(state).find(item => item.id === id) || null,
-        core: (state, id) => bagItems.cores(state).find(item => item.id === id) || null
+        core: (state, id) => bagItems.cores(state).find(item => item.id === id) || null,
+        wallet: (state, id) => stumpBox.walletPieceById(state, id)
     });
 
     /** Items the cube may take: stored, not locked (equipment, stump items, jewels and cores alike), not kept by an equipment set. */
@@ -197,10 +200,13 @@ const stumpCube = (() => {
         return allowed === undefined || [].concat(allowed).includes(value);
     }
 
+    /** A wallet piece stands in for a grown stump item, and only where a row asks for one. */
+    const fitsRipeness = (rule, entry) => (rule.ripe ? entry.item.ripe === true : entry.kind !== 'wallet');
+    const materialKind = entry => (entry.kind === 'wallet' ? 'stump' : entry.kind);
     function fitsRule(rule, entry) {
         // path: 씨앗이 자란 길(꽃, 열매). 열매 기름(루프 36)이 열매만 받는다.
-        if (entry.kind !== rule.kind || !oneOf(entry.item.family, rule.family) || !oneOf(entry.item.rarity, rule.rarity) || !oneOf(entry.item.path, rule.path)) return false;
-        if (rule.ripe && entry.item.ripe !== true) return false;
+        if (materialKind(entry) !== rule.kind || !oneOf(entry.item.family, rule.family) || !oneOf(entry.item.rarity, rule.rarity) || !oneOf(entry.item.path, rule.path)) return false;
+        if (!fitsRipeness(rule, entry)) return false;
         return !rule.socketable || equipmentSockets.canChisel(entry.item);
     }
 
@@ -280,7 +286,8 @@ const stumpCube = (() => {
         },
         stump: (state, item) => { state.stumpBox.items = state.stumpBox.items.filter(row => row !== item); },
         jewel: (state, item) => { bagItems.take(item, state); },
-        core: (state, item) => { bagItems.take(item, state); }
+        core: (state, item) => { bagItems.take(item, state); },
+        wallet: (state, item) => { stumpBox.spendWallet(state, item.walletKey); }
     });
 
     /** Forced in: a cube result takes the place of the items it used, and storage can be over its limit (boss scars, talismans). */
@@ -330,23 +337,25 @@ const stumpCube = (() => {
     function storedUsable(kind, state) {
         const pools = {
             equipment: () => (state.inventory || []).filter(item => !bagItems.isSpecial(item)),
-            stump: () => ((state.stumpBox && state.stumpBox.items) || []).filter(item => !state.stumpBox.board.includes(item.id)),
+            stump: () => ((state.stumpBox && state.stumpBox.items) || []).filter(item => !stumpBox.isPlaced(state, item.id)),
             jewel: () => bagItems.jewels(state),
-            core: () => bagItems.cores(state)
+            core: () => bagItems.cores(state),
+            wallet: () => stumpBox.walletPieces(state, SIZE * SIZE)
         };
         return pools[kind]().filter(item => usable(kind, item));
     }
 
-    /** Items of one kind that could go in now (not already inside, not locked or placed). */
+    /** Items of one kind that could go in now (not already inside, not locked or placed); of currency, the next unit of each stack. */
     function candidates(kind, state = game) {
         const inside = new Set(entries(state).filter(entry => entry.kind === kind).map(entry => entry.id));
-        return storedUsable(kind, state).filter(item => !inside.has(kind === 'equipment' ? equipmentLoadoutRuntime.getItemIdentity(item) : item.id));
+        const free = storedUsable(kind, state).filter(item => !inside.has(kind === 'equipment' ? equipmentLoadoutRuntime.getItemIdentity(item) : item.id));
+        return kind === 'wallet' ? free.filter((piece, at) => free.findIndex(other => other.walletKey === piece.walletKey) === at) : free;
     }
 
     // ── 바로 넣기(2026-10-28 사용자: 조합법 가운데 가능한 세트가 있으면 빠르게 넣기) ─────────────
-    /** The plainest go first: golden and ancient stump items last, then lower quality (stump roll, gear quality) before higher. */
+    /** Currency goes first (2026-11-03 사용자), then the plainest: golden and ancient stump items last, then lower quality (stump roll, gear quality) before higher. */
     function cubeSpendOrder(a, b) {
-        const kept = entry => (entry.item.golden || entry.item.ancient ? 1 : 0);
+        const kept = entry => (entry.kind === 'wallet' ? -1 : entry.item.golden || entry.item.ancient ? 1 : 0);
         return kept(a) - kept(b) || (Number(a.item.roll) || 0) - (Number(b.item.roll) || 0) || (Number(a.item.quality) || 0) - (Number(b.item.quality) || 0);
     }
 

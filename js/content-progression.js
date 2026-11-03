@@ -171,7 +171,7 @@ const contentProgression = (() => {
     function ledger(state, loop) {
         const unlocked = Array.isArray(state.unlocked) ? state.unlocked : [], inherited = Array.isArray(state.inherited) ? state.inherited : [];
         const version = Number(state.version), before = !(version >= SERIES_VERSION), beforeTree = !(version >= LEDGER_VERSION);
-        const paid = def => !!def && kind(def) === 'paid' && !(before && def.series) && !(beforeTree && def.since === LEDGER_VERSION);
+        const paid = def => !!def && kind(def) === 'paid' && !(before && def.series) && !(beforeTree && def.since === LEDGER_VERSION) && !(def.addedIn && !(version >= def.addedIn));
         const remaining = CONTENT_UNLOCK_CATALOG.reduce((sum, def) =>
             sum + (paid(def) && !unlocked.includes(def.id) && !inherited.includes(def.id) ? def.cost : 0), 0);
         const spent = unlocked.reduce((sum, id) => sum + (paid(definitions.get(id)) ? Number((state.paidCosts || {})[id]) || 0 : 0), 0);
@@ -270,7 +270,7 @@ const contentProgression = (() => {
 
     function legacyAccess(def, owner) {
         // These features did not exist in a pre-ledger save; normal progress opens them.
-        if (['craftSimulator', 'knitting'].includes(def.id)) return false;
+        if (def.addedIn || ['craftSimulator', 'knitting'].includes(def.id)) return false;
         // Saves predating the unlock ledger used act five for the market.
         if (def.id === 'market') return owner.maxZoneId >= 5;
         if ((def.routes || []).some(route => owner.unlockedMapContents.includes(route))) return true;
@@ -343,7 +343,7 @@ const contentProgression = (() => {
             : savedIds(record.inherited);
         const savedChoices = savedIds(record.unlocked);
         const grandfathered = Number(record.version) < 5 ? savedChoices : record.grandfathered;
-        return { version: LEDGER_VERSION, highestLoop, legacy: legacy || record.legacy === true, carry: carryOf(record, highestLoop),
+        return { version: CONTENT_UNLOCK_RECORD_VERSION, highestLoop, legacy: legacy || record.legacy === true, carry: carryOf(record, highestLoop),
             looseContent: record.looseContent === true,
             graftFloor: Number(record.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(record.graftFloor) || 0)) : 0,
             paceCarry: Number(record.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(record.paceCarry) || 0)) : paceGap(highestLoop),
@@ -364,6 +364,7 @@ const contentProgression = (() => {
         inheritSplitGrowth(record, next);
         inheritGrowthSeries(record, next, owner, existingSave);
         inheritTreeAccess(record, next, existingSave);
+        keepOverflowOfAddedRows(record, next, existingSave);
         return next;
     }
 
@@ -384,6 +385,11 @@ const contentProgression = (() => {
 
     // 트리 전(장부 버전 11 미만)의 저장은 잃는 것이 없다(2026-11-02). 값이 새로 붙은 줄(def.since)은 그 루프에 닿았으면 물려받고(그때는 무료이거나 루프로 저절로
     // 열렸다), 콘텐츠는 앞 해금을 따지지 않으며(looseContent), 접붙이기에 넘기던 점수는 graftFloor로 남긴다(새 비용 때문에 넘치는 몫이 줄어도 단계가 깎이지 않게).
+    /** A record from before rows were added (def.addedIn) keeps the overflow it read then: the new prices never take back a graft rank. */
+    function keepOverflowOfAddedRows(record, next, existingSave) {
+        if (Number(record.version) >= CONTENT_UNLOCK_RECORD_VERSION || !existingSave) return;
+        next.graftFloor = Math.max(next.graftFloor, overflowOf(record, next.highestLoop));
+    }
     function inheritTreeAccess(record, next, existingSave) {
         if (Number(record.version) >= LEDGER_VERSION || !existingSave || next.highestLoop < 2) return;
         next.looseContent = true;

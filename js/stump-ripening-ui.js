@@ -67,6 +67,13 @@ const stumpRipeningUi = (() => {
         return requestGameConfirmation(`${withObjectParticle(stumpBox.shortName(item))} 버립니다. 되돌릴 수 없습니다.`, options);
     }
 
+    /** A stored grown item into currency: golden, ancient and albino ones ask first, the rest go at once. */
+    async function confirmMonetize(item) {
+        if (!isGolden(item) && !item.ancient && !item.albino) return true;
+        const options = { title: '화폐화', tone: 'danger', confirmLabel: '화폐화', cancelLabel: '취소' };
+        return requestGameConfirmation(`${withObjectParticle(stumpBox.shortName(item))} 화폐화합니다. 실물로 되돌릴 수 없습니다.`, options);
+    }
+
     // ── 봉인 칸 ───────────────────────────────────────────
     /** Seal or unseal a board cell (free); '' before the first seal cell opens. Only why it cannot be sealed is written out. */
     function sealHtml(cell) {
@@ -112,6 +119,12 @@ const stumpRipeningUi = (() => {
         });
         return [...groups].map(([name, rows]) => `${name} ${rows.length}개`
             + (rows[0].color ? ` (품질 ${rollRange(rows.map(item => Math.round(item.roll * 100)))})` : ''));
+    }
+    /** 일괄 버리기의 줄: 버리는 씨앗과 수액, 그다음 화폐화되는 다 자란 것. */
+    function bulkDiscardLines(items) {
+        const grown = new Map();
+        items.filter(stumpBox.isMature).forEach(item => grown.set(stumpBox.shortName(item), (grown.get(stumpBox.shortName(item)) || 0) + 1));
+        return [...bulkLines(items.filter(item => !stumpBox.isMature(item))), ...[...grown].map(([name, count]) => `화폐화: ${name} ${count}개`)];
     }
     /** What growing items the plan feeds: all of them, by the plan's whole growth. */
     function compostOutcome(plan) {
@@ -161,7 +174,7 @@ const stumpRipeningUi = (() => {
         const tail = compost ? compostOutcome(items) : [discardKeptLine(filter, items), '되돌릴 수 없습니다.'].filter(Boolean).join('\n');
         const options = { title: compost ? '일괄 거름 사용' : '일괄 버리기', tone: compost ? 'info' : 'danger',
             confirmLabel: `${items.length}개 ${compost ? '사용' : '버리기'}`, cancelLabel: '취소' };
-        return await requestGameConfirmation(`${bulkLines(items).join('\n')}\n\n${tail}`, options) ? confirmation.key : null;
+        return await requestGameConfirmation(`${(compost ? bulkLines(items) : bulkDiscardLines(items)).join('\n')}\n\n${tail}`, options) ? confirmation.key : null;
     }
 
     // ── 부적 도감 ─────────────────────────────────────────
@@ -188,7 +201,8 @@ const stumpRipeningUi = (() => {
         return ['성장 완료 시 추가 옵션, 풍작, 황금 여부가 정해집니다.',
             stumpBox.sealLimit(game) ? '봉인 칸: 루프가 바뀌어도 성장 상태가 유지됩니다.' : '',
             stumpBox.devourOpen(game) ? '불씨의 흉터: 루프가 바뀔 때 주변 8칸 중 무작위 1칸이 씨앗이나 수액이면 흡수합니다.' : '',
-            stumpBox.breedingOpen(game) ? '번식: 성장 완료된 열매는 루프가 바뀔 때 보관함에 씨앗 1개를 남깁니다.' : ''].filter(Boolean);
+            stumpBox.breedingOpen(game) ? '번식: 성장 완료된 열매는 루프가 바뀔 때 보관함에 씨앗 1개를 남깁니다.' : '',
+            stumpBox.nurseryOpen(game) ? `생육함: 놓은 아이템은 효과 없이 경험치만 ${Math.round(stumpBox.nurseryRate(game) * 100)}% 받습니다.` : ''].filter(Boolean);
     }
 
     // ── 알림 ───────────────────────────────────────────────
@@ -216,7 +230,7 @@ const stumpRipeningUi = (() => {
         if (detail.sealed) addLog(`🔒 그루터기 함: 봉인 칸 ${detail.sealed}개의 성장 상태가 유지됐습니다.`, 'season-up');
     }
 
-    return Object.freeze({ lineText, isGolden, badgesHtml, extraLinesHtml, scarBodyHtml, discardScar, confirmDiscard, sealHtml, bulkHtml,
+    return Object.freeze({ lineText, isGolden, badgesHtml, extraLinesHtml, scarBodyHtml, discardScar, confirmDiscard, confirmMonetize, sealHtml, bulkHtml,
         confirmBulk, bulkConfirmationCurrent, codexHtml, rulesLines, ripenNote, regressLog });
 })();
 safeExposeGlobals({ stumpRipeningUi });
