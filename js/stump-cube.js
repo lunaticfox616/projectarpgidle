@@ -301,7 +301,7 @@ const stumpCube = (() => {
         jewel: (state, output) => { bagItems.put(bagItems.asJewel(output.item), state, true); return output.item; },
         core: (state, output) => { bagItems.addCore(output.item, state); return output.item; },
         // 재화 결과(뿌리 기폭제): 지갑으로. 조합창 칸에는 놓지 않고 이름만 결과 기록에 남긴다.
-        currency: (state, output) => { awardCurrency(output.key, output.amount); return { name: `${ORB_DB[output.key].name} ${output.amount}`, currency: output.key, amount: output.amount }; }
+        currency: (state, output) => { awardCurrency(output.key, output.amount); return { name: `${_t(ORB_DB[output.key].name)} ${output.amount}`, currency: output.key, amount: output.amount }; }
     });
 
     function transmuteRefusal(found, state) {

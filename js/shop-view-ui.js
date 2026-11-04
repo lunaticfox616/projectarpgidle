@@ -31,7 +31,7 @@ const shopView = (() => {
 
     const isHarvest = key => stumpBox.isHarvestPrice(key);
     const held = key => (isHarvest(key) ? stumpBox.harvestPriceHeld(game, key) : Math.floor(Number(game.currencies[key]) || 0));
-    const currencyName = key => (isHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? ORB_DB[key].name : key);
+    const currencyName = key => (isHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? _t(ORB_DB[key].name) : key);
     const registerShop = (kind, adapter) => { adapters.set(kind, adapter); };
     const areaStyle = at => `grid-area:${at.row + 1}/${at.column + 1}/span ${at.rows}/span ${at.columns}`;
 

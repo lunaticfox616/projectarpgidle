@@ -265,7 +265,7 @@
         while (el.firstChild) body.appendChild(el.firstChild);
         let titlebar = document.createElement('div');
         titlebar.className = 'ui-window-titlebar';
-        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}">${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="창 위치와 크기 되돌리기" data-tip="창 위치와 크기 되돌리기">↺</button><button type="button" data-window-action="minimize" aria-label="최소화" data-tip="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 원래 크기" data-tip="최대화 / 원래 크기">□</button><button type="button" data-window-action="close" aria-label="닫기" data-tip="닫기 (Esc)">✕</button></div>`;
+        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}" data-i18n>${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="창 위치와 크기 되돌리기" data-tip="창 위치와 크기 되돌리기">↺</button><button type="button" data-window-action="minimize" aria-label="최소화" data-tip="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 원래 크기" data-tip="최대화 / 원래 크기">□</button><button type="button" data-window-action="close" aria-label="닫기" data-tip="닫기 (Esc)">✕</button></div>`;
         el.classList.add('ui-window');
         el.setAttribute('role', 'dialog');
         el.setAttribute('aria-labelledby', `ui-window-title-${tabId}`);
@@ -581,8 +581,11 @@
         if (textNodes.length === 0) return;
         let label = document.createElement('span');
         label.className = 'ui-rail-label';
-        label.textContent = textNodes.map(node => node.textContent.trim()).join(' ');
+        // 한국어 원문을 적고 data-i18n으로 두면 지금과 언어가 바뀔 때 i18n이 옮긴다(글 마디가 이미 옮겨져 있어도 원문을 쓴다).
+        label.dataset.i18n = '';
+        label.textContent = textNodes.map(node => i18n.sourceOf(node).trim()).join(' ');
         button.dataset.caption = railCaption(button.id, label.textContent);
+        button.dataset.i18nAttr = 'data-caption';
         // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬룬)는 묶음 이름 하나만 적는다(스킬트리, 장비, 루프, 기록). 화면들을 모두 나열하면
         // 좁은 화면의 아래 탭에 "스킬트리, 전직, 재능"처럼 길게 보였다(사용자 2026-10-27). 안의 화면은 창 머리의 탭에서 고른다.
         let merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === 'object' ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
@@ -590,6 +593,7 @@
         if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
         textNodes.forEach(node => button.removeChild(node));
         button.insertBefore(label, button.firstChild);
+        i18n.applyStatic(button);
     }
 
     function createRailMiscButton() {

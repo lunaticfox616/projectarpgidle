@@ -247,7 +247,7 @@ const stumpCubeRecipes = (() => {
     function talismanUpgradePreview([group]) {
         const source = talismanSource(group), rule = TALISMAN_UNSEAL_RULES[source], [low, high] = rule.lines;
         return { label: '새 부적 1개', keep: '', change: `일반 부적 옵션 ${low === high ? low : `${low}~${high}`}줄 새로 굴림, 성장 초기화`,
-            note: `${ORB_DB[source].name} 등급, 고유 부적 가능` };
+            note: `${_t(ORB_DB[source].name)} 등급, 고유 부적 가능` };
     }
 
     function talismanLinePreview([[{ item }]]) {
@@ -265,7 +265,7 @@ const stumpCubeRecipes = (() => {
         const result = make(groups, state);
         if (!result.ok) return { label: '', reason: result.reason };
         const output = result.outputs[0];
-        return { label: `${ORB_DB[output.key].name} ${output.amount}개`, keep: '재료의 속성', change: '재료 2개를 재화로 변환' };
+        return { label: `${_t(ORB_DB[output.key].name)} ${output.amount}개`, keep: '재료의 속성', change: '재료 2개를 재화로 변환' };
     }
 
     const PREVIEWS = Object.freeze({
@@ -282,7 +282,7 @@ const stumpCubeRecipes = (() => {
         catalyst_exchange: ([[{ item }]], state) => {
             const plan = sapCatalysts.exchangePlan(item, state);
             return plan.reason ? { label: '', reason: plan.reason }
-                : { label: `${ORB_DB[plan.kind.key].name} ${STUMP_CUBE_CATALYST_EXCHANGE}개`, keep: '', change: `다른 기폭제 ${STUMP_CUBE_CATALYST_EXCHANGE}개를 덩굴 색으로 변환` };
+                : { label: `${_t(ORB_DB[plan.kind.key].name)} ${STUMP_CUBE_CATALYST_EXCHANGE}개`, keep: '', change: `다른 기폭제 ${STUMP_CUBE_CATALYST_EXCHANGE}개를 덩굴 색으로 변환` };
         }
     });
 

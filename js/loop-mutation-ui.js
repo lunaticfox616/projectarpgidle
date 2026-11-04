@@ -6,7 +6,7 @@ const loopMutationUi = (() => {
     const PICK_DIALOG = 'starter-rune-pick';
     let chipDrawn = null, pickShown = false;
 
-    const elementPart = (ele, text) => `<b style="--mutation-ele:${getElementColor(ele)}">${escapeHTML(DAMAGE_ELEMENT_LABELS[ele])} ${text}</b>`;
+    const elementPart = (ele, text) => `<b style="--mutation-ele:${getElementColor(ele)}">${escapeHTML(_t(DAMAGE_ELEMENT_LABELS[ele]))} ${text}</b>`;
     /** The rule in numbers, for the chip's hover and the pick window. */
     function mutationRuleText(rule) {
         return `이번 루프의 모든 몬스터: ${DAMAGE_ELEMENT_LABELS[rule.immune]} 피해 면역, ${DAMAGE_ELEMENT_LABELS[rule.weak]} 피해 +${LOOP_MUTATION.weakTakenPct}%`;
@@ -35,7 +35,7 @@ const loopMutationUi = (() => {
         }).dps[1];
         return `<button type="button" class="starter-rune-choice${weak ? ' is-weak' : ''}" data-starter-rune="${escapeHTML(name)}" style="--mutation-ele:${getElementColor(def.ele)}">
             ${art ? `<img src="${escapeHTML(art)}" alt="">` : ''}<strong>${escapeHTML(name)}</strong>
-            <span class="starter-rune-element">${escapeHTML(DAMAGE_ELEMENT_LABELS[def.ele])}${weak ? `, 약점 피해 +${LOOP_MUTATION.weakTakenPct}%` : ''}</span>
+            <span class="starter-rune-element">${escapeHTML(_t(DAMAGE_ELEMENT_LABELS[def.ele]))}${weak ? `, 약점 피해 +${LOOP_MUTATION.weakTakenPct}%` : ''}</span>
             ${line ? `<small>${escapeHTML(line)}.</small>` : ''}<span class="starter-rune-dps">DPS ${Math.round(dps).toLocaleString(i18n.locale)}</span></button>`;
     }
     function openPick(gems) {

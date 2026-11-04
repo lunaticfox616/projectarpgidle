@@ -20,7 +20,7 @@ const blackMarketUi = (() => {
         const list = blackOffers();
         return chosen && list[chosen.index] === chosen.offer ? chosen : null;
     }
-    const offerName = offer => (offer.type === 'exchange' ? `${ORB_DB[offer.to].name} ${offer.gain}개` : offer.name);
+    const offerName = offer => (offer.type === 'exchange' ? `${_t(ORB_DB[offer.to].name)} ${offer.gain}개` : offer.name);
     const offerKind = offer => (offer.featured ? '표적 고유' : offer.chase ? '체이싱 고유' : KIND[offer.type]);
     const rarityOf = offer => ({ exchange: 'normal', skillGem: 'magic', baseItem: offer.exceptionalBase ? 'rare' : 'normal', unique: 'unique' })[offer.type];
 

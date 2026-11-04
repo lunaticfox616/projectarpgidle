@@ -338,8 +338,8 @@ function getBlackMarketBaseComparison(offer) {
 function getBlackMarketOfferTooltipHtml(offer) {
     if (!offer) return '<div class="tooltip-title">품절</div>';
     if (offer.type === 'exchange') {
-        let fromName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name;
-        let toName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name;
+        let fromName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : _t(ORB_DB[offer.from].name);
+        let toName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : _t(ORB_DB[offer.to].name);
         let bulkLine = offer.bulkMultiplier && offer.bulkMultiplier > 1 ? `<div class="tooltip-line" style="color:#ffd36a;">대량 교환 x${offer.bulkMultiplier}</div>` : '';
         let dealLine = Number.isFinite(Number(offer.dealPct)) ? `<div class="tooltip-line" style="color:#8fd9a7;">정규 거래소 대비 교환 효율 +${Math.max(0, Math.floor(offer.dealPct))}%</div>` : '';
         return `<div class="tooltip-title">재화 교환</div><div class="tooltip-line">${fromName} ${offer.need}개를 ${toName} ${offer.gain}개로 교환합니다.</div>${dealLine}${bulkLine}`;
@@ -463,7 +463,7 @@ function checkBlackMarketOffer(index, place = null) {
     const offer = normalizeBlackMarketState().offers[index];
     if (!offer) return { ok: false, reason: '이미 팔린 물건입니다.' };
     const price = getBlackMarketOfferPrice(offer), have = Math.floor(Number(game.currencies[price.key]) || 0);
-    if (have < price.amount) return { ok: false, reason: `${ORB_DB[price.key].name} 부족, ${have}/${price.amount}` };
+    if (have < price.amount) return { ok: false, reason: `${_t(ORB_DB[price.key].name)} 부족, ${have}/${price.amount}` };
     if (offer.type === 'skillGem') return { ok: true };
     return offer.type === 'baseItem' || offer.type === 'unique' ? checkBlackMarketRoom(offer, place) : { ok: true };
 }
@@ -479,7 +479,7 @@ function checkBlackMarketRoom(offer, place) {
 function getBlackMarketConfirmText(offer) {
     const price = getBlackMarketOfferPrice(offer);
     if (!(offer.chase || offer.featured || (price.key === 'goldenRule' && Number(price.amount) >= 5))) return '';
-    return `[${offer.name || '암거래 상품'}]${pickParticle(offer.name || '암거래 상품', '을', '를')} 삽니다.\n${ORB_DB[price.key].name} ${price.amount}개를 쓰며 되돌릴 수 없습니다.`;
+    return `[${offer.name || '암거래 상품'}]${pickParticle(offer.name || '암거래 상품', '을', '를')} 삽니다.\n${_t(ORB_DB[price.key].name)} ${price.amount}개를 쓰며 되돌릴 수 없습니다.`;
 }
 
 /** Buys offer index into place (a bag cell) or the first free bag place: pays, grants and empties the slot. offer: the offer the
@@ -505,7 +505,7 @@ function sellBlackMarketOffer(index, { place = null, offer = null } = {}) {
 function grantBlackMarketOffer(offer, place) {
     if (offer.type === 'exchange') {
         awardCurrency(offer.to, offer.gain);
-        return `${ORB_DB[offer.from].name} ${offer.need} → ${ORB_DB[offer.to].name} ${offer.gain}`;
+        return `${_t(ORB_DB[offer.from].name)} ${offer.need} → ${_t(ORB_DB[offer.to].name)} ${offer.gain}`;
     }
     if (offer.type === 'skillGem') {
         gemDropRewards.grant(game, { kind: 'attack', name: offer.name, awakened: false }, 0);

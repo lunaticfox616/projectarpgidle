@@ -569,7 +569,7 @@ function restorePrimalFossil(kind) {
     let key = kind === 'ancient' ? 'fossilAncientPrimal' : 'fossilPrimal';
     let isAncient = key === 'fossilAncientPrimal';
     if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 화석 복원을 해금해야 쓸 수 있습니다.`, 'attack-monster');
-    if ((game.currencies[key] || 0) <= 0) return addLog(`${ORB_DB[key] ? ORB_DB[key].name : key}이 부족합니다.`, 'attack-monster');
+    if ((game.currencies[key] || 0) <= 0) return addLog(`${ORB_DB[key] ? _t(ORB_DB[key].name) : key}이 부족합니다.`, 'attack-monster');
     game.currencies[key]--;
     let rewardLines = [];
     let baseFossilGain = isAncient ? 2 : 1;
@@ -600,9 +600,9 @@ function restorePrimalFossil(kind) {
     if (Math.random() < greatChance) {
         let bonus = isAncient ? 'goldenRule' : 'sapBud';
         awardCurrency(bonus, 1);
-        rewardLines.push(`대성공: ${ORB_DB[bonus].name} +1`);
+        rewardLines.push(`대성공: ${_t(ORB_DB[bonus].name)} +1`);
     }
-    addLog(`🪨 ${ORB_DB[key].name} 복원 완료! [${rewardLines.join(' / ')}]`, isAncient ? 'loot-unique' : 'loot-magic');
+    addLog(`🪨 ${_t(ORB_DB[key].name)} 복원 완료! [${rewardLines.join(' / ')}]`, isAncient ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
 

@@ -2573,7 +2573,7 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
     if (entry.transcendent) return addLog('초월 공허 패시브에는 마법의 새싹을 사용할 수 없습니다.', 'attack-monster');
     game.currencies[currencyKey]--;
     rollMagicBudOnVoid(entry);
-    addLog(`🕳️ 공허 패시브에 ${ORB_DB[currencyKey].name} 사용: ${getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '')}`, 'loot-magic');
+    addLog(`🕳️ 공허 패시브에 ${_t(ORB_DB[currencyKey].name)} 사용: ${getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '')}`, 'loot-magic');
     updateStaticUI();
 }
 
@@ -5977,7 +5977,7 @@ function renderActRewardChoice(zoneId, choice, index) {
 }
 /** 실제 베이스 수치와 고정 추가 옵션을 표시하며, 지급 때 무작위로 붙는 추가 옵션은 ?로 남긴다. */
 function actRewardItemPreview(choice, item) {
-    const rarity = ITEM_RARITY_LABELS[choice.rarity] || '';
+    const rarity = _t(ITEM_RARITY_LABELS[choice.rarity] || '');
     const slot = getEquipCandidateSlots(item).find(name => Object.hasOwn(game.equipment, name) && !game.equipment[name]);
     const equips = game.settings.autoEquipEmptySlots !== false && slot && combatEquipmentStats.inspect(item, slot).ok;
     const optionText = stat => escapeHTML(`${stat.statName || getStatName(stat.id)} ${formatSignedValue(stat.id, stat.val)}`);
@@ -6036,7 +6036,7 @@ function getActRewardPreview(choice) {
     if (choice.kind === 'skill') return `${choice.skill} 공격 룬을 획득합니다.`;
     if (choice.kind === 'support') return `${choice.gem} 보조스킬룬을 획득합니다.`;
     if (choice.kind === 'points') return `즉시 포인트 ${choice.value}점을 얻습니다.`;
-    if (choice.kind === 'currency') return `${ORB_DB[choice.currency].name} ${choice.fallbackValue || choice.value || 1}개를 얻습니다.`;
+    if (choice.kind === 'currency') return `${_t(ORB_DB[choice.currency].name)} ${choice.fallbackValue || choice.value || 1}개를 얻습니다.`;
     if (choice.kind === 'stat') return `${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`;
     return '영구 보상';
 }
@@ -6095,7 +6095,7 @@ function grantActRewardEntry(zoneId, choice) {
     if (choice.kind === 'currency') {
         let amount = choice.fallbackValue || choice.value || 1;
         awardCurrency(choice.currency, amount);
-        addLog(`🎁 ${ORB_DB[choice.currency].name} +${amount}`, 'loot-magic');
+        addLog(`🎁 ${_t(ORB_DB[choice.currency].name)} +${amount}`, 'loot-magic');
         return;
     }
     if (choice.kind === 'stat') {
@@ -6137,7 +6137,7 @@ function normalizeDamageElementKey(ele) {
 }
 
 function getDamageElementLabel(ele) {
-    return DAMAGE_ELEMENT_LABELS[normalizeDamageElementKey(ele)] || DAMAGE_ELEMENT_LABELS.phys;
+    return _t(DAMAGE_ELEMENT_LABELS[normalizeDamageElementKey(ele)] || DAMAGE_ELEMENT_LABELS.phys);
 }
 
 function getDamageElementIcon(ele) {
@@ -10910,7 +10910,7 @@ const craftCurrencyUse = (() => {
         if (apply(item, action, run) === false) return { ok: false, logs: run.logs };
         const note = (run.spore !== 'none' && run.guaranteedMod ? `, 홀씨 보장: ${run.guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, run.omen);
         craftingResultLedger.commit(run.token, item);
-        run.logs.push([`⚒️ ${ORB_DB[payment.key].name} 사용${note}`, 'loot-magic']);
+        run.logs.push([`⚒️ ${_t(ORB_DB[payment.key].name)} 사용${note}`, 'loot-magic']);
         return { ok: true, logs: run.logs };
     }
     return Object.freeze({ use, blockReason, addonReason });
@@ -10950,7 +10950,7 @@ function exchangeAtMarket(exchangeId, quantity, owner = game) {
     if (!recipe) return { ok: false, reason: '없는 교환입니다.' };
     const quote = getMarketExchangeQuote(recipe, quantity, owner);
     if (!quote.valid) return { ok: false, reason: '보유한 재화로 교환할 수 없는 수량입니다.' };
-    if (!Number.isSafeInteger(quote.afterTo)) return { ok: false, reason: `${ORB_DB[recipe.to].name} 보유 한도를 넘어 교환할 수 없습니다.` };
+    if (!Number.isSafeInteger(quote.afterTo)) return { ok: false, reason: `${_t(ORB_DB[recipe.to].name)} 보유 한도를 넘어 교환할 수 없습니다.` };
     owner.currencies[recipe.from] = quote.afterFrom;
     owner.currencies[recipe.to] = quote.afterTo;
     owner.currencyDropVersion = (owner.currencyDropVersion || 0) + 1;

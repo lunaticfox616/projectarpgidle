@@ -1,6 +1,6 @@
 const craftingWorkspaceUi = (() => {
     const recipes = [
-        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard','altarEmber','altarIchor'].map(key=>({key,kind:equipmentCrafting.basicRule(equipmentCrafting.resolveAction(key,'normal'))?.kind||({goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
+        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard','altarEmber','altarIchor'].map(key=>({key,kind:equipmentCrafting.basicRule(equipmentCrafting.resolveAction(key,'normal'))?.kind||({goldenRule:'value',blightSpore:'reset'})[key]||'special',label:_t(ORB_DB[key].name)})),
         ...FOSSIL_DB.map(row=>({key:row.key,kind:'fossil',label:row.name}))
     ];
     let root, current=null, owner=null, goal, recipe=recipes[0], mode='none', extras='';
@@ -253,7 +253,7 @@ const craftingWorkspaceUi = (() => {
 
     /** [value, label] for omen keys in a select: 허기 twice (접두, 접미). count(key) adds the held number. */
     function workspaceOmenOptions(keys,count=()=>'') {
-        return keys.flatMap(key=>{const name=ORB_DB[key].name+count(key);
+        return keys.flatMap(key=>{const name=_t(ORB_DB[key].name)+count(key);
             return CRAFT_OMENS.effects[key].effect==='side'?[[`${key}:prefix`,`${name}, 접두`],[`${key}:suffix`,`${name}, 접미`]]:[[`${key}:prefix`,name]];});
     }
     const workspaceArmedOmen=()=>(game.craftOmen&&(game.currencies[game.craftOmen.key]||0)>0?game.craftOmen:null);
@@ -301,7 +301,7 @@ const craftingWorkspaceUi = (() => {
             pieces.push(['damage','chaos'].includes(mode)?`홀씨 3종 각 ${amount}`:`${({fire:'화염',cold:'냉기',light:'번개'})[mode]} 홀씨 ${amount}`);
         }
         const omen=workspaceUsedOmen();
-        if(omen)pieces.push(`${ORB_DB[omen.key].name} 1`);
+        if(omen)pieces.push(`${_t(ORB_DB[omen.key].name)} 1`);
         if(['enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard'].includes(recipe.key))return '';
         return pieces.join(' + ');
     }
@@ -322,7 +322,7 @@ const craftingWorkspaceUi = (() => {
 
     function workspaceActionHtml(state,stopped) {
         if(auto)return `<button data-command="stop" class="cl-primary cl-stop">자동 사용 중지 ${runCount}/${limit}회</button>`;
-        const button=stopped?'<button data-command="ack" class="cl-primary">목표 옵션 확인</button>':`<button data-command="craft" class="cl-primary" aria-label="${esc(ORB_DB[recipe.key].name)} 1회 사용" ${busy||!state.enabled?'disabled':''}>${busy?'사용 중…':'1회 사용'}</button>`;
+        const button=stopped?'<button data-command="ack" class="cl-primary">목표 옵션 확인</button>':`<button data-command="craft" class="cl-primary" aria-label="${esc(_t(ORB_DB[recipe.key].name))} 1회 사용" ${busy||!state.enabled?'disabled':''}>${busy?'사용 중…':'1회 사용'}</button>`;
         if(!['reroll','add','fossil'].includes(recipe.kind))return button;
         return button+workspaceAutoControlsHtml(state);
     }

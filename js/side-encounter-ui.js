@@ -346,7 +346,7 @@ const sideEncounterUi = (() => {
         const result = game.labyrinthLastResult;
         if (!result || result.season !== game.season) return '';
         const rewards = Object.entries(result.currencies).filter(([key, count]) => ORB_DB[key] && count > 0)
-            .map(([key, count]) => `<span>${escapeHTML(ORB_DB[key].name)} <b>+${count}</b></span>`).join('');
+            .map(([key, count]) => `<span>${escapeHTML(_t(ORB_DB[key].name))} <b>+${count}</b></span>`).join('');
         return `<div class="map-expedition-result labyrinth-result"><strong>${result.floor}층 돌파 보상</strong>${rewards || '<span>재료 없음</span>'}</div>`;
     }
     function labyrinthEntryActions(floor, max, current, blocked) {

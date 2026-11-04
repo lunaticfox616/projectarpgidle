@@ -176,7 +176,7 @@ const npcShop = (() => {
     }
 
     const priceIsHarvest = key => stumpBox.isHarvestPrice(key);
-    const currencyName = key => (priceIsHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? ORB_DB[key].name : key);
+    const currencyName = key => (priceIsHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? _t(ORB_DB[key].name) : key);
     const priceHeld = key => (priceIsHarvest(key) ? stumpBox.harvestPriceHeld(game, key) : Math.floor(Number(game.currencies[key]) || 0));
     function payShopPrice({ priceKey, price }) {
         if (priceIsHarvest(priceKey)) stumpBox.payHarvestPrice(game, priceKey);

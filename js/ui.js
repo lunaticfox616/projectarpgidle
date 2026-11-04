@@ -731,7 +731,7 @@ function renderBackgroundResultTile(tile) {
 function renderBackgroundResultLoot(summary) {
     const gains = summary.rarityGains || {};
     const chips = ['unique', 'rare', 'magic', 'normal'].filter(rarity => gains[rarity] > 0)
-        .map(rarity => `<span class="background-result-chip" style="--chip-tone:${getRarityColor(rarity)}">${ITEM_RARITY_LABELS[rarity]} <b>${gains[rarity]}</b></span>`);
+        .map(rarity => `<span class="background-result-chip" style="--chip-tone:${getRarityColor(rarity)}">${_t(ITEM_RARITY_LABELS[rarity])} <b>${gains[rarity]}</b></span>`);
     const salvaged = Math.max(0, Number(summary.overflowSalvaged) || 0);
     if (salvaged > 0) chips.push(`<span class="background-result-chip quiet" data-tip="가방이 차서 해체했습니다. 해체 보상은 재화에 들어 있습니다.">자동해체 <b>${salvaged}</b></span>`);
     const row = chips.length ? `<div class="background-result-chips">${chips.join('')}</div>` : '';
@@ -2962,7 +2962,7 @@ function buildBeehiveChoiceOption(type, branchStep, timing = 'wave') {
     if (type === 'spore') {
         let sporeType = rndChoice(['sporeFire', 'sporeCold', 'sporeLight']);
         let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step), timing);
-        return mk(`${ORB_DB[sporeType].name} +${amount}`, sporeType, amount);
+        return mk(`${_t(ORB_DB[sporeType].name)} +${amount}`, sporeType, amount);
     }
     if (type === 'bundle') {
         let amount = scaleBeehiveRewardAmount(1, timing);
@@ -10472,7 +10472,7 @@ function canUseFairyRingOnVoid(entry, active) {
 }
 
 function getVoidCraftResultText(nodeId, currencyKey) {
-    const entry = getVoidPassiveCraft(nodeId), name = ORB_DB[currencyKey].name;
+    const entry = getVoidPassiveCraft(nodeId), name = _t(ORB_DB[currencyKey].name);
     if (entry.transcendent) return `${name}, ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}`;
     if (currencyKey === 'fairyRing') return `${name}, 초월 실패, 옵션이 지워졌습니다.`;
     return `${name}, 새 옵션: ${getVoidPassiveEffectLabel(nodeId).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()}`;

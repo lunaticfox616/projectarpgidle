@@ -68,7 +68,7 @@ const oceanDiveUi = (() => {
     function costHtml(cost) {
         return Object.keys(cost).filter(key => cost[key] > 0).map(key => {
             const owned = Math.max(0, Math.floor(game.currencies[key] || 0));
-            return `<span class="${owned < cost[key] ? 'is-short' : 'is-ready'}">${currencyIcon(key)}${esc(ORB_DB[key].name)}<b>${owned}/${cost[key]}</b></span>`;
+            return `<span class="${owned < cost[key] ? 'is-short' : 'is-ready'}">${currencyIcon(key)}${esc(_t(ORB_DB[key].name))}<b>${owned}/${cost[key]}</b></span>`;
         }).join('');
     }
     function upgradeHtml(key) {

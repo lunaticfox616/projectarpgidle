@@ -155,7 +155,7 @@ const playerStall = (() => {
         const amount = Math.min(row.price - 1, limit, Math.max(1, Math.floor(basis * ratio)));
         row.offer = { id: ++stall.offerSequence, amount, customerId, createdAt: at, expiresAt: at + rules.offerLifetimeMs, buyerLimit: limit, negotiated: false };
         stall.nextOfferAt = at + rules.offerCooldownMs;
-        record(stall, { at, kind: 'offer', slot: row.slot, customerId, currency: row.currency, customer: customer.name, sold: false, reason: `${row.item.name}에 ${ORB_DB[row.currency].name} ${amount}개를 제안했습니다.` });
+        record(stall, { at, kind: 'offer', slot: row.slot, customerId, currency: row.currency, customer: customer.name, sold: false, reason: `${row.item.name}에 ${_t(ORB_DB[row.currency].name)} ${amount}개를 제안했습니다.` });
         return true;
     }
     function visit(stall, at, appraisals) {
@@ -313,7 +313,7 @@ const playerStall = (() => {
         if (finalAmount > offer.amount && roll < acceptChance + (1 - acceptChance) * customer.flexibility) {
             row.offer = { ...offer, id: ++stall.offerSequence, amount: finalAmount, negotiated: true };
             record(stall, { at: now, kind: 'offer', slot: row.slot, customerId: offer.customerId, currency: row.currency, customer: customer.name,
-                sold: false, reason: `${row.item.name}에 ${ORB_DB[row.currency].name} ${finalAmount}개를 마지막으로 제안했습니다.` });
+                sold: false, reason: `${row.item.name}에 ${_t(ORB_DB[row.currency].name)} ${finalAmount}개를 마지막으로 제안했습니다.` });
             return { ok: true, reason: '손님이 마지막 가격을 제안했습니다.' };
         }
         releaseOffer(stall, row, now);
@@ -336,7 +336,7 @@ const playerStall = (() => {
         const offer = row.offer;
         if (offer.amount >= row.price || offer.amount > itemAppraisal.quote(row.item, row.currency).ceiling) return { ok: false, reason: '제안의 금액을 확인해 주세요.' };
         const paid = sell(owner.playerStall, row, stallClock(owner.playerStall, now), PLAYER_STALL_CUSTOMERS[offer.customerId].name, offer.amount);
-        return { ok: paid > 0, reason: paid ? `제안을 수락했습니다. 판매 대금에 ${ORB_DB[row.currency].name} ${offer.amount}개가 적립되었습니다.` : '판매 대금을 먼저 수령해 주세요.' };
+        return { ok: paid > 0, reason: paid ? `제안을 수락했습니다. 판매 대금에 ${_t(ORB_DB[row.currency].name)} ${offer.amount}개가 적립되었습니다.` : '판매 대금을 먼저 수령해 주세요.' };
     }
     function rejectOffer(owner, listingId, offerId, now) {
         const row = actionableOffer(owner, listingId, offerId, now);
@@ -365,7 +365,7 @@ const playerStall = (() => {
         const labels = { formlessDew: '이슬', magicBud: '새싹' };
         for (const currency of rules.currencies) {
             const amount = stall[bankKey(currency)];
-            if (amount) parts.push(`판매 대금 ${labels[currency] || ORB_DB[currency].name} ${amount}개`);
+            if (amount) parts.push(`판매 대금 ${labels[currency] || _t(ORB_DB[currency].name)} ${amount}개`);
         }
         if (!parts.length) return '';
         return `가판대에 ${parts.join('와 ')}가 남아 있습니다. 장비 → 거래소 → 나의 가판대에서 회수한 뒤 루프를 진행하세요.`;

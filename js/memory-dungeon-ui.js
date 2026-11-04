@@ -134,7 +134,7 @@ const memoryDungeonUi = (() => {
 
     // ---------------------------------------------------------------- log lines ('complete' carries result.memory, js/atlas.js complete)
     function spoilsLines(spoils) {
-        const currencies = spoils.rewards.map(([key, amount]) => `${ORB_DB[key].name} ${amount}`).join(', ');
+        const currencies = spoils.rewards.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`).join(', ');
         addLog(`🕯️ 기억 ${spoils.tier}단계 승리${spoils.best ? ' (새 기록)' : ''}: ${currencies || '재화 없음'}`, 'loot-unique', { toast: true });
         (spoils.items || []).forEach(item => addLog(`🛡️ 기억의 보상 <span class='loot-${item.rarity}'>[${esc(item.name)}]</span>`, item.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item }));
     }

@@ -272,7 +272,7 @@ const playerStallUi = {
     currencySelector(item, currency) {
         const options = PLAYER_STALL_RULES.currencies.map(key => {
             const sells = itemAppraisal.quote(item, key)?.eligible;
-            return `<option value="${key}" ${key === currency ? 'selected' : ''} ${sells || key === currency ? '' : 'disabled'}>${ORB_DB[key].name}${sells ? '' : ' (손님이 사지 않음)'}</option>`;
+            return `<option value="${key}" ${key === currency ? 'selected' : ''} ${sells || key === currency ? '' : 'disabled'}>${_t(ORB_DB[key].name)}${sells ? '' : ' (손님이 사지 않음)'}</option>`;
         }).join('');
         return `<label class="stall-price-label" for="stall-currency">거래 재화</label><select id="stall-currency" onchange="playerStallUi.changeCurrency(this.value)">${options}</select>`;
     },
@@ -323,7 +323,7 @@ const playerStallUi = {
     /** The new listing's form, its price starting at the suggested one (so Enter or the button lists as it stands). */
     newListingForm(item, currency) {
         const price = this.draftAsk || String(this.suggestedPrice(item, currency)), full = game.playerStall.listings.length >= PLAYER_STALL_RULES.slots;
-        return `<label class="stall-price-label" for="stall-ask">판매 희망가 (${ORB_DB[currency].name})</label><input id="stall-ask" type="number" min="1" max="1000000" step="1" value="${escapeHTML(price)}" placeholder="가격을 정해 주세요" aria-describedby="stall-price-hint" oninput="playerStallUi.preview()" onkeydown="if(event.key==='Enter'){event.preventDefault();playerStallUi.list()}">
+        return `<label class="stall-price-label" for="stall-ask">판매 희망가 (${_t(ORB_DB[currency].name)})</label><input id="stall-ask" type="number" min="1" max="1000000" step="1" value="${escapeHTML(price)}" placeholder="가격을 정해 주세요" aria-describedby="stall-price-hint" oninput="playerStallUi.preview()" onkeydown="if(event.key==='Enter'){event.preventDefault();playerStallUi.list()}">
             ${this.noteHtml('stall-price-hint', item, currency, price)}
             <label class="stall-check"><input id="stall-negotiate" type="checkbox" ${this.draftNegotiate ? 'checked' : ''} onchange="playerStallUi.draftNegotiate=this.checked"><span>다른 가격 제안 받기</span></label>
             <button type="button" class="stall-primary" data-stall-list onclick="playerStallUi.list()" ${full ? 'disabled' : ''}>${full ? '진열대가 가득 찼습니다' : this.pendingSlot === null ? '첫 빈칸에 진열' : `${this.pendingSlot + 1}번 칸에 진열 확정`}</button>
@@ -338,7 +338,7 @@ const playerStallUi = {
             <p>${escapeHTML(customer)}<br><small>${expires}까지</small></p>
             <div class="stall-actions"><button type="button" class="stall-primary" data-stall-accept="${offer.id}" onclick="playerStallUi.respond(${row.id},${offer.id},true)">${offer.amount}개에 판매</button>
             <button type="button" data-stall-reject="${offer.id}" onclick="playerStallUi.respond(${row.id},${offer.id},false)">제안 거절</button></div>
-            ${offer.negotiated ? '<small class="stall-final-offer">마지막 제안</small>' : `<div class="stall-counter"><label for="stall-counter-${offer.id}">내 역제안 (${ORB_DB[row.currency].name})</label>
+            ${offer.negotiated ? '<small class="stall-final-offer">마지막 제안</small>' : `<div class="stall-counter"><label for="stall-counter-${offer.id}">내 역제안 (${_t(ORB_DB[row.currency].name)})</label>
             <div class="stall-price-edit"><input id="stall-counter-${offer.id}" type="number" min="${offer.amount + 1}" max="${row.price}" step="1" placeholder="금액 입력">
             <button type="button" onclick="playerStallUi.counter(${row.id},${offer.id})">역제안</button></div></div>`}</section>`;
     },
@@ -346,10 +346,10 @@ const playerStallUi = {
     listing(row, currency) {
         const price = currency === row.currency ? this.draftAsk || String(row.price) : this.draftAsk;
         return `<article class="stall-listing ${row.offer ? 'has-offer' : ''}" data-stall-listing="${row.id}"><p class="stall-note">${row.slot + 1}번 칸에서 판매 중</p>
-            ${this.offer(row)}<label class="stall-price-label" for="stall-price-${row.id}">판매 희망가 (${ORB_DB[currency].name})</label><div class="stall-price-edit"><input id="stall-price-${row.id}" type="number" min="1" max="1000000" step="1" value="${escapeHTML(price)}" placeholder="새 가격" aria-describedby="stall-price-hint-${row.id}" oninput="playerStallUi.editListingPrice(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();playerStallUi.reprice(${row.id})}">
+            ${this.offer(row)}<label class="stall-price-label" for="stall-price-${row.id}">판매 희망가 (${_t(ORB_DB[currency].name)})</label><div class="stall-price-edit"><input id="stall-price-${row.id}" type="number" min="1" max="1000000" step="1" value="${escapeHTML(price)}" placeholder="새 가격" aria-describedby="stall-price-hint-${row.id}" oninput="playerStallUi.editListingPrice(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();playerStallUi.reprice(${row.id})}">
             <button type="button" onclick="playerStallUi.reprice(${row.id})">가격 변경</button></div>
             ${this.noteHtml(`stall-price-hint-${row.id}`, row.item, currency, price)}
-            ${currency !== row.currency ? `<p class="stall-note">${ORB_DB[currency].name} 가격을 새로 적어 주세요.</p>` : ''}
+            ${currency !== row.currency ? `<p class="stall-note">${_t(ORB_DB[currency].name)} 가격을 새로 적어 주세요.</p>` : ''}
             <div class="stall-listing-footer"><label class="stall-check"><input type="checkbox" aria-label="${escapeHTML(row.item.name)} 가격 제안 허용" ${row.negotiate ? 'checked' : ''} onchange="playerStallUi.negotiate(${row.id},this.checked)"><span>제안 허용</span></label>
             <button type="button" onclick="playerStallUi.withdraw(${row.id})">물건 회수</button></div></article>`;
     },

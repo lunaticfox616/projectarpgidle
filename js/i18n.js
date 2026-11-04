@@ -6,7 +6,8 @@
  *   _t('보유 {count}개', { count: 3 })   {이름} 자리에 매개변수를 넣는다(번역 뒤에).
  *   _t('접기|기록')                       같은 한국어가 문맥마다 다르게 번역되면 '|문맥'을 붙인다. 한국어로는 문맥을 떼고 보인다.
  *   팩 값이 { one: '...', other: '...' }면 params.count로 복수형을 고른다(Intl.PluralRules).
- *   <b data-i18n>화면</b>                 정적 HTML은 글만 든 요소에 단다. data-i18n-attr="data-tip placeholder"는 그 속성도 옮긴다.
+ *   <b data-i18n>화면</b>                 정적 HTML. 그 요소의 바로 아래 글 마디마다 옮긴다(자식 요소 사이의 글도, 자식 요소 안은 아니다).
+ *                                         data-i18n-attr="data-tip placeholder"는 그 속성도 옮긴다.
  *   ?lang=en                              그 판에서만 언어를 덮는다(검사·갈무리용). 저장은 바뀌지 않는다.
  *   window 'game:languagechange'          언어가 바뀌면 보낸다. 번역한 글을 제 손으로 그려 둔 UI는 이 이벤트에서 다시 그린다.
  */
@@ -61,10 +62,18 @@ const i18n = (() => {
         return interpolate(typeof entry === 'string' ? entry : pluralText(text, entry, params), params);
     }
 
-    /** data-i18n 요소: 처음 볼 때 한국어 원문을 data-i18n-source에 적어 두고, 그 뒤로는 그 원문을 현재 언어로 옮긴다. */
+    /** 글 마디의 한국어 원문: 처음 볼 때 적어 두고, 그 뒤로는 그 원문을 현재 언어로 옮긴다(앞뒤 공백은 그대로). */
+    const textSources = new WeakMap();
+    function translateTextNode(node) {
+        if (!textSources.has(node)) textSources.set(node, node.nodeValue);
+        const source = textSources.get(node);
+        const key = source.trim();
+        if (/[가-힣]/.test(key)) node.nodeValue = source.replace(key, translate(key));   // 숫자·괄호만 있는 마디는 원문이 아니다
+    }
+
+    /** data-i18n 요소: 바로 아래 글 마디들만 옮긴다. 자식 요소(알림 점, 아이콘)는 그대로다. */
     function translateElement(element) {
-        if (element.dataset.i18nSource === undefined) element.dataset.i18nSource = element.textContent.trim();
-        element.textContent = translate(element.dataset.i18nSource);
+        element.childNodes.forEach(node => { if (node.nodeType === 3) translateTextNode(node); });
     }
 
     /** data-i18n-attr="data-tip placeholder": 그 속성들의 원문을 data-i18n-source-<속성>에 두고 옮긴다. */
@@ -79,8 +88,15 @@ const i18n = (() => {
     /** root 아래 data-i18n·data-i18n-attr 요소를 현재 언어로. 새로 만든 DOM 조각에도 부를 수 있다. */
     function applyStatic(root) {
         const scope = root || document;
+        if (scope.matches && scope.matches('[data-i18n]')) translateElement(scope);
+        if (scope.matches && scope.matches('[data-i18n-attr]')) translateAttributes(scope);
         scope.querySelectorAll('[data-i18n]').forEach(translateElement);
         scope.querySelectorAll('[data-i18n-attr]').forEach(translateAttributes);
+    }
+
+    /** 글 마디의 한국어 원문(옮긴 적이 없으면 지금 글). 정적 글을 제 손으로 옮겨 그리는 UI(하단 메뉴 이름표)가 쓴다. */
+    function sourceOf(node) {
+        return textSources.has(node) ? textSources.get(node) : node.nodeValue;
     }
 
     function setLanguage(code) {
@@ -111,7 +127,7 @@ const i18n = (() => {
         get locale() { return current.locale; },
         /** 고를 수 있는 언어: { code, name }. 이름은 그 언어로 적혀 있어 번역하지 않는다. */
         get languages() { return LANGUAGE_PACKS.map(pack => ({ code: pack.code, name: pack.name })); },
-        normalizeLanguage, t: translate, setLanguage, applySaved, applyStatic,
+        normalizeLanguage, t: translate, setLanguage, applySaved, applyStatic, sourceOf,
         /** 이번 판에서 현재 언어의 팩에 없던 열쇠(검사·보고용). */
         missingKeys: () => [...missing]
     });

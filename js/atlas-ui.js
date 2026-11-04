@@ -76,11 +76,11 @@ const atlasUi = (() => {
         const map = selectedMap();
         if (!map) return;
         const cost = [{ key, amount: 1 }];
-        const reason = atlasMaps.craftReason(map, key) || (canPayCurrencyCosts(cost) ? '' : `${withSubjectParticle(ORB_DB[key].name)} 없습니다.`);
+        const reason = atlasMaps.craftReason(map, key) || (canPayCurrencyCosts(cost) ? '' : `${withSubjectParticle(_t(ORB_DB[key].name))} 없습니다.`);
         if (reason) return addLog(reason, 'attack-monster');
         payCurrencyCosts(cost);
         atlasMaps.craft(map, key);
-        addLog(`🗺️ ${nodeName(map.node)} 지도석에 ${ORB_DB[key].name} 사용: ${atlasMaps.crafts[key].label}`, 'loot-magic');
+        addLog(`🗺️ ${nodeName(map.node)} 지도석에 ${_t(ORB_DB[key].name)} 사용: ${atlasMaps.crafts[key].label}`, 'loot-magic');
         queueImportantSave(200);
         refresh();
     }
@@ -574,7 +574,7 @@ const atlasUi = (() => {
     const REASON = { defeat: '쓰러졌습니다', travel: '지도를 떠났습니다', '마을 귀환': '마을로 귀환했습니다' };
     function dropsText(detail) {
         const parts = [];
-        if (detail.room) parts.push(`${detail.golden ? `${ATLAS.goldenRoom.prefix} ` : ''}${ATLAS.encounters[detail.room].name} 정리: ${detail.rewards.map(([key, n]) => `${ORB_DB[key].name} ${n}`).join(', ') || '보상 없음'}`);
+        if (detail.room) parts.push(`${detail.golden ? `${ATLAS.goldenRoom.prefix} ` : ''}${ATLAS.encounters[detail.room].name} 정리: ${detail.rewards.map(([key, n]) => `${_t(ORB_DB[key].name)} ${n}`).join(', ') || '보상 없음'}`);
         if (detail.maps.length) parts.push(`지도석 ${detail.maps.map(map => `${nodeName(map.node)}(${map.tier})`).join(', ')}`);
         if (detail.fragments.length) parts.push(`각인 ${detail.fragments.map(id => atlas.fragment(id).name).join(', ')}`);
         // 깨어난 뒤 제단 · 리그 방의 재료(js/atlas-endgame.js roomItems): 보스를 잡아야 보관함에 들어온다.
@@ -606,9 +606,9 @@ const atlasUi = (() => {
         const text = {
             board: () => detail.message,
             dice: () => '나이테 길잡이에게서 심재 주사위 1개를 얻었습니다.',
-            omen: () => `🔮 뿌리를 품은 몬스터에게서 ${ORB_DB[detail.key].name}를 얻었습니다.`,
+            omen: () => `🔮 뿌리를 품은 몬스터에게서 ${_t(ORB_DB[detail.key].name)}를 얻었습니다.`,
             complete: () => `🗺️ ${detail.name} ${detail.tier}등급 완료${detail.first ? ', 첫 완료' : ''}${detail.bonus ? ', 보너스 달성' : ''}${detail.drops ? `, 지도석 ${detail.drops}개` : ''}`
-                + (detail.ticket ? `, ${ORB_DB[detail.ticket].name}` : '') + (detail.seed ? `, 세계수 씨앗 ${detail.seeds}/${ATLAS.seeds.max}` : '')
+                + (detail.ticket ? `, ${_t(ORB_DB[detail.ticket].name)}` : '') + (detail.seed ? `, 세계수 씨앗 ${detail.seeds}/${ATLAS.seeds.max}` : '')
                 + (detail.next ? ` → 다음 지도: ${nodeName(detail.next)}` : returnText(detail)),
             portal: () => `🌀 ${REASON[detail.reason] || detail.reason}, 남은 포털 ${detail.portals}`,
             failed: () => `🗺️ ${REASON[detail.reason] || detail.reason}, 포털이 모두 닫혀 지도가 실패했습니다.`,

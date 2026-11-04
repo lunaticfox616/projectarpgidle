@@ -133,7 +133,7 @@ const atlasEndgameUi = (() => {
             { subtabId: 'map-explore-worldtree', atlasView: 'late' });
     }
     function spoilsText(spoils) {
-        const parts = [...spoils.rewards.map(([key, amount]) => `${ORB_DB[key].name} ${amount}`),
+        const parts = [...spoils.rewards.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`),
             ...spoils.items.map(([id, amount]) => `${atlasEndgame.itemName(id)} ${amount}`)];
         if (spoils.invite) parts.push(`${atlasEndgame.itemName('ringInvite')} ${spoils.invite}`);
         return parts.join(', ');

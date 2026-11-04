@@ -7,7 +7,7 @@ const stumpTalismanUi = (() => {
     function esc(text) { return escapeHTML(String(text)); }
     function tone(item) { return TALISMAN_RARITY_TONES[item.rarity] || TALISMAN_RARITY_TONES.magic; }
     function owned(key) { return Math.floor(game.currencies[key] || 0); }
-    function shardName(key) { return ORB_DB[key].name; }
+    function shardName(key) { return _t(ORB_DB[key].name); }
 
     // 줄 색(2026-10-06): 장비 옵션처럼 줄마다 그 능력치의 색. 조건부 줄은 그 줄이 올리는 능력치(없으면 글의 첫 핵심어) 색.
     function lineTone(line, text) {

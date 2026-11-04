@@ -753,7 +753,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
     let carried = equipmentInventoryInteraction.isCarryingKey(itemKey);
     let filterClass = filterState && filterState.filterActive
         ? (filterState.filterMatched ? 'is-filter-match' : 'is-filter-muted') : '';
-    let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
+    let rarityLabel = _t(ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal);
     // Opus 4차 검수: 비교 수치를 먼저 한 개만 표시. 잠금·세팅·특수와 다른 비교 수치는 ARIA에 남긴다.
     const gains = triageResult ? [[triageResult.dpsGainPct, 'atk', '공격'], [triageResult.ehpGainPct, 'def', '생존']].filter(row => row[0] >= 1) : [];
     const status = item.locked ? '잠금' : presetProtected ? '장비 세팅에 포함' : '';
@@ -897,7 +897,7 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || item.rarity || ITEM_RARITY_LABELS.normal;
+    let rarityLabel = _t(ITEM_RARITY_LABELS[item.rarity] || item.rarity || ITEM_RARITY_LABELS.normal);
     return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" role="group" tabindex="0" data-item-tooltip-anchor="1" onclick="${cardClick}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${cardClick};}" onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
         ${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(item, 'equipment', 'equipment-card-visual') : ''}
         <div class="equipment-card-main">

@@ -8,7 +8,7 @@ function getSalvageRecoveryCurrencyText(rewards, nameOf = key => getCurrencyInfo
 }
 
 function getSalvageRecoveryRarityLabel(rarity) {
-    return ITEM_RARITY_LABELS[rarity] || ITEM_RARITY_LABELS.normal;
+    return _t(ITEM_RARITY_LABELS[rarity] || ITEM_RARITY_LABELS.normal);
 }
 
 function getSalvageRecoveryUnavailableText(availability) {

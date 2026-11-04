@@ -98,13 +98,30 @@ function checkFixedLocales(sources, failures) {
     }
 }
 
-/** index.html의 data-i18n 요소: 글만 든 요소여야 한다. 짝이 안 맞거나 자식 요소가 들었으면 알린다. */
+/** index.html의 data-i18n 요소가 옮기는 글 마디(바로 아래 글만)와 data-i18n-attr 속성값. 여는 태그를 차례로 읽어 깊이를 센다. */
 function staticTexts(html, failures) {
-    const marks = (html.match(/\sdata-i18n(?=[\s>])/g) || []).length;
-    const texts = [];
-    for (const [, , text] of html.matchAll(/<([a-zA-Z][\w-]*)\b[^>]*\sdata-i18n(?=[\s>])[^>]*>([^<]*)<\/\1>/g)) texts.push(text.trim());
-    if (texts.length !== marks) failures.push(`index.html: data-i18n ${marks}개 중 ${texts.length}개만 글만 든 요소다(자식 요소가 든 요소에는 달지 않는다)`);
-    return texts;
+    const body = html.slice(html.indexOf('<body')).replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)\b[\s\S]*?<\/\1>/g, '');
+    const VOID = new Set(['img', 'input', 'br', 'hr', 'meta', 'link', 'source', 'wbr', 'area', 'col', 'base', 'track', 'embed', 'param']);
+    const texts = new Set(), stack = [];
+    let marks = 0, useless = 0;
+    const tag = /<\/?([a-zA-Z][\w-]*)\b([^>]*)>/g;
+    let last = 0, match;
+    const text = (from, to) => { const piece = body.slice(from, to).trim(); if (HANGUL.test(piece) && stack.length && stack[stack.length - 1].marked) { texts.add(piece); stack[stack.length - 1].hit = true; } };
+    while ((match = tag.exec(body))) {
+        text(last, match.index);
+        last = tag.lastIndex;
+        const [whole, name, attributes] = match;
+        if (whole.startsWith('</')) { const open = stack.pop(); if (open && open.marked && !open.hit) useless++; continue; }
+        const marked = /\sdata-i18n(?=[\s>=\/])/.test(whole) && !/\sdata-i18n=/.test(whole);
+        if (marked) marks++;
+        for (const [, names] of attributes.matchAll(/\sdata-i18n-attr="([^"]*)"/g)) for (const attribute of names.split(/\s+/).filter(Boolean)) {
+            const value = new RegExp(`\\s${attribute}="([^"]*)"`).exec(attributes);
+            if (value && value[1].trim()) texts.add(value[1].trim()); else failures.push(`index.html: data-i18n-attr가 가리키는 ${attribute}이 비었다: ${whole.slice(0, 80)}`);
+        }
+        if (!VOID.has(name.toLowerCase()) && !whole.endsWith('/>')) stack.push({ name, marked, hit: false });
+    }
+    if (useless) failures.push(`index.html: 바로 아래에 글이 없는 data-i18n 요소 ${useless}개(자식 요소 안의 글은 그 요소에 단다)`);
+    return [...texts];
 }
 
 function hangulIdentifierCounts(sources) {
@@ -135,8 +152,9 @@ function writeBaseline(counts) {
 }
 
 // ── js/i18n.js 행동 ───────────────────────────────────────────────────────────
-function fakeElement(text, attrs = {}) {
-    const element = { dataset: {}, textContent: text, attrs: { ...attrs } };
+function fakeElement(text, attrs = {}, child = null) {
+    const node = { nodeType: 3, nodeValue: text };
+    const element = { dataset: {}, node, childNodes: child ? [node, child] : [node], attrs: { ...attrs } };
     element.hasAttribute = name => name in element.attrs;
     element.getAttribute = name => (name in element.attrs ? element.attrs[name] : null);
     element.setAttribute = (name, value) => { element.attrs[name] = String(value); };
@@ -144,7 +162,7 @@ function fakeElement(text, attrs = {}) {
 }
 
 function buildI18nRuntime(search, extraEnglish) {
-    const textEl = fakeElement('화면 배율'), attrEl = fakeElement('', { 'aria-label': '설정 분류' });
+    const textEl = fakeElement(' 화면 배율 ', {}, { nodeType: 1, childNodes: [] }), attrEl = fakeElement('', { 'aria-label': '설정 분류' });
     attrEl.dataset.i18nAttr = 'aria-label';
     const events = [], warnings = [];
     const context = {
@@ -190,13 +208,13 @@ function testTranslationBehaviour() {
     _t('없는 글|문맥');
     assert.deepStrictEqual(Array.from(i18n.missingKeys()), ['없는 글|문맥']);
     assert.strictEqual(run.warnings.length, 1, '없는 열쇠는 한 번만 알린다');
-    assert.strictEqual(run.textEl.textContent, 'UI scale', 'data-i18n 요소가 옮겨진다');
-    assert.strictEqual(run.textEl.dataset.i18nSource, '화면 배율');
+    assert.strictEqual(run.textEl.node.nodeValue, ' UI scale ', 'data-i18n 요소의 글 마디가 공백을 지킨 채 옮겨지고 자식 요소는 그대로다');
+    assert.strictEqual(run.textEl.childNodes.length, 2);
     assert.strictEqual(run.attrEl.getAttribute('aria-label'), 'Settings sections', 'data-i18n-attr 속성이 옮겨진다');
     i18n.setLanguage('en');
     assert.strictEqual(run.events.length, 1, '같은 언어로 다시 정하면 이벤트가 없다');
     i18n.setLanguage('ko');
-    assert.strictEqual(run.textEl.textContent, '화면 배율', '원문으로 되돌아간다');
+    assert.strictEqual(run.textEl.node.nodeValue, ' 화면 배율 ', '원문으로 되돌아간다');
     assert.strictEqual(run.attrEl.getAttribute('aria-label'), '설정 분류');
 }
 

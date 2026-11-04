@@ -10629,7 +10629,7 @@ function keepEnemyCurrencyDrop(enemy, drop, ui) {
     logEnemyCurrencyGain(drop[0], gain, ui);
 }
 function logEnemyCurrencyGain(key, gain, ui) {
-    let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ((ORB_DB[key] && ORB_DB[key].name) || key);
+    let currencyName = typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ((ORB_DB[key] && _t(ORB_DB[key].name)) || key);
     if (game.settings.showLootLog) ui.say(`🪙 ${currencyName} +${gain}`, key === 'goldenRule' || key === 'sapBud' ? 'loot-unique' : 'loot-magic');
 }
 function rollEnemyJewelDrop(enemy, contentDropMul) {
@@ -10697,7 +10697,7 @@ function rollSporeDrop(enemy, zone, ui) {
 /** 홀씨는 드물다(2026-11-02 사용자, 전에는 보스 32%, 정예 20%, 일반 11%): 처치 자리 바닥에 떨어져 주울 때 기록이 남는다. */
 const sporeChanceOf = enemy => (enemy.isBoss ? 0.08 : (enemy.isElite ? 0.04 : 0.015));
 function logSporeGain(key, ui) {
-    if (game.settings.showLootLog) ui.say(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
+    if (game.settings.showLootLog) ui.say(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : _t(ORB_DB[key].name)} +1`, 'loot-magic');
 }
 /** The three spores, the enemy's element once more. */
 function sporePoolFor(enemy) {
@@ -11392,7 +11392,7 @@ function grantMilestonePinnacleClearRewards(zone, firstClear, say) {
     const reward = zone.firstClearReward && typeof zone.firstClearReward === 'object' ? zone.firstClearReward : null;
     const amount = Math.max(0, Math.floor(Number(reward && reward.amount) || 0));
     if (reward && reward.key && amount > 0) awardCurrency(reward.key, amount);
-    const rewardName = reward && ORB_DB[reward.key] ? ORB_DB[reward.key].name : '';
+    const rewardName = reward && ORB_DB[reward.key] ? _t(ORB_DB[reward.key].name) : '';
     const rewardText = rewardName ? `, ${rewardName} +${amount}` : '';
     const prefix = zone.pinnacleCapstone ? '👁️ 모든 경계의 관측을 끝냈습니다.' : '♜ 새로운 최종 관문을 정복했습니다.';
     addLog(`${prefix} [${zone.name}] 최초 격파${rewardText}`, 'loot-unique');

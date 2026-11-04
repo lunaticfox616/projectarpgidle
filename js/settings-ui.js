@@ -111,13 +111,11 @@
     }
     initDisplayMode();
 
-    // 언어 선택(2026-11-03, docs/i18n.md): 목록은 i18n.languages에서 채운다. 영어 팩이 다 찰 때까지 배포에서는 줄을 숨긴다
-    // (scripts/lib/release-bundle.js가 dev-only 줄을 지운다). 출시할 때 index.html의 hidden과 아래 dev-only 줄을 지운다.
+    // 언어 선택(docs/i18n.md): 목록은 i18n.languages에서 채운다. 이름은 그 언어로 적혀 있어 번역하지 않는다.
     function initLanguageSelect() {
         const control = document.getElementById('sel-language');
         if (!control) return;
         control.innerHTML = i18n.languages.map(({ code, name }) => `<option value="${code}">${escapeHTML(name)}</option>`).join('');
-        /* @dev-only */ document.getElementById('cfg-row-language').hidden = false; /* @end-dev-only */
     }
     initLanguageSelect();
 

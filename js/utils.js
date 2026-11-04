@@ -351,7 +351,7 @@ function formatPercentMultiplier(value) {
     return `${Math.round(value * 100)}%`;
 }
 function translateSkillTag(tag) {
-    return SKILL_TAG_LABELS[tag] || tag;
+    return _t(SKILL_TAG_LABELS[tag] || tag);
 }
 function getSkillTagList(skill) {
     return (skill.tags || []).map(translateSkillTag);
@@ -535,7 +535,7 @@ const STAT_DISPLAY_NAMES = {
     };
 Object.entries(WEAPON_CONDITION_STATS).forEach(([id, line]) => { STAT_DISPLAY_NAMES[id] = `${SKILL_RUNE_STANCE_LABELS[line.stance]} 사용 시 ${STAT_DISPLAY_NAMES[line.stat].replace(' 증가', '')}`; });
 function getStatName(statId) {
-    return STAT_DISPLAY_NAMES[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId;
+    return _t(STAT_DISPLAY_NAMES[statId] || (P_STATS[statId] && P_STATS[statId].name) || statId);
 }
 function getRarityColor(rarity) {
     if (rarity === 'unique') return '#ff9f43';

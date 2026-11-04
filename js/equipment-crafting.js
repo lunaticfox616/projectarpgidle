@@ -212,7 +212,7 @@ const equipmentCrafting = (() => {
     function armOmen(state, key, side) {
         if (!key) { state.craftOmen = null; return { ok: true }; }
         if (!CRAFT_OMENS.keys.includes(key)) return { ok: false, reason: '알 수 없는 뿌리입니다.' };
-        if ((state.currencies[key] || 0) < 1) return { ok: false, reason: `${ORB_DB[key].name}가 없습니다.` };
+        if ((state.currencies[key] || 0) < 1) return { ok: false, reason: `${_t(ORB_DB[key].name)}가 없습니다.` };
         state.craftOmen = normalizeCraftOmen({ key, side });
         return { ok: true };
     }
@@ -261,7 +261,7 @@ const equipmentCrafting = (() => {
         if (!omen) return '';
         state.currencies[omen.key] = Math.max(0, (state.currencies[omen.key] || 0) - 1);
         state.craftOmen = null;
-        return `, ${ORB_DB[omen.key].name}`;
+        return `, ${_t(ORB_DB[omen.key].name)}`;
     }
     const floorTier = tier => Math.max(1, Math.ceil(tier * CRAFT_OMENS.floorShare));
     /** One new line of mod at item tier: 거름 rolls above a tier floor. */
@@ -404,7 +404,7 @@ const equipmentCrafting = (() => {
         const reason = buildLockReason(state) || imprintBlock(item);
         if (reason) return reason;
         if (!['magic', 'rare'].includes(item.rarity)) return '마법이나 희귀 장비에 새깁니다.';
-        return (state.currencies[IMPRINT_KEY] || 0) > 0 ? '' : `${ORB_DB[IMPRINT_KEY].name}이 없습니다.`;
+        return (state.currencies[IMPRINT_KEY] || 0) > 0 ? '' : `${_t(ORB_DB[IMPRINT_KEY].name)}이 없습니다.`;
     }
     /** Engraves item's craft fields for one 기억 조각칼 (an older imprint is replaced). { ok, reason }. */
     function engrave(state, item) {

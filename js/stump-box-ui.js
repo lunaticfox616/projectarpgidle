@@ -1389,7 +1389,7 @@ const stumpBoxUi = (() => {
     }
     function announceStumpChange(detail) {
         if (detail.drop) addLog(...stumpDropLog(detail.drop));
-        if (detail.overflow) addLog(`🧿 그루터기 함 보관함이 가득 차 부적 대신 ${ORB_DB[detail.overflow].name} 1개를 받았습니다.`, 'loot-magic');
+        if (detail.overflow) addLog(`🧿 그루터기 함 보관함이 가득 차 부적 대신 ${_t(ORB_DB[detail.overflow].name)} 1개를 받았습니다.`, 'loot-magic');
         if (detail.compost) addLog(stumpCompostDropText(detail.compost), 'loot-magic');
         (detail.ripened || []).forEach(item => addLog(`${STUMP_LOG_ICONS[item.family] || '🌸'} 그루터기 함: ${stumpRipeName(item)}`, 'loot-rare'));
         announceStumpRipened(detail.ripened || []);

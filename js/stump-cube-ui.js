@@ -20,7 +20,7 @@ const stumpCubeUi = (() => {
     });
 
     function itemName(kind, item) {
-        if (kind === 'currency') return ORB_DB[item.currency].name;
+        if (kind === 'currency') return _t(ORB_DB[item.currency].name);
         return isStumpKind(kind) ? stumpBox.label(item) : String(item.name || KIND_LABELS[kind]);
     }
 
@@ -65,7 +65,7 @@ const stumpCubeUi = (() => {
     function bookCostHtml(cost) {
         const rows = Object.entries(cost || {}).map(([key, need]) => {
             const have = Math.floor(game.currencies[key] || 0);
-            return `${esc(ORB_DB[key].name)} ${need} <span class="${have < need ? 'is-short' : ''}">(보유 ${have})</span>`;
+            return `${esc(_t(ORB_DB[key].name))} ${need} <span class="${have < need ? 'is-short' : ''}">(보유 ${have})</span>`;
         });
         return rows.length ? rows.join(', ') : '비용 없음';
     }
@@ -268,7 +268,7 @@ const stumpCubeUi = (() => {
     function renderItemDetails(body, kind, item, snapshot = false) {
         if (kind === 'wallet') body.innerHTML = `<h3>${esc(itemName(kind, item))}</h3>`;
         else if (kind === 'stump') body.innerHTML = statToneText.markup(stumpBoxUi.itemTipHtml(item, snapshot));
-        else if (kind === 'currency') body.innerHTML = `<h3>${esc(ORB_DB[item.currency].name)}</h3><p>${statToneText.html(ORB_DB[item.currency].desc || '')}</p>`;
+        else if (kind === 'currency') body.innerHTML = `<h3>${esc(_t(ORB_DB[item.currency].name))}</h3><p>${statToneText.html(ORB_DB[item.currency].desc || '')}</p>`;
         else showItemTooltip(null, null, false, item, { target: body });
     }
 
@@ -419,7 +419,7 @@ const stumpCubeUi = (() => {
         if (!result.ok) return showGameToast(result.reason, { tone: 'warning' });
         lastResult = { state: game, season: game.season, outputs: JSON.parse(JSON.stringify(result.outputs)) };
         const names = result.outputs.map(row => itemName(row.kind, row.item)).join(', ');
-        const paid = Object.entries(result.paid).map(([key, need]) => `${ORB_DB[key].name} ${need}개`).join(', ');
+        const paid = Object.entries(result.paid).map(([key, need]) => `${_t(ORB_DB[key].name)} ${need}개`).join(', ');
         addLog(`🧩 조합창 ${result.recipe.name}: ${names}${paid ? ` (${paid} 사용)` : ''}`, 'loot-rare');
         // 완전한 코어(js/core-items.js rollPerfect)는 드랍처럼 체이싱 티어 알림도
         result.outputs.filter(row => row.kind === 'core' && row.item && row.item.perfect)

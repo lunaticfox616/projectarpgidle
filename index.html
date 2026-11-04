@@ -55,7 +55,7 @@
 <div id="info-tooltip"></div>
 <div id="startup-overlay" class="startup-overlay active">
     <!-- 게임 파일을 받는 동안의 한 줄(html.app-preload인 동안만, css/document.css): 2026-10-28까지는 마지막 스크립트가 올 때까지 검은 화면이었다. -->
-    <div id="startup-preload" aria-hidden="true"><img src="assets/ui/pixel/rignin-logo-120.png" alt="" width="120" height="120"><p>게임 파일을 받는 중…</p></div>
+    <div id="startup-preload" aria-hidden="true"><img src="assets/ui/pixel/rignin-logo-120.png" alt="" width="120" height="120"><p data-i18n>게임 파일을 받는 중…</p></div>
     <div class="startup-shell">
         <div class="startup-panel hero">
             <div class="startup-hero-grid">
@@ -65,19 +65,19 @@
                     </div>
                     <div class="startup-summary-card">
                         <div class="startup-summary-head">
-                            <div class="startup-summary-title">이 기기 저장</div>
-                            <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 10월 23일" onclick="openPatchNotes()">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(2026.10.23)</span></button>
+                            <div class="startup-summary-title" data-i18n>이 기기 저장</div>
+                            <button type="button" class="patch-notes-open-btn startup-patch-note-link" aria-label="패치노트, 최신 패치 2026년 10월 23일" onclick="openPatchNotes()" data-i18n data-i18n-attr="aria-label">패치노트 <span class="startup-latest-patch-date" aria-hidden="true">(2026.10.23)</span></button>
                         </div>
                         <div class="startup-summary-grid">
                             <div class="startup-summary-item">
                                 <div class="startup-summary-value" id="startup-local-summary"></div>
                             </div>
                             <div class="startup-summary-item">
-                                <div class="startup-summary-label">마지막 저장</div>
-                                <div class="startup-summary-value" id="startup-local-time">없음</div>
+                                <div class="startup-summary-label" data-i18n>마지막 저장</div>
+                                <div class="startup-summary-value" id="startup-local-time" data-i18n>없음</div>
                             </div>
                         </div>
-                        <p class="startup-summary-hint" hidden>저장된 모험이 없습니다. 게스트로 바로 시작하거나, 로그인하면 여러 기기에서 이어서 할 수 있습니다.</p>
+                        <p class="startup-summary-hint" hidden data-i18n>저장된 모험이 없습니다. 게스트로 바로 시작하거나, 로그인하면 여러 기기에서 이어서 할 수 있습니다.</p>
                     </div>
                 </div>
             </div>
@@ -85,58 +85,58 @@
         <div class="startup-panel auth">
             <div class="startup-auth-head">
                 <div>
-                    <div class="startup-auth-title">로그인</div>
+                    <div class="startup-auth-title" data-i18n>로그인</div>
                 </div>
             </div>
             <div class="startup-form" id="startup-auth-form">
-                <label class="startup-field-label" for="startup-email">이메일</label>
-                <input type="email" id="startup-email" placeholder="이메일 주소" autocomplete="email">
-                <label class="startup-field-label" for="startup-password">비밀번호</label>
-                <input type="password" id="startup-password" placeholder="비밀번호" autocomplete="current-password">
+                <label class="startup-field-label" for="startup-email" data-i18n>이메일</label>
+                <input type="email" id="startup-email" placeholder="이메일 주소" autocomplete="email" data-i18n-attr="placeholder">
+                <label class="startup-field-label" for="startup-password" data-i18n>비밀번호</label>
+                <input type="password" id="startup-password" placeholder="비밀번호" autocomplete="current-password" data-i18n-attr="placeholder">
                 <div class="startup-legal-consent" id="startup-signup-consent" hidden>
-                    <div class="startup-policy-scroll" tabindex="0" aria-label="이용약관 및 개인정보 수집/이용 내용">
+                    <div class="startup-policy-scroll" tabindex="0" aria-label="이용약관 및 개인정보 수집/이용 내용" data-i18n-attr="aria-label">
                         <section data-legal-policy="terms"></section>
                         <section data-legal-policy="privacy"></section>
                     </div>
-                    <label><input type="checkbox" id="startup-terms-consent"> <span>[필수] <a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a>에 동의합니다.</span></label>
-                    <label><input type="checkbox" id="startup-privacy-consent"> <span>[필수] <a href="legal/privacy.html" target="_blank" rel="noopener">개인정보 수집/이용</a>에 동의합니다.</span></label>
-                    <div>회원가입을 완료하려면 동의가 필요하며, 만 14세 이상만 이용할 수 있습니다.</div>
-                    <button type="button" id="btn-startup-resend-confirmation" disabled class="startup-resend-confirmation" onclick="resendSignupConfirmation()">인증 메일을 못 받았다면 다시 받기</button>
+                    <label><input type="checkbox" id="startup-terms-consent"> <span data-i18n>[필수] <a href="legal/terms.html" target="_blank" rel="noopener" data-i18n>이용약관</a>에 동의합니다.</span></label>
+                    <label><input type="checkbox" id="startup-privacy-consent"> <span data-i18n>[필수] <a href="legal/privacy.html" target="_blank" rel="noopener" data-i18n>개인정보 수집/이용</a>에 동의합니다.</span></label>
+                    <div data-i18n>회원가입을 완료하려면 동의가 필요하며, 만 14세 이상만 이용할 수 있습니다.</div>
+                    <button type="button" id="btn-startup-resend-confirmation" disabled class="startup-resend-confirmation" onclick="resendSignupConfirmation()" data-i18n>인증 메일을 못 받았다면 다시 받기</button>
                 </div>
             </div>
             <!-- 시작 버튼은 부팅이 저장을 읽은 뒤에 켜진다(js/ui.js updateStartupScreenUI). 그 전에 누르면 빈 새 게임으로 들어갔다. -->
             <div class="startup-actions-stack two" id="startup-auth-actions">
-                <button id="btn-startup-login" disabled class="startup-primary" onclick="startupLogin()">로그인</button>
-                <button id="btn-startup-signup" disabled class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()">회원가입</button>
+                <button id="btn-startup-login" disabled class="startup-primary" onclick="startupLogin()" data-i18n>로그인</button>
+                <button id="btn-startup-signup" disabled class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()" data-i18n>회원가입</button>
             </div>
             <div class="startup-actions-stack">
-                <button id="btn-startup-continue" disabled class="startup-primary" onclick="continueWithCloudSession()" style="display:none;">계정 저장으로 이어하기</button>
-                <button id="btn-startup-switch-account" disabled class="startup-ghost" onclick="prepareStartupAccountSwitch()" style="display:none;">다른 계정 사용</button>
-                <button id="btn-startup-guest" disabled class="startup-ghost" onclick="startGuestMode()">게스트로 시작</button>
-                <div class="startup-local-save-warning">이 기기에만 저장되며, 지우면 복구되지 않습니다.</div>
-                <button id="btn-startup-back" disabled class="startup-ghost" onclick="returnFromStartupGate()" style="display:none;">게임으로 돌아가기</button>
+                <button id="btn-startup-continue" disabled class="startup-primary" onclick="continueWithCloudSession()" style="display:none;" data-i18n>계정 저장으로 이어하기</button>
+                <button id="btn-startup-switch-account" disabled class="startup-ghost" onclick="prepareStartupAccountSwitch()" style="display:none;" data-i18n>다른 계정 사용</button>
+                <button id="btn-startup-guest" disabled class="startup-ghost" onclick="startGuestMode()" data-i18n>게스트로 시작</button>
+                <div class="startup-local-save-warning" data-i18n>이 기기에만 저장되며, 지우면 복구되지 않습니다.</div>
+                <button id="btn-startup-back" disabled class="startup-ghost" onclick="returnFromStartupGate()" style="display:none;" data-i18n>게임으로 돌아가기</button>
             </div>
             <details class="startup-social-login" id="startup-social-login">
-                <summary>소셜 로그인</summary>
+                <summary data-i18n>소셜 로그인</summary>
                 <div class="startup-actions-stack social-login-stack" id="startup-social-actions">
-                    <button id="btn-startup-google" disabled class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()">
+                    <button id="btn-startup-google" disabled class="social-login-image-btn" aria-label="Google 계정으로 로그인" onclick="loginWithGoogle()" data-i18n-attr="aria-label">
                         <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20">
-                        <span>Google 계정으로 로그인</span>
+                        <span data-i18n>Google 계정으로 로그인</span>
                     </button>
                     <button id="btn-startup-kakao" disabled class="social-login-image-btn" onclick="loginWithKakao()">
-                        <img src="assets/ui/login-kakao.png" alt="카카오 계정으로 로그인" width="366" height="90">
+                        <img src="assets/ui/login-kakao.png" alt="카카오 계정으로 로그인" width="366" height="90" data-i18n-attr="alt">
                     </button>
                 </div>
             </details>
             <div class="startup-status" id="startup-status" role="status"></div>
-            <div class="startup-policy-links"><a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a><span>/</span><a href="legal/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></div>
+            <div class="startup-policy-links"><a href="legal/terms.html" target="_blank" rel="noopener" data-i18n>이용약관</a><span>/</span><a href="legal/privacy.html" target="_blank" rel="noopener" data-i18n>개인정보처리방침</a></div>
         </div>
         <!-- 다른 탭이 게임을 이어 받은 탭(js/game-tab-guard-ui.js). 로그인 판 자리에 대신 선다. -->
         <div class="startup-panel auth startup-standby" id="startup-standby" role="alert" hidden>
-            <div class="startup-auth-title">다른 탭에서 게임 중</div>
-            <p class="startup-standby-copy">이 게임을 다른 탭에서 열어 이 탭은 멈췄습니다.</p>
-            <button type="button" id="btn-startup-standby" class="startup-primary">이 탭에서 이어 하기</button>
-            <div class="startup-standby-note">다른 탭의 게임은 멈추고 여기서 이어집니다.</div>
+            <div class="startup-auth-title" data-i18n>다른 탭에서 게임 중</div>
+            <p class="startup-standby-copy" data-i18n>이 게임을 다른 탭에서 열어 이 탭은 멈췄습니다.</p>
+            <button type="button" id="btn-startup-standby" class="startup-primary" data-i18n>이 탭에서 이어 하기</button>
+            <div class="startup-standby-note" data-i18n>다른 탭의 게임은 멈추고 여기서 이어집니다.</div>
         </div>
     </div>
 </div>
@@ -146,9 +146,9 @@
             <div class="loading-ring"></div>
             <div class="loading-core"></div>
         </div>
-        <div class="loading-title" id="loading-title" role="status">차원을 정렬하는 중...</div>
-        <div class="loading-detail" id="loading-detail">세이브 상태를 점검하고 전장을 준비하고 있습니다.</div>
-        <div class="loading-bar" role="progressbar" aria-label="게임 준비 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="loading-title" id="loading-title" role="status" data-i18n>차원을 정렬하는 중...</div>
+        <div class="loading-detail" id="loading-detail" data-i18n>세이브 상태를 점검하고 전장을 준비하고 있습니다.</div>
+        <div class="loading-bar" role="progressbar" aria-label="게임 준비 진행률" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-i18n-attr="aria-label">
             <div class="loading-bar-fill" id="loading-bar-fill"></div>
         </div>
         <div class="loading-caption" id="loading-caption">Syncing Timeline</div>
@@ -157,104 +157,104 @@
 <div id="loop-rewrite-overlay" class="loop-rewrite-overlay"></div>
 <div id="tutorial-overlay" class="tutorial-overlay">
     <div class="tutorial-card">
-        <div class="tutorial-kicker" id="tutorial-kicker">새 콘텐츠 발견!</div>
-        <div class="tutorial-title" id="tutorial-title">알림</div>
+        <div class="tutorial-kicker" id="tutorial-kicker" data-i18n>새 콘텐츠 발견!</div>
+        <div class="tutorial-title" id="tutorial-title" data-i18n>알림</div>
         <div class="tutorial-body" id="tutorial-body"></div>
         <div class="tutorial-actions">
-            <label id="tutorial-journal-preference" class="cfg-toggle" hidden><input type="checkbox" id="chk-hide-act-journal" onchange="storyJournalUi.setAutoShow(!this.checked)"><span class="cfg-label">다음부터 표시하지 않기</span></label>
-            <button id="tutorial-dismiss-btn" class="tutorial-secondary" onclick="dismissTutorial(false)">확인</button>
-            <button id="tutorial-open-btn" onclick="advanceTutorial()">화면 열기</button>
+            <label id="tutorial-journal-preference" class="cfg-toggle" hidden><input type="checkbox" id="chk-hide-act-journal" onchange="storyJournalUi.setAutoShow(!this.checked)"><span class="cfg-label" data-i18n>다음부터 표시하지 않기</span></label>
+            <button id="tutorial-dismiss-btn" class="tutorial-secondary" onclick="dismissTutorial(false)" data-i18n>확인</button>
+            <button id="tutorial-open-btn" onclick="advanceTutorial()" data-i18n>화면 열기</button>
         </div>
     </div>
 </div>
 <div id="patch-notes-overlay" class="tutorial-overlay" onclick="if(event.target===this)closePatchNotes()">
     <div class="tutorial-card patch-notes-card">
-        <div class="tutorial-title">패치 노트</div>
+        <div class="tutorial-title" data-i18n>패치 노트</div>
         <div class="patch-note-body patch-notes-modal-body" id="patch-notes-overlay-body"></div>
         <div class="tutorial-actions">
-            <button id="patch-notes-close-btn" onclick="closePatchNotes()">닫기</button>
+            <button id="patch-notes-close-btn" onclick="closePatchNotes()" data-i18n>닫기</button>
         </div>
     </div>
 </div>
 <div id="reward-overlay" class="tutorial-overlay">
     <div class="tutorial-card">
-        <div class="tutorial-kicker" id="reward-kicker">액트 클리어 보상</div>
-        <div class="tutorial-title" id="reward-title">보상을 선택하세요</div>
+        <div class="tutorial-kicker" id="reward-kicker" data-i18n>액트 클리어 보상</div>
+        <div class="tutorial-title" id="reward-title" data-i18n>보상을 선택하세요</div>
         <div class="tutorial-body" id="reward-body"></div>
         <div class="reward-grid" id="reward-grid"></div>
         <div class="tutorial-actions">
-            <button class="tutorial-secondary" onclick="closeRewardOverlay()">나중에</button>
+            <button class="tutorial-secondary" onclick="closeRewardOverlay()" data-i18n>나중에</button>
         </div>
     </div>
 </div>
 <div id="loop-hero-select-overlay" class="tutorial-overlay">
     <div class="tutorial-card" style="max-width:460px;">
         <div class="hero-choice-scroll">
-            <div class="tutorial-kicker" id="loop-hero-select-kicker">다음 루프</div>
-            <div class="tutorial-title" id="loop-hero-select-title">다음 루프 직업 선택</div>
-            <div class="tutorial-body" id="loop-hero-select-body">이번 루프에서 사용할 직업을 선택하세요.</div>
+            <div class="tutorial-kicker" id="loop-hero-select-kicker" data-i18n>다음 루프</div>
+            <div class="tutorial-title" id="loop-hero-select-title" data-i18n>다음 루프 직업 선택</div>
+            <div class="tutorial-body" id="loop-hero-select-body" data-i18n>이번 루프에서 사용할 직업을 선택하세요.</div>
             <div id="loop-hero-select-grid" class="reward-grid"></div>
         </div>
         <!-- 휴대폰 배치(1080px 이하)만 보인다: 첫 누름은 고르기, 정하기는 여기서 (js/passives.js pressLoopHeroChoice) -->
         <div class="hero-choice-confirm">
             <div id="loop-hero-select-detail" class="hero-choice-detail" aria-live="polite"></div>
-            <p class="hero-choice-hint">직업을 눌러 시작 스킬룬과 대표 무기를 확인하세요.</p>
-            <button type="button" id="loop-hero-select-start" class="hero-choice-start" disabled onclick="chooseLoopHero(this.value)">이 직업으로 시작</button>
+            <p class="hero-choice-hint" data-i18n>직업을 눌러 시작 스킬룬과 대표 무기를 확인하세요.</p>
+            <button type="button" id="loop-hero-select-start" class="hero-choice-start" disabled onclick="chooseLoopHero(this.value)" data-i18n>이 직업으로 시작</button>
         </div>
     </div>
 </div>
 
-<div id="loop-ready-overlay" class="tutorial-overlay" role="dialog" aria-modal="true" aria-label="루프 달성 정산">
+<div id="loop-ready-overlay" class="tutorial-overlay" role="dialog" aria-modal="true" aria-label="루프 달성 정산" data-i18n-attr="aria-label">
     <div class="tutorial-card loop-settlement-card">
         <div id="loop-ready-summary"></div>
-        <p class="loop-settlement-note" data-loop-section="3">장비를 정리한 뒤 다음 여정을 시작할 수 있습니다.</p>
-        <div class="loop-settlement-actions" data-loop-section="3"><button type="button" onclick="loopSettlementUi.organize()">장비 정리</button><button type="button" onclick="handleCombatLoopAdvanceButton()">다음 루프 진행</button></div>
+        <p class="loop-settlement-note" data-loop-section="3" data-i18n>장비를 정리한 뒤 다음 여정을 시작할 수 있습니다.</p>
+        <div class="loop-settlement-actions" data-loop-section="3"><button type="button" onclick="loopSettlementUi.organize()" data-i18n>장비 정리</button><button type="button" onclick="handleCombatLoopAdvanceButton()" data-i18n>다음 루프 진행</button></div>
     </div>
 </div>
-<div id="loop-decision-overlay" class="tutorial-overlay" role="dialog" aria-modal="true" aria-label="루프 달성 정산">
+<div id="loop-decision-overlay" class="tutorial-overlay" role="dialog" aria-modal="true" aria-label="루프 달성 정산" data-i18n-attr="aria-label">
     <div class="tutorial-card loop-settlement-card">
         <div id="loop-decision-summary"></div>
-        <div class="tutorial-body" id="loop-decision-body" data-loop-section="3">다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.</div>
+        <div class="tutorial-body" id="loop-decision-body" data-loop-section="3" data-i18n>다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.</div>
         <div id="loop-decision-actions" data-loop-section="3">
-            <button id="loop-decision-generic-btn" onclick="handleLoopDecisionAdvanceButton()">루프 진행</button>
-            <button id="loop-decision-chaos-btn" onclick="handleLoopDecisionAdvanceButton('chaos')" style="display:none;">혼돈 루프</button>
-            <button id="loop-decision-cosmos-btn" onclick="handleLoopDecisionAdvanceButton('cosmos')" style="display:none;">우주계 루프</button>
-            <button id="loop-decision-continue-btn" onclick="chooseLoopAdvance(false)">나중에 루프</button>
+            <button id="loop-decision-generic-btn" onclick="handleLoopDecisionAdvanceButton()" data-i18n>루프 진행</button>
+            <button id="loop-decision-chaos-btn" onclick="handleLoopDecisionAdvanceButton('chaos')" style="display:none;" data-i18n>혼돈 루프</button>
+            <button id="loop-decision-cosmos-btn" onclick="handleLoopDecisionAdvanceButton('cosmos')" style="display:none;" data-i18n>우주계 루프</button>
+            <button id="loop-decision-continue-btn" onclick="chooseLoopAdvance(false)" data-i18n>나중에 루프</button>
         </div>
     </div>
 </div>
 <dialog id="death-overlay" class="tutorial-overlay" aria-labelledby="deathlog-title" oncancel="event.preventDefault(); closeDeathOverlay()" onkeydown="event.stopPropagation()">
     <div class="tutorial-card deathlog-card">
-        <div class="tutorial-kicker">사망 기록</div>
-        <div class="tutorial-title" id="deathlog-title">사망 보고서</div>
+        <div class="tutorial-kicker" data-i18n>사망 기록</div>
+        <div class="tutorial-title" id="deathlog-title" data-i18n>사망 보고서</div>
         <div class="tutorial-body" id="deathlog-body"></div>
         <div class="deathlog-hints" id="deathlog-hints" hidden></div>
         <div class="deathlog-panel">
-            <div class="deathlog-subtitle" id="deathlog-damage-title">최근 3초 피해 요약</div>
-            <div class="deathlog-tabs" role="tablist" aria-label="사망 원인 분류">
-                <button type="button" class="deathlog-tab active" data-deathlog-view="element" role="tab" aria-selected="true">속성별</button>
-                <button type="button" class="deathlog-tab" data-deathlog-view="monster" role="tab" aria-selected="false">몬스터별</button>
+            <div class="deathlog-subtitle" id="deathlog-damage-title" data-i18n>최근 3초 피해 요약</div>
+            <div class="deathlog-tabs" role="tablist" aria-label="사망 원인 분류" data-i18n-attr="aria-label">
+                <button type="button" class="deathlog-tab active" data-deathlog-view="element" role="tab" aria-selected="true" data-i18n>속성별</button>
+                <button type="button" class="deathlog-tab" data-deathlog-view="monster" role="tab" aria-selected="false" data-i18n>몬스터별</button>
             </div>
             <div class="deathlog-list" id="deathlog-damage-list"></div>
         </div>
-        <label class="deathlog-setting">
+        <label class="deathlog-setting" data-i18n>
             <input type="checkbox" id="chk-death-notice-inline" onchange="toggleDeathNoticeSetting(this.checked)">
             사망 시 알림 표시
         </label>
         <div class="tutorial-actions">
-            <button autofocus onclick="closeDeathOverlay()">확인</button>
+            <button autofocus onclick="closeDeathOverlay()" data-i18n>확인</button>
         </div>
     </div>
 </dialog>
 <dialog id="ring-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="ring-slot-overlay-heading" oncancel="event.preventDefault();closeRingSlotOverlay()" onkeydown="event.stopPropagation()">
     <div class="game-dialog-card">
-        <div class="game-dialog-kicker">반지 장착</div>
-        <div class="game-dialog-title" id="ring-slot-overlay-heading">교체할 슬롯 선택</div>
-        <div class="game-dialog-body"><div class="game-dialog-message">두 반지 슬롯이 모두 사용 중입니다. 교체할 반지 슬롯을 선택하세요.</div></div>
+        <div class="game-dialog-kicker" data-i18n>반지 장착</div>
+        <div class="game-dialog-title" id="ring-slot-overlay-heading" data-i18n>교체할 슬롯 선택</div>
+        <div class="game-dialog-body"><div class="game-dialog-message" data-i18n>두 반지 슬롯이 모두 사용 중입니다. 교체할 반지 슬롯을 선택하세요.</div></div>
         <div class="game-dialog-actions">
-            <button type="button" class="game-dialog-btn" onclick="selectRingSlotFromOverlay('반지1')">왼쪽 슬롯</button>
-            <button type="button" class="game-dialog-btn" onclick="selectRingSlotFromOverlay('반지2')">오른쪽 슬롯</button>
-            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeRingSlotOverlay()">취소</button>
+            <button type="button" class="game-dialog-btn" onclick="selectRingSlotFromOverlay('반지1')" data-i18n>왼쪽 슬롯</button>
+            <button type="button" class="game-dialog-btn" onclick="selectRingSlotFromOverlay('반지2')" data-i18n>오른쪽 슬롯</button>
+            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeRingSlotOverlay()" data-i18n>취소</button>
         </div>
     </div>
 </dialog>
@@ -262,22 +262,22 @@
 <div id="left-pane">
     <div id="battle-column">
     <div class="panel player-panel" style="position: relative;">
-        <button id="left-pane-collapse-toggle" onclick="toggleLeftPaneCollapse()" data-tip="전투 패널 접기" aria-label="전투 패널 접기">◀</button>
-        <h2 style="display:none;">플레이어</h2>
+        <button id="left-pane-collapse-toggle" onclick="toggleLeftPaneCollapse()" data-tip="전투 패널 접기" aria-label="전투 패널 접기" data-i18n-attr="data-tip aria-label">◀</button>
+        <h2 style="display:none;" data-i18n>플레이어</h2>
     </div>
 
     <div class="panel combat-panel" style="position: relative;">
         <h2 style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #3d3d5c; padding-bottom: 5px;">
-            <span style="font-size: 12px; font-weight: normal; color: var(--copy-bright); flex: 1; text-align: center;" id="ui-combat-zone">액트 1: 뿌리끝 성소</span>
+            <span style="font-size: 12px; font-weight: normal; color: var(--copy-bright); flex: 1; text-align: center;" id="ui-combat-zone" data-i18n>액트 1: 뿌리끝 성소</span>
         </h2>
         <div class="combat-zone-row">
             <div class="combat-zone-row-title">
-                <span id="ui-combat-zone-inline">Lv.1 재능명</span>
-                <span class="combat-zone-subline"><span id="ui-loop-mutation" class="loop-mutation-chip" hidden></span><span id="ui-combat-currencies" class="combat-currencies" aria-label="가진 기본 재화" hidden></span></span>
+                <span id="ui-combat-zone-inline" data-i18n>Lv.1 재능명</span>
+                <span class="combat-zone-subline"><span id="ui-loop-mutation" class="loop-mutation-chip" hidden></span><span id="ui-combat-currencies" class="combat-currencies" aria-label="가진 기본 재화" hidden data-i18n-attr="aria-label"></span></span>
             </div>
             <div id="ui-map-progress-row" class="map-progress-row">
                 <span id="ui-cosmos-route-progress" hidden></span>
-                <strong id="ui-progress-label">진행도</strong>
+                <strong id="ui-progress-label" data-i18n>진행도</strong>
                 <div class="hp-bar-bg map-progress-gauge" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showMapProgressTooltip(event)" onfocus="showMapProgressTooltip(event)" onmousemove="positionTooltipElement(document.getElementById('info-tooltip'),event.clientX,event.clientY)" onmouseleave="hideInfoTooltip()" onblur="hideInfoTooltip()">
                     <div id="ui-move-bar" class="hp-bar-fill move" style="width: 0%;"></div>
                     <div class="map-progress-ticks" aria-hidden="true"></div>
@@ -285,25 +285,25 @@
                 </div>
             </div>
             <div class="combat-zone-actions">
-                <button id="btn-combat-loop-advance" class="combat-action-btn" onclick="handleCombatLoopAdvanceButton()">루프 진행</button>
-                <button id="btn-act-exploration-auto" class="combat-action-btn" type="button" aria-pressed="true" aria-label="자동 이동 켜짐, 눌러서 바꾸기" onclick="actExplorationUi.toggleAuto()" hidden><b>자동</b><i class="combat-hud-key" aria-hidden="true" hidden></i></button>
-                <button id="btn-combat-return" class="combat-action-btn" data-exploration-departure onclick="sideEncounterUi.returnFromBattle()">귀환</button>
-                <button id="btn-combat-goal-toggle" class="combat-action-btn combat-goal-toggle" type="button" aria-controls="ui-goal-drawer" aria-expanded="false" onclick="toggleGoalDrawer()" hidden>목표</button>
+                <button id="btn-combat-loop-advance" class="combat-action-btn" onclick="handleCombatLoopAdvanceButton()" data-i18n>루프 진행</button>
+                <button id="btn-act-exploration-auto" class="combat-action-btn" type="button" aria-pressed="true" aria-label="자동 이동 켜짐, 눌러서 바꾸기" onclick="actExplorationUi.toggleAuto()" hidden data-i18n-attr="aria-label"><b data-i18n>자동</b><i class="combat-hud-key" aria-hidden="true" hidden></i></button>
+                <button id="btn-combat-return" class="combat-action-btn" data-exploration-departure onclick="sideEncounterUi.returnFromBattle()" data-i18n>귀환</button>
+                <button id="btn-combat-goal-toggle" class="combat-action-btn combat-goal-toggle" type="button" aria-controls="ui-goal-drawer" aria-expanded="false" onclick="toggleGoalDrawer()" hidden data-i18n>목표</button>
             </div>
         </div>
         <div class="combat-top-status player-hud">
             <div class="player-hud-shell">
                 <div class="player-hud-left-wing">
                     <div class="player-hud-identity-row">
-                        <strong id="ui-player-name-label">궁수</strong>
-                        <span id="ui-player-class-label">미전직</span>
+                        <strong id="ui-player-name-label" data-i18n>궁수</strong>
+                        <span id="ui-player-class-label" data-i18n>미전직</span>
                     </div>
                 </div>
-                <div class="player-health-frame" aria-label="플레이어 전투 정보">
+                <div class="player-health-frame" aria-label="플레이어 전투 정보" data-i18n-attr="aria-label">
                     <div class="combat-hud-row combat-hud-row-hp player-hud-vitals">
-                        <div class="hp-bar-bg combat-hp-bar" aria-label="생명력">
+                        <div class="hp-bar-bg combat-hp-bar" aria-label="생명력" data-i18n-attr="aria-label">
                             <div id="ui-hp-bar" class="hp-bar-fill player" style="--gauge-fill: 100%;"></div>
-                            <div class="combat-es-overlay" id="ui-es-track" aria-label="에너지 보호막">
+                            <div class="combat-es-overlay" id="ui-es-track" aria-label="에너지 보호막" data-i18n-attr="aria-label">
                                 <div id="ui-es-bar" class="hp-bar-fill player-es" style="--gauge-fill: 0%; display: none;"></div>
                             </div>
                             <div class="hp-text"><span id="ui-hp">100</span> / <span id="ui-maxhp">100</span></div>
@@ -313,23 +313,23 @@
                     <div class="combat-hud-row combat-hud-row-exp player-hud-exp">
                         <span id="ui-exp-level-label" class="player-exp-level">Lv.1</span>
                         <div class="player-exp-percent" id="ui-exp-note">0.0%</div>
-                        <div class="hp-bar-bg combat-exp-bar" aria-label="경험치 진행도" data-info-tooltip-anchor="1" onmouseenter="showPlayerExperienceTooltip(event)" onmousemove="showPlayerExperienceTooltip(event)" onmouseleave="hideInfoTooltip()">
+                        <div class="hp-bar-bg combat-exp-bar" aria-label="경험치 진행도" data-info-tooltip-anchor="1" onmouseenter="showPlayerExperienceTooltip(event)" onmousemove="showPlayerExperienceTooltip(event)" onmouseleave="hideInfoTooltip()" data-i18n-attr="aria-label">
                             <div id="ui-exp-bar" class="hp-bar-fill exp" style="--gauge-fill: 0%;"></div>
                             <span class="player-exp-values" aria-hidden="true"><span id="ui-exp">0</span>/<span id="ui-maxexp">100</span></span>
                         </div>
                     </div>
                 </div>
-                <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden>
-                    <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)"></canvas>
-                    <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기" data-tip="탐험 지도 크게 보기" onclick="actExplorationUi.expand()" hidden></button>
+                <section id="act-exploration-panel" class="act-exploration-minimap" aria-label="탐험 미니맵" hidden data-i18n-attr="aria-label">
+                    <canvas id="act-exploration-map" tabindex="0" aria-label="탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" data-i18n-attr="aria-label"></canvas>
+                    <button id="btn-act-exploration-map" type="button" aria-label="탐험 지도 크게 보기" data-tip="탐험 지도 크게 보기" onclick="actExplorationUi.expand()" hidden data-i18n-attr="aria-label data-tip"></button>
                 </section>
-                <div class="player-hud-skill-rack" aria-label="현재 장착 룬">
+                <div class="player-hud-skill-rack" aria-label="현재 장착 룬" data-i18n-attr="aria-label">
                     <div id="ui-combat-skill-gems" class="player-hud-skill-slots"></div>
                 </div>
-                <div id="ui-player-ailments-under" class="combat-effect-strip player-combat-effect-strip" aria-label="활성 상태이상 및 효과"></div>
+                <div id="ui-player-ailments-under" class="combat-effect-strip player-combat-effect-strip" aria-label="활성 상태이상 및 효과" data-i18n-attr="aria-label"></div>
             </div>
             <div id="ui-ocean-oxygen-box" class="combat-hud-row combat-hud-row-oxygen player-hud-oxygen" style="display:none;">
-                <div class="combat-hud-label combat-hud-label-oxygen">산소</div>
+                <div class="combat-hud-label combat-hud-label-oxygen" data-i18n>산소</div>
                 <div class="hp-bar-bg combat-oxygen-bar">
                     <div id="ui-ocean-oxygen-bar" style="height:100%; width:100%; background:linear-gradient(90deg,#1f9bd6,#4fd1ff); border-radius:inherit; transition:width .2s;"></div>
                     <div class="hp-text" id="ui-ocean-oxygen-text">100 / 100</div>
@@ -340,297 +340,297 @@
         <div class="combat-dashboard">
             <div class="combat-stage">
                 <div class="combat-stage-info">
-                    <aside id="ui-atlas-combat" hidden aria-label="세계수 아틀라스 지도 진행"></aside>
+                    <aside id="ui-atlas-combat" hidden aria-label="세계수 아틀라스 지도 진행" data-i18n-attr="aria-label"></aside>
                 </div>
                 <div id="move-area" style="text-align: center; margin-bottom: 10px; display: flex; flex-direction: column; min-height: 0;">
                     <div id="battlefield-wrap" class="battlefield-wrap">
                         <canvas id="battlefield-canvas"></canvas>
-                        <div class="battlefield-caption" id="ui-battlefield-caption">전장을 스캔 중...</div>
+                        <div class="battlefield-caption" id="ui-battlefield-caption" data-i18n>전장을 스캔 중...</div>
                     </div>
                     <div id="side-encounter-hud" hidden></div>
                 </div>
 
                 <div id="enemy-area" style="margin-top: 0; margin-bottom: 0; flex-shrink: 0;">
                     <div id="loop-ready-banner" class="loop-ready-banner">
-                        <div class="loop-ready-banner-text">
-                            <strong>루프 달성</strong> 다음 여정이 기다리고 있습니다.
+                        <div class="loop-ready-banner-text" data-i18n>
+                            <strong data-i18n>루프 달성</strong> 다음 여정이 기다리고 있습니다.
                         </div>
-                        <button type="button" onclick="loopSettlementUi.reopen()">정산 보기</button>
+                        <button type="button" onclick="loopSettlementUi.reopen()" data-i18n>정산 보기</button>
                     </div>
                     <div id="ui-enemy-list" class="enemy-list"></div>
                 </div>
             </div>
 
-            <div class="combat-feed" aria-label="전투 기록 도크">
-                <div class="combat-feed-title ui-context-dock-tabs" role="tablist" aria-label="전투 기록과 채팅">
-                    <button class="ui-context-dock-tab active" type="button" role="tab" aria-selected="true">전투 로그</button>
-                    <button id="btn-combat-chat-tab" class="ui-context-dock-tab" type="button" role="tab" aria-selected="false" onclick="openCommunityDock()">채팅<span id="noti-social-dock" class="noti-dot"></span></button>
-                    <button id="btn-combat-log-toggle" class="combat-log-toggle" type="button" aria-controls="log" aria-expanded="true" aria-label="전투 기록 접기" onclick="toggleCombatLogCollapse()">접기</button>
+            <div class="combat-feed" aria-label="전투 기록 도크" data-i18n-attr="aria-label">
+                <div class="combat-feed-title ui-context-dock-tabs" role="tablist" aria-label="전투 기록과 채팅" data-i18n-attr="aria-label">
+                    <button class="ui-context-dock-tab active" type="button" role="tab" aria-selected="true" data-i18n>전투 로그</button>
+                    <button id="btn-combat-chat-tab" class="ui-context-dock-tab" type="button" role="tab" aria-selected="false" onclick="openCommunityDock()" data-i18n>채팅<span id="noti-social-dock" class="noti-dot"></span></button>
+                    <button id="btn-combat-log-toggle" class="combat-log-toggle" type="button" aria-controls="log" aria-expanded="true" aria-label="전투 기록 접기" onclick="toggleCombatLogCollapse()" data-i18n data-i18n-attr="aria-label">접기</button>
                 </div>
-                <div id="log" role="tabpanel" aria-label="전투 로그"></div>
+                <div id="log" role="tabpanel" aria-label="전투 로그" data-i18n-attr="aria-label"></div>
             </div>
         </div>
     </div>
     </div>
 </div>
-<button id="left-pane-floating-toggle" onclick="toggleLeftPaneCollapse()" data-tip="전투 패널 접기/펼치기" aria-label="전투 패널 접기/펼치기">◀</button>
+<button id="left-pane-floating-toggle" onclick="toggleLeftPaneCollapse()" data-tip="전투 패널 접기/펼치기" aria-label="전투 패널 접기/펼치기" data-i18n-attr="data-tip aria-label">◀</button>
 
 <div id="right-pane">
-    <dialog id="act-exploration-dialog" aria-label="확대 탐험 지도">
-        <div class="act-exploration-heading"><strong>탐험 지도</strong></div>
-        <canvas id="act-exploration-map-large" tabindex="0" aria-label="확대 탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)"></canvas>
+    <dialog id="act-exploration-dialog" aria-label="확대 탐험 지도" data-i18n-attr="aria-label">
+        <div class="act-exploration-heading"><strong data-i18n>탐험 지도</strong></div>
+        <canvas id="act-exploration-map-large" tabindex="0" aria-label="확대 탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" data-i18n-attr="aria-label"></canvas>
         <div class="act-exploration-modes">
-            <button type="button" data-exploration-mode="direct" onclick="actExplorationUi.mode('direct')">보스 직행</button>
-            <button type="button" data-exploration-mode="full" onclick="actExplorationUi.mode('full')">전체 탐색</button>
-            <button type="button" data-exploration-mode="manual" onclick="actExplorationUi.mode('manual')">직접 이동</button>
+            <button type="button" data-exploration-mode="direct" onclick="actExplorationUi.mode('direct')" data-i18n>보스 직행</button>
+            <button type="button" data-exploration-mode="full" onclick="actExplorationUi.mode('full')" data-i18n>전체 탐색</button>
+            <button type="button" data-exploration-mode="manual" onclick="actExplorationUi.mode('manual')" data-i18n>직접 이동</button>
         </div>
         <div class="act-exploration-dialog-actions">
             <button id="act-exploration-seal" type="button" onpointerenter="actExplorationUi.hint(event)" onpointerleave="hideInfoTooltip()" onfocus="actExplorationUi.hint(event)" onblur="hideInfoTooltip()"></button>
-            <button type="button" onclick="this.closest('dialog').close()">닫기</button>
+            <button type="button" onclick="this.closest('dialog').close()" data-i18n>닫기</button>
         </div>
     </dialog>
-    <button id="left-pane-expand-fab" onclick="toggleLeftPaneCollapse()" data-tip="전투 패널 펼치기" aria-label="전투 패널 펼치기">▶</button>
+    <button id="left-pane-expand-fab" onclick="toggleLeftPaneCollapse()" data-tip="전투 패널 펼치기" aria-label="전투 패널 펼치기" data-i18n-attr="data-tip aria-label">▶</button>
     <div class="tab-category-bar" id="tab-category-bar" style="display:none;"></div>
     <div class="tab-header" id="tab-header-main">
-        <div class="tab-btn active" id="btn-tab-battle" onclick="switchTab('tab-battle')">전투 <span id="noti-battle" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-character" data-button-art onclick="switchTab('tab-character')" style="display: flex;">캐릭터</div>
-        <div class="tab-btn" id="btn-tab-char" data-button-art data-merged-tab-launcher="growth" onclick="openMergedTabPicker(event,'growth')" style="display:none;">스킬트리 <span id="noti-char" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-unlocks" data-merged-tab-member="1" data-merged-tab-group="loop" onclick="switchTab('tab-unlocks')">해금</div>
-        <div class="tab-btn" id="btn-tab-season" data-button-art data-merged-tab-launcher="loop" onclick="openMergedTabPicker(event,'loop')">루프 패시브 <span id="noti-season" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-traits" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-traits')">전직 <span id="noti-traits" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-talent" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-talent')" style="display:none;">재능 <span id="noti-talent" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-stump" data-button-art onclick="switchTab('tab-stump')" style="display:none;">그루터기 함 <span id="noti-stump" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-items" data-button-art data-merged-tab-launcher="gear" onclick="openMergedTabPicker(event,'gear')">장비 <span id="inventory-full-warning" class="inventory-full-warning">가득 참</span><span id="noti-items" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-map" data-button-art onclick="switchTab('tab-map')">지도 <span id="noti-map" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-skills" data-merged-tab-member="1" data-merged-tab-group="gear" onclick="switchTab('tab-skills')">스킬룬 <span id="noti-skills" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-journal" data-button-art data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;">기록 <span id="noti-journal" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-codex" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-codex')">도감 <span id="noti-codex" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-records" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-records')">전적</div>
+        <div class="tab-btn active" id="btn-tab-battle" onclick="switchTab('tab-battle')" data-i18n>전투 <span id="noti-battle" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-character" data-button-art onclick="switchTab('tab-character')" style="display: flex;" data-i18n>캐릭터</div>
+        <div class="tab-btn" id="btn-tab-char" data-button-art data-merged-tab-launcher="growth" onclick="openMergedTabPicker(event,'growth')" style="display:none;" data-i18n>스킬트리 <span id="noti-char" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-unlocks" data-merged-tab-member="1" data-merged-tab-group="loop" onclick="switchTab('tab-unlocks')" data-i18n>해금</div>
+        <div class="tab-btn" id="btn-tab-season" data-button-art data-merged-tab-launcher="loop" onclick="openMergedTabPicker(event,'loop')" data-i18n>루프 패시브 <span id="noti-season" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-traits" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-traits')" data-i18n>전직 <span id="noti-traits" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-talent" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-talent')" style="display:none;" data-i18n>재능 <span id="noti-talent" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-stump" data-button-art onclick="switchTab('tab-stump')" style="display:none;" data-i18n>그루터기 함 <span id="noti-stump" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-items" data-button-art data-merged-tab-launcher="gear" onclick="openMergedTabPicker(event,'gear')" data-i18n>장비 <span id="inventory-full-warning" class="inventory-full-warning" data-i18n>가득 참</span><span id="noti-items" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-map" data-button-art onclick="switchTab('tab-map')" data-i18n>지도 <span id="noti-map" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-skills" data-merged-tab-member="1" data-merged-tab-group="gear" onclick="switchTab('tab-skills')" data-i18n>스킬룬 <span id="noti-skills" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-journal" data-button-art data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;" data-i18n>기록 <span id="noti-journal" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-codex" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-codex')" data-i18n>도감 <span id="noti-codex" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-records" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-records')" data-i18n>전적</div>
         <div class="tab-btn" id="btn-tab-npcs" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-npcs')" style="display:none;">NPC <span id="noti-npcs" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-social" onclick="switchTab('tab-social')" style="display: flex;">커뮤니티 <span id="noti-social" class="noti-dot"></span></div>
-        <div class="tab-btn" id="btn-tab-settings" data-button-art onclick="switchTab('tab-settings')" style="display: flex;">설정</div>
-        <div class="tab-btn" id="btn-map-complete-action-picker" onclick="openMapCompleteActionPicker(event)" style="display: flex;" role="button" aria-label="전투 완료 후 행동 선택" hidden>전투 완료: 다음 지역</div>
+        <div class="tab-btn" id="btn-tab-social" onclick="switchTab('tab-social')" style="display: flex;" data-i18n>커뮤니티 <span id="noti-social" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-settings" data-button-art onclick="switchTab('tab-settings')" style="display: flex;" data-i18n>설정</div>
+        <div class="tab-btn" id="btn-map-complete-action-picker" onclick="openMapCompleteActionPicker(event)" style="display: flex;" role="button" aria-label="전투 완료 후 행동 선택" hidden data-i18n data-i18n-attr="aria-label">전투 완료: 다음 지역</div>
     </div>
     <div class="tab-header tab-header-bottom" id="tab-header-bottom"></div>
     <div id="tab-battle" class="tab-content active"></div>
 
     <div id="tab-character" class="tab-content">
-        <h2>캐릭터 정보</h2>
+        <h2 data-i18n>캐릭터 정보</h2>
         <div class="stat-grid character-overview">
 <div class="stat-item tip is-dps" onmouseenter="showStatTooltip(event,'dps')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label"><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>총 DPS</span>
+                <span class="stat-label" data-i18n><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>총 DPS</span>
                 <span class="stat-value" id="ui-total-dps" style="color: #ff7979;">10</span>
             </div>
 <div class="stat-item tip is-life" onmouseenter="showStatTooltip(event,'hp')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">최대 생명력</span>
+                <span class="stat-label" data-i18n>최대 생명력</span>
                 <span class="stat-value" id="ui-maxhp-stat">100</span>
                 <span class="stat-unit"></span>
             </div>
 <div class="stat-item tip is-shield" onmouseenter="showStatTooltip(event,'energyShield')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">에너지 보호막</span>
+                <span class="stat-label" data-i18n>에너지 보호막</span>
                 <span class="stat-value" id="ui-es">0</span>
                 <span class="stat-unit"></span>
             </div>
         </div>
         <details class="character-stat-section is-attack" open>
-            <summary>공격</summary>
+            <summary data-i18n>공격</summary>
             <div class="stat-grid">
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'directDps')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label"><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>직접 DPS</span>
+                <span class="stat-label" data-i18n><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>직접 DPS</span>
                 <span class="stat-value" id="ui-dps" style="color: #ffb1b1;">10</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'summonDps')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label"><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>소환 DPS</span>
+                <span class="stat-label" data-i18n><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>소환 DPS</span>
                 <span class="stat-value" id="ui-summon-dps" style="color: #78e6c1;">0</span>
             </div>
 <div class="stat-item tip" id="row-summon-cap" onmouseenter="showStatTooltip(event,'summonCap')" onmouseleave="hideInfoTooltip()" style="display:none;">
-                <span class="stat-label">소환수 한도</span>
-                <span class="stat-value" id="ui-summon-cap" style="color: #c9a8ff;">1 / 최대 8</span>
+                <span class="stat-label" data-i18n>소환수 한도</span>
+                <span class="stat-value" id="ui-summon-cap" style="color: #c9a8ff;" data-i18n>1 / 최대 8</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'atk')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label"><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>공격력</span>
+                <span class="stat-label" data-i18n><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>공격력</span>
                 <span class="stat-value" id="ui-atk">10</span>
                 <span class="stat-unit"></span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'aps')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">공격 속도</span>
+                <span class="stat-label" data-i18n>공격 속도</span>
                 <span class="stat-value" id="ui-aps">1.00</span>
                 <span class="stat-unit"></span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'crit')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">치명타</span>
+                <span class="stat-label" data-i18n>치명타</span>
                 <span class="stat-value" id="ui-crit">5.0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'accuracy')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">정확도</span>
+                <span class="stat-label" data-i18n>정확도</span>
                 <span class="stat-value" id="ui-accuracy">0</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'critDmg')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label"><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>치명타 피해 배율</span>
+                <span class="stat-label" data-i18n><span class="combat-log-icon combat-log-icon--attack" aria-hidden="true"></span>치명타 피해 배율</span>
                 <span class="stat-value" id="ui-crit-dmg">150</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" id="row-phys-ignore" onmouseenter="showStatTooltip(event,'physIgnore')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label"><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>물리 피해 감소 무시</span>
+                <span class="stat-label" data-i18n><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>물리 피해 감소 무시</span>
                 <span class="stat-value" id="ui-phys-ignore">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" id="row-res-pen" onmouseenter="showStatTooltip(event,'resPen')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label">저항 관통</span>
+                <span class="stat-label" data-i18n>저항 관통</span>
                 <span class="stat-value" id="ui-res-pen">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" id="row-ds" onmouseenter="showStatTooltip(event,'ds')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label">연속 타격</span>
+                <span class="stat-label" data-i18n>연속 타격</span>
                 <span class="stat-value" id="ui-ds">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'dmgRoll')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">피해 보정(최소)</span>
+                <span class="stat-label" data-i18n>피해 보정(최소)</span>
                 <span class="stat-value" id="ui-min-dmg-roll">80</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'dmgRoll')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">피해 보정(최대)</span>
+                <span class="stat-label" data-i18n>피해 보정(최대)</span>
                 <span class="stat-value" id="ui-max-dmg-roll">100</span>
                 <span class="stat-unit">%</span>
             </div>
             </div>
         </details>
         <details class="character-stat-section is-defence" open>
-            <summary>방어와 회복</summary>
+            <summary data-i18n>방어와 회복</summary>
             <div class="stat-grid">
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'dr')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label"><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>물리 피해 감소</span>
+                <span class="stat-label" data-i18n><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>물리 피해 감소</span>
                 <span class="stat-value" id="ui-dr">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'armor')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label"><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>방어도</span>
+                <span class="stat-label" data-i18n><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>방어도</span>
                 <span class="stat-value" id="ui-armor">0</span>
                 <span class="stat-unit"></span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'evasion')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">회피</span>
+                <span class="stat-label" data-i18n>회피</span>
                 <span class="stat-value" id="ui-evasion">0</span>
                 <span class="stat-unit"></span>
             </div>
 <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'blockChance')" onmousemove="showStatTooltip(event,'blockChance')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">막기 확률</span>
+                <span class="stat-label" data-i18n>막기 확률</span>
                 <span class="stat-value" id="ui-block-chance">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'deflectChance')" onmousemove="showStatTooltip(event,'deflectChance')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">비껴내기 확률</span>
+                <span class="stat-label" data-i18n>비껴내기 확률</span>
                 <span class="stat-value" id="ui-deflect-chance">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resF')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color: #e74c3c;"><span class="combat-log-icon combat-log-icon--fire" aria-hidden="true"></span>화염 저항</span>
+                <span class="stat-label" style="color: #e74c3c;" data-i18n><span class="combat-log-icon combat-log-icon--fire" aria-hidden="true"></span>화염 저항</span>
                 <span class="stat-value" id="ui-res-fire">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resC')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color: #3498db;"><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>냉기 저항</span>
+                <span class="stat-label" style="color: #3498db;" data-i18n><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>냉기 저항</span>
                 <span class="stat-value" id="ui-res-cold">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resL')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color: #f1c40f;"><span class="combat-log-icon combat-log-icon--light" aria-hidden="true"></span>번개 저항</span>
+                <span class="stat-label" style="color: #f1c40f;" data-i18n><span class="combat-log-icon combat-log-icon--light" aria-hidden="true"></span>번개 저항</span>
                 <span class="stat-value" id="ui-res-light">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'resChaos')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label" style="color: #9b59b6;"><span class="combat-log-icon combat-log-icon--chaos" aria-hidden="true"></span>카오스 저항</span>
+                <span class="stat-label" style="color: #9b59b6;" data-i18n><span class="combat-log-icon combat-log-icon--chaos" aria-hidden="true"></span>카오스 저항</span>
                 <span class="stat-value" id="ui-res-chaos">0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" id="row-regen" onmouseenter="showStatTooltip(event,'regen')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label">초당 생명력 재생</span>
+                <span class="stat-label" data-i18n>초당 생명력 재생</span>
                 <span class="stat-value" id="ui-regen">0.0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" id="row-leech" onmouseenter="showStatTooltip(event,'leech')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label">공격 피해 흡수</span>
+                <span class="stat-label" data-i18n>공격 피해 흡수</span>
                 <span class="stat-value" id="ui-leech">0.0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item tip" id="row-spell-leech" onmouseenter="showStatTooltip(event,'spellLeech')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label">주문 피해 흡수</span>
+                <span class="stat-label" data-i18n>주문 피해 흡수</span>
                 <span class="stat-value" id="ui-spell-leech">0.0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item full character-ehp-block">
-                <div class="ailment-stat-title">속성별 실효 체력</div>
+                <div class="ailment-stat-title" data-i18n>속성별 실효 체력</div>
                 <div id="ui-character-ehp" class="character-ehp-grid"></div>
             </div>
             </div>
         </details>
         <details class="character-stat-section is-base">
-            <summary>기본 능력치와 상태이상</summary>
+            <summary data-i18n>기본 능력치와 상태이상</summary>
             <div class="stat-grid">
-<div class="stat-item tip" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'strength')" onfocus="showStatTooltip(event,'strength')" onclick="showStatTooltip(event,'strength')" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()" onblur="hideInfoTooltip()"><span class="stat-label">힘</span><span class="stat-value" id="ui-strength">0</span></div>
-<div class="stat-item tip" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'dexterity')" onfocus="showStatTooltip(event,'dexterity')" onclick="showStatTooltip(event,'dexterity')" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()" onblur="hideInfoTooltip()"><span class="stat-label">민첩</span><span class="stat-value" id="ui-dexterity">0</span></div>
-<div class="stat-item tip" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'intelligence')" onfocus="showStatTooltip(event,'intelligence')" onclick="showStatTooltip(event,'intelligence')" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()" onblur="hideInfoTooltip()"><span class="stat-label">지능</span><span class="stat-value" id="ui-intelligence">0</span></div>
+<div class="stat-item tip" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'strength')" onfocus="showStatTooltip(event,'strength')" onclick="showStatTooltip(event,'strength')" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()" onblur="hideInfoTooltip()"><span class="stat-label" data-i18n>힘</span><span class="stat-value" id="ui-strength">0</span></div>
+<div class="stat-item tip" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'dexterity')" onfocus="showStatTooltip(event,'dexterity')" onclick="showStatTooltip(event,'dexterity')" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()" onblur="hideInfoTooltip()"><span class="stat-label" data-i18n>민첩</span><span class="stat-value" id="ui-dexterity">0</span></div>
+<div class="stat-item tip" tabindex="0" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'intelligence')" onfocus="showStatTooltip(event,'intelligence')" onclick="showStatTooltip(event,'intelligence')" onmouseleave="if(document.activeElement!==this) hideInfoTooltip()" onblur="hideInfoTooltip()"><span class="stat-label" data-i18n>지능</span><span class="stat-value" id="ui-intelligence">0</span></div>
 <div class="stat-item full passive-special-stat-block">
-                <div class="ailment-stat-title">패시브 특수 능력치</div>
+                <div class="ailment-stat-title" data-i18n>패시브 특수 능력치</div>
                 <div class="passive-special-stat-grid">
                     <button type="button" class="passive-special-stat-card tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'mystique')" onmousemove="showStatTooltip(event,'mystique')" onmouseleave="hideInfoTooltip()" onclick="showStatTooltip(event,'mystique')">
-                        <span>신비</span><strong id="ui-mystique">0</strong><small id="ui-mystique-effect">효과 없음</small>
+                        <span data-i18n>신비</span><strong id="ui-mystique">0</strong><small id="ui-mystique-effect" data-i18n>효과 없음</small>
                     </button>
                     <button type="button" class="passive-special-stat-card tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'cycle')" onmousemove="showStatTooltip(event,'cycle')" onmouseleave="hideInfoTooltip()" onclick="showStatTooltip(event,'cycle')">
-                        <span>순환</span><strong id="ui-cycle">0</strong><small id="ui-cycle-effect">효과 없음</small>
+                        <span data-i18n>순환</span><strong id="ui-cycle">0</strong><small id="ui-cycle-effect" data-i18n>효과 없음</small>
                     </button>
                     <button type="button" class="passive-special-stat-card tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'revelation')" onmousemove="showStatTooltip(event,'revelation')" onmouseleave="hideInfoTooltip()" onclick="showStatTooltip(event,'revelation')">
-                        <span>계시</span><strong id="ui-revelation">미해금</strong><small id="ui-revelation-effect">계시 수치 0</small>
+                        <span data-i18n>계시</span><strong id="ui-revelation" data-i18n>미해금</strong><small id="ui-revelation-effect" data-i18n>계시 수치 0</small>
                     </button>
                 </div>
             </div>
 <div class="stat-item tip" onmouseenter="showStatTooltip(event,'move')" onmouseleave="hideInfoTooltip()">
-                <span class="stat-label">이동 속도</span>
+                <span class="stat-label" data-i18n>이동 속도</span>
                 <span class="stat-value" id="ui-move-spd">100</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item full ailment-stat-block">
-                <div class="ailment-stat-title">상태이상 유발 확률</div>
+                <div class="ailment-stat-title" data-i18n>상태이상 유발 확률</div>
                 <div class="ailment-stat-inline-row">
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'igniteChance')" onmousemove="showStatTooltip(event,'igniteChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff9f43;"><span class="combat-log-icon combat-log-icon--fire" aria-hidden="true"></span>점화</span> <span class="ailment-chip-value" id="ui-ignite-chance">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'chillChance')" onmousemove="showStatTooltip(event,'chillChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#9be7ff;"><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>냉각</span> <span class="ailment-chip-value" id="ui-chill-chance">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'freezeChance')" onmousemove="showStatTooltip(event,'freezeChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#4da3ff;"><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>동결</span> <span class="ailment-chip-value" id="ui-freeze-chance">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'shockChance')" onmousemove="showStatTooltip(event,'shockChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffe083;"><span class="combat-log-icon combat-log-icon--light" aria-hidden="true"></span>감전</span> <span class="ailment-chip-value" id="ui-shock-chance">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'poisonChance')" onmousemove="showStatTooltip(event,'poisonChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#c56cff;"><span class="combat-log-icon combat-log-icon--chaos" aria-hidden="true"></span>중독</span> <span class="ailment-chip-value" id="ui-poison-chance">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'bleedChance')" onmousemove="showStatTooltip(event,'bleedChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff6b6b;"><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>출혈</span> <span class="ailment-chip-value" id="ui-bleed-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'igniteChance')" onmousemove="showStatTooltip(event,'igniteChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff9f43;" data-i18n><span class="combat-log-icon combat-log-icon--fire" aria-hidden="true"></span>점화</span> <span class="ailment-chip-value" id="ui-ignite-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'chillChance')" onmousemove="showStatTooltip(event,'chillChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#9be7ff;" data-i18n><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>냉각</span> <span class="ailment-chip-value" id="ui-chill-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'freezeChance')" onmousemove="showStatTooltip(event,'freezeChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#4da3ff;" data-i18n><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>동결</span> <span class="ailment-chip-value" id="ui-freeze-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'shockChance')" onmousemove="showStatTooltip(event,'shockChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffe083;" data-i18n><span class="combat-log-icon combat-log-icon--light" aria-hidden="true"></span>감전</span> <span class="ailment-chip-value" id="ui-shock-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'poisonChance')" onmousemove="showStatTooltip(event,'poisonChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#c56cff;" data-i18n><span class="combat-log-icon combat-log-icon--chaos" aria-hidden="true"></span>중독</span> <span class="ailment-chip-value" id="ui-poison-chance">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'bleedChance')" onmousemove="showStatTooltip(event,'bleedChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff6b6b;" data-i18n><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>출혈</span> <span class="ailment-chip-value" id="ui-bleed-chance">0</span>%</span>
                 </div>
             </div>
 <div class="stat-item full ailment-stat-block">
-                <div class="ailment-stat-title">상태이상 저항 확률</div>
+                <div class="ailment-stat-title" data-i18n>상태이상 저항 확률</div>
                 <div class="ailment-stat-inline-row">
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistIgniteChance')" onmousemove="showStatTooltip(event,'ailmentResistIgniteChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffb16a;"><span class="combat-log-icon combat-log-icon--fire" aria-hidden="true"></span>점화</span> <span class="ailment-chip-value" id="ui-ail-res-ignite">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistChillChance')" onmousemove="showStatTooltip(event,'ailmentResistChillChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:var(--copy-bright);"><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>냉각</span> <span class="ailment-chip-value" id="ui-ail-res-chill">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistFreezeChance')" onmousemove="showStatTooltip(event,'ailmentResistFreezeChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#75bbff;"><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>동결</span> <span class="ailment-chip-value" id="ui-ail-res-freeze">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistShockChance')" onmousemove="showStatTooltip(event,'ailmentResistShockChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffe083;"><span class="combat-log-icon combat-log-icon--light" aria-hidden="true"></span>감전</span> <span class="ailment-chip-value" id="ui-ail-res-shock">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistPoisonChance')" onmousemove="showStatTooltip(event,'ailmentResistPoisonChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#d28bff;"><span class="combat-log-icon combat-log-icon--chaos" aria-hidden="true"></span>중독</span> <span class="ailment-chip-value" id="ui-ail-res-poison">0</span>%</span>
-                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistBleedChance')" onmousemove="showStatTooltip(event,'ailmentResistBleedChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff8585;"><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>출혈</span> <span class="ailment-chip-value" id="ui-ail-res-bleed">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistIgniteChance')" onmousemove="showStatTooltip(event,'ailmentResistIgniteChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffb16a;" data-i18n><span class="combat-log-icon combat-log-icon--fire" aria-hidden="true"></span>점화</span> <span class="ailment-chip-value" id="ui-ail-res-ignite">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistChillChance')" onmousemove="showStatTooltip(event,'ailmentResistChillChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:var(--copy-bright);" data-i18n><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>냉각</span> <span class="ailment-chip-value" id="ui-ail-res-chill">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistFreezeChance')" onmousemove="showStatTooltip(event,'ailmentResistFreezeChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#75bbff;" data-i18n><span class="combat-log-icon combat-log-icon--cold" aria-hidden="true"></span>동결</span> <span class="ailment-chip-value" id="ui-ail-res-freeze">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistShockChance')" onmousemove="showStatTooltip(event,'ailmentResistShockChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ffe083;" data-i18n><span class="combat-log-icon combat-log-icon--light" aria-hidden="true"></span>감전</span> <span class="ailment-chip-value" id="ui-ail-res-shock">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistPoisonChance')" onmousemove="showStatTooltip(event,'ailmentResistPoisonChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#d28bff;" data-i18n><span class="combat-log-icon combat-log-icon--chaos" aria-hidden="true"></span>중독</span> <span class="ailment-chip-value" id="ui-ail-res-poison">0</span>%</span>
+                    <span class="ailment-stat-chip tip" data-info-tooltip-anchor="1" onmouseenter="showStatTooltip(event,'ailmentResistBleedChance')" onmousemove="showStatTooltip(event,'ailmentResistBleedChance')" onmouseleave="hideInfoTooltip()"><span class="ailment-chip-label" style="color:#ff8585;" data-i18n><span class="combat-log-icon combat-log-icon--phys" aria-hidden="true"></span>출혈</span> <span class="ailment-chip-value" id="ui-ail-res-bleed">0</span>%</span>
                 </div>
             </div>
 <div class="stat-item tip" id="row-regen-suppress" onmouseenter="showStatTooltip(event,'regenSuppress')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label">재생 억제</span>
+                <span class="stat-label" data-i18n>재생 억제</span>
                 <span class="stat-value" id="ui-regen-suppress">0.0</span>
                 <span class="stat-unit">%</span>
             </div>
 <div class="stat-item">
-                <span class="stat-label">이번 루프 사망</span>
+                <span class="stat-label" data-i18n>이번 루프 사망</span>
                 <span class="stat-value" id="ui-loop-deaths">0</span>
-                <span class="stat-unit">회</span>
+                <span class="stat-unit" data-i18n>회</span>
             </div>
 <div class="stat-item">
-                <span class="stat-label">이번 루프 처치</span>
+                <span class="stat-label" data-i18n>이번 루프 처치</span>
                 <span class="stat-value" id="ui-loop-kills">0</span>
-                <span class="stat-unit">마리</span>
+                <span class="stat-unit" data-i18n>마리</span>
             </div>
 <div class="stat-item tip" id="row-gemlv" onmouseenter="showStatTooltip(event,'gem')" onmouseleave="hideInfoTooltip()" style="display: none;">
-                <span class="stat-label">룬 레벨 보너스</span>
+                <span class="stat-label" data-i18n>룬 레벨 보너스</span>
                 <span class="stat-value" id="ui-gemlv">0</span>
                 <span class="stat-unit"></span>
             </div>
@@ -641,35 +641,35 @@
 
     <div id="tab-char" class="tab-content">
         <div style="display: flex; flex-direction: column; height: 100%;">
-            <h2><span>스킬트리</span><span class="h2-right">포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold;">0</span><button type="button" id="btn-passive-tree-reset" class="passive-tree-reset" onclick="resetPassiveTreeByGoldenRule()" hidden><span class="px-center">초기화</span><img src="assets/ui/currency/golden-rule.png" alt="황금률"><b>1</b></button></span></h2>
+            <h2><span data-i18n>스킬트리</span><span class="h2-right" data-i18n>포인트: <span id="ui-passive-points" style="color: #f1c40f; font-weight: bold;">0</span><button type="button" id="btn-passive-tree-reset" class="passive-tree-reset" onclick="resetPassiveTreeByGoldenRule()" hidden><span class="px-center" data-i18n>초기화</span><img src="assets/ui/currency/golden-rule.png" alt="황금률" data-i18n-attr="alt"><b>1</b></button></span></h2>
             <div id="tree-container" style="flex: 1; width: 100%; min-height: 280px; background: #05070b; border: none; position: relative; overflow: hidden; cursor: grab;">
                 <canvas id="tree-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></canvas>
                 <div id="passive-tree-overlay" class="passive-tree-overlay" aria-hidden="true"><div class="passive-tree-overlay-world"></div></div>
-                <div class="passive-tree-gesture-hint">드래그: 이동, 휠/핀치: 확대</div>
+                <div class="passive-tree-gesture-hint" data-i18n>드래그: 이동, 휠/핀치: 확대</div>
                 <div class="passive-tree-toolbar">
                 <details id="passive-preset-drawer" class="passive-preset-drawer" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
-                    <summary aria-label="패시브 프리셋"><strong>프리셋</strong></summary>
-                    <section id="passive-tree-planner" class="passive-tree-planner" aria-label="패시브 트리 프리셋"></section>
+                    <summary aria-label="패시브 프리셋" data-i18n-attr="aria-label"><strong data-i18n>프리셋</strong></summary>
+                    <section id="passive-tree-planner" class="passive-tree-planner" aria-label="패시브 트리 프리셋" data-i18n-attr="aria-label"></section>
                 </details>
                 <div class="passive-tree-right-tools">
                     <details id="passive-search-drawer" class="passive-search-drawer" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
-                        <summary aria-label="패시브 검색"><strong>검색</strong></summary>
+                        <summary aria-label="패시브 검색" data-i18n-attr="aria-label"><strong data-i18n>검색</strong></summary>
                         <div id="passive-search-panel" class="passive-search-panel">
-                            <input id="passive-search-input" type="search" placeholder="패시브 이름/효과/스탯 검색" autocomplete="off">
+                            <input id="passive-search-input" type="search" placeholder="패시브 이름/효과/스탯 검색" autocomplete="off" data-i18n-attr="placeholder">
                             <div id="passive-filter-row" class="passive-filter-row">
-                                <button type="button" data-passive-filter="all">전체</button>
-                                <button type="button" data-passive-filter="offense">공격</button>
-                                <button type="button" data-passive-filter="defense">방어</button>
-                                <button type="button" data-passive-filter="element">원소/카오스</button>
-                                <button type="button" data-passive-filter="utility">유틸</button>
+                                <button type="button" data-passive-filter="all" data-i18n>전체</button>
+                                <button type="button" data-passive-filter="offense" data-i18n>공격</button>
+                                <button type="button" data-passive-filter="defense" data-i18n>방어</button>
+                                <button type="button" data-passive-filter="element" data-i18n>원소/카오스</button>
+                                <button type="button" data-passive-filter="utility" data-i18n>유틸</button>
                             </div>
-                            <button type="button" id="passive-search-clear">초기화</button>
-                            <button type="button" id="passive-search-close" onclick="this.closest('details').open=false">닫기</button>
+                            <button type="button" id="passive-search-clear" data-i18n>초기화</button>
+                            <button type="button" id="passive-search-close" onclick="this.closest('details').open=false" data-i18n>닫기</button>
                         </div>
                     </details>
                     <aside id="passive-investment-summary" class="passive-investment-summary collapsed" onpointerdown="event.stopPropagation()" onwheel="event.stopPropagation()" onclick="event.stopPropagation()">
                         <button type="button" class="passive-investment-summary-toggle" onclick="togglePassiveInvestmentSummary()" aria-expanded="false">
-                            <span>투자 효과 총합</span><span class="passive-summary-chevron">▴</span>
+                            <span data-i18n>투자 효과 총합</span><span class="passive-summary-chevron">▴</span>
                         </button>
                         <div id="passive-investment-summary-body" class="passive-investment-summary-body"></div>
                     </aside>
@@ -680,15 +680,15 @@
     </div>
 
     <div id="tab-talent" class="tab-content">
-        <h2>재능 개화</h2>
+        <h2 data-i18n>재능 개화</h2>
         <div id="ui-talent-root" class="talent-root"></div>
     </div>
 
     <div id="tab-traits" class="tab-content">
-        <h2>전직 <span class="h2-right">남은 전직 포인트: <span id="ui-ascend-pts" class="ascend-points">0</span></span></h2>
+        <h2 data-i18n>전직 <span class="h2-right" data-i18n>남은 전직 포인트: <span id="ui-ascend-pts" class="ascend-points">0</span></span></h2>
 
         <div id="ui-class-select" style="display: none;">
-            <p class="ascend-pick-intro">1차 전직 시련을 통과했습니다. 이 직업의 전직 셋 가운데 하나를 고르세요.<br><span class="ascend-pick-warning">한 번 고르면 이번 루프에는 바꿀 수 없습니다.</span></p>
+            <p class="ascend-pick-intro" data-i18n>1차 전직 시련을 통과했습니다. 이 직업의 전직 셋 가운데 하나를 고르세요.<br><span class="ascend-pick-warning" data-i18n>한 번 고르면 이번 루프에는 바꿀 수 없습니다.</span></p>
             <div id="ui-class-plan" class="ascend-pick-plan"></div>
             <div id="ui-class-grid" class="ascend-pick-grid"></div>
         </div>
@@ -699,33 +699,33 @@
         </div>
 
         <div id="ui-class-locked" class="content-passive-entry" style="margin-top: 30px;">
-            <span>루프 3부터 해금에서 전직을 열면, 액트 3 클리어 후 전직 시련에 도전합니다. 첫 시련을 통과하면 전직을 고릅니다.</span>
-            <button type="button" id="ui-class-trial-link" onclick="contentUnlockUi.open('battleTrials')">전직 시련 보기</button>
+            <span data-i18n>루프 3부터 해금에서 전직을 열면, 액트 3 클리어 후 전직 시련에 도전합니다. 첫 시련을 통과하면 전직을 고릅니다.</span>
+            <button type="button" id="ui-class-trial-link" onclick="contentUnlockUi.open('battleTrials')" data-i18n>전직 시련 보기</button>
         </div>
     </div>
 
     <div id="tab-unlocks" class="tab-content">
-        <section id="content-unlock-panel" aria-label="콘텐츠 해금"></section>
+        <section id="content-unlock-panel" aria-label="콘텐츠 해금" data-i18n-attr="aria-label"></section>
     </div>
     <div id="tab-season" class="tab-content">
-        <div id="loop-passive-locked" class="content-passive-entry"><span>루프 패시브를 해금하면 포인트를 투자할 수 있습니다.</span><button onclick="switchTab('tab-unlocks');contentUnlockUi.select('loopTree')">해금 보기</button></div>
+        <div id="loop-passive-locked" class="content-passive-entry"><span data-i18n>루프 패시브를 해금하면 포인트를 투자할 수 있습니다.</span><button onclick="switchTab('tab-unlocks');contentUnlockUi.select('loopTree')" data-i18n>해금 보기</button></div>
         <details id="trait-season-section" class="progression-section" style="display: none; margin-bottom: 16px;" open>
-            <summary>원환 패시브</summary>
-            <h2>루프 패시브 트리 <span style="margin-left:10px; color:#ffd36b; font-family: var(--font-pixel); font-size:12px;">(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right">포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:12px;" onclick="resetSeasonNodes()">루프 패시브 전체 초기화</button></span></h2>
+            <summary data-i18n>원환 패시브</summary>
+            <h2 data-i18n>루프 패시브 트리 <span style="margin-left:10px; color:#ffd36b; font-family: var(--font-pixel); font-size:12px;" data-i18n>(루프: <span id="ui-season-text-tab">1</span>)</span> <span class="h2-right" data-i18n>포인트: <span id="ui-season-pts" style="color: #ff7979; font-weight: bold;">0</span> <button style="margin-left:8px; font-size:12px;" onclick="resetSeasonNodes()" data-i18n>루프 패시브 전체 초기화</button></span></h2>
             <div class="trait-tree" id="ui-season-tree"></div>
         </details>
-        <details id="ui-loop10-section" class="progression-section" style="display:none; margin-bottom:16px;" open><summary>심화 등반과 영구 강화</summary><div id="ui-loop10-panel" class="loop10-panel" data-loop10-panel="1"></div></details>
-        <details id="world-tree-bark-section" class="progression-section" style="display:none; margin-bottom:16px;" open><summary>세계수 껍질</summary><div id="world-tree-bark-panel" class="bark-panel"></div></details>
+        <details id="ui-loop10-section" class="progression-section" style="display:none; margin-bottom:16px;" open><summary data-i18n>심화 등반과 영구 강화</summary><div id="ui-loop10-panel" class="loop10-panel" data-loop10-panel="1"></div></details>
+        <details id="world-tree-bark-section" class="progression-section" style="display:none; margin-bottom:16px;" open><summary data-i18n>세계수 껍질</summary><div id="world-tree-bark-panel" class="bark-panel"></div></details>
         <details id="season-content-section" class="progression-section" style="display: none; margin-bottom: 20px;">
-            <summary>루프 이정표</summary>
-            <div class="loop-roadmap-heading loop-roadmap-toolbar"><button id="btn-toggle-past-loop-milestones" type="button" onclick="togglePastLoopMilestones()">지난 루프 펼치기</button></div>
+            <summary data-i18n>루프 이정표</summary>
+            <div class="loop-roadmap-heading loop-roadmap-toolbar"><button id="btn-toggle-past-loop-milestones" type="button" onclick="togglePastLoopMilestones()" data-i18n>지난 루프 펼치기</button></div>
             <div id="ui-season-content-roadmap" style="display:grid; gap:8px;"></div>
         </details>
     </div>
 
     <div id="tab-stump" class="tab-content">
         <div class="stump-title-row">
-            <h2>그루터기 함</h2>
+            <h2 data-i18n>그루터기 함</h2>
             <div id="stump-box-head" class="stump-box-head"></div>
         </div>
         <div class="stump-box-screen">
@@ -747,11 +747,11 @@
     
     <div id="tab-items" class="tab-content">
         <div class="subtab-row">
-            <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')"><span class="px-center">장비 창</span></button>
-            <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')"><span class="px-center">제작실</span></button>
-            <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;"><span class="px-center">거래소</span></button>
-            <button class="subtab-btn" id="btn-item-tab-knitting" onclick="switchItemSubtab('item-tab-knitting')" style="display:none;"><span class="px-center">뜨개질</span></button>
-            <button class="subtab-btn" id="btn-item-tab-hall" onclick="switchItemSubtab('item-tab-hall')"><span class="px-center">장비 전당</span></button>
+            <button class="subtab-btn active" id="btn-item-tab-equip" onclick="switchItemSubtab('item-tab-equip')"><span class="px-center" data-i18n>장비 창</span></button>
+            <button class="subtab-btn" id="btn-item-tab-craft" onclick="switchItemSubtab('item-tab-craft')"><span class="px-center" data-i18n>제작실</span></button>
+            <button class="subtab-btn" id="btn-item-tab-market" onclick="switchItemSubtab('item-tab-market')" style="display:none;"><span class="px-center" data-i18n>거래소</span></button>
+            <button class="subtab-btn" id="btn-item-tab-knitting" onclick="switchItemSubtab('item-tab-knitting')" style="display:none;"><span class="px-center" data-i18n>뜨개질</span></button>
+            <button class="subtab-btn" id="btn-item-tab-hall" onclick="switchItemSubtab('item-tab-hall')"><span class="px-center" data-i18n>장비 전당</span></button>
         </div>
 
         <div id="item-tab-equip" class="subtab-content active">
@@ -759,86 +759,86 @@
             <div class="equipment-workspace equipment-window" data-dock-fit>
                 <section class="equipment-loadout-panel">
                     <section class="eqw-card eqw-doll-card">
-                        <div class="eqw-title eqw-doll-head"><h4>장착 장비</h4><div id="ui-equipment-presets"></div></div>
+                        <div class="eqw-title eqw-doll-head"><h4 data-i18n>장착 장비</h4><div id="ui-equipment-presets"></div></div>
                         <div class="paperdoll equipment-paperdoll" id="ui-equip-list"></div>
                         <div id="ui-equipment-aux" class="equipment-aux" hidden></div>
                     </section>
                     <section class="eqw-card eqw-summary-card">
-                        <div id="ui-equipment-loadout-summary" class="equipment-loadout-summary" aria-label="장착 장비 요약"></div>
+                        <div id="ui-equipment-loadout-summary" class="equipment-loadout-summary" aria-label="장착 장비 요약" data-i18n-attr="aria-label"></div>
                     </section>
                 </section>
 
                 <section class="equipment-inventory-panel eqw-card eqw-bag-card">
                     <div class="eqw-bag-head">
                         <div id="ui-equipment-bag-capacity" class="eqw-cap"></div>
-                        <label class="eqw-search"><span aria-hidden="true">⌕</span><input id="ui-equipment-bag-search" type="search" placeholder="이름, 칸, 옵션 검색" aria-label="장비 검색" oninput="updateSearchFilter('equip', this.value)"></label>
+                        <label class="eqw-search"><span aria-hidden="true">⌕</span><input id="ui-equipment-bag-search" type="search" placeholder="이름, 칸, 옵션 검색" aria-label="장비 검색" oninput="updateSearchFilter('equip', this.value)" data-i18n-attr="placeholder aria-label"></label>
                     </div>
                     <section id="ui-equipment-temporary-storage" class="equipment-temporary-storage" aria-live="polite" hidden></section>
                     <p id="ui-inventory-page-label" class="inventory-search-status" aria-live="polite" hidden></p>
                     <!-- 2026-10-19 사용자: 쪽 단추는 가방 위, 가방 오른쪽은 도구 줄(정리, 분석, 필터, 해체, 복구). 단추와 창은 js/equipment-window-ui.js. 2026-10-24 사용자: 판단을 분석으로. -->
-                    <nav id="ui-equipment-inventory-pages" class="equipment-inventory-pages" aria-label="장비 인벤토리 페이지"></nav>
+                    <nav id="ui-equipment-inventory-pages" class="equipment-inventory-pages" aria-label="장비 인벤토리 페이지" data-i18n-attr="aria-label"></nav>
                     <div class="equipment-inventory-grid-shell">
                         <div class="inventory-grid equipment-inventory-grid" id="ui-inventory-list"></div>
-                        <div class="eqw-rail" role="toolbar" aria-label="가방 도구">
+                        <div class="eqw-rail" role="toolbar" aria-label="가방 도구" data-i18n-attr="aria-label">
                             <details class="eqw-rail-menu" id="eqw-arrange-menu">
-                                <summary class="eqw-rail-tool" data-icon="down" aria-label="빈칸 정리" data-tip="빠르게 두 번 누르면 마지막에 고른 기준으로 바로 정리합니다."><span>정리</span></summary>
+                                <summary class="eqw-rail-tool" data-icon="down" aria-label="빈칸 정리" data-tip="빠르게 두 번 누르면 마지막에 고른 기준으로 바로 정리합니다." data-i18n-attr="aria-label data-tip"><span data-i18n>정리</span></summary>
                                 <div class="eqw-rail-panel">
-                                    <p class="eqw-rail-title">정리 기준</p>
-                                    <div class="eqw-arrange-orders" role="group" aria-label="정리 기준">
-                                        <button type="button" data-arrange-order="recent" onclick="equipmentInventoryInteraction.autoArrange('recent')">최근 획득순</button>
-                                        <button type="button" data-arrange-order="rarity" onclick="equipmentInventoryInteraction.autoArrange('rarity')">등급순</button>
-                                        <button type="button" data-arrange-order="slot" onclick="equipmentInventoryInteraction.autoArrange('slot')">부위순</button>
-                                        <button type="button" data-arrange-order="size" onclick="equipmentInventoryInteraction.autoArrange('size')">크기순</button>
+                                    <p class="eqw-rail-title" data-i18n>정리 기준</p>
+                                    <div class="eqw-arrange-orders" role="group" aria-label="정리 기준" data-i18n-attr="aria-label">
+                                        <button type="button" data-arrange-order="recent" onclick="equipmentInventoryInteraction.autoArrange('recent')" data-i18n>최근 획득순</button>
+                                        <button type="button" data-arrange-order="rarity" onclick="equipmentInventoryInteraction.autoArrange('rarity')" data-i18n>등급순</button>
+                                        <button type="button" data-arrange-order="slot" onclick="equipmentInventoryInteraction.autoArrange('slot')" data-i18n>부위순</button>
+                                        <button type="button" data-arrange-order="size" onclick="equipmentInventoryInteraction.autoArrange('size')" data-i18n>크기순</button>
                                     </div>
                                 </div>
                             </details>
                             <details class="eqw-rail-menu" id="eqw-judge-menu">
-                                <summary class="eqw-rail-tool" data-icon="eye" aria-label="장비 분석" data-tip="빠르게 두 번 누르면 바로 다시 분석합니다."><span>분석</span></summary>
-                                <div class="eqw-rail-panel"><p class="eqw-rail-title">장비 분석</p><div id="ui-equipment-triage" class="equipment-triage-host"></div></div>
+                                <summary class="eqw-rail-tool" data-icon="eye" aria-label="장비 분석" data-tip="빠르게 두 번 누르면 바로 다시 분석합니다." data-i18n-attr="aria-label data-tip"><span data-i18n>분석</span></summary>
+                                <div class="eqw-rail-panel"><p class="eqw-rail-title" data-i18n>장비 분석</p><div id="ui-equipment-triage" class="equipment-triage-host"></div></div>
                             </details>
                             <details class="eqw-rail-menu" id="eqw-filter-menu">
-                                <summary class="eqw-rail-tool" data-icon="fork" aria-label="표시 필터"><span>필터</span></summary>
+                                <summary class="eqw-rail-tool" data-icon="fork" aria-label="표시 필터" data-i18n-attr="aria-label"><span data-i18n>필터</span></summary>
                                 <div class="eqw-rail-panel">
-                                    <p class="eqw-rail-title">등급</p>
-                                    <div class="inventory-view-filter" id="ui-inventory-rarity-filter" role="group" aria-label="표시 등급"></div>
-                                    <p class="eqw-rail-title">칸</p>
-                                    <select id="ui-equipment-slot-filter" aria-label="칸" onchange="setEquipmentInventoryView('slot',this.value)"></select>
+                                    <p class="eqw-rail-title" data-i18n>등급</p>
+                                    <div class="inventory-view-filter" id="ui-inventory-rarity-filter" role="group" aria-label="표시 등급" data-i18n-attr="aria-label"></div>
+                                    <p class="eqw-rail-title" data-i18n>칸</p>
+                                    <select id="ui-equipment-slot-filter" aria-label="칸" onchange="setEquipmentInventoryView('slot',this.value)" data-i18n-attr="aria-label"></select>
                                 </div>
                             </details>
                             <details class="eqw-rail-menu" id="eqw-salvage-menu" ontoggle="if(this.open) refreshAutoSalvagePanel()">
-                                <summary id="eqw-rail-salvage" class="eqw-rail-tool is-danger" data-icon="hammer" data-enabled="false" aria-label="해체, 자동해체 꺼짐" data-tip="빠르게 두 번 누르면 바로 전체 해체합니다."><span>해체</span></summary>
+                                <summary id="eqw-rail-salvage" class="eqw-rail-tool is-danger" data-icon="hammer" data-enabled="false" aria-label="해체, 자동해체 꺼짐" data-tip="빠르게 두 번 누르면 바로 전체 해체합니다." data-i18n-attr="aria-label data-tip"><span data-i18n>해체</span></summary>
                                 <div class="eqw-rail-panel">
                                     <div id="ui-equipment-auto-salvage"></div>
-                                    <p class="eqw-rail-title">일괄 해체</p>
+                                    <p class="eqw-rail-title" data-i18n>일괄 해체</p>
                                     <div class="equipment-salvage-actions">
-                                        <button class="bulk-salvage-action equipment-action-muted" onclick="bulkSalvageAllInventory()" data-tip="잠금되지 않은 모든 장비와 주얼, 코어, 액막이를 해체합니다.">전체 해체</button>
-                                        <button class="bulk-salvage-action" onclick="bulkSalvageSelected()" data-tip="필터에서 켠 등급의 장비를 해체합니다. 칸을 골랐으면 그 칸만 해체합니다.">표시 등급 해체</button>
-                                        <button class="bulk-salvage-action" data-search-salvage onclick="bulkSalvageEquipBySearch(false)">검색 항목 해체</button>
-                                        <button class="bulk-salvage-action" data-search-salvage onclick="bulkSalvageEquipBySearch(true)">미검색 항목 해체</button>
+                                        <button class="bulk-salvage-action equipment-action-muted" onclick="bulkSalvageAllInventory()" data-tip="잠금되지 않은 모든 장비와 주얼, 코어, 액막이를 해체합니다." data-i18n data-i18n-attr="data-tip">전체 해체</button>
+                                        <button class="bulk-salvage-action" onclick="bulkSalvageSelected()" data-tip="필터에서 켠 등급의 장비를 해체합니다. 칸을 골랐으면 그 칸만 해체합니다." data-i18n data-i18n-attr="data-tip">표시 등급 해체</button>
+                                        <button class="bulk-salvage-action" data-search-salvage onclick="bulkSalvageEquipBySearch(false)" data-i18n>검색 항목 해체</button>
+                                        <button class="bulk-salvage-action" data-search-salvage onclick="bulkSalvageEquipBySearch(true)" data-i18n>미검색 항목 해체</button>
                                     </div>
-                                    <p class="loot-filter-note">우선 보관과 습득 조건은 설정의 아이템 필터에서 고릅니다. <button type="button" class="eqw-rail-link" onclick="equipmentWindowUi.openItemFilter()">아이템 필터 열기</button></p>
+                                    <p class="loot-filter-note" data-i18n>우선 보관과 습득 조건은 설정의 아이템 필터에서 고릅니다. <button type="button" class="eqw-rail-link" onclick="equipmentWindowUi.openItemFilter()" data-i18n>아이템 필터 열기</button></p>
                                 </div>
                             </details>
-                            <button id="btn-salvage-recovery" type="button" class="eqw-rail-tool" data-icon="hourglass" onclick="salvageRecoveryUi.open()" aria-label="해체 복구함, 비어 있음"><span>복구</span></button>
-                            <button id="equipment-touch-arrange" type="button" class="eqw-rail-tool" data-icon="arrow" aria-pressed="false" onclick="equipmentInventoryInteraction.toggleTouchArrange(this)" aria-label="배치 모드"><span>배치</span></button>
+                            <button id="btn-salvage-recovery" type="button" class="eqw-rail-tool" data-icon="hourglass" onclick="salvageRecoveryUi.open()" aria-label="해체 복구함, 비어 있음" data-i18n-attr="aria-label"><span data-i18n>복구</span></button>
+                            <button id="equipment-touch-arrange" type="button" class="eqw-rail-tool" data-icon="arrow" aria-pressed="false" onclick="equipmentInventoryInteraction.toggleTouchArrange(this)" aria-label="배치 모드" data-i18n-attr="aria-label"><span data-i18n>배치</span></button>
                         </div>
                     </div>
                 </section>
-                <div id="ui-equipment-inventory-inspector" class="equipment-grid-inspector" popover="manual" role="dialog" aria-label="선택한 장비" aria-live="polite"></div>
+                <div id="ui-equipment-inventory-inspector" class="equipment-grid-inspector" popover="manual" role="dialog" aria-label="선택한 장비" aria-live="polite" data-i18n-attr="aria-label"></div>
             </div>
         </div>
 
         <div id="item-tab-craft" class="subtab-content">
             <section id="crafting-workspace"></section>
-            <details id="cl-materials" ontoggle="if(this.open) renderFossilWorkbench()"><summary>홀씨/화석 정제</summary><div id="ui-craft-spore-actions"></div><section id="fossil-materials"><div id="ui-fossil-material-actions" class="craft-actions"></div></section></details>
-            <details class="craft-target-library" ontoggle="if(this.open) updateStaticUI()"><summary>다른 제작 대상 둘러보기</summary>
+            <details id="cl-materials" ontoggle="if(this.open) renderFossilWorkbench()"><summary data-i18n>홀씨/화석 정제</summary><div id="ui-craft-spore-actions"></div><section id="fossil-materials"><div id="ui-fossil-material-actions" class="craft-actions"></div></section></details>
+            <details class="craft-target-library" ontoggle="if(this.open) updateStaticUI()"><summary data-i18n>다른 제작 대상 둘러보기</summary>
             <div class="responsive-split-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
-                    <h3>장착 장비</h3>
+                    <h3 data-i18n>장착 장비</h3>
                     <div class="paperdoll" id="ui-craft-equip-list"></div>
                 </div>
                 <div>
-                    <h3>인벤토리</h3>
+                    <h3 data-i18n>인벤토리</h3>
                     <div class="inventory-grid" id="ui-craft-inventory-list"></div>
                 </div>
             </div>
@@ -847,17 +847,17 @@
 
         <div id="item-tab-market" class="subtab-content">
             <div class="forge-panel market-shell">
-                <div class="market-page-header"><h3>거래소</h3></div>
-                <div id="ui-market-locked" class="market-locked">장비 제련을 해금하면 거래소가 함께 열립니다.</div>
+                <div class="market-page-header"><h3 data-i18n>거래소</h3></div>
+                <div id="ui-market-locked" class="market-locked" data-i18n>장비 제련을 해금하면 거래소가 함께 열립니다.</div>
                 <div id="ui-market-panel" hidden>
-                    <nav class="market-tabs" role="tablist" aria-label="거래소 서비스" onkeydown="marketUi.moveTab(event)">
-                        <button type="button" role="tab" aria-controls="market-panel-exchange" data-market-section="exchange" aria-selected="true" onclick="marketUi.show('exchange')"><span class="px-center">재화 교환</span></button>
-                        <button type="button" role="tab" aria-controls="market-panel-black" data-market-section="black" aria-selected="false" onclick="marketUi.show('black')"><span class="px-center">암거래상</span></button>
-                        <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')"><span class="px-center">나의 가판대</span></button>
+                    <nav class="market-tabs" role="tablist" aria-label="거래소 서비스" onkeydown="marketUi.moveTab(event)" data-i18n-attr="aria-label">
+                        <button type="button" role="tab" aria-controls="market-panel-exchange" data-market-section="exchange" aria-selected="true" onclick="marketUi.show('exchange')"><span class="px-center" data-i18n>재화 교환</span></button>
+                        <button type="button" role="tab" aria-controls="market-panel-black" data-market-section="black" aria-selected="false" onclick="marketUi.show('black')"><span class="px-center" data-i18n>암거래상</span></button>
+                        <button type="button" role="tab" aria-controls="market-panel-stall" data-market-section="stall" aria-selected="false" onclick="marketUi.show('stall')"><span class="px-center" data-i18n>나의 가판대</span></button>
                     </nav>
-                    <section id="market-panel-exchange" role="tabpanel" aria-label="재화 교환"><div id="ui-market-exchange-list"></div></section>
-                    <section id="market-panel-black" role="tabpanel" aria-label="암거래상" hidden></section>
-                    <section id="market-panel-stall" role="tabpanel" aria-label="나의 가판대" hidden></section>
+                    <section id="market-panel-exchange" role="tabpanel" aria-label="재화 교환" data-i18n-attr="aria-label"><div id="ui-market-exchange-list"></div></section>
+                    <section id="market-panel-black" role="tabpanel" aria-label="암거래상" hidden data-i18n-attr="aria-label"></section>
+                    <section id="market-panel-stall" role="tabpanel" aria-label="나의 가판대" hidden data-i18n-attr="aria-label"></section>
                 </div>
             </div>
         </div>
@@ -870,93 +870,93 @@
 
     <div id="tab-map" class="tab-content map-tab-panel">
         <div class="subtab-row map-primary-tabs">
-            <button class="subtab-btn active" id="btn-map-tab-zones" onclick="explorationAtlasUi.open()">탐험</button>
-            <button class="subtab-btn" id="btn-map-tab-chaos-realm" style="display:none;" onclick="switchMapSubtab('map-tab-chaos-realm')">혼돈계</button>
-            <button class="subtab-btn" id="btn-map-tab-sky" style="display:none;" onclick="switchMapSubtab('map-tab-sky')">창공</button>
-            <button class="subtab-btn" id="btn-map-tab-underworld" style="display:none;" onclick="switchMapSubtab('map-tab-underworld')">지하계</button>
-            <button class="subtab-btn" id="btn-map-tab-ocean" style="display:none;" onclick="switchMapSubtab('map-tab-ocean')">심해</button>
-            <button class="subtab-btn" id="btn-map-tab-fishing" style="display:none;" onclick="switchMapSubtab('map-tab-fishing')">낚시</button>
-            <button class="subtab-btn" id="btn-map-tab-pvp" onclick="switchMapSubtab('map-tab-pvp')">대전</button>
+            <button class="subtab-btn active" id="btn-map-tab-zones" onclick="explorationAtlasUi.open()" data-i18n>탐험</button>
+            <button class="subtab-btn" id="btn-map-tab-chaos-realm" style="display:none;" onclick="switchMapSubtab('map-tab-chaos-realm')" data-i18n>혼돈계</button>
+            <button class="subtab-btn" id="btn-map-tab-sky" style="display:none;" onclick="switchMapSubtab('map-tab-sky')" data-i18n>창공</button>
+            <button class="subtab-btn" id="btn-map-tab-underworld" style="display:none;" onclick="switchMapSubtab('map-tab-underworld')" data-i18n>지하계</button>
+            <button class="subtab-btn" id="btn-map-tab-ocean" style="display:none;" onclick="switchMapSubtab('map-tab-ocean')" data-i18n>심해</button>
+            <button class="subtab-btn" id="btn-map-tab-fishing" style="display:none;" onclick="switchMapSubtab('map-tab-fishing')" data-i18n>낚시</button>
+            <button class="subtab-btn" id="btn-map-tab-pvp" onclick="switchMapSubtab('map-tab-pvp')" data-i18n>대전</button>
         </div>
 
         <div class="exploration-toolbar">
-            <nav id="exploration-location" class="exploration-location" aria-label="탐험 위치" hidden></nav>
-            <label id="mobile-map-navigation" class="mobile-map-navigation"><span>목적지</span></label>
+            <nav id="exploration-location" class="exploration-location" aria-label="탐험 위치" hidden data-i18n-attr="aria-label"></nav>
+            <label id="mobile-map-navigation" class="mobile-map-navigation"><span data-i18n>목적지</span></label>
         </div>
-        <section id="exploration-region-banner" aria-label="현재 탐험 권역" hidden></section>
+        <section id="exploration-region-banner" aria-label="현재 탐험 권역" hidden data-i18n-attr="aria-label"></section>
         <div id="map-tab-zones" class="subtab-content active">
-            <nav id="map-ready-destinations" class="map-ready-destinations" aria-label="현재 위치와 준비된 특수 지역" hidden></nav>
+            <nav id="map-ready-destinations" class="map-ready-destinations" aria-label="현재 위치와 준비된 특수 지역" hidden data-i18n-attr="aria-label"></nav>
             <div class="vertical-tab-layout map-explore-layout">
-                <div class="vertical-tab-sidebar" aria-label="탐험 항목">
-                    <button class="vertical-tab-btn" id="btn-map-explore-atlas" onclick="explorationAtlasUi.open()"><span>전체 탐험</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-worldtree" onclick="switchMapExploreSubtab('map-explore-worldtree')"><span>세계수 아틀라스</span></button>
-                    <button class="vertical-tab-btn active" id="btn-map-explore-hunting" onclick="switchMapExploreSubtab('map-explore-hunting')"><span>나무</span><span id="noti-map-explore-hunting" class="noti-dot"></span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-chaos" style="display:none;" onclick="switchMapExploreSubtab('map-explore-chaos')"><span>혼돈</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-root-boss" style="display:none;" onclick="switchMapExploreSubtab('map-explore-root-boss')"><span>강대한 적</span><span id="noti-map-explore-root-boss" class="noti-dot"></span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-beyond" style="display:none;" onclick="switchMapExploreSubtab('map-explore-beyond')"><span>경계 너머</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-labyrinth" style="display:none;" onclick="switchMapExploreSubtab('map-explore-labyrinth')"><span>고대 미궁</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-deep-chaos" style="display:none;" onclick="switchMapExploreSubtab('map-explore-deep-chaos')"><span>혼돈 심화층</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-meteor" style="display:none;" onclick="switchMapExploreSubtab('map-explore-meteor')"><span>운석 낙하</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-beehive" style="display:none;" onclick="switchMapExploreSubtab('map-explore-beehive')"><span>벌집</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-colony" style="display:none;" onclick="switchMapExploreSubtab('map-explore-colony')"><span>군락지</span><span id="noti-map-explore-colony" class="noti-dot"></span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-voidrift" style="display:none;" onclick="switchMapExploreSubtab('map-explore-voidrift')"><span>대균열</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-timerift" style="display:none;" onclick="switchMapExploreSubtab('map-explore-timerift')"><span>시간의 균열</span></button>
-                    <button class="vertical-tab-btn" id="btn-map-explore-trials" style="display:none;" onclick="switchMapExploreSubtab('map-explore-trials')"><span>전직 시련</span><span id="noti-map-explore-trials" class="noti-dot"></span></button>
+                <div class="vertical-tab-sidebar" aria-label="탐험 항목" data-i18n-attr="aria-label">
+                    <button class="vertical-tab-btn" id="btn-map-explore-atlas" onclick="explorationAtlasUi.open()"><span data-i18n>전체 탐험</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-worldtree" onclick="switchMapExploreSubtab('map-explore-worldtree')"><span data-i18n>세계수 아틀라스</span></button>
+                    <button class="vertical-tab-btn active" id="btn-map-explore-hunting" onclick="switchMapExploreSubtab('map-explore-hunting')"><span data-i18n>나무</span><span id="noti-map-explore-hunting" class="noti-dot"></span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-chaos" style="display:none;" onclick="switchMapExploreSubtab('map-explore-chaos')"><span data-i18n>혼돈</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-root-boss" style="display:none;" onclick="switchMapExploreSubtab('map-explore-root-boss')"><span data-i18n>강대한 적</span><span id="noti-map-explore-root-boss" class="noti-dot"></span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-beyond" style="display:none;" onclick="switchMapExploreSubtab('map-explore-beyond')"><span data-i18n>경계 너머</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-labyrinth" style="display:none;" onclick="switchMapExploreSubtab('map-explore-labyrinth')"><span data-i18n>고대 미궁</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-deep-chaos" style="display:none;" onclick="switchMapExploreSubtab('map-explore-deep-chaos')"><span data-i18n>혼돈 심화층</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-meteor" style="display:none;" onclick="switchMapExploreSubtab('map-explore-meteor')"><span data-i18n>운석 낙하</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-beehive" style="display:none;" onclick="switchMapExploreSubtab('map-explore-beehive')"><span data-i18n>벌집</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-colony" style="display:none;" onclick="switchMapExploreSubtab('map-explore-colony')"><span data-i18n>군락지</span><span id="noti-map-explore-colony" class="noti-dot"></span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-voidrift" style="display:none;" onclick="switchMapExploreSubtab('map-explore-voidrift')"><span data-i18n>대균열</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-timerift" style="display:none;" onclick="switchMapExploreSubtab('map-explore-timerift')"><span data-i18n>시간의 균열</span></button>
+                    <button class="vertical-tab-btn" id="btn-map-explore-trials" style="display:none;" onclick="switchMapExploreSubtab('map-explore-trials')"><span data-i18n>전직 시련</span><span id="noti-map-explore-trials" class="noti-dot"></span></button>
                 </div>
                 <div class="vertical-tab-panels">
                     <section id="map-explore-atlas" class="vertical-tab-panel"><div id="ui-exploration-atlas"></div></section>
                     <section id="map-explore-worldtree" class="vertical-tab-panel"><div id="ui-atlas"></div></section>
                     <section id="map-explore-hunting" class="vertical-tab-panel active">
-                        <h2>세부 지역</h2>
+                        <h2 data-i18n>세부 지역</h2>
                         <div id="ui-map-route-summary" class="map-route-summary" aria-live="polite"></div>
                         <div class="map-overview-card">
-                            <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도">
+                            <img class="map-overview-image" src="assets/battlefield-map.png" alt="월드 지도" data-i18n-attr="alt">
                             <div class="map-hotspots" id="ui-map-hotspots"></div>
                         </div>
                         <div class="map-list" id="ui-map-list"></div>
                     </section>
                     <section id="map-explore-chaos" class="vertical-tab-panel">
-                        <h2>혼돈</h2>
+                        <h2 data-i18n>혼돈</h2>
                         <div class="map-list" id="ui-chaos-map-list"></div>
                     </section>
                     <section id="map-explore-root-boss" class="vertical-tab-panel">
-                        <h2 style="display:none;" id="ui-season-boss-header"><span class="exploration-legacy-title">강대한 적</span><button id="btn-season-boss-repeat" onclick="toggleSeasonBossRepeat()" style="display:none;">입장권 보스 반복 OFF</button></h2>
+                        <h2 style="display:none;" id="ui-season-boss-header"><span class="exploration-legacy-title" data-i18n>강대한 적</span><button id="btn-season-boss-repeat" onclick="toggleSeasonBossRepeat()" style="display:none;" data-i18n>입장권 보스 반복 OFF</button></h2>
                         <div class="map-grid" id="ui-season-boss-list" style="margin-top: 10px;"></div>
                     </section>
                     <section id="map-explore-beyond" class="vertical-tab-panel">
                         <div id="ui-beyond-boundary-panel" class="beyond-boundary-panel"></div>
                     </section>
                     <section id="map-explore-labyrinth" class="vertical-tab-panel">
-                        <h2 style="color: #9ad1ff; display: none;" id="ui-labyrinth-header">고대 미궁</h2>
+                        <h2 style="color: #9ad1ff; display: none;" id="ui-labyrinth-header" data-i18n>고대 미궁</h2>
                         <div class="map-grid" id="ui-labyrinth-list" style="margin-top: 10px;"></div>
                     </section>
                     <section id="map-explore-deep-chaos" class="vertical-tab-panel">
-                        <h2 style="color: #d0a8ff; display: none;" id="ui-deep-chaos-header">혼돈 심화층</h2>
+                        <h2 style="color: #d0a8ff; display: none;" id="ui-deep-chaos-header" data-i18n>혼돈 심화층</h2>
                         <div class="map-grid" id="ui-deep-chaos-list" style="margin-top: 10px;"></div>
                     </section>
                     <section id="map-explore-meteor" class="vertical-tab-panel">
-                        <h2 style="display:none;" id="ui-meteor-header"><span class="exploration-legacy-title">운석 낙하 지점</span><button id="btn-meteor-auto-enter" onclick="toggleMeteorAutoEnter()" style="display:none;">자동입장 OFF</button></h2>
+                        <h2 style="display:none;" id="ui-meteor-header"><span class="exploration-legacy-title" data-i18n>운석 낙하 지점</span><button id="btn-meteor-auto-enter" onclick="toggleMeteorAutoEnter()" style="display:none;" data-i18n>자동입장 OFF</button></h2>
                         <div class="map-grid" id="ui-meteor-list" style="margin-top: 10px;"></div>
                     </section>
                     <section id="map-explore-beehive" class="vertical-tab-panel">
-                        <h2 style="color: #ffde91; display: none;" id="ui-beehive-header">벌집</h2>
+                        <h2 style="color: #ffde91; display: none;" id="ui-beehive-header" data-i18n>벌집</h2>
                         <div id="ui-beehive-panel" style="display:none;"></div>
                     </section>
                     <section id="map-explore-colony" class="vertical-tab-panel">
-                        <h2 style="color: #9fe7b2; display: none;" id="ui-colony-header">군락지 방어전</h2>
+                        <h2 style="color: #9fe7b2; display: none;" id="ui-colony-header" data-i18n>군락지 방어전</h2>
                         <div id="ui-colony-panel" style="display:none;"></div>
                         <div id="ui-colony-ward-panel" class="colony-ward-host" hidden></div>
                     </section>
                     <section id="map-explore-voidrift" class="vertical-tab-panel">
-                        <h2 style="display:none;" id="ui-voidrift-header"><span class="exploration-legacy-title">공허 균열</span><button id="btn-grand-breach-auto-enter" onclick="toggleGrandBreachAutoEnter()" style="display:none;">대균열 자동입장 OFF</button></h2>
+                        <h2 style="display:none;" id="ui-voidrift-header"><span class="exploration-legacy-title" data-i18n>공허 균열</span><button id="btn-grand-breach-auto-enter" onclick="toggleGrandBreachAutoEnter()" style="display:none;" data-i18n>대균열 자동입장 OFF</button></h2>
                         <div id="ui-voidrift-panel" style="display:none;"></div>
                     </section>
                     <section id="map-explore-timerift" class="vertical-tab-panel">
-                        <h2 style="color: #8fd8ff; display: none;" id="ui-timerift-header">시간의 균열</h2>
+                        <h2 style="color: #8fd8ff; display: none;" id="ui-timerift-header" data-i18n>시간의 균열</h2>
                         <div id="ui-timerift-panel" class="time-rift-panel" style="display:none;"></div>
                     </section>
                     <section id="map-explore-trials" class="vertical-tab-panel">
-                        <h2 style="color: #f1c40f; display: none;" id="ui-trials-header">전직 시련의 성소</h2>
+                        <h2 style="color: #f1c40f; display: none;" id="ui-trials-header" data-i18n>전직 시련의 성소</h2>
                         <div class="map-grid" id="ui-trial-list" style="margin-top: 10px;"></div>
                     </section>
                 </div>
@@ -964,44 +964,44 @@
         </div>
 
         <div id="map-tab-chaos-realm" class="subtab-content">
-            <h2>혼돈계</h2>
+            <h2 data-i18n>혼돈계</h2>
             <div id="ui-chaos-realm-panel"></div>
             <div id="ui-chaos-realm-list" class="underworld-panel"></div>
         </div>
 
         <div id="map-tab-sky" class="subtab-content">
-            <h2>창공</h2>
+            <h2 data-i18n>창공</h2>
             <div id="ui-sky-tower-panel"></div>
             <div id="ui-sky-tower-list"></div>
         </div>
 
         <div id="map-tab-underworld" class="subtab-content">
-            <h2>지하계</h2>
+            <h2 data-i18n>지하계</h2>
             <div class="map-grid" id="ui-underworld-list"></div>
             <div id="ui-underworld-panel" class="underworld-panel"></div>
         </div>
 
         <div id="map-tab-ocean" class="subtab-content">
-            <h2>심해</h2>
+            <h2 data-i18n>심해</h2>
             <div id="ui-ocean-panel" class="ocean-panel-shell"></div>
         </div>
 
         <div id="map-tab-fishing" class="subtab-content" onclick="if(event.target.closest('#fishing-collection-tab')) fishingUi.render()">
-            <h2>낚시</h2>
+            <h2 data-i18n>낚시</h2>
             <section id="fishing-gather">
             <div id="ui-fishing-panel" class="ocean-panel-shell"></div>
             </section>
             <details id="fishing-collection" class="ocean-section ocean-collection-disclosure" ontoggle="if(this.open) fishingUi.render()">
-                <summary id="ui-fishing-collection-summary">심해 도감</summary>
+                <summary id="ui-fishing-collection-summary" data-i18n>심해 도감</summary>
                 <div id="ui-fishing-collection"></div>
             </details>
             <section id="fishing-workshop" data-recipe-group="supply">
-            <div class="fishing-workshop-heading"><h3 class="ocean-gift-heading">심해 제작 (바다의 선물)</h3><div id="fishing-battle-preview"></div></div>
-            <label class="sea-gift-group-picker">무엇을 만들까요?
-                <select aria-label="바다의 선물 제작 종류" onchange="fishingUi.selectGroup(this.value)">
-                    <option value="supply">재화 만들기</option>
-                    <option value="forge">수치 다듬기</option>
-                    <option value="chase">옵션 추가와 변경</option>
+            <div class="fishing-workshop-heading"><h3 class="ocean-gift-heading" data-i18n>심해 제작 (바다의 선물)</h3><div id="fishing-battle-preview"></div></div>
+            <label class="sea-gift-group-picker" data-i18n>무엇을 만들까요?
+                <select aria-label="바다의 선물 제작 종류" onchange="fishingUi.selectGroup(this.value)" data-i18n-attr="aria-label">
+                    <option value="supply" data-i18n>재화 만들기</option>
+                    <option value="forge" data-i18n>수치 다듬기</option>
+                    <option value="chase" data-i18n>옵션 추가와 변경</option>
                 </select>
             </label>
             <div id="ui-sea-gift-panel" class="ocean-panel-shell"></div>
@@ -1010,8 +1010,8 @@
 
         <div id="map-tab-pvp" class="subtab-content">
             <div class="map-pvp-heading">
-                <div><span>순례자 투기장</span><h2>대전</h2></div>
-                <p>현재 빌드의 고스트를 등록하고 다른 플레이어와 대결합니다.</p>
+                <div><span data-i18n>순례자 투기장</span><h2 data-i18n>대전</h2></div>
+                <p data-i18n>현재 빌드의 고스트를 등록하고 다른 플레이어와 대결합니다.</p>
             </div>
             <div id="map-ghost-arena"></div>
         </div>
@@ -1020,9 +1020,9 @@
 
     <div id="tab-skills" class="tab-content">
         <div class="subtab-row">
-            <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><span class="px-center">룬</span></button>
-            <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><span class="px-center">각인</span></button>
-            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><span class="px-center">전술</span></button>
+            <button class="subtab-btn active" id="btn-skill-tab-equip" onclick="switchSkillSubtab('skill-tab-equip')"><span class="px-center" data-i18n>룬</span></button>
+            <button class="subtab-btn" id="btn-skill-tab-enhance" onclick="switchSkillSubtab('skill-tab-enhance')"><span class="px-center" data-i18n>각인</span></button>
+            <button class="subtab-btn" id="btn-skill-tab-condition" onclick="switchSkillSubtab('skill-tab-condition')"><span class="px-center" data-i18n>전술</span></button>
         </div>
         <div id="skill-tab-equip" class="subtab-content active">
             <!-- 룬 보드(js/skill-gem-board-ui.js): 가운데 주 공격 룬, 둘레 각인, 이동/소환 칸, 보조스킬룬 칸 줄.
@@ -1030,14 +1030,14 @@
                  목록의 룬을 누르면 상세가 뜬다(js/gem-selection-ui.js). -->
             <div class="skill-board-layout">
                 <div class="skill-board-column">
-                    <section id="ui-skill-board" class="skill-board" aria-label="장착한 공격 룬과 각인"></section>
-                    <section id="ui-support-slots" class="support-slots" aria-label="장착한 보조스킬룬"></section>
+                    <section id="ui-skill-board" class="skill-board" aria-label="장착한 공격 룬과 각인" data-i18n-attr="aria-label"></section>
+                    <section id="ui-support-slots" class="support-slots" aria-label="장착한 보조스킬룬" data-i18n-attr="aria-label"></section>
                 </div>
                 <section class="skill-picker" aria-labelledby="ui-skill-picker-title">
                     <div class="skill-picker-head">
-                        <h3 id="ui-skill-picker-title">주 공격 칸에 낄 룬</h3>
+                        <h3 id="ui-skill-picker-title" data-i18n>주 공격 칸에 낄 룬</h3>
                         <span id="ui-skill-picker-count" class="skill-picker-count"></span>
-                        <button id="btn-skill-picker-fold" type="button" class="skill-picker-fold" aria-pressed="false">장착 중만</button>
+                        <button id="btn-skill-picker-fold" type="button" class="skill-picker-fold" aria-pressed="false" data-i18n>장착 중만</button>
                     </div>
                     <div id="ui-skills-list" class="skill-gem-library attack-library"></div>
                     <div id="ui-support-list" class="skill-gem-library support-library" hidden></div>
@@ -1046,25 +1046,25 @@
         </div>
         <div id="skill-tab-enhance" class="subtab-content">
             <div id="ui-gem-enhance-header" class="gem-forge-heading" style="display:none;">
-                <div><span class="skill-panel-kicker">룬 공방</span><h2>룬 성장과 각인 공방</h2></div>
+                <div><span class="skill-panel-kicker" data-i18n>룬 공방</span><h2 data-i18n>룬 성장과 각인 공방</h2></div>
             </div>
             <div id="ui-gem-enhance-panel" class="gem-forge-workspace" style="display:none;">
                 <aside class="gem-target-rail">
-                    <div class="gem-target-rail-heading"><span>강화 대상</span><small>장착 중인 공격 룬</small></div>
+                    <div class="gem-target-rail-heading"><span data-i18n>강화 대상</span><small data-i18n>장착 중인 공격 룬</small></div>
                     <div id="ui-gem-enhance-target" class="gem-enhance-target"></div>
                 </aside>
                 <div class="gem-forge-detail">
                     <div id="ui-gem-resource-strip" class="gem-resource-strip"></div>
-                    <section class="gem-enhance-section gem-core-section"><h3>룬 강화</h3><div id="ui-gem-core-forge"></div></section>
+                    <section class="gem-enhance-section gem-core-section"><h3 data-i18n>룬 강화</h3><div id="ui-gem-core-forge"></div></section>
                     <div class="gem-enhance-section gem-upgrade-section">
                         <div class="gem-enhance-section-head">
-                            <div><span class="gem-section-index">01</span><div><div class="gem-enhance-section-title">기본 성장</div></div></div>
+                            <div><span class="gem-section-index">01</span><div><div class="gem-enhance-section-title" data-i18n>기본 성장</div></div></div>
                         </div>
                         <div id="ui-gem-upgrade-actions" class="gem-enhance-actions"></div>
                     </div>
                     <div class="gem-enhance-section gem-inscription-section">
                         <div class="gem-enhance-section-head">
-                            <div><span class="gem-section-index">02</span><div><div class="gem-enhance-section-title">창공 각인</div></div></div>
+                            <div><span class="gem-section-index">02</span><div><div class="gem-enhance-section-title" data-i18n>창공 각인</div></div></div>
                         </div>
                         <div id="ui-gem-engrave-slots" class="gem-engrave-orbit"></div>
                         <div id="ui-gem-enhance-options" class="gem-engrave-grid"></div>
@@ -1074,48 +1074,48 @@
         </div>
         <div id="skill-tab-condition" class="subtab-content">
             <div class="condition-gem-heading">
-                <div><span class="skill-panel-kicker">자동 전투</span><h2>전술 규칙</h2></div>
-                <p>기본 전술을 정하고, 상황에 따라 바꿀 행동을 아래에 추가하세요. 대상과 거리 규칙은 각각 위에서 먼저 맞는 규칙을 따릅니다.</p>
+                <div><span class="skill-panel-kicker" data-i18n>자동 전투</span><h2 data-i18n>전술 규칙</h2></div>
+                <p data-i18n>기본 전술을 정하고, 상황에 따라 바꿀 행동을 아래에 추가하세요. 대상과 거리 규칙은 각각 위에서 먼저 맞는 규칙을 따릅니다.</p>
             </div>
             <div class="tactics-defaults" id="combat-tactics-defaults">
-                <h3>기본 전술</h3>
+                <h3 data-i18n>기본 전술</h3>
                 <div class="tactics-defaults-fields">
-                    <label for="sel-combat-target-priority">먼저 공격할 적
+                    <label for="sel-combat-target-priority" data-i18n>먼저 공격할 적
                         <select id="sel-combat-target-priority">
-                            <option value="nearest">가까운 적</option>
-                            <option value="weakest">약한 적</option>
-                            <option value="dangerous">위험한 적</option>
-                            <option value="dense">밀집 지역</option>
+                            <option value="nearest" data-i18n>가까운 적</option>
+                            <option value="weakest" data-i18n>약한 적</option>
+                            <option value="dangerous" data-i18n>위험한 적</option>
+                            <option value="dense" data-i18n>밀집 지역</option>
                         </select>
                     </label>
-                    <label for="sel-combat-position-mode">전투 거리
+                    <label for="sel-combat-position-mode" data-i18n>전투 거리
                         <select id="sel-combat-position-mode">
-                            <option value="auto">자동</option>
-                            <option value="pressure">압박 (근접 유지)</option>
-                            <option value="keepRange">거리 유지</option>
+                            <option value="auto" data-i18n>자동</option>
+                            <option value="pressure" data-i18n>압박 (근접 유지)</option>
+                            <option value="keepRange" data-i18n>거리 유지</option>
                         </select>
                     </label>
                 </div>
                 <p id="combat-tactics-now" class="tactics-now" aria-live="polite"></p>
                 <p id="combat-tactics-help"></p>
             </div>
-            <h3>조건부 규칙</h3>
+            <h3 data-i18n>조건부 규칙</h3>
             <div id="ui-skill-rules-panel" class="condition-gem-rule-list"></div>
             <div class="condition-gem-actions">
-                <button id="btn-condition-rule-add" onclick="addSkillAutoRule()">+ 규칙 추가</button>
-                <button id="btn-condition-rule-sort" onclick="sortSkillAutoRules()">우선순위 정렬</button>
+                <button id="btn-condition-rule-add" onclick="addSkillAutoRule()" data-i18n>+ 규칙 추가</button>
+                <button id="btn-condition-rule-sort" onclick="sortSkillAutoRules()" data-i18n>우선순위 정렬</button>
             </div>
         </div>
 
     </div>
 
     <div id="tab-codex" class="tab-content">
-        <h2>도감</h2>
+        <h2 data-i18n>도감</h2>
         <div class="vertical-tab-layout codex-vertical-layout">
-            <div class="vertical-tab-sidebar" aria-label="도감 항목">
-                <button class="vertical-tab-btn active" id="btn-codex-main" onclick="uniqueCodexUi.setSubtab('main')"><span>나무 도감</span><small>일반 고유 기록</small></button>
-                <button class="vertical-tab-btn" id="btn-codex-realm" hidden onclick="uniqueCodexUi.setSubtab('realm')"><span>계 도감</span><small>계 전용 고유 기록</small></button>
-                <button class="vertical-tab-btn" id="btn-codex-leaves" hidden onclick="uniqueCodexUi.setSubtab('leaves')"><span>기억의 잎</span><small>발견한 기억</small></button>
+            <div class="vertical-tab-sidebar" aria-label="도감 항목" data-i18n-attr="aria-label">
+                <button class="vertical-tab-btn active" id="btn-codex-main" onclick="uniqueCodexUi.setSubtab('main')"><span data-i18n>나무 도감</span><small data-i18n>일반 고유 기록</small></button>
+                <button class="vertical-tab-btn" id="btn-codex-realm" hidden onclick="uniqueCodexUi.setSubtab('realm')"><span data-i18n>계 도감</span><small data-i18n>계 전용 고유 기록</small></button>
+                <button class="vertical-tab-btn" id="btn-codex-leaves" hidden onclick="uniqueCodexUi.setSubtab('leaves')"><span data-i18n>기억의 잎</span><small data-i18n>발견한 기억</small></button>
             </div>
             <div class="vertical-tab-panels">
                 <div id="ui-codex-summary" class="codex-root"></div>
@@ -1129,15 +1129,15 @@
          데스크톱은 전투 로그와 공용 도크, 모바일은 사용자 호출형 하단 시트를 쓴다. -->
     <div id="tab-social" class="tab-content">
         <div class="social-mobile-sheet-header">
-            <strong>채팅</strong>
-            <button type="button" id="social-mobile-settings" class="social-mobile-settings" onclick="openChatSettings()" aria-label="채팅 설정" data-tip="채팅 설정">⚙</button>
-            <button type="button" onclick="switchTab('tab-battle')" aria-label="채팅 닫기">닫기</button>
+            <strong data-i18n>채팅</strong>
+            <button type="button" id="social-mobile-settings" class="social-mobile-settings" onclick="openChatSettings()" aria-label="채팅 설정" data-tip="채팅 설정" data-i18n-attr="aria-label data-tip">⚙</button>
+            <button type="button" onclick="switchTab('tab-battle')" aria-label="채팅 닫기" data-i18n data-i18n-attr="aria-label">닫기</button>
         </div>
     </div>
 
     <div id="tab-journal" class="tab-content">
-        <h2>이야기 저널</h2>
-        <div style="color:var(--copy-muted); margin-bottom:10px;">액트와 특수 콘텐츠의 기록을 모아 세계의 단서와 영구 보너스를 해금합니다.</div>
+        <h2 data-i18n>이야기 저널</h2>
+        <div style="color:var(--copy-muted); margin-bottom:10px;" data-i18n>액트와 특수 콘텐츠의 기록을 모아 세계의 단서와 영구 보너스를 해금합니다.</div>
         <div id="ui-journal-list" class="journal-archive"></div>
     </div>
 
@@ -1191,10 +1191,9 @@
                                 <option value="window" data-i18n>창 모드</option>
                             </select>
                         </div>
-                        <!-- 언어(2026-11-03, docs/i18n.md): 목록은 js/settings-ui.js initLanguageSelect가 i18n.languages로 채운다. 영어 팩이 다 찰 때까지
-                             배포에서는 숨긴다(settings-ui의 dev-only 줄이 개발에서만 hidden을 지운다). 출시할 때 hidden과 그 줄을 지운다. -->
-                        <div class="cfg-row" id="cfg-row-language" hidden>
-                            <div class="cfg-row-text"><label for="sel-language" data-i18n>언어</label><small data-i18n>글과 숫자 표기. 바꾸면 바로 적용됩니다</small></div>
+                        <!-- 언어(docs/i18n.md): 목록은 js/settings-ui.js initLanguageSelect가 i18n.languages로 채운다. 번역이 없는 글은 한국어로 보인다. -->
+                        <div class="cfg-row" id="cfg-row-language">
+                            <div class="cfg-row-text"><label for="sel-language" data-i18n>언어</label><small data-i18n>글과 숫자 표기. 바꾸면 바로 적용되고, 아직 번역이 없는 글은 한국어로 보입니다</small></div>
                             <select id="sel-language" class="cfg-select"></select>
                         </div>
                         <div class="cfg-row">
@@ -1238,116 +1237,116 @@
                 </section>
                 <section class="cfg-page" data-settings-group="combat" hidden>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">전투 화면</h3>
+                        <h3 class="cfg-block-title" data-i18n>전투 화면</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-camera-shake">카메라 흔들림</label></div>
+                            <div class="cfg-row-text"><label for="chk-camera-shake" data-i18n>카메라 흔들림</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-camera-shake">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-hit-emphasis">피격 강조</label><small>맞았을 때 화면 가장자리가 붉어지는 정도</small></div>
+                            <div class="cfg-row-text"><label for="sel-hit-emphasis" data-i18n>피격 강조</label><small data-i18n>맞았을 때 화면 가장자리가 붉어지는 정도</small></div>
                             <select id="sel-hit-emphasis" class="cfg-select">
-                                <option value="normal">기본</option>
-                                <option value="mild">약하게</option>
+                                <option value="normal" data-i18n>기본</option>
+                                <option value="mild" data-i18n>약하게</option>
                             </select>
                         </div>
                         <div class="cfg-row cfg-mobile-only">
-                            <div class="cfg-row-text"><label for="chk-mobile-battle-pip">작은 전투 화면</label><small>다른 메뉴를 보는 동안 구석에 띄웁니다</small></div>
+                            <div class="cfg-row-text"><label for="chk-mobile-battle-pip" data-i18n>작은 전투 화면</label><small data-i18n>다른 메뉴를 보는 동안 구석에 띄웁니다</small></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-mobile-battle-pip">
                         </div>
                     </div>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">숫자 표시</h3>
+                        <h3 class="cfg-block-title" data-i18n>숫자 표시</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-damage-number-format">피해 숫자</label></div>
+                            <div class="cfg-row-text"><label for="sel-damage-number-format" data-i18n>피해 숫자</label></div>
                             <select id="sel-damage-number-format" class="cfg-select">
-                                <option value="comma">쉼표 (1,234,567,890)</option>
-                                <option value="korean">한글 전체 (12억3456만7890)</option>
-                                <option value="korean_short">한글 최대 단위 (12.3억)</option>
-                                <option value="english">영어 축약 (1.234B)</option>
+                                <option value="comma" data-i18n>쉼표 (1,234,567,890)</option>
+                                <option value="korean" data-i18n>한글 전체 (12억3456만7890)</option>
+                                <option value="korean_short" data-i18n>한글 최대 단위 (12.3억)</option>
+                                <option value="english" data-i18n>영어 축약 (1.234B)</option>
                             </select>
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-number-commas">생명력, 경험치, 능력치에 쉼표</label><small id="chk-number-commas-mixed" hidden>지금은 일부만 켜져 있습니다. 바꾸면 모두 같이 바뀝니다</small></div>
+                            <div class="cfg-row-text"><label for="chk-number-commas" data-i18n>생명력, 경험치, 능력치에 쉼표</label><small id="chk-number-commas-mixed" hidden data-i18n>지금은 일부만 켜져 있습니다. 바꾸면 모두 같이 바뀝니다</small></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-number-commas" aria-describedby="chk-number-commas-mixed">
                         </div>
                     </div>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">전투 기록</h3>
+                        <h3 class="cfg-block-title" data-i18n>전투 기록</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-log-combat">전투 로그 표시</label></div>
+                            <div class="cfg-row-text"><label for="chk-log-combat" data-i18n>전투 로그 표시</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-combat">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-log-story">대사</label><small>주인공, NPC, 보스의 대사를 로그에 남깁니다</small></div>
+                            <div class="cfg-row-text"><label for="chk-log-story" data-i18n>대사</label><small data-i18n>주인공, NPC, 보스의 대사를 로그에 남깁니다</small></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-story">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-log-compact">반복되는 타격 묶기</label><small id="chk-log-compact-mixed" hidden>지금은 일부만 켜져 있습니다. 바꾸면 모두 같이 바뀝니다</small></div>
+                            <div class="cfg-row-text"><label for="chk-log-compact" data-i18n>반복되는 타격 묶기</label><small id="chk-log-compact-mixed" hidden data-i18n>지금은 일부만 켜져 있습니다. 바꾸면 모두 같이 바뀝니다</small></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-compact" aria-describedby="chk-log-compact-mixed">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-log-damage-detail">상세 피해 정보</label></div>
+                            <div class="cfg-row-text"><label for="chk-log-damage-detail" data-i18n>상세 피해 정보</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-damage-detail">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-log-spawn">적과 보스 등장</label></div>
+                            <div class="cfg-row-text"><label for="chk-log-spawn" data-i18n>적과 보스 등장</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-spawn">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-log-exp">경험치 획득</label></div>
+                            <div class="cfg-row-text"><label for="chk-log-exp" data-i18n>경험치 획득</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-exp">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-log-loot">전리품 획득</label></div>
+                            <div class="cfg-row-text"><label for="chk-log-loot" data-i18n>전리품 획득</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-log-loot">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><span>최근 사망 기록</span><small>마지막으로 쓰러졌을 때 받은 피해</small></div>
-                            <button type="button" id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn">열기</button>
+                            <div class="cfg-row-text"><span data-i18n>최근 사망 기록</span><small data-i18n>마지막으로 쓰러졌을 때 받은 피해</small></div>
+                            <button type="button" id="btn-open-death-log" onclick="openLastDeathLog()" class="cfg-btn" data-i18n>열기</button>
                         </div>
                     </div>
                 </section>
                 <section class="cfg-page" data-settings-group="progress" hidden>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">진행</h3>
+                        <h3 class="cfg-block-title" data-i18n>진행</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-map-complete-action">지역 클리어 후</label></div>
+                            <div class="cfg-row-text"><label for="sel-map-complete-action" data-i18n>지역 클리어 후</label></div>
                             <select id="sel-map-complete-action" class="cfg-select">
-                                <option value="repeatZone">반복</option>
-                                <option value="nextZone">다음 지역</option>
-                                <option value="nextLoopBestPlusOne">최고 기록 다음 층</option>
-                                <option value="stop">중단</option>
+                                <option value="repeatZone" data-i18n>반복</option>
+                                <option value="nextZone" data-i18n>다음 지역</option>
+                                <option value="nextLoopBestPlusOne" data-i18n>최고 기록 다음 층</option>
+                                <option value="stop" data-i18n>중단</option>
                             </select>
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-town-return-action">귀환 후</label></div>
+                            <div class="cfg-row-text"><label for="sel-town-return-action" data-i18n>귀환 후</label></div>
                             <select id="sel-town-return-action" class="cfg-select">
-                                <option value="retry">바로 재전투</option>
-                                <option value="stop">전투 중단</option>
+                                <option value="retry" data-i18n>바로 재전투</option>
+                                <option value="stop" data-i18n>전투 중단</option>
                             </select>
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-auto-equip-empty">빈 장비 칸에 자동 장착</label></div>
+                            <div class="cfg-row-text"><label for="chk-auto-equip-empty" data-i18n>빈 장비 칸에 자동 장착</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-auto-equip-empty">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-pause-overlay">안내나 선택 창이 뜨면 멈춤</label></div>
+                            <div class="cfg-row-text"><label for="chk-pause-overlay" data-i18n>안내나 선택 창이 뜨면 멈춤</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-pause-overlay">
                         </div>
                     </div>
                     <div class="cfg-block" id="loop-completion-settings">
-                        <h3 class="cfg-block-title">새 루프를 시작할 때</h3>
+                        <h3 class="cfg-block-title" data-i18n>새 루프를 시작할 때</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-loop-disable-item-automation">자동 해체와 아이템 필터 끄기</label></div>
+                            <div class="cfg-row-text"><label for="chk-loop-disable-item-automation" data-i18n>자동 해체와 아이템 필터 끄기</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-loop-disable-item-automation">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-loop-map-complete-action">클리어 후 행동</label><small>새 루프가 시작될 때 한 번 적용합니다</small></div>
+                            <div class="cfg-row-text"><label for="sel-loop-map-complete-action" data-i18n>클리어 후 행동</label><small data-i18n>새 루프가 시작될 때 한 번 적용합니다</small></div>
                             <select id="sel-loop-map-complete-action" class="cfg-select">
-                                <option value="repeatZone">반복</option>
-                                <option value="nextZone">다음 지역</option>
-                                <option value="nextLoopBestPlusOne">최고 기록 다음 층</option>
-                                <option value="stop">중단</option>
+                                <option value="repeatZone" data-i18n>반복</option>
+                                <option value="nextZone" data-i18n>다음 지역</option>
+                                <option value="nextLoopBestPlusOne" data-i18n>최고 기록 다음 층</option>
+                                <option value="stop" data-i18n>중단</option>
                             </select>
                         </div>
                     </div>
@@ -1358,128 +1357,128 @@
                 </section>
                 <section class="cfg-page" data-settings-group="notifications" hidden>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">알림</h3>
+                        <h3 class="cfg-block-title" data-i18n>알림</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-tab-noti">새 항목이 있는 메뉴 표시</label></div>
+                            <div class="cfg-row-text"><label for="chk-tab-noti" data-i18n>새 항목이 있는 메뉴 표시</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-tab-noti">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-act-journal">이야기 저널 자동 표시</label></div>
+                            <div class="cfg-row-text"><label for="chk-act-journal" data-i18n>이야기 저널 자동 표시</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-act-journal" onchange="storyJournalUi.setAutoShow(this.checked)">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-death-notice">사망 알림 표시</label></div>
+                            <div class="cfg-row-text"><label for="chk-death-notice" data-i18n>사망 알림 표시</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-death-notice">
                         </div>
                     </div>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">채팅</h3>
+                        <h3 class="cfg-block-title" data-i18n>채팅</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="chk-social-chat-noti">새 채팅 알림</label></div>
+                            <div class="cfg-row-text"><label for="chk-social-chat-noti" data-i18n>새 채팅 알림</label></div>
                             <input type="checkbox" role="switch" class="cfg-switch" id="chk-social-chat-noti">
                         </div>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><label for="sel-chat-message-size">채팅 글자 크기</label></div>
+                            <div class="cfg-row-text"><label for="sel-chat-message-size" data-i18n>채팅 글자 크기</label></div>
                             <select id="sel-chat-message-size" class="cfg-select">
-                                <option value="small">작게</option>
-                                <option value="medium" selected>보통</option>
-                                <option value="large">크게</option>
+                                <option value="small" data-i18n>작게</option>
+                                <option value="medium" selected data-i18n>보통</option>
+                                <option value="large" data-i18n>크게</option>
                             </select>
                         </div>
                     </div>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">문의와 제보</h3>
+                        <h3 class="cfg-block-title" data-i18n>문의와 제보</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><span>버그 제보, 문의, 건의</span><small>보낸 글과 운영자 답변을 같은 창에서 봅니다. 로그인한 계정으로 보낼 수 있습니다.</small></div>
+                            <div class="cfg-row-text"><span data-i18n>버그 제보, 문의, 건의</span><small data-i18n>보낸 글과 운영자 답변을 같은 창에서 봅니다. 로그인한 계정으로 보낼 수 있습니다.</small></div>
                             <div class="cfg-row-actions">
-                                <button type="button" class="cfg-btn" onclick="openFeedbackDialog()">문의 보내기</button>
+                                <button type="button" class="cfg-btn" onclick="openFeedbackDialog()" data-i18n>문의 보내기</button>
                             </div>
                         </div>
                     </div>
                 </section>
                 <section class="cfg-page" data-settings-group="layout" hidden>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">창과 메뉴 배치</h3>
+                        <h3 class="cfg-block-title" data-i18n>창과 메뉴 배치</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><span>창 배치</span><small>창, 로그, 채팅의 위치와 크기를 처음대로 되돌립니다</small></div>
+                            <div class="cfg-row-text"><span data-i18n>창 배치</span><small data-i18n>창, 로그, 채팅의 위치와 크기를 처음대로 되돌립니다</small></div>
                             <div id="settings-window-actions" class="cfg-row-actions">
                             </div>
                         </div>
                         <details class="cfg-disclosure" ontoggle="if(this.open) renderTabOrderSettings()">
-                            <summary>메뉴 순서 바꾸기</summary>
+                            <summary data-i18n>메뉴 순서 바꾸기</summary>
                             <div id="ui-tab-order-settings" class="cfg-tab-order">
                             </div>
-                            <p class="cfg-note">PC와 모바일 배치를 따로 저장합니다.</p>
+                            <p class="cfg-note" data-i18n>PC와 모바일 배치를 따로 저장합니다.</p>
                         </details>
                     </div>
                     <div class="cfg-block cfg-block--hotkeys">
-                        <h3 class="cfg-block-title">단축키</h3>
+                        <h3 class="cfg-block-title" data-i18n>단축키</h3>
                         <div id="ui-hotkey-settings" class="hotkey-settings">
                         </div>
-                        <p class="cfg-note">칸을 누른 뒤 새 키를 누르세요. Esc는 고정입니다.</p>
+                        <p class="cfg-note" data-i18n>칸을 누른 뒤 새 키를 누르세요. Esc는 고정입니다.</p>
                     </div>
                 </section>
                 <section class="cfg-page" data-settings-group="data" hidden>
                     <div class="cfg-block">
-                        <h3 class="cfg-block-title">이 기기</h3>
+                        <h3 class="cfg-block-title" data-i18n>이 기기</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><span>저장</span><small>진행은 자동으로 저장됩니다. 기기를 옮기기 전에는 클라우드 상태를 확인하세요</small></div>
+                            <div class="cfg-row-text"><span data-i18n>저장</span><small data-i18n>진행은 자동으로 저장됩니다. 기기를 옮기기 전에는 클라우드 상태를 확인하세요</small></div>
                             <div class="cfg-row-actions">
-                                <button type="button" class="cfg-btn cfg-btn--save">지금 저장</button>
-                                <button type="button" class="cfg-btn" onclick="openPatchNotes()">패치 노트</button>
+                                <button type="button" class="cfg-btn cfg-btn--save" data-i18n>지금 저장</button>
+                                <button type="button" class="cfg-btn" onclick="openPatchNotes()" data-i18n>패치 노트</button>
                             </div>
                         </div>
                     </div>
                     <div class="cfg-block cloud-panel">
                         <div class="cloud-header">
-                            <h3 class="cfg-block-title">클라우드 세이브</h3>
-                            <div class="cloud-status-pill" id="ui-cloud-status-pill">미설정</div>
+                            <h3 class="cfg-block-title" data-i18n>클라우드 세이브</h3>
+                            <div class="cloud-status-pill" id="ui-cloud-status-pill" data-i18n>미설정</div>
                         </div>
-                        <p class="cfg-note" id="ui-cloud-config-hint">게스트 저장은 이 기기에만 있습니다. 로그인과 회원가입은 시작 화면에서 합니다.</p>
+                        <p class="cfg-note" id="ui-cloud-config-hint" data-i18n>게스트 저장은 이 기기에만 있습니다. 로그인과 회원가입은 시작 화면에서 합니다.</p>
                         <div class="cloud-actions">
-                            <button id="btn-cloud-open-gate" onclick="openStartupGate({ accountOnly: true })">로그인, 계정 변경</button>
-                            <button id="btn-cloud-logout" onclick="cloudLogout()">로그아웃</button>
-                            <button id="btn-cloud-pull" onclick="cloudPullNow()">서버 저장 다시 받기</button>
-                            <button id="btn-cloud-move-guest" onclick="moveGuestSaveIntoAccount()" hidden>게스트 저장 옮기기</button>
-                            <button id="btn-cloud-delete" onclick="deleteCloudAccount()">계정 삭제</button>
+                            <button id="btn-cloud-open-gate" onclick="openStartupGate({ accountOnly: true })" data-i18n>로그인, 계정 변경</button>
+                            <button id="btn-cloud-logout" onclick="cloudLogout()" data-i18n>로그아웃</button>
+                            <button id="btn-cloud-pull" onclick="cloudPullNow()" data-i18n>서버 저장 다시 받기</button>
+                            <button id="btn-cloud-move-guest" onclick="moveGuestSaveIntoAccount()" hidden data-i18n>게스트 저장 옮기기</button>
+                            <button id="btn-cloud-delete" onclick="deleteCloudAccount()" data-i18n>계정 삭제</button>
                         </div>
                         <dl class="cloud-meta">
-                            <div><dt>계정</dt><dd id="ui-cloud-user">로그인 안 됨</dd></div>
-                            <div><dt>연결된 소셜 계정</dt><dd id="ui-cloud-identities">확인 전</dd></div>
-                            <div><dt>이 기기 마지막 저장</dt><dd id="ui-cloud-local-save">없음</dd></div>
-                            <div><dt>서버 마지막 저장</dt><dd id="ui-cloud-remote-save">없음</dd></div>
-                            <div><dt>안 올린 변경</dt><dd id="ui-cloud-pending">없음</dd></div>
-                            <div><dt>마지막 업로드</dt><dd id="ui-cloud-upload-profile">없음</dd></div>
-                            <div><dt>최근 소식</dt><dd id="ui-cloud-message">아직 동기화하지 않았습니다.</dd></div>
+                            <div><dt data-i18n>계정</dt><dd id="ui-cloud-user" data-i18n>로그인 안 됨</dd></div>
+                            <div><dt data-i18n>연결된 소셜 계정</dt><dd id="ui-cloud-identities" data-i18n>확인 전</dd></div>
+                            <div><dt data-i18n>이 기기 마지막 저장</dt><dd id="ui-cloud-local-save" data-i18n>없음</dd></div>
+                            <div><dt data-i18n>서버 마지막 저장</dt><dd id="ui-cloud-remote-save" data-i18n>없음</dd></div>
+                            <div><dt data-i18n>안 올린 변경</dt><dd id="ui-cloud-pending" data-i18n>없음</dd></div>
+                            <div><dt data-i18n>마지막 업로드</dt><dd id="ui-cloud-upload-profile" data-i18n>없음</dd></div>
+                            <div><dt data-i18n>최근 소식</dt><dd id="ui-cloud-message" data-i18n>아직 동기화하지 않았습니다.</dd></div>
                         </dl>
                         <div class="cloud-link" id="cloud-link-actions">
-                            <span>계정 연결</span>
+                            <span data-i18n>계정 연결</span>
                             <button id="btn-cloud-link-google" class="social-login-image-btn" onclick="linkGoogleAccount()">
-                                <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20"><span>Google 계정 연결</span>
+                                <img src="assets/ui/login-google-mark.png" alt="" width="20" height="20"><span data-i18n>Google 계정 연결</span>
                             </button>
                             <button id="btn-cloud-link-kakao" class="social-login-image-btn" onclick="linkKakaoAccount()">
-                                <img src="assets/ui/login-kakao.png" alt="카카오 계정 연결" width="366" height="90">
+                                <img src="assets/ui/login-kakao.png" alt="카카오 계정 연결" width="366" height="90" data-i18n-attr="alt">
                             </button>
                         </div>
                         <details class="cfg-disclosure">
-                            <summary>저장 복구와 진단</summary>
+                            <summary data-i18n>저장 복구와 진단</summary>
                             <div class="cloud-actions secondary">
-                                <button type="button" onclick="copyClientDiagnostics()">진단 정보 복사</button>
-                                <button type="button" onclick="openCloudSaveHistory()">저장 이력</button>
-                                <button type="button" id="btn-ops-dashboard" onclick="openOpsDashboard()" hidden>운영 통계</button>
+                                <button type="button" onclick="copyClientDiagnostics()" data-i18n>진단 정보 복사</button>
+                                <button type="button" onclick="openCloudSaveHistory()" data-i18n>저장 이력</button>
+                                <button type="button" id="btn-ops-dashboard" onclick="openOpsDashboard()" hidden data-i18n>운영 통계</button>
                             </div>
                         </details>
                         <div class="cloud-policy-links">
-                            <a href="legal/terms.html" target="_blank" rel="noopener">이용약관</a>
-                            <a href="legal/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>
-                            <a href="mailto:pjh4611274@gmail.com?subject=%5BRignin%5D%20%EA%B3%84%EC%A0%95%20%EB%B0%8F%20%EB%8D%B0%EC%9D%B4%ED%84%B0%20%EC%82%AD%EC%A0%9C%20%EC%9A%94%EC%B2%AD&body=%EA%B3%84%EC%A0%95%EC%97%90%20%EC%82%AC%EC%9A%A9%ED%95%9C%20%EC%9D%B4%EB%A9%94%EC%9D%BC%EC%9D%84%20%EC%A0%81%EC%96%B4%EC%A3%BC%EC%84%B8%EC%9A%94.%0A" onclick="openAccountDeletionRequest(event)">계정과 데이터 삭제 요청</a>
+                            <a href="legal/terms.html" target="_blank" rel="noopener" data-i18n>이용약관</a>
+                            <a href="legal/privacy.html" target="_blank" rel="noopener" data-i18n>개인정보처리방침</a>
+                            <a href="mailto:pjh4611274@gmail.com?subject=%5BRignin%5D%20%EA%B3%84%EC%A0%95%20%EB%B0%8F%20%EB%8D%B0%EC%9D%B4%ED%84%B0%20%EC%82%AD%EC%A0%9C%20%EC%9A%94%EC%B2%AD&body=%EA%B3%84%EC%A0%95%EC%97%90%20%EC%82%AC%EC%9A%A9%ED%95%9C%20%EC%9D%B4%EB%A9%94%EC%9D%BC%EC%9D%84%20%EC%A0%81%EC%96%B4%EC%A3%BC%EC%84%B8%EC%9A%94.%0A" onclick="openAccountDeletionRequest(event)" data-i18n>계정과 데이터 삭제 요청</a>
                         </div>
                     </div>
                     <div class="cfg-block cfg-block--danger">
-                        <h3 class="cfg-block-title">초기화</h3>
+                        <h3 class="cfg-block-title" data-i18n>초기화</h3>
                         <div class="cfg-row">
-                            <div class="cfg-row-text"><span>세이브 초기화</span><small>지금 진행을 모두 지웁니다. 누르면 확인 창이 먼저 열립니다</small></div>
-                            <button type="button" onclick="resetGame()" class="cfg-btn cfg-btn--danger cfg-btn--danger-reset">초기화</button>
+                            <div class="cfg-row-text"><span data-i18n>세이브 초기화</span><small data-i18n>지금 진행을 모두 지웁니다. 누르면 확인 창이 먼저 열립니다</small></div>
+                            <button type="button" onclick="resetGame()" class="cfg-btn cfg-btn--danger cfg-btn--danger-reset" data-i18n>초기화</button>
                         </div>
                     </div>
                 </section>
@@ -1490,38 +1489,38 @@
 
 <dialog id="glove-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="glove-slot-overlay-heading" oncancel="event.preventDefault();closeGloveSlotOverlay()" onkeydown="event.stopPropagation()">
     <div class="game-dialog-card">
-        <div class="game-dialog-kicker">장갑 장착</div>
-        <div class="game-dialog-title" id="glove-slot-overlay-heading">교체할 장갑 슬롯 선택</div>
-        <div class="game-dialog-body"><div class="game-dialog-message">두 장갑 슬롯이 모두 사용 중입니다. 교체할 장갑 슬롯을 선택하세요.</div></div>
+        <div class="game-dialog-kicker" data-i18n>장갑 장착</div>
+        <div class="game-dialog-title" id="glove-slot-overlay-heading" data-i18n>교체할 장갑 슬롯 선택</div>
+        <div class="game-dialog-body"><div class="game-dialog-message" data-i18n>두 장갑 슬롯이 모두 사용 중입니다. 교체할 장갑 슬롯을 선택하세요.</div></div>
         <div class="game-dialog-actions">
-            <button type="button" class="game-dialog-btn" onclick="selectGloveSlotFromOverlay('장갑1')">왼쪽 슬롯</button>
-            <button type="button" class="game-dialog-btn" onclick="selectGloveSlotFromOverlay('장갑2')">오른쪽 슬롯</button>
-            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeGloveSlotOverlay()">취소</button>
+            <button type="button" class="game-dialog-btn" onclick="selectGloveSlotFromOverlay('장갑1')" data-i18n>왼쪽 슬롯</button>
+            <button type="button" class="game-dialog-btn" onclick="selectGloveSlotFromOverlay('장갑2')" data-i18n>오른쪽 슬롯</button>
+            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeGloveSlotOverlay()" data-i18n>취소</button>
         </div>
     </div>
 </dialog>
 
 <dialog id="weapon-slot-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="weapon-slot-overlay-heading" oncancel="event.preventDefault();closeWeaponSlotOverlay()" onkeydown="event.stopPropagation()">
     <div class="game-dialog-card">
-        <div class="game-dialog-kicker">쌍수 훈련</div>
-        <div class="game-dialog-title" id="weapon-slot-overlay-heading">무기를 장착할 슬롯 선택</div>
-        <div class="game-dialog-body"><div class="game-dialog-message">주 무기 슬롯 또는 완갑 슬롯 중 교체할 위치를 선택하세요.</div></div>
+        <div class="game-dialog-kicker" data-i18n>쌍수 훈련</div>
+        <div class="game-dialog-title" id="weapon-slot-overlay-heading" data-i18n>무기를 장착할 슬롯 선택</div>
+        <div class="game-dialog-body"><div class="game-dialog-message" data-i18n>주 무기 슬롯 또는 완갑 슬롯 중 교체할 위치를 선택하세요.</div></div>
         <div class="game-dialog-actions">
-            <button type="button" class="game-dialog-btn" onclick="selectWeaponSlotFromOverlay('무기')">주 무기 슬롯</button>
-            <button type="button" class="game-dialog-btn" onclick="selectWeaponSlotFromOverlay('방패')">완갑 슬롯</button>
-            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeWeaponSlotOverlay()">취소</button>
+            <button type="button" class="game-dialog-btn" onclick="selectWeaponSlotFromOverlay('무기')" data-i18n>주 무기 슬롯</button>
+            <button type="button" class="game-dialog-btn" onclick="selectWeaponSlotFromOverlay('방패')" data-i18n>완갑 슬롯</button>
+            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeWeaponSlotOverlay()" data-i18n>취소</button>
         </div>
     </div>
 </dialog>
 
 <dialog id="base-upgrade-overlay" class="game-dialog-overlay equipment-slot-dialog" aria-labelledby="base-upgrade-title" oncancel="event.preventDefault();closeBaseUpgradeOverlay()" onkeydown="event.stopPropagation()">
     <div class="game-dialog-card">
-        <div class="game-dialog-kicker">베이스 업그레이드</div>
-        <div class="game-dialog-title"  id="base-upgrade-title">다음 베이스</div>
-        <div class="game-dialog-body"><div class="game-dialog-message" id="base-upgrade-body">정보를 불러오는 중...</div></div>
+        <div class="game-dialog-kicker" data-i18n>베이스 업그레이드</div>
+        <div class="game-dialog-title"  id="base-upgrade-title" data-i18n>다음 베이스</div>
+        <div class="game-dialog-body"><div class="game-dialog-message" id="base-upgrade-body" data-i18n>정보를 불러오는 중...</div></div>
         <div class="game-dialog-actions">
-            <button type="button" class="game-dialog-btn" onclick="confirmSelectedItemBaseUpgrade()">업그레이드</button>
-            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeBaseUpgradeOverlay()">취소</button>
+            <button type="button" class="game-dialog-btn" onclick="confirmSelectedItemBaseUpgrade()" data-i18n>업그레이드</button>
+            <button type="button" class="game-dialog-btn game-dialog-btn-secondary" onclick="closeBaseUpgradeOverlay()" data-i18n>취소</button>
         </div>
     </div>
 </dialog>

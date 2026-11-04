@@ -9,7 +9,7 @@ const craftingCatalogUi = (() => {
 
     const pins=()=>game.craftingWorkspace.pins;
     const esc=value=>escapeHTML(String(value));
-    const name=key=>ORB_DB[key].name.replace(/^[^가-힣A-Za-z0-9]+/u,'');
+    const name=key=>_t(ORB_DB[key].name).replace(/^[^가-힣A-Za-z0-9]+/u,'');
 
     function sporeShortage(mode) {
         const kinds={fire:['sporeFire','화염'],cold:['sporeCold','냉기'],light:['sporeLight','번개']};

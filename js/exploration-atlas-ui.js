@@ -190,7 +190,7 @@ const explorationAtlasUi = (() => {
         const key = getCanonicalCurrencyKey(zone.firstClearReward?.key || zone.reward);
         const equipment = key === 'bossCore';
         if (!contentProgression.canDropCurrency(key)) return equipment ? '고유 장비, 확률 획득' : '';
-        const name = ORB_DB[key].name;
+        const name = _t(ORB_DB[key].name);
         if (zone.firstClearReward) return `첫 격파, ${name} ${zone.firstClearReward.amount}개`;
         return equipment ? `고유 장비, ${name}, 확률 획득` : name;
     }

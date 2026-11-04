@@ -7,7 +7,7 @@ const bossVariantsUi = (() => {
             addLog(`🧬 ${how}: ${esc(detail.name)}`, 'loot-unique', { toast: true });
             return;
         }
-        const gift = detail.first ? ` 처음 잡은 변이: ${detail.gift.map(([key, amount]) => `${ORB_DB[key].name} ${amount}`).join(', ')}.` : '';
+        const gift = detail.first ? ` 처음 잡은 변이: ${detail.gift.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`).join(', ')}.` : '';
         const memory = detail.memory ? ` ${esc(atlas.node(detail.memory.node).boss)}의 기억 ${detail.memory.tier}단계를 얻었습니다.` : '';
         addLog(`🧬 변이체 처치: ${esc(detail.name)}. 전리품이 늘었습니다.${gift}${memory}`, 'loot-unique', { toast: !!(detail.first || detail.memory) });
     }

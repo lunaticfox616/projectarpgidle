@@ -224,7 +224,7 @@ const fishingUi = (() => {
     }
     function currencyGuide(effect) {
         if (effect.type === 'randomCurrency') return [`제작 재화 ${effect.amount}개를 무작위로 받습니다.`,
-            `추첨 후보: ${SEA_GIFT_RANDOM_ORB_KEYS.map(key => ORB_DB[key].name).join(', ')}. 여러 개를 만들면 같은 재화가 나올 수도 있습니다.`];
+            `추첨 후보: ${SEA_GIFT_RANDOM_ORB_KEYS.map(key => _t(ORB_DB[key].name)).join(', ')}. 여러 개를 만들면 같은 재화가 나올 수도 있습니다.`];
         return [`${getCurrencyInfo(effect.key).name} ${effect.amount}개를 받습니다.`, effect.key === 'reefFragment'
             ? '채집 전략 화면에서 암초로 설치하면 낚시 게이지가 더 빨리 오릅니다.'
             : '장비 창 → 제작실에서 사용합니다. 봉인되지 않은 무작위 추가 옵션 1줄의 종류와 수치를 바꿉니다. 잠수 장비 업그레이드에도 사용합니다.'];
@@ -342,7 +342,7 @@ const fishingUi = (() => {
         }
         return `<strong>제작 완료: ${lastResult.count}회</strong>${linesHtml(gains)}${action}`;
     }
-    const itemSnapshot = item => item && ({ rarity: ITEM_RARITY_LABELS[item.rarity], lines: item.stats.map(lineText) });
+    const itemSnapshot = item => item && ({ rarity: _t(ITEM_RARITY_LABELS[item.rarity]), lines: item.stats.map(lineText) });
     function craft(recipeId) {
         const recipe = SEA_GIFT_RECIPES.find(row => row.id === recipeId);
         if (!recipe) return;

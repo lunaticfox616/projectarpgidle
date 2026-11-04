@@ -714,7 +714,7 @@ function changeZone(id) {
         let gate = getSeasonBossProgressGate(zone, game);
         if (!gate.met) return addLog(`🔒 ${gate.label} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
         if (!zone.milestonePinnacle) {
-            if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${ORB_DB[zone.key].name})가 필요합니다.`, 'attack-monster');
+            if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${_t(ORB_DB[zone.key].name)})가 필요합니다.`, 'attack-monster');
             game.currencies[zone.key]--;
         }
         game.inTicketBossFight = true;
