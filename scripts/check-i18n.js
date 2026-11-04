@@ -98,7 +98,9 @@ function checkOrphans(name, pack, sources, failures) {
         const parts = at > 0 ? [key.slice(0, at), key.slice(at)] : [key];
         // 코드의 '…\n…'은 글자 두 개(\, n)라 줄바꿈이 든 열쇠는 그 꼴로도 찾는다.
         const appears = part => sources.some(source => source.text.includes(part) || source.text.includes(part.replace(/\n/g, '\\n')));
-        if (!parts.every(appears)) failures.push(`${name}: 코드와 index.html 어디에도 없는 열쇠(원문이 바뀌었나): '${key}'`);
+        // '소행성 {n}' 같은 숫자 열쇠는 코드가 `소행성 ${no}`로 만든다(js/i18n.js translateNumbered): 숫자 자리를 뺀 글이 있으면 된다.
+        const appearsNumbered = part => /\{n\d*\}/.test(part) && appears(part.replace(/\{n\d*\}/g, '').trim());
+        if (!parts.every(part => appears(part) || appearsNumbered(part))) failures.push(`${name}: 코드와 index.html 어디에도 없는 열쇠(원문이 바뀌었나): '${key}'`);
     }
 }
 

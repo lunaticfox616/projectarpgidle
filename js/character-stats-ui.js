@@ -79,7 +79,7 @@
         if (heroDef) notes.push(_t('{hero} 개화 재능: {talents}', { hero: _t(heroDef.label), talents: heroDef.talentsText }));
         const picked = game.ascendClass && Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
         const twins = (Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones : []).filter(id => !picked.includes(id));
-        const names = [...picked.map(id => getAscendKeystoneName(id)), ...twins.map(id => _t('{name}(쌍둥이)', { name: getAscendKeystoneName(id) }))];
+        const names = [...picked.map(id => _t(getAscendKeystoneName(id))), ...twins.map(id => _t('{name}(쌍둥이)', { name: _t(getAscendKeystoneName(id)) }))];
         if (names.length > 0) notes.push(_t('★ 키스톤: {names}', { names: names.join(' / ') }));
         return notes;
     }

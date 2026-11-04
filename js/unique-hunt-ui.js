@@ -30,19 +30,19 @@ function describeUniqueHuntSource(entry) {
     let league = ATLAS_ENDGAME.leagues.find(row => [].concat(row.unique || []).includes(entry && entry.name));
     if (league && source.exploreSubtab !== 'map-explore-worldtree') source.label += _t(', 아틀라스 {boss}', { boss: league.boss });
     let boss = SEASON_BOSS_ZONES.find(row => row.signatureUnique === (entry && entry.name));
-    if (boss) source.label += `, ${boss.name}`;
+    if (boss) source.label += `, ${_t(boss.name)}`;
     return source;
 }
 
 function getUniqueHuntSource(entry) {
     let drop = entry && entry.dropOnly && typeof entry.dropOnly === 'object' ? entry.dropOnly : null;
-    if (drop && UNIQUE_HUNT_SOURCE_IDS[drop.id]) return { ...UNIQUE_HUNT_SOURCE_IDS[drop.id] };
+    if (drop && UNIQUE_HUNT_SOURCE_IDS[drop.id]) return { ...UNIQUE_HUNT_SOURCE_IDS[drop.id], label: _t(UNIQUE_HUNT_SOURCE_IDS[drop.id].label) };
     if (drop && drop.type === 'cosmosBoss') {
-        let boss = UNIQUE_HUNT_COSMOS_BOSSES[drop.bossId] || '은하 보스';
+        let boss = _t(UNIQUE_HUNT_COSMOS_BOSSES[drop.bossId] || '은하 보스');
         return { label: _t('우주계, {boss}', { boss }), mapSubtab: 'map-tab-cosmos' };
     }
     let source = drop && UNIQUE_HUNT_SOURCE_TYPES[drop.type]
-        ? { ...UNIQUE_HUNT_SOURCE_TYPES[drop.type] }
+        ? { ...UNIQUE_HUNT_SOURCE_TYPES[drop.type], label: _t(UNIQUE_HUNT_SOURCE_TYPES[drop.type].label) }
         : { label: _t('T{max}+ 사냥터', { max: Math.max(1, Math.floor(Number(entry && entry.reqTier) || 1)) }), mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-hunting' };
     if (drop && drop.type === 'labyrinth' && Number(drop.minFloor) > 0) source.label += _t(' {floor}층+', { floor: Math.floor(drop.minFloor) });
     return source;
@@ -55,7 +55,7 @@ function renderUniqueHuntTargetCard(entry) {
     let registered = !!(game.uniqueCodex && game.uniqueCodex[key]);
     let chase = entry.ultraRare || entry.cosmosChase;
     return `<article class="codex-hunt-target${chase ? ' is-chase' : ''}"><span class="codex-art"><img src="${getUniqueEntryVisualAsset(entry)}" alt=""></span>
-        <div><strong>${escapeHTML(_t(entry.name))}</strong><small>${escapeHTML(_t(describeUniqueHuntSource(entry).label))}${registered ? _t(', 등록됨') : ''}${chase ? _t(', 극희귀') : ''}</small></div>
+        <div><strong>${escapeHTML(_t(entry.name))}</strong><small>${escapeHTML(describeUniqueHuntSource(entry).label)}${registered ? _t(', 등록됨') : ''}${chase ? _t(', 극희귀') : ''}</small></div>
         <div class="codex-hunt-actions"><button type="button" onclick="uniqueHuntUi.navigate('${encoded}')">${_t('드랍처')}</button><button type="button" onclick="uniqueHuntUi.toggle('${encoded}')">${_t('해제')}</button></div>
     </article>`;
 }
@@ -93,7 +93,7 @@ function navigateToUniqueHuntSource(encodedKey) {
     let source = describeUniqueHuntSource(entry);
     let tabButton = document.getElementById(`btn-${source.mapSubtab}`);
     if (!tabButton || tabButton.style.display === 'none') {
-        if (typeof showGameToast === 'function') showGameToast(_t('{label} 콘텐츠가 아직 해금되지 않았습니다.', { label: _t(source.label) }), { tone: 'warning' });
+        if (typeof showGameToast === 'function') showGameToast(_t('{label} 콘텐츠가 아직 해금되지 않았습니다.', { label: source.label }), { tone: 'warning' });
         return false;
     }
     switchTab('tab-map');

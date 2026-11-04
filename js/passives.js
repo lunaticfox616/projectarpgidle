@@ -5291,7 +5291,7 @@ function applyPanelLayoutSettings() {
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     document.body.classList.toggle('combat-log-collapsed', isLogCollapsed);
     const logText = isLogCollapsed ? '펼치기' : '접기';
-    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, logText, { 'aria-expanded': String(!isLogCollapsed), 'aria-label': _t('전투 기록 {logText}', { logText }) });
+    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, logText, { 'aria-expanded': String(!isLogCollapsed), 'aria-label': _t('전투 기록 {logText}', { logText: _t(logText) }) });
 }
 
 /** A panel toggle's text and attributes, written only where they differ. */
@@ -9154,8 +9154,8 @@ function getOpenAffixMods(item, rarity = item.rarity, skip = null) {
 function updateItemName(item) {
     if (!item) return;
     if (item.rarity === 'normal') item.name = item.baseName;
-    else if (item.rarity === 'magic') item.name = _t('마법의 {baseName}', { baseName: item.baseName });
-    else if (item.rarity === 'rare') item.name = _t('희귀한 {baseName}', { baseName: item.baseName });
+    else if (item.rarity === 'magic') item.name = `마법의 ${item.baseName}`;
+    else if (item.rarity === 'rare') item.name = `희귀한 ${item.baseName}`;
 }
 
 function rerollChaosInfusionForItem(item, previousInfusion, side = '') {

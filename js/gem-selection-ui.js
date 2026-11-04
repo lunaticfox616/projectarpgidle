@@ -27,10 +27,11 @@
 
     function indicators(name, replaced) {
         const rows = targetRows(name, replaced);
-        return '<span class="support-targets" aria-label="스킬별 적용">' + Object.entries(TARGET_LABELS).map(([role, label]) => {
+        return '<span class="support-targets" aria-label="' + _t('스킬별 적용') + '">' + Object.entries(TARGET_LABELS).map(([role, rawLabel]) => {
+            const label = _t(rawLabel);
             const group = rows.filter(row => row.role === role);
             const status = ['on', 'na', 'off', 'buff', 'empty'].find(key => group.some(row => row.status === key)) || 'empty';
-            const text = group.map(row => `${row.name || label}: ${row.reason || TARGET_STATES[row.status]}`).join(', ') || TARGET_STATES.empty;
+            const text = group.map(row => `${row.name ? _t(row.name) : label}: ${row.reason || _t(TARGET_STATES[row.status])}`).join(', ') || _t(TARGET_STATES.empty);
             return `<span class="support-target is-${status}" data-tip="${escapeHTML(text)}" aria-label="${label}: ${escapeHTML(text)}"><i aria-hidden="true"></i>${label === '주 공격' ? _t('주') : label.slice(0, 1)}</span>`;
         }).join('') + '</span>';
     }
@@ -40,13 +41,13 @@
         if (def.tierValues) return window.GameModules.skills.supports.describe(name, tier, game);
         const info = getUiGemPresentation(name, true, stats);
         const value = info.value / getSupportTierMultiplier(name, getSupportActiveTier(name)) * getSupportTierMultiplier(name, tier);
-        return `${info.statName} +${formatSupportGemEffectValue(value)}${def.isPct ? '%' : ''}`;
+        return `${_t(info.statName)} +${formatSupportGemEffectValue(value)}${def.isPct ? '%' : ''}`;
     }
 
     function targetDetails(name, stats, replaced) {
         const effect = effectText(name, getSupportActiveTier(name), stats);
         return `<div class="support-target-details">${targetRows(name, replaced).map(row =>
-            `<p class="is-${row.status}"><b>${TARGET_LABELS[row.role]}${row.name ? ` · ${escapeHTML(_t(row.name))}` : ''}</b><span>${escapeHTML(row.status === 'on' ? effect : (row.reason || TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
+            `<p class="is-${row.status}"><b>${_t(TARGET_LABELS[row.role])}${row.name ? ` · ${escapeHTML(_t(row.name))}` : ''}</b><span>${escapeHTML(row.status === 'on' ? effect : (row.reason || TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
     }
 
     function summonEffect(name, stats) {
@@ -56,7 +57,7 @@
             const steps = getGemLevelGrowthSteps(info.finalLevel);
             const rows = def.aura.stats.slice();
             if (def.aura.flatStat) rows.unshift({ stat: def.aura.flatStat, base: def.aura.flatBase, scale: def.aura.flatScale });
-            return rows.map(row => `${getStatName(row.stat).replace(/\(%\)$/, '')} +${formatSupportGemEffectValue(row.base + steps * row.scale)}${P_STATS[row.stat]?.isPct ? '%' : ''}`).join(', ');
+            return rows.map(row => `${_t(getStatName(row.stat)).replace(/\(%\)$/, '')} +${formatSupportGemEffectValue(row.base + steps * row.scale)}${P_STATS[row.stat]?.isPct ? '%' : ''}`).join(', ');
         }
         if (def.tags.includes('summon_guard')) {
             const preview = getSummonTooltipPreview(name, stats);
@@ -68,7 +69,7 @@
     function skillSummary(role, name, stats) {
         const key = role === 'active' ? 'main' : role;
         const rows = game.equippedSupports.filter(support => targetRows(support).some(row => row.role === key && row.name === name && row.status === 'on'));
-        return `<div class="support-skill-summary"><b>${_t('{name}: 적용 보조 {length}개', { name: escapeHTML(name || TARGET_LABELS[key]), length: rows.length })}</b><span>${rows.map(support => escapeHTML(effectText(support, getSupportActiveTier(support), stats))).join(', ') || _t('현재 적용되는 보조 효과가 없습니다.')}</span></div>`;
+        return `<div class="support-skill-summary"><b>${_t('{name}: 적용 보조 {length}개', { name: escapeHTML(_t(name || TARGET_LABELS[key])), length: rows.length })}</b><span>${rows.map(support => escapeHTML(effectText(support, getSupportActiveTier(support), stats))).join(', ') || _t('현재 적용되는 보조 효과가 없습니다.')}</span></div>`;
     }
 
     function migrationNotice() {
@@ -107,7 +108,7 @@
     function equipButton(anchor, canUnequip) {
         const equipped = anchor.classList.contains('active');
         const blocked = anchor.classList.contains('equipment-blocked') && !equipped;
-        const label = equipped ? (canUnequip ? '장착 해제' : '장착 중') : '장착';
+        const label = equipped ? (canUnequip ? _t('장착 해제') : _t('장착 중')) : _t('장착');
         const disabled = blocked || (equipped && !canUnequip);
         return `<button type="button" class="${equipped ? '' : 'gem-equip-primary'}" data-gem-action="equip" ${disabled ? 'disabled' : ''}>${label}</button>`;
     }

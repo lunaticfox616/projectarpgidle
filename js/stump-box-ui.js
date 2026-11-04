@@ -517,8 +517,8 @@ const stumpBoxUi = (() => {
             + ` aria-label="${escStump(comparisonLabel(item))}${item.locked ? _t(', 잠금') : ''}" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}${growing}${stumpLockMark(item)}</button>`;
     }
     function stumpFilterLabel(key) {
-        if (key === 'all') return '전체';
-        return key === 'talisman' ? '부적' : STUMP_BOX_COLORS[key].label;
+        if (key === 'all') return _t('전체');
+        return key === 'talisman' ? _t('부적') : _t(STUMP_BOX_COLORS[key].label);
     }
     /** A filter wears its colour; 전체 the box's gold, 부적 the jade that no element uses (css/stump-box.css .stump-filter). */
     function stumpFilterTone(key) {
@@ -545,13 +545,13 @@ const stumpBoxUi = (() => {
     }
     function storageSelect(key, label, value, choices) {
         return `<select data-stump-select="${key}" aria-label="${_t('보관함 {label}', { label })}">`
-            + Object.entries(choices).map(([id, name]) => `<option value="${id}"${id === value ? ' selected' : ''}>${name}</option>`).join('') + '</select>';
+            + Object.entries(choices).map(([id, name]) => `<option value="${id}"${id === value ? ' selected' : ''}>${_t(name)}</option>`).join('') + '</select>';
     }
     /** One row (2026-10-25 사용자 "압축할 수 있는 부분 압축"): 상태, 정렬, 일괄 거름 · 버리기, 거른 것이 있을 때만 몇 개 보이는지. */
     function storageToolsHtml(count, total) {
         const shown = count < total ? `<span class="stump-hint">${_t('{count}/{total}개', { count, total })}</span>` : '';
-        return '<div class="stump-storage-tools">' + storageSelect('state', '상태', stateFilter, STORAGE_STATES)
-            + storageSelect('sort', '정렬', storageSort, STORAGE_SORTS) + (stateFilter === 'all' ? stumpRipeningUi.bulkHtml(colorFilter) : '') + shown + '</div>';
+        return '<div class="stump-storage-tools">' + storageSelect('state', _t('상태'), stateFilter, STORAGE_STATES)
+            + storageSelect('sort', _t('정렬'), storageSort, STORAGE_SORTS) + (stateFilter === 'all' ? stumpRipeningUi.bulkHtml(colorFilter) : '') + shown + '</div>';
     }
     /** Cells to lay out on the shown page: the whole capacity like the equipment bag (2026-10-16 사용자 "창크기에따라 아이템크기 변경시키지
      * 말고, 장비 인벤토리처럼 칸을 놓고 하나씩 들어가게"; css/stump-box.css: 10 columns), 100 a page (2026-10-25 사용자). A filter shows only
@@ -606,7 +606,7 @@ const stumpBoxUi = (() => {
     function stumpMoreTabs() {
         const total = STUMP_BOX_HARVEST.rows.length * COLORS.length;
         const tabs = [['harvest', _t('수확 일지 {length}/{total}', { length: game.stumpBox.harvest.grown.length, total })],
-            ['unlocks', _t('함 해금 {length}/{length2}', { length: stumpBox.openUnlocks(game).length, length2: STUMP_BOX_UNLOCKS.length })], ['wallet', '재화']];
+            ['unlocks', _t('함 해금 {length}/{length2}', { length: stumpBox.openUnlocks(game).length, length2: STUMP_BOX_UNLOCKS.length })], ['wallet', _t('재화')]];
         return contentProgression.isUnlocked('talisman') ? tabs.concat([['talisman', '부적']]) : tabs;
     }
     const STUMP_MORE_BODIES = Object.freeze({

@@ -96,7 +96,7 @@ const stumpRipeningUi = (() => {
     function bulkButton(kind, label, reason, count) {
         const action = kind === 'merge' ? 'data-stump-action="auto-merge"' : `data-stump-action="bulk" data-kind="${kind}"`;
         return `<button type="button" class="${reason ? 'is-idle' : ''}" ${action}${reason ? ` data-tip="${esc(reason)}"` : ''}>`
-            + `${label}${reason ? '' : ` ${count}`}</button>`;
+            + `${_t(label)}${reason ? '' : ` ${count}`}</button>`;
     }
     /** The storage filter's bulk buttons: 자동합성 beside 일괄 거름 사용 (2026-11-04 사용자), only 일괄 버리기 on the talisman filter. */
     function bulkHtml(filter) {

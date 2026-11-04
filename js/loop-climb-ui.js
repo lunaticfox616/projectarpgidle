@@ -51,7 +51,7 @@ const loopClimbUi = (() => {
             ['나무꾼', Math.floor(Math.sqrt(Math.max(0, woodsman)) / 25), '']];
     }
     function gainsHtml() {
-        const chips = gains().map(([label, value, unit]) => `<span class="climb-gain${value > 0 ? ' is-up' : ''}"><b>+${value}${unit}</b><small>${label}</small></span>`).join('');
+        const chips = gains().map(([label, value, unit]) => `<span class="climb-gain${value > 0 ? ' is-up' : ''}"><b>+${value}${unit ? _t(unit) : ''}</b><small>${_t(label)}</small></span>`).join('');
         return `<div class="climb-gains"><span>${_t('다음 루프 예상 획득')}</span><div>${chips}</div></div>`;
     }
     function growthHtml() {

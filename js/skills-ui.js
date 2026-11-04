@@ -127,7 +127,7 @@
 
     function renderLibrarySealAction(kind, fold) {
         if (fold) return '';
-        const label = kind === 'support' ? '보조스킬룬' : '공격 룬';
+        const label = kind === 'support' ? _t('보조스킬룬') : _t('공격 룬');
         const disabled = window.GameModules.skills.sealableNames(kind).length ? '' : 'disabled';
         const button = `<button type="button" data-gem-bulk-seal="${kind}" ${disabled}>${_t('미사용 {label} 일괄 봉인', { label })}</button>`;
         return kind === 'support' ? `<div class="support-library-footer">${button}</div>` : button;

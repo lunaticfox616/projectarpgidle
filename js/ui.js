@@ -106,7 +106,8 @@ function buildMapEnvironmentTooltipHtml(target) {
 }
 
 function getMapEstimateElementName(key) {
-    return { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[key] || '';
+    const name = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' }[key];
+    return name ? _t(name) : '';
 }
 /** A chaos depth's boss has fixed elements (getChaosBossElements): name them so the player knows which resistances to raise. */
 /** Total of one deep loop line (LOOP_DEEP_STATS) at its level, e.g. 9% for three levels of 3%. */
@@ -4013,7 +4014,7 @@ function getGemTileSummary(name, def) {
     let meta = getGemCardMeta(def);
     if ((def.tags || []).includes('summon')) return `${meta.elementLabel} ${meta.typeLabel}`;
     let profile = getSkillGridProfile(name, def);
-    return _t('{value}, {max}칸', { value: getSkillGridProfileKindLabel(profile.band ? 'band' : profile.kind), max: Math.max(1, profile.range || 1) });
+    return _t('{value}, {max}칸', { value: _t(getSkillGridProfileKindLabel(profile.band ? 'band' : profile.kind)), max: Math.max(1, profile.range || 1) });
 }
 
 /** Tiles open the detail on click / Enter / Space (js/gem-selection-ui.js); a mouse hover shows the short hint. */
@@ -4979,8 +4980,8 @@ function syncHeroSelectionState(source, options = {}) {
         let appearanceDef = getHeroSelectionDef(typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedClassId);
         let discovered = Math.min(PLAYER_CLASS_ORDER.length, game.discoveredClassIds.length);
         let unlockText = game.classFreeSwitchUnlocked ? _t('외형 변경 해금됨, 외형: {label}', { label: appearanceDef.label }) : _t('경험한 직업 {discovered}/{length}', { discovered, length: PLAYER_CLASS_ORDER.length });
-        let modeText = game.settings && game.settings.heroAppearanceMode === 'fixed' ? '고정' : '현재 직업 연동';
-        summaryEl.innerText = _t('{label}, {unlockText}, 외형: {modeText}', { label: def.label, unlockText, modeText });
+        let modeText = game.settings && game.settings.heroAppearanceMode === 'fixed' ? _t('고정') : _t('현재 직업 연동');
+        summaryEl.innerText = _t('{label}, {unlockText}, 외형: {modeText}', { label: _t(def.label), unlockText, modeText });
     }
 }
 
@@ -5026,7 +5027,7 @@ const applyHeroAppearanceMode = function(mode, options = {}) {
     if (previousAppearance !== nextAppearance && battleAssets && battleAssets.ready) battleAssets.atlas = buildBattleAssetAtlas();
     renderHeroSelectionControls();
     if (!options.silent && previousMode !== nextMode) {
-        let label = nextMode === 'fixed' ? '고정' : '현재 직업 연동';
+        let label = nextMode === 'fixed' ? _t('고정') : _t('현재 직업 연동');
         addLog(_t('캐릭터 외형 방식: {label}', { label }), 'season-up');
     }
     if (!options.skipSave && previousMode !== nextMode) persistHeroSelectionChange('캐릭터 외형 방식 변경');
@@ -8704,6 +8705,12 @@ function getJournalContentUnlockHint(entryId) {
     return '';
 }
 
+/** The journal card's reward line: the bonus label or display effect, translated; empty when hidden or absent. */
+function journalRewardText(def, shown) {
+    const source = def.bonus ? def.bonus.label : def.displayEffect;
+    return shown && source ? _t(source) : '';
+}
+
 function getJournalLockedHint(availability, entryId) {
     let contentUnlockHint = getJournalContentUnlockHint(entryId);
     if (availability === 'content-locked' && contentUnlockHint) return contentUnlockHint;
@@ -8796,7 +8803,7 @@ function passiveTreeBoxKey() {
 function getPlayerEhpCardsHtml(pStats, cardClass) {
     if (typeof calculatePlayerEhpProfile !== 'function') return '';
     let profile = calculatePlayerEhpProfile(pStats);
-    let labels = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' };
+    let labels = { phys: _t('물리'), fire: _t('화염'), cold: _t('냉기'), light: _t('번개'), chaos: _t('카오스') };
     return Object.keys(labels).map(element => {
         let row = profile.elements[element];
         let entropyText = formatSettingNumber(row.entropy, 'showCharacterComma');
@@ -9989,7 +9996,7 @@ function buildCraftActionButtons(item) {
             <div class="journal-progress"><i style="width:${progressPct}%"></i></div>
             <div class="journal-category-strip" role="group" aria-label="${_t('저널 분류')}"><button type="button" data-journal-filter="전체" onclick="storyJournalUi.filter('전체')">${_t('전체')}</button>${categoryOrder.filter(name => categoryCounts[name]).map(name => {
                 let count = categoryCounts[name];
-                return `<button type="button" data-journal-filter="${name}" onclick="storyJournalUi.filter('${name}')">${name} <b>${count.unlocked}</b></button>`;
+                return `<button type="button" data-journal-filter="${name}" onclick="storyJournalUi.filter('${name}')">${_t(name)} <b>${count.unlocked}</b></button>`;
             }).join('')}</div>
             <label class="journal-conditions"><input type="checkbox" data-journal-conditions onchange="storyJournalUi.filter(undefined,this.checked)"> ${_t('해금 조건 보기')}</label>
         </div>${nextTarget}<p class="journal-empty" hidden>${_t('아직 획득한 기록이 없습니다.')}</p>`;
@@ -9997,15 +10004,15 @@ function buildCraftActionButtons(item) {
             let rows = entries.filter(({ id }) => getJournalCategory(id) === category);
             if (rows.length === 0) return '';
             return `<section class="journal-section" data-journal-category="${category}">
-                <div class="journal-section-title">${category}<span>${rows.filter(({ id }) => unlocked.has(id)).length}/${rows.length}</span></div>
+                <div class="journal-section-title">${_t(category)}<span>${rows.filter(({ id }) => unlocked.has(id)).length}/${rows.length}</span></div>
                 <div class="journal-card-grid">${rows.map(({ id, def }) => {
                     let isUnlocked = unlocked.has(id);
                     let availability = availabilityById.get(id);
                     let available = availability === 'available';
-                    let displayTitle = isUnlocked || available ? def.title : (def.hidden ? '히든 저널, ???' : '미확인 기록');
-                    let rewardText = isUnlocked || available ? (def.bonus ? def.bonus.label : def.displayEffect) : '';
+                    let displayTitle = isUnlocked || available ? _t(def.title) : (def.hidden ? _t('히든 저널, ???') : _t('미확인 기록'));
+                    let rewardText = journalRewardText(def, isUnlocked || available);
                     let action = available ? getJournalEntryAction(id) : null;
-                    let stateLabel = isUnlocked ? '해금' : '해금 필요';
+                    let stateLabel = isUnlocked ? _t('해금') : _t('해금 필요');
                     let lockedHint = getJournalLockedHint(availability, id);
                     return `<article class="journal-card ${isUnlocked ? 'is-unlocked' : 'is-locked'} is-${availability} ${def.hidden ? 'is-hidden' : ''}">
                         ${isUnlocked ? `<button type="button" class="journal-card-head journal-entry-open" data-journal-entry="${id}" onclick="storyJournalUi.openEntry('${id}')"><strong>${displayTitle}</strong><span>${_t('읽기 ›')}</span></button>` : `<div class="journal-card-head"><strong>${displayTitle}</strong><span>${stateLabel}</span></div>`}
@@ -13545,7 +13552,7 @@ function loopOrbitCenterBody() {
 /** 한 노드가 지금 주는 값(단계마다 20%씩 늘어난다) 한 줄. */
 function loopNodeValueText(node, lv) {
     const info = P_STATS[node.stat] || {}, value = Number((node.val * (1 + Math.max(0, lv - 1) * 0.2)).toFixed(2));
-    return `${String(info.name || node.stat).replace(/s*(%)$/, '')} +${formatValue(node.stat, value)}${info.isPct ? '%' : ''}`;
+    return `${_t(String(info.name || node.stat)).replace(/s*(%)$/, '')} +${formatValue(node.stat, value)}${info.isPct ? '%' : ''}`;
 }
 function loopNodeStateText(id, node, lv) {
     const unlockLoop = getSeasonPassiveUnlockLoop(id);

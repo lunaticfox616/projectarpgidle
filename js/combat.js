@@ -14384,7 +14384,7 @@ function performMonsterAttacks(pStats) {
                 grantTalentStoneShieldOnBlock(pStats);
                 let blockedTakenPct = Math.max(0, Math.min(100, Number(pStats.uniqueBlockedDamageTakenPct) || 0));
                 // 다 막으면 '막아냄!'(피해 없음), 일부만 막으면 받는 몫을 적는다.
-                let blockText = blockedTakenPct <= 0 ? '막아냄!' : _t('막아냄, 피해 {blockedTakenPct}%', { blockedTakenPct });
+                let blockText = blockedTakenPct <= 0 ? _t('막아냄!') : _t('막아냄, 피해 {blockedTakenPct}%', { blockedTakenPct });
                 addBattleFx('statusText', { text: blockText, color: '#ebdfc2', duration: 260, bodyCue: true });
                 if (game.settings.showCombatLog) addLog(`🛡️ ${blockText}`, "loot-magic", { noToast: true, aggregateKey: `combat:block:${blockText}`, aggregateWindowMs: 450 });
                 if (blockedTakenPct <= 0) continue;

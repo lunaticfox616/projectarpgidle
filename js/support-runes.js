@@ -208,7 +208,7 @@
         const val = value(name, tier, state);
         if (describeBehavior[def.kind]) return describeBehavior[def.kind](def, val);
         if (def.tierValues) return def.desc;
-        return `${def.name} +${formatSupportGemEffectValue(val)}${def.isPct ? '%' : ''}`;
+        return `${_t(def.name)} +${formatSupportGemEffectValue(val)}${def.isPct ? '%' : ''}`;
     }
 
     function normalize(state, cap) {

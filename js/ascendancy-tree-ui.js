@@ -34,11 +34,11 @@ const ascendancyTreeUi = (() => {
     const iconOf = stat => ICONS[stat] || 'star';
 
     const esc = value => escapeHTML(String(value));
-    const statName = stat => String((P_STATS[stat] && P_STATS[stat].name) || getStatName(stat)).replace(/\s*\(%\)$/, '');
+    const statName = stat => String(_t((P_STATS[stat] && P_STATS[stat].name) || getStatName(stat))).replace(/\s*\(%\)$/, '');
     const percent = stat => !!(P_STATS[stat] && P_STATS[stat].isPct);
     const linesOf = node => (node && Array.isArray(node.stats) ? node.stats : (node && node.stat ? [{ stat: node.stat, val: node.val }] : []));
     function lineText(line) {
-        if (line.stat === 'suppCap') return '보조스킬룬 장착 한도 +1';
+        if (line.stat === 'suppCap') return _t('보조스킬룬 장착 한도 +1');
         return `${statName(line.stat)} +${formatValue(line.stat, line.val)}${percent(line.stat) ? '%' : ''}`;
     }
     const shortValue = line => (line.stat === 'suppCap' ? '+1' : `+${formatValue(line.stat, line.val)}${percent(line.stat) ? '%' : ''}`);
@@ -93,7 +93,7 @@ const ascendancyTreeUi = (() => {
     }
     function nodeButton(id, node, pos, state, tight) {
         const lines = linesOf(node), first = (lines[0] || {}).stat, label = lines.length ? shortValue(lines[0]) : '?';
-        const stat = lines.length ? statName(first) : '재능 특화', name = `${RANK[id] || stat}, ${NODE_TEXT[state]}`;
+        const stat = lines.length ? statName(first) : _t('재능 특화'), name = `${RANK[id] ? _t(RANK[id]) : stat}, ${_t(NODE_TEXT[state])}`;
         return `<button type="button" class="${nodeClass(id, state, tight)}" style="--x:${pos.x}%;--y:${pos.y}%;--tone:${getItemStatToneColor(first)}"
             aria-label="${esc(name)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('node','${id}')"
             data-info-tooltip-anchor="1" onpointerenter="ascendancyTreeUi.tip(event,'node','${id}')" onpointermove="ascendancyTreeUi.tip(event,'node','${id}')" onpointerleave="hideInfoTooltip()"
@@ -116,7 +116,7 @@ const ascendancyTreeUi = (() => {
         const tight = new Set(rows.filter(ids => ids.length > 3).flat());
         const buttons = [...at.keys()].map(id => nodeButton(id, tree[id], at.get(id), states.get(id), tight.has(id)));
         const labels = rows.map(ids => ids.find(id => ROW_LABEL[id])).filter(Boolean)
-            .map(id => `<span class="ascend-row-label" style="--y:${at.get(id).y}%">${esc(ROW_LABEL[id])}</span>`);
+            .map(id => `<span class="ascend-row-label" style="--y:${at.get(id).y}%">${esc(_t(ROW_LABEL[id]))}</span>`);
         return `<div class="ascend-graph" style="--rows:${rows.length}"><svg class="ascend-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${links.join('')}</svg>${labels.join('')}${buttons.join('')}</div>`;
     }
 
@@ -145,7 +145,7 @@ const ascendancyTreeUi = (() => {
     function keystoneButton(k, pos, state) {
         const focused = focus && focus.kind === 'keystone' && focus.id === k.id ? ' is-focus' : '';
         return `<button type="button" class="ascend-node ascend-keystone is-${state}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
-            aria-label="${esc(`${k.name}, ${KEYSTONE_TEXT[state]}`)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('keystone','${k.id}')"
+            aria-label="${esc(`${_t(k.name)}, ${_t(KEYSTONE_TEXT[state])}`)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('keystone','${k.id}')"
             data-info-tooltip-anchor="1" onpointerenter="ascendancyTreeUi.tip(event,'keystone','${k.id}')" onpointermove="ascendancyTreeUi.tip(event,'keystone','${k.id}')" onpointerleave="hideInfoTooltip()"
             onmouseenter="ascendancyTreeUi.hint('keystone','${k.id}')" onfocus="ascendancyTreeUi.hint('keystone','${k.id}')">${artHtml(keystoneFamily(k.desc))}<span class="ascend-plate"><span class="ascend-node-name">${esc(_t(k.name))}</span></span></button>`;
     }
@@ -210,7 +210,7 @@ const ascendancyTreeUi = (() => {
     }
     function summaryHtml(cls, tree) {
         const template = CLASS_TEMPLATES[cls], total = totalsText(tree), ks = game.ascendKeystones.length;
-        return `<div class="ascend-summary"><div class="ascend-summary-name"><strong>${esc(_t(template.name))}</strong><span>${esc(template.desc)}</span></div>
+        return `<div class="ascend-summary"><div class="ascend-summary-name"><strong>${esc(_t(template.name))}</strong><span>${esc(_t(template.desc))}</span></div>
             <div class="ascend-summary-chips"><span class="is-node">${_t('노드 포인트')} <b>${Math.max(0, Math.floor(game.ascendPoints || 0))}</b></span>
             <span class="is-key">${_t('키스톤')} <b>${ks}/${CLASS_KEYSTONE_PICK_LIMIT}</b>${_t(', 포인트')} <b>${Math.max(0, Math.floor(game.ascendKeystonePoints || 0))}</b></span>
             <span class="is-taken">${_t('할당한 노드')} <b>${game.ascendNodes.length}</b></span>
@@ -222,9 +222,9 @@ const ascendancyTreeUi = (() => {
         const node = tree[id];
         if (!node) return '';
         const state = nodeState(node, id), lines = linesOf(node);
-        const body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : '개화한 재능에 따라 정해집니다.';
-        return `${detailHead(RANK[id] || '전직 노드', NODE_TEXT[state], state)}<p class="ascend-detail-lines">${body}</p>
-            ${canTake(state) ? previewHtml('ascendNodes', id, '할당하면') : ''}<p class="ascend-detail-advice">${esc(nodeAdvice(tree, node, id, state))}</p>${actionHtml(NODE_ACTIONS[state])}`;
+        const body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : _t('개화한 재능에 따라 정해집니다.');
+        return `${detailHead(_t(RANK[id] || '전직 노드'), _t(NODE_TEXT[state]), state)}<p class="ascend-detail-lines">${body}</p>
+            ${canTake(state) ? previewHtml('ascendNodes', id, _t('할당하면')) : ''}<p class="ascend-detail-advice">${esc(nodeAdvice(tree, node, id, state))}</p>${actionHtml(NODE_ACTIONS[state] && _t(NODE_ACTIONS[state]))}`;
     }
     /** A node or keystone the hero can take now or once a point comes. */
     const canTake = state => state === 'open' || state === 'nopoint';
@@ -240,9 +240,9 @@ const ascendancyTreeUi = (() => {
     }
     function nodeAdvice(tree, node, id, state) {
         if (state === 'future') return node.future;
-        if (state === 'taken') return '다시 누르면 반환합니다(마름병 포자 1개, 이 노드를 선행으로 둔 노드가 없을 때).';
-        if (state === 'closed') return '둘 중 하나만 할당할 수 있습니다. 짝 노드를 반환하면 할당할 수 있습니다.';
-        if (state === 'locked') return `선행 노드 필요: ${reqIds(node.req).map(req => linesOf(tree[req]).map(lineText).join(', ')).join(' 또는 ')}`;
+        if (state === 'taken') return _t('다시 누르면 반환합니다(마름병 포자 1개, 이 노드를 선행으로 둔 노드가 없을 때).');
+        if (state === 'closed') return _t('둘 중 하나만 할당할 수 있습니다. 짝 노드를 반환하면 할당할 수 있습니다.');
+        if (state === 'locked') return _t('선행 노드 필요: {list}', { list: reqIds(node.req).map(req => linesOf(tree[req]).map(lineText).join(', ')).join(_t(' 또는 ')) });
         if (state === 'nopoint') return _t('전직 포인트가 없습니다. {nextPoints}.', { nextPoints: nextPoints() });
         return _t('{value} 할당합니다{value2}.', { value: touchOnly() ? _t('한 번 더 누르면') : _t('누르면'), value2: node.exclusive ? _t('(짝 노드와 둘 중 하나)') : '' });
     }
@@ -251,15 +251,15 @@ const ascendancyTreeUi = (() => {
         if (!k) return '';
         const state = keystoneState(k), names = keystoneReqs(k).map(req => (defs.find(row => row.id === req) || {}).name).filter(Boolean);
         const advice = {
-            taken: '다시 누르면 반환합니다(마름병 포자 1개, 이 키스톤을 선행으로 둔 키스톤이 없을 때).',
-            fifth: '재능 개화(5차 전직)를 하면 할당할 수 있습니다.',
-            locked: `선행 키스톤 필요: ${names.join(Array.isArray(k.reqAny) ? ' 또는 ' : ', ')}`,
+            taken: _t('다시 누르면 반환합니다(마름병 포자 1개, 이 키스톤을 선행으로 둔 키스톤이 없을 때).'),
+            fifth: _t('재능 개화(5차 전직)를 하면 할당할 수 있습니다.'),
+            locked: _t('선행 키스톤 필요: {names}', { names: names.map(name => _t(name)).join(Array.isArray(k.reqAny) ? _t(' 또는 ') : ', ') }),
             full: _t('키스톤은 {value}개까지 할당할 수 있습니다. 하나를 반환하면 바꿀 수 있습니다.', { value: CLASS_KEYSTONE_PICK_LIMIT }),
-            nopoint: '키스톤 포인트가 없습니다. 전직 시련을 처음 통과할 때마다 1점씩 받습니다.',
+            nopoint: _t('키스톤 포인트가 없습니다. 전직 시련을 처음 통과할 때마다 1점씩 받습니다.'),
             open: _t('{value} 할당합니다.', { value: touchOnly() ? _t('한 번 더 누르면') : _t('누르면') })
         }[state];
-        return `${detailHead(k.name, KEYSTONE_TEXT[state], state)}<p class="ascend-detail-lines">${statToneText.html(_t(k.desc))}</p>
-            ${canTake(state) ? previewHtml('ascendKeystones', id, '할당하면') : ''}<p class="ascend-detail-advice">${esc(advice)}</p>${actionHtml(KEYSTONE_ACTIONS[state])}`;
+        return `${detailHead(_t(k.name), _t(KEYSTONE_TEXT[state]), state)}<p class="ascend-detail-lines">${statToneText.html(_t(k.desc))}</p>
+            ${canTake(state) ? previewHtml('ascendKeystones', id, _t('할당하면')) : ''}<p class="ascend-detail-advice">${esc(advice)}</p>${actionHtml(KEYSTONE_ACTIONS[state] && _t(KEYSTONE_ACTIONS[state]))}`;
     }
     function detailBody(tree, defs) {
         const body = shown ? (shown.kind === 'node' ? nodeNote(tree, shown.id) : keystoneNote(defs, shown.id)) : '';
@@ -293,12 +293,12 @@ const ascendancyTreeUi = (() => {
     function tipHtml(kind, id, tree, defs) {
         if (kind === 'keystone') {
             const k = defs.find(row => row.id === id);
-            return k ? `<div class="tooltip-title">${esc(_t(k.name))}</div><div class="tooltip-line">${statToneText.html(_t(k.desc))}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(KEYSTONE_TEXT[keystoneState(k)])}</div>` : '';
+            return k ? `<div class="tooltip-title">${esc(_t(k.name))}</div><div class="tooltip-line">${statToneText.html(_t(k.desc))}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(_t(KEYSTONE_TEXT[keystoneState(k)]))}</div>` : '';
         }
         const node = tree[id];
         if (!node) return '';
-        const lines = linesOf(node), body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : '개화한 재능에 따라 정해집니다.';
-        return `<div class="tooltip-title">${esc(RANK[id] || '전직 노드')}</div><div class="tooltip-line">${body}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(NODE_TEXT[nodeState(node, id)])}</div>`;
+        const lines = linesOf(node), body = lines.length ? lines.map(line => `<span style="color:${getItemStatToneColor(line.stat)}">${esc(lineText(line))}</span>`).join('<br>') : _t('개화한 재능에 따라 정해집니다.');
+        return `<div class="tooltip-title">${esc(_t(RANK[id] || '전직 노드'))}</div><div class="tooltip-line">${body}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(_t(NODE_TEXT[nodeState(node, id)]))}</div>`;
     }
     function tip(event, kind, id) {
         const cls = game.ascendClass;
@@ -379,7 +379,7 @@ const ascendancyTreeUi = (() => {
             .map(k => `<span class="ascend-pick-key"><b>${esc(_t(k.name))}</b><span>${statToneText.html(_t(k.desc))}</span></span>`).join('');
         return `<button type="button" class="class-card ascend-pick-card" onclick="selectClass('${key}')">
             <span class="ascend-pick-head">${renderPixelIcon(iconOf(stats[0]), 'ascend-pick-icon')}<strong>${esc(_t(template.name))}</strong></span>
-            <span class="ascend-pick-desc">${esc(template.desc)}</span>
+            <span class="ascend-pick-desc">${esc(_t(template.desc))}</span>
             <span class="ascend-pick-section">${_t('노드')}</span><span class="ascend-pick-chips">${chips}</span>
             <span class="ascend-pick-section">${_t('첫 키스톤 ({length}개 가운데 {value}개 할당)', { length: defs.length, value: CLASS_KEYSTONE_PICK_LIMIT })}</span><span class="ascend-pick-keys">${keys}</span>
             <span class="ascend-pick-cta">${_t('이 전직 고르기')}</span></button>`;

@@ -1607,7 +1607,7 @@
         ATLAS.summary.innerHTML = `
             <div class="cosmos-summary-metrics">
                 <div><span>${_t('탐사 완료')}</span><strong>${cleared}<small> / ${ATLAS.nodes.length}</small></strong></div>
-                <div><span>${_t('개별 탐사 가능')}</span><strong>${unlocked ? available : 0}<small>${_t('개')}</small></strong></div>
+                <div><span>${_t('개별 탐사 가능')}</span><strong>${_t('{count}개', { count: unlocked ? available : 0 })}</strong></div>
                 <div><span>${_t('성도술')}</span><strong>${getCosmosMasteryFreePoints()}<small> / ${getCosmosMasteryTotalPoints()}</small></strong></div>
                 <div data-tip="${_t('창공의 정수는 우주계 탐사, 은하 보스에서 얻고 룬 강화와 룬 각인에 씁니다.')}"><span>${_t('창공의 정수')}</span><strong>${getSkyPowerBalance()}</strong></div>
             </div>
@@ -1728,7 +1728,7 @@
         const firstClear = !state.cleared.includes(node.id);
         const defeatedBossStage = node.tag === 'boss' ? getBossStage(node) : 0;
         if ((status === 'available' || repeatRun) && !completedChallenge) {
-            if (typeof window.addLog === 'function') window.addLog('우주계 전투 완료 후 탐사가 기록됩니다.', 'attack-monster');
+            if (typeof window.addLog === 'function') window.addLog(_t('우주계 전투 완료 후 탐사가 기록됩니다.'), 'attack-monster');
             return;
         }
         if (!(status === 'available' || repeatRun)) {
