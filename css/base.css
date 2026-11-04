@@ -27,6 +27,29 @@
             font-weight: 400;
             font-display: swap;
         }
+        /* 가나·한자 도트 글꼴(2026-11-04): Fusion Pixel 12px proportional(OFL, assets/fonts/FusionPixel-OFL.txt)을 언어별 한자 자형으로 셋.
+           css/tokens.css의 --font-cjk가 html lang에 따라 갈무리 뒤에 붙이므로, 그 언어를 고른 판에서만 내려받힌다(약 700KB). */
+        @font-face {
+            font-family: 'Fusion Pixel JA';
+            src: url('../assets/fonts/FusionPixel12-ja.woff2') format('woff2');
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Fusion Pixel Hans';
+            src: url('../assets/fonts/FusionPixel12-zh-Hans.woff2') format('woff2');
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Fusion Pixel Hant';
+            src: url('../assets/fonts/FusionPixel12-zh-TW.woff2') format('woff2');
+            font-style: normal;
+            font-weight: 400;
+            font-display: swap;
+        }
         /* 글자를 끌어 선택하는 것은 캐릭터 창·전투 로그·채팅(복사할 만한 수치·기록·대화)과 입력 칸에서만.
            그 밖의 화면은 누른 채 끌어도 글자가 파랗게 선택되지 않는다. */
         body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
