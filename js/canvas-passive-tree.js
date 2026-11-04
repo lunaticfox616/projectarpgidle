@@ -675,8 +675,8 @@ function highlightEquipTextLocal(text, query) {
 /** 장착 칸 이름: 칸이 좁아(약 68px) "마법의 녹…"처럼 등급 수식어만 남았다 — 등급은 글자색이 말해 주니 바탕 이름을 쓴다.
  * 고유 · 특수 이름 장비는 그 이름이 곧 정체라 그대로(전체 이름은 title과 툴팁). */
 function paperdollItemLabel(item) {
-    if (item.rarity === 'unique' || !item.baseName) return item.name || item.baseName || '장비';
-    return item.baseName;
+    if (item.rarity === 'unique' || !item.baseName) return _t(item.name || item.baseName || '장비');
+    return _t(item.baseName);
 }
 
 /** 세 번째 반지 칸(초월 공허 '세 번째 손가락')이 열려 있는가. */
@@ -718,7 +718,7 @@ function renderPaperdoll(targetId, forCrafting) {
             let doubleClick = `event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
             // 장비창 장착 칸에는 단추가 없다(2026-10-10 개편): 빼기는 두 번 누르기, 끌어 놓기, 선택한 장비의 단추.
             let footer = forCrafting
-                ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">제작 선택</button>`
+                ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">${_t('제작 선택')}</button>`
                 : '';
             let sourceMeta = getDropOnlyItemSourceMeta(item);
             let sourceTone = (sourceMeta ? sourceMeta.toneClass : '') + thirdRingOffClass(slot);
@@ -733,7 +733,7 @@ function renderPaperdoll(targetId, forCrafting) {
             html += `<div class="slot-box equipment-slot equipment-slot-empty slot-${slot}" data-slot="${slot}"${emptyClick}>
                 <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual empty"><img src="${getEquipmentGridVisualAsset({ slot: slot.replace(/[123]$/, ''), baseId: `empty-${slot}` })}" alt="" aria-hidden="true" draggable="false"></div>
                 <div class="equipment-empty-mark">＋</div>
-                <div class="equipment-empty-label">비어 있음</div>
+                <div class="equipment-empty-label">${_t('비어 있음')}</div>
             </div>`;
         }
     });

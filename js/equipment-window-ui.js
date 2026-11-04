@@ -24,24 +24,24 @@ const equipmentWindowUi = (() => {
     function ehpItems(stats) {
         const profile = typeof calculatePlayerEhpProfile === 'function' ? calculatePlayerEhpProfile(stats) : null;
         if (!profile) return '';
-        return EHP.map(([name, key]) => `<span style="--c:${COLOR[key]}" data-tip="직격 ${fmt(profile.elements[key].direct)}">${name} <b>${fmt(profile.elements[key].entropy)}</b></span>`).join('');
+        return EHP.map(([name, key]) => `<span style="--c:${COLOR[key]}" data-tip="${_t('직격 {value}', { value: fmt(profile.elements[key].direct) })}">${_t(name)} <b>${fmt(profile.elements[key].entropy)}</b></span>`).join('');
     }
     /** The phone's one-line summary: 유효 생명력 and the five values in one wrapping row. */
     function ehpHtml(stats) {
         const items = ehpItems(stats);
-        return items ? `<div class="eqw-ehp"><span class="eqw-ehp-label">유효 생명력</span>${items}</div>` : '';
+        return items ? `<div class="eqw-ehp"><span class="eqw-ehp-label">${_t('유효 생명력')}</span>${items}</div>` : '';
     }
     /** DPS and 유효 생명력 only (2026-10-21 사용자: "DPS/EHP 만 보이게 하고 나머지는 삭제해"; 저항, 생명력, 보호막, 방어도, 회피는 캐릭터 창에).
      * Names in the left column, values in the right one (2026-10-24 사용자: the five values stay one group when they wrap). */
     function fullHtml(stats, dps) {
         const ehp = ehpItems(stats);
         return `<div class="eqw-summary-full"><span class="eqw-sum-label"><span class="px-center">DPS</span></span><div class="eqw-sum-value eqw-dps" style="--c:${COLOR.dps}"><b>${dps}</b></div>`
-            + (ehp ? `<span class="eqw-sum-label"><span class="px-center">유효 생명력</span></span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : '') + '</div>';
+            + (ehp ? `<span class="eqw-sum-label"><span class="px-center">${_t('유효 생명력')}</span></span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : '') + '</div>';
     }
     /** Phone: DPS and 유효 생명력 under a toggle that unfolds the equipped gear and the presets (game.settings.equipmentMobilePane). */
     function miniHtml(stats, dps) {
         const open = (game.settings || {}).equipmentMobilePane === 'loadout';
-        return `<div class="eqw-summary-mini"><button type="button" class="eqw-mini-toggle" aria-expanded="${open}" onclick="equipmentWindowUi.toggleLoadout()">장착 장비 ${open ? '▴' : '▾'}</button>
+        return `<div class="eqw-summary-mini"><button type="button" class="eqw-mini-toggle" aria-expanded="${open}" onclick="equipmentWindowUi.toggleLoadout()">${_t('장착 장비')} ${open ? '▴' : '▾'}</button>
             <div class="eqw-mini-dps" style="--c:${COLOR.dps}"><small>DPS</small><b>${dps}</b></div><div class="eqw-mini-line">${ehpHtml(stats)}</div></div>`;
     }
     function toggleLoadout() {

@@ -3797,6 +3797,10 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '🌀 {name} 회피': '🌀 {name} evaded',
         '레거시 아이템': 'Legacy item',
         '생명력 재생(고정)': 'Life regeneration (flat)',
+        // ── 2026-11-04 표에서 넣음(tail-en.json) ──
+        '제작 선택': 'Select for crafting',
+        '직격 {value}': 'Direct {value}',
+        '유효 생명력': 'Effective life',
     })
 });
 
