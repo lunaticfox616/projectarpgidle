@@ -62,13 +62,13 @@ const tabLayoutUi = {
     placementOptions(id, target, layout) {
         if (target === 'mobile') {
             const primary = tabLayoutUi.mobilePrimaryIds(layout).includes(id);
-            return '<option value="top"' + (primary ? ' selected' : '') + '>하단 바로가기</option>'
-                + '<option value="bottom"' + (primary ? '' : ' selected') + '>전체 메뉴</option>';
+            return '<option value="top"' + (primary ? ' selected' : '') + '>' + _t('하단 바로가기') + '</option>'
+                + '<option value="bottom"' + (primary ? '' : ' selected') + '>' + _t('전체 메뉴') + '</option>';
         }
         const secondary = tabLayoutUi.isMisc(id, layout);
-        return '<option value="top"' + (secondary ? '' : ' selected') + '>기본 메뉴</option>'
+        return '<option value="top"' + (secondary ? '' : ' selected') + '>' + _t('기본 메뉴') + '</option>'
             + '<option value="bottom"'
-            + (secondary ? ' selected' : '') + '>기타 메뉴</option>';
+            + (secondary ? ' selected' : '') + '>' + _t('기타 메뉴') + '</option>';
     },
 
     render() {
@@ -83,12 +83,12 @@ const tabLayoutUi = {
             const id = button.id;
             const label = (button.querySelector('.ui-rail-label') || button).textContent.replace(/●/g, '').trim();
             return '<div class="cfg-tab-row"><span>' + escapeHTML(label) + '</span>'
-                + '<div class="cfg-tab-actions"><button type="button" data-move="-1" data-tab="' + id + '" aria-label="' + escapeHTML(label) + ' 앞으로"' + (index === 0 ? ' disabled' : '') + '>↑</button>'
-                + '<button type="button" data-move="1" data-tab="' + id + '" aria-label="' + escapeHTML(label) + ' 뒤로"' + (index === available.length - 1 ? ' disabled' : '') + '>↓</button>'
-                + '<select data-place="' + id + '" aria-label="' + escapeHTML(label) + ' 위치"' + '>'
+                + '<div class="cfg-tab-actions"><button type="button" data-move="-1" data-tab="' + id + '" aria-label="' + escapeHTML(_t('{label} 앞으로', { label })) + '"' + (index === 0 ? ' disabled' : '') + '>↑</button>'
+                + '<button type="button" data-move="1" data-tab="' + id + '" aria-label="' + escapeHTML(_t('{label} 뒤로', { label })) + '"' + (index === available.length - 1 ? ' disabled' : '') + '>↓</button>'
+                + '<select data-place="' + id + '" aria-label="' + escapeHTML(_t('{label} 위치', { label })) + '"' + '>'
                 + tabLayoutUi.placementOptions(id, target, layout) + '</select></div></div>';
         }).join('');
-        root.innerHTML = '<label class="cfg-tab-platform">편집할 화면<select aria-label="편집할 화면"><option value="desktop"' + (target === 'desktop' ? ' selected' : '') + '>PC</option><option value="mobile"' + (target === 'mobile' ? ' selected' : '') + '>모바일</option></select></label>' + rows;
+        root.innerHTML = '<label class="cfg-tab-platform">' + _t('편집할 화면') + '<select aria-label="' + _t('편집할 화면') + '"><option value="desktop"' + (target === 'desktop' ? ' selected' : '') + '>PC</option><option value="mobile"' + (target === 'mobile' ? ' selected' : '') + '>' + _t('모바일') + '</option></select></label>' + rows;
         root.querySelector('.cfg-tab-platform select').addEventListener('change', event => {
             tabLayoutUi.selectedPlatform = event.target.value;
             tabLayoutUi.render();

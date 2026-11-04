@@ -112,7 +112,7 @@ const hotkeysUi = (() => {
         if (event.code === 'Escape') { capturing = null; notice = ''; render(); return; }
         if (event.code === 'Backspace' || event.code === 'Delete') { commit(capturing, ''); return; }
         if (event.ctrlKey || event.altKey || event.metaKey || !hotkeyBindings.isAssignable(event.code)) {
-            notice = '글자/숫자/기호 키만 쓸 수 있습니다. Esc로 취소, Backspace로 키 없음.';
+            notice = _t('글자/숫자/기호 키만 쓸 수 있습니다. Esc로 취소, Backspace로 키 없음.');
             render();
             return;
         }
@@ -124,14 +124,14 @@ const hotkeysUi = (() => {
         game.settings.hotkeyOverrides = result.overrides;
         capturing = null;
         const moved = result.displaced.map(id => hotkeyBindings.actions.find(action => action.id === id).label);
-        notice = moved.length ? `${hotkeyBindings.label(code)} 키를 쓰던 "${moved.join(', ')}"의 단축키를 비웠습니다.` : '';
+        notice = moved.length ? _t('{key} 키를 쓰던 "{actions}"의 단축키를 비웠습니다.', { key: hotkeyBindings.label(code), actions: moved.map(label => _t(label)).join(', ') }) : '';
         refresh();
         queueImportantSave(300);
     }
 
     function startCapture(actionId) {
         capturing = actionId;
-        notice = '새 키를 누르세요 (Esc 취소, Backspace 키 없음)';
+        notice = _t('새 키를 누르세요 (Esc 취소, Backspace 키 없음)');
         render();
         document.querySelector(`#ui-hotkey-settings [data-hotkey-action="${actionId}"]`)?.focus();
     }
@@ -139,7 +139,7 @@ const hotkeysUi = (() => {
     function resetDefaults() {
         game.settings.hotkeyOverrides = {};
         capturing = null;
-        notice = '기본 단축키로 되돌렸습니다.';
+        notice = _t('기본 단축키로 되돌렸습니다.');
         refresh();
         queueImportantSave(300);
     }
@@ -147,10 +147,10 @@ const hotkeysUi = (() => {
     function rowHtml(action, bindings) {
         const code = bindings.get(action.id);
         const waiting = capturing === action.id;
-        const text = waiting ? '키 입력…' : (code ? hotkeyBindings.label(code) : '없음');
+        const text = waiting ? _t('키 입력…') : (code ? hotkeyBindings.label(code) : _t('없음'));
         const changed = code !== action.code;
         return `<div class="hotkey-row"><span class="cfg-label">${escapeHTML(_t(action.label))}</span>`
-            + `<button type="button" class="hotkey-key${waiting ? ' capturing' : ''}${code ? '' : ' unbound'}${changed ? ' changed' : ''}" data-hotkey-action="${action.id}" aria-label="${escapeHTML(_t(action.label))} 단축키: ${escapeHTML(text)}. 눌러서 바꾸기">${escapeHTML(text)}</button></div>`;
+            + `<button type="button" class="hotkey-key${waiting ? ' capturing' : ''}${code ? '' : ' unbound'}${changed ? ' changed' : ''}" data-hotkey-action="${action.id}" aria-label="${_t('{action} 단축키: {key}. 눌러서 바꾸기', { action: _t(action.label), key: text })}">${escapeHTML(text)}</button></div>`;
     }
 
     function render() {
@@ -158,11 +158,11 @@ const hotkeysUi = (() => {
         if (!host) return;
         const bindings = hotkeyBindings.effective(overrides());
         const group = kind => hotkeyBindings.actions.filter(action => action.kind === kind).map(action => rowHtml(action, bindings)).join('');
-        host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">창 열고 닫기</div>${group('window')}</div>`
-            + `<div class="hotkey-section"><div class="hotkey-section-title">전투와 이동</div>${group('combat')}</div>`
-            + `<div class="hotkey-section"><div class="hotkey-section-title">탐험 지도 걷기(방향키도 됨)</div>${group('move')}</div>`
+        host.innerHTML = `<div class="hotkey-section"><div class="hotkey-section-title">${_t('창 열고 닫기')}</div>${group('window')}</div>`
+            + `<div class="hotkey-section"><div class="hotkey-section-title">${_t('전투와 이동')}</div>${group('combat')}</div>`
+            + `<div class="hotkey-section"><div class="hotkey-section-title">${_t('탐험 지도 걷기(방향키도 됨)')}</div>${group('move')}</div>`
             + `<div class="hotkey-footer"><span class="hotkey-notice" role="status" aria-live="polite">${escapeHTML(notice)}</span>`
-            + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>기본값으로</button></div>`;
+            + `<button type="button" class="cfg-btn hotkey-reset" data-hotkey-reset>${_t('기본값으로')}</button></div>`;
     }
 
     /** 레일 메뉴의 키 표시(ui-window-manager의 버튼 id 규칙: btn-<tabId>). 하단 HUD 메뉴는 이름표(.ui-rail-label)에 적는다. */

@@ -96,7 +96,9 @@ function checkOrphans(name, pack, sources, failures) {
         // '원문|문맥'은 코드가 붙여 만들기도 한다(하단 메뉴 이름표): 원문과 '|문맥'이 각각 어딘가에 있으면 된다.
         const at = key.lastIndexOf('|');
         const parts = at > 0 ? [key.slice(0, at), key.slice(at)] : [key];
-        if (!parts.every(part => sources.some(source => source.text.includes(part)))) failures.push(`${name}: 코드와 index.html 어디에도 없는 열쇠(원문이 바뀌었나): '${key}'`);
+        // 코드의 '…\n…'은 글자 두 개(\, n)라 줄바꿈이 든 열쇠는 그 꼴로도 찾는다.
+        const appears = part => sources.some(source => source.text.includes(part) || source.text.includes(part.replace(/\n/g, '\\n')));
+        if (!parts.every(appears)) failures.push(`${name}: 코드와 index.html 어디에도 없는 열쇠(원문이 바뀌었나): '${key}'`);
     }
 }
 
@@ -315,15 +317,14 @@ function exportTable(code, pack, sources, staticKeys, argv) {
     console.log(`${code}: 원문 ${rows.length}개를 ${out}에 썼다. ${code} 칸을 채운 뒤 --import ${code} ${out}`);
 }
 
-function jsString(text) { return text.includes("'") ? JSON.stringify(text) : `'${text.replace(/\\/g, '\\\\')}'`; }
+function jsString(text) { return /['\n\r\\]/.test(text) ? JSON.stringify(text) : `'${text}'`; }   // 줄바꿈·따옴표는 JSON 꼴("…\n…")로
 function jsValue(value) { return typeof value === 'string' ? jsString(value) : `{ ${Object.entries(value).map(([k, v]) => `${k}: ${jsString(v)}`).join(', ')} }`; }
 
 function importTable(code, file) {
     const rows = JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
     const target = path.join(ROOT, packFile(code));
     let source = fs.readFileSync(target, 'utf8');
-    const close = source.lastIndexOf('    })\n});');
-    if (close < 0) throw new Error(`${packFile(code)}: strings를 닫는 '    })\\n});'를 찾지 못했다`);
+    if (source.lastIndexOf('    })\n});') < 0) throw new Error(`${packFile(code)}: strings를 닫는 '    })\\n});'를 찾지 못했다`);
     const filled = rows.filter(row => row && typeof row.key === 'string' && row[code] && (typeof row[code] === 'string' ? row[code].trim() : typeof row[code] === 'object'));
     const added = [];
     let replaced = 0;
@@ -334,10 +335,12 @@ function importTable(code, file) {
         else added.push(`        ${jsString(row.key)}: ${jsValue(value)},`);
     }
     if (added.length) {
+        const close = source.lastIndexOf('    })\n});');   // 값을 바꾼 뒤에 찾는다(바뀐 길이만큼 자리가 밀린다)
         let head = source.slice(0, close).replace(/\s+$/, '');
         if (!head.endsWith(',') && !head.endsWith('{')) head += ',';
         source = `${head}\n        // ── ${new Date().toISOString().slice(0, 10)} 표에서 넣음(${file}) ──\n${added.join('\n')}\n${source.slice(close)}`;
     }
+    try { espree.parse(source, { ecmaVersion: 'latest', sourceType: 'script' }); } catch (error) { throw new Error(`${packFile(code)}: 넣은 결과가 JS로 읽히지 않아 쓰지 않았다(${error.message}). 표의 값에 따옴표나 줄바꿈이 있는지 본다`); }
     fs.writeFileSync(target, source);
     console.log(`${packFile(code)}: 새 열쇠 ${added.length}개, 바뀐 값 ${replaced}개 (표의 ${rows.length}줄 중 채워진 ${filled.length}줄)`);
 }

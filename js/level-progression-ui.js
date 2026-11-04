@@ -11,11 +11,11 @@ const levelProgressionUi = (() => {
         const required = levelProgression.requirements(item);
         const attributes = Object.entries(required.attributes).filter(([, value]) => value > 0)
             .map(([key, value]) => `${getStatName(key)} ${value}`);
-        const level = `요구 Lv.${required.level}`;
+        const level = _t('요구 Lv.{level}', { level: required.level });
         const { reason, available } = itemRequirementStatus(item, equipped, slot);
-        const warning = reason ? `<div class="tooltip-line" style="color:var(--danger,#ed8d83)">${equipped ? '효과 비활성, ' : ''}${escapeHTML(reason)}</div>` : '';
-        const grace = equipped && item.legacyRequirementGrace ? ', 기존 장착 유예' : '';
-        const slotHint = available ? `<div class="tooltip-line" style="color:var(--color-success)">장착 가능: ${escapeHTML(available)}</div>` : '';
+        const warning = reason ? `<div class="tooltip-line" style="color:var(--danger,#ed8d83)">${equipped ? `${_t('효과 비활성')}, ` : ''}${escapeHTML(reason)}</div>` : '';
+        const grace = equipped && item.legacyRequirementGrace ? `, ${_t('기존 장착 유예')}` : '';
+        const slotHint = available ? `<div class="tooltip-line" style="color:var(--color-success)">${_t('장착 가능')}: ${escapeHTML(available)}</div>` : '';
         return `<div class="tooltip-line tooltip-meta tooltip-meta-base">${escapeHTML([level,...attributes].join(', ') + grace)}</div>${warning}${slotHint}`;
     }
     function area(zone) {
@@ -30,7 +30,7 @@ const levelProgressionUi = (() => {
     /** The map card badge: '보상 감소' when an ordinary enemy gives under 100% experience or drops, else ''. */
     function rewardHint(zone) {
         const { xp, loot } = rewardRates(zone);
-        return xp < 100 || loot < 100 ? '보상 감소' : '';
+        return xp < 100 || loot < 100 ? _t('보상 감소') : '';
     }
     /** data-* attributes the 권장 전투력 tooltip reads (js/ui.js buildMapRewardRow). */
     function rewardData(zone) {

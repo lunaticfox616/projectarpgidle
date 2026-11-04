@@ -160,9 +160,9 @@ const equipmentCrafting = (() => {
      */
     function affixHeader(rarity, count, used) {
         const rule = EXPLICIT_AFFIX_RULES[rarity];
-        if (!rule || !used) return { text: `추가 옵션 (${count}/${EXPLICIT_AFFIX_LINE_CAP})`, over: false };
+        if (!rule || !used) return { text: _t('추가 옵션 ({count}/{cap})', { count, cap: EXPLICIT_AFFIX_LINE_CAP }), over: false };
         const cap = rarity === 'magic' ? magicLineCap() : EXPLICIT_AFFIX_LINE_CAP;
-        return { text: `추가 옵션 ${count}/${cap} (접두 ${used.prefix}/${rule.prefix}, 접미 ${used.suffix}/${rule.suffix})`,
+        return { text: _t('추가 옵션 {count}/{cap} (접두 {prefix}/{prefixCap}, 접미 {suffix}/{suffixCap})', { count, cap, prefix: used.prefix, prefixCap: rule.prefix, suffix: used.suffix, suffixCap: rule.suffix }),
             over: used.prefix > rule.prefix || used.suffix > rule.suffix };
     }
 

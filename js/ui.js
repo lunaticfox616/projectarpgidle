@@ -8305,15 +8305,9 @@ function updateCombatUI(pStats) {
     }
 
     let zone = getZone(game.currentZoneId);
-    let combatTitle = zone.name;
-    if (zone.type === 'act') {
-        let storyAct = getStoryActByZoneId(zone.id);
-        if (storyAct) combatTitle = `⚔️ 전투 ${formatStoryActLabel(storyAct)}: ${storyAct.title}`;
-    } else if (zone.type !== 'trial') {
-        combatTitle = `⚔️ 전투 ${zone.name}`;
-    }
-    let zoneText = zone.type === 'trial' ? zone.name : combatTitle;
-    let compactZoneText = zoneText.replace(/^⚔️\s*전투\s*/,'');
+    let storyAct = zone.type === 'act' ? getStoryActByZoneId(zone.id) : null;
+    // 지역 이름만(전투 머리말 없이): 액트는 "액트 1: 제목", 그 밖은 지역 이름을 현재 언어로.
+    let compactZoneText = storyAct ? `${formatStoryActLabel(storyAct)}: ${_t(storyAct.title)}` : _t(zone.name);
     setTextById('ui-combat-zone', compactZoneText);
     // 레벨·직업은 경험치바 왼쪽(ui-exp-level-label)으로 이동했으므로 여기는 지역 이름만 표기한다.
     setTextById('ui-combat-zone-inline', compactZoneText);

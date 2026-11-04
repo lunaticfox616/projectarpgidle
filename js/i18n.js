@@ -47,7 +47,7 @@ const i18n = (() => {
     }
 
     function noteMissing(key) {
-        if (current === SOURCE || missing.has(key) || !/[가-힣]/.test(key)) return;   // 한국어가 없는 글(플레이어 이름, 숫자)은 원문이 아니다
+        if (current === SOURCE || missing.has(key) || !/[가-힣]/.test(sourceText(key))) return;   // 한국어가 없는 글(플레이어 이름, 숫자)은 원문이 아니다
         missing.add(key);
         console.warn(`[i18n] ${current.code} 번역 없음: ${key}`);
     }
