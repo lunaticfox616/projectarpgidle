@@ -303,7 +303,7 @@ const ghostDuelStage = (() => {
         if (WORDS[strike.outcome]) return WORDS[strike.outcome];
         const scale = scene.scale * (strike.at >= SUDDEN_DEATH_MS ? SUDDEN_DEATH_DAMAGE : 1);
         const shown = scale > 0 ? formatNumberKR(Math.round(strike.damage / scale)) : '';
-        return strike.outcome === 'deflect' ? `비껴냄 ${shown}` : shown;
+        return strike.outcome === 'deflect' ? _t('비껴냄 {shown}', { shown }) : shown;
     }
     /** 떠오른 글의 모습: 끝의 40% 동안 사라지고, 회피와 막기는 푸른빛, 치명타는 금빛으로 처음에 조금 더 튄다. */
     function floatLook(strike, age) {
@@ -321,7 +321,7 @@ const ghostDuelStage = (() => {
     /** 맞은 쪽 머리 위로 떠오르는 피해 숫자와 회피, 막기. */
     function drawFloats(ctx, c, place, width) {
         const scale = stageActors.scaleFor(place.cells.tileW), head = (scene.fighters.left.clips.idle.ay + 8) * scale;
-        ctx.font = `bold 24px ${BATTLE_PIXEL_FONT}`;
+        ctx.font = `bold 24px ${battlePixelFont()}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         ctx.lineWidth = 4;
@@ -366,9 +366,9 @@ const ghostDuelStage = (() => {
     }
     function rootHtml() {
         return `<canvas class="ghost-duel-canvas" aria-hidden="true"></canvas>${plateHtml(scene.fighters.left)}${plateHtml(scene.fighters.right)}
-            <p class="ghost-duel-banner" aria-live="polite" data-duel-banner>불러오는 중</p>
-            <div class="ghost-duel-controls"><button type="button" data-duel="pause">일시정지</button><button type="button" data-duel="speed">1배속</button>
-            <button type="button" data-duel="skip">건너뛰기</button><button type="button" data-duel="close">나가기</button></div>
+            <p class="ghost-duel-banner" aria-live="polite" data-duel-banner>${_t('불러오는 중')}</p>
+            <div class="ghost-duel-controls"><button type="button" data-duel="pause">${_t('일시정지')}</button><button type="button" data-duel="speed">${_t('1배속')}</button>
+            <button type="button" data-duel="skip">${_t('건너뛰기')}</button><button type="button" data-duel="close">${_t('나가기')}</button></div>
             <section class="ghost-duel-result" data-duel-result hidden></section>`;
     }
     function mountRoot() {
@@ -378,7 +378,7 @@ const ghostDuelStage = (() => {
         root.id = 'ghost-duel-stage';
         root.className = 'ghost-duel-stage';
         root.setAttribute('role', 'dialog');
-        root.setAttribute('aria-label', '고스트 대결');
+        root.setAttribute('aria-label', _t('고스트 대결'));
         root.innerHTML = rootHtml();
         root.addEventListener('click', onClick);
         host.appendChild(root);
@@ -412,13 +412,13 @@ const ghostDuelStage = (() => {
         const outcome = scene.outcome || {}, result = outcome.result || {};
         if (outcome.mode !== 'ranked' || result.ratingAfter === undefined) return '친선전이라 레이팅은 그대로입니다';
         const delta = Number(result.ratingDelta) || 0;
-        return `레이팅 ${escape(result.ratingBefore)} → ${escape(result.ratingAfter)} (${delta >= 0 ? '+' : ''}${delta})`;
+        return _t('레이팅 {ratingBefore} → {ratingAfter} ({value}{delta})', { ratingBefore: escape(result.ratingBefore), ratingAfter: escape(result.ratingAfter), value: delta >= 0 ? '+' : '', delta });
     }
     /** 내 쪽(도전자)에서 본 결과. */
     function resultHtml() {
         const [title, tone] = RESULT_TITLES[scene.winner] || ['무승부', 'draw'];
-        return `<strong class="${tone}">${title}</strong><span>대결 상대 ${escape(scene.fighters.right.name)}</span><span>${ratingLine()}</span>
-            <div><button type="button" data-duel="again">다시 보기</button><button type="button" data-duel="tab">대전 탭으로</button><button type="button" data-duel="close">닫기</button></div>`;
+        return `<strong class="${tone}">${title}</strong><span>${_t('대결 상대 {name}', { name: escape(scene.fighters.right.name) })}</span><span>${ratingLine()}</span>
+            <div><button type="button" data-duel="again">${_t('다시 보기')}</button><button type="button" data-duel="tab">${_t('대전 탭으로')}</button><button type="button" data-duel="close">${_t('닫기')}</button></div>`;
     }
     function showResult() {
         const panel = scene.root.querySelector('[data-duel-result]');
@@ -467,8 +467,8 @@ const ghostDuelStage = (() => {
         close: () => stop()
     });
     function syncButtons() {
-        scene.root.querySelector('[data-duel="pause"]').textContent = scene.paused ? '계속' : '일시정지';
-        scene.root.querySelector('[data-duel="speed"]').textContent = `${scene.speed}배속`;
+        scene.root.querySelector('[data-duel="pause"]').textContent = scene.paused ? _t('계속') : _t('일시정지');
+        scene.root.querySelector('[data-duel="speed"]').textContent = _t('{speed}배속', { speed: scene.speed });
     }
     function onClick(event) {
         const action = event.target.closest('[data-duel]')?.dataset.duel;

@@ -223,7 +223,7 @@ const stageSkillVfx = (() => {
     }
     /** 틀 때의 선택값: 주지 않은 것(undefined)은 바탕값을 쓴다. */
     const PLAY_DEFAULTS = Object.freeze({ face: 1, delay: 0, ramp: 'phys', life: 1000, layer: 'top', alpha: 1, scale: 1, rot: 0, move: null, fall: null, nextLife: 0, hit: false, fadeIn: 0,
-        follow: null, ms: 0, cut: 0, tail: 0, flat: 0, pocket: null });
+        follow: null, ms: 0, cut: 0, tail: 0, flat: 0, pocket: null, order: null });
     function vfxOptions(options) {
         const o = { ...PLAY_DEFAULTS };
         for (const [key, value] of Object.entries(options || {})) if (value !== undefined) o[key] = value;
@@ -236,14 +236,17 @@ const stageSkillVfx = (() => {
      *   layer 'ground'|'top', alpha, scale, rot 돌림(라디안), hit 타격 클립, move { dx, dy, ms } 그동안 옮겨 가는 도트,
      *   fall { from, to, ms } 위에서 가속하며 떨어지는 도트, nextLife 이어지는 반복 클립의 길이, follow 프레임마다 자리(칸)를 돌려주는 함수(없어지면 null),
      *   ms 한 칸의 시간을 바꿀 때, cut 이보다 길면 여기서 끊는다(ms), tail 끝이 옅어지는 시간(ms, 클립의 fadeOut 대신), flat 눕히는 비율(클립의 flat 대신),
-     *   pocket 프레임마다 그리지 않을 네모({ spot, x, y, w, h }, 칸과 거기서의 도트)를 돌려주는 함수
+     *   pocket 프레임마다 그리지 않을 네모({ spot, x, y, w, h }, 칸과 거기서의 도트)를 돌려주는 함수,
+ *   order 칸 순서(클립 안의 칸 번호 배열): 주면 그 칸들만 그 순서로 튼다(길이도 그만큼)
      * @returns {?object} 튼 클립(틀지 못했으면 null). life를 줄이면 일찍 끝난다.
      */
     /** 틀 클립 하나의 줄: 클립의 길이와 속도, 옵션이 정한 모습을 한데 묶는다. */
+    /** 한 번 트는 길이(ms): 반복 클립은 life, 아니면 칸 수 × 한 칸의 시간. cut을 주면 거기서 끊는다. */
+    const vfxRowLife = (clip, o, frames, ms) => { const whole = clip.loop ? o.life : frames * ms; return o.cut ? Math.min(whole, o.cut) : whole; };
     function vfxClipRow(name, clip, at, o) {
-        const box = vfxClipBox(name), ms = o.ms || clip.ms || 70, whole = clip.loop ? o.life : box.frames * ms;
+        const box = vfxClipBox(name), ms = o.ms || clip.ms || 70, frames = o.order ? o.order.length : box.frames;
         return { name, clip, box, ramp: o.ramp, at: { dx: 0, dy: 0, ...at }, face: o.face, start: clock + o.delay, ms,
-            frames: box.frames, life: o.cut ? Math.min(whole, o.cut) : whole, layer: o.layer, alpha: o.alpha, scale: o.scale, rot: o.rot, move: o.move, fall: o.fall,
+            frames, order: o.order, life: vfxRowLife(clip, o, frames, ms), layer: o.layer, alpha: o.alpha, scale: o.scale, rot: o.rot, move: o.move, fall: o.fall,
             next: clip.next || null, nextLife: o.nextLife, hit: false, fadeIn: o.fadeIn || clip.fadeIn || 0, follow: o.follow, tail: o.tail, flat: o.flat || clip.flat || 0, pocket: o.pocket };
     }
     function vfxPlay(ref, at, options) {
@@ -313,12 +316,17 @@ const stageSkillVfx = (() => {
         ctx.rect(base.x + hole.x * dot, base.y + lift + hole.y * dot, hole.w * dot, hole.h * dot);
         ctx.clip('evenodd');
     }
+    /** 지금 그릴 칸(클립 안의 번호): 반복 클립은 돌고, 아니면 끝 칸에 머문다. order를 준 줄은 그 순서의 칸. */
+    function vfxFrameOf(row, t) {
+        const step = Math.floor(t / row.ms), index = row.clip.loop ? step % row.frames : Math.min(row.frames - 1, step);
+        return row.order ? row.order[index] : index;
+    }
     function vfxDrawRow(ctx, row, p, dot) {
         vfxFollow(row);
         if (row.paint) { vfxPaintRow(ctx, row, p, dot); return; }
         const t = clock - row.start;
         if (t < 0) return;
-        const step = Math.floor(t / row.ms), index = row.clip.loop ? step % row.frames : Math.min(row.frames - 1, step);
+        const index = vfxFrameOf(row, t);
         const base = p.cellToScreen(row.at.gx, row.at.gy), offset = vfxOffsetOf(row, t), size = (row.clip.sc || 1) * row.scale * dot;
         const sheet = vfxSheetOf(row.clip.a, row.ramp), cell = STAGE_SKILL_VFX.atlas[row.clip.a];
         if (!sheet) return; // 띠를 만드는 중이다: 다 되면 그때부터 그린다

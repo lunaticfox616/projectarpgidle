@@ -219,7 +219,7 @@ run(`game=mergeDefaults({}); game.season=25; contentProgression.sync();
     game.contentProgression.inherited.push('talisman');
     // 2 points a loop: with the 강화 steps and the later rows owned, loop 25 funds the rest of the catalog
     game.contentProgression.inherited.push(...CONTENT_UNLOCK_CATALOG.filter(def=>def.series||def.since===CONTENT_UNLOCK_TREE_VERSION).map(def=>def.id));
-    game.currencies.bossCore=7; game.currencies.skyEssence=8; game.currencies.sporeFire=9;
+    game.currencies.bossCore=7; game.currencies.skyEssence=8;
     game.currencies.runeShard=10; game.currencies.underCopper=11; game.currencies.enchantedHoney=12;
     game.currencies.voidChisel=13; game.currencies.colonyShard=14;
     game.gemData['이중 베기']=normalizeGemRecord({level:5,bossCoreLevel:3,skyCoreLevel:2});
@@ -245,7 +245,7 @@ assert.equal(run('contentProgression.balance()'),pointsBefore, 'fully funded gro
 assert(run("contentProgression.isUnlocked('craft')"));
 assert.deepEqual(json('[game.beehive.cleared,game.voidRift.breachClears,game.underworldRunes,game.talentCards,game.skillAutoRules]'),permanentBefore);
 assert.equal(run('game.voidRift.grandBreachUnlock'),false,'an open grand breach closes at the loop (user decision 2026-10-20)');
-assert.deepEqual(json("['bossCore','skyEssence','sporeFire','runeShard','underCopper','enchantedHoney','voidChisel','colonyShard'].map(key=>game.currencies[key])"),Array(8).fill(0));
+assert.deepEqual(json("['bossCore','skyEssence','runeShard','underCopper','enchantedHoney','voidChisel','colonyShard'].map(key=>game.currencies[key])"),Array(7).fill(0));
 assert(!run("game.gemData['이중 베기']"));
 assert.deepEqual(json('game.skyGemEnhancements'),{});
 assert.deepEqual(json('[game.timeRift.pressure,game.timeRift.fusionCount,game.timeRift.altarUnique,game.timeRift.altarOpen]'),[2,3,null,false],'the altar empties at the loop (user decision 2026-10-20)');
@@ -685,7 +685,7 @@ assert.equal(json("knittingRewards.knit('unravelled')").ok, false, 'a grade-2 re
 // Every first-loop act has a usable reward, including saves that previously queued hidden support rewards.
 {
     const originalGetElement = runtime.document.getElementById;
-    const rewardNodes = new Map(['reward-overlay','reward-kicker','reward-title','reward-body','reward-grid'].map(id=>[id,runtime.document.createElement('div')]));
+    const rewardNodes = new Map(['reward-overlay','reward-kicker','reward-title','reward-body','reward-grid','reward-next'].map(id=>[id,runtime.document.createElement('div')]));
     runtime.document.getElementById=id=>rewardNodes.get(id)||originalGetElement(id);
     try {
     run('game=mergeDefaults({});game.level=30;game.maxZoneId=8;game.claimableActRewards=[1,5]');
@@ -814,10 +814,10 @@ for (const [type,name] of [['Skill','서리바람 내지르기'],['Support','가
 run('game=mergeDefaults({});game.season=8;contentProgression.sync()');
 assert.deepEqual(json('getBeehiveRewardPool(1).map(row=>row.type)'),['pollen','beeswax']);
 run(`contentProgression.purchase('craft')`);
-assert(run("getBeehiveRewardPool(1).some(row=>row.type==='bundle') && !getBeehiveRewardPool(1).some(row=>row.type==='jewelShard'||row.type==='spore')"),
+assert(run("getBeehiveRewardPool(1).some(row=>row.type==='bundle') && !getBeehiveRewardPool(1).some(row=>row.type==='jewelShard')"),
     'basic crafting rewards can appear before fossil and jewel rewards');
 run("contentProgression.purchase('fossil');contentProgression.purchase('fossilRestore');contentProgression.purchase('jewel')");
-assert.equal(run('getBeehiveRewardPool(1).length'),9,'the existing full reward pool returns after the corresponding unlocks');
+assert.equal(run('getBeehiveRewardPool(1).length'),8,'the existing full reward pool returns after the corresponding unlocks');
 // A newly opened underground stone number grants its first usable copy once; claim flags survive loading and loops.
 run('game=mergeDefaults({season:13,loopCount:12});grantUnderworldFloorMilestone(10,game.underworldProgress)');
 assert.deepEqual(json('game.underworldRunes.obtainedRunes'),[1],'opening the first slot must also grant its first stone');

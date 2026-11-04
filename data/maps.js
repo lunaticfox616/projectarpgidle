@@ -344,7 +344,7 @@ const SEASON_CONTENT_ROADMAP = {
     5: { title: '루프 5', features: ['해금: 주얼 / 화석 복원'] },
     6: { title: '루프 6', features: ['해금: 부적 / 제작 시뮬레이터'] },
     7: { title: '루프 7', features: ['해금: 운석 낙하 지점'] },
-    8: { title: '루프 8', features: ['해금: 벌집 / 고급 홀씨'] },
+    8: { title: '루프 8', features: ['해금: 벌집 / 고급 수확 제작'] },
     9: { title: '루프 9', features: ['해금: 공허 균열'] },
     10: { title: '루프 10', features: ['해금: 심화 혼돈 / 재능 / 심화 패시브', '그루터기 함: 뿌리 기억 (봉인 칸 +1)'] },
     11: { title: '루프 11', features: ['해금: 심해 / 낚시', '심화: 혼돈 단계 상승'] },

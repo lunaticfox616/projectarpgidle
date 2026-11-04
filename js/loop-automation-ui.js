@@ -48,7 +48,7 @@ const loopAutomationUi = (() => {
     }
     function showStatus(now = Date.now()) {
         const offline = game.loopGateOffline && game.settings.autoLoop ? '오프라인에서 채운 관문이라 자동으로 넘기지 않습니다.' : '';
-        const text = deadline ? `자동 루프 진행까지 ${Math.max(0, Math.ceil((deadline - now) / 1000))}초` : offline;
+        const text = deadline ? _t('자동 루프 진행까지 {max}초', { max: Math.max(0, Math.ceil((deadline - now) / 1000)) }) : offline;
         document.querySelectorAll('[data-loop-auto-status]').forEach(node => { node.textContent = text; });
     }
     function setAuto(on) {
@@ -64,10 +64,10 @@ const loopAutomationUi = (() => {
     }
     function controlsHtml() {
         const s = game.settings;
-        return `<section class="loop-automation" aria-label="자동 루프 진행"><label><input type="checkbox" ${s.autoLoop ? 'checked' : ''}
-            onchange="loopAutomationUi.setAuto(this.checked)"> 자동 루프 진행 <small>조건 달성 시 ${DELAY_MS / 1000}초 후 자동으로 루프합니다.</small></label>
-            <label>다음 직업 <select onchange="loopAutomationUi.setClassMode(this.value)"><option value="ask" ${s.autoLoopClass === 'keep' ? '' : 'selected'}>매번 고르기</option>
-            <option value="keep" ${s.autoLoopClass === 'keep' ? 'selected' : ''}>같은 직업 유지</option></select></label>
+        return `<section class="loop-automation" aria-label="${_t('자동 루프 진행')}"><label><input type="checkbox" ${s.autoLoop ? 'checked' : ''}
+            onchange="loopAutomationUi.setAuto(this.checked)"> ${_t('자동 루프 진행')} <small>${_t('조건 달성 시 {value}초 후 자동으로 루프합니다.', { value: DELAY_MS / 1000 })}</small></label>
+            <label>${_t('다음 직업')} <select onchange="loopAutomationUi.setClassMode(this.value)"><option value="ask" ${s.autoLoopClass === 'keep' ? '' : 'selected'}>${_t('매번 고르기')}</option>
+            <option value="keep" ${s.autoLoopClass === 'keep' ? 'selected' : ''}>${_t('같은 직업 유지')}</option></select></label>
             <p class="loop-automation-status" data-loop-auto-status aria-live="polite"></p></section>`;
     }
     if (typeof setInterval === 'function') setInterval(() => autoTick(), 500);

@@ -6,10 +6,10 @@ const loopMutationUi = (() => {
     const PICK_DIALOG = 'starter-rune-pick';
     let chipDrawn = null, pickShown = false;
 
-    const elementPart = (ele, text) => `<b style="--mutation-ele:${getElementColor(ele)}">${escapeHTML(DAMAGE_ELEMENT_LABELS[ele])} ${text}</b>`;
+    const elementPart = (ele, text) => `<b style="--mutation-ele:${getElementColor(ele)}">${escapeHTML(_t(DAMAGE_ELEMENT_LABELS[ele]))} ${text}</b>`;
     /** The rule in numbers, for the chip's hover and the pick window. */
     function mutationRuleText(rule) {
-        return `이번 루프의 모든 몬스터: ${DAMAGE_ELEMENT_LABELS[rule.immune]} 피해 면역, ${DAMAGE_ELEMENT_LABELS[rule.weak]} 피해 +${LOOP_MUTATION.weakTakenPct}%`;
+        return _t('이번 루프의 모든 몬스터: {DAMAGE_ELEMENT_LABELS} 피해 면역, {DAMAGE_ELEMENT_LABELS2} 피해 +{weakTakenPct}%', { DAMAGE_ELEMENT_LABELS: DAMAGE_ELEMENT_LABELS[rule.immune], DAMAGE_ELEMENT_LABELS2: DAMAGE_ELEMENT_LABELS[rule.weak], weakTakenPct: LOOP_MUTATION.weakTakenPct });
     }
     /** The chip under the zone name (#ui-loop-mutation, before the held currencies): drawn again only when the loop's rule changes. */
     function updateMutationChip() {
@@ -20,7 +20,7 @@ const loopMutationUi = (() => {
         if (sign === chipDrawn) return;
         chipDrawn = sign;
         root.hidden = !rule;
-        root.innerHTML = rule ? `<i>변이</i>${elementPart(rule.immune, '면역')}${elementPart(rule.weak, '약점')}` : '';
+        root.innerHTML = rule ? `<i>${_t('변이')}</i>${elementPart(rule.immune, '면역')}${elementPart(rule.weak, '약점')}` : '';
         root.dataset.tip = rule ? mutationRuleText(rule) : '';
     }
 
@@ -35,15 +35,15 @@ const loopMutationUi = (() => {
         }).dps[1];
         return `<button type="button" class="starter-rune-choice${weak ? ' is-weak' : ''}" data-starter-rune="${escapeHTML(name)}" style="--mutation-ele:${getElementColor(def.ele)}">
             ${art ? `<img src="${escapeHTML(art)}" alt="">` : ''}<strong>${escapeHTML(name)}</strong>
-            <span class="starter-rune-element">${escapeHTML(DAMAGE_ELEMENT_LABELS[def.ele])}${weak ? `, 약점 피해 +${LOOP_MUTATION.weakTakenPct}%` : ''}</span>
-            ${line ? `<small>${escapeHTML(line)}.</small>` : ''}<span class="starter-rune-dps">DPS ${Math.round(dps).toLocaleString('ko-KR')}</span></button>`;
+            <span class="starter-rune-element">${escapeHTML(_t(DAMAGE_ELEMENT_LABELS[def.ele]))}${weak ? _t(', 약점 피해 +{weakTakenPct}%', { weakTakenPct: LOOP_MUTATION.weakTakenPct }) : ''}</span>
+            ${line ? `<small>${escapeHTML(line)}.</small>` : ''}<span class="starter-rune-dps">DPS ${Math.round(dps).toLocaleString(i18n.locale)}</span></button>`;
     }
     function openPick(gems) {
         const rule = loopMutation.current();
         const head = rule ? `<p class="selection-overlay-help">${escapeHTML(mutationRuleText(rule))}</p>` : '';
-        const panel = selectionDialog.show({ id: PICK_DIALOG, title: '첫 공격룬 선택', panelClass: 'starter-rune-panel',
+        const panel = selectionDialog.show({ id: PICK_DIALOG, title: _t('첫 공격룬 선택'), panelClass: 'starter-rune-panel',
             body: `${head}<div class="starter-rune-choices">${gems.map(name => pickCardHtml(name, rule)).join('')}</div>
-                <p class="selection-overlay-help">닫으면 첫째 룬을 받습니다.</p>` });
+                <p class="selection-overlay-help">${_t('닫으면 첫째 룬을 받습니다.')}</p>` });
         const overlay = panel && panel.parentElement;
         if (overlay && !overlay.dataset.pickBound) {
             overlay.dataset.pickBound = '1';
@@ -79,12 +79,12 @@ const loopMutationUi = (() => {
     /** The settlement's line for the next loop's mutation, or none before the rule's first loop. */
     function nextLoopLines(loop) {
         const rule = loopMutation.of(loop);
-        return rule ? [`변이시간선: ${loopMutation.describe(rule)}`] : [];
+        return rule ? [_t('변이시간선: {describe}', { describe: loopMutation.describe(rule) })] : [];
     }
     // A new loop under the rule says it once in the log and a toast, after the class is picked.
     window.addEventListener('project-idle:loop-hero-selection-completed', () => {
         const rule = loopMutation.current();
-        if (rule) addLog(`🧬 변이시간선: ${loopMutation.describe(rule)}`, 'season-up', { toast: true });
+        if (rule) addLog(_t('🧬 변이시간선: {describe}', { describe: loopMutation.describe(rule) }), 'season-up', { toast: true });
     });
 
     return Object.freeze({ update, nextLoopLines });

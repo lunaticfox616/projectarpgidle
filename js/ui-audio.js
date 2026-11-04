@@ -24,14 +24,17 @@
         master.gain.setTargetAtTime(permitted() ? masterLevel() : 0, context.currentTime, .015);
     }
 
+    /** 효과음 크기 슬라이더는 설정 창과 로그인 화면(2026-11-04)에 하나씩 있다([data-sound-volume], 옆의 output이 값). */
     function syncVolumeControl() {
-        const slider = document.getElementById('range-sound-volume');
-        if (!slider) return;
         const volume = game.settings.soundVolume ?? 100;
-        slider.value = volume;
-        slider.setAttribute('aria-valuetext', `${volume}%`);
-        document.getElementById('sound-volume-value').value = `${volume}%`;
-        document.getElementById('btn-sound-preview').disabled = !permitted();
+        document.querySelectorAll('[data-sound-volume]').forEach(slider => {
+            slider.value = volume;
+            slider.setAttribute('aria-valuetext', `${volume}%`);
+            const output = slider.parentElement.querySelector('output');
+            if (output) output.value = `${volume}%`;
+        });
+        const preview = document.getElementById('btn-sound-preview');
+        if (preview) preview.disabled = !permitted();
     }
 
     function failure(label, error) {
@@ -61,8 +64,11 @@
         } catch (error) { failure('sample bank unavailable', error); }
     }
 
+    /** 배경음(js/bgm-ui.js)도 이 AudioContext를 쓴다: 효과음을 꺼도 배경음이 켜져 있으면 연다. */
+    const bgmWanted = () => typeof game !== 'undefined' && game.settings?.bgm !== false && game.settings?.bgmVolume !== 0 && !document.hidden;
+
     function unlock() {
-        if (!permitted()) return;
+        if (!permitted() && !bgmWanted()) return;
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
         try {
@@ -223,12 +229,13 @@
         syncVolumeControl();
     };
     document.addEventListener('input', event => {
-        if (event.target.id !== 'range-sound-volume') return;
+        if (!event.target.matches?.('[data-sound-volume]')) return;
         game.settings.soundVolume = event.target.valueAsNumber;
         playUiFeedbackSound.syncSettings();
     });
+    // 로그인 화면에서는 저장하지 않는다(설정 창의 다른 줄과 같은 규칙, queueImportantSave): 게임에 들어간 뒤의 저장에 함께 실린다
     document.addEventListener('change', event => {
-        if (event.target.id === 'range-sound-volume') saveGame({ skipCloudSync: true });
+        if (event.target.matches?.('[data-sound-volume]') && !startupOverlayActive) saveGame({ skipCloudSync: true });
     });
     document.addEventListener('click', event => {
         if (event.target.id === 'btn-sound-preview') playUiFeedbackSound('uiSelect');
@@ -236,6 +243,8 @@
         if (tab && !tab.disabled && tab.getAttribute('aria-disabled') !== 'true') playUiFeedbackSound('uiSelect');
     });
     window.addEventListener('project-idle:startup-visibility', syncVolumeControl);
+    playUiFeedbackSound.context = () => context;
+    playUiFeedbackSound.unlock = unlock;
     document.addEventListener('pointerdown', unlock, {passive:true});
     document.addEventListener('keydown', unlock);
     window.addEventListener('project-idle:encounter-finished', event => {

@@ -134,12 +134,12 @@ const uiDisplay = (() => {
         const select = document.getElementById('sel-ui-scale');
         if (!select) return;
         if (!mobileDevice) {
-            const labels = PC_SCALE_STEPS.map(step => `${step}% ${isCrispStep(step, dpr) ? '(추천)' : '(글꼴 바꿈)'}`).join('|');
+            const labels = PC_SCALE_STEPS.map(step => _t(isCrispStep(step, dpr) ? '{step}% (추천)' : '{step}% (글꼴 바꿈)', { step })).join('|');
             if (select.dataset.labels !== labels) {
                 select.dataset.labels = labels;
                 select.innerHTML = labels.split('|').map((label, index) => `<option value="${PC_SCALE_STEPS[index]}">${label}</option>`).join('');
                 const hint = document.querySelector('label[for="sel-ui-scale"] + small');
-                if (hint) hint.textContent = '메뉴와 글자의 크기. (추천)은 도트가 또렷한 배율이고, 글꼴 바꿈 배율은 글자를 일반 글꼴로 보입니다.';
+                if (hint) hint.textContent = _t('메뉴와 글자의 크기. (추천)은 도트가 또렷한 배율이고, 글꼴 바꿈 배율은 글자를 일반 글꼴로 보입니다.');
             }
         }
         select.value = String(percent);
@@ -158,6 +158,8 @@ const uiDisplay = (() => {
     function init() {
         apply(100);
         document.getElementById('sel-ui-scale').addEventListener('change', event => select(event.target.value));
+        // 선택 상자의 꼬리표는 번역한 글이라 언어가 바뀌면 다시 쓴다(js/i18n.js).
+        window.addEventListener('game:languagechange', () => syncScaleSelect(Math.max(1, window.devicePixelRatio || 1)));
         document.querySelectorAll('[style]').forEach(el => adaptStyle(el.style));
         new MutationObserver(() => registerStyles()).observe(document.head, { childList: true });
     }

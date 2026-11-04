@@ -68,12 +68,12 @@ const memoryLeaves = (() => {
     const momentOf = () => 'great';
     const bonusText = leaf => leaf.bonus.label;
     function sourceText(leaf) {
-        const source = leaf.source, tier = leaf.minTier ? `, ${leaf.minTier}등급 이상` : '';
+        const source = leaf.source, tier = leaf.minTier ? _t(', {minTier}등급 이상', { minTier: leaf.minTier }) : '';
         if (source.node) return `${atlas.nodes.find(node => node.id === source.node)?.name || source.node}${tier}`;
-        if (source.boss) return `지도 보스${tier}`;
-        if (source.golden) return `황금 방${tier}`;
-        if (source.treasure) return `보물 무리${tier}`;
-        return `어느 지도나${tier}`;
+        if (source.boss) return _t('지도 보스{tier}', { tier });
+        if (source.golden) return _t('황금 방{tier}', { tier });
+        if (source.treasure) return _t('보물 무리{tier}', { tier });
+        return _t('어느 지도나{tier}', { tier });
     }
     function gainedBetween(before, after) {
         const seen = new Set(before?.seen || []);

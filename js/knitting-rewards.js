@@ -3,7 +3,7 @@
  * 보상 등급 근처 창 안에서 같은 확률로 고른다. 극희귀·도감 전용·잠긴 콘텐츠·출처 전용(허용 목록 밖) 보상은 들어오지 않는다. */
 const knittingRewards = (() => {
     const pick = (rows, random) => rows[Math.floor(random() * rows.length)];
-    const FAMILIES = Object.freeze({ currencies: 'currencies', pickCurrencies: 'currencies', maps: 'maps', gear: 'gear', unique: 'unique', uniquePool: 'unique', yarns: 'yarns' });
+    const FAMILIES = Object.freeze({ currencies: 'currencies', pickCurrencies: 'currencies', seeds: 'currencies', maps: 'maps', gear: 'gear', unique: 'unique', uniquePool: 'unique', yarns: 'yarns' });
     function basesFor(gear, tier, state, slot) {
         let pool = BASE_ITEM_DB.filter(base => !base.dropOnly && !base.realmBase && base.reqTier <= tier);
         if (gear.base) return pool.filter(base => base.id === gear.base);
@@ -87,6 +87,8 @@ const knittingRewards = (() => {
     // 창공석은 재화 칸이 아니라 창공의 탑 상태에 쌓인다(js/passives.js commitCurrencyGain, js/exploration-ground-loot.js settleRow)
     const SKY_POWER = 'condensedSkyPower';
     const heldCurrency = (state, key) => (key === SKY_POWER ? (state.skyTower && state.skyTower.condensedPower) : state.currencies[key]) || 0;
+    /** 그루터기 함 씨앗 보상 [색, 개수](data/knitting.js reward.seeds). 품질은 수확 일지 선물과 같은 드랍 최고다. */
+    const plannedSeeds = reward => (reward.seeds || []).map(([color, n]) => [color, n]);
     const plannedYarns = (state, row, random) => Array.from({ length: row.reward.yarns || 0 }, () => knitting.pickYarn(state, row.id, random));
     /** 지도석도 복사본에서 먼저 만든다. 두 칸이 없으면 하나만 지급하거나 실타래를 차감하지 않는다. */
     function plannedMaps(state, rule, random) {
@@ -102,14 +104,24 @@ const knittingRewards = (() => {
         if (isEquipmentReward(reward) && !item) return null;
         const mapReward = plannedMaps(state, reward.maps, random);
         if (reward.maps && !mapReward) return { mapBlocked: true };
-        const made = { currencies: plannedCurrencies(reward, random), yarns: plannedYarns(state, row, random), item, mapReward };
+        const made = { currencies: plannedCurrencies(reward, random), seeds: plannedSeeds(reward), yarns: plannedYarns(state, row, random), item, mapReward };
         return made.yarns.includes(null) ? null : made;
+    }
+    /** 재화의 콘텐츠와 씨앗의 그루터기 함이 열렸는지: 막는 말, 또는 ''. */
+    function lockedReason(state, made) {
+        if (made.currencies.some(([key]) => !contentProgression.canDropCurrency(key, state))) return '보상 재화의 콘텐츠를 먼저 해금하세요.';
+        return made.seeds.length && !(state.stumpBox && state.stumpBox.acquired) ? '보상 씨앗을 받으려면 그루터기 함을 먼저 얻으세요.' : '';
+    }
+    /** 씨앗은 보관함이 가득 차도 들어간다(조합 결과처럼 잃지 않는 보상, js/stump-box.js createItem force). */
+    function grantSeeds(state, seeds) {
+        for (const [color, n] of seeds) for (let i = 0; i < n; i++) stumpBox.createItem(state, { family: 'seed', color, roll: STUMP_BOX_HARVEST.giftRoll }, true);
     }
     function reason(state, made) {
         if (!made) return '현재 보상 풀에 맞는 아이템이 없습니다. 실타래는 유지됩니다.';
         if (made.mapBlocked) return '아틀라스를 열고 지도석 보관함에 빈칸 두 개를 마련하세요. 실타래는 유지됩니다.';
         if (made.item && !canStoreEquipmentItems([made.item], state)) return '장비 보관함에 빈자리가 필요합니다.';
-        if (made.currencies.some(([key]) => !contentProgression.canDropCurrency(key, state))) return '보상 재화의 콘텐츠를 먼저 해금하세요.';
+        const locked = lockedReason(state, made);
+        if (locked) return locked;
         if (made.currencies.some(([key, n]) => !ORB_DB[key] || !Number.isSafeInteger(heldCurrency(state, key) + n))) return '재화를 더 보관할 수 없습니다.';
         const counts = {};
         for (const id of made.yarns) counts[id] = (counts[id] || 0) + 1;
@@ -131,6 +143,7 @@ const knittingRewards = (() => {
         Object.assign(state, { currencies: next.currencies, inventory: next.inventory, knitting: next.knitting });
         if (skyPower) state.skyTower.condensedPower = heldCurrency(state, SKY_POWER) + skyPower;
         if (made.mapReward) state.atlas = made.mapReward.atlas;
+        grantSeeds(state, made.seeds);
         state.currencyDropVersion = (Number(state.currencyDropVersion) || 0) + made.currencies.length;
         state.noti.items = true;
     }
@@ -150,28 +163,30 @@ const knittingRewards = (() => {
     }
     function currencyProblems(row, implied) {
         const own = new Set([...implied, ...(row.unlocks || [])]);
-        return (row.reward.currencies || row.reward.pickCurrencies).flatMap(([key, n]) => {
+        const seeds = (row.reward.seeds || []).filter(([color, n]) => !Object.hasOwn(STUMP_BOX_COLORS, color) || !Number.isInteger(n) || n < 1)
+            .map(([color]) => `${row.id}: 씨앗 ${color}`);
+        return seeds.concat((row.reward.currencies || row.reward.pickCurrencies || []).flatMap(([key, n]) => {
             const def = ORB_DB[getCanonicalCurrencyKey(key)];
-            if (!def || !Number.isInteger(n) || n < 1) return [`${row.id}: 재화 ${key}`];
+            if (!def || !Number.isInteger(n) || n < 1) return [_t('{id}: 재화 {key}', { id: row.id, key })];
             const need = def.dropUnlocks || [];
-            return need.length && !need.some(id => own.has(id)) ? [`${row.id}: ${key}의 해금 ${need.join('|')} 누락`] : [];
-        });
+            return need.length && !need.some(id => own.has(id)) ? [_t('{id}: {key}의 해금 {need} 누락', { id: row.id, key, need: need.join('|') })] : [];
+        }));
     }
     function yarnsProblems(row) {
         const n = row.reward.yarns;
-        return Number.isInteger(n) && n >= 1 && n <= 3 ? [] : [`${row.id}: 반환 수`];
+        return Number.isInteger(n) && n >= 1 && n <= 3 ? [] : [_t('{id}: 반환 수', { id: row.id })];
     }
     function tierProblems(row) {
         const tier = row.reward.tier;
-        return Number.isInteger(tier) && tier >= 1 && tier <= 20 ? [] : [`${row.id}: 보상 등급 ${tier}`];
+        return Number.isInteger(tier) && tier >= 1 && tier <= 20 ? [] : [_t('{id}: 보상 등급 {tier}', { id: row.id, tier })];
     }
     /** 고유 풀이 비지 않았는지, 이름 지정 고유면 세트 등급이 그 고유의 띠와 맞는지. */
     function uniqueProblems(row) {
         const reward = row.reward, pool = uniquePool(reward, null);
-        if (!pool.length) return [`${row.id}: 고유 풀이 비어 있음`];
-        if (reward.uniquePool === 'chase' && (row.grade !== 5 || row.yarnOut !== false)) return [`${row.id}: 극희귀 보상은 5등급, 반환 제외여야 함`];
+        if (!pool.length) return [_t('{id}: 고유 풀이 비어 있음', { id: row.id })];
+        if (reward.uniquePool === 'chase' && (row.grade !== 5 || row.yarnOut !== false)) return [_t('{id}: 극희귀 보상은 5등급, 반환 제외여야 함', { id: row.id })];
         const want = reward.unique ? namedUniqueGrade(pool[0]) : row.grade;
-        return want === row.grade ? [] : [`${row.id}: 「${reward.unique}」 기준 등급 ${want}, 세트 등급 ${row.grade}`];
+        return want === row.grade ? [] : [_t('{id}: 「{unique}」 기준 등급 {want}, 세트 등급 {grade}', { id: row.id, unique: reward.unique, want, grade: row.grade })];
     }
     /** 장비 계열(고유·희귀 장비)은 보상 등급을 먼저 본다: 등급이 틀리면 그 한 줄만. */
     function equipmentProblems(family, row) {
@@ -184,7 +199,7 @@ const knittingRewards = (() => {
         if (family === 'yarns') return yarnsProblems(row);
         if (family === 'maps') {
             const rule = row.reward.maps;
-            return rule.count === 2 && rule.rarity === 'rare' && rule.tierUp === 1 ? [] : [`${row.id}: 지도석 규격`];
+            return rule.count === 2 && rule.rarity === 'rare' && rule.tierUp === 1 ? [] : [_t('{id}: 지도석 규격', { id: row.id })];
         }
         return equipmentProblems(family, row);
     }
@@ -193,14 +208,14 @@ const knittingRewards = (() => {
         return KNITTING.list.flatMap(row => {
 
             const families = [...new Set(Object.keys(row.reward || {}).map(key => FAMILIES[key]).filter(Boolean))];
-            return families.length === 1 ? familyProblems(families[0], row, implied) : [`${row.id}: 보상 종류 ${families.join(',') || '없음'}`];
+            return families.length === 1 ? familyProblems(families[0], row, implied) : [_t('{id}: 보상 종류 {families}', { id: row.id, families: families.join(',') || _t('없음') })];
         });
     }
     function gearProblems(row) {
         const gear = row.reward.gear, slots = new Set(BASE_ITEM_DB.map(base => base.slot));
-        if (gear.slots && !gear.slots.every(slot => slots.has(slot))) return [`${row.id}: 부위`];
+        if (gear.slots && !gear.slots.every(slot => slots.has(slot))) return [_t('{id}: 부위', { id: row.id })];
         const open = BASE_ITEM_DB.some(base => base.id === gear.base && !base.dropOnly && !base.realmBase && base.reqTier <= row.reward.tier);
-        return gear.base && !open ? [`${row.id}: 베이스 ${gear.base}`] : [];
+        return gear.base && !open ? [_t('{id}: 베이스 {base}', { id: row.id, base: gear.base })] : [];
     }
     
     

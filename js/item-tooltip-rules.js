@@ -54,7 +54,7 @@ const itemTooltipRules = (() => {
     /** The line an item without explicit lines shows: a ward (js/colony-wards.js) says where it goes, anything else that it is plain. */
     function emptyExplicitHtml(item) {
         const ward = typeof colonyWards === 'object' && colonyWards.isWard(item);
-        return `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">${ward ? '장비창의 액막이 칸에 끼웁니다' : '일반 아이템: 추가 옵션 없음'}</div>`;
+        return `<div class="tooltip-line" style="margin-top:6px; color:var(--copy-muted);">${ward ? _t('장비창의 액막이 칸에 끼웁니다') : _t('일반 아이템: 추가 옵션 없음')}</div>`;
     }
     return Object.freeze({ statOrder, compareStats, defenseView, emptyExplicitHtml, DEFENSE_IDS });
 })();

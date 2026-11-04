@@ -15,14 +15,14 @@
         const stray = event.target.closest ? event.target.closest('[title]') : null;
         if (!stray) return;
         console.warn('title 속성 대신 data-tip을 쓴다:', stray);
-        stray.dataset.tip = stray.title;
+        stray.dataset.tip = _t(stray.title);
         stray.removeAttribute('title');
     }
     function paintPlainTip() {
         timer = 0;
         if (!host || !host.isConnected) return;
         const refused = host.matches(':disabled, [aria-disabled="true"]');
-        const html = `<div class="tooltip-line plain-tip${refused ? ' is-refused' : ''}">${escapeHTML(host.dataset.tip)}</div>`;
+        const html = `<div class="tooltip-line plain-tip${refused ? ' is-refused' : ''}">${escapeHTML(_t(host.dataset.tip))}</div>`;
         showInfoTooltipHtml(x, y, html, refused ? '#b5654a' : '#a98546');
         shown = true;
     }

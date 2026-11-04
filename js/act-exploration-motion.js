@@ -58,7 +58,8 @@ const actExplorationMotion = (() => {
         for(const cell of [motion.from,motion.to]) {
             if(!cell || !actExplorationMap.walkable(map,cell))throw Error('탐험 이동 경로가 지형 밖입니다.');
         }
-        if(Math.abs(motion.from.gx-motion.to.gx)+Math.abs(motion.from.gy-motion.to.gy)!==1)throw Error('탐험 보행은 인접 칸으로만 가능합니다.');
+        // 전투 밖의 빠른 주인공은 대각선으로도 한 걸음에 간다(js/act-exploration-progress.js walkStep).
+        if(Math.max(Math.abs(motion.from.gx-motion.to.gx),Math.abs(motion.from.gy-motion.to.gy))!==1)throw Error('탐험 보행은 인접 칸으로만 가능합니다.');
         const expected=motion.elapsed<motion.duration/2?motion.from:motion.to;
         if(!same(player,expected))throw Error('탐험 보행 위치와 판정 칸이 일치하지 않습니다.');
     }

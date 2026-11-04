@@ -98,7 +98,7 @@ const talismans = (() => {
         const count = low + Math.floor(random() * (high - low + 1));
         const taken = new Set();
         const lines = Array.from({ length: count }, () => rollLine(rule, taken, random));
-        return { name: `${lineName(lines[0])} 부적`, rarity: count >= 2 ? 'rare' : 'magic', lines };
+        return { name: _t('{lines} 부적', { lines: lineName(lines[0]) }), rarity: count >= 2 ? 'rare' : 'magic', lines };
     }
 
     function uniqueLines(def, random) {
@@ -206,7 +206,7 @@ const talismans = (() => {
 
     function exchange(index, state = game) {
         const row = TALISMAN_SHARD_EXCHANGE[index];
-        if (!row || (state.currencies[row.from] || 0) < row.cost) return { ok: false, reason: '교환할 편린이 부족합니다.' };
+        if (!row || (state.currencies[row.from] || 0) < row.cost) return { ok: false, reason: _t('교환할 편린이 부족합니다.') };
         state.currencies[row.from] -= row.cost;
         state.currencies[row.to] = (state.currencies[row.to] || 0) + 1;
         return { ok: true, row };
@@ -232,9 +232,9 @@ const talismans = (() => {
 
     function wax(id, state = game) {
         const item = talismanItem(state, id), line = waxPreview(item);
-        if (!line) return { ok: false, reason: '밀랍을 바를 수 있는 부적이 아닙니다.' };
-        if (!stumpBox.editable(state)) return { ok: false, reason: '지금은 그루터기 함을 바꿀 수 없습니다.' };
-        if ((state.currencies.beeswax || 0) < 1) return { ok: false, reason: '밀랍이 부족합니다.' };
+        if (!line) return { ok: false, reason: _t('밀랍을 바를 수 있는 부적이 아닙니다.') };
+        if (!stumpBox.editable(state)) return { ok: false, reason: _t('지금은 그루터기 함을 바꿀 수 없습니다.') };
+        if ((state.currencies.beeswax || 0) < 1) return { ok: false, reason: _t('밀랍이 부족합니다.') };
         state.currencies.beeswax -= 1;
         item.lines.push(line);
         item.waxed = true;
@@ -272,7 +272,7 @@ const talismans = (() => {
     const signed = value => `${value < 0 ? '−' : '+'}${round1(Math.abs(value))}`;
     const EFFECT_FORMATS = Object.freeze({
         pct: (label, v) => `${label} ${signed(v)}%`, fraction: (label, v) => `${label} ${signed(v * 100)}%`, count: (label, v) => `${label} +${v}`,
-        flag: label => label, seconds: (label, v) => `${label} ${signed(v)}초`, minus: (label, v) => `${label} −${round1(v)}`,
+        flag: label => label, seconds: (label, v) => _t('{label} {v}초', { label, v: signed(v) }), minus: (label, v) => `${label} −${round1(v)}`,
         mulUp: (label, m) => `${label} +${round1((m - 1) * 100)}%`, mulDown: (label, m) => `${label} −${round1((1 - m) * 100)}%`,
         fractionUp: (label, v) => `${label} +${round1(v * 100)}%p`, fractionDown: (label, v) => `${label} −${round1(v * 100)}%`
     });
@@ -291,14 +291,14 @@ const talismans = (() => {
         const def = conditionPool.get(line.id);
         if (!def.delta) return def.text.replace('{v}', line.value);
         const head = def.kind === 'curse'
-            ? `${TALISMAN_HEX_RULES.intervalMs / 1000}초마다 적 하나에 ${def.name}(위력 ${line.value}%): ${TALISMAN_HEX_RULES.durationMs / 1000}초 동안`
-            : `${TALISMAN_CONDITION_WHEN[def.when]} ${def.name}(위력 ${line.value}%):`;
+            ? _t('{value}초마다 적 하나에 {name}(위력 {value2}%): {value3}초 동안', { value: TALISMAN_HEX_RULES.intervalMs / 1000, name: def.name, value2: line.value, value3: TALISMAN_HEX_RULES.durationMs / 1000 })
+            : _t('{TALISMAN_CONDITION_WHEN} {name}(위력 {value}%):', { TALISMAN_CONDITION_WHEN: TALISMAN_CONDITION_WHEN[def.when], name: def.name, value: line.value });
         return `${head} ${describeDelta(conditionDelta(line))}`;
     }
 
     function describeLine(line) {
         if (line.kind === 'condition') return describeCondition(line);
-        return `${getStatName(line.id)} +${formatValue(line.id, line.value)}${line.wax ? ' (밀랍)' : ''}`;
+        return `${getStatName(line.id)} +${formatValue(line.id, line.value)}${line.wax ? _t(' (밀랍)') : ''}`;
     }
 
     return Object.freeze({ normalizeTalisman, rollNormal, rollUnique, roll, rerollStatLine, rollOtherUnique, fromCosmos, unseal, exchange, wax, waxPreview, turn, describeLine,

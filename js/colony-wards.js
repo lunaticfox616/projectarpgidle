@@ -132,7 +132,7 @@ const colonyWards = (() => {
     function craft(state = game, random = Math.random) {
         if (!unlocked(state)) return '군락지가 열리면 만들 수 있습니다.';
         if (state.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 만들 수 없습니다.';
-        if ((Number(state.currencies.colonyShard) || 0) < R.craftCost) return `군락지 편린이 부족합니다(${R.craftCost}개 필요).`;
+        if ((Number(state.currencies.colonyShard) || 0) < R.craftCost) return _t('군락지 편린이 부족합니다({craftCost}개 필요).', { craftCost: R.craftCost });
         // 가방이 차 있으면 빈 액막이 칸에 바로 끼우고, 칸도 없으면 만들지 않는다: 넘친 액막이는 임시 보관함에 두지 않고(2026-11-03 사용자),
         // 줍기의 넘침 해체가 편린만 돌려주는 일도 없다(2026-10-20: 누를 때마다 편린이 늘었다).
         const item = create(random, 1), roomy = canStoreEquipmentItems([item], state);

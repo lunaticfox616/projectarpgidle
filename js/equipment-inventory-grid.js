@@ -319,14 +319,14 @@
 
     function evaluateMoveInLayout(itemKey, column, row, layout) {
         let entry = layout.entries.find(candidate => candidate.key === itemKey);
-        if (!entry) return { ok: false, reason: '이 장비를 인벤토리에서 찾을 수 없습니다.' };
+        if (!entry) return { ok: false, reason: _t('이 장비를 인벤토리에서 찾을 수 없습니다.') };
         let placement = normalizePlacement({ column, row });
-        if (!placement) return { ok: false, reason: '인벤토리 칸을 벗어났습니다.', entry, layout };
+        if (!placement) return { ok: false, reason: _t('인벤토리 칸을 벗어났습니다.'), entry, layout };
         let occupied = getOccupied(layout, new Set([itemKey]));
         if (canFit(occupied, placement, entry, layout.rows)) return { ok: true, placement, entry, layout };
         const swaps = findSwapInLayout(layout, entry, placement);
         if (swaps) return { ok: true, placement, entry, layout, swaps };
-        return { ok: false, reason: '그 위치에는 장비를 놓을 수 없습니다.', entry, layout };
+        return { ok: false, reason: _t('그 위치에는 장비를 놓을 수 없습니다.'), entry, layout };
     }
 
     function placeInventoryItem(itemKey, column, row, targetGame) {
@@ -342,10 +342,10 @@
         let placement = normalizePlacement({ column, row });
         let footprint = getFootprint(item);
         let entry = { key: getItemKey(item), item, columns: footprint.columns, rows: footprint.rows };
-        if (!placement) return { ok: false, reason: '인벤토리 칸을 벗어났습니다.', entry, layout };
+        if (!placement) return { ok: false, reason: _t('인벤토리 칸을 벗어났습니다.'), entry, layout };
         let occupied = getOccupied(layout, new Set());
         if (!canFit(occupied, placement, footprint, layout.unlockedPageCount * GRID_ROWS_PER_PAGE)) {
-            return { ok: false, reason: '그 위치에는 장비를 놓을 수 없습니다.', entry, layout };
+            return { ok: false, reason: _t('그 위치에는 장비를 놓을 수 없습니다.'), entry, layout };
         }
         return { ok: true, placement, entry, layout };
     }
@@ -359,15 +359,15 @@
         let occupied = getOccupied(layout, new Set());
         let footprint = getFootprint(item);
         let placement = findFirstFit(occupied, footprint, layout.unlockedPageCount * GRID_ROWS_PER_PAGE);
-        return placement ? { ok: true, placement, entry: { key: getItemKey(item), item, ...footprint }, layout } : { ok: false, reason: '인벤토리 공간이 부족합니다.', layout };
+        return placement ? { ok: true, placement, entry: { key: getItemKey(item), item, ...footprint }, layout } : { ok: false, reason: _t('인벤토리 공간이 부족합니다.'), layout };
     }
 
     function restoreTemporaryItem(itemKey, targetGame) {
         let state = targetGame || game;
         ensureState(state);
         let index = state.equipmentTemporaryStorage.findIndex(item => getItemKey(item) === itemKey);
-        if (index < 0) return { ok: false, reason: '임시 보관함에서 장비를 찾을 수 없습니다.' };
-        if (state.woodsmanBuildLock) return { ok: false, reason: '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.' }; // 잠금이 가방을 되돌려 꺼낸 장비가 사라졌다
+        if (index < 0) return { ok: false, reason: _t('임시 보관함에서 장비를 찾을 수 없습니다.') };
+        if (state.woodsmanBuildLock) return { ok: false, reason: _t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.') }; // 잠금이 가방을 되돌려 꺼낸 장비가 사라졌다
         let item = state.equipmentTemporaryStorage[index];
         let placementResult = findAddPlacement(item, state);
         // No single free cell but the bag fits packed with it: in it goes and ensureState packs the bag, as for a pickup (2026-10-19).

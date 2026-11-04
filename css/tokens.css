@@ -20,10 +20,15 @@
   --color-positive-muted: #74c79d;
   /* Galmuri roles: controls 11/12px, reading 14/15px, headings 11 Bold/24px,
      optional metadata 9/10px. Pixel families have no synthetic weights or italics. */
-  --font-pixel: 'Galmuri11', 'Galmuri14', sans-serif;
-  --font-pixel-read: 'Galmuri14', 'Galmuri11', sans-serif;
+  /* 언어별 CJK 보조 글꼴(2026-11-04): Galmuri에 없는 가나·한자는 이 목록이 그린다. html lang(js/i18n.js setLanguage)으로 고르고
+     캔버스는 i18n.fontFamily()로 같은 값을 읽는다. --font-cjk는 자체 도트 글꼴 Fusion Pixel(css/base.css @font-face, docs/i18n.md 글꼴) 뒤에
+     기기 글꼴(--font-cjk-system)을 붙인 목록이고, 글꼴 바꿈 배율(ui-smooth-text)에서는 기기 글꼴만 쓴다. */
+  --font-cjk-system: 'Malgun Gothic', sans-serif;
+  --font-cjk: var(--font-cjk-system);
+  --font-pixel: 'Galmuri11', 'Galmuri14', var(--font-cjk);
+  --font-pixel-read: 'Galmuri14', 'Galmuri11', var(--font-cjk);
   --font-pixel-title: var(--font-pixel);
-  --font-pixel-meta: 'Galmuri9', 'Galmuri11', sans-serif;
+  --font-pixel-meta: 'Galmuri9', 'Galmuri11', var(--font-cjk);
   --font-size-ui: 12px;
   --font-size-reading: 15px;
   --font-size-heading: 24px;
@@ -93,13 +98,31 @@
   --color-shell-muted: #9c9488;
   --image-window-frame: url('../assets/ui/reliquary/window-frame-v1.svg');
   --font-size-chat: 12px;
+  /* CSS가 그리는 짧은 글(::before/::after content). 언어팩이 닿지 않는 곳이라 여기서 언어마다 둔다(docs/i18n.md). */
+  --copy-log-empty: '전투 로그가 여기에 표시됩니다.';
+  --copy-bag-empty: '◇\A보관 중인 장비가 없습니다\A전투와 제작으로 얻은 장비가 여기에 표시됩니다.';
+  --copy-collapse: '접기';
+  --copy-expand: '펼치기';
+  --copy-done-suffix: ' 완성';
+  --copy-combat-log: '전투 로그';
+  --copy-log-short: ' 로그';
+  --copy-complete-prefix: '완료: ';
+  --copy-stall-empty: '0명 구경 중';
 }
+:root:lang(en) { --copy-log-empty: 'The combat log appears here.'; --copy-bag-empty: '◇\ANo equipment stored\AEquipment from battles and crafting appears here.'; --copy-collapse: 'Collapse'; --copy-expand: 'Expand'; --copy-done-suffix: ' done'; --copy-combat-log: 'Combat log'; --copy-log-short: ' Log'; --copy-complete-prefix: 'Done: '; --copy-stall-empty: '0 watching'; }
+:root:lang(ja) { --copy-log-empty: '戦闘ログがここに表示されます。'; --copy-bag-empty: '◇\A保管中の装備はありません\A戦闘と製作で得た装備がここに表示されます。'; --copy-collapse: '折りたたむ'; --copy-expand: '広げる'; --copy-done-suffix: ' 完成'; --copy-combat-log: '戦闘ログ'; --copy-log-short: ' ログ'; --copy-complete-prefix: '完了: '; --copy-stall-empty: '0人が見ています'; }
+:root:lang(zh-CN) { --copy-log-empty: '战斗日志会显示在这里。'; --copy-bag-empty: '◇\A没有保存中的装备\A通过战斗和制作获得的装备会显示在这里。'; --copy-collapse: '收起'; --copy-expand: '展开'; --copy-done-suffix: ' 完成'; --copy-combat-log: '战斗日志'; --copy-log-short: ' 日志'; --copy-complete-prefix: '完成：'; --copy-stall-empty: '0 人在围观'; }
+:root:lang(zh-TW) { --copy-log-empty: '戰鬥紀錄會顯示在這裡。'; --copy-bag-empty: '◇\A沒有保存中的裝備\A透過戰鬥和製作獲得的裝備會顯示在這裡。'; --copy-collapse: '收合'; --copy-expand: '展開'; --copy-done-suffix: ' 完成'; --copy-combat-log: '戰鬥紀錄'; --copy-log-short: ' 紀錄'; --copy-complete-prefix: '完成：'; --copy-stall-empty: '0 人在圍觀'; }
+:root:lang(ja) { --font-cjk-system: 'Yu Gothic UI', 'Meiryo', 'Hiragino Sans', 'Noto Sans CJK JP', 'Noto Sans JP', sans-serif; --font-cjk: 'Fusion Pixel JA', var(--font-cjk-system); }
+:root:lang(zh-CN) { --font-cjk-system: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif; --font-cjk: 'Fusion Pixel Hans', var(--font-cjk-system); }
+:root:lang(zh-TW) { --font-cjk-system: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans CJK TC', 'Noto Sans TC', sans-serif; --font-cjk: 'Fusion Pixel Hant', var(--font-cjk-system); }
 /* 정수배가 아닌 PC 배율(1080p·QHD의 150%)에서는 도트 글꼴이 번져 글자만 일반 글꼴로 바꾼다. js/ui-display.js가 html에 ui-smooth-text를 붙인다(2026-10-27).
    도트 테마의 글꼴 역할은 전부 이 세 토큰을 읽고, body의 Galmuri11은 base.css에 박혀 있어 함께 바꾼다. */
 :root.ui-smooth-text {
-  --font-pixel: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
-  --font-pixel-read: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
-  --font-pixel-meta: 'IBM Plex Sans KR', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  --font-pixel: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', var(--font-cjk);
+  --font-pixel-read: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', var(--font-cjk);
+  --font-pixel-meta: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', var(--font-cjk);
+  --font-cjk: var(--font-cjk-system);
 }
 :root.ui-smooth-text body { font-family: var(--font-pixel); }
 }

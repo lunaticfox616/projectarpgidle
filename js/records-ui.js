@@ -44,10 +44,10 @@
     // 자릿수가 큰 쪽 두 단위까지만 보여준다.
     function formatDuration(ms) {
         let total = Math.max(0, Math.floor(Number(ms) || 0));
-        if (total < MINUTE) return `${Math.floor(total / 1000)}초`;
-        if (total < HOUR) return `${Math.floor(total / MINUTE)}분 ${Math.floor((total % MINUTE) / 1000)}초`;
-        if (total < DAY) return `${Math.floor(total / HOUR)}시간 ${Math.floor((total % HOUR) / MINUTE)}분`;
-        return `${Math.floor(total / DAY)}일 ${Math.floor((total % DAY) / HOUR)}시간`;
+        if (total < MINUTE) return _t('{floor}초', { floor: Math.floor(total / 1000) });
+        if (total < HOUR) return _t('{floor}분 {floor2}초', { floor: Math.floor(total / MINUTE), floor2: Math.floor((total % MINUTE) / 1000) });
+        if (total < DAY) return _t('{floor}시간 {floor2}분', { floor: Math.floor(total / HOUR), floor2: Math.floor((total % HOUR) / MINUTE) });
+        return _t('{floor}일 {floor2}시간', { floor: Math.floor(total / DAY), floor2: Math.floor((total % DAY) / HOUR) });
     }
 
     function formatDate(timestamp) {
@@ -63,7 +63,7 @@
             let zone = getZone(id);
             if (zone && zone.name) return zone.name;
         }
-        return `구역 ${id}`;
+        return _t('구역 {id}', { id });
     }
 
     function statCard(iconKind, label, value, sub, tone) {
@@ -79,29 +79,29 @@
     function renderHeader(view) {
         // 기존 세이브에는 과거 시간 데이터가 없다. 없는 것을 있는 척하지 않고 밝힌다.
         return `<section class="records-section records-header">
-            <div class="records-section-title">진행 중인 루프</div>
+            <div class="records-section-title">${_t('진행 중인 루프')}</div>
             <div class="records-stat-row">
-                ${statCard('', '현재 루프', `루프 ${formatCount(view.currentLoop.loop)}`, '', TONE.loop)}
-                ${statCard('', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), `실제 경과 ${formatDuration(view.currentLoop.elapsedMs)}`, TONE.time)}
+                ${statCard('', '현재 루프', _t('루프 {loop}', { loop: formatCount(view.currentLoop.loop) }), '', TONE.loop)}
+                ${statCard('', '이번 루프 진행', formatDuration(view.currentLoop.activeMs), _t('실제 경과 {elapsedMs}', { elapsedMs: formatDuration(view.currentLoop.elapsedMs) }), TONE.time)}
             </div>
-            <details class="records-time-note"><summary>시간 기록 안내</summary>
-            <p class="records-note">기록 시작 ${escapeHTML(formatDate(view.startedAt))}, ${escapeHTML(formatDuration(view.trackedForMs))} 동안 기록<br>
-            시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 진행 시간은 실제 게임 계산 시간이며, 실제 경과는 자리를 비운 시간도 포함합니다.</p></details>
+            <details class="records-time-note"><summary>${_t('시간 기록 안내')}</summary>
+            <p class="records-note">${_t('기록 시작 {startedAt}, {trackedForMs} 동안 기록', { startedAt: escapeHTML(formatDate(view.startedAt)), trackedForMs: escapeHTML(formatDuration(view.trackedForMs)) })}<br>
+            ${_t('시간 기록은 이 기능이 추가된 시점부터 쌓입니다. 진행 시간은 실제 게임 계산 시간이며, 실제 경과는 자리를 비운 시간도 포함합니다.')}</p></details>
         </section>`;
     }
 
     function renderLoopSection(view) {
         let summary = view.loopSummary;
         let summaryRow = `<div class="records-stat-row">
-            ${statCard('', '완료한 루프', `${formatCount(summary.count)}회`, '기록 시작 이후', TONE.loop)}
-            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '-', summary.fastestLoop ? `루프 ${formatCount(summary.fastestLoop)}, 진행 시간` : '아직 없음', TONE.level)}
+            ${statCard('', '완료한 루프', _t('{count}회', { count: formatCount(summary.count) }), '기록 시작 이후', TONE.loop)}
+            ${statCard('', '최단 루프', summary.fastestMs ? formatDuration(summary.fastestMs) : '-', summary.fastestLoop ? _t('루프 {fastestLoop}, 진행 시간', { fastestLoop: formatCount(summary.fastestLoop) }) : '아직 없음', TONE.level)}
             ${statCard('', '평균 루프', summary.averageMs ? formatDuration(summary.averageMs) : '-', '진행 시간', TONE.time)}
         </div>`;
 
         if (!view.loops.length) {
             return `<section class="records-section records-loop-history">
-                <div class="records-section-title">최근 루프</div>
-                <p class="records-empty">아직 완료한 루프가 없습니다. 루프를 한 번 넘기면 여기에 소요 시간이 남습니다.</p>
+                <div class="records-section-title">${_t('최근 루프')}</div>
+                <p class="records-empty">${_t('아직 완료한 루프가 없습니다. 루프를 한 번 넘기면 여기에 소요 시간이 남습니다.')}</p>
             </section>`;
         }
 
@@ -110,17 +110,17 @@
             <td class="records-num${summary.fastestMs && row.activeMs === summary.fastestMs ? ' is-best' : ''}">${escapeHTML(formatDuration(row.activeMs))}</td>
             <td class="records-num">${escapeHTML(formatDuration(row.durationMs))}</td>
             <td>${escapeHTML(getZoneLabel(row.maxZoneId))}</td>
-            <td class="records-num records-chaos">${row.bestAbyssDepth ? `${formatCount(row.bestAbyssDepth)}층` : '-'}</td>
+            <td class="records-num records-chaos">${row.bestAbyssDepth ? _t('{bestAbyssDepth}층', { bestAbyssDepth: formatCount(row.bestAbyssDepth) }) : '-'}</td>
             <td class="records-num records-level">Lv.${formatCount(row.level)}</td>
             <td class="records-num${row.deaths > 0 ? ' is-deaths' : ''}">${formatCount(row.deaths)}</td>
         </tr>`).join('');
 
         return `<section class="records-section records-loop-history">
-            <div class="records-section-title">최근 루프<span>${formatCount(view.loops.length)}개 보관</span></div>
+            <div class="records-section-title">${_t('최근 루프')}<span>${_t('{length}개 보관', { length: formatCount(view.loops.length) })}</span></div>
             ${summaryRow}
             <div class="records-table-scroll">
                 <table class="records-table">
-                    <thead><tr><th>루프</th><th>진행 시간</th><th>실제 경과</th><th>도달 사냥터</th><th>혼돈 최고</th><th>레벨</th><th>죽음</th></tr></thead>
+                    <thead><tr><th>${_t('루프')}</th><th>${_t('진행 시간')}</th><th>${_t('실제 경과')}</th><th>${_t('도달 사냥터')}</th><th>${_t('혼돈 최고')}</th><th>${_t('레벨')}</th><th>${_t('죽음')}</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>
@@ -135,8 +135,8 @@
         }
         if (!ids.length) {
             return `<section class="records-section">
-                <div class="records-section-title">액트 돌파 기록</div>
-                <p class="records-empty">액트를 돌파하면 루프 진행 시간 기준 기록이 여기에 남습니다.</p>
+                <div class="records-section-title">${_t('액트 돌파 기록')}</div>
+                <p class="records-empty">${_t('액트를 돌파하면 루프 진행 시간 기준 기록이 여기에 남습니다.')}</p>
             </section>`;
         }
         let rows = ids.map(id => {
@@ -150,10 +150,10 @@
             </tr>`;
         }).join('');
         return `<section class="records-section">
-            <div class="records-section-title">액트 돌파 기록<span>루프 진행 시간 기준</span></div>
+            <div class="records-section-title">${_t('액트 돌파 기록')}<span>${_t('루프 진행 시간 기준')}</span></div>
             <div class="records-table-scroll">
                 <table class="records-table">
-                    <thead><tr><th>사냥터</th><th>이번 루프</th><th>최고 기록</th></tr></thead>
+                    <thead><tr><th>${_t('사냥터')}</th><th>${_t('이번 루프')}</th><th>${_t('최고 기록')}</th></tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
             </div>
@@ -170,12 +170,12 @@
             }).join('');
         if (!cards) {
             return `<section class="records-section">
-                <div class="records-section-title">최고 도달</div>
-                <p class="records-empty">아직 기록된 도달 지점이 없습니다.</p>
+                <div class="records-section-title">${_t('최고 도달')}</div>
+                <p class="records-empty">${_t('아직 기록된 도달 지점이 없습니다.')}</p>
             </section>`;
         }
         return `<section class="records-section">
-            <div class="records-section-title">최고 진행<span>루프를 넘겨도 유지됩니다, 층수는 개방 기준</span></div>
+            <div class="records-section-title">${_t('최고 진행')}<span>${_t('루프를 넘겨도 유지됩니다, 층수는 개방 기준')}</span></div>
             <div class="records-stat-row">${cards}</div>
         </section>`;
     }
@@ -184,10 +184,10 @@
     function renderIncidentSection(view) {
         let cards = view.incidents.map(row => (row.hidden && !row.count
             ? statCard('', '???', '-', '숨은 사건', INCIDENT_TONE.unknown)
-            : statCard('', row.name, `${formatCount(row.count)}회`, row.hidden ? '숨은 사건' : '', INCIDENT_TONE[row.key]))).join('');
+            : statCard('', row.name, _t('{count}회', { count: formatCount(row.count) }), row.hidden ? '숨은 사건' : '', INCIDENT_TONE[row.key]))).join('');
         const hidden = view.incidents.filter(row => row.hidden), found = hidden.filter(row => row.count > 0).length; // 찾은 숨은 사건 수
         return `<section class="records-section">
-            <div class="records-section-title">잔잔한 사건<span>사냥 중에 드물게 일어나는 일, 루프를 넘겨도 유지됩니다. 숨은 사건 ${found}/${hidden.length}</span></div>
+            <div class="records-section-title">${_t('잔잔한 사건')}<span>${_t('사냥 중에 드물게 일어나는 일, 루프를 넘겨도 유지됩니다. 숨은 사건 {found}/{length}', { found, length: hidden.length })}</span></div>
             <div class="records-stat-row">${cards}</div>
         </section>`;
     }
@@ -196,14 +196,14 @@
         let echo = view.echo;
         if (!echo.runs) return '';
         const recent = echo.last ? statCard('attack', '최근 DPS', formatCount(echo.last.dps),
-            echo.changePct === null ? `${echo.last.seconds % 1 < 0.05 ? Math.round(echo.last.seconds) : echo.last.seconds.toFixed(1)}초 측정` : `이전 대비 ${echo.changePct >= 0 ? '+' : ''}${echo.changePct.toFixed(1)}%`, TONE.damage) : '';
+            echo.changePct === null ? _t('{value}초 측정', { value: echo.last.seconds % 1 < 0.05 ? Math.round(echo.last.seconds) : echo.last.seconds.toFixed(1) }) : _t('이전 대비 {value}{changePct}%', { value: echo.changePct >= 0 ? '+' : '', changePct: echo.changePct.toFixed(1) }), TONE.damage) : '';
         return `<section class="records-section">
-            <div class="records-section-title">나무꾼의 잔상<span>30초 허수아비 측정</span></div>
+            <div class="records-section-title">${_t('나무꾼의 잔상')}<span>${_t('30초 허수아비 측정')}</span></div>
             <div class="records-stat-row">
                 ${recent}
                 ${statCard('attack', '최고 DPS', formatCount(echo.bestDps), '', TONE.damage)}
                 ${statCard('attack', '최고 총 피해', formatCount(echo.bestDamage), '', TONE.damage)}
-                ${statCard('', '측정 횟수', `${formatCount(echo.runs)}회`, `마지막 ${formatDate(echo.lastAt)}`, TONE.time)}
+                ${statCard('', '측정 횟수', _t('{runs}회', { runs: formatCount(echo.runs) }), _t('마지막 {lastAt}', { lastAt: formatDate(echo.lastAt) }), TONE.time)}
             </div>
         </section>`;
     }

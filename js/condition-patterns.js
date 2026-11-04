@@ -23,10 +23,10 @@ function getConditionPatternRequirementLabel(requirement) {
     if (!requirement) return '기본 해금';
     if (requirement.journal) {
         let entry = typeof JOURNAL_DB !== 'undefined' ? JOURNAL_DB[requirement.journal] : null;
-        return `${entry ? entry.title : requirement.journal} 기록`;
+        return _t('{value} 기록', { value: entry ? entry.title : requirement.journal });
     }
-    if (requirement.act) return `액트 ${requirement.act} 완료`;
-    return `루프 ${requirement.loop}`;
+    if (requirement.act) return _t('액트 {act} 완료', { act: requirement.act });
+    return _t('루프 {loop}', { loop: requirement.loop });
 }
 
 function getConditionPatternTriggers(state, includeLocked) {
@@ -61,19 +61,19 @@ function formatConditionPatternTriggerSummary(rule) {
     let trigger = CONDITION_PATTERN_TRIGGER_DB.find(row => row.id === normalized.triggerType);
     if (!trigger) return '조건 충족';
     let value = Math.max(0, Number(normalized.triggerValue) || 0);
-    if (trigger.id === 'hp_below') return `생명력 ${value}% 이하`;
-    if (trigger.id === 'hp_above') return `생명력 ${value}% 이상`;
-    if (trigger.id === 'es_below') return `보호막 ${value}% 이하`;
-    if (trigger.id === 'es_above') return `보호막 ${value}% 이상`;
-    if (trigger.id === 'enemy_many') return `적 ${value}마리 이상`;
-    if (trigger.id === 'enemy_few') return `적 ${value}마리 이하`;
-    if (trigger.id === 'distance_at_least') return `가장 가까운 적 ${value}칸 이상`;
-    if (trigger.id === 'distance_at_most') return `가장 가까운 적 ${value}칸 이하`;
-    if (trigger.id === 'recently_hit') return `최근 ${value}초 이내 피격`;
-    if (trigger.id === 'boss_hp_below') return `보스 생명력 ${value}% 이하`;
+    if (trigger.id === 'hp_below') return _t('생명력 {value}% 이하', { value });
+    if (trigger.id === 'hp_above') return _t('생명력 {value}% 이상', { value });
+    if (trigger.id === 'es_below') return _t('보호막 {value}% 이하', { value });
+    if (trigger.id === 'es_above') return _t('보호막 {value}% 이상', { value });
+    if (trigger.id === 'enemy_many') return _t('적 {value}마리 이상', { value });
+    if (trigger.id === 'enemy_few') return _t('적 {value}마리 이하', { value });
+    if (trigger.id === 'distance_at_least') return _t('가장 가까운 적 {value}칸 이상', { value });
+    if (trigger.id === 'distance_at_most') return _t('가장 가까운 적 {value}칸 이하', { value });
+    if (trigger.id === 'recently_hit') return _t('최근 {value}초 이내 피격', { value });
+    if (trigger.id === 'boss_hp_below') return _t('보스 생명력 {value}% 이하', { value });
     if (trigger.id === 'ailment_active') {
         let labels = { any:'상태이상', ignite:'점화', chill:'냉각', freeze:'동결', shock:'감전', poison:'중독', bleed:'출혈' };
-        return `${labels[normalized.ailmentType] || normalized.ailmentType} 보유`;
+        return _t('{labels} 보유', { labels: labels[normalized.ailmentType] || normalized.ailmentType });
     }
     return trigger.label;
 }

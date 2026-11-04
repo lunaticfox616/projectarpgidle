@@ -7,7 +7,7 @@ const chaosInfusionUi = (() => {
     function actionHtml(item, slot) {
         if (!item || !isChaosInfuserUnlocked() || (item.rarity !== 'rare' && !item.chaosInfusion)) return '';
         const ref = slot ? `'${slot}',true` : `${item.id},false`;
-        return `<button type="button" data-content-action="infuse" onclick="equipmentInventoryInteraction.focus(null);chaosInfusionUi.open(${ref})"><span class="px-center">주입</span></button>`;
+        return `<button type="button" data-content-action="infuse" onclick="equipmentInventoryInteraction.focus(null);chaosInfusionUi.open(${ref})"><span class="px-center">${_t('주입')}</span></button>`;
     }
 
     function open(ref, isEquip) {
@@ -19,15 +19,15 @@ const chaosInfusionUi = (() => {
     }
 
     function infusionText(infusion) {
-        return `${infusion.statName || getStatName(infusion.id)} +${formatValue(infusion.id, infusion.val)}`;
+        return `${_t(infusion.statName || getStatName(infusion.id))} +${formatValue(infusion.id, infusion.val)}`;
     }
 
     function currentHtml(item) {
         const infusion = item.chaosInfusion;
         if (!infusion) return '<p class="chaos-infusion-current">현재 주입 없음</p>';
         const range = `${formatValue(infusion.id, infusion.valMin)}~${formatValue(infusion.id, infusion.valMax)}`;
-        return `<p class="chaos-infusion-current">현재 주입: <strong>${infusionText(infusion)}</strong> <small>(${range})</small>
-            <button type="button" onclick="chaosInfusionUi.remove()" ${(game.currencies.blightSpore || 0) > 0 ? '' : 'disabled'}>제거 (마름병 포자 1)</button></p>`;
+        return `<p class="chaos-infusion-current">${_t('현재 주입:')} <strong>${infusionText(infusion)}</strong> <small>(${range})</small>
+            <button type="button" onclick="chaosInfusionUi.remove()" ${(game.currencies.blightSpore || 0) > 0 ? '' : 'disabled'}>${_t('제거 (마름병 포자 1)')}</button></p>`;
     }
 
     function optionHtml(item, option) {
@@ -36,7 +36,7 @@ const chaosInfusionUi = (() => {
         const same = item.chaosInfusion && (item.chaosInfusion.sourceOptionId === key || item.chaosInfusion.id === option.id);
         const range = `${formatValue(option.id, option.min)}~${formatValue(option.id, option.max)}`;
         return `<button type="button" class="selection-overlay-option" onclick="chaosInfusionUi.choose('${key}')" ${canPayCurrencyCosts(costs) && !same ? '' : 'disabled'}>
-            ${option.label || getStatName(option.id)} +${range}<br><span>${same ? '적용 중' : formatCurrencyCosts(costs)}</span></button>`;
+            ${_t(option.label) || getStatName(option.id)} +${range}<br><span>${same ? _t('적용 중') : formatCurrencyCosts(costs)}</span></button>`;
     }
 
     function optionsHtml(item) {
@@ -51,8 +51,8 @@ const chaosInfusionUi = (() => {
     function render() {
         const item = getSelectedCraftItem();
         if (!item) return close();
-        selectionDialog.show({ id: OVERLAY_ID, title: '혼돈 주입', panelClass: 'chaos-infusion-panel', body: `<div class="selection-overlay-help"><strong>[${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}</strong><br>
-                희귀 장비에 T5급 범위 옵션 한 줄을 더합니다. 추가 옵션 ${getItemExplicitOptionCount(item)}/6. 교체와 제거에는 마름병 포자 1개가 더 듭니다.</div>
+        selectionDialog.show({ id: OVERLAY_ID, title: _t('혼돈 주입'), panelClass: 'chaos-infusion-panel', body: `<div class="selection-overlay-help"><strong>[${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(getItemDisplayName(item))}</strong><br>
+                ${_t('희귀 장비에 T5급 범위 옵션 한 줄을 더합니다. 추가 옵션 {item}/6. 교체와 제거에는 마름병 포자 1개가 더 듭니다.', { item: getItemExplicitOptionCount(item) })}</div>
             ${currentHtml(item)}${optionsHtml(item)}` });
     }
 
@@ -63,10 +63,10 @@ const chaosInfusionUi = (() => {
         if (!option) return;
         const previous = JSON.stringify(item.chaosInfusion);
         const next = `${getStatName(option.id)} +${formatValue(option.id, option.min)}~${formatValue(option.id, option.max)}`;
-        const message = `[${item.name}]\n현재: ${item.chaosInfusion ? infusionText(item.chaosInfusion) : '주입 없음'}\n변경: ${next}\n\n비용: ${formatCurrencyCosts(getChaosInfusionCost(option, item))}`;
-        if (!await requestGameConfirmation(message, { title: '혼돈 주입 비교', confirmLabel: '주입 확정' })) return;
+        const message = `[${item.name}]\n현재: ${item.chaosInfusion ? infusionText(item.chaosInfusion) : _t('주입 없음')}\n변경: ${next}\n\n비용: ${formatCurrencyCosts(getChaosInfusionCost(option, item))}`;
+        if (!await requestGameConfirmation(message, { title: _t('혼돈 주입 비교'), confirmLabel: _t('주입 확정') })) return;
         if (getSelectedCraftItem() !== item || JSON.stringify(item.chaosInfusion) !== previous) {
-            addLog('대상 또는 주입 옵션이 변경되었습니다. 다시 비교하세요.', 'attack-monster');
+            addLog(_t('대상 또는 주입 옵션이 변경되었습니다. 다시 비교하세요.'), 'attack-monster');
         } else applyChaosInfusionToSelectedItem(optionId);
         if (selectionDialog.isOpen(OVERLAY_ID)) render();
     }

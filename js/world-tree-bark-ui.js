@@ -4,17 +4,17 @@ const worldTreeBarkUi = (() => {
     const esc = value => escapeHTML(String(value ?? ''));
     const statTones = () => ({ damage: getItemStatToneColor('pctDmg'), taken: getItemStatToneColor('dr'), move: getItemStatToneColor('move'), reach: '#9fd46a' });
     const barkStepsNow = () => getWorldTreeBarkLayers(game.season);
-    const barkFixedText = count => `최대 생명력 +${count * WORLD_TREE_BARK.pctHp}%, 받는 피해 -${count * WORLD_TREE_BARK.taken}%`;
+    const barkFixedText = count => _t('최대 생명력 +{value}%, 받는 피해 -{value2}%', { value: count * WORLD_TREE_BARK.pctHp, value2: count * WORLD_TREE_BARK.taken });
     const pointsIn = key => Math.max(0, Math.floor(Number(game.worldTreeBark[key]) || 0));
     /** Where the bark zone reaches, in the map's own words. */
     function barkReachText(zones) {
         const acts = WORLD_TREE_BARK.points.actTenZoneId + 1;
-        return zones <= acts ? `액트 1~${zones}` : `액트 전체, 혼돈 1~${zones - acts}`;
+        return zones <= acts ? _t('액트 1~{zones}', { zones }) : _t('액트 전체, 혼돈 1~{value}', { value: zones - acts });
     }
     /** What the points in one stat give now. */
     function barkStatValueText(def) {
         const total = pointsIn(def.key) * def.per;
-        if (def.key === 'damage') return `${(1 + total / 100).toFixed(1)}배`;
+        if (def.key === 'damage') return _t('{value}배', { value: (1 + total / 100).toFixed(1) });
         if (def.key === 'taken') return total ? `-${total}%` : '없음';
         if (def.key === 'move') return total ? `+${total}%` : '없음';
         return barkReachText(getWorldTreeBarkReach(game));
@@ -35,17 +35,17 @@ const worldTreeBarkUi = (() => {
             const state = id >= reach ? 'is-off' : (id < done ? 'is-cleared' : 'is-on');
             return `<i class="${state}${id === acts ? ' is-chaos-start' : ''}"></i>`;
         }).join('');
-        return `<div class="bark-route"><span>껍질 구간</span><b>${esc(barkReachText(reach))}</b><div class="bark-route-ticks" aria-hidden="true">${ticks}</div></div>`;
+        return `<div class="bark-route"><span>${_t('껍질 구간')}</span><b>${esc(barkReachText(reach))}</b><div class="bark-route-ticks" aria-hidden="true">${ticks}</div></div>`;
     }
     function barkStatCardHtml(def, free, tones) {
         const now = pointsIn(def.key), full = def.max !== null && now >= def.max;
         const button = (label, delta, off) => `<button type="button" onclick="worldTreeBarkUi.moveBarkPoints('${def.key}',${delta})"${off ? ' disabled' : ''}>${label}</button>`;
-        return `<article class="bark-stat" style="--stat-tone:${tones[def.key]}"><strong>${esc(def.label)}</strong><b>${esc(barkStatValueText(def))}</b><small>${perPointText[def.key]}, ${now}점</small>`
+        return `<article class="bark-stat" style="--stat-tone:${tones[def.key]}"><strong>${esc(_t(def.label))}</strong><b>${esc(barkStatValueText(def))}</b><small>${_t('{perPointText}, {now}점', { perPointText: perPointText[def.key], now })}</small>`
             + `<div class="bark-stat-buttons">${button('-5', -5, !now)}${button('-1', -1, !now)}${button('+1', 1, !free || full)}${button('+5', 5, !free || full)}</div></article>`;
     }
     function barkAllocateHtml() {
         const { free } = worldTreeBark.barkPoints(game), tones = statTones();
-        return `<div class="bark-allocate-head"><span>남은 껍질 포인트</span><b>${free}</b><button type="button" onclick="worldTreeBarkUi.resetBarkAllocation()">다시 나누기</button></div>`
+        return `<div class="bark-allocate-head"><span>${_t('남은 껍질 포인트')}</span><b>${free}</b><button type="button" onclick="worldTreeBarkUi.resetBarkAllocation()">${_t('다시 나누기')}</button></div>`
             + `${barkRouteHtml()}<div class="bark-stats">${WORLD_TREE_BARK.stats.map(def => barkStatCardHtml(def, free, tones)).join('')}</div>`;
     }
     /** Where the points come from, with the goals still open. */
@@ -53,10 +53,10 @@ const worldTreeBarkUi = (() => {
         const rule = WORLD_TREE_BARK.points, journal = game.journalEntries || [];
         const kills = PINNACLE_FIRST_KILL_JOURNALS.filter(id => journal.includes(id)).length, have = game.worldTreeBark.timeGoals || [];
         const best = Math.floor(Number(((game.records || {}).actBest || {})[rule.actTenZoneId]) || 0);
-        const goals = rule.actTenMinutes.map(goal => `<i class="${have.includes(goal) ? 'is-on' : ''}">${goal}분</i>`).join('');
-        return `<ul class="bark-sources"><li><span>루프</span><b>+${rule.start + (game.season - rule.startLoop) * rule.perLoop}</b></li>`
-            + `<li><span>정점 보스 첫 처치 ${kills}/${PINNACLE_FIRST_KILL_JOURNALS.length}</span><b>+${kills * rule.pinnacle}</b></li>`
-            + `<li><span>액트 10 돌파 시간${best ? `, 최고 ${esc(formatRecordDuration(best))}` : ''}</span><em>${goals}</em><b>+${have.length * rule.actTenGoal}</b></li></ul>`;
+        const goals = rule.actTenMinutes.map(goal => `<i class="${have.includes(goal) ? 'is-on' : ''}">${_t('{goal}분', { goal })}</i>`).join('');
+        return `<ul class="bark-sources"><li><span>${_t('루프')}</span><b>+${rule.start + (game.season - rule.startLoop) * rule.perLoop}</b></li>`
+            + `<li><span>${_t('정점 보스 첫 처치 {kills}/{length}', { kills, length: PINNACLE_FIRST_KILL_JOURNALS.length })}</span><b>+${kills * rule.pinnacle}</b></li>`
+            + `<li><span>액트 10 돌파 시간${best ? _t(', 최고 {best}', { best: esc(formatRecordDuration(best)) }) : ''}</span><em>${goals}</em><b>+${have.length * rule.actTenGoal}</b></li></ul>`;
     }
     function renderBarkPanel() {
         const section = document.getElementById('world-tree-bark-section'), panel = document.getElementById('world-tree-bark-panel');
@@ -64,11 +64,11 @@ const worldTreeBarkUi = (() => {
         const count = barkStepsNow(), next = WORLD_TREE_BARK.loops[count];
         section.style.display = count ? 'block' : 'none';
         if (!count) return;
-        updateGamePanelMarkup(panel, `<div class="bark-head">${barkRingsHtml(count)}<div class="bark-head-copy"><b>${count}단계</b><span>${barkFixedText(count)}</span>${next ? `<small>다음 단계 루프 ${next}</small>` : ''}</div></div>`
+        updateGamePanelMarkup(panel, `<div class="bark-head">${barkRingsHtml(count)}<div class="bark-head-copy"><b>${_t('{count}단계', { count })}</b><span>${barkFixedText(count)}</span>${next ? `<small>${_t('다음 단계 루프 {next}', { next })}</small>` : ''}</div></div>`
             + `${barkAllocateHtml()}${barkSourcesHtml()}`);
     }
     function drawBarkDialog() {
-        selectionDialog.show({ id: DIALOG, title: '세계수 껍질', panelClass: 'bark-dialog', body: barkAllocateHtml() });
+        selectionDialog.show({ id: DIALOG, title: _t('세계수 껍질'), panelClass: 'bark-dialog', body: barkAllocateHtml() });
     }
     const barkDialogOpen = () => !!document.getElementById(DIALOG);
     function refreshBarkScreens() {
@@ -100,13 +100,13 @@ const worldTreeBarkUi = (() => {
         const count = barkStepsNow();
         if (!count) return '';
         const { free } = worldTreeBark.barkPoints(game);
-        return `<div class="loop-settlement-bark"><p>세계수 껍질 ${count}단계: ${barkFixedText(count)}</p>${free ? `<span>남은 껍질 포인트 ${free}</span>` : ''}<button type="button" onclick="worldTreeBarkUi.openBarkDialog()">껍질 포인트 나누기</button></div>`;
+        return `<div class="loop-settlement-bark"><p>${_t('세계수 껍질 {count}단계: {count2}', { count, count2: barkFixedText(count) })}</p>${free ? `<span>${_t('남은 껍질 포인트 {free}', { free })}</span>` : ''}<button type="button" onclick="worldTreeBarkUi.openBarkDialog()">${_t('껍질 포인트 나누기')}</button></div>`;
     }
     /** The map's mark on a zone the bark effect would hold in. */
     const barkMapChipHtml = zone => (isWorldTreeBarkZone(zone) ? '<span class="map-bark-chip">껍질 구간</span>' : '');
     window.addEventListener('project-idle:bark-points', event => {
         const { gain, why } = event.detail || {};
-        if (barkStepsNow()) addLog(`🌿 껍질 포인트 +${gain}: ${why}`, 'season-up', { toast: true });
+        if (barkStepsNow()) addLog(_t('🌿 껍질 포인트 +{gain}: {why}', { gain, why }), 'season-up', { toast: true });
     });
     return Object.freeze({ renderBarkPanel, openBarkDialog, moveBarkPoints, resetBarkAllocation, barkSettlementHtml, barkMapChipHtml, barkDialogOpen });
 })();

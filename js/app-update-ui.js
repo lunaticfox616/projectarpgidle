@@ -22,7 +22,7 @@
     function reloadSavedGame(notice) {
         const message = notice.querySelector('span');
         if (getLocalSaveStatus().status === 'uninitialized') {
-            message.textContent = '저장 데이터를 불러오는 중입니다. 잠시 후 다시 눌러 주세요.';
+            message.textContent = _t('저장 데이터를 불러오는 중입니다. 잠시 후 다시 눌러 주세요.');
             return;
         }
         try {

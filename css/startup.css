@@ -63,6 +63,19 @@
   min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; transform: none; box-shadow: none;
 }
 #startup-overlay .startup-summary-label { color: var(--entry-muted); font-size: var(--font-size-ui); letter-spacing: .03em; }
+/* 오른쪽 위 톱니와 음표(2026-11-04 사용자): 테 없는 아이콘 단추, 11도트 아이콘을 2배로. 음표는 소리가 꺼지면 빗금 친 모양 */
+#startup-overlay .startup-corner-tools { position: fixed; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); z-index: 2; display: flex; gap: 4px; }
+#startup-overlay .startup-tool { display: grid; place-items: center; width: 40px; height: 40px; margin: 0; padding: 0; border: 0; border-radius: 0;
+  background: none; box-shadow: none; color: var(--entry-gold); cursor: pointer; filter: drop-shadow(0 2px 4px rgba(0,0,0,.8)); }
+#startup-overlay .startup-tool:is(:hover, :focus-visible) { color: #fff3d4; outline: 0; }
+#startup-overlay .startup-tool:focus-visible { box-shadow: 0 0 0 1px var(--entry-gold); }
+#startup-overlay .startup-tool[aria-pressed="true"] { color: #fff3d4; }
+#startup-overlay .startup-tool-icon { display: block; width: 22px; height: 22px; }
+#startup-overlay .startup-tool-icon .m { fill: currentColor; }
+#startup-overlay .startup-tool-icon .x { fill: #d8634d; }
+#startup-overlay .startup-tool .is-off, #startup-overlay .startup-tool.is-muted .is-on { display: none; }
+#startup-overlay .startup-tool.is-muted .is-off { display: block; }
+#startup-overlay .startup-tool.is-muted { color: var(--entry-muted); }
 #startup-overlay .startup-summary-value { margin-top: 4px; color: var(--entry-copy); font-size: 12px; font-weight: 400; line-height: 1.5; }
 #startup-overlay .startup-patch-note-link {
   min-height: 30px; margin: 0; padding: 4px 0 4px 12px; border: 0; border-radius: 0;

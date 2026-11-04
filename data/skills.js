@@ -361,6 +361,34 @@ const WEAPON_CONDITION_STATS = Object.freeze(Object.fromEntries(Object.keys(SKIL
     .flatMap(stance => WEAPON_CONDITION_BASE_STATS.map(stat => [`${stance}${stat[0].toUpperCase()}${stat.slice(1)}`, Object.freeze({ stance, stat })]))));
 safeExposeData({ SKILL_RUNE_WEAPONS, SKILL_RUNE_FAMILY, SKILL_RUNE_STANCE_BY_CATEGORY, SKILL_RUNE_STANCE_LABELS, SKILL_RUNE_WEAPON_NOTES, WEAPON_CONDITION_STATS });
 
+/** 보조스킬룬 그림판의 칸 순서(assets/ui/support-rune-icons-32.png와 -64.png, 10열 6행, 전달본 support-001부터). 방패 공명은 없앤 룬이지만
+ * 그림판의 자리를 지킨다. 룬 화면(js/support-gem-sigil-ui.js)과 액트 보상 창(js/passives.js actRewardChoiceLook)이 함께 쓴다. */
+const SUPPORT_RUNE_ART_ORDER = Object.freeze([
+    '근접 물리 피해', '투사체 강화', '원소 집중', '범위 피해', '지속 확산', '화염 주입', '냉기 증폭', '번개 전도', '혼돈 전환', '화염 공명',
+    '냉기 공명', '번개 공명', '혼돈 공명', '카오스 잠식', '분쇄의 일격', '비전 증폭', '방패 공명', '지뢰 증폭', '연금 촉매', '기동 타격',
+    '집중 유지', '소환수 피해 증폭', '소환수 생명력', '가속', '날카로움', '무자비', '연속타격', '생명력 흡수', '갑주 파쇄', '저항 침식',
+    '재생 억제', '정밀 하한', '과충전 상한', '잔향', '소환수 가속', '소환수 예리함', '소환수 무자비', '화염 변환', '냉기 변환', '번개 변환',
+    '카오스 변환', '이중 발동', '이중 시전', '갈래 투사체', '연쇄 투사체', '휩쓸기', '꿰뚫기', '넓은 판정', '밀어내기', '투척',
+    '지뢰 설치', '강타화', '잔불', '유지 시전', '분산', '집속', '불붙이기', '터지는 시체', '처형', '증원'
+]);
+/** 능력치 → 계열 색(css/gem-loadout.css .is-tone-*): 보조스킬룬과 액트 보상 능력치가 함께 쓴다. */
+const STAT_TONES = Object.freeze({
+    aspd: 'speed', move: 'speed', ds: 'speed', crit: 'crit', critDmg: 'crit',
+    meleePctDmg: 'phys', projectilePctDmg: 'phys', aoePctDmg: 'phys', slamPctDmg: 'phys', shieldPctDmg: 'phys', mobilityPctDmg: 'phys', physIgnore: 'phys', minDmgRoll: 'phys', maxDmgRoll: 'phys',
+    elementalPctDmg: 'elemental', resPen: 'elemental', firePctDmg: 'fire', coldPctDmg: 'cold', lightPctDmg: 'lightning', chaosPctDmg: 'chaos',
+    resF: 'fire', resC: 'cold', resL: 'lightning', resChaos: 'chaos', dotPctDmg: 'chaos', chaosErosion: 'chaos', regenSuppress: 'chaos',
+    leech: 'life', regen: 'life', dr: 'guard', summonPctDmg: 'summon', summonAspd: 'summon', summonCrit: 'summon', summonCritDmg: 'summon', summonHpPct: 'summon', summonGuardRedirectPct: 'summon',
+    echoPower: 'arcane', spellFlatPct: 'arcane', channelingPctDmg: 'arcane', minePctDmg: 'fire', potionPctDmg: 'life',
+    resAll: 'elemental', pctHp: 'life', gemLevel: 'arcane', suppCap: 'arcane'
+});
+/** 체감형 보조스킬룬은 stat이 아니라 동작으로 색을 고른다. */
+const SUPPORT_RUNE_BEHAVIOR_TONES = Object.freeze({
+    '화염 변환': 'fire', '냉기 변환': 'cold', '번개 변환': 'lightning', '카오스 변환': 'chaos', '이중 발동': 'phys', '이중 시전': 'arcane', '갈래 투사체': 'phys', '연쇄 투사체': 'lightning',
+    '휩쓸기': 'phys', '꿰뚫기': 'crit', '넓은 판정': 'arcane', '밀어내기': 'guard', '투척': 'speed', '지뢰 설치': 'arcane', '강타화': 'crit', '잔불': 'fire',
+    '유지 시전': 'speed', '분산': 'arcane', '집속': 'crit', '불붙이기': 'life', '터지는 시체': 'chaos', '처형': 'crit', '증원': 'summon'
+});
+safeExposeData({ SUPPORT_RUNE_ART_ORDER, STAT_TONES, SUPPORT_RUNE_BEHAVIOR_TONES });
+
 
 // signature 스킬은 전용 이미지 프레임을 재생한다. 모든 액티브 룬을 명시하여 누락을 검사한다.
 const SKILL_GEM_VFX_PROFILES = Object.freeze({

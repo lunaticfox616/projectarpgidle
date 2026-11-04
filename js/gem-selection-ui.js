@@ -22,16 +22,17 @@
 
     function application(name, stats, replaced) {
         const roles = [...new Set(targetRows(name, replaced).filter(row => row.status === 'on').map(row => TARGET_LABELS[row.role]))];
-        return roles.length ? `적용: ${roles.join(', ')}` : '맞는 스킬 없음';
+        return roles.length ? _t('적용: {roles}', { roles: roles.join(', ') }) : '맞는 스킬 없음';
     }
 
     function indicators(name, replaced) {
         const rows = targetRows(name, replaced);
-        return '<span class="support-targets" aria-label="스킬별 적용">' + Object.entries(TARGET_LABELS).map(([role, label]) => {
+        return '<span class="support-targets" aria-label="' + _t('스킬별 적용') + '">' + Object.entries(TARGET_LABELS).map(([role, rawLabel]) => {
+            const label = _t(rawLabel);
             const group = rows.filter(row => row.role === role);
             const status = ['on', 'na', 'off', 'buff', 'empty'].find(key => group.some(row => row.status === key)) || 'empty';
-            const text = group.map(row => `${row.name || label}: ${row.reason || TARGET_STATES[row.status]}`).join(', ') || TARGET_STATES.empty;
-            return `<span class="support-target is-${status}" data-tip="${escapeHTML(text)}" aria-label="${label}: ${escapeHTML(text)}"><i aria-hidden="true"></i>${label === '주 공격' ? '주' : label.slice(0, 1)}</span>`;
+            const text = group.map(row => `${row.name ? _t(row.name) : label}: ${row.reason || _t(TARGET_STATES[row.status])}`).join(', ') || _t(TARGET_STATES.empty);
+            return `<span class="support-target is-${status}" data-tip="${escapeHTML(text)}" aria-label="${label}: ${escapeHTML(text)}"><i aria-hidden="true"></i>${label === '주 공격' ? _t('주') : label.slice(0, 1)}</span>`;
         }).join('') + '</span>';
     }
 
@@ -40,13 +41,13 @@
         if (def.tierValues) return window.GameModules.skills.supports.describe(name, tier, game);
         const info = getUiGemPresentation(name, true, stats);
         const value = info.value / getSupportTierMultiplier(name, getSupportActiveTier(name)) * getSupportTierMultiplier(name, tier);
-        return `${info.statName} +${formatSupportGemEffectValue(value)}${def.isPct ? '%' : ''}`;
+        return `${_t(info.statName)} +${formatSupportGemEffectValue(value)}${def.isPct ? '%' : ''}`;
     }
 
     function targetDetails(name, stats, replaced) {
         const effect = effectText(name, getSupportActiveTier(name), stats);
         return `<div class="support-target-details">${targetRows(name, replaced).map(row =>
-            `<p class="is-${row.status}"><b>${TARGET_LABELS[row.role]}${row.name ? ` · ${escapeHTML(row.name)}` : ''}</b><span>${escapeHTML(row.status === 'on' ? effect : (row.reason || TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
+            `<p class="is-${row.status}"><b>${_t(TARGET_LABELS[row.role])}${row.name ? ` · ${escapeHTML(_t(row.name))}` : ''}</b><span>${escapeHTML(row.status === 'on' ? effect : (row.reason || TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
     }
 
     function summonEffect(name, stats) {
@@ -56,11 +57,11 @@
             const steps = getGemLevelGrowthSteps(info.finalLevel);
             const rows = def.aura.stats.slice();
             if (def.aura.flatStat) rows.unshift({ stat: def.aura.flatStat, base: def.aura.flatBase, scale: def.aura.flatScale });
-            return rows.map(row => `${getStatName(row.stat).replace(/\(%\)$/, '')} +${formatSupportGemEffectValue(row.base + steps * row.scale)}${P_STATS[row.stat]?.isPct ? '%' : ''}`).join(', ');
+            return rows.map(row => `${_t(getStatName(row.stat)).replace(/\(%\)$/, '')} +${formatSupportGemEffectValue(row.base + steps * row.scale)}${P_STATS[row.stat]?.isPct ? '%' : ''}`).join(', ');
         }
         if (def.tags.includes('summon_guard')) {
             const preview = getSummonTooltipPreview(name, stats);
-            return `생명력 ${Math.floor(preview.maxHp).toLocaleString()}, 적중 피해 ${preview.redirectPct}% 대신 받음`;
+            return _t('생명력 {floor}, 적중 피해 {redirectPct}% 대신 받음', { floor: Math.floor(preview.maxHp).toLocaleString(), redirectPct: preview.redirectPct });
         }
         return '';
     }
@@ -68,13 +69,13 @@
     function skillSummary(role, name, stats) {
         const key = role === 'active' ? 'main' : role;
         const rows = game.equippedSupports.filter(support => targetRows(support).some(row => row.role === key && row.name === name && row.status === 'on'));
-        return `<div class="support-skill-summary"><b>${escapeHTML(name || TARGET_LABELS[key])}: 적용 보조 ${rows.length}개</b><span>${rows.map(support => escapeHTML(effectText(support, getSupportActiveTier(support), stats))).join(', ') || '현재 적용되는 보조 효과가 없습니다.'}</span></div>`;
+        return `<div class="support-skill-summary"><b>${_t('{name}: 적용 보조 {length}개', { name: escapeHTML(_t(name || TARGET_LABELS[key])), length: rows.length })}</b><span>${rows.map(support => escapeHTML(effectText(support, getSupportActiveTier(support), stats))).join(', ') || _t('현재 적용되는 보조 효과가 없습니다.')}</span></div>`;
     }
 
     function migrationNotice() {
         const migration = game.saveMeta?.supportRuneMigration;
         if (!migration?.noticePending) return;
-        addLog(`보조룬 개편: ${migration.moved.map(escapeHTML).join(', ')} 이전, 창공의 정수 ${migration.refund}개 환급. 소환 칸에서 사역룬을 확인하세요.`, 'loot-unique', { toast: true });
+        addLog(_t('보조룬 개편: {map} 이전, 창공의 정수 {refund}개 환급. 소환 칸에서 사역룬을 확인하세요.', { map: migration.moved.map(escapeHTML).join(', '), refund: migration.refund }), 'loot-unique', { toast: true });
         migration.noticePending = false;
     }
 
@@ -92,7 +93,7 @@
         root.id = 'gem-selection';
         root.setAttribute('popover', 'auto');
         root.setAttribute('role', 'dialog');
-        root.setAttribute('aria-label', '룬 상세');
+        root.setAttribute('aria-label', _t('룬 상세'));
         root.innerHTML = '<div class="gem-selection-actions"></div><div class="gem-selection-content"></div>';
         // 따라 하기 안내가 룬 카드와 상세의 '장착' 단추 사이로 표시를 옮긴다.
         root.addEventListener('toggle', event => {
@@ -107,7 +108,7 @@
     function equipButton(anchor, canUnequip) {
         const equipped = anchor.classList.contains('active');
         const blocked = anchor.classList.contains('equipment-blocked') && !equipped;
-        const label = equipped ? (canUnequip ? '장착 해제' : '장착 중') : '장착';
+        const label = equipped ? (canUnequip ? _t('장착 해제') : _t('장착 중')) : _t('장착');
         const disabled = blocked || (equipped && !canUnequip);
         return `<button type="button" class="${equipped ? '' : 'gem-equip-primary'}" data-gem-action="equip" ${disabled ? 'disabled' : ''}>${label}</button>`;
     }
@@ -119,13 +120,13 @@
         const unlocked = Math.max(1, Math.min(cap, Math.floor((((game.supportGemData || {})[name]) || {}).unlockedTier || 1)));
         const active = getSupportActiveTier(name);
         return '<span class="gem-selection-tiers" aria-label="보조스킬룬 등급">' + [1, 2, 3].slice(0, cap).map(tier =>
-            `<button type="button" data-gem-action="tier" data-tier="${tier}" aria-pressed="${tier === active}" ${tier <= unlocked ? '' : 'disabled'}>${tier}등급</button>`).join('') + '</span>';
+            `<button type="button" data-gem-action="tier" data-tier="${tier}" aria-pressed="${tier === active}" ${tier <= unlocked ? '' : 'disabled'}>${_t('{tier}등급', { tier })}</button>`).join('') + '</span>';
     }
 
     /** The detail's own controls: equip / take off, then what used to sit on the card — summon count, support tier,
      * seal — and the jump to 강화 · 각인. */
     function summonCount(name) {
-        return `<span class="gem-selection-count"><button type="button" data-gem-action="summon-less" aria-label="소환 하나 줄이기">−</button><b>${getSummonSkillCount(name)}기</b><button type="button" data-gem-action="summon-more" aria-label="소환 하나 늘리기">+</button></span>`;
+        return `<span class="gem-selection-count"><button type="button" data-gem-action="summon-less" aria-label="${_t('소환 하나 줄이기')}">−</button><b>${_t('{name}기', { name: getSummonSkillCount(name) })}</b><button type="button" data-gem-action="summon-more" aria-label="${_t('소환 하나 늘리기')}">+</button></span>`;
     }
 
     /** Controls that depend on the kind: support tier, a worn summon gem's count, the jump to 강화 · 각인. */
@@ -141,7 +142,7 @@
         const worn = anchor.classList.contains('active');
         const canUnequip = support || skillGemBoardUi.kindOf(name) === 'summon' || mobilitySkill.isMobilityGem(name);
         const refusal = getSkillGemSealRefusal(name, support);
-        const seal = !worn && name !== '기본 공격' ? `<button type="button" data-gem-action="seal" class="gem-selection-seal" ${refusal ? `disabled data-tip="${escapeHTML(refusal)}"` : ''}>봉인</button>` : '';
+        const seal = !worn && name !== '기본 공격' ? `<button type="button" data-gem-action="seal" class="gem-selection-seal" ${refusal ? `disabled data-tip="${escapeHTML(refusal)}"` : ''}>${_t('봉인')}</button>` : '';
         return equipButton(anchor, canUnequip) + kindControls(type, name, worn) + seal + '<button type="button" data-gem-action="close" aria-label="룬 상세 닫기">닫기</button>';
     }
 
@@ -185,7 +186,7 @@
         const { before, after } = previewStats(type, name, replaced);
         const rows = [compareRow('전체 DPS', totalDps(before), totalDps(after))].concat(packRows(before, after));
         if ((before.summonDps || 0) > 0 || (after.summonDps || 0) > 0) rows.push(compareRow('소환 DPS', before.summonDps || 0, after.summonDps || 0));
-        return `<div class="gem-compare"><b>${replaced ? '바꾸면' : '장착하면'}</b><div class="gem-compare-grid">${rows.join('')}</div></div>`;
+        return `<div class="gem-compare"><b>${replaced ? _t('바꾸면') : _t('장착하면')}</b><div class="gem-compare-grid">${rows.join('')}</div></div>`;
     }
 
     /** The detail's compare block, for a gem not worn yet. */

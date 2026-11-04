@@ -12,7 +12,7 @@
         let summonCapMaximum = typeof getSummonCapMaximum === 'function' ? getSummonCapMaximum() : 8;
         let summonCapRow = document.getElementById('row-summon-cap');
         if (summonCapRow) summonCapRow.style.display = summonCap > 1 || summonCapMaximum > 8 ? '' : 'none';
-        setTextById('ui-summon-cap', `${summonCap} / 최대 ${summonCapMaximum}`);
+        setTextById('ui-summon-cap', _t('{n} / 최대 {max}', { n: summonCap, max: summonCapMaximum }));
         setTextById('ui-atk', formatSettingNumber(pStats.baseDmg, 'showCharacterComma'));
         setTextById('ui-aps', pStats.aspd.toFixed(2));
         setTextById('ui-crit', pStats.crit.toFixed(1));
@@ -76,20 +76,20 @@
     function getTalentNotes() {
         const notes = [];
         const heroDef = game.bloomedClassThisLoop === game.ascendClass ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
-        if (heroDef) notes.push(`${heroDef.label} 개화 재능: ${heroDef.talentsText}`);
+        if (heroDef) notes.push(_t('{hero} 개화 재능: {talents}', { hero: _t(heroDef.label), talents: heroDef.talentsText }));
         const picked = game.ascendClass && Array.isArray(game.ascendKeystones) ? game.ascendKeystones : [];
         const twins = (Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones : []).filter(id => !picked.includes(id));
-        const names = [...picked.map(id => getAscendKeystoneName(id)), ...twins.map(id => `${getAscendKeystoneName(id)}(쌍둥이)`)];
-        if (names.length > 0) notes.push(`★ 키스톤: ${names.join(' / ')}`);
+        const names = [...picked.map(id => _t(getAscendKeystoneName(id))), ...twins.map(id => _t('{name}(쌍둥이)', { name: _t(getAscendKeystoneName(id)) }))];
+        if (names.length > 0) notes.push(_t('★ 키스톤: {names}', { names: names.join(' / ') }));
         return notes;
     }
 
     function renderSpecialSummary(pStats) {
         const notes = [], bonus = pStats.glovePairAspdBonus || 0;
         const min = pStats.minDmgRoll || 80, max = pStats.maxDmgRoll || 100;
-        if (bonus > 0) notes.push(`동형 장갑 세트 보너스 활성화: 기본 공속 +${bonus.toFixed(2)}`);
+        if (bonus > 0) notes.push(_t('동형 장갑 세트 보너스 활성화: 기본 공속 +{bonus}', { bonus: bonus.toFixed(2) }));
         notes.push(...getTalentNotes());
-        if (min >= max) notes.push(`최소 피해 보정(${Math.floor(min)}%)이 최대 보정 이상이라 최대 피해 보정이 동일 값으로 조정됩니다.`);
+        if (min >= max) notes.push(_t('최소 피해 보정({min}%)이 최대 보정 이상이라 최대 피해 보정이 동일 값으로 조정됩니다.', { min: Math.floor(min) }));
         setTextById('ui-unique-special-summary', notes.join(', '));
     }
 

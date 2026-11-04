@@ -6,15 +6,15 @@ const knittingUi = (() => {
     function card(row) {
         const st = game.knitting, count = st.counts[row.id] || 0, done = st.knitted[row.id] || 0;
         const ready = count >= row.set, reason = ready ? knitting.reason(game, row.id) : '';
-        return `<article class="knit-card${ready ? ' is-ready' : ''}"><div class="knit-card-head"><strong>${esc(row.name)}</strong>`
-            + `<span>${count} / ${row.set}</span></div><p>${esc(row.label)}</p><small>${esc(row.found)}${done ? ` / 뜨개질 ${done}회` : ''}</small>`
-            + `<div class="knit-progress" role="progressbar" aria-label="${esc(row.name)} 수집" aria-valuenow="${count}" aria-valuemin="0" aria-valuemax="${Math.max(count, row.set)}"><i style="width:${Math.min(100, count / row.set * 100)}%"></i></div>`
-            + (ready ? `<div class="knit-card-foot"><button type="button" data-knit="${row.id}"${reason ? ' disabled' : ''}>뜨개질</button></div>` : '')
+        return `<article class="knit-card${ready ? ' is-ready' : ''}"><div class="knit-card-head"><strong>${esc(_t(row.name))}</strong>`
+            + `<span>${count} / ${row.set}</span></div><p>${esc(_t(row.label))}</p><small>${esc(row.found)}${done ? _t(' / 뜨개질 {done}회', { done }) : ''}</small>`
+            + `<div class="knit-progress" role="progressbar" aria-label="${_t('{name} 수집', { name: esc(_t(row.name)) })}" aria-valuenow="${count}" aria-valuemin="0" aria-valuemax="${Math.max(count, row.set)}"><i style="width:${Math.min(100, count / row.set * 100)}%"></i></div>`
+            + (ready ? `<div class="knit-card-foot"><button type="button" data-knit="${row.id}"${reason ? ' disabled' : ''}>${_t('뜨개질')}</button></div>` : '')
             + (reason && ready ? `<p class="knit-warning">${esc(reason)}</p>` : '') + '</article>';
     }
     function header(seen, ready) {
-        return `<header class="knit-head"><div><h3>실타래 보관함</h3></div>${ready ? `<strong>필요 수량 충족 ${ready}</strong>` : ''}</header>`
-            + (seen.length > 6 ? `<div class="knit-toolbar"><button type="button" data-knit-filter="all" aria-pressed="${!ownedOnly}">발견한 종류 ${seen.length}</button><button type="button" data-knit-filter="owned" aria-pressed="${ownedOnly}">현재 보유 중</button></div>` : '');
+        return `<header class="knit-head"><div><h3>${_t('실타래 보관함')}</h3></div>${ready ? `<strong>${_t('필요 수량 충족 {ready}', { ready })}</strong>` : ''}</header>`
+            + (seen.length > 6 ? `<div class="knit-toolbar"><button type="button" data-knit-filter="all" aria-pressed="${!ownedOnly}">${_t('발견한 종류 {length}', { length: seen.length })}</button><button type="button" data-knit-filter="owned" aria-pressed="${ownedOnly}">${_t('현재 보유 중')}</button></div>` : '');
     }
     function render() {
         const panel = document.getElementById('item-tab-knitting'), button = document.getElementById('btn-item-tab-knitting');
@@ -30,7 +30,8 @@ const knittingUi = (() => {
         if (html !== lastHtml) { panel.innerHTML = html; lastHtml = html; }
     }
     function resultText(made) {
-        const parts = made.currencies.map(([key, n]) => `${ORB_DB[key].name} ${n}개`);
+        const parts = made.currencies.map(([key, n]) => _t('{name} {n}개', { name: _t(ORB_DB[key].name), n }));
+        for (const [color, n] of made.seeds) parts.push(_t('{color} 씨앗 {n}개', { color: _t(STUMP_BOX_COLORS[color].label), n }));
         if (made.item) parts.push(made.item.name + ' 1개');
         if (made.mapReward) parts.push(`희귀 지도석 ${made.mapReward.maps.length}개`);
         for (const id of made.yarns) parts.push(knitting.row(id).name + ' 1개');
@@ -63,15 +64,15 @@ const knittingUi = (() => {
         if (game.isBackgroundCalculation) return;
         if (detail.first || detail.complete) {
             game.noti.items = true;
-            showGameToast(detail.complete ? `「${detail.name}」 뜨개질 가능` : `새 실타래 「${detail.name}」`, { tone: 'leaf', duration: 2800 });
+            showGameToast(detail.complete ? _t('「{name}」 뜨개질 가능', { name: detail.name }) : _t('새 실타래 「{name}」', { name: detail.name }), { tone: 'leaf', duration: 2800 });
         }
-        if (detail.first || detail.complete || game.settings.showLootLog) addLog(`실타래 「${esc(detail.name)}」 ${detail.count}/${detail.set}`, 'loot-rare');
+        if (detail.first || detail.complete || game.settings.showLootLog) addLog(_t('실타래 「{name}」 {count}/{set}', { name: esc(_t(detail.name)), count: detail.count, set: detail.set }), 'loot-rare');
         render();
     });
     function offlineHtml(gains) {
         if (!gains?.total) return '';
-        return `<div class="background-result-chips"><span class="background-result-chip">실타래 <b>+${gains.total}</b></span>`
-            + gains.fresh.map(name => `<span class="background-result-chip"><em>새 실타래</em> ${esc(name)}</span>`).join('') + '</div>';
+        return `<div class="background-result-chips"><span class="background-result-chip">${_t('실타래')} <b>+${gains.total}</b></span>`
+            + gains.fresh.map(name => `<span class="background-result-chip"><em>${_t('새 실타래')}</em> ${esc(name)}</span>`).join('') + '</div>';
     }
     return Object.freeze({ render, offlineHtml });
 })();

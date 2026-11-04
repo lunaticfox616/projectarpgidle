@@ -15,7 +15,7 @@
             if (error) throw error;
             applyCloudSession(data.session);
             await refreshCloudLinkedIdentities();
-            setCloudMessage('로그인되었습니다. 클라우드 세이브로 계속할 수 있습니다.');
+            setCloudMessage(_t('로그인되었습니다. 클라우드 세이브로 계속할 수 있습니다.'));
         } catch (error) {
             // Never log callback URLs or tokens; errors remain visible at the auth boundary.
             setCloudMessage('앱 로그인 실패: ' + error.message);
@@ -86,7 +86,7 @@
             if (launch?.url) await receiveOAuth(launch);
         } catch (error) {
             console.error('[android] 앱 연결 초기화 실패', error);
-            setCloudMessage('앱 기능 초기화에 실패했습니다. 앱을 다시 실행해 주세요.');
+            setCloudMessage(_t('앱 기능 초기화에 실패했습니다. 앱을 다시 실행해 주세요.'));
         }
     }
 

@@ -120,9 +120,9 @@ const equipmentSockets = (() => {
     }
 
     function label(row) {
-        if (row.kind === 'harvest') return `${STUMP_BOX_STAGES[row.accepts[0]].label} 소켓`;
+        if (row.kind === 'harvest') return _t('{label} 소켓', { label: STUMP_BOX_STAGES[row.accepts[0]].label });
         if (row.kind === 'void') return row.fused ? '융합 소켓' : '공허 소켓';
-        return row.kind === 'corrupt' ? '타락 소켓' : `심연 소켓 ${row.index + 1}`;
+        return row.kind === 'corrupt' ? '타락 소켓' : _t('심연 소켓 {value}', { value: row.index + 1 });
     }
 
     /** A corruption may open one socket on any socketable item: beside an accessory's void socket, or the only socket elsewhere. */
@@ -167,9 +167,9 @@ const equipmentSockets = (() => {
 
     function chisel(item, state = game) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
-        if (!isAccessory(item)) return { ok: false, reason: '공허 소켓은 반지, 목걸이, 허리띠에만 뚫을 수 있습니다. 다른 장비는 타락으로만 소켓이 생깁니다.' };
-        if (!canChisel(item)) return { ok: false, reason: '이 장비에는 공허 소켓을 더 뚫을 수 없습니다.' };
-        if ((state.currencies.voidChisel || 0) <= 0) return { ok: false, reason: '공허의 끌이 부족합니다.' };
+        if (!isAccessory(item)) return { ok: false, reason: _t('공허 소켓은 반지, 목걸이, 허리띠에만 뚫을 수 있습니다. 다른 장비는 타락으로만 소켓이 생깁니다.') };
+        if (!canChisel(item)) return { ok: false, reason: _t('이 장비에는 공허 소켓을 더 뚫을 수 없습니다.') };
+        if ((state.currencies.voidChisel || 0) <= 0) return { ok: false, reason: _t('공허의 끌이 부족합니다.') };
         state.currencies.voidChisel -= 1;
         openVoidSocket(item);
         return { ok: true };
@@ -194,8 +194,8 @@ const equipmentSockets = (() => {
     function insert(item, jewelId, state = game, at = null) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         const jewel = bagItems.jewels(state).find(row => row.id === jewelId), empty = pickSocket(list(item), takesJewel, at);
-        if (!jewel) return { ok: false, reason: '가방에 없는 주얼입니다.' };
-        if (!empty) return { ok: false, reason: '빈 소켓이 없습니다.' };
+        if (!jewel) return { ok: false, reason: _t('가방에 없는 주얼입니다.') };
+        if (!empty) return { ok: false, reason: _t('빈 소켓이 없습니다.') };
         bagItems.take(jewel, state);
         socketRecord(item, empty.kind, empty.index).jewel = jewel;
         return { ok: true, jewel };
@@ -205,7 +205,7 @@ const equipmentSockets = (() => {
     function insertHarvest(item, stumpId, state = game, at = null) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         const grown = stumpBox.socketable(state, stumpId);
-        if (!grown) return { ok: false, reason: '그루터기 함 보관함의 다 자란 꽃, 열매, 덩굴, 뿌리만 넣을 수 있습니다.' };
+        if (!grown) return { ok: false, reason: _t('그루터기 함 보관함의 다 자란 꽃, 열매, 덩굴, 뿌리만 넣을 수 있습니다.') };
         const kind = stumpBox.yieldKind(grown);
         const empty = pickSocket(list(item), row => !row.jewel && !row.harvest && row.accepts.includes(kind), at);
         if (!empty) return { ok: false, reason: `${STUMP_BOX_STAGES[kind].label}${pickParticle(STUMP_BOX_STAGES[kind].label, '을', '를')} 넣을 빈 소켓이 없습니다.` };
@@ -215,7 +215,7 @@ const equipmentSockets = (() => {
     }
 
     function removeHarvest(record, state) {
-        if (!stumpBox.returnFromSocket(state, record.harvest)) return { ok: false, reason: '그루터기 함 보관함에 자리가 없습니다.' };
+        if (!stumpBox.returnFromSocket(state, record.harvest)) return { ok: false, reason: _t('그루터기 함 보관함에 자리가 없습니다.') };
         const harvest = record.harvest;
         record.harvest = null;
         return { ok: true, harvest };
@@ -225,10 +225,10 @@ const equipmentSockets = (() => {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         const record = item ? socketRecord(item, kind, index) : null;
         if (record && record.harvest) return removeHarvest(record, state);
-        if (!record || !record.jewel) return { ok: false, reason: '빈 소켓입니다.' };
-        if (record.fused) return { ok: false, reason: '융합된 주얼은 뺄 수 없습니다.' };
+        if (!record || !record.jewel) return { ok: false, reason: _t('빈 소켓입니다.') };
+        if (record.fused) return { ok: false, reason: _t('융합된 주얼은 뺄 수 없습니다.') };
         const jewel = record.jewel;
-        if (!bagItems.put(bagItems.asJewel(jewel), state)) return { ok: false, reason: '가방에 자리가 없습니다.' };
+        if (!bagItems.put(bagItems.asJewel(jewel), state)) return { ok: false, reason: _t('가방에 자리가 없습니다.') };
         record.jewel = null;
         return { ok: true, jewel };
     }

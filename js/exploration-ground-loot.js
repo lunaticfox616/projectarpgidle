@@ -1,10 +1,8 @@
 // Loot lying on an exploration map's floor until the hero picks it up (2026-10-05 user request: equipment; 2026-10-06: currency,
-// jewels, cores and wild talismans too): a kill or a chest drops it on the cell, the hero collects it by stepping onto it, and a
+// jewels, cores and wild talismans too): a kill or a chest drops it on the cell, the hero collects it by stepping onto it (or from a cell beside it, takeNear range), and a
 // click on the pile collects it at once. The run owns the rows (saved with it as run.groundLoot). Ordinary maps settle what is left
 // on departure; colony and grand breach discard only unreleased loot when abandoned and settle what the boss already dropped.
 actExplorationState.groundLoot = (() => {
-    // The hero picks a pile up by stepping onto its cell: drops beside a melee fight stay until it walks over.
-    const PICKUP_RANGE = 0;
     const distance = (a, b) => Math.max(Math.abs(a.gx - b.gx), Math.abs(a.gy - b.gy));
     const cellOf = row => `${row.gx},${row.gy}`;
     /**
@@ -117,9 +115,10 @@ actExplorationState.groundLoot = (() => {
         if (taken.length) run.groundLoot = rows(run).filter(row => !taken.includes(row));
         return taken;
     }
-    /** Rows on the hero's cell (combat time `now`), once all of them have landed: the hero waits for a whole pile. */
-    function takeNear(run, cell, now) {
-        const here = rows(run).filter(row => distance(row, cell) <= PICKUP_RANGE);
+    /** Rows within range cells of the hero's cell (0: the cell itself; combat time `now`), once all of them have landed: the hero waits
+     * for whole piles. */
+    function takeNear(run, cell, now, range) {
+        const here = rows(run).filter(row => distance(row, cell) <= range);
         return here.length && here.every(row => landed(row, now)) ? take(run, row => here.includes(row)) : [];
     }
     /** Every row of one pile (a clicked cell), wherever the hero stands. */
@@ -327,6 +326,6 @@ actExplorationState.groundLoot = (() => {
         return !!check && check(row);
     }
 
-    return { PICKUP_RANGE, kindOf, place, placeItem, placeLeaf, placeYarn, placeGem, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, inAir, piles,
+    return { kindOf, place, placeItem, placeLeaf, placeYarn, placeGem, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, inAir, piles,
         encounterOwner, reserve, releaseEncounter, discardEncounter, normalizeEncounter, reservedItems, settleOnLoad, validate };
 })();

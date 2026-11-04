@@ -3,15 +3,14 @@ const craftingWorkspaceState = (() => {
     const defaults = ['formlessDew', 'sapBud', 'goldenRule', 'blightSpore'];
     const basic = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blessing', 'blightSpore', 'pruningShears', 'fairyRing'];
     const special = ['emberBranch', 'burningEmberBranch', 'ouroboros', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'catalystPhys', 'catalystFire', 'catalystCold', 'catalystLight', 'catalystChaos', 'catalystCrit', 'catalystSummon', 'enchantedHoney', 'venomStinger', 'voidChisel', 'oceanRerollShard', 'altarEmber', 'altarIchor', 'memoryImprint'];
-    const materials = ['fossil', 'fossilPrimal', 'fossilAncientPrimal', 'sporeFire', 'sporeCold', 'sporeLight'];
+    const materials = ['fossil', 'fossilPrimal', 'fossilAncientPrimal'];
     // 주 재화 칸에 둘 수 없고 제작 재화로 고르지 않는 재화: 함께 쓰는 재료와 제작 뿌리(제작실의 뿌리 칸에서 건다).
     const separate = Object.freeze([...materials, ...CRAFT_OMENS.keys, 'memoryImprint']);
 
     function group(key) {
         if (basic.includes(key)) return 'basic';
         if (CRAFT_OMENS.keys.includes(key)) return 'omen';
-        if (materials.slice(3).includes(key)) return 'spore';
-        if (materials.slice(0, 3).includes(key) || FOSSIL_DB.some(row => row.key === key)) return 'fossil';
+        if (materials.includes(key) || FOSSIL_DB.some(row => row.key === key)) return 'fossil';
         return special.includes(key) ? 'special' : '';
     }
 

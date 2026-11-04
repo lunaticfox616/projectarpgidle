@@ -28,7 +28,7 @@ const atlasPassivesUi = (() => {
     const rankOf = node => (suffix(node.id) === 'r' ? 'root' : node.rank);
     const status = id => atlasPassives.status(game, id);
     /** What pressing does now; a node waiting for its loop names it (js/atlas-passives.js loopOf). */
-    const stateText = node => (atlasPassives.waits(game, node.id) ? `루프 ${atlasPassives.loopOf(node.id)}부터 찍을 수 있습니다` : STATE_TEXT[status(node.id)]);
+    const stateText = node => (atlasPassives.waits(game, node.id) ? _t('루프 {loopOf}부터 찍을 수 있습니다', { loopOf: atlasPassives.loopOf(node.id) }) : STATE_TEXT[status(node.id)]);
     const withState = (text, node) => [text, stateText(node)].filter(Boolean).join(', ');
     const radians = degrees => degrees * Math.PI / 180;
     const between = (p, q) => Math.atan2(Math.sin(radians(BRANCH[p])) + Math.sin(radians(BRANCH[q])), Math.cos(radians(BRANCH[p])) + Math.cos(radians(BRANCH[q])));
@@ -85,7 +85,7 @@ const atlasPassivesUi = (() => {
     }
     function noteBody(node) {
         if (!node) return '';
-        return `<strong>${escapeHTML(node.name)}</strong> <small>${withState(RANK_NAME[rankOf(node)], node)}</small>
+        return `<strong>${escapeHTML(_t(node.name))}</strong> <small>${withState(RANK_NAME[rankOf(node)], node)}</small>
             <br>${escapeHTML(effectText(node.effect))}`;
     }
     /** Pointer or keyboard on a passive: the note beside the wheel reads it; leaving shows the pressed one again. A floating card
@@ -115,25 +115,25 @@ const atlasPassivesUi = (() => {
         atlasUi.refresh();
     }
     function tabsHtml() {
-        return `<nav class="atlas-wheel-tabs" aria-label="패시브 갈래">${ATLAS_PASSIVES.wheels.map(wheel => {
+        return `<nav class="atlas-wheel-tabs" aria-label="${_t('패시브 갈래')}">${ATLAS_PASSIVES.wheels.map(wheel => {
             const taken = wheel.nodes.filter(node => game.atlas.passives.includes(node.id)).length;
             return `<button type="button" style="--tint:${wheel.tint}" aria-pressed="${wheel.id === shownWheelId()}" onclick="atlasPassivesUi.pick('${wheel.id}')">`
-                + `${escapeHTML(wheel.name)}<span>${taken}/${wheel.nodes.length}</span></button>`;
+                + `${escapeHTML(_t(wheel.name))}<span>${taken}/${wheel.nodes.length}</span></button>`;
         }).join('')}</nav>`;
     }
     function wheelHtml(wheel) {
         const at = new Map(wheel.nodes.map(node => [node.id, point(place(node), shapeOf(wheel.id))]));
-        return `<section class="atlas-wheel" style="--tint:${wheel.tint}" aria-label="${escapeHTML(wheel.name)}"${wheel.id === shownWheelId() ? '' : ' hidden'}>
+        return `<section class="atlas-wheel" style="--tint:${wheel.tint}" aria-label="${escapeHTML(_t(wheel.name))}"${wheel.id === shownWheelId() ? '' : ' hidden'}>
             <div class="atlas-wheel-art" data-wheel="${wheel.id}"><canvas aria-hidden="true"></canvas>${wheel.nodes.map(node => nodeHtml(node, at.get(node.id))).join('')}</div>
             ${noteHtml(wheel)}</section>`;
     }
     function totalsHtml() {
         const total = atlasPassives.effects(game), text = effectText(total);
-        return text ? `<p class="atlas-passive-total">합계: ${escapeHTML(text)}</p>` : '';
+        return text ? `<p class="atlas-passive-total">${_t('합계: {text}', { text: escapeHTML(text) })}</p>` : '';
     }
     function html() {
         const used = game.atlas.passives.length, points = atlas.points(game);
-        return `<div class="atlas-passives"><p class="atlas-muted">아틀라스 포인트 ${used}/${points} 사용</p>${totalsHtml()}${tabsHtml()}<div class="atlas-wheels">${ATLAS_PASSIVES.wheels.map(wheelHtml).join('')}</div></div>`;
+        return `<div class="atlas-passives"><p class="atlas-muted">${_t('아틀라스 포인트 {used}/{points} 사용', { used, points })}</p>${totalsHtml()}${tabsHtml()}<div class="atlas-wheels">${ATLAS_PASSIVES.wheels.map(wheelHtml).join('')}</div></div>`;
     }
     return Object.freeze({ html, paint, toggle, hint, pick });
 })();

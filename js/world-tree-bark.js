@@ -38,7 +38,7 @@ const worldTreeBark = (() => {
         const fresh = WORLD_TREE_BARK.points.actTenMinutes.filter(goal => minutes <= goal && !have.includes(goal));
         if (!fresh.length) return;
         bark.timeGoals = [...have, ...fresh];
-        dispatchRuntimeEvent('bark-points', { gain: fresh.length * WORLD_TREE_BARK.points.actTenGoal, why: `액트 10을 ${Math.min(...fresh)}분 안에 돌파` });
+        dispatchRuntimeEvent('bark-points', { gain: fresh.length * WORLD_TREE_BARK.points.actTenGoal, why: _t('액트 10을 {min}분 안에 돌파', { min: Math.min(...fresh) }) });
     }
     /** A pinnacle's first kill: 우로보로스 and 껍질 포인트 (the points count from the journal: js/state.js getWorldTreeBarkEarned). */
     function rewardPinnacleFirstKill(entryId) {
@@ -50,11 +50,11 @@ const worldTreeBark = (() => {
     function nextLoopBarkLine(nextLoop) {
         const rule = WORLD_TREE_BARK.points;
         if (nextLoop < rule.startLoop) return '';
-        return `껍질 포인트 +${nextLoop === rule.startLoop ? rule.start : rule.perLoop}`;
+        return _t('껍질 포인트 +{value}', { value: nextLoop === rule.startLoop ? rule.start : rule.perLoop });
     }
     /** After the loop's reset: the first bark's notice. */
     function noticeFirstBark() {
-        if (game.season === WORLD_TREE_BARK.points.startLoop) queueTutorialNotice('world_tree_bark', '세계수 껍질', '첫 껍질이 자랐습니다.\n껍질 포인트를 나누면 지나온 앞 구간을 빠르게 지나갑니다.\n루프 패시브 창에서 나누세요.', 'tab-season');
+        if (game.season === WORLD_TREE_BARK.points.startLoop) queueTutorialNotice('world_tree_bark', _t('세계수 껍질'), _t('첫 껍질이 자랐습니다.\n껍질 포인트를 나누면 지나온 앞 구간을 빠르게 지나갑니다.\n루프 패시브 창에서 나누세요.'), 'tab-season');
     }
     return Object.freeze({ barkPoints, barkHasFreePoints, barkAllocationRefusal, allocateBarkPoints, resetBarkPoints, noteActTenClear, rewardPinnacleFirstKill, nextLoopBarkLine, noticeFirstBark });
 })();

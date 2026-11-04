@@ -33,8 +33,6 @@ const LOOT_OMENS = Object.freeze({
             ['fossil', 40], ['fossilJagged', 6], ['fossilBound', 6], ['fossilGale', 6], ['fossilPrismatic', 5], ['fossilBulwark', 5],
             ['fossilWedge', 5], ['fossilOld', 5], ['fossilRift', 5], ['fossilPrimal', 3], ['fossilAncientPrimal', 1], ['fossilPrimordial', 0.6],
             ['fossilAbyssal', 0.4]]) },
-        { id: 'spore', name: '홀씨 비', note: '홀씨가 자주 나옵니다', kind: 'drops', weight: 7, tone: '#9fd46a', drops: Object.freeze([
-            ['sporeFire', 1], ['sporeCold', 1], ['sporeLight', 1]]) },
         { id: 'tools', name: '장인의 연장', note: '숫돌, 뿌리철, 보석연마제가 나옵니다', kind: 'drops', weight: 6, tone: '#b8b0a0', drops: Object.freeze([
             ['deepWhetstone', 4], ['rootIron', 4], ['jewelPolish', 4], ['abyssCatalyst', 0.4]]) },
         { id: 'hive', name: '벌집 향기', note: '꽃가루와 벌집 재료가 나옵니다', kind: 'drops', weight: 6, tone: '#ffd25e', drops: Object.freeze([
@@ -98,7 +96,7 @@ const LOOT_OMENS = Object.freeze({
     flowers: Object.freeze({
         physical: Object.freeze({ label: '그루터기', omens: Object.freeze(['seeds', 'cores', 'sky']) }),
         fire: Object.freeze({ label: '장비', omens: Object.freeze(['armory', 'jewelry', 'armour', 'unique', 'corrupt', 'twins', 'ember']) }),
-        cold: Object.freeze({ label: '제작', omens: Object.freeze(['orbs', 'tools', 'fossil', 'spore', 'jewels', 'seal', 'craftOmens']) }),
+        cold: Object.freeze({ label: '제작', omens: Object.freeze(['orbs', 'tools', 'fossil', 'jewels', 'seal', 'craftOmens']) }),
         lightning: Object.freeze({ label: '지도와 콘텐츠', omens: Object.freeze(['maps', 'rooms', 'keys', 'chests', 'fragments', 'hive', 'ocean']) }),
         chaos: Object.freeze({ label: '룬과 보스', omens: Object.freeze(['gems', 'dreams', 'elites', 'under']) })
     }),

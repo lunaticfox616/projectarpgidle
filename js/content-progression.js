@@ -37,7 +37,7 @@ const contentProgression = (() => {
     function requirements(id, owner = game) {
         const def = definitions.get(id);
         if (!def) return [];
-        const rows = [[`루프 ${def.minLoop}`, owner.season >= def.minLoop]];
+        const rows = [[_t('루프 {minLoop}', { minLoop: def.minLoop }), owner.season >= def.minLoop]];
         for (const key of parents(def)) rows.push([definitions.get(key).name + ' 해금', isUnlocked(key, owner)]);
         if (def.progress) rows.push(...progressChecks[def.progress](owner));
         return rows.map(([label, met]) => ({ label, met: !!met }));
@@ -220,12 +220,12 @@ const contentProgression = (() => {
 
     function status(id, owner = game) {
         const def = definitions.get(id);
-        if (!def) return { available: false, reason: '알 수 없는 콘텐츠입니다.' };
-        if (isUnlocked(id, owner)) return { available: false, reason: '해금 완료', unlocked: true };
+        if (!def) return { available: false, reason: _t('알 수 없는 콘텐츠입니다.') };
+        if (isUnlocked(id, owner)) return { available: false, reason: _t('해금 완료'), unlocked: true };
         const missing = requirements(id, owner).filter(row => !row.met);
         if (missing.length) return { available: false, reason: missing[0].label + ' 필요' };
-        if (balance(owner) < def.cost) return { available: false, reason: '해금 포인트 부족' };
-        return { available: true, reason: `${def.cost}점으로 해금` };
+        if (balance(owner) < def.cost) return { available: false, reason: _t('해금 포인트 부족') };
+        return { available: true, reason: _t('{cost}점으로 해금', { cost: def.cost }) };
     }
 
     function sync(owner = game) {
@@ -257,10 +257,10 @@ const contentProgression = (() => {
     function purchase(id, owner = game, rewardKey) {
         const def = definitions.get(id), check = status(id, owner);
         if (!check.available) return { ok: false, message: check.reason };
-        if (kind(def) !== 'paid') return { ok: false, message: '조건을 채우면 저절로 열립니다.' };
+        if (kind(def) !== 'paid') return { ok: false, message: _t('조건을 채우면 저절로 열립니다.') };
         const choices = def.rewardChoices || [];
         const key = rewardKey === undefined ? choices[0]?.key : rewardKey;
-        if (choices.length && !choices.some(row => row.key === key)) return { ok: false, message: '받을 보상을 선택하세요.' };
+        if (choices.length && !choices.some(row => row.key === key)) return { ok: false, message: _t('받을 보상을 선택하세요.') };
         grantEntryReward(id, key, owner);
         owner.contentProgression.unlocked.push(id);
         owner.contentProgression.paidCosts[id] = def.cost;

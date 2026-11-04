@@ -29,6 +29,11 @@
 #tab-settings .settings-sections > button b { color: inherit; font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis); line-height: 1.5; letter-spacing: 0; text-shadow: var(--px-text-edge, none); white-space: nowrap; }
 #tab-settings .settings-sections > button:hover { background: rgba(255, 255, 255, .04); color: #fff6e0; }
 #tab-settings .settings-sections > button[aria-pressed="true"] { background: rgba(215, 179, 111, .12); box-shadow: inset 3px 0 var(--color-accent-gold); color: #f8dfa2; }
+/* 로그인 화면의 톱니로 열었을 때(2026-11-04, body.startup-settings-open): 저장과 계정 분류는 로그인 화면의 저장 흐름과 겹쳐 숨기고,
+   분류 끝에 닫는 단추가 선다(휴대폰의 설정 화면에는 닫는 단추가 없다) */
+#tab-settings .settings-sections > .settings-startup-close { display: none; color: var(--color-accent-gold); }
+body.startup-settings-open #tab-settings .settings-sections > .settings-startup-close { display: grid; }
+body.startup-settings-open #tab-settings .settings-sections > [data-settings-section="data"] { display: none; }
 .settings-note { margin: 12px 4px 0; padding-top: 10px; border-top: 1px solid var(--skin-line); color: var(--px-copy-muted, var(--color-text-secondary)); font-size: 12px; }
 
 /* 묶음 판: 창 바탕보다 한 겹 밝은 납작한 판에 얇은 테. 제목은 판 맨 위에 금빛 글과 가는 선. */

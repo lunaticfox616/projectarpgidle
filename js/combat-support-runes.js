@@ -50,7 +50,7 @@
         if (fx.chain) result = skill.combatPattern ? appendAuthoredChain(result,fx.chain,skill.combatPattern.kind==='authored') : chainStages(uniqueStageTargets(result), fx.chain);
         if (fx.repeat) {
             const delay = Math.max(...result.map(row=>row.delayMs || 0)) + 180;
-            result = result.concat(result.map(row=>({...row, kind:'supportRepeat', label:'반복',
+            result = result.concat(result.map(row=>({...row, kind:'supportRepeat', label:_t('반복'),
                 singleRepeat:true, delayMs:(row.delayMs||0)+delay, damageMultiplier:row.damageMultiplier*fx.repeat.damagePct/100})));
         }
         if (fx.mineDelayMs) result = result.map(row=>({...row, delayMs:(row.delayMs||0)+fx.mineDelayMs, delivery:'instantTarget'}));
@@ -74,7 +74,7 @@
             if(!first || (once && index))return [row];
             const plan=[],seen=new Set(row.targets.map(entry=>entry.enemy.id));
             nativeChain(plan,first,seen,chain);
-            const extra=plan.map(contact=>({...row,kind:'supportChain',label:'추가 연쇄',
+            const extra=plan.map(contact=>({...row,kind:'supportChain',label:_t('추가 연쇄'),
                 delayMs:(row.delayMs || 0)+contact.delay,damageMultiplier:row.damageMultiplier*contact.mult,
                 chainFromEnemyId:contact.from,delivery:'instantTarget',singleRepeat:true,skipGridControl:true,
                 targets:[{enemy:contact.enemy,mult:1}]}));
@@ -114,7 +114,7 @@
     function repeatNative(command,targets) {
         const stats=command.stats,repeat=stats.sSkill.supportEffects?.repeat;
         if(!repeat)return;
-        const stages=[{kind:'supportRepeat',label:'반복',delayMs:180,damageMultiplier:(command.damagePct??100)/100*repeat.damagePct/100,
+        const stages=[{kind:'supportRepeat',label:_t('반복'),delayMs:180,damageMultiplier:(command.damagePct??100)/100*repeat.damagePct/100,
             targets:targets.map(enemy=>({enemy,mult:1})),singleRepeat:true}];
         queuePendingSkillStageHits(stages,stats,{...command.attackOptions,skillName:command.name,baseDelayMs:0,forcedElement:stats.sSkill.ele});
     }
@@ -166,7 +166,7 @@
     function queueNativeExtras(command,plan) {
         if(!plan.length)return;
         const stats=command.stats,base=(command.bonus?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1)*(command.damagePct??100)/100;
-        let rows=plan.map(row=>({kind:row.kind,label:'추가 타격',delayMs:row.delay,damageMultiplier:base*row.mult,
+        let rows=plan.map(row=>({kind:row.kind,label:_t('추가 타격'),delayMs:row.delay,damageMultiplier:base*row.mult,
             chainFromEnemyId:row.from,delivery:'instantTarget',singleRepeat:true,skipGridControl:true,targets:[{enemy:row.enemy,mult:1}]}));
         const repeat=stats.sSkill.supportEffects.repeat;
         if(repeat)rows=rows.concat(rows.map(row=>({...row,delayMs:row.delayMs+180,damageMultiplier:row.damageMultiplier*repeat.damagePct/100})));

@@ -1,6 +1,6 @@
 // Resource inventory. Persistent discovery and pins belong to craftingWorkspaceState.
 const craftingCatalogUi = (() => {
-    const groups=[['all','전체'],['basic','기본 재화'],['spore','홀씨'],['fossil','화석'],['special','특수 제작'],['omen','뿌리']];
+    const groups=[['all','전체'],['basic','기본 재화'],['fossil','화석'],['special','특수 제작'],['omen','뿌리']];
 
     const separateMaterials=new Set(craftingWorkspaceState.separate);
     let craftingOnly=false;
@@ -9,14 +9,11 @@ const craftingCatalogUi = (() => {
 
     const pins=()=>game.craftingWorkspace.pins;
     const esc=value=>escapeHTML(String(value));
-    const name=key=>ORB_DB[key].name.replace(/^[^가-힣A-Za-z0-9]+/u,'');
+    const name=key=>_t(ORB_DB[key].name).replace(/^[^가-힣A-Za-z0-9]+/u,'');
 
+    /** 수확 계열의 식물(그 색의 꽃, 열매, 덩굴, 뿌리)이 없을 때의 말. */
     function sporeShortage(mode) {
-        const kinds={fire:['sporeFire','화염'],cold:['sporeCold','냉기'],light:['sporeLight','번개']};
-        const combined=mode==='chaos'||mode==='damage';
-        const costs=(combined?Object.values(kinds):[kinds[mode]]).map(([key,label])=>
-            `${combined?label+' ':''}${game.currencies[key]||0} / ${getSporeCraftCost()}`);
-        return `홀씨 부족 (${costs.join(', ')})`;
+        return _t('{name} 없음', { name: stumpBox.harvestPriceName(getSporeCraftPriceKey(mode)) });
     }
 
     function catalogCapture() { craftingWorkspaceState.capture(game); }
@@ -24,7 +21,7 @@ const craftingCatalogUi = (() => {
     function catalogVisible(key) {return !!catalogGroup(key)&&game.craftingWorkspace.discovered.includes(key)&&contentProgression.canDropCurrency(key);}
     const listed=key=>catalogVisible(key)&&(!craftingOnly||!separateMaterials.has(key));
     const pinned=()=>pins().map(key=>catalogVisible(key)?key:null);
-    const theme=key=>({sporeFire:'fire',sporeCold:'cold',sporeLight:'light'})[key]||catalogGroup(key);
+    const theme=catalogGroup;
     const styledName=key=>`<span class="cl-currency-name" data-theme="${theme(key)}">${window.getStyledOrbName(key)}</span>`;
 
     function catalogGroup(key) { return craftingWorkspaceState.group(key); }
@@ -44,7 +41,6 @@ const craftingCatalogUi = (() => {
         venomStinger:'무기 공격 옵션 추가/재설정',voidChisel:'장신구 소켓, 공허 주얼 제작',
         oceanRerollShard:'봉인되지 않은 무작위 추가 옵션 1줄 교체',
         altarEmber:'베이스 옵션 1줄을 태양 줄로',altarIchor:'베이스 옵션 1줄을 허기 줄로',memoryImprint:'추가 옵션 새기기, 한 번 되돌리기',
-        sporeFire:'화염 홀씨, 함께 사용',sporeCold:'냉기 홀씨, 함께 사용',sporeLight:'번개 홀씨, 함께 사용',
         fossil:'타입별 화석으로 정제',fossilPrimal:'복원, 화석과 재화 획득',fossilAncientPrimal:'복원, 전용 화석과 고급 재화',
         fossilJagged:'물리/근접 1줄 확정, 희귀 재련',fossilBound:'생명/방어 1줄 확정, 희귀 재련',
         fossilGale:'속도/치명 1줄 확정, 희귀 재련',fossilPrismatic:'저항/원소 1줄 확정, 희귀 재련',
@@ -58,7 +54,7 @@ const craftingCatalogUi = (() => {
     }
 
     function catalogActionLabel(key,state) {
-        if(editing)return `${pinSlot+1}번 칸에 지정`;
+        if(editing)return _t('{value}번 칸에 지정', { value: pinSlot+1 });
         const blocked=state&&!state.enabled;
         const reason=blocked?(state.reason==='방어구 전용'?state.reason:'사용 불가'):'';
         return [key===(inspected||active)?'선택 중':'',pins().includes(key)?'주 재화':'',reason,game.currencies[key]?'':'보유 없음'].filter(Boolean).join(', ');
@@ -69,7 +65,7 @@ const craftingCatalogUi = (() => {
         const selected=key===(inspected||active);
         const state=useState(key), blocked=state&&!state.enabled;
         return `<button type="button" class="cl-resource ${amount?'':'is-empty'} ${selected?'is-selected':''} ${blocked?'is-unavailable':''}" data-theme="${theme(key)}" data-resource="${key}" aria-pressed="${selected}">
-            <span class="cl-resource-head">${def.icon?`<img src="${esc(def.icon)}" alt="">`:''}<strong>${styledName(key)}</strong><b>${amount.toLocaleString('ko-KR')}</b></span>
+            <span class="cl-resource-head">${def.icon?`<img src="${esc(def.icon)}" alt="">`:''}<strong>${styledName(key)}</strong><b>${amount.toLocaleString(i18n.locale)}</b></span>
             <span class="cl-resource-desc">${catalogDescription(key,true)}</span><small>${esc(catalogActionLabel(key,state))}</small></button>`;
     }
 
@@ -79,14 +75,14 @@ const craftingCatalogUi = (() => {
             .filter(key=>(category==='all'||catalogGroup(key)===category)&&(!ownedOnly||game.currencies[key]>0))
             .filter(key=>(name(key)+' '+ORB_DB[key].desc).includes(query));
         dialog.querySelector('.cl-resource-list').innerHTML=keys.map(catalogCard).join('')||'<p class="cl-resource-empty">해당하는 재화가 없습니다.</p>';
-        dialog.querySelector('.cl-resource-count').textContent=`${keys.length}종`;
+        dialog.querySelector('.cl-resource-count').textContent=_t('{length}종', { length: keys.length });
         catalogRenderPins();
     }
 
     function catalogRenderPins() {
-        dialog.querySelector('[data-edit]').textContent=editing?'편집 완료':'주 재화 편집';
+        dialog.querySelector('[data-edit]').textContent=editing?_t('편집 완료'):_t('주 재화 편집');
         dialog.querySelector('.cl-pin-editor').hidden=!editing;
-        dialog.querySelector('.cl-pin-editor').innerHTML=`<small>바꿀 칸을 고른 뒤 재화를 선택하세요.</small><div>${pinned().map((key,index)=>`<button data-pin-slot="${index}" aria-pressed="${pinSlot===index}"><small>${index+1}</small>${key?styledName(key):'빈 칸'}</button>`).join('')}</div>`;
+        dialog.querySelector('.cl-pin-editor').innerHTML=`<small>${_t('바꿀 칸을 고른 뒤 재화를 선택하세요.')}</small><div>${pinned().map((key,index)=>`<button data-pin-slot="${index}" aria-pressed="${pinSlot===index}"><small>${index+1}</small>${key?styledName(key):_t('빈 칸')}</button>`).join('')}</div>`;
     }
 
     function catalogAssignPin(key) {
@@ -113,10 +109,10 @@ const craftingCatalogUi = (() => {
     function catalogClose() {dialog.close();document.getElementById(openerId)?.focus({preventScroll:true});}
 
     function catalogRenderNavigation() {
-        dialog.querySelector('#cl-catalog-title').textContent=craftingOnly?'제작 재화 선택':'재화 인벤토리';
-        if(craftingOnly&&['spore','omen'].includes(category))category='all';
+        dialog.querySelector('#cl-catalog-title').textContent=craftingOnly?_t('제작 재화 선택'):_t('재화 인벤토리');
+        if(craftingOnly&&category==='omen')category='all';
         dialog.querySelectorAll('[data-category]').forEach(tab=>{
-            tab.hidden=craftingOnly&&['spore','omen'].includes(tab.dataset.category);
+            tab.hidden=craftingOnly&&tab.dataset.category==='omen';
             tab.setAttribute('aria-pressed',String(tab.dataset.category===category));
         });
     }
@@ -152,10 +148,10 @@ const craftingCatalogUi = (() => {
 
     function catalogCreate() {
         dialog=document.createElement('dialog');dialog.className='cl-catalog';dialog.setAttribute('aria-labelledby','cl-catalog-title');
-        dialog.innerHTML=`<header><div><small>보관함</small><h2 id="cl-catalog-title">재화 인벤토리</h2></div><div><button type="button" data-edit>주 재화 편집</button><button type="button" data-close aria-label="재화 목록 닫기">닫기</button></div></header>
+        dialog.innerHTML=`<header><div><small>${_t('보관함')}</small><h2 id="cl-catalog-title">${_t('재화 인벤토리')}</h2></div><div><button type="button" data-edit>${_t('주 재화 편집')}</button><button type="button" data-close aria-label="${_t('재화 목록 닫기')}">${_t('닫기')}</button></div></header>
             <div class="cl-pin-editor" hidden></div>
-            <nav aria-label="재화 분류">${groups.map(([key,label])=>`<button type="button" data-category="${key}" data-theme="${key}" aria-pressed="${key===category}">${label}</button>`).join('')}</nav>
-            <div class="cl-resource-tools"><input type="search" aria-label="재화 검색" placeholder="이름/효과 검색"><label><input type="checkbox"> 소진한 재화도 보기</label><small class="cl-resource-count"></small></div>
+            <nav aria-label="${_t('재화 분류')}">${groups.map(([key,label])=>`<button type="button" data-category="${key}" data-theme="${key}" aria-pressed="${key===category}">${label}</button>`).join('')}</nav>
+            <div class="cl-resource-tools"><input type="search" aria-label="${_t('재화 검색')}" placeholder="${_t('이름/효과 검색')}"><label><input type="checkbox"> ${_t('소진한 재화도 보기')}</label><small class="cl-resource-count"></small></div>
             <div class="cl-resource-list"></div><aside class="cl-resource-detail" tabindex="-1" hidden></aside>`;
         document.body.append(dialog);
         dialog.addEventListener('click',catalogClick);

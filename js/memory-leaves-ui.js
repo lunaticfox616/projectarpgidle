@@ -8,23 +8,23 @@ const memoryLeavesUi = (() => {
     const esc = value => escapeHTML(String(value ?? ''));
     function cardHtml(leaf, tint) {
         const seen = game.atlas.leaves.seen.includes(leaf.id);
-        const body = seen ? `<strong>${esc(leaf.name)}</strong><span class="leaf-reward">${esc(leaf.bonus.label)}</span>`
+        const body = seen ? `<strong>${esc(_t(leaf.name))}</strong><span class="leaf-reward">${esc(_t(leaf.bonus.label))}</span>`
             : '<strong class="is-hidden">아직 못 본 잎</strong>';
-        const button = seen ? `<button type="button" class="leaf-read" data-leaf-read="${leaf.journal}">기억 읽기</button>` : '';
+        const button = seen ? `<button type="button" class="leaf-read" data-leaf-read="${leaf.journal}">${_t('기억 읽기')}</button>` : '';
         return `<article class="leaf-card${seen ? '' : ' is-unseen'}" style="--leaf-tint:${tint}">`
             + `<span class="leaf-glyph" aria-hidden="true">${renderPixelIcon('leaf', 'leaf-icon')}</span><div class="leaf-body">${body}`
             + `<small class="leaf-source">${esc(memoryLeaves.sourceText(leaf))}</small>`
-            + `<span class="leaf-count">${seen ? '저널에 기록됨' : '미발견'}</span></div>${button}</article>`;
+            + `<span class="leaf-count">${seen ? _t('저널에 기록됨') : _t('미발견')}</span></div>${button}</article>`;
     }
     function groupHtml(group) {
         const cards = memoryLeaves.list.filter(group.test).map(leaf => cardHtml(leaf, group.tint)).join('');
-        return cards ? `<section class="leaf-group" style="--leaf-tint:${group.tint}"><h4>${esc(group.name)}</h4><div class="leaf-grid">${cards}</div></section>` : '';
+        return cards ? `<section class="leaf-group" style="--leaf-tint:${group.tint}"><h4>${esc(_t(group.name))}</h4><div class="leaf-grid">${cards}</div></section>` : '';
     }
     function render() {
         const root = document.getElementById('ui-leaf-book');
         if (!root) return;
-        const header = `<header class="leaf-head"><div class="leaf-head-title"><h3>기억의 잎</h3></div>`
-            + `<div class="leaf-stats"><span><small>발견한 기억</small><b>${game.atlas.leaves.seen.length}/${memoryLeaves.list.length}</b></span></div></header>`;
+        const header = `<header class="leaf-head"><div class="leaf-head-title"><h3>${_t('기억의 잎')}</h3></div>`
+            + `<div class="leaf-stats"><span><small>${_t('발견한 기억')}</small><b>${game.atlas.leaves.seen.length}/${memoryLeaves.list.length}</b></span></div></header>`;
         const html = header + GROUPS.map(groupHtml).join('');
         if (html !== lastHtml) { root.innerHTML = html; lastHtml = html; }
     }
@@ -33,7 +33,7 @@ const memoryLeavesUi = (() => {
         game.noti.codex = true;
         if (game.isBackgroundCalculation) return;
         if (game.settings.lootFx?.notices?.leaf !== false) {
-            showGameToast(`기억의 잎을 발견했습니다. 「${result.name}」`, { tone: 'leaf', duration: 3600 });
+            showGameToast(_t('기억의 잎을 발견했습니다. 「{name}」', { name: _t(result.name) }), { tone: 'leaf', duration: 3600 });
         }
         queueImportantSave(200);
     }

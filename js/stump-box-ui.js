@@ -76,10 +76,10 @@ const stumpBoxUi = (() => {
     }
     function stumpGraftLabel(cell) {
         const rank = cellGraftRank(cell);
-        return rank ? `, 접붙이기 ${rank}단계(+${rank * STUMP_BOX_GRAFT.pctPerRank}%)` : '';
+        return rank ? _t(', 접붙이기 {rank}단계(+{value}%)', { rank, value: rank * STUMP_BOX_GRAFT.pctPerRank }) : '';
     }
     function stumpCellLabel(cell, item, open) {
-        if (!open) return `닫힌 칸, 루프 ${stumpBox.opensAt(game, cell)}에 열림`;
+        if (!open) return _t('닫힌 칸, 루프 {opensAt}에 열림', { opensAt: stumpBox.opensAt(game, cell) });
         return (item ? stumpBox.label(item) : '빈 칸') + stumpGraftLabel(cell) + (isSealedCell(cell) ? ', 봉인 칸' : '');
     }
     /** While an item is picked, every open cell but its own is a target: empty ones take it, filled ones trade places. */
@@ -129,9 +129,9 @@ const stumpBoxUi = (() => {
     /** What each frame button does now: its name (aria-label) and the part of it that names a frame (coloured in the tooltip). */
     function frameButtonLabels() {
         const box = frameView === 'box', cube = frameView === 'cube';
-        const turn = (frame, rest = '') => ({ frame, text: `${frame}으로 전환${rest}` }), here = cube ? '조합창' : box ? '그루터기 함' : '생육함';
+        const turn = (frame, rest = '') => ({ frame, text: _t('{frame}으로 전환{rest}', { frame, rest }) }), here = cube ? '조합창' : box ? '그루터기 함' : '생육함';
         return { top: turn(box ? '조합창' : '그루터기 함'), left: { text: rightView === 'bag' ? '그루터기 보관함 보기' : '장비 인벤토리 보기' },
-            right: { frame: here, text: `${here} 비우기` },
+            right: { frame: here, text: _t('{here} 비우기', { here }) },
             bottom: onNursery() ? turn('그루터기 함') : turn('생육함', canEnterNursery() ? '' : ' (해금 필요)') };
     }
     /** Open, or left holding items after losing the unlock: they must stay reachable. */
@@ -174,10 +174,10 @@ const stumpBoxUi = (() => {
         const grid = cube ? stumpCubeUi.cubeGridHtml()
             : Array.from({ length: STUMP_BOX_SIZE * STUMP_BOX_SIZE }, (_, cell) => stumpCellHtml(cell, shown)).join('');
         const links = frameView === 'box' ? `<div class="stump-board-links" aria-hidden="true">${stumpLinksHtml(result)}</div>` : '';
-        return `<div class="stump-board is-${frameView}"${cube ? '' : ` role="grid" aria-label="${onNursery() ? '생육함' : '그루터기 함'} 판"`}>`
+        return `<div class="stump-board is-${frameView}"${cube ? '' : _t(' role="grid" aria-label="{value} 판"', { value: onNursery() ? _t('생육함') : _t('그루터기 함') })}>`
             + `<div class="stump-board-grid">${grid}</div>${stumpFrameHtml()}${links}</div>`
             + `<div class="stump-board-foot">${stumpCubeUi.bookButtonHtml()}`
-            + `${cube ? '<button type="button" class="stump-frame-action" data-stump-action="frame-action">조합하기</button>' : ''}</div>`
+            + `${cube ? _t('<button type="button" class="stump-frame-action" data-stump-action="frame-action">조합하기</button>') : ''}</div>`
             + '<div id="stump-placement-preview" class="stump-placement-preview" role="status" aria-live="polite" hidden></div>';
     }
     // ── 틀의 버튼 넷 ───────────────────────────────────────
@@ -237,8 +237,8 @@ const stumpBoxUi = (() => {
         playUiFeedbackSound(result.ok ? 'craftSuccess' : 'craftFailure');
         if (!result.ok) return notifyStump(result.reason);
         const best = Math.max(...result.items.map(item => Math.round(item.roll * 100)));
-        addLog(`🧩 자동합성: 씨앗 ${result.items.length}개 (최고 품질 ${best}%)`, 'loot-rare');
-        notifyStump(`자동합성: 씨앗 ${result.items.length}개 (최고 품질 ${best}%)`);
+        addLog(_t('🧩 자동합성: 씨앗 {length}개 (최고 품질 {best}%)', { length: result.items.length, best }), 'loot-rare');
+        notifyStump(_t('자동합성: 씨앗 {length}개 (최고 품질 {best}%)', { length: result.items.length, best }));
         if (selectedId !== null && !stumpBox.itemById(game, selectedId)) selectedId = null;
         commitStumpChange();
     }
@@ -289,31 +289,31 @@ const stumpBoxUi = (() => {
     const RULES_BUTTON = '<button type="button" class="stump-rules-button" data-stump-action="rules" data-tip="그루터기 함 규칙" aria-label="그루터기 함 규칙" aria-haspopup="dialog"><span class="px-center">?</span></button>';
     /** The nursery's line above the frame: what it gives instead of the colours. */
     function nurseryHeadHtml() {
-        return `<span class="stump-nursery-rate">생육함 경험치 효율 ${Math.round(stumpBox.nurseryRate(game) * 100)}%</span><span class="stump-line">칸 ${stumpBox.openCount(game)}/25</span>`
-            + `<button type="button" data-stump-action="unplace-all"${game.stumpBox.nursery.some(id => id !== null) ? '' : ' disabled'}>전체 해제</button>${RULES_BUTTON}`;
+        return `<span class="stump-nursery-rate">${_t('생육함 경험치 효율 {round}%', { round: Math.round(stumpBox.nurseryRate(game) * 100) })}</span><span class="stump-line">${_t('칸 {openCount}/25', { openCount: stumpBox.openCount(game) })}</span>`
+            + `<button type="button" data-stump-action="unplace-all"${game.stumpBox.nursery.some(id => id !== null) ? '' : ' disabled'}>${_t('전체 해제')}</button>${RULES_BUTTON}`;
     }
     function stumpHeadHtml(result) {
         if (onNursery()) return nurseryHeadHtml();
         const chips = COLORS.map(color => {
             const on = result.resonant.has(color);
-            return `<span class="stump-chip${on ? ' is-on' : ''}" style="--stump-tone:${stumpTone(color)}">${STUMP_BOX_COLORS[color].label} ${result.counts[color]}${on ? ' 공명' : ''}</span>`;
+            return `<span class="stump-chip${on ? ' is-on' : ''}" style="--stump-tone:${stumpTone(color)}">${_t(STUMP_BOX_COLORS[color].label)} ${result.counts[color]}${on ? _t(' 공명') : ''}</span>`;
         }).join('');
-        const notes = [`칸 ${stumpBox.openCount(game)}/25`, result.suppressed.size ? `<span class="is-bad">비활성 ${result.suppressed.size}</span>` : '',
-            stumpBox.graftOpen(game) ? `<span class="is-graft">접붙이기 ${stumpBox.graftPoints(game).free}</span>` : ''].filter(Boolean);
+        const notes = [_t('칸 {openCount}/25', { openCount: stumpBox.openCount(game) }), result.suppressed.size ? `<span class="is-bad">${_t('비활성 {size}', { size: result.suppressed.size })}</span>` : '',
+            stumpBox.graftOpen(game) ? `<span class="is-graft">${_t('접붙이기 {free}', { free: stumpBox.graftPoints(game).free })}</span>` : ''].filter(Boolean);
         return `<div class="stump-chips">${chips}</div><span class="stump-line">${notes.join(', ')}</span>`
             + stumpHarvestUi.rewardButtonHtml()
-            + (frameView === 'box' ? `<button type="button" data-stump-action="unplace-all"${game.stumpBox.board.some(id => id !== null) ? '' : ' disabled'}>전체 해제</button>` : '')
-            + `<button type="button" data-stump-action="placement-undo"${stumpBox.canUndoPlacement(game) ? '' : ' disabled'}>배치 되돌리기</button>${RULES_BUTTON}`;
+            + (frameView === 'box' ? `<button type="button" data-stump-action="unplace-all"${game.stumpBox.board.some(id => id !== null) ? '' : ' disabled'}>${_t('전체 해제')}</button>` : '')
+            + `<button type="button" data-stump-action="placement-undo"${stumpBox.canUndoPlacement(game) ? '' : ' disabled'}>${_t('배치 되돌리기')}</button>${RULES_BUTTON}`;
     }
     /** 옵션 합계 under the board: what the working items add up to, each line in its stat's colour (the item affix colours, 2026-10-06).
      * Folded to one line until pressed (2026-10-25 사용자: 접을 수 있게, 기본 화면에 스크롤 없게). */
     function stumpSummaryHtml(result) {
         const keys = Object.keys(result.stats);
         const head = `<button type="button" class="stump-fold" data-stump-action="summary" aria-expanded="${summaryOpen}">`
-            + `<span>옵션 합계</span><small>${keys.length ? `${keys.length}줄` : '아직 없음'}</small></button>`;
+            + `<span>${_t('옵션 합계')}</span><small>${keys.length ? _t('{length}줄', { length: keys.length }) : _t('아직 없음')}</small></button>`;
         if (!summaryOpen) return head;
         const stats = keys.map(stat => `<li style="color:${getItemStatToneColor(stat)}">${escStump(stumpStatText(stat, result.stats[stat]))}</li>`).join('');
-        return head + `<ul class="stump-stats">${stats || '<li class="is-empty">아직 없음</li>'}</ul>` + stumpTalismanUi.summaryHtml();
+        return head + `<ul class="stump-stats">${stats || _t('<li class="is-empty">아직 없음</li>')}</ul>` + stumpTalismanUi.summaryHtml();
     }
     /** 루프가 바뀔 때(2026-11-04 사용자): 봉인 칸 밖의 아이템은 판, 보관함, 생육함 모두 사라진다. */
     function stumpLoopRule() {
@@ -324,11 +324,11 @@ const stumpBoxUi = (() => {
     function stumpRulesHtml() {
         const { resonance, feed, discipline } = STUMP_BOX_SYNERGY;
         const rules = ['그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.',
-            `공명: 성장 완료된 같은 색 ${resonance.length}개가 가로나 세로로 한 줄이면 그 ${resonance.length}개 +${resonance.bonusPct}%. 옆에 같은 색이 하나라도 더 있으면 사라집니다.`,
+            _t('공명: 성장 완료된 같은 색 {length}개가 가로나 세로로 한 줄이면 그 {length2}개 +{bonusPct}%. 옆에 같은 색이 하나라도 더 있으면 사라집니다.', { length: resonance.length, length2: resonance.length, bonusPct: resonance.bonusPct }),
             '반극: 공명 중인 아이템은 비활성화되지 않고, 옆에서 그 색을 비활성화하는 아이템이 대신 비활성화됩니다.',
             '비활성화: 물리는 카오스를, 카오스는 냉기를, 냉기는 화염을, 화염은 번개를, 번개는 물리를 비활성화합니다.',
-            `상생: 화염은 물리, 카오스는 화염, 번개는 카오스, 냉기는 번개, 물리는 냉기가 옆에 있으면 비활성화되지 않고, 둘 다 +${feed.bonusPct}%`,
-            `규율: 다섯 색이 가로나 세로 한 줄을 채우면 그 5개 +${discipline.bonusPct}%. 가로줄은 위아래, 세로줄은 양옆에 같은 색이 있으면 사라집니다.`,
+            _t('상생: 화염은 물리, 카오스는 화염, 번개는 카오스, 냉기는 번개, 물리는 냉기가 옆에 있으면 비활성화되지 않고, 둘 다 +{bonusPct}%', { bonusPct: feed.bonusPct }),
+            _t('규율: 다섯 색이 가로나 세로 한 줄을 채우면 그 5개 +{bonusPct}%. 가로줄은 위아래, 세로줄은 양옆에 같은 색이 있으면 사라집니다.', { bonusPct: discipline.bonusPct }),
             '거름: 보관함의 씨앗을 소모해 그루터기 함에서 성장 중인 그루터기 아이템의 경험치를 올립니다.',
             stumpLoopRule()];
         if (stumpBox.graftOpen(game)) rules.push(`접붙이기: 단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%`);
@@ -352,16 +352,16 @@ const stumpBoxUi = (() => {
         if (cell < 0 || !stumpBox.graftOpen(game)) return '';
         const rank = stumpBox.graftRank(game.stumpBox, cell), max = stumpBox.graftMaxRank(game), free = stumpBox.graftPoints(game).free;
         const raiseReason = rank < max ? stumpBox.graftRaiseReason(game, cell) : '';
-        const raise = rank < max ? stumpGraftButton('graft-raise', cell, `접붙이기 (${rank + 1}점)`, raiseReason) : '';
-        const lower = rank > 0 ? stumpGraftButton('graft-lower', cell, `되돌리기 (마름병 포자 ${STUMP_BOX_GRAFT.refundSpores})`,
+        const raise = rank < max ? stumpGraftButton('graft-raise', cell, _t('접붙이기 ({value}점)', { value: rank + 1 }), raiseReason) : '';
+        const lower = rank > 0 ? stumpGraftButton('graft-lower', cell, _t('되돌리기 (마름병 포자 {refundSpores})', { refundSpores: STUMP_BOX_GRAFT.refundSpores }),
             stumpBox.graftLowerReason(game, cell)) : '';
         // 0단계면 효과(+0%)는 빼고, '남은 점수 9'는 한 줄에(숫자만 다음 줄로 떨어졌다 — 검토 4차)
-        const effect = rank ? `, 효과 +${rank * STUMP_BOX_GRAFT.pctPerRank}%` : '';
-        return `<div class="stump-graft"><p class="stump-line"><strong>접붙이기 ${rank}/${max}단계</strong>${effect}, 남은 점수 ${free}</p>`
+        const effect = rank ? _t(', 효과 +{value}%', { value: rank * STUMP_BOX_GRAFT.pctPerRank }) : '';
+        return `<div class="stump-graft"><p class="stump-line"><strong>${_t('접붙이기 {rank}/{max}단계', { rank, max })}</strong>${_t('{effect}, 남은 점수 {free}', { effect, free })}</p>`
             + `${raiseReason ? `<p class="stump-hint">${escStump(raiseReason)}</p>` : ''}<div class="stump-actions">${raise}${lower}</div></div>`;
     }
     function stumpCellDetailHtml(cell) {
-        return `<p class="stump-line"><strong>빈 칸</strong>${isSealedCell(cell) ? ' <small>봉인 칸</small>' : ''}</p>` + stumpGraftHtml(cell) + stumpRipeningUi.sealHtml(cell)
+        return `<p class="stump-line"><strong>${_t('빈 칸')}</strong>${isSealedCell(cell) ? _t(' <small>봉인 칸</small>') : ''}</p>` + stumpGraftHtml(cell) + stumpRipeningUi.sealHtml(cell)
             + '<div class="stump-actions"><button type="button" data-stump-action="deselect">선택 해제</button></div>';
     }
 
@@ -371,7 +371,7 @@ const stumpBoxUi = (() => {
     /** 경험치 120 / 3200; '' once grown. */
     function stumpGrowthText(item) {
         if (stumpBox.isMature(item)) return '';
-        return `경험치 ${Math.floor(item.xp)} / ${stumpBox.need(item)}`;
+        return _t('경험치 {floor} / {need}', { floor: Math.floor(item.xp), need: stumpBox.need(item) });
     }
     /** What a grown seed gives (nothing while it grows: its kind is not known yet): in its stat's colour while it works on the board,
      * otherwise grey with (비활성). */
@@ -390,24 +390,24 @@ const stumpBoxUi = (() => {
     /** A stored seed: compost (the button says the growth it gives) or throw it away; a grown one goes into currency instead. */
     function stumpStoredSeedButtons(item) {
         const reason = stumpBox.compostReason(game, item.id), grown = stumpBox.isMature(item);
-        return `<button type="button" data-stump-action="compost"${reason ? ' disabled' : ''}>거름 사용 (경험치 +${stumpBox.compostGrowth(item)})</button>`
-            + `<button type="button" data-stump-action="${grown ? 'monetize' : 'discard'}"${item.locked ? ' disabled' : ''}>${grown ? '화폐화' : '버리기'}</button>`;
+        return `<button type="button" data-stump-action="compost"${reason ? ' disabled' : ''}>${_t('거름 사용 (경험치 +{compostGrowth})', { compostGrowth: stumpBox.compostGrowth(item) })}</button>`
+            + `<button type="button" data-stump-action="${grown ? 'monetize' : 'discard'}"${item.locked ? ' disabled' : ''}>${grown ? _t('화폐화') : _t('버리기')}</button>`;
     }
     /** In storage, a seed goes as compost or away and a scar can be thrown away (talismans have their own buttons). */
     function stumpStoredButton(item, cell) {
         if (cell >= 0) return '';
-        if (item.family === 'scar') return `<button type="button" data-stump-action="scar-discard"${item.locked ? ' disabled' : ''}>버리기</button>`;
+        if (item.family === 'scar') return `<button type="button" data-stump-action="scar-discard"${item.locked ? ' disabled' : ''}>${_t('버리기')}</button>`;
         return item.color ? stumpStoredSeedButtons(item) : '';
     }
     function stumpActionsHtml(item, cell) {
         const placed = stumpBox.isPlaced(game, item.id), back = placed ? '<button type="button" data-stump-action="unplace">보관함으로</button>' : '';
         const reason = !placed && item.color ? stumpBox.compostReason(game, item.id) : '';
         return `${reason ? `<p class="stump-hint">${escStump(reason)}</p>` : ''}<div class="stump-actions">${back}${placed ? '' : stumpStoredButton(item, cell)}`
-            + `<button type="button" data-stump-action="lock">${item.locked ? '잠금 해제' : '잠금'}</button>`
+            + `<button type="button" data-stump-action="lock">${item.locked ? _t('잠금 해제') : _t('잠금')}</button>`
             + '<button type="button" data-stump-action="deselect">선택 해제</button></div>';
     }
     function stumpDetailHead(item) {
-        const note = item.color ? ` <small>품질 ${Math.round(item.roll * 100)}%</small>` : '';
+        const note = item.color ? ` <small>${_t('품질 {round}%', { round: Math.round(item.roll * 100) })}</small>` : '';
         return `<div class="stump-detail-head" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}`
             + `<div><strong>${escStump(stumpBox.label(item))}</strong>${note}${stumpRipeningUi.badgesHtml(item)}</div></div>`;
     }
@@ -434,7 +434,7 @@ const stumpBoxUi = (() => {
         if (!item) return selectedCell === null ? '' : stumpCellDetailHtml(selectedCell);
         const cell = game.stumpBox.board.indexOf(item.id);
         const peers = comparisonItems(item), comparison = compareOpen && peers.length;
-        const toggle = peers.length ? `<button type="button" class="stump-compare-toggle" data-stump-action="compare" aria-expanded="${!!comparison}">${comparison ? '비교 닫기' : `같은 종류 비교 (${peers.length})`}</button>` : '';
+        const toggle = peers.length ? `<button type="button" class="stump-compare-toggle" data-stump-action="compare" aria-expanded="${!!comparison}">${comparison ? _t('비교 닫기') : _t('같은 종류 비교 ({length})', { length: peers.length })}</button>` : '';
         return toggle + (comparison ? stumpComparisonHtml(item, peers, result) : stumpDetailHead(item) + stumpBodyHtml(item, result, cell))
             + stumpGraftHtml(cell) + stumpRipeningUi.sealHtml(cell)
             + stumpActionsHtml(item, cell);
@@ -455,7 +455,7 @@ const stumpBoxUi = (() => {
         return `${stumpBox.label(item)}${quality} / ${place}`;
     }
     function comparisonCard(item, title, result, interactive = false) {
-        const cell = game.stumpBox.board.indexOf(item.id), place = stumpBox.inNursery(game, item.id) ? '생육함' : cell < 0 ? '보관함' : `${cell + 1}번 칸`;
+        const cell = game.stumpBox.board.indexOf(item.id), place = stumpBox.inNursery(game, item.id) ? '생육함' : cell < 0 ? '보관함' : _t('{value}번 칸', { value: cell + 1 });
         const body = interactive ? stumpBodyHtml(item, result, cell) : stumpGrowthHtml(item) + stumpTipBody(item, result, cell);
         return `<section class="stump-compare-card" style="--stump-tone:${itemTone(item)}"><h4>${title} <small>${place}</small></h4>`
             + stumpDetailHead(item) + statToneText.markup(body) + '</section>';
@@ -463,7 +463,7 @@ const stumpBoxUi = (() => {
     function stumpComparisonHtml(item, peers, result) {
         const other = peers.find(peer => peer.id === comparedId) || peers[0];
         const options = peers.map((peer, index) => `<option value="${peer.id}"${peer.id === other.id ? ' selected' : ''}>${index + 1}. ${escStump(comparisonLabel(peer))}</option>`).join('');
-        return `<label class="stump-compare-choice">비교 대상<select data-stump-select="comparison" aria-label="비교 대상">${options}</select></label>`
+        return `<label class="stump-compare-choice">${_t('비교 대상')}<select data-stump-select="comparison" aria-label="${_t('비교 대상')}">${options}</select></label>`
             + `<div class="stump-comparison">${comparisonCard(item, '선택한 아이템', result, true)}${comparisonCard(other, '비교 아이템', result)}</div>`;
     }
     function stumpGrowthTipLine(item) {
@@ -474,7 +474,7 @@ const stumpBoxUi = (() => {
     function stumpCellTipLines(cell) {
         // 고대 씨앗 곁의 칸은 그 몫만큼 높은 단계로 보인다(효과도 그렇다, stumpBox.ancientRanks).
         const rank = cell < 0 || onNursery() ? 0 : stumpBox.graftRank(game.stumpBox, cell) + stumpBox.ancientRanks(game.stumpBox, cell);
-        return (rank ? `<div class="tooltip-line stump-tip-graft">접붙이기 ${rank}단계, +${rank * STUMP_BOX_GRAFT.pctPerRank}%</div>` : '')
+        return (rank ? `<div class="tooltip-line stump-tip-graft">${_t('접붙이기 {rank}단계, +{value}%', { rank, value: rank * STUMP_BOX_GRAFT.pctPerRank })}</div>` : '')
             + (isSealedCell(cell) ? '<div class="tooltip-line stump-tip-seal">봉인 칸</div>' : '');
     }
     function stumpTipBody(item, result, cell) {
@@ -482,14 +482,14 @@ const stumpBoxUi = (() => {
         return item.family === 'scar' ? stumpRipeningUi.scarBodyHtml(item, result, true) : stumpSeedRows(item, result, cell, true);
     }
     function stumpItemTipHtml(item, result, cell = game.stumpBox.board.indexOf(item.id)) {
-        const quality = item.color ? `<div class="tooltip-line tooltip-meta-base">품질 ${Math.round(item.roll * 100)}%${stumpRipeningUi.badgesHtml(item)}</div>` : '';
+        const quality = item.color ? `<div class="tooltip-line tooltip-meta-base">${_t('품질 {round}%{badges}', { round: Math.round(item.roll * 100), badges: stumpRipeningUi.badgesHtml(item) })}</div>` : '';
         return `<div class="tooltip-title" style="color:${itemTone(item)}">${escStump(stumpBox.label(item))}</div>`
             + quality + stumpGrowthTipLine(item) + stumpTipBody(item, result, cell) + stumpCellTipLines(cell);
     }
     function stumpCellTipHtml(cell) {
-        if (!stumpBox.isOpen(game, cell)) return `<div class="tooltip-title">닫힌 칸</div><div class="tooltip-line">루프 ${stumpBox.opensAt(game, cell)}에 열립니다.</div>`;
+        if (!stumpBox.isOpen(game, cell)) return `<div class="tooltip-title">${_t('닫힌 칸')}</div><div class="tooltip-line">${_t('루프 {opensAt}에 열립니다.', { opensAt: stumpBox.opensAt(game, cell) })}</div>`;
         const lines = stumpCellTipLines(cell);
-        return lines ? `<div class="tooltip-title">빈 칸</div>${lines}` : '';
+        return lines ? `<div class="tooltip-title">${_t('빈 칸')}</div>${lines}` : '';
     }
     /**
      * Tooltip for a hovered stump element ([data-stump-tip]): an item on the board or in storage, a closed or grafted
@@ -514,11 +514,11 @@ const stumpBoxUi = (() => {
         const classes = `stump-item${item.id === selectedId ? ' is-selected' : ''}${stumpRipeningUi.isGolden(item) ? ' is-golden' : ''}${item.albino ? ' is-albino' : ''}${item.locked ? ' is-item-locked' : ''}`;
         return `<button type="button" class="${classes}" data-stump-action="item" data-item="${item.id}"`
             + ` data-stump-drag="${item.id}" data-stump-storage-slot="${item.slot}" data-stump-tip="item" data-info-tooltip-anchor="1"`
-            + ` aria-label="${escStump(comparisonLabel(item))}${item.locked ? ', 잠금' : ''}" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}${growing}${stumpLockMark(item)}</button>`;
+            + ` aria-label="${escStump(comparisonLabel(item))}${item.locked ? _t(', 잠금') : ''}" style="--stump-tone:${itemTone(item)}">${stumpIcon(item)}${growing}${stumpLockMark(item)}</button>`;
     }
     function stumpFilterLabel(key) {
-        if (key === 'all') return '전체';
-        return key === 'talisman' ? '부적' : STUMP_BOX_COLORS[key].label;
+        if (key === 'all') return _t('전체');
+        return key === 'talisman' ? _t('부적') : _t(STUMP_BOX_COLORS[key].label);
     }
     /** A filter wears its colour; 전체 the box's gold, 부적 the jade that no element uses (css/stump-box.css .stump-filter). */
     function stumpFilterTone(key) {
@@ -544,14 +544,14 @@ const stumpBoxUi = (() => {
         return (a.color ? (a.roll - b.roll) * (storageSort === 'quality-asc' ? 1 : -1) : 0) || a.id - b.id;
     }
     function storageSelect(key, label, value, choices) {
-        return `<select data-stump-select="${key}" aria-label="보관함 ${label}">`
-            + Object.entries(choices).map(([id, name]) => `<option value="${id}"${id === value ? ' selected' : ''}>${name}</option>`).join('') + '</select>';
+        return `<select data-stump-select="${key}" aria-label="${_t('보관함 {label}', { label })}">`
+            + Object.entries(choices).map(([id, name]) => `<option value="${id}"${id === value ? ' selected' : ''}>${_t(name)}</option>`).join('') + '</select>';
     }
     /** One row (2026-10-25 사용자 "압축할 수 있는 부분 압축"): 상태, 정렬, 일괄 거름 · 버리기, 거른 것이 있을 때만 몇 개 보이는지. */
     function storageToolsHtml(count, total) {
-        const shown = count < total ? `<span class="stump-hint">${count}/${total}개</span>` : '';
-        return '<div class="stump-storage-tools">' + storageSelect('state', '상태', stateFilter, STORAGE_STATES)
-            + storageSelect('sort', '정렬', storageSort, STORAGE_SORTS) + (stateFilter === 'all' ? stumpRipeningUi.bulkHtml(colorFilter) : '') + shown + '</div>';
+        const shown = count < total ? `<span class="stump-hint">${_t('{count}/{total}개', { count, total })}</span>` : '';
+        return '<div class="stump-storage-tools">' + storageSelect('state', _t('상태'), stateFilter, STORAGE_STATES)
+            + storageSelect('sort', _t('정렬'), storageSort, STORAGE_SORTS) + (stateFilter === 'all' ? stumpRipeningUi.bulkHtml(colorFilter) : '') + shown + '</div>';
     }
     /** Cells to lay out on the shown page: the whole capacity like the equipment bag (2026-10-16 사용자 "창크기에따라 아이템크기 변경시키지
      * 말고, 장비 인벤토리처럼 칸을 놓고 하나씩 들어가게"; css/stump-box.css: 10 columns), 100 a page (2026-10-25 사용자). A filter shows only
@@ -589,7 +589,7 @@ const stumpBoxUi = (() => {
         if (storageShowsSlots()) return storageSlotCells(items, from, Math.min(cells, from + STORAGE_PAGE_CELLS));
         const shown = items.slice(from, from + STORAGE_PAGE_CELLS);
         const slots = '<span class="stump-slot" aria-hidden="true"></span>'.repeat(Math.max(0, Math.min(STORAGE_PAGE_CELLS, cells - from) - shown.length));
-        return `${shown.map(stumpStorageCard).join('') || (all.length ? '<p class="stump-hint">이 분류는 비어 있습니다.</p>' : '')}${slots}`;
+        return `${shown.map(stumpStorageCard).join('') || (all.length ? _t('<p class="stump-hint">이 분류는 비어 있습니다.</p>') : '')}${slots}`;
     }
     function stumpStorageHtml() {
         stumpBox.settleStorageSlots(game);
@@ -597,7 +597,7 @@ const stumpBoxUi = (() => {
         const cells = storageShowsSlots() ? storageSlotTotal(items) : stumpStorageCells(items.length), pages = Math.max(1, Math.ceil(cells / STORAGE_PAGE_CELLS));
         storagePage = Math.min(storagePage, pages - 1);
         const target = selectedId !== null && stumpBox.isPlaced(game, selectedId) ? ' is-target' : '';
-        return `<div class="stump-storage-head"><h3>보관함 ${all.length}/${stumpBox.storageLimit(game)}</h3><div class="stump-filters">${storageFiltersHtml(all)}</div>${storagePagesHtml(pages)}</div>`
+        return `<div class="stump-storage-head"><h3>${_t('보관함 {length}/{storageLimit}', { length: all.length, storageLimit: stumpBox.storageLimit(game) })}</h3><div class="stump-filters">${storageFiltersHtml(all)}</div>${storagePagesHtml(pages)}</div>`
             + (all.length ? storageToolsHtml(items.length, all.length) : '')
             + `<div class="stump-storage-grid${target}" data-stump-action="storage" data-stump-drop-storage="1">${storageCellsHtml(all, items, cells)}</div>`;
     }
@@ -605,8 +605,8 @@ const stumpBoxUi = (() => {
     // ── 수확 일지 · 함 해금 · 부적: 한 번에 하나씩 보는 탭(2026-10-09, 전에는 줄지어 쌓여 무엇이 무엇인지 몰랐다) ──────────
     function stumpMoreTabs() {
         const total = STUMP_BOX_HARVEST.rows.length * COLORS.length;
-        const tabs = [['harvest', `수확 일지 ${game.stumpBox.harvest.grown.length}/${total}`],
-            ['unlocks', `함 해금 ${stumpBox.openUnlocks(game).length}/${STUMP_BOX_UNLOCKS.length}`], ['wallet', '재화']];
+        const tabs = [['harvest', _t('수확 일지 {length}/{total}', { length: game.stumpBox.harvest.grown.length, total })],
+            ['unlocks', _t('함 해금 {length}/{length2}', { length: stumpBox.openUnlocks(game).length, length2: STUMP_BOX_UNLOCKS.length })], ['wallet', _t('재화')]];
         return contentProgression.isUnlocked('talisman') ? tabs.concat([['talisman', '부적']]) : tabs;
     }
     const STUMP_MORE_BODIES = Object.freeze({
@@ -810,21 +810,21 @@ const stumpBoxUi = (() => {
         const { title, verb, rows } = placementParts();
         const buttons = placement.pinned ? `<div class="stump-actions"><button type="button" data-stump-action="placement-apply">${verb}</button>`
             + '<button type="button" data-stump-action="placement-cancel">취소</button></div>' : '';
-        const html = `<strong>${escStump(title)}</strong><span class="stump-placement-label">${verb} 미리보기</span>` + rows + buttons;
+        const html = `<strong>${escStump(title)}</strong><span class="stump-placement-label">${_t('{verb} 미리보기', { verb })}</span>` + rows + buttons;
         if (node.__previewHtml !== html || node.hidden) { node.innerHTML = html; node.__previewHtml = html; }
         node.hidden = false;
     }
     /** The preview's title (the item and the cell), its verb and its rows, shared by the box and the hover tooltip. */
     function placementParts() {
         const item = stumpBox.itemById(game, placement.id), occupant = game.stumpBox.board[placement.cell];
-        const title = `${stumpBox.shortName(item)}, ${Math.floor(placement.cell / STUMP_BOX_SIZE) + 1}행 ${placement.cell % STUMP_BOX_SIZE + 1}열`;
+        const title = _t('{shortName}, {value}행 {value2}열', { shortName: stumpBox.shortName(item), value: Math.floor(placement.cell / STUMP_BOX_SIZE) + 1, value2: placement.cell % STUMP_BOX_SIZE + 1 });
         const rows = placement.result.rows.length ? `<ul>${placement.result.rows.join('')}</ul>` : '<p>효과 변화 없음</p>';
         return { title, verb: occupant === null ? '배치' : '자리 바꾸기', rows };
     }
     function placementTipHtml() {
         const { title, verb, rows } = placementParts(), item = stumpBox.itemById(game, placement.id);
         return `<div class="tooltip-title" style="color:${itemTone(item)}">${escStump(title)}</div>`
-            + `<div class="tooltip-line stump-placement-label">${verb} 미리보기</div><div class="stump-placement-tip">${rows}</div>`;
+            + `<div class="tooltip-line stump-placement-label">${_t('{verb} 미리보기', { verb })}</div><div class="stump-placement-tip">${rows}</div>`;
     }
     /** The hover or drag preview as a tooltip, or null when there is none (or it is pinned in the box). */
     function placementTip() {
@@ -909,7 +909,7 @@ const stumpBoxUi = (() => {
     }
     function stumpRefusal(item) {
         if (game.woodsmanBuildLock) return '나무꾼 전투 중에는 그루터기 함 배치를 바꿀 수 없습니다.';
-        return `${stumpBox.label(item)}: 이 칸에는 놓을 수 없습니다.`;
+        return _t('{label}: 이 칸에는 놓을 수 없습니다.', { label: stumpBox.label(item) });
     }
     /**
      * Puts an item on a board cell: an empty cell takes it, a filled one trades places (stumpBox.move). Shared by
@@ -922,7 +922,7 @@ const stumpBoxUi = (() => {
         const uniqueReason = stumpBox.onePerBoardReason(game, id, cell);
         if (uniqueReason) { notifyStump(uniqueReason); return false; }
         if (!stumpBox.isOpen(game, cell)) {
-            notifyStump(`이 칸은 루프 ${stumpBox.opensAt(game, cell)}에 열립니다.`);
+            notifyStump(_t('이 칸은 루프 {opensAt}에 열립니다.', { opensAt: stumpBox.opensAt(game, cell) }));
             return false;
         }
         if (!stumpBox.move(game, id, cell)) {
@@ -937,7 +937,7 @@ const stumpBoxUi = (() => {
     function dropOnNurseryCell(item, cell) {
         if (!item || game.stumpBox.nursery[cell] === item.id) return false;
         if (!stumpBox.isOpen(game, cell)) {
-            notifyStump(`이 칸은 루프 ${stumpBox.opensAt(game, cell)}에 열립니다.`);
+            notifyStump(_t('이 칸은 루프 {opensAt}에 열립니다.', { opensAt: stumpBox.opensAt(game, cell) }));
             return false;
         }
         if (!stumpBox.nurseryMove(game, item.id, cell)) {
@@ -991,7 +991,7 @@ const stumpBoxUi = (() => {
     }
     function clickStumpCell(cell, confirm) {
         const occupant = shownCells()[cell];
-        if (!stumpBox.isOpen(game, cell)) return notifyStump(`이 칸은 루프 ${stumpBox.opensAt(game, cell)}에 열립니다.`);
+        if (!stumpBox.isOpen(game, cell)) return notifyStump(_t('이 칸은 루프 {opensAt}에 열립니다.', { opensAt: stumpBox.opensAt(game, cell) }));
         if (selectedId !== null && occupant === selectedId) return selectStumpItem(null);
         if (selectedId !== null) return confirm ? confirmCell(selectedId, cell) : dropOnCell(selectedId, cell);
         if (occupant !== null) return selectStumpItem(occupant);
@@ -1007,7 +1007,7 @@ const stumpBoxUi = (() => {
         const item = stumpBox.claimHarvestGift(game, row, color);
         if (!item) return notifyStump('보관함이 가득 찼거나 이미 받은 보상입니다.');
         selectedId = item.id;
-        notifyStump(`수확 일지 보상: ${stumpBox.label(item)}`);
+        notifyStump(_t('수확 일지 보상: {label}', { label: stumpBox.label(item) }));
         commitStumpChange();
     }
     function unsealTalisman(source) {
@@ -1022,7 +1022,7 @@ const stumpBoxUi = (() => {
         if (!item || reason) return reason && notifyStump(reason);
         const name = stumpItemName(item), result = stumpBox.compost(game, item.id);
         selectedId = null;
-        notifyStump(`거름 사용: ${name} 소모, 성장 중인 ${result.fed}개 경험치 +${result.growth}`);
+        notifyStump(_t('거름 사용: {name} 소모, 성장 중인 {fed}개 경험치 +{growth}', { name, fed: result.fed, growth: result.growth }));
         announceStumpRipened(result.ripened);
         commitStumpChange();
     }
@@ -1030,7 +1030,7 @@ const stumpBoxUi = (() => {
         const item = selectedItem();
         if (!item) return;
         if (!stumpBox.toggleLock(game, item.id)) return notifyStump('나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.');
-        notifyStump(`${stumpItemName(item)} ${item.locked ? '잠금' : '잠금 해제'}`);
+        notifyStump(`${stumpItemName(item)} ${item.locked ? _t('잠금') : _t('잠금 해제')}`);
         commitStumpChange();
     }
     async function discardTalisman() {
@@ -1057,7 +1057,7 @@ const stumpBoxUi = (() => {
         const name = stumpBox.shortName(item);
         if (!stumpBox.monetize(game, item.id)) return notifyStump(stumpRefusal(item));
         selectedId = null;
-        notifyStump(`화폐화: ${name}`);
+        notifyStump(_t('화폐화: {name}', { name }));
         commitStumpChange();
     }
     function sealStumpCell(cell) {
@@ -1070,20 +1070,20 @@ const stumpBoxUi = (() => {
         const item = stumpBox.choosePouch(game, id, index);
         if (!item) return notifyStump('보관함이 가득 찼습니다.');
         selectedId = item.id;
-        notifyStump(`씨앗 주머니: ${stumpBox.label(item)}`);
+        notifyStump(_t('씨앗 주머니: {label}', { label: stumpBox.label(item) }));
         commitStumpChange();
     }
     // 일괄 거름 사용과 일괄 버리기(보관함 분류 전체나 한 색): 누르면 무엇을 쓰는지 먼저 보여 준다(2026-10-09 사용자).
     function runBulkCompost(filter) {
         const result = stumpBox.compostMany(game, filter);
         if (!result) return false;
-        notifyStump(`일괄 거름 사용: ${result.count}개 소모, 성장 중인 ${result.fed}개 경험치 +${result.growth}`);
+        notifyStump(_t('일괄 거름 사용: {count}개 소모, 성장 중인 {fed}개 경험치 +{growth}', { count: result.count, fed: result.fed, growth: result.growth }));
         announceStumpRipened(result.ripened);
         return true;
     }
     function runBulkDiscard(filter) {
         const gone = stumpBox.discardMany(game, filter), money = (gone || []).filter(stumpBox.isMature).length;
-        if (gone) notifyStump(money ? `일괄 버리기: 버림 ${gone.length - money}개, 화폐화 ${money}개` : `일괄 버리기: ${gone.length}개`);
+        if (gone) notifyStump(money ? _t('일괄 버리기: 버림 {value}개, 화폐화 {money}개', { value: gone.length - money, money }) : _t('일괄 버리기: {length}개', { length: gone.length }));
         return !!gone;
     }
     async function bulkStump(kind) {
@@ -1158,7 +1158,7 @@ const stumpBoxUi = (() => {
         if (frameView === 'cube') return dropOnCube(id);
         if (game.woodsmanBuildLock) return notifyStump(stumpRefusal(item));
         const cell = onNursery() ? stumpBox.firstNurseryCell(game) : quickStumpCell(item);
-        if (cell === null) return notifyStump(`${onNursery() ? '생육함' : '그루터기 함'}에 빈 칸이 없습니다.`);
+        if (cell === null) return notifyStump(_t('{value}에 빈 칸이 없습니다.', { value: onNursery() ? _t('생육함') : _t('그루터기 함') }));
         dropOnCell(id, cell);
     }
     /** The item a storage card or a board cell holds (null for an empty cell). */
@@ -1190,7 +1190,7 @@ const stumpBoxUi = (() => {
         const count = onNursery() ? stumpBox.nurseryClear(game) : stumpBox.unplaceAll(game);
         selectedId = null;
         selectedCell = null;
-        notifyStump(`전체 해제: ${count}개를 보관함으로 옮겼습니다.`);
+        notifyStump(_t('전체 해제: {count}개를 보관함으로 옮겼습니다.', { count }));
         commitStumpChange();
     }
 
@@ -1343,7 +1343,7 @@ const stumpBoxUi = (() => {
         stumpHarvestUi.announceRecipes();
         stumpHarvestUi.announceGraftJournal();
         if (sawIntro) return given.length && announceStumpStarter();
-        queueTutorialNotice('unlock_stump_box', '그루터기 함',
+        queueTutorialNotice('unlock_stump_box', _t('그루터기 함'),
             '액트 10 돌파 보상으로 그루터기 함과 시작 보상(씨앗 2개)을 받았습니다.\n그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.\n'
             + '성장 완료된 같은 색 3개가 가로나 세로로 한 줄이면 공명(+10%), 이기는 색이 맞닿으면 지는 쪽이 비활성화됩니다.', 'tab-stump',
             { quote: STORY_LOOP_MILESTONES.stump });
@@ -1355,7 +1355,7 @@ const stumpBoxUi = (() => {
         if (!given.length) return given;
         game.noti.stump = true;
         lastSignature = '';
-        addLog(`🌱 그루터기 함 시작 보상: ${given.map(stumpBox.label).join(', ')}`, 'loot-magic');
+        addLog(_t('🌱 그루터기 함 시작 보상: {map}', { map: given.map(stumpBox.label).join(', ') }), 'loot-magic');
         return given;
     }
     /** The first 불씨의 흉터 comes with 포식 (loop 23, once): into storage, with a log line (the unlock notice explains it). */
@@ -1364,19 +1364,19 @@ const stumpBoxUi = (() => {
         if (!scar) return;
         game.noti.stump = true;
         lastSignature = '';
-        addLog(`🔥 그루터기 함: ${withObjectParticle(STUMP_BOX_SCAR.name)} 받았습니다. 그루터기 함에 배치해 깨우세요.`, 'loot-unique');
+        addLog(_t('🔥 그루터기 함: {name} 받았습니다. 그루터기 함에 배치해 깨우세요.', { name: withObjectParticle(STUMP_BOX_SCAR.name) }), 'loot-unique');
     }
     /** 함 안내를 예전에 보고 선물은 이번에 받은 저장: 놓는 법만 따로 한 번 안내한다. */
     function announceStumpStarter() {
-        queueTutorialNotice('tutorial_stump_starter', '그루터기 함 시작 보상', '씨앗 2개를 보관함에 넣었습니다.\n그루터기 함에 배치해야 처치 시 경험치를 얻습니다.', 'tab-stump');
+        queueTutorialNotice('tutorial_stump_starter', _t('그루터기 함 시작 보상'), _t('씨앗 2개를 보관함에 넣었습니다.\n그루터기 함에 배치해야 처치 시 경험치를 얻습니다.'), 'tab-stump');
     }
     /** Once, when the reached loop opens grafting (loop 18; saves already past it see it after this update). */
     function announceStumpGraft() {
         if (!stumpBox.graftOpen(game) || (game.seenTutorials || []).includes('unlock_stump_graft')) return;
         game.noti.stump = true;
-        queueTutorialNotice('unlock_stump_graft', '접붙이기',
+        queueTutorialNotice('unlock_stump_graft', _t('접붙이기'),
             `루프 ${STUMP_BOX_GRAFT.startLoop}부터 루프마다 접붙이기 점수 ${STUMP_BOX_GRAFT.pointsPerLoop}점을 받습니다.\n`
-            + `그루터기 함에서 칸을 고르고 [접붙이기]로 강화합니다. n단계에 n점(최대 ${STUMP_BOX_GRAFT.maxRank}단계), `
+            + _t('그루터기 함에서 칸을 고르고 [접붙이기]로 강화합니다. n단계에 n점(최대 {maxRank}단계), ', { maxRank: STUMP_BOX_GRAFT.maxRank })
             + `단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%.\n마름병 포자로 한 단계씩 되돌리면 점수가 돌아옵니다.`,
             'tab-stump');
     }
@@ -1385,20 +1385,20 @@ const stumpBoxUi = (() => {
     function stumpDropLog(drop) {
         const name = drop.family === 'talisman' ? `[${drop.name}]` : stumpBox.label(drop);
         const rare = drop.rarity === 'unique' || drop.family === 'scar' || stumpRipeningUi.isGolden(drop);
-        return [`${STUMP_LOG_ICONS[drop.family] || (drop.golden ? '✨' : '🌱')} 그루터기 함: ${name} 획득`, rare ? 'loot-unique' : 'loot-magic'];
+        return [_t('{STUMP_LOG_ICONS} 그루터기 함: {name} 획득', { STUMP_LOG_ICONS: STUMP_LOG_ICONS[drop.family] || (drop.golden ? '✨' : '🌱'), name }), rare ? 'loot-unique' : 'loot-magic'];
     }
     function announceStumpChange(detail) {
         if (detail.drop) addLog(...stumpDropLog(detail.drop));
-        if (detail.overflow) addLog(`🧿 그루터기 함 보관함이 가득 차 부적 대신 ${ORB_DB[detail.overflow].name} 1개를 받았습니다.`, 'loot-magic');
+        if (detail.overflow) addLog(_t('🧿 그루터기 함 보관함이 가득 차 부적 대신 {name} 1개를 받았습니다.', { name: _t(ORB_DB[detail.overflow].name) }), 'loot-magic');
         if (detail.compost) addLog(stumpCompostDropText(detail.compost), 'loot-magic');
-        (detail.ripened || []).forEach(item => addLog(`${STUMP_LOG_ICONS[item.family] || '🌸'} 그루터기 함: ${stumpRipeName(item)}`, 'loot-rare'));
+        (detail.ripened || []).forEach(item => addLog(_t('{value} 그루터기 함: {item}', { value: STUMP_LOG_ICONS[item.family] || '🌸', item: stumpRipeName(item) }), 'loot-rare'));
         announceStumpRipened(detail.ripened || []);
         lastSignature = '';
     }
     function stumpCompostDropText(compost) {
         const name = `${STUMP_BOX_COLORS[compost.color].label} ${STUMP_BOX_STAGES[compost.family].label}`;
-        return compost.fed ? `🌱 그루터기 함 보관함이 가득 차 ${withSubjectParticle(name)} 거름이 됐습니다(성장 중인 ${compost.fed}개 경험치 +${compost.growth}).`
-            : `🌱 그루터기 함 보관함이 가득 찼고 그루터기 함에 성장 중인 그루터기 아이템도 없어 ${withObjectParticle(name)} 놓쳤습니다.`;
+        return compost.fed ? _t('🌱 그루터기 함 보관함이 가득 차 {name} 거름이 됐습니다(성장 중인 {fed}개 경험치 +{growth}).', { name: withSubjectParticle(name), fed: compost.fed, growth: compost.growth })
+            : _t('🌱 그루터기 함 보관함이 가득 찼고 그루터기 함에 성장 중인 그루터기 아이템도 없어 {name} 놓쳤습니다.', { name: withObjectParticle(name) });
     }
     /** What a ripened item now gives (resonance and graft included), for the toast. */
     function stumpRipeGain(item) {
@@ -1406,20 +1406,20 @@ const stumpBoxUi = (() => {
         return gain && value ? gain.text.replace('{v}', stumpNumber(value)) : '';
     }
     function stumpRipeName(item) {
-        if (item.family === 'talisman') return `[${item.name}] 깨어남`;
-        return `${stumpItemName(item)} ${item.family === 'scar' ? '깨어남' : '성장 완료'}`;
+        if (item.family === 'talisman') return _t('[{name}] 깨어남', { name: item.name });
+        return `${stumpItemName(item)} ${item.family === 'scar' ? _t('깨어남') : _t('성장 완료')}`;
     }
     /** Ripening is the box's payoff: a toast (what it gives now) and a chime instead of one scrolling log line. */
     function announceStumpRipened(ripened) {
         if (!ripened.length) return;
         ripened.filter(item => item.albino).forEach(item => dispatchRuntimeEvent('incident', {
-            text: `${stumpBox.shortName(item)} 개화${stumpBox.cellOf(game, item.id) < 0 ? ', 보관함으로 이동' : ''}`, tone: 'chase', chase: true
+            text: _t('{shortName} 개화{value}', { shortName: stumpBox.shortName(item), value: stumpBox.cellOf(game, item.id) < 0 ? _t(', 보관함으로 이동') : '' }), tone: 'chase', chase: true
         }));
         const gain = ripened.length === 1 ? stumpRipeGain(ripened[0]) : '';
-        const names = ripened.length <= 3 ? ripened.map(stumpRipeName).join(', ') : `${ripened.length}개 성장 완료`;
+        const names = ripened.length <= 3 ? ripened.map(stumpRipeName).join(', ') : _t('{length}개 성장 완료', { length: ripened.length });
         const gift = stumpBox.pendingGifts(game).length ? ', 수확 일지 보상을 받으세요' : '', note = stumpRipeningUi.ripenNote(ripened);
         if (gift) game.noti.stump = true;
-        showGameToast(`그루터기 함: ${names}${gain ? `, ${gain}` : ''}${note ? ` (${note})` : ''}${gift}`, { tone: 'success' });
+        showGameToast(`${_t('그루터기 함')}: ${names}${gain ? `, ${gain}` : ''}${note ? ` (${note})` : ''}${gift}`, { tone: 'success' });
         playUiFeedbackSound('success');
         stumpHarvestUi.announceRecipes();
         stumpHarvestUi.announceUnlocks();

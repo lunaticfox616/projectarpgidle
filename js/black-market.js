@@ -37,7 +37,7 @@ function rollBlackMarketExchangeOffer(recipe, index) {
     let standardRate = Math.max(0.0001, recipe.gain / Math.max(1, recipe.need));
     let rolledRate = gain / Math.max(1, need);
     let dealPct = Math.max(0, Math.round((rolledRate / standardRate - 1) * 100));
-    return { type:'exchange', name:`암거래 교환 #${index+1}`, from:recipe.from, to:recipe.to, need, gain, bulkMultiplier, dealPct };
+    return { type:'exchange', name:_t('암거래 교환 #{value}', { value: index+1 }), from:recipe.from, to:recipe.to, need, gain, bulkMultiplier, dealPct };
 }
 
 function getBlackMarketBaseChainInfo(base) {
@@ -60,7 +60,7 @@ function maybeApplyBlackMarketExceptionalBaseStats(baseStats) {
         let usesDecimal = isTenthStat(stat.id);
         stat.val = usesDecimal ? Math.round(boosted * 10) / 10 : Math.max(1, Math.floor(boosted));
         stat.exceptional = true;
-        names.push(stat.statName || getStatName(stat.id));
+        names.push(_t(stat.statName || getStatName(stat.id)));
     });
     return { baseStats, exceptionalBase: names.length > 0, names };
 }
@@ -107,8 +107,8 @@ function getBlackMarketBaseTooltipOptionLines(baseStats) {
     if (rows.length <= 0) return '<div class="tooltip-line">베이스 옵션 없음</div>';
     return rows.map(stat => {
         let range = getBlackMarketBaseRollRange(stat);
-        let label = stat.statName || getStatName(stat.id);
-        return `<div class="tooltip-line" style="color:#9fd6ff;">베이스 옵션, ${escapeHTML(label)} ${formatSignedValue(stat.id, range.min)}~${formatSignedValue(stat.id, range.max)}</div>`;
+        let label = _t(stat.statName || getStatName(stat.id));
+        return `<div class="tooltip-line" style="color:#9fd6ff;">${_t('베이스 옵션, {label} {id}~{id2}', { label: escapeHTML(label), id: formatSignedValue(stat.id, range.min), id2: formatSignedValue(stat.id, range.max) })}</div>`;
     }).join('');
 }
 
@@ -284,7 +284,7 @@ function buildBlackMarketOffer(index) {
         // 아니라 실제 제공 티어를 기준으로 계산한다. 저티어 베이스를 고단계 제작대로 헐값에
         // 구매하는 경제 우회를 막되, 직접 드랍보다 접근성은 유지한다.
         let price = Math.max(2, Math.ceil(hiddenTier * 0.45) + 2 + (rolledBase.exceptionalBase ? 4 : 0));
-        return { type:'baseItem', name:`${base.name} 베이스`, slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, affixTierCap:hiddenTier, priceKey:'formlessDew', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base:false, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
+        return { type:'baseItem', name:_t('{name} 베이스', { name: base.name }), slot: base.slot, baseId: base.id, baseName: base.name, hiddenTier:hiddenTier, affixTierCap:hiddenTier, priceKey:'formlessDew', price:price, baseStats: rolledBase.baseStats, exceptionalBase: rolledBase.exceptionalBase, exceptionalStatNames: rolledBase.names, rareT20Base:false, baseChainStep: chainInfo && chainInfo.step, baseChainTotal: chainInfo && chainInfo.total };
     }
     if (roll < 0.9) {
         return { type:'skillGem', name:pickSkillRuneReward(gemDropRewards.attackRunes()), priceKey:'formlessDew', price:5 };
@@ -306,12 +306,12 @@ function buildBlackMarketOffer(index) {
 function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
     let effect = (offer && offer.uniqueEffect) || (uniq && uniq.uniqueEffect) || '';
     let sourceStats = Array.isArray(offer && offer.uniqueStats) ? offer.uniqueStats : (uniq && uniq.stats);
-    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">고유 효과: ${escapeHTML(effect)}</div>` : '';
+    let effectLine = effect ? `<div class="tooltip-line" style="color:#d7b8ff;">${_t('고유 효과: {effect}', { effect: escapeHTML(effect) })}</div>` : '';
     let statLines = (Array.isArray(sourceStats) ? sourceStats : []).map(stat => {
         let statId = stat.id;
         let { min, max } = getUniqueStatRollRange(stat);
-        let label = stat.statName || getStatName(statId);
-        return `<div class="tooltip-line" style="color:#ffd98a;">고유 옵션, ${escapeHTML(label)} +${formatValue(statId, min)}~+${formatValue(statId, max)}</div>`;
+        let label = _t(stat.statName || getStatName(statId));
+        return `<div class="tooltip-line" style="color:#ffd98a;">${_t('고유 옵션, {label} +{statId}~+{statId2}', { label: escapeHTML(label), statId: formatValue(statId, min), statId2: formatValue(statId, max) })}</div>`;
     });
     return effectLine + (statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>');
 }
@@ -321,7 +321,7 @@ function getBlackMarketBaseComparison(offer) {
     let equipped = Object.entries((game && game.equipment) || {})
         .filter(([slotKey, item]) => item && String(slotKey).replace(/[123]$/, '') === offer.slot)
         .map(([slotKey, item]) => ({ slotKey, item, tier: Math.max(1, Math.floor(Number(item.hiddenTier || item.itemTier) || 1)) }));
-    if (equipped.length <= 0) return { delta: null, label: '빈 장착 슬롯 있음', tone: 'empty' };
+    if (equipped.length <= 0) return { delta: null, label: _t('빈 장착 슬롯 있음'), tone: 'empty' };
     equipped.sort((a, b) => a.tier - b.tier || a.slotKey.localeCompare(b.slotKey));
     let weakest = equipped[0];
     let offerTier = Math.max(1, Math.floor(Number(offer.hiddenTier || offer.reqTier) || 1));
@@ -330,7 +330,7 @@ function getBlackMarketBaseComparison(offer) {
         delta,
         comparedSlot: weakest.slotKey,
         comparedTier: weakest.tier,
-        label: `${weakest.slotKey} T${weakest.tier} 대비 ${delta === 0 ? '동급' : `${delta > 0 ? '+' : ''}${delta}티어`}`,
+        label: `${weakest.slotKey} T${weakest.tier} 대비 ${delta === 0 ? _t('동급') : _t('{value}{delta}티어', { value: delta > 0 ? '+' : '', delta })}`,
         tone: delta > 0 ? 'upgrade' : (delta < 0 ? 'downgrade' : 'same')
     };
 }
@@ -338,26 +338,26 @@ function getBlackMarketBaseComparison(offer) {
 function getBlackMarketOfferTooltipHtml(offer) {
     if (!offer) return '<div class="tooltip-title">품절</div>';
     if (offer.type === 'exchange') {
-        let fromName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : ORB_DB[offer.from].name;
-        let toName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : ORB_DB[offer.to].name;
-        let bulkLine = offer.bulkMultiplier && offer.bulkMultiplier > 1 ? `<div class="tooltip-line" style="color:#ffd36a;">대량 교환 x${offer.bulkMultiplier}</div>` : '';
-        let dealLine = Number.isFinite(Number(offer.dealPct)) ? `<div class="tooltip-line" style="color:#8fd9a7;">정규 거래소 대비 교환 효율 +${Math.max(0, Math.floor(offer.dealPct))}%</div>` : '';
-        return `<div class="tooltip-title">재화 교환</div><div class="tooltip-line">${fromName} ${offer.need}개를 ${toName} ${offer.gain}개로 교환합니다.</div>${dealLine}${bulkLine}`;
+        let fromName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.from) : _t(ORB_DB[offer.from].name);
+        let toName = typeof getStyledOrbName === 'function' ? getStyledOrbName(offer.to) : _t(ORB_DB[offer.to].name);
+        let bulkLine = offer.bulkMultiplier && offer.bulkMultiplier > 1 ? `<div class="tooltip-line" style="color:#ffd36a;">${_t('대량 교환 x{bulkMultiplier}', { bulkMultiplier: offer.bulkMultiplier })}</div>` : '';
+        let dealLine = Number.isFinite(Number(offer.dealPct)) ? `<div class="tooltip-line" style="color:#8fd9a7;">${_t('정규 거래소 대비 교환 효율 +{max}%', { max: Math.max(0, Math.floor(offer.dealPct)) })}</div>` : '';
+        return `<div class="tooltip-title">${_t('재화 교환')}</div><div class="tooltip-line">${_t('{fromName} {need}개를 {toName} {gain}개로 교환합니다.', { fromName, need: offer.need, toName, gain: offer.gain })}</div>${dealLine}${bulkLine}`;
     }
     if (offer.type === 'skillGem') {
         let skill = SKILL_DB[offer.name] || {};
-        return `<div class="tooltip-title">룬: ${offer.name}</div><div class="tooltip-line">${skill.desc || '미보유 공격 룬을 획득합니다.'}</div>`;
+        return `<div class="tooltip-title">${_t('룬: {name}', { name: offer.name })}</div><div class="tooltip-line">${_t(skill.desc) || _t('미보유 공격 룬을 획득합니다.')}</div>`;
     }
     if (offer.type === 'baseItem') {
         let base = BASE_ITEM_DB.find(row => row && ((offer.baseId && row.id === offer.baseId) || (row.name === String(offer.name || '').replace(' 베이스','') && row.slot === offer.slot)));
         let sourceStats = Array.isArray(offer.baseStats) && offer.baseStats.length > 0 ? offer.baseStats : (base && base.baseStats);
         let chainLabel = offer && offer.baseChainStep && offer.baseChainTotal ? `${Math.floor(offer.baseChainStep)}/${Math.floor(offer.baseChainTotal)}` : '';
-        let chainLine = chainLabel ? `<div class="tooltip-line" style="color:#9fd6ff;">베이스 체인 ${chainLabel}</div>` : '';
+        let chainLine = chainLabel ? `<div class="tooltip-line" style="color:#9fd6ff;">${_t('베이스 체인 {chainLabel}', { chainLabel })}</div>` : '';
         let rareLine = offer.rareT20Base ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">T20 희귀 베이스</div>' : '';
         let exLine = offer.exceptionalBase ? '<div class="tooltip-line" style="color:#ffb454; font-weight:800;">특출난 베이스</div>' : '';
         let comparison = getBlackMarketBaseComparison(offer);
-        let comparisonLine = comparison ? `<div class="tooltip-line" style="color:${comparison.tone === 'upgrade' || comparison.tone === 'empty' ? '#8fd9a7' : (comparison.tone === 'downgrade' ? '#d99b91' : '#9fb4d1')};">장착 비교, ${escapeHTML(comparison.label)}</div>` : '';
-        return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>${comparisonLine}${chainLine}${rareLine}${exLine}${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
+        let comparisonLine = comparison ? `<div class="tooltip-line" style="color:${comparison.tone === 'upgrade' || comparison.tone === 'empty' ? '#8fd9a7' : (comparison.tone === 'downgrade' ? '#d99b91' : '#9fb4d1')};">${_t('장착 비교, {label}', { label: escapeHTML(_t(comparison.label)) })}</div>` : '';
+        return `<div class="tooltip-title">${_t('베이스 장비')}</div><div class="tooltip-line">${_t('{name}, 숨겨진 티어 {hiddenTier}', { name: offer.name, hiddenTier: offer.hiddenTier || offer.reqTier })}</div>${comparisonLine}${chainLine}${rareLine}${exLine}${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">${_t('제작용 베이스로 사용됩니다.')}</div>`;
     }
     if (offer.type === 'unique') {
         let uniq = UNIQUE_DB.find(u => u && u.name === offer.name);
@@ -368,10 +368,10 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
         let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
         let baseLines = getBlackMarketBaseTooltipOptionLines(offer.baseStats);
-        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(offer.baseName)}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
+        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">${_t('베이스: {baseName}, 숨겨진 티어 {hiddenTier}', { baseName: escapeHTML(_t(offer.baseName)), hiddenTier: offer.hiddenTier || offer.reqTier })}</div>` : '';
         let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">체이싱 유니크 암거래 품목</div>' : '';
         let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">시장 정보로 확보한 표적 고유</div>' : '';
-        return `<div class="tooltip-title">도감 고유 정보, ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
+        return `<div class="tooltip-title">${_t('도감 고유 정보, {name} (숨겨진 티어 {hiddenTier})', { name: escapeHTML(_t(offer.name)), hiddenTier: offer.hiddenTier || offer.reqTier })}</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">${_t('도감 등록: {codexLine}', { codexLine })}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';
 }
@@ -411,9 +411,9 @@ function refreshBlackMarket(force) {
 /** Locks or unlocks offer index (a locked offer stays through a refresh): { ok, reason, locked }. */
 function lockBlackMarketOffer(index) {
     const bm = normalizeBlackMarketState();
-    if (!bm.offers[index]) return { ok: false, reason: '이미 팔린 물건입니다.' };
+    if (!bm.offers[index]) return { ok: false, reason: _t('이미 팔린 물건입니다.') };
     if (bm.lockedOffers[index]) { delete bm.lockedOffers[index]; return { ok: true, locked: false }; }
-    if (getBlackMarketLockCount() >= BLACK_MARKET_MAX_LOCKED_OFFERS) return { ok: false, reason: `잠금은 ${BLACK_MARKET_MAX_LOCKED_OFFERS}개까지입니다.` };
+    if (getBlackMarketLockCount() >= BLACK_MARKET_MAX_LOCKED_OFFERS) return { ok: false, reason: _t('잠금은 {value}개까지입니다.', { value: BLACK_MARKET_MAX_LOCKED_OFFERS }) };
     bm.lockedOffers[index] = true;
     return { ok: true, locked: true };
 }
@@ -429,8 +429,8 @@ function setBlackMarketPreferredSlot(slot) {
 /** Pays for a refresh now (each one this period costs more) and refreshes the unlocked offers: { ok, reason, cost }. */
 function payBlackMarketRefresh() {
     const bm = normalizeBlackMarketState(), cost = getBlackMarketManualRefreshCost();
-    if (!isMarketUnlocked()) return { ok: false, reason: '거래소가 아직 열리지 않았습니다.' };
-    if ((game.currencies.formlessDew || 0) < cost) return { ok: false, reason: `형체 없는 이슬 부족, ${game.currencies.formlessDew || 0}/${cost}`, cost };
+    if (!isMarketUnlocked()) return { ok: false, reason: _t('거래소가 아직 열리지 않았습니다.') };
+    if ((game.currencies.formlessDew || 0) < cost) return { ok: false, reason: _t('형체 없는 이슬 부족, {formlessDew}/{cost}', { formlessDew: game.currencies.formlessDew || 0, cost }), cost };
     game.currencies.formlessDew -= cost;
     bm.manualRefreshes = Math.min(20, Math.max(0, Math.floor(bm.manualRefreshes || 0)) + 1);
     refreshBlackMarket(true);
@@ -440,8 +440,8 @@ function payBlackMarketRefresh() {
 /** Pays 황금률 for one more offer slot for good (the offers and locks stay): { ok, reason, cost, count }. */
 function payBlackMarketExpansion() {
     const bm = normalizeBlackMarketState(), cost = getBlackMarketSlotExpandCost(), before = getBlackMarketSlotCount();
-    if (isBlackMarketSlotCapReached()) return { ok: false, reason: `진열은 ${BLACK_MARKET_MAX_SLOT_COUNT}칸까지입니다.` };
-    if ((game.currencies.goldenRule || 0) < cost) return { ok: false, reason: `황금률 부족, ${game.currencies.goldenRule || 0}/${cost}`, cost };
+    if (isBlackMarketSlotCapReached()) return { ok: false, reason: _t('진열은 {value}칸까지입니다.', { value: BLACK_MARKET_MAX_SLOT_COUNT }) };
+    if ((game.currencies.goldenRule || 0) < cost) return { ok: false, reason: _t('황금률 부족, {goldenRule}/{cost}', { goldenRule: game.currencies.goldenRule || 0, cost }), cost };
     game.currencies.goldenRule -= cost;
     bm.extraSlots = Math.min(BLACK_MARKET_MAX_EXTRA_SLOTS, Math.max(0, Math.floor(bm.extraSlots || 0)) + 1);
     bm.offers[before] = buildBlackMarketOffer(before);
@@ -459,18 +459,18 @@ function getBlackMarketOfferPrice(offer) {
 
 /** Whether offer index can be bought now: { ok, reason }. place: the bag cell { column, row } (row over all pages) gear goes to. */
 function checkBlackMarketOffer(index, place = null) {
-    if (game.woodsmanBuildLock) return { ok: false, reason: '☠️ 나무꾼 전투 중에는 살 수 없습니다.' };
+    if (game.woodsmanBuildLock) return { ok: false, reason: _t('☠️ 나무꾼 전투 중에는 살 수 없습니다.') };
     const offer = normalizeBlackMarketState().offers[index];
-    if (!offer) return { ok: false, reason: '이미 팔린 물건입니다.' };
+    if (!offer) return { ok: false, reason: _t('이미 팔린 물건입니다.') };
     const price = getBlackMarketOfferPrice(offer), have = Math.floor(Number(game.currencies[price.key]) || 0);
-    if (have < price.amount) return { ok: false, reason: `${ORB_DB[price.key].name} 부족, ${have}/${price.amount}` };
+    if (have < price.amount) return { ok: false, reason: _t('{name} 부족, {have}/{amount}', { name: _t(ORB_DB[price.key].name), have, amount: price.amount }) };
     if (offer.type === 'skillGem') return { ok: true };
     return offer.type === 'baseItem' || offer.type === 'unique' ? checkBlackMarketRoom(offer, place) : { ok: true };
 }
 
 /** Room in the bag for a gear offer: at place, or anywhere. */
 function checkBlackMarketRoom(offer, place) {
-    if (!place) return canStoreEquipmentItems([offer], game) ? { ok: true } : { ok: false, reason: '가방에 빈칸이 없습니다.' };
+    if (!place) return canStoreEquipmentItems([offer], game) ? { ok: true } : { ok: false, reason: _t('가방에 빈칸이 없습니다.') };
     const fit = equipmentInventoryGridRuntime.canAdd(offer, place.column, place.row, game);
     return fit.ok ? { ok: true } : { ok: false, reason: fit.reason };
 }
@@ -479,7 +479,7 @@ function checkBlackMarketRoom(offer, place) {
 function getBlackMarketConfirmText(offer) {
     const price = getBlackMarketOfferPrice(offer);
     if (!(offer.chase || offer.featured || (price.key === 'goldenRule' && Number(price.amount) >= 5))) return '';
-    return `[${offer.name || '암거래 상품'}]${pickParticle(offer.name || '암거래 상품', '을', '를')} 삽니다.\n${ORB_DB[price.key].name} ${price.amount}개를 쓰며 되돌릴 수 없습니다.`;
+    return `[${offer.name || _t('암거래 상품')}]${pickParticle(offer.name || '암거래 상품', '을', '를')} 삽니다.\n${_t(ORB_DB[price.key].name)} ${price.amount}개를 쓰며 되돌릴 수 없습니다.`;
 }
 
 /** Buys offer index into place (a bag cell) or the first free bag place: pays, grants and empties the slot. offer: the offer the
@@ -488,11 +488,11 @@ function getBlackMarketConfirmText(offer) {
 function sellBlackMarketOffer(index, { place = null, offer = null } = {}) {
     refreshBlackMarket(false);
     const bm = normalizeBlackMarketState();
-    if (offer && bm.offers[index] !== offer) return { ok: false, reason: '진열이 바뀌었습니다. 새 물건을 다시 확인하세요.' };
+    if (offer && bm.offers[index] !== offer) return { ok: false, reason: _t('진열이 바뀌었습니다. 새 물건을 다시 확인하세요.') };
     const check = checkBlackMarketOffer(index, place);
     if (!check.ok) return check;
     const sold = bm.offers[index], summary = grantBlackMarketOffer(sold, place);
-    if (!summary) return { ok: false, reason: '가방에 넣지 못했습니다.' };
+    if (!summary) return { ok: false, reason: _t('가방에 넣지 못했습니다.') };
     const price = getBlackMarketOfferPrice(sold);
     game.currencies[price.key] -= price.amount;
     bm.offers[index] = null;
@@ -505,16 +505,16 @@ function sellBlackMarketOffer(index, { place = null, offer = null } = {}) {
 function grantBlackMarketOffer(offer, place) {
     if (offer.type === 'exchange') {
         awardCurrency(offer.to, offer.gain);
-        return `${ORB_DB[offer.from].name} ${offer.need} → ${ORB_DB[offer.to].name} ${offer.gain}`;
+        return `${_t(ORB_DB[offer.from].name)} ${offer.need} → ${_t(ORB_DB[offer.to].name)} ${offer.gain}`;
     }
     if (offer.type === 'skillGem') {
         gemDropRewards.grant(game, { kind: 'attack', name: offer.name, awakened: false }, 0);
-        return `공격 룬 [${offer.name}]`;
+        return _t('공격 룬 [{name}]', { name: offer.name });
     }
     const item = offer.type === 'baseItem' ? normalizeItem({ ...getBlackMarketBaseItemShape(offer), id: ++itemIdCounter }) : createBlackMarketUniqueItem(offer);
     if (!item || !stowBoughtItem(item, place)) return '';
     game.noti.items = true;
-    return offer.type === 'baseItem' ? `제작 베이스 [${item.name}]` : `${offer.featured ? '표적 ' : ''}고유 [${item.name}]`;
+    return offer.type === 'baseItem' ? _t('제작 베이스 [{name}]', { name: item.name }) : _t('{value}고유 [{name}]', { value: offer.featured ? _t('표적 ') : '', name: item.name });
 }
 
 /** The plain base a base offer sells, with the base lines it showed (no id: the shop card shows it before a sale). */

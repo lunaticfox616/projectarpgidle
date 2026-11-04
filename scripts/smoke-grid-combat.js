@@ -25,7 +25,8 @@ const files = [
   'data/talent-cards.js',
   'data/content-progression.js',
   'data/offline-progress.js',
-  'js/utils.js',
+  'data/locales/ko.js', 'data/locales/en.js', 'data/locales/ja.js', 'data/locales/zh-CN.js', 'data/locales/zh-TW.js',
+  'js/utils.js', 'js/i18n.js',
   'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-rooms.js', 'js/act-exploration-sight.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
   'js/act-exploration-state.js', 'js/exploration-objects.js', 'js/act-exploration-doors.js', 'js/exploration-ground-loot.js',
   'data/ascendancies.js', 'js/state.js',
@@ -2109,7 +2110,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.queueTutorialNotice = (...args) => tutorialNotices.push(args);
   context.triggerSeasonReset();
   assert.strictEqual(context.game.settings.mapCompleteAction, 'nextLoopBestPlusOne', '루프 후 전투 완료 행동은 기본적으로 최고층으로 변경되어야 한다');
-  assert.ok(tutorialNotices.some(args => args[0] === 'unlock_spore_crafting'), '루프 2 진입 즉시 홀씨 제작 해금 안내가 표시되어야 한다');
+  assert.ok(tutorialNotices.some(args => args[0] === 'exploration_event_sealed'), '루프 2 진입 즉시 봉인된 보물함 안내가 표시되어야 한다');
 
   resetGame();
   context.game.season = 1;
@@ -2812,6 +2813,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
         const results=[];
         for(let step=1;step<=10;step++) {
           const choice=game.beehive.pendingChoice.b;
+          // 첫 웨이브의 보상(b는 웨이브를 깨면 받는다)은 형체 없는 이슬 1개로 둔다: 고정 난수에서 b에 오는 보상은 보상 풀에 따라 바뀐다.
+          if(step===1)Object.assign(choice,{effect:'formlessDew',amount:1,chance:null});
           resolveBeehiveChoice('b',choice.penalty.key);
           if(hiveStage)game.actExploration.mode='full';
           const start=game.combatTimeMs;
@@ -2931,7 +2934,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   source.run(`game=mergeDefaults({season:8,level:100});window.game=game;
     game.settings.stageRooms='off';game.currencies.hiveKey=1;startBeehiveRun();`);
   const waitingSave = source.run('serializeSaveState(game)');
-  source.run(`{const choice=game.beehive.pendingChoice.b;resolveBeehiveChoice('b',choice.penalty.key);ensureCombatGridRuntime();
+  // b의 웨이브 보상은 형체 없는 이슬 1개로 둔다(고정 난수에서 b에 오는 보상은 보상 풀에 따라 바뀐다).
+  source.run(`{const choice=game.beehive.pendingChoice.b;Object.assign(choice,{effect:'formlessDew',amount:1,chance:null});resolveBeehiveChoice('b',choice.penalty.key);ensureCombatGridRuntime();
     const nurse=game.enemies.find(enemy=>enemy.monsterVisualId==='hive-nurse');nurse.attackTimer=1;
     enemyAttackRules.ready(nurse,getCombatTime(),game.gridPlayer);}`);
   const snapshot = `JSON.stringify(game.enemies.map(enemy=>[enemy.id,enemy.gx,enemy.gy,enemy.attackRange,

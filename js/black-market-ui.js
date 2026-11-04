@@ -20,7 +20,7 @@ const blackMarketUi = (() => {
         const list = blackOffers();
         return chosen && list[chosen.index] === chosen.offer ? chosen : null;
     }
-    const offerName = offer => (offer.type === 'exchange' ? `${ORB_DB[offer.to].name} ${offer.gain}개` : offer.name);
+    const offerName = offer => (offer.type === 'exchange' ? _t('{name} {gain}개', { name: _t(ORB_DB[offer.to].name), gain: offer.gain }) : offer.name);
     const offerKind = offer => (offer.featured ? '표적 고유' : offer.chase ? '체이싱 고유' : KIND[offer.type]);
     const rarityOf = offer => ({ exchange: 'normal', skillGem: 'magic', baseItem: offer.exceptionalBase ? 'rare' : 'normal', unique: 'unique' })[offer.type];
 
@@ -33,7 +33,7 @@ const blackMarketUi = (() => {
     function blackWareHtml(offer, index, locked) {
         const price = blackMarketShop.price(offer), size = blackMarketShop.size(offer);
         const marks = `${shopView.held(price.key) < price.amount ? ' is-dear' : ''}${chosenBlackOffer()?.index === index ? ' is-chosen' : ''}${locked ? ' is-locked' : ''}${offer.featured || offer.chase ? ' is-featured' : ''}`;
-        const label = `${offerName(offer)}, ${offerKind(offer)}, ${shopView.currencyName(price.key)} ${price.amount}${locked ? ', 잠금' : ''}`;
+        const label = `${offerName(offer)}, ${offerKind(offer)}, ${shopView.currencyName(price.key)} ${price.amount}${locked ? _t(', 잠금') : ''}`;
         return `<button type="button" class="shop-item rarity-${rarityOf(offer)}${marks}" data-shop-pick="offer:${index}" style="${shopView.areaStyle({ ...offer, ...size })}"
             aria-pressed="${chosenBlackOffer()?.index === index}" aria-label="${escapeHTML(label)}">${blackArtHtml(offer)}${locked ? '<span class="shop-lock" aria-hidden="true"></span>' : ''}${shopView.priceHtml(price.key, price.amount)}</button>`;
     }
@@ -49,17 +49,17 @@ const blackMarketUi = (() => {
         const bm = blackMarketShop.state(), cost = blackMarketShop.refreshCost(), left = BLACK_MARKET_INSIGHT_TARGET - (bm.insight || 0);
         const slots = [['any', '전체 부위'], ...BLACK_MARKET_EQUIPMENT_SLOTS.map(slot => [slot, getItemSlotDisplayLabel(null, slot)])]
             .map(([value, label]) => `<option value="${value}" ${bm.preferredSlot === value ? 'selected' : ''}>${label}</option>`).join('');
-        return `<div class="shop-tools"><span>다음 갱신 <strong data-black-clock></strong></span>
-            <label>추적 부위<select data-black-track aria-label="추적 부위">${slots}</select></label>
-            <button type="button" data-black-refresh ${shopView.held('formlessDew') < cost ? 'disabled' : ''}>즉시 갱신${shopView.priceHtml('formlessDew', cost)}</button></div>
-            <p class="shop-tools-note">잠금 ${blackMarketShop.lockCount()}/${BLACK_MARKET_MAX_LOCKED_OFFERS},
-            <strong>${left > 0 ? `표적 고유까지 ${left}회 갱신` : '다음 갱신에 표적 고유 등장'}</strong></p>`;
+        return `<div class="shop-tools"><span>${_t('다음 갱신')} <strong data-black-clock></strong></span>
+            <label>${_t('추적 부위')}<select data-black-track aria-label="${_t('추적 부위')}">${slots}</select></label>
+            <button type="button" data-black-refresh ${shopView.held('formlessDew') < cost ? 'disabled' : ''}>${_t('즉시 갱신{price}', { price: shopView.priceHtml('formlessDew', cost) })}</button></div>
+            <p class="shop-tools-note">${_t('잠금 {lockCount}/{value},', { lockCount: blackMarketShop.lockCount(), value: BLACK_MARKET_MAX_LOCKED_OFFERS })}
+            <strong>${left > 0 ? _t('표적 고유까지 {left}회 갱신', { left }) : _t('다음 갱신에 표적 고유 등장')}</strong></p>`;
     }
 
     function blackExpandHtml() {
         const count = blackMarketShop.slotCount(), cost = blackMarketShop.expandCost();
-        if (count >= BLACK_MARKET_MAX_SLOT_COUNT) return `<p class="shop-tools-note">진열 ${count}칸(최대)</p>`;
-        return `<button type="button" class="shop-more" data-black-expand ${shopView.held('goldenRule') < cost ? 'disabled' : ''}>진열 ${count}칸, 1칸 늘리기${shopView.priceHtml('goldenRule', cost)}</button>`;
+        if (count >= BLACK_MARKET_MAX_SLOT_COUNT) return `<p class="shop-tools-note">${_t('진열 {count}칸(최대)', { count })}</p>`;
+        return `<button type="button" class="shop-more" data-black-expand ${shopView.held('goldenRule') < cost ? 'disabled' : ''}>${_t('진열 {count}칸, 1칸 늘리기{price}', { count, price: shopView.priceHtml('goldenRule', cost) })}</button>`;
     }
 
     function blackClockText() {
@@ -86,7 +86,7 @@ const blackMarketUi = (() => {
     /** The price against the purse, the buy button (or why it cannot be bought) and the lock. */
     function blackDealHtml(at, price, locked, check) {
         const verb = at.offer.type === 'exchange' ? '교환' : '구매';
-        const lock = `<button type="button" class="shop-lock-toggle" data-black-lock aria-pressed="${locked}">${locked ? '잠금 해제' : '잠금'}</button>`;
+        const lock = `<button type="button" class="shop-lock-toggle" data-black-lock aria-pressed="${locked}">${locked ? _t('잠금 해제') : _t('잠금')}</button>`;
         return shopView.dealHtml({ key: price.key, amount: price.amount, verb, check, action: 'data-black-buy', extra: lock });
     }
 
@@ -103,7 +103,7 @@ const blackMarketUi = (() => {
 
     function blackCardBodyHtml(offer) {
         if (offer.type === 'skillGem') return shopView.gemCardHtml({ kind: 'attack', name: offer.name });
-        if (offer.type === 'baseItem') return `${shopView.itemCardHtml(normalizeItem(blackMarketShop.baseItem(offer)))}<p class="shop-hint">제작용 베이스, 숨겨진 티어 ${offer.hiddenTier}</p>`;
+        if (offer.type === 'baseItem') return `${shopView.itemCardHtml(normalizeItem(blackMarketShop.baseItem(offer)))}<p class="shop-hint">${_t('제작용 베이스, 숨겨진 티어 {hiddenTier}', { hiddenTier: offer.hiddenTier })}</p>`;
         const head = `<div class="shop-gem-head"><span class="shop-card-art">${blackArtHtml(offer)}</span><div><small>${escapeHTML(offerKind(offer))}</small>
             <strong>${escapeHTML(offerName(offer))}</strong></div></div>`;
         const text = getBlackMarketOfferTooltipHtml(offer).replace(/[✨🌠🎯]/gu, '');
@@ -115,10 +115,10 @@ const blackMarketUi = (() => {
     function blackMarketMarkup() {
         const list = blackOffers(), keys = list.filter(Boolean).map(offer => blackMarketShop.price(offer).key);
         return `<div class="shop-view is-black" data-shop-kind="black"><div class="shop-body">
-            <section class="shop-shelf" aria-label="암거래상"><header class="shop-bar"><h3>암거래상</h3>${shopView.walletHtml(keys)}</header>
+            <section class="shop-shelf" aria-label="${_t('암거래상')}"><header class="shop-bar"><h3>${_t('암거래상')}</h3>${shopView.walletHtml(keys)}</header>
                 ${blackToolsHtml()}${blackShelfHtml(list)}${blackExpandHtml()}</section>
             <div class="shop-info" aria-live="polite">${blackOfferCardHtml()}</div>
-            <section class="shop-bag" aria-label="가방">${shopView.bagHtml()}</section></div></div>`;
+            <section class="shop-bag" aria-label="${_t('가방')}">${shopView.bagHtml()}</section></div></div>`;
     }
 
     /** Draws the market's black market panel when what it shows changed (not under a carried offer or an open select), and the clock.
@@ -198,10 +198,10 @@ const blackMarketUi = (() => {
         chosen = { index, offer };
         if (busy) return noteBlackMarket(busy);
         const ask = blackMarketShop.confirmText(offer);
-        if (ask && !await askBlackMarket(ask, { title: blackPurchaseTitle(offer), tone: 'danger', confirmLabel: '구매' })) return;
+        if (ask && !await askBlackMarket(ask, { title: blackPurchaseTitle(offer), tone: 'danger', confirmLabel: _t('구매') })) return;
         const result = blackMarketShop.buy(index, { place, offer });
         if (!result.ok) return noteBlackMarket(result.reason);
-        addLog(`🕶️ 암거래 구매, ${result.summary}`, result.notable ? 'loot-unique' : 'loot-magic');
+        addLog(_t('🕶️ 암거래 구매, {summary}', { summary: result.summary }), result.notable ? 'loot-unique' : 'loot-magic');
         chosen = null; note = '';
         checkUnlocks();
         updateStaticUI();
@@ -227,11 +227,11 @@ const blackMarketUi = (() => {
         if (pending) return;
         if (busy) return noteBlackMarket(busy);
         if (!await askBlackMarket(`잠그지 않은 물건을 지금 바꿉니다.\n형체 없는 이슬 ${cost}개를 쓰고, 잠근 물건 ${blackMarketShop.lockCount()}개는 남습니다.`,
-            { title: '암거래 즉시 갱신', confirmLabel: '갱신', danger: false })) return;
+            { title: _t('암거래 즉시 갱신'), confirmLabel: _t('갱신'), danger: false })) return;
         if (blackMarketShop.refreshCost() !== cost) return noteBlackMarket('확인하는 동안 갱신 값이 바뀌었습니다. 다시 눌러 주세요.');
         const result = blackMarketShop.refreshNow();
         if (!result.ok) return noteBlackMarket(result.reason);
-        addLog(`🕶️ 암거래 즉시 갱신, 형체 없는 이슬 ${result.cost}개`, 'loot-magic');
+        addLog(_t('🕶️ 암거래 즉시 갱신, 형체 없는 이슬 {cost}개', { cost: result.cost }), 'loot-magic');
         chosen = null; note = '';
         updateStaticUI();
         drawBlackMarket(true);
@@ -242,17 +242,17 @@ const blackMarketUi = (() => {
         if (pending) return;
         if (busy) return noteBlackMarket(busy);
         if (!await askBlackMarket(buildGoldenRuleSpendPrompt(`황금률 ${cost}개를 써서 진열을 1칸 늘립니다(영구).\n지금 물건과 잠금은 그대로입니다.`),
-            { title: '암거래 진열 늘리기', tone: 'danger', confirmLabel: '늘리기' })) return;
+            { title: _t('암거래 진열 늘리기'), tone: 'danger', confirmLabel: _t('늘리기') })) return;
         if (blackMarketShop.expandCost() !== cost) return noteBlackMarket('확인하는 동안 값이 바뀌었습니다. 다시 눌러 주세요.');
         const result = blackMarketShop.expand();
         if (!result.ok) return noteBlackMarket(result.reason);
-        addLog(`🕶️ 암거래 진열 ${result.count}/${BLACK_MARKET_MAX_SLOT_COUNT}칸, 황금률 ${result.cost}개`, 'loot-unique');
+        addLog(_t('🕶️ 암거래 진열 {count}/{BLACK_MARKET_MAX_SLOT_COUNT}칸, 황금률 {cost}개', { count: result.count, BLACK_MARKET_MAX_SLOT_COUNT, cost: result.cost }), 'loot-unique');
         updateStaticUI();
         drawBlackMarket(true);
     }
 
     function trackBlackMarketSlot(slot) {
-        if (blackMarketShop.track(slot)) addLog(`🕶️ 암거래 추적 부위: ${slot === 'any' ? '전체 부위' : getItemSlotDisplayLabel(null, slot)}`, 'loot-normal');
+        if (blackMarketShop.track(slot)) addLog(_t('🕶️ 암거래 추적 부위: {slot}', { slot: slot === 'any' ? _t('전체 부위') : getItemSlotDisplayLabel(null, slot) }), 'loot-normal');
         queueImportantSave(200);
         drawBlackMarket(true);
     }

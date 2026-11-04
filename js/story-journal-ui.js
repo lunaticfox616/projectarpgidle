@@ -45,7 +45,7 @@ const storyJournalUi = (() => {
     }
     function queueScene(scene) {
         const key = 'story_'+scene.id;
-        if (allowsNotice(key)) return queueTutorialNotice(key,scene.title,scene.lines.join('\n\n'));
+        if (allowsNotice(key)) return queueTutorialNotice(key,_t(scene.title),scene.lines.map(line => _t(line)).join('\n\n'));
         if (!game.seenTutorials.includes(key)) game.seenTutorials.push(key);
     }
     function markIllustratedScenes() {
@@ -79,23 +79,23 @@ const storyJournalUi = (() => {
     /** Narration plus the words spoken in that scene (STORY_SCENE_QUOTES), before or after it as the moment reads. */
     function sceneCopy(scene) {
         const quote = typeof STORY_SCENE_QUOTES === 'object' && scene.id ? STORY_SCENE_QUOTES[scene.id] : null;
-        const narration = scene.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('');
+        const narration = scene.lines.map(line => `<p>${escapeHTML(_t(line))}</p>`).join('');
         if (!quote) return narration;
-        const spoken = `<blockquote class="story-scene-quote">${quote.lines.map(line => `<p>${escapeHTML(line)}</p>`).join('')}</blockquote>`;
+        const spoken = `<blockquote class="story-scene-quote">${quote.lines.map(line => `<p>${escapeHTML(_t(line))}</p>`).join('')}</blockquote>`;
         return quote.before ? spoken + narration : narration + spoken;
     }
     /** A record outside the story: what happened in one line, then the record itself and who keeps it (JOURNAL_DB intro,
      * source; 2026-10-15 Gemini review: those pages were two bare lines). */
     function entryCopy(entry) {
-        const intro = entry.intro ? `<p>${escapeHTML(entry.intro)}</p>` : '';
-        const source = entry.source ? `<p class="story-scene-source">${escapeHTML(entry.source)}</p>` : '';
-        return `${intro}<blockquote class="story-scene-quote">${(entry.lines || []).map(line => `<p>${escapeHTML(line)}</p>`).join('')}${source}</blockquote>`;
+        const intro = entry.intro ? `<p>${escapeHTML(_t(entry.intro))}</p>` : '';
+        const source = entry.source ? `<p class="story-scene-source">${escapeHTML(_t(entry.source))}</p>` : '';
+        return `${intro}<blockquote class="story-scene-quote">${(entry.lines || []).map(line => `<p>${escapeHTML(_t(line))}</p>`).join('')}${source}</blockquote>`;
     }
     // 머리글이 이미 "액트 N"(프롤로그)이라 제목의 같은 머리말은 뺀다: "액트 2 · 다시 추락하다" → "다시 추락하다".
     function sceneHeading(scene) {
-        const kicker = scene.act ? `액트 ${scene.act}` : '프롤로그';
-        const prefix = kicker + ', ';
-        return { kicker, title: scene.title.startsWith(prefix) ? scene.title.slice(prefix.length) : scene.title };
+        const kicker = scene.act ? _t('액트 {act}', { act: scene.act }) : _t('프롤로그');
+        const prefix = kicker + ', ', title = _t(scene.title);
+        return { kicker, title: title.startsWith(prefix) ? title.slice(prefix.length) : title };
     }
     function renderTutorial(notice) {
         const scene = STORY_JOURNAL_SCENES.find(row => 'story_'+row.id === notice.key);
@@ -107,12 +107,12 @@ const storyJournalUi = (() => {
         if (!scene) return false;
         const heading = sceneHeading(scene);
         document.getElementById('tutorial-kicker').textContent = heading.kicker;
-        document.getElementById('tutorial-title').textContent = heading.title;
-        const art = scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async">` : '';
+        document.getElementById('tutorial-title').textContent = _t(heading.title);
+        const art = scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(_t(scene.title))}" decoding="async">` : '';
         document.getElementById('tutorial-body').innerHTML = `${art}
             <div class="story-scene-copy">${sceneCopy(scene)}</div>`;
         document.getElementById('tutorial-open-btn').style.display = 'none';
-        document.getElementById('tutorial-dismiss-btn').textContent = '계속';
+        document.getElementById('tutorial-dismiss-btn').textContent = _t('계속');
         return true;
     }
     /** Reading an unlocked entry never queues notices or changes progression/rewards. */
@@ -125,11 +125,11 @@ const storyJournalUi = (() => {
         reader.id = 'journal-reader';
         reader.classList.toggle('is-text-only', pages.every(page => !page.image));
         reader.setAttribute('aria-labelledby', 'journal-reader-title');
-        reader.innerHTML = `<header class="journal-reader-head"><h2 id="journal-reader-title">${escapeHTML(entry.title)}</h2>
-            <button type="button" autofocus data-journal-close>닫기</button></header>
+        reader.innerHTML = `<header class="journal-reader-head"><h2 id="journal-reader-title">${escapeHTML(_t(entry.title))}</h2>
+            <button type="button" autofocus data-journal-close>${_t('닫기')}</button></header>
             <div class="journal-reader-pages">${pages.map(scene => `<section class="journal-reader-page ${scene.image ? '' : 'is-text-only'}">
-                ${scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async" loading="lazy" width="1254" height="1254">` : ''}
-                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(scene.title)}</h3>` : ''}${scene.entry ? entryCopy(scene.entry) : sceneCopy(scene)}</div>
+                ${scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(_t(scene.title))}" decoding="async" loading="lazy" width="1254" height="1254">` : ''}
+                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(_t(scene.title))}</h3>` : ''}${scene.entry ? entryCopy(scene.entry) : sceneCopy(scene)}</div>
             </section>`).join('')}</div>`;
         reader.addEventListener('close', () => reader.remove(), {once:true});
         reader.querySelector('[data-journal-close]').addEventListener('click', () => reader.close());

@@ -123,7 +123,7 @@ actExplorationView.objects=(()=>{
     function syncLayer(run) {
         if(!layer) {
             const wrap=document.getElementById('battlefield-wrap');if(!wrap)return;
-            layer=document.createElement('div');layer.id='exploration-object-actions';layer.setAttribute('aria-label','발견한 상자와 오브젝트');
+            layer=document.createElement('div');layer.id='exploration-object-actions';layer.setAttribute('aria-label',_t('발견한 상자와 오브젝트'));
             wrap.appendChild(layer);
         }
         if(lastRun!==run){buttons.forEach(n=>n.remove());buttons.clear();lastRun=run;}
@@ -224,7 +224,7 @@ actExplorationView.objects=(()=>{
     }
     /** 몬스터가 나오는 물체(봉인된 보물함, 알집, 매복 흔적)는 다 쓰기 전까지 머리 위에 이름이 달린다(2026-10-16 사용자: "몬스터가 나오는 컨텐츠는
      * 위에 이름이 달려있어야"). NPC 이름과 같은 글꼴, 테의 빛깔. y = 이름의 가운데(화면 px). */
-    const NAME_FONT=`12px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+    const NAME_FONT=`12px ${i18n.fontFamily("'Galmuri11'")}`;
     function nameLabel(ctx,row,x,y) {
         if(!actExplorationState.objects.isEvent(row)||row.phase==='spent')return;
         ctx.save();ctx.globalAlpha=1;ctx.font=NAME_FONT;ctx.textAlign='center';ctx.textBaseline='middle';
@@ -263,7 +263,7 @@ actExplorationView.objects=(()=>{
     addEventListener('project-idle:exploration-object',event=>{
         const {kind,name,objectKind}=event.detail;
         if(objectKind==='pot'||objectKind==='crate')return;
-        addLog(kind==='spawn'?`${name}에서 몬스터가 나타났습니다.`:`${name}의 전리품을 획득했습니다.`,kind==='spawn'?'attack-monster':'loot-magic',{noToast:true});
+        addLog(kind==='spawn'?_t('{name}에서 몬스터가 나타났습니다.', { name }):_t('{name}의 전리품을 획득했습니다.', { name }),kind==='spawn'?'attack-monster':'loot-magic',{noToast:true});
     });
     return {append,flushButtons,draw,drawGround};
 })();

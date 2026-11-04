@@ -2,6 +2,7 @@
  * source of truth; only the control the player changed may write to them. */
 {
     const checks = {
+        'chk-bgm': ['bgm'],
         'chk-ui-sounds': ['uiSounds'],
         'chk-camera-shake': ['cameraShake'],
         'chk-death-notice': ['showDeathNotice'],
@@ -22,6 +23,7 @@
         'chk-high-contrast': ['highContrast']
     };
     const selects = {
+        'sel-language': 'language',
         'sel-hit-emphasis': 'hitEmphasis',
         'sel-chat-message-size': 'chatMessageSize',
         'sel-damage-number-format': 'damageNumberFormat',
@@ -52,6 +54,7 @@
         document.getElementById('chk-act-journal').checked = game.settings.showActJournal !== false;
         applyChatMessageSize(game.settings.chatMessageSize);
         playUiFeedbackSound.syncSettings();
+        gameBgm.sync();
         renderHeroSelectionControls();
         select(root.dataset.settingsCategory);
     }
@@ -69,8 +72,17 @@
         if (category === 'items') equipmentLootUi.renderSettings();
     }
 
-    function applyEffects(key) {
+    /** 효과음과 배경음 켜기: 소리 장치와 로그인 화면의 음표를 맞춘다. */
+    function applySoundEffects(key) {
+        if (key !== 'uiSounds' && key !== 'bgm') return;
         if (key === 'uiSounds') playUiFeedbackSound.syncSettings();
+        else gameBgm.sync();
+        syncStartupSound();
+    }
+
+    function applyEffects(key) {
+        if (key === 'language') i18n.setLanguage(game.settings.language);
+        applySoundEffects(key);
         if (key === 'highContrast') applyHighContrast(game.settings.highContrast);
         if (key === 'chatMessageSize') applyChatMessageSize(game.settings.chatMessageSize);
         if (key === 'showDeathNotice') toggleDeathNoticeSetting(game.settings.showDeathNotice);
@@ -109,6 +121,14 @@
     }
     initDisplayMode();
 
+    // 언어 선택(docs/i18n.md): 목록은 i18n.languages에서 채운다. 이름은 그 언어로 적혀 있어 번역하지 않는다.
+    function initLanguageSelect() {
+        const control = document.getElementById('sel-language');
+        if (!control) return;
+        control.innerHTML = i18n.languages.map(({ code, name }) => `<option value="${code}">${escapeHTML(name)}</option>`).join('');
+    }
+    initLanguageSelect();
+
     root?.addEventListener('change', event => {
         const key = writeControl(event.target);
         if (!key) return;
@@ -117,7 +137,58 @@
         queueImportantSave(180);
     });
 
+    /* 로그인 화면 오른쪽 위(2026-11-04 사용자): 톱니는 이 설정 창을 로그인 화면 위로 띄우고(저장과 계정 분류는 숨김, css/components.css
+     * body.startup-settings-open), 음표는 배경음과 효과음을 함께 끄고 켠다. 로그인 화면에서는 다른 설정처럼 저장하지 않고 게임에 들어간
+     * 뒤의 저장에 실린다(queueImportantSave). */
+    const startupSound = document.getElementById('btn-startup-sound'), startupGear = document.getElementById('btn-startup-settings');
+    const soundOn = () => game.settings.bgm !== false || game.settings.uiSounds !== false;
+    const windowed = () => document.body.classList.contains('desktop-windowed-ui');
+    // PC의 창은 닫혀도 active가 남고 ui-window-open만 빠진다(js/ui-window-manager.js closeWindow)
+    const settingsShown = () => root.classList.contains('active') && (!windowed() || root.classList.contains('ui-window-open'));
+    let startupReturnTab = null, startupWatch = null;
+
+    function syncStartupSound() {
+        if (!startupSound) return;
+        startupSound.classList.toggle('is-muted', !soundOn());
+        startupSound.setAttribute('aria-label', soundOn() ? _t('소리 끄기') : _t('소리 켜기'));
+    }
+    function toggleStartupSound() {
+        const on = !soundOn();
+        game.settings.bgm = on;
+        game.settings.uiSounds = on;
+        applyEffects('uiSounds');
+        applyEffects('bgm');
+        queueImportantSave(180);
+    }
+    function openStartupSettings() {
+        if (document.body.classList.contains('startup-settings-open')) return closeStartupSettings();
+        startupReturnTab = lastActiveTabId;
+        document.body.classList.add('startup-settings-open');
+        startupGear.setAttribute('aria-pressed', 'true');
+        if (root.dataset.settingsCategory === 'data') select('display');
+        switchTab('tab-settings');
+        // 창의 ✕로 닫아도 로그인 화면으로 돌아온다
+        startupWatch = new MutationObserver(() => { if (!settingsShown()) closeStartupSettings(); });
+        startupWatch.observe(root, { attributes: true, attributeFilter: ['class'] });
+    }
+    function closeStartupSettings() {
+        startupWatch?.disconnect();
+        startupWatch = null;
+        document.body.classList.remove('startup-settings-open');
+        startupGear?.setAttribute('aria-pressed', 'false');
+        if (!settingsShown()) return;
+        if (windowed()) closeWindow('tab-settings');
+        else if (startupReturnTab && startupReturnTab !== 'tab-settings') switchTab(startupReturnTab);
+    }
+    startupSound?.addEventListener('click', toggleStartupSound);
+    startupGear?.addEventListener('click', openStartupSettings);
+    window.addEventListener('game:languagechange', syncStartupSound);
+    window.addEventListener('project-idle:startup-visibility', event => {
+        syncStartupSound();
+        if (!event.detail?.active && document.body.classList.contains('startup-settings-open')) closeStartupSettings();
+    });
+
     // Classic-script bootstrap and the category buttons' inline handlers share
     // this single UI owner. It never runs from the domain/save layer.
-    safeExposeGlobals({ settingsUi: { sync, select } });
+    safeExposeGlobals({ settingsUi: { sync, select, syncStartupSound, closeStartupSettings } });
 }

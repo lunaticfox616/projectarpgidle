@@ -22,7 +22,7 @@ const memoryDungeonUi = (() => {
     }
     function challenge(nodeId, tier) {
         const model = selectedPreview();
-        if (!model || model.node.id !== nodeId || model.tier !== Number(tier)) return addLog('도전할 기억을 다시 선택하세요.', 'attack-monster');
+        if (!model || model.node.id !== nodeId || model.tier !== Number(tier)) return addLog(_t('도전할 기억을 다시 선택하세요.'), 'attack-monster');
         const reason = atlasRun.openMemory(nodeId, Number(tier));
         if (reason) { addLog(reason, 'attack-monster'); atlasUi.refresh(); return; }
         queueImportantSave(200);
@@ -55,59 +55,59 @@ const memoryDungeonUi = (() => {
         return atlas.runOpenReason(game) || atlas.lockReason(game) || atlasRun.blockReason();
     }
     function tierButton(row, step, selected) {
-        if (!step.have && row.best !== step.tier) return `<span class="memory-tier is-empty">${step.tier}단계</span>`;
+        if (!step.have && row.best !== step.tier) return `<span class="memory-tier is-empty">${_t('{tier}단계', { tier: step.tier })}</span>`;
         const on = selected?.node.id === row.node.id && selected.tier === step.tier;
-        const label = `${row.node.boss}의 기억 ${step.tier}단계 준비 보기`;
-        const note = step.have ? `${step.have}개` : '승리 기록';
+        const label = _t('{boss}의 기억 {tier}단계 준비 보기', { boss: row.node.boss, tier: step.tier });
+        const note = step.have ? _t('{have}개', { have: step.have }) : '승리 기록';
         return `<button type="button" class="memory-tier" onclick="memoryDungeonUi.select('${row.node.id}', ${step.tier})" aria-label="${esc(label)}" aria-pressed="${on}">
-            <strong>${step.tier}단계</strong><small>${note}</small>${step.tier > memoryDungeon.maxTier(game) ? '<small>잠김</small>' : ''}</button>`;
+            <strong>${_t('{tier}단계', { tier: step.tier })}</strong><small>${note}</small>${step.tier > memoryDungeon.maxTier(game) ? _t('<small>잠김</small>') : ''}</button>`;
     }
     function cardHtml(row, selected) {
         const where = row.node.region ? (ATLAS.regions.find(region => region.id === row.node.region) || {}).name : row.node.name;
-        return `<div class="memory-card"><strong>${esc(row.node.boss)}</strong><small>${esc(where)}${row.best ? `, 이긴 단계 ${row.best}` : ''}</small>
+        return `<div class="memory-card"><strong>${esc(row.node.boss)}</strong><small>${esc(where)}${row.best ? _t(', 이긴 단계 {best}', { best: row.best }) : ''}</small>
             <div class="memory-tiers">${row.tiers.map(step => tierButton(row, step, selected)).join('')}</div></div>`;
     }
     function currentRunHtml() {
         const run = game.atlas.run;
         if (!run) return '';
-        const name = atlas.node(run.map.node).boss, memory = run.map.memory ? ` (기억 ${run.map.memory}단계)` : '';
-        return `<section class="memory-current-run" aria-label="열린 지도"><strong>진행 중인 도전이 있습니다</strong><p>${esc(name)}${memory}, 남은 포털 ${run.portals}개</p>
-            <button type="button" onclick="memoryDungeonUi.showMaps()">열린 지도 보기</button></section>`;
+        const name = atlas.node(run.map.node).boss, memory = run.map.memory ? _t(' (기억 {memory}단계)', { memory: run.map.memory }) : '';
+        return `<section class="memory-current-run" aria-label="${_t('열린 지도')}"><strong>${_t('진행 중인 도전이 있습니다')}</strong><p>${_t('{name}{memory}, 남은 포털 {portals}개', { name: esc(name), memory, portals: run.portals })}</p>
+            <button type="button" onclick="memoryDungeonUi.showMaps()">${_t('열린 지도 보기')}</button></section>`;
     }
     function currencyReward(row) {
-        const amount = row.min === row.max ? `${row.min}개` : `${row.min}~${row.max}개 (${percent(row.extraChance)}로 ${row.max}개)`;
+        const amount = row.min === row.max ? _t('{min}개', { min: row.min }) : _t('{min}~{max}개 ({extraChance}로 {max2}개)', { min: row.min, max: row.max, extraChance: percent(row.extraChance), max2: row.max });
         return `<li><span>${getStyledOrbName(row.key)}</span><b>${amount}</b></li>`;
     }
     function nextReward(next) {
         if (!next) return '최고 단계입니다. 다음 단계 기억은 없습니다.';
         if (next.reason) return next.reason;
-        return `승리 시 ${percent(next.chance)} 확률로 ${next.tier}단계 기억 1개 (현재 ${next.have}/${next.cap}개)`;
+        return _t('승리 시 {chance} 확률로 {tier}단계 기억 1개 (현재 {have}/{cap}개)', { chance: percent(next.chance), tier: next.tier, have: next.have, cap: next.cap });
     }
     function rewardsHtml(model) {
         const name = model.unique.name || '무작위 고유 장비';
         const gear = model.gear ? '<p>추가 희귀 장비 1개 확정</p>' : '';
         return `<div class="memory-rewards"><p><b>${esc(name)}</b> ${percent(model.unique.chance)}</p>
-            <p class="atlas-muted">옵션 한 줄 뒤바뀜 ${percent(model.unique.swapChance)}</p>
-            <p>${esc(nextReward(model.next))}</p><details><summary>기억 전용 보상 자세히</summary>${gear}<ul>${model.rewards.map(currencyReward).join('')}</ul></details></div>`;
+            <p class="atlas-muted">${_t('옵션 한 줄 뒤바뀜 {swapChance}', { swapChance: percent(model.unique.swapChance) })}</p>
+            <p>${esc(nextReward(model.next))}</p><details><summary>${_t('기억 전용 보상 자세히')}</summary>${gear}<ul>${model.rewards.map(currencyReward).join('')}</ul></details></div>`;
     }
     function preparationHtml(model) {
         if (!model) return '';
         const why = model.reason || departBlock();
-        return `<section class="memory-preparation" tabindex="-1" aria-labelledby="memory-preparation-title"><h3 id="memory-preparation-title">${esc(model.node.boss)}의 기억 ${model.tier}단계</h3>
-            <p class="memory-preparation-meta">${model.map.tier}등급, 보유 ${model.have}개${model.best ? `, 최고 승리 ${model.best}단계` : ''}</p>
+        return `<section class="memory-preparation" tabindex="-1" aria-labelledby="memory-preparation-title"><h3 id="memory-preparation-title">${_t('{boss}의 기억 {tier}단계', { boss: esc(model.node.boss), tier: model.tier })}</h3>
+            <p class="memory-preparation-meta">${model.map.tier}등급, 보유 ${model.have}개${model.best ? _t(', 최고 승리 {best}단계', { best: model.best }) : ''}</p>
             ${buildMapPowerEstimateHtml(atlas.preview(game, model.map), { hideReward: true })}${rewardsHtml(model)}
-            <p class="memory-entry-cost">입장 비용: 이 기억 1개와 장착 각인</p>
+            <p class="memory-entry-cost">${_t('입장 비용: 이 기억 1개와 장착 각인')}</p>
             ${why ? `<p class="atlas-lock" id="memory-entry-reason">${esc(why)}</p>` : ''}
             <button type="button" class="atlas-primary memory-challenge" data-exploration-departure onclick="memoryDungeonUi.challenge('${model.node.id}',${model.tier})"
-                ${why ? 'disabled aria-describedby="memory-entry-reason"' : ''}>기억 1개로 도전</button></section>`;
+                ${why ? 'disabled aria-describedby="memory-entry-reason"' : ''}>${_t('기억 1개로 도전')}</button></section>`;
     }
     const hasHeld = row => row.counts.some(count => count > 0);
     function controlsHtml(rows) {
         if (!rows.length) return '';
         const options = [['held', '보유 기억', rows.filter(hasHeld).length], ['records', '승리 기록', rows.filter(row => row.best > 0).length]];
-        return `<div class="memory-controls"><nav aria-label="기억 목록">${options.map(([id, label, count]) => `<button type="button" data-memory-filter="${id}" aria-pressed="${filter === id}"
-            onclick="memoryDungeonUi.setFilter('${id}')">${label} ${count}종</button>`).join('')}</nav>
-            <label for="memory-boss-search">보스 이름으로 찾기<input id="memory-boss-search" type="search" value="${esc(query)}" placeholder="보스 또는 지역 이름"
+        return `<div class="memory-controls"><nav aria-label="${_t('기억 목록')}">${options.map(([id, label, count]) => `<button type="button" data-memory-filter="${id}" aria-pressed="${filter === id}"
+            onclick="memoryDungeonUi.setFilter('${id}')">${_t('{label} {count}종', { label, count })}</button>`).join('')}</nav>
+            <label for="memory-boss-search">${_t('보스 이름으로 찾기')}<input id="memory-boss-search" type="search" value="${esc(query)}" placeholder="${_t('보스 또는 지역 이름')}"
                 oninput="if(!event.isComposing)memoryDungeonUi.search(this.value)" oncompositionend="memoryDungeonUi.search(this.value)"></label></div>`;
     }
     function visibleRows(rows) {
@@ -120,29 +120,29 @@ const memoryDungeonUi = (() => {
     function emptyHtml() {
         if (query.trim()) return '<p class="memory-empty">이름이 일치하는 기억이 없습니다.</p>';
         if (filter === 'records') return '<p class="memory-empty">아직 승리 기록이 없습니다.</p>';
-        return `<section class="memory-empty"><p>보유한 기억이 없습니다.</p>
-            ${game.atlas.run ? '' : '<button type="button" onclick="memoryDungeonUi.showMaps()">지도 준비 보기</button>'}</section>`;
+        return `<section class="memory-empty"><p>${_t('보유한 기억이 없습니다.')}</p>
+            ${game.atlas.run ? '' : _t('<button type="button" onclick="memoryDungeonUi.showMaps()">지도 준비 보기</button>')}</section>`;
     }
     function html() {
         const rows = memoryDungeon.overview(game), selected = selectedPreview(), shown = visibleRows(rows), block = departBlock();
         const head = memoryDungeon.open(game) ? '' : '기억 던전 해금 뒤에 아틀라스의 보스가 기억을 남깁니다.';
-        const tiers = memoryDungeon.maxTier(game) < M.tiers ? `1~${M.highTiers.from - 1}단계 (${M.highTiers.from}~${M.tiers}단계는 기억 던전 4, 5 해금 뒤)` : `1~${M.tiers}단계 도전 가능`;
+        const tiers = memoryDungeon.maxTier(game) < M.tiers ? _t('1~{value}단계 ({from}~{tiers}단계는 기억 던전 4, 5 해금 뒤)', { value: M.highTiers.from - 1, from: M.highTiers.from, tiers: M.tiers }) : _t('1~{tiers}단계 도전 가능', { tiers: M.tiers });
         const list = shown.length ? `<div class="memory-cards">${shown.map(row => cardHtml(row, selected)).join('')}</div>` : emptyHtml();
-        return `<div class="atlas-late memory-dungeon"><section class="atlas-late-head"><h3>기억 던전</h3>${head ? `<p class="atlas-muted">${head}</p>` : ''}<p class="atlas-muted">${tiers}, 보유 ${memoryDungeon.total(game)}개</p>
+        return `<div class="atlas-late memory-dungeon"><section class="atlas-late-head"><h3>${_t('기억 던전')}</h3>${head ? `<p class="atlas-muted">${head}</p>` : ''}<p class="atlas-muted">${_t('{tiers}, 보유 {total}개', { tiers, total: memoryDungeon.total(game) })}</p>
             ${block && !game.atlas.run ? `<p class="atlas-lock">${esc(block)}</p>` : ''}</section>${currentRunHtml()}${preparationHtml(selected)}${controlsHtml(rows)}${list}${bossVariantsUi.recordHtml()}</div>`;
     }
 
     // ---------------------------------------------------------------- log lines ('complete' carries result.memory, js/atlas.js complete)
     function spoilsLines(spoils) {
-        const currencies = spoils.rewards.map(([key, amount]) => `${ORB_DB[key].name} ${amount}`).join(', ');
-        addLog(`🕯️ 기억 ${spoils.tier}단계 승리${spoils.best ? ' (새 기록)' : ''}: ${currencies || '재화 없음'}`, 'loot-unique', { toast: true });
-        (spoils.items || []).forEach(item => addLog(`🛡️ 기억의 보상 <span class='loot-${item.rarity}'>[${esc(item.name)}]</span>`, item.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item }));
+        const currencies = spoils.rewards.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`).join(', ');
+        addLog(_t('🕯️ 기억 {tier}단계 승리{best}: {currencies}', { tier: spoils.tier, best: spoils.best ? ` ${_t('(새 기록)')}` : '', currencies: currencies || _t('재화 없음') }), 'loot-unique', { toast: true });
+        (spoils.items || []).forEach(item => addLog(_t("🛡️ 기억의 보상 <span class='loot-{rarity}'>[{item}]</span>", { rarity: item.rarity, item: esc(getItemDisplayName(item)) }), item.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item }));
     }
     function announce(detail) {
         const memory = detail.kind === 'complete' ? detail.memory : null;
         if (!memory) return;
         if (memory.spoils) spoilsLines(memory.spoils);
-        if (memory.ticket) addLog(`🕯️ ${esc(memory.ticket.name)}의 기억 ${memory.ticket.tier}단계를 얻었습니다(아틀라스의 기억 보기).`, 'loot-unique', { toast: true });
+        if (memory.ticket) addLog(_t('🕯️ {name}의 기억 {tier}단계를 얻었습니다(아틀라스의 기억 보기).', { name: esc(_t(memory.ticket.name)), tier: memory.ticket.tier }), 'loot-unique', { toast: true });
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
     return Object.freeze({ html, select, challenge, setFilter, search, showMaps });

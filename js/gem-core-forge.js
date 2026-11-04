@@ -25,8 +25,8 @@ const gemCoreForge = (() => {
         if (level <= 0) return '강화 효과 없음';
         const { damage, speed, damageInc, speedInc, levels } = effects({ enhanceLevel: level });
         const percent = mul => Math.round((mul - 1) * 100);
-        return [`피해 ${damageInc}% 증가`, speedInc ? `공격/시전 속도 ${speedInc}% 증가` : '', damage > 1 ? `피해 ${percent(damage)}% 증폭` : '',
-            speed > 1 ? `공격/시전 속도 ${percent(speed)}% 증폭` : '', levels ? `룬 레벨 +${levels}` : ''].filter(Boolean).join(', ');
+        return [_t('피해 {damageInc}% 증가', { damageInc }), speedInc ? _t('공격/시전 속도 {speedInc}% 증가', { speedInc }) : '', damage > 1 ? _t('피해 {damage}% 증폭', { damage: percent(damage) }) : '',
+            speed > 1 ? _t('공격/시전 속도 {speed}% 증폭', { speed: percent(speed) }) : '', levels ? _t('룬 레벨 +{levels}', { levels }) : ''].filter(Boolean).join(', ');
     }
 
     /** 실패 보정 %p: 그 단계 기본 확률에 비례한다(data/gem-core-forge.js pityStepOfBase, pityMaxOfBase). */

@@ -139,10 +139,15 @@ const stageSkillRunes = (() => {
         for (let i = 0; i < cells; i++) lanes.forEach((k, j) => stageSkillVfx.play(gem.map.iceTrail, K.at(from, face * (i + 0.55 + (j % 2) * 0.25) * WIDE, k * DEEP),
             { face: (i + j) % 2 ? -face : face, delay: i * cellMs + j * 50, layer: k < 0 ? 'ground' : 'top' }));
     }
-    /** 서리 파동(2026-11-02 전달본 V3.9.1): 바닥을 달리는 서리 선 뒤로 얼음 칼날이 물결처럼 솟았다 부서진다. 옆으로 치는 띠면 줄마다. */
+    /** 서리 파동(2026-11-02 전달본 V3.9.1): 바닥을 달리는 서리 선 뒤로 얼음 칼날이 물결처럼 솟았다 부서진다. 옆으로 치는 띠면 줄마다.
+     * 2026-11-04 사용자 "서리파동 약간 반투명하게", 이어서 "더 투명하게": 가운데 줄 0.55(전: 1), 옆줄은 그 0.8배.
+     * 같은 날 "서리파동 유지가 더 짧게 되게 해주고 잔 파편 개수도 렉 안걸리게 약간 줄여줘": 46칸(약 3.1초) 가운데 솟는 칸(0~7)은 그대로 두고,
+     * 서 있는 칸 열셋(8~20)은 넷만, 부서지는 칸은 하나 걸러(22~29), 부서진 뒤 가루만 흩날리는 칸(30~45)은 뺀다: 18칸, 약 1.2초. 끝 0.2초에 옅어진다. */
+    const PFX_WAVE_ALPHA = 0.55;
+    const PFX_WAVE_FRAMES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 9, 12, 15, 18, 21, 22, 23, 25, 27, 29]), PFX_WAVE_TAIL_MS = 200;
     function runePfxWave(gem, event) {
         const face = faceOf(event), rows = rowsOf(event.footprint);
-        for (let lane = -rows; lane <= rows; lane++) stageSkillVfx.play(gem.map.pfxWave, K.at(event.sourceCell, face * 8, 1 + lane * DEEP), { face, delay: Math.abs(lane) * 30, alpha: lane ? 0.8 : 1 });
+        for (let lane = -rows; lane <= rows; lane++) stageSkillVfx.play(gem.map.pfxWave, K.at(event.sourceCell, face * 8, 1 + lane * DEEP), { face, delay: Math.abs(lane) * 30, alpha: PFX_WAVE_ALPHA * (lane ? 0.8 : 1), order: PFX_WAVE_FRAMES, tail: PFX_WAVE_TAIL_MS });
     }
     /** 나아가는 그림이 지나는 칸 수: 띠의 길이, 아니면 대상 칸까지의 가로 칸 수. */
     function cellsAhead(event) {

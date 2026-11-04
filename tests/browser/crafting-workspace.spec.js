@@ -15,7 +15,8 @@ async function setup(page) {
         const item=createItemFromBase(BASE_ITEM_DB.find(row=>row.slot==='무기'),'rare',12);
         item.stats=[{id:'flatDmg',statName:'기본 피해',val:10,valMin:8,valMax:12,tier:1}];
         game.inventory=[item];
-        Object.assign(game.currencies,{formlessDew:50,sapBud:50,blightSpore:50,goldenRule:50,sporeFire:500,fossilJagged:10});
+        Object.assign(game.currencies,{formlessDew:50,sapBud:50,blightSpore:50,goldenRule:50,fossilJagged:10});
+        game.stumpBox.acquired=true;game.stumpBox.wallet={'flower-fire':500}; // 화염 계열 수확 제작의 값(화염 식물)
         openTabPane('tab-items');switchItemSubtab('item-tab-craft');selectForCrafting(item.id,false);updateStaticUI();
     });
     await settle(page);

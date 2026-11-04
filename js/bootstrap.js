@@ -21,14 +21,14 @@
         var zone = document.getElementById('ui-combat-zone');
         var caption = document.getElementById('ui-battlefield-caption');
         var log = document.getElementById('log');
-        if (label) label.innerText = '⚠️ 브라우저 미지원';
-        if (pct) pct.innerText = '스크립트 실행 불가';
+        if (label) label.innerText = _t('⚠️ 브라우저 미지원');
+        if (pct) pct.innerText = _t('스크립트 실행 불가');
         if (bar) {
             bar.style.width = '100%';
             bar.style.backgroundColor = '#c0392b';
         }
-        if (zone) zone.innerText = '이 미리보기는 최신 JavaScript를 지원하지 않습니다';
-        if (caption) caption.innerText = '외부 Chromium/Edge 계열 브라우저에서 열어 주세요.';
+        if (zone) zone.innerText = _t('이 미리보기는 최신 JavaScript를 지원하지 않습니다');
+        if (caption) caption.innerText = _t('외부 Chromium/Edge 계열 브라우저에서 열어 주세요.');
         if (log) {
             log.innerHTML = '<div class=\"log-msg attack-monster\">이 인앱 브라우저는 현재 게임 스크립트 문법을 지원하지 않아 전투 루프가 시작되지 않습니다.</div>' +
                 '<div class=\"log-msg loot-magic\">원인: 페이지의 메인 스크립트가 파싱 단계에서 중단되어 진행도, 전투, 저장 로직이 전혀 실행되지 않습니다.</div>' +

@@ -32,11 +32,17 @@ safeExposeGlobals({runForegroundExplorationFrame});
  * for a page whose scripts failed. Resolves once the screen is visible; init starts the battle sheets only then, so they do not compete
  * with its fonts (19MB on a slow line). */
 function revealStartupScreen() {
+    settingsUi.syncStartupSound(); // 오른쪽 위 음표(2026-11-04)는 방금 읽은 저장의 설정으로
     const fontsReady = typeof document.fonts === 'object' && document.fonts.ready ? document.fonts.ready : Promise.resolve();
     return fontsReady.then(() => new Promise(shown => requestAnimationFrame(() => {
         document.documentElement.classList.remove('app-preload');
         shown();
     })));
+}
+/** 저장에서 읽은 표현 설정: 언어(설정 창과 정적 글, docs/i18n.md)와 화면 배율. 첫 렌더 전에 둘 다 정한다. */
+function applySavedPresentation(settings) {
+    i18n.applySaved(settings);
+    uiDisplay.applySaved(settings);
 }
 // Bootstrap and scheduling own orchestration; render functions remain in ui.js.
 function init() {
@@ -69,7 +75,7 @@ function init() {
     applyUiSkin(game.settings.uiSkin);
     applyHighContrast(game.settings.highContrast);
     hotkeysUi.init();
-    uiDisplay.applySaved(game.settings);
+    applySavedPresentation(game.settings);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
     settingsUi.sync();

@@ -773,7 +773,7 @@
 ### 바닥 장비 줍기 · 보스 자리 · 정산 대기 (2026-10-05 사용자 요청)
 
 - 탐험 맵에서 떨어진 장비는 줍기 전까지 그 칸 바닥에 남는다(`js/exploration-ground-loot.js`, 실행 저장 `run.groundLoot`
-  `[{gx,gy,item,highlight,guaranteed}]`). 캐릭터가 그 칸을 밟으면 줍고, 자동 이동이면 싸움이 없을 때 가장 가까운 더미로 걸어간다.
+  `[{gx,gy,item,highlight,guaranteed}]`). 캐릭터가 그 칸을 밟으면 줍고(이동 속도 150% 이상이면 둘레 8칸에서도, 2026-11-04), 자동 이동이면 싸움이 없을 때 가장 가까운 더미로 걸어간다.
   더미를 누르면(마우스·터치·Enter) 캐릭터 위치와 관계없이 바로 줍는다(`actExplorationProgress.collectPile`).
 - 줍기는 기존 `addItemToInventory`(자동 장착 · 공간 · 자동해체)를 그대로 쓴다(`collectExplorationFloorLoot`). 습득 필터는 드랍 때
   한 번 판정해, 필터나 자동해체 대상은 예전처럼 바로 처리되고 바닥에 남지 않는다(`previewEquipmentPickup`).

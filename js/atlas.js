@@ -182,14 +182,14 @@ const atlas = (() => {
      * 바꿀 수 없으면 꽃도 지도석도 그대로다. @returns {{reason?:string, omen?:string}} */
     function changeOmen(state, uid, color, omenId = null, random = Math.random) {
         const map = state.atlas.stash.find(entry => entry.uid === uid);
-        if (!map) return { reason: '보관함에 없는 지도석입니다.' };
+        if (!map) return { reason: _t('보관함에 없는 지도석입니다.') };
         const reason = omenChangeReason(map);
         if (reason) return { reason };
         const open = lootOmens.flowerOmens(color, state, map.omen).some(omen => omen.id === omenId);
         const next = omenId ? (open ? omenId : null) : lootOmens.rollFlowerOmen(color, state, map.omen, random);
-        if (!next) return { reason: '이 꽃으로 바꿀 수 있는 기운이 없습니다.' };
+        if (!next) return { reason: _t('이 꽃으로 바꿀 수 있는 기운이 없습니다.') };
         // 화폐화한 꽃도 평범한 꽃이라 '보관함에'는 황금 꽃에만 붙는다.
-        if (!stumpBox.payFlower(state, color, !!omenId)) return { reason: `${omenId ? '보관함에 황금 ' : ''}${STUMP_BOX_COLORS[color].label} 꽃이 없습니다.` };
+        if (!stumpBox.payFlower(state, color, !!omenId)) return { reason: _t('{value}{label} 꽃이 없습니다.', { value: omenId ? _t('보관함에 황금 ') : '', label: STUMP_BOX_COLORS[color].label }) };
         map.omen = next;
         return { omen: next };
     }

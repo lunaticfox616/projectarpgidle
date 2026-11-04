@@ -175,13 +175,13 @@ function getTalentRuntimeAppliedText(runtime, level) {
     if (runtime.key === 'mistral') {
         let aspd = Math.round((Number(runtime.aspdPerStackAtLevel10) || 0) * levelRatio * 100) / 100;
         let move = Math.round((Number(runtime.movePerStackAtLevel10) || 0) * levelRatio * 100) / 100;
-        return `중첩마다 공격 속도 +${aspd}%, 이동 속도 +${move}%(최대 ${runtime.maxStacks}중첩)`;
+        return _t('중첩마다 공격 속도 +{aspd}%, 이동 속도 +{move}%(최대 {maxStacks}중첩)', { aspd, move, maxStacks: runtime.maxStacks });
     }
     if (runtime.key === 'stoneShield') {
         let pct = Math.round((Number(runtime.maxHpPctAtLevel10) || 0) * levelRatio * 100) / 100;
-        return `막기 시 최대 생명력의 ${pct}% 돌 보호막`;
+        return _t('막기 시 최대 생명력의 {pct}% 돌 보호막', { pct });
     }
-    if (runtime.key === 'moonReturn') return `단일 적에게 원 피해의 ${runtime.damagePct}% 추가 타격`;
+    if (runtime.key === 'moonReturn') return _t('단일 적에게 원 피해의 {damagePct}% 추가 타격', { damagePct: runtime.damagePct });
     if (runtime.key === 'ailmentWhitelist') return '적에게 점화와 중독만 걸 수 있음';
     if (runtime.key === 'instantWarcry') return runtime.latestEffectOnly
         ? '함성 시전 시간 0초, 마지막 함성 하나의 고유 효과만 유효, 활성 함성 수는 모두 셈'
@@ -225,65 +225,65 @@ function getTalentCardEffectParts(heroId, classKey, level) {
 
 // 고유 효과 키 → 실제 효과를 나타내는 간략한 한국어 설명(파라미터 반영).
 const TALENT_UNIQ_LABELS = {
-    projectilePatternMode: p => `투사체 패턴: ${typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[p.mode] ? PROJECTILE_PATTERN_MODE_DB[p.mode].label : p.mode}`,
-    cosmosPenetration: p => `저항 관통 +${p.pen}%`,
-    poisonDamageMorePct: p => `중독 피해 +${p.pct}%`,
-    igniteDamageMorePct: p => `점화 피해 +${p.pct}%`,
-    hitShockedEnemyDamageMorePct: p => `감전된 적에게 주는 피해 +${p.pct}%`,
-    alwaysShock: () => `타격마다 감전 판정을 한 번 더 함`,
-    stackingElementalResDownOnHit: p => `원소 타격마다 그 적의 원소 저항 -${p.perHit}%(최대 -${p.max}%)`,
-    hitApplyChaosResDown: p => `타격 시 적 카오스 저항 -${p.perHit}%(최대 ${p.maxStacks}중첩)`,
-    realmAllResDownOnHit: p => `타격 시 적 모든 저항 -${p.perHit}%(최대 ${p.max}%, ${p.duration}초)`,
-    minRollEqualsMaxRoll: () => `항상 최대 피해로 적중`,
-    maxRollBonusHit: () => `피해 굴림이 130% 이상이면 그 피해의 50%로 한 번 더 침`,
-    instantLeechAndDoubleDamage: p => `흡혈의 ${p.instantLeechPct}%를 바로 회복, ${p.doubleDamageChance}% 확률로 피해 2배`,
-    projectileDoubleStrikePct: p => `투사체 연속 타격 확률 +${p.pct}%`,
-    projectileExtraShotBonus: p => `투사체 추가 발사 +${p.shots}`,
-    lifePctAsEnergyShield: p => `최대 생명력의 ${p.pct}%를 에너지 보호막으로`,
-    overhealCapPct: p => `생명력과 에너지 보호막 초과 회복 +${p.pct}%`,
-    hpToPhysPct: () => `최대 생명력이 물리 피해를 강화`,
-    labyrinthShackles: () => `이동 속도가 피해로 전환`,
-    grandBreachCrown: p => `에너지 보호막 +${p.esPct}%, 에너지 보호막의 ${p.spellFromEsPct}%를 주문 피해로`,
-    guardianArmor: p => `몬스터에게 받는 피해 -${p.takenLessPct}%(보스 -${p.bossTakenLessPct}%)`,
-    curseCrown: p => `저주 한도 +${p.extraCurseCap}, 저주마다 피해 +${p.finalDmgPerCursePct}%`,
-    genericTakenDamageReducePct: p => `받는 피해 -${p.pct}%`,
-    chaosTakenDamageReducePct: p => `받는 카오스 피해 -${p.pct}%`,
-    uniqueTakenReduceWhen1Enemy: p => `적이 하나일 때 받는 피해 -${p.pct}%`,
-    uniqueTakenReduceWhen2Enemies: p => `적이 둘 이상일 때 받는 피해 -${p.pct}%`,
-    lifeRecoupTakenDamage: p => `받은 피해의 ${p.pct}%를 ${p.duration}초간 생명력으로 회수`,
-    realmAllMaxRes: p => `모든 최대 저항 +${p.maxRes}%`,
-    immuneBleed: () => `출혈에 걸리지 않음`,
-    immuneFreeze: () => `빙결에 걸리지 않음`,
-    immuneIgnite: () => `점화에 걸리지 않음`,
-    uniqueBlockChance: p => `막기 확률 +${p.chance}%`,
-    blockedDamageTakenPct: p => `막기 시 피해의 ${p.pct}%를 받음`,
-    dragonVeinGuard: p => `타격 시 ${p.chance}% 확률로 ${p.duration}초 동안 최대 생명력 ${p.hpPct}%의 보호막`,
-    leechEfficiencyOnKill: p => `처치 시 ${p.duration}초간 흡혈 효율 +${p.efficiencyPct}%`,
-    cosmosSustain: p => `생명력 재생 +${p.regen}%, 흡혈 +${p.leech}%`,
-    realmRegenRateAndRegen: p => `재생 속도 +${p.regenRatePct}%, 생명력 재생 +${p.regen}%`,
-    corpseExplodeOnKill: p => `처치 시 ${p.chance}% 확률로 시체 폭발(생명력 ${p.lifePct}%)`,
-    meteorFootsteps: p => `치명타 시 ${p.chance}% 확률로 모든 적에게 그 피해의 ${p.damagePct}%`,
-    queenBeeSummonOnHit: p => `타격 시 ${p.chance}% 확률로 벌 소환(최대 ${p.maxBees})`,
-    shockTracerGreaves: p => `감전된 적을 맞히면 그 피해의 ${p.strikeDamagePct}%로 한 번 더 침, 감전에 걸리지 않음`,
-    frostSentinelBoots: () => `한기와 빙결에 걸리지 않음`,
-    realmKillMoveStacks: p => `처치 시 이동 속도 +${p.movePerStack}%(최대 ${p.maxStacks}중첩)`,
-    overkillSplash: () => `적을 처치하고 남은 피해가 다른 적 모두에게 튐`,
-    summonDeathDamageBuff: p => `소환수 사망 시 피해 +${p.pct}%(${p.duration}초)`,
-    summonCritAspdStacks: p => `소환수 치명타 시 공격 속도 +${p.aspd}%(최대 ${p.maxStacks}중첩)`,
-    summonCapBonus: p => `소환수 한도 +${p.cap}`,
-    summonEfficiencyBonus: p => `소환수 효율 +${p.pct}%`,
-    projectileTargetBonus: p => `투사체 대상 +${p.target}`,
-    dsAndTargetAnyBonus: p => (p.ds ? `연속 타격 +${p.ds}%, ` : '') + `공격 대상 +${p.target}`,
-    esAmpAndRecoverOnCrit: p => `에너지 보호막 +${p.ampPct}%, 치명타 시 에너지 보호막 ${p.recoverPctOnCrit}% 회복`,
-    warcryResonanceBelt: p => `활성 함성마다 피해 +${p.perWarcryAmpPct}%`,
+    projectilePatternMode: p => _t('투사체 패턴: {value}', { value: typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[p.mode] ? PROJECTILE_PATTERN_MODE_DB[p.mode].label : p.mode }),
+    cosmosPenetration: p => _t('저항 관통 +{pen}%', { pen: p.pen }),
+    poisonDamageMorePct: p => _t('중독 피해 +{pct}%', { pct: p.pct }),
+    igniteDamageMorePct: p => _t('점화 피해 +{pct}%', { pct: p.pct }),
+    hitShockedEnemyDamageMorePct: p => _t('감전된 적에게 주는 피해 +{pct}%', { pct: p.pct }),
+    alwaysShock: () => _t('타격마다 감전 판정을 한 번 더 함'),
+    stackingElementalResDownOnHit: p => _t('원소 타격마다 그 적의 원소 저항 -{perHit}%(최대 -{max}%)', { perHit: p.perHit, max: p.max }),
+    hitApplyChaosResDown: p => _t('타격 시 적 카오스 저항 -{perHit}%(최대 {maxStacks}중첩)', { perHit: p.perHit, maxStacks: p.maxStacks }),
+    realmAllResDownOnHit: p => _t('타격 시 적 모든 저항 -{perHit}%(최대 {max}%, {duration}초)', { perHit: p.perHit, max: p.max, duration: p.duration }),
+    minRollEqualsMaxRoll: () => _t('항상 최대 피해로 적중'),
+    maxRollBonusHit: () => _t('피해 굴림이 130% 이상이면 그 피해의 50%로 한 번 더 침'),
+    instantLeechAndDoubleDamage: p => _t('흡혈의 {instantLeechPct}%를 바로 회복, {doubleDamageChance}% 확률로 피해 2배', { instantLeechPct: p.instantLeechPct, doubleDamageChance: p.doubleDamageChance }),
+    projectileDoubleStrikePct: p => _t('투사체 연속 타격 확률 +{pct}%', { pct: p.pct }),
+    projectileExtraShotBonus: p => _t('투사체 추가 발사 +{shots}', { shots: p.shots }),
+    lifePctAsEnergyShield: p => _t('최대 생명력의 {pct}%를 에너지 보호막으로', { pct: p.pct }),
+    overhealCapPct: p => _t('생명력과 에너지 보호막 초과 회복 +{pct}%', { pct: p.pct }),
+    hpToPhysPct: () => _t('최대 생명력이 물리 피해를 강화'),
+    labyrinthShackles: () => _t('이동 속도가 피해로 전환'),
+    grandBreachCrown: p => _t('에너지 보호막 +{esPct}%, 에너지 보호막의 {spellFromEsPct}%를 주문 피해로', { esPct: p.esPct, spellFromEsPct: p.spellFromEsPct }),
+    guardianArmor: p => _t('몬스터에게 받는 피해 -{takenLessPct}%(보스 -{bossTakenLessPct}%)', { takenLessPct: p.takenLessPct, bossTakenLessPct: p.bossTakenLessPct }),
+    curseCrown: p => _t('저주 한도 +{extraCurseCap}, 저주마다 피해 +{finalDmgPerCursePct}%', { extraCurseCap: p.extraCurseCap, finalDmgPerCursePct: p.finalDmgPerCursePct }),
+    genericTakenDamageReducePct: p => _t('받는 피해 -{pct}%', { pct: p.pct }),
+    chaosTakenDamageReducePct: p => _t('받는 카오스 피해 -{pct}%', { pct: p.pct }),
+    uniqueTakenReduceWhen1Enemy: p => _t('적이 하나일 때 받는 피해 -{pct}%', { pct: p.pct }),
+    uniqueTakenReduceWhen2Enemies: p => _t('적이 둘 이상일 때 받는 피해 -{pct}%', { pct: p.pct }),
+    lifeRecoupTakenDamage: p => _t('받은 피해의 {pct}%를 {duration}초간 생명력으로 회수', { pct: p.pct, duration: p.duration }),
+    realmAllMaxRes: p => _t('모든 최대 저항 +{maxRes}%', { maxRes: p.maxRes }),
+    immuneBleed: () => _t('출혈에 걸리지 않음'),
+    immuneFreeze: () => _t('빙결에 걸리지 않음'),
+    immuneIgnite: () => _t('점화에 걸리지 않음'),
+    uniqueBlockChance: p => _t('막기 확률 +{chance}%', { chance: p.chance }),
+    blockedDamageTakenPct: p => _t('막기 시 피해의 {pct}%를 받음', { pct: p.pct }),
+    dragonVeinGuard: p => _t('타격 시 {chance}% 확률로 {duration}초 동안 최대 생명력 {hpPct}%의 보호막', { chance: p.chance, duration: p.duration, hpPct: p.hpPct }),
+    leechEfficiencyOnKill: p => _t('처치 시 {duration}초간 흡혈 효율 +{efficiencyPct}%', { duration: p.duration, efficiencyPct: p.efficiencyPct }),
+    cosmosSustain: p => _t('생명력 재생 +{regen}%, 흡혈 +{leech}%', { regen: p.regen, leech: p.leech }),
+    realmRegenRateAndRegen: p => _t('재생 속도 +{regenRatePct}%, 생명력 재생 +{regen}%', { regenRatePct: p.regenRatePct, regen: p.regen }),
+    corpseExplodeOnKill: p => _t('처치 시 {chance}% 확률로 시체 폭발(생명력 {lifePct}%)', { chance: p.chance, lifePct: p.lifePct }),
+    meteorFootsteps: p => _t('치명타 시 {chance}% 확률로 모든 적에게 그 피해의 {damagePct}%', { chance: p.chance, damagePct: p.damagePct }),
+    queenBeeSummonOnHit: p => _t('타격 시 {chance}% 확률로 벌 소환(최대 {maxBees})', { chance: p.chance, maxBees: p.maxBees }),
+    shockTracerGreaves: p => _t('감전된 적을 맞히면 그 피해의 {strikeDamagePct}%로 한 번 더 침, 감전에 걸리지 않음', { strikeDamagePct: p.strikeDamagePct }),
+    frostSentinelBoots: () => _t('한기와 빙결에 걸리지 않음'),
+    realmKillMoveStacks: p => _t('처치 시 이동 속도 +{movePerStack}%(최대 {maxStacks}중첩)', { movePerStack: p.movePerStack, maxStacks: p.maxStacks }),
+    overkillSplash: () => _t('적을 처치하고 남은 피해가 다른 적 모두에게 튐'),
+    summonDeathDamageBuff: p => _t('소환수 사망 시 피해 +{pct}%({duration}초)', { pct: p.pct, duration: p.duration }),
+    summonCritAspdStacks: p => _t('소환수 치명타 시 공격 속도 +{aspd}%(최대 {maxStacks}중첩)', { aspd: p.aspd, maxStacks: p.maxStacks }),
+    summonCapBonus: p => _t('소환수 한도 +{cap}', { cap: p.cap }),
+    summonEfficiencyBonus: p => _t('소환수 효율 +{pct}%', { pct: p.pct }),
+    projectileTargetBonus: p => _t('투사체 대상 +{target}', { target: p.target }),
+    dsAndTargetAnyBonus: p => (p.ds ? _t('연속 타격 +{ds}%, ', { ds: p.ds }) : '') + _t('공격 대상 +{target}', { target: p.target }),
+    esAmpAndRecoverOnCrit: p => _t('에너지 보호막 +{ampPct}%, 치명타 시 에너지 보호막 {recoverPctOnCrit}% 회복', { ampPct: p.ampPct, recoverPctOnCrit: p.recoverPctOnCrit }),
+    warcryResonanceBelt: p => _t('활성 함성마다 피해 +{perWarcryAmpPct}%', { perWarcryAmpPct: p.perWarcryAmpPct }),
     // 2026-10-02 전직 18종의 새 카드
-    uniqueMinDmgRoll: p => `최소 피해 보정 +${p.pct}%`,
-    underdogNonMaxRollMorePct: p => `최대가 아닌 피해 굴림의 피해 ${p.pct}% 증폭`,
-    cosmosSpeedBurst: p => `이동 속도 +${p.move}%, 공격 속도 +${p.aspd}%`,
-    uniqueDeflectDamageReduce: p => `비껴내기 피해 감소 +${p.pct}%`,
-    instakillNormalOnHitPct: p => `타격 시 ${p.pct}% 확률로 일반 몬스터 즉시 처치`,
-    cosmosFinalDmg: p => `피해 +${p.pct}%`,
-    realmPoisonDuration: p => `중독 지속 시간 +${p.durationPct}%`
+    uniqueMinDmgRoll: p => _t('최소 피해 보정 +{pct}%', { pct: p.pct }),
+    underdogNonMaxRollMorePct: p => _t('최대가 아닌 피해 굴림의 피해 {pct}% 증폭', { pct: p.pct }),
+    cosmosSpeedBurst: p => _t('이동 속도 +{move}%, 공격 속도 +{aspd}%', { move: p.move, aspd: p.aspd }),
+    uniqueDeflectDamageReduce: p => _t('비껴내기 피해 감소 +{pct}%', { pct: p.pct }),
+    instakillNormalOnHitPct: p => _t('타격 시 {pct}% 확률로 일반 몬스터 즉시 처치', { pct: p.pct }),
+    cosmosFinalDmg: p => _t('피해 +{pct}%', { pct: p.pct }),
+    realmPoisonDuration: p => _t('중독 지속 시간 +{durationPct}%', { durationPct: p.durationPct })
 };
 
 function getTalentUniqLabel(key, p) {
@@ -339,7 +339,7 @@ function equipTalentCard(comboKey) {
     if (!owned[comboKey]) return;
     let loadout = ensureTalentCardLoadout();
     let unlocked = getUnlockedTalentSlotCount();
-    if (unlocked <= 0) { if (typeof addLog === 'function') addLog('🔒 아직 장착 슬롯이 열리지 않았습니다.', 'attack-monster'); return; }
+    if (unlocked <= 0) { if (typeof addLog === 'function') addLog(_t('🔒 아직 장착 슬롯이 열리지 않았습니다.'), 'attack-monster'); return; }
     // 이미 장착돼 있으면 해제(토글)
     let existing = loadout.indexOf(comboKey);
     if (existing >= 0) { loadout[existing] = null; afterTalentLoadoutChange(); return; }

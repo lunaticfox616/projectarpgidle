@@ -14,6 +14,7 @@
     "check:css": "node scripts/check-css.js",
     "check:architecture": "node scripts/check-runtime-architecture.js",
     "check:db": "node scripts/check-db-mirror.js",
+    "check:i18n": "node scripts/check-i18n.js",
     "test": "node scripts/run-smoke.js",
     "benchmark:balance": "node scripts/benchmark-loop-balance.js && node scripts/benchmark-loop-loot.js",
     "test:browser": "playwright test",

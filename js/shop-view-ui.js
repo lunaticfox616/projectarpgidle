@@ -31,7 +31,7 @@ const shopView = (() => {
 
     const isHarvest = key => stumpBox.isHarvestPrice(key);
     const held = key => (isHarvest(key) ? stumpBox.harvestPriceHeld(game, key) : Math.floor(Number(game.currencies[key]) || 0));
-    const currencyName = key => (isHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? ORB_DB[key].name : key);
+    const currencyName = key => (isHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? _t(ORB_DB[key].name) : key);
     const registerShop = (kind, adapter) => { adapters.set(kind, adapter); };
     const areaStyle = at => `grid-area:${at.row + 1}/${at.column + 1}/span ${at.rows}/span ${at.columns}`;
 
@@ -66,9 +66,9 @@ const shopView = (() => {
         bagPage = Math.max(0, Math.min(layout.unlockedPageCount - 1, bagPage));
         const page = equipmentInventoryGridRuntime.getPageLayout(layout, bagPage), rows = equipmentInventoryGridRuntime.rowsPerPage;
         const items = page.entries.map(entry => bagItemHtml(entry, pick ? pick(entry.item) : null)).join('');
-        const pages = layout.unlockedPageCount > 1 ? `<nav class="shop-pages" aria-label="가방 쪽">${Array.from({ length: layout.unlockedPageCount }, (_, index) =>
+        const pages = layout.unlockedPageCount > 1 ? `<nav class="shop-pages" aria-label="${_t('가방 쪽')}">${Array.from({ length: layout.unlockedPageCount }, (_, index) =>
             `<button type="button" data-shop-bag-page="${index}" aria-pressed="${index === bagPage}">${index + 1}</button>`).join('')}</nav>` : '';
-        return `<header class="shop-bar"><h3>가방</h3><span class="shop-room">${getInventoryUsedCellCount(game)}/${getInventoryLimit(game)}칸</span>${pages}</header>
+        return `<header class="shop-bar"><h3>${_t('가방')}</h3><span class="shop-room">${_t('{game}/{game2}칸', { game: getInventoryUsedCellCount(game), game2: getInventoryLimit(game) })}</span>${pages}</header>
             <div class="shop-grid is-bag" style="--grid-columns:${layout.columns};--grid-rows:${rows}">${cellsHtml(layout.columns, rows, (column, row) => `data-bag-cell="${column}:${row}"`)}${items}</div>`;
     }
 
@@ -84,7 +84,7 @@ const shopView = (() => {
     /** A rejected bag item remains pressable so touch users can read its refusal; a mouse reads it on the floating card. */
     function dimBagItemHtml(item, style, art, reason) {
         return `<button type="button" class="shop-bag-item rarity-${item.rarity || 'normal'} is-dim" style="${style}" data-shop-dim="${item.id}"
-            data-shop-item="${item.id}" data-shop-why="${escapeHTML(reason || '')}" aria-label="${escapeHTML(`${item.name || item.baseName || '장비'}, ${reason || '고를 수 없음'}`)}">${art}</button>`;
+            data-shop-item="${item.id}" data-shop-why="${escapeHTML(reason || '')}" aria-label="${escapeHTML(`${item.name || item.baseName || _t('장비')}, ${reason || _t('고를 수 없음')}`)}">${art}</button>`;
     }
 
     /** An item's card: its own tooltip (the bag's), and the bag analysis' verdict on wearing it (js/equipment-triage.js rate) in the bag
@@ -109,10 +109,10 @@ const shopView = (() => {
      * peek: the floating card of a pointed ware: no buttons (the pointer cannot reach them). */
     function dealHtml({ key, amount, verb = '구매', check = { ok: true }, action = '', extra = '', peek = false }) {
         const have = held(key), price = Number(amount) || 0, short = Math.max(0, price - have);
-        const purse = short ? `<span class="is-short">보유 ${have.toLocaleString()}, ${short.toLocaleString()} 부족</span>`
-            : `<span>보유 ${have.toLocaleString()} → ${verb} 후 ${(have - price).toLocaleString()}</span>`;
+        const purse = short ? `<span class="is-short">${_t('보유 {have}, {short} 부족', { have: have.toLocaleString(), short: short.toLocaleString() })}</span>`
+            : `<span>${_t('보유 {have} → {verb} 후 {value}', { have: have.toLocaleString(), verb, value: (have - price).toLocaleString() })}</span>`;
         const act = dealActionsHtml({ verb, check, action, extra, peek });
-        return `<div class="shop-deal${peek ? ' is-peek' : ''}"><p class="shop-deal-price"><span>가격</span>${coinHtml(key)}
+        return `<div class="shop-deal${peek ? ' is-peek' : ''}"><p class="shop-deal-price"><span>${_t('가격')}</span>${coinHtml(key)}
             <strong${short ? ' class="is-short"' : ''}>${escapeHTML(currencyName(key))} ${price.toLocaleString()}</strong></p>
             <p class="shop-deal-purse">${purse}</p>${act}</div>`;
     }
@@ -153,9 +153,9 @@ const shopView = (() => {
         const wearable = getEquipCandidateSlots(item).some(slot => combatEquipmentStats.inspect(item, slot).ok);
         const rating = wearable ? equipmentTriage.rate(item) : null;
         if (!rating) return '';
-        const chips = [rating.dpsGainPct >= 1 ? `<span class="is-damage">공격 +${rating.dpsGainPct}%</span>` : '',
-            rating.ehpGainPct >= 1 ? `<span class="is-defense">생존 +${rating.ehpGainPct}%</span>` : ''].join('');
-        return `<p class="shop-rating">${chips || '<span>현 세팅 유지</span>'}</p>`;
+        const chips = [rating.dpsGainPct >= 1 ? `<span class="is-damage">${_t('공격 +{dpsGainPct}%', { dpsGainPct: rating.dpsGainPct })}</span>` : '',
+            rating.ehpGainPct >= 1 ? `<span class="is-defense">${_t('생존 +{ehpGainPct}%', { ehpGainPct: rating.ehpGainPct })}</span>` : ''].join('');
+        return `<p class="shop-rating">${chips || _t('<span>현 세팅 유지</span>')}</p>`;
     }
 
     /** A rune's picture: a support rune's sigil or the attack rune's art. gem: { kind: 'attack' | 'support', name, tier }. */
@@ -168,9 +168,9 @@ const shopView = (() => {
         const support = gem.kind === 'support', def = (support ? SUPPORT_GEM_DB : SKILL_DB)[gem.name] || {};
         const need = getRuneLevelReq(gem.name, support);
         const copies = support ? 0 : gemDropRewards.copyCount(game, gem.name);
-        const kind = `${support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬'}${need ? `, Lv.${need}` : ''}${copies ? `, 보유 ${copies}개` : ''}`;
+        const kind = `${support ? _t('보조스킬룬, {name}', { name: getSupportTierLabel(gem.name, gem.tier) }) : _t('공격 룬')}${need ? `, Lv.${need}` : ''}${copies ? _t(', 보유 {copies}개', { copies }) : ''}`;
         return `<div class="shop-gem-card"><div class="shop-gem-head">${gemArtHtml(gem)}<div><small>${escapeHTML(kind)}</small>
-            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
+            <strong>${escapeHTML(_t(gem.name))}</strong></div></div><p>${statToneText.html(_t(def.desc) || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
     }
 
     /** An attack rune against the hero now: why the weapon in hand cannot use it (as its loot line says, js/currency-acquisition-ui.js),
@@ -185,7 +185,7 @@ const shopView = (() => {
     /** A support rune the hero could wear at its shelf tier now: what wearing it brings (buying only grants it). */
     function supportFitHtml(gem) {
         const levelNote = getRuneLevelNote(gem.name, true);
-        if (levelNote) return `<p class="shop-note">지금 쓸 수 없음: ${levelNote}</p>`;
+        if (levelNote) return `<p class="shop-note">${_t('지금 쓸 수 없음: {levelNote}', { levelNote })}</p>`;
         return supportFits(gem) ? wearPreviewHtml(copy => wearSupportOnCopy(copy, gem)) : '';
     }
 
@@ -210,7 +210,7 @@ const shopView = (() => {
      * the skill tree and act reward previews; nothing when nothing changes. */
     function wearPreviewHtml(edit) {
         const parts = buildStatPreviewParts(previewBuildStats(edit));
-        return parts ? `<p class="shop-gem-dps">장착하면 ${parts}</p>` : '';
+        return parts ? `<p class="shop-gem-dps">${_t('장착하면 {parts}', { parts })}</p>` : '';
     }
 
     /** Why no trade can go now, or '': while the offline fights replay, the replayed game replaces this one when it is done

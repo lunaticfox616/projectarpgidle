@@ -24,7 +24,7 @@ const coreItems = (() => {
     }
 
     function nameFor(lines, perfect = false) {
-        const name = `${CORE_ITEM_RULES.groupNames[pool.get(lines[0].id).group]}의 코어`;
+        const name = _t('{groupNames}의 코어', { groupNames: CORE_ITEM_RULES.groupNames[pool.get(lines[0].id).group] });
         return perfect ? `${CORE_ITEM_RULES.perfect.prefix} ${name}` : name;
     }
     /** 완전한 코어(CORE_ITEM_RULES.perfect)의 표식: 고유 빛깔과 체이싱 티어(js/loot.js, 알림). */

@@ -7,6 +7,11 @@ const GRID_CARDINAL_STEPS = Object.freeze([
     Object.freeze({ dx: -1, dy: 0 }), Object.freeze({ dx: 1, dy: 0 }),
     Object.freeze({ dx: 0, dy: -1 }), Object.freeze({ dx: 0, dy: 1 })
 ]);
+/** The cardinal steps and the four diagonals: the exploring hero out of combat (COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed). */
+const GRID_EIGHT_STEPS = Object.freeze(GRID_CARDINAL_STEPS.concat([
+    Object.freeze({ dx: -1, dy: -1 }), Object.freeze({ dx: 1, dy: -1 }),
+    Object.freeze({ dx: -1, dy: 1 }), Object.freeze({ dx: 1, dy: 1 })
+]));
 
 /** @param {{columns:number, rows:number}} [size] The map, when the caller already read it (a loop over many cells reads it once). */
 function isGridCellInBounds(gx, gy, size = getCombatGridSize()) {
@@ -428,6 +433,7 @@ function createGridStepSearch(unit, tx, ty, blocked) {
     const blockedAt = gridBlockedIndexSet(blocked, width, height), visited = new Uint8Array(width * height);
     const walk = map.tiles ? gridWalkMask(map, terrain.sealed) : null;
     visited[unit.gy * width + unit.gx] = 1;
+    const inside = (gx, gy) => gx >= 0 && gy >= 0 && gx + cols <= width && gy + rows <= height;
     /** No cell of the footprint at (gx, gy) is blocked or unwalkable (the sealed gate counts as a wall). All of them are inside the map. */
     const free = (gx, gy) => {
         for (let dx = 0; dx < cols; dx++) for (let dy = 0; dy < rows; dy++) {
@@ -441,36 +447,46 @@ function createGridStepSearch(unit, tx, ty, blocked) {
         man: (gx, gy) => Math.abs(gx + (cols - 1) / 2 - tx) + Math.abs(gy + (rows - 1) / 2 - ty),
         /** True the first time the footprint can stand with its top-left on (gx, gy): every cell inside the map and free. Marks the cell. */
         enter(gx, gy) {
-            if (gx < 0 || gy < 0 || gx + cols > width || gy + rows > height) return false;
+            if (!inside(gx, gy)) return false;
             const at = gy * width + gx;
             if (visited[at] || !free(gx, gy)) return false;
             visited[at] = 1;
             return true;
+        },
+        /** enter for one step d from (gx, gy). A diagonal step also needs both cells beside it free: it never cuts a wall's corner or
+         * squeezes between two units. */
+        move(gx, gy, d) {
+            const side = (x, y) => inside(x, y) && free(x, y);
+            return (!(d.dx && d.dy) || (side(gx + d.dx, gy) && side(gx, gy + d.dy))) && this.enter(gx + d.dx, gy + d.dy);
         }
     };
 }
 
+/** The steps to try from the unit, those that close the distance first. Equal shortest routes then close the distance: a fixed
+ * horizontal tie made equally fast melee actors swap columns forever while two rows apart (2026-10-29: the act-one slime stopped
+ * real progression). */
+function sortedGridSteps(unit, search, diagonal) {
+    return [...(diagonal ? GRID_EIGHT_STEPS : GRID_CARDINAL_STEPS)].sort((a, b) =>
+        search.cheb(unit.gx + a.dx, unit.gy + a.dy) - search.cheb(unit.gx + b.dx, unit.gy + b.dy) ||
+        search.man(unit.gx + a.dx, unit.gy + a.dy) - search.man(unit.gx + b.dx, unit.gy + b.dy));
+}
 /**
- * 목표 칸을 향한 최단 우회로를 찾아 상하좌우로 한 칸 전진시킨다.
- * 점유 칸은 통과하지 못하고 대각선 이동은 허용하지 않는다.
+ * 목표 칸을 향한 최단 우회로를 찾아 한 칸 전진시킨다. 보통은 상하좌우이고, diagonal이면 대각선도 한 걸음이다(탐험 중 전투 밖의
+ * 주인공, COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed). 대각선은 양옆 두 칸이 비어 있어야 한다. 점유 칸은 통과하지 못한다.
  * 닿을 수 있는 칸을 모두 훑어 (발 거리, 중심 거리) 순으로 가장 가까운 칸을 고르고 그쪽 첫걸음을 뗀다. 칸마다 발자국 셀 배열과
  * 문자열 열쇠를 만들지 않는다(2026-10-27: 방치 정산 8시간의 23%가 이 탐색이었다). 동률 경로는 첫걸음의 거리가 줄어드는 쪽을 먼저 고른다.
  * @returns {boolean} 실제로 이동했는지
  */
-function gridStepToward(unit, tx, ty, blocked) {
+function gridStepToward(unit, tx, ty, blocked, diagonal) {
     if (!hasGridCell(unit)) return false;
     const search = createGridStepSearch(unit, tx, ty, blocked);
-    // Equal shortest routes first close the distance. A fixed horizontal tie made equally fast melee actors
-    // swap columns forever while two rows apart (2026-10-29: the act-one slime stopped real progression).
-    const directions = [...GRID_CARDINAL_STEPS].sort((a, b) =>
-        search.cheb(unit.gx + a.dx, unit.gy + a.dy) - search.cheb(unit.gx + b.dx, unit.gy + b.dy) ||
-        search.man(unit.gx + a.dx, unit.gy + a.dy) - search.man(unit.gx + b.dx, unit.gy + b.dy));
+    const directions = sortedGridSteps(unit, search, diagonal);
     const qx = [unit.gx], qy = [unit.gy], qf = [-1]; // 큐: 칸과, 그 칸에 이르는 첫걸음의 큐 번호(시작 칸은 -1)
     let best = 0, bestCheb = search.cheb(unit.gx, unit.gy), bestMan = search.man(unit.gx, unit.gy);
     for (let head = 0; head < qx.length; head++) {
         for (const direction of directions) {
             const gx = qx[head] + direction.dx, gy = qy[head] + direction.dy;
-            if (!search.enter(gx, gy)) continue;
+            if (!search.move(qx[head], qy[head], direction)) continue;
             const cheb = search.cheb(gx, gy), index = qx.length;
             qx.push(gx); qy.push(gy); qf.push(qf[head] < 0 ? index : qf[head]);
             if (cheb > bestCheb) continue;
@@ -529,10 +545,11 @@ function stepAroundDanger(blocked, avoid, stepThrough) {
     withAvoidedGridCells(blocked, hard);
     return (soft.length > 0 && stepThrough(withAvoidedGridCells(new Set(blocked), soft))) || stepThrough(blocked);
 }
-function beginExplorationGridStep(target,interval,avoid) {
+/** diagonal: the hero may step diagonally (exploration out of combat at COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed). */
+function beginExplorationGridStep(target,interval,avoid,diagonal=false) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
     const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
-    if(!stepAroundDanger(getExplorationPlanningBlockedCells(run),avoid,blocked=>gridStepToward(next,target.gx,target.gy,blocked)))return false;
+    if(!stepAroundDanger(getExplorationPlanningBlockedCells(run),avoid,blocked=>gridStepToward(next,target.gx,target.gy,blocked,diagonal)))return false;
     return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
 }
 /** Whether a step toward target is free for unit now, by the rule advanceGridUnitMovement steps by, without moving it. */

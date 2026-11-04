@@ -46,8 +46,54 @@ const devTestPanel = (() => {
         if (!SKILL_DB[name]) return;
         game.skills = Array.isArray(game.skills) ? game.skills : [];
         if (!game.skills.includes(name)) game.skills.push(name);
+        const summons = game.equippedSummonSkills || [];
+        if (summons.includes(name)) return note(`이미 소환 중: ${name}`); // 다시 누르면 changeSkill이 소환을 내린다
+        // 소환 한도가 1이어도 새 소환을 볼 수 있게 다른 소환은 내린다
+        if ((SKILL_DB[name].tags || []).includes('summon')) summons.slice().forEach(toggleSummonAttackGem);
+        fitRune(name);
         changeSkill(name);
         note(`룬 장착: ${name}`);
+    }
+    /** 시험 패널에서 고른 룬은 바로 쓴다(2026-11-04 사용자: 바꾼 스킬을 다 써 보기): 모자란 레벨, 완갑, 무기를 채운다.
+     * 무기는 직업 대표 무기가 맞으면 그것, 아니면 그 룬이 받는 첫 무기. 끼고 있던 무기와 완갑은 가방으로 간다. */
+    function fitRune(name) {
+        const need = getRuneLevelReq(name);
+        if (need > game.level) addLevels(need - game.level);
+        if (SKILL_DB[name].requiresShield && !hasEquippedShield()) wearTestItem('완갑', base => base.slot === '방패');
+        const family = SKILL_RUNE_FAMILY[name];
+        if (!family || isSkillRuneUsableWithStance(name, getEquippedWeaponStance())) return;
+        const own = SKILL_RUNE_STANCE_BY_CATEGORY[HANA_WEAPON_COMBOS.classWeapons[game.selectedClassId]];
+        const stance = SKILL_RUNE_WEAPONS[family].includes(own) ? own : SKILL_RUNE_WEAPONS[family].find(value => value !== 'unarmed');
+        const category = Object.keys(SKILL_RUNE_STANCE_BY_CATEGORY).find(id => SKILL_RUNE_STANCE_BY_CATEGORY[id] === stance);
+        wearTestItem(WEAPON_CATEGORIES[category].name, base => base.slot === '무기' && getWeaponCategoryOfBase(base.id) === category);
+    }
+    /** 가방에 맞는 장비가 있으면 그것을, 없으면 가장 낮은 바탕의 보통 등급을 만들어 낀다(grantClassStarterWeapon과 같은 고르기).
+     * 룬을 차례로 바꿔 끼워도 시험 장비가 대분류마다 하나만 남아 가방이 차지 않는다. */
+    function wearTestItem(label, fits) {
+        const owned = game.inventory.find(item => fits(BASE_ITEM_DB.find(row => row.id === item.baseId) || {}));
+        const base = owned ? null : BASE_ITEM_DB.filter(row => fits(row) && !row.realmBase && !row.dropOnly).reduce((best, row) => (!best || row.reqTier < best.reqTier ? row : best), null);
+        const item = owned || (base && createItemFromBase(base, 'normal', 1));
+        if (!item || (!owned && !addItemToInventory(item, { ignoreFilter: true }))) return;
+        // 빈 칸이면 가방에 넣을 때 바로 끼워진다
+        if (Object.values(game.equipment).includes(item) || equipItemById(item.id)) log(`시험용 ${label} 장착`);
+    }
+    /** 타격음별 룬(2026-11-04): 룬을 그 적중이 내는 타격음(js/canvas-combat-feedback.js skillSound)으로 묶는다. 묶음 이름은 소리 목록의 이름표. */
+    function soundRuneSelect() {
+        const select = el('select', { id: 'dtp-sound-rune' }), groups = new Map();
+        Object.keys(SKILL_DB).filter(name => SKILL_DB[name].isGem).forEach(name => {
+            const kind = worldTreeSkillFx.feedback.skillSound({ skillName: name, element: SKILL_DB[name].ele, damage: 1 });
+            if (!groups.has(kind)) groups.set(kind, el('optgroup', { label: kind }));
+            groups.get(kind).append(el('option', { value: name, textContent: name }));
+        });
+        [...groups.keys()].sort().forEach(kind => select.append(groups.get(kind)));
+        fetch('assets/audio/game-sfx-v2/bank.json').then(response => response.json())
+            .then(bank => groups.forEach((group, kind) => { group.label = bank[kind]?.label || kind; }))
+            .catch(error => console.warn('[dev-test-panel] sound labels', error));
+        return select;
+    }
+    function nextSoundRune(select) {
+        select.selectedIndex = (select.selectedIndex + 1) % select.options.length;
+        equipGem(select.value);
     }
     function setSetting(key, value, label) {
         game.settings[key] = value;
@@ -325,6 +371,7 @@ const devTestPanel = (() => {
     }
     function combatSection() {
         const god = el('input', { type: 'checkbox', id: 'dtp-god', onchange: () => toggleGodMode(god.checked) });
+        const soundRunes = soundRuneSelect();
         return section('전투', [
             row([el('label', { htmlFor: 'dtp-god' }, [god, ' 무적(생명력 유지)'])]),
             row(SPEEDS.map(value => button(`×${value}`, () => setSpeed(value), { dataset: { speed: String(value) } }))),
@@ -337,7 +384,8 @@ const devTestPanel = (() => {
                 button('사냥 도전', () => note(combatIncidents.testChallenge() ? '사냥 도전을 열었습니다' : '방 단위 지도의 방에서만, 하나씩 됩니다')),
                 button('세계수의 숨결', () => note(combatIncidents.testBreath() ? '세계수의 숨결이 깃들었습니다' : '숨결을 부르지 못했습니다')),
                 button('유성우', () => note(combatIncidents.testShower() ? '유성우를 떨어뜨렸습니다' : '방 단위 지도의 방에서만 됩니다')),
-                button('수액 잔치', () => note(combatIncidents.testFeast() ? '황금 수액 잔치를 열었습니다' : '지금 방에 보통 몬스터가 없습니다'))])
+                button('수액 잔치', () => note(combatIncidents.testFeast() ? '황금 수액 잔치를 열었습니다' : '지금 방에 보통 몬스터가 없습니다'))]),
+            row([el('label', { textContent: '타격음별 룬' }), soundRunes, button('장착', () => equipGem(soundRunes.value)), button('다음', () => nextSoundRune(soundRunes))])
         ]);
     }
     function spawnCritter(rainbow) {

@@ -176,7 +176,7 @@ const npcShop = (() => {
     }
 
     const priceIsHarvest = key => stumpBox.isHarvestPrice(key);
-    const currencyName = key => (priceIsHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? ORB_DB[key].name : key);
+    const currencyName = key => (priceIsHarvest(key) ? stumpBox.harvestPriceName(key) : ORB_DB[key] ? _t(ORB_DB[key].name) : key);
     const priceHeld = key => (priceIsHarvest(key) ? stumpBox.harvestPriceHeld(game, key) : Math.floor(Number(game.currencies[key]) || 0));
     function payShopPrice({ priceKey, price }) {
         if (priceIsHarvest(priceKey)) stumpBox.payHarvestPrice(game, priceKey);
@@ -186,23 +186,23 @@ const npcShop = (() => {
 
     /** Whether offer index of the NPC's stock can be bought now: { ok, reason }. place: a bag cell { column, row } (row over all pages). */
     function checkShopWare(id, index, place) {
-        if (game.woodsmanBuildLock) return { ok: false, reason: '☠️ 나무꾼 전투 중에는 살 수 없습니다.' };
+        if (game.woodsmanBuildLock) return { ok: false, reason: _t('☠️ 나무꾼 전투 중에는 살 수 없습니다.') };
         const offer = shopStock(id)?.offers[index];
-        if (!offer) return { ok: false, reason: '이미 팔린 물건입니다.' };
+        if (!offer) return { ok: false, reason: _t('이미 팔린 물건입니다.') };
         const have = priceHeld(offer.priceKey);
-        if (have < offer.price) return { ok: false, reason: `${currencyName(offer.priceKey)} 부족, ${have}/${offer.price}` };
+        if (have < offer.price) return { ok: false, reason: _t('{priceKey} 부족, {have}/{price}', { priceKey: currencyName(offer.priceKey), have, price: offer.price }) };
         if (offer.gem) return checkGemWare(offer.gem);
         if (place) {
             const fit = equipmentInventoryGridRuntime.canAdd(offer.item, place.column, place.row, game);
             return fit.ok ? { ok: true } : { ok: false, reason: fit.reason };
         }
-        return canStoreEquipmentItems([offer.item], game) ? { ok: true } : { ok: false, reason: '가방에 빈칸이 없습니다.' };
+        return canStoreEquipmentItems([offer.item], game) ? { ok: true } : { ok: false, reason: _t('가방에 빈칸이 없습니다.') };
     }
 
     function checkGemWare(gem) {
         if (gem.kind === 'attack') return { ok: true };
         const next = gemDropRewards.nextSupport(game, gem.name);
-        return next && next.tier === gem.tier ? { ok: true } : { ok: false, reason: '이미 가진 룬입니다.' };
+        return next && next.tier === gem.tier ? { ok: true } : { ok: false, reason: _t('이미 가진 룬입니다.') };
     }
 
     /** Why seen (the ware the window showed at index) cannot be bought there now, or ''. */
@@ -220,7 +220,7 @@ const npcShop = (() => {
         if (!result.ok) return result;
         const shop = shopStock(id), offer = shop.offers[index];
         if (offer.gem) gemDropRewards.grant(game, offer.gem, offer.gem.kind === 'support' ? resonanceCap : 0);
-        else if (!stowShopItem(offer.item, place)) return { ok: false, reason: '가방에 넣지 못했습니다.' };
+        else if (!stowShopItem(offer.item, place)) return { ok: false, reason: _t('가방에 넣지 못했습니다.') };
         payShopPrice(offer);
         refillSoldShelfCell(shop, index, offer);
         return { ok: true, offer };

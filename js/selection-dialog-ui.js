@@ -1,4 +1,4 @@
-// 선택 창 틀(2026-10-03): 코어, 주얼 보관함과 소켓, 혼돈 주입, 조합창 재료, 홀씨 모드 창이 함께 쓴다.
+// 선택 창 틀(2026-10-03): 코어, 주얼 보관함과 소켓, 혼돈 주입, 조합창 재료 창이 함께 쓴다.
 // 틀(제목, 닫기 단추, 바깥 누르기)과 동작(Esc, 창 안의 포커스, 닫을 때 연 단추로 되돌리기, 같은 창 다시 그리기)만 맡고
 // 창 안의 내용은 각 화면이 그린다. 모양은 .selection-overlay 계열 CSS 그대로다. 단축키는 hotkeys-ui.js가 이 창을 보고 멈춘다.
 const selectionDialog = (() => {
@@ -31,7 +31,7 @@ const selectionDialog = (() => {
     function frameHtml({ id, title, panelClass = '', body }) {
         return `<div class="selection-overlay-panel ${panelClass}" role="dialog" aria-modal="true" aria-labelledby="${id}-title" tabindex="-1">
             <div class="selection-overlay-header"><div class="selection-overlay-title" id="${id}-title">${title}</div>
-                <button type="button" data-selection-close>닫기</button></div>
+                <button type="button" data-selection-close>${_t('닫기')}</button></div>
             ${body}</div>`;
     }
 

@@ -31,6 +31,7 @@ const salvageContext = {
     getItemCraftTier(item) { return item.hiddenTier || 1; },
     getItemExplicitOptionCount(item) { return (item.stats || []).length; },
     awardCurrency(key, amount) { awarded[key] = (awarded[key] || 0) + amount; },
+    _t: (key, params) => String(key).replace(/\{(\w+)\}/g, (match, name) => (params && name in params ? params[name] : match)),   // 원문 언어 그대로(js/i18n.js 없이)
     addLog() {},
     game: { jewelInventory: [] },
     bagItems: { isSpecial: () => false }, // 주얼, 코어, 액막이 해체는 js/bag-items.js가 따로 맡는다
@@ -90,7 +91,8 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
         getJewelSalvageShardGain: () => 18,
         requestGameConfirmation: async () => { jewelSalvageContext.game.inventory.shift(); return true; },
         salvageJewelObject: jewel => salvaged.push(jewel.id),
-        updateStaticUI() {}
+        updateStaticUI() {},
+    _t: (key, params) => String(key).replace(/\{(\w+)\}/g, (match, name) => (params && name in params ? params[name] : match)),   // 원문 언어 그대로(js/i18n.js 없이)
     };
     vm.createContext(jewelSalvageContext);
     vm.runInContext(extract(fs.readFileSync('js/utils.js', 'utf8'), 'function getLastBatchim(word)', 'function stripDecorativeEmoji'), jewelSalvageContext, { filename: 'utils-particles.js' });

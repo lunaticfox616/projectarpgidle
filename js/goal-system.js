@@ -146,9 +146,9 @@
             },
             build(g) {
                 return buildTabAction({
-                    id: 'first-skill-choice', type: 'progression', categoryLabel: '첫 룬',
-                    title: `${g.starterGemTutorialPending} 룬 장착`
-                }, '룬 비교하기', 'tab-skills');
+                    id: 'first-skill-choice', type: 'progression', categoryLabel: _t('첫 룬'),
+                    title: _t('{gem} 룬 장착', { gem: _t(g.starterGemTutorialPending) })
+                }, _t('룬 비교하기'), 'tab-skills');
             }
         },
         {
@@ -163,20 +163,20 @@
                     return {
                         id: 'pending-hero-select',
                         type: 'blocking',
-                        categoryLabel: '필수 선택',
-                        title: '새 루프 직업 선택',
+                        categoryLabel: _t('필수 선택'),
+                        title: _t('새 루프 직업 선택'),
                         mandatory: true
                     };
                 }
                 let goal = {
                     id: 'pending-loop-advance',
                     type: 'blocking',
-                    categoryLabel: '필수 선택',
-                    title: '다음 루프 진행 선택',
-                    description: '진행 또는 이번 루프 유지',
+                    categoryLabel: _t('필수 선택'),
+                    title: _t('다음 루프 진행 선택'),
+                    description: _t('진행 또는 이번 루프 유지'),
                     mandatory: true
                 };
-                return buildTabAction(goal, '루프 화면 열기', 'tab-season');
+                return buildTabAction(goal, _t('루프 화면 열기'), 'tab-season');
             }
         },
         {
@@ -192,13 +192,13 @@
                     id: 'claim-act-reward',
                     stage: `n${count}`,
                     type: 'claim',
-                    categoryLabel: '보상',
-                    title: '액트 보상 선택',
-                    description: `남은 보상 ${count}개`,
+                    categoryLabel: _t('보상'),
+                    title: _t('액트 보상 선택'),
+                    description: _t('남은 보상 {count}개', { count }),
                     mandatory: true
                 };
                 // 보상 선택 카드는 탐험 > 나무(사냥터) 화면의 액트 목록에 붙는다.
-                return buildTabAction(goal, '액트 보상 열기', 'tab-map', 'map-explore-hunting');
+                return buildTabAction(goal, _t('액트 보상 열기'), 'tab-map', 'map-explore-hunting');
             }
         },
         {
@@ -217,15 +217,15 @@
                 let zone = (typeof getZone === 'function') ? getZone(frontier) : null;
                 if (!zone || !zone.name) return null;
                 let act = (typeof getStoryActByZoneId === 'function') ? getStoryActByZoneId(frontier) : null;
-                let title = act && act.bossName ? `${zone.name}의 보스 ${act.bossName} 처치` : `${zone.name} 돌파`;
+                let title = act && act.bossName ? _t('{zone}의 보스 {boss} 처치', { zone: _t(zone.name), boss: _t(act.bossName) }) : _t('{zone} 돌파', { zone: _t(zone.name) });
                 let onFrontier = clampCount(g.currentZoneId) === frontier && Number(g.currentZoneId) === frontier;
                 let goal = {
                     id: `story-zone-${frontier}`,
                     type: 'progression',
                     iconKind: 'attack',
-                    categoryLabel: '이야기',
+                    categoryLabel: _t('이야기'),
                     title,
-                    description: onFrontier ? '' : `지도에서 ${zone.name} 선택`
+                    description: onFrontier ? '' : _t('지도에서 {zone} 선택', { zone: _t(zone.name) })
                 };
                 if (onFrontier) {
                     goal.current = Math.max(0, Math.min(100, Math.floor(Number(g.runProgress) || 0)));
@@ -234,7 +234,7 @@
                     // 진행 상태는 바로만 보여 주고, 목표 카드의 중복 수치 문구는 생략한다.
                     goal.progressText = '';
                 }
-                return buildTabAction(goal, '지도 열기', 'tab-map', 'map-explore-hunting');
+                return buildTabAction(goal, _t('지도 열기'), 'tab-map', 'map-explore-hunting');
             }
         },
         {
@@ -248,16 +248,16 @@
                 const journey = getCosmosJourney(g);
                 if (journey.stage === 'unlock') {
                     return buildTabAction({
-                        id: 'cosmos-unlock-underworld', type: 'progression', categoryLabel: '지하계',
-                        title: '지하계 30층을 돌파하여 우주계 해금',
-                        current: journey.highestFloor, target: 30, progressText: `현재 최고 ${journey.highestFloor}층`
-                    }, '지하계 열기', 'tab-map', 'map-tab-underworld');
+                        id: 'cosmos-unlock-underworld', type: 'progression', categoryLabel: _t('지하계'),
+                        title: _t('지하계 30층을 돌파하여 우주계 해금'),
+                        current: journey.highestFloor, target: 30, progressText: _t('현재 최고 {floor}층', { floor: journey.highestFloor })
+                    }, _t('지하계 열기'), 'tab-map', 'map-tab-underworld');
                 }
                 return buildTabAction({
-                    id: `cosmos-galaxy-${journey.nextGalaxy}`, type: 'progression', categoryLabel: '우주계',
-                    title: `G${journey.nextGalaxy} 은하 보스 처치`,
-                    description: `별길 ${COSMOS_ROUTE_G1.requiredClears}개 안정화 후 도전`
-                }, '우주계 열기', 'tab-map', 'map-tab-cosmos');
+                    id: `cosmos-galaxy-${journey.nextGalaxy}`, type: 'progression', categoryLabel: _t('우주계'),
+                    title: _t('G{n} 은하 보스 처치', { n: journey.nextGalaxy }),
+                    description: _t('별길 {n}개 안정화 후 도전', { n: COSMOS_ROUTE_G1.requiredClears })
+                }, _t('우주계 열기'), 'tab-map', 'map-tab-cosmos');
             }
         },
         {
@@ -279,11 +279,11 @@
                         id: 'loop-requirement-met',
                         stage: `season-${season}`,
                         type: 'progression',
-                        categoryLabel: '루프',
-                        title: '다음 루프 진행',
+                        categoryLabel: _t('루프'),
+                        title: _t('다음 루프 진행'),
                         mandatory: true
                     };
-                    return buildTabAction(goal, '루프 화면 열기', 'tab-season');
+                    return buildTabAction(goal, _t('루프 화면 열기'), 'tab-season');
                 }
                 let progress = (g.loopProgressCurrent && typeof g.loopProgressCurrent === 'object') ? g.loopProgressCurrent : {};
                 let best = Math.max(0, Math.min(cap, Math.floor(Number(progress.bestAbyssDepth) || 0)));
@@ -291,13 +291,13 @@
                     id: `loop-chaos-${cap}`,
                     stage: `season-${season}`,
                     type: 'progression',
-                    categoryLabel: '루프 조건',
-                    title: `${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap}층 돌파`,
+                    categoryLabel: _t('루프 조건'),
+                    title: _t(cap > 20 ? '혼돈 심화 {n}층 돌파' : '혼돈 {n}층 돌파', { n: cap }),
                     current: best,
                     target: cap,
-                    progressText: `현재 최고 ${best}층`
+                    progressText: _t('현재 최고 {floor}층', { floor: best })
                 };
-                return buildTabAction(goal, '혼돈 열기', 'tab-map', CHAOS_EXPLORE_SUBTAB);
+                return buildTabAction(goal, _t('혼돈 열기'), 'tab-map', CHAOS_EXPLORE_SUBTAB);
             }
         },
         {
@@ -316,13 +316,13 @@
                 let goal = {
                     id: `endless-chaos-${target}`,
                     type: 'record',
-                    categoryLabel: '기록 갱신',
-                    title: `혼돈 심화 ${target}층 도달`,
+                    categoryLabel: _t('기록 갱신'),
+                    title: _t('혼돈 심화 {n}층 도달', { n: target }),
                     current: best,
                     target,
-                    progressText: `현재 최고 ${best}층`
+                    progressText: _t('현재 최고 {floor}층', { floor: best })
                 };
-                return buildTabAction(goal, '혼돈 열기', 'tab-map', CHAOS_EXPLORE_SUBTAB);
+                return buildTabAction(goal, _t('혼돈 열기'), 'tab-map', CHAOS_EXPLORE_SUBTAB);
             }
         },
         {
@@ -336,9 +336,9 @@
                 return buildTabAction({
                     id: 'journal-unread',
                     type: 'discovery',
-                    categoryLabel: '저널',
-                    title: '새 이야기 저널 확인'
-                }, '이야기 저널 열기', 'tab-journal');
+                    categoryLabel: _t('저널'),
+                    title: _t('새 이야기 저널 확인')
+                }, _t('이야기 저널 열기'), 'tab-journal');
             }
         }
     ].sort((a, b) => b.priority - a.priority);
@@ -351,14 +351,14 @@
             matches(g, primary) {
                 return primary !== 'journal-unread' && !!(g.noti && g.noti.journal);
             },
-            build() { return buildNotice('새 이야기 저널 확인', 'tab-journal'); }
+            build() { return buildNotice(_t('새 이야기 저널 확인'), 'tab-journal'); }
         },
         {
             id: 'act-reward-notice',
             matches(g, primary) {
                 return primary !== 'claim-act-reward' && getAvailableActRewardZoneIds(g).length > 0;
             },
-            build(g) { return buildNotice(`액트 보상 ${getAvailableActRewardZoneIds(g).length}개 선택`, 'tab-map', 'map-explore-hunting'); }
+            build(g) { return buildNotice(_t('액트 보상 {n}개 선택', { n: getAvailableActRewardZoneIds(g).length }), 'tab-map', 'map-explore-hunting'); }
         },
         {
             id: 'cosmos-journey-notice',
@@ -370,9 +370,9 @@
             build(g) {
                 let journey = getCosmosJourney(g);
                 if (journey.stage === 'unlock') {
-                    return buildNotice(`지하계 30층을 돌파하여 우주계 해금 (현재 ${journey.highestFloor}층)`, 'tab-map', 'map-tab-underworld');
+                    return buildNotice(_t('지하계 30층을 돌파하여 우주계 해금 (현재 {floor}층)', { floor: journey.highestFloor }), 'tab-map', 'map-tab-underworld');
                 }
-                return buildNotice(`G${journey.nextGalaxy} 은하 보스 처치`, 'tab-map', 'map-tab-cosmos');
+                return buildNotice(_t('G{n} 은하 보스 처치', { n: journey.nextGalaxy }), 'tab-map', 'map-tab-cosmos');
             }
         },
         {
@@ -382,9 +382,9 @@
             },
             build(g) {
                 let progress = getAstraProgress(g);
-                if (progress.canChallenge) return buildNotice('잔향체 아스트라 도전', 'tab-map', 'map-explore-root-boss');
-                if (progress.ready) return buildNotice('아스트라 도전권(표식: 잔향) 획득', 'tab-map', 'map-tab-cosmos');
-                return buildNotice(`아스트라 조건, 은하 보스 ${progress.clearedCount}/${progress.total} 처치`, 'tab-map', 'map-tab-cosmos');
+                if (progress.canChallenge) return buildNotice(_t('잔향체 아스트라 도전'), 'tab-map', 'map-explore-root-boss');
+                if (progress.ready) return buildNotice(_t('아스트라 도전권(표식: 잔향) 획득'), 'tab-map', 'map-tab-cosmos');
+                return buildNotice(_t('아스트라 조건, 은하 보스 {done}/{total} 처치', { done: progress.clearedCount, total: progress.total }), 'tab-map', 'map-tab-cosmos');
             }
         },
         {
@@ -395,26 +395,26 @@
             },
             build(g) {
                 let journey = getPinnacleJourney(g);
-                let next = journey.next, text = journey.gate.met ? `${next.name} 도전` : `${next.name}, ${journey.gate.label}`;
+                let next = journey.next, text = journey.gate.met ? _t('{name} 도전', { name: _t(next.name) }) : `${_t(next.name)}, ${_t(journey.gate.label)}`;
                 // 최종 관문의 조건 줄(gate.label)이 이미 수호자 수를 세므로 관문 앞에서만 붙인다.
-                if (!next.pinnacleCapstone) text += ` (수호자 격파 ${journey.guardiansCleared}/${journey.guardianTotal})`;
+                if (!next.pinnacleCapstone) text += ` ${_t('(수호자 격파 {done}/{total})', { done: journey.guardiansCleared, total: journey.guardianTotal })}`;
                 return buildNotice(text, 'tab-map', getPinnacleJourneySubtab(journey, g));
             }
         },
         {
             id: 'passive-points',
             matches(g) { return clampCount(g.passivePoints) > 0 && !!(g.unlocks && g.unlocks.char); },
-            build(g) { return buildNotice(`스킬트리 포인트 ${clampCount(g.passivePoints)} 사용`, 'tab-char'); }
+            build(g) { return buildNotice(_t('스킬트리 포인트 {n} 사용', { n: clampCount(g.passivePoints) }), 'tab-char'); }
         },
         {
             id: 'equippable-equipment',
             matches(g) { return !!(g.unlocks && g.unlocks.items) && hasEquippableInventoryItem(g); },
-            build() { return buildNotice('빈 장비 칸에 장비 장착', 'tab-items', 'item-tab-equip'); }
+            build() { return buildNotice(_t('빈 장비 칸에 장비 장착'), 'tab-items', 'item-tab-equip'); }
         },
         {
             id: 'gem-upgrade',
             matches(g) { return !!(g.unlocks && g.unlocks.skills) && hasAffordableGemUpgrade(g); },
-            build() { return buildNotice('룬 강화', 'tab-skills', 'skill-tab-enhance'); }
+            build() { return buildNotice(_t('룬 강화'), 'tab-skills', 'skill-tab-enhance'); }
         },
         {
             id: 'season-points',
@@ -422,7 +422,7 @@
                 return clampCount(g.seasonPoints) > 0 && !!(g.unlocks && g.unlocks.season)
                     && (typeof hasSpendableSeasonPoint !== 'function' || hasSpendableSeasonPoint());
             },
-            build(g) { return buildNotice(`루프 포인트 ${clampCount(g.seasonPoints)} 사용`, 'tab-season'); }
+            build(g) { return buildNotice(_t('루프 포인트 {n} 사용', { n: clampCount(g.seasonPoints) }), 'tab-season'); }
         },
         {
             id: 'cosmos-alt-path',
@@ -431,7 +431,7 @@
                 if (typeof getAvailableLoopAdvancePaths !== 'function') return false;
                 return getAvailableLoopAdvancePaths(Math.max(1, Math.floor(Number(g.season) || 1))).includes('cosmos');
             },
-            build() { return buildNotice('우주계 경로로도 루프 진행', 'tab-map', 'map-tab-cosmos'); }
+            build() { return buildNotice(_t('우주계 경로로도 루프 진행'), 'tab-map', 'map-tab-cosmos'); }
         },
         {
             id: 'inventory-near-full',
@@ -443,7 +443,7 @@
             build(g) {
                 let used = getInventoryUsedCellCount(g);
                 let limit = Math.floor(getInventoryLimit(g));
-                return buildNotice(`가방 ${used}/${limit}칸, 자동 해체 설정`, 'tab-items', 'item-tab-equip');
+                return buildNotice(_t('가방 {used}/{limit}칸, 자동 해체 설정', { used, limit }), 'tab-items', 'item-tab-equip');
             }
         }
     ];
@@ -497,7 +497,7 @@
             id: `major-unlock-${unlock.id}`,
             stage: `${unlock.completed || 0}-${unlock.total || 0}`,
             type: 'progression',
-            categoryLabel: '다음 주요 해금',
+            categoryLabel: _t('다음 주요 해금'),
             title: unlock.title,
             description: unlock.description || '',
             requirements: unlock.requirements || [],

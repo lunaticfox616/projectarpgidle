@@ -35,7 +35,7 @@ const memoryDungeon = (() => {
     function entryReason(state, nodeId, tier) {
         if (!open(state)) return '기억 던전 해금 뒤에 열립니다.';
         if (!atlas.node(nodeId) || !validTier(tier)) return '없는 기억입니다.';
-        if (tier > maxTier(state)) return `${tier}단계는 기억 던전 4, 5 해금 뒤에 도전할 수 있습니다.`;
+        if (tier > maxTier(state)) return _t('{tier}단계는 기억 던전 4, 5 해금 뒤에 도전할 수 있습니다.', { tier });
         const lock = atlas.lockReason(state);
         if (lock) return lock;
         if (state.atlas.run) return atlas.runOpenReason(state);
@@ -53,11 +53,11 @@ const memoryDungeon = (() => {
         const tier = map && map.memory;
         return validTier(tier) ? { hp: M.fight.hpMul[tier - 1], damage: M.fight.damageMul[tier - 1] } : { hp: 1, damage: 1 };
     }
-    const zoneName = (map, node) => (validTier(map.memory) ? `${node.name}: 기억 ${map.memory}단계` : node.name);
+    const zoneName = (map, node) => (validTier(map.memory) ? _t('{name}: 기억 {memory}단계', { name: node.name, memory: map.memory }) : node.name);
     /** A memory fight's boss (js/combat.js createActExplorationPack): its name says whose memory, tinted; a boss without its own special
      * (map bosses, guardians, the shadow) takes the memory special. */
     function tuneBoss(enemy, tier) {
-        enemy.name = `${enemy.name}의 기억`;
+        enemy.name = _t('{name}의 기억', { name: enemy.name });
         enemy.bossVisualTint = M.fight.tint;
         if (!enemy.apexMechanic) Object.assign(enemy, { patternMode: 'apex', apexMechanic: M.fight.mechanic });
         // 보스 변이체(루프 33): 3단계부터 기억의 보스가 변이체로 다시 불려 나올 수 있다(js/boss-variants.js recall).
@@ -110,8 +110,8 @@ const memoryDungeon = (() => {
     function nextMemoryPreview(state, node, tier) {
         if (tier >= M.tiers) return null;
         const nextTier = tier + 1, have = count(state, node.id, nextTier);
-        const reason = nextTier > maxTier(state) ? `${nextTier}단계 기억은 기억 던전 4, 5 해금 뒤에 얻을 수 있습니다.`
-            : have >= M.ticketCap ? `다음 단계 기억의 보관 한도 ${M.ticketCap}개에 도달했습니다.` : '';
+        const reason = nextTier > maxTier(state) ? _t('{nextTier}단계 기억은 기억 던전 4, 5 해금 뒤에 얻을 수 있습니다.', { nextTier })
+            : have >= M.ticketCap ? _t('다음 단계 기억의 보관 한도 {ticketCap}개에 도달했습니다.', { ticketCap: M.ticketCap }) : '';
         return { tier: nextTier, chance: reason ? 0 : M.ladder[tier - 1], reason, have, cap: M.ticketCap };
     }
     /** Read-only preparation for a held memory or a past record. Choosing it never consumes a memory or advances random rolls. */

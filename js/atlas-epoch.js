@@ -9,7 +9,7 @@ const atlasEpoch = (() => {
     const mapNodes = state => state.atlas.completed.filter(id => (atlas.node(id) || {}).kind === 'map').length;
 
     function reason(state) {
-        if (state.atlas.seeds < ATLAS.seeds.max) return `세계수 씨앗 ${ATLAS.seeds.max}개가 필요합니다(지금 ${state.atlas.seeds}개). 정점을 쓰러뜨리면 하나씩 얻습니다.`;
+        if (state.atlas.seeds < ATLAS.seeds.max) return _t('세계수 씨앗 {max}개가 필요합니다(지금 {seeds}개). 정점을 쓰러뜨리면 하나씩 얻습니다.', { max: ATLAS.seeds.max, seeds: state.atlas.seeds });
         return atlas.runOpenReason(state);
     }
     function essenceFor(state) {
@@ -34,7 +34,7 @@ const atlasEpoch = (() => {
         const perk = PERKS.get(id);
         if (!perk) return '없는 특전입니다.';
         if (rank(state, id) >= perk.max) return '이미 가장 높은 단계입니다.';
-        return ledger(state).essence >= cost(state, id) ? '' : `세계수 정수가 부족합니다(필요 ${cost(state, id)}).`;
+        return ledger(state).essence >= cost(state, id) ? '' : _t('세계수 정수가 부족합니다(필요 {state}).', { state: cost(state, id) });
     }
     function buy(state, id) {
         const why = buyReason(state, id);

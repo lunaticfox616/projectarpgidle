@@ -22,8 +22,8 @@
                         <div class="game-dialog-error" id="game-dialog-error" role="alert" hidden></div>
                     </div>
                     <div class="game-dialog-actions">
-                        <button type="button" class="game-dialog-btn game-dialog-btn-secondary" id="game-dialog-cancel">취소</button>
-                        <button type="button" class="game-dialog-btn game-dialog-btn-primary" id="game-dialog-confirm">확인</button>
+                        <button type="button" class="game-dialog-btn game-dialog-btn-secondary" id="game-dialog-cancel">${_t('취소')}</button>
+                        <button type="button" class="game-dialog-btn game-dialog-btn-primary" id="game-dialog-confirm">${_t('확인')}</button>
                     </div>
                 </section>
             </dialog>
@@ -105,7 +105,7 @@
         let confirm = document.getElementById('game-dialog-confirm');
         card.dataset.tone = activeDialog.tone;
         document.getElementById('game-dialog-kicker').textContent = activeDialog.kicker;
-        document.getElementById('game-dialog-title').textContent = activeDialog.title;
+        document.getElementById('game-dialog-title').textContent = _t(activeDialog.title);
         document.getElementById('game-dialog-message').innerHTML = escapeHTML(activeDialog.message).replace(/\n/g, '<br>');
         cancel.textContent = activeDialog.cancelLabel;
         confirm.textContent = activeDialog.confirmLabel;
@@ -131,15 +131,15 @@
         if (dialog.type === 'number') {
             let initial = clampDialogNumber(dialog.value, dialog);
             return `<div class="game-number-picker">
-                <button type="button" class="game-number-stepper" data-step-direction="-1" aria-label="감소">−</button>
+                <button type="button" class="game-number-stepper" data-step-direction="-1" aria-label="${_t('감소')}">−</button>
                 <input id="game-dialog-number" class="game-number-input" type="number" min="${dialog.min}" max="${dialog.max}" step="${dialog.step}" value="${initial}">
-                <button type="button" class="game-number-stepper" data-step-direction="1" aria-label="증가">＋</button>
+                <button type="button" class="game-number-stepper" data-step-direction="1" aria-label="${_t('증가')}">＋</button>
                 <input id="game-dialog-range" class="game-number-range" type="range" min="${dialog.min}" max="${dialog.max}" step="${dialog.step}" value="${initial}">
                 <div class="game-number-bounds"><span>${dialog.min}</span><strong id="game-dialog-number-preview">${initial}</strong><span>${dialog.max}</span></div>
             </div>`;
         }
         if (dialog.type === 'text') {
-            return `<label class="game-text-field"><span>입력값</span><input id="game-dialog-text" type="text" maxlength="${dialog.maxLength}" value="${escapeHTML(dialog.value || '')}" placeholder="${escapeHTML(dialog.placeholder)}" autocomplete="off"></label>`;
+            return `<label class="game-text-field"><span>${_t('입력값')}</span><input id="game-dialog-text" type="text" maxlength="${dialog.maxLength}" value="${escapeHTML(dialog.value || '')}" placeholder="${escapeHTML(dialog.placeholder)}" autocomplete="off"></label>`;
         }
         if (dialog.type === 'choice') {
             return `<div class="game-choice-grid">${dialog.choices.map((choice, index) => {
@@ -214,7 +214,7 @@
         let validation = activeDialog.validate ? activeDialog.validate(value) : true;
         if (validation !== true) {
             let error = document.getElementById('game-dialog-error');
-            error.textContent = typeof validation === 'string' ? validation : '입력값을 확인해주세요.';
+            error.textContent = typeof validation === 'string' ? validation : _t('입력값을 확인해주세요.');
             error.hidden = false;
             error.scrollIntoView({ block: 'nearest' });
             playUiFeedbackSound('danger');

@@ -173,7 +173,7 @@ const messageFrames = (() => {
     function renderBar(frame, tabs) {
         const el = frameEl(frame), shown = tabs.length > 1 ? state.active : tabs[0];
         el.querySelector('.message-frame-tabs').innerHTML = tabs.map(tab => `<button type="button" class="message-frame-tab${tab === shown ? ' active' : ''}" `
-            + `role="tab" aria-selected="${tab === shown}" data-message-tab="${tab}">${TABS[tab].label}</button>`).join('');
+            + `role="tab" aria-selected="${tab === shown}" data-message-tab="${tab}">${_t(TABS[tab].label)}</button>`).join('');
         el.querySelector('.message-frame-actions').innerHTML = actionsHtml(frame, tabs);
         const chatTab = el.querySelector('[data-message-tab="chat"]');
         if (chatTab && dot) chatTab.appendChild(dot);

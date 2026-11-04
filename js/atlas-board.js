@@ -61,7 +61,7 @@ const atlasBoard = (() => {
         b.dice -= 1; b.position = Math.min(23, from + value); b.lastRoll = value;
         b.trail = Array.from({ length: b.position - from }, (_, i) => from + i + 1);
         const current = tile(b.position);
-        b.message = from === 23 ? '문지기에게 다시 도전합니다.' : `${b.position - from}칸 이동, ${current.name}`;
+        b.message = from === 23 ? '문지기에게 다시 도전합니다.' : _t('{value}칸 이동, {name}', { value: b.position - from, name: current.name });
         // Roll the rare refund once when opening the final path, never on entry/load/completion.
         if (['map', 'boss'].includes(current.kind)) b.pending = { id: ++b.serial, position: b.position,
             diceFound: current.kind === 'boss' && random() < C.diceReturnChance };
@@ -72,13 +72,13 @@ const atlasBoard = (() => {
     function applyEvent(b, kind) {
         if (kind === 'boost') {
             const added = Math.min(20, C.maxBoost - b.boost); b.boost += added;
-            b.message += added ? `, 보상 증폭 +${added}%` : ', 보상 증폭 한계';
+            b.message += added ? _t(', 보상 증폭 +{added}%', { added }) : ', 보상 증폭 한계';
         }
         if (kind === 'risk') {
             if (b.risk >= C.maxRisk) { b.message = T.messages.riskCap; return []; }
             const added = Math.min(15, C.maxBoost - b.boost);
             b.risk += 1; b.boost += added;
-            b.message = `강행 돌파, 위험 +1, ${added ? `보상 증폭 +${added}%` : T.boostFull}.`;
+            b.message = `강행 돌파, 위험 +1, ${added ? _t('보상 증폭 +{added}%', { added }) : T.boostFull}.`;
         }
         if (kind === 'rest') b.risk = Math.max(0, b.risk - 1);
         if (kind === 'claim') {
@@ -96,7 +96,7 @@ const atlasBoard = (() => {
             return swear(b);
         }
         applyEvent(b, choice); b.choice = false;
-        if (choice === 'rest') b.message = `정비를 마쳤습니다. 심재 위험 ${b.risk}.`;
+        if (choice === 'rest') b.message = _t('정비를 마쳤습니다. 심재 위험 {risk}.', { risk: b.risk });
         return true;
     }
     function swear(b) {
@@ -153,7 +153,7 @@ const atlasBoard = (() => {
     function markCarrier(state, enemy, zone, random = Math.random) {
         if (!eligible(state, zone) || enemy.isBoss || enemy.isSummon || enemy.boardCarrier || random() >= (enemy.isElite ? .12 : .012)) return;
         enemy.boardCarrier = true;
-        enemy.name = `나이테 길잡이: ${enemy.name}`;
+        enemy.name = _t('나이테 길잡이: {name}', { name: enemy.name });
     }
     function onKill(state, enemy, zone) {
         if (!enemy.boardCarrier || enemy.boardDiceClaimed || !eligible(state, zone)) return 0;
