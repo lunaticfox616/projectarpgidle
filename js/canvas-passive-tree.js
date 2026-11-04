@@ -222,7 +222,7 @@ function drawPassiveSearchHighlight(ctx, node, radius, accent) {
         .trim();
     if (label && camZoom >= 0.18) {
         const fontSize = Math.max(10, Math.min(22, 12 / Math.max(0.32, camZoom)));
-        ctx.font = `${fontSize}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+        ctx.font = `${fontSize}px ${i18n.fontFamily("'Galmuri11'")}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         const y = node.y - radius - 14;
@@ -310,7 +310,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     const y = node.y + fontSize * 0.38;
 
     ctx.save();
-    ctx.font = `${fontSize}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+    ctx.font = `${fontSize}px ${i18n.fontFamily("'Galmuri11'")}`;
     ctx.textAlign = placeLeft ? 'right' : 'left';
     ctx.textBaseline = 'middle';
     const w = ctx.measureText(label).width + padX * 2;
@@ -529,7 +529,7 @@ function drawPassiveClassStartLabels(ctx, nodes, frame) {
     const starts = nodes.filter(node => node.kind === 'start' && node.title && getPassiveVisibility(node.id) !== 'hidden');
     if (!starts.length) return;
     ctx.save();
-    ctx.font = `${13 / camZoom}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+    ctx.font = `${13 / camZoom}px ${i18n.fontFamily("'Galmuri11'")}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.lineJoin = 'round';

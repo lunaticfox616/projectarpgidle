@@ -559,7 +559,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '궁수': 'Archer',
         '연금술사': 'Alchemist',
         '전사': 'Warrior',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch1.json) ──
+        // ── 2026-11-04 표에서 넣음(batch1.json) ──
         '캐릭터 능력치': 'Character Stats',
         '장비 및 인벤토리': 'Equipment & Inventory',
         '지도 및 콘텐츠': 'Map & Content',
@@ -864,7 +864,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '성화의 뿌리': 'Root of the Pyre',
         '허기의 뿌리': 'Root of Hunger',
         '기억 조각칼': 'Memory Carving Knife',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch2.json) ──
+        // ── 2026-11-04 표에서 넣음(batch2.json) ──
         '생명력(%)': 'Life (%)',
         '초당 재생(%)': 'Regeneration per second (%)',
         '피해(%)': 'Damage (%)',
@@ -1311,7 +1311,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '신월 완갑': 'New Moon Buckler',
         '성왕 완갑': 'Holy King Buckler',
         '월식 완갑': 'Eclipse Buckler',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch3.json) ──
+        // ── 2026-11-04 표에서 넣음(batch3.json) ──
         '첫 계약': 'First Pact',
         '무리의 서약': 'Oath of the Pack',
         '묘지종 사령 오브': 'Gravebell Necromancer Orb',
@@ -1985,7 +1985,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '가지: 보스와 각인': 'Branches: Bosses and Engravings',
         '잎: 지도 속 콘텐츠': 'Leaves: Content in Maps',
         '열매: 깊은 콘텐츠': 'Fruit: Deep Content',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch4.json) ──
+        // ── 2026-11-04 표에서 넣음(batch4.json) ──
         '기본 공격': 'Basic Attack',
         '이중 베기': 'Double Slash',
         '흡혈 관통': 'Leeching Thrust',
@@ -2066,7 +2066,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '근접 무기 필요': 'Requires a melee weapon',
         '활, 오브, 한손검 필요': 'Requires a bow, orb or scimitar',
         '무기 필요': 'Requires a weapon',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch5.json) ──
+        // ── 2026-11-04 표에서 넣음(batch5.json) ──
         '가속': 'Haste',
         '날카로움': 'Sharpness',
         '근접 물리 피해': 'Melee Physical Damage',
@@ -2124,7 +2124,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '터지는 시체': 'Bursting Corpses',
         '처형': 'Execution',
         '증원': 'Reinforcements',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch6.json) ──
+        // ── 2026-11-04 표에서 넣음(batch6.json) ──
         '마법의 {base}': 'Magic {base}',
         '희귀한 {base}': 'Rare {base}',
         '(잠식)': '(Encroached)',
@@ -2155,7 +2155,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '정리|하단 메뉴': 'Tidy',
         '전체|하단 메뉴': 'All',
         '그루터기': 'Stump',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch7.json) ──
+        // ── 2026-11-04 표에서 넣음(batch7.json) ──
         '첫 룬': 'First rune',
         '{gem} 룬 장착': 'Equip the {gem} rune',
         '룬 비교하기': 'Compare runes',
@@ -2272,7 +2272,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '격파': 'Defeated',
         '입장 가능': 'Can enter',
         '준비가 필요한 보스': 'Bosses that need preparation',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch8.json) ──
+        // ── 2026-11-04 표에서 넣음(batch8.json) ──
         '글자/숫자/기호 키만 쓸 수 있습니다. Esc로 취소, Backspace로 키 없음.': 'Only letter, number and symbol keys can be used. Esc cancels, Backspace clears.',
         '{key} 키를 쓰던 "{actions}"의 단축키를 비웠습니다.': 'Cleared the {key} key from "{actions}".',
         '새 키를 누르세요 (Esc 취소, Backspace 키 없음)': 'Press a new key (Esc to cancel, Backspace to clear)',
@@ -2366,7 +2366,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '루프 진행 확인': 'Confirm loop',
         '진행할 루프 경로를 선택하세요.': 'Choose the loop route to take.',
         '아직 루프 진행 조건을 달성하지 못했습니다.': 'The loop requirements are not met yet.',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch9.json) ──
+        // ── 2026-11-04 표에서 넣음(batch9.json) ──
         '선택 없음': 'None selected',
         '즉시 이동': 'Travel now',
         '다음 진행 지역': 'Next zone',
@@ -2524,7 +2524,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '피해(곱연산)': 'Damage (multiplicative)',
         '치명타 확률': 'Critical strike chance',
         '생명력 흡수': 'Life leech',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch10.json) ──
+        // ── 2026-11-04 표에서 넣음(batch10.json) ──
         '액트 ?': 'Act ?',
         '엔드게임': 'Endgame',
         '액트 {n}': 'Act {n}',
@@ -2561,9 +2561,9 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '탐험 권역': 'Exploration regions',
         '우주계': 'Cosmos',
         '혼돈의 뿌리': 'Roots of Chaos',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch11.json) ──
+        // ── 2026-11-04 표에서 넣음(batch11.json) ──
         '콘텐츠': 'Content',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch12.json) ──
+        // ── 2026-11-04 표에서 넣음(batch12.json) ──
         '자동 사냥은 첫 스킬룬을 장착하면 열립니다': 'Auto hunt unlocks once you equip your first skill rune',
         '그곳으로는 갈 수 없습니다': 'You cannot go there',
         '이동할 화면이 변경되었습니다. 목적지를 다시 선택하세요.': 'The destination screen changed. Choose the destination again.',
@@ -2704,7 +2704,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '[{classLabel}] 5차 특화 개방: 전직 포인트 +2, 키스톤 포인트 +1': '[{classLabel}] 5th specialization opened: ascendancy points +2, keystone point +1',
         '🧪 확산 반응: 남은 상태이상이 주변 적 {length}마리에게 퍼졌습니다.': '🧪 Spreading Reaction: the remaining ailments spread to {length} nearby enemies.',
         '⛔ 적이 {ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 맵 진행이 멈췄습니다. 적 수를 줄이면 다시 전진합니다.': '⛔ {ENEMY_CROWD_PAUSE_LIMIT} or more enemies have gathered; map progress paused. Thin them out to advance again.',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch13.json) ──
+        // ── 2026-11-04 표에서 넣음(batch13.json) ──
         '🧭 적 숫자가 줄어 맵 진행을 재개합니다.': '🧭 Fewer enemies now; map progress resumes.',
         '🪓 나무꾼의 저주: 전투가 끝날 때까지 매초 받는 피해가 0.01%씩 증가합니다.': "🪓 Woodcutter's Curse: damage taken rises 0.01% every second until the fight ends.",
         '🪓 나무꾼의 저주 중첩: 받는 피해 +{value}%': "🪓 Woodcutter's Curse stacks: damage taken +{value}%",
@@ -2853,7 +2853,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '🎁 액트 보상 룬 [{skill}] 획득!': '🎁 Got the act reward rune [{skill}]!',
         '🎁 이미 보유한 룬 대신 스킬트리 포인트 +{value}': '🎁 Skill tree points +{value} instead of a rune you already own',
         '🎁 액트 보상 보조스킬룬 [{gem}] 획득!': '🎁 Got the act reward support rune [{gem}]!',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch14.json) ──
+        // ── 2026-11-04 표에서 넣음(batch14.json) ──
         '현재 위치': 'Current position',
         '🎁 중복 보조스킬룬 대신 {label}': '🎁 {label} instead of a duplicate support rune',
         '🎁 스킬트리 포인트 +{value}': '🎁 Skill tree points +{value}',
@@ -3003,7 +3003,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '소셜 로그인을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.': 'Could not start social login. Please try again shortly.',
         '이 환경에서는 소셜 계정 연결을 지원하지 않습니다.': 'Linking a social account is not supported in this environment.',
         '클라우드 로그인 갱신은 못 했지만 기존 로그인으로 계속합니다.': 'Could not refresh the cloud login, continuing with the existing login.',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch15.json) ──
+        // ── 2026-11-04 표에서 넣음(batch15.json) ──
         '연결이 없어 저장된 로그인을 확인하지 못했습니다. 다음 실행 때 다시 시도합니다.': 'No connection, so the saved login could not be verified. It will retry on the next launch.',
         '저장된 클라우드 세션에 갱신 토큰이 없습니다. 다시 로그인해주세요.': 'The saved cloud session has no refresh token. Please log in again.',
         '☁️ 클라우드 저장 데이터 최적화 적용 ({round}KB)': '☁️ Cloud save data optimization applied ({round}KB)',
@@ -3129,7 +3129,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '{label} 콘텐츠가 아직 해금되지 않았습니다.': 'The {label} content is not unlocked yet.',
         '⚔️ {id} 숙련 {level}.{opened}': '⚔️ {id} mastery {level}.{opened}',
         '🌿 껍질 포인트 +{gain}: {why}': '🌿 Bark points +{gain}: {why}',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch16.json) ──
+        // ── 2026-11-04 표에서 넣음(batch16.json) ──
         '🗺️ {node} 지도석에 {golden}{color} 꽃 사용: {omen}': '🗺️ Used a {golden}{color} flower on the {node} map stone: {omen}',
         '황금': 'golden',
         '💠 [{name}]{particle} 소켓에 끼웠습니다.': '💠 Socketed [{name}].',
@@ -3226,7 +3226,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '🧱 한계돌파 시도: [{name}] 퀄리티 {before}% → {after}% (변동 {delta}%, 재부여 잠김)': '🧱 Limit break attempt: [{name}] quality {before}% → {after}% (change {delta}%, reapplying locked)',
         '{name} 파밍 추적 시작': 'Started tracking {name}',
         '{name} 파밍 추적 해제': 'Stopped tracking {name}',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch17.json) ──
+        // ── 2026-11-04 표에서 넣음(batch17.json) ──
         '야만': 'Savagery',
         '공허': 'Void',
         '맑은 머리': 'Clear Mind',
@@ -3589,7 +3589,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '교차 거점': 'Crossing Hub',
         '외곽 별길 규칙': 'Outer Starpath Rule',
         '외곽 별길': 'Outer Starpath',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch18.json) ──
+        // ── 2026-11-04 표에서 넣음(batch18.json) ──
         '감전 면역, 감전 효율 +25%, 감전 적 타격 시 번개 낙뢰(내부쿨 0.5초)': 'Shock immunity, shock effect +25%, lightning strikes shocked enemies on hit (0.5s internal cooldown)',
         '감전된 적 타격 시 피해 +50%': '+50% damage on hits against shocked enemies',
         '경험치 획득 +5%': 'Experience gain +5%',
@@ -3789,7 +3789,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '흡혈의 10% 즉시 적용, 5% 확률로 2배 피해': '10% of leech applies instantly, 5% chance of double damage',
         '흡혈의 15% 즉시 적용, 8% 확률로 2배 피해': '15% of leech applies instantly, 8% chance of double damage',
         '흡혈의 25% 즉시 흡수, 20% 확률로 2배 피해': '25% of leech applies instantly, 20% chance of double damage',
-        // ── 2026-11-04 표에서 넣음(/tmp/claude-0/-home-user-projectarpgidle/8386aba2-0b18-582b-9879-d840177be9a4/scratchpad/batch19.json) ──
+        // ── 2026-11-04 표에서 넣음(batch19.json) ──
         '{icon} {skill} {target}에게 {amount} 피해': '{icon} {skill} dealt {amount} to {target}',
         '{icon} {source}의 공격으로 {amount} 피해': "{icon} {amount} damage from {source}'s attack",
         '🌀 플레이어 회피': '🌀 Player evaded',

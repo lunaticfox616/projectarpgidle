@@ -25,7 +25,7 @@ const files = [
   'data/talent-cards.js',
   'data/content-progression.js',
   'data/offline-progress.js',
-  'data/locales/ko.js', 'data/locales/en.js',
+  'data/locales/ko.js', 'data/locales/en.js', 'data/locales/ja.js', 'data/locales/zh-CN.js', 'data/locales/zh-TW.js',
   'js/utils.js', 'js/i18n.js',
   'js/exploration-layouts.js', 'js/content-maps.js', 'js/act-exploration-map.js', 'js/act-exploration-rooms.js', 'js/act-exploration-sight.js', 'js/act-exploration-motion.js', 'js/act-exploration-loot.js',
   'js/act-exploration-state.js', 'js/exploration-objects.js', 'js/act-exploration-doors.js', 'js/exploration-ground-loot.js',

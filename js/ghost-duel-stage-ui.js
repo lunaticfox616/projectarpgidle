@@ -321,7 +321,7 @@ const ghostDuelStage = (() => {
     /** 맞은 쪽 머리 위로 떠오르는 피해 숫자와 회피, 막기. */
     function drawFloats(ctx, c, place, width) {
         const scale = stageActors.scaleFor(place.cells.tileW), head = (scene.fighters.left.clips.idle.ay + 8) * scale;
-        ctx.font = `bold 24px ${BATTLE_PIXEL_FONT}`;
+        ctx.font = `bold 24px ${battlePixelFont()}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
         ctx.lineWidth = 4;

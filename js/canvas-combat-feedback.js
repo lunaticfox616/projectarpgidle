@@ -209,10 +209,10 @@ worldTreeSkillFx.feedback = (() => {
         ctx.fillRect(x - 20, y + 38, 40, 1);
         ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
         // 갈무리의 제 크기(제목 24px, 설명은 갈무리14 15px)와 정수 화소: 22px, 14px은 도트가 번졌다(2026-10-21).
-        ctx.font = `24px ${BATTLE_PIXEL_FONT}`;
+        ctx.font = `24px ${battlePixelFont()}`;
         ctx.fillStyle = '#f1d69b'; drawCrispCanvasText(ctx, notice.text, x, y + 2);
         if (notice.detail) {
-            ctx.font = `15px 'Galmuri14', ${BATTLE_PIXEL_FONT}`;
+            ctx.font = `15px 'Galmuri14', ${battlePixelFont()}`;
             ctx.fillStyle = '#d6ccbc';
             if (ctx.measureText(notice.detail).width <= width - 20) drawCrispCanvasText(ctx, notice.detail, x, y + 24);
             else ctx.fillText(notice.detail, x, y + 24, width - 20);

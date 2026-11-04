@@ -338,7 +338,7 @@ function importTable(code, file) {
         const close = source.lastIndexOf('    })\n});');   // 값을 바꾼 뒤에 찾는다(바뀐 길이만큼 자리가 밀린다)
         let head = source.slice(0, close).replace(/\s+$/, '');
         if (!head.endsWith(',') && !head.endsWith('{')) head += ',';
-        source = `${head}\n        // ── ${new Date().toISOString().slice(0, 10)} 표에서 넣음(${file}) ──\n${added.join('\n')}\n${source.slice(close)}`;
+        source = `${head}\n        // ── ${new Date().toISOString().slice(0, 10)} 표에서 넣음(${path.basename(file)}) ──\n${added.join('\n')}\n${source.slice(close)}`;
     }
     try { espree.parse(source, { ecmaVersion: 'latest', sourceType: 'script' }); } catch (error) { throw new Error(`${packFile(code)}: 넣은 결과가 JS로 읽히지 않아 쓰지 않았다(${error.message}). 표의 값에 따옴표나 줄바꿈이 있는지 본다`); }
     fs.writeFileSync(target, source);

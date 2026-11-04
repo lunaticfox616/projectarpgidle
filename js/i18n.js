@@ -13,7 +13,7 @@
  *   window 'game:languagechange'          언어가 바뀌면 보낸다. 번역한 글을 제 손으로 그려 둔 UI는 이 이벤트에서 다시 그린다.
  */
 const i18n = (() => {
-    const LANGUAGE_PACKS = [LANGUAGE_PACK_KO, LANGUAGE_PACK_EN];
+    const LANGUAGE_PACKS = [LANGUAGE_PACK_KO, LANGUAGE_PACK_EN, LANGUAGE_PACK_JA, LANGUAGE_PACK_ZH_CN, LANGUAGE_PACK_ZH_TW];
     const SOURCE = LANGUAGE_PACK_KO;
     const packs = new Map(LANGUAGE_PACKS.map(pack => [pack.code, pack]));
     const missing = new Set();
@@ -106,8 +106,22 @@ const i18n = (() => {
         current = next;
         pluralRules = new Intl.PluralRules(current.locale);
         document.documentElement.lang = current.code;
+        cjkFamily = null;
         applyStatic(document);
         if (changed && typeof CustomEvent === 'function') window.dispatchEvent(new CustomEvent('game:languagechange', { detail: { language: current.code } }));
+    }
+
+    /** 캔버스 글꼴 목록: 앞 글꼴 뒤에 CSS --font-cjk(css/tokens.css가 html lang으로 고르는 언어별 CJK 보조 글꼴)를 붙인다.
+     *  Galmuri에 없는 가나·한자가 화면의 글과 같은 글꼴로 그려진다. 언어를 바꾸면 다음 호출에서 다시 읽는다. */
+    let cjkFamily = null;
+    function fontFamily(primary) {
+        if (cjkFamily === null) cjkFamily = readCjkFamily();
+        return `${primary}, ${cjkFamily}`;
+    }
+
+    function readCjkFamily() {
+        const value = typeof getComputedStyle === 'function' ? getComputedStyle(document.documentElement).getPropertyValue('--font-cjk').trim() : '';
+        return value || "'Malgun Gothic', sans-serif";
     }
 
     /** 주소의 ?lang=: 그 판에서만 언어를 덮는다. 아는 언어가 아니면 무시한다. */
@@ -128,7 +142,7 @@ const i18n = (() => {
         get locale() { return current.locale; },
         /** 고를 수 있는 언어: { code, name }. 이름은 그 언어로 적혀 있어 번역하지 않는다. */
         get languages() { return LANGUAGE_PACKS.map(pack => ({ code: pack.code, name: pack.name })); },
-        normalizeLanguage, t: translate, setLanguage, applySaved, applyStatic, sourceOf,
+        normalizeLanguage, t: translate, setLanguage, applySaved, applyStatic, sourceOf, fontFamily,
         /** 이번 판에서 현재 언어의 팩에 없던 열쇠(검사·보고용). */
         missingKeys: () => [...missing]
     });
