@@ -107,26 +107,29 @@
         if (id !== current?.id && id !== loading && BGM_TRACKS[id]) void switchTrack(context, id);
     }
 
+    /** 배경음 크기 슬라이더는 설정 창과 로그인 화면에 하나씩 있다([data-bgm-volume], 옆의 output이 값). */
     function syncVolumeControl() {
-        const slider = document.getElementById('range-bgm-volume');
-        if (!slider) return;
-        slider.value = volume();
-        slider.setAttribute('aria-valuetext', `${volume()}%`);
-        document.getElementById('bgm-volume-value').value = `${volume()}%`;
+        document.querySelectorAll('[data-bgm-volume]').forEach(slider => {
+            slider.value = volume();
+            slider.setAttribute('aria-valuetext', `${volume()}%`);
+            const output = slider.parentElement.querySelector('output');
+            if (output) output.value = `${volume()}%`;
+        });
     }
 
     document.addEventListener('input', event => {
-        if (event.target.id !== 'range-bgm-volume') return;
+        if (!event.target.matches?.('[data-bgm-volume]')) return;
         game.settings.bgmVolume = event.target.valueAsNumber;
         syncVolumeControl();
         bgmTick();
     });
+    // 로그인 화면에서는 저장하지 않는다(js/ui-audio.js와 같은 규칙)
     document.addEventListener('change', event => {
-        if (event.target.id === 'range-bgm-volume') saveGame({ skipCloudSync: true });
+        if (event.target.matches?.('[data-bgm-volume]') && !startupOverlayActive) saveGame({ skipCloudSync: true });
     });
     document.addEventListener('visibilitychange', bgmTick);
     window.addEventListener('project-idle:startup-visibility', syncVolumeControl);
     setInterval(bgmTick, 1000);
-    // 설정에서 켜면 그 누름으로 소리 장치를 연다(효과음이 꺼져 있으면 아직 열리지 않았다)
-    safeExposeGlobals({ gameBgm: Object.freeze({ sync: () => { syncVolumeControl(); playUiFeedbackSound.unlock(); bgmTick(); } }) });
+    // 설정에서 켜면 그 누름으로 소리 장치를 연다(효과음이 꺼져 있으면 아직 열리지 않았다). syncControls는 화면만 맞춘다(누름 없이 불러도 된다)
+    safeExposeGlobals({ gameBgm: Object.freeze({ sync: () => { syncVolumeControl(); playUiFeedbackSound.unlock(); bgmTick(); }, syncControls: syncVolumeControl }) });
 }());

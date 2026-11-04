@@ -4,6 +4,8 @@
     const checks = {
         'chk-bgm': ['bgm'],
         'chk-ui-sounds': ['uiSounds'],
+        'chk-startup-bgm': ['bgm'],          // 로그인 화면의 소리 칸(2026-11-04)
+        'chk-startup-sounds': ['uiSounds'],
         'chk-camera-shake': ['cameraShake'],
         'chk-death-notice': ['showDeathNotice'],
         'chk-mobile-battle-pip': ['showMobileBattlePip'],
@@ -120,7 +122,20 @@
         queueImportantSave(180);
     });
 
+    /** 로그인 화면의 소리 칸: 설정 창과 같은 값을 바꾼다. 저장은 queueImportantSave의 규칙대로 게임에 들어간 뒤의 저장에 실린다. */
+    function syncStartupSound() {
+        syncCheck('chk-startup-bgm', checks['chk-startup-bgm']);
+        syncCheck('chk-startup-sounds', checks['chk-startup-sounds']);
+        playUiFeedbackSound.syncSettings();
+        gameBgm.syncControls();
+    }
+    document.getElementById('startup-sound')?.addEventListener('change', event => {
+        const key = writeControl(event.target);
+        if (key) applyEffects(key);
+    });
+    window.addEventListener('project-idle:startup-visibility', syncStartupSound);
+
     // Classic-script bootstrap and the category buttons' inline handlers share
     // this single UI owner. It never runs from the domain/save layer.
-    safeExposeGlobals({ settingsUi: { sync, select } });
+    safeExposeGlobals({ settingsUi: { sync, select, syncStartupSound } });
 }

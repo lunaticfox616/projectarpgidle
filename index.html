@@ -78,6 +78,21 @@
                             </div>
                         </div>
                         <p class="startup-summary-hint" hidden>저장된 모험이 없습니다. 게스트로 바로 시작하거나, 로그인하면 여러 기기에서 이어서 할 수 있습니다.</p>
+                        <!-- 소리(2026-11-04 사용자): 설정 창의 소리 칸과 같은 값(js/settings-ui.js syncStartupSound, js/ui-audio.js, js/bgm-ui.js) -->
+                        <div class="startup-sound" id="startup-sound" role="group" aria-label="소리 설정">
+                            <div class="startup-sound-row">
+                                <label for="chk-startup-bgm">배경음</label>
+                                <input type="checkbox" role="switch" class="cfg-switch" id="chk-startup-bgm" checked>
+                                <input type="range" data-bgm-volume min="0" max="100" step="5" value="70" aria-label="배경음 크기" aria-valuetext="70%">
+                                <output>70%</output>
+                            </div>
+                            <div class="startup-sound-row">
+                                <label for="chk-startup-sounds">효과음</label>
+                                <input type="checkbox" role="switch" class="cfg-switch" id="chk-startup-sounds" checked>
+                                <input type="range" data-sound-volume min="0" max="100" step="5" value="100" aria-label="효과음 크기" aria-valuetext="100%">
+                                <output>100%</output>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1208,7 +1223,7 @@
                         <div class="cfg-row cfg-row--volume">
                             <div class="cfg-row-text"><label for="range-bgm-volume">배경음 크기</label></div>
                             <div class="cfg-volume">
-                                <input type="range" id="range-bgm-volume" min="0" max="100" step="5" value="70" aria-valuetext="70%">
+                                <input type="range" id="range-bgm-volume" data-bgm-volume min="0" max="100" step="5" value="70" aria-valuetext="70%">
                                 <output id="bgm-volume-value" for="range-bgm-volume">70%</output>
                             </div>
                         </div>
@@ -1219,7 +1234,7 @@
                         <div class="cfg-row cfg-row--volume">
                             <div class="cfg-row-text"><label for="range-sound-volume">효과음 크기</label></div>
                             <div class="cfg-volume">
-                                <input type="range" id="range-sound-volume" min="0" max="100" step="5" value="100" aria-valuetext="100%">
+                                <input type="range" id="range-sound-volume" data-sound-volume min="0" max="100" step="5" value="100" aria-valuetext="100%">
                                 <output id="sound-volume-value" for="range-sound-volume">100%</output>
                                 <button type="button" class="cfg-btn" id="btn-sound-preview">미리 듣기</button>
                             </div>
@@ -1609,8 +1624,8 @@
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2&inventory-pages=20260827-1&vfx-icons=20260901-1&drop-balance=20260902-1&runtime=20260905-1&interface-fixes=20260906-2&display=20260906-1&thermal=20260907-1&ui-scale=20260909-1&affix-balance=20260910-1&research-review=20260914-2&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-7&aux=20261001-15&aux=20261001-17&font=20261006-1&goal=20261008-1&sight=20261009-1&uniq=20261009-1&bag=20261010-1&runes=20261017-1&tidy=20261018-1&oceansurface=20261019-1&cooldown=20261021-1&codexreview=20261023-1&growth=20261025-1&uibatch=20261027-1&attrrune=20261028-1&albino=20261030-1&v0339=20261102-1&levels=20261102-1&text=20261102-3"></script>
 <script defer src="js/hotkeys.js"></script>
     <script defer src="js/app-platform.js?v=20260907-1&desktop=20261103-1"></script>
-<script defer src="js/ui-audio.js?v=20261006-boss-stage&ocean2=20261020-1&uipass=20261022-1&sound=20261023-1&stumpframe=20261027-1&sfxab=20261104-1"></script>
-<script defer src="js/bgm-ui.js?v=20261104-2"></script>
+<script defer src="js/ui-audio.js?v=20261006-boss-stage&ocean2=20261020-1&uipass=20261022-1&sound=20261023-1&stumpframe=20261027-1&sfxab=20261104-1&startsound=20261104-2"></script>
+<script defer src="js/bgm-ui.js?v=20261104-3&startsound=20261104-2"></script>
 <script defer src="js/ui-feedback.js?v=20261006-audio1&drops=20261009-6&tidy=20261018-1"></script>
 <script defer src="js/app-update-ui.js?v=20261011-1&desktop=20261103-1"></script>
 <script defer src="js/selection-dialog-ui.js?v=20261003-1&harvest1104"></script>
@@ -1918,9 +1933,9 @@
 <script defer src="js/combat-replay-projection.js?v=20261007-1&eff=20261008-1&split=20261008-1&scripted=20261017-1&labfix=20261019-1&settleresume=20261025-1&growth=20261025-1"></script>
 <script defer src="js/android-app-ui.js?v=20260907-1&thermal=20260907-1&popup-layer=20260911-1&desktop=20261103-1"></script>
 <script defer src="js/dev-test-panel-ui.js?v=20260930-5&uiwords=20261009-1&stage=20261011-1&rooms=20261011-1&backdrop=20261011-1&theme=20261011-1&roster=20261012-1&plans=20261013-1&skillvfx=20261013-1&jump=20261013-3&sizes=20261013-1&hive=20261013-1&boardrooms=20261013-1&perf=20261013-1&boss=20261014-1&runes=20261017-1&tidy=20261018-1&ocean2=20261020-1&incident=20261020-1&swords=20261026-1&invader=20261102-1&stump=20261104-1&sfxab=20261104-2"></script>
-<script defer src="js/settings-ui.js?v=20261015-1&cfg=20261016-1&bagrail=20261019-1&desktop=20261103-1&bundle1104"></script>
+<script defer src="js/settings-ui.js?v=20261015-1&cfg=20261016-1&bagrail=20261019-1&desktop=20261103-1&bundle1104&startsound=20261104-2"></script>
 <script defer src="js/game-tab-guard-ui.js?v=20261021-1&storage=20261021-1"></script>
 <script defer src="js/cloud-session-guard-ui.js?v=20261030-1&save-slots=20261030-1&fixes=20261102-1"></script>
-<script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1&aux=20260930-8&aux=20261001-17&aux=20261002-1&font=20261006-1&eff=20261008-1&fg=20261008-1&storylog=20261015-1&scripted=20261017-1&offlineaway=20261019-1&tabguard=20261021-1&basiccoins=20261021-1&mutation=20261023-1&blessing=20261024-1&int=20261027-1&v0330=20261030-1&save-slots=20261030-1"></script>
+<script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1&aux=20260930-8&aux=20261001-17&aux=20261002-1&font=20261006-1&eff=20261008-1&fg=20261008-1&storylog=20261015-1&scripted=20261017-1&offlineaway=20261019-1&tabguard=20261021-1&basiccoins=20261021-1&mutation=20261023-1&blessing=20261024-1&int=20261027-1&v0330=20261030-1&save-slots=20261030-1&startsound1104&startsound=20261104-2"></script>
 </body>
 </html>

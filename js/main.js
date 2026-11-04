@@ -32,6 +32,7 @@ safeExposeGlobals({runForegroundExplorationFrame});
  * for a page whose scripts failed. Resolves once the screen is visible; init starts the battle sheets only then, so they do not compete
  * with its fonts (19MB on a slow line). */
 function revealStartupScreen() {
+    settingsUi.syncStartupSound(); // 소리 칸(2026-11-04)은 방금 읽은 저장의 설정으로
     const fontsReady = typeof document.fonts === 'object' && document.fonts.ready ? document.fonts.ready : Promise.resolve();
     return fontsReady.then(() => new Promise(shown => requestAnimationFrame(() => {
         document.documentElement.classList.remove('app-preload');
