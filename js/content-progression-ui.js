@@ -96,7 +96,7 @@ const contentUnlockUi = {
     entryReward(def, status) {
         const text = def.rewardText;
         const reward = !status.unlocked && text ? `<p class="unlock-reward">${escapeHTML(text)}</p>` : '';
-        const picker = !status.unlocked && def.rewardChoices?.length > 1 ? `<label class="content-unlock-choice">첫 보상<select data-unlock-reward="${def.id}" aria-label="${escapeHTML(def.name)} 첫 보상">${def.rewardChoices.map(row => `<option value="${row.key}">${escapeHTML(row.label)}</option>`).join('')}</select></label>` : '';
+        const picker = !status.unlocked && def.rewardChoices?.length > 1 ? `<label class="content-unlock-choice">첫 보상<select data-unlock-reward="${def.id}" aria-label="${escapeHTML(_t(def.name))} 첫 보상">${def.rewardChoices.map(row => `<option value="${row.key}">${escapeHTML(_t(row.label))}</option>`).join('')}</select></label>` : '';
         return reward + picker;
     },
     lockAttribute(id) {
@@ -208,7 +208,7 @@ const contentUnlockUi = {
         dialog.classList.toggle('is-shop', view.mode === 'shop');
         dialog.innerHTML = `<figure class="npc-dialog-figure"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.webp" alt=""></figure>
             <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who">
-            <h2 id="npc-dialog-name">${escapeHTML(npc.name)}</h2><p class="npc-dialog-title">${escapeHTML(npc.title || '')}</p></div>
+            <h2 id="npc-dialog-name">${escapeHTML(_t(npc.name))}</h2><p class="npc-dialog-title">${escapeHTML(_t(npc.title || ''))}</p></div>
             <button type="button" class="npc-dialog-close" data-npc-close>닫기</button></header>
             ${view.mode === 'shop' ? npcShopUi.body(npc) : this.npcTalkBody(view)}</div>`;
     },

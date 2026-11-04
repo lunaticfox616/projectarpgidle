@@ -149,8 +149,8 @@ const hotkeysUi = (() => {
         const waiting = capturing === action.id;
         const text = waiting ? '키 입력…' : (code ? hotkeyBindings.label(code) : '없음');
         const changed = code !== action.code;
-        return `<div class="hotkey-row"><span class="cfg-label">${escapeHTML(action.label)}</span>`
-            + `<button type="button" class="hotkey-key${waiting ? ' capturing' : ''}${code ? '' : ' unbound'}${changed ? ' changed' : ''}" data-hotkey-action="${action.id}" aria-label="${escapeHTML(action.label)} 단축키: ${escapeHTML(text)}. 눌러서 바꾸기">${escapeHTML(text)}</button></div>`;
+        return `<div class="hotkey-row"><span class="cfg-label">${escapeHTML(_t(action.label))}</span>`
+            + `<button type="button" class="hotkey-key${waiting ? ' capturing' : ''}${code ? '' : ' unbound'}${changed ? ' changed' : ''}" data-hotkey-action="${action.id}" aria-label="${escapeHTML(_t(action.label))} 단축키: ${escapeHTML(text)}. 눌러서 바꾸기">${escapeHTML(text)}</button></div>`;
     }
 
     function render() {

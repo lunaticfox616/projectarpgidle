@@ -696,12 +696,15 @@ function getLastBatchim(word) {
 const KOREAN_DIGIT_BATCHIM = Object.freeze([21, 8, 0, 16, 0, 0, 1, 8, 8, 0]);
 /** 받침에 맞춘 조사: pickParticle('검', '을', '를') → '을'. 받침을 알 수 없는 끝(영문 따위)은 '을(를)'. */
 function pickParticle(word, afterConsonant, afterVowel) {
+    // 한국어 조사는 한국어로 볼 때만 붙인다. 다른 언어에서는 이름만 남고, 문장은 호출부가 _t()로 옮긴다(docs/i18n.md).
+    if (typeof i18n === 'object' && i18n.language !== 'ko') return '';
     const batchim = getLastBatchim(word);
     if (batchim < 0) return `${afterConsonant}(${afterVowel})`;
     return batchim ? afterConsonant : afterVowel;
 }
 /** 받침에 맞춘 방향 조사: "성소" → "성소로", "숲" → "숲으로", "길" → "길로"(ㄹ 받침은 '로'). 알 수 없는 끝은 '(으)로'. */
 function withDirectionParticle(word) {
+    if (typeof i18n === 'object' && i18n.language !== 'ko') return String(word || '');
     const batchim = getLastBatchim(word);
     return String(word || '') + (batchim < 0 ? '(으)로' : (batchim === 0 || batchim === 8 ? '로' : '으로'));
 }

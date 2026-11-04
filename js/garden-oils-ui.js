@@ -36,7 +36,7 @@ const gardenOilsUi = (() => {
         return `<div class="selection-overlay-grid">${gardenOils.offers(game, bowl).map(node => {
             const why = reason || gardenOils.slotReason(game, item, node.id, slot);
             return `<button type="button" class="selection-overlay-option" onclick="gardenOilsUi.choose('${node.id}')" ${why ? `disabled data-tip="${esc(why)}"` : ''}>
-                ${esc(node.title)}<br><span>${esc(effectText(node))}</span></button>`;
+                ${esc(_t(node.title))}<br><span>${esc(effectText(node))}</span></button>`;
         }).join('')}</div>`;
     }
     function render() {
@@ -44,8 +44,8 @@ const gardenOilsUi = (() => {
         if (!item) return selectionDialog.close(OVERLAY_ID);
         const nodes = gardenOils.nodesOf(item).slice(0, gardenOils.slotCount(game));
         const current = nodes.map((node, index) => `<p class="garden-oil-current">${nodes.length > 1 ? `${index ? '둘째' : '첫째'} 자리: ` : '지금 새겨진 노드: '}${node
-            ? `<strong>${esc(node.title)}</strong> (${esc(effectText(node))})` : '없음'}</p>`).join('');
-        selectionDialog.show({ id: OVERLAY_ID, title: '기름 바르기', panelClass: 'garden-oil-panel', body: `<div class="selection-overlay-help"><strong>[${esc(item.name)}]</strong>
+            ? `<strong>${esc(_t(node.title))}</strong> (${esc(effectText(node))})` : '없음'}</p>`).join('');
+        selectionDialog.show({ id: OVERLAY_ID, title: '기름 바르기', panelClass: 'garden-oil-panel', body: `<div class="selection-overlay-help"><strong>[${esc(getItemDisplayName(item))}]</strong>
             기름 셋을 바르면 고른 패시브 노드 하나가 목걸이에 새겨집니다(다시 바르면 바뀝니다). 조합 표는 루프마다 바뀝니다.</div>${current}
             ${slotsHtml()}<div class="garden-oil-row" aria-label="기름">${chipsHtml()}</div><div class="garden-oil-row garden-oil-bowl" aria-label="그릇">${bowlHtml()}</div>${offersHtml(item)}` });
     }
@@ -76,7 +76,7 @@ const gardenOilsUi = (() => {
         if (getSelectedCraftItem() !== item) return addLog('확인 중 대상 장비가 바뀌어 바르지 않았습니다.', 'attack-monster');
         const result = gardenOils.anoint(game, item, bowl, nodeId, slot);
         if (!result.ok) return addLog(result.reason, 'attack-monster');
-        addLog(`🌿 [${esc(item.name)}]에 기름을 발라 ${esc(withSubjectParticle(node.title))} 새겨졌습니다: ${esc(effectText(node))}`, 'loot-unique', { toast: true });
+        addLog(`🌿 [${esc(getItemDisplayName(item))}]에 기름을 발라 ${esc(withSubjectParticle(node.title))} 새겨졌습니다: ${esc(effectText(node))}`, 'loot-unique', { toast: true });
         bowl = [];
         updateStaticUI();
         queueImportantSave(200);
@@ -84,7 +84,7 @@ const gardenOilsUi = (() => {
     }
     /** The item tooltip's anointment line. '' when nothing is engraved. */
     function tooltipHtml(item) {
-        return gardenOils.nodesOf(item).filter(Boolean).map((node, index) => `<div class="tooltip-line" style="${index ? '' : 'margin-top:6px; '}color:${TONE};">🌿 기름: ${esc(node.title)}
+        return gardenOils.nodesOf(item).filter(Boolean).map((node, index) => `<div class="tooltip-line" style="${index ? '' : 'margin-top:6px; '}color:${TONE};">🌿 기름: ${esc(_t(node.title))}
             (${esc(effectText(node))})</div>`).join('');
     }
     return Object.freeze({ actionHtml, open, add, remove, choose, pickSlot, tooltipHtml, close: () => selectionDialog.close(OVERLAY_ID) });

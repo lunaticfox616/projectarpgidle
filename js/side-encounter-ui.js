@@ -339,7 +339,7 @@ const sideEncounterUi = (() => {
         const tier = Math.min(getRealmEquipmentHiddenTierCap(zone),
             levelProgression.maxDropTier(levelProgression.itemLevel(zone, { isBoss: true }, () => 1 - Number.EPSILON)));
         const names = UNIQUE_DB.filter(item => item.dropOnly?.type === 'labyrinth' && uniqueDropsInZone(item, zone)
-            && uniqueMeetsTier(item, tier)).map(item => escapeHTML(item.name));
+            && uniqueMeetsTier(item, tier)).map(item => escapeHTML(getItemDisplayName(item)));
         return names.length ? `<div class="labyrinth-unique-pool"><span>전용 고유</span>${names.map(name => `<b>${name}</b>`).join('')}</div>` : '';
     }
     function labyrinthResult() {
@@ -416,14 +416,14 @@ const sideEncounterUi = (() => {
 
     function timeAltarSelection(selected,issue,ready) {
         if (ready) return '<p>두 장비가 준비되었습니다.</p>';
-        const name = selected ? `<p class="time-rift-selected">${escapeHTML(selected.name)}</p>` : '';
+        const name = selected ? `<p class="time-rift-selected">${escapeHTML(_t(selected.name))}</p>` : '';
         return `${name}<p>${escapeHTML(issue||'이 장비를 제단에 올릴 수 있습니다.')}</p>`;
     }
 
     function timeItemDetails(item, source, label) {
         if (!item) return `<div class="time-rift-item-empty"><span>${label}</span><span>비어 있음</span></div>`;
         return `<details class="time-rift-item" id="time-rift-item-${source}" data-rift-inspect="${source}" ontoggle="sideEncounterUi.inspectTimeItem(this)">
-            <summary><span>${label}</span><strong>${escapeHTML(item.name)}</strong></summary><div class="time-rift-item-body"></div></details>`;
+            <summary><span>${label}</span><strong>${escapeHTML(getItemDisplayName(item))}</strong></summary><div class="time-rift-item-body"></div></details>`;
     }
 
     function timeResultItem(rift) {
@@ -449,7 +449,7 @@ const sideEncounterUi = (() => {
         const result = rift.lastFusion;
         if (!result) return '';
         const item = timeResultItem(rift);
-        const equipment = item ? timeItemDetails(item,'lastFusion','융합 유물') : `<strong>${escapeHTML(result.name)}</strong>`;
+        const equipment = item ? timeItemDetails(item,'lastFusion','융합 유물') : `<strong>${escapeHTML(_t(result.name))}</strong>`;
         return `<div class="map-expedition-intro time-rift-result-card"><div class="map-expedition-heading"><strong>최근 융합</strong>
             <span>루프 ${result.season}, 시간압 ${result.pressure}</span></div>${equipment}
             <dl><div><dt>계승</dt><dd>${result.inherited}개</dd></div><div><dt>유실</dt><dd>${result.lost}개</dd></div></dl><div class="map-expedition-actions"></div></div>`;

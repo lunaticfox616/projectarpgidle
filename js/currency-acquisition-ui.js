@@ -114,7 +114,7 @@ safeExposeGlobals({ combatCurrencyHud });
     window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
     // 장비 드랍 변형(js/loot.js equipmentDropVariants): 드물고 눈여겨볼 일이라 습득 로그 설정과 무관하게 알린다.
     function announceDropVariant({kind,items}) {
-        const item=items[0],name=`<span class='loot-${item.rarity}'>[${escapeHTML(item.name)}]</span>`;
+        const item=items[0],name=`<span class='loot-${item.rarity}'>[${escapeHTML(getItemDisplayName(item))}]</span>`;
         const text=kind==='corrupted'?`🩸 타락한 장비 ${name}: 제작할 수 없지만 추가 옵션이 더 강합니다.`
             :kind==='duplicate'?`✨ 복제된 장비 ${name}: 똑같은 장비가 하나 더 떨어졌습니다.`
             :`📦 장비 묶음: ${escapeHTML(item.baseName||item.name)} ${items.length}개가 함께 떨어졌습니다.`;

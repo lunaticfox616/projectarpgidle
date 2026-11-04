@@ -55,7 +55,7 @@ function renderUniqueHuntTargetCard(entry) {
     let registered = !!(game.uniqueCodex && game.uniqueCodex[key]);
     let chase = entry.ultraRare || entry.cosmosChase;
     return `<article class="codex-hunt-target${chase ? ' is-chase' : ''}"><span class="codex-art"><img src="${getUniqueEntryVisualAsset(entry)}" alt=""></span>
-        <div><strong>${escapeHTML(entry.name)}</strong><small>${escapeHTML(describeUniqueHuntSource(entry).label)}${registered ? ', 등록됨' : ''}${chase ? ', 극희귀' : ''}</small></div>
+        <div><strong>${escapeHTML(_t(entry.name))}</strong><small>${escapeHTML(describeUniqueHuntSource(entry).label)}${registered ? ', 등록됨' : ''}${chase ? ', 극희귀' : ''}</small></div>
         <div class="codex-hunt-actions"><button type="button" onclick="uniqueHuntUi.navigate('${encoded}')">드랍처</button><button type="button" onclick="uniqueHuntUi.toggle('${encoded}')">해제</button></div>
     </article>`;
 }

@@ -19,7 +19,7 @@ const chaosInfusionUi = (() => {
     }
 
     function infusionText(infusion) {
-        return `${infusion.statName || getStatName(infusion.id)} +${formatValue(infusion.id, infusion.val)}`;
+        return `${_t(infusion.statName || getStatName(infusion.id))} +${formatValue(infusion.id, infusion.val)}`;
     }
 
     function currentHtml(item) {
@@ -51,7 +51,7 @@ const chaosInfusionUi = (() => {
     function render() {
         const item = getSelectedCraftItem();
         if (!item) return close();
-        selectionDialog.show({ id: OVERLAY_ID, title: '혼돈 주입', panelClass: 'chaos-infusion-panel', body: `<div class="selection-overlay-help"><strong>[${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}</strong><br>
+        selectionDialog.show({ id: OVERLAY_ID, title: '혼돈 주입', panelClass: 'chaos-infusion-panel', body: `<div class="selection-overlay-help"><strong>[${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(getItemDisplayName(item))}</strong><br>
                 희귀 장비에 T5급 범위 옵션 한 줄을 더합니다. 추가 옵션 ${getItemExplicitOptionCount(item)}/6. 교체와 제거에는 마름병 포자 1개가 더 듭니다.</div>
             ${currentHtml(item)}${optionsHtml(item)}` });
     }

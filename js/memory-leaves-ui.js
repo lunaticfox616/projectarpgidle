@@ -8,7 +8,7 @@ const memoryLeavesUi = (() => {
     const esc = value => escapeHTML(String(value ?? ''));
     function cardHtml(leaf, tint) {
         const seen = game.atlas.leaves.seen.includes(leaf.id);
-        const body = seen ? `<strong>${esc(leaf.name)}</strong><span class="leaf-reward">${esc(leaf.bonus.label)}</span>`
+        const body = seen ? `<strong>${esc(_t(leaf.name))}</strong><span class="leaf-reward">${esc(_t(leaf.bonus.label))}</span>`
             : '<strong class="is-hidden">아직 못 본 잎</strong>';
         const button = seen ? `<button type="button" class="leaf-read" data-leaf-read="${leaf.journal}">기억 읽기</button>` : '';
         return `<article class="leaf-card${seen ? '' : ' is-unseen'}" style="--leaf-tint:${tint}">`
@@ -18,7 +18,7 @@ const memoryLeavesUi = (() => {
     }
     function groupHtml(group) {
         const cards = memoryLeaves.list.filter(group.test).map(leaf => cardHtml(leaf, group.tint)).join('');
-        return cards ? `<section class="leaf-group" style="--leaf-tint:${group.tint}"><h4>${esc(group.name)}</h4><div class="leaf-grid">${cards}</div></section>` : '';
+        return cards ? `<section class="leaf-group" style="--leaf-tint:${group.tint}"><h4>${esc(_t(group.name))}</h4><div class="leaf-grid">${cards}</div></section>` : '';
     }
     function render() {
         const root = document.getElementById('ui-leaf-book');

@@ -17,7 +17,7 @@ const sapCatalystsUi = (() => {
         const out = sapCatalysts.apply(item, key);
         token.meta.outcome = `품질 속성 ${getItemQualityAttributeLabel(out.mode)}, 품질 ${out.before}% → ${out.after}%`;
         craftingResultLedger.commit(token, item);
-        addLog(`💧 ${_t(ORB_DB[key].name)}: [${escapeHTML(item.name)}] ${token.meta.outcome}`, 'loot-magic');
+        addLog(`💧 ${_t(ORB_DB[key].name)}: [${escapeHTML(getItemDisplayName(item))}] ${token.meta.outcome}`, 'loot-magic');
         updateStaticUI();
         queueImportantSave(200);
         return true;

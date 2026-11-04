@@ -12,16 +12,16 @@ const npcRosterUi = (() => {
         const stock = npcShop.stock(npc.id), shop = NPC_SHOPS[npc.id];
         const talk = contentUnlockUi.npcTopics(npc).open.some(row => !contentUnlockUi.npcHeard(npc, row.topic)) ? '<em class="is-talk">새 이야기</em>' : '';
         const ready = npcShop.ready(npc.id);
-        const wares = stock && stock.offers.length ? `<em class="is-shop">${escapeHTML(shop.label)} ${stock.offers.length}개${ready ? `, ${ready}개 살 수 있음` : ''}</em>` : '';
+        const wares = stock && stock.offers.length ? `<em class="is-shop">${escapeHTML(_t(shop.label))} ${stock.offers.length}개${ready ? `, ${ready}개 살 수 있음` : ''}</em>` : '';
         return talk + wares;
     }
 
     function rosterCardHtml(npc) {
         const met = game.npcMet[npc.id], zone = getZone(met.zoneId);
-        const where = zone && zone.name ? `<span class="npc-roster-where">${escapeHTML(zone.name)}</span>` : '';
+        const where = zone && zone.name ? `<span class="npc-roster-where">${escapeHTML(_t(zone.name))}</span>` : '';
         return `<li><button type="button" class="npc-roster-card" data-npc-open="${npc.id}" data-tone="${escapeHTML(met.tone || 'gold')}">
             <span class="npc-roster-face"><img class="npc-roster-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.webp" alt=""></span>
-            <span class="npc-roster-text"><strong>${escapeHTML(npc.name)}</strong><small>${escapeHTML(npc.title)}</small>
+            <span class="npc-roster-text"><strong>${escapeHTML(_t(npc.name))}</strong><small>${escapeHTML(_t(npc.title))}</small>
             ${where}<span class="npc-roster-tags">${rosterTagsHtml(npc)}</span></span></button></li>`;
     }
 

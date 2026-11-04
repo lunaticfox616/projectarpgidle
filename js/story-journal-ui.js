@@ -108,7 +108,7 @@ const storyJournalUi = (() => {
         const heading = sceneHeading(scene);
         document.getElementById('tutorial-kicker').textContent = heading.kicker;
         document.getElementById('tutorial-title').textContent = heading.title;
-        const art = scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async">` : '';
+        const art = scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(_t(scene.title))}" decoding="async">` : '';
         document.getElementById('tutorial-body').innerHTML = `${art}
             <div class="story-scene-copy">${sceneCopy(scene)}</div>`;
         document.getElementById('tutorial-open-btn').style.display = 'none';
@@ -125,11 +125,11 @@ const storyJournalUi = (() => {
         reader.id = 'journal-reader';
         reader.classList.toggle('is-text-only', pages.every(page => !page.image));
         reader.setAttribute('aria-labelledby', 'journal-reader-title');
-        reader.innerHTML = `<header class="journal-reader-head"><h2 id="journal-reader-title">${escapeHTML(entry.title)}</h2>
+        reader.innerHTML = `<header class="journal-reader-head"><h2 id="journal-reader-title">${escapeHTML(_t(entry.title))}</h2>
             <button type="button" autofocus data-journal-close>닫기</button></header>
             <div class="journal-reader-pages">${pages.map(scene => `<section class="journal-reader-page ${scene.image ? '' : 'is-text-only'}">
-                ${scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(scene.title)}" decoding="async" loading="lazy" width="1254" height="1254">` : ''}
-                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(scene.title)}</h3>` : ''}${scene.entry ? entryCopy(scene.entry) : sceneCopy(scene)}</div>
+                ${scene.image ? `<img class="story-scene-art" src="${scene.image}" alt="${escapeHTML(_t(scene.title))}" decoding="async" loading="lazy" width="1254" height="1254">` : ''}
+                <div class="story-scene-copy">${pages.length > 1 ? `<h3>${escapeHTML(_t(scene.title))}</h3>` : ''}${scene.entry ? entryCopy(scene.entry) : sceneCopy(scene)}</div>
             </section>`).join('')}</div>`;
         reader.addEventListener('close', () => reader.remove(), {once:true});
         reader.querySelector('[data-journal-close]').addEventListener('click', () => reader.close());

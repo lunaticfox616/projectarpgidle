@@ -46,7 +46,7 @@
     function targetDetails(name, stats, replaced) {
         const effect = effectText(name, getSupportActiveTier(name), stats);
         return `<div class="support-target-details">${targetRows(name, replaced).map(row =>
-            `<p class="is-${row.status}"><b>${TARGET_LABELS[row.role]}${row.name ? ` · ${escapeHTML(row.name)}` : ''}</b><span>${escapeHTML(row.status === 'on' ? effect : (row.reason || TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
+            `<p class="is-${row.status}"><b>${TARGET_LABELS[row.role]}${row.name ? ` · ${escapeHTML(_t(row.name))}` : ''}</b><span>${escapeHTML(row.status === 'on' ? effect : (row.reason || TARGET_STATES[row.status]))}</span></p>`).join('')}</div>`;
     }
 
     function summonEffect(name, stats) {

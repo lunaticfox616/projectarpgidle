@@ -6,9 +6,9 @@ const knittingUi = (() => {
     function card(row) {
         const st = game.knitting, count = st.counts[row.id] || 0, done = st.knitted[row.id] || 0;
         const ready = count >= row.set, reason = ready ? knitting.reason(game, row.id) : '';
-        return `<article class="knit-card${ready ? ' is-ready' : ''}"><div class="knit-card-head"><strong>${esc(row.name)}</strong>`
-            + `<span>${count} / ${row.set}</span></div><p>${esc(row.label)}</p><small>${esc(row.found)}${done ? ` / 뜨개질 ${done}회` : ''}</small>`
-            + `<div class="knit-progress" role="progressbar" aria-label="${esc(row.name)} 수집" aria-valuenow="${count}" aria-valuemin="0" aria-valuemax="${Math.max(count, row.set)}"><i style="width:${Math.min(100, count / row.set * 100)}%"></i></div>`
+        return `<article class="knit-card${ready ? ' is-ready' : ''}"><div class="knit-card-head"><strong>${esc(_t(row.name))}</strong>`
+            + `<span>${count} / ${row.set}</span></div><p>${esc(_t(row.label))}</p><small>${esc(row.found)}${done ? ` / 뜨개질 ${done}회` : ''}</small>`
+            + `<div class="knit-progress" role="progressbar" aria-label="${esc(_t(row.name))} 수집" aria-valuenow="${count}" aria-valuemin="0" aria-valuemax="${Math.max(count, row.set)}"><i style="width:${Math.min(100, count / row.set * 100)}%"></i></div>`
             + (ready ? `<div class="knit-card-foot"><button type="button" data-knit="${row.id}"${reason ? ' disabled' : ''}>뜨개질</button></div>` : '')
             + (reason && ready ? `<p class="knit-warning">${esc(reason)}</p>` : '') + '</article>';
     }
@@ -65,7 +65,7 @@ const knittingUi = (() => {
             game.noti.items = true;
             showGameToast(detail.complete ? `「${detail.name}」 뜨개질 가능` : `새 실타래 「${detail.name}」`, { tone: 'leaf', duration: 2800 });
         }
-        if (detail.first || detail.complete || game.settings.showLootLog) addLog(`실타래 「${esc(detail.name)}」 ${detail.count}/${detail.set}`, 'loot-rare');
+        if (detail.first || detail.complete || game.settings.showLootLog) addLog(`실타래 「${esc(_t(detail.name))}」 ${detail.count}/${detail.set}`, 'loot-rare');
         render();
     });
     function offlineHtml(gains) {

@@ -13,7 +13,7 @@ function renderBeyondBoundarySeal(definition, state) {
     let cost = maxed ? 0 : getBeyondBoundarySealLevelCost(progress.level);
     let progressText = maxed ? (selected ? '최대 레벨, 경험치가 더 쌓이지 않으니 다른 인장을 고르세요' : '최대 레벨') : `${progress.xp}/${cost} 경험치`;
     return `<button type="button" class="beyond-seal ${selected ? 'selected' : ''}" onclick="chooseBeyondBoundarySeal('${definition.id}')" ${state.activeRun ? 'disabled' : ''}>
-        <span>${escapeHTML(definition.name)}</span><strong>Lv.${progress.level}/${definition.maxLevel}</strong>
+        <span>${escapeHTML(_t(definition.name))}</span><strong>Lv.${progress.level}/${definition.maxLevel}</strong>
         <small>${escapeHTML(definition.description)}</small><i>${formatBeyondBoundarySealStats(definition, progress.level)}</i>
         <em>${progressText}${selected ? ', 성장 대상' : ''}</em>
     </button>`;
@@ -24,7 +24,7 @@ function renderBeyondBoundaryMutators(tier) {
     let activeIds = new Set(profile.mutatorIds);
     let active = BEYOND_BOUNDARY_MUTATOR_DB.filter(row => activeIds.has(row.id));
     if (active.length <= 0) return '<span class="beyond-mutator empty">추가 변형 없음</span>';
-    return active.map(row => `<span class="beyond-mutator"><b>${escapeHTML(row.name)}</b>${escapeHTML(row.description)}</span>`).join('');
+    return active.map(row => `<span class="beyond-mutator"><b>${escapeHTML(_t(row.name))}</b>${escapeHTML(row.description)}</span>`).join('');
 }
 
 function formatBeyondBoundaryCosts(costs) {
@@ -38,7 +38,7 @@ function renderBeyondBoundaryRewardFocuses(state) {
         const status = getBeyondBoundaryRewardFocusStatus(row.id);
         return `<button type="button" class="beyond-farm-option ${selectedId === row.id ? 'selected' : ''}"
             onclick="chooseBeyondBoundaryRewardFocus('${row.id}')" ${state.activeRun || !status.available ? 'disabled' : ''}>
-            <strong>${escapeHTML(row.name)}</strong><span>${escapeHTML(row.description)}</span><small>${escapeHTML(status.reason || row.risk)}</small>
+            <strong>${escapeHTML(_t(row.name))}</strong><span>${escapeHTML(row.description)}</span><small>${escapeHTML(status.reason || row.risk)}</small>
         </button>`;
     }).join('');
 }
@@ -54,7 +54,7 @@ function renderBeyondBoundaryIntensities(state) {
     let selectedId = state.activeRun ? state.activeRun.intensityId : state.selectedIntensityId;
     return BEYOND_BOUNDARY_INTENSITY_DB.map(row => `<button type="button" class="beyond-farm-option intensity ${selectedId === row.id ? 'selected' : ''}"
         onclick="chooseBeyondBoundaryIntensity('${row.id}')" ${state.activeRun ? 'disabled' : ''}>
-        <strong>${escapeHTML(row.name)}</strong><span>${escapeHTML(row.description)}</span><small>${formatBeyondBoundaryCosts(row.costs)}</small>
+        <strong>${escapeHTML(_t(row.name))}</strong><span>${escapeHTML(row.description)}</span><small>${formatBeyondBoundaryCosts(row.costs)}</small>
     </button>`).join('');
 }
 

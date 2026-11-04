@@ -192,7 +192,7 @@ function renderChoice(detail, icon, note, tone) {
     const classes = detail.kind === 'gear' ? `build-review-gear slot-${detail.slot}` : `build-review-rune ${detail.colorClass}`;
     return `<button type="button" class="build-review-asset ${classes}" style="--build-tone:${tone}" data-build-detail="${key}" data-info-tooltip-anchor="1"
         aria-label="${escapeHTML(`${detail.side}, ${detail.name}, ${note}, 상세 보기`)}" aria-haspopup="dialog">
-        <span class="build-review-icon" aria-hidden="true">${icon}</span><span class="build-review-copy"><b>${escapeHTML(detail.name)}</b>${note ? `<small>${escapeHTML(note)}</small>` : ''}</span></button>`;
+        <span class="build-review-icon" aria-hidden="true">${icon}</span><span class="build-review-copy"><b>${escapeHTML(_t(detail.name))}</b>${note ? `<small>${escapeHTML(note)}</small>` : ''}</span></button>`;
 }
 
 function renderReviewIntent(mode, index, preset) {

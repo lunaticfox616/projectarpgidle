@@ -136,7 +136,7 @@ const explorationAtlasUi = (() => {
         return targets.filter(entry => {
             const source = uniqueHuntUi.getSource(entry);
             return (source.exploreSubtab || source.mapSubtab) === route;
-        }).map(entry => `<span class="atlas-tracked-reward">추적 중, ${escapeHTML(entry.name)}</span>`).join('');
+        }).map(entry => `<span class="atlas-tracked-reward">추적 중, ${escapeHTML(_t(entry.name))}</span>`).join('');
     }
     // Read progression only; availability and payment remain in the existing entry handlers.
     function routeSummary(route) {
@@ -196,7 +196,7 @@ const explorationAtlasUi = (() => {
     }
     function currentHuntHtml() {
         const zone = getZone(game.currentZoneId);
-        return `<div class="atlas-current-hunt"><div><small>현재 위치</small><strong>${escapeHTML(zone.name)}</strong></div>
+        return `<div class="atlas-current-hunt"><div><small>현재 위치</small><strong>${escapeHTML(_t(zone.name))}</strong></div>
             <button data-atlas-current onclick="switchTab('tab-battle')">전투로 돌아가기</button></div>`;
     }
     function render() {
@@ -275,7 +275,7 @@ const explorationAtlasUi = (() => {
         const regions = EXPLORATION_REGIONS.regions.filter(region => region.routes.some(available));
         const tabs = regions.map(region => `<button class="exploration-region-tab atlas-theme-${region.id}" aria-pressed="${region === current}"`
             + ` style="--land:url('${new URL(region.landscape, document.baseURI).href}')" onclick="explorationAtlasUi.select('${region.id}')">${region.name}</button>`).join('');
-        const chips = pageChips(current,route).map(chip => `<button aria-pressed="${!!chip.on}" onclick="${chip.action}">${escapeHTML(chip.label)}`
+        const chips = pageChips(current,route).map(chip => `<button aria-pressed="${!!chip.on}" onclick="${chip.action}">${escapeHTML(_t(chip.label))}`
             + `${chip.badge ? `<i>${escapeHTML(chip.badge)}</i>` : ''}</button>`).join('');
         return `<div class="exploration-regions"><button class="exploration-home" onclick="explorationAtlasUi.open()">전체 탐험</button>${tabs}</div>`
             + `<div class="exploration-routes" role="group" aria-label="${current ? current.name : '대전'}의 쪽">${chips}</div>`;

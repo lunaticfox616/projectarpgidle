@@ -40,7 +40,7 @@ const worldTreeBarkUi = (() => {
     function barkStatCardHtml(def, free, tones) {
         const now = pointsIn(def.key), full = def.max !== null && now >= def.max;
         const button = (label, delta, off) => `<button type="button" onclick="worldTreeBarkUi.moveBarkPoints('${def.key}',${delta})"${off ? ' disabled' : ''}>${label}</button>`;
-        return `<article class="bark-stat" style="--stat-tone:${tones[def.key]}"><strong>${esc(def.label)}</strong><b>${esc(barkStatValueText(def))}</b><small>${perPointText[def.key]}, ${now}점</small>`
+        return `<article class="bark-stat" style="--stat-tone:${tones[def.key]}"><strong>${esc(_t(def.label))}</strong><b>${esc(barkStatValueText(def))}</b><small>${perPointText[def.key]}, ${now}점</small>`
             + `<div class="bark-stat-buttons">${button('-5', -5, !now)}${button('-1', -1, !now)}${button('+1', 1, !free || full)}${button('+5', 5, !free || full)}</div></article>`;
     }
     function barkAllocateHtml() {

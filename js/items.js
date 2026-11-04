@@ -998,3 +998,13 @@ function confirmSelectedItemBaseUpgrade() {
 }
 
 safeExposeGlobals({ upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
+
+/** 보여 줄 장비 이름(docs/i18n.md): 마법·희귀는 '마법의 {베이스}'처럼 베이스 이름으로 짓는다(js/passives.js updateItemName). 저장된
+ * 이름은 그대로 두고, 보여 줄 때 틀과 베이스 이름을 따로 옮긴다. 고유와 일반은 이름 그대로 옮긴다. */
+function getItemDisplayName(item) {
+    const name = String((item && item.name) || '');
+    const base = item && item.baseName;
+    if (base && name === `마법의 ${base}`) return _t('마법의 {base}', { base: _t(base) });
+    if (base && name === `희귀한 ${base}`) return _t('희귀한 {base}', { base: _t(base) });
+    return _t(name);
+}

@@ -12,7 +12,7 @@ const equipmentSocketsUi = (() => {
     function jewelHtml(jewel) {
         const lines = jewelLines(jewel).map(line => `<li>${escapeHTML(line)}</li>`).join('');
         const text = getJewelUniqueEffectText(jewel), effect = text ? `<p class="socket-jewel-effect">${escapeHTML(text)}</p>` : '';
-        return `<strong class="${getJewelRarityClass(jewel.rarity)}">${escapeHTML(jewel.name || '주얼')}</strong>${effect}<ul class="socket-jewel-lines">${lines || '<li>옵션 없음</li>'}</ul>`;
+        return `<strong class="${getJewelRarityClass(jewel.rarity)}">${escapeHTML(_t(jewel.name || '주얼'))}</strong>${effect}<ul class="socket-jewel-lines">${lines || '<li>옵션 없음</li>'}</ul>`;
     }
 
     const socketLabel = equipmentSockets.label;
@@ -108,7 +108,7 @@ const equipmentSocketsUi = (() => {
     function tooltipHtml(item) {
         const sockets = contentProgression.isUnlocked('jewel') ? equipmentSockets.list(item) : [];
         return sockets.map(row => {
-            if (row.jewel) return `<div class="tooltip-line tooltip-socket-line">◆ ${socketLabel(row)}: <span class="${getJewelRarityClass(row.jewel.rarity)}">${escapeHTML(row.jewel.name || '주얼')}</span>, ${escapeHTML(jewelLines(row.jewel).join(', '))}</div>`;
+            if (row.jewel) return `<div class="tooltip-line tooltip-socket-line">◆ ${socketLabel(row)}: <span class="${getJewelRarityClass(row.jewel.rarity)}">${escapeHTML(_t(row.jewel.name || '주얼'))}</span>, ${escapeHTML(jewelLines(row.jewel).join(', '))}</div>`;
             if (row.harvest) return `<div class="tooltip-line tooltip-socket-line is-harvest">◆ ${socketLabel(row)}: ${escapeHTML(stumpBox.shortName(row.harvest))}, ${escapeHTML(harvestLines(row.harvest).join(', '))}</div>`;
             return `<div class="tooltip-line tooltip-socket-line is-empty">◇ 빈 ${socketLabel(row)}${row.accepts.length ? ` (${takesText(row)})` : ''}</div>`;
         }).join('');
@@ -164,7 +164,7 @@ const equipmentSocketsUi = (() => {
     function render() {
         const item = getSelectedCraftItem();
         if (!item) return close();
-        selectionDialog.show({ id: OVERLAY_ID, title: `소켓: [${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}`,
+        selectionDialog.show({ id: OVERLAY_ID, title: `소켓: [${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(getItemDisplayName(item))}`,
             panelClass: 'equipment-socket-panel', body: `${socketsHtml(item)}
             ${harvestStoreHtml(item)}${takesNoJewel(item) ? '' : storeHtml(item)}` });
     }

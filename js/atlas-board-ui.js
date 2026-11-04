@@ -60,7 +60,7 @@ const atlasBoardUi = (() => {
         const level = b.risk >= 4 ? 'high' : b.risk >= 2 ? 'mid' : 'low';
         const pips = Array.from({ length: B.maxRisk }, (_, n) => `<i${n < b.risk ? ' class="on"' : ''}></i>`).join('');
         return `<header class="ab-head">
-            <div class="ab-titles"><h3 id="ab-title" class="ab-title">${esc(T.title)}</h3><p class="ab-sub">${esc(T.lapText(b.lap))}</p>${b.promise ? `<span class="ab-oath">${esc(T.promiseShort)}</span>` : ''}</div>
+            <div class="ab-titles"><h3 id="ab-title" class="ab-title">${esc(_t(T.title))}</h3><p class="ab-sub">${esc(T.lapText(b.lap))}</p>${b.promise ? `<span class="ab-oath">${esc(T.promiseShort)}</span>` : ''}</div>
             <dl class="ab-meters">
                 <div class="ab-meter is-risk" data-level="${level}"><dt>${esc(T.risk)}</dt><dd><span class="ab-pips" aria-hidden="true">${pips}</span><b>${b.risk}<small>/${B.maxRisk}</small></b></dd></div>
                 <div class="ab-meter is-boost"><dt>${esc(T.boost)}</dt><dd><b>+${b.boost}%</b></dd></div>
@@ -85,7 +85,7 @@ const atlasBoardUi = (() => {
         const leaf = t.kind === 'boss' ? `<svg class="ab-leaf" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#ab-g-leaf"/></svg>` : '';
         return `<li class="${tileClasses(t, i, b, reach)}" style="${pos};--step:${Math.max(0, step)}">
             <button type="button" onclick="atlasBoardUi.inspect(${i})" aria-label="${esc(T.aria.tile(i + 1, t.name, kindName(t.kind), here))}"${here ? ' aria-current="step"' : ''}${i === inspected ? ' aria-pressed="true"' : ''}>
-                ${badge}<span class="ab-node">${leaf}</span><span class="ab-name">${esc(t.name)}</span>
+                ${badge}<span class="ab-node">${leaf}</span><span class="ab-name">${esc(_t(t.name))}</span>
             </button></li>`;
     }
     function trailHtml(b, reach) {
@@ -103,7 +103,7 @@ const atlasBoardUi = (() => {
         return `<div class="ab-focus k-${t.kind}">
             <span class="ab-node" aria-hidden="true"></span>
             <div><p class="ab-focus-meta">${esc(kindName(t.kind))}<span>${esc(where)}</span></p>
-                <h4>${esc(t.name)}</h4><p class="ab-focus-effect">${esc(effectText(t.kind))}</p></div>
+                <h4>${esc(_t(t.name))}</h4><p class="ab-focus-effect">${esc(effectText(t.kind))}</p></div>
             ${d ? `<button type="button" class="ab-link" onclick="atlasBoardUi.inspect(null)">${esc(T.backToCurrent)}</button>` : ''}
         </div>`;
     }
@@ -156,7 +156,7 @@ const atlasBoardUi = (() => {
     }
     function lockedHtml() {
         return `<section class="ab is-locked" aria-labelledby="ab-title"><div class="ab-locked">
-            <h3 id="ab-title" class="ab-title">${esc(T.title)}</h3><p>${esc(T.locked(B.minLoop))}</p><small>${esc(T.lockedSub)}</small></div></section>`;
+            <h3 id="ab-title" class="ab-title">${esc(_t(T.title))}</h3><p>${esc(T.locked(B.minLoop))}</p><small>${esc(T.lockedSub)}</small></div></section>`;
     }
     function panelHtml(b, moving) {
         const act = b.choice ? choiceHtml(b) : b.pending ? entryHtml(b, moving) : rollHtml(b, moving);

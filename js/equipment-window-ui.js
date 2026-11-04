@@ -237,7 +237,7 @@ const equipmentWindowUi = (() => {
     /** The panel's markup (js/canvas-passive-tree.js renderEquipmentInventoryInspector); the 바꾸면 tables fill in afterwards (fillDeltas). */
     function inspectorHtml(item, slot, actionsHtml, flags) {
         const slots = slot ? [] : compareSlots(item);
-        const hint = slot ? escapeHTML(item.baseName || '장착 중') : bagItems.isJewel(item) ? '빈 소켓이 있는 장비에 끼웁니다' : `지금 장착: ${wornNames(slots)}`;
+        const hint = slot ? escapeHTML(_t(item.baseName || '장착 중')) : bagItems.isJewel(item) ? '빈 소켓이 있는 장비에 끼웁니다' : `지금 장착: ${wornNames(slots)}`;
         const rarity = item.rarity || 'normal';
         return `<h4 class="eqw-title">선택한 장비<small>${escapeHTML(subtitleOf(slot, slots))}</small></h4>
             <div class="eqw-pick rarity-${rarity}"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><div><b class="${rarity}">${escapeHTML(item.name || item.baseName || '장비')}</b>

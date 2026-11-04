@@ -25,7 +25,7 @@ const uniqueCodexUi = (() => {
     }
     function freshHtml(entries) {
         const chips = entries.filter(isFresh).map(entry => `<button type="button" class="codex-fresh-chip" data-codex-key="${encode(keyOf(entry))}">`
-            + `<img src="${getUniqueEntryVisualAsset(entry)}" alt="">${esc(entry.name)}</button>`).join('');
+            + `<img src="${getUniqueEntryVisualAsset(entry)}" alt="">${esc(_t(entry.name))}</button>`).join('');
         return chips ? `<div class="codex-fresh"><span>새로 등록</span>${chips}</div>` : '';
     }
     function summaryHtml(entries) {
@@ -58,7 +58,7 @@ const uniqueCodexUi = (() => {
         const flag = fresh ? '<em class="is-new">신규</em>' : (tracked ? '<em class="is-hunt">추적</em>' : '');
         const cls = ['codex-tile', stored ? 'is-on' : 'is-off', isChase(entry) ? 'is-chase' : '', fresh ? 'is-new' : ''].filter(Boolean).join(' ');
         return `<button type="button" class="${cls}" data-codex-key="${encode(key)}"><span class="codex-art"><img src="${getUniqueEntryVisualAsset(entry)}" alt="" draggable="false"></span>`
-            + `<strong>${esc(entry.name)}</strong><small>${esc(uniqueHuntUi.getSource(entry).label)}</small>${flag}</button>`;
+            + `<strong>${esc(_t(entry.name))}</strong><small>${esc(uniqueHuntUi.getSource(entry).label)}</small>${flag}</button>`;
     }
 
     // ── 고유 창 ────────────────────────────────────────────────────
@@ -89,10 +89,10 @@ const uniqueCodexUi = (() => {
     }
     function sheetHtml(entry) {
         const stored = codex()[keyOf(entry)];
-        const base = stored && stored.baseName ? `${esc(stored.baseName)}, 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : esc(getItemSlotDisplayLabel(null, entry.slots[0]));
+        const base = stored && stored.baseName ? `${esc(_t(stored.baseName))}, 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : esc(getItemSlotDisplayLabel(null, entry.slots[0]));
         const body = stored ? statsHtml(entry, stored) : '<p class="codex-sheet-note">획득하면 옵션이 공개됩니다.</p>';
         return `<div class="codex-sheet${stored ? ' is-on' : ''}${isChase(entry) ? ' is-chase' : ''}"><div class="codex-sheet-head">`
-            + `<span class="codex-art"><img src="${getUniqueEntryVisualAsset(entry)}" alt=""></span><div><strong>${esc(entry.name)}</strong><span>${base}</span>`
+            + `<span class="codex-art"><img src="${getUniqueEntryVisualAsset(entry)}" alt=""></span><div><strong>${esc(_t(entry.name))}</strong><span>${base}</span>`
             + `<em>${stored ? '등록됨' : '미등록'}${isChase(entry) ? ', 극희귀' : ''}</em></div></div>`
             + `<p class="codex-sheet-source"><span>드랍처</span><b>${esc(uniqueHuntUi.getSource(entry).label)}</b></p>${body}${actionsHtml(entry)}</div>`;
     }

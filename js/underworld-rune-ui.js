@@ -142,7 +142,7 @@ const underworldRuneUi = (() => {
         const floor = nextNo <= 30 ? nextNo * 10 : rule.fromFloor + (Math.floor((paid - rule.fromFloor) / rule.every) + 1) * rule.every;
         const reward = window.GameModules.state.underworldMilestoneReward(floor);
         const slots = reward.slots > state.unlockedSlots ? `<span>지하석 슬롯 ${reward.slots}/6</span>` : '';
-        const stone = reward.rune ? `<div class="underworld-next-stone">${iconHtml(reward.rune.no)}<div><strong>${escapeHTML(reward.rune.name)} 지하석 1개</strong>
+        const stone = reward.rune ? `<div class="underworld-next-stone">${iconHtml(reward.rune.no)}<div><strong>${escapeHTML(_t(reward.rune.name))} 지하석 1개</strong>
             <small>${getUnderworldRuneEffectHtml(reward.rune.no)}</small><span>지하석 1~${reward.rune.no} 해금</span>${slots}</div></div>` : '';
         const materials = RESOURCES.filter(([key]) => reward.currencies[key]).map(([key, name]) => `<span class="is-${key}">${name} <b>${reward.currencies[key]}개</b></span>`).join('');
         return `<div><strong>${floor}층 보상</strong>${stone}<div class="underworld-ticket-strip">${materials}</div><small>15층부터 지속 피해</small></div>`;
@@ -200,7 +200,7 @@ const underworldRuneUi = (() => {
             const cost = enchantCost(strength);
             return `<li class="has-stat" style="--stat-tone:${getItemStatToneColor(stat)}"><span>${statName(stat)} +${rangeText(stat, min, max)}</span><small><i class="is-underCopper">${cost.underCopper}</i>/<i class="is-underSilver">${cost.underSilver}</i>/<i class="is-underGold">${cost.underGold}</i></small></li>`;
         }).join('');
-        return `<article class="underworld-enchant-card"><header><strong>${slot}</strong><span>${item ? escapeHTML(item.name) : '장비 없음'}</span></header>`
+        return `<article class="underworld-enchant-card"><header><strong>${slot}</strong><span>${item ? escapeHTML(getItemDisplayName(item)) : '장비 없음'}</span></header>`
             + `<p class="${now ? 'is-on' : ''}">${now ? `지금 ${statText(now.id, now.val)}` : '인챈트 없음'}</p>`
             + `<ul><li class="is-head"><span>나올 수 있는 효과</span><small><i class="is-underCopper">구리</i>/<i class="is-underSilver">은</i>/<i class="is-underGold">금</i></small></li>${rows}</ul>`
             + `<button type="button" onclick="applyUnderworldEnchant('${slot}')" ${item ? '' : 'disabled'}>인챈트</button></article>`;
@@ -210,7 +210,7 @@ const underworldRuneUi = (() => {
         const costs = [['무기', 'weapon'], ['방어구', 'armour'], ['장신구', 'accessory']]
             .map(([name, key]) => `<span>${name} ${costHtml({underCopper: rule.costs[key][0], underSilver: rule.costs[key][1], underGold: rule.costs[key][2]})}</span>`).join('');
         const ready = Object.entries(game.equipment || {}).filter(([, item]) => item && Math.floor(item.quality || 0) === rule.quality && !item.qualityLockedByLimitBreak);
-        const buttons = ready.length ? ready.map(([slot, item]) => `<button type="button" onclick="attemptUnderworldLimitBreak('${slot}')">${slot}, ${escapeHTML(item.name)}</button>`).join('')
+        const buttons = ready.length ? ready.map(([slot, item]) => `<button type="button" onclick="attemptUnderworldLimitBreak('${slot}')">${slot}, ${escapeHTML(getItemDisplayName(item))}</button>`).join('')
             : `<span>퀄리티 ${rule.quality}%인 장착 장비가 없습니다</span>`;
         return `<section class="underworld-upgrade-card underworld-limit-break"><div><strong>한계돌파</strong>`
             + `<span>퀄리티 ${rule.quality}% 장비의 퀄리티가 −${rule.swing}~+${rule.swing}%(최대 ${rule.cap}%), 그 뒤로 고정</span>`

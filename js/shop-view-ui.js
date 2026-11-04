@@ -170,7 +170,7 @@ const shopView = (() => {
         const copies = support ? 0 : gemDropRewards.copyCount(game, gem.name);
         const kind = `${support ? `보조스킬룬, ${getSupportTierLabel(gem.name, gem.tier)}` : '공격 룬'}${need ? `, Lv.${need}` : ''}${copies ? `, 보유 ${copies}개` : ''}`;
         return `<div class="shop-gem-card"><div class="shop-gem-head">${gemArtHtml(gem)}<div><small>${escapeHTML(kind)}</small>
-            <strong>${escapeHTML(gem.name)}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
+            <strong>${escapeHTML(_t(gem.name))}</strong></div></div><p>${statToneText.html(def.desc || '')}</p>${support ? supportFitHtml(gem) : runeFitHtml(gem.name)}</div>`;
     }
 
     /** An attack rune against the hero now: why the weapon in hand cannot use it (as its loot line says, js/currency-acquisition-ui.js),

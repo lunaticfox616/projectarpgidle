@@ -96,7 +96,7 @@ const stumpCubeUi = (() => {
         if (outcome.tier !== undefined) badges.push(`T${outcome.tier}`);
         if (outcome.quality !== undefined) badges.push(`품질 ${outcome.quality}%`);
         if (outcome.qualityCap !== undefined) badges.push(`현재 상한 ${outcome.qualityCap}%`);
-        return `<strong class="stump-cube-preview-name">${esc(outcome.label)}</strong>`
+        return `<strong class="stump-cube-preview-name">${esc(_t(outcome.label))}</strong>`
             + (badges.length ? `<p class="stump-cube-preview-meta">${statToneText.html(badges.join(', '))}</p>` : '')
             + (outcome.keep ? `<p><b>유지</b> ${statToneText.html(outcome.keep)}</p>` : '')
             + (outcome.change ? `<p><b>변경</b> ${statToneText.html(outcome.change)}</p>` : '')
@@ -110,7 +110,7 @@ const stumpCubeUi = (() => {
         // A hidden recipe that happens to match says nothing about its result; the revealed hints come first.
         if (!found) return missingRecipesHtml(matched);
         const lacking = stumpCube.missingCost(found.recipe).length > 0;
-        return `<div class="stump-cube-status"><p class="stump-cube-preview-title">예상 결과 <span>${esc(found.recipe.name)}</span></p>`
+        return `<div class="stump-cube-status"><p class="stump-cube-preview-title">예상 결과 <span>${esc(_t(found.recipe.name))}</span></p>`
             + previewFactsHtml(found) + (found.reason ? `<p class="stump-line is-bad">${esc(found.reason)}</p>` : '')
             + `<p class="stump-line${lacking ? ' is-bad' : ''}">${found.recipe.costText ? recipeToneHtml(found.recipe.costText) : costHtml(found.recipe.cost)}</p></div>`;
     }
@@ -141,7 +141,7 @@ const stumpCubeUi = (() => {
     function missingRecipesHtml(matched) {
         const hints = stumpCube.missingRecipes().slice(0, 3);
         if (!hints.length) return `<p class="stump-status">${matched ? '결과 미확인' : '맞는 조합법 없음'}</p>`;
-        return '<ul class="stump-cube-missing">' + hints.map(hint => `<li><strong>${esc(hint.recipe.name)}</strong>`
+        return '<ul class="stump-cube-missing">' + hints.map(hint => `<li><strong>${esc(_t(hint.recipe.name))}</strong>`
             + `<span>${hint.missing.map(row => `${statToneText.html(missingMaterialLabel(row))} <b class="stump-cube-shortage">${row.count}개 부족</b>`).join(', ')}</span></li>`).join('') + '</ul>';
     }
 
@@ -197,7 +197,7 @@ const stumpCubeUi = (() => {
         const recipes = quickFillRecipes();
         if (!recipes.length) return '';
         return '<div class="stump-cube-quick" role="group" aria-label="바로 넣기"><span>바로 넣기</span>' + recipes.map(recipe => `<button type="button"`
-            + ` data-stump-action="cube-quick" data-recipe="${recipe.id}" style="--recipe-tone:${GROUP_TONES[recipe.group] || '#e6c67f'}">${esc(recipe.name)}</button>`).join('') + '</div>';
+            + ` data-stump-action="cube-quick" data-recipe="${recipe.id}" style="--recipe-tone:${GROUP_TONES[recipe.group] || '#e6c67f'}">${esc(_t(recipe.name))}</button>`).join('') + '</div>';
     }
 
     /** What the screen shows depends on these, so the stump tab repaints when they change. */
@@ -247,7 +247,7 @@ const stumpCubeUi = (() => {
         const stat = kind === 'jewel' ? getJewelStats(item)[0] : ((item.stats || [])[0] || (item.baseStats || [])[0]);
         if (!stat) return '';
         const key = stat.id || stat.stat;
-        return `${stat.statName || getStatName(key)} ${formatSignedValue(key, stat.val)}`;
+        return `${_t(stat.statName || getStatName(key))} ${formatSignedValue(key, stat.val)}`;
     }
 
     function renderMaterialDetail(panel) {

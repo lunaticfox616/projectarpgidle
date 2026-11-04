@@ -26,7 +26,7 @@ const cosmosRouteUi = (() => {
         const boss = lastView.nodes.find(node => node.id === plan.plan.at(-1).at(-1));
         const total = plan.plan.flat().length;
         return `<div class="cosmos-journey-heading"><small>${cosmosRouteRuntime.active(game) ? '현재 탐사 중' : '이번 탐사'}</small>
-            <strong>${escapeHTML(current.name)} <span>→</span> <em>${escapeHTML(boss.name)}</em></strong>
+            <strong>${escapeHTML(_t(current.name))} <span>→</span> <em>${escapeHTML(_t(boss.name))}</em></strong>
             <div class="cosmos-goal-chips"><span>${plan.plan.length}구간</span><span>행성 ${total}곳</span><span>탐사 ${plan.history.length}/${total}</span>
             <span class="is-reward">보상 창공의 정수</span></div>${difficultyHtml(currentId, boss.id)}</div>${legendHtml()}
             <div class="cosmos-expedition-map" role="group" aria-label="은하 탐사">
@@ -53,7 +53,7 @@ const cosmosRouteUi = (() => {
         const habitat = cosmosRouteRuntime.planetHabitat(id);
         const state = current ? '현재 위치' : done ? '탐사 완료' : boss ? '최종 보스' : COSMOS_ROUTE_G1.habitats[habitat]?.name || '';
         return `<li class="cosmos-planet-stop ${node.kind} ${habitat} ${boss ? 'boss' : ''} ${current ? 'current' : ''} ${done ? 'done' : ''}" data-planned-node="${id}" ${current ? 'aria-current="step"' : ''}>
-            <i aria-hidden="true"></i><b>${escapeHTML(node.name)}</b><small>${state}</small></li>`;
+            <i aria-hidden="true"></i><b>${escapeHTML(_t(node.name))}</b><small>${state}</small></li>`;
     }
 
     /** 난이도: 다음 행성과 보스의 권장 전투력, 다른 콘텐츠와 같은 칩과 툴팁(buildMapPowerEstimateHtml). 2026-10-26 사용자가 지하계

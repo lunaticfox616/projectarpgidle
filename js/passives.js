@@ -5109,7 +5109,7 @@ function buildHeroChoiceTooltipHtml(classId, experienced) {
     const choices = loopMutation.starterChoices(classId) || [];
     const gem = choices.length > 1 ? `${choices.join(', ')} 중 하나` : LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '이중 베기';
     const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
-    return `<div class="tooltip-title">${escapeHTML(def.label)}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
+    return `<div class="tooltip-title">${escapeHTML(_t(def.label))}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
         <div class="tooltip-line" style="color:#f6c461;">시작 스킬룬: ${escapeHTML(gem)}</div>
         ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
         <div class="tooltip-line" style="color:#d8b4ff;">전직: ${escapeHTML(getAscendanciesForClass(classId).map(id => CLASS_TEMPLATES[id].name).join(', '))}</div>`;
@@ -5173,7 +5173,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
         let experienced = experiencedSet.has(id);
         let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
         let args = `'${id}',${experienced}`;
-        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(def.label)} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,${args})" onmousemove="showHeroChoiceTooltip(event,${args})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();pressLoopHeroChoice(${args})">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(def.label)}</strong></button>`;
+        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(_t(def.label))} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,${args})" onmousemove="showHeroChoiceTooltip(event,${args})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();pressLoopHeroChoice(${args})">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(_t(def.label))}</strong></button>`;
     }).join('');
     renderLoopHeroChoiceDetail(null);
     overlay.classList.add('active');
@@ -5980,11 +5980,11 @@ function actRewardItemPreview(choice, item) {
     const rarity = _t(ITEM_RARITY_LABELS[choice.rarity] || '');
     const slot = getEquipCandidateSlots(item).find(name => Object.hasOwn(game.equipment, name) && !game.equipment[name]);
     const equips = game.settings.autoEquipEmptySlots !== false && slot && combatEquipmentStats.inspect(item, slot).ok;
-    const optionText = stat => escapeHTML(`${stat.statName || getStatName(stat.id)} ${formatSignedValue(stat.id, stat.val)}`);
+    const optionText = stat => escapeHTML(`${_t(stat.statName || getStatName(stat.id))} ${formatSignedValue(stat.id, stat.val)}`);
     const extra = choice.fixedStarter ? item.stats.map(optionText).join(' · ') : '?';
     return `<small>${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}</small>
         <span class="reward-item-options">
-            <span>베이스: ${escapeHTML(item.baseName)}</span>
+            <span>베이스: ${escapeHTML(_t(item.baseName))}</span>
             <span>베이스 옵션: ${item.baseStats.map(optionText).join(' · ') || '없음'}</span>
             <span>추가 옵션: ${extra}</span>
         </span>`;
@@ -8908,7 +8908,7 @@ function openEncroachmentLiberationOverlay(item, options) {
         overlay = document.getElementById('encroachment-liberation-overlay');
     }
     let rows = options.map((stat, idx) => {
-        let label = `${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`;
+        let label = `${_t(stat.statName || getStatName(stat.id))} +${formatValue(stat.id, stat.val)}`;
         return `<button id="encroach-opt-${idx}" onclick="confirmEncroachmentLiberation(${idx})" disabled style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;pointer-events:none;display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;border:1px solid #5a3f8f;border-radius:10px;background:linear-gradient(90deg,rgba(40,24,64,.92),rgba(24,16,40,.92));color:#e7d8ff;font-size:15px;cursor:pointer;"><span>${label}</span><span style="color:#b79bff;font-size:12px;">[T${stat.tier || 10}]</span></button>`;
     }).join('');
     overlay.innerHTML = `<div style="width:min(520px,calc(95vw / var(--scale-display-factor, 1)));background:#120c1e;border:1px solid #6a47b3;border-radius:14px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.6);">`
@@ -8950,7 +8950,7 @@ function confirmEncroachmentLiberation(pickIdx) {
     item.encroached.chosen = chosen;
     item.encroached.pendingOptions = [];
     closeEncroachmentLiberationOverlay();
-    addLog(`🕳️ 잠식 해방 완료: ${chosen.statName || getStatName(chosen.id)} +${formatValue(chosen.id, chosen.val)} 확정`, 'loot-unique');
+    addLog(`🕳️ 잠식 해방 완료: ${_t(chosen.statName || getStatName(chosen.id))} +${formatValue(chosen.id, chosen.val)} 확정`, 'loot-unique');
     updateStaticUI();
 }
 
@@ -9352,7 +9352,7 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
     let pick = candidates[Math.floor(Math.random() * candidates.length)];
     pick.lockedByHoney = true;
     game.currencies.enchantedHoney--;
-    addLog(`🍯 [${item.name}] 옵션 고정 적용: ${pick.statName || getStatName(pick.id)}`, 'loot-unique');
+    addLog(`🍯 [${item.name}] 옵션 고정 적용: ${_t(pick.statName || getStatName(pick.id))}`, 'loot-unique');
     updateStaticUI();
 }
 
@@ -9389,7 +9389,7 @@ function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return 
     if (idx >= 0) item.stats[idx] = rolled;
     else item.stats.push(rolled);
     game.currencies.venomStinger--;
-    addLog(`🦂 독벌침 적용: ${rolled.statName || getStatName(rolled.id)} +${formatValue(rolled.id, rolled.val)}`, 'loot-rare');
+    addLog(`🦂 독벌침 적용: ${_t(rolled.statName || getStatName(rolled.id))} +${formatValue(rolled.id, rolled.val)}`, 'loot-rare');
     updateStaticUI();
 }
 
@@ -9683,7 +9683,7 @@ function boostExceptionalBaseLine(item, stat) {
         : (Number.isFinite(stat.valMax) ? stat.valMax : Number(stat.val) || 0);
     stat.val = boostItemStatValue(stat.id, max, 1.2);
     stat.exceptional = true;
-    let names = item.baseStats.filter(row => row && row.exceptional).map(row => row.statName || getStatName(row.id));
+    let names = item.baseStats.filter(row => row && row.exceptional).map(row => _t(row.statName || getStatName(row.id)));
     item.exceptionalBase = true;
     item.exceptionalStatNames = names;
     item.exceptionalStatName = names.join(', ');
@@ -10533,7 +10533,7 @@ function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return 
     let pick = rndChoice(candidates);
     let removed = item.stats.splice(pick.idx, 1)[0];
     updateItemName(item);
-    addLog(`🍄 부패 홀씨 적용: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-rare');
+    addLog(`🍄 부패 홀씨 적용: ${_t(removed.statName || getStatName(removed.id))} 옵션 제거`, 'loot-rare');
     updateStaticUI();
 }
 
@@ -10559,7 +10559,7 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     item.stats.push(roll);
     item.rarity = item.rarity === 'normal' ? 'magic' : item.rarity;
     updateItemName(item);
-    addLog(`🍄 균열 홀씨 적용: ${roll.statName || getStatName(roll.id)} +${formatValue(roll.id, roll.val)}`, 'loot-unique');
+    addLog(`🍄 균열 홀씨 적용: ${_t(roll.statName || getStatName(roll.id))} +${formatValue(roll.id, roll.val)}`, 'loot-unique');
     updateStaticUI();
 }
 
@@ -10827,7 +10827,7 @@ const craftCurrencyUse = (() => {
         const picked = equipmentCrafting.pickPruneLine(candidates, run.omen);
         const removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
-        run.logs.push([`🕳️ 전정 가위: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-unique']);
+        run.logs.push([`🕳️ 전정 가위: ${_t(removed.statName || getStatName(removed.id))} 옵션 제거`, 'loot-unique']);
     }
     function scour(item, run) {
         const sideOnly = run.omen && run.omen.effect === 'side', onSide = stat => equipmentCrafting.onOmenSide(item, stat, run.omen);

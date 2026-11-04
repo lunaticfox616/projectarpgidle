@@ -214,7 +214,7 @@ const atlasUi = (() => {
         const region = ATLAS.regions.find(row => row.id === node.region);
         const kind = node.kind === 'map' ? terrainOf(node) : `${node.kind === 'guardian' ? '지역 수호자' : '정점'}(${terrainOf(node)})`;
         const where = region ? `, ${region.name}` : '';
-        showInfoTooltipHtml(event.clientX, event.clientY, `<div class="tooltip-title">${escapeHTML(node.name)}</div>
+        showInfoTooltipHtml(event.clientX, event.clientY, `<div class="tooltip-title">${escapeHTML(_t(node.name))}</div>
             <div class="tooltip-line">${atlas.effectiveTier(game, node)}등급, ${STATUS[atlas.status(game, id)]}${where}</div>
             <div class="tooltip-line">${kind}, 보스 ${escapeHTML(node.boss)}</div>`, region ? region.tint : '#d9b066');
     }
@@ -234,7 +234,7 @@ const atlasUi = (() => {
         const tier = atlas.effectiveTier(game, node);
         // data-info-tooltip-anchor: js/ui.js의 mousemove 감시가 이 표시가 없는 곳의 툴팁을 바로 지워, 지도 이름이 뜨자마자 사라졌다(2026-10-25 사용자).
         return `<button class="${classes}" style="--x:${x}%;--y:${y}%" data-atlas-node="${node.id}" data-info-tooltip-anchor="1" aria-pressed="${node.id === selectedNode}"
-            aria-label="${escapeHTML(node.name)} ${tier}등급 ${STATUS[status]}" onclick="atlasUi.selectNode('${node.id}')"
+            aria-label="${escapeHTML(_t(node.name))} ${tier}등급 ${STATUS[status]}" onclick="atlasUi.selectNode('${node.id}')"
             onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><b>${tier}</b>${held ? `<i>${held}</i>` : ''}</button>`;
     }
 
@@ -244,12 +244,12 @@ const atlasUi = (() => {
         const found = lootOmens.of(map);
         if (!found) return '';
         const omen = lootOmens.describe(found.omen.id);
-        return `<p class="atlas-omen${map.uid === bloomedUid ? ' is-bloomed' : ''}" style="--omen:${omen.tone}"><b>${escapeHTML(omen.name)}</b><small>세기 ×${found.strength}</small>`
+        return `<p class="atlas-omen${map.uid === bloomedUid ? ' is-bloomed' : ''}" style="--omen:${omen.tone}"><b>${escapeHTML(_t(omen.name))}</b><small>세기 ×${found.strength}</small>`
             + `<span>${escapeHTML(omen.note)}</span></p>`;
     }
     function omenChipHtml(map) {
         const omen = map.omen && lootOmens.describe(map.omen);
-        return omen ? `<i class="atlas-omen-chip" style="--omen:${omen.tone}">${escapeHTML(omen.name)}</i>` : '';
+        return omen ? `<i class="atlas-omen-chip" style="--omen:${omen.tone}">${escapeHTML(_t(omen.name))}</i>` : '';
     }
     function mapCardHtml(map, extra = '') {
         // 지도석 없이 연 싸움(정점, 최종 보스, 리그 우두머리)은 희귀도 · 옵션 · 수량 없이 무엇인지만.
@@ -348,7 +348,7 @@ const atlasUi = (() => {
         const region = ATLAS.regions.find(row => row.id === node.region), status = atlas.status(game, node.id), tier = atlas.effectiveTier(game, node);
         const maps = ledger().stash.filter(map => map.node === node.id).sort((a, b) => b.tier - a.tier);
         const kind = node.kind === 'guardian' ? `<p class="atlas-guardian-note">지역 수호자, 처치마다 뿌리 입장권(${node.ticket ? TICKET(node.ticket) : '가장 적은 종류'}), 지도석은 이 지역 ${ATLAS.guardianRules.minTier}등급 이상 보스가 떨어뜨립니다</p>${itemInfluencesUi.sourceHtml('guardian')}` : '';
-        return `<section class="atlas-node-detail" style="--tint:${region.tint}"><small>${region.name}, ${STATUS[status]}</small><h3>${escapeHTML(node.name)}</h3>
+        return `<section class="atlas-node-detail" style="--tint:${region.tint}"><small>${region.name}, ${STATUS[status]}</small><h3>${escapeHTML(_t(node.name))}</h3>
             <p>${tier}등급, ${terrainOf(node)}, 보스 ${escapeHTML(node.boss)}</p>${kind}
             <p class="atlas-muted">장비 T${atlas.lootTier(tier)}까지, 혼돈 ${atlas.equivalentDepth(tier)} 상당</p>
             ${maps.length ? `<div class="atlas-node-maps">${maps.map(stashRowHtml).join('')}</div>` : '<p class="atlas-muted">이 노드의 지도석이 없습니다.</p>'}</section>`;
@@ -357,7 +357,7 @@ const atlasUi = (() => {
     function pinnacleHtml(node) {
         const tier = atlas.effectiveTier(game, node), reason = atlas.pinnacleReason(game) || atlasRun.blockReason(), busy = !!ledger().run;
         const tickets = ATLAS.pinnacle.tickets.map(key => `<span class="${(game.currencies[key] || 0) >= 1 ? 'is-on' : ''}">${TICKET(key)} ${Math.floor(game.currencies[key] || 0)}</span>`).join('');
-        return `<section class="atlas-node-detail atlas-pinnacle-detail"><small>정점, 세계수 씨앗 ${ledger().seeds}/${ATLAS.seeds.max}</small><h3>${escapeHTML(node.name)}</h3>
+        return `<section class="atlas-node-detail atlas-pinnacle-detail"><small>정점, 세계수 씨앗 ${ledger().seeds}/${ATLAS.seeds.max}</small><h3>${escapeHTML(_t(node.name))}</h3>
             <p>${tier}등급, 투기장, 보스 ${ATLAS.pinnacle.stages}단계</p><div class="atlas-tickets">${tickets}</div>
             <p class="atlas-muted">${ledger().seeds >= ATLAS.seeds.max ? `세계수 씨앗 ${ATLAS.seeds.max}개를 다 모아 더는 나오지 않습니다(시대 재생 뒤 다시).` : `처치하면 세계수 씨앗 하나(최대 ${ATLAS.seeds.max}).`} 씨앗마다 모든 노드 등급 +${ATLAS.seeds.tierStep}. 씨앗 ${BEYOND_BOUNDARY_UNLOCK_SEEDS}개면 경계 너머가 루프 50 전에 열립니다(관측자 처치 필요).</p>
             ${atlasEndgame.awakened(game) ? '' : '<p class="atlas-muted">처음 쓰러뜨리면 아틀라스가 깨어나 최종 보스가 열립니다.</p>'}
@@ -384,7 +384,7 @@ const atlasUi = (() => {
     const momentClass = moment => (moment ? ` moment-${moment}` : '');
     const LEAF_RANK = 1.5;
     function itemFind(row) {
-        const name = row.rarity === 'unique' ? `「${escapeHTML(row.name)}」` : escapeHTML(row.name);
+        const name = row.rarity === 'unique' ? `「${escapeHTML(_t(row.name))}」` : escapeHTML(_t(row.name));
         return { rank: lootMoments.rank(row.moment), html: `<span class="atlas-find rarity-${row.rarity}${momentClass(row.moment)}" data-tip="${escapeHTML(getItemSlotDisplayLabel(null, row.slot))}">${row.fresh ? '<em>새</em>' : ''}${name}</span>` };
     }
     function leafFind([id, count]) {
@@ -567,7 +567,7 @@ const atlasUi = (() => {
         const key = JSON.stringify([run.map.uid, run.portals, run.drops.length, run.found.length]);
         if (key === hudSignature) return;
         hudSignature = key;
-        host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(zone.name)} <span>${hudTags(run)}</span>${omenChipHtml(run.map)}</strong>
+        host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(_t(zone.name))} <span>${hudTags(run)}</span>${omenChipHtml(run.map)}</strong>
             <span>${run.board ? '심재의 나이테, 지거나 귀환하면 지도가 끝납니다' : `포털 ${run.portals}/${ATLAS.portals + run.bonus.portals}, 지도석 ${run.drops.length}, 각인 ${run.found.length} 보관 중`}</span></div>
             <div class="atlas-hud-actions"><button onclick="atlasUi.openPanel()">아틀라스</button></div>`;
     }

@@ -1599,7 +1599,7 @@
             <button type="button" class="cosmos-capstone-boss ${row.cleared ? 'cleared' : 'missing'}"
                 onclick="focusCosmosCapstoneBoss('${row.id}')"
                 data-tip="${row.cleared ? '이번 루프 격파 완료' : '아틀라스에서 위치 확인'}">
-                <span>G${row.galaxy}</span>${escapeHTML(row.name)}<b>${row.cleared ? '✓' : '○'}</b>
+                <span>G${row.galaxy}</span>${escapeHTML(_t(row.name))}<b>${row.cleared ? '✓' : '○'}</b>
             </button>`).join('');
         const capstoneAction = capstone.ready
             ? `<button type="button" class="cosmos-capstone-action" onclick="openCosmosCapstoneBossPanel()">잔향체 아스트라 위치 열기</button>`
@@ -1663,7 +1663,7 @@
             .filter(Boolean).join(' ');
         return `<button type="button" class="${className}" data-cosmos-directive-node="${escapeHTML(node.id)}" data-cosmos-directive-id="${escapeHTML(directive.id)}" aria-pressed="${selected ? 'true' : 'false'}" ${disabled ? 'disabled' : ''}>
             <span class="cosmos-directive-card-head"><small>${escapeHTML(directive.signal || 'SIGNAL')}</small>${selected ? '<b>선택됨</b>' : (directive.rare ? '<b>희귀 신호</b>' : '')}</span>
-            <strong>${escapeHTML(directive.name)}</strong>
+            <strong>${escapeHTML(_t(directive.name))}</strong>
             <span class="cosmos-directive-desc">${escapeHTML(directive.description)}</span>
             <span class="cosmos-directive-risk"><i>생명력 ${formatCosmosDirectivePressure(directive.enemyHpMul)}</i><i>피해 ${formatCosmosDirectivePressure(directive.enemyDamageMul)}</i><i>속도 ${formatCosmosDirectivePressure(directive.enemyAttackSpeedMul)}</i></span>
             <span class="cosmos-directive-reward"><b>보상 ×${Number(directive.rewardMul || 1).toFixed(2)}</b><em>${chance > 0 ? `공명 잭팟 ${chance}%` : '잭팟 없음'}</em></span>
@@ -1700,7 +1700,7 @@
         const reward = node.tag === 'boss' ? `첫 격파, ${getBossStoneName(node)}`
             : `창공의 정수, ${node.kind === 'planet' ? '행성 보상' : '제작 재료'}`;
         ATLAS.detail.innerHTML = `
-            <div class="cosmos-detail-hero"><div class="cosmos-detail-title">${escapeHTML(node.name)}</div>
+            <div class="cosmos-detail-hero"><div class="cosmos-detail-title">${escapeHTML(_t(node.name))}</div>
                 <span class="cosmos-status ${status}">${getStatusLabel(status)}</span></div>
             ${renderCosmosDifficultySection(node)}
             ${renderGalaxyGateLine(node, state)}

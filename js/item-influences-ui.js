@@ -8,7 +8,7 @@ const itemInfluencesUi = (() => {
     const chip = (key, text) => `<span class="infl-chip is-${key}" style="--infl:${meta(key).tone}">${escapeHTML(text)}</span>`;
     // 다른 줄을 바꾼 줄(태양, 허기, 뒤바뀐)은 그 줄 아래에 한 줄 더 "[표식] 기존 ○○"(2026-10-10 사용자: 셋을 같은 모양으로).
     const replacedLine = (key, text, replaced) => `<span class="infl-replaced is-${key}" style="--infl:${meta(key).tone}">${chip(key, text)}${
-        replaced ? `기존 ${escapeHTML(replaced.statName || getStatName(replaced.id))}` : ''}</span>`;
+        replaced ? `기존 ${escapeHTML(_t(replaced.statName || getStatName(replaced.id)))}` : ''}</span>`;
 
     /** Classes for an item's frame: has-influence, and has-influence-2 when two colours share it; is-corrupted for a corrupted item
      * (a red frame, css/item-influences.css). '' for an ordinary item. */
@@ -50,7 +50,7 @@ const itemInfluencesUi = (() => {
     function sourceHtml(key) {
         const row = ITEM_INFLUENCES[key];
         if (!row || !row.found) return '';
-        return `<p class="infl-source"><span class="infl-tag" style="--infl:${row.tone}">${escapeHTML(row.label)}</span>${escapeHTML(row.found)}</p>`;
+        return `<p class="infl-source"><span class="infl-tag" style="--infl:${row.tone}">${escapeHTML(_t(row.label))}</span>${escapeHTML(row.found)}</p>`;
     }
     /** The mark after a line's value: an altar line, an exclusive line of guardian or blight, a swapped unique line (with what it
      * replaced). '' for an ordinary line. */
@@ -78,7 +78,7 @@ const itemInfluencesUi = (() => {
             return false;
         }
         const influence = ITEM_INFLUENCES[result.line.altar];
-        addLog(`${influence.name} 줄을 새겼습니다: [${escapeHTML(item.name)}] ${escapeHTML(result.line.statName)} +${formatValue(result.line.id, result.line.val)}`, 'loot-rare');
+        addLog(`${influence.name} 줄을 새겼습니다: [${escapeHTML(getItemDisplayName(item))}] ${escapeHTML(result.line.statName)} +${formatValue(result.line.id, result.line.val)}`, 'loot-rare');
         return true;
     }
 

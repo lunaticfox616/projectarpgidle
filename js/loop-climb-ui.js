@@ -57,7 +57,7 @@ const loopClimbUi = (() => {
     function growthHtml() {
         const stats = game.loopDeepStats || {}, tone = def => getItemStatToneColor(def.stat || 'pctDmg'), points = game.loopDeepPoints || 0;
         const buttons = LOOP_DEEP_STATS.map(def => `<button type="button" class="climb-stat" style="--stat-tone:${tone(def)}" onclick="allocateLoopDeepStat('${def.key}')">`
-            + `<strong>${esc(def.label)}</strong><b>Lv.${stats[def.key] || 0}</b><small>합계 +${formatLoopDeepValue(def, stats[def.key])}, 레벨당 +${def.per}${def.unit}</small>`
+            + `<strong>${esc(_t(def.label))}</strong><b>Lv.${stats[def.key] || 0}</b><small>합계 +${formatLoopDeepValue(def, stats[def.key])}, 레벨당 +${def.per}${def.unit}</small>`
             + `<em>비용 ${getLoopDeepStatCost(def.key)}</em></button>`).join('');
         return `<details id="loop-deep-growth" class="progression-workbench climb-growth" ${contentUnlockUi.lockAttribute('deepTree')}><summary>영구 강화<b>보유 포인트 ${points}</b></summary>`
             + `<div class="climb-stats">${buttons}</div></details>`;

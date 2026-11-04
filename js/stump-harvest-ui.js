@@ -36,7 +36,7 @@ const stumpHarvestUi = (() => {
     function unlockRow(row, open) {
         return `<li class="${open ? 'is-on' : ''}"><span class="stump-unlock-mark" aria-label="${open ? '열림' : '잠김'}"></span>`
             + `<span class="stump-unlock-when">${esc(unlockWhen(row, open))}</span><span class="stump-unlock-arrow" aria-hidden="true">→</span>`
-            + `<strong class="stump-unlock-reward">${esc(row.label)}</strong></li>`;
+            + `<strong class="stump-unlock-reward">${esc(_t(row.label))}</strong></li>`;
     }
     function unlocksHtml() {
         const open = new Set(stumpBox.openUnlocks(game).map(row => row.id));

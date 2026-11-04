@@ -60,7 +60,7 @@ function maybeApplyBlackMarketExceptionalBaseStats(baseStats) {
         let usesDecimal = isTenthStat(stat.id);
         stat.val = usesDecimal ? Math.round(boosted * 10) / 10 : Math.max(1, Math.floor(boosted));
         stat.exceptional = true;
-        names.push(stat.statName || getStatName(stat.id));
+        names.push(_t(stat.statName || getStatName(stat.id)));
     });
     return { baseStats, exceptionalBase: names.length > 0, names };
 }
@@ -107,7 +107,7 @@ function getBlackMarketBaseTooltipOptionLines(baseStats) {
     if (rows.length <= 0) return '<div class="tooltip-line">베이스 옵션 없음</div>';
     return rows.map(stat => {
         let range = getBlackMarketBaseRollRange(stat);
-        let label = stat.statName || getStatName(stat.id);
+        let label = _t(stat.statName || getStatName(stat.id));
         return `<div class="tooltip-line" style="color:#9fd6ff;">베이스 옵션, ${escapeHTML(label)} ${formatSignedValue(stat.id, range.min)}~${formatSignedValue(stat.id, range.max)}</div>`;
     }).join('');
 }
@@ -310,7 +310,7 @@ function getBlackMarketUniqueTooltipOptionLines(offer, uniq) {
     let statLines = (Array.isArray(sourceStats) ? sourceStats : []).map(stat => {
         let statId = stat.id;
         let { min, max } = getUniqueStatRollRange(stat);
-        let label = stat.statName || getStatName(statId);
+        let label = _t(stat.statName || getStatName(statId));
         return `<div class="tooltip-line" style="color:#ffd98a;">고유 옵션, ${escapeHTML(label)} +${formatValue(statId, min)}~+${formatValue(statId, max)}</div>`;
     });
     return effectLine + (statLines.join('') || '<div class="tooltip-line">고유 옵션 보유</div>');
@@ -356,7 +356,7 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let rareLine = offer.rareT20Base ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">T20 희귀 베이스</div>' : '';
         let exLine = offer.exceptionalBase ? '<div class="tooltip-line" style="color:#ffb454; font-weight:800;">특출난 베이스</div>' : '';
         let comparison = getBlackMarketBaseComparison(offer);
-        let comparisonLine = comparison ? `<div class="tooltip-line" style="color:${comparison.tone === 'upgrade' || comparison.tone === 'empty' ? '#8fd9a7' : (comparison.tone === 'downgrade' ? '#d99b91' : '#9fb4d1')};">장착 비교, ${escapeHTML(comparison.label)}</div>` : '';
+        let comparisonLine = comparison ? `<div class="tooltip-line" style="color:${comparison.tone === 'upgrade' || comparison.tone === 'empty' ? '#8fd9a7' : (comparison.tone === 'downgrade' ? '#d99b91' : '#9fb4d1')};">장착 비교, ${escapeHTML(_t(comparison.label))}</div>` : '';
         return `<div class="tooltip-title">베이스 장비</div><div class="tooltip-line">${offer.name}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>${comparisonLine}${chainLine}${rareLine}${exLine}${getBlackMarketBaseTooltipOptionLines(sourceStats)}<div class="tooltip-line">제작용 베이스로 사용됩니다.</div>`;
     }
     if (offer.type === 'unique') {
@@ -368,10 +368,10 @@ function getBlackMarketOfferTooltipHtml(offer) {
         let codexLine = registered ? '<span style="color:#8dffb1;">등록됨</span>' : '<span style="color:#ffb0b0;">미등록</span>';
         let optionLines = getBlackMarketUniqueTooltipOptionLines(offer, uniq);
         let baseLines = getBlackMarketBaseTooltipOptionLines(offer.baseStats);
-        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(offer.baseName)}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
+        let baseTitle = offer.baseName ? `<div class="tooltip-line" style="color:var(--copy-bright);">베이스: ${escapeHTML(_t(offer.baseName))}, 숨겨진 티어 ${offer.hiddenTier || offer.reqTier}</div>` : '';
         let chaseLine = offer.chase ? '<div class="tooltip-line" style="color:#ffd36a; font-weight:800;">체이싱 유니크 암거래 품목</div>' : '';
         let featuredLine = offer.featured ? '<div class="tooltip-line" style="color:#93e7c1; font-weight:800;">시장 정보로 확보한 표적 고유</div>' : '';
-        return `<div class="tooltip-title">도감 고유 정보, ${escapeHTML(offer.name)} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
+        return `<div class="tooltip-title">도감 고유 정보, ${escapeHTML(_t(offer.name))} (숨겨진 티어 ${offer.hiddenTier || offer.reqTier})</div>${featuredLine}${chaseLine}${baseTitle}${baseLines}${optionLines}<div class="tooltip-line">도감 등록: ${codexLine}</div>`;
     }
     return '<div class="tooltip-title">암거래 품목</div>';
 }

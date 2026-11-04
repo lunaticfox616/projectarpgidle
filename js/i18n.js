@@ -4,7 +4,8 @@
  * 바꾸지 않고, 보여 줄 때 _t()로만 옮긴다. utils 층: 게임 상태를 모르고, DOM은 data-i18n 요소를 옮기는 applyStatic만 만진다.
  *
  *   _t('보유 {count}개', { count: 3 })   {이름} 자리에 매개변수를 넣는다(번역 뒤에).
- *   _t('접기|기록')                       같은 한국어가 문맥마다 다르게 번역되면 '|문맥'을 붙인다. 한국어로는 문맥을 떼고 보인다.
+ *   _t('접기|기록')                       같은 한국어가 문맥마다 다르게 번역되면 '|문맥'을 붙인다. 한국어로는 문맥을 떼고 보이고, 그 문맥의
+ *                                         번역이 없으면 원문('접기')의 번역을 쓴다.
  *   팩 값이 { one: '...', other: '...' }면 params.count로 복수형을 고른다(Intl.PluralRules).
  *   <b data-i18n>화면</b>                 정적 HTML. 그 요소의 바로 아래 글 마디마다 옮긴다(자식 요소 사이의 글도, 자식 요소 안은 아니다).
  *                                         data-i18n-attr="data-tip placeholder"는 그 속성도 옮긴다.
@@ -46,7 +47,7 @@ const i18n = (() => {
     }
 
     function noteMissing(key) {
-        if (current === SOURCE || missing.has(key)) return;
+        if (current === SOURCE || missing.has(key) || !/[가-힣]/.test(key)) return;   // 한국어가 없는 글(플레이어 이름, 숫자)은 원문이 아니다
         missing.add(key);
         console.warn(`[i18n] ${current.code} 번역 없음: ${key}`);
     }
@@ -54,7 +55,7 @@ const i18n = (() => {
     /** 현재 언어의 글. 팩에 없으면 한국어 원문(문맥을 떼고). */
     function translate(key, params) {
         const text = String(key);
-        const entry = current.strings[text];
+        const entry = current.strings[text] ?? current.strings[sourceText(text)];   // '원문|문맥'에 번역이 없으면 원문의 번역
         if (entry === undefined) {
             noteMissing(text);
             return interpolate(sourceText(text), params);

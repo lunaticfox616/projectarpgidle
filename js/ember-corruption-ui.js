@@ -45,7 +45,7 @@ const emberCorruptionUi = (() => {
         addLog(parts.filter(Boolean).join(' '), 'attack-monster', { toast: true });
     }
 
-    const lineHtml = (line, tag) => `${tag}<span style="color:${EMBER_CORRUPTION_TONE};">[잿불] ${esc(line.statName || getStatName(line.id))} +${esc(formatValue(line.id, line.val))}</span>`;
+    const lineHtml = (line, tag) => `${tag}<span style="color:${EMBER_CORRUPTION_TONE};">[잿불] ${esc(_t(line.statName || getStatName(line.id)))} +${esc(formatValue(line.id, line.val))}</span>`;
     /** The item tooltip's ember section: the burned mark and the corruption-only lines. '' for an item never burned. */
     function tooltipHtml(item) {
         if (!item || !item.burned) return '';

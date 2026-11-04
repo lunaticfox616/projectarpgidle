@@ -188,7 +188,7 @@
     function boardEngraveTooltipHtml(slot) {
         if (slot.state !== 'full') return `<div class="tooltip-title">${engraveLabel(slot)}</div><div class="tooltip-line">${ENGRAVE_HINTS[slot.state]}</div>`;
         const group = getSkyEnhancementGroup(slot.def);
-        return `<div class="tooltip-title engrave-tone-${group.className}">${escapeHTML(slot.def.name)}</div><div class="tooltip-line engrave-tooltip-group">${group.label} 각인, ${slot.index + 1}번 칸</div>`
+        return `<div class="tooltip-title engrave-tone-${group.className}">${escapeHTML(_t(slot.def.name))}</div><div class="tooltip-line engrave-tooltip-group">${group.label} 각인, ${slot.index + 1}번 칸</div>`
             + `<div class="tooltip-line engrave-tooltip-effect">${statToneText.html(slot.def.desc)}</div><div class="tooltip-line gem-card-hint">누르면 다른 각인으로 바꿉니다</div>`;
     }
 

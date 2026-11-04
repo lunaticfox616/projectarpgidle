@@ -58,8 +58,8 @@ const chronicleUi = (() => {
     }
     function chapterHtml(row) {
         const fill = Math.floor(row.share * 100), done = row.share >= 1, state = done ? ' is-done' : row.count > 0 ? ' is-started' : '';
-        const action = targetReady(row.id) ? `<button type="button" class="chronicle-open" aria-label="${esc(row.name)} 보기" onclick="chronicleUi.open('${row.id}')">보기</button>` : '';
-        return `<li class="chronicle-chapter${state}" style="--chapter-tone:${TONES[row.id] || '#e8c27a'}"><div><strong>${esc(row.name)}</strong><span>${row.count}/${row.goal}</span>${action}</div>
+        const action = targetReady(row.id) ? `<button type="button" class="chronicle-open" aria-label="${esc(_t(row.name))} 보기" onclick="chronicleUi.open('${row.id}')">보기</button>` : '';
+        return `<li class="chronicle-chapter${state}" style="--chapter-tone:${TONES[row.id] || '#e8c27a'}"><div><strong>${esc(_t(row.name))}</strong><span>${row.count}/${row.goal}</span>${action}</div>
             <div class="mastery-bar"><i style="width:${fill}%"></i></div>${done ? '' : `<small>${esc(row.hint)}</small>`}</li>`;
     }
     /** The records window's chronicle section. Winds any ring earned since the last check first. */

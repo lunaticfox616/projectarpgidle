@@ -10,6 +10,13 @@
  *  - 한국어 식별자(변수·속성 이름, .무기 접근)가 기준선(scripts/i18n-baseline.json)보다 늘어나는 것. 줄었으면 --baseline으로 기준선을 내린다.
  *  - js/i18n.js의 행동: 원문 그대로, 번역, 없는 열쇠의 되돌림과 기록, 문맥 떼기, 매개변수, 복수형, 언어 바꾸기와 data-i18n 적용, ?lang=.
  * 번역이 아직 없는 원문은 막지 않고 --report에 센다(한국어로 먼저 쓰고 팩은 뒤따른다). 언어를 내놓기 전에 보고가 0이어야 한다.
+ *
+ * 번역 표(언어를 더하거나 업데이트 뒤 새 글을 옮길 때, docs/i18n.md):
+ *   node scripts/check-i18n.js --export en [파일] [--names] [--descs] [--all]
+ *       en 팩에 없는 원문을 쓰인 자리(파일:줄, 그 줄)와 {자리} 이름과 함께 JSON 표로 쓴다(기본 artifacts/i18n/en-missing.json).
+ *       --names는 데이터의 이름(name·label·title·bossName), --descs는 설명(desc·uniqueEffect 따위)도 원문으로 모은다. --all은 번역이 있는 것도.
+ *   node scripts/check-i18n.js --import en 파일
+ *       표의 en 칸이 채워진 줄을 data/locales/en.js에 넣는다(있는 열쇠는 값을 바꾸고, 새 열쇠는 날짜 블록으로 끝에 더한다). 넣은 뒤 검사가 돈다.
  */
 const fs = require('fs');
 const path = require('path');
@@ -86,7 +93,10 @@ function checkPackShape(name, pack, failures) {
 
 function checkOrphans(name, pack, sources, failures) {
     for (const key of Object.keys(pack.strings || {})) {
-        if (!sources.some(source => source.text.includes(key))) failures.push(`${name}: 코드와 index.html 어디에도 없는 열쇠(원문이 바뀌었나): '${key}'`);
+        // '원문|문맥'은 코드가 붙여 만들기도 한다(하단 메뉴 이름표): 원문과 '|문맥'이 각각 어딘가에 있으면 된다.
+        const at = key.lastIndexOf('|');
+        const parts = at > 0 ? [key.slice(0, at), key.slice(at)] : [key];
+        if (!parts.every(part => sources.some(source => source.text.includes(part)))) failures.push(`${name}: 코드와 index.html 어디에도 없는 열쇠(원문이 바뀌었나): '${key}'`);
     }
 }
 
@@ -234,6 +244,37 @@ function testAppliedSettings() {
     assert.strictEqual(unknown.i18n.language, 'en', '모르는 ?lang=은 무시한다');
 }
 
+// ── 원문 모으기(보고·표) ─────────────────────────────────────────────────────
+const NAME_PROPS = /\b(?:name|label|title|blindLabel|bossName)\s*:\s*(['"])((?:\\.|(?!\1).)*[가-힣](?:\\.|(?!\1).)*)\1/g;
+const DESC_PROPS = /\b(?:desc|description|uniqueEffect|note|text|hint|body|lore|flavor|tip|summary)\s*:\s*(['"])((?:\\.|(?!\1).)*[가-힣](?:\\.|(?!\1).)*)\1/g;
+
+function lineOf(text, index) { return text.slice(0, index).split('\n').length; }
+function snippet(text, index) {
+    const start = text.lastIndexOf('\n', index) + 1, end = text.indexOf('\n', index);
+    return text.slice(start, end < 0 ? text.length : end).trim().slice(0, 160);
+}
+function unescapeLiteral(raw) { return raw.replace(/\\(['"\\])/g, '$1'); }
+
+/** 열쇠 → 쓰인 자리들. _t('…') 호출과 index.html의 data-i18n 글이 기본이고, names·descs는 데이터 속성값도 더한다. */
+function collectKeys(sources, options = {}) {
+    const keys = new Map();
+    const add = (key, file, text, index) => {
+        if (!keys.has(key)) keys.set(key, []);
+        keys.get(key).push(`${file}:${lineOf(text, index)}  ${snippet(text, index)}`);
+    };
+    for (const { file, text } of sources) {
+        if (file === 'js/i18n.js') continue;   // 머리말의 보기는 열쇠가 아니다
+        for (const match of text.matchAll(STATIC_KEY_CALL)) add(unescapeLiteral(match[2]), file, text, match.index);
+        if (file === 'index.html') {
+            for (const key of options.staticKeys || []) { const at = text.indexOf(key); if (at >= 0) add(key, file, text, at); }
+            continue;
+        }
+        if (options.names) for (const match of text.matchAll(NAME_PROPS)) add(unescapeLiteral(match[2]), file, text, match.index);
+        if (options.descs) for (const match of text.matchAll(DESC_PROPS)) add(unescapeLiteral(match[2]), file, text, match.index);
+    }
+    return keys;
+}
+
 // ── 보고 ─────────────────────────────────────────────────────────────────────
 function countHangulLines(sources, prefix, pattern) {
     return sources.filter(source => source.file.startsWith(prefix))
@@ -242,27 +283,69 @@ function countHangulLines(sources, prefix, pattern) {
 
 function report(packs, sources, staticKeys, identifierCounts) {
     const quoted = /['"`][^'"`]*[가-힣]/;
-    const codeKeys = new Set();
-    let calls = 0;
-    for (const { file, text } of sources) {
-        if (file === 'js/i18n.js') continue;   // 머리말의 보기는 열쇠가 아니다
-        for (const match of text.matchAll(STATIC_KEY_CALL)) { calls++; codeKeys.add(match[2]); }
-    }
+    const keys = collectKeys(sources, { staticKeys });
+    const calls = [...keys.values()].reduce((sum, where) => sum + where.filter(place => !place.startsWith('index.html')).length, 0);
     console.log('── 언어 진행 보고 ──');
     console.log(`한국어 글이 든 줄: js ${countHangulLines(sources, 'js/', quoted)}, data ${countHangulLines(sources, 'data/', quoted)}, index.html ${countHangulLines(sources, 'index.html', HANGUL)}`);
-    console.log(`_t() 호출 ${calls}개(글자 그대로의 열쇠 ${codeKeys.size}개), index.html data-i18n ${staticKeys.length}개`);
+    console.log(`_t() 호출 ${calls}개, index.html data-i18n ${staticKeys.length}개, 서로 다른 열쇠 ${keys.size}개`);
     console.log(`한국어 식별자 ${Object.values(identifierCounts).reduce((sum, count) => sum + count, 0)}개(${Object.keys(identifierCounts).length}개 파일, 기준선 scripts/i18n-baseline.json)`);
-    const wanted = new Set([...codeKeys, ...staticKeys]);
     for (const { pack } of packs) {
         if (!Object.keys(pack.strings).length) { console.log(`${pack.code}: 원문 언어`); continue; }
-        const missing = [...wanted].filter(key => !(key in pack.strings));
-        console.log(`${pack.code}: 번역 ${Object.keys(pack.strings).length}개, 코드·HTML의 열쇠 ${wanted.size}개 중 번역 없음 ${missing.length}개`);
+        const missing = [...keys.keys()].filter(key => !(key in pack.strings));
+        console.log(`${pack.code}: 번역 ${Object.keys(pack.strings).length}개, 코드·HTML의 열쇠 ${keys.size}개 중 번역 없음 ${missing.length}개 (표: --export ${pack.code})`);
         missing.slice(0, 40).forEach(key => console.log(`  - ${key}`));
         if (missing.length > 40) console.log(`  … ${missing.length - 40}개 더`);
     }
 }
 
+// ── 번역 표 내보내기·넣기 ───────────────────────────────────────────────────────
+function packFile(code) { return `${LOCALES_DIR}/${code}.js`; }
+
+function exportTable(code, pack, sources, staticKeys, argv) {
+    const out = argv.find((arg, index) => index > 0 && argv[index - 1] === code && !arg.startsWith('--')) || `artifacts/i18n/${code}-missing.json`;
+    const keys = collectKeys(sources, { staticKeys, names: argv.includes('--names'), descs: argv.includes('--descs') });
+    const rows = [];
+    for (const [key, where] of keys) {
+        if (!argv.includes('--all') && key in pack.strings) continue;
+        rows.push({ key, [code]: pack.strings[key] || '', params: [...placeholders(key)], where: where.slice(0, 5) });
+    }
+    rows.sort((a, b) => a.where[0].localeCompare(b.where[0]));
+    fs.mkdirSync(path.dirname(path.join(ROOT, out)), { recursive: true });
+    fs.writeFileSync(path.join(ROOT, out), JSON.stringify(rows, null, 1) + '\n');
+    console.log(`${code}: 원문 ${rows.length}개를 ${out}에 썼다. ${code} 칸을 채운 뒤 --import ${code} ${out}`);
+}
+
+function jsString(text) { return text.includes("'") ? JSON.stringify(text) : `'${text.replace(/\\/g, '\\\\')}'`; }
+function jsValue(value) { return typeof value === 'string' ? jsString(value) : `{ ${Object.entries(value).map(([k, v]) => `${k}: ${jsString(v)}`).join(', ')} }`; }
+
+function importTable(code, file) {
+    const rows = JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
+    const target = path.join(ROOT, packFile(code));
+    let source = fs.readFileSync(target, 'utf8');
+    const close = source.lastIndexOf('    })\n});');
+    if (close < 0) throw new Error(`${packFile(code)}: strings를 닫는 '    })\\n});'를 찾지 못했다`);
+    const filled = rows.filter(row => row && typeof row.key === 'string' && row[code] && (typeof row[code] === 'string' ? row[code].trim() : typeof row[code] === 'object'));
+    const added = [];
+    let replaced = 0;
+    for (const row of filled) {
+        const value = typeof row[code] === 'string' ? row[code].trim() : row[code];
+        const line = new RegExp(`^(\\s*)(?:'${row.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/'/g, "\\\\'")}'|${JSON.stringify(row.key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}):\\s*(?:'(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*"|\\{[^}]*\\})(,?)\\s*$`, 'm');
+        if (line.test(source)) { source = source.replace(line, (whole, indent, comma) => `${indent}${jsString(row.key)}: ${jsValue(value)}${comma}`); replaced++; }
+        else added.push(`        ${jsString(row.key)}: ${jsValue(value)},`);
+    }
+    if (added.length) {
+        let head = source.slice(0, close).replace(/\s+$/, '');
+        if (!head.endsWith(',') && !head.endsWith('{')) head += ',';
+        source = `${head}\n        // ── ${new Date().toISOString().slice(0, 10)} 표에서 넣음(${file}) ──\n${added.join('\n')}\n${source.slice(close)}`;
+    }
+    fs.writeFileSync(target, source);
+    console.log(`${packFile(code)}: 새 열쇠 ${added.length}개, 바뀐 값 ${replaced}개 (표의 ${rows.length}줄 중 채워진 ${filled.length}줄)`);
+}
+
 function main() {
+    const argv = process.argv.slice(2);
+    const importAt = argv.indexOf('--import');
+    if (importAt >= 0) importTable(argv[importAt + 1], argv[importAt + 2]);
     const failures = [];
     const sources = readSources();
     const packs = loadPacks();
@@ -271,11 +354,17 @@ function main() {
     checkFixedLocales(sources, failures);
     const staticKeys = staticTexts(sources.find(source => source.file === 'index.html').text, failures);
     const identifierCounts = hangulIdentifierCounts(sources);
-    if (process.argv.includes('--baseline')) writeBaseline(identifierCounts);
+    if (argv.includes('--baseline')) writeBaseline(identifierCounts);
     checkIdentifierRatchet(identifierCounts, failures);
     testTranslationBehaviour();
     testAppliedSettings();
-    if (process.argv.includes('--report')) report(packs, sources, staticKeys, identifierCounts);
+    if (argv.includes('--report')) report(packs, sources, staticKeys, identifierCounts);
+    const exportAt = argv.indexOf('--export');
+    if (exportAt >= 0) {
+        const code = argv[exportAt + 1], found = packs.find(({ pack }) => pack && pack.code === code);
+        if (!found) failures.push(`--export: ${code} 팩이 없다(${LOCALES_DIR}/${code}.js)`);
+        else exportTable(code, found.pack, sources, staticKeys, argv);
+    }
     if (failures.length) { console.error(failures.join('\n')); process.exitCode = 1; return; }
     console.log(`check-i18n passed (${packs.length} language packs, ${staticKeys.length} static texts)`);
 }

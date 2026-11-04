@@ -21,7 +21,7 @@
     function renderGemUpgradeButton(upgrade, currentLevel) {
         let details = upgrade.done ? '최대 단계' : upgrade.details;
         if (!upgrade.done && upgrade.gain) details += `, 적용 후 최종 Lv.${currentLevel + upgrade.gain}`;
-        return `<button class="gem-upgrade-btn ${upgrade.done ? 'done' : ''}" onclick="${escapeHTML(upgrade.action)}" ${upgrade.ready && !upgrade.done ? '' : 'disabled'}><strong>${escapeHTML(upgrade.title)}${upgrade.done ? ' 완료' : ''}</strong><small>${escapeHTML(details)}</small></button>`;
+        return `<button class="gem-upgrade-btn ${upgrade.done ? 'done' : ''}" onclick="${escapeHTML(upgrade.action)}" ${upgrade.ready && !upgrade.done ? '' : 'disabled'}><strong>${escapeHTML(_t(upgrade.title))}${upgrade.done ? ' 완료' : ''}</strong><small>${escapeHTML(details)}</small></button>`;
     }
 
     /** Gems a phone shows per page (two rows of four tiles). */
@@ -51,7 +51,7 @@
         state.index = Math.min(state.index, count - 1);
         const visible = mobile ? records.slice(state.index * MOBILE_PAGE_SIZE, (state.index + 1) * MOBILE_PAGE_SIZE) : records;
         const cards = visible.map(record => {
-            const label = window.highlightSearchText(record.name, filter);
+            const label = window.highlightSearchText(_t(record.name), filter);
             if (record.sealed) return renderSealedGemCard(record.name, label, support);
             return support ? renderSupportGemCard(record.name, label, stats) : renderAttackGemCard(record.name, label, stats);
         }).join('');
@@ -63,8 +63,8 @@
         const full = game.equippedSupports.length >= Math.floor(stats.suppCap || 0);
         const rows = records.map(record => supportLibraryRow(record, full, stats));
         rows.sort((a, b) => b.targets - a.targets || b.dps - a.dps);
-        const card = row => row.sealed ? renderSealedGemCard(row.name, window.highlightSearchText(row.name, filter), true)
-            : renderSupportGemCard(row.name, window.highlightSearchText(row.name, filter), stats);
+        const card = row => row.sealed ? renderSealedGemCard(row.name, window.highlightSearchText(_t(row.name), filter), true)
+            : renderSupportGemCard(row.name, window.highlightSearchText(_t(row.name), filter), stats);
         const matched = rows.filter(row => row.targets > 0), unmatched = rows.filter(row => row.targets === 0);
         const banner = full ? '<p class="support-full-banner">보조 칸이 차서 룬을 고르면 바꿀 칸을 고릅니다.</p>' : '';
         return banner + matched.map(card).join('') + (unmatched.length ? `<details class="support-unmatched"><summary>지금 장착한 스킬에 안 맞음 (${unmatched.length})</summary><div class="support-library-unmatched">${unmatched.map(card).join('')}</div></details>` : '');

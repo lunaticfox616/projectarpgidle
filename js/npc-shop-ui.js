@@ -25,7 +25,7 @@ const npcShopUi = (() => {
         const shop = NPC_SHOPS[npc.id], stock = npcShop.stock(npc.id);
         if (!shop || !stock) return '';
         const left = stock.offers.length, ready = npcShop.ready(npc.id);
-        return `<button type="button" class="npc-dialog-shop" data-npc-topic="shop"><span>상점</span><b>${escapeHTML(shop.label)}</b>
+        return `<button type="button" class="npc-dialog-shop" data-npc-topic="shop"><span>상점</span><b>${escapeHTML(_t(shop.label))}</b>
             <em>${left ? `${left}개${ready ? `, ${ready}개 살 수 있음` : ''}` : '다 팔림'}</em></button>`;
     }
 
@@ -34,8 +34,8 @@ const npcShopUi = (() => {
         shown = { id: npc.id, stock };
         const keys = stock && stock.allRunes ? stumpBox.harvestWalletKeys() : (stock ? stock.offers : []).map(ware => ware.priceKey);
         return `<div class="shop-view is-npc" data-shop-kind="npc" data-npc-shop="${npc.id}"><div class="shop-body">
-            <section class="shop-shelf" aria-label="${escapeHTML(shop.label)} 상점"><header class="shop-bar">
-                <button type="button" class="shop-back" data-npc-topic="greet">대화</button><h3>${escapeHTML(shop.label)}</h3>${shopView.walletHtml(keys)}</header>
+            <section class="shop-shelf" aria-label="${escapeHTML(_t(shop.label))} 상점"><header class="shop-bar">
+                <button type="button" class="shop-back" data-npc-topic="greet">대화</button><h3>${escapeHTML(_t(shop.label))}</h3>${shopView.walletHtml(keys)}</header>
                 ${runeNoteHtml(shop, stock)}${shelfBlockHtml(npc.id, stock)}</section>
             <div class="shop-info" aria-live="polite">${wareInfoHtml(npc.id, note)}</div>
             <section class="shop-bag" aria-label="가방">${shopView.bagHtml()}</section></div></div>`;

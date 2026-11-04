@@ -42,7 +42,7 @@ const atlasEndgameUi = (() => {
         switchTab('tab-battle');
     }
     function entryHtml(entry) {
-        return entry.map(row => `<span class="${row.have >= row.need ? 'is-on' : ''}">${escapeHTML(row.name)} ${row.have}/${row.need}</span>`).join('');
+        return entry.map(row => `<span class="${row.have >= row.need ? 'is-on' : ''}">${escapeHTML(_t(row.name))} ${row.have}/${row.need}</span>`).join('');
     }
     function sourcesHtml(fight) {
         const missing = fight.entry.filter(row => row.have < row.need);
@@ -51,7 +51,7 @@ const atlasEndgameUi = (() => {
             const apostle = E.apostles.find(entry => entry.item === row.item);
             const regions = apostle ? `, ${apostle.regions.map(regionName).join(', ')}의 마름 지도` : '';
             const guardian = Object.values(E.guardianShears).includes(row.item);
-            return `<li><b>${escapeHTML(row.name)} ${row.need - row.have}개 부족</b><span>${escapeHTML(E.items[row.item].from + regions)}</span>
+            return `<li><b>${escapeHTML(_t(row.name))} ${row.need - row.have}개 부족</b><span>${escapeHTML(E.items[row.item].from + regions)}</span>
                 <button type="button" onclick="atlasEndgameUi.showSource('${row.item}')">${guardian ? '수호자 지도 보기' : '지도 보관함 보기'}</button></li>`;
         }).join('');
         return `<details class="atlas-material-sources"><summary>부족한 재료 획득처</summary><ul>${rows}</ul></details>`;
@@ -120,7 +120,7 @@ const atlasEndgameUi = (() => {
         if (!result || result.outcome !== 'complete' || result.memory?.foughtTier) return '';
         const next = view.apexes.find(fight => fight.unlocked && !fight.kills && fight.row.unlock?.kill === result.nodeId);
         if (!next) return '';
-        return `<section class="atlas-fight-followup"><h3>새 목표: ${escapeHTML(next.row.name)}</h3>
+        return `<section class="atlas-fight-followup"><h3>새 목표: ${escapeHTML(_t(next.row.name))}</h3>
             <button onclick="atlasEndgameUi.showFight('${next.row.id}')">준비할 재료 보기</button></section>`;
     }
 

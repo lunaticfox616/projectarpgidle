@@ -158,8 +158,8 @@ function getRecommendedHuntingZone(zones) {
 
 function buildMapRouteSummaryHtml(currentZone, recommendedZone) {
     if (!recommendedZone) return '';
-    let currentName = currentZone ? escapeHTML(currentZone.name) : '선택 없음';
-    let recommendedName = escapeHTML(recommendedZone.name);
+    let currentName = currentZone ? escapeHTML(_t(currentZone.name)) : '선택 없음';
+    let recommendedName = escapeHTML(_t(recommendedZone.name));
     let sameZone = currentZone && Number(currentZone.id) === Number(recommendedZone.id);
     let action = sameZone ? "switchTab('tab-battle')" : `changeZone(${Number(recommendedZone.id)})`;
     let actionLabel = sameZone ? '전투로 돌아가기' : '즉시 이동';
@@ -762,7 +762,7 @@ function renderBackgroundResultCurrencies(currencies) {
 function renderBackgroundResultCoin(entry) {
     const moment = lootMoments.ofCurrency(entry.key);
     return `<span class="background-result-coin${moment ? ` is-${moment}` : ''}" style="--coin-tone:${getCurrencyTone(entry.key)}">${backgroundResultCurrencyIcon(entry.key)}`
-        + `<span class="background-result-coin-name">${escapeHTML(entry.name)}</span><b>+${formatNumberKR(entry.gain)}</b></span>`;
+        + `<span class="background-result-coin-name">${escapeHTML(_t(entry.name))}</span><b>+${formatNumberKR(entry.gain)}</b></span>`;
 }
 
 /** 재화 원화, 그림이 없는 재화는 그 색의 작은 마름모. 지갑 창의 getCurrencyIconHtml은 performUpdateStaticUI 안에 있어 여기서 못 부른다. */
@@ -3354,7 +3354,7 @@ function buildUnderworldRuneTooltipHtml(no) {
     let boosted = Number(def.val || 0) * (1 + lv * 0.01);
     let mainLine = `${getStatName(def.stat)} +${formatValue(def.stat, boosted)}${P_STATS[def.stat]?.isPct ? '%' : ''}${lv > 0 ? ` <span style="color:var(--copy-bright);">(+${lv} 강화)</span>` : ''}`;
     let bonusLines = (st.bonusLinesByNo[def.no] || []).map(line => `<div class="tooltip-line" style="color:${getItemStatToneColor(line.stat)};">보너스, ${getStatName(line.stat)} +${formatValue(line.stat, line.val)}${P_STATS[line.stat]?.isPct ? '%' : ''}</div>`).join('');
-    return `<div class="tooltip-title">${escapeHTML(def.name)} <span style="color:var(--copy-bright);">지하석${def.no}</span></div><div class="tooltip-line" style="color:${getItemStatToneColor(def.stat)};">${mainLine}</div>${bonusLines || '<div class="tooltip-line" style="color:var(--copy-muted);">강화 보너스 옵션 없음</div>'}`;
+    return `<div class="tooltip-title">${escapeHTML(_t(def.name))} <span style="color:var(--copy-bright);">지하석${def.no}</span></div><div class="tooltip-line" style="color:${getItemStatToneColor(def.stat)};">${mainLine}</div>${bonusLines || '<div class="tooltip-line" style="color:var(--copy-muted);">강화 보너스 옵션 없음</div>'}`;
 }
 function showUnderworldRuneTooltip(event, no) {
     if (event.type !== 'click' && !window.matchMedia('(hover: hover)').matches) return;
@@ -4182,7 +4182,7 @@ function renderGemEngraveSlots(activeSlots, engraveCap) {
         let orbitX = 50 + Math.cos(orbitAngle * Math.PI / 180) * orbitRadius;
         let orbitY = 50 + Math.sin(orbitAngle * Math.PI / 180) * orbitRadius;
         spokes.push(`<span class="gem-orbit-spoke" aria-hidden="true" style="--orbit-angle:${orbitAngle}deg"></span>`);
-        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${group ? `group-${group.className}` : ''}" style="--slot-x:${orbitX.toFixed(3)}%;--slot-y:${orbitY.toFixed(3)}%" data-tip="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" aria-pressed="${enhancement ? 'true' : 'false'}" aria-disabled="${!unlocked && !nextUnlock ? 'true' : 'false'}" data-slot-index="${index}" data-slot-state="${stateClass}" ${!unlocked && !nextUnlock ? 'tabindex="-1"' : ''}><span class="gem-orbit-slot-glyph" aria-hidden="true"><b>${glyph}</b></span>${enhancement ? `<em>${escapeHTML(enhancement.name)}</em>` : nextUnlock ? `<em>${unlockReady ? '슬롯 해금' : '재화 부족'}</em>` : ''}</button>`);
+        slots.push(`<button type="button" class="gem-orbit-slot slot-${index + 1} ${stateClass} ${group ? `group-${group.className}` : ''}" style="--slot-x:${orbitX.toFixed(3)}%;--slot-y:${orbitY.toFixed(3)}%" data-tip="${escapeHTML(title)}" aria-label="${escapeHTML(title)}" aria-pressed="${enhancement ? 'true' : 'false'}" aria-disabled="${!unlocked && !nextUnlock ? 'true' : 'false'}" data-slot-index="${index}" data-slot-state="${stateClass}" ${!unlocked && !nextUnlock ? 'tabindex="-1"' : ''}><span class="gem-orbit-slot-glyph" aria-hidden="true"><b>${glyph}</b></span>${enhancement ? `<em>${escapeHTML(_t(enhancement.name))}</em>` : nextUnlock ? `<em>${unlockReady ? '슬롯 해금' : '재화 부족'}</em>` : ''}</button>`);
     }
     root.innerHTML = `<div class="gem-orbit-stage"><div class="gem-orbit-rings" aria-hidden="true"></div>${spokes.join('')}<div class="gem-orbit-center element-${getGemCardMeta(SKILL_DB[active] || {}).className}">${renderSkillGemArt(active, 'gem-orbit-art', { eager: true })}<span>각인 대상</span><strong>${escapeHTML(active)}</strong></div>${slots.join('')}</div><div class="gem-orbit-copy"><strong>중앙 룬과 연결된 슬롯을 선택하세요</strong><span class="gem-orbit-legend"><b class="is-empty"><i></i>빈 슬롯</b><b class="is-filled"><i></i>각인됨</b><b class="is-unlockable"><i>+</i>해금 가능</b></span></div>`;
     root.dataset.renderSig = renderSignature;
@@ -4278,7 +4278,7 @@ function renderSkyEnhancementOption(enhancement, activeSlots, isGem) {
 /** The face of an engraving card (전체 각인 list and the slot overlay): icon in the group colour, name, then the effect in the stat
  * colours at reading size. 2026-10-11 사용자: 색이 없고 글씨가 작아 어떤 효과인지 읽기 어려웠다(효과가 8px 흰 글씨였다). */
 function renderEngraveOptionFace(enhancement, group, stateLabel) {
-    return `<span class="gem-engrave-icon">${renderSkyEnhancementIcon(enhancement)}</span><span class="gem-engrave-copy"><span class="gem-engrave-top"><strong>${escapeHTML(enhancement.name)}</strong><em>${group.label}</em></span>`
+    return `<span class="gem-engrave-icon">${renderSkyEnhancementIcon(enhancement)}</span><span class="gem-engrave-copy"><span class="gem-engrave-top"><strong>${escapeHTML(_t(enhancement.name))}</strong><em>${group.label}</em></span>`
         + `<small>${statToneText.html(enhancement.desc)}</small><b class="gem-engrave-state">${stateLabel}</b></span>`;
 }
 
@@ -4323,7 +4323,7 @@ function openGemEngraveSlotOverlay(index) {
     overlay.setAttribute('aria-label', `${slotIndex + 1}번 각인 슬롯 선택`);
     overlay.dataset.triggerSlotIndex = String(slotIndex);
     overlay.tabIndex = -1;
-    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>하늘 각인</span><h3>${escapeHTML(active)}, ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 <b>${escapeHTML(current.name)}</b> ${statToneText.html(current.desc)}` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex)).join('')}</div></section>`;
+    overlay.innerHTML = `<section class="gem-engrave-slot-dialog"><header><div class="gem-engrave-dialog-identity">${renderSkillGemArt(active, 'gem-engrave-dialog-art', { eager: true })}<div><span>하늘 각인</span><h3>${escapeHTML(active)}, ${slotIndex + 1}번 슬롯</h3><p>${current ? `현재 <b>${escapeHTML(_t(current.name))}</b> ${statToneText.html(current.desc)}` : '이 슬롯에 넣을 각인을 선택하세요.'}</p></div></div><button type="button" data-action="close" aria-label="닫기">닫기</button></header><div class="gem-engrave-overlay-grid">${Object.values(GEM_SKY_ENHANCEMENTS).map(enhancement => renderGemEngraveOverlayOption(enhancement, slots, slotIndex)).join('')}</div></section>`;
     overlay.addEventListener('click', event => {
         if (event.target === overlay) return closeGemEngraveSlotOverlay();
         let button = event.target.closest('button[data-action]');
@@ -5430,7 +5430,7 @@ function showPlayerAilmentTooltip(event, type, timeLeft, power, sourceHitDamage)
         detail = formatUiTakenDamageShockLine(shockTakenIncrease);
     }
     else if (type === 'freeze') detail = '행동 불가';
-    let html = `<div class="tooltip-title">${escapeHTML(visual.label)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
+    let html = `<div class="tooltip-title">${escapeHTML(_t(visual.label))}</div><div class="tooltip-line">남은 시간: ${Math.ceil(Math.max(0, Number(timeLeft||0)))}초</div><div class="tooltip-line">위력: ${p.toFixed(2)}</div><div class="tooltip-line">${detail}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ff7f7f');
 }
 
@@ -5468,7 +5468,7 @@ function showPlayerRuntimeEffectTooltip(event, type, value, maxValue, remainSec)
     let detail = getUiRuntimeEffectDetail(type, value, maxValue);
     let duration = Number(remainSec || 0) > 0
         ? `<div class="tooltip-line">남은 시간: ${Math.ceil(remainSec)}초</div>` : '';
-    let html = `<div class="tooltip-title">${escapeHTML(visual.label)}</div>${duration}<div class="tooltip-line">${escapeHTML(detail)}</div>`;
+    let html = `<div class="tooltip-title">${escapeHTML(_t(visual.label))}</div>${duration}<div class="tooltip-line">${escapeHTML(detail)}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, visual.color);
 }
 
@@ -5570,7 +5570,7 @@ function showEnemyAilmentTooltip(event, payload) {
     let visual = getUiCombatEffectPresentation(state.type);
     let powerLine = isUiDamageAilmentType(state.type) || state.type === 'hunterExpose'
         ? '' : `<div class="tooltip-line">위력: ${state.power.toFixed(2)}</div>`;
-    let html = `<div class="tooltip-title">${escapeHTML(visual.label)}</div><div class="tooltip-line">남은 시간: ${Math.ceil(state.timeLeft)}초</div>${powerLine}<div class="tooltip-line">${getUiEnemyAilmentTooltipDetail(state)}</div>`;
+    let html = `<div class="tooltip-title">${escapeHTML(_t(visual.label))}</div><div class="tooltip-line">남은 시간: ${Math.ceil(state.timeLeft)}초</div>${powerLine}<div class="tooltip-line">${getUiEnemyAilmentTooltipDetail(state)}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
 
@@ -5756,7 +5756,7 @@ const ITEM_STAT_TONE_BY_ID = Object.freeze(Object.fromEntries([
 /** The '세계수 기운' line of an item that remembers its atlas region (item.dropRegion), in the region's colour; '' otherwise. */
 function getItemDropRegionLineHtml(item) {
     const region = item && item.dropRegion ? ATLAS.regions.find(row => row.id === item.dropRegion) : null;
-    return region ? `<div class="tooltip-line" style="color:${REGION_AFFIX_TONES[region.id]};">🌳 세계수 기운: ${escapeHTML(region.name)}</div>` : '';
+    return region ? `<div class="tooltip-line" style="color:${REGION_AFFIX_TONES[region.id]};">🌳 세계수 기운: ${escapeHTML(_t(region.name))}</div>` : '';
 }
 
 function getItemStatToneColor(statId) {
@@ -6123,31 +6123,31 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
     const inactiveAffixes = equipmentInspectionUi.getInactiveAffixIds(cachedTooltipStats, game.equippedSummonSkills);
     const affixClass = statId => inactiveAffixes.has(statId) ? ' class="equipment-affix-inactive"' : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}"><span class="px-center">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(item.name)}${exceptionalStars}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}${item.loopSealed ? ' <span style="color:#7fd99a;" data-tip="나무꾼의 손길로 봉인됨: 루프가 지나도 유지">🌿봉인</span>' : ''}</span></div>${itemInfluencesUi.tooltipHtml(item)}`;
+    let html = `<div class="tooltip-title" style="color:${getRarityColor(item.rarity)}"><span class="px-center">[${getItemSlotDisplayLabel(item)}] ${escapeHTML(getItemDisplayName(item))}${exceptionalStars}${item.encroached ? ` <span style="color:#b084ff;">${_t('(잠식)')}</span>` : ''}${item.corrupted ? ` <span style="color:#e74c3c;">${_t('(타락)')}</span>` : ''}${craftingWorkspaceUi.imprintMark(item)}${item.loopSealed ? ` <span style="color:#7fd99a;" data-tip="${_t('나무꾼의 손길로 봉인됨: 루프가 지나도 유지')}">${_t('🌿봉인')}</span>` : ''}</span></div>${itemInfluencesUi.tooltipHtml(item)}`;
     if (item.hallReplica) html += `<div class="tooltip-line" style="color:#d2b878;">🏛️ 전당 소장품, 전시자 ${escapeHTML(item.hallCuratorName || '익명')}, 감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()}, 제작/재등록 불가</div>`;
     else if (item.hallRelistBlocked) html += '<div class="tooltip-line" style="color:#bda979;">🏛️ 전당 복제 이력, 재등록 불가</div>';
-    html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">베이스: ${escapeHTML(item.baseName)}${getItemBaseBadgesHtml(item)}</div>`;
-    html += `<div class="tooltip-line tooltip-meta">아이템 Lv.${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} &ensp; 등급 ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
+    html += `<div class="tooltip-line tooltip-meta tooltip-meta-base">${_t('베이스')}: ${escapeHTML(_t(item.baseName))}${getItemBaseBadgesHtml(item)}</div>`;
+    html += `<div class="tooltip-line tooltip-meta">${_t('아이템 Lv.')}${item.itemLevel || levelProgression.tierLevel(item.hiddenTier || item.itemTier)} &ensp; ${_t('등급|티어')} ${getTierBadgeHtml(getItemCraftTier(item), 'T')}</div>${levelProgressionUi.item(item, isEquip, idx)}`;
     if (item.rarity === 'unique' && item.uniqueEffect) {
         let uniqueGlow = 'display:inline-block;padding:1px 6px;border-radius:6px;border:1px solid rgba(198,162,255,0.55);background:linear-gradient(135deg, rgba(73,52,108,0.45) 0%, rgba(31,23,56,0.5) 100%);color:#f0dcff;font-weight:700;text-shadow:0 0 6px rgba(196,154,255,0.8),0 0 12px rgba(142,109,214,0.55);box-shadow:0 0 10px rgba(140,94,220,0.4),inset 0 0 10px rgba(229,205,255,0.2);';
-        html += `<div class="tooltip-line" style="margin-top:6px;"><span style="${uniqueGlow}">✨ 고유 효과: ${escapeHTML(item.uniqueEffect)}</span></div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px;"><span style="${uniqueGlow}">✨ ${_t('고유 효과')}: ${escapeHTML(_t(item.uniqueEffect))}</span></div>`;
         let applicationHint = getUniqueEffectApplicationHint(item, !!isEquip, isEquip ? idx : null);
         if (applicationHint) html += `<div class="tooltip-line" style="color:#bda9d8; margin-top:3px;">◆ ${escapeHTML(applicationHint)}</div>`;
     }
     html += equipmentSocketsUi.tooltipHtml(item) + getItemDropRegionLineHtml(item);
     if (item.fusedRelic) {
-        let fusionGradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
+        let fusionGradeLabel = _t(item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합'));
         html += `<div class="tooltip-line" style="color:#8fd8ff;">⌛ ${fusionGradeLabel}${item.fusedRareName ? `, [${escapeHTML(item.fusedRareName)}]의 기억` : ''}, 황금률/잿불가지/축복의 꽃잎만 사용 가능</div>`;
     }
     let defenseView = itemTooltipRules.defenseView(item);
     if ((item.baseStats || []).length > 0) {
-        html += `<div class="tooltip-line tooltip-section tooltip-section-base"><span class="px-center">베이스 옵션</span></div>${colonyWardsUi.beltLineHtml(item)}`;
+        html += `<div class="tooltip-line tooltip-section tooltip-section-base"><span class="px-center">${_t('베이스 옵션')}</span></div>${colonyWardsUi.beltLineHtml(item)}`;
         item.baseStats.forEach(stat => {
             let statKey = stat && (stat.id || stat.stat);
             if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
             let cur = Number(stat.val || 0);
             let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
-            let label = escapeHTML(stat.statName || getStatName(statKey) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
+            let label = escapeHTML(_t(stat.statName || getStatName(statKey)) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
             let valueColor = stat.exceptional ? '#ffb454' : resolveItemStatTone(statKey);
             let exMark = (stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '') + itemInfluencesUi.lineBadgeHtml(item, stat);
             html += `<div class="tooltip-line"><span${affixClass(statKey)}><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">${formatSignedValue(statKey, cur)}</span></span>${rangeText}${exMark}</div>`;
@@ -6172,7 +6172,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         });
     }
     let explicitStats = (item.stats || []).slice();
-    if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)}` });
+    if (item.chaosInfusion) explicitStats.push({ ...item.chaosInfusion, statName: `[주입] ${_t(item.chaosInfusion.statName || getStatName(item.chaosInfusion.id))}` });
     if (explicitStats.length > 0) {
         explicitStats.sort(itemTooltipRules.compareStats);
         html += itemExplicitAffixHeaderHtml(item, explicitStats.length);
@@ -6181,7 +6181,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             let tierText = getItemAffixTierHtml(stat);
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
             let honeyLockText = getHoneyLockBadgeHtml(stat) + emberCorruptionUi.scaleBadgeHtml(stat) + itemInfluencesUi.lineBadgeHtml(item, stat);
-            let label = escapeHTML(stat.statName || getStatName(statKey) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
+            let label = escapeHTML(_t(stat.statName || getStatName(statKey)) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
                 let parts = [`<span${affixClass(statKey)} style="color:${resolveItemStatTone(statKey)};">${escapeHTML(getStatName(statKey))} +${formatValue(statKey, stat.val)}</span>`];
@@ -6204,12 +6204,12 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
         html += itemTooltipRules.emptyExplicitHtml(item);
     }
     if (item.encroached) {
-        html += `<div class="tooltip-line" style="margin-top:6px; color:#b084ff;">잠식 특수 옵션</div>`;
+        html += `<div class="tooltip-line" style="margin-top:6px; color:#b084ff;">${_t('잠식 특수 옵션')}</div>`;
         if (item.encroached.liberated && item.encroached.chosen) {
             let st = item.encroached.chosen;
-            html += `<div class="tooltip-line" style="color:#d7b8ff;">[잠식] ${escapeHTML(st.statName || getStatName(st.id))} +${formatValue(st.id, st.val)} ${getTierBadgeHtml(st.tier || 10, 'T')}</div>`;
+            html += `<div class="tooltip-line" style="color:#d7b8ff;">[잠식] ${escapeHTML(_t(st.statName || getStatName(st.id)))} +${formatValue(st.id, st.val)} ${getTierBadgeHtml(st.tier || 10, 'T')}</div>`;
         } else {
-            html += `<div class="tooltip-line" style="color:#8d7bb3;">해방 전에는 효과 없음, 모든 제작으로도 변하지 않음</div>`;
+            html += `<div class="tooltip-line" style="color:#8d7bb3;">${_t('해방 전에는 효과 없음, 모든 제작으로도 변하지 않음')}</div>`;
         }
     }
 
@@ -7339,7 +7339,7 @@ function getHotkeyLabel(actionId) {
 }
 
 function renderCombatSkillSlot(entry) {
-    let name = escapeHTML(entry.name);
+    let name = escapeHTML(_t(entry.name));
     let art = renderSkillGemArt(entry.name, 'combat-skill-gem-art', { eager: true });
     let cooldown = entry.kind === 'mobility' ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
     // 이동 스킬 칸은 누르거나 단축키(기본 E)로 쓴다: 키 표시는 자동 이동 단추와 같다.
@@ -9327,7 +9327,7 @@ const createJewelRangeTooltipHtml = function createJewelRangeTooltipHtml(jewel) 
     let fixedTierLine = jewel.rarity === 'unique' ? `<div class="tooltip-line" style="color:#bca7dc;">고유 고정 옵션, 티어 평가 제외</div>` : '';
     let uniqueLine = jewel.rarity === 'unique' && getJewelUniqueEffectText(jewel) ? `<div class="tooltip-line" style="color:#d7b8ff;">✨ 고유 효과: ${escapeHTML(getJewelUniqueEffectText(jewel))}</div>` : '';
     let keystoneLine = getCosmosKeystoneTooltipLine(jewel);
-    let main = `<div class="tooltip-title">${escapeHTML(jewel.name || '주얼')}</div>${uniqueLine}${keystoneLine}${fixedTierLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
+    let main = `<div class="tooltip-title">${escapeHTML(_t(jewel.name || '주얼'))}</div>${uniqueLine}${keystoneLine}${fixedTierLine}${tierLine}${lines || '<div class="tooltip-line">옵션 정보 없음</div>'}`;
     return main;
 };
 
@@ -9519,9 +9519,9 @@ function selectCraftPickerInventoryItem(itemId) {
 function getCraftPickerItemLines(item) {
     if (!item) return '';
     let rows = [];
-    (item.baseStats || []).slice(0, 1).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
-    (item.stats || []).slice(0, 2).forEach(stat => rows.push(`${stat.statName || getStatName(stat.id)} +${formatValue(stat.id, stat.val)}`));
-    if (item.chaosInfusion) rows.push(`[주입] ${item.chaosInfusion.statName || getStatName(item.chaosInfusion.id)} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}`);
+    (item.baseStats || []).slice(0, 1).forEach(stat => rows.push(`${_t(stat.statName || getStatName(stat.id))} +${formatValue(stat.id, stat.val)}`));
+    (item.stats || []).slice(0, 2).forEach(stat => rows.push(`${_t(stat.statName || getStatName(stat.id))} +${formatValue(stat.id, stat.val)}`));
+    if (item.chaosInfusion) rows.push(`[주입] ${_t(item.chaosInfusion.statName || getStatName(item.chaosInfusion.id))} +${formatValue(item.chaosInfusion.id, item.chaosInfusion.val)}`);
     if (item.encroached && !item.encroached.liberated) rows.push('[잠식] 해방 전');
     return rows.map(row => `<div class="craft-picker-stat">${escapeHTML(row)}</div>`).join('');
 }
@@ -9536,8 +9536,8 @@ function getCraftPickerCardHtml(item, options) {
     let extraClass = options.extraClass || '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
     return `<button type="button" class="craft-picker-card ${extraClass} ${selected ? 'selected' : ''}" onclick="${options.onclick || ''}" ${options.tooltip || ''}>
-        <div class="item-title ${rarity}" style="font-size:12px;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(item.name || '장비')}${exceptionalStars}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
-        <div class="item-base-line" style="font-size:12px;">${escapeHTML(item.baseName || '')}</div>
+        <div class="item-title ${rarity}" style="font-size:12px;">[${escapeHTML(getItemSlotDisplayLabel(item, slotLabel))}] ${escapeHTML(_t(item.name || '장비'))}${exceptionalStars}${sourceBadge}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.locked ? ' 🔒' : ''}</div>
+        <div class="item-base-line" style="font-size:12px;">${escapeHTML(_t(item.baseName || ''))}</div>
         ${getCraftPickerItemLines(item)}
     </button>`;
 }
@@ -10513,7 +10513,7 @@ function describeTranscendentRange(def) {
 function chameleonChoicesHtml(node, entry, active) {
     if (!active || !entry.transcendent || entry.transcendent.id !== 'chameleon') return '';
     const rows = getChameleonChoices(node.id).map(def => `<button type="button" class="void-chameleon-choice" onclick="convertChameleonFromOverlay('${node.id}','${def.id}')">`
-        + `<b>${escapeHTML(def.name)}</b><span>${escapeHTML(describeTranscendentRange(def))}</span></button>`).join('');
+        + `<b>${escapeHTML(_t(def.name))}</b><span>${escapeHTML(describeTranscendentRange(def))}</span></button>`).join('');
     return `<div class="void-chameleon"><div class="void-craft-hint">카멜레온: 바꿀 초월을 고르세요. 수치는 새로 굴리고, 바꾼 뒤에는 되돌릴 수 없습니다.</div>`
         + `<div class="void-chameleon-list">${rows || '<div class="void-craft-hint">고를 수 있는 초월이 없습니다.</div>'}</div></div>`;
 }
@@ -13572,7 +13572,7 @@ function loopNodeActionsHtml(id, node, lv) {
 }
 function loopNodeDetailHtml(id, node) {
     const lv = getSeasonNodeLevel(id);
-    return `<strong>${escapeHTML(node.name)}</strong><small>${statToneText.html(node.desc)}</small>
+    return `<strong>${escapeHTML(_t(node.name))}</strong><small>${statToneText.html(node.desc)}</small>
         ${lv > 1 ? `<em style="color:${getItemStatToneColor(node.stat)}">지금 ${escapeHTML(loopNodeValueText(node, lv))}</em>` : ''}<b>${loopNodeStateText(id, node, lv)}</b>${loopNodeActionsHtml(id, node, lv)}`;
 }
 function loopOrbitTotalsHtml() {

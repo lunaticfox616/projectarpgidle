@@ -85,7 +85,7 @@ const atlasPassivesUi = (() => {
     }
     function noteBody(node) {
         if (!node) return '';
-        return `<strong>${escapeHTML(node.name)}</strong> <small>${withState(RANK_NAME[rankOf(node)], node)}</small>
+        return `<strong>${escapeHTML(_t(node.name))}</strong> <small>${withState(RANK_NAME[rankOf(node)], node)}</small>
             <br>${escapeHTML(effectText(node.effect))}`;
     }
     /** Pointer or keyboard on a passive: the note beside the wheel reads it; leaving shows the pressed one again. A floating card
@@ -118,12 +118,12 @@ const atlasPassivesUi = (() => {
         return `<nav class="atlas-wheel-tabs" aria-label="패시브 갈래">${ATLAS_PASSIVES.wheels.map(wheel => {
             const taken = wheel.nodes.filter(node => game.atlas.passives.includes(node.id)).length;
             return `<button type="button" style="--tint:${wheel.tint}" aria-pressed="${wheel.id === shownWheelId()}" onclick="atlasPassivesUi.pick('${wheel.id}')">`
-                + `${escapeHTML(wheel.name)}<span>${taken}/${wheel.nodes.length}</span></button>`;
+                + `${escapeHTML(_t(wheel.name))}<span>${taken}/${wheel.nodes.length}</span></button>`;
         }).join('')}</nav>`;
     }
     function wheelHtml(wheel) {
         const at = new Map(wheel.nodes.map(node => [node.id, point(place(node), shapeOf(wheel.id))]));
-        return `<section class="atlas-wheel" style="--tint:${wheel.tint}" aria-label="${escapeHTML(wheel.name)}"${wheel.id === shownWheelId() ? '' : ' hidden'}>
+        return `<section class="atlas-wheel" style="--tint:${wheel.tint}" aria-label="${escapeHTML(_t(wheel.name))}"${wheel.id === shownWheelId() ? '' : ' hidden'}>
             <div class="atlas-wheel-art" data-wheel="${wheel.id}"><canvas aria-hidden="true"></canvas>${wheel.nodes.map(node => nodeHtml(node, at.get(node.id))).join('')}</div>
             ${noteHtml(wheel)}</section>`;
     }

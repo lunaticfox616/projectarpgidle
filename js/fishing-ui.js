@@ -46,7 +46,7 @@ const fishingUi = (() => {
     function strategyCardHtml(key, st) {
         const def = OCEAN_FISHING_STRATEGIES[key], on = st.fishingStrategy === key;
         return `<button type="button" class="fishing-strategy-card${on ? ' is-on' : ''}" aria-pressed="${on}" onclick="setOceanFishingStrategy('${key}')"${st.diving ? ' disabled' : ''}>`
-            + `<span class="fishing-strategy-icon" aria-hidden="true">${def.icon}</span><strong>${esc(def.name)}</strong>${on ? '<em>적용 중</em>' : ''}`
+            + `<span class="fishing-strategy-icon" aria-hidden="true">${def.icon}</span><strong>${esc(_t(def.name))}</strong>${on ? '<em>적용 중</em>' : ''}`
             + `<span class="fishing-chips">${strategyEffects(def)}</span></button>`;
     }
     function reefHtml(st) {
@@ -56,7 +56,7 @@ const fishingUi = (() => {
     }
     function gatherHtml(st) {
         const last = st.lastCatch && OCEAN_FISH_DB[st.lastCatch.key];
-        const catchHtml = last ? `${fishIcon(st.lastCatch.key)}<div><small>최근 포획</small><strong class="is-${last.rarity}">${st.lastCatch.guaranteed ? '✨ ' : ''}${esc(last.name)}</strong></div>`
+        const catchHtml = last ? `${fishIcon(st.lastCatch.key)}<div><small>최근 포획</small><strong class="is-${last.rarity}">${st.lastCatch.guaranteed ? '✨ ' : ''}${esc(_t(last.name))}</strong></div>`
             : '<span class="fishing-fish is-empty"></span><div><small>최근 포획</small><strong>아직 없음</strong></div>';
         return `<div class="fishing-head"><div><h3>심해 어장</h3><p>심해 전투 구간마다 게이지가 오르고 100%에서 물고기를 낚습니다.</p></div><div class="fishing-last">${catchHtml}</div></div>`
             + `<div class="fishing-meters">${meterHtml('낚시 게이지', st.fishingGauge, '')}${meterHtml('희귀 조짐', st.rareFishPity, 'is-pity')}</div>`
@@ -70,7 +70,7 @@ const fishingUi = (() => {
         const fish = OCEAN_FISH_DB[key], total = Math.floor(st.fishCaughtTotal[key] || 0), known = total > 0;
         const rarity = (OCEAN_FISH_RARITY_META[fish.rarity] || OCEAN_FISH_RARITY_META.common).label;
         return `<article class="fishing-fish-tile is-${fish.rarity}${known ? '' : ' is-unknown'}"${st.lastCatch && st.lastCatch.key === key ? ' data-last="1"' : ''}>${fishIcon(key, known)}`
-            + `<strong>${known ? esc(fish.name) : '???'}</strong><small>${rarity}, ${fish.depthTier * 100}m+</small>`
+            + `<strong>${known ? esc(_t(fish.name)) : '???'}</strong><small>${rarity}, ${fish.depthTier * 100}m+</small>`
             + `<b>${known ? `보유 ${Math.floor(st.fishStock[key] || 0)}, 누적 ${total}` : '미발견'}</b></article>`;
     }
     function milestoneHtml(progress, row) {
@@ -78,7 +78,7 @@ const fishingUi = (() => {
         const bonuses = [row.bonus.gaugeGainPct ? `게이지 +${row.bonus.gaugeGainPct}%` : '', row.bonus.rareChancePct ? `희귀 추적 +${row.bonus.rareChancePct}%` : ''].filter(Boolean);
         const reward = Object.keys(row.reward || {}).map(key => `${(ORB_DB[key] || {}).name || key} ${row.reward[key]}`).concat(bonuses.map(text => `영구 ${text}`)).join(', ');
         const label = row.claimed ? '완료' : (row.ready ? '받기' : `${progress.discoveredCount}/${row.required}`);
-        return `<div class="fishing-milestone ${state}"><span>${row.required}종</span><div><strong>${esc(row.label)}</strong><small>${esc(reward)}</small>`
+        return `<div class="fishing-milestone ${state}"><span>${row.required}종</span><div><strong>${esc(_t(row.label))}</strong><small>${esc(reward)}</small>`
             + `${bar(Math.min(progress.discoveredCount, row.required), row.required)}</div>`
             + `<button type="button" onclick="claimOceanFishCollectionMilestone(${row.required})"${row.ready && !row.claimed ? '' : ' disabled'}>${label}</button></div>`;
     }
@@ -130,7 +130,7 @@ const fishingUi = (() => {
     function costHtml(recipe, st, count) {
         return Object.keys(recipe.requires).map(key => {
             const have = Math.floor(st.fishStock[key] || 0), need = recipe.requires[key] * count, fish = OCEAN_FISH_DB[key];
-            return `<div class="fishing-material${have >= need ? ' is-ok' : ''}">${fishIcon(key)}<div><strong>${esc(fish.name)}</strong>`
+            return `<div class="fishing-material${have >= need ? ' is-ok' : ''}">${fishIcon(key)}<div><strong>${esc(_t(fish.name))}</strong>`
                 + `<small>${fish.depthTier * 100}m 이상에서 낚시</small></div><div><span>보유 ${have} / 필요 ${need}</span>`
                 + `<b>${have >= need ? '재료 충분' : `${need - have}마리 부족`}</b></div></div>`;
         }).join('');
@@ -140,7 +140,7 @@ const fishingUi = (() => {
         const seal = stat.lockedByHoney || stat.lockedByRift ? ', 봉인됨' : '';
         const parts = [stat, ...(stat.extraStats || [])];
         const values = parts.map(row => {
-            const name = parts.length > 1 ? getStatName(row.id) : (row.statName || getStatName(row.id));
+            const name = parts.length > 1 ? getStatName(row.id) : (_t(row.statName || getStatName(row.id)));
             const value = stat.isEchoMod ? `${row.val >= 0 ? '+' : ''}${Number(Number(row.val).toFixed(3))}` : formatSignedValue(row.id, row.val);
             return `${name} ${value}`;
         }).join(' / ');
@@ -153,7 +153,7 @@ const fishingUi = (() => {
     }
     function targetHtml(recipe) {
         const item = getSelectedSeaGiftEquipmentTarget(), reason = targetReason(recipe);
-        const text = item ? `<strong class="item-title ${item.rarity}">[${esc(getItemSlotDisplayLabel(item, '장비'))}] ${esc(item.name)}</strong>` : '<strong>가공할 장비를 선택하세요</strong>';
+        const text = item ? `<strong class="item-title ${item.rarity}">[${esc(getItemSlotDisplayLabel(item, '장비'))}] ${esc(getItemDisplayName(item))}</strong>` : '<strong>가공할 장비를 선택하세요</strong>';
         return `<section class="fishing-target${item ? ' is-on' : ''}"><div><small>이 장비에 적용</small>${text}</div>`
             + `<div class="fishing-target-buttons"><button type="button" onclick="fishingUi.pickTarget('equip')">장착 장비</button><button type="button" onclick="fishingUi.pickTarget('inventory')">가방 장비</button></div>`
             + `<p class="fishing-target-state${reason ? ' is-blocked' : ''}">${esc(reason || '이 제작법을 적용할 수 있습니다.')}</p>`
@@ -315,7 +315,7 @@ const fishingUi = (() => {
         const spent = Object.entries(recipe.requires).map(([key, count]) => `${OCEAN_FISH_DB[key].name} ${count * lastResult.count}마리`).join(', ');
         if (!item) return currencyResultHtml(recipe) + `<small>사용한 재료: ${esc(spent)}</small>`;
         const unchanged = JSON.stringify(lastResult.before) === JSON.stringify(lastResult.after);
-        return `<strong>제작 완료: ${esc(lastResult.name)}</strong><p>${unchanged ? '옵션이 그대로 유지되었습니다. 물고기는 소모되었습니다.' : '바뀐 부분만 모았습니다.'}</p>`
+        return `<strong>제작 완료: ${esc(_t(lastResult.name))}</strong><p>${unchanged ? '옵션이 그대로 유지되었습니다. 물고기는 소모되었습니다.' : '바뀐 부분만 모았습니다.'}</p>`
             + changedLinesHtml(lastResult.before, lastResult.after) + `<small>사용한 재료: ${esc(spent)}</small>`;
     }
     /** Match duplicate lines once each. Added/removed options must not be paired with an unrelated line. */

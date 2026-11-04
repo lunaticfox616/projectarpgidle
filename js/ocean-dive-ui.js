@@ -62,7 +62,7 @@ const oceanDiveUi = (() => {
             + `<div class="dive-oxygen-bar" role="meter" aria-label="남은 산소" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(left)}"><i style="width:${left.toFixed(1)}%"></i></div></div>`;
     }
     function chipsHtml(st) {
-        const currents = (getZone(OCEAN_ZONE_ID).currents || []).map(current => `<span><b>${esc(current.name)}</b>${statToneText.html(current.desc)}</span>`).join('');
+        const currents = (getZone(OCEAN_ZONE_ID).currents || []).map(current => `<span><b>${esc(_t(current.name))}</b>${statToneText.html(current.desc)}</span>`).join('');
         return `<div class="dive-chips"><span class="is-pressure"><b>수압</b>${getOceanDepthTier(st.depthM)}단계</span>${currents}</div>`;
     }
     function costHtml(cost) {
@@ -75,7 +75,7 @@ const oceanDiveUi = (() => {
         const def = OCEAN_PERMANENT_UPGRADE_DEFS[key], level = getOceanPermanentUpgradeLevel(key), cost = getOceanPermanentUpgradeCost(key);
         const now = getOceanPermanentUpgradeEffect(key), next = cost ? `<span class="is-next">다음 <b>+${now + def.valuePerLevel}${def.unit}</b></span>` : '';
         const button = cost ? `<button type="button" onclick="oceanDiveUi.buyDiveUpgrade('${key}')"${canPayOceanUpgradeCost(cost) ? '' : ' disabled'}>강화</button>` : '<button type="button" disabled>최대</button>';
-        return `<div class="dive-upgrade${cost ? '' : ' is-max'}"><header><strong>${esc(def.label)}</strong><b>Lv.${level}/${def.maxLevel}</b></header>`
+        return `<div class="dive-upgrade${cost ? '' : ' is-max'}"><header><strong>${esc(_t(def.label))}</strong><b>Lv.${level}/${def.maxLevel}</b></header>`
             + `<span class="dive-upgrade-bar"><i style="width:${share(level, def.maxLevel).toFixed(1)}%"></i></span>`
             + `<p><span>지금 <b>+${now}${def.unit}</b></span>${next}</p>${cost ? `<div class="dive-costs">${costHtml(cost)}</div>` : ''}${button}</div>`;
     }

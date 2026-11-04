@@ -235,7 +235,7 @@ const unlockTabUi = {
         return `fam-${unlockBoard.familyOf(def)} kind-${contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}`;
     },
     nodeHtml(def, L, marks) {
-        const at = L.pos.get(def.id), state = this.stateOf(def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = escapeHTML(def.name);
+        const at = L.pos.get(def.id), state = this.stateOf(def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = escapeHTML(_t(def.name));
         if (at.step) return `<button type="button" class="unlock-pip ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, true)}" aria-label="${name}" style="${style}">${escapeHTML(this.upgradeEffect(def.series, def.rank))}</button>`;
         const chip = state !== 'owned' && def.cost ? `<small class="unlock-chip">${def.cost}P</small>` : '';
         const second = L.cardH >= UNLOCK_BOARD_SIZE.gainFrom ? `<small class="unlock-card-gain">${escapeHTML(this.cardGain(def))}</small>` : '';
@@ -305,12 +305,12 @@ const unlockTabUi = {
     lifecycleHtml(def) {
         const life = def.lifecycle;
         if (!life) return '<p class="unlock-lifetime-note">기능 해금은 다음 루프에도 유지됩니다.</p>';
-        return `<div class="unlock-lifetime"><h5>루프 전환 시, ${escapeHTML(life.label)}</h5><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
+        return `<div class="unlock-lifetime"><h5>루프 전환 시, ${escapeHTML(_t(life.label))}</h5><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
             ${life.kept ? `<p><b>유지</b>${escapeHTML(life.kept)}</p>` : ''}${life.reset ? `<p><b>초기화</b>${escapeHTML(life.reset)}</p>` : ''}</div>`;
     },
     relatedHtml(def) {
         if (!def.features) return '';
-        return `<div class="unlock-related"><h5>포함된 성장 요소</h5>${def.features.map(row => `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</div>`;
+        return `<div class="unlock-related"><h5>포함된 성장 요소</h5>${def.features.map(row => `<p><strong>${escapeHTML(_t(row.name))}</strong>${escapeHTML(row.description)}</p>`).join('')}</div>`;
     },
     /** 이 해금을 두고 누가 한 말(data/story-journal.js STORY_LOOP_MILESTONES). 글만 보인다. */
     loreHtml(id) {
@@ -334,10 +334,10 @@ const unlockTabUi = {
     },
     detailHtml(def) {
         const status = contentProgression.status(def.id), kind = contentProgression.kind(def), kindName = kind === 'auto' ? '자동 개방' : def.rail ? '강화' : '포인트 해금';
-        const conditions = contentProgression.requirements(def.id).map(row => `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(row.label)}</span>`).join('');
+        const conditions = contentProgression.requirements(def.id).map(row => `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(_t(row.label))}</span>`).join('');
         const gain = this.gainOf(def);
         return `<div class="unlock-detail-art fam-${unlockBoard.familyOf(def)} kind-${kind} is-${this.stateOf(def)}"><span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt=""></span></div>
-            <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${unlockBoard.familyOf(def)}">${def.rail ? kindName : `${escapeHTML(def.group)}, ${kindName}`}</span><h4>${escapeHTML(def.name)}${gain ? `<em>${escapeHTML(gain)}</em>` : ''}</h4>
+            <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${unlockBoard.familyOf(def)}">${def.rail ? kindName : `${escapeHTML(def.group)}, ${kindName}`}</span><h4>${escapeHTML(_t(def.name))}${gain ? `<em>${escapeHTML(gain)}</em>` : ''}</h4>
             <p class="unlock-desc">${escapeHTML(def.description)}</p><div class="unlock-reqs">${status.unlocked ? '' : conditions}</div></div>
             ${this.nextHtml(def)}<div class="unlock-detail-action">${contentUnlockUi.entryReward(def, status)}${this.actionHtml(def, status)}${this.moreHtml(def)}</div>`;
     },

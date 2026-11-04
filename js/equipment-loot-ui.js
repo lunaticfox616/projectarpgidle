@@ -3,7 +3,7 @@
     const rarityNames = ITEM_RARITY_LABELS;
 
     function renderPresets() {
-        const buttons = Object.entries(ITEM_PICKUP_PRESETS).map(([key, preset]) => `<button type="button" data-pickup-preset="${key}" data-tip="${escapeHTML(preset.note)}" onclick="equipmentLootUi.applyPreset('${key}')">${escapeHTML(preset.label)}</button>`).join('');
+        const buttons = Object.entries(ITEM_PICKUP_PRESETS).map(([key, preset]) => `<button type="button" data-pickup-preset="${key}" data-tip="${escapeHTML(preset.note)}" onclick="equipmentLootUi.applyPreset('${key}')">${escapeHTML(_t(preset.label))}</button>`).join('');
         const notes = Object.values(ITEM_PICKUP_PRESETS).map(preset => `${preset.label}: ${preset.note}`).join(' ');
         return `<div class="loot-filter-actions loot-pickup-presets"><span>빠른 설정</span>${buttons}</div><p class="loot-filter-note">${escapeHTML(notes)}</p>`;
     }
@@ -71,8 +71,8 @@
     /** Tags first (a count of lines), then single options. */
     function renderRuleTargets(rule) {
         const key = equipmentLootPolicy.ruleKey(rule);
-        const tags = equipmentLootPolicy.tagOptions().map(tag => `<option value="tag:${escapeHTML(tag.id)}" ${'tag:' + tag.id === key ? 'selected' : ''}>${escapeHTML(tag.name)} 태그</option>`).join('');
-        const stats = equipmentLootPolicy.statOptions().map(stat => `<option value="${escapeHTML(stat.id)}" ${stat.id === key ? 'selected' : ''}>${escapeHTML(stat.name)}</option>`).join('');
+        const tags = equipmentLootPolicy.tagOptions().map(tag => `<option value="tag:${escapeHTML(tag.id)}" ${'tag:' + tag.id === key ? 'selected' : ''}>${escapeHTML(_t(tag.name))} 태그</option>`).join('');
+        const stats = equipmentLootPolicy.statOptions().map(stat => `<option value="${escapeHTML(stat.id)}" ${stat.id === key ? 'selected' : ''}>${escapeHTML(_t(stat.name))}</option>`).join('');
         return `<optgroup label="태그">${tags}</optgroup><optgroup label="옵션">${stats}</optgroup>`;
     }
 
@@ -222,11 +222,11 @@
     function renderHighlight(item, owned) {
         const equipment=owned.find(entry=>String(entry.id)===String(item.id));
         const token=equipment ? registerCombatLogItemSnapshot(equipment) : null;
-        const detail=`<span class="loot-highlight-name"><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(getItemSlotDisplayLabel(item))}, ${escapeHTML(item.location)}</small></span><span class="loot-highlight-reason">${escapeHTML(item.reason)}</span>`;
+        const detail=`<span class="loot-highlight-name"><strong>${escapeHTML(getItemDisplayName(item))}</strong><small>${escapeHTML(getItemSlotDisplayLabel(item))}, ${escapeHTML(item.location)}</small></span><span class="loot-highlight-reason">${escapeHTML(item.reason)}</span>`;
         const attrs=token===null ? 'disabled' : `data-item-tooltip-anchor="1" data-log-item-token="${token}" onpointerenter="if(event.pointerType!=='touch')equipmentLootUi.showHighlight(event,${token})" onpointermove="if(event.pointerType!=='touch')equipmentLootUi.showHighlight(event,${token})" onpointerleave="if(event.pointerType==='mouse')hideItemTooltip(event)" onfocus="equipmentLootUi.showHighlight(event,${token})" onblur="hideItemTooltip()" onclick="equipmentLootUi.showHighlight(event,${token})"`;
         // 까닭 글은 그 까닭의 색(목표 일치는 민트, 고유는 주황, 타락은 빨강: equipmentLootPolicy.highlight)
         const tones=`--loot-rarity:${getRarityColor(item.rarity)}${item.color ? `;--loot-reason:${item.color}` : ''}`;
-        return `<li class="loot-highlight-card" style="${tones}"><button type="button" ${attrs} aria-label="${escapeHTML(item.name)}, ${escapeHTML(rarityNames[item.rarity] || item.rarity)} 옵션 확인">${detail}</button></li>`;
+        return `<li class="loot-highlight-card" style="${tones}"><button type="button" ${attrs} aria-label="${escapeHTML(getItemDisplayName(item))}, ${escapeHTML(rarityNames[item.rarity] || item.rarity)} 옵션 확인">${detail}</button></li>`;
     }
 
     function showHighlight(event, token) {

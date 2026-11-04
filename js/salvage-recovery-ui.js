@@ -25,11 +25,11 @@ function renderSalvageRecoveryEntry(entry) {
     let status = getSalvageRecoveryUnavailableText(availability);
     let disabled = availability.canRestore ? '' : 'disabled';
     let size = getEquipmentInventoryFootprint(item);
-    return `<article class="salvage-recovery-entry rarity-${item.rarity}" data-item-tooltip-anchor="1" tabindex="0" role="group" aria-label="${escapeHTML(item.name)}"
+    return `<article class="salvage-recovery-entry rarity-${item.rarity}" data-item-tooltip-anchor="1" tabindex="0" role="group" aria-label="${escapeHTML(getItemDisplayName(item))}"
         onmouseenter="salvageRecoveryUi.showTooltip(event,${entry.id})" onmousemove="salvageRecoveryUi.showTooltip(event,${entry.id})" onmouseleave="salvageRecoveryUi.hideTooltip(event)" onfocus="salvageRecoveryUi.showTooltip(event,${entry.id})" onblur="salvageRecoveryUi.hideTooltip(event)">
         <div class="salvage-recovery-art rarity-${item.rarity || 'normal'}" style="--art-columns:${size.columns};--art-rows:${size.rows}"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false"></div>
         <div class="salvage-recovery-info">
-            <div class="salvage-recovery-item-head"><strong>${escapeHTML(item.name)}</strong><span>${getSalvageRecoveryRarityLabel(item.rarity)}</span></div>
+            <div class="salvage-recovery-item-head"><strong>${escapeHTML(getItemDisplayName(item))}</strong><span>${getSalvageRecoveryRarityLabel(item.rarity)}</span></div>
             <div class="salvage-recovery-meta">${escapeHTML(getItemSlotDisplayLabel(item))}, T${tier}</div>
             <div class="salvage-recovery-cost"><span>반환 비용</span><strong>${escapeHTML(cost)}</strong></div>
         </div>

@@ -136,13 +136,13 @@ const memoryDungeonUi = (() => {
     function spoilsLines(spoils) {
         const currencies = spoils.rewards.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`).join(', ');
         addLog(`🕯️ 기억 ${spoils.tier}단계 승리${spoils.best ? ' (새 기록)' : ''}: ${currencies || '재화 없음'}`, 'loot-unique', { toast: true });
-        (spoils.items || []).forEach(item => addLog(`🛡️ 기억의 보상 <span class='loot-${item.rarity}'>[${esc(item.name)}]</span>`, item.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item }));
+        (spoils.items || []).forEach(item => addLog(`🛡️ 기억의 보상 <span class='loot-${item.rarity}'>[${esc(getItemDisplayName(item))}]</span>`, item.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item }));
     }
     function announce(detail) {
         const memory = detail.kind === 'complete' ? detail.memory : null;
         if (!memory) return;
         if (memory.spoils) spoilsLines(memory.spoils);
-        if (memory.ticket) addLog(`🕯️ ${esc(memory.ticket.name)}의 기억 ${memory.ticket.tier}단계를 얻었습니다(아틀라스의 기억 보기).`, 'loot-unique', { toast: true });
+        if (memory.ticket) addLog(`🕯️ ${esc(_t(memory.ticket.name))}의 기억 ${memory.ticket.tier}단계를 얻었습니다(아틀라스의 기억 보기).`, 'loot-unique', { toast: true });
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
     return Object.freeze({ html, select, challenge, setFilter, search, showMaps });

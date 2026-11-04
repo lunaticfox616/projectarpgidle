@@ -147,7 +147,7 @@ const ascendancyTreeUi = (() => {
         return `<button type="button" class="ascend-node ascend-keystone is-${state}${focused}" style="--x:${pos.x}%;--y:${pos.y}%"
             aria-label="${esc(`${k.name}, ${KEYSTONE_TEXT[state]}`)}" aria-pressed="${state === 'taken'}" onclick="ascendancyTreeUi.press('keystone','${k.id}')"
             data-info-tooltip-anchor="1" onpointerenter="ascendancyTreeUi.tip(event,'keystone','${k.id}')" onpointermove="ascendancyTreeUi.tip(event,'keystone','${k.id}')" onpointerleave="hideInfoTooltip()"
-            onmouseenter="ascendancyTreeUi.hint('keystone','${k.id}')" onfocus="ascendancyTreeUi.hint('keystone','${k.id}')">${artHtml(keystoneFamily(k.desc))}<span class="ascend-plate"><span class="ascend-node-name">${esc(k.name)}</span></span></button>`;
+            onmouseenter="ascendancyTreeUi.hint('keystone','${k.id}')" onfocus="ascendancyTreeUi.hint('keystone','${k.id}')">${artHtml(keystoneFamily(k.desc))}<span class="ascend-plate"><span class="ascend-node-name">${esc(_t(k.name))}</span></span></button>`;
     }
     /** Where keystones sit: the first row spread over three columns, a later one under the middle of its prerequisites so links run down;
      * a 5th-job keystone, tied to nothing, beside the deepest row in the column farthest from the others, or below it when none is free. */
@@ -210,7 +210,7 @@ const ascendancyTreeUi = (() => {
     }
     function summaryHtml(cls, tree) {
         const template = CLASS_TEMPLATES[cls], total = totalsText(tree), ks = game.ascendKeystones.length;
-        return `<div class="ascend-summary"><div class="ascend-summary-name"><strong>${esc(template.name)}</strong><span>${esc(template.desc)}</span></div>
+        return `<div class="ascend-summary"><div class="ascend-summary-name"><strong>${esc(_t(template.name))}</strong><span>${esc(template.desc)}</span></div>
             <div class="ascend-summary-chips"><span class="is-node">노드 포인트 <b>${Math.max(0, Math.floor(game.ascendPoints || 0))}</b></span>
             <span class="is-key">키스톤 <b>${ks}/${CLASS_KEYSTONE_PICK_LIMIT}</b>, 포인트 <b>${Math.max(0, Math.floor(game.ascendKeystonePoints || 0))}</b></span>
             <span class="is-taken">할당한 노드 <b>${game.ascendNodes.length}</b></span>
@@ -293,7 +293,7 @@ const ascendancyTreeUi = (() => {
     function tipHtml(kind, id, tree, defs) {
         if (kind === 'keystone') {
             const k = defs.find(row => row.id === id);
-            return k ? `<div class="tooltip-title">${esc(k.name)}</div><div class="tooltip-line">${statToneText.html(k.desc)}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(KEYSTONE_TEXT[keystoneState(k)])}</div>` : '';
+            return k ? `<div class="tooltip-title">${esc(_t(k.name))}</div><div class="tooltip-line">${statToneText.html(k.desc)}</div><div class="tooltip-line" style="color:#b3a58c;">${esc(KEYSTONE_TEXT[keystoneState(k)])}</div>` : '';
         }
         const node = tree[id];
         if (!node) return '';
@@ -376,9 +376,9 @@ const ascendancyTreeUi = (() => {
         const template = CLASS_TEMPLATES[key], defs = getClassKeystoneDefs(key), stats = focusStats(key);
         const chips = stats.map(stat => `<span class="ascend-pick-chip">${renderPixelIcon(iconOf(stat), 'ascend-pick-chip-icon')}${esc(statName(stat))}</span>`).join('');
         const keys = (keystoneRows(defs)[0] || []).map(id => defs.find(k => k.id === id)).filter(Boolean)
-            .map(k => `<span class="ascend-pick-key"><b>${esc(k.name)}</b><span>${statToneText.html(k.desc)}</span></span>`).join('');
+            .map(k => `<span class="ascend-pick-key"><b>${esc(_t(k.name))}</b><span>${statToneText.html(k.desc)}</span></span>`).join('');
         return `<button type="button" class="class-card ascend-pick-card" onclick="selectClass('${key}')">
-            <span class="ascend-pick-head">${renderPixelIcon(iconOf(stats[0]), 'ascend-pick-icon')}<strong>${esc(template.name)}</strong></span>
+            <span class="ascend-pick-head">${renderPixelIcon(iconOf(stats[0]), 'ascend-pick-icon')}<strong>${esc(_t(template.name))}</strong></span>
             <span class="ascend-pick-desc">${esc(template.desc)}</span>
             <span class="ascend-pick-section">노드</span><span class="ascend-pick-chips">${chips}</span>
             <span class="ascend-pick-section">첫 키스톤 (${defs.length}개 가운데 ${CLASS_KEYSTONE_PICK_LIMIT}개 할당)</span><span class="ascend-pick-keys">${keys}</span>

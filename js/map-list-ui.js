@@ -51,7 +51,7 @@ const mapListUi = (() => {
         const title = actTitle(facts.zone), story = facts.zone.type === 'act' ? getStoryActByZoneId(facts.id) : null, land = actLandscape(facts);
         const cls = ['map-act-card', facts.current ? 'current' : '', facts.cleared ? 'is-cleared' : '', facts.recommended ? 'is-recommended' : '', facts.reveal ? 'map-unlock-reveal' : ''];
         return `<div class="${cls.filter(Boolean).join(' ')}" role="group"${facts.current ? ' aria-current="true"' : ''}${land ? ` style="--act-land:url('${land}')"` : ''}>`
-            + `<div class="map-act-body">${title.label ? `<small>${esc(title.label)}</small>` : ''}<strong>${esc(title.name)}</strong>${worldTreeBarkUi.barkMapChipHtml(facts.zone)}`
+            + `<div class="map-act-body">${title.label ? `<small>${esc(_t(title.label))}</small>` : ''}<strong>${esc(_t(title.name))}</strong>${worldTreeBarkUi.barkMapChipHtml(facts.zone)}`
             + `${story ? `<span class="map-act-boss">보스 ${esc(story.bossName)}</span>` : ''}${buildMapPowerEstimateHtml(facts.zone, { hideReward })}</div>`
             + `<div class="map-act-actions">${actActionsHtml(facts)}</div></div>`;
     }
@@ -135,7 +135,7 @@ const mapListUi = (() => {
         const ele = BOSS_EMBLEMS[zone.ele] ? zone.ele : 'phys', track = bossTrack(zone), reward = explorationAtlasUi.bossRewardLabel(zone);
         const cls = ['map-boss-card', `is-${ele}`, entry.ready ? 'is-ready' : 'is-locked', game.currentZoneId === zone.id ? 'current' : ''].filter(Boolean).join(' ');
         return `<div class="${cls}" data-boss-id="${zone.id}"><span class="map-boss-emblem">${renderPixelIcon(BOSS_EMBLEMS[ele], 'map-boss-glyph')}</span>`
-            + `<div class="map-boss-body"><div class="map-boss-title"><strong>${esc(zone.name)}</strong><em${done ? ' class="is-done"' : ''}>${done ? '격파 완료' : '미격파'}</em></div>`
+            + `<div class="map-boss-body"><div class="map-boss-title"><strong>${esc(_t(zone.name))}</strong><em${done ? ' class="is-done"' : ''}>${done ? '격파 완료' : '미격파'}</em></div>`
             + `${track ? `<span class="map-boss-track">${track}</span>` : ''}${buildMapPowerEstimateHtml(zone, { hideReward })}</div>`
             + `${reward ? `<p class="map-boss-row is-reward"><span>보상</span><b>${esc(reward)}</b></p>` : ''}${bossKeyHtml(zone, entry)}`
             + `<div class="map-boss-foot"><span>${esc(bossStatus(zone, entry, done))}</span>${bossActionHtml(zone, entry)}</div></div>`;

@@ -158,7 +158,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceItemHtml() {
         const item=selected(), sources=new Set(item.stats.map(stat=>equipmentCrafting.getSource(stat)));
         return `<section id="forge-item-display" class="cl-item ${matches(item)?'goal-hit':''}"><div class="cl-item-head"><div class="cl-art"><img src="${esc(getEquipmentGridVisualAsset(item))}" alt="${esc(getItemSlotDisplayLabel(item))}"></div>
-            <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}${craftingWorkspaceUi.imprintMark(item)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
+            <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(getItemDisplayName(item))}${craftingWorkspaceUi.imprintMark(item)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${esc(_t(item.baseName))} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
             <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">홀씨 ${sources.has('spore')?'1':'0'}/1</span><span class="${sources.has('fossil')?'filled':''}">화석 ${sources.has('fossil')?'1':'0'}/1</span></div>
             <div class="cl-section-title">추가 옵션</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">혼돈 주입 ${esc(getStatName(item.chaosInfusion.id))} +${esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val))}</li>`:''}</ul>
             <div class="cl-base">기본 옵션 &ensp; ${[workspaceWardSlotsText(item),...(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} ${esc(formatSignedValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}${itemInfluencesUi.lineBadgeHtml(item,stat)}`)].filter(Boolean).join(' / ')}</div>${workspaceImprintHtml(item)}${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
@@ -194,8 +194,8 @@ const craftingWorkspaceUi = (() => {
     function workspaceGoalTargetOptions(rule,choice) {
         const key=rule.tag?'tag:'+rule.tag:rule.statId, name=rule.tag?`${AFFIX_TAG_LABELS[rule.tag]} 태그`:getStatName(rule.statId);
         const retained=!choice&&key?`<option selected disabled value="${esc(key)}">${esc(name)} (현재 목표)</option>`:'';
-        const tags=workspaceGoalTags().map(row=>`<option value="tag:${row.id}" ${'tag:'+row.id===key?'selected':''}>${esc(row.name)} 태그</option>`).join('');
-        const options=workspaceGoalOptions().map(row=>`<option value="${row.id}" ${row.id===key?'selected':''}>${esc(row.name)}</option>`).join('');
+        const tags=workspaceGoalTags().map(row=>`<option value="tag:${row.id}" ${'tag:'+row.id===key?'selected':''}>${esc(_t(row.name))} 태그</option>`).join('');
+        const options=workspaceGoalOptions().map(row=>`<option value="${row.id}" ${row.id===key?'selected':''}>${esc(_t(row.name))}</option>`).join('');
         return `<option value="">목표 선택</option>${retained}${tags?`<optgroup label="태그">${tags}</optgroup>`:''}<optgroup label="옵션">${options}</optgroup>`;
     }
 
@@ -419,7 +419,7 @@ const craftingWorkspaceUi = (() => {
         }
         const acceptedSignature=signature(), item=selected();
         goalDialog.innerHTML=`<header><strong class="cl-goal-match">목표 일치</strong>
-            <h2 id="cl-goal-dialog-title" tabindex="-1">${esc(item.name)}</h2></header>
+            <h2 id="cl-goal-dialog-title" tabindex="-1">${esc(getItemDisplayName(item))}</h2></header>
             <ul class="cl-affixes just-crafted">${item.stats.map(workspaceAffixHtml).join('')}</ul>
             <button type="button" disabled>확인했어요</button>`;
         const confirm=goalDialog.querySelector('button'), readyAt=performance.now()+800;
@@ -581,7 +581,7 @@ const craftingWorkspaceUi = (() => {
             studyDialog.addEventListener('close',()=>studyRun++);
         }
         const context={item:JSON.parse(JSON.stringify(selected())),recipe:{...recipe},mode,rules:JSON.parse(JSON.stringify(goal)),omen:null};
-        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 시뮬레이터</h2><p><span class="cl-study-item" style="color:${getRarityColor(context.item.rarity)}">${esc(context.item.name)}</span>, ${workspaceCoin(context.recipe.key)}${esc(context.recipe.label)}, 옵션 상한 ${studyTierHtml(getItemCraftTier(context.item))}</p></div><button data-study-close aria-label="제작 시뮬레이터 닫기">닫기</button></header>
+        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 시뮬레이터</h2><p><span class="cl-study-item" style="color:${getRarityColor(context.item.rarity)}">${esc(_t(context.item.name))}</span>, ${workspaceCoin(context.recipe.key)}${esc(_t(context.recipe.label))}, 옵션 상한 ${studyTierHtml(getItemCraftTier(context.item))}</p></div><button data-study-close aria-label="제작 시뮬레이터 닫기">닫기</button></header>
             <section class="cl-study-simulator">
             ${workspaceStudyOmenHtml(context.item,context.recipe)}<div class="cl-study-controls"><button data-study-sample="1">1회 시뮬레이션</button><button data-study-sample="2000">목표 확률 2,000회 측정</button></div>
             <small data-study-reason aria-live="polite"></small><div data-study-result aria-live="polite"></div></section>
@@ -685,7 +685,7 @@ const craftingWorkspaceUi = (() => {
             choiceDialog.addEventListener('click',workspaceChoiceClick);
         }
         if(choiceDialog.open)return;
-        choiceDialog.innerHTML=`<header><small>${workspaceCoin('omenPyre')}${esc(ORB_DB.omenPyre.name)}</small><h2 id="cl-choice-title" tabindex="-1">결과 하나를 고르세요</h2><p>${esc(pending.item.baseName)}</p></header>
+        choiceDialog.innerHTML=`<header><small>${workspaceCoin('omenPyre')}${esc(_t(ORB_DB.omenPyre.name))}</small><h2 id="cl-choice-title" tabindex="-1">결과 하나를 고르세요</h2><p>${esc(_t(pending.item.baseName))}</p></header>
             <div class="cl-choice-list">${pending.options.map(workspaceChoiceHtml).join('')}</div>`;
         choiceDialog.showModal();choiceDialog.querySelector('h2').focus({preventScroll:true});
     }

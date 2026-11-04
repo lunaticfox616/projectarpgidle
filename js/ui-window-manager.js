@@ -584,7 +584,8 @@
         // 한국어 원문을 적고 data-i18n으로 두면 지금과 언어가 바뀔 때 i18n이 옮긴다(글 마디가 이미 옮겨져 있어도 원문을 쓴다).
         label.dataset.i18n = '';
         label.textContent = textNodes.map(node => i18n.sourceOf(node).trim()).join(' ');
-        button.dataset.caption = railCaption(button.id, label.textContent);
+        // 아래 바의 짧은 이름: 다른 언어에서는 '|하단 메뉴' 문맥의 짧은 번역을 쓰고, 없으면 그 글의 보통 번역을 쓴다(js/i18n.js).
+        button.dataset.caption = `${railCaption(button.id, label.textContent)}|하단 메뉴`;
         button.dataset.i18nAttr = 'data-caption';
         // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬룬)는 묶음 이름 하나만 적는다(스킬트리, 장비, 루프, 기록). 화면들을 모두 나열하면
         // 좁은 화면의 아래 탭에 "스킬트리, 전직, 재능"처럼 길게 보였다(사용자 2026-10-27). 안의 화면은 창 머리의 탭에서 고른다.
@@ -604,7 +605,7 @@
         button.setAttribute('aria-label', '기타 메뉴 열기');
         button.setAttribute('aria-controls', 'ui-rail-misc-panel');
         button.setAttribute('aria-expanded', 'false');
-        button.innerHTML = '기타<span id="noti-ui-rail-misc" class="noti-dot"></span>';
+        button.innerHTML = `${escapeHTML(_t('기타|하단 메뉴'))}<span id="noti-ui-rail-misc" class="noti-dot"></span>`;
         button.addEventListener('click', toggleRailMiscPanel);
         return button;
     }
@@ -835,7 +836,7 @@
         btn.id = 'btn-close-all-windows';
         btn.type = 'button';
         btn.className = 'ui-rail-external-btn ui-close-all-btn';
-        btn.textContent = '정리';
+        btn.textContent = _t('정리|하단 메뉴');
         btn.setAttribute('aria-label', '열린 창 모두 닫기');
         btn.addEventListener('click', closeAllWindows);
         let logo = document.createElement('button');
