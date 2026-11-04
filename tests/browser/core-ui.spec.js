@@ -85,7 +85,9 @@ test('login preloads bounded battle assets without frame polling and resumes aft
     expect(battleRequests.length).toBeGreaterThan(0);
     const preparedRequests=battleRequests.length;
     expect(battleRequests.some(url=>url.includes('skill-lava-sheet'))).toBe(false);
-    expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running').length)).toBe(0);
+    // 로그인 대기에서 움직이는 것은 금빛 나뭇잎뿐이다(css/startup.css .title-leaf: 자리와 투명도만, 화면 합성기가 맡는다)
+    expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running'
+        && !(animation.effect && animation.effect.target && animation.effect.target.closest('.title-leaf-field'))).length)).toBe(0);
     const frames = await page.evaluate(() => observedFrames);
     await page.waitForTimeout(700);
     expect(await page.evaluate(() => observedFrames)).toBe(frames);

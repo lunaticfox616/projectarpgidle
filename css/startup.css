@@ -27,7 +27,8 @@
 #startup-overlay::before, #startup-overlay::after { display: none; }
 #startup-overlay .startup-shell {
   width: 100%; min-height: 100%; height: max-content; box-sizing: border-box;
-  display: grid; grid-template-columns: minmax(0,1fr) 384px; align-items: center;
+  /* 가운데 칸에 로고와 로그인 판을 한 판으로(.startup-entry), 왼쪽 칸 아래에 저장 요약. 오른쪽 칸은 비워 가운데를 맞춘다. */
+  display: grid; grid-template-columns: minmax(0,1fr) 384px minmax(0,1fr); align-items: center;
   gap: clamp(36px,7vw,120px); padding: clamp(32px,5vw,88px);
   border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible;
 }
@@ -38,16 +39,13 @@
   text-shadow: 0 2px 16px rgba(0,0,0,.65);
 }
 #startup-overlay .startup-hero-grid { display: grid; height: 100%; align-items: stretch; }
-#startup-overlay .startup-hero-copy { display: flex; flex-direction: column; justify-content: space-between; gap: 48px; }
-#startup-overlay .startup-brand-wrap { margin: 24px 0 0; gap: 18px; }
+#startup-overlay .startup-hero-copy { display: flex; flex-direction: column; justify-content: flex-end; }
+/* 로고는 로그인 판 위, 같은 테 안에 놓인다. 도트 하나가 기기 화소의 정수배가 되는 크기는 js/ui-game-shell.js가 --startup-logo-size로 준다. */
+#startup-overlay .startup-brand-wrap { display: flex; justify-content: center; margin: 0; padding: 22px 30px 0; }
 #startup-overlay .startup-logo {
-  display: block; width: min(360px, 30vw, 42dvh); height: auto; max-width: 100%; margin: 0;
-  object-fit: contain; image-rendering: auto; filter: drop-shadow(0 2px 8px rgba(0,0,0,.65));
-  box-sizing: border-box; aspect-ratio: 1; padding: 5%; border-radius: 50%;
-  border: 3px solid #9e8452;
-  background: radial-gradient(circle at 35% 25%, #343021, #171910 66%, #0c110b);
-  box-shadow: inset 0 0 0 4px #171a10, inset 0 0 0 6px #776443,
-    inset 0 5px 16px #a78b4233, 0 5px 0 #42351f, 0 12px 26px #0007;
+  display: block; width: var(--startup-logo-size, 192px); height: auto; max-width: 100%; margin: 0;
+  object-fit: contain; image-rendering: pixelated; filter: none; aspect-ratio: 1;
+  padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
 }
 #startup-overlay .startup-summary-card {
   max-width: 500px; margin: 0; padding: 18px 0 0; border: 0;
@@ -88,11 +86,15 @@
 #startup-overlay .startup-summary-hint[hidden] { display: none; }
 /* 저장을 읽지 못했을 때(js/ui.js renderStartupLocalSave) */
 #startup-overlay .startup-summary-hint.is-warning { color: var(--color-danger); }
-#startup-overlay .startup-panel.auth {
-  align-self: center; width: 100%; padding: 30px; gap: 15px; box-sizing: border-box;
+#startup-overlay .startup-entry {
+  align-self: center; display: flex; flex-direction: column; width: 100%; box-sizing: border-box;
   border: 1px solid rgba(169,160,120,.29); border-top-color: rgba(217,189,130,.65); border-radius: 3px;
   background: linear-gradient(150deg,rgba(22,30,24,.94),rgba(7,13,10,.97));
-  box-shadow: 0 24px 70px rgba(0,0,0,.28), inset 0 1px rgba(255,243,209,.04); backdrop-filter: none;
+  box-shadow: 0 24px 70px rgba(0,0,0,.28), inset 0 1px rgba(255,243,209,.04);
+}
+#startup-overlay .startup-panel.auth {
+  width: 100%; padding: 22px 30px 30px; gap: 15px; box-sizing: border-box;
+  border: 0; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none;
 }
 #startup-overlay .startup-auth-head { margin-bottom: 6px; }
 #startup-overlay .startup-auth-title { margin: 0; color: var(--entry-copy); font-size: var(--font-size-heading); font-weight: 500; letter-spacing: .02em; }
@@ -161,24 +163,63 @@
 @media (max-width: 1000px) {
   #startup-overlay .startup-shell { grid-template-columns: minmax(0,1fr) 350px; gap: 32px; padding: 32px; }
   #startup-overlay .startup-summary-grid { grid-template-columns: 1fr; gap: 12px; }
-  #startup-overlay .startup-panel.auth { padding: 24px; }
+  #startup-overlay .startup-brand-wrap { padding: 18px 24px 0; }
+  #startup-overlay .startup-panel.auth { padding: 18px 24px 24px; }
 }
 /* 위아래로 쌓기는 세로 화면이나 높은 화면만: 가로 휴대폰(750x342)은 나란히 두어 로그인과 게스트 단추가 첫 화면에 든다(210px 내려야 보였다). */
 @media (max-width: 760px) and (orientation: portrait), (max-width: 760px) and (min-height: 601px) {
   #startup-overlay .startup-shell { display: flex; flex-direction: column; gap: 26px; padding: max(28px,env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom)); }
   #startup-overlay .startup-panel.hero, #startup-overlay .startup-hero-grid, #startup-overlay .startup-hero-copy { display: contents; }
-  #startup-overlay .startup-brand-wrap { order: 0; margin: 0 auto; gap: 12px; text-align: center; }
-  #startup-overlay .startup-logo { width: min(180px, 45vw); margin: 0 auto; }
-  #startup-overlay .startup-panel.auth { order: 1; max-width: 400px; margin: 0 auto; padding: 24px; }
+  #startup-overlay .startup-entry { order: 1; max-width: 400px; margin: 0 auto; }
+  #startup-overlay .startup-logo { width: min(var(--startup-logo-size, 192px), 45vw); }
   #startup-overlay .startup-summary-card { order: 2; width: 100%; max-width: 400px; margin: 0 auto; padding-top: 16px; box-sizing: border-box; }
   #startup-overlay .startup-summary-grid { grid-template-columns: minmax(0,1.2fr) minmax(0,1fr); gap: 16px; }
+}
+/* 낮은 화면(가로 휴대폰 750x342): 로고는 판 오른쪽 위, "로그인" 제목 옆의 작은 표시로. 로고를 위에 얹으면 게스트 단추가 첫 화면 밖으로
+   밀렸다(합치기 전에는 첫 화면에 들었다). */
+@media (max-height: 600px) {
+  #startup-overlay .startup-entry { position: relative; }
+  #startup-overlay .startup-brand-wrap { position: absolute; top: 12px; right: 18px; padding: 0; }
+  #startup-overlay .startup-logo { width: 48px; }
 }
 @media (max-width: 380px) {
   #startup-overlay .startup-shell { padding-inline: 12px; }
   #startup-overlay .startup-panel.auth { padding: 20px; }
   #startup-overlay .startup-summary-grid { grid-template-columns: 1fr; }
 }
+/* 금빛 나뭇잎(2026-11-05 사용자 "로그인화면에 금빛 나뭇잎이 흩날리게 해줄 수 있어?"): js/ui-game-shell.js가 잎 14장을 넣고, 그림은
+   assets/ui/title-leaves.png(한 칸 15도트, 12칸이 한 바퀴, 두 줄이 잎 두 종류). 위에서 떨어지며(fall) 좌우로 흔들리고(sway) 칸을 넘겨
+   돈다(turn). 로그인 대기에서 움직이는 것은 이 잎뿐이다(docs/login-loading-resources.md): 자리와 투명도만 바꿔 화면 합성기가 맡고
+   requestAnimationFrame과 스크립트는 쓰지 않는다. 판들 뒤에 깔린다. */
+#startup-overlay .title-leaf-field { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+#startup-overlay .title-leaf {
+  position: absolute; top: 0; left: var(--leaf-x); opacity: 0; will-change: transform, opacity;
+  animation: titleLeafFall var(--leaf-fall) linear var(--leaf-delay) infinite;
+}
+#startup-overlay .title-leaf-sway { display: block; animation: titleLeafSway var(--leaf-sway) ease-in-out var(--leaf-delay) infinite alternate; }
+#startup-overlay .title-leaf-sprite {
+  display: block; position: relative; overflow: hidden;
+  width: calc(var(--leaf-dot) * 15); height: calc(var(--leaf-dot) * 15); transform: scaleX(var(--leaf-mirror));
+}
+#startup-overlay .title-leaf-sprite::before {
+  content: ''; position: absolute; left: 0; top: 0; width: calc(var(--leaf-dot) * 180); height: calc(var(--leaf-dot) * 15);
+  background: url('../assets/ui/title-leaves.png') 0 calc(var(--leaf-dot) * -15 * var(--leaf-row)) / calc(var(--leaf-dot) * 180) calc(var(--leaf-dot) * 30) no-repeat;
+  image-rendering: pixelated;
+  animation: titleLeafTurn var(--leaf-turn) steps(12) var(--leaf-delay) infinite;
+}
+@keyframes titleLeafFall {
+  0% { transform: translate3d(0, -12vh, 0); opacity: 0; }
+  10% { opacity: var(--leaf-alpha); }
+  82% { opacity: var(--leaf-alpha); }
+  100% { transform: translate3d(var(--leaf-drift), 104vh, 0); opacity: 0; }
+}
+@keyframes titleLeafSway { from { transform: translateX(calc(var(--leaf-swing) * -1)); } to { transform: translateX(var(--leaf-swing)); } }
+@keyframes titleLeafTurn { to { transform: translateX(-100%); } }
+@media (max-width: 720px) {
+  #startup-overlay .title-leaf:nth-child(n+9) { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   #startup-overlay *, #startup-overlay *::before, #startup-overlay *::after { animation: none; transition: none; }
+  #startup-overlay .title-leaf-field { display: none; }
 }
 }
