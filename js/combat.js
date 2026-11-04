@@ -10536,16 +10536,26 @@ function rollEnemyAttackGem(awakening) {
     const name=pickSkillRuneReward(gemDropRewards.attackRunes()),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
     return {kind:'attack',name,awakened};
 }
-/** Count reserved runes when rolling the next drop, without granting their skills or tiers early. */
+/** Count runes not yet picked up (an encounter's held loot, runes lying on the map's floor) when rolling the next drop, without
+ * granting their skills or tiers early: two support runes on the floor are two tiers, not the same tier twice. */
 function ownedAndReservedRuneState() {
-    const owner = actExplorationState.groundLoot.encounterOwner();
-    if (!owner?.pendingLoot?.length) return game;
+    const held = actExplorationState.groundLoot.encounterOwner()?.pendingLoot || [], lying = actExplorationState.current(game)?.groundLoot || [];
+    const waiting = [...held, ...lying].filter(row => row.kind === 'rune');
+    if (!waiting.length) return game;
     const state = { ...game, skills: [...game.skills], supports: [...game.supports],
         gemData: { ...game.gemData }, supportGemData: { ...game.supportGemData } };
-    for (const row of owner.pendingLoot) {
-        if (row.kind === 'rune') Object.assign(state, gemDropRewards.prepare(state, [row.gem]));
-    }
+    for (const row of waiting) Object.assign(state, gemDropRewards.prepare(state, [row.gem]));
     return state;
+}
+/** A rolled rune waits on the floor like equipment (2026-11-05 사용자 "바닥에 떨어지게", 전에는 탐험에서도 바로 가방으로): an encounter
+ * holds it until its reward is released, an exploration map lays it on the kill's cell. Returns false where it is granted at once
+ * (offline replay, outside a map). It is granted and logged when picked up (receiveDeferredRune). */
+function placeFloorRune(enemy, gem) {
+    if (actExplorationState.groundLoot.reserve({ gx: enemy.gx, gy: enemy.gy, kind: 'rune', gem })) return true;
+    const run = explorationFloorFor(enemy);
+    if (!run) return false;
+    actExplorationState.groundLoot.placeRune(run, enemy, gem);
+    return true;
 }
 
 /** One kill's loot, in its fixed roll order: awakened echoes, a rune, currencies, gear and talismans, a jewel, hive loot, a hive
@@ -10604,8 +10614,7 @@ function rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui) {
 function rollEnemyRuneDrop(enemy, contentDropMul, gemAwakening, ui) {
     if (!(Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * contentDropMul * getEnemyGemDropMul(enemy))) return;
     const reward=rollEnemyGemReward(gemAwakening);
-    if (reward.gem && actExplorationState.groundLoot.reserve({ gx: enemy.gx, gy: enemy.gy,
-        kind: 'rune', gem: reward.gem })) return;
+    if (reward.gem && placeFloorRune(enemy, reward.gem)) return;
     if (actExplorationState.groundLoot.encounterOwner()) return;
     if(reward.gem) {
         gemDropRewards.grant(game,reward.gem,reward.kind==='support'?ui.resonanceCap():0);

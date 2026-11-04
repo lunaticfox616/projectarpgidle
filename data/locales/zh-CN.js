@@ -3107,7 +3107,7 @@ const LANGUAGE_PACK_ZH_CN = Object.freeze({
         '구역 {n}': '区域 {n}',
         '☠️ 알 수 없는 권능: {ailment}': '☠️ 未知的权能：{ailment}',
         '☣️ 상태이상: {ailment} ({seconds}초)': '☣️ 异常状态：{ailment}（{seconds} 秒）',
-        "✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}{note}": "✨ 获得攻击符文 <span class='loot-magic'>[{name}]</span>！{awakened}{note}",
+        "✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}": "✨ 获得攻击符文 <span class='loot-magic'>[{name}]</span>！{awakened}",
         '(각성 후보)': '（觉醒候选）',
         '💠 {how}: [{name}], 주얼 결정 +{gain}': '💠 {how}：[{name}]，珠宝结晶 +{gain}',
         '가방이 가득 차 해체': '背包已满，分解',

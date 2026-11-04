@@ -74,14 +74,13 @@ safeExposeGlobals({ combatCurrencyHud });
         if(!gem || kind!=='attack' || game.isBackgroundCalculation || (SKILL_DB[gem.name]?.tags||[]).includes('summon'))return;
         setTimeout(()=>noticeRuneUpgrade(gem.name),0);
     }
-    /** 공격 룬 줄 끝: 지금 든 무기로 쓸 수 없으면 그 까닭. */
-    const runeWeaponNote=name=>{const line=getSkillRuneBlockedLine(name);return line?` (${line})`:'';};
+    // 공격 룬 줄은 이름까지만 적는다: 끝에 붙던 "(지금 무기로 쓸 수 없음: 근접 무기 필요)"는 2026-11-05 사용자 요청으로 뺐다(상점 카드에는 남는다).
     function announceGemReward(reward) {
         queueRuneUpgradeNotice(reward);
         if(!game.settings.showLootLog)return;
         const {gem,kind}=reward;
         if(!gem)return;
-        if(kind==='attack')addLog(_t("✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}{note}", { name: _t(gem.name), awakened: gem.awakened ? ` ${_t('(각성 후보)')}` : '', note: runeWeaponNote(gem.name) }));
+        if(kind==='attack')addLog(_t("✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}", { name: _t(gem.name), awakened: gem.awakened ? ` ${_t('(각성 후보)')}` : '' }));
         else addLog(_t("🟢 보조스킬룬 <span class='loot-rare'>[{name}]</span> 획득! (해금: {supportTierLabel})", { name: _t(gem.name), supportTierLabel: getSupportTierLabel(gem.name,gem.tier) }));
     }
     window.addEventListener('project-idle:currency-acquired',announce);
