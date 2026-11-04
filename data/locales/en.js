@@ -8696,7 +8696,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '그루터기 함에서 칸을 고르고 [접붙이기]로 강화합니다. n단계에 n점(최대 {maxRank}단계), ': 'Choose a cell in the Stump Box and enhance it with [Grafting]. Stage n costs n points (max stage {maxRank}),',
         '{STUMP_LOG_ICONS} 그루터기 함: {name} 획득': '{STUMP_LOG_ICONS} Stump Box: obtained {name}',
         '🌱 그루터기 함 보관함이 가득 차 {name} 거름이 됐습니다(성장 중인 {fed}개 경험치 +{growth}).': '🌱 Stump Box storage is full, so {name} became compost ({fed} growing items experience +{growth}).',
-        '🌱 그루터기 함 보관함이 가득 찼고 그루터기 함에 성장 중인 그루터기 아이템도 없어 {name} 놓쳤습니다.': '🌱 Stump Box storage is full and no stump item is growing in the box, so {name} was lost.',
+        '🌱 그루터기 함 보관함이 가득 찼습니다.': '🌱 Stump Box storage is full.',
         '[{name}] 깨어남': '[{name}] awakened',
         '깨어남': 'Awakened',
         '성장 완료': 'Fully grown',

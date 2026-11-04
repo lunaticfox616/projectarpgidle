@@ -44,7 +44,7 @@
     }
 
     async function fetchFile(path) {
-        const response = await fetch(path + '?v=20261027-stump-wood');
+        const response = await fetch(path + '?v=20261105-death');
         if (!response.ok) throw Error(`Audio fetch failed: ${response.status} ${path}`);
         return response;
     }
@@ -249,6 +249,10 @@
     document.addEventListener('keydown', unlock);
     window.addEventListener('project-idle:encounter-finished', event => {
         if (!event.detail?.background) playUiFeedbackSound('stageClear');
+    });
+    // 쓰러지는 소리(2026-11-05 Codex가 만든 긴 판, 낮은 두 번의 타격과 가라앉는 잔향): 화면이 까매지는 동안(js/defeat-fade-ui.js) 울린다
+    window.addEventListener('project-idle:player-defeated', event => {
+        if (!event.detail?.background) playUiFeedbackSound('playerDeath');
     });
     document.addEventListener('visibilitychange', () => {
         updateMasterGain();

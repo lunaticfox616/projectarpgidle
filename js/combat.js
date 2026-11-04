@@ -13370,8 +13370,16 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     game.playerHp = getPlayerHpCap(pStats);
     atlasRun.defeat(zone);
     startMoving(false);
+    holdAfterDefeat();
     updateStaticUI();
     queueImportantSave(160);
+}
+/** 쓰러진 뒤 화면이 까매졌다 밝아지는 동안(js/defeat-fade-ui.js) 주인공은 다시 놓인 자리에 서 있다(2026-11-05 사용자: "사망 시 바로
+ * 부활이 아니라 … 몇 초 뒤에 움직일 수 있게"). 이동 대기(moveTimer)로 잡으므로 귀환과 다른 지역 이동은 바로 된다. 방치 정산은 늘리지 않는다. */
+const DEFEAT_RECOVERY_SECONDS = 3;
+function holdAfterDefeat() {
+    if (game.isBackgroundCalculation) return;
+    game.moveTimer = game.moveTotalTime = Math.max(game.moveTimer || 0, DEFEAT_RECOVERY_SECONDS);
 }
 /** The content whose own rules a defeat in zone follows (a run by its id, else by its kind), or null for the experience penalty. */
 function getContentDefeat(zone) {

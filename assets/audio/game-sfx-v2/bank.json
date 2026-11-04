@@ -440,6 +440,18 @@
     "priority": 2,
     "enabled": true
   },
+  "playerDeath": {
+    "label": "플레이어 사망",
+    "files": [
+      "sounds-20261105/player-death.wav"
+    ],
+    "gain": 0.6,
+    "rate": 1,
+    "group": "playerDeath",
+    "cooldown": 2000,
+    "priority": 3,
+    "enabled": true
+  },
   "lootBurst": {
     "label": "보스 보상 한꺼번에 드롭",
     "rate": 1,

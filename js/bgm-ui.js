@@ -2,13 +2,17 @@
  * 1.4초 동안 겹쳐 넘긴다. 곡은 처음부터 한 번 울린 뒤 loopStart~loopEnd를 이음매 없이 되풀이한다(AudioBufferSourceNode의 loop).
  * 효과음과 같은 AudioContext(js/ui-audio.js, 첫 누름에 열린다)를 쓰되 효과음의 압축기는 거치지 않는다.
  * 보스가 쓰러진 뒤 8초는 보스 곡을 이어 보스마다 곡이 깜빡이지 않게 하고, 돌아온 지역 곡은 멈췄던 자리부터 다시 튼다.
+ * 그 자리를 떠나면(이동 시작: 다음 맵, 귀환, 쓰러진 뒤 다시 서기) 8초를 기다리지 않고 곧바로 새 자리의 곡으로 넘긴다(2026-11-05 사용자).
+ * 클리어 효과음과 쓰러지는 소리가 나는 동안은 곡을 절반 크기로 낮춘다(같은 날 사용자 "클리어 효과음 재생될 때 음악 약간 소리 작아지는 효과").
  * 푼 곡은 둘까지만 둔다(100초 곡 하나가 약 38MB). 소리는 게임 상태를 바꾸지 않는다. */
 (function () {
     'use strict';
     const root = 'assets/audio/bgm/';
     const FADE_SEC = 1.4, BOSS_HOLD_MS = 8000, CACHE_TRACKS = 2, LEVEL = 0.45, DEFAULT_VOLUME = 70;
+    /** 낮추는 크기(곡 크기의 몫)와 시간(ms): 클리어 효과음(2.1초), 쓰러지는 소리(1.8초). 다시 올라올 때는 0.4초쯤에 걸쳐 돌아온다. */
+    const DUCK_LEVEL = 0.5, DUCK_MS = Object.freeze({ clear: 2200, defeat: 2000 }), DUCK_RELEASE_MS = 1500;
     const buffers = new Map(), positions = new Map(), warned = new Set();
-    let output = null, current = null, loading = null, bossUntil = 0;
+    let output = null, current = null, loading = null, bossUntil = 0, duckUntil = 0;
 
     const volume = () => game.settings.bgmVolume ?? DEFAULT_VOLUME;
     const audible = () => game.settings.bgm !== false && volume() > 0 && !document.hidden;
@@ -94,7 +98,15 @@
     }
 
     function syncLevel(context) {
-        output.gain.setTargetAtTime(audible() ? LEVEL * volume() / 100 : 0, context.currentTime, 0.08);
+        const now = performance.now(), ducked = now < duckUntil, settle = ducked ? 0.05 : now - duckUntil < DUCK_RELEASE_MS ? 0.4 : 0.08;
+        output.gain.setTargetAtTime(audible() ? LEVEL * volume() / 100 * (ducked ? DUCK_LEVEL : 1) : 0, context.currentTime, settle);
+    }
+    /** 효과음이 나는 ms 동안 곡을 낮춘다(끝나면 다시 올린다). */
+    function duck(ms) {
+        duckUntil = Math.max(duckUntil, performance.now() + ms);
+        const relevel = () => { const context = playUiFeedbackSound.context(); if (context && output) syncLevel(context); };
+        relevel();
+        setTimeout(relevel, ms + 20);
     }
 
     function bgmTick() {
@@ -128,6 +140,11 @@
         if (event.target.matches?.('[data-bgm-volume]') && !startupOverlayActive) saveGame({ skipCloudSync: true });
     });
     document.addEventListener('visibilitychange', bgmTick);
+    const live = handler => event => { if (!event.detail?.background) handler(); };
+    window.addEventListener('project-idle:encounter-finished', live(() => duck(DUCK_MS.clear)));
+    window.addEventListener('project-idle:player-defeated', live(() => duck(DUCK_MS.defeat)));
+    // 이동을 시작하는 그 순간에는 아직 적 목록이 남아 있다(js/combat.js startMoving): 비운 뒤에 고른다
+    window.addEventListener('project-idle:movement-started', live(() => setTimeout(() => { bossUntil = 0; bgmTick(); }, 0)));
     window.addEventListener('project-idle:startup-visibility', syncVolumeControl);
     setInterval(bgmTick, 1000);
     // 설정에서 켜면 그 누름으로 소리 장치를 연다(효과음이 꺼져 있으면 아직 열리지 않았다). syncControls는 화면만 맞춘다(누름 없이 불러도 된다)
