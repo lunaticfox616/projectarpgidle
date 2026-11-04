@@ -11,7 +11,7 @@ const bagItemsUi = (() => {
         const lines = (core.lines || []).map(line => `<div class="tooltip-line">${escapeHTML(coreItems.describe(line))}</div>`).join('')
             + (core.perfect ? hint('한 계열의 네 줄이 모두 최대치입니다') : '');
         const worn = (game.equipment || {})[bagItems.CORE] === core;
-        return `<div class="tooltip-title" style="color:${getRarityColor(core.rarity || 'rare')}">[코어] ${escapeHTML(_t(core.name))}</div>${lines}${worn || !bagHints ? '' : hint('장비창의 코어 칸에 끼웁니다(두 번 누르거나 코어 칸에 끌어 놓기).')}`;
+        return `<div class="tooltip-title" style="color:${getRarityColor(core.rarity || 'rare')}">${_t('[코어] {name}', { name: escapeHTML(_t(core.name)) })}</div>${lines}${worn || !bagHints ? '' : hint('장비창의 코어 칸에 끼웁니다(두 번 누르거나 코어 칸에 끌어 놓기).')}`;
     }
     /** js/ui.js prepareItemTooltip: a jewel or a core draws its own card and the equipment tooltip stops. true when drawn. */
     function presentTooltip(context, event, item) {

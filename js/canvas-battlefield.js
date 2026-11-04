@@ -1819,7 +1819,7 @@ function drawLevelUpLabel(ctx, fx, pos) {
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
     ctx.strokeStyle = 'rgba(25,9,0,.92)';
-    const label = `레벨 ${fx.level || ''}`;
+    const label = _t('레벨 {level}', { level: fx.level || '' });
     const x = Math.round(pos.x), y = Math.round(pos.y);
     drawCrispCanvasText(ctx, label, x, y, 'strokeText');
     ctx.fillStyle = '#ffe9a8';
@@ -2714,7 +2714,7 @@ function getBattlefieldCaption() {
     if (game.woodsmanEntrancePending) return '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
     if (game.moveTimer > 0) return '';
     const left = getMapMonstersLeft();
-    return [getWorldTreeBarkEffect().on ? '세계수 껍질 구간' : '', left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : ''].filter(Boolean).join(', ');
+    return [getWorldTreeBarkEffect().on ? '세계수 껍질 구간' : '', left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? _t('몬스터 {left}마리 남음', { left }) : ''].filter(Boolean).join(', ');
 }
 
 // A monster's arrival: rings, a floor glow and, for a boss, rays (the values renderBattlefield drew inline until 2026-10-19).
@@ -2897,7 +2897,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         ctx.textAlign = 'center';
         drawCrispCanvasText(ctx, '전장을 준비하는 중...', width / 2, height / 2);
         ctx.restore();
-        document.getElementById('ui-battlefield-caption').innerText = '전장을 준비하는 중...';
+        document.getElementById('ui-battlefield-caption').innerText = _t('전장을 준비하는 중...');
         return;
     }
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
@@ -3349,7 +3349,7 @@ function drawBossAnnouncement(ctx, area, banner) {
 /** The band's small lines: element and standout defenses, the defenses on a line of their own when the screen is too narrow
  * for one (2026-10-19: with two of them the line was 371 px wide, wider than a 360 px phone). */
 function getBossBannerSubLines(ctx, boss, width) {
-    const head = [`${getElementLabel(boss.ele)} 속성 보스`], defenses = getEnemyDefenseHighlights(boss);
+    const head = [_t('{ele} 속성 보스', { ele: getElementLabel(boss.ele) })], defenses = getEnemyDefenseHighlights(boss);
     ctx.font = `12px ${battlePixelFont()}`;
     const one = [...head, ...defenses].join(', ');
     return !defenses.length || ctx.measureText(one).width <= width - 24 ? [one] : [head.join(', '), defenses.join(', ')];

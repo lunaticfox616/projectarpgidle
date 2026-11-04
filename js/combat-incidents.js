@@ -35,7 +35,7 @@ const combatIncidents = (() => {
     function note(kind) {
         const row = rule().records.find(([key]) => key === kind), first = !(((game.records || {}).incidents || {})[kind] > 0);
         recordIncident(kind, game);
-        if (first && row) tell(row[2] ? `숨은 사건을 찾았습니다. 「${row[1]}」` : `처음 만난 사건입니다. 「${row[1]}」`, row[2] ? 'chase' : 'reward', row[2]);
+        if (first && row) tell(row[2] ? _t('숨은 사건을 찾았습니다. 「{row}」', { row: row[1] }) : _t('처음 만난 사건입니다. 「{row}」', { row: row[1] }), row[2] ? 'chase' : 'reward', row[2]);
     }
     const often = () => colonyWards.incidentMul(game); // 사건 확률 배수: 고유 액막이 '사건을 부르는 방울'(js/colony-wards.js)
     let luckyAt = -Infinity;            // 마지막 행운의 숫자(전투 시각)
@@ -413,7 +413,7 @@ const combatIncidents = (() => {
         if (challenge || (!forced && draw('challenge', key) >= C.chance * often()) || !challengeRewards().length) return false;
         if (!run.packs.some(pack => pack.roomId === room.id && pack.aliveIds.length)) return false;
         challenge = { run, roomId: room.id, until: now + C.seconds * 1000, marks: C.marks.slice() };
-        addBattleFx('statusText', { text: `사냥 도전 ${C.seconds}초`, color: '#ff9f6b', duration: 900, bodyCue: true });
+        addBattleFx('statusText', { text: _t('사냥 도전 {seconds}초', { seconds: C.seconds }), color: '#ff9f6b', duration: 900, bodyCue: true });
         tell(_t('사냥 도전: {seconds}초 안에 이 방의 몬스터를 모두 쓰러뜨리세요.', { seconds: C.seconds }), 'reward');
         return true;
     }
@@ -425,7 +425,7 @@ const combatIncidents = (() => {
         if (run.packs.filter(pack => pack.roomId === challenge.roomId).every(pack => !pack.aliveIds.length)) return finishChallenge(true);
         if (now >= challenge.until) return finishChallenge(false);
         const left = Math.ceil((challenge.until - now) / 1000);
-        if (challenge.marks.length && left <= challenge.marks[0]) addBattleFx('statusText', { text: `${challenge.marks.shift()}초`, color: '#ffe9a0', duration: 600, bodyCue: true });
+        if (challenge.marks.length && left <= challenge.marks[0]) addBattleFx('statusText', { text: _t('{shift}초', { shift: challenge.marks.shift() }), color: '#ffe9a0', duration: 600, bodyCue: true });
     }
     /** 도전의 끝: 해냈으면 영웅의 칸에 picks번 고른 재화와 알림, 아니면 알림만. */
     function finishChallenge(won) {
@@ -438,7 +438,7 @@ const combatIncidents = (() => {
                 keepCurrencyDrop({ gx: hero.gx, gy: hero.gy }, currency, count);
             }
         });
-        addBattleFx('statusText', { text: '사냥 도전 성공', color: '#ff9f6b', duration: 900, bodyCue: true });
+        addBattleFx('statusText', { text: _t('사냥 도전 성공'), color: '#ff9f6b', duration: 900, bodyCue: true });
         tell(_t('사냥 도전을 해냈습니다.'), 'reward');
         note('challenge');
     }

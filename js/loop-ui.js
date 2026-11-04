@@ -26,7 +26,7 @@ const loopSettlementUi = {
         return `<section class="loop-settlement-story" data-loop-section="1">${this.storyHtml()}</section>
             <section class="loop-settlement-result" data-loop-section="2"><h2 aria-label="${_t('루프 {n} 달성', { n: loop + 1 })}">${_t('루프')} <span class="loop-settlement-count${this.rolledLoop === loop ? ' is-rolled' : ''}" data-loop-count aria-hidden="true"><span><b>${loop}</b><b>${loop + 1}</b></span></span> ${_t('달성')}</h2>
             <dl class="loop-settlement-stats"><div><dt>${_t('도달 레벨')}</dt><dd>${game.level}</dd></div><div><dt>${_t('처치')}</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>${_t('활동 시간')}</dt><dd>${time}</dd></div></dl>${worldTreeBarkUi.barkSettlementHtml()}
-            <div class="loop-settlement-next"><ul>${this.nextLoopLines(loop).map(row => `<li class="is-${row.kind}">${escapeHTML(row.text).replace(/\+\d+/g, gain => `<b>${gain}</b>`)}</li>`).join('')}</ul></div>
+            <div class="loop-settlement-next"><ul>${this.nextLoopLines(loop).map(row => `<li class="is-${row.kind}">${escapeHTML(_t(row.text)).replace(/\+\d+/g, gain => `<b>${gain}</b>`)}</li>`).join('')}</ul></div>
             <p class="loop-settlement-reset">${_t('루프 시 레벨, 장비 및 재화를 포함한 대부분의 진행도가 초기화됩니다.')}</p></section>
             <section class="loop-settlement-controls" data-loop-section="3">${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}</section>
             <button type="button" class="loop-settlement-continue" data-loop-continue>${_t('눌러서 계속')}</button>`;
@@ -57,7 +57,7 @@ const loopSettlementUi = {
     /** The loop's close (data/story-journal.js STORY_LOOP_MILESTONES.default): the narration only. Its woodsman line is not shown
      * (2026-10-27 사용자: 지금 이야기와 맞지 않는다); the story pack keeps the field. */
     storyHtml() {
-        return `<p>${STORY_LOOP_MILESTONES.default.narration.map(escapeHTML).join('<br>')}</p>`;
+        return `<p>${STORY_LOOP_MILESTONES.default.narration.map(line => escapeHTML(_t(line))).join('<br>')}</p>`;
     },
     /** A new loop's screen shows part 1 (all three with 자동 루프 진행 on: its countdown is in part 3); the same loop drawn again keeps
      * its step. */

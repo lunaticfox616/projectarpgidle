@@ -57,10 +57,24 @@ const i18n = (() => {
         const text = String(key);
         const entry = current.strings[text] ?? current.strings[sourceText(text)];   // '원문|문맥'에 번역이 없으면 원문의 번역
         if (entry === undefined) {
+            const numbered = translateNumbered(sourceText(text), params);
+            if (numbered !== null) return numbered;
             noteMissing(text);
             return interpolate(sourceText(text), params);
         }
         return interpolate(typeof entry === 'string' ? entry : pluralText(text, entry, params), params);
+    }
+
+    /** 숫자가 박힌 채 만들어진 글('혼돈 심화 21', '소행성 115', '지하계 30층'): 숫자를 {n}, {n2}, …로 바꾼 열쇠의 번역에 그 숫자를 되넣는다.
+     *  데이터가 만든 이름을 보여 주는 자리에서 쓰이며, 그런 열쇠가 팩에 없으면 null이다. */
+    function translateNumbered(text, params) {
+        if (!/\d/.test(text) || !/[가-힣]/.test(text)) return null;
+        const numbers = [];
+        const pattern = text.replace(/\d[\d,.]*/g, match => { numbers.push(match); return `{n${numbers.length === 1 ? '' : numbers.length}}`; });
+        const entry = current.strings[pattern];
+        if (typeof entry !== 'string') return null;
+        const values = Object.fromEntries(numbers.map((value, index) => [`n${index === 0 ? '' : index + 1}`, value]));
+        return interpolate(entry, params ? { ...values, ...params } : values);
     }
 
     /** 글 마디의 한국어 원문: 처음 볼 때 적어 두고, 그 뒤로는 그 원문을 현재 언어로 옮긴다(앞뒤 공백은 그대로). */

@@ -196,7 +196,7 @@ function buildI18nRuntime(search, extraEnglish) {
 }
 
 function testTranslationBehaviour() {
-    const plural = { '{count}개 남음|검사': { one: '{count} left', other: '{count} left (plural)' } };
+    const plural = { '{count}개 남음|검사': { one: '{count} left', other: '{count} left (plural)' }, '혼돈 심화 {n}': 'Chaos Depths {n}', '지하계 {n}/{n2}층': 'Underworld floor {n}/{n2}' };
     const run = buildI18nRuntime('', plural);
     const { i18n, _t } = run;
     assert.strictEqual(i18n.language, 'ko');
@@ -217,6 +217,9 @@ function testTranslationBehaviour() {
     assert.strictEqual(_t('{count}개 남음|검사', { count: 1 }), '1 left');
     assert.strictEqual(_t('{count}개 남음|검사', { count: 2 }), '2 left (plural)');
     assert.strictEqual(_t('없는 글|문맥', { x: 1 }), '없는 글', '번역이 없으면 한국어 원문(문맥을 떼고)');
+    assert.strictEqual(_t('혼돈 심화 21'), 'Chaos Depths 21', '숫자가 박힌 생성 이름은 {n} 열쇠의 번역에 숫자를 되넣는다');
+    assert.strictEqual(_t('지하계 3/1,000층'), 'Underworld floor 3/1,000', '둘째 숫자부터 {n2}, 쉼표 숫자도 통째로');
+    assert.strictEqual(_t('혼돈 심화 21|문맥'), 'Chaos Depths 21', '문맥을 뗀 뒤에도 숫자 열쇠를 찾는다');
     _t('없는 글|문맥');
     assert.deepStrictEqual(Array.from(i18n.missingKeys()), ['없는 글|문맥']);
     assert.strictEqual(run.warnings.length, 1, '없는 열쇠는 한 번만 알린다');
@@ -248,7 +251,10 @@ function testAppliedSettings() {
 
 // ── 원문 모으기(보고·표) ─────────────────────────────────────────────────────
 const NAME_PROPS = /\b(?:name|label|title|blindLabel|bossName)\s*:\s*(['"])((?:\\.|(?!\1).)*[가-힣](?:\\.|(?!\1).)*)\1/g;
-const DESC_PROPS = /\b(?:desc|description|uniqueEffect|note|text|hint|body|lore|flavor|tip|summary)\s*:\s*(['"])((?:\\.|(?!\1).)*[가-힣](?:\\.|(?!\1).)*)\1/g;
+const DESC_PROPS = /\b(?:desc|description|uniqueEffect|note|text|hint|body|lore|flavor|tip|summary|bark|loopBark|quote|intro|source|speaker|found|talentsText|wakeLine|spotLine|warrior|wanderer|archer|cleric|occultist|alchemist)\s*:\s*(['"])((?:\\.|(?!\1).)*[가-힣](?:\\.|(?!\1).)*)\1/g;
+/** 이야기 글 묶음(lines·narration·quotes 배열)의 원소. */
+const LINE_ARRAYS = /\b(?:lines|narration|quotes|verdicts)\s*:\s*(?:Object\.freeze\()?\[((?:[^\[\]]|\[[^\]]*\])*)\]/g;
+const QUOTED = /(['"])((?:\\.|(?!\1).)*[가-힣](?:\\.|(?!\1).)*)\1/g;
 
 function lineOf(text, index) { return text.slice(0, index).split('\n').length; }
 function snippet(text, index) {
@@ -273,6 +279,7 @@ function collectKeys(sources, options = {}) {
         }
         if (options.names) for (const match of text.matchAll(NAME_PROPS)) add(unescapeLiteral(match[2]), file, text, match.index);
         if (options.descs) for (const match of text.matchAll(DESC_PROPS)) add(unescapeLiteral(match[2]), file, text, match.index);
+        if (options.descs) for (const block of text.matchAll(LINE_ARRAYS)) for (const match of block[1].matchAll(QUOTED)) add(unescapeLiteral(match[2]), file, text, block.index + match.index);
     }
     return keys;
 }
@@ -312,8 +319,8 @@ function exportTable(code, pack, sources, staticKeys, argv) {
         rows.push({ key, [code]: pack.strings[key] || '', params: [...placeholders(key)], where: where.slice(0, 5) });
     }
     rows.sort((a, b) => a.where[0].localeCompare(b.where[0]));
-    fs.mkdirSync(path.dirname(path.join(ROOT, out)), { recursive: true });
-    fs.writeFileSync(path.join(ROOT, out), JSON.stringify(rows, null, 1) + '\n');
+    fs.mkdirSync(path.dirname(path.resolve(ROOT, out)), { recursive: true });
+    fs.writeFileSync(path.resolve(ROOT, out), JSON.stringify(rows, null, 1) + '\n');
     console.log(`${code}: 원문 ${rows.length}개를 ${out}에 썼다. ${code} 칸을 채운 뒤 --import ${code} ${out}`);
 }
 

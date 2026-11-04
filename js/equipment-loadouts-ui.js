@@ -17,8 +17,8 @@ function describeLoadoutPresetSlot(preset, inspection) {
     if (inspection.missing.length > 0) return describeLoadoutMissingWarning(inspection.missing);
     if (inspection.incompatible.length > 0) return `장착 불가: ${inspection.incompatible.map(row => row.name).join(', ')}`;
     if (inspection.runeReason) return inspection.runeReason;
-    if (inspection.applied) return `사용 중, 장비 ${inspection.count}부위`;
-    return `장비 ${inspection.count}부위, 누르면 세트 보기`;
+    if (inspection.applied) return _t('사용 중, 장비 {count}부위', { count: inspection.count });
+    return _t('장비 {count}부위, 누르면 세트 보기', { count: inspection.count });
 }
 
 /** A preset button shows its numeral; its title has the number, the name and describeLoadoutPresetSlot. */
@@ -37,8 +37,8 @@ function presetBlocked(inspection) {
 
 function runeRows(loadout) {
     const active = name => name ? [{ kind: 'active', name }] : [];
-    const summons = loadout.equippedSummonSkills.map(name => ({ kind: 'active', name, note: `소환 ×${loadout.summonSkillCounts[name]}` }));
-    const supports = loadout.equippedSupports.map(name => ({ kind: 'support', name, tier: loadout.supportTiers[name], note: `${loadout.supportTiers[name]}등급` }));
+    const summons = loadout.equippedSummonSkills.map(name => ({ kind: 'active', name, note: _t('소환 ×{summonSkillCounts}', { summonSkillCounts: loadout.summonSkillCounts[name] }) }));
+    const supports = loadout.equippedSupports.map(name => ({ kind: 'support', name, tier: loadout.supportTiers[name], note: _t('{supportTiers}등급', { supportTiers: loadout.supportTiers[name] }) }));
     return [['주 공격', active(loadout.activeSkill)], ['이동', active(loadout.mobilitySkill)], ['소환', summons], ['공용 보조', supports]];
 }
 
@@ -49,12 +49,12 @@ function renderEquipmentLoadoutPresetPanel() {
     let state = equipmentLoadoutRuntime.ensureState();
     let selected = state.selectedSlot;
     let preset = state.presets[selected];
-    let html = `<section class="equipment-preset-panel" aria-label="통합 빌드 세팅">
+    let html = `<section class="equipment-preset-panel" aria-label="${_t('통합 빌드 세팅')}">
         <div class="equipment-preset-row">${state.presets.map((row, index) => renderEquipmentLoadoutPresetSlot(row, index, selected)).join('')}
-            <button type="button" class="equipment-preset-save" onclick="equipmentLoadoutUi.save()" data-tip="현재 장비와 주 공격, 이동, 소환, 보조 등급을 ${selected + 1}번 빌드에 저장">저장</button>
-            <details class="eqw-more equipment-preset-more"><summary aria-label="세팅 관리">⋯</summary><div class="eqw-more-panel">
-                <button type="button" onclick="equipmentLoadoutUi.rename()" ${preset ? '' : 'disabled'}>이름 바꾸기</button>
-                <button type="button" onclick="equipmentLoadoutUi.clear()" ${preset ? '' : 'disabled'}>비우기</button></div></details>
+            <button type="button" class="equipment-preset-save" onclick="equipmentLoadoutUi.save()" data-tip="${_t('현재 장비와 주 공격, 이동, 소환, 보조 등급을 {value}번 빌드에 저장', { value: selected + 1 })}">${_t('저장')}</button>
+            <details class="eqw-more equipment-preset-more"><summary aria-label="${_t('세팅 관리')}">⋯</summary><div class="eqw-more-panel">
+                <button type="button" onclick="equipmentLoadoutUi.rename()" ${preset ? '' : 'disabled'}>${_t('이름 바꾸기')}</button>
+                <button type="button" onclick="equipmentLoadoutUi.clear()" ${preset ? '' : 'disabled'}>${_t('비우기')}</button></div></details>
         </div>
     </section>`;
     if (root.dataset.renderHtml === html) return;
@@ -82,10 +82,10 @@ function saveEquipmentLoadoutPresetFromUi() {
 
 function commitSave(index) {
     const previous = equipmentLoadoutRuntime.ensureState().presets[index];
-    const name = previous ? previous.name : `${game.activeSkill} 빌드`;
+    const name = previous ? previous.name : _t('{activeSkill} 빌드', { activeSkill: game.activeSkill });
     let result = equipmentLoadoutRuntime.save(index, name);
     if (!result.ok) return showFailure(result.reason);
-    actionNotice = `${LOADOUT_SLOT_NUMERALS[index]} ${result.preset.name}에 현재 빌드를 저장했습니다.`;
+    actionNotice = _t('{LOADOUT_SLOT_NUMERALS} {name}에 현재 빌드를 저장했습니다.', { LOADOUT_SLOT_NUMERALS: LOADOUT_SLOT_NUMERALS[index], name: result.preset.name });
     addLog(_t('🧰 빌드 세팅 [{name}] 저장, 장비 {count}부위와 룬, 보조 등급', { name: _t(result.preset.name), count: result.count }), 'season-up', { toast: true });
     if (typeof queueImportantSave === 'function') queueImportantSave(100);
     updateStaticUI();
@@ -95,7 +95,7 @@ function commitSave(index) {
 function commitApply(index) {
     let result = equipmentLoadoutRuntime.apply(index);
     if (!result.ok) return showFailure(result.reason);
-    actionNotice = `${LOADOUT_SLOT_NUMERALS[index]} ${result.preset.name} 불러오기 완료`;
+    actionNotice = _t('{LOADOUT_SLOT_NUMERALS} {name} 불러오기 완료', { LOADOUT_SLOT_NUMERALS: LOADOUT_SLOT_NUMERALS[index], name: result.preset.name });
     // 장착 슬롯을 제작 대상으로 선택한 상태에서 세팅을 바꾸면 같은 슬롯의 다른 장비가
     // 조용히 제작 대상이 될 수 있다. 성공한 전환에서만 선택을 명시적으로 해제한다.
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
@@ -108,7 +108,7 @@ function commitApply(index) {
 }
 
 function showFailure(reason) {
-    actionNotice = `바꾸거나 저장할 수 없습니다: ${reason}`;
+    actionNotice = _t('바꾸거나 저장할 수 없습니다: {reason}', { reason });
     addLog(actionNotice, 'attack-monster');
     renderEquipmentLoadoutPresetPanel();
     return false;
@@ -123,9 +123,9 @@ function currentBuild() {
 }
 
 function renderSetNavigation(state) {
-    return `<nav class="build-set-tabs" aria-label="빌드 세트 선택"><button type="button" data-build-view="current" aria-pressed="${review.view === 'current'}">현재 착용</button>
+    return `<nav class="build-set-tabs" aria-label="${_t('빌드 세트 선택')}"><button type="button" data-build-view="current" aria-pressed="${review.view === 'current'}">${_t('현재 착용')}</button>
         ${state.presets.map((preset, slot) => `<button type="button" data-build-slot="${slot}" data-build-view="${slot}" aria-pressed="${review.view === String(slot)}">
-        ${LOADOUT_SLOT_NUMERALS[slot]}${preset ? ' 세트' : ', 빈 칸'}</button>`).join('')}</nav>`;
+        ${LOADOUT_SLOT_NUMERALS[slot]}${preset ? _t(' 세트') : _t(', 빈 칸')}</button>`).join('')}</nav>`;
 }
 
 function renderSetGear(preset, side) {
@@ -134,20 +134,20 @@ function renderSetGear(preset, side) {
     if (preset.slots['코어'] || contentProgression.isUnlocked('cube')) slots.push('코어');
     const classes = `${slots.includes('반지3') ? ' has-ring3' : ''}${slots.includes('코어') ? ' has-core' : ''}`;
     const wards = equipmentLoadoutRuntime.slots.filter(slot => slot.startsWith('액막이'));
-    return `<section class="build-set-gear"><h3>장비 <small>${count}부위</small></h3><div class="equipment-paperdoll build-set-paperdoll${classes}">
+    return `<section class="build-set-gear"><h3>${_t('장비')} <small>${_t('{count}부위', { count })}</small></h3><div class="equipment-paperdoll build-set-paperdoll${classes}">
         ${slots.map(slot => renderGearChoice(preset.slots[slot], slot, side)).join('')}</div>
-        <h4 class="build-set-wards-heading">액막이</h4><div class="build-set-wards">${wards.map(slot => renderGearChoice(preset.slots[slot], slot, side)).join('')}</div></section>`;
+        <h4 class="build-set-wards-heading">${_t('액막이')}</h4><div class="build-set-wards">${wards.map(slot => renderGearChoice(preset.slots[slot], slot, side)).join('')}</div></section>`;
 }
 
 function renderSetRunes(loadout, side) {
     if (!loadout) return '<div class="build-set-legacy"><b>장비 전용 세트</b><p>장비만 불러오고 지금 끼운 스킬룬은 그대로 둡니다.</p><small>다시 저장하면 스킬룬도 함께 저장됩니다.</small></div>';
     if (loadout.invalidReason) return '<p class="build-review-warning">룬 기록을 읽을 수 없습니다. 다시 저장해 주세요.</p>';
-    return `<section class="build-set-runes"><h3>스킬룬</h3><div class="build-set-rune-groups">${runeRows(loadout).map(([label, choices], index) =>
+    return `<section class="build-set-runes"><h3>${_t('스킬룬')}</h3><div class="build-set-rune-groups">${runeRows(loadout).map(([label, choices], index) =>
         `<section class="build-set-rune-group${index < 2 ? ' is-primary' : ''}"><h4>${label}</h4><div class="build-set-rune-grid">${renderRuneChoices(choices, side)}</div></section>`).join('')}</div></section>`;
 }
 
 function renderSavedSet(preset, slot) {
-    const label = `${LOADOUT_SLOT_NUMERALS[slot]} ${preset?.name || '빈 세트'}`;
+    const label = `${LOADOUT_SLOT_NUMERALS[slot]} ${preset?.name || _t('빈 세트')}`;
     const inspection = equipmentLoadoutRuntime.inspect(slot);
     const status = !preset ? '빈 저장칸' : inspection.applied ? '착용 중' : '저장된 빌드';
     const contents = preset ? renderSetGear(preset, label) + renderSetRunes(preset.runeLoadout, label)
@@ -159,14 +159,14 @@ function renderSavedSet(preset, slot) {
 
 function renderSets(state, index, current) {
     if (review.view !== 'current') return renderSavedSet(state.presets[index], index);
-    return `<article class="build-set-card is-current" data-build-set="current" aria-label="현재 착용 세트">
-        <header class="build-set-heading"><b>현재 착용 세트</b><small>${escapeHTML(current.runeLoadout.activeSkill)}</small></header>
+    return `<article class="build-set-card is-current" data-build-set="current" aria-label="${_t('현재 착용 세트')}">
+        <header class="build-set-heading"><b>${_t('현재 착용 세트')}</b><small>${escapeHTML(current.runeLoadout.activeSkill)}</small></header>
         <div class="build-set-contents">${renderSetGear(current, '현재 장착')}${renderSetRunes(current.runeLoadout, '현재 장착')}</div></article>`;
 }
 
 /** Saved references resolve by identity, never by name. Missing gear cannot borrow another item's options. */
 function renderGearChoice(reference, slot, side) {
-    if (!reference) return `<span class="build-set-gear-empty slot-${slot}" aria-label="${escapeHTML(slot)} 빈 칸"><i aria-hidden="true">-</i><small>${slot === '방패' ? '완갑/보조' : escapeHTML(slot)}</small></span>`;
+    if (!reference) return `<span class="build-set-gear-empty slot-${slot}" aria-label="${_t('{slot} 빈 칸', { slot: escapeHTML(slot) })}"><i aria-hidden="true">-</i><small>${slot === '방패' ? _t('완갑/보조') : escapeHTML(slot)}</small></span>`;
     const item = side === '현재 장착' ? game.equipment[slot] : review.items.get(reference.instanceId);
     const detail = { kind: 'gear', name: item?.name || reference.name, item, slot, side };
     const icon = item ? renderInventoryItemVisual(item, 'equipment', 'build-review-art') : '<span aria-hidden="true">?</span>';
@@ -191,33 +191,33 @@ function renderChoice(detail, icon, note, tone) {
     const key = review.details.push(detail) - 1;
     const classes = detail.kind === 'gear' ? `build-review-gear slot-${detail.slot}` : `build-review-rune ${detail.colorClass}`;
     return `<button type="button" class="build-review-asset ${classes}" style="--build-tone:${tone}" data-build-detail="${key}" data-info-tooltip-anchor="1"
-        aria-label="${escapeHTML(`${detail.side}, ${detail.name}, ${note}, 상세 보기`)}" aria-haspopup="dialog">
+        aria-label="${escapeHTML(_t('{side}, {name}, {note}, 상세 보기', { side: detail.side, name: detail.name, note }))}" aria-haspopup="dialog">
         <span class="build-review-icon" aria-hidden="true">${icon}</span><span class="build-review-copy"><b>${escapeHTML(_t(detail.name))}</b>${note ? `<small>${escapeHTML(note)}</small>` : ''}</span></button>`;
 }
 
 function renderReviewIntent(mode, index, preset) {
-    const target = `${LOADOUT_SLOT_NUMERALS[index]} ${preset?.name || '빈 저장칸'}`;
-    const direction = mode === 'save' ? `현재 빌드 → ${target}에 저장` : `${target} → 현재 빌드로 불러오기`;
+    const target = `${LOADOUT_SLOT_NUMERALS[index]} ${preset?.name || _t('빈 저장칸')}`;
+    const direction = mode === 'save' ? _t('현재 빌드 → {target}에 저장', { target }) : _t('{target} → 현재 빌드로 불러오기', { target });
     const scope = mode === 'load' && preset && !preset.runeLoadout ? '장비만 불러오고 지금 끼운 스킬룬은 그대로 둡니다. 새 장비에 맞지 않는 룬은 쉬거나 빠집니다.' : '장비, 주 공격, 이동, 소환룬과 수, 보조룬과 선택 등급';
     return `<div class="build-review-intent"><b>${escapeHTML(direction)}</b><p>${scope}</p></div>`;
 }
 
 function renderReviewActions(mode, index, preset, applied) {
     const numeral = LOADOUT_SLOT_NUMERALS[index];
-    const action = mode === 'save' ? `${numeral}에 ${preset ? '덮어쓰기' : '새 빌드 저장'}` : `${numeral} 빌드 불러오기`;
+    const action = mode === 'save' ? _t('{numeral}에 {value}', { numeral, value: preset ? _t('덮어쓰기') : _t('새 빌드 저장') }) : _t('{numeral} 빌드 불러오기', { numeral });
     const disabled = mode === 'load' && (!preset || applied);
-    return `<div class="build-review-actions"><button type="button" data-build-mode="${mode === 'save' ? 'load' : 'save'}">${mode === 'save' ? '불러오기로 전환' : '이 칸에 현재 빌드 저장…'}</button>
+    return `<div class="build-review-actions"><button type="button" data-build-mode="${mode === 'save' ? 'load' : 'save'}">${mode === 'save' ? _t('불러오기로 전환') : _t('이 칸에 현재 빌드 저장…')}</button>
         <button type="button" data-build-confirm ${disabled ? 'disabled' : ''}>${action}</button></div>`;
 }
 
 function renderReviewBody(mode, index, state, current, notice) {
     const preset = state.presets[index], inspection = equipmentLoadoutRuntime.inspect(index);
     const warning = notice || (presetBlocked(inspection) ? describeLoadoutPresetSlot(preset, inspection) : '');
-    return `${renderSetNavigation(state)}<p class="build-review-help">아이콘에 마우스를 올리면 상세, 누르면 크게 봅니다.</p>
+    return `${renderSetNavigation(state)}<p class="build-review-help">${_t('아이콘에 마우스를 올리면 상세, 누르면 크게 봅니다.')}</p>
         ${warning ? `<p class="build-review-warning" role="status">${escapeHTML(warning)}</p>` : ''}
         ${renderSets(state, index, current)}<div class="build-review-footer">${renderReviewIntent(mode, index, preset)}
         ${renderReviewActions(mode, index, preset, inspection.applied)}</div>
-        <p class="build-review-note">룬 레벨, 경험치, 해금, 패시브는 저장하거나 되돌리지 않습니다.</p>`;
+        <p class="build-review-note">${_t('룬 레벨, 경험치, 해금, 패시브는 저장하거나 되돌리지 않습니다.')}</p>`;
 }
 
 function openReview(mode, index, notice = '', view = mode === 'save' ? 'current' : String(index)) {
@@ -250,11 +250,11 @@ function onReviewAction(event) {
 function supportDetails(detail) {
     const { name, tier } = detail, stats = getUiPlayerStats();
     const info = getUiGemPresentation(name, true, stats), def = SUPPORT_GEM_DB[name];
-    return `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">${escapeHTML(info.desc || def.desc)}</div>
-        <div class="tooltip-line build-detail-tier">선택 등급: ${tier}등급, ${escapeHTML(getSupportTierLabel(name, tier))}</div>
+    return `<div class="tooltip-title">${escapeHTML(name)}</div><div class="tooltip-line">${escapeHTML(_t(info.desc) || def.desc)}</div>
+        <div class="tooltip-line build-detail-tier">${_t('선택 등급: {tier}등급, {name}', { tier, name: escapeHTML(getSupportTierLabel(name, tier)) })}</div>
         <div class="tooltip-line">${statToneText.html(gemSelectionUi.effectText(name, tier, stats))}</div>
-        ${def.tradeoff ? `<div class="tooltip-line">대가: ${escapeHTML(def.tradeoff)}</div>` : ''}
-        <div class="tooltip-line">공명력 ${getSupportResonanceCostAtTier(name, tier)}, 현재 룬 Lv.${formatValue('', info.totalLevel)}</div>
+        ${def.tradeoff ? `<div class="tooltip-line">${_t('대가: {tradeoff}', { tradeoff: escapeHTML(def.tradeoff) })}</div>` : ''}
+        <div class="tooltip-line">${_t('공명력 {name}, 현재 룬 Lv.{value}', { name: getSupportResonanceCostAtTier(name, tier), value: formatValue('', info.totalLevel) })}</div>
         <div class="gem-card-tags gem-tooltip-tags">${renderGemTagChips(def, (def.tags || []).length)}</div>`;
 }
 
@@ -263,19 +263,19 @@ function choiceDetails(detail) {
     const holder = document.createElement('div');
     if (detail.kind === 'gear') {
         if (detail.item) showItemTooltip(null, detail.slot, detail.side === '현재 장착', detail.item, { target: holder });
-        else holder.textContent = `${detail.name}: 보유하지 않은 장비입니다. 옵션 정보를 확인할 수 없습니다.`;
+        else holder.textContent = _t('{name}: 보유하지 않은 장비입니다. 옵션 정보를 확인할 수 없습니다.', { name: detail.name });
     } else if (detail.kind === 'support') holder.innerHTML = supportDetails(detail);
     else showGemTooltip(null, 'active', detail.name, holder);
     const gearBasis = detail.item ? '보유 장비의 현재 옵션' : '저장된 이름만 표시합니다.';
     const basis = detail.kind === 'gear' ? gearBasis : '룬 수치는 현재 레벨과 능력치 기준';
-    return `<p class="build-detail-context">${escapeHTML(detail.side)}${detail.note ? `, ${escapeHTML(detail.note)}` : ''}</p>${holder.innerHTML}
+    return `<p class="build-detail-context">${escapeHTML(detail.side)}${detail.note ? `, ${escapeHTML(_t(detail.note))}` : ''}</p>${holder.innerHTML}
         <p class="build-review-note">${basis}</p>`;
 }
 
 function openChoiceDetails(button) {
     const detail = review.details[Number(button.dataset.buildDetail)];
     if (!detail) return;
-    selectionDialog.show({ id: 'equipment-build-detail', title: '빌드 구성 상세 정보', panelClass: 'build-preset-detail', body: choiceDetails(detail) });
+    selectionDialog.show({ id: 'equipment-build-detail', title: _t('빌드 구성 상세 정보'), panelClass: 'build-preset-detail', body: choiceDetails(detail) });
 }
 
 let hintButton = null;
@@ -329,7 +329,7 @@ async function renameEquipmentLoadoutPresetFromUi() {
     let preset = state.presets[state.selectedSlot];
     if (!preset) return false;
     let name = await requestGameText('빌드 세팅 이름을 입력하세요.', {
-        title: '빌드 세팅 이름', value: preset.name, maxlength: 18, confirmLabel: '변경'
+        title: _t('빌드 세팅 이름'), value: preset.name, maxlength: 18, confirmLabel: _t('변경')
     });
     if (!name || !equipmentLoadoutRuntime.rename(state.selectedSlot, name)) return false;
     if (typeof queueImportantSave === 'function') queueImportantSave(100);
@@ -340,8 +340,8 @@ async function renameEquipmentLoadoutPresetFromUi() {
 async function clearEquipmentLoadoutPresetFromUi() {
     let state = equipmentLoadoutRuntime.ensureState();
     let preset = state.presets[state.selectedSlot];
-    if (!preset || !await requestGameConfirmation(`[${preset.name}] 빌드 기록을 비웁니다. 보유 장비와 룬은 사라지지 않습니다.`, {
-        title: '빌드 세팅 비우기', tone: 'danger', confirmLabel: '기록 비우기'
+    if (!preset || !await requestGameConfirmation(_t('[{name}] 빌드 기록을 비웁니다. 보유 장비와 룬은 사라지지 않습니다.', { name: preset.name }), {
+        title: _t('빌드 세팅 비우기'), tone: 'danger', confirmLabel: _t('기록 비우기')
     })) return false;
     equipmentLoadoutRuntime.clear(state.selectedSlot);
     actionNotice = '';

@@ -52,8 +52,8 @@ const marketUi = {
         const quote = getMarketExchangeQuote(recipe, this.quantity), owner = game, busy = shopView.busyReason();
         if (busy || !quote.valid) return addLog(busy || '교환 가능한 수량을 입력하세요.', 'attack-monster');
         const from = _t(ORB_DB[recipe.from].name), to = _t(ORB_DB[recipe.to].name);
-        if (quote.times > 1 && !await requestGameConfirmation(`${from} ${quote.spend.toLocaleString()}개를 ${to} ${quote.gain.toLocaleString()}개로 교환하시겠습니까?`,
-            { title: '재화 교환', tone: 'danger', confirmLabel: '교환' })) return;
+        if (quote.times > 1 && !await requestGameConfirmation(_t('{from} {spend}개를 {to} {gain}개로 교환하시겠습니까?', { from, spend: quote.spend.toLocaleString(), to, gain: quote.gain.toLocaleString() }),
+            { title: _t('재화 교환'), tone: 'danger', confirmLabel: _t('교환') })) return;
         const changed = shopView.busyReason() || (game !== owner ? '확인하는 사이 게임 상태가 바뀌어 교환을 취소했습니다.' : '');
         if (changed) return addLog(changed, 'attack-monster');
         const result = exchangeAtMarket(recipe.id, quote.times, game);
@@ -74,24 +74,24 @@ const marketUi = {
     },
     targets(targets, recipe) {
         if (uiDisplay.matches('(max-width: 1080px)')) {
-            return `<label class="market-mobile-target">받을 재화<select aria-label="받을 재화" onchange="marketUi.select('to',this.value)">${targets.map(key => `<option value="${key}" ${key === recipe.to ? 'selected' : ''}>${_t(ORB_DB[key].name)}</option>`).join('')}</select></label>`;
+            return `<label class="market-mobile-target">${_t('받을 재화')}<select aria-label="${_t('받을 재화')}" onchange="marketUi.select('to',this.value)">${targets.map(key => `<option value="${key}" ${key === recipe.to ? 'selected' : ''}>${_t(ORB_DB[key].name)}</option>`).join('')}</select></label>`;
         }
         const choices = targets.map(key => `<button type="button" data-market-to="${key}" aria-pressed="${key === recipe.to}"
-            onclick="marketUi.select('to','${key}')">${this.icon(key)}<span>${_t(ORB_DB[key].name)}<small>보유 <b data-market-owned="${key}"></b></small></span></button>`).join('');
-        return `<div class="market-targets"><h3>받을 재화</h3><div class="market-target-list">${choices}</div></div>`;
+            onclick="marketUi.select('to','${key}')">${this.icon(key)}<span>${_t(ORB_DB[key].name)}<small>${_t('보유')} <b data-market-owned="${key}"></b></small></span></button>`).join('');
+        return `<div class="market-targets"><h3>${_t('받을 재화')}</h3><div class="market-target-list">${choices}</div></div>`;
     },
     renderExchange() {
         const host = document.getElementById('ui-market-exchange-list'), recipe = this.recipe();
         if (!recipe) return this.mount(host, '<p class="market-meta">현재 교환할 수 있는 재화가 없습니다.</p>');
         const rows = MARKET_EXCHANGES;
         const targets = [...new Set(rows.map(row => row.to))];
-        const sources = rows.filter(row => row.to === recipe.to).map(row => `<option value="${row.id}" ${row.id === recipe.id ? 'selected' : ''}>${_t(ORB_DB[row.from].name)} ${row.need}개 → ${row.gain}개</option>`).join('');
+        const sources = rows.filter(row => row.to === recipe.to).map(row => `<option value="${row.id}" ${row.id === recipe.id ? 'selected' : ''}>${_t('{name} {need}개 → {gain}개', { name: _t(ORB_DB[row.from].name), need: row.need, gain: row.gain })}</option>`).join('');
         this.mount(host, `<div class="market-exchange-workspace">${this.targets(targets, recipe)}
-            <div class="market-exchange-detail"><div class="market-selected-currency">${this.icon(recipe.to)}<div><small>보유 <b data-market-owned="${recipe.to}"></b></small><h3>${_t(ORB_DB[recipe.to].name)}</h3><p>${escapeHTML(ORB_DB[recipe.to].desc)}</p></div></div>
-            <label class="market-source-label">지불할 재화<select id="ui-market-exchange-from" onchange="marketUi.select('recipe',this.value)">${sources}</select></label>
-            <div class="market-quantity"><label>교환 횟수<input id="ui-market-quantity" type="number" min="1" step="1" value="1" oninput="marketUi.amount(this.value)"></label><button type="button" data-market-max onclick="marketUi.amount('max')">최대</button></div>
+            <div class="market-exchange-detail"><div class="market-selected-currency">${this.icon(recipe.to)}<div><small>${_t('보유')} <b data-market-owned="${recipe.to}"></b></small><h3>${_t(ORB_DB[recipe.to].name)}</h3><p>${escapeHTML(_t(ORB_DB[recipe.to].desc))}</p></div></div>
+            <label class="market-source-label">${_t('지불할 재화')}<select id="ui-market-exchange-from" onchange="marketUi.select('recipe',this.value)">${sources}</select></label>
+            <div class="market-quantity"><label>${_t('교환 횟수')}<input id="ui-market-quantity" type="number" min="1" step="1" value="1" oninput="marketUi.amount(this.value)"></label><button type="button" data-market-max onclick="marketUi.amount('max')">${_t('최대')}</button></div>
             <div class="market-exchange-quote" aria-live="polite" id="ui-market-quote"></div>
-            <button type="button" class="market-confirm" data-market-exchange-once onclick="marketUi.exchange()">교환</button></div></div>`);
+            <button type="button" class="market-confirm" data-market-exchange-once onclick="marketUi.exchange()">${_t('교환')}</button></div></div>`);
         for (const el of host.querySelectorAll('[data-market-owned]')) el.textContent = (game.currencies[el.dataset.marketOwned] || 0).toLocaleString();
         this.renderQuote(recipe);
     },
@@ -101,9 +101,9 @@ const marketUi = {
         if (document.activeElement !== input) input.value = String(this.quantity);
         input.max = String(max);input.setAttribute('aria-invalid', String(!valid));
         const from = _t(ORB_DB[recipe.from].name), to = _t(ORB_DB[recipe.to].name);
-        document.getElementById('ui-market-quote').innerHTML = `<div><span>소모</span><strong>${from} ${spend.toLocaleString()}</strong></div>
-            <div><span>획득</span><strong>${to} ${gain.toLocaleString()}</strong></div>
-            <p>${valid ? `교환 후 ${from} ${afterFrom.toLocaleString()}개, ${to} ${afterTo.toLocaleString()}개` : `${from} ${have.toLocaleString()}개 보유, ${max > 0 ? `1~${max}회 입력 가능` : `${recipe.need}개부터 교환 가능`}`}</p>`;
+        document.getElementById('ui-market-quote').innerHTML = `<div><span>${_t('소모')}</span><strong>${from} ${spend.toLocaleString()}</strong></div>
+            <div><span>${_t('획득')}</span><strong>${to} ${gain.toLocaleString()}</strong></div>
+            <p>${valid ? _t('교환 후 {from} {afterFrom}개, {to} {afterTo}개', { from, afterFrom: afterFrom.toLocaleString(), to, afterTo: afterTo.toLocaleString() }) : `${from} ${have.toLocaleString()}개 보유, ${max > 0 ? _t('1~{max}회 입력 가능', { max }) : _t('{need}개부터 교환 가능', { need: recipe.need })}`}</p>`;
         const button = document.querySelector('[data-market-exchange-once]');
         button.disabled = !valid;
         document.querySelector('[data-market-max]').disabled = max < 1;

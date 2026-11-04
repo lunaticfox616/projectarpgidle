@@ -99,7 +99,7 @@ const tutorialActionUi = {
         this.ensureCard();
         this.card.hidden = false;
         this.card.classList.remove('is-away');
-        this.card.querySelector('strong').textContent = guide.title;
+        this.card.querySelector('strong').textContent = _t(guide.title);
         // ‘장착’ 같은 단추 이름은 안내 판처럼 색 글씨로(도트 글꼴의 ’가 전각이라 "‘장착’ 을"처럼 띄어 보였다).
         this.card.querySelector('p').innerHTML = tutorialMarkup(guide.body);
         this.rest();
@@ -111,7 +111,7 @@ const tutorialActionUi = {
         const card = document.createElement('aside');
         card.id = 'tutorial-action-card';
         card.className = 'tutorial-action-card';
-        card.setAttribute('aria-label', '플레이 안내');
+        card.setAttribute('aria-label', _t('플레이 안내'));
         card.innerHTML = '<strong></strong><p id="tutorial-action-description"></p><div><button type="button" data-open>화면 보기</button><button type="button" data-skip>안내 닫기</button></div>';
         card.querySelector('[data-open]').addEventListener('click', () => this.openTarget());
         card.querySelector('[data-skip]').addEventListener('click', () => this.finish(false));
@@ -383,7 +383,7 @@ function tutorialOpenLabel(notice) {
     if (tutorialActionUi.guideFor(notice.key)) return '따라 해보기';
     if (notice.openLabel) return notice.openLabel;
     const name = TUTORIAL_TAB_NAMES[notice.tabId];
-    return name ? `${name} 열기` : '화면 열기';
+    return name ? _t('{name} 열기', { name }) : '화면 열기';
 }
 /** "○○ 열기": an unlock card opens its exact screen (sub-tab, explore list, section); other cards open their tab. */
 function openTutorialTarget(notice) {
@@ -413,7 +413,7 @@ function syncTutorialQueueCount() {
     if (!count) return;
     const waiting = tutorialQueue.filter(tutorialNoticeAllowed).length;
     count.hidden = waiting === 0;
-    count.textContent = waiting ? `다음 안내 ${waiting}` : '';
+    count.textContent = waiting ? _t('다음 안내 {waiting}', { waiting }) : '';
 }
 
 function renderTutorialStep() {
@@ -422,14 +422,14 @@ function renderTutorialStep() {
     const kind = tutorialNoticeKind(activeTutorial), overlay = document.getElementById('tutorial-overlay');
     if (overlay.dataset) overlay.dataset.noticeKind = kind;
     document.getElementById('tutorial-kicker').innerText = TUTORIAL_KIND_LABELS[kind];
-    document.getElementById('tutorial-title').innerText = activeTutorial.title;
+    document.getElementById('tutorial-title').innerText = _t(activeTutorial.title);
     syncTutorialQueueCount();
     let pauseEnabled = game.settings.pauseGameOnOverlay !== false;
     let pauseControl = activeTutorial.key === 'tutorial_battle_basics' ? `
         <label class="cfg-toggle tutorial-pause-toggle">
             <input type="checkbox" id="tutorial-pause-overlay-toggle" ${pauseEnabled ? 'checked' : ''}>
-            <span class="cfg-label"><b>안내 중 전투 일시 정지</b><small>이후 ${settingsMenuPath()}에서 언제든 변경할 수 있습니다.</small></span>
-            <strong id="tutorial-pause-overlay-status">${pauseEnabled ? '켜짐' : '꺼짐'}</strong>
+            <span class="cfg-label"><b>${_t('안내 중 전투 일시 정지')}</b><small>${_t('이후 {settingsMenuPath}에서 언제든 변경할 수 있습니다.', { settingsMenuPath: settingsMenuPath() })}</small></span>
+            <strong id="tutorial-pause-overlay-status">${pauseEnabled ? _t('켜짐') : _t('꺼짐')}</strong>
         </label>` : '';
     // 본문은 줄바꿈을 살려 보이므로(pre-line) 템플릿 앞의 줄바꿈이 빈 줄이 되지 않게 다듬는다.
     document.getElementById('tutorial-body').innerHTML = tutorialActionUi.noticeBody(activeTutorial, pauseControl);
@@ -442,7 +442,7 @@ function renderTutorialStep() {
             let settingsToggle = document.getElementById('chk-pause-overlay');
             let status = document.getElementById('tutorial-pause-overlay-status');
             if (settingsToggle) settingsToggle.checked = enabled;
-            if (status) status.innerText = enabled ? '켜짐' : '꺼짐';
+            if (status) status.innerText = enabled ? _t('켜짐') : _t('꺼짐');
             if (typeof queueImportantSave === 'function') queueImportantSave(0);
         });
     }
@@ -451,7 +451,7 @@ function renderTutorialStep() {
     const dismissButton = document.getElementById('tutorial-dismiss-btn');
     openButton.style.display = hasShortcut ? 'inline-block' : 'none';
     openButton.innerHTML = `<span class="px-center">${escapeHTML(tutorialOpenLabel(activeTutorial))}</span>`;
-    dismissButton.innerText = '확인';
+    dismissButton.innerText = _t('확인');
 }
 
 /** A guide card waits while the act title card is on screen (a story scene does not: the title card waits for it). */

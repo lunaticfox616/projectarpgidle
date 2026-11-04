@@ -5,9 +5,9 @@
 /** Efficiency from outside the 강화 steps, one row per source that gives any: {key, label, rate}. */
 function getOfflineEfficiencySources(state) {
     let rows = [
-        { key: 'epoch', label: '고요한 시대', rate: typeof atlasEpoch === 'object' && state.atlas && state.atlas.epoch ? atlasEpoch.offline(state) : 0 },
-        { key: 'mastery', label: '무기 숙련', rate: typeof weaponMastery === 'object' ? weaponMastery.offline(state) : 0 },
-        { key: 'chronicle', label: '세계수 연대기', rate: typeof chronicle === 'object' ? chronicle.offline(state) : 0 }
+        { key: 'epoch', label: _t('고요한 시대'), rate: typeof atlasEpoch === 'object' && state.atlas && state.atlas.epoch ? atlasEpoch.offline(state) : 0 },
+        { key: 'mastery', label: _t('무기 숙련'), rate: typeof weaponMastery === 'object' ? weaponMastery.offline(state) : 0 },
+        { key: 'chronicle', label: _t('세계수 연대기'), rate: typeof chronicle === 'object' ? chronicle.offline(state) : 0 }
     ];
     return rows.filter(row => row.rate > 0);
 }

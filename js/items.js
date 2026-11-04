@@ -445,7 +445,7 @@ function toggleItemLockById(itemId) {
         return false;
     }
     item.locked = !item.locked;
-    addLog(`${item.locked ? '🔒 잠금' : '🔓 잠금 해제'}: [${item.name}]`, 'loot-normal');
+    addLog(`${item.locked ? _t('🔒 잠금') : _t('🔓 잠금 해제')}: [${item.name}]`, 'loot-normal');
     updateStaticUI();
     return true;
 }
@@ -543,7 +543,7 @@ function getTimeRiftFutureEntryReason(rift) {
 function getTimeRiftFusionMismatchReason(altarItem, candidate) {
     if (!altarItem || !candidate) return '제단에 고유 1개/희귀 1개가 필요합니다.';
     if (String(altarItem.slot || '') !== String(candidate.slot || '')) {
-        return `부위 불일치 (${altarItem.slot} / ${candidate.slot}), 같은 부위로 맞춰주세요.`;
+        return _t('부위 불일치 ({slot} / {slot2}), 같은 부위로 맞춰주세요.', { slot: altarItem.slot, slot2: candidate.slot });
     }
     return null;
 }
@@ -952,7 +952,7 @@ function upgradeSelectedItemBase() {
     if (bodyEl) {
         let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
         let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        bodyEl.innerHTML = `현재 베이스: <strong>${currentBase.name}</strong><br><span style="color:var(--copy-muted);">${curStats || '없음'}</span><br><br>업그레이드 베이스: <strong>${nextBase.name}</strong><br><span style="color:#ffd08a;">${nextStats || '없음'}</span><br><br>비용: 형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule > 0 ? ` + 황금률 ${cost.goldenRule}` : ''}<br><span style="color:var(--copy-muted);">총 이슬 가치 ${cost.totalDewValue}</span>`;
+        bodyEl.innerHTML = `${_t('현재 베이스:')} <strong>${_t(currentBase.name)}</strong><br><span style="color:var(--copy-muted);">${curStats || _t('없음')}</span><br><br>${_t('업그레이드 베이스:')} <strong>${_t(nextBase.name)}</strong><br><span style="color:#ffd08a;">${nextStats || _t('없음')}</span><br><br>비용: 형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule > 0 ? _t(' + 황금률 {goldenRule}', { goldenRule: cost.goldenRule }) : ''}<br><span style="color:var(--copy-muted);">${_t('총 이슬 가치 {totalDewValue}', { totalDewValue: cost.totalDewValue })}</span>`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');
     if (overlay) overlay.showModal();
@@ -966,8 +966,8 @@ function closeBaseUpgradeOverlay() {
 
 /** What the wallet lacks for a base upgrade's cost, or ''. */
 function getBaseUpgradeShortfall(cost) {
-    if ((game.currencies.formlessDew || 0) < cost.formlessDew) return `형체 없는 이슬이 부족합니다. (필요: ${cost.formlessDew})`;
-    return (game.currencies.goldenRule || 0) < cost.goldenRule ? `황금률이 부족합니다. (필요: ${cost.goldenRule})` : '';
+    if ((game.currencies.formlessDew || 0) < cost.formlessDew) return _t('형체 없는 이슬이 부족합니다. (필요: {formlessDew})', { formlessDew: cost.formlessDew });
+    return (game.currencies.goldenRule || 0) < cost.goldenRule ? _t('황금률이 부족합니다. (필요: {goldenRule})', { goldenRule: cost.goldenRule }) : '';
 }
 function confirmSelectedItemBaseUpgrade() {
     let pending = game.pendingBaseUpgrade;

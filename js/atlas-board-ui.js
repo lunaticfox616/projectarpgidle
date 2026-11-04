@@ -124,9 +124,9 @@ const atlasBoardUi = (() => {
         const why = { risk: b.risk >= B.maxRisk ? T.riskFull : b.boost >= B.maxBoost ? T.boostFull : '', rest: '',
             promise: b.promise ? T.promiseHeld : b.risk + B.promise.risk > B.maxRisk ? T.riskFull : '' };
         const btn = k => `<button type="button" class="ab-opt is-${k}" onclick="atlasBoardUi.choose('${k}')"${run || why[k] ? ' disabled' : ''}>
-            <b>${esc(T.choices[k].name)}</b><span>${esc(why[k] || (k === 'risk' ? `위험 +1, 보상 +${Math.min(15, B.maxBoost - b.boost)}%` : T.choices[k].effect))}</span></button>`;
+            <b>${esc(T.choices[k].name)}</b><span>${esc(why[k] || (k === 'risk' ? _t('위험 +1, 보상 +{min}%', { min: Math.min(15, B.maxBoost - b.boost) }) : T.choices[k].effect))}</span></button>`;
         return `<div class="ab-act"><p class="ab-prompt">${esc(T.choicePrompt)}</p><div class="ab-choices">${['risk', 'rest', 'promise'].map(btn).join('')}</div>
-            <p class="ab-hint">서약 중 문지기 패배 또는 포기: 보관 재화 ${B.lossPct + B.promise.lossPct}% 손실</p>
+            <p class="ab-hint">${_t('서약 중 문지기 패배 또는 포기: 보관 재화 {value}% 손실', { value: B.lossPct + B.promise.lossPct })}</p>
             ${run ? `<p class="ab-hint is-blocked">${esc(T.otherRun)}</p>` : ''}</div>`;
     }
     function entryHtml(b, moving) {

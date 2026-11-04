@@ -366,11 +366,11 @@ function getGemAwakenRefusal(active, gem, echoNeed) {
     if (!gem || !isEnhanceableAttackGem(active)) return '각성할 공격 룬을 먼저 장착하세요.';
     if (gem.awakened) return '이미 각성 후보로 변환된 룬입니다.';
     if ((gem.level || 1) < 20) return 'Lv.20 이상의 공격 룬만 각성 후보로 변환할 수 있습니다.';
-    return (game.currencies.awakenedEcho || 0) < echoNeed ? `각성 잔향이 부족합니다. (필요: ${echoNeed})` : '';
+    return (game.currencies.awakenedEcho || 0) < echoNeed ? _t('각성 잔향이 부족합니다. (필요: {echoNeed})', { echoNeed }) : '';
 }
 /** ' 각성 효과: …' for a rune with its own awakened effect (GEM_AWAKENED_PERKS), else ''. */
 function getGemAwakenedPerkNote(name) {
-    return Object.hasOwn(GEM_AWAKENED_PERKS, name) ? ` 각성 효과: ${GEM_AWAKENED_PERKS[name].label}.` : '';
+    return Object.hasOwn(GEM_AWAKENED_PERKS, name) ? _t(' 각성 효과: {label}.', { label: GEM_AWAKENED_PERKS[name].label }) : '';
 }
 function awakenActiveGemCandidate() {
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
@@ -393,12 +393,12 @@ async function applyFossilCraft() {
     let have = Math.max(0, Math.floor(game.currencies.fossil));
     if (have <= 0) return addLog(_t('미궁 화석이 부족합니다.'), 'attack-monster');
     let raw = await requestGameNumber({
-        title: '미궁 화석 정제',
+        title: _t('미궁 화석 정제'),
         message: `한 번에 정제할 기본 화석 개수를 선택하세요.\n보유량: ${have}개`,
         min: 1,
         max: have,
         value: have,
-        confirmLabel: '정제'
+        confirmLabel: _t('정제')
     });
     if (raw === null) return;
     let count = Math.max(0, Math.min(have, Math.floor(Number(raw))));
@@ -413,7 +413,7 @@ async function applyFossilCraft() {
         game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
         gained[randomFossil.name] = (gained[randomFossil.name] || 0) + 1;
     }
-    let summary = Object.keys(gained).map(name => `[${name}] ${gained[name]}개`).join(', ');
+    let summary = Object.keys(gained).map(name => _t('[{name}] {gained}개', { name, gained: gained[name] })).join(', ');
     addLog(_t('🪨 기본 화석 {count}개를 정제해 {summary}를 획득했습니다.', { count, summary }), 'loot-magic');
     updateStaticUI();
 }
@@ -560,7 +560,7 @@ function applyFossilChaosCraft(fossilKey) {
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--;
     updateItemName(item);
-    let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '확정 옵션 2줄: [균열 표식] + [추가 옵션 효과 50% 증폭]');
+    let line = guaranteed ? _t('확정 옵션: [{statName}] (T{guaranteedMinTier}~T{guaranteedMaxTier})', { statName: guaranteed.statName, guaranteedMinTier, guaranteedMaxTier }) : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '확정 옵션 2줄: [균열 표식] + [추가 옵션 효과 50% 증폭]');
     addLog(_t('🪨 {name} 재련 성공! {line}', { name: _t(fossil.name), line }), 'loot-magic');
     updateStaticUI();
 }
@@ -816,7 +816,7 @@ const getRuneLevelReq = (name, support = false) => (support ? SUPPORT_RUNE_LEVEL
 /** 레벨이 모자라면 'Lv.37 필요', 아니면 ''. */
 function getRuneLevelNote(name, support = false, state = game) {
     const need = getRuneLevelReq(name, support);
-    return need > (state.level || 1) ? `Lv.${need} 필요` : '';
+    return need > (state.level || 1) ? _t('Lv.{need} 필요', { need }) : '';
 }
 
 /** 지금 장비로 못 쓰는 까닭(카드, 알림): 'Lv.37 필요', '근접 무기 필요', '활 필요' 같은 한 줄. 쓸 수 있으면 ''. */
@@ -825,7 +825,7 @@ function getSkillRuneWeaponNote(name) {
     const levelNote = getRuneLevelNote(name);
     if (levelNote) return levelNote;
     const skill = SKILL_DB[name], family = SKILL_RUNE_FAMILY[name];
-    if (isAttackRuneBlockedByMobilityBoots(name)) return `${MOBILITY_RUNE_ATTACK_UNIQUE} 착용 중, 이동 스킬룬만`;
+    if (isAttackRuneBlockedByMobilityBoots(name)) return _t('{value} 착용 중, 이동 스킬룬만', { value: MOBILITY_RUNE_ATTACK_UNIQUE });
     if (skill && skill.requiresShield && !hasEquippedShield()) return '완갑 필요';
     return SKILL_RUNE_WEAPON_NOTES[family] || `${SKILL_RUNE_WEAPONS[family].map(stance => SKILL_RUNE_STANCE_LABELS[stance]).join(', ')} 필요`;
 }
@@ -833,7 +833,7 @@ function getSkillRuneWeaponNote(name) {
 /** 얻은 룬과 상점 카드의 한 줄: 왜 지금 못 쓰는지. 쓸 수 있으면 ''. */
 function getSkillRuneBlockedLine(name) {
     if (canUseSkillWithCurrentEquipment(name)) return '';
-    return `${getRuneLevelNote(name) ? '지금 쓸 수 없음' : '지금 무기로 쓸 수 없음'}: ${getSkillRuneWeaponNote(name)}`;
+    return `${getRuneLevelNote(name) ? _t('지금 쓸 수 없음') : _t('지금 무기로 쓸 수 없음')}: ${getSkillRuneWeaponNote(name)}`;
 }
 
 function canUseSkillWithCurrentEquipment(name) {

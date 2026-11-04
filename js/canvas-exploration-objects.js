@@ -123,7 +123,7 @@ actExplorationView.objects=(()=>{
     function syncLayer(run) {
         if(!layer) {
             const wrap=document.getElementById('battlefield-wrap');if(!wrap)return;
-            layer=document.createElement('div');layer.id='exploration-object-actions';layer.setAttribute('aria-label','발견한 상자와 오브젝트');
+            layer=document.createElement('div');layer.id='exploration-object-actions';layer.setAttribute('aria-label',_t('발견한 상자와 오브젝트'));
             wrap.appendChild(layer);
         }
         if(lastRun!==run){buttons.forEach(n=>n.remove());buttons.clear();lastRun=run;}
@@ -263,7 +263,7 @@ actExplorationView.objects=(()=>{
     addEventListener('project-idle:exploration-object',event=>{
         const {kind,name,objectKind}=event.detail;
         if(objectKind==='pot'||objectKind==='crate')return;
-        addLog(kind==='spawn'?`${name}에서 몬스터가 나타났습니다.`:`${name}의 전리품을 획득했습니다.`,kind==='spawn'?'attack-monster':'loot-magic',{noToast:true});
+        addLog(kind==='spawn'?_t('{name}에서 몬스터가 나타났습니다.', { name }):_t('{name}의 전리품을 획득했습니다.', { name }),kind==='spawn'?'attack-monster':'loot-magic',{noToast:true});
     });
     return {append,flushButtons,draw,drawGround};
 })();

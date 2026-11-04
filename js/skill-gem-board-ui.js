@@ -53,7 +53,7 @@
             const glyph = slot.state === 'full' ? renderSkyEnhancementIcon(slot.def) : (slot.state === 'open' ? '+' : '');
             const group = slot.state === 'full' ? ` is-group-${getSkyEnhancementGroup(slot.def).className}` : '';
             const title = slot.state === 'full' ? `${_t(slot.def.name)}, ${slot.def.desc}` : engraveLabel(slot);
-            return `<button type="button" class="skill-board-engrave is-${slot.state}${group}" style="--x:${x}px;--y:${y}px" data-board-engrave="${slot.index}" data-info-tooltip-anchor="1" onpointerenter="skillGemBoardUi.engraveHint(event,${slot.index})" onpointerleave="hideInfoTooltip()" aria-label="각인 ${slot.index + 1}: ${escapeHTML(title)}"><i>${glyph ? `<b>${glyph}</b>` : ''}</i><span>${escapeHTML(engraveLabel(slot))}</span></button>`;
+            return `<button type="button" class="skill-board-engrave is-${slot.state}${group}" style="--x:${x}px;--y:${y}px" data-board-engrave="${slot.index}" data-info-tooltip-anchor="1" onpointerenter="skillGemBoardUi.engraveHint(event,${slot.index})" onpointerleave="hideInfoTooltip()" aria-label="${_t('각인 {value}: {title}', { value: slot.index + 1, title: escapeHTML(title) })}"><i>${glyph ? `<b>${glyph}</b>` : ''}</i><span>${escapeHTML(engraveLabel(slot))}</span></button>`;
         }).join('');
         return `<div class="skill-board-ring" aria-hidden="false">${marks}</div>`;
     }
@@ -189,7 +189,7 @@
         if (slot.state !== 'full') return `<div class="tooltip-title">${engraveLabel(slot)}</div><div class="tooltip-line">${_t(ENGRAVE_HINTS[slot.state])}</div>`;
         const group = getSkyEnhancementGroup(slot.def);
         return `<div class="tooltip-title engrave-tone-${group.className}">${escapeHTML(_t(slot.def.name))}</div><div class="tooltip-line engrave-tooltip-group">${_t('{group} 각인, {n}번 칸', { group: _t(group.label), n: slot.index + 1 })}</div>`
-            + `<div class="tooltip-line engrave-tooltip-effect">${statToneText.html(slot.def.desc)}</div><div class="tooltip-line gem-card-hint">${_t('누르면 다른 각인으로 바꿉니다')}</div>`;
+            + `<div class="tooltip-line engrave-tooltip-effect">${statToneText.html(_t(slot.def.desc))}</div><div class="tooltip-line gem-card-hint">${_t('누르면 다른 각인으로 바꿉니다')}</div>`;
     }
 
     /** Hover on an engraving slot, mouse only: the engraving's group and effect (the native title was small and slow). */

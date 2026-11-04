@@ -67,14 +67,14 @@ function getPassiveEffectLabel(node) {
             const state = getPassiveNodeActivationState(node);
             const statName = state.statId === 'devotion' ? '계시' : getStatName(state.statId);
             const color = state.active ? '#9fe5bb' : '#ffaaaa';
-            labels.push(`<span style="color:${color};">${state.active ? '활성' : '비활성'}, ${statName} ${state.available}/${state.required}</span>`);
+            labels.push(`<span style="color:${color};">${state.active ? _t('활성') : _t('비활성')}, ${statName} ${state.available}/${state.required}</span>`);
         }
         return labels.join('<br>');
     }
     if (!node.stat) return '';
     if (node.stat === 'chaosResElemPenalty') {
         let value = formatValue(node.stat, node.val);
-        return `카오스 저항 +${value}% 및 모든 원소 저항 -${value}%`;
+        return _t('카오스 저항 +{value}% 및 모든 원소 저항 -{value2}%', { value, value2: value });
     }
     let stat = P_STATS[node.stat] || {};
     let suffix = stat.isPct ? '%' : '';
@@ -512,72 +512,72 @@ function generateOrganicTree() {
     };
     const centralCoreSpecs = {
         templar: [
-            { stat: 'energyShieldPct', title: '성역 보호막 관문', desc: '핵심 성좌입니다.' },
-            { stat: 'spellFlatPct', title: '성광 주문 관문', desc: '핵심 성좌입니다.' }
+            { stat: 'energyShieldPct', title: _t('성역 보호막 관문'), desc: _t('핵심 성좌입니다.') },
+            { stat: 'spellFlatPct', title: _t('성광 주문 관문'), desc: _t('핵심 성좌입니다.') }
         ],
         witch: [
-            { stat: 'energyShieldPct', title: '비전 보호막 관문', desc: '핵심 성좌입니다.' },
-            { stat: 'chaosPctDmg', title: '공허 부패 관문', desc: '핵심 성좌입니다.' }
+            { stat: 'energyShieldPct', title: _t('비전 보호막 관문'), desc: _t('핵심 성좌입니다.') },
+            { stat: 'chaosPctDmg', title: _t('공허 부패 관문'), desc: _t('핵심 성좌입니다.') }
         ],
         shadow: [
-            { stat: 'evasionPct', title: '그림자 회피 관문', desc: '핵심 성좌입니다.' },
-            { stat: 'crit', title: '급소 절개 관문', desc: '핵심 성좌입니다.' }
+            { stat: 'evasionPct', title: _t('그림자 회피 관문'), desc: _t('핵심 성좌입니다.') },
+            { stat: 'crit', title: _t('급소 절개 관문'), desc: _t('핵심 성좌입니다.') }
         ],
         ranger: [
-            { stat: 'evasionPct', title: '바람 회피 관문', desc: '핵심 성좌입니다.' },
-            { stat: 'projectilePctDmg', title: '탄도 개시 관문', desc: '핵심 성좌입니다.' }
+            { stat: 'evasionPct', title: _t('바람 회피 관문'), desc: _t('핵심 성좌입니다.') },
+            { stat: 'projectilePctDmg', title: _t('탄도 개시 관문'), desc: _t('핵심 성좌입니다.') }
         ],
         duelist: [
-            { stat: 'armorPct', title: '결투 방어 관문', desc: '핵심 성좌입니다.' },
-            { stat: 'meleePctDmg', title: '연격 개시 관문', desc: '핵심 성좌입니다.' }
+            { stat: 'armorPct', title: _t('결투 방어 관문'), desc: _t('핵심 성좌입니다.') },
+            { stat: 'meleePctDmg', title: _t('연격 개시 관문'), desc: _t('핵심 성좌입니다.') }
         ],
         marauder: [
-            { stat: 'armorPct', title: '철갑 생존 관문', desc: '핵심 성좌입니다.' },
-            { stat: 'physPctDmg', title: '대지 강타 관문', desc: '핵심 성좌입니다.' }
+            { stat: 'armorPct', title: _t('철갑 생존 관문'), desc: _t('핵심 성좌입니다.') },
+            { stat: 'physPctDmg', title: _t('대지 강타 관문'), desc: _t('핵심 성좌입니다.') }
         ]
     };
     const clusterThemeBySector = {
         templar: [
-            { stat: 'energyShieldPct', title: '성역 보호막' },
-            { stat: 'spellFlatPct', title: '성광 주문' },
-            { stat: 'aoePctDmg', title: '신성 범위' },
-            { stat: 'resAll', title: '원소 수호' },
-            { stat: 'firePctDmg', title: '정화의 불꽃' }
+            { stat: 'energyShieldPct', title: _t('성역 보호막') },
+            { stat: 'spellFlatPct', title: _t('성광 주문') },
+            { stat: 'aoePctDmg', title: _t('신성 범위') },
+            { stat: 'resAll', title: _t('원소 수호') },
+            { stat: 'firePctDmg', title: _t('정화의 불꽃') }
         ],
         witch: [
-            { stat: 'coldPctDmg', title: '서리 비전' },
-            { stat: 'lightPctDmg', title: '번개 비전' },
-            { stat: 'chaosPctDmg', title: '공허 비전' },
-            { stat: 'dotPctDmg', title: '지속 부패' },
-            { stat: 'gemLevel', title: '룬 각성' }
+            { stat: 'coldPctDmg', title: _t('서리 비전') },
+            { stat: 'lightPctDmg', title: _t('번개 비전') },
+            { stat: 'chaosPctDmg', title: _t('공허 비전') },
+            { stat: 'dotPctDmg', title: _t('지속 부패') },
+            { stat: 'gemLevel', title: _t('룬 각성') }
         ],
         shadow: [
-            { stat: 'crit', title: '급소 조준' },
-            { stat: 'critDmg', title: '치명 배율' },
-            { stat: 'leechRateCap', title: '흡혈 가속' },
-            { stat: 'chaosPctDmg', title: '독성 그림자' },
-            { stat: 'evasionPct', title: '그림자 회피' }
+            { stat: 'crit', title: _t('급소 조준') },
+            { stat: 'critDmg', title: _t('치명 배율') },
+            { stat: 'leechRateCap', title: _t('흡혈 가속') },
+            { stat: 'chaosPctDmg', title: _t('독성 그림자') },
+            { stat: 'evasionPct', title: _t('그림자 회피') }
         ],
         ranger: [
-            { stat: 'projectilePctDmg', title: '투사체 숙련' },
-            { stat: 'projectileExtraShots', title: '추가 발사' },
-            { stat: 'evasionPct', title: '바람 회피' },
-            { stat: 'coldPctDmg', title: '냉기 사격' },
-            { stat: 'coldPctDmg', title: '냉기 사격' }
+            { stat: 'projectilePctDmg', title: _t('투사체 숙련') },
+            { stat: 'projectileExtraShots', title: _t('추가 발사') },
+            { stat: 'evasionPct', title: _t('바람 회피') },
+            { stat: 'coldPctDmg', title: _t('냉기 사격') },
+            { stat: 'coldPctDmg', title: _t('냉기 사격') }
         ],
         duelist: [
-            { stat: 'meleePctDmg', title: '근접 결투' },
-            { stat: 'ds', title: '연속 타격' },
-            { stat: 'leechInstanceCap', title: '깊은 흡혈' },
-            { stat: 'aspd', title: '쌍검 속도' },
-            { stat: 'physPctDmg', title: '정밀 물리' }
+            { stat: 'meleePctDmg', title: _t('근접 결투') },
+            { stat: 'ds', title: _t('연속 타격') },
+            { stat: 'leechInstanceCap', title: _t('깊은 흡혈') },
+            { stat: 'aspd', title: _t('쌍검 속도') },
+            { stat: 'physPctDmg', title: _t('정밀 물리') }
         ],
         marauder: [
-            { stat: 'physPctDmg', title: '물리 파쇄' },
-            { stat: 'slamPctDmg', title: '강타 충격' },
-            { stat: 'armorPct', title: '철갑 강화' },
-            { stat: 'pctHp', title: '거인의 생명' },
-            { stat: 'leechTotalCap', title: '피의 저수지' }
+            { stat: 'physPctDmg', title: _t('물리 파쇄') },
+            { stat: 'slamPctDmg', title: _t('강타 충격') },
+            { stat: 'armorPct', title: _t('철갑 강화') },
+            { stat: 'pctHp', title: _t('거인의 생명') },
+            { stat: 'leechTotalCap', title: _t('피의 저수지') }
         ]
     };
     function getGenericPathStat(theme, depth, lane, sectorIndex) {
@@ -604,8 +604,8 @@ function generateOrganicTree() {
             if (spec && P_STATS[spec.stat]) {
                 node.stat = spec.stat;
                 node.val = getPassiveStatTierValue(node.stat, node.tier);
-                node.title = spec.title;
-                node.desc = `${getCoreDirectionLabel(sectorIndex)} 시작축: ${spec.desc}`;
+                node.title = _t(spec.title);
+                node.desc = _t('{sectorIndex} 시작축: {desc}', { sectorIndex: getCoreDirectionLabel(sectorIndex), desc: spec.desc });
             }
             return;
         }
@@ -615,7 +615,7 @@ function generateOrganicTree() {
             node.val = getPassiveStatTierValue(stat, node.tier);
             if (shape.kind === 'major' || shape.kind === 'keystone') node.val = Math.max(node.val, getPassiveStatTierValue(stat, 2));
             if (shape.kind === 'hub') {
-                node.title = '교차 거점';
+                node.title = _t('교차 거점');
                 node.desc = '여러 갈래의 길이 만나는 거점입니다.';
             }
         }
@@ -645,7 +645,7 @@ function generateOrganicTree() {
         node.stat = spec.stat || node.stat;
         node.val = spec.val !== undefined ? spec.val : node.val;
         node.kind = spec.kind || fallbackKind || node.kind;
-        node.title = spec.title || null;
+        node.title = _t(spec.title) || null;
         node.desc = spec.desc || null;
         node.effectLabel = spec.effectLabel || getPassiveEffectLabel(node);
         if (spec.requiresEvolution) node.requiresEvolution = true;
@@ -681,7 +681,7 @@ function generateOrganicTree() {
         if (!node) return null;
         node.webBridge = true;
         node.webRing = depth;
-        node.title = special ? '외곽 별길 규칙' : '외곽 별길';
+        node.title = special ? _t('외곽 별길 규칙') : _t('외곽 별길');
         node.desc = special
             ? '먼 외곽 성좌 사이를 잇는 보강 규칙 노드입니다. 긴 이동 경로에 작은 보상을 배치합니다.'
             : '멀리 떨어진 외곽 성좌 사이를 촘촘하게 이어 주는 경로 노드입니다.';
@@ -834,7 +834,7 @@ function generateOrganicTree() {
             pick.kind = 'void';
             pick.stat = 'pctDmg';
             pick.val = 0;
-            pick.title = '공허 패시브';
+            pick.title = _t('공허 패시브');
             pick.desc = '처음 활성화할 때는 아무 효과도 없습니다. 마법의 새싹을 사용할 때마다 공허 옵션 1~2줄을 다시 굴릴 수 있습니다.';
             pick.effectLabel = null;
             pick.voidPassive = true;
@@ -870,11 +870,11 @@ function generateOrganicTree() {
     }
 
     const webCellClusterBlueprints = [
-        { role: 'defense', label: '방어', length: 4, spread: 0.34 },
-        { role: 'offense', label: '화력', length: 5, spread: 0.42 },
-        { role: 'utility', label: '운용', length: 4, spread: 0.50 },
-        { role: 'mastery', label: '숙련', length: 5, spread: 0.58 },
-        { role: 'survival', label: '생존', length: 4, spread: 0.38 }
+        { role: 'defense', label: _t('방어'), length: 4, spread: 0.34 },
+        { role: 'offense', label: _t('화력'), length: 5, spread: 0.42 },
+        { role: 'utility', label: _t('운용'), length: 4, spread: 0.50 },
+        { role: 'mastery', label: _t('숙련'), length: 5, spread: 0.58 },
+        { role: 'survival', label: _t('생존'), length: 4, spread: 0.38 }
     ];
 
     function getWebCellClusterPoint(cell, step, chainLength) {
@@ -909,18 +909,18 @@ function generateOrganicTree() {
         });
     }
     const tagGemClusterSpecs = [
-        { stat: 'firePctDmg', endStat: 'fireGemLevel', title: '화염 룬 단련', length: 5 },
-        { stat: 'coldPctDmg', endStat: 'coldGemLevel', title: '냉기 룬 단련', length: 5 },
-        { stat: 'lightPctDmg', endStat: 'lightGemLevel', title: '번개 룬 단련', length: 5 },
-        { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 룬 단련', length: 5 },
-        { stat: 'physPctDmg', endStat: 'physGemLevel', title: '물리 룬 단련', length: 5 },
-        { stat: 'projectilePctDmg', endStat: 'projectileGemLevel', title: '투사체 룬 단련', length: 5 },
-        { stat: 'meleePctDmg', endStat: 'meleeGemLevel', title: '근접 룬 단련', length: 5 },
-        { stat: 'slamPctDmg', endStat: 'slamGemLevel', title: '강타 룬 단련', length: 5 },
-        { stat: 'spellFlatPct', endStat: 'spellGemLevel', title: '주문 룬 단련', length: 5 },
-        { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 룬 단련', length: 5 },
-        { stat: 'aoePctDmg', endStat: 'aoeGemLevel', title: '범위 룬 단련', length: 5 },
-        { stat: 'elementalPctDmg', endStat: 'elementalGemLevel', title: '원소 룬 단련', length: 5 }
+        { stat: 'firePctDmg', endStat: 'fireGemLevel', title: _t('화염 룬 단련'), length: 5 },
+        { stat: 'coldPctDmg', endStat: 'coldGemLevel', title: _t('냉기 룬 단련'), length: 5 },
+        { stat: 'lightPctDmg', endStat: 'lightGemLevel', title: _t('번개 룬 단련'), length: 5 },
+        { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: _t('카오스 룬 단련'), length: 5 },
+        { stat: 'physPctDmg', endStat: 'physGemLevel', title: _t('물리 룬 단련'), length: 5 },
+        { stat: 'projectilePctDmg', endStat: 'projectileGemLevel', title: _t('투사체 룬 단련'), length: 5 },
+        { stat: 'meleePctDmg', endStat: 'meleeGemLevel', title: _t('근접 룬 단련'), length: 5 },
+        { stat: 'slamPctDmg', endStat: 'slamGemLevel', title: _t('강타 룬 단련'), length: 5 },
+        { stat: 'spellFlatPct', endStat: 'spellGemLevel', title: _t('주문 룬 단련'), length: 5 },
+        { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: _t('지속 룬 단련'), length: 5 },
+        { stat: 'aoePctDmg', endStat: 'aoeGemLevel', title: _t('범위 룬 단련'), length: 5 },
+        { stat: 'elementalPctDmg', endStat: 'elementalGemLevel', title: _t('원소 룬 단련'), length: 5 }
     ];
     function getTagGemClusterSpec(spoke, depth) {
         return tagGemClusterSpecs[(spoke * 5 + depth * 3) % tagGemClusterSpecs.length];
@@ -935,60 +935,60 @@ function generateOrganicTree() {
     }
     function getOneOClockClusterSpec(spoke, depth) {
         const specs = [
-            { stat: 'chaosPctDmg', title: '심연 독기', length: 4 },
-            { stat: 'dotPctDmg', title: '부패 지속', length: 4 },
-            { stat: 'coldPctDmg', title: '빙결 한기', length: 4 },
-            { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: '카오스 룬 독성', length: 5 },
-            { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: '지속 룬 부식', length: 5 }
+            { stat: 'chaosPctDmg', title: _t('심연 독기'), length: 4 },
+            { stat: 'dotPctDmg', title: _t('부패 지속'), length: 4 },
+            { stat: 'coldPctDmg', title: _t('빙결 한기'), length: 4 },
+            { stat: 'chaosPctDmg', endStat: 'chaosGemLevel', title: _t('카오스 룬 독성'), length: 5 },
+            { stat: 'dotPctDmg', endStat: 'dotGemLevel', title: _t('지속 룬 부식'), length: 5 }
         ];
         return specs[(spoke + depth) % specs.length];
     }
     function getDirectionalClusterSpec(spoke, depth) {
         const fixedClusters = {
-            '10:5': { stat: 'firePctDmg', title: '서녘 화염', length: 4 },
-            '11:8': { stat: 'firePctDmg', title: '황혼 화염', length: 4 },
-            '14:6': { stat: 'firePctDmg', title: '여명 화염', length: 4 },
-            '0:6': { stat: 'coldPctDmg', title: '천정 서리', length: 4 },
-            '1:6': { stat: 'lightPctDmg', title: '새벽 번개', length: 4 },
-            '14:9': { stat: 'summonAspd', title: '성좌 지휘', length: 4 },
-            '15:5': { stat: 'summonPctDmg', title: '별무리 사역', length: 5 },
-            '15:8': { stat: 'summonHpPct', title: '사역 생명핵', length: 4 }
+            '10:5': { stat: 'firePctDmg', title: _t('서녘 화염'), length: 4 },
+            '11:8': { stat: 'firePctDmg', title: _t('황혼 화염'), length: 4 },
+            '14:6': { stat: 'firePctDmg', title: _t('여명 화염'), length: 4 },
+            '0:6': { stat: 'coldPctDmg', title: _t('천정 서리'), length: 4 },
+            '1:6': { stat: 'lightPctDmg', title: _t('새벽 번개'), length: 4 },
+            '14:9': { stat: 'summonAspd', title: _t('성좌 지휘'), length: 4 },
+            '15:5': { stat: 'summonPctDmg', title: _t('별무리 사역'), length: 5 },
+            '15:8': { stat: 'summonHpPct', title: _t('사역 생명핵'), length: 4 }
         };
         return fixedClusters[`${spoke}:${depth}`] || null;
     }
     function getScatteredMaxResClusterSpec(spoke, depth) {
-        if (spoke === 5 && depth % 4 === 1) return { stat: 'resF', endStat: 'maxResF', title: '화염 최대 저항', length: 4 };
-        if (spoke === 9 && depth % 4 === 2) return { stat: 'resC', endStat: 'maxResC', title: '냉기 최대 저항', length: 4 };
-        if (spoke === 13 && depth % 4 === 3) return { stat: 'resL', endStat: 'maxResL', title: '번개 최대 저항', length: 4 };
+        if (spoke === 5 && depth % 4 === 1) return { stat: 'resF', endStat: 'maxResF', title: _t('화염 최대 저항'), length: 4 };
+        if (spoke === 9 && depth % 4 === 2) return { stat: 'resC', endStat: 'maxResC', title: _t('냉기 최대 저항'), length: 4 };
+        if (spoke === 13 && depth % 4 === 3) return { stat: 'resL', endStat: 'maxResL', title: _t('번개 최대 저항'), length: 4 };
         return null;
     }
     function getCompositeClusterSpec(spoke, depth) {
         let scatteredMaxRes = getScatteredMaxResClusterSpec(spoke, depth);
         if (scatteredMaxRes) return scatteredMaxRes;
         if (spoke === 4) {
-            if (depth % 2 === 0) return { stat: 'moveEvasion', title: '질풍 회피', length: 4 };
+            if (depth % 2 === 0) return { stat: 'moveEvasion', title: _t('질풍 회피'), length: 4 };
             const altSpecs = [
-                { stat: 'projectilePctDmg', title: '탄도 숙련', length: 4 },
-                { stat: 'pctHp', title: '생명 순환', length: 4 },
-                { stat: 'resC', title: '한기 내성', length: 4 },
-                { stat: 'projectileExtraShots', title: '추가 발사', length: 4 }
+                { stat: 'projectilePctDmg', title: _t('탄도 숙련'), length: 4 },
+                { stat: 'pctHp', title: _t('생명 순환'), length: 4 },
+                { stat: 'resC', title: _t('한기 내성'), length: 4 },
+                { stat: 'projectileExtraShots', title: _t('추가 발사'), length: 4 }
             ];
             return altSpecs[Math.floor(depth / 2) % altSpecs.length];
         }
-        if (spoke === 8) return { stat: 'hpArmor', title: '거석 생명', length: 4 };
-        if (spoke === 12) return { stat: 'slamPctDmg', endStat: 'slamEchoChance', title: '대지 여진', length: 5 };
-        if (spoke === 0) return { stat: 'energyShieldPct', endStat: 'energyShieldRegen', title: '보호막 순환', length: 4 };
-        if (isTopChaosPenaltyCluster(spoke, depth)) return { stat: 'chaosResElemPenalty', title: '혼돈 절연', length: 4 };
+        if (spoke === 8) return { stat: 'hpArmor', title: _t('거석 생명'), length: 4 };
+        if (spoke === 12) return { stat: 'slamPctDmg', endStat: 'slamEchoChance', title: _t('대지 여진'), length: 5 };
+        if (spoke === 0) return { stat: 'energyShieldPct', endStat: 'energyShieldRegen', title: _t('보호막 순환'), length: 4 };
+        if (isTopChaosPenaltyCluster(spoke, depth)) return { stat: 'chaosResElemPenalty', title: _t('혼돈 절연'), length: 4 };
         const rotating = [
-            { stat: 'critDmg', title: '치명 배율', length: 4 },
-            { stat: 'ds', title: '연속 타격', length: 4 },
-            { stat: 'maxDmgRoll', title: '상한 보정', length: 4 },
-            { stat: 'pctDmg', endStat: 'suppCap', title: '보조스킬룬 연결', length: 4 },
-            { stat: 'minDmgRoll', title: '하한 안정', length: 4 },
-            { stat: 'resAll', title: '원소 수호', length: 4 },
-            { stat: 'resChaos', title: '카오스 저항', length: 4 },
-            { stat: 'regenSuppress', title: '재생 봉쇄', length: 4 },
-            { stat: 'aspdMove', title: '쌍속 기동', length: 4 }
+            { stat: 'critDmg', title: _t('치명 배율'), length: 4 },
+            { stat: 'ds', title: _t('연속 타격'), length: 4 },
+            { stat: 'maxDmgRoll', title: _t('상한 보정'), length: 4 },
+            { stat: 'pctDmg', endStat: 'suppCap', title: _t('보조스킬룬 연결'), length: 4 },
+            { stat: 'minDmgRoll', title: _t('하한 안정'), length: 4 },
+            { stat: 'resAll', title: _t('원소 수호'), length: 4 },
+            { stat: 'resChaos', title: _t('카오스 저항'), length: 4 },
+            { stat: 'regenSuppress', title: _t('재생 봉쇄'), length: 4 },
+            { stat: 'aspdMove', title: _t('쌍속 기동'), length: 4 }
         ];
         return rotating[(spoke * 3 + depth) % rotating.length];
     }
@@ -1002,7 +1002,7 @@ function generateOrganicTree() {
         if (themeSpec.stat === 'gemLevel') {
             if (!retainedGlobalGemLevelCluster && depth >= maxDepth - 1) {
                 retainedGlobalGemLevelCluster = true;
-                return { stat: 'spellFlatPct', endStat: 'gemLevel', title: '외곽 룬 각성', length: 5 };
+                return { stat: 'spellFlatPct', endStat: 'gemLevel', title: _t('외곽 룬 각성'), length: 5 };
             }
             return getTagGemClusterSpec(spoke, depth);
         }
@@ -1059,11 +1059,11 @@ function generateOrganicTree() {
                 else if (chainLength === 5) node.val = [12, 12, 12, 12, 25][i - 1];
             }
             if (isEnd) {
-                node.title = `${themeSpec.title} 핵심`;
-                node.desc = `${PASSIVE_SECTOR_TITLES[theme] || '성좌'}의 ${blueprint.label} 구역을 완성하는 거미줄 칸 내부 전문 노드입니다.`;
+                node.title = _t('{title} 핵심', { title: themeSpec.title });
+                node.desc = _t('{PASSIVE_SECTOR_TITLES}의 {label} 구역을 완성하는 거미줄 칸 내부 전문 노드입니다.', { PASSIVE_SECTOR_TITLES: PASSIVE_SECTOR_TITLES[theme] || _t('성좌'), label: blueprint.label });
             } else if (i === 1) {
-                node.title = `${themeSpec.title} 길목`;
-                node.desc = `거미줄 경로 한 칸 안에서 ${blueprint.label} 축으로 갈라지는 시작 노드입니다.`;
+                node.title = _t('{title} 길목', { title: themeSpec.title });
+                node.desc = _t('거미줄 경로 한 칸 안에서 {label} 축으로 갈라지는 시작 노드입니다.', { label: blueprint.label });
             }
             connect(prev.id, node.id);
             if (i === 1 && ((spoke + depth) % 4 === 0)) {
@@ -1111,7 +1111,7 @@ function generateOrganicTree() {
                     ? '비껴내기 확률을 크게 올리고, 비껴낸 피해의 감소율을 추가로 강화합니다.'
                     : '공격을 정면으로 받지 않고 흘려 받는 방어 성좌입니다.',
                 kind: i === values.length - 1 ? 'keystone' : 'major',
-                effectLabel: finalMajor && i === values.length - 1 ? `비껴내기 확률 +${values[i]}%, 비껴내기 피해 감소 +3%` : `비껴내기 확률 +${values[i]}%`
+                effectLabel: finalMajor && i === values.length - 1 ? _t('비껴내기 확률 +{values}%, 비껴내기 피해 감소 +3%', { values: values[i] }) : _t('비껴내기 확률 +{values}%', { values: values[i] })
             }, node.kind);
             node.clusterId = clusterKey;
             node.clusterRole = 'deflect';
@@ -1147,10 +1147,10 @@ function generateOrganicTree() {
             applyNodeSpec(node, {
                 stat: stat,
                 val: values[i],
-                title: i === values.length - 1 ? `${title} 숙련` : title,
+                title: i === values.length - 1 ? _t('{title} 숙련', { title }) : title,
                 desc: desc,
                 kind: i === values.length - 1 ? 'keystone' : 'major',
-                effectLabel: `막기 확률 +${values[i]}${labelSuffix}`
+                effectLabel: _t('막기 확률 +{values}{labelSuffix}', { values: values[i], labelSuffix })
             }, node.kind);
             node.clusterId = clusterKey;
             node.clusterRole = 'block';
@@ -1368,7 +1368,7 @@ function rebalancePassiveStartingStats() {
             setStat(node, preferred);
             usedStartStats.add(preferred);
         }
-        node.title = `${PASSIVE_SECTOR_TITLES[node.sector] || '성좌'} 시작점`;
+        node.title = _t('{PASSIVE_SECTOR_TITLES} 시작점', { PASSIVE_SECTOR_TITLES: PASSIVE_SECTOR_TITLES[node.sector] || _t('성좌') });
         node.desc = '루트에서 처음 선택하는 성장 축입니다. 다른 시작점과 겹치지 않는 고유한 기초 효과를 제공합니다.';
     });
 
@@ -1417,7 +1417,7 @@ function applyPassiveSpecializations() {
         used.add(node.id);
         node.stat = config.stat;
         node.val = config.val;
-        node.title = config.title;
+        node.title = _t(config.title);
         node.desc = config.desc;
         node.effectLabel = `${getStatName(config.stat)} +${formatValue(config.stat, config.val)}${P_STATS[config.stat] && P_STATS[config.stat].isPct ? '%' : ''}`;
     });
@@ -2157,7 +2157,7 @@ function unlockPassiveStarEvolution(options) {
         addLog(_t('✨ 별의 공명이 일어납니다.'), 'loot-rare');
         queueTutorialNotice(
             'passive_star_evolution',
-            '성좌 각성',
+            _t('성좌 각성'),
             progress.mode === 'outer_void'
                 ? '직업 공허 소켓 여섯을 모두 활성화해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해/생명력/이동 속도가 오릅니다.'
                 : '별끝 특수 노드를 모두 활성화해 성좌가 각성했습니다.\n각성은 영구히 유지됩니다.\n별의 공명으로 피해/생명력/이동 속도가 오릅니다.',
@@ -2273,7 +2273,7 @@ function formatVoidPassiveStatLine(line) {
     const isPct = P_STATS[line.id] ? P_STATS[line.id].isPct : /\(%\)/.test(STAT_DISPLAY_NAMES[line.id]);
     const shown = value => `+${formatValue(line.id, value)}${isPct ? '%' : ''}`, final = shown(line.val);
     // 효율이 곱해진 줄(투영의 문양, 공허의 별자리 등)은 최종 수치 뒤에 굴린 원본을 적는다(2026-11-02 사용자).
-    const original = line.baseVal === undefined || shown(line.baseVal) === final ? '' : ` (원본 ${shown(line.baseVal)})`;
+    const original = line.baseVal === undefined || shown(line.baseVal) === final ? '' : _t(' (원본 {baseVal})', { baseVal: shown(line.baseVal) });
     return `${String(getStatName(line.id)).replace(/\s*\((\+%p|%)\)\s*/g, '').trim()} ${final}${original}`;
 }
 
@@ -2298,34 +2298,34 @@ function getVoidPassiveEffectLabel(nodeId) {
 }
 
 const TRANSCENDENT_VOID_PASSIVE_DB = [
-    { id: 'trauma', name: '트라우마', min: 5, max: 10, desc: v => `이 공허 패시브는 공허 할당 ${v}회로 계산` },
-    { id: 'paleBlueDot', name: '창백한 푸른 점', fixed: 10, desc: v => `스킬트리 포인트 ${v}점을 추가로 얻습니다.` },
-    { id: 'overflowingVigor', name: '넘치는 활기', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 생명력 최대치 +${v}%` },
-    { id: 'toughSoul', name: '강인한 영혼', min: 3, max: 6, desc: v => `할당한 공허 패시브 하나당 에너지 보호막 최대치 +${v}%` },
-    { id: 'defenseMechanism', name: '방어기제', min: 5, max: 10, desc: v => `막기 확률 최대치 +${v}% 및 막기 확률 +${v}%` },
-    { id: 'blurredPresence', name: '흐릿한 존재감', min: 10, max: 20, min2: 3, max2: 5, desc: (v, v2) => `비껴내기 +${v}% 및 비껴내기 피해 감소 +${v2}%` },
+    { id: 'trauma', name: '트라우마', min: 5, max: 10, desc: v => _t('이 공허 패시브는 공허 할당 {v}회로 계산', { v }) },
+    { id: 'paleBlueDot', name: '창백한 푸른 점', fixed: 10, desc: v => _t('스킬트리 포인트 {v}점을 추가로 얻습니다.', { v }) },
+    { id: 'overflowingVigor', name: '넘치는 활기', min: 3, max: 6, desc: v => _t('할당한 공허 패시브 하나당 생명력 최대치 +{v}%', { v }) },
+    { id: 'toughSoul', name: '강인한 영혼', min: 3, max: 6, desc: v => _t('할당한 공허 패시브 하나당 에너지 보호막 최대치 +{v}%', { v }) },
+    { id: 'defenseMechanism', name: '방어기제', min: 5, max: 10, desc: v => _t('막기 확률 최대치 +{v}% 및 막기 확률 +{v2}%', { v, v2: v }) },
+    { id: 'blurredPresence', name: '흐릿한 존재감', min: 10, max: 20, min2: 3, max2: 5, desc: (v, v2) => _t('비껴내기 +{v}% 및 비껴내기 피해 감소 +{v2}%', { v, v2 }) },
     { id: 'chameleon', name: '카멜레온', desc: () => '공허 제작 창에서 다른 초월 하나를 골라 바꿀 수 있습니다' }, // convertChameleonVoidPassive
     { id: 'thirdFinger', name: '세 번째 손가락', desc: () => '반지를 하나 더 장착 가능' },
     { id: 'greed', name: '재물욕', desc: () => '주얼을 하나 더 장착 가능' },
     { id: 'wardKnot', name: '액막이 매듭', desc: () => '액막이를 하나 더 장착 가능' }, // 액막이 칸 +1(js/colony-wards.js slotCount)
-    { id: 'innateTalent', name: '타고난 재능', min: 5, max: 15, min2: 1.5, max2: 2, step2: 0.1, desc: (v, v2) => `${v}% 확률로 ${v2}배 피해` },
-    { id: 'wholehearted', name: '전심전력', min: 5, max: 15, desc: v => `할당한 공허 패시브 하나당 모든 피해 +${v}%` },
-    { id: 'impatience', name: '조급함', min: 8, max: 16, desc: v => `할당한 공허 패시브 하나당 이동 속도 +${v}%` },
-    { id: 'immortalHero', name: '불멸의 영웅', fixed: 3000, desc: v => `생명력 +${Math.max(0, Math.floor(Number(v) || 0))} (획득 이후 사망 시마다 -30)` },
-    { id: 'seasoned', name: '노련함', min: 4, max: 5, desc: v => `경험한 루프 1회마다 치명타 피해 배율 +${v}%` },
+    { id: 'innateTalent', name: '타고난 재능', min: 5, max: 15, min2: 1.5, max2: 2, step2: 0.1, desc: (v, v2) => _t('{v}% 확률로 {v2}배 피해', { v, v2 }) },
+    { id: 'wholehearted', name: '전심전력', min: 5, max: 15, desc: v => _t('할당한 공허 패시브 하나당 모든 피해 +{v}%', { v }) },
+    { id: 'impatience', name: '조급함', min: 8, max: 16, desc: v => _t('할당한 공허 패시브 하나당 이동 속도 +{v}%', { v }) },
+    { id: 'immortalHero', name: '불멸의 영웅', fixed: 3000, desc: v => _t('생명력 +{max} (획득 이후 사망 시마다 -30)', { max: Math.max(0, Math.floor(Number(v) || 0)) }) },
+    { id: 'seasoned', name: '노련함', min: 4, max: 5, desc: v => _t('경험한 루프 1회마다 치명타 피해 배율 +{v}%', { v }) },
     // 옛 고유 별쐐기 11종(2026-10-01). 트리를 바꾸던 변성 반경은 수치 효과로 옮겼다. 다섯의 수치는 data/passives.js
     // TRANSCENDENT_VOID_VALUES(9단계에서 맞춤).
-    { id: 'pluto', name: '명왕성', min: 1, max: 5, rollValue: () => rollPlutoVoidCount(), desc: v => `할당한 공허 패시브 수 +${v}로 계산 (5개 확률 1/625)` },
-    { id: 'resonantStar', name: '공명별', fixed: 1, desc: v => `보조스킬룬 한도 +${v}` },
+    { id: 'pluto', name: '명왕성', min: 1, max: 5, rollValue: () => rollPlutoVoidCount(), desc: v => _t('할당한 공허 패시브 수 +{v}로 계산 (5개 확률 1/625)', { v }) },
+    { id: 'resonantStar', name: '공명별', fixed: 1, desc: v => _t('보조스킬룬 한도 +{v}', { v }) },
     { id: 'darkMatter', name: '암흑물질', desc: () => '옵션이 한 줄인 다른 공허 패시브의 효과 +100% (초월 공허 제외)' },
     { id: 'sun', name: '태양', desc: () => '초월 직전 이 공허 패시브의 옵션을 3배로 유지' },
     { id: 'blackHole', name: '블랙홀', desc: () => '이 노드가 무료 연결 거점이 됩니다. 시작점까지의 길을 되돌려도 이어진 패시브가 유지됩니다' },
-    { id: 'andromeda', name: '안드로메다', desc: () => `이 노드 반경 ${TRANSCENDENT_ANDROMEDA_RADIUS} 안의 패시브는 길이 이어지지 않아도 할당할 수 있습니다` },
-    { id: 'comet', name: '혜성', ...TRANSCENDENT_VOID_VALUES.comet, desc: v => `이동 속도 +${v}%` },
-    { id: 'asteroidBelt', name: '소행성대', ...TRANSCENDENT_VOID_VALUES.asteroidBelt, desc: v => `이 노드 반경 ${TRANSCENDENT_ASTEROID_RADIUS} 안에 할당한 패시브 하나당 모든 피해 +${v}%` },
-    { id: 'zeroGravity', name: '무중력', ...TRANSCENDENT_VOID_VALUES.zeroGravity, desc: v => `회피 +${v}%` },
-    { id: 'satellite', name: '위성', ...TRANSCENDENT_VOID_VALUES.satellite, desc: v => `공격 속도 +${v}%` },
-    { id: 'supernova', name: '초신성', ...TRANSCENDENT_VOID_VALUES.supernova, desc: v => `다른 공허 패시브의 옵션 +${v}%` }
+    { id: 'andromeda', name: '안드로메다', desc: () => _t('이 노드 반경 {value} 안의 패시브는 길이 이어지지 않아도 할당할 수 있습니다', { value: TRANSCENDENT_ANDROMEDA_RADIUS }) },
+    { id: 'comet', name: '혜성', ...TRANSCENDENT_VOID_VALUES.comet, desc: v => _t('이동 속도 +{v}%', { v }) },
+    { id: 'asteroidBelt', name: '소행성대', ...TRANSCENDENT_VOID_VALUES.asteroidBelt, desc: v => _t('이 노드 반경 {value} 안에 할당한 패시브 하나당 모든 피해 +{v}%', { value: TRANSCENDENT_ASTEROID_RADIUS, v }) },
+    { id: 'zeroGravity', name: '무중력', ...TRANSCENDENT_VOID_VALUES.zeroGravity, desc: v => _t('회피 +{v}%', { v }) },
+    { id: 'satellite', name: '위성', ...TRANSCENDENT_VOID_VALUES.satellite, desc: v => _t('공격 속도 +{v}%', { v }) },
+    { id: 'supernova', name: '초신성', ...TRANSCENDENT_VOID_VALUES.supernova, desc: v => _t('다른 공허 패시브의 옵션 +{v}%', { v }) }
 ];
 
 /** 명왕성: 1개 80% · 2개 16% · 3개 3.2% · 4개 0.64% · 5개 0.16%(1/625). 옛 고유 별쐐기의 공허 생성 확률 그대로. */
@@ -2397,7 +2397,7 @@ function clampTranscendentValue(def, value) {
 function formatTranscendentVoidPassive(entry) {
     let def = TRANSCENDENT_VOID_PASSIVE_DB.find(row => row.id === (entry && entry.id));
     if (!def) return '공허 옵션 없음';
-    return `<span style="color:#d8b4ff;">${def.name} (초월)</span>: ${def.desc(entry.value, entry.value2)}`;
+    return `<span style="color:#d8b4ff;">${_t('{name} (초월)', { name: def.name })}</span>: ${def.desc(entry.value, entry.value2)}`;
 }
 
 function rollVoidPassiveOption(existingStats) {
@@ -2534,15 +2534,15 @@ function syncPaleBlueDotPassivePoints(previousEntry, nextEntry) {
  * 검토 4차에서 아무 변화 없이 재화만 사라진 것처럼 보였다. */
 function rollFairyRingOnCraftedVoid(entry, nodeId) {
     if (!entry.transcendent && !(entry.stats || []).length) {
-        return { text: '요정의 고리는 옵션이 있는 공허 패시브에만 쓸 수 있습니다. 마법의 새싹으로 먼저 옵션을 굴리세요.', tone: 'attack-monster' };
+        return { text: _t('요정의 고리는 옵션이 있는 공허 패시브에만 쓸 수 있습니다. 마법의 새싹으로 먼저 옵션을 굴리세요.'), tone: 'attack-monster' };
     }
-    if (entry.fairyLocked) return { text: '이 소켓에는 이번 루프에 요정의 고리를 다시 쓸 수 없습니다.', tone: 'attack-monster' };
+    if (entry.fairyLocked) return { text: _t('이 소켓에는 이번 루프에 요정의 고리를 다시 쓸 수 없습니다.'), tone: 'attack-monster' };
     game.currencies.fairyRing--;
     rollFairyRingOnVoid(entry, nodeId);
     if (!entry.transcendent) entry.fairyLocked = true;   // 실패: 이번 루프 동안 이 소켓은 잠긴다. 루프가 끝나면 game.voidPassives와 함께 풀린다.
     return entry.transcendent
-        ? { text: `🌌 공허 패시브 초월: ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}`, tone: 'loot-unique' }
-        : { text: '💥 요정의 고리: 초월에 실패해 공허 패시브의 옵션이 지워졌습니다.', tone: 'attack-monster' };
+        ? { text: _t('🌌 공허 패시브 초월: {replace}', { replace: formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '') }), tone: 'loot-unique' }
+        : { text: _t('💥 요정의 고리: 초월에 실패해 공허 패시브의 옵션이 지워졌습니다.'), tone: 'attack-monster' };
 }
 
 function applyVoidPassiveCurrency(nodeId, currencyKey) {
@@ -2978,9 +2978,9 @@ function recordOceanSurface(st, reason) {
 /** 자동 재잠수 알림: 소득 없이 한도만큼 떠올라 멈췄거나, 넘지 못한 가디언 때문에 다음 잠수가 지난 가디언 자리부터 내려간다. */
 function getOceanAutoRediveNote(st, reason) {
     const limit = OCEAN_AUTO_REDIVE.missLimit;
-    if (st.fruitlessDives >= limit) return `🌊 리프트도 가디언 처치도 물고기도 없이 ${limit}번 떠올라 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.`;
+    if (st.fruitlessDives >= limit) return _t('🌊 리프트도 가디언 처치도 물고기도 없이 {limit}번 떠올라 자동 재잠수를 멈춥니다. 잠수 시작을 누르면 다시 이어집니다.', { limit });
     const lift = reason === 'guardian' ? getOceanShallowLiftM(st) : null;
-    return lift === null ? '' : `🌊 자동 재잠수는 ${lift}m부터 내려가 물고기를 모읍니다.`;
+    return lift === null ? '' : _t('🌊 자동 재잠수는 {lift}m부터 내려가 물고기를 모읍니다.', { lift });
 }
 /** 떠오를 곳: 잠수를 시작한 사냥터(액트나 혼돈 구역이 남아 있으면), 아니면 예전처럼 가장 먼 사냥터. 기록은 비운다. changeZone은
  * maxZoneId를 넘는 번호(혼돈 심화의 더 깊은 층)를 받지 않으므로 그런 층에서 시작한 잠수도 가장 먼 사냥터로 올라온다. */
@@ -3230,7 +3230,7 @@ function getSeaGiftEffectBlockReason(item, effect, category) {
     return Object.hasOwn(SEA_GIFT_EFFECT_BLOCKERS, effect.type) ? SEA_GIFT_EFFECT_BLOCKERS[effect.type](item, effect, category) : '';
 }
 /** '' when the item can take a line of the category picked on the card (none picked: any), else a short label. */
-const getSeaGiftCategoryBlockReason = (item, category) => (!category || getAvailableMods(item).some(mod => getModCategory(mod) === category) ? '' : `${category} 옵션 없음`);
+const getSeaGiftCategoryBlockReason = (item, category) => (!category || getAvailableMods(item).some(mod => getModCategory(mod) === category) ? '' : _t('{category} 옵션 없음', { category }));
 const getSeaGiftEchoBlockReason = item => {
     if ((item.stats || []).some(s => s && s.isEchoMod)) return '메아리 줄 있음';
     const editable = getSeaGiftEditableIndexes(item);
@@ -3241,7 +3241,7 @@ const getSeaGiftLockBlockReason = (item, effect) => {
     const editable = getSeaGiftEditableIndexes(item).length;
     const required = Math.max(1, Math.floor(effect.count || 1)) + (effect.bonusTaggedReroll ? 1 : 0);
     if (editable >= required) return '';
-    return editable === 0 ? '봉인할 줄 없음' : `봉인 안 된 ${required}줄 필요`;
+    return editable === 0 ? '봉인할 줄 없음' : _t('봉인 안 된 {required}줄 필요', { required });
 };
 /** A guaranteed line needs a place (room to add it, else an unsealed line to swap) and, with the free removal, a line to remove
  * besides the one it swaps. */
@@ -3267,7 +3267,7 @@ const SEA_GIFT_EFFECT_BLOCKERS = Object.freeze({
         return getOpenAffixMods(item, item.rarity, item.stats[editable[count]])
             .some(mod => !category || getModCategory(mod) === category) ? '' : '해당 계열로 재단할 자리 없음';
     },
-    taggedReroll: (item, effect, category) => (getSeaGiftRerollRows(item, category).length ? '' : `${category || '굴릴'} 줄 없음`),
+    taggedReroll: (item, effect, category) => (getSeaGiftRerollRows(item, category).length ? '' : _t('{category} 줄 없음', { category: category || _t('굴릴') })),
     safeReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
     twinReroll: item => (getSeaGiftRerollRows(item).length ? '' : '굴릴 줄 없음'),
     tierStepUp: item => (getSeaGiftTierStepRows(item).length ? '' : '올릴 줄 없음'),
@@ -3566,7 +3566,7 @@ function applySeaGiftEcho(item, effect, craft) {
     const source = item.stats[choice.sourceIndex];
     let echo = makeSeaGiftEchoLine(source, equipmentCrafting.storedAffixKind(item, source));
     item.stats[dstIdx] = echo;
-    craft.say(`🔊 ${echo.echoOf} 옵션이 50% 효과로 메아리쳤습니다.`, 'loot-rare');
+    craft.say(_t('🔊 {echoOf} 옵션이 50% 효과로 메아리쳤습니다.', { echoOf: echo.echoOf }), 'loot-rare');
     updateItemName(item);
 }
 function makeSeaGiftEchoLine(src, kind) {
@@ -3686,7 +3686,7 @@ function getPassiveKeystoneConflict(path) {
     const corruptId = getPassiveKeystoneNodeId('타락한 복음');
     const tripleId = getPassiveKeystoneNodeId('삼중 계시');
     if ((owned.has(corruptId) && pending.has(tripleId)) || (owned.has(tripleId) && pending.has(corruptId))) {
-        return `${PASSIVE_TREE.nodes[corruptId].title}, ${PASSIVE_TREE.nodes[tripleId].title}는 동시에 할당할 수 없습니다.`;
+        return _t('{title}, {title2}는 동시에 할당할 수 없습니다.', { title: PASSIVE_TREE.nodes[corruptId].title, title2: PASSIVE_TREE.nodes[tripleId].title });
     }
     return '';
 }
@@ -3694,7 +3694,7 @@ function getPassiveKeystoneConflict(path) {
 /** 노드 하나까지의 길을 찍는다. 나무꾼 전투 중에는 빌드가 매 틱 들어갈 때로 돌아가므로(js/combat.js enforceWoodsmanBuildLock) 반환처럼
  * 거절한다(2026-10-20 검토: "활성화!"가 뜬 뒤 다음 틱에 되돌아갔다). */
 function activatePassivePath(targetNodeId, options) {
-    if (game.woodsmanBuildLock) return { activated: false, cost: 0, path: [], reason: 'locked', message: '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.' };
+    if (game.woodsmanBuildLock) return { activated: false, cost: 0, path: [], reason: 'locked', message: _t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.') };
     return allocatePassivePath(targetNodeId, options);
 }
 
@@ -3703,7 +3703,7 @@ function allocatePassivePath(targetNodeId, options) {
     const expected = options && options.expectedPath;
     if (expected && (path.length !== expected.length || path.some((id, index) => id !== expected[index]))) {
         return { activated: false, cost: path.length, path: path.slice(), reason: 'changed',
-            message: '확인 중 연결 경로가 바뀌었습니다. 노드를 다시 선택해 주세요.' };
+            message: _t('확인 중 연결 경로가 바뀌었습니다. 노드를 다시 선택해 주세요.') };
     }
     if (path.length === 0) return { activated: false, cost: 0, path: [] };
     let conflict = getPassiveKeystoneConflict(path);
@@ -3764,7 +3764,7 @@ function normalizePassiveTreePreset(raw, slotIndex) {
         let stat = choices[id];
         if (['strength', 'dexterity', 'intelligence'].includes(stat)) attributeChoices[id] = stat;
     });
-    let fallbackName = `프리셋 ${slotIndex + 1}`;
+    let fallbackName = _t('프리셋 {value}', { value: slotIndex + 1 });
     let name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim().slice(0, 24) : fallbackName;
     return { name, nodeIds, attributeChoices };
 }
@@ -4651,9 +4651,9 @@ function formatKoreanFullDamageNumber(value) {
     let remaining = Math.max(0, Math.floor(Number(value) || 0));
     if (remaining < 10000) return `${remaining}`;
     const units = [
-        { value: 1000000000000, label: '조' },
-        { value: 100000000, label: '억' },
-        { value: 10000, label: '만' }
+        { value: 1000000000000, label: _t('조') },
+        { value: 100000000, label: _t('억') },
+        { value: 10000, label: _t('만') }
     ];
     let text = '';
     units.forEach(unit => {
@@ -4669,9 +4669,9 @@ function formatKoreanFullDamageNumber(value) {
 function formatKoreanShortDamageNumber(value) {
     let amount = Math.max(0, Number(value) || 0);
     const units = [
-        { value: 1000000000000, label: '조' },
-        { value: 100000000, label: '억' },
-        { value: 10000, label: '만' }
+        { value: 1000000000000, label: _t('조') },
+        { value: 100000000, label: _t('억') },
+        { value: 10000, label: _t('만') }
     ];
     for (const unit of units) {
         if (amount >= unit.value) return `${trimFixedNumber(amount / unit.value, 1)}${unit.label}`;
@@ -4889,7 +4889,7 @@ drawDamageTexts.paint = (() => {
         const { text, pop } = row;
         ctx.font = row.font; ctx.textAlign = row.align;
         const metrics = textSize(ctx, row.label);
-        const count = !text.bodyCue && !text.miss && !text.dot && text.hitCount > 1 ? `${Math.floor(text.hitCount)}타` : '';
+        const count = !text.bodyCue && !text.miss && !text.dot && text.hitCount > 1 ? _t('{floor}타', { floor: Math.floor(text.hitCount) }) : '';
         // Korean unit glyphs can overhang their advance width; leave a real gap before the hit-count suffix.
         const countX = metrics.right + GAP * 2;
         ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
@@ -4962,11 +4962,11 @@ drawDamageTexts.paint = (() => {
         ctx.strokeStyle = 'rgba(2,5,9,0.92)';
         ctx.shadowColor = text.impactTier === 'annihilate' ? 'rgba(255,155,72,.5)' : (strong ? 'rgba(255,211,102,0.38)' : 'transparent');
         ctx.shadowBlur = text.bodyCue ? 0 : (text.impactTier === 'annihilate' ? 7 : (strong ? 4 : 0));
-        drawCrispCanvasText(ctx, row.label, x, y, 'strokeText');
+        drawCrispCanvasText(ctx, _t(row.label), x, y, 'strokeText');
         // The fill sits inside the stroke, so the stroke pass already casts the whole glow.
         ctx.shadowBlur = 0;
         ctx.fillStyle = getDamageTextFillColor(text);
-        drawCrispCanvasText(ctx, row.label, x, y);
+        drawCrispCanvasText(ctx, _t(row.label), x, y);
         if (row.count) {
             ctx.font = '10px "Galmuri9", "Galmuri11", "Malgun Gothic", sans-serif';
             ctx.textAlign = 'left';
@@ -5107,10 +5107,10 @@ function buildHeroChoiceTooltipHtml(classId, experienced) {
     if (!def) return '';
     // 변이 루프는 첫 처치에서 셋 중 하나를 고른다(js/loop-mutation.js starterChoices)
     const choices = loopMutation.starterChoices(classId) || [];
-    const gem = choices.length > 1 ? `${choices.join(', ')} 중 하나` : LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '이중 베기';
+    const gem = choices.length > 1 ? _t('{choices} 중 하나', { choices: choices.join(', ') }) : LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '이중 베기';
     const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
-    return `<div class="tooltip-title">${escapeHTML(_t(def.label))}${experienced ? ' <span style="color:#9fd8ff;">경험함</span>' : ''}</div>
-        <div class="tooltip-line" style="color:#f6c461;">시작 스킬룬: ${escapeHTML(gem)}</div>
+    return `<div class="tooltip-title">${escapeHTML(_t(def.label))}${experienced ? _t(' <span style="color:#9fd8ff;">경험함</span>') : ''}</div>
+        <div class="tooltip-line" style="color:#f6c461;">${_t('시작 스킬룬: {gem}', { gem: escapeHTML(gem) })}</div>
         ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
         <div class="tooltip-line" style="color:#d8b4ff;">전직: ${escapeHTML(getAscendanciesForClass(classId).map(id => CLASS_TEMPLATES[id].name).join(', '))}</div>`;
 }
@@ -5165,7 +5165,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
     }
     loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
     if (kickerEl) kickerEl.innerText = options.kicker || '다음 루프';
-    if (titleEl) titleEl.innerText = options.title || '다음 루프 직업 선택';
+    if (titleEl) titleEl.innerText = _t(options.title) || '다음 루프 직업 선택';
     if (bodyEl) bodyEl.innerText = (options.body || '이번 루프에서 사용할 직업을 선택하세요.') + loopHeroMutationLine();
     let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredClassIds) ? game.discoveredClassIds : []);
     grid.innerHTML = PLAYER_CLASS_ORDER.map(id => {
@@ -5173,7 +5173,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
         let experienced = experiencedSet.has(id);
         let badge = experienced ? '<span class="hero-choice-badge">경험함</span>' : '';
         let args = `'${id}',${experienced}`;
-        return `<button class="reward-choice hero-choice" aria-label="${escapeHTML(_t(def.label))} 선택" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,${args})" onmousemove="showHeroChoiceTooltip(event,${args})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();pressLoopHeroChoice(${args})">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(_t(def.label))}</strong></button>`;
+        return `<button class="reward-choice hero-choice" aria-label="${_t('{label} 선택', { label: escapeHTML(_t(def.label)) })}" data-class-id="${escapeHTML(id)}" data-info-tooltip-anchor="1" onmouseenter="showHeroChoiceTooltip(event,${args})" onmousemove="showHeroChoiceTooltip(event,${args})" onmouseleave="hideInfoTooltip()" onclick="hideInfoTooltip();pressLoopHeroChoice(${args})">${badge}<img class="hero-choice-portrait" src="${escapeHTML(def.portrait)}" alt="" draggable="false"><strong>${escapeHTML(_t(def.label))}</strong></button>`;
     }).join('');
     renderLoopHeroChoiceDetail(null);
     overlay.classList.add('active');
@@ -5291,7 +5291,7 @@ function applyPanelLayoutSettings() {
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     document.body.classList.toggle('combat-log-collapsed', isLogCollapsed);
     const logText = isLogCollapsed ? '펼치기' : '접기';
-    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, logText, { 'aria-expanded': String(!isLogCollapsed), 'aria-label': `전투 기록 ${logText}` });
+    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, logText, { 'aria-expanded': String(!isLogCollapsed), 'aria-label': _t('전투 기록 {logText}', { logText }) });
 }
 
 /** A panel toggle's text and attributes, written only where they differ. */
@@ -5366,11 +5366,11 @@ function renderDeathDamageRows(rows) {
 function renderDeathAilmentRows(log) {
     let rows = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
     if (rows.length === 0) return '';
-    return `<div class="deathlog-subtitle" style="margin-top:10px;">죽기 전 걸린 상태이상</div>` + rows.map(ail => {
-        let hit = (ail.sourceHitDamage || 0) > 0 ? `, 원천 피해 ${formatNumberKR(Math.floor(ail.sourceHitDamage))}` : '';
+    return `<div class="deathlog-subtitle" style="margin-top:10px;">${_t('죽기 전 걸린 상태이상')}</div>` + rows.map(ail => {
+        let hit = (ail.sourceHitDamage || 0) > 0 ? _t(', 원천 피해 {floor}', { floor: formatNumberKR(Math.floor(ail.sourceHitDamage)) }) : '';
         let source = ail.sourceEnemyName ? `, ${escapeDeathLogText(ail.sourceEnemyName)}` : '';
         return `<div class="deathlog-line"><div class="deathlog-line-top"><span>${escapeDeathLogText(ail.label || getAilmentDisplayLabel(ail.type))}</span>
-            <strong class="deathlog-value">${Math.ceil(Math.max(0, ail.time || 0))}초<span class="deathlog-ratio">강도 ${(Number(ail.power || 0)).toFixed(2)}${hit}${source}</span></strong></div></div>`;
+            <strong class="deathlog-value">${_t('{ceil}초', { ceil: Math.ceil(Math.max(0, ail.time || 0)) })}<span class="deathlog-ratio">${_t('강도 {power}{hit}{source}', { power: (Number(ail.power || 0)).toFixed(2), hit, source })}</span></strong></div></div>`;
     }).join('');
 }
 
@@ -5378,7 +5378,7 @@ function renderDeathElementView(log) {
     let damageRows = renderDeathDamageRows(log.damageSummary);
     let html = damageRows || '<div class="deathlog-empty">최근 3초 동안 집계된 피해 기록이 없습니다.</div>';
     let ailments = renderDeathDamageRows(log.ailmentDamageSummary);
-    if (ailments) html += `<div class="deathlog-subtitle" style="margin-top:10px;">상태이상 피해 요약</div>${ailments}`;
+    if (ailments) html += `<div class="deathlog-subtitle" style="margin-top:10px;">${_t('상태이상 피해 요약')}</div>${ailments}`;
     return html + renderDeathAilmentRows(log);
 }
 
@@ -5396,7 +5396,7 @@ function renderDeathMonsterView(log) {
     let hidden = rows.slice(5);
     if (hidden.length > 0) {
         let hiddenDamage = hidden.reduce((sum, row) => sum + Math.max(0, row.value || 0), 0);
-        html += `<div class="deathlog-line deathlog-other">그 외 몬스터 ${hidden.length}마리, 피해 ${formatNumberKR(hiddenDamage)}</div>`;
+        html += `<div class="deathlog-line deathlog-other">${_t('그 외 몬스터 {length}마리, 피해 {hiddenDamage}', { length: hidden.length, hiddenDamage: formatNumberKR(hiddenDamage) })}</div>`;
     }
     return html;
 }
@@ -5429,17 +5429,17 @@ function getDeathLogScope(log) {
 function describeDeathAttrition(log) {
     if (!isDeathAttrition(log)) return '';
     const share = Math.round(sumDeathDamage(log.damageSummary) / log.maxLife * 100);
-    return `${log.fight.seconds}초 동안 조금씩 깎였습니다(마지막 3초 피해는 생명의 ${share}%).`;
+    return _t('{seconds}초 동안 조금씩 깎였습니다(마지막 3초 피해는 생명의 {share}%).', { seconds: log.fight.seconds, share });
 }
 /** 지금 바로 할 수 있는 일. 초반 사망은 대개 받지 않은 액트 보상, 남은 포인트, 빈 무기 칸 가운데 하나였다(플레이 리뷰 2026-10-07).
  * 액트 보상 줄에는 바로 여는 단추(reward: 지역 id)가 붙는다. */
 function getDeathHints() {
     const rewards = getAvailableActRewardZoneIds(), fillable = countFillableEmptySlots();
     return [
-        rewards.length ? { text: `받지 않은 액트 보상 ${rewards.length}개`, action: { label: '받기', onclick: `closeDeathOverlay();openActReward(${rewards[0]})` } } : null,
-        game.passivePoints > 0 ? { text: `쓰지 않은 스킬트리 포인트 ${game.passivePoints}점`, action: { label: '스킬트리', onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
-        game.equipment['무기'] ? null : { text: '무기 칸이 비어 있습니다' },
-        fillable ? { text: `가방에 바로 낄 수 있는 장비 ${fillable}개`, action: { label: '채우기', onclick: 'fillEmptyEquipmentSlots();renderDeathHints()' } } : null,
+        rewards.length ? { text: _t('받지 않은 액트 보상 {length}개', { length: rewards.length }), action: { label: _t('받기'), onclick: `closeDeathOverlay();openActReward(${rewards[0]})` } } : null,
+        game.passivePoints > 0 ? { text: _t('쓰지 않은 스킬트리 포인트 {passivePoints}점', { passivePoints: game.passivePoints }), action: { label: _t('스킬트리'), onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
+        game.equipment['무기'] ? null : { text: _t('무기 칸이 비어 있습니다') },
+        fillable ? { text: _t('가방에 바로 낄 수 있는 장비 {fillable}개', { fillable }), action: { label: _t('채우기'), onclick: 'fillEmptyEquipmentSlots();renderDeathHints()' } } : null,
         shopDeathHint(),
         lowResistanceDeathHint(activeDeathLog),
         strongerRuneDeathHint()
@@ -5449,7 +5449,7 @@ function getDeathHints() {
  * 더하지 않고 상점을 센다. */
 function shopDeathHint() {
     const shops = Object.keys(NPC_SHOPS).filter(id => npcShop.ready(id) > 0).length;
-    return shops ? { text: `지금 살 수 있는 물건이 있는 NPC 상점 ${shops}곳`, action: { label: 'NPC', onclick: "closeDeathOverlay();switchTab('tab-npcs')" } } : null;
+    return shops ? { text: _t('지금 살 수 있는 물건이 있는 NPC 상점 {shops}곳', { shops }), action: { label: 'NPC', onclick: "closeDeathOverlay();switchTab('tab-npcs')" } } : null;
 }
 /** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환과 이동 룬 말고: 이동 룬은 이동 칸에 낀다)으로, 지금 무기로 쓸 수 있는 룬. */
 function isStrongerRuneCandidate(name, keep) {
@@ -5463,8 +5463,8 @@ function strongerRuneDeathHint() {
     if (!(before > 0)) return null;
     const dpsOf = name => { game.activeSkill = name; try { return getPlayerStats(false).dps || 0; } finally { game.activeSkill = keep; } };
     const top = (game.skills || []).filter(name => isStrongerRuneCandidate(name, keep)).map(name => [name, dpsOf(name)]).sort((a, b) => b[1] - a[1])[0];
-    return top && top[1] > before * 1.1 ? { text: `가진 룬 「${top[0]}」의 DPS가 지금 룬의 ${(top[1] / before).toFixed(1)}배입니다`,
-        action: { label: '장착', onclick: `changeSkill('${top[0]}');renderDeathHints()` } } : null;
+    return top && top[1] > before * 1.1 ? { text: _t('가진 룬 「{top}」의 DPS가 지금 룬의 {value}배입니다', { top: top[0], value: (top[1] / before).toFixed(1) }),
+        action: { label: _t('장착'), onclick: `changeSkill('${top[0]}');renderDeathHints()` } } : null;
 }
 /** 쓰러뜨린 속성의 저항이 0보다 낮으면 그 값을 알린다. 혼돈 1부터 캠페인 패널티로 모든 저항이 60 낮아져, 패시브를 찍은 전사와 궁수도
  * 그곳에서 화염, 냉기 피해에 거듭 쓰러졌다(자연 플레이 측정 2026-10-17). */
@@ -5473,8 +5473,8 @@ function lowResistanceDeathHint(log) {
     const row = log ? DEATH_RESIST_STATS[normalizeDamageElementKey(log.fatalElement || log.primaryElement)] : null;
     if (!row) return null;
     const value = Math.floor(Number(getPlayerStats(false)[row[0]]) || 0);
-    return value < 0 ? { text: `${row[1]} 저항 ${value}%(장비의 ${row[1]} 저항 옵션으로 올리면 받는 피해가 줄어듭니다)`,
-        action: { label: '장비', onclick: "closeDeathOverlay();switchTab('tab-items');switchItemSubtab('item-tab-equip')" } } : null;
+    return value < 0 ? { text: _t('{row} 저항 {value}%(장비의 {row2} 저항 옵션으로 올리면 받는 피해가 줄어듭니다)', { row: row[1], value, row2: row[1] }),
+        action: { label: _t('장비'), onclick: "closeDeathOverlay();switchTab('tab-items');switchItemSubtab('item-tab-equip')" } } : null;
 }
 function renderDeathHints() {
     const box = document.getElementById('deathlog-hints');
@@ -5482,19 +5482,19 @@ function renderDeathHints() {
     const hints = getDeathHints();
     box.hidden = hints.length === 0;
     box.innerHTML = hints.length === 0 ? '' : '<div class="deathlog-subtitle">할 수 있는 일</div>' + hints.map(hint => `<div class="deathlog-hint">
-        <span>${escapeDeathLogText(hint.text)}</span>${hint.action ? `<button type="button" class="deathlog-hint-action" onclick="${escapeDeathLogText(hint.action.onclick)}">${hint.action.label}</button>` : ''}</div>`).join('');
+        <span>${escapeDeathLogText(hint.text)}</span>${hint.action ? `<button type="button" class="deathlog-hint-action" onclick="${escapeDeathLogText(hint.action.onclick)}">${_t(hint.action.label)}</button>` : ''}</div>`).join('');
 }
 
 /** 잃은 경험치 줄: 잃은 것이 없으면(레벨 1 첫 사망 등) "0 잃었습니다" 대신 줄을 뺀다. */
 function describeDeathExpLoss(log) {
-    return log.expLost > 0 ? `경험치를 ${log.expLost} 잃었습니다.` : '';
+    return log.expLost > 0 ? _t('경험치를 {expLost} 잃었습니다.', { expLost: log.expLost }) : '';
 }
 
 /** 탐험 중 쓰러지면 모아 둔 전리품이 사라지고 지도를 처음부터 다시 밝힌다 — 보고서에 그 사실을 적는다. */
 function describeDeathLootLoss(log) {
     if (!log.lostItems && !log.lostCurrencies) return '';
-    const parts = [log.lostItems ? `아이템 ${log.lostItems}개` : '', log.lostCurrencies ? `재화 ${log.lostCurrencies}종` : ''].filter(Boolean);
-    return `탐험 전리품(${parts.join(', ')})을 잃고 지도를 처음부터 다시 밝힙니다.`;
+    const parts = [log.lostItems ? _t('아이템 {lostItems}개', { lostItems: log.lostItems }) : '', log.lostCurrencies ? _t('재화 {lostCurrencies}종', { lostCurrencies: log.lostCurrencies }) : ''].filter(Boolean);
+    return _t('탐험 전리품({parts})을 잃고 지도를 처음부터 다시 밝힙니다.', { parts: parts.join(', ') });
 }
 
 function openDeathOverlay(log) {
@@ -5505,7 +5505,7 @@ function openDeathOverlay(log) {
     activeDeathLog = log;
     let ailments = Array.isArray(log.activeAilments) ? log.activeAilments.filter(entry => entry && entry.type) : [];
     let ailmentText = ailments.length > 0
-        ? ailments.slice(0, 4).map(ail => `${ail.label || getAilmentDisplayLabel(ail.type)} ${Math.ceil(Math.max(0, ail.time || 0))}초`).join(', ')
+        ? ailments.slice(0, 4).map(ail => _t('{label} {ceil}초', { label: ail.label || getAilmentDisplayLabel(ail.type), ceil: Math.ceil(Math.max(0, ail.time || 0)) })).join(', ')
         : '없음';
     const describeDamage = () => {
         const fatal = log.fatalElement ? getDamageElementLabel(log.fatalElement) : '속성 미기록';
@@ -5513,10 +5513,10 @@ function openDeathOverlay(log) {
         const recent = log.damageSummary?.length ? getDamageElementLabel(log.primaryElement) : '기록 없음';
         return `마지막 피해: ${source}\n최근 주요 피해: ${recent}`;
     };
-    document.getElementById('deathlog-title').innerText = '전투에서 쓰러졌습니다.';
+    document.getElementById('deathlog-title').innerText = _t('전투에서 쓰러졌습니다.');
     document.getElementById('deathlog-body').innerText = [describeDamage(), describeDeathAttrition(log), describeDeathExpLoss(log), describeDeathLootLoss(log),
-        log.retreatZoneName ? `${withDirectionParticle(log.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.` : '', `죽기 전 상태이상: ${ailmentText}`].filter(Boolean).join('\n');
-    document.getElementById('deathlog-damage-title').innerText = isDeathAttrition(log) ? `전투 전체 피해 (${log.fight.seconds}초)` : '최근 3초 피해 요약';
+        log.retreatZoneName ? _t('{retreatZoneName} 물러나 레벨을 {ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.', { retreatZoneName: withDirectionParticle(log.retreatZoneName), ACT_RETREAT_LEVELS }) : '', _t('죽기 전 상태이상: {ailmentText}', { ailmentText })].filter(Boolean).join('\n');
+    document.getElementById('deathlog-damage-title').innerText = isDeathAttrition(log) ? _t('전투 전체 피해 ({seconds}초)', { seconds: log.fight.seconds }) : _t('최근 3초 피해 요약');
     renderDeathHints();
     document.querySelectorAll('[data-deathlog-view]').forEach(tab => { tab.onclick = () => setDeathLogView(tab.dataset.deathlogView); });
     setDeathLogView('element');
@@ -5668,12 +5668,12 @@ function getActRewardConfig(zoneId, owner = game) {
 function getSupportActRewardFallback(choice) {
     let amount = Math.max(1, Math.floor(Number(choice && choice.fallbackValue) || 1));
     if (choice && choice.fallbackKind === 'points') {
-        return { kind: 'points', amount, currency: null, label: `스킬트리 포인트 +${amount}` };
+        return { kind: 'points', amount, currency: null, label: _t('스킬트리 포인트 +{amount}', { amount }) };
     }
     let currency = (choice && choice.currency) || 'magicBud';
     let currencyDef = ORB_DB[currency];
     if (!currencyDef) throw new Error(`Unknown support reward fallback currency: ${currency}`);
-    return { kind: 'currency', amount, currency, label: `${currencyDef.name} ${amount}개` };
+    return { kind: 'currency', amount, currency, label: _t('{name} {amount}개', { name: currencyDef.name, amount }) };
 }
 
 function isActRewardChoiceAvailable(choice, owner = game) {
@@ -5691,11 +5691,11 @@ function getActRewardChoices(zoneId) {
     return config.choices.map(choice => {
         let enriched = { ...choice };
         if (choice.kind === 'skill' && hasSkillGemOwned(choice.skill)) {
-            enriched.desc = `${choice.desc} 이미 보유 중이면 스킬트리 포인트 +${choice.fallbackValue || 1}로 바뀝니다.`;
+            enriched.desc = _t('{desc} 이미 보유 중이면 스킬트리 포인트 +{fallbackValue}로 바뀝니다.', { desc: choice.desc, fallbackValue: choice.fallbackValue || 1 });
         }
         if (choice.kind === 'support' && hasSupportGemOwned(choice.gem)) {
             let fallback = getSupportActRewardFallback(choice);
-            enriched.desc = `${choice.desc} 이미 보유 중이면 ${fallback.label}로 바뀝니다.`;
+            enriched.desc = _t('{desc} 이미 보유 중이면 {label}로 바뀝니다.', { desc: choice.desc, label: fallback.label });
         }
         if (choice.kind === 'item' && choice.slot === '무기') Object.assign(enriched, describeActRewardWeapon());
         if (choice.kind === 'item' && isFirstActStarterReward(zoneId)) {
@@ -5722,7 +5722,7 @@ function grantClassStarterWeapon(classId) {
 /** 액트 보상 무기는 직업 대표 무기(직업 카드의 '대표 무기')의 대분류로 나온다. 아무 무기나 나와 궁수가 대검을 받기도 했다(플레이 리뷰 2026-10-07). */
 function describeActRewardWeapon() {
     const category = HANA_WEAPON_COMBOS.classWeapons[game.selectedClassId];
-    return WEAPON_CATEGORIES[category] ? { weaponCategory: category, label: `미확인 ${WEAPON_CATEGORIES[category].name}` } : {};
+    return WEAPON_CATEGORIES[category] ? { weaponCategory: category, label: _t('미확인 {name}', { name: WEAPON_CATEGORIES[category].name }) } : {};
 }
 function getClaimedJournalPassivePointTotal(state) {
     let runtimeState = state && typeof state === 'object' ? state : game;
@@ -5945,7 +5945,7 @@ function openActReward(zoneId) {
     activeRewardZoneId = zoneId;
     let storyAct = getStoryActByZoneId(zoneId);
     // 머리글이 "액트 N 클리어 보상", 제목은 지역 이름만(예전에는 둘 다 '클리어 보상'을 되풀이했다).
-    document.getElementById('reward-kicker').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상` : '액트 클리어 보상';
+    document.getElementById('reward-kicker').innerText = storyAct ? _t('{storyAct} 클리어 보상', { storyAct: formatStoryActLabel(storyAct) }) : _t('액트 클리어 보상');
     document.getElementById('reward-title').innerText = storyAct ? storyAct.title : config.title;
     const nextAct = zoneId < 9 ? getStoryActByZoneId(zoneId + 1) : null;
     const body = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
@@ -5969,8 +5969,8 @@ function renderActRewardChoice(zoneId, choice, index) {
         : `<small>${getActRewardPreview(choice)}${formatActRewardDps(measureActRewardDps(zoneId, choice))}</small>`;
     return `
         <button class="reward-choice" data-choice-key="${encodeURIComponent(choice.claimKey)}" onclick="claimActRewardChoice(${zoneId}, ${index}, this.dataset.choiceKey)">
-            ${actRewardChoiceArt(item)}<strong>${choice.label}</strong>
-            ${choice.desc ? `<span>${choice.desc}</span>` : ''}
+            ${actRewardChoiceArt(item)}<strong>${_t(choice.label)}</strong>
+            ${choice.desc ? `<span>${_t(choice.desc)}</span>` : ''}
             ${preview}
         </button>
     `;
@@ -5982,11 +5982,11 @@ function actRewardItemPreview(choice, item) {
     const equips = game.settings.autoEquipEmptySlots !== false && slot && combatEquipmentStats.inspect(item, slot).ok;
     const optionText = stat => escapeHTML(`${_t(stat.statName || getStatName(stat.id))} ${formatSignedValue(stat.id, stat.val)}`);
     const extra = choice.fixedStarter ? item.stats.map(optionText).join(' · ') : '?';
-    return `<small>${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}</small>
+    return `<small>${rarity ? _t('{rarity} 등급, ', { rarity }) : ''}${equips ? _t('빈 칸에 바로 장착됩니다') : _t('가방으로 들어갑니다')}</small>
         <span class="reward-item-options">
-            <span>베이스: ${escapeHTML(_t(item.baseName))}</span>
-            <span>베이스 옵션: ${item.baseStats.map(optionText).join(' · ') || '없음'}</span>
-            <span>추가 옵션: ${extra}</span>
+            <span>${_t('베이스: {baseName}', { baseName: escapeHTML(_t(item.baseName)) })}</span>
+            <span>${_t('베이스 옵션: {baseStats}', { baseStats: item.baseStats.map(optionText).join(' · ') || _t('없음') })}</span>
+            <span>${_t('추가 옵션: {extra}', { extra })}</span>
         </span>`;
 }
 /** 능력치 보상의 DPS와 생명력 변화만 게임 사본에 적용해 잰다. 장비·룬·포인트는 비교하지 않는다. */
@@ -6033,10 +6033,10 @@ function formatActRewardDps(change) {
     return parts ? `<b class="reward-choice-dps">${parts}</b>` : '';
 }
 function getActRewardPreview(choice) {
-    if (choice.kind === 'skill') return `${choice.skill} 공격 룬을 획득합니다.`;
-    if (choice.kind === 'support') return `${choice.gem} 보조스킬룬을 획득합니다.`;
-    if (choice.kind === 'points') return `즉시 포인트 ${choice.value}점을 얻습니다.`;
-    if (choice.kind === 'currency') return `${_t(ORB_DB[choice.currency].name)} ${choice.fallbackValue || choice.value || 1}개를 얻습니다.`;
+    if (choice.kind === 'skill') return _t('{skill} 공격 룬을 획득합니다.', { skill: choice.skill });
+    if (choice.kind === 'support') return _t('{gem} 보조스킬룬을 획득합니다.', { gem: choice.gem });
+    if (choice.kind === 'points') return _t('즉시 포인트 {value}점을 얻습니다.', { value: choice.value });
+    if (choice.kind === 'currency') return _t('{name} {fallbackValue}개를 얻습니다.', { name: _t(ORB_DB[choice.currency].name), fallbackValue: choice.fallbackValue || choice.value || 1 });
     if (choice.kind === 'stat') return `${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`;
     return '영구 보상';
 }
@@ -6440,8 +6440,8 @@ function initBattleAssets() {
         if (typeof advanceLoadingOverlay === 'function') {
             advanceLoadingOverlay({
                 progress: progress,
-                detail: `그림 불러오는 중 (${loaded}/${totalAssets})`,
-                caption: '전투 그림 준비'
+                detail: _t('그림 불러오는 중 ({loaded}/{totalAssets})', { loaded, totalAssets }),
+                caption: _t('전투 그림 준비')
             });
         }
     }
@@ -8828,7 +8828,7 @@ function getImmutableItemSpecialStats(item) {
     const ember = [...(Array.isArray(item.emberLines) ? item.emberLines : []), ...(typeof gardenOils === 'object' ? gardenOils.lines(item) : [])];
     if (!item.encroached || !item.encroached.liberated || !item.encroached.chosen) return ember;
     let stat = item.encroached.chosen;
-    return [{ ...stat, statName: `[잠식] ${stat.statName || getStatName(stat.id)}`, encroachedFinal: true }, ...ember];
+    return [{ ...stat, statName: _t('[잠식] {statName}', { statName: stat.statName || getStatName(stat.id) }), encroachedFinal: true }, ...ember];
 }
 function getItemExplicitOptionCount(item) {
     if (!item) return 0;
@@ -8912,10 +8912,10 @@ function openEncroachmentLiberationOverlay(item, options) {
         return `<button id="encroach-opt-${idx}" onclick="confirmEncroachmentLiberation(${idx})" disabled style="opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;pointer-events:none;display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:12px 14px;border:1px solid #5a3f8f;border-radius:10px;background:linear-gradient(90deg,rgba(40,24,64,.92),rgba(24,16,40,.92));color:#e7d8ff;font-size:15px;cursor:pointer;"><span>${label}</span><span style="color:#b79bff;font-size:12px;">[T${stat.tier || 10}]</span></button>`;
     }).join('');
     overlay.innerHTML = `<div style="width:min(520px,calc(95vw / var(--scale-display-factor, 1)));background:#120c1e;border:1px solid #6a47b3;border-radius:14px;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.6);">`
-        + `<div style="color:#caa6ff;font-size:19px;font-weight:700;margin-bottom:4px;">잠식 해방</div>`
-        + `<div style="color:#b9a7d8;font-size:13px;margin-bottom:14px;line-height:1.5;">[${item.name}], 최고 티어 옵션 셋 중 <strong style="color:#e7d8ff;">반드시 하나</strong>를 선택해야 합니다.</div>`
+        + `<div style="color:#caa6ff;font-size:19px;font-weight:700;margin-bottom:4px;">${_t('잠식 해방')}</div>`
+        + `<div style="color:#b9a7d8;font-size:13px;margin-bottom:14px;line-height:1.5;">${_t('[{name}], 최고 티어 옵션 셋 중', { name: item.name })} <strong style="color:#e7d8ff;">${_t('반드시 하나')}</strong>${_t('를 선택해야 합니다.')}</div>`
         + `<div style="display:grid;gap:10px;">${rows}</div>`
-        + `<div id="encroach-hint" style="opacity:0;transition:opacity .5s ease;margin-top:12px;color:#9b86c4;font-size:12px;text-align:center;">옵션이 모두 드러나면 하나를 선택하세요.</div>`
+        + `<div id="encroach-hint" style="opacity:0;transition:opacity .5s ease;margin-top:12px;color:#9b86c4;font-size:12px;text-align:center;">${_t('옵션이 모두 드러나면 하나를 선택하세요.')}</div>`
         + `</div>`;
     options.forEach((_, idx) => {
         setTimeout(() => {
@@ -9154,8 +9154,8 @@ function getOpenAffixMods(item, rarity = item.rarity, skip = null) {
 function updateItemName(item) {
     if (!item) return;
     if (item.rarity === 'normal') item.name = item.baseName;
-    else if (item.rarity === 'magic') item.name = `마법의 ${item.baseName}`;
-    else if (item.rarity === 'rare') item.name = `희귀한 ${item.baseName}`;
+    else if (item.rarity === 'magic') item.name = _t('마법의 {baseName}', { baseName: item.baseName });
+    else if (item.rarity === 'rare') item.name = _t('희귀한 {baseName}', { baseName: item.baseName });
 }
 
 function rerollChaosInfusionForItem(item, previousInfusion, side = '') {
@@ -9249,15 +9249,15 @@ function chaosInfusionFitsAffixRoom(item, option) {
         || room[equipmentCrafting.storedAffixKind(item, { id: option.id })] > 0;
 }
 function isChaosInfusionEligibleItem(item) {
-    if (!item) return { ok: false, reason: '아이템 미선택' };
-    if (item.corrupted) return { ok: false, reason: '타락된 아이템에는 혼돈 주입을 할 수 없습니다.' };
-    if (item.rarity === 'unique') return { ok: false, reason: '고유 아이템에는 혼돈 주입을 할 수 없습니다.' };
-    if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: '일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.' };
-    if (item.rarity !== 'rare') return { ok: false, reason: '희귀 장비에만 혼돈 주입을 할 수 있습니다.' };
+    if (!item) return { ok: false, reason: _t('아이템 미선택') };
+    if (item.corrupted) return { ok: false, reason: _t('타락된 아이템에는 혼돈 주입을 할 수 없습니다.') };
+    if (item.rarity === 'unique') return { ok: false, reason: _t('고유 아이템에는 혼돈 주입을 할 수 없습니다.') };
+    if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: _t('일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.') };
+    if (item.rarity !== 'rare') return { ok: false, reason: _t('희귀 장비에만 혼돈 주입을 할 수 있습니다.') };
     let explicitCount = getItemExplicitOptionCount(item);
-    if (!item.chaosInfusion && explicitCount >= EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: '추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.' };
-    if (item.chaosInfusion && explicitCount > EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: '추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.' };
-    return { ok: true, reason: '사용 가능' };
+    if (!item.chaosInfusion && explicitCount >= EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: _t('추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.') };
+    if (item.chaosInfusion && explicitCount > EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: _t('추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.') };
+    return { ok: true, reason: _t('사용 가능') };
 }
 function rollChaosInfusionOption(option) {
     let min = Number(option && option.min);
@@ -9590,7 +9590,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
             let ampMax = Math.max(ampMin, Math.floor(Number(p.ampMax || 100)));
             p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
             item.uniqueEffectParams = p;
-            item.uniqueEffect = `심연 주얼 슬롯 (${count})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
+            item.uniqueEffect = _t('심연 주얼 슬롯 ({count})개, 장착 심연 주얼 효과 +{ampPct}%', { count, ampPct: p.ampPct });
         }
     }
     unique.stats.forEach(stat => {
@@ -9795,7 +9795,7 @@ function addItemToInventory(item, options) {
     if (result.kind === 'protected') addLog(_t('🎒 인벤토리가 가득 찼지만 [{name}]{particle} 유실 방지를 위해 초과 보관됩니다.', { name: getItemDisplayName(item), particle: pickParticle(item.name, '은', '는') }), 'attack-monster');
     else if (logLoot && result.rewards && result.log) {
         const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
-        addLog(`${label}: <span class='loot-${item.rarity}'>[${item.name}]</span>, ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
+        addLog(`${label}: <span class='loot-${item.rarity}'>[${_t(item.name)}]</span>, ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
     }
     return result.accepted;
 }
@@ -10171,7 +10171,7 @@ function generateJewelDrop(zoneOrTier, odds = null) {
     let lineCount = rarity === 'rare' ? (2 + Math.floor(Math.random() * 3)) : (1 + Math.floor(Math.random() * 2));
     let stats = rollJewelCraftStats(lineCount, null, dropTierRange);
     let hiddenTier = stats.length ? Math.max(1, ...stats.map(st => st.tier || 1)) : 1;
-    let name = stats.length ? `${getStatName(stats[0].id)} 주얼` : '미가공 주얼';
+    let name = stats.length ? _t('{id} 주얼', { id: getStatName(stats[0].id) }) : '미가공 주얼';
     return { id: ++itemIdCounter, name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
 }
 
@@ -10243,7 +10243,7 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog(_t('☠�
         return addLog(_t('주얼 가공 결과를 생성하지 못했습니다. 소모 재화를 반환합니다.'), 'attack-monster');
     }
     bagItems.put(bagItems.asJewel(jewel), game, true);
-    let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
+    let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? _t('쁘띠 ') : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
     addLog(_t('🎰 주얼 가공: {rarity} [{name}] 획득! ({lineText})', { rarity: getJewelRarityLabel(jewel.rarity), name: _t(jewel.name), lineText }), jewel.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
     updateStaticUI();
 }
@@ -10253,10 +10253,10 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog(_t('☠�
 async function salvageJewel(jewelId) {
     let jewel = bagItems.jewels().find(row => row.id === jewelId);
     if (!jewel) return false;
-    if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || '고유 주얼'}]${pickParticle(jewel.name || '고유 주얼', '을', '를')} 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
-        title: '고유 주얼 해체',
+    if (jewel.rarity === 'unique' && !await requestGameConfirmation(`[${jewel.name || _t('고유 주얼')}]${pickParticle(jewel.name || '고유 주얼', '을', '를')} 해체합니다.\n주얼 결정 ${getJewelSalvageShardGain(jewel)}개를 획득하며 되돌릴 수 없습니다.`, {
+        title: _t('고유 주얼 해체'),
         tone: 'danger',
-        confirmLabel: '해체'
+        confirmLabel: _t('해체')
     })) return false;
     if (!bagItems.take(jewel)) return false;
     salvageJewelObject(jewel, false);
@@ -10336,7 +10336,7 @@ function getItemSalvagePreviewText(item, compact) {
             : `${getCurrencyInfo(row.key).name} ${Math.round(row.chance * 100)}%`)
         .filter(Boolean);
     if (compact && item && item.rarity === 'unique' && profile.chances.length > 0) chances.push('고급 재화 확률');
-    return `해체 ${guaranteed.concat(chances).join(', ') || '보상 없음'}`;
+    return _t('해체 {concat}', { concat: guaranteed.concat(chances).join(', ') || _t('보상 없음') });
 }
 
 function rollItemSalvageRewards(item, options) {
@@ -10390,7 +10390,7 @@ function syncSalvageControlsFromSettings() {
     if (btn) {
         let enabled = !!game.settings.autoSalvageEnabled;
         btn.dataset.enabled = String(enabled);
-        btn.setAttribute('aria-label', `해체, 자동해체 ${enabled ? '켜짐' : '꺼짐'}`);
+        btn.setAttribute('aria-label', _t('해체, 자동해체 {value}', { value: enabled ? _t('켜짐') : _t('꺼짐') }));
     }
 }
 
@@ -10455,10 +10455,10 @@ async function bulkSalvageSelected() {
     if (targetCount <= 0) return addLog(_t('선택한 등급의 해체 가능한 장비가 없습니다.'), 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
     const note = bagItems.countNote(targetItems);
-    if (!await requestGameConfirmation(`[${labelText}] 등급 ${shownSlot === 'all' ? '장비' : shownSlot} ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠금, 세팅, 우선 보관 장비는 빼고 해체합니다.`, {
-        title: '등급 일괄 해체',
+    if (!await requestGameConfirmation(`[${labelText}] 등급 ${shownSlot === 'all' ? _t('장비') : shownSlot} ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠금, 세팅, 우선 보관 장비는 빼고 해체합니다.`, {
+        title: _t('등급 일괄 해체'),
         tone: 'danger',
-        confirmLabel: `${targetCount}개 해체`
+        confirmLabel: _t('{targetCount}개 해체', { targetCount })
     })) return;
     const targets = confirmedSalvageTargets(targetItems);
     const lockedSkipped = game.inventory.filter(item => isShown(item) && isBulkSalvageProtectedItem(item)).length;
@@ -10487,9 +10487,9 @@ async function bulkSalvageAllInventory(options = {}) {
 function confirmBulkSalvageAll(targetItems, lockedCount) {
     const count = targetItems.length, note = bagItems.countNote(targetItems);
     return requestGameConfirmation(`인벤토리 장비 ${count}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
-        title: '인벤토리 전체 해체',
+        title: _t('인벤토리 전체 해체'),
         tone: 'danger',
-        confirmLabel: `${count}개 해체`
+        confirmLabel: _t('{count}개 해체', { count })
     });
 }
 
@@ -10680,7 +10680,7 @@ function rerollTaintedLine(item) {
     const mod = pickWeightedMod(open.filter(row => (row.statId || row.id) !== stat.id)) || pickWeightedMod(open);
     item.stats.splice(index, 0, mod ? rollAffixValue(mod, getItemCraftTier(item)) : stat);
     updateItemName(item);
-    return `${name} 옵션이 ${item.stats[index].statName || getStatName(item.stats[index].id)} 옵션으로 바뀌었습니다.`;
+    return _t('{name} 옵션이 {statName} 옵션으로 바뀌었습니다.', { name, statName: item.stats[index].statName || getStatName(item.stats[index].id) });
 }
 
 /**
@@ -10695,19 +10695,19 @@ function corruptCraftedItem(item) {
     if (kind === 'addMod') {
         item.stats.push(rollAffixValue(pickWeightedMod(getAvailableMods(item)), getItemCraftTier(item)));
         updateItemName(item);
-        return { kind, text: '추가 옵션이 부여되었습니다.' };
+        return { kind, text: _t('추가 옵션이 부여되었습니다.') };
     }
     if (kind === 'quality') {
         const { min, max, cap } = TAINTED_CRAFT_OUTCOMES.quality, before = Math.floor(Number(item.quality) || 0);
         item.quality = Math.min(cap, before + min + Math.floor(Math.random() * (max - min + 1)));
-        return { kind, text: `품질이 ${before}% → ${item.quality}%로 올랐습니다.` };
+        return { kind, text: _t('품질이 {before}% → {quality}%로 올랐습니다.', { before, quality: item.quality }) };
     }
     if (kind === 'rerollMod') return { kind, text: rerollTaintedLine(item) };
     if (kind === 'socket') {
         equipmentSockets.addCorruptionSocket(item);
         return { kind, text: equipmentSockets.count(item) > 1 ? '두 번째 소켓, 타락 소켓이 열렸습니다!' : '타락 소켓이 하나 생겼습니다.' };
     }
-    return { kind, text: '아이템에 변화가 없습니다.' };
+    return { kind, text: _t('아이템에 변화가 없습니다.') };
 }
 
 /**
@@ -10773,7 +10773,7 @@ const craftCurrencyUse = (() => {
         const reason = sporeReason(item, action, mode, guaranteedMod);
         if (reason) return { reason };
         const addedMod = action === 'exalted' ? guaranteedMod || equipmentCrafting.pickAddMod(item, omen) : null;
-        return action === 'exalted' && !addedMod ? { reason: '이 장비에 추가로 부여할 수 있는 옵션이 없습니다.' } : { spore, guaranteedMod, omen, addedMod };
+        return action === 'exalted' && !addedMod ? { reason: _t('이 장비에 추가로 부여할 수 있는 옵션이 없습니다.') } : { spore, guaranteedMod, omen, addedMod };
     }
     function addonReason(item, action, mode) {
         return equipmentCrafting.armedSideReason(game, item, action, mode)
@@ -10800,9 +10800,9 @@ const craftCurrencyUse = (() => {
         p.ampPct = ampMin + Math.floor(Math.random() * (ampMax - ampMin + 1));
         item.uniqueEffectParams = p;
         const socketCount = Array.isArray(item.abyssSockets) ? item.abyssSockets.length : Math.max(1, Math.floor(Number(p.socketsMin || 1)));
-        item.uniqueEffect = `심연 주얼 슬롯 (${socketCount})개, 장착 심연 주얼 효과 +${p.ampPct}%`;
+        item.uniqueEffect = _t('심연 주얼 슬롯 ({socketCount})개, 장착 심연 주얼 효과 +{ampPct}%', { socketCount, ampPct: p.ampPct });
     }
-    const jewelsBack = jewels => (jewels ? ` 끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : '');
+    const jewelsBack = jewels => (jewels ? _t(' 끼운 주얼 {jewels}개는 가방으로 돌아왔습니다.', { jewels }) : '');
     /** 요정의 고리: a quarter of the time the item breaks, else it becomes a unique of its slot and tier (same id), a chase one at the
      * drop's chase chance. false when no unique exists for it (FITS.chance refuses that before the payment). */
     function fairyRing(item, run) {
@@ -10894,10 +10894,10 @@ const craftCurrencyUse = (() => {
      * (ok false: paid but no change, a fairy ring with no unique). logs are addLog arguments in order. */
     function use(currencyKey) {
         const item = getSelectedCraftItem();
-        if (!item) return { reason: '먼저 아이템을 선택하세요.' };
+        if (!item) return { reason: _t('먼저 아이템을 선택하세요.') };
         const payment = getCraftPayment(currencyKey);
         // A key that is no craft currency (the old 'divine', merged into 황금률) is refused like a missing one.
-        if (!Object.hasOwn(ORB_DB, currencyKey) || !payment || !payment.affordable) return { reason: '제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.' };
+        if (!Object.hasOwn(ORB_DB, currencyKey) || !payment || !payment.affordable) return { reason: _t('제작 재화가 부족하거나 사용할 수 없는 제작 방식입니다.') };
         const action = equipmentCrafting.resolveAction(currencyKey, item.rarity);
         const block = blockReason(item, action);
         if (block) return { reason: block };
@@ -10908,7 +10908,7 @@ const craftCurrencyUse = (() => {
         spendSpores(run.spore);
         game.currencies[payment.key] -= payment.cost;
         if (apply(item, action, run) === false) return { ok: false, logs: run.logs };
-        const note = (run.spore !== 'none' && run.guaranteedMod ? `, 홀씨 보장: ${run.guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, run.omen);
+        const note = (run.spore !== 'none' && run.guaranteedMod ? _t(', 홀씨 보장: {statName}', { statName: run.guaranteedMod.statName }) : '') + equipmentCrafting.spendOmen(game, run.omen);
         craftingResultLedger.commit(run.token, item);
         run.logs.push([_t('⚒️ {name} 사용{note}', { name: _t(ORB_DB[payment.key].name), note }), 'loot-magic']);
         return { ok: true, logs: run.logs };
@@ -10945,12 +10945,12 @@ function getMarketExchangeQuote(recipe, quantity, owner = game) {
  * (no gain bonus), and nothing changes unless the received balance stays a safe integer (the stall's proceeds use the same bound).
  * Synchronous: asking, logging and drawing are js/market-ui.js's, which calls this on the game it asked about. */
 function exchangeAtMarket(exchangeId, quantity, owner = game) {
-    if (!contentProgression.isUnlocked('market', owner)) return { ok: false, reason: '장비 제련을 해금하면 거래소를 이용할 수 있습니다.' };
+    if (!contentProgression.isUnlocked('market', owner)) return { ok: false, reason: _t('장비 제련을 해금하면 거래소를 이용할 수 있습니다.') };
     const recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
-    if (!recipe) return { ok: false, reason: '없는 교환입니다.' };
+    if (!recipe) return { ok: false, reason: _t('없는 교환입니다.') };
     const quote = getMarketExchangeQuote(recipe, quantity, owner);
-    if (!quote.valid) return { ok: false, reason: '보유한 재화로 교환할 수 없는 수량입니다.' };
-    if (!Number.isSafeInteger(quote.afterTo)) return { ok: false, reason: `${_t(ORB_DB[recipe.to].name)} 보유 한도를 넘어 교환할 수 없습니다.` };
+    if (!quote.valid) return { ok: false, reason: _t('보유한 재화로 교환할 수 없는 수량입니다.') };
+    if (!Number.isSafeInteger(quote.afterTo)) return { ok: false, reason: _t('{name} 보유 한도를 넘어 교환할 수 없습니다.', { name: _t(ORB_DB[recipe.to].name) }) };
     owner.currencies[recipe.from] = quote.afterFrom;
     owner.currencies[recipe.to] = quote.afterTo;
     owner.currencyDropVersion = (owner.currencyDropVersion || 0) + 1;

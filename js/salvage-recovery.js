@@ -101,14 +101,14 @@ function getSalvageRecoveryEntry(entryId, targetGame = game) {
 
 function getSalvageRestoreAvailability(entryId, targetGame = game) {
     let entry = getSalvageRecoveryEntry(entryId, targetGame);
-    if (!entry) return { canRestore: false, reason: '복구할 장비를 찾을 수 없습니다.', missing: {} };
-    if (!canStoreEquipmentItems([entry.item], targetGame)) return { canRestore: false, reason: '인벤토리 공간이 부족합니다.', missing: {} };
+    if (!entry) return { canRestore: false, reason: _t('복구할 장비를 찾을 수 없습니다.'), missing: {} };
+    if (!canStoreEquipmentItems([entry.item], targetGame)) return { canRestore: false, reason: _t('인벤토리 공간이 부족합니다.'), missing: {} };
     let missing = {};
     Object.entries(entry.rewards).forEach(([key, amount]) => {
         let owned = Math.max(0, Math.floor(Number(targetGame.currencies && targetGame.currencies[key]) || 0));
         if (owned < amount) missing[key] = amount - owned;
     });
-    if (Object.keys(missing).length > 0) return { canRestore: false, reason: '반환할 해체 재화가 부족합니다.', missing };
+    if (Object.keys(missing).length > 0) return { canRestore: false, reason: _t('반환할 해체 재화가 부족합니다.'), missing };
     return { canRestore: true, reason: '', missing: {} };
 }
 
@@ -125,7 +125,7 @@ function restoreSalvagedEquipment(entryId, targetGame = game) {
     if (!availability.canRestore) return { restored: false, ...availability };
     let state = ensureSalvageRecoveryState(targetGame);
     let index = state.entries.findIndex(entry => entry.id === Math.floor(Number(entryId)));
-    if (index < 0) return { restored: false, reason: '복구할 장비를 찾을 수 없습니다.', missing: {} };
+    if (index < 0) return { restored: false, reason: _t('복구할 장비를 찾을 수 없습니다.'), missing: {} };
     let entry = state.entries[index];
     Object.entries(entry.rewards).forEach(([key, amount]) => { targetGame.currencies[key] -= amount; });
     let item = assignRecoveredEquipmentId(cloneSalvageRecoveryItem(entry.item), state, targetGame);

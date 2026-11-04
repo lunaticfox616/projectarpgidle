@@ -53,7 +53,7 @@ const actTitleCard = (() => {
         const act = actOf(zone);
         card = null;
         // Act number and name only: the act's one-line subtitle repeats the goal panel (and ran under it on phones).
-        pending = act ? { style: ACT, kicker: `액트 ${act.displayAct}`, title: act.title } : null;
+        pending = act ? { style: ACT, kicker: _t('액트 {displayAct}', { displayAct: act.displayAct }), title: _t(act.title) } : null;
     }
     function track(now) {
         watchZone();
@@ -101,8 +101,9 @@ const actTitleCard = (() => {
         const id = `${game.season || 1}:${place}:${row.key}`;
         if (!row.text || spoken.has(id)) return;
         spoken.add(id);
-        const showMs = Math.min(LINE.maxMs, LINE.baseMs + [...row.text].length * LINE.perCharMs);
-        queue.push({ ...row, zone, colour: TONES[row.tone] || TONES.gold, at: now, showMs });
+        const text = _t(row.text), speaker = row.speaker ? _t(row.speaker) : row.speaker;
+        const showMs = Math.min(LINE.maxMs, LINE.baseMs + [...text].length * LINE.perCharMs);
+        queue.push({ ...row, text, speaker, zone, colour: TONES[row.tone] || TONES.gold, at: now, showMs });
     }
     /** A boss line in “…” is the boss speaking; in 「…」 it is narration of the fight. */
     function queueBossLine(key, seen, text, now, revive = null) {
@@ -300,8 +301,8 @@ const actTitleCard = (() => {
         ctx.lineWidth = 2;
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
         ctx.fillStyle = TONES[npc.tone] || TONES.gold;
-        drawCrispCanvasText(ctx, npc.name, x, y, 'strokeText');
-        drawCrispCanvasText(ctx, npc.name, x, y);
+        drawCrispCanvasText(ctx, _t(npc.name), x, y, 'strokeText');
+        drawCrispCanvasText(ctx, _t(npc.name), x, y);
     }
     /** The mark over the name in a dark square: three pale dots for a keyword not yet heard (js/content-progression-ui.js npcNews). */
     function npcOfferMark(ctx, x, y) {
@@ -474,9 +475,9 @@ const actTitleCard = (() => {
         ctx.font = `${pixelFontSize(view.size, 15)}px ${storyFont()}`;
         ctx.lineWidth = 2 * Math.max(2, Math.round(view.size * 0.08));
         ctx.strokeStyle = 'rgba(8,6,4,0.9)';
-        drawCrispCanvasText(ctx, card.title, view.x, view.top + view.size * 0.5, 'strokeText');
+        drawCrispCanvasText(ctx, _t(card.title), view.x, view.top + view.size * 0.5, 'strokeText');
         ctx.fillStyle = card.style.titleColour;
-        drawCrispCanvasText(ctx, card.title, view.x, view.top + view.size * 0.5);
+        drawCrispCanvasText(ctx, _t(card.title), view.x, view.top + view.size * 0.5);
     }
     function drawTitleCard(ctx, width, height, now) {
         const size = Math.round(Math.max(20, Math.min(34, Math.min(width, height) * 0.04)));

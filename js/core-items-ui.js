@@ -7,7 +7,7 @@ const coreItemsUi = (() => {
         return `<div class="slot-box equipment-slot equipment-slot-empty slot-${SLOT} core-item-slot" data-slot="${SLOT}" onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${SLOT}')">
             <div class="equipment-slot-head"><span>${SLOT}</span></div><div class="equipment-slot-visual empty"><img src="${coreItems.icon(null)}" alt="" aria-hidden="true" draggable="false"></div>
             <div class="equipment-empty-mark">＋</div>
-            <div class="equipment-empty-label">비어 있음</div>
+            <div class="equipment-empty-label">${_t('비어 있음')}</div>
         </div>`;
     }
 

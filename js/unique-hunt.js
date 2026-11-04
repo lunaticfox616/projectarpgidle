@@ -27,7 +27,7 @@ function getUniqueHuntTargets(targetGame = game) {
 
 function toggleUniqueHuntTarget(key, targetGame = game) {
     let entry = getUniqueHuntEntry(key);
-    if (!entry) return { ok: false, tracked: false, reason: '추적할 수 없는 고유 아이템입니다.' };
+    if (!entry) return { ok: false, tracked: false, reason: _t('추적할 수 없는 고유 아이템입니다.') };
     let targets = ensureUniqueHuntState(targetGame);
     let index = targets.indexOf(key);
     if (index >= 0) {
@@ -36,7 +36,7 @@ function toggleUniqueHuntTarget(key, targetGame = game) {
         return { ok: true, tracked: false, entry };
     }
     if (targets.length >= UNIQUE_HUNT_TARGET_LIMIT) {
-        return { ok: false, tracked: false, reason: `파밍 목표는 최대 ${UNIQUE_HUNT_TARGET_LIMIT}개까지 지정할 수 있습니다.` };
+        return { ok: false, tracked: false, reason: _t('파밍 목표는 최대 {UNIQUE_HUNT_TARGET_LIMIT}개까지 지정할 수 있습니다.', { UNIQUE_HUNT_TARGET_LIMIT }) };
     }
     targetGame.uniqueHuntTargets = targets.concat(key);
     dispatchRuntimeEvent('unique-hunt-changed', { action: 'added', key });

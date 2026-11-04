@@ -16,10 +16,10 @@ const chatItemPicker = (() => {
         const snap = opts.source ? getChatAttachSnapshot(opts.source, opts.key) : null;
         const classes = `chat-pick-cell rarity-${item.rarity || 'normal'}${item.corrupted ? ' is-corrupted' : ''} ${opts.cls || ''}`;
         const inner = `${opts.label ? `<small class="chat-pick-slot-name">${escapeHTML(_t(opts.label))}</small>` : ''}<img src="${escapeHTML(opts.art)}" alt="" draggable="false">`;
-        if (!snap) return `<span class="${classes} is-locked" style="${opts.style || ''}" data-tip="채팅에 붙일 수 없는 아이템">${inner}</span>`;
+        if (!snap) return `<span class="${classes} is-locked" style="${opts.style || ''}" data-tip="${_t('채팅에 붙일 수 없는 아이템')}">${inner}</span>`;
         const tipKey = `${opts.source}:${opts.key}`;
         socialState.pickTips[tipKey] = renderProfileItemCard(snap);
-        return `<button type="button" class="${classes}" style="${opts.style || ''}" aria-label="${escapeHTML(`${snap.name} 첨부`)}"
+        return `<button type="button" class="${classes}" style="${opts.style || ''}" aria-label="${escapeHTML(_t('{name} 첨부', { name: snap.name }))}"
             onclick="chatItemPicker.pick('${opts.source}',${escapeHTML(JSON.stringify(opts.key))})" onmouseenter="showSocialTip(event,'pick','${escapeHTML(tipKey)}')"
             onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()">${inner}</button>`;
     }
@@ -45,7 +45,7 @@ const chatItemPicker = (() => {
         const cells = slots.map((slot, index) => equipment[slot]
             ? cellHtml(equipment[slot], { source: 'equip', key: slot, cls: 'chat-pick-ward', art: getEquipmentGridVisualAsset(equipment[slot]) })
             : index < open ? '<span class="chat-pick-cell chat-pick-ward is-blank" aria-hidden="true"></span>' : '').join('');
-        return `<h4 class="chat-pick-sub">액막이</h4><div class="chat-pick-wards">${cells}</div>`;
+        return `<h4 class="chat-pick-sub">${_t('액막이')}</h4><div class="chat-pick-wards">${cells}</div>`;
     }
 
     /** One bag page as the bag draws it: every item at its place and size, the page buttons above. */
@@ -55,7 +55,7 @@ const chatItemPicker = (() => {
         const shown = equipmentInventoryGridRuntime.getPageLayout(layout, bagPage);
         const cells = shown.entries.map(({ item, column, row, columns, rows }) => cellHtml(item, { source: 'inv', key: game.inventory.indexOf(item),
             style: `grid-column:${column + 1}/span ${columns};grid-row:${row + 1}/span ${rows}`, art: getEquipmentGridVisualAsset(item) })).join('');
-        const buttons = pages > 1 ? `<nav class="chat-pick-pages" aria-label="가방 쪽">${Array.from({ length: pages }, (_, index) =>
+        const buttons = pages > 1 ? `<nav class="chat-pick-pages" aria-label="${_t('가방 쪽')}">${Array.from({ length: pages }, (_, index) =>
             `<button type="button" aria-pressed="${index === bagPage}" onclick="chatItemPicker.page(${index})">${index + 1}</button>`).join('')}</nav>` : '';
         return `${buttons}<div class="chat-pick-bag" style="--cols:${layout.columns};--rows:${layout.rowsPerPage}">${cells}</div>`;
     }
@@ -71,8 +71,8 @@ const chatItemPicker = (() => {
             return item ? stumpCell(item) : '<span class="chat-pick-cell is-blank" aria-hidden="true"></span>';
         }).join('');
         const stored = stumpBox.storage(game).map(stumpCell).join('');
-        return `<div class="chat-pick-stump"><div class="chat-pick-stump-board">${board}</div><h4 class="chat-pick-sub">보관함</h4>`
-            + `<div class="chat-pick-stump-store">${stored || '<p class="chat-pick-empty">비어 있음</p>'}</div></div>`;
+        return `<div class="chat-pick-stump"><div class="chat-pick-stump-board">${board}</div><h4 class="chat-pick-sub">${_t('보관함')}</h4>`
+            + `<div class="chat-pick-stump-store">${stored || _t('<p class="chat-pick-empty">비어 있음</p>')}</div></div>`;
     }
 
     function pickerModal() {
@@ -89,9 +89,9 @@ const chatItemPicker = (() => {
         socialState.pickTips = {};
         const body = tab === 'bag' ? bagHtml() : tab === 'stump' ? stumpHtml() : equipHtml();
         const tabs = TABS.map(([id, label]) => `<button type="button" class="chat-pick-tab" aria-pressed="${id === tab}" onclick="chatItemPicker.show('${id}')">${label}</button>`).join('');
-        pickerModal().innerHTML = `<div class="social-modal-box chat-pick-box"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="닫기">✕</button>
-            <div class="social-modal-content"><h3 class="chat-pick-title">첨부할 아이템 선택 (최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개), 마우스를 올리면 옵션 표시</h3>
-            <nav class="chat-pick-tabs" aria-label="아이템 위치">${tabs}</nav><div class="chat-pick-page is-${tab}">${body}</div></div></div>`;
+        pickerModal().innerHTML = `<div class="social-modal-box chat-pick-box"><button class="social-modal-close" onclick="closeItemPicker()" aria-label="${_t('닫기')}">✕</button>
+            <div class="social-modal-content"><h3 class="chat-pick-title">${_t('첨부할 아이템 선택 (최대 {SOCIAL_MAX_ITEMS_PER_MSG}개), 마우스를 올리면 옵션 표시', { SOCIAL_MAX_ITEMS_PER_MSG })}</h3>
+            <nav class="chat-pick-tabs" aria-label="${_t('아이템 위치')}">${tabs}</nav><div class="chat-pick-page is-${tab}">${body}</div></div></div>`;
     }
     function openPicker() {
         if (!socialCloudReady()) { showGameToast(_t('먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }

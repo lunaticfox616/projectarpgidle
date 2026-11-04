@@ -96,9 +96,9 @@ const stumpBox = (() => {
     function targetStage(item) { return FIXED_TARGET[item.family] || item.path; }
     /** '황금 화염 꽃': colour and stage without the target (talismans and scars by name). */
     function shortName(item) {
-        if (item.family === 'talisman') return isMature(item) ? item.name : `${item.name} (잠듦)`;
-        if (item.family === 'scar') return isMature(item) ? STUMP_BOX_SCAR.name : `${STUMP_BOX_SCAR.name} (잠듦)`;
-        return `${item.albino ? '알비노 ' : ''}${goldenMul(item) > 1 ? '황금 ' : ''}${item.ancient ? '고대 ' : ''}${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stageOf(item)].label}`;
+        if (item.family === 'talisman') return isMature(item) ? item.name : _t('{name} (잠듦)', { name: item.name });
+        if (item.family === 'scar') return isMature(item) ? STUMP_BOX_SCAR.name : _t('{name} (잠듦)', { name: STUMP_BOX_SCAR.name });
+        return `${item.albino ? _t('알비노 ') : ''}${goldenMul(item) > 1 ? _t('황금 ') : ''}${item.ancient ? _t('고대 ') : ''}${STUMP_BOX_COLORS[item.color].label} ${STUMP_BOX_STAGES[stageOf(item)].label}`;
     }
     /** The item's name: a growing seed does not tell what it becomes. */
     const label = item => shortName(item);
@@ -404,7 +404,7 @@ const stumpBox = (() => {
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함 배치를 바꿀 수 없습니다.';
         if (!placed) return '그루터기 함에 놓인 아이템이 없습니다.';
         const room = storageLimit(state) - storage(state).length;
-        return room < placed ? `보관함에 ${placed - room}칸이 더 필요합니다.` : '';
+        return room < placed ? _t('보관함에 {value}칸이 더 필요합니다.', { value: placed - room }) : '';
     }
     /** Every board item back to storage as one move ([배치 되돌리기] puts them back). @returns {number} how many moved (0 when refused). */
     function unplaceAll(state) {
@@ -449,7 +449,7 @@ const stumpBox = (() => {
         if (!editable(state)) return '나무꾼 전투 중에는 생육함 배치를 바꿀 수 없습니다.';
         if (!placed) return '생육함에 놓인 아이템이 없습니다.';
         const room = storageLimit(state) - storage(state).length;
-        return room < placed ? `보관함에 ${placed - room}칸이 더 필요합니다.` : '';
+        return room < placed ? _t('보관함에 {value}칸이 더 필요합니다.', { value: placed - room }) : '';
     }
     /** @returns {number} how many went back (0 when refused). */
     function nurseryClear(state) {
@@ -616,7 +616,7 @@ const stumpBox = (() => {
     /** What changes a placed item's effect now, in the box's words: what stops it, or its bonuses while grown. null otherwise. */
     function boardNote(item, result) {
         const why = result.stoppedBy[item.id];
-        if (why) return { text: `비활성화: ${STUMP_BOX_COLORS[why.color].label}${why.counter ? ' 공명' : ''} 인접`, bad: true };
+        if (why) return { text: _t('비활성화: {label}{value} 인접', { label: STUMP_BOX_COLORS[why.color].label, value: why.counter ? _t(' 공명') : '' }), bad: true };
         const tags = isMature(item) ? result.synergy[item.id] || [] : [];
         return tags.length ? { text: tags.map(name => `${STUMP_BOX_SYNERGY[name].label} +${STUMP_BOX_SYNERGY[name].bonusPct}%`).join(', '), bad: false } : null;
     }
@@ -750,11 +750,11 @@ const stumpBox = (() => {
     /** '' when the cell can take one more rank, otherwise why not. */
     function graftRaiseReason(state, cell) {
         const next = of(state).graft[cell] + 1;
-        if (!graftOpen(state)) return `접붙이기는 루프 ${STUMP_BOX_GRAFT.startLoop}부터 할 수 있습니다.`;
+        if (!graftOpen(state)) return _t('접붙이기는 루프 {startLoop}부터 할 수 있습니다.', { startLoop: STUMP_BOX_GRAFT.startLoop });
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
         if (!isOpen(state, cell)) return '닫힌 칸입니다.';
         if (next > graftMaxRank(state)) return '이미 마지막 단계입니다.';
-        return graftPoints(state).free >= next ? '' : `접붙이기 점수가 부족합니다. ${next}단계에는 ${next}점이 필요합니다.`;
+        return graftPoints(state).free >= next ? '' : _t('접붙이기 점수가 부족합니다. {next}단계에는 {next2}점이 필요합니다.', { next, next2: next });
     }
     function graftRaise(state, cell) {
         if (graftRaiseReason(state, cell)) return false;
@@ -766,7 +766,7 @@ const stumpBox = (() => {
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
         if (of(state).graft[cell] < 1) return '접붙이지 않은 칸입니다.';
         const need = STUMP_BOX_GRAFT.refundSpores;
-        return (state.currencies.blightSpore || 0) >= need ? '' : `마름병 포자가 ${need}개 필요합니다.`;
+        return (state.currencies.blightSpore || 0) >= need ? '' : _t('마름병 포자가 {need}개 필요합니다.', { need });
     }
     function graftLower(state, cell) {
         if (graftLowerReason(state, cell)) return false;
@@ -1106,7 +1106,7 @@ const stumpBox = (() => {
         if (!editable(state)) return '나무꾼 전투 중에는 그루터기 함을 바꿀 수 없습니다.';
         if (!isOpen(state, cell)) return '닫힌 칸입니다.';
         if (isSealed(box, cell)) return '';
-        return box.sealed.length < sealLimit(state) ? '' : `봉인 칸은 ${sealLimit(state)}개까지입니다.`;
+        return box.sealed.length < sealLimit(state) ? '' : _t('봉인 칸은 {state}개까지입니다.', { state: sealLimit(state) });
     }
     function toggleSeal(state, cell) {
         if (sealReason(state, cell)) return false;

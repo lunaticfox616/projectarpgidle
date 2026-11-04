@@ -20,8 +20,8 @@
      * @param {number} currentLevel Displayed total gem level, including equipment and passives. */
     function renderGemUpgradeButton(upgrade, currentLevel) {
         let details = upgrade.done ? '최대 단계' : upgrade.details;
-        if (!upgrade.done && upgrade.gain) details += `, 적용 후 최종 Lv.${currentLevel + upgrade.gain}`;
-        return `<button class="gem-upgrade-btn ${upgrade.done ? 'done' : ''}" onclick="${escapeHTML(upgrade.action)}" ${upgrade.ready && !upgrade.done ? '' : 'disabled'}><strong>${escapeHTML(_t(upgrade.title))}${upgrade.done ? ' 완료' : ''}</strong><small>${escapeHTML(details)}</small></button>`;
+        if (!upgrade.done && upgrade.gain) details += _t(', 적용 후 최종 Lv.{value}', { value: currentLevel + upgrade.gain });
+        return `<button class="gem-upgrade-btn ${upgrade.done ? 'done' : ''}" onclick="${escapeHTML(upgrade.action)}" ${upgrade.ready && !upgrade.done ? '' : 'disabled'}><strong>${escapeHTML(_t(upgrade.title))}${upgrade.done ? _t(' 완료') : ''}</strong><small>${escapeHTML(details)}</small></button>`;
     }
 
     /** Gems a phone shows per page (two rows of four tiles). */
@@ -67,7 +67,7 @@
             : renderSupportGemCard(row.name, window.highlightSearchText(_t(row.name), filter), stats);
         const matched = rows.filter(row => row.targets > 0), unmatched = rows.filter(row => row.targets === 0);
         const banner = full ? '<p class="support-full-banner">보조 칸이 차서 룬을 고르면 바꿀 칸을 고릅니다.</p>' : '';
-        return banner + matched.map(card).join('') + (unmatched.length ? `<details class="support-unmatched"><summary>지금 장착한 스킬에 안 맞음 (${unmatched.length})</summary><div class="support-library-unmatched">${unmatched.map(card).join('')}</div></details>` : '');
+        return banner + matched.map(card).join('') + (unmatched.length ? `<details class="support-unmatched"><summary>${_t('지금 장착한 스킬에 안 맞음 ({length})', { length: unmatched.length })}</summary><div class="support-library-unmatched">${unmatched.map(card).join('')}</div></details>` : '');
     }
 
     function supportLibraryRow(record, full, stats) {
@@ -112,7 +112,7 @@
         sealConfirmationPending = true;
         try {
             const accepted = await requestGameConfirmation(`${label} ${names.length}개를 봉인합니다. 공명력 +${names.length}\n다시 풀 때는 룬마다 공명력 1이 듭니다.`,
-                { title: `${label} 일괄 봉인`, confirmLabel: `${names.length}개 봉인`, cancelLabel: '취소' });
+                { title: _t('{label} 일괄 봉인', { label }), confirmLabel: _t('{length}개 봉인', { length: names.length }), cancelLabel: _t('취소') });
             if (!accepted || game !== state || game.season !== season) return;
             if (JSON.stringify(names) !== JSON.stringify(window.GameModules.skills.sealableNames(kind))) {
                 showGameToast(_t('룬 목록이 바뀌었습니다. 다시 확인하세요.'), { tone: 'warning' });
@@ -129,13 +129,13 @@
         if (fold) return '';
         const label = kind === 'support' ? '보조스킬룬' : '공격 룬';
         const disabled = window.GameModules.skills.sealableNames(kind).length ? '' : 'disabled';
-        const button = `<button type="button" data-gem-bulk-seal="${kind}" ${disabled}>미사용 ${label} 일괄 봉인</button>`;
+        const button = `<button type="button" data-gem-bulk-seal="${kind}" ${disabled}>${_t('미사용 {label} 일괄 봉인', { label })}</button>`;
         return kind === 'support' ? `<div class="support-library-footer">${button}</div>` : button;
     }
 
     /** The picker head: which slot it fills, how many gems it lists, and the "worn only" fold for that library. */
     function syncPickerHead(kind, fold) {
-        document.getElementById('ui-skill-picker-count').textContent = `${libraryPages[kind === 'support' ? 'support' : 'skill'].total || 0}개`;
+        document.getElementById('ui-skill-picker-count').textContent = _t('{total}개', { total: libraryPages[kind === 'support' ? 'support' : 'skill'].total || 0 });
         const foldButton = document.getElementById('btn-skill-picker-fold');
         foldButton.setAttribute('aria-pressed', String(fold));
         foldButton.classList.toggle('active', fold);
@@ -229,7 +229,7 @@
             if (skillEnhanceBtn) {
                 skillEnhanceBtn.disabled = !gemEnhanceOpen;
                 skillEnhanceBtn.style.opacity = gemEnhanceOpen ? '1' : '0.45';
-                skillEnhanceBtn.dataset.tip = gemEnhanceOpen ? '' : '해금 탭에서 룬 강화를 해금하세요.';
+                skillEnhanceBtn.dataset.tip = gemEnhanceOpen ? '' : _t('해금 탭에서 룬 강화를 해금하세요.');
             }
             if (!gemEnhanceOpen && game.skillSubtab === 'skill-tab-enhance') game.skillSubtab = 'skill-tab-equip';
             if (gemEnhanceOpen) {
@@ -264,8 +264,8 @@
                 let activePresentation = isGem ? getUiGemPresentation(active, false, pStats) : null;
                 let growthSummary = isGem ? getGemGrowthSummaryHtml(active, activePresentation) : '';
                 let activeOptions = activeEnh.map(id => GEM_SKY_ENHANCEMENTS[id] ? GEM_SKY_ENHANCEMENTS[id].name : id).join(', ') || '적용된 각인 없음';
-                writeHtmlIfChanged(document.getElementById('ui-gem-enhance-target'), `<div class="gem-target-list">${targetButtons || '<span class="gem-process-empty">기본 공격은 강화할 수 없습니다. 공격 룬을 장착하면 여기서 키웁니다.</span>'}</div>` + (isGem
-                    ? `<div class="gem-target-profile element-${activeMeta.className}">${renderSkillGemArt(active, 'gem-target-profile-icon', { eager: true })}<div><small class="gem-target-kicker">현재 선택<i>${activeMeta.elementLabel}</i><i>${activeMeta.typeLabel}</i></small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(activeDef.desc || '')}</p></div></div>${growthSummary}<div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? '룬 강화 완료' : `룬 강화 +${activeGem.enhanceLevel}`}</span><span ${contentUnlockUi.lockAttribute('engraving')} class="gem-status-chip gem-engrave-status ${slotDone ? 'done' : ''}">${slotDone ? '슬롯 최대' : `각인 슬롯 ${engraveCap}/5`}</span><span ${contentUnlockUi.lockAttribute('engraving')} class="gem-status-chip gem-engrave-status ${engraveFilled ? 'done' : ''}">${engraveFilled ? '슬롯 사용 완료' : `빈 슬롯 ${Math.max(0, engraveCap - activeEnh.length)}`}</span></div><div ${contentUnlockUi.lockAttribute('engraving')} class="gem-current-inscriptions"><span>현재 각인</span><strong>${escapeHTML(activeOptions)}</strong></div>`
+                writeHtmlIfChanged(document.getElementById('ui-gem-enhance-target'), `<div class="gem-target-list">${targetButtons || _t('<span class="gem-process-empty">기본 공격은 강화할 수 없습니다. 공격 룬을 장착하면 여기서 키웁니다.</span>')}</div>` + (isGem
+                    ? `<div class="gem-target-profile element-${activeMeta.className}">${renderSkillGemArt(active, 'gem-target-profile-icon', { eager: true })}<div><small class="gem-target-kicker">${_t('현재 선택')}<i>${activeMeta.elementLabel}</i><i>${activeMeta.typeLabel}</i></small><strong>${escapeHTML(active)}</strong><p>${escapeHTML(_t(activeDef.desc) || '')}</p></div></div>${growthSummary}<div class="gem-enhance-status"><span class="gem-status-chip ${coreDone ? 'done' : ''}">${coreDone ? _t('룬 강화 완료') : _t('룬 강화 +{enhanceLevel}', { enhanceLevel: activeGem.enhanceLevel })}</span><span ${contentUnlockUi.lockAttribute('engraving')} class="gem-status-chip gem-engrave-status ${slotDone ? 'done' : ''}">${slotDone ? _t('슬롯 최대') : _t('각인 슬롯 {engraveCap}/5', { engraveCap })}</span><span ${contentUnlockUi.lockAttribute('engraving')} class="gem-status-chip gem-engrave-status ${engraveFilled ? 'done' : ''}">${engraveFilled ? _t('슬롯 사용 완료') : _t('빈 슬롯 {max}', { max: Math.max(0, engraveCap - activeEnh.length) })}</span></div><div ${contentUnlockUi.lockAttribute('engraving')} class="gem-current-inscriptions"><span>${_t('현재 각인')}</span><strong>${escapeHTML(activeOptions)}</strong></div>`
                     : '<div class="gem-process-empty">공격 룬을 선택하면 성장 정보가 표시됩니다.</div>'));
                 renderGemResourceStrip(activeGem, condensedPower);
                 renderGemEngraveSlots(activeSlots, engraveCap);
@@ -274,13 +274,13 @@
                 const upgrades = [
 
 
-                    { title: '응축 창공 영구 강화', action: 'upgradeActiveGemWithCondensedSkyPower()', done: permanentSkyBoost >= permanentSkyMax, ready: game.skyTower.unlocked && condensedPower >= permanentSkyCost, details: `${game.skyTower.unlocked ? '루프 초기화 없음' : '창공의 탑 해금 필요'}, 보유 ${Math.floor(condensedPower)} / 필요 ${permanentSkyCost}`, gain: 1 },
-                    { title: '룬 퀄리티 강화', action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: (game.currencies.bossCore || 0) >= qualityNeed, details: `군주의 핵 ${game.currencies.bossCore || 0}/${qualityNeed}, 피해/속도 배율 +0.5%` },
-                    { title: '각성 룬 변환', action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: `${gemAwakening ? '' : '‘룬 각성’ 해금 필요, '}기본 Lv.20, 각성 잔향 ${game.currencies.awakenedEcho || 0}/3${getGemAwakenedPerkNote(active).replace(/^ (.*)\.$/, ', $1')}`, gain: 2 }
+                    { title: _t('응축 창공 영구 강화'), action: 'upgradeActiveGemWithCondensedSkyPower()', done: permanentSkyBoost >= permanentSkyMax, ready: game.skyTower.unlocked && condensedPower >= permanentSkyCost, details: _t('{value}, 보유 {floor} / 필요 {permanentSkyCost}', { value: game.skyTower.unlocked ? _t('루프 초기화 없음') : _t('창공의 탑 해금 필요'), floor: Math.floor(condensedPower), permanentSkyCost }), gain: 1 },
+                    { title: _t('룬 퀄리티 강화'), action: 'upgradeActiveGemQuality()', done: activeGem?.quality >= 20, ready: (game.currencies.bossCore || 0) >= qualityNeed, details: _t('군주의 핵 {bossCore}/{qualityNeed}, 피해/속도 배율 +0.5%', { bossCore: game.currencies.bossCore || 0, qualityNeed }) },
+                    { title: _t('각성 룬 변환'), action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: _t('{value}기본 Lv.20, 각성 잔향 {awakenedEcho}/3{replace}', { value: gemAwakening ? '' : _t('‘룬 각성’ 해금 필요, '), awakenedEcho: game.currencies.awakenedEcho || 0, replace: getGemAwakenedPerkNote(active).replace(/^ (.*)\.$/, ', $1') }), gain: 2 }
                 ];
                 writeHtmlIfChanged(document.getElementById('ui-gem-upgrade-actions'), isGem ? upgrades.map(upgrade => renderGemUpgradeButton(upgrade, currentTotalGemLevel)).join('') : '<div class="gem-process-empty">강화할 공격 룬을 먼저 장착하세요.<br><button type="button" onclick="switchSkillSubtab(\'skill-tab-equip\')">공격 룬 장착하기</button></div>');
                 if ((game.season || 1) >= 4) {
-                    writeHtmlIfChanged(document.getElementById('ui-gem-enhance-options'), `<div class="gem-engrave-slot-guide"><strong>전체 각인</strong><span>누르면 빈 슬롯에 적용되고 다시 누르면 해제됩니다.</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, isGem)).join(''));
+                    writeHtmlIfChanged(document.getElementById('ui-gem-enhance-options'), `<div class="gem-engrave-slot-guide"><strong>${_t('전체 각인')}</strong><span>${_t('누르면 빈 슬롯에 적용되고 다시 누르면 해제됩니다.')}</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, isGem)).join(''));
                 } else {
                     writeHtmlIfChanged(document.getElementById('ui-gem-enhance-options'), '<div class="gem-process-empty">창공 각인은 루프 4부터 해금됩니다.</div>');
                 }

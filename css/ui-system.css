@@ -208,7 +208,7 @@ body :is(#item-tab-equip, #stump-equip-host) .equipment-inventory-panel {
 
 :is(#item-tab-equip, #stump-equip-host) #ui-inventory-list:empty::before,
 :is(#item-tab-equip, #stump-equip-host) .search-result-list:empty::before {
-  content: '◇\A보관 중인 장비가 없습니다\A전투와 제작으로 얻은 장비가 여기에 표시됩니다.';
+  content: var(--copy-bag-empty);
   grid-column: 1 / -1;
   display: grid;
   place-items: center;

@@ -71,7 +71,7 @@ const loopMutation = (() => {
     }
     /** '화염 면역, 냉기 약점' for a mutation. */
     function describeMutation(rule) {
-        return `${DAMAGE_ELEMENT_LABELS[rule.immune]} 면역, ${DAMAGE_ELEMENT_LABELS[rule.weak]} 약점`;
+        return _t('{DAMAGE_ELEMENT_LABELS} 면역, {DAMAGE_ELEMENT_LABELS2} 약점', { DAMAGE_ELEMENT_LABELS: DAMAGE_ELEMENT_LABELS[rule.immune], DAMAGE_ELEMENT_LABELS2: DAMAGE_ELEMENT_LABELS[rule.weak] });
     }
 
     return Object.freeze({ of: mutationOfLoop, current: currentMutation, bites: mutationBites, takenMul, begin: beginLoop,

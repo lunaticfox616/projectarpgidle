@@ -111,7 +111,7 @@ const explorationAtlasUi = (() => {
     function rewardTooltip(event) {
         const target = event.currentTarget;
         const bounds = target.getBoundingClientRect();
-        showInfoTooltipHtml(bounds.left,bounds.bottom,`<b>${escapeHTML(target.textContent)}</b><div class="tooltip-line">${escapeHTML(target.dataset.description)}</div>`,'#c9b17b');
+        showInfoTooltipHtml(bounds.left,bounds.bottom,`<b>${escapeHTML(target.textContent)}</b><div class="tooltip-line">${escapeHTML(_t(target.dataset.description))}</div>`,'#c9b17b');
     }
     function huntingHtml() {
         const index = Math.min(STORY_ACTS.length-1,game.maxZoneId);
@@ -128,7 +128,7 @@ const explorationAtlasUi = (() => {
         const current = game.currentZoneId === index && !game.combatHalted;
         const blocked = !current && (getZoneTravelBlockReason(index) || getHeldRunBlockReason());
         return `${rewards.length ? `<button class="atlas-claim" onclick="openActReward(${rewards[0]})">${_t('받을 보상')} ${rewards.length}</button>` : ''}
-            <button class="atlas-hunt-now" ${current ? '' : 'data-exploration-departure'} onclick="explorationAtlasUi.hunt(${index})" ${blocked ? 'disabled' : ''}>${current ? _t('전투로 돌아가기') : blocked ? '이동 대기' : '즉시 이동'}</button>
+            <button class="atlas-hunt-now" ${current ? '' : 'data-exploration-departure'} onclick="explorationAtlasUi.hunt(${index})" ${blocked ? 'disabled' : ''}>${current ? _t('전투로 돌아가기') : blocked ? _t('이동 대기') : _t('즉시 이동')}</button>
             <button class="atlas-hunt-select" onclick="explorationAtlasUi.enter('map-explore-hunting')">${_t('세부 지역')}</button>`;
     }
     function trackedRewardHtml(route) {

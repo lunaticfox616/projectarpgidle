@@ -3,12 +3,12 @@
 
 const craftingResultUi = (() => {
     function getSocketRows(before, after) {
-        return after.sockets > before.sockets ? [`소켓 ${before.sockets} → ${after.sockets}`] : [];
+        return after.sockets > before.sockets ? [_t('소켓 {sockets} → {sockets2}', { sockets: before.sockets, sockets2: after.sockets })] : [];
     }
 
     /** 허리띠의 액막이 칸 수가 바뀌었을 때 한 줄(축복의 꽃잎이 다시 굴린다, js/colony-wards.js rerollBelt). */
     function getWardRows(before, after) {
-        return before.wardSlots !== after.wardSlots ? [`액막이 칸 ${before.wardSlots || 0} → ${after.wardSlots || 0}`] : [];
+        return before.wardSlots !== after.wardSlots ? [_t('액막이 칸 {wardSlots} → {wardSlots2}', { wardSlots: before.wardSlots || 0, wardSlots2: after.wardSlots || 0 })] : [];
     }
 
     function getMetaRows(result) {
@@ -18,7 +18,7 @@ const craftingResultUi = (() => {
         let rarityLabels = ITEM_RARITY_LABELS;
         if (before.rarity !== after.rarity) rows.push(`등급 ${rarityLabels[before.rarity] || before.rarity} → ${rarityLabels[after.rarity] || after.rarity}`);
         if (before.quality !== after.quality) rows.push(`품질 ${before.quality}% → ${after.quality}%`);
-        if (before.baseName !== after.baseName) rows.push(`베이스 ${before.baseName || '없음'} → ${after.baseName || '없음'}`);
+        if (before.baseName !== after.baseName) rows.push(`베이스 ${before.baseName || _t('없음')} → ${after.baseName || _t('없음')}`);
         if (!before.corrupted && after.corrupted) rows.push('타락됨');
         rows.push(...getSocketRows(before, after), ...getWardRows(before, after));
         if (before.uniqueEffect !== after.uniqueEffect) rows.push('고유 효과 변경');

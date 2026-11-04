@@ -128,7 +128,7 @@ const knitting = (() => {
         if (!contentProgression.isUnlocked('knitting', state)) return '뜨개질이 아직 열리지 않았습니다.';
         if (state.woodsmanBuildLock) return '나무꾼 전투 중에는 뜨개질할 수 없습니다.';
         if (!open(state, row)) return '보상에 필요한 콘텐츠를 먼저 해금하세요.';
-        if (count < row.set) return `실타래 부족 (${count}/${row.set})`;
+        if (count < row.set) return _t('실타래 부족 ({count}/{set})', { count, set: row.set });
         if (row.reward.yarns && !yarnPool(state, id).length) return '다른 종류의 실타래를 먼저 발견하세요.';
         return '';
     }
@@ -144,45 +144,45 @@ const knitting = (() => {
     function setProblem(row) {
         const range = KNITTING.setRange[row.grade];
         const inRange = Number.isInteger(row.set) && row.set >= range[0] && row.set <= range[1];
-        return inRange ? [] : [`${row.id}: 세트 ${row.set}, 등급 ${row.grade} 범위 ${range}`];
+        return inRange ? [] : [_t('{id}: 세트 {set}, 등급 {grade} 범위 {range}', { id: row.id, set: row.set, grade: row.grade, range })];
     }
-    const nameProblem = row => (/실타래/.test(row.name) ? [`${row.id}: 이름에 종류명`] : []);
+    const nameProblem = row => (/실타래/.test(row.name) ? [_t('{id}: 이름에 종류명', { id: row.id })] : []);
     function sourceProblem(row) {
         const src = row.source || {};
         const has = !!src.any || !!(src.types && src.types.length) || !!(src.zones && src.zones.length);
-        return has ? [] : [`${row.id}: 출처 없음`];
+        return has ? [] : [_t('{id}: 출처 없음', { id: row.id })];
     }
     const ZONE_KEY = /^(type|act|atlas|node):\S+$/;
     function zoneKeyProblem(row) {
         const keys = (row.homes || []).concat((row.source || {}).zones || []);
-        return keys.every(key => ZONE_KEY.test(key)) ? [] : [`${row.id}: 지역 키 형식`];
+        return keys.every(key => ZONE_KEY.test(key)) ? [] : [_t('{id}: 지역 키 형식', { id: row.id })];
     }
     /** 콘텐츠 타입 출처의 해금이 전부 알려진 경우에만, 그중 하나라도 행의 unlocks에 없으면 누락이다. */
     function unlockProblem(row) {
         const needed = ((row.source || {}).types || []).map(type => KNITTING.typeUnlocks[type]);
         const own = row.unlocks || [];
         const missing = needed.length > 0 && needed.every(Boolean) && needed.some(id => !own.includes(id));
-        return missing ? [`${row.id}: 출처 해금 누락`] : [];
+        return missing ? [_t('{id}: 출처 해금 누락', { id: row.id })] : [];
     }
     /** 기존 순서 그대로: 세트 범위, 이름, 출처, 지역 키, 출처 해금. */
     const ROW_CHECKS = [setProblem, nameProblem, sourceProblem, zoneKeyProblem, unlockProblem];
     /** 등급이 틀리면 그 한 줄만(세트 범위를 읽을 수 없다). */
     function rowProblems(row) {
-        if (!KNITTING.grades[row.grade] || !KNITTING.setRange[row.grade]) return [`${row.id}: 등급 ${row.grade}`];
+        if (!KNITTING.grades[row.grade] || !KNITTING.setRange[row.grade]) return [_t('{id}: 등급 {grade}', { id: row.id, grade: row.grade })];
         return ROW_CHECKS.flatMap(check => check(row));
     }
     function homeProblems() {
         return KNITTING.homeZones.map(key => [key, KNITTING.list.filter(row => (row.homes || []).includes(key)).length])
-            .filter(([, n]) => n < 1 || n > 4).map(([key, n]) => `주력 ${key}: ${n}종`);
+            .filter(([, n]) => n < 1 || n > 4).map(([key, n]) => _t('주력 {key}: {n}종', { key, n }));
     }
     /** node: 키는 공개 API(atlas.nodes, atlas.node)로 확인한다. 모든 일반 지도(kind 'map')는 주력 목록에 있어야 하고, 지도 하나만 주력으로
      * 둔 종류의 found는 그 지도 이름이다(슬롯 순서 확인). */
     function nodeProblems() {
         if (typeof atlas !== 'object' || typeof atlas.node !== 'function') return ['아틀라스 공개 API(atlas.node)를 읽을 수 없음'];
         const maps = atlas.nodes.filter(node => node.kind === 'map');
-        const out = maps.filter(node => !KNITTING.homeZones.includes('node:' + node.id)).map(node => `주력 목록에 없는 지도 ${node.id}`);
+        const out = maps.filter(node => !KNITTING.homeZones.includes('node:' + node.id)).map(node => _t('주력 목록에 없는 지도 {id}', { id: node.id }));
         out.push(...KNITTING.homeZones.filter(key => key.startsWith('node:') && atlas.node(key.slice(5))?.kind !== 'map')
-            .map(key => `일반 지도가 아님 ${key}`));
+            .map(key => _t('일반 지도가 아님 {key}', { key })));
         for (const row of KNITTING.list) {
             const own = (row.homes || []).filter(key => key.startsWith('node:'));
             const node = own.length === 1 ? atlas.node(own[0].slice(5)) : null;

@@ -49,8 +49,8 @@ const actExplorationUi=(()=>{
     function renderSeal(run) {
         const remaining=actExplorationState.remainingElites(run),seal=document.getElementById('act-exploration-seal');
         // '봉인 n'은 무엇을 세는지 보이지 않았다(검토 4차): 남은 정예 수와, 다 잡으면 무엇이 열리는지.
-        seal.textContent=remaining?'정예 '+remaining:'관문 개방';
-        const sealText=remaining?`남은 정예 ${remaining}, 모두 처치하면 보스 관문이 열립니다`:'보스 관문이 열렸습니다';
+        seal.textContent=remaining?'정예 '+remaining:_t('관문 개방');
+        const sealText=remaining?_t('남은 정예 {remaining}, 모두 처치하면 보스 관문이 열립니다', { remaining }):'보스 관문이 열렸습니다';
         seal.dataset.tip=sealText;
         seal.setAttribute('aria-label',sealText);
     }
@@ -76,7 +76,7 @@ const actExplorationUi=(()=>{
         auto.disabled=run.status!=='active';
         auto.classList.toggle('is-locked',locked);
         // 켜짐과 꺼짐은 단추 앞의 초록 점이 말한다(css/act-exploration.css, 2026-11-03 사용자: 켬/끔 글자는 빼기). 잠김만 글자로 남긴다.
-        auto.querySelector('b').textContent=locked?'자동 잠김':'자동';
+        auto.querySelector('b').textContent=locked?_t('자동 잠김'):_t('자동');
         auto.setAttribute('aria-label',(on?'자동 이동 켜짐':'자동 이동 꺼짐(클릭한 곳으로만 이동)')+', 눌러서 바꾸기'+(key?' ('+key+')':''));
         const cap=auto.querySelector('.combat-hud-key');
         cap.textContent=key;cap.hidden=!key;

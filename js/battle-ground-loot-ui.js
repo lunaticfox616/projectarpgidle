@@ -32,7 +32,7 @@ const battleGroundLoot = (() => {
     const LEAF_ART = 'pixel:leaf';
     // The loop's starter gem (a floor row by name, js/exploration-ground-loot.js placeGem) shows the gem's own art and name.
     const leadArt = lead => (lead.yarn ? '' : lead.leaf ? LEAF_ART : lead.stump ? stumpBox.dropIcon(lead.stump) : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
-    const leadName = lead => (lead.stump ? stumpBox.dropName(lead.stump) : lead.yarn ? `실타래 ${knitting.row(lead.yarn).name}` : lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 룬` : shownName(lead));
+    const leadName = lead => (lead.stump ? stumpBox.dropName(lead.stump) : lead.yarn ? _t('실타래 {name}', { name: knitting.row(lead.yarn).name }) : lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? _t('[{gem}] 룬', { gem: lead.gem }) : shownName(lead));
     /** The name a pile shows: an unidentified unique on the floor shows only its base (the name appears when picked up). */
     const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || getItemSlotDisplayLabel(receipt.item, '고유')}` : receipt.item.name);
     /** Rows per arm of the name cross. Up sits over the picture; the side arms stay short so they fit between the up and
@@ -459,8 +459,8 @@ const battleGroundLoot = (() => {
     function revealUnique(item, fresh) {
         const jackpot = lootMoments.ofItem(item) === 'jackpot';
         if (typeof playLootDropSound === 'function') playLootDropSound(true);
-        if (jackpot) notice('chase', `체이싱 고유 장비를 획득했습니다. 「${item.name}」`, 'chase', 6000);
-        if (fresh) notice('codex', `도감에 고유 장비를 등록했습니다. 「${item.name}」`, 'unique', 4500);
+        if (jackpot) notice('chase', _t('체이싱 고유 장비를 획득했습니다. 「{name}」', { name: item.name }), 'chase', 6000);
+        if (fresh) notice('codex', _t('도감에 고유 장비를 등록했습니다. 「{name}」', { name: item.name }), 'unique', 4500);
         if (!air || !battleVisualState.playerPos) return;
         const label = document.createElement('span');
         label.className = `battle-loot-reveal${jackpot ? ' is-jackpot' : ''}${fresh ? ' is-new' : ''}`;
@@ -503,7 +503,7 @@ const battleGroundLoot = (() => {
         delete marker.dataset.labelRow; // Changed contents need their new width, even on the same floor cell.
         drawPile(entry, receipts);
         const names = receipts.map(receipt => (receipt.currency ? `${getCurrencyInfo(receipt.currency).name} ×${receipt.count}` : leadName(receipt)));
-        marker.setAttribute('aria-label', `줍기: ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` 외 ${names.length - 3}개` : ''}`);
+        marker.setAttribute('aria-label', `줍기: ${names.slice(0, 3).join(', ')}${names.length > 3 ? _t(' 외 {value}개', { value: names.length - 3 }) : ''}`);
         place(marker, originFor(entry.cell, projection)); yieldCrowdedArms(marker);
         // The permanent marker shows the best item in the pile, but only newly landed rows choose the landing sound/pop.
         if (fresh.length) {
@@ -632,7 +632,7 @@ const battleGroundLoot = (() => {
     /** ', 좋은 옵션 N줄' for a rare whose top-tier lines make it a find (data/loot-omens.js fineRare). */
     function fineNote(item) {
         const lines = item.rarity === 'rare' ? lootMoments.fineLines(item) : 0;
-        return lines >= LOOT_OMENS.fineRare.good ? `, 좋은 옵션 ${lines}줄` : '';
+        return lines >= LOOT_OMENS.fineRare.good ? _t(', 좋은 옵션 {lines}줄', { lines }) : '';
     }
     addEventListener('project-idle:floor-loot-collected', ({ detail }) => {
         const fresh = new Set(detail.fresh || []);

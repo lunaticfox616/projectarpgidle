@@ -45,9 +45,9 @@ const equipmentCrafting = (() => {
         if (item.corrupted) return '타락한 아이템은 제작할 수 없습니다.';
         const existing = (item.stats || []).filter(stat => getSource(stat) === source);
         if (!existing.length) return '';
-        if (!reroll || source === 'transplant') return `이미 ${labels[source]} 옵션이 있어 추가할 수 없습니다.`;
+        if (!reroll || source === 'transplant') return _t('이미 {labels} 옵션이 있어 추가할 수 없습니다.', { labels: labels[source] });
         const locked = existing.some(stat => stat.id !== retainedMarker && keptOnReroll(item, stat));
-        return locked ? `잠긴 ${labels[source]} 옵션이 있어 재련할 수 없습니다.` : '';
+        return locked ? _t('잠긴 {labels} 옵션이 있어 재련할 수 없습니다.', { labels: labels[source] }) : '';
     }
 
     /** action is the resolved orb action, and mode is 'none' for non-equipment crafting. */
@@ -73,7 +73,7 @@ const equipmentCrafting = (() => {
     function getFossilUseReason(item, fossil, season, currencies) {
         if ((season || 1) < 3) return '미궁 제작은 루프3부터 사용할 수 있습니다.';
         if (!fossil) return '존재하지 않는 화석입니다.';
-        if ((currencies[fossil.key] || 0) <= 0) return `${fossil.name}이 부족합니다.`;
+        if ((currencies[fossil.key] || 0) <= 0) return _t('{name}이 부족합니다.', { name: fossil.name });
         if (!item) return '먼저 아이템을 선택하세요.';
         return getFossilBlockReason(item, fossil.key);
     }
@@ -211,8 +211,8 @@ const equipmentCrafting = (() => {
     /** Arms omen key (side for 허기) for the next craft it fits; an empty key disarms. { ok, reason }. */
     function armOmen(state, key, side) {
         if (!key) { state.craftOmen = null; return { ok: true }; }
-        if (!CRAFT_OMENS.keys.includes(key)) return { ok: false, reason: '알 수 없는 뿌리입니다.' };
-        if ((state.currencies[key] || 0) < 1) return { ok: false, reason: `${_t(ORB_DB[key].name)}가 없습니다.` };
+        if (!CRAFT_OMENS.keys.includes(key)) return { ok: false, reason: _t('알 수 없는 뿌리입니다.') };
+        if ((state.currencies[key] || 0) < 1) return { ok: false, reason: _t('{name}가 없습니다.', { name: _t(ORB_DB[key].name) }) };
         state.craftOmen = normalizeCraftOmen({ key, side });
         return { ok: true };
     }
@@ -225,15 +225,15 @@ const equipmentCrafting = (() => {
         if (basicActions.includes(action)) return sideRollReason(item, action, omen, sporeMode);
         const lines = action === 'annulment' ? getAnnulmentRemovableStats(item).map(row => row.stat)
             : [...item.stats, ...(item.chaosInfusion ? [item.chaosInfusion] : [])].filter(stat => !stat.lockedByHoney && !stat.lockedByRift);
-        return lines.some(stat => onOmenSide(item, stat, omen)) ? '' : `변경 가능한 ${label} 옵션이 없습니다.`;
+        return lines.some(stat => onOmenSide(item, stat, omen)) ? '' : _t('변경 가능한 {label} 옵션이 없습니다.', { label });
     }
     function sideRollReason(item, action, omen, sporeMode) {
         const label = omen.side === 'prefix' ? '접두어' : '접미어';
         const kept = rerollActions.includes(action) ? item.stats.filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) : item.stats;
         if (sporeMode !== 'none' && kept.some(stat => getSource(stat) === 'spore')) return '보존되는 홀씨 옵션이 있어 홀씨를 함께 사용할 수 없습니다.';
         const pool = filterOmenMods(getOpenAffixMods({ ...item, stats: kept }, 'rare'), omen);
-        if (!pool.length) return `${label}에 새로 부여할 수 있는 옵션이나 빈자리가 없습니다.`;
-        return sporeMode !== 'none' && !filterSporeMods(pool, sporeMode).length ? `${label}에 선택한 홀씨 계열 옵션을 부여할 수 없습니다.` : '';
+        if (!pool.length) return _t('{label}에 새로 부여할 수 있는 옵션이나 빈자리가 없습니다.', { label });
+        return sporeMode !== 'none' && !filterSporeMods(pool, sporeMode).length ? _t('{label}에 선택한 홀씨 계열 옵션을 부여할 수 없습니다.', { label }) : '';
     }
     /** A short reason for an unavailable combination; this is also used before paying, never silently falling back to both sides. */
     function omenReason(item, action, omen, sporeMode = 'none') {
@@ -404,7 +404,7 @@ const equipmentCrafting = (() => {
         const reason = buildLockReason(state) || imprintBlock(item);
         if (reason) return reason;
         if (!['magic', 'rare'].includes(item.rarity)) return '마법이나 희귀 장비에 새깁니다.';
-        return (state.currencies[IMPRINT_KEY] || 0) > 0 ? '' : `${_t(ORB_DB[IMPRINT_KEY].name)}이 없습니다.`;
+        return (state.currencies[IMPRINT_KEY] || 0) > 0 ? '' : _t('{name}이 없습니다.', { name: _t(ORB_DB[IMPRINT_KEY].name) });
     }
     /** Engraves item's craft fields for one 기억 조각칼 (an older imprint is replaced). { ok, reason }. */
     function engrave(state, item) {

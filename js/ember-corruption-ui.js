@@ -6,8 +6,8 @@ const emberCorruptionUi = (() => {
 
     /** The crafting workspace's use state for the selected item: { enabled, reason }. */
     function useState(item) {
-        if (game.woodsmanBuildLock) return { enabled: false, reason: '나무꾼 전투 중에는 쓸 수 없습니다.' };
-        if ((game.currencies[KEY] || 0) <= 0) return { enabled: false, reason: '재화 부족' };
+        if (game.woodsmanBuildLock) return { enabled: false, reason: _t('나무꾼 전투 중에는 쓸 수 없습니다.') };
+        if ((game.currencies[KEY] || 0) <= 0) return { enabled: false, reason: _t('재화 부족') };
         const reason = emberCorruption.burnReason(item);
         return { enabled: !reason, reason: reason || '사용 가능' };
     }
@@ -20,8 +20,8 @@ const emberCorruptionUi = (() => {
     async function use() {
         const item = getSelectedCraftItem(), state = useState(item);
         if (!state.enabled) return addLog(state.reason, 'attack-monster');
-        const question = `[${item.name}]에 타오른 잿불가지를 씁니다. ${ashPct(item)}% 확률로 장비가 타서 사라집니다.`;
-        if (!await requestGameConfirmation(question, { title: '타오른 잿불가지', tone: 'danger', confirmLabel: '태우기' })) return;
+        const question = _t('[{name}]에 타오른 잿불가지를 씁니다. {item}% 확률로 장비가 타서 사라집니다.', { name: item.name, item: ashPct(item) });
+        if (!await requestGameConfirmation(question, { title: _t('타오른 잿불가지'), tone: 'danger', confirmLabel: _t('태우기') })) return;
         if (getSelectedCraftItem() !== item || !useState(item).enabled) return addLog(_t('확인 중 제작 대상이나 재화가 바뀌어 쓰지 않았습니다.'), 'attack-monster');
         game.currencies[KEY] -= 1;
         const token = craftingResultLedger.begin(item, { currencyKey: KEY });
@@ -40,17 +40,17 @@ const emberCorruptionUi = (() => {
     function burnAway(item) {
         const name = item.name, growth = emberCorruption.ashGrowth(item), jewels = destroySelectedCraftItem(item);
         const fed = typeof stumpBox === 'object' ? stumpBox.feedAsh(game, growth) : null;
-        const parts = [`🔥 [${name}] 타서 재가 되었습니다.`, jewels ? `끼운 주얼 ${jewels}개는 가방으로 돌아왔습니다.` : '',
-            fed ? `재가 그루터기 함 거름이 되었습니다(자라는 ${fed.fed}개 +${fed.growth}).` : ''];
+        const parts = [_t('🔥 [{name}] 타서 재가 되었습니다.', { name }), jewels ? _t('끼운 주얼 {jewels}개는 가방으로 돌아왔습니다.', { jewels }) : '',
+            fed ? _t('재가 그루터기 함 거름이 되었습니다(자라는 {fed}개 +{growth}).', { fed: fed.fed, growth: fed.growth }) : ''];
         addLog(parts.filter(Boolean).join(' '), 'attack-monster', { toast: true });
     }
 
-    const lineHtml = (line, tag) => `${tag}<span style="color:${EMBER_CORRUPTION_TONE};">[잿불] ${esc(_t(line.statName || getStatName(line.id)))} +${esc(formatValue(line.id, line.val))}</span>`;
+    const lineHtml = (line, tag) => `${tag}<span style="color:${EMBER_CORRUPTION_TONE};">${_t('[잿불] {statName} +{id}', { statName: esc(_t(line.statName || getStatName(line.id))), id: esc(formatValue(line.id, line.val)) })}</span>`;
     /** The item tooltip's ember section: the burned mark and the corruption-only lines. '' for an item never burned. */
     function tooltipHtml(item) {
         if (!item || !item.burned) return '';
         const lines = (item.emberLines || []).map(line => lineHtml(line, '<div class="tooltip-line">') + '</div>').join('');
-        return `<div class="tooltip-line" style="margin-top:6px; color:${EMBER_CORRUPTION_TONE};">🔥 타오른 장비 (다시 태울 수 없음)</div>${lines}`;
+        return `<div class="tooltip-line" style="margin-top:6px; color:${EMBER_CORRUPTION_TONE};">${_t('🔥 타오른 장비 (다시 태울 수 없음)')}</div>${lines}`;
     }
     /** A line the burn baked again: its share as +12% / -8% next to the value. */
     function scaleBadgeHtml(stat) {
@@ -61,7 +61,7 @@ const emberCorruptionUi = (() => {
     /** The crafting workspace's note for a baked line ('불길 +12%'), '' otherwise. */
     function scaleNote(stat) {
         const pct = Math.round(((Number(stat && stat.emberScale) || 1) - 1) * 100);
-        return pct ? `불길 ${pct > 0 ? '+' : ''}${pct}%` : '';
+        return pct ? _t('불길 {value}{pct}%', { value: pct > 0 ? '+' : '', pct }) : '';
     }
     /** The crafting workspace card's ember lines. */
     function cardHtml(item) {

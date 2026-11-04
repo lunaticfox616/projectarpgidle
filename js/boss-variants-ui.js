@@ -8,7 +8,7 @@ const bossVariantsUi = (() => {
             return;
         }
         const gift = detail.first ? ` 처음 잡은 변이: ${detail.gift.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`).join(', ')}.` : '';
-        const memory = detail.memory ? ` ${esc(atlas.node(detail.memory.node).boss)}의 기억 ${detail.memory.tier}단계를 얻었습니다.` : '';
+        const memory = detail.memory ? _t(' {boss}의 기억 {tier}단계를 얻었습니다.', { boss: esc(atlas.node(detail.memory.node).boss), tier: detail.memory.tier }) : '';
         addLog(_t('🧬 변이체 처치: {name}. 전리품이 늘었습니다.{gift}{memory}', { name: esc(_t(detail.name)), gift, memory }), 'loot-unique', { toast: !!(detail.first || detail.memory) });
     }
     /** The memory view's variant record: each variant and how often it fell (from loop 33, or once any fell). */
@@ -16,8 +16,7 @@ const bossVariantsUi = (() => {
         const rows = bossVariants.records(game);
         if (!bossVariants.open(game) && !rows.some(row => row.kills > 0)) return '';
         const chips = rows.map(row => `<span class="${row.kills ? 'is-on' : ''}" style="--tint:${row.kind.outline}"><i></i>${esc(_t(row.kind.name))} ${row.kills}</span>`).join('');
-        return `<section class="atlas-late-group boss-variant-records"><h3>변이체 기록</h3><p class="atlas-muted">보스 변이체 해금 뒤에 보스가 드물게 변이체로 나옵니다.
-            처음 잡은 변이마다 황금률, 아틀라스의 보스였다면 그 보스의 기억 ${BOSS_VARIANTS.reward.memoryTier}단계.</p><div class="atlas-late-blight">${chips}</div></section>`;
+        return `<section class="atlas-late-group boss-variant-records"><h3>${_t('변이체 기록')}</h3><p class="atlas-muted">${_t("보스 변이체 해금 뒤에 보스가 드물게 변이체로 나옵니다.\n            처음 잡은 변이마다 황금률, 아틀라스의 보스였다면 그 보스의 기억 {memoryTier}단계.", { memoryTier: BOSS_VARIANTS.reward.memoryTier })}</p><div class="atlas-late-blight">${chips}</div></section>`;
     }
     window.addEventListener('project-idle:boss-variant', event => announce(event.detail || {}));
     return Object.freeze({ recordHtml });

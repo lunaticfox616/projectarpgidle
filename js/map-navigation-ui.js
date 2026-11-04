@@ -25,7 +25,7 @@
         if (!select) {
             select = document.createElement('select');
             select.id = 'mobile-map-destination';
-            select.setAttribute('aria-label', '목적지 선택');
+            select.setAttribute('aria-label', _t('목적지 선택'));
             select.addEventListener('change', changeDestination);
             root.appendChild(select);
         }

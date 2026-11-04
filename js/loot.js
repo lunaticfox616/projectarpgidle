@@ -418,11 +418,11 @@ safeExposeGlobals({ getCurrencyDrops });
     }
 
     function highlight(item, targetGame = game) {
-        if (item.rarity === 'unique' && (targetGame.uniqueHuntTargets || []).includes(getUniqueCodexKeyByItem(item))) return { reason: '목표 고유 획득', color: '#7fffd2', priority: 3 };
-        if (matches(item, targetGame)) return { reason: '목표 옵션 일치', color: '#7fffd2', priority: 3 };
-        if (item.rarity === 'unique') return { reason: '고유 장비 획득', color: '#ffbb69', priority: 2 };
-        if (item.exceptionalBase) return { reason: '특출 베이스 발견', color: '#f3d779', priority: 1 };
-        if (item.corrupted) return { reason: '타락 장비 발견', color: '#e7685c', priority: 1 };
+        if (item.rarity === 'unique' && (targetGame.uniqueHuntTargets || []).includes(getUniqueCodexKeyByItem(item))) return { reason: _t('목표 고유 획득'), color: '#7fffd2', priority: 3 };
+        if (matches(item, targetGame)) return { reason: _t('목표 옵션 일치'), color: '#7fffd2', priority: 3 };
+        if (item.rarity === 'unique') return { reason: _t('고유 장비 획득'), color: '#ffbb69', priority: 2 };
+        if (item.exceptionalBase) return { reason: _t('특출 베이스 발견'), color: '#f3d779', priority: 1 };
+        if (item.corrupted) return { reason: _t('타락 장비 발견'), color: '#e7685c', priority: 1 };
         return null;
     }
 

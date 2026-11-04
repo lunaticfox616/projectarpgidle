@@ -16,7 +16,7 @@ const passiveSelectionUi = (() => {
     /** 확인 단추 글씨: 가진 노드는 반환(공허는 제작), 직업 시작점은 늘 열린 출발점, 나머지는 드는 포인트. */
     function confirmLabel(node, owned, cost) {
         if (owned) return node.kind === 'void' ? '공허 제작' : '노드 반환 (포자 1개)';
-        return node.kind === 'start' ? '시작점, 이미 열림' : `${cost}포인트 사용`;
+        return node.kind === 'start' ? '시작점, 이미 열림' : _t('{cost}포인트 사용', { cost });
     }
 
     function canAct(node, cost) {
@@ -32,12 +32,12 @@ const passiveSelectionUi = (() => {
         if (node.kind === 'start') return '시작점은 무료입니다.';
         if (owned) return refundHint(node);
         if (!cost) return '먼저 연결된 노드를 할당해 주세요.';
-        return `필요 ${cost}포인트, 보유 ${game.passivePoints}포인트${game.passivePoints < cost ? ', 포인트 부족' : ''}`;
+        return _t('필요 {cost}포인트, 보유 {passivePoints}포인트{value}', { cost, passivePoints: game.passivePoints, value: game.passivePoints < cost ? _t(', 포인트 부족') : '' });
     }
 
     function refundHint(node) {
         if (!canRefundPassiveNode(node.id)) return '연결이나 포인트 한도 유지에 필요한 노드입니다.';
-        return `반환 비용: 마름병 포자 1개, 보유 ${game.currencies.blightSpore || 0}개`;
+        return _t('반환 비용: 마름병 포자 1개, 보유 {blightSpore}개', { blightSpore: game.currencies.blightSpore || 0 });
     }
 
     /** Keep the canvas density bounded on phones while preserving UI-scale coordinate and text mapping. */
@@ -66,9 +66,9 @@ const passiveSelectionUi = (() => {
         }
         const message = ['함께 활성화할 노드', ...path.map(pathNodeDescription), ...notes].join('\n\n');
         return requestGameConfirmation(message, {
-            title: `${getPassiveNodeDisplayName(node)}까지 활성화`,
-            kicker: `최단 경로 노드 ${path.length}개`,
-            confirmLabel: `${path.length}포인트 사용`
+            title: _t('{node}까지 활성화', { node: getPassiveNodeDisplayName(node) }),
+            kicker: _t('최단 경로 노드 {length}개', { length: path.length }),
+            confirmLabel: _t('{length}포인트 사용', { length: path.length })
         });
     }
 
@@ -81,7 +81,7 @@ const passiveSelectionUi = (() => {
         let panel = document.getElementById('passive-mobile-detail');
         if (!panel) {
             panel = document.createElement('section'); panel.id = 'passive-mobile-detail';
-            panel.setAttribute('aria-label', '선택한 노드');
+            panel.setAttribute('aria-label', _t('선택한 노드'));
             document.getElementById('tab-char').appendChild(panel);
         }
         const owned = game.passives.includes(node.id);
@@ -90,7 +90,7 @@ const passiveSelectionUi = (() => {
         const enabled = canAct(node, cost);
         const label = confirmLabel(node, owned, cost);
         panel.dataset.nodeId = node.id;
-        panel.innerHTML = `<header><strong>선택한 노드</strong><button type="button" data-passive-close aria-label="노드 설명 닫기">닫기</button></header><div class="passive-mobile-description">${tooltip.innerHTML}</div><footer><p id="passive-mobile-action-hint" role="status">${actionHint(node, owned, cost)}</p><button type="button" data-passive-confirm aria-describedby="passive-mobile-action-hint" ${enabled ? '' : 'disabled'}>${label}</button></footer>`;
+        panel.innerHTML = `<header><strong>${_t('선택한 노드')}</strong><button type="button" data-passive-close aria-label="${_t('노드 설명 닫기')}">${_t('닫기')}</button></header><div class="passive-mobile-description">${tooltip.innerHTML}</div><footer><p id="passive-mobile-action-hint" role="status">${actionHint(node, owned, cost)}</p><button type="button" data-passive-confirm aria-describedby="passive-mobile-action-hint" ${enabled ? '' : 'disabled'}>${label}</button></footer>`;
         panel.hidden = false;
         panel.querySelector('[data-passive-close]').onclick = hide;
         panel.querySelector('[data-passive-confirm]').onclick = confirmSelection;
@@ -139,7 +139,7 @@ const passiveSelectionUi = (() => {
         const container = document.getElementById('tree-container');
         const controls = document.createElement('nav');
         controls.className = 'passive-mobile-camera';
-        controls.setAttribute('aria-label', '스킬트리 화면 조절');
+        controls.setAttribute('aria-label', _t('스킬트리 화면 조절'));
         controls.innerHTML = '<button type="button" data-tree-view="out" aria-label="스킬트리 축소">−</button><button type="button" data-tree-view="fit">내 트리</button><button type="button" data-tree-view="in" aria-label="스킬트리 확대">+</button>';
         controls.addEventListener('click', event => {
             const button = event.target.closest('[data-tree-view]');

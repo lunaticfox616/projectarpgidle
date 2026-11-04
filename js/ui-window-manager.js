@@ -265,7 +265,7 @@
         while (el.firstChild) body.appendChild(el.firstChild);
         let titlebar = document.createElement('div');
         titlebar.className = 'ui-window-titlebar';
-        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}" data-i18n>${def.title}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="창 위치와 크기 되돌리기" data-tip="창 위치와 크기 되돌리기">↺</button><button type="button" data-window-action="minimize" aria-label="최소화" data-tip="최소화">—</button><button type="button" data-window-action="maximize" aria-label="최대화 또는 원래 크기" data-tip="최대화 / 원래 크기">□</button><button type="button" data-window-action="close" aria-label="닫기" data-tip="닫기 (Esc)">✕</button></div>`;
+        titlebar.innerHTML = `<div class="ui-window-title" id="ui-window-title-${tabId}" data-i18n>${_t(def.title)}</div><div class="ui-window-actions"><button type="button" data-window-action="reset" aria-label="${_t('창 위치와 크기 되돌리기')}" data-tip="${_t('창 위치와 크기 되돌리기')}">↺</button><button type="button" data-window-action="minimize" aria-label="${_t('최소화')}" data-tip="${_t('최소화')}">—</button><button type="button" data-window-action="maximize" aria-label="${_t('최대화 또는 원래 크기')}" data-tip="${_t('최대화 / 원래 크기')}">□</button><button type="button" data-window-action="close" aria-label="${_t('닫기')}" data-tip="${_t('닫기 (Esc)')}">✕</button></div>`;
         el.classList.add('ui-window');
         el.setAttribute('role', 'dialog');
         el.setAttribute('aria-labelledby', `ui-window-title-${tabId}`);
@@ -585,12 +585,12 @@
         label.dataset.i18n = '';
         label.textContent = textNodes.map(node => i18n.sourceOf(node).trim()).join(' ');
         // 아래 바의 짧은 이름: 다른 언어에서는 '|하단 메뉴' 문맥의 짧은 번역을 쓰고, 없으면 그 글의 보통 번역을 쓴다(js/i18n.js).
-        button.dataset.caption = `${railCaption(button.id, label.textContent)}|하단 메뉴`;
+        button.dataset.caption = _t('{id}|하단 메뉴', { id: railCaption(button.id, label.textContent) });
         button.dataset.i18nAttr = 'data-caption';
         // 화면 여럿을 여는 단추(장비 단추는 장비와 스킬룬)는 묶음 이름 하나만 적는다(스킬트리, 장비, 루프, 기록). 화면들을 모두 나열하면
         // 좁은 화면의 아래 탭에 "스킬트리, 전직, 재능"처럼 길게 보였다(사용자 2026-10-27). 안의 화면은 창 머리의 탭에서 고른다.
         let merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === 'object' ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
-        if (merged) label.textContent = merged.title;
+        if (merged) label.textContent = _t(merged.title);
         if (button.dataset.hotkey) label.dataset.hotkey = button.dataset.hotkey;
         textNodes.forEach(node => button.removeChild(node));
         button.insertBefore(label, button.firstChild);
@@ -602,7 +602,7 @@
         button.id = 'btn-ui-rail-misc';
         button.type = 'button';
         button.className = 'ui-rail-external-btn ui-rail-misc-btn';
-        button.setAttribute('aria-label', '기타 메뉴 열기');
+        button.setAttribute('aria-label', _t('기타 메뉴 열기'));
         button.setAttribute('aria-controls', 'ui-rail-misc-panel');
         button.setAttribute('aria-expanded', 'false');
         button.innerHTML = `${escapeHTML(_t('기타|하단 메뉴'))}<span id="noti-ui-rail-misc" class="noti-dot"></span>`;
@@ -613,7 +613,7 @@
     function installRailLayers(header) {
         let tabLayer = document.createElement('div');
         tabLayer.className = 'ui-rail-tab-layer';
-        tabLayer.setAttribute('aria-label', '메뉴');
+        tabLayer.setAttribute('aria-label', _t('메뉴'));
         header.appendChild(tabLayer);
         let controls = document.createElement('div');
         controls.className = 'ui-rail-external-controls';
@@ -719,7 +719,7 @@
         railDockHome = { parent: header.parentElement, next: header.nextElementSibling };
         let rightWing = document.createElement('div');
         rightWing.className = 'ui-rail-tab-layer ui-rail-wing-right';
-        rightWing.setAttribute('aria-label', '메뉴');
+        rightWing.setAttribute('aria-label', _t('메뉴'));
         header.querySelector(':scope > .ui-rail-tab-layer').classList.add('ui-rail-wing-left');
         header.insertBefore(rightWing, header.querySelector(':scope > .ui-rail-external-controls'));
         shell.appendChild(header);
@@ -837,13 +837,13 @@
         btn.type = 'button';
         btn.className = 'ui-rail-external-btn ui-close-all-btn';
         btn.textContent = _t('정리|하단 메뉴');
-        btn.setAttribute('aria-label', '열린 창 모두 닫기');
+        btn.setAttribute('aria-label', _t('열린 창 모두 닫기'));
         btn.addEventListener('click', closeAllWindows);
         let logo = document.createElement('button');
         logo.id = 'ui-rail-logo';
         logo.type = 'button';
-        logo.setAttribute('aria-label', 'RIGNIN, 열린 창 모두 닫기');
-        logo.dataset.tip = '열린 창 모두 닫기';
+        logo.setAttribute('aria-label', _t('RIGNIN, 열린 창 모두 닫기'));
+        logo.dataset.tip = _t('열린 창 모두 닫기');
         logo.innerHTML = '<img src="assets/ui/pixel/rignin-logo-52.png" alt="" width="52" height="52">';
         logo.addEventListener('click', closeAllWindows);
         header.prepend(logo);
@@ -1068,7 +1068,7 @@
         setGoalDrawerBar('ui-goal-bar', 'ui-goal-bar-fill', pct);
         let progressText = Object.prototype.hasOwnProperty.call(goal, 'progressText')
             ? goal.progressText
-            : (hasProgress ? `현재 ${goal.current} / ${goal.target}` : '');
+            : (hasProgress ? _t('현재 {current} / {target}', { current: goal.current, target: goal.target }) : '');
         setGoalDrawerText('ui-goal-progress', progressText);
         let action = document.getElementById('ui-goal-action');
         if (action) {
@@ -1158,7 +1158,7 @@
         button.id = 'btn-reset-window-layout';
         button.className = 'cfg-btn cfg-btn--neutral';
         button.type = 'button';
-        button.textContent = 'UI 배치 초기화';
+        button.textContent = _t('UI 배치 초기화');
         button.addEventListener('click', resetWindowLayout);
         host.appendChild(button);
     }

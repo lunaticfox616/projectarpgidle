@@ -112,7 +112,7 @@ const playerHallTrade = (() => {
      * bag (the server counts items, not cells, so a full bag used to send it to the temporary storage without a word). */
     function hallTradeRefusal(action, incoming) {
         if (isHallResultUnknown()) return getPlayerExchangeError('HALL_RESULT_UNKNOWN');
-        if (game.woodsmanBuildLock) return `☠️ 나무꾼 전투 중에는 ${action}할 수 없습니다.`;
+        if (game.woodsmanBuildLock) return _t('☠️ 나무꾼 전투 중에는 {action}할 수 없습니다.', { action });
         const replay = typeof shopView === 'object' ? shopView.busyReason() : '';
         if (replay) return replay;
         return incoming && !canStoreEquipmentItems([incoming], game) ? getPlayerExchangeError('HALL_INVENTORY_FULL') : '';
@@ -205,13 +205,13 @@ const playerHallTrade = (() => {
         const data = playerExchangeState.data, userId = cloudState && cloudState.user && cloudState.user.id;
         if (!data || !userId || playerExchangeState.dataUserId !== userId) return '';
         const shown = (Array.isArray(data.mine) ? data.mine : []).filter(row => row && ['open', 'sold_out'].includes(row.status)).length;
-        return shown ? `장비 전당에 전시한 원본 ${shown}개가 남아 있습니다. 장비 → 장비 전당에서 회수한 뒤 루프를 진행하세요.` : '';
+        return shown ? _t('장비 전당에 전시한 원본 {shown}개가 남아 있습니다. 장비 → 장비 전당에서 회수한 뒤 루프를 진행하세요.', { shown }) : '';
     }
 
     /** My listing's price box: its price while on show, '복제 한도 완료' once every copy went, '전시 닫힘' when it closed before that
      * (an operator's hold closes open listings, db/anti-cheat.sql admin_set_cheat_hold). */
     function hallMineLabel(row) {
-        if (row.status !== 'sold_out') return `황금률 ${Number(row.price || 0).toLocaleString()}`;
+        if (row.status !== 'sold_out') return _t('황금률 {price}', { price: Number(row.price || 0).toLocaleString() });
         return Number(row.copiesSold || 0) >= Number(row.copyCap || 5) ? '복제 한도 완료' : '전시 닫힘';
     }
 
@@ -281,7 +281,7 @@ async function confirmHallListing(item, quote) {
     let score = Math.max(0, Math.floor(Number(quote.score) || 0));
     return requestGameConfirmation(
         `[${item.name}] 감정 점수 ${score.toLocaleString()}, 복제품 구매가 황금률 ${price.toLocaleString()}개\n등록 중 원본은 전당이 보관하며, 회수 전까지 최대 5명이 귀속 복제품을 구매할 수 있습니다.`,
-        { title: '장비 전당 감정', confirmLabel: '이 가격으로 전시' });
+        { title: _t('장비 전당 감정'), confirmLabel: _t('이 가격으로 전시') });
 }
 
 async function createPlayerHallListing() {
@@ -309,7 +309,7 @@ async function createPlayerHallListing() {
         playerExchangeState.selectedItemId = null;
         playerHallTrade.noteMine(result.listingId, { id: result.listingId, item: result.item, score: result.score, price: result.price,
             status: 'open', copiesSold: 0, copyCap: 5 });
-        await finishHallTrade(`감정 점수 ${Number(result.score).toLocaleString()}, 황금률 ${Number(result.price).toLocaleString()}개로 전시했습니다.`);
+        await finishHallTrade(_t('감정 점수 {score}, 황금률 {price}개로 전시했습니다.', { score: Number(result.score).toLocaleString(), price: Number(result.price).toLocaleString() }));
     } catch (error) {
         playerExchangeState.message = hallTradeFailureMessage(error, progress);
     } finally {
@@ -373,8 +373,8 @@ async function buyPlayerHallReplica(listingId) {
     if (blocked) return setPlayerExchangeMessage(blocked);
     let session = beginHallSession();
     let price = Math.max(0, Math.floor(Number(listing.price) || 0));
-    if (!await askPlayerHall(`[${listing.item && listing.item.name || '장비'}]의 귀속 복제품을 황금률 ${price.toLocaleString()}개에 구매합니다.\n구매한 장비는 재판매하거나 전당에 다시 등록할 수 없습니다.`,
-        { title: '전당 소장품 구매', confirmLabel: '구매' })) return;
+    if (!await askPlayerHall(`[${listing.item && listing.item.name || _t('장비')}]의 귀속 복제품을 황금률 ${price.toLocaleString()}개에 구매합니다.\n구매한 장비는 재판매하거나 전당에 다시 등록할 수 없습니다.`,
+        { title: _t('전당 소장품 구매'), confirmLabel: _t('구매') })) return;
     await runPlayerExchangeMutation({ session, action: '구매', incoming: listing.item, reason: 'hall-purchase', path: '/rest/v1/rpc/buy_hall_replica',
         body: { p_listing_id: Number(listingId) }, successMessage: '전당 소장품을 구매했습니다. 이 복제품은 계정에 귀속됩니다.',
         mutation: result => {
@@ -387,8 +387,8 @@ async function buyPlayerHallReplica(listingId) {
 /** Ending a show is final for an original a copy was bought from (HALL_RELIST_BLOCKED): the dialog says so before it goes. */
 function confirmHallWithdraw(row) {
     let copied = Number(row.copiesSold || 0) > 0;
-    let text = `[${row.item && row.item.name || '장비'}] 전시를 끝내고 원본을 가방으로 돌려받습니다.${copied ? '\n복제품이 팔린 원본이라 다시 전시할 수 없습니다.' : ''}`;
-    return askPlayerHall(text, { title: '전당 전시 종료', confirmLabel: '전시 종료', ...(copied ? { tone: 'danger' } : {}) });
+    let text = _t('[{item}] 전시를 끝내고 원본을 가방으로 돌려받습니다.{value}', { item: row.item && row.item.name || _t('장비'), value: copied ? _t('\n복제품이 팔린 원본이라 다시 전시할 수 없습니다.') : '' });
+    return askPlayerHall(text, { title: _t('전당 전시 종료'), confirmLabel: _t('전시 종료'), ...(copied ? { tone: 'danger' } : {}) });
 }
 
 async function withdrawPlayerHallListing(listingId) {
@@ -444,7 +444,7 @@ async function finishHallTrade(message) {
         await reloadPlayerExchangeData();
     } catch (error) {
         console.warn('hall rows reload after a trade failed:', error);
-        playerExchangeState.message = `${message} 전당 목록은 새로 불러오지 못했습니다(${getPlayerExchangeError(error)}). 새로고침으로 다시 불러와 주세요.`;
+        playerExchangeState.message = _t('{message} 전당 목록은 새로 불러오지 못했습니다({error}). 새로고침으로 다시 불러와 주세요.', { message, error: getPlayerExchangeError(error) });
     }
 }
 
@@ -543,7 +543,7 @@ function hallNicheHtml(item) {
 /** An item's name with its slot, rarity and tier, and metaHtml under them. */
 function hallItemText(item, metaHtml) {
     let tier = Math.max(1, Math.floor(Number(item.hiddenTier || item.itemTier) || 1));
-    return `<span class="hall-item-text"><strong>${escapeHTML(item.name || '이름 없는 장비')}</strong><small>${escapeHTML(weaponCategorySlotLabel(item, item.slot || ''))}, ${item.rarity === 'unique' ? '고유' : '희귀'}, T${tier}</small>${metaHtml || ''}</span>`;
+    return `<span class="hall-item-text"><strong>${escapeHTML(_t(item.name) || '이름 없는 장비')}</strong><small>${escapeHTML(weaponCategorySlotLabel(item, item.slot || ''))}, ${item.rarity === 'unique' ? _t('고유') : _t('희귀')}, T${tier}</small>${metaHtml || ''}</span>`;
 }
 
 function renderHallItemCard(item, key, actionHtml, metaHtml) {
@@ -556,15 +556,15 @@ function renderHallListingCard(row) {
     let item = row.item || {}, key = `hall-${row.id}`, selected = Number(row.id) === Number(playerExchangeState.selectedListingId);
     playerExchangeState.itemTips.set(key, item);
     let state = hallListingCaption(row);
-    let meta = `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}, 전시자 명예 +${Number(row.honorPerCopy || 0)}</small>`;
+    let meta = `<small class="hall-appraisal">${_t('감정 {score}, 전시자 명예 +{honorPerCopy}', { score: Number(row.score || 0).toLocaleString(), honorPerCopy: Number(row.honorPerCopy || 0) })}</small>`;
     return `<button type="button" class="player-trade-item hall-item hall-pick${selected ? ' is-selected' : ''}" style="--trade-rarity:${getRarityColor(item.rarity)}"
         aria-pressed="${selected}" onclick="hideInfoTooltip();selectPlayerHallListing(${Number(row.id)})" ${hallTipAttrs(key)}>${hallNicheHtml(item)}${hallItemText(item, meta)}
-        <span class="player-trade-price"><b>황금률 ${Number(row.price || 0).toLocaleString()}</b><span>${escapeHTML(row.curatorName || '익명')}, ${state}</span></span></button>`;
+        <span class="player-trade-price"><b>${_t('황금률 {price}', { price: Number(row.price || 0).toLocaleString() })}</b><span>${escapeHTML(row.curatorName || '익명')}, ${state}</span></span></button>`;
 }
 
 function hallListingCaption(row) {
     if (getHallListingClosedReason(row)) return row.isMine ? '내 전시품' : row.alreadyCollected ? '소장 완료' : '전시 닫힘';
-    return `${Number(row.copiesSold || 0)}/${Number(row.copyCap || 5)} 소장`;
+    return _t('{copiesSold}/{copyCap} 소장', { copiesSold: Number(row.copiesSold || 0), copyCap: Number(row.copyCap || 5) });
 }
 
 /** The chosen show: its full card with the comparison against the worn gear, its price and the purchase, with why it cannot be bought
@@ -586,7 +586,7 @@ function hallDealHtml(row, visible) {
     let hidden = visible ? '' : '<small>지금 목록 조건에서는 보이지 않는 전시품입니다.</small>';
     let note = blocked ? `<p class="hall-detail-note" role="status">${escapeHTML(blocked)}</p>` : '';
     return `<div class="hall-detail-deal"><small>${escapeHTML(row.curatorName || '익명')}의 전시, 소장 ${Number(row.copiesSold || 0)}/${Number(row.copyCap || 5)}</small>${hidden}
-        <b>황금률 ${price.toLocaleString()}</b>${note}<button type="button" onclick="buyPlayerHallReplica(${Number(row.id)})" ${blocked ? 'disabled' : ''}>귀속 복제품 구매</button></div>`;
+        <b>${_t('황금률 {price}', { price: price.toLocaleString() })}</b>${note}<button type="button" onclick="buyPlayerHallReplica(${Number(row.id)})" ${blocked ? 'disabled' : ''}>${_t('귀속 복제품 구매')}</button></div>`;
 }
 
 /** The chosen show against the gear worn now (js/shop-view-ui.js ratingHtml, the bag analysis' verdict), worked out for that one show
@@ -602,7 +602,7 @@ function hallCompareHtml(row) {
         console.warn('hall compare failed:', error);
         rating = '<p class="hall-compare-note">현재 장비와 비교하지 못했습니다.</p>';
     }
-    let html = `<div class="hall-compare"><small>현재 장비와 비교</small>${rating}</div>`;
+    let html = `<div class="hall-compare"><small>${_t('현재 장비와 비교')}</small>${rating}</div>`;
     playerExchangeState.compare = { key, html };
     return html;
 }
@@ -612,14 +612,14 @@ function renderHallRegisterButton(activeCount) {
     let item = getHallEligibleItems().find(row => Number(row.id) === Number(playerExchangeState.selectedItemId));
     let busy = playerExchangeState.loading || playerExchangeState.asking;
     let reason = busy ? '처리 중' : activeCount >= 3 ? '전시 3칸이 모두 찼습니다' : item ? '' : '전시할 장비를 고르세요';
-    return `<button onclick="createPlayerHallListing()" ${reason ? 'disabled' : ''}>${reason || `[${escapeHTML(item.name || '장비')}] 서버 감정 후 전시`}</button>`;
+    return `<button onclick="createPlayerHallListing()" ${reason ? 'disabled' : ''}>${reason || `[${escapeHTML(_t(item.name) || '장비')}] 서버 감정 후 전시`}</button>`;
 }
 
 function renderHallPicker() {
     let owned = getHallEligibleItems();
     if (!owned.length) return '<div class="player-exchange-empty"><span class="px-center">전시할 수 있는 희귀, 고유 장비가 없습니다. 잠근 장비, 프리셋 장비, 어느 소켓이든 주얼을 끼운 장비, 전당 소장품, 복제 이력이 있는 장비는 제외됩니다.</span></div>';
     return owned.map(item => renderHallItemCard(item, `owned-${item.id}`,
-        `<button class="${Number(item.id) === Number(playerExchangeState.selectedItemId) ? 'active' : ''}" onclick="selectPlayerHallItem(${Number(item.id)})">${Number(item.id) === Number(playerExchangeState.selectedItemId) ? '선택됨' : '전당 등록 선택'}</button>`)).join('');
+        `<button class="${Number(item.id) === Number(playerExchangeState.selectedItemId) ? 'active' : ''}" onclick="selectPlayerHallItem(${Number(item.id)})">${Number(item.id) === Number(playerExchangeState.selectedItemId) ? _t('선택됨') : _t('전당 등록 선택')}</button>`)).join('');
 }
 
 /** The shows the browse lets through, in its order: the server's (appraisal) or by price, ties by id so the order holds between draws. */
@@ -662,9 +662,9 @@ function renderHallBrowseTools() {
     let option = (value, label, chosen) => `<option value="${escapeHTML(value)}" ${chosen ? 'selected' : ''}>${escapeHTML(label)}</option>`;
     let slotOptions = option('all', '전체 부위', slot === 'all') + slots.map(name => option(name, weaponCategorySlotLabel(null, name), name === slot)).join('');
     let sortOptions = Object.entries(HALL_SORTS).map(([value, label]) => option(value, label, value === sort)).join('');
-    return `<div class="hall-browse"><input type="search" class="hall-browse-search" value="${escapeHTML(query)}" maxlength="40" placeholder="이름 검색"
-        aria-label="전시품 이름 검색" oninput="setPlayerHallBrowse('query',this.value)"><select aria-label="부위" onchange="setPlayerHallBrowse('slot',this.value)">${slotOptions}</select>
-        <select aria-label="정렬" onchange="setPlayerHallBrowse('sort',this.value)">${sortOptions}</select></div>`;
+    return `<div class="hall-browse"><input type="search" class="hall-browse-search" value="${escapeHTML(query)}" maxlength="40" placeholder="${_t('이름 검색')}"
+        aria-label="${_t('전시품 이름 검색')}" oninput="setPlayerHallBrowse('query',this.value)"><select aria-label="${_t('부위')}" onchange="setPlayerHallBrowse('slot',this.value)">${slotOptions}</select>
+        <select aria-label="${_t('정렬')}" onchange="setPlayerHallBrowse('sort',this.value)">${sortOptions}</select></div>`;
 }
 
 /** The chosen show's card, how many shows the browse lets through, and those shows (or why none, with a way back to all). */
@@ -673,8 +673,8 @@ function renderHallMarketView() {
     let list = !all.length ? '<div class="player-exchange-empty"><span class="px-center">현재 전시 중인 소장품이 없습니다.</span></div>'
         : rows.length ? rows.map(row => renderHallListingCard(row)).join('')
         : '<div class="player-exchange-empty"><span class="px-center">조건에 맞는 전시품이 없습니다.<button type="button" onclick="resetPlayerHallBrowse()">필터 초기화</button></span></div>';
-    let limit = all.length >= HALL_LIST_LIMIT ? `, 감정 상위 ${HALL_LIST_LIMIT}개 안에서 찾습니다` : '';
-    let count = all.length ? `<p class="hall-browse-count">${all.length}개 중 ${rows.length}개${limit}</p>` : '';
+    let limit = all.length >= HALL_LIST_LIMIT ? _t(', 감정 상위 {HALL_LIST_LIMIT}개 안에서 찾습니다', { HALL_LIST_LIMIT }) : '';
+    let count = all.length ? `<p class="hall-browse-count">${_t('{length}개 중 {length2}개{limit}', { length: all.length, length2: rows.length, limit })}</p>` : '';
     return `${renderHallListingDetail(rows)}${count}<div class="player-trade-grid">${list}</div>`;
 }
 
@@ -682,14 +682,14 @@ function renderMyHallListings() {
     let data = getPlayerHallData(), mine = Array.isArray(data && data.mine) ? data.mine : [];
     if (!mine.length) return '<div class="player-exchange-empty"><span class="px-center">보관 중인 전시 원본이 없습니다.</span></div>';
     return mine.map(row => renderHallItemCard(row.item || {}, `mine-${row.id}`,
-        `<div class="player-trade-price"><b>${playerHallTrade.mineLabel(row)}</b><span>${Number(row.copiesSold || 0)}/${Number(row.copyCap || 5)} 소장</span><button onclick="withdrawPlayerHallListing(${Number(row.id)})" ${playerExchangeState.loading || playerExchangeState.asking ? 'disabled' : ''}>${row.status === 'open' ? '전시 종료' : '원본 회수'}</button></div>`,
-        `<small class="hall-appraisal">감정 ${Number(row.score || 0).toLocaleString()}</small>`)).join('');
+        `<div class="player-trade-price"><b>${playerHallTrade.mineLabel(row)}</b><span>${_t('{copiesSold}/{copyCap} 소장', { copiesSold: Number(row.copiesSold || 0), copyCap: Number(row.copyCap || 5) })}</span><button onclick="withdrawPlayerHallListing(${Number(row.id)})" ${playerExchangeState.loading || playerExchangeState.asking ? 'disabled' : ''}>${row.status === 'open' ? _t('전시 종료') : _t('원본 회수')}</button></div>`,
+        `<small class="hall-appraisal">${_t('감정 {score}', { score: Number(row.score || 0).toLocaleString() })}</small>`)).join('');
 }
 
 /** 전당의 머리(2026-11-02 사용자: 색감, 전당이라는 웅장함): 두 기둥 사이의 이름, 그 아래 명예, 소장, 공유, 황금률 현판. */
 function hallHeroHtml(plaques) {
     const cells = plaques.map(([label, value]) => `<div class="hall-plaque"><span>${label}</span><b>${Number(value || 0).toLocaleString()}</b></div>`).join('');
-    return `<header class="hall-hero"><div class="hall-hero-title"><span>성소의 기록</span><h2>장비 전당</h2><p>장비를 서버 감정가로 전시하고 다른 플레이어의 소장품을 확인합니다.</p></div>${cells ? `<div class="hall-plaques">${cells}</div>` : ''}</header>`;
+    return `<header class="hall-hero"><div class="hall-hero-title"><span>${_t('성소의 기록')}</span><h2>${_t('장비 전당')}</h2><p>${_t('장비를 서버 감정가로 전시하고 다른 플레이어의 소장품을 확인합니다.')}</p></div>${cells ? `<div class="hall-plaques">${cells}</div>` : ''}</header>`;
 }
 
 /** 전당을 못 여는 까닭: 로그인 전이면 로그인 단추, 로그인했는데 서버가 준비 전이면 기다려 달라는 말. */
@@ -710,10 +710,10 @@ function renderPlayerHallPanel() {
         .filter(row => ['open', 'sold_out'].includes(row.status)).length;
     let busy = playerExchangeState.loading || playerExchangeState.asking;
     const plaques = [['명예', data.honor], ['소장', data.collectionCount], ['공유', data.copiesShared], ['보유 황금률', game.currencies.goldenRule]];
-    return `${hallHeroHtml(plaques)}<p class="hall-rule">희귀, 고유 원본을 전시하면 귀속 복제품이 최대 5개 나갑니다. 희귀는 베이스 종류/티어와 옵션 티어/롤, 고유는 옵션 롤과 타락 결과까지 서버가 감정합니다. 판매자는 재화 대신 구매자마다 명예를 얻고 구매 비용은 전부 소각됩니다.</p>`
-        + `<section class="player-exchange-card is-register"><header><div><strong>전시 등록 ${activeCount}/3</strong><small>원본은 전시 종료 시 직접 회수할 수 있습니다.</small></div></header><div class="player-trade-register"><div class="player-trade-picker">${renderHallPicker()}</div>${renderHallRegisterButton(activeCount)}</div></section>`
-        + `<section class="player-exchange-card is-market"><header><strong>전당 소장품</strong><span class="hall-market-tools"><button onclick="loadPlayerExchange()" ${busy ? 'disabled' : ''}>새로고침</button></span></header>${renderHallBrowseTools()}<div id="hall-market-view">${renderHallMarketView()}</div></section>`
-        + `<section class="player-exchange-card is-mine"><header><strong>내 전시 원본</strong></header><div class="player-trade-grid compact">${renderMyHallListings()}</div></section>`;
+    return `${hallHeroHtml(plaques)}<p class="hall-rule">${_t('희귀, 고유 원본을 전시하면 귀속 복제품이 최대 5개 나갑니다. 희귀는 베이스 종류/티어와 옵션 티어/롤, 고유는 옵션 롤과 타락 결과까지 서버가 감정합니다. 판매자는 재화 대신 구매자마다 명예를 얻고 구매 비용은 전부 소각됩니다.')}</p>`
+        + `<section class="player-exchange-card is-register"><header><div><strong>${_t('전시 등록 {activeCount}/3', { activeCount })}</strong><small>${_t('원본은 전시 종료 시 직접 회수할 수 있습니다.')}</small></div></header><div class="player-trade-register"><div class="player-trade-picker">${renderHallPicker()}</div>${renderHallRegisterButton(activeCount)}</div></section>`
+        + `<section class="player-exchange-card is-market"><header><strong>${_t('전당 소장품')}</strong><span class="hall-market-tools"><button onclick="loadPlayerExchange()" ${busy ? 'disabled' : ''}>${_t('새로고침')}</button></span></header>${renderHallBrowseTools()}<div id="hall-market-view">${renderHallMarketView()}</div></section>`
+        + `<section class="player-exchange-card is-mine"><header><strong>${_t('내 전시 원본')}</strong></header><div class="player-trade-grid compact">${renderMyHallListings()}</div></section>`;
 }
 
 function renderPlayerExchange() {

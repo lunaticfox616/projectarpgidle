@@ -98,7 +98,7 @@
   body.desktop-windowed-ui .combat-feed.collapsed { top: auto; height: auto; max-height: 92px; }
   body.desktop-windowed-ui .combat-feed.collapsed #log { max-height: 46px; overflow: hidden; }
   body.desktop-windowed-ui .combat-feed.collapsed #log > div:nth-last-child(n+3) { display: none; }
-  body.desktop-windowed-ui .combat-feed.collapsed #btn-combat-log-toggle::after { content: ' 로그'; }
+  body.desktop-windowed-ui .combat-feed.collapsed #btn-combat-log-toggle::after { content: var(--copy-log-short); }
 
   /* 목표 서랍: 좌측 레일 오른쪽 하단. 접힌 상태는 한 줄 손잡이 + 하단 미니 진행도 바,
      펼치면 아래(손잡이) 기준으로 위 방향으로 내용이 열린다. */

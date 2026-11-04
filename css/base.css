@@ -88,5 +88,5 @@
         #log { display: flex; flex-direction: column; }
         #log > .log-msg:first-child { margin-top: auto; }
         #log:empty { justify-content: center; align-items: center; }
-        #log:empty::before { content: '전투 로그가 여기에 표시됩니다.'; display: block; color: var(--copy-muted); text-align: center; }
+        #log:empty::before { content: var(--copy-log-empty); display: block; color: var(--copy-muted); text-align: center; }
 }

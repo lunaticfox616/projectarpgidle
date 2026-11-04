@@ -54,8 +54,8 @@ const atlasEndgame = (() => {
         return !(row.unlock && row.unlock.kill) || kills(state, row.unlock.kill) > 0;
     }
     function lockText(state, row) {
-        if (row.unlock && row.unlock.kill) return `${def(row.unlock.kill).stages[0].name} 처치 뒤에 열립니다.`;
-        if (awakened(state) && roomLoop(row) > 0) return `${ATLAS.encounters[row.room].name} 해금 뒤에 열립니다.`;
+        if (row.unlock && row.unlock.kill) return _t('{name} 처치 뒤에 열립니다.', { name: def(row.unlock.kill).stages[0].name });
+        if (awakened(state) && roomLoop(row) > 0) return _t('{name} 해금 뒤에 열립니다.', { name: ATLAS.encounters[row.room].name });
         return '세계수의 그림자(정점)를 쓰러뜨리면 아틀라스가 깨어나 열립니다.';
     }
     const missingOf = (state, row) => entryOf(row).filter(([item, need]) => count(state, item) < need);
@@ -117,7 +117,7 @@ const atlasEndgame = (() => {
     function stageName(row, stage, echoes) {
         if (!Number.isInteger(stage.echo)) return stage.name;
         const echo = echoes[stage.echo];
-        return echo ? `엮인 메아리: ${echo[0]}` : `엮인 메아리: ${row.stages[0].name}`;
+        return echo ? _t('엮인 메아리: {echo}', { echo: echo[0] }) : _t('엮인 메아리: {name}', { name: row.stages[0].name });
     }
     /** Zone fields an apostle map or a late fight adds (names, art, stage table, floor hazard). */
     function zoneExtras(run, node) {
@@ -290,7 +290,7 @@ const atlasEndgame = (() => {
         const omens = bearableOmens(state);
         if (!omens.length || random() >= bearerChance(state, enemy)) return;
         enemy.craftOmen = omens[Math.floor(random() * omens.length)];
-        enemy.name = `뿌리를 품은 ${enemy.name}`;
+        enemy.name = _t('뿌리를 품은 {name}', { name: enemy.name });
     }
     /** The omen key a slain bearer leaves, once ('' for any other monster). */
     function takeOmen(enemy) {

@@ -29,7 +29,7 @@ const stumpCubeRecipes = (() => {
     }
 
     function equipmentResult(groups, item) {
-        return item ? { ok: true, consumed: groups.flat(), outputs: [{ kind: 'equipment', item }] } : { ok: false, reason: '이 부위의 장비를 만들 수 없습니다.' };
+        return item ? { ok: true, consumed: groups.flat(), outputs: [{ kind: 'equipment', item }] } : { ok: false, reason: _t('이 부위의 장비를 만들 수 없습니다.') };
     }
 
     /** 마법 장비 + 다 자란 씨앗: the same base and tier as a rare item with fresh affixes. */
@@ -87,7 +87,7 @@ const stumpCubeRecipes = (() => {
     /** 장신구 주얼 융합(2026-10-30 사용자): one of the three jewels, at random, is fused into a new void socket; the other two are used up.
      * A fused jewel never comes out (js/equipment-sockets.js fuse). */
     function socketJewel([[equipment], jewels], state, random) {
-        if (!equipmentSockets.openVoidSocket(equipment.item)) return { ok: false, reason: '이 장비에는 소켓을 더 뚫을 수 없습니다.' };
+        if (!equipmentSockets.openVoidSocket(equipment.item)) return { ok: false, reason: _t('이 장비에는 소켓을 더 뚫을 수 없습니다.') };
         const kept = jewels[Math.floor(random() * jewels.length)];
         const result = equipmentSockets.insert(equipment.item, kept.item.id, state);
         if (!result.ok) {
@@ -136,7 +136,7 @@ const stumpCubeRecipes = (() => {
     }
 
     function talismanRerollLine([[talisman], [vine]], state, random) {
-        if (!talismans.rerollStatLine(talisman.item, random)) return { ok: false, reason: '다시 쓸 일반 줄이 없는 부적입니다.' };
+        if (!talismans.rerollStatLine(talisman.item, random)) return { ok: false, reason: _t('다시 쓸 일반 줄이 없는 부적입니다.') };
         return { ok: true, consumed: [vine], outputs: [{ kind: 'stump', existing: talisman.item }] };
     }
 
@@ -152,15 +152,15 @@ const stumpCubeRecipes = (() => {
 
     function jewelFuse([group], state, random) {
         const stats = rollJewelCraftStats(3 + (random() < 0.35 ? 1 : 0), null, jewelTierRange(group));
-        if (!stats.length) return { ok: false, reason: '주얼 옵션을 굴리지 못했습니다.' };
+        if (!stats.length) return { ok: false, reason: _t('주얼 옵션을 굴리지 못했습니다.') };
         itemIdCounter += 1;
-        const jewel = { id: itemIdCounter, name: `${getStatName(stats[0].id)} 주얼`, tier: 1,
+        const jewel = { id: itemIdCounter, name: _t('{id} 주얼', { id: getStatName(stats[0].id) }), tier: 1,
             hiddenTier: Math.max(1, ...stats.map(stat => stat.tier || 1)), rarity: 'rare', stats };
         return { ok: true, consumed: group, outputs: [{ kind: 'jewel', item: jewel }] };
     }
 
     function coreRerollLine([[core], [vine]], state, random) {
-        if (!coreItems.rerollLine(core.item, random)) return { ok: false, reason: '다시 굴릴 수 없는 코어입니다.' };
+        if (!coreItems.rerollLine(core.item, random)) return { ok: false, reason: _t('다시 굴릴 수 없는 코어입니다.') };
         return { ok: true, consumed: [vine], outputs: [{ kind: 'core', existing: core.item }] };
     }
 
@@ -183,45 +183,45 @@ const stumpCubeRecipes = (() => {
 
     function run(recipeId, groups, state = game, random = Math.random) {
         const handler = HANDLERS[recipeId];
-        return handler ? handler(groups, state, random) : { ok: false, reason: '알 수 없는 조합법입니다.' };
+        return handler ? handler(groups, state, random) : { ok: false, reason: _t('알 수 없는 조합법입니다.') };
     }
 
     // Preview reads only guaranteed facts. It never invokes a random generator, allocates an item ID or edits materials.
     function magicPreview([[{ item }]]) {
         const base = BASE_ITEM_DB.find(row => row.id === item.baseId);
-        return { label: `희귀 ${base ? base.name : item.name}`, tier: topTier([item]), quality: 0,
-            keep: '베이스와 티어', change: '베이스 수치와 추가 옵션 새로 굴림', note: '품질과 제작 효과 초기화' };
+        return { label: _t('희귀 {value}', { value: base ? base.name : item.name }), tier: topTier([item]), quality: 0,
+            keep: '베이스와 티어', change: '베이스 수치와 추가 옵션 새로 굴림', note: _t('품질과 제작 효과 초기화') };
     }
 
     function rarePreview([[{ item }]], state) {
         const tier = rareTierTarget(item, state), capped = tier === topTier([item]);
-        return { label: '희귀 장비 1개', tier, quality: 0, keep: '장비 부위',
+        return { label: _t('희귀 장비 1개'), tier, quality: 0, keep: '장비 부위',
             change: '베이스와 옵션 새로 굴림', note: capped ? '현재 티어 상한에 도달함, 품질과 제작 효과 초기화' : '품질과 제작 효과 초기화' };
     }
 
     function uniqueRemakePreview([group]) {
         const item = group[0].item, unique = UNIQUE_DB.find(row => row.name === (RENAMED_UNIQUES[item.name] || item.name));
-        if (!unique) return { label: '새 고유 장비 1개', quality: 0, keep: '', change: '현재 목록에서 고유 종류와 옵션 새로 굴림',
-            note: '이전 고유 정보 없음, 결과 티어는 고유 종류에 따라 결정, 품질과 제작 효과 초기화' };
+        if (!unique) return { label: _t('새 고유 장비 1개'), quality: 0, keep: '', change: '현재 목록에서 고유 종류와 옵션 새로 굴림',
+            note: _t('이전 고유 정보 없음, 결과 티어는 고유 종류에 따라 결정, 품질과 제작 효과 초기화') };
         return { label: item.name, tier: unique.reqTier || topTier(items(group)), quality: 0, keep: '고유 종류',
-            change: '베이스 수치와 옵션 새로 굴림', note: '특출난 베이스 가능, 품질과 제작 효과 초기화' };
+            change: '베이스 수치와 옵션 새로 굴림', note: _t('특출난 베이스 가능, 품질과 제작 효과 초기화') };
     }
 
     function rareExceptionalPreview([group]) {
         const item = group[0].item, base = BASE_ITEM_DB.find(row => row.id === item.baseId);
-        return { label: `희귀 ${base ? base.name : item.name}`, tier: topTier(items(group)), quality: 0, keep: '베이스',
-            change: '베이스 수치와 옵션 새로 굴림', note: '특출난 베이스 가능, 품질과 제작 효과 초기화' };
+        return { label: _t('희귀 {value}', { value: base ? base.name : item.name }), tier: topTier(items(group)), quality: 0, keep: '베이스',
+            change: '베이스 수치와 옵션 새로 굴림', note: _t('특출난 베이스 가능, 품질과 제작 효과 초기화') };
     }
 
     function uniqueRerollPreview([[{ item }]]) {
-        return { label: '새 고유 장비 1개', quality: 0, keep: '장비 부위',
+        return { label: _t('새 고유 장비 1개'), quality: 0, keep: '장비 부위',
             change: `T${topTier([item])} 기준으로 고유 종류와 옵션 새로 굴림`,
-            note: '결과 티어는 고유 종류에 따라 결정, 동일 고유 가능, 품질과 제작 효과 초기화' };
+            note: _t('결과 티어는 고유 종류에 따라 결정, 동일 고유 가능, 품질과 제작 효과 초기화') };
     }
 
     function socketPreview([[{ item }]]) {
         return { label: item.name, tier: topTier([item]), quality: Math.max(0, Math.floor(Number(item.quality) || 0)),
-            keep: '장비와 기존 옵션, 품질', change: '세 주얼 중 하나를 공허 소켓에 융합', note: '주얼 해제 불가능' };
+            keep: '장비와 기존 옵션, 품질', change: '세 주얼 중 하나를 공허 소켓에 융합', note: _t('주얼 해제 불가능') };
     }
 
     /** The usual result's quality range (average + 1~10%, to the cap), in whole percent. */
@@ -232,22 +232,22 @@ const stumpCubeRecipes = (() => {
         return low === high ? String(low) : `${low}~${high}`;
     }
     function mergePreview([group], state) {
-        const list = items(group), label = `${STUMP_BOX_COLORS[list[0].color].label} 씨앗`;
+        const list = items(group), label = _t('{label} 씨앗', { label: STUMP_BOX_COLORS[list[0].color].label });
         const marks = [list.some(item => item.golden === true) ? '황금' : '', list.some(item => item.ancient === true) ? '고대' : ''].filter(Boolean);
         return { label, quality: mergeRange(list, state), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
-            keep: ['색', ...marks].join(', '), change: '성장 경험치 초기화', note: '새 씨앗 1개로 합쳐짐' };
+            keep: ['색', ...marks].join(', '), change: '성장 경험치 초기화', note: _t('새 씨앗 1개로 합쳐짐') };
     }
 
     function recolorPreview([donors, [{ item }]], state) {
-        const label = `${STUMP_BOX_COLORS[donors[0].item.color].label} 씨앗`;
+        const label = _t('{label} 씨앗', { label: STUMP_BOX_COLORS[donors[0].item.color].label });
         return { label, quality: Math.round((Number(item.roll) || 1) * 100), qualityCap: Math.round(stumpBox.rollCap(state) * 100),
             keep: '품질', change: '색 바뀜, 성장 경험치 초기화' };
     }
 
     function talismanUpgradePreview([group]) {
         const source = talismanSource(group), rule = TALISMAN_UNSEAL_RULES[source], [low, high] = rule.lines;
-        return { label: '새 부적 1개', keep: '', change: `일반 부적 옵션 ${low === high ? low : `${low}~${high}`}줄 새로 굴림, 성장 초기화`,
-            note: `${_t(ORB_DB[source].name)} 등급, 고유 부적 가능` };
+        return { label: _t('새 부적 1개'), keep: '', change: `일반 부적 옵션 ${low === high ? low : `${low}~${high}`}줄 새로 굴림, 성장 초기화`,
+            note: _t('{name} 등급, 고유 부적 가능', { name: _t(ORB_DB[source].name) }) };
     }
 
     function talismanLinePreview([[{ item }]]) {
@@ -258,14 +258,14 @@ const stumpCubeRecipes = (() => {
 
     function jewelPreview([group]) {
         const range = jewelTierRange(group);
-        return { label: '희귀 주얼 1개', keep: '', change: `옵션 3~4줄 새로 굴림 (T${range.min}~T${range.max})` };
+        return { label: _t('희귀 주얼 1개'), keep: '', change: _t('옵션 3~4줄 새로 굴림 (T{min}~T{max})', { min: range.min, max: range.max }) };
     }
 
     function currencyPreview(make, groups, state) {
         const result = make(groups, state);
         if (!result.ok) return { label: '', reason: result.reason };
         const output = result.outputs[0];
-        return { label: `${_t(ORB_DB[output.key].name)} ${output.amount}개`, keep: '재료의 속성', change: '재료 2개를 재화로 변환' };
+        return { label: _t('{name} {amount}개', { name: _t(ORB_DB[output.key].name), amount: output.amount }), keep: '재료의 속성', change: '재료 2개를 재화로 변환' };
     }
 
     const PREVIEWS = Object.freeze({
@@ -273,16 +273,16 @@ const stumpCubeRecipes = (() => {
         equip_unique_reroll: uniqueRerollPreview, equip_socket_jewel: socketPreview, equip_rare_exceptional: rareExceptionalPreview,
         stump_merge: mergePreview, stump_recolor: recolorPreview,
         talisman_upgrade: talismanUpgradePreview, talisman_reroll_line: talismanLinePreview,
-        talisman_unique_reroll: () => ({ label: '고유 부적 1개', keep: '', change: '고유 종류와 옵션 새로 굴림, 성장 초기화' }),
+        talisman_unique_reroll: () => ({ label: _t('고유 부적 1개'), keep: '', change: '고유 종류와 옵션 새로 굴림, 성장 초기화' }),
         jewel_fuse: jewelPreview,
-        core_reroll: () => ({ label: '새 코어 1개', keep: '', change: `옵션 ${CORE_ITEM_RULES.lines}줄 새로 굴림`, note: '완전한 코어 가능' }),
+        core_reroll: () => ({ label: _t('새 코어 1개'), keep: '', change: _t('옵션 {lines}줄 새로 굴림', { lines: CORE_ITEM_RULES.lines }), note: _t('완전한 코어 가능') }),
         core_reroll_line: ([[{ item }]]) => ({ label: item.name, keep: '코어와 나머지 옵션', change: '옵션 1줄의 종류와 수치 새로 굴림' }),
         root_catalyst: (groups, state) => currencyPreview(sapCatalysts.rootRecipe, groups, state),
         fruit_oil: (groups, state) => currencyPreview(gardenOils.fruitRecipe, groups, state),
         catalyst_exchange: ([[{ item }]], state) => {
             const plan = sapCatalysts.exchangePlan(item, state);
             return plan.reason ? { label: '', reason: plan.reason }
-                : { label: `${_t(ORB_DB[plan.kind.key].name)} ${STUMP_CUBE_CATALYST_EXCHANGE}개`, keep: '', change: `다른 기폭제 ${STUMP_CUBE_CATALYST_EXCHANGE}개를 덩굴 색으로 변환` };
+                : { label: _t('{name} {value}개', { name: _t(ORB_DB[plan.kind.key].name), value: STUMP_CUBE_CATALYST_EXCHANGE }), keep: '', change: _t('다른 기폭제 {value}개를 덩굴 색으로 변환', { value: STUMP_CUBE_CATALYST_EXCHANGE }) };
         }
     });
 

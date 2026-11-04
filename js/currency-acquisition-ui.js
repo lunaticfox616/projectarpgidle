@@ -15,7 +15,7 @@ const combatCurrencyHud = (() => {
         root.hidden = !held.length;
         root.innerHTML = held.map(([key, count]) => {
             const name = escapeHTML(_t(ORB_DB[key].name));
-            return `<span data-tip="${name}" aria-label="${name} ${count}개"><img src="${ORB_DB[key].icon}" alt="">${count.toLocaleString(i18n.locale)}</span>`;
+            return `<span data-tip="${name}" aria-label="${_t('{name} {count}개', { name, count })}"><img src="${ORB_DB[key].icon}" alt="">${count.toLocaleString(i18n.locale)}</span>`;
         }).join('');
     }
     return Object.freeze({ update });
@@ -102,22 +102,22 @@ safeExposeGlobals({ combatCurrencyHud });
             if(!game.isBackgroundCalculation)addLog(_t('💠 {how}: [{name}], 주얼 결정 +{gain}', { how: _t(inventoryFull?'가방이 가득 차 해체':'주얼 자동해체'), name: _t(jewel.name), gain: shardGain }),inventoryFull?'attack-monster':'loot-normal');
             return;
         }
-        const lines=getJewelStats(jewel).map(stat=>`${isJewelPetiteStat(stat)?'쁘띠 ':''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id,stat.val)}${Number.isFinite(Number(stat.tier))&&!isJewelPetiteStat(stat)?` T${Math.floor(stat.tier)}`:''}`).join(' / ');
+        const lines=getJewelStats(jewel).map(stat=>`${isJewelPetiteStat(stat)?_t('쁘띠 '):''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id,stat.val)}${Number.isFinite(Number(stat.tier))&&!isJewelPetiteStat(stat)?` T${Math.floor(stat.tier)}`:''}`).join(' / ');
         addLog(_t('💠 {rarity} 주얼 [{name}] 획득!{protect} ({lines})', { rarity: _t(getJewelRarityLabel(jewel.rarity)), name: _t(jewel.name), protect: protectOverflow ? ` <span style="color:#ffb86b;">${_t('(공간 부족 보호)')}</span>` : '', lines: lines || _t('미가공') }),protectOverflow?'loot-unique':'loot-rare',{item:jewel,itemKind:'jewel'});
     }
     window.addEventListener('project-idle:jewel-drop-received',event=>announceJewelReward(event.detail));
     function announceCore(core) {
         // 완전한 코어(js/core-items.js rollPerfect): 체이싱 티어 알림(설정과 무관하게, 방치 정산 중에는 말고).
-        if(core.perfect && !game.isBackgroundCalculation)dispatchRuntimeEvent('incident',{text:`체이싱 코어를 획득했습니다. 「${core.name}」`,tone:'chase',chase:true});
+        if(core.perfect && !game.isBackgroundCalculation)dispatchRuntimeEvent('incident',{text:_t('체이싱 코어를 획득했습니다. 「{name}」', { name: core.name }),tone:'chase',chase:true});
         if(game.settings.showLootLog && !game.isBackgroundCalculation)addLog(_t('🧊 코어 [{name}] 획득! ({map})', { name: _t(core.name), map: core.lines.map(coreItems.describe).join(', ') }),'loot-unique',{item:core,itemKind:'core'});
     }
     window.addEventListener('project-idle:core-item-received',event=>announceCore(event.detail));
     // 장비 드랍 변형(js/loot.js equipmentDropVariants): 드물고 눈여겨볼 일이라 습득 로그 설정과 무관하게 알린다.
     function announceDropVariant({kind,items}) {
         const item=items[0],name=`<span class='loot-${item.rarity}'>[${escapeHTML(getItemDisplayName(item))}]</span>`;
-        const text=kind==='corrupted'?`🩸 타락한 장비 ${name}: 제작할 수 없지만 추가 옵션이 더 강합니다.`
-            :kind==='duplicate'?`✨ 복제된 장비 ${name}: 똑같은 장비가 하나 더 떨어졌습니다.`
-            :`📦 장비 묶음: ${escapeHTML(item.baseName||item.name)} ${items.length}개가 함께 떨어졌습니다.`;
+        const text=kind==='corrupted'?_t('🩸 타락한 장비 {name}: 제작할 수 없지만 추가 옵션이 더 강합니다.', { name })
+            :kind==='duplicate'?_t('✨ 복제된 장비 {name}: 똑같은 장비가 하나 더 떨어졌습니다.', { name })
+            :_t('📦 장비 묶음: {baseName} {length}개가 함께 떨어졌습니다.', { baseName: escapeHTML(_t(item.baseName)||item.name), length: items.length });
         addLog(text,'loot-unique',{item});
     }
     window.addEventListener('project-idle:equipment-drop-variant',event=>announceDropVariant(event.detail));

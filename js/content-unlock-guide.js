@@ -54,8 +54,8 @@
         return guide({
             id: `loop-${next.loop}`,
             title: titles[0],
-            description: `루프 ${next.loop}: ${titles.join(', ')}`,
-            requirements: [requirement(`루프 ${next.loop}`, false, loop, next.loop)],
+            description: _t('루프 {loop}: {titles}', { loop: next.loop, titles: titles.join(', ') }),
+            requirements: [requirement(_t('루프 {loop}', { loop: next.loop }), false, loop, next.loop)],
             actionLabel: state.unlocks && state.unlocks.season ? '루프 보기' : '',
             actionTabId: state.unlocks && state.unlocks.season ? 'tab-season' : ''
         });
@@ -64,15 +64,15 @@
     function eventUnlockGuide(state) {
         let loop = Math.max(1, count(state.season) || 1);
         if (loop >= 4 && !state.gemEnhanceUnlocked) return guide({
-            id: 'gem-enhancement', title: '룬 강화',
-            description: '군주의 핵 또는 창공의 정수를 얻으면 스킬룬 강화가 열립니다.',
+            id: 'gem-enhancement', title: _t('룬 강화'),
+            description: _t('군주의 핵 또는 창공의 정수를 얻으면 스킬룬 강화가 열립니다.'),
             requirements: [requirement('루프 4', true), requirement('강화 재료 획득', false)],
             actionLabel: '스킬룬 보기', actionTabId: 'tab-skills', actionSubtabId: 'skill-tab-enhance'
         });
         let meteorUnlocked = !!(state.meteorSite && state.meteorSite.unlocked);
         if (loop >= 7 && !meteorUnlocked) return guide({
-            id: 'meteor-site', title: '운석 낙하 지점',
-            description: '루프 7에서 액트 7을 클리어하면 하늘 균열 게이지가 차기 시작합니다.',
+            id: 'meteor-site', title: _t('운석 낙하 지점'),
+            description: _t('루프 7에서 액트 7을 클리어하면 하늘 균열 게이지가 차기 시작합니다.'),
             requirements: [requirement('루프 7', true), requirement('액트 7 클리어', count(state.maxZoneId) >= 7, count(state.maxZoneId), 7)],
             actionLabel: '사냥터 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-hunting'
         });
@@ -86,8 +86,8 @@
         let loopReady = typeof hasCurrentLoopAbyssRequirementClear === 'function'
             ? hasCurrentLoopAbyssRequirementClear(loop) : false;
         return guide({
-            id: 'chaos-realm', title: '혼돈계',
-            description: '현재 루프 조건을 달성한 뒤 혼돈 밖 나무꾼에게 최대 생명력의 10% 이상 피해를 주세요.',
+            id: 'chaos-realm', title: _t('혼돈계'),
+            description: _t('현재 루프 조건을 달성한 뒤 혼돈 밖 나무꾼에게 최대 생명력의 10% 이상 피해를 주세요.'),
             requirements: [
                 requirement('루프 10', true),
                 requirement('이번 루프 혼돈 조건', loopReady),
@@ -104,8 +104,8 @@
         if (loop < 15 || (state.skyTower && state.skyTower.unlocked)) return null;
         let chaos20 = typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear(state) : false;
         return guide({
-            id: 'sky-tower', title: '창공의 탑',
-            description: '루프 15에서 혼돈 20층을 클리어하면 영구 해금됩니다.',
+            id: 'sky-tower', title: _t('창공의 탑'),
+            description: _t('루프 15에서 혼돈 20층을 클리어하면 영구 해금됩니다.'),
             requirements: [requirement('루프 15', true), requirement('이번 루프 혼돈 20층', chaos20)],
             actionLabel: '혼돈 보기', actionTabId: 'tab-map', actionSubtabId: 'map-explore-chaos'
         });
@@ -125,8 +125,8 @@
         let nextSubtab = !roots.has('s6_beast_cerberus') ? 'map-explore-root-boss'
             : deep < 30 ? 'map-explore-chaos' : 'map-explore-labyrinth';
         return guide({
-            id: 'underworld', title: '지하계',
-            description: '네 갈래의 엔드게임 기록을 모으면 지하계가 영구적으로 나타납니다.',
+            id: 'underworld', title: _t('지하계'),
+            description: _t('네 갈래의 엔드게임 기록을 모으면 지하계가 영구적으로 나타납니다.'),
             requirements, actionLabel: '다음 조건 보기', actionTabId: 'tab-map', actionSubtabId: nextSubtab
         });
     }
@@ -136,8 +136,8 @@
         let highest = Math.max(1, count(state.underworldProgress && state.underworldProgress.highestFloor) || 1);
         if (loop >= 20 && highest >= 11) return null;
         return guide({
-            id: 'core', title: '코어',
-            description: '루프 20 이후 지하계 10층을 넘기면 지하계 적에게서 코어가 떨어집니다. 장비창 왼쪽 위 코어 칸에 낍니다.',
+            id: 'core', title: _t('코어'),
+            description: _t('루프 20 이후 지하계 10층을 넘기면 지하계 적에게서 코어가 떨어집니다. 장비창 왼쪽 위 코어 칸에 낍니다.'),
             requirements: [requirement('루프 20', loop >= 20, Math.min(loop, 20), 20), requirement('지하계 10층', highest >= 11, Math.min(highest - 1, 10), 10)],
             actionLabel: '지하계 보기', actionTabId: 'tab-map', actionSubtabId: 'map-tab-underworld'
         });
@@ -148,8 +148,8 @@
         let journal = new Set(Array.isArray(state.journalEntries) ? state.journalEntries : []);
         let highest = Math.max(1, count(state.underworldProgress && state.underworldProgress.highestFloor) || 1);
         return guide({
-            id: 'cosmos', title: '우주계',
-            description: '나무꾼의 정체를 확인하고 지하계 30층에 도달하면 우주계가 영구적으로 나타납니다.',
+            id: 'cosmos', title: _t('우주계'),
+            description: _t('나무꾼의 정체를 확인하고 지하계 30층에 도달하면 우주계가 영구적으로 나타납니다.'),
             requirements: [requirement('나무꾼 처치 기록', journal.has('woodsman')), requirement('지하계 30층', highest >= 30, Math.min(highest, 30), 30)],
             actionLabel: highest < 30 ? '지하계 보기' : '지도 보기', actionTabId: 'tab-map', actionSubtabId: highest < 30 ? 'map-tab-underworld' : 'map-tab-zones'
         });
@@ -164,8 +164,8 @@
         let keys = count(state.currencies && state.currencies.cosmosSovereignKey);
         let ready = loop >= 31 && gate.met && keys > 0;
         return guide({
-            id: 'astra', title: '잔향체 아스트라',
-            description: '다섯 은하 보스를 이번 루프에 격파하고 표식: 잔향을 준비하세요.',
+            id: 'astra', title: _t('잔향체 아스트라'),
+            description: _t('다섯 은하 보스를 이번 루프에 격파하고 표식: 잔향을 준비하세요.'),
             requirements: [requirement('루프 31', loop >= 31, Math.min(loop, 31), 31), requirement('은하 보스', gate.met, gate.current, gate.target), requirement('표식: 잔향', keys > 0, Math.min(keys, 1), 1)],
             actionLabel: ready ? '아스트라 도전' : '우주계 보기', actionTabId: 'tab-map', actionSubtabId: ready ? 'map-explore-root-boss' : 'map-tab-cosmos'
         });
@@ -209,16 +209,16 @@
         // 글은 목표 창의 문체를 따른다(js/goal-system.js 규칙 머리말).
         return guide({
             id: 'content-choice', title: ready ? '해금 선택' : '다음 해금',
-            description: ready ? `해금 포인트 ${points.balance}점 사용` : contentWaitText(points, next),
+            description: ready ? _t('해금 포인트 {balance}점 사용', { balance: points.balance }) : contentWaitText(points, next),
             requirements: [requirement('해금 포인트', ready, points.balance, next ? Math.max(1, next.cost) : 1)],
             actionLabel: state.season >= 2 ? '해금 열기' : '장비 열기', actionTabId: state.season >= 2 ? 'tab-unlocks' : 'tab-items'
         });
     }
 
     function contentWaitText(points, next) {
-        const award = points.nextAward > 0 ? `다음 루프에 도달하여 해금 포인트 ${points.nextAward}점 획득` : '';
+        const award = points.nextAward > 0 ? _t('다음 루프에 도달하여 해금 포인트 {nextAward}점 획득', { nextAward: points.nextAward }) : '';
         if (points.balance <= 0) return award;
-        const need = next ? `다음 해금에 ${next.cost}점 필요` : '지금 고를 해금 없음';
+        const need = next ? _t('다음 해금에 {cost}점 필요', { cost: next.cost }) : '지금 고를 해금 없음';
         return [need, award || '남은 해금은 조건 달성 후 열림'].join(', ');
     }
 

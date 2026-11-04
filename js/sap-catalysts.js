@@ -36,20 +36,20 @@ const sapCatalysts = (() => {
     }
     /** 뿌리 조합(data/stump-cube.js root_catalyst): two grown roots of one colour → that colour's catalyst. */
     function rootRecipe([group], state) {
-        if (!open(state)) return { ok: false, reason: '수액 상처 해금 뒤에 만들 수 있습니다.' };
+        if (!open(state)) return { ok: false, reason: _t('수액 상처 해금 뒤에 만들 수 있습니다.') };
         const kind = BY_COLOR.get(group[0] && group[0].item && group[0].item.color);
-        if (!kind) return { ok: false, reason: '이 색의 기폭제는 없습니다.' };
+        if (!kind) return { ok: false, reason: _t('이 색의 기폭제는 없습니다.') };
         return { ok: true, consumed: group, outputs: [{ kind: 'currency', key: kind.key, amount: 1 }] };
     }
     /** 기폭제 바꾸기(data/stump-cube.js catalyst_exchange, 2026-10-30 사용자): the vine colour's catalyst, and the held catalysts of
      * other kinds that may be turned into it (STUMP_CUBE_CATALYST_EXCHANGE of them), or why it cannot be made. */
     function exchangePlan(vine, state) {
-        if (!open(state)) return { reason: '수액 상처 해금 뒤에 만들 수 있습니다.' };
+        if (!open(state)) return { reason: _t('수액 상처 해금 뒤에 만들 수 있습니다.') };
         const kind = BY_COLOR.get(vine && vine.color);
-        if (!kind) return { reason: '이 색의 기폭제는 없습니다.' };
+        if (!kind) return { reason: _t('이 색의 기폭제는 없습니다.') };
         const held = KEYS.filter(key => key !== kind.key && (state.currencies[key] || 0) > 0);
         const total = held.reduce((sum, key) => sum + Math.floor(state.currencies[key] || 0), 0);
-        return total >= STUMP_CUBE_CATALYST_EXCHANGE ? { kind, held } : { reason: `바꿀 다른 기폭제가 ${STUMP_CUBE_CATALYST_EXCHANGE}개 필요합니다.` };
+        return total >= STUMP_CUBE_CATALYST_EXCHANGE ? { kind, held } : { reason: _t('바꿀 다른 기폭제가 {value}개 필요합니다.', { value: STUMP_CUBE_CATALYST_EXCHANGE }) };
     }
     /** A grown vine turns STUMP_CUBE_CATALYST_EXCHANGE held catalysts of other kinds, each picked at random among the kinds still held, into as many of
      * the vine colour's catalyst. */

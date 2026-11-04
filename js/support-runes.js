@@ -156,16 +156,16 @@
     }
 
     function supportTargetRow(name, entry, state) {
-        if (!entry.skill) return { name: entry.name, status: 'empty', reason: '장착한 스킬 없음' };
-        if (tagsOf(entry.skill).has('summon_buff')) return { name: entry.name, status: 'buff', reason: '사역룬은 보조를 받지 않음' };
+        if (!entry.skill) return { name: entry.name, status: 'empty', reason: _t('장착한 스킬 없음') };
+        if (tagsOf(entry.skill).has('summon_buff')) return { name: entry.name, status: 'buff', reason: _t('사역룬은 보조를 받지 않음') };
         return activeTargetRow(name, entry, state);
     }
     function activeTargetRow(name, entry, state) {
         const def = SUPPORT_GEM_DB[name];
         const skill = isTagChanger(name) ? entry.skill : prepareSupportSkill(entry.skill, state);
-        if (overriddenConversion(def, skill)) return { name: entry.name, status: 'off', reason: `${skill.supportElementOverride} 속성 변환 우선` };
-        if (!def || !tagMatches(def, skill)) return { name: entry.name, status: 'off', reason: '요구 태그가 맞지 않음' };
-        if (entry.role === 'summon' && unavailableForSummon(def, skill)) return { name: entry.name, status: 'na', reason: '소환수에는 대응 효과 없음' };
+        if (overriddenConversion(def, skill)) return { name: entry.name, status: 'off', reason: _t('{supportElementOverride} 속성 변환 우선', { supportElementOverride: skill.supportElementOverride }) };
+        if (!def || !tagMatches(def, skill)) return { name: entry.name, status: 'off', reason: _t('요구 태그가 맞지 않음') };
+        if (entry.role === 'summon' && unavailableForSummon(def, skill)) return { name: entry.name, status: 'na', reason: _t('소환수에는 대응 효과 없음') };
         const on = matches(name, skill, entry.role);
         return { name: entry.name, status: on ? 'on' : 'off', reason: on ? '적용 중' : '소환수 전용 효과' };
     }
@@ -192,15 +192,15 @@
         const collision = entries.find(entry => matches(candidate, entry.skill, entry.role)
             && existing.some(name => matches(name, entry.skill, entry.role)));
         if (!collision) return '';
-        return `${collision.name}: ${def.kind === 'conversion' ? '속성 변환' : '태그 변경'} 보조는 스킬당 하나만 장착할 수 있습니다.`;
+        return _t('{name}: {value} 보조는 스킬당 하나만 장착할 수 있습니다.', { name: collision.name, value: def.kind === 'conversion' ? _t('속성 변환') : _t('태그 변경') });
     }
 
     const describeBehavior = {
-        conversion: (def, val) => `피해 ${val}% ${def.name}`,
-        repeat: (def, val) => `한 번 더 발동, 두 번째 피해 ${val}%`,
-        projectiles: (def, val) => `투사체 +${val}발`, chain: (def, val) => `추가 연쇄 ${val}회`,
-        sweep: (def, val) => `주변 ${val}기 추가 타격, 추가 피해 70%`,
-        transform: (def, val) => `${def.name} ${val > 0 ? '+' : ''}${val}${def.isPct ? '%' : '칸'}`
+        conversion: (def, val) => _t('피해 {val}% {name}', { val, name: def.name }),
+        repeat: (def, val) => _t('한 번 더 발동, 두 번째 피해 {val}%', { val }),
+        projectiles: (def, val) => _t('투사체 +{val}발', { val }), chain: (def, val) => _t('추가 연쇄 {val}회', { val }),
+        sweep: (def, val) => _t('주변 {val}기 추가 타격, 추가 피해 70%', { val }),
+        transform: (def, val) => `${def.name} ${val > 0 ? '+' : ''}${val}${def.isPct ? '%' : _t('칸')}`
     };
     function describe(name, tier, state = game) {
         const def = SUPPORT_GEM_DB[name];

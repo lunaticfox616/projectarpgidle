@@ -21,7 +21,7 @@
         ['item-tab-equip', 'stump-equip-host'].forEach(id => document.getElementById(id)?.classList.toggle('touch-arrange', touchArrange));
         button.setAttribute('aria-pressed', String(touchArrange));
         button.setAttribute('aria-label', touchArrange ? '배치 완료' : '배치 모드');
-        button.querySelector('span').textContent = touchArrange ? '완료' : '배치';
+        button.querySelector('span').textContent = touchArrange ? _t('완료') : _t('배치');
     }
 
     function getFocusedKey() {
@@ -98,7 +98,7 @@
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'eqw-manage-toggle';
-        button.textContent = '장비 관리';
+        button.textContent = _t('장비 관리');
         button.setAttribute('aria-expanded', 'false');
         button.setAttribute('aria-controls', secondary.id);
         button.addEventListener('click', () => equipmentWindowUi.toggleTools(button));
@@ -232,10 +232,10 @@
         let label = document.getElementById('ui-inventory-page-label');
         let maxPages = typeof EQUIPMENT_INVENTORY_MAX_PAGES === 'number' ? EQUIPMENT_INVENTORY_MAX_PAGES : 12;
         let pageLabel = layout.unlockedPageCount >= maxPages
-            ? `${layout.unlockedPageCount}페이지, 최대 확장`
-            : `${layout.unlockedPageCount}페이지, 루프 진행으로 확장`;
+            ? _t('{unlockedPageCount}페이지, 최대 확장', { unlockedPageCount: layout.unlockedPageCount })
+            : _t('{unlockedPageCount}페이지, 루프 진행으로 확장', { unlockedPageCount: layout.unlockedPageCount });
         let found = search.query ? '검색 결과' : '필터에 맞는 장비';
-        if (search.active) pageLabel = `${found} ${search.totalMatches}개, ${search.matchingPages}페이지`;
+        if (search.active) pageLabel = _t('{found} {totalMatches}개, {matchingPages}페이지', { found, totalMatches: search.totalMatches, matchingPages: search.matchingPages });
         if (label) {
             label.textContent = pageLabel;
             label.hidden = !search.active;
@@ -264,10 +264,10 @@
     function pageButtonHtml(index, active, search, found, { used, cells }) {
         let matchCount = search.counts[index];
         let searchClass = search.active ? (matchCount > 0 ? ' search-match' : ' search-miss') : '';
-        let searchText = search.active ? `, ${found} ${matchCount}개` : '';
+        let searchText = search.active ? _t(', {found} {matchCount}개', { found, matchCount }) : '';
         let badge = matchCount > 0 ? `<small>${matchCount}</small>` : '';
         let share = Math.min(1, used / cells), fillClass = share >= 1 ? ' is-full' : share >= 0.75 ? ' is-high' : '';
-        let text = `${index + 1}페이지, ${used}/${cells}칸${searchText}`;
+        let text = _t('{value}페이지, {used}/{cells}칸{searchText}', { value: index + 1, used, cells, searchText });
         return `<button type="button" class="${active ? 'active' : ''}${searchClass}${fillClass}" onclick="equipmentInventoryInteraction.setPage(${index})" aria-pressed="${active ? 'true' : 'false'}" aria-label="${text}" data-tip="${text}">`
             + `<i class="page-fill" style="height:${Math.round(share * 100)}%" aria-hidden="true"></i><span>${index + 1}</span>${badge}</button>`;
     }
@@ -296,9 +296,9 @@
         let cards = items.map(item => {
             let key = equipmentInventoryGridRuntime.getItemKey(item);
             let footprint = getEquipmentInventoryFootprint(item);
-            return `<button type="button" class="equipment-temporary-item rarity-${item.rarity || 'normal'}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-temporary-key="${escapeHTML(key)}" onclick="equipmentInventoryInteraction.restoreTemporaryItem(this.dataset.temporaryKey)"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><span>${escapeHTML(item.name || item.baseName || '장비')}</span><small>${footprint.columns}×${footprint.rows}, 회수</small></button>`;
+            return `<button type="button" class="equipment-temporary-item rarity-${item.rarity || 'normal'}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-temporary-key="${escapeHTML(key)}" onclick="equipmentInventoryInteraction.restoreTemporaryItem(this.dataset.temporaryKey)"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><span>${escapeHTML(item.name || item.baseName || '장비')}</span><small>${_t('{columns}×{rows}, 회수', { columns: footprint.columns, rows: footprint.rows })}</small></button>`;
         }).join('');
-        writeHtmlIfChanged(root, `<header><strong>임시 보관함</strong><span>${items.length}개</span></header><p>이전 배치에서 복구된 장비입니다. 빈칸을 확보한 뒤 눌러서 회수하세요. 루프가 끝나면 비워집니다.</p><div>${cards}</div>`);
+        writeHtmlIfChanged(root, `<header><strong>${_t('임시 보관함')}</strong><span>${_t('{length}개', { length: items.length })}</span></header><p>${_t('이전 배치에서 복구된 장비입니다. 빈칸을 확보한 뒤 눌러서 회수하세요. 루프가 끝나면 비워집니다.')}</p><div>${cards}</div>`);
     }
 
     function restoreTemporaryItem(itemKey) {
@@ -708,7 +708,7 @@
         if (!canEquipItemToSlot(item, slot)) {
             const restriction = getPassiveEquipmentRestriction(item);
             const requirement = getEquipCandidateSlots(item).includes(slot) ? combatEquipmentStats.inspect(item, slot).reason : '';
-            notify(restriction || (requirement ? `장착 실패, ${requirement}` : '이 장비는 해당 슬롯에 장착할 수 없습니다.'), 'warning');
+            notify(restriction || (requirement ? _t('장착 실패, {requirement}', { requirement }) : '이 장비는 해당 슬롯에 장착할 수 없습니다.'), 'warning');
             return false;
         }
         doubleClickCandidateKey = null;
@@ -808,8 +808,8 @@
         activePage = 0;
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         if (typeof updateStaticUI === 'function') updateStaticUI();
-        notify(used === wanted ? `${ARRANGE_LABELS[wanted]}으로 빈칸 없이 배치했습니다.`
-            : `${ARRANGE_LABELS[wanted]}으로는 다 들어가지 않아 크기순으로 빈칸 없이 배치했습니다.`, 'success');
+        notify(used === wanted ? _t('{ARRANGE_LABELS}으로 빈칸 없이 배치했습니다.', { ARRANGE_LABELS: ARRANGE_LABELS[wanted] })
+            : _t('{ARRANGE_LABELS}으로는 다 들어가지 않아 크기순으로 빈칸 없이 배치했습니다.', { ARRANGE_LABELS: ARRANGE_LABELS[wanted] }), 'success');
     }
 
     /** equipmentInventoryGridRuntime packed the bag again so an item with no free cell fits instead of going to the temporary storage. */

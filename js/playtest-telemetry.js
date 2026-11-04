@@ -237,7 +237,7 @@ function ensurePerformancePanel() {
     if (panel) return panel;
     panel = document.createElement('aside');
     panel.id = 'playtest-performance-panel';
-    panel.setAttribute('aria-label', '실시간 성능');
+    panel.setAttribute('aria-label', _t('실시간 성능'));
     panel.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:20000;min-width:170px;padding:9px 11px;border:1px solid #5b7698;border-radius:8px;background:rgba(7,13,22,.92);color:#eaf4ff;font:12px/1.5 monospace;pointer-events:none;white-space:pre;';
     document.body.appendChild(panel);
     return panel;
@@ -253,8 +253,8 @@ function updatePerformancePanel() {
     let summary = getPlaytestFrameSummary();
     let calls = average > 0 ? Math.min(999, 1000 / average) : 0;
     let lines = [
-        `화면 갱신 ${calls.toFixed(0)}/s (브라우저가 프레임을 부른 횟수)`,
-        `갱신 간격 평균 ${average.toFixed(1)}ms, p95 ${(summary.p95 || 0).toFixed(1)}ms, 50ms 넘음 ${summary.longFrames}`
+        _t('화면 갱신 {calls}/s (브라우저가 프레임을 부른 횟수)', { calls: calls.toFixed(0) }),
+        _t('갱신 간격 평균 {average}ms, p95 {p95}ms, 50ms 넘음 {longFrames}', { average: average.toFixed(1), p95: (summary.p95 || 0).toFixed(1), longFrames: summary.longFrames })
     ].concat(getBattleDrawPanelLines(), [`FX ${playtestRuntime.currentFx} / ${summary.peakFx}`]);
     if (performance && performance.memory) lines.push(`JS 힙 ${(performance.memory.usedJSHeapSize / 1048576).toFixed(0)}MB (그림과 GPU 메모리는 빼고)`);
     panel.textContent = lines.join('\n');
@@ -264,10 +264,10 @@ function getBattleDrawPanelLines() {
     let frame = battleFrameStats.frameSummary();
     if (!frame) return ['전장 그리기 아직 없음'];
     return [
-        `전장 그리기 ${frame.draws}/s (박자 ${frame.pace}/s, 박자보다 늦음 ${frame.late}/${frame.samples})`,
-        `그리기 간격 평균 ${frame.gapMs.mean}ms, p95 ${frame.gapMs.p95}ms, 최대 ${frame.gapMs.worst}ms`,
-        `그리기 CPU 평균 ${frame.cpuMs.mean}ms, p95 ${frame.cpuMs.p95}ms, 최대 ${frame.cpuMs.worst}ms (메인 스레드)`,
-        `방 그림 준비 ${frame.rooms.count}번, 최근 ${frame.rooms.lastMs.toFixed(1)}ms, 최대 ${frame.rooms.worstMs.toFixed(1)}ms`
+        _t('전장 그리기 {draws}/s (박자 {pace}/s, 박자보다 늦음 {late}/{samples})', { draws: frame.draws, pace: frame.pace, late: frame.late, samples: frame.samples }),
+        _t('그리기 간격 평균 {mean}ms, p95 {p95}ms, 최대 {worst}ms', { mean: frame.gapMs.mean, p95: frame.gapMs.p95, worst: frame.gapMs.worst }),
+        _t('그리기 CPU 평균 {mean}ms, p95 {p95}ms, 최대 {worst}ms (메인 스레드)', { mean: frame.cpuMs.mean, p95: frame.cpuMs.p95, worst: frame.cpuMs.worst }),
+        _t('방 그림 준비 {count}번, 최근 {lastMs}ms, 최대 {worstMs}ms', { count: frame.rooms.count, lastMs: frame.rooms.lastMs.toFixed(1), worstMs: frame.rooms.worstMs.toFixed(1) })
     ];
 }
 

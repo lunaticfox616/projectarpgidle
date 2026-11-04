@@ -21,18 +21,18 @@ const uniqueCodexUi = (() => {
     // ── 위 줄 ─────────────────────────────────────────────────────
     function rewardStatHtml(left) {
         if (game.codexSubtab === 'realm') return '';
-        return `<div class="codex-stat${left ? '' : ' is-done'}"><span>완성 보상</span><b>${left ? `${left}개 남음` : '받는 중'}</b><small>루프마다 액트 1 고유 하나</small></div>`;
+        return `<div class="codex-stat${left ? '' : ' is-done'}"><span>${_t('완성 보상')}</span><b>${left ? _t('{left}개 남음', { left }) : _t('받는 중')}</b><small>${_t('루프마다 액트 1 고유 하나')}</small></div>`;
     }
     function freshHtml(entries) {
         const chips = entries.filter(isFresh).map(entry => `<button type="button" class="codex-fresh-chip" data-codex-key="${encode(keyOf(entry))}">`
             + `<img src="${getUniqueEntryVisualAsset(entry)}" alt="">${esc(_t(entry.name))}</button>`).join('');
-        return chips ? `<div class="codex-fresh"><span>새로 등록</span>${chips}</div>` : '';
+        return chips ? `<div class="codex-fresh"><span>${_t('새로 등록')}</span>${chips}</div>` : '';
     }
     function summaryHtml(entries) {
         const stored = entries.filter(entry => codex()[keyOf(entry)]).length, total = entries.length;
         const bonus = game.codexSubtab === 'realm' ? ''
-            : `<div class="codex-stat"><span>도감 보너스</span><b>+${getCodexBonusPctFromCount(stored).toFixed(1)}%</b><small>피해, 생명력, 드랍률</small></div>`;
-        return `<section class="codex-summary"><div class="codex-stat is-count"><span>등록</span><b>${stored}<small>/${total}</small></b>${bar(stored, total)}</div>`
+            : `<div class="codex-stat"><span>${_t('도감 보너스')}</span><b>+${getCodexBonusPctFromCount(stored).toFixed(1)}%</b><small>${_t('피해, 생명력, 드랍률')}</small></div>`;
+        return `<section class="codex-summary"><div class="codex-stat is-count"><span>${_t('등록')}</span><b>${stored}<small>/${total}</small></b>${bar(stored, total)}</div>`
             + `${bonus}${rewardStatHtml(total - stored)}</section>`;
     }
 
@@ -51,7 +51,7 @@ const uniqueCodexUi = (() => {
         const list = entries.filter(entry => entry.slots[0] === slot), have = list.filter(entry => codex()[keyOf(entry)]).length;
         const cls = `codex-slot${slot === selected ? ' is-active' : ''}${have === list.length ? ' is-done' : ''}`;
         return `<button type="button" class="${cls}" data-codex-slot="${slot}" aria-pressed="${slot === selected}"><img src="${getEquipmentGridVisualAsset({ slot })}" alt="">`
-            + `<span>${esc(getItemSlotDisplayLabel(null, slot))}</span><b>${have}/${list.length}</b>${bar(have, list.length)}${list.some(isFresh) ? '<em>신규</em>' : ''}</button>`;
+            + `<span>${esc(getItemSlotDisplayLabel(null, slot))}</span><b>${have}/${list.length}</b>${bar(have, list.length)}${list.some(isFresh) ? _t('<em>신규</em>') : ''}</button>`;
     }
     function tileHtml(entry) {
         const key = keyOf(entry), stored = codex()[key], fresh = isFresh(entry), tracked = uniqueHuntRuntime.ensureState().includes(key);
@@ -84,17 +84,17 @@ const uniqueCodexUi = (() => {
     function actionsHtml(entry) {
         if (entry.realmCodexOnly) return '';
         const key = encode(keyOf(entry)), tracked = uniqueHuntRuntime.ensureState().includes(keyOf(entry));
-        return `<div class="codex-sheet-actions"><button type="button" data-codex-go="${key}">드랍처 보기</button>`
-            + `<button type="button" class="codex-hunt-button${tracked ? ' is-tracked' : ''}" data-codex-hunt="${key}" aria-pressed="${tracked}">${tracked ? '추적 해제' : '파밍 추적'}</button></div>`;
+        return `<div class="codex-sheet-actions"><button type="button" data-codex-go="${key}">${_t('드랍처 보기')}</button>`
+            + `<button type="button" class="codex-hunt-button${tracked ? ' is-tracked' : ''}" data-codex-hunt="${key}" aria-pressed="${tracked}">${tracked ? _t('추적 해제') : _t('파밍 추적')}</button></div>`;
     }
     function sheetHtml(entry) {
         const stored = codex()[keyOf(entry)];
-        const base = stored && stored.baseName ? `${esc(_t(stored.baseName))}, 숨겨진 티어 ${getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T')}` : esc(getItemSlotDisplayLabel(null, entry.slots[0]));
+        const base = stored && stored.baseName ? _t('{baseName}, 숨겨진 티어 {hiddenTier}', { baseName: esc(_t(stored.baseName)), hiddenTier: getTierBadgeHtml(stored.hiddenTier || stored.itemTier || 1, 'T') }) : esc(getItemSlotDisplayLabel(null, entry.slots[0]));
         const body = stored ? statsHtml(entry, stored) : '<p class="codex-sheet-note">획득하면 옵션이 공개됩니다.</p>';
         return `<div class="codex-sheet${stored ? ' is-on' : ''}${isChase(entry) ? ' is-chase' : ''}"><div class="codex-sheet-head">`
             + `<span class="codex-art"><img src="${getUniqueEntryVisualAsset(entry)}" alt=""></span><div><strong>${esc(_t(entry.name))}</strong><span>${base}</span>`
-            + `<em>${stored ? '등록됨' : '미등록'}${isChase(entry) ? ', 극희귀' : ''}</em></div></div>`
-            + `<p class="codex-sheet-source"><span>드랍처</span><b>${esc(uniqueHuntUi.getSource(entry).label)}</b></p>${body}${actionsHtml(entry)}</div>`;
+            + `<em>${stored ? _t('등록됨') : _t('미등록')}${isChase(entry) ? _t(', 극희귀') : ''}</em></div></div>`
+            + `<p class="codex-sheet-source"><span>${_t('드랍처')}</span><b>${esc(uniqueHuntUi.getSource(entry).label)}</b></p>${body}${actionsHtml(entry)}</div>`;
     }
     /** Opens the unique's window, or redraws it when refresh is set and its text changed (a render after tracking). */
     function openEntry(key, refresh) {
@@ -104,7 +104,7 @@ const uniqueCodexUi = (() => {
         if (refresh && body === lastSheet) return;
         dialogKey = key;
         lastSheet = body;
-        const panel = selectionDialog.show({ id: DIALOG, title: '고유 아이템', panelClass: 'codex-sheet-panel', body });
+        const panel = selectionDialog.show({ id: DIALOG, title: _t('고유 아이템'), panelClass: 'codex-sheet-panel', body });
         const overlay = panel && panel.parentElement;
         if (overlay && !overlay.dataset.codexBound) {
             overlay.dataset.codexBound = '1';
@@ -157,7 +157,7 @@ const uniqueCodexUi = (() => {
         const entries = pool(), selected = shownSlot(entries);
         const tiles = entries.filter(entry => entry.slots[0] === selected).map(tileHtml).join('');
         const top = summaryHtml(entries);
-        const html = `${freshHtml(entries)}<nav class="codex-slots" aria-label="부위">${slotsOf(entries).map(slot => slotTabHtml(entries, slot, selected)).join('')}</nav>`
+        const html = `${freshHtml(entries)}<nav class="codex-slots" aria-label="${_t('부위')}">${slotsOf(entries).map(slot => slotTabHtml(entries, slot, selected)).join('')}</nav>`
             + `<div class="codex-grid">${tiles}</div>`;
         if (top !== lastTop) { head.innerHTML = top; lastTop = top; }
         if (html !== lastHtml) { root.innerHTML = html; lastHtml = html; }

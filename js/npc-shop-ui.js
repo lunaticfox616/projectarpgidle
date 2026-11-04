@@ -25,8 +25,8 @@ const npcShopUi = (() => {
         const shop = NPC_SHOPS[npc.id], stock = npcShop.stock(npc.id);
         if (!shop || !stock) return '';
         const left = stock.offers.length, ready = npcShop.ready(npc.id);
-        return `<button type="button" class="npc-dialog-shop" data-npc-topic="shop"><span>상점</span><b>${escapeHTML(_t(shop.label))}</b>
-            <em>${left ? `${left}개${ready ? `, ${ready}개 살 수 있음` : ''}` : '다 팔림'}</em></button>`;
+        return `<button type="button" class="npc-dialog-shop" data-npc-topic="shop"><span>${_t('상점')}</span><b>${escapeHTML(_t(shop.label))}</b>
+            <em>${left ? `${left}개${ready ? _t(', {ready}개 살 수 있음', { ready }) : ''}` : _t('다 팔림')}</em></button>`;
     }
 
     function shopBodyHtml(npc, note = '') {
@@ -34,23 +34,23 @@ const npcShopUi = (() => {
         shown = { id: npc.id, stock };
         const keys = stock && stock.allRunes ? stumpBox.harvestWalletKeys() : (stock ? stock.offers : []).map(ware => ware.priceKey);
         return `<div class="shop-view is-npc" data-shop-kind="npc" data-npc-shop="${npc.id}"><div class="shop-body">
-            <section class="shop-shelf" aria-label="${escapeHTML(_t(shop.label))} 상점"><header class="shop-bar">
-                <button type="button" class="shop-back" data-npc-topic="greet">대화</button><h3>${escapeHTML(_t(shop.label))}</h3>${shopView.walletHtml(keys)}</header>
+            <section class="shop-shelf" aria-label="${_t('{label} 상점', { label: escapeHTML(_t(shop.label)) })}"><header class="shop-bar">
+                <button type="button" class="shop-back" data-npc-topic="greet">${_t('대화')}</button><h3>${escapeHTML(_t(shop.label))}</h3>${shopView.walletHtml(keys)}</header>
                 ${runeNoteHtml(shop, stock)}${shelfBlockHtml(npc.id, stock)}</section>
             <div class="shop-info" aria-live="polite">${wareInfoHtml(npc.id, note)}</div>
-            <section class="shop-bag" aria-label="가방">${shopView.bagHtml()}</section></div></div>`;
+            <section class="shop-bag" aria-label="${_t('가방')}">${shopView.bagHtml()}</section></div></div>`;
     }
 
     /** Haken's shelf says what it is now, or what turns it into every rune. */
     function runeNoteHtml(shop, stock) {
         if (shop.kind !== 'gem') return '';
-        if (!stock || !stock.allRunes) return `<p class="shop-rune-note">이번 루프에 액트 ${npcShop.allRunesAct}를 깨면 모든 룬을 판매합니다.</p>`;
+        if (!stock || !stock.allRunes) return `<p class="shop-rune-note">${_t('이번 루프에 액트 {allRunesAct}를 깨면 모든 룬을 판매합니다.', { allRunesAct: npcShop.allRunesAct })}</p>`;
         return '<p class="shop-rune-note is-open">이번 루프에는 모든 룬을 판매합니다.</p>';
     }
     /** 검색칸과 쪽 단추: 가방의 쪽 단추와 같다. 쪽이 하나면 단추는 없다. */
     function runeToolsHtml(stock) {
-        return `<div class="shop-rune-tools"><input type="search" class="shop-rune-search" data-npc-rune-search placeholder="룬 이름, 효과 검색" aria-label="룬 검색" value="${escapeHTML(runeQuery)}">
-            <nav class="shop-pages" aria-label="진열대 쪽" data-npc-rune-pages>${runePagesHtml(stock)}</nav></div>`;
+        return `<div class="shop-rune-tools"><input type="search" class="shop-rune-search" data-npc-rune-search placeholder="${_t('룬 이름, 효과 검색')}" aria-label="${_t('룬 검색')}" value="${escapeHTML(runeQuery)}">
+            <nav class="shop-pages" aria-label="${_t('진열대 쪽')}" data-npc-rune-pages>${runePagesHtml(stock)}</nav></div>`;
     }
     const runePageCells = () => npcShop.grid.columns * npcShop.grid.rows;
     /** 지금 보일 룬: 검색에 맞는 것만, 살 수 있는 것 먼저. { ware, index }(index는 진열대의 번호). */
@@ -99,7 +99,7 @@ const npcShopUi = (() => {
     }
     /** 진열대 자리: 물건이 없으면 그 말, 모든 룬 진열대면 검색칸과 쪽 단추까지. */
     function shelfBlockHtml(id, stock) {
-        if (!stock || !stock.offers.length) return `<p class="shop-empty">${stock && stock.allRunes ? '모든 룬을 가졌습니다.' : '다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.'}</p>`;
+        if (!stock || !stock.offers.length) return `<p class="shop-empty">${stock && stock.allRunes ? _t('모든 룬을 가졌습니다.') : _t('다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.')}</p>`;
         return stock.allRunes ? runeToolsHtml(stock) + runeShelfHtml(id, stock) : shelfHtml(id, stock);
     }
     function shelfHtml(id, stock) {

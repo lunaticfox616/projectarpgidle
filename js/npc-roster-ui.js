@@ -12,7 +12,7 @@ const npcRosterUi = (() => {
         const stock = npcShop.stock(npc.id), shop = NPC_SHOPS[npc.id];
         const talk = contentUnlockUi.npcTopics(npc).open.some(row => !contentUnlockUi.npcHeard(npc, row.topic)) ? '<em class="is-talk">새 이야기</em>' : '';
         const ready = npcShop.ready(npc.id);
-        const wares = stock && stock.offers.length ? `<em class="is-shop">${escapeHTML(_t(shop.label))} ${stock.offers.length}개${ready ? `, ${ready}개 살 수 있음` : ''}</em>` : '';
+        const wares = stock && stock.offers.length ? `<em class="is-shop">${escapeHTML(_t(shop.label))} ${stock.offers.length}개${ready ? _t(', {ready}개 살 수 있음', { ready }) : ''}</em>` : '';
         return talk + wares;
     }
 
@@ -36,7 +36,7 @@ const npcRosterUi = (() => {
         if (key === renderedKey && root.childNodes.length) return;
         renderedKey = key;
         root.innerHTML = list.length
-            ? `<p class="npc-roster-lead">누르면 대화와 상점을 엽니다.</p><ul class="npc-roster">${list.map(rosterCardHtml).join('')}</ul>`
+            ? `<p class="npc-roster-lead">${_t('누르면 대화와 상점을 엽니다.')}</p><ul class="npc-roster">${list.map(rosterCardHtml).join('')}</ul>`
             : '<p class="npc-roster-empty">아직 만난 NPC가 없습니다.</p>';
     }
 

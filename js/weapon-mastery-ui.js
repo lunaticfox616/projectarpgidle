@@ -15,31 +15,31 @@ const weaponMasteryUi = (() => {
     function nextStepHtml(id, level) {
         const index = Math.floor(level / 10);
         const step = (M.milestones[id] || [])[index];
-        return step ? `다음 특전 레벨 ${(index + 1) * 10}: ${stepHtml(step)}` : '모든 특전을 열었습니다.';
+        return step ? _t('다음 특전 레벨 {value}: {step}', { value: (index + 1) * 10, step: stepHtml(step) }) : '모든 특전을 열었습니다.';
     }
     function cardHtml(id, wielded) {
         const row = weaponMastery.progress(game, id), fill = row.need ? Math.floor(row.into / row.need * 100) : 100;
         const effects = [row.level > 1 ? lineHtml(M.perLevel.stat, weaponMastery.perLevel(row.level)) : '',
             ...weaponMastery.opened(id, row.level).map(stepHtml)].filter(Boolean).join(', ');
         return `<div class="mastery-card${id === wielded ? ' is-wielded' : ''}${row.level > 1 ? '' : ' is-new'}" style="--mastery-tone:${TONES[id] || '#e8c27a'}">`
-            + `<div class="mastery-card-head"><strong>${esc(name(id))}</strong><b>Lv.${row.level}</b>${id === wielded ? '<em>들고 있음</em>' : ''}</div>
+            + `<div class="mastery-card-head"><strong>${esc(name(id))}</strong><b>Lv.${row.level}</b>${id === wielded ? _t('<em>들고 있음</em>') : ''}</div>
             <div class="mastery-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${fill}"><i style="width:${fill}%"></i></div>
-            <small>${effects || '레벨 2부터 피해가 오릅니다.'}</small>
+            <small>${effects || _t('레벨 2부터 피해가 오릅니다.')}</small>
             <small class="mastery-next">${nextStepHtml(id, row.level)}</small></div>`;
     }
     /** The records window's mastery section. */
     function sectionHtml() {
         const total = weaponMastery.total(game), next = M.totalSteps.find(step => total < step), wielded = weaponMastery.wielded(game);
-        return `<details class="records-fold records-mastery" open><summary>무기 숙련<span>합계 ${total}, 방치 효율 <b class="records-gain">+${percent(weaponMastery.offline(game))}</b></span></summary>
+        return `<details class="records-fold records-mastery" open><summary>${_t('무기 숙련')}<span>${_t('합계 {total}, 방치 효율', { total })} <b class="records-gain">+${percent(weaponMastery.offline(game))}</b></span></summary>
             <div class="records-fold-body"><div class="mastery-grid">${weaponMastery.ids.map(id => cardHtml(id, wielded)).join('')}</div>
-            <p class="records-fold-hint">들고 있는 무기로 잡을 때마다 오르고 루프를 넘어 남습니다. 합계 ${M.totalSteps.join(', ')}마다 방치 효율 +1%p${next ? ` (다음 ${next})` : ''}.</p></div></details>`;
+            <p class="records-fold-hint">들고 있는 무기로 잡을 때마다 오르고 루프를 넘어 남습니다. 합계 ${M.totalSteps.join(', ')}마다 방치 효율 +1%p${next ? _t(' (다음 {next})', { next }) : ''}.</p></div></details>`;
     }
     /** The item tooltip's mastery line for a weapon: its category's level and what it gives. '' for other items. */
     function tooltipHtml(item) {
         const id = item && item.slot === '무기' ? getWeaponCategoryId(item) : null;
         if (!id) return '';
         const level = weaponMastery.level(game, id);
-        return `<div class="tooltip-line" style="margin-top:6px; color:#e8c27a;">⚔️ ${esc(name(id))} 숙련 ${level}: ${esc(lineText(M.perLevel.stat, weaponMastery.perLevel(level)))}</div>`;
+        return `<div class="tooltip-line" style="margin-top:6px; color:#e8c27a;">${_t('⚔️ {id} 숙련 {level}: {stat}', { id: esc(name(id)), level, stat: esc(lineText(M.perLevel.stat, weaponMastery.perLevel(level))) })}</div>`;
     }
     /** The settlement result's line: levels gained per category. '' when none rose. */
     function settlementLine(gains) {
@@ -48,7 +48,7 @@ const weaponMasteryUi = (() => {
     }
     function announce(detail) {
         const step = detail.milestone ? (M.milestones[detail.id] || [])[detail.level / 10 - 1] : null;
-        const opened = step ? ` 특전이 열렸습니다: ${stepText(step)}` : '';
+        const opened = step ? _t(' 특전이 열렸습니다: {step}', { step: stepText(step) }) : '';
         addLog(_t('⚔️ {id} 숙련 {level}.{opened}', { id: esc(name(detail.id)), level: detail.level, opened: esc(opened) }), step ? 'loot-unique' : 'season-up', { toast: !!step });
     }
     window.addEventListener('project-idle:weapon-mastery', event => announce(event.detail || {}));

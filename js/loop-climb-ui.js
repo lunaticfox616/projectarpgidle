@@ -13,26 +13,26 @@ const loopClimbUi = (() => {
     }
     /** The loop gates as rows: the chaos depth, and from loop 31 the cosmos planet (either one opens the loop). */
     function gateRows() {
-        const cap = getSeasonAbyssDepthCap(season()), rows = [{ ok: hasCurrentLoopChaosRequirementClear(season()), text: `${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap} 클리어` }];
-        if (season() >= LOOP_GATE_ALT_START_SEASON) rows.push({ ok: hasCurrentLoopCosmosRequirementClear(season()), text: `우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파` });
+        const cap = getSeasonAbyssDepthCap(season()), rows = [{ ok: hasCurrentLoopChaosRequirementClear(season()), text: _t('{value} {cap} 클리어', { value: cap > 20 ? _t('혼돈 심화') : _t('혼돈'), cap }) }];
+        if (season() >= LOOP_GATE_ALT_START_SEASON) rows.push({ ok: hasCurrentLoopCosmosRequirementClear(season()), text: _t('우주계 {value} 행성 돌파', { value: LOOP_GATE_ALT_COSMOS_PLANET_NAME }) });
         return rows;
     }
     function gateHtml() {
         const rows = gateRows();
         const list = rows.map(row => `<li class="${row.ok ? 'is-on' : 'is-off'}"><i></i>${esc(row.text)}</li>`).join('');
-        return `<div class="climb-gates"><span>루프 조건${rows.length > 1 ? ' (하나만)' : ''}</span><ul>${list}</ul></div>`;
+        return `<div class="climb-gates"><span>${_t('루프 조건{value}', { value: rows.length > 1 ? _t(' (하나만)') : '' })}</span><ul>${list}</ul></div>`;
     }
     function buttonsHtml(ready) {
         const loops = season() >= 31
-            ? `<button type="button" onclick="chooseLoopAdvancePath('chaos')" ${loopSettlementUi.resetButtonAttr(hasCurrentLoopChaosRequirementClear(season()))}>혼돈 루프</button>`
-                + `<button type="button" onclick="chooseLoopAdvancePath('cosmos')" ${loopSettlementUi.resetButtonAttr(hasCurrentLoopCosmosRequirementClear(season()))}>우주계 루프</button>`
-            : `<button type="button" onclick="triggerSeasonReset()" ${loopSettlementUi.resetButtonAttr(ready)}>지금 즉시 루프</button>`;
-        return `<div class="climb-buttons">${loops}<button type="button" class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()"${ready ? '' : ' disabled'}>혼돈 밖 진입</button></div>${loopSettlementUi.stallWarningHtml()}`;
+            ? `<button type="button" onclick="chooseLoopAdvancePath('chaos')" ${loopSettlementUi.resetButtonAttr(hasCurrentLoopChaosRequirementClear(season()))}>${_t('혼돈 루프')}</button>`
+                + `<button type="button" onclick="chooseLoopAdvancePath('cosmos')" ${loopSettlementUi.resetButtonAttr(hasCurrentLoopCosmosRequirementClear(season()))}>${_t('우주계 루프')}</button>`
+            : `<button type="button" onclick="triggerSeasonReset()" ${loopSettlementUi.resetButtonAttr(ready)}>${_t('지금 즉시 루프')}</button>`;
+        return `<div class="climb-buttons">${loops}<button type="button" class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()"${ready ? '' : ' disabled'}>${_t('혼돈 밖 진입')}</button></div>${loopSettlementUi.stallWarningHtml()}`;
     }
     function reentryHtml(open) {
         const top = Math.max(21, Math.floor(game.abyssEndlessDepth || 20));
-        return `<div class="climb-reentry"><span>기록된 층 다시 입장</span><b>21 ~ ${top}층</b>`
-            + `<button type="button" data-exploration-departure onclick="enterDeepChaosPrompt()"${open ? '' : ' disabled'}>${open ? '층 골라 입장' : '혼돈 20 클리어 필요'}</button></div>`;
+        return `<div class="climb-reentry"><span>${_t('기록된 층 다시 입장')}</span><b>${_t('21 ~ {top}층', { top })}</b>`
+            + `<button type="button" data-exploration-departure onclick="enterDeepChaosPrompt()"${open ? '' : ' disabled'}>${open ? _t('층 골라 입장') : _t('혼돈 20 클리어 필요')}</button></div>`;
     }
     /** Deep chaos floors cleared beyond this loop's start (the highest unlocked floor is the one after the last clear). */
     function depthGain() {
@@ -52,14 +52,14 @@ const loopClimbUi = (() => {
     }
     function gainsHtml() {
         const chips = gains().map(([label, value, unit]) => `<span class="climb-gain${value > 0 ? ' is-up' : ''}"><b>+${value}${unit}</b><small>${label}</small></span>`).join('');
-        return `<div class="climb-gains"><span>다음 루프 예상 획득</span><div>${chips}</div></div>`;
+        return `<div class="climb-gains"><span>${_t('다음 루프 예상 획득')}</span><div>${chips}</div></div>`;
     }
     function growthHtml() {
         const stats = game.loopDeepStats || {}, tone = def => getItemStatToneColor(def.stat || 'pctDmg'), points = game.loopDeepPoints || 0;
         const buttons = LOOP_DEEP_STATS.map(def => `<button type="button" class="climb-stat" style="--stat-tone:${tone(def)}" onclick="allocateLoopDeepStat('${def.key}')">`
-            + `<strong>${esc(_t(def.label))}</strong><b>Lv.${stats[def.key] || 0}</b><small>합계 +${formatLoopDeepValue(def, stats[def.key])}, 레벨당 +${def.per}${def.unit}</small>`
-            + `<em>비용 ${getLoopDeepStatCost(def.key)}</em></button>`).join('');
-        return `<details id="loop-deep-growth" class="progression-workbench climb-growth" ${contentUnlockUi.lockAttribute('deepTree')}><summary>영구 강화<b>보유 포인트 ${points}</b></summary>`
+            + `<strong>${esc(_t(def.label))}</strong><b>Lv.${stats[def.key] || 0}</b><small>${_t('합계 +{def}, 레벨당 +{per}{unit}', { def: formatLoopDeepValue(def, stats[def.key]), per: def.per, unit: def.unit })}</small>`
+            + `<em>${_t('비용 {key}', { key: getLoopDeepStatCost(def.key) })}</em></button>`).join('');
+        return `<details id="loop-deep-growth" class="progression-workbench climb-growth" ${contentUnlockUi.lockAttribute('deepTree')}><summary>${_t('영구 강화')}<b>${_t('보유 포인트 {points}', { points })}</b></summary>`
             + `<div class="climb-stats">${buttons}</div></details>`;
     }
     function render() {
@@ -70,8 +70,8 @@ const loopClimbUi = (() => {
         if (!open) return;
         ensureClimbState();
         const ready = hasCurrentLoopAbyssRequirementClear(season()), deepOpen = hasCurrentLoopChaos20Clear();
-        updateGamePanelMarkup(panel, `<div class="climb-head"><span class="climb-emblem" aria-hidden="true">∞</span><div><small>현재 심화층</small><b>${Math.floor(game.abyssEndlessDepth || 20)}</b></div>`
-            + `<div><small>심화 루프 포인트</small><b class="is-points">${game.loopDeepPoints || 0}</b></div></div>`
+        updateGamePanelMarkup(panel, `<div class="climb-head"><span class="climb-emblem" aria-hidden="true">∞</span><div><small>${_t('현재 심화층')}</small><b>${Math.floor(game.abyssEndlessDepth || 20)}</b></div>`
+            + `<div><small>${_t('심화 루프 포인트')}</small><b class="is-points">${game.loopDeepPoints || 0}</b></div></div>`
             + `${gateHtml()}${buttonsHtml(ready)}${reentryHtml(deepOpen)}${gainsHtml()}${growthHtml()}`);
     }
     return Object.freeze({ render });

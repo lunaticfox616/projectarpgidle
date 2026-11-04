@@ -211,10 +211,10 @@ function selectBeyondBoundarySeal(sealId, ownerState) {
 /** Read-only reward eligibility shared by selection, entry, payout and the UI. */
 function getBeyondBoundaryRewardFocusStatus(focusId, ownerState = game) {
     const def = BEYOND_BOUNDARY_REWARD_FOCUS_DB.find(row => row.id === focusId);
-    if (!def) return { available: false, reason: '알 수 없는 보상입니다.' };
+    if (!def) return { available: false, reason: _t('알 수 없는 보상입니다.') };
     if (!def.unlock || contentProgression.isUnlocked(def.unlock, ownerState)) return { available: true, reason: '' };
     const feature = CONTENT_UNLOCK_CATALOG.find(row => row.id === def.unlock);
-    return { available: false, reason: `${feature.name} 해금 필요` };
+    return { available: false, reason: _t('{name} 해금 필요', { name: feature.name }) };
 }
 
 function selectBeyondBoundaryRewardFocus(focusId, ownerState) {

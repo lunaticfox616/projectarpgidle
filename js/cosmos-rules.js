@@ -76,7 +76,7 @@
         return {
             mode: mechanic.id,
             patternMode: 'cosmosBoss',
-            label: special ? mechanic.name : `${mechanic.name} 전조`,
+            label: special ? mechanic.name : _t('{name} 전조', { name: mechanic.name }),
             damageMul: special ? mechanic.damageMul : 1,
             isSpecial: special,
             telegraphKind: mechanic.telegraphKind,
@@ -150,10 +150,10 @@
         const dpsRatio = Math.max(0, Number(player && player.dps) || 0) / Math.max(1, Number(target && target.dps) || 1);
         const ehpRatio = Math.max(0, Number(player && player.ehp) || 0) / Math.max(1, Number(target && target.ehp) || 1);
         const minRatio = Math.min(dpsRatio, ehpRatio);
-        if (minRatio >= 1.2) return { id: 'comfortable', label: '안정', dpsRatio, ehpRatio, minRatio };
-        if (minRatio >= 0.9) return { id: 'ready', label: '적정', dpsRatio, ehpRatio, minRatio };
-        if (minRatio >= 0.65) return { id: 'risky', label: '위험', dpsRatio, ehpRatio, minRatio };
-        return { id: 'blocked', label: '성장 필요', dpsRatio, ehpRatio, minRatio };
+        if (minRatio >= 1.2) return { id: 'comfortable', label: _t('안정'), dpsRatio, ehpRatio, minRatio };
+        if (minRatio >= 0.9) return { id: 'ready', label: _t('적정'), dpsRatio, ehpRatio, minRatio };
+        if (minRatio >= 0.65) return { id: 'risky', label: _t('위험'), dpsRatio, ehpRatio, minRatio };
+        return { id: 'blocked', label: _t('성장 필요'), dpsRatio, ehpRatio, minRatio };
     }
 
     safeExposeGlobals({

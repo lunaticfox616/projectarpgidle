@@ -8,7 +8,7 @@ const itemInfluencesUi = (() => {
     const chip = (key, text) => `<span class="infl-chip is-${key}" style="--infl:${meta(key).tone}">${escapeHTML(text)}</span>`;
     // 다른 줄을 바꾼 줄(태양, 허기, 뒤바뀐)은 그 줄 아래에 한 줄 더 "[표식] 기존 ○○"(2026-10-10 사용자: 셋을 같은 모양으로).
     const replacedLine = (key, text, replaced) => `<span class="infl-replaced is-${key}" style="--infl:${meta(key).tone}">${chip(key, text)}${
-        replaced ? `기존 ${escapeHTML(_t(replaced.statName || getStatName(replaced.id)))}` : ''}</span>`;
+        replaced ? _t('기존 {statName}', { statName: escapeHTML(_t(replaced.statName || getStatName(replaced.id))) }) : ''}</span>`;
 
     /** Classes for an item's frame: has-influence, and has-influence-2 when two colours share it; is-corrupted for a corrupted item
      * (a red frame, css/item-influences.css). '' for an ordinary item. */
@@ -41,7 +41,7 @@ const itemInfluencesUi = (() => {
     function tagsHtml(item, className = '') {
         const keys = itemInfluences.influenceKeys(item);
         if (!keys.length) return '';
-        const tags = keys.map(key => `<span class="infl-tag" style="--infl:${meta(key).tone}">${escapeHTML(meta(key).label)}</span>`).join('');
+        const tags = keys.map(key => `<span class="infl-tag" style="--infl:${meta(key).tone}">${escapeHTML(_t(meta(key).label))}</span>`).join('');
         return `<div class="infl-tags${className}">${tags}</div>`;
     }
     /** The same line in the item tooltip, right under its title (js/ui.js showItemTooltip). */
