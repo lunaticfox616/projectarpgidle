@@ -1951,7 +1951,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '성기사': 'Paladin',
         '소환사': 'Summoner',
         '수호자': 'Protector',
-        '원소술사': 'Elementalist|직업',
+        '원소술사': 'Elemental Mage',
         '저격수': 'Sniper',
         '각성: 금단 파열': 'Awakening: Forbidden Rupture',
         '각성: 심층 초월': 'Awakening: Deep Transcendence',
