@@ -781,6 +781,8 @@
   지급량은 드랍 때 정하고(`resolveCurrencyAward`, 잠긴 재화는 0) 주울 때 그 양을 그대로 더한다(`commitCurrencyGain`).
   주얼 · 코어 · 야생 부적도 같은 날부터 바닥에 남는다(`{gx,gy,kind,item}`, 부적은 보관함이 가득 찼을 때의 편린 `overflow` 포함).
   굴린 결과를 그대로 두었다가 주울 때 원래 받는 길(`receiveJewelDrop` · `coreItems.keep` · `talismans.receiveWild`)로 넣는다.
+  2026-11-05부터 몬스터의 룬(공격 룬, 보조 룬)도 바닥에 남는다(`{gx,gy,kind:'rune',gem}`, `placeFloorRune`). 주울 때
+  `receiveDeferredRune`이 주고 그때 기록을 남긴다. 다음 룬을 굴릴 때 바닥의 룬도 가진 것으로 셈해 보조 룬 등급이 겹치지 않는다.
   주운 코어는 보관 한도(12)를 넘어도 저장 한도(60)까지 받는다(바닥에서 사라지지 않게). 화면에 더미가 없는 보상
   (각성 잔향 · 벌 사건 · 젬 파편)은 예전처럼 바로 획득한다.
   방치(백그라운드) 계산과 탐험 밖 전투도 바로 획득한다.

@@ -100,6 +100,10 @@ actExplorationState.groundLoot = (() => {
     function placeGem(run, cell, gem, choices) {
         lay(run, { gx: cell.gx, gy: cell.gy, kind: 'gem', gem, ...(choices ? { choices } : {}) });
     }
+    /** Lays a rolled rune reward (gemDropRewards row: attack, or a support tier) on a walkable cell; it is granted when picked up. */
+    function placeRune(run, cell, gem) {
+        lay(run, { gx: cell.gx, gy: cell.gy, kind: 'rune', gem });
+    }
     /** Lays an already resolved currency gain on a walkable cell, joining the same currency already lying there. */
     function placeCurrency(run, at, currency, count) {
         combatLootReceipts.currency(game, currency, count);
@@ -326,6 +330,6 @@ actExplorationState.groundLoot = (() => {
         return !!check && check(row);
     }
 
-    return { kindOf, place, placeItem, placeLeaf, placeYarn, placeGem, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, inAir, piles,
+    return { kindOf, place, placeItem, placeLeaf, placeYarn, placeGem, placeRune, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, inAir, piles,
         encounterOwner, reserve, releaseEncounter, discardEncounter, normalizeEncounter, reservedItems, settleOnLoad, validate };
 })();

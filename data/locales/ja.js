@@ -3107,7 +3107,7 @@ const LANGUAGE_PACK_JA = Object.freeze({
         '구역 {n}': '区域{n}',
         '☠️ 알 수 없는 권능: {ailment}': '☠️ 未知の権能: {ailment}',
         '☣️ 상태이상: {ailment} ({seconds}초)': '☣️ 状態異常: {ailment} ({seconds}秒)',
-        "✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}{note}": "✨ 攻撃ルーン <span class='loot-magic'>[{name}]</span> を獲得!{awakened}{note}",
+        "✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}": "✨ 攻撃ルーン <span class='loot-magic'>[{name}]</span> を獲得!{awakened}",
         '(각성 후보)': '(覚醒候補)',
         '💠 {how}: [{name}], 주얼 결정 +{gain}': '💠 {how}: [{name}]、ジュエルの結晶 +{gain}',
         '가방이 가득 차 해체': 'バッグが満杯のため分解',

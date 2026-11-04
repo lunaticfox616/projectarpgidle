@@ -3138,7 +3138,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '구역 {n}': 'Zone {n}',
         '☠️ 알 수 없는 권능: {ailment}': '☠️ Unknown power: {ailment}',
         '☣️ 상태이상: {ailment} ({seconds}초)': '☣️ Ailment: {ailment} ({seconds}s)',
-        "✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}{note}": "✨ Got attack rune <span class='loot-magic'>[{name}]</span>!{awakened}{note}",
+        "✨ 공격 룬 <span class='loot-magic'>[{name}]</span> 획득!{awakened}": "✨ Got attack rune <span class='loot-magic'>[{name}]</span>!{awakened}",
         '(각성 후보)': '(awakening candidate)',
         '💠 {how}: [{name}], 주얼 결정 +{gain}': '💠 {how}: [{name}], Jewel Crystal +{gain}',
         '가방이 가득 차 해체': 'Salvaged because the bag is full',
