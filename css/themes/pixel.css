@@ -114,20 +114,6 @@ body[data-ui-skin] #tree-container :is(.passive-overlay-node, .passive-reveal-bu
 }
 /* 도트로 다시 찍은 로고(scripts/build-pixel-ui.cjs): 정수배로 키우고 번지지 않게 */
 :root body[data-ui-skin] #ui-rail-logo img { width: 104px; max-width: 104px; image-rendering: pixelated; }
-:root body[data-ui-skin] #startup-overlay .startup-logo {
-  width: min(384px, 30vw, 42dvh);
-  padding: 12px;
-  border: var(--px-plate-border) solid transparent;
-  border-image: var(--px-plate-frame);
-  background: var(--px-wood-dark), var(--px-stone);
-  background-clip: padding-box;
-  box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
-  filter: none;
-  image-rendering: pixelated;
-}
-@media (max-width: 760px) {
-  :root body[data-ui-skin] #startup-overlay .startup-logo { width: min(204px, 50vw); padding: 12px; }
-}
 :root body[data-ui-skin] :is(#act-exploration-panel canvas, #act-exploration-map-large) { image-rendering: pixelated; }
 /* 도트로 다시 찍은 아이콘(assets/px/, scripts/build-pixel-icons.cjs), 32도트 세계수 룬, 처음부터 도트로 그린 장비 아이콘
    (assets/items/illustrated/pixel/), 그루터기 도트 아이콘(stump-pixel-v1, 알비노 stump-albino-v1)도 확대할 때 번지지 않게 */
@@ -401,8 +387,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] #startup-overlay #btn-startup-google { font-family: 'Google Sans', sans-serif; }
 :root body[data-ui-skin] #startup-overlay .startup-policy-scroll .effective { color: var(--px-copy-muted); font-size: 12px; }
 /* 시작 화면의 로그인 판·저장 정보 */
-/* 로그인 판은 로고 판과 같은 매듭 테(검토 4차: 로그인 판만 매듭 모서리가 없었다), 안내 판은 가벼운 테 */
-:root body[data-ui-skin] #startup-overlay .startup-panel.auth {
+/* 로고와 로그인 판을 한 매듭 테 안에(2026-11-05: 로고 판과 로그인 판이 따로 있었다), 안내 판은 가벼운 테 */
+:root body[data-ui-skin] #startup-overlay .startup-entry {
   padding: 10px 14px;
   border: var(--px-plate-border) solid transparent;
   border-image: var(--px-plate-frame);
@@ -412,6 +398,11 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   box-shadow: 6px 6px 0 rgba(0, 0, 0, .5);
   image-rendering: pixelated;
 }
+:root body[data-ui-skin] #startup-overlay .startup-brand-wrap { padding: 10px 0 0; }
+@media (max-height: 600px) {
+  :root body[data-ui-skin] #startup-overlay .startup-brand-wrap { padding: 0; }
+}
+:root body[data-ui-skin] #startup-overlay .startup-panel.auth { padding: 12px 0 0; }
 :root body[data-ui-skin] #startup-overlay .startup-summary-card {
   border: var(--px-light-border) solid transparent;
   border-image: var(--px-light-frame);
