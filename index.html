@@ -56,6 +56,11 @@
 <div id="startup-overlay" class="startup-overlay active">
     <!-- 게임 파일을 받는 동안의 한 줄(html.app-preload인 동안만, css/document.css): 2026-10-28까지는 마지막 스크립트가 올 때까지 검은 화면이었다. -->
     <div id="startup-preload" aria-hidden="true"><img src="assets/ui/pixel/rignin-logo-120.png" alt="" width="120" height="120"><p>게임 파일을 받는 중…</p></div>
+    <!-- 오른쪽 위(2026-11-04 사용자): 톱니는 설정 창, 음표는 배경음과 효과음을 함께 끄고 켠다(js/settings-ui.js). 아이콘은 11도트를 2배로 -->
+    <div class="startup-corner-tools">
+        <button type="button" class="startup-tool" id="btn-startup-settings" aria-label="설정" aria-pressed="false"><svg class="startup-tool-icon" viewBox="0 0 11 11" width="22" height="22" shape-rendering="crispEdges" aria-hidden="true"><rect class="m" x="4" y="0" width="3" height="1"/><rect class="m" x="1" y="1" width="2" height="1"/><rect class="m" x="4" y="1" width="3" height="1"/><rect class="m" x="8" y="1" width="2" height="1"/><rect class="m" x="1" y="2" width="9" height="1"/><rect class="m" x="2" y="3" width="2" height="1"/><rect class="m" x="7" y="3" width="2" height="1"/><rect class="m" x="0" y="4" width="3" height="1"/><rect class="m" x="8" y="4" width="3" height="1"/><rect class="m" x="0" y="5" width="3" height="1"/><rect class="m" x="8" y="5" width="3" height="1"/><rect class="m" x="0" y="6" width="3" height="1"/><rect class="m" x="8" y="6" width="3" height="1"/><rect class="m" x="2" y="7" width="2" height="1"/><rect class="m" x="7" y="7" width="2" height="1"/><rect class="m" x="1" y="8" width="9" height="1"/><rect class="m" x="1" y="9" width="2" height="1"/><rect class="m" x="4" y="9" width="3" height="1"/><rect class="m" x="8" y="9" width="2" height="1"/><rect class="m" x="4" y="10" width="3" height="1"/></svg></button>
+        <button type="button" class="startup-tool" id="btn-startup-sound" aria-label="소리 끄기"><svg class="startup-tool-icon is-on" viewBox="0 0 11 11" width="22" height="22" shape-rendering="crispEdges" aria-hidden="true"><rect class="m" x="4" y="1" width="7" height="1"/><rect class="m" x="4" y="2" width="7" height="1"/><rect class="m" x="4" y="3" width="1" height="1"/><rect class="m" x="10" y="3" width="1" height="1"/><rect class="m" x="4" y="4" width="1" height="1"/><rect class="m" x="10" y="4" width="1" height="1"/><rect class="m" x="4" y="5" width="1" height="1"/><rect class="m" x="10" y="5" width="1" height="1"/><rect class="m" x="2" y="6" width="3" height="1"/><rect class="m" x="8" y="6" width="3" height="1"/><rect class="m" x="1" y="7" width="4" height="1"/><rect class="m" x="7" y="7" width="4" height="1"/><rect class="m" x="1" y="8" width="4" height="1"/><rect class="m" x="7" y="8" width="4" height="1"/><rect class="m" x="2" y="9" width="2" height="1"/><rect class="m" x="8" y="9" width="2" height="1"/></svg><svg class="startup-tool-icon is-off" viewBox="0 0 11 11" width="22" height="22" shape-rendering="crispEdges" aria-hidden="true"><rect class="x" x="0" y="0" width="2" height="1"/><rect class="x" x="1" y="1" width="2" height="1"/><rect class="m" x="4" y="1" width="7" height="1"/><rect class="x" x="2" y="2" width="2" height="1"/><rect class="m" x="5" y="2" width="6" height="1"/><rect class="x" x="3" y="3" width="2" height="1"/><rect class="m" x="10" y="3" width="1" height="1"/><rect class="x" x="4" y="4" width="2" height="1"/><rect class="m" x="10" y="4" width="1" height="1"/><rect class="x" x="5" y="5" width="2" height="1"/><rect class="m" x="10" y="5" width="1" height="1"/><rect class="m" x="2" y="6" width="3" height="1"/><rect class="x" x="6" y="6" width="2" height="1"/><rect class="m" x="9" y="6" width="2" height="1"/><rect class="m" x="1" y="7" width="4" height="1"/><rect class="x" x="7" y="7" width="2" height="1"/><rect class="m" x="10" y="7" width="1" height="1"/><rect class="m" x="1" y="8" width="4" height="1"/><rect class="x" x="8" y="8" width="2" height="1"/><rect class="m" x="2" y="9" width="2" height="1"/><rect class="x" x="9" y="9" width="2" height="1"/></svg></button>
+    </div>
     <div class="startup-shell">
         <div class="startup-panel hero">
             <div class="startup-hero-grid">
@@ -78,21 +83,6 @@
                             </div>
                         </div>
                         <p class="startup-summary-hint" hidden>저장된 모험이 없습니다. 게스트로 바로 시작하거나, 로그인하면 여러 기기에서 이어서 할 수 있습니다.</p>
-                        <!-- 소리(2026-11-04 사용자): 설정 창의 소리 칸과 같은 값(js/settings-ui.js syncStartupSound, js/ui-audio.js, js/bgm-ui.js) -->
-                        <div class="startup-sound" id="startup-sound" role="group" aria-label="소리 설정">
-                            <div class="startup-sound-row">
-                                <label for="chk-startup-bgm">배경음</label>
-                                <input type="checkbox" role="switch" class="cfg-switch" id="chk-startup-bgm" checked>
-                                <input type="range" data-bgm-volume min="0" max="100" step="5" value="70" aria-label="배경음 크기" aria-valuetext="70%">
-                                <output>70%</output>
-                            </div>
-                            <div class="startup-sound-row">
-                                <label for="chk-startup-sounds">효과음</label>
-                                <input type="checkbox" role="switch" class="cfg-switch" id="chk-startup-sounds" checked>
-                                <input type="range" data-sound-volume min="0" max="100" step="5" value="100" aria-label="효과음 크기" aria-valuetext="100%">
-                                <output>100%</output>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1180,6 +1170,8 @@
                 <button type="button" data-settings-section="notifications" aria-pressed="false" onclick="settingsUi.select('notifications')"><b>알림과 채팅</b></button>
                 <button type="button" data-settings-section="layout" aria-pressed="false" onclick="settingsUi.select('layout')"><b>조작</b></button>
                 <button type="button" data-settings-section="data" aria-pressed="false" onclick="settingsUi.select('data')"><b>저장과 계정</b></button>
+                <!-- 로그인 화면의 톱니로 열었을 때만 보인다(휴대폰의 설정 화면에는 닫는 단추가 없다) -->
+                <button type="button" class="settings-startup-close" onclick="settingsUi.closeStartupSettings()"><b>로그인 화면으로</b></button>
                 <p class="settings-note">바꾸면 바로 적용되고 저장됩니다.</p>
             </nav>
             <div class="settings-content">
@@ -1933,9 +1925,9 @@
 <script defer src="js/combat-replay-projection.js?v=20261007-1&eff=20261008-1&split=20261008-1&scripted=20261017-1&labfix=20261019-1&settleresume=20261025-1&growth=20261025-1"></script>
 <script defer src="js/android-app-ui.js?v=20260907-1&thermal=20260907-1&popup-layer=20260911-1&desktop=20261103-1"></script>
 <script defer src="js/dev-test-panel-ui.js?v=20260930-5&uiwords=20261009-1&stage=20261011-1&rooms=20261011-1&backdrop=20261011-1&theme=20261011-1&roster=20261012-1&plans=20261013-1&skillvfx=20261013-1&jump=20261013-3&sizes=20261013-1&hive=20261013-1&boardrooms=20261013-1&perf=20261013-1&boss=20261014-1&runes=20261017-1&tidy=20261018-1&ocean2=20261020-1&incident=20261020-1&swords=20261026-1&invader=20261102-1&stump=20261104-1&sfxab=20261104-2"></script>
-<script defer src="js/settings-ui.js?v=20261015-1&cfg=20261016-1&bagrail=20261019-1&desktop=20261103-1&bundle1104&startsound=20261104-2"></script>
+<script defer src="js/settings-ui.js?v=20261015-1&cfg=20261016-1&bagrail=20261019-1&desktop=20261103-1&bundle1104&startsound=20261104-2&startsound=20261104-3"></script>
 <script defer src="js/game-tab-guard-ui.js?v=20261021-1&storage=20261021-1"></script>
 <script defer src="js/cloud-session-guard-ui.js?v=20261030-1&save-slots=20261030-1&fixes=20261102-1"></script>
-<script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1&aux=20260930-8&aux=20261001-17&aux=20261002-1&font=20261006-1&eff=20261008-1&fg=20261008-1&storylog=20261015-1&scripted=20261017-1&offlineaway=20261019-1&tabguard=20261021-1&basiccoins=20261021-1&mutation=20261023-1&blessing=20261024-1&int=20261027-1&v0330=20261030-1&save-slots=20261030-1&startsound1104&startsound=20261104-2"></script>
+<script defer src="js/main.js?v=20260905-runtime1&loot-filter=20260905-1&display=20260906-1&thermal=20260907-1&return-ui=20260908-1&login-idle=20260908-1&return-regions=20260908-1&route=20260909-2&journal-preference=20260914-1&aux=20260930-8&aux=20261001-17&aux=20261002-1&font=20261006-1&eff=20261008-1&fg=20261008-1&storylog=20261015-1&scripted=20261017-1&offlineaway=20261019-1&tabguard=20261021-1&basiccoins=20261021-1&mutation=20261023-1&blessing=20261024-1&int=20261027-1&v0330=20261030-1&save-slots=20261030-1&startsound1104&startsound=20261104-2&startsound=20261104-3"></script>
 </body>
 </html>

@@ -139,6 +139,14 @@
         .loading-bar-fill { height: 100%; width: 0%; border-radius: inherit; background: var(--color-accent-gold); transition: width 0.22s ease; }
         .loading-caption { margin-top: 10px; color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
         body.startup-active #left-pane, body.startup-active #right-pane { visibility: hidden; filter: none; opacity: 0; pointer-events: none; }
+        /* 로그인 화면의 톱니로 연 설정 창(2026-11-04, js/settings-ui.js openStartupSettings): 오른쪽 판을 로그인 화면(#startup-overlay
+           z-index 14000) 위로 올리되 설정 창만 보이고 눌린다(분류 목록의 바뀐 단추는 css/settings.css). 창 관리자가 창마다 주는 인라인
+           z-index는 판 안의 순서라 그대로 둔다 */
+        body.startup-active.startup-settings-open #right-pane { visibility: visible; opacity: 1; pointer-events: none; z-index: 14100; }
+        body.startup-active.startup-settings-open #right-pane > :not(#tab-settings) { visibility: hidden; }
+        body.startup-active.startup-settings-open #tab-settings { pointer-events: auto; max-height: 100dvh; overflow-y: auto; }
+        /* 휴대폰: 아래 탭 줄 자리까지 화면을 다 덮는다(로그인 화면이 비쳐 보였다) */
+        body.startup-active.startup-settings-open:not(.desktop-windowed-ui) #tab-settings { position: fixed; inset: 0; max-height: none; box-sizing: border-box; background: var(--color-surface); }
         @media (prefers-reduced-motion: reduce) { .loading-ring { animation: none; } .loading-bar-fill { transition: none; } }
         body.startup-active { overflow: hidden; }
         body.loading-active { overflow: hidden; }
