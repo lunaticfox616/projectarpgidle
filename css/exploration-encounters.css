@@ -90,6 +90,4 @@
 #tab-map #ui-season-boss-list{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */margin-top:0!important}
 #tab-map #ui-season-boss-list .map-zone-group-header{background:none;box-shadow:none;border:0;border-bottom:1px solid #b6a57844}
 #tab-map #ui-trial-list{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */margin-top:0!important}
-#reward-overlay .reward-choice{background:#182119;box-shadow:none}
-#reward-overlay .reward-choice:hover{background:#252d1d}
 #reward-overlay .tutorial-secondary{background:#22271c}}

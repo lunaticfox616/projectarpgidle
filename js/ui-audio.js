@@ -61,8 +61,11 @@
         } catch (error) { failure('sample bank unavailable', error); }
     }
 
+    /** 배경음(js/bgm-ui.js)도 이 AudioContext를 쓴다: 효과음을 꺼도 배경음이 켜져 있으면 연다. */
+    const bgmWanted = () => typeof game !== 'undefined' && game.settings?.bgm !== false && game.settings?.bgmVolume !== 0 && !document.hidden;
+
     function unlock() {
-        if (!permitted()) return;
+        if (!permitted() && !bgmWanted()) return;
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return;
         try {
@@ -236,6 +239,8 @@
         if (tab && !tab.disabled && tab.getAttribute('aria-disabled') !== 'true') playUiFeedbackSound('uiSelect');
     });
     window.addEventListener('project-idle:startup-visibility', syncVolumeControl);
+    playUiFeedbackSound.context = () => context;
+    playUiFeedbackSound.unlock = unlock;
     document.addEventListener('pointerdown', unlock, {passive:true});
     document.addEventListener('keydown', unlock);
     window.addEventListener('project-idle:encounter-finished', event => {

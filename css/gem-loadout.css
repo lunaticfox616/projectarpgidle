@@ -2,20 +2,20 @@
    각인 카드와 각인 툴팁의 색과 글자 크기(js/ui.js renderEngraveOptionFace, js/skill-gem-board-ui.js boardEngraveHint).
    보드 자체의 배치는 css/skill-gem-board.css 그대로다. 계열 색 --sigil 하나로 문양 상자, 타일 윗줄, 창의 카드 테를 함께 칠한다. */
 @layer features {
-/* ── 계열 색: 보조스킬룬은 효과 계열, 공격 룬은 속성(창은 #tab-skills 밖이라 속성색을 여기서 다시 정한다) ───────────── */
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune) { --sigil: #6fd3b0; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-phys { --sigil: #e8c79a; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-fire { --sigil: #ff9a76; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-cold { --sigil: #8fd3ff; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-lightning { --sigil: #ffe083; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-chaos { --sigil: #c7a6ff; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-elemental { --sigil: #f4efe2; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-speed { --sigil: #d9f27e; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-crit { --sigil: #ff9ed1; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-life { --sigil: #ff8a8a; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-guard { --sigil: #c9d3e2; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-summon { --sigil: #7ce3d2; }
-:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune).is-tone-arcane { --sigil: #a9b6ff; }
+/* ── 계열 색: 보조스킬룬은 효과 계열, 공격 룬은 속성(창은 #tab-skills 밖이라 속성색을 여기서 다시 정한다). 액트 보상 카드도 같은 색 ── */
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice) { --sigil: #6fd3b0; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-phys { --sigil: #e8c79a; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-fire { --sigil: #ff9a76; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-cold { --sigil: #8fd3ff; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-lightning { --sigil: #ffe083; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-chaos { --sigil: #c7a6ff; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-elemental { --sigil: #f4efe2; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-speed { --sigil: #d9f27e; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-crit { --sigil: #ff9ed1; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-life { --sigil: #ff8a8a; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-guard { --sigil: #c9d3e2; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-summon { --sigil: #7ce3d2; }
+:is(.support-sigil, .gem-tile, .gem-slot-card, .gem-slot-current, .build-review-rune, .reward-choice).is-tone-arcane { --sigil: #a9b6ff; }
 :is(.gem-slot-card, .gem-slot-current, .build-review-rune).element-fire { --sigil: #ff9a76; }
 :is(.gem-slot-card, .gem-slot-current, .build-review-rune).element-cold { --sigil: #8fd3ff; }
 :is(.gem-slot-card, .gem-slot-current, .build-review-rune).element-lightning { --sigil: #ffe083; }

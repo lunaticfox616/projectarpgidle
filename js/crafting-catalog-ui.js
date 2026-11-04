@@ -1,6 +1,6 @@
 // Resource inventory. Persistent discovery and pins belong to craftingWorkspaceState.
 const craftingCatalogUi = (() => {
-    const groups=[['all','전체'],['basic','기본 재화'],['spore','홀씨'],['fossil','화석'],['special','특수 제작'],['omen','뿌리']];
+    const groups=[['all','전체'],['basic','기본 재화'],['fossil','화석'],['special','특수 제작'],['omen','뿌리']];
 
     const separateMaterials=new Set(craftingWorkspaceState.separate);
     let craftingOnly=false;
@@ -11,12 +11,9 @@ const craftingCatalogUi = (() => {
     const esc=value=>escapeHTML(String(value));
     const name=key=>ORB_DB[key].name.replace(/^[^가-힣A-Za-z0-9]+/u,'');
 
+    /** 수확 계열의 식물(그 색의 꽃, 열매, 덩굴, 뿌리)이 없을 때의 말. */
     function sporeShortage(mode) {
-        const kinds={fire:['sporeFire','화염'],cold:['sporeCold','냉기'],light:['sporeLight','번개']};
-        const combined=mode==='chaos'||mode==='damage';
-        const costs=(combined?Object.values(kinds):[kinds[mode]]).map(([key,label])=>
-            `${combined?label+' ':''}${game.currencies[key]||0} / ${getSporeCraftCost()}`);
-        return `홀씨 부족 (${costs.join(', ')})`;
+        return `${stumpBox.harvestPriceName(getSporeCraftPriceKey(mode))} 없음`;
     }
 
     function catalogCapture() { craftingWorkspaceState.capture(game); }
@@ -24,7 +21,7 @@ const craftingCatalogUi = (() => {
     function catalogVisible(key) {return !!catalogGroup(key)&&game.craftingWorkspace.discovered.includes(key)&&contentProgression.canDropCurrency(key);}
     const listed=key=>catalogVisible(key)&&(!craftingOnly||!separateMaterials.has(key));
     const pinned=()=>pins().map(key=>catalogVisible(key)?key:null);
-    const theme=key=>({sporeFire:'fire',sporeCold:'cold',sporeLight:'light'})[key]||catalogGroup(key);
+    const theme=catalogGroup;
     const styledName=key=>`<span class="cl-currency-name" data-theme="${theme(key)}">${window.getStyledOrbName(key)}</span>`;
 
     function catalogGroup(key) { return craftingWorkspaceState.group(key); }
@@ -44,7 +41,6 @@ const craftingCatalogUi = (() => {
         venomStinger:'무기 공격 옵션 추가/재설정',voidChisel:'장신구 소켓, 공허 주얼 제작',
         oceanRerollShard:'봉인되지 않은 무작위 추가 옵션 1줄 교체',
         altarEmber:'베이스 옵션 1줄을 태양 줄로',altarIchor:'베이스 옵션 1줄을 허기 줄로',memoryImprint:'추가 옵션 새기기, 한 번 되돌리기',
-        sporeFire:'화염 홀씨, 함께 사용',sporeCold:'냉기 홀씨, 함께 사용',sporeLight:'번개 홀씨, 함께 사용',
         fossil:'타입별 화석으로 정제',fossilPrimal:'복원, 화석과 재화 획득',fossilAncientPrimal:'복원, 전용 화석과 고급 재화',
         fossilJagged:'물리/근접 1줄 확정, 희귀 재련',fossilBound:'생명/방어 1줄 확정, 희귀 재련',
         fossilGale:'속도/치명 1줄 확정, 희귀 재련',fossilPrismatic:'저항/원소 1줄 확정, 희귀 재련',
@@ -114,9 +110,9 @@ const craftingCatalogUi = (() => {
 
     function catalogRenderNavigation() {
         dialog.querySelector('#cl-catalog-title').textContent=craftingOnly?'제작 재화 선택':'재화 인벤토리';
-        if(craftingOnly&&['spore','omen'].includes(category))category='all';
+        if(craftingOnly&&category==='omen')category='all';
         dialog.querySelectorAll('[data-category]').forEach(tab=>{
-            tab.hidden=craftingOnly&&['spore','omen'].includes(tab.dataset.category);
+            tab.hidden=craftingOnly&&tab.dataset.category==='omen';
             tab.setAttribute('aria-pressed',String(tab.dataset.category===category));
         });
     }

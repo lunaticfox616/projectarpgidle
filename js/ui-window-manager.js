@@ -453,6 +453,15 @@
         return state.dockActive && pendingValue !== undefined ? { docked: false } : {};
     }
 
+    /** While a window moves or resizes the page selects and drags no text (2026-11-04 사용자: 창을 늘리고 줄이면 캐릭터 탭의 글이
+     * 끌렸고, 끌린 글이 포인터를 가져가 대각선 늘리기도 끊겼다). on: the gesture starts; false: it ends. */
+    const stopTextDrag = event => event.preventDefault();
+    function holdTextStill(on) {
+        document.documentElement.classList.toggle('ui-window-gesture', on);
+        document[on ? 'addEventListener' : 'removeEventListener']('selectstart', stopTextDrag, true);
+        document[on ? 'addEventListener' : 'removeEventListener']('dragstart', stopTextDrag, true);
+        if (on) window.getSelection()?.removeAllRanges();
+    }
     function beginWindowDrag(event, tabId) {
         if (event.button !== undefined && event.button !== 0) return;
         if (event.target.closest('button,input,select,textarea,a')) return;
@@ -467,6 +476,8 @@
         delete el.dataset.pendingY;
         focusWindow(tabId);
         titlebar.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        holdTextStill(true);
         let move = moveEvent => {
             let rect = getFreeWindowRect();
             let x = clampNumberLocal(st.x + (moveEvent.clientX - startX) / uiDisplay.factor, rect.left, rect.left + rect.width - st.width, st.x);
@@ -481,6 +492,7 @@
             titlebar.removeEventListener('pointermove', move);
             titlebar.removeEventListener('pointerup', up);
             titlebar.removeEventListener('pointercancel', up);
+            holdTextStill(false);
             persistWindowState(tabId, { x: Number(el.dataset.pendingX || st.x), y: Number(el.dataset.pendingY || st.y), ...undockPatch(st, el.dataset.pendingX) });
             applyWindowState(tabId);
             syncWorkspacePresentation();
@@ -517,6 +529,8 @@
         let next = { x: st.x, y: st.y, width: st.width, height: st.height };
         delete el.dataset.pendingWidth;
         handle.setPointerCapture(event.pointerId);
+        event.preventDefault();
+        holdTextStill(true);
         let move = moveEvent => {
             next = windowResizedRect(st, def, edges, (moveEvent.clientX - startX) / uiDisplay.factor, (moveEvent.clientY - startY) / uiDisplay.factor);
             Object.assign(el.style, { left: `${next.x}px`, top: `${next.y}px`, width: `${next.width}px`, height: `${next.height}px` });
@@ -527,6 +541,7 @@
             handle.removeEventListener('pointermove', move);
             handle.removeEventListener('pointerup', up);
             handle.removeEventListener('pointercancel', up);
+            holdTextStill(false);
             persistWindowState(tabId, { ...next, ...undockPatch(st, el.dataset.pendingWidth) });
             applyWindowState(tabId);
             syncWorkspacePresentation();

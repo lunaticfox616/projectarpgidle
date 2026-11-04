@@ -1493,9 +1493,6 @@ const ORB_DB = {
     pollen: { name: '꽃가루', desc: '아틀라스 패시브 ‘여왕의 방’이 있으면 지도에서 10개씩 써서 벌 이벤트를 일으킵니다. 벌집 원정의 불리한 선택지가 가져가기도 합니다.' },
     beeswax: { name: '밀랍', desc: '벌집 원정을 연 뒤 혼돈 사냥, 벌집 원정과 아틀라스 ‘여왕의 방’의 지도 벌 이벤트에서 얻는 벌 재화입니다. 그루터기 함의 부적에 발라 옵션 한 줄을 일부 복사해 붙입니다(부적마다 한 번).' },
     awakenedEcho: { name: '각성 잔향', desc: '‘해금’의 룬 각성을 열면 정예, 보스에게서 발견되는 각성 재료입니다. Lv.20 이상의 공격 룬을 각성 룬으로 변환해 룬 자체 보너스를 부여할 때 사용됩니다. 각성 각인은 각성 룬이 아니어도 모든 공격 룬에 부여할 수 있습니다.' },
-    sporeFire: { name: '화염 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
-    sporeCold: { name: '냉기 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
-    sporeLight: { name: '번개 홀씨', desc: '속성 홀씨 제작 태그에 사용됩니다.' },
     voidChisel: { name: '공허의 끌', desc: '반지, 목걸이, 허리띠에 주얼을 끼울 공허 소켓을 한 칸 뚫습니다. 다른 장비는 잿불가지 타락으로만 소켓이 생깁니다.' },
     sealShard: { name: '봉인편린', desc: '고대 미궁에서 떨어집니다. 그루터기 함에서 하나로 부적 하나를 풉니다.' },
     strongSealShard: { name: '강력한 기운의 봉인편린', desc: '희귀한 고급 봉인편린입니다. 줄이 둘인 더 강한 부적을 풉니다.' },
@@ -1551,8 +1548,8 @@ function normalizeCraftChoice(value) {
 
 // Wallet counters that are not ORB_DB items (no crafting use): the wide-map escrow can hold them, so loot lists name them too.
 const WALLET_CURRENCY_INFO = Object.freeze({
-    colonyShard: Object.freeze({ name: '군락지 편린', desc: '군락지에서 얻고 액막이를 해체해도 나옵니다. 30개로 군락지 화면에서 액막이를 만듭니다.' }),
-    colonyTrace: Object.freeze({ name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지에 들어갈 때 씁니다.' })
+    colonyShard: Object.freeze({ icon: 'assets/ui/currency/colony-shard.png', name: '군락지 편린', desc: '군락지에서 얻고 액막이를 해체해도 나옵니다. 30개로 군락지 화면에서 액막이를 만듭니다.' }),
+    colonyTrace: Object.freeze({ icon: 'assets/ui/currency/colony-trace.png', name: '군락지 흔적', desc: '군락지 지배체가 남깁니다. 군락지에 들어갈 때 씁니다.' })
 });
 /** Name and description of any wallet currency: ORB_DB items first, then the wallet-only counters. */
 function getCurrencyInfo(key) {
@@ -1581,7 +1578,6 @@ const CURRENCY_CARD_TONES = Object.freeze({
     uberRootTicketFlame: '#ff9a76', uberRootTicketFrost: '#8fd3ff', uberRootTicketStorm: '#ffe083', uberRootTicketChaos: '#c7a6ff',
     runeShard: '#b9a8e0', underCopper: '#d0926a', underSilver: '#cfd6e0', underGold: '#ffd56a',
     hiveKey: '#ffd56a', enchantedHoney: '#ffc24d', venomStinger: '#b8e05a', pollen: '#f0e27a', beeswax: '#e8cf8a',
-    sporeFire: '#ff9a76', sporeCold: '#8fd3ff', sporeLight: '#ffe083',
     sealShard: '#d8c8a0', strongSealShard: '#e9c46a', radiantSealShard: '#fff0b0',
     reefFragment: '#7fd8c8', oceanRerollShard: '#6fb8e8', altarEmber: '#ff9a55', altarIchor: '#e07a8f',
     omenPruning: '#a8e08a', omenCompost: '#c9a36a', omenWeave: '#9fd3ff', omenPyre: '#ff9a55', omenHunger: '#e07a8f'
@@ -1604,7 +1600,7 @@ function getStyledOrbName(orbKey) {
 // Natural drops require at least one usable content branch. Exchanges, refunds and entry rewards keep their own contracts.
 for (const [unlock, keys] of [
     ['craft', ['omenPruning','omenCompost','omenWeave','omenPyre','omenHunger','memoryImprint','magicBud','sapBud','formlessDew','goldenRule','fairyRing','pruningShears','blightSpore','ouroboros','blessing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','oilFire','oilCold','oilLight','oilChaos','enchantedHoney','venomStinger','oceanRerollShard']],
-    ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift','sporeFire','sporeCold','sporeLight']],
+    ['fossil', ['fossil','fossilPrimal','fossilAncientPrimal','fossilPrimordial','fossilJagged','fossilBound','fossilGale','fossilPrismatic','fossilAbyssal','fossilBulwark','fossilWedge','fossilOld','fossilRift']],
     ['gemForge', ['bossCore','skyEssence','awakenedEcho']],
     ['jewel', ['jewelShard','voidChisel']],
     ['talisman', ['sealShard','strongSealShard','radiantSealShard']]
@@ -1629,7 +1625,74 @@ const CURRENCY_ICON_PATHS = Object.freeze({
     omenWeave: 'assets/ui/currency/omen-weave-v4.png',
     omenPyre: 'assets/ui/currency/omen-pyre-v4.png',
     omenHunger: 'assets/ui/currency/omen-hunger-v4.png',
-    memoryImprint: 'assets/ui/currency/memory-imprint-v4.png'
+    memoryImprint: 'assets/ui/currency/memory-imprint-v4.png',
+    // 바닥 드랍 그림(Codex, 2026-11-04, artifacts/ground-loot-icons-20261104): 48px, 바닥 더미와 지갑과 상점에 같은 그림이 나온다.
+    skyEssence: 'assets/ui/currency/sky-essence.png',
+    condensedSkyPower: 'assets/ui/currency/condensed-sky-power.png',
+    awakenedEcho: 'assets/ui/currency/awakened-echo.png',
+    bossCore: 'assets/ui/currency/boss-core.png',
+    jewelShard: 'assets/ui/currency/jewel-shard.png',
+    runeShard: 'assets/ui/currency/rune-shard.png',
+    underCopper: 'assets/ui/currency/under-copper.png',
+    underSilver: 'assets/ui/currency/under-silver.png',
+    underGold: 'assets/ui/currency/under-gold.png',
+    reefFragment: 'assets/ui/currency/reef-fragment.png',
+    oceanRerollShard: 'assets/ui/currency/ocean-reroll-shard.png',
+    pollen: 'assets/ui/currency/pollen.png',
+    beeswax: 'assets/ui/currency/beeswax.png',
+    venomStinger: 'assets/ui/currency/venom-stinger.png',
+    enchantedHoney: 'assets/ui/currency/enchanted-honey.png',
+    sporeFire: 'assets/ui/currency/spore-fire.png',
+    sporeCold: 'assets/ui/currency/spore-cold.png',
+    sporeLight: 'assets/ui/currency/spore-light.png',
+    voidChisel: 'assets/ui/currency/void-chisel.png',
+    deepWhetstone: 'assets/ui/currency/deep-whetstone.png',
+    rootIron: 'assets/ui/currency/root-iron.png',
+    jewelPolish: 'assets/ui/currency/jewel-polish.png',
+    abyssCatalyst: 'assets/ui/currency/abyss-catalyst.png',
+    catalystFire: 'assets/ui/currency/catalyst-fire.png',
+    catalystCold: 'assets/ui/currency/catalyst-cold.png',
+    catalystLight: 'assets/ui/currency/catalyst-light.png',
+    catalystChaos: 'assets/ui/currency/catalyst-chaos.png',
+    catalystPhys: 'assets/ui/currency/catalyst-phys.png',
+    catalystCrit: 'assets/ui/currency/catalyst-crit.png',
+    catalystSummon: 'assets/ui/currency/catalyst-summon.png',
+    bossKeyFlame: 'assets/ui/currency/boss-key-flame.png',
+    bossKeyFrost: 'assets/ui/currency/boss-key-frost.png',
+    bossKeyStorm: 'assets/ui/currency/boss-key-storm.png',
+    beastKeyCerberus: 'assets/ui/currency/beast-key-cerberus.png',
+    trialKey3: 'assets/ui/currency/trial-key3.png',
+    chaosKey: 'assets/ui/currency/chaos-key.png',
+    coreKey: 'assets/ui/currency/core-key.png',
+    rivalKey: 'assets/ui/currency/rival-key.png',
+    cosmosSovereignKey: 'assets/ui/currency/cosmos-sovereign-key.png',
+    hiveKey: 'assets/ui/currency/hive-key.png',
+    uberRootTicketFlame: 'assets/ui/currency/uber-root-ticket-flame.png',
+    uberRootTicketFrost: 'assets/ui/currency/uber-root-ticket-frost.png',
+    uberRootTicketStorm: 'assets/ui/currency/uber-root-ticket-storm.png',
+    uberRootTicketChaos: 'assets/ui/currency/uber-root-ticket-chaos.png',
+    altarEmber: 'assets/ui/currency/altar-ember.png',
+    altarIchor: 'assets/ui/currency/altar-ichor.png',
+    fossil: 'assets/ui/currency/fossil.png',
+    fossilJagged: 'assets/ui/currency/fossil-jagged.png',
+    fossilBound: 'assets/ui/currency/fossil-bound.png',
+    fossilGale: 'assets/ui/currency/fossil-gale.png',
+    fossilPrismatic: 'assets/ui/currency/fossil-prismatic.png',
+    fossilBulwark: 'assets/ui/currency/fossil-bulwark.png',
+    fossilWedge: 'assets/ui/currency/fossil-wedge.png',
+    fossilOld: 'assets/ui/currency/fossil-old.png',
+    fossilRift: 'assets/ui/currency/fossil-rift.png',
+    fossilPrimal: 'assets/ui/currency/fossil-primal.png',
+    fossilAncientPrimal: 'assets/ui/currency/fossil-ancient-primal.png',
+    fossilPrimordial: 'assets/ui/currency/fossil-primordial.png',
+    fossilAbyssal: 'assets/ui/currency/fossil-abyssal.png',
+    sealShard: 'assets/ui/currency/seal-shard.png',
+    strongSealShard: 'assets/ui/currency/strong-seal-shard.png',
+    radiantSealShard: 'assets/ui/currency/radiant-seal-shard.png',
+    oilFire: 'assets/ui/currency/oil-fire.png',
+    oilCold: 'assets/ui/currency/oil-cold.png',
+    oilLight: 'assets/ui/currency/oil-light.png',
+    oilChaos: 'assets/ui/currency/oil-chaos.png'
 });
 Object.entries(CURRENCY_ICON_PATHS).forEach(([key, icon]) => {
     if (ORB_DB[key]) ORB_DB[key].icon = icon;

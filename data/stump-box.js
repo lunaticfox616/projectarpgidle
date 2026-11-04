@@ -79,6 +79,13 @@ const STUMP_BOX_SYNERGY = Object.freeze({
 // 수확 일지(2026-10-07 해금 1차 A1): 처음 다 자란 꽃, 열매, 덩굴, 뿌리 × 5색 20칸(키 = 아이콘 이름 '<모양>-<색>', 2026-11-04 전: 꽃, 열매, 호박석 × 4색).
 // 한 줄(같은 모양 다섯 색)을 채우면 한 번 선물: 색을 골라 받는 씨앗 1개, 품질은 드랍 최고.
 const STUMP_BOX_HARVEST = Object.freeze({ rows: STUMP_BOX_KINDS, giftRoll: STUMP_BOX_DROPS.roll.max });
+// 수확 제작(2026-11-04 사용자, 전: 사냥에서 얻는 속성 홀씨 10개): 제작 재화와 함께 쓰는 계열 보장 한 번에 그 계열 색의 다 자란 식물(꽃, 열매,
+// 덩굴, 뿌리 어느 것이든) 하나. 계열 → 색이고 피해 계열은 물리다. 부패는 rot의 세 색 하나씩, 균열은 미궁 화석 하나와 riftKind 하나(색은 상관없다).
+const STUMP_BOX_HARVEST_CRAFT = Object.freeze({
+    colors: Object.freeze({ fire: 'fire', cold: 'cold', light: 'lightning', chaos: 'chaos', damage: 'physical' }),
+    rot: Object.freeze(['fire', 'cold', 'lightning']),
+    riftKind: 'root'
+});
 
 // 그루터기 함 해금(2026-10-07 1차, docs/stump-box-unlocks-review-20261007.md). 조건은 저장하지 않고 계산한다:
 // loop = 최고 도달 루프 이상, journal = 그 저널을 얻음, harvestRows = 수확 일지에서 채운 줄 수 이상,
@@ -316,6 +323,6 @@ const STUMP_BOX_ANCIENT = Object.freeze({ graftRanks: 1 });
 safeExposeData({
     STUMP_BOX_SIZE, STUMP_BOX_COLORS, STUMP_BOX_OVERCOMES, STUMP_BOX_FEEDS, STUMP_BOX_CELL_ORDER, STUMP_BOX_OPENING,
     STUMP_BOX_GROWTH, STUMP_BOX_KINDS, STUMP_BOX_DROPS, STUMP_BOX_COMPOST, STUMP_BOX_NURSERY, STUMP_BOX_ROLL_LIMIT, STUMP_BOX_STORAGE_BASE, STUMP_BOX_SYNERGY, STUMP_BOX_GRAFT, STUMP_BOX_YIELDS, STUMP_BOX_STAGES,
-    STUMP_BOX_HARVEST, STUMP_BOX_UNLOCKS, STUMP_BOX_RIPENING, STUMP_BOX_EXTRA_LINES, STUMP_BOX_SCAR, STUMP_BOX_BREEDING, STUMP_BOX_SEED_POUCH,
+    STUMP_BOX_HARVEST, STUMP_BOX_HARVEST_CRAFT, STUMP_BOX_UNLOCKS, STUMP_BOX_RIPENING, STUMP_BOX_EXTRA_LINES, STUMP_BOX_SCAR, STUMP_BOX_BREEDING, STUMP_BOX_SEED_POUCH,
     STUMP_BOX_BULK_COMPOST, STUMP_BOX_TALISMAN_CODEX, STUMP_BOX_ANCIENT
 });

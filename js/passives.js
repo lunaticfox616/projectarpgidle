@@ -5948,8 +5948,9 @@ function openActReward(zoneId) {
     document.getElementById('reward-kicker').innerText = storyAct ? `${formatStoryActLabel(storyAct)} 클리어 보상` : '액트 클리어 보상';
     document.getElementById('reward-title').innerText = storyAct ? storyAct.title : config.title;
     const nextAct = zoneId < 9 ? getStoryActByZoneId(zoneId + 1) : null;
-    const body = storyAct ? `${storyAct.subtitle}\n${config.body}` : config.body;
-    document.getElementById('reward-body').innerText = body + (nextAct ? `\n다음: ${formatStoryActLabel(nextAct)} 「${nextAct.title}」` : '');
+    // 지역 이야기 줄은 흐린 글로 먼저, 다음 액트는 아래 나중에 단추 옆으로(2026-11-04 사용자: 간소화)
+    document.getElementById('reward-body').innerHTML = (storyAct ? `<span class="reward-story">${escapeHTML(storyAct.subtitle)}</span>\n` : '') + escapeHTML(config.body);
+    document.getElementById('reward-next').textContent = nextAct ? `다음: ${formatStoryActLabel(nextAct)} 「${nextAct.title}」` : '';
     document.getElementById('reward-grid').innerHTML = getActRewardChoices(zoneId)
         .map((choice, index) => isActRewardChoiceAvailable(choice) ? renderActRewardChoice(zoneId, choice, index) : '').join('');
     document.getElementById('reward-overlay').classList.add('active');
@@ -5957,37 +5958,55 @@ function openActReward(zoneId) {
     lastTime = Date.now();
     watchActRewardAway();
 }
-/** 장비 선택지는 실제 지급할 베이스 그림을 쓴다. 다른 보상은 그림 없이 글만. */
-function actRewardChoiceArt(item) {
-    if (!item) return '';
-    return `<img class="reward-choice-art${item.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true">`;
+/** 능력치 보상의 그림: 스킬트리 노드 그림판(PASSIVE_ICON_ATLAS_CELL)의 칸 이름. */
+const ACT_REWARD_STAT_ICONS = Object.freeze({ resF: 'fire', resC: 'cold', resL: 'lightning', resAll: 'elemental', resChaos: 'chaos', pctHp: 'life', aspd: 'precision',
+    move: 'mobility', dr: 'armor', regen: 'cycle', meleePctDmg: 'blade', projectilePctDmg: 'projectile', elementalPctDmg: 'elemental', crit: 'precision',
+    critDmg: 'critical', leech: 'bleed', physIgnore: 'strength', resPen: 'void', gemLevel: 'arcane', suppCap: 'mystique' });
+/** 선택지의 색과 왼쪽 그림(2026-11-04 사용자: 색감): 장비는 등급 색과 부위 그림(실제 지급할 베이스), 보조스킬룬은 그 룬의 그림과 계열 색,
+ * 능력치와 포인트는 계열 색과 스킬트리 노드 그림, 화폐는 화폐 그림. @returns {{tone:string, art:string}} tone은 카드의 is-* 클래스 */
+function actRewardChoiceLook(choice, item) {
+    if (item) return { tone: `rarity-${choice.rarity || 'magic'}`, art: `<img class="reward-choice-art${item.slot === '무기' ? ' is-weapon' : ''}" src="${getEquipmentGridVisualAsset(item)}" alt="">` };
+    const look = ACT_REWARD_KIND_LOOKS[choice.kind];
+    return look ? look(choice) : { tone: 'tone-arcane', art: actRewardTreeArt(choice.kind === 'points' ? 'constellation' : 'arcane') };
 }
-/** 장비는 고정 베이스와 알려진 옵션, 능력치 보상은 고르면 바뀌는 DPS와 생명력을 표시한다. */
+const ACT_REWARD_KIND_LOOKS = Object.freeze({
+    support: choice => {
+        const cell = getSupportRuneArtCell(choice.gem);
+        return { tone: `tone-${getSupportRuneTone(choice.gem)}`, art: cell ? `<span class="support-rune-art" style="--col:${cell.col};--row:${cell.row}"></span>` : actRewardTreeArt('mystique') };
+    },
+    currency: choice => {
+        const coin = ORB_DB[choice.currency]?.icon;
+        return { tone: 'tone-phys', art: coin ? `<img class="reward-choice-art" src="${coin}" alt="">` : actRewardTreeArt('constellation') };
+    },
+    stat: choice => ({ tone: `tone-${STAT_TONES[choice.stat] || 'neutral'}`, art: actRewardTreeArt(ACT_REWARD_STAT_ICONS[choice.stat]) })
+});
+function actRewardTreeArt(name) {
+    const cell = PASSIVE_ICON_ATLAS_CELL[name] || PASSIVE_ICON_ATLAS_CELL.arcane;
+    return `<span class="reward-choice-tree" style="--col:${cell[0]};--row:${cell[1]}"></span>`;
+}
+/** 장비는 고정 베이스와 알려진 옵션, 능력치 보상은 고르면 바뀌는 DPS와 생명력을 표시한다. 이름을 되풀이하던 미리보기 줄
+ * ('화염 저항(%) +9%', '마법의 새싹 2개를 얻습니다.')은 2026-11-04에 뺐다. */
 function renderActRewardChoice(zoneId, choice, index) {
     const item = choice.kind === 'item' ? buildActRewardPreviewItem(zoneId, choice) : null;
-    const preview = item ? actRewardItemPreview(choice, item)
-        : `<small>${getActRewardPreview(choice)}${formatActRewardDps(measureActRewardDps(zoneId, choice))}</small>`;
+    const look = actRewardChoiceLook(choice, item);
+    const detail = item ? actRewardItemPreview(choice, item) : formatActRewardDps(measureActRewardDps(zoneId, choice));
     return `
-        <button class="reward-choice" data-choice-key="${encodeURIComponent(choice.claimKey)}" onclick="claimActRewardChoice(${zoneId}, ${index}, this.dataset.choiceKey)">
-            ${actRewardChoiceArt(item)}<strong>${choice.label}</strong>
-            ${choice.desc ? `<span>${choice.desc}</span>` : ''}
-            ${preview}
+        <button class="reward-choice is-${look.tone}" data-choice-key="${encodeURIComponent(choice.claimKey)}" onclick="claimActRewardChoice(${zoneId}, ${index}, this.dataset.choiceKey)">
+            <span class="reward-choice-icon" aria-hidden="true">${look.art}</span><strong>${choice.label}</strong>
+            ${choice.desc ? `<span class="reward-choice-desc">${choice.desc}</span>` : ''}
+            ${detail}
         </button>
     `;
 }
-/** 실제 베이스 수치와 고정 추가 옵션을 표시하며, 지급 때 무작위로 붙는 추가 옵션은 ?로 남긴다. */
+/** 등급과 가는 곳은 이름 옆 꼬리표, 베이스 이름 뒤에 베이스 옵션과 고정 추가 옵션을 칩으로. 지급 때 무작위로 붙는 추가 옵션은 ?로 남긴다. */
 function actRewardItemPreview(choice, item) {
     const rarity = ITEM_RARITY_LABELS[choice.rarity] || '';
     const slot = getEquipCandidateSlots(item).find(name => Object.hasOwn(game.equipment, name) && !game.equipment[name]);
     const equips = game.settings.autoEquipEmptySlots !== false && slot && combatEquipmentStats.inspect(item, slot).ok;
-    const optionText = stat => escapeHTML(`${stat.statName || getStatName(stat.id)} ${formatSignedValue(stat.id, stat.val)}`);
-    const extra = choice.fixedStarter ? item.stats.map(optionText).join(' · ') : '?';
-    return `<small>${rarity ? `${rarity} 등급, ` : ''}${equips ? '빈 칸에 바로 장착됩니다' : '가방으로 들어갑니다'}</small>
-        <span class="reward-item-options">
-            <span>베이스: ${escapeHTML(item.baseName)}</span>
-            <span>베이스 옵션: ${item.baseStats.map(optionText).join(' · ') || '없음'}</span>
-            <span>추가 옵션: ${extra}</span>
-        </span>`;
+    const chip = (stat, className) => `<i${className ? ` class="${className}"` : ''}>${escapeHTML(`${stat.statName || getStatName(stat.id)} ${formatSignedValue(stat.id, stat.val)}`)}</i>`;
+    const extra = choice.fixedStarter ? item.stats.map(stat => chip(stat, 'is-extra')).join('') : '<i class="is-unknown">추가 옵션 ?</i>';
+    return `<span class="reward-choice-tags">${rarity ? `<em>${rarity} 등급</em>` : ''}<em>${equips ? '바로 장착' : '가방으로'}</em></span>
+        <span class="reward-item-options"><b>${escapeHTML(item.baseName)}</b>${item.baseStats.map(stat => chip(stat)).join('')}${extra}</span>`;
 }
 /** 능력치 보상의 DPS와 생명력 변화만 게임 사본에 적용해 잰다. 장비·룬·포인트는 비교하지 않는다. */
 function measureActRewardDps(zoneId, choice) {
@@ -6031,14 +6050,6 @@ function buildActRewardPreviewItem(zoneId, choice) {
 function formatActRewardDps(change) {
     const parts = change ? buildStatPreviewParts(change) : '';
     return parts ? `<b class="reward-choice-dps">${parts}</b>` : '';
-}
-function getActRewardPreview(choice) {
-    if (choice.kind === 'skill') return `${choice.skill} 공격 룬을 획득합니다.`;
-    if (choice.kind === 'support') return `${choice.gem} 보조스킬룬을 획득합니다.`;
-    if (choice.kind === 'points') return `즉시 포인트 ${choice.value}점을 얻습니다.`;
-    if (choice.kind === 'currency') return `${ORB_DB[choice.currency].name} ${choice.fallbackValue || choice.value || 1}개를 얻습니다.`;
-    if (choice.kind === 'stat') return `${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`;
-    return '영구 보상';
 }
 /** 장비 보상은 그 액트에서 나올 바탕 하나(무기는 직업 대표 무기의 대분류, getActRewardChoices)를 마법 등급으로 준다. 빈 칸이면 바로 낀다. */
 function grantActRewardItem(zoneId, choice) {
@@ -10499,12 +10510,13 @@ function getAvailableSporeCraftModes() {
     return modes;
 }
 
-/** 혼돈 · 피해 홀씨는 고급 홀씨 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통). */
+/** 카오스 · 피해 계열 수확 제작은 고급 수확 제작 해금 뒤에만 쓴다. 저장된 선택도 쓰는 순간 다시 본다(제작 · 미리보기 · 다시 사용 공통).
+ * 이름의 spore는 이 제작의 옛 이름(홀씨)이다: 계열 선택(game.sporeCraftModes)과 줄의 출처(craftSource 'spore')가 저장에 그대로 남는다. */
 function getSporeCraftBlockReason(item, actionKey, mode, omen = null) {
-    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '혼돈, 피해 홀씨 제작은 고급 홀씨를 해금해야 쓸 수 있습니다.';
+    if (['chaos', 'damage'].includes(mode) && !getAvailableSporeCraftModes().includes(mode)) return '카오스, 피해 계열 수확 제작은 고급 수확 제작을 해금해야 쓸 수 있습니다.';
     const reason = equipmentCrafting.getSporeBlockReason(item, actionKey, mode);
     if (reason || mode === 'none' || !equipmentCrafting.basicActions.includes(actionKey)) return reason;
-    return equipmentCrafting.sporePool(item, actionKey, mode, omen).length ? '' : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다.';
+    return equipmentCrafting.sporePool(item, actionKey, mode, omen).length ? '' : '선택한 수확 계열에서 새로 부여할 수 있는 옵션이 없습니다.';
 }
 
 function isSporeCraftEquipment(item) {
@@ -10513,53 +10525,52 @@ function isSporeCraftEquipment(item) {
     return EQUIPMENT_DROP_SLOTS.includes(slot);
 }
 
-// The elemental lines a rot spore removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
+// The elemental lines a rot harvest removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
 const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
+/** 부패 수확의 값: 화염, 냉기, 번개 식물 하나씩(data/stump-box.js STUMP_BOX_HARVEST_CRAFT.rot). */
+const rotHarvestKeys = () => STUMP_BOX_HARVEST_CRAFT.rot.map(color => stumpBox.harvestPriceKey('any', color));
+const riftHarvestKey = () => stumpBox.harvestPriceKey(STUMP_BOX_HARVEST_CRAFT.riftKind);
+const holdsHarvest = key => stumpBox.harvestPriceHeld(game, key) >= 1;
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 고급 홀씨를 해금해야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 수확은 고급 수확 제작을 해금해야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
+    if (!isSporeCraftEquipment(item)) return addLog('수확 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
     if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
-    let cost = 8;
-    if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(`부패 홀씨에는 각 속성 홀씨 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!rotHarvestKeys().every(holdsHarvest)) return addLog('부패 수확에는 화염, 냉기, 번개 식물이 하나씩 필요합니다.', 'attack-monster');
     let ids = new Set(ROT_SPORE_STAT_IDS);
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     let candidates = item.stats.map((stat, idx) => ({ stat, idx })).filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift && ids.has(row.stat.id));
     if (candidates.length <= 0) return addLog('제거할 원소 계열 옵션이 없습니다.', 'attack-monster');
-    game.currencies.sporeFire -= cost;
-    game.currencies.sporeCold -= cost;
-    game.currencies.sporeLight -= cost;
+    rotHarvestKeys().forEach(key => stumpBox.payHarvestPrice(game, key));
     let pick = rndChoice(candidates);
     let removed = item.stats.splice(pick.idx, 1)[0];
     updateItemName(item);
-    addLog(`🍄 부패 홀씨 적용: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-rare');
+    addLog(`🌿 부패 수확 적용: ${removed.statName || getStatName(removed.id)} 옵션 제거`, 'loot-rare');
     updateStaticUI();
 }
 
 function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 고급 홀씨를 해금해야 쓸 수 있습니다.', 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 수확은 고급 수확 제작을 해금해야 쓸 수 있습니다.', 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
+    if (!isSporeCraftEquipment(item)) return addLog('수확 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
     const craftBlock = equipmentCrafting.getBlockReason(item, 'fossil');
     if (craftBlock) return addLog(craftBlock, 'attack-monster');
-    if ((game.currencies.fossil || 0) < 1 || (game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return addLog('균열 홀씨에는 미궁 화석 1개와 각 속성 홀씨 5개가 필요합니다.', 'attack-monster');
+    if ((game.currencies.fossil || 0) < 1 || !holdsHarvest(riftHarvestKey())) return addLog('균열 수확에는 미궁 화석 1개와 뿌리 1개가 필요합니다.', 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     if (item.stats.length >= EXPLICIT_AFFIX_LINE_CAP) return addLog('옵션이 가득 차 있습니다.', 'attack-monster');
     let pool = typeof getFossilExclusivePool === 'function' ? getFossilExclusivePool(item) : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
     if (!pool || pool.length <= 0) return addLog('이 장비 슬롯에 붙일 수 있는 화석 전용 옵션이 없습니다.', 'attack-monster');
     game.currencies.fossil--;
-    game.currencies.sporeFire -= 5;
-    game.currencies.sporeCold -= 5;
-    game.currencies.sporeLight -= 5;
+    stumpBox.payHarvestPrice(game, riftHarvestKey());
     let roll = rollAffixValue(pickWeightedMod(pool), getItemCraftTier(item));
     roll.fossilExclusiveSpore = true;
     roll.craftSource = 'fossil';
     item.stats.push(roll);
     item.rarity = item.rarity === 'normal' ? 'magic' : item.rarity;
     updateItemName(item);
-    addLog(`🍄 균열 홀씨 적용: ${roll.statName || getStatName(roll.id)} +${formatValue(roll.id, roll.val)}`, 'loot-unique');
+    addLog(`🌿 균열 수확 적용: ${roll.statName || getStatName(roll.id)} +${formatValue(roll.id, roll.val)}`, 'loot-unique');
     updateStaticUI();
 }
 
@@ -10628,22 +10639,14 @@ function getAnnulmentRemovableStats(item) {
         .filter(row => isRemovableExplicitStat(row.stat));
 }
 
-function getSporeCraftCost() {
-    return 10;
+/** 수확 계열 하나의 값: 그 계열 색의 다 자란 식물 하나(data/stump-box.js STUMP_BOX_HARVEST_CRAFT, 꽃, 열매, 덩굴, 뿌리 어느 것이든). */
+function getSporeCraftPriceKey(mode) {
+    return stumpBox.harvestPriceKey('any', STUMP_BOX_HARVEST_CRAFT.colors[mode]);
 }
 
 function hasSporeCraftCost(mode) {
-    if (!mode || mode === 'none') return true;
-    let cost = getSporeCraftCost();
-    if (mode === 'fire') return (game.currencies.sporeFire || 0) >= cost;
-    if (mode === 'cold') return (game.currencies.sporeCold || 0) >= cost;
-    if (mode === 'light') return (game.currencies.sporeLight || 0) >= cost;
-    if (mode === 'chaos' || mode === 'damage') {
-        return (game.currencies.sporeFire || 0) >= cost
-            && (game.currencies.sporeCold || 0) >= cost
-            && (game.currencies.sporeLight || 0) >= cost;
-    }
-    return true;
+    if (!mode || mode === 'none' || !Object.hasOwn(STUMP_BOX_HARVEST_CRAFT.colors, mode)) return true;
+    return holdsHarvest(getSporeCraftPriceKey(mode));
 }
 
 // 잿불가지(타락) 제작 결과(2026-10-05 사용자 요청, data/items.js TAINTED_CRAFT_OUTCOMES): 이 장비에 쓸 수 없는 결과는 빼고 남은 비중으로 한 번 고른다.
@@ -10714,7 +10717,7 @@ function corruptCraftedItem(item) {
  * @param {string} currencyKey Crafting action; pays one of that currency.
  * @returns {Promise<true|undefined>} True only after the item and payment are committed.
  */
-// 제작실의 재화 한 번(js/crafting-workspace-ui.js workspaceExecuteCraft): 막는 까닭, 홀씨와 뿌리 준비, 값 치르기, 효과, 기록.
+// 제작실의 재화 한 번(js/crafting-workspace-ui.js workspaceExecuteCraft): 막는 까닭, 수확 보장과 뿌리 준비, 값 치르기, 효과, 기록.
 // 2026-10-18 정리: 한 함수(복잡도 145, 288줄)를 책임별로 나눴다. 기본 제작의 굴림은 js/equipment-crafting.js가 맡는다.
 const craftCurrencyUse = (() => {
     const qualityFits = slots => item => slots.includes(String(item.slot || '')) && Math.max(0, Math.floor(item.quality || 0)) < 20 && !item.qualityLockedByLimitBreak;
@@ -10742,25 +10745,22 @@ const craftCurrencyUse = (() => {
         return Object.hasOwn(FITS, action) && FITS[action](item) ? '' : '지금 선택한 아이템에는 사용할 수 없습니다.';
     }
 
-    /** The spore mode set for this currency; spores guarantee lines on gear only. */
+    /** The harvest line family set for this currency (saved as a spore mode); it guarantees lines on gear only. */
     function sporeMode(item, currencyKey) {
         game.sporeCraftModes = game.sporeCraftModes || {};
         return isSporeCraftEquipment(item) ? (game.sporeCraftModes[currencyKey] || 'none') : 'none';
     }
-    /** Why the spore guarantee stops a basic craft, or '': the mode's unlock, no line of the family to give, or too few spores. */
+    /** Why the harvest guarantee stops a basic craft, or '': the family's unlock, no line of the family to give, or no plant of its colour. */
     function sporeReason(item, action, mode, guaranteedMod) {
         const blocked = getSporeCraftBlockReason(item, action, mode);
         if (blocked || mode === 'none' || !equipmentCrafting.basicActions.includes(action)) return blocked;
-        if (!guaranteedMod) return equipmentCrafting.rerollActions.includes(action) ? '이 장비에는 선택한 홀씨로 출현 가능한 옵션이 없어 제작할 수 없습니다.'
-            : '선택한 홀씨 계열에서 새로 부여할 수 있는 옵션이 없습니다. 홀씨 모드를 미사용으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.';
-        return hasSporeCraftCost(mode) ? '' : '홀씨가 부족해 제작을 시작하지 않았습니다.';
+        if (!guaranteedMod) return equipmentCrafting.rerollActions.includes(action) ? '이 장비에는 선택한 수확 계열로 출현 가능한 옵션이 없어 제작할 수 없습니다.'
+            : '선택한 수확 계열에서 새로 부여할 수 있는 옵션이 없습니다. 수확 제작을 사용 안 함으로 바꾸거나 해당 계열의 기존 옵션을 제거하세요.';
+        return hasSporeCraftCost(mode) ? '' : '식물이 없어 제작을 시작하지 않았습니다.';
     }
-    const ALL_SPORES = Object.freeze(['sporeFire', 'sporeCold', 'sporeLight']);
-    const SPORE_KEYS = Object.freeze({ fire: ['sporeFire'], cold: ['sporeCold'], light: ['sporeLight'], chaos: ALL_SPORES, damage: ALL_SPORES });
+    /** One plant of the family's colour: stored currency first, then the plainest stored plant (js/stump-box.js payHarvestPrice). */
     function spendSpores(mode) {
-        if (mode === 'none') return;
-        const cost = getSporeCraftCost();
-        (SPORE_KEYS[mode] || []).forEach(key => { game.currencies[key] -= cost; });
+        if (mode !== 'none') stumpBox.payHarvestPrice(game, getSporeCraftPriceKey(mode));
     }
     /** Everything decided before payment: { reason }, or { spore, guaranteedMod, omen, addedMod } (the spore mode a basic craft uses,
      * its guaranteed mod, the 제작 뿌리 it uses and the line a 수액 봉오리 on a rare adds). */
@@ -10882,7 +10882,7 @@ const craftCurrencyUse = (() => {
     /** The action's effect on item; false when it could not happen after all (a fairy ring with no unique for the slot). */
     function apply(item, action, run) {
         if (!equipmentCrafting.basicActions.includes(action)) return EFFECTS[action](item, run);
-        // 홀씨 보장 줄: 첫 결과는 값을 치르기 전에 고른 종류로, 성화의 뿌리의 나머지 결과는 저마다 같은 풀에서 다시 골라 굴린다.
+        // 수확 보장 줄: 첫 결과는 값을 치르기 전에 고른 종류로, 성화의 뿌리의 나머지 결과는 저마다 같은 풀에서 다시 골라 굴린다.
         const guaranteedFor = copy => (run.guaranteedMod ? equipmentCrafting.rollSporeLine(copy,
             equipmentCrafting.pickSporeMod(copy, action, run.spore, run.omen) || run.guaranteedMod, run.omen) : null);
         equipmentCrafting.craftBasic(game, item, action, { addedMod: run.addedMod, guaranteedStat: equipmentCrafting.rollSporeLine(item, run.guaranteedMod, run.omen),
@@ -10908,7 +10908,7 @@ const craftCurrencyUse = (() => {
         spendSpores(run.spore);
         game.currencies[payment.key] -= payment.cost;
         if (apply(item, action, run) === false) return { ok: false, logs: run.logs };
-        const note = (run.spore !== 'none' && run.guaranteedMod ? `, 홀씨 보장: ${run.guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, run.omen);
+        const note = (run.spore !== 'none' && run.guaranteedMod ? `, 수확 보장: ${run.guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, run.omen);
         craftingResultLedger.commit(run.token, item);
         run.logs.push([`⚒️ ${ORB_DB[payment.key].name} 사용${note}`, 'loot-magic']);
         return { ok: true, logs: run.logs };
@@ -10964,7 +10964,7 @@ safeExposeGlobals({
     getDroppedAffixTierRange,
     rollRealmItemDropTier,
     getAnnulmentRemovableStats,
-    getSporeCraftCost,
+    getSporeCraftPriceKey,
     hasSporeCraftCost,
     isSporeCraftEquipment,
     getItemSalvageRewardProfile,

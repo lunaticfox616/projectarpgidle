@@ -117,7 +117,7 @@ const craftingGoalOptions = (() => {
     /** The live craft refuses a spore mode with nothing of its family left to give (js/passives.js useCurrency): so does practice. */
     function sporeGapReason(item, action, mode) {
         const spore = mode !== 'none' && isSporeCraftEquipment(item);
-        return spore && !equipmentCrafting.sporePool(item, action, mode).length ? '선택한 홀씨 계열에서 새로 붙을 수 있는 옵션이 없습니다.' : '';
+        return spore && !equipmentCrafting.sporePool(item, action, mode).length ? '선택한 수확 계열에서 새로 붙을 수 있는 옵션이 없습니다.' : '';
     }
 
     /** Roll on an isolated item only. Never swaps game, spends currency, allocates inventory ids, logs or saves. The result keeps the
@@ -127,12 +127,12 @@ const craftingGoalOptions = (() => {
         const reason = rehearsalReason(item, recipe, mode, omen);
         if (reason) throw Error(reason);
         const result = JSON.parse(JSON.stringify(item)), action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
-        // 홀씨 보장은 실제 제작과 같은 함수로 고르고 굴린다(js/passives.js useCurrency와 같은 규칙).
+        // 수확 보장은 실제 제작과 같은 함수로 고르고 굴린다(js/passives.js useCurrency와 같은 규칙).
         let guaranteedStat = null;
         const used = equipmentCrafting.omenFits(item, action, omen, mode) ? omen : null;
         if (mode !== 'none' && isSporeCraftEquipment(item)) {
             const mod = equipmentCrafting.pickSporeMod(item, action, mode, omen);
-            if (!mod) throw Error('보장할 홀씨 옵션이 없습니다.');
+            if (!mod) throw Error('보장할 수확 옵션이 없습니다.');
             guaranteedStat = equipmentCrafting.rollSporeLine(item, mod, used);
         }
         equipmentCrafting.applyBasic(result, action, { guaranteedStat, omen: used });

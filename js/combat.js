@@ -10549,7 +10549,7 @@ function ownedAndReservedRuneState() {
 }
 
 /** One kill's loot, in its fixed roll order: awakened echoes, a rune, currencies, gear and talismans, a jewel, hive loot, a hive
- * key, a colony trace, a spore. Split into its steps on 2026-10-18 with the same rolls in the same order; log lines and the unlock
+ * key, a colony trace. Split into its steps on 2026-10-18 with the same rolls in the same order; log lines and the unlock
  * check reach the steps through ui. */
 function rollLootForEnemy(enemy, say = addLog) {
     let zone = getZone(game.currentZoneId) || getZone(0);
@@ -10574,8 +10574,8 @@ function rollLootForEnemy(enemy, say = addLog) {
     if (zone && zone.type === 'atlasMap' && atlasPassives.has(game, 'beeEvents')) maybeTriggerBeeMappingEvent(enemy);
     rollHiveKeyDrop(enemy, mappingZone, ui);
     rollColonyTraceDrop(zone, ui);
-    rollSporeDrop(enemy, zone, ui);
     rollKnittingYarn(enemy, zone);
+    dropLabyrinthGuardianFossils(enemy, zone, ui);
 }
 /** Threads share floor pickup and offline settlement. Reserve one-per-loop drops when laid, before the hero picks them up. */
 function rollKnittingYarn(enemy, zone) {
@@ -10685,27 +10685,6 @@ function rollColonyTraceDrop(zone, ui) {
         awardEnemyLootCurrency('colonyTrace', 1);
         ui.say('🧭 군락지 흔적을 발견했습니다.', 'loot-magic', { noToast: true });
     }
-}
-/** From the third loop acts and chaos give spores, leaning to the enemy's element. */
-function rollSporeDrop(enemy, zone, ui) {
-    let sporeUnlocked = contentProgression.canDropCurrency('sporeFire') && Math.max(0, Math.floor(game.loopCount || 0)) >= 2;
-    if (!(sporeUnlocked && zone && (zone.type === 'act' || zone.type === 'abyss'))) return;
-    if (!(Math.random() < sporeChanceOf(enemy))) return;
-    let key = rndChoice(sporePoolFor(enemy));
-    if (!keepCurrencyDrop(enemy, key, 1).floor) logSporeGain(key, ui);
-}
-/** 홀씨는 드물다(2026-11-02 사용자, 전에는 보스 32%, 정예 20%, 일반 11%): 처치 자리 바닥에 떨어져 주울 때 기록이 남는다. */
-const sporeChanceOf = enemy => (enemy.isBoss ? 0.08 : (enemy.isElite ? 0.04 : 0.015));
-function logSporeGain(key, ui) {
-    if (game.settings.showLootLog) ui.say(`🌱 ${typeof getStyledOrbName === 'function' ? getStyledOrbName(key) : ORB_DB[key].name} +1`, 'loot-magic');
-}
-/** The three spores, the enemy's element once more. */
-function sporePoolFor(enemy) {
-    let pool = ['sporeFire', 'sporeCold', 'sporeLight'];
-    if (enemy.ele === 'fire') pool.push('sporeFire');
-    if (enemy.ele === 'cold') pool.push('sporeCold');
-    if (enemy.ele === 'light') pool.push('sporeLight');
-    return pool;
 }
 
 
@@ -11887,12 +11866,9 @@ function finishLabyrinthEncounter(zone, mapAction, ui) {
     recordLoopBestFloor('bestLabyrinthFloor', clearedFloor);
     game.labyrinthUnlockedMaxFloor = Math.max(game.labyrinthUnlockedMaxFloor || 1, clearedFloor + 1);
     game.labyrinthFloor = ['repeatZone', 'stop'].includes(mapAction) ? clearedFloor : clearedFloor + 1;
-    let fossilSummary = rollLabyrinthFossils(clearedFloor, ui);
     rollLabyrinthSealShards(clearedFloor);
-    game.labyrinthLastResult = { season: game.season, floor: clearedFloor,
-        currencies: Object.fromEntries(Object.keys(ORB_DB).map(key => [key, (game.currencies[key] || 0) - (currenciesBefore[key] || 0)])
-            .filter(([, gain]) => gain > 0)) };
-    ui.say(`🏛️ 미궁 ${clearedFloor}층 돌파!${labyrinthFossilNote(fossilSummary)}`, 'season-up');
+    game.labyrinthLastResult = labyrinthFloorResult(clearedFloor, currenciesBefore);
+    ui.say(`🏛️ 미궁 ${clearedFloor}층 돌파!${labyrinthFossilNote(game.labyrinthLastResult.currencies)}`, 'season-up');
     if (mapAction === 'nextLoopBestPlusOne') {
         let nextZone = resolveNextLoopBestPlusOneZone(zone);
         if (nextZone !== null) game.currentZoneId = nextZone;
@@ -11902,42 +11878,44 @@ function finishLabyrinthEncounter(zone, mapAction, ui) {
     ui.redraw();
     queueImportantSave(200);
 }
-/** A labyrinth floor's fossils in their fixed roll order (base, typed, primal, ancient, abyssal); returns the first four's summary
- * for the clear's log line. */
-function rollLabyrinthFossils(clearedFloor, ui) {
-    let fossilDropMul = contentProgression.isUnlocked('fossil') ? 1 : 0;
-    let fossilRareMul = fossilDropMul;
-    let fossilChances = getLabyrinthFossilDropChances(clearedFloor, fossilDropMul, fossilRareMul);
-    let gotBaseFossil = Math.random() < fossilChances.base;
-    if (gotBaseFossil) awardCurrency('fossil', 1);
-    let fossilDropPool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly);
-    let rolledFossil = rndChoice(fossilDropPool);
-    let gotTypedFossil = Math.random() < fossilChances.typed;
-    if (gotTypedFossil) awardCurrency(rolledFossil.key, 1);
-    let primalFossils = contentProgression.isUnlocked('fossilRestore');
-    let gotPrimalFossil = primalFossils && Math.random() < fossilChances.primal;
-    let gotAncientPrimalFossil = primalFossils && Math.random() < fossilChances.ancient;
-    if (gotPrimalFossil) awardCurrency('fossilPrimal', 1);
-    if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
-    if (Math.random() < fossilChances.abyssal) {
-        awardCurrency('fossilAbyssal', 1);
-        ui.say('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
+/** 미궁 지배자의 화석(2026-11-04 사용자: 층을 깨면 그냥 받던 것을 보스가 떨어뜨려 직접 줍게): 층을 깰 때 굴리던 확률 그대로(기본, 종류,
+ * 원시, 원시 고대, 심연) 쓰러진 자리에 재화 드랍처럼 떨어진다. 떨어진 것은 바로 그 층의 결과(game.labyrinthLastResult, pending)에 적고,
+ * 층을 마칠 때 다른 보상과 합친다. 방에 난입한 보스는 떨어뜨리지 않는다. */
+function dropLabyrinthGuardianFossils(enemy, zone, ui) {
+    if (zone?.type !== 'labyrinth' || !enemy.isBoss || enemy.roomInvader) return;
+    const floor = Math.max(1, Math.floor(game.labyrinthFloor || zone.floor || 1));
+    const keys = rollLabyrinthFossilKeys(floor);
+    keys.forEach(key => keepCurrencyDrop(enemy, key, 1));
+    if (keys.includes('fossilAbyssal')) ui.say('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
+    const currencies = {};
+    keys.forEach(key => { currencies[key] = (currencies[key] || 0) + 1; });
+    game.labyrinthLastResult = { season: game.season, floor, pending: true, currencies };
+}
+/** The fossils a guardian of clearedFloor drops (currency keys), each roll as the floor clear rolled them. */
+function rollLabyrinthFossilKeys(clearedFloor) {
+    const dropMul = contentProgression.isUnlocked('fossil') ? 1 : 0, chances = getLabyrinthFossilDropChances(clearedFloor, dropMul, dropMul);
+    const typed = rndChoice(FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly)), primal = contentProgression.isUnlocked('fossilRestore');
+    return [['fossil', chances.base], [typed.key, chances.typed], ['fossilPrimal', primal ? chances.primal : 0],
+        ['fossilAncientPrimal', primal ? chances.ancient : 0], ['fossilAbyssal', chances.abyssal]].filter(([, chance]) => Math.random() < chance).map(([key]) => key);
+}
+/** The floor's result card: what the clear itself gave (currencies against `before`) and what its guardian dropped (pending). */
+function labyrinthFloorResult(clearedFloor, before) {
+    const last = game.labyrinthLastResult, dropped = last?.pending && last.season === game.season && last.floor === clearedFloor ? last.currencies : {};
+    const currencies = { ...dropped };
+    for (const key of Object.keys(ORB_DB)) {
+        const gain = (game.currencies[key] || 0) - (before[key] || 0);
+        if (gain > 0) currencies[key] = (currencies[key] || 0) + gain;
     }
-    return labyrinthFossilSummary({ base: gotBaseFossil, typed: gotTypedFossil, primal: gotPrimalFossil, ancient: gotAncientPrimalFossil }, rolledFossil);
+    return { season: game.season, floor: clearedFloor, pending: false, currencies };
 }
 /** The fossils found, or that none were, once fossils can drop at all (before that the clear says nothing of them: '[화석 없음]'
- * after every floor read as a missed drop, 2026-10-18). */
-function labyrinthFossilNote(fossilSummary) {
-    if (!fossilSummary.length && !contentProgression.isUnlocked('fossil')) return '';
-    return ` [${fossilSummary.join(' / ') || '화석 없음'}]`;
-}
-function labyrinthFossilSummary(got, rolledFossil) {
-    let fossilSummary = [];
-    if (got.base) fossilSummary.push('기본 화석 +1');
-    if (got.typed) fossilSummary.push(`${rolledFossil.name} +1`);
-    if (got.primal) fossilSummary.push('원시 화석 +1');
-    if (got.ancient) fossilSummary.push('원시 고대 화석 +1');
-    return fossilSummary;
+ * after every floor read as a missed drop, 2026-10-18). The abyssal fossil has its own line when it drops. */
+const LABYRINTH_FOSSIL_NOTE_NAMES = Object.freeze({ fossil: '기본 화석', fossilPrimal: '원시 화석', fossilAncientPrimal: '원시 고대 화석' });
+function labyrinthFossilNote(currencies) {
+    const typedName = key => FOSSIL_DB.find(fossil => fossil.key === key && !fossil.ancientPrimalOnly)?.name;
+    const found = Object.keys(currencies).map(key => LABYRINTH_FOSSIL_NOTE_NAMES[key] || typedName(key)).filter(Boolean).map(name => `${name} +1`);
+    if (!found.length && !contentProgression.isUnlocked('fossil')) return '';
+    return ` [${found.join(' / ') || '화석 없음'}]`;
 }
 /** From loop 6 a labyrinth floor may give seal shards: 2.5%, strong 0.75%, radiant 0.16% from floor 30. */
 function rollLabyrinthSealShards(clearedFloor) {
@@ -15188,11 +15166,8 @@ function advanceLoopCounters(loopPath, say) {
     game.seasonPoints++;
     say(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? ` (우주계 난이도 +${Math.max(0, Math.floor(game.cosmosLoopCount || 0))}단계)` : ''}`, 'season-up');
 }
-/** The one-time notices of the loop the hero arrives at (spores, exploration events, time rift, rival blades). */
+/** The one-time notices of the loop the hero arrives at (exploration events, time rift, rival blades). */
 function queueLoopArrivalNotices() {
-    if (game.season === 2 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_spore_crafting', '속성 홀씨', '사냥에서 속성 홀씨가 나오기 시작합니다.\n루프 3부터 화석 제작을 해금하면 홀씨로 제작 태그를 정할 수 있습니다.\n화염/냉기/번개 홀씨 보유량은 루프마다 초기화됩니다.', 'tab-unlocks');
-    }
     Object.entries(EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
         if (game.season === notice.loop) queueTutorialNotice('exploration_event_' + kind, notice.title, notice.body);
     });

@@ -12,6 +12,19 @@
     "priority": 0,
     "enabled": true
   },
+  "hitUnarmed": {
+    "label": "맨손 타격",
+    "files": [
+      "sounds-20261104/unarmed.wav",
+      "sounds-20261104/unarmed-b.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0,
+    "enabled": true
+  },
   "hitProjectile": {
     "label": "투사체 적중",
     "files": [
@@ -71,7 +84,8 @@
   "hitSlam": {
     "label": "강타·지진",
     "files": [
-      "selected-20261023/hitSlam-B-43477a65.wav"
+      "sounds-20261104/slam-blunt.wav",
+      "sounds-20261104/slam-blunt-b.wav"
     ],
     "gain": 0.32,
     "rate": 1,
@@ -135,7 +149,8 @@
   "hitColdPierce": {
     "label": "냉기 관통",
     "files": [
-      "selected-20261023/hitColdPierce-A-395c7c67.wav"
+      "sounds-20261104/cold-pierce.wav",
+      "sounds-20261104/cold-pierce-b.wav"
     ],
     "gain": 0.32,
     "rate": 1,
@@ -147,9 +162,8 @@
   "hitColdBurst": {
     "label": "냉기 폭발·파동",
     "files": [
-      "hitColdBurst-a.wav",
-      "hitColdBurst-b.wav",
-      "selected-20261023/hitColdBurst-C-b84b4d2e.wav"
+      "sounds-20261104/cold-burst.wav",
+      "sounds-20261104/cold-burst-b.wav"
     ],
     "gain": 0.32,
     "rate": 1,
@@ -369,11 +383,8 @@
   "hitSlash": {
     "label": "베기",
     "files": [
-      "hitPhysical-a.wav",
-      "hitPhysical-b.wav",
-      "hitPhysical-c.wav",
-      "selected-20261023/hitSlash-C-1188556b.wav",
-      "selected-20261023/hitSlash-D-15782909.wav"
+      "sounds-20261104/slash-flurry.wav",
+      "sounds-20261104/slash-flurry-b.wav"
     ],
     "gain": 0.32,
     "rate": 1,
@@ -385,7 +396,8 @@
   "hitCritical": {
     "label": "강한 타격",
     "files": [
-      "selected-20261023/hitCritical-A-a3a7f1b2.wav"
+      "sounds-20261104/heavy-dull.wav",
+      "sounds-20261104/heavy-dull-b.wav"
     ],
     "gain": 0.43,
     "rate": 1,
@@ -478,7 +490,7 @@
     "cooldown": 150,
     "priority": 1,
     "files": [
-      "selected-20261023/gemSocket-A-02f712cc.wav"
+      "sounds-20261104/rune-socket.wav"
     ],
     "enabled": true
   },

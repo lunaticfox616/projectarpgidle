@@ -43,8 +43,14 @@ function isAwakenedSkyEnhancement(enhanceId) {
     return String(enhanceId || '').startsWith('sky_awakened');
 }
 
+/** 각인 탭(룬 강화, 응축 창공, 퀄리티, 각성, 각인)이 받는 룬: 공격 룬과 이동, 소환 칸의 룬. 가호 룬은 받지 않는다(2026-11-04 사용자). */
 function isEnhanceableAttackGem(name) {
-    return !!(name && SKILL_DB[name] && SKILL_DB[name].isGem);
+    return !!(name && SKILL_DB[name] && SKILL_DB[name].isGem) && !isBlessingRune(name);
+}
+
+/** 가호 룬: 소환 칸에서 가호를 거는 사역룬(summon_buff). */
+function isBlessingRune(name) {
+    return (SKILL_DB[name]?.tags || []).includes('summon_buff');
 }
 
 function getEquippedEnhanceableGemNames() {
@@ -764,6 +770,16 @@ function getGemBonusSources(target, resolvedStats, evaluation) {
 function hasEquippedShield() {
     let shield = combatEquipmentStats.activeEquipment(game)['방패'];
     return !!(shield && shield.slot === '방패');
+}
+
+/** 보조스킬룬의 계열 색(css/gem-loadout.css .is-tone-*): 체감형은 동작, 나머지는 능력치로(data/skills.js). */
+function getSupportRuneTone(name) {
+    return SUPPORT_RUNE_BEHAVIOR_TONES[name] || STAT_TONES[(SUPPORT_GEM_DB[name] || {}).stat] || 'neutral';
+}
+/** 보조스킬룬 그림판(assets/ui/support-rune-icons-*.png)의 칸, 그림이 없는 룬은 null. @returns {?{col:number,row:number}} */
+function getSupportRuneArtCell(name) {
+    const index = SUPPORT_RUNE_ART_ORDER.indexOf(name);
+    return index < 0 ? null : { col: index % 10, row: Math.floor(index / 10) };
 }
 
 /** 낀 무기의 자세(data/stage-view.js의 자세 id): 대분류 → 자세(SKILL_RUNE_STANCE_BY_CATEGORY), 무기가 없으면 맨손. */

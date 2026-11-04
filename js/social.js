@@ -178,7 +178,7 @@ function snapStat(st) {
         valMin: st.valMin, valMax: st.valMax, baseRollMin: st.baseRollMin, baseRollMax: st.baseRollMax };
     return Object.assign(o, snapStatMarks(st));
 }
-/** 줄 옆 표시(게임 툴팁과 같다): 특출 베이스 ✦, 고정 옵션 [T0], 제작 출처(홀씨, 화석, 이식), 벌꿀 고정. 주얼은 쁘띠와 밀랍. */
+/** 줄 옆 표시(게임 툴팁과 같다): 특출 베이스 ✦, 고정 옵션 [T0], 제작 출처(수확, 화석, 이식), 벌꿀 고정. 주얼은 쁘띠와 밀랍. */
 function snapStatMarks(st) {
     let marks = {
         exceptional: !!st.exceptional, honey: !!st.lockedByHoney, wax: !!st.waxBonus, petite: !!st.petite && !st.waxBonus, ember: st.emberScale,

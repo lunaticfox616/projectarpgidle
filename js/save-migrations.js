@@ -147,6 +147,12 @@ function stripRemovedStarWedges(merged) {
     Object.keys(merged.retiredVoidPassives || {}).filter(id => id.startsWith('star_')).forEach(id => delete merged.retiredVoidPassives[id]);
 }
 
+/** 2026-11-04 사용자: 홀씨 제작이 그루터기 함 식물을 쓰는 수확 제작으로 바뀌어, 가진 속성 홀씨는 보상 없이 지운다("그냥 없애기"). 두 번 불러와도 같다. */
+const RETIRED_SPORE_CURRENCIES = Object.freeze(['sporeFire', 'sporeCold', 'sporeLight']);
+function stripRetiredSpores(merged) {
+    RETIRED_SPORE_CURRENCIES.forEach(key => delete merged.currencies[key]);
+}
+
 /** 7단계(2026-10-01): 아르카나 · 가지치기 · 전문가와 별가루를 보상 없이 지운다(결정 4 · 10 · 11). 해금 원장의 세 항목은
  * content-progression이 모르는 항목으로 버리고 포인트를 돌려준다. 벌집 갈림길에 저장된 양봉업자 레벨도 지운다. 두 번 불러와도 같다. */
 function stripRemovedAuxSystems(merged) {
@@ -166,7 +172,7 @@ function stripRemovedAuxSystems(merged) {
 }
 
 /** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
- * 균사학자 Lv.4 잉여 화석 정제 · 원시 화석 복원, Lv.7 부패 홀씨, 룬 각인사 Lv.12 각성 잔향 · 각성 각인. */
+ * 균사학자 Lv.4 잉여 화석 정제 · 원시 화석 복원, Lv.7 부패 홀씨(지금은 고급 수확 제작), 룬 각인사 Lv.12 각성 잔향 · 각성 각인. */
 const RETIRED_EXPERT_ACCESS = Object.freeze([
     ['mycologist', 4, 'fossilRestore'], ['mycologist', 7, 'advancedSpores'], ['gemEngraver', 12, 'gemAwakening']
 ]);
@@ -815,6 +821,26 @@ function voidPassiveLockField(rawEntry) {
     return rawEntry.fairyLocked ? { fairyLocked: true } : {};
 }
 
+/** 가호 룬(summon_buff)의 이름들: 2026-11-04부터 각인을 받지 않는다. */
+const blessingRuneNamesForSave = () => Object.keys(SKILL_DB).filter(name => (SKILL_DB[name].tags || []).includes('summon_buff'));
+/** 가호 룬에 남은 각인을 지우고, 쓴 창공의 정수를 돌려준다: 각인마다 1, 넓힌 각인 칸마다 그때 낸 값(2칸째 2 ... 5칸째 5).
+ * 지운 뒤에는 남은 각인도 넓힌 칸도 없어 다시 돌려주지 않는다. */
+function refundBlessingEngravings(merged) {
+    const refund = blessingRuneNamesForSave().reduce((sum, name) => sum + clearBlessingEngraving(merged, name), 0);
+    if (refund > 0) merged.currencies.skyEssence = (Number(merged.currencies.skyEssence) || 0) + refund;
+}
+/** One 가호 rune: its engravings and widened slots go, and what they cost comes back. */
+function clearBlessingEngraving(merged, name) {
+    const slots = merged.skyGemEnhancements[name], record = merged.gemData && merged.gemData[name];
+    let refund = Array.isArray(slots) ? slots.filter(Boolean).length : 0;
+    delete merged.skyGemEnhancements[name];
+    const cap = record ? Math.min(5, Math.floor(Number(record.skyEnhanceCap) || 1)) : 1;
+    if (cap > 1) {
+        refund += cap * (cap + 1) / 2 - 1;
+        record.skyEnhanceCap = 1;
+    }
+    return refund;
+}
 function mergeDefaults(save) {
     if (save && typeof save === 'object') itemSaveSlim.expandTree(save); // 축약 저장된 장비 줄을 되살린다(saveVersion 20, js/item-save-slim.js)
     function clampFiniteNumber(value, fallback, min, max) {
@@ -1252,7 +1278,7 @@ function mergeDefaults(save) {
     const lastLabyrinth = merged.labyrinthLastResult;
     merged.labyrinthLastResult = lastLabyrinth && Number.isInteger(lastLabyrinth.season) && lastLabyrinth.season > 0
         && Number.isInteger(lastLabyrinth.floor) && lastLabyrinth.floor > 0 ? {
-            season: lastLabyrinth.season, floor: lastLabyrinth.floor,
+            season: lastLabyrinth.season, floor: lastLabyrinth.floor, pending: lastLabyrinth.pending === true,
             currencies: Object.fromEntries(Object.keys(ORB_DB).filter(key => Number.isFinite(lastLabyrinth.currencies?.[key])
                 && lastLabyrinth.currencies[key] > 0).map(key => [key, Math.min(1000000, Math.floor(lastLabyrinth.currencies[key]))]))
         } : null;
@@ -1289,6 +1315,7 @@ function mergeDefaults(save) {
             ? normalizeSkyGemEnhancementSlots(arr)
             : arr.slice(0, 5);
     });
+    refundBlessingEngravings(merged);
     normalizeAscendancySave(merged);
     merged.bloomedClassThisLoop = CLASS_TEMPLATES[merged.bloomedClassThisLoop] ? merged.bloomedClassThisLoop : null;
     merged.bloomedTalentThisLoop = HERO_SELECTION_DEFS[merged.bloomedTalentThisLoop] ? merged.bloomedTalentThisLoop : null;
@@ -1450,6 +1477,8 @@ function mergeDefaults(save) {
     merged.settings.uiSounds = merged.settings.uiSounds !== false;
     merged.settings.runeTimingOff = merged.settings.runeTimingOff === true;
     merged.settings.soundVolume = clampFiniteNumber(merged.settings.soundVolume, 100, 0, 100);
+    merged.settings.bgm = merged.settings.bgm !== false;
+    merged.settings.bgmVolume = clampFiniteNumber(merged.settings.bgmVolume, 70, 0, 100);
     // 라이트 모드는 2026-09 UI 개편에서 제거됐다(다크 전용). 이전 저장의 설정값은 버린다.
     delete merged.settings.themeMode;
     merged.settings.uiSkin = normalizeUiSkin(merged.settings.uiSkin);
@@ -1750,6 +1779,7 @@ function mergeDefaults(save) {
     stripRemovedGrowthBoard(merged);
     stripRemovedFlasks(merged);
     stripRemovedStarWedges(merged);
+    stripRetiredSpores(merged);
     stripRemovedAuxSystems(merged);
     migrateRetiredWoodMonsters(merged);
     migrateRetiredRealmMonsters(merged);

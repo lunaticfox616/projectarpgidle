@@ -2,6 +2,7 @@
  * source of truth; only the control the player changed may write to them. */
 {
     const checks = {
+        'chk-bgm': ['bgm'],
         'chk-ui-sounds': ['uiSounds'],
         'chk-camera-shake': ['cameraShake'],
         'chk-death-notice': ['showDeathNotice'],
@@ -52,6 +53,7 @@
         document.getElementById('chk-act-journal').checked = game.settings.showActJournal !== false;
         applyChatMessageSize(game.settings.chatMessageSize);
         playUiFeedbackSound.syncSettings();
+        gameBgm.sync();
         renderHeroSelectionControls();
         select(root.dataset.settingsCategory);
     }
@@ -71,6 +73,7 @@
 
     function applyEffects(key) {
         if (key === 'uiSounds') playUiFeedbackSound.syncSettings();
+        if (key === 'bgm') gameBgm.sync();
         if (key === 'highContrast') applyHighContrast(game.settings.highContrast);
         if (key === 'chatMessageSize') applyChatMessageSize(game.settings.chatMessageSize);
         if (key === 'showDeathNotice') toggleDeathNoticeSetting(game.settings.showDeathNotice);

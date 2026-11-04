@@ -141,19 +141,22 @@ const actExplorationProgress = (() => {
     }
     /** Floor pickups on every settled step; a cleared map only walks to its floor items. Returns whether exploration goes on. */
     function explore(run,stats) {
-        pickUp(run);
+        pickUp(run,stats);
         if(run.status==='cleared' && collectingLoot(run) && runMode(run)!=='manual')walkToLoot(run,stats);
         return run.status==='active';
     }
+    /** One exploration step at the movement stat's pace. Out of combat (no living enemy) a fast enough hero also steps diagonally
+     * (2026-11-04 사용자: 대각선 걸음은 전투 밖에서만; 전에는 적이 없으면 누구나 걸음 시간 0.75배). */
     function walkStep(target,stats) {
-        // Safe travel is quicker; engagement/approach retains the normal movement stat.
-        const travelScale=game.enemies.some(enemy=>enemy.hp>0)?1:0.75;
-        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed*travelScale;
-        return advanceGridUnitMovement(game.gridPlayer,target,0.1,interval);
+        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed;
+        const diagonal=stats.moveSpeed>=COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed && !game.enemies.some(enemy=>enemy.hp>0);
+        return !!target && beginExplorationGridStep(target,interval,undefined,diagonal);
     }
-    /** Floor items on the hero's cell are picked up; an offline replay walks no detours and picks everything up at once. */
-    function pickUp(run) {
-        const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer,getCombatTime());
+    /** Floor items on the hero's cell are picked up, and from the eight around it at COMBAT_GRID_CONFIG.explorationWidePickupMoveSpeed
+     * (2026-11-04 사용자); an offline replay walks no detours and picks everything up at once. */
+    function pickUp(run,stats) {
+        const range=stats.moveSpeed>=COMBAT_GRID_CONFIG.explorationWidePickupMoveSpeed?1:0;
+        const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer,getCombatTime(),range);
         if(rows.length)collectExplorationFloorLoot(rows);
     }
     /** Auto-move heads for the nearest floor pile once nothing fights. A pile it cannot get closer to for COMMAND_GIVE_UP_STEPS

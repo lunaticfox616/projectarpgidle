@@ -154,6 +154,11 @@ const COMBAT_GRID_CONFIG = {
     enemyGlideRate: 20,             // 걸음 뒤 그림이 새 칸으로 다가가는 비율(초당, js/canvas-battlefield.js). 파동 판정도 같은 값으로 그려진 위치를 셈
     waveContactSampleMs: 10,        // 파동 판정이 두 전투 틱 사이를 훑는 간격(밀리초): 그 사이에 고리가 스친 몹도 맞는다
     playerMoveIntervalSec: 0.6,     // 플레이어 기본 1칸 이동 시간(초, 이동 속도 100 기준 — 이속 스탯에 반비례)
+    // 탐험 중 살아 있는 적이 없을 때 이 이동 속도(%) 이상이면 대각선으로도 한 걸음에 걷는다(같은 걸음 시간, 2026-11-04 사용자: 전투 밖에서만,
+    // 전: 적이 없으면 누구나 0.75배 시간). 사용자 기준 150%는 쉽고 200%는 조금 신경 써야 하며 300% 이상은 특정 빌드만이라 200%로 둔다.
+    explorationDiagonalMoveSpeed: 200,
+    // 이 이동 속도(%) 이상이면 탐험 바닥 아이템을 둘레 8칸에서도 줍는다(2026-11-04 사용자, 그 아래는 그 칸을 밟아야).
+    explorationWidePickupMoveSpeed: 150,
     summonMoveIntervalSec: 0.4,     // 소환수 1칸 이동 시간(초)
     chainJumpRange: 2,              // 연쇄 계열 스킬이 다음 적으로 튈 수 있는 최대 거리(칸)
     bossPatternWarningMs: 1500,     // 기본 이속으로 두 칸을 벗어날 수 있는 최소 예고 시간

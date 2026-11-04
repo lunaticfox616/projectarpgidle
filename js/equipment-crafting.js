@@ -1,6 +1,6 @@
 // Explicit affix provenance and admission rules. No payment, rolling, DOM or state mutation.
 const equipmentCrafting = (() => {
-    const labels = Object.freeze({ spore: '홀씨', fossil: '화석', transplant: '이식' });
+    const labels = Object.freeze({ spore: '수확', fossil: '화석', transplant: '이식' });   // spore: 수확 제작의 옛 이름(홀씨) 그대로 저장된 출처
     const sporeActions = new Set(['transmute', 'augment', 'alteration', 'alchemy', 'exalted', 'regal', 'chaos']);
     const sporeRerolls = new Set(['transmute', 'alteration', 'alchemy', 'chaos']);
     // Shared by actual spore rolls and crafting target previews (data/affix-tags.js AFFIX_TAG_LISTS.spore).
@@ -10,7 +10,7 @@ const equipmentCrafting = (() => {
     /** Read explicit origin or known legacy flags; never infer origin from an affix value/tier. */
     function getSource(stat) {
         if (!stat) return undefined;
-        // Rift spores consume spores but add a fossil effect, so share the fossil allowance.
+        // A rift harvest (균열 수확) adds a fossil effect, so it shares the fossil allowance.
         if (stat.fossilExclusive || stat.fossilExclusiveDrop || stat.fossilExclusiveSpore) return 'fossil';
         if (['fossilRiftBlank', 'fossilRiftAmp'].includes(stat.id)) return 'fossil';
         return Object.hasOwn(labels, stat.craftSource) ? stat.craftSource : undefined;
@@ -230,17 +230,17 @@ const equipmentCrafting = (() => {
     function sideRollReason(item, action, omen, sporeMode) {
         const label = omen.side === 'prefix' ? '접두어' : '접미어';
         const kept = rerollActions.includes(action) ? item.stats.filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) : item.stats;
-        if (sporeMode !== 'none' && kept.some(stat => getSource(stat) === 'spore')) return '보존되는 홀씨 옵션이 있어 홀씨를 함께 사용할 수 없습니다.';
+        if (sporeMode !== 'none' && kept.some(stat => getSource(stat) === 'spore')) return '보존되는 수확 옵션이 있어 수확 제작을 함께 쓸 수 없습니다.';
         const pool = filterOmenMods(getOpenAffixMods({ ...item, stats: kept }, 'rare'), omen);
         if (!pool.length) return `${label}에 새로 부여할 수 있는 옵션이나 빈자리가 없습니다.`;
-        return sporeMode !== 'none' && !filterSporeMods(pool, sporeMode).length ? `${label}에 선택한 홀씨 계열 옵션을 부여할 수 없습니다.` : '';
+        return sporeMode !== 'none' && !filterSporeMods(pool, sporeMode).length ? `${label}에 선택한 수확 계열 옵션을 부여할 수 없습니다.` : '';
     }
     /** A short reason for an unavailable combination; this is also used before paying, never silently falling back to both sides. */
     function omenReason(item, action, omen, sporeMode = 'none') {
         if (!omen || !CRAFT_OMENS.effects[omen.key].actions.includes(action)) return '이 재화에는 적용되지 않습니다.';
         if (!item) return '장비를 선택하세요.';
         if (omen.effect === 'side') return sideReason(item, action, omen, sporeMode);
-        if (['regal', 'exalted'].includes(action) && sporeMode !== 'none') return '옵션 추가 시 홀씨와 함께 사용할 수 없습니다.';
+        if (['regal', 'exalted'].includes(action) && sporeMode !== 'none') return '옵션 추가 시 수확 제작과 함께 쓸 수 없습니다.';
         return '';
     }
     function omenFits(item, action, omen, sporeMode = 'none') {

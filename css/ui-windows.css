@@ -1,6 +1,8 @@
 @layer components {
 /* 데스크톱 창형 모드 밖(모바일)에서는 창형 전용 부속 UI를 렌더링하지 않는다. */
 .ui-goal-drawer, .ui-community-toggle { display: none; }
+/* 창을 옮기거나 크기를 바꾸는 동안 글이 선택되거나 끌리지 않는다(js/ui-window-manager.js holdTextStill, 2026-11-04 사용자) */
+:root.ui-window-gesture, :root.ui-window-gesture * { -webkit-user-select: none; user-select: none; }
 
 @media (min-width: 1081px) {
   body.desktop-windowed-ui { padding: 0; gap: 0; overflow: hidden; }

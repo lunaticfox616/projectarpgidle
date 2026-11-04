@@ -2,6 +2,7 @@
 // grade는 세트 보상의 가치(1~5), 드롭 가중치는 grades에서 계산한다(행마다 적지 않는다). homes는 고정 주력 지역 키:
 // 'act:<zone.id>', 'node:<MAP_NODES id>', 'type:<zone.type>'. source.zones의 'atlas:<atlasRegion>'은 그 지역 지도 전체.
 // unlocks는 드롭·표시·교환 모두의 해금 조건. reward.tier는 결과 장비 등급이며 주운 지역과 무관하다.
+// reward.seeds는 [색, 개수]: 그루터기 함 보관함에 드는 씨앗(재화와 한 묶음, 2026-11-04 사용자: 속성 홀씨 3~4개 → 같은 색 씨앗 1개).
 // chance는 처치 등급 확률(일반·정예·콘텐츠 보스·액트 보스)이며 확정 드롭은 없다. homeBonus는 주력 지역, rankBonus는 보스·정예 전용 출처.
 const KNITTING = (() => {
     const acts = (...ids) => ids.map(id => 'act:' + id);
@@ -95,12 +96,12 @@ const KNITTING = (() => {
         { id: 'trunk-grain', name: "톱밥 묻은 토시", grade: 2, set: 5, source: atlas('trunk'), homes: region('trunk'), unlocks: ['fossil'], found: '고목 줄기 지도',
             reward: { currencies: [['fossilJagged', 2], ['fossilBulwark', 1]] }, label: '톱니 화석 2개와 방패 화석 1개' },
         { id: 'canopy-static', name: "바람에 날린 천조각", grade: 2, set: 5, source: atlas('canopy'), homes: region('canopy'), unlocks: ['fossil'], found: '하늘 가지 지도',
-            reward: { currencies: [['sporeLight', 3], ['fossilGale', 1]] }, label: '번개 홀씨 3개와 돌풍 화석 1개' },
+            reward: { currencies: [['fossilGale', 1]], seeds: [['lightning', 1]] }, label: '번개 씨앗 1개와 돌풍 화석 1개' },
         { id: 'garden-cinder', name: "타다 남은 심지", grade: 2, set: 5, source: atlas('garden'), homes: region('garden'), unlocks: ['fossil'], found: '잊힌 정원 지도',
 
-            reward: { currencies: [['sporeFire', 3], ['fossilPrismatic', 1]] }, label: '화염 홀씨 3개와 프리즘 화석 1개' },
+            reward: { currencies: [['fossilPrismatic', 1]], seeds: [['fire', 1]] }, label: '화염 씨앗 1개와 프리즘 화석 1개' },
         { id: 'sanctum-rime', name: "꽃샘추위 서리꽃", grade: 2, set: 5, source: atlas('sanctum'), homes: region('sanctum'), unlocks: ['fossil'], found: '잠든 성소 지도',
-            reward: { currencies: [['sporeCold', 3], ['fossilBound', 1]] }, label: '냉기 홀씨 3개와 속박 화석 1개' },
+            reward: { currencies: [['fossilBound', 1]], seeds: [['cold', 1]] }, label: '냉기 씨앗 1개와 속박 화석 1개' },
         // 아틀라스 지역 정예·보스 (주력 배정 없음, 등급 가산만)
         { id: 'roots-sinew', name: "막장 인부의 비상식량", grade: 2, set: 4, source: { ...atlas('roots'), elite: true }, homes: [], found: '깊은 뿌리 정예와 보스',
             reward: { gear: { slots: ['장갑', '신발'] }, tier: 12 }, label: '12등급 희귀 장갑, 신발 중 1개' },
@@ -166,8 +167,8 @@ const KNITTING = (() => {
 
         { id: 'wind-top', name: "바람 읽는 풍향계", grade: 2, set: 4, source: atlas('canopy'), homes: [node('canopy', 0)], found: '바람 부는 우듬지',
             reward: { unique: '순례자의 향로', tier: 4 }, label: '고유 무기 「순례자의 향로」 1개' },
-        { id: 'nest-village', name: "비어 있는 새둥지", grade: 2, set: 4, source: atlas('canopy'), homes: [node('canopy', 1)], unlocks: ['fossil'], found: '새둥지 마을',
-            reward: { currencies: [['sporeLight', 4]] }, label: '번개 홀씨 4개' },
+        { id: 'nest-village', name: "비어 있는 새둥지", grade: 2, set: 4, source: atlas('canopy'), homes: [node('canopy', 1)], found: '새둥지 마을',
+            reward: { seeds: [['lightning', 1]] }, label: '번개 씨앗 1개' },
         { id: 'sway-bridge', name: "다리지기의 통행패", grade: 2, set: 4, source: atlas('canopy'), homes: [node('canopy', 2)], found: '흔들다리',
             reward: { gear: { slots: ['신발'] }, tier: 8 }, label: '8등급 희귀 신발 1개' },
         { id: 'cloud-orchard', name: "기울어진 허수아비", grade: 3, set: 4, source: atlas('canopy'), homes: [node('canopy', 3)], found: '구름 과수원',
@@ -185,8 +186,8 @@ const KNITTING = (() => {
         // 잊힌 정원 지도 9곳
         { id: 'fallen-glass', name: "온실의 유리 조각", grade: 3, set: 4, source: atlas('garden'), homes: [node('garden', 0)], found: '무너진 온실',
             reward: { unique: '넘치는 시약병', tier: 5 }, label: '고유 무기 「넘치는 시약병」 1개' },
-        { id: 'thorn-maze', name: "가시 감긴 덩굴", grade: 2, set: 4, source: atlas('garden'), homes: [node('garden', 1)], unlocks: ['fossil'], found: '가시덤불 미로',
-            reward: { currencies: [['sporeFire', 4]] }, label: '화염 홀씨 4개' },
+        { id: 'thorn-maze', name: "가시 감긴 덩굴", grade: 2, set: 4, source: atlas('garden'), homes: [node('garden', 1)], found: '가시덤불 미로',
+            reward: { seeds: [['fire', 1]] }, label: '화염 씨앗 1개' },
         { id: 'dry-fountain', name: "분수대 바닥의 동전", grade: 2, set: 4, source: atlas('garden'), homes: [node('garden', 2)], found: '시든 분수대',
             reward: { gear: { slots: ['투구', '장갑'] }, tier: 7 }, label: '7등급 희귀 투구, 장갑 중 1개' },
         { id: 'burnt-orchard', name: "덜 익은 낙과", grade: 3, set: 4, source: atlas('garden'), homes: [node('garden', 3)], found: '불탄 과수원',
@@ -207,8 +208,8 @@ const KNITTING = (() => {
             reward: { unique: '새벽 현자 후드', tier: 1 }, label: '고유 투구 「새벽 현자 후드」 1개' },
         { id: 'frozen-hall', name: "회랑 끝의 발소리", grade: 2, set: 4, source: atlas('sanctum'), homes: [node('sanctum', 1)], unlocks: ['talisman'], found: '얼어붙은 회랑',
             reward: { currencies: [['sealShard', 3]] }, label: '봉인편린 3개' },
-        { id: 'still-chapel', name: "무릎 닿은 기도의자", grade: 2, set: 4, source: atlas('sanctum'), homes: [node('sanctum', 2)], unlocks: ['fossil'], found: '고요한 예배당',
-            reward: { currencies: [['sporeCold', 4]] }, label: '냉기 홀씨 4개' },
+        { id: 'still-chapel', name: "무릎 닿은 기도의자", grade: 2, set: 4, source: atlas('sanctum'), homes: [node('sanctum', 2)], found: '고요한 예배당',
+            reward: { seeds: [['cold', 1]] }, label: '냉기 씨앗 1개' },
         { id: 'crystal-crypt', name: "비어 있는 유골함", grade: 3, set: 4, source: atlas('sanctum'), homes: [node('sanctum', 3)], found: '수정 납골당',
             reward: { unique: '사제의 왕관', tier: 8 }, label: '고유 투구 「사제의 왕관」 1개' },
         { id: 'sealed-library', name: "늙은 사서의 돋보기", grade: 3, set: 4, source: atlas('sanctum'), homes: [node('sanctum', 4)], unlocks: ['talisman'], found: '봉인 서고',
@@ -236,8 +237,8 @@ const KNITTING = (() => {
         { id: 'ordeal-relic', yarnOut: false, name: "심판석의 흉터", grade: 4, set: 5, source: { types: ['trial'], boss: true }, homes: [], unlocks: ['battleTrials'], found: '전직 시련 보스',
             reward: { uniquePool: 'trial', tier: 15 }, label: '전직 시련 전용 고유 장비 1개' },
         // 운석 낙하 지점
-        { id: 'ember-dust', name: "별빛 내려앉은 재", grade: 2, set: 5, source: { types: ['meteor'] }, homes: ['type:meteor'], unlocks: ['meteorSite', 'fossil'], found: '운석 낙하 지점',
-            reward: { currencies: [['sporeFire', 2], ['sporeLight', 2]] }, label: '화염 홀씨 2개와 번개 홀씨 2개' },
+        { id: 'ember-dust', name: "별빛 내려앉은 재", grade: 2, set: 5, source: { types: ['meteor'] }, homes: ['type:meteor'], unlocks: ['meteorSite'], found: '운석 낙하 지점',
+            reward: { seeds: [['fire', 1], ['lightning', 1]] }, label: '화염 씨앗 1개와 번개 씨앗 1개' },
         { id: 'falling-ash', name: "별똥별 떨어진 자리", grade: 3, set: 5, source: { types: ['meteor'], elite: true }, homes: [], unlocks: ['meteorSite'], found: '운석 낙하 지점 정예와 보스',
             reward: { gear: { slots: ['신발', '장갑'] }, tier: 16 }, label: '16등급 희귀 신발, 장갑 중 1개' },
         // 벌집 원정

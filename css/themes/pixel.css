@@ -875,13 +875,45 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
 }
 /* PC 목표 서랍: 펼친 서랍은 읽으려고 연 것이라 설명을 두 줄 말줄임("…장착하면 예상 능력치 변화…")으로 자르지 않는다 */
 :root body[data-ui-skin].desktop-windowed-ui #ui-goal-drawer .ui-goal-desc { display: block; max-height: none; overflow: visible; -webkit-line-clamp: unset; }
-/* 액트 보상 선택지: 장비는 부위 그림을 왼쪽에. 이름은 갈무리 15, 설명 · 미리보기는 물마루 12 */
-:root body[data-ui-skin] #reward-overlay .reward-choice:has(> .reward-choice-art) { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; align-items: center; }
-:root body[data-ui-skin] #reward-overlay .reward-choice > .reward-choice-art { grid-row: 1 / span 2; width: 40px; height: 40px; object-fit: contain; image-rendering: pixelated; }
+/* 액트 보상 선택지(2026-11-04 사용자: 색감, 간소화): 왼쪽 그림 칸, 이름 줄 오른쪽에 꼬리표나 DPS 변화, 그 아래 설명이나 옵션 칩 한 줄.
+   카드의 --sigil 하나(css/gem-loadout.css 계열 색, 장비는 등급 색)로 왼쪽 띠, 테, 바탕, 그림 칸, 이름, 칩을 함께 칠한다.
+   이름은 갈무리14 15px, 나머지는 갈무리11 12px, 픽셀 그림은 11도트의 2배 */
+:root body[data-ui-skin] #reward-overlay .reward-choice.is-rarity-normal { --sigil: #d7dce2; }
+:root body[data-ui-skin] #reward-overlay .reward-choice.is-rarity-magic { --sigil: #5fb4ec; }
+:root body[data-ui-skin] #reward-overlay .reward-choice.is-rarity-rare { --sigil: #f1c40f; }
+:root body[data-ui-skin] #reward-overlay .reward-choice { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; column-gap: 12px; row-gap: 5px; align-items: center;
+  padding: 10px 14px 10px 11px; border: 1px solid color-mix(in srgb, var(--sigil) 34%, #050404); border-left: 3px solid var(--sigil); border-radius: 0;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--sigil) 15%, #17131a), #131016 68%); box-shadow: none; }
+:root body[data-ui-skin] #reward-overlay .reward-choice:is(:hover, :focus-visible) { border-color: color-mix(in srgb, var(--sigil) 70%, #050404); border-left-color: var(--sigil);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--sigil) 26%, #17131a), #151119 68%); }
+:root body[data-ui-skin] #reward-overlay .reward-choice > .reward-choice-icon { grid-row: 1 / span 2; display: grid; place-items: center; width: 40px; height: 40px; box-sizing: border-box;
+  margin: 0; border: 1px solid color-mix(in srgb, var(--sigil) 42%, #050404); background: color-mix(in srgb, var(--sigil) 12%, #0e0c11); box-shadow: none; overflow: hidden; }
+:root body[data-ui-skin] #reward-overlay .reward-choice-art { display: block; width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
 /* 무기 그림은 세 칸 높이라 네모 칸에서 가는 선처럼 작아 보였다(검토 4차) → 대각선으로 눕혀 칸을 채운다 */
-:root body[data-ui-skin] #reward-overlay .reward-choice > .reward-choice-art.is-weapon { transform: rotate(45deg) scale(1.35); }
-:root body[data-ui-skin] #reward-overlay .reward-choice strong { font-family: var(--font-pixel-read); font-size: 15px; font-weight: 400; }
-:root body[data-ui-skin] #reward-overlay .reward-choice :is(span, small) { font-family: var(--font-pixel); font-size: 12px; }
+:root body[data-ui-skin] #reward-overlay .reward-choice-art.is-weapon { transform: rotate(45deg) scale(1.35); }
+/* 능력치와 포인트: 스킬트리 노드 그림판(64px 칸 5열 9행)을 절반인 32px로 */
+:root body[data-ui-skin] #reward-overlay .reward-choice-tree { display: block; width: 32px; height: 32px;
+  background: url('../../assets/ui/passive-tree-icons-v5.png') calc(var(--col) * -32px) calc(var(--row) * -32px) / 160px 288px no-repeat; image-rendering: pixelated; }
+:root body[data-ui-skin] #reward-overlay .reward-choice > strong { grid-column: 2; margin: 0; color: color-mix(in srgb, var(--sigil) 38%, #f6efe0);
+  font-family: var(--font-pixel-read); font-size: 15px; font-weight: 400; }
+:root body[data-ui-skin] #reward-overlay .reward-choice > :is(.reward-choice-tags, .reward-choice-dps) { grid-column: 3; grid-row: 1; justify-self: end; margin: 0; }
+:root body[data-ui-skin] #reward-overlay .reward-choice > :is(.reward-choice-desc, .reward-item-options) { grid-column: 2 / -1; margin: 0; padding: 0; border: 0; }
+:root body[data-ui-skin] #reward-overlay :is(.reward-choice-desc, .reward-choice-dps, .reward-choice-tags em, .reward-item-options :is(b, i), .reward-next) {
+  font-family: var(--font-pixel); font-size: 12px; font-weight: 400; line-height: 1.4; }
+:root body[data-ui-skin] #reward-overlay .reward-choice-desc { color: #bdb4a4; }
+:root body[data-ui-skin] #reward-overlay :is(.reward-choice-tags, .reward-item-options) { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+:root body[data-ui-skin] #reward-overlay :is(.reward-choice-tags em, .reward-item-options i) { padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--sigil) 32%, #050404);
+  background: color-mix(in srgb, var(--sigil) 9%, #110e14); color: #ddd4c4; font-style: normal; white-space: nowrap; }
+:root body[data-ui-skin] #reward-overlay .reward-item-options b { margin-right: 2px; color: color-mix(in srgb, var(--sigil) 30%, #d9d0bf); }
+:root body[data-ui-skin] #reward-overlay .reward-item-options i.is-extra { color: color-mix(in srgb, var(--sigil) 55%, #fff6e8); }
+:root body[data-ui-skin] #reward-overlay .reward-item-options i.is-unknown { border-style: dashed; background: none; color: #9c937f; }
+/* 지역 이야기 줄은 흐리게, 다음 액트는 나중에 단추 옆 */
+:root body[data-ui-skin] #reward-overlay .reward-story { color: #9f9684; }
+:root body[data-ui-skin] #reward-overlay .tutorial-actions { justify-content: space-between; align-items: center; gap: 12px; }
+:root body[data-ui-skin] #reward-overlay .reward-next { color: #a39883; }
+@media (max-width: 600px) {
+  :root body[data-ui-skin] #reward-overlay .reward-choice > :is(.reward-choice-tags, .reward-choice-dps) { grid-column: 2 / -1; grid-row: auto; justify-self: start; }
+}
 /* 전투 기록 글자색: 어두운 기록 판에서 4.5:1이 안 되던 보라(경험치 3.8:1) · 빨강(피격 4.4:1) · 진홍(사망)을 밝히고, 사망 줄의
    1.1em(격자 밖 크기) · 고유 · 레벨 업 줄의 번지는 빛 그림자는 도트 외곽선으로 */
 :root body[data-ui-skin] #log .exp-txt { color: #c9a3e8; }

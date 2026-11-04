@@ -1,5 +1,5 @@
 // 옵션 태그(2026-10-07, 드랍 풀 2단계 B, docs/affix-kinds-tags-plan-20261007.md). 태그는 줄이 아니라 능력치에 붙고, 복합 줄은
-// 두 능력치 태그의 합이다. 혼돈 주입, 화석 전용 줄, 고유 줄도 같은 표를 쓴다. 이름은 스킬 태그와 홀씨, 품질 모드에 맞춘다
+// 두 능력치 태그의 합이다. 혼돈 주입, 화석 전용 줄, 고유 줄도 같은 표를 쓴다. 이름은 스킬 태그와 수확 제작 계열, 품질 모드에 맞춘다
 // (summon, aoe, light, defense).
 
 const AFFIX_TAG_LABELS = Object.freeze({
@@ -73,7 +73,7 @@ const AFFIX_TAG_LISTS = Object.freeze({
         chaos: { any: ['chaos'] },
         damage: { any: ['damage'] }
     },
-    // 부패 홀씨가 지우는 줄.
+    // 부패 수확이 지우는 줄.
     rotSpore: { any: ['elemental'], none: ['summon', 'gem', 'penetration'] },
     // 화석이 하나 확정하는 줄. 방패 화석(최대 저항)은 태그로 적을 수 없어 예외만 있다.
     fossil: {

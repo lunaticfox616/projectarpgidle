@@ -64,6 +64,7 @@ worldTreeSkillFx.feedback = (() => {
         if (weapon) return weapon;
         if (area) return area;
         if (skill.targetMode === 'cleave') return 'hitSlash';
+        if (getEquippedWeaponStance() === 'unarmed') return 'hitUnarmed'; // 맨손 주먹 소리(2026-11-04 사용자 소리)
         return fx.crit || fx.impactTier === 'heavy' ? 'hitCritical' : 'hitPhysical';
     }
 
@@ -232,5 +233,5 @@ worldTreeSkillFx.feedback = (() => {
         const rule = ACT_EXPLORATION_ALERT;
         for (const enemyId of ids) addBattleFx('statusText', { enemyId, text: '!', color: rule.outline, duration: rule.markMs });
     });
-    return { begin, observe, contact, death, object, screen, reduced, advanceClock };
+    return { begin, observe, contact, death, object, screen, reduced, advanceClock, skillSound };
 })();

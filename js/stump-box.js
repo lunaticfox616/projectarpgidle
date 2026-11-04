@@ -156,8 +156,10 @@ const stumpBox = (() => {
 
     // ── 상점 값 ─────────────────────────────────────────────
     // 하켄의 모든 룬 진열대(2026-11-02 사용자): 룬 하나의 값이 다 자란 꽃, 열매, 덩굴, 뿌리 하나다. 값 키는 'harvest:flower:fire'처럼 쓰고, 색이 없으면
-    // 어느 색이든 된다. 조합창처럼 판에 놓이지 않은 것만 쓰고, 잠근 것은 쓰지 않는다. 평범하고 품질이 낮은 것부터 나간다.
-    const HARVEST_PRICE = /^harvest:(flower|fruit|vine|root)(?::(\w+))?$/;
+    // 어느 색이든 된다. 종류 자리의 any는 꽃, 열매, 덩굴, 뿌리 어느 것이든이다('harvest:any:fire', 수확 제작). 조합창처럼 판에 놓이지 않은 것만
+    // 쓰고, 잠근 것은 쓰지 않는다. 평범하고 품질이 낮은 것부터 나간다.
+    const HARVEST_PRICE = /^harvest:(flower|fruit|vine|root|any)(?::(\w+))?$/;
+    const ANY_KIND = 'any', ANY_KIND_LABEL = '식물';
     const harvestPriceKey = (kind, color) => `harvest:${kind}${color ? `:${color}` : ''}`;
     const isHarvestPrice = key => HARVEST_PRICE.test(key);
     function parseHarvestPrice(key) {
@@ -165,19 +167,19 @@ const stumpBox = (() => {
         return { kind, color: color || null };
     }
     function harvestPriceName(key) {
-        const { kind, color } = parseHarvestPrice(key), name = STUMP_BOX_STAGES[kind].label;
+        const { kind, color } = parseHarvestPrice(key), name = kind === ANY_KIND ? ANY_KIND_LABEL : STUMP_BOX_STAGES[kind].label;
         return color ? `${STUMP_BOX_COLORS[color].label} ${name}` : name;
     }
-    /** 값 그림: 색이 없는 값은 화염 그림을 쓰고 화면이 무채색으로 칠한다(css/shop-view.css .is-any-colour). */
+    /** 값 그림: 색이 없는 값은 화염 그림을 쓰고 화면이 무채색으로 칠한다(css/shop-view.css .is-any-colour). 종류가 any면 꽃 그림이다. */
     function harvestPriceIcon(key) {
         const { kind, color } = parseHarvestPrice(key);
-        return `assets/items/stump-pixel-v1/${STUMP_BOX_STAGES[kind].icon}-${color || 'fire'}.png`;
+        return `assets/items/stump-pixel-v1/${STUMP_BOX_STAGES[kind === ANY_KIND ? 'flower' : kind].icon}-${color || 'fire'}.png`;
     }
     const harvestWalletKeys = () => [...COLORS.map(color => harvestPriceKey('flower', color)), harvestPriceKey('root'), harvestPriceKey('vine'), harvestPriceKey('fruit')];
     const isPlainHarvest = item => !item.albino && !item.ancient && goldenMul(item) === 1;
     function harvestForPrice(state, key) {
         const { kind, color } = parseHarvestPrice(key);
-        return storage(state).filter(item => isMature(item) && !item.locked && yieldKind(item) === kind && (!color || item.color === color))
+        return storage(state).filter(item => isMature(item) && !item.locked && (kind === ANY_KIND || yieldKind(item) === kind) && (!color || item.color === color))
             .sort((a, b) => isPlainHarvest(b) - isPlainHarvest(a) || qualityOf(a) - qualityOf(b));
     }
     const harvestPriceHeld = (state, key) => harvestForPrice(state, key).length + walletForPrice(state, key).reduce((sum, stack) => sum + walletCount(state, stack), 0);
@@ -198,10 +200,10 @@ const stumpBox = (() => {
         const key = `${yieldKind(item)}-${item.color}`;
         box.wallet[key] = (Number(box.wallet[key]) || 0) + 1;
     }
-    /** The stacks a price can take: its colour's, or with no colour the biggest first. */
+    /** The stacks a price can take: its colour's (every kind's for any), or with no colour the biggest first. */
     function walletForPrice(state, key) {
-        const { kind, color } = parseHarvestPrice(key);
-        return (color ? [color] : COLORS).map(one => `${kind}-${one}`).filter(stack => walletCount(state, stack) > 0)
+        const { kind, color } = parseHarvestPrice(key), kinds = kind === ANY_KIND ? KINDS : [kind];
+        return kinds.flatMap(one => (color ? [color] : COLORS).map(tone => `${one}-${tone}`)).filter(stack => walletCount(state, stack) > 0)
             .sort((a, b) => walletCount(state, b) - walletCount(state, a));
     }
     function spendWallet(state, key) {

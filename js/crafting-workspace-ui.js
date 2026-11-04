@@ -106,8 +106,7 @@ const craftingWorkspaceUi = (() => {
             const materials=document.getElementById('cl-materials');materials.open=true;
             renderFossilWorkbench(selected());materials.scrollIntoView({block:'nearest'});return;
         }
-        if(key.startsWith('spore')){recipe=recipes.find(row=>row.key==='formlessDew');mode=({sporeFire:'fire',sporeCold:'cold',sporeLight:'light'})[key];game.sporeCraftModes[recipe.key]=mode;}
-        else {recipe=recipes.find(row=>row.key===key);mode=game.sporeCraftModes[key]||'none';}
+        recipe=recipes.find(row=>row.key===key);mode=game.sporeCraftModes[key]||'none';
         workspaceRender();
     }
 
@@ -159,7 +158,7 @@ const craftingWorkspaceUi = (() => {
         const item=selected(), sources=new Set(item.stats.map(stat=>equipmentCrafting.getSource(stat)));
         return `<section id="forge-item-display" class="cl-item ${matches(item)?'goal-hit':''}"><div class="cl-item-head"><div class="cl-art"><img src="${esc(getEquipmentGridVisualAsset(item))}" alt="${esc(getItemSlotDisplayLabel(item))}"></div>
             <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}${craftingWorkspaceUi.imprintMark(item)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
-            <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">홀씨 ${sources.has('spore')?'1':'0'}/1</span><span class="${sources.has('fossil')?'filled':''}">화석 ${sources.has('fossil')?'1':'0'}/1</span></div>
+            <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">수확 ${sources.has('spore')?'1':'0'}/1</span><span class="${sources.has('fossil')?'filled':''}">화석 ${sources.has('fossil')?'1':'0'}/1</span></div>
             <div class="cl-section-title">추가 옵션</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">혼돈 주입 ${esc(getStatName(item.chaosInfusion.id))} +${esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val))}</li>`:''}</ul>
             <div class="cl-base">기본 옵션 &ensp; ${[workspaceWardSlotsText(item),...(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} ${esc(formatSignedValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}${itemInfluencesUi.lineBadgeHtml(item,stat)}`)].filter(Boolean).join(' / ')}</div>${workspaceImprintHtml(item)}${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
             ${extras}</section>`;
@@ -230,17 +229,19 @@ const craftingWorkspaceUi = (() => {
     function workspaceAddonNote(reason,effect,clear='',shortage=false) {
         return `<p class="cl-addon-note ${shortage?'is-shortage':''}" aria-live="polite">${esc(effect)}${reason?`<br>${esc(reason)}`:''}${clear}</p>`;
     }
+    /** 계열과 그 값(그 색의 식물, data/stump-box.js STUMP_BOX_HARVEST_CRAFT)과 가진 수. */
     function workspaceSporeOption(value) {
-        const label=value==='none'?'사용 안 함':SPORE_LABELS[value]+(!hasSporeCraftCost(value)?' (부족)':'');
+        const key=value==='none'?'':getSporeCraftPriceKey(value);
+        const label=key?`${SPORE_LABELS[value]} 계열, ${stumpBox.harvestPriceName(key)} ${stumpBox.harvestPriceHeld(game,key)}개`:'사용 안 함';
         return `<option value="${value}" ${mode===value?'selected':''}>${esc(label)}</option>`;
     }
     function workspaceSporeNote() {
         if(mode==='none')return '';
         const reason=workspaceSporeReason(mode);
         const effect=`${SPORE_LABELS[mode]} 계열 옵션 1줄 보장`;
-        return workspaceAddonNote(reason,effect,reason?' <button data-command="clear-spore">홀씨 사용 해제</button>':'',!hasSporeCraftCost(mode));
+        return workspaceAddonNote(reason,effect,reason?' <button data-command="clear-spore">수확 사용 해제</button>':'',!hasSporeCraftCost(mode));
     }
-    /** Only affordable spores appear; a depleted selection keeps a warning and an explicit off button. */
+    /** Only families with a plant of their colour appear; a depleted selection keeps a warning and an explicit off button. */
     function workspaceSporeHtml() {
         if(!isSporeCraftEquipment(selected())||!['add','reroll'].includes(recipe.kind))return '';
         const available=getAvailableSporeCraftModes().filter(value=>value!=='none'&&hasSporeCraftCost(value));
@@ -248,7 +249,7 @@ const craftingWorkspaceUi = (() => {
         if(!available.length)return note;
         const values=['none',...available];
         if(!values.includes(mode))values.push(mode);
-        return `<label class="cl-spore">홀씨 함께 사용<select id="cl-mode">${values.map(workspaceSporeOption).join('')}</select></label>${note}`;
+        return `<label class="cl-spore">수확 함께 사용<select id="cl-mode">${values.map(workspaceSporeOption).join('')}</select></label>${note}`;
     }
 
     /** [value, label] for omen keys in a select: 허기 twice (접두, 접미). count(key) adds the held number. */
@@ -297,8 +298,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceCostText() {
         const pieces=['재화 1개 소모'];
         if(isSporeCraftEquipment(selected())&&['add','reroll'].includes(recipe.kind)&&mode!=='none') {
-            const amount=getSporeCraftCost();
-            pieces.push(['damage','chaos'].includes(mode)?`홀씨 3종 각 ${amount}`:`${({fire:'화염',cold:'냉기',light:'번개'})[mode]} 홀씨 ${amount}`);
+            pieces.push(`${stumpBox.harvestPriceName(getSporeCraftPriceKey(mode))} 1`);
         }
         const omen=workspaceUsedOmen();
         if(omen)pieces.push(`${ORB_DB[omen.key].name} 1`);

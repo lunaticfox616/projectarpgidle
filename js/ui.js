@@ -1181,7 +1181,7 @@ function isPauseSettingOverlayOpen() {
         '.tutorial-overlay.active:not(#tutorial-overlay):not(#death-overlay)',
         '#act-exploration-dialog[open]',
         '#beehive-choice-overlay',
-        // 선택 창 다섯(코어, 주얼 보관함과 소켓, 혼돈 주입, 조합창 재료, 홀씨 모드). 없어진 예전 주얼 창들의 자리도 이것이 맡는다.
+        // 선택 창 넷(코어, 주얼 보관함과 소켓, 혼돈 주입, 조합창 재료). 없어진 예전 주얼 창들의 자리도 이것이 맡는다.
         '.selection-overlay',
         '#mobile-craft-currency-overlay',
         '#craft-item-picker-overlay'
@@ -2887,11 +2887,11 @@ function getBeehiveRewardPool(branchStep) {
     // Filter new offers only; already saved choices and promised rewards retain their original payouts.
     let depth = Math.max(1, Math.floor(branchStep || 1));
     const currencies = { honey: ['enchantedHoney'], stinger: ['venomStinger'],
-        spore: ['sporeFire', 'sporeCold', 'sporeLight'], bundle: ['pollen', 'venomStinger', 'formlessDew'] };
+        bundle: ['pollen', 'venomStinger', 'formlessDew'] };
     return [
         { type: 'pollen', weight: 42 }, { type: 'honey', weight: 18 }, { type: 'stinger', weight: 16 },
         { type: 'formlessDew', weight: 14 + Math.min(8, depth) }, { type: 'goldenRule', weight: 2 + Math.floor(depth / 4) },
-        { type: 'jewelShard', weight: 10 }, { type: 'spore', weight: 8 }, { type: 'beeswax', weight: 10 }, { type: 'bundle', weight: 4 }
+        { type: 'jewelShard', weight: 10 }, { type: 'beeswax', weight: 10 }, { type: 'bundle', weight: 4 }
     ].filter(row => (currencies[row.type] || [row.type]).every(key => contentProgression.canDropCurrency(key)));
 }
 function pickWeightedBeehiveReward(branchStep, usedTypes) {
@@ -2959,11 +2959,6 @@ function buildBeehiveChoiceOption(type, branchStep, timing = 'wave') {
     if (type === 'goldenRule') { let chance = scaleBeehiveRewardChance(step >= 8 ? 1 : 0.35, timing); return mk(chance >= 1 ? '황금률 +1' : `황금률 획득 확률 ${Math.floor(chance * 100)}%`, 'goldenRule', 1, chance); }
     if (type === 'jewelShard') { let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step), timing); return mk(`주얼 결정 +${amount}`, 'jewelShard', amount); }
     if (type === 'beeswax') { let amount = scaleBeehiveRewardAmount(step >= 8 ? 2 : 1, timing); return mk(`밀랍 +${amount}`, 'beeswax', amount); }
-    if (type === 'spore') {
-        let sporeType = rndChoice(['sporeFire', 'sporeCold', 'sporeLight']);
-        let amount = scaleBeehiveRewardAmount(getBeehiveRewardAmount(2 + Math.floor(Math.random() * 3), step), timing);
-        return mk(`${ORB_DB[sporeType].name} +${amount}`, sporeType, amount);
-    }
     if (type === 'bundle') {
         let amount = scaleBeehiveRewardAmount(1, timing);
         return mk(`꽃가루 +${20 * amount}, 독벌침 +${amount}, 형체 없는 이슬 +${amount}`, 'bundle', amount);
@@ -5376,8 +5371,8 @@ function hideInfoTooltip() {
 }
 function showSporeCraftTooltip(event, kind) {
     let info = kind === 'corrupt'
-        ? { name: '부패 홀씨', desc: '잠기지 않은 원소 피해/원소 저항 옵션 1개를 무작위로 제거합니다.', color: '#b58ad9' }
-        : { name: '균열 홀씨', desc: '빈 옵션 1칸에 해당 부위의 화석 전용 옵션 1개를 추가합니다.', color: '#72c8d8' };
+        ? { name: '부패 수확', desc: '잠기지 않은 원소 피해/원소 저항 옵션 1개를 무작위로 제거합니다.', color: '#b58ad9' }
+        : { name: '균열 수확', desc: '빈 옵션 1칸에 해당 부위의 화석 전용 옵션 1개를 추가합니다.', color: '#72c8d8' };
     let html = `<div class="tooltip-title">${info.name}</div><div class="tooltip-line">${info.desc}</div>`;
     showInfoTooltipHtml(event.clientX, event.clientY, html, info.color);
 }
@@ -9372,46 +9367,6 @@ function renderTimeRiftPanel() {
     sideEncounterUi.timeRiftPanel(host, ensureTimeRiftState());
 }
 
-function sporeModeDialogBody(modeOptions, cur, sporeCost, advancedSpores) {
-    let buttons = modeOptions.map(opt => `<button type="button" class="selection-overlay-option${cur === opt.id ? ' selected' : ''}" data-spore-mode="${opt.id}">${opt.label}${cur === opt.id ? ' ✓' : ''}</button>`).join('');
-    return `<div class="selection-overlay-help">재화 사용 시 적용할 홀씨 태그를 고르세요. 단일 속성은 ${sporeCost}개, 카오스/피해는 세 속성 홀씨를 각각 ${sporeCost}개 사용합니다.${advancedSpores ? '' : ' 카오스/피해 태그는 이벨에게서 고급 홀씨를 받으면 열립니다.'}</div>`
-        + `<div class="selection-overlay-help spore-balance">보유: 화염 ${game.currencies.sporeFire || 0}, 냉기 ${game.currencies.sporeCold || 0}, 번개 ${game.currencies.sporeLight || 0}</div>`
-        + `<div class="selection-overlay-grid spore-mode-grid">${buttons}</div>`;
-}
-
-function openSporeModeOverlay(currencyKey) {
-    let allowed = ['magicBud','sapBud','formlessDew'];
-    if (!allowed.includes(currencyKey)) return;
-    let item = typeof getSelectedCraftItem === 'function' ? getSelectedCraftItem() : null;
-    if (item && typeof isSporeCraftEquipment === 'function' && !isSporeCraftEquipment(item)) {
-        if (typeof addLog === 'function') addLog('홀씨 태그 제련은 장비에만 사용할 수 있습니다.', 'attack-monster');
-        return;
-    }
-    let modeOptions = [
-        { id: 'none', label: '미사용' },
-        { id: 'fire', label: '화염' },
-        { id: 'cold', label: '냉기' },
-        { id: 'light', label: '번개' },
-        { id: 'chaos', label: '카오스', advanced: true },
-        { id: 'damage', label: '피해', advanced: true }
-    ];
-    let advancedSpores = contentProgression.isUnlocked('advancedSpores');
-    modeOptions = modeOptions.filter(opt => !opt.advanced || advancedSpores);
-    game.sporeCraftModes = game.sporeCraftModes || {};
-    let cur = game.sporeCraftModes[currencyKey] || 'none';
-    let sporeCost = typeof getSporeCraftCost === 'function' ? getSporeCraftCost() : 10;
-    if (!modeOptions.some(opt => opt.id === cur)) cur = 'none';
-    let panel = selectionDialog.show({ id: 'spore-mode-overlay', title: '홀씨 모드 선택', panelClass: 'spore-picker-panel', body: sporeModeDialogBody(modeOptions, cur, sporeCost, advancedSpores) });
-    panel.querySelector('.spore-mode-grid').onclick = event => {
-        let button = event.target.closest('[data-spore-mode]');
-        if (!button) return;
-        game.sporeCraftModes[currencyKey] = button.dataset.sporeMode;
-        updateStaticUI();
-        selectionDialog.close('spore-mode-overlay');
-    };
-}
-window.openSporeModeOverlay = openSporeModeOverlay;
-
 function showCurrencyCardTooltip(event, key, reason) {
     let orb = ORB_DB[key];
     if (!orb) return;
@@ -9461,21 +9416,21 @@ function getMobileCraftCurrencyUseState(key, item) {
     return { enabled: false, reason: '지원하지 않는 재화' };
 }
 
+/** 수확/화석 정제 칸(data/stump-box.js STUMP_BOX_HARVEST_CRAFT): 부패와 균열에 드는 식물의 가진 수와 두 버튼. */
 function buildSporeSummaryHtml() {
     const item = getSelectedCraftItem();
     const targetDisabled = !item || !isSporeCraftEquipment(item);
     const advanced = contentProgression.isUnlocked('advancedSpores');
     const riftBlock = item ? equipmentCrafting.getBlockReason(item, 'fossil') : '';
+    const rule = STUMP_BOX_HARVEST_CRAFT;
+    const costs = [...rule.rot.map(color => [stumpBox.harvestPriceKey('any', color), color]), [stumpBox.harvestPriceKey(rule.riftKind), 'physical']];
+    const held = costs.map(([key, color]) => `<div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:${STUMP_BOX_COLORS[color].tone}; font-size:12px;">${stumpBox.harvestPriceName(key)}<br><strong>x ${stumpBox.harvestPriceHeld(game, key)}</strong></div>`).join('');
     return `<div class="craft-spores">
-            <div class="craft-spores-title">홀씨 보유량</div>
-            <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px;">
-                <div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:#ff9f9f; font-size:12px;">화염 홀씨<br><strong>x ${game.currencies.sporeFire || 0}</strong></div>
-                <div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:#9fd6ff; font-size:12px;">냉기 홀씨<br><strong>x ${game.currencies.sporeCold || 0}</strong></div>
-                <div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:#ffe08a; font-size:12px;">번개 홀씨<br><strong>x ${game.currencies.sporeLight || 0}</strong></div>
-            </div>
+            <div class="craft-spores-title">수확 재료</div>
+            <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:6px;">${held}</div>
             <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
-                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || !advanced ? 'disabled' : ''}>부패 홀씨 (각 8)</button>
-                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${targetDisabled || !advanced || riftBlock ? 'disabled' : ''}>균열 홀씨 (화석1+각5)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'corrupt')" onmousemove="showSporeCraftTooltip(event,'corrupt')" onmouseleave="hideInfoTooltip()" onclick="applyCorruptSporeToSelectedItem()" ${targetDisabled || !advanced ? 'disabled' : ''}>부패 수확 (화염, 냉기, 번개 식물 1씩)</button>
+                <button data-info-tooltip-anchor="1" onmouseenter="showSporeCraftTooltip(event,'rift')" onmousemove="showSporeCraftTooltip(event,'rift')" onmouseleave="hideInfoTooltip()" onclick="applyRiftSporeToSelectedItem()" ${targetDisabled || !advanced || riftBlock ? 'disabled' : ''}>균열 수확 (화석 1, 뿌리 1)</button>
             </div>
         </div>`;
 }

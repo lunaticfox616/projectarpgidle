@@ -1,4 +1,4 @@
-/* 캐릭터 탭의 색(2026-11-02 사용자: 색감 개선). 맨 위 카드는 수치마다, 아래 묶음은 공격 주황, 방어 파랑, 기본 능력치 보라로 나눠 눈이 묶음을 먼저 찾게 한다.
+/* 캐릭터 탭의 색(2026-11-02 사용자: 색감 개선). 맨 위 카드는 수치마다, 아래 묶음은 공격 주황, 방어 파랑, 기타 보라로 나눠 눈이 묶음을 먼저 찾게 한다.
    같은 칸의 픽셀 스킨(themes/pixel.css)과 ui-system.css 위에 얹으므로 overrides 층에 둔다. */
 @layer overrides {
     #tab-character { --sheet-ink: #eee7da; --sheet-muted: #c6bcae; }
@@ -9,6 +9,26 @@
     #tab-character .character-overview .stat-item.is-shield { --tone: #5aa9e0; }
     :root body[data-ui-skin] #tab-character .character-overview .stat-label { color: color-mix(in srgb, var(--tone) 42%, #efe7da); }
     :root body[data-ui-skin] #tab-character .character-overview .stat-value { color: color-mix(in srgb, var(--tone) 40%, #fff6e8); }
+    #tab-character .character-overview { margin-bottom: 6px; }
+    /* 큰 수치는 이름 아래 왼쪽에서 시작한다(공통 .stat-value의 최소 폭 56px 오른쪽 정렬로 "42" 같은 짧은 수가 들여 쓰였다) */
+    #tab-character .character-overview .stat-value { min-width: 0; text-align: left; }
+    /* 좁은 창(2026-11-04 사용자): 총 DPS는 한 줄을 다 쓰고 최대 생명력과 에너지 보호막이 그 아래 한 줄에 둘. 창 안의 .stat-grid는 520px
+       아래에서 한 칸이 된다(ui-windows.css) */
+    @container (max-width: 520px) {
+        #tab-character .character-overview { grid-template-columns: minmax(0, 1fr) round(down, calc((100% - 6px) / 2), 1px); }
+        #tab-character .character-overview .stat-item.is-dps { grid-column: 1 / -1; }
+    }
+
+    /* 힘, 민첩, 지능(2026-11-04 사용자: 맨 위 수치 바로 아래 한 줄): 창 폭과 상관없이 늘 셋이 한 줄. 이름과 값을 한 줄에 둬 낮게 */
+    #tab-character .character-attributes { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, round(down, calc((100% - 12px) / 3), 1px)); gap: 6px; margin: 0 0 14px; }
+    #tab-character .character-attributes .stat-item { --tone: #a98fe6; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; margin: 0; padding: 7px 12px;
+        border: 1px solid color-mix(in srgb, var(--tone) 46%, #050404); border-radius: 0; background: linear-gradient(165deg, color-mix(in srgb, var(--tone) 18%, #16131a), #131016 72%); cursor: help; }
+    #tab-character .character-attributes .stat-item.is-str { --tone: #e07a5f; }
+    #tab-character .character-attributes .stat-item.is-dex { --tone: #7cc06a; }
+    #tab-character .character-attributes .stat-item.is-int { --tone: #6ea8e6; }
+    #tab-character .character-attributes .stat-item:is(:hover, :focus-visible) { border-color: color-mix(in srgb, var(--tone) 72%, #050404); outline: 0; }
+    #tab-character .character-attributes .stat-label { color: color-mix(in srgb, var(--tone) 42%, #efe7da); white-space: nowrap; }
+    #tab-character .character-attributes .stat-value { margin: 0; color: color-mix(in srgb, var(--tone) 40%, #fff6e8); font-variant-numeric: tabular-nums; }
 
     #tab-character .character-stat-section { --sec: #8c8373; }
     #tab-character .character-stat-section.is-attack { --sec: #e8895f; }

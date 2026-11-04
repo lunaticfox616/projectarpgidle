@@ -30,8 +30,10 @@ const battleGroundLoot = (() => {
     const pileKind = (lead, currency) => (currency ? 'currency' : lead.leaf ? 'leaf' : 'equipment');
     /** A leaf shows the pixel leaf (PIXEL_ICONS.leaf); other items show their inventory art. */
     const LEAF_ART = 'pixel:leaf';
+    // 실타래는 재화가 아니어서 공통 그림 하나를 쓴다(Codex 바닥 드랍 그림, 2026-11-04).
+    const YARN_ART = 'assets/ui/currency/yarn.png';
     // The loop's starter gem (a floor row by name, js/exploration-ground-loot.js placeGem) shows the gem's own art and name.
-    const leadArt = lead => (lead.yarn ? '' : lead.leaf ? LEAF_ART : lead.stump ? stumpBox.dropIcon(lead.stump) : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
+    const leadArt = lead => (lead.yarn ? YARN_ART : lead.leaf ? LEAF_ART : lead.stump ? stumpBox.dropIcon(lead.stump) : lead.gem ? getSkillGemArtPath(lead.gem) : getInventoryItemVisualAsset(lead.item, lead.itemKind));
     const leadName = lead => (lead.stump ? stumpBox.dropName(lead.stump) : lead.yarn ? `실타래 ${knitting.row(lead.yarn).name}` : lead.leaf ? memoryLeaves.leaf(lead.leaf).name : lead.gem ? `[${lead.gem}] 룬` : shownName(lead));
     /** The name a pile shows: an unidentified unique on the floor shows only its base (the name appears when picked up). */
     const shownName = receipt => (receipt.unidentified ? `미확인 ${receipt.item.baseName || getItemSlotDisplayLabel(receipt.item, '고유')}` : receipt.item.name);
