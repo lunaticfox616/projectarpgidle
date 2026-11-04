@@ -156,7 +156,7 @@ const npcShopUi = (() => {
         const result = busy ? { ok: false, reason: busy } : npcShop.buy(id, index, { place, resonanceCap: getEffectiveResonanceCap(), seen });
         if (!result.ok) { chosen = { id, index }; redrawShop(root, result.reason); return; }
         const who = contentUnlockUi.personal(STORY_NPCS[id].name);
-        addLog(`${who}에게서 [${escapeHTML(wareName(result.offer))}] 구매, ${npcShop.currencyName(result.offer.priceKey)} ${result.offer.price}`, 'loot-magic');
+        addLog(_t('{who}에게서 [{offer}] 구매, {currencyName} {price}', { who, offer: escapeHTML(wareName(result.offer)), currencyName: npcShop.currencyName(result.offer.priceKey), price: result.offer.price }), 'loot-magic');
         chosen = result.offer.gem?.kind === 'attack' ? { id, index } : null;
         checkUnlocks();
         updateStaticUI();
@@ -209,7 +209,7 @@ const npcShopUi = (() => {
     // 조건을 채운 순간의 소식: 이번 루프에 한 번.
     window.addEventListener('project-idle:npc-shop-all-runes', () => {
         game.noti.npcs = true;
-        addLog('하켄이 이번 루프에 모든 룬을 판매합니다.', 'season-up', { toast: true });
+        addLog(_t('하켄이 이번 루프에 모든 룬을 판매합니다.'), 'season-up', { toast: true });
     });
     document.addEventListener('input', event => {
         if (!event.target.matches?.('[data-npc-rune-search]')) return;

@@ -22,7 +22,7 @@ const memoryDungeonUi = (() => {
     }
     function challenge(nodeId, tier) {
         const model = selectedPreview();
-        if (!model || model.node.id !== nodeId || model.tier !== Number(tier)) return addLog('도전할 기억을 다시 선택하세요.', 'attack-monster');
+        if (!model || model.node.id !== nodeId || model.tier !== Number(tier)) return addLog(_t('도전할 기억을 다시 선택하세요.'), 'attack-monster');
         const reason = atlasRun.openMemory(nodeId, Number(tier));
         if (reason) { addLog(reason, 'attack-monster'); atlasUi.refresh(); return; }
         queueImportantSave(200);
@@ -135,14 +135,14 @@ const memoryDungeonUi = (() => {
     // ---------------------------------------------------------------- log lines ('complete' carries result.memory, js/atlas.js complete)
     function spoilsLines(spoils) {
         const currencies = spoils.rewards.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`).join(', ');
-        addLog(`🕯️ 기억 ${spoils.tier}단계 승리${spoils.best ? ' (새 기록)' : ''}: ${currencies || '재화 없음'}`, 'loot-unique', { toast: true });
-        (spoils.items || []).forEach(item => addLog(`🛡️ 기억의 보상 <span class='loot-${item.rarity}'>[${esc(getItemDisplayName(item))}]</span>`, item.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item }));
+        addLog(_t('🕯️ 기억 {tier}단계 승리{best}: {currencies}', { tier: spoils.tier, best: spoils.best ? ` ${_t('(새 기록)')}` : '', currencies: currencies || _t('재화 없음') }), 'loot-unique', { toast: true });
+        (spoils.items || []).forEach(item => addLog(_t("🛡️ 기억의 보상 <span class='loot-{rarity}'>[{item}]</span>", { rarity: item.rarity, item: esc(getItemDisplayName(item)) }), item.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item }));
     }
     function announce(detail) {
         const memory = detail.kind === 'complete' ? detail.memory : null;
         if (!memory) return;
         if (memory.spoils) spoilsLines(memory.spoils);
-        if (memory.ticket) addLog(`🕯️ ${esc(_t(memory.ticket.name))}의 기억 ${memory.ticket.tier}단계를 얻었습니다(아틀라스의 기억 보기).`, 'loot-unique', { toast: true });
+        if (memory.ticket) addLog(_t('🕯️ {name}의 기억 {tier}단계를 얻었습니다(아틀라스의 기억 보기).', { name: esc(_t(memory.ticket.name)), tier: memory.ticket.tier }), 'loot-unique', { toast: true });
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
     return Object.freeze({ html, select, challenge, setFilter, search, showMaps });

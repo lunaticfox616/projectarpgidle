@@ -622,14 +622,14 @@ function syncInitialPlayerProfile() {
     syncPlayerProfileQuiet();
 }
 async function syncPlayerProfile() {
-    if (!socialCloudReady()) return showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning');
+    if (!socialCloudReady()) return showGameToast(_t('먼저 클라우드 로그인이 필요합니다.'), 'warning');
     // 닉네임 줄을 쓰기 전에 서버의 닉네임을 다시 읽는다: 다른 기기에서 바꾼 닉네임을 옛 닉네임으로 되돌리지 않는다.
     await restoreNicknameFromServer(true);
     if (!getMyNickname()) await promptAndSetNickname();
     if (!getMyNickname()) return;
     try {
         await uploadPlayerProfile({ required: true });
-        showGameToast('공개 프로필을 최신 상태로 갱신했습니다.', 'success');
+        showGameToast(_t('공개 프로필을 최신 상태로 갱신했습니다.'), 'success');
     } catch (error) {
         if (error && error.socialCode === 'nickname_conflict') setMyNicknameLocal('');
         showGameToast('프로필 갱신 실패: ' + String(error && error.message || error), 'danger');
@@ -649,7 +649,7 @@ async function updatePastChatNicknames(name) {
 }
 
 async function promptAndSetNickname() {
-    if (!socialCloudReady()) { showGameToast('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)', 'warning'); return; }
+    if (!socialCloudReady()) { showGameToast(_t('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)'), 'warning'); return; }
     let current = getMyNickname();
     let input = await requestGameText({
         title: '닉네임 설정',
@@ -662,15 +662,15 @@ async function promptAndSetNickname() {
     if (input == null) return;
     let name = String(input).trim();
     if (name === current) return;
-    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { showGameToast(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자여야 합니다.`, 'warning'); return; }
-    if (!SOCIAL_NICK_RE.test(name)) { showGameToast('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.', 'warning'); return; }
+    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { showGameToast(_t('닉네임은 {SOCIAL_NICK_MIN}~{SOCIAL_NICK_MAX}자여야 합니다.', { SOCIAL_NICK_MIN, SOCIAL_NICK_MAX }), 'warning'); return; }
+    if (!SOCIAL_NICK_RE.test(name)) { showGameToast(_t('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.'), 'warning'); return; }
 
     let prev = getMyNickname();
     setMyNicknameLocal(name);
     try {
         await uploadPlayerProfile({ fromNicknameChange: true });
         await updatePastChatNicknames(name);     // 과거 채팅도 새 닉네임으로
-        if (typeof addLog === 'function') addLog(`🪪 닉네임이 ${withDirectionParticle(`"${name}"`)} 설정되었습니다.`, 'season-up');
+        if (typeof addLog === 'function') addLog(_t('🪪 닉네임이 {name} 설정되었습니다.', { name: withDirectionParticle(`"${name}"`) }), 'season-up');
         socialState.chatInitialized = false;
         socialState.chatMessages = [];
         socialState.lastChatRenderKey = '';
@@ -919,7 +919,7 @@ function showChatToast(row) {
     let now = Date.now();
     if (typeof showGameToast !== 'function' || now - socialState.lastChatToastAt < SOCIAL_CHAT_TOAST_GAP_MS) return;
     socialState.lastChatToastAt = now;
-    showGameToast(`새 채팅, ${String(row.nickname || '플레이어')}: ${getSocialChatNotificationPreview(row)}`, { tone: 'info', duration: SOCIAL_CHAT_TOAST_MS });
+    showGameToast(_t('새 채팅, {who}: {preview}', { who: String(row.nickname || _t('플레이어')), preview: getSocialChatNotificationPreview(row) }), { tone: 'info', duration: SOCIAL_CHAT_TOAST_MS });
 }
 /** 닫힌 채팅의 새 채팅 확인: 점과 토스트 하나에는 남이 보낸 가장 새 줄 하나면 된다(첨부 그림은 받지 않는다). 이미 알린 채팅 뒤만 묻는다:
  * 확인하지 않은 채팅이 쌓여도 같은 줄을 매번 다시 받지 않는다. 이 기기의 첫 확인은 기준점만 잡는다(noteIncomingChats). */
@@ -1176,7 +1176,7 @@ function unblockUser(userId) {
     socialState.lastChatRenderKey = '';
     renderChatMessages(socialState.chatMessages || [], false);
     refreshChatSettings();
-    showGameToast('차단을 풀었습니다.', 'info');
+    showGameToast(_t('차단을 풀었습니다.'), 'info');
 }
 /** 서버가 채팅을 거절한 까닭(db/social.sql chat_messages_rate_limit의 오류 코드)을 플레이어 문구로. 첫 줄부터 맞는 것 하나. */
 const SOCIAL_CHAT_ERROR_TEXTS = [
@@ -1265,7 +1265,7 @@ function updateChatSendButton() {
 }
 
 async function sendChatMessage() {
-    if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    if (!socialCloudReady()) { showGameToast(_t('먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
     if (socialState.chatSending) return;
     let inputEl = document.getElementById('social-chat-input');
     if (!inputEl) return;
@@ -1273,8 +1273,8 @@ async function sendChatMessage() {
     let pending = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
     let { body, items } = toChatBody(draft.trim(), pending);
     if (!body && !items.length) return;
-    if (body.length > SOCIAL_MSG_MAX) { showGameToast(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`, 'warning'); return; }
-    if (body && body === socialState.lastSentBody && !items.length) { showGameToast('같은 메시지를 연속으로 보낼 수 없습니다.', 'warning'); return; }
+    if (body.length > SOCIAL_MSG_MAX) { showGameToast(_t('메시지는 최대 {SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.', { SOCIAL_MSG_MAX }), 'warning'); return; }
+    if (body && body === socialState.lastSentBody && !items.length) { showGameToast(_t('같은 메시지를 연속으로 보낼 수 없습니다.'), 'warning'); return; }
     let rate = checkSendRateLimit();
     if (rate !== true) { showGameToast(rate, 'warning'); return; }
 
@@ -1350,7 +1350,7 @@ function insertChatItemLabel(inputEl, label) {
 }
 /** Puts one item card in the message being written; false when the message already holds the most it can. */
 function attachChatSnapshot(snap) {
-    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`, 'warning'); return false; }
+    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(_t('메시지당 최대 {SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.', { SOCIAL_MAX_ITEMS_PER_MSG }), 'warning'); return false; }
     socialState.pendingChatItems.push(snap);
     let inputEl = document.getElementById('social-chat-input');
     if (inputEl) insertChatItemLabel(inputEl, chatItemLabel(snap));
@@ -1365,9 +1365,9 @@ function attachChatItem(source, idx) {
 /** 들고 있던 장비를 채팅 입력 줄에 놓았다(js/equipment-inventory-grid-ui.js, 2026-10-22 사용자 "아이템을 직접 채팅창에 끌어다가 놓아도
  * 가능하게"). 주얼, 코어, 액막이도 제 카드로 붙는다(buildChatItemSnapshot). */
 function attachChatItemOf(item, slot) {
-    if (!getMyNickname()) return showGameToast('닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다.', 'warning');
+    if (!getMyNickname()) return showGameToast(_t('닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다.'), 'warning');
     let snap = buildChatItemSnapshot(item, slot);
-    if (!snap) return showGameToast('이 아이템은 채팅에 붙일 수 없습니다.', 'warning');
+    if (!snap) return showGameToast(_t('이 아이템은 채팅에 붙일 수 없습니다.'), 'warning');
     attachChatSnapshot(snap);
 }
 function removePendingChatItem(idx) {
@@ -1998,7 +1998,7 @@ function closePlayerProfile() { hideSocialTip(); let m = document.getElementById
 // 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
 async function openMyProfilePreview() {
     selectionDialog.close(CHAT_SETTINGS_ID);
-    if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    if (!socialCloudReady()) { showGameToast(_t('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
     // 닉네임 줄을 쓰기 전에 서버의 닉네임을 다시 읽는다(syncPlayerProfile과 같다).
     await restoreNicknameFromServer(true);
     if (!getMyNickname()) await promptAndSetNickname();
@@ -2274,7 +2274,7 @@ function showFetchedProfile(rows) {
 async function openPlayerProfile(userId) {
     if (!userId) return;
     selectionDialog.close(CHAT_SETTINGS_ID);
-    if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    if (!socialCloudReady()) { showGameToast(_t('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
     socialState.currentProfileUserId = String(userId);
     let modal = ensureProfileModal();
     modal.style.display = 'flex';

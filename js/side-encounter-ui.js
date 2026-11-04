@@ -518,7 +518,7 @@ const sideEncounterUi = (() => {
             const accepted = await requestGameConfirmation(message, { kicker: '대균열', title: '원정 포기', tone: 'danger', confirmLabel: '포기', cancelLabel: '계속 전투', dismissOnBackdrop: false });
             if (!accepted) return false;
             if (!withdrawalCurrent(view, game.voidRift.grandRun, 'grand_breach_run', game.voidRift.grandRun?.phase)) {
-                addLog('원정 상태가 바뀌었습니다. 다시 확인하세요.', 'attack-monster'); return false;
+                addLog(_t('원정 상태가 바뀌었습니다. 다시 확인하세요.'), 'attack-monster'); return false;
             }
             returnToTown();
             return true;
@@ -534,7 +534,7 @@ const sideEncounterUi = (() => {
             const accepted = await requestGameConfirmation(message,
                 { title: '군락지 철수', confirmLabel: '철수', cancelLabel: '취소', dismissOnBackdrop: false });
             if (!accepted) return false;
-            if (!withdrawalCurrent(view, game.colony, 'colony_run', game.colony.wave)) { addLog('군락지 원정이 바뀌었습니다. 다시 확인하세요.', 'attack-monster'); return false; }
+            if (!withdrawalCurrent(view, game.colony, 'colony_run', game.colony.wave)) { addLog(_t('군락지 원정이 바뀌었습니다. 다시 확인하세요.'), 'attack-monster'); return false; }
             forfeitColonyRun();
             return true;
         } finally { colonyWithdrawPending = false; }

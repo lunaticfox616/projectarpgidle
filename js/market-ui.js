@@ -59,7 +59,7 @@ const marketUi = {
         const result = exchangeAtMarket(recipe.id, quote.times, game);
         if (!result.ok) return addLog(result.reason, 'attack-monster');
         notifyCurrencyAcquisition(recipe.to, result.gain);
-        addLog(`🏦 거래소 교환: ${from} ${result.spend.toLocaleString()}개 → ${to} ${result.gain.toLocaleString()}개`, 'loot-magic');
+        addLog(_t('🏦 거래소 교환: {from} {spend}개 → {to} {gain}개', { from, spend: result.spend.toLocaleString(), to, gain: result.gain.toLocaleString() }), 'loot-magic');
         checkUnlocks();
         updateStaticUI();
     },

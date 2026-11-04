@@ -17,13 +17,13 @@ const atlasEpochUi = (() => {
             { title: '시대 재생', tone: 'danger', confirmLabel: '재생', cancelLabel: '그만두기' });
         if (!accepted) return;
         if (game !== owner || game.atlas !== target || rebirthReview(owner) !== reviewed) {
-            return addLog('확인 중 저장이나 아틀라스 진행이 바뀌어 시대 재생을 취소했습니다. 현재 상태를 다시 확인하세요.', 'attack-monster');
+            return addLog(_t('확인 중 저장이나 아틀라스 진행이 바뀌어 시대 재생을 취소했습니다. 현재 상태를 다시 확인하세요.'), 'attack-monster');
         }
         const reason = atlasEpoch.rebirth(owner);
         if (reason) return addLog(reason, 'attack-monster');
         atlas.sync(owner);
         lastRebirth = { owner, target, season: owner.season, epoch: target.epoch.count, gained: target.epoch.essence - before, maps: target.stash.length };
-        addLog(`🌳 시대 재생 ${target.epoch.count}회, 세계수 정수 +${lastRebirth.gained}, 새 지도석 ${lastRebirth.maps}개`, 'loot-unique');
+        addLog(_t('🌳 시대 재생 {count}회, 세계수 정수 +{gained}, 새 지도석 {maps}개', { count: target.epoch.count, gained: lastRebirth.gained, maps: lastRebirth.maps }), 'loot-unique');
         queueImportantSave(100);
         atlasUi.refresh();
         document.querySelector('#ui-atlas .atlas-epoch-restart')?.scrollIntoView({ block: 'start' });
@@ -44,7 +44,7 @@ const atlasEpochUi = (() => {
     function buy(id) {
         const reason = atlasEpoch.buy(game, id);
         if (reason) return addLog(reason, 'attack-monster');
-        addLog(`🌳 ${atlasEpoch.perks.get(id).name} ${atlasEpoch.rank(game, id)}단계`, 'season-up');
+        addLog(_t('🌳 {name} {rank}단계', { name: atlasEpoch.perks.get(id).name, rank: atlasEpoch.rank(game, id) }), 'season-up');
         queueImportantSave(200);
         atlasUi.refresh();
     }

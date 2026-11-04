@@ -88,8 +88,8 @@ function resetGhostArenaForAccount(userId) {
 }
 
 async function registerMyGhost() {
-    if (!socialCloudReady()) return showGameToast('클라우드 로그인이 필요합니다.', 'warning');
-    if (!isGhostCombatServerReady()) return showGameToast('고스트 실전투 DB 업데이트가 필요합니다.', 'warning');
+    if (!socialCloudReady()) return showGameToast(_t('클라우드 로그인이 필요합니다.'), 'warning');
+    if (!isGhostCombatServerReady()) return showGameToast(_t('고스트 실전투 DB 업데이트가 필요합니다.'), 'warning');
     ghostArenaState.loading = true;
     ghostArenaState.message = '';
     renderGhostArena();
@@ -105,7 +105,7 @@ async function registerMyGhost() {
         });
         ghostArenaState.result = null;
         ghostArenaState.duel = null;
-        showGameToast('현재 세팅으로 고스트를 등록했습니다.', 'success');
+        showGameToast(_t('현재 세팅으로 고스트를 등록했습니다.'), 'success');
     } catch (error) {
         ghostArenaState.message = getGhostArenaError(error);
     } finally {

@@ -310,7 +310,7 @@
         }
         if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
         if (typeof updateStaticUI === 'function') updateStaticUI();
-        notify(`${withObjectParticle(result.item.name || '장비')} 인벤토리로 회수했습니다.`, 'success');
+        notify(_t('{item} 인벤토리로 회수했습니다.', { item: withObjectParticle(_t(result.item.name || '장비')) }), 'success');
         return true;
     }
 
@@ -729,7 +729,7 @@
         let item = carryState.entry.item;
         endCarry();
         let moved = unequipItemToGrid(slot, column, row);
-        if (!moved) notify('그 위치에는 장비를 놓을 수 없습니다.', 'warning');
+        if (!moved) notify(_t('그 위치에는 장비를 놓을 수 없습니다.'), 'warning');
         else {
             playUiFeedbackSound.inventory(item, 'place');
             if (typeof saveGame === 'function') saveGame({ skipCloudSync: true });
@@ -802,7 +802,7 @@
         document.getElementById('eqw-arrange-menu')?.removeAttribute('open');
         let used = equipmentInventoryGridRuntime.autoArrange(game, wanted);
         if (!used) {
-            notify('가방이 거의 차서 빈칸 없이 다시 놓을 수 없습니다. 그대로 두었습니다.', 'warning');
+            notify(_t('가방이 거의 차서 빈칸 없이 다시 놓을 수 없습니다. 그대로 두었습니다.'), 'warning');
             return;
         }
         activePage = 0;
@@ -815,7 +815,7 @@
     /** equipmentInventoryGridRuntime packed the bag again so an item with no free cell fits instead of going to the temporary storage. */
     function notifyBagRepacked() {
         cancelCarry();
-        notify('빈칸이 흩어져 새 장비가 들어가도록 가방 빈칸 정리를 했습니다.', 'info');
+        notify(_t('빈칸이 흩어져 새 장비가 들어가도록 가방 빈칸 정리를 했습니다.'), 'info');
     }
 
     function startPointer(event) {
@@ -875,7 +875,7 @@
         if (carryState && carryState.moveResult && carryState.moveResult.ok && carryState.placement) {
             commitCarry(carryState.placement.column, carryState.placement.row);
         } else {
-            notify('그 위치에는 장비를 놓을 수 없습니다.', 'warning');
+            notify(_t('그 위치에는 장비를 놓을 수 없습니다.'), 'warning');
         }
         cancelCarry();
     }
@@ -894,7 +894,7 @@
         event.stopImmediatePropagation();
         if (carryState) {
             cancelCarry();
-            notify('장비 이동을 취소했습니다.', 'info');
+            notify(_t('장비 이동을 취소했습니다.'), 'info');
             return;
         }
         focus(null);

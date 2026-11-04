@@ -74,7 +74,7 @@
     function migrationNotice() {
         const migration = game.saveMeta?.supportRuneMigration;
         if (!migration?.noticePending) return;
-        addLog(`보조룬 개편: ${migration.moved.map(escapeHTML).join(', ')} 이전, 창공의 정수 ${migration.refund}개 환급. 소환 칸에서 사역룬을 확인하세요.`, 'loot-unique', { toast: true });
+        addLog(_t('보조룬 개편: {map} 이전, 창공의 정수 {refund}개 환급. 소환 칸에서 사역룬을 확인하세요.', { map: migration.moved.map(escapeHTML).join(', '), refund: migration.refund }), 'loot-unique', { toast: true });
         migration.noticePending = false;
     }
 

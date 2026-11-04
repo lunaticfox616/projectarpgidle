@@ -39,7 +39,7 @@ let passiveRevealBursts = [];
 function getPassiveNodeDisplayName(node) {
     if (!node) return '미확인 성좌';
     if (node.intentionalNoEffect) return '무효';
-    if (node.title) return node.title;
+    if (node.title) return _t(node.title);
     return (P_STATS[node.stat] || {}).name || '미확인 성좌';
 }
 
@@ -2154,7 +2154,7 @@ function unlockPassiveStarEvolution(options) {
     game.noti.char = true;
 
     if (!options.silent) {
-        addLog('✨ 별의 공명이 일어납니다.', 'loot-rare');
+        addLog(_t('✨ 별의 공명이 일어납니다.'), 'loot-rare');
         queueTutorialNotice(
             'passive_star_evolution',
             '성좌 각성',
@@ -2502,7 +2502,7 @@ function recordImmortalHeroDeathPenalty() {
         tr.value = Math.max(0, before - 30);
         changed = changed || tr.value !== before;
     });
-    if (changed && typeof addLog === 'function') addLog('🛡️ 불멸의 영웅 효과가 사망으로 생명력 -30 감소했습니다.', 'death');
+    if (changed && typeof addLog === 'function') addLog(_t('🛡️ 불멸의 영웅 효과가 사망으로 생명력 -30 감소했습니다.'), 'death');
     return changed;
 }
 
@@ -2546,12 +2546,12 @@ function rollFairyRingOnCraftedVoid(entry, nodeId) {
 }
 
 function applyVoidPassiveCurrency(nodeId, currencyKey) {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let node = PASSIVE_TREE.nodes[nodeId];
-    if (!node || node.kind !== 'void') return addLog('공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
-    if (!(game.passives || []).includes(node.id)) return addLog('먼저 공허 패시브를 활성화해야 합니다.', 'attack-monster');
-    if (!['magicBud', 'fairyRing', 'goldenRule'].includes(currencyKey)) return addLog('공허 패시브에는 마법의 새싹, 요정의 고리, 황금률만 사용할 수 있습니다.', 'attack-monster');
-    if ((game.currencies[currencyKey] || 0) <= 0) return addLog('재화가 부족합니다.', 'attack-monster');
+    if (!node || node.kind !== 'void') return addLog(_t('공허 패시브에만 사용할 수 있습니다.'), 'attack-monster');
+    if (!(game.passives || []).includes(node.id)) return addLog(_t('먼저 공허 패시브를 활성화해야 합니다.'), 'attack-monster');
+    if (!['magicBud', 'fairyRing', 'goldenRule'].includes(currencyKey)) return addLog(_t('공허 패시브에는 마법의 새싹, 요정의 고리, 황금률만 사용할 수 있습니다.'), 'attack-monster');
+    if ((game.currencies[currencyKey] || 0) <= 0) return addLog(_t('재화가 부족합니다.'), 'attack-monster');
     let entry = getVoidPassiveCraft(node.id);
     if (currencyKey === 'fairyRing') {
         const outcome = rollFairyRingOnCraftedVoid(entry, node.id);
@@ -2561,19 +2561,19 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         return;
     }
     if (currencyKey === 'goldenRule') {
-        if (!entry.transcendent || !TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min)))) return addLog('황금률은 수치가 있는 초월 공허 패시브에만 사용할 수 있습니다.', 'attack-monster');
+        if (!entry.transcendent || !TRANSCENDENT_VOID_PASSIVE_DB.some(def => def.id === entry.transcendent.id && Number.isFinite(Number(def.min)))) return addLog(_t('황금률은 수치가 있는 초월 공허 패시브에만 사용할 수 있습니다.'), 'attack-monster');
         game.currencies.goldenRule--;
         let previousTranscendent = entry.transcendent;
         entry.transcendent = rerollTranscendentVoidPassive(entry.transcendent);
         syncPaleBlueDotPassivePoints(previousTranscendent, entry.transcendent);
-        addLog(`✨ 초월 공허 패시브 수치 재굴림: ${formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '')}`, 'loot-unique');
+        addLog(_t('✨ 초월 공허 패시브 수치 재굴림: {replace}', { replace: formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '') }), 'loot-unique');
         updateStaticUI();
         return;
     }
-    if (entry.transcendent) return addLog('초월 공허 패시브에는 마법의 새싹을 사용할 수 없습니다.', 'attack-monster');
+    if (entry.transcendent) return addLog(_t('초월 공허 패시브에는 마법의 새싹을 사용할 수 없습니다.'), 'attack-monster');
     game.currencies[currencyKey]--;
     rollMagicBudOnVoid(entry);
-    addLog(`🕳️ 공허 패시브에 ${_t(ORB_DB[currencyKey].name)} 사용: ${getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '')}`, 'loot-magic');
+    addLog(_t('🕳️ 공허 패시브에 {name} 사용: {replace}', { name: _t(ORB_DB[currencyKey].name), replace: getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '') }), 'loot-magic');
     updateStaticUI();
 }
 
@@ -2626,7 +2626,7 @@ function tryUnlockMeteorContentByProgress() {
     let st = ensureMeteorSiteState();
     if (st.unlocked || !getMeteorSiteUnlockReady()) return false;
     st.unlocked = true;
-    addLog('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.', 'loot-unique');
+    addLog(_t('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.'), 'loot-unique');
     queueOpenContentNotice('meteorSite', 'meteor_unlocked', '운석 낙하 지점', '검은 별이 떨어지기 시작했습니다.\n액트 7을 넘긴 사냥터에서 사냥하면 하늘의 균열 게이지가 찹니다.\n게이지가 100%가 되면 ‘지도 → 탐험 → 운석 낙하’에 한 번 들어갈 수 있습니다.', 'tab-map');
     return true;
 }
@@ -2644,10 +2644,10 @@ function triggerAstronomerAnomaly(zone, enemy) {
     let rare = Math.random() < 0.22;
     if (rare) {
         st.skyRiftGauge = clampNumber((st.skyRiftGauge || 0) + 8, 0, 100);
-        addLog('☄️ 희귀 이상 현상 관측! 균열 게이지 +8%', 'loot-unique');
+        addLog(_t('☄️ 희귀 이상 현상 관측! 균열 게이지 +8%'), 'loot-unique');
     } else {
         st.skyRiftGauge = clampNumber((st.skyRiftGauge || 0) + 3, 0, 100);
-        addLog('✨ 이상 현상 관측: 균열 게이지 +3%', 'loot-magic');
+        addLog(_t('✨ 이상 현상 관측: 균열 게이지 +3%'), 'loot-magic');
     }
     return true;
 }
@@ -2658,7 +2658,7 @@ function grantConstellationObservationReward() {
     let st = ensureMeteorSiteState();
     let pick = rndChoice(METEOR_CONSTELLATION_POOL);
     st.constellationBuff = { stat: pick.stat, label: pick.label, val: pick.val, observedAt: Date.now(), permanent: true };
-    addLog(`🌠 별자리 관측: ${pick.label} +${pick.val}${pick.stat === 'flatHp' ? '' : '%'} (루프 후 유지)`, 'loot-unique');
+    addLog(_t('🌠 별자리 관측: {label} +{value}{unit} (루프 후 유지)', { label: _t(pick.label), value: pick.val, unit: pick.stat === 'flatHp' ? '' : '%' }), 'loot-unique');
 }
 
 function getSkyRiftGaugeTierCap(st) {
@@ -2700,7 +2700,7 @@ function gainSkyRiftGaugeFromCombat(zone, enemy) {
         st.skyRiftReady = true;
         st.kind = rollMeteorKind();
         const kind = getMeteorKind(st);
-        addLog(`☄️ 하늘 균열이 완전히 벌어졌다. 운석 낙하 지점으로 향할 수 있다. (${kind.name}, ${kind.element})`, 'loot-rare');
+        addLog(_t('☄️ 하늘 균열이 완전히 벌어졌다. 운석 낙하 지점으로 향할 수 있다. ({name}, {element})', { name: _t(kind.name), element: kind.element }), 'loot-rare');
         game.noti.map = true;
     }
 }
@@ -2734,10 +2734,10 @@ function setOceanFishingStrategy(strategyId) {
     let st = ensureOceanState();
     let strategy = OCEAN_FISHING_STRATEGIES[strategyId];
     if (!strategy) return false;
-    if (st.diving) { addLog('낚시 전략은 수면에서만 변경할 수 있습니다.', 'attack-monster'); return false; }
+    if (st.diving) { addLog(_t('낚시 전략은 수면에서만 변경할 수 있습니다.'), 'attack-monster'); return false; }
     if (st.fishingStrategy === strategyId) return true;
     st.fishingStrategy = strategyId;
-    addLog(`${strategy.icon} 낚시 전략을 ${withDirectionParticle(`'${strategy.name}'`)} 변경했습니다.`, 'loot-magic');
+    addLog(_t('{icon} 낚시 전략을 {name} 변경했습니다.', { icon: strategy.icon, name: withDirectionParticle(`'${_t(strategy.name)}'`) }), 'loot-magic');
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
     if (typeof updateStaticUI === 'function') updateStaticUI();
     return true;
@@ -2752,7 +2752,7 @@ function claimOceanFishCollectionMilestone(requiredCount) {
     if (!milestone || !status || !status.ready || status.claimed) return false;
     st.claimedCollectionMilestones.push(required);
     Object.keys(milestone.reward || {}).forEach(key => awardCurrency(key, milestone.reward[key]));
-    addLog(`📘 심해 도감 '${milestone.label}' 보상을 획득했습니다.`, 'loot-unique');
+    addLog(_t("📘 심해 도감 '{label}' 보상을 획득했습니다.", { label: _t(milestone.label) }), 'loot-unique');
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
     if (typeof updateStaticUI === 'function') updateStaticUI();
     return true;
@@ -2822,10 +2822,10 @@ function catchOceanFish(depthTier) {
     st.lastCatch = { key: picked, at: Date.now(), guaranteed };
     addBattleFx('fishCatch', {duration:400, background:game.isBackgroundCalculation});
     let logType = rarityRank >= 4 ? 'loot-unique' : (rarityRank >= 2 ? 'loot-rare' : 'loot-magic');
-    addLog(`${guaranteed ? '✨ 희귀 조짐 적중! ' : '🐟 '}${withObjectParticle(OCEAN_FISH_DB[picked].name)} 낚았습니다!`, logType);
+    addLog(_t('{omen}{fish} 낚았습니다!', { omen: guaranteed ? `${_t('✨ 희귀 조짐 적중!')} ` : '🐟 ', fish: withObjectParticle(_t(OCEAN_FISH_DB[picked].name)) }), logType);
     let discoveredCount = getOceanFishCollectionProgress(st).discoveredCount;
     if (!wasDiscovered && OCEAN_FISH_COLLECTION_MILESTONES.some(row => row.required === discoveredCount)) {
-        addLog(`📘 심해 도감 ${discoveredCount}/${Object.keys(OCEAN_FISH_DB).length}, 받을 보상이 있습니다.`, 'loot-rare');
+        addLog(_t('📘 심해 도감 {discoveredCount}/{length}, 받을 보상이 있습니다.', { discoveredCount, length: Object.keys(OCEAN_FISH_DB).length }), 'loot-rare');
         game.noti.map = true;
     }
     return picked;
@@ -2868,13 +2868,13 @@ function upgradeOceanPermanent(key) {
     let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
     if (!def) return false;
     let cost = getOceanPermanentUpgradeCost(key);
-    if (!cost) return addLog(`${def.label} 업그레이드는 이미 최대 단계입니다.`, 'attack-monster');
-    if (!canPayOceanUpgradeCost(cost)) return addLog(`${def.label} 업그레이드 재료가 부족합니다. (필요: ${getOceanUpgradeCostText(cost)})`, 'attack-monster');
+    if (!cost) return addLog(_t('{label} 업그레이드는 이미 최대 단계입니다.', { label: _t(def.label) }), 'attack-monster');
+    if (!canPayOceanUpgradeCost(cost)) return addLog(_t('{label} 업그레이드 재료가 부족합니다. (필요: {cost})', { label: _t(def.label), cost: getOceanUpgradeCostText(cost) }), 'attack-monster');
     payOceanUpgradeCost(cost);
     st.permanentUpgrades[key] = getOceanPermanentUpgradeLevel(key) + 1;
     st.oxygenMax = Math.max(1, Math.floor(getOceanOxygenMax()));
     st.oxygenCur = Math.min(st.oxygenMax, (st.oxygenCur || 0) + (key === 'oxygenMax' ? def.valuePerLevel : 0));
-    addLog(`🌊 심해 영구 업그레이드: ${def.label} Lv.${st.permanentUpgrades[key]} 달성`, 'loot-rare');
+    addLog(_t('🌊 심해 영구 업그레이드: {label} Lv.{permanentUpgrades} 달성', { label: _t(def.label), permanentUpgrades: st.permanentUpgrades[key] }), 'loot-rare');
     updateStaticUI();
     queueImportantSave(200);
     return true;
@@ -2883,11 +2883,11 @@ function upgradeOceanPermanent(key) {
 function installOceanReefFragment() {
     let st = ensureOceanState();
     if (!st.unlocked) return false;
-    if (st.reefInstalled >= 10) return addLog('암초 조각을 더 설치할 수 없습니다 (최대치).', 'attack-monster');
-    if ((game.currencies.reefFragment || 0) < 1) return addLog('암초 조각이 부족합니다.', 'attack-monster');
+    if (st.reefInstalled >= 10) return addLog(_t('암초 조각을 더 설치할 수 없습니다 (최대치).'), 'attack-monster');
+    if ((game.currencies.reefFragment || 0) < 1) return addLog(_t('암초 조각이 부족합니다.'), 'attack-monster');
     game.currencies.reefFragment -= 1;
     st.reefInstalled = Math.max(0, Math.floor(st.reefInstalled || 0)) + 1;
-    addLog(`🪸 암초 조각을 설치했습니다. (낚시 게이지 충전 +${(st.reefInstalled * 15)}%)`, 'loot-rare');
+    addLog(_t('🪸 암초 조각을 설치했습니다. (낚시 게이지 충전 +{value}%)', { value: st.reefInstalled * 15 }), 'loot-rare');
     queueImportantSave(200);
 }
 
@@ -2906,7 +2906,7 @@ function enterOceanDive({ auto = false, shallow = false } = {}) {
     const reason = getZoneTravelBlockReason(OCEAN_ZONE_ID) || getContentStartBlockReason();
     if (reason) { addLog(reason, 'attack-monster'); return false; }
     let st = ensureOceanState();
-    if (!st.unlocked) { addLog('아직 심해로 진입할 수 없습니다.', 'attack-monster'); return false; }
+    if (!st.unlocked) { addLog(_t('아직 심해로 진입할 수 없습니다.'), 'attack-monster'); return false; }
     if (st.diving) return false;
     if (!auto) st.fruitlessDives = 0;
     st.returnZoneId = game.currentZoneId === OCEAN_ZONE_ID ? null : game.currentZoneId;
@@ -2920,7 +2920,7 @@ function enterOceanDive({ auto = false, shallow = false } = {}) {
     st.diving = true;
     st.lastTickAt = getCombatTime();
     game.currentZoneId = OCEAN_ZONE_ID;
-    addLog(`🌊 심해 ${st.depthM}m 지점부터 잠수를 시작합니다.`, 'loot-rare');
+    addLog(_t('🌊 심해 {depthM}m 지점부터 잠수를 시작합니다.', { depthM: st.depthM }), 'loot-rare');
     return true;
 }
 
@@ -3011,7 +3011,7 @@ function applyOceanDrowningDamage(st, dtSec) {
     if (!st.drowning) {
         st.drowning = true;
         st.drownSec = 0;
-        addLog('🫨 산소가 바닥났습니다! 익사 피해가 점점 커지니 즉시 수면으로 복귀하세요.', 'attack-monster');
+        addLog(_t('🫨 산소가 바닥났습니다! 익사 피해가 점점 커지니 즉시 수면으로 복귀하세요.'), 'attack-monster');
     }
     st.drownSec = (Number(st.drownSec) || 0) + dtSec;
     let pStats = (typeof getPlayerStats === 'function') ? getPlayerStats() : null;
@@ -3072,12 +3072,12 @@ function applyOceanDepthGain(st, meters) {
     let newCheckpoint = Math.floor(st.depthM / 100) * 100;
     if (newCheckpoint > (st.checkpointM || 0)) {
         st.checkpointM = newCheckpoint;
-        addLog(`🛗 수중 리프트 ${st.checkpointM}m 지점이 개방되었습니다.`, 'loot-rare');
+        addLog(_t('🛗 수중 리프트 {checkpointM}m 지점이 개방되었습니다.', { checkpointM: st.checkpointM }), 'loot-rare');
     }
     st.pressureLevel = getOceanDepthTier(st.depthM);
     // 경계에 막 도달한 순간(이전엔 미달, 지금 도달) 가디언 등장을 알린다.
     if (curDepth < nextBoundary && st.depthM >= nextBoundary) {
-        addLog(`🌊 수심 ${nextBoundary}m: 심해 가디언이 길을 막습니다. 처치해야 더 깊이 내려갈 수 있습니다.`, 'loot-unique');
+        addLog(_t('🌊 수심 {nextBoundary}m: 심해 가디언이 길을 막습니다. 처치해야 더 깊이 내려갈 수 있습니다.', { nextBoundary }), 'loot-unique');
     }
 }
 
@@ -3202,11 +3202,11 @@ const { getSeaGiftRecipeStatus, craftSeaGift } = (() => {
     function craftSeaGift(recipeId, targetItem, options) {
         const status = getSeaGiftRecipeStatus(recipeId, targetItem, options?.category, options?.count);
         if (!status) return false;
-        if (!status.ready) { addLog(`바다의 선물: ${status.reason}`, 'attack-monster'); return false; }
+        if (!status.ready) { addLog(_t('바다의 선물: {reason}', { reason: status.reason }), 'attack-monster'); return false; }
         const st = ensureOceanState(), recipe = status.recipe;
         if (!applyEffect(status, options)) return false;
         Object.keys(recipe.requires).forEach(key => { st.fishStock[key] = Math.max(0, Math.floor(st.fishStock[key] || 0) - recipe.requires[key] * status.count); });
-        addLog(`🎁 바다의 선물 ${status.count}회 제작`, 'loot-rare');
+        addLog(_t('🎁 바다의 선물 {count}회 제작', { count: status.count }), 'loot-rare');
         if (status.item && typeof normalizeItem === 'function') normalizeItem(status.item);
         queueImportantSave(200);
         return true;
@@ -3415,7 +3415,7 @@ const applySeaGiftLockEffect = function (item, effect, category) {
         // 재단되는 줄은 봉인하고 남은 첫 줄(editable[count]). 새 줄은 그 줄을 뺀 접두 3, 접미 3 자리가 남는 종류에서.
         let pool = getOpenAffixMods(item, item.rarity, editable[count]).filter(mod => !category || getModCategory(mod) === category);
         rerollMod = pickRandomMods(pool, 1)[0];
-        if (!rerollMod) { addLog('해당 계열로 재단할 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
+        if (!rerollMod) { addLog(_t('해당 계열로 재단할 수 있는 옵션이 없습니다.'), 'attack-monster'); return false; }
     }
     for (let i = 0; i < count; i++) editable[i].lockedByHoney = true;
     if (!rerollMod) return true;
@@ -3608,16 +3608,16 @@ function rerollSingleBaseOption(item, costCurrency, costAmount) {
     if (blocked) { addLog(blocked, 'attack-monster'); return false; }
     let key = costCurrency || 'oceanRerollShard';
     let cost = Math.max(0, Math.floor(costAmount || 1));
-    if ((game.currencies[key] || 0) < cost) { addLog('재화가 부족합니다.', 'attack-monster'); return false; }
+    if ((game.currencies[key] || 0) < cost) { addLog(_t('재화가 부족합니다.'), 'attack-monster'); return false; }
     let editableIdx = item.stats.map((s, i) => (s && !s.lockedByHoney && !s.lockedByRift) ? i : -1).filter(i => i >= 0);
-    if (editableIdx.length === 0) { addLog('재굴림할 수 있는 옵션 줄이 없습니다.', 'attack-monster'); return false; }
+    if (editableIdx.length === 0) { addLog(_t('재굴림할 수 있는 옵션 줄이 없습니다.'), 'attack-monster'); return false; }
     let choice = equipmentCrafting.pickReplacement(item, getAvailableMods(item), editableIdx, mods => pickRandomMods(mods, 1)[0]);
-    if (!choice) { addLog('이 장비에서 새로 굴릴 수 있는 옵션이 없습니다.', 'attack-monster'); return false; }
+    if (!choice) { addLog(_t('이 장비에서 새로 굴릴 수 있는 옵션이 없습니다.'), 'attack-monster'); return false; }
     let maxTier = Math.max(1, Math.floor(getItemCraftTier(item) || 1));
     game.currencies[key] = (game.currencies[key] || 0) - cost;
     item.stats[choice.index] = rollAffixValue(choice.mod, maxTier, { roundInteger: true });
     updateItemName(item);
-    addLog(`🌊 ${item.name || '장비'}의 봉인되지 않은 무작위 추가 옵션 1줄의 종류와 수치를 교체했습니다.`, 'loot-rare');
+    addLog(_t('🌊 {name}의 봉인되지 않은 무작위 추가 옵션 1줄의 종류와 수치를 교체했습니다.', { name: getItemDisplayName(item) || _t('장비') }), 'loot-rare');
     return true;
 }
 
@@ -3634,7 +3634,7 @@ function grantMeteorEncounterRewards() {
     const count = getZone(METEOR_FALL_ZONE_ID).rewardEquipmentCount;
     for (let i = 0; i < count; i++) {
         const item = grantMeteorEquipmentReward();
-        addLog(`☄️ 운석 ${encounterTier}단계 정산 (${i + 1}/${count})${item ? `, [${item.name}]` : ''}`, 'loot-rare', item ? { item } : {});
+        addLog(_t('☄️ 운석 {tier}단계 정산 ({index}/{count}){item}', { tier: encounterTier, index: i + 1, count, item: item ? `, [${getItemDisplayName(item)}]` : '' }), 'loot-rare', item ? { item } : {});
     }
     unlockJournalEntry('meteor_fall');
     grantConstellationObservationReward();
@@ -5559,7 +5559,7 @@ openDeathOverlay.flushPending = function flushPendingDeathNotice() {
 };
 
 function openLastDeathLog() {
-    if (!game.lastDeathLog) return addLog('아직 기록된 데스로그가 없습니다.', 'attack-monster');
+    if (!game.lastDeathLog) return addLog(_t('아직 기록된 데스로그가 없습니다.'), 'attack-monster');
     openDeathOverlay(game.lastDeathLog);
 }
 
@@ -5831,7 +5831,7 @@ function grantJournalBonus(entryId, state = game) {
     if (state === game) {
         if (entry.bonus.stat === 'passivePoint' && typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
         playerStatCache.invalidate();
-        addLog(`저널 영구 보너스 획득: ${entry.bonus.label}`, 'season-up');
+        addLog(_t('저널 영구 보너스 획득: {label}', { label: _t(entry.bonus.label) }), 'season-up');
     }
 }
 function unlockJournalEntry(entryId, state = game) {
@@ -5843,7 +5843,7 @@ function unlockJournalEntry(entryId, state = game) {
         state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
         state.noti.journal = true;
         if (state === game) {
-            addLog(`📓 저널 해금: ${JOURNAL_DB[entryId].title}`, 'loot-rare');
+            addLog(_t('📓 저널 해금: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
             worldTreeBark.rewardPinnacleFirstKill(entryId);
             if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
         }
@@ -5861,7 +5861,7 @@ function ensureActJournalCompletionForLoop(options) {
         if (!game.journalEntries.includes(id)) game.journalEntries.push(id);
         grantJournalBonus(id);
     });
-    if (!silent && game.journalEntries.length > before) addLog('📓 루프 2 이상 보정: 액트 저널이 모두 복구되었습니다.', 'season-up');
+    if (!silent && game.journalEntries.length > before) addLog(_t('📓 루프 2 이상 보정: 액트 저널이 모두 복구되었습니다.'), 'season-up');
 }
 function markActRewardReady(zoneId) {
     if (zoneId < 0 || zoneId > 9) return;
@@ -5872,7 +5872,7 @@ function markActRewardReady(zoneId) {
     // 원래 선택지와 미해금 대체 선택지 모두 고를 수 없다면 청구권만 남긴다.
     if (!getAvailableActRewardZoneIds().includes(zoneId)) return;
     game.noti.map = true;
-    addLog(`🎁 [${MAP_ZONES[zoneId].name}] 클리어 보상을 받을 수 있습니다.`, 'loot-rare');
+    addLog(_t('🎁 [{name}] 클리어 보상을 받을 수 있습니다.', { name: MAP_ZONES[zoneId].name }), 'loot-rare');
     promptActReward(zoneId);
 }
 // 액트 보스를 쓰러뜨리면 다음 지역으로 떠나기 전에 보상 창을 띄운다(창이 열린 동안 게임이 멈춰 출발도 기다린다). 보상이 목표
@@ -6054,7 +6054,7 @@ function grantActRewardEntry(zoneId, choice) {
     if (choice.kind === 'item') {
         // 받은 장비를 기록에 남긴다(GPT가 장비 지급을 나누며 빠졌다: 1루프 무기는 시작 무기가 칸을 채워 가방으로만 간다)
         const item = grantActRewardItem(zoneId, choice);
-        if (item) addLog(`🎁 액트 보상으로 [${item.name}] 획득!`, choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic', { item });
+        if (item) addLog(_t('🎁 액트 보상으로 [{name}] 획득!', { name: _t(item.name) }), choice.rarity === 'rare' ? 'loot-rare' : 'loot-magic', { item });
         return !!item;
     }
     if (choice.kind === 'skill') {
@@ -6062,10 +6062,10 @@ function grantActRewardEntry(zoneId, choice) {
             game.skills.push(choice.skill);
             game.gemData[choice.skill] = game.gemData[choice.skill] || { level: 1, exp: 0 };
             game.noti.skills = true;
-            addLog(`🎁 액트 보상 룬 [${choice.skill}] 획득!`, 'loot-rare');
+            addLog(_t('🎁 액트 보상 룬 [{skill}] 획득!', { skill: choice.skill }), 'loot-rare');
         } else {
             game.passivePoints += choice.fallbackValue || 1;
-            addLog(`🎁 이미 보유한 룬 대신 스킬트리 포인트 +${choice.fallbackValue || 1}`, 'loot-magic');
+            addLog(_t('🎁 이미 보유한 룬 대신 스킬트리 포인트 +{value}', { value: choice.fallbackValue || 1 }), 'loot-magic');
         }
         return;
     }
@@ -6078,18 +6078,18 @@ function grantActRewardEntry(zoneId, choice) {
             // 보이지 않도록, 획득 직후에는 전체 보조스킬룬 목록을 보여 준다.
             game.gemFoldInactiveSupport = false;
             game.noti.skills = true;
-            addLog(`🎁 액트 보상 보조스킬룬 [${choice.gem}] 획득!`, 'loot-rare');
+            addLog(_t('🎁 액트 보상 보조스킬룬 [{gem}] 획득!', { gem: choice.gem }), 'loot-rare');
         } else {
             let fallback = getSupportActRewardFallback(choice);
             if (fallback.kind === 'points') game.passivePoints += fallback.amount;
             else awardCurrency(fallback.currency, fallback.amount);
-            addLog(`🎁 중복 보조스킬룬 대신 ${fallback.label}`, 'loot-magic');
+            addLog(_t('🎁 중복 보조스킬룬 대신 {label}', { label: _t(fallback.label) }), 'loot-magic');
         }
         return;
     }
     if (choice.kind === 'points') {
         game.passivePoints += choice.value || 0;
-        addLog(`🎁 스킬트리 포인트 +${choice.value || 0}`, 'loot-rare');
+        addLog(_t('🎁 스킬트리 포인트 +{value}', { value: choice.value || 0 }), 'loot-rare');
         return;
     }
     if (choice.kind === 'currency') {
@@ -6104,13 +6104,13 @@ function grantActRewardEntry(zoneId, choice) {
         addLog(`🎁 ${getStatName(choice.stat)} +${choice.value}${P_STATS[choice.stat] && P_STATS[choice.stat].isPct ? '%' : ''}`, 'loot-rare');
     }
 }
-function claimActRewardChoice(zoneId, choiceIndex, displayedChoice) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+function claimActRewardChoice(zoneId, choiceIndex, displayedChoice) { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!game.claimableActRewards.includes(zoneId)) return;
     let choices = getActRewardChoices(zoneId);
     let choice = choices[choiceIndex];
     if (!choice || !isActRewardChoiceAvailable(choice)) return;
     if (displayedChoice !== undefined && displayedChoice !== encodeURIComponent(choice.claimKey)) return openActReward(zoneId);
-    if (grantActRewardEntry(zoneId, choice) === false) return addLog('액트 보상을 지급하지 못했습니다. 보상은 유지됩니다.', 'system');
+    if (grantActRewardEntry(zoneId, choice) === false) return addLog(_t('액트 보상을 지급하지 못했습니다. 보상은 유지됩니다.'), 'system');
     if (typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
     game.claimableActRewards = game.claimableActRewards.filter(id => id !== zoneId);
     if (!game.claimedActRewards.includes(zoneId)) game.claimedActRewards.push(zoneId);
@@ -8536,7 +8536,7 @@ function registerUniqueToCodexOnAcquire(item, owner = game) {
     owner.codexNewlyRegistered[key] = true;
     if (owner.noti) owner.noti.codex = true;
     if (owner !== game) return true; // Restore collection history without live UI effects during save migration.
-    addLog(`📚 도감 신규 등록: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique');
+    addLog(_t("📚 도감 신규 등록: <span class='loot-unique'>[{name}]</span>", { name: _t(item.name) }), 'loot-unique');
     if (typeof tryGrantCodexCompletionReward === 'function') tryGrantCodexCompletionReward();
     return true;
 }
@@ -8891,10 +8891,10 @@ function rollEncroachmentLiberationOptions(item) {
 }
 function liberateSelectedEncroachedItem() {
     let item = getSelectedCraftItem();
-    if (!item || !item.encroached) return addLog('잠식된 아이템을 선택하세요.', 'attack-monster');
-    if (item.encroached.liberated) return addLog('이미 잠식 해방이 완료된 아이템입니다.', 'attack-monster');
+    if (!item || !item.encroached) return addLog(_t('잠식된 아이템을 선택하세요.'), 'attack-monster');
+    if (item.encroached.liberated) return addLog(_t('이미 잠식 해방이 완료된 아이템입니다.'), 'attack-monster');
     let options = rollEncroachmentLiberationOptions(item);
-    if (!options || options.length <= 0) return addLog('해방 가능한 최고 티어 옵션 후보가 없습니다.', 'attack-monster');
+    if (!options || options.length <= 0) return addLog(_t('해방 가능한 최고 티어 옵션 후보가 없습니다.'), 'attack-monster');
     openEncroachmentLiberationOverlay(item, options);
 }
 
@@ -8950,7 +8950,7 @@ function confirmEncroachmentLiberation(pickIdx) {
     item.encroached.chosen = chosen;
     item.encroached.pendingOptions = [];
     closeEncroachmentLiberationOverlay();
-    addLog(`🕳️ 잠식 해방 완료: ${_t(chosen.statName || getStatName(chosen.id))} +${formatValue(chosen.id, chosen.val)} 확정`, 'loot-unique');
+    addLog(_t('🕳️ 잠식 해방 완료: {value} +{value2} 확정', { value: _t(chosen.statName || getStatName(chosen.id)), value2: formatValue(chosen.id, chosen.val) }), 'loot-unique');
     updateStaticUI();
 }
 
@@ -9302,32 +9302,32 @@ function payCurrencyCosts(costs) {
     (costs || []).forEach(row => { game.currencies[row.key] = Math.max(0, Math.floor(game.currencies[row.key] || 0) - row.amount); });
     return true;
 }
-function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!isChaosInfuserUnlocked()) return addLog('나무꾼을 한 번 이상 마주친 뒤 혼돈 주입을 사용할 수 있습니다.', 'attack-monster');
+function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
+    if (!isChaosInfuserUnlocked()) return addLog(_t('나무꾼을 한 번 이상 마주친 뒤 혼돈 주입을 사용할 수 있습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
-    if (!item) return addLog('혼돈 주입 대상 아이템을 선택하세요.', 'attack-monster');
+    if (!item) return addLog(_t('혼돈 주입 대상 아이템을 선택하세요.'), 'attack-monster');
     let eligibility = isChaosInfusionEligibleItem(item);
     if (!eligibility.ok) return addLog(eligibility.reason, 'attack-monster');
     let option = getChaosInfuserOption(optionId);
     if (!option || !P_STATS[option.id]) return;
-    if (!getChaosInfuserOptionsForItem(item).some(opt => (opt.optionId || opt.id) === (option.optionId || option.id))) return addLog('이 부위에는 해당 혼돈 주입 옵션을 사용할 수 없습니다.', 'attack-monster');
+    if (!getChaosInfuserOptionsForItem(item).some(opt => (opt.optionId || opt.id) === (option.optionId || option.id))) return addLog(_t('이 부위에는 해당 혼돈 주입 옵션을 사용할 수 없습니다.'), 'attack-monster');
     let costs = getChaosInfusionCost(option, item);
-    if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 재화가 부족합니다. (필요: ${formatCurrencyCosts(costs)})`, 'attack-monster');
+    if (!canPayCurrencyCosts(costs)) return addLog(_t('혼돈 주입 재화가 부족합니다. (필요: {costs})', { costs: formatCurrencyCosts(costs) }), 'attack-monster');
     if (!payCurrencyCosts(costs)) return;
     let infusion = rollChaosInfusionOption(option);
     item.chaosInfusion = infusion;
-    addLog(`🧪 혼돈 주입: [${item.name}] ${getStatName(option.id)} +${formatValue(option.id, infusion.val)} 부여`, 'loot-rare');
+    addLog(_t('🧪 혼돈 주입: [{name}] {id} +{value} 부여', { name: _t(item.name), id: getStatName(option.id), value: formatValue(option.id, infusion.val) }), 'loot-rare');
     normalizeItem(item);
     updateStaticUI();
 }
-function removeChaosInfusionFromSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+function removeChaosInfusionFromSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item || !item.chaosInfusion) return;
     let costs = [{ key: 'blightSpore', amount: 1 }];
-    if (!canPayCurrencyCosts(costs)) return addLog(`혼돈 주입 제거에는 ${ORB_DB.blightSpore.name} 1개가 필요합니다.`, 'attack-monster');
+    if (!canPayCurrencyCosts(costs)) return addLog(_t('혼돈 주입 제거에는 {name} 1개가 필요합니다.', { name: _t(ORB_DB.blightSpore.name) }), 'attack-monster');
     if (!payCurrencyCosts(costs)) return;
     item.chaosInfusion = null;
-    addLog(`🧼 혼돈 주입 제거: [${item.name}]`, 'loot-normal');
+    addLog(_t('🧼 혼돈 주입 제거: [{name}]', { name: _t(item.name) }), 'loot-normal');
     updateStaticUI();
 }
 
@@ -9339,20 +9339,20 @@ window.isChaosInfuserUnlocked = isChaosInfuserUnlocked;
 window.getChaosInfusionCost = getChaosInfusionCost;
 window.formatCurrencyCosts = formatCurrencyCosts;
 
-function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 황금률/잿불가지/축복의 꽃잎만 받아들입니다.', 'attack-monster');
-    if ((game.currencies.enchantedHoney || 0) <= 0) return addLog('마력 깃든 벌꿀이 부족합니다.', 'attack-monster');
+    if (!item) return addLog(_t('먼저 아이템을 선택하세요.'), 'attack-monster');
+    if (item.fusedRelic) return addLog(_t('융합 유물은 시간에 굳어, 황금률/잿불가지/축복의 꽃잎만 받아들입니다.'), 'attack-monster');
+    if ((game.currencies.enchantedHoney || 0) <= 0) return addLog(_t('마력 깃든 벌꿀이 부족합니다.'), 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length < 4) return addLog('벌꿀 고정은 추가 옵션이 4개 이상일 때만 사용할 수 있습니다.', 'attack-monster');
-    if (item.stats.some(stat => stat && stat.lockedByHoney)) return addLog('이 장비에는 이미 고정 옵션이 있습니다.', 'attack-monster');
+    if (item.stats.length < 4) return addLog(_t('벌꿀 고정은 추가 옵션이 4개 이상일 때만 사용할 수 있습니다.'), 'attack-monster');
+    if (item.stats.some(stat => stat && stat.lockedByHoney)) return addLog(_t('이 장비에는 이미 고정 옵션이 있습니다.'), 'attack-monster');
     let candidates = item.stats.filter(stat => stat && !stat.lockedByRift);
-    if (candidates.length <= 0) return addLog('고정 가능한 옵션이 없습니다.', 'attack-monster');
+    if (candidates.length <= 0) return addLog(_t('고정 가능한 옵션이 없습니다.'), 'attack-monster');
     let pick = candidates[Math.floor(Math.random() * candidates.length)];
     pick.lockedByHoney = true;
     game.currencies.enchantedHoney--;
-    addLog(`🍯 [${item.name}] 옵션 고정 적용: ${_t(pick.statName || getStatName(pick.id))}`, 'loot-unique');
+    addLog(_t('🍯 [{name}] 옵션 고정 적용: {value}', { name: _t(item.name), value: _t(pick.statName || getStatName(pick.id)) }), 'loot-unique');
     updateStaticUI();
 }
 
@@ -9372,16 +9372,16 @@ function getVenomStingerMods(item) {
         && !occupiedIds.has(mod.statId || mod.id) && equipmentCrafting.fitsRoom(room, mod));
 }
 
-function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (item.fusedRelic) return addLog('융합 유물은 시간에 굳어, 황금률/잿불가지/축복의 꽃잎만 받아들입니다.', 'attack-monster');
-    if ((game.currencies.venomStinger || 0) <= 0) return addLog('독벌침이 부족합니다.', 'attack-monster');
+    if (!item) return addLog(_t('먼저 아이템을 선택하세요.'), 'attack-monster');
+    if (item.fusedRelic) return addLog(_t('융합 유물은 시간에 굳어, 황금률/잿불가지/축복의 꽃잎만 받아들입니다.'), 'attack-monster');
+    if ((game.currencies.venomStinger || 0) <= 0) return addLog(_t('독벌침이 부족합니다.'), 'attack-monster');
     const refusal = getVenomStingerRefusal(item);
     if (refusal) return addLog(refusal, 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     let attackMods = getVenomStingerMods(item);
-    if (attackMods.length <= 0) return addLog('독벌침이 붙일 수 있는 공격 옵션 자리가 없습니다(접두 3, 접미 3).', 'attack-monster');
+    if (attackMods.length <= 0) return addLog(_t('독벌침이 붙일 수 있는 공격 옵션 자리가 없습니다(접두 3, 접미 3).'), 'attack-monster');
     let mod = pickWeightedMod(attackMods);
     let rolled = rollAffixValue(mod, getItemCraftTier(item));
     let idx = item.stats.findIndex(stat => stat && stat.venomStingerBonus);
@@ -9389,28 +9389,28 @@ function applyVenomStingerToSelectedItem() { if (game.woodsmanBuildLock) return 
     if (idx >= 0) item.stats[idx] = rolled;
     else item.stats.push(rolled);
     game.currencies.venomStinger--;
-    addLog(`🦂 독벌침 적용: ${_t(rolled.statName || getStatName(rolled.id))} +${formatValue(rolled.id, rolled.val)}`, 'loot-rare');
+    addLog(_t('🦂 독벌침 적용: {value} +{value2}', { value: _t(rolled.statName || getStatName(rolled.id)), value2: formatValue(rolled.id, rolled.val) }), 'loot-rare');
     updateStaticUI();
 }
 
 /** 제작실의 공허의 끌: 선택한 장비에 공허 소켓을 뚫는다(규칙은 equipmentSockets). */
 function applyVoidChiselToSelectedItem() {
     let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
+    if (!item) return addLog(_t('먼저 아이템을 선택하세요.'), 'attack-monster');
     let result = equipmentSockets.chisel(item);
     if (!result.ok) return addLog(result.reason, 'attack-monster');
-    addLog(`🕳️ [${item.name}]에 공허 소켓을 뚫었습니다.`, 'loot-rare');
+    addLog(_t('🕳️ [{name}]에 공허 소켓을 뚫었습니다.', { name: _t(item.name) }), 'loot-rare');
     updateStaticUI();
 }
 
-function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+function applyWoodsmanTouchToSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 봉인할 장비를 선택하세요.', 'attack-monster');
-    if ((game.currencies.ouroboros || 0) < 1) return addLog('우로보로스가 부족합니다.', 'attack-monster');
-    if (item.loopSealed) return addLog('이미 봉인된 장비입니다.', 'attack-monster');
+    if (!item) return addLog(_t('먼저 봉인할 장비를 선택하세요.'), 'attack-monster');
+    if ((game.currencies.ouroboros || 0) < 1) return addLog(_t('우로보로스가 부족합니다.'), 'attack-monster');
+    if (item.loopSealed) return addLog(_t('이미 봉인된 장비입니다.'), 'attack-monster');
     game.currencies.ouroboros--;
     item.loopSealed = true;
-    addLog(`🌿 [${item.name}]${pickParticle(item.name, '을', '를')} 나무꾼의 손길로 봉인했습니다. 루프가 진행되어도 사라지지 않습니다.`, 'loot-unique');
+    addLog(_t('🌿 [{name}]{particle} 나무꾼의 손길로 봉인했습니다. 루프가 진행되어도 사라지지 않습니다.', { name: getItemDisplayName(item), particle: pickParticle(item.name, '을', '를') }), 'loot-unique');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -9605,7 +9605,7 @@ function generateUniqueItem(zoneTier, preferredSlot, forcedUniqueName, zone = ge
         game.seasonChaseUniqueDrops = Array.isArray(game.seasonChaseUniqueDrops) ? game.seasonChaseUniqueDrops : [];
         if (!game.seasonChaseUniqueDrops.includes(unique.name)) game.seasonChaseUniqueDrops.push(unique.name);
         game.seasonChaseUniqueDropped = game.seasonChaseUniqueDrops.length > 0;
-        addLog(`🌠 체이싱 유니크 발견! [${unique.name}]`, 'loot-unique');
+        addLog(_t('🌠 체이싱 유니크 발견! [{name}]', { name: _t(unique.name) }), 'loot-unique');
     }
     maybeApplyExceptionalBase(item);
     return levelProgression.stampItem(item);
@@ -9782,17 +9782,17 @@ function addItemToInventory(item, options) {
     let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options);
     if (autoEquipSlot) {
         recordEquipmentAcquisition(item);
-        if (logLoot) addLog(`🛡️ 빈 ${autoEquipSlot} 슬롯에 자동 장착: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'loot-rare', { item });
+        if (logLoot) addLog(_t("🛡️ 빈 {autoEquipSlot} 슬롯에 자동 장착: <span class='loot-{rarity}'>[{name}]</span>", { autoEquipSlot, rarity: item.rarity, name: _t(item.name) }), 'loot-rare', { item });
         checkUnlocks();
         return true;
     }
     if (!ignoreFilter && !passesItemPickupFilter(item)) {
-        if (logLoot) addLog(`🚫 아이템 필터로 미습득: <span class='loot-${item.rarity}'>[${item.name}]</span>`, 'attack-monster');
+        if (logLoot) addLog(_t("🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>", { rarity: item.rarity, name: _t(item.name) }), 'attack-monster');
         return false;
     }
     const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
     if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
-    if (result.kind === 'protected') addLog(`🎒 인벤토리가 가득 찼지만 [${item.name}]${pickParticle(item.name, '은', '는')} 유실 방지를 위해 초과 보관됩니다.`, 'attack-monster');
+    if (result.kind === 'protected') addLog(_t('🎒 인벤토리가 가득 찼지만 [{name}]{particle} 유실 방지를 위해 초과 보관됩니다.', { name: getItemDisplayName(item), particle: pickParticle(item.name, '은', '는') }), 'attack-monster');
     else if (logLoot && result.rewards && result.log) {
         const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
         addLog(`${label}: <span class='loot-${item.rarity}'>[${item.name}]</span>, ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
@@ -9849,7 +9849,7 @@ function recordUniqueAcquisition(item) {
     if (typeof uniqueHuntRuntime === 'undefined') return true;
     let target = uniqueHuntRuntime.complete(item);
     if (!target) return true;
-    addLog(`🎯 파밍 목표 획득: <span class='loot-unique'>[${item.name}]</span>`, 'loot-unique', { item, toast: true });
+    addLog(_t("🎯 파밍 목표 획득: <span class='loot-unique'>[{name}]</span>", { name: _t(item.name) }), 'loot-unique', { item, toast: true });
     return true;
 }
 
@@ -10216,7 +10216,7 @@ function salvageJewelObject(jewel, silent) {
     let shardGain = getJewelSalvageShardGain(jewel);
     if (shardGain <= 0) return 0;
     awardCurrency('jewelShard', shardGain, 'reward');
-    if (!silent) addLog(`💠 [${jewel.name}] 주얼 해체 (${formatSalvageRewardSummary({ jewelShard: shardGain })})`, 'loot-normal');
+    if (!silent) addLog(_t('💠 [{name}] 주얼 해체 ({rewards})', { name: _t(jewel.name), rewards: formatSalvageRewardSummary({ jewelShard: shardGain }) }), 'loot-normal');
     return shardGain;
 }
 
@@ -10231,20 +10231,20 @@ function destroySelectedCraftItem(item) {
     return jewels;
 }
 
-function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let cost = 12;
-    if ((game.currencies.jewelShard || 0) < cost) return addLog(`주얼 가공에 필요한 주얼 결정이 부족합니다. (필요: ${cost})`, 'attack-monster');
-    if (!equipmentInventoryGridRuntime.findAddPlacement({ slot: bagItems.JEWEL }, game).ok) return addLog('가방에 자리가 없습니다.', 'attack-monster');
+    if ((game.currencies.jewelShard || 0) < cost) return addLog(_t('주얼 가공에 필요한 주얼 결정이 부족합니다. (필요: {cost})', { cost }), 'attack-monster');
+    if (!equipmentInventoryGridRuntime.findAddPlacement({ slot: bagItems.JEWEL }, game).ok) return addLog(_t('가방에 자리가 없습니다.'), 'attack-monster');
     game.currencies.jewelShard -= cost;
     let zoneTier = Math.max(1, Math.floor(((getZone(game.currentZoneId) || {}).tier || 1)));
     let jewel = generateJewelDrop(zoneTier + 8);
     if (!jewel) {
         awardCurrency('jewelShard', cost);
-        return addLog('주얼 가공 결과를 생성하지 못했습니다. 소모 재화를 반환합니다.', 'attack-monster');
+        return addLog(_t('주얼 가공 결과를 생성하지 못했습니다. 소모 재화를 반환합니다.'), 'attack-monster');
     }
     bagItems.put(bagItems.asJewel(jewel), game, true);
     let lineText = getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}${Number.isFinite(Number(stat.tier)) && !isJewelPetiteStat(stat) ? ` T${Math.floor(stat.tier)}` : ''}`).join(' / ');
-    addLog(`🎰 주얼 가공: ${getJewelRarityLabel(jewel.rarity)} [${jewel.name}] 획득! (${lineText})`, jewel.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
+    addLog(_t('🎰 주얼 가공: {rarity} [{name}] 획득! ({lineText})', { rarity: getJewelRarityLabel(jewel.rarity), name: _t(jewel.name), lineText }), jewel.rarity === 'unique' ? 'loot-unique' : 'loot-rare', { item:jewel, itemKind:'jewel' });
     updateStaticUI();
 }
 
@@ -10358,20 +10358,20 @@ function rollItemSalvageRewards(item, options) {
 function salvageItemObject(item, silent, options) {
     if (!item) return {};
     const jewels = equipmentSockets.returnJewels(item);
-    if (jewels > 0) addLog(`💠 [${item.name}]에 끼운 주얼 ${jewels}개를 가방으로 돌려받았습니다.`, 'loot-rare');
+    if (jewels > 0) addLog(_t('💠 [{name}]에 끼운 주얼 {jewels}개를 가방으로 돌려받았습니다.', { name: _t(item.name), jewels }), 'loot-rare');
     let rewards = rollItemSalvageRewards(item, options);
     Object.entries(rewards).forEach(([key, amount]) => awardCurrency(key, amount, 'reward'));
     if (typeof salvageRecoveryRuntime !== 'undefined') salvageRecoveryRuntime.record(item, rewards);
-    if (!silent) addLog(`🧪 <span class='loot-${item.rarity}'>[${item.name}]</span> 해체, ${formatSalvageRewardSummary(rewards)}`, "loot-normal");
+    if (!silent) addLog(_t("🧪 <span class='loot-{rarity}'>[{name}]</span> 해체, {rewards}", { rarity: item.rarity, name: _t(item.name), rewards: formatSalvageRewardSummary(rewards) }), "loot-normal");
     return rewards;
 }
 
 function salvageItem(idx) {
     let item = game.inventory[idx];
     if (!item) return;
-    if (item.locked) return addLog(`🔒 잠금된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
+    if (item.locked) return addLog(_t('🔒 잠금된 아이템은 해체할 수 없습니다. [{name}]', { name: _t(item.name) }), 'attack-monster');
     if (typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item)) {
-        return addLog(`🧰 장비 세팅에 저장된 아이템은 해체할 수 없습니다. [${item.name}]`, 'attack-monster');
+        return addLog(_t('🧰 장비 세팅에 저장된 아이템은 해체할 수 없습니다. [{name}]', { name: _t(item.name) }), 'attack-monster');
     }
     if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
     salvageItemObject(item, false);
@@ -10398,12 +10398,12 @@ function toggleAutoSalvage() {
     let f = game.settings.autoSalvageRarities || {};
     if (!game.settings.autoSalvageEnabled) {
         let active = ['normal', 'magic', 'rare', 'unique'].filter(r => f[r]);
-        if (active.length === 0) return addLog('자동해체할 등급을 먼저 선택하세요.', 'attack-monster');
+        if (active.length === 0) return addLog(_t('자동해체할 등급을 먼저 선택하세요.'), 'attack-monster');
     }
     game.settings.autoSalvageEnabled = !game.settings.autoSalvageEnabled;
     syncSalvageControlsFromSettings();
     queueImportantSave(200);
-    addLog(`⚙️ 자동해체 ${game.settings.autoSalvageEnabled ? '활성화' : '비활성화'}`, 'loot-normal');
+    addLog(`⚙️ ${_t('자동해체')} ${_t(game.settings.autoSalvageEnabled ? '활성화' : '비활성화')}`, 'loot-normal');
 }
 
 // 일괄 해체 보호: 잠금·장비 프리셋 아이템은 대상에서 제외한다.
@@ -10446,13 +10446,13 @@ function getShownSlotFilter() {
  * so picking 무기 and 일반 salvaged every normal item). */
 async function bulkSalvageSelected() {
     let selectedRarities = getActiveRarityFilterSet();
-    if (selectedRarities.length === 0) return addLog('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)', 'attack-monster');
+    if (selectedRarities.length === 0) return addLog(_t('해체할 등급을 먼저 선택하세요. (등급 필터에서 선택)'), 'attack-monster');
     let rarityLabels = ITEM_RARITY_LABELS;
     let shownSlot = getShownSlotFilter();
     let isShown = item => selectedRarities.includes(item.rarity) && (shownSlot === 'all' || item.slot === shownSlot);
     let targetItems = (game.inventory || []).filter(item => item && !isBulkSalvageProtectedItem(item) && isShown(item));
     let targetCount = targetItems.length;
-    if (targetCount <= 0) return addLog('선택한 등급의 해체 가능한 장비가 없습니다.', 'attack-monster');
+    if (targetCount <= 0) return addLog(_t('선택한 등급의 해체 가능한 장비가 없습니다.'), 'attack-monster');
     let labelText = selectedRarities.map(r => rarityLabels[r] || r).join('/');
     const note = bagItems.countNote(targetItems);
     if (!await requestGameConfirmation(`[${labelText}] 등급 ${shownSlot === 'all' ? '장비' : shownSlot} ${targetCount}개를 해체합니다.${note ? `\n${note} 포함` : ''}\n잠금, 세팅, 우선 보관 장비는 빼고 해체합니다.`, {
@@ -10463,25 +10463,25 @@ async function bulkSalvageSelected() {
     const targets = confirmedSalvageTargets(targetItems);
     const lockedSkipped = game.inventory.filter(item => isShown(item) && isBulkSalvageProtectedItem(item)).length;
     if (targets.length === 0) {
-        if (lockedSkipped > 0) return addLog(`🔒 고른 장비가 모두 보호 중입니다(잠금, 세팅, 우선 보관 ${lockedSkipped}개).`, 'attack-monster');
-        return addLog('선택한 등급의 장비가 없습니다.', 'attack-monster');
+        if (lockedSkipped > 0) return addLog(_t('🔒 고른 장비가 모두 보호 중입니다(잠금, 세팅, 우선 보관 {lockedSkipped}개).', { lockedSkipped }), 'attack-monster');
+        return addLog(_t('선택한 등급의 장비가 없습니다.'), 'attack-monster');
     }
     const rewards = salvageBagItems(targets);
     ensureCraftSelectionValid();
-    addLog(`🧪 선택한 등급 장비 ${targets.length}개 해체, ${formatSalvageRewardSummary(rewards)}${lockedSkipped > 0 ? ` (잠금, 세팅, 우선 보관 ${lockedSkipped}개는 남김)` : ''}`, 'loot-normal');
+    addLog(_t('🧪 선택한 등급 장비 {count}개 해체, {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedSkipped > 0 ? ` ${_t('(잠금, 세팅, 우선 보관 {n}개는 남김)', { n: lockedSkipped })}` : '' }), 'loot-normal');
     updateStaticUI();
 }
 /** 전체 해체. The panel's button asks first; the rail's 해체 button double-clicked passes ask false and salvages at once
  * (2026-10-21, js/equipment-window-ui.js salvageAllOnDoubleClick). Locked, set and priority-kept gear stays either way. */
 async function bulkSalvageAllInventory(options = {}) {
-    if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog('해체할 장비가 없습니다.', 'attack-monster');
+    if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog(_t('해체할 장비가 없습니다.'), 'attack-monster');
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
-    if (targetItems.length <= 0) return addLog('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.', 'attack-monster');
+    if (targetItems.length <= 0) return addLog(_t('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.'), 'attack-monster');
     if (options.ask !== false && !await confirmBulkSalvageAll(targetItems, lockedCount)) return;
     const targets = confirmedSalvageTargets(targetItems), rewards = salvageBagItems(targets);
     if (!isCraftSelectionEquip()) clearCraftSelection();
-    addLog(`🧪 인벤토리 전체해체 완료 (${targets.length}개), ${formatSalvageRewardSummary(rewards)}${lockedCount > 0 ? `, 잠금, 세팅, 우선 보관 ${lockedCount}개는 남김` : ''}`, 'loot-normal');
+    addLog(_t('🧪 인벤토리 전체해체 완료 ({count}개), {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedCount > 0 ? `, ${_t('잠금, 세팅, 우선 보관 {n}개는 남김', { n: lockedCount })}` : '' }), 'loot-normal');
     updateStaticUI();
 }
 function confirmBulkSalvageAll(targetItems, lockedCount) {
@@ -10515,40 +10515,40 @@ function isSporeCraftEquipment(item) {
 
 // The elemental lines a rot spore removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
 const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
-function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('부패 홀씨는 고급 홀씨를 해금해야 쓸 수 있습니다.', 'attack-monster');
+function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog(_t('부패 홀씨는 고급 홀씨를 해금해야 쓸 수 있습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
-    if (item.corrupted) return addLog('타락한 아이템에는 사용할 수 없습니다.', 'attack-monster');
+    if (!item) return addLog(_t('먼저 아이템을 선택하세요.'), 'attack-monster');
+    if (!isSporeCraftEquipment(item)) return addLog(_t('홀씨 제작은 장비에만 사용할 수 있습니다.'), 'attack-monster');
+    if (item.corrupted) return addLog(_t('타락한 아이템에는 사용할 수 없습니다.'), 'attack-monster');
     let cost = 8;
-    if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(`부패 홀씨에는 각 속성 홀씨 ${cost}개가 필요합니다.`, 'attack-monster');
+    if ((game.currencies.sporeFire || 0) < cost || (game.currencies.sporeCold || 0) < cost || (game.currencies.sporeLight || 0) < cost) return addLog(_t('부패 홀씨에는 각 속성 홀씨 {cost}개가 필요합니다.', { cost }), 'attack-monster');
     let ids = new Set(ROT_SPORE_STAT_IDS);
     item.stats = Array.isArray(item.stats) ? item.stats : [];
     let candidates = item.stats.map((stat, idx) => ({ stat, idx })).filter(row => row.stat && !row.stat.lockedByHoney && !row.stat.lockedByRift && ids.has(row.stat.id));
-    if (candidates.length <= 0) return addLog('제거할 원소 계열 옵션이 없습니다.', 'attack-monster');
+    if (candidates.length <= 0) return addLog(_t('제거할 원소 계열 옵션이 없습니다.'), 'attack-monster');
     game.currencies.sporeFire -= cost;
     game.currencies.sporeCold -= cost;
     game.currencies.sporeLight -= cost;
     let pick = rndChoice(candidates);
     let removed = item.stats.splice(pick.idx, 1)[0];
     updateItemName(item);
-    addLog(`🍄 부패 홀씨 적용: ${_t(removed.statName || getStatName(removed.id))} 옵션 제거`, 'loot-rare');
+    addLog(_t('🍄 부패 홀씨 적용: {value} 옵션 제거', { value: _t(removed.statName || getStatName(removed.id)) }), 'loot-rare');
     updateStaticUI();
 }
 
-function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('advancedSpores')) return addLog('균열 홀씨는 고급 홀씨를 해금해야 쓸 수 있습니다.', 'attack-monster');
+function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
+    if (!contentProgression.isUnlocked('advancedSpores')) return addLog(_t('균열 홀씨는 고급 홀씨를 해금해야 쓸 수 있습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 아이템을 선택하세요.', 'attack-monster');
-    if (!isSporeCraftEquipment(item)) return addLog('홀씨 제작은 장비에만 사용할 수 있습니다.', 'attack-monster');
+    if (!item) return addLog(_t('먼저 아이템을 선택하세요.'), 'attack-monster');
+    if (!isSporeCraftEquipment(item)) return addLog(_t('홀씨 제작은 장비에만 사용할 수 있습니다.'), 'attack-monster');
     const craftBlock = equipmentCrafting.getBlockReason(item, 'fossil');
     if (craftBlock) return addLog(craftBlock, 'attack-monster');
-    if ((game.currencies.fossil || 0) < 1 || (game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return addLog('균열 홀씨에는 미궁 화석 1개와 각 속성 홀씨 5개가 필요합니다.', 'attack-monster');
+    if ((game.currencies.fossil || 0) < 1 || (game.currencies.sporeFire || 0) < 5 || (game.currencies.sporeCold || 0) < 5 || (game.currencies.sporeLight || 0) < 5) return addLog(_t('균열 홀씨에는 미궁 화석 1개와 각 속성 홀씨 5개가 필요합니다.'), 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length >= EXPLICIT_AFFIX_LINE_CAP) return addLog('옵션이 가득 차 있습니다.', 'attack-monster');
+    if (item.stats.length >= EXPLICIT_AFFIX_LINE_CAP) return addLog(_t('옵션이 가득 차 있습니다.'), 'attack-monster');
     let pool = typeof getFossilExclusivePool === 'function' ? getFossilExclusivePool(item) : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
-    if (!pool || pool.length <= 0) return addLog('이 장비 슬롯에 붙일 수 있는 화석 전용 옵션이 없습니다.', 'attack-monster');
+    if (!pool || pool.length <= 0) return addLog(_t('이 장비 슬롯에 붙일 수 있는 화석 전용 옵션이 없습니다.'), 'attack-monster');
     game.currencies.fossil--;
     game.currencies.sporeFire -= 5;
     game.currencies.sporeCold -= 5;
@@ -10559,7 +10559,7 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     item.stats.push(roll);
     item.rarity = item.rarity === 'normal' ? 'magic' : item.rarity;
     updateItemName(item);
-    addLog(`🍄 균열 홀씨 적용: ${_t(roll.statName || getStatName(roll.id))} +${formatValue(roll.id, roll.val)}`, 'loot-unique');
+    addLog(_t('🍄 균열 홀씨 적용: {value} +{value2}', { value: _t(roll.statName || getStatName(roll.id)), value2: formatValue(roll.id, roll.val) }), 'loot-unique');
     updateStaticUI();
 }
 
@@ -10783,7 +10783,7 @@ const craftCurrencyUse = (() => {
     // ---------------------------------------------------------------- effects after payment (basic crafts: equipmentCrafting.craftBasic)
     function raiseQuality(item, run) {
         item.quality = Math.max(0, Math.min(20, Math.floor(item.quality || 0) + 1));
-        run.logs.push([`🛠️ 장비 퀄리티 +1% (현재 ${item.quality}%)`, 'loot-magic']);
+        run.logs.push([_t('🛠️ 장비 퀄리티 +1% (현재 {quality}%)', { quality: item.quality }), 'loot-magic']);
     }
     /** 황금률: every value rolled again inside its tier (locked lines kept), the infusion, and a socket amp unique's amp. */
     function rerollValues(item, run) {
@@ -10807,19 +10807,19 @@ const craftCurrencyUse = (() => {
      * drop's chase chance. false when no unique exists for it (FITS.chance refuses that before the payment). */
     function fairyRing(item, run) {
         if (Math.random() < 0.25) {
-            run.logs.push([`💥 요정의 고리: 아이템이 파괴되었습니다.${jewelsBack(destroySelectedCraftItem(item))}`, 'attack-monster']);
+            run.logs.push([_t('💥 요정의 고리: 아이템이 파괴되었습니다.{item}', { item: jewelsBack(destroySelectedCraftItem(item)) }), 'attack-monster']);
             return true;
         }
         const pools = getFairyRingUniquePools(item), pool = pools.chase.length && Math.random() < getChaseUniqueChance(getZone(game.currentZoneId) || {}) ? pools.chase : pools.normal;
         const unique = pool.length ? generateUniqueItem(pools.tier, item.slot, rndChoice(pool).name) : null;
-        if (!unique) { run.logs.push(['승급할 수 있는 고유가 없습니다.', 'attack-monster']); return false; }
+        if (!unique) { run.logs.push([_t('승급할 수 있는 고유가 없습니다.'), 'attack-monster']); return false; }
         const previousId = item.id;
         // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
         const jewels = equipmentSockets.returnJewels(item);
         Object.keys(item).forEach(key => delete item[key]);
         Object.assign(item, unique);
         item.id = previousId; // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
-        run.logs.push([`🌟 요정의 고리: [${item.name}] 고유로 진화했습니다.${jewelsBack(jewels)}`, 'loot-unique']);
+        run.logs.push([_t('🌟 요정의 고리: [{name}] 고유로 진화했습니다.{jewels}', { name: _t(item.name), jewels: jewelsBack(jewels) }), 'loot-unique']);
         return true;
     }
     function annul(item, run) {
@@ -10827,7 +10827,7 @@ const craftCurrencyUse = (() => {
         const picked = equipmentCrafting.pickPruneLine(candidates, run.omen);
         const removed = item.stats.splice(picked.index, 1)[0];
         updateItemName(item);
-        run.logs.push([`🕳️ 전정 가위: ${_t(removed.statName || getStatName(removed.id))} 옵션 제거`, 'loot-unique']);
+        run.logs.push([_t('🕳️ 전정 가위: {value} 옵션 제거', { value: _t(removed.statName || getStatName(removed.id)) }), 'loot-unique']);
     }
     function scour(item, run) {
         const sideOnly = run.omen && run.omen.effect === 'side', onSide = stat => equipmentCrafting.onOmenSide(item, stat, run.omen);
@@ -10840,11 +10840,11 @@ const craftCurrencyUse = (() => {
     function taint(item, run) {
         const outcome = corruptCraftedItem(item);
         run.token.meta.outcome = outcome.text; // 제작 경과가 그 줄로 시작한다(js/crafting-workspace-ui.js)
-        run.logs.push([`🩸 타락: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true }]);
+        run.logs.push([_t('🩸 타락: {text}', { text: outcome.text }), outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true }]);
     }
     function catalyse(item, run) {
         const label = applyAbyssCatalystToItemQuality(item);
-        run.logs.push([`🧪 심연 촉매: [${item.name}] 퀄리티 속성 → ${label}`, 'loot-unique']);
+        run.logs.push([_t('🧪 심연 촉매: [{name}] 퀄리티 속성 → {label}', { name: _t(item.name), label }), 'loot-unique']);
     }
     /** A base line's roll range [low, high]: its base roll, else its range, else its value. */
     function blessRange(stat) {
@@ -10910,7 +10910,7 @@ const craftCurrencyUse = (() => {
         if (apply(item, action, run) === false) return { ok: false, logs: run.logs };
         const note = (run.spore !== 'none' && run.guaranteedMod ? `, 홀씨 보장: ${run.guaranteedMod.statName}` : '') + equipmentCrafting.spendOmen(game, run.omen);
         craftingResultLedger.commit(run.token, item);
-        run.logs.push([`⚒️ ${_t(ORB_DB[payment.key].name)} 사용${note}`, 'loot-magic']);
+        run.logs.push([_t('⚒️ {name} 사용{note}', { name: _t(ORB_DB[payment.key].name), note }), 'loot-magic']);
         return { ok: true, logs: run.logs };
     }
     return Object.freeze({ use, blockReason, addonReason });

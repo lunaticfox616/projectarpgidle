@@ -113,7 +113,7 @@ const oceanDiveUi = (() => {
     function toggleAutoRedive() {
         const on = game.settings.autoRediveOcean !== true;
         setOceanAutoRedive(on);
-        addLog(`🌊 심해 자동 재잠수 ${on ? '켜짐' : '꺼짐'}`, 'season-up');
+        addLog(`🌊 ${_t('심해 자동 재잠수')} ${_t(on ? '켜짐' : '꺼짐')}`, 'season-up');
         queueImportantSave(200);
         render();
     }

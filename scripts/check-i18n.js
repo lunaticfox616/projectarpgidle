@@ -255,7 +255,7 @@ function snippet(text, index) {
     const start = text.lastIndexOf('\n', index) + 1, end = text.indexOf('\n', index);
     return text.slice(start, end < 0 ? text.length : end).trim().slice(0, 160);
 }
-function unescapeLiteral(raw) { return raw.replace(/\\(['"\\])/g, '$1'); }
+function unescapeLiteral(raw) { return raw.replace(/\\n/g, '\n').replace(/\\(['"\\])/g, '$1'); }
 
 /** 열쇠 → 쓰인 자리들. _t('…') 호출과 index.html의 data-i18n 글이 기본이고, names·descs는 데이터 속성값도 더한다. */
 function collectKeys(sources, options = {}) {

@@ -147,7 +147,7 @@ const stumpTalismanUi = (() => {
         const result = talismans.unseal(source);
         if (!result.ok) return refuse(result.reason) || null;
         const item = result.item, text = item.lines.map(talismans.describeLine).join(', ') || item.uniqueEffect || '';
-        addLog(`🧿 부적 풀기: [${item.name}] ${text}`, item.rarity === 'unique' ? 'loot-unique' : 'loot-rare');
+        addLog(_t('🧿 부적 풀기: [{name}] {text}', { name: _t(item.name), text }), item.rarity === 'unique' ? 'loot-unique' : 'loot-rare');
         return item;
     }
 
@@ -159,7 +159,7 @@ const stumpTalismanUi = (() => {
     function wax(id) {
         const result = talismans.wax(id);
         if (!result.ok) return refuse(result.reason);
-        addLog(`🐝 부적 밀랍: ${talismans.describeLine(result.line)}`, 'loot-rare');
+        addLog(_t('🐝 부적 밀랍: {describeLine}', { describeLine: talismans.describeLine(result.line) }), 'loot-rare');
         return true;
     }
 

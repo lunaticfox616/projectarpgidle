@@ -49,7 +49,7 @@ const weaponMasteryUi = (() => {
     function announce(detail) {
         const step = detail.milestone ? (M.milestones[detail.id] || [])[detail.level / 10 - 1] : null;
         const opened = step ? ` 특전이 열렸습니다: ${stepText(step)}` : '';
-        addLog(`⚔️ ${esc(name(detail.id))} 숙련 ${detail.level}.${esc(opened)}`, step ? 'loot-unique' : 'season-up', { toast: !!step });
+        addLog(_t('⚔️ {id} 숙련 {level}.{opened}', { id: esc(name(detail.id)), level: detail.level, opened: esc(opened) }), step ? 'loot-unique' : 'season-up', { toast: !!step });
     }
     window.addEventListener('project-idle:weapon-mastery', event => announce(event.detail || {}));
     return Object.freeze({ sectionHtml, tooltipHtml, settlementLine });

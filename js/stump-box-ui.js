@@ -237,7 +237,7 @@ const stumpBoxUi = (() => {
         playUiFeedbackSound(result.ok ? 'craftSuccess' : 'craftFailure');
         if (!result.ok) return notifyStump(result.reason);
         const best = Math.max(...result.items.map(item => Math.round(item.roll * 100)));
-        addLog(`🧩 자동합성: 씨앗 ${result.items.length}개 (최고 품질 ${best}%)`, 'loot-rare');
+        addLog(_t('🧩 자동합성: 씨앗 {length}개 (최고 품질 {best}%)', { length: result.items.length, best }), 'loot-rare');
         notifyStump(`자동합성: 씨앗 ${result.items.length}개 (최고 품질 ${best}%)`);
         if (selectedId !== null && !stumpBox.itemById(game, selectedId)) selectedId = null;
         commitStumpChange();
@@ -1355,7 +1355,7 @@ const stumpBoxUi = (() => {
         if (!given.length) return given;
         game.noti.stump = true;
         lastSignature = '';
-        addLog(`🌱 그루터기 함 시작 보상: ${given.map(stumpBox.label).join(', ')}`, 'loot-magic');
+        addLog(_t('🌱 그루터기 함 시작 보상: {map}', { map: given.map(stumpBox.label).join(', ') }), 'loot-magic');
         return given;
     }
     /** The first 불씨의 흉터 comes with 포식 (loop 23, once): into storage, with a log line (the unlock notice explains it). */
@@ -1364,7 +1364,7 @@ const stumpBoxUi = (() => {
         if (!scar) return;
         game.noti.stump = true;
         lastSignature = '';
-        addLog(`🔥 그루터기 함: ${withObjectParticle(STUMP_BOX_SCAR.name)} 받았습니다. 그루터기 함에 배치해 깨우세요.`, 'loot-unique');
+        addLog(_t('🔥 그루터기 함: {name} 받았습니다. 그루터기 함에 배치해 깨우세요.', { name: withObjectParticle(STUMP_BOX_SCAR.name) }), 'loot-unique');
     }
     /** 함 안내를 예전에 보고 선물은 이번에 받은 저장: 놓는 법만 따로 한 번 안내한다. */
     function announceStumpStarter() {
@@ -1389,9 +1389,9 @@ const stumpBoxUi = (() => {
     }
     function announceStumpChange(detail) {
         if (detail.drop) addLog(...stumpDropLog(detail.drop));
-        if (detail.overflow) addLog(`🧿 그루터기 함 보관함이 가득 차 부적 대신 ${_t(ORB_DB[detail.overflow].name)} 1개를 받았습니다.`, 'loot-magic');
+        if (detail.overflow) addLog(_t('🧿 그루터기 함 보관함이 가득 차 부적 대신 {name} 1개를 받았습니다.', { name: _t(ORB_DB[detail.overflow].name) }), 'loot-magic');
         if (detail.compost) addLog(stumpCompostDropText(detail.compost), 'loot-magic');
-        (detail.ripened || []).forEach(item => addLog(`${STUMP_LOG_ICONS[item.family] || '🌸'} 그루터기 함: ${stumpRipeName(item)}`, 'loot-rare'));
+        (detail.ripened || []).forEach(item => addLog(_t('{value} 그루터기 함: {item}', { value: STUMP_LOG_ICONS[item.family] || '🌸', item: stumpRipeName(item) }), 'loot-rare'));
         announceStumpRipened(detail.ripened || []);
         lastSignature = '';
     }
@@ -1419,7 +1419,7 @@ const stumpBoxUi = (() => {
         const names = ripened.length <= 3 ? ripened.map(stumpRipeName).join(', ') : `${ripened.length}개 성장 완료`;
         const gift = stumpBox.pendingGifts(game).length ? ', 수확 일지 보상을 받으세요' : '', note = stumpRipeningUi.ripenNote(ripened);
         if (gift) game.noti.stump = true;
-        showGameToast(`그루터기 함: ${names}${gain ? `, ${gain}` : ''}${note ? ` (${note})` : ''}${gift}`, { tone: 'success' });
+        showGameToast(`${_t('그루터기 함')}: ${names}${gain ? `, ${gain}` : ''}${note ? ` (${note})` : ''}${gift}`, { tone: 'success' });
         playUiFeedbackSound('success');
         stumpHarvestUi.announceRecipes();
         stumpHarvestUi.announceUnlocks();

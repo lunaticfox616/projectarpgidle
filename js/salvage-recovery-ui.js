@@ -92,11 +92,11 @@ function restoreSalvageRecoveryEntry(entryId) {
     hideItemTooltip();
     let result = salvageRecoveryRuntime.restore(entryId);
     if (!result.restored) {
-        addLog(`♻️ 장비 복구 실패: ${result.reason}`, 'attack-monster');
+        addLog(_t('♻️ 장비 복구 실패: {reason}', { reason: result.reason }), 'attack-monster');
         refreshSalvageRecoveryOverlay();
         return false;
     }
-    addLog(`♻️ 해체 장비 복구: <span class='loot-${result.item.rarity}'>[${result.item.name}]</span>, ${getSalvageRecoveryCurrencyText(result.returned, getStyledOrbName)} 반환`, 'loot-rare', { item: result.item });
+    addLog(_t("♻️ 해체 장비 복구: <span class='loot-{rarity}'>[{name}]</span>, {salvageRecoveryCurrencyText} 반환", { rarity: result.item.rarity, name: _t(result.item.name), salvageRecoveryCurrencyText: getSalvageRecoveryCurrencyText(result.returned, getStyledOrbName) }), 'loot-rare', { item: result.item });
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
     updateStaticUI();
     refreshSalvageRecoveryOverlay();

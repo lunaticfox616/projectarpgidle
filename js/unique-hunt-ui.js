@@ -81,7 +81,7 @@ function toggleUniqueHuntFromUi(encodedKey) {
     }
     if (typeof queueImportantSave === 'function') queueImportantSave(200);
     if (typeof showGameToast === 'function') {
-        showGameToast(`${result.entry.name} 파밍 추적 ${result.tracked ? '시작' : '해제'}`, { tone: result.tracked ? 'success' : 'info' });
+        showGameToast(_t(result.tracked ? '{name} 파밍 추적 시작' : '{name} 파밍 추적 해제', { name: _t(result.entry.name) }), { tone: result.tracked ? 'success' : 'info' });
     }
     updateStaticUI();
     return true;
@@ -93,7 +93,7 @@ function navigateToUniqueHuntSource(encodedKey) {
     let source = describeUniqueHuntSource(entry);
     let tabButton = document.getElementById(`btn-${source.mapSubtab}`);
     if (!tabButton || tabButton.style.display === 'none') {
-        if (typeof showGameToast === 'function') showGameToast(`${source.label} 콘텐츠가 아직 해금되지 않았습니다.`, { tone: 'warning' });
+        if (typeof showGameToast === 'function') showGameToast(_t('{label} 콘텐츠가 아직 해금되지 않았습니다.', { label: _t(source.label) }), { tone: 'warning' });
         return false;
     }
     switchTab('tab-map');

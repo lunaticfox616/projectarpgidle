@@ -257,7 +257,7 @@ const combatIncidents = (() => {
             const rainbow = draw('rainbow', `feast:${key}:${index}`) < C.rainbow.chance * often();
             Object.assign(dressCritter(enemy, rainbow), { asleep: false, feast: true, critterSeenAt: rainbow ? 0 : getCombatTime() });
         });
-        tell('황금 수액 잔치가 열렸습니다. 이 방의 몬스터가 모두 금빛 수액 슬라임이 되었습니다.', 'chase', true);
+        tell(_t('황금 수액 잔치가 열렸습니다. 이 방의 몬스터가 모두 금빛 수액 슬라임이 되었습니다.'), 'chase', true);
         note('feast');
         return true;
     }
@@ -303,7 +303,7 @@ const combatIncidents = (() => {
     function yawn(enemies, now) {
         const incense = worn('drowsyIncense'), sleepMs = incense ? incense.sleepMs : rule().yawn.sleepMs;
         enemies.forEach(enemy => { enemy.skillHeldUntil = Math.max(Number(enemy.skillHeldUntil) || 0, now + sleepMs); });
-        tell('세계수가 하품을 했습니다. 이 방의 몬스터가 잠시 잠들었습니다.', 'reward');
+        tell(_t('세계수가 하품을 했습니다. 이 방의 몬스터가 잠시 잠들었습니다.'), 'reward');
         note('yawn');
     }
     /** 시험 패널: 지금 싸우는 몬스터에게 하품. */
@@ -338,7 +338,7 @@ const combatIncidents = (() => {
             addBattleFx('fallingStar', { cell, duration: S.fallMs + S.burstMs });
             stars.push({ run, cell, key: `${key}:shower${index}`, at: now + S.fallMs, shower: true, golden: index === cells.length - 1 });
         });
-        tell('유성우가 쏟아집니다.', 'chase', true);
+        tell(_t('유성우가 쏟아집니다.'), 'chase', true);
         return true;
     }
     /** 별 하나의 보상 [currency, count]: 유성우의 황금 별은 황금률(떨어질 수 있을 때), 그 밖에는 별똥별 보상에서 하나. */
@@ -372,7 +372,7 @@ const combatIncidents = (() => {
             const gained = receipt(() => keepCurrencyDrop(star.cell, currency, count)).gain > 0;
             if (star.shower) { if (star.golden) note('shower'); continue; } // 유성우는 시작에 한 번 알렸고, 마지막 별이 닿을 때 센다
             if (!gained) continue;
-            tell('별똥별이 떨어졌습니다.', 'reward');
+            tell(_t('별똥별이 떨어졌습니다.'), 'reward');
             note('star');
         }
     }
@@ -391,7 +391,7 @@ const combatIncidents = (() => {
         const kind = B.kinds[Math.floor(draw('breath-kind', key) * B.kinds.length)];
         game.incidentBreath = { kind: kind.key, until: now + B.seconds * 1000 };
         addBattleFx('statusText', { text: kind.name, color: '#b8f0c8', duration: 700, bodyCue: true });
-        tell(`세계수의 숨결: ${B.seconds}초 동안 ${kind.text}.`, 'reward');
+        tell(_t('세계수의 숨결: {seconds}초 동안 {text}.', { seconds: B.seconds, text: kind.text }), 'reward');
         note('breath');
         return true;
     }
@@ -414,7 +414,7 @@ const combatIncidents = (() => {
         if (!run.packs.some(pack => pack.roomId === room.id && pack.aliveIds.length)) return false;
         challenge = { run, roomId: room.id, until: now + C.seconds * 1000, marks: C.marks.slice() };
         addBattleFx('statusText', { text: `사냥 도전 ${C.seconds}초`, color: '#ff9f6b', duration: 900, bodyCue: true });
-        tell(`사냥 도전: ${C.seconds}초 안에 이 방의 몬스터를 모두 쓰러뜨리세요.`, 'reward');
+        tell(_t('사냥 도전: {seconds}초 안에 이 방의 몬스터를 모두 쓰러뜨리세요.', { seconds: C.seconds }), 'reward');
         return true;
     }
     const challengeRewards = () => rule().challenge.rewards.filter(([currency]) => contentProgression.canDropCurrency(currency));
@@ -431,7 +431,7 @@ const combatIncidents = (() => {
     function finishChallenge(won) {
         const C = rule().challenge, hero = game.gridPlayer, rows = challengeRewards();
         challenge = null;
-        if (!won) return tell('사냥 도전의 시간이 지났습니다.', 'warning');
+        if (!won) return tell(_t('사냥 도전의 시간이 지났습니다.'), 'warning');
         receipt(() => {
             for (let i = 0; i < C.picks && rows.length; i++) {
                 const [currency, count] = rndChoice(rows);
@@ -439,7 +439,7 @@ const combatIncidents = (() => {
             }
         });
         addBattleFx('statusText', { text: '사냥 도전 성공', color: '#ff9f6b', duration: 900, bodyCue: true });
-        tell('사냥 도전을 해냈습니다.', 'reward');
+        tell(_t('사냥 도전을 해냈습니다.'), 'reward');
         note('challenge');
     }
     /** 시험 패널: 지금 방에 사냥 도전. 열었는지. */
@@ -498,7 +498,7 @@ const combatIncidents = (() => {
         if (!host) return;
         joinFight(host, makeCritter(zone, { gx: enemy.gx, gy: enemy.gy }, kind !== 'gold'));
         if (kind !== 'lucky') return;
-        tell(`이번 루프의 ${rule().lucky.kill.toLocaleString(i18n.locale)}번째 처치입니다.`, 'chase', true);
+        tell(_t('이번 루프의 {kill}번째 처치입니다.', { kill: rule().lucky.kill.toLocaleString(i18n.locale) }), 'chase', true);
         note('luckyKill');
     }
     /** 이 처치가 일어나는 슬라임: 'lucky'(이번 루프의 lucky.kill번째, 무지갯빛), 'rainbow', 'gold', 아니면 ''. countKillForContent가 이
@@ -546,7 +546,7 @@ const combatIncidents = (() => {
         luckyAt = now;
         const rows = rule().lucky.rewards, [key, count] = rows[Math.min(rows.length - 1, hit.length - 3)];
         receipt(() => keepCurrencyDrop(enemy, key, count * hit.mul));
-        tell(`행운의 숫자 ${dealt.toLocaleString(i18n.locale)}${'2459'.includes(hit.digit) ? '가' : '이'} 나왔습니다.`, 'reward');
+        tell(_t('행운의 숫자 {number}{particle} 나왔습니다.', { number: dealt.toLocaleString(i18n.locale), particle: pickParticle(String(hit.digit), '이', '가') }), 'reward');
         note('lucky');
     }
     return Object.freeze({ dressPacks, glazeOf, tick, onKill, noteDamage, testSpawn, testYawn, testSleep, testFeast, testStray, testStar, testChallenge, testBreath, testShower, breathKind, breathStats });

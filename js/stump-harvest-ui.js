@@ -155,8 +155,8 @@ const stumpHarvestUi = (() => {
         if (!found.length) return;
         const names = found.map(recipe => recipe.name).join(', ');
         game.noti.stump = true;
-        addLog(`🧩 새 조합법: ${names}`, 'loot-rare');
-        showGameToast(`새 조합법: ${names}`, { tone: 'success' });
+        addLog(_t('🧩 새 조합법: {names}', { names }), 'loot-rare');
+        showGameToast(_t('새 조합법: {names}', { names }), { tone: 'success' });
     }
     /** Once, when journal pages first add graft points (C2). */
     function announceGraftJournal() {
@@ -168,7 +168,7 @@ const stumpHarvestUi = (() => {
     /** A new loop (js/stump-box.js regress): what the scars ate, what bred, what the seal cells kept, and how many items went. */
     function announceRegress(detail) {
         stumpRipeningUi.regressLog(detail);
-        if (detail.count) addLog(`🌱 그루터기 함: 봉인 칸 밖의 아이템 ${detail.count}개가 루프와 함께 사라졌습니다.`, 'season-up');
+        if (detail.count) addLog(_t('🌱 그루터기 함: 봉인 칸 밖의 아이템 {count}개가 루프와 함께 사라졌습니다.', { count: detail.count }), 'season-up');
     }
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
         window.addEventListener('project-idle:stump-box-regressed', event => announceRegress(event.detail || {}));

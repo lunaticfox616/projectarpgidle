@@ -262,7 +262,7 @@ const stumpRipeningUi = (() => {
     function regressLog(detail) {
         (detail.eaten || []).forEach(row => addLog(biteLog(row), row.ate ? 'loot-rare' : 'season-up'));
         (detail.bred || []).forEach(row => addLog(bredLog(row), row.item && (row.item.golden || row.item.family === 'scar') ? 'loot-unique' : 'loot-magic'));
-        if (detail.sealed) addLog(`🔒 그루터기 함: 봉인 칸의 아이템 ${detail.sealed}개가 그대로 남았습니다.`, 'season-up');
+        if (detail.sealed) addLog(_t('🔒 그루터기 함: 봉인 칸의 아이템 {sealed}개가 그대로 남았습니다.', { sealed: detail.sealed }), 'season-up');
     }
 
     return Object.freeze({ lineText, isGolden, badgesHtml, extraLinesHtml, scarBodyHtml, discardScar, confirmDiscard, confirmMonetize, sealHtml, bulkHtml,

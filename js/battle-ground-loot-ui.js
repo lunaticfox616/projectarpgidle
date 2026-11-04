@@ -627,7 +627,7 @@ const battleGroundLoot = (() => {
         if (detail.kind !== 'treasure') return;
         if (detail.golden) notice('chase', '황금 보물을 발견했습니다.', 'chase', 6000);
         else notice('treasure', '보물을 발견했습니다.', 'reward', 3600);
-        if (game.settings.showLootLog) addLog(`💰 ${detail.name}: 보물 ${detail.count}개`, detail.golden ? 'loot-unique' : 'loot-rare');
+        if (game.settings.showLootLog) addLog(_t('💰 {name}: 보물 {count}개', { name: _t(detail.name), count: detail.count }), detail.golden ? 'loot-unique' : 'loot-rare');
     });
     /** ', 좋은 옵션 N줄' for a rare whose top-tier lines make it a find (data/loot-omens.js fineRare). */
     function fineNote(item) {
@@ -641,7 +641,7 @@ const battleGroundLoot = (() => {
         // The same lines a drop picked up at once writes (js/combat.js rollLootForEnemy).
         detail.currencies.forEach(({ key, count }) => addLog(`🪙 ${window.getStyledOrbName(key)} +${count}`,
             lootMoments.rank(lootMoments.ofCurrency(key)) >= 1 ? 'loot-unique' : 'loot-magic'));
-        detail.items.forEach(item => addLog(`🛡️ <span class='loot-${item.rarity}'>[${item.name}]</span> 획득!${fineNote(item)}`, '', { item }));
+        detail.items.forEach(item => addLog(_t("🛡️ <span class='loot-{rarity}'>[{name}]</span> 획득!{item}", { rarity: item.rarity, name: _t(item.name), item: fineNote(item) }), '', { item }));
     });
 
     return Object.freeze({ actorContext });

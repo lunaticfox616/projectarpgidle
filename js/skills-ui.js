@@ -115,7 +115,7 @@
                 { title: `${label} 일괄 봉인`, confirmLabel: `${names.length}개 봉인`, cancelLabel: '취소' });
             if (!accepted || game !== state || game.season !== season) return;
             if (JSON.stringify(names) !== JSON.stringify(window.GameModules.skills.sealableNames(kind))) {
-                showGameToast('룬 목록이 바뀌었습니다. 다시 확인하세요.', { tone: 'warning' });
+                showGameToast(_t('룬 목록이 바뀌었습니다. 다시 확인하세요.'), { tone: 'warning' });
                 return;
             }
             if (kind === 'support') sealAllInactiveSupportGems();

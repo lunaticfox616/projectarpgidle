@@ -106,7 +106,7 @@ function chooseBeyondBoundaryIntensity(intensityId) {
 }
 
 function enterBeyondBoundaryRun() {
-    if (game.pendingLoopDecision) return addLog('루프 정산 화면에서 먼저 결정하세요(루프 진행 또는 나중에 루프).', 'attack-monster');
+    if (game.pendingLoopDecision) return addLog(_t('루프 정산 화면에서 먼저 결정하세요(루프 진행 또는 나중에 루프).'), 'attack-monster');
     const held = getZoneTravelBlockReason(BEYOND_BOUNDARY_ZONE_ID) || getHeldRunBlockReason();
     if (held) return addLog(held, 'attack-monster');
     let state = ensureBeyondBoundaryState(game);
@@ -144,7 +144,7 @@ function leaveBeyondBoundaryRun() {
     game.currentZoneId = returnZoneId;
     game.killsInZone = 0;
     startMoving(false);
-    addLog('경계 너머 도전을 포기했습니다.', 'attack-monster');
+    addLog(_t('경계 너머 도전을 포기했습니다.'), 'attack-monster');
     updateStaticUI();
     if (typeof saveGame === 'function') saveGame();
 }

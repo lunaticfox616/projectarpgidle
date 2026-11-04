@@ -73,11 +73,11 @@ const underworldRuneUi = (() => {
     function validateGrowthChoice(state, no, level, reroll) {
         if (!assertBuildEditable()) return null;
         if (game.underworldRunes !== state || !ownedNumbers(state).includes(no) || (state.enhanceLvByNo[no] || 0) !== level) {
-            addLog('지하석 상태가 변경되었습니다. 다시 선택하세요.', 'attack-monster'); return null;
+            addLog(_t('지하석 상태가 변경되었습니다. 다시 선택하세요.'), 'attack-monster'); return null;
         }
         const cost = growthCost(level, reroll);
         if (Object.entries(cost).some(([key, value]) => (game.currencies[key] || 0) < value)) {
-            addLog(`재료 부족, ${costText(cost)}`, 'attack-monster'); return null;
+            addLog(_t('재료 부족, {cost}', { cost: costText(cost) }), 'attack-monster'); return null;
         }
         return {state,no,level,cost};
     }

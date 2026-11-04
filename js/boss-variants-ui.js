@@ -9,7 +9,7 @@ const bossVariantsUi = (() => {
         }
         const gift = detail.first ? ` 처음 잡은 변이: ${detail.gift.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`).join(', ')}.` : '';
         const memory = detail.memory ? ` ${esc(atlas.node(detail.memory.node).boss)}의 기억 ${detail.memory.tier}단계를 얻었습니다.` : '';
-        addLog(`🧬 변이체 처치: ${esc(_t(detail.name))}. 전리품이 늘었습니다.${gift}${memory}`, 'loot-unique', { toast: !!(detail.first || detail.memory) });
+        addLog(_t('🧬 변이체 처치: {name}. 전리품이 늘었습니다.{gift}{memory}', { name: esc(_t(detail.name)), gift, memory }), 'loot-unique', { toast: !!(detail.first || detail.memory) });
     }
     /** The memory view's variant record: each variant and how often it fell (from loop 33, or once any fell). */
     function recordHtml() {

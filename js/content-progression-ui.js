@@ -295,7 +295,7 @@ document.addEventListener('click', event => {
 // The loop's starter gem picked up from the floor (js/combat.js receiveStarterGemRow): its log line, and in a first loop the equip
 // guide right there (checkUnlocks → announceStarterGem), with the room already cleared.
 window.addEventListener('project-idle:starter-gem-received', event => {
-    addLog(`스킬룬 [${event.detail.gem}] 획득`, 'loot-rare');
+    addLog(_t('스킬룬 [{gem}] 획득', { gem: event.detail.gem }), 'loot-rare');
     checkUnlocks();
 });
 // NPC pictures are local stage art (assets/stage-npcs): where one is missing, drop it rather than show a broken image.

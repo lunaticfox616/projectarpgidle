@@ -339,7 +339,7 @@ function equipTalentCard(comboKey) {
     if (!owned[comboKey]) return;
     let loadout = ensureTalentCardLoadout();
     let unlocked = getUnlockedTalentSlotCount();
-    if (unlocked <= 0) { if (typeof addLog === 'function') addLog('🔒 아직 장착 슬롯이 열리지 않았습니다.', 'attack-monster'); return; }
+    if (unlocked <= 0) { if (typeof addLog === 'function') addLog(_t('🔒 아직 장착 슬롯이 열리지 않았습니다.'), 'attack-monster'); return; }
     // 이미 장착돼 있으면 해제(토글)
     let existing = loadout.indexOf(comboKey);
     if (existing >= 0) { loadout[existing] = null; afterTalentLoadoutChange(); return; }

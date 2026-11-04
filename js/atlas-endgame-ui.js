@@ -143,12 +143,12 @@ const atlasEndgameUi = (() => {
         if (!spoils) return;
         const story = E.stories[detail.nodeId];
         if (story) addLog(escapeHTML(story.fall), 'season-up');
-        if (spoils.awakened) addLog('🌳 세계수의 그림자가 쓰러져 아틀라스가 깨어났습니다.', 'loot-unique');
+        if (spoils.awakened) addLog(_t('🌳 세계수의 그림자가 쓰러져 아틀라스가 깨어났습니다.'), 'loot-unique');
         noticeAwakened();
         const text = spoilsText(spoils);
-        if (text) addLog(`🌳 후반부 보상: ${text}`, 'season-up');
-        if (spoils.unique) addLog(`👑 고유 장비 <span class='loot-unique'>[${escapeHTML(spoils.unique)}]</span>`, 'loot-unique');
-        if (spoils.blight && spoils.blight.cleansed) addLog(`🌿 사도가 쓰러져 ${escapeHTML(regionName(spoils.blight.region))}의 마름이 걷혔습니다.`, 'season-up');
+        if (text) addLog(_t('🌳 후반부 보상: {text}', { text }), 'season-up');
+        if (spoils.unique) addLog(_t("👑 고유 장비 <span class='loot-unique'>[{unique}]</span>", { unique: escapeHTML(spoils.unique) }), 'loot-unique');
+        if (spoils.blight && spoils.blight.cleansed) addLog(_t('🌿 사도가 쓰러져 {region}의 마름이 걷혔습니다.', { region: escapeHTML(regionName(spoils.blight.region)) }), 'season-up');
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
     return Object.freeze({ html, challenge, noticeAwakened, setFilter, showSource, preparePinnacle, showFight });

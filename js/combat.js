@@ -328,8 +328,8 @@ function addEvasionCombatLog(target, isPlayer) {
     let targetName = String(target && target.name ? target.name : '적');
     let isWoodsman = !isPlayer && (targetName.includes('나무꾼') || (target && target.zoneType === 'outsideChaos'));
     let message = isPlayer
-        ? '🌀 플레이어 회피'
-        : (isWoodsman ? '🪓 나무꾼 회피' : `🌀 ${targetName} 회피`);
+        ? _t('🌀 플레이어 회피')
+        : (isWoodsman ? _t('🪓 나무꾼 회피') : _t('🌀 {name} 회피', { name: targetName }));
     let aggregateKey = isPlayer ? 'combat:evasion:player' : (isWoodsman ? 'combat:evasion:woodsman' : `combat:evasion:enemy:${targetName}`);
     addLog(message, isPlayer ? 'loot-magic' : 'attack-monster', {
         noToast: true,
@@ -392,7 +392,7 @@ function getPlayerHitDetailParts(summary, hit) {
 function getPlayerHitCombatLog(summary, hit) {
     if (!game.settings.showCombatLog || summary.totalDamage <= 0) return null;
     let amount = formatNumberKR(summary.totalDamage);
-    let line = `${getDamageElementIcon(hit.swingElement)} ${withDirectionParticle(hit.skillName)} ${getPlayerHitTargetLabel(summary)}에게 ${amount} 피해`;
+    let line = _t('{icon} {skill} {target}에게 {amount} 피해', { icon: getDamageElementIcon(hit.swingElement), skill: withDirectionParticle(_t(hit.skillName)), target: getPlayerHitTargetLabel(summary), amount });
     if (game.settings.showDetailedDamageLog === true) line = [line, ...getPlayerHitDetailParts(summary, hit)].join(' / ');
     let kind = hit.isCrit ? 'combat:hit-crit' : 'combat:hit';
     let target = summary.uniqueTargets.size === 1 ? [...summary.uniqueTargets][0] : 'many';
@@ -600,7 +600,7 @@ function refreshRealmDeathWard(pStats) {
     if ((state.amount || 0) <= 0 && getCombatTime() >= (state.readyAt || 0)) {
         state.amount = maxAmount;
         state.readyAt = 0;
-        if (game.settings && game.settings.showCombatLog !== false) addLog(`🪨 망자 감시 보호막 재생: ${maxAmount}`, 'loot-magic', { noToast: true });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🪨 망자 감시 보호막 재생: {maxAmount}', { maxAmount }), 'loot-magic', { noToast: true });
     } else {
         state.amount = Math.min(maxAmount, Math.max(0, Math.floor(state.amount || 0)));
     }
@@ -2631,7 +2631,7 @@ function tickVoidRiftWave(zone, ui) {
     if (!v.active) return;
     sanitizeVoidRiftWave(v);
     if (spawnVoidBreachReinforcement(zone, v) && game.settings.showSpawnLog !== false) {
-        ui.say(`🕳️ 균열 출현 ${v.spawnedCount}/${v.totalToSpawn}`, 'attack-monster', { noToast: true });
+        ui.say(_t('🕳️ 균열 출현 {spawnedCount}/{totalToSpawn}', { spawnedCount: v.spawnedCount, totalToSpawn: v.totalToSpawn }), 'attack-monster', { noToast: true });
     }
     if (voidRiftWaveCleared(v)) closeVoidRiftWave(v, ui);
 }
@@ -2654,12 +2654,12 @@ function closeVoidRiftWave(v, ui) {
         v.grandBreachUnlock = true;
         unlockedGrand = true;
     }
-    ui.say(`🕳️ 공허의 구멍 정리 완료!${reward ? ` 공허의 끌 +${reward}` : ''}`, 'loot-magic', { noToast: true });
+    ui.say(_t('🕳️ 공허의 구멍 정리 완료!{reward}', { reward: reward ? ` ${_t('공허의 끌')} +${reward}` : '' }), 'loot-magic', { noToast: true });
     if (unlockedGrand) announceGrandBreachOpen(v, ui);
 }
 function announceGrandBreachOpen(v, ui) {
     const enteredGrand = ui.enterGrand();
-    if (!enteredGrand) ui.say('🚨 대균열이 열렸습니다! [대균열 입장] 버튼을 확인하세요.', 'loot-unique');
+    if (!enteredGrand) ui.say(_t('🚨 대균열이 열렸습니다! [대균열 입장] 버튼을 확인하세요.'), 'loot-unique');
     if (!enteredGrand && !v.grandNoticeShown && typeof queueTutorialNotice === 'function') {
         v.grandNoticeShown = true;
         queueTutorialNotice('void_grand_breach_ready_once', '대균열', '대균열이 열렸습니다.\n‘지도 → 탐험 → 공허 균열, 대균열’에서 ‘대균열 입장’을 누르세요.', 'tab-map');
@@ -2678,7 +2678,7 @@ function processPendingSlamEchoHits() {
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
         addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
-        if (game.settings && game.settings.showCombatLog !== false) addLog(`🌋 여진으로 ${enemy.name}에게 ${formatNumberKR(bonus)} 추가 피해`, 'attack-player', { noToast: true });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🌋 여진으로 {name}에게 {bonus} 추가 피해', { name: _t(enemy.name), bonus: formatNumberKR(bonus) }), 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
     game.pendingSlamEchoHits = next;
@@ -3106,7 +3106,7 @@ function processTalentInquisitorMarks() {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
             enemy.hp = Math.max(0, enemy.hp - dmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240, syncToSwing: false });
-            if (game.settings && game.settings.showCombatLog !== false) addLog(`⚖️ 심판 표식 폭발로 ${enemy.name}에게 ${formatNumberKR(dmg)} 피해`, 'attack-player', { noToast: true });
+            if (game.settings && game.settings.showCombatLog !== false) addLog(_t('⚖️ 심판 표식 폭발로 {name}에게 {dmg} 피해', { name: _t(enemy.name), dmg: formatNumberKR(dmg) }), 'attack-player', { noToast: true });
             mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
             if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
         }
@@ -3293,7 +3293,7 @@ function grantEliteTraitBuffFromEnemy(enemy, pStats) {
     if (!trait) return;
     let durationMs = Math.max(1000, Math.floor(Number(pStats.uniqueStealEliteTrait.duration || 30) * 1000));
     game.uniqueEliteTraitBuff = { trait: { ...trait }, expiresAt: getCombatTime() + durationMs };
-    if (game.settings && game.settings.showCombatLog !== false) addLog(`🩸 정예 특성 흡수: ${trait.name || '정예 특성'}`, 'loot-unique', { noToast: true });
+    if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🩸 정예 특성 흡수: {name}', { name: _t(trait.name || '정예 특성') }), 'loot-unique', { noToast: true });
 }
 
 const getPassiveSpecialStatBreakdowns = function(rules) {
@@ -6010,11 +6010,11 @@ function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
         st.unlocked = true;
         st.highestFloor = Math.max(1, Math.floor(st.highestFloor || 0));
         game.noti.map = true;
-        addLog('🌌 나무꾼의 경계가 갈라지며 혼돈계가 해금되었습니다.', 'loot-unique');
+        addLog(_t('🌌 나무꾼의 경계가 갈라지며 혼돈계가 해금되었습니다.'), 'loot-unique');
         if (typeof queueTutorialNotice === 'function') queueOpenContentNotice('chaosRealm', 'unlock_chaos_realm', '혼돈계', '나무꾼의 경계가 갈라져 혼돈계가 열렸습니다.\n‘지도 → 혼돈계’에서 루프가 바뀌어도 이어지는 영구 등반에 도전하세요.', 'tab-map', 'map-tab-chaos-realm');
     }
     if (options && options.log) {
-        addLog(`🪓 나무꾼 피해율 기록: ${st.woodsmanBestDamagePct.toFixed(1)}% / 해금 조건 10%`, st.woodsmanBestDamagePct >= 10 ? 'season-up' : 'attack-monster');
+        addLog(_t('🪓 나무꾼 피해율 기록: {woodsmanBestDamagePct}% / 해금 조건 10%', { woodsmanBestDamagePct: st.woodsmanBestDamagePct.toFixed(1) }), st.woodsmanBestDamagePct >= 10 ? 'season-up' : 'attack-monster');
     }
 }
 function applyChaosRealmAffixesToEnemy(enemy, zone) {
@@ -6063,7 +6063,7 @@ function grantChaosRealmFloorBonus(floor) {
     if (floor % 10 === 0) b.crit += 1;
     if (floor % 15 === 0) { b.armorPct += 10; b.evasionPct += 10; b.energyShieldPct += 10; }
     if (floor % 25 === 0) { b.critDmg += 5; b.aspd += 5; }
-    addLog(`🌌 혼돈계 ${floor}층 최초 돌파 보너스: ${getChaosRealmBonusSummary()}`, 'loot-unique');
+    addLog(_t('🌌 혼돈계 {floor}층 최초 돌파 보너스: {chaosRealmBonusSummary}', { floor, chaosRealmBonusSummary: getChaosRealmBonusSummary() }), 'loot-unique');
 }
 
 function getEnemyElementResistance(skillEle, zoneTier, enemy) {
@@ -6396,7 +6396,7 @@ function applyCosmosBossPlayerDebuff(enemy) {
     row.value = Math.max(Number(row.value || 0), spec.value);
     row.durationMs = Math.floor(spec.duration * 1000);
     row.expiresAt = Math.max(Number(row.expiresAt || 0), now + Math.floor(spec.duration * 1000));
-    if (game.settings && game.settings.showCombatLog) addLog(`🌌 ${enemy.name}의 우주계 보스 디버프: ${spec.label} -${spec.value}%`, 'attack-monster', { noToast: true });
+    if (game.settings && game.settings.showCombatLog) addLog(_t('🌌 {name}의 우주계 보스 디버프: {label} -{value}%', { name: _t(enemy.name), label: _t(spec.label), value: spec.value }), 'attack-monster', { noToast: true });
 }
 
 function getCosmosBossAttackElement(enemy, pattern, pStats) {
@@ -7810,7 +7810,7 @@ function unlockLoopBloomSpecialization(heroId, classKey, classLabel, firstEverBl
     if (firstEverBloomOfClass && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_fifth_node', '5차 특화 노드', '이번 루프에 처음 피운 개화 조합으로 5차 특화 노드가 열렸습니다.\n‘스킬트리 → 전직’에서 재능과 전직 특화 노드를 확인하세요.', 'tab-traits');
     }
-    addLog(`[${classLabel}] 5차 특화 개방: 전직 포인트 +2, 키스톤 포인트 +1`, 'loot-unique');
+    addLog(_t('[{classLabel}] 5차 특화 개방: 전직 포인트 +2, 키스톤 포인트 +1', { classLabel }), 'loot-unique');
     return true;
 }
 
@@ -7825,7 +7825,7 @@ function awardTalentBloomCard(comboKey, heroLabel, classLabel) {
         queueContentNotice('unlock_talent_tab', '재능 개화', 'talent', { open: '재능 개화 카드를 얻었습니다.\n‘재능’에서 가진 카드와 효과를 확인하세요.',
             locked: '재능 개화 카드를 얻었습니다.\n‘해금’에서 재능을 열면 카드와 효과를 관리할 수 있습니다.' }, 'tab-talent');
     }
-    addLog(`개화 카드 [${heroLabel} × ${classLabel}] Lv.${result.card.level} (점수 ${result.score})${result.leveledUp ? ', 레벨 상승' : ''}`, 'loot-unique');
+    addLog(_t('개화 카드 [{hero} × {cls}] Lv.{level} (점수 {score}){up}', { hero: heroLabel, cls: classLabel, level: result.card.level, score: result.score, up: result.leveledUp ? `, ${_t('레벨 상승')}` : '' }), 'loot-unique');
     dispatchRuntimeEvent('talent-tab-refresh-requested');
 }
 
@@ -7843,7 +7843,7 @@ function handleTalentBloomClear(zone) {
     if (isNewCombo) game.talentBloomCombos.push(comboKey);
     let heroLabel = HERO_SELECTION_DEFS[heroId]?.label || heroId;
     let classLabel = CLASS_TEMPLATES[classKey]?.name || '미전직';
-    addLog(`재능 개화 성공: [${heroLabel} × ${classLabel}]${isNewCombo ? ', 신규 조합' : ''}`, 'loot-unique');
+    addLog(_t('재능 개화 성공: [{hero} × {cls}]{fresh}', { hero: heroLabel, cls: classLabel, fresh: isNewCombo ? `, ${_t('신규 조합')}` : '' }), 'loot-unique');
     game.bloomedClasses = Array.isArray(game.bloomedClasses) ? game.bloomedClasses : [];
     let firstEverBloomOfClass = classKey !== 'none' && !game.bloomedClasses.includes(classKey);
     if (firstEverBloomOfClass) game.bloomedClasses.push(classKey);
@@ -8389,7 +8389,7 @@ function spreadCatalystAilmentsOnDeath(enemy, pStats) {
         });
     if (targets.length <= 0) return;
     targets.forEach(target => ailments.forEach(ail => mergeEnemyAilment(target, ail, pStats)));
-    if (game.settings && game.settings.showCombatLog) addLog(`🧪 확산 반응: 남은 상태이상이 주변 적 ${targets.length}마리에게 퍼졌습니다.`, 'attack-player', { rateKey: 'catalyst:spread', minIntervalMs: 500 });
+    if (game.settings && game.settings.showCombatLog) addLog(_t('🧪 확산 반응: 남은 상태이상이 주변 적 {length}마리에게 퍼졌습니다.', { length: targets.length }), 'attack-player', { rateKey: 'catalyst:spread', minIntervalMs: 500 });
 }
 
 function syncEnemyFlameDecayAilment(enemy, dotState, pStats) {
@@ -8728,8 +8728,8 @@ function syncCrowdPauseState() {
     if (paused === crowdPauseActive) return paused;
     crowdPauseActive = paused;
     if (game.settings.showCrowdPauseLog !== false) {
-        if (paused) addLog(`⛔ 적이 ${ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 맵 진행이 멈췄습니다. 적 수를 줄이면 다시 전진합니다.`, 'attack-monster');
-        else addLog('🧭 적 숫자가 줄어 맵 진행을 재개합니다.', 'loot-normal');
+        if (paused) addLog(_t('⛔ 적이 {ENEMY_CROWD_PAUSE_LIMIT}기 이상 몰려 맵 진행이 멈췄습니다. 적 수를 줄이면 다시 전진합니다.', { ENEMY_CROWD_PAUSE_LIMIT }), 'attack-monster');
+        else addLog(_t('🧭 적 숫자가 줄어 맵 진행을 재개합니다.'), 'loot-normal');
     }
     return paused;
 }
@@ -8746,7 +8746,7 @@ function startWoodsmanCurse() {
     game.woodsmanCurseDamageTakenStacks = 0;
     game.woodsmanCurseLastTickAt = getCombatTime();
     game.woodsmanCurseNextLogStack = 100;
-    addLog('🪓 나무꾼의 저주: 전투가 끝날 때까지 매초 받는 피해가 0.01%씩 증가합니다.', 'attack-monster');
+    addLog(_t('🪓 나무꾼의 저주: 전투가 끝날 때까지 매초 받는 피해가 0.01%씩 증가합니다.'), 'attack-monster');
 }
 
 function tickWoodsmanCurse() {
@@ -8760,7 +8760,7 @@ function tickWoodsmanCurse() {
     game.woodsmanCurseLastTickAt += ticks * 1000;
     game.woodsmanCurseDamageTakenStacks = Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) + ticks;
     if ((game.settings && game.settings.showCombatLog !== false) && game.woodsmanCurseDamageTakenStacks >= Math.max(100, Math.floor(game.woodsmanCurseNextLogStack || 100))) {
-        addLog(`🪓 나무꾼의 저주 중첩: 받는 피해 +${(game.woodsmanCurseDamageTakenStacks * 0.01).toFixed(2)}%`, 'attack-monster', { noToast: true });
+        addLog(_t('🪓 나무꾼의 저주 중첩: 받는 피해 +{value}%', { value: (game.woodsmanCurseDamageTakenStacks * 0.01).toFixed(2) }), 'attack-monster', { noToast: true });
         game.woodsmanCurseNextLogStack = Math.floor(game.woodsmanCurseDamageTakenStacks / 100 + 1) * 100;
     }
 }
@@ -8826,7 +8826,7 @@ function applyCosmosAstraStance(enemy) {
     let stance = COSMOS_ASTRA_STANCES[idx];
     if (enemy.astraStanceIdx !== idx) {
         enemy.astraStanceIdx = idx;
-        addLog(`🌌 아스트라의 표식이 바뀝니다: ${stance.name}`, 'attack-monster', { noToast: true });
+        addLog(_t('🌌 아스트라의 표식이 바뀝니다: {name}', { name: _t(stance.name) }), 'attack-monster', { noToast: true });
     }
     enemy.ele = stance.ele || enemy.ele;
     enemy.dr = Math.min(90, base.dr + (stance.drAdd || 0));
@@ -9778,7 +9778,7 @@ function returnToTown() {
     game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerLeechInstances = [];
     pTimer = 0;
-    addLog('⛺ 마을 귀환', "season-up");
+    addLog(_t('⛺ 마을 귀환'), "season-up");
     startMoving(true);
     updateStaticUI();
     if (returningFromRun) queueImportantSave(200);
@@ -9872,7 +9872,7 @@ function spawnEncounterMarker(marker) {
         game.enemies.push(bossEnemy);
         addBattleFx('enemySpawn', { enemyId: bossEnemy.id, color: getElementColor(bossEnemy.ele), duration: 460, boss: true });
         if (game.settings.showSpawnLog !== false) {
-            addLog(`👑 '${bossEnemy.name.replace(/^👿\s*/, '')}' 등장.`, "loot-unique");
+            addLog(_t("👑 '{replace}' 등장.", { replace: bossEnemy.name.replace(/^👿\s*/, '') }), "loot-unique");
         }
     } else {
         for (let i = 0; i < count; i++) {
@@ -9882,7 +9882,7 @@ function spawnEncounterMarker(marker) {
             game.enemies.push(enemy);
             addBattleFx('enemySpawn', { enemyId: enemy.id, color: getElementColor(enemy.ele), duration: 320, boss: false });
         }
-        if (game.settings.showSpawnLog !== false) addLog(`⚠️ 적 ${count}마리 참전`, marker.elite ? "loot-rare" : "attack-monster");
+        if (game.settings.showSpawnLog !== false) addLog(_t('⚠️ 적 {count}마리 참전', { count }), marker.elite ? "loot-rare" : "attack-monster");
     }
 }
 
@@ -9968,7 +9968,7 @@ function finishWoodsmanEchoRun() {
     actExplorationProgress.depart(game);
     game.currentZoneId = takeWoodsmanEchoReturnZone(run);
     recordWoodsmanEchoRun(run.totalDamage, dps, game, elapsed);
-    addLog(`🪵 나무꾼의 잔상: 총 피해 ${Math.floor(run.totalDamage).toLocaleString()}, 최종 DPS ${Math.floor(dps).toLocaleString()} (최고 ${Math.floor(run.bestDps).toLocaleString()})`, 'season-up');
+    addLog(_t('🪵 나무꾼의 잔상: 총 피해 {floor}, 최종 DPS {floor2} (최고 {floor3})', { floor: Math.floor(run.totalDamage).toLocaleString(), floor2: Math.floor(dps).toLocaleString(), floor3: Math.floor(run.bestDps).toLocaleString() }), 'season-up');
     updateStaticUI();
 }
 /** 잔상의 30초가 흐르는가. 방 단위 지도에서 잔상이 아직 제 방에서 기다리면 흐르지 않는다: 주인공이 그 방에 닿아 잔상이 일어설 때까지
@@ -10129,7 +10129,7 @@ function tickGrandBreachRun(zone) {
     }
     if(g.phase==='bossPending') {
         const soul=summonGrandBreachLord(zone,g,battlefield);
-        addLog(`🕳️ 균열 몬스터 ${soul}처치! 균열 군주가 출현합니다. 군주의 힘과 격파 보상은 처치 수에 따라 증가합니다.`, 'loot-unique');
+        addLog(_t('🕳️ 균열 몬스터 {soul}처치! 균열 군주가 출현합니다. 군주의 힘과 격파 보상은 처치 수에 따라 증가합니다.', { soul }), 'loot-unique');
     }
 }
 
@@ -10185,12 +10185,12 @@ function grantExpAndGem(enemy, pStats) {
     let exp = experience('experience');
     game.exp += exp;
     // 낮은 지역에서 처치마다 쌓이던 '경험치 +0' 줄은 남기지 않는다(검토 4차).
-    if (game.settings.showExpLog && exp > 0) addLog(`✨ 경험치 +${exp}`, "exp-txt");
+    if (game.settings.showExpLog && exp > 0) addLog(_t('✨ 경험치 +{exp}', { exp }), "exp-txt");
 
     let gemExp = experience('gemExperience',0.45);
     for (const name of grantWornGemExp(gemExp, pStats)) {
         gemLeveled = true;
-        addLog(`✨ ${SKILL_DB[name]?.isGem ? '룬' : '스킬'} [${name}] 레벨업!`, "loot-unique");
+        addLog(_t(SKILL_DB[name]?.isGem ? '✨ 룬 [{name}] 레벨업!' : '✨ 스킬 [{name}] 레벨업!', { name: _t(name) }), "loot-unique");
     }
     game.equippedSummonSkills = Array.isArray(game.equippedSummonSkills) ? game.equippedSummonSkills : [];
     game.equippedSummonSkills.forEach(name => {
@@ -10202,7 +10202,7 @@ function grantExpAndGem(enemy, pStats) {
         let gem = game.gemData[name];
         if (gainGemExperience(gem, gemExp) > 0) {
             gemLeveled = true;
-            addLog(`✦ 소환수 룬 [${name}] 레벨업!`, "loot-unique");
+            addLog(_t('✦ 소환수 룬 [{name}] 레벨업!', { name }), "loot-unique");
         }
     });
     (game.equippedSupports || []).forEach(name => {
@@ -10210,7 +10210,7 @@ function grantExpAndGem(enemy, pStats) {
         const levels = gem ? gainGemExperience(gem, gemExp) : 0;
         if (levels > 0) {
             gemLeveled = true;
-            addLog(`🟢 룬 [${name}] 레벨업!`, "loot-rare");
+            addLog(_t('🟢 룬 [{name}] 레벨업!', { name }), "loot-rare");
         }
     });
 
@@ -10224,7 +10224,7 @@ function grantExpAndGem(enemy, pStats) {
         game.passivePoints++;
         game.noti.char = true;
         game.playerHp = getPlayerHpCap(getPlayerStats());
-        addLog(`🎉 레벨업! (Lv.${game.level})`, "level-up");
+        addLog(_t('🎉 레벨업! (Lv.{level})', { level: game.level }), "level-up");
         req = getExpReq(game.level);
         guard++;
         checkUnlocks();
@@ -10232,7 +10232,7 @@ function grantExpAndGem(enemy, pStats) {
     if (game.level >= MAX_PLAYER_LEVEL) game.exp = 0;
     if (leveledUp) {
         let autoInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };
-        if (autoInvest.nodes > 0) addLog(`🧭 프리셋 자동 투자: ${autoInvest.nodes}개 노드 활성화`, 'season-up');
+        if (autoInvest.nodes > 0) addLog(_t('🧭 프리셋 자동 투자: {nodes}개 노드 활성화', { nodes: autoInvest.nodes }), 'season-up');
         addBattleFx('levelUp', { level: game.level, duration: 1050, color: '#ffe59a' });
         queueImportantSave(250);
     }
@@ -10298,18 +10298,18 @@ function maybeTriggerBeeMappingEvent(enemy) {
         awardCurrency('pollen', pollen);
         awardCurrency('enchantedHoney', 1);
         awardCurrency('beeswax', 2);
-        addLog(`👑 여왕벌 이벤트! 꽃가루 +${pollen}, 벌꿀 +1, 밀랍 +2`, 'loot-unique');
+        addLog(_t('👑 여왕벌 이벤트! 꽃가루 +{pollen}, 벌꿀 +1, 밀랍 +2', { pollen }), 'loot-unique');
     } else if (roll < 0.28) {
         awardCurrency('venomStinger', 1);
         if (Math.random() < 0.35) awardCurrency('beeswax', 1);
-        addLog('🐝 독침벌 무리 이벤트! 독벌침 +1', 'loot-rare');
+        addLog(_t('🐝 독침벌 무리 이벤트! 독벌침 +1'), 'loot-rare');
     } else if (roll < 0.55) {
         awardCurrency('pollen', 15);
         awardCurrency('beeswax', 1);
-        addLog('🐝 호박벌 이벤트! 꽃가루 +15, 밀랍 +1', 'loot-rare');
+        addLog(_t('🐝 호박벌 이벤트! 꽃가루 +15, 밀랍 +1'), 'loot-rare');
     } else {
         awardCurrency('pollen', 8);
-        addLog('🐝 벌 이벤트! 꽃가루 +8', 'loot-magic');
+        addLog(_t('🐝 벌 이벤트! 꽃가루 +8'), 'loot-magic');
     }
 }
 
@@ -10566,7 +10566,7 @@ function rollLootForEnemy(enemy, say = addLog) {
     drops.forEach(drop => keepEnemyCurrencyDrop(enemy, drop, ui));
     const keptItem = rollEquipmentLoot(enemy, zone, gear);
     grantRealmBossUniqueLoot(enemy, zone);
-    if (keptItem && game.settings.showLootLog) addLog(`🛡️ <span class='loot-${keptItem.rarity}'>[${keptItem.name}]</span> 획득!`, '', { item: keptItem });
+    if (keptItem && game.settings.showLootLog) addLog(_t("🛡️ <span class='loot-{rarity}'>[{name}]</span> 획득!", { rarity: keptItem.rarity, name: _t(keptItem.name) }), '', { item: keptItem });
     rollWildTalismanDrop(enemy, talismanChance);
     rollEnemyJewelDrop(enemy, contentDropMul);
     let mappingZone = isBeeMappingZone(zone);
@@ -10598,7 +10598,7 @@ function rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui) {
     let echoChance = enemy.isBoss ? 0.045 : 0.004;
     if (Math.random() < echoChance * contentDropMul) {
         awardEnemyLootCurrency('awakenedEcho', 1);
-        if (game.settings.showLootLog) ui.say('🌌 각성 잔향 +1', 'loot-unique');
+        if (game.settings.showLootLog) ui.say(_t('🌌 각성 잔향 +1'), 'loot-unique');
     }
 }
 function rollEnemyRuneDrop(enemy, contentDropMul, gemAwakening, ui) {
@@ -10673,7 +10673,7 @@ function rollEliteBeeLoot(beeLootLogs) {
 function rollHiveKeyDrop(enemy, mappingZone, ui) {
     if (!((game.season || 1) >= 8 && mappingZone && Math.random() < (enemy.isBoss ? 0.005 : enemy.isElite ? 0.0015 : 0.0002))) return;
     awardEnemyLootCurrency('hiveKey', 1);
-    if (game.settings.showLootLog) ui.say('🗝️ 벌집 입장권 열쇠를 발견했습니다.', 'loot-rare');
+    if (game.settings.showLootLog) ui.say(_t('🗝️ 벌집 입장권 열쇠를 발견했습니다.'), 'loot-rare');
 }
 /** From loop 15 deep chaos (21+), hive runs and grand breach runs may give a colony trace. */
 const isDeepChaosLootZone = zone => !!zone && zone.type === 'abyss' && Math.max(0, Math.floor(zone.depth || 0)) >= 21;
@@ -10683,7 +10683,7 @@ function rollColonyTraceDrop(zone, ui) {
     let traceChance = isDeepChaosZone ? 0.00075 : (game.currentZoneId === 'grand_breach_run' ? 0.001125 : 0.0005);
     if (Math.random() < traceChance) {
         awardEnemyLootCurrency('colonyTrace', 1);
-        ui.say('🧭 군락지 흔적을 발견했습니다.', 'loot-magic', { noToast: true });
+        ui.say(_t('🧭 군락지 흔적을 발견했습니다.'), 'loot-magic', { noToast: true });
     }
 }
 /** From the third loop acts and chaos give spores, leaning to the enemy's element. */
@@ -10734,7 +10734,7 @@ function grantLoopStarterGemOnFirstKill(enemy) {
     const run = enemy ? explorationFloorFor(enemy) : null;
     if (run) actExplorationState.groundLoot.placeGem(run, enemy, row.gem, row.choices);
     else if (row.choices) receiveStarterGemRow(row);
-    else if (receiveStarterGem(game, gemName)) addLog(`스킬룬 [${gemName}] 획득`, 'loot-rare');
+    else if (receiveStarterGem(game, gemName)) addLog(_t('스킬룬 [{gemName}] 획득', { gemName }), 'loot-rare');
 }
 /** 이번 루프의 시작 룬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
 function takeLoopStarterGem() {
@@ -11221,7 +11221,7 @@ function enterAutomaticMapInterruptionAfterClear(clearedZone) {
     let grandRunning = !!(game.voidRift && game.voidRift.grandRun && game.voidRift.grandRun.inRun);
     if (game.settings && game.settings.autoEnterMeteor && !beehiveRunning && !grandRunning && star.unlocked && star.skyRiftReady && (!clearedZone || clearedZone.type !== 'meteor')) {
         enterAutomaticMeteorEncounter();
-        addLog('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.', 'season-up');
+        addLog(_t('☄️ 자동입장: 하늘 균열 100% 충전으로 운석 낙하 지점에 진입합니다.'), 'season-up');
         return true;
     }
     if (typeof autoEnterGrandBreachIfReady === 'function' && autoEnterGrandBreachIfReady()) return true;
@@ -11354,7 +11354,7 @@ function continueMapAfterClear(zone) {
 function grantGuaranteedTrialSkillGem() {
     let skill = pickSkillRuneReward(gemDropRewards.attackRunes());
     gemDropRewards.grant(game, { kind: 'attack', name: skill, awakened: false }, 0);
-    addLog(`✨ 전직 시련 보상: 공격 룬 <span class='loot-magic'>[${skill}]</span> 획득!`, 'loot-magic');
+    addLog(_t("✨ 전직 시련 보상: 공격 룬 <span class='loot-magic'>[{skill}]</span> 획득!", { skill }), 'loot-magic');
     return true;
 }
 
@@ -11386,7 +11386,7 @@ function grantMilestonePinnacleClearRewards(zone, firstClear, say) {
     if (zone.journalId && firstClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
     grantPinnacleSignatureUnique(zone, firstClear, say);
     if (!firstClear) {
-        addLog(`♜ [${zone.name}] 재도전 완료, 최초 격파 보상은 이미 획득했습니다.`, 'season-up');
+        addLog(_t('♜ [{name}] 재도전 완료, 최초 격파 보상은 이미 획득했습니다.', { name: _t(zone.name) }), 'season-up');
         return;
     }
     const reward = zone.firstClearReward && typeof zone.firstClearReward === 'object' ? zone.firstClearReward : null;
@@ -11395,7 +11395,7 @@ function grantMilestonePinnacleClearRewards(zone, firstClear, say) {
     const rewardName = reward && ORB_DB[reward.key] ? _t(ORB_DB[reward.key].name) : '';
     const rewardText = rewardName ? `, ${rewardName} +${amount}` : '';
     const prefix = zone.pinnacleCapstone ? '👁️ 모든 경계의 관측을 끝냈습니다.' : '♜ 새로운 최종 관문을 정복했습니다.';
-    addLog(`${prefix} [${zone.name}] 최초 격파${rewardText}`, 'loot-unique');
+    addLog(_t('{prefix} [{name}] 최초 격파{rewardText}', { prefix, name: _t(zone.name), rewardText }), 'loot-unique');
 }
 
 /**
@@ -11413,7 +11413,7 @@ const rollCosmosAstraUniqueDrop = (zone, randomFn) => {
     if (roll() >= chance) return null;
     const item = generateUniqueItem(zone.tier || definition.reqTier || 1, null, definition.name);
     if (!item || !addItemToInventory(item, { guaranteedKeep: true })) return null;
-    addLog(`👑 [${item.name}] 획득!`, 'loot-unique', { item });
+    addLog(_t('👑 [{name}] 획득!', { name: _t(item.name) }), 'loot-unique', { item });
     return item;
 };
 
@@ -11474,14 +11474,14 @@ function rollBeyondBoundaryRewardCount(rewardMul) {
 }
 
 function grantBeyondBoundaryEquipmentRewards(context) {
-    if (context.rewardChanged) addLog('선택한 보상이 잠겨 있어 이번 도전 보상을 장비로 지급합니다.', 'loot-rare');
+    if (context.rewardChanged) addLog(_t('선택한 보상이 잠겨 있어 이번 도전 보상을 장비로 지급합니다.'), 'loot-rare');
     let count = rollBeyondBoundaryRewardCount(context.intensity.rewardMul);
     let names = [];
     for (let index = 0; index < count; index++) {
         let item = generateEquipmentDrop({ isBoss: true }, { minimumRarity: 'rare', zone: context.zone });
         if (!item || !addItemToInventory(item, { guaranteedKeep: true })) continue;
         names.push(item.name);
-        addLog(`경계 완료 보상: [${item.name}]`, 'loot-rare', { item });
+        addLog(_t('경계 완료 보상: [{name}]', { name: _t(item.name) }), 'loot-rare', { item });
     }
     return `${names.length}개의 희귀 이상 장비`;
 }
@@ -11496,7 +11496,7 @@ function grantBeyondBoundaryJewelRewards(context) {
             continue;
         }
         stored++;
-        addLog(`경계 완료 보상: [${jewel.name}]`, 'loot-rare', { item:jewel, itemKind:'jewel' });
+        addLog(_t('경계 완료 보상: [{name}]', { name: _t(jewel.name) }), 'loot-rare', { item:jewel, itemKind:'jewel' });
     }
     let shards = Math.max(1, Math.round((3 + getBeyondBoundaryPayoutTier(context.tier) / 5) * context.intensity.rewardMul));
     awardCurrency('jewelShard', shards);
@@ -11582,7 +11582,7 @@ function finishBeyondBoundaryEncounter(zone, mapAction, ui) {
     if (!result.ok) return;
     game.killsInZone = 0;
     if (!result.completed) {
-        ui.say(`경계 너머 ${result.tier}단계, ${result.wave}/${BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER} 조우로 전진합니다.`, 'season-up');
+        ui.say(_t('경계 너머 {tier}단계, {wave}/{BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER} 조우로 전진합니다.', { tier: result.tier, wave: result.wave, BEYOND_BOUNDARY_ENCOUNTERS_PER_TIER }), 'season-up');
         startMoving(false);
     } else finishBeyondBoundaryTier(result, mapAction, ui);
     ui.unlocks();
@@ -11597,7 +11597,7 @@ function finishBeyondBoundaryTier(result, mapAction, ui) {
     // 최대 레벨 인장은 경험치를 받지 못한다: "경험치 +N" 대신 그렇다고 적는다(2026-10-18).
     let sealMaxed = !!seal && result.sealResult.levelsGained === 0 && result.sealResult.level >= seal.maxLevel;
     let sealText = sealMaxed ? `${seal.name} 최대 레벨(경험치 없음)` : `${seal ? seal.name : '경계 인장'} 경험치 +${result.rewardXp}${levelText}`;
-    ui.say(`경계 너머 ${result.tier}단계 돌파, ${sealText}, ${focusedReward.summary}`, 'loot-unique');
+    ui.say(_t('경계 너머 {tier}단계 돌파, {sealText}, {summary}', { tier: result.tier, sealText, summary: focusedReward.summary }), 'loot-unique');
     game.currentZoneId = result.returnZoneId !== null && result.returnZoneId !== undefined
         ? result.returnZoneId : getAutoProgressZoneId(game.maxZoneId);
     if (mapAction === 'stop') {
@@ -11632,7 +11632,7 @@ function finishOutsideChaosEncounter(zone, mapAction, ui) {
     unlockJournalEntry('woodsman_echo');
     maybeUnlockChaosRealmFromWoodsman({ isBoss: true, hp: 0, maxHp: 1 }, { finalize: true });
     markLoopSpecialBossKill('woodsman_true');
-    ui.say('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.', 'loot-unique');
+    ui.say(_t('🪓 나무꾼을 쓰러뜨렸습니다. 다음 경계가 열립니다.'), 'loot-unique');
     clearWoodsmanBuildLock();
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;
@@ -11660,7 +11660,7 @@ function advanceOceanAfterClear(zone, oceanSt, ui) {
         oceanSt.bossClearM = pendingBoundary;
         oceanSt.pressureLevel = getOceanDepthTier(oceanSt.depthM);
         awardCurrency('reefFragment', 3);
-        ui.say(`🌊 수심 ${pendingBoundary}m의 심해 가디언을 처치했습니다! 더 깊은 곳으로 길이 열립니다. (암초 조각 +3)`, 'loot-unique');
+        ui.say(_t('🌊 수심 {pendingBoundary}m의 심해 가디언을 처치했습니다! 더 깊은 곳으로 길이 열립니다. (암초 조각 +3)', { pendingBoundary }), 'loot-unique');
         if (pendingBoundary >= 500) unlockJournalEntry('ocean_500');
     }
     game.oceanBossRunPending = false;
@@ -11685,7 +11685,7 @@ function finishChaosRealmEncounter(zone, mapAction, ui) {
     }
     st.highestFloor = Math.max(Math.floor(st.highestFloor || 1), floor + 1);
     st.currentFloor = ['repeatZone', 'stop'].includes(mapAction) ? floor : Math.min(st.highestFloor, floor + 1);
-    ui.say(`🌌 혼돈계 ${floor}층 돌파!`, 'season-up');
+    ui.say(_t('🌌 혼돈계 {floor}층 돌파!', { floor }), 'season-up');
     game.currentZoneId = mapAction === 'nextLoopBestPlusOne' ? nextBestZoneOr(zone, CHAOS_REALM_ZONE_ID) : CHAOS_REALM_ZONE_ID;
     game.killsInZone = 0;
     continueMapAfterClear(zone);
@@ -11699,7 +11699,7 @@ function finishSkyTowerEncounter(zone, mapAction, ui) {
     let remainingBefore = getSkyTowerRemainingClears();
     const kind = remainingBefore === 0 ? 'practice' : st.clearedFloors.includes(floor) ? 'repeat' : 'first';
     const reward = remainingBefore > 0 ? clearSkyTowerFloor(st, floor, mapAction, ui) : 0;
-    if (remainingBefore === 0) ui.say(`☁️ 창공의 탑 ${floor}층 연습 완료.`, 'season-up');
+    if (remainingBefore === 0) ui.say(_t('☁️ 창공의 탑 {floor}층 연습 완료.', { floor }), 'season-up');
     st.lastResult = { season: game.season, floor, kind, condensedPower: reward };
     game.killsInZone = 0;
     game.currentZoneId = SKY_TOWER_ZONE_ID;
@@ -11718,7 +11718,7 @@ function clearSkyTowerFloor(st, floor, mapAction, ui) {
     let rewardText = firstClear
         ? `최초 클리어 보상: 응축된 창공의 정수 +${reward}`
         : (reward > 0 ? `반복 클리어 보상: 응축된 창공의 정수 +${reward}` : '반복 클리어: 응축된 창공의 정수 미발견');
-    ui.say(`☁️ 창공의 탑 ${floor}층 돌파! ${rewardText}, 이번 루프 잔여 클리어 ${getSkyTowerRemainingClears()}/${getSkyTowerLoopClearLimit()}`, reward > 0 ? 'loot-unique' : 'season-up');
+    ui.say(_t('☁️ 창공의 탑 {floor}층 돌파! {rewardText}, 이번 루프 잔여 클리어 {skyTowerRemainingClears}/{skyTowerLoopClearLimit}', { floor, rewardText, skyTowerRemainingClears: getSkyTowerRemainingClears(), skyTowerLoopClearLimit: getSkyTowerLoopClearLimit() }), reward > 0 ? 'loot-unique' : 'season-up');
     return reward;
 }
 function firstSkyTowerClear(st, floor, mapAction) {
@@ -11744,7 +11744,7 @@ function finishTimeRiftEncounter(zone, mapAction, ui) {
     let rift = ensureTimeRiftState();
     if (zone.riftPhase === 'past') {
         rift.altarOpen = true;
-        ui.say(`⏳ 과거의 제단이 열렸습니다. (시간압 ${zone.pressure}) 시간의 균열에서 장비를 골라 같은 부위의 고유 1개/희귀 1개를 올리세요.`, 'loot-unique');
+        ui.say(_t('⏳ 과거의 제단이 열렸습니다. (시간압 {pressure}) 시간의 균열에서 장비를 골라 같은 부위의 고유 1개/희귀 1개를 올리세요.', { pressure: zone.pressure }), 'loot-unique');
     } else finishTimeRiftFusion(rift, ui);
     rift.activePressure = null;
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
@@ -11759,7 +11759,7 @@ function finishTimeRiftFusion(rift, ui) {
     rift.fusionCount = Math.max(0, Math.floor(rift.fusionCount || 0)) + 1;
     unlockJournalEntry('time_rift_fusion');
     let gradeLabel = fusion.grade === 'perfect' ? '완벽한 융합' : (fusion.grade === 'normal' ? '보통 융합' : '불안정한 융합');
-    ui.say(`⌛ ${gradeLabel}! [${fusion.fused.name}]${pickParticle(fusion.fused.name, '이', '가')} 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 ${fusion.inherited}개${fusion.lost > 0 ? `, ${fusion.lost}개 유실` : ', 유실 없음'})`, 'loot-unique');
+    ui.say(_t('⌛ {grade}! [{name}]{particle} 억겁의 시간을 건너 돌아왔습니다. (계승한 추가 옵션 {inherited}개{lost})', { grade: gradeLabel, name: _t(fusion.fused.name), particle: pickParticle(fusion.fused.name, '이', '가'), inherited: fusion.inherited, lost: fusion.lost > 0 ? `, ${_t('{n}개 유실', { n: fusion.lost })}` : `, ${_t('유실 없음')}` }), 'loot-unique');
 }
 
 function finishTrialEncounter(zone, mapAction, ui) {
@@ -11776,8 +11776,8 @@ function finishTrialEncounter(zone, mapAction, ui) {
     }
     ui.unlocks();
     if (zone.id !== 'trial_4') {
-        if (isFirstClear) ui.say(`👑 [${zone.name}] 통과! 전직 포인트 2점 획득!`, "loot-unique");
-        else ui.say(`🔁 [${zone.name}] 재도전 완료 (전직 포인트 보상 없음)`, "attack-monster", { noToast: true });
+        if (isFirstClear) ui.say(_t('👑 [{name}] 통과! 전직 포인트 2점 획득!', { name: _t(zone.name) }), "loot-unique");
+        else ui.say(_t('🔁 [{name}] 재도전 완료 (전직 포인트 보상 없음)', { name: _t(zone.name) }), "attack-monster", { noToast: true });
     }
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;
@@ -11791,7 +11791,7 @@ function finishBloomTrial(zone, ui) {
     // 보스를 실제로 처치하지 않았는데 런이 완료 처리된 경우(예: 보스 미스폰/즉시 제거 등)에는
     // 개화를 인정하지 않고 전투를 다시 구성한다. 보스를 잡아야만 재능 개화가 완료된다.
     if (!game.bloomBossDefeated) {
-        ui.say('❄️ 개화 미궁의 수호자를 아직 쓰러뜨리지 못했습니다. 전투를 다시 구성합니다.', 'attack-monster', { noToast: true });
+        ui.say(_t('❄️ 개화 미궁의 수호자를 아직 쓰러뜨리지 못했습니다. 전투를 다시 구성합니다.'), 'attack-monster', { noToast: true });
         startEncounterRun();
         return;
     }
@@ -11799,7 +11799,7 @@ function finishBloomTrial(zone, ui) {
 }
 function grantTrialKeystonePoint(ui) {
     game.ascendKeystonePoints = Math.max(0, Math.floor(game.ascendKeystonePoints || 0)) + 1;
-    ui.say(`💠 키스톤 포인트 +1 (현재 ${game.ascendKeystonePoints})`, 'loot-unique');
+    ui.say(_t('💠 키스톤 포인트 +1 (현재 {ascendKeystonePoints})', { ascendKeystonePoints: game.ascendKeystonePoints }), 'loot-unique');
 }
 /** A trial's ascendancy points and rank: the fourth gives a core node pick on its first clear, the others 2 points. */
 function grantTrialAscendPoints(zone, isFirstClear, ui) {
@@ -11807,7 +11807,7 @@ function grantTrialAscendPoints(zone, isFirstClear, ui) {
         game.ascendPoints += isFirstClear ? 1 : 0;
         if (isFirstClear) {
             game.ascendRank = Math.max(game.ascendRank || 0, 4);
-            ui.say(`👑 [${zone.name}] 통과! 4차 전직 핵심 노드 선택권 +1 획득!`, "loot-unique");
+            ui.say(_t('👑 [{name}] 통과! 4차 전직 핵심 노드 선택권 +1 획득!', { name: _t(zone.name) }), "loot-unique");
         }
         return;
     }
@@ -11821,7 +11821,7 @@ function finishSeasonBossEncounter(zone, mapAction, ui) {
     if (firstRootBossClear) game.clearedRootBosses.push(zone.id);
     if (zone.rivalBlade) noteRivalBladeKill(zone, firstRootBossClear, ui);
     grantSeasonBossRewards(zone, firstRootBossClear, ui);
-    ui.say(`🗝️ [${zone.name}] 토벌 완료!`, 'loot-unique');
+    ui.say(_t('🗝️ [{name}] 토벌 완료!', { name: _t(zone.name) }), 'loot-unique');
     departSeasonBoss(zone, ui);
     ui.unlocks();
     ui.redraw();
@@ -11830,11 +11830,11 @@ function finishSeasonBossEncounter(zone, mapAction, ui) {
 function noteRivalBladeKill(zone, firstRootBossClear, ui) {
     markLoopSpecialBossKill(zone.id);
     if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
-    if (zone.capstoneRival) return ui.say('🗡️ 완성작이 무릎 꿇었습니다. 버려진 날이 벼려진 날을 이겼습니다.', 'loot-unique');
+    if (zone.capstoneRival) return ui.say(_t('🗡️ 완성작이 무릎 꿇었습니다. 버려진 날이 벼려진 날을 이겼습니다.'), 'loot-unique');
     let killedRivals = (game.loopProgressCurrent && Array.isArray(game.loopProgressCurrent.specialBosses)) ? game.loopProgressCurrent.specialBosses : [];
     let remaining = SEASON_BOSS_ZONES.filter(rival => rival.rivalBlade && !rival.capstoneRival && !killedRivals.includes(rival.id)).length;
-    if (remaining > 0) ui.say(`🗡️ 버려진 날 격파! 이번 루프에 남은 날: ${remaining}개 (모두 꺾으면 「완성작」이 나타납니다)`, 'season-up');
-    else ui.say('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.', 'loot-unique');
+    if (remaining > 0) ui.say(_t('🗡️ 버려진 날 격파! 이번 루프에 남은 날: {remaining}개 (모두 꺾으면 「완성작」이 나타납니다)', { remaining }), 'season-up');
+    else ui.say(_t('🗡️ 다섯 날이 모두 꺾였습니다. 「일곱 번째 날 - 완성작」이 결투를 기다립니다.'), 'loot-unique');
 }
 /** A root boss's rewards: a milestone pinnacle's, 아스트라's, else its currency (half the time; a capstone rival's on its first
  * clear) and a 40% unique, half of them its own (data/items.js ROOT_BOSS_UNIQUE_RULES, data/maps.js signatureUnique). */
@@ -11846,7 +11846,7 @@ function grantSeasonBossRewards(zone, firstRootBossClear, ui) {
     if (Math.random() < ROOT_BOSS_UNIQUE_RULES.chance) {
         let bossUnique = generateUniqueItem(zone.tier || 12, null, pickRootBossUniqueName(zone));
         addItemToInventory(bossUnique);
-        ui.say(`👑 [${bossUnique.name}] 획득!`, 'loot-unique', { item:bossUnique });
+        ui.say(_t('👑 [{name}] 획득!', { name: _t(bossUnique.name) }), 'loot-unique', { item:bossUnique });
     }
 }
 /** The boss's own unique (its signatureUnique) for ROOT_BOSS_UNIQUE_RULES.signatureShare of the unique rolls, else null (any unique). */
@@ -11855,7 +11855,7 @@ function pickRootBossUniqueName(zone) {
 }
 function grantCosmosCapstoneRewards(zone, firstRootBossClear, ui) {
     if (zone.journalId && firstRootBossClear && typeof unlockJournalEntry === 'function') unlockJournalEntry(zone.journalId);
-    ui.say('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.', 'loot-unique');
+    ui.say(_t('🌌 잔향체가 흩어졌습니다. 다섯 별의 메아리가 마침내 잠잠해집니다.'), 'loot-unique');
     awardCurrency(zone.reward || 'goldenRule', 2, 'drop');
     rollCosmosAstraUniqueDrop(zone);
 }
@@ -11868,11 +11868,11 @@ function departSeasonBoss(zone, ui) {
         game.currentZoneId = zone.id;
         game.killsInZone = 0;
         game.inTicketBossFight = true;
-        ui.say(`🔁 입장권 1개 소모, [${zone.name}] 자동 재도전 시작! (남은 열쇠 ${game.currencies[zone.key] || 0})`, 'season-up');
+        ui.say(_t('🔁 입장권 1개 소모, [{name}] 자동 재도전 시작! (남은 열쇠 {value})', { name: _t(zone.name), value: game.currencies[zone.key] || 0 }), 'season-up');
         startMoving(true);
         return;
     }
-    if (shouldRepeat && keyLeft <= 0) ui.say('🔁 반복 도전이 켜져 있지만 입장권이 없어 자동 재도전을 중단합니다.', 'attack-monster');
+    if (shouldRepeat && keyLeft <= 0) ui.say(_t('🔁 반복 도전이 켜져 있지만 입장권이 없어 자동 재도전을 중단합니다.'), 'attack-monster');
     game.currentZoneId = getAutoProgressZoneId(game.maxZoneId);
     game.killsInZone = 0;
     game.inTicketBossFight = false;
@@ -11892,7 +11892,7 @@ function finishLabyrinthEncounter(zone, mapAction, ui) {
     game.labyrinthLastResult = { season: game.season, floor: clearedFloor,
         currencies: Object.fromEntries(Object.keys(ORB_DB).map(key => [key, (game.currencies[key] || 0) - (currenciesBefore[key] || 0)])
             .filter(([, gain]) => gain > 0)) };
-    ui.say(`🏛️ 미궁 ${clearedFloor}층 돌파!${labyrinthFossilNote(fossilSummary)}`, 'season-up');
+    ui.say(_t('🏛️ 미궁 {clearedFloor}층 돌파!{fossilSummary}', { clearedFloor, fossilSummary: labyrinthFossilNote(fossilSummary) }), 'season-up');
     if (mapAction === 'nextLoopBestPlusOne') {
         let nextZone = resolveNextLoopBestPlusOneZone(zone);
         if (nextZone !== null) game.currentZoneId = nextZone;
@@ -11921,7 +11921,7 @@ function rollLabyrinthFossils(clearedFloor, ui) {
     if (gotAncientPrimalFossil) awardCurrency('fossilAncientPrimal', 1);
     if (Math.random() < fossilChances.abyssal) {
         awardCurrency('fossilAbyssal', 1);
-        ui.say('🌌 희귀 화석 [심연 화석]을 발견했습니다!', 'loot-unique');
+        ui.say(_t('🌌 희귀 화석 [심연 화석]을 발견했습니다!'), 'loot-unique');
     }
     return labyrinthFossilSummary({ base: gotBaseFossil, typed: gotTypedFossil, primal: gotPrimalFossil, ancient: gotAncientPrimalFossil }, rolledFossil);
 }
@@ -11951,7 +11951,7 @@ function finishUnderworldEncounter(zone, mapAction, ui) {
     let { uw, floor } = advanceUnderworldFloor(zone, mapAction);
     if (!game.underworldRunes || typeof game.underworldRunes !== 'object') game.underworldRunes = { unlockedSlots: 0, unlockedRunesMaxNumber: 0, obtainedRunes: [] };
     grantUnderworldFloorMilestone(floor, uw);
-    ui.say(`🕳️ 지하계 ${floor}층 돌파! ${uw.highestFloor}층까지 하강 가능합니다.`, 'season-up');
+    ui.say(_t('🕳️ 지하계 {floor}층 돌파! {highestFloor}층까지 하강 가능합니다.', { floor, highestFloor: uw.highestFloor }), 'season-up');
     game.killsInZone = 0;
     game.currentZoneId = mapAction === 'nextLoopBestPlusOne' ? nextBestZoneOr(zone, UNDERWORLD_ZONE_ID) : UNDERWORLD_ZONE_ID;
     continueMapAfterClear(zone);
@@ -12137,7 +12137,7 @@ function unlockNextZoneAfterClear(zone, ui) {
     let clearedStoryAct = getStoryActByZoneId(zone.id);
     if (clearedStoryAct && clearedStoryAct.unlockText) ui.say(`🧭 ${clearedStoryAct.unlockText}`, 'season-up');
     let unlockedZone = getZone(game.maxZoneId);
-    ui.say(`🗺️ 신규 사냥터 [${unlockedZone ? unlockedZone.name : ('구역 ' + game.maxZoneId)}] 개방!`, "season-up");
+    ui.say(_t('🗺️ 신규 사냥터 [{zone}] 개방!', { zone: unlockedZone ? _t(unlockedZone.name) : _t('구역 {n}', { n: game.maxZoneId }) }), "season-up");
     noteCampaignResistPenalty(game.maxZoneId);
 }
 /** Where the hero goes after a zone clear: the map action's zone (or a stop), the act retreat hold, a deferred departure. */
@@ -13378,7 +13378,7 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     if (contentDefeat) expLost = contentDefeat(zone, message, opts, defeatUi) || 0;
     else expLost = applyDeathExpPenalty(message, opts, defeatUi);
     game.lastDeathLog = buildPlayerDeathLog(zone, opts, expLost, pStats);
-    if (game.lastDeathLog.retreatZoneName) addLog(`🛡️ ${withDirectionParticle(game.lastDeathLog.retreatZoneName)} 물러나 레벨을 ${ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.`, 'season-up');
+    if (game.lastDeathLog.retreatZoneName) addLog(_t('🛡️ {retreatZoneName} 물러나 레벨을 {ACT_RETREAT_LEVELS} 올린 뒤 다시 도전합니다.', { retreatZoneName: withDirectionParticle(game.lastDeathLog.retreatZoneName), ACT_RETREAT_LEVELS }), 'season-up');
     if (game.settings.showDeathNotice !== false) openDeathOverlay.request(game.lastDeathLog);
     game.playerHp = getPlayerHpCap(pStats);
     atlasRun.defeat(zone);
@@ -13432,7 +13432,7 @@ function defeatAgainstWoodsman(zone, message, opts, ui) {
         let score = Math.floor(dealtRatio * 1000000);
         addWoodsmanPendingScore(score);
         maybeUnlockChaosRealmFromWoodsman(woodsman, { log: true, finalize: true });
-        ui.say(`🪓 나무꾼 전투 정산 대기 점수 +${score} (루프 정산 시 반영)`, 'season-up');
+        ui.say(_t('🪓 나무꾼 전투 정산 대기 점수 +{score} (루프 정산 시 반영)', { score }), 'season-up');
     }
     clearWoodsmanBuildLock();
     game.currentZoneId = getDefeatRecoveryZoneId();
@@ -13525,7 +13525,7 @@ function defeatOnUnderworldFloor(zone, message, opts, ui) {
     const uw = game.underworldProgress, floor = Math.floor(Number(zone.floor) || 0);
     if (!uw || floor <= 1 || !['nextZone', 'nextLoopBestPlusOne'].includes(game.settings.mapCompleteAction || 'nextZone')) return lost;
     uw.currentFloor = floor - 1;
-    ui.say(`🛡️ 지하계 ${floor - 1}층으로 물러나 다시 내려갑니다.`, 'season-up');
+    ui.say(_t('🛡️ 지하계 {value}층으로 물러나 다시 내려갑니다.', { value: floor - 1 }), 'season-up');
     return lost;
 }
 /** Content kinds whose defeat closes their run or moves it (a root boss fight is chosen in getContentKindDefeat). */
@@ -14149,7 +14149,7 @@ function performMonsterAttacks(pStats) {
                         sourceEnemyId: enemy.id,
                         sourceEnemyName: enemy.name
                     });
-                    addLog(`☠️ 알 수 없는 권능: ${curseType === 'ignite' ? '점화' : curseType === 'chill' ? '냉각' : curseType === 'shock' ? '감전' : curseType === 'poison' ? '중독' : '출혈'}`, 'attack-monster', { noToast: true });
+                    addLog(_t('☠️ 알 수 없는 권능: {ailment}', { ailment: _t(curseType === 'ignite' ? '점화' : curseType === 'chill' ? '냉각' : curseType === 'shock' ? '감전' : curseType === 'poison' ? '중독' : '출혈') }), 'attack-monster', { noToast: true });
                 }
             }
             if (!resolvingPendingAttack) {
@@ -14394,7 +14394,7 @@ function performMonsterAttacks(pStats) {
             let guardianNullifyChance = Math.max(0, Math.min(100, Number(pStats.guardianDamageNullifyChance) || 0));
             if (guardianNullifyChance > 0 && Math.random() * 100 < guardianNullifyChance) {
                 addBattleFx('statusText', { text: '무효!', color: '#bdf7ff', duration: 300 });
-                if (game.settings.showCombatLog) addLog('🛡️ 절대 수호: 피해 무효!', 'loot-magic', { noToast: true, aggregateKey: 'combat:block:nullify', aggregateWindowMs: 450 });
+                if (game.settings.showCombatLog) addLog(_t('🛡️ 절대 수호: 피해 무효!'), 'loot-magic', { noToast: true, aggregateKey: 'combat:block:nullify', aggregateWindowMs: 450 });
                 continue;
             }
             let deflected = false;
@@ -14440,9 +14440,9 @@ function performMonsterAttacks(pStats) {
                     sourceEnemyId: enemy.id,
                     sourceEnemyName: enemy.name
                 });
-                let ailmentLabel = ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각'
-                    : ail === 'shock' ? '감전' : ail === 'bleed' ? '출혈' : '중독';
-                if (game.settings.showCombatLog) addLog(`☣️ 상태이상: ${ailmentLabel} (${enemy.isBoss ? 5 : 3}초)`, 'attack-monster', { element:attackElement });
+                let ailmentLabel = _t(ail === 'ignite' ? '점화' : ail === 'chill' ? '냉각'
+                    : ail === 'shock' ? '감전' : ail === 'bleed' ? '출혈' : '중독');
+                if (game.settings.showCombatLog) addLog(_t('☣️ 상태이상: {ailment} ({seconds}초)', { ailment: ailmentLabel, seconds: enemy.isBoss ? 5 : 3 }), 'attack-monster', { element:attackElement });
             }
 
             grantWarriorRageOnHit(getCombatTime());
@@ -14583,7 +14583,7 @@ function performMonsterAttacks(pStats) {
             addBattleFx('playerHit', { enemyId: enemy.id, color: getElementColor(topDamageEntry.ele), damage: dmg, duration: 220, deflected: deflected,
                 targetMaxHp: getPlayerHpCap(pStats) });
             if (game.settings.showCombatLog && dmg > 0) {
-                let damageLog = `${getDamageElementIcon(topDamageEntry.ele)} ${damageSource}의 공격으로 ${formatNumberKR(dmg)} 피해`;
+                let damageLog = _t('{icon} {source}의 공격으로 {amount} 피해', { icon: getDamageElementIcon(topDamageEntry.ele), source: damageSource, amount: formatNumberKR(dmg) });
                 if (game.settings.showDetailedDamageLog === true) {
                     let breakdownText = damageBreakdown
                         .filter(row => row.amount > 0)
@@ -14745,7 +14745,7 @@ function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
     recordIncomingDamage(hazard.element, trapDamage, trapName);
     if (zone.bloomTrial && (zone.trapRegenSuppressPct || 0) > 0) {
         game.bloomTrialRegenSuppress = getBloomTrialRegenSuppressNext(zone, game.bloomTrialRegenSuppress);
-        addLog(`혹독한 한기: 생명력 재생 억제 ${Math.round((game.bloomTrialRegenSuppress || 0) * 100)}%`, 'attack-monster', { noToast: true });
+        addLog(_t('혹독한 한기: 생명력 재생 억제 {round}%', { round: Math.round((game.bloomTrialRegenSuppress || 0) * 100) }), 'attack-monster', { noToast: true });
     }
     logTrialDamage(trapName, hazard, trapDamage);
     if (game.playerHp <= 0) {
@@ -14903,7 +14903,7 @@ function finishWoodsmanEntrance() {
     game.encounterIndex = 0;
     game.enemies = [];
     game.inEncounter = true;
-    addLog('☠️ 하늘이 갈라지고 도끼날의 그림자가 전장을 뒤덮습니다.', 'loot-unique');
+    addLog(_t('☠️ 하늘이 갈라지고 도끼날의 그림자가 전장을 뒤덮습니다.'), 'loot-unique');
     // 방 단위 무대: 입구와 나무꾼의 방, 두 칸의 투기장을 연다. 저주는 나무꾼이 깨어날 때 걸린다(beginRoomBossRules).
     if (getZoneExplorationPlan(zone)) startEncounterRun();
     else {
@@ -14918,7 +14918,7 @@ function finishWoodsmanEntrance() {
 function enterOutsideChaos() {
     const held = getContentStartBlockReason();
     if (held) return addLog(held, 'attack-monster');
-    if ((game.season || 1) < 10) return addLog('혼돈 밖은 루프 10 이후 개방됩니다.', 'attack-monster');
+    if ((game.season || 1) < 10) return addLog(_t('혼돈 밖은 루프 10 이후 개방됩니다.'), 'attack-monster');
     let outsideChaosRequirementMet = typeof hasCurrentLoopAbyssRequirementClear === 'function'
         ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
         : ((getSeasonAbyssDepthCap(game.season || 1) <= 20)
@@ -14942,7 +14942,7 @@ function enterOutsideChaos() {
     game.woodsmanEntrancePending = true;
     resetWoodsmanCurse();
     prepareActExplorationArrival(); // 방 단위 무대: 기다리는 몇 초 동안 투기장의 입구에 서 있다
-    addLog('☠️ 금단의 경계 너머로 발을 들였습니다. 혼돈이 몇 초간 숨을 고릅니다.', 'loot-unique');
+    addLog(_t('☠️ 금단의 경계 너머로 발을 들였습니다. 혼돈이 몇 초간 숨을 고릅니다.'), 'loot-unique');
     updateStaticUI();
 }
 
@@ -14962,8 +14962,8 @@ function enterWoodsmanEchoChallenge() {
     const held = getContentStartBlockReason();
     if (held) return addLog(held, 'attack-monster');
     let st = ensureChaosRealmState();
-    if (!st.unlocked) return addLog('혼돈계 해금 이후 이용 가능합니다.', 'attack-monster');
-    if (!(Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo'))) return addLog('나무꾼 완전 격파 이후에만 도전할 수 있습니다.', 'attack-monster');
+    if (!st.unlocked) return addLog(_t('혼돈계 해금 이후 이용 가능합니다.'), 'attack-monster');
+    if (!(Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo'))) return addLog(_t('나무꾼 완전 격파 이후에만 도전할 수 있습니다.'), 'attack-monster');
     let run = ensureWoodsmanEchoRunState();
     run.active = true;
     run.duration = 30;
@@ -14987,7 +14987,7 @@ function enterWoodsmanEchoChallenge() {
         game.enemies = [];
         startEncounterRun();
     } else game.enemies = [dressWoodsmanEchoDummy(createEnemy(getZone(OUTSIDE_CHAOS_ZONE_ID), { at: 0, count: 1, boss: true }, 0))];
-    addLog('📏 나무꾼의 잔상 도전 시작: 30초 동안 최대 피해를 기록하세요. (허수아비는 공격하지 않습니다)', 'season-up');
+    addLog(_t('📏 나무꾼의 잔상 도전 시작: 30초 동안 최대 피해를 기록하세요. (허수아비는 공격하지 않습니다)'), 'season-up');
     updateStaticUI();
 }
 
@@ -15117,10 +15117,10 @@ function triggerSeasonReset(options) {
     calculateReachableNodes();
     refreshPassiveVisibility();
     let presetInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };
-    if (presetInvest.nodes > 0) addLog(`🧭 새 루프 프리셋 자동 투자: ${presetInvest.nodes}개 노드 활성화`, 'season-up');
+    if (presetInvest.nodes > 0) addLog(_t('🧭 새 루프 프리셋 자동 투자: {nodes}개 노드 활성화', { nodes: presetInvest.nodes }), 'season-up');
     game.playerHp = getPlayerHpCap(getPlayerStats());
     ensureActJournalCompletionForLoop({ silent: false });
-    addLog("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.", "season-up");
+    addLog(_t('🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.'), "season-up");
     worldTreeBark.noticeFirstBark();
     checkUnlocks();
     saveGame({ skipCloudSync: true });
@@ -15361,7 +15361,7 @@ function handleSeasonLoopConditionMet() {
     game.loopGateOffline = !!game.isBackgroundCalculation;
     game.combatHalted = true;
     clearDefeatedEncounter();
-    addLog(`루프 ${game.season || 1} 달성. 이번 여정의 기록과 다음 해금 요소를 확인하세요.`, 'season-up');
+    addLog(_t('루프 {value} 달성. 이번 여정의 기록과 다음 해금 요소를 확인하세요.', { value: game.season || 1 }), 'season-up');
     updateStaticUI();
 }
 
@@ -15378,7 +15378,7 @@ function confirmLoopReady() {
     if (available.length > 1) {
         game.pendingLoopReady = false;
         game.pendingLoopDecision = true;
-        addLog('혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.', 'season-up');
+        addLog(_t('혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'), 'season-up');
         updateStaticUI();
         return;
     }
@@ -15398,7 +15398,7 @@ function chooseLoopAdvance(shouldLoop) {
         return;
     }
     clearLoopGate();
-    addLog(`♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 ${Math.max(21, Math.floor((game.abyssEndlessDepth || 20) + 1))}부터 시작)`, 'season-up');
+    addLog(_t('♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 {max}부터 시작)', { max: Math.max(21, Math.floor((game.abyssEndlessDepth || 20) + 1)) }), 'season-up');
     enterNextEndlessChaosDepth();
 }
 

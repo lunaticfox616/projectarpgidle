@@ -319,7 +319,7 @@ async function copyClientDiagnostics() {
     let text = JSON.stringify(report, null, 2);
     try {
         await navigator.clipboard.writeText(text);
-        if (typeof addLog === 'function') addLog('진단 정보를 클립보드에 복사했습니다.', 'loot-magic');
+        if (typeof addLog === 'function') addLog(_t('진단 정보를 클립보드에 복사했습니다.'), 'loot-magic');
     } catch (error) {
         console.error('diagnostic copy failed:', error);
     }

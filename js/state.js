@@ -629,7 +629,7 @@ function maybeUnlockSkyTowerFromChaos20() {
     let st = ensureSkyTowerState();
     if (!st.unlocked && (game.season || 1) >= 15 && hasCurrentLoopChaos20Clear()) {
         st.unlocked = true;
-        if (typeof addLog === 'function') addLog('☁️ 창공의 탑이 열렸습니다. 이후 루프에서는 혼돈 입성부터 도전할 수 있습니다.', 'loot-unique');
+        if (typeof addLog === 'function') addLog(_t('☁️ 창공의 탑이 열렸습니다. 이후 루프에서는 혼돈 입성부터 도전할 수 있습니다.'), 'loot-unique');
         return true;
     }
     return false;
@@ -1265,7 +1265,7 @@ function applySeasonContentProgression(options) {
         if (!game.unlockedSeasonContents.includes(key)) game.unlockedSeasonContents.push(key);
         if (!opts.silent && !game.contentProgression && !game.seenSeasonContentNotices.includes(key) && SEASON_CONTENT_ROADMAP[s]) {
             let def = SEASON_CONTENT_ROADMAP[s];
-            addLog(`🧩 루프 ${s} [${def.title}] 이정표 개방`, 'season-up');
+            addLog(_t('🧩 루프 {s} [{title}] 이정표 개방', { s, title: _t(def.title) }), 'season-up');
             (def.features || []).slice(0, 2).forEach(line => addLog(`   - ${line}`, 'loot-magic'));
             game.seenSeasonContentNotices.push(key);
         }
@@ -1288,13 +1288,13 @@ function getLoop10StatCost(statKey) {
 function allocateLoop10BonusStat(statKey) {
     if ((game.season || 1) < 10) return;
     // 나무꾼 전투 중에는 루프 포인트가 매 틱 돌아가 강화만 남았다(js/combat.js enforceWoodsmanBuildLock).
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let cost = getLoop10StatCost(statKey);
-    if ((game.seasonPoints || 0) < cost) return addLog(`루프 포인트가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if ((game.seasonPoints || 0) < cost) return addLog(_t('루프 포인트가 부족합니다. (필요: {cost})', { cost }), 'attack-monster');
     game.loop10BonusStats = game.loop10BonusStats || { flatHp: 0, flatDmg: 0, aspd: 0, move: 0 };
     game.loop10BonusStats[statKey] = Math.max(0, Math.floor(game.loop10BonusStats[statKey] || 0)) + 1;
     game.seasonPoints -= cost;
-    addLog(`🧬 루프10 강화: ${getStatName(statKey)} 투자 +1 (비용 ${cost})`, 'season-up');
+    addLog(_t('🧬 루프10 강화: {statKey} 투자 +1 (비용 {cost})', { statKey: getStatName(statKey), cost }), 'season-up');
     updateStaticUI();
 }
 
@@ -1312,7 +1312,7 @@ function enterNextEndlessChaosDepth(clearedZone) {
     game.killsInZone = 0;
     game.combatHalted = false;
     game.runProgress = 0;
-    addLog(`♾️ 혼돈 심화 ${game.abyssEndlessDepth}층 진입`, 'season-up');
+    addLog(_t('♾️ 혼돈 심화 {abyssEndlessDepth}층 진입', { abyssEndlessDepth: game.abyssEndlessDepth }), 'season-up');
     enterAutomaticMapInterruptionAfterClear(clearedZone); // a ready grand breach or meteor postponed by the map's loot goes first
     startMoving(true);
     updateStaticUI();
@@ -1326,13 +1326,13 @@ function enterUnlockedEndlessDepth(depth) {
     if ((game.season || 1) < 10) return;
     game.abyssUnlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths : [20];
     depth = Math.max(20, Math.floor(depth || 20));
-    if (!game.abyssUnlockedDepths.includes(depth)) return addLog('아직 도달하지 않은 심화 층수입니다.', 'attack-monster');
+    if (!game.abyssUnlockedDepths.includes(depth)) return addLog(_t('아직 도달하지 않은 심화 층수입니다.'), 'attack-monster');
     game.abyssEndlessDepth = depth;
     game.currentZoneId = getAbyssZoneIdForDepth(depth);
     game.killsInZone = 0;
     game.combatHalted = false;
     game.runProgress = 0;
-    addLog(`🧭 기록된 혼돈 심화 ${depth}층으로 이동`, 'season-up');
+    addLog(_t('🧭 기록된 혼돈 심화 {depth}층으로 이동', { depth }), 'season-up');
     startMoving(true);
     updateStaticUI();
 }
@@ -1381,11 +1381,11 @@ function allocateLoopDeepStat(statKey) {
     if (!contentProgression.isUnlocked('deepTree') || !LOOP_DEEP_STATS.some(def => def.key === statKey)) return;
     if ((game.season || 1) < 10) return;
     let cost = getLoopDeepStatCost(statKey);
-    if ((game.loopDeepPoints || 0) < cost) return addLog(`심화 루프 포인트가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if ((game.loopDeepPoints || 0) < cost) return addLog(_t('심화 루프 포인트가 부족합니다. (필요: {cost})', { cost }), 'attack-monster');
     game.loopDeepStats = game.loopDeepStats || { flatHp: 0, flatDmg: 0, resChaos: 0, aspd: 0, move: 0, dr: 0, crit: 0 };
     game.loopDeepStats[statKey] = Math.max(0, Math.floor(game.loopDeepStats[statKey] || 0)) + 1;
     game.loopDeepPoints -= cost;
-    addLog(`🧬 심화 루프 강화: ${LOOP_DEEP_STATS.find(def => def.key === statKey).label} Lv.${game.loopDeepStats[statKey]} (비용 ${cost})`, 'season-up');
+    addLog(_t('🧬 심화 루프 강화: {label} Lv.{level} (비용 {cost})', { label: _t(LOOP_DEEP_STATS.find(def => def.key === statKey).label), level: game.loopDeepStats[statKey], cost }), 'season-up');
     updateStaticUI();
 }
 

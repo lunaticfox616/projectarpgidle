@@ -64,11 +64,11 @@ const atlasUi = (() => {
         const ok = await requestGameConfirmation(`${name} 지도석 1개를 버릴까요?\n지도석과 제작에 쓴 재화는 돌려받을 수 없습니다.`,
             { title: '지도석 버리기', tone: 'danger', confirmLabel: '버리기', cancelLabel: '취소', dismissOnBackdrop: false });
         if (!ok) return;
-        if (selectedMap() !== map) return addLog('선택한 지도석이 바뀌어 버리기를 취소했습니다.', 'attack-monster');
+        if (selectedMap() !== map) return addLog(_t('선택한 지도석이 바뀌어 버리기를 취소했습니다.'), 'attack-monster');
         const reason = atlas.discard(game, map.uid);
         if (reason) return addLog(reason, 'attack-monster');
         selectedUid = null;
-        addLog(`🗺️ ${name} 지도석 1개를 버렸습니다.`, 'attack-monster');
+        addLog(_t('🗺️ {name} 지도석 1개를 버렸습니다.', { name }), 'attack-monster');
         queueImportantSave(200);
         refresh();
     }
@@ -80,7 +80,7 @@ const atlasUi = (() => {
         if (reason) return addLog(reason, 'attack-monster');
         payCurrencyCosts(cost);
         atlasMaps.craft(map, key);
-        addLog(`🗺️ ${nodeName(map.node)} 지도석에 ${_t(ORB_DB[key].name)} 사용: ${atlasMaps.crafts[key].label}`, 'loot-magic');
+        addLog(_t('🗺️ {node} 지도석에 {name} 사용: {label}', { node: nodeName(map.node), name: _t(ORB_DB[key].name), label: atlasMaps.crafts[key].label }), 'loot-magic');
         queueImportantSave(200);
         refresh();
     }
@@ -88,7 +88,7 @@ const atlasUi = (() => {
     function applyFlower(map, color, omenId) {
         const result = atlas.changeOmen(game, map.uid, color, omenId);
         if (result.reason) return addLog(result.reason, 'attack-monster');
-        addLog(`🗺️ ${nodeName(map.node)} 지도석에 ${omenId ? '황금 ' : ''}${STUMP_BOX_COLORS[color].label} 꽃 사용: ${lootOmens.describe(result.omen).name}`, 'loot-magic');
+        addLog(_t('🗺️ {node} 지도석에 {golden}{color} 꽃 사용: {omen}', { node: nodeName(map.node), golden: omenId ? `${_t('황금')} ` : '', color: _t(STUMP_BOX_COLORS[color].label), omen: _t(lootOmens.describe(result.omen).name) }), 'loot-magic');
         playUiFeedbackSound('gemSocket');
         queueImportantSave(200);
         bloomedUid = map.uid;
@@ -106,7 +106,7 @@ const atlasUi = (() => {
         const choices = lootOmens.flowerOmens(color, game, map.omen).map(omen => ({ value: omen.id, label: omen.name, detail: omen.note }));
         const picked = await requestGameChoice({ title: `황금 ${STUMP_BOX_COLORS[color].label} 꽃`, message: '지도석에 붙일 기운을 고르세요.', choices, confirmLabel: '이 기운으로', cancelLabel: '취소' });
         if (!picked) return;
-        if (selectedMap() !== map) return addLog('선택한 지도석이 바뀌어 기운 바꾸기를 취소했습니다.', 'attack-monster');
+        if (selectedMap() !== map) return addLog(_t('선택한 지도석이 바뀌어 기운 바꾸기를 취소했습니다.'), 'attack-monster');
         applyFlower(map, color, picked);
     }
     /** 각인 홈: 누르면 끼우고, 다시 누르면 뺀다. 지도를 열 때마다(자동 지도 포함) 가진 것만 하나씩 쓴다. */
@@ -114,7 +114,7 @@ const atlasUi = (() => {
         const loadout = ledger().loadout;
         if (loadout.includes(id)) atlas.setLoadout(game, loadout.filter(entry => entry !== id));
         else if (loadout.length < atlas.slots(game)) atlas.setLoadout(game, [...loadout, id]);
-        else return addLog(`각인 홈은 ${atlas.slots(game)}개입니다. 먼저 하나를 빼세요.`, 'attack-monster');
+        else return addLog(_t('각인 홈은 {slots}개입니다. 먼저 하나를 빼세요.', { slots: atlas.slots(game) }), 'attack-monster');
         queueImportantSave(200);
         refresh();
     }
@@ -145,7 +145,7 @@ const atlasUi = (() => {
         if (!run) return;
         const ok = await requestGameConfirmation(abandonMessage(run), { title: '지도 닫기', tone: 'danger', confirmLabel: '지도 닫기', cancelLabel: '취소', dismissOnBackdrop: false });
         if (!ok || ledger().run !== run) return;
-        if (atlasRun.abandon()) addLog('🗺️ 지도를 닫았습니다.', 'attack-monster');
+        if (atlasRun.abandon()) addLog(_t('🗺️ 지도를 닫았습니다.'), 'attack-monster');
         queueImportantSave(200);
         refresh();
     }
@@ -617,7 +617,7 @@ const atlasUi = (() => {
         }[detail.kind];
         if (!text) return;
         addLog(text(), logClass(detail));
-        if (detail.kind === 'complete' && (detail.lost || detail.lostFragments)) addLog(`보관 한도가 가득 차 ${lostRewards(detail).join(', ')}를 보관하지 못했습니다.`, 'attack-monster');
+        if (detail.kind === 'complete' && (detail.lost || detail.lostFragments)) addLog(_t('보관 한도가 가득 차 {detail}를 보관하지 못했습니다.', { detail: lostRewards(detail).join(', ') }), 'attack-monster');
         if (detail.kind === 'starter' && detail.opened) queueTutorialNotice('unlock_world_tree_atlas', '세계수 아틀라스',
             '혼돈 20 너머에서 세계수 아틀라스가 열렸습니다.\n‘지도 → 세계수 아틀라스’에서 지도석을 골라 지도 장치로 여세요. 보스를 잡으면 노드가 완료되고 이웃 노드가 열립니다.', 'tab-map', 'map-explore-worldtree');
         signature = '';

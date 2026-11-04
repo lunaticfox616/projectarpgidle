@@ -25,7 +25,7 @@ const bagItemsUi = (() => {
         const reason = bagItems.socketFromBag(item, slot);
         if (reason) return addLog(reason, 'attack-monster', { toast: true });
         playUiFeedbackSound('gemSocket');
-        addLog(`💠 [${escapeHTML(_t(item.name || '주얼'))}]${pickParticle(item.name || '주얼', '을', '를')} 소켓에 끼웠습니다.`, 'loot-magic');
+        addLog(_t('💠 [{name}]{particle} 소켓에 끼웠습니다.', { name: escapeHTML(_t(item.name || '주얼')), particle: pickParticle(item.name || '주얼', '을', '를') }), 'loot-magic');
         hideItemTooltip();
         updateStaticUI();
     }

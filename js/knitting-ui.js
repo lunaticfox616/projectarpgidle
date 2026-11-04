@@ -65,7 +65,7 @@ const knittingUi = (() => {
             game.noti.items = true;
             showGameToast(detail.complete ? `「${detail.name}」 뜨개질 가능` : `새 실타래 「${detail.name}」`, { tone: 'leaf', duration: 2800 });
         }
-        if (detail.first || detail.complete || game.settings.showLootLog) addLog(`실타래 「${esc(_t(detail.name))}」 ${detail.count}/${detail.set}`, 'loot-rare');
+        if (detail.first || detail.complete || game.settings.showLootLog) addLog(_t('실타래 「{name}」 {count}/{set}', { name: esc(_t(detail.name)), count: detail.count, set: detail.set }), 'loot-rare');
         render();
     });
     function offlineHtml(gains) {

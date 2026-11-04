@@ -380,7 +380,7 @@ function persistLocalSave(options = {}) {
             if (!sanitized.saveMeta || typeof sanitized.saveMeta !== 'object') sanitized.saveMeta = {};
             delete sanitized.talentCardRuntime;
             localStorage.setItem(saveSlot.key, JSON.stringify(sanitized));
-            if (typeof addLog === 'function') addLog('💾 저장 데이터 정리 후 로컬 저장을 복구했습니다.', 'season-up');
+            if (typeof addLog === 'function') addLog(_t('💾 저장 데이터 정리 후 로컬 저장을 복구했습니다.'), 'season-up');
         } catch (retryError) {
             console.error('local save failed:', error, retryError);
             let isQuota = retryError && (retryError.name === 'QuotaExceededError' || /quota|storage/i.test(String(retryError.message || '')));

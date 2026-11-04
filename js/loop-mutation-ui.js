@@ -84,7 +84,7 @@ const loopMutationUi = (() => {
     // A new loop under the rule says it once in the log and a toast, after the class is picked.
     window.addEventListener('project-idle:loop-hero-selection-completed', () => {
         const rule = loopMutation.current();
-        if (rule) addLog(`🧬 변이시간선: ${loopMutation.describe(rule)}`, 'season-up', { toast: true });
+        if (rule) addLog(_t('🧬 변이시간선: {describe}', { describe: loopMutation.describe(rule) }), 'season-up', { toast: true });
     });
 
     return Object.freeze({ update, nextLoopLines });

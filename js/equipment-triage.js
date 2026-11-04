@@ -251,7 +251,7 @@
         console.error('equipment triage failed:', error);
         clearResults('error');
         if (typeof showGameToast === 'function') {
-            showGameToast('장비 분석에 실패했습니다. 다시 시도해 주세요.', { tone: 'error', duration: 3200 });
+            showGameToast(_t('장비 분석에 실패했습니다. 다시 시도해 주세요.'), { tone: 'error', duration: 3200 });
         }
     }
 
@@ -424,7 +424,7 @@
         const equipped = equipItemById(recommendation.item.id, recommendation.slot);
         if (!equipped) return false;
         if (typeof showGameToast === 'function') {
-            showGameToast(`${recommendation.item.name || '추천 장비'} 장착, ${recommendation.slot}`, { tone: 'success' });
+            showGameToast(_t('{item} 장착, {slot}', { item: _t(recommendation.item.name || '추천 장비'), slot: _t(recommendation.slot) }), { tone: 'success' });
         }
         start();
         return true;

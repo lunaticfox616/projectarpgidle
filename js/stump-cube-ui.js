@@ -314,7 +314,7 @@ const stumpCubeUi = (() => {
     function selectCubeItem(index) {
         const item = pickerItems[index];
         if (!item || !stumpCube.candidates(pickerKind).includes(item)) {
-            showGameToast('재료 상태가 바뀌었습니다. 다시 선택해 주세요.', { tone: 'warning' });
+            showGameToast(_t('재료 상태가 바뀌었습니다. 다시 선택해 주세요.'), { tone: 'warning' });
             return openCubePicker(pickerKind);
         }
         pickerSelection = { kind: pickerKind, item };
@@ -420,7 +420,7 @@ const stumpCubeUi = (() => {
         lastResult = { state: game, season: game.season, outputs: JSON.parse(JSON.stringify(result.outputs)) };
         const names = result.outputs.map(row => itemName(row.kind, row.item)).join(', ');
         const paid = Object.entries(result.paid).map(([key, need]) => `${_t(ORB_DB[key].name)} ${need}개`).join(', ');
-        addLog(`🧩 조합창 ${result.recipe.name}: ${names}${paid ? ` (${paid} 사용)` : ''}`, 'loot-rare');
+        addLog(_t('🧩 조합창 {recipe}: {names}{paid}', { recipe: _t(result.recipe.name), names, paid: paid ? ` ${_t('({cost} 사용)', { cost: paid })}` : '' }), 'loot-rare');
         // 완전한 코어(js/core-items.js rollPerfect)는 드랍처럼 체이싱 티어 알림도
         result.outputs.filter(row => row.kind === 'core' && row.item && row.item.perfect)
             .forEach(row => dispatchRuntimeEvent('incident', { text: `체이싱 코어를 획득했습니다. 「${row.item.name}」`, tone: 'chase', chase: true }));

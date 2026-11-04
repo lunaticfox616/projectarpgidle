@@ -75,7 +75,7 @@ const chronicleUi = (() => {
     function announce(detail) {
         const rings = Array.isArray(detail.rings) ? detail.rings : [];
         if (!rings.length) return;
-        addLog(`🌳 세계수 연대기에 나이테가 감겼습니다(${rings.join(', ')}번째). 방치 효율 +${rings.length}%p.`, 'loot-unique', { toast: true });
+        addLog(_t('🌳 세계수 연대기에 나이테가 감겼습니다({rings}번째). 방치 효율 +{length}%p.', { rings: rings.join(', '), length: rings.length }), 'loot-unique', { toast: true });
     }
     window.addEventListener('project-idle:chronicle-ring', event => announce(event.detail || {}));
     return Object.freeze({ sectionHtml, open });

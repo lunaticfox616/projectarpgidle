@@ -46,7 +46,7 @@ const colonyWardsUi = (() => {
     /** js/bag-items-ui.js equipSpecial: 열린 칸이 하나도 없을 때 액막이를 끼우려 하면 이유를 알린다. true when told. */
     function refuseWithoutSlot(item) {
         if (!colonyWards.isWard(item) || colonyWards.slotCount() > 0) return false;
-        addLog(`액막이 칸이 없습니다. ${NO_SLOT_HINT}.`, 'attack-monster', { toast: true });
+        addLog(_t('액막이 칸이 없습니다. {NO_SLOT_HINT}.', { NO_SLOT_HINT }), 'attack-monster', { toast: true });
         return true;
     }
 
@@ -72,7 +72,7 @@ const colonyWardsUi = (() => {
         if (typeof assertBuildEditable === 'function' && !assertBuildEditable()) return;
         const reason = colonyWards.craft();
         if (reason) return addLog(reason, 'attack-monster', { toast: true });
-        addLog('🛡️ 군락지 편린으로 액막이를 만들었습니다.', 'loot-rare');
+        addLog(_t('🛡️ 군락지 편린으로 액막이를 만들었습니다.'), 'loot-rare');
         updateStaticUI();
         queueImportantSave(200);
     }

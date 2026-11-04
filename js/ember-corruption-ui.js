@@ -22,7 +22,7 @@ const emberCorruptionUi = (() => {
         if (!state.enabled) return addLog(state.reason, 'attack-monster');
         const question = `[${item.name}]에 타오른 잿불가지를 씁니다. ${ashPct(item)}% 확률로 장비가 타서 사라집니다.`;
         if (!await requestGameConfirmation(question, { title: '타오른 잿불가지', tone: 'danger', confirmLabel: '태우기' })) return;
-        if (getSelectedCraftItem() !== item || !useState(item).enabled) return addLog('확인 중 제작 대상이나 재화가 바뀌어 쓰지 않았습니다.', 'attack-monster');
+        if (getSelectedCraftItem() !== item || !useState(item).enabled) return addLog(_t('확인 중 제작 대상이나 재화가 바뀌어 쓰지 않았습니다.'), 'attack-monster');
         game.currencies[KEY] -= 1;
         const token = craftingResultLedger.begin(item, { currencyKey: KEY });
         const outcome = emberCorruption.burn(item);
@@ -30,7 +30,7 @@ const emberCorruptionUi = (() => {
         else {
             token.meta.outcome = outcome.text;
             craftingResultLedger.commit(token, item);
-            addLog(`🔥 타오른 잿불가지: ${outcome.text}`, outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true });
+            addLog(_t('🔥 타오른 잿불가지: {text}', { text: outcome.text }), outcome.kind === 'nothing' ? 'attack-monster' : 'loot-unique', { toast: true });
         }
         updateStaticUI();
         queueImportantSave(200);

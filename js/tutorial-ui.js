@@ -625,7 +625,7 @@ function equipSkippedStarterGem(key) {
     const name = game.starterGemTutorialPending;
     if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string') return;
     if (game.activeSkill === '기본 공격') changeSkill(name);
-    if (game.activeSkill === name) showGameToast(`[${name}] 룬을 장착했습니다, '스킬룬'에서 바꿀 수 있습니다`, { tone: 'success' });
+    if (game.activeSkill === name) showGameToast(_t("[{name}] 룬을 장착했습니다, '스킬룬'에서 바꿀 수 있습니다", { name }), { tone: 'success' });
     // 닫은 안내는 끝난다: 무기가 그 룬을 받지 않거나 다른 룬을 이미 꼈어도 표시가 남아 그 룬의 봉인을 막았다.
     game.starterGemTutorialPending = null;
 }
@@ -638,7 +638,7 @@ function applySkippedGuide(key) {
 /** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗을 판의 가운데부터 대신 놓는다(첫 스킬룬과 같은 이유). */
 function plantSkippedStumpStarter(key) {
     if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
-    if (stumpBox.plantStored(game) > 0) showGameToast('그루터기 함: 받은 씨앗을 배치했습니다', { tone: 'success' });
+    if (stumpBox.plantStored(game) > 0) showGameToast(_t('그루터기 함: 받은 씨앗을 배치했습니다'), { tone: 'success' });
 }
 
 /** The queue and the card on screen belonged to the game running until now; a loaded save brings its own (js/ui.js

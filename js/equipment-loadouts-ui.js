@@ -86,7 +86,7 @@ function commitSave(index) {
     let result = equipmentLoadoutRuntime.save(index, name);
     if (!result.ok) return showFailure(result.reason);
     actionNotice = `${LOADOUT_SLOT_NUMERALS[index]} ${result.preset.name}에 현재 빌드를 저장했습니다.`;
-    addLog(`🧰 빌드 세팅 [${result.preset.name}] 저장, 장비 ${result.count}부위와 룬, 보조 등급`, 'season-up', { toast: true });
+    addLog(_t('🧰 빌드 세팅 [{name}] 저장, 장비 {count}부위와 룬, 보조 등급', { name: _t(result.preset.name), count: result.count }), 'season-up', { toast: true });
     if (typeof queueImportantSave === 'function') queueImportantSave(100);
     updateStaticUI();
     return true;
@@ -101,7 +101,7 @@ function commitApply(index) {
     if (typeof clearCraftSelection === 'function') clearCraftSelection();
     if (typeof hideItemTooltip === 'function') hideItemTooltip();
     const scope = result.preset.runeLoadout ? '장비와 룬, 보조 등급' : '장비만';
-    addLog(`🧰 빌드 세팅 전환: [${result.preset.name}], ${scope}`, 'season-up', { toast: true });
+    addLog(_t('🧰 빌드 세팅 전환: [{name}], {scope}', { name: _t(result.preset.name), scope }), 'season-up', { toast: true });
     if (typeof queueImportantSave === 'function') queueImportantSave(100);
     updateStaticUI();
     return true;

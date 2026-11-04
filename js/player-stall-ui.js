@@ -210,12 +210,12 @@ const playerStallUi = {
         game.noti.items = true;
         const complete = gains.every(gain => sold.filter(event => event.currency === gain.key).reduce((sum, event) => sum + event.price, 0) === gain.amount);
         const goods = !complete ? '물건' : sold.length === 1 ? `[${escapeHTML(sold[0].name)}]` : `물건 ${sold.length}개`;
-        addLog(`가판대 판매: ${goods}, ${formatCurrencyCosts(gains)}개. 장비 → 거래소 → 나의 가판대에서 수령하세요.`, 'loot-rare', { toast: true });
+        addLog(_t('가판대 판매: {goods}, {gains}개. 장비 → 거래소 → 나의 가판대에서 수령하세요.', { goods, gains: formatCurrencyCosts(gains) }), 'loot-rare', { toast: true });
     },
     announceOffers(rows) {
         game.noti.items = true;
         const detail = rows.length === 1 ? `[${escapeHTML(rows[0].item.name)}]에 ${formatCurrencyCosts([{ key: rows[0].currency, amount: rows[0].offer.amount }])}개` : `물건 ${rows.length}개`;
-        addLog(`가판대 가격 제안: ${detail}. 나의 가판대에서 수락하거나 거절할 수 있습니다.`, 'loot-rare', { toast: true });
+        addLog(_t('가판대 가격 제안: {detail}. 나의 가판대에서 수락하거나 거절할 수 있습니다.', { detail }), 'loot-rare', { toast: true });
     },
     /** The typed price (text) as an integer the stall takes, or null. Only its format: never what the gear is worth. */
     askValue(text) {

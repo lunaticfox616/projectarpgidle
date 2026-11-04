@@ -66,7 +66,7 @@ const chaosInfusionUi = (() => {
         const message = `[${item.name}]\n현재: ${item.chaosInfusion ? infusionText(item.chaosInfusion) : '주입 없음'}\n변경: ${next}\n\n비용: ${formatCurrencyCosts(getChaosInfusionCost(option, item))}`;
         if (!await requestGameConfirmation(message, { title: '혼돈 주입 비교', confirmLabel: '주입 확정' })) return;
         if (getSelectedCraftItem() !== item || JSON.stringify(item.chaosInfusion) !== previous) {
-            addLog('대상 또는 주입 옵션이 변경되었습니다. 다시 비교하세요.', 'attack-monster');
+            addLog(_t('대상 또는 주입 옵션이 변경되었습니다. 다시 비교하세요.'), 'attack-monster');
         } else applyChaosInfusionToSelectedItem(optionId);
         if (selectionDialog.isOpen(OVERLAY_ID)) render();
     }

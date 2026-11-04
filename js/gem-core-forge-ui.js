@@ -130,13 +130,13 @@ const gemCoreForgeUi = (() => {
     function announce(name, { status, level, lost }) {
         if (status === 'destroyed') {
             playUiFeedbackSound('danger');
-            addLog(`💥 [${escapeHTML(name)}] +${level} 강화 중 룬이 파괴되었습니다.${lost ? ' 남은 룬이 없습니다.' : ''}`, 'attack-monster');
+            addLog(_t('💥 [{name}] +{level} 강화 중 룬이 파괴되었습니다.{lost}', { name: escapeHTML(_t(name)), level, lost: lost ? ` ${_t('남은 룬이 없습니다.')}` : '' }), 'attack-monster');
             return;
         }
         if (status === 'failure') { playUiFeedbackSound('cancel'); return; }
         const next = level + 1;
         playUiFeedbackSound(next >= 15 ? 'lootBurst' : next >= 10 ? 'levelUp' : 'success');
-        if (next >= FORGE.riskFromLevel) addLog(`✨ [${escapeHTML(name)}] 룬 강화 +${next} 달성!`, 'loot-unique');
+        if (next >= FORGE.riskFromLevel) addLog(_t('✨ [{name}] 룬 강화 +{next} 달성!', { name: escapeHTML(name), next }), 'loot-unique');
     }
 
     function reveal() {

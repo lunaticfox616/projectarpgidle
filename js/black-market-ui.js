@@ -201,7 +201,7 @@ const blackMarketUi = (() => {
         if (ask && !await askBlackMarket(ask, { title: blackPurchaseTitle(offer), tone: 'danger', confirmLabel: '구매' })) return;
         const result = blackMarketShop.buy(index, { place, offer });
         if (!result.ok) return noteBlackMarket(result.reason);
-        addLog(`🕶️ 암거래 구매, ${result.summary}`, result.notable ? 'loot-unique' : 'loot-magic');
+        addLog(_t('🕶️ 암거래 구매, {summary}', { summary: result.summary }), result.notable ? 'loot-unique' : 'loot-magic');
         chosen = null; note = '';
         checkUnlocks();
         updateStaticUI();
@@ -231,7 +231,7 @@ const blackMarketUi = (() => {
         if (blackMarketShop.refreshCost() !== cost) return noteBlackMarket('확인하는 동안 갱신 값이 바뀌었습니다. 다시 눌러 주세요.');
         const result = blackMarketShop.refreshNow();
         if (!result.ok) return noteBlackMarket(result.reason);
-        addLog(`🕶️ 암거래 즉시 갱신, 형체 없는 이슬 ${result.cost}개`, 'loot-magic');
+        addLog(_t('🕶️ 암거래 즉시 갱신, 형체 없는 이슬 {cost}개', { cost: result.cost }), 'loot-magic');
         chosen = null; note = '';
         updateStaticUI();
         drawBlackMarket(true);
@@ -246,13 +246,13 @@ const blackMarketUi = (() => {
         if (blackMarketShop.expandCost() !== cost) return noteBlackMarket('확인하는 동안 값이 바뀌었습니다. 다시 눌러 주세요.');
         const result = blackMarketShop.expand();
         if (!result.ok) return noteBlackMarket(result.reason);
-        addLog(`🕶️ 암거래 진열 ${result.count}/${BLACK_MARKET_MAX_SLOT_COUNT}칸, 황금률 ${result.cost}개`, 'loot-unique');
+        addLog(_t('🕶️ 암거래 진열 {count}/{BLACK_MARKET_MAX_SLOT_COUNT}칸, 황금률 {cost}개', { count: result.count, BLACK_MARKET_MAX_SLOT_COUNT, cost: result.cost }), 'loot-unique');
         updateStaticUI();
         drawBlackMarket(true);
     }
 
     function trackBlackMarketSlot(slot) {
-        if (blackMarketShop.track(slot)) addLog(`🕶️ 암거래 추적 부위: ${slot === 'any' ? '전체 부위' : getItemSlotDisplayLabel(null, slot)}`, 'loot-normal');
+        if (blackMarketShop.track(slot)) addLog(_t('🕶️ 암거래 추적 부위: {slot}', { slot: slot === 'any' ? _t('전체 부위') : getItemSlotDisplayLabel(null, slot) }), 'loot-normal');
         queueImportantSave(200);
         drawBlackMarket(true);
     }

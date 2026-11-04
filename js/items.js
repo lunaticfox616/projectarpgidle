@@ -133,11 +133,11 @@ function ensureCraftSelectionValid() {
 function selectForCrafting(ref, isEquip) {
     let item = isEquip ? game.equipment[ref] : (game.inventory || []).find(row => row && Number(row.id) === Number(ref));
     if (item && item.hallReplica) {
-        addLog('전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.', 'attack-monster');
+        addLog(_t('전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.'), 'attack-monster');
         return false;
     }
     if (bagItems.isSpecial(item)) {
-        addLog('주얼, 코어, 액막이는 제작할 수 없습니다.', 'attack-monster');
+        addLog(_t('주얼, 코어, 액막이는 제작할 수 없습니다.'), 'attack-monster');
         return false;
     }
     craftingSelectionState.ref = ref;
@@ -441,7 +441,7 @@ function toggleItemLockById(itemId) {
     let item = game.inventory[idx];
     if (!item) return false;
     if (item.hallReplica) {
-        addLog('전당 소장품의 보호 잠금은 해제할 수 없습니다.', 'attack-monster');
+        addLog(_t('전당 소장품의 보호 잠금은 해제할 수 없습니다.'), 'attack-monster');
         return false;
     }
     item.locked = !item.locked;
@@ -527,7 +527,7 @@ function getContentStartBlockReason() {
 function setTimeRiftPressure(delta) {
     let rift = ensureTimeRiftState();
     let inRift = game.currentZoneId === TIME_RIFT_PAST_ZONE_ID || game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
-    if (inRift || rift.altarOpen) return addLog('시간압은 과거에 진입하기 전에만 바꿀 수 있습니다. 제단 아이템을 회수하면 다시 선택할 수 있습니다.', 'attack-monster');
+    if (inRift || rift.altarOpen) return addLog(_t('시간압은 과거에 진입하기 전에만 바꿀 수 있습니다. 제단 아이템을 회수하면 다시 선택할 수 있습니다.'), 'attack-monster');
     rift.pressure = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, rift.pressure + Math.floor(delta || 0)));
     updateStaticUI();
 }
@@ -571,38 +571,38 @@ function getTimeAltarSlotIssue(item, rift) {
 function placeItemOnTimeAltar() {
     let rift = ensureTimeRiftState();
     let item = getSelectedCraftItem();
-    if (isCraftSelectionEquip()) return addLog('장착 중인 장비는 제단에 올릴 수 없습니다. 해제 후 올려주세요.', 'attack-monster');
+    if (isCraftSelectionEquip()) return addLog(_t('장착 중인 장비는 제단에 올릴 수 없습니다. 해제 후 올려주세요.'), 'attack-monster');
     const issue = getTimeAltarItemIssue(item, rift);
     if (issue) return addLog(issue, 'attack-monster');
     let slotKey = item.rarity === 'unique' ? 'altarUnique' : 'altarRare';
     game.inventory = (game.inventory || []).filter(row => row && row.id !== item.id);
     rift[slotKey] = item;
     clearCraftSelection();
-    addLog(`⏳ [${item.name}]${pickParticle(item.name, '을', '를')} 과거의 제단에 올렸습니다.${rift.altarUnique && rift.altarRare ? ' 두 자리가 모두 찼습니다. 미래로 건너가세요.' : ''}`, 'season-up');
+    addLog(_t('⏳ [{name}]{particle} 과거의 제단에 올렸습니다.{full}', { name: getItemDisplayName(item), particle: pickParticle(item.name, '을', '를'), full: rift.altarUnique && rift.altarRare ? ` ${_t('두 자리가 모두 찼습니다. 미래로 건너가세요.')}` : '' }), 'season-up');
     updateStaticUI();
     queueImportantSave(200);
 }
 
 function retrieveTimeAltarItems() {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster'); // 잠금이 가방을 되돌려 회수한 장비가 사라졌다
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster'); // 잠금이 가방을 되돌려 회수한 장비가 사라졌다
     let rift = ensureTimeRiftState();
     if (!rift.altarUnique && !rift.altarRare) {
-        if (!rift.altarOpen) return addLog('제단이 비어 있습니다.', 'attack-monster');
+        if (!rift.altarOpen) return addLog(_t('제단이 비어 있습니다.'), 'attack-monster');
         rift.altarOpen = false;
         rift.activePressure = null;
-        addLog('⏳ 빈 제단을 닫았습니다. 시간압을 다시 선택할 수 있습니다.', 'season-up');
+        addLog(_t('⏳ 빈 제단을 닫았습니다. 시간압을 다시 선택할 수 있습니다.'), 'season-up');
         updateStaticUI();
         queueImportantSave(200);
         return;
     }
     let altarItems = [rift.altarUnique, rift.altarRare].filter(Boolean);
-    if (!canStoreEquipmentItems(altarItems, game)) return addLog('인벤토리 공간이 부족합니다.', 'attack-monster');
+    if (!canStoreEquipmentItems(altarItems, game)) return addLog(_t('인벤토리 공간이 부족합니다.'), 'attack-monster');
     // guaranteedKeep: 회수 아이템이 습득 필터/자동해체에 걸려 유실되는 것을 방지한다.
     if (rift.altarUnique) { addItemToInventory(rift.altarUnique, { guaranteedKeep: true, skipAutoEquip: true }); rift.altarUnique = null; }
     if (rift.altarRare) { addItemToInventory(rift.altarRare, { guaranteedKeep: true, skipAutoEquip: true }); rift.altarRare = null; }
     rift.altarOpen = false;
     rift.activePressure = null;
-    addLog('⏳ 제단의 아이템을 회수했습니다.', 'season-up');
+    addLog(_t('⏳ 제단의 아이템을 회수했습니다.'), 'season-up');
     updateStaticUI();
     queueImportantSave(200);
 }
@@ -628,7 +628,7 @@ function resolveTimeRiftFusion() {
     // 제단을 비우기 전에 결과물이 들어갈 공간부터 확보한다 — 실패 시 제단을 그대로 유지하고
     // 재도전(공간 확보 후 미래 재클리어)할 수 있게 한다.
     if (!canStoreEquipmentItems([rift.altarUnique], game)) {
-        addLog('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다. 공간 확보 후 미래를 다시 클리어하세요)', 'attack-monster');
+        addLog(_t('⌛ 융합이 보류되었습니다: 인벤토리 공간이 필요합니다. (제단은 유지됩니다. 공간 확보 후 미래를 다시 클리어하세요)'), 'attack-monster');
         return null;
     }
     let fused = JSON.parse(JSON.stringify(rift.altarUnique));
@@ -694,17 +694,17 @@ function changeZone(id) {
     const held = id === BEYOND_BOUNDARY_ZONE_ID && boundary.activeRun ? '' : getHeldRunBlockReason();
     if (held) return addLog(held, 'attack-monster');
     if (id === BEYOND_BOUNDARY_ZONE_ID && !boundary.activeRun)
-        return addLog('경계 너머 화면에서 단계와 성장시킬 인장을 선택해 도전을 시작하세요.', 'attack-monster');
+        return addLog(_t('경계 너머 화면에서 단계와 성장시킬 인장을 선택해 도전을 시작하세요.'), 'attack-monster');
     game.inTicketBossFight = false;
     if (typeof id === 'number' && id > game.maxZoneId) return;
     if (id === METEOR_FALL_ZONE_ID) {
         let st = ensureMeteorSiteState();
-        if (!st.unlocked) return addLog('운석 낙하 지점은 아직 잠겨 있습니다.', 'attack-monster');
-        if (!st.skyRiftReady) return addLog('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.', 'attack-monster');
+        if (!st.unlocked) return addLog(_t('운석 낙하 지점은 아직 잠겨 있습니다.'), 'attack-monster');
+        if (!st.skyRiftReady) return addLog(_t('하늘의 균열 게이지가 100%가 되어야 입장 가능합니다.'), 'attack-monster');
         prepareMeteorEncounterEntry();
     }
     let zone = getZone(id);
-    if (!zone) return addLog('이동할 수 없는 지역입니다.', 'attack-monster');
+    if (!zone) return addLog(_t('이동할 수 없는 지역입니다.'), 'attack-monster');
     if (zone.type === 'seasonBoss') {
         if ((game.season || 1) < (zone.reqSeason || 2)) {
             let lockedMessage = zone.rivalBlade ? '버려진 날붙이들은 루프 31부터 당신을 찾아옵니다.'
@@ -712,24 +712,24 @@ function changeZone(id) {
             return addLog(lockedMessage, 'attack-monster');
         }
         let gate = getSeasonBossProgressGate(zone, game);
-        if (!gate.met) return addLog(`🔒 ${gate.label} 조건을 먼저 달성해야 합니다.`, 'attack-monster');
+        if (!gate.met) return addLog(_t('🔒 {label} 조건을 먼저 달성해야 합니다.', { label: _t(gate.label) }), 'attack-monster');
         if (!zone.milestonePinnacle) {
-            if ((game.currencies[zone.key] || 0) <= 0) return addLog(`입장 열쇠(${_t(ORB_DB[zone.key].name)})가 필요합니다.`, 'attack-monster');
+            if ((game.currencies[zone.key] || 0) <= 0) return addLog(_t('입장 열쇠({name})가 필요합니다.', { name: _t(ORB_DB[zone.key].name) }), 'attack-monster');
             game.currencies[zone.key]--;
         }
         game.inTicketBossFight = true;
     }
     if (zone.type === 'timeRift') {
         let rift = ensureTimeRiftState();
-        if ((game.season || 1) < TIME_RIFT_UNLOCK_LOOP) return addLog(`시간의 균열은 루프 ${TIME_RIFT_UNLOCK_LOOP}부터 열립니다.`, 'attack-monster');
+        if ((game.season || 1) < TIME_RIFT_UNLOCK_LOOP) return addLog(_t('시간의 균열은 루프 {TIME_RIFT_UNLOCK_LOOP}부터 열립니다.', { TIME_RIFT_UNLOCK_LOOP }), 'attack-monster');
         const mismatch = zone.riftPhase === 'future' ? getTimeRiftFutureEntryReason(rift) : null;
         if (mismatch) return addLog(mismatch, 'attack-monster');
         rift.activePressure = rift.pressure;
     }
     if (id === CHAOS_REALM_ZONE_ID) {
         let realm = ensureChaosRealmState();
-        if (!realm.unlocked) return addLog('혼돈계는 나무꾼에게 10% 이상 피해를 준 전투 종료 시 해금됩니다.', 'attack-monster');
-        if (!canEnterChaosRealm()) return addLog('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.', 'attack-monster');
+        if (!realm.unlocked) return addLog(_t('혼돈계는 나무꾼에게 10% 이상 피해를 준 전투 종료 시 해금됩니다.'), 'attack-monster');
+        if (!canEnterChaosRealm()) return addLog(_t('혼돈계 입장은 이번 루프에서 혼돈 20을 클리어해야 가능합니다.'), 'attack-monster');
         let maxFloor = Math.max(1, Math.floor(realm.highestFloor || 1));
         realm.currentFloor = Math.max(1, Math.min(maxFloor, Math.floor(realm.currentFloor || 1)));
     }
@@ -741,7 +741,7 @@ function changeZone(id) {
     }
     atlasRun.travel(zone);
     game.killsInZone = 0;
-    addLog(`🗺️ ${zone.name} 이동`, "season-up");
+    addLog(_t('🗺️ {name} 이동', { name: _t(zone.name) }), "season-up");
     // 지도 선택은 귀환 완료가 아니라 새 전투로 출발하는 이동이다.
     runItemStartMoving(false);
     updateStaticUI();
@@ -937,13 +937,13 @@ function getBaseUpgradeCost(nextBase) {
 
 function upgradeSelectedItemBase() {
     let item = getSelectedCraftItem();
-    if (!item) return addLog('먼저 제작 대상 장비를 선택하세요.', 'attack-monster');
+    if (!item) return addLog(_t('먼저 제작 대상 장비를 선택하세요.'), 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
-    if (!currentBase) return addLog('현재 베이스 정보를 찾을 수 없습니다.', 'attack-monster');
-    if (currentBase.realmBase) return addLog('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.', 'attack-monster');
+    if (!currentBase) return addLog(_t('현재 베이스 정보를 찾을 수 없습니다.'), 'attack-monster');
+    if (currentBase.realmBase) return addLog(_t('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.'), 'attack-monster');
     let candidates = getBaseUpgradeCandidates(currentBase);
     let nextBase = candidates[0];
-    if (!nextBase) return addLog('해당 계열의 다음 베이스가 없습니다.', 'attack-monster');
+    if (!nextBase) return addLog(_t('해당 계열의 다음 베이스가 없습니다.'), 'attack-monster');
     let cost = getBaseUpgradeCost(nextBase);
     game.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id };
     let titleEl = document.getElementById('base-upgrade-title');
@@ -972,13 +972,13 @@ function getBaseUpgradeShortfall(cost) {
 function confirmSelectedItemBaseUpgrade() {
     let pending = game.pendingBaseUpgrade;
     if (!pending) return;
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 장비 옵션을 변경할 수 없습니다.'), 'attack-monster');
     let item = (game.inventory || []).find(v => v && v.id === pending.itemId);
     if (!item) {
         let equipMatch = Object.entries(game.equipment || {}).find(([, equipped]) => equipped && equipped.id === pending.itemId);
         if (equipMatch) item = equipMatch[1];
     }
-    if (!item) { closeBaseUpgradeOverlay(); return addLog('대상 장비를 찾을 수 없습니다.', 'attack-monster'); }
+    if (!item) { closeBaseUpgradeOverlay(); return addLog(_t('대상 장비를 찾을 수 없습니다.'), 'attack-monster'); }
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || null;
     let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
     if (!nextBase) return closeBaseUpgradeOverlay();
@@ -992,7 +992,7 @@ function confirmSelectedItemBaseUpgrade() {
     if (item.rarity !== 'unique') item.name = nextBase.name;
     item.itemTier = Math.max(item.itemTier || 1, nextBase.reqTier || 1);
     item.baseStats = rollUpgradedBaseStats(item, nextBase);
-    addLog(`🛠️ 베이스 업그레이드: ${(currentBase && currentBase.name) || '기존'} → ${nextBase.name} (형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule ? ` + 황금률 ${cost.goldenRule}` : ''})`, 'loot-magic');
+    addLog(_t('🛠️ 베이스 업그레이드: {from} → {to} (형체 없는 이슬 {dew}{rule})', { from: _t((currentBase && currentBase.name) || '기존'), to: _t(nextBase.name), dew: cost.formlessDew, rule: cost.goldenRule ? ` + ${_t('황금률')} ${cost.goldenRule}` : '' }), 'loot-magic');
     closeBaseUpgradeOverlay();
     updateStaticUI();
 }

@@ -78,7 +78,7 @@ const itemInfluencesUi = (() => {
             return false;
         }
         const influence = ITEM_INFLUENCES[result.line.altar];
-        addLog(`${influence.name} 줄을 새겼습니다: [${escapeHTML(getItemDisplayName(item))}] ${escapeHTML(result.line.statName)} +${formatValue(result.line.id, result.line.val)}`, 'loot-rare');
+        addLog(_t('{name} 줄을 새겼습니다: [{item}] {statName} +{value}', { name: _t(influence.name), item: escapeHTML(getItemDisplayName(item)), statName: escapeHTML(result.line.statName), value: formatValue(result.line.id, result.line.val) }), 'loot-rare');
         return true;
     }
 

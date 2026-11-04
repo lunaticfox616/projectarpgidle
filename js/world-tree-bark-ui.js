@@ -106,7 +106,7 @@ const worldTreeBarkUi = (() => {
     const barkMapChipHtml = zone => (isWorldTreeBarkZone(zone) ? '<span class="map-bark-chip">껍질 구간</span>' : '');
     window.addEventListener('project-idle:bark-points', event => {
         const { gain, why } = event.detail || {};
-        if (barkStepsNow()) addLog(`🌿 껍질 포인트 +${gain}: ${why}`, 'season-up', { toast: true });
+        if (barkStepsNow()) addLog(_t('🌿 껍질 포인트 +{gain}: {why}', { gain, why }), 'season-up', { toast: true });
     });
     return Object.freeze({ renderBarkPanel, openBarkDialog, moveBarkPoints, resetBarkAllocation, barkSettlementHtml, barkMapChipHtml, barkDialogOpen });
 })();

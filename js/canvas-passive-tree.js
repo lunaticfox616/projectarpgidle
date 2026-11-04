@@ -538,8 +538,8 @@ function drawPassiveClassStartLabels(ctx, nodes, frame) {
     starts.forEach(node => {
         const y = node.y + getPassiveNodeVisualRadius(node) * 1.45 + 4 / camZoom;
         ctx.fillStyle = node.id === frame.rootId ? '#e9be67' : '#b3a283';
-        ctx.strokeText(node.title, node.x, y);
-        ctx.fillText(node.title, node.x, y);
+        ctx.strokeText(_t(node.title), node.x, y);
+        ctx.fillText(_t(node.title), node.x, y);
     });
     ctx.restore();
 }

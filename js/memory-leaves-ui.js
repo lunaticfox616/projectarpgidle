@@ -33,7 +33,7 @@ const memoryLeavesUi = (() => {
         game.noti.codex = true;
         if (game.isBackgroundCalculation) return;
         if (game.settings.lootFx?.notices?.leaf !== false) {
-            showGameToast(`기억의 잎을 발견했습니다. 「${result.name}」`, { tone: 'leaf', duration: 3600 });
+            showGameToast(_t('기억의 잎을 발견했습니다. 「{name}」', { name: _t(result.name) }), { tone: 'leaf', duration: 3600 });
         }
         queueImportantSave(200);
     }

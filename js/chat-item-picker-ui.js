@@ -94,7 +94,7 @@ const chatItemPicker = (() => {
             <nav class="chat-pick-tabs" aria-label="아이템 위치">${tabs}</nav><div class="chat-pick-page is-${tab}">${body}</div></div></div>`;
     }
     function openPicker() {
-        if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+        if (!socialCloudReady()) { showGameToast(_t('먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
         drawItemPicker();
         pickerModal().style.display = 'flex';
     }
