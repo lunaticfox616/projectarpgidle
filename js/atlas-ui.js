@@ -273,7 +273,7 @@ const atlasUi = (() => {
             ${mapCardHtml(run.map, `${rooms}<p class="atlas-portals" aria-label="${_t('남은 포털 {portals}', { portals: run.portals })}">${_t('포털 {portals}', { portals })}</p>
             <p class="atlas-muted">${_t('맵에서 얻은 지도석 {length}개, 각인 {length2}개, 보스를 잡으면 보관함으로', { length: run.drops.length, length2: run.found.length })}</p>
             ${late ? `<p class="atlas-muted">${_t('후반부 재료 {late} (보스를 잡으면 받음)', { late })}</p>` : ''}`)}
-            <div class="atlas-actions">${inside ? _t('<button class="atlas-primary" onclick="switchTab(\'tab-battle\')">전투 보기</button>')
+            <div class="atlas-actions">${inside ? `<button class="atlas-primary" onclick="switchTab('tab-battle')">${_t('전투 보기')}</button>`
                 : _t('<button class="atlas-primary" data-exploration-departure onclick="atlasUi.reenter()">다시 들어가기</button>')}
             <button onclick="atlasUi.abandon()">${_t('지도 닫기')}</button></div></section>`;
     }
@@ -515,7 +515,7 @@ const atlasUi = (() => {
     function journeyHtml() {
         const next = journeyState();
         return `<section class="atlas-journey" aria-label="${_t('아틀라스 다음 목표')}"><div><h3>${_t(next.title)}</h3>${next.text ? `<p>${escapeHTML(_t(next.text))}</p>` : ''}</div>
-            <div class="atlas-actions"><button class="atlas-primary" onclick="${next.action}">${_t(next.label)}</button>${next.epoch ? _t('<button onclick="atlasUi.setView(\'epoch\')">시대 재생 비교</button>') : ''}</div></section>`;
+            <div class="atlas-actions"><button class="atlas-primary" onclick="${next.action}">${_t(next.label)}</button>${next.epoch ? `<button onclick="atlasUi.setView('epoch')">${_t('시대 재생 비교')}</button>` : ''}</div></section>`;
     }
     function autoOptionsHtml() {
         const st = ledger();

@@ -458,7 +458,7 @@ const sideEncounterUi = (() => {
     function timeFuture(rift) {
         const current = game.currentZoneId === TIME_RIFT_FUTURE_ZONE_ID;
         const issue = getTimeRiftFutureEntryReason(rift); // 입장과 같은 까닭(가방 자리도)
-        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
+        const action = current ? `<button type="button" onclick="switchTab('tab-battle')">${_t('전투 보기')}</button>` :
             `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_FUTURE_ZONE_ID}')" ${issue?'disabled':''}>${_t('미래 입장')}</button>`;
         return `<div class="map-expedition-intro"><h3>${_t('3. 미래')}</h3><strong>${_t('희귀 옵션을 고유에 계승')}</strong>
             ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_FUTURE_ZONE_ID))}<p>${escapeHTML(issue||'융합 준비 완료')}</p>
@@ -608,7 +608,7 @@ const sideEncounterUi = (() => {
 
     function skyEntryActions(tower,remaining) {
         const disabled = canEnterSkyTower() ? '' : 'disabled';
-        const action = game.currentZoneId === SKY_TOWER_ZONE_ID && !game.combatHalted ? '<button onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
+        const action = game.currentZoneId === SKY_TOWER_ZONE_ID && !game.combatHalted ? `<button onclick="switchTab('tab-battle')">${_t('전투 보기')}</button>` :
             `<button data-exploration-departure onclick="enterSkyTowerPrompt(${tower.currentFloor})" ${disabled}>${_t('{currentFloor}층 {value}', { currentFloor: tower.currentFloor, value: remaining?_t('입장'):_t('연습 입장') })}</button>`;
         return action + (tower.highestFloor>1?`<button data-exploration-departure onclick="enterSkyTowerPrompt()" ${disabled}>${_t('다른 층 선택')}</button>`:'');
     }

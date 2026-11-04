@@ -111,7 +111,7 @@ const atlasEndgameUi = (() => {
         const view = atlasEndgame.overview(game), block = view.awakened ? departBlock() : '';
         const groups = groupHtml('최종 보스', view.apexes, block, view.awakened) + groupHtml('리그 우두머리', view.leagues, block, view.awakened);
         return `<div class="atlas-late">${headHtml(view, block)}${followupHtml(view)}
-            ${groups || _t('<div class="atlas-fight-empty"><p class="atlas-muted">조건에 맞는 보스가 없습니다.</p><button onclick="atlasEndgameUi.setFilter(\'all\')">전체 목록 보기</button></div>')}
+            ${groups || `<div class="atlas-fight-empty"><p class="atlas-muted">${_t('조건에 맞는 보스가 없습니다.')}</p><button onclick="atlasEndgameUi.setFilter('all')">${_t('전체 목록 보기')}</button></div>`}
             ${blightHtml(view)}</div>`;
     }
     /** A boss kill can open another preparation goal even when the player's ready-only filter is now empty. */
