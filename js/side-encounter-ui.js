@@ -86,20 +86,20 @@ const sideEncounterUi = (() => {
         return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
     }
     function grandSummary(run) {
-        if (run.phase === 'loot') return `<strong>군주 격파</strong><span>전리품 수거 중</span><small>바닥 아이템을 모두 획득하면 귀환</small>`;
+        if (run.phase === 'loot') return `<strong>${_t('군주 격파')}</strong><span>${_t('전리품 수거 중')}</span><small>${_t('바닥 아이템을 모두 획득하면 귀환')}</small>`;
         const progress = getGrandBreachProgress(run.gauge);
         const reward = getGrandBreachRewardSummary(run.kills);
         const nextKills = 10 - reward.kills % 10;
         const pressure = Math.min(6, Math.floor(reward.kills / 10));
-        const heading = { survival: '균열 쇄도', bossPending: '군주 소환' }[run.phase] || '균열 군주';
-        const next = run.phase === 'survival' ? `남은 시간 ${grandTimeLeft(run)}, 다음 보상 증가까지 ${nextKills}마리`
-            : run.phase === 'bossPending' ? '군주 소환 중' : '군주 처치 시 지급';
+        const heading = _t({ survival: '균열 쇄도', bossPending: '군주 소환' }[run.phase] || '균열 군주');
+        const next = run.phase === 'survival' ? _t('남은 시간 {time}, 다음 보상 증가까지 {n}마리', { time: grandTimeLeft(run), n: nextKills })
+            : _t(run.phase === 'bossPending' ? '군주 소환 중' : '군주 처치 시 지급');
         const config = usesGrandBreachArena() ? GRAND_BREACH_ENCOUNTER.arena : GRAND_BREACH_ENCOUNTER;
         const crowd = run.inRun && run.phase === 'survival'
-            ? `<span>현장 적 <b>${game.enemies.filter(enemy => enemy.hp > 0).length}/${config.capacities[progress.stage]}</b></span>` : '';
-        return `<strong>${heading}</strong><span>게이지 <b>${progress.percent}%</b></span>
-            <span>군주 압박 <b>${pressure}단계</b></span>
-            ${crowd}<span>보관 전리품 <b>${run.pendingLoot?.length || 0}묶음</b></span><span class="grand-breach-reward">격파 보상 <b>${grandRewardPreview(reward)}</b></span><small>${next}</small>`;
+            ? `<span>${_t('현장 적')} <b>${game.enemies.filter(enemy => enemy.hp > 0).length}/${config.capacities[progress.stage]}</b></span>` : '';
+        return `<strong>${heading}</strong><span>${_t('게이지')} <b>${progress.percent}%</b></span>
+            <span>${_t('군주 압박')} <b>${_t('{n}단계', { n: pressure })}</b></span>
+            ${crowd}<span>${_t('보관 전리품')} <b>${_t('{n}묶음', { n: run.pendingLoot?.length || 0 })}</b></span><span class="grand-breach-reward">${_t('격파 보상')} <b>${grandRewardPreview(reward)}</b></span><small>${next}</small>`;
     }
 
     function updateGrandBreachGauge(run) {
@@ -107,8 +107,8 @@ const sideEncounterUi = (() => {
         const progress = getGrandBreachProgress(run.gauge);
         const survival = run.phase === 'survival';
         const pending = run.phase === 'bossPending';
-        setTextById('ui-progress-label', survival ? '균열 게이지' : pending ? '군주 소환' : '최종 전투');
-        setTextById('ui-move-time-text', survival ? `${progress.percent}%, ${grandTimeLeft(run)}` : pending ? '100%' : '군주 처치');
+        setTextById('ui-progress-label', _t(survival ? '균열 게이지' : pending ? '군주 소환' : '최종 전투'));
+        setTextById('ui-move-time-text', survival ? `${progress.percent}%, ${grandTimeLeft(run)}` : pending ? '100%' : _t('군주 처치'));
         setCombatProgressGaugePercent(survival ? progress.percent : 100);
     }
 
@@ -121,8 +121,8 @@ const sideEncounterUi = (() => {
     }
     /** The HUD return button's word: 원정 포기 in a grand breach fight, 철수 in a colony run, else 귀환. */
     function returnLabel(zone) {
-        if (zone.type === 'grandBreach' && game.voidRift.grandRun?.inRun) return game.voidRift.grandRun.phase === 'loot' ? '귀환' : '원정 포기';
-        return zone.type === 'colony' && game.colony.inRun ? '철수' : '귀환';
+        if (zone.type === 'grandBreach' && game.voidRift.grandRun?.inRun) return _t(game.voidRift.grandRun.phase === 'loot' ? '귀환' : '원정 포기');
+        return _t(zone.type === 'colony' && game.colony.inRun ? '철수' : '귀환');
     }
 
     function updateHud(zone) {
@@ -144,16 +144,16 @@ const sideEncounterUi = (() => {
     function updateMeteorProgress(zone) {
         if (zone.type !== 'meteor' || game.moveTimer > 0) return;
         const bossAlive = game.enemies.some(enemy => enemy.isBoss && enemy.hp > 0);
-        setTextById('ui-progress-label', bossAlive ? '운석 핵 파괴' : '운석 접근');
-        setTextById('ui-move-time-text', bossAlive ? '처치 중' : `${game.runProgress.toFixed(0)}%`);
+        setTextById('ui-progress-label', _t(bossAlive ? '운석 핵 파괴' : '운석 접근'));
+        setTextById('ui-move-time-text', bossAlive ? _t('처치 중') : `${game.runProgress.toFixed(0)}%`);
     }
 
     /** 나무꾼의 잔상: 남은 시간. 방 단위 지도에서는 잔상이 일어설 때까지 30초 그대로 서 있다. */
     function updateEchoProgress(zone) {
         const run = game.woodsmanEchoRun;
         if (zone.type !== 'woodsmanEcho' || !run || !run.active) return;
-        setTextById('ui-progress-label', '남은 시간');
-        setTextById('ui-move-time-text', `${Math.ceil(Math.max(0, run.timeLeft))}초`);
+        setTextById('ui-progress-label', _t('남은 시간'));
+        setTextById('ui-move-time-text', _t('{n}초', { n: Math.ceil(Math.max(0, run.timeLeft)) }));
         setCombatProgressGaugePercent(run.duration > 0 ? run.timeLeft / run.duration * 100 : 0);
     }
 
@@ -162,29 +162,29 @@ const sideEncounterUi = (() => {
         if (game.colony.lootPending) { updateLootCollectionProgress(); return; }
         const {wave, kills, requiredKills, coreHp, coreMaxHp} = game.colony;
         if (!coreMaxHp) {
-            setTextById('ui-progress-label', `${wave}웨이브`);
-            setTextById('ui-move-time-text', `${kills}/${requiredKills} 처치`);
+            setTextById('ui-progress-label', _t('{n}웨이브', { n: wave }));
+            setTextById('ui-move-time-text', `${kills}/${requiredKills} ${_t('처치')}`);
             setCombatProgressGaugePercent(requiredKills > 0 ? kills / requiredKills * 100 : 0);
             return;
         }
         const durability = Math.max(0, Math.ceil(coreHp / coreMaxHp * 100));
-        setTextById('ui-progress-label', `${wave}웨이브, 군락 핵`);
-        setTextById('ui-move-time-text', `${durability}%, ${kills}/${requiredKills} 처치`);
+        setTextById('ui-progress-label', `${_t('{n}웨이브', { n: wave })}, ${_t('군락 핵')}`);
+        setTextById('ui-move-time-text', `${durability}%, ${kills}/${requiredKills} ${_t('처치')}`);
         setCombatProgressGaugePercent(durability);
     }
     function updateLootCollectionProgress() {
         const remaining = actExplorationState.current(game)?.groundLoot?.length || 0;
-        setTextById('ui-progress-label', '전리품 수거');
-        setTextById('ui-move-time-text', `${remaining}개 남음`);
+        setTextById('ui-progress-label', _t('전리품 수거'));
+        setTextById('ui-move-time-text', _t('{n}개 남음', { n: remaining }));
         setCombatProgressGaugePercent(100);
     }
 
     function destinations() {
         const blocked = isBeehiveRunLockedForMapTravel();
         return [
-            {id:'beehive',name:'벌집 원정',active:game.beehive.inRun,ready:!blocked && game.currencies.hiveKey>0},
-            {id:'voidrift',name:'대균열',active:game.voidRift.grandRun?.inRun,ready:!blocked && game.voidRift.grandBreachUnlock},
-            {id:'meteor',name:'운석 낙하',active:game.currentZoneId===METEOR_FALL_ZONE_ID,ready:!blocked && game.meteorSite.skyRiftReady}
+            {id:'beehive',name:_t('벌집 원정'),active:game.beehive.inRun,ready:!blocked && game.currencies.hiveKey>0},
+            {id:'voidrift',name:_t('대균열'),active:game.voidRift.grandRun?.inRun,ready:!blocked && game.voidRift.grandBreachUnlock},
+            {id:'meteor',name:_t('운석 낙하'),active:game.currentZoneId===METEOR_FALL_ZONE_ID,ready:!blocked && game.meteorSite.skyRiftReady}
         ];
     }
 
@@ -195,9 +195,9 @@ const sideEncounterUi = (() => {
         const current = escapeHTML(getZone(game.currentZoneId).name);
         const expanded = host.querySelector('details')?.open;
         const focused = host.querySelector('summary') === document.activeElement;
-        const links = available.map(row => `<button type="button" onclick="switchMapExploreSubtab('map-explore-${row.id}')"><small>${row.active ? '진행 중' : '입장 가능'}</small>${row.name}</button>`).join('');
-        const html = `<button type="button" class="map-ready-current" onclick="switchTab('tab-battle')"><small>현재 위치</small>${current}</button>`
-            + (available.length ? `<details><summary>입장 가능한 원정 ${available.length}</summary><div>${links}</div></details>` : '');
+        const links = available.map(row => `<button type="button" onclick="switchMapExploreSubtab('map-explore-${row.id}')"><small>${_t(row.active ? '진행 중' : '입장 가능')}</small>${row.name}</button>`).join('');
+        const html = `<button type="button" class="map-ready-current" onclick="switchTab('tab-battle')"><small>${_t('현재 위치')}</small>${current}</button>`
+            + (available.length ? `<details><summary>${_t('입장 가능한 원정')} ${available.length}</summary><div>${links}</div></details>` : '');
         host.hidden = false;
         if (host._destinationsMarkup === html) return;
         host.innerHTML = html;
@@ -209,23 +209,23 @@ const sideEncounterUi = (() => {
 
     function hivePanel(hive, choices, power) {
         const keys = Math.max(0,game.currencies.hiveKey || 0);
-        if (!hive.inRun) return `<div class="map-expedition-intro"><p class="map-expedition-type">갈림길을 직접 고르는 원정, 10갈래 후 여왕</p>
-            <dl><div><dt>전투 방식</dt><dd>벌떼 열 방과 여왕의 방. 강화 대가를 고를수록 여왕 전리품 증가</dd></div>
-            <div><dt>주요 전리품</dt><dd>꽃가루, 독벌침, 벌꿀, 밀랍</dd></div>
-            <div><dt>입장 비용</dt><dd>벌집 열쇠 1개 <small>보유 ${keys}개</small></dd></div></dl>
-            ${power}<div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startBeehiveRun()" ${keys>0?'':'disabled'}>벌집 입장</button>
-            ${keys>0?'':'<span>벌집 열쇠가 필요합니다.</span>'}</div></div>`;
-        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${hive.queenActive?'여왕벌 전투':`갈림길 ${Math.min(10,hive.branchStep)}/10`}</strong>${power}</div>
-            ${hiveSummary(hive)}${choices}<details class="map-expedition-details"><summary>원정 정보, 보유 재료</summary>
-            <p>꽃가루 ${game.currencies.pollen||0}, 독벌침 ${game.currencies.venomStinger||0}, 벌꿀 ${game.currencies.enchantedHoney||0}, 밀랍 ${game.currencies.beeswax||0}</p></details>
-            <div class="map-expedition-actions"><button type="button" onclick="switchTab('tab-battle')">전투 보기</button><button type="button" onclick="forfeitBeehiveRun()">원정 포기</button></div></div>`;
+        if (!hive.inRun) return `<div class="map-expedition-intro"><p class="map-expedition-type">${_t('갈림길을 직접 고르는 원정, 10갈래 후 여왕')}</p>
+            <dl><div><dt>${_t('전투 방식')}</dt><dd>${_t('벌떼 열 방과 여왕의 방. 강화 대가를 고를수록 여왕 전리품 증가')}</dd></div>
+            <div><dt>${_t('주요 전리품')}</dt><dd>${_t('꽃가루, 독벌침, 벌꿀, 밀랍')}</dd></div>
+            <div><dt>${_t('입장 비용')}</dt><dd>${_t('벌집 열쇠 1개')} <small>${_t('보유 {n}개', { n: keys })}</small></dd></div></dl>
+            ${power}<div class="map-expedition-actions"><button type="button" data-exploration-departure onclick="startBeehiveRun()" ${keys>0?'':'disabled'}>${_t('벌집 입장')}</button>
+            ${keys>0?'':`<span>${_t('벌집 열쇠가 필요합니다.')}</span>`}</div></div>`;
+        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${hive.queenActive?_t('여왕벌 전투'):_t('갈림길 {n}/10', { n: Math.min(10,hive.branchStep) })}</strong>${power}</div>
+            ${hiveSummary(hive)}${choices}<details class="map-expedition-details"><summary>${_t('원정 정보, 보유 재료')}</summary>
+            <p>${_t('꽃가루')} ${game.currencies.pollen||0}, ${_t('독벌침')} ${game.currencies.venomStinger||0}, ${_t('마력 깃든 벌꿀')} ${game.currencies.enchantedHoney||0}, ${_t('밀랍')} ${game.currencies.beeswax||0}</p></details>
+            <div class="map-expedition-actions"><button type="button" onclick="switchTab('tab-battle')">${_t('전투 보기')}</button><button type="button" onclick="forfeitBeehiveRun()">${_t('원정 포기')}</button></div></div>`;
     }
 
     function grandActions(rift) {
-        if (rift.grandRun?.inRun) return `<button type="button" onclick="switchTab('tab-battle')">전투 보기</button>
-            <button type="button" onclick="sideEncounterUi.withdrawGrandBreach()">${rift.grandRun.phase === 'loot' ? '귀환' : '원정 포기'}</button>`;
-        const hint = rift.grandBreachUnlock ? '' : `<span>공허 균열 완료 시 ${Math.round(GRAND_BREACH_ENCOUNTER.unlockChance * 100)}% 확률로 열립니다.</span>`;
-        return `<button type="button" data-exploration-departure onclick="enterGrandBreach()" ${rift.grandBreachUnlock?'':'disabled'}>대균열 입장</button>${hint}`;
+        if (rift.grandRun?.inRun) return `<button type="button" onclick="switchTab('tab-battle')">${_t('전투 보기')}</button>
+            <button type="button" onclick="sideEncounterUi.withdrawGrandBreach()">${_t(rift.grandRun.phase === 'loot' ? '귀환' : '원정 포기')}</button>`;
+        const hint = rift.grandBreachUnlock ? '' : `<span>${_t('공허 균열 완료 시 {pct}% 확률로 열립니다.', { pct: Math.round(GRAND_BREACH_ENCOUNTER.unlockChance * 100) })}</span>`;
+        return `<button type="button" data-exploration-departure onclick="enterGrandBreach()" ${rift.grandBreachUnlock?'':'disabled'}>${_t('대균열 입장')}</button>${hint}`;
     }
 
     function grandResultReward(run) {
@@ -239,8 +239,8 @@ const sideEncounterUi = (() => {
     function grandResult(run) {
         if (!run || run.inRun || !['done','failed'].includes(run.phase)) return '';
         const cleared = run.phase === 'done';
-        return `<div class="map-expedition-result" aria-label="최근 원정 결과"><span>최근 원정</span>
-            <strong>${cleared?'군주 격파':'군주 격파 실패'}</strong><span>균열 몬스터 ${Math.max(0,Math.floor(run.kills||0))}처치</span>
+        return `<div class="map-expedition-result" aria-label="${_t('최근 원정 결과')}"><span>${_t('최근 원정')}</span>
+            <strong>${_t(cleared?'군주 격파':'군주 격파 실패')}</strong><span>${_t('균열 몬스터 {n}처치', { n: Math.max(0,Math.floor(run.kills||0)) })}</span>
             <b>${grandResultReward(run)}</b></div>`;
     }
 
@@ -270,12 +270,12 @@ const sideEncounterUi = (() => {
     function grandPanel(rift, power) {
         const run = rift.grandRun;
         const current = run?.inRun;
-        const waves = rift.active ? `${rift.defeatedCount || 0}/${rift.totalToSpawn || 0} 처치` : '혼돈 사냥 중 발생';
+        const waves = rift.active ? `${rift.defeatedCount || 0}/${rift.totalToSpawn || 0} ${_t('처치')}` : _t('혼돈 사냥 중 발생');
         const reward = grandEntryRewardDescription();
-        return `<div class="map-expedition-intro"><p class="map-expedition-type">공허 균열, ${waves}</p>
-            <div class="map-expedition-heading"><strong>대균열 ${current?'진행 중':''}</strong>${power}</div>
+        return `<div class="map-expedition-intro"><p class="map-expedition-type">${_t('공허 균열')}, ${waves}</p>
+            <div class="map-expedition-heading"><strong>${_t('대균열')} ${current?_t('진행 중'):''}</strong>${power}</div>
             ${current ? `<p>${grandPanelProgress(run)}</p><div class="map-grand-summary">${grandSummary(run)}</div>` :
-            `<dl><div><dt>전투 방식</dt><dd>${grandEncounterDescription()}</dd></div><div><dt>격파 보상</dt><dd>${reward}</dd></div></dl>`}
+            `<dl><div><dt>${_t('전투 방식')}</dt><dd>${grandEncounterDescription()}</dd></div><div><dt>${_t('격파 보상')}</dt><dd>${reward}</dd></div></dl>`}
             ${grandResult(run)}<div class="map-expedition-actions">${grandActions(rift)}</div></div>`;
     }
 
@@ -288,13 +288,13 @@ const sideEncounterUi = (() => {
         const escort = site.tier >= 40 ? '정예 호위 2기' : site.tier >= 20 ? '정예 호위 1기' : '보스 단독';
         const kind = getMeteorKind();
         const kindText = kind ? `<span class="meteor-kind is-${kind.id}">${kind.name}</span> (${kind.element})` : '충전 완료 시 정해짐';
-        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${active?'운석 원정 진행 중':ready?'원정 준비 완료':`하늘의 균열 충전 ${percent}%`}</strong>${power}</div>
-            <dl><div><dt>운석</dt><dd>${kindText}</dd></div>
-            <div><dt>주요 전리품</dt><dd>${reward}</dd></div>
-            <div><dt>난이도</dt><dd>티어 ${site.tier}<small>충전 중 기록한 최저 티어 기준</small></dd></div>
-            <div><dt>전투 방식</dt><dd>파편 무리 → 별철 관통 사수 → 운석 핵(${escort}). 핵 체력 절반부터 연속 예고 공격</dd></div></dl>
-            <div class="map-expedition-actions">${active?'<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>':
-            `<button type="button" data-exploration-departure onclick="changeZone('${METEOR_FALL_ZONE_ID}')" ${ready?'':'disabled'}>운석 원정 입장</button>${ready?'':'<span>충전을 완료하면 1회 입장할 수 있습니다.</span>'}`}</div></div>`;
+        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${active?_t('운석 원정 진행 중'):ready?_t('원정 준비 완료'):_t('하늘의 균열 충전 {pct}%', { pct: percent })}</strong>${power}</div>
+            <dl><div><dt>${_t('운석')}</dt><dd>${kindText}</dd></div>
+            <div><dt>${_t('주요 전리품')}</dt><dd>${reward}</dd></div>
+            <div><dt>${_t('난이도')}</dt><dd>${_t('티어')} ${site.tier}<small>${_t('충전 중 기록한 최저 티어 기준')}</small></dd></div>
+            <div><dt>${_t('전투 방식')}</dt><dd>파편 무리 → 별철 관통 사수 → 운석 핵(${escort}). 핵 체력 절반부터 연속 예고 공격</dd></div></dl>
+            <div class="map-expedition-actions">${active?`<button type="button" onclick="switchTab('tab-battle')">${_t('전투 보기')}</button>`:
+            `<button type="button" data-exploration-departure onclick="changeZone('${METEOR_FALL_ZONE_ID}')" ${ready?'':'disabled'}>${_t('운석 원정 입장')}</button>${ready?'':'<span>충전을 완료하면 1회 입장할 수 있습니다.</span>'}`}</div></div>`;
     }
 
     function labyrinthSelectedFloor() {
@@ -347,14 +347,14 @@ const sideEncounterUi = (() => {
         if (!result || result.season !== game.season) return '';
         const rewards = Object.entries(result.currencies).filter(([key, count]) => ORB_DB[key] && count > 0)
             .map(([key, count]) => `<span>${escapeHTML(_t(ORB_DB[key].name))} <b>+${count}</b></span>`).join('');
-        return `<div class="map-expedition-result labyrinth-result"><strong>${result.floor}층 돌파 보상</strong>${rewards || '<span>재료 없음</span>'}</div>`;
+        return `<div class="map-expedition-result labyrinth-result"><strong>${_t('{n}층 돌파 보상', { n: result.floor })}</strong>${rewards || `<span>${_t('재료 없음')}</span>`}</div>`;
     }
     function labyrinthEntryActions(floor, max, current, blocked) {
-        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>'
-            : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})" ${blocked ? `disabled data-tip="${escapeHTML(blocked)}"` : ''}>${floor}층 입장</button>`;
+        const action = current ? `<button type="button" onclick="switchTab('tab-battle')">${_t('전투 보기')}</button>`
+            : `<button type="button" data-exploration-departure onclick="enterLabyrinthFloor(${floor})" ${blocked ? `disabled data-tip="${escapeHTML(blocked)}"` : ''}>${_t('{n}층 입장', { n: floor })}</button>`;
         const picks = [...new Set([1, Math.max(1, floor - 1), Math.min(max, floor + 1), max])].filter(value => value !== floor);
-        const navigation = picks.map(value => `<button type="button" class="labyrinth-floor-link" onclick="sideEncounterUi.selectLabyrinthFloor(${value})">${value === max ? '최고 ' : ''}${value}층</button>`).join('');
-        return `<div class="map-expedition-actions">${action}${navigation}${max > 1 ? '<button type="button" onclick="sideEncounterUi.chooseLabyrinthFloor()">층 선택</button>' : ''}</div>`;
+        const navigation = picks.map(value => `<button type="button" class="labyrinth-floor-link" onclick="sideEncounterUi.selectLabyrinthFloor(${value})">${value === max ? `${_t('최고')} ` : ''}${_t('{n}층', { n: value })}</button>`).join('');
+        return `<div class="map-expedition-actions">${action}${navigation}${max > 1 ? `<button type="button" onclick="sideEncounterUi.chooseLabyrinthFloor()">${_t('층 선택')}</button>` : ''}</div>`;
     }
     function labyrinthPanel() {
         const floor = labyrinthSelectedFloor(), zone = getLabyrinthZoneNow(floor);
@@ -362,18 +362,18 @@ const sideEncounterUi = (() => {
         const active = game.currentZoneId === LABYRINTH_ZONE_ID && !game.combatHalted;
         const current = active && game.labyrinthFloor === floor;
         const blocked = getZoneTravelBlockReason(LABYRINTH_ZONE_ID) || getHeldRunBlockReason();
-        return `<div class="map-expedition-intro labyrinth-panel"><div class="map-expedition-heading"><strong>${floor}층 ${current ? '탐험 중' : '입장 준비'}</strong>
-            <span class="labyrinth-floor-record">입장 가능 1 ~ ${max}층</span>${buildMapPowerEstimateHtml(zone)}</div>
-            <div class="labyrinth-rewards"><small>나올 수 있는 전리품</small><dl>${labyrinthRewards(floor)}</dl>${labyrinthUniques(zone)}</div>
-            ${labyrinthResult()}${active && !current ? `<p class="labyrinth-current">${game.labyrinthFloor}층 탐험 중</p>` : ''}
+        return `<div class="map-expedition-intro labyrinth-panel"><div class="map-expedition-heading"><strong>${_t('{n}층', { n: floor })} ${_t(current ? '탐험 중' : '입장 준비')}</strong>
+            <span class="labyrinth-floor-record">${_t('입장 가능 1 ~ {max}층', { max })}</span>${buildMapPowerEstimateHtml(zone)}</div>
+            <div class="labyrinth-rewards"><small>${_t('나올 수 있는 전리품')}</small><dl>${labyrinthRewards(floor)}</dl>${labyrinthUniques(zone)}</div>
+            ${labyrinthResult()}${active && !current ? `<p class="labyrinth-current">${_t('{n}층 탐험 중', { n: game.labyrinthFloor })}</p>` : ''}
             ${labyrinthEntryActions(floor, max, current, blocked)}</div>`;
     }
 
     function timePressure(rift) {
         const pressure = rift.pressure;
         const locked = rift.altarOpen || [TIME_RIFT_PAST_ZONE_ID,TIME_RIFT_FUTURE_ZONE_ID].includes(game.currentZoneId);
-        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>시간압 ${pressure}</strong>
-            <span>혼돈 심화 ${getTimeRiftEquivalentChaosDepth(pressure)} 상당, 루프 ${getTimeRiftFixedSeason(pressure)} 기준</span></div>
+        return `<div class="map-expedition-intro"><div class="map-expedition-heading"><strong>${_t('시간압')} ${pressure}</strong>
+            <span>${_t('혼돈 심화 {depth} 상당, 루프 {loop} 기준', { depth: getTimeRiftEquivalentChaosDepth(pressure), loop: getTimeRiftFixedSeason(pressure) })}</span></div>
             ${timeOddsHtml(rift)}
             <div class="map-expedition-actions time-rift-stepper"><button type="button" aria-label="시간압 낮추기" onclick="setTimeRiftPressure(-1)" ${locked||pressure<=1?'disabled':''}>−</button>
             <b>${pressure}</b><button type="button" aria-label="시간압 높이기" onclick="setTimeRiftPressure(1)" ${locked||pressure>=TIME_RIFT_MAX_PRESSURE?'disabled':''}>+</button><span>${locked?'이번 제단의 시간압 고정':'높일수록 전투가 어렵고 옵션이 더 많이 남습니다.'}</span></div></div>`;
@@ -393,10 +393,10 @@ const sideEncounterUi = (() => {
 
     function timePast(rift) {
         const current = game.currentZoneId === TIME_RIFT_PAST_ZONE_ID;
-        const action = current ? '<button type="button" onclick="switchTab(\'tab-battle\')">전투 보기</button>' :
-            `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_PAST_ZONE_ID}')" ${rift.altarOpen?'disabled':''}>과거 입장</button>`;
-        return `<div class="map-expedition-intro"><h3>1. 과거</h3><strong>${rift.altarOpen?'제단 개방 완료':'과거를 돌파해 제단 개방'}</strong>
-            ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_PAST_ZONE_ID))}<p>제단을 열면 장비 두 개를 올릴 수 있습니다.</p>
+        const action = current ? `<button type="button" onclick="switchTab('tab-battle')">${_t('전투 보기')}</button>` :
+            `<button type="button" data-exploration-departure onclick="changeZone('${TIME_RIFT_PAST_ZONE_ID}')" ${rift.altarOpen?'disabled':''}>${_t('과거 입장')}</button>`;
+        return `<div class="map-expedition-intro"><h3>1. ${_t('과거')}</h3><strong>${_t(rift.altarOpen?'제단 개방 완료':'과거를 돌파해 제단 개방')}</strong>
+            ${buildMapPowerEstimateHtml(getZone(TIME_RIFT_PAST_ZONE_ID))}<p>${_t('제단을 열면 장비 두 개를 올릴 수 있습니다.')}</p>
             <div class="map-expedition-actions">${action}</div></div>`;
     }
 
@@ -406,22 +406,22 @@ const sideEncounterUi = (() => {
         const filled = [rift.altarUnique,rift.altarRare].some(Boolean);
         const ready = [rift.altarUnique,rift.altarRare].every(Boolean);
         const selection = timeAltarSelection(selected,issue,ready);
-        return `<div class="map-expedition-intro"><h3>2. 제단</h3><strong>같은 부위의 고유 + 희귀</strong>
-            <div class="time-rift-items">${timeItemDetails(rift.altarUnique,'altarUnique','고유')}${timeItemDetails(rift.altarRare,'altarRare','희귀')}</div>
+        return `<div class="map-expedition-intro"><h3>2. ${_t('제단')}</h3><strong>${_t('같은 부위의 고유 + 희귀')}</strong>
+            <div class="time-rift-items">${timeItemDetails(rift.altarUnique,'altarUnique',_t('고유'))}${timeItemDetails(rift.altarRare,'altarRare',_t('희귀'))}</div>
             ${selection}
-            <div class="map-expedition-actions"><button type="button" onclick="openCraftItemPickerOverlay('altar')" ${!rift.altarOpen||ready?'disabled':''}>장비 고르기</button>
-            <button type="button" onclick="placeItemOnTimeAltar()" ${issue?'disabled':''}>선택 장비 올리기</button>
-            <button type="button" onclick="retrieveTimeAltarItems()" ${rift.altarOpen?'':'disabled'}>${filled?'제단 회수':'빈 제단 닫기'}</button></div></div>`;
+            <div class="map-expedition-actions"><button type="button" onclick="openCraftItemPickerOverlay('altar')" ${!rift.altarOpen||ready?'disabled':''}>${_t('장비 고르기')}</button>
+            <button type="button" onclick="placeItemOnTimeAltar()" ${issue?'disabled':''}>${_t('선택 장비 올리기')}</button>
+            <button type="button" onclick="retrieveTimeAltarItems()" ${rift.altarOpen?'':'disabled'}>${_t(filled?'제단 회수':'빈 제단 닫기')}</button></div></div>`;
     }
 
     function timeAltarSelection(selected,issue,ready) {
-        if (ready) return '<p>두 장비가 준비되었습니다.</p>';
+        if (ready) return `<p>${_t('두 장비가 준비되었습니다.')}</p>`;
         const name = selected ? `<p class="time-rift-selected">${escapeHTML(_t(selected.name))}</p>` : '';
         return `${name}<p>${escapeHTML(issue||'이 장비를 제단에 올릴 수 있습니다.')}</p>`;
     }
 
     function timeItemDetails(item, source, label) {
-        if (!item) return `<div class="time-rift-item-empty"><span>${label}</span><span>비어 있음</span></div>`;
+        if (!item) return `<div class="time-rift-item-empty"><span>${label}</span><span>${_t('비어 있음')}</span></div>`;
         return `<details class="time-rift-item" id="time-rift-item-${source}" data-rift-inspect="${source}" ontoggle="sideEncounterUi.inspectTimeItem(this)">
             <summary><span>${label}</span><strong>${escapeHTML(getItemDisplayName(item))}</strong></summary><div class="time-rift-item-body"></div></details>`;
     }
@@ -450,8 +450,8 @@ const sideEncounterUi = (() => {
         if (!result) return '';
         const item = timeResultItem(rift);
         const equipment = item ? timeItemDetails(item,'lastFusion','융합 유물') : `<strong>${escapeHTML(_t(result.name))}</strong>`;
-        return `<div class="map-expedition-intro time-rift-result-card"><div class="map-expedition-heading"><strong>최근 융합</strong>
-            <span>루프 ${result.season}, 시간압 ${result.pressure}</span></div>${equipment}
+        return `<div class="map-expedition-intro time-rift-result-card"><div class="map-expedition-heading"><strong>${_t('최근 융합')}</strong>
+            <span>${_t('루프')} ${result.season}, ${_t('시간압')} ${result.pressure}</span></div>${equipment}
             <dl><div><dt>계승</dt><dd>${result.inherited}개</dd></div><div><dt>유실</dt><dd>${result.lost}개</dd></div></dl><div class="map-expedition-actions"></div></div>`;
     }
 

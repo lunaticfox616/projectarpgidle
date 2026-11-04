@@ -158,19 +158,19 @@ function getRecommendedHuntingZone(zones) {
 
 function buildMapRouteSummaryHtml(currentZone, recommendedZone) {
     if (!recommendedZone) return '';
-    let currentName = currentZone ? escapeHTML(_t(currentZone.name)) : '선택 없음';
+    let currentName = currentZone ? escapeHTML(_t(currentZone.name)) : _t('선택 없음');
     let recommendedName = escapeHTML(_t(recommendedZone.name));
     let sameZone = currentZone && Number(currentZone.id) === Number(recommendedZone.id);
     let action = sameZone ? "switchTab('tab-battle')" : `changeZone(${Number(recommendedZone.id)})`;
-    let actionLabel = sameZone ? '전투로 돌아가기' : '즉시 이동';
-    return `<div class="map-route-copy"><span class="map-route-kicker">${sameZone ? '현재 위치' : '다음 진행 지역'}</span><strong>${recommendedName}</strong><small>현재, ${currentName}</small></div><button type="button" class="map-route-action" ${sameZone ? '' : 'data-exploration-departure'} onclick="${action}">${actionLabel}</button>`;
+    let actionLabel = _t(sameZone ? '전투로 돌아가기' : '즉시 이동');
+    return `<div class="map-route-copy"><span class="map-route-kicker">${_t(sameZone ? '현재 위치' : '다음 진행 지역')}</span><strong>${recommendedName}</strong><small>${_t('현재')}, ${currentName}</small></div><button type="button" class="map-route-action" ${sameZone ? '' : 'data-exploration-departure'} onclick="${action}">${actionLabel}</button>`;
 }
 
 function getMapCardState(isCurrent, cleared, recommended) {
-    if (isCurrent) return { label: '현재', className: 'current' };
-    if (cleared) return { label: '완료', className: 'cleared' };
-    if (recommended) return { label: '다음', className: 'recommended' };
-    return { label: '도전', className: 'available' };
+    if (isCurrent) return { label: _t('현재'), className: 'current' };
+    if (cleared) return { label: _t('완료'), className: 'cleared' };
+    if (recommended) return { label: _t('다음'), className: 'recommended' };
+    return { label: _t('도전'), className: 'available' };
 }
 
 function buildMapCardActionsHtml(options) {
@@ -2128,7 +2128,7 @@ function mergedTabHotkeyHtml(tab) {
 function mergedTabButtonHtml(groupKey, tab, selectedId) {
     let icon = Number.isInteger(tab.icon) ? `<span class="window-tab-icon" style="--px-icon:${tab.icon}"></span>` : '';
     let active = tab.id === selectedId;
-    return `<button type="button" class="subtab-btn window-tab${active ? ' active' : ''}" role="tab" aria-selected="${active}" data-tab-id="${tab.id}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')">${icon}<span class="window-tab-name">${tab.label}</span>${mergedTabMarkHtml(tab)}${mergedTabHotkeyHtml(tab)}</button>`;
+    return `<button type="button" class="subtab-btn window-tab${active ? ' active' : ''}" role="tab" aria-selected="${active}" data-tab-id="${tab.id}" onclick="switchMergedTabSubtab('${groupKey}','${tab.id}')">${icon}<span class="window-tab-name">${_t(tab.label)}</span>${mergedTabMarkHtml(tab)}${mergedTabHotkeyHtml(tab)}</button>`;
 }
 
 /** PC의 창이면 창 머리(제목 줄) 안의 탭 자리, 창이 아니면(휴대폰) null. 창 머리는 화면 크기가 바뀔 때 다시 지어지므로 없으면 만든다. */
@@ -5117,9 +5117,9 @@ function ensureInitialHeroSelection() {
         persistHeroSelectionChange('시작 직업 선택');
         openingJourney.afterStartPick();
     }, {
-        kicker: '첫 루프',
-        title: '시작 직업 선택',
-        body: '첫 루프에서 사용할 직업을 선택하세요.'
+        kicker: _t('첫 루프'),
+        title: _t('시작 직업 선택'),
+        body: _t('첫 루프에서 사용할 직업을 선택하세요.')
     });
 }
 
@@ -5213,11 +5213,11 @@ function syncMapCompleteActionQuickControl() {
     button.hidden = !show;
     if (!show) return;
     let option = getMapCompleteActionOption((game.settings || {}).mapCompleteAction);
-    button.textContent = `전투 완료: ${option.label}`;
+    button.textContent = _t('전투 완료: {action}', { action: _t(option.label) });
     // 전체 메뉴 서랍에는 짧은 이름이 뜬다: "다음 지역"만으로는 이동 단추로 읽혀 무엇을 고르는 칸인지 붙인다.
-    button.dataset.mobileLabel = `완료 후 행동: ${option.label}`;
-    button.setAttribute('aria-label', `전투 완료 후 행동: ${option.label}`);
-    button.dataset.tip = `현재: ${option.label}, ${option.detail}`;
+    button.dataset.mobileLabel = _t('완료 후 행동: {action}', { action: _t(option.label) });
+    button.setAttribute('aria-label', _t('전투 완료 후 행동: {action}', { action: _t(option.label) }));
+    button.dataset.tip = `${_t('현재')}: ${_t(option.label)}, ${_t(option.detail)}`;
 }
 
 function applyMapCompleteAction(action) {
@@ -5228,7 +5228,7 @@ function applyMapCompleteAction(action) {
     if (select) select.value = option.value;
     syncMapCompleteActionQuickControl();
     if (typeof queueImportantSave === 'function') queueImportantSave(180);
-    if (typeof showGameToast === 'function') showGameToast(`전투 완료 후 행동: ${option.label}`, { tone: 'success' });
+    if (typeof showGameToast === 'function') showGameToast(_t('전투 완료 후 행동: {action}', { action: _t(option.label) }), { tone: 'success' });
     updateStaticUI();
 }
 
@@ -9871,7 +9871,7 @@ function buildCraftActionButtons(item) {
     let seasonNodeIds = Object.keys(SEASON_NODES || {});
     let activeSeasonNodeCount = seasonNodeIds.filter(id => getSeasonNodeLevel(id) > 0).length;
     let seasonEvolved = isSeasonTreeEvolved();
-    let seasonSummary = `<div class="trait-progress-summary"><div><strong>${seasonEvolved ? '순환 완성' : '우로보로스 원환'}</strong><span>${activeSeasonNodeCount}/${seasonNodeIds.length} 노드 활성화</span></div><div><strong>${Math.max(0, Math.floor(game.seasonPoints || 0))} 포인트</strong><span>${seasonEvolved ? '외곽 노드 강화 및 내부 노드 투자 가능' : `남은 원형 노드 ${Math.max(0, seasonNodeIds.length - activeSeasonNodeCount)}개`}</span></div></div>`;
+    let seasonSummary = `<div class="trait-progress-summary"><div><strong>${_t(seasonEvolved ? '순환 완성' : '우로보로스 원환')}</strong><span>${_t('{n}/{total} 노드 활성화', { n: activeSeasonNodeCount, total: seasonNodeIds.length })}</span></div><div><strong>${Math.max(0, Math.floor(game.seasonPoints || 0))} 포인트</strong><span>${seasonEvolved ? '외곽 노드 강화 및 내부 노드 투자 가능' : `남은 원형 노드 ${Math.max(0, seasonNodeIds.length - activeSeasonNodeCount)}개`}</span></div></div>`;
     let ringNodes = SEASON_OUROBOROS_RING_NODES.map((id, index) => {
         const angle = (90 - index * 360 / SEASON_OUROBOROS_RING_NODES.length) * Math.PI / 180;
         const radius = 40.7;
@@ -11091,9 +11091,9 @@ function advanceLoadingOverlay(options = {}) {
 async function finishLoadingOverlay() {
     advanceLoadingOverlay({
         progress: 100,
-        title: '전장을 여는 중...',
-        detail: '진입 준비를 마무리하고 있습니다.',
-        caption: '전장 입장'
+        title: _t('전장을 여는 중...'),
+        detail: _t('진입 준비를 마무리하고 있습니다.'),
+        caption: _t('전장 입장')
     });
     await new Promise(resolve => setTimeout(resolve, 320));
     setLoadingOverlayState(false);
@@ -11127,7 +11127,7 @@ function getStartupStatusText() {
 function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
     const card = startupSaveCardState(localStamp);
     if (timeEl) timeEl.innerText = formatCloudTime(localStamp);
-    if (guestBtn) guestBtn.textContent = card.hasGuestSave ? '이 기기 저장으로 이어하기' : '게스트로 시작';
+    if (guestBtn) guestBtn.textContent = _t(card.hasGuestSave ? '이 기기 저장으로 이어하기' : '게스트로 시작');
     const cardEl = document.querySelector('.startup-summary-card');
     if (!cardEl) return;
     cardEl.querySelector('.startup-summary-grid').hidden = !card.hasSave;
@@ -11883,7 +11883,7 @@ async function startGuestMode() {
         confirmLabel: '게스트로 시작'
     })) return;
     if (cloudState.user) await leaveAccountForGuest();
-    setCloudMessage('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.');
+    setCloudMessage(_t('게스트 모드로 시작합니다. 이 기기 저장만 사용합니다.'));
     setLoadingOverlayState(true, {
         title: '게스트 세션을 준비하는 중...',
         detail: '현재 기기 로컬 저장을 기준으로 전장을 준비하고 있습니다.',
@@ -12062,12 +12062,12 @@ function updateCloudSaveUI() {
     if (identitiesEl) {
         let providers = Array.isArray(cloudState.linkedProviders) ? cloudState.linkedProviders : [];
         if (!cloudState.user || cloudState.identityLookupState === 'needs_login') {
-            identitiesEl.innerText = '로그인 필요';
+            identitiesEl.innerText = _t('로그인 필요');
         } else {
-            identitiesEl.innerText = providers.length ? providers.join(', ') : '연결된 소셜 계정 없음';
+            identitiesEl.innerText = providers.length ? providers.join(', ') : _t('연결된 소셜 계정 없음');
         }
     }
-    if (msgEl) msgEl.innerText = cloudState.lastMessage || '대기 중';
+    if (msgEl) msgEl.innerText = cloudState.lastMessage || _t('대기 중');
     updateStartupScreenUI();
 }
 
@@ -12075,15 +12075,15 @@ function updateCloudSaveUI() {
 function renderCloudStatusPill(pill, config) {
     pill.className = 'cloud-status-pill';
     if (!config.enabled) {
-        pill.innerText = '미설정';
+        pill.innerText = _t('미설정');
     } else if (cloudState.busy) {
         pill.classList.add('syncing');
-        pill.innerText = '처리 중';
+        pill.innerText = _t('처리 중');
     } else if (cloudState.user) {
         pill.classList.add('online');
-        pill.innerText = isCloudSaveDirty() ? '연결됨, 안 올린 변경 있음' : '연결됨';
+        pill.innerText = _t(isCloudSaveDirty() ? '연결됨, 안 올린 변경 있음' : '연결됨');
     } else {
-        pill.innerText = '게스트';
+        pill.innerText = _t('게스트');
     }
 }
 
@@ -12091,9 +12091,9 @@ function renderCloudStatusPill(pill, config) {
 function renderCloudSlotStatus(canSync) {
     const account = !!cloudState.user && getSaveSlot().kind === 'account';
     let remoteEl = document.getElementById('ui-cloud-remote-save');
-    if (remoteEl) remoteEl.innerText = account ? formatCloudTime(game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0) : '없음';
+    if (remoteEl) remoteEl.innerText = account ? formatCloudTime(game && game.saveMeta ? game.saveMeta.lastCloudSyncAt : 0) : _t('없음');
     let pendingEl = document.getElementById('ui-cloud-pending');
-    if (pendingEl) pendingEl.innerText = cloudState.user ? (isCloudSaveDirty() ? '있음' : '없음') : '게스트 저장은 올리지 않습니다';
+    if (pendingEl) pendingEl.innerText = _t(cloudState.user ? (isCloudSaveDirty() ? '있음' : '없음') : '게스트 저장은 올리지 않습니다');
     let moveGuestBtn = document.getElementById('btn-cloud-move-guest');
     if (!moveGuestBtn) return;
     moveGuestBtn.hidden = !canMoveGuestSaveIntoAccount();
@@ -13576,7 +13576,7 @@ function loopOrbitTotalsHtml() {
         if (lv > 0 && node) sums.set(node.stat, (sums.get(node.stat) || 0) + node.val * (1 + (lv - 1) * 0.2));
     });
     const total = [...sums].map(([stat, val]) => loopNodeValueText({ stat, val }, 1)).join(', ');
-    return `<strong>우로보로스 원환</strong><small>${total ? `활성화한 노드의 합계: ${statToneText.html(total)}` : '노드를 가리키면 그 효과가 여기에 나옵니다.'}</small>`;
+    return `<strong>${_t('우로보로스 원환')}</strong><small>${total ? `${_t('활성화한 노드의 합계')}: ${statToneText.html(total)}` : _t('노드를 가리키면 그 효과가 여기에 나옵니다.')}</small>`;
 }
 /** 노드를 가리키거나 고르면 가운데 칸만 고쳐 쓴다(고리는 다시 그리지 않는다). */
 function loopPassiveHint(id) {

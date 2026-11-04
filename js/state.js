@@ -120,8 +120,8 @@ function queueOpenContentNotice(contentId, ...notice) {
 
 // Phase-3 extracted world/season progression helpers.
 function formatStoryActLabel(storyAct) {
-    if (!storyAct) return '액트 ?';
-    return storyAct.displayAct === '엔드게임' ? '엔드게임' : `액트 ${storyAct.displayAct}`;
+    if (!storyAct) return _t('액트 ?');
+    return storyAct.displayAct === '엔드게임' ? _t('엔드게임') : _t('액트 {n}', { n: storyAct.displayAct });
 }
 function getStoryActByZoneId(zoneId) {
     if (!Number.isFinite(zoneId)) return null;
