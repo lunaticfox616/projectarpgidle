@@ -88,7 +88,7 @@ const openingJourney = (() => {
         intro.id = 'opening-intro';
         intro.className = 'opening-intro';
         intro.setAttribute('role', 'dialog');
-        intro.setAttribute('aria-label', '프롤로그');
+        intro.setAttribute('aria-label', _t('프롤로그'));
         intro.innerHTML = introHtml();
         intro.addEventListener('click', event => (event.target.closest('[data-opening-skip]') ? endIntro() : advanceIntro()));
         document.body.appendChild(intro);
@@ -96,15 +96,15 @@ const openingJourney = (() => {
     }
     function introHtml() {
         const scene = STORY_JOURNAL_SCENES.find(row => row.id === 'prologue'), quote = STORY_SCENE_QUOTES.prologue;
-        const title = scene.title.split(', ').pop(), verdict = quote.lines.filter(text => text.startsWith('“')), source = quote.lines.find(text => text.startsWith('('));
+        const title = _t(scene.title).split(', ').pop(), verdict = quote.lines.filter(text => text.startsWith('“')).map(text => _t(text)), source = quote.lines.find(text => text.startsWith('('));
         let step = 0;
         const line = (cls, text) => `<p class="${cls}" data-step style="--step:${step++}">${escapeHTML(text)}</p>`;
-        return `<button type="button" class="opening-intro-skip" data-opening-skip>건너뛰기</button>
+        return `<button type="button" class="opening-intro-skip" data-opening-skip>${_t('건너뛰기')}</button>
             <div class="opening-intro-stage"><figure class="opening-intro-plate"><img src="${escapeHTML(scene.image)}" alt=""></figure>
-            <div class="opening-intro-text"><p class="opening-intro-kicker">프롤로그</p><h1 class="opening-intro-title">${escapeHTML(title)}</h1>
-            <blockquote class="opening-intro-verdict">${verdict.map(text => line('', text)).join('')}${source ? line('opening-intro-source', source) : ''}</blockquote>
-            ${scene.lines.map(text => line('opening-intro-line', text)).join('')}
-            <p class="opening-intro-next" data-step style="--step:${step}">눌러서 계속</p></div></div>`;
+            <div class="opening-intro-text"><p class="opening-intro-kicker">${_t('프롤로그')}</p><h1 class="opening-intro-title">${escapeHTML(title)}</h1>
+            <blockquote class="opening-intro-verdict">${verdict.map(text => line('', text)).join('')}${source ? line('opening-intro-source', _t(source)) : ''}</blockquote>
+            ${scene.lines.map(text => line('opening-intro-line', _t(text))).join('')}
+            <p class="opening-intro-next" data-step style="--step:${step}">${_t('눌러서 계속')}</p></div></div>`;
     }
     /** A save loaded under the intro (a sign-in, a test fixture): the game is no longer new, so the intro goes without a trace and the
      * auto hunt setting it turned off comes back (only on the settings it touched; a loaded save brings its own). */
@@ -191,7 +191,7 @@ const openingJourney = (() => {
         autoHintUntil = now + AUTO_HINT_MS;
         switchTab('tab-battle');
         const key = coarse() ? '' : hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, 'combat:autoMove'));
-        queueTutorialNotice('opening_auto', '자동 사냥', `이제 자동 사냥을 쓸 수 있습니다.\n오른쪽 위 자동 단추${key ? `나 ${key} 키` : ''}로 켜면 캐릭터가 알아서 걷고 싸웁니다.\n지금 할 일은 ‘목표’에 나옵니다.`);
+        queueTutorialNotice('opening_auto', _t('자동 사냥'), `이제 자동 사냥을 쓸 수 있습니다.\n오른쪽 위 자동 단추${key ? _t('나 {key} 키', { key }) : ''}로 켜면 캐릭터가 알아서 걷고 싸웁니다.\n지금 할 일은 ‘목표’에 나옵니다.`);
         actExplorationUi.render();
     }
     /** While the opening runs on the stage the auto hunt stays off. */
@@ -205,8 +205,8 @@ const openingJourney = (() => {
     const HINTS = {
         rise: () => '쓰러진 캐릭터를 눌러 깨우세요',
         move: () => (coarse() ? '바닥을 눌러 움직이세요' : '바닥을 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 움직이세요'),
-        attack: side => `${side ? `${SIDES[side]}으로 가서 하켄을 구하세요` : '하켄을 치는 괴물에게 다가가세요'}. 가까이 가면 자동으로 공격합니다`,
-        go: side => `${SIDES[side] || '앞쪽'} 문으로 나아가세요`,
+        attack: side => `${side ? _t('{SIDES}으로 가서 하켄을 구하세요', { SIDES: SIDES[side] }) : _t('하켄을 치는 괴물에게 다가가세요')}. 가까이 가면 자동으로 공격합니다`,
+        go: side => _t('{SIDES} 문으로 나아가세요', { SIDES: SIDES[side] || _t('앞쪽') }),
         pickup: () => '떨어진 룬을 누르거나 그 위로 걸어가 주우세요',
         gem: () => '스킬룬 창에서 주운 룬을 장착하세요',
         auto: () => '오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요'
@@ -241,7 +241,7 @@ const openingJourney = (() => {
     function lessonCardHtml(name, arg) {
         const at = LESSON_ORDER.indexOf(name === 'go' ? 'attack' : name);
         const dots = LESSON_ORDER.map((_, i) => `<i class="${i < at ? 'is-done' : i === at ? 'is-now' : ''}"></i>`).join('');
-        return `<div class="opening-lesson-head"><span class="opening-lesson-kicker">시작 안내 ${at + 1}/${LESSON_ORDER.length}</span><span class="opening-lesson-dots" aria-hidden="true">${dots}</span></div>`
+        return `<div class="opening-lesson-head"><span class="opening-lesson-kicker">${_t('시작 안내 {value}/{length}', { value: at + 1, length: LESSON_ORDER.length })}</span><span class="opening-lesson-dots" aria-hidden="true">${dots}</span></div>`
             + `<strong class="opening-lesson-title">${LESSON_TITLES[name]}</strong><p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
     }
     /** The auto button's line: for a while after the opening ends, until the auto hunt is switched on. */

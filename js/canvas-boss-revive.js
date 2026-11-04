@@ -57,7 +57,7 @@ const bossRevive = (() => {
         ctx.fillStyle = 'rgba(255,240,196,0.55)';
         ctx.fillRect(x, y, Math.round(barW * share), 3);
         // 갈무리14의 제 크기 15px, 짝수 폭 테, 정수 화소(13px과 가운데 맞춤은 도트가 번졌다, 2026-10-21).
-        ctx.font = "15px 'Galmuri14', 'Galmuri11', 'Malgun Gothic', sans-serif";
+        ctx.font = `15px ${i18n.fontFamily("'Galmuri14', 'Galmuri11'")}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.lineWidth = 2;

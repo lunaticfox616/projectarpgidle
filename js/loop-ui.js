@@ -11,10 +11,10 @@ const loopSettlementUi = {
     unlockRewardText() {
         const points = contentProgression.points();
         // 넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 된다(contentProgression.overflow, js/stump-box.js graftEarned).
-        const overflow = `넘치는 해금 포인트는 루프마다 그루터기 함 접붙이기 점수 +${CONTENT_UNLOCK_POINT_AWARDS.perLoop}가 됩니다.`;
-        if (points.complete) return `전체 해금 완료. ${overflow}`;
-        if (!points.nextAward) return `남은 해금에 필요한 포인트를 모두 모았습니다. ${overflow}`;
-        return `해금 포인트 +${points.nextAward}`;
+        const overflow = _t('넘치는 해금 포인트는 루프마다 그루터기 함 접붙이기 점수 +{n}가 됩니다.', { n: CONTENT_UNLOCK_POINT_AWARDS.perLoop });
+        if (points.complete) return `${_t('전체 해금 완료.')} ${overflow}`;
+        if (!points.nextAward) return `${_t('남은 해금에 필요한 포인트를 모두 모았습니다.')} ${overflow}`;
+        return _t('해금 포인트 +{n}', { n: points.nextAward });
     },
     /** Three parts, shown one press at a time like the opening (2026-10-27 사용자: 이야기 / 루프 달성과 다음 루프 / 설정과 단추가 확실하게
      * 갈라지고 누를 때마다 한 칸씩): data-loop-section 1~3, the card's data-loop-step says how many show (reveal). The overlay's note and
@@ -22,24 +22,24 @@ const loopSettlementUi = {
     summaryHtml() {
         const loop = game.season || 1;
         const record = game.records && game.records.currentLoop;
-        const time = record ? formatRecordDuration(record.activeMs) : '기록 없음';
+        const time = record ? formatRecordDuration(record.activeMs) : _t('기록 없음');
         return `<section class="loop-settlement-story" data-loop-section="1">${this.storyHtml()}</section>
-            <section class="loop-settlement-result" data-loop-section="2"><h2 aria-label="루프 ${loop + 1} 달성">루프 <span class="loop-settlement-count${this.rolledLoop === loop ? ' is-rolled' : ''}" data-loop-count aria-hidden="true"><span><b>${loop}</b><b>${loop + 1}</b></span></span> 달성</h2>
-            <dl class="loop-settlement-stats"><div><dt>도달 레벨</dt><dd>${game.level}</dd></div><div><dt>처치</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>활동 시간</dt><dd>${time}</dd></div></dl>${worldTreeBarkUi.barkSettlementHtml()}
-            <div class="loop-settlement-next"><ul>${this.nextLoopLines(loop).map(row => `<li class="is-${row.kind}">${escapeHTML(row.text).replace(/\+\d+/g, gain => `<b>${gain}</b>`)}</li>`).join('')}</ul></div>
-            <p class="loop-settlement-reset">루프 시 레벨, 장비 및 재화를 포함한 대부분의 진행도가 초기화됩니다.</p></section>
+            <section class="loop-settlement-result" data-loop-section="2"><h2 aria-label="${_t('루프 {n} 달성', { n: loop + 1 })}">${_t('루프')} <span class="loop-settlement-count${this.rolledLoop === loop ? ' is-rolled' : ''}" data-loop-count aria-hidden="true"><span><b>${loop}</b><b>${loop + 1}</b></span></span> ${_t('달성')}</h2>
+            <dl class="loop-settlement-stats"><div><dt>${_t('도달 레벨')}</dt><dd>${game.level}</dd></div><div><dt>${_t('처치')}</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>${_t('활동 시간')}</dt><dd>${time}</dd></div></dl>${worldTreeBarkUi.barkSettlementHtml()}
+            <div class="loop-settlement-next"><ul>${this.nextLoopLines(loop).map(row => `<li class="is-${row.kind}">${escapeHTML(_t(row.text)).replace(/\+\d+/g, gain => `<b>${gain}</b>`)}</li>`).join('')}</ul></div>
+            <p class="loop-settlement-reset">${_t('루프 시 레벨, 장비 및 재화를 포함한 대부분의 진행도가 초기화됩니다.')}</p></section>
             <section class="loop-settlement-controls" data-loop-section="3">${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}</section>
-            <button type="button" class="loop-settlement-continue" data-loop-continue>눌러서 계속</button>`;
+            <button type="button" class="loop-settlement-continue" data-loop-continue>${_t('눌러서 계속')}</button>`;
     },
     /** What the next loop brings (2026-10-27 사용자: 짧게), each with its kind for its colour (css/ui-polish.css .loop-settlement-next):
      * unlock points, the stump box's next cell, the loop point, the roadmap lines, the next loop's mutations. */
     nextLoopLines(loop) {
         const roadmap = game.contentProgression ? this.milestoneLines(loop + 1)
-            : (SEASON_CONTENT_ROADMAP[loop + 1] || { features: ['심화 도전을 이어갑니다.'] }).features.filter(text => !LOOP_STUMP_ROADMAP_LINE.test(text));
+            : (SEASON_CONTENT_ROADMAP[loop + 1] || { features: ['심화 도전을 이어갑니다.'] }).features.filter(text => !LOOP_STUMP_ROADMAP_LINE.test(text)).map(text => _t(text));
         return [
             { kind: 'unlock', text: game.contentProgression ? this.unlockRewardText() : '' },
             { kind: 'stump', text: this.stumpCellLine() },
-            { kind: 'loop', text: `루프 포인트 +1${this.loopPointLockText()}` },
+            { kind: 'loop', text: `${_t('루프 포인트 +1')}${this.loopPointLockText()}` },
             { kind: 'loop', text: worldTreeBark.nextLoopBarkLine(loop + 1) },
             ...roadmap.map(text => ({ kind: 'road', text })),
             ...loopMutationUi.nextLoopLines(loop + 1).map(text => ({ kind: 'mutation', text }))
@@ -48,16 +48,16 @@ const loopSettlementUi = {
     /** The stump box's cells the next loop opens (js/stump-box.js openCount: one a loop up to 25), none before the box or at 25. */
     stumpCellLine() {
         const now = stumpBox.openCount(game), next = stumpBox.openCount({ ...game, season: (game.season || 1) + 1 });
-        return next > now ? `그루터기 함 슬롯 +${next - now} (현재 ${now}칸)` : '';
+        return next > now ? _t('그루터기 함 슬롯 +{gain} (현재 {now}칸)', { gain: next - now, now }) : '';
     },
     /** Until 루프 패시브 is bought the loop point only piles up (2026-10-27). */
     loopPointLockText() {
-        return game.contentProgression && !contentProgression.isUnlocked('loopTree') ? ' (해금 후 사용 가능)' : '';
+        return game.contentProgression && !contentProgression.isUnlocked('loopTree') ? ` ${_t('(해금 후 사용 가능)')}` : '';
     },
     /** The loop's close (data/story-journal.js STORY_LOOP_MILESTONES.default): the narration only. Its woodsman line is not shown
      * (2026-10-27 사용자: 지금 이야기와 맞지 않는다); the story pack keeps the field. */
     storyHtml() {
-        return `<p>${STORY_LOOP_MILESTONES.default.narration.map(escapeHTML).join('<br>')}</p>`;
+        return `<p>${STORY_LOOP_MILESTONES.default.narration.map(line => escapeHTML(_t(line))).join('<br>')}</p>`;
     },
     /** A new loop's screen shows part 1 (all three with 자동 루프 진행 on: its countdown is in part 3); the same loop drawn again keeps
      * its step. */
@@ -190,8 +190,8 @@ const loopSettlementUi = {
         let state = getLoopPathUiState();
         let body = document.getElementById('loop-decision-body');
         if (body) body.innerText = state.showPathChoices
-            ? '다음 루프로 사용할 경로를 선택하거나, 이번 루프를 유지하고 심화 등반을 계속하세요.'
-            : '다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.';
+            ? _t('다음 루프로 사용할 경로를 선택하거나, 이번 루프를 유지하고 심화 등반을 계속하세요.')
+            : _t('다음 루프로 즉시 넘어갈지, 이번 루프를 유지하고 심화 등반을 계속할지 선택하세요.');
         let genericBtn = document.getElementById('loop-decision-generic-btn');
         let chaosBtn = document.getElementById('loop-decision-chaos-btn');
         let cosmosBtn = document.getElementById('loop-decision-cosmos-btn');
@@ -215,9 +215,9 @@ const loopSettlementUi = {
             return Promise.resolve(false);
         }
         return requestGameConfirmation(
-            '정말 지금 루프하시겠습니까?\n현재 루프를 정산하고 다음 루프로 이동합니다.',
-            { title: '루프 진행 확인', tone: 'danger', confirmLabel: '루프 진행',
-                cancelLabel: '취소', dismissOnBackdrop: false }
+            _t('정말 지금 루프하시겠습니까?\n현재 루프를 정산하고 다음 루프로 이동합니다.'),
+            { title: _t('루프 진행 확인'), tone: 'danger', confirmLabel: _t('루프 진행'),
+                cancelLabel: _t('취소'), dismissOnBackdrop: false }
         );
     }
 
@@ -235,7 +235,7 @@ const loopSettlementUi = {
         let overlay = document.getElementById('loop-decision-overlay');
         if (overlay) overlay.classList.toggle('active', true);
         updateLoopDecisionOverlayUi();
-        if (typeof addLog === 'function') addLog('진행할 루프 경로를 선택하세요.', 'season-up');
+        if (typeof addLog === 'function') addLog(_t('진행할 루프 경로를 선택하세요.'), 'season-up');
     }
 
     async function handleCombatLoopAdvanceButton() {
@@ -261,7 +261,7 @@ const loopSettlementUi = {
             triggerSeasonReset();
             return;
         }
-        if (typeof addLog === 'function') addLog('아직 루프 진행 조건을 달성하지 못했습니다.', 'attack-monster');
+        if (typeof addLog === 'function') addLog(_t('아직 루프 진행 조건을 달성하지 못했습니다.'), 'attack-monster');
     }
 
     safeExposeGlobals({ canShowCombatLoopAdvanceButton, updateLoopDecisionOverlayUi,

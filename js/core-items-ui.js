@@ -7,7 +7,7 @@ const coreItemsUi = (() => {
         return `<div class="slot-box equipment-slot equipment-slot-empty slot-${SLOT} core-item-slot" data-slot="${SLOT}" onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${SLOT}')">
             <div class="equipment-slot-head"><span>${SLOT}</span></div><div class="equipment-slot-visual empty"><img src="${coreItems.icon(null)}" alt="" aria-hidden="true" draggable="false"></div>
             <div class="equipment-empty-mark">＋</div>
-            <div class="equipment-empty-label">비어 있음</div>
+            <div class="equipment-empty-label">${_t('비어 있음')}</div>
         </div>`;
     }
 
@@ -22,7 +22,7 @@ const coreItemsUi = (() => {
             ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${SLOT}', false)"
             onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)">
             <div class="equipment-slot-head"><span>${SLOT}</span></div><div class="equipment-slot-visual"><img src="${coreItems.icon(core)}" alt="" aria-hidden="true" draggable="false"></div>
-            <div class="item-title equipment-slot-name ${rarity}">${escapeHTML(core.name)}</div>
+            <div class="item-title equipment-slot-name ${rarity}">${escapeHTML(_t(core.name))}</div>
         </div>`;
     }
 

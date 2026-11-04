@@ -27,7 +27,7 @@ const atlasPassives = (() => {
         const node = NODES.get(id), list = taken(state);
         if (!node) return '없는 패시브입니다.';
         if (list.includes(id)) return '이미 찍은 패시브입니다.';
-        if (waits(state, id)) return `루프 ${loopOf(id)}부터 찍을 수 있습니다.`;
+        if (waits(state, id)) return _t('루프 {id}부터 찍을 수 있습니다.', { id: loopOf(id) });
         if (available(state) < 1) return '아틀라스 포인트가 부족합니다. 노드를 완료하거나 보너스를 달성하세요.';
         return supported(node, req => list.includes(req)) ? '' : '이어진 패시브를 먼저 찍으세요.';
     }

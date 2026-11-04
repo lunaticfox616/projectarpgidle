@@ -167,26 +167,26 @@ const knittingRewards = (() => {
             .map(([color]) => `${row.id}: 씨앗 ${color}`);
         return seeds.concat((row.reward.currencies || row.reward.pickCurrencies || []).flatMap(([key, n]) => {
             const def = ORB_DB[getCanonicalCurrencyKey(key)];
-            if (!def || !Number.isInteger(n) || n < 1) return [`${row.id}: 재화 ${key}`];
+            if (!def || !Number.isInteger(n) || n < 1) return [_t('{id}: 재화 {key}', { id: row.id, key })];
             const need = def.dropUnlocks || [];
-            return need.length && !need.some(id => own.has(id)) ? [`${row.id}: ${key}의 해금 ${need.join('|')} 누락`] : [];
+            return need.length && !need.some(id => own.has(id)) ? [_t('{id}: {key}의 해금 {need} 누락', { id: row.id, key, need: need.join('|') })] : [];
         }));
     }
     function yarnsProblems(row) {
         const n = row.reward.yarns;
-        return Number.isInteger(n) && n >= 1 && n <= 3 ? [] : [`${row.id}: 반환 수`];
+        return Number.isInteger(n) && n >= 1 && n <= 3 ? [] : [_t('{id}: 반환 수', { id: row.id })];
     }
     function tierProblems(row) {
         const tier = row.reward.tier;
-        return Number.isInteger(tier) && tier >= 1 && tier <= 20 ? [] : [`${row.id}: 보상 등급 ${tier}`];
+        return Number.isInteger(tier) && tier >= 1 && tier <= 20 ? [] : [_t('{id}: 보상 등급 {tier}', { id: row.id, tier })];
     }
     /** 고유 풀이 비지 않았는지, 이름 지정 고유면 세트 등급이 그 고유의 띠와 맞는지. */
     function uniqueProblems(row) {
         const reward = row.reward, pool = uniquePool(reward, null);
-        if (!pool.length) return [`${row.id}: 고유 풀이 비어 있음`];
-        if (reward.uniquePool === 'chase' && (row.grade !== 5 || row.yarnOut !== false)) return [`${row.id}: 극희귀 보상은 5등급, 반환 제외여야 함`];
+        if (!pool.length) return [_t('{id}: 고유 풀이 비어 있음', { id: row.id })];
+        if (reward.uniquePool === 'chase' && (row.grade !== 5 || row.yarnOut !== false)) return [_t('{id}: 극희귀 보상은 5등급, 반환 제외여야 함', { id: row.id })];
         const want = reward.unique ? namedUniqueGrade(pool[0]) : row.grade;
-        return want === row.grade ? [] : [`${row.id}: 「${reward.unique}」 기준 등급 ${want}, 세트 등급 ${row.grade}`];
+        return want === row.grade ? [] : [_t('{id}: 「{unique}」 기준 등급 {want}, 세트 등급 {grade}', { id: row.id, unique: reward.unique, want, grade: row.grade })];
     }
     /** 장비 계열(고유·희귀 장비)은 보상 등급을 먼저 본다: 등급이 틀리면 그 한 줄만. */
     function equipmentProblems(family, row) {
@@ -199,7 +199,7 @@ const knittingRewards = (() => {
         if (family === 'yarns') return yarnsProblems(row);
         if (family === 'maps') {
             const rule = row.reward.maps;
-            return rule.count === 2 && rule.rarity === 'rare' && rule.tierUp === 1 ? [] : [`${row.id}: 지도석 규격`];
+            return rule.count === 2 && rule.rarity === 'rare' && rule.tierUp === 1 ? [] : [_t('{id}: 지도석 규격', { id: row.id })];
         }
         return equipmentProblems(family, row);
     }
@@ -208,14 +208,14 @@ const knittingRewards = (() => {
         return KNITTING.list.flatMap(row => {
 
             const families = [...new Set(Object.keys(row.reward || {}).map(key => FAMILIES[key]).filter(Boolean))];
-            return families.length === 1 ? familyProblems(families[0], row, implied) : [`${row.id}: 보상 종류 ${families.join(',') || '없음'}`];
+            return families.length === 1 ? familyProblems(families[0], row, implied) : [_t('{id}: 보상 종류 {families}', { id: row.id, families: families.join(',') || _t('없음') })];
         });
     }
     function gearProblems(row) {
         const gear = row.reward.gear, slots = new Set(BASE_ITEM_DB.map(base => base.slot));
-        if (gear.slots && !gear.slots.every(slot => slots.has(slot))) return [`${row.id}: 부위`];
+        if (gear.slots && !gear.slots.every(slot => slots.has(slot))) return [_t('{id}: 부위', { id: row.id })];
         const open = BASE_ITEM_DB.some(base => base.id === gear.base && !base.dropOnly && !base.realmBase && base.reqTier <= row.reward.tier);
-        return gear.base && !open ? [`${row.id}: 베이스 ${gear.base}`] : [];
+        return gear.base && !open ? [_t('{id}: 베이스 {base}', { id: row.id, base: gear.base })] : [];
     }
     
     

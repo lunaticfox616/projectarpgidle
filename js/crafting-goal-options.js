@@ -59,7 +59,7 @@ const craftingGoalOptions = (() => {
         })));
         const unique=new Map();
         rows.forEach(row=>{if(!unique.has(row.id)||unique.get(row.id).maxTier<row.maxTier)unique.set(row.id,row);});
-        return [...unique.values()].sort((a,b) => a.name.localeCompare(b.name,'ko'));
+        return [...unique.values()].sort((a,b) => a.name.localeCompare(b.name, i18n.locale));
     }
     /** Tags this craft can still roll, with how many lines can carry one (kept lines plus distinct rollable stats) and the best tier. */
     function tags(item, recipe, mode, omen = null) {
@@ -89,7 +89,7 @@ const craftingGoalOptions = (() => {
             const weighted = weights.find(row => row.id === mod.id), weight = weighted ? weightOf(weighted) : 0;
             return { id: mod.id, statId: mod.statId || mod.id, statIds: getExplicitModStatIds(mod), name: mod.statName || getStatName(mod.statId || mod.id), kind: equipmentCrafting.affixKind(mod),
                 tags: getAffixTags(mod), maxTier, weight, share: total ? weight / total : 0, allowed, reason: allowed ? '' : reason };
-        }).sort((a, b) => Number(b.allowed) - Number(a.allowed) || a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'ko'));
+        }).sort((a, b) => Number(b.allowed) - Number(a.allowed) || a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, i18n.locale));
     }
 
     function catalogueBlockReason(mod, { occupied, room, omen }) {

@@ -6,13 +6,13 @@ const equipmentSocketsUi = (() => {
     const REFINE_COST = 12;
 
     function jewelLines(jewel) {
-        return getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? '쁘띠 ' : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}`);
+        return getJewelStats(jewel).map(stat => `${isJewelPetiteStat(stat) ? _t('쁘띠 ') : ''}${getStatName(stat.id)} +${formatJewelStatValue(stat.id, stat.val)}`);
     }
 
     function jewelHtml(jewel) {
         const lines = jewelLines(jewel).map(line => `<li>${escapeHTML(line)}</li>`).join('');
         const text = getJewelUniqueEffectText(jewel), effect = text ? `<p class="socket-jewel-effect">${escapeHTML(text)}</p>` : '';
-        return `<strong class="${getJewelRarityClass(jewel.rarity)}">${escapeHTML(jewel.name || '주얼')}</strong>${effect}<ul class="socket-jewel-lines">${lines || '<li>옵션 없음</li>'}</ul>`;
+        return `<strong class="${getJewelRarityClass(jewel.rarity)}">${escapeHTML(_t(jewel.name || '주얼'))}</strong>${effect}<ul class="socket-jewel-lines">${lines || _t('<li>옵션 없음</li>')}</ul>`;
     }
 
     const socketLabel = equipmentSockets.label;
@@ -23,7 +23,7 @@ const equipmentSocketsUi = (() => {
         const sockets = equipmentSockets.list(item);
         const canOpen = (game.currencies.voidChisel || 0) > 0 && equipmentSockets.canChisel(item);
         if (!sockets.length && !canOpen) return '';
-        const label = sockets.length ? `소켓 ${sockets.filter(contentOf).length}/${sockets.length}` : '소켓 뚫기';
+        const label = sockets.length ? _t('소켓 {length}/{length2}', { length: sockets.filter(contentOf).length, length2: sockets.length }) : '소켓 뚫기';
         const ref = slot ? `'${slot}',true` : `${item.id},false`;
         return `<button type="button" data-content-action="sockets" onclick="equipmentInventoryInteraction.focus(null);equipmentSocketsUi.open(${ref})"><span class="px-center">${label}</span></button>`;
     }
@@ -45,7 +45,7 @@ const equipmentSocketsUi = (() => {
     const socketClass = row => [`is-${row.kind}`, ...row.accepts.map(kind => `takes-${kind}`), contentOf(row) ? 'is-filled' : '', row.fused ? 'is-fused' : ''].filter(Boolean).join(' ');
     function socketBadgeHtml(row, host) {
         const content = contentOf(row), art = content ? `<img src="${content.art}" alt="" aria-hidden="true" draggable="false">` : '';
-        const name = content ? `${socketLabel(row)}: ${content.name}` : `빈 ${socketLabel(row)}`;
+        const name = content ? `${socketLabel(row)}: ${content.name}` : _t('빈 {row}', { row: socketLabel(row) });
         return `<span class="item-socket ${socketClass(row)}" role="button" aria-label="${escapeHTML(name)}"
             data-socket-kind="${row.kind}" data-socket-index="${row.index}" onpointerdown="event.stopPropagation()" ondblclick="event.stopPropagation()"
             onclick="equipmentSocketsUi.socketClick(event,'${host}','${row.kind}',${row.index})">${art}</span>`;
@@ -91,7 +91,7 @@ const equipmentSocketsUi = (() => {
             return true;
         }
         playUiFeedbackSound('gemSocket');
-        socketChanged(`💠 [${item.name}]에 [${result.jewel.name}] 장착`);
+        socketChanged(_t('💠 [{name}]에 [{name2}] 장착', { name: item.name, name2: result.jewel.name }));
         return true;
     }
 
@@ -108,7 +108,7 @@ const equipmentSocketsUi = (() => {
     function tooltipHtml(item) {
         const sockets = contentProgression.isUnlocked('jewel') ? equipmentSockets.list(item) : [];
         return sockets.map(row => {
-            if (row.jewel) return `<div class="tooltip-line tooltip-socket-line">◆ ${socketLabel(row)}: <span class="${getJewelRarityClass(row.jewel.rarity)}">${escapeHTML(row.jewel.name || '주얼')}</span>, ${escapeHTML(jewelLines(row.jewel).join(', '))}</div>`;
+            if (row.jewel) return `<div class="tooltip-line tooltip-socket-line">◆ ${socketLabel(row)}: <span class="${getJewelRarityClass(row.jewel.rarity)}">${escapeHTML(_t(row.jewel.name || '주얼'))}</span>, ${escapeHTML(jewelLines(row.jewel).join(', '))}</div>`;
             if (row.harvest) return `<div class="tooltip-line tooltip-socket-line is-harvest">◆ ${socketLabel(row)}: ${escapeHTML(stumpBox.shortName(row.harvest))}, ${escapeHTML(harvestLines(row.harvest).join(', '))}</div>`;
             return `<div class="tooltip-line tooltip-socket-line is-empty">◇ 빈 ${socketLabel(row)}${row.accepts.length ? ` (${takesText(row)})` : ''}</div>`;
         }).join('');
@@ -118,17 +118,17 @@ const equipmentSocketsUi = (() => {
         const filled = contentOf(row), body = row.jewel ? jewelHtml(row.jewel) : row.harvest ? harvestHtml(row.harvest) : `<span>빈 소켓${row.accepts.length ? ` (${takesText(row)})` : ''}</span>`;
         return `<div class="socket-row${filled ? '' : ' is-empty'}${row.kind === 'corrupt' ? ' is-corrupt' : ''}${row.accepts.length ? ' takes-harvest' : ''}"><span class="socket-row-label">${socketLabel(row)}</span>
             <div class="socket-row-jewel">${body}</div>
-            ${filled && !row.fused ? `<button type="button" onclick="equipmentSocketsUi.remove('${row.kind}',${row.index})">빼기</button>` : ''}</div>`;
+            ${filled && !row.fused ? `<button type="button" onclick="equipmentSocketsUi.remove('${row.kind}',${row.index})">${_t('빼기')}</button>` : ''}</div>`;
     }
 
     function socketsHtml(item) {
         const rows = equipmentSockets.list(item).map(socketRowHtml).join('');
         const chisels = game.currencies.voidChisel || 0;
         const chisel = equipmentSockets.canChisel(item)
-            ? `<button type="button" class="socket-chisel" onclick="equipmentSocketsUi.chisel()" ${chisels > 0 ? '' : 'disabled'}>공허의 끌로 소켓 뚫기 (보유 ${chisels})</button>` : '';
+            ? `<button type="button" class="socket-chisel" onclick="equipmentSocketsUi.chisel()" ${chisels > 0 ? '' : 'disabled'}>${_t('공허의 끌로 소켓 뚫기 (보유 {chisels})', { chisels })}</button>` : '';
         const bonus = Math.round((getSocketJewelMultiplier() - 1) * 100);
-        const bonusNote = bonus > 0 ? `<p class="selection-overlay-help">소켓 주얼 옵션 +${bonus}% (심연 군주, 재물욕)</p>` : '';
-        return `${rows || '<p class="selection-overlay-help">이 장비에는 아직 소켓이 없습니다.</p>'}${chisel}${bonusNote}`;
+        const bonusNote = bonus > 0 ? `<p class="selection-overlay-help">${_t('소켓 주얼 옵션 +{bonus}% (심연 군주, 재물욕)', { bonus })}</p>` : '';
+        return `${rows || _t('<p class="selection-overlay-help">이 장비에는 아직 소켓이 없습니다.</p>')}${chisel}${bonusNote}`;
     }
 
     /** The bag's jewels: socket one into this item or salvage it; jewel shards draw a new one into the bag. */
@@ -136,12 +136,12 @@ const equipmentSocketsUi = (() => {
         const store = bagItems.jewels();
         const canInsert = equipmentSockets.list(item).some(equipmentSockets.takesJewel);
         const cards = store.map(jewel => `<article class="socket-jewel-card">${jewelHtml(jewel)}<div class="socket-jewel-actions">
-            ${canInsert ? `<button type="button" onclick="equipmentSocketsUi.insert(${jewel.id})">끼우기</button>` : ''}
-            <button type="button" onclick="equipmentSocketsUi.salvage(${jewel.id})">해체 +${getJewelSalvageShardGain(jewel)}</button></div></article>`).join('');
+            ${canInsert ? `<button type="button" onclick="equipmentSocketsUi.insert(${jewel.id})">${_t('끼우기')}</button>` : ''}
+            <button type="button" onclick="equipmentSocketsUi.salvage(${jewel.id})">${_t('해체 +{jewel}', { jewel: getJewelSalvageShardGain(jewel) })}</button></div></article>`).join('');
         const shards = game.currencies.jewelShard || 0;
-        return `<div class="selection-overlay-section-title">가방의 주얼 ${store.length}개</div>
-            <div class="socket-jewel-list">${cards || '<p class="selection-overlay-help">가방에 주얼이 없습니다. 정예와 보스가 가끔 떨어뜨립니다.</p>'}</div>
-            <div class="socket-store-footer"><span>주얼 결정 ${shards}</span><button type="button" onclick="equipmentSocketsUi.refine()" ${shards >= REFINE_COST ? '' : 'disabled'}>주얼 뽑기 (결정 ${REFINE_COST})</button></div>`;
+        return `<div class="selection-overlay-section-title">${_t('가방의 주얼 {length}개', { length: store.length })}</div>
+            <div class="socket-jewel-list">${cards || _t('<p class="selection-overlay-help">가방에 주얼이 없습니다. 정예와 보스가 가끔 떨어뜨립니다.</p>')}</div>
+            <div class="socket-store-footer"><span>${_t('주얼 결정 {shards}', { shards })}</span><button type="button" onclick="equipmentSocketsUi.refine()" ${shards >= REFINE_COST ? '' : 'disabled'}>${_t('주얼 뽑기 (결정 {REFINE_COST})', { REFINE_COST })}</button></div>`;
     }
 
     /** The stump box's grown items this unique's sockets take, with a 끼우기 button while a fitting socket is empty ('' for other gear). */
@@ -151,9 +151,9 @@ const equipmentSocketsUi = (() => {
         const open = new Set(rows.filter(row => !contentOf(row)).flatMap(row => row.accepts));
         const store = stumpBox.socketCandidates(game, kinds);
         const cards = store.map(grown => `<article class="socket-jewel-card is-harvest">${harvestHtml(grown)}<div class="socket-jewel-actions">
-            ${open.has(stumpBox.yieldKind(grown)) ? `<button type="button" onclick="equipmentSocketsUi.insertHarvest(${grown.id})">끼우기</button>` : ''}</div></article>`).join('');
+            ${open.has(stumpBox.yieldKind(grown)) ? `<button type="button" onclick="equipmentSocketsUi.insertHarvest(${grown.id})">${_t('끼우기')}</button>` : ''}</div></article>`).join('');
         const names = kinds.map(kind => STUMP_BOX_STAGES[kind].label).join(', ');
-        return `<div class="selection-overlay-section-title">그루터기 함의 ${names} ${store.length}개</div>
+        return `<div class="selection-overlay-section-title">${_t('그루터기 함의 {names} {length}개', { names, length: store.length })}</div>
             <div class="socket-jewel-list">${cards || `<p class="selection-overlay-help">그루터기 함 보관함에 다 자란 ${names}${pickParticle(names, '이', '가')} 없습니다.</p>`}</div>`;
     }
 
@@ -164,7 +164,7 @@ const equipmentSocketsUi = (() => {
     function render() {
         const item = getSelectedCraftItem();
         if (!item) return close();
-        selectionDialog.show({ id: OVERLAY_ID, title: `소켓: [${escapeHTML(getItemSlotDisplayLabel(item))}] ${escapeHTML(item.name)}`,
+        selectionDialog.show({ id: OVERLAY_ID, title: _t('소켓: [{item}] {item2}', { item: escapeHTML(getItemSlotDisplayLabel(item)), item2: escapeHTML(getItemDisplayName(item)) }),
             panelClass: 'equipment-socket-panel', body: `${socketsHtml(item)}
             ${harvestStoreHtml(item)}${takesNoJewel(item) ? '' : storeHtml(item)}` });
     }
@@ -189,7 +189,7 @@ const equipmentSocketsUi = (() => {
         if (!item) return;
         const result = equipmentSockets.insert(item, jewelId);
         if (result.ok) playUiFeedbackSound('gemSocket');
-        report(result, result.ok ? `💠 [${item.name}]에 [${result.jewel.name}] 장착` : '');
+        report(result, result.ok ? _t('💠 [{name}]에 [{name2}] 장착', { name: item.name, name2: result.jewel.name }) : '');
     }
 
     /** A stored grown flower, fruit, vine or root into the selected unique's socket that takes it. */
@@ -198,7 +198,7 @@ const equipmentSocketsUi = (() => {
         if (!item) return;
         const result = equipmentSockets.insertHarvest(item, stumpId);
         if (result.ok) playUiFeedbackSound('gemSocket');
-        report(result, result.ok ? `🌱 [${item.name}]에 [${stumpBox.shortName(result.harvest)}] 장착` : '');
+        report(result, result.ok ? _t('🌱 [{name}]에 [{shortName}] 장착', { name: item.name, shortName: stumpBox.shortName(result.harvest) }) : '');
     }
 
     function remove(kind, index) {
@@ -211,7 +211,7 @@ const equipmentSocketsUi = (() => {
     function chisel() {
         const item = getSelectedCraftItem();
         if (!item) return;
-        report(equipmentSockets.chisel(item), `🕳️ [${item.name}]에 공허 소켓을 뚫었습니다.`);
+        report(equipmentSockets.chisel(item), _t('🕳️ [{name}]에 공허 소켓을 뚫었습니다.', { name: item.name }));
     }
 
     async function salvage(jewelId) {

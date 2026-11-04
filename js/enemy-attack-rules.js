@@ -239,7 +239,7 @@ const enemyAttackRules = (() => {
 
     function castBar(enemy, now, pending) {
         if (enemy.hp <= 0) return null;
-        if (enemy.castInterruptedUntil > now) return {label:'시전 취소',progress:0,cancelled:true};
+        if (enemy.castInterruptedUntil > now) return {label:_t('시전 취소'),progress:0,cancelled:true};
         const cc = controls(enemy);
         if (cc.hard || cc.silence) return null;
         const cast = activeCast(enemy,pending);

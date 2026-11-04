@@ -139,10 +139,10 @@
     }
 
     function getStatusCopy() {
-        if (state.status === 'running') return `${state.work.index}/${state.work.items.length} 분석 중`;
+        if (state.status === 'running') return _t('{index}/{length} 분석 중', { index: state.work.index, length: state.work.items.length });
         if (state.status === 'ready') {
             const counts = getCounts();
-            return `${counts.all}개 완료, 균형 ${counts.balanced}, 공격 ${counts.damage}, 생존 ${counts.defense}`;
+            return _t('{all}개 완료, 균형 {balanced}, 공격 {damage}, 생존 {defense}', { all: counts.all, balanced: counts.balanced, damage: counts.damage, defense: counts.defense });
         }
         if (state.status === 'error') return '분석 중 오류가 발생했습니다. 다시 시도하세요.';
         if (state.status === 'stale') return '세팅이 바뀌어 다시 분석합니다.';
@@ -209,11 +209,11 @@
         const autoSalvageButton = isInventoryNearFull()
             ? '<button type="button" onclick="equipmentWindowUi.openSalvage()">자동 해체 설정</button>' : '';
         const fillable = countFillableEmptySlots();
-        const fillButton = fillable ? `<button type="button" class="equipment-fill-empty" onclick="fillEmptyEquipmentSlots()">빈 칸 채우기 ${fillable}</button>` : '';
-        const html = `<div class="equipment-triage-copy" data-tip="분석 시작 시점의 세팅/전투 상태를 기준으로 비교합니다."><strong>현재 세팅 분석</strong><small>${getStatusCopy()}</small></div>
+        const fillButton = fillable ? `<button type="button" class="equipment-fill-empty" onclick="fillEmptyEquipmentSlots()">${_t('빈 칸 채우기 {fillable}', { fillable })}</button>` : '';
+        const html = `<div class="equipment-triage-copy" data-tip="${_t('분석 시작 시점의 세팅/전투 상태를 기준으로 비교합니다.')}"><strong>${_t('현재 세팅 분석')}</strong><small>${getStatusCopy()}</small></div>
             <div class="equipment-triage-controls">
-                <label>판단 <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? '' : 'disabled'}>${getFilterOptionsHtml(counts)}</select></label>
-                <button type="button" onclick="equipmentTriage.${running ? 'cancel' : 'start'}()">${running ? '분석 중단' : (state.status === 'idle' ? '일괄 분석' : '다시 분석')}</button>
+                <label>${_t('판단')} <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? '' : 'disabled'}>${getFilterOptionsHtml(counts)}</select></label>
+                <button type="button" onclick="equipmentTriage.${running ? 'cancel' : 'start'}()">${running ? _t('분석 중단') : (state.status === 'idle' ? _t('일괄 분석') : _t('다시 분석'))}</button>
                 <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? '' : 'disabled'} data-tip="${getRecommendTitle(recommendation)}">${getRecommendLabel(recommendation)}</button>
                 ${fillButton}${autoSalvageButton}
             </div>`;
@@ -251,7 +251,7 @@
         console.error('equipment triage failed:', error);
         clearResults('error');
         if (typeof showGameToast === 'function') {
-            showGameToast('장비 분석에 실패했습니다. 다시 시도해 주세요.', { tone: 'error', duration: 3200 });
+            showGameToast(_t('장비 분석에 실패했습니다. 다시 시도해 주세요.'), { tone: 'error', duration: 3200 });
         }
     }
 
@@ -424,7 +424,7 @@
         const equipped = equipItemById(recommendation.item.id, recommendation.slot);
         if (!equipped) return false;
         if (typeof showGameToast === 'function') {
-            showGameToast(`${recommendation.item.name || '추천 장비'} 장착, ${recommendation.slot}`, { tone: 'success' });
+            showGameToast(_t('{item} 장착, {slot}', { item: _t(recommendation.item.name || '추천 장비'), slot: _t(recommendation.slot) }), { tone: 'success' });
         }
         start();
         return true;

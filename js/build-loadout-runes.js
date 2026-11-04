@@ -80,10 +80,10 @@
     }
 
     function skillOwnershipReason(name, state) {
-        if (!Object.hasOwn(SKILL_DB, name)) return `존재하지 않는 스킬룬: ${name}`;
+        if (!Object.hasOwn(SKILL_DB, name)) return _t('존재하지 않는 스킬룬: {name}', { name });
         if (name === '기본 공격') return '';
-        if ((state.sealedSkills || []).includes(name)) return `봉인된 스킬룬입니다: ${name}`;
-        return (state.skills || []).includes(name) ? '' : `보유하지 않은 스킬룬입니다: ${name}`;
+        if ((state.sealedSkills || []).includes(name)) return _t('봉인된 스킬룬입니다: {name}', { name });
+        return (state.skills || []).includes(name) ? '' : _t('보유하지 않은 스킬룬입니다: {name}', { name });
     }
 
     function attackSlotReason(config, state) {
@@ -91,7 +91,7 @@
         if (ownership) return ownership;
         const tags = SKILL_DB[config.activeSkill].tags || [];
         if (tags.includes('summon')) return '소환 룬은 주 공격 칸에 저장할 수 없습니다.';
-        if (tags.includes('mobility') && !isMobilityRuneAttackWorn(state)) return `주 공격 칸의 이동 룬은 ${MOBILITY_RUNE_ATTACK_UNIQUE} 착용이 필요합니다.`;
+        if (tags.includes('mobility') && !isMobilityRuneAttackWorn(state)) return _t('주 공격 칸의 이동 룬은 {value} 착용이 필요합니다.', { value: MOBILITY_RUNE_ATTACK_UNIQUE });
         if (config.mobilitySkill === config.activeSkill) return '같은 이동 룬을 주 공격과 이동 칸에 동시에 저장할 수 없습니다.';
         return '';
     }
@@ -109,18 +109,18 @@
             const ownership = skillOwnershipReason(name, state);
             if (ownership) return ownership;
             const tags = SKILL_DB[name].tags || [];
-            if (!tags.includes('summon')) return `소환 칸에 넣을 수 없는 룬입니다: ${name}`;
-            if (!tags.includes('summon_attack') && config.summonSkillCounts[name] !== 1) return `${name}: 한 개만 장착할 수 있습니다.`;
+            if (!tags.includes('summon')) return _t('소환 칸에 넣을 수 없는 룬입니다: {name}', { name });
+            if (!tags.includes('summon_attack') && config.summonSkillCounts[name] !== 1) return _t('{name}: 한 개만 장착할 수 있습니다.', { name });
         }
         return '';
     }
 
     function supportOwnershipReason(name, config, state) {
-        if (!Object.hasOwn(SUPPORT_GEM_DB, name)) return `존재하지 않는 보조룬: ${name}`;
-        if ((state.sealedSupports || []).includes(name)) return `봉인된 보조룬입니다: ${name}`;
-        if (!(state.supports || []).includes(name)) return `보유하지 않은 보조룬입니다: ${name}`;
+        if (!Object.hasOwn(SUPPORT_GEM_DB, name)) return _t('존재하지 않는 보조룬: {name}', { name });
+        if ((state.sealedSupports || []).includes(name)) return _t('봉인된 보조룬입니다: {name}', { name });
+        if (!(state.supports || []).includes(name)) return _t('보유하지 않은 보조룬입니다: {name}', { name });
         const tier = config.supportTiers[name], unlocked = normalizeGemRecord(state.supportGemData?.[name]).unlockedTier;
-        return tier <= Math.min(unlocked, getSupportTierCap(name)) ? '' : `${name}: 저장된 ${tier}등급이 해금되어 있지 않습니다.`;
+        return tier <= Math.min(unlocked, getSupportTierCap(name)) ? '' : _t('{name}: 저장된 {tier}등급이 해금되어 있지 않습니다.', { name, tier });
     }
 
     function supportSlotReason(config, state) {
@@ -140,9 +140,9 @@
         const summonCount = Object.values(config.summonSkillCounts).reduce((sum, count) => sum + count, 0);
         const summonCap = stats.passiveKeystoneFlags?.soleMinion ? 1 : Math.max(1, Math.floor(stats.summonCap || 1));
         const totals = { supportCount, supportCap, resonance, resonanceCap, summonCount, summonCap };
-        if (supportCount > supportCap) return { ...failure(`보조룬 칸이 부족합니다. (${supportCount}/${supportCap})`), ...totals };
-        if (resonance > resonanceCap) return { ...failure(`공명력이 부족합니다. (${resonance}/${resonanceCap})`), ...totals };
-        if (summonCount > summonCap) return { ...failure(`소환 한도를 넘었습니다. (${summonCount}/${summonCap})`), ...totals };
+        if (supportCount > supportCap) return { ...failure(_t('보조룬 칸이 부족합니다. ({supportCount}/{supportCap})', { supportCount, supportCap })), ...totals };
+        if (resonance > resonanceCap) return { ...failure(_t('공명력이 부족합니다. ({resonance}/{resonanceCap})', { resonance, resonanceCap })), ...totals };
+        if (summonCount > summonCap) return { ...failure(_t('소환 한도를 넘었습니다. ({summonCount}/{summonCap})', { summonCount, summonCap })), ...totals };
         return { ok: true, reason: '', ...totals };
     }
 

@@ -40,6 +40,7 @@ CSS 전역 기본값은 `css/tokens.css`만 소유한다. 레이어 순서는
 | --- | --- |
 | `data/` | 게임 상수, 정적 데이터, 콘텐츠 정의 |
 | `js/utils.js` | 도메인 비종속 유틸리티와 안전한 전역 노출 도구 |
+| `js/i18n.js`, `data/locales/` | 언어: 한국어 원문을 열쇠로 다른 언어 팩이 옮긴다. 화면 글은 `_t()`·`data-i18n`, 로캘은 `i18n.locale`([언어 계약](docs/i18n.md)) |
 | `js/state.js` | 런타임 상태의 기본 shape, 초기화, 불변식 |
 | `js/save.js`, `js/save-migrations.js` | 직렬화, 복원, 저장 마이그레이션 경계 |
 | `js/items.js`, `js/skills.js`, `js/passives.js`, `js/core-items.js` | 장비·젬·패시브·장착 코어 규칙 |
@@ -112,6 +113,9 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
   제거 조건 없는 임시 호환 계층을 남기지 않는다.
 - 계산과 상태 변경을 분리하고, 함수는 한 책임과 한 추상화 수준을 갖게 한다.
 - 기존의 무관한 사용자 변경과 더러운 작업트리를 보존한다. 범위 밖 파일을 포맷하거나 되돌리지 않는다.
+- 화면에 보이는 새 글은 `_t('한국어 원문')`이나 `data-i18n`으로 적고 `toLocaleString`에는 `i18n.locale`을 넘긴다. 한국어 문자열을 새 식별자(저장 키,
+  비교 값, 속성 이름)로 만들지 않으며, 저장 키인 기존 한국어(장비 부위, 아이템 이름)는 바꾸지 않고 보여 줄 때만 `_t`로 옮긴다
+  ([언어 계약](docs/i18n.md), `npm run check:i18n`이 검사한다).
 - 새 전역은 금지한다. 레거시 인라인 handler 때문에 불가피하면 소유 모듈에서
   `safeExposeGlobals({ name })`를 사용하고, 이름 충돌·모든 소비자·로드 순서를 검사한다.
 - 저장 shape 변경에는 기본값, 이전 저장 마이그레이션, 손상 데이터 처리, 중복 적용 방지가 함께 있어야

@@ -25,8 +25,8 @@ const mapListUi = (() => {
     }
     function headHtml(title, list) {
         const done = list.filter(facts => facts.cleared).length;
-        const note = list.length && list.every(reduced) ? '<em>모든 지역 보상 감소</em>' : '';
-        return `<header class="map-list-head"><strong>${title}</strong>${note}<b>완료 ${done}/${list.length}</b>${bar(done, list.length)}</header>`;
+        const note = list.length && list.every(reduced) ? `<em>${_t('모든 지역 보상 감소')}</em>` : '';
+        return `<header class="map-list-head"><strong>${title}</strong>${note}<b>${_t('완료')} ${done}/${list.length}</b>${bar(done, list.length)}</header>`;
     }
 
     // ── 액트 카드 ──────────────────────────────────────────────────
@@ -45,27 +45,27 @@ const mapListUi = (() => {
         const state = getMapCardState(facts.current, facts.cleared, facts.recommended);
         return buildMapCardActionsHtml({ state, isActRewardZone: facts.zone.type === 'act' && facts.id <= 9, rewardReady: facts.rewardReady,
             rewardClaimed: facts.rewardClaimed, zoneId: facts.id, enterAction: facts.current ? "switchTab('tab-battle')" : `changeZone(${facts.id})`,
-            enterLabel: facts.current ? '전투 보기' : '이동' });
+            enterLabel: _t(facts.current ? '전투 보기' : '이동') });
     }
     function actCardHtml(facts, hideReward) {
         const title = actTitle(facts.zone), story = facts.zone.type === 'act' ? getStoryActByZoneId(facts.id) : null, land = actLandscape(facts);
         const cls = ['map-act-card', facts.current ? 'current' : '', facts.cleared ? 'is-cleared' : '', facts.recommended ? 'is-recommended' : '', facts.reveal ? 'map-unlock-reveal' : ''];
         return `<div class="${cls.filter(Boolean).join(' ')}" role="group"${facts.current ? ' aria-current="true"' : ''}${land ? ` style="--act-land:url('${land}')"` : ''}>`
-            + `<div class="map-act-body">${title.label ? `<small>${esc(title.label)}</small>` : ''}<strong>${esc(title.name)}</strong>${worldTreeBarkUi.barkMapChipHtml(facts.zone)}`
-            + `${story ? `<span class="map-act-boss">보스 ${esc(story.bossName)}</span>` : ''}${buildMapPowerEstimateHtml(facts.zone, { hideReward })}</div>`
+            + `<div class="map-act-body">${title.label ? `<small>${esc(_t(title.label))}</small>` : ''}<strong>${esc(_t(title.name))}</strong>${worldTreeBarkUi.barkMapChipHtml(facts.zone)}`
+            + `${story ? `<span class="map-act-boss">${_t('보스')} ${esc(_t(story.bossName))}</span>` : ''}${buildMapPowerEstimateHtml(facts.zone, { hideReward })}</div>`
             + `<div class="map-act-actions">${actActionsHtml(facts)}</div></div>`;
     }
     function actsHtml(list) {
         if (!list.length) return '';
         const hideReward = list.every(reduced);
-        return `${headHtml('일반 나무', list)}<div class="map-act-grid">${list.map(facts => actCardHtml(facts, hideReward)).join('')}</div>`;
+        return `${headHtml(_t('일반 나무'), list)}<div class="map-act-grid">${list.map(facts => actCardHtml(facts, hideReward)).join('')}</div>`;
     }
 
     // ── 혼돈 타일 ──────────────────────────────────────────────────
     function chaosStateText(facts, next) {
-        if (facts.current) return '현재';
-        if (facts.cleared) return '완료';
-        return next ? '다음' : '도전';
+        if (facts.current) return _t('현재');
+        if (facts.cleared) return _t('완료');
+        return _t(next ? '다음' : '도전');
     }
     function chaosTileClass(facts, next, parts) {
         return ['map-chaos-tile', facts.current ? 'is-current' : '', facts.cleared ? 'is-cleared' : '', next ? 'is-next' : '',
@@ -73,19 +73,19 @@ const mapListUi = (() => {
     }
     function chaosTileHtml(facts, next, hideReward) {
         const parts = getMapPowerEstimateParts(facts.zone), depth = getAbyssDepthFromZoneId(facts.id), state = chaosStateText(facts, next);
-        const cut = !hideReward && reduced(facts) ? ', 보상 감소' : '';
+        const cut = !hideReward && reduced(facts) ? `, ${_t('보상 감소')}` : '';
         const dots = (getChaosBossElements(facts.zone) || []).map(key => `<i class="map-power-element is-${key}" aria-label="${getMapEstimateElementName(key)}"></i>`).join('');
         const go = facts.current ? ` onclick="switchTab('tab-battle')"` : ` data-exploration-departure onclick="changeZone(${facts.id})"`;
         const tip = parts ? ` ${parts.attrs} ${POWER_TIP}` : '';
-        return `<button type="button" class="${chaosTileClass(facts, next, parts)}"${go} aria-label="혼돈 ${depth}, ${state}"${tip}>`
-            + `<small>혼돈</small><b>${depth}</b><span class="map-chaos-dots">${dots}</span><em>${state}${cut}</em>${worldTreeBarkUi.barkMapChipHtml(facts.zone)}${parts ? parts.environment : ''}</button>`;
+        return `<button type="button" class="${chaosTileClass(facts, next, parts)}"${go} aria-label="${_t('혼돈')} ${depth}, ${state}"${tip}>`
+            + `<small>${_t('혼돈')}</small><b>${depth}</b><span class="map-chaos-dots">${dots}</span><em>${state}${cut}</em>${worldTreeBarkUi.barkMapChipHtml(facts.zone)}${parts ? parts.environment : ''}</button>`;
     }
     function chaosHtml(list) {
         const deep = getDeepChaosMapEntryHtml();
         if (!list.length && !deep) return '';
         const hideReward = list.every(reduced), next = list.find(facts => !facts.cleared && !facts.current);
         const tiles = list.map(facts => chaosTileHtml(facts, facts === next, hideReward)).join('');
-        return `${headHtml('혼돈', list)}<div class="map-chaos-board">${tiles}</div>${deep}`;
+        return `${headHtml(_t('혼돈'), list)}<div class="map-chaos-board">${tiles}</div>${deep}`;
     }
 
     function paint(id, html, cacheKey) {
@@ -109,39 +109,39 @@ const mapListUi = (() => {
     const BOSS_EMBLEMS = Object.freeze({ fire: 'flame', cold: 'drop', light: 'up', chaos: 'eye', phys: 'sword' });
     function bossTrack(zone) {
         const tracks = { underworld: '지하계 종착', ocean: '심해 종착', sky: '창공 종착', convergence: '아틀라스 종착' };
-        return tracks[zone.pinnacleTrack] || (zone.cosmosCapstone ? '우주계 종착' : '');
+        return _t(tracks[zone.pinnacleTrack] || (zone.cosmosCapstone ? '우주계 종착' : ''));
     }
     function bossStatus(zone, entry, done) {
-        if (entry.travelBlocked) return '현재 탐험 종료 후 이동 가능';
+        if (entry.travelBlocked) return _t('현재 탐험 종료 후 이동 가능');
         if (!entry.gate.met) return entry.gate.label;
-        if (zone.milestonePinnacle) return done ? '최초 격파 완료, 재도전 가능' : '도전 가능';
-        return entry.hasEntry ? '도전 가능' : '열쇠 필요';
+        if (zone.milestonePinnacle) return _t(done ? '최초 격파 완료, 재도전 가능' : '도전 가능');
+        return _t(entry.hasEntry ? '도전 가능' : '열쇠 필요');
     }
     function bossActionHtml(zone, entry) {
-        if (entry.current) return '<button type="button" onclick="switchTab(\'tab-battle\')">전투로 돌아가기</button>';
-        if (entry.travelBlocked) return '<button type="button" disabled>이동 대기</button>';
-        if (!entry.gate.met) return '<button type="button" disabled>선행 조건 필요</button>';
+        if (entry.current) return '<button type="button" onclick="switchTab(\'tab-battle\')">' + _t('전투로 돌아가기') + '</button>';
+        if (entry.travelBlocked) return `<button type="button" disabled>${_t('이동 대기')}</button>`;
+        if (!entry.gate.met) return `<button type="button" disabled>${_t('선행 조건 필요')}</button>`;
         if (!entry.hasEntry) return '';
-        return `<button type="button" data-exploration-departure onclick="changeZone('${zone.id}')">도전</button>`;
+        return `<button type="button" data-exploration-departure onclick="changeZone('${zone.id}')">${_t('도전')}</button>`;
     }
     /** The key row: how many keys the hero holds and where they drop (milestone pinnacles need no key). */
     function bossKeyHtml(zone, entry) {
         const key = ORB_DB[zone.key];
         if (!key || zone.milestonePinnacle) return '';
-        return `<p class="map-boss-row${entry.keyCount > 0 ? ' is-have' : ''}"><span>열쇠</span><b>${entry.keyCount}개</b>${key.source ? `<small>${esc(key.source)}</small>` : ''}</p>`;
+        return `<p class="map-boss-row${entry.keyCount > 0 ? ' is-have' : ''}"><span>${_t('열쇠')}</span><b>${_t('{n}개', { n: entry.keyCount })}</b>${key.source ? `<small>${esc(key.source)}</small>` : ''}</p>`;
     }
     function bossCardHtml(zone, hideReward) {
         const entry = explorationAtlasUi.bossEntry(zone), done = Array.isArray(game.clearedRootBosses) && game.clearedRootBosses.includes(zone.id);
         const ele = BOSS_EMBLEMS[zone.ele] ? zone.ele : 'phys', track = bossTrack(zone), reward = explorationAtlasUi.bossRewardLabel(zone);
         const cls = ['map-boss-card', `is-${ele}`, entry.ready ? 'is-ready' : 'is-locked', game.currentZoneId === zone.id ? 'current' : ''].filter(Boolean).join(' ');
         return `<div class="${cls}" data-boss-id="${zone.id}"><span class="map-boss-emblem">${renderPixelIcon(BOSS_EMBLEMS[ele], 'map-boss-glyph')}</span>`
-            + `<div class="map-boss-body"><div class="map-boss-title"><strong>${esc(zone.name)}</strong><em${done ? ' class="is-done"' : ''}>${done ? '격파 완료' : '미격파'}</em></div>`
+            + `<div class="map-boss-body"><div class="map-boss-title"><strong>${esc(_t(zone.name))}</strong><em${done ? ' class="is-done"' : ''}>${_t(done ? '격파 완료' : '미격파')}</em></div>`
             + `${track ? `<span class="map-boss-track">${track}</span>` : ''}${buildMapPowerEstimateHtml(zone, { hideReward })}</div>`
-            + `${reward ? `<p class="map-boss-row is-reward"><span>보상</span><b>${esc(reward)}</b></p>` : ''}${bossKeyHtml(zone, entry)}`
+            + `${reward ? `<p class="map-boss-row is-reward"><span>${_t('보상')}</span><b>${esc(reward)}</b></p>` : ''}${bossKeyHtml(zone, entry)}`
             + `<div class="map-boss-foot"><span>${esc(bossStatus(zone, entry, done))}</span>${bossActionHtml(zone, entry)}</div></div>`;
     }
     function bossGroupsHtml(zones) {
-        if (!zones.length) return '<p class="encounter-empty">아직 발견한 보스가 없습니다.</p>';
+        if (!zones.length) return `<p class="encounter-empty">${_t('아직 발견한 보스가 없습니다.')}</p>`;
         const hideReward = zones.every(zone => levelProgressionUi.rewardHint(zone));
         const cards = list => list.map(zone => ({ html: bossCardHtml(zone, hideReward) }));
         const ready = zones.filter(zone => explorationAtlasUi.bossEntry(zone).ready)
@@ -151,10 +151,10 @@ const mapListUi = (() => {
             ['rivalBosses', '버려진 날붙이', zone => zone.rivalBlade], ['pinnacleBosses', '경계의 수호자', zone => (zone.cosmosCapstone || zone.milestonePinnacle) && !zone.pinnacleCapstone],
             ['finalGate', '최종 관문', zone => zone.pinnacleCapstone]].map(([key, title, test]) => [key, title, pending.filter(test)]).filter(([, , list]) => list.length);
         const done = zones.filter(zone => game.clearedRootBosses.includes(zone.id)).length;
-        const head = `<header class="map-list-head"><strong>강대한 적</strong>${hideReward ? '<em>모든 보스 보상 감소</em>' : ''}<b>격파 ${done}/${zones.length}</b>${bar(done, zones.length)}</header>`;
-        return head + (ready.length ? buildMapZoneGroupHtml('availableBosses', '입장 가능', cards(ready)) : '')
-            + (pending.length ? '<h3 class="encounter-pending-title">준비가 필요한 보스</h3>' : '')
-            + groups.map(([key, title, list], index) => buildMapZoneGroupHtml(key, title, cards(list), ready.length > 0 || index > 0)).join('');
+        const head = `<header class="map-list-head"><strong>${_t('강대한 적')}</strong>${hideReward ? `<em>${_t('모든 보스 보상 감소')}</em>` : ''}<b>${_t('격파')} ${done}/${zones.length}</b>${bar(done, zones.length)}</header>`;
+        return head + (ready.length ? buildMapZoneGroupHtml('availableBosses', _t('입장 가능'), cards(ready)) : '')
+            + (pending.length ? `<h3 class="encounter-pending-title">${_t('준비가 필요한 보스')}</h3>` : '')
+            + groups.map(([key, title, list], index) => buildMapZoneGroupHtml(key, _t(title), cards(list), ready.length > 0 || index > 0)).join('');
     }
     /** The 강대한 적 list; keeps focus on the same boss button across a redraw. */
     function renderBosses(zones) {

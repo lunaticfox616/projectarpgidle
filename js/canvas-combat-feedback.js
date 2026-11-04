@@ -122,7 +122,7 @@ worldTreeSkillFx.feedback = (() => {
     // 띠는 보스 처치만: 여러 마리를 한꺼번에 잡을 때 뜨던 "N마리 처치"는 밋밋해 뺐다(2026-10-06 사용자 요청).
     function deathNotice(fx, now) {
         if (!fx.boss) return;
-        notice = { text: '보스 처치', detail: stripDecorativeEmoji(fx.name || ''), start: now, duration: 1850 };
+        notice = { text: _t('보스 처치'), detail: stripDecorativeEmoji(fx.name || ''), start: now, duration: 1850 };
     }
 
     function contactStyle(fx) {
@@ -210,10 +210,10 @@ worldTreeSkillFx.feedback = (() => {
         ctx.fillRect(x - 20, y + 38, 40, 1);
         ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
         // 갈무리의 제 크기(제목 24px, 설명은 갈무리14 15px)와 정수 화소: 22px, 14px은 도트가 번졌다(2026-10-21).
-        ctx.font = `24px ${BATTLE_PIXEL_FONT}`;
-        ctx.fillStyle = '#f1d69b'; drawCrispCanvasText(ctx, notice.text, x, y + 2);
+        ctx.font = `24px ${battlePixelFont()}`;
+        ctx.fillStyle = '#f1d69b'; drawCrispCanvasText(ctx, _t(notice.text), x, y + 2);
         if (notice.detail) {
-            ctx.font = `15px 'Galmuri14', ${BATTLE_PIXEL_FONT}`;
+            ctx.font = `15px 'Galmuri14', ${battlePixelFont()}`;
             ctx.fillStyle = '#d6ccbc';
             if (ctx.measureText(notice.detail).width <= width - 20) drawCrispCanvasText(ctx, notice.detail, x, y + 24);
             else ctx.fillText(notice.detail, x, y + 24, width - 20);

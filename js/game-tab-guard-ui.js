@@ -71,7 +71,7 @@ const gameTabGuard = (() => {
 
     // The page holds a default game before it loads the save (js/passives.js), so a standby page must never write either.
     function blockWrites() {
-        setLocalSaveRuntimeState('standby', { writable: false, message: '다른 탭에서 게임을 이어 하고 있어 이 탭은 저장하지 않습니다.' });
+        setLocalSaveRuntimeState('standby', { writable: false, message: _t('다른 탭에서 게임을 이어 하고 있어 이 탭은 저장하지 않습니다.') });
     }
 
     /** A newer tab said hello: this tab saves (when that tab waits and the hello came in time), writes nothing after that, says it handed

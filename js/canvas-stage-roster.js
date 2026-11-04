@@ -325,7 +325,7 @@ const stageRoster = (() => {
         ctx.restore();
     }
     /** The looks the test panel can pick: [id, name], by name. */
-    const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], 'ko')) : []);
+    const looks = () => (table() ? Object.values(table().actors).map(actor => [actor.id, actor.name]).sort((a, b) => a[1].localeCompare(b[1], i18n.locale)) : []);
 
     function notePlacement(enemy, actor, p, pose) {
         if (!enemy.isBoss) return;

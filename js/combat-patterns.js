@@ -114,7 +114,7 @@
     }
     /** The name, damage and warning shape of a 파쇄 강타 or first-loop attack: a plain heavy blow, or the special (the boss's own shape for intro). */
     function slamLook(mode, special, intro, cosmosPattern) {
-        if (!special) return { label: '무거운 일격', damageMul: 1, telegraphKind: 'ring' };
+        if (!special) return { label: _t('무거운 일격'), damageMul: 1, telegraphKind: 'ring' };
         return { label: intro ? intro.label : BOSS_PATTERN_NAMES[mode], damageMul: getBossPatternPeakDamageMultiplier(cosmosPattern ? 'cosmos' : mode),
             telegraphKind: intro ? intro.telegraphKind : 'ring' };
     }
@@ -127,7 +127,7 @@
         const plan = styleSpecialPlan(enemy, attackNumber, 'area');
         return {
             mode: 'ramp',
-            label: cosmosStage > 0 ? `격앙 ${'ⅠⅡⅢ'[Math.min(2, cosmosStage - 1)]}` : '격앙 전조',
+            label: cosmosStage > 0 ? _t('격앙 {value}', { value: 'ⅠⅡⅢ'[Math.min(2, cosmosStage - 1)] }) : '격앙 전조',
             damageMul: cosmosPattern ? 1.12 : (1 + stage * 0.07),
             isSpecial: cosmosPattern || plan.special,
             telegraphKind: cosmosPattern ? 'pulse' : (plan.telegraphKind || 'pulse'),

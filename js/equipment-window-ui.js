@@ -13,8 +13,8 @@ const equipmentWindowUi = (() => {
     /** 바꾸면 표의 이름 색: 요약과 같은 능력치는 요약과 같은 색. */
     const DELTA_TINT = Object.freeze({ dps: 'dps', summonDps: 'dps', maxHp: 'life', energyShield: 'es', resF: 'fire', resC: 'cold', resL: 'light',
         resChaos: 'chaos', armor: 'armor', evasion: 'evasion' });
-    const fmt = value => Math.floor(Number(value) || 0).toLocaleString('ko-KR');
-    const pretty = text => (/^-?\d{4,}$/.test(text) ? Number(text).toLocaleString('ko-KR') : text);
+    const fmt = value => Math.floor(Number(value) || 0).toLocaleString(i18n.locale);
+    const pretty = text => (/^-?\d{4,}$/.test(text) ? Number(text).toLocaleString(i18n.locale) : text);
     const slotName = slot => (typeof getDualSlotDisplayLabel === 'function' ? getDualSlotDisplayLabel(slot) : String(slot).replace(/[123]$/, ''));
     function setHtml(node, html) {
         if (node && node.__eqwHtml !== html) { node.innerHTML = html; node.__eqwHtml = html; }
@@ -24,24 +24,24 @@ const equipmentWindowUi = (() => {
     function ehpItems(stats) {
         const profile = typeof calculatePlayerEhpProfile === 'function' ? calculatePlayerEhpProfile(stats) : null;
         if (!profile) return '';
-        return EHP.map(([name, key]) => `<span style="--c:${COLOR[key]}" data-tip="직격 ${fmt(profile.elements[key].direct)}">${name} <b>${fmt(profile.elements[key].entropy)}</b></span>`).join('');
+        return EHP.map(([name, key]) => `<span style="--c:${COLOR[key]}" data-tip="${_t('직격 {value}', { value: fmt(profile.elements[key].direct) })}">${_t(name)} <b>${fmt(profile.elements[key].entropy)}</b></span>`).join('');
     }
     /** The phone's one-line summary: 유효 생명력 and the five values in one wrapping row. */
     function ehpHtml(stats) {
         const items = ehpItems(stats);
-        return items ? `<div class="eqw-ehp"><span class="eqw-ehp-label">유효 생명력</span>${items}</div>` : '';
+        return items ? `<div class="eqw-ehp"><span class="eqw-ehp-label">${_t('유효 생명력')}</span>${items}</div>` : '';
     }
     /** DPS and 유효 생명력 only (2026-10-21 사용자: "DPS/EHP 만 보이게 하고 나머지는 삭제해"; 저항, 생명력, 보호막, 방어도, 회피는 캐릭터 창에).
      * Names in the left column, values in the right one (2026-10-24 사용자: the five values stay one group when they wrap). */
     function fullHtml(stats, dps) {
         const ehp = ehpItems(stats);
         return `<div class="eqw-summary-full"><span class="eqw-sum-label"><span class="px-center">DPS</span></span><div class="eqw-sum-value eqw-dps" style="--c:${COLOR.dps}"><b>${dps}</b></div>`
-            + (ehp ? `<span class="eqw-sum-label"><span class="px-center">유효 생명력</span></span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : '') + '</div>';
+            + (ehp ? `<span class="eqw-sum-label"><span class="px-center">${_t('유효 생명력')}</span></span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : '') + '</div>';
     }
     /** Phone: DPS and 유효 생명력 under a toggle that unfolds the equipped gear and the presets (game.settings.equipmentMobilePane). */
     function miniHtml(stats, dps) {
         const open = (game.settings || {}).equipmentMobilePane === 'loadout';
-        return `<div class="eqw-summary-mini"><button type="button" class="eqw-mini-toggle" aria-expanded="${open}" onclick="equipmentWindowUi.toggleLoadout()">장착 장비 ${open ? '▴' : '▾'}</button>
+        return `<div class="eqw-summary-mini"><button type="button" class="eqw-mini-toggle" aria-expanded="${open}" onclick="equipmentWindowUi.toggleLoadout()">${_t('장착 장비')} ${open ? '▴' : '▾'}</button>
             <div class="eqw-mini-dps" style="--c:${COLOR.dps}"><small>DPS</small><b>${dps}</b></div><div class="eqw-mini-line">${ehpHtml(stats)}</div></div>`;
     }
     function toggleLoadout() {
@@ -54,7 +54,7 @@ const equipmentWindowUi = (() => {
         const cap = document.getElementById('ui-equipment-bag-capacity');
         if (cap) {
             const used = getInventoryUsedCellCount(game), limit = Math.max(1, getInventoryLimit(game));
-            setHtml(cap, `<b>가방</b><small>${used}/${limit}칸</small><i style="--v:${Math.min(100, Math.round(100 * used / limit))}%"></i>`);
+            setHtml(cap, `<b>${_t('가방')}</b><small>${_t('{used}/{limit}칸', { used, limit })}</small><i style="--v:${Math.min(100, Math.round(100 * used / limit))}%"></i>`);
             cap.classList.toggle('is-full', used >= limit);
         }
         const input = document.getElementById('ui-equipment-bag-search');
@@ -97,7 +97,7 @@ const equipmentWindowUi = (() => {
         const empty = !getSearchFilterState().equip.trim();
         document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) [data-search-salvage]').forEach(button => {
             button.disabled = empty;
-            button.dataset.tip = empty ? '가방 검색어를 먼저 입력하세요.' : '';
+            button.dataset.tip = empty ? _t('가방 검색어를 먼저 입력하세요.') : '';
         });
     }
     /** Opening one panel closes the others (the toggle event does not bubble, so the document listens in the capture phase). */
@@ -208,7 +208,7 @@ const equipmentWindowUi = (() => {
             const section = document.createElement('section');
             section.className = `eqw-compare-pane${index === selected ? ' active' : ''}`;
             const head = document.createElement('h5');
-            head.textContent = pane.label;
+            head.textContent = _t(pane.label);
             section.append(head, pane.node);
             wrap.lastElementChild.append(section);
         });
@@ -229,21 +229,21 @@ const equipmentWindowUi = (() => {
         return worn.map(row => `<span class="${row.rarity || 'normal'}">${escapeHTML(row.name || row.baseName || '장비')}</span>`).join(', ');
     }
     function subtitleOf(slot, slots) {
-        if (slot) return `${slotName(slot)} 칸에 장착 중`;
-        return slots.length ? `${slots.map(slotName).join(', ')} 칸과 비교` : '';
+        if (slot) return _t('{slot} 칸에 장착 중', { slot: slotName(slot) });
+        return slots.length ? _t('{slots} 칸과 비교', { slots: slots.map(slotName).join(', ') }) : '';
     }
     const deltaTablesHtml = slots => slots.map(target => `<div class="eqw-deltas" data-eqw-slot="${escapeHTML(target)}"><div class="eqw-dl-head">바꾸면${slots.length > 1 ? `, ${escapeHTML(slotName(target))}` : ''}</div>
-        <div class="eqw-dl-body"><p class="eqw-none">계산 중</p></div></div>`).join('');
+        <div class="eqw-dl-body"><p class="eqw-none">${_t('계산 중')}</p></div></div>`).join('');
     /** The panel's markup (js/canvas-passive-tree.js renderEquipmentInventoryInspector); the 바꾸면 tables fill in afterwards (fillDeltas). */
     function inspectorHtml(item, slot, actionsHtml, flags) {
         const slots = slot ? [] : compareSlots(item);
-        const hint = slot ? escapeHTML(item.baseName || '장착 중') : bagItems.isJewel(item) ? '빈 소켓이 있는 장비에 끼웁니다' : `지금 장착: ${wornNames(slots)}`;
+        const hint = slot ? escapeHTML(_t(item.baseName || '장착 중')) : bagItems.isJewel(item) ? '빈 소켓이 있는 장비에 끼웁니다' : _t('지금 장착: {slots}', { slots: wornNames(slots) });
         const rarity = item.rarity || 'normal';
-        return `<h4 class="eqw-title">선택한 장비<small>${escapeHTML(subtitleOf(slot, slots))}</small></h4>
+        return `<h4 class="eqw-title">${_t('선택한 장비')}<small>${escapeHTML(subtitleOf(slot, slots))}</small></h4>
             <div class="eqw-pick rarity-${rarity}"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><div><b class="${rarity}">${escapeHTML(item.name || item.baseName || '장비')}</b>
                 <small>${hint}${flags ? `, ${escapeHTML(flags)}` : ''}</small></div></div>
             <div class="eqw-inspector-body">${deltaTablesHtml(slots)}${orderedBody(actionsHtml)}</div>
-            <button type="button" class="equipment-grid-inspector-close" aria-label="선택 닫기" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
+            <button type="button" class="equipment-grid-inspector-close" aria-label="${_t('선택 닫기')}" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
     }
     /** 휴대폰 카드(sheet)는 단추 줄을 옵션 뒤에 그린다: 바꾸면 표 바로 밑의 단추 줄이 카드의 끝처럼 보여 아래의 옵션을 찾기 어려웠다.
      * css/equipment-window.css가 그 줄을 카드 아래에 붙인다. 넓은 창은 표, 단추, 옵션 차례 그대로다. */
@@ -257,10 +257,10 @@ const equipmentWindowUi = (() => {
         const actions = button.closest('.equipment-grid-inspector-actions');
         const open = actions.classList.toggle('tools-open');
         button.setAttribute('aria-expanded', String(open));
-        button.textContent = open ? '관리 닫기' : '장비 관리';
+        button.textContent = open ? _t('관리 닫기') : _t('장비 관리');
     }
     /** The panel without a selection: in the right column it keeps its title band. */
-    const emptyHtml = message => `<h4 class="eqw-title">선택한 장비</h4><div class="equipment-grid-inspector-empty">${message}</div>`;
+    const emptyHtml = message => `<h4 class="eqw-title">${_t('선택한 장비')}</h4><div class="equipment-grid-inspector-empty">${message}</div>`;
 
     /** Stats with `item` in `slot`, by the comparison tooltip's own swap (js/ui.js buildSlotPanel). @returns [before, after] */
     function swapStats(item, slot) {
@@ -281,28 +281,28 @@ const equipmentWindowUi = (() => {
         // DPS는 앞뒤 값이 이미 길어서 증감은 비율만 적는다(좁은 칸에서 "-473,651 (-24.7%)"가 네 줄로 꺾였다).
         const pct = key === 'dps' && a > 0 ? `${sign}${Math.abs(100 * d / a).toFixed(1)}%` : '';
         const tint = COLOR[DELTA_TINT[key]];
-        return `<div class="eqw-dl ${d > 0 ? 'up' : 'down'}${rest ? ' is-rest' : ''}"><span${tint ? ` style="color:${tint}"` : ''}>${meta.label}</span><b>${pretty(meta.format(a))}</b><i>→</i>`
+        return `<div class="eqw-dl ${d > 0 ? 'up' : 'down'}${rest ? ' is-rest' : ''}"><span${tint ? ` style="color:${tint}"` : ''}>${_t(meta.label)}</span><b>${pretty(meta.format(a))}</b><i>→</i>`
             + `<b>${pretty(meta.format(b))}</b><em>${pct || `${sign}${pretty(meta.format(Math.abs(d)))}`}</em></div>`;
     }
     function uniqueRows(item, worn) {
         if ((worn && worn.uniqueEffect) === item.uniqueEffect) return '';
-        const gain = item.uniqueEffect ? `<div class="eqw-dl-note is-gain">획득: ${escapeHTML(item.uniqueEffect)}</div>` : '';
-        return gain + (worn && worn.uniqueEffect ? `<div class="eqw-dl-note is-loss">상실: ${escapeHTML(worn.uniqueEffect)}</div>` : '');
+        const gain = item.uniqueEffect ? `<div class="eqw-dl-note is-gain">${_t('획득: {uniqueEffect}', { uniqueEffect: escapeHTML(_t(item.uniqueEffect)) })}</div>` : '';
+        return gain + (worn && worn.uniqueEffect ? `<div class="eqw-dl-note is-loss">${_t('상실: {uniqueEffect}', { uniqueEffect: escapeHTML(_t(worn.uniqueEffect)) })}</div>` : '');
     }
     /** 허리띠를 바꾸면 달라지는 액막이 칸 한 줄(2026-10-11, 허리띠마다 1~3칸이라): 칸 수 변화만(사용자: "액막이 칸수 변화만 보여줘"). */
     function wardRows(item, slot) {
         const change = colonyWards.slotChange(item, slot);
         if (!change) return '';
-        return `<div class="eqw-dl-note ${change.to > change.from ? 'is-gain' : 'is-loss'}">액막이 칸 ${change.from} → ${change.to}</div>`;
+        return `<div class="eqw-dl-note ${change.to > change.from ? 'is-gain' : 'is-loss'}">${_t('액막이 칸 {from} → {to}', { from: change.from, to: change.to })}</div>`;
     }
     /** 휴대폰의 바꾸면 표는 요약에 있는 능력치(DPS, 생명력, 보호막, 방어, 저항)만 먼저 보인다. 표가 열다섯 줄까지 길어져 그 아래 고른 장비의
      * 옵션이 밀렸다(2026-10-11). 나머지 줄은 이 단추로 편다(css/equipment-window.css .eqw-dl-more, PC에서는 단추 없이 다 보인다). */
     function restButton(count) {
-        return count ? `<button type="button" class="eqw-dl-more" data-rest="${count}" onclick="equipmentWindowUi.toggleDeltas(this)">나머지 변화 ${count}줄 보기</button>` : '';
+        return count ? `<button type="button" class="eqw-dl-more" data-rest="${count}" onclick="equipmentWindowUi.toggleDeltas(this)">${_t('나머지 변화 {count}줄 보기', { count })}</button>` : '';
     }
     function toggleDeltas(button) {
         const open = button.closest('.eqw-dl-body').classList.toggle('is-open');
-        button.textContent = open ? '접기' : `나머지 변화 ${button.dataset.rest}줄 보기`;
+        button.textContent = open ? _t('접기') : _t('나머지 변화 {rest}줄 보기', { rest: button.dataset.rest });
         equipmentInventoryInteraction.positionInspector();
     }
     function deltaHtml(item, slot) {
@@ -336,7 +336,7 @@ const equipmentWindowUi = (() => {
             const focused = body.contains(document.activeElement);
             body.innerHTML = deltaCache.get(key);
             const more = body.querySelector('.eqw-dl-more');
-            if (more && body.classList.contains('is-open')) more.textContent = '접기';
+            if (more && body.classList.contains('is-open')) more.textContent = _t('접기');
             if (focused) more?.focus({ preventScroll: true });
         };
         const run = () => {

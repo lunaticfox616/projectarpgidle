@@ -165,7 +165,7 @@ const stageDoorMarks = (() => {
         return to && !run.visitedRooms.includes(to.id) ? '다음 방' : '';
     }
     // NPC 이름처럼 갈무리11 12px(2026-10-21): 적어 둔 MulmaruMono는 웹 글꼴로 불러오지 않아 맑은 고딕 13px로 그려졌다.
-    const LABEL_FONT = `12px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+    const LABEL_FONT = `12px ${i18n.fontFamily("'Galmuri11'")}`;
     function markLabel(ctx, label, at, colour) {
         ctx.globalAlpha = 1;
         ctx.font = LABEL_FONT;

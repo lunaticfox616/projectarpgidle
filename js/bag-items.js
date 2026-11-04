@@ -42,7 +42,7 @@ const bagItems = (() => {
     function countNote(items) {
         const counts = [[JEWEL, items.filter(isJewel).length], [CORE, items.filter(isCore).length],
             ['액막이', items.filter(item => colonyWards.isWard(item)).length]];
-        return counts.filter(([, count]) => count > 0).map(([label, count]) => `${label} ${count}개`).join(', ');
+        return counts.filter(([, count]) => count > 0).map(([label, count]) => _t('{label} {count}개', { label, count })).join(', ');
     }
 
     /** Load boundary of a jewel or a core in the bag or a slot (the old jewel store's rule: lines from getJewelStats, at most four,

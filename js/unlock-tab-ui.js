@@ -205,10 +205,10 @@ const unlockTabUi = {
     /** 강화 단계에서 되는 값: 칸에 그대로 적는다. rank 0은 강화 전. */
     upgradeEffect(series, rank) {
         const spec = CONTENT_UNLOCK_SERIES.find(row => row.series === series);
-        if (series === 'offlineHours') return `${OFFLINE_PROGRESS_RECOGNITION_HOURS[rank]}시간`;
+        if (series === 'offlineHours') return _t('{value}시간', { value: OFFLINE_PROGRESS_RECOGNITION_HOURS[rank] });
         if (series === 'offlineRate') return `${Math.round(OFFLINE_PROGRESS_EFFICIENCY_RATES[rank] * 100)}%`;
-        if (series === 'bagPage') return `${1 + rank}페이지`;
-        if (series === 'stumpSeal') return `${rank}칸`;
+        if (series === 'bagPage') return _t('{value}페이지', { value: 1 + rank });
+        if (series === 'stumpSeal') return _t('{rank}칸', { rank });
         if (series === 'stumpQuality') return `${130 + rank * 10}%`;
         if (series === 'stumpNurseryRate') return `${Math.round((STUMP_BOX_NURSERY.rate + rank * STUMP_BOX_NURSERY.ratePerRank) * 100)}%`;
         return `+${rank * spec.storage}`;
@@ -216,9 +216,9 @@ const unlockTabUi = {
     gainOf(def) {
         if (!def.series) return def.gain || '';
         const after = this.upgradeEffect(def.series, def.rank);
-        if (def.series === 'stumpSeal') return `봉인 칸 ${after}`;
-        if (def.series === 'stumpQuality') return `품질 상한 ${after}${def.rank > 1 ? `, 접붙이기 ${def.rank + 4}단계` : ''}`;
-        if (def.series === 'stumpStorage') return `보관함 ${after}칸`;
+        if (def.series === 'stumpSeal') return _t('봉인 칸 {after}', { after });
+        if (def.series === 'stumpQuality') return `품질 상한 ${after}${def.rank > 1 ? _t(', 접붙이기 {value}단계', { value: def.rank + 4 }) : ''}`;
+        if (def.series === 'stumpStorage') return _t('보관함 {after}칸', { after });
         return `${this.upgradeEffect(def.series, def.rank - 1)} → ${after}`;
     },
     cardName: def => (def.rail ? CONTENT_UNLOCK_RAILS.find(row => row.rail === def.rail).name : def.name),
@@ -235,7 +235,7 @@ const unlockTabUi = {
         return `fam-${unlockBoard.familyOf(def)} kind-${contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}`;
     },
     nodeHtml(def, L, marks) {
-        const at = L.pos.get(def.id), state = this.stateOf(def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = escapeHTML(def.name);
+        const at = L.pos.get(def.id), state = this.stateOf(def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = escapeHTML(_t(def.name));
         if (at.step) return `<button type="button" class="unlock-pip ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, true)}" aria-label="${name}" style="${style}">${escapeHTML(this.upgradeEffect(def.series, def.rank))}</button>`;
         const chip = state !== 'owned' && def.cost ? `<small class="unlock-chip">${def.cost}P</small>` : '';
         const second = L.cardH >= UNLOCK_BOARD_SIZE.gainFrom ? `<small class="unlock-card-gain">${escapeHTML(this.cardGain(def))}</small>` : '';
@@ -294,23 +294,23 @@ const unlockTabUi = {
         const points = contentProgression.points();
         if (points.complete) return '<div class="unlock-stat is-points" data-tip="넘치는 해금 포인트는 그루터기 함 접붙이기 점수가 됩니다."><strong class="is-done">전체 해금 완료</strong></div>';
         const tip = points.balance === points.remaining ? '남은 해금에 필요한 포인트를 모두 모았습니다. 넘치는 몫은 그루터기 함 접붙이기 점수가 됩니다.'
-            : `루프마다 ${CONTENT_UNLOCK_POINT_AWARDS.perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수가 됩니다.`;
-        return `<div class="unlock-stat is-points" data-tip="${tip}"><span>해금 포인트</span><strong>${points.balance}<small>P</small></strong></div>`;
+            : _t('루프마다 {perLoop}P. 남은 해금 비용을 넘는 몫은 그루터기 함 접붙이기 점수가 됩니다.', { perLoop: CONTENT_UNLOCK_POINT_AWARDS.perLoop });
+        return `<div class="unlock-stat is-points" data-tip="${tip}"><span>${_t('해금 포인트')}</span><strong>${points.balance}<small>P</small></strong></div>`;
     },
     headHtml() {
         const ready = this.readyRows().length;
-        return `<header class="unlocks-head">${this.pointsHtml()}<button type="button" class="unlock-stat is-ready" data-unlock-next="1"${ready ? '' : ' disabled'}><span>해금 가능</span><strong>${ready}</strong></button>
-            <div class="unlock-over-slot"></div><div class="unlock-stat is-total"><span>전체</span><strong>${this.openCount()}<small>/${unlockBoard.rows.length}</small></strong></div></header>`;
+        return `<header class="unlocks-head">${this.pointsHtml()}<button type="button" class="unlock-stat is-ready" data-unlock-next="1"${ready ? '' : ' disabled'}><span>${_t('해금 가능')}</span><strong>${ready}</strong></button>
+            <div class="unlock-over-slot"></div><div class="unlock-stat is-total"><span>${_t('전체')}</span><strong>${this.openCount()}<small>/${unlockBoard.rows.length}</small></strong></div></header>`;
     },
     lifecycleHtml(def) {
         const life = def.lifecycle;
         if (!life) return '<p class="unlock-lifetime-note">기능 해금은 다음 루프에도 유지됩니다.</p>';
-        return `<div class="unlock-lifetime"><h5>루프 전환 시, ${escapeHTML(life.label)}</h5><p class="unlock-lifetime-note">기능 해금은 영구 유지</p>
-            ${life.kept ? `<p><b>유지</b>${escapeHTML(life.kept)}</p>` : ''}${life.reset ? `<p><b>초기화</b>${escapeHTML(life.reset)}</p>` : ''}</div>`;
+        return `<div class="unlock-lifetime"><h5>${_t('루프 전환 시, {label}', { label: escapeHTML(_t(life.label)) })}</h5><p class="unlock-lifetime-note">${_t('기능 해금은 영구 유지')}</p>
+            ${life.kept ? `<p><b>${_t('유지')}</b>${escapeHTML(life.kept)}</p>` : ''}${life.reset ? `<p><b>${_t('초기화')}</b>${escapeHTML(life.reset)}</p>` : ''}</div>`;
     },
     relatedHtml(def) {
         if (!def.features) return '';
-        return `<div class="unlock-related"><h5>포함된 성장 요소</h5>${def.features.map(row => `<p><strong>${escapeHTML(row.name)}</strong>${escapeHTML(row.description)}</p>`).join('')}</div>`;
+        return `<div class="unlock-related"><h5>${_t('포함된 성장 요소')}</h5>${def.features.map(row => `<p><strong>${escapeHTML(_t(row.name))}</strong>${escapeHTML(_t(row.description))}</p>`).join('')}</div>`;
     },
     /** 이 해금을 두고 누가 한 말(data/story-journal.js STORY_LOOP_MILESTONES). 글만 보인다. */
     loreHtml(id) {
@@ -319,26 +319,26 @@ const unlockTabUi = {
         return `<blockquote class="story-scene-quote"><p>${lore.narration.map(escapeHTML).join(' ')}</p><p>${escapeHTML(lore.quote)} - ${escapeHTML(speakerShortName(lore.speaker))}</p></blockquote>`;
     },
     moreHtml(def) {
-        return `<details class="unlock-more" id="unlock-more-${def.id}"><summary>자세히</summary><div class="unlock-more-body">${this.loreHtml(def.id)}${this.lifecycleHtml(def)}${this.relatedHtml(def)}</div></details>`;
+        return `<details class="unlock-more" id="unlock-more-${def.id}"><summary>${_t('자세히')}</summary><div class="unlock-more-body">${this.loreHtml(def.id)}${this.lifecycleHtml(def)}${this.relatedHtml(def)}</div></details>`;
     },
     nextHtml(def) {
         const kids = unlockBoard.rows.filter(row => contentProgression.parents(row).includes(def.id));
         if (!kids.length) return '<div class="unlock-next"></div>';
-        return `<div class="unlock-next"><h5>이어지는 해금</h5><div>${kids.map(kid => `<button type="button" class="unlock-next-chip fam-${unlockBoard.familyOf(kid)}" data-unlock-select="${kid.id}">
+        return `<div class="unlock-next"><h5>${_t('이어지는 해금')}</h5><div>${kids.map(kid => `<button type="button" class="unlock-next-chip fam-${unlockBoard.familyOf(kid)}" data-unlock-select="${kid.id}">
             <span class="unlock-ic"><img src="${contentUnlockUi.art(kid)}" alt="" loading="lazy"></span><span>${escapeHTML(unlockBoard.isStep(kid) ? kid.name : this.cardName(kid))}</span></button>`).join('')}</div></div>`;
     },
     actionHtml(def, status) {
-        if (status.unlocked) return contentUnlockUi.routeAction(def) ? `<button type="button" class="unlock-act" data-open-content="${def.id}">바로 사용하기</button>` : '<button type="button" class="unlock-act" disabled>해금 완료</button>';
+        if (status.unlocked) return contentUnlockUi.routeAction(def) ? `<button type="button" class="unlock-act" data-open-content="${def.id}">${_t('바로 사용하기')}</button>` : '<button type="button" class="unlock-act" disabled>해금 완료</button>';
         if (contentProgression.kind(def) === 'auto') return `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
-        return status.available ? `<button type="button" class="unlock-act is-go" data-unlock-content="${def.id}">${def.cost}P 해금</button>` : `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
+        return status.available ? `<button type="button" class="unlock-act is-go" data-unlock-content="${def.id}">${_t('{cost}P 해금', { cost: def.cost })}</button>` : `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
     },
     detailHtml(def) {
         const status = contentProgression.status(def.id), kind = contentProgression.kind(def), kindName = kind === 'auto' ? '자동 개방' : def.rail ? '강화' : '포인트 해금';
-        const conditions = contentProgression.requirements(def.id).map(row => `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(row.label)}</span>`).join('');
+        const conditions = contentProgression.requirements(def.id).map(row => `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(_t(row.label))}</span>`).join('');
         const gain = this.gainOf(def);
         return `<div class="unlock-detail-art fam-${unlockBoard.familyOf(def)} kind-${kind} is-${this.stateOf(def)}"><span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt=""></span></div>
-            <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${unlockBoard.familyOf(def)}">${def.rail ? kindName : `${escapeHTML(def.group)}, ${kindName}`}</span><h4>${escapeHTML(def.name)}${gain ? `<em>${escapeHTML(gain)}</em>` : ''}</h4>
-            <p class="unlock-desc">${escapeHTML(def.description)}</p><div class="unlock-reqs">${status.unlocked ? '' : conditions}</div></div>
+            <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${unlockBoard.familyOf(def)}">${def.rail ? kindName : `${escapeHTML(def.group)}, ${kindName}`}</span><h4>${escapeHTML(_t(def.name))}${gain ? `<em>${escapeHTML(gain)}</em>` : ''}</h4>
+            <p class="unlock-desc">${escapeHTML(_t(def.description))}</p><div class="unlock-reqs">${status.unlocked ? '' : conditions}</div></div>
             ${this.nextHtml(def)}<div class="unlock-detail-action">${contentUnlockUi.entryReward(def, status)}${this.actionHtml(def, status)}${this.moreHtml(def)}</div>`;
     },
 
@@ -376,9 +376,9 @@ const unlockTabUi = {
         const keep = root.querySelector('.unlocks-scroll')?.scrollLeft || 0, keepTop = root.querySelector('.unlocks-scroll')?.scrollTop || 0;
         captureUiDisclosureState(root);
         root.innerHTML = `${this.headHtml()}<div class="unlocks-view"><div class="unlocks-scroll"><div class="unlocks-canvas"></div></div>
-            <div class="unlock-fade is-left"></div><div class="unlock-fade is-right"></div><div class="unlock-corner">루프</div>
+            <div class="unlock-fade is-left"></div><div class="unlock-fade is-right"></div><div class="unlock-corner">${_t('루프')}</div>
             <button type="button" class="unlock-edge is-left" data-unlock-edge="-1"></button><button type="button" class="unlock-edge is-right" data-unlock-edge="1"></button>
-            <button type="button" class="unlock-to-now" data-unlock-now="1">지금으로</button></div><aside class="unlock-detail" aria-label="고른 해금">${this.detailHtml(selected)}</aside>`;
+            <button type="button" class="unlock-to-now" data-unlock-now="1">${_t('지금으로')}</button></div><aside class="unlock-detail" aria-label="${_t('고른 해금')}">${this.detailHtml(selected)}</aside>`;
         restoreUiDisclosureState(root);
         this.fillBoard(root, keep, keepTop);
     },
@@ -411,8 +411,8 @@ const unlockTabUi = {
             el.textContent = label(count);
             el.classList.toggle('is-on', count > 0);
         };
-        paint('.unlock-edge.is-left', spots.filter(at => at.left < left).length, count => `◀ 가능 ${count}`);
-        paint('.unlock-edge.is-right', spots.filter(at => at.right > left + width).length, count => `가능 ${count} ▶`);
+        paint('.unlock-edge.is-left', spots.filter(at => at.left < left).length, count => _t('◀ 가능 {count}', { count }));
+        paint('.unlock-edge.is-right', spots.filter(at => at.right > left + width).length, count => _t('가능 {count} ▶', { count }));
         root.querySelectorAll('.unlock-rail').forEach(el => el.classList.toggle('is-stuck', Number(el.dataset.cardEnd) < left));
         root.querySelector('.unlock-fade.is-left').classList.toggle('is-on', left > 2);
         root.querySelector('.unlock-fade.is-right').classList.toggle('is-on', left + width < total - 2);

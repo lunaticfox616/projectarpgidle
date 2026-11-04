@@ -1,6 +1,6 @@
 const craftingWorkspaceUi = (() => {
     const recipes = [
-        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard','altarEmber','altarIchor'].map(key=>({key,kind:equipmentCrafting.basicRule(equipmentCrafting.resolveAction(key,'normal'))?.kind||({goldenRule:'value',blightSpore:'reset'})[key]||'special',label:ORB_DB[key].name})),
+        ...['magicBud','sapBud','formlessDew','goldenRule','blightSpore','blessing','pruningShears','fairyRing','emberBranch','burningEmberBranch','deepWhetstone','rootIron','jewelPolish','abyssCatalyst','catalystPhys','catalystFire','catalystCold','catalystLight','catalystChaos','catalystCrit','catalystSummon','enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard','altarEmber','altarIchor'].map(key=>({key,kind:equipmentCrafting.basicRule(equipmentCrafting.resolveAction(key,'normal'))?.kind||({goldenRule:'value',blightSpore:'reset'})[key]||'special',label:_t(ORB_DB[key].name)})),
         ...FOSSIL_DB.map(row=>({key:row.key,kind:'fossil',label:row.name}))
     ];
     let root, current=null, owner=null, goal, recipe=recipes[0], mode='none', extras='';
@@ -59,7 +59,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceUseState() { return equipmentCrafting.pendingChoice(game)?CHOICE_WAIT:workspaceResourceState(recipe.key); }
 
     function workspaceResourceState(key) {
-        if(!contentProgression.canOpen('item-tab-craft')||!contentProgression.canDropCurrency(key))return {enabled:false,reason:'아직 해금되지 않았습니다.'};
+        if(!contentProgression.canOpen('item-tab-craft')||!contentProgression.canDropCurrency(key))return {enabled:false,reason:_t('아직 해금되지 않았습니다.')};
         const locked=equipmentCrafting.buildLockReason(game);if(locked)return {enabled:false,reason:locked};
         const row=recipes.find(entry=>entry.key===key);if(!row)return null;
         if(row.kind==='fossil')return workspaceFossilState(key);
@@ -132,7 +132,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceAffixNotes(stat,prior,changed,hit,quality) {
         const kept=!stat.lockedByHoney&&!stat.lockedByRift&&equipmentCrafting.keptOnReroll(selected(),stat);
         return [stat.lockedByHoney?'벌꿀 고정':'',stat.lockedByRift?'균열 고정':'',kept?'다음 재굴림 보존':'',
-            changed&&prior?`이전 +${workspaceAffixValue(prior,prior.val)}`:'',hit?'목표 일치':'',
+            changed&&prior?_t('이전 +{prior}', { prior: workspaceAffixValue(prior,prior.val) }):'',hit?'목표 일치':'',
             quality==='is-max-tier'?'최고 티어':'',emberCorruptionUi.scaleNote(stat)].filter(Boolean)
             .map(note=>note==='목표 일치'?'<strong class="cl-goal-match">목표 일치</strong>':esc(note)).join(', ');
     }
@@ -151,15 +151,15 @@ const craftingWorkspaceUi = (() => {
     /** 허리띠의 액막이 칸 수(축복의 꽃잎이 다시 굴린다, js/colony-wards.js rerollBelt): 기본 옵션 줄 맨 앞에 "액막이 칸 +2 [1 ~ 3]". */
     function workspaceWardSlotsText(item) {
         const slots=colonyWards.beltRoll(item),range=COLONY_WARD_RULES.beltSlots;
-        return slots?`액막이 칸 +${slots} [${range.min} ~ ${range.max}]`:'';
+        return slots?_t('액막이 칸 +{slots} [{min} ~ {max}]', { slots, min: range.min, max: range.max }):'';
     }
 
     function workspaceItemHtml() {
         const item=selected(), sources=new Set(item.stats.map(stat=>equipmentCrafting.getSource(stat)));
         return `<section id="forge-item-display" class="cl-item ${matches(item)?'goal-hit':''}"><div class="cl-item-head"><div class="cl-art"><img src="${esc(getEquipmentGridVisualAsset(item))}" alt="${esc(getItemSlotDisplayLabel(item))}"></div>
-            <div><small>제작 중인 장비 &ensp; T${getItemCraftTier(item)}</small><h2>${esc(item.name)}${craftingWorkspaceUi.imprintMark(item)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${esc(item.baseName)} &ensp; 추가 옵션 ${getItemExplicitOptionCount(item)}/6</span></div></div>
-            <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">수확 ${sources.has('spore')?'1':'0'}/1</span><span class="${sources.has('fossil')?'filled':''}">화석 ${sources.has('fossil')?'1':'0'}/1</span></div>
-            <div class="cl-section-title">추가 옵션</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">혼돈 주입 ${esc(getStatName(item.chaosInfusion.id))} +${esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val))}</li>`:''}</ul>
+            <div><small>${_t('제작 중인 장비 &ensp; T{item}', { item: getItemCraftTier(item) })}</small><h2>${esc(getItemDisplayName(item))}${craftingWorkspaceUi.imprintMark(item)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${_t('{baseName} &ensp; 추가 옵션 {item}/6', { baseName: esc(_t(item.baseName)), item: getItemExplicitOptionCount(item) })}</span></div></div>
+            <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">${_t('수확 {value}/1', { value: sources.has('spore')?'1':'0' })}</span><span class="${sources.has('fossil')?'filled':''}">${_t('화석 {value}/1', { value: sources.has('fossil')?'1':'0' })}</span></div>
+            <div class="cl-section-title">${_t('추가 옵션')}</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">${_t('혼돈 주입 {id} +{chaosInfusion}', { id: esc(getStatName(item.chaosInfusion.id)), chaosInfusion: esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val)) })}</li>`:''}</ul>
             <div class="cl-base">기본 옵션 &ensp; ${[workspaceWardSlotsText(item),...(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} ${esc(formatSignedValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}${itemInfluencesUi.lineBadgeHtml(item,stat)}`)].filter(Boolean).join(' / ')}</div>${workspaceImprintHtml(item)}${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
             ${extras}</section>`;
     }
@@ -168,9 +168,9 @@ const craftingWorkspaceUi = (() => {
     function workspaceImprintHtml(item) {
         const have=game.currencies.memoryImprint||0, imprint=equipmentCrafting.normalizeImprint(item.imprint);
         if(!have&&!imprint)return '';
-        return `<div class="cl-imprint" data-theme="special"><div class="cl-section-title"><span>${workspaceCoin('memoryImprint')}기억 조각칼</span><small>보유 ${have}</small></div>
+        return `<div class="cl-imprint" data-theme="special"><div class="cl-section-title"><span>${_t('{value}기억 조각칼', { value: workspaceCoin('memoryImprint') })}</span><small>${_t('보유 {have}', { have })}</small></div>
             <div class="cl-imprint-actions">${workspaceImprintButton('engrave',imprint?'다시 새기기':'지금 옵션 새기기',equipmentCrafting.engraveReason(game,item))}${imprint?workspaceImprintButton('restore','새긴 옵션으로 되돌리기',equipmentCrafting.restoreReason(item)):''}</div>
-            ${imprint?`<details><summary>기억 새겨짐, 새긴 옵션 ${imprint.stats.length}줄</summary><ul>${imprint.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}${getItemAffixTierHtml(stat)}</li>`).join('')}</ul></details>`:''}</div>`;
+            ${imprint?`<details><summary>${_t('기억 새겨짐, 새긴 옵션 {length}줄', { length: imprint.stats.length })}</summary><ul>${imprint.stats.map(stat=>`<li>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}${getItemAffixTierHtml(stat)}</li>`).join('')}</ul></details>`:''}</div>`;
     }
     const workspaceImprintButton=(command,label,reason)=>`<button type="button" data-command="${command}" ${reason?`disabled data-tip="${esc(reason)}"`:''}>${label}</button>`;
 
@@ -178,42 +178,42 @@ const craftingWorkspaceUi = (() => {
         if(!['add','reroll','fossil','value'].includes(recipe.kind))return '';
         const rule=goal.rules[0]||{statId:'',minTier:0}, choice=workspaceGoalChoice(rule);
         const tiers=Array.from({length:(choice?.maxTier||0)+1},(_,i)=>i);
-        return `<section class="cl-goal"><div class="cl-section-title"><span class="cl-goal-help"><button type="button" id="cl-goal-help" aria-describedby="cl-goal-tooltip">목표 옵션</button><span role="tooltip" id="cl-goal-tooltip">확률은 변경되지 않으며, 목표 옵션 출현 시 강조됩니다. 태그는 그 태그가 붙은 줄 수를 셉니다.</span></span></div><div class="cl-goal-fields ${rule.tag?'has-count':''}">
-            <label>옵션<select id="cl-goal-stat">${workspaceGoalTargetOptions(rule,choice)}</select></label>${workspaceGoalCountHtml(rule,choice)}
-            <label>최소 티어<select id="cl-goal-tier" ${!choice?'disabled':''}>${tiers.map(tier=>`<option value="${tier}" ${tier===rule.minTier?'selected':''}>${tier===0?'티어 무관':`T${tier} 이상`}</option>`).join('')}</select></label></div>${workspaceExtraGoalsHtml()}</section>`;
+        return `<section class="cl-goal"><div class="cl-section-title"><span class="cl-goal-help"><button type="button" id="cl-goal-help" aria-describedby="cl-goal-tooltip">${_t('목표 옵션')}</button><span role="tooltip" id="cl-goal-tooltip">${_t('확률은 변경되지 않으며, 목표 옵션 출현 시 강조됩니다. 태그는 그 태그가 붙은 줄 수를 셉니다.')}</span></span></div><div class="cl-goal-fields ${rule.tag?'has-count':''}">
+            <label>${_t('옵션')}<select id="cl-goal-stat">${workspaceGoalTargetOptions(rule,choice)}</select></label>${workspaceGoalCountHtml(rule,choice)}
+            <label>${_t('최소 티어')}<select id="cl-goal-tier" ${!choice?'disabled':''}>${tiers.map(tier=>`<option value="${tier}" ${tier===rule.minTier?'selected':''}>${tier===0?_t('티어 무관'):_t('T{tier} 이상', { tier })}</option>`).join('')}</select></label></div>${workspaceExtraGoalsHtml()}</section>`;
     }
 
     function workspaceExtraGoalsHtml() {
-        const rows=goal.rules.slice(1).map((rule,index)=>`<li>${esc(rule.tag?AFFIX_TAG_LABELS[rule.tag]+' '+rule.minCount+'줄':getStatName(rule.statId))}, ${rule.minTier?'T'+rule.minTier+' 이상':'티어 무관'} <button data-command="remove-goal:${index+1}" aria-label="목표 조건 제거">제거</button></li>`).join('');
+        const rows=goal.rules.slice(1).map((rule,index)=>`<li>${esc(rule.tag?AFFIX_TAG_LABELS[rule.tag]+' '+rule.minCount+'줄':getStatName(rule.statId))}, ${rule.minTier?'T'+rule.minTier+' 이상':_t('티어 무관')} <button data-command="remove-goal:${index+1}" aria-label="${_t('목표 조건 제거')}">${_t('제거')}</button></li>`).join('');
         const simulator=contentProgression.status('craftSimulator');
-        return `<ul class="cl-extra-goals">${rows}</ul><div class="cl-study-controls"><button data-command="add-goal" ${goal.rules.length>=3||!goal.rules.length?'disabled':''}>조건 추가</button><label>목표 조합 <select id="cl-goal-match"><option value="all" ${goalMatch==='all'?'selected':''}>모두 충족</option><option value="any" ${goalMatch==='any'?'selected':''}>하나 이상</option></select></label><button data-command="study" ${simulator.unlocked?'':`disabled data-tip="${esc(simulator.reason)}"`}>제작 시뮬레이터${simulator.unlocked?'':' (잠김)'}</button></div>`;
+        return `<ul class="cl-extra-goals">${rows}</ul><div class="cl-study-controls"><button data-command="add-goal" ${goal.rules.length>=3||!goal.rules.length?'disabled':''}>${_t('조건 추가')}</button><label>${_t('목표 조합')} <select id="cl-goal-match"><option value="all" ${goalMatch==='all'?'selected':''}>${_t('모두 충족')}</option><option value="any" ${goalMatch==='any'?'selected':''}>${_t('하나 이상')}</option></select></label><button data-command="study" ${simulator.unlocked?'':`disabled data-tip="${esc(simulator.reason)}"`}>${_t('제작 시뮬레이터{value}', { value: simulator.unlocked?'':_t(' (잠김)') })}</button></div>`;
     }
 
     /** Tags the craft can roll first, then single options; a goal it can no longer reach stays listed as the current one. */
     function workspaceGoalTargetOptions(rule,choice) {
-        const key=rule.tag?'tag:'+rule.tag:rule.statId, name=rule.tag?`${AFFIX_TAG_LABELS[rule.tag]} 태그`:getStatName(rule.statId);
-        const retained=!choice&&key?`<option selected disabled value="${esc(key)}">${esc(name)} (현재 목표)</option>`:'';
-        const tags=workspaceGoalTags().map(row=>`<option value="tag:${row.id}" ${'tag:'+row.id===key?'selected':''}>${esc(row.name)} 태그</option>`).join('');
-        const options=workspaceGoalOptions().map(row=>`<option value="${row.id}" ${row.id===key?'selected':''}>${esc(row.name)}</option>`).join('');
-        return `<option value="">목표 선택</option>${retained}${tags?`<optgroup label="태그">${tags}</optgroup>`:''}<optgroup label="옵션">${options}</optgroup>`;
+        const key=rule.tag?'tag:'+rule.tag:rule.statId, name=rule.tag?_t('{AFFIX_TAG_LABELS} 태그', { AFFIX_TAG_LABELS: AFFIX_TAG_LABELS[rule.tag] }):getStatName(rule.statId);
+        const retained=!choice&&key?`<option selected disabled value="${esc(key)}">${_t('{name} (현재 목표)', { name: esc(name) })}</option>`:'';
+        const tags=workspaceGoalTags().map(row=>`<option value="tag:${row.id}" ${'tag:'+row.id===key?'selected':''}>${_t('{name} 태그', { name: esc(_t(row.name)) })}</option>`).join('');
+        const options=workspaceGoalOptions().map(row=>`<option value="${row.id}" ${row.id===key?'selected':''}>${esc(_t(row.name))}</option>`).join('');
+        return `<option value="">${_t('목표 선택')}</option>${retained}${tags?`<optgroup label="${_t('태그')}">${tags}</optgroup>`:''}<optgroup label="${_t('옵션')}">${options}</optgroup>`;
     }
 
     function workspaceGoalCountHtml(rule,choice) {
         if(!rule.tag)return '';
         const counts=Array.from({length:choice?.maxCount||rule.minCount},(_,i)=>i+1);
-        return `<label>최소 줄 수<select id="cl-goal-count" ${!choice?'disabled':''}>${counts.map(count=>`<option value="${count}" ${count===rule.minCount?'selected':''}>${count}줄 이상</option>`).join('')}</select></label>`;
+        return `<label>${_t('최소 줄 수')}<select id="cl-goal-count" ${!choice?'disabled':''}>${counts.map(count=>`<option value="${count}" ${count===rule.minCount?'selected':''}>${_t('{count}줄 이상', { count })}</option>`).join('')}</select></label>`;
     }
 
     function workspaceEncroachmentHtml(item) {
         if(!item.encroached)return '';
         const stat=item.encroached.chosen;
-        if(item.encroached.liberated&&stat)return `<div class="cl-base">잠식 ${esc(stat.statName||getStatName(stat.id))} +${esc(formatValue(stat.id,stat.val))}</div>`;
+        if(item.encroached.liberated&&stat)return `<div class="cl-base">${_t('잠식 {statName} +{id}', { statName: esc(stat.statName||getStatName(stat.id)), id: esc(formatValue(stat.id,stat.val)) })}</div>`;
         return '<div class="cl-base">잠식 미해방 <button type="button" onclick="liberateSelectedEncroachedItem()">해방</button></div>';
     }
 
     function workspaceMethodsHtml() {
-        return `<section class="cl-methods"><div class="cl-section-title">주 재화<div><button data-command="pins">변경</button><button id="cl-catalog-open" data-command="catalog">기타 재화</button></div></div><div class="cl-recipes">${craftingCatalogUi.pinned().map(workspaceFavoriteHtml).join('')}</div>
-            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>선택 중 &ensp; ${craftingCatalogUi.styledName(recipe.key)}</strong><small>보유 ${game.currencies[recipe.key]}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${workspaceSporeHtml()}${workspaceOmenHtml()}
+        return `<section class="cl-methods"><div class="cl-section-title">${_t('주 재화')}<div><button data-command="pins">${_t('변경')}</button><button id="cl-catalog-open" data-command="catalog">${_t('기타 재화')}</button></div></div><div class="cl-recipes">${craftingCatalogUi.pinned().map(workspaceFavoriteHtml).join('')}</div>
+            <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>${_t('선택 중 &ensp; {styledName}', { styledName: craftingCatalogUi.styledName(recipe.key) })}</strong><small>${_t('보유 {currencies}', { currencies: game.currencies[recipe.key] })}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${workspaceSporeHtml()}${workspaceOmenHtml()}
             </section>`;
     }
 
@@ -238,8 +238,8 @@ const craftingWorkspaceUi = (() => {
     function workspaceSporeNote() {
         if(mode==='none')return '';
         const reason=workspaceSporeReason(mode);
-        const effect=`${SPORE_LABELS[mode]} 계열 옵션 1줄 보장`;
-        return workspaceAddonNote(reason,effect,reason?' <button data-command="clear-spore">수확 사용 해제</button>':'',!hasSporeCraftCost(mode));
+        const effect=_t('{SPORE_LABELS} 계열 옵션 1줄 보장', { SPORE_LABELS: SPORE_LABELS[mode] });
+        return workspaceAddonNote(reason,effect,reason?` <button data-command="clear-spore">${_t('수확 사용 해제')}</button>`:'',!hasSporeCraftCost(mode));
     }
     /** Only families with a plant of their colour appear; a depleted selection keeps a warning and an explicit off button. */
     function workspaceSporeHtml() {
@@ -249,13 +249,13 @@ const craftingWorkspaceUi = (() => {
         if(!available.length)return note;
         const values=['none',...available];
         if(!values.includes(mode))values.push(mode);
-        return `<label class="cl-spore">수확 함께 사용<select id="cl-mode">${values.map(workspaceSporeOption).join('')}</select></label>${note}`;
+        return `<label class="cl-spore">${_t('수확 함께 사용')}<select id="cl-mode">${values.map(workspaceSporeOption).join('')}</select></label>${note}`;
     }
 
     /** [value, label] for omen keys in a select: 허기 twice (접두, 접미). count(key) adds the held number. */
     function workspaceOmenOptions(keys,count=()=>'') {
-        return keys.flatMap(key=>{const name=ORB_DB[key].name+count(key);
-            return CRAFT_OMENS.effects[key].effect==='side'?[[`${key}:prefix`,`${name}, 접두`],[`${key}:suffix`,`${name}, 접미`]]:[[`${key}:prefix`,name]];});
+        return keys.flatMap(key=>{const name=_t(ORB_DB[key].name)+count(key);
+            return CRAFT_OMENS.effects[key].effect==='side'?[[`${key}:prefix`,_t('{name}, 접두', { name })],[`${key}:suffix`,_t('{name}, 접미', { name })]]:[[`${key}:prefix`,name]];});
     }
     const workspaceArmedOmen=()=>(game.craftOmen&&(game.currencies[game.craftOmen.key]||0)>0?game.craftOmen:null);
     /** The armed omen if it changes the selected craft (the live rule, equipmentCrafting.omenFor), or null. */
@@ -270,7 +270,7 @@ const craftingWorkspaceUi = (() => {
         const value=armed?`${armed.key}:${armed.side}`:'';
         const options=[['','사용 안 함'],...workspaceOmenOptions(owned,key=>` (${game.currencies[key]})`)];
         const note=workspaceOmenNote(armed);
-        return `<label class="cl-spore" data-theme="omen"><span>${armed?workspaceCoin(armed.key):''}뿌리 함께 사용</span><select id="cl-omen">${options.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>${note}`;
+        return `<label class="cl-spore" data-theme="omen"><span>${_t('{value}뿌리 함께 사용', { value: armed?workspaceCoin(armed.key):'' })}</span><select id="cl-omen">${options.map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>${note}`;
     }
 
     function workspaceOmenNote(armed) {
@@ -285,14 +285,14 @@ const craftingWorkspaceUi = (() => {
     function workspaceSideEffect(omen) {
         const side=omen.side==='prefix'?'접두어':'접미어';
         const verbs={formlessDew:'재련',sapBud:'1줄 추가',goldenRule:'옵션 수치만 재설정',blightSpore:'모두 제거',pruningShears:'무작위 1줄 제거'};
-        return `${side}만 ${verbs[recipe.key]||'변경'}`;
+        return _t('{side}만 {verbs}', { side, verbs: verbs[recipe.key]||_t('변경') });
     }
 
     function workspaceFavoriteHtml(key,index) {
-        if(!key)return `<button data-command="pins" class="cl-recipe"><strong>${index+1}번 빈 칸</strong><small>재화 지정</small></button>`;
+        if(!key)return `<button data-command="pins" class="cl-recipe"><strong>${_t('{value}번 빈 칸', { value: index+1 })}</strong><small>${_t('재화 지정')}</small></button>`;
         const row=recipes.find(entry=>entry.key===key), selected=key===recipe.key;
         const icon=ORB_DB[key]?.icon;
-        return `<button class="cl-recipe ${selected?'selected':''} ${icon?'has-icon':''}" data-theme="${craftingCatalogUi.theme(key)}" ${row?`data-recipe="${key}"`:`data-favorite="${key}"`} aria-pressed="${selected}">${icon?`<img class="cl-recipe-icon" src="${esc(icon)}" alt="">`:''}<strong>${craftingCatalogUi.styledName(key)}</strong><small>${game.currencies[key]||0}개</small></button>`;
+        return `<button class="cl-recipe ${selected?'selected':''} ${icon?'has-icon':''}" data-theme="${craftingCatalogUi.theme(key)}" ${row?`data-recipe="${key}"`:`data-favorite="${key}"`} aria-pressed="${selected}">${icon?`<img class="cl-recipe-icon" src="${esc(icon)}" alt="">`:''}<strong>${craftingCatalogUi.styledName(key)}</strong><small>${_t('{currencies}개', { currencies: game.currencies[key]||0 })}</small></button>`;
     }
 
     function workspaceCostText() {
@@ -301,14 +301,14 @@ const craftingWorkspaceUi = (() => {
             pieces.push(`${stumpBox.harvestPriceName(getSporeCraftPriceKey(mode))} 1`);
         }
         const omen=workspaceUsedOmen();
-        if(omen)pieces.push(`${ORB_DB[omen.key].name} 1`);
+        if(omen)pieces.push(`${_t(ORB_DB[omen.key].name)} 1`);
         if(['enchantedHoney','venomStinger','voidChisel','ouroboros','oceanRerollShard'].includes(recipe.key))return '';
         return pieces.join(' + ');
     }
 
     function workspacePreviousOptionsHtml() {
         if(!last)return '';
-        return `<details><summary>이전 옵션 보기</summary>${last.before.stats.map(stat=>`<div>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}, T${stat.tier||0} <small>${esc(workspaceAffixRange(stat))}</small></div>`).join('')}</details>`;
+        return `<details><summary>${_t('이전 옵션 보기')}</summary>${last.before.stats.map(stat=>`<div>${esc(stat.statName||getStatName(stat.id))} +${esc(workspaceAffixValue(stat,stat.val))}, T${stat.tier||0} <small>${esc(workspaceAffixRange(stat))}</small></div>`).join('')}</details>`;
     }
 
     function workspaceAutoReason() {
@@ -321,26 +321,26 @@ const craftingWorkspaceUi = (() => {
     }
 
     function workspaceActionHtml(state,stopped) {
-        if(auto)return `<button data-command="stop" class="cl-primary cl-stop">자동 사용 중지 ${runCount}/${limit}회</button>`;
-        const button=stopped?'<button data-command="ack" class="cl-primary">목표 옵션 확인</button>':`<button data-command="craft" class="cl-primary" aria-label="${esc(ORB_DB[recipe.key].name)} 1회 사용" ${busy||!state.enabled?'disabled':''}>${busy?'사용 중…':'1회 사용'}</button>`;
+        if(auto)return `<button data-command="stop" class="cl-primary cl-stop">${_t('자동 사용 중지 {runCount}/{limit}회', { runCount, limit })}</button>`;
+        const button=stopped?'<button data-command="ack" class="cl-primary">목표 옵션 확인</button>':`<button data-command="craft" class="cl-primary" aria-label="${_t('{name} 1회 사용', { name: esc(_t(ORB_DB[recipe.key].name)) })}" ${busy||!state.enabled?'disabled':''}>${busy?_t('사용 중…'):_t('1회 사용')}</button>`;
         if(!['reroll','add','fossil'].includes(recipe.kind))return button;
         return button+workspaceAutoControlsHtml(state);
     }
 
     function workspaceAutoControlsHtml(state) {
         const reason=workspaceAutoReason();
-        return `<div class="cl-auto"><label>최대 <input id="cl-limit" type="number" min="1" max="100" value="${limit}" aria-label="자동 사용 최대 횟수">회</label>
-            <button data-command="auto" ${busy||!state.enabled||reason?'disabled':''}><span class="px-center">목표까지 자동 사용</span></button></div>${reason&&goal.rules.length?`<small>${esc(reason)}</small>`:''}`;
+        return `<div class="cl-auto"><label>${_t('최대')} <input id="cl-limit" type="number" min="1" max="100" value="${limit}" aria-label="${_t('자동 사용 최대 횟수')}">${_t('회')}</label>
+            <button data-command="auto" ${busy||!state.enabled||reason?'disabled':''}><span class="px-center">${_t('목표까지 자동 사용')}</span></button></div>${reason&&goal.rules.length?`<small>${esc(reason)}</small>`:''}`;
     }
 
     function workspaceResultHtml() {
         const hit=matches(selected());
-        return `<section class="cl-result ${hit?'goal-hit':''}" aria-live="polite"><div><h3>제작 경과</h3>
+        return `<section class="cl-result ${hit?'goal-hit':''}" aria-live="polite"><div><h3>${_t('제작 경과')}</h3>
             ${last?.meta.outcome?`<p class="cl-outcome">${esc(last.meta.outcome)}</p>`:''}
             ${last?craftingResultUi.getMetaRows(last).map(text=>`<p>${esc(text)}</p>`).join(''):''}
-            ${hit?'<p>목표 옵션을 확보했어요</p>':''}${notice?`<p>${esc(notice)}</p>`:''}
+            ${hit?_t('<p>목표 옵션을 확보했어요</p>'):''}${notice?`<p>${esc(notice)}</p>`:''}
             ${workspacePreviousOptionsHtml()}</div>
-            <div class="cl-session"><b>${count}회 제작</b><small>${Object.entries(spent).map(([key,value])=>`${esc(ORB_DB[key]?.name||key)} ${value}`).join(', ')||'소모 없음'}</small></div></section>`;
+            <div class="cl-session"><b>${_t('{count}회 제작', { count })}</b><small>${Object.entries(spent).map(([key,value])=>`${esc(ORB_DB[key]?.name||key)} ${value}`).join(', ')||_t('소모 없음')}</small></div></section>`;
     }
 
     function workspaceSyncTarget() {
@@ -382,7 +382,7 @@ const craftingWorkspaceUi = (() => {
         if(!workspaceShown()){if(auto)workspaceStopAuto('');return;}
         if(!item){workspacePaintEmpty();return;}
         const state=workspaceUseState(), stopped=held();
-        const html=`<div class="cl-heading">${adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">재화 인벤토리</button></div>
+        const html=`<div class="cl-heading">${adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">${_t('재화 인벤토리')}</button></div>
             <div class="cl-workspace">${workspaceItemHtml()}<div class="cl-controls">${workspaceMethodsHtml()}${workspaceGoalHtml()}<div class="cl-action"><small>${esc(workspaceCostText())}</small>
             ${workspaceActionHtml(state,stopped)}<span class="cl-block cl-error" role="status">${!state.enabled?`<span class="px-center">${esc(state.reason)}</span>`:''}</span></div></div></div>${workspaceResultHtml()}`;
         workspaceReplaceMarkup(html,reveal);
@@ -418,10 +418,10 @@ const craftingWorkspaceUi = (() => {
             document.body.append(goalDialog);
         }
         const acceptedSignature=signature(), item=selected();
-        goalDialog.innerHTML=`<header><strong class="cl-goal-match">목표 일치</strong>
-            <h2 id="cl-goal-dialog-title" tabindex="-1">${esc(item.name)}</h2></header>
+        goalDialog.innerHTML=`<header><strong class="cl-goal-match">${_t('목표 일치')}</strong>
+            <h2 id="cl-goal-dialog-title" tabindex="-1">${esc(getItemDisplayName(item))}</h2></header>
             <ul class="cl-affixes just-crafted">${item.stats.map(workspaceAffixHtml).join('')}</ul>
-            <button type="button" disabled>확인했어요</button>`;
+            <button type="button" disabled>${_t('확인했어요')}</button>`;
         const confirm=goalDialog.querySelector('button'), readyAt=performance.now()+800;
         confirm.addEventListener('click',event=>{
             if(confirm.disabled||performance.now()<readyAt||event.detail>1)return;
@@ -472,7 +472,7 @@ const craftingWorkspaceUi = (() => {
     function workspaceAutomaticStopReason() {
         if(document.hidden||!root.getClientRects().length||selected()!==current||owner!==game)return '화면을 벗어나 자동 사용을 중지했어요.';
         if(matches(selected()))return '목표 달성, 자동 사용을 멈췄어요.';
-        if(runCount>=limit)return `설정한 ${limit}회를 모두 사용했어요.`;
+        if(runCount>=limit)return _t('설정한 {limit}회를 모두 사용했어요.', { limit });
         const state=workspaceUseState();return state.enabled?workspaceAutoReason():state.reason;
     }
 
@@ -486,7 +486,7 @@ const craftingWorkspaceUi = (() => {
             runCount++;reason=workspaceAutomaticStopReason();
             if(reason){workspaceStopAuto(reason);workspaceRender();return;}
             workspaceRender();timer=setTimeout(workspaceAutoStep,400,id);
-        } catch(error) {console.error('Automatic crafting failed',error);workspaceStopAuto(`자동 사용 실패: ${error.message}`);workspaceRender();}
+        } catch(error) {console.error('Automatic crafting failed',error);workspaceStopAuto(_t('자동 사용 실패: {message}', { message: error.message }));workspaceRender();}
     }
 
     function workspaceStartAuto() {
@@ -562,7 +562,7 @@ const craftingWorkspaceUi = (() => {
     }
     function workspaceStudyRow(row,rules,top) {
         const [kind,kindClass]=STUDY_KINDS[row.kind]||STUDY_KINDS.special, isGoal=studyGoalRow(row,rules);
-        const name=`<span class="cl-study-name">${statToneText.statLine(row.statId,row.name)}${isGoal?'<span class="cl-study-goal">목표</span>':''}</span>`;
+        const name=`<span class="cl-study-name">${statToneText.statLine(row.statId,row.name)}${isGoal?_t('<span class="cl-study-goal">목표</span>'):''}</span>`;
         // 범위의 끝은 거의 언제나 장비의 옵션 상한이라 줄마다 같다: 색은 머리말의 상한에만 둔다.
         const tier=row.maxTier?`T1~${row.maxTier}`:'고정';
         return `<tr class="${row.allowed?'':'cl-pool-blocked'}${isGoal?' is-goal':''}" data-search="${esc(row.name+' '+row.tags.map(tag=>AFFIX_TAG_LABELS[tag]).join(' '))}"><td>${name}<small>${row.tags.map(studyTagHtml).join('')}</small></td><td><span class="cl-study-kind ${kindClass}">${kind}</span></td><td>${tier}</td><td>${studyWeightHtml(row,top)}</td></tr>`;
@@ -581,13 +581,13 @@ const craftingWorkspaceUi = (() => {
             studyDialog.addEventListener('close',()=>studyRun++);
         }
         const context={item:JSON.parse(JSON.stringify(selected())),recipe:{...recipe},mode,rules:JSON.parse(JSON.stringify(goal)),omen:null};
-        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">제작 시뮬레이터</h2><p><span class="cl-study-item" style="color:${getRarityColor(context.item.rarity)}">${esc(context.item.name)}</span>, ${workspaceCoin(context.recipe.key)}${esc(context.recipe.label)}, 옵션 상한 ${studyTierHtml(getItemCraftTier(context.item))}</p></div><button data-study-close aria-label="제작 시뮬레이터 닫기">닫기</button></header>
+        studyDialog.innerHTML=`<header><div><h2 id="cl-study-title">${_t('제작 시뮬레이터')}</h2><p><span class="cl-study-item" style="color:${getRarityColor(context.item.rarity)}">${esc(_t(context.item.name))}</span>${_t(', {key}{label}, 옵션 상한 {item}', { key: workspaceCoin(context.recipe.key), label: esc(_t(context.recipe.label)), item: studyTierHtml(getItemCraftTier(context.item)) })}</p></div><button data-study-close aria-label="${_t('제작 시뮬레이터 닫기')}">${_t('닫기')}</button></header>
             <section class="cl-study-simulator">
-            ${workspaceStudyOmenHtml(context.item,context.recipe)}<div class="cl-study-controls"><button data-study-sample="1">1회 시뮬레이션</button><button data-study-sample="2000">목표 확률 2,000회 측정</button></div>
+            ${workspaceStudyOmenHtml(context.item,context.recipe)}<div class="cl-study-controls"><button data-study-sample="1">${_t('1회 시뮬레이션')}</button><button data-study-sample="2000">${_t('목표 확률 2,000회 측정')}</button></div>
             <small data-study-reason aria-live="polite"></small><div data-study-result aria-live="polite"></div></section>
             <details open><summary data-study-summary></summary>
-            <label class="cl-study-search">이름이나 태그 검색 <input type="search" data-study-search></label>
-            <div class="cl-pool-scroll"><table><thead><tr><th>옵션</th><th>종류</th><th>티어</th><th>첫 선택 가중치 / 차단 이유</th></tr></thead><tbody></tbody></table></div></details>`;
+            <label class="cl-study-search">${_t('이름이나 태그 검색')} <input type="search" data-study-search></label>
+            <div class="cl-pool-scroll"><table><thead><tr><th>${_t('옵션')}</th><th>${_t('종류')}</th><th>${_t('티어')}</th><th>${_t('첫 선택 가중치 / 차단 이유')}</th></tr></thead><tbody></tbody></table></div></details>`;
         studyDialog.querySelector('[data-study-close]').onclick=()=>studyDialog.close();
         studyDialog.querySelector('[data-study-search]').oninput=workspaceFilterStudy;
         studyDialog.onchange=event=>{if(event.target.matches('[data-study-omen]'))workspaceRefreshStudy(context);};
@@ -624,7 +624,7 @@ const craftingWorkspaceUi = (() => {
         const keys=offered?CRAFT_OMENS.keys.filter(key=>CRAFT_OMENS.effects[key].actions.includes(action)):[];
         if(!keys.length)return '';
         const value=armed?`${armed.key}:${armed.side}`:'';
-        return `<label class="cl-study-omen">뿌리 <select data-study-omen>${[['','뿌리 없이'],...workspaceOmenOptions(keys)].map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`;
+        return `<label class="cl-study-omen">${_t('뿌리')} <select data-study-omen>${[['','뿌리 없이'],...workspaceOmenOptions(keys)].map(([key,label])=>`<option value="${key}" ${key===value?'selected':''}>${esc(label)}</option>`).join('')}</select></label>`;
     }
     /** The practice omen the study dialog shows ({ key, side, effect }), or null. */
     function workspaceStudyOmen() {
@@ -645,15 +645,15 @@ const craftingWorkspaceUi = (() => {
     /** One practice, or with 성화의 뿌리 each result numbered with its own verdict. */
     const workspacePracticeHtml=(results,rules)=>{
         const many=results.length>1, lines=result=>`<ul>${result.stats.map(stat=>workspaceStudyLineHtml(stat,rules.rules)).join('')}</ul>`;
-        return `<strong>시뮬레이션 결과${many?`, ${results.length}개 가운데 고르기`:''}</strong>${many?'':workspaceStudyVerdict(results[0],rules)}`
-            +results.map((result,index)=>`${many?`<div class="cl-study-pick">${index+1}번 결과${workspaceStudyVerdict(result,rules)}</div>`:''}${lines(result)}`).join('');
+        return `<strong>시뮬레이션 결과${many?_t(', {length}개 가운데 고르기', { length: results.length }):''}</strong>${many?'':workspaceStudyVerdict(results[0],rules)}`
+            +results.map((result,index)=>`${many?`<div class="cl-study-pick">${_t('{value}번 결과{result}', { value: index+1, result: workspaceStudyVerdict(result,rules) })}</div>`:''}${lines(result)}`).join('');
     };
 
     /** The measurement: hits out of count (picks: results to pick from in each practice), its 95% range and the mean cost. */
     function workspaceSampleHtml(hits,count,picks) {
         const p=hits/count,z=1.96,den=1+z*z/count,centre=(p+z*z/(2*count))/den;
         const delta=z*Math.sqrt(p*(1-p)/count+z*z/(4*count*count))/den;
-        return `<strong>목표 달성 ${hits}/${count}회${picks>1?`(${picks}개 가운데 하나라도)`:''}, <span class="cl-study-rate">${(p*100).toFixed(2)}%</span></strong><p>95% 추정 범위 ${(Math.max(0,centre-delta)*100).toFixed(2)}~${(Math.min(1,centre+delta)*100).toFixed(2)}%, ${hits>=5?`평균 약 ${Math.round(1/p)}회 / 주 재화 ${Math.round(1/p)}개`:'관측이 적어 평균 비용 추정 보류'}</p>`;
+        return `<strong>목표 달성 ${hits}/${count}회${picks>1?_t('({picks}개 가운데 하나라도)', { picks }):''}, <span class="cl-study-rate">${(p*100).toFixed(2)}%</span></strong><p>95% 추정 범위 ${(Math.max(0,centre-delta)*100).toFixed(2)}~${(Math.min(1,centre+delta)*100).toFixed(2)}%, ${hits>=5?_t('평균 약 {round}회 / 주 재화 {round2}개', { round: Math.round(1/p), round2: Math.round(1/p) }):_t('관측이 적어 평균 비용 추정 보류')}</p>`;
     }
 
     const workspaceStudyActive=run=>run===studyRun&&studyDialog.open&&contentProgression.isUnlocked('craftSimulator');
@@ -667,12 +667,12 @@ const craftingWorkspaceUi = (() => {
                 if(!workspaceStudyActive(run))return;
                 results=workspaceRehearse(context);
                 if(results.some(result=>equipmentLootPolicy.matches(result,{settings:{equipmentTargets:context.rules}})))hits++;
-                if(i%50===49){out.textContent=`측정 중 ${i+1}/${count}`;await new Promise(resolve=>setTimeout(resolve,0));}
+                if(i%50===49){out.textContent=_t('측정 중 {value}/{count}', { value: i+1, count });await new Promise(resolve=>setTimeout(resolve,0));}
             }
             if(!workspaceStudyActive(run))return;
             if(count===1)out.innerHTML=workspacePracticeHtml(results,context.rules);
             else out.innerHTML=workspaceSampleHtml(hits,count,results.length);
-        }catch(error){console.error('Craft rehearsal failed',error);out.textContent=`시뮬레이션 실패: ${error.message}`;}
+        }catch(error){console.error('Craft rehearsal failed',error);out.textContent=_t('시뮬레이션 실패: {message}', { message: error.message });}
         finally{if(run===studyRun)workspaceStudyButtons(context,craftingGoalOptions.study(context).reason);}
     }
 
@@ -685,14 +685,14 @@ const craftingWorkspaceUi = (() => {
             choiceDialog.addEventListener('click',workspaceChoiceClick);
         }
         if(choiceDialog.open)return;
-        choiceDialog.innerHTML=`<header><small>${workspaceCoin('omenPyre')}${esc(ORB_DB.omenPyre.name)}</small><h2 id="cl-choice-title" tabindex="-1">결과 하나를 고르세요</h2><p>${esc(pending.item.baseName)}</p></header>
+        choiceDialog.innerHTML=`<header><small>${workspaceCoin('omenPyre')}${esc(_t(ORB_DB.omenPyre.name))}</small><h2 id="cl-choice-title" tabindex="-1">${_t('결과 하나를 고르세요')}</h2><p>${esc(_t(pending.item.baseName))}</p></header>
             <div class="cl-choice-list">${pending.options.map(workspaceChoiceHtml).join('')}</div>`;
         choiceDialog.showModal();choiceDialog.querySelector('h2').focus({preventScroll:true});
     }
     function workspaceChoiceHtml(option,index) {
         const lines=[...option.stats.map(stat=>`${statToneText.statLine(stat.id,`${stat.statName||getStatName(stat.id)} +${workspaceAffixValue(stat,stat.val)}`)}${getItemAffixTierHtml(stat)}`),
-            ...(option.chaosInfusion?[`혼돈 주입 ${esc(getStatName(option.chaosInfusion.id))} +${esc(workspaceAffixValue(option.chaosInfusion,option.chaosInfusion.val))}`]:[])];
-        return `<section class="cl-choice"><h3>${index+1}번 결과</h3><ul>${lines.map(line=>`<li>${line}</li>`).join('')}</ul><button type="button" data-choice="${index}">이 결과로</button></section>`;
+            ...(option.chaosInfusion?[_t('혼돈 주입 {id} +{chaosInfusion}', { id: esc(getStatName(option.chaosInfusion.id)), chaosInfusion: esc(workspaceAffixValue(option.chaosInfusion,option.chaosInfusion.val)) })]:[])];
+        return `<section class="cl-choice"><h3>${_t('{value}번 결과', { value: index+1 })}</h3><ul>${lines.map(line=>`<li>${line}</li>`).join('')}</ul><button type="button" data-choice="${index}">${_t('이 결과로')}</button></section>`;
     }
     function workspaceChoiceClick(event) {
         const button=event.target.closest('[data-choice]');if(!button)return;
@@ -705,14 +705,14 @@ const craftingWorkspaceUi = (() => {
     /** 기억 조각칼: engrave, always asking first (a 체이싱 티어 currency; an older imprint is replaced). */
     async function workspaceEngrave() {
         const item=selected();if(!item)return;
-        const question=`${ORB_DB.memoryImprint.name} 1개로 지금 추가 옵션을 새깁니다.${item.imprint?'\n전에 새긴 옵션은 지워집니다.':''}`;
-        if(!await requestGameConfirmation(question,{title:ORB_DB.memoryImprint.name,confirmLabel:'새기기'}))return;
+        const question=_t('{name} 1개로 지금 추가 옵션을 새깁니다.{value}', { name: ORB_DB.memoryImprint.name, value: item.imprint?_t('\n전에 새긴 옵션은 지워집니다.'):'' });
+        if(!await requestGameConfirmation(question,{title:ORB_DB.memoryImprint.name,confirmLabel:_t('새기기')}))return;
         if(selected()===item)workspaceImprintDone(equipmentCrafting.engrave(game,item),'지금 옵션을 새겼습니다.');
     }
     /** 기억 조각칼: go back to the engraved lines (asking first; the imprint is used up). */
     async function workspaceRestore() {
         const item=selected();if(!item)return;
-        if(!await requestGameConfirmation('지금 추가 옵션이 새긴 옵션으로 바뀌고, 새긴 기억은 사라집니다.',{title:ORB_DB.memoryImprint.name,confirmLabel:'되돌리기'})||selected()!==item)return;
+        if(!await requestGameConfirmation(_t('지금 추가 옵션이 새긴 옵션으로 바뀌고, 새긴 기억은 사라집니다.'),{title:ORB_DB.memoryImprint.name,confirmLabel:_t('되돌리기')})||selected()!==item)return;
         const result=equipmentCrafting.restoreImprint(item);
         if(result.ok){craftingResultLedger.clear();last=null;}
         workspaceImprintDone(result,'새긴 옵션으로 되돌렸습니다.');
@@ -753,7 +753,7 @@ const craftingWorkspaceUi = (() => {
 
     async function workspaceHandleClick(event) {
         try {await workspaceClick(event);}
-        catch(error){console.error('Crafting action failed',error);notice=`제작 실패: ${error.message}`;busy=false;workspaceRender();}
+        catch(error){console.error('Crafting action failed',error);notice=_t('제작 실패: {message}', { message: error.message });busy=false;workspaceRender();}
     }
 
     function workspaceVisibilityChanged() {

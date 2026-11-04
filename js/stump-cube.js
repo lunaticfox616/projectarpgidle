@@ -301,14 +301,14 @@ const stumpCube = (() => {
         jewel: (state, output) => { bagItems.put(bagItems.asJewel(output.item), state, true); return output.item; },
         core: (state, output) => { bagItems.addCore(output.item, state); return output.item; },
         // 재화 결과(뿌리 기폭제): 지갑으로. 조합창 칸에는 놓지 않고 이름만 결과 기록에 남긴다.
-        currency: (state, output) => { awardCurrency(output.key, output.amount); return { name: `${ORB_DB[output.key].name} ${output.amount}`, currency: output.key, amount: output.amount }; }
+        currency: (state, output) => { awardCurrency(output.key, output.amount); return { name: `${_t(ORB_DB[output.key].name)} ${output.amount}`, currency: output.key, amount: output.amount }; }
     });
 
     function transmuteRefusal(found, state) {
         if (state.woodsmanBuildLock) return LOCK_REASON;
         if (!found) return '맞는 조합법이 없습니다.';
         const lacking = missingCost(found.recipe, state);
-        return lacking.length ? `${withSubjectParticle(ORB_DB[lacking[0]].name)} 부족합니다.` : '';
+        return lacking.length ? _t('{name} 부족합니다.', { name: withSubjectParticle(ORB_DB[lacking[0]].name) }) : '';
     }
 
     function hasLockedInput(state) {
@@ -317,7 +317,7 @@ const stumpCube = (() => {
 
     /** Runs the matching recipe: consumes its inputs, pays its cost, stores the results and shows them in the cube. */
     function transmute(state = game, random = Math.random) {
-        if (hasLockedInput(state)) return { ok: false, reason: '잠긴 아이템은 조합할 수 없습니다.' };
+        if (hasLockedInput(state)) return { ok: false, reason: _t('잠긴 아이템은 조합할 수 없습니다.') };
         const found = match(state), reason = transmuteRefusal(found, state);
         if (reason) return { ok: false, reason };
         const result = stumpCubeRecipes.run(found.recipe.id, found.groups, state, random);
@@ -426,7 +426,7 @@ const stumpCube = (() => {
     function autoMerge(state = game, filter = 'all', random = Math.random) {
         if (state.woodsmanBuildLock) return { ok: false, reason: LOCK_REASON };
         const sets = autoMergeSets(state, filter);
-        if (!sets.length) return { ok: false, reason: '같은 색 씨앗 3개가 보관함에 없습니다.' };
+        if (!sets.length) return { ok: false, reason: _t('같은 색 씨앗 3개가 보관함에 없습니다.') };
         const items = sets.map(set => {
             const result = stumpCubeRecipes.run('stump_merge', [set.map(item => ({ kind: 'stump', item }))], state, random);
             result.consumed.forEach(entry => REMOVERS.stump(state, entry.item));

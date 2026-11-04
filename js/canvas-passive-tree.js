@@ -222,7 +222,7 @@ function drawPassiveSearchHighlight(ctx, node, radius, accent) {
         .trim();
     if (label && camZoom >= 0.18) {
         const fontSize = Math.max(10, Math.min(22, 12 / Math.max(0.32, camZoom)));
-        ctx.font = `${fontSize}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+        ctx.font = `${fontSize}px ${i18n.fontFamily("'Galmuri11'")}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         const y = node.y - radius - 14;
@@ -310,7 +310,7 @@ function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibi
     const y = node.y + fontSize * 0.38;
 
     ctx.save();
-    ctx.font = `${fontSize}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+    ctx.font = `${fontSize}px ${i18n.fontFamily("'Galmuri11'")}`;
     ctx.textAlign = placeLeft ? 'right' : 'left';
     ctx.textBaseline = 'middle';
     const w = ctx.measureText(label).width + padX * 2;
@@ -529,7 +529,7 @@ function drawPassiveClassStartLabels(ctx, nodes, frame) {
     const starts = nodes.filter(node => node.kind === 'start' && node.title && getPassiveVisibility(node.id) !== 'hidden');
     if (!starts.length) return;
     ctx.save();
-    ctx.font = `${13 / camZoom}px 'Galmuri11', 'Malgun Gothic', sans-serif`;
+    ctx.font = `${13 / camZoom}px ${i18n.fontFamily("'Galmuri11'")}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.lineJoin = 'round';
@@ -538,8 +538,8 @@ function drawPassiveClassStartLabels(ctx, nodes, frame) {
     starts.forEach(node => {
         const y = node.y + getPassiveNodeVisualRadius(node) * 1.45 + 4 / camZoom;
         ctx.fillStyle = node.id === frame.rootId ? '#e9be67' : '#b3a283';
-        ctx.strokeText(node.title, node.x, y);
-        ctx.fillText(node.title, node.x, y);
+        ctx.strokeText(_t(node.title), node.x, y);
+        ctx.fillText(_t(node.title), node.x, y);
     });
     ctx.restore();
 }
@@ -604,20 +604,20 @@ function getDropOnlyItemSourceMeta(item) {
     let sourceKey = dropOnly ? (dropOnly.type || dropOnly.id || null) : null;
     if (!sourceKey && base && base.realmBase) sourceKey = `realm_${base.realmBase}`;
     let map = {
-        beehive: { badgeClass: 'item-source-badge item-source-badge--beehive', toneClass: 'item-source-tone--beehive', label: '벌집 한정' },
-        trial: { badgeClass: 'item-source-badge item-source-badge--trial', toneClass: 'item-source-tone--trial', label: '시련 한정' },
-        rift: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '균열 한정' },
-        meteor: { badgeClass: 'item-source-badge item-source-badge--meteor', toneClass: 'item-source-tone--meteor', label: '운석 한정' },
-        labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
-        ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: '고대 미궁 한정' },
-        grand_breach_run: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: '대균열 한정' },
-        atlasLate: { badgeClass: 'item-source-badge item-source-badge--atlas-late', toneClass: 'item-source-tone--atlas-late', label: '아틀라스 한정' },
-        seasonBoss: { badgeClass: 'item-source-badge item-source-badge--root-boss', toneClass: 'item-source-tone--root-boss', label: '보스 한정' },
-        skyTower: { badgeClass: 'item-source-badge item-source-badge--sky-tower', toneClass: 'item-source-tone--sky-tower', label: '창공의 탑 한정' },
-        colony: { badgeClass: 'item-source-badge item-source-badge--colony', toneClass: 'item-source-tone--colony', label: '군락지 한정' },
-        realm_chaos: { badgeClass: 'item-source-badge item-source-badge--realm-chaos', toneClass: 'item-source-tone--realm-chaos', label: '혼돈계 한정' },
-        realm_underworld: { badgeClass: 'item-source-badge item-source-badge--realm-underworld', toneClass: 'item-source-tone--realm-underworld', label: '지하계 한정' },
-        realm_cosmos: { badgeClass: 'item-source-badge item-source-badge--realm-cosmos', toneClass: 'item-source-tone--realm-cosmos', label: '우주계 한정' }
+        beehive: { badgeClass: 'item-source-badge item-source-badge--beehive', toneClass: 'item-source-tone--beehive', label: _t('벌집 한정') },
+        trial: { badgeClass: 'item-source-badge item-source-badge--trial', toneClass: 'item-source-tone--trial', label: _t('시련 한정') },
+        rift: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: _t('균열 한정') },
+        meteor: { badgeClass: 'item-source-badge item-source-badge--meteor', toneClass: 'item-source-tone--meteor', label: _t('운석 한정') },
+        labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: _t('고대 미궁 한정') },
+        ancient_labyrinth: { badgeClass: 'item-source-badge item-source-badge--ancient-labyrinth', toneClass: 'item-source-tone--ancient-labyrinth', label: _t('고대 미궁 한정') },
+        grand_breach_run: { badgeClass: 'item-source-badge item-source-badge--rift', toneClass: 'item-source-tone--rift', label: _t('대균열 한정') },
+        atlasLate: { badgeClass: 'item-source-badge item-source-badge--atlas-late', toneClass: 'item-source-tone--atlas-late', label: _t('아틀라스 한정') },
+        seasonBoss: { badgeClass: 'item-source-badge item-source-badge--root-boss', toneClass: 'item-source-tone--root-boss', label: _t('보스 한정') },
+        skyTower: { badgeClass: 'item-source-badge item-source-badge--sky-tower', toneClass: 'item-source-tone--sky-tower', label: _t('창공의 탑 한정') },
+        colony: { badgeClass: 'item-source-badge item-source-badge--colony', toneClass: 'item-source-tone--colony', label: _t('군락지 한정') },
+        realm_chaos: { badgeClass: 'item-source-badge item-source-badge--realm-chaos', toneClass: 'item-source-tone--realm-chaos', label: _t('혼돈계 한정') },
+        realm_underworld: { badgeClass: 'item-source-badge item-source-badge--realm-underworld', toneClass: 'item-source-tone--realm-underworld', label: _t('지하계 한정') },
+        realm_cosmos: { badgeClass: 'item-source-badge item-source-badge--realm-cosmos', toneClass: 'item-source-tone--realm-cosmos', label: _t('우주계 한정') }
     };
     return sourceKey ? (map[sourceKey] || null) : null;
 }
@@ -675,8 +675,8 @@ function highlightEquipTextLocal(text, query) {
 /** 장착 칸 이름: 칸이 좁아(약 68px) "마법의 녹…"처럼 등급 수식어만 남았다 — 등급은 글자색이 말해 주니 바탕 이름을 쓴다.
  * 고유 · 특수 이름 장비는 그 이름이 곧 정체라 그대로(전체 이름은 title과 툴팁). */
 function paperdollItemLabel(item) {
-    if (item.rarity === 'unique' || !item.baseName) return item.name || item.baseName || '장비';
-    return item.baseName;
+    if (item.rarity === 'unique' || !item.baseName) return _t(item.name || item.baseName || '장비');
+    return _t(item.baseName);
 }
 
 /** 세 번째 반지 칸(초월 공허 '세 번째 손가락')이 열려 있는가. */
@@ -718,7 +718,7 @@ function renderPaperdoll(targetId, forCrafting) {
             let doubleClick = `event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
             // 장비창 장착 칸에는 단추가 없다(2026-10-10 개편): 빼기는 두 번 누르기, 끌어 놓기, 선택한 장비의 단추.
             let footer = forCrafting
-                ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">제작 선택</button>`
+                ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">${_t('제작 선택')}</button>`
                 : '';
             let sourceMeta = getDropOnlyItemSourceMeta(item);
             let sourceTone = (sourceMeta ? sourceMeta.toneClass : '') + thirdRingOffClass(slot);
@@ -733,7 +733,7 @@ function renderPaperdoll(targetId, forCrafting) {
             html += `<div class="slot-box equipment-slot equipment-slot-empty slot-${slot}" data-slot="${slot}"${emptyClick}>
                 <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual empty"><img src="${getEquipmentGridVisualAsset({ slot: slot.replace(/[123]$/, ''), baseId: `empty-${slot}` })}" alt="" aria-hidden="true" draggable="false"></div>
                 <div class="equipment-empty-mark">＋</div>
-                <div class="equipment-empty-label">비어 있음</div>
+                <div class="equipment-empty-label">${_t('비어 있음')}</div>
             </div>`;
         }
     });
@@ -753,16 +753,16 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
     let carried = equipmentInventoryInteraction.isCarryingKey(itemKey);
     let filterClass = filterState && filterState.filterActive
         ? (filterState.filterMatched ? 'is-filter-match' : 'is-filter-muted') : '';
-    let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal;
+    let rarityLabel = _t(ITEM_RARITY_LABELS[item.rarity] || ITEM_RARITY_LABELS.normal);
     // Opus 4차 검수: 비교 수치를 먼저 한 개만 표시. 잠금·세팅·특수와 다른 비교 수치는 ARIA에 남긴다.
     const gains = triageResult ? [[triageResult.dpsGainPct, 'atk', '공격'], [triageResult.ehpGainPct, 'def', '생존']].filter(row => row[0] >= 1) : [];
     const status = item.locked ? '잠금' : presetProtected ? '장비 세팅에 포함' : '';
     const gain = gains[0];
     const badges = gain ? `<span class="is-${gain[1]}">+${Math.round(gain[0])}%</span>`
-        : status ? `<span>${item.locked ? '잠금' : '세팅'}</span>` : '';
+        : status ? `<span>${item.locked ? _t('잠금') : _t('세팅')}</span>` : '';
     const details = [item.locked && '잠금', presetProtected && '장비 세팅에 포함', triageResult && triageResult.special && '특수 효과',
         ...gains.map(row => `${row[2]} +${row[0]}%`)].filter(Boolean).join(', ');
-    let label = [`${rarityLabel} ${item.name || item.baseName || '장비'}`, getItemSlotDisplayLabel(item), `${footprint.columns}×${footprint.rows}`, details].filter(Boolean).join(', ');
+    let label = [`${rarityLabel} ${item.name || item.baseName || _t('장비')}`, getItemSlotDisplayLabel(item), `${footprint.columns}×${footprint.rows}`, details].filter(Boolean).join(', ');
     let preview = `if(window.matchMedia('(hover: hover)').matches&&!equipmentInventoryInteraction.isCarrying())showItemTooltip(event,${idx},false)`;
     return `<button type="button" class="equipment-grid-item rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${carried ? 'is-carried' : ''} ${filterClass} ${sourceMeta ? sourceMeta.toneClass : ''}${itemInfluencesUi.influenceClasses(item)}"
         style="grid-column:${footprint.column + 1}/span ${footprint.columns};grid-row:${footprint.row + 1}/span ${footprint.rows};--item-grid-columns:${footprint.columns};--item-grid-rows:${footprint.rows};${itemInfluencesUi.influenceStyle(item)}" data-equipment-grid-key="${escapeHTML(itemKey)}"
@@ -809,16 +809,16 @@ function renderEquipmentInspectorActions(item, slot, presetProtected) {
     let primaryAction = slot ? `equipmentInventoryInteraction.focus(null);unequipItem('${slot}')` : `equipmentInventoryInteraction.cancelCarry();equipItemById(${item.id})`;
     let craftAction = slot ? `equipmentInventoryInteraction.focus(null);switchItemSubtab('item-tab-craft');selectForCrafting('${slot}',true)` : `equipmentInventoryInteraction.focus(null);craftSelectInventoryItemById(${item.id})`;
     // 단추 줄(2026-10-10 개편): 장착, 잠금, 제작실, 해체, 그다음 주입, 소켓, 기름. 주얼, 코어, 액막이는 제작실부터 받지 않는다(js/bag-items.js).
-    let craft = !bagItems.isSpecial(item) && contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}"><span class="px-center">제작실</span></button>` : '';
+    let craft = !bagItems.isSpecial(item) && contentProgression.canOpen('item-tab-craft') ? `<button data-content-action="craft" onclick="${craftAction}"><span class="px-center">${_t('제작실')}</span></button>` : '';
     let tools = bagItems.isSpecial(item) ? '' : `${chaosInfusionUi.actionHtml(item, slot)}${equipmentSocketsUi.actionHtml(item, slot)}${gardenOilsUi.actionHtml(item, slot)}`;
-    return `<button class="equipment-card-primary" onclick="${primaryAction}"><span class="px-center">${slot ? '장착 해제' : bagItems.isJewel(item) ? '끼우기' : '장착'}</span></button>
+    return `<button class="equipment-card-primary" onclick="${primaryAction}"><span class="px-center">${slot ? _t('장착 해제') : bagItems.isJewel(item) ? _t('끼우기') : _t('장착')}</span></button>
         ${slot ? craft : renderEquipmentInventoryProtectionActions(item, presetProtected, craft)}${tools}`;
 }
 
 function renderEquipmentInventoryProtectionActions(item, presetProtected, middle = '') {
     let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.' : '장비를 해체합니다.';
-    return `<button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})"><span class="px-center">${item.locked ? '잠금해제' : '잠금'}</span></button>${middle}
-        <button class="equipment-card-danger" data-tip="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${item.locked || presetProtected ? 'disabled' : ''}><span class="px-center">${presetProtected ? '보호됨' : '해체'}</span></button>`;
+    return `<button class="${item.locked ? 'is-locked' : ''}" onclick="toggleItemLockById(${item.id})"><span class="px-center">${item.locked ? _t('잠금해제') : _t('잠금')}</span></button>${middle}
+        <button class="equipment-card-danger" data-tip="${salvageTitle}" onclick="equipmentInventoryInteraction.cancelCarry();salvageItemById(${item.id})" ${item.locked || presetProtected ? 'disabled' : ''}><span class="px-center">${presetProtected ? _t('보호됨') : _t('해체')}</span></button>`;
 }
 
 function renderEquipmentInventoryInspector(rows) {
@@ -870,13 +870,13 @@ function renderInventoryCard(item, idx, mode, triageResult) {
     let explicitCount = typeof getItemExplicitOptionCount === 'function'
         ? getItemExplicitOptionCount(item)
         : ((item.stats || []).length + (item.chaosInfusion ? 1 : 0));
-    let optionSummary = explicitCount > 0 ? `추가 옵션 ${explicitCount}` : '추가 옵션 없음';
+    let optionSummary = explicitCount > 0 ? _t('추가 옵션 {explicitCount}', { explicitCount }) : '추가 옵션 없음';
     let metaChips = `<span class="equipment-meta-chip">${optionSummary}</span>`;
     if (triageResult) {
-        let dpsSlot = triageResult.dpsSlot ? `, ${String(triageResult.dpsSlot).replace(/[12]$/, '')} 교체 기준` : '';
-        let ehpSlot = triageResult.ehpSlot ? `, ${String(triageResult.ehpSlot).replace(/[12]$/, '')} 교체 기준` : '';
-        if (triageResult.dpsGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-damage" data-tip="${escapeHTML(`현재 세팅${dpsSlot}`)}">공격 +${triageResult.dpsGainPct}%</span>`;
-        if (triageResult.ehpGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-defense" data-tip="${escapeHTML(`현재 세팅${ehpSlot}`)}">생존 +${triageResult.ehpGainPct}%</span>`;
+        let dpsSlot = triageResult.dpsSlot ? _t(', {replace} 교체 기준', { replace: String(triageResult.dpsSlot).replace(/[12]$/, '') }) : '';
+        let ehpSlot = triageResult.ehpSlot ? _t(', {replace} 교체 기준', { replace: String(triageResult.ehpSlot).replace(/[12]$/, '') }) : '';
+        if (triageResult.dpsGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-damage" data-tip="${escapeHTML(_t('현재 세팅{dpsSlot}', { dpsSlot }))}">${_t('공격 +{dpsGainPct}%', { dpsGainPct: triageResult.dpsGainPct })}</span>`;
+        if (triageResult.ehpGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-defense" data-tip="${escapeHTML(_t('현재 세팅{ehpSlot}', { ehpSlot }))}">${_t('생존 +{ehpGainPct}%', { ehpGainPct: triageResult.ehpGainPct })}</span>`;
         if (triageResult.kind === 'keep') metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-keep">현 세팅 유지</span>';
         if (triageResult.special) metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-special">특수</span>';
     }
@@ -884,8 +884,8 @@ function renderInventoryCard(item, idx, mode, triageResult) {
         : (typeof getItemSalvagePreviewText === 'function' ? getItemSalvagePreviewText(item, false) : '장비를 해체합니다.');
     let salvageDisabled = item.locked || presetProtected;
     let actions = '';
-    if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">화석 대상</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
-    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">선택</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">장착</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" data-tip="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? '보호됨' : '해체'}</button></div>`;
+    if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">${_t('화석 대상')}</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
+    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">${_t('선택')}</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">${_t('장착')}</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" data-tip="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? _t('보호됨') : _t('해체')}</button></div>`;
     let cardClick = `selectForCrafting(${item.id}, false)`;
     let recordedTag = '';
     if (item.rarity === 'unique') {
@@ -894,15 +894,15 @@ function renderInventoryCard(item, idx, mode, triageResult) {
         if (codex[key]) recordedTag = ' <span style="color:#4cd964; font-weight:700;">[기록됨]</span>';
     }
     let sourceMeta = getDropOnlyItemSourceMeta(item);
-    let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${sourceMeta.label}</span>` : '';
+    let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${_t(sourceMeta.label)}</span>` : '';
     let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
     let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let rarityLabel = ITEM_RARITY_LABELS[item.rarity] || item.rarity || ITEM_RARITY_LABELS.normal;
+    let rarityLabel = _t(ITEM_RARITY_LABELS[item.rarity] || item.rarity || ITEM_RARITY_LABELS.normal);
     return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" role="group" tabindex="0" data-item-tooltip-anchor="1" onclick="${cardClick}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${cardClick};}" onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
         ${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(item, 'equipment', 'equipment-card-visual') : ''}
         <div class="equipment-card-main">
             <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot)}</span>${presetBadge}<span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
-            <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : ''}${item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : ''}${craftingWorkspaceUi.imprintMark(item)}</div>
+            <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? _t(' <span style="color:#b084ff;">(잠식)</span>') : ''}${item.corrupted ? _t(' <span style="color:#e74c3c;">(타락)</span>') : ''}${craftingWorkspaceUi.imprintMark(item)}</div>
             ${itemInfluencesUi.tagsHtml(item)}<div class="item-base-line equipment-card-base">${hi(item.baseName)}</div>
             <div class="item-stats equipment-card-meta${triageResult ? ' has-triage' : ''}">${metaChips}</div>
         </div>

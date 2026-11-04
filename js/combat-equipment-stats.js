@@ -101,7 +101,7 @@ const combatEquipmentStats = (() => {
         for (const key of Object.keys(current.disabled)) equipment[key] = null;
         const totals = evaluate({ ...owner, equipment }).totals;
         const unmet = missing(item, totals, owner, false);
-        const result = { ok: unmet.length === 0, reason: unmet.length ? `장착 요구: ${unmet.join(', ')}` : '' };
+        const result = { ok: unmet.length === 0, reason: unmet.length ? _t('장착 요구: {unmet}', { unmet: unmet.join(', ') }) : '' };
         current.inspections.set(key, result);
         return result;
     }
@@ -114,11 +114,11 @@ const combatEquipmentStats = (() => {
         const pending = Object.entries(equipment).filter(([, item]) => item && !currentItems.has(item));
         while (pending.length) {
             const index = pending.findIndex(([slot, item]) => inspect(item, slot, { ...owner, equipment: view }).ok);
-            if (index < 0) return { ok: false, reason: '프리셋의 새 장비가 요구 레벨/능력치를 충족하지 않습니다.' };
+            if (index < 0) return { ok: false, reason: _t('프리셋의 새 장비가 요구 레벨/능력치를 충족하지 않습니다.') };
             const [[slot, item]] = pending.splice(index, 1); view[slot] = item;
         }
         const disabled = evaluate(candidate).disabled;
-        return Object.keys(disabled).length ? { ok: false, reason: '프리셋 적용 시 요구조건이 부족해지는 장비가 있습니다.' } : { ok: true };
+        return Object.keys(disabled).length ? { ok: false, reason: _t('프리셋 적용 시 요구조건이 부족해지는 장비가 있습니다.') } : { ok: true };
     }
     /** Equipment and saved runes are one transaction. An old equipment-only preset (config null) checks only the gear:
      * the current runes stay and adapt to it as after a manual equip (main rune rests, extra supports come off). */
@@ -145,7 +145,7 @@ const combatEquipmentStats = (() => {
             const main = selected.activeSkill;
             if (!canUseSkillWithCurrentEquipment(main)) return { ok: false, reason: `${main}: ${getSkillRuneWeaponNote(main)}` };
             const stats = getPlayerStats(false), runes = window.GameModules.skills.loadouts;
-            if (!runes.equals(selected, candidate)) return { ok: false, reason: '현재 장비로 저장된 룬 구성을 유지할 수 없습니다.' };
+            if (!runes.equals(selected, candidate)) return { ok: false, reason: _t('현재 장비로 저장된 룬 구성을 유지할 수 없습니다.') };
             return runes.inspect(selected, candidate, stats);
         } finally {
             evaluating.delete(candidate);

@@ -5,7 +5,7 @@ function cloudToolsEscape(value) {
 }
 
 function cloudToolsNumber(value) {
-    return Math.floor(Number(value) || 0).toLocaleString('ko-KR');
+    return Math.floor(Number(value) || 0).toLocaleString(i18n.locale);
 }
 
 /** 운영 창과 문의 창의 단추들: data-* 이름 → 처리 함수. 단추 하나에 이 이름은 하나만 붙인다(값은 보통 대상 id). */
@@ -58,7 +58,7 @@ function closeCloudToolsDialog() {
 function renderCloudHistoryRows(rows) {
     if (!rows.length) return '<p class="cloud-tools-empty">저장 이력이 없습니다.</p>';
     return `<div class="cloud-history-list">${rows.map(row => {
-        let time = row.saved_at ? new Date(row.saved_at).toLocaleString('ko-KR') : '-';
+        let time = row.saved_at ? new Date(row.saved_at).toLocaleString(i18n.locale) : '-';
         let action = row.is_current
             ? '<span class="cloud-current-badge">현재</span>'
             : `<button type="button" onclick="restoreCloudSaveVersion(${Number(row.revision) || 0})">복구</button>`;
@@ -67,7 +67,7 @@ function renderCloudHistoryRows(rows) {
 }
 
 async function openCloudSaveHistory() {
-    if (!cloudState || !cloudState.user) return showGameToast('클라우드 로그인이 필요합니다.', 'warning');
+    if (!cloudState || !cloudState.user) return showGameToast(_t('클라우드 로그인이 필요합니다.'), 'warning');
     openCloudToolsDialog('클라우드 저장 이력', '<p class="cloud-tools-empty">불러오는 중…</p>');
     try {
         let rows = await cloudJsonRequest('/rest/v1/rpc/list_cloud_save_versions', { method: 'POST', body: {} });
@@ -90,9 +90,9 @@ async function restoreCloudSaveVersion(revision) {
         if (!result || result.restored !== true) throw new Error('다른 기기에서 저장이 변경되었습니다. 서버 저장을 다시 불러오세요.');
         await pullCloudSave({ silent: true });
         closeCloudToolsDialog();
-        showGameToast('선택한 클라우드 저장을 복구했습니다.', 'success');
+        showGameToast(_t('선택한 클라우드 저장을 복구했습니다.'), 'success');
     } catch (error) {
-        showGameToast(`저장 복구 실패: ${error.message || error}`, 'danger');
+        showGameToast(_t('저장 복구 실패: {value}', { value: error.message || error }), 'danger');
     }
 }
 
@@ -100,19 +100,19 @@ async function restoreCloudSaveVersion(revision) {
  * 서버가 auth.users 한 줄을 지우면 모든 표가 외래키로 따라 지워지므로 이쪽은 이 기기의 토큰과 그 계정의 저장 칸을 치우고(js/ui.js
  * forgetDeletedAccountSave) 게스트 저장으로 시작 화면을 연다. 게스트 저장은 그대로 있다. */
 async function deleteCloudAccount() {
-    if (!cloudState || !cloudState.user) return setCloudMessage('로그인한 계정이 없습니다.');
-    if (cloudState.busy) return setCloudMessage('클라우드 작업이 끝난 뒤 다시 눌러 주세요.');
+    if (!cloudState || !cloudState.user) return setCloudMessage(_t('로그인한 계정이 없습니다.'));
+    if (cloudState.busy) return setCloudMessage(_t('클라우드 작업이 끝난 뒤 다시 눌러 주세요.'));
     if (!(await confirmAccountDeletion())) return;
     let userId = cloudState.user.id;
     cloudState.busy = true;
-    setCloudMessage('계정을 지우는 중입니다...');
+    setCloudMessage(_t('계정을 지우는 중입니다...'));
     updateCloudSaveUI();
     let outcome = await requestAccountDeletion();
     if (outcome.failed) {
         cloudState.busy = false;
         updateCloudSaveUI();
-        setCloudMessage(`계정을 지우지 못했습니다: ${outcome.failed}`);
-        return showGameToast('계정을 지우지 못했습니다.', 'danger');
+        setCloudMessage(_t('계정을 지우지 못했습니다: {failed}', { failed: outcome.failed }));
+        return showGameToast(_t('계정을 지우지 못했습니다.'), 'danger');
     }
     await forgetDeletedAccountSession();
     cloudState.busy = false;
@@ -120,7 +120,7 @@ async function deleteCloudAccount() {
     setCloudMessage(outcome.alreadyGone
         ? '이미 지워진 계정이라 이 기기의 로그인 정보와 계정 저장을 치웠습니다. 게스트 저장은 그대로 있습니다.'
         : '계정과 클라우드 자료를 지웠습니다. 게스트 저장은 그대로 있습니다.');
-    showGameToast('계정을 지웠습니다.', 'success');
+    showGameToast(_t('계정을 지웠습니다.'), 'success');
 }
 
 /** 설정 > 클라우드 세이브의 "계정과 데이터 삭제 요청" 링크(2026-10-27 사용자: 로그인한 계정은 게임 안 계정 삭제 창이 바로 열리게): 로그인했으면
@@ -255,7 +255,7 @@ function renderCheatWatch(data) {
         { key: 'level_per_hour', label: '레벨/시간' }, { key: 'season_per_hour', label: '루프/시간' }, hold(row => `성장 ${row.seen_on}`)
     ], Array.isArray(data.rates) ? data.rates : []);
     html += renderOpsTable('보류한 계정', [
-        account, { key: 'note', label: '메모' }, { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        account, { key: 'note', label: '메모' }, { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
         { label: '보류', html: row => renderCheatHoldButton(row.user_id, true, '') }
     ], Array.isArray(data.holds) ? data.holds : []);
     return html;
@@ -291,7 +291,7 @@ async function setCheatHold(button) {
         });
         showGameToast(held ? '보류를 풀었습니다.' : '계정을 보류했습니다.', 'success');
     } catch (error) {
-        showGameToast(`보류를 바꾸지 못했습니다: ${error.message || error}`, 'danger');
+        showGameToast(_t('보류를 바꾸지 못했습니다: {value}', { value: error.message || error }), 'danger');
     }
     await loadCheatWatch();
 }
@@ -311,7 +311,7 @@ async function reportCurrentProfile() {
         await cloudJsonRequest('/rest/v1/rpc/report_player_chat', {
             method: 'POST', body: { p_target_user_id: target, p_reason: reason, p_message_id: latestChatRowId(target) }
         });
-        showGameToast('신고를 보냈습니다. 운영자가 확인합니다.', 'success');
+        showGameToast(_t('신고를 보냈습니다. 운영자가 확인합니다.'), 'success');
     } catch (error) {
         showGameToast('신고 실패: ' + translateReportError(error), 'danger');
     }
@@ -354,9 +354,9 @@ async function clearCheatFlags(button) {
         await cloudJsonRequest('/rest/v1/rpc/admin_clear_cheat_flags', {
             method: 'POST', body: { p_user_id: button.dataset.cheatClear, p_kind: button.dataset.cheatKind || null }
         });
-        showGameToast('감시 기록을 지웠습니다.', 'success');
+        showGameToast(_t('감시 기록을 지웠습니다.'), 'success');
     } catch (error) {
-        showGameToast(`기록을 지우지 못했습니다: ${error.message || error}`, 'danger');
+        showGameToast(_t('기록을 지우지 못했습니다: {value}', { value: error.message || error }), 'danger');
     }
     await loadCheatWatch();
 }
@@ -374,13 +374,13 @@ function renderChatReports(data) {
     const muteButtons = row => renderMuteButtons(row.target_user_id || row.user_id, row.nickname, row.muted_until || row.until_at);
     let html = '<section><h3>채팅 신고</h3><p class="cloud-tools-note">신고는 플레이어가 프로필 창에서 보냅니다. 금지한 계정은 풀릴 때까지 채팅을 보낼 수 없고, 지운 줄은 모든 플레이어의 채팅창에서 사라집니다.</p></section>';
     html += renderOpsTable('신고, 최근 200건', [
-        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
         { label: '신고자', render: row => row.reporter_nickname || '' },
         { label: '대상', render: row => row.nickname || String(row.target_user_id || '').slice(0, 8) },
         { label: '24시간 신고', render: row => cloudToolsNumber(row.reports_24h) },
         { key: 'reason', label: '사유' },
         { label: '채팅', render: row => row.body ? (row.body.length > 60 ? `${row.body.slice(0, 60)}…` : row.body) : '' },
-        { label: '상태', render: row => row.muted_until ? `금지 중, ${new Date(row.muted_until).toLocaleString('ko-KR')}까지` : (row.message_id && !row.message_exists ? '줄 지워짐' : '') },
+        { label: '상태', render: row => row.muted_until ? `금지 중, ${new Date(row.muted_until).toLocaleString(i18n.locale)}까지` : (row.message_id && !row.message_exists ? '줄 지워짐' : '') },
         { label: '조치', html: row => muteButtons(row) + (row.message_id && row.message_exists ? `<button type="button" data-chat-delete="${cloudToolsEscape(row.message_id)}">줄 지우기</button>` : '')
             + peekButton(row.target_user_id, row.nickname) }
     ], Array.isArray(data.reports) ? data.reports : []);
@@ -390,7 +390,7 @@ function renderChatReports(data) {
         + '<button type="button" data-mute-nick="0">금지 풀기</button><button type="button" data-chat-clear="1">채팅 전체 비우기</button></div>';
     html += renderOpsTable('금지 중인 계정', [
         { label: '계정', render: row => row.nickname || String(row.user_id || '').slice(0, 8) },
-        { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString('ko-KR') }, { key: 'note', label: '메모' },
+        { label: '풀리는 시각', render: row => new Date(row.until_at).toLocaleString(i18n.locale) }, { key: 'note', label: '메모' },
         { label: '조치', html: row => muteButtons(row) + peekButton(row.user_id, row.nickname) }
     ], Array.isArray(data.mutes) ? data.mutes : []);
     return html + renderBannedTerms(Array.isArray(data.terms) ? data.terms : null);
@@ -407,7 +407,7 @@ function renderBannedTerms(terms) {
     let html = renderOpsTable('금칙어(관리자 추가)', [
         { key: 'term', label: '낱말' },
         { label: '찾는 글', render: row => row.spaced === false ? '띄어쓰기 지운 글' : '띄어쓰기 남긴 글' },
-        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
         { label: '조치', html: row => `<button type="button" data-term-remove="${cloudToolsEscape(row.term)}">빼기</button>` }
     ], terms);
     return html + '<p class="cloud-tools-note">기본 목록은 서버 함수(chat_text_is_offensive)에 있고, 여기 더한 낱말은 바로 적용됩니다. '
@@ -430,7 +430,7 @@ function bannedTermSpaced() {
 /** Adds (from the input row) or removes (a row's button) one banned term after a confirmation, then reloads the section. */
 async function setBannedTerm(button, remove) {
     let term = bannedTermOf(button, remove);
-    if (term.length < 2) return showGameToast('낱말은 2~40자여야 합니다.', 'warning');
+    if (term.length < 2) return showGameToast(_t('낱말은 2~40자여야 합니다.'), 'warning');
     let confirmed = await requestGameConfirmation(`금칙어 "${term}"${remove ? '을 뺄까요?' : '을 더할까요?'}`, {
         title: '금칙어', tone: 'warning', confirmLabel: remove ? '빼기' : '더하기'
     });
@@ -441,7 +441,7 @@ async function setBannedTerm(button, remove) {
         });
         showGameToast(remove ? '금칙어를 뺐습니다.' : '금칙어를 더했습니다.', 'success');
     } catch (error) {
-        showGameToast(`금칙어를 바꾸지 못했습니다: ${error.message || error}`, 'danger');
+        showGameToast(_t('금칙어를 바꾸지 못했습니다: {value}', { value: error.message || error }), 'danger');
     }
     await loadChatReports();
 }
@@ -466,7 +466,7 @@ async function loadChatReports() {
 async function setChatMuteByNickname(button) {
     let input = document.getElementById('chat-mute-nickname');
     let nickname = String((input && input.value) || '').trim();
-    if (!nickname) return showGameToast('닉네임을 넣어 주세요.', 'warning');
+    if (!nickname) return showGameToast(_t('닉네임을 넣어 주세요.'), 'warning');
     let minutes = Math.max(0, Math.floor(Number(button.dataset.muteNick) || 0));
     let confirmed = await requestGameConfirmation(muteConfirmText(nickname, minutes), { title: '채팅 신고', tone: 'warning', confirmLabel: minutes ? '금지' : '풀기' });
     if (!confirmed) return;
@@ -502,7 +502,7 @@ async function peekPlayerChat(button) {
 }
 function renderChatPeek(name, rows) {
     return renderOpsTable(`${name || '이 플레이어'}의 최근 채팅`, [
-        { label: '시각', render: row => new Date(row.created_at).toLocaleString('ko-KR') },
+        { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
         { key: 'body', label: '채팅' },
         { label: '조치', html: row => `<button type="button" data-chat-delete="${cloudToolsEscape(row.id)}">줄 지우기</button>` }
     ], rows);
@@ -522,7 +522,7 @@ async function setChatMute(button) {
         });
         showGameToast(minutes ? '채팅을 금지했습니다.' : '채팅 금지를 풀었습니다.', 'success');
     } catch (error) {
-        showGameToast(`금지를 바꾸지 못했습니다: ${error.message || error}`, 'danger');
+        showGameToast(_t('금지를 바꾸지 못했습니다: {value}', { value: error.message || error }), 'danger');
     }
     await loadChatReports();
 }
@@ -542,7 +542,7 @@ async function deleteChatMessage(button) {
         forgetSocialChatMessages([id]);
         showGameToast(gone ? '이미 지워진 줄입니다.' : '채팅 줄을 지웠습니다.', gone ? 'warning' : 'success');
     } catch (error) {
-        showGameToast(`줄을 지우지 못했습니다: ${error.message || error}`, 'danger');
+        showGameToast(_t('줄을 지우지 못했습니다: {value}', { value: error.message || error }), 'danger');
     }
     if (!inOps) return;
     await loadChatReports();
@@ -559,7 +559,7 @@ async function clearAllChat() {
     try {
         let result = await cloudJsonRequest('/rest/v1/rpc/admin_clear_chat', { method: 'POST', body: {} });
         forgetSocialChatMessages();
-        showGameToast(`채팅 ${cloudToolsNumber(result && result.deleted)}줄을 지웠습니다.`, 'success');
+        showGameToast(_t('채팅 {value}줄을 지웠습니다.', { value: cloudToolsNumber(result && result.deleted) }), 'success');
     } catch (error) {
         let text = String((error && error.message) || error);
         showGameToast(/schema cache|could not find|does not exist/i.test(text)
@@ -573,7 +573,7 @@ async function clearAllChat() {
 /** 운영 창. 뼈대(할 일 띠, 지표, 경고 자리와 접힌 절들)를 먼저 그리고 RPC 여섯을 한꺼번에 불러 채운다(전: 하나씩 차례로).
  * 할 일이 있는 절만 펼쳐진 채 열린다. */
 async function openOpsDashboard() {
-    if (!cloudState || !cloudState.user) return showGameToast('관리자 로그인이 필요합니다.', 'warning');
+    if (!cloudState || !cloudState.user) return showGameToast(_t('관리자 로그인이 필요합니다.'), 'warning');
     openCloudToolsDialog('운영 창', renderOpsShell());
     let [overview, dashboard] = await Promise.all([
         cloudJsonRequest('/rest/v1/rpc/admin_get_ops_overview', { method: 'POST', body: {} }).catch(error => ({ error })),
@@ -711,7 +711,7 @@ let adminFeedbackFilter = '';
 let playerDetailUserId = null;   // 자세히 보기가 열려 있는 플레이어(조치 뒤 다시 그릴 때)
 
 function cloudToolsTime(value) {
-    return value ? new Date(value).toLocaleString('ko-KR') : '';
+    return value ? new Date(value).toLocaleString(i18n.locale) : '';
 }
 
 /** 설정 > 문의와 제보의 단추. 보내는 칸과 내가 보낸 글(운영자 답변 포함)을 한 창에 보인다. 로그인한 계정만 보낼 수 있다. */
@@ -740,7 +740,7 @@ function feedbackContext() {
 
 async function submitPlayerFeedback(button) {
     let body = document.getElementById('feedback-body').value.trim();
-    if (body.length < 5) return showGameToast('내용을 5자 이상 적어 주세요.', 'warning');
+    if (body.length < 5) return showGameToast(_t('내용을 5자 이상 적어 주세요.'), 'warning');
     button.disabled = true;
     try {
         await cloudJsonRequest('/rest/v1/rpc/submit_player_feedback', { method: 'POST', body: {
@@ -750,7 +750,7 @@ async function submitPlayerFeedback(button) {
         } });
         let input = document.getElementById('feedback-body');
         if (input) input.value = '';   // 요청 중에 다른 창으로 바꿨을 수 있다
-        showGameToast('보냈습니다. 답변은 이 창에서 볼 수 있습니다.', 'success');
+        showGameToast(_t('보냈습니다. 답변은 이 창에서 볼 수 있습니다.'), 'success');
         await loadMyFeedback();
     } catch (error) {
         showGameToast(describeFeedbackError(error), 'danger');
@@ -853,9 +853,9 @@ function replyFeedback(button) {
 async function updateFeedback(body) {
     try {
         await cloudJsonRequest('/rest/v1/rpc/admin_set_feedback', { method: 'POST', body });
-        showGameToast('저장했습니다.', 'success');
+        showGameToast(_t('저장했습니다.'), 'success');
     } catch (error) {
-        showGameToast(`저장하지 못했습니다: ${error.message || error}`, 'danger');
+        showGameToast(_t('저장하지 못했습니다: {value}', { value: error.message || error }), 'danger');
     }
     await loadAdminFeedback();
 }
@@ -1013,9 +1013,9 @@ async function downloadPlayerSave(button) {
         link.click();
         link.remove();
         setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-        showGameToast('저장 파일을 내려받았습니다.', 'success');
+        showGameToast(_t('저장 파일을 내려받았습니다.'), 'success');
     } catch (error) {
-        showGameToast(`저장을 받지 못했습니다: ${error.message || error}`, 'danger');
+        showGameToast(_t('저장을 받지 못했습니다: {value}', { value: error.message || error }), 'danger');
     }
 }
 
@@ -1039,7 +1039,7 @@ function initializeCloudTools() {
             showGameToast(message, { tone: saved ? 'success' : 'warning', duration: saved ? 2400 : 6000 });
         } catch (error) {
             console.error('[save-ui] 수동 저장 실패:', error);
-            showGameToast('저장에 실패했습니다. 게임을 닫지 말고 다시 시도해 주세요.', { tone: 'danger', duration: 6000 });
+            showGameToast(_t('저장에 실패했습니다. 게임을 닫지 말고 다시 시도해 주세요.'), { tone: 'danger', duration: 6000 });
         }
     });
     let adminButton = document.getElementById('btn-ops-dashboard');

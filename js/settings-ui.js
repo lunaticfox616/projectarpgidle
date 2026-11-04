@@ -23,6 +23,7 @@
         'chk-high-contrast': ['highContrast']
     };
     const selects = {
+        'sel-language': 'language',
         'sel-hit-emphasis': 'hitEmphasis',
         'sel-chat-message-size': 'chatMessageSize',
         'sel-damage-number-format': 'damageNumberFormat',
@@ -80,6 +81,7 @@
     }
 
     function applyEffects(key) {
+        if (key === 'language') i18n.setLanguage(game.settings.language);
         applySoundEffects(key);
         if (key === 'highContrast') applyHighContrast(game.settings.highContrast);
         if (key === 'chatMessageSize') applyChatMessageSize(game.settings.chatMessageSize);
@@ -119,6 +121,14 @@
     }
     initDisplayMode();
 
+    // 언어 선택(docs/i18n.md): 목록은 i18n.languages에서 채운다. 이름은 그 언어로 적혀 있어 번역하지 않는다.
+    function initLanguageSelect() {
+        const control = document.getElementById('sel-language');
+        if (!control) return;
+        control.innerHTML = i18n.languages.map(({ code, name }) => `<option value="${code}">${escapeHTML(name)}</option>`).join('');
+    }
+    initLanguageSelect();
+
     root?.addEventListener('change', event => {
         const key = writeControl(event.target);
         if (!key) return;
@@ -140,7 +150,7 @@
     function syncStartupSound() {
         if (!startupSound) return;
         startupSound.classList.toggle('is-muted', !soundOn());
-        startupSound.setAttribute('aria-label', soundOn() ? '소리 끄기' : '소리 켜기');
+        startupSound.setAttribute('aria-label', soundOn() ? _t('소리 끄기') : _t('소리 켜기'));
     }
     function toggleStartupSound() {
         const on = !soundOn();
@@ -172,6 +182,7 @@
     }
     startupSound?.addEventListener('click', toggleStartupSound);
     startupGear?.addEventListener('click', openStartupSettings);
+    window.addEventListener('game:languagechange', syncStartupSound);
     window.addEventListener('project-idle:startup-visibility', event => {
         syncStartupSound();
         if (!event.detail?.active && document.body.classList.contains('startup-settings-open')) closeStartupSettings();

@@ -49,8 +49,8 @@ const actExplorationUi=(()=>{
     function renderSeal(run) {
         const remaining=actExplorationState.remainingElites(run),seal=document.getElementById('act-exploration-seal');
         // '봉인 n'은 무엇을 세는지 보이지 않았다(검토 4차): 남은 정예 수와, 다 잡으면 무엇이 열리는지.
-        seal.textContent=remaining?'정예 '+remaining:'관문 개방';
-        const sealText=remaining?`남은 정예 ${remaining}, 모두 처치하면 보스 관문이 열립니다`:'보스 관문이 열렸습니다';
+        seal.textContent=remaining?'정예 '+remaining:_t('관문 개방');
+        const sealText=remaining?_t('남은 정예 {remaining}, 모두 처치하면 보스 관문이 열립니다', { remaining }):'보스 관문이 열렸습니다';
         seal.dataset.tip=sealText;
         seal.setAttribute('aria-label',sealText);
     }
@@ -76,7 +76,7 @@ const actExplorationUi=(()=>{
         auto.disabled=run.status!=='active';
         auto.classList.toggle('is-locked',locked);
         // 켜짐과 꺼짐은 단추 앞의 초록 점이 말한다(css/act-exploration.css, 2026-11-03 사용자: 켬/끔 글자는 빼기). 잠김만 글자로 남긴다.
-        auto.querySelector('b').textContent=locked?'자동 잠김':'자동';
+        auto.querySelector('b').textContent=locked?_t('자동 잠김'):_t('자동');
         auto.setAttribute('aria-label',(on?'자동 이동 켜짐':'자동 이동 꺼짐(클릭한 곳으로만 이동)')+', 눌러서 바꾸기'+(key?' ('+key+')':''));
         const cap=auto.querySelector('.combat-hud-key');
         cap.textContent=key;cap.hidden=!key;
@@ -181,7 +181,7 @@ const actExplorationUi=(()=>{
     function mode(value) {
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
         if(!['direct','full','manual'].includes(value))throw Error('알 수 없는 탐험 방식');
-        if(value!=='manual' && autoLocked()){showGameToast('자동 사냥은 첫 스킬룬을 장착하면 열립니다',{tone:'warning',duration:2000});return;}
+        if(value!=='manual' && autoLocked()){showGameToast(_t('자동 사냥은 첫 스킬룬을 장착하면 열립니다'),{tone:'warning',duration:2000});return;}
         run.mode=value;run.destination=null;
         game.settings.autoMove=value!=='manual';
         if(value!=='manual')actExplorationProgress.holdAutoStart(run);
@@ -192,7 +192,7 @@ const actExplorationUi=(()=>{
     const autoLocked=()=>typeof openingJourney==='object' && openingJourney.autoLocked();
     /** 미니맵의 자동 이동 단추·단축키: 켜면 고른 탐험 방식(보스 직행 · 전체 탐색), 끄면 직접 이동. 걷던 이동 명령은 그대로 간다. */
     function toggleAuto() {
-        if(autoLocked()){showGameToast('자동 사냥은 첫 스킬룬을 장착하면 열립니다',{tone:'warning',duration:2000});return false;}
+        if(autoLocked()){showGameToast(_t('자동 사냥은 첫 스킬룬을 장착하면 열립니다'),{tone:'warning',duration:2000});return false;}
         const on=game.settings.autoMove===false,run=actExplorationState.current(game);
         game.settings.autoMove=on;
         if(run&&run.status==='active'){run.mode=actExplorationProgress.startMode(game.settings);if(on)actExplorationProgress.holdAutoStart(run);}
@@ -205,7 +205,7 @@ const actExplorationUi=(()=>{
     function lockOnAt(point) {
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return false;
         const enemy=battleDrawList.enemyAt(point);if(!enemy)return false;
-        if(!actExplorationState.lockOn(run,enemy))showGameToast('그곳으로는 갈 수 없습니다',{tone:'warning',duration:1400});
+        if(!actExplorationState.lockOn(run,enemy))showGameToast(_t('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
         render();
         return true;
     }
@@ -229,7 +229,7 @@ const actExplorationUi=(()=>{
     function commandMove(cell) {
         const run=actExplorationState.current(game);if(!actExplorationProgress.canMove(run)||!cell)return false;
         const accepted=actExplorationState.selectDestination(run,cell);
-        if(!accepted)showGameToast('그곳으로는 갈 수 없습니다',{tone:'warning',duration:1400});
+        if(!accepted)showGameToast(_t('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
         render();
         return accepted;
     }
@@ -319,12 +319,12 @@ const actExplorationUi=(()=>{
             const accepted=await requestGameConfirmation(copy.message,{title:copy.title,tone:'danger',confirmLabel:copy.confirm,cancelLabel:copy.cancel});
             if(!accepted || !departureStillCurrent(origin))return;
             if(!button.isConnected || button.disabled) {
-                showGameToast('이동할 화면이 변경되었습니다. 목적지를 다시 선택하세요.',{tone:'warning'});return;
+                showGameToast(_t('이동할 화면이 변경되었습니다. 목적지를 다시 선택하세요.'),{tone:'warning'});return;
             }
             approvedDeparture=button;button.click();
         } catch(error) {
             console.error('탐험 이동 확인 실패:',error);
-            showGameToast('이동 확인에 실패했습니다. 탐험은 유지됩니다.',{tone:'danger'});
+            showGameToast(_t('이동 확인에 실패했습니다. 탐험은 유지됩니다.'),{tone:'danger'});
         } finally {approvedDeparture=null;departurePending=false;}
     }
     function departureStillCurrent(origin) {

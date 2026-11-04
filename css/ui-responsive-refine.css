@@ -152,7 +152,7 @@
     flex: 1 1 auto;
   }
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle { align-items: center; gap: 6px; flex: 1 1 auto; min-height: 44px; padding-inline: 10px; font-size: 12px; }
-  body.mobile-battle-tab #tab-battle #btn-combat-log-toggle::before { content: '전투 로그'; margin-right: auto; color: var(--copy-bright); }
+  body.mobile-battle-tab #tab-battle #btn-combat-log-toggle::before { content: var(--copy-combat-log); margin-right: auto; color: var(--copy-bright); }
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle::after { content: ' ▴'; }
   body.mobile-battle-tab #tab-battle #btn-combat-log-toggle[aria-expanded='false']::after { content: ' ▾'; }
   /* 접힌 막대는 제목 대신 최근 기록 한 줄(js/ui.js noteCombatLogLatest)을 보인다: 펼치지 않아도 방금 일이 읽힌다 */

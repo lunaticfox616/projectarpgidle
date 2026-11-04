@@ -76,20 +76,20 @@ const emberCorruption = (() => {
         ash: () => result('ash', '장비가 타서 재가 되었습니다.'),
         scale: (item, random) => {
             const share = bakeLines(item, random);
-            return result('scale', `옵션 수치가 다시 구워졌습니다(평균 ${shareText(share)}).`, { share });
+            return result('scale', _t('옵션 수치가 다시 구워졌습니다(평균 {share}).', { share: shareText(share) }), { share });
         },
         twoLines: (item, random) => {
             const lines = addLines(item, 2, random);
-            return result('twoLines', `타락 전용 줄이 생겼습니다: ${linesText(lines)}`, { lines });
+            return result('twoLines', _t('타락 전용 줄이 생겼습니다: {lines}', { lines: linesText(lines) }), { lines });
         },
         scaleAndLine: (item, random) => {
             const share = bakeLines(item, random), lines = addLines(item, 1, random);
-            return result('scaleAndLine', `옵션 수치가 다시 구워지고(평균 ${shareText(share)}) 타락 전용 줄이 생겼습니다: ${linesText(lines)}`, { share, lines });
+            return result('scaleAndLine', _t('옵션 수치가 다시 구워지고(평균 {share}) 타락 전용 줄이 생겼습니다: {lines}', { share: shareText(share), lines: linesText(lines) }), { share, lines });
         },
         quality: item => {
             const before = Math.floor(Number(item.quality) || 0);
             item.quality = EMBER_CORRUPTION_RULES.quality;
-            return result('quality', `품질이 ${before}% → ${item.quality}%로 올랐습니다.`);
+            return result('quality', _t('품질이 {before}% → {quality}%로 올랐습니다.', { before, quality: item.quality }));
         },
         nothing: () => result('nothing', '불길이 잦아들었습니다. 변화가 없습니다.')
     });

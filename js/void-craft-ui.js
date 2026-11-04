@@ -34,16 +34,16 @@ const voidCraftUi = (() => {
     }
     function pickerTabHtml(group, wanted) {
         const rows = VOID_PASSIVE_OPTION_POOL.filter(option => option.group === group), picked = rows.filter(option => wanted.has(option.id)).length;
-        return `<button type="button" class="void-picker-tab is-${GROUP_CLASS[group]}${group === pickerGroup ? ' is-active' : ''}${picked ? ' has-picked' : ''}" aria-pressed="${group === pickerGroup}" onclick="voidCraftUi.showGroup('${group}')"><span>${group}</span><small>${picked ? `${picked}개 고름` : `${rows.length}종`}</small></button>`;
+        return `<button type="button" class="void-picker-tab is-${GROUP_CLASS[group]}${group === pickerGroup ? ' is-active' : ''}${picked ? ' has-picked' : ''}" aria-pressed="${group === pickerGroup}" onclick="voidCraftUi.showGroup('${group}')"><span>${group}</span><small>${picked ? _t('{picked}개 고름', { picked }) : _t('{length}종', { length: rows.length })}</small></button>`;
     }
     function drawPicker() {
         const wanted = targetsOf(pickerNode);
         const tabs = Object.keys(GROUP_CLASS).map(group => pickerTabHtml(group, wanted)).join('');
         const options = VOID_PASSIVE_OPTION_POOL.filter(option => option.group === pickerGroup).map(option => pickerOptionHtml(option, wanted)).join('');
         const picked = [...wanted].map(statId => `<button type="button" class="${chipClass(statId)} is-on" onclick="voidCraftUi.toggleTarget('${pickerNode}','${statId}')">${lineName(statId)}<span aria-hidden="true"> ✕</span></button>`).join('');
-        selectionDialog.show({ id: PICKER_ID, title: '목표 옵션 고르기', panelClass: 'void-target-window', body: `<nav class="void-picker-tabs" aria-label="옵션 분류">${tabs}</nav>
+        selectionDialog.show({ id: PICKER_ID, title: _t('목표 옵션 고르기'), panelClass: 'void-target-window', body: `<nav class="void-picker-tabs" aria-label="${_t('옵션 분류')}">${tabs}</nav>
             <div class="void-picker-grid">${options}</div>
-            <footer class="void-picker-foot"><b>${wanted.size}/${MAX_TARGETS}</b><div class="void-target-chips">${picked}</div><span class="void-run-status">${idleStatus(wanted)}</span><button type="button" class="void-picker-done" data-selection-close>완료</button></footer>` });
+            <footer class="void-picker-foot"><b>${wanted.size}/${MAX_TARGETS}</b><div class="void-target-chips">${picked}</div><span class="void-run-status">${idleStatus(wanted)}</span><button type="button" class="void-picker-done" data-selection-close>${_t('완료')}</button></footer>` });
     }
     function openPicker(nodeId) {
         pickerNode = String(nodeId);
@@ -58,18 +58,18 @@ const voidCraftUi = (() => {
     function idleStatus(wanted) {
         if (!wanted.size) return '목표를 고르면 연속으로 쓸 수 있습니다.';
         const chance = hitChance(wanted.size);
-        return `새싹 1개에 ${(chance * 100).toFixed(1)}%, 평균 ${Math.ceil(1 / chance)}개`;
+        return _t('새싹 1개에 {value}%, 평균 {ceil}개', { value: (chance * 100).toFixed(1), ceil: Math.ceil(1 / chance) });
     }
 
     function panelBody(nodeId) {
         const wanted = targetsOf(nodeId), running = run && run.nodeId === nodeId;
         const picked = [...wanted].map(statId => `<button type="button" class="${chipClass(statId)} is-on" onclick="voidCraftUi.toggleTarget('${nodeId}','${statId}')">${lineName(statId)}<span aria-hidden="true"> ✕</span></button>`).join('');
         const disabled = !running && (!wanted.size || budCount() <= 0);
-        return `<div class="void-target-head"><b>목표 옵션</b><span>${wanted.size}/${MAX_TARGETS}, 하나라도 나오면 멈춥니다</span></div>
+        return `<div class="void-target-head"><b>${_t('목표 옵션')}</b><span>${_t('{size}/{MAX_TARGETS}, 하나라도 나오면 멈춥니다', { size: wanted.size, MAX_TARGETS })}</span></div>
             ${picked ? `<div class="void-target-chips">${picked}</div>` : ''}
-            ${running ? '' : `<button type="button" class="void-picker-open" onclick="voidCraftUi.openPicker('${nodeId}')">옵션 고르기</button>`}
+            ${running ? '' : `<button type="button" class="void-picker-open" onclick="voidCraftUi.openPicker('${nodeId}')">${_t('옵션 고르기')}</button>`}
             <div class="void-run">
-                <button type="button" id="void-run-button" class="void-run-button${running ? ' is-running' : ''}" onclick="voidCraftUi.toggleRun('${nodeId}')" ${disabled ? 'disabled' : ''}>${running ? '멈추기' : '목표까지 연속 사용'}</button>
+                <button type="button" id="void-run-button" class="void-run-button${running ? ' is-running' : ''}" onclick="voidCraftUi.toggleRun('${nodeId}')" ${disabled ? 'disabled' : ''}>${running ? _t('멈추기') : _t('목표까지 연속 사용')}</button>
                 <span id="void-run-status" class="void-run-status" role="status">${running ? runStatus() : idleStatus(wanted)}</span>
             </div>`;
     }
@@ -100,7 +100,7 @@ const voidCraftUi = (() => {
         if (selectionDialog.isOpen(PICKER_ID)) drawPicker();
     }
 
-    const runStatus = () => `${run.used}개 사용, 남은 새싹 ${budCount()}개`;
+    const runStatus = () => _t('{used}개 사용, 남은 새싹 {budCount}개', { used: run.used, budCount: budCount() });
 
     const plainEffect = nodeId => getVoidPassiveEffectLabel(nodeId).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -124,16 +124,16 @@ const voidCraftUi = (() => {
         refreshEffect(nodeId);
         const status = document.getElementById('void-run-status'), count = document.getElementById('void-bud-count');
         if (status) status.textContent = runStatus();
-        if (count) count.textContent = `보유 ${budCount()}`;
+        if (count) count.textContent = _t('보유 {budCount}', { budCount: budCount() });
         const wanted = targetsOf(nodeId);
         if (entry.stats.some(line => wanted.has(line.id))) endRun('hit', true);
     }
 
     function resultText(outcome, nodeId, used) {
         const bud = ORB_DB.magicBud.name;
-        if (outcome === 'hit') return `목표 옵션 획득, ${bud} ${used}개 사용: ${plainEffect(nodeId)}`;
-        if (outcome === 'empty') return `${bud}이 떨어졌습니다, ${used}개 사용: ${plainEffect(nodeId)}`;
-        return `연속 사용을 멈췄습니다, ${bud} ${used}개 사용: ${plainEffect(nodeId)}`;
+        if (outcome === 'hit') return _t('목표 옵션 획득, {bud} {used}개 사용: {nodeId}', { bud, used, nodeId: plainEffect(nodeId) });
+        if (outcome === 'empty') return _t('{bud}이 떨어졌습니다, {used}개 사용: {nodeId}', { bud, used, nodeId: plainEffect(nodeId) });
+        return _t('연속 사용을 멈췄습니다, {bud} {used}개 사용: {nodeId}', { bud, used, nodeId: plainEffect(nodeId) });
     }
 
     /** 끝낸다: 기록과 알림은 한 번만, 창은 새 값으로 다시 그린다. reopen이 거짓이면 창을 닫는 중이다. */
@@ -175,7 +175,7 @@ const voidCraftUi = (() => {
         fx.style.left = `${(rect.left + rect.width / 2 - box.left) / scale}px`;
         fx.style.top = `${(rect.top + rect.height / 2 - box.top) / scale}px`;
         const sparks = Array.from({ length: SPARKS }, (_, i) => `<i style="--a:${Math.round(i * 360 / SPARKS)}deg;--r:${90 + (i % 4) * 34}px;--d:${(i % 5) * 45}ms"></i>`).join('');
-        fx.innerHTML = `<span class="void-hit-ring"></span><span class="void-hit-ring is-late"></span>${sparks}<b class="void-hit-banner">목표 옵션 획득</b>`;
+        fx.innerHTML = `<span class="void-hit-ring"></span><span class="void-hit-ring is-late"></span>${sparks}<b class="void-hit-banner">${_t('목표 옵션 획득')}</b>`;
         overlay.appendChild(fx);
         dialog.classList.add('is-hit');
         card.classList.add('is-hit');

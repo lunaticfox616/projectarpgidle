@@ -14,8 +14,8 @@ let __canvasStatsCacheAt = 0;
 const CANVAS_STATS_CACHE_MS = 150;
 // 전장 글자도 갈무리11의 12px 격자를 쓴다. 독립 제목은 실제 Bold, 본문은 Regular.
 // 흐린 그림자(shadowBlur) 대신 한 도트 어긋난 검은 글자를 먼저 찍는다.
-const BATTLE_PIXEL_FONT = "'Galmuri11', 'Galmuri14', 'Malgun Gothic', sans-serif";
-const BATTLE_TITLE_FONT = "'Galmuri11', 'Galmuri14', 'Malgun Gothic', sans-serif";
+/** 전장·피드백·결투 캔버스의 글꼴 목록. 언어별 CJK 보조 글꼴이 붙으므로 상수가 아니라 그릴 때마다 읽는다. */
+function battlePixelFont() { return i18n.fontFamily("'Galmuri11', 'Galmuri14'"); }
 function fillPixelText(ctx, text, x, y, color) {
     ctx.fillStyle = '#000';
     drawCrispCanvasText(ctx, text, x + 1, y + 1);
@@ -1620,7 +1620,7 @@ function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
     const presentation = drawEliteNameplate.presentation(enemy);
     let label = presentation.label;
     ctx.save();
-    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
+    ctx.font = `12px ${battlePixelFont()}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     // Measure the current font each paint: a cached fallback-font width stays wrong after Galmuri loads.
@@ -1814,12 +1814,12 @@ function drawLevelUpFx(ctx, fx, t, playerPos, now) {
 
 function drawLevelUpLabel(ctx, fx, pos) {
     ctx.globalAlpha = pos.alpha;
-    ctx.font = `24px ${BATTLE_PIXEL_FONT}`;
+    ctx.font = `24px ${battlePixelFont()}`;
     ctx.textAlign = 'center';
     ctx.lineWidth = 4;
     ctx.lineJoin = 'miter';
     ctx.strokeStyle = 'rgba(25,9,0,.92)';
-    const label = `레벨 ${fx.level || ''}`;
+    const label = _t('레벨 {level}', { level: fx.level || '' });
     const x = Math.round(pos.x), y = Math.round(pos.y);
     drawCrispCanvasText(ctx, label, x, y, 'strokeText');
     ctx.fillStyle = '#ffe9a8';
@@ -2615,7 +2615,7 @@ function drawLootHighlightLabel(ctx, fx, position, progress) {
     if (!fx.reason) return;
     ctx.save();
     ctx.globalAlpha = Math.min(1, (1 - progress) * 3);
-    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
+    ctx.font = `12px ${battlePixelFont()}`;
     ctx.textAlign = 'center';
     const name = String(fx.itemName || '').slice(0, 24);
     const width = Math.min(250, Math.max(ctx.measureText(name).width, ctx.measureText(fx.reason).width) + 24);
@@ -2714,7 +2714,7 @@ function getBattlefieldCaption() {
     if (game.woodsmanEntrancePending) return '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
     if (game.moveTimer > 0) return '';
     const left = getMapMonstersLeft();
-    return [getWorldTreeBarkEffect().on ? '세계수 껍질 구간' : '', left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? `몬스터 ${left}마리 남음` : ''].filter(Boolean).join(', ');
+    return [getWorldTreeBarkEffect().on ? '세계수 껍질 구간' : '', left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? _t('몬스터 {left}마리 남음', { left }) : ''].filter(Boolean).join(', ');
 }
 
 // A monster's arrival: rings, a floor glow and, for a boss, rays (the values renderBattlefield drew inline until 2026-10-19).
@@ -2893,11 +2893,11 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         ctx.fillStyle = 'rgba(6,10,16,0.55)';
         ctx.fillRect(0, 0, width, height);
         ctx.fillStyle = 'rgba(201, 223, 244, 0.82)';
-        ctx.font = `700 24px ${BATTLE_TITLE_FONT}`;
+        ctx.font = `700 24px ${battlePixelFont()}`;
         ctx.textAlign = 'center';
         drawCrispCanvasText(ctx, '전장을 준비하는 중...', width / 2, height / 2);
         ctx.restore();
-        document.getElementById('ui-battlefield-caption').innerText = '전장을 준비하는 중...';
+        document.getElementById('ui-battlefield-caption').innerText = _t('전장을 준비하는 중...');
         return;
     }
     let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
@@ -3329,7 +3329,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     ctx.globalAlpha = getBossBannerAlpha(banner.age);
     ctx.textAlign = 'center';
     // 좁은 화면(휴대폰)에서는 제목 글꼴의 자모가 벌어져 "잔ㄱㅏㅈㅣ"처럼 읽혔다(검토 8차) — 본문 도트 글꼴로.
-    ctx.font = `700 24px ${BATTLE_TITLE_FONT}`;
+    ctx.font = `700 24px ${battlePixelFont()}`;
     const name = getEnemyDisplayName(banner.boss);
     const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60);
     const mid = Math.round(width / 2);
@@ -3341,7 +3341,7 @@ function drawBossAnnouncement(ctx, area, banner) {
     drawCrispCanvasText(ctx, name, mid, cy, 'strokeText');
     ctx.fillStyle = banner.boss.redEntrance ? '#ff6a4e' : '#f0c46a';
     drawCrispCanvasText(ctx, name, mid, cy);
-    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
+    ctx.font = `12px ${battlePixelFont()}`;
     lines.forEach((line, index) => fillPixelToneText(ctx, line, mid, cy + 25 + index * 14, '#d98a6a'));
     ctx.restore();
 }
@@ -3349,8 +3349,8 @@ function drawBossAnnouncement(ctx, area, banner) {
 /** The band's small lines: element and standout defenses, the defenses on a line of their own when the screen is too narrow
  * for one (2026-10-19: with two of them the line was 371 px wide, wider than a 360 px phone). */
 function getBossBannerSubLines(ctx, boss, width) {
-    const head = [`${getElementLabel(boss.ele)} 속성 보스`], defenses = getEnemyDefenseHighlights(boss);
-    ctx.font = `12px ${BATTLE_PIXEL_FONT}`;
+    const head = [_t('{ele} 속성 보스', { ele: getElementLabel(boss.ele) })], defenses = getEnemyDefenseHighlights(boss);
+    ctx.font = `12px ${battlePixelFont()}`;
     const one = [...head, ...defenses].join(', ');
     return !defenses.length || ctx.measureText(one).width <= width - 24 ? [one] : [head.join(', '), defenses.join(', ')];
 }

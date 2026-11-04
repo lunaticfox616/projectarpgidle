@@ -307,7 +307,7 @@ function buildJewelSnapshot(jewel) {
 function buildTalismanSnapshot(t) {
     if (!t || !Array.isArray(t.lines)) return null;
     let lines = t.lines.map(line => ({ text: talismans.describeLine(line), condition: line.kind === 'condition' }));
-    if (t.special === 'moment') lines.push({ text: `보스에게 주는 최종 피해 +${t.moment}%, 생명력 5% 이하 보스 처형`, condition: true });
+    if (t.special === 'moment') lines.push({ text: _t('보스에게 주는 최종 피해 +{moment}%, 생명력 5% 이하 보스 처형', { moment: t.moment }), condition: true });
     return { kind: 'talisman', name: t.name || '부적', rarity: t.rarity || 'magic', uniqueEffect: t.uniqueEffect || undefined, lines, state: talismanStateFor(t) };
 }
 
@@ -375,7 +375,7 @@ function profileStatsHtml(stats) {
 /** 머리 줄 오른쪽의 큰 총 DPS(예전 프로필은 전투력). */
 function profilePowerHtml(p) {
     if (!p.power) return '';
-    return `<div class="social-profile-power"><span>${p.version >= 8 ? '총 DPS' : '전투력'}</span><b>${socialComma(p.power)}</b></div>`;
+    return `<div class="social-profile-power"><span>${p.version >= 8 ? _t('총 DPS') : _t('전투력')}</span><b>${socialComma(p.power)}</b></div>`;
 }
 // 능력치 값의 색(2026-10-11 사용자: "프로필 보기에서 폰트에 색깔이 다 사라졌어"): 장비창 요약(js/equipment-window-ui.js)과 같은 색.
 const PROFILE_STAT_TONES = Object.freeze({ dps: '#ffcf6e', summonDps: '#ffcf6e', baseDmg: '#ffcf9f', aspd: '#fff3a8', crit: '#ffd6f2', critDmg: '#ffd6f2',
@@ -622,14 +622,14 @@ function syncInitialPlayerProfile() {
     syncPlayerProfileQuiet();
 }
 async function syncPlayerProfile() {
-    if (!socialCloudReady()) return showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning');
+    if (!socialCloudReady()) return showGameToast(_t('먼저 클라우드 로그인이 필요합니다.'), 'warning');
     // 닉네임 줄을 쓰기 전에 서버의 닉네임을 다시 읽는다: 다른 기기에서 바꾼 닉네임을 옛 닉네임으로 되돌리지 않는다.
     await restoreNicknameFromServer(true);
     if (!getMyNickname()) await promptAndSetNickname();
     if (!getMyNickname()) return;
     try {
         await uploadPlayerProfile({ required: true });
-        showGameToast('공개 프로필을 최신 상태로 갱신했습니다.', 'success');
+        showGameToast(_t('공개 프로필을 최신 상태로 갱신했습니다.'), 'success');
     } catch (error) {
         if (error && error.socialCode === 'nickname_conflict') setMyNicknameLocal('');
         showGameToast('프로필 갱신 실패: ' + String(error && error.message || error), 'danger');
@@ -649,28 +649,28 @@ async function updatePastChatNicknames(name) {
 }
 
 async function promptAndSetNickname() {
-    if (!socialCloudReady()) { showGameToast('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)', 'warning'); return; }
+    if (!socialCloudReady()) { showGameToast(_t('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)'), 'warning'); return; }
     let current = getMyNickname();
     let input = await requestGameText({
-        title: '닉네임 설정',
+        title: _t('닉네임 설정'),
         message: `사용할 닉네임을 입력하세요. (${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_)\n닉네임은 하루에 한 번만 변경할 수 있습니다.`,
         value: current || '',
         maxLength: SOCIAL_NICK_MAX,
-        placeholder: '닉네임',
-        confirmLabel: '닉네임 적용'
+        placeholder: _t('닉네임'),
+        confirmLabel: _t('닉네임 적용')
     });
     if (input == null) return;
     let name = String(input).trim();
     if (name === current) return;
-    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { showGameToast(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자여야 합니다.`, 'warning'); return; }
-    if (!SOCIAL_NICK_RE.test(name)) { showGameToast('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.', 'warning'); return; }
+    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) { showGameToast(_t('닉네임은 {SOCIAL_NICK_MIN}~{SOCIAL_NICK_MAX}자여야 합니다.', { SOCIAL_NICK_MIN, SOCIAL_NICK_MAX }), 'warning'); return; }
+    if (!SOCIAL_NICK_RE.test(name)) { showGameToast(_t('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.'), 'warning'); return; }
 
     let prev = getMyNickname();
     setMyNicknameLocal(name);
     try {
         await uploadPlayerProfile({ fromNicknameChange: true });
         await updatePastChatNicknames(name);     // 과거 채팅도 새 닉네임으로
-        if (typeof addLog === 'function') addLog(`🪪 닉네임이 ${withDirectionParticle(`"${name}"`)} 설정되었습니다.`, 'season-up');
+        if (typeof addLog === 'function') addLog(_t('🪪 닉네임이 {name} 설정되었습니다.', { name: withDirectionParticle(`"${name}"`) }), 'season-up');
         socialState.chatInitialized = false;
         socialState.chatMessages = [];
         socialState.lastChatRenderKey = '';
@@ -780,12 +780,12 @@ function renderChatOnlineCount(active, recent) {
     let badge = document.getElementById('social-chat-online');
     if (!badge) return;
     badge.hidden = !socialState.onlineSupported || active <= 0;
-    let text = `접속 ${active}명`;
+    let text = _t('접속 {active}명', { active });
     if (badge.dataset.text !== text) {
         badge.dataset.text = text;
         badge.innerHTML = `<i class="social-presence-dot active" aria-hidden="true"></i>${text}`;
     }
-    badge.dataset.tip = `지금 접속 ${active}명, 30분 안에 다녀간 사람 ${recent}명`;
+    badge.dataset.tip = _t('지금 접속 {active}명, 30분 안에 다녀간 사람 {recent}명', { active, recent });
 }
 /** 인원 수만 받았을 때(loadOnlineUsers의 { counts }): 배지만 그린다. */
 function renderOnlineCounts(counts) {
@@ -812,10 +812,10 @@ function renderOnlineUsers(users, now = Date.now()) {
             let me = u.user_id === myId;
             return `<button type="button" class="social-online-chip ${row.state}${me ? ' me' : ''}" onclick="openPlayerProfile('${socialEscape(u.user_id)}')">`
                 + `<span class="social-presence-dot ${row.state}" aria-hidden="true"></span>`
-                + `<span>${socialEscape(u.nickname || '익명')}</span>${me ? '<em>나</em>' : ''}</button>`;
+                + `<span>${socialEscape(u.nickname || '익명')}</span>${me ? _t('<em>나</em>') : ''}</button>`;
         }).join('')
-        : `<span class="social-online-empty">지금은 조용합니다.</span>`;
-    host.innerHTML = `<div class="social-online-title"><span>접속 상태</span><span class="social-presence-summary">`
+        : `<span class="social-online-empty">${_t('지금은 조용합니다.')}</span>`;
+    host.innerHTML = `<div class="social-online-title"><span>${_t('접속 상태')}</span><span class="social-presence-summary">`
         + `<span><i class="social-presence-dot active"></i>${activeCount}</span>`
         + `<span><i class="social-presence-dot recent"></i>${recentCount}</span></span></div>`
         + `<div class="social-online-list">${chips}</div>`;
@@ -919,7 +919,7 @@ function showChatToast(row) {
     let now = Date.now();
     if (typeof showGameToast !== 'function' || now - socialState.lastChatToastAt < SOCIAL_CHAT_TOAST_GAP_MS) return;
     socialState.lastChatToastAt = now;
-    showGameToast(`새 채팅, ${String(row.nickname || '플레이어')}: ${getSocialChatNotificationPreview(row)}`, { tone: 'info', duration: SOCIAL_CHAT_TOAST_MS });
+    showGameToast(_t('새 채팅, {who}: {preview}', { who: String(row.nickname || _t('플레이어')), preview: getSocialChatNotificationPreview(row) }), { tone: 'info', duration: SOCIAL_CHAT_TOAST_MS });
 }
 /** 닫힌 채팅의 새 채팅 확인: 점과 토스트 하나에는 남이 보낸 가장 새 줄 하나면 된다(첨부 그림은 받지 않는다). 이미 알린 채팅 뒤만 묻는다:
  * 확인하지 않은 채팅이 쌓여도 같은 줄을 매번 다시 받지 않는다. 이 기기의 첫 확인은 기준점만 잡는다(noteIncomingChats). */
@@ -1152,7 +1152,7 @@ function checkSendRateLimit() {
     socialState.sendTimestamps = socialState.sendTimestamps.filter(t => now - t < 60000);
     let last = socialState.sendTimestamps[socialState.sendTimestamps.length - 1] || 0;
     if (now - last < SOCIAL_SEND_MIN_INTERVAL_MS) return '메시지를 너무 빠르게 보냈습니다. 잠시 후 다시 시도해주세요.';
-    if (socialState.sendTimestamps.length >= SOCIAL_SEND_MAX_PER_MIN) return `1분에 최대 ${SOCIAL_SEND_MAX_PER_MIN}개까지 보낼 수 있습니다. 잠시 후 다시 시도해주세요.`;
+    if (socialState.sendTimestamps.length >= SOCIAL_SEND_MAX_PER_MIN) return _t('1분에 최대 {SOCIAL_SEND_MAX_PER_MIN}개까지 보낼 수 있습니다. 잠시 후 다시 시도해주세요.', { SOCIAL_SEND_MAX_PER_MIN });
     return true;
 }
 // 차단(2026-10-27): 이 기기에서만 그 사람의 채팅을 숨긴다(기기마다 따로, 서버에는 남기지 않는다). 신고는 서버(report_player_chat)로 간다.
@@ -1176,7 +1176,7 @@ function unblockUser(userId) {
     socialState.lastChatRenderKey = '';
     renderChatMessages(socialState.chatMessages || [], false);
     refreshChatSettings();
-    showGameToast('차단을 풀었습니다.', 'info');
+    showGameToast(_t('차단을 풀었습니다.'), 'info');
 }
 /** 서버가 채팅을 거절한 까닭(db/social.sql chat_messages_rate_limit의 오류 코드)을 플레이어 문구로. 첫 줄부터 맞는 것 하나. */
 const SOCIAL_CHAT_ERROR_TEXTS = [
@@ -1260,12 +1260,12 @@ function updateChatSendButton() {
     const button = document.getElementById('social-chat-send');
     if (!button) return;
     button.disabled = socialState.chatSending || !socialCloudReady() || !getMyNickname();
-    button.textContent = socialState.chatSending ? '전송 중' : '전송';
+    button.textContent = socialState.chatSending ? _t('전송 중') : _t('전송');
     button.setAttribute('aria-busy', String(socialState.chatSending));
 }
 
 async function sendChatMessage() {
-    if (!socialCloudReady()) { showGameToast('먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    if (!socialCloudReady()) { showGameToast(_t('먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
     if (socialState.chatSending) return;
     let inputEl = document.getElementById('social-chat-input');
     if (!inputEl) return;
@@ -1273,8 +1273,8 @@ async function sendChatMessage() {
     let pending = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
     let { body, items } = toChatBody(draft.trim(), pending);
     if (!body && !items.length) return;
-    if (body.length > SOCIAL_MSG_MAX) { showGameToast(`메시지는 최대 ${SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.`, 'warning'); return; }
-    if (body && body === socialState.lastSentBody && !items.length) { showGameToast('같은 메시지를 연속으로 보낼 수 없습니다.', 'warning'); return; }
+    if (body.length > SOCIAL_MSG_MAX) { showGameToast(_t('메시지는 최대 {SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.', { SOCIAL_MSG_MAX }), 'warning'); return; }
+    if (body && body === socialState.lastSentBody && !items.length) { showGameToast(_t('같은 메시지를 연속으로 보낼 수 없습니다.'), 'warning'); return; }
     let rate = checkSendRateLimit();
     if (rate !== true) { showGameToast(rate, 'warning'); return; }
 
@@ -1350,7 +1350,7 @@ function insertChatItemLabel(inputEl, label) {
 }
 /** Puts one item card in the message being written; false when the message already holds the most it can. */
 function attachChatSnapshot(snap) {
-    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(`메시지당 최대 ${SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.`, 'warning'); return false; }
+    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(_t('메시지당 최대 {SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.', { SOCIAL_MAX_ITEMS_PER_MSG }), 'warning'); return false; }
     socialState.pendingChatItems.push(snap);
     let inputEl = document.getElementById('social-chat-input');
     if (inputEl) insertChatItemLabel(inputEl, chatItemLabel(snap));
@@ -1365,9 +1365,9 @@ function attachChatItem(source, idx) {
 /** 들고 있던 장비를 채팅 입력 줄에 놓았다(js/equipment-inventory-grid-ui.js, 2026-10-22 사용자 "아이템을 직접 채팅창에 끌어다가 놓아도
  * 가능하게"). 주얼, 코어, 액막이도 제 카드로 붙는다(buildChatItemSnapshot). */
 function attachChatItemOf(item, slot) {
-    if (!getMyNickname()) return showGameToast('닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다.', 'warning');
+    if (!getMyNickname()) return showGameToast(_t('닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다.'), 'warning');
     let snap = buildChatItemSnapshot(item, slot);
-    if (!snap) return showGameToast('이 아이템은 채팅에 붙일 수 없습니다.', 'warning');
+    if (!snap) return showGameToast(_t('이 아이템은 채팅에 붙일 수 없습니다.'), 'warning');
     attachChatSnapshot(snap);
 }
 function removePendingChatItem(idx) {
@@ -1384,7 +1384,7 @@ function renderPendingChatItems() {
     host.style.display = 'flex';
     host.innerHTML = socialState.pendingChatItems.map((it, i) => {
         let color = socialRarityColor(it.rarity);
-        return `<span class="social-pending-chip" style="border-color:${color};color:${color};">${socialEscape(chatItemLabel(it))}<button onclick="removePendingChatItem(${i})" aria-label="첨부 취소" data-tip="첨부 취소">✕</button></span>`;
+        return `<span class="social-pending-chip" style="border-color:${color};color:${color};">${socialEscape(chatItemLabel(it))}<button onclick="removePendingChatItem(${i})" aria-label="${_t('첨부 취소')}" data-tip="${_t('첨부 취소')}">✕</button></span>`;
     }).join('');
 }
 function updateChatCounter() {
@@ -1465,7 +1465,7 @@ function renderChatMessages(messages, forceScroll) {
     }
     socialState.lastChatRenderKey = key;
     if (!messages.length) {
-        listEl.innerHTML = `<div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>아직 조용합니다</strong><small>첫 메시지를 남겨보세요.</small></div>`;
+        listEl.innerHTML = `<div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>${_t('아직 조용합니다')}</strong><small>${_t('첫 메시지를 남겨보세요.')}</small></div>`;
         socialState.scrollChatToLatestOnNextRender = false;
         return;
     }
@@ -1477,8 +1477,8 @@ function renderChatMessages(messages, forceScroll) {
         return `<article class="social-chat-msg${mine ? ' mine' : ''}">`
             + `<header class="social-chat-head"><button type="button" class="social-chat-author" onclick="openPlayerProfile('${socialEscape(m.user_id)}')">`
             + `<span class="social-chat-nick">${socialEscape(nickname)}</span></button>`
-            + `${mine ? '<span class="social-chat-self">나</span>' : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time>`
-            + `${admin ? `<button type="button" class="social-chat-delete" data-chat-delete="${socialEscape(m.id)}" onclick="deleteChatMessage(this)">지우기</button>` : ''}</header>`
+            + `${mine ? _t('<span class="social-chat-self">나</span>') : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time>`
+            + `${admin ? `<button type="button" class="social-chat-delete" data-chat-delete="${socialEscape(m.id)}" onclick="deleteChatMessage(this)">${_t('지우기')}</button>` : ''}</header>`
             + `<div class="social-chat-body">${renderChatBody(m)}</div></article>`;
     }).join('');
     if (shouldScroll) scrollSocialChatToLatest(listEl);
@@ -1657,7 +1657,7 @@ function profileItemTitleHtml(item, color) {
 function profileItemHallHtml(item) {
     if (item.hallReplica) {
         return `<div class="social-item-stat" style="color:#d2b878;">🏛️ 전당 소장품, 전시자 ${socialEscape(item.hallCuratorName || '익명')}, `
-            + `감정 ${Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString()}, 제작과 재등록 불가</div>`;
+            + `${_t('감정 {max}, 제작과 재등록 불가', { max: Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString() })}</div>`;
     }
     return item.hallRelistBlocked ? '<div class="social-item-stat" style="color:#bda979;">🏛️ 전당 복제 이력, 재등록 불가</div>' : '';
 }
@@ -1666,15 +1666,15 @@ function profileBaseLineHtml(item) {
     if (!item.baseName) return '';
     let step = Array.isArray(item.baseStep)
         ? ` <span style="color:#7fd1a8;">[${Math.floor(Number(item.baseStep[0]) || 0)}/${Math.floor(Number(item.baseStep[1]) || 0)}]</span>` : '';
-    return `<div class="social-item-base">베이스: ${socialEscape(item.baseName)}${step}</div>`;
+    return `<div class="social-item-base">${_t('베이스: {baseName}{step}', { baseName: socialEscape(item.baseName), step })}</div>`;
 }
 
 /** 아이템 레벨과 등급, 요구 조건. 예전 프로필에는 없다. */
 function profileLevelLineHtml(item) {
     let level = Math.floor(Number(item.itemLevel) || 0), grade = Math.floor(Number(item.grade) || 0);
-    let gradeHtml = grade && typeof getTierBadgeHtml === 'function' ? ` 등급 ${getTierBadgeHtml(grade, 'T')}` : '';
+    let gradeHtml = grade && typeof getTierBadgeHtml === 'function' ? _t(' 등급 {grade}', { grade: getTierBadgeHtml(grade, 'T') }) : '';
     let requirement = profileRequirementText(item.requirements);
-    return (level ? `<div class="social-item-base">아이템 Lv.${level}${gradeHtml}</div>` : '')
+    return (level ? `<div class="social-item-base">${_t('아이템 Lv.{level}{grade}', { level, grade: gradeHtml })}</div>` : '')
         + (requirement ? `<div class="social-item-base">${socialEscape(requirement)}</div>` : '');
 }
 
@@ -1682,11 +1682,11 @@ function profileRequirementText(req) {
     if (!req || typeof req !== 'object') return '';
     let attributes = Object.entries(req.attributes || {}).filter(([, value]) => Number(value) > 0)
         .map(([key, value]) => `${profileStatLabel({ id: key })} ${Math.floor(Number(value))}`);
-    return [`요구 Lv.${Math.max(1, Math.floor(Number(req.level) || 1))}`, ...attributes].join(', ');
+    return [_t('요구 Lv.{max}', { max: Math.max(1, Math.floor(Number(req.level) || 1)) }), ...attributes].join(', ');
 }
 
 function profileItemUniqueHtml(item) {
-    return item.uniqueEffect ? `<div class="social-item-unique">✨ 고유 효과: ${socialEscape(item.uniqueEffect)}</div>` : '';
+    return item.uniqueEffect ? `<div class="social-item-unique">${_t('✨ 고유 효과: {uniqueEffect}', { uniqueEffect: socialEscape(item.uniqueEffect) })}</div>` : '';
 }
 
 /** 주얼이 박힌 소켓 줄(게임 equipmentSocketsUi.tooltipHtml과 같은 모양). 빈 소켓은 보여 주지 않는다. */
@@ -1702,7 +1702,7 @@ function profileJewelValue(id, value) {
 
 function profileJewelSummary(jewel) {
     let lines = (Array.isArray(jewel.stats) ? jewel.stats : []).filter(st => st && st.id != null)
-        .map(st => `${st.petite ? '쁘띠 ' : ''}${profileStatLabel({ id: st.id })} +${profileJewelValue(st.id, st.val)}`);
+        .map(st => `${st.petite ? _t('쁘띠 ') : ''}${profileStatLabel({ id: st.id })} +${profileJewelValue(st.id, st.val)}`);
     return lines.length ? `, ${lines.join(', ')}` : '';
 }
 
@@ -1710,7 +1710,7 @@ function profileJewelSummary(jewel) {
 function profileItemFusionHtml(item) {
     if (!item.fusedRelic) return '';
     let gradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
-    return `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? `, [${socialEscape(item.fusedRareName)}]의 기억` : ''}</div>`;
+    return `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? _t(', [{fusedRareName}]의 기억', { fusedRareName: socialEscape(item.fusedRareName) }) : ''}</div>`;
 }
 
 /** 게임 툴팁처럼 "베이스 옵션"(방어도, 회피, 에너지 보호막은 최종값과 베이스), "추가 옵션 (n/6)"(게임과 같은 순서, 혼돈 주입 포함), 잠식. */
@@ -1728,12 +1728,12 @@ function profileItemOptionsHtml(item) {
 function profileAffixHeaderText(item, explicit) {
     const kinds = explicit.map(st => st.kind).filter(Boolean);
     const used = kinds.length ? { prefix: kinds.filter(kind => kind === 'prefix').length, suffix: kinds.filter(kind => kind === 'suffix').length } : null;
-    return typeof equipmentCrafting === 'object' ? equipmentCrafting.affixHeader(item.rarity, explicit.length, used).text : `추가 옵션 (${explicit.length}/6)`;
+    return typeof equipmentCrafting === 'object' ? equipmentCrafting.affixHeader(item.rarity, explicit.length, used).text : _t('추가 옵션 ({length}/6)', { length: explicit.length });
 }
 
 function profileExplicitStats(item) {
     let rows = (Array.isArray(item.stats) ? item.stats : []).filter(st => st && st.id != null);
-    if (item.chaosInfusion && item.chaosInfusion.id != null) rows.push({ ...item.chaosInfusion, statName: `[주입] ${profileStatLabel(item.chaosInfusion)}` });
+    if (item.chaosInfusion && item.chaosInfusion.id != null) rows.push({ ...item.chaosInfusion, statName: _t('[주입] {chaosInfusion}', { chaosInfusion: profileStatLabel(item.chaosInfusion) }) });
     return typeof itemTooltipRules === 'object' ? rows.sort(itemTooltipRules.compareStats) : rows;
 }
 
@@ -1742,14 +1742,14 @@ function profileBaseOptionsHtml(item) {
     if (!base.length) return '';
     let defenseIds = typeof itemTooltipRules === 'object' ? itemTooltipRules.DEFENSE_IDS : [];
     let lines = base.filter(st => !defenseIds.includes(st.id)).map(profileBaseStatHtml).join('');
-    return `<div class="social-item-section">베이스 옵션</div>${profileWardSlotsHtml(item)}${lines}${profileDefenseLinesHtml(item, base)}`;
+    return `<div class="social-item-section">${_t('베이스 옵션')}</div>${profileWardSlotsHtml(item)}${lines}${profileDefenseLinesHtml(item, base)}`;
 }
 
 /** 허리띠의 액막이 칸 줄(게임 툴팁 js/colony-wards-ui.js beltLineHtml과 같다): 칸 수와 굴림 범위. */
 function profileWardSlotsHtml(item) {
     const range = COLONY_WARD_RULES.beltSlots, slots = Math.floor(Number(item.wardSlots));
     if (!(slots >= range.min && slots <= range.max)) return '';
-    return `<div class="social-item-stat"><span style="color:#c8b6ff;">액막이 칸 </span><span style="color:#e6dcc6;">+${slots}</span>`
+    return `<div class="social-item-stat"><span style="color:#c8b6ff;">${_t('액막이 칸')} </span><span style="color:#e6dcc6;">+${slots}</span>`
         + ` <span class="social-roll">(${range.min}~${range.max})</span></div>`;
 }
 
@@ -1837,14 +1837,14 @@ function profileAnointSnapshot(item) {
 /** 기름 줄(게임 툴팁과 같다). */
 function profileItemAnointHtml(item) {
     return (Array.isArray(item.anoint) ? item.anoint : []).filter(row => row && row.title)
-        .map(row => `<div class="social-item-stat" style="color:#cfe0a0;">🌿 기름: ${socialEscape(row.title)} (${socialEscape(row.text || '')})</div>`).join('');
+        .map(row => `<div class="social-item-stat" style="color:#cfe0a0;">${_t('🌿 기름: {title} ({text})', { title: socialEscape(row.title), text: socialEscape(row.text || '') })}</div>`).join('');
 }
 
 /** 타오른 장비(게임 툴팁과 같다): 다시 태울 수 없다는 표시와 타락 전용 줄. */
 function profileItemEmberHtml(item) {
     if (!Array.isArray(item.ember)) return '';
-    const lines = item.ember.map(line => `<div class="social-item-stat" style="color:${EMBER_CORRUPTION_TONE};">[잿불] ${socialEscape(profileStatLabel(line))} +${socialEscape(profileValue(line.id, line.val))}</div>`).join('');
-    return `<div class="social-item-section" style="color:${EMBER_CORRUPTION_TONE};">🔥 타오른 장비 (다시 태울 수 없음)</div>${lines}`;
+    const lines = item.ember.map(line => `<div class="social-item-stat" style="color:${EMBER_CORRUPTION_TONE};">${_t('[잿불] {line} +{id}', { line: socialEscape(profileStatLabel(line)), id: socialEscape(profileValue(line.id, line.val)) })}</div>`).join('');
+    return `<div class="social-item-section" style="color:${EMBER_CORRUPTION_TONE};">${_t('🔥 타오른 장비 (다시 태울 수 없음)')}</div>${lines}`;
 }
 
 /** 잠식 특수 옵션(게임과 같다): 해방하면 고른 옵션과 티어, 아니면 효과 없음. */
@@ -1855,7 +1855,7 @@ function profileItemEncroachHtml(item) {
     let line = chosen && chosen.id != null
         ? `<div class="social-item-stat" style="color:#d7b8ff;">[잠식] ${socialEscape(profileStatLabel(chosen))} +${socialEscape(profileValue(chosen.id, chosen.val))}${profileTierHtml({ tier: Number(chosen.tier) || 10 })}</div>`
         : '<div class="social-item-stat" style="color:#8d7bb3;">해방 전에는 효과 없음, 모든 제작으로도 변하지 않음</div>';
-    return `<div class="social-item-section" style="color:#b084ff;">잠식 특수 옵션</div>${line}`;
+    return `<div class="social-item-section" style="color:#b084ff;">${_t('잠식 특수 옵션')}</div>${line}`;
 }
 
 // ── 주얼 카드: 게임 createJewelRangeTooltipHtml과 같은 구성 ─────────────────
@@ -1863,15 +1863,15 @@ function renderProfileJewelCard(jewel) {
     let color = socialRarityColor(jewel.rarity);
     let lines = (Array.isArray(jewel.stats) ? jewel.stats : []).map(profileJewelLineHtml).join('');
     return `<div class="social-item-card" style="border-color:${color};"><div class="social-item-title" style="color:${color};">${socialEscape(jewel.name || '주얼')}</div>`
-        + `${profileJewelHeadHtml(jewel)}${lines || '<div class="social-item-stat" style="color:var(--copy-muted);">옵션 정보 없음</div>'}</div>`;
+        + `${profileJewelHeadHtml(jewel)}${lines || _t('<div class="social-item-stat" style="color:var(--copy-muted);">옵션 정보 없음</div>')}</div>`;
 }
 
 function profileJewelHeadHtml(jewel) {
-    let unique = jewel.uniqueEffect ? `<div class="social-item-unique">✨ 고유 효과: ${socialEscape(jewel.uniqueEffect)}</div>` : '';
+    let unique = jewel.uniqueEffect ? `<div class="social-item-unique">${_t('✨ 고유 효과: {uniqueEffect}', { uniqueEffect: socialEscape(jewel.uniqueEffect) })}</div>` : '';
     let key = jewel.keystone;
     let keystone = key && key.name
         ? `<div class="social-item-stat" style="color:${key.active ? '#8fe7b0' : '#ffd68a'};">🔯 배정 키스톤: ${socialEscape(key.name)}${key.ascend ? `(${socialEscape(key.ascend)})` : ''}`
-            + `${key.active ? ', 할당 중' : ', 짝 주얼의 키스톤과 같으면 할당'}</div>`
+            + `${key.active ? _t(', 할당 중') : _t(', 짝 주얼의 키스톤과 같으면 할당')}</div>`
         : '';
     return unique + keystone + profileJewelTierHtml(jewel);
 }
@@ -1881,7 +1881,7 @@ function profileJewelTierHtml(jewel) {
     let core = (Array.isArray(jewel.stats) ? jewel.stats : []).filter(st => st && !st.petite);
     if (!core.length) return '';
     let average = core.reduce((sum, st) => sum + Math.max(1, Math.floor(Number(st.tier) || 1)), 0) / core.length;
-    return `<div class="social-item-base">옵션 평균 티어: T${average.toFixed(1)}</div>`;
+    return `<div class="social-item-base">${_t('옵션 평균 티어: T{average}', { average: average.toFixed(1) })}</div>`;
 }
 
 /** 주얼 한 줄(게임과 같다): [밀랍] [쁘띠] 이름: +값 T#, 고정 범위. 범위가 없으면 값 그대로. */
@@ -1892,7 +1892,7 @@ function profileJewelLineHtml(st) {
     let tier = Number.isFinite(Number(st.tier)) && !st.petite ? ` <span style="color:#ffd68a;">T${Math.floor(Number(st.tier))}</span>` : '';
     let min = profileJewelValue(st.id, st.valMin ?? st.val), max = profileJewelValue(st.id, st.valMax ?? st.val);
     return `<div class="social-item-stat"><span style="color:${tone};">${marks}${socialEscape(profileStatLabel({ id: st.id }))}: +${socialEscape(profileJewelValue(st.id, st.val))}${tier}</span>`
-        + ` <span class="social-roll">(고정 범위 ${socialEscape(min)}~${socialEscape(max)})</span></div>`;
+        + ` <span class="social-roll">${_t('(고정 범위 {min}~{max})', { min: socialEscape(min), max: socialEscape(max) })}</span></div>`;
 }
 
 // ── 부적 카드: 게임 그루터기 함의 부적 설명과 같은 구성 ───────────────────────
@@ -1908,19 +1908,19 @@ const profileOwn = (table, key) => (Object.prototype.hasOwnProperty.call(table, 
 function renderProfileTalismanCard(t) {
     if (!Array.isArray(t.lines)) return renderSimpleCard(t);
     let tone = profileTalismanTone(t), off = t.state !== 'awake' && t.state !== 'amplified';
-    let effect = t.uniqueEffect ? `<div class="social-item-unique"${off ? PROFILE_OFF_STYLE : ''}>${socialEscape(t.uniqueEffect)}${off ? ' (비활성)' : ''}</div>` : '';
+    let effect = t.uniqueEffect ? `<div class="social-item-unique"${off ? PROFILE_OFF_STYLE : ''}>${socialEscape(t.uniqueEffect)}${off ? _t(' (비활성)') : ''}</div>` : '';
     let lines = t.lines.map(line => profileTalismanLineHtml(line, off)).join('');
     let growth = profileGrowthText(t);
     let notes = [profileOwn(PROFILE_TALISMAN_STATES, t.state), profileGraftText(t)].filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
     return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(t.name || '부적')}</div>`
         + `${growth ? `<div class="social-item-base">${socialEscape(growth)}</div>` : ''}`
-        + `<div class="social-item-base" style="color:${tone};">${profileOwn(PROFILE_TALISMAN_RARITY, t.rarity) || '마법'} 부적</div>${effect}${lines}${notes}</div>`;
+        + `<div class="social-item-base" style="color:${tone};">${_t('{PROFILE_TALISMAN_RARITY} 부적', { PROFILE_TALISMAN_RARITY: profileOwn(PROFILE_TALISMAN_RARITY, t.rarity) || _t('마법') })}</div>${effect}${lines}${notes}</div>`;
 }
 
 /** One talisman line: purple for a condition line, grey with (비활성) while the talisman gives nothing (the game's rule). */
 function profileTalismanLineHtml(line, off) {
     let style = off ? PROFILE_OFF_STYLE : (line && line.condition ? ' style="color:#d7b8ff;"' : '');
-    return `<div class="social-item-stat"${style}>${socialEscape(line && line.text)}${off ? ' (비활성)' : ''}</div>`;
+    return `<div class="social-item-stat"${style}>${socialEscape(line && line.text)}${off ? _t(' (비활성)') : ''}</div>`;
 }
 
 function profileTalismanTone(t) {
@@ -1930,12 +1930,12 @@ function profileTalismanTone(t) {
 /** 그루터기 함에서 성장 중이면 게임과 같은 "경험치 120 / 400". 성장 완료되었거나 성장 정보가 없으면 빈 글. */
 function profileGrowthText(item) {
     let need = Math.floor(Number(item.need) || 0);
-    return item.ripe || need <= 0 ? '' : `경험치 ${Math.floor(Number(item.xp) || 0)} / ${need}`;
+    return item.ripe || need <= 0 ? '' : _t('경험치 {floor} / {need}', { floor: Math.floor(Number(item.xp) || 0), need });
 }
 
 function profileGraftText(item) {
     let rank = Math.floor(Number(item.graft) || 0);
-    return rank > 0 ? `접붙이기 ${rank}단계, +${Math.floor(Number(item.graftPct) || 0)}%` : '';
+    return rank > 0 ? _t('접붙이기 {rank}단계, +{floor}%', { rank, floor: Math.floor(Number(item.graftPct) || 0) }) : '';
 }
 
 // ── 코어 카드: 게임 코어 툴팁(core-items-ui.js)과 같은 이름과 줄 ─────────────
@@ -1948,8 +1948,8 @@ function renderProfileCoreCard(core) {
 // ── 씨앗 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
 function renderProfileStumpCard(item) {
     let tone = profileStumpTone(item), scar = item.family === 'scar';
-    let gain = item.yieldText ? `${item.yieldText}${item.ripe && !item.suppressed ? '' : ' (비활성)'}` : '';
-    let head = [scar ? '' : `품질 ${Math.floor(Number(item.quality) || 0)}%${item.golden === true ? ', 황금' : ''}`, profileGrowthText(item), gain];
+    let gain = item.yieldText ? `${item.yieldText}${item.ripe && !item.suppressed ? '' : _t(' (비활성)')}` : '';
+    let head = [scar ? '' : _t('품질 {floor}%{value}', { floor: Math.floor(Number(item.quality) || 0), value: item.golden === true ? _t(', 황금') : '' }), profileGrowthText(item), gain];
     let rows = list => list.filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
     return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(item.name || '그루터기 아이템')}</div>`
         + rows(head) + profileStumpExtraHtml(item) + rows([item.note, profileGraftText(item)]) + '</div>';
@@ -1988,7 +1988,7 @@ function ensureProfileModal() {
     modal = document.createElement('div');
     modal.id = 'social-profile-modal'; modal.className = 'social-modal-overlay'; modal.style.display = 'none';
     modal.onclick = function (e) { if (e.target === modal) closePlayerProfile(); };
-    modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closePlayerProfile()" aria-label="닫기">✕</button><div class="social-modal-content"><div id="social-profile-body"></div></div></div>`;
+    modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closePlayerProfile()" aria-label="${_t('닫기')}">✕</button><div class="social-modal-content"><div id="social-profile-body"></div></div></div>`;
     document.body.appendChild(modal);
     return modal;
 }
@@ -1998,7 +1998,7 @@ function closePlayerProfile() { hideSocialTip(); let m = document.getElementById
 // 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
 async function openMyProfilePreview() {
     selectionDialog.close(CHAT_SETTINGS_ID);
-    if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    if (!socialCloudReady()) { showGameToast(_t('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
     // 닉네임 줄을 쓰기 전에 서버의 닉네임을 다시 읽는다(syncPlayerProfile과 같다).
     await restoreNicknameFromServer(true);
     if (!getMyNickname()) await promptAndSetNickname();
@@ -2015,14 +2015,14 @@ async function openMyProfilePreview() {
 
 /** 머리 줄: 레벨, 직업, 전직, 루프, 총 DPS를 칩으로(가운뎃점 없이). 예전 프로필(직업 없음)은 전직만 나온다. */
 function renderProfileIdentityChips(p) {
-    let chips = [`Lv.${p.level || 1}`, p.heroClassName, p.className || '미전직', `루프 ${socialComma(p.loop || 0)}`];
+    let chips = [`Lv.${p.level || 1}`, p.heroClassName, p.className || '미전직', _t('루프 {loop}', { loop: socialComma(p.loop || 0) })];
     return chips.filter(Boolean).map(chip => `<span class="social-profile-chip">${socialEscape(chip)}</span>`).join('');
 }
 
 function renderProfileGemRow(label, gem, extra) {
     if (!gem || !gem.name) return '';
     // 남의 프로필 값이라 품질도 다른 칸처럼 이스케이프한다(2026-10-27 검토: 이 한 칸만 날것으로 들어가 저장형 XSS가 됐다).
-    let quality = gem.quality ? ` 품질 ${socialEscape(gem.quality)}` : '';
+    let quality = gem.quality ? _t(' 품질 {quality}', { quality: socialEscape(gem.quality) }) : '';
     return `<div class="social-skill-row"><span class="social-skill-label">${socialEscape(label)}</span>`
         + `<strong>${socialEscape(gem.name)}</strong><span class="social-skill-level">Lv.${socialEscape(gem.level || 1)}${quality}${extra || ''}</span></div>`;
 }
@@ -2033,7 +2033,7 @@ function renderProfileSkills(skills) {
     let rows = [renderProfileGemRow('주 스킬', skills.active)]
         .concat((skills.supports || []).map(gem => renderProfileGemRow('보조', gem)))
         .concat([renderProfileGemRow('이동', skills.mobility)])
-        .concat((skills.summons || []).map(gem => renderProfileGemRow('소환', gem, Math.floor(Number(gem.count)) > 1 ? ` ${Math.floor(Number(gem.count))}마리` : '')));
+        .concat((skills.summons || []).map(gem => renderProfileGemRow('소환', gem, Math.floor(Number(gem.count)) > 1 ? _t(' {floor}마리', { floor: Math.floor(Number(gem.count)) }) : '')));
     return `<div class="social-skill-list">${rows.join('')}</div>`;
 }
 
@@ -2048,7 +2048,7 @@ function showProfileItemDetail(html) {
         layer.onclick = event => { if (event.target === layer || event.target.closest('[data-item-detail-close]')) layer.hidden = true; };
         box.appendChild(layer);
     }
-    layer.innerHTML = `<div class="social-item-detail-card">${html}<button type="button" data-item-detail-close>닫기</button></div>`;
+    layer.innerHTML = `<div class="social-item-detail-card">${html}<button type="button" data-item-detail-close>${_t('닫기')}</button></div>`;
     layer.hidden = false;
     return true;
 }
@@ -2202,13 +2202,13 @@ function switchProfileTab(cat) {
 function renderProfileData(profile) {
     let body = document.getElementById('social-profile-body');
     if (!body) return;
-    if (!profile) { body.innerHTML = `<div class="social-profile-empty">공개 프로필을 찾을 수 없습니다.<br>프로필 생성 또는 동기화가 완료되지 않았을 수 있어요.</div>`; return; }
+    if (!profile) { body.innerHTML = `<div class="social-profile-empty">${_t('공개 프로필을 찾을 수 없습니다.')}<br>${_t('프로필 생성 또는 동기화가 완료되지 않았을 수 있어요.')}</div>`; return; }
     socialState.currentProfile = profile;
     socialState.profileTab = 'equipment';
     let p = profile;
     let stats = Array.isArray(p.stats) ? p.stats : [];
     let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
-    let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString('ko-KR') : '';
+    let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString(i18n.locale) : '';
     let actions = renderProfileActionsRow();
     // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
     body.innerHTML = `
@@ -2216,18 +2216,18 @@ function renderProfileData(profile) {
             <div class="social-profile-id">
                 <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
                 <div class="social-profile-sub">${renderProfileIdentityChips(p)}</div>
-                ${updated ? `<div class="social-profile-updated">갱신: ${socialEscape(updated)}</div>` : ''}
+                ${updated ? `<div class="social-profile-updated">${_t('갱신: {updated}', { updated: socialEscape(updated) })}</div>` : ''}
             </div>
             ${profilePowerHtml(p)}
         </div>
         ${actions}
         <div class="social-profile-cols">
             <section class="social-profile-col social-profile-card">
-                <h3>능력치</h3>
+                <h3>${_t('능력치')}</h3>
                 ${profileStatsHtml(stats)}
             </section>
             <section class="social-profile-col social-profile-card">
-                <h3>장착 구성</h3>
+                <h3>${_t('장착 구성')}</h3>
                 <div id="social-profile-tabs" class="social-profile-tabs">${profileTabsHtml(p)}</div>
                 <div id="social-profile-items">${renderProfileItemsArea()}</div>
             </section>
@@ -2247,8 +2247,8 @@ function renderProfileActionsRow() {
     if (!target || target === socialLoggedInUserId()) return '';
     let duel = canDuelFromProfile() ? '<button type="button" onclick="fightCurrentProfileGhost()">친선전</button>' : '';
     return `<div class="social-profile-actions">${duel}`
-        + `<button type="button" onclick="toggleProfileBlock()">${isUserBlocked(target) ? '차단 해제' : '차단'}</button>`
-        + `<select id="social-report-reason" aria-label="신고 사유"><option value="욕설">욕설</option><option value="도배">도배</option><option value="사칭">사칭</option><option value="기타">기타</option></select>`
+        + `<button type="button" onclick="toggleProfileBlock()">${isUserBlocked(target) ? _t('차단 해제') : _t('차단')}</button>`
+        + `<select id="social-report-reason" aria-label="${_t('신고 사유')}"><option value="욕설">${_t('욕설')}</option><option value="도배">${_t('도배')}</option><option value="사칭">${_t('사칭')}</option><option value="기타">${_t('기타')}</option></select>`
         + '<button type="button" onclick="reportCurrentProfile()">신고</button></div>';
 }
 function toggleProfileBlock() {
@@ -2274,18 +2274,18 @@ function showFetchedProfile(rows) {
 async function openPlayerProfile(userId) {
     if (!userId) return;
     selectionDialog.close(CHAT_SETTINGS_ID);
-    if (!socialCloudReady()) { showGameToast('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.', 'warning'); return; }
+    if (!socialCloudReady()) { showGameToast(_t('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
     socialState.currentProfileUserId = String(userId);
     let modal = ensureProfileModal();
     modal.style.display = 'flex';
     let body = document.getElementById('social-profile-body');
-    if (body) body.innerHTML = `<div class="social-profile-empty">불러오는 중…</div>`;
+    if (body) body.innerHTML = `<div class="social-profile-empty">${_t('불러오는 중…')}</div>`;
     try {
         let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname,profile_data,updated_at`, {});
         // 그새 다른 프로필을 열었으면 늦게 온 답이 그 창을 덮지 않게 버린다
         if (socialState.currentProfileUserId === String(userId)) showFetchedProfile(rows);
     } catch (e) {
-        if (body) body.innerHTML = `<div class="social-profile-empty">불러오기 실패: ${socialEscape(String(e && e.message || e))}</div>`;
+        if (body) body.innerHTML = `<div class="social-profile-empty">${_t('불러오기 실패: {e}', { e: socialEscape(String(e && e.message || e)) })}</div>`;
     }
 }
 
@@ -2332,26 +2332,26 @@ function renderSocialTab() {
         let checkingCloud = typeof cloudState !== 'undefined' && cloudState
             && (cloudState.busy || cloudState.initialized === false);
         root.innerHTML = checkingCloud
-            ? `<div class="social-notice social-notice-loading"><strong>클라우드 세션을 연결하는 중입니다.</strong><br>연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.</div>`
-            : `<div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>클라우드 커뮤니티</strong><p>로그인하면 채팅과 프로필을 바로 쓸 수 있습니다.</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
+            ? `<div class="social-notice social-notice-loading"><strong>${_t('클라우드 세션을 연결하는 중입니다.')}</strong><br>${_t('연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.')}</div>`
+            : `<div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>${_t('클라우드 커뮤니티')}</strong><p>${_t('로그인하면 채팅과 프로필을 바로 쓸 수 있습니다.')}</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">${_t('로그인 화면 열기')}</button></div>`;
         stopChatPolling();
         return;
     }
     // 채팅 창에는 대화와 입력 줄만 둔다. 닉네임, 프로필, 동기화, 차단한 사람, 접속자는 ⚙ 창(openChatSettings, 2026-10-03).
     let draft = takeChatDraft();
     root.innerHTML = `
-        ${nickname ? '' : '<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>'}
+        ${nickname ? '' : _t('<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>')}
         <div class="social-chat-wrap">
             <span id="social-chat-online" class="social-chat-online" hidden></span>
-            <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>대화를 불러오는 중</strong></div></div>
+            <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>${_t('대화를 불러오는 중')}</strong></div></div>
             <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
             <div class="social-chat-inputbar">
-                <button class="social-attach-btn" onclick="openItemPicker()" data-tip="아이템 첨부" aria-label="아이템 첨부" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> 첨부</button>
+                <button class="social-attach-btn" onclick="openItemPicker()" data-tip="${_t('아이템 첨부')}" aria-label="${_t('아이템 첨부')}" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> ${_t('첨부')}</button>
                 <div class="social-chat-input-shell">
-                    <input id="social-chat-input" name="social-chat-message" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? '메시지를 입력하세요…' : '먼저 닉네임을 설정하세요'}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
+                    <input id="social-chat-input" name="social-chat-message" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? _t('메시지를 입력하세요…') : _t('먼저 닉네임을 설정하세요')}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
                     <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
                 </div>
-                <button id="social-chat-send" class="social-send-btn" onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>전송</button>
+                <button id="social-chat-send" class="social-send-btn" onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>${_t('전송')}</button>
             </div>
         </div>`;
     restoreChatDraft(draft);
@@ -2374,15 +2374,15 @@ const CHAT_SETTINGS_ID = 'chat-settings-overlay';
 function chatSettingsBody() {
     if (!socialCloudReady()) {
         return '<div class="chat-settings"><p class="social-notice">로그인하면 닉네임, 공개 프로필, 접속자 목록을 쓸 수 있습니다.</p>'
-            + `<button type="button" onclick="selectionDialog.close('${CHAT_SETTINGS_ID}'); closeCommunityDock(); openStartupGate({ accountOnly: true })">로그인 화면 열기</button></div>`;
+            + `<button type="button" onclick="selectionDialog.close('${CHAT_SETTINGS_ID}'); closeCommunityDock(); openStartupGate({ accountOnly: true })">${_t('로그인 화면 열기')}</button></div>`;
     }
     let nickname = getMyNickname();
     return `<div class="chat-settings">
-        <div class="chat-settings-row"><span>닉네임</span><strong>${nickname ? socialEscape(nickname) : '<em>미설정</em>'}</strong>
-            <button type="button" onclick="promptAndSetNickname()">${nickname ? '바꾸기' : '정하기'}</button></div>
-        <div class="chat-settings-row"><span>공개 프로필</span>
-            <button type="button" onclick="openMyProfilePreview()">보기</button>
-            <button type="button" onclick="syncPlayerProfile()" data-tip="지금 장비와 능력치를 공개 프로필에 올립니다">동기화</button></div>
+        <div class="chat-settings-row"><span>${_t('닉네임')}</span><strong>${nickname ? socialEscape(nickname) : _t('<em>미설정</em>')}</strong>
+            <button type="button" onclick="promptAndSetNickname()">${nickname ? _t('바꾸기') : _t('정하기')}</button></div>
+        <div class="chat-settings-row"><span>${_t('공개 프로필')}</span>
+            <button type="button" onclick="openMyProfilePreview()">${_t('보기')}</button>
+            <button type="button" onclick="syncPlayerProfile()" data-tip="${_t('지금 장비와 능력치를 공개 프로필에 올립니다')}">${_t('동기화')}</button></div>
         ${renderBlockedUsersRow()}
         <div id="social-online" class="social-online" style="display:none;"></div>
     </div>`;
@@ -2391,12 +2391,12 @@ function chatSettingsBody() {
 function renderBlockedUsersRow() {
     let blocked = getBlockedUsers();
     if (!blocked.length) return '';
-    let chips = blocked.map(entry => `<button type="button" data-user-id="${socialEscape(entry.id)}" onclick="unblockUser(this.dataset.userId)">${socialEscape(entry.name || entry.id.slice(0, 8))} 풀기</button>`).join('');
-    return `<div class="chat-settings-row"><span>차단한 사람</span>${chips}</div>`;
+    let chips = blocked.map(entry => `<button type="button" data-user-id="${socialEscape(entry.id)}" onclick="unblockUser(this.dataset.userId)">${_t('{name} 풀기', { name: socialEscape(entry.name || entry.id.slice(0, 8)) })}</button>`).join('');
+    return `<div class="chat-settings-row"><span>${_t('차단한 사람')}</span>${chips}</div>`;
 }
 
 function openChatSettings() {
-    selectionDialog.show({ id: CHAT_SETTINGS_ID, title: '채팅 설정', panelClass: 'chat-settings-panel', body: chatSettingsBody() });
+    selectionDialog.show({ id: CHAT_SETTINGS_ID, title: _t('채팅 설정'), panelClass: 'chat-settings-panel', body: chatSettingsBody() });
     if (!socialCloudReady()) return;
     socialState.lastOnlineRenderKey = '';
     refreshOnlineUsers();

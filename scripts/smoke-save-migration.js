@@ -26,6 +26,17 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     }
 }
 
+// 언어(2026-11-03, docs/i18n.md): 아는 언어 코드만 남고, 없거나 손상된 값은 원문 언어 ko다. 다른 설정은 그대로다.
+{
+    assert.strictEqual(merge({}).settings.language, 'ko', '새 게임은 한국어');
+    assert.strictEqual(merge({ settings: { uiSounds: false } }).settings.language, 'ko', '언어가 없던 옛 저장은 한국어');
+    const loaded = merge({ level: 7, settings: { language: 'en', uiSounds: false } });
+    assert.strictEqual(loaded.settings.language, 'en', '고른 언어는 남는다');
+    assert.strictEqual(loaded.settings.uiSounds, false);
+    assert.strictEqual(loaded.level, 7);
+    for (const bad of ['xx', 7, null, {}]) assert.strictEqual(merge({ settings: { language: bad } }).settings.language, 'ko', `손상된 언어값 ${JSON.stringify(bad)}은 한국어`);
+}
+
 // ── 새 게임 ──────────────────────────────────────────────────────────────
 {
     const g = merge({});

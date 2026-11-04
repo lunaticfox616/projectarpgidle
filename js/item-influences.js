@@ -40,7 +40,7 @@ const itemInfluences = (() => {
     function heldReason(item, key) {
         if (canTake(item, key)) return '';
         const held = influenceKeys(item).find(other => other !== 'swapped' && other !== key);
-        return `${ITEM_INFLUENCES[held].label}에는 ${ITEM_INFLUENCES[key].name} 줄을 새길 수 없습니다.`;
+        return _t('{label}에는 {name} 줄을 새길 수 없습니다.', { label: ITEM_INFLUENCES[held].label, name: ITEM_INFLUENCES[key].name });
     }
     const isAltarCurrency = key => Object.hasOwn(CURRENCY_ALTAR, key);
     const altarOfCurrency = key => CURRENCY_ALTAR[key] || null;
@@ -93,7 +93,7 @@ const itemInfluences = (() => {
         const altar = altarOfCurrency(currencyKey);
         const reason = equipmentCrafting.buildLockReason(state) || (altar ? altarUseReason(item, altar) : '제단 재화가 아닙니다.');
         if (reason) return { ok: false, reason };
-        if ((Number(state.currencies[currencyKey]) || 0) < 1) return { ok: false, reason: '재화 부족' };
+        if ((Number(state.currencies[currencyKey]) || 0) < 1) return { ok: false, reason: _t('재화 부족') };
         state.currencies[currencyKey] -= 1;
         return { ok: true, line: applyAltar(item, altar, random) };
     }

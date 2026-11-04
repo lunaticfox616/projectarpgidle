@@ -40,9 +40,9 @@ const gardenOils = (() => {
     function anointReason(state, item, bowl) {
         if (!open(state)) return '시든 정원 해금 뒤에 바를 수 있습니다.';
         if (!item || item.slot !== '목걸이') return '목걸이에만 바를 수 있습니다.';
-        if (colorsOf(bowl).length !== G.perAnoint) return `기름 ${G.perAnoint}개를 고르세요.`;
+        if (colorsOf(bowl).length !== G.perAnoint) return _t('기름 {perAnoint}개를 고르세요.', { perAnoint: G.perAnoint });
         const short = Object.entries(needs(bowl)).find(([key, need]) => (state.currencies[key] || 0) < need);
-        return short ? `${withSubjectParticle(BY_KEY.get(short[0]).name)} 부족합니다.` : '';
+        return short ? _t('{name} 부족합니다.', { name: withSubjectParticle(BY_KEY.get(short[0]).name) }) : '';
     }
     const majorOf = id => { const node = id ? PASSIVE_TREE.nodes[id] : null; return node && node.kind === 'major' ? node : null; };
     /** The engraved nodes by slot, [first, second] (null for an empty slot). */
@@ -63,7 +63,7 @@ const gardenOils = (() => {
         const reason = anointReason(state, item, bowl) || slotReason(state, item, nodeId, slot);
         if (reason) return { ok: false, reason };
         const node = offers(state, bowl).find(row => row.id === nodeId);
-        if (!node) return { ok: false, reason: '그 노드는 이 조합에 없습니다.' };
+        if (!node) return { ok: false, reason: _t('그 노드는 이 조합에 없습니다.') };
         Object.entries(needs(bowl)).forEach(([key, need]) => { state.currencies[key] -= need; });
         const [first, second] = nodesOf(item);
         item.anoint = slot === 1 ? { nodeId: first.id, second: node.id } : { nodeId: node.id, ...(second ? { second: second.id } : {}) };
@@ -72,7 +72,7 @@ const gardenOils = (() => {
     /** The engraved nodes' effects as item lines (equipment stats add them as unchangeable lines). */
     function lines(item) {
         return nodesOf(item).filter(Boolean).flatMap(node => node.effects.map(effect => ({ id: effect.stat, val: effect.val,
-            statName: `[기름] ${getStatName(effect.stat)}`, anointLine: true })));
+            statName: _t('[기름] {stat}', { stat: getStatName(effect.stat) }), anointLine: true })));
     }
     /** Save boundary: only an amulet keeps an anointment, of known major nodes, a second only beside a different first. */
     function normalize(item) {
@@ -89,9 +89,9 @@ const gardenOils = (() => {
     }
     /** 열매 기름(data/stump-cube.js fruit_oil): two ripe fruits of one colour → that colour's oil. */
     function fruitRecipe([group], state) {
-        if (!open(state)) return { ok: false, reason: '시든 정원 해금 뒤에 만들 수 있습니다.' };
+        if (!open(state)) return { ok: false, reason: _t('시든 정원 해금 뒤에 만들 수 있습니다.') };
         const oil = BY_COLOR.get(group[0] && group[0].item && group[0].item.color);
-        return oil ? { ok: true, consumed: group, outputs: [{ kind: 'currency', key: oil.key, amount: 1 }] } : { ok: false, reason: '이 색의 기름은 없습니다.' };
+        return oil ? { ok: true, consumed: group, outputs: [{ kind: 'currency', key: oil.key, amount: 1 }] } : { ok: false, reason: _t('이 색의 기름은 없습니다.') };
     }
     return Object.freeze({ keys: KEYS, open, offers, anointReason, slotReason, slotCount, anoint, nodeOf, nodesOf, lines, normalize, killDrops, fruitRecipe, oil: key => BY_KEY.get(key) || null });
 })();

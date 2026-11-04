@@ -71,56 +71,56 @@ function getGemEnhanceTargetSkill() {
 }
 
 function selectGemEnhanceTargetSkill(name) {
-    if (!getEquippedEnhanceableGemNames().includes(name)) return addLog('장착 중인 공격 룬만 강화할 수 있습니다.', 'attack-monster');
+    if (!getEquippedEnhanceableGemNames().includes(name)) return addLog(_t('장착 중인 공격 룬만 강화할 수 있습니다.'), 'attack-monster');
     game.gemEnhanceTargetSkill = name;
     game.gemEngraveSelectedSlot = 0;
-    addLog(`💎 강화 대상 룬: [${name}]`, 'loot-magic');
+    addLog(_t('💎 강화 대상 룬: [{name}]', { name }), 'loot-magic');
     updateStaticUI();
 }
 
 function upgradeActiveGemWithCondensedSkyPower() {
     if (!contentProgression.isUnlocked('gemForge')) return;
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let active = getGemEnhanceTargetSkill();
-    if (!isEnhanceableAttackGem(active) || !Array.isArray(game.skills) || !game.skills.includes(active)) return addLog('영구 강화할 공격 룬을 먼저 선택하세요.', 'attack-monster');
+    if (!isEnhanceableAttackGem(active) || !Array.isArray(game.skills) || !game.skills.includes(active)) return addLog(_t('영구 강화할 공격 룬을 먼저 선택하세요.'), 'attack-monster');
     let st = ensureSkyTowerState();
-    if (!st.unlocked) return addLog('응축 창공 룬 강화는 창공의 탑 해금 이후 가능합니다.', 'attack-monster');
+    if (!st.unlocked) return addLog(_t('응축 창공 룬 강화는 창공의 탑 해금 이후 가능합니다.'), 'attack-monster');
     let current = getSkyTowerGemBoostLevel(active);
-    if (current >= getSkyTowerGemBoostMaxLevel()) return addLog('해당 룬의 응축 창공 강화는 최대 단계입니다.', 'attack-monster');
+    if (current >= getSkyTowerGemBoostMaxLevel()) return addLog(_t('해당 룬의 응축 창공 강화는 최대 단계입니다.'), 'attack-monster');
     let cost = getSkyTowerGemBoostCost(active);
-    if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(`응축된 창공의 정수가 부족합니다. (필요: ${cost})`, 'attack-monster');
+    if (Math.max(0, Math.floor(st.condensedPower || 0)) < cost) return addLog(_t('응축된 창공의 정수가 부족합니다. (필요: {cost})', { cost }), 'attack-monster');
     st.condensedPower -= cost;
     st.gemBoosts[active] = current + 1;
     queueImportantSave(200);
-    addLog(`☁️ [${active}] 응축 창공 영구 강화 ${current + 1}/${getSkyTowerGemBoostMaxLevel()} (루프 초기화 없음)`, 'loot-unique');
+    addLog(_t('☁️ [{active}] 응축 창공 영구 강화 {value}/{skyTowerGemBoostMaxLevel} (루프 초기화 없음)', { active, value: current + 1, skyTowerGemBoostMaxLevel: getSkyTowerGemBoostMaxLevel() }), 'loot-unique');
     updateStaticUI();
 }
 
 function upgradeSkyEngraveCap() {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
-        addLog('창공 각인 확장은 루프4부터 가능합니다.', 'attack-monster');
+        addLog(_t('창공 각인 확장은 루프4부터 가능합니다.'), 'attack-monster');
         return false;
     }
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
     if (!gem || !isEnhanceableAttackGem(active)) {
-        addLog('강화 가능한 공격 룬을 먼저 장착하세요.', 'attack-monster');
+        addLog(_t('강화 가능한 공격 룬을 먼저 장착하세요.'), 'attack-monster');
         return false;
     }
     if (gem.skyEnhanceCap >= 5) {
-        addLog('창공 각인 슬롯은 최대 5개입니다.', 'attack-monster');
+        addLog(_t('창공 각인 슬롯은 최대 5개입니다.'), 'attack-monster');
         return false;
     }
     let need = gem.skyEnhanceCap + 1;
     if ((game.currencies.skyEssence || 0) < need) {
-        addLog(`창공의 정수가 부족합니다. (필요: ${need})`, 'attack-monster');
+        addLog(_t('창공의 정수가 부족합니다. (필요: {need})', { need }), 'attack-monster');
         return false;
     }
     game.currencies.skyEssence -= need;
     gem.skyEnhanceCap = Math.min(5, gem.skyEnhanceCap + 1);
-    addLog(`☁️ [${active}] 창공 각인 슬롯이 ${gem.skyEnhanceCap}개로 확장되었습니다. (소모 ${need})`, 'loot-unique');
+    addLog(_t('☁️ [{active}] 창공 각인 슬롯이 {skyEnhanceCap}개로 확장되었습니다. (소모 {need})', { active, skyEnhanceCap: gem.skyEnhanceCap, need }), 'loot-unique');
     updateStaticUI();
     return true;
 }
@@ -205,7 +205,7 @@ function selectGemEngraveSlot(index) {
     let cap = gem.skyEnhanceCap;
     if (slotIndex >= cap) {
         if (slotIndex !== cap) {
-            addLog('앞쪽 각인 슬롯부터 순서대로 해금하세요.', 'attack-monster');
+            addLog(_t('앞쪽 각인 슬롯부터 순서대로 해금하세요.'), 'attack-monster');
             return false;
         }
         if (!upgradeSkyEngraveCap()) return false;
@@ -259,13 +259,13 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     let active = getGemEnhanceTargetSkill();
     let gem = game.gemData[active];
     if (!gem || !isEnhanceableAttackGem(active)) {
-        addLog('강화 가능한 공격 룬을 먼저 장착하세요.', 'attack-monster');
+        addLog(_t('강화 가능한 공격 룬을 먼저 장착하세요.'), 'attack-monster');
         return false;
     }
     let enhance = GEM_SKY_ENHANCEMENTS[enhanceId];
     if (!enhance) return false;
     if (!isSkyEnhancementCompatibleWithSkill(enhanceId, active)) {
-        addLog('이 발사 방식 각인은 투사체 룬에만 적용할 수 있습니다.', 'attack-monster');
+        addLog(_t('이 발사 방식 각인은 투사체 룬에만 적용할 수 있습니다.'), 'attack-monster');
         return false;
     }
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
@@ -279,17 +279,17 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
         ? Math.max(0, Math.min(4, Math.floor(Number(requestedSlotIndex))))
         : (currentPatternSlot >= 0 ? currentPatternSlot : getFirstEmptyGemEngraveSlot(active));
     if (selectedSlot < 0) {
-        addLog(`룬 특수 옵션은 현재 최대 ${cap}개까지 부여할 수 있습니다. 슬롯을 눌러 교체할 각인을 선택하세요.`, 'attack-monster');
+        addLog(_t('룬 특수 옵션은 현재 최대 {cap}개까지 부여할 수 있습니다. 슬롯을 눌러 교체할 각인을 선택하세요.', { cap }), 'attack-monster');
         return false;
     }
     if (selectedSlot >= cap) {
-        addLog('먼저 선택한 각인 슬롯을 해금하세요.', 'attack-monster');
+        addLog(_t('먼저 선택한 각인 슬롯을 해금하세요.'), 'attack-monster');
         return false;
     }
     let previousId = slots[selectedSlot];
     if (previousId === enhanceId) return false;
     if (slots.some((id, index) => index !== selectedSlot && id === enhanceId)) {
-        addLog('같은 각인은 한 룬에 중복 적용할 수 없습니다.', 'attack-monster');
+        addLog(_t('같은 각인은 한 룬에 중복 적용할 수 없습니다.'), 'attack-monster');
         return false;
     }
     let previousPatternSlot = enhance.projectilePatternMode
@@ -298,7 +298,7 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     // 각성 각인은 각성 룬 전용이 아니라 모든 공격 룬에 부여할 수 있습니다.
     // 각성 룬 상태는 별도의 보너스(+2 룬 레벨/슬롯 보정)만 제공합니다.
     if (isAwakenedSkyEnhancement(enhanceId) && slots.some((id, index) => index !== selectedSlot && isAwakenedSkyEnhancement(id))) {
-        addLog('각성 각인은 각성 룬 여부와 관계없이 모든 공격 룬에 부여할 수 있지만, 룬당 1개만 가능합니다.', 'attack-monster');
+        addLog(_t('각성 각인은 각성 룬 여부와 관계없이 모든 공격 룬에 부여할 수 있지만, 룬당 1개만 가능합니다.'), 'attack-monster');
         return false;
     }
     game.currencies.skyEssence--;
@@ -306,7 +306,7 @@ function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     slots[selectedSlot] = enhanceId;
     game.skyGemEnhancements[active] = slots;
     let previous = previousId && GEM_SKY_ENHANCEMENTS[previousId];
-    addLog(`☁️ [${active}] ${selectedSlot + 1}번 슬롯에 '${enhance.name}' 각인을 ${previous ? `'${previous.name}'에서 교체` : '부여'}했습니다.`, 'loot-unique');
+    addLog(previous ? _t("☁️ [{active}] {slot}번 슬롯의 각인을 '{previous}'에서 '{name}'(으)로 교체했습니다.", { active: _t(active), slot: selectedSlot + 1, previous: _t(previous.name), name: _t(enhance.name) }) : _t("☁️ [{active}] {slot}번 슬롯에 '{name}' 각인을 부여했습니다.", { active: _t(active), slot: selectedSlot + 1, name: _t(enhance.name) }), 'loot-unique');
     updateStaticUI();
     return true;
 }
@@ -331,38 +331,38 @@ function findSkyEngraveSlot(slots, enhanceId, slotIndex) {
 }
 function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
     if (!contentProgression.isUnlocked('engraving')) return false;
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     let slots = getSkyEnhancementSlotsForSkill(active);
     let selectedSlot = findSkyEngraveSlot(slots, enhanceId, slotIndex);
     if (selectedSlot < 0) return false;
     let cost = getSkyGemEnhancementRemoveCost();
     if (cost > 0 && (game.currencies.skyEssence || 0) < cost) {
-        addLog(`각인 해제에 필요한 창공의 정수가 부족합니다. (필요: ${cost})`, 'attack-monster');
+        addLog(_t('각인 해제에 필요한 창공의 정수가 부족합니다. (필요: {cost})', { cost }), 'attack-monster');
         return false;
     }
     if (cost > 0) game.currencies.skyEssence -= cost;
     slots[selectedSlot] = null;
     game.skyGemEnhancements[active] = slots;
     let enh = GEM_SKY_ENHANCEMENTS[enhanceId];
-    addLog(`☁️ [${active}] ${enh ? enh.name : '각인'} 옵션을 해제했습니다.${cost > 0 ? ` (창공의 정수 ${cost} 소모)` : ''}`, 'attack-monster');
+    addLog(_t('☁️ [{active}] {name} 옵션을 해제했습니다.{cost}', { active: _t(active), name: _t(enh ? enh.name : '각인'), cost: cost > 0 ? ` ${_t('(창공의 정수 {n} 소모)', { n: cost })}` : '' }), 'attack-monster');
     updateStaticUI();
     return true;
 }
 
 
 function upgradeActiveGemQuality() {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
-    if (!gem || !isEnhanceableAttackGem(active)) return addLog('강화 가능한 공격 룬을 먼저 장착하세요.', 'attack-monster');
-    if ((gem.quality || 0) >= 20) return addLog('룬 퀄리티는 최대 20%입니다.', 'attack-monster');
+    if (!gem || !isEnhanceableAttackGem(active)) return addLog(_t('강화 가능한 공격 룬을 먼저 장착하세요.'), 'attack-monster');
+    if ((gem.quality || 0) >= 20) return addLog(_t('룬 퀄리티는 최대 20%입니다.'), 'attack-monster');
     let need = 1 + Math.floor((gem.quality || 0) / 5);
-    if ((game.currencies.bossCore || 0) < need) return addLog(`군주의 핵이 부족합니다. (필요: ${need})`, 'attack-monster');
+    if ((game.currencies.bossCore || 0) < need) return addLog(_t('군주의 핵이 부족합니다. (필요: {need})', { need }), 'attack-monster');
     game.currencies.bossCore -= need;
     gem.quality = Math.min(20, (gem.quality || 0) + 1);
-    addLog(`💎 [${active}] 퀄리티 +1% (현재 ${gem.quality}%, 소모 ${need})`, 'loot-unique');
+    addLog(_t('💎 [{active}] 퀄리티 +1% (현재 {quality}%, 소모 {need})', { active, quality: gem.quality, need }), 'loot-unique');
     updateStaticUI();
 }
 
@@ -372,15 +372,15 @@ function getGemAwakenRefusal(active, gem, echoNeed) {
     if (!gem || !isEnhanceableAttackGem(active)) return '각성할 공격 룬을 먼저 장착하세요.';
     if (gem.awakened) return '이미 각성 후보로 변환된 룬입니다.';
     if ((gem.level || 1) < 20) return 'Lv.20 이상의 공격 룬만 각성 후보로 변환할 수 있습니다.';
-    return (game.currencies.awakenedEcho || 0) < echoNeed ? `각성 잔향이 부족합니다. (필요: ${echoNeed})` : '';
+    return (game.currencies.awakenedEcho || 0) < echoNeed ? _t('각성 잔향이 부족합니다. (필요: {echoNeed})', { echoNeed }) : '';
 }
 /** ' 각성 효과: …' for a rune with its own awakened effect (GEM_AWAKENED_PERKS), else ''. */
 function getGemAwakenedPerkNote(name) {
-    return Object.hasOwn(GEM_AWAKENED_PERKS, name) ? ` 각성 효과: ${GEM_AWAKENED_PERKS[name].label}.` : '';
+    return Object.hasOwn(GEM_AWAKENED_PERKS, name) ? _t(' 각성 효과: {label}.', { label: GEM_AWAKENED_PERKS[name].label }) : '';
 }
 function awakenActiveGemCandidate() {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
-    if (!contentProgression.isUnlocked('gemAwakening')) return addLog('각성 후보 변환은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
+    if (!contentProgression.isUnlocked('gemAwakening')) return addLog(_t('각성 후보 변환은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.'), 'attack-monster');
     let active = getGemEnhanceTargetSkill();
     game.gemData[active] = normalizeGemRecord(game.gemData[active]);
     let gem = game.gemData[active];
@@ -390,26 +390,26 @@ function awakenActiveGemCandidate() {
     game.currencies.awakenedEcho -= echoNeed;
     gem.awakened = true;
     gem.skyEnhanceCap = Math.min(5, Math.max(gem.skyEnhanceCap || 1, 2));
-    addLog(`🌌 [${active}] 각성 룬 변환 완료! 총 룬 레벨 +2 및 각인 슬롯 보정이 적용됩니다.${getGemAwakenedPerkNote(active)} 각성 각인은 각성 룬이 아니어도 부여할 수 있습니다.`, 'loot-unique');
+    addLog(_t('🌌 [{active}] 각성 룬 변환 완료! 총 룬 레벨 +2 및 각인 슬롯 보정이 적용됩니다.{active2} 각성 각인은 각성 룬이 아니어도 부여할 수 있습니다.', { active, active2: getGemAwakenedPerkNote(active) }), 'loot-unique');
     updateStaticUI();
 }
 
 async function applyFossilCraft() {
-    if (game.season < 3) return addLog('미궁 제작은 루프3부터 사용할 수 있습니다.', 'attack-monster');
+    if (game.season < 3) return addLog(_t('미궁 제작은 루프3부터 사용할 수 있습니다.'), 'attack-monster');
     let have = Math.max(0, Math.floor(game.currencies.fossil));
-    if (have <= 0) return addLog('미궁 화석이 부족합니다.', 'attack-monster');
+    if (have <= 0) return addLog(_t('미궁 화석이 부족합니다.'), 'attack-monster');
     let raw = await requestGameNumber({
-        title: '미궁 화석 정제',
+        title: _t('미궁 화석 정제'),
         message: `한 번에 정제할 기본 화석 개수를 선택하세요.\n보유량: ${have}개`,
         min: 1,
         max: have,
         value: have,
-        confirmLabel: '정제'
+        confirmLabel: _t('정제')
     });
     if (raw === null) return;
     let count = Math.max(0, Math.min(have, Math.floor(Number(raw))));
-    if (!Number.isFinite(count) || count <= 0) return addLog('정제 개수가 올바르지 않습니다.', 'attack-monster');
-    if (game.season < 3 || game.currencies.fossil < count) return addLog('진행도 또는 보유 화석이 변경되었습니다. 정제를 다시 선택하세요.', 'attack-monster');
+    if (!Number.isFinite(count) || count <= 0) return addLog(_t('정제 개수가 올바르지 않습니다.'), 'attack-monster');
+    if (game.season < 3 || game.currencies.fossil < count) return addLog(_t('진행도 또는 보유 화석이 변경되었습니다. 정제를 다시 선택하세요.'), 'attack-monster');
     let underworldOnlyFossils = new Set(['fossilBulwark', 'fossilWedge', 'fossilOld', 'fossilRift']);
     let refinablePool = FOSSIL_DB.filter(fossil => !fossil.ancientPrimalOnly && !underworldOnlyFossils.has(fossil.key));
     let gained = {};
@@ -419,8 +419,8 @@ async function applyFossilCraft() {
         game.currencies[randomFossil.key] = (game.currencies[randomFossil.key] || 0) + 1;
         gained[randomFossil.name] = (gained[randomFossil.name] || 0) + 1;
     }
-    let summary = Object.keys(gained).map(name => `[${name}] ${gained[name]}개`).join(', ');
-    addLog(`🪨 기본 화석 ${count}개를 정제해 ${summary}를 획득했습니다.`, 'loot-magic');
+    let summary = Object.keys(gained).map(name => _t('[{name}] {gained}개', { name, gained: gained[name] })).join(', ');
+    addLog(_t('🪨 기본 화석 {count}개를 정제해 {summary}를 획득했습니다.', { count, summary }), 'loot-magic');
     updateStaticUI();
 }
 
@@ -443,12 +443,12 @@ function getFossilSurplusRefiningCost(fossilKey) {
 function refineFossilSurplus(fossilKey) {
     let cost = getFossilSurplusRefiningCost(fossilKey);
     if (!cost) return false;
-    if (!contentProgression.isUnlocked('fossilRestore')) return addLog('잉여 화석 정제는 화석 복원을 해금해야 쓸 수 있습니다.', 'attack-monster');
-    if ((game.currencies[fossilKey] || 0) < cost) return addLog(`잉여 화석 정제에는 같은 화석 ${cost}개가 필요합니다.`, 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(_t('잉여 화석 정제는 화석 복원을 해금해야 쓸 수 있습니다.'), 'attack-monster');
+    if ((game.currencies[fossilKey] || 0) < cost) return addLog(_t('잉여 화석 정제에는 같은 화석 {cost}개가 필요합니다.', { cost }), 'attack-monster');
     game.currencies[fossilKey] -= cost;
     awardCurrency('fossilPrimal', 1);
     let sourceName = fossilKey === 'fossil' ? '미궁 화석' : ((FOSSIL_DB.find(row => row.key === fossilKey) || {}).name || fossilKey);
-    addLog(`🪨 ${sourceName} ${cost}개를 압축해 원시 화석 1개를 만들었습니다.`, 'loot-magic');
+    addLog(_t('🪨 {sourceName} {cost}개를 압축해 원시 화석 1개를 만들었습니다.', { sourceName, cost }), 'loot-magic');
     updateStaticUI();
     return true;
 }
@@ -502,9 +502,9 @@ function applyFossilChaosCraft(fossilKey) {
     let rerollCandidate = { ...item, stats: lockedStats, chaosInfusion: null };
     let guaranteedPool = getFossilGuaranteedPool(item, fossil);
     let specialFossil = ['fossilOld', 'fossilRift'].includes(fossilKey);
-    if (!specialFossil && guaranteedPool.length === 0) return addLog('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.', 'attack-monster');
+    if (!specialFossil && guaranteedPool.length === 0) return addLog(_t('해당 화석은 이 아이템 슬롯에 사용할 수 없습니다.'), 'attack-monster');
     let fossilExclusivePool = fossilKey === 'fossilOld' ? getFossilExclusivePool(rerollCandidate) : null;
-    if (fossilExclusivePool && fossilExclusivePool.length <= 0) return addLog('화석 전용 옵션을 부여할 수 없습니다.', 'attack-monster');
+    if (fossilExclusivePool && fossilExclusivePool.length <= 0) return addLog(_t('화석 전용 옵션을 부여할 수 없습니다.'), 'attack-monster');
 
     let tierRange = typeof getCraftTierRangeForItem === 'function' ? getCraftTierRangeForItem(item, 'fossil') : { min: 1, max: getItemCraftTier(item) };
     let maxTier = tierRange.max;
@@ -566,16 +566,16 @@ function applyFossilChaosCraft(fossilKey) {
     if (typeof rerollChaosInfusionForItem === 'function') rerollChaosInfusionForItem(item, previousChaosInfusion);
     game.currencies[fossilKey]--;
     updateItemName(item);
-    let line = guaranteed ? `확정 옵션: [${guaranteed.statName}] (T${guaranteedMinTier}~T${guaranteedMaxTier})` : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '확정 옵션 2줄: [균열 표식] + [추가 옵션 효과 50% 증폭]');
-    addLog(`🪨 ${fossil.name} 재련 성공! ${line}`, 'loot-magic');
+    let line = guaranteed ? _t('확정 옵션: [{statName}] (T{guaranteedMinTier}~T{guaranteedMaxTier})', { statName: guaranteed.statName, guaranteedMinTier, guaranteedMaxTier }) : (fossilKey === 'fossilOld' ? '확정 옵션: [화석 전용 옵션]' : '확정 옵션 2줄: [균열 표식] + [추가 옵션 효과 50% 증폭]');
+    addLog(_t('🪨 {name} 재련 성공! {line}', { name: _t(fossil.name), line }), 'loot-magic');
     updateStaticUI();
 }
 
 function restorePrimalFossil(kind) {
     let key = kind === 'ancient' ? 'fossilAncientPrimal' : 'fossilPrimal';
     let isAncient = key === 'fossilAncientPrimal';
-    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(`${isAncient ? '원시 고대 화석' : '원시 화석'} 복원은 화석 복원을 해금해야 쓸 수 있습니다.`, 'attack-monster');
-    if ((game.currencies[key] || 0) <= 0) return addLog(`${ORB_DB[key] ? ORB_DB[key].name : key}이 부족합니다.`, 'attack-monster');
+    if (!contentProgression.isUnlocked('fossilRestore')) return addLog(_t('{fossil} 복원은 화석 복원을 해금해야 쓸 수 있습니다.', { fossil: _t(isAncient ? '원시 고대 화석' : '원시 화석') }), 'attack-monster');
+    if ((game.currencies[key] || 0) <= 0) return addLog(_t('{name}이 부족합니다.', { name: ORB_DB[key] ? _t(ORB_DB[key].name) : key }), 'attack-monster');
     game.currencies[key]--;
     let rewardLines = [];
     let baseFossilGain = isAncient ? 2 : 1;
@@ -606,9 +606,9 @@ function restorePrimalFossil(kind) {
     if (Math.random() < greatChance) {
         let bonus = isAncient ? 'goldenRule' : 'sapBud';
         awardCurrency(bonus, 1);
-        rewardLines.push(`대성공: ${ORB_DB[bonus].name} +1`);
+        rewardLines.push(`대성공: ${_t(ORB_DB[bonus].name)} +1`);
     }
-    addLog(`🪨 ${ORB_DB[key].name} 복원 완료! [${rewardLines.join(' / ')}]`, isAncient ? 'loot-unique' : 'loot-magic');
+    addLog(_t('🪨 {name} 복원 완료! [{rewardLines}]', { name: _t(ORB_DB[key].name), rewardLines: rewardLines.join(' / ') }), isAncient ? 'loot-unique' : 'loot-magic');
     updateStaticUI();
 }
 
@@ -628,7 +628,7 @@ function normalizeSupportLoadout(logChange, knownStats) {
     const { equippedSupports, removed } = window.GameModules.skills.supports.normalize(game, cap);
     if (!removed.length) return false;
     game.equippedSupports = equippedSupports;
-    if (logChange) addLog(`🟢 장착 한도 또는 연결 제약으로 자동 해제: ${removed.join(', ')}`, "attack-monster");
+    if (logChange) addLog(_t('🟢 장착 한도 또는 연결 제약으로 자동 해제: {removed}', { removed: removed.join(', ') }), "attack-monster");
     playerStatCache.invalidate();
     return removed.length > 0;
 }
@@ -832,7 +832,7 @@ const getRuneLevelReq = (name, support = false) => (support ? SUPPORT_RUNE_LEVEL
 /** 레벨이 모자라면 'Lv.37 필요', 아니면 ''. */
 function getRuneLevelNote(name, support = false, state = game) {
     const need = getRuneLevelReq(name, support);
-    return need > (state.level || 1) ? `Lv.${need} 필요` : '';
+    return need > (state.level || 1) ? _t('Lv.{need} 필요', { need }) : '';
 }
 
 /** 지금 장비로 못 쓰는 까닭(카드, 알림): 'Lv.37 필요', '근접 무기 필요', '활 필요' 같은 한 줄. 쓸 수 있으면 ''. */
@@ -841,7 +841,7 @@ function getSkillRuneWeaponNote(name) {
     const levelNote = getRuneLevelNote(name);
     if (levelNote) return levelNote;
     const skill = SKILL_DB[name], family = SKILL_RUNE_FAMILY[name];
-    if (isAttackRuneBlockedByMobilityBoots(name)) return `${MOBILITY_RUNE_ATTACK_UNIQUE} 착용 중, 이동 스킬룬만`;
+    if (isAttackRuneBlockedByMobilityBoots(name)) return _t('{value} 착용 중, 이동 스킬룬만', { value: MOBILITY_RUNE_ATTACK_UNIQUE });
     if (skill && skill.requiresShield && !hasEquippedShield()) return '완갑 필요';
     return SKILL_RUNE_WEAPON_NOTES[family] || `${SKILL_RUNE_WEAPONS[family].map(stance => SKILL_RUNE_STANCE_LABELS[stance]).join(', ')} 필요`;
 }
@@ -849,7 +849,7 @@ function getSkillRuneWeaponNote(name) {
 /** 얻은 룬과 상점 카드의 한 줄: 왜 지금 못 쓰는지. 쓸 수 있으면 ''. */
 function getSkillRuneBlockedLine(name) {
     if (canUseSkillWithCurrentEquipment(name)) return '';
-    return `${getRuneLevelNote(name) ? '지금 쓸 수 없음' : '지금 무기로 쓸 수 없음'}: ${getSkillRuneWeaponNote(name)}`;
+    return `${getRuneLevelNote(name) ? _t('지금 쓸 수 없음') : _t('지금 무기로 쓸 수 없음')}: ${getSkillRuneWeaponNote(name)}`;
 }
 
 function canUseSkillWithCurrentEquipment(name) {
@@ -1050,18 +1050,18 @@ function sealSkillGem(name) {
     delete game.summonSkillCounts[name];
     if (!game.sealedSkills.includes(name)) game.sealedSkills.push(name);
     game.resonancePower += 1;
-    addLog(`🔒 공격 룬 봉인: ${name} (공명력 +1)`, 'loot-magic');
+    addLog(_t('🔒 공격 룬 봉인: {name} (공명력 +1)', { name }), 'loot-magic');
     queueImportantSave(180);
     updateStaticUI();
 }
 function unsealSkillGem(name) {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!game.sealedSkills.includes(name) || game.skills.includes(name)) return;
-    if (game.resonancePower < 1) return addLog('공명력이 부족합니다.', 'attack-monster');
+    if (game.resonancePower < 1) return addLog(_t('공명력이 부족합니다.'), 'attack-monster');
     game.resonancePower -= 1;
     game.skills.push(name);
     game.sealedSkills = game.sealedSkills.filter(gem => gem !== name);
-    addLog(`🔓 공격 룬 해제: ${name} (공명력 -1)`, 'loot-normal');
+    addLog(_t('🔓 공격 룬 해제: {name} (공명력 -1)', { name }), 'loot-normal');
     queueImportantSave(180);
     updateStaticUI();
 }
@@ -1072,18 +1072,18 @@ function sealSupportGem(name) {
     game.supports = game.supports.filter(gem => gem !== name);
     if (!game.sealedSupports.includes(name)) game.sealedSupports.push(name);
     game.resonancePower += 1;
-    addLog(`🔒 보조스킬룬 봉인: ${name} (공명력 +1)`, 'loot-magic');
+    addLog(_t('🔒 보조스킬룬 봉인: {name} (공명력 +1)', { name }), 'loot-magic');
     queueImportantSave(180);
     updateStaticUI();
 }
 function unsealSupportGem(name) {
-    if (game.woodsmanBuildLock) return addLog('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.', 'attack-monster');
+    if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!game.sealedSupports.includes(name) || game.supports.includes(name)) return;
-    if (game.resonancePower < 1) return addLog('공명력이 부족합니다.', 'attack-monster');
+    if (game.resonancePower < 1) return addLog(_t('공명력이 부족합니다.'), 'attack-monster');
     game.resonancePower -= 1;
     game.supports.push(name);
     game.sealedSupports = game.sealedSupports.filter(gem => gem !== name);
-    addLog(`🔓 보조스킬룬 해제: ${name} (공명력 -1)`, 'loot-normal');
+    addLog(_t('🔓 보조스킬룬 해제: {name} (공명력 -1)', { name }), 'loot-normal');
     queueImportantSave(180);
     updateStaticUI();
 }

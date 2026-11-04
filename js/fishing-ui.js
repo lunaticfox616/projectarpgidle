@@ -38,30 +38,30 @@ const fishingUi = (() => {
     function strategyEffects(def) {
         const gauge = Math.round((def.gaugeGainMul - 1) * 100), rare = Math.round((def.rareWeightMul - 1) * 100), oxygen = Math.round((def.oxygenDrainMul - 1) * 100);
         const chips = [];
-        if (gauge) chips.push([`게이지 ${signed(gauge)}`, gauge > 0]);
-        if (rare) chips.push([`희귀 추적 ${signed(rare)}`, rare > 0]);
-        if (oxygen) chips.push([`산소 소모 ${signed(oxygen)}`, oxygen < 0]);
+        if (gauge) chips.push([_t('게이지 {gauge}', { gauge: signed(gauge) }), gauge > 0]);
+        if (rare) chips.push([_t('희귀 추적 {rare}', { rare: signed(rare) }), rare > 0]);
+        if (oxygen) chips.push([_t('산소 소모 {oxygen}', { oxygen: signed(oxygen) }), oxygen < 0]);
         return chips.length ? chips.map(([text, good]) => `<i class="${good ? 'is-good' : 'is-bad'}">${text}</i>`).join('') : '<i>변화 없음</i>';
     }
     function strategyCardHtml(key, st) {
         const def = OCEAN_FISHING_STRATEGIES[key], on = st.fishingStrategy === key;
         return `<button type="button" class="fishing-strategy-card${on ? ' is-on' : ''}" aria-pressed="${on}" onclick="setOceanFishingStrategy('${key}')"${st.diving ? ' disabled' : ''}>`
-            + `<span class="fishing-strategy-icon" aria-hidden="true">${def.icon}</span><strong>${esc(def.name)}</strong>${on ? '<em>적용 중</em>' : ''}`
+            + `<span class="fishing-strategy-icon" aria-hidden="true">${def.icon}</span><strong>${esc(_t(def.name))}</strong>${on ? _t('<em>적용 중</em>') : ''}`
             + `<span class="fishing-chips">${strategyEffects(def)}</span></button>`;
     }
     function reefHtml(st) {
         const owned = Math.floor(game.currencies.reefFragment || 0), full = st.reefInstalled >= 10;
-        return `<div class="fishing-reef"><span>암초</span>${bar(st.reefInstalled, 10)}<b>${st.reefInstalled}/10, 게이지 +${st.reefInstalled * 15}%</b>`
-            + `<button type="button" onclick="installOceanReefFragment(); fishingUi.render();"${full || owned < 1 ? ' disabled' : ''}>${full ? '설치 완료' : `설치 (보유 ${owned})`}</button></div>`;
+        return `<div class="fishing-reef"><span>${_t('암초')}</span>${bar(st.reefInstalled, 10)}<b>${_t('{reefInstalled}/10, 게이지 +{value}%', { reefInstalled: st.reefInstalled, value: st.reefInstalled * 15 })}</b>`
+            + `<button type="button" onclick="installOceanReefFragment(); fishingUi.render();"${full || owned < 1 ? ' disabled' : ''}>${full ? _t('설치 완료') : _t('설치 (보유 {owned})', { owned })}</button></div>`;
     }
     function gatherHtml(st) {
         const last = st.lastCatch && OCEAN_FISH_DB[st.lastCatch.key];
-        const catchHtml = last ? `${fishIcon(st.lastCatch.key)}<div><small>최근 포획</small><strong class="is-${last.rarity}">${st.lastCatch.guaranteed ? '✨ ' : ''}${esc(last.name)}</strong></div>`
+        const catchHtml = last ? `${fishIcon(st.lastCatch.key)}<div><small>${_t('최근 포획')}</small><strong class="is-${last.rarity}">${st.lastCatch.guaranteed ? '✨ ' : ''}${esc(_t(last.name))}</strong></div>`
             : '<span class="fishing-fish is-empty"></span><div><small>최근 포획</small><strong>아직 없음</strong></div>';
-        return `<div class="fishing-head"><div><h3>심해 어장</h3><p>심해 전투 구간마다 게이지가 오르고 100%에서 물고기를 낚습니다.</p></div><div class="fishing-last">${catchHtml}</div></div>`
+        return `<div class="fishing-head"><div><h3>${_t('심해 어장')}</h3><p>${_t('심해 전투 구간마다 게이지가 오르고 100%에서 물고기를 낚습니다.')}</p></div><div class="fishing-last">${catchHtml}</div></div>`
             + `<div class="fishing-meters">${meterHtml('낚시 게이지', st.fishingGauge, '')}${meterHtml('희귀 조짐', st.rareFishPity, 'is-pity')}</div>`
-            + `<div class="fishing-quick"><button type="button" onclick="switchMapSubtab('map-tab-ocean')">잠수하러 가기</button><button type="button" onclick="fishingUi.openWorkshop()">심해 제작 (바다의 선물)</button></div>`
-            + `<section class="fishing-strategy"><header><strong>채집 전략</strong><span>${st.diving ? '잠수 중에는 바꿀 수 없음' : '다음 잠수부터 적용'}</span></header>`
+            + `<div class="fishing-quick"><button type="button" onclick="switchMapSubtab('map-tab-ocean')">${_t('잠수하러 가기')}</button><button type="button" onclick="fishingUi.openWorkshop()">${_t('심해 제작 (바다의 선물)')}</button></div>`
+            + `<section class="fishing-strategy"><header><strong>${_t('채집 전략')}</strong><span>${st.diving ? _t('잠수 중에는 바꿀 수 없음') : _t('다음 잠수부터 적용')}</span></header>`
             + `<div class="fishing-strategy-grid">${Object.keys(OCEAN_FISHING_STRATEGIES).map(key => strategyCardHtml(key, st)).join('')}</div>${reefHtml(st)}</section>`;
     }
 
@@ -70,22 +70,22 @@ const fishingUi = (() => {
         const fish = OCEAN_FISH_DB[key], total = Math.floor(st.fishCaughtTotal[key] || 0), known = total > 0;
         const rarity = (OCEAN_FISH_RARITY_META[fish.rarity] || OCEAN_FISH_RARITY_META.common).label;
         return `<article class="fishing-fish-tile is-${fish.rarity}${known ? '' : ' is-unknown'}"${st.lastCatch && st.lastCatch.key === key ? ' data-last="1"' : ''}>${fishIcon(key, known)}`
-            + `<strong>${known ? esc(fish.name) : '???'}</strong><small>${rarity}, ${fish.depthTier * 100}m+</small>`
-            + `<b>${known ? `보유 ${Math.floor(st.fishStock[key] || 0)}, 누적 ${total}` : '미발견'}</b></article>`;
+            + `<strong>${known ? esc(_t(fish.name)) : '???'}</strong><small>${rarity}, ${fish.depthTier * 100}m+</small>`
+            + `<b>${known ? _t('보유 {floor}, 누적 {total}', { floor: Math.floor(st.fishStock[key] || 0), total }) : _t('미발견')}</b></article>`;
     }
     function milestoneHtml(progress, row) {
         const state = row.claimed ? 'is-claimed' : (row.ready ? 'is-ready' : 'is-locked');
-        const bonuses = [row.bonus.gaugeGainPct ? `게이지 +${row.bonus.gaugeGainPct}%` : '', row.bonus.rareChancePct ? `희귀 추적 +${row.bonus.rareChancePct}%` : ''].filter(Boolean);
-        const reward = Object.keys(row.reward || {}).map(key => `${(ORB_DB[key] || {}).name || key} ${row.reward[key]}`).concat(bonuses.map(text => `영구 ${text}`)).join(', ');
+        const bonuses = [row.bonus.gaugeGainPct ? _t('게이지 +{gaugeGainPct}%', { gaugeGainPct: row.bonus.gaugeGainPct }) : '', row.bonus.rareChancePct ? _t('희귀 추적 +{rareChancePct}%', { rareChancePct: row.bonus.rareChancePct }) : ''].filter(Boolean);
+        const reward = Object.keys(row.reward || {}).map(key => `${(ORB_DB[key] || {}).name || key} ${row.reward[key]}`).concat(bonuses.map(text => _t('영구 {text}', { text }))).join(', ');
         const label = row.claimed ? '완료' : (row.ready ? '받기' : `${progress.discoveredCount}/${row.required}`);
-        return `<div class="fishing-milestone ${state}"><span>${row.required}종</span><div><strong>${esc(row.label)}</strong><small>${esc(reward)}</small>`
+        return `<div class="fishing-milestone ${state}"><span>${_t('{required}종', { required: row.required })}</span><div><strong>${esc(_t(row.label))}</strong><small>${esc(reward)}</small>`
             + `${bar(Math.min(progress.discoveredCount, row.required), row.required)}</div>`
             + `<button type="button" onclick="claimOceanFishCollectionMilestone(${row.required})"${row.ready && !row.claimed ? '' : ' disabled'}>${label}</button></div>`;
     }
     function renderCollection(st, progress) {
         const summary = document.getElementById('ui-fishing-collection-summary'), section = document.getElementById('fishing-collection');
         const ready = progress.milestones.filter(row => row.ready && !row.claimed).length;
-        if (summary) summary.textContent = `심해 도감 ${progress.discoveredCount}/${progress.totalCount}${ready ? `, 받을 보상 ${ready}` : ''}`;
+        if (summary) summary.textContent = `심해 도감 ${progress.discoveredCount}/${progress.totalCount}${ready ? _t(', 받을 보상 {ready}', { ready }) : ''}`;
         if (!section || !section.open) return;
         if (uiDisplay.matches('(max-width: 1080px)') && section.dataset.mobileSelected !== 'true') return;
         updateGamePanelMarkup(document.getElementById('ui-fishing-collection'), `<div class="fishing-fish-grid">${Object.keys(OCEAN_FISH_DB).map(key => fishTileHtml(st, key)).join('')}</div>`
@@ -113,8 +113,8 @@ const fishingUi = (() => {
     function quantityHtml(status) {
         if (status.batchLimit === 1 || (status.maxCrafts <= 1 && status.count === 1)) return '';
         const counts = [...new Set([1, ...[5, 10, 25, 50, 100].filter(n => n <= status.maxCrafts), Math.max(1, status.maxCrafts), status.count])].sort((a, b) => a - b);
-        return `<label class="fishing-quantity">제작 횟수<select aria-label="제작 횟수" onchange="fishingUi.setCount(this.value)">${counts.map(count =>
-            `<option value="${count}"${count === status.count ? ' selected' : ''}${count > status.maxCrafts && count !== 1 ? ' disabled' : ''}>${count === status.maxCrafts && count > 1 ? '최대 ' : ''}${count}회</option>`).join('')}</select></label>`;
+        return `<label class="fishing-quantity">${_t('제작 횟수')}<select aria-label="${_t('제작 횟수')}" onchange="fishingUi.setCount(this.value)">${counts.map(count =>
+            `<option value="${count}"${count === status.count ? ' selected' : ''}${count > status.maxCrafts && count !== 1 ? ' disabled' : ''}>${_t('{value}{count}회', { value: count === status.maxCrafts && count > 1 ? _t('최대 ') : '', count })}</option>`).join('')}</select></label>`;
     }
     function setCount(value) {
         const id = document.querySelector('#ui-sea-gift-panel [data-sea-recipe]')?.dataset.seaRecipe;
@@ -130,9 +130,9 @@ const fishingUi = (() => {
     function costHtml(recipe, st, count) {
         return Object.keys(recipe.requires).map(key => {
             const have = Math.floor(st.fishStock[key] || 0), need = recipe.requires[key] * count, fish = OCEAN_FISH_DB[key];
-            return `<div class="fishing-material${have >= need ? ' is-ok' : ''}">${fishIcon(key)}<div><strong>${esc(fish.name)}</strong>`
-                + `<small>${fish.depthTier * 100}m 이상에서 낚시</small></div><div><span>보유 ${have} / 필요 ${need}</span>`
-                + `<b>${have >= need ? '재료 충분' : `${need - have}마리 부족`}</b></div></div>`;
+            return `<div class="fishing-material${have >= need ? ' is-ok' : ''}">${fishIcon(key)}<div><strong>${esc(_t(fish.name))}</strong>`
+                + `<small>${_t('{value}m 이상에서 낚시', { value: fish.depthTier * 100 })}</small></div><div><span>${_t('보유 {have} / 필요 {need}', { have, need })}</span>`
+                + `<b>${have >= need ? _t('재료 충분') : _t('{value}마리 부족', { value: need - have })}</b></div></div>`;
         }).join('');
     }
     function lineText(stat) {
@@ -140,11 +140,11 @@ const fishingUi = (() => {
         const seal = stat.lockedByHoney || stat.lockedByRift ? ', 봉인됨' : '';
         const parts = [stat, ...(stat.extraStats || [])];
         const values = parts.map(row => {
-            const name = parts.length > 1 ? getStatName(row.id) : (row.statName || getStatName(row.id));
+            const name = parts.length > 1 ? getStatName(row.id) : (_t(row.statName || getStatName(row.id)));
             const value = stat.isEchoMod ? `${row.val >= 0 ? '+' : ''}${Number(Number(row.val).toFixed(3))}` : formatSignedValue(row.id, row.val);
             return `${name} ${value}`;
         }).join(' / ');
-        return `${values}${tier}${seal}${stat.isEchoMod ? ', 메아리' : ''}${stat.oceanBenchOptionId ? ', 심해 전용' : ''}`;
+        return `${values}${tier}${seal}${stat.isEchoMod ? _t(', 메아리') : ''}${stat.oceanBenchOptionId ? _t(', 심해 전용') : ''}`;
     }
     const linesHtml = (lines, empty = '추가 옵션 없음') => `<ul class="fishing-lines">${lines.length ? lines.map(line => `<li>${esc(line)}</li>`).join('') : `<li>${esc(empty)}</li>`}</ul>`;
     function targetReason(recipe) {
@@ -153,9 +153,9 @@ const fishingUi = (() => {
     }
     function targetHtml(recipe) {
         const item = getSelectedSeaGiftEquipmentTarget(), reason = targetReason(recipe);
-        const text = item ? `<strong class="item-title ${item.rarity}">[${esc(getItemSlotDisplayLabel(item, '장비'))}] ${esc(item.name)}</strong>` : '<strong>가공할 장비를 선택하세요</strong>';
-        return `<section class="fishing-target${item ? ' is-on' : ''}"><div><small>이 장비에 적용</small>${text}</div>`
-            + `<div class="fishing-target-buttons"><button type="button" onclick="fishingUi.pickTarget('equip')">장착 장비</button><button type="button" onclick="fishingUi.pickTarget('inventory')">가방 장비</button></div>`
+        const text = item ? `<strong class="item-title ${item.rarity}">[${esc(getItemSlotDisplayLabel(item, '장비'))}] ${esc(getItemDisplayName(item))}</strong>` : '<strong>가공할 장비를 선택하세요</strong>';
+        return `<section class="fishing-target${item ? ' is-on' : ''}"><div><small>${_t('이 장비에 적용')}</small>${text}</div>`
+            + `<div class="fishing-target-buttons"><button type="button" onclick="fishingUi.pickTarget('equip')">${_t('장착 장비')}</button><button type="button" onclick="fishingUi.pickTarget('inventory')">${_t('가방 장비')}</button></div>`
             + `<p class="fishing-target-state${reason ? ' is-blocked' : ''}">${esc(reason || '이 제작법을 적용할 수 있습니다.')}</p>`
             + (item ? targetLinesHtml(recipe, item, reason) : '') + '</section>';
     }
@@ -210,12 +210,12 @@ const fishingUi = (() => {
     }
     function targetLinesHtml(recipe, item, reason) {
         const labels = reason ? null : targetPreview(recipe, item);
-        if (!labels) return `<details><summary>현재 추가 옵션 ${item.stats.length}줄 보기</summary>${linesHtml(item.stats.map(lineText))}</details>`;
+        if (!labels) return `<details><summary>${_t('현재 추가 옵션 {length}줄 보기', { length: item.stats.length })}</summary>${linesHtml(item.stats.map(lineText))}</details>`;
         const rows = item.stats.map((stat, index) => {
             const affected = labels.has(index), label = labels.get(index) || (stat.lockedByHoney || stat.lockedByRift ? '봉인 보호' : '유지');
             return `<li data-option-index="${index}" class="${affected ? 'is-affected' : 'is-kept'}${label.includes('제거') ? ' is-risk' : ''}"><b>${esc(label)}</b><span>${index + 1}. ${esc(lineText(stat))}</span></li>`;
         }).join('');
-        return `<div class="fishing-preview"><h4>이 장비의 적용 범위</h4><ul class="fishing-lines">${rows}</ul>`
+        return `<div class="fishing-preview"><h4>${_t('이 장비의 적용 범위')}</h4><ul class="fishing-lines">${rows}</ul>`
             + (labels.has(-1) ? `<p>${esc(labels.get(-1))}</p>` : '') + '</div>';
     }
     function groupOf(recipe) {
@@ -223,16 +223,16 @@ const fishingUi = (() => {
         return VALUE_EFFECTS.has(recipe.effect.type) ? 'forge' : 'chase';
     }
     function currencyGuide(effect) {
-        if (effect.type === 'randomCurrency') return [`제작 재화 ${effect.amount}개를 무작위로 받습니다.`,
-            `추첨 후보: ${SEA_GIFT_RANDOM_ORB_KEYS.map(key => ORB_DB[key].name).join(', ')}. 여러 개를 만들면 같은 재화가 나올 수도 있습니다.`];
-        return [`${getCurrencyInfo(effect.key).name} ${effect.amount}개를 받습니다.`, effect.key === 'reefFragment'
+        if (effect.type === 'randomCurrency') return [_t('제작 재화 {amount}개를 무작위로 받습니다.', { amount: effect.amount }),
+            `추첨 후보: ${SEA_GIFT_RANDOM_ORB_KEYS.map(key => _t(ORB_DB[key].name)).join(', ')}. 여러 개를 만들면 같은 재화가 나올 수도 있습니다.`];
+        return [_t('{name} {amount}개를 받습니다.', { name: getCurrencyInfo(effect.key).name, amount: effect.amount }), effect.key === 'reefFragment'
             ? '채집 전략 화면에서 암초로 설치하면 낚시 게이지가 더 빨리 오릅니다.'
             : '장비 창 → 제작실에서 사용합니다. 봉인되지 않은 무작위 추가 옵션 1줄의 종류와 수치를 바꿉니다. 잠수 장비 업그레이드에도 사용합니다.'];
     }
     function guaranteedGuide(effect) {
         const kind = effect.type === 'guaranteedTaggedMod' ? '선택한 계열에서' : '이 장비에 붙을 수 있는 종류 중에서';
-        const tier = effect.tierBoost ? ` 새 줄은 장비 제작 단계부터 최대 ${effect.tierBoost}단계 위까지 무작위로 정해집니다.` : '';
-        return [`${kind} 무작위 옵션 1줄을 부여합니다.${tier}`,
+        const tier = effect.tierBoost ? _t(' 새 줄은 장비 제작 단계부터 최대 {tierBoost}단계 위까지 무작위로 정해집니다.', { tierBoost: effect.tierBoost }) : '';
+        return [_t('{kind} 무작위 옵션 1줄을 부여합니다.{tier}', { kind, tier }),
             '빈 자리에 추가하고, 추가할 수 없으면 같은 접두/접미 종류의 낮은 등급 미봉인 줄을 바꿉니다.'
             + (effect.bonusRemoveMod ? ' 이어서 다른 미봉인 일반 옵션 중 가장 낮은 등급 1줄도 제거합니다. 원하는 옵션도 없어질 수 있습니다.' : '')];
     }
@@ -244,8 +244,8 @@ const fishingUi = (() => {
     }
     function sealGuide(effect, item) {
         const count = effect.count, indexes = item ? getSeaGiftEditableIndexes(item).slice(0, count) : [];
-        return [`봉인되지 않은 옵션을 위에서부터 ${count}줄 영구 봉인합니다. 봉인한 줄은 이후 재굴림에서 보호됩니다.`,
-            (indexes.length ? `봉인될 줄: ${indexes.map(index => `${index + 1}번 ${lineText(item.stats[index])}`).join(' / ')}. ` : '줄을 직접 지정하는 방식은 아닙니다. ')
+        return [_t('봉인되지 않은 옵션을 위에서부터 {count}줄 영구 봉인합니다. 봉인한 줄은 이후 재굴림에서 보호됩니다.', { count }),
+            (indexes.length ? `봉인될 줄: ${indexes.map(index => _t('{value}번 {stats}', { value: index + 1, stats: lineText(item.stats[index]) })).join(' / ')}. ` : '줄을 직접 지정하는 방식은 아닙니다. ')
             + (effect.bonusTaggedReroll ? '봉인 후 남는 첫 번째 줄은 선택한 계열의 무작위 옵션으로 교체합니다.' : '봉인은 되돌릴 수 없습니다.')];
     }
     const EFFECT_GUIDES = Object.freeze({
@@ -262,31 +262,31 @@ const fishingUi = (() => {
     function guideHtml(recipe, count) {
         const effect = count > 1 ? { ...recipe.effect, amount: recipe.effect.amount * count } : recipe.effect;
         const [summary, detail] = EFFECT_GUIDES[effect.type](effect, getSelectedSeaGiftEquipmentTarget());
-        return `<div class="fishing-effect"><strong>어떻게 바뀌나요?</strong><p>${esc(summary)}</p><p class="fishing-effect-note">${esc(detail)}</p></div>`;
+        return `<div class="fishing-effect"><strong>${_t('어떻게 바뀌나요?')}</strong><p>${esc(summary)}</p><p class="fishing-effect-note">${esc(detail)}</p></div>`;
     }
     function categoryHtml(recipe) {
         const category = categoryOf(recipe);
         if (!category) return '';
         const item = getSelectedSeaGiftEquipmentTarget();
-        return `<label class="fishing-category-label">원하는 옵션 계열<select class="fishing-category" aria-label="옵션 계열" onchange="fishingUi.pick('${recipe.id}', this.value)">`
+        return `<label class="fishing-category-label">${_t('원하는 옵션 계열')}<select class="fishing-category" aria-label="${_t('옵션 계열')}" onchange="fishingUi.pick('${recipe.id}', this.value)">`
             + CATEGORY_OPTIONS.map(cat => {
                 const reason = item ? getSeaGiftEffectBlockReason(item, recipe.effect, cat) : '';
-                return `<option value="${cat}"${cat === category ? ' selected' : ''}>${cat}${reason ? ` (불가: ${esc(reason)})` : ''}</option>`;
+                return `<option value="${cat}"${cat === category ? ' selected' : ''}>${cat}${reason ? _t(' (불가: {reason})', { reason: esc(reason) }) : ''}</option>`;
             }).join('') + '</select></label>';
     }
     function recipeHtml(recipe, st) {
         const count = selectedCount(recipe), status = getSeaGiftRecipeStatus(recipe.id, null, categoryOf(recipe), count);
         const needsItem = SEA_GIFT_ITEM_EFFECT_TYPES.has(recipe.effect.type);
         const title = count > 1 ? TITLES[recipe.id].replace(/\d+개/, `${recipe.effect.amount * count}개`) : TITLES[recipe.id];
-        return `<article data-sea-recipe="${recipe.id}" class="fishing-recipe${status.ready ? ' is-ready' : ''}"><header><small>${needsItem ? '선택한 장비를 가공' : '장비 선택 없이 제작'}</small><h4>${esc(title)}</h4></header>`
+        return `<article data-sea-recipe="${recipe.id}" class="fishing-recipe${status.ready ? ' is-ready' : ''}"><header><small>${needsItem ? _t('선택한 장비를 가공') : _t('장비 선택 없이 제작')}</small><h4>${esc(title)}</h4></header>`
             + `${quantityHtml(status)}${categoryHtml(recipe)}${needsItem ? targetHtml(recipe) : ''}${guideHtml(recipe, count)}`
-            + `<section class="fishing-materials"><h4>사용할 물고기</h4>${costHtml(recipe, st, count)}</section>`
+            + `<section class="fishing-materials"><h4>${_t('사용할 물고기')}</h4>${costHtml(recipe, st, count)}</section>`
             + `<div class="fishing-craft-action"><p${status.ready ? '' : ' class="is-blocked"'}>${esc(status.reason || '준비 완료, 누르면 물고기를 씁니다.')}</p>`
-            + `<button type="button" data-sea-craft onclick="fishingUi.craft('${recipe.id}')"${status.ready ? '' : ' disabled'}>${count}회 제작</button></div>`
+            + `<button type="button" data-sea-craft onclick="fishingUi.craft('${recipe.id}')"${status.ready ? '' : ' disabled'}>${_t('{count}회 제작', { count })}</button></div>`
             + `<div class="fishing-result" role="status" aria-live="polite">${resultHtml(recipe, status.item)}</div></article>`;
     }
     function recipeListHtml(recipes, recipe) {
-        return `<nav class="fishing-recipe-list" aria-label="제작법">${recipes.map(row => {
+        return `<nav class="fishing-recipe-list" aria-label="${_t('제작법')}">${recipes.map(row => {
             const status = statusOf(row), cost = Object.entries(row.requires).map(([key, count]) => `${OCEAN_FISH_DB[key].name} ${count}`).join(' + ');
             return `<button type="button" data-recipe-choice="${row.id}" class="${row.id === recipe.id ? 'is-selected' : ''}" aria-pressed="${row.id === recipe.id}" onclick="fishingUi.choose('${row.id}')">`
                 + `<strong>${esc(TITLES[row.id])}</strong><span>${esc(cost)}</span><small>${esc(status.reason || '제작 가능')}</small></button>`;
@@ -299,11 +299,11 @@ const fishingUi = (() => {
         const recipes = materialsOnly ? all.filter(row => stocked.includes(row) || resultIsCurrent(row, statusOf(row).item)) : all;
         const recipe = recipes.find(row => row.id === selectedRecipes[group]) || recipes[0];
         if (recipe) selectedRecipes[group] = recipe.id;
-        const picker = `<label class="fishing-recipe-picker">제작법<select aria-label="심해 제작법" onchange="fishingUi.choose(this.value)">`
+        const picker = `<label class="fishing-recipe-picker">${_t('제작법')}<select aria-label="${_t('심해 제작법')}" onchange="fishingUi.choose(this.value)">`
             + recipes.map(row => `<option value="${row.id}"${row.id === recipe.id ? ' selected' : ''}>[${esc(statusOf(row).reason || '제작 가능')}] ${esc(TITLES[row.id])}</option>`).join('') + '</select></label>';
-        return `<p class="fishing-workshop-intro">낚은 물고기로 재화를 만들거나 장비를 다듬으세요. 제작법을 고르면 소모 재료와 바뀌는 내용을 확인할 수 있습니다.</p>`
-            + `<div class="fishing-workshop-toolbar"><span>${GROUPS[group]}, 재료 충분 ${stocked.length}/${all.length}개</span><button type="button" onclick="switchMapSubtab('map-tab-ocean')">재료 모으러 잠수</button></div>`
-            + `<label class="fishing-filter"><input type="checkbox" onchange="fishingUi.filterMaterials(this.checked)"${materialsOnly ? ' checked' : ''}>재료가 충분한 제작법만 보기</label>`
+        return `<p class="fishing-workshop-intro">${_t('낚은 물고기로 재화를 만들거나 장비를 다듬으세요. 제작법을 고르면 소모 재료와 바뀌는 내용을 확인할 수 있습니다.')}</p>`
+            + `<div class="fishing-workshop-toolbar"><span>${_t('{GROUPS}, 재료 충분 {length}/{length2}개', { GROUPS: GROUPS[group], length: stocked.length, length2: all.length })}</span><button type="button" onclick="switchMapSubtab('map-tab-ocean')">${_t('재료 모으러 잠수')}</button></div>`
+            + `<label class="fishing-filter"><input type="checkbox" onchange="fishingUi.filterMaterials(this.checked)"${materialsOnly ? ' checked' : ''}>${_t('재료가 충분한 제작법만 보기')}</label>`
             + (recipe ? `${picker}<div class="fishing-workshop-layout">${recipeListHtml(recipes, recipe)}${recipeHtml(recipe, st)}</div>`
                 : '<div class="fishing-empty"><p>이 종류에는 재료가 충분한 제작법이 없습니다.</p><button type="button" onclick="fishingUi.filterMaterials(false)">모든 제작법과 부족한 재료 보기</button></div>');
     }
@@ -312,11 +312,11 @@ const fishingUi = (() => {
     function resultHtml(recipe, item) {
         if (!resultIsCurrent(recipe, item)) return '';
         if (!lastResult.ok) return '<strong>제작하지 못했습니다</strong><p>현재 장비에 이 제작법을 적용할 수 없습니다. 물고기는 소모되지 않았습니다.</p>';
-        const spent = Object.entries(recipe.requires).map(([key, count]) => `${OCEAN_FISH_DB[key].name} ${count * lastResult.count}마리`).join(', ');
-        if (!item) return currencyResultHtml(recipe) + `<small>사용한 재료: ${esc(spent)}</small>`;
+        const spent = Object.entries(recipe.requires).map(([key, count]) => _t('{name} {value}마리', { name: OCEAN_FISH_DB[key].name, value: count * lastResult.count })).join(', ');
+        if (!item) return currencyResultHtml(recipe) + `<small>${_t('사용한 재료: {spent}', { spent: esc(spent) })}</small>`;
         const unchanged = JSON.stringify(lastResult.before) === JSON.stringify(lastResult.after);
-        return `<strong>제작 완료: ${esc(lastResult.name)}</strong><p>${unchanged ? '옵션이 그대로 유지되었습니다. 물고기는 소모되었습니다.' : '바뀐 부분만 모았습니다.'}</p>`
-            + changedLinesHtml(lastResult.before, lastResult.after) + `<small>사용한 재료: ${esc(spent)}</small>`;
+        return `<strong>${_t('제작 완료: {name}', { name: esc(_t(lastResult.name)) })}</strong><p>${unchanged ? _t('옵션이 그대로 유지되었습니다. 물고기는 소모되었습니다.') : _t('바뀐 부분만 모았습니다.')}</p>`
+            + changedLinesHtml(lastResult.before, lastResult.after) + `<small>${_t('사용한 재료: {spent}', { spent: esc(spent) })}</small>`;
     }
     /** Match duplicate lines once each. Added/removed options must not be paired with an unrelated line. */
     function changedLinesHtml(before, after) {
@@ -326,23 +326,23 @@ const fishingUi = (() => {
             if (index < 0) removed.push(line);
             else { kept.push(line); added.splice(index, 1); }
         });
-        const rarity = before.rarity === after.rarity ? '' : `<p class="fishing-rarity-change">장비 등급: ${esc(before.rarity)} → ${esc(after.rarity)}</p>`;
-        const changes = removed.length || added.length ? `<div class="fishing-result-compare"><section class="is-before"><h4>제작 전 (바뀐 줄)</h4>${linesHtml(removed, '기존 줄 교체 없음')}</section>`
-            + `<section class="is-after"><h4>제작 후 (새 결과)</h4>${linesHtml(added, '해당 옵션 제거됨')}</section></div>` : '';
-        return rarity + changes + (kept.length ? `<details class="fishing-kept"><summary>그대로 유지된 옵션 ${kept.length}줄</summary>${linesHtml(kept)}</details>` : '');
+        const rarity = before.rarity === after.rarity ? '' : `<p class="fishing-rarity-change">${_t('장비 등급: {rarity} → {rarity2}', { rarity: esc(before.rarity), rarity2: esc(after.rarity) })}</p>`;
+        const changes = removed.length || added.length ? `<div class="fishing-result-compare"><section class="is-before"><h4>${_t('제작 전 (바뀐 줄)')}</h4>${linesHtml(removed, '기존 줄 교체 없음')}</section>`
+            + `<section class="is-after"><h4>${_t('제작 후 (새 결과)')}</h4>${linesHtml(added, '해당 옵션 제거됨')}</section></div>` : '';
+        return rarity + changes + (kept.length ? `<details class="fishing-kept"><summary>${_t('그대로 유지된 옵션 {length}줄', { length: kept.length })}</summary>${linesHtml(kept)}</details>` : '');
     }
     function currencyResultHtml(recipe) {
-        const gains = lastResult.gains.map(row => `${getCurrencyInfo(row.key).name} +${row.amount}, 현재 보유 ${game.currencies[row.key] || 0}`);
+        const gains = lastResult.gains.map(row => _t('{name} +{amount}, 현재 보유 {currencies}', { name: getCurrencyInfo(row.key).name, amount: row.amount, currencies: game.currencies[row.key] || 0 }));
         let action = '';
         if (recipe.effect.type === 'currency') {
             const reef = recipe.effect.key === 'reefFragment';
             const canOpen = reef || contentProgression.canOpen('item-tab-craft');
-            action = canOpen ? `<button type="button" class="fishing-result-next" onclick="fishingUi.openRewardUse('${recipe.effect.key}')">${reef ? '채집 전략에서 암초 설치하기' : '제작실에서 심해의 파편 보기'}</button>`
+            action = canOpen ? `<button type="button" class="fishing-result-next" onclick="fishingUi.openRewardUse('${recipe.effect.key}')">${reef ? _t('채집 전략에서 암초 설치하기') : _t('제작실에서 심해의 파편 보기')}</button>`
                 : '<p>장비 제작실을 해금하면 심해의 파편을 사용할 수 있습니다.</p>';
         }
-        return `<strong>제작 완료: ${lastResult.count}회</strong>${linesHtml(gains)}${action}`;
+        return `<strong>${_t('제작 완료: {count}회', { count: lastResult.count })}</strong>${linesHtml(gains)}${action}`;
     }
-    const itemSnapshot = item => item && ({ rarity: ITEM_RARITY_LABELS[item.rarity], lines: item.stats.map(lineText) });
+    const itemSnapshot = item => item && ({ rarity: _t(ITEM_RARITY_LABELS[item.rarity]), lines: item.stats.map(lineText) });
     function craft(recipeId) {
         const recipe = SEA_GIFT_RECIPES.find(row => row.id === recipeId);
         if (!recipe) return;
@@ -402,8 +402,8 @@ const fishingUi = (() => {
     }
     function pickTarget(kind) {
         window.openCraftItemPickerOverlay(kind);
-        document.getElementById('craft-picker-title').textContent = '심해 제작에 쓸 장비 선택';
-        document.querySelector('#craft-item-picker-overlay .craft-picker-desc').textContent = '장비를 골라도 재료는 쓰지 않습니다.';
+        document.getElementById('craft-picker-title').textContent = _t('심해 제작에 쓸 장비 선택');
+        document.querySelector('#craft-item-picker-overlay .craft-picker-desc').textContent = _t('장비를 골라도 재료는 쓰지 않습니다.');
     }
     function openWorkshop() {
         switchMapSubtab('map-tab-fishing');
@@ -412,7 +412,7 @@ const fishingUi = (() => {
     }
 
     function lockedHtml() {
-        return `<div class="fishing-head"><div><h3>낚시</h3><p>루프 ${OCEAN_UNLOCK_LOOP} 이후 심해가 해금되면 낚을 수 있습니다.</p></div><div class="fishing-last"><span class="fishing-fish is-empty"></span><div><small>잠김</small><strong>봉인됨</strong></div></div></div>`;
+        return `<div class="fishing-head"><div><h3>${_t('낚시')}</h3><p>${_t('루프 {OCEAN_UNLOCK_LOOP} 이후 심해가 해금되면 낚을 수 있습니다.', { OCEAN_UNLOCK_LOOP })}</p></div><div class="fishing-last"><span class="fishing-fish is-empty"></span><div><small>${_t('잠김')}</small><strong>${_t('봉인됨')}</strong></div></div></div>`;
     }
     /** Native inputs become dirty after interaction; changing HTML attributes alone does not reset their live values. */
     function syncWorkshopControls(gifts) {

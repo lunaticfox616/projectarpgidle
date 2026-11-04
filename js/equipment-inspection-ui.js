@@ -88,10 +88,10 @@
         activeSelection = selection;
         itemTooltipComparisonScheduler.cancel();
         const worn = equippedSlot ? [] : equipmentWindowUi.wornSlots(item);
-        const panes = [{ tab: '선택한 장비', label: '선택한 장비', node: tooltipBox(item, equippedSlot, !!equippedSlot) }];
+        const panes = [{ tab: '선택한 장비', label: _t('선택한 장비'), node: tooltipBox(item, equippedSlot, !!equippedSlot) }];
         worn.forEach(slot => {
             const name = getDualSlotDisplayLabel(slot);
-            panes.push({ tab: worn.length > 1 ? `지금 ${name}` : '지금 장착', label: `지금 장착, ${name}`, node: tooltipBox(game.equipment[slot], slot, true) });
+            panes.push({ tab: worn.length > 1 ? _t('지금 {name}', { name }) : '지금 장착', label: _t('지금 장착, {name}', { name }), node: tooltipBox(game.equipment[slot], slot, true) });
         });
         root.dataset.eqwPanes = String(Math.min(2, panes.length));
         details.replaceChildren(equipmentWindowUi.compareNode(panes, view?.pane));

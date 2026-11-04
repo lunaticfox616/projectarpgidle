@@ -31,7 +31,7 @@ const selectionDialog = (() => {
     function frameHtml({ id, title, panelClass = '', body }) {
         return `<div class="selection-overlay-panel ${panelClass}" role="dialog" aria-modal="true" aria-labelledby="${id}-title" tabindex="-1">
             <div class="selection-overlay-header"><div class="selection-overlay-title" id="${id}-title">${title}</div>
-                <button type="button" data-selection-close>닫기</button></div>
+                <button type="button" data-selection-close>${_t('닫기')}</button></div>
             ${body}</div>`;
     }
 

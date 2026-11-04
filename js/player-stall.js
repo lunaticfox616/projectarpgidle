@@ -110,7 +110,7 @@ const playerStall = (() => {
             if (!row.offer || row.offer.expiresAt > at) continue;
             const deadline = row.offer.expiresAt;
             record(stall, { at: deadline, currency: row.currency, customer: PLAYER_STALL_CUSTOMERS[row.offer.customerId].name,
-                sold: false, reason: `${row.item.name} 가격 제안의 기한이 지났습니다.` });
+                sold: false, reason: _t('{name} 가격 제안의 기한이 지났습니다.', { name: row.item.name }) });
             releaseOffer(stall, row, deadline);
         }
     }
@@ -155,7 +155,7 @@ const playerStall = (() => {
         const amount = Math.min(row.price - 1, limit, Math.max(1, Math.floor(basis * ratio)));
         row.offer = { id: ++stall.offerSequence, amount, customerId, createdAt: at, expiresAt: at + rules.offerLifetimeMs, buyerLimit: limit, negotiated: false };
         stall.nextOfferAt = at + rules.offerCooldownMs;
-        record(stall, { at, kind: 'offer', slot: row.slot, customerId, currency: row.currency, customer: customer.name, sold: false, reason: `${row.item.name}에 ${ORB_DB[row.currency].name} ${amount}개를 제안했습니다.` });
+        record(stall, { at, kind: 'offer', slot: row.slot, customerId, currency: row.currency, customer: customer.name, sold: false, reason: _t('{name}에 {name2} {amount}개를 제안했습니다.', { name: row.item.name, name2: _t(ORB_DB[row.currency].name), amount }) });
         return true;
     }
     function visit(stall, at, appraisals) {
@@ -169,7 +169,7 @@ const playerStall = (() => {
         if (!candidate || random(stall) >= candidate.chance) {
             if (propose(stall, candidates, customerId, at)) return 0;
             record(stall, { at, kind: 'visit', customerId, slot: candidates[0]?.row.slot, nextSlot: candidates[1]?.row.slot,
-                customer: customer.name, sold: false, reason: '물건을 둘러보고 떠났습니다.' });
+                customer: customer.name, sold: false, reason: _t('물건을 둘러보고 떠났습니다.') });
             return 0;
         }
         return sell(stall, candidate.row, at, customer.name, candidate.row.price);
@@ -189,7 +189,7 @@ const playerStall = (() => {
             if (roll < probability) visitors = 2 + Math.floor(roll / probability * (rules.maxCrowd - 1));
         }
         if (visitors > 1) record(stall, { at, kind: 'crowd', visitors, customer: '몰려든 손님들', sold: false,
-            reason: `가격표를 본 손님 ${visitors}명이 한꺼번에 가판대 앞으로 모여들었습니다.` });
+            reason: _t('가격표를 본 손님 {visitors}명이 한꺼번에 가판대 앞으로 모여들었습니다.', { visitors }) });
         let paid = 0;
         for (let index = 0; index < visitors; index++) paid += visit(stall, at, appraisals);
         return paid;
@@ -227,15 +227,15 @@ const playerStall = (() => {
     }
     /** Lists bag item itemId at price. options: { slot, currency, negotiate } (a bare boolean is the old negotiate flag). */
     function list(owner, itemId, price, now, options = false) {
-        if (!unlocked(owner) || !canManage(owner)) return { ok: false, reason: '지금은 가판대를 이용할 수 없습니다.' };
-        if (!validPrice(price)) return { ok: false, reason: '가격은 1~1,000,000 사이의 정수로 입력하세요.' };
+        if (!unlocked(owner) || !canManage(owner)) return { ok: false, reason: _t('지금은 가판대를 이용할 수 없습니다.') };
+        if (!validPrice(price)) return { ok: false, reason: _t('가격은 1~1,000,000 사이의 정수로 입력하세요.') };
         const item = owner.inventory.find(entry => entry.id === itemId), stall = owner.playerStall;
         const blocked = listBlockReason(item, owner);
         if (blocked) return { ok: false, reason: blocked };
-        if (stall.listings.length >= rules.slots) return { ok: false, reason: '가판대가 가득 찼습니다.' };
+        if (stall.listings.length >= rules.slots) return { ok: false, reason: _t('가판대가 가득 찼습니다.') };
         const placement = listingPlacement(stall, options);
-        if (!placement.available) return { ok: false, reason: '판매 재화와 진열할 빈칸을 확인해 주세요.' };
-        if (!validClock(now)) return { ok: false, reason: '기기의 시간을 확인해 주세요.' };
+        if (!placement.available) return { ok: false, reason: _t('판매 재화와 진열할 빈칸을 확인해 주세요.') };
+        if (!validClock(now)) return { ok: false, reason: _t('기기의 시간을 확인해 주세요.') };
         const clock = stallClock(stall, now);
         // Visits only remove listings, so a validated empty position stays empty during this synchronous settlement.
         advance(owner, clock);
@@ -247,22 +247,22 @@ const playerStall = (() => {
     }
     /** Move only the display position: this never restarts viewing time, visits, or a pending price offer. */
     function moveListing(owner, listingId, targetSlot) {
-        if (!canManage(owner) || !unlocked(owner)) return { ok: false, reason: '지금은 진열 위치를 바꿀 수 없습니다.' };
+        if (!canManage(owner) || !unlocked(owner)) return { ok: false, reason: _t('지금은 진열 위치를 바꿀 수 없습니다.') };
         const row = owner.playerStall.listings.find(entry => entry.id === listingId);
-        if (!row) return { ok: false, reason: '이미 판매되었거나 회수된 물건입니다.' };
-        if (!validSlot(targetSlot)) return { ok: false, reason: '진열할 빈칸을 선택해 주세요.' };
+        if (!row) return { ok: false, reason: _t('이미 판매되었거나 회수된 물건입니다.') };
+        if (!validSlot(targetSlot)) return { ok: false, reason: _t('진열할 빈칸을 선택해 주세요.') };
         if (owner.playerStall.listings.some(entry => entry !== row && entry.slot === targetSlot)) {
-            return { ok: false, reason: '다른 물건이 놓여 있는 칸입니다.' };
+            return { ok: false, reason: _t('다른 물건이 놓여 있는 칸입니다.') };
         }
         row.slot = targetSlot;
-        return { ok: true, reason: '진열 위치를 바꿨습니다.' };
+        return { ok: true, reason: _t('진열 위치를 바꿨습니다.') };
     }
     /** Takes the listing back into the bag, at place (a bag cell { column, row }, row over all pages) when given: dragged off the
      * shelf onto the bag (js/player-stall-ui.js). */
     function withdraw(owner, listingId, place = null) {
-        if (!canManage(owner)) return { ok: false, reason: '지금은 회수할 수 없습니다.' };
+        if (!canManage(owner)) return { ok: false, reason: _t('지금은 회수할 수 없습니다.') };
         const stall = owner.playerStall, row = stall.listings.find(entry => entry.id === listingId);
-        if (!row) return { ok: false, reason: '이미 판매되었거나 회수된 물건입니다.' };
+        if (!row) return { ok: false, reason: _t('이미 판매되었거나 회수된 물건입니다.') };
         const fit = place ? equipmentInventoryGridRuntime.canAdd(row.item, place.column, place.row, owner) : { ok: canStoreEquipmentItems([row.item], owner) };
         if (!fit.ok) return { ok: false, reason: place ? fit.reason : '장비 보관함에 공간이 필요합니다. 물건은 가판대에 보관됩니다.' };
         releaseOffer(stall, row, stall.lastAt);
@@ -290,12 +290,12 @@ const playerStall = (() => {
     function counterOffer(owner, request, now) {
         const { listingId, offerId, amount } = request;
         const original = owner.playerStall.listings.find(entry => entry.id === listingId)?.offer;
-        if (!original || original.id !== offerId || original.negotiated) return { ok: false, reason: '역제안할 수 없는 제안입니다.' };
+        if (!original || original.id !== offerId || original.negotiated) return { ok: false, reason: _t('역제안할 수 없는 제안입니다.') };
         const row = owner.playerStall.listings.find(entry => entry.id === listingId);
-        if (!validPrice(amount) || amount <= original.amount || amount > row.price) return { ok: false, reason: '손님의 제안보다 높고 희망가 이하인 정수를 입력하세요.' };
+        if (!validPrice(amount) || amount <= original.amount || amount > row.price) return { ok: false, reason: _t('손님의 제안보다 높고 희망가 이하인 정수를 입력하세요.') };
         const live = actionableOffer(owner, listingId, offerId, now);
-        if (!live) return { ok: false, reason: '이미 처리되었거나 기한이 지난 제안입니다.' };
-        if (!Number.isSafeInteger(owner.playerStall[bankKey(live.currency)] + amount)) return { ok: false, reason: '판매 대금을 먼저 수령해 주세요.' };
+        if (!live) return { ok: false, reason: _t('이미 처리되었거나 기한이 지난 제안입니다.') };
+        if (!Number.isSafeInteger(owner.playerStall[bankKey(live.currency)] + amount)) return { ok: false, reason: _t('판매 대금을 먼저 수령해 주세요.') };
         return resolveCounter(owner.playerStall, live, amount, stallClock(owner.playerStall, now));
     }
     function resolveCounter(stall, row, amount, now) {
@@ -313,12 +313,12 @@ const playerStall = (() => {
         if (finalAmount > offer.amount && roll < acceptChance + (1 - acceptChance) * customer.flexibility) {
             row.offer = { ...offer, id: ++stall.offerSequence, amount: finalAmount, negotiated: true };
             record(stall, { at: now, kind: 'offer', slot: row.slot, customerId: offer.customerId, currency: row.currency, customer: customer.name,
-                sold: false, reason: `${row.item.name}에 ${ORB_DB[row.currency].name} ${finalAmount}개를 마지막으로 제안했습니다.` });
-            return { ok: true, reason: '손님이 마지막 가격을 제안했습니다.' };
+                sold: false, reason: _t('{name}에 {name2} {finalAmount}개를 마지막으로 제안했습니다.', { name: row.item.name, name2: _t(ORB_DB[row.currency].name), finalAmount }) });
+            return { ok: true, reason: _t('손님이 마지막 가격을 제안했습니다.') };
         }
         releaseOffer(stall, row, now);
-        record(stall, { at: now, customer: customer.name, sold: false, reason: '역제안을 듣고 손님이 떠났습니다.' });
-        return { ok: true, reason: '손님이 떠났습니다. 물건은 계속 진열됩니다.' };
+        record(stall, { at: now, customer: customer.name, sold: false, reason: _t('역제안을 듣고 손님이 떠났습니다.') });
+        return { ok: true, reason: _t('손님이 떠났습니다. 물건은 계속 진열됩니다.') };
     }
     /** Settle wall time once at this transaction boundary, then resolve the exact still-live proposal. */
     function actionableOffer(owner, listingId, offerId, now) {
@@ -332,20 +332,20 @@ const playerStall = (() => {
     }
     function acceptOffer(owner, listingId, offerId, now) {
         const row = actionableOffer(owner, listingId, offerId, now);
-        if (!row) return { ok: false, reason: '이미 처리되었거나 기한이 지난 제안입니다.' };
+        if (!row) return { ok: false, reason: _t('이미 처리되었거나 기한이 지난 제안입니다.') };
         const offer = row.offer;
-        if (offer.amount >= row.price || offer.amount > itemAppraisal.quote(row.item, row.currency).ceiling) return { ok: false, reason: '제안의 금액을 확인해 주세요.' };
+        if (offer.amount >= row.price || offer.amount > itemAppraisal.quote(row.item, row.currency).ceiling) return { ok: false, reason: _t('제안의 금액을 확인해 주세요.') };
         const paid = sell(owner.playerStall, row, stallClock(owner.playerStall, now), PLAYER_STALL_CUSTOMERS[offer.customerId].name, offer.amount);
-        return { ok: paid > 0, reason: paid ? `제안을 수락했습니다. 판매 대금에 ${ORB_DB[row.currency].name} ${offer.amount}개가 적립되었습니다.` : '판매 대금을 먼저 수령해 주세요.' };
+        return { ok: paid > 0, reason: paid ? _t('제안을 수락했습니다. 판매 대금에 {name} {amount}개가 적립되었습니다.', { name: _t(ORB_DB[row.currency].name), amount: offer.amount }) : '판매 대금을 먼저 수령해 주세요.' };
     }
     function rejectOffer(owner, listingId, offerId, now) {
         const row = actionableOffer(owner, listingId, offerId, now);
-        if (!row) return { ok: false, reason: '이미 처리되었거나 기한이 지난 제안입니다.' };
+        if (!row) return { ok: false, reason: _t('이미 처리되었거나 기한이 지난 제안입니다.') };
         const clock = stallClock(owner.playerStall, now);
         record(owner.playerStall, { at: clock, currency: row.currency, customer: PLAYER_STALL_CUSTOMERS[row.offer.customerId].name,
-            sold: false, reason: `${row.item.name}의 가격 제안을 거절했습니다.` });
+            sold: false, reason: _t('{name}의 가격 제안을 거절했습니다.', { name: row.item.name }) });
         releaseOffer(owner.playerStall, row, clock);
-        return { ok: true, reason: '제안을 거절했습니다. 물건은 계속 진열됩니다.' };
+        return { ok: true, reason: _t('제안을 거절했습니다. 물건은 계속 진열됩니다.') };
     }
     function setNegotiation(owner, listingId, enabled, now) {
         if (!canManage(owner) || !unlocked(owner) || !validClock(now) || typeof enabled !== 'boolean') return false;
@@ -365,7 +365,7 @@ const playerStall = (() => {
         const labels = { formlessDew: '이슬', magicBud: '새싹' };
         for (const currency of rules.currencies) {
             const amount = stall[bankKey(currency)];
-            if (amount) parts.push(`판매 대금 ${labels[currency] || ORB_DB[currency].name} ${amount}개`);
+            if (amount) parts.push(`판매 대금 ${labels[currency] || _t(ORB_DB[currency].name)} ${amount}개`);
         }
         if (!parts.length) return '';
         return `가판대에 ${parts.join('와 ')}가 남아 있습니다. 장비 → 거래소 → 나의 가판대에서 회수한 뒤 루프를 진행하세요.`;
