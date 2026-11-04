@@ -64,7 +64,9 @@
     function startTrack(context, id, buffer) {
         const track = BGM_TRACKS[id], node = context.createBufferSource(), gain = context.createGain();
         node.buffer = buffer; node.loop = true;
-        node.loopStart = track.loopStart; node.loopEnd = Math.min(track.loopEnd, buffer.duration);
+        // 끝 지점은 버퍼 끝보다 2샘플 안쪽: loopEnd가 버퍼 길이와 같거나 넘으면 크롬이 끝에서 되감지 못하고 마지막 128샘플을
+        // 되풀이해 344Hz 삐 소리가 났다(2026-11-04 사용자, 크롬 151과 152에서 재현). 2샘플은 이음매에서 들리지 않는다.
+        node.loopStart = track.loopStart; node.loopEnd = Math.min(track.loopEnd, buffer.duration - 2 / buffer.sampleRate);
         const offset = Math.min(positions.get(id) || 0, node.loopEnd - 0.05);
         gain.gain.setValueAtTime(0, context.currentTime);
         gain.gain.linearRampToValueAtTime(1, context.currentTime + FADE_SEC);
