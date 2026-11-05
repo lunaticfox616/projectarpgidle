@@ -6,6 +6,15 @@
             font-weight: 400;
             font-display: swap;
         }
+        /* 게임 파일을 받는 동안의 한 줄(css/document.css #startup-preload)만 쓰는 같은 파일: 글꼴이 올 때까지 글자를 그리지 않아
+           기기 글꼴로 먼저 나왔다가 바뀌지 않는다(2026-11-05 사용자). 파일은 index.html이 먼저 받아 둔다(rel="preload"). */
+        @font-face {
+            font-family: 'Galmuri11 Preload';
+            src: url('../assets/fonts/Galmuri11.woff2') format('woff2');
+            font-style: normal;
+            font-weight: 400;
+            font-display: block;
+        }
         @font-face {
             font-family: 'Galmuri11';
             src: url('../assets/fonts/Galmuri11-Bold.woff2') format('woff2');

@@ -3621,7 +3621,7 @@
       "y": 978.26,
       "type": "major",
       "name": "보조 스킬 룬 한도",
-      "desc": "보조 스킬 젬 한도 +1",
+      "desc": "보조스킬룬 한도 +1",
       "mods": [
         {
           "statId": "support_gem_limit",
@@ -3789,7 +3789,7 @@
       "y": 1951.43,
       "type": "major",
       "name": "보조 스킬 룬 한도",
-      "desc": "보조 스킬 젬 한도 +1",
+      "desc": "보조스킬룬 한도 +1",
       "mods": [
         {
           "statId": "support_gem_limit",
@@ -3957,7 +3957,7 @@
       "y": 974.91,
       "type": "major",
       "name": "보조 스킬 룬 한도",
-      "desc": "보조 스킬 젬 한도 +1",
+      "desc": "보조스킬룬 한도 +1",
       "mods": [
         {
           "statId": "support_gem_limit",
@@ -4125,7 +4125,7 @@
       "y": -973.04,
       "type": "major",
       "name": "보조 스킬 룬 한도",
-      "desc": "보조 스킬 젬 한도 +1",
+      "desc": "보조스킬룬 한도 +1",
       "mods": [
         {
           "statId": "support_gem_limit",
@@ -4293,7 +4293,7 @@
       "y": -1980,
       "type": "major",
       "name": "보조 스킬 룬 한도",
-      "desc": "보조 스킬 젬 한도 +1",
+      "desc": "보조스킬룬 한도 +1",
       "mods": [
         {
           "statId": "support_gem_limit",
@@ -4461,7 +4461,7 @@
       "y": -979.2603913337178,
       "type": "major",
       "name": "보조 스킬 룬 한도",
-      "desc": "보조 스킬 젬 한도 +1",
+      "desc": "보조스킬룬 한도 +1",
       "mods": [
         {
           "statId": "support_gem_limit",
@@ -27949,109 +27949,108 @@
           "value": 1.5
         }
       ],
-      "iconFamily": "lightning",
-      "archetype": "lightning",
+      "iconFamily": "critical",
       "distanceFromClassStart": 12,
       "powerBand": 1
     },
     {
-      "cat": "lightning",
+      "cat": "atk",
       "id": "nmvwfapb53g",
       "x": 1253.14,
       "y": -586.62,
       "type": "assist",
-      "name": "번개 피해",
-      "desc": "번개 피해 +12%",
+      "name": "투사체 피해",
+      "desc": "투사체 피해 +12%",
       "mods": [
         {
-          "statId": "lightPctDmg",
+          "statId": "projectilePctDmg",
           "value": 12
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "lightPctDmg",
+          "statId": "projectilePctDmg",
           "value": 12
         }
       ],
-      "iconFamily": "lightning",
+      "iconFamily": "projectile",
       "distanceFromClassStart": 13,
       "powerBand": 1
     },
     {
-      "cat": "lightning",
+      "cat": "atk",
       "id": "nmvwfapb53h",
       "x": 1225.43,
       "y": -485.32,
       "type": "assist",
-      "name": "번개 피해",
-      "desc": "번개 피해 +12%",
+      "name": "투사체 피해",
+      "desc": "투사체 피해 +12%",
       "mods": [
         {
-          "statId": "lightPctDmg",
+          "statId": "projectilePctDmg",
           "value": 12
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "lightPctDmg",
+          "statId": "projectilePctDmg",
           "value": 12
         }
       ],
-      "iconFamily": "lightning",
+      "iconFamily": "projectile",
       "distanceFromClassStart": 14,
       "powerBand": 2
     },
     {
-      "cat": "none",
+      "cat": "atk",
       "id": "nmvwfapb53i",
       "x": 1115.1,
       "y": -513.05,
       "type": "assist",
-      "name": "감전 확률",
-      "desc": "감전 확률 +6%",
+      "name": "투사체 피해",
+      "desc": "투사체 피해 +12%",
       "mods": [
         {
-          "statId": "shockChance",
-          "value": 6
+          "statId": "projectilePctDmg",
+          "value": 12
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "shockChance",
-          "value": 6
+          "statId": "projectilePctDmg",
+          "value": 12
         }
       ],
-      "iconFamily": "lightning",
-      "archetype": "lightning",
+      "iconFamily": "projectile",
+      "archetype": "projectile",
       "distanceFromClassStart": 15,
       "powerBand": 2
     },
     {
-      "cat": "lightning",
+      "cat": "atk",
       "id": "nmvwfapb53j",
       "x": 1024.4,
       "y": -536.53,
       "type": "assist",
-      "name": "번개 피해",
-      "desc": "번개 피해 +12%",
+      "name": "투사체 피해",
+      "desc": "투사체 피해 +12%",
       "mods": [
         {
-          "statId": "lightPctDmg",
+          "statId": "projectilePctDmg",
           "value": 12
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "lightPctDmg",
+          "statId": "projectilePctDmg",
           "value": 12
         }
       ],
-      "iconFamily": "lightning",
+      "iconFamily": "projectile",
       "distanceFromClassStart": 16,
       "powerBand": 2
     },

@@ -4,7 +4,7 @@
 const BGM_TRACKS = Object.freeze({
     title: Object.freeze({ file: 'title.ogg', loopStart: 6.976, loopEnd: 89.7794 }),               // 로그인 화면
     act: Object.freeze({ file: 'act.ogg', loopStart: 3.008, loopEnd: 85.1368 }),                   // 액트
-    boss: Object.freeze({ file: 'boss.ogg', loopStart: 17.0453, loopEnd: 95.808 }),                // 일반 보스
+    boss: Object.freeze({ file: 'boss.ogg', loopStart: 13.9733, loopEnd: 97.9293 }),               // 일반 보스(2026-11-05 사용자의 새 곡)
     'great-boss': Object.freeze({ file: 'great-boss.ogg', loopStart: 13.0347, loopEnd: 104.9104 }), // 보스(뿌리 보스)
     labyrinth: Object.freeze({ file: 'labyrinth.ogg', loopStart: 17.3653, loopEnd: 85.0109 }),     // 미궁
     beehive: Object.freeze({ file: 'beehive.ogg', loopStart: 18.1547, loopEnd: 102.1664 }),        // 벌집
