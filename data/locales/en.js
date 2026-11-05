@@ -8446,7 +8446,6 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '보스에게 주는 최종 피해 +{moment}%, 생명력 5% 이하 보스 처형': 'Final damage to bosses +{moment}%, executes bosses at 5% life or less',
         '닉네임 설정': 'Set nickname',
         '닉네임 적용': 'Apply nickname',
-        '접속 {active}명': '{active} online',
         '지금 접속 {active}명, 30분 안에 다녀간 사람 {recent}명': '{active} online now, {recent} visited in the last 30 minutes',
         '<em>나</em>': '<em>Me</em>',
         '지금은 조용합니다.': "It's quiet right now.",
