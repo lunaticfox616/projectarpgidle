@@ -2110,11 +2110,17 @@ function isPassiveNodeAvailable(nodeOrId) {
     return !isVoidSocketHidden(node);
 }
 
-/** 공허 소켓(2026-11-06 사용자: 처음에는 안 보이다가 해금하면 보이게): 해금 탭의 공허 소켓을 열기 전에는 공허 칸이 숨는다. 해금 전 저장에
- * 찍어 둔 칸은 루프가 바뀔 때까지 남아 포인트와 옵션을 잃지 않는다. 해금하는 순간 다시 잇는 일은 contentUnlockUi.takeContent가 한다. */
+/** 공허 소켓(2026-11-06 사용자: 처음에는 안 보이다가 해금하면 보이게): 해금 탭의 공허 소켓을 열기 전에는 공허 칸과 공허 칸이 있어야 뜻이
+ * 있는 노드(needsVoidSockets)가 숨는다. 해금 전 저장에 찍어 둔 칸은 루프가 바뀔 때까지 남아 포인트와 옵션을 잃지 않는다. 해금하는 순간
+ * 다시 잇는 일은 contentUnlockUi.takeContent가 한다. */
 function isVoidSocketHidden(node) {
-    if (node.kind !== 'void' || !game || typeof contentProgression !== 'object') return false;
+    if (!needsVoidSockets(node) || !game || typeof contentProgression !== 'object') return false;
     return !contentProgression.isUnlocked('voidSocket') && !(game.passives || []).includes(node.id);
+}
+/** 공허 칸, 이어진 공허 칸의 효율을 올리는 투영의 문양, 찍은 공허 칸 수만큼 오르는 공허의 별자리(2026-11-06 사용자: 공허 소켓이 없으면
+ * 의미가 없는 노드). 이 노드들을 숨겨도 다른 노드로 가는 길은 끊기지 않는다(살아 있는 트리로 확인: 공허 칸 25, 문양 11, 별자리 1). */
+function needsVoidSockets(node) {
+    return node.kind === 'void' || node.stat === 'voidLinkEfficiency' || node.title === '공허의 별자리';
 }
 
 function getPassiveApexNodeIds() {

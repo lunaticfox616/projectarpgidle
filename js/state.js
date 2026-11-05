@@ -2798,6 +2798,8 @@ const defaultGame = {
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],
     seenTutorials: [],
+    // Unlock rows the player has picked in the unlock tab; the others that are open or within reach wear a ! (js/unlock-tab-ui.js unseenIds).
+    seenUnlocks: [],
     // The NPC window's keywords already heard, "npcId:keyword" (js/content-progression-ui.js npcHeard): kept across loops.
     npcHeard: [],
     // NPCs met on the maps, { npcId: { count, loop, zoneId, tone } } (js/npc-shop.js meet), kept across loops: the NPC tab lists them.

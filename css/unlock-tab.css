@@ -96,6 +96,10 @@
 #content-unlock-panel .unlock-card.is-short{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 50%,transparent)}
 #content-unlock-panel .unlock-card.is-owned{background:color-mix(in srgb,var(--fam) 24%,#17130e);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--fam) 60%,transparent)}
 #content-unlock-panel .unlock-card.is-ready{background:#30281a;box-shadow:inset 0 0 0 1px #fff6dc,0 0 0 1px rgba(255,246,220,.25)}
+/* 고른 적 없는 칸의 ! (2026-11-06, js/unlock-tab-ui.js unseenIds) */
+#content-unlock-panel .unlock-unseen{position:absolute;top:-6px;right:-6px;z-index:3;min-width:14px;height:14px;box-sizing:border-box;padding:0 2px;font-style:normal;font-size:12px;line-height:14px;font-weight:700;text-align:center;color:#fff6dc;background:#c8452f;box-shadow:0 0 0 1px #120d08;pointer-events:none}
+/* 칸 단추는 넘치는 부분을 자른다: ! 가 붙은 칸만 귀퉁이 밖까지 보이게 한다 */
+#content-unlock-panel :is(.unlock-card,.unlock-pip).is-unseen{overflow:visible}
 #content-unlock-panel .unlock-card.is-chosen,#content-unlock-panel .unlock-pip.is-chosen{outline:2px solid #fff;outline-offset:1px}
 #content-unlock-panel .unlock-card:hover,#content-unlock-panel .unlock-card.is-path,#content-unlock-panel .unlock-pip:hover,#content-unlock-panel .unlock-pip.is-path{filter:brightness(1.2)}
 .unlock-card-text{display:grid;gap:1px;min-width:0;flex:1;text-align:center}

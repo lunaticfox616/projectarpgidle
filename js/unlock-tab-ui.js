@@ -9,6 +9,8 @@ const UNLOCK_FAMILIES = Object.freeze([
     { id: 'growth', root: 'loopTree', side: 1, at: 0.84 }
 ]);
 const UNLOCK_LOOSE_FAMILY = Object.freeze({ deepChaos: 'rune' });
+// 칸의 ! (2026-11-06 사용자: 한 번도 확인 안 해본 해금 항목에 ! 표시): 살 수 있거나 점수만 모자란 칸, 열린 칸 가운데 고른 적 없는 칸.
+const UNLOCK_UNSEEN_STATES = Object.freeze(new Set(['ready', 'short', 'owned']));
 
 /** 판의 자리: 시간을 따라 앞에서부터 빈 줄을 찾아 채운다. 끝난 가지의 줄은 다음 가지가 쓰고, 그 많은 칸을 담는 가장 적은 줄 수를 고른다. 게임 상태를 읽지 않으니 한 번만 잰다. */
 const unlockBoard = (() => {
@@ -232,15 +234,21 @@ const unlockTabUi = {
     // ---------------------------------------------------------------- 판
     nodeClass(def, state, marks) {
         const lit = marks.lit.has(def.id) ? ' is-lit' : '', fresh = marks.fresh.has(def.id) ? ' is-fresh' : '', chosen = this.selectedId === def.id ? ' is-chosen' : '';
-        return `fam-${unlockBoard.familyOf(def)} kind-${contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}`;
+        return `fam-${unlockBoard.familyOf(def)} kind-${contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}${marks.unseen.has(def.id) ? ' is-unseen' : ''}`;
+    },
+    unseenHtml: (def, marks) => (marks.unseen.has(def.id) ? '<i class="unlock-unseen" aria-hidden="true">!</i>' : ''),
+    /** 고른 적 없는 칸(UNLOCK_UNSEEN_STATES). 칸을 누르거나 다른 창에서 불러 고르면 본 것이 된다(select). 창을 열 때 저절로 고른 칸은 아니다. */
+    unseenIds() {
+        const seen = new Set(game.seenUnlocks || []);
+        return new Set(unlockBoard.rows.filter(def => !seen.has(def.id) && UNLOCK_UNSEEN_STATES.has(this.stateOf(def))).map(def => def.id));
     },
     nodeHtml(def, L, marks) {
         const at = L.pos.get(def.id), state = this.stateOf(def), style = `left:${at.left}px;top:${at.top}px;width:${at.w}px;height:${at.h}px`, name = escapeHTML(_t(def.name));
-        if (at.step) return `<button type="button" class="unlock-pip ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, true)}" aria-label="${name}" style="${style}">${escapeHTML(this.upgradeEffect(def.series, def.rank))}</button>`;
+        if (at.step) return `<button type="button" class="unlock-pip ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, true)}" aria-label="${name}" style="${style}">${escapeHTML(this.upgradeEffect(def.series, def.rank))}${this.unseenHtml(def, marks)}</button>`;
         const chip = state !== 'owned' && def.cost ? `<small class="unlock-chip">${def.cost}P</small>` : '';
         const second = L.cardH >= UNLOCK_BOARD_SIZE.gainFrom ? `<small class="unlock-card-gain">${escapeHTML(this.cardGain(def))}</small>` : '';
         return `<button type="button" class="unlock-card ${this.nodeClass(def, state, marks)}" data-unlock-select="${def.id}" data-tip="${this.tipOf(def, false)}" aria-label="${name}" style="${style};--icon:${at.h - 2}px">
-            <span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt="" draggable="false" loading="lazy">${chip}</span><span class="unlock-card-text"><b>${escapeHTML(this.cardName(def))}</b>${second}</span></button>`;
+            <span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt="" draggable="false" loading="lazy">${chip}</span><span class="unlock-card-text"><b>${escapeHTML(this.cardName(def))}</b>${second}</span>${this.unseenHtml(def, marks)}</button>`;
     },
     edgesHtml(L, marks) {
         const rank = { 'is-dim': 0, 'is-next': 1, 'is-lit': 2 }, edges = [];
@@ -355,7 +363,7 @@ const unlockTabUi = {
     readMarks() {
         const owned = new Set(unlockBoard.rows.filter(def => contentProgression.isUnlocked(def.id)).map(def => def.id));
         const open = new Set(unlockBoard.rows.filter(def => this.parentsOpen(def)).map(def => def.id));
-        const marks = { lit: new Set(), fresh: new Set() };
+        const marks = { lit: new Set(), fresh: new Set(), unseen: this.unseenIds() };
         if (this.shownOwned) {
             owned.forEach(id => { if (!this.shownOwned.has(id)) marks.lit.add(id); });
             open.forEach(id => { if (!this.shownOpenParents.has(id) && !owned.has(id)) marks.fresh.add(id); });
@@ -369,7 +377,7 @@ const unlockTabUi = {
         if (!root || !game.contentProgression) return;
         const selected = this.settleSelection();
         const states = unlockBoard.rows.map(def => this.stateOf(def)).join();
-        const key = JSON.stringify([game.season, contentProgression.balance(), states, this.selectedId, root.clientHeight, root.clientWidth]);
+        const key = JSON.stringify([game.season, contentProgression.balance(), states, this.selectedId, (game.seenUnlocks || []).length, root.clientHeight, root.clientWidth]);
         if (this.shownKey === key && root.childNodes.length) return;
         this.shownKey = key;
         this.bindPanel(root);
@@ -425,6 +433,8 @@ const unlockTabUi = {
     select(id) {
         if (!unlockBoard.has(id)) return;
         this.selectedId = id;
+        if (!Array.isArray(game.seenUnlocks)) game.seenUnlocks = [];
+        if (!game.seenUnlocks.includes(id)) game.seenUnlocks.push(id);
         this.revealId = id;
         this.render();
     },
