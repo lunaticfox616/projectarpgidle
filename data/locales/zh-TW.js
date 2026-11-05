@@ -8414,7 +8414,6 @@ const LANGUAGE_PACK_ZH_TW = Object.freeze({
         '보스에게 주는 최종 피해 +{moment}%, 생명력 5% 이하 보스 처형': '對Boss最終傷害 +{moment}%，處決生命5%以下的Boss',
         '닉네임 설정': '設定暱稱',
         '닉네임 적용': '應用暱稱',
-        '접속 {active}명': '線上 {active}人',
         '지금 접속 {active}명, 30분 안에 다녀간 사람 {recent}명': '當前線上 {active}人，30分鐘內來過 {recent}人',
         '<em>나</em>': '<em>我</em>',
         '지금은 조용합니다.': '現在很安靜。',

@@ -774,18 +774,20 @@ function getSocialPresenceState(lastSeen, now = Date.now()) {
     if (ageSeconds <= SOCIAL_ONLINE_WINDOW_S) return 'active';
     return ageSeconds <= SOCIAL_RECENT_WINDOW_S ? 'recent' : '';
 }
-/** 채팅 창 오른쪽 위의 작은 접속 인원(2026-10-11 사용자: "채팅창에 기본적으로 작게 몇명 온라인인지"): 5분 안에 신호가 온 사람 수.
- * 접속자 목록과 같은 조회 결과를 쓴다(30초 주기, 새 채팅이 뜨면 socialOnlineChat.refresh가 한 번 더 읽는다). 아직 모르거나 0명이면 숨긴다. */
+/** 채팅 창 오른쪽 위의 작은 접속 인원(2026-10-11 사용자: "채팅창에 기본적으로 작게 몇명 온라인인지"): 초록 점 옆에 5분 안에 신호가 온
+ * 사람 수, 노란 점 옆에 30분 안에 다녀간 사람 수만 쓴다(2026-11-05 사용자: 마우스를 올리면 나오던 설명은 없앰, 접속자 목록의 요약과 같은 모양).
+ * 접속자 목록과 같은 조회 결과를 쓴다(30초 주기, 새 채팅이 뜨면 socialOnlineChat.refresh가 한 번 더 읽는다). 아직 모르거나 둘 다 0명이면 숨긴다. */
 function renderChatOnlineCount(active, recent) {
     let badge = document.getElementById('social-chat-online');
     if (!badge) return;
-    badge.hidden = !socialState.onlineSupported || active <= 0;
-    let text = _t('접속 {active}명', { active });
-    if (badge.dataset.text !== text) {
-        badge.dataset.text = text;
-        badge.innerHTML = `<i class="social-presence-dot active" aria-hidden="true"></i>${text}`;
-    }
-    badge.dataset.tip = _t('지금 접속 {active}명, 30분 안에 다녀간 사람 {recent}명', { active, recent });
+    badge.hidden = !socialState.onlineSupported || active + recent <= 0;
+    let key = `${active}|${recent}|${i18n.language}`;
+    if (badge.dataset.counts === key) return;
+    badge.dataset.counts = key;
+    badge.innerHTML = `<span><i class="social-presence-dot active" aria-hidden="true"></i>${active}</span>`
+        + `<span><i class="social-presence-dot recent" aria-hidden="true"></i>${recent}</span>`;
+    // 화면 읽기 프로그램만 읽는 이름(마우스 설명은 아니다)
+    badge.setAttribute('aria-label', _t('지금 접속 {active}명, 30분 안에 다녀간 사람 {recent}명', { active, recent }));
 }
 /** 인원 수만 받았을 때(loadOnlineUsers의 { counts }): 배지만 그린다. */
 function renderOnlineCounts(counts) {
@@ -2433,7 +2435,8 @@ function injectSocialStyles() {
     .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
     .social-online-empty{color:var(--copy-muted);font-size:12px;}
     .social-chat-wrap{position:relative;display:flex;flex-direction:column;gap:8px;}
-    .social-chat-online{position:absolute;top:5px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:5px;padding:1px 7px;font-size:12px;line-height:1.4;color:var(--copy-muted);background:rgba(10,12,10,.82);border:1px solid #3d382e;border-radius:9px;pointer-events:auto;}
+    .social-chat-online{position:absolute;top:5px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:8px;padding:1px 7px;font-size:12px;line-height:1.4;color:var(--copy-muted);background:rgba(10,12,10,.82);border:1px solid #3d382e;border-radius:9px;pointer-events:none;}
+    .social-chat-online>span{display:inline-flex;align-items:center;gap:4px;}
     .social-chat-online[hidden]{display:none;}
     .social-chat-online:not([hidden]) + .social-chat-list{margin-top:28px;} /* 접속 인원 칸 자리는 목록 밖에: 목록의 padding은 PC 창과 휴대폰 규칙에 덮였고, 스크롤과 함께 올라가 맨 위 줄의 시각을 가렸다. */
     .social-chat-list{height:calc(46vh / var(--scale-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
