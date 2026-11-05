@@ -13026,7 +13026,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
                     showAttackFeedback(targetEnemy, {
                         key: 'first-strike',
-                        text: _t('선제 타격: 피해 {max}% 증폭', { max: Math.max(0, Number(pStats.firstStrikeDamagePct) || 0) }),
+                        text: _t('선제 타격'),   // 2026-11-05 사용자: 수치 없이 이름만(전: 선제 타격: 피해 n% 증폭)
                         color: '#ffd27a'
                     });
                 }

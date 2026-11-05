@@ -6494,7 +6494,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '나무꾼의 시뮬레이터': "Woodcutter's Simulator",
         "“다음은 더 나은 세계를 바라지.”\n정체를 드러낸 존재는 진짜 나무꾼이 아닌 시뮬레이터였다.\n더 깊은 혼돈을 돌파해야 루프가 열린다.": "“Next time, hope for a better world.”\nThe being that revealed itself was not the real Woodcutter but a simulator.\nYou must break through deeper Chaos for the loop to open.",
         '집중 취소, {reason}': 'Focus cancelled, {reason}',
-        '선제 타격: 피해 {max}% 증폭': 'Opening strike: damage amplified {max}%',
+        '선제 타격': 'Opening strike',
         '즉시 처치': 'Instant kill',
         '지속 피해 처형': 'Damage over time execution',
         '마무리': 'Finisher',

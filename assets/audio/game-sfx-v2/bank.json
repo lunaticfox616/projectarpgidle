@@ -302,6 +302,9 @@
     ],
     "gain": 0.4,
     "rate": 1,
+    "sampleRates": {
+      "potBreak-a.wav": 0.84
+    },
     "group": "object",
     "cooldown": 100,
     "priority": 1,
