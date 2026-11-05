@@ -2107,7 +2107,14 @@ function isPassiveNodeAvailable(nodeOrId) {
     let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
     if (!node || (node.requiresEvolution && !(game && game.passiveStarEvolution))) return false;
     if (node.hiddenByKeystoneId && !(game && (game.passives || []).includes(node.hiddenByKeystoneId))) return false;
-    return true;
+    return !isVoidSocketHidden(node);
+}
+
+/** 공허 소켓(2026-11-06 사용자: 처음에는 안 보이다가 해금하면 보이게): 해금 탭의 공허 소켓을 열기 전에는 공허 칸이 숨는다. 해금 전 저장에
+ * 찍어 둔 칸은 루프가 바뀔 때까지 남아 포인트와 옵션을 잃지 않는다. 해금하는 순간 다시 잇는 일은 contentUnlockUi.takeContent가 한다. */
+function isVoidSocketHidden(node) {
+    if (node.kind !== 'void' || !game || typeof contentProgression !== 'object') return false;
+    return !contentProgression.isUnlocked('voidSocket') && !(game.passives || []).includes(node.id);
 }
 
 function getPassiveApexNodeIds() {
@@ -10482,25 +10489,27 @@ async function bulkSalvageSelected() {
     addLog(_t('🧪 선택한 등급 장비 {count}개 해체, {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedSkipped > 0 ? ` ${_t('(잠금, 세팅, 우선 보관 {n}개는 남김)', { n: lockedSkipped })}` : '' }), 'loot-normal');
     updateStaticUI();
 }
-/** 전체 해체. The panel's button asks first; the rail's 해체 button double-clicked passes ask false and salvages at once
- * (2026-10-21, js/equipment-window-ui.js salvageAllOnDoubleClick). Locked, set and priority-kept gear stays either way. */
-async function bulkSalvageAllInventory(options = {}) {
+/** 전체 해체, from the panel's button or the rail's 해체 button double-clicked (js/equipment-window-ui.js RAIL_DOUBLE_CLICK). Both ask
+ * first with a summary of what goes (2026-11-06; the double-click used to salvage at once). Locked, set and priority-kept gear stays. */
+async function bulkSalvageAllInventory() {
     if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog(_t('해체할 장비가 없습니다.'), 'attack-monster');
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
     if (targetItems.length <= 0) return addLog(_t('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.'), 'attack-monster');
-    if (options.ask !== false && !await confirmBulkSalvageAll(targetItems, lockedCount)) return;
+    if (!await confirmBulkSalvageAll(targetItems, lockedCount)) return;
     const targets = confirmedSalvageTargets(targetItems), rewards = salvageBagItems(targets);
     if (!isCraftSelectionEquip()) clearCraftSelection();
     addLog(_t('🧪 인벤토리 전체해체 완료 ({count}개), {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedCount > 0 ? `, ${_t('잠금, 세팅, 우선 보관 {n}개는 남김', { n: lockedCount })}` : '' }), 'loot-normal');
     updateStaticUI();
 }
 function confirmBulkSalvageAll(targetItems, lockedCount) {
-    const count = targetItems.length, note = bagItems.countNote(targetItems);
-    return requestGameConfirmation(`인벤토리 장비 ${count}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
+    const count = targetItems.length;
+    // 주얼, 코어, 액막이도 요약의 종류 칸에 나온다(예전에는 "주얼 N개 포함" 줄).
+    return requestGameConfirmation(`인벤토리 장비 ${count}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
         title: _t('인벤토리 전체 해체'),
         tone: 'danger',
-        confirmLabel: _t('{count}개 해체', { count })
+        confirmLabel: _t('{count}개 해체', { count }),
+        summaryHtml: equipmentWindowUi.salvageSummaryHtml(targetItems)
     });
 }
 

@@ -60,6 +60,19 @@
 .game-dialog-message { margin-top: 12px; color: var(--color-text-secondary); font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-line; }
 .game-dialog-control { margin-top: 20px; }
 .game-dialog-control:empty { display: none; }
+/* 해체 요약(2026-11-06, js/equipment-window-ui.js salvageSummaryHtml): 등급 비율 막대, 등급별 개수, 종류별 개수. 짧은 정보라 12px. */
+.salvage-sum { display: grid; gap: 10px; }
+.salvage-sum-bar { display: flex; height: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(0, 0, 0, 0.4); }
+.salvage-sum-bar i { display: block; min-width: 3px; background: rgb(var(--sum-rgb)); }
+.salvage-sum-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.salvage-sum-row h5 { min-width: 32px; margin: 0 4px 0 0; color: var(--color-text-secondary); font-size: 12px; font-weight: normal; }
+.salvage-sum-chip { --sum-rgb: 185, 168, 138; display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 8px; font-size: 12px; line-height: 1.4;
+  color: var(--color-text-primary); border: 1px solid rgba(var(--sum-rgb), 0.45); background: rgba(var(--sum-rgb), 0.12); }
+.salvage-sum-chip b { color: rgb(var(--sum-rgb)); font-weight: normal; }
+.salvage-sum [data-grade="normal"] { --sum-rgb: 215, 220, 226; }
+.salvage-sum [data-grade="magic"] { --sum-rgb: 95, 180, 236; }
+.salvage-sum [data-grade="rare"] { --sum-rgb: 241, 196, 15; }
+.salvage-sum [data-grade="unique"] { --sum-rgb: 255, 159, 67; }
 .game-dialog-error { margin-top: 12px; color: var(--color-warning-soft); font-size: 13px; line-height: 1.5; }
 .game-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--color-line); }
 .game-dialog-btn { min-width: 96px; min-height: 42px; padding: 8px 12px; border: 1px solid var(--color-line-strong); border-radius: var(--radius-sm); background: var(--color-surface-raised); color: var(--color-text); font: 700 13px/1.4 var(--font-body); cursor: pointer; }

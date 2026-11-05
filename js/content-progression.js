@@ -365,6 +365,7 @@ const contentProgression = (() => {
         inheritGrowthSeries(record, next, owner, existingSave);
         inheritTreeAccess(record, next, existingSave);
         keepOverflowOfAddedRows(record, next, existingSave);
+        inheritVoidSockets(record, next, existingSave);
         return next;
     }
 
@@ -389,6 +390,13 @@ const contentProgression = (() => {
     function keepOverflowOfAddedRows(record, next, existingSave) {
         if (Number(record.version) >= CONTENT_UNLOCK_RECORD_VERSION || !existingSave) return;
         next.graftFloor = Math.max(next.graftFloor, overflowOf(record, next.highestLoop));
+    }
+    // 공허 소켓 줄(addedIn 13, 2026-11-06) 전의 저장은 스킬트리 공허 칸을 해금 없이 쓰고 있었다. 그 루프에 닿았으면 값 없이 물려받는다.
+    // 루프 1, 2의 저장은 찍어 둔 공허 칸만 루프가 바뀔 때까지 남는다(js/passives.js isVoidSocketHidden).
+    function inheritVoidSockets(record, next, existingSave) {
+        const def = definitions.get('voidSocket');
+        if (!(Number(record.version) < def.addedIn) || !existingSave || next.highestLoop < def.minLoop) return;
+        if (!next.unlocked.includes(def.id) && !next.inherited.includes(def.id)) next.inherited.push(def.id);
     }
     function inheritTreeAccess(record, next, existingSave) {
         if (Number(record.version) >= LEDGER_VERSION || !existingSave || next.highestLoop < 2) return;

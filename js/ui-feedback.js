@@ -65,6 +65,8 @@
             choices: Array.isArray(source.choices) ? source.choices : [],
             validate: typeof source.validate === 'function' ? source.validate : null,
             submitOnChoice: source.submitOnChoice === true,
+            // Internal presentation HTML only (a confirm's summary under the message, e.g. what a salvage takes); callers escape any external text.
+            summaryHtml: source.summaryHtml,
             dismissOnBackdrop: source.dismissOnBackdrop !== false,
             resolve: source.resolve
         };
@@ -150,7 +152,7 @@
                 return `<button type="button" class="game-choice-option" data-choice-index="${index}" data-choice-value="${escapeHTML(value)}" aria-pressed="${index === 0 ? 'true' : 'false'}"><strong>${escapeHTML(label)}</strong>${detailHtml}</button>`;
             }).join('')}</div>`;
         }
-        return '';
+        return dialog.summaryHtml || '';
     }
 
     function bindDialogControl(dialog, control) {

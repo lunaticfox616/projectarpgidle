@@ -19,7 +19,8 @@ const CONTENT_UNLOCK_POINT_AWARDS = Object.freeze({ early: Object.freeze([]), pe
 const CONTENT_UNLOCK_SERIES_VERSION = 10;
 const CONTENT_UNLOCK_TREE_VERSION = 11;
 // 장부 12(2026-11-03 생육함): addedIn이 있는 줄은 그 버전부터 값을 받는다. 옛 기록은 그 줄 없이 읽고, 그때의 넘침 점수를 graftFloor로 지킨다(js/content-progression.js).
-const CONTENT_UNLOCK_RECORD_VERSION = 12;
+// 장부 13(2026-11-06 공허 소켓): 그 전 저장은 공허 소켓을 해금 없이 쓰고 있었으므로 물려받는다(js/content-progression.js inheritVoidSockets).
+const CONTENT_UNLOCK_RECORD_VERSION = 13;
 const CONTENT_UNLOCK_SERIES = Object.freeze([
     { series: 'offlineHours', rail: 'idle', name: '시간 인식', art: 'ui/pixel/buttons/loop.png',
         description: '방치 한도가 늘어납니다.',
@@ -85,6 +86,12 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"fossilRestore","gain":"화석 옵션 장비","art":"px/items/cosmic-slab-v3.png","after":"fossil","name":"화석 복원","group":"장비","minLoop":5,"cost":1,"description":"고대 미궁에서 원시 화석과 고대 원시 화석이 떨어집니다. 제작실에서 원시 화석을 복원하고 남는 화석을 정제할 수 있습니다. 화석 전용 옵션 장비도 떨어집니다.","action":{"tab":"tab-items","subtab":"item-tab-fossil"},"since":11},
     {"id":"advancedSpores","gain":"새 수확 제작","art":"items/stump-pixel-v1/flower-chaos.png","after":"craftSimulator","name":"고급 수확 제작","group":"장비","minLoop":8,"cost":1,"description":"부패 수확, 균열 수확, 카오스 계열과 피해 계열 수확 제작이 해금됩니다.","action":{"tab":"tab-items","subtab":"item-tab-craft"},"since":11},
     {"id":"fossil","gain":"옵션 방향 조절","art":"gems/active/earthquake-shatter-v1.png","after":"craft","name":"화석 제작","group":"장비","minLoop":3,"cost":1,"description":"화석으로 장비의 옵션 방향을 조절할 수 있습니다.","routes":["item-tab-fossil"],"lifecycle":{"label":"루프 초기화","kept":"","reset":"화석과 제작 장비. 루프 봉인 장비는 유지됩니다."},"since":11},
+    // 공허 소켓(2026-11-06 사용자: 공허 소켓을 따로 해금해야 보이게): 해금 전에는 스킬트리의 공허 칸이 보이지 않는다(js/passives.js
+    // isVoidSocketHidden). 루프 10 무렵, 2점(사용자). 루프 10에는 유료 해금이 9점 몰려 있어 1점뿐인 루프 11에, 공허 균열(루프 9) 뒤에 둔다.
+    { id: 'voidSocket', name: '공허 소켓', gain: '스킬트리 공허 칸', art: 'ui/pixel/buttons/passive.png', group: '스킬트리', minLoop: 11, cost: 2, addedIn: 13,
+        after: 'voidrift', action: { tab: 'tab-char' },
+        description: '스킬트리에 공허 칸(공허 패시브, 직업 공허 소켓)이 나타납니다. 할당한 공허 칸에 마법의 새싹, 요정의 고리, 황금률로 옵션을 붙일 수 있습니다.',
+        lifecycle: { label: '루프 초기화', kept: '', reset: '공허 칸의 할당과 옵션' } },
     {"id":"labyrinth","name":"고대 미궁","group":"전투","minLoop":3,"cost":0,"description":"고대 미궁이 해금됩니다. 미궁을 등반해 전용 보상을 얻을 수 있습니다.","routes":["map-explore-labyrinth"],"after":"fossil","art":"ui/currency/fairy-ring.png","gain":"화석, 봉인편린"},
     {"id":"jewel","gain":"장비 소켓","art":"items/chaos-jewel-v3.png","after":"fossilRestore","name":"주얼","group":"장비","minLoop":5,"cost":2,"description":"장비 소켓에 끼우는 주얼이 떨어집니다. 반지, 목걸이, 허리띠에는 소켓이 있고 다른 장비는 공허의 끌로 뚫을 수 있습니다.","action":{"tab":"tab-items","subtab":"item-tab-equip"},"lifecycle":{"label":"루프 초기화","kept":"","reset":"주얼 보관함, 장비 소켓의 주얼(루프 봉인 장비는 유지), 주얼 재료"}},
     {"id":"talisman","gain":"그루터기 함 옵션","art":"items/stump-pixel-v1/talisman-rare.png","after":"jewel","name":"부적","group":"장비","minLoop":6,"cost":2,"description":"고대 미궁의 봉인편린으로 부적을 풀고, 그루터기 함에 배치해 처치로 깨울 수 있습니다.","action":{"tab":"tab-stump"},"lifecycle":{"label":"일부 유지","kept":"그루터기 함의 부적과 배치(루프마다 다시 잠듦)","reset":"봉인편린"}},

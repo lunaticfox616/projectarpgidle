@@ -292,7 +292,8 @@ for (const id of ['timerift','colony','beehive','voidrift']) {
 run('game=mergeDefaults({})');
 const totalCost=run('CONTENT_UNLOCK_CATALOG.reduce((sum,def)=>sum+def.cost,0)');
 assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:runtime.CONTENT_UNLOCK_POINT_AWARDS.perLoop,complete:false});
-run('game.season=54;contentProgression.sync()');
+// The first loop whose points cover the whole catalog (it moves when a row is added: 공허 소켓 2026-11-06).
+run(`game.season=${1+Math.ceil(totalCost/runtime.CONTENT_UNLOCK_POINT_AWARDS.perLoop)};contentProgression.sync()`);
 assert.equal(run('contentProgression.balance()'),totalCost);
 assert(!run("contentProgression.status('beyond').available"),'future loop gates remain enforced after funding');
 before=json('game');

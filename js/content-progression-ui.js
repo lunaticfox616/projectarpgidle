@@ -120,6 +120,8 @@ const contentUnlockUi = {
         const carded = this.announceContent(id);
         addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
         this.announceOpenedSince(opened); // free content that comes with it (장비 전당 with 고유 도감)
+        // 공허 소켓은 스킬트리에 숨어 있던 공허 칸을 드러낸다(js/passives.js isVoidSocketHidden): 길과 화면을 다시 잇고 스킬트리에 알림 점을 켠다.
+        if (id === 'voidSocket') { refreshPassiveConnectivity(); game.noti.char = true; }
         // 지금 살 수 있는 해금이 남았을 때만 알림: 뒤 루프의 강화 단계를 기다리는 포인트는 소식이 아니다(2026-10-25).
         game.noti.season = CONTENT_UNLOCK_CATALOG.some(def => contentProgression.kind(def) === 'paid' && contentProgression.status(def.id).available);
         checkUnlocks();
