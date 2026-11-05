@@ -1068,6 +1068,9 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
 - 표와 그림: scripts/build-stage-skill-vfx-v36.cjs가 룬 74종의 연결(데이터/skills.json vfx, 게임에서 코드가 맡는 룬은 그 표시로 바꾼다), 클립, 아틀라스 줄, 보강 갈래(polish), 향로 머리 자리(censerHeads), 위습 그림(wisps)을 data/stage-skill-vfx.js에 덧붙인다.
 - 전달본 V3.9.1(2026-11-02): 투사체 수와 연쇄(V3.7)는 js/combat-projectile-shots.js와 js/skill-gem-casts.js, 적중 타격감(V3.8)은 js/canvas-stage-proj-impact.js와 js/combat-grid.js pierceHoldMs. 그림(V3.9.1)은 scripts/build-stage-skill-vfx-v39.cjs가 assets/stage-vfx/vfx5.png(pixelfx로 구운 그림, 구매 그림이 아니라 저장소에 있다, 고지는 pixelfx-LICENSE.txt)와 표를 옮긴다. 시뮬레이터의 "판정 표시" 칠은 게임에 그 설정이 없어 넣지 않았다.
   구매 그림은 셋째 장 assets/stage-vfx/vfx3.png(같은 약관, .gitignore, 비공개 저장소)에 모은다. 소환 위습 그림은 구매 그림이 아니라 assets/stage-vfx/wisps/에 있다. 없으면 그 그림을 쓰는 연출만 빠진다.
+- 전달본 V3.9.5(2026-11-05): 신성한 기도의 창 낙하(V3.9.2)는 js/skill-gem-casts.js launchLance, stepLance(가까운 적 셋, 시간차, 떨어진 자리 둘레)와 효과 확장 lance(data/skill-effect-expansion.js), 그림은 stageSkillSpells.fallSpear의 기울기와 높이.
+  빈 플라스크(V3.9.3)는 남은 파편이 병이 노린 적에게 꽂히고(stabShard, glassStab), 큰 빈 병(stageSkillDraws emptyFlask)과 새 깨짐(glassBreak)을 쓴다. 게임의 파편 수(1~4개), 사거리(3칸), 피해는 그대로다.
+  무기 자동 교체(V3.9.4)는 넣지 않는다(같은 날 사용자 결정: 게임은 낀 무기 한 자루이고, 맞지 않는 룬은 기본 공격으로 돌아간다). 플라스크 투척 겹침(V3.9.5)은 게임의 무대 그림(투척 9장)에 손을 떠난 병이 따로 그려져 있지 않아 고칠 것이 없다.
 - 새 룬 78 추적 사격, 79 석화 혼합물, 80 시간의 사선(규칙은 js/skill-gem-casts.js), 81 정화의 집행(회오리 방식, data/skills.js). 연출은 js/canvas-stage-new-runes.js.
 - 석화: 기절 줄(type stun, petrified)을 쓰므로 행동이 멈춘다(js/combat.js petrifyEnemy). 보스는 굳지 않는다. 시간 둔화: 적의 이동만 낮추고 공격 주기는 그대로다(enemyTimeSlowed).
 - 기존 룬의 전용 연출은 js/canvas-stage-rune-remakes.js(55 향로구름, 50 신성한 안개, 51 파문심판, 34 유성 낙화의 비행과 착탄, 23과 27 Warlock, 46 시계)와 js/canvas-stage-skill-spells.js(72 고리, 34 크레이터, 73 지진, 49 유리)에 있다.

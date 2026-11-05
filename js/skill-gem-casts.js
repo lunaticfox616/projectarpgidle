@@ -9,8 +9,12 @@ const skillGemCasts = (() => {
     // Gems that never overlap themselves: the clock, the assassination and the movement gems.
     const SINGLE_CAST = new Set([46,52,54,55,56,70,77]);
     // 효과 확장 +N (js/skill-effect-expansion.js): 탄성 플라스크 bounces, 폭발 혼합물·신성한 안개 radius, 파문심판 cross arms,
-    // 빈 플라스크 shard reach, 암살 reach and 전도성 난격 cuts grow by it; 신성한 기도·시간 가속·과냉각 혼합물 never do.
+    // 빈 플라스크 shard reach, 암살 reach and 전도성 난격 cuts grow by it, and 신성한 기도 its lances, blast and reach (lancePlan);
+    // 시간 가속·과냉각 혼합물 never do.
     const grow = stats => skillEffectExpansion.extra(stats && stats.sSkill);
+    /** 신성한 기도(2026-11-05 전달본 V3.9.2): 찾는 범위, 창 수, 떨어진 자리 둘레(칸), 시간(ms, 공격 속도로 줄어든다), 기울기(수직에서 라디안), 출발 높이(도트),
+     * 대상이 그새 움직였어도 맞는 거리(칸). 수치는 전달본의 제안이다. */
+    const LANCE=Object.freeze({reach:3,targets:3,blast:1,first:30,gap:[70,140],fall:[150,200],tilt:.61,height:[190,230],keep:.6});
     function facing(enemy,source) {
         const center=getGridUnitCenter(enemy),x=source.gx-center.gx,y=source.gy-center.gy;
         return Math.abs(x)>=Math.abs(y) ? (x<0?4:6) : (y<0?8:2);
@@ -62,7 +66,7 @@ const skillGemCasts = (() => {
         if(id===51)return live.filter(e=>cross(source,e,1+extra));
         if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4+extra && landing(e,source,live));
         if(id===70)return live.filter(e=>getGridUnitDistance(source,e)<=FLICKER.first && flickerLanding(e,cell(source),live));
-        const range=({44:9,45:3,46:3,47:4,48:4,49:4,50:1+extra,78:HOMING.cells+extra,79:4,80:TIME_SLASH.range+extra})[id];
+        const range=({44:9,45:LANCE.reach+extra,46:3,47:4,48:4,49:4,50:1+extra,78:HOMING.cells+extra,79:4,80:TIME_SLASH.range+extra})[id];
         return live.filter(e=>getGridUnitCells(e).some(c=>inArea(id,source,c,range)));
     }
     function inArea(id,source,c,range) {
@@ -186,11 +190,29 @@ const skillGemCasts = (() => {
         letGo(c,release,release+ms(c,160));
         visual(state,c,phase,release,Math.max(1,c.nextAt-release));
     }
+    /** 신성한 기도(2026-11-05 전달본 V3.9.2, 사용자 "창이 각각 랜덤으로 하늘에서 떨어지는 느낌, 동시가 아닌 짧은 시간차, 처음엔 주변 3명과 그 주위로 반경,
+     * 대상수나 범위가 늘어나는 것의 영향"): 찾는 범위 안 가까운 적 셋을 섞은 순서로 친다. 첫 창은 기도가 놓이는 순간 뒤 0~0.03초, 다음 창마다 0.07~0.14초 뒤
+     * 떨어지기 시작해 0.15~0.2초에 꽂히고, 떨어지기 시작할 때 대상이 있던 자리 둘레 안의 적을 모두 친다(stepLance). 적이 셋보다 적으면 창도 그만큼이다.
+     * 효과 확장 +N은 창 +N, 둘레 +0.5N칸, 찾는 범위 +N칸이고, 넓은 판정(보조룬)의 +1은 둘레와 찾는 범위만 1칸 늘린다(창 수 그대로). */
+    const between=([low,high])=>low+Math.random()*(high-low);
+    function lancePlan(stats) {
+        const n=grow(stats);
+        return stats.sSkill.effectExpansionFromSupport ? {count:LANCE.targets,blast:LANCE.blast+n} : {count:LANCE.targets+n,blast:LANCE.blast+n/2};
+    }
     function launchLance(state,c,enemies) {
-        c.points=targets(45,c.source,enemies).map(getGridUnitCenter);
-        c.nextAt=c.at+440/c.speed;
-        letGo(c,c.at+180/c.speed,c.nextAt);
-        visual(state,c,'fall',c.at+180/c.speed,260/c.speed,{targetCells:c.points});
+        const plan=lancePlan(c.stats),release=c.at+ms(c,180),near=targets(45,c.source,enemies,grow(c.stats))
+            .sort((a,b)=>getGridUnitDistance(c.source,a)-getGridUnitDistance(c.source,b)).slice(0,plan.count);
+        const order=near.map(foe=>({foe,key:Math.random()})).sort((a,b)=>a.key-b.key).map(row=>row.foe);
+        let start=release+ms(c,Math.random()*LANCE.first);
+        c.blast=plan.blast;c.points=[];
+        c.lances=order.map((foe,index)=>{
+            if(index)start+=ms(c,between(LANCE.gap));
+            const fall=Math.max(1,ms(c,between(LANCE.fall)));
+            return {foeId:foe.id,spot:getGridUnitCenter(foe),startAt:start,hitAt:start+fall,fall,index,
+                tilt:(Math.random()*2-1)*LANCE.tilt,height:between(LANCE.height),started:false,done:false};
+        });
+        c.nextAt=c.lances[0].startAt;
+        letGo(c,release,c.lances[c.lances.length-1].hitAt);
     }
     function launchClock(state,c) {
         const pattern=c.stats.sSkill.combatPattern;
@@ -519,11 +541,31 @@ const skillGemCasts = (() => {
         else {c.source=cell(c.aim);c.nextAt+=80/c.speed;c.pendingBounce=true;}
         return pop.targets.length ? [result,pop] : [result];
     }
+    /** 때가 된 창마다: 떨어지기 시작하면 그때의 대상 자리를 잡고(죽었으면 마지막 자리) 그림을 걸고, 꽂히면 그 둘레를 친다. */
     function stepLance(state,c,input) {
-        const hit=input.enemies.filter(e=>e.hp>0 && c.points.some(p=>getGridUnitCells(e).some(t=>
-            Math.max(Math.abs(t.gx-p.gx),Math.abs(t.gy-p.gy))<=.5)));
-        visual(state,c,'land',c.nextAt,144/c.speed,{targetCells:c.points});c.done=true;
-        return [contact(c,hit,c.nextAt)];
+        const commands=[];
+        for(const lance of c.lances) {
+            if(!lance.started && lance.startAt<=input.now)lanceFall(state,c,lance,input.enemies);
+            if(lance.started && !lance.done && lance.hitAt<=input.now)commands.push(lanceStrike(state,c,lance,input.enemies));
+        }
+        const left=c.lances.filter(lance=>!lance.done);
+        c.done=!left.length;
+        if(!c.done)c.nextAt=Math.min(...left.map(lance=>lance.started?lance.hitAt:lance.startAt));
+        return commands;
+    }
+    function lanceFall(state,c,lance,enemies) {
+        const foe=enemies.find(e=>e.id===lance.foeId && e.hp>0);
+        if(foe)lance.spot=getGridUnitCenter(foe);
+        lance.started=true;
+        visual(state,c,'fall',lance.startAt,lance.fall,{targetCells:[lance.spot],landingCell:lance.spot,
+            lanceIndex:lance.index,lanceTilt:lance.tilt,lanceHeight:lance.height,lanceBlast:c.blast});
+    }
+    function lanceStrike(state,c,lance,enemies) {
+        const hit=area(enemies,lance.spot,'circle',c.blast),foe=enemies.find(e=>e.id===lance.foeId && e.hp>0);
+        if(foe && !hit.includes(foe) && distance(getGridUnitCenter(foe),lance.spot)<LANCE.keep)hit.push(foe);
+        lance.done=true;c.points.push(lance.spot);
+        visual(state,c,'land',lance.hitAt,144/c.speed,{targetCells:[lance.spot]});
+        return contact(c,hit,lance.hitAt,{key:`${c.key}:${lance.index}`,splashCells:cells(lance.spot,'circle',c.blast)});
     }
     function stepClock(state,c,input) {
         c.source=cell(input.source);c.event.timeCenter=cell(input.source);
@@ -602,10 +644,22 @@ const skillGemCasts = (() => {
         }
         return plan;
     }
+    /** 빈 플라스크의 유리 파편(2026-11-05 전달본 V3.9.3, 사용자 "대상이 하나일때 연속으로 유리파편이 꽂히는 이펙트"): 둘레의 다른 적에게 하나씩 먼저 날아가고,
+     * 다른 적이 모자라면 남은 파편은 깨진 자리에서 솟아올랐다가 병이 노린 적에게 차례로 꽂힌다(전: 다른 적에게 다시 날아감). 그 적이 둘레에 없으면 예전처럼
+     * 둘레의 적에게 날아간다. 꽂히는 때는 전달본 그대로다: 0.03초 뒤 0.14초 솟고 0.05초 떠 있다가 0.095초 간격으로 0.08초에 내리꽂힌다. 파편 수와 피해는 그대로다. */
+    const STAB=Object.freeze({lead:30,rise:140,hover:50,every:95,dive:80});
+    function stabShard(state,c,main,index,bonus) {
+        const start=c.nextAt+ms(c,STAB.lead),hitAt=start+ms(c,STAB.rise+STAB.hover+index*STAB.every+STAB.dive),aim=getGridUnitCenter(main);
+        visual(state,c,'stab',start,Math.max(1,hitAt-start),{sourceCell:cell(c.aim),targetCells:[aim],bonusShard:bonus,stabIndex:index,stabTargetId:main.id,stabRate:c.speed});
+        return {aim,at:hitAt,bonus,id:main.id,stab:true};
+    }
     function shards(state,c,input) {
         const plan=shardPlan(Math.max(0,c.stats.projectileExtraShots || 0));
         const live=area(input.enemies,c.aim,'circle',3+grow(c.stats)),others=live.filter(e=>e.id!==c.targetId),unused=[...others];
+        const main=live.find(e=>e.id===c.targetId);
+        let stabs=0;
         return plan.map((bonus,i)=>{
+            if(!unused.length && main)return stabShard(state,c,main,stabs++,bonus);
             const pool=unused.length?unused:(others.length?others:live);
             if(!pool.length)return null;
             const target=pool[Math.floor(Math.random()*pool.length)];
@@ -624,9 +678,12 @@ const skillGemCasts = (() => {
             if(!c.done)c.nextAt=c.pending[0].at;
             return [result];
         }
-        const shard=c.pending.shift(),hit=area(input.enemies,shard.aim,'square',.5).filter(e=>e.id===shard.id);
-        if(hit.length)visual(state,c,'contact',shard.at,110/c.speed,{targetCells:[shard.aim]});
+        const shard=c.pending.shift();
         c.done=!c.pending.length;if(!c.done)c.nextAt=c.pending[0].at;
+        // 꽂히는 파편은 그 적을 따라간다(그새 쓰러졌으면 바닥에 떨어진다). 그림은 무대가 그린다(js/canvas-stage-skill-spells.js glassStab).
+        if(shard.stab)return [contact(c,input.enemies.filter(e=>e.id===shard.id && e.hp>0),shard.at,{bonus:shard.bonus,key:`${c.key}:stab`})];
+        const hit=area(input.enemies,shard.aim,'square',.5).filter(e=>e.id===shard.id);
+        if(hit.length)visual(state,c,'contact',shard.at,110/c.speed,{targetCells:[shard.aim]});
         return [contact(c,hit,shard.at,{bonus:shard.bonus})];
     }
     const moveTo=(c,motion)=>({type:'teleport',name:c.name,from:c.move.from,to:c.move.to,motion});

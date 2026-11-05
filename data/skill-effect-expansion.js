@@ -3,8 +3,9 @@
  *  cone    — cones grow N cells longer
  *  range   — lines, projectiles and movement reach N cells further (빈 플라스크: its shards)
  *  targets — single-target, arc and chain gems strike N more targets (탄성 플라스크: N more bounces, 전도성 난격: N more cuts)
- * Gems not listed are never expanded: 신성한 기도·시간 가속·과냉각 혼합물 (a radius of 3+ already covers most of the
- * 9×8 board) and summons. +1 comes from items and inner growth and does not stack; +2 only from a keystone and costs that
+ *  lance   — 신성한 기도 (2026-11-05 전달본 V3.9.2): N more lances, a blast 0.5N wider and N more reach; 넓은 판정's +1 widens only the blast
+ *            and the reach (js/skill-gem-casts.js lancePlan)
+ * Gems not listed are never expanded: 시간 가속·과냉각 혼합물 (a radius of 3+ already covers most of the 9×8 board) and summons. +1 comes from items and inner growth and does not stack; +2 only from a keystone and costs that
  * skill 30% of its damage (proposed value, handoff §8-1). Rules: js/skill-effect-expansion.js.
  */
 const SKILL_EFFECT_EXPANSION = Object.freeze({
@@ -24,9 +25,9 @@ const SKILL_EFFECT_EXPANSION = Object.freeze({
         '향로구름': 'range', '작살화살': 'range', '추적 사격': 'range', '시간의 사선': 'range',
         '이중 베기': 'targets', '강타': 'targets', '흡혈 관통': 'targets', '기습 공격': 'targets', '번개 타격': 'targets',
         '화염 참격': 'targets', '독창 투척': 'targets', '올려 베기': 'targets', '전도성 난격': 'targets', '서리베기': 'targets', '뇌운 낙뢰': 'targets', '심연 전염': 'targets',
-        '천뢰 분기': 'targets', '탄성 플라스크': 'targets'
+        '천뢰 분기': 'targets', '탄성 플라스크': 'targets', '신성한 기도': 'lance'
     }),
     // Never expanded (for the checks): a radius of 3+ already spans most of the board.
-    excluded: Object.freeze(['신성한 기도', '시간 가속', '과냉각 혼합물'])
+    excluded: Object.freeze(['시간 가속', '과냉각 혼합물'])
 });
 safeExposeData({ SKILL_EFFECT_EXPANSION });

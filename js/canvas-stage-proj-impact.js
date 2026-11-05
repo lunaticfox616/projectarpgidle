@@ -4,8 +4,11 @@
  * 크기는 캐릭터 도트다. 무게: 화살 1, 창 1.3, 큰 창 1.7, 화염 검기 1.4, 플라스크 1.2. */
 const stageProjectileImpact = (() => {
     const K = stageSkillKit;
-    /** 룬 번호 → 투사체 무게. 범위로 터지는 플라스크는 맞은 적마다 섬광을 내지 않는다(연쇄로 건너간 적만). 심연 전염은 제 연출이 맡는다. */
-    const WEIGHT = Object.freeze({ 7: 1.3, 9: 1.3, 11: 1.3, 26: 1.3, 30: 1.7, 14: 1, 25: 1, 78: 1, 44: 1.2, 66: 1.4 });
+    /** 룬 번호 → 투사체 무게. 범위로 터지는 플라스크는 맞은 적마다 섬광을 내지 않는다(연쇄로 건너간 적만). 심연 전염은 제 연출이 맡는다.
+     * 2026-11-05 전달본 V3.9.2와 V3.9.3: 신성한 기도의 창이 꽂힐 때마다(창 무게), 빈 플라스크는 맞은 적에게 꽂히는 남은 파편만(화살 무게, ONLY). */
+    const WEIGHT = Object.freeze({ 7: 1.3, 9: 1.3, 11: 1.3, 26: 1.3, 30: 1.7, 14: 1, 25: 1, 78: 1, 44: 1.2, 66: 1.4, 45: 1.3, 49: 1 });
+    const ONLY = Object.freeze({ 49: fx => String(fx.damageTextGroupId).endsWith(':stab') });
+    const weightOf = (gem, fx) => (WEIGHT[gem.id] && (!ONLY[gem.id] || ONLY[gem.id](fx)) ? WEIGHT[gem.id] : 0);
     const SKIP = 23, SPARK_HEIGHT = -44, KNOT_HEIGHT = -50, KNOT_WEIGHT = 0.7;
     let kick = { until: -1e9, amp: 0, ms: 1 };
 
@@ -95,7 +98,8 @@ const stageProjectileImpact = (() => {
     function impactNote(gem, hit) {
         if (gem.id === SKIP || splash(hit.fx)) return;
         if (chained(hit.fx)) { if (WEIGHT[gem.id] || isProjectile(gem)) playKnot(gem, hit); return; }
-        if (WEIGHT[gem.id]) playStrike(gem, hit, WEIGHT[gem.id]);
+        const weight = weightOf(gem, hit.fx);
+        if (weight) playStrike(gem, hit, weight);
     }
     /** 그 룬이 틀 수 있는 클립(낀 룬의 띠를 미리 만든다: js/canvas-stage-skill-rules.js ruleGemClips). */
     function impactRefs(gem, element) {
