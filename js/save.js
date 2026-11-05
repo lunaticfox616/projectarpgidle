@@ -43,6 +43,18 @@ function readGuestSave() {
     }
 }
 
+/** An account's copy on this device (its slot) as parsed data, whichever slot is active; null when there is none or it cannot be read.
+ * The login screen shows it for a signed-in account before the account is entered (js/ui.js startupShownSave). */
+function readAccountSaveCopy(userId) {
+    try {
+        const raw = userId ? localStorage.getItem(accountSaveKey(userId)) : null;
+        return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+        console.warn('account save copy could not be read:', error);
+        return null;
+    }
+}
+
 /** Removes the guest save (after it moved into an account), with its earlier key names and corrupt copies. */
 function removeGuestSave() {
     const earlier = /^[a-z]{3}IdleSaveData_/i;

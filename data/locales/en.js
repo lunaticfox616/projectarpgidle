@@ -10140,6 +10140,8 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '자동 해체 설정': 'Auto-salvage settings',
         '비용: 형체 없는 이슬 {formlessDew}': 'Cost: Formless Dew {formlessDew}',
         '미확인 적': 'Unknown foe',
+        // ── 2026-11-05 로그인 화면 계정 저장 카드의 글 ──
+        '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.': 'Press "Continue with account save" to download the save from the server.',
     })
 });
 
