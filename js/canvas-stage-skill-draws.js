@@ -374,6 +374,52 @@ const stageSkillDraws = (() => {
         g.drawImage(flaskSprite(element), -14, -23);
     }
 
+    /** 빈 플라스크의 던지는 병(2026-11-05 전달본 V3.9.3 emptyFlaskSprite, 사용자 "던져지는 플라스크가 좀 더 크면서"): 둥근 몸 지름 33도트(손에 든 병의 1.3배)의
+     * 속이 빈 유리병. 안쪽 뒷벽이 비치는 고리, 왼쪽 위 큰 흰 반사 호, 오른쪽 아래 유리 두께, 코르크 없는 열린 입구. 38×50, 붓은 몸의 가운데(19, 32). */
+    const EMPTY = Object.freeze({ OL: '#0b0b0b', RIM: '#779186', GLS: '#8da6a1', DK: '#5b726d', IN: '#a9c4bd', HI: '#ccf4d2', WH: '#f4fff6' });
+    function emptyGlassInk(x, y, d, R) {
+        if (d > R - 2.4) return x + y < -4 ? EMPTY.HI : (y > 3 || x > 6 ? EMPTY.DK : EMPTY.RIM);   // 유리 두께: 왼쪽 위 밝게, 오른쪽 아래 어둡게
+        let c = x * 0.6 + y > 6 ? EMPTY.RIM : EMPTY.GLS;
+        if (x + y > 15) c = EMPTY.DK;
+        if (Math.abs(Math.hypot((x + 1) / 12.5, (y - 2) / 11) - 1) < 0.09 && y > -1) c = EMPTY.IN;   // 안쪽 뒷벽이 비치는 고리
+        return y < -10 ? EMPTY.IN : c;
+    }
+    function emptyFlaskNeck(px, cx, cy) {
+        const top = cy - 25, bottom = cy - 15;
+        for (let y = top + 2; y <= bottom; y++) [[-4, EMPTY.OL], [3, EMPTY.OL], [-3, EMPTY.HI], [-2, EMPTY.GLS], [-1, EMPTY.IN], [0, EMPTY.GLS], [1, EMPTY.GLS], [2, EMPTY.RIM]].forEach(([x, c]) => px(cx + x, y, c));
+        for (let x = cx - 5; x <= cx + 4; x++) { px(x, top - 1, EMPTY.OL); px(x, top + 2, EMPTY.OL); }
+        for (let y = top; y <= top + 1; y++) {
+            px(cx - 5, y, EMPTY.OL); px(cx + 4, y, EMPTY.OL);
+            for (let x = cx - 4; x <= cx + 3; x++) px(x, y, x === cx - 3 ? EMPTY.WH : x > cx + 1 ? EMPTY.RIM : EMPTY.HI);
+        }
+    }
+    function emptyFlaskSprite() {
+        return cached('emptyFlask', () => {
+            const sheet = drawCanvas(38, 50), px = sheet.px, cx = 19, cy = 32, R = 16.4;
+            for (let y = -17; y <= 17; y++) for (let x = -17; x <= 17; x++) {
+                const d = Math.hypot(x, y);
+                if (d <= R) px(cx + x, cy + y, d > R - 1.2 ? EMPTY.OL : emptyGlassInk(x, y, d, R));
+            }
+            for (let a = 3.3; a < 4.4; a += 0.04) px(Math.round(cx + Math.cos(a) * 11.6), Math.round(cy + Math.sin(a) * 11.6), EMPTY.WH);   // 큰 흰 반사 호
+            for (let a = 3.5; a < 4.1; a += 0.06) px(Math.round(cx + Math.cos(a) * 9.6), Math.round(cy + Math.sin(a) * 9.6), EMPTY.HI);
+            [[6, 7], [7, 6], [5, 8], [8, 5]].forEach(([x, y]) => px(cx + x, cy + y, EMPTY.HI));   // 오른쪽 아래 작은 반사
+            px(cx - 8, cy - 9, EMPTY.WH); px(cx - 9, cy - 8, EMPTY.WH);
+            emptyFlaskNeck(px, cx, cy);
+            return sheet.canvas;
+        });
+    }
+    /** 던진 빈 플라스크: 80ms마다 사분의 일씩 돌고, 0.18초마다 병에 흰 반짝임이 스친다. */
+    function drawEmptyFlask(g, t) {
+        g.save();
+        g.rotate(Math.floor(t / 80) * Math.PI / 2);
+        g.drawImage(emptyFlaskSprite(), -19, -32);
+        g.restore();
+        if (Math.floor(t / 60) % 3 !== 0) return;
+        g.globalAlpha = 0.9; g.fillStyle = EMPTY.WH;
+        g.fillRect(-10, -8, 7, 1); g.fillRect(-7, -11, 1, 7);
+        g.globalAlpha = 1;
+    }
+
     /** 바위 플라스크(2026-10-20 스킬룬 추가본 v44)의 색: 돌(어두운 쪽에서 밝은 쪽), 금, 연성 룬 금빛 줄, 코르크, 병목에 감은 줄과 그 그림자. */
     const ROCK = Object.freeze({ outline: '#141210', dark: '#4a4238', mid: '#6e6456', light: '#968a76', high: '#bdb29a', crack: '#2a2420',
         rune: '#c9a65e', cork: '#8a6b48', rope: '#c9b48a', ropeDark: '#7a6448' });
@@ -417,9 +463,9 @@ const stageSkillDraws = (() => {
 
     const BODIES = Object.freeze({
         spear: (g, t, element) => drawSpear(g, t, element, false), bigspear: (g, t, element) => drawSpear(g, t, element, true),
-        fang: drawFangs, shield: drawShield, arrow: g => drawBlocks(g, 'arrow'), harpoon: g => drawBlocks(g, 'harpoon'), flask: drawFlask, rock: drawRock
+        fang: drawFangs, shield: drawShield, arrow: g => drawBlocks(g, 'arrow'), harpoon: g => drawBlocks(g, 'harpoon'), flask: drawFlask, emptyFlask: drawEmptyFlask, rock: drawRock
     });
-    /** 투사체의 몸을 그 자리에 그린다. @param {string} look 'spear'|'bigspear'|'fang'|'shield'|'arrow'|'harpoon'|'flask'|'rock'
+    /** 투사체의 몸을 그 자리에 그린다. @param {string} look 'spear'|'bigspear'|'fang'|'shield'|'arrow'|'harpoon'|'flask'|'emptyFlask'|'rock'
      * @param {{x:number,y:number,dot:number,face:number,angle?:number,t:number,element:string}} at 화면 자리, 보는 쪽, 기울기(오른쪽을 볼 때의 라디안), 날아온 시간 */
     function drawBody(ctx, look, at) {
         const body = BODIES[look];

@@ -15,7 +15,9 @@ const stageSkillCasts = (() => {
     const seen = new WeakSet();                   // 이미 클립으로 옮긴 사건
     /** 투사체의 몸: 룬 번호 → 인계의 생김새(js/canvas-stage-skill-draws.js). */
     const BODIES = Object.freeze({ 7: 'spear', 9: 'spear', 11: 'spear', 26: 'spear', 30: 'bigspear', 14: 'arrow', 25: 'arrow',
-        44: 'flask', 47: 'flask', 48: 'flask', 49: 'flask', 79: 'flask' });
+        44: 'flask', 47: 'flask', 48: 'flask', 49: 'emptyFlask', 79: 'flask' });
+    /** 던지는 몸 가운데 포물선으로 나는 것(빈 플라스크는 큰 빈 유리병, 2026-11-05 전달본 V3.9.3). */
+    const LOBBED = new Set(['flask', 'emptyFlask']);
     /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
         'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase', 'rockFlaskPhase', 'homingPhase', 'petrifyPhase', 'timeSlashPhase']);
@@ -29,18 +31,35 @@ const stageSkillCasts = (() => {
     }
 
     // ---------------------------------------------------------------- projectile bodies
-    /** 던진 플라스크: 손에서 포물선으로 날아 땅에 닿는다. 바닥에 그림자가 따라간다. */
+    /** 던진 플라스크: 손에서 포물선으로 날아 땅에 닿는다. 바닥에 그림자가 따라간다. 빈 플라스크(emptyFlask)는 그림자가 크고 뒤로 유리 반짝임 꼬리가 남는다. */
     function castDrawLob(c, look) {
-        const event = c.event, k = Math.max(0, Math.min(1, (c.view.now - event.at) / Math.max(1, event.duration)));
+        const event = c.event, elapsed = c.view.now - event.at, ctx = c.view.ctx, empty = look === 'emptyFlask';
         const from = event.sourceCell, to = event.landingCell || event.targetCells[0], far = Math.hypot((to.gx - from.gx) * WIDE, (to.gy - from.gy) * DEEP * 2);
-        const at = K.screen(c.view.projection, { gx: from.gx + (to.gx - from.gx) * k, gy: from.gy + (to.gy - from.gy) * k }), ctx = c.view.ctx;
         // 같은 적에게 다시 튀는 플라스크(탄성 플라스크)는 제자리에서 높이 튄다
-        const height = (1 - k) * 55 + Math.sin(k * Math.PI) * (far < 8 ? 44 : 24 + far * 0.12);
+        const peak = far < 8 ? 44 : 24 + far * 0.12;
+        const spot = t => {
+            const k = Math.max(0, Math.min(1, t / Math.max(1, event.duration))), at = K.screen(c.view.projection, { gx: from.gx + (to.gx - from.gx) * k, gy: from.gy + (to.gy - from.gy) * k });
+            return { ...at, top: at.y - ((1 - k) * 55 + Math.sin(k * Math.PI) * peak) * at.dot };
+        };
+        const at = spot(elapsed);
         ctx.save();
         ctx.fillStyle = 'rgba(8,6,12,0.35)';
-        ctx.beginPath(); ctx.ellipse(Math.round(at.x), Math.round(at.y) + 1, 11 * at.dot, 3 * at.dot, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(Math.round(at.x), Math.round(at.y) + 1, (empty ? 14 : 11) * at.dot, (empty ? 4 : 3) * at.dot, 0, 0, Math.PI * 2); ctx.fill();
+        if (empty) castGlassTrail(ctx, spot, elapsed);
         ctx.restore();
-        stageSkillDraws.body(ctx, look, { x: at.x, y: at.y - height * at.dot, dot: at.dot, face: 1, t: c.view.now - event.at, element: c.element });
+        stageSkillDraws.body(ctx, look, { x: at.x, y: at.top, dot: at.dot, face: 1, t: elapsed, element: c.element });
+    }
+    /** 빈 플라스크 뒤의 유리 반짝임 꼬리(전달본 V3.9.3 drawEmptyLob): 지나온 자리 넷에 작아지며 옅어지는 반짝임. */
+    const GLASS_TRAIL = Object.freeze([[30, 0.55, '#f4fff6'], [60, 0.4, '#ccf4d2'], [95, 0.28, '#a9c4bd'], [130, 0.16, '#a9c4bd']]);
+    function castGlassTrail(ctx, spot, elapsed) {
+        GLASS_TRAIL.forEach(([back, alpha, colour], i) => {
+            if (elapsed <= back) return;
+            const q = spot(elapsed - back), d = q.dot, side = (i % 2 ? 1 : -1) * 3 * d, size = Math.max(1, Math.round((i ? 1 : 2) * d));
+            ctx.globalAlpha = alpha; ctx.fillStyle = colour;
+            ctx.fillRect(Math.round(q.x + side), Math.round(q.top - 2 * d), size, size);
+            ctx.fillRect(Math.round(q.x - side), Math.round(q.top + 3 * d), Math.max(1, Math.round(d)), Math.max(1, Math.round(d)));
+        });
+        ctx.globalAlpha = 1;
     }
     /** 곧게 나는 투사체: 길을 따라 손 높이로 날고, 나아가는 쪽을 보며 깊이 쪽으로 가면 그만큼 기운다. 쏜 자리의 몸 앞면보다 뒤쪽은
      * 그리지 않는다(K.emerge): 창 자루가 등 뒤에서부터 보이지 않고 몸 앞에서 나온다. */
@@ -74,7 +93,7 @@ const stageSkillCasts = (() => {
     /** clip: 활의 화살, 아니면 pixelfx로 구운 창과 불덩이(2026-11-02 전달본 V3.9.1). 없으면 코드로 그린 몸. */
     function castDrawBody(c, look, clip) {
         if (clip) castDrawArrow(c, clip);
-        else if (look === 'flask') castDrawLob(c, look);
+        else if (LOBBED.has(look)) castDrawLob(c, look);
         else castDrawShot(c, look);
     }
 
@@ -91,12 +110,14 @@ const stageSkillCasts = (() => {
         if (c.first && c.gem.map.pop) stageSkillVfx.play(c.gem.map.pop, K.at(c.event.landingCell, 0, -46), { face: Math.random() < 0.5 ? 1 : -1, ramp: c.look.ramp, delay: 30 });
         return castLand(c);
     }
-    /** 신성한 기도: 손에서 빛이 터지고, 범위 안의 적마다 빛의 창이 하늘에서 내리꽂혀 피해의 순간에 박힌다(꽂힌 자리에서 번개가 튄다). */
+    /** 신성한 기도: 첫 창과 함께 손에서 빛이 터지고, 창마다 제 기울기와 높이로 하늘에서 떨어져 피해의 순간에 박힌다(꽂힌 자리에서 번개가 튄다).
+     * 사건 하나가 창 하나다(2026-11-05 전달본 V3.9.2, js/skill-gem-casts.js lanceFall): 떨어지기 시작하는 때에 오고 길이가 떨어지는 시간이다. */
     function castLances(c) {
         if (!c.first) return true;
-        const map = c.gem.map, wait = Math.max(0, c.event.duration - 170);
-        if (map.cast) stageSkillVfx.play(map.cast, K.at(K.heroSpot(), c.look.face * 22, -62), c.look);
-        c.event.targetCells.forEach(cell => stageSkillSpells.fallSpear({ at: K.at(cell), delay: wait, element: c.element, hit: map.spearHit, ramp: c.look.ramp }));
+        const map = c.gem.map, event = c.event;
+        if (map.cast && !event.lanceIndex) stageSkillVfx.play(map.cast, K.at(K.heroSpot(), c.look.face * 22, -62), c.look);
+        stageSkillSpells.fallSpear({ at: K.at(event.landingCell), delay: 0, element: c.element, hit: map.spearHit, ramp: c.look.ramp,
+            tilt: event.lanceTilt, height: event.lanceHeight, fall: event.duration });
         return true;
     }
     /** 폭발 혼합물: 떨어진 자리에서 터진다. */
@@ -135,7 +156,14 @@ const stageSkillCasts = (() => {
         stageSkillVfx.play(ref, K.at(from, face * Math.max(34, stageSkillVfx.clipWidth(ref) / 2 - 26), K.BODY), { ramp: c.look.ramp, face });
         return true;
     }
-    /** 빈 플라스크가 깨지는 자리: 흰 십자 반짝임과 튀었다 떨어지는 작은 유리 조각. */
+    /** 빈 플라스크의 남은 파편 하나가 병이 노린 적에게 꽂힌다(2026-11-05 전달본 V3.9.3): 그 적을 따라간다. */
+    function castStab(c) {
+        const id = c.event.stabTargetId, enemy = K.enemy(id);
+        const foe = () => (enemy && K.enemy(id) === enemy && enemy.hp > 0 ? K.enemySpot(enemy) : null);
+        if (c.first) stageSkillSpells.glassStab({ at: K.at(c.event.sourceCell), foe, j: Number(c.event.stabIndex) || 0, rate: Number(c.event.stabRate) || 1 });
+        return true;
+    }
+    /** 빈 플라스크가 깨지는 자리: 흰 심과 빛살, 사방으로 튀어 바닥에 튀는 유리 조각과 반짝임(js/canvas-stage-skill-spells.js glassBreak). */
     function castShatter(c) {
         if (c.first) stageSkillSpells.glassBreak(K.at(c.event.landingCell));
         return true;
@@ -317,7 +345,7 @@ const stageSkillCasts = (() => {
         45: { fall: castLances, land: castTake },
         47: { flight: castBody, burst: castBurst },
         48: { flight: castBody, wave: castRings },
-        49: { flask: castBody, shard: castShard, shatter: castShatter },
+        49: { flask: castBody, shard: castShard, shatter: castShatter, stab: castStab },
         46: { clock: stageRuneRemakes.clock },
         50: { censer: stageRuneRemakes.mistStart, mist: castTake, debuff: castTake },
         51: { censer: castTake, cross: stageRuneRemakes.slam },

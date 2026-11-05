@@ -38,8 +38,8 @@
             buffers.delete(id); buffers.set(id, buffer); // 가장 최근에 쓴 곡을 뒤로
             return buffer;
         }
-        // 곡 파일을 바꾸면 올린다: 반복 지점(data/bgm.js)이 바뀐 곡을 브라우저에 남은 옛 파일로 틀지 않게(2026-11-05 일반 보스 곡, 그 뒤 어비스와 아틀라스)
-        const response = await fetch(root + BGM_TRACKS[id].file + '?v=20261105-bgm2');
+        // 곡 파일을 바꾸면 올린다: 반복 지점(data/bgm.js)이 바뀐 곡을 브라우저에 남은 옛 파일로 틀지 않게(2026-11-05 일반 보스 곡, 그 뒤 어비스와 아틀라스, 어비스 곡 되돌림)
+        const response = await fetch(root + BGM_TRACKS[id].file + '?v=20261105-bgm3');
         if (!response.ok) throw Error(`BGM fetch failed: ${response.status} ${id}`);
         const buffer = await context.decodeAudioData(await response.arrayBuffer());
         buffers.set(id, buffer);

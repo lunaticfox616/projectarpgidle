@@ -25,6 +25,8 @@ const skillEffectExpansion = (() => {
         const n = kind ? Math.min(rules().max, Math.max(level(), skill.supportExpansion || 0)) : 0;
         skill.effectExpansion = n;
         skill.effectExpansionKind = kind;
+        // 넓은 판정(보조룬)이 준 +1인가: 신성한 기도는 그때 창을 늘리지 않는다(js/skill-gem-casts.js lancePlan)
+        skill.effectExpansionFromSupport = n > 0 && level() < n;
         if (kind === 'targets' && n) skill.targets = Math.max(1, Math.floor(skill.targets || 1)) + n;
         if (n >= rules().penaltyFrom) skill.dmg = (skill.dmg || skill.baseDmg || 1) * (1 - rules().damagePenaltyPct / 100);
         return skill;
@@ -40,7 +42,7 @@ const skillEffectExpansion = (() => {
     function grid(profile, skill) {
         const n = extra(skill), kind = skill && skill.effectExpansionKind;
         if (!n || !profile) return profile;
-        if (kind === 'radius') return widened(profile, n);
+        if (kind === 'radius' || kind === 'lance') return widened(profile, n);   // 신성한 기도: 찾는 범위도 N칸 넓어진다
         return kind === 'cone' || kind === 'range' ? { ...profile, range: (profile.range || 0) + n } : profile;
     }
     /** An authored stage's own grid grows too when it has a size: its radius (area gems) or reach (cones). A stage kept at

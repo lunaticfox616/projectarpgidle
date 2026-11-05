@@ -458,26 +458,37 @@ const stageSkillSpells = (() => {
     }
 
     // ---------------------------------------------------------------- lances and arrows (신성한 기도, 화살비)
-    /** 빛의 창: 대상 머리 위 높은 곳에서 창끝을 아래로 0.17초에 떨어져 꽂히고, 위로 빛 꼬리, 둘레로 번개 가지. 꽂히는 순간 타격 클립. */
+    /** 빛의 창: 높은 하늘에서 창끝을 앞으로 둔 채 빨라지며 떨어져 기운 그대로 꽂히고, 지나온 길에 빛 꼬리, 창대를 따라 번개 가지. 꽂히는 순간 타격 클립.
+     * 2026-11-05 전달본 V3.9.2: 창마다 기울기(수직에서 tilt 라디안), 출발 높이(height 도트), 떨어지는 시간(fall ms)이 다르다. 없으면 예전처럼 수직 180도트, 0.17초.
+     * @param {{at:object, delay:number, element:string, hit:?string, ramp:string, tilt?:number, height?:number, fall?:number}} o */
     function spellFallSpear(o) {
-        const FALL = 170, STAY = 300, C = S.ramp('light');
+        const FALL = o.fall || 170, STAY = 300, C = S.ramp('light'), tilt = o.tilt || 0, height = o.height || 180;
+        const x0 = Math.sin(tilt) * height, y0 = -2 - Math.cos(tilt) * height, rot = Math.atan2(-2 - y0, -x0), ux = Math.cos(rot), uy = Math.sin(rot);
+        const fadeOf = t => (t < FALL + STAY ? 1 : Math.max(0, 1 - (t - FALL - STAY) / 160));
         if (o.hit) stageSkillVfx.play(o.hit, { ...o.at, dy: 0 }, { delay: o.delay + FALL, ramp: o.ramp });
         S.hang(o.at, { life: FALL + STAY + 160, delay: o.delay,
-            ground(g, t) { if (t > FALL) { g.globalAlpha = 0.5 * (t < FALL + STAY ? 1 : Math.max(0, 1 - (t - FALL - STAY) / 160)); g.fillStyle = C[3]; g.beginPath(); g.ellipse(0, 0, 14, 5, 0, 0, TAU); g.fill(); g.globalAlpha = 1; } },
+            ground(g, t) { if (t > FALL) { g.globalAlpha = 0.5 * fadeOf(t); g.fillStyle = C[3]; g.beginPath(); g.ellipse(0, 0, 14, 5, 0, 0, TAU); g.fill(); g.globalAlpha = 1; } },
             top(g, t) {
-                const u = Math.min(1, t / FALL), y = -2 - 180 * (1 - u * u), fade = t < FALL + STAY ? 1 : Math.max(0, 1 - (t - FALL - STAY) / 160);
-                g.save(); g.globalAlpha *= fade; stageSkillDraws.body(g, 'spear', { x: 0, y: y - 4, dot: 1, face: 1, angle: Math.PI / 2, t, element: o.element }); g.restore();
-                if (t < FALL) { g.globalAlpha = 0.5; g.fillStyle = C[4]; g.fillRect(0, Math.round(y - 100), 1, Math.round(60 * u)); }
-                const r = S.random(91 + Math.floor(t / 45));
-                g.globalAlpha = fade * 0.85;
-                for (let b = 0; b < 3; b++) {
-                    let bx = (r() - 0.5) * 6, by = y - 20 - r() * 50;
-                    const dir = r() < 0.5 ? -1 : 1;
-                    g.fillStyle = b ? C[3] : C[5];
-                    for (let s = 0; s < 3; s++) { const x2 = bx + dir * (3 + r() * 7), y2 = by + (r() - 0.5) * 8; S.line(bx, by, x2, y2, dot(g)); bx = x2; by = y2; }
+                const e = Math.min(1, t / FALL) ** 2, x = x0 * (1 - e), y = y0 + (-2 - y0) * e, fade = fadeOf(t);
+                g.save(); g.globalAlpha *= fade; stageSkillDraws.body(g, 'spear', { x: x - ux * 4, y: y - uy * 4, dot: 1, face: 1, angle: rot, t, element: o.element }); g.restore();
+                if (t < FALL) {   // 지나온 길에 남는 빛 꼬리
+                    const tail = 60 * Math.min(1, t / FALL) + 20;
+                    g.globalAlpha = 0.5; g.fillStyle = C[4];
+                    S.line(Math.round(x - ux * (40 + tail)), Math.round(y - uy * (40 + tail)), Math.round(x - ux * 40), Math.round(y - uy * 40), dot(g));
                 }
+                g.globalAlpha = fade * 0.85;
+                spearBranches(g, { x, y, ux, uy }, S.random(91 + Math.floor(t / 45)), C);
                 g.globalAlpha = 1;
             } });
+    }
+    /** 창대를 따라 튀는 번개 가지 셋(기운 창도 창대를 따른다). */
+    function spearBranches(g, shaft, r, C) {
+        for (let b = 0; b < 3; b++) {
+            const back = 20 + r() * 50, side = (r() - 0.5) * 6, dir = r() < 0.5 ? -1 : 1;
+            let bx = shaft.x - shaft.ux * back - shaft.uy * side, by = shaft.y - shaft.uy * back + shaft.ux * side;
+            g.fillStyle = b ? C[3] : C[5];
+            for (let s = 0; s < 3; s++) { const x2 = bx + dir * (3 + r() * 7), y2 = by + (r() - 0.5) * 8; S.line(bx, by, x2, y2, dot(g)); bx = x2; by = y2; }
+        }
     }
     /** 화살 하나(나무 살, 강철 촉, 흰 깃): a는 날아가는 쪽. streak이면 뒤로 옅은 줄. */
     function rainArrow(g, o) {
@@ -584,16 +595,90 @@ const stageSkillSpells = (() => {
         shardSprites.set(key, sprite);
         return sprite;
     }
-    /** 병이 깨지는 자리: 흰 십자 반짝임과 작은 유리 조각 여덟 개가 튀었다 떨어진다(0.42초). */
+    /** 병이 깨지는 자리(2026-11-05 전달본 V3.9.3 glassBreakFx, 사용자 "유리조각이 화려하게 퍼지거나"): 흰 마름모 심과 십자, 사선 빛살(0.14초), 바닥에 퍼지는 유리
+     * 가루 점선 고리, 유리 조각 33개(큰 파편 7, 작은 조각 9, 가루 17)가 사방으로 튀어 바닥에 한두 번 튀고 반짝이다 사라지며, 반짝임 별 여섯(0.82초). */
+    const BREAK = Object.freeze({ life: 820, fadeFrom: 520, top: -24, floor: 4, colours: ['#ccf4d2', '#8da6a1', '#f4fff6', '#779186', '#a9c4bd'],
+        chips: [[[0, 0], [1, 0], [1, 1], [2, 1], [2, 2]], [[2, 0], [1, 0], [1, 1], [0, 1], [0, 2]], [[0, 0], [0, 1], [1, 1], [1, 2], [2, 2]], [[1, 0], [2, 0], [1, 1], [0, 2], [1, 2]]] });
+    /** 튀어 나가는 조각들: 작은 조각과 가루 26개, 유리 파편 그림 7개, 반짝임 별 6개. */
+    function breakPieces(r) {
+        const bits = [], stars = [];
+        for (let i = 0; i < 26; i++) {
+            const a = (i / 26) * TAU + (r() - 0.5) * 0.45, sp = 80 + r() * 150, big = i % 3 === 0;
+            bits.push({ x: 0, y: BREAK.top, vx: Math.cos(a) * sp * 1.3, vy: Math.sin(a) * sp * 0.7 - 110 - r() * 90, size: big ? 3 : (r() < 0.45 ? 2 : 1), c: BREAK.colours[i % 5], big, turn: (r() * 4) | 0, floor: BREAK.floor + (r() - 0.5) * 16, bounces: 0, spin: r() < 0.5 ? -1 : 1 });
+        }
+        for (let i = 0; i < 7; i++) {   // 큰 파편: 유리 파편 그림(0.55~0.7배)이 멀리 튀며 45°씩 돈다
+            const a = (i / 7) * TAU + 0.25 + (r() - 0.5) * 0.4, sp = 150 + r() * 110;
+            bits.push({ x: 0, y: BREAK.top, vx: Math.cos(a) * sp * 1.25, vy: Math.sin(a) * sp * 0.55 - 170 - r() * 80, sprite: i % 3, scale: 0.55 + r() * 0.15, turn: (r() * 8) | 0, floor: BREAK.floor + (r() - 0.5) * 22, bounces: 0, spin: r() < 0.5 ? -1 : 1 });
+        }
+        for (let i = 0; i < 6; i++) stars.push({ t0: 40 + i * 60 + r() * 30, dx: (r() - 0.5) * 84, dy: -6 - r() * 44, size: r() < 0.4 ? 3 : 2 });
+        return { bits, stars };
+    }
+    /** 떨어지며 바닥에 한두 번 튄다(튄 뒤에는 멈춘다). */
+    function breakStep(bits, dt) {
+        for (const b of bits) {
+            if (b.bounces >= 2) continue;
+            b.vy += 600 * dt; b.vx *= 0.99; b.x += b.vx * dt; b.y += b.vy * dt;
+            if (b.y > b.floor && b.vy > 0) { b.y = b.floor; b.bounces++; b.vy *= -0.32; b.vx *= 0.45; if (Math.abs(b.vy) < 30) b.bounces = 2; }
+        }
+    }
+    /** 바닥: 퍼지는 유리 가루 점선 고리와 깨진 자리의 옅은 자국. */
+    function breakGround(g, t, out) {
+        if (t < 340) {
+            const u = t / 340, A = 8 + 46 * Math.sqrt(u), B = A * 0.38;
+            g.globalAlpha = 0.6 * (1 - u); g.fillStyle = '#a9c4bd';
+            for (let i = 0; i < 32; i += 2) { const a = i / 32 * TAU; g.fillRect(Math.round(Math.cos(a) * A), Math.round(BREAK.floor - 2 + Math.sin(a) * B), 1, 1); }
+        }
+        g.globalAlpha = 0.35 * out; g.fillStyle = '#779186'; g.beginPath(); g.ellipse(0, BREAK.floor - 1, 12, 3, 0, 0, TAU); g.fill(); g.globalAlpha = 1;
+    }
+    /** 깨지는 순간: 흰 마름모 심, 십자, 사선 빛살(0.14초). */
+    function breakFlash(g, t) {
+        const k = t < 50 ? 1 : 1 - (t - 50) / 90, rr = Math.round(2 + 4 * k), L = Math.round(6 + 9 * k), Y = BREAK.top;
+        g.globalAlpha = 0.95 * k; g.fillStyle = GLASS.WH;
+        for (let i = -rr; i <= rr; i++) { const w = rr - Math.abs(i); g.fillRect(-w, Y + i, w * 2 + 1, 1); }
+        g.fillStyle = GLASS.HI; g.fillRect(-L, Y, L * 2 + 1, 1); g.fillRect(0, Y - L, 1, L * 2 + 1);
+        for (let s = rr + 1; s <= Math.round(L * 0.6); s++) { g.fillRect(s, Y - s, 1, 1); g.fillRect(-s, Y - s, 1, 1); g.fillRect(s, Y + s, 1, 1); g.fillRect(-s, Y + s, 1, 1); }
+    }
+    /** 조각 하나: 유리 파편 그림, 3×3 비스듬한 조각(어두운 그림자 테와 밝은 모서리, 날며 90°씩 돈다), 또는 가루 한 점. 멈춘 조각은 깜빡인다. */
+    function breakBit(g, b, t) {
+        const bit = { x: Math.round(b.x), y: Math.round(b.y), still: b.bounces >= 2 };
+        bit.blink = bit.still && ((Math.floor(t / 80) + b.turn) % 4 === 0);
+        if (b.sprite !== undefined) breakSprite(g, b, bit, t);
+        else if (b.big) breakChip(g, b, bit, t);
+        else { g.fillStyle = bit.blink ? GLASS.WH : b.c; g.fillRect(bit.x, bit.y - b.size + 1, b.size, b.size); }
+    }
+    function breakSprite(g, b, bit, t) {
+        const rot = (b.turn + (bit.still ? 0 : Math.floor(t / 50) * b.spin)) * Math.PI / 4;
+        shardPut(g, shardSprite(b.sprite), { x: bit.x, y: bit.y - 3, h: 0 }, { alpha: g.globalAlpha, rot, scale: b.scale });
+        if (bit.blink) { g.fillStyle = GLASS.WH; g.fillRect(bit.x - 2, bit.y - 3, 5, 1); g.fillRect(bit.x, bit.y - 5, 1, 5); }
+    }
+    function breakChip(g, b, bit, t) {
+        const chip = BREAK.chips[(b.turn + (bit.still ? 0 : Math.floor(t / 55) * b.spin) + 8) & 3];
+        g.fillStyle = GLASS.OL; for (const [i, j] of chip) g.fillRect(bit.x + i - 1, bit.y + j, 1, 1);
+        g.fillStyle = b.c; for (const [i, j] of chip) g.fillRect(bit.x + i - 1, bit.y + j - 1, 1, 1);
+        g.fillStyle = bit.blink ? GLASS.WH : GLASS.HI; g.fillRect(bit.x + chip[0][0] - 1, bit.y + chip[0][1] - 1, 1, 1);
+    }
+    /** 반짝임 별: 짧게 켜졌다 꺼진다. */
+    function breakStars(g, t, stars, out) {
+        for (const s of stars) {
+            const u = (t - s.t0) / 110;
+            if (u < 0 || u > 1) continue;
+            const k = u < 0.5 ? u * 2 : (1 - u) * 2, x = Math.round(s.dx), y = Math.round(BREAK.top + s.dy), L = Math.max(1, Math.round(s.size * k));
+            g.globalAlpha = 0.9 * out; g.fillStyle = GLASS.WH; g.fillRect(x - L, y, L * 2 + 1, 1); g.fillRect(x, y - L, 1, L * 2 + 1);
+        }
+    }
     function spellGlassBreak(at) {
-        const r = S.random(5150), bits = [], colours = ['#ccf4d2', '#8da6a1', '#f4fff6', '#779186'];
-        for (let i = 0; i < 8; i++) { const a = -Math.PI * (0.1 + 0.8 * r()), sp = 30 + r() * 50; bits.push([Math.cos(a) * sp * (r() < 0.5 ? -1 : 1), Math.sin(a) * sp, 1 + (r() < 0.4 ? 1 : 0), colours[i % 4]]); }
-        S.hang(at, { life: 420, top(g, t) {
-            const s = t / 1000;
-            if (t < 110) { const rr = t < 50 ? 6 : 4; g.globalAlpha = 0.9; g.fillStyle = GLASS.WH; g.fillRect(-rr, -22, rr * 2 + 1, 1); g.fillRect(0, -22 - rr, 1, rr * 2 + 1); }
-            for (const [vx, vy, sz, c] of bits) { const y = -22 + vy * s + 260 * s * s; if (y > 2) continue; g.globalAlpha = Math.max(0, 1 - t / 420); g.fillStyle = c; g.fillRect(Math.round(vx * s), Math.round(y), sz, sz); }
-            g.globalAlpha = 1;
-        } });
+        const { bits, stars } = breakPieces(S.random(5150 + Math.floor(at.gx * 97 + at.gy * 31))), outOf = t => (t < BREAK.fadeFrom ? 1 : Math.max(0, 1 - (t - BREAK.fadeFrom) / 300));
+        let last = 0;
+        S.hang(at, { life: BREAK.life,
+            ground(g, t) { breakGround(g, t, outOf(t)); },
+            top(g, t) {
+                breakStep(bits, Math.max(0, t - last) / 1000); last = t;
+                if (t < 140) breakFlash(g, t);
+                g.globalAlpha = outOf(t);
+                for (const b of bits) { g.globalAlpha = outOf(t); breakBit(g, b, t); }
+                breakStars(g, t, stars, outOf(t));
+                g.globalAlpha = 1;
+            } });
     }
     function shardPut(g, sprite, p, o) { g.save(); g.globalAlpha = o.alpha; g.translate(Math.round(p.x), Math.round(p.y - p.h)); g.rotate(o.rot); g.imageSmoothingEnabled = false; g.scale(o.scale, o.scale); g.drawImage(sprite.canvas, -sprite.cx, -sprite.cy); g.restore(); }
     /** 유리 조각의 크기와 잔상(2026-11-01 전달본 V3.6 glass-shard-tuning): 조금 크게, 떨어진 잔상 둘로 나는 쪽이 읽히게. */
@@ -613,6 +698,87 @@ const stageSkillSpells = (() => {
                 const q = pos(Math.max(0, t - SHARD.tail));
                 g.globalAlpha = 0.6; g.strokeStyle = GLASS.HI; g.lineWidth = 2; g.beginPath(); g.moveTo(Math.round(q.x) + 0.5, Math.round(q.y - q.h) + 0.5); g.lineTo(Math.round(p.x) + 0.5, Math.round(p.y - p.h) + 0.5); g.stroke(); g.globalAlpha = 1;
                 shardPut(g, sprite, p, { alpha: 1, rot: step(t), scale: SHARD.scale });
+            } });
+    }
+
+    /** 맞은 적에게 꽂히는 남은 유리 파편(2026-11-05 전달본 V3.9.3 glassStabFx): 깨진 자리에서 솟아올라(0.14초) 45°씩 돌며 떠 있다가, 꽂히기 직전 그 적을 겨눠
+     * 반짝이고, 잔상 둘과 꼬리선을 끌며 0.08초에 내리꽂힌다. 꽂힌 파편은 몸에 박힌 채 0.38초 남아 적을 따라가고, 그새 쓰러진 적이면 바닥에 떨어진다. 꽂힌 순간
+     * 흰 베임 줄과 유리 부스러기. 피해와 꽂히는 때는 게임이 정한다(js/skill-gem-casts.js stabShard): 솟고 내리꽂히는 시간은 rate(공격 속도)로 줄어든다. */
+    const STAB = Object.freeze({ rise: 140, hover: 50, every: 95, dive: 80, stay: 380, fade: 140, scale: 1.2,
+        tip: [Math.atan2(-7.5, 9.5), Math.atan2(-7.5, 5.5), Math.atan2(-7.5, -1.5)] });   // 유리 조각 그림 셋의 날 끝 방향
+    function stabPlan(j, rate) {
+        const r = S.random(7300 + j * 97), side = (j % 2 ? -1 : 1) * (j % 4 > 1 ? 0.6 : 1), dive0 = (STAB.rise + STAB.hover + j * STAB.every) / rate;
+        const apex = { x: side * (24 + r() * 18), y: -84 - r() * 22 - (j % 3) * 6 };
+        return { r, j, side, k: (j + 1) % 3, rise: STAB.rise / rate, dive0, dive: STAB.dive / rate, end: dive0 + STAB.dive / rate, apex, hy: 30 + r() * 24, hx: -side * (2 + r() * 4) };
+    }
+    function stabPos(p, t, aim) {
+        if (t <= p.rise) { const u = t / p.rise, e = 1 - (1 - u) * (1 - u); return { x: p.apex.x * e, y: -24 + (p.apex.y + 24) * e }; }
+        if (t <= p.dive0) return { x: p.apex.x, y: p.apex.y + Math.sin((t - p.rise) / 60) * 1.5 };
+        const e = Math.min(1, (t - p.dive0) / p.dive) ** 2;
+        return { x: p.apex.x + (aim.x - p.apex.x) * e, y: p.apex.y + (aim.y - p.apex.y) * e };
+    }
+    /** 겨눌 자리, 내리꽂는 쪽, 박힌 자리를 프레임마다 정한다(그 적의 지금 발 자리 here, 쓰러졌으면 null). */
+    const stabAim = (p, foot) => ({ x: foot.x + p.hx, y: foot.y - p.hy });
+    function stabTrack(p, s, t, here) {
+        if (!s.target && t >= p.dive0) stabDive(p, s, here);
+        if (s.target && !s.dead && here && t < p.end) s.target = stabAim(p, here);   // 내리꽂히는 동안 적을 따라간다
+        if (!s.hit && t >= p.end) stabLand(s, here);
+    }
+    /** 내리꽂기 시작: 그 적을 겨눈다(그새 쓰러졌으면 옆 바닥으로). */
+    function stabDive(p, s, here) {
+        s.dead = !here;
+        s.target = here ? stabAim(p, here) : { x: p.apex.x + p.side * 10, y: (p.r() - 0.5) * 18 };
+        s.rot = Math.atan2(s.target.y - p.apex.y, s.target.x - p.apex.x);
+    }
+    function stabLand(s, here) {
+        s.hit = true;
+        if (!s.dead && here) s.stuck = { x: s.target.x - here.x, y: s.target.y - here.y };
+        else s.dead = true;
+    }
+    /** 유리 조각 하나를 q에 그린다. @param {{alpha:number, rot:number, scale:number}} o */
+    const stabPut = (g, p, q, o) => shardPut(g, shardSprite(p.k), { x: q.x, y: q.y, h: 0 }, o);
+    /** 솟아오르고 떠 있는 동안: 45°씩 돌다가 꽂히기 직전 그 적을 겨누고 반짝인다. */
+    function stabRising(g, p, t, here) {
+        const q = stabPos(p, t, null), toward = here ? { x: here.x + p.hx, y: here.y - p.hy } : { x: p.apex.x, y: 0 };
+        const rot = t < p.dive0 - 50 ? (p.j % 2 ? -1 : 1) * Math.floor(t / 45) * Math.PI / 4 : Math.atan2(toward.y - p.apex.y, toward.x - p.apex.x) - STAB.tip[p.k];
+        if (t < p.rise) for (const [dt, a] of [[40, 0.35], [80, 0.18]]) if (t > dt) stabPut(g, p, stabPos(p, t - dt, null), { alpha: a, rot, scale: STAB.scale * 0.9 });
+        stabPut(g, p, q, { alpha: 1, rot, scale: STAB.scale });
+        if (t >= p.dive0 - 50 && Math.floor(t / 40) % 2 === 0) { g.globalAlpha = 0.85; g.fillStyle = GLASS.WH; g.fillRect(Math.round(q.x) - 2, Math.round(q.y), 5, 1); g.fillRect(Math.round(q.x), Math.round(q.y) - 2, 1, 5); g.globalAlpha = 1; }
+    }
+    /** 내리꽂히는 동안: 잔상 둘과 꼬리선. */
+    function stabDiving(g, p, s, t) {
+        const rot = s.rot - STAB.tip[p.k], q = stabPos(p, t, s.target), q2 = stabPos(p, t - 40, s.target);
+        for (const [dt, a] of [[22, 0.38], [44, 0.18]]) stabPut(g, p, stabPos(p, t - dt, s.target), { alpha: a, rot, scale: STAB.scale * 0.9 });
+        g.globalAlpha = 0.6; g.strokeStyle = GLASS.HI; g.lineWidth = 2; g.beginPath(); g.moveTo(Math.round(q2.x) + 0.5, Math.round(q2.y) + 0.5); g.lineTo(Math.round(q.x) + 0.5, Math.round(q.y) + 0.5); g.stroke(); g.globalAlpha = 1;
+        stabPut(g, p, { x: q.x - Math.cos(s.rot) * 6, y: q.y - Math.sin(s.rot) * 6 }, { alpha: 1, rot, scale: STAB.scale });
+    }
+    /** 꽂힌 뒤: 날 끝이 몸에 박힌 채 남고(바닥에 떨어진 조각이면 그 자리에), 꽂힌 순간 흰 베임 줄과 유리 부스러기. */
+    function stabStuck(g, p, s, t, foot) {
+        const tt = t - p.end, a = tt < STAB.stay ? 1 : Math.max(0, 1 - (tt - STAB.stay) / STAB.fade), ux = Math.cos(s.rot), uy = Math.sin(s.rot);
+        if (s.dead) { stabPut(g, p, s.target, { alpha: a, rot: (p.j % 2 ? -1 : 1) * Math.PI / 4, scale: STAB.scale }); return; }
+        const bx = foot.x + s.stuck.x, by = foot.y + s.stuck.y;
+        stabPut(g, p, { x: bx - ux * 7, y: by - uy * 7 }, { alpha: a, rot: s.rot - STAB.tip[p.k], scale: STAB.scale });
+        if (tt >= 70) return;
+        const k = 1 - tt / 70, L = Math.round(3 + 4 * k);
+        g.globalAlpha = 0.9 * k; g.fillStyle = GLASS.WH;
+        for (let i = -L; i <= L; i++) g.fillRect(Math.round(bx - uy * i), Math.round(by + ux * i), 1, 1);
+        g.fillStyle = GLASS.HI;
+        for (let i = 0; i < 4; i++) { const aa = s.rot + Math.PI + (i - 1.5) * 0.6, d = 3 + tt * 0.12 * (1 + i % 2); g.fillRect(Math.round(bx + Math.cos(aa) * d), Math.round(by + Math.sin(aa) * d + tt * tt * 0.0012), 1, 1); }
+        g.globalAlpha = 1;
+    }
+    /** @param {{at:object, foe:Function, j:number, rate:number}} o 깨진 자리, 그 적의 지금 자리(칸, 쓰러졌으면 null)를 돌려주는 함수, 순번, 빠르기 */
+    function spellGlassStab(o) {
+        const p = stabPlan(o.j, o.rate || 1), s = { target: null, rot: 0, dead: false, hit: false, stuck: null };
+        let foot = null;
+        const here = () => { const spot = o.foe(); if (spot) foot = { x: (spot.gx - o.at.gx) * WIDE, y: (spot.gy - o.at.gy) * DEEP }; return spot ? foot : null; };
+        S.hang(o.at, { life: p.end + STAB.stay + STAB.fade,
+            ground(g, t) { if (t < p.end) { const q = stabPos(p, t, s.target || p.apex); g.globalAlpha = 0.28; g.fillStyle = '#0a0810'; g.beginPath(); g.ellipse(Math.round(q.x), 1, 5, 2, 0, 0, TAU); g.fill(); g.globalAlpha = 1; } },
+            top(g, t) {
+                const now = here();
+                stabTrack(p, s, t, now);
+                if (t < p.dive0) stabRising(g, p, t, now);
+                else if (t < p.end) stabDiving(g, p, s, t);
+                else stabStuck(g, p, s, t, foot);
             } });
     }
 
@@ -660,6 +826,6 @@ const stageSkillSpells = (() => {
 
     return Object.freeze({ iceRing: spellIceRing, frostQuake: spellFrostQuake, frostErupt: spellFrostErupt, emberShout: spellEmberShout, frostCone: spellFrostCone,
         discharge: spellDischarge, guillotine: spellGuillotine, fallSpear: spellFallSpear, volleyUp: spellVolleyUp, arrowRain: spellArrowRain, cosmos: spellCosmos,
-        glassBreak: spellGlassBreak, glassShard: spellGlassShard, charge: spellCharge, flipTrail: spellFlipTrail, fireZone: spellFireZone });
+        glassBreak: spellGlassBreak, glassShard: spellGlassShard, glassStab: spellGlassStab, charge: spellCharge, flipTrail: spellFlipTrail, fireZone: spellFireZone });
 })();
 safeExposeGlobals({ stageSkillSpells });
