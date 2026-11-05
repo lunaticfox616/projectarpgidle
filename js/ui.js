@@ -11070,9 +11070,29 @@ function openStartupGate(options = {}) {
     updateCloudSaveUI();
 }
 
-function getCurrentZoneLabel() {
-    let zone = getZone && typeof getZone === 'function' ? getZone(game.currentZoneId) : null;
-    return zone && zone.name ? zone.name : '액트 1: 버려진 해안';
+/** The card's one line for a save: level, loop and the zone it was in. */
+function renderStartupSaveSummary(el, save) {
+    if (!el) return;
+    const zone = save && typeof getZone === 'function' ? getZone(save.currentZoneId) : null;
+    const loopLabel = Math.max(1, Math.floor((save && save.season) || 1));
+    el.innerText = _t('Lv.{level}, 루프 {loopLabel}, {zoneLabel}', { level: (save && save.level) || 1, loopLabel, zoneLabel: _t(zone && zone.name ? zone.name : '액트 1: 버려진 해안') });
+}
+
+/** The save the card shows: the slot in use, or, while the page is still on the guest slot with an account signed in (a reload with a
+ * social login, 2026-11-05 사용자: "이 기기 저장이 아니라 로그인 기준으로"), that account's copy on this device. The copy is read once
+ * per account: nothing saves while the login screen shows, and entering the account switches the slot. */
+let startupAccountPreview = null;
+function startupSaveStamp(save) {
+    return (save && save.saveMeta && save.saveMeta.lastModifiedAt) || 0;
+}
+function startupShownSave() {
+    const account = getSaveSlot().kind === 'account', userId = cloudState.user && cloudState.user.id;
+    if (account || !userId) {
+        startupAccountPreview = null;   // 계정에 들어가 놀았다면 다음 미리보기는 그 뒤의 사본을 다시 읽는다
+        return { account, preview: false, save: game };
+    }
+    if (!startupAccountPreview || startupAccountPreview.userId !== userId) startupAccountPreview = { userId, save: readAccountSaveCopy(userId) };
+    return { account: true, preview: true, save: startupAccountPreview.save };
 }
 
 // 시작 화면에는 오류·진행 결과만 적는다. 가만히 있을 때의 안내("로그인하면 …")는 버튼만으로 충분하다.
@@ -11086,27 +11106,29 @@ function getStartupStatusText() {
  * with a save the guest button says "이어하기" (else "게스트로 시작"), without one the card says "새 모험" and shows no grid (a first visitor
  * is not shown Lv.1, 루프 1, 마지막 저장 없음). The gate reopened from an account shows the account save instead, and the guest button
  * follows the guest save noted at the account entry (cloudState.guestSaveSummary). */
-function renderStartupLocalSave(timeEl, guestBtn, localStamp) {
-    const card = startupSaveCardState(localStamp);
-    if (timeEl) timeEl.innerText = formatCloudTime(localStamp);
+function renderStartupLocalSave(timeEl, guestBtn, shown) {
+    const stamp = startupSaveStamp(shown.save);
+    const card = startupSaveCardState(shown, stamp);
+    if (timeEl) timeEl.innerText = formatCloudTime(stamp);
     if (guestBtn) guestBtn.textContent = _t(card.hasGuestSave ? '이 기기 저장으로 이어하기' : '게스트로 시작');
     const cardEl = document.querySelector('.startup-summary-card');
     if (!cardEl) return;
     cardEl.querySelector('.startup-summary-grid').hidden = !card.hasSave;
-    const blocked = getStartupBlockedSaveNotice(getLocalSaveStatus());
-    renderStartupSaveHint(cardEl.querySelector('.startup-summary-hint'), card.hasSave, blocked && blocked.hint, card.emptyText);
-    cardEl.querySelector('.startup-summary-title').textContent = blocked ? blocked.title : card.title;
+    const blocked = shown.preview ? null : getStartupBlockedSaveNotice(getLocalSaveStatus());   // 그 알림은 지금 불러온 칸의 것이다
+    renderStartupSaveHint(cardEl.querySelector('.startup-summary-hint'), card.hasSave, blocked && blocked.hint, card.emptyText && _t(card.emptyText));
+    cardEl.querySelector('.startup-summary-title').textContent = blocked ? blocked.title : _t(card.title);
 }
 
-/** What the summary card and the guest button show for the slot in use (renderStartupLocalSave). */
-function startupSaveCardState(localStamp) {
-    const account = getSaveSlot().kind === 'account';
-    const hasSave = account || localStamp > 0;
+/** What the summary card and the guest button show (renderStartupLocalSave). In the preview the page still holds the guest slot, so
+ * the guest button follows the loaded game; with no copy of the account on this device the card says the entry fetches it. */
+function startupSaveCardState(shown, stamp) {
+    const guestStamp = startupSaveStamp(game);
+    const hasSave = shown.preview ? !!shown.save : (shown.account || stamp > 0);
     return {
         hasSave,
-        hasGuestSave: account ? !!cloudState.guestSaveSummary : hasSave,
-        title: account ? '계정 저장' : (hasSave ? '이 기기 저장' : '새 모험'),
-        emptyText: cloudState.user ? '이 기기에는 게스트 저장이 없습니다. 계정 저장으로 이어 할 수 있습니다.' : null
+        hasGuestSave: shown.preview ? guestStamp > 0 : (shown.account ? !!cloudState.guestSaveSummary : hasSave),
+        title: shown.account ? '계정 저장' : (hasSave ? '이 기기 저장' : '새 모험'),
+        emptyText: shown.preview ? '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.' : null
     };
 }
 
@@ -11147,11 +11169,9 @@ function updateStartupScreenUI() {
     let resendBtn = document.getElementById('btn-startup-resend-confirmation');
     let googleBtn = document.getElementById('btn-startup-google');
     let kakaoBtn = document.getElementById('btn-startup-kakao');
-    let localStamp = game && game.saveMeta ? game.saveMeta.lastModifiedAt : 0;
-    let zoneLabel = getCurrentZoneLabel();
-    let loopLabel = Math.max(1, Math.floor((game && game.season) || 1));
-    if (localSummaryEl) localSummaryEl.innerText = _t('Lv.{level}, 루프 {loopLabel}, {zoneLabel}', { level: game.level || 1, loopLabel, zoneLabel });
-    renderStartupLocalSave(localTimeEl, guestBtn, localStamp);
+    const shown = startupShownSave();
+    renderStartupSaveSummary(localSummaryEl, shown.save);
+    renderStartupLocalSave(localTimeEl, guestBtn, shown);
     if (statusEl) statusEl.textContent = getStartupStatusText();
     if (backBtn) {
         backBtn.style.display = gameplayStarted ? 'block' : 'none';

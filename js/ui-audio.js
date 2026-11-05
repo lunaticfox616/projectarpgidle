@@ -4,7 +4,7 @@
     'use strict';
     const root = 'assets/audio/game-sfx-v2/';
     const uiKinds = {open:'uiSelect', confirm:'uiConfirm', cancel:'uiCancel', danger:'uiDanger', success:'uiSuccess'};
-    let context = null, master = null, muffle = null, bank = null, loading = false, resuming = false;
+    let context = null, master = null, muffle = null, bank = null, loading = false;
     const buffers = new Map(), active = new Set(), lastPlayed = new Map(), warnings = new Set();
     const variations = new Map();
     let variationSeed = 0x6d2b79f5;
@@ -67,10 +67,15 @@
     /** 배경음(js/bgm-ui.js)도 이 AudioContext를 쓴다: 효과음을 꺼도 배경음이 켜져 있으면 연다. */
     const bgmWanted = () => typeof game !== 'undefined' && game.settings?.bgm !== false && game.settings?.bgmVolume !== 0 && !document.hidden;
 
+    /* 첫 클릭이나 키 입력 전에는 장치를 만들지 않는다. 그 전에 만든 장치는 크롬이 멈춰 두고, 그때 부른 resume은 끝나지 않는다.
+     * 2026-11-05 사용자: 로그인한 채 새로고침하면 배경음과 효과음이 모두 나지 않았다. 부팅의 설정 맞추기(gameBgm.sync)가 클릭 전에
+     * 장치를 열었고, 끝나지 않은 resume을 기다리는 표시 때문에 뒤의 클릭도 resume을 다시 부르지 않았다. */
+    const gestureSeen = () => !navigator.userActivation || navigator.userActivation.hasBeenActive;
+
     function unlock() {
         if (!permitted() && !bgmWanted()) return;
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
+        if (!AudioCtx || !gestureSeen()) return;
         try {
             if (!context) {
                 context = new AudioCtx();
@@ -84,9 +89,7 @@
                 void loadBank();
             }
             updateMasterGain();
-            if (context.state !== 'suspended' || resuming) return;
-            resuming = true;
-            context.resume().catch(error => failure('resume failed', error)).finally(() => { resuming = false; });
+            if (context.state === 'suspended') context.resume().catch(error => failure('resume failed', error));
         } catch (error) { failure('audio unavailable', error); }
     }
 
@@ -247,6 +250,8 @@
     playUiFeedbackSound.context = () => context;
     playUiFeedbackSound.unlock = unlock;
     document.addEventListener('pointerdown', unlock, {passive:true});
+    document.addEventListener('pointerup', unlock, {passive:true});
+    document.addEventListener('touchend', unlock, {passive:true});
     document.addEventListener('keydown', unlock);
     window.addEventListener('project-idle:encounter-finished', event => {
         if (!event.detail?.background) playUiFeedbackSound('stageClear');
