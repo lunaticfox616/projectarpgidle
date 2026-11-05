@@ -153,7 +153,7 @@ const atlasBoard = (() => {
     function markCarrier(state, enemy, zone, random = Math.random) {
         if (!eligible(state, zone) || enemy.isBoss || enemy.isSummon || enemy.boardCarrier || random() >= (enemy.isElite ? .12 : .012)) return;
         enemy.boardCarrier = true;
-        enemy.name = _t('나이테 길잡이: {name}', { name: enemy.name });
+        enemy.name = `나이테 길잡이: ${enemy.name}`;   // 한국어 원문으로 둔다: 보여 줄 때 옮긴다(js/i18n.js enemyName)
     }
     function onKill(state, enemy, zone) {
         if (!enemy.boardCarrier || enemy.boardDiceClaimed || !eligible(state, zone)) return 0;

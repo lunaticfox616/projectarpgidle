@@ -125,6 +125,36 @@ const i18n = (() => {
         if (changed && typeof CustomEvent === 'function') window.dispatchEvent(new CustomEvent('game:languagechange', { detail: { language: current.code } }));
     }
 
+    /** 생성 때 말을 붙인 적 이름(저장되는 한국어 원문)을 지금 언어로: 통째로 열쇠가 있으면 그 번역, 아니면 붙인 말(앞의 그림 글자, 뒤의
+     *  '(변이)', NAME_FORMS의 꼴)을 떼어 각각 옮겨 다시 붙인다. 생성 때 옮겨 저장하면 원문이 섞이고("Memory of 정원사의 메아리") 언어를
+     *  바꿔도 남았다(2026-11-05 검토). */
+    const NAME_FORMS = Object.freeze([
+        [/^나이테 길잡이: (.+)$/, '나이테 길잡이: {name}'],
+        [/^뿌리를 품은 (.+)$/, '뿌리를 품은 {name}'],
+        [/^(.+)의 기억$/, '{name}의 기억']
+    ]);
+    /** 붙인 말 하나를 뗀다: { inner: 안쪽 이름, wrap: 옮긴 안쪽 이름을 옮긴 바깥 이름으로 } 또는 null. */
+    function peelName(name) {
+        const lead = /^(\p{Extended_Pictographic}\uFE0F?\s+)(.+)$/u.exec(name);
+        if (lead) return { inner: lead[2], wrap: text => lead[1] + text };
+        const variant = /^(.+) \(([^()]+)\)$/.exec(name);
+        if (variant) return { inner: variant[1], wrap: text => `${text} (${translate(variant[2])})` };
+        const form = NAME_FORMS.find(([pattern]) => pattern.test(name));
+        return form ? { inner: form[0].exec(name)[1], wrap: text => translate(form[1], { name: text }) } : null;
+    }
+    function enemyName(name) {
+        if (typeof name !== 'string') return translate(name);
+        const wraps = [];   // 바깥 말부터: 안쪽 이름을 옮긴 뒤 안에서 밖으로 다시 붙인다
+        let inner = name;
+        for (let depth = 0; depth < 5 && !Object.hasOwn(current.strings, inner); depth++) {
+            const peeled = peelName(inner);
+            if (!peeled) break;
+            wraps.push(peeled.wrap);
+            inner = peeled.inner;
+        }
+        return wraps.reduceRight((shown, wrap) => wrap(shown), translate(inner));
+    }
+
     /** 캔버스 글꼴 목록: 앞 글꼴 뒤에 CSS --font-cjk(css/tokens.css가 html lang으로 고르는 언어별 CJK 보조 글꼴)를 붙인다.
      *  Galmuri에 없는 가나·한자가 화면의 글과 같은 글꼴로 그려진다. 언어를 바꾸면 다음 호출에서 다시 읽는다. */
     let cjkFamily = null;
@@ -156,7 +186,7 @@ const i18n = (() => {
         get locale() { return current.locale; },
         /** 고를 수 있는 언어: { code, name }. 이름은 그 언어로 적혀 있어 번역하지 않는다. */
         get languages() { return LANGUAGE_PACKS.map(pack => ({ code: pack.code, name: pack.name })); },
-        normalizeLanguage, t: translate, setLanguage, applySaved, applyStatic, sourceOf, fontFamily,
+        normalizeLanguage, t: translate, setLanguage, applySaved, applyStatic, sourceOf, fontFamily, enemyName,
         /** 이번 판에서 현재 언어의 팩에 없던 열쇠(검사·보고용). */
         missingKeys: () => [...missing]
     });

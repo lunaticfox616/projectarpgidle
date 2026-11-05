@@ -9184,7 +9184,7 @@ function renderRarityFilterChips(scope) {
     let allChip = `<button type="button" class="rarity-filter-chip rarity-all${allOn ? ' active' : ''}" aria-pressed="${allOn}" onclick="${stop}toggleAllInventoryRarityFilter()">${_t('전체')}</button>`;
     let chips = getInventoryRarityFilterKeys().map(key => {
         let active = !!f[key];
-        return `<button type="button" class="rarity-filter-chip rarity-${key}${active ? ' active' : ''}" aria-pressed="${active}" onclick="${stop}toggleInventoryRarityFilter('${key}')">${labels[key]}</button>`;
+        return `<button type="button" class="rarity-filter-chip rarity-${key}${active ? ' active' : ''}" aria-pressed="${active}" onclick="${stop}toggleInventoryRarityFilter('${key}')">${_t(labels[key])}</button>`;
     }).join('');
     return allChip + chips;
 }

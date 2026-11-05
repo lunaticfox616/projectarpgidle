@@ -2678,7 +2678,7 @@ function processPendingSlamEchoHits() {
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
         addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
-        if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🌋 여진으로 {name}에게 {bonus} 추가 피해', { name: _t(enemy.name), bonus: formatNumberKR(bonus) }), 'attack-player', { noToast: true });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🌋 여진으로 {name}에게 {bonus} 추가 피해', { name: i18n.enemyName(enemy.name), bonus: formatNumberKR(bonus) }), 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
     game.pendingSlamEchoHits = next;
@@ -3106,7 +3106,7 @@ function processTalentInquisitorMarks() {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
             enemy.hp = Math.max(0, enemy.hp - dmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240, syncToSwing: false });
-            if (game.settings && game.settings.showCombatLog !== false) addLog(_t('⚖️ 심판 표식 폭발로 {name}에게 {dmg} 피해', { name: _t(enemy.name), dmg: formatNumberKR(dmg) }), 'attack-player', { noToast: true });
+            if (game.settings && game.settings.showCombatLog !== false) addLog(_t('⚖️ 심판 표식 폭발로 {name}에게 {dmg} 피해', { name: i18n.enemyName(enemy.name), dmg: formatNumberKR(dmg) }), 'attack-player', { noToast: true });
             mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
             if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
         }
@@ -6396,7 +6396,7 @@ function applyCosmosBossPlayerDebuff(enemy) {
     row.value = Math.max(Number(row.value || 0), spec.value);
     row.durationMs = Math.floor(spec.duration * 1000);
     row.expiresAt = Math.max(Number(row.expiresAt || 0), now + Math.floor(spec.duration * 1000));
-    if (game.settings && game.settings.showCombatLog) addLog(_t('🌌 {name}의 우주계 보스 디버프: {label} -{value}%', { name: _t(enemy.name), label: _t(spec.label), value: spec.value }), 'attack-monster', { noToast: true });
+    if (game.settings && game.settings.showCombatLog) addLog(_t('🌌 {name}의 우주계 보스 디버프: {label} -{value}%', { name: i18n.enemyName(enemy.name), label: _t(spec.label), value: spec.value }), 'attack-monster', { noToast: true });
 }
 
 function getCosmosBossAttackElement(enemy, pattern, pStats) {

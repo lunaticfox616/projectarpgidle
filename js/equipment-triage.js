@@ -144,16 +144,16 @@
             const counts = getCounts();
             return _t('{all}개 완료, 균형 {balanced}, 공격 {damage}, 생존 {defense}', { all: counts.all, balanced: counts.balanced, damage: counts.damage, defense: counts.defense });
         }
-        if (state.status === 'error') return '분석 중 오류가 발생했습니다. 다시 시도하세요.';
-        if (state.status === 'stale') return '세팅이 바뀌어 다시 분석합니다.';
-        if (state.status === 'cancelled') return '분석을 중단했습니다.';
-        return '분석 시작 시점의 세팅/전투 상태로 비교합니다.';
+        if (state.status === 'error') return _t('분석 중 오류가 발생했습니다. 다시 시도하세요.');
+        if (state.status === 'stale') return _t('세팅이 바뀌어 다시 분석합니다.');
+        if (state.status === 'cancelled') return _t('분석을 중단했습니다.');
+        return _t('분석 시작 시점의 세팅/전투 상태로 비교합니다.');
     }
 
     function getFilterOptionsHtml(counts) {
         const labels = {
-            all: '전체', balanced: '균형 상승', damage: '공격 상승', defense: '생존 상승',
-            special: '특수 장비', keep: '현 세팅 유지'
+            all: _t('전체'), balanced: _t('균형 상승'), damage: _t('공격 상승'), defense: _t('생존 상승'),
+            special: _t('특수 장비'), keep: _t('현 세팅 유지')
         };
         return FILTER_IDS.map(id => `<option value="${id}" ${state.filter === id ? 'selected' : ''}>${labels[id]} ${counts[id] || 0}</option>`).join('');
     }
@@ -182,20 +182,20 @@
 
     /** 전체 목록의 추천은 공격·생존 동시 상승만 다룬다. 단일 축의 상승까지 없다고 말하지 않는다. */
     function getRecommendTitle(recommendation) {
-        if (recommendation) return state.filter === 'all' ? '공격과 생존이 함께 오르는 장비만 추천합니다.' : '현재 판단 기준에서 가장 높은 장비를 추천합니다.';
-        if (state.status !== 'ready') return '현재 세팅으로 일괄 분석을 완료하면 추천을 확인할 수 있습니다.';
-        if (['all', 'balanced'].includes(state.filter)) return '공격과 생존이 함께 오르는 장비가 없습니다. 공격 상승/생존 상승 필터로 각각 비교할 수 있습니다.';
-        if (['special', 'keep'].includes(state.filter)) return '이 목록에서는 장비를 직접 선택해 효과를 비교하세요.';
-        return '선택한 판단 기준에서 상승하는 장비가 없습니다.';
+        if (recommendation) return state.filter === 'all' ? _t('공격과 생존이 함께 오르는 장비만 추천합니다.') : _t('현재 판단 기준에서 가장 높은 장비를 추천합니다.');
+        if (state.status !== 'ready') return _t('현재 세팅으로 일괄 분석을 완료하면 추천을 확인할 수 있습니다.');
+        if (['all', 'balanced'].includes(state.filter)) return _t('공격과 생존이 함께 오르는 장비가 없습니다. 공격 상승/생존 상승 필터로 각각 비교할 수 있습니다.');
+        if (['special', 'keep'].includes(state.filter)) return _t('이 목록에서는 장비를 직접 선택해 효과를 비교하세요.');
+        return _t('선택한 판단 기준에서 상승하는 장비가 없습니다.');
     }
 
     /** 단추 글에도 까닭을 붙인다 — 휴대폰에는 title이 뜨지 않는다(검토 5차). */
     function getRecommendLabel(recommendation) {
-        if (recommendation) return ['all', 'balanced'].includes(state.filter) ? '균형 추천 교체' : '추천 교체';
-        if (state.status === 'running') return '분석 중';
-        if (state.status !== 'ready') return state.status === 'idle' ? '분석 먼저' : '재분석 필요';
-        return { all: '균형 상승 없음', balanced: '균형 상승 없음', damage: '공격 상승 없음',
-            defense: '생존 상승 없음', special: '직접 비교', keep: '직접 비교' }[state.filter];
+        if (recommendation) return ['all', 'balanced'].includes(state.filter) ? _t('균형 추천 교체') : _t('추천 교체');
+        if (state.status === 'running') return _t('분석 중');
+        if (state.status !== 'ready') return state.status === 'idle' ? _t('분석 먼저') : _t('재분석 필요');
+        return { all: _t('균형 상승 없음'), balanced: _t('균형 상승 없음'), damage: _t('공격 상승 없음'),
+            defense: _t('생존 상승 없음'), special: _t('직접 비교'), keep: _t('직접 비교') }[state.filter];
     }
 
     function render() {
@@ -207,7 +207,7 @@
         const recommendation = getRecommendedCandidate();
         // 가방이 거의 차면 자동해체로 바로 간다(자동해체는 장비창 도구 줄의 해체 단추 창에 있다)
         const autoSalvageButton = isInventoryNearFull()
-            ? '<button type="button" onclick="equipmentWindowUi.openSalvage()">자동 해체 설정</button>' : '';
+            ? `<button type="button" onclick="equipmentWindowUi.openSalvage()">${_t('자동 해체 설정')}</button>` : '';
         const fillable = countFillableEmptySlots();
         const fillButton = fillable ? `<button type="button" class="equipment-fill-empty" onclick="fillEmptyEquipmentSlots()">${_t('빈 칸 채우기 {fillable}', { fillable })}</button>` : '';
         const html = `<div class="equipment-triage-copy" data-tip="${_t('분석 시작 시점의 세팅/전투 상태를 기준으로 비교합니다.')}"><strong>${_t('현재 세팅 분석')}</strong><small>${getStatusCopy()}</small></div>
@@ -217,7 +217,8 @@
                 <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? '' : 'disabled'} data-tip="${getRecommendTitle(recommendation)}">${getRecommendLabel(recommendation)}</button>
                 ${fillButton}${autoSalvageButton}
             </div>`;
-        const renderSignature = `${state.status}|${state.filter}|${state.work ? state.work.index : 0}|${JSON.stringify(counts)}|${recommendation ? recommendation.item.id : ''}|${isInventoryNearFull()}|${fillable}`;
+        // 언어도 넣는다: 언어를 바꿔도 같은 서명이면 그리지 않아 앞 언어의 글이 남았다(2026-11-05 검토)
+        const renderSignature = `${i18n.language}|${state.status}|${state.filter}|${state.work ? state.work.index : 0}|${JSON.stringify(counts)}|${recommendation ? recommendation.item.id : ''}|${isInventoryNearFull()}|${fillable}`;
         if (host.dataset.renderSig === renderSignature) return;
         host.innerHTML = html;
         host.dataset.renderSig = renderSignature;
