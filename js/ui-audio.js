@@ -44,7 +44,7 @@
     }
 
     async function fetchFile(path) {
-        const response = await fetch(path + '?v=20261027-stump-wood');
+        const response = await fetch(path + '?v=20261105-death');
         if (!response.ok) throw Error(`Audio fetch failed: ${response.status} ${path}`);
         return response;
     }
@@ -167,7 +167,8 @@
         const choice = sampleChoice(spec);
         if (!choice || !makeRoom(spec.priority)) return;
         const node = context.createBufferSource(), gain = context.createGain();
-        node.buffer = buffers.get(choice.file); node.playbackRate.value = spec.rate;
+        // sampleRates, sampleGains: 같은 묶음 안에서 한 파일만 높낮이나 크기를 바꿀 때(2026-11-05 사용자: 항아리 깨는 소리 하나만 톤을 낮게)
+        node.buffer = buffers.get(choice.file); node.playbackRate.value = spec.rate * (spec.sampleRates?.[choice.file] ?? 1);
         gain.gain.value = spec.gain * (spec.sampleGains?.[choice.file] ?? 1);
         const voice = attach(node, gain, spec.priority);
         try {
@@ -249,6 +250,10 @@
     document.addEventListener('keydown', unlock);
     window.addEventListener('project-idle:encounter-finished', event => {
         if (!event.detail?.background) playUiFeedbackSound('stageClear');
+    });
+    // 쓰러지는 소리(2026-11-05 Codex가 만든 긴 판, 낮은 두 번의 타격과 가라앉는 잔향): 화면이 까매지는 동안(js/defeat-fade-ui.js) 울린다
+    window.addEventListener('project-idle:player-defeated', event => {
+        if (!event.detail?.background) playUiFeedbackSound('playerDeath');
     });
     document.addEventListener('visibilitychange', () => {
         updateMasterGain();

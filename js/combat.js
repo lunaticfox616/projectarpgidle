@@ -2678,7 +2678,7 @@ function processPendingSlamEchoHits() {
         let bonus = Math.max(1, Math.floor(row.damage || 0));
         enemy.hp = Math.max(0, enemy.hp - bonus);
         addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
-        if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🌋 여진으로 {name}에게 {bonus} 추가 피해', { name: _t(enemy.name), bonus: formatNumberKR(bonus) }), 'attack-player', { noToast: true });
+        if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🌋 여진으로 {name}에게 {bonus} 추가 피해', { name: i18n.enemyName(enemy.name), bonus: formatNumberKR(bonus) }), 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
     });
     game.pendingSlamEchoHits = next;
@@ -3106,7 +3106,7 @@ function processTalentInquisitorMarks() {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
             enemy.hp = Math.max(0, enemy.hp - dmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240, syncToSwing: false });
-            if (game.settings && game.settings.showCombatLog !== false) addLog(_t('⚖️ 심판 표식 폭발로 {name}에게 {dmg} 피해', { name: _t(enemy.name), dmg: formatNumberKR(dmg) }), 'attack-player', { noToast: true });
+            if (game.settings && game.settings.showCombatLog !== false) addLog(_t('⚖️ 심판 표식 폭발로 {name}에게 {dmg} 피해', { name: i18n.enemyName(enemy.name), dmg: formatNumberKR(dmg) }), 'attack-player', { noToast: true });
             mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
             if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
         }
@@ -6396,7 +6396,7 @@ function applyCosmosBossPlayerDebuff(enemy) {
     row.value = Math.max(Number(row.value || 0), spec.value);
     row.durationMs = Math.floor(spec.duration * 1000);
     row.expiresAt = Math.max(Number(row.expiresAt || 0), now + Math.floor(spec.duration * 1000));
-    if (game.settings && game.settings.showCombatLog) addLog(_t('🌌 {name}의 우주계 보스 디버프: {label} -{value}%', { name: _t(enemy.name), label: _t(spec.label), value: spec.value }), 'attack-monster', { noToast: true });
+    if (game.settings && game.settings.showCombatLog) addLog(_t('🌌 {name}의 우주계 보스 디버프: {label} -{value}%', { name: i18n.enemyName(enemy.name), label: _t(spec.label), value: spec.value }), 'attack-monster', { noToast: true });
 }
 
 function getCosmosBossAttackElement(enemy, pattern, pStats) {
@@ -13026,7 +13026,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
                     showAttackFeedback(targetEnemy, {
                         key: 'first-strike',
-                        text: _t('선제 타격: 피해 {max}% 증폭', { max: Math.max(0, Number(pStats.firstStrikeDamagePct) || 0) }),
+                        text: _t('선제 타격'),   // 2026-11-05 사용자: 수치 없이 이름만(전: 선제 타격: 피해 n% 증폭)
                         color: '#ffd27a'
                     });
                 }
@@ -13370,8 +13370,16 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     game.playerHp = getPlayerHpCap(pStats);
     atlasRun.defeat(zone);
     startMoving(false);
+    holdAfterDefeat();
     updateStaticUI();
     queueImportantSave(160);
+}
+/** 쓰러진 뒤 화면이 까매졌다 밝아지는 동안(js/defeat-fade-ui.js) 주인공은 다시 놓인 자리에 서 있다(2026-11-05 사용자: "사망 시 바로
+ * 부활이 아니라 … 몇 초 뒤에 움직일 수 있게"). 이동 대기(moveTimer)로 잡으므로 귀환과 다른 지역 이동은 바로 된다. 방치 정산은 늘리지 않는다. */
+const DEFEAT_RECOVERY_SECONDS = 3;
+function holdAfterDefeat() {
+    if (game.isBackgroundCalculation) return;
+    game.moveTimer = game.moveTotalTime = Math.max(game.moveTimer || 0, DEFEAT_RECOVERY_SECONDS);
 }
 /** The content whose own rules a defeat in zone follows (a run by its id, else by its kind), or null for the experience penalty. */
 function getContentDefeat(zone) {

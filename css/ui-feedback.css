@@ -1,5 +1,12 @@
 @layer components {
 body { font-family: var(--font-body); }
+/* 쓰러질 때(js/defeat-fade-ui.js): 멈춘 전장이 붉은 기를 띠며 0.9초에 까매지고, 잠시 머문 뒤 1.2초에 걷혀 다시 놓인 전장이 드러난다(2.6초).
+   전장 위 모든 층(바닥 전리품 이름표 14)보다 위, 전장 밖 HUD와 창은 덮지 않는다. */
+.battle-defeat-fade { position: absolute; inset: 0; z-index: 20; pointer-events: none; animation: battle-defeat-lift 2600ms linear forwards; }
+.battle-defeat-still { position: absolute; image-rendering: pixelated; }
+.battle-defeat-dark { position: absolute; inset: 0; background: #000; animation: battle-defeat-dark 900ms ease-in forwards; }
+@keyframes battle-defeat-dark { from { opacity: .3; background: #5a0a0a; } 35% { opacity: .62; background: #2a0505; } to { opacity: 1; background: #000; } }
+@keyframes battle-defeat-lift { 0%, 55% { opacity: 1; } to { opacity: 0; } }
 :is(h1, h2, h3, h4, h5, h6, [class~="title"], [class$="-title"], [class*="-title "]) {
   font-family: var(--font-title);
 }

@@ -3391,10 +3391,11 @@ function getElementLabel(ele) {
     if (ele === 'chaos') return '공허';
     return '물리';
 }
-/** The name without colour emoji: the pixel font draws them as a broken box (the beehive queen's crown did, 2026-10-06). */
+/** The name in the current language (the saved name is the Korean source, js/i18n.js enemyName) without colour emoji: the pixel font
+ * draws them as a broken box (the beehive queen's crown did, 2026-10-06). */
 function getEnemyDisplayName(enemy) {
-    if (!enemy) return '미확인 적';
-    return stripDecorativeEmoji(enemy.name) || '미확인 적';
+    if (!enemy) return _t('미확인 적');
+    return stripDecorativeEmoji(i18n.enemyName(enemy.name)) || _t('미확인 적');
 }
 // A boss's standout defenses (its one or two specialties, js/combat.js getBossDefenseTargets) as the live values, traits and zone
 // wards included: at least 40% and 15 points above its weakest of the four. Early bosses whose defenses are all low show none.

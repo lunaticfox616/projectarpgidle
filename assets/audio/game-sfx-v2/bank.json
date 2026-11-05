@@ -302,6 +302,9 @@
     ],
     "gain": 0.4,
     "rate": 1,
+    "sampleRates": {
+      "potBreak-a.wav": 0.84
+    },
     "group": "object",
     "cooldown": 100,
     "priority": 1,
@@ -438,6 +441,18 @@
     "group": "stageClear",
     "cooldown": 3000,
     "priority": 2,
+    "enabled": true
+  },
+  "playerDeath": {
+    "label": "플레이어 사망",
+    "files": [
+      "sounds-20261105/player-death.wav"
+    ],
+    "gain": 0.6,
+    "rate": 1,
+    "group": "playerDeath",
+    "cooldown": 2000,
+    "priority": 3,
     "enabled": true
   },
   "lootBurst": {

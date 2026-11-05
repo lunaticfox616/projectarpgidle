@@ -34,7 +34,8 @@ const tabLayoutUi = {
      * short name, else its own words. */
     caption(button) {
         const merged = button.dataset.mergedTabLauncher && typeof MERGED_TAB_GROUPS === 'object' ? MERGED_TAB_GROUPS[button.dataset.mergedTabLauncher] : null;
-        const own = Array.from(button.childNodes).filter(node => node.nodeType === 3).map(node => node.textContent.trim()).join(' ').trim();
+        // 글 마디는 이미 옮겨졌을 수 있다: 한국어 원문을 쓴다(그래야 '|하단 메뉴' 문맥 열쇠로 옮겨진다)
+        const own = Array.from(button.childNodes).filter(node => node.nodeType === 3).map(node => i18n.sourceOf(node).trim()).join(' ').trim();
         return (merged && merged.title) || tabLayoutUi.shortCaptions[button.id] || own;
     },
 
@@ -128,6 +129,11 @@ const tabLayoutUi = {
 };
 
 // The phone dock shows each button's short name (css/themes/pixel-menu.css, attr(data-caption)); the PC HUD menu sets its own when it wraps the label.
+// The caption is the Korean source with the '|하단 메뉴' context and i18n translates the attribute, now and on every language change:
+// written once as plain text it stayed Korean in English (2026-11-05 review: 스킬트리, 그루터기, 장비, 지도).
 document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('.tab-header .tab-btn').forEach(button => {
-    if (!button.dataset.caption) button.dataset.caption = tabLayoutUi.caption(button);
+    if (button.dataset.caption) return;
+    button.dataset.caption = `${tabLayoutUi.caption(button)}|하단 메뉴`;
+    button.dataset.i18nAttr = [button.dataset.i18nAttr, 'data-caption'].filter(Boolean).join(' ');
+    i18n.applyStatic(button);
 }), { once: true });

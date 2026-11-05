@@ -57,7 +57,7 @@ const memoryDungeon = (() => {
     /** A memory fight's boss (js/combat.js createActExplorationPack): its name says whose memory, tinted; a boss without its own special
      * (map bosses, guardians, the shadow) takes the memory special. */
     function tuneBoss(enemy, tier) {
-        enemy.name = _t('{name}의 기억', { name: enemy.name });
+        enemy.name = `${enemy.name}의 기억`;   // 한국어 원문으로 둔다: 보여 줄 때 옮긴다(js/i18n.js enemyName)
         enemy.bossVisualTint = M.fight.tint;
         if (!enemy.apexMechanic) Object.assign(enemy, { patternMode: 'apex', apexMechanic: M.fight.mechanic });
         // 보스 변이체(루프 33): 3단계부터 기억의 보스가 변이체로 다시 불려 나올 수 있다(js/boss-variants.js recall).

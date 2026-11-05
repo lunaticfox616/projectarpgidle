@@ -290,7 +290,7 @@ const atlasEndgame = (() => {
         const omens = bearableOmens(state);
         if (!omens.length || random() >= bearerChance(state, enemy)) return;
         enemy.craftOmen = omens[Math.floor(random() * omens.length)];
-        enemy.name = _t('뿌리를 품은 {name}', { name: enemy.name });
+        enemy.name = `뿌리를 품은 ${enemy.name}`;   // 한국어 원문으로 둔다: 보여 줄 때 옮긴다(js/i18n.js enemyName)
     }
     /** The omen key a slain bearer leaves, once ('' for any other monster). */
     function takeOmen(enemy) {

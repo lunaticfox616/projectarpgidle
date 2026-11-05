@@ -1398,7 +1398,7 @@ const stumpBoxUi = (() => {
     function stumpCompostDropText(compost) {
         const name = `${STUMP_BOX_COLORS[compost.color].label} ${STUMP_BOX_STAGES[compost.family].label}`;
         return compost.fed ? _t('🌱 그루터기 함 보관함이 가득 차 {name} 거름이 됐습니다(성장 중인 {fed}개 경험치 +{growth}).', { name: withSubjectParticle(name), fed: compost.fed, growth: compost.growth })
-            : _t('🌱 그루터기 함 보관함이 가득 찼고 그루터기 함에 성장 중인 그루터기 아이템도 없어 {name} 놓쳤습니다.', { name: withObjectParticle(name) });
+            : _t('🌱 그루터기 함 보관함이 가득 찼습니다.');   // 2026-11-05 사용자: 놓친 씨앗 이름과 까닭을 길게 적지 않는다
     }
     /** What a ripened item now gives (resonance and graft included), for the toast. */
     function stumpRipeGain(item) {

@@ -948,11 +948,11 @@ function upgradeSelectedItemBase() {
     game.pendingBaseUpgrade = { itemId: item.id, nextBaseId: nextBase.id };
     let titleEl = document.getElementById('base-upgrade-title');
     let bodyEl = document.getElementById('base-upgrade-body');
-    if (titleEl) titleEl.innerText = `${currentBase.name} → ${nextBase.name}`;
+    if (titleEl) titleEl.innerText = `${_t(currentBase.name)} → ${_t(nextBase.name)}`;
     if (bodyEl) {
         let curStats = (currentBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
         let nextStats = (nextBase.baseStats || []).map(stat => `${getStatName(stat.id)} ${formatSignedValue(stat.id, stat.baseMin || stat.base)}~${formatValue(stat.id, stat.baseMax || stat.base)}`).join(' / ');
-        bodyEl.innerHTML = `${_t('현재 베이스:')} <strong>${_t(currentBase.name)}</strong><br><span style="color:var(--copy-muted);">${curStats || _t('없음')}</span><br><br>${_t('업그레이드 베이스:')} <strong>${_t(nextBase.name)}</strong><br><span style="color:#ffd08a;">${nextStats || _t('없음')}</span><br><br>비용: 형체 없는 이슬 ${cost.formlessDew}${cost.goldenRule > 0 ? _t(' + 황금률 {goldenRule}', { goldenRule: cost.goldenRule }) : ''}<br><span style="color:var(--copy-muted);">${_t('총 이슬 가치 {totalDewValue}', { totalDewValue: cost.totalDewValue })}</span>`;
+        bodyEl.innerHTML = `${_t('현재 베이스:')} <strong>${_t(currentBase.name)}</strong><br><span style="color:var(--copy-muted);">${curStats || _t('없음')}</span><br><br>${_t('업그레이드 베이스:')} <strong>${_t(nextBase.name)}</strong><br><span style="color:#ffd08a;">${nextStats || _t('없음')}</span><br><br>${_t('비용: 형체 없는 이슬 {formlessDew}', { formlessDew: cost.formlessDew })}${cost.goldenRule > 0 ? _t(' + 황금률 {goldenRule}', { goldenRule: cost.goldenRule }) : ''}<br><span style="color:var(--copy-muted);">${_t('총 이슬 가치 {totalDewValue}', { totalDewValue: cost.totalDewValue })}</span>`;
     }
     let overlay = document.getElementById('base-upgrade-overlay');
     if (overlay) overlay.showModal();

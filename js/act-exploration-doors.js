@@ -82,8 +82,6 @@ const actExplorationDoors = (() => {
     function cross(run) {
         const map = stageMap(run), hero = game.gridPlayer, door = map ? actExplorationRooms.doorAt(map, hero) : null;
         if (!door || locked(run, door)) return false;
-        // 문 칸으로 가라는 명령은 여기서 끝난다: 남겨 두면 도착한 방에서 그 문으로 되돌아 걷는다.
-        if (run.destination && run.destination.gx === hero.gx && run.destination.gy === hero.gy) run.destination = null;
         // 두 칸 문: 밟은 칸과 같은 차례의 짝 문 쪽으로 나온다(js/act-exploration-rooms.js doorway). 문 안쪽에서 한 칸 더 들어간 칸
         // (arrivals)에 서고, 그 칸이 막혔으면(물건, 기다리는 무리, 이야기 NPC의 둘레) 문 안쪽(exits)에 선다(2026-10-17 사용자 "방 이동하면
         // 정확히 출입구칸 말고 한칸 더 방 안쪽에서 나오게").
@@ -91,6 +89,9 @@ const actExplorationDoors = (() => {
         const spot = standable(map, door.arrivals[index]) ? door.arrivals[index] : door.exits[index];
         Object.assign(hero, { gx: spot.gx, gy: spot.gy, gridMoveTimer: 0 });
         actExplorationState.lockOn(run, null); // 락온은 그 방에서만: 방을 옮기면 풀린다
+        // 들어선 방 밖으로 가라던 명령(문 칸, 두 칸 문의 짝 칸)은 여기서 끝난다: 남겨 두면 도착한 방에서 그 문으로 되돌아 걷는다.
+        // 문 표시를 누르면 문의 한 칸(door.cell)으로 가는데, 짝 칸을 먼저 밟고 넘어가면 명령이 남아 되돌아갔다(2026-11-05 사용자 "간헐적으로").
+        if (run.destination && actExplorationRooms.roomAt(map, run.destination) !== actExplorationRooms.roomAt(map, spot)) run.destination = null;
         actExplorationState.arrive(run, getCombatTime());
         bringSummons(spot);
         if(run.status==='active')enterRoomEvents(run, map, spot);
