@@ -314,7 +314,8 @@ const LOOP_MUTATION = Object.freeze({
     startLoop: 5,
     weakTakenPct: 30,
     rewardPct: 10,
-    empowered: Object.freeze({ startLoop: 20, addedPct: 40, immuneWeight: 0.4, rewardPct: 20 }),
+    // addedPct 40 → 20(같은 날 사용자: 피해의 40%는 좀 세다)
+    empowered: Object.freeze({ startLoop: 20, addedPct: 20, immuneWeight: 0.4, rewardPct: 20 }),
     schedule: Object.freeze([
         ['fire', 'cold'], ['cold', 'light'], ['light', 'phys'], ['phys', 'chaos'], ['chaos', 'fire'],
         ['fire', 'light'], ['cold', 'chaos'], ['light', 'fire'], ['phys', 'cold'], ['chaos', 'phys']
