@@ -1,8 +1,7 @@
 /** Menu projection and purchase event boundary; the ledger is owned by contentProgression. */
 // 해금 카드의 "…에 있습니다" 줄: 콘텐츠가 있는 곳을 메뉴 이름 그대로.
 const CONTENT_ROUTE_PATHS = Object.freeze({
-    'item-tab-equip': '장비 → 장비 창', 'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'item-tab-market': '장비 → 거래소',
-    'item-tab-hall': '장비 → 장비 전당',
+    'item-tab-equip': '장비 → 장비 창', 'item-tab-craft': '장비 → 제작실', 'item-tab-fossil': '장비 → 제작실', 'tab-trade': '거래',
     'skill-tab-equip': '스킬룬 → 룬', 'skill-tab-enhance': '스킬룬 → 각인',
     'skill-tab-condition': '스킬룬 → 전술',
     'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 전직', 'tab-char': '스킬트리',
@@ -120,6 +119,8 @@ const contentUnlockUi = {
         const carded = this.announceContent(id);
         addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
         this.announceOpenedSince(opened); // free content that comes with it (장비 전당 with 고유 도감)
+        // 공허 소켓은 스킬트리에 숨어 있던 공허 칸을 드러낸다(js/passives.js isVoidSocketHidden): 길과 화면을 다시 잇고 스킬트리에 알림 점을 켠다.
+        if (id === 'voidSocket') { refreshPassiveConnectivity(); game.noti.char = true; }
         // 지금 살 수 있는 해금이 남았을 때만 알림: 뒤 루프의 강화 단계를 기다리는 포인트는 소식이 아니다(2026-10-25).
         game.noti.season = CONTENT_UNLOCK_CATALOG.some(def => contentProgression.kind(def) === 'paid' && contentProgression.status(def.id).available);
         checkUnlocks();
@@ -186,11 +187,11 @@ const contentUnlockUi = {
      * opens, then the chosen keyword's), the keywords it can speak of (STORY_NPCS dialogues, new ones marked until heard, heard ones
      * grey) and, under them, the door to its shop (js/npc-shop-ui.js), which takes the body.
      * npc: { id, name, title, tone, line } (js/canvas-act-title-card.js npcAt, js/npc-roster-ui.js). */
-    openNpc(npc) {
+    openNpc(npc, mode = 'talk') {
         const old = document.getElementById('npc-dialog');
         if (!npc || (old && old.open)) return false;
         if (old) old.remove(); // closed a moment ago, its close event (which removes it) not yet run
-        const view = { npc, mode: 'talk', topic: null };
+        const view = { npc, mode, topic: null };
         const dialog = document.createElement('dialog');
         dialog.id = 'npc-dialog';
         dialog.className = 'npc-dialog';
@@ -205,12 +206,17 @@ const contentUnlockUi = {
     },
     renderNpc(dialog, view) {
         const npc = view.npc;
-        dialog.classList.toggle('is-shop', view.mode === 'shop');
+        dialog.classList.toggle('is-shop', view.mode !== 'talk');
         dialog.innerHTML = `<figure class="npc-dialog-figure"><img class="npc-dialog-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.webp" alt=""></figure>
             <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who">
             <h2 id="npc-dialog-name">${escapeHTML(_t(npc.name))}</h2><p class="npc-dialog-title">${escapeHTML(_t(npc.title || ''))}</p></div>
             <button type="button" class="npc-dialog-close" data-npc-close>${_t('닫기')}</button></header>
-            ${view.mode === 'shop' ? npcShopUi.body(npc) : this.npcTalkBody(view)}</div>`;
+            ${this.npcModeBody(view)}</div>`;
+    },
+    /** The body under the head: the talk, the shop (js/npc-shop-ui.js) or Orga's currency exchange (js/orga-exchange-ui.js). */
+    npcModeBody(view) {
+        if (view.mode === 'shop') return npcShopUi.body(view.npc);
+        return view.mode === 'exchange' ? orgaExchangeUi.body() : this.npcTalkBody(view);
     },
     /** The speech box, the keywords and the foot (npcFoot). */
     npcTalkBody(view) {
@@ -225,10 +231,10 @@ const contentUnlockUi = {
             <nav class="npc-dialog-talk" aria-label="${_t('이야깃거리')}"><h4>${_t('이야기')}</h4><ul class="npc-dialog-topics">${keys}</ul></nav>
             ${this.npcFoot(view)}`;
     },
-    /** The door to the shop. */
+    /** The doors to the shop and, at Orga's, to the currency exchange. */
     npcFoot(view) {
-        const shop = npcShopUi.door(view.npc);
-        return shop ? `<footer class="npc-dialog-foot">${shop}</footer>` : '';
+        const doors = npcShopUi.door(view.npc) + orgaExchangeUi.door(view.npc);
+        return doors ? `<footer class="npc-dialog-foot">${doors}</footer>` : '';
     },
     /** The keywords the NPC can speak of now (STORY_NPCS dialogues, docs/story-bible.md section 4): a keyword waits for the act it
      * speaks of (reqAct, any act after a first loop) and for its loop (reqLoop). */
@@ -267,7 +273,7 @@ const contentUnlockUi = {
         if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); }
     },
     npcPickTopic(view, topic) {
-        if (topic === 'shop') { view.mode = 'shop'; return; }
+        if (topic === 'shop' || topic === 'exchange') { view.mode = topic; return; }
         const known = this.npcTopics(view.npc).open.some(row => row.topic === topic);
         Object.assign(view, { mode: 'talk', topic: known ? topic : null });
         if (known) this.hearNpcTopic(view.npc, topic);

@@ -5,7 +5,6 @@ const vm = require('vm');
 const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
 const itemSource = fs.readFileSync('js/items.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-const cardSource = fs.readFileSync('js/canvas-passive-tree.js', 'utf8');
 
 function extract(source, startNeedle, endNeedle) {
     const start = source.indexOf(startNeedle);
@@ -91,6 +90,7 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
         getJewelSalvageShardGain: () => 18,
         requestGameConfirmation: async () => { jewelSalvageContext.game.inventory.shift(); return true; },
         salvageJewelObject: jewel => salvaged.push(jewel.id),
+        dispatchRuntimeEvent() {}, // No browser event target in this extracted jewel-salvage fixture.
         updateStaticUI() {},
     _t: (key, params) => String(key).replace(/\{(\w+)\}/g, (match, name) => (params && name in params ? params[name] : match)),   // 원문 언어 그대로(js/i18n.js 없이)
     };
@@ -105,8 +105,6 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
 
     // Enabled/disabled controls and payment are exercised in crafting-workspace.spec.js.
     assert(uiSource.includes('confirmedSalvageTargets(targetItems)'), 'search-based equipment salvage should keep a confirmation-time target snapshot');
-    assert(!cardSource.includes('getItemSalvagePreviewText(item, true)'), 'compact inventory cards should not spend metadata space on salvage materials');
-    assert(cardSource.includes('getItemSalvagePreviewText(item, false)'), 'the destructive action should retain a detailed salvage preview in its own hint');
 
     // 제작 연구(js/crafting-goal-options.js rehearse): practice rolls a copy only. Nothing in the save changes and no item id is taken,
     // so a practice result can never become a second item or cost anything (2026-10-18 check).

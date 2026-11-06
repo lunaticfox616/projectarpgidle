@@ -36,6 +36,8 @@
         'tab-season': { title: '루프 패시브', x: 210, y: 20, width: 980, height: 920, minWidth: 500, minHeight: 380 },
         'tab-journal': { title: '기록', x: 300, y: 30, width: 820, height: 900, minWidth: 500, minHeight: 380 },
         'tab-stump': { title: '그루터기 함', x: 240, y: 30, width: 940, height: 880, minWidth: 560, minHeight: 440 },
+        // 2026-11-06: 거래(NPC, 가판대, 장비 전당)는 장비 창의 칸에서 제 창이 됐다(js/market-ui.js).
+        'tab-trade': { title: '거래', x: 200, y: 40, width: 1000, height: 840, minWidth: 600, minHeight: 440 },
     };
 
     let layoutState = getDefaultLayoutState();

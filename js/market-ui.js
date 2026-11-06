@@ -1,130 +1,111 @@
-/** 거래소 (장비 → 거래소): its three tabs and the currency exchange. The black market and the stall draw
- * themselves as shops (js/black-market-ui.js, js/player-stall-ui.js on js/shop-view-ui.js). Transactions stay in items/passives. */
+/** 거래 창 (메뉴의 거래 단추, 2026-11-06 사용자: "거래소에서 이름 바꾸고 탭 안에 NPC와 장비 전당을 집어넣고", "NPC 안에 암거래상도", 같은 날
+ * "장비 탭에 있는 거래를 탭 하나 새로 만들어서"): NPC(만난 NPC와
+ * 암거래상의 카드, js/npc-roster-ui.js, 재화 교환은 오르가의 창 js/orga-exchange-ui.js), 가판대(js/player-stall-ui.js), 장비 전당
+ * (js/player-exchange.js). 열린 칸만 보이고, 고른 칸이 닫히면 첫 열린 칸을 본다. 암거래상(js/black-market-ui.js)은 거래소 해금 뒤 NPC 칸의
+ * 카드로 서고, 누르면 NPC 창 모양의 창이 뜨며 #market-panel-black 판이 그 안으로 옮겨 갔다가 창을 닫으면 돌아온다. 거래 자체는 각 모듈의 몫이다. */
+const MARKET_SECTIONS = Object.freeze(['npc', 'stall', 'hall']);
+const MARKET_BLACK_FACE = 'assets/ui/currency/golden-rule.png';
 const marketUi = {
-    section: 'exchange', to: '', recipeId: '', quantity: 1, exchanging: false,
+    section: 'npc',
     moveTab(event) {
-        const buttons = [...event.currentTarget.querySelectorAll('button')];
+        const buttons = [...event.currentTarget.querySelectorAll('button:not([hidden])')];
         const index = buttons.indexOf(document.activeElement), count = buttons.length;
         const next = {ArrowLeft:(index+count-1)%count, ArrowRight:(index+1)%count, Home:0, End:count-1}[event.key];
         if (next === undefined) return;
         event.preventDefault();buttons[next].click();buttons[next].focus();
     },
+    /** The sections open now, in order (the NPC section also holds the black market once 거래소 is unlocked). */
+    openSections() {
+        const market = isMarketUnlocked();
+        const open = { npc: contentProgression.npcsMet(game) || market, stall: market, hall: contentProgression.isUnlocked('hall') };
+        return MARKET_SECTIONS.filter(id => open[id]);
+    },
     show(section) {
-        if (!['exchange', 'black', 'stall'].includes(section)) return;
+        if (!MARKET_SECTIONS.includes(section)) return;
         this.section = section;
+        if (section === 'hall') loadPlayerExchange();
         renderMarketUI();
     },
-    select(key, value) {
-        if (key === 'to') { this.to = value; this.recipeId = ''; }
-        if (key === 'recipe') this.recipeId = value;
-        this.quantity = 1;
-        renderMarketUI();
+    /** From elsewhere (a death hint, the loop's stall and hall checks, an old 장비 칸 address): the 거래 window on that section. */
+    open(section) {
+        this.section = MARKET_SECTIONS.includes(section) ? section : this.section;
+        switchTab('tab-trade');
+        this.show(this.section);
     },
-    recipe() {
-        const rows = MARKET_EXCHANGES;
-        if (!rows.some(row => row.to === this.to)) this.to = rows[0]?.to || '';
-        const options = rows.filter(row => row.to === this.to);
-        const recipe = options.find(row => row.id === this.recipeId) || options[0];
-        this.recipeId = recipe?.id || '';
-        return recipe;
+    /** 장비 전당의 등록(js/player-exchange.js renderHallStands, 2026-11-06 사용자: "내 템 전부 보여주는 게 아니라 등록 누르면 내 인벤토리 똑같이
+     * 보여주고 골라서 등록"): the bag picker with the real bag (js/craft-picker-host-ui.js). Gear that cannot go on show is dimmed and says why
+     * (hallItemIssue); a press on gear that can chooses it and closes the picker. */
+    openHallPicker() {
+        window.openCraftItemPickerOverlay('inventory', { title: _t('장비 전당에 전시할 장비 선택'), desc: _t('장비를 누르면 전시할 장비로 고릅니다.'),
+            picks: { inventory: marketPickHallItem, blocked: hallItemIssue } });
     },
-    amount(value) {
-        const recipe = this.recipe();
-        if (!recipe) return;
-        this.quantity = getMarketExchangeQuote(recipe, value).times;
-        this.renderQuote(recipe);
+    /** The black market's card in the NPC section (js/npc-roster-ui.js), once 거래소 is unlocked. */
+    blackCardHtml() {
+        if (!isMarketUnlocked()) return '';
+        return `<li class="npc-roster-item" data-tone="crimson"><button type="button" class="npc-roster-card is-black" data-black-open>
+            <span class="npc-roster-face is-coin"><img class="npc-roster-portrait" src="${MARKET_BLACK_FACE}" alt=""></span>
+            <span class="npc-roster-text"><strong>${_t('암거래상')}</strong><span class="npc-roster-tags"><em class="is-shop">${_t('공격 룬, 제작 베이스, 고유 장비')}</em></span></span></button>
+            <span class="npc-roster-actions"><button type="button" data-black-open>${_t('상점')}</button></span></li>`;
     },
-    /** One exchange at a time: a second press while the first (and its dialog) is under way does nothing. */
-    async exchange() {
-        const recipe = this.recipe();
-        if (!recipe || this.exchanging) return;
-        this.exchanging = true;
-        try {
-            await this.trade(recipe);
-        } finally {
-            this.exchanging = false;
-        }
-    },
-    /** Trades this.quantity times recipe, asking first for more than one. The dialog can outlast an offline replay that replaces the
-     * game, or a purse change: nothing trades during a replay or on another game, and js/passives.js exchangeAtMarket re-checks the
-     * purse and the bound on the game now held. */
-    async trade(recipe) {
-        const quote = getMarketExchangeQuote(recipe, this.quantity), owner = game, busy = shopView.busyReason();
-        if (busy || !quote.valid) return addLog(busy || '교환 가능한 수량을 입력하세요.', 'attack-monster');
-        const from = _t(ORB_DB[recipe.from].name), to = _t(ORB_DB[recipe.to].name);
-        if (quote.times > 1 && !await requestGameConfirmation(_t('{from} {spend}개를 {to} {gain}개로 교환하시겠습니까?', { from, spend: quote.spend.toLocaleString(), to, gain: quote.gain.toLocaleString() }),
-            { title: _t('재화 교환'), tone: 'danger', confirmLabel: _t('교환') })) return;
-        const changed = shopView.busyReason() || (game !== owner ? '확인하는 사이 게임 상태가 바뀌어 교환을 취소했습니다.' : '');
-        if (changed) return addLog(changed, 'attack-monster');
-        const result = exchangeAtMarket(recipe.id, quote.times, game);
-        if (!result.ok) return addLog(result.reason, 'attack-monster');
-        notifyCurrencyAcquisition(recipe.to, result.gain);
-        addLog(_t('🏦 거래소 교환: {from} {spend}개 → {to} {gain}개', { from, spend: result.spend.toLocaleString(), to, gain: result.gain.toLocaleString() }), 'loot-magic');
-        checkUnlocks();
-        updateStaticUI();
-    },
-    icon(key, className = '') {
-        const src = ORB_DB[key]?.icon;
-        return src ? `<img class="market-currency-art ${className}" src="${src}" alt="">` : '';
-    },
-    mount(host, html) {
-        // Do not replace focused inputs and selectors on routine combat refreshes.
-        if (host.marketMarkup === html) return;
-        host.innerHTML = html;host.marketMarkup = html;
-    },
-    targets(targets, recipe) {
-        if (uiDisplay.matches('(max-width: 1080px)')) {
-            return `<label class="market-mobile-target">${_t('받을 재화')}<select aria-label="${_t('받을 재화')}" onchange="marketUi.select('to',this.value)">${targets.map(key => `<option value="${key}" ${key === recipe.to ? 'selected' : ''}>${_t(ORB_DB[key].name)}</option>`).join('')}</select></label>`;
-        }
-        const choices = targets.map(key => `<button type="button" data-market-to="${key}" aria-pressed="${key === recipe.to}"
-            onclick="marketUi.select('to','${key}')">${this.icon(key)}<span>${_t(ORB_DB[key].name)}<small>${_t('보유')} <b data-market-owned="${key}"></b></small></span></button>`).join('');
-        return `<div class="market-targets"><h3>${_t('받을 재화')}</h3><div class="market-target-list">${choices}</div></div>`;
-    },
-    renderExchange() {
-        const host = document.getElementById('ui-market-exchange-list'), recipe = this.recipe();
-        if (!recipe) return this.mount(host, '<p class="market-meta">현재 교환할 수 있는 재화가 없습니다.</p>');
-        const rows = MARKET_EXCHANGES;
-        const targets = [...new Set(rows.map(row => row.to))];
-        const sources = rows.filter(row => row.to === recipe.to).map(row => `<option value="${row.id}" ${row.id === recipe.id ? 'selected' : ''}>${_t('{name} {need}개 → {gain}개', { name: _t(ORB_DB[row.from].name), need: row.need, gain: row.gain })}</option>`).join('');
-        this.mount(host, `<div class="market-exchange-workspace">${this.targets(targets, recipe)}
-            <div class="market-exchange-detail"><div class="market-selected-currency">${this.icon(recipe.to)}<div><small>${_t('보유')} <b data-market-owned="${recipe.to}"></b></small><h3>${_t(ORB_DB[recipe.to].name)}</h3><p>${escapeHTML(_t(ORB_DB[recipe.to].desc))}</p></div></div>
-            <label class="market-source-label">${_t('지불할 재화')}<select id="ui-market-exchange-from" onchange="marketUi.select('recipe',this.value)">${sources}</select></label>
-            <div class="market-quantity"><label>${_t('교환 횟수')}<input id="ui-market-quantity" type="number" min="1" step="1" value="1" oninput="marketUi.amount(this.value)"></label><button type="button" data-market-max onclick="marketUi.amount('max')">${_t('최대')}</button></div>
-            <div class="market-exchange-quote" aria-live="polite" id="ui-market-quote"></div>
-            <button type="button" class="market-confirm" data-market-exchange-once onclick="marketUi.exchange()">${_t('교환')}</button></div></div>`);
-        for (const el of host.querySelectorAll('[data-market-owned]')) el.textContent = (game.currencies[el.dataset.marketOwned] || 0).toLocaleString();
-        this.renderQuote(recipe);
-    },
-    renderQuote(recipe) {
-        const { have, max, valid, spend, gain, afterFrom, afterTo } = getMarketExchangeQuote(recipe, this.quantity);
-        const input = document.getElementById('ui-market-quantity');
-        if (document.activeElement !== input) input.value = String(this.quantity);
-        input.max = String(max);input.setAttribute('aria-invalid', String(!valid));
-        const from = _t(ORB_DB[recipe.from].name), to = _t(ORB_DB[recipe.to].name);
-        document.getElementById('ui-market-quote').innerHTML = `<div><span>${_t('소모')}</span><strong>${from} ${spend.toLocaleString()}</strong></div>
-            <div><span>${_t('획득')}</span><strong>${to} ${gain.toLocaleString()}</strong></div>
-            <p>${valid ? _t('교환 후 {from} {afterFrom}개, {to} {afterTo}개', { from, afterFrom: afterFrom.toLocaleString(), to, afterTo: afterTo.toLocaleString() }) : `${from} ${have.toLocaleString()}개 보유, ${max > 0 ? _t('1~{max}회 입력 가능', { max }) : _t('{need}개부터 교환 가능', { need: recipe.need })}`}</p>`;
-        const button = document.querySelector('[data-market-exchange-once]');
-        button.disabled = !valid;
-        document.querySelector('[data-market-max]').disabled = max < 1;
+    /** The black market in a window shaped like an NPC's: its board moves in and goes back when the window closes. */
+    openBlack() {
+        const board = document.getElementById('market-panel-black'), home = document.getElementById('market-panel-npc');
+        if (!isMarketUnlocked() || !board || !home || document.getElementById('black-market-dialog')) return;
+        const dialog = document.createElement('dialog');
+        dialog.id = 'black-market-dialog';
+        dialog.className = 'npc-dialog is-shop is-black';
+        dialog.dataset.tone = 'crimson';
+        dialog.setAttribute('aria-labelledby', 'black-market-name');
+        dialog.innerHTML = `<figure class="npc-dialog-figure is-coin"><img class="npc-dialog-portrait" src="${MARKET_BLACK_FACE}" alt=""></figure>
+            <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who"><h2 id="black-market-name">${_t('암거래상')}</h2></div>
+            <button type="button" class="npc-dialog-close" data-black-close>${_t('닫기')}</button></header></div>`;
+        dialog.querySelector('.npc-dialog-main').append(board);
+        board.hidden = false;
+        dialog.addEventListener('click', event => { if (event.target.closest('[data-black-close]')) dialog.close(); });
+        dialog.addEventListener('close', () => {
+            board.hidden = true;
+            home.append(board);
+            dialog.remove();
+            renderMarketUI();
+        }, { once: true });
+        document.body.append(dialog);
+        refreshBlackMarket(false);
+        blackMarketUi.render();
+        dialog.showModal();
     }
 };
 
+function marketPickHallItem(itemId) {
+    hideItemTooltip();
+    window.closeCraftItemPickerOverlay();
+    selectPlayerHallItem(itemId);
+}
+
 function renderMarketUI() {
-    const locked = document.getElementById('ui-market-locked'), panel = document.getElementById('ui-market-panel');
-    if (!locked || !panel) return;
-    const open = isMarketUnlocked();
-    locked.hidden = open;panel.hidden = !open;
-    if (!open) return;
-    refreshBlackMarket(false);
+    const panel = document.getElementById('ui-market-panel');
+    if (!panel) return;
+    const open = marketUi.openSections();
+    if (!open.includes(marketUi.section)) marketUi.section = open[0] || 'npc';
+    if (isMarketUnlocked()) refreshBlackMarket(false);
+    panel.style.setProperty('--market-tabs', String(Math.max(1, open.length))); // css/themes/pixel.css .market-tabs
     for (const button of panel.querySelectorAll('[data-market-section]')) {
-        const active = button.dataset.marketSection === marketUi.section;
+        const id = button.dataset.marketSection, active = id === marketUi.section;
+        button.hidden = !open.includes(id);
         button.setAttribute('aria-selected', String(active));
         button.tabIndex = active ? 0 : -1;
-        document.getElementById('market-panel-' + button.dataset.marketSection).hidden = !active;
+        document.getElementById('market-panel-' + id).hidden = !active;
     }
-    if (marketUi.section === 'exchange') marketUi.renderExchange();
-    if (marketUi.section === 'black') blackMarketUi.render();
-    if (marketUi.section === 'stall') playerStallUi.render();
+    renderMarketSection(marketUi.section);
 }
+
+/** The shown section's own drawing (the hall draws itself when it loads, js/player-exchange.js); the black market while its window is open. */
+function renderMarketSection(section) {
+    if (section === 'npc') {
+        if (game.noti) game.noti.npcs = false;
+        npcRosterUi.render();
+    }
+    if (section === 'stall') playerStallUi.render();
+    if (document.getElementById('black-market-dialog')?.open) blackMarketUi.render();
+}
+document.addEventListener('click', event => { if (event.target.closest?.('[data-black-open]')) marketUi.openBlack(); });
 safeExposeGlobals({marketUi, renderMarketUI});

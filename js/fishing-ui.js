@@ -352,6 +352,7 @@ const fishingUi = (() => {
         const balances = Object.fromEntries(keys.map(key => [key, game.currencies[key] || 0]));
         const before = itemSnapshot(status.item);
         const ok = craftSeaGift(recipeId, null, { category: categoryOf(recipe), count });
+        if (ok) playUiFeedbackSound('craftSuccess');
         // 고른 횟수는 남은 재료로 만들 수 있는 만큼으로 줄인다: 다 쓰고 나면 결과 옆에 '재료 부족'이 떴다.
         if (batchChoice) batchChoice.count = Math.max(1, Math.min(batchChoice.count, getSeaGiftRecipeStatus(recipeId, null, categoryOf(recipe), 1).maxCrafts || 1));
         lastResult = { recipeId, count, owner: game, target: status.item, ok, before, after: itemSnapshot(status.item), name: status.item && status.item.name,
@@ -398,7 +399,7 @@ const fishingUi = (() => {
         switchTab('tab-items');
         if (document.body.classList.contains('desktop-windowed-ui')) openWindow('tab-items');
         switchItemSubtab('item-tab-craft');
-        craftingWorkspaceUi.openInventory(false, key, true);
+        craftingWorkspaceUi.openInventory(key, true);
     }
     function pickTarget(kind) {
         window.openCraftItemPickerOverlay(kind);

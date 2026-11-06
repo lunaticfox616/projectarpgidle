@@ -271,7 +271,7 @@ for (const expression of ["applySkyGemEnhancementToActive('sky_swiftness')",'upg
 assert.deepEqual(json('[game.gemData,game.skyGemEnhancements,game.currencies]'),before);
 run("gemCoreForge.attempt('이중 베기')");
 assert.equal(run("game.gemData['이중 베기'].enhanceLevel"),1,'the first step never fails');
-run('game.season=5;contentProgression.sync()');
+run('game.season=6;contentProgression.sync()');
 assert(run("contentProgression.purchase('engraving').ok"));
 assert.deepEqual(json("getSkyEnhancementForSkill('이중 베기')"),['sky_fury']);
 assert(run("applySkyGemEnhancementToActive('sky_swiftness',0)"));
@@ -292,7 +292,8 @@ for (const id of ['timerift','colony','beehive','voidrift']) {
 run('game=mergeDefaults({})');
 const totalCost=run('CONTENT_UNLOCK_CATALOG.reduce((sum,def)=>sum+def.cost,0)');
 assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:totalCost,nextAward:runtime.CONTENT_UNLOCK_POINT_AWARDS.perLoop,complete:false});
-run('game.season=54;contentProgression.sync()');
+// The first loop whose points cover the whole catalog (it moves when a row is added: 공허 소켓 2026-11-06).
+run(`game.season=${1+Math.ceil(totalCost/runtime.CONTENT_UNLOCK_POINT_AWARDS.perLoop)};contentProgression.sync()`);
 assert.equal(run('contentProgression.balance()'),totalCost);
 assert(!run("contentProgression.status('beyond').available"),'future loop gates remain enforced after funding');
 before=json('game');
@@ -312,7 +313,7 @@ assert.deepEqual(json('contentProgression.points()'),{balance:0,remaining:1,next
 const loopSummary = () => screenText(run('loopSettlementUi.summaryHtml()'));
 assert(loopSummary().includes('해금 포인트 +1'));
 assert(run("getNextMajorContentUnlock(game).description.includes('1점')"));
-run('game.season=6;contentProgression.sync()');
+run('game.season=7;contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),1);
 assert.equal(run('contentProgression.points().nextAward'),0);
 assert(run("contentProgression.purchase('craftSimulator').ok"));
@@ -407,19 +408,19 @@ run("game.season=5;contentProgression.sync();for(const id of ['craft','fossil','
 before=json('game');
 assert(!run("contentProgression.purchase('craftSimulator').ok"));
 assert.deepEqual(json('game'),before,'early simulator purchase spends nothing');
-run('game.season=6;contentProgression.sync()');
+run('game.season=7;contentProgression.sync()');
 assert(run("contentProgression.status('craftSimulator').available"));
-assert(!run("contentProgression.isUnlocked('craftSimulator')"),'loop six offers a choice, not automatic access');
+assert(!run("contentProgression.isUnlocked('craftSimulator')"),'loop seven offers a choice, not automatic access');
 const simulatorPoints=run('contentProgression.balance()');
 assert(run("contentProgression.purchase('craftSimulator').ok"));
 assert.equal(run('contentProgression.balance()'),simulatorPoints-1);
 before=json('game');
 assert(!run("contentProgression.purchase('craftSimulator').ok"));
 assert.deepEqual(json('game'),before,'duplicate unlock spends nothing');
-run('game.season=7;game=mergeDefaults(JSON.parse(JSON.stringify(game)));contentProgression.sync()');
+run('game.season=8;game=mergeDefaults(JSON.parse(JSON.stringify(game)));contentProgression.sync()');
 assert(run("contentProgression.isUnlocked('craftSimulator')"),'purchase survives a new loop and reload');
 assert.equal(run('game.contentProgression.paidCosts.craftSimulator'),1);
-run('game=mergeDefaults({});game.season=6;contentProgression.sync()');
+run('game=mergeDefaults({});game.season=7;contentProgression.sync()');
 before=json('game');
 assert(!run("contentProgression.purchase('craftSimulator').ok"),'crafting must be unlocked first');
 assert.deepEqual(json('game'),before);

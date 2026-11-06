@@ -46,7 +46,7 @@
         game.playerHp=getPlayerHpCap(getPlayerStats());
         if(mode==='complete') {
             // Atlas progress: every tier 1-3 node complete (their neighbours open) and this loop's starter maps in the stash.
-            game.atlas.completed=atlas.nodes.filter(node=>node.tier<=3).map(node=>node.id);atlas.sync(game);
+            game.atlas.unlocked=true;game.atlas.completed=atlas.nodes.filter(node=>node.tier<=3).map(node=>node.id);atlas.sync(game);
         }
         if(mode==='realms') {
             game.season=50;game.abyssEndlessDepth=30;game.labyrinthUnlockedMaxFloor=100;
@@ -124,7 +124,7 @@
         const listed = playerStall.list(game,item.id,1000000,start,{currency:'goldenRule',negotiate:true});
         if (!listed.ok) throw new Error('Negotiation fixture could not list its item');
         playerStall.advance(game,Date.now());
-        closeAllWindows();switchTab('tab-items');switchItemSubtab('item-tab-market');marketUi.show('stall');
+        closeAllWindows();marketUi.open('stall');
         updateStaticUI();
         parent.postMessage({type:'worldtree-lab-status',message:'거래 UI 표본 · T20 최상급 장비 · 실제 거래 규칙으로 4시간 처리 · 검토 저장 초기화됨'},origin);
     }

@@ -17,7 +17,7 @@ const colonyWardsUi = (() => {
         const hover = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
         return `<div class="slot-box equipment-slot ward-slot rarity-${item.rarity || 'magic'}${open ? '' : ' is-off'}" data-slot="${slot}"
             data-item-tooltip-anchor="1" onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')"
-            ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}', false)"
+            ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}')"
             onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)">
             <img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false">
             <span class="ward-slot-line">${open ? escapeHTML(line ? lineText(line.id, line.val) : item.rarity === 'unique' ? item.name : '') : _t('칸 부족')}</span></div>`;

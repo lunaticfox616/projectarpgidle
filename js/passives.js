@@ -2107,7 +2107,20 @@ function isPassiveNodeAvailable(nodeOrId) {
     let node = typeof nodeOrId === 'string' ? PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
     if (!node || (node.requiresEvolution && !(game && game.passiveStarEvolution))) return false;
     if (node.hiddenByKeystoneId && !(game && (game.passives || []).includes(node.hiddenByKeystoneId))) return false;
-    return true;
+    return !isVoidSocketHidden(node);
+}
+
+/** 공허 소켓(2026-11-06 사용자: 처음에는 안 보이다가 해금하면 보이게): 해금 탭의 공허 소켓을 열기 전에는 공허 칸과 공허 칸이 있어야 뜻이
+ * 있는 노드(needsVoidSockets)가 숨는다. 해금 전 저장에 찍어 둔 칸은 루프가 바뀔 때까지 남아 포인트와 옵션을 잃지 않는다. 해금하는 순간
+ * 다시 잇는 일은 contentUnlockUi.takeContent가 한다. */
+function isVoidSocketHidden(node) {
+    if (!needsVoidSockets(node) || !game || typeof contentProgression !== 'object') return false;
+    return !contentProgression.isUnlocked('voidSocket') && !(game.passives || []).includes(node.id);
+}
+/** 공허 칸, 이어진 공허 칸의 효율을 올리는 투영의 문양, 찍은 공허 칸 수만큼 오르는 공허의 별자리(2026-11-06 사용자: 공허 소켓이 없으면
+ * 의미가 없는 노드). 이 노드들을 숨겨도 다른 노드로 가는 길은 끊기지 않는다(살아 있는 트리로 확인: 공허 칸 25, 문양 11, 별자리 1). */
+function needsVoidSockets(node) {
+    return node.kind === 'void' || node.stat === 'voidLinkEfficiency' || node.title === '공허의 별자리';
 }
 
 function getPassiveApexNodeIds() {
@@ -4261,8 +4274,7 @@ const TAB_UNLOCK_GATES = {
     'tab-map': 'map',
     'tab-traits': 'traits',
     'tab-talent': 'talent',
-    'tab-stump': 'stump',
-    'tab-npcs': 'npcs'
+    'tab-stump': 'stump'
 };
 const MOBILE_BATTLE_BREAKPOINT = 1080;
 let battleTabDocked = false;
@@ -5148,10 +5160,11 @@ function pressLoopHeroChoice(classId, experienced) {
     renderLoopHeroChoiceDetail(classId, experienced);
 }
 
-/** The class screen's line for this loop's mutation (js/loop-mutation.js), empty outside a mutation loop. */
-function loopHeroMutationLine() {
+/** The class screen's line for this loop's mutation (js/loop-mutation.js) in the elements' colours, empty outside a mutation loop. */
+function loopHeroMutationHtml() {
     const rule = loopMutation.current();
-    return rule ? `\n변이시간선: ${loopMutation.describe(rule)}` : '';
+    if (!rule) return '';
+    return `<span class="loop-hero-mutation">${escapeHTML(_t('변이시간선'))}: ${loopMutation.partHtml(rule.immune, '면역')}, ${loopMutation.partHtml(rule.weak, '약점')}</span>`;
 }
 function openLoopHeroSelection(onSelect, options = {}) {
     let overlay = document.getElementById('loop-hero-select-overlay');
@@ -5164,9 +5177,10 @@ function openLoopHeroSelection(onSelect, options = {}) {
         return false;
     }
     loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
-    if (kickerEl) kickerEl.innerText = options.kicker || '다음 루프';
-    if (titleEl) titleEl.innerText = _t(options.title) || '다음 루프 직업 선택';
-    if (bodyEl) bodyEl.innerText = (options.body || '이번 루프에서 사용할 직업을 선택하세요.') + loopHeroMutationLine();
+    // Callers hand over text already in the player's language (the loop's own request hands over none).
+    if (kickerEl) kickerEl.innerText = options.kicker || _t('다음 루프');
+    if (titleEl) titleEl.innerText = options.title || _t('다음 루프 직업 선택');
+    if (bodyEl) bodyEl.innerHTML = escapeHTML(options.body || _t('이번 루프에서 사용할 직업을 선택하세요.')) + loopHeroMutationHtml();
     let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredClassIds) ? game.discoveredClassIds : []);
     grid.innerHTML = PLAYER_CLASS_ORDER.map(id => {
         let def = PLAYER_CLASS_DEFS[id];
@@ -5449,7 +5463,7 @@ function getDeathHints() {
  * 더하지 않고 상점을 센다. */
 function shopDeathHint() {
     const shops = Object.keys(NPC_SHOPS).filter(id => npcShop.ready(id) > 0).length;
-    return shops ? { text: _t('지금 살 수 있는 물건이 있는 NPC 상점 {shops}곳', { shops }), action: { label: 'NPC', onclick: "closeDeathOverlay();switchTab('tab-npcs')" } } : null;
+    return shops ? { text: _t('지금 살 수 있는 물건이 있는 NPC 상점 {shops}곳', { shops }), action: { label: 'NPC', onclick: "closeDeathOverlay();marketUi.open('npc')" } } : null;
 }
 /** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환과 이동 룬 말고: 이동 룬은 이동 칸에 낀다)으로, 지금 무기로 쓸 수 있는 룬. */
 function isStrongerRuneCandidate(name, keep) {
@@ -9734,6 +9748,7 @@ function commitCurrencyGain(currencyKey, gain) {
         return;
     }
     game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + gain;
+    currencyExchange.noteSeen(game, currencyKey);
     combatLootReceipts.currency(game,currencyKey,gain);
     game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
     notifyCurrencyAcquisition(currencyKey, gain);
@@ -10271,6 +10286,7 @@ async function salvageJewel(jewelId) {
     })) return false;
     if (!bagItems.take(jewel)) return false;
     salvageJewelObject(jewel, false);
+    dispatchRuntimeEvent('items-salvaged', { count: 1 });
     updateStaticUI();
     return true;
 }
@@ -10387,6 +10403,7 @@ function salvageItem(idx) {
     if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
+    dispatchRuntimeEvent('items-salvaged', { count: 1 });
     updateStaticUI();
 }
 
@@ -10431,6 +10448,8 @@ function salvageBagItems(targets) {
     const rewards = {}, gone = new Set(targets);
     targets.forEach(item => mergeSalvageRewards(rewards, salvageItemObject(item, true)));
     game.inventory = game.inventory.filter(item => !gone.has(item));
+    // Manual bulk salvage emits once; automatic drop salvage never goes through this function.
+    if (targets.length) dispatchRuntimeEvent('items-salvaged', { count: targets.length });
     return rewards;
 }
 
@@ -10482,25 +10501,27 @@ async function bulkSalvageSelected() {
     addLog(_t('🧪 선택한 등급 장비 {count}개 해체, {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedSkipped > 0 ? ` ${_t('(잠금, 세팅, 우선 보관 {n}개는 남김)', { n: lockedSkipped })}` : '' }), 'loot-normal');
     updateStaticUI();
 }
-/** 전체 해체. The panel's button asks first; the rail's 해체 button double-clicked passes ask false and salvages at once
- * (2026-10-21, js/equipment-window-ui.js salvageAllOnDoubleClick). Locked, set and priority-kept gear stays either way. */
-async function bulkSalvageAllInventory(options = {}) {
+/** 전체 해체, from the panel's button or the rail's 해체 button double-clicked (js/equipment-window-ui.js RAIL_DOUBLE_CLICK). Both ask
+ * first with a summary of what goes (2026-11-06; the double-click used to salvage at once). Locked, set and priority-kept gear stays. */
+async function bulkSalvageAllInventory() {
     if (!Array.isArray(game.inventory) || game.inventory.length <= 0) return addLog(_t('해체할 장비가 없습니다.'), 'attack-monster');
     let lockedCount = game.inventory.filter(item => isBulkSalvageProtectedItem(item)).length;
     let targetItems = game.inventory.filter(item => !isBulkSalvageProtectedItem(item));
     if (targetItems.length <= 0) return addLog(_t('🔒 잠금, 세팅, 우선 보관 장비뿐이라 전체 해체할 장비가 없습니다.'), 'attack-monster');
-    if (options.ask !== false && !await confirmBulkSalvageAll(targetItems, lockedCount)) return;
+    if (!await confirmBulkSalvageAll(targetItems, lockedCount)) return;
     const targets = confirmedSalvageTargets(targetItems), rewards = salvageBagItems(targets);
     if (!isCraftSelectionEquip()) clearCraftSelection();
     addLog(_t('🧪 인벤토리 전체해체 완료 ({count}개), {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedCount > 0 ? `, ${_t('잠금, 세팅, 우선 보관 {n}개는 남김', { n: lockedCount })}` : '' }), 'loot-normal');
     updateStaticUI();
 }
 function confirmBulkSalvageAll(targetItems, lockedCount) {
-    const count = targetItems.length, note = bagItems.countNote(targetItems);
-    return requestGameConfirmation(`인벤토리 장비 ${count}개를 모두 해체합니다.${note ? `\n${note} 포함` : ''}${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
+    const count = targetItems.length;
+    // 주얼, 코어, 액막이도 요약의 종류 칸에 나온다(예전에는 "주얼 N개 포함" 줄).
+    return requestGameConfirmation(`인벤토리 장비 ${count}개를 모두 해체합니다.${lockedCount > 0 ? `\n잠금, 세팅, 우선 보관 장비 ${lockedCount}개는 빼고 해체합니다.` : ''}`, {
         title: _t('인벤토리 전체 해체'),
         tone: 'danger',
-        confirmLabel: _t('{count}개 해체', { count })
+        confirmLabel: _t('{count}개 해체', { count }),
+        summaryHtml: equipmentWindowUi.salvageSummaryHtml(targetItems)
     });
 }
 
@@ -10931,34 +10952,7 @@ function isMarketUnlocked() {
     return contentProgression.isUnlocked('market');
 }
 
-/** Read-only quote. Quantity is an integer count or 'max'; currencies are normalized at load. */
-function getMarketExchangeQuote(recipe, quantity, owner = game) {
-    const have = owner.currencies[recipe.from] || 0;
-    const max = Math.floor(have / recipe.need);
-    const times = quantity === 'max' ? max : Number(quantity);
-    const valid = Number.isSafeInteger(times) && times >= 1 && times <= max;
-    const spend = valid ? times * recipe.need : 0, gain = valid ? times * recipe.gain : 0;
-    return { have, max, times, valid, spend, gain, afterFrom: have - spend, afterTo: (owner.currencies[recipe.to] || 0) + gain };
-}
-
-/** One market trade, quantity times (an integer count or 'max'), out of owner's purse: { ok, reason, spend, gain }. Exact amounts
- * (no gain bonus), and nothing changes unless the received balance stays a safe integer (the stall's proceeds use the same bound).
- * Synchronous: asking, logging and drawing are js/market-ui.js's, which calls this on the game it asked about. */
-function exchangeAtMarket(exchangeId, quantity, owner = game) {
-    if (!contentProgression.isUnlocked('market', owner)) return { ok: false, reason: _t('장비 제련을 해금하면 거래소를 이용할 수 있습니다.') };
-    const recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
-    if (!recipe) return { ok: false, reason: _t('없는 교환입니다.') };
-    const quote = getMarketExchangeQuote(recipe, quantity, owner);
-    if (!quote.valid) return { ok: false, reason: _t('보유한 재화로 교환할 수 없는 수량입니다.') };
-    if (!Number.isSafeInteger(quote.afterTo)) return { ok: false, reason: _t('{name} 보유 한도를 넘어 교환할 수 없습니다.', { name: _t(ORB_DB[recipe.to].name) }) };
-    owner.currencies[recipe.from] = quote.afterFrom;
-    owner.currencies[recipe.to] = quote.afterTo;
-    owner.currencyDropVersion = (owner.currencyDropVersion || 0) + 1;
-    return { ok: true, spend: quote.spend, gain: quote.gain };
-}
-
 safeExposeGlobals({
-    getMarketExchangeQuote,
     getRealmEquipmentHiddenTierCap,
     getRealmItemDropTierRange,
     getDroppedAffixTierRange,

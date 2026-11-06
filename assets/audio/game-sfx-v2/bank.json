@@ -484,8 +484,8 @@
     "group": "craftSuccess",
     "cooldown": 150,
     "priority": 1,
-    "files": [],
-    "enabled": false
+    "files": ["selected-20261106/craftSuccess-low.wav"],
+    "enabled": true
   },
   "craftFailure": {
     "label": "제작 실패·무효",
@@ -526,8 +526,8 @@
     "group": "itemDismantle",
     "cooldown": 150,
     "priority": 1,
-    "files": [],
-    "enabled": false
+    "files": ["selected-20261106/itemDismantle.wav"],
+    "enabled": true
   },
   "riftOpen": {
     "label": "대균열 개방",
@@ -586,8 +586,8 @@
     "group": "fishBite",
     "cooldown": 150,
     "priority": 1,
-    "files": [],
-    "enabled": false
+    "files": ["selected-20261106/fishBite.wav"],
+    "enabled": true
   },
   "fishCatch": {
     "label": "낚시 성공",
@@ -597,7 +597,7 @@
     "cooldown": 500,
     "priority": 1,
     "files": [
-      "selected-20261023/fishCatch-C-e392d5ae.wav"
+      "selected-20261106/fishBite.wav"
     ],
     "enabled": true
   },
@@ -620,8 +620,8 @@
     "group": "uiConfirm",
     "cooldown": 150,
     "priority": 1,
-    "files": [],
-    "enabled": false
+    "files": ["selected-20261106/uiConfirm.wav"],
+    "enabled": true
   },
   "uiCancel": {
     "label": "취소·닫기",
@@ -630,8 +630,8 @@
     "group": "uiCancel",
     "cooldown": 150,
     "priority": 1,
-    "files": [],
-    "enabled": false
+    "files": ["selected-20261106/uiCancel-low.wav"],
+    "enabled": true
   },
   "uiDanger": {
     "label": "실행 불가·경고",

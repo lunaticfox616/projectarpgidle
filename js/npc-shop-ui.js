@@ -155,6 +155,7 @@ const npcShopUi = (() => {
         const id = root.dataset.npcShop, busy = shopView.busyReason(), seen = shown.stock.offers[index];
         const result = busy ? { ok: false, reason: busy } : npcShop.buy(id, index, { place, resonanceCap: getEffectiveResonanceCap(), seen });
         if (!result.ok) { chosen = { id, index }; redrawShop(root, result.reason); return; }
+        playUiFeedbackSound('uiConfirm');
         const who = contentUnlockUi.personal(STORY_NPCS[id].name);
         addLog(_t('{who}에게서 [{offer}] 구매, {currencyName} {price}', { who, offer: escapeHTML(wareName(result.offer)), currencyName: npcShop.currencyName(result.offer.priceKey), price: result.offer.price }), 'loot-magic');
         chosen = result.offer.gem?.kind === 'attack' ? { id, index } : null;

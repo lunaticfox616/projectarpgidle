@@ -9,6 +9,9 @@
   .loop-mutation-chip[hidden] { display: none; }
   .loop-mutation-chip i { font-style: normal; color: var(--copy-muted); }
   .loop-mutation-chip b { color: var(--mutation-ele); font-weight: 700; }
+  /* 루프 직업 선택 창(js/passives.js openLoopHeroSelection)의 안내 아래 줄: 칩과 같은 속성 빛깔 */
+  .loop-hero-mutation { display: block; }
+  .loop-hero-mutation b { color: var(--mutation-ele); font-weight: 700; }
 
   .starter-rune-panel { width: min(560px, calc(100vw - 24px)); }
   .starter-rune-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0; }

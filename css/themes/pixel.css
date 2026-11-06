@@ -781,8 +781,9 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
     display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; column-gap: var(--space-1);
     grid-auto-columns: round(down, calc((100% - (var(--subtab-count) - 1) * var(--space-1)) / var(--subtab-count)), 1px); }
 }
-/* 거래소 탭 셋도 같은 방식(첫 칸이 남는 폭, 나머지 정수 px). */
-:root body[data-ui-skin] .market-tabs { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; grid-auto-columns: round(down, calc((100% - 8px) / 3), 1px); }
+/* 거래 탭도 같은 방식(첫 칸이 남는 폭, 나머지 정수 px). 보이는 칸 수(--market-tabs)는 js/market-ui.js가 열린 칸만큼 적는다. */
+:root body[data-ui-skin] .market-tabs { display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-flow: column; column-gap: 4px;
+  grid-auto-columns: round(down, calc((100% - (var(--market-tabs, 4) - 1) * 4px) / var(--market-tabs, 4)), 1px); }
 /* 가운데 맞춘 한 줄 글을 감싼 span: 감싼 칸의 가운데 맞춤은 그대로 두고, 칸 폭(left 50%)과 제 폭(translate 50%)이 홀수일 때 생기는
    반 화소를 되돌린다. 칸이 가운데로 맞출 때만 맞는 계산이라 그런 칸(단추, 아이템 툴팁의 제목과 구획 등)에서만 켠다. 왼쪽 맞춤인
    장비 판의 같은 툴팁 글은 그대로 둔다. 두 줄로 접히면 줄마다의 가운데 맞춤은 여전히 반 화소에 놓일 수 있다(2026-10-21).
@@ -828,7 +829,7 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
   font-family: var(--font-pixel-read); font-size: var(--font-size-reading); }
 /* 작은 이름표 · 값 · 안내 글 */
 :root body[data-ui-skin] .tab-content:not(#tab-battle) :is(.gem-resource-strip :is(span, strong),
-    .market-exchange-quote :is(span, strong), .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked,
+    .offline-progress-upgrade strong, .gem-target-rail-heading > span, .merged-subtab-pane > div:not([class]), #ui-class-locked,
     .cl-affix .tier-badge) { font-family: var(--font-pixel); font-size: 12px; }
 /* 지도 콘텐츠 화면(원정 소개, 군락지 액막이, 아틀라스 목적지, 시련, 보스 목록, 심해, 낚시)과 보상 창: 긴 글과 수치는 갈무리14 15px.
    아래 층의 15 ~ 18px이 맨 위의 글꼴 되돌림에 지워져 갈무리11 15 ~ 18px로 번졌다(2026-10-21). 그 안의 짧은 이름표와 제목은 갈무리11. */

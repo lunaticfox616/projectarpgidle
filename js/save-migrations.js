@@ -284,12 +284,19 @@ function retireOfflineGrowth(state) {
     delete state.currencies.timeRemnant;
 }
 
+/** 해금 칸의 ! (2026-11-06, js/unlock-tab-ui.js unseenIds): 이 기록이 없던 저장은 이미 가진 해금을 본 것으로 시작한다. */
+function restoreSeenUnlocks(merged, save) {
+    const saved = Array.isArray(save.seenUnlocks) ? save.seenUnlocks.filter(id => typeof id === 'string') : null;
+    merged.seenUnlocks = saved ? [...new Set(saved)] : CONTENT_UNLOCK_CATALOG.filter(def => contentProgression.isUnlocked(def.id, merged)).map(def => def.id);
+}
+
 /** Save boundary: retain prior access except locked trial bypasses. */
 function normalizeContentProgressionSave(merged, save) {
     merged.contentProgression = contentProgression.restore(save.contentProgression, merged, Object.keys(save).length > 0);
     retireOfflineGrowth(merged);
     inheritRetiredExpertAccess(merged.contentProgression, save);
     contentProgression.sync(merged);
+    restoreSeenUnlocks(merged, save);
     if (TRIAL_ZONES.some(zone => zone.id === merged.currentZoneId) && !contentProgression.isUnlocked('battleTrials', merged)) {
         merged.currentZoneId = 0;
         merged.enemies = []; merged.encounterPlan = []; merged.killsInZone = 0;

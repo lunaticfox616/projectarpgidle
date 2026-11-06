@@ -27,6 +27,7 @@ body[data-ui-skin] #btn-tab-unlocks { --px-icon: 3; }
 body[data-ui-skin] #btn-tab-season { --px-icon: 4; }
 body[data-ui-skin] #btn-tab-stump { --px-icon: 5; }
 body[data-ui-skin] #btn-tab-items { --px-icon: 6; }
+body[data-ui-skin] #btn-tab-trade { --px-icon: 6; }
 body[data-ui-skin] #btn-tab-map { --px-icon: 8; }
 body[data-ui-skin] #btn-tab-skills { --px-icon: 9; }
 body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records) { --px-icon: 10; }
@@ -34,7 +35,6 @@ body[data-ui-skin] #btn-ui-rail-misc { --px-icon: 11; }
 body[data-ui-skin] #btn-close-all-windows { --px-icon: 12; }
 body[data-ui-skin] #btn-mobile-nav-more { --px-icon: 13; }
 body[data-ui-skin] #btn-tab-talent { --px-icon: 17; }
-body[data-ui-skin] #btn-tab-npcs { --px-icon: 16; }
 body[data-ui-skin] #btn-tab-social { --px-icon: 18; }
 body[data-ui-skin] #btn-tab-settings { --px-icon: 19; }
 body[data-ui-skin] #btn-map-complete-action-picker { --px-icon: 20; }
@@ -53,9 +53,12 @@ body[data-ui-skin] #btn-tab-stump { --px-button-art: url('../../assets/ui/pixel/
   --px-button-art-hover: url('../../assets/ui/pixel/buttons/stump-hover.png'); }
 body[data-ui-skin] #btn-tab-items { --px-button-art: url('../../assets/ui/pixel/buttons/bag.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/bag-down.png');
   --px-button-art-hover: url('../../assets/ui/pixel/buttons/bag-hover.png'); }
+/* 거래(2026-11-06 사용자의 Trade icon.zip, scripts/build-hud-buttons.cjs) */
+body[data-ui-skin] #btn-tab-trade { --px-button-art: url('../../assets/ui/pixel/buttons/trade.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/trade-down.png');
+  --px-button-art-hover: url('../../assets/ui/pixel/buttons/trade-hover.png'); }
 body[data-ui-skin] #btn-tab-map { --px-button-art: url('../../assets/ui/pixel/buttons/map.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/map-down.png');
   --px-button-art-hover: url('../../assets/ui/pixel/buttons/map-hover.png'); }
-body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records, #btn-tab-npcs) { --px-button-art: url('../../assets/ui/pixel/buttons/journal.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/journal-down.png');
+body[data-ui-skin] :is(#btn-tab-journal, #btn-tab-codex, #btn-tab-records) { --px-button-art: url('../../assets/ui/pixel/buttons/journal.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/journal-down.png');
   --px-button-art-hover: url('../../assets/ui/pixel/buttons/journal-hover.png'); }
 body[data-ui-skin] #btn-tab-settings { --px-button-art: url('../../assets/ui/pixel/buttons/settings.png'); --px-button-art-down: url('../../assets/ui/pixel/buttons/settings-down.png');
   --px-button-art-hover: url('../../assets/ui/pixel/buttons/settings-hover.png'); }

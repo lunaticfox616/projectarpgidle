@@ -17,22 +17,32 @@
 /* 상점 본문은 함께 쓰는 상점 화면(css/shop-view.css). 창 안에서는 머리 아래 줄 전체를 차지하고 스스로 밀린다
    (고른 물건의 시트가 이 안에서 아래에 붙는다). 배치는 상점 화면의 것을 그대로 쓴다. */
 .npc-dialog .shop-view { --shop-tone: var(--npc-tone); grid-column: 1 / -1; grid-row: 2; min-height: 0; padding: 4px 20px 18px; overflow: auto; overscroll-behavior: contain; border-top: 1px solid var(--skin-line); }
+/* 암거래상(js/market-ui.js openBlack): NPC 창 모양에 거래소의 암거래상 판(#market-panel-black)이 옮겨 와 머리 아래 줄을 다 쓴다. 얼굴 대신 황금률 그림. */
+.npc-dialog.is-black #market-panel-black { display: flex; flex-direction: column; grid-column: 1 / -1; grid-row: 2; min-height: 0; }
+.npc-dialog.is-black #market-panel-black > .shop-view { flex: 1; }
+.npc-dialog-figure.is-coin .npc-dialog-portrait, .npc-roster-face.is-coin .npc-roster-portrait { top: 50%; height: 64%; transform: translate(-50%, -50%); }
 
 /* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(새 이야기, 상점). */
-.npc-roster-lead, .npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
-.npc-roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
-.npc-roster-card { --npc-tone: #e0c27e; display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; width: 100%; min-height: 96px; padding: 10px; text-align: left; font: inherit; color: inherit; border: 1px solid var(--skin-line); background: linear-gradient(180deg, rgba(169, 145, 84, .06), transparent 60%), #110e0b; cursor: pointer; }
-.npc-roster-card[data-tone="violet"] { --npc-tone: #c9a4f2; }
-.npc-roster-card[data-tone="cyan"] { --npc-tone: #8fe3d6; }
-.npc-roster-card[data-tone="crimson"] { --npc-tone: #ef9a92; }
-.npc-roster-card:hover { border-color: var(--npc-tone); }
-.npc-roster-face { position: relative; width: 72px; height: 76px; overflow: hidden; border: 1px solid rgba(169, 145, 84, .45); background: linear-gradient(180deg, #1c1712, #0c0a08 88%); }
+.npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
+/* 2026-11-06 사용자 "공간 활용": 카드 한 장이 한 줄 높이다. 왼쪽(누르면 대화)은 얼굴, 이름, 새 이야기와 판매 항목, 오른쪽은 상점과 재화 교환 단추. */
+.npc-roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.npc-roster-item { --npc-tone: #e0c27e; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-width: 0; border: 1px solid var(--skin-line);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--npc-tone) 9%, #15110c), #0e0c09 70%); }
+.npc-roster-item[data-tone="violet"] { --npc-tone: #c9a4f2; }
+.npc-roster-item[data-tone="cyan"] { --npc-tone: #8fe3d6; }
+.npc-roster-item[data-tone="crimson"] { --npc-tone: #ef9a92; }
+.npc-roster-item:hover { border-color: var(--npc-tone); }
+.npc-roster-card { display: grid; grid-template-columns: 48px minmax(0, 1fr); align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 0; margin: 0; padding: 6px 8px;
+  border: 0; background: none; box-shadow: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.npc-roster-face { position: relative; width: 48px; height: 52px; overflow: hidden; border: 1px solid rgba(169, 145, 84, .45); background: linear-gradient(180deg, #1c1712, #0c0a08 88%); }
 .npc-roster-portrait { position: absolute; top: 3%; left: 50%; width: auto; max-width: none; height: 300%; transform: translateX(-50%); }
-.npc-roster-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.npc-roster-text strong { color: var(--npc-tone); font-size: 15px; }
-.npc-roster-text small, .npc-roster-where { color: var(--color-text-secondary); font-size: 12px; }
-.npc-roster-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.npc-roster-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.npc-roster-text strong { overflow: hidden; color: var(--npc-tone); text-overflow: ellipsis; white-space: nowrap; }
+.npc-roster-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .npc-roster-tags em { padding: 1px 6px; border: 1px solid var(--skin-line); font-style: normal; font-size: 12px; color: var(--color-text); }
+.npc-roster-tags em.is-talk { border-color: var(--npc-tone); color: var(--npc-tone); }
+.npc-roster-actions { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px 6px 0; }
+.npc-roster-actions > button { min-width: 84px; min-height: 28px; padding: 2px 10px; white-space: nowrap; }
 
 /* 휴대폰: 상점은 진열대, 가방, 물건 정보가 위에서 아래로 이어지고 칸은 화면 폭에 맞춘다. 대화의 휴대폰 배치는 세로 화면만이라
    (css/content-progression.css) 가로 휴대폰의 상점은 한 칸 격자와 세로로 쌓는 본문을 여기서 받는다. */
@@ -43,6 +53,7 @@
   .npc-dialog.is-shop[open] { grid-template-columns: 1fr; }
   .npc-dialog.is-shop .npc-dialog-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
   .npc-dialog .shop-view { flex: 1; padding: 0 12px 14px; }
+  .npc-dialog.is-black #market-panel-black { flex: 1; }
 }
 /* 낮은 가로 화면(721px 이상): 좌우를 좁혀 창 안의 상점 자리를 넓힌다(본문은 창 안에서 밀린다). */
 @media (min-width: 721px) and (max-width: 1080px) and (orientation: landscape) and (max-height: 600px) {

@@ -63,7 +63,7 @@ const equipmentWindowUi = (() => {
     }
     /** ⋯ and the rail's panels close when the pointer goes down anywhere outside them. */
     function closeMenus(event) {
-        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]').forEach(menu => {
+        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]').forEach(menu => {
             if (!menu.contains(event.target)) menu.removeAttribute('open');
         });
     }
@@ -71,7 +71,7 @@ const equipmentWindowUi = (() => {
     // ---------------------------------------------------------------- 도구 줄(2026-10-19: 정리, 분석, 필터, 해체, 복구, 손가락 기기의 배치)
     /** Each tool's pixel icon (index.html data-icon) goes in once, before its name. */
     function fillRailIcons() {
-        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) .eqw-rail-tool[data-icon]').forEach(tool => {
+        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool[data-icon]').forEach(tool => {
             if (!tool.querySelector('svg')) tool.insertAdjacentHTML('afterbegin', renderPixelIcon(tool.dataset.icon, 'eqw-rail-icon'));
         });
     }
@@ -95,7 +95,7 @@ const equipmentWindowUi = (() => {
     /** 검색 항목 해체 and 미검색 항목 해체 wait for a search word: with none, the first took the whole bag and the second nothing. */
     function markSearchSalvage() {
         const empty = !getSearchFilterState().equip.trim();
-        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) [data-search-salvage]').forEach(button => {
+        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) [data-search-salvage]').forEach(button => {
             button.disabled = empty;
             button.dataset.tip = empty ? _t('가방 검색어를 먼저 입력하세요.') : '';
         });
@@ -103,30 +103,31 @@ const equipmentWindowUi = (() => {
     /** Opening one panel closes the others (the toggle event does not bubble, so the document listens in the capture phase). */
     function keepOnePanel(event) {
         const menu = event.target;
-        if (!menu.matches || !menu.matches(':is(#item-tab-equip, #stump-equip-host) .eqw-rail-menu') || !menu.open) return;
-        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host) .eqw-rail-menu[open]').forEach(other => { if (other !== menu) other.removeAttribute('open'); });
+        if (!menu.matches || !menu.matches(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu') || !menu.open) return;
+        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu[open]').forEach(other => { if (other !== menu) other.removeAttribute('open'); });
     }
     /** Esc, and the Android back key (it sends one, js/android-app-ui.js), closes an open panel before the window. */
     function closePanelOnEscape(event) {
         if (event.key !== 'Escape') return;
-        const menu = document.querySelector(':is(#item-tab-equip, #stump-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]');
+        const menu = document.querySelector(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]');
         if (!menu || !menu.getClientRects().length) return;
         menu.removeAttribute('open');
         menu.querySelector('summary').focus();
         event.preventDefault();
         event.stopPropagation();
     }
-    /** A rail tool double-clicked does its main job at once, with no question and no panel (2026-10-21, the user's ask; 정리 2026-10-26,
-     * in the order picked last in its panel): 해체 salvages
-     * the whole bag (locked, set and priority-kept gear stays, as with the panel's 전체 해체), 분석 runs the analysis again (the bag
-     * marks show the results). Keyed by the panel's id; the two clicks before the double-click opened and closed it. */
+    /** A rail tool double-clicked does its main job without opening its panel (2026-10-21, the user's ask; 정리 2026-10-26, in the order
+     * picked last in its panel): 해체 salvages the whole bag (locked, set and priority-kept gear stays, as with the panel's 전체 해체)
+     * after the same question with its summary of what goes (2026-11-06 사용자: 바로 해체하지 말고 어떤 아이템이 해체되는지 보여 주고
+     * 확인을 받는다), 분석 runs the analysis again (the bag marks show the results). Keyed by the panel's id; the two clicks before the
+     * double-click opened and closed it. */
     const RAIL_DOUBLE_CLICK = Object.freeze({
         'eqw-arrange-menu': () => equipmentInventoryInteraction.autoArrange(),
-        'eqw-salvage-menu': () => bulkSalvageAllInventory({ ask: false }),
+        'eqw-salvage-menu': () => bulkSalvageAllInventory(),
         'eqw-judge-menu': () => equipmentTriage.start()
     });
     function runRailToolOnDoubleClick(event) {
-        const summary = event.target.closest && event.target.closest(':is(#item-tab-equip, #stump-equip-host) .eqw-rail-menu > summary');
+        const summary = event.target.closest && event.target.closest(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu > summary');
         const action = summary && RAIL_DOUBLE_CLICK[summary.parentElement.id];
         if (!action) return;
         event.preventDefault();
@@ -144,6 +145,34 @@ const equipmentWindowUi = (() => {
         settingsUi.select('items');
     }
 
+    // ---------------------------------------------------------------- 해체 요약
+    /** What a whole-bag salvage takes, under its question (js/passives.js confirmBulkSalvageAll): the share of each grade as a bar, the
+     * count of each grade, and the count of each kind (worn slot, or 주얼, 코어, 액막이) in the bag's slot order. */
+    const SALVAGE_KIND_ORDER = Object.freeze(['무기', '방패', '투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', bagItems.JEWEL, bagItems.CORE, '액막이']);
+    function salvageKind(item) {
+        if (bagItems.isJewel(item)) return bagItems.JEWEL;
+        if (bagItems.isCore(item)) return bagItems.CORE;
+        if (colonyWards.isWard(item)) return '액막이';
+        return String(item.slot || '').replace(/[123]$/, '') || '기타';
+    }
+    function countBy(items, keyOf) {
+        const counts = new Map();
+        items.forEach(item => { const key = keyOf(item); counts.set(key, (counts.get(key) || 0) + 1); });
+        return counts;
+    }
+    function salvageSummaryHtml(items) {
+        const grades = countBy(items, item => item.rarity), kinds = countBy(items, salvageKind);
+        const shown = ['normal', 'magic', 'rare', 'unique'].filter(grade => grades.get(grade));
+        const rank = kind => { const at = SALVAGE_KIND_ORDER.indexOf(kind); return at < 0 ? SALVAGE_KIND_ORDER.length : at; };
+        const chip = (label, count, grade = '') => `<span class="salvage-sum-chip"${grade ? ` data-grade="${grade}"` : ''}><b>${escapeHTML(_t(label))}</b>${count}</span>`;
+        const bar = shown.map(grade => `<i data-grade="${grade}" style="flex:${grades.get(grade)}"></i>`).join('');
+        const gradeChips = shown.map(grade => chip(ITEM_RARITY_LABELS[grade], grades.get(grade), grade)).join('');
+        const kindChips = [...kinds].sort((a, b) => rank(a[0]) - rank(b[0])).map(([kind, count]) => chip(kind, count)).join('');
+        return `<div class="salvage-sum">${bar ? `<div class="salvage-sum-bar" aria-hidden="true">${bar}</div>` : ''}
+            ${gradeChips ? `<div class="salvage-sum-row"><h5>${_t('등급')}</h5>${gradeChips}</div>` : ''}
+            <div class="salvage-sum-row"><h5>${_t('종류')}</h5>${kindChips}</div></div>`;
+    }
+
     // ---------------------------------------------------------------- 새 아이템
     const seenId = () => {
         if (!Number.isFinite(Number(game.bagSeenId)) || game.bagSeenId === null) game.bagSeenId = itemIdCounter;
@@ -155,7 +184,7 @@ const equipmentWindowUi = (() => {
     let watched = null, bagShown = false;
     /** The bag counts as opened while its grid is on screen; when it leaves the screen everything that came in so far is seen. */
     function watchBag() {
-        const target = document.querySelector(':is(#item-tab-equip, #stump-equip-host) .equipment-inventory-grid-shell');
+        const target = document.querySelector(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-grid-shell');
         if (!target || watched === target || typeof IntersectionObserver !== 'function') return;
         watched = target;
         new IntersectionObserver(entries => {
@@ -356,6 +385,6 @@ const equipmentWindowUi = (() => {
         document.addEventListener('dblclick', runRailToolOnDoubleClick, true);
     }
     return Object.freeze({ render, renderBag, toggleLoadout, newDotHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
-        openSalvage, openItemFilter, toggleTools });
+        openSalvage, openItemFilter, toggleTools, salvageSummaryHtml });
 })();
 safeExposeGlobals({ equipmentWindowUi });

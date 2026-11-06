@@ -368,7 +368,7 @@ const playerStall = (() => {
             if (amount) parts.push(`판매 대금 ${labels[currency] || _t(ORB_DB[currency].name)} ${amount}개`);
         }
         if (!parts.length) return '';
-        return `가판대에 ${parts.join('와 ')}가 남아 있습니다. 장비 → 거래소 → 나의 가판대에서 회수한 뒤 루프를 진행하세요.`;
+        return `가판대에 ${parts.join('와 ')}가 남아 있습니다. 거래 → 가판대에서 회수한 뒤 루프를 진행하세요.`;
     }
     function collect(owner) {
         if (owner.isBackgroundCalculation) return 0;

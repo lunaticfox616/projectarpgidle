@@ -135,7 +135,7 @@ run('game.playerStall.listings=[];game.playerStall.proceeds=5');
 assert.strictEqual(run('triggerSeasonReset({})'), false);
 // triggerSeasonReset and the loop screens share one reason, naming what is still on the stall.
 assert.strictEqual(run('playerStall.loopBlockReason(game)'),
-    '가판대에 판매 대금 이슬 5개가 남아 있습니다. 장비 → 거래소 → 나의 가판대에서 회수한 뒤 루프를 진행하세요.');
+    '가판대에 판매 대금 이슬 5개가 남아 있습니다. 거래 → 가판대에서 회수한 뒤 루프를 진행하세요.');
 fresh(); list();
 assert.match(run('playerStall.loopBlockReason(game)'), /^가판대에 진열품 1개가 남아 있습니다/);
 run('game.playerStall.proceeds=2');
@@ -152,7 +152,7 @@ fresh(); list();
 run('var stallToasts=[]; showGameToast=text=>stallToasts.push(text); game.noti.items=false');
 assert.strictEqual(run(`playerStallUi.settleSales(${start + 4*hour})`), 1);
 assert.strictEqual(run('game.noti.items'), true, 'the 장비 menu shows a dot until opened');
-assert.match(run('stallToasts.join("|")'), /^가판대 판매: \[[^\]]+\], 형체 없는 이슬 1개\. 장비 → 거래소 → 나의 가판대에서 수령하세요\.$/);
+assert.match(run('stallToasts.join("|")'), /^가판대 판매: \[[^\]]+\], 형체 없는 이슬 1개\. 거래 → 가판대에서 수령하세요\.$/);
 assert.strictEqual(run(`playerStallUi.settleSales(${start + 4*hour + 60000})`), 0);
 assert.strictEqual(run('stallToasts.length'), 1, 'no sale, no news');
 
