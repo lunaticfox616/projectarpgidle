@@ -684,11 +684,12 @@ const stumpBoxUi = (() => {
 
     // ── 장비 인벤토리(왼쪽 보석, 2026-10-29 사용자: 장비 탭을 통째로 열지 않고 오른쪽에 장비 창의 인벤토리) ─────────────
     // 장비 창의 가방(가방 판과 고른 장비 창)을 그대로 #stump-equip-host로 옮겼다가, 장비 창이 그려질 때나 이 화면을 떠날 때 돌려놓는다.
-    // css/*.css의 장비 창 규칙은 #item-tab-equip과 #stump-equip-host를 같이 본다. 그리기는 js/ui.js renderEquipmentBagPanel.
+    // css/*.css의 장비 창 규칙은 #item-tab-equip, #stump-equip-host, #craft-equip-host를 같이 본다. 그리기는 js/ui.js renderEquipmentBagPanel.
+    // 제작실의 인벤토리 고르기 창이 가방을 띄우는 동안은 그 창이 가방 자리다(js/craft-picker-host-ui.js).
     const isStumpTabDrawn = () => typeof getRenderingUiTabIds === 'function' && getRenderingUiTabIds().has('tab-stump');
     function moveEquipmentBag(toStump) {
         const card = document.querySelector('.equipment-inventory-panel'), inspector = document.getElementById('ui-equipment-inventory-inspector');
-        const target = document.querySelector(toStump ? '#stump-equip-host > .equipment-window' : '#item-tab-equip .equipment-window');
+        const target = craftPickerHostUi.bagHome() || document.querySelector(toStump ? '#stump-equip-host > .equipment-window' : '#item-tab-equip .equipment-window');
         if (!card || !inspector || !target || card.parentElement === target) return;
         equipmentInventoryInteraction.focus(null);
         target.append(card, inspector);

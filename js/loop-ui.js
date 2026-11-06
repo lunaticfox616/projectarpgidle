@@ -152,8 +152,8 @@ const loopSettlementUi = {
         this.render();
         switchTab('tab-items');
         // When the stall or the hall is what blocks the loop, open it directly.
-        if (playerStall.loopBlockReason(game)) { switchItemSubtab('item-tab-market'); marketUi.show('stall'); }
-        else if (getHeldGearLoopBlockReason()) switchItemSubtab('item-tab-hall'); // 장비 전당에 전시한 원본
+        if (playerStall.loopBlockReason(game)) marketUi.open('stall');
+        else if (getHeldGearLoopBlockReason()) marketUi.open('hall'); // 장비 전당에 전시한 원본
     },
     reopen() {
         this.dismissedReadyLoop = 0;

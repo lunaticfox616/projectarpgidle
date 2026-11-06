@@ -1,4 +1,4 @@
-/** 거래소 → 나의 가판대 as a shop (2026-10-18 사용자: "가판대, 암거래상 등도 상점 인터페이스로"): the four stands of the stall beside the
+/** 거래 → 가판대 as a shop (2026-10-18 사용자: "가판대, 암거래상 등도 상점 인터페이스로"): the four stands of the stall beside the
  * hero's bag, and the chosen gear's sheet (its sale terms, then its card). A mouse over a listing or a bag gear shows its floating card
  * (a listing with the price the seller set; unlisted gear has no price and no appraisal): looking never selects, so a typed price stays. Gear the stall takes can be dragged from the
  * bag onto an empty stand, where it is listed at once at its suggested price (or chosen, then an empty stand pressed, and priced);
@@ -210,12 +210,12 @@ const playerStallUi = {
         game.noti.items = true;
         const complete = gains.every(gain => sold.filter(event => event.currency === gain.key).reduce((sum, event) => sum + event.price, 0) === gain.amount);
         const goods = !complete ? '물건' : sold.length === 1 ? `[${escapeHTML(_t(sold[0].name))}]` : _t('물건 {length}개', { length: sold.length });
-        addLog(_t('가판대 판매: {goods}, {gains}개. 장비 → 거래소 → 나의 가판대에서 수령하세요.', { goods, gains: formatCurrencyCosts(gains) }), 'loot-rare', { toast: true });
+        addLog(_t('가판대 판매: {goods}, {gains}개. 거래 → 가판대에서 수령하세요.', { goods, gains: formatCurrencyCosts(gains) }), 'loot-rare', { toast: true });
     },
     announceOffers(rows) {
         game.noti.items = true;
         const detail = rows.length === 1 ? `[${escapeHTML(_t(rows[0].item.name))}]에 ${formatCurrencyCosts([{ key: rows[0].currency, amount: rows[0].offer.amount }])}개` : _t('물건 {length}개', { length: rows.length });
-        addLog(_t('가판대 가격 제안: {detail}. 나의 가판대에서 수락하거나 거절할 수 있습니다.', { detail }), 'loot-rare', { toast: true });
+        addLog(_t('가판대 가격 제안: {detail}. 가판대에서 수락하거나 거절할 수 있습니다.', { detail }), 'loot-rare', { toast: true });
     },
     /** The typed price (text) as an integer the stall takes, or null. Only its format: never what the gear is worth. */
     askValue(text) {
@@ -302,7 +302,7 @@ const playerStallUi = {
     },
     shelfHtml(stall) {
         const offers = stall.listings.filter(row => row.offer).length;
-        return `<header class="shop-bar"><h3>${_t('나의 가판대')}</h3><span class="shop-room">${_t('{length}/{slots}칸', { length: stall.listings.length, slots: PLAYER_STALL_RULES.slots })}</span>
+        return `<header class="shop-bar"><h3>${_t('가판대')}</h3><span class="shop-room">${_t('{length}/{slots}칸', { length: stall.listings.length, slots: PLAYER_STALL_RULES.slots })}</span>
             ${offers ? `<button type="button" class="stall-offer-jump" onclick="playerStallUi.openOffers()">${_t('가격 제안 {offers}건', { offers })}</button>` : ''}</header>
             <div class="stall-payout"><span>${_t('판매 대금')}<strong>${formatCurrencyCosts(playerStall.payouts(stall)) || _t('없음')}</strong></span>
                 <button type="button" onclick="playerStallUi.collect()" ${playerStall.payouts(stall).length ? '' : 'disabled'}>${_t('대금 수령')}</button></div>
@@ -445,7 +445,7 @@ const playerStallUi = {
         if (!host || shopView.dragging() || (this.editing(host) && !force)) return;
         this.syncSelection();
         const stall = game.playerStall;
-        const html = `<div class="shop-view is-stall" data-shop-kind="stall"><div class="shop-body"><section class="shop-shelf" aria-label="${_t('나의 가판대')}">${this.shelfHtml(stall)}</section>
+        const html = `<div class="shop-view is-stall" data-shop-kind="stall"><div class="shop-body"><section class="shop-shelf" aria-label="${_t('가판대')}">${this.shelfHtml(stall)}</section>
                 <div class="shop-info" aria-live="polite">${this.infoHtml()}</div>
             <section class="shop-bag" aria-label="${_t('가방')}">${shopView.bagHtml(item => this.bagPick(item))}</section></div></div>
             <div class="stall-records">${this.salesLedger()}<details class="stall-visits" data-ui-disclosure="stall-visits"><summary>${_t('최근 방문')}</summary><ol class="stall-history">${stall.history.slice(0, 8).map(event => this.history(event)).join('') || _t('<li>아직 방문객이 없습니다.</li>')}</ol></details>${this.terms()}</div>`;

@@ -2717,7 +2717,9 @@ const defaultGame = {
     jewelInventoryExpandLevel: 0,
     chaosInfuserUnlocked: false,
     abyssClearedDepths: [],
-    craftingWorkspace: { discovered: [], pins: ['formlessDew','sapBud','goldenRule','blightSpore'], goal: { statId: '', minTier: 0 } },
+    craftingWorkspace: { discovered: [], goal: { statId: '', minTier: 0 } },
+    // 한 번이라도 가진 재화(js/currency-exchange.js): 오르가에게서 살 수 있는 재화. 루프가 지나도 남는다.
+    currencySeen: [],
     currencies: { magicBud: 0, sapBud: 0, formlessDew: 0, goldenRule: 0, emberBranch: 0, burningEmberBranch: 0, catalystPhys: 0, catalystFire: 0, catalystCold: 0, catalystLight: 0, catalystChaos: 0, catalystCrit: 0, catalystSummon: 0, oilFire: 0, oilCold: 0, oilLight: 0, oilChaos: 0, ouroboros: 0, blightSpore: 0, pruningShears: 0, fairyRing: 0, blessing: 0, bossKeyFlame: 0, bossKeyFrost: 0, bossKeyStorm: 0, beastKeyCerberus: 0, bossCore: 0, fossil: 0, fossilPrimal: 0, fossilAncientPrimal: 0, fossilPrimordial: 0, fossilJagged: 0, fossilBound: 0, fossilGale: 0, fossilPrismatic: 0, fossilAbyssal: 0, fossilBulwark: 0, fossilWedge: 0, fossilOld: 0, fossilRift: 0, deepWhetstone: 0, rootIron: 0, jewelPolish: 0, abyssCatalyst: 0, uberRootTicketFlame: 0, uberRootTicketFrost: 0, uberRootTicketStorm: 0, uberRootTicketChaos: 0, runeShard: 0, skyEssence: 0, jewelCore: 0, jewelShard: 0, sealShard: 0, strongSealShard: 0, radiantSealShard: 0, hiveKey: 0, colonyTrace: 0, colonyShard: 0, enchantedHoney: 0, venomStinger: 0, pollen: 0, beeswax: 0, starDust: 0, awakenedEcho: 0, voidChisel: 0, underCopper: 0, underSilver: 0, underGold: 0 },
     ascendClass: null,
     lastLoopAscendPlan: null,

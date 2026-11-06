@@ -1,10 +1,9 @@
 // Persistent discovery and UI preferences. Craft rolls and payment remain in their domains.
 const craftingWorkspaceState = (() => {
-    const defaults = ['formlessDew', 'sapBud', 'goldenRule', 'blightSpore'];
     const basic = ['magicBud', 'sapBud', 'formlessDew', 'goldenRule', 'blessing', 'blightSpore', 'pruningShears', 'fairyRing'];
     const special = ['emberBranch', 'burningEmberBranch', 'ouroboros', 'deepWhetstone', 'rootIron', 'jewelPolish', 'abyssCatalyst', 'catalystPhys', 'catalystFire', 'catalystCold', 'catalystLight', 'catalystChaos', 'catalystCrit', 'catalystSummon', 'enchantedHoney', 'venomStinger', 'voidChisel', 'oceanRerollShard', 'altarEmber', 'altarIchor', 'memoryImprint'];
     const materials = ['fossil', 'fossilPrimal', 'fossilAncientPrimal'];
-    // 주 재화 칸에 둘 수 없고 제작 재화로 고르지 않는 재화: 함께 쓰는 재료와 제작 뿌리(제작실의 뿌리 칸에서 건다).
+    // 제작 재화로 고르지 않는 재화: 함께 쓰는 재료와 제작 뿌리(제작실의 뿌리 칸에서 건다).
     const separate = Object.freeze([...materials, ...CRAFT_OMENS.keys, 'memoryImprint']);
 
     function group(key) {
@@ -14,15 +13,13 @@ const craftingWorkspaceState = (() => {
         return special.includes(key) ? 'special' : '';
     }
 
-    /** Migration boundary: only known keys and finite goal values survive; no discovery is inferred from loop. */
+    /** Migration boundary: only known keys and finite goal values survive; no discovery is inferred from loop. The four 주 재화 pins of
+     * older saves are dropped: the stash (js/crafting-stash-ui.js) shows every crafting currency. */
     function normalize(value, currencies = {}) {
         const source = value && typeof value === 'object' ? value : {};
         const seen = Array.isArray(source.discovered) ? source.discovered : [];
         const discovered = [...new Set([...seen, ...Object.keys(currencies).filter(key => currencies[key] > 0)].filter(key => group(key)))];
-        const pins = Array.isArray(source.pins) ? source.pins.filter(key => group(key) && !separate.includes(key)) : defaults;
-        const unique = [...new Set(pins)].slice(0, 4);
-        defaults.forEach(key => { if (unique.length < 4 && !unique.includes(key)) unique.push(key); });
-        return { discovered, pins: unique, goal: normalizeGoal(source.goal) };
+        return { discovered, goal: normalizeGoal(source.goal) };
     }
 
     /** One option ({statId}) or a tag count ({tag, minCount}, data/affix-tags.js), with a minimum tier. */
@@ -52,8 +49,9 @@ const craftingWorkspaceState = (() => {
 
     /** Saved panel migration and preferences are restored together without opening any UI. */
     function restore(state) {
-        const tab=state.itemSubtab==='item-tab-fossil'?'item-tab-craft':state.itemSubtab;
-        const allowed=['item-tab-equip','item-tab-craft','item-tab-market','item-tab-hall'];
+        const moved={'item-tab-fossil':'item-tab-craft'}; // 옛 칸이 들어간 곳(거래와 장비 전당은 2026-11-06부터 제 창, 장비 창은 장비 칸을 연다)
+        const tab=moved[state.itemSubtab]||state.itemSubtab;
+        const allowed=['item-tab-equip','item-tab-craft'];
         return {craftingWorkspace:normalize(state.craftingWorkspace,state.currencies),itemSubtab:allowed.includes(tab)?tab:'item-tab-equip'};
     }
 

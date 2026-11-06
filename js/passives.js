@@ -4274,8 +4274,7 @@ const TAB_UNLOCK_GATES = {
     'tab-map': 'map',
     'tab-traits': 'traits',
     'tab-talent': 'talent',
-    'tab-stump': 'stump',
-    'tab-npcs': 'npcs'
+    'tab-stump': 'stump'
 };
 const MOBILE_BATTLE_BREAKPOINT = 1080;
 let battleTabDocked = false;
@@ -5464,7 +5463,7 @@ function getDeathHints() {
  * 더하지 않고 상점을 센다. */
 function shopDeathHint() {
     const shops = Object.keys(NPC_SHOPS).filter(id => npcShop.ready(id) > 0).length;
-    return shops ? { text: _t('지금 살 수 있는 물건이 있는 NPC 상점 {shops}곳', { shops }), action: { label: 'NPC', onclick: "closeDeathOverlay();switchTab('tab-npcs')" } } : null;
+    return shops ? { text: _t('지금 살 수 있는 물건이 있는 NPC 상점 {shops}곳', { shops }), action: { label: 'NPC', onclick: "closeDeathOverlay();marketUi.open('npc')" } } : null;
 }
 /** 비교할 만한 룬: 지금 룬이 아닌 공격 룬(위습 소환과 이동 룬 말고: 이동 룬은 이동 칸에 낀다)으로, 지금 무기로 쓸 수 있는 룬. */
 function isStrongerRuneCandidate(name, keep) {
@@ -9749,6 +9748,7 @@ function commitCurrencyGain(currencyKey, gain) {
         return;
     }
     game.currencies[currencyKey] = (game.currencies[currencyKey] || 0) + gain;
+    currencyExchange.noteSeen(game, currencyKey);
     combatLootReceipts.currency(game,currencyKey,gain);
     game.currencyDropVersion = Math.max(0, Math.floor(game.currencyDropVersion || 0)) + 1;
     notifyCurrencyAcquisition(currencyKey, gain);
@@ -10952,34 +10952,7 @@ function isMarketUnlocked() {
     return contentProgression.isUnlocked('market');
 }
 
-/** Read-only quote. Quantity is an integer count or 'max'; currencies are normalized at load. */
-function getMarketExchangeQuote(recipe, quantity, owner = game) {
-    const have = owner.currencies[recipe.from] || 0;
-    const max = Math.floor(have / recipe.need);
-    const times = quantity === 'max' ? max : Number(quantity);
-    const valid = Number.isSafeInteger(times) && times >= 1 && times <= max;
-    const spend = valid ? times * recipe.need : 0, gain = valid ? times * recipe.gain : 0;
-    return { have, max, times, valid, spend, gain, afterFrom: have - spend, afterTo: (owner.currencies[recipe.to] || 0) + gain };
-}
-
-/** One market trade, quantity times (an integer count or 'max'), out of owner's purse: { ok, reason, spend, gain }. Exact amounts
- * (no gain bonus), and nothing changes unless the received balance stays a safe integer (the stall's proceeds use the same bound).
- * Synchronous: asking, logging and drawing are js/market-ui.js's, which calls this on the game it asked about. */
-function exchangeAtMarket(exchangeId, quantity, owner = game) {
-    if (!contentProgression.isUnlocked('market', owner)) return { ok: false, reason: _t('장비 제련을 해금하면 거래소를 이용할 수 있습니다.') };
-    const recipe = MARKET_EXCHANGES.find(row => row.id === exchangeId);
-    if (!recipe) return { ok: false, reason: _t('없는 교환입니다.') };
-    const quote = getMarketExchangeQuote(recipe, quantity, owner);
-    if (!quote.valid) return { ok: false, reason: _t('보유한 재화로 교환할 수 없는 수량입니다.') };
-    if (!Number.isSafeInteger(quote.afterTo)) return { ok: false, reason: _t('{name} 보유 한도를 넘어 교환할 수 없습니다.', { name: _t(ORB_DB[recipe.to].name) }) };
-    owner.currencies[recipe.from] = quote.afterFrom;
-    owner.currencies[recipe.to] = quote.afterTo;
-    owner.currencyDropVersion = (owner.currencyDropVersion || 0) + 1;
-    return { ok: true, spend: quote.spend, gain: quote.gain };
-}
-
 safeExposeGlobals({
-    getMarketExchangeQuote,
     getRealmEquipmentHiddenTierCap,
     getRealmItemDropTierRange,
     getDroppedAffixTierRange,

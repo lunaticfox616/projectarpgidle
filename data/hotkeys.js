@@ -21,7 +21,9 @@ const HOTKEY_ACTIONS = Object.freeze([
     // 동작). 설정 화면은 종류별로 묶어 보여 주므로 창 묶음의 끝에 나온다.
     { id: 'window:tab-stump', kind: 'window', target: 'tab-stump', label: '그루터기 함', code: 'KeyT' },
     { id: 'window:tab-settings', kind: 'window', target: 'tab-settings', label: '설정', code: 'KeyO' },
-    { id: 'window:tab-season', kind: 'window', target: 'tab-season', label: '루프', code: 'KeyL' }
+    { id: 'window:tab-season', kind: 'window', target: 'tab-season', label: '루프', code: 'KeyL' },
+    // 2026-11-06: 거래 창(장비 창의 칸에서 제 창이 됐다). R은 비어 있던 키다.
+    { id: 'window:tab-trade', kind: 'window', target: 'tab-trade', label: '거래', code: 'KeyR' }
 ].map(Object.freeze));
 
 // 바꿀 수 있는 키: 글자·숫자·숫자패드와 기호 몇 개. 브라우저 동작과 겹치는 Esc·Tab·Enter·Space·F키는 제외.

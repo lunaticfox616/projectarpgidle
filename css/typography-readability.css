@@ -2,17 +2,17 @@
 /* Workspace controls use the shared UI role. Long reading copy is assigned in themes/pixel.css. */
 
 /* Content workspaces share the same readable family as equipment and settings. */
-:is(#item-tab-craft, #item-tab-market, #tab-journal) {
+:is(#item-tab-craft, #tab-trade, #tab-journal) {
   font: var(--font-weight-regular) var(--font-size-ui)/1.5 var(--font-body);
   color: var(--color-text);
 }
-:is(#item-tab-craft, #item-tab-market, #tab-journal) :is(button, select, input, h2, h3, h4, summary) {
+:is(#item-tab-craft, #tab-trade, #tab-journal) :is(button, select, input, h2, h3, h4, summary) {
   font-family: var(--font-body);
   letter-spacing: 0;
   text-shadow: none;
 }
-:is(#item-tab-craft, #item-tab-market, #tab-journal) :is(h2, h3) { font-size: 16px; }
-:is(#item-tab-craft, #item-tab-market, #tab-journal) > h2 { border-color: var(--color-line); color: var(--color-text); }
+:is(#item-tab-craft, #tab-trade, #tab-journal) :is(h2, h3) { font-size: 16px; }
+:is(#item-tab-craft, #tab-trade, #tab-journal) > h2 { border-color: var(--color-line); color: var(--color-text); }
 #item-tab-craft .currency-name { font-size: 13px; word-break: keep-all; }
 
 /* Equipment names should match the readable item-copy font without affecting page headings. */

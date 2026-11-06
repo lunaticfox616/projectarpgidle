@@ -1,4 +1,4 @@
-/** 암거래상 (거래소 → 암거래상): every 10 minutes (or paid now) a new row of offers: currency trades, T15 craft bases, attack runes the
+/** 암거래상 (거래 → NPC의 암거래상): every 10 minutes (or paid now) a new row of offers: currency trades, T15 craft bases, attack runes the
  * hero lacks and uniques, with a target unique every 5 refreshes; up to 3 offers locked through refreshes, slots bought up
  * to 50. State: game.blackMarket (js/state.js), normalized here on every read. Each offer keeps its place on the shelf (column, row).
  * Moved out of js/items.js on 2026-10-18 with the shop screen (js/black-market-ui.js), which asks, logs and draws: nothing here does.

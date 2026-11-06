@@ -117,13 +117,17 @@ const contentProgression = (() => {
         return owner.season >= 2 || owner.maxZoneId >= 1 || owner.unlocks.map || owner.contentProgression.legacy === true;
     }
 
+    /** Whether owner has met an NPC on the maps (meeting turns unlocks.npcs on): the NPC section of 거래 shows them. */
+    const npcsMet = owner => !!(owner.unlocks && owner.unlocks.npcs) || Object.keys(owner.npcMet || {}).length > 0;
+
     // Menus that follow world progress instead of a catalog purchase.
     const progressRoutes = {
         'tab-map': canOpenMap,
         'tab-season': owner => owner.season >= 2,
         'tab-unlocks': owner => owner.season >= 2,
-        // NPC 탭(js/npc-roster-ui.js): 맵에서 NPC를 한 번이라도 만난 뒤(만나면 unlocks.npcs가 켜지고, 단추도 그 값을 따른다).
-        'tab-npcs': owner => !!(owner.unlocks && owner.unlocks.npcs) || Object.keys(owner.npcMet || {}).length > 0,
+        // 거래 창(js/market-ui.js): 만난 NPC, 거래소 해금(암거래상, 가판대), 장비 전당 가운데 하나라도 열리면 연다(2026-11-06, NPC 탭과 장비 전당이
+        // 들어왔고, 같은 날 장비 창의 칸에서 제 창이 됐다). 옛 칸 주소(item-tab-market, item-tab-hall)는 js/ui.js switchItemSubtab이 이 창으로 보낸다.
+        'tab-trade': owner => npcsMet(owner) || isUnlocked('market', owner) || isUnlocked('hall', owner),
         // 세계수 탐험 창(아틀라스)은 혼돈계와 같은 경로지만, 아틀라스가 열렸으면 혼돈계 관문 전이라도 연다.
         'map-explore-worldtree': owner => !!owner.atlas?.unlocked || isUnlocked('chaosRealm', owner)
     };
@@ -422,7 +426,7 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
+    return Object.freeze({ kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, npcsMet, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
         purchase, restore });
 })();
 safeExposeGlobals({ contentProgression });
