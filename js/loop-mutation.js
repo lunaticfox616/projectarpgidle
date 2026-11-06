@@ -73,8 +73,12 @@ const loopMutation = (() => {
     function describeMutation(rule) {
         return _t('{DAMAGE_ELEMENT_LABELS} 면역, {DAMAGE_ELEMENT_LABELS2} 약점', { DAMAGE_ELEMENT_LABELS: DAMAGE_ELEMENT_LABELS[rule.immune], DAMAGE_ELEMENT_LABELS2: DAMAGE_ELEMENT_LABELS[rule.weak] });
     }
+    /** One side of a mutation in its element's colour ('화염 면역'): the battle chip and the class screen (css/loop-mutation.css). */
+    function mutationPartHtml(ele, word) {
+        return `<b style="--mutation-ele:${getElementColor(ele)}">${escapeHTML(_t(DAMAGE_ELEMENT_LABELS[ele]))} ${escapeHTML(_t(word))}</b>`;
+    }
 
     return Object.freeze({ of: mutationOfLoop, current: currentMutation, bites: mutationBites, takenMul, begin: beginLoop,
-        starterChoices, pendingStarter, offerStarter, takeStarter, describe: describeMutation });
+        starterChoices, pendingStarter, offerStarter, takeStarter, describe: describeMutation, partHtml: mutationPartHtml });
 })();
 safeExposeGlobals({ loopMutation });

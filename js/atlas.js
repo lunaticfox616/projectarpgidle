@@ -63,9 +63,10 @@ const atlas = (() => {
     const bonusOf = (state, fragmentIds = []) => ({ ...ZERO(), ...atlasPassives.sum(state.atlas.passives, [...fragmentEffects(fragmentIds), ...atlasEpoch.effects(state)]) });
 
     // ---------------------------------------------------------------- availability and the graph
-    /** 루프 10부터 혼돈 20이 관문이다: 처음 깨면 아틀라스가 영구히 열리고, 지도는 루프마다 이번 루프 혼돈 20을 깬 뒤에 연다. */
+    /** 루프 ATLAS.unlockLoop부터 혼돈 20이 관문이다: 그 뒤 처음 깨면 아틀라스가 영구히 열리고, 지도는 루프마다 이번 루프 혼돈 20을 깬 뒤에 연다. */
+    const opensNow = state => state.atlas.unlocked || (Math.floor(state.season || 1) >= ATLAS.unlockLoop && hasCurrentLoopChaos20Clear(state));
     function lockReason(state) {
-        if (!state.atlas.unlocked && !hasCurrentLoopChaos20Clear(state)) return '루프 10에서 혼돈 20을 클리어하면 세계수 아틀라스가 열립니다.';
+        if (!opensNow(state)) return `루프 ${ATLAS.unlockLoop}부터 혼돈 20을 클리어하면 세계수 아틀라스가 열립니다.`;
         if (!hasCurrentLoopChaos20Clear(state)) return '이번 루프에서 혼돈 20을 클리어해야 지도를 열 수 있습니다.';
         return '';
     }
@@ -141,7 +142,7 @@ const atlas = (() => {
 
     /** Once per loop, the first look after this loop's chaos 20 clear: the atlas opens for good and a few maps start the loop. */
     function sync(state, random = Math.random) {
-        if (!hasCurrentLoopChaos20Clear(state)) return [];
+        if (!hasCurrentLoopChaos20Clear(state) || !opensNow(state)) return [];
         state.atlas.unlocked = true;
         const season = Math.max(1, Math.floor(state.season || 1));
         if (state.atlas.starterSeason === season) return [];
@@ -172,6 +173,47 @@ const atlas = (() => {
         if (index < 0) return '보관함에 없는 지도석입니다.';
         state.atlas.stash.splice(index, 1);
         return '';
+    }
+    /** 손대지 않은 지도석: 일반 희귀도, 품질 없음, 타락 안 함(기운은 저절로 붙는다). 버리기와 합치기가 묻지 않고 쓰는 것. */
+    const plainMap = map => map.rarity === 'normal' && !map.quality && !map.corrupted;
+    /** 그 등급 이하의 손대지 않은 지도석 모두. @returns {number} 버린 수 */
+    function discardPlainUpTo(state, tier) {
+        if (runOpenReason(state)) return 0;
+        const before = state.atlas.stash.length;
+        state.atlas.stash = state.atlas.stash.filter(map => !(plainMap(map) && map.tier <= tier));
+        return before - state.atlas.stash.length;
+    }
+    /** 등급의 빛깔 줄(data/atlas.js tierBands): { id, max, tone }. */
+    const tierBand = tier => ATLAS.tierBands.find(band => tier <= band.max);
+    /** 합칠 셋: 고른 지도석과 같은 등급의 다른 지도석 둘(손대지 않은 것, 오래된 것부터). 모자라면 null. */
+    function combineSet(state, uid) {
+        const picked = state.atlas.stash.find(map => map.uid === uid);
+        if (!picked) return null;
+        const others = state.atlas.stash.filter(map => map !== picked && map.tier === picked.tier)
+            .sort((a, b) => Number(plainMap(b)) - Number(plainMap(a)) || a.uid - b.uid).slice(0, ATLAS.combine.count - 1);
+        return others.length === ATLAS.combine.count - 1 ? [picked, ...others] : null;
+    }
+    /** '' when the picked stone can be combined, otherwise why not. */
+    function combineReason(state, uid) {
+        const busy = runOpenReason(state), set = combineSet(state, uid), picked = state.atlas.stash.find(map => map.uid === uid);
+        if (busy) return busy;
+        if (!picked) return '보관함에 없는 지도석입니다.';
+        if (picked.tier >= ATLAS.tierCap) return '가장 높은 등급이라 합칠 수 없습니다.';
+        if (!set) return `${picked.tier}등급 지도석이 ${ATLAS.combine.count}개 있어야 합칩니다.`;
+        const next = MAP_NODES.some(node => reachable(state, node.id) && effectiveTier(state, node) === picked.tier + 1);
+        return next ? '' : `${picked.tier + 1}등급 노드가 아직 열리지 않았습니다.`;
+    }
+    /** 같은 등급 셋을 한 등급 위 지도석 하나로(지금 갈 수 있는 그 등급 노드 중 하나, 떨어진 지도석과 같은 규칙). @returns {{reason?:string, used?:object[], map?:object}} */
+    function combine(state, uid, random = Math.random) {
+        const reason = combineReason(state, uid);
+        if (reason) return { reason };
+        const used = combineSet(state, uid), tier = used[0].tier + 1;
+        const pool = MAP_NODES.filter(node => reachable(state, node.id) && effectiveTier(state, node) === tier);
+        const node = pool[Math.floor(random() * pool.length)];
+        const map = stamp(state, atlasMaps.create(node.id, tier, 'normal', random), random, bonusOf(state));
+        state.atlas.stash = state.atlas.stash.filter(entry => !used.includes(entry));
+        state.atlas.stash.push(map);
+        return { used, map };
     }
     /** '' when a flower can change this stone's omen, otherwise why not: guardian stones carry none, and corruption closes a stone as it does for crafts. */
     function omenChangeReason(map) {
@@ -681,7 +723,7 @@ const atlas = (() => {
     return Object.freeze({ nodes: NODES, links: LINKS, renameSavedIds, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, beginBoard, lateNodes: LATE_NODES,
-        slots, setLoadout, beginReason, begin, discard, omenChangeReason, changeOmen, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
+        slots, setLoadout, beginReason, begin, discard, discardPlainUpTo, plainMap, tierBand, combineSet, combineReason, combine, omenChangeReason, changeOmen, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
         zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();

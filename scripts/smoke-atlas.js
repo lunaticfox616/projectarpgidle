@@ -174,6 +174,9 @@ run(`
 assert.match(run('atlas.lockReason(game)'), /혼돈 20/, 'locked before this loop clears chaos 20');
 assert.deepEqual(copy('atlas.sync(game)'), [], 'nothing arrives before the chaos 20 clear');
 run('game.loopProgressCurrent.chaos20Cleared=true;atlasRun.onChaos20();');
+assert.equal(run('game.atlas.unlocked'), false, 'a chaos 20 clear before ATLAS.unlockLoop leaves the atlas closed (2026-11-06)');
+assert.deepEqual(copy('game.atlas.stash'), [], 'and brings no maps');
+run('game.season=ATLAS.unlockLoop;atlasRun.onChaos20();');
 assert.equal(run('game.atlas.unlocked'), true);
 assert.equal(run('game.atlas.stash.length'), ATLAS_STARTER(), 'the loop starts with its starter maps');
 function ATLAS_STARTER() { return run('ATLAS.starter.count'); }
@@ -328,7 +331,7 @@ run('game.pendingLoopDecision=false;');
 for(const before of [0,98,99]) {
     const {run: fragmentRun}=fixture(845);
     const read=code=>JSON.parse(fragmentRun(`JSON.stringify(${code})`));
-    fragmentRun(`game.season=10;game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);
+    fragmentRun(`game.season=ATLAS.unlockLoop;game.maxZoneId=29;game.currentZoneId=29;game.loopProgressCurrent.chaos20Cleared=true;atlas.sync(game);
         atlas.begin(game,game.atlas.stash[0].uid,29,()=>.5);game.atlas.fragments[ATLAS.fragments[0].id]=${before};
         game.atlas.run.found=Array(3).fill(ATLAS.fragments[0].id);atlas.complete(game);`);
     const stored=Math.min(3,99-before),result=read('game.atlas.lastResult');

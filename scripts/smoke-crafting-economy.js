@@ -91,6 +91,7 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
         getJewelSalvageShardGain: () => 18,
         requestGameConfirmation: async () => { jewelSalvageContext.game.inventory.shift(); return true; },
         salvageJewelObject: jewel => salvaged.push(jewel.id),
+        dispatchRuntimeEvent() {}, // No browser event target in this extracted jewel-salvage fixture.
         updateStaticUI() {},
     _t: (key, params) => String(key).replace(/\{(\w+)\}/g, (match, name) => (params && name in params ? params[name] : match)),   // 원문 언어 그대로(js/i18n.js 없이)
     };

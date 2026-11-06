@@ -71,6 +71,11 @@
 #ui-atlas .atlas-node{--node:round(4.4cqw,2px);position:absolute;left:round(var(--x),1px);top:round(var(--y),1px);transform:translate(round(-50%,1px),round(-50%,1px));width:var(--node);height:var(--node);min-width:0;min-height:0;padding:0;display:grid;place-items:center;border:0;background:transparent;box-shadow:none;color:#8d826e;font-size:12px;line-height:1}
 #ui-atlas .atlas-node:hover:not(:disabled){border:0;background:transparent}
 #ui-atlas .atlas-node b{font-weight:400;text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000,1px 1px 0 #000;pointer-events:none}
+/* 노드 숫자는 등급의 빛깔(흰색 1~6, 노란색 7~11, 빨간색 12 이상: js/atlas-ui.js tierStyle), 아직 갈 수 없는 노드는 그 빛깔을 어둡게 */
+#ui-atlas .atlas-node b{color:var(--atlas-tier)}
+#ui-atlas .atlas-node.is-locked b{color:color-mix(in srgb,var(--atlas-tier) 42%,#1a140d)}
+/* 지도 노드 툴팁의 등급 칩(js/atlas-ui.js hint): 등급의 빛깔로 테와 바탕 */
+#info-tooltip .atlas-tip-tier{display:inline-block;padding:0 5px;border:1px solid color-mix(in srgb,var(--atlas-tier) 60%,transparent);background:color-mix(in srgb,var(--atlas-tier) 16%,transparent);color:var(--atlas-tier);line-height:16px}
 #ui-atlas .atlas-node.is-open{color:var(--atlas-gold-hi)}
 #ui-atlas .atlas-node.is-complete{color:#efe6d2}
 #ui-atlas .atlas-node.is-bonus{color:#fff1c9}
@@ -135,11 +140,19 @@
 #ui-atlas .atlas-stash-management span,#ui-atlas .atlas-stash-management small{display:block;color:var(--atlas-muted);font-size:11px}
 #ui-atlas .atlas-stash-management small{flex-basis:100%}
 #ui-atlas .atlas-stash-management .atlas-discard{min-height:44px;padding:8px 12px;color:#efbf9c;border-color:#875839}
+/* 고른 지도석의 도구: 합치기(같은 등급 몇 개 있는지), 버리기, 그 등급 이하 일반 지도석 정리(몇 개) */
+#ui-atlas .atlas-stash-management span b{color:var(--atlas-tier);font-weight:400}
+#ui-atlas .atlas-stash-tools{display:flex;flex-wrap:wrap;gap:6px}
+#ui-atlas .atlas-stash-tools button{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:6px 10px}
+#ui-atlas .atlas-stash-tools button span{display:inline;color:var(--atlas-muted);font-size:11px}
+#ui-atlas .atlas-stash-management .atlas-stash-tools .atlas-discard{min-height:36px;padding:6px 10px}
+#ui-atlas .atlas-stash-tools .atlas-combine:not(:disabled){border-color:var(--atlas-gold);color:var(--atlas-gold-hi)}
 #ui-atlas .atlas-stash-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:5px}
 #ui-atlas .atlas-stash-row{--rarity:var(--atlas-normal);display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;gap:0 8px;min-height:40px;padding:5px 8px;text-align:left}
 #ui-atlas .atlas-stash-row.rarity-magic{--rarity:var(--atlas-magic)}
 #ui-atlas .atlas-stash-row.rarity-rare{--rarity:var(--atlas-rare)}
 #ui-atlas .atlas-stash-row b{grid-row:span 2;display:grid;place-items:center;width:26px;height:26px;border:1px solid color-mix(in srgb,var(--rarity) 55%,transparent);background:var(--atlas-deep);color:var(--rarity);font-size:12px}
+#ui-atlas .atlas-stash-row b{color:var(--atlas-tier)}
 #ui-atlas .atlas-stash-row span{color:var(--rarity);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #ui-atlas .atlas-stash-row small{color:var(--atlas-muted);font-size:10px}
 #ui-atlas .atlas-stash-row[aria-pressed="true"]{border-color:var(--atlas-gold-hi);background:#2a2217}
@@ -296,17 +309,26 @@
 #ui-atlas .memory-controls label{display:grid;gap:4px;flex:1 1 180px;max-width:300px;min-width:0;color:var(--atlas-muted)}
 #ui-atlas .memory-controls input{width:100%;min-width:0;min-height:44px;padding:8px;color:var(--atlas-ink);background:var(--atlas-deep);border:1px solid var(--atlas-line);font:inherit}
 #ui-atlas-combat[hidden]{/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */display:none!important}
-#ui-atlas-combat{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid #5d4a2e;background:#17130e;box-shadow:2px 2px 0 #000;color:#ece4cf;grid-column:1/-1}
+/* 지도 정보(2026-11-06 사용자: 화면 폭만큼 긴 네모, 지도 이름 두 번, 지도석과 각인 수는 필요 없다): 지역 이름 아래 변이 칩(css/loop-mutation.css)과
+   같은 작은 칩 한 줄과 아틀라스 단추. 바탕 판은 없고 칩마다 판을 둔다. 포털은 남은 수만큼 켜진 칸이다. */
+#ui-atlas-combat{--atlas-normal:#d6cdb8;--atlas-magic:#86b2e2;--atlas-rare:#e2c466;flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:4px 5px;color:#efe3c9;grid-column:1/-1}
 /* The live boss card owns this space; map controls remain in the map window. */
 .combat-panel:has(#ui-enemy-list:not([hidden]) .enemy-boss) #ui-atlas-combat{display:none}
-#ui-atlas-combat .atlas-hud-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
-#ui-atlas-combat strong{font-size:12px;font-weight:600;line-height:1.4}
-#ui-atlas-combat strong span{margin-left:6px;color:#c9b27c;font-weight:400}
-#ui-atlas-combat .atlas-hud-copy>span{font-size:11px;color:#b9ae98}
-#ui-atlas-combat button{min-height:30px;padding:5px 10px;border:1px solid #5d4a2e;background:#221b13;color:#e8dfca;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}
-#ui-atlas-combat button:focus-visible{outline:2px solid #efcf88;outline-offset:2px}
+#ui-atlas-combat :is(.atlas-hud-chip,.atlas-omen-chip){display:inline-flex;align-items:center;gap:4px;margin:0;padding:0 6px;border:1px solid rgba(215,195,106,.32);border-radius:4px;background:rgba(10,9,16,.72);font-size:12px;font-style:normal;line-height:18px;white-space:nowrap}
+#ui-atlas-combat .atlas-omen-chip{border-color:color-mix(in srgb,var(--omen) 55%,#2a2218)}
+#ui-atlas-combat .rarity-normal{color:var(--atlas-normal)}
+#ui-atlas-combat .rarity-magic{color:var(--atlas-magic);border-color:color-mix(in srgb,var(--atlas-magic) 45%,#2a2218)}
+#ui-atlas-combat .rarity-rare{color:var(--atlas-rare);border-color:color-mix(in srgb,var(--atlas-rare) 45%,#2a2218)}
+#ui-atlas-combat .atlas-hud-tier{color:var(--atlas-tier)}
+#ui-atlas-combat .is-room{color:#c9b27c}
+#ui-atlas-combat .atlas-hud-portals small{margin-right:1px;color:#a39883;font-size:11px}
+#ui-atlas-combat .atlas-hud-portals i{width:7px;height:7px;box-sizing:border-box;border:1px solid #6b5a42;background:#14100c}
+#ui-atlas-combat .atlas-hud-portals i.is-on{border-color:#080508;background:#e6dcc6;box-shadow:inset -1px -1px 0 #a39883}
+#ui-atlas-combat .combat-action-btn{display:inline-flex;align-items:center;height:22px;min-height:22px;padding:0 9px;font-size:12px;white-space:nowrap;cursor:pointer}
 @media(min-width:1081px){
- body.desktop-windowed-ui #ui-atlas-combat{position:absolute;left:8px;right:calc(var(--combat-log-width) + 18px);top:62px;z-index:7;min-height:44px;box-sizing:border-box}
+ /* 지역 이름 아래 재화, 변이 줄(css/theme.css .combat-zone-subline, 아래 끝 67px) 밑에서 시작한다. 62px이던 때는 그 줄을 가렸다.
+    폭은 글과 단추만큼(2026-11-06 사용자: 전투 기록 앞까지 늘인 띠가 너무 길었다), 넘쳐도 전투 기록 앞까지다. 왼쪽은 지역 이름 글자와 같은 선
+    (지역 줄 자리 css/themes/rift-stage.css + 줄 안 여백 13px). */
+ body.desktop-windowed-ui #ui-atlas-combat{position:absolute;left:calc(var(--stage-rail-width, 0px) + var(--stage-gutter, 16px) + 13px);top:72px;z-index:7;width:max-content;max-width:calc(100% - var(--combat-log-width) - 26px);box-sizing:border-box}
 }
-@media(max-width:600px){#ui-atlas-combat{padding:7px 8px}}
 }

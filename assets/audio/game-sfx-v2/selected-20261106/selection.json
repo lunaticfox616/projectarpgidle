@@ -1,0 +1,186 @@
+{
+  "candidateSet": "game-sfx-candidates-20261106",
+  "selectedVia": "review page export text",
+  "date": "2026-11-06",
+  "entries": [
+    {
+      "id": "itemDismantle",
+      "candidate": "itemDismantle-B",
+      "name": "뿌리 부스러짐",
+      "source": "samples/itemDismantle-B.wav",
+      "sourceSha256": "4272200e7182df2649d92f071d98ed05a8e187e8c743b7c1c3ff8b492b2b6778",
+      "sources": [
+        {
+          "file": "dismantle-root.wav",
+          "length": 0.85,
+          "sha256": "836d7cf1d8413c970c01ad801727a481f31c2001a4ec531833ea015b415f17db",
+          "source": {
+            "name": "Agent Audio local generation",
+            "model": "Stable Audio 3 Medium",
+            "backend": "tflite",
+            "license": "Generated output; existing installed model terms",
+            "date": "2026-11-06"
+          }
+        }
+      ],
+      "file": "itemDismantle.wav",
+      "sha256": "4272200e7182df2649d92f071d98ed05a8e187e8c743b7c1c3ff8b492b2b6778",
+      "bytes": 56044,
+      "edit": "byte-for-byte copy",
+      "duration": 0.875,
+      "peakDb": -5.0006383298119434
+    },
+    {
+      "id": "craftSuccess",
+      "candidate": "craftSuccess-B",
+      "name": "단정한 완료",
+      "source": "samples/craftSuccess-B.wav",
+      "sourceSha256": "41edfdccd468bc1e0f22619bc733a52003d1b7829c66b224c336a5c512c8520b",
+      "sources": [
+        {
+          "file": "interface/confirmation_002.ogg",
+          "length": 0.56,
+          "sha256": "33b17a9a9a2397c62b285c52c33a907fdffb476909c99e42dde603f6a7a8b12c",
+          "source": {
+            "name": "Interface Sounds",
+            "author": "Kenney",
+            "license": "CC0",
+            "url": "https://kenney.nl/assets/interface-sounds",
+            "download": "https://lpc.opengameart.org/sites/default/files/kenney_interfaceSounds.zip"
+          }
+        }
+      ],
+      "file": "craftSuccess-low.wav",
+      "sha256": "3812e2548347e3212e5ad11f9c4a8d8817033299022c983c18e3544519fdeb27",
+      "bytes": 40642,
+      "edit": {
+        "semitones": -3,
+        "rate": 0.8408964152537145,
+        "lowpassHz": 2200,
+        "highShelfHz": 1600,
+        "highShelfDb": -4,
+        "fadeInMs": 2,
+        "fadeOutMs": 20
+      },
+      "duration": 0.63434375,
+      "peakDb": -5.000638329811942
+    },
+    {
+      "id": "uiConfirm",
+      "candidate": "uiConfirm-A",
+      "name": "작은 걸쇠",
+      "source": "samples/uiConfirm-A.wav",
+      "sourceSha256": "98778d8ead2300e73cd8553114c5914805d0f3f30f4283452019de9eaf0608ba",
+      "sources": [
+        {
+          "file": "rubberduck/lock_02.ogg",
+          "length": 0.13,
+          "sha256": "e183464a4e28c1764c70e980465faaf6ea8c33c8ea4a2b636a3ae2c58e8740f5",
+          "source": {
+            "name": "80 CC0 RPG SFX",
+            "author": "rubberduck",
+            "license": "CC0",
+            "url": "https://opengameart.org/content/80-cc0-rpg-sfx"
+          }
+        },
+        {
+          "file": "interface/tick_001.ogg",
+          "length": 0.1,
+          "at": 0.06,
+          "gain": 0.4,
+          "sha256": "9d057b918024c787bbe6c00beed13a7ef72a3fa0c259add3cef36582792f4230",
+          "source": {
+            "name": "Interface Sounds",
+            "author": "Kenney",
+            "license": "CC0",
+            "url": "https://kenney.nl/assets/interface-sounds",
+            "download": "https://lpc.opengameart.org/sites/default/files/kenney_interfaceSounds.zip"
+          }
+        }
+      ],
+      "file": "uiConfirm.wav",
+      "sha256": "98778d8ead2300e73cd8553114c5914805d0f3f30f4283452019de9eaf0608ba",
+      "bytes": 9964,
+      "edit": "byte-for-byte copy",
+      "duration": 0.155,
+      "peakDb": -5.000638329811942
+    },
+    {
+      "id": "uiCancel",
+      "candidate": "uiCancel-A",
+      "name": "짧은 뒤로",
+      "source": "samples/uiCancel-A.wav",
+      "sourceSha256": "bd7c31afc10bf998dc979b47dd044d0e9c591bbd64e56cc5106611acecc1ad97",
+      "sources": [
+        {
+          "file": "interface/back_001.ogg",
+          "length": 0.1,
+          "sha256": "07db973f79f6ae0f2edc34561e7592e24d0577455919fb602cb8ecc0da991dcf",
+          "source": {
+            "name": "Interface Sounds",
+            "author": "Kenney",
+            "license": "CC0",
+            "url": "https://kenney.nl/assets/interface-sounds",
+            "download": "https://lpc.opengameart.org/sites/default/files/kenney_interfaceSounds.zip"
+          }
+        }
+      ],
+      "file": "uiCancel-low.wav",
+      "sha256": "be47708acdbeb0bd489cafa39c91b4a9365baad17099fc9b7002954a31c3bb4c",
+      "bytes": 6864,
+      "edit": {
+        "semitones": -2,
+        "rate": 0.8908987181403393,
+        "lowpassHz": 1700,
+        "highShelfHz": 1600,
+        "highShelfDb": -3,
+        "fadeInMs": 2,
+        "fadeOutMs": 20
+      },
+      "duration": 0.1065625,
+      "peakDb": -8.421510964569404
+    },
+    {
+      "id": "fishBite",
+      "candidate": "fishBite-D",
+      "name": "맑은 반응",
+      "source": "samples/fishBite-D.wav",
+      "sourceSha256": "a01c1e9422a25927851624267716e53c2da9f41703369de35915e88f810790a0",
+      "sources": [
+        {
+          "file": "interface/glass_002.ogg",
+          "length": 0.15,
+          "gain": 0.65,
+          "sha256": "08e972c73e53c91d6d310e107e80db60edce78ae47225889a028e628a6f3da49",
+          "source": {
+            "name": "Interface Sounds",
+            "author": "Kenney",
+            "license": "CC0",
+            "url": "https://kenney.nl/assets/interface-sounds",
+            "download": "https://lpc.opengameart.org/sites/default/files/kenney_interfaceSounds.zip"
+          }
+        },
+        {
+          "file": "water-pluck.wav",
+          "length": 0.36,
+          "at": 0.04,
+          "gain": 0.4,
+          "sha256": "a2191e2afd43a0e59e5316dd5441c3f453163d2a8ea427fe44ed99f15fbe19fc",
+          "source": {
+            "name": "Agent Audio local generation",
+            "model": "Stable Audio 3 Medium",
+            "backend": "tflite",
+            "license": "Generated output; existing installed model terms",
+            "date": "2026-11-06"
+          }
+        }
+      ],
+      "file": "fishBite.wav",
+      "sha256": "a01c1e9422a25927851624267716e53c2da9f41703369de35915e88f810790a0",
+      "bytes": 27244,
+      "edit": "byte-for-byte copy",
+      "duration": 0.425,
+      "peakDb": -5.000638329811942
+    }
+  ]
+}

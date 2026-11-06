@@ -450,6 +450,7 @@ const craftingWorkspaceUi = (() => {
             completed=result===true||Object.entries(before).some(([key,value])=>value>game.currencies[key]);
             if(!completed){notice='제작 조건을 확인하세요.';return false;}
             last=craftingResultLedger.commit(token,item);count++;notice='';acknowledged='';
+            if(!equipmentCrafting.pendingChoice(game))playUiFeedbackSound('craftSuccess');
             Object.entries(before).forEach(([key,value])=>{const used=value-game.currencies[key];if(used>0)spent[key]=(spent[key]||0)+used;});
             queueImportantSave(180);return true;
         } finally {busy=false;workspaceRender(completed);}
@@ -698,7 +699,7 @@ const craftingWorkspaceUi = (() => {
         const button=event.target.closest('[data-choice]');if(!button)return;
         const item=equipmentCrafting.pickChoice(game,Number(button.dataset.choice));
         choiceDialog.close();
-        if(item){last=craftingResultLedger.amend(item)||last;queueImportantSave(180);}
+        if(item){last=craftingResultLedger.amend(item)||last;queueImportantSave(180);playUiFeedbackSound('craftSuccess');}
         workspaceRender(!!item);
     }
 

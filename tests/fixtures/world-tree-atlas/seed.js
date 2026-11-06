@@ -46,7 +46,7 @@
         game.playerHp=getPlayerHpCap(getPlayerStats());
         if(mode==='complete') {
             // Atlas progress: every tier 1-3 node complete (their neighbours open) and this loop's starter maps in the stash.
-            game.atlas.completed=atlas.nodes.filter(node=>node.tier<=3).map(node=>node.id);atlas.sync(game);
+            game.atlas.unlocked=true;game.atlas.completed=atlas.nodes.filter(node=>node.tier<=3).map(node=>node.id);atlas.sync(game);
         }
         if(mode==='realms') {
             game.season=50;game.abyssEndlessDepth=30;game.labyrinthUnlockedMaxFloor=100;

@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-/* 리그닌 모션 공방 전달본(2026-10-20 사용자가 PixelLab으로 만든 6직업 × 7무기 모션)을 무대 주인공의 그림과 규격으로 옮긴다.
+/* 리그닌 모션 전달본(사용자가 PixelLab으로 만든 6직업 × 7무기 모션. 2026-10-20 첫 전달본, 2026-10-30 개선본 적용 v4)을 무대 주인공의
+ * 그림과 규격으로 옮긴다.
  *
- *   node scripts/import-stage-characters.cjs <모션 전달본 폴더>
+ *   node scripts/import-stage-characters.cjs <모션 전달본 폴더> [덧붙일 폴더 ...]
  *
- * <폴더>/모션/<직업>/<직업>_<무기>_<모션>.png와 같은 이름의 .json(장 크기, 열 수, 장 수, ms, 타격 장, 반복, 배치)을 읽어
+ * 덧붙일 폴더도 같은 모양(모션/<직업>/ 아래 PNG와 JSON)이고, 같은 이름(JSON name)의 모션은 뒤 폴더의 것이 앞 것을 대신한다
+ * (2026-11-06 사용자가 따로 보낸 궁수, 성직자 활 공격: projectarpgidle1/artifacts/hero-bow-motion-20261106).
+ *
+ * <폴더>/모션/<직업>/<직업>_<무기>_<모션>.png와 같은 이름의 .json(장 크기, 열 수, 장 수, 장별 ms, 타격 장, 반복, 배치)을 읽어
  *   assets/playable/stage/<직업 id>/<무기 id>/<모션 id>.png   가로 한 줄 시트: 모션마다 모든 장을 담는 가장 작은 칸, 0번 장이 왼쪽
  *   assets/playable/stage/<직업 id>/unarmed/rise.png          처음 장면에서 일어나는 동작: 맨손 사망의 장을 거꾸로 이은 것
  *   data/stage-characters.js                                 규격
@@ -11,14 +15,15 @@
  * 캐릭터 아틀라스와 같다:
  *  - 발 기준점: 직업 × 무기의 대기 0번 장의 발(가장 아래 그려진 줄, 그 위 여섯 줄 점들의 가로 가운데)에 모션 배치(dx, dy)를 더한다.
  *    장 크기가 대기와 다르거나 모션 0번 장의 발이 그보다 3점 넘게 떨어지면 그 모션 0번 장의 발.
- *  - 타격 장: JSON hit_frames(0번 = 기준 그림). 활 사격과 플라스크 투척은 7번(시위를 놓는 장, 뒤로 감았다 앞으로 뿌리는 장. 공방 값
- *    6번은 당긴 끝, 감은 끝이다). 공방에서 손으로 바꾼 타격 장(hit_frames_table과 다를 때)은 그대로 둔다.
- *  - 장별 ms: ms, 타격 장은 hit_ms, 끝 장은 last_ms.
+ *  - 타격 장: JSON hit_frames(0부터). 그림이 시위를 놓는 장이 그보다 늦은 원본은 RELEASE_FRAMES가 정한다(게임은 타격 장이 보일 때
+ *    화살을 날린다).
+ *  - 장별 ms: JSON frame_durations_ms.
+ *  - 플라스크 투척: 몸과 떨어져 날아가는 병을 지운다(스킬 전달본 V3.9.5 fixThrowFrames, 게임이 병을 따로 던진다).
  *  - 광과민(2026-10-11 사용자 규칙, 시뮬레이터의 '광과민 안전'이 기본으로 켜진 모습): 0번 장보다 흰빛이 250점 넘게(2.2배 넘게) 늘거나
  *    청록과 파랑 발광이 250점 넘게 는 장은 그 앞의 괜찮은 장으로 바꿔 담는다.
  *  - lift: 장마다 그림의 맨 아래가 발바닥보다 뜬 높이의 가장 큰 값(도약, 공중제비: js/canvas-stage-skill-runes.js가 코드 포물선을 낮춘다).
  *  - 소환은 넣지 않는다(스킬룬 전달본이 그 줄을 지웠고 쓰는 룬이 없다).
- * 점 하나 바꾸지 않고(키우거나 줄이지 않는다) 담는다. 전달본 안의 스크립트는 실행하지 않는다.
+ * 키우거나 줄이지 않고 담는다(바꾸는 점은 지운 병뿐이다). 전달본 안의 스크립트는 실행하지 않는다.
  */
 'use strict';
 const fs = require('node:fs');
@@ -36,7 +41,11 @@ function writeSheet(file, buffer) {
     sheetHash.update(file).update(buffer);
     fs.writeFileSync(path.join(OUT, file), buffer);
 }
-const FIXED_HITS = Object.freeze({ '활|공격': 7, '플라스크|투척': 7 });
+/** 시위를 놓는 장이 JSON 타격 장(6번, 당긴 끝)보다 한 장 늦은 원본 활 사격: 7번에서 화살이 손을 떠난다(2026-11-06 그림으로 확인).
+ * 개선본과 덧붙인 그림은 JSON 그대로다. */
+const RELEASE_FRAMES = Object.freeze({ 방랑자_활_공격: 7, 전사_활_공격: 7 });
+/** V3.9.5 겹침 수정과 같은 기준: 몸 상자에서 이만큼 넘게 떨어진 덩어리, 그중 하나가 이 점 수 이상일 때만 지운다. */
+const FLYING = Object.freeze({ gap: 2, minDots: 40 });
 const FOOT_ROWS = 6, ANCHOR_SLACK = 3, LIFT_MIN = 4;
 const SAFE = Object.freeze({ white: 250, whiteTimes: 2.2, glow: 250 });
 /** 맞을 때의 모습(붉은 외곽선, 밀림, 멈칫)과 걷기 배율: 2026-10-11 던파식 정리 묶음의 공용 규칙 그대로(새 전달본에는 없다). */
@@ -109,19 +118,61 @@ function anchorOf(spec, frame0, idle) {
     return { x: Math.round(own.x), y: own.y };
 }
 
-function hitsOf(spec, weapon, frames) {
-    let hits = [].concat(spec.hit_frames || []);
-    const hasTable = Object.prototype.hasOwnProperty.call(spec, 'hit_frames_table'), table = hasTable ? (spec.hit_frames_table || []).map(h => h + 1) : null;
-    if (!hasTable && spec.frames === (spec.requested_frames || spec.frames) + 1) hits = hits.map(h => h + 1);
-    const fixed = FIXED_HITS[`${weapon}|${spec.file}`];
-    if (fixed !== undefined && (!table || JSON.stringify(table) === JSON.stringify(hits))) hits = [fixed];
+function hitsOf(spec, frames) {
+    const release = RELEASE_FRAMES[spec.name], hits = release === undefined ? [].concat(spec.hit_frames || []) : [release];
     return frames > 1 ? [...new Set(hits.map(h => Math.min(frames - 1, h)))].sort((a, b) => a - b) : [];
 }
-function msOf(spec, hits, frames) {
-    const ms = Array(frames).fill(spec.ms);
-    if (spec.hit_ms) hits.forEach(h => { ms[h] = spec.hit_ms; });
-    if (spec.last_ms && frames > 1) ms[frames - 1] = spec.last_ms;
+/** 장별 ms. RELEASE_FRAMES로 옮긴 타격 장은 JSON 타격 장의 머무는 시간을 함께 가져간다(두 장의 ms를 맞바꾼다). */
+function msOf(spec, hits) {
+    const ms = [].concat(spec.frame_durations_ms || []);
+    if (ms.length !== spec.frames) fail(`${spec.name}: frame_durations_ms가 ${spec.frames}장이 아닙니다.`);
+    const from = (spec.hit_frames || [])[0], to = RELEASE_FRAMES[spec.name];
+    if (to !== undefined && Number.isInteger(from)) [ms[from], ms[to]] = [ms[to], ms[from]];
     return ms.every(value => value === ms[0]) ? ms[0] : ms;
+}
+
+/** 그 장의 그려진 점을 8방향으로 이은 덩어리들: { dots(점 번호), x0, y0, x1, y1 }. */
+function piecesOf(frame) {
+    const label = new Int32Array(frame.w * frame.h).fill(-1), pieces = [];
+    for (let start = 0; start < label.length; start++) {
+        if (label[start] >= 0 || !frame.data[start * 4 + 3]) continue;
+        label[start] = pieces.length;
+        pieces.push(growPiece(frame, label, start));
+    }
+    return pieces;
+}
+function growPiece(frame, label, start) {
+    const piece = { dots: [], x0: frame.w, y0: frame.h, x1: -1, y1: -1 }, stack = [start];
+    while (stack.length) {
+        const at = stack.pop(), x = at % frame.w, y = (at - x) / frame.w;
+        piece.dots.push(at);
+        Object.assign(piece, { x0: Math.min(piece.x0, x), y0: Math.min(piece.y0, y), x1: Math.max(piece.x1, x), y1: Math.max(piece.y1, y) });
+        for (const next of neighbours(frame, x, y)) {
+            if (label[next] >= 0 || !frame.data[next * 4 + 3]) continue;
+            label[next] = label[start];
+            stack.push(next);
+        }
+    }
+    return piece;
+}
+function neighbours(frame, x, y) {
+    const out = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if ((dx || dy) && nx >= 0 && ny >= 0 && nx < frame.w && ny < frame.h) out.push(ny * frame.w + nx);
+    }
+    return out;
+}
+/** 몸(가장 큰 덩어리) 상자 밖으로 떨어진 덩어리를 지운 장. 큰 덩어리(날아가는 병)가 없으면 그 장 그대로. */
+function withoutFlyingPieces(frame) {
+    const pieces = piecesOf(frame);
+    if (pieces.length < 2) return frame;
+    const body = pieces.reduce((a, b) => (b.dots.length > a.dots.length ? b : a)), gap = FLYING.gap;
+    const apart = pieces.filter(p => p !== body && (p.x0 > body.x1 + gap || p.x1 < body.x0 - gap || p.y0 > body.y1 + gap || p.y1 < body.y0 - gap));
+    if (!apart.some(p => p.dots.length >= FLYING.minDots)) return frame;
+    const data = Buffer.from(frame.data);
+    apart.forEach(p => p.dots.forEach(at => data.fill(0, at * 4, at * 4 + 4)));
+    return { ...frame, data };
 }
 
 /** 모든 장의 그려진 점을 담는 가장 작은 상자. */
@@ -151,28 +202,36 @@ function stripOf(frames, box) {
     return encodePng(width, box.h, data);
 }
 
-/** 전달본의 모션 JSON들: 직업 → 무기 → [{ spec, png }]. */
-function readPackage(pack) {
-    const byClass = {};
+/** 한 폴더의 모션 JSON들을 이름(name)으로 담는다. 먼저 담긴 같은 이름은 대신한다. */
+function readPackFolder(pack, byName) {
     for (const job of fs.readdirSync(path.join(pack, '모션'))) {
         const dir = path.join(pack, '모션', job);
         for (const file of fs.readdirSync(dir).filter(name => name.endsWith('.json'))) {
             const spec = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'));
-            if (RETIRED.has(spec.file)) continue;
-            const byWeapon = byClass[spec.job] = byClass[spec.job] || {};
-            (byWeapon[spec.weapon] = byWeapon[spec.weapon] || []).push({ spec, png: path.join(dir, file.replace(/\.json$/, '.png')) });
+            byName.set(spec.name || file, { spec, png: path.join(dir, file.replace(/\.json$/, '.png')) });
         }
+    }
+}
+/** 전달본과 덧붙인 폴더들의 모션 JSON들: 직업 → 무기 → [{ spec, png }]. */
+function readPackage(packs) {
+    const byName = new Map(), byClass = {};
+    packs.forEach(pack => readPackFolder(pack, byName));
+    for (const row of byName.values()) {
+        if (RETIRED.has(row.spec.file)) continue;
+        const byWeapon = byClass[row.spec.job] = byClass[row.spec.job] || {};
+        (byWeapon[row.spec.weapon] = byWeapon[row.spec.weapon] || []).push(row);
     }
     return byClass;
 }
 
 function importMotion(row, weapon, idle, target) {
-    const frames = framesOf(row.spec, decodePng(fs.readFileSync(row.png)));
+    const sheetFrames = framesOf(row.spec, decodePng(fs.readFileSync(row.png)));
+    const frames = weapon === '플라스크' && row.spec.file === '투척' ? sheetFrames.map(withoutFlyingPieces) : sheetFrames;
     const anchor = anchorOf(row.spec, frames[0], idle), lift = liftOf(frames, anchor);
     const flagged = flaggedFrames(frames), shown = frames.map((frame, i) => { let k = i; while (k > 0 && flagged.includes(k)) k--; return frames[k]; });
-    const box = unionBox(shown), hits = hitsOf(row.spec, weapon, frames.length);
+    const box = unionBox(shown), hits = hitsOf(row.spec, frames.length);
     writeSheet(target, stripOf(shown, box));
-    const clip = { frames: frames.length, ms: msOf(row.spec, hits, frames.length) };
+    const clip = { frames: frames.length, ms: msOf(row.spec, hits) };
     if (row.spec.loop) clip.loop = true;
     if (hits.length) clip.hit = hits;
     Object.assign(clip, { w: box.w, h: box.h, ax: anchor.x - box.x, ay: anchor.y - box.y });
@@ -216,9 +275,11 @@ function tableText(data) {
 }
 
 function main() {
-    const pack = process.argv[2];
-    if (!pack || !fs.existsSync(path.join(pack, '모션'))) fail('쓰는 법: node scripts/import-stage-characters.cjs <모션 전달본 폴더(모션/ 이 있는 곳)>');
-    const byClass = readPackage(pack), classes = {}, flagged = [];
+    const packs = process.argv.slice(2), pack = packs[0];
+    if (!pack || packs.some(folder => !fs.existsSync(path.join(folder, '모션')))) {
+        fail('쓰는 법: node scripts/import-stage-characters.cjs <모션 전달본 폴더(모션/ 이 있는 곳)> [덧붙일 폴더 ...]');
+    }
+    const byClass = readPackage(packs), classes = {}, flagged = [];
     let sheets = 0;
     for (const [job, classId] of Object.entries(CLASS_IDS)) {
         if (!byClass[job]) fail(`${job}: 전달본에 이 직업이 없습니다.`);
@@ -234,11 +295,11 @@ function main() {
         if (!weapons.unarmed.death) fail(`${job}: 맨손 사망이 없습니다(처음 장면의 일어나기).`);
         classes[classId] = { label: job, weapons };
     }
-    const readme = path.join(pack, '00_먼저_읽기.md');
-    const title = fs.existsSync(readme) ? fs.readFileSync(readme, 'utf8').split('\n')[0].replace(/^#\s*/, '').trim() : path.basename(path.resolve(pack));
+    const readme = ['00_먼저_읽기.md', '00_사용안내.txt'].map(name => path.join(pack, name)).find(file => fs.existsSync(file));
+    const title = readme ? fs.readFileSync(readme, 'utf8').replace(/^﻿/, '').split('\n')[0].replace(/^#\s*/, '').trim() : path.basename(path.resolve(pack));
     const data = { source: title, path: 'assets/playable/stage/', version: sheetHash.digest('hex').slice(0, 10), ...SHARED, classes };
     const header = [
-        '// Generated by scripts/import-stage-characters.cjs: 리그닌 모션 공방 전달본(2026-10-20, 직업 6 × 무기 7)의 규격. 직접 고치지 말고 다시 가져온다.',
+        '// Generated by scripts/import-stage-characters.cjs: 리그닌 모션 전달본(직업 6 × 무기 7, 출처는 source)의 규격. 직접 고치지 말고 다시 가져온다.',
         '// 모션마다 가로 한 줄 시트(칸 w × h, 0번 장이 왼쪽), 오른쪽을 보는 그림만(왼쪽은 좌우 반전). (ax, ay)는 칸 안의 발 기준점(발바닥 가운데).',
         '// motion: frames, ms(모든 장이 같으면 숫자 하나), loop, hit(타격 장들, 0부터), w, h, ax, ay, lift(그림이 뜨는 높이, 도약과 공중제비), file.',
         '// version: 모든 시트의 해시, 그림 주소의 ?v=(js/canvas-stage-actors.js).',

@@ -6,7 +6,6 @@ const loopMutationUi = (() => {
     const PICK_DIALOG = 'starter-rune-pick';
     let chipDrawn = null, pickShown = false;
 
-    const elementPart = (ele, text) => `<b style="--mutation-ele:${getElementColor(ele)}">${escapeHTML(_t(DAMAGE_ELEMENT_LABELS[ele]))} ${text}</b>`;
     /** The rule in numbers, for the chip's hover and the pick window. */
     function mutationRuleText(rule) {
         return _t('이번 루프의 모든 몬스터: {DAMAGE_ELEMENT_LABELS} 피해 면역, {DAMAGE_ELEMENT_LABELS2} 피해 +{weakTakenPct}%', { DAMAGE_ELEMENT_LABELS: DAMAGE_ELEMENT_LABELS[rule.immune], DAMAGE_ELEMENT_LABELS2: DAMAGE_ELEMENT_LABELS[rule.weak], weakTakenPct: LOOP_MUTATION.weakTakenPct });
@@ -20,7 +19,7 @@ const loopMutationUi = (() => {
         if (sign === chipDrawn) return;
         chipDrawn = sign;
         root.hidden = !rule;
-        root.innerHTML = rule ? `<i>${_t('변이')}</i>${elementPart(rule.immune, '면역')}${elementPart(rule.weak, '약점')}` : '';
+        root.innerHTML = rule ? `<i>${_t('변이')}</i>${loopMutation.partHtml(rule.immune, '면역')}${loopMutation.partHtml(rule.weak, '약점')}` : '';
         root.dataset.tip = rule ? mutationRuleText(rule) : '';
     }
 

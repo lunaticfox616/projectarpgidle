@@ -2,10 +2,13 @@
 // 노드 위치와 연결은 지역 번호와 칸(slot)에서 js/atlas.js가 계산한다(바깥 고리 칸 0~2 → 안쪽 칸 7~8).
 const ATLAS = Object.freeze({
     zoneId: 'atlas_map',
+    // 아틀라스는 마지막 엔드게임(2026-11-06 사용자: 루프 25쯤, 지금 열리는 때는 너무 어렵다): 이 루프부터 이번 루프의 혼돈 20을 깨면 열린다.
+    // 이미 열린 저장은 그대로다. 등급의 난이도는 루프와 상관없이 같다(아래 difficulty).
+    unlockLoop: 25,
     stashCap: 120,
     portals: 3,
     // 등급 T의 몬스터 = 혼돈 깊이 D(T) = 20 + 2(T−1)을 그 깊이가 관문인 루프(D − 10)에서 만난 것과 같다.
-    // 1등급은 아틀라스가 열리는 곳(루프 10 · 혼돈 20), 16등급은 루프 40 · 심화 50. 루프가 올라도 등급의 난이도는 그대로다.
+    // 1등급은 루프 10 · 혼돈 20의 몬스터, 16등급은 루프 40 · 심화 50. 루프가 올라도 등급의 난이도는 그대로다.
     difficulty: Object.freeze({ baseDepth: 20, depthPerTier: 2, loopBehindDepth: 10 }),
     // 지역 레벨(몬스터 · 아이템 레벨): 1등급 77(혼돈 20과 같다)에서 등급마다 +3 — 고레벨 캐릭터도 높은 등급에서 전리품을 온전히 받는다.
     areaLevel: Object.freeze({ base: 77, perTier: 3 }),
@@ -207,6 +210,11 @@ const ATLAS = Object.freeze({
     // (data/endgame-progression.js BEYOND_BOUNDARY_UNLOCK_SEEDS).
     seeds: Object.freeze({ max: 4, tierStep: 2 }),
     tierCap: 24,
+    // 등급의 빛깔(2026-11-06 사용자: 규칙 없이 보기만): 흰색 1~6, 노란색 7~11, 빨간색 12 이상(씨앗으로 오른 등급 포함).
+    tierBands: Object.freeze([Object.freeze({ id: 'white', max: 6, tone: '#ece6d8' }), Object.freeze({ id: 'yellow', max: 11, tone: '#f0c95c' }),
+        Object.freeze({ id: 'red', max: Infinity, tone: '#ec6a55' })]),
+    // 같은 등급 지도석 셋을 합치면 한 등급 위 지도석 하나(지금 갈 수 있는 그 등급 노드, 떨어진 지도석과 같은 규칙으로 품질과 기운).
+    combine: Object.freeze({ count: 3 }),
     // 고등급 보상(2026-10-09, 루프 50 이후 레벨 디자인): 장비 등급은 16등급에서 T20에 닿는다(js/atlas.js lootTier). 그 위 등급마다
     // 아이템 수량 +quantity%, 희귀도 +rarity%, 고유 중 체이싱 고유 확률 +chase%(js/atlas-maps.js effects, chaseMul).
     overTier: Object.freeze({ from: 16, quantity: 8, rarity: 12, chase: 25 }),
