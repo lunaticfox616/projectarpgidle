@@ -184,6 +184,6 @@ assert.strictEqual(writes, 1, 'editing an asking price keeps the same input');
 ctx.document.activeElement = { tagName:'BUTTON' };
 run('playerStallUi.render()');
 assert.strictEqual(writes, 2, 'a previously clicked button must not freeze incoming sale updates');
-assert(markup.includes('형체 없는 이슬 8'));
+assert(markup.includes('class="stall-coin" data-tip="형체 없는 이슬">') && markup.includes('<b>8</b>'), 'the payout shows the dew coin and its amount');
 
 console.log('player stall: appraisal, ownership, prices, timing, offline parity, payout, saves, loop protection passed');
