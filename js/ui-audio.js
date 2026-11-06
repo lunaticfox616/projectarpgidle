@@ -44,7 +44,7 @@
     }
 
     async function fetchFile(path) {
-        const response = await fetch(path + '?v=20261105-death');
+        const response = await fetch(path + '?v=20261106-selected');
         if (!response.ok) throw Error(`Audio fetch failed: ${response.status} ${path}`);
         return response;
     }
@@ -260,6 +260,7 @@
     window.addEventListener('project-idle:player-defeated', event => {
         if (!event.detail?.background) playUiFeedbackSound('playerDeath');
     });
+    window.addEventListener('project-idle:items-salvaged', () => playUiFeedbackSound('itemDismantle'));
     document.addEventListener('visibilitychange', () => {
         updateMasterGain();
         if (document.hidden) silence();

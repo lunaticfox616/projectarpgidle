@@ -4,6 +4,8 @@
 const atlasUi = (() => {
     let signature = '', hudSignature = '', selectedNode = null, selectedUid = null, view = 'maps', panelObserver = null, bloomedUid = null;
     const STATUS = { locked: '잠김', open: '열림', complete: '완료', bonus: '보너스' };
+    /** The state word's colour on the hover card: open is the chart's gold, done is pale. */
+    const STATUS_TONE = { locked: '#8d826e', open: '#f3d28c', complete: '#efe6d2', bonus: '#fff1c9' };
     /** The painted act map a node walks (data/act-exploration-maps.js terrain). */
     const terrainOf = node => (ACT_EXPLORATION_MAPS.find(map => map.act === node.act) || {}).terrain || '';
     const CRAFT_ORDER = ['magicBud', 'sapBud', 'formlessDew', 'blightSpore', 'pruningShears', 'goldenRule', 'deepWhetstone', 'emberBranch'];
@@ -15,6 +17,8 @@ const atlasUi = (() => {
     const panelOpen = () => game.mapExploreSubtab === 'map-explore-worldtree' && game.mapSubtab === 'map-tab-zones';
     /** Content room names; a golden room (data/atlas.js goldenRoom) carries its prefix. */
     const encounterNames = (types, golden = []) => types.map(type => `${golden.includes(type) ? `${ATLAS.goldenRoom.prefix} ` : ''}${ATLAS.encounters[type].name}`).join(', ');
+    /** The tier's colour (흰색, 노란색, 빨간색: js/atlas.js tierBand) as the --atlas-tier the number styles read. */
+    const tierStyle = tier => `--atlas-tier:${atlas.tierBand(tier).tone}`;
 
     function openPanel() {
         if (!document.getElementById('tab-map').classList.contains('active')) switchTab('tab-map');
@@ -56,19 +60,57 @@ const atlasUi = (() => {
     function revealStash() {
         document.querySelector('#ui-atlas .atlas-stash')?.scrollIntoView({ block: 'start' });
     }
+    /** The stash in its shown order: highest tier first. */
+    const sortedStash = () => [...ledger().stash].sort((a, b) => b.tier - a.tier || a.uid - b.uid);
+    const mapName = map => _t('{node} {tier}등급 {name}', { node: nodeName(map.node), tier: map.tier, name: ATLAS.rarities[map.rarity].name });
+    /** 고른 지도석 하나. 손대지 않은 지도석은 묻지 않고(2026-11-06 사용자: 버리기가 너무 귀찮다), 제작한 것만 확인한다. 버린 뒤 다음 줄을 골라
+     * 같은 단추로 이어서 버린다. */
     async function discard() {
         const map = selectedMap(), busy = atlas.runOpenReason(game);
         if (!map) return;
         if (busy) return addLog(busy, 'attack-monster');
-        const name = _t('{node} {tier}등급 {name}', { node: nodeName(map.node), tier: map.tier, name: ATLAS.rarities[map.rarity].name });
-        const ok = await requestGameConfirmation(`${name} 지도석 1개를 버릴까요?\n지도석과 제작에 쓴 재화는 돌려받을 수 없습니다.`,
-            { title: _t('지도석 버리기'), tone: 'danger', confirmLabel: _t('버리기'), cancelLabel: _t('취소'), dismissOnBackdrop: false });
-        if (!ok) return;
+        const name = mapName(map);
+        if (!atlas.plainMap(map) && !await requestGameConfirmation(`${name} 지도석 1개를 버릴까요?\n지도석과 제작에 쓴 재화는 돌려받을 수 없습니다.`,
+            { title: _t('지도석 버리기'), tone: 'danger', confirmLabel: _t('버리기'), cancelLabel: _t('취소'), dismissOnBackdrop: false })) return;
         if (selectedMap() !== map) return addLog(_t('선택한 지도석이 바뀌어 버리기를 취소했습니다.'), 'attack-monster');
+        const order = sortedStash(), at = order.indexOf(map);
         const reason = atlas.discard(game, map.uid);
         if (reason) return addLog(reason, 'attack-monster');
-        selectedUid = null;
+        const next = order[at + 1] || order[at - 1];
+        selectedUid = next ? next.uid : null;
         addLog(_t('🗺️ {name} 지도석 1개를 버렸습니다.', { name }), 'attack-monster');
+        queueImportantSave(200);
+        refresh();
+    }
+    const plainUpTo = tier => ledger().stash.filter(map => atlas.plainMap(map) && map.tier <= tier).length;
+    /** 고른 지도석의 등급 이하에서 손대지 않은 지도석 모두(한 번만 묻는다). 마법, 희귀, 품질, 타락 지도석은 남는다. */
+    async function discardLow() {
+        const map = selectedMap(), busy = atlas.runOpenReason(game);
+        if (!map) return;
+        if (busy) return addLog(busy, 'attack-monster');
+        const tier = map.tier, count = plainUpTo(tier);
+        if (!count) return addLog(_t('{tier}등급 이하에 일반 지도석이 없습니다.', { tier }), 'attack-monster');
+        const ok = await requestGameConfirmation(_t('{tier}등급 이하 일반 지도석 {count}개를 모두 버릴까요?\n마법, 희귀, 품질, 타락 지도석은 남습니다.', { tier, count }),
+            { title: _t('지도석 정리'), tone: 'danger', confirmLabel: _t('{count}개 버리기', { count }), cancelLabel: _t('취소'), dismissOnBackdrop: false });
+        if (!ok) return;
+        const removed = atlas.discardPlainUpTo(game, tier);
+        if (!ledger().stash.includes(map)) selectedUid = null;
+        addLog(_t('🗺️ {tier}등급 이하 일반 지도석 {removed}개를 버렸습니다.', { tier, removed }), 'attack-monster');
+        queueImportantSave(200);
+        refresh();
+    }
+    /** 고른 지도석과 같은 등급 둘을 합쳐 한 등급 위 지도석 하나. 제작한 지도석이 들어가면 묻는다. */
+    async function combine() {
+        const map = selectedMap(), reason = map && atlas.combineReason(game, map.uid);
+        if (!map) return;
+        if (reason) return addLog(reason, 'attack-monster');
+        const set = atlas.combineSet(game, map.uid);
+        if (set.some(entry => !atlas.plainMap(entry)) && !await requestGameConfirmation(_t('제작한 지도석이 함께 합쳐집니다.\n{names}', { names: set.map(mapName).join('\n') }),
+            { title: _t('지도석 합치기'), confirmLabel: _t('합치기'), cancelLabel: _t('취소'), dismissOnBackdrop: false })) return;
+        const result = atlas.combine(game, map.uid);
+        if (result.reason) return addLog(result.reason, 'attack-monster');
+        selectedUid = result.map.uid;
+        addLog(_t('🗺️ {tier}등급 지도석 {count}개를 합쳐 {name} 지도석을 얻었습니다.', { tier: map.tier, count: result.used.length, name: mapName(result.map) }), 'loot-normal');
         queueImportantSave(200);
         refresh();
     }
@@ -207,16 +249,20 @@ const atlasUi = (() => {
         panelObserver = new ResizeObserver(() => { if (panelOpen()) PAINT[view](); });
         panelObserver.observe(panel);
     }
-    /** Hover card: name, tier, state and region, then what stands there (map layout and boss, guardian, the pinnacle). */
+    /** Hover card (2026-11-06 사용자: 색감을 넣고, 아직 갈 수 없는 노드는 이름만): the name in its region's tint; an open node adds its tier as a chip
+     * in the tier's colour, its state and region, then what stands there (map layout and boss, guardian, the pinnacle). */
     function hint(event, id) {
         const node = atlas.node(id);
         if (!node || typeof showInfoTooltipHtml !== 'function') return;
-        const region = ATLAS.regions.find(row => row.id === node.region);
+        const region = ATLAS.regions.find(row => row.id === node.region), tint = region ? region.tint : '#d9b066';
+        const status = atlas.status(game, id), tier = atlas.effectiveTier(game, node);
+        const title = `<div class="tooltip-title" style="color:${tint}">${escapeHTML(_t(node.name))}</div>`;
+        if (status === 'locked') return showInfoTooltipHtml(event.clientX, event.clientY, title, tint);
         const kind = node.kind === 'map' ? terrainOf(node) : `${node.kind === 'guardian' ? _t('지역 수호자') : _t('정점')}(${terrainOf(node)})`;
-        const where = region ? `, ${region.name}` : '';
-        showInfoTooltipHtml(event.clientX, event.clientY, `<div class="tooltip-title">${escapeHTML(_t(node.name))}</div>
-            <div class="tooltip-line">${_t('{effectiveTier}등급, {STATUS}{where}', { effectiveTier: atlas.effectiveTier(game, node), STATUS: STATUS[atlas.status(game, id)], where })}</div>
-            <div class="tooltip-line">${_t('{kind}, 보스 {boss}', { kind, boss: escapeHTML(node.boss) })}</div>`, region ? region.tint : '#d9b066');
+        const where = region ? `, ${escapeHTML(_t(region.name))}` : '';
+        showInfoTooltipHtml(event.clientX, event.clientY, `${title}
+            <div class="tooltip-line"><span class="atlas-tip-tier" style="${tierStyle(tier)}">${_t('{tier}등급', { tier })}</span> <span style="color:${STATUS_TONE[status]}">${_t(STATUS[status])}</span>${where}</div>
+            <div class="tooltip-line">${_t('{kind}, 보스 {boss}', { kind, boss: escapeHTML(node.boss) })}</div>`, tint);
     }
     /** Region legend: tint, name and how much of it is done (its maps and guardian). */
     function legendHtml() {
@@ -233,7 +279,7 @@ const atlasUi = (() => {
         const classes = ['atlas-node', `is-${status}`, `kind-${node.kind}`, node.id === selectedNode ? 'is-selected' : '', active ? 'is-running' : ''].join(' ');
         const tier = atlas.effectiveTier(game, node);
         // data-info-tooltip-anchor: js/ui.js의 mousemove 감시가 이 표시가 없는 곳의 툴팁을 바로 지워, 지도 이름이 뜨자마자 사라졌다(2026-10-25 사용자).
-        return `<button class="${classes}" style="--x:${x}%;--y:${y}%" data-atlas-node="${node.id}" data-info-tooltip-anchor="1" aria-pressed="${node.id === selectedNode}"
+        return `<button class="${classes}" style="--x:${x}%;--y:${y}%;${tierStyle(tier)}" data-atlas-node="${node.id}" data-info-tooltip-anchor="1" aria-pressed="${node.id === selectedNode}"
             aria-label="${_t('{name} {tier}등급 {STATUS}', { name: escapeHTML(_t(node.name)), tier, STATUS: STATUS[status] })}" onclick="atlasUi.selectNode('${node.id}')"
             onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><b>${tier}</b>${held ? `<i>${held}</i>` : ''}</button>`;
     }
@@ -368,14 +414,23 @@ const atlasUi = (() => {
     // ---------------------------------------------------------------- stash, result, header
     function stashRowHtml(map) {
         return `<button class="atlas-stash-row rarity-${map.rarity}" aria-pressed="${map.uid === selectedUid}" onclick="atlasUi.selectMap(${map.uid})">
-            <b>${map.tier}</b><span>${escapeHTML(nodeName(map.node))}${omenChipHtml(map)}</span><small>${_t(ATLAS.rarities[map.rarity].name)}${map.mods.length ? _t(', 옵션 {length}', { length: map.mods.length }) : ''}${map.quality ? `, ${map.quality}%` : ''}${map.corrupted ? _t(', 타락') : ''}</small></button>`;
+            <b style="${tierStyle(map.tier)}">${map.tier}</b><span>${escapeHTML(nodeName(map.node))}${omenChipHtml(map)}</span><small>${_t(ATLAS.rarities[map.rarity].name)}${map.mods.length ? _t(', 옵션 {length}', { length: map.mods.length }) : ''}${map.quality ? `, ${map.quality}%` : ''}${map.corrupted ? _t(', 타락') : ''}</small></button>`;
+    }
+    /** 고른 지도석의 도구: 같은 등급 셋 합치기, 버리기, 그 등급 이하 일반 지도석 정리. */
+    function stashToolsHtml(selected, busy) {
+        const same = ledger().stash.filter(map => map.tier === selected.tier).length, reason = atlas.combineReason(game, selected.uid);
+        const low = plainUpTo(selected.tier), off = busy ? 'disabled' : '';
+        const why = reason && same >= ATLAS.combine.count && !busy ? `<small>${escapeHTML(reason)}</small>` : '';
+        return `<div class="atlas-stash-tools"><button class="atlas-combine" onclick="atlasUi.combine()" ${reason ? 'disabled' : ''}>${_t('같은 등급 {count}개 합치기', { count: ATLAS.combine.count })} <span>${Math.min(same, ATLAS.combine.count)}/${ATLAS.combine.count}</span></button>
+            <button class="atlas-discard" onclick="atlasUi.discard()" ${off}>${_t('버리기')}</button>
+            <button class="atlas-discard" onclick="atlasUi.discardLow()" ${off || (low ? '' : 'disabled')}>${_t('{tier}등급 이하 일반 모두 버리기', { tier: selected.tier })} <span>${low}</span></button></div>${why}`;
     }
     function stashHtml() {
-        const maps = [...ledger().stash].sort((a, b) => b.tier - a.tier || a.uid - b.uid);
+        const maps = sortedStash();
         const selected = selectedMap(), busy = atlas.runOpenReason(game), full = maps.length >= ATLAS.stashCap;
         const capacity = full ? '보관함이 가득 찼습니다.' : _t('빈자리 {value}칸', { value: ATLAS.stashCap - maps.length });
-        const management = selected ? `<div class="atlas-stash-management"><p><strong>${_t('선택: {node}', { node: escapeHTML(nodeName(selected.node)) })}</strong><span>${selected.tier}등급, ${_t(ATLAS.rarities[selected.rarity].name)}${selected.quality ? _t(', 품질 {quality}%', { quality: selected.quality }) : ''}${selected.corrupted ? _t(', 타락') : ''}</span></p>
-            <button class="atlas-discard" onclick="atlasUi.discard()" ${busy ? 'disabled' : ''}>${_t('선택 지도석 버리기')}</button>${busy ? `<small>${busy}</small>` : ''}</div>` : '';
+        const management = selected ? `<div class="atlas-stash-management"><p><strong>${_t('선택: {node}', { node: escapeHTML(nodeName(selected.node)) })}</strong><span><b style="${tierStyle(selected.tier)}">${selected.tier}등급</b>, ${_t(ATLAS.rarities[selected.rarity].name)}${selected.quality ? _t(', 품질 {quality}%', { quality: selected.quality }) : ''}${selected.corrupted ? _t(', 타락') : ''}</span></p>
+            ${stashToolsHtml(selected, busy)}${busy ? `<small>${busy}</small>` : ''}</div>` : '';
         return `<section class="atlas-stash" aria-label="${_t('지도석 보관함')}"><h3>${_t('지도석 보관함')} <span>${maps.length}/${ATLAS.stashCap}</span></h3>
             <p class="atlas-stash-capacity${full ? ' is-full' : ''}" role="status">${capacity}</p>${management}
             ${maps.length ? `<div class="atlas-stash-list">${maps.map(stashRowHtml).join('')}</div>` : _t('<p class="atlas-muted">비어 있습니다. 보관함은 루프마다 비워집니다.</p>')}</section>`;
@@ -552,10 +607,18 @@ const atlasUi = (() => {
     // ---------------------------------------------------------------- combat HUD and log lines
     /** Fights opened without a map item say what they are instead of the (always normal) rarity. */
     const RUN_KIND = { pinnacle: '정점', apex: '최종 보스', league: '리그 우두머리' };
-    function hudTags(run) {
-        const rooms = run.encounters.length ? `, ${encounterNames(run.encounters, run.golden || [])}` : '';
-        const kind = run.map.memory ? _t('기억 {memory}단계', { memory: run.map.memory }) : RUN_KIND[atlas.node(run.map.node)?.kind] || ATLAS.rarities[run.map.rarity].name;
-        return _t('{tier}등급, {kind}{rooms}', { tier: run.map.tier, kind, rooms });
+    /** The map's kind chip: its rarity in the rarity's colour, a memory step, or the fight it opens. */
+    function hudKindHtml(run) {
+        const special = run.map.memory ? _t('기억 {memory}단계', { memory: run.map.memory }) : RUN_KIND[atlas.node(run.map.node)?.kind];
+        if (special) return `<span class="atlas-hud-chip">${escapeHTML(_t(special))}</span>`;
+        return `<span class="atlas-hud-chip rarity-${run.map.rarity}">${escapeHTML(_t(ATLAS.rarities[run.map.rarity].name))}</span>`;
+    }
+    /** Portals left as lit pips out of the run's portals (a ring map has none: losing or leaving ends it). */
+    function hudPortalsHtml(run) {
+        if (run.board) return `<span class="atlas-hud-chip">${_t('포털 없음')}</span>`;
+        const total = ATLAS.portals + run.bonus.portals, tip = _t('포털 {portals}/{value}', { portals: run.portals, value: total });
+        const pips = Array.from({ length: total }, (_, index) => `<i${index < run.portals ? ' class="is-on"' : ''}></i>`).join('');
+        return `<span class="atlas-hud-chip atlas-hud-portals" data-tip="${escapeHTML(tip)}"><small>${_t('포털')}</small>${pips}</span>`;
     }
     function updateHud(zone) {
         const host = document.getElementById('ui-atlas-combat');
@@ -564,12 +627,13 @@ const atlasUi = (() => {
         const run = ledger().run, show = !!run && zone && zone.type === 'atlasMap' && !actExplorationState.current(game)?.departure;
         host.toggleAttribute('hidden', !show);
         if (!show) { hudSignature = ''; return; }
-        const key = JSON.stringify([run.map.uid, run.portals, run.drops.length, run.found.length]);
+        const key = JSON.stringify([run.map.uid, run.portals, run.encounters]);
         if (key === hudSignature) return;
         hudSignature = key;
-        host.innerHTML = `<div class="atlas-hud-copy"><strong>${escapeHTML(_t(zone.name))} <span>${hudTags(run)}</span>${omenChipHtml(run.map)}</strong>
-            <span>${run.board ? _t('심재의 나이테, 지거나 귀환하면 지도가 끝납니다') : _t('포털 {portals}/{value}, 지도석 {length}, 각인 {length2} 보관 중', { portals: run.portals, value: ATLAS.portals + run.bonus.portals, length: run.drops.length, length2: run.found.length })}</span></div>
-            <div class="atlas-hud-actions"><button onclick="atlasUi.openPanel()">${_t('아틀라스')}</button></div>`;
+        // 지도 이름은 위의 지역 이름과 같고, 주운 지도석과 각인 수는 싸우는 동안 볼 일이 없다(2026-11-06 사용자): 등급, 종류, 방, 징조, 포털만.
+        const rooms = run.encounters.map(type => `<span class="atlas-hud-chip is-room">${escapeHTML(encounterNames([type], run.golden || []))}</span>`).join('');
+        host.innerHTML = `<span class="atlas-hud-chip atlas-hud-tier" style="${tierStyle(run.map.tier)}">${_t('{tier}등급', { tier: run.map.tier })}</span>${hudKindHtml(run)}${rooms}${omenChipHtml(run.map)}${hudPortalsHtml(run)}
+            <button type="button" class="combat-action-btn" onclick="atlasUi.openPanel()">${_t('아틀라스')}</button>`;
     }
     const REASON = { defeat: '쓰러졌습니다', travel: '지도를 떠났습니다', '마을 귀환': '마을로 귀환했습니다' };
     function dropsText(detail) {
@@ -623,6 +687,6 @@ const atlasUi = (() => {
         signature = '';
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, selectNode, selectMap, revealDevice, revealStash, hint, craft, flowerOmen, goldenFlowerOmen, discard, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, selectNode, selectMap, revealDevice, revealStash, hint, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
 })();
 safeExposeGlobals({ atlasUi });

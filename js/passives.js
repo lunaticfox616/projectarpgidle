@@ -5148,10 +5148,11 @@ function pressLoopHeroChoice(classId, experienced) {
     renderLoopHeroChoiceDetail(classId, experienced);
 }
 
-/** The class screen's line for this loop's mutation (js/loop-mutation.js), empty outside a mutation loop. */
-function loopHeroMutationLine() {
+/** The class screen's line for this loop's mutation (js/loop-mutation.js) in the elements' colours, empty outside a mutation loop. */
+function loopHeroMutationHtml() {
     const rule = loopMutation.current();
-    return rule ? `\n변이시간선: ${loopMutation.describe(rule)}` : '';
+    if (!rule) return '';
+    return `<span class="loop-hero-mutation">${escapeHTML(_t('변이시간선'))}: ${loopMutation.partHtml(rule.immune, '면역')}, ${loopMutation.partHtml(rule.weak, '약점')}</span>`;
 }
 function openLoopHeroSelection(onSelect, options = {}) {
     let overlay = document.getElementById('loop-hero-select-overlay');
@@ -5164,9 +5165,10 @@ function openLoopHeroSelection(onSelect, options = {}) {
         return false;
     }
     loopHeroSelectionCallback = typeof onSelect === 'function' ? onSelect : null;
-    if (kickerEl) kickerEl.innerText = options.kicker || '다음 루프';
-    if (titleEl) titleEl.innerText = _t(options.title) || '다음 루프 직업 선택';
-    if (bodyEl) bodyEl.innerText = (options.body || '이번 루프에서 사용할 직업을 선택하세요.') + loopHeroMutationLine();
+    // Callers hand over text already in the player's language (the loop's own request hands over none).
+    if (kickerEl) kickerEl.innerText = options.kicker || _t('다음 루프');
+    if (titleEl) titleEl.innerText = options.title || _t('다음 루프 직업 선택');
+    if (bodyEl) bodyEl.innerHTML = escapeHTML(options.body || _t('이번 루프에서 사용할 직업을 선택하세요.')) + loopHeroMutationHtml();
     let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredClassIds) ? game.discoveredClassIds : []);
     grid.innerHTML = PLAYER_CLASS_ORDER.map(id => {
         let def = PLAYER_CLASS_DEFS[id];
@@ -10271,6 +10273,7 @@ async function salvageJewel(jewelId) {
     })) return false;
     if (!bagItems.take(jewel)) return false;
     salvageJewelObject(jewel, false);
+    dispatchRuntimeEvent('items-salvaged', { count: 1 });
     updateStaticUI();
     return true;
 }
@@ -10387,6 +10390,7 @@ function salvageItem(idx) {
     if (!isCraftSelectionEquip() && getCraftSelectionRef() === item.id) clearCraftSelection();
     salvageItemObject(item, false);
     game.inventory.splice(idx, 1);
+    dispatchRuntimeEvent('items-salvaged', { count: 1 });
     updateStaticUI();
 }
 
@@ -10431,6 +10435,8 @@ function salvageBagItems(targets) {
     const rewards = {}, gone = new Set(targets);
     targets.forEach(item => mergeSalvageRewards(rewards, salvageItemObject(item, true)));
     game.inventory = game.inventory.filter(item => !gone.has(item));
+    // Manual bulk salvage emits once; automatic drop salvage never goes through this function.
+    if (targets.length) dispatchRuntimeEvent('items-salvaged', { count: targets.length });
     return rewards;
 }
 

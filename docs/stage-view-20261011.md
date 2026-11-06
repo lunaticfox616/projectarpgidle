@@ -138,9 +138,10 @@
   크기(자동, 또는 캐릭터 도트 하나의 화면 px 1, 1.5, 2)와 들 자세도 거기서 고른다.
 - 그림 폴더(`assets/playable/stage/`)가 서버에 없으면 설정이 켜져 있어도 위에서 보는 전장 그대로다(`stageActors.available`).
   시험판 세이브가 그림 없는 빌드로 넘어가도 화면이 깨지지 않는다. 그림은 2026-10-16부터 저장소에 있고, 구입한 이펙트 그림(assets/stage-vfx/vfx.png)만 비공개 저장소에 둔다.
-- 가져오기(2026-10-20부터 모션 공방 전달본): `node scripts/import-stage-characters.cjs <모션 전달본 폴더>` → `assets/playable/stage/<직업>/<무기>/<모션>.png`
+- 가져오기(2026-11-06부터 10-30 개선본 적용 전달본 v4와 사용자가 따로 보낸 궁수, 성직자 활 공격 `projectarpgidle1/artifacts/hero-bow-motion-20261106`,
+  그 전은 10-20 모션 공방 전달본): `node scripts/import-stage-characters.cjs <모션 전달본 폴더> [덧붙일 폴더 ...]` → `assets/playable/stage/<직업>/<무기>/<모션>.png`
   (모션마다 가로 한 줄 시트, 칸 w × h와 발 기준점 ax, ay), `data/stage-characters.js`(장 수, ms, 반복, 타격 장, lift, 그림 해시 version).
-  규칙(발 기준점, 활 사격과 플라스크 투척의 7번 타격 장, 광과민으로 앞 장을 담는 장, 맨손 사망을 거꾸로 이은 일어나기)은 그 스크립트 머리말.
+  규칙(발 기준점, 시위를 늦게 놓는 원본 활 사격의 타격 장, 플라스크 투척에서 날아가는 병 지우기, 광과민으로 앞 장을 담는 장, 맨손 사망을 거꾸로 이은 일어나기)은 그 스크립트 머리말.
   이름(직업, 무기 대검과 한손검, 모션)은 scripts/lib/stage-motion-ids.cjs.
 - 주인공(js/canvas-stage-actors.js):
   - 낀 무기의 대분류 → 자세(data/skills.js `SKILL_RUNE_STANCE_BY_CATEGORY`, 룬 무기 규칙과 같은 표). 곡도는 방패를 함께 껴도 한손검, 무기가 없으면 맨손.

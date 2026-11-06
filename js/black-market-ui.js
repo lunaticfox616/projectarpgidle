@@ -201,6 +201,7 @@ const blackMarketUi = (() => {
         if (ask && !await askBlackMarket(ask, { title: blackPurchaseTitle(offer), tone: 'danger', confirmLabel: _t('구매') })) return;
         const result = blackMarketShop.buy(index, { place, offer });
         if (!result.ok) return noteBlackMarket(result.reason);
+        if (!ask) playUiFeedbackSound('uiConfirm'); // A confirmed purchase already sounded in the dialog.
         addLog(_t('🕶️ 암거래 구매, {summary}', { summary: result.summary }), result.notable ? 'loot-unique' : 'loot-magic');
         chosen = null; note = '';
         checkUnlocks();
