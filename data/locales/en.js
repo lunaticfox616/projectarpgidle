@@ -10183,7 +10183,12 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '비용: 형체 없는 이슬 {formlessDew}': 'Cost: Formless Dew {formlessDew}',
         '미확인 적': 'Unknown foe',
         // ── 2026-11-05 로그인 화면 계정 저장 카드의 글 ──
-        '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.': 'Press "Continue with account save" to download the save from the server.',
+        '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.': 'Press "Continue with account save" to download the save from the server.',        // 2026-11-06 강화 변이시간선
+        '공격 강화': 'Empowered attack',
+        '강화 변이': 'Empowered mutation',
+        '강화 변이시간선': 'Empowered Mutation Timeline',
+        '{immune} 면역, {weak} 약점, {strong} 공격 강화': '{immune} immune, {weak} weakness, empowered {strong} attacks',
+        '이번 루프의 모든 몬스터: {immune} 피해 면역, {weak} 피해 +{weakTakenPct}%, 공격에 {strong} 피해 {addedPct}% 추가': 'All monsters this loop: immune to {immune} damage, +{weakTakenPct}% {weak} damage taken, attacks add {addedPct}% as {strong} damage',
     })
 });
 

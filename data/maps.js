@@ -304,9 +304,13 @@ const BOSS_DEFENSE_SPECIALTIES = Object.freeze({
 // 변이시간선(2026-10-23 사용자 결정, js/loop-mutation.js): 루프 startLoop부터 그 루프의 모든 몬스터가 한 속성 피해에 면역이고(관통, 저항
 // 감소로도 뚫리지 않음) 다른 한 속성 피해를 weakTakenPct% 더 받는다. 루프 번호로 정해져 schedule을 10루프마다 되풀이한다([면역, 약점],
 // 첫 줄이 루프 5). 면역은 루프마다 바뀌고 약점은 면역과 겹치지 않는다.
+// 강화 변이시간선(2026-11-06 사용자: 변이시간선 강화판으로 적들의 공격도 특정 속성이 강해지게): empowered.startLoop부터 schedule의 둘째
+// 바퀴가 강화판이다. 몬스터는 면역 속성으로 공격이 강해져, 타격마다 원래 피해의 addedPct%를 그 속성 피해로 더 준다(플레이어의 그 속성
+// 저항, 물리는 방어도와 피해 감소로 깎인다, js/loop-mutation.js empoweredRows).
 const LOOP_MUTATION = Object.freeze({
     startLoop: 5,
     weakTakenPct: 30,
+    empowered: Object.freeze({ startLoop: 15, addedPct: 40 }),
     schedule: Object.freeze([
         ['fire', 'cold'], ['cold', 'light'], ['light', 'phys'], ['phys', 'chaos'], ['chaos', 'fire'],
         ['fire', 'light'], ['cold', 'chaos'], ['light', 'fire'], ['phys', 'cold'], ['chaos', 'phys']

@@ -8,6 +8,9 @@ const loopMutationUi = (() => {
 
     /** The rule in numbers, for the chip's hover and the pick window. */
     function mutationRuleText(rule) {
+        if (rule.empowered) return _t('이번 루프의 모든 몬스터: {immune} 피해 면역, {weak} 피해 +{weakTakenPct}%, 공격에 {strong} 피해 {addedPct}% 추가', {
+            immune: _t(DAMAGE_ELEMENT_LABELS[rule.immune]), weak: _t(DAMAGE_ELEMENT_LABELS[rule.weak]), strong: _t(DAMAGE_ELEMENT_LABELS[rule.empowered]),
+            weakTakenPct: LOOP_MUTATION.weakTakenPct, addedPct: LOOP_MUTATION.empowered.addedPct });
         return _t('이번 루프의 모든 몬스터: {DAMAGE_ELEMENT_LABELS} 피해 면역, {DAMAGE_ELEMENT_LABELS2} 피해 +{weakTakenPct}%', { DAMAGE_ELEMENT_LABELS: DAMAGE_ELEMENT_LABELS[rule.immune], DAMAGE_ELEMENT_LABELS2: DAMAGE_ELEMENT_LABELS[rule.weak], weakTakenPct: LOOP_MUTATION.weakTakenPct });
     }
     /** The chip under the zone name (#ui-loop-mutation, before the held currencies): drawn again only when the loop's rule changes. */
@@ -15,11 +18,11 @@ const loopMutationUi = (() => {
         const root = document.getElementById('ui-loop-mutation');
         if (!root) return;
         const rule = loopMutation.current();
-        const sign = rule ? `${rule.immune}|${rule.weak}` : '';
+        const sign = rule ? `${rule.immune}|${rule.weak}|${rule.empowered}` : '';
         if (sign === chipDrawn) return;
         chipDrawn = sign;
         root.hidden = !rule;
-        root.innerHTML = rule ? `<i>${_t('변이')}</i>${loopMutation.partHtml(rule.immune, '면역')}${loopMutation.partHtml(rule.weak, '약점')}` : '';
+        root.innerHTML = rule ? `<i>${_t(rule.empowered ? '강화 변이' : '변이')}</i>${loopMutation.partsHtml(rule)}` : '';
         root.dataset.tip = rule ? mutationRuleText(rule) : '';
     }
 
