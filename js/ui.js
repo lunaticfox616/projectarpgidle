@@ -11263,6 +11263,26 @@ async function clearSupabasePersistedSession() {
 
 let supabaseClient = null;
 
+/** supabase-js가 세션을 두는 localStorage 열쇠(라이브러리 기본값: 프로젝트 참조 이름). */
+function supabaseSessionStorageKey(config) {
+    return `sb-${new URL(config.supabaseUrl).hostname.split('.')[0]}-auth-token`;
+}
+
+/** 클라이언트를 만들기 전에, supabase-js가 저장해 둔 세션이 게임 것과 다른 갱신 토큰이면 지운다(2026-11-05). 라이브러리는 만들어지자마자
+ * 자기 인증 감시를 걸고 그 첫 호출이 저장된 세션을 읽어 만료됐으면 갱신하는데, 게임이 그 뒤로 토큰을 두 번 넘게 바꿨으면 그 묵은 토큰이
+ * 서버의 세션 사슬을 끊어 부팅 직후 로그아웃됐다. 게임 세션이 복원되면 syncSupabaseClientSession이 현재 토큰을 다시 넣는다. */
+function dropStaleSupabaseStoredSession(config) {
+    try {
+        let stored = loadStoredCloudSession();
+        if (!stored || !stored.refresh_token) return;
+        let key = supabaseSessionStorageKey(config);
+        let parsed = JSON.parse(localStorage.getItem(key) || 'null');
+        if (parsed && parsed.refresh_token && parsed.refresh_token !== stored.refresh_token) localStorage.removeItem(key);
+    } catch (error) {
+        console.warn('supabase-js 저장 세션 확인 실패:', error);
+    }
+}
+
 function getSupabaseClient() {
     if (window.supabaseClient) return window.supabaseClient;
     if (supabaseClient) return supabaseClient;
@@ -11272,10 +11292,11 @@ function getSupabaseClient() {
         console.warn('supabase-js is not loaded.');
         return null;
     }
+    dropStaleSupabaseStoredSession(config);
     supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
         auth: {
             persistSession: true,
-            autoRefreshToken: true,
+            autoRefreshToken: false,   // 갱신은 게임만 한다(2026-11-05, syncSupabaseClientSession): 둘이 따로 갱신하면 묵은 토큰이 세션 사슬을 끊는다
             detectSessionInUrl: true,
             flowType: appPlatform.active ? 'pkce' : 'implicit'
         }
@@ -11371,7 +11392,7 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden) recoverBusyStateAfterOAuthBack();
 });
 
-/** 라이브러리가 토큰을 갱신하면(autoRefreshToken) 게임 세션도 그 토큰으로 맞춘다: 둘이 같은 refresh_token을 따로 갱신하다 늦은 쪽이
+/** supabase-js가 스스로 갱신했으면(getSession이 만료된 저장 토큰을 갱신할 때) 게임 세션도 그 토큰으로 맞춘다: 둘이 같은 refresh_token을 따로 갱신하다 늦은 쪽이
  * 거절되는 일을 줄인다(2026-10-27). 거절된 뒤의 이어받기는 refreshCloudSession이 따로 한다. 한 클라이언트에 한 번만 건다. */
 function watchSupabaseTokenRefresh(client) {
     if (client.__rigninTokenWatch || !client.auth || typeof client.auth.onAuthStateChange !== 'function') return;
@@ -11383,9 +11404,23 @@ function watchSupabaseTokenRefresh(client) {
     });
 }
 
+/** 부팅 때 supabase-js의 세션 복원을 건너뛸지: 클라이언트가 없거나, 게임이 저장한 세션으로 복원할 때(gameSessionComesFirst). */
+function supabaseRestoreSkipped(client) {
+    return !client || gameSessionComesFirst();
+}
+
+/** 부팅 복원을 게임이 저장한 세션으로 할지: 그 세션에 갱신 토큰이 있고 주소에 로그인 인자(OAuth 응답)가 없을 때. */
+function gameSessionComesFirst() {
+    let stored = loadStoredCloudSession();
+    return !!(stored && stored.refresh_token) && !/[?#].*(access_token|code|error|state)=/i.test(window.location.href || '');
+}
+
 async function tryRestoreSupabaseOAuthSession() {
     let client = getSupabaseClient();
-    if (!client) return false;
+    // 게임이 저장한 세션이 있고 주소에 로그인 인자가 없으면 그 세션으로 복원한다(restoreCloudSession). getSession과 onAuthStateChange의 첫 호출은
+    // 저장된 토큰이 만료됐으면 스스로 갱신하는데, 그 토큰이 게임 것보다 두 세대 이상 묵었으면 서버가 세션 사슬을 끊어 부팅 직후 로그아웃됐다
+    // (2026-11-05). 감시는 게임 세션을 supabase-js에 맞춘 뒤 건다(refreshCloudLinkedIdentities).
+    if (supabaseRestoreSkipped(client)) return false;
     watchSupabaseTokenRefresh(client);
     try {
         let { data, error } = await client.auth.getSession();
@@ -11558,6 +11593,31 @@ function refreshSocialAfterCloudStateChange() {
     }
 }
 
+/** supabase-js가 저장해 둔 세션의 갱신 토큰. getSession은 만료된 토큰을 갱신해 버리므로 저장소를 바로 읽는다. */
+function readSupabaseStoredRefreshToken(client) {
+    try {
+        let key = (client.auth && client.auth.storageKey) || supabaseSessionStorageKey(getCloudConfig());
+        let parsed = JSON.parse(localStorage.getItem(key) || 'null');
+        return parsed && parsed.refresh_token ? String(parsed.refresh_token) : '';
+    } catch {
+        return '';
+    }
+}
+
+/** 게임이 받은 토큰을 supabase-js에도 넣어 둘이 같은 세대를 쥐게 한다(2026-11-05). 전에는 게임만 갱신하고 supabase-js는 자기 토큰으로
+ * 따로 갱신했는데, 서버는 지금 토큰의 바로 직전 것만 봐주고 더 묵은 토큰이 오면 세션 사슬을 끊는다. 탭을 두 시간 넘게 가렸다 돌아오면
+ * supabase-js가 두 세대 전 토큰을 내밀어 로그아웃됐다. 이미 같은 토큰이면 보내지 않는다(setSession은 /auth/v1/user를 한 번 읽는다).
+ * 아직 만들지 않은 클라이언트는 만들지 않는다. */
+function syncSupabaseClientSession() {
+    let client = window.supabaseClient || supabaseClient;
+    let session = cloudState.session;
+    if (!client || !client.auth || typeof client.auth.setSession !== 'function' || !session || !session.access_token || !session.refresh_token) return;
+    if (readSupabaseStoredRefreshToken(client) === session.refresh_token) return;
+    Promise.resolve(client.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token }))
+        .then(result => { if (result && result.error) console.warn('supabase-js 세션 맞추기 실패:', result.error); })
+        .catch(error => console.warn('supabase-js 세션 맞추기 실패:', error));
+}
+
 function applyCloudSession(session) {
     let previousUserId = cloudState.user && cloudState.user.id;
     let nextUserId = session && session.user && session.user.id;
@@ -11596,6 +11656,7 @@ function applyCloudSession(session) {
     updateCloudSaveUI();
     if (previousUserId !== (cloudState.user && cloudState.user.id)) refreshSocialAfterCloudStateChange();
     cloudSessionGuard.syncSession();   // 계정이 바뀌면 이 화면의 접속 표를 서버에 적는다(js/cloud-session-guard-ui.js)
+    syncSupabaseClientSession();
 }
 
 function getCloudSessionExpiresAtMs() {
@@ -11616,7 +11677,7 @@ function isCloudAuthRejection(error) {
     return status === 400 || status === 401 || status === 403;
 }
 
-/** supabase-js(persistSession + autoRefreshToken)가 들고 있는 세션. 없거나 게임과 같은 refresh_token이면 null: 게임의 갱신이
+/** supabase-js(persistSession)가 들고 있는 세션. 없거나 게임과 같은 refresh_token이면 null: 게임의 갱신이
  * 거절됐을 때(400 invalid_grant) 그쪽이 먼저 갱신한 새 토큰을 이어받아 로그아웃을 피한다(2026-10-27 검토의 경쟁 기록). */
 async function readSupabaseClientSession() {
     let client = getSupabaseClient();
@@ -11910,6 +11971,7 @@ async function refreshCloudLinkedIdentities() {
                 console.warn('supabase session sync failed before identity lookup:', sessionSyncError);
             }
         }
+        watchSupabaseTokenRefresh(client);   // 저장된 세션을 게임 것으로 맞춘 뒤에 건다: 첫 호출이 저장된 만료 토큰을 갱신한다(2026-11-05)
         let sessionResult = await client.auth.getSession();
         if (sessionResult && sessionResult.error) throw sessionResult.error;
         let session = sessionResult && sessionResult.data ? sessionResult.data.session : null;
