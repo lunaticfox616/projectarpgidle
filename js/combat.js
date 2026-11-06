@@ -7116,7 +7116,7 @@ function getEnemyTraitRecord(trait, isElite) {
     };
 }
 function getEnemyRewardRecord(zone, mods) {
-    const reward = boundaryMul(zone, 'boundaryRewardMul');
+    const reward = boundaryMul(zone, 'boundaryRewardMul') * loopMutation.rewardMul(zone);
     return {
         expMul: enemyRewardMul(mods.trait, 'expMul') * enemyRewardMul(mods.cosmosExclusiveTrait, 'expMul') * reward,
         dropMul: enemyRewardMul(mods.trait, 'dropMul') * enemyRewardMul(mods.cosmosExclusiveTrait, 'dropMul') * getTierDropMulWithCaps(zone.tier, zone) * reward
@@ -13738,6 +13738,11 @@ function tickAilments(pStats, dt) {
 }
 
 
+/** 강화 변이시간선의 추가 피해에 드는 저항(js/loop-mutation.js empoweredRows): 물리는 이번 타격의 물리 경감(방어도, 피해 감소), 원소와
+ * 카오스는 적 보정 뒤 저항. 우주계 균형 경감은 둘 다 그 값이다. */
+function getMutationHitResistance(pStats, enemy, element, physRes) {
+    return element === 'phys' || pStats.cosmosBalanceMitigation ? physRes : getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy);
+}
 function getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy, effectMultiplier) {
     let keyByElement = { fire: 'F', cold: 'C', light: 'L', chaos: 'Chaos' };
     let suffix = keyByElement[element];
@@ -14232,6 +14237,7 @@ function performMonsterAttacks(pStats) {
                 if (mitigatedElemental > 0) damageBreakdown.push({ ele: attackElement, amount: mitigatedElemental });
             }
             if (convertedTakenAsBreakdown.length > 0) damageBreakdown = damageBreakdown.concat(convertedTakenAsBreakdown);
+            damageBreakdown = damageBreakdown.concat(loopMutation.empoweredRows(enemy, dmg, ele => getMutationHitResistance(pStats, enemy, ele, physRes)));
             damageBreakdown = damageBreakdown.map(row => {
                 let less = 0;
                 if (row.ele === 'fire') less = pStats.fireTakenDamageReducePct || 0;
