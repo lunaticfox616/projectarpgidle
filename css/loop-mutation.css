@@ -12,6 +12,10 @@
   /* 루프 직업 선택 창(js/passives.js openLoopHeroSelection)의 안내 아래 줄: 칩과 같은 속성 빛깔 */
   .loop-hero-mutation { display: block; }
   .loop-hero-mutation b { color: var(--mutation-ele); font-weight: 700; }
+  /* 변이 보상(js/loop-mutation.js partsHtml): 속성 빛깔 대신 칩 테두리와 같은 차분한 금빛 */
+  :is(.loop-mutation-chip, .loop-hero-mutation) .loop-mutation-reward { --mutation-ele: #d7c36a; }
+  /* 휴대폰: 강화 변이의 다섯 칸이 줄을 넘지 않게 앞의 이름표를 뺀다(면역, 약점, 공격 강화 칸이 같은 뜻을 보여 준다) */
+  @media (max-width: 480px) { .loop-mutation-chip i { display: none; } }
 
   .starter-rune-panel { width: min(560px, calc(100vw - 24px)); }
   .starter-rune-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0; }

@@ -5164,7 +5164,7 @@ function pressLoopHeroChoice(classId, experienced) {
 function loopHeroMutationHtml() {
     const rule = loopMutation.current();
     if (!rule) return '';
-    return `<span class="loop-hero-mutation">${escapeHTML(_t('변이시간선'))}: ${loopMutation.partHtml(rule.immune, '면역')}, ${loopMutation.partHtml(rule.weak, '약점')}</span>`;
+    return `<span class="loop-hero-mutation">${escapeHTML(_t(rule.empowered ? '강화 변이시간선' : '변이시간선'))}: ${loopMutation.partsHtml(rule, ', ')}</span>`;
 }
 function openLoopHeroSelection(onSelect, options = {}) {
     let overlay = document.getElementById('loop-hero-select-overlay');

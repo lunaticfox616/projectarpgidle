@@ -10159,6 +10159,14 @@ const LANGUAGE_PACK_ZH_TW = Object.freeze({
         '가격 제안': '報價',
         '손님 몰림': '顧客湧入',
         '구매 안 함': '未購買',
+        '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.': '點擊「以帳號存檔繼續」即可下載伺服器上的存檔。',        // 2026-11-06 강화 변이시간선
+        '공격 강화': '攻擊強化',
+        '강화 변이': '強化變異',
+        '강화 변이시간선': '強化變異時間線',
+        '{immune} 면역, {weak} 약점, {strong} 공격 강화': '{immune}免疫，{weak}弱點，{strong}攻擊強化',
+        '이번 루프의 모든 몬스터: {immune} 피해 면역, {weak} 피해 +{weakTakenPct}%, 공격에 {strong} 피해 {addedPct}% 추가': '本輪迴所有怪物：{immune}傷害免疫，{weak}傷害+{weakTakenPct}%，攻擊附加{addedPct}%{strong}傷害',
+        '보상 +{rewardPct}%': '獎勵+{rewardPct}%',
+        '경험치, 장비와 재화 드랍 +{rewardPct}%': '經驗、裝備與通貨掉落+{rewardPct}%',
     })
 });
 
