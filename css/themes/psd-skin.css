@@ -1,0 +1,178 @@
+@layer overrides {
+/* PSD 테 스킨(2026-11-07 사용자 UI-UX_리그닝.psd, artifacts/psd-ui-mockup-20261106). PC 화면(body.desktop-windowed-ui)에서
+   body.psd-skin일 때만 입는다(index.html의 body가 처음부터 달고 있어 로그인 화면도 첫 장면부터 이 모양이다). 휴대폰은 지금 모양 그대로다:
+   PSD는 1920 PC 화면 그림이고 스킬룬 창 두 칸 배치가 좁은 화면에 들어가지 않는다.
+   그림은 assets/ui/psd/: PSD의 1920 화면 그림을 반쯤으로 줄여 9칸 판(border-image)으로 씌운다.
+   도트 스킨(themes/pixel.css)과 같은 자리(overrides, :root body[data-ui-skin])에 클래스를 더해 앞서고, main.css의 맨 끝에 두어
+   같은 무게면 뒤에 오는 이 파일이 이긴다(equipment-window.css처럼 도트 스킨 뒤에 오는 파일도 있다).
+   이 파일은 css/themes/에 둔다: 토큰 속 그림 경로는 토큰을 쓰는 파일 기준으로 풀린다(pixel.css가 --px-window-frame을 쓴다).
+   ../../assets는 css/themes/와 css/ 어느 쪽에서 써도 assets/를 가리킨다(도트 스킨 토큰과 같은 방식).
+
+   앞으로 만드는 화면은 아래 토큰을 쓴다(그림과 9칸 자르기가 한 값에 들어 있다).
+   --px-window-frame + --px-window-edge   창과 큰 판(도트 스킨의 그 토큰을 PSD 창 테로 바꾼다. 창, 안내 카드, 대화 상자, 로딩이 이미 쓴다)
+   --psd-popup-frame                      작은 판(팝업 테)
+   --psd-button-frame, --psd-button-on    단추와 주 단추(고른 탭도 같은 금빛 테)
+   --psd-tabbar, --psd-title, --psd-input 탭 줄 바탕, 창 제목 줄 바탕, 입력칸 바탕
+   --psd-panel-frame                      창 속 묶음 판
+   부품 클래스도 같다: .psd-frame, .psd-popup, .psd-btn(.is-primary), .psd-tabs > .psd-tab, .psd-input, .psd-panel, .psd-attn(강조). */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui {
+  --px-window-frame: url("../../assets/ui/psd/frame.png") 24 fill / 14px / 0 stretch;
+  --px-window-edge: 14px;
+  --psd-popup-frame: url("../../assets/ui/psd/popup.png") 12 fill / 12px / 0 stretch;
+  --psd-button-frame: url("../../assets/ui/psd/button.png") 20 fill / 10px / 0 stretch;
+  --psd-button-on: url("../../assets/ui/psd/choice.png") 16 fill / 10px / 0 stretch;
+  --psd-panel-frame: url("../../assets/ui/psd/panel.png") 20 fill / 18px / 0 stretch;
+  --psd-tabbar: url("../../assets/ui/psd/tabbar.png") center / 100% 100% no-repeat;
+  --psd-title: url("../../assets/ui/psd/title.png") center / 100% 100% no-repeat;
+  --psd-input: url("../../assets/ui/psd/input.png") center / 100% 100% no-repeat;
+  --psd-glow-gold: brightness(1.12) drop-shadow(0 0 2px #f3d28c) drop-shadow(0 0 7px #d7b36fbb);
+}
+
+/* 큰 판 가운데 도트 스킨의 무거운 판 목록에 없는 것: 로그인 카드, 새 모험 카드, 방치 정산 결과, 이야기 읽기 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-frame, .startup-entry, .startup-summary-card, .background-combat-result-card, #journal-reader) {
+  border: var(--px-window-edge) solid transparent;
+  border-image: var(--px-window-frame);
+  border-radius: 0;
+  background: none;
+}
+/* 작은 판: 따라 하기 카드, 첫 배움 카드 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-popup, .tutorial-action-card, .opening-lesson) {
+  border: 12px solid transparent;
+  border-image: var(--psd-popup-frame);
+  border-radius: 0;
+  background: none;
+}
+
+/* 창 제목 줄, 위쪽 탭(창 묶음), 창 단추(되돌리기는 지금 그대로) */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .ui-window > .ui-window-titlebar { border: 0; background: var(--psd-title); box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .ui-window-titlebar .window-tab { border: 8px solid transparent; border-image: var(--psd-button-frame); border-image-width: 8px; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .ui-window-titlebar .window-tab.active { border-image: var(--psd-button-on); color: #ffe39a; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .ui-window-titlebar :is([data-window-action="minimize"], [data-window-action="maximize"], [data-window-action="close"]) {
+  width: 30px; height: 29px; padding: 0; border: 0; box-shadow: none; color: transparent;
+  background: url("../../assets/ui/psd/close.png") center / 100% 100% no-repeat;
+}
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .ui-window-titlebar [data-window-action="minimize"] { background-image: url("../../assets/ui/psd/min.png"); }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .ui-window-titlebar [data-window-action="maximize"] { background-image: url("../../assets/ui/psd/max.png"); }
+
+/* 탭 줄(가운데 탭): 장비 창의 장비 창과 제작실, 거래의 NPC와 가판대, 기록의 분류, 그루터기 아래 탭, 지도의 첫 줄 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-tabs, .ui-window :is(.subtab-row, .market-tabs, .journal-category-strip, .stump-more-tabs)) {
+  padding: 4px; border: 0; background: var(--psd-tabbar); box-shadow: none;
+}
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-tabs > .psd-tab, .ui-window :is(.subtab-row, .market-tabs, .journal-category-strip, .stump-more-tabs) > :is(button, .subtab-btn)) {
+  min-height: 40px; border: 10px solid transparent; border-image: none; background: none; box-shadow: none; color: #c9b27c;
+}
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-tabs > .psd-tab, .ui-window :is(.subtab-row, .market-tabs, .journal-category-strip, .stump-more-tabs) > :is(button, .subtab-btn)):is(.active, .is-active, .is-on, [aria-selected="true"], [aria-pressed="true"]) {
+  border-image: var(--psd-button-on); color: #ffe8a8;
+}
+
+/* 장비 창과 스킬룬 창의 가운데 탭(장비 창, 제작실, 뜨개질, 룬, 전술): 게임(equipment-window.css)이 높이를 28px로 묶는다.
+   위아래 테 10px이 들어가면 글 자리가 8px뿐이라 글씨가 눌려 잘렸다(2026-11-07 사용자). 그 규칙과 같은 자리에서 40px로 푼다. */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(#tab-items, #tab-skills, #tab-items .merged-subtab-pane:is([data-tab-id="tab-items"], [data-tab-id="tab-skills"])) > .subtab-row > .subtab-btn {
+  height: 40px; min-height: 40px;
+}
+
+/* 가운데 탭 글꼴: 창마다 굵기(거래만 400, 나머지 600)와 고른 탭 그림자(장비 창, 룬만 금빛 번짐)가 달랐다(2026-11-07 사용자: 장비 창, 제작실과
+   NPC, 가판대, 장비 전당을 하나로). 장비 창 탭과 같은 갈무리11 Bold 12px, 그림자는 도트 글씨 먹선 하나로 맞춘다. 둘째 줄은 장비 창과
+   스킬룬 창의 id 규칙보다 앞서려는 것이다. */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-tabs > .psd-tab, .ui-window :is(.subtab-row, .market-tabs, .journal-category-strip, .stump-more-tabs) > :is(button, .subtab-btn)),
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(#tab-items, #tab-skills, #tab-items .merged-subtab-pane:is([data-tab-id="tab-items"], [data-tab-id="tab-skills"])) > .subtab-row > .subtab-btn {
+  font-family: var(--font-pixel); font-size: var(--font-size-ui); font-weight: var(--font-weight-emphasis); line-height: 18px; letter-spacing: 0;
+  text-shadow: var(--px-text-edge);
+}
+
+/* 단추: 판 속 단추는 귀환 단추와 같은 테, 주 단추는 금빛 고른 테. PSD 단추 조각(모양_1)은 어두운 판과 같은 빛이라 쓰지 않는다. */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-btn, :is(#tutorial-overlay, #death-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) :is(.tutorial-actions, .loop-settlement-actions, .reward-next) button,
+  .tutorial-action-card button, #startup-overlay .startup-actions-stack button:not(.social-login-image-btn), #startup-overlay .startup-social-login > summary,
+  .background-combat-result-card footer button, #journal-reader button, .game-dialog-card button, #tab-items .search-action-row button) {
+  border: 10px solid transparent;
+  border-image: var(--psd-button-frame);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #f0e2c0;
+}
+/* 주 단추는 위 단추 규칙보다 무거워야 한다: 끝의 :is(button, summary, .psd-btn)가 그 몫이다. */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-btn.is-primary, #tutorial-open-btn, .tutorial-action-card > div > button:last-child, #startup-overlay .startup-actions-stack .startup-primary,
+  .background-combat-result-card footer .background-result-continue, .game-dialog-card .game-dialog-btn-primary):is(button, summary, .psd-btn) {
+  border-image: var(--psd-button-on);
+  color: #ffe8a8;
+}
+/* 입력칸 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-input, #startup-overlay .startup-form :is(input[type="email"], input[type="password"]), #tab-items .search-filter-input) {
+  border: 0; border-radius: 0; background: var(--psd-input); box-shadow: none;
+}
+
+/* 위쪽 단추(루프 진행, 자동, 귀환, 목표): 지금 순서 그대로 PSD 단추 테 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .combat-zone-actions { gap: 6px; align-items: center; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .combat-zone-actions .combat-action-btn {
+  flex: 0 0 auto; width: max-content; max-width: none; height: 40px; min-height: 40px; min-width: 78px; padding: 0 4px; overflow: visible;
+  border: 12px solid transparent; border-image: url("../../assets/ui/psd/button.png") 20 fill / 12px stretch; background: none; box-shadow: none;
+  color: #f0e2c0; font-size: 13px;
+}
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .combat-zone-actions #btn-act-exploration-auto { min-width: 92px; border-image-source: url("../../assets/ui/psd/auto.png"); }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .combat-zone-actions #btn-combat-goal-toggle { position: relative; min-width: 96px; padding-right: 20px; border-image-source: url("../../assets/ui/psd/goal.png"); }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .combat-zone-actions #btn-combat-goal-toggle::after {
+  content: ''; position: absolute; top: 50%; right: -2px; width: 14px; height: 9px; translate: 0 -50%;
+  background: url("../../assets/ui/psd/goal-arrow.png") center / 100% 100% no-repeat;
+}
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .combat-zone-actions #btn-combat-goal-toggle[aria-expanded="true"] { color: #ffe8a8; }
+/* 목표 칸: 보상 판 테. 꼭 할 목표는 목표 빛깔 테가 바깥에 선다(지금 게임과 같은 때). */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #ui-goal-drawer, :root body[data-ui-skin].psd-skin.desktop-windowed-ui #ui-goal-drawer .ui-goal-panel { border-color: transparent; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #ui-goal-drawer #ui-goal-body { border: 14px solid transparent; border-image: url("../../assets/ui/psd/reward.png") 16 fill / 14px stretch; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #ui-goal-drawer.ui-goal-mandatory.expanded #ui-goal-body {
+  box-shadow: 0 0 0 1px var(--goal-tone, #f0cf94), 0 0 14px color-mix(in srgb, var(--goal-tone, #f0cf94) 50%, transparent);
+}
+
+/* 강조(2026-11-07 사용자: 깜빡이 말고 강조만, 한 번 확인하면 끄고 새 알림이 없으면 그냥 둔다). 붙이고 떼는 일은 js(psd-skin-ui.js).
+   테 그림 모양대로 빛나게 filter를 쓴다. */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .psd-attn { filter: var(--psd-glow-gold); }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .combat-zone-actions #btn-combat-loop-advance.psd-attn { color: #f3ecff; filter: brightness(1.12) drop-shadow(0 0 2px #cdbdf5) drop-shadow(0 0 7px #b7a3e0bb); }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .combat-zone-actions #btn-combat-goal-toggle.psd-attn {
+  color: #ffe39a; filter: brightness(1.12) drop-shadow(0 0 2px var(--goal-tone, #f0cf94)) drop-shadow(0 0 7px var(--goal-tone, #f0cf94));
+}
+/* 깜빡임은 모두 끈다: 메뉴 단추 안내, 첫 스킬룬 안내, 첫 자동, 첫 스킬트리 노드 고리, 새 목표 반짝임 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.tutorial-callout, .starter-gem-tutorial-target, .starter-gem-tutorial-pending, #btn-act-exploration-auto.is-opening-glow) { animation: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.passive-guide-ring, #ui-goal-drawer #ui-goal-body)::after { animation: none; opacity: 0; }
+/* 메뉴 단추 안내: 단추 그림(::after)이 안쪽 금 테를 덮어 이름 칸만 보였다. 그림 둘레에 금 테와 빛을 그린다. */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn.tutorial-callout { outline-color: transparent; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn.tutorial-callout::after {
+  filter: brightness(1.2) drop-shadow(1px 0 0 #f3d28c) drop-shadow(-1px 0 0 #f3d28c) drop-shadow(0 1px 0 #f3d28c) drop-shadow(0 -1px 0 #f3d28c) drop-shadow(0 0 5px #f3d28ccc);
+}
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer > .tab-btn.tutorial-callout::before { color: #f3d28c; }
+
+/* 아래 HUD: 돌판 자리에 PSD 받침 판(지금처럼 반투명). 구슬 테와 미니맵 테는 지금 게임 것(2026-11-07 사용자). */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #battle-column .player-hud-shell::before {
+  content: ''; position: absolute; inset: auto 0 0 0; z-index: 0; width: auto; height: 72px;
+  border-style: solid; border-color: transparent; border-width: 0 28px;
+  border-image: url("../../assets/ui/psd/hud-bar.png") 0 70 fill / 0 28px stretch;
+  background: none; box-shadow: none; opacity: .72; pointer-events: none; image-rendering: pixelated;
+}
+/* 미니맵과 그루터기, 장비 단추가 붙어 있어 양쪽 메뉴 날개를 바깥으로 옮긴다. 칸 폭을 바꾸면 게임이 단추를 날개 사이에 다시 나눠 담으므로 날개만 옮긴다. */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-header-main > .ui-rail-wing-left { translate: -46px 0; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-header-main > .ui-rail-wing-right { translate: 46px 0; }
+
+/* 전투 기록과 채팅: 펼친 창 전체에 테(속은 지금처럼 비치게 fill 없이), 위 전투, 채팅 줄은 지금처럼 얇은 선. 접으면 지금 그대로. */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .message-frame:not(.collapsed) { border: 10px solid transparent; border-image: url("../../assets/ui/psd/chat.png") 16 / 10px stretch; }
+
+/* 스킬룬 창 속(PSD 두 칸 배치): 왼쪽 장착 판과 보조 판, 오른쪽 룬 고르기 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-layout { display: grid; grid-template-columns: 392px minmax(0, 1fr); gap: 12px; align-items: start; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-column { display: flex; flex-direction: column; gap: 10px; width: auto; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #skill-tab-equip #ui-skill-board { padding: 0; border: 18px solid transparent; border-image: var(--psd-panel-frame); background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-linked-row {
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "main main" "mob sum"; gap: 6px; justify-items: center; width: auto;
+}
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-main { grid-area: main; width: 100%; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-mobility { grid-area: mob; width: auto; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-summons { grid-area: sum; width: auto; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-satellite i { width: 52px; height: 62px; border: 0; background: url("../../assets/ui/psd/side-slot.png") center / 100% 100% no-repeat; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-support-slots { border: 12px solid transparent; border-image: var(--psd-popup-frame); background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .support-slots-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .support-slot { width: auto; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-picker { border: 0; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-picker-head { padding-bottom: 12px; background: url("../../assets/ui/psd/line.png") left bottom / 100% 8px no-repeat; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-picker-fold { border: 8px solid transparent; border-image: url("../../assets/ui/psd/silver.png") 10 fill / 8px stretch; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .search-filter-panel { border: 10px solid transparent; border-image: url("../../assets/ui/psd/search.png") 10 fill / 10px stretch; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile { border: 12px solid transparent; border-image: url("../../assets/ui/psd/slot.png") 14 fill / 12px stretch; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile.active { border-image: url("../../assets/ui/psd/slot-on.png") 14 fill / 12px stretch; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui .psd-panel { border: 18px solid transparent; border-image: var(--psd-panel-frame); background: none; }
+}
