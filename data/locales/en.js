@@ -8088,7 +8088,6 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '물건 회수': 'Retrieve item',
         '{length}명 구경 중': '{length} browsing',
         ' ({value} 만에 판매)': '(sold in {value})',
-        '판매 기록 {length}건': '{length} sales records',
         '<p class="stall-note">아직 판매 기록이 없습니다.</p>': '<p class="stall-note">No sales records yet.</p>',
         '이전': 'Previous',
         '판매 규칙': 'Sales rules',
@@ -10183,6 +10182,15 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '비용: 형체 없는 이슬 {formlessDew}': 'Cost: Formless Dew {formlessDew}',
         '미확인 적': 'Unknown foe',
         // ── 2026-11-05 로그인 화면 계정 저장 카드의 글 ──
+        '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.': 'Press "Continue with account save" to download the save from the server.',
+        // 2026-11-06 가판대 기록 창
+        '판매 기록': 'Sales log',
+        '{count}건': '{count}',
+        '{callers}명 중 {bought}명 구매': '{bought} of {callers} bought',
+        '진열, 제안, 방문': 'Listing, offers, visits',
+        '가격 제안': 'Price offer',
+        '손님 몰림': 'Crowd',
+        '구매 안 함': 'Did not buy',
         '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.': 'Press "Continue with account save" to download the save from the server.',        // 2026-11-06 강화 변이시간선
         '공격 강화': 'Empowered attack',
         '강화 변이': 'Empowered mutation',
