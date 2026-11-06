@@ -7116,7 +7116,7 @@ function getEnemyTraitRecord(trait, isElite) {
     };
 }
 function getEnemyRewardRecord(zone, mods) {
-    const reward = boundaryMul(zone, 'boundaryRewardMul');
+    const reward = boundaryMul(zone, 'boundaryRewardMul') * loopMutation.rewardMul(zone);
     return {
         expMul: enemyRewardMul(mods.trait, 'expMul') * enemyRewardMul(mods.cosmosExclusiveTrait, 'expMul') * reward,
         dropMul: enemyRewardMul(mods.trait, 'dropMul') * enemyRewardMul(mods.cosmosExclusiveTrait, 'dropMul') * getTierDropMulWithCaps(zone.tier, zone) * reward

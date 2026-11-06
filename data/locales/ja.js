@@ -10157,6 +10157,8 @@ const LANGUAGE_PACK_JA = Object.freeze({
         '강화 변이시간선': '強化変異タイムライン',
         '{immune} 면역, {weak} 약점, {strong} 공격 강화': '{immune}免疫、{weak}弱点、{strong}攻撃強化',
         '이번 루프의 모든 몬스터: {immune} 피해 면역, {weak} 피해 +{weakTakenPct}%, 공격에 {strong} 피해 {addedPct}% 추가': '今回のループのすべてのモンスター: {immune}ダメージ免疫、{weak}ダメージ+{weakTakenPct}%、攻撃に{strong}ダメージ{addedPct}%追加',
+        '보상 +{rewardPct}%': '報酬+{rewardPct}%',
+        '경험치, 장비와 재화 드랍 +{rewardPct}%': '経験値、装備と通貨のドロップ+{rewardPct}%',
     })
 });
 

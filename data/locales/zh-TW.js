@@ -10157,6 +10157,8 @@ const LANGUAGE_PACK_ZH_TW = Object.freeze({
         '강화 변이시간선': '強化變異時間線',
         '{immune} 면역, {weak} 약점, {strong} 공격 강화': '{immune}免疫，{weak}弱點，{strong}攻擊強化',
         '이번 루프의 모든 몬스터: {immune} 피해 면역, {weak} 피해 +{weakTakenPct}%, 공격에 {strong} 피해 {addedPct}% 추가': '本輪迴所有怪物：{immune}傷害免疫，{weak}傷害+{weakTakenPct}%，攻擊附加{addedPct}%{strong}傷害',
+        '보상 +{rewardPct}%': '獎勵+{rewardPct}%',
+        '경험치, 장비와 재화 드랍 +{rewardPct}%': '經驗、裝備與通貨掉落+{rewardPct}%',
     })
 });
 

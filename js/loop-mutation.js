@@ -8,12 +8,22 @@ const loopMutation = (() => {
     const MUTATION_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
 
     /** The mutation of a loop number: { immune, weak, empowered } (damage element keys), or null before LOOP_MUTATION.startLoop.
-     * empowered: the element monsters attack harder with from LOOP_MUTATION.empowered.startLoop (the immune one), else null. */
+     * empowered: the element monsters attack harder with from LOOP_MUTATION.empowered.startLoop (empoweredElementOfLoop), else null. */
     function mutationOfLoop(loop) {
         const index = Math.floor(Number(loop) || 0) - LOOP_MUTATION.startLoop;
         if (index < 0) return null;
         const [immune, weak] = LOOP_MUTATION.schedule[index % LOOP_MUTATION.schedule.length];
-        return { immune, weak, empowered: Math.floor(Number(loop)) >= LOOP_MUTATION.empowered.startLoop ? immune : null };
+        return { immune, weak, empowered: empoweredElementOfLoop(loop, immune) };
+    }
+    /** 강화 변이시간선의 공격 강화 속성: 루프 번호로 굴린다. 면역 속성이 LOOP_MUTATION.empowered.immuneWeight, 다른 넷이 남은 몫을 똑같이
+     * 나눈다. null before the empowered loops. */
+    function empoweredElementOfLoop(loop, immune) {
+        const rule = LOOP_MUTATION.empowered;
+        if (Math.floor(Number(loop) || 0) < rule.startLoop) return null;
+        const roll = createSeededRng(`loop-mutation-empowered:${Math.floor(Number(loop))}`)();
+        if (roll < rule.immuneWeight) return immune;
+        const others = MUTATION_ELEMENTS.filter(ele => ele !== immune);
+        return others[Math.min(others.length - 1, Math.floor((roll - rule.immuneWeight) / (1 - rule.immuneWeight) * others.length))];
     }
     /** This loop's mutation when the loop was entered under the rule, else null. */
     function currentMutation(state = game) {
@@ -39,6 +49,13 @@ const loopMutation = (() => {
         const amount = Math.floor(rawHit * LOOP_MUTATION.empowered.addedPct / 100 * (1 - Math.min(100, resOf(rule.empowered)) / 100));
         return amount > 0 ? [{ ele: rule.empowered, amount }] : [];
     }
+    /** Reward scale of a monster while the rule bites: 1 + LOOP_MUTATION.rewardPct / 100, or empowered.rewardPct in 강화 변이시간선;
+     * 1 outside it and in the woodsman's zone. */
+    function rewardMul(zone, state = game) {
+        const rule = (!zone || zone.type !== 'outsideChaos') && mutationBites(state) ? mutationOfLoop(state.season) : null;
+        return rule ? 1 + rewardPctOf(rule) / 100 : 1;
+    }
+    const rewardPctOf = rule => (rule.empowered ? LOOP_MUTATION.empowered.rewardPct : LOOP_MUTATION.rewardPct);
     /** At a loop's start (after the loop number went up): mark it when the rule covers it. */
     function beginLoop(state) {
         state.loopMutationSeason = mutationOfLoop(state.season) ? state.season : 0;
@@ -80,6 +97,9 @@ const loopMutation = (() => {
     }
     /** '화염 면역, 냉기 약점' for a mutation. */
     function describeMutation(rule) {
+        return `${describeSides(rule)}, ${_t('보상 +{rewardPct}%', { rewardPct: rewardPctOf(rule) })}`;
+    }
+    function describeSides(rule) {
         if (rule.empowered) return _t('{immune} 면역, {weak} 약점, {strong} 공격 강화', { immune: _t(DAMAGE_ELEMENT_LABELS[rule.immune]),
             weak: _t(DAMAGE_ELEMENT_LABELS[rule.weak]), strong: _t(DAMAGE_ELEMENT_LABELS[rule.empowered]) });
         return _t('{DAMAGE_ELEMENT_LABELS} 면역, {DAMAGE_ELEMENT_LABELS2} 약점', { DAMAGE_ELEMENT_LABELS: DAMAGE_ELEMENT_LABELS[rule.immune], DAMAGE_ELEMENT_LABELS2: DAMAGE_ELEMENT_LABELS[rule.weak] });
@@ -92,11 +112,12 @@ const loopMutation = (() => {
     function mutationPartsHtml(rule, separator = '') {
         const parts = [mutationPartHtml(rule.immune, '면역'), mutationPartHtml(rule.weak, '약점')];
         if (rule.empowered) parts.push(mutationPartHtml(rule.empowered, '공격 강화'));
+        parts.push(`<b class="loop-mutation-reward">${escapeHTML(_t('보상 +{rewardPct}%', { rewardPct: rewardPctOf(rule) }))}</b>`);
         return parts.join(separator);
     }
 
     return Object.freeze({ of: mutationOfLoop, current: currentMutation, bites: mutationBites, takenMul, begin: beginLoop,
         starterChoices, pendingStarter, offerStarter, takeStarter, describe: describeMutation, partHtml: mutationPartHtml, partsHtml: mutationPartsHtml,
-        empoweredRows });
+        empoweredRows, rewardMul, rewardPct: rewardPctOf });
 })();
 safeExposeGlobals({ loopMutation });

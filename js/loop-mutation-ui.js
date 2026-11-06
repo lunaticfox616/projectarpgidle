@@ -23,7 +23,7 @@ const loopMutationUi = (() => {
         chipDrawn = sign;
         root.hidden = !rule;
         root.innerHTML = rule ? `<i>${_t(rule.empowered ? '강화 변이' : '변이')}</i>${loopMutation.partsHtml(rule)}` : '';
-        root.dataset.tip = rule ? mutationRuleText(rule) : '';
+        root.dataset.tip = rule ? `${mutationRuleText(rule)}\n${_t('경험치, 장비와 재화 드랍 +{rewardPct}%', { rewardPct: loopMutation.rewardPct(rule) })}` : '';
     }
 
     /** One rune card: its art, name, element (the weak one marked), the first sentence of its text and the shown DPS with it worn. */
