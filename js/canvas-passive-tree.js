@@ -588,11 +588,7 @@ function drawPassiveTree() {
     syncPassiveTreeOverlay(size.width, size.height, visibleNodes, frame.linkedIds, frame.pathIds);
 }
 
-function handleEquipmentSlotDoubleClick(slot, forCrafting) {
-    if (forCrafting) {
-        selectForCrafting(slot, true);
-        return;
-    }
+function handleEquipmentSlotDoubleClick(slot) {
     unequipItem(slot);
 }
 
@@ -696,7 +692,7 @@ function setPaperdollHtml(targetId, html) {
     list.classList.toggle('has-core', !!list.querySelector('.slot-코어'));
 }
 
-function renderPaperdoll(targetId, forCrafting) {
+function renderPaperdoll(targetId) {
     let html = '';
     let query = getEquipSearchQueryLocal();
     let hi = (text) => {
@@ -712,24 +708,18 @@ function renderPaperdoll(targetId, forCrafting) {
         let displaySlot = getItemSlotDisplayLabel(null, slot.replace(/[123]$/, ''));
         let selected = isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === slot;
         if (item) {
-            let click = forCrafting
-                ? `selectForCrafting('${slot}', true)`
-                : `equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')`;
-            let doubleClick = `event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}', ${forCrafting ? 'true' : 'false'})`;
+            let click = `equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')`;
             // 장비창 장착 칸에는 단추가 없다(2026-10-10 개편): 빼기는 두 번 누르기, 끌어 놓기, 선택한 장비의 단추.
-            let footer = forCrafting
-                ? `<button class="equipment-slot-action" onclick="event.stopPropagation(); selectForCrafting('${slot}', true)">${_t('제작 선택')}</button>`
-                : '';
+            let doubleClick = `event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${slot}')`;
             let sourceMeta = getDropOnlyItemSourceMeta(item);
             let sourceTone = (sourceMeta ? sourceMeta.toneClass : '') + thirdRingOffClass(slot);
             let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
             html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
                 <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false">${equipmentSocketsUi.badgesHtml(item, `slot:${slot}`)}</div>
                 <div class="item-title equipment-slot-name ${item.rarity}">${hi(paperdollItemLabel(item))}</div>
-                ${footer}
             </div>`;
         } else {
-            let emptyClick = forCrafting ? '' : ` onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')"`;
+            let emptyClick = ` onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${slot}')"`;
             html += `<div class="slot-box equipment-slot equipment-slot-empty slot-${slot}" data-slot="${slot}"${emptyClick}>
                 <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual empty"><img src="${getEquipmentGridVisualAsset({ slot: slot.replace(/[123]$/, ''), baseId: `empty-${slot}` })}" alt="" aria-hidden="true" draggable="false"></div>
                 <div class="equipment-empty-mark">＋</div>
@@ -847,68 +837,6 @@ function renderEquipmentInventoryInspector(rows) {
 }
 
 safeExposeGlobals({ renderEquipmentInventoryGrid, renderEquipmentInventoryInspector });
-
-function renderInventoryCard(item, idx, mode, triageResult) {
-    if (mode === 'equip') return renderEquipmentGridItem(item, idx, triageResult);
-    let selected = !isCraftSelectionEquipAvailableLocal() && getCraftSelectionRefLocal() === item.id;
-    let query = getEquipSearchQueryLocal();
-    let hi = (text) => {
-        try {
-            if (typeof highlightSearchText === 'function') return highlightSearchText(text, query);
-        } catch (error) {
-            console.error('inventory search highlight failed:', error);
-        }
-        return highlightEquipTextLocal(text, query);
-    };
-    let lockIcon = item.locked ? ' (잠금)' : '';
-    let lockBtnLabel = item.locked ? '잠금해제' : '잠금';
-    let presetProtected = typeof equipmentLoadoutRuntime !== 'undefined'
-        && equipmentLoadoutRuntime.isReferenced(item);
-    let presetBadge = presetProtected ? '<span class="equipment-preset-protected">세팅 보호</span>' : '';
-    // 장비 칸 단순화: 카드에는 옵션을 나열하지 않고 이름/베이스/등급만 보여준다.
-    // 전체 옵션은 호버 시 커스텀 툴팁(showItemTooltip)에서 확인한다.
-    let explicitCount = typeof getItemExplicitOptionCount === 'function'
-        ? getItemExplicitOptionCount(item)
-        : ((item.stats || []).length + (item.chaosInfusion ? 1 : 0));
-    let optionSummary = explicitCount > 0 ? _t('추가 옵션 {explicitCount}', { explicitCount }) : '추가 옵션 없음';
-    let metaChips = `<span class="equipment-meta-chip">${optionSummary}</span>`;
-    if (triageResult) {
-        let dpsSlot = triageResult.dpsSlot ? _t(', {replace} 교체 기준', { replace: String(triageResult.dpsSlot).replace(/[12]$/, '') }) : '';
-        let ehpSlot = triageResult.ehpSlot ? _t(', {replace} 교체 기준', { replace: String(triageResult.ehpSlot).replace(/[12]$/, '') }) : '';
-        if (triageResult.dpsGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-damage" data-tip="${escapeHTML(_t('현재 세팅{dpsSlot}', { dpsSlot }))}">${_t('공격 +{dpsGainPct}%', { dpsGainPct: triageResult.dpsGainPct })}</span>`;
-        if (triageResult.ehpGainPct >= 1) metaChips += `<span class="equipment-meta-chip equipment-triage-chip triage-defense" data-tip="${escapeHTML(_t('현재 세팅{ehpSlot}', { ehpSlot }))}">${_t('생존 +{ehpGainPct}%', { ehpGainPct: triageResult.ehpGainPct })}</span>`;
-        if (triageResult.kind === 'keep') metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-keep">현 세팅 유지</span>';
-        if (triageResult.special) metaChips += '<span class="equipment-meta-chip equipment-triage-chip triage-special">특수</span>';
-    }
-    let salvageTitle = presetProtected ? '장비 세팅 프리셋에서 제거한 뒤 해체할 수 있습니다.'
-        : (typeof getItemSalvagePreviewText === 'function' ? getItemSalvagePreviewText(item, false) : '장비를 해체합니다.');
-    let salvageDisabled = item.locked || presetProtected;
-    let actions = '';
-    if (mode === 'fossil') actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">${_t('화석 대상')}</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button></div>`;
-    else actions = `<div class="item-actions equipment-card-actions"><button class="equipment-card-primary" onclick="event.stopPropagation(); selectForCrafting(${item.id}, false)">${_t('선택')}</button><button onclick="event.stopPropagation(); equipItemById(${item.id})">${_t('장착')}</button><button class="${item.locked ? 'is-locked' : ''}" onclick="event.stopPropagation(); toggleItemLockById(${item.id})">${lockBtnLabel}</button><button class="equipment-card-danger" data-tip="${salvageTitle}" onclick="event.stopPropagation(); salvageItemById(${item.id})" ${salvageDisabled ? 'disabled' : ''}>${presetProtected ? _t('보호됨') : _t('해체')}</button></div>`;
-    let cardClick = `selectForCrafting(${item.id}, false)`;
-    let recordedTag = '';
-    if (item.rarity === 'unique') {
-        let key = `${item.slot}|${item.name}`;
-        let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
-        if (codex[key]) recordedTag = ' <span style="color:#4cd964; font-weight:700;">[기록됨]</span>';
-    }
-    let sourceMeta = getDropOnlyItemSourceMeta(item);
-    let sourceBadge = sourceMeta ? ` <span class="${sourceMeta.badgeClass}">${_t(sourceMeta.label)}</span>` : '';
-    let sourceTone = sourceMeta ? sourceMeta.toneClass : '';
-    let exceptionalStars = typeof getExceptionalBaseStarsHtml === 'function' ? getExceptionalBaseStarsHtml(item) : '';
-    let rarityLabel = _t(ITEM_RARITY_LABELS[item.rarity] || item.rarity || ITEM_RARITY_LABELS.normal);
-    return `<div class="item-card equipment-item-card rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" role="group" tabindex="0" data-item-tooltip-anchor="1" onclick="${cardClick}" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();${cardClick};}" onmouseenter="showItemTooltip(event, ${idx}, false)" onmousemove="showItemTooltip(event, ${idx}, false)" onmouseleave="hideItemTooltip(event)">
-        ${typeof renderInventoryItemVisual === 'function' ? renderInventoryItemVisual(item, 'equipment', 'equipment-card-visual') : ''}
-        <div class="equipment-card-main">
-            <div class="equipment-card-topline"><span class="equipment-card-slot">${hi(typeof getItemSlotDisplayLabel === 'function' ? getItemSlotDisplayLabel(item) : item.slot)}</span>${presetBadge}<span class="equipment-card-rarity">${rarityLabel}</span>${lockIcon}</div>
-            <div class="item-title equipment-card-name ${item.rarity}">${hi(item.name)}${exceptionalStars}${sourceBadge}${recordedTag}${item.encroached ? _t(' <span style="color:#b084ff;">(잠식)</span>') : ''}${item.corrupted ? _t(' <span style="color:#e74c3c;">(타락)</span>') : ''}${craftingWorkspaceUi.imprintMark(item)}</div>
-            ${itemInfluencesUi.tagsHtml(item)}<div class="item-base-line equipment-card-base">${hi(item.baseName)}</div>
-            <div class="item-stats equipment-card-meta${triageResult ? ' has-triage' : ''}">${metaChips}</div>
-        </div>
-        ${actions}
-    </div>`;
-}
 
 function triggerMapUnlockReveal(zoneId) {
     if (!Number.isFinite(zoneId) || zoneId < 0) return;

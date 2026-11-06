@@ -96,9 +96,9 @@ const craftingWorkspaceUi = (() => {
         return allowed?'':'이 장비 부위에 부여할 수 있는 화석 옵션이 없습니다.';
     }
 
-    function workspaceOpenInventory(edit=false,inspect='',craftingOnly=false) {
+    function workspaceOpenInventory(inspect='',craftingOnly=false) {
         if(auto){workspaceStopAuto('재화 인벤토리를 열어 자동 사용을 멈췄어요.');workspaceRender();}
-        craftingCatalogUi.open(recipes,workspacePickResource,{active:recipe.key,edit:edit,inspect:inspect,craftingOnly:craftingOnly,onPin:workspaceRender,useState:workspaceResourceState});
+        craftingCatalogUi.open(recipes,workspacePickResource,{active:recipe.key,inspect:inspect,craftingOnly:craftingOnly,useState:workspaceResourceState});
     }
 
     function workspacePickResource(key) {
@@ -212,7 +212,7 @@ const craftingWorkspaceUi = (() => {
     }
 
     function workspaceMethodsHtml() {
-        return `<section class="cl-methods"><div class="cl-section-title">${_t('주 재화')}<div><button data-command="pins">${_t('변경')}</button><button id="cl-catalog-open" data-command="catalog">${_t('기타 재화')}</button></div></div><div class="cl-recipes">${craftingCatalogUi.pinned().map(workspaceFavoriteHtml).join('')}</div>
+        return `<section class="cl-methods"><div class="cl-section-title">${_t('재화 보관함')}</div>${craftingStashUi.html({recipe:recipe.key,omen:workspaceArmedOmen()?.key||''})}
             <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>${_t('선택 중 &ensp; {styledName}', { styledName: craftingCatalogUi.styledName(recipe.key) })}</strong><small>${_t('보유 {currencies}', { currencies: game.currencies[recipe.key] })}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${workspaceSporeHtml()}${workspaceOmenHtml()}
             </section>`;
     }
@@ -286,13 +286,6 @@ const craftingWorkspaceUi = (() => {
         const side=omen.side==='prefix'?'접두어':'접미어';
         const verbs={formlessDew:'재련',sapBud:'1줄 추가',goldenRule:'옵션 수치만 재설정',blightSpore:'모두 제거',pruningShears:'무작위 1줄 제거'};
         return _t('{side}만 {verbs}', { side, verbs: verbs[recipe.key]||_t('변경') });
-    }
-
-    function workspaceFavoriteHtml(key,index) {
-        if(!key)return `<button data-command="pins" class="cl-recipe"><strong>${_t('{value}번 빈 칸', { value: index+1 })}</strong><small>${_t('재화 지정')}</small></button>`;
-        const row=recipes.find(entry=>entry.key===key), selected=key===recipe.key;
-        const icon=ORB_DB[key]?.icon;
-        return `<button class="cl-recipe ${selected?'selected':''} ${icon?'has-icon':''}" data-theme="${craftingCatalogUi.theme(key)}" ${row?`data-recipe="${key}"`:`data-favorite="${key}"`} aria-pressed="${selected}">${icon?`<img class="cl-recipe-icon" src="${esc(icon)}" alt="">`:''}<strong>${craftingCatalogUi.styledName(key)}</strong><small>${_t('{currencies}개', { currencies: game.currencies[key]||0 })}</small></button>`;
     }
 
     function workspaceCostText() {
@@ -530,6 +523,10 @@ const craftingWorkspaceUi = (() => {
         notice=equipmentCrafting.armOmen(game,key,side).reason||'';
         queueImportantSave(180);
     }
+    /** A stash omen slot: arms that omen (허기 on its prefix side; the select below switches it), or disarms it when it is the armed one. */
+    function workspaceToggleOmen(key) {
+        workspaceArmOmen(workspaceArmedOmen()?.key===key?'':`${key}:prefix`);
+    }
 
     function workspaceEditGoals(action) {
         if(action==='add-goal'){
@@ -725,8 +722,8 @@ const craftingWorkspaceUi = (() => {
     function workspaceClearSpore() {
         mode='none';game.sporeCraftModes[recipe.key]='none';queueImportantSave(180);workspaceRender();
     }
-    const WORKSPACE_COMMANDS={'clear-spore':()=>workspaceClearSpore(),study:()=>workspaceShowStudy(),catalog:()=>workspaceOpenInventory(false,'',true),inventory:()=>workspaceOpenInventory(),
-        pins:()=>workspaceOpenInventory(true),craft:()=>workspaceCraft(),ack:()=>workspaceShowGoalDialog(),engrave:()=>workspaceEngrave(),restore:()=>workspaceRestore()};
+    const WORKSPACE_COMMANDS={'clear-spore':()=>workspaceClearSpore(),study:()=>workspaceShowStudy(),inventory:()=>workspaceOpenInventory(),
+        craft:()=>workspaceCraft(),ack:()=>workspaceShowGoalDialog(),engrave:()=>workspaceEngrave(),restore:()=>workspaceRestore()};
 
     async function workspaceCommand(action) {
         if(action==='add-goal'||action?.startsWith('remove-goal:'))return workspaceEditGoals(action);
@@ -737,10 +734,11 @@ const craftingWorkspaceUi = (() => {
         const button=event.target.closest('button');if(!button)return;
         if(button.dataset.command==='stop'){workspaceStopAuto('자동 사용을 중지했어요.');workspaceRender();return;}
         if(busy)return;
-        if(button.dataset.favorite){workspaceOpenInventory(false,button.dataset.favorite);return;}
+        if(button.dataset.stashTab){craftingStashUi.showTab(button.dataset.stashTab);workspaceRender();return;}
         if(button.dataset.command==='auto'){workspaceStartAuto();return;}
         if(auto)workspaceStopAuto('조작 변경으로 자동 사용을 멈췄어요.');
         if(button.dataset.recipe){workspacePickResource(button.dataset.recipe);return;}
+        if(button.dataset.omen){workspaceToggleOmen(button.dataset.omen);workspaceRender();return;}
         return workspaceCommand(button.dataset.command);
     }
 

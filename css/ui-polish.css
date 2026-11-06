@@ -108,10 +108,6 @@ body .currency-card {
   box-shadow: inset 0 1px rgba(255,255,255,.03);
 }
 .currency-card:hover { border-color: var(--color-line-strong); }
-:is(.craft-target-library) { border-top: 1px solid var(--color-line); margin-top: 12px; }
-:is(.craft-target-library) > summary { cursor: pointer; padding: 12px 0; color: var(--color-text-secondary); }
-:is(.craft-target-library)[open] > summary { color: var(--color-accent-gold); }
-:is(.craft-target-library) h3 { font-size: 14px; }
 #ui-fossil-info { color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
 .craft-spores { padding: 8px; background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 6px; }
 .orb-tone { color: var(--orb-tone); }

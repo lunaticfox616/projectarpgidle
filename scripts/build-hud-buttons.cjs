@@ -13,7 +13,10 @@ const fs = require('node:fs'), path = require('node:path');
 const { decodePng, encodePng } = require('./lib/png.cjs');
 /** 받은 그림의 이름(폴더 이름의 앞머리) → 게임의 메뉴. */
 const MENUS = Object.freeze({ charater_status: 'character', Celtic_Tree_of_Life: 'passive', bagpack: 'bag', setting: 'settings',
-    map: 'map', tree_growth_ring: 'stump', old_book: 'journal', Uroboros: 'loop' });
+    map: 'map', tree_growth_ring: 'stump', old_book: 'journal', Uroboros: 'loop',
+    // 2026-11-06 사용자의 Trade icon.zip(Trade icon.png, _pressed, _Hover): 받은 이름을 elements/Trade_Icon_button 폴더의 보통, pressed, hover로
+    // 옮겨 준다. 보통 그림만 오른쪽 끝 테가 한 줄 더 있어(92px, 나머지는 91px) 그 줄을 떼고 넣었다(눌린 그림이 늘어나 흐려지지 않게)
+    Trade: 'trade' });
 const OUT = path.join(__dirname, '..', 'assets', 'ui', 'pixel', 'buttons');
 /** 올린 그림의 판: 보통 그림 한 변의 이 몫을 사방 여백으로 둔다. css/themes/pixel-menu.css의 --px-button-art-bleed와 같은 값. */
 const STATE_BLEED = 0.055;

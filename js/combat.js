@@ -15271,6 +15271,7 @@ function resetLoopItems(kept, codexReveal) {
     clearLoopItemStorage(game);
     game.equipment = { ...defaultGame.equipment };
     craftingWorkspaceState.capture(game);
+    currencyExchange.capture(game);
     game.currencies = { ...defaultGame.currencies };
     preservedAltarMaterials.forEach(([key, value]) => { game.currencies[key] = value; });
     // 봉인된 장비/나무꾼의 손길 복원(루프 유지)

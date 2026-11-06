@@ -1,13 +1,12 @@
-// Resource inventory. Persistent discovery and pins belong to craftingWorkspaceState.
+// Resource inventory. Persistent discovery belongs to craftingWorkspaceState.
 const craftingCatalogUi = (() => {
     const groups=[['all','전체'],['basic','기본 재화'],['fossil','화석'],['special','특수 제작'],['omen','뿌리']];
 
     const separateMaterials=new Set(craftingWorkspaceState.separate);
     let craftingOnly=false;
     let useState;
-    let dialog, onSelect, onPin, recipes, category='all', query='', ownedOnly=true, active='', inspected='', editing=false, pinSlot=0, openerId='';
+    let dialog, onSelect, recipes, category='all', query='', ownedOnly=true, active='', inspected='', openerId='';
 
-    const pins=()=>game.craftingWorkspace.pins;
     const esc=value=>escapeHTML(String(value));
     const name=key=>_t(ORB_DB[key].name).replace(/^[^가-힣A-Za-z0-9]+/u,'');
 
@@ -20,7 +19,6 @@ const craftingCatalogUi = (() => {
 
     function catalogVisible(key) {return !!catalogGroup(key)&&game.craftingWorkspace.discovered.includes(key)&&contentProgression.canDropCurrency(key);}
     const listed=key=>catalogVisible(key)&&(!craftingOnly||!separateMaterials.has(key));
-    const pinned=()=>pins().map(key=>catalogVisible(key)?key:null);
     const theme=catalogGroup;
     const styledName=key=>`<span class="cl-currency-name" data-theme="${theme(key)}">${window.getStyledOrbName(key)}</span>`;
 
@@ -49,15 +47,17 @@ const craftingCatalogUi = (() => {
         fossilOld:'화석 전용 1줄 확정, 희귀 재련',fossilRift:'균열 표식, 추가 옵션 50% 증폭'
     };
 
+    /** The short effect line (the stash's hover text, the cards here), plain text. */
+    const catalogSummary=key=>summaries[key]||ORB_DB[key].desc;
+
     function catalogDescription(key, compact=false) {
-        return esc(compact?(summaries[key]||ORB_DB[key].desc):ORB_DB[key].desc).replace(keywordPattern,word=>`<span class="cl-keyword" data-keyword="${keywordTones[word]}">${word}</span>`);
+        return esc(compact?catalogSummary(key):ORB_DB[key].desc).replace(keywordPattern,word=>`<span class="cl-keyword" data-keyword="${keywordTones[word]}">${word}</span>`);
     }
 
     function catalogActionLabel(key,state) {
-        if(editing)return _t('{value}번 칸에 지정', { value: pinSlot+1 });
         const blocked=state&&!state.enabled;
         const reason=blocked?(state.reason==='방어구 전용'?state.reason:'사용 불가'):'';
-        return [key===(inspected||active)?'선택 중':'',pins().includes(key)?'주 재화':'',reason,game.currencies[key]?'':'보유 없음'].filter(Boolean).join(', ');
+        return [key===(inspected||active)?'선택 중':'',reason,game.currencies[key]?'':'보유 없음'].filter(Boolean).join(', ');
     }
 
     function catalogCard(key) {
@@ -76,25 +76,10 @@ const craftingCatalogUi = (() => {
             .filter(key=>(name(key)+' '+ORB_DB[key].desc).includes(query));
         dialog.querySelector('.cl-resource-list').innerHTML=keys.map(catalogCard).join('')||'<p class="cl-resource-empty">해당하는 재화가 없습니다.</p>';
         dialog.querySelector('.cl-resource-count').textContent=_t('{length}종', { length: keys.length });
-        catalogRenderPins();
-    }
-
-    function catalogRenderPins() {
-        dialog.querySelector('[data-edit]').textContent=editing?_t('편집 완료'):_t('주 재화 편집');
-        dialog.querySelector('.cl-pin-editor').hidden=!editing;
-        dialog.querySelector('.cl-pin-editor').innerHTML=`<small>${_t('바꿀 칸을 고른 뒤 재화를 선택하세요.')}</small><div>${pinned().map((key,index)=>`<button data-pin-slot="${index}" aria-pressed="${pinSlot===index}"><small>${index+1}</small>${key?styledName(key):_t('빈 칸')}</button>`).join('')}</div>`;
-    }
-
-    function catalogAssignPin(key) {
-        if(!catalogVisible(key)||separateMaterials.has(key))return;
-        const other=pins().indexOf(key), previous=pins()[pinSlot];
-        pins()[pinSlot]=key;if(other>=0&&other!==pinSlot)pins()[other]=previous;
-        queueImportantSave(180);onPin();catalogList();
     }
 
     function catalogSelect(key) {
         if(!listed(key))return;
-        if(editing){catalogAssignPin(key);return;}
         inspected=key;catalogList();
         const detail=dialog.querySelector('.cl-resource-detail');
         const available=recipes.some(row=>row.key===key)||/^(spore|fossil)/.test(key);
@@ -118,10 +103,10 @@ const craftingCatalogUi = (() => {
     }
 
     function catalogOpen(available, callback, settings={}) {
-        recipes=available;onSelect=callback;onPin=settings.onPin;active=settings.active||'';inspected='';editing=!!settings.edit;
+        recipes=available;onSelect=callback;active=settings.active||'';inspected='';
         craftingOnly=!!settings.craftingOnly;
         useState=settings.useState;
-        openerId=document.activeElement?.id||'cl-catalog-open';
+        openerId=document.activeElement?.id||'cl-inventory-open';
         catalogCapture();if(!dialog)catalogCreate();
         catalogRenderNavigation();
         query='';dialog.querySelector('input[type="search"]').value='';
@@ -131,7 +116,7 @@ const craftingCatalogUi = (() => {
 
     function catalogSelectOpeningResource(key) {
         const target=key||active;
-        if(!editing&&listed(target))catalogSelect(target);
+        if(listed(target))catalogSelect(target);
     }
 
     function catalogClick(event) {
@@ -139,8 +124,6 @@ const craftingCatalogUi = (() => {
         if(button.hasAttribute('data-close'))return catalogClose();
         if(button.hasAttribute('data-apply')){if(catalogVisible(inspected)){catalogClose();onSelect(inspected);}return;}
         if(button.dataset.resource)return catalogSelect(button.dataset.resource);
-        if(button.hasAttribute('data-edit')){editing=!editing;dialog.querySelector('.cl-resource-detail').hidden=true;catalogRenderPins();catalogList();return;}
-        if(button.hasAttribute('data-pin-slot')){pinSlot=Number(button.dataset.pinSlot);catalogList();return;}
         category=button.dataset.category;
         dialog.querySelector('.cl-resource-detail').hidden=true;
         catalogRenderNavigation();catalogList();
@@ -148,8 +131,7 @@ const craftingCatalogUi = (() => {
 
     function catalogCreate() {
         dialog=document.createElement('dialog');dialog.className='cl-catalog';dialog.setAttribute('aria-labelledby','cl-catalog-title');
-        dialog.innerHTML=`<header><div><small>${_t('보관함')}</small><h2 id="cl-catalog-title">${_t('재화 인벤토리')}</h2></div><div><button type="button" data-edit>${_t('주 재화 편집')}</button><button type="button" data-close aria-label="${_t('재화 목록 닫기')}">${_t('닫기')}</button></div></header>
-            <div class="cl-pin-editor" hidden></div>
+        dialog.innerHTML=`<header><div><small>${_t('보관함')}</small><h2 id="cl-catalog-title">${_t('재화 인벤토리')}</h2></div><div><button type="button" data-close aria-label="${_t('재화 목록 닫기')}">${_t('닫기')}</button></div></header>
             <nav aria-label="${_t('재화 분류')}">${groups.map(([key,label])=>`<button type="button" data-category="${key}" data-theme="${key}" aria-pressed="${key===category}">${label}</button>`).join('')}</nav>
             <div class="cl-resource-tools"><input type="search" aria-label="${_t('재화 검색')}" placeholder="${_t('이름/효과 검색')}"><label><input type="checkbox"> ${_t('소진한 재화도 보기')}</label><small class="cl-resource-count"></small></div>
             <div class="cl-resource-list"></div><aside class="cl-resource-detail" tabindex="-1" hidden></aside>`;
@@ -162,7 +144,7 @@ const craftingCatalogUi = (() => {
         });
         dialog.addEventListener('cancel',()=>document.getElementById(openerId)?.focus({preventScroll:true}));
     }
-    return {open:catalogOpen,name,styledName,description:catalogDescription,theme,capture:catalogCapture,pinned,sporeShortage};
+    return {open:catalogOpen,name,styledName,description:catalogDescription,summary:catalogSummary,theme,capture:catalogCapture,visible:catalogVisible,sporeShortage};
 })();
 
 safeExposeGlobals({ craftingCatalogUi });

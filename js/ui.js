@@ -1433,7 +1433,7 @@ let tabHeaderSuppressClickUntil = 0;
 let lastTabHeaderUiSignature = '';
 let lastActiveTabId = null;
 const TAB_HEADER_NOTI_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'journal', 'currency', 'fossil', 'ascend', 'loop', 'social', 'stump', 'npcs'];
-const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump', 'npcs'];
+const TAB_UNLOCK_BUTTON_KEYS = ['char', 'season', 'items', 'skills', 'codex', 'map', 'traits', 'talent', 'stump'];
 // 메뉴 단추 하나가 여는 창 하나에 화면 여럿(2026-10-13 사용자: 새 단추 그림에 맞춰 "단추 하나로 합치고 UI를 잘 만들어야겠지?").
 // 장비 단추는 장비와 스킬룬을, 루프 단추는 루프 패시브와 해금을 연다(앞의 둘은 전부터 묶여 있었다). 창 머리의 탭으로 오가고,
 // 단추는 마지막에 보던 화면을 연다. icon: 창 머리 탭의 그림(assets/ui/pixel/menu-icons.png의 번호), count: 탭에 적는 수(쓸 포인트).
@@ -1441,7 +1441,7 @@ const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직을 고르고 노드와 키스톤을 할당합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
     gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬룬', icon: 9, detail: '룬을 장착하고 키웁니다.' }] },
     loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: () => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: () => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '이야기 저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }, { id: 'tab-npcs', gate: 'npcs', label: 'NPC', icon: 16, detail: '만난 NPC의 해금과 상점을 봅니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '이야기 저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -1449,8 +1449,8 @@ const MERGED_TAB_GROUPS = Object.freeze({
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
-    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records', 'tab-npcs'] },
-    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items'] },
+    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
+    { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-trade'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
@@ -2027,8 +2027,7 @@ function getRenderingUiTabIds() {
 function renderVisibleManagementPanels(tabIds) {
     if (tabIds.has('tab-talent')) talentUi.render();
     if (tabIds.has('tab-stump')) stumpBoxUi.renderStumpBoxTab();
-    if (tabIds.has('tab-npcs')) npcRosterUi.render();
-    if (tabIds.has('tab-items') && game.itemSubtab === 'item-tab-market') renderMarketUI();
+    if (tabIds.has('tab-trade')) renderMarketUI();
     else refreshBlackMarket(false);
 }
 
@@ -2273,6 +2272,13 @@ function revealActiveTabButton(button) {
     }, 0));
 }
 
+/** What opening a window starts: the gear analysis once (js/equipment-triage.js autoStart), and the hall again when the 거래 window
+ * opens on its 장비 전당 section (js/player-exchange.js). */
+function runWindowOpenHooks(tabId, shownId) {
+    if (shownId === 'tab-items' && window.equipmentTriage) window.equipmentTriage.onOpen();
+    if (tabId === 'tab-trade' && marketUi.section === 'hall') loadPlayerExchange();
+}
+
 function switchTab(tabId) {
     hideInfoTooltip();
     hideItemTooltip();
@@ -2304,8 +2310,7 @@ function switchTab(tabId) {
     // 창의 선택 패널이 사라져 빈 창만 남는다. 전역 전환은 최상위 탭과 메뉴 버튼만 해제한다.
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
-    // 장비 창을 열면 현재 세팅 분석을 한 번 돌린다(js/equipment-triage.js autoStart).
-    if (shownId === 'tab-items' && window.equipmentTriage) window.equipmentTriage.onOpen();
+    runWindowOpenHooks(tabId, shownId);
     document.body.classList.toggle('mobile-community-sheet-open', tabId === 'tab-social' && uiDisplay.matches('(max-width: 1080px)'));
     // 열 수 있는 화면을 다시 세웠으므로 잠금 정리 후의 복귀 예약은 소진된다.
     pendingRelockedTabFallback = false;
@@ -2389,20 +2394,17 @@ function isSelectedSubtab(subtabId) {
 
 function switchItemSubtab(subtabId) {
     if(subtabId==='item-tab-fossil')subtabId='item-tab-craft';
+    // 거래와 장비 전당은 제 창이다(2026-11-06): 옛 칸 주소는 거래 창의 그 칸을 연다
+    if (subtabId === 'item-tab-market' || subtabId === 'item-tab-hall') { marketUi.open(subtabId === 'item-tab-hall' ? 'hall' : marketUi.section); return; }
     if(subtabId!==game.itemSubtab)craftingWorkspaceUi.stopAuto('');
     if (!contentProgression.canOpen(subtabId)) return;
     if (subtabId === 'item-tab-equip' && game.noti) game.noti.items = false;
     if (subtabId === game.itemSubtab) {
         if (isSelectedSubtab(subtabId)) return;
     }
-    if (subtabId === 'item-tab-market' && !isMarketUnlocked()) {
-        addLog(_t('장비 제련을 해금하면 거래소를 이용할 수 있습니다.'), 'attack-monster');
-        subtabId = 'item-tab-equip';
-    }
     game.itemSubtab = subtabId;
     if (subtabId === 'item-tab-equip' && window.equipmentTriage) window.equipmentTriage.onOpen();
     showItemSubtabPanel(subtabId);
-    if (subtabId === 'item-tab-hall' && typeof loadPlayerExchange === 'function') loadPlayerExchange();
     updateStaticUI();
 }
 
@@ -8925,6 +8927,7 @@ function prepareCraftItemPickerDialog(overlay, kind, closePicker) {
     overlay.oncancel = event => { event.preventDefault(); closePicker(); };
     overlay.onclose = () => {
         if (!overlay.isConnected) return;
+        craftPickerHostUi.unmount(); // 옮겨 온 장착 칸이나 가방은 창을 지우기 전에 장비 창으로 돌려놓는다
         hideItemTooltip();
         hideInfoTooltip();
         // 뒤쪽부터 복구하면 두 툴팁이 원래 서로 이웃한 경우에도 nextSibling을 보존한다.
@@ -8970,6 +8973,7 @@ function prepareCraftItemPickerDialog(overlay, kind, closePicker) {
 
 return function performUpdateStaticUI() {
     craftingWorkspaceState.capture(game);
+    currencyExchange.capture(game);
     updateInventoryFullWarnings();
     announceMapPrimaryContentUnlocks();
     syncMapPrimaryContentTabs();
@@ -9076,10 +9080,9 @@ return function performUpdateStaticUI() {
     renderEquipmentLoadoutSummary(pStats);
     if (window.equipmentLoadoutUi) window.equipmentLoadoutUi.render();
     renderPaperdoll('ui-equip-list', false);
-    renderCraftTargetLibrary(isItemRarityVisible);
-    }
-    // 가방은 장비 창, 또는 그루터기 함 탭의 왼쪽 보석이 띄운 자리에 그린다(그 자리로 옮기는 것은 syncEquipmentBag).
-    if (stumpBoxUi.syncEquipmentBag(itemsTabActive) || itemsTabActive) renderEquipmentBagPanel(sf, isItemRarityVisible, renderRarityFilterChips);
+    } else if (craftPickerHostUi.shows('equip')) renderPaperdoll('ui-equip-list', false);
+    // 가방은 장비 창, 그루터기 함 탭의 왼쪽 보석이 띄운 자리(그 자리로 옮기는 것은 syncEquipmentBag), 또는 제작실의 인벤토리 고르기 창에 그린다.
+    if (stumpBoxUi.syncEquipmentBag(itemsTabActive) || itemsTabActive || craftPickerHostUi.shows('inventory')) renderEquipmentBagPanel(sf, isItemRarityVisible, renderRarityFilterChips);
 
 function getJewelStatToneColor(statId) {
     if (!statId) return '#d7e9ff';
@@ -9553,13 +9556,15 @@ function refreshCraftItemPickerOverlay() {
     if (bodyEl) bodyEl.innerHTML = getCraftPickerBodyHtml(window.__craftPickerKind, {query: overlay.querySelector('[name="craftSearch"]')?.value || '', page: Number(overlay.dataset.page) || 0});
 }
 
-function openCraftItemPickerOverlay(kind) {
+/** options (the hall's 등록, js/player-exchange.js): { title, desc, picks } over the craft target picker's own. */
+function openCraftItemPickerOverlay(kind, options = {}) {
     closeCraftItemPickerOverlay();
-    let isEquip = kind === 'equip';
+    // 장비와 인벤토리는 장비 창의 진짜 장착 칸과 가방을 옮겨 와 보여 준다(js/craft-picker-host-ui.js). 제단은 고를 수 있는 장비만 카드로.
+    let real = kind === 'equip' || kind === 'inventory';
     window.__craftPickerKind = kind;
     let overlay = document.createElement('dialog');
     overlay.id = 'craft-item-picker-overlay';
-    overlay.className = 'craft-picker-overlay';
+    overlay.className = real ? 'craft-picker-overlay is-real' : 'craft-picker-overlay';
     overlay.setAttribute('aria-labelledby', 'craft-picker-title');
     overlay.onclick = event => {
         if (event.target === overlay) closeCraftItemPickerOverlay();
@@ -9568,17 +9573,38 @@ function openCraftItemPickerOverlay(kind) {
         overlay.dataset.page = button.dataset.craftPage; refreshCraftItemPickerOverlay();
     };
     overlay.onsubmit = event => { event.preventDefault(); overlay.dataset.page = '0'; refreshCraftItemPickerOverlay(); };
-    let bodyHtml = getCraftPickerBodyHtml(kind);
-    let filterRowHtml = isEquip ? '' : `<div class="craft-picker-filter"><span class="inventory-view-filter-label">${_t('표시')}</span>${renderRarityFilterChips('picker')}</div>`;
-    overlay.innerHTML = `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title" id="craft-picker-title">${isEquip ? _t('장착 장비에서 제작 대상 선택') : _t('인벤토리에서 제작 대상 선택')}</div><div class="craft-picker-desc">${_t('카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.')}</div></div><button type="button" autofocus onclick="closeCraftItemPickerOverlay()">${_t('닫기')}</button></div>${filterRowHtml}<div class="craft-picker-body">${bodyHtml}</div></div>`;
+    overlay.innerHTML = getCraftPickerPanelHtml(kind, real, options);
+    if (real) craftPickerHostUi.mount(overlay.querySelector('.craft-picker-body'), kind, { equip: selectCraftPickerEquipment, inventory: selectCraftPickerInventoryItem, refuse: refuseCraftPickerItem, ...options.picks });
+    else decorateCraftPickerCards(overlay, kind);
+    prepareCraftItemPickerDialog(overlay, kind, closeCraftItemPickerOverlay);
+    document.body.appendChild(overlay);
+    overlay.showModal();
+    if (real) updateStaticUI(); // 장비 탭이 그려지지 않는 곳(낚시 작업대)에서 열어도 옮겨 온 칸을 지금 그린다
+}
+
+/** The picker's frame: title, line and close button, then the body (empty for the moved real panels, the cards otherwise). */
+function getCraftPickerPanelHtml(kind, real, options) {
+    let filterRowHtml = real ? '' : `<div class="craft-picker-filter"><span class="inventory-view-filter-label">${_t('표시')}</span>${renderRarityFilterChips('picker')}</div>`;
+    let desc = options.desc || (real ? _t('장비를 누르면 제작실 대상 장비로 바로 선택됩니다.') : _t('카드를 클릭하면 제작실 대상 장비로 바로 선택됩니다.'));
+    let title = options.title || (kind === 'equip' ? _t('장착 장비에서 제작 대상 선택') : _t('인벤토리에서 제작 대상 선택'));
+    return `<div class="craft-picker-panel"><div class="craft-picker-head"><div><div class="craft-picker-title" id="craft-picker-title">${title}</div><div class="craft-picker-desc">${desc}</div></div><button type="button" autofocus onclick="closeCraftItemPickerOverlay()">${_t('닫기')}</button></div>${filterRowHtml}<div class="craft-picker-body">${real ? '' : getCraftPickerBodyHtml(kind)}</div></div>`;
+}
+
+/** A pressed bag item that cannot be picked: the picker's line says why (red). */
+function refuseCraftPickerItem(reason) {
+    let line = document.querySelector('#craft-item-picker-overlay .craft-picker-desc');
+    if (!line) return;
+    line.textContent = reason;
+    line.classList.add('is-refused');
+}
+
+/** The card list (the altar's gear): its own title and line, and a search row on a phone. */
+function decorateCraftPickerCards(overlay, kind) {
     if (kind === 'altar') {
         overlay.querySelector('.craft-picker-title').textContent = _t('제단 장비 선택');
         overlay.querySelector('.craft-picker-desc').textContent = _t('제단에 올릴 수 있는 장비만 표시됩니다. 선택 후 제단에 올리세요.');
     }
-    if (!isEquip && uiDisplay.matches('(max-width: 1080px)')) overlay.querySelector('.craft-picker-head').insertAdjacentHTML('afterend', '<form class="craft-picker-search"><input name="craftSearch" type="search" aria-label="제작 장비 이름/베이스/등급/부위/옵션 검색" placeholder="이름/베이스/등급/옵션 검색"><button type="submit">검색</button></form>');
-    prepareCraftItemPickerDialog(overlay, kind, closeCraftItemPickerOverlay);
-    document.body.appendChild(overlay);
-    overlay.showModal();
+    if (uiDisplay.matches('(max-width: 1080px)')) overlay.querySelector('.craft-picker-head').insertAdjacentHTML('afterend', '<form class="craft-picker-search"><input name="craftSearch" type="search" aria-label="제작 장비 이름/베이스/등급/부위/옵션 검색" placeholder="이름/베이스/등급/옵션 검색"><button type="submit">검색</button></form>');
 }
 
 function exposeUiRenderHelpersOnce() {
@@ -9659,9 +9685,8 @@ function buildCraftActionButtons(item) {
         craftingWorkspaceUi.render(false,{details,useState:getMobileCraftCurrencyUseState,targetControls:getCraftTargetControlsHtml,emptyState:getCraftEmptyStateHtml});
         writeHtmlIfChanged(document.getElementById('ui-craft-spore-actions'), buildSporeSummaryHtml());
     }
-    let marketTabBtn = document.getElementById('btn-item-tab-market');
-    if (marketTabBtn) marketTabBtn.style.display = isMarketUnlocked() ? 'block' : 'none';
-    if (!isMarketUnlocked() && game.itemSubtab === 'item-tab-market') switchItemSubtab('item-tab-equip');
+    const tradeButton = document.getElementById('btn-tab-trade'); // 거래 창의 메뉴 단추(2026-11-06): 열 칸이 하나라도 있으면 보인다
+    if (tradeButton) tradeButton.style.display = contentProgression.canOpen('tab-trade') ? 'flex' : 'none';
     __mark('midRender');
     renderVisibleManagementPanels(renderingTabIds);
     __mark('market');
@@ -10517,13 +10542,6 @@ function openVoidPassiveCraftOverlay(nodeId, result = '') {
         </div>
     </div>`;
     document.body.appendChild(overlay);
-}
-
-function renderCraftTargetLibrary(isRarityVisible) {
-    if (game.itemSubtab !== 'item-tab-craft' || !document.querySelector('#item-tab-craft > details.craft-target-library').open) return;
-    renderPaperdoll('ui-craft-equip-list', true);
-    const rows = game.inventory.map((item, idx) => ({ item, idx })).filter(row => isRarityVisible(row.item) && !bagItems.isSpecial(row.item));
-    document.getElementById('ui-craft-inventory-list').innerHTML = rows.map(row => renderInventoryCard(row.item, row.idx, 'craft')).join('');
 }
 
 function normalizePassiveTooltipText(value) {
@@ -13881,7 +13899,6 @@ function getLockedTabMessage(tabId) {
     if (tabId === 'tab-map') return '액트 1을 마치면 지도가 열립니다.';
     if (tabId === 'tab-traits') return '전직 시련을 통과하면 전직 탭이 열립니다.';
     if (tabId === 'tab-talent') return '재능 개화 시련을 클리어하면 재능 탭이 열립니다.';
-    if (tabId === 'tab-npcs') return '맵에서 NPC를 만나면 NPC 탭이 열립니다.';
     return '아직 해금되지 않은 탭입니다.';
 }
 

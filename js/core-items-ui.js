@@ -19,7 +19,7 @@ const coreItemsUi = (() => {
         const rarity = core.rarity || 'rare';
         return `<div class="slot-box equipment-slot slot-${SLOT} core-item-slot rarity-${rarity}" data-slot="${SLOT}" data-item-tooltip-anchor="1"
             onclick="equipmentInventoryInteraction.handleEquippedItemClick(event,'${SLOT}')"
-            ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${SLOT}', false)"
+            ondblclick="event.stopPropagation(); equipmentInventoryInteraction.cancelCarry(); handleEquipmentSlotDoubleClick('${SLOT}')"
             onmouseenter="${hover}" onmousemove="${hover}" onmouseleave="hideItemTooltip(event)">
             <div class="equipment-slot-head"><span>${SLOT}</span></div><div class="equipment-slot-visual"><img src="${coreItems.icon(core)}" alt="" aria-hidden="true" draggable="false"></div>
             <div class="item-title equipment-slot-name ${rarity}">${escapeHTML(_t(core.name))}</div>

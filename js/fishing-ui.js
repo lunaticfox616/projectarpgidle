@@ -398,7 +398,7 @@ const fishingUi = (() => {
         switchTab('tab-items');
         if (document.body.classList.contains('desktop-windowed-ui')) openWindow('tab-items');
         switchItemSubtab('item-tab-craft');
-        craftingWorkspaceUi.openInventory(false, key, true);
+        craftingWorkspaceUi.openInventory(key, true);
     }
     function pickTarget(kind) {
         window.openCraftItemPickerOverlay(kind);

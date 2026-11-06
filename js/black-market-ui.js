@@ -1,4 +1,4 @@
-/** 거래소 → 암거래상 as a shop (2026-10-18 사용자: "가판대, 암거래상 등도 상점 인터페이스로"): its offers (js/black-market.js) on a
+/** 거래 → NPC의 암거래상 카드가 여는 창(js/market-ui.js openBlack) as a shop (2026-10-18 사용자: "가판대, 암거래상 등도 상점 인터페이스로"): its offers (js/black-market.js) on a
  * shelf like the NPC shops' beside the hero's bag, and the chosen offer's sheet (its price, buy and lock buttons first). A mouse over
  * an offer shows its floating card (price and options); pressing chooses it, the sheet's button buys it into the first free bag place,
  * dragging it onto the bag buys it there.
