@@ -11211,8 +11211,16 @@ function startupSaveCardState(shown, stamp) {
         hasSave,
         hasGuestSave: shown.preview ? guestStamp > 0 : (shown.account ? !!cloudState.guestSaveSummary : hasSave),
         title: shown.account ? '계정 저장' : (hasSave ? '이 기기 저장' : '새 모험'),
-        emptyText: shown.preview ? '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.' : null
+        emptyText: startupEmptyText(shown, hasSave)
     };
+}
+
+/** The line under an empty card, or null for the card's own line (index.html): in the preview the entry fetches the server save; signed
+ * out on an empty guest slot with an account's copy on this device (js/save.js hasAccountSaveCopy), that logging in continues it. */
+function startupEmptyText(shown, hasSave) {
+    if (shown.preview) return '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.';
+    if (!hasSave && !shown.account && hasAccountSaveCopy()) return '이 기기에 로그인한 계정의 저장이 있습니다. 그 계정으로 로그인하면 이어서 할 수 있습니다.';
+    return null;
 }
 
 /** 이 기기 저장을 쓸 수 없어 멈춘 경우의 제목과 안내(js/save.js loadGame): 읽지 못한 저장(corrupt, 원래 저장은 따로 보관한다)과
@@ -12691,14 +12699,21 @@ function loadSaveSlotIntoGame(userId) {
 /** Loop and level of a guest save with progress, or null (none, or a fresh default). Read once per account entry, not per screen update. */
 function summarizeGuestSave(guestSave) {
     if (!guestSave || isLikelyBootstrapLocalSave(guestSave)) return null;
-    return { loop: getSaveLoopNumber(guestSave), level: Math.max(1, Math.floor(Number(guestSave.level) || 1)) };
+    return saveProgressSummary(guestSave);
 }
 
-/** The account has no server save: the game in its slot (a fresh default, a copy whose first upload failed, or on sign-up this device's
- * guest save) goes up as revision 1. */
+/** Loop and level of a save: what the move question names and what decides whether the guest save is ahead (guestSaveIsAhead). */
+function saveProgressSummary(save) {
+    return { loop: getSaveLoopNumber(save), level: Math.max(1, Math.floor(Number(save.level) || 1)) };
+}
+
+/** The account has no server save: the game in its slot (a fresh default, a copy whose first upload failed, or this device's guest save)
+ * goes up as revision 1. Sign-up takes the guest save (the 2026-10-03 rule); a first login (a social account's first entry, an email
+ * account confirmed by mail) asks, since a new account's first login is its sign-up (2026-11-08: before, the login uploaded a fresh
+ * default and the settings' move button was the only way, gone after the first kill). */
 async function createFirstCloudSave(signUp) {
-    const guestSave = signUp ? readGuestSave() : null;
-    const wanted = !!summarizeGuestSave(guestSave);
+    const guestSave = readGuestSave();
+    const wanted = await wantsGuestSaveAsFirstSave(guestSave, signUp);
     const adopted = wanted && adoptGuestSaveIntoAccount(guestSave);
     markCurrentSaveCloudOwner();
     game.saveMeta.cloudRevision = 0;
@@ -12709,6 +12724,20 @@ async function createFirstCloudSave(signUp) {
     }
     setCloudMessage(adopted ? '게스트 저장을 이 계정의 첫 서버 저장으로 올렸습니다.' : '이 계정의 첫 서버 저장을 올렸습니다.');
     return adopted ? 'pushed-guest' : 'pushed-first';
+}
+
+/** Whether the guest save becomes the account's first server save: it has progress, the account's slot on this device is still a fresh
+ * default (a copy whose first upload failed stays), and on a login the player says so (sign-up takes it without asking). */
+async function wantsGuestSaveAsFirstSave(guestSave, signUp) {
+    const summary = summarizeGuestSave(guestSave);
+    if (!summary || !isLikelyBootstrapLocalSave(game)) return false;
+    if (signUp) return true;
+    const message = [
+        _t('이 계정에는 아직 서버 저장이 없습니다. 이 기기의 게스트 저장(루프 {loop}, 레벨 {level})을 이 계정의 저장으로 옮길까요?', summary),
+        _t('옮기면 게스트 저장은 이 기기에서 지워지고, 다른 계정으로는 옮길 수 없습니다. 옮기지 않으면 새 모험으로 시작하고, 게스트 저장은 이 기기에 남습니다.')
+    ].join('\n');
+    const answer = await requestGameConfirmation(message, { title: _t('게스트 저장 옮기기'), tone: 'warning', confirmLabel: _t('옮기기'), cancelLabel: _t('새로 시작'), dismissOnBackdrop: false });
+    return answer === true;   // 새로 시작 and Escape resolve null
 }
 
 /** Moves the guest save into the account's slot as this device's copy, keeping the slot's revision; the guest slot empties, so one guest
@@ -12734,20 +12763,35 @@ function adoptGuestSaveIntoAccount(guestSave) {
     return true;
 }
 
-/** 설정 > 클라우드 세이브의 게스트 저장 옮기기 단추가 보이는 때: 계정 모드이고, 이 기기에 진행이 있는 게스트 저장이 있고, 계정의 저장은 아직
- * 아무것도 하지 않은 새 게임일 때(한 번 진행한 계정 저장은 게스트 저장으로 바꿀 수 없다). */
+/** 설정 > 클라우드 세이브의 게스트 저장 옮기기 단추가 보이는 때: 계정 모드이고, 이 기기에 진행이 있는 게스트 저장이 있고, 계정의 저장이 아직
+ * 아무것도 하지 않은 새 게임이거나 게스트 저장보다 뒤일 때(2026-11-08: 전에는 새 게임일 때만이라, 새 계정으로 들어간 뒤 자동 사냥의 첫
+ * 처치만으로 단추가 사라졌고 게스트 저장을 옮길 길이 없었다). */
 function canMoveGuestSaveIntoAccount() {
-    return !!(cloudState.user && cloudState.guestSaveSummary && getSaveSlot().kind === 'account' && isLikelyBootstrapLocalSave(game));
+    return !!(cloudState.user && cloudState.guestSaveSummary && getSaveSlot().kind === 'account' && guestSaveIsAhead(cloudState.guestSaveSummary, game));
 }
 
-/** 설정 > 클라우드 세이브의 게스트 저장 옮기기: the guest save replaces the account's untouched save and goes up. */
+/** The account save a guest save (its summary) may replace: a fresh default, or one behind it, a lower loop or the same loop and a lower level. */
+function guestSaveIsAhead(guest, accountSave) {
+    if (isLikelyBootstrapLocalSave(accountSave)) return true;
+    const account = saveProgressSummary(accountSave);
+    return guest.loop > account.loop || (guest.loop === account.loop && guest.level > account.level);
+}
+
+/** The move question's text: the guest save (its summary), the account save it replaces unless that is a fresh default, and what the move means. */
+function guestSaveMoveMessage(summary) {
+    const lines = [_t('이 기기의 게스트 저장(루프 {loop}, 레벨 {level})을 이 계정의 저장으로 옮깁니다.', summary)];
+    if (!isLikelyBootstrapLocalSave(game)) lines.push(_t('이 계정의 지금 저장(루프 {loop}, 레벨 {level})은 지워집니다.', saveProgressSummary(game)));
+    lines.push(_t('옮긴 뒤 게스트 저장은 이 기기에서 지워지고, 다른 계정으로는 옮길 수 없습니다.'));
+    return lines.join('\n');
+}
+
+/** 설정 > 클라우드 세이브의 게스트 저장 옮기기: the guest save replaces the account's save (a fresh default, or one behind it) and goes up. */
 async function moveGuestSaveIntoAccount() {
     if (!cloudState.user || cloudState.busy) return;
     const guestSave = readGuestSave();
-    if (!canMoveGuestSaveIntoAccount() || !summarizeGuestSave(guestSave)) return setCloudMessage(_t('옮길 게스트 저장이 없거나, 이 계정에 이미 진행이 있어 옮길 수 없습니다.'));
+    if (!canMoveGuestSaveIntoAccount() || !summarizeGuestSave(guestSave)) return setCloudMessage(_t('옮길 게스트 저장이 없거나, 이 계정의 저장이 게스트 저장보다 앞서 있어 옮길 수 없습니다.'));
     const summary = summarizeGuestSave(guestSave);
-    if (!await requestGameConfirmation(`이 기기의 게스트 저장(루프 ${summary.loop}, 레벨 ${summary.level})을 이 계정의 저장으로 옮깁니다.\n옮긴 뒤 게스트 저장은 이 기기에서 지워지고, 다른 계정으로는 옮길 수 없습니다.`,
-        { title: _t('게스트 저장 옮기기'), tone: 'warning', confirmLabel: _t('옮기기') })) return;
+    if (!await requestGameConfirmation(guestSaveMoveMessage(summary), { title: _t('게스트 저장 옮기기'), tone: 'warning', confirmLabel: _t('옮기기') })) return;
     cloudState.busy = true;
     updateCloudSaveUI();
     try {

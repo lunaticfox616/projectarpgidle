@@ -55,6 +55,18 @@ function readAccountSaveCopy(userId) {
     }
 }
 
+/** Whether some account's copy is on this device. The login screen says so over an empty guest slot (js/ui.js startupEmptyText), since
+ * a signed-out player whose session ended, or whose pre-slot save moved out of the guest slot at boot (migrateOwnedGuestSave), otherwise
+ * reads "저장된 모험이 없습니다" and takes the save for lost (2026-11-08). */
+function hasAccountSaveCopy() {
+    try {
+        return Object.keys(localStorage).some(key => key.startsWith(ACCOUNT_SAVE_KEY_PREFIX) && !key.includes('_corrupt_'));
+    } catch (error) {
+        console.warn('account save copies could not be listed:', error);
+        return false;
+    }
+}
+
 /** Removes the guest save (after it moved into an account), with its earlier key names and corrupt copies. */
 function removeGuestSave() {
     const earlier = /^[a-z]{3}IdleSaveData_/i;

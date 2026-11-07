@@ -360,18 +360,36 @@ async function run() {
         await assert.rejects(d.runtime.enterAccountSave(), /network unavailable/);
         assert.deepStrictEqual([d.runtime.game.level, d.slot().kind, d.storage.has(d.accountKey)], [42, 'guest', false]);
     }
-    // 3. Login to an account without a server save starts a fresh account save (revision 1); the guest save stays a guest save.
+    // 3. Login to an account without a server save asks about the guest save (2026-11-08): declined, a fresh account save (revision 1) goes up
+    //    and the guest save stays a guest save; accepted, the guest save is the first server save. A device copy with progress is not asked over.
     {
         const d = createDevice({ guestSave });
         d.signIn();
         assert.strictEqual(await d.runtime.enterAccountSave(), 'pushed-first');
-        assert.deepStrictEqual([d.runtime.game.level, d.server.row.revision, d.server.row.save_data.level, d.stored(d.key).level], [1, 1, 1, 42]);
-        // 설정의 게스트 저장 옮기기: 계정 저장이 아직 새 게임인 동안만. 옮기면 게스트 칸은 비고 서버 저장이 된다.
+        assert.deepStrictEqual([d.confirmations.length, d.runtime.game.level, d.server.row.revision, d.server.row.save_data.level, d.stored(d.key).level], [1, 1, 1, 1, 42]);
+        assert.match(d.confirmations[0].message, /루프 3, 레벨 42/, 'the question names the guest save');
+        // 설정의 게스트 저장 옮기기: 계정 저장이 새 게임이거나 게스트 저장보다 뒤인 동안. 옮기면 게스트 칸은 비고 서버 저장이 된다.
         assert.strictEqual(d.runtime.canMoveGuestSaveIntoAccount(), true);
+        d.runtime.game.killsInZone = 1; d.runtime.game.exp = 5;   // 자동 사냥의 첫 처치
+        assert.strictEqual(d.runtime.canMoveGuestSaveIntoAccount(), true, 'a few kills in the new account do not lock the move');
+        d.runtime.game.season = 3; d.runtime.game.level = 42;
+        assert.strictEqual(d.runtime.canMoveGuestSaveIntoAccount(), false, 'an account save level with the guest save is kept');
+        d.runtime.game.level = 41;
         d.setAnswer(true);
         await d.runtime.moveGuestSaveIntoAccount();
+        assert.match(d.confirmations[1].message, /루프 3, 레벨 41/, 'the replaced account save is named');
         assert.deepStrictEqual([d.runtime.game.level, d.server.row.revision, d.server.row.save_data.level, d.storage.has(d.key)], [42, 2, 42, false]);
         assert.strictEqual(d.runtime.canMoveGuestSaveIntoAccount(), false, 'nothing left to move');
+
+        const accepted = createDevice({ guestSave });
+        accepted.signIn(); accepted.setAnswer(true);
+        assert.strictEqual(await accepted.runtime.enterAccountSave(), 'pushed-guest');
+        assert.deepStrictEqual([accepted.runtime.game.level, accepted.server.row.save_data.level, accepted.storage.has(accepted.key)], [42, 42, false]);
+
+        const copy = createDevice({ guestSave, accountSave: ownedCopy(50, 0, true) });   // 첫 올리기에 실패했던 사본
+        copy.signIn();
+        assert.strictEqual(await copy.runtime.enterAccountSave(), 'pushed-first');
+        assert.deepStrictEqual([copy.confirmations.length, copy.runtime.game.level, copy.server.row.save_data.level, copy.stored(copy.key).level], [0, 50, 50, 42]);
     }
     // 4. Sign-up adopts the guest save as the first server save (the 2026-10-03 rule); a save that fails the check stays a guest save.
     {
@@ -463,6 +481,10 @@ async function run() {
     {
         const d = createDevice({ guestSave: ownedCopy(60, 5, false) });
         assert.deepStrictEqual([d.storage.has(d.key), d.stored(d.accountKey).level, d.runtime.game.level, d.slot().kind], [false, 60, 1, 'guest']);
+        // 시작 화면의 빈 칸은 이 기기에 계정 저장이 있다고 알린다(2026-11-08); 계정 사본이 없는 기기는 카드의 기본 글을 둔다.
+        const shownGuest = { account: false, preview: false, save: d.runtime.game };
+        assert.match(d.runtime.startupSaveCardState(shownGuest, 0).emptyText, /로그인/, 'an empty guest slot beside an account copy says to log in');
+        assert.strictEqual(createDevice().runtime.startupSaveCardState(shownGuest, 0).emptyText, null);
         d.signIn(OTHER);
         assert.strictEqual(await d.runtime.enterAccountSave({ signUp: true }), 'pushed-first');
         assert.strictEqual(d.server.row.save_data.level, 1, 'another account gets a fresh save, not the moved one');
