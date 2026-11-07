@@ -181,6 +181,10 @@ const equipmentWindowUi = (() => {
     const isNew = item => !!item && Number(item.id) > seenId();
     /** The red dot of a new bag item (js/canvas-passive-tree.js renderEquipmentGridItem). */
     const newDotHtml = item => (isNew(item) ? '<span class="eqw-new-dot" aria-label="새 아이템"></span>' : '');
+    /** 장비 칸 오른쪽 위의 아이템 등급(2026-11-07 사용자: T1~20, 티어 색): 툴팁의 '등급 T'와 같은 값(getItemCraftTier)과 색(tier-N).
+     * 주얼, 코어, 액막이는 장비가 아니라 붙이지 않는다. */
+    const tierHtml = item => (item && !bagItems.isSpecial(item)
+        ? `<span class="eqw-item-tier ${getTierClassName(getItemCraftTier(item))}" aria-hidden="true">T${getItemCraftTier(item)}</span>` : '');
     let watched = null, bagShown = false;
     /** The bag counts as opened while its grid is on screen; when it leaves the screen everything that came in so far is seen. */
     function watchBag() {
@@ -384,7 +388,7 @@ const equipmentWindowUi = (() => {
         document.addEventListener('keydown', closePanelOnEscape, true);
         document.addEventListener('dblclick', runRailToolOnDoubleClick, true);
     }
-    return Object.freeze({ render, renderBag, toggleLoadout, newDotHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
+    return Object.freeze({ render, renderBag, toggleLoadout, newDotHtml, tierHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
         openSalvage, openItemFilter, toggleTools, salvageSummaryHtml });
 })();
 safeExposeGlobals({ equipmentWindowUi });

@@ -10503,6 +10503,8 @@ const LANGUAGE_PACK_JA = Object.freeze({
         '새 이야기': '新しい話',
         '아직 만난 NPC가 없습니다.': 'まだ出会ったNPCはいません。',
         '제안 {name} {amount}개': '提案 {name} {amount}個',
+        // 2026-11-07 장비 가방: 보고 있는 페이지
+        '{page} / {count} 페이지': '{page} / {count} ページ',
     })
 });
 

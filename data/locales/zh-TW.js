@@ -10502,6 +10502,8 @@ const LANGUAGE_PACK_ZH_TW = Object.freeze({
         '새 이야기': '新對話',
         '아직 만난 NPC가 없습니다.': '尚未遇到任何NPC。',
         '제안 {name} {amount}개': '報價 {name} {amount}個',
+        // 2026-11-07 장비 가방: 보고 있는 페이지
+        '{page} / {count} 페이지': '第{page}/{count}頁',
     })
 });
 

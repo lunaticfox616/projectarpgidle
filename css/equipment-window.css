@@ -237,6 +237,24 @@
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-grid-item.selected { outline: 2px solid #ffd27a; outline-offset: -2px; box-shadow: 0 0 14px rgba(255, 210, 122, .75); z-index: 3; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-new-dot { position: absolute; top: 2px; right: 2px; z-index: 6; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
   box-shadow: 0 0 0 1px #000; pointer-events: none; }
+/* 장비 칸 오른쪽 위의 아이템 등급(js/equipment-window-ui.js tierHtml, 2026-11-07 사용자: T1~20, 티어 색). 색은 툴팁의 등급 표시와 같은
+   tier-N(css/layout.css)이고, 칸이 많아 T10의 빛남 애니메이션은 끈다. 새 아이템 점은 그 아래로 비킨다. */
+:root body .eqw-item-tier { position: absolute; top: 2px; right: 2px; z-index: 5; padding: 0 2px; background: #151008; font-family: var(--font-pixel-meta);
+  font-size: var(--font-size-meta); font-weight: 400; line-height: 12px; text-shadow: 1px 1px 0 #000; white-space: nowrap; animation: none; pointer-events: none; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-grid-item:has(> .eqw-item-tier) > .eqw-new-dot { top: 15px; }
+/* 휴대폰의 1칸 장비(반지, 목걸이)는 왼쪽 위 비교 수치와 겹치므로 등급을 왼쪽 아래에 둔다(소켓은 오른쪽 아래). */
+@media (max-width: 640px) {
+  :root body .equipment-grid-item[style*="--item-grid-columns:1;"] > .eqw-item-tier { top: auto; right: auto; bottom: 2px; left: 2px; }
+}
+/* 보고 있는 쪽(2026-11-07 사용자: 지금 몇 페이지인지 모르겠다): 차오르는 금빛 칸과 섞이지 않게 밝은 금 테와 글로 뚜렷하게 하고,
+   줄 끝에 'N / M 페이지'를 둔다(js/equipment-inventory-grid-ui.js renderPageControls). */
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages button.active {
+  border: 2px solid #f3d28c; border-image: none; color: #fff4c8; background: #3a2c17; box-shadow: 0 0 0 1px #000, 0 0 8px rgba(243, 210, 140, .55);
+}
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages button.active > span { color: #fff4c8; font-weight: 700; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-page-now {
+  align-self: center; margin-left: 4px; color: #f3d28c; font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); line-height: 12px; white-space: nowrap;
+}
 
 /* 선택한 장비: 그림과 이름, 지금 장착, 바꾸면 증감표, 단추, 툴팁 */
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }
