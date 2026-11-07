@@ -51,9 +51,10 @@
          스크립트가 실패한 페이지를 위한 마지막 수단이다(load는 부팅이 시작한 모든 그림까지 기다린다, 2026-10-28). -->
     <script>
     window.addEventListener('load', function revealStyledApp() {
-        requestAnimationFrame(function revealAfterFirstStyledFrame() {
-            document.documentElement.classList.remove('app-preload');
-        });
+        // 정상 부팅은 선택 언어와 글꼴을 기다린다. load가 먼저 끝나도 한국어 화면을 미리 드러내지 않는다.
+        const reveal = () => requestAnimationFrame(() => document.documentElement.classList.remove('app-preload'));
+        if (typeof revealStartupScreen === 'function') setTimeout(reveal, 20000);
+        else reveal();
     }, { once: true });
     </script>
 
@@ -1616,10 +1617,10 @@
 <script defer src="data/content-progression.js?v=20260906-2&choice-tree=20260906-1&flow=20260906-1&unlock-atlas=20260906-5&unlock-loot=20260906-1&flask-slots=20260906-1&reward-flow=20260906-1&unlock-lifecycle=20260907-1&unlock-split=20260907-1&treasure=20260907-1&market=20260907-1&unlock-path=20260908-1&world-tree-journey=20260913-1&first-journal=20260914-1&gem-forge=20260914-1&chat-dock=20260914-1&skill-delta2=20260930-10&aux=20260930-3&aux=20260930-5&ward=20260930-1&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-14&aux=20261001-15&aux=20261001-16&aux=20261001-17&aux=20261001-19&aux=20261002-1&aux=20261002-3&aux=20261002-8&realm=20261003-1&board=20261004-1&playtest=20261007-8&uiwords=20261009-1&points=20261015-1&ability=20261016-2&npcshop=20261016-1&runes=20261017-1&endgame=20261018-1&npcsplit=20261021-1&uipass=20261022-1&codexreview=20261023-1&blessing=20261024-1&growth=20261025-2&riftui=20261026-1&lines=20261027-1&runes=20261102-1&text=20261102-3&forge=20261102-1&20261103-6&stump=20261104-1&stumpsyn1104&stumploop1104b&harvest1104&endgame25=20261106-1&trade=20261106-1&trade2=20261106-1&tradetab=20261106-1"></script>
 <script defer src="data/hotkeys.js?v=20260930-6&aux=20261001-1&review=20261003-1&wasd=20261009-1&runes=20261017-1&hotkeys=20261024-1&tradetab=20261106-1"></script>
 <script defer src="data/locales/ko.js?v=20261103-1"></script>
-<script defer src="data/locales/en.js?v=20261103-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1"></script>
-<script defer src="data/locales/ja.js?v=20261104-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1"></script>
-<script defer src="data/locales/zh-CN.js?v=20261104-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1"></script>
-<script defer src="data/locales/zh-TW.js?v=20261104-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1"></script>
+<link rel="rignin-language" data-language="en" href="data/locales/en.js?v=20261103-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1">
+<link rel="rignin-language" data-language="ja" href="data/locales/ja.js?v=20261104-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1">
+<link rel="rignin-language" data-language="zh-CN" href="data/locales/zh-CN.js?v=20261104-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1">
+<link rel="rignin-language" data-language="zh-TW" href="data/locales/zh-TW.js?v=20261104-1&runeline1105&deathflow1105&motion1030=20261106-1&craftstash=20261106-1&trade=20261106-1&trade2=20261106-1&hall=20261106-1&tradetab=20261106-1&npccards=20261106-1">
 <script defer src="js/utils.js?v=20260717-talent-coverage1&vfx=20260810-skill-vfx2&inventory-pages=20260827-1&vfx-icons=20260901-1&drop-balance=20260902-1&runtime=20260905-1&interface-fixes=20260906-2&display=20260906-1&thermal=20260907-1&ui-scale=20260909-1&affix-balance=20260910-1&research-review=20260914-2&aux=20260930-5&aux=20260930-7&aux=20260930-8&aux=20261001-1&aux=20261001-7&aux=20261001-15&aux=20261001-17&font=20261006-1&goal=20261008-1&sight=20261009-1&uniq=20261009-1&bag=20261010-1&runes=20261017-1&tidy=20261018-1&oceansurface=20261019-1&cooldown=20261021-1&codexreview=20261023-1&growth=20261025-1&uibatch=20261027-1&attrrune=20261028-1&albino=20261030-1&v0339=20261102-1&levels=20261102-1&text=20261102-3"></script>
 <script defer src="js/i18n.js?v=20261103-1"></script>
 <script defer src="js/hotkeys.js"></script>

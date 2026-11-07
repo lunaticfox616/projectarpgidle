@@ -81,7 +81,6 @@
     }
 
     function applyEffects(key) {
-        if (key === 'language') i18n.setLanguage(game.settings.language);
         applySoundEffects(key);
         if (key === 'highContrast') applyHighContrast(game.settings.highContrast);
         if (key === 'chatMessageSize') applyChatMessageSize(game.settings.chatMessageSize);
@@ -129,7 +128,31 @@
     }
     initLanguageSelect();
 
+    /** Persist a language only after its pack loads; a failed download keeps the previous setting and visible language. */
+    async function changeLanguage(control) {
+        if (control.disabled || !i18n.languages.some(entry => entry.code === control.value)) return;
+        const owner = game;
+        const next = control.value;
+        control.disabled = true;
+        try {
+            const applied = await i18n.setLanguage(next, () => owner === game);
+            if (owner !== game || !applied) return;
+            game.settings.language = next;
+            control.value = next;
+            updateStaticUI();
+            queueImportantSave(180);
+        } catch (error) {
+            console.warn('[i18n] Language selection failed.', error);
+            control.value = game.settings.language;
+            if (owner === game) showGameToast(_t('언어를 불러오지 못했습니다. 다시 시도해 주세요.'));
+        } finally {
+            control.disabled = false;
+            if (owner !== game) control.value = game.settings.language;
+        }
+    }
+
     root?.addEventListener('change', event => {
+        if (event.target.id === 'sel-language') { void changeLanguage(event.target); return; }
         const key = writeControl(event.target);
         if (!key) return;
         applyEffects(key);

@@ -87,6 +87,30 @@ $$;
 
 -- 등록할 장비의 모양 검사. 추가 옵션의 티어 상한은 장비가 들고 온 affixTierCap으로 보고, 2026-10-30부터 능력치 id, 티어, 값, 슬롯은
 -- 추가 옵션 표(hall_affix_table_rejects)로도 본다. 표를 읽으므로 immutable이 아니라 stable이다.
+create or replace function public.validate_hall_sockets(item_data jsonb)
+returns void language plpgsql immutable set search_path = public as $$
+begin
+    -- Every stored socket type must be empty: nested jewels/harvests would otherwise be copied with every replica.
+    if exists (select 1 from jsonb_each(item_data) field
+                where (field.key in ('abyssSockets','harvestSockets') and jsonb_typeof(field.value) not in ('array','null'))
+                   or (field.key in ('voidSocket','corruptionSocket') and jsonb_typeof(field.value) not in ('object','null')))
+       or exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')
+                         || public.hall_array(item_data -> 'harvestSockets')) socket
+                   where jsonb_typeof(socket) not in ('object','null')) then
+        raise exception 'HALL_ITEM_REJECTED';
+    end if;
+    if exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')
+                         || public.hall_array(item_data -> 'harvestSockets')
+                         || jsonb_build_array(item_data -> 'voidSocket', item_data -> 'corruptionSocket')) socket
+                where coalesce(socket -> 'jewel', 'null'::jsonb) <> 'null'::jsonb
+                   or coalesce(socket -> 'harvest', 'null'::jsonb) <> 'null'::jsonb) then
+        raise exception 'HALL_SOCKET_NOT_EMPTY';
+    end if;
+end;
+$$;
+
+revoke all on function public.validate_hall_sockets(jsonb) from public, anon, authenticated;
+
 create or replace function public.validate_hall_item(item_data jsonb)
 returns void language plpgsql stable set search_path = public as $$
 declare
@@ -119,13 +143,7 @@ begin
                       then abs((stat ->> 'val')::numeric) > 9000000000000 else true end) then
         raise exception 'HALL_ITEM_REJECTED';
     end if;
-    if item_data ? 'abyssSockets' and jsonb_typeof(item_data -> 'abyssSockets') not in ('array','null') then
-        raise exception 'HALL_ITEM_REJECTED';
-    end if;
-    if exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')) socket
-                where jsonb_typeof(socket -> 'jewel') = 'object') then
-        raise exception 'HALL_SOCKET_NOT_EMPTY';
-    end if;
+    perform public.validate_hall_sockets(item_data);
     if item_data ->> 'rarity' = 'rare' and (
         exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) stat
                  where case when jsonb_typeof(stat -> 'tier') = 'number'

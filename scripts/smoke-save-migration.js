@@ -290,6 +290,14 @@ const merge = save => ctx.mergeDefaults(JSON.parse(JSON.stringify(save)));
     assert.strictEqual(storage.get(runtime.getLocalSaveStatus().backupKey), '{invalid save', 'corrupt data must have a recoverable copy');
     assert.strictEqual(runtime.saveGame({ manual: true, skipCloudSync: true }), false, 'manual retry must never overwrite a corrupt save with defaults');
     assert.strictEqual(storage.get(key), '{invalid save');
+    for (const raw of ['[]', '"broken-root"', '42', 'true', 'null']) {
+        storage.set(key, raw);
+        assert.strictEqual(runtime.loadGame().status, 'corrupt', 'valid JSON with a non-object root is not a game save');
+        assert.strictEqual(storage.get(runtime.getLocalSaveStatus().backupKey), raw);
+        assert.strictEqual(runtime.saveGame({ manual: true, skipCloudSync: true }), false);
+        assert.strictEqual(storage.get(key), raw, 'a malformed root must never be replaced by a default game');
+    }
+    storage.set(key, '{invalid save');
     unreadable = true;
     runtime.loadGame();
     assert.strictEqual(runtime.getLocalSaveStatus().status, 'unavailable');

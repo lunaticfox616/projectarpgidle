@@ -2371,6 +2371,7 @@ let cloudState = {
     syncHalted: false,
     uploadFailureNoticed: false,
     tokenRefreshPromise: null,
+    sessionEpoch: 0,
     tokenExpiryWarned: false,
     pendingForcedSyncOptions: null,
     pendingForcedSyncRetryTimer: null

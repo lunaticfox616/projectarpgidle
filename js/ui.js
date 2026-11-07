@@ -11417,6 +11417,7 @@ function watchSupabaseTokenRefresh(client) {
     client.__rigninTokenWatch = true;
     client.auth.onAuthStateChange((event, session) => {
         if (event !== 'TOKEN_REFRESHED' || !session || !session.access_token) return;
+        if (!getActiveCloudUserId() || session.user?.id !== getActiveCloudUserId()) return;
         if (cloudState.session && cloudState.session.refresh_token === session.refresh_token) return;
         applyCloudSession(session);
     });
@@ -11434,6 +11435,7 @@ function gameSessionComesFirst() {
 }
 
 async function tryRestoreSupabaseOAuthSession() {
+    const owner = cloudState.session, epoch = cloudState.sessionEpoch;
     let client = getSupabaseClient();
     // 게임이 저장한 세션이 있고 주소에 로그인 인자가 없으면 그 세션으로 복원한다(restoreCloudSession). getSession과 onAuthStateChange의 첫 호출은
     // 저장된 토큰이 만료됐으면 스스로 갱신하는데, 그 토큰이 게임 것보다 두 세대 이상 묵었으면 서버가 세션 사슬을 끊어 부팅 직후 로그아웃됐다
@@ -11442,12 +11444,13 @@ async function tryRestoreSupabaseOAuthSession() {
     watchSupabaseTokenRefresh(client);
     try {
         let { data, error } = await client.auth.getSession();
+        if (!isCurrentCloudSession(owner, epoch)) return false;
         if (error) throw error;
         let session = data && data.session;
         if (!session || !session.access_token) return false;
         applyCloudSession(session);
         await refreshCloudLinkedIdentities();
-        let userLabel = (session.user && session.user.email) ? session.user.email : (session.user && session.user.id ? session.user.id : '알 수 없음');
+        let userLabel = session.user && (session.user.email || session.user.id) || '알 수 없음';
         setCloudMessage('로그인됨: ' + userLabel);
         return true;
     } catch (error) {
@@ -11636,18 +11639,24 @@ function syncSupabaseClientSession() {
         .catch(error => console.warn('supabase-js 세션 맞추기 실패:', error));
 }
 
+function resetCloudAccountSync(session) {
+    const nextUserId = session?.access_token ? session.user?.id || getActiveCloudUserId() : null;
+    // Every adopted token supersedes an older in-flight refresh. Account changes also invalidate save reads and confirmations.
+    cloudState.tokenRefreshPromise = null;
+    if (getActiveCloudUserId() === nextUserId) return;
+    cloudState.sessionEpoch++;
+    cloudState.lastRemoteRevision = 0;
+    cloudState.syncHalted = false;
+    cloudState.uploadFailureNoticed = false;
+    cloudState.lastUploadedFingerprint = null;
+    cloudState.pendingForcedSyncOptions = null;
+    if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = null;
+}
+
 function applyCloudSession(session) {
     let previousUserId = cloudState.user && cloudState.user.id;
-    let nextUserId = session && session.user && session.user.id;
-    if (previousUserId !== nextUserId) {
-        cloudState.lastRemoteRevision = 0;
-        cloudState.syncHalted = false;
-        cloudState.uploadFailureNoticed = false;
-        cloudState.lastUploadedFingerprint = null;
-        cloudState.pendingForcedSyncOptions = null;
-        if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
-        cloudSyncTimer = null;
-    }
+    resetCloudAccountSync(session);
     if (!session || !session.access_token) {
         cloudState.session = null;
         cloudState.user = null;
@@ -11711,42 +11720,59 @@ async function readSupabaseClientSession() {
     }
 }
 
+/** A rejected old refresh cannot clear a newer token or adopt another account's SDK session. */
+function isCurrentCloudSession(owner, epoch) {
+    return cloudState.session === owner && cloudState.sessionEpoch === epoch;
+}
+function hasNewerCloudSession(owner, epoch) {
+    return cloudState.sessionEpoch === epoch && getActiveCloudUserId() === owner.user?.id && hasUsableCloudSessionToken();
+}
+async function recoverCloudSessionRefresh(owner, error) {
+    if (cloudState.session !== owner) return undefined;
+    console.warn('cloud token refresh failed:', error);
+    if (!isCloudAuthRejection(error)) {
+        setCloudMessage(_t('클라우드 로그인 갱신을 못 했습니다(연결 상태). 잠시 뒤 다시 시도합니다.'));
+        return undefined;
+    }
+    // The SDK may have already refreshed this same account; unrelated or superseded sessions are never adopted.
+    const adopted = await readSupabaseClientSession();
+    return adopted?.user?.id === owner.user?.id ? adopted : null;
+}
+
 async function refreshCloudSession(reason) {
-    if (!cloudState.session || !cloudState.session.refresh_token) {
+    const owner = cloudState.session, epoch = cloudState.sessionEpoch;
+    if (!owner || !owner.refresh_token) {
         notifyCloudSessionExpired('클라우드 로그인 갱신 정보가 없습니다. 다시 로그인해주세요.');
         return false;
     }
     if (cloudState.tokenRefreshPromise) return await cloudState.tokenRefreshPromise;
-    cloudState.tokenRefreshPromise = (async () => {
+    const pending = (async () => {
         try {
             setCloudMessage(reason ? _t('클라우드 로그인 갱신 중... ({reason})', { reason }) : '클라우드 로그인 갱신 중...');
             let refreshed = await cloudJsonRequest('/auth/v1/token?grant_type=refresh_token', {
                 method: 'POST',
                 useAuth: false,
-                body: { refresh_token: cloudState.session.refresh_token }
+                body: { refresh_token: owner.refresh_token }
             });
+            if (cloudState.session !== owner) return hasNewerCloudSession(owner, epoch);
             applyCloudSession(refreshed);
             setCloudMessage(_t('클라우드 로그인 세션을 자동 갱신했습니다.'));
             return true;
         } catch (error) {
-            console.warn('cloud token refresh failed:', error);
-            if (isCloudAuthRejection(error)) {
-                // 같은 refresh_token을 supabase-js(autoRefreshToken)가 먼저 써서 거절된 경우: 그쪽의 새 세션을 이어받는다.
-                let adopted = await readSupabaseClientSession();
-                if (adopted) { applyCloudSession(adopted); setCloudMessage(_t('클라우드 로그인 세션을 이어받았습니다.')); return true; }
-                applyCloudSession(null);
-                notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
-            } else {
-                // 망이 끊기거나 서버가 잠시 답하지 않은 것: 세션을 지우지 않는다(전: 어떤 오류든 로그아웃). 다음 요청 전에 다시 갱신한다.
-                setCloudMessage(_t('클라우드 로그인 갱신을 못 했습니다(연결 상태). 잠시 뒤 다시 시도합니다.'));
-            }
+            const adopted = await recoverCloudSessionRefresh(owner, error);
+            if (cloudState.session !== owner) return hasNewerCloudSession(owner, epoch);
+            if (adopted === undefined) return false;
+            applyCloudSession(adopted);
+            if (adopted) { setCloudMessage(_t('클라우드 로그인 세션을 이어받았습니다.')); return true; }
+            notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
             return false;
-        } finally {
-            cloudState.tokenRefreshPromise = null;
-            updateCloudSaveUI();
         }
     })();
-    return await cloudState.tokenRefreshPromise;
+    cloudState.tokenRefreshPromise = pending;
+    try { return await pending; } finally {
+        if (cloudState.tokenRefreshPromise === pending) cloudState.tokenRefreshPromise = null;
+        updateCloudSaveUI();
+    }
 }
 
 async function ensureCloudSessionFresh(reason) {
@@ -11777,15 +11803,29 @@ async function cloudJsonRequest(path, options = {}) {
     }
     cloudSessionGuard.assertActive();
     if (options.expectedUserId && options.expectedUserId !== getActiveCloudUserId()) throw new Error('로그인 계정이 변경되어 작업을 중단했습니다.');
+    const requestEpoch = cloudState.sessionEpoch;
     let body = options.body, headers = cloudRequestHeaders(config, options, body);
     // onSend: the request is about to leave (after the token and account checks above), for callers that must know it went out
     if (options.onSend) options.onSend();
-    let response = await fetch(config.supabaseUrl + path, {
-        method: options.method || 'GET',
-        headers,
-        body: body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body))
-    });
-    let text = await response.text();
+    // The deadline includes reading the body, not only receiving HTTP headers. A lost reply may still mean the server committed:
+    // callers keep their existing conflict/unknown-result recovery; a timed-out mutation is never retried here.
+    async function readResponse() {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30000);
+        try {
+            const response = await fetch(config.supabaseUrl + path, {
+                method: options.method || 'GET', headers, signal: controller.signal,
+                body: body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body))
+            });
+            return { response, text: await response.text() };
+        } catch (error) {
+            if (controller.signal.aborted) throw Object.assign(new Error(_t('서버 응답 시간이 초과되었습니다. 연결을 확인해 주세요.')), { code: 'CLOUD_REQUEST_TIMEOUT' });
+            throw error;
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+    let { response, text } = await readResponse();
     let data = null;
     if (text) {
         try {
@@ -11795,7 +11835,7 @@ async function cloudJsonRequest(path, options = {}) {
         }
     }
     if (!response.ok) {
-        cloudSessionGuard.noteServerRefusal(data);   // 다른 기기의 접속에 밀려난 거절이면 이 화면은 바로 멈춘다
+        if (cloudState.sessionEpoch === requestEpoch) cloudSessionGuard.noteServerRefusal(data, headers['x-rignin-session']);
         throw Object.assign(new Error(describeCloudServerError(data, response.status)), { status: response.status });
     }
     return data;
@@ -12251,9 +12291,13 @@ async function restoreCloudSession() {
     let stored = loadStoredCloudSession();
     if (!stored || !stored.access_token) return false;
     if (stored.refresh_token) {
+        resetCloudAccountSync(stored);
         cloudState.session = stored;
         cloudState.user = stored.user || null;
-        if (await refreshCloudSession('저장된 세션 복원')) return true;
+        const epoch = cloudState.sessionEpoch;
+        const refreshed = await refreshCloudSession('저장된 세션 복원');
+        if (cloudState.sessionEpoch !== epoch) return false;
+        if (refreshed) return true;
         if (!cloudState.session) return false;   // 서버가 거절해 지웠다
         // 갱신에 못 닿았지만 세션은 남겼다: 토큰이 아직 살아 있으면 그대로 쓰고, 끝났으면 이번 실행은 로그인 없이 가되
         // 저장된 세션은 두어 다음 실행 때 다시 시도한다(전: 망이 끊긴 채 켜면 로그아웃).
@@ -12261,8 +12305,10 @@ async function restoreCloudSession() {
             setCloudMessage(_t('클라우드 로그인 갱신은 못 했지만 기존 로그인으로 계속합니다.'));
             return true;
         }
+        resetCloudAccountSync(null);
         cloudState.session = null;
         cloudState.user = null;
+        cloudSessionGuard.syncSession();
         setCloudMessage(_t('연결이 없어 저장된 로그인을 확인하지 못했습니다. 다음 실행 때 다시 시도합니다.'));
         return false;
     }
@@ -12272,12 +12318,12 @@ async function restoreCloudSession() {
 }
 
 async function fetchLatestCloudSaveRow(userId, select) {
-    let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=${select}&order=updated_at.desc.nullslast&limit=1`, {
-        headers: { Accept: 'application/json' }
+    let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${encodeURIComponent(userId)}&select=${select}&order=updated_at.desc.nullslast&limit=1`, {
+        expectedUserId: userId, headers: { Accept: 'application/json' }
     });
     if (Array.isArray(rows) && rows[0]) return rows[0];
-    let fallback = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=${select}`, {
-        headers: { Accept: 'application/json' }
+    let fallback = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${encodeURIComponent(userId)}&select=${select}`, {
+        expectedUserId: userId, headers: { Accept: 'application/json' }
     });
     return (Array.isArray(fallback) ? fallback : []).filter(Boolean).sort((a, b) => {
         let at = a.updated_at ? (new Date(a.updated_at).getTime() || 0) : 0;
@@ -12311,7 +12357,9 @@ function cloudSummaryRecord(row) {
 /** The entry check's read: a few hundred bytes instead of the whole save. An odd row (no summary fields) reads the full save. */
 async function fetchCloudSaveSummary() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
-    let row = await fetchLatestCloudSaveRow(encodeURIComponent(cloudState.user.id), `user_id,updated_at,revision,${CLOUD_SAVE_SUMMARY_FIELDS}`);
+    const context = captureCloudSaveContext();
+    let row = await fetchLatestCloudSaveRow(context.userId, `user_id,updated_at,revision,${CLOUD_SAVE_SUMMARY_FIELDS}`);
+    assertCloudSaveContext(context);
     let record = cloudSummaryRecord(row);
     if (row && !record.save_data) return await fetchCloudSaveRecord();
     return rememberCloudRecord(record);
@@ -12319,9 +12367,13 @@ async function fetchCloudSaveSummary() {
 
 async function fetchCloudSaveRecord() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
+    const context = captureCloudSaveContext();
     try {
-        return rememberCloudRecord(await fetchLatestCloudSaveRow(encodeURIComponent(cloudState.user.id), 'user_id,save_data,updated_at,revision'));
+        const record = await fetchLatestCloudSaveRow(context.userId, 'user_id,save_data,updated_at,revision');
+        assertCloudSaveContext(context);
+        return rememberCloudRecord(record);
     } catch (error) {
+        assertCloudSaveContext(context);
         cloudState.isLoaded = false;
         updateCloudSaveUI();
         throw error;
@@ -12405,13 +12457,13 @@ async function commitCloudSavePayload(payload, options = {}) {
     };
 }
 
-/** After a commit the server holds this device's copy: its revision and time, nothing pending, and the content print (an unchanged
- * page-exit upload is skipped). The slot is written so a closed page keeps the revision. */
+/** A commit acknowledges the body that was sent, not progress made while its reply was on the way. Advance the revision but keep
+ * later changes pending (also for page-exit replies). The slot is written so a closed page keeps both the revision and that progress. */
 function rememberCloudCommit(row, fingerprint) {
     ensureSaveMeta();
     game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(row.revision) || 0));
     game.saveMeta.lastCloudSyncAt = row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
-    game.saveMeta.cloudPending = false;
+    game.saveMeta.cloudPending = cloudSaveFingerprint(createCloudSyncPayload(game)) !== fingerprint;
     cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
     cloudState.lastRemoteUpdatedAt = game.saveMeta.lastCloudSyncAt;
     cloudState.lastCloudCommitAt = Date.now();
@@ -12460,9 +12512,21 @@ function checkCloudUploadOwner(owner, userId) {
     if (game !== owner || getActiveCloudUserId() !== userId) throw new Error('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.');
 }
 
+/** A save operation belongs to one live game, slot and account entry; a token refresh of that same entry is allowed. */
+function captureCloudSaveContext() {
+    return { owner: game, userId: getActiveCloudUserId(), slotKey: getSaveSlot().key, sessionEpoch: cloudState.sessionEpoch };
+}
+function assertCloudSaveContext(context) {
+    checkCloudUploadOwner(context.owner, context.userId);
+    if (getSaveSlot().key !== context.slotKey || cloudState.sessionEpoch !== context.sessionEpoch) throw new Error(_t('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.'));
+}
+safeExposeGlobals({ captureCloudSaveContext, assertCloudSaveContext });
+
 /** The server save replaces this device's copy of the account save (설정의 서버 저장 다시 받기). */
 async function pullCloudSave(options = {}) {
+    const context = captureCloudSaveContext();
     let record = cloudRecordForThisBuild(await fetchCloudSaveRecord());
+    assertCloudSaveContext(context);
     if (!record || !record.save_data) {
         setCloudMessage(_t('서버에 저장이 없습니다.'));
         return null;
@@ -12477,21 +12541,20 @@ async function pullCloudSave(options = {}) {
  * account's slot on this device (js/save.js saveSlot) is read and compared with the server by revision alone:
  * - no server save: this device's copy (or the guest save on sign-up) becomes the first server save;
  * - the server is at this copy's revision: what the copy has not uploaded yet goes up, and play continues from the copy;
- * - the server's latest save is this copy's own last upload (the page-exit upload answers after the page is gone, so the copy still
- *   says pending at the old revision): the copy takes the server's revision and plays on;
- * - the server moved on (another device committed): its save replaces the copy; progress the copy had not uploaded is dropped, with one
+ * - the server moved on (another upload, a hall trade or a restore): its full save replaces the copy; progress the copy had not uploaded is dropped, with one
  *   log line (2026-11-01 사용자: 플레이어에게 파일을 받게 하지 않는다).
- * Clocks and loop numbers decide nothing (the own-upload check compares the save's own lastModifiedAt stamp, carried in the upload),
- * and a failed server read leaves every slot as it was (the guest slot is never touched). */
+ * A matching lastModifiedAt is not evidence of our own upload: server trades preserve that client stamp while changing the body.
+ * Revision mismatches always read the authoritative full body, including when our own page-exit reply was lost. */
 async function enterAccountSave(options = {}) {
     const userId = getActiveCloudUserId();
     if (!userId) throw new Error('로그인이 필요합니다.');
+    const context = captureCloudSaveContext();
     const record = cloudRecordForThisBuild(await fetchCloudSaveSummary());
+    assertCloudSaveContext(context);
     activateAccountSaveSlot(userId);
     if (!record || !record.save_data) return await createFirstCloudSave(options.signUp === true);
     const kept = await continueFromAccountCopy(userId);
     if (kept) return kept;
-    if (adoptOwnUpload(record, userId)) return 'cached-current';
     const dropped = getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending;
     const full = await readFullCloudSaveForPull();
     applyExternalSave(full.save_data, getRemoteSaveStamp(full));
@@ -12499,23 +12562,6 @@ async function enterAccountSave(options = {}) {
     setCloudMessage(note);
     if (!options.silent) addLog(note, 'loot-magic');
     return 'pulled-server';
-}
-
-/** The server's latest save carries the very stamp this copy was written with (saveMeta.lastModifiedAt goes up inside the upload), so it
- * is this copy's own upload whose answer never came back (a page-exit upload): the copy takes the server's revision and nothing is
- * pending. 2026-11-01: after every play session the next launch asked to keep "this device's progress" as a file against the player's
- * own save. A save another device made after pulling this one carries a later stamp, so the server save replaces the copy.
- * So does a copy that could not be written: the slot still holds the old game and saving stays off until the server save repairs it. */
-function adoptOwnUpload(record, userId) {
-    const remote = record && record.save_data && record.save_data.saveMeta;
-    const stamp = remote && Number(remote.lastModifiedAt);
-    if (getCloudSaveOwnerId() !== userId || !stamp || stamp !== Number(game.saveMeta.lastModifiedAt) || getLocalSaveStatus().status !== 'ok') return false;
-    game.saveMeta.cloudRevision = cloudState.lastRemoteRevision;
-    game.saveMeta.cloudPending = false;
-    game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, getRemoteSaveStamp(record));
-    persistLocalSave({ touchModifiedAt: false });
-    setCloudMessage(_t('이 기기에서 마지막으로 올린 저장이라 그대로 이어서 합니다.'));
-    return true;
 }
 
 /** The slot holds this account's copy at the server's revision, read and written without fault: what it has not uploaded yet goes up,

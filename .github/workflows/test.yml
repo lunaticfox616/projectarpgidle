@@ -7,6 +7,9 @@ on:
     branches: ['**']
   pull_request:
 
+permissions:
+  contents: read
+
 # 같은 브랜치에 연속으로 푸시하면 이전 실행을 취소한다(마지막 커밋 결과만 의미가 있다).
 concurrency:
   group: test-${{ github.ref }}
@@ -21,6 +24,8 @@ jobs:
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       # 저장소의 텍스트 파일은 LF다(.gitattributes). CRLF나 섞인 줄 끝으로 들어간 파일이 있으면 이름을 찍고 멈춘다.
       - name: 줄 끝 검사
         run: "! git ls-files --eol | grep -E '^i/(crlf|mixed)'"
@@ -30,7 +35,9 @@ jobs:
           node-version: '22'
           cache: npm
       - name: 테스트 의존성 설치
-        run: npm ci
+        run: npm ci --ignore-scripts
+      - name: 의존성 보안 권고 확인
+        run: npm audit --audit-level=high
       - name: 스모크 검사 실행
         run: npm test
       - name: CSS 구조, db 거울, 배포 빌드 검증

@@ -11,8 +11,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # 배포는 순서대로 하나씩. 진행 중인 배포는 끊지 않는다.
 concurrency:
@@ -23,8 +21,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: 비공개 스프라이트 토큰 확인
         env:
           ASSETS_TOKEN: ${{ secrets.ASSETS_TOKEN }}
@@ -57,7 +60,9 @@ jobs:
           node-version: '22'
           cache: npm
       - name: 의존성 설치
-        run: npm ci
+        run: npm ci --ignore-scripts
+      - name: 의존성 보안 권고 확인
+        run: npm audit --audit-level=high
       - name: 웹 묶음 만들기
         run: npm run build
       - name: 묶음에 스프라이트가 들어갔는지 확인
@@ -73,6 +78,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

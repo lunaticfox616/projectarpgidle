@@ -10,6 +10,20 @@
   Node 검사 통과를 브라우저 확인으로 확대하지 않는다.
 - 핵심 회귀 범위와 UI 변경 시 실제 확인 기준은 [작업 규칙](../AGENTS.md)의 검증 계약을 따른다.
 
+### 설치와 배포 권한 (2026-11-07)
+
+- 검사·Pages 빌드는 잠금 파일을 `npm ci --ignore-scripts`로 설치한다. 의존성의 설치 시 실행 코드를 자동으로 실행하지 않는다.
+  현재 루트 잠금 파일의 설치 스크립트는 macOS 전용 선택 의존성 `fsevents`뿐이며, Linux CI와 웹 빌드에 필요하지 않다.
+  새 의존성에 설치 스크립트가 필요하면 실제 내용을 검토하고 필요한 패키지만 실행하는 절차를 함께 추가한다.
+- 두 경로는 `npm audit --audit-level=high`로 알려진 high/critical 권고를 차단한다. 조회 실패도 실패로 처리하며,
+  자동 버전 변경이나 강제 수정은 하지 않는다. 별도 `desktop/` 잠금 파일은 PC 배포 전에 그 폴더에서 감사한다.
+- 검사 토큰은 `contents: read`, Pages 빌드는 `contents: read`와 `pages: read`만 가진다. `pages: write`와 `id-token: write`는
+  실제 배포 작업에만 둔다. 소스 checkout은 인증정보를 Git 설정에 남기지 않는다.
+- 근거: [npm 설치 스크립트 설정](https://docs.npmjs.com/cli/v11/commands/npm-ci/),
+  [GitHub 작업별 권한](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idpermissions),
+  [Pages 배포 작업의 권한](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages#deploying-github-pages-artifacts).
+  로컬 검증과 GitHub에서 실제 실행한 결과는 별도로 기록한다.
+
 ## 과거 CI 운영·실패 분석
 
 아래 380개 검사·8개 분산 작업·12분/15분 제한은 2026-09-08 당시 설정이다. 현재 실행 방법은 위 설명을 따른다.

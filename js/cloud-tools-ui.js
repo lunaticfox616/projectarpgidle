@@ -78,21 +78,26 @@ async function openCloudSaveHistory() {
 }
 
 async function restoreCloudSaveVersion(revision) {
+    const context = captureCloudSaveContext();
     let confirmed = await requestGameConfirmation(`리비전 ${revision}의 저장으로 복구할까요?\n현재 저장은 복구 직전 이력으로 보관됩니다.`, {
         title: '클라우드 저장 복구', tone: 'warning', confirmLabel: '복구'
     });
     if (!confirmed) return;
     try {
+        assertCloudSaveContext(context);
         let rows = await cloudJsonRequest('/rest/v1/rpc/restore_cloud_save_version', {
-            method: 'POST', body: { target_revision: revision, expected_revision: getLocalCloudRevision() }
+            method: 'POST', expectedUserId: context.userId, body: { target_revision: revision, expected_revision: getLocalCloudRevision() }
         });
+        assertCloudSaveContext(context);
         let result = Array.isArray(rows) ? rows[0] : rows;
         if (!result || result.restored !== true) throw new Error('다른 기기에서 저장이 변경되었습니다. 서버 저장을 다시 불러오세요.');
         await pullCloudSave({ silent: true });
         closeCloudToolsDialog();
         showGameToast(_t('선택한 클라우드 저장을 복구했습니다.'), 'success');
     } catch (error) {
-        showGameToast(_t('저장 복구 실패: {value}', { value: error.message || error }), 'danger');
+        const message = /CLOUD_SAVE_HALL_HISTORY_CONFLICT/.test(String(error.message || error))
+            ? _t('전당 거래 전의 저장으로는 복구할 수 없습니다. 현재 저장은 유지됩니다.') : error.message || error;
+        showGameToast(_t('저장 복구 실패: {value}', { value: message }), 'danger');
     }
 }
 

@@ -30,3 +30,16 @@
 
 스팀 SDK(업적, 오버레이, 스팀 클라우드), 맥과 리눅스 빌드(스팀 덱은 윈도우판을 Proton으로 돌린다), 코드 서명,
 전용 아이콘(지금은 `assets/ui/pixel/rignin-logo-120.png`를 키운 것).
+
+## 패키징 의존성 보안 확인 (2026-11-07)
+
+`desktop/`에서 실행한 `npm audit --json --ignore-scripts`는 moderate 패키지 항목 5개, high/critical 0개다.
+`@electron/asar` 4.3.1이 `glob ^13.0.2`와 `minimatch ^10.0.1`을 요구해, 각각 수정 버전 14.0.2와 11.0.1이 선언 범위 밖이다.
+[glob 취소 후 탐색 지속 권고](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4)와
+[minimatch 패턴 증폭 권고](https://github.com/advisories/GHSA-g3hv-75wg-m249)는 PC 묶음 생성 경로의 전이 의존성에 해당한다.
+현재 빌드는 로컬 코드·자산과 고정된 포장 옵션만 받으며, 플레이어 채팅·저장 데이터를 glob 패턴으로 받지 않는다.
+게임 실행 파일에 이 개발용 패키지들을 포함하지 않는다(`desktop/build.cjs`가 만드는 stage의 package.json에는 런타임 의존성이 없다).
+
+감사 도구가 제안하는 packager 20 → 18 강제 하향이나 범위를 넘긴 전이 의존성 치환은 적용하지 않았다.
+상위 도구의 수정 의존성 채택을 2026-11-14 또는 다음 PC 배포 직전 중 빠른 시점에 다시 확인하고, 변경 시 실제 포장·기동을 검증한다.
+이 기록은 웹 루트 잠금 파일의 감사 결과와 별개이며, 현재 게임 코드 전체의 안전성을 인증하는 결과가 아니다.

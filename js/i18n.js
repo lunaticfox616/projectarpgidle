@@ -12,10 +12,16 @@
  *   ?lang=en                              그 판에서만 언어를 덮는다(검사·갈무리용). 저장은 바뀌지 않는다.
  *   window 'game:languagechange'          언어가 바뀌면 보낸다. 번역한 글을 제 손으로 그려 둔 UI는 이 이벤트에서 다시 그린다.
  */
-const i18n = (() => {
-    const LANGUAGE_PACKS = [LANGUAGE_PACK_KO, LANGUAGE_PACK_EN, LANGUAGE_PACK_JA, LANGUAGE_PACK_ZH_CN, LANGUAGE_PACK_ZH_TW];
+{
+    const LANGUAGE_PACKS = [LANGUAGE_PACK_KO,
+        { code: 'en', name: 'English', global: 'LANGUAGE_PACK_EN' },
+        { code: 'ja', name: '日本語', global: 'LANGUAGE_PACK_JA' },
+        { code: 'zh-CN', name: '简体中文', global: 'LANGUAGE_PACK_ZH_CN' },
+        { code: 'zh-TW', name: '繁體中文', global: 'LANGUAGE_PACK_ZH_TW' }];
     const SOURCE = LANGUAGE_PACK_KO;
     const packs = new Map(LANGUAGE_PACKS.map(pack => [pack.code, pack]));
+    const pendingPacks = new Map();
+    let languageRequest = 0;
     const missing = new Set();
     let current = SOURCE;
     let pluralRules = null;
@@ -114,8 +120,32 @@ const i18n = (() => {
         return textSources.has(node) ? textSources.get(node) : node.nodeValue;
     }
 
-    function setLanguage(code) {
-        const next = packs.get(normalizeLanguage(code));
+    /** Only the requested pack is downloaded. The release HTML gives it a content hash, just like boot scripts. */
+    function loadPack(code) {
+        const entry = packs.get(code);
+        if (code === SOURCE.code) return Promise.resolve(SOURCE);
+        if (window[entry.global]) return Promise.resolve(window[entry.global]);
+        if (pendingPacks.has(code)) return pendingPacks.get(code);
+        const promise = new Promise((resolve, reject) => {
+            const link = document.querySelector(`link[rel="rignin-language"][data-language="${code}"]`);
+            if (!link) { reject(new Error(`Missing language pack URL: ${code}`)); return; }
+            const script = document.createElement('script');
+            script.src = link.href;
+            script.onload = () => {
+                const pack = window[entry.global];
+                if (pack?.code === code && pack.strings) resolve(pack);
+                else reject(new Error(`Invalid language pack: ${code}`));
+                script.remove();
+            };
+            script.onerror = () => { script.remove(); reject(new Error(`Language pack unavailable: ${code}`)); };
+            document.head.appendChild(script);
+        });
+        pendingPacks.set(code, promise);
+        promise.catch(() => pendingPacks.delete(code));
+        return promise;
+    }
+
+    function applyLanguage(next) {
         const changed = next !== current;
         current = next;
         pluralRules = new Intl.PluralRules(current.locale);
@@ -123,6 +153,26 @@ const i18n = (() => {
         cjkFamily = null;
         applyStatic(document);
         if (changed && typeof CustomEvent === 'function') window.dispatchEvent(new CustomEvent('game:languagechange', { detail: { language: current.code } }));
+    }
+
+    /** Loaded packs apply synchronously; callers await a missing pack. A stale response never overrides a newer choice. */
+    function setLanguage(code, canApply = () => true) {
+        code = normalizeLanguage(code);
+        const request = ++languageRequest;
+        const loaded = code === SOURCE.code ? SOURCE : window[packs.get(code).global];
+        if (loaded) {
+            if (!canApply()) return Promise.resolve(false);
+            applyLanguage(loaded);
+            return Promise.resolve(true);
+        }
+        let timer;
+        const deadline = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`Language pack timeout: ${code}`)), 15000); });
+        // Keep an in-flight script on timeout: retrying must not execute the same classic const declaration twice.
+        return Promise.race([loadPack(code), deadline]).then(pack => {
+            if (request !== languageRequest || !canApply()) return false;
+            applyLanguage(pack);
+            return true;
+        }).finally(() => clearTimeout(timer));
     }
 
     /** 생성 때 말을 붙인 적 이름(저장되는 한국어 원문)을 지금 언어로: 통째로 열쇠가 있으면 그 번역, 아니면 붙인 말(앞의 그림 글자, 뒤의
@@ -177,10 +227,10 @@ const i18n = (() => {
     /** 저장을 읽은 뒤: 설정의 언어를 바로잡아 되돌려 적고 적용한다. 주소의 ?lang=은 저장을 바꾸지 않고 이번만 이긴다. */
     function applySaved(settings) {
         settings.language = normalizeLanguage(settings.language);
-        setLanguage(urlLanguage() || settings.language);
+        return setLanguage(urlLanguage() || settings.language);
     }
 
-    return Object.freeze({
+    safeExposeGlobals({ i18n: Object.freeze({
         get language() { return current.code; },
         /** toLocaleString·localeCompare에 넘기는 BCP 47 로캘(ko-KR, en-US). */
         get locale() { return current.locale; },
@@ -189,12 +239,12 @@ const i18n = (() => {
         normalizeLanguage, t: translate, setLanguage, applySaved, applyStatic, sourceOf, fontFamily, enemyName,
         /** 이번 판에서 현재 언어의 팩에 없던 열쇠(검사·보고용). */
         missingKeys: () => [...missing]
-    });
-})();
+    }) });
+}
 
 /** 현재 언어의 글: _t('한국어 원문', { 매개변수 }). 세부는 i18n의 머리말. */
 function _t(key, params) {
     return i18n.t(key, params);
 }
 
-safeExposeGlobals({ i18n, _t });
+safeExposeGlobals({ _t });

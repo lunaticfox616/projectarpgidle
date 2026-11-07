@@ -452,7 +452,9 @@ function loadGame() {
         game = cloneDefaultGame();
     } else {
         try {
-            const saved = JSON.parse(result.save), refusal = laterBuildSaveError(saved);
+            const saved = JSON.parse(result.save);
+            if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('Invalid save root: expected an object.');
+            const refusal = laterBuildSaveError(saved);
             if (refusal) {
                 // A later release's save stays as it is for that release: this page starts empty and writes nothing (canPersistLocalSave).
                 setLocalSaveRuntimeState('newer-build', { writable: false, sourceKey: result.sourceKey, message: refusal.message });

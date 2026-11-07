@@ -186,8 +186,13 @@ returns boolean language sql stable set search_path = public as $$
          cross join lateral (
                select public.cheat_number(lines.line -> 'val') as val,
                       public.hall_line_bounds(item_data, lines.line, lines.line_kind) as bounds) roll
-         where jsonb_typeof(lines.line -> 'val') = 'number'
-           and (abs(roll.val) > 10000000
+         -- 없는 부가 줄(null)은 허용한다. 존재하는 줄의 숫자 문자열은 구매자 쪽에서
+         -- Number로 바뀌므로 검사에서 건너뛰지 않고 거절한다.
+         where lines.line is not null and lines.line <> 'null'::jsonb
+           and (jsonb_typeof(lines.line) <> 'object'
+                or jsonb_typeof(lines.line -> 'val') is distinct from 'number'
+                or (lines.line ? 'tier' and jsonb_typeof(lines.line -> 'tier') is distinct from 'number')
+                or abs(roll.val) > 10000000
                 or public.cheat_number(lines.line -> 'tier') > 20
                 or (roll.bounds is not null
                     and roll.val > roll.bounds[2] + greatest(abs(roll.bounds[1]), abs(roll.bounds[2]), 1) + 1))

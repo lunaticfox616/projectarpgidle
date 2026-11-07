@@ -353,6 +353,30 @@ $$;
 
 -- 등록할 장비의 모양 검사. 추가 옵션의 티어 상한은 장비가 들고 온 affixTierCap으로 보고, 2026-10-30부터 능력치 id, 티어, 값, 슬롯은
 -- 추가 옵션 표(hall_affix_table_rejects)로도 본다. 표를 읽으므로 immutable이 아니라 stable이다.
+create or replace function public.validate_hall_sockets(item_data jsonb)
+returns void language plpgsql immutable set search_path = public as $$
+begin
+    -- Every stored socket type must be empty: nested jewels/harvests would otherwise be copied with every replica.
+    if exists (select 1 from jsonb_each(item_data) field
+                where (field.key in ('abyssSockets','harvestSockets') and jsonb_typeof(field.value) not in ('array','null'))
+                   or (field.key in ('voidSocket','corruptionSocket') and jsonb_typeof(field.value) not in ('object','null')))
+       or exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')
+                         || public.hall_array(item_data -> 'harvestSockets')) socket
+                   where jsonb_typeof(socket) not in ('object','null')) then
+        raise exception 'HALL_ITEM_REJECTED';
+    end if;
+    if exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')
+                         || public.hall_array(item_data -> 'harvestSockets')
+                         || jsonb_build_array(item_data -> 'voidSocket', item_data -> 'corruptionSocket')) socket
+                where coalesce(socket -> 'jewel', 'null'::jsonb) <> 'null'::jsonb
+                   or coalesce(socket -> 'harvest', 'null'::jsonb) <> 'null'::jsonb) then
+        raise exception 'HALL_SOCKET_NOT_EMPTY';
+    end if;
+end;
+$$;
+
+revoke all on function public.validate_hall_sockets(jsonb) from public, anon, authenticated;
+
 create or replace function public.validate_hall_item(item_data jsonb)
 returns void language plpgsql stable set search_path = public as $$
 declare
@@ -385,13 +409,7 @@ begin
                       then abs((stat ->> 'val')::numeric) > 9000000000000 else true end) then
         raise exception 'HALL_ITEM_REJECTED';
     end if;
-    if item_data ? 'abyssSockets' and jsonb_typeof(item_data -> 'abyssSockets') not in ('array','null') then
-        raise exception 'HALL_ITEM_REJECTED';
-    end if;
-    if exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')) socket
-                where jsonb_typeof(socket -> 'jewel') = 'object') then
-        raise exception 'HALL_SOCKET_NOT_EMPTY';
-    end if;
+    perform public.validate_hall_sockets(item_data);
     if item_data ->> 'rarity' = 'rare' and (
         exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) stat
                  where case when jsonb_typeof(stat -> 'tier') = 'number'
@@ -470,6 +488,8 @@ begin
     select * into registry_row from public.hall_item_registry where item_key = p_item_key for update;
     if found and registry_row.owner_id = account_id and registry_row.state = 'retired' then raise exception 'HALL_RELIST_BLOCKED'; end if;
     if found and (registry_row.owner_id <> account_id or registry_row.state <> 'inventory') then raise exception 'HALL_ITEM_OWNERSHIP'; end if;
+    -- 복제품 여부는 업로드한 hallReplica 표식 대신 서버의 출처로 판단한다.
+    if found and registry_row.source_listing_id is not null then raise exception 'HALL_RELIST_BLOCKED'; end if;
 
     score_value := public.hall_item_score(item_data);
     price_value := public.hall_item_price(item_data);
@@ -512,7 +532,10 @@ begin
     select * into save_row from public.cloud_saves where user_id = account_id for update;
     if not found then raise exception 'CLOUD_SAVE_NOT_FOUND'; end if;
     if save_row.revision <> greatest(0, p_expected_revision) then raise exception 'CLOUD_REVISION_CONFLICT'; end if;
-    inventory := public.hall_array(save_row.save_data -> 'inventory');
+    -- 예전 저장 복구로 이미 같은 원본이 가방에 있어도 서버 원본 한 개로 회수한다.
+    inventory := coalesce((select jsonb_agg(entry order by ordinal)
+      from jsonb_array_elements(public.hall_array(save_row.save_data -> 'inventory')) with ordinality rows(entry, ordinal)
+     where coalesce(entry ->> 'tradeKey', '') <> listing_row.item_key::text), '[]'::jsonb);
     if jsonb_array_length(inventory) >= public.hall_inventory_limit(save_row.save_data) then raise exception 'HALL_INVENTORY_FULL'; end if;
     returned_item := listing_row.item_snapshot;
     if listing_row.copies_sold > 0 then returned_item := jsonb_set(returned_item, '{hallRelistBlocked}', 'true'::jsonb, true); end if;
@@ -537,6 +560,7 @@ declare
     buyer_currency bigint;
     buyer_inventory jsonb;
     purchase_row public.hall_purchases%rowtype;
+    purchase_time timestamptz;
     replica_key uuid := gen_random_uuid();
     replica_data jsonb;
 begin
@@ -544,19 +568,23 @@ begin
     select * into listing_row from public.hall_listings where id = p_listing_id for update;
     if not found or listing_row.status <> 'open' or listing_row.copies_sold >= listing_row.copy_cap then raise exception 'HALL_LISTING_NOT_ACTIVE'; end if;
     if listing_row.curator_id = account_id then raise exception 'HALL_SELF_PURCHASE'; end if;
+    -- Recheck old shows too; do not copy a nested jewel/harvest from a pre-hardening snapshot.
+    perform public.validate_hall_sockets(listing_row.item_snapshot);
     if exists (select 1 from public.hall_purchases where listing_id = p_listing_id and buyer_id = account_id) then raise exception 'HALL_ALREADY_COLLECTED'; end if;
-    if exists (select 1 from public.hall_purchases where buyer_id = account_id and purchased_at > now() - interval '10 seconds') then raise exception 'HALL_RATE_LIMIT'; end if;
-    if (select count(*) from public.hall_purchases where buyer_id = account_id and purchased_at > now() - interval '1 day') >= 10 then raise exception 'HALL_DAILY_LIMIT'; end if;
     select * into buyer_save from public.cloud_saves where user_id = account_id for update;
     if not found then raise exception 'CLOUD_SAVE_NOT_FOUND'; end if;
     if buyer_save.revision <> greatest(0, p_expected_revision) then raise exception 'CLOUD_REVISION_CONFLICT'; end if;
+    -- The buyer row serializes purchases across different listings. Check limits only after that lock.
+    purchase_time := clock_timestamp();
+    if exists (select 1 from public.hall_purchases where buyer_id = account_id and purchased_at > purchase_time - interval '10 seconds') then raise exception 'HALL_RATE_LIMIT'; end if;
+    if (select count(*) from public.hall_purchases where buyer_id = account_id and purchased_at > purchase_time - interval '1 day') >= 10 then raise exception 'HALL_DAILY_LIMIT'; end if;
     buyer_currency := greatest(0, coalesce((buyer_save.save_data #>> '{currencies,goldenRule}')::bigint, 0));
     if buyer_currency < listing_row.price then raise exception 'HALL_CURRENCY_SHORTAGE'; end if;
     buyer_inventory := public.hall_array(buyer_save.save_data -> 'inventory');
     if jsonb_array_length(buyer_inventory) >= public.hall_inventory_limit(buyer_save.save_data) then raise exception 'HALL_INVENTORY_FULL'; end if;
 
-    insert into public.hall_purchases(listing_id, buyer_id, replica_key, price)
-    values (listing_row.id, account_id, replica_key, listing_row.price) returning * into purchase_row;
+    insert into public.hall_purchases(listing_id, buyer_id, replica_key, price, purchased_at)
+    values (listing_row.id, account_id, replica_key, listing_row.price, purchase_time) returning * into purchase_row;
     replica_data := listing_row.item_snapshot || jsonb_build_object(
         'id', 9200000000000::bigint + purchase_row.id, 'tradeKey', replica_key::text,
         'locked', true, 'tradeLocked', true, 'hallReplica', true, 'hallSourceId', listing_row.id,

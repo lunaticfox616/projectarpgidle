@@ -111,6 +111,7 @@ declare
     stored_revision bigint;
     stored_data jsonb;
     target_data jsonb;
+    target_saved_at timestamptz;
 begin
     if account_id is null then raise exception 'AUTH_REQUIRED'; end if;
     select revision, save_data into stored_revision, stored_data
@@ -121,9 +122,19 @@ begin
             (select updated_at from public.cloud_saves where user_id = account_id);
         return;
     end if;
-    select save_data into target_data from public.cloud_save_versions
+    select save_data, created_at into target_data, target_saved_at from public.cloud_save_versions
      where user_id = account_id and revision = target_revision;
     if target_data is null then raise exception 'SAVE_VERSION_NOT_FOUND'; end if;
+
+    -- 전당의 등록·회수·구매는 저장 JSON 밖에도 남는다. 그 거래 전의 JSON만 복원하면
+    -- 원본이 복제되거나 구매품을 잃으므로 안전하게 복원을 거절한다. 거래와 같은 저장 행을
+    -- 이미 잠갔고, 전시가 정리된 뒤에도 남는 원장 시각을 사용한다. 전당 설치 전에는 적용하지 않는다.
+    if to_regclass('public.hall_item_registry') is not null then
+        if exists (select 1 from public.hall_item_registry
+                    where owner_id = account_id and updated_at >= target_saved_at) then
+            raise exception 'CLOUD_SAVE_HALL_HISTORY_CONFLICT';
+        end if;
+    end if;
 
     insert into public.cloud_save_versions(user_id, revision, save_data, created_at)
     select account_id, stored_revision, stored_data, updated_at
