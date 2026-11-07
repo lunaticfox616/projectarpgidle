@@ -154,12 +154,12 @@ const STAGE_ROOMS = Object.freeze({
      * 장이 닫힌 모습이다. ends = 앞의 여덟 장이 끝나는 시각(ms, 잠금이 풀릴 때 한 번), anchorY = 칸 위에서 잰 발 자리, half = 주인공이 그
      * 뒤에 서면 반투명해지는 가로 반폭, heights = 장마다 그림의 높이(모두 도트). 낱장과 출처는 같은 폴더의 seal.json. */
     rootSeal: Object.freeze({
-        regionPath: 'assets/stage-scenes/root-seal-v3/regions/', version: 'region-palette-20261102b',
+        regionPath: 'assets/stage-scenes/root-seal-v3/regions/', version: 'environment-20261106',
         ends: Object.freeze([80, 160, 240, 320, 400, 480, 560, 640]),
-        front: Object.freeze({ file: 'assets/stage-scenes/root-seal-v3/front.png', width: 256, height: 256, anchorY: 238, half: 105,
-            heights: Object.freeze([217, 218, 215, 208, 197, 193, 195, 199, 196]) }),
-        side: Object.freeze({ file: 'assets/stage-scenes/root-seal-v3/side.png', width: 256, height: 256, anchorY: 241, half: 57,
-            heights: Object.freeze([228, 225, 221, 214, 206, 198, 137, 83, 50]) })
+        front: Object.freeze({ file: 'assets/stage-scenes/root-seal-v3/front.png', width: 256, height: 256, anchorY: 238, half: 116,
+            heights: Object.freeze([187, 187, 187, 187, 187, 187, 187, 187, 187]) }),
+        side: Object.freeze({ file: 'assets/stage-scenes/root-seal-v3/side.png', width: 256, height: 256, anchorY: 241, half: 97,
+            heights: Object.freeze([228, 199, 163, 156, 127, 99, 82, 65, 50]) })
     }),
     /** 방 단위 탐험에서 주인공이 걷는 빠르기의 배수(2026-10-11 사용자: "기본 이동속도를 지금보다 50% 정도 빠르게"): 방이 넓어져 한 칸씩
      * 걷는 시간이 길게 느껴졌다. 방 단위 탐험(run.rooms)에만 곱하므로 이어진 지도의 탐험과 그 계산은 그대로다. */
@@ -187,6 +187,7 @@ const STAGE_ROOMS = Object.freeze({
 //   예: layers: Object.freeze({ back: Object.freeze({ file: 'root-back.png', tall: 72, sink: 4 }), ground: Object.freeze({ file: 'root-ground.png', tall: 320 }) })
 // 그림은 캐릭터 그림과 같은 폴더에 두고 아직 저장소에 넣지 않는다(사용자가 준 그림: 써도 되는지 확인 뒤에 넣는다).
 const STAGE_BACKDROPS = Object.freeze({
+    version: 'environment-20261106',
     path: 'assets/playable/stage/backdrops/',
     /** 방이 화면보다 넓어 카메라가 움직일 때 배경이 따라 움직이는 비율(바닥보다 느리게). */
     parallax: 0.3,
@@ -202,6 +203,7 @@ const STAGE_BACKDROPS = Object.freeze({
 // 무대의 탐험 물체 그림(js/canvas-stage-objects.js): 한 장에 물체마다 한 칸(cell 도트), 발 자리 feet. names의 순서가 그림의 칸 순서다
 // (scripts/stage-monsters/objects.cjs와 같아야 한다). 보급 상자의 은, 금 등급은 chestSilver, chestGold와 그 열린 모습이다.
 const STAGE_OBJECTS = Object.freeze({
+    version: 'environment-20261106',
     sheet: 'assets/objects/stage/objects.png',
     /** 지형의 테마에 맞춘 그림 묶음(STAGE_BACKDROPS.biomes의 objects가 고른다): 칸과 이름 순서는 공용 그림과 같다. */
     themes: Object.freeze({ root: 'assets/objects/stage/objects-root.png' }),
@@ -222,10 +224,7 @@ const STAGE_OBJECTS = Object.freeze({
 // 다시 일어나는 보스(액트 2 부제녀: "황금 수액관이 맥동하자 상처는 순식간에 다시 붙었고")는 STAGE_STORY_ART.revives가 정한다.
 const STAGE_STORY = Object.freeze({
     pieces: Object.freeze({
-        // 액트 2: 부제녀를 살리는 중정 바닥의 황금 수액관(정상).
-        2: Object.freeze({ clip: 'sap-conduit', scale: 1, depth: 6 }),
-        // 액트 4: "수액 운반선이 끊기자 부제녀의 상처는 더 이상 아물지 않았습니다". 첫 보스(운반자)가 쓰러지면 파손, 고갈.
-        4: Object.freeze({ clip: 'sap-conduit', after: 0, scale: 1, depth: 6 }),
+        // 2026-11-06: 보스방 뒤쪽에서 떠 있는 막대처럼 보이던 액트 2·4 수액관 배치를 제거했다. 전투·이야기 진행은 그대로다.
         // 액트 5: "거대한 받침뿌리들을 맞물렸고, 무너진 중정으로 직행하는 보랏빛 다리를 놓아주었습니다". 보스가 쓰러지면 뿌리가 뻗어 다리가 된다.
         5: Object.freeze({ clip: 'haken-bridge', after: 0, hidden: true, scale: 1, depth: 4 }),
         // 액트 9: "고치를 지키던 접목의 어머니가 쓰러지자, 고치의 외피에 금이 가며". 갈라지고 빈 고치가 된다.
@@ -245,6 +244,7 @@ const STAGE_STORY = Object.freeze({
 // [이름, 비중]. backGap, frontGap = 그 줄에서 소품 사이의 간격(도트, 가장 좁게와 넓게). sides = 한쪽 옆에 놓는 수.
 // 지금 그림은 임시다: 제대로 그린 조각이 오면 같은 이름으로 갈아 끼운다.
 const STAGE_PROPS = Object.freeze({
+    version: 'environment-20261106',
     cell: 128,
     feet: Object.freeze([64, 116]),
     names: Object.freeze(['rock', 'rockSmall', 'rockTall', 'rootKnot', 'stump', 'shrineStone', 'shrineFallen', 'glowcaps', 'sapPod', 'fernSmall', 'fern', 'fernBig', 'grass']),
@@ -276,18 +276,18 @@ const STAGE_PROPS = Object.freeze({
 //   doors  문의 뿌리 봉인(rootSeal)이 서는 자리: 방향 → 뒤쪽과 앞쪽 문은 발 자리의 깊이, 좌우 문은 방 끝에서 바깥으로 나가는 거리다.
 //   fill 그림이 닿지 않는 땅의 색, sky 먼 배경 위쪽의 색, beyond 방의 옆쪽 바깥을 누르는 어둠의 세기.
 const STAGE_SCENES = Object.freeze({
-    version: 'pixellab-20261030-2',
+    version: 'environment-20261106',
     path: 'assets/stage-scenes/',
     biomes: Object.freeze({
         root: Object.freeze({
-            dir: 'root-end-v5/', fill: '#4c3530', sky: '#241e22', beyond: 0.26,
+            dir: 'root-end-v5/', fill: '#644241', sky: '#644d45', beyond: 0.26,
             far: Object.freeze({ file: 'backdrop.png', rooms: Object.freeze({ elite: 'backdrop-elite.png', boss: 'backdrop-boss.png' }),
                 width: 1536, height: 384, bottom: 19, parallax: 0.4, shift: 0 }),
             back: Object.freeze({ file: 'rear-strip.png', width: 1024, height: 192, bottom: 20, shift: -207 }),
             floor: Object.freeze({ files: Object.freeze(['floor-a.png', 'floor-b.png', 'floor-c.png']), width: 1536, height: 320, top: -24 }),
             terraces: Object.freeze({ files: Object.freeze(['terrace-banks', 'terrace-pools', 'terrace-flow']), sides: Object.freeze(['', '-left', '-right']),
                 width: 1536, height: 384, top: -24 }),
-            pieces: Object.freeze({ 'boss-object': Object.freeze([320, 320, 60, 74, 200, 196]) }),
+            pieces: Object.freeze({ 'boss-object': Object.freeze([320, 320, 60, 141, 200, 129]) }),
             boss: Object.freeze({ name: 'boss-object', drop: -19 }),
             doors: Object.freeze({ north: 13, south: 293, west: 1, east: -1 })
         })

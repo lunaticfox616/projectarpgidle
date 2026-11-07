@@ -179,6 +179,10 @@ const messageFrames = (() => {
         if (chatTab && dot) chatTab.appendChild(dot);
     }
 
+    window.addEventListener('game:languagechange', () => {
+        if (mounted) FRAMES.forEach(frame => renderBar(frame, frameTabs(frame)));
+    });
+
     function renderFrame(frame) {
         const el = frameEl(frame), tabs = frameTabs(frame);
         el.style.display = tabs.length ? '' : 'none';

@@ -21,7 +21,7 @@ const stageProps = (() => {
         if (!sheets.has(theme.sheet)) {
             const sheet = new Image();
             sheet.decoding = 'async';
-            sheet.src = theme.sheet;
+            sheet.src = theme.sheet + '?v=' + STAGE_PROPS.version;
             sheets.set(theme.sheet, sheet);
         }
         const sheet = sheets.get(theme.sheet);

@@ -132,7 +132,7 @@ const stumpTalismanUi = (() => {
     /** 부적 풀기와 편린 교환 (해금 목록의 '부적'을 연 뒤, 그루터기 함의 부적 탭). */
     function unsealHtml() {
         if (!contentProgression.isUnlocked('talisman')) return '';
-        return '<h3>부적 풀기 <small>편린: 고대 미궁에서 획득</small></h3>'
+        return `<h3>${_t('부적 풀기')} <small>${_t('편린: 고대 미궁에서 획득')}</small></h3>`
             + `<div class="stump-shard-cards">${Object.keys(TALISMAN_UNSEAL_RULES).map(shardCard).join('')}</div>`
             + `<h3>${_t('편린 교환')}</h3><div class="stump-exchange">${TALISMAN_SHARD_EXCHANGE.map(exchangeRow).join('')}</div>`;
     }

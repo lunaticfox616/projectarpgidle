@@ -16,7 +16,7 @@ const stageBackdrop = (() => {
         if (!images.has(file)) {
             const image = new Image();
             image.decoding = 'async';
-            image.src = STAGE_BACKDROPS.path + file;
+            image.src = STAGE_BACKDROPS.path + file + '?v=' + STAGE_BACKDROPS.version;
             images.set(file, image);
         }
         const image = images.get(file);

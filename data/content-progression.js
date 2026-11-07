@@ -26,26 +26,26 @@ const CONTENT_UNLOCK_TREE_VERSION = 11;
 // 장부 13(2026-11-06 공허 소켓): 그 전 저장은 공허 소켓을 해금 없이 쓰고 있었으므로 물려받는다(js/content-progression.js inheritVoidSockets).
 const CONTENT_UNLOCK_RECORD_VERSION = 13;
 const CONTENT_UNLOCK_SERIES = Object.freeze([
-    { series: 'offlineHours', rail: 'idle', name: '시간 인식', art: 'ui/pixel/buttons/loop.png',
+    { series: 'offlineHours', rail: 'idle', name: '시간 인식', nameTemplate: '시간 인식 {n}단계', art: 'ui/pixel/buttons/loop.png',
         description: '방치 한도가 늘어납니다.',
         ranks: [[2, 1], [3, 1], [4, 1], [6, 1], [9, 2], [12, 2], [16, 2]] },
-    { series: 'offlineRate', rail: 'idle', name: '전투 효율', art: 'ui/currency/fairy-ring.png',
+    { series: 'offlineRate', rail: 'idle', name: '전투 효율', nameTemplate: '전투 효율 {n}단계', art: 'ui/currency/fairy-ring.png',
         description: '방치 중 전투 효율이 늘어납니다.',
         ranks: [[3, 1], [5, 1], [8, 1], [12, 2], [16, 2]] },
-    { series: 'bagPage', rail: 'store', name: '가방 확장', art: 'ui/pixel/buttons/bag.png',
+    { series: 'bagPage', rail: 'store', name: '가방 확장', nameTemplate: '가방 확장 {n}단계', art: 'ui/pixel/buttons/bag.png',
         description: '장비 가방이 1페이지(100칸) 늘어납니다.',
         ranks: [[5, 1], [10, 1], [15, 1], [20, 1], [25, 1], [30, 1], [40, 1], [50, 1], [60, 1], [70, 1], [80, 1]] },
-    { series: 'stumpStorage', rail: 'store', name: '그루터기 보관함', art: 'ui/pixel/buttons/stump.png', storage: 25,
+    { series: 'stumpStorage', rail: 'store', name: '그루터기 보관함', nameTemplate: '그루터기 보관함 {n}단계', art: 'ui/pixel/buttons/stump.png', storage: 25,
         description: '그루터기 함 보관함이 25칸 늘어납니다.',
         ranks: [[2, 1], [6, 1], [10, 1], [15, 1], [20, 2], [30, 2]] },
     // 그루터기 함의 봉인 칸과 품질 상한(data/stump-box.js STUMP_BOX_UNLOCKS). 2026-11-02 전에는 루프가 닿으면 저절로 열렸다.
-    { series: 'stumpSeal', rail: 'stumpUp', since: 11, name: '봉인 칸', art: 'ui/grove/slot-socket-v1.png',
+    { series: 'stumpSeal', rail: 'stumpUp', since: 11, name: '봉인 칸', nameTemplate: '봉인 칸 {n}단계', art: 'ui/grove/slot-socket-v1.png',
         description: '루프가 바뀌어도 아이템이 사라지지 않는 칸이 하나 늘어납니다. 첫 칸에는 포식이 함께 해금됩니다.',
         ranks: [[23, 1], [29, 1], [37, 1], [55, 1], [70, 1], [90, 1]] },
-    { series: 'stumpQuality', rail: 'stumpUp', since: 11, name: '품질 상한', art: 'ui/currency/omen-compost-v4.png',
+    { series: 'stumpQuality', rail: 'stumpUp', since: 11, name: '품질 상한', nameTemplate: '품질 상한 {n}단계', art: 'ui/currency/omen-compost-v4.png',
         description: '그루터기 함 품질 상한이 올라갑니다. 150%부터 접붙이기 단계도 함께 올라갑니다.',
         ranks: [[35, 1], [45, 1], [60, 1], [80, 1], [100, 1]] },
-    { series: 'stumpNurseryRate', rail: 'nurseryUp', addedIn: 12, name: '생육 효율', art: 'items/stump-pixel-v1/sprout-chaos.png',
+    { series: 'stumpNurseryRate', rail: 'nurseryUp', addedIn: 12, name: '생육 효율', nameTemplate: '생육 효율 {n}단계', art: 'items/stump-pixel-v1/sprout-chaos.png',
         description: '생육함이 받는 경험치 효율이 10% 늘어납니다.',
         ranks: [[13, 1], [14, 1], [15, 1], [18, 1], [21, 1], [25, 1], [30, 1], [35, 1], [40, 1]] }
 ]);
@@ -64,7 +64,7 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
         const steps = CONTENT_UNLOCK_SERIES.filter(spec => spec.rail === rail.rail)
             .flatMap(spec => spec.ranks.map(([minLoop, cost], index) => ({ spec, minLoop, cost, rank: index + 1 }))).sort((a, b) => a.minLoop - b.minLoop);
         return steps.map(({ spec, minLoop, cost, rank }, index) => Object.freeze({
-            id: spec.series + rank, series: spec.series, rail: rail.rail, rank, name: `${spec.name} ${rank}단계`, group: '강화', minLoop, cost,
+            id: spec.series + rank, series: spec.series, rail: rail.rail, rank, name: spec.nameTemplate.replace('{n}', rank), group: '강화', minLoop, cost,
             after: index ? steps[index - 1].spec.series + steps[index - 1].rank : rail.after, ...(spec.since ? { since: spec.since } : {}), ...(spec.addedIn ? { addedIn: spec.addedIn } : {}),
             description: spec.description, art: spec.art, lifecycle: { label: '성장 영구 유지' } }));
     }),

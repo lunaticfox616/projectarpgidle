@@ -133,7 +133,7 @@ const stageRegion = (() => {
         ctx.drawImage(roomPictureSource(fit), x, y, w, h);
         if (typeof stageOcean === 'object') stageOcean.light(ctx, view.map.region, { x, y, w, h }); // 심해 띠의 빛줄기, 같은 뒤집기
         if (room.mirror) ctx.restore();
-        blendPictureEdges(ctx, region, { y, h, reach: Math.round(BLEND_DOTS * dot) }, area);
+        blendPictureEdges(ctx, region, { x, y, w, h, reach: Math.round(BLEND_DOTS * dot) }, area);
     }
     /** 방 그림이 방 바닥의 뒤쪽 끝(바닥선) 위로 올라가는 높이(칸 너비 단위, js/canvas-stage-scene.js coverTile). 지역 그림이 없는 지도는 0. */
     function pictureRise(map) {
@@ -143,13 +143,17 @@ const stageRegion = (() => {
     /** 방 그림이 화면의 위나 아래에 닿지 않으면(세로로 긴 화면) 그림의 끝이 메운 색과 맞닿아 줄로 보였다: 끝에서 reach만큼을 메운 색으로
      * 풀어 준다. 그림이 화면을 덮는 넓은 화면에서는 아무것도 그리지 않는다. */
     function blendPictureEdges(ctx, region, picture, area) {
-        const fade = (from, to, colour) => {
-            const ink = ctx.createLinearGradient(0, from, 0, to);
+        const fade = (from, to, colour, horizontal = false) => {
+            const ink = horizontal ? ctx.createLinearGradient(from, 0, to, 0) : ctx.createLinearGradient(0, from, 0, to);
             ink.addColorStop(0, colour);
             ink.addColorStop(1, colour + '00');
             ctx.fillStyle = ink;
-            ctx.fillRect(0, Math.min(from, to), area.width, Math.abs(to - from));
+            if (horizontal) ctx.fillRect(Math.min(from, to), picture.y, Math.abs(to - from), picture.h);
+            else ctx.fillRect(0, Math.min(from, to), area.width, Math.abs(to - from));
         };
+        // 1px 도트를 유지할 때 넓은 화면의 좌우에도 여백이 생긴다. 원본을 늘이지 않고 이음만 푼다.
+        if (picture.x > 0) fade(picture.x, picture.x + picture.reach, region.earth, true);
+        if (picture.x + picture.w < area.width) fade(picture.x + picture.w, picture.x + picture.w - picture.reach, region.earth, true);
         if (picture.y > 0) fade(picture.y, picture.y + picture.reach, region.sky);
         if (picture.y + picture.h < area.height) fade(picture.y + picture.h, picture.y + picture.h - picture.reach, region.earth);
     }

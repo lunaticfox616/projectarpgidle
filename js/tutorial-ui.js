@@ -24,7 +24,7 @@ const tutorialActionUi = {
     },
     /** 새 콘텐츠 카드도 본문을 펼쳐 보인다(2026-10-26 사용자: 접힌 '자세히'는 빈 카드처럼 보였다). */
     noticeBody(notice, controls) {
-        return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body) + controls.trim();
+        return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body, notice.bodyParams) + controls.trim();
     },
     expireNotice(now) {
         if (!activeTutorial || this.requiresAttention(activeTutorial) || now < this.noticeUntil) return;
@@ -99,12 +99,18 @@ const tutorialActionUi = {
         this.ensureCard();
         this.card.hidden = false;
         this.card.classList.remove('is-away');
-        this.card.querySelector('strong').textContent = _t(guide.title);
-        // ‘장착’ 같은 단추 이름은 안내 판처럼 색 글씨로(도트 글꼴의 ’가 전각이라 "‘장착’ 을"처럼 띄어 보였다).
-        this.card.querySelector('p').innerHTML = tutorialMarkup(guide.body);
+        this.refreshText();
         this.rest();
         if (guide.spotlight) guide.spotlight(true, () => this.reposition());
         this.openTarget();
+    },
+    refreshText() {
+        if (!this.active || !this.card) return;
+        this.card.setAttribute('aria-label', _t('플레이 안내'));
+        this.card.querySelector('strong').textContent = _t(this.active.guide.title);
+        this.card.querySelector('p').innerHTML = tutorialMarkup(_t(this.active.guide.body));
+        this.card.querySelector('[data-open]').textContent = _t('화면 보기');
+        this.card.querySelector('[data-skip]').textContent = _t('안내 닫기');
     },
     ensureCard() {
         if (this.card) return;
@@ -112,7 +118,7 @@ const tutorialActionUi = {
         card.id = 'tutorial-action-card';
         card.className = 'tutorial-action-card';
         card.setAttribute('aria-label', _t('플레이 안내'));
-        card.innerHTML = '<strong></strong><p id="tutorial-action-description"></p><div><button type="button" data-open>화면 보기</button><button type="button" data-skip>안내 닫기</button></div>';
+        card.innerHTML = `<strong></strong><p id="tutorial-action-description"></p><div><button type="button" data-open>${_t('화면 보기')}</button><button type="button" data-skip>${_t('안내 닫기')}</button></div>`;
         card.querySelector('[data-open]').addEventListener('click', () => this.openTarget());
         card.querySelector('[data-skip]').addEventListener('click', () => this.finish(false));
         document.body.appendChild(card);
@@ -370,20 +376,20 @@ function tutorialMarkup(line) {
  * data/story-journal.js STORY_LOOP_MILESTONES (the stump box card: who hands the box over says it as it is given). */
 function tutorialQuoteHtml(lore) {
     if (!lore || !lore.quote) return '';
-    return `<blockquote class="story-scene-quote"><p>${escapeHTML(lore.quote)} - ${escapeHTML(speakerShortName(lore.speaker))}</p></blockquote>`;
+    return `<blockquote class="story-scene-quote"><p>${escapeHTML(_t(lore.quote))} - ${escapeHTML(_t(speakerShortName(lore.speaker)))}</p></blockquote>`;
 }
-function tutorialBodyHtml(body) {
-    const [lead = '', ...rest] = String(body || '').split('\n').map(line => line.trim()).filter(Boolean);
+function tutorialBodyHtml(body, params) {
+    const [lead = '', ...rest] = _t(String(body || ''), params).split('\n').map(line => line.trim()).filter(Boolean);
     const head = `<p class="tutorial-summary">${tutorialMarkup(lead)}</p>`;
     if (!rest.length) return head;
     if (rest.some(line => /^[\u201c"]/.test(line))) return head + rest.map(line => `<p class="tutorial-line">${tutorialMarkup(line)}</p>`).join('');
     return head + `<ul class="tutorial-steps">${rest.map(line => `<li>${tutorialMarkup(line)}</li>`).join('')}</ul>`;
 }
 function tutorialOpenLabel(notice) {
-    if (tutorialActionUi.guideFor(notice.key)) return '따라 해보기';
-    if (notice.openLabel) return notice.openLabel;
+    if (tutorialActionUi.guideFor(notice.key)) return _t('따라 해보기');
+    if (notice.openLabel) return _t(notice.openLabel);
     const name = TUTORIAL_TAB_NAMES[notice.tabId];
-    return name ? _t('{name} 열기', { name }) : '화면 열기';
+    return name ? _t('{name} 열기', { name: _t(name) }) : _t('화면 열기');
 }
 /** "○○ 열기": an unlock card opens its exact screen (sub-tab, explore list, section); other cards open their tab. */
 function openTutorialTarget(notice) {
@@ -421,7 +427,7 @@ function renderTutorialStep() {
     if (storyJournalUi.renderTutorial(activeTutorial)) return;
     const kind = tutorialNoticeKind(activeTutorial), overlay = document.getElementById('tutorial-overlay');
     if (overlay.dataset) overlay.dataset.noticeKind = kind;
-    document.getElementById('tutorial-kicker').innerText = TUTORIAL_KIND_LABELS[kind];
+    document.getElementById('tutorial-kicker').innerText = _t(TUTORIAL_KIND_LABELS[kind]);
     document.getElementById('tutorial-title').innerText = _t(activeTutorial.title);
     syncTutorialQueueCount();
     let pauseEnabled = game.settings.pauseGameOnOverlay !== false;
@@ -462,8 +468,9 @@ function tutorialWaitsForTitleCard() {
 }
 /** 설정으로 가는 길: 휴대폰은 하단 "전체" 서랍, PC는 HUD의 "기타" 목록. */
 function settingsMenuPath() {
-    return isMobilePrimaryNavigationEnabled() ? '전체 → 설정' : '기타 → 설정';
+    return _t(isMobilePrimaryNavigationEnabled() ? '전체 → 설정' : '기타 → 설정');
 }
+window.addEventListener('game:languagechange', () => { renderTutorialStep(); tutorialActionUi.refreshText(); });
 
 function isTutorialPresentationBlocked() {
     if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;

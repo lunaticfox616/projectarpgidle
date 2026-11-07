@@ -2600,10 +2600,17 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
     actExplorationView.appendScenery(actors,state);
     actors.push(...trialTrapArt.riseActors(battleFx, state.now, state.gridProj)); // trap blades, flames, frost: in depth order
     bossEntranceView.drawGround(ctx, state);
+    const sceneryDim = bossEntranceView.sceneryDim(state.now);
     sortBattleActorsByDepth(actors).forEach(actor => {
         if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
         else if (actor.kind === 'trapRise') actor.draw(ctx);
-        else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') actExplorationView.drawScenery(ctx,actor,state);
+        else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') {
+            // 깊이 순서는 그대로 유지한다. 배경 위에 그려지는 문·소품에도 같은 입장 어둠을 적용하고, 인물은 밝게 남긴다.
+            ctx.save();
+            if (sceneryDim && !actor.npc) ctx.filter = `brightness(${1 - sceneryDim})`;
+            actExplorationView.drawScenery(ctx,actor,state);
+            ctx.restore();
+        }
         else drawBattleEnemyActor(ctx, actor.entry, state);
         noteStageActorBody(actor, state);
     });

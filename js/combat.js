@@ -1978,7 +1978,7 @@ function getSummonExpectedHit(s, pStats, target) {
 /** Numeric consumers skip presentation; repeated identical summons share work within this call only. */
 function estimateSummonDps(pStats, includeBreakdowns = true, evaluation) {
     if (hasKeystone('sb5')) {
-        return { total: 0, activeCount: 0, lines: includeBreakdowns ? ['홀로서기 각인: 소환수 직접 공격 비활성화'] : [] };
+        return { total: 0, activeCount: 0, lines: includeBreakdowns ? [_t('홀로서기 각인: 소환수 직접 공격 비활성화')] : [] };
     }
     const target = (game.enemies || []).find(e => e && e.hp > 0) || null;
     const rows = resolveActiveSummonGemLevels(pStats, evaluation);
@@ -2024,21 +2024,21 @@ function describeSummonDps(rows, estimates, pStats, activeCount) {
     const lines = [_t('공격 소환수 {activeCount}기, 소환수별 공격 주기로 합산', { activeCount })];
     groups.forEach((group, name) => lines.push(...describeSummonDpsGroup(name, group, pStats, sbShare)));
     if (sbActive && sbShare > 0) {
-        lines.push(`상호 보완: 내 공격력 ${Math.floor(pStats.sbPlayerAttackPower)}의 50%(+${Math.floor(sbShare)})가 소환수 타격마다 가산`);
+        lines.push(_t('상호 보완: 내 공격력 {floor}의 50%(+{floor2})가 소환수 타격마다 가산', { floor: Math.floor(pStats.sbPlayerAttackPower), floor2: Math.floor(sbShare) }));
     }
-    if (rows.length > activeCount) lines.push(`방어/보조 소환수 ${rows.length - activeCount}기는 DPS에서 제외`);
-    lines.push('소환수 공격력은 피해 증가가 적용된 값이며, 적 저항/최종 피해/보스 피해/관통은 소환수 제한 계수로 반영됩니다.');
-    if (rows.some(row => row.duplicateIndex > 0)) lines.push('남는 소환수 한도는 공격 소환수 중복 소환으로 사용');
+    if (rows.length > activeCount) lines.push(_t('방어/보조 소환수 {count}기는 DPS에서 제외', { count: rows.length - activeCount }));
+    lines.push(_t('소환수 공격력은 피해 증가가 적용된 값이며, 적 저항/최종 피해/보스 피해/관통은 소환수 제한 계수로 반영됩니다.'));
+    if (rows.some(row => row.duplicateIndex > 0)) lines.push(_t('남는 소환수 한도는 공격 소환수 중복 소환으로 사용'));
     return lines;
 }
 
 function describeSummonDpsGroup(name, g, pStats, sbShare) {
     const lines = [];
-    const eleLabel = ele => typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys');
+    const eleLabel = ele => _t(typeof getDamageElementLabel === 'function' ? getDamageElementLabel(ele) : (ele || 'phys'));
     let mute = (txt) => `<span style="color:var(--copy-muted);">${txt}</span>`;
     const elements = (wispSummons.elements(name) || [g.s.ele]).map(eleLabel).join('/');
-    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${name}${g.count > 1 ? ` ×${g.count}` : ''}</span>, 룬 Lv.${g.gemLv}, ${elements}`);
-    lines.push(mute(`&nbsp;&nbsp;공격력 ${Math.floor(g.ownAttackPower)} = 기본 피해 ${Math.floor(g.s.baseDamage)} × 피해증가 ${g.dmgMul.toFixed(2)}${sbShare > 0 ? _t(' + 상호보완 {floor}', { floor: Math.floor(sbShare) }) : ''}`));
+    lines.push(`<span style="color:var(--copy-bright); font-weight:600;">${_t(name)}${g.count > 1 ? ` ×${g.count}` : ''}</span>, ${_t('룬 Lv.{level}', { level: g.gemLv })}, ${elements}`);
+    lines.push(mute(_t('&nbsp;&nbsp;공격력 {floor} = 기본 피해 {floor2} × 피해증가 {dmgMul}{bonus}', { floor: Math.floor(g.ownAttackPower), floor2: Math.floor(g.s.baseDamage), dmgMul: g.dmgMul.toFixed(2), bonus: sbShare > 0 ? _t(' + 상호보완 {floor}', { floor: Math.floor(sbShare) }) : '' })));
     lines.push(mute(_t('&nbsp;&nbsp;피해 증가 {floor}% (소환수 피해 {floor2}% + 공유 {floor3}%) × 효율 +{floor4}% = ×{dmgMul}', { floor: Math.floor((pStats.summonPctDmg || 0) + g.sharedInc), floor2: Math.floor(pStats.summonPctDmg || 0), floor3: Math.floor(g.sharedInc), floor4: Math.floor(pStats.summonEfficiency || 0), dmgMul: g.dmgMul.toFixed(2) })));
     lines.push(mute(_t('&nbsp;&nbsp;치명타 {value}% × 피해 {floor}%, 공속 {aps}/초, 저항 관통 {floor2}%', { value: (g.critChance * 100).toFixed(1), floor: Math.floor(g.critMul * 100), aps: g.aps.toFixed(2), floor2: Math.floor(g.penResPen) })));
     lines.push(mute(_t('&nbsp;&nbsp;기대 타격 {floor} → 1기당 {floor2} DPS (적 저항/제한 계수 반영)', { floor: Math.floor(g.hit.damage), floor2: Math.floor(g.dps) })));
@@ -3300,13 +3300,13 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
     const mystique = Math.max(0, Number(rules.mystique && rules.mystique.damagePct) || 0);
     const cycle = Math.max(0, Number(rules.cycle) || 0);
     const devotion = Math.max(0, Number(rules.devotion) || 0);
-    const ailmentLabel = getAilmentDisplayLabel(rules.mystique && rules.mystique.ailment);
+    const ailmentLabel = _t(getAilmentDisplayLabel(rules.mystique && rules.mystique.ailment));
     const activeCycleLines = (rules.activeCycleBuffEffects || []).map(effect => {
         const stat = P_STATS[effect.stat] || {};
         const suffix = stat.isPct ? '%' : '';
-        return _t('{source} 종료 효과: {stat} +{stat2}{suffix}', { source: getAilmentDisplayLabel(effect.source), stat: getStatName(effect.stat), stat2: formatValue(effect.stat, effect.val), suffix });
+        return _t('{source} 종료 효과: {stat} +{stat2}{suffix}', { source: _t(getAilmentDisplayLabel(effect.source)), stat: _t(getStatName(effect.stat)), stat2: formatValue(effect.stat, effect.val), suffix });
     });
-    let revelationEffect = '헌신을 1 이상 확보하면 계시를 선택할 수 있습니다.';
+    let revelationEffect = _t('헌신을 1 이상 확보하면 계시를 선택할 수 있습니다.');
     if (devotion > 0 && rules.revelation === 'combat') {
         revelationEffect = _t('주는 피해 {combatDamageMorePct}% 증폭', { combatDamageMorePct: rules.combatDamageMorePct });
     } else if (devotion > 0 && rules.revelation === 'guard') {
@@ -3326,9 +3326,9 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
         },
         cycle: {
             title: _t('순환'),
-            lines: ['적에게 적용한 상태이상이 종료되면 해당 유형에 따른 강화가 6초간 적용됩니다.',
-                '순환 1당 대응 속성 피해 +2%와 유형별 보조 효과를 얻습니다.',
-                ...(activeCycleLines.length > 0 ? activeCycleLines : ['현재 활성화된 순환 강화 없음']),
+            lines: [_t('적에게 적용한 상태이상이 종료되면 해당 유형에 따른 강화가 6초간 적용됩니다.'),
+                _t('순환 1당 대응 속성 피해 +2%와 유형별 보조 효과를 얻습니다.'),
+                ...(activeCycleLines.length > 0 ? activeCycleLines : [_t('현재 활성화된 순환 강화 없음')]),
                 rules.cycleAddedFireFromPhysicalPct > 0 ? _t('순환의 원석: 물리 피해의 {value}%를 화염 피해로 추가', { value: rules.cycleAddedFireFromPhysicalPct }) : null
             ].filter(Boolean),
             final: formatValue('cycle', cycle)
@@ -3336,7 +3336,7 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
         revelation: {
             title: _t('계시'),
             lines: [_t('계시 수치(헌신) {value}', { value: formatValue('devotion', devotion) }), revelationEffect],
-            final: devotion > 0 ? rules.revelationLabel : '미해금'
+            final: _t(devotion > 0 ? rules.revelationLabel : '미해금')
         }
     };
 };
@@ -3745,7 +3745,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         crusaderThunderDoctrinePct = Math.max(0, firePct + coldPct);
         if (crusaderThunderDoctrinePct > 0) {
             taggedTotal += crusaderThunderDoctrinePct;
-            taggedSummary.push(`천뢰 교리: 화염/냉기 피해 ${Math.floor(crusaderThunderDoctrinePct)}%를 번개 피해에 추가 적용`);
+            taggedSummary.push(_t('천뢰 교리: 화염/냉기 피해 {floor}%를 번개 피해에 추가 적용', { floor: Math.floor(crusaderThunderDoctrinePct) }));
         }
     }
 
@@ -3761,7 +3761,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         let randomElementSummary = Object.entries(randomElementDamagePct)
             .filter(([, value]) => value)
             .map(([ele, value]) => `${ele === 'fire' ? _t('화염') : (ele === 'cold' ? _t('냉기') : _t('번개'))} ${Math.floor(value)}%`);
-        if (randomElementSummary.length > 0) taggedSummary.push(`무작위 원소별 적용: ${randomElementSummary.join(' / ')}`);
+        if (randomElementSummary.length > 0) taggedSummary.push(_t('무작위 원소별 적용: {summary}', { summary: randomElementSummary.join(' / ') }));
     }
 
     let weaponBaseDmgPct = Math.max(0, gearBase.weaponFlatDmgPct + gearExplicit.weaponFlatDmgPct
@@ -4628,7 +4628,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let coreCubeAddedDamageTotalPct = Math.max(0, Object.values(coreCubeAddedDamagePct).reduce((sum, value) => sum + (Number(value) || 0), 0));
     let coreCubeAddedDamageParts = Object.keys(coreCubeAddedDamagePct)
         .filter(ele => Math.max(0, Number(coreCubeAddedDamagePct[ele] || 0)) > 0)
-        .map(ele => `${coreCubeAddedDamageLabels[ele]} ${Math.floor(coreCubeAddedDamagePct[ele])}%`);
+        .map(ele => `${_t(coreCubeAddedDamageLabels[ele])} ${Math.floor(coreCubeAddedDamagePct[ele])}%`);
     let wisdomPreviewStats = { passiveWisdomElement, passiveKeystoneFlags: authoredPassiveRules.flags };
     let previewTalentConversion = wisdomLeapActive && typeof getTalentDamageConversion === 'function'
         ? getTalentDamageConversion(skill.ele)
@@ -4708,14 +4708,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
 
     function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note, effectLines) {
         return {
-            title: title,
+            title: _t(title),
             lines: [
                 makeSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0), '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0), '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('보조스킬룬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
                 note || _t('치명타 시 해당 상태 이상 확률: {floor}%', { floor: Math.floor(critValue) }),
-                note ? null : '비치명타는 위 확률을 사용하며, 치명타는 해당 상태 이상 확률에 +25%가 추가됩니다.',
+                note ? null : _t('비치명타는 위 확률을 사용하며, 치명타는 해당 상태 이상 확률에 +25%가 추가됩니다.'),
                 ...(effectLines || [])
             ].filter(Boolean),
             final: `${Math.max(0, finalValue).toFixed(1)}%`
@@ -4724,15 +4724,15 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
 
     function makeAilmentResistBreakdown(title, ailmentLabel, ailmentResValue, finalValue, mitigationLines) {
         return {
-            title: title,
+            title: _t(title),
             lines: [
-                makeSourceLine(_t('{ailmentLabel} 방지 확률', { ailmentLabel }), finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
-                _t('계산 기준: {ailmentLabel} 방지 옵션 {ailmentResValue}% + 공통 방지 {floor}%', { ailmentLabel, ailmentResValue: Number(ailmentResValue || 0).toFixed(1), floor: Math.floor(ailmentResistBonusPct) }),
+                makeSourceLine(_t('{ailmentLabel} 방지 확률', { ailmentLabel: _t(ailmentLabel) }), finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
+                _t('계산 기준: {ailmentLabel} 방지 옵션 {ailmentResValue}% + 공통 방지 {floor}%', { ailmentLabel: _t(ailmentLabel), ailmentResValue: Number(ailmentResValue || 0).toFixed(1), floor: Math.floor(ailmentResistBonusPct) }),
                 medicineResistanceAilmentBonus.ignite > 0 || medicineResistanceAilmentBonus.freeze > 0 || medicineResistanceAilmentBonus.shock > 0
                     ? _t('약품 내성: 최고 비-제한 원소 저항 상태이상 방지 +100% (점화 {ignite}% / 냉각/동결 {freeze}% / 감전 {shock}%)', { ignite: medicineResistanceAilmentBonus.ignite, freeze: medicineResistanceAilmentBonus.freeze, shock: medicineResistanceAilmentBonus.shock })
                     : null,
                 ...(mitigationLines || []),
-                '피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 직접 합산되지 않습니다.'
+                _t('피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 직접 합산되지 않습니다.')
             ].filter(Boolean),
             final: `${Math.max(0, finalValue).toFixed(1)}%`
         };
@@ -4804,7 +4804,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             _t('지속 피해 배율 스탯: +{max}%', { max: Math.max(0, dotPctDmg).toFixed(1) }),
             catalystAilmentSourceMultiplier > 1 ? _t('과잉 촉매 기준 피해: x{value}', { value: catalystAilmentSourceMultiplier.toFixed(2) }) : null,
             totalDotDamageMultiplier !== dotStatMultiplier ? _t('키스톤/스킬 포함 지속 피해 배율: x{totalDotDamageMultiplier}', { totalDotDamageMultiplier: totalDotDamageMultiplier.toFixed(2) }) : null,
-            specificPct > 0 ? `${specificLabel}: +${Number(specificPct).toFixed(1)}%` : null,
+            specificPct > 0 ? `${_t(specificLabel)}: +${Number(specificPct).toFixed(1)}%` : null,
             finalAilmentDamagePct > 0 ? _t('상태이상 피해: +{finalAilmentDamagePct}%', { finalAilmentDamagePct: finalAilmentDamagePct.toFixed(1) }) : null,
             _t('해당 상태이상 피해 총 배율: x{totalMultiplier} (기본 대비 +{max}%)', { totalMultiplier: totalMultiplier.toFixed(2), max: Math.max(0, (totalMultiplier - 1) * 100).toFixed(1) })
         ].filter(Boolean);
@@ -4815,7 +4815,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         let combined = (1 - ((1 - common / 100) * (1 - specific / 100))) * 100;
         return [
             _t('받는 지속 피해 감소: {common}%', { common: common.toFixed(1) }),
-            `${specificLabel}: ${specific.toFixed(1)}%`,
+            `${_t(specificLabel)}: ${specific.toFixed(1)}%`,
             _t('복합 적용 피해 감소: {combined}%', { combined: combined.toFixed(1) })
         ];
     };
@@ -4838,21 +4838,21 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     function formatSignedPercentagePointLine(label, value) {
         let amount = Number(value || 0);
         if (!amount) return null;
-        return `${label} ${amount > 0 ? '+' : ''}${Math.floor(amount)}%p`;
+        return `${_t(label)} ${amount > 0 ? '+' : ''}${Math.floor(amount)}%p`;
     }
 
     function formatResistanceSourceLine(label, value) {
         let amount = Number(value || 0);
         if (!amount) return null;
         let rendered = Number.isInteger(amount) ? `${Math.abs(amount)}` : Math.abs(amount).toFixed(1);
-        return `${label} ${amount > 0 ? '+' : '-'}${rendered}%`;
+        return `${_t(label)} ${amount > 0 ? '+' : '-'}${rendered}%`;
     }
 
     function makeResistanceBreakdown(title, statId, maxStatId, finalValue, maxValue, extraLines, extraMaxLines) {
         let maxGear = (gearBase[maxStatId] || 0) + (gearExplicit[maxStatId] || 0);
         let maxPassive = (passive[maxStatId] || 0) + (season[maxStatId] || 0) + (ascend[maxStatId] || 0) + (reward[maxStatId] || 0);
         return {
-            title: title,
+            title: _t(title),
             lines: [
                 formatResistanceSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0)),
                 formatResistanceSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0)),
@@ -4895,7 +4895,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 instantDamageMultiplier !== 1 ? _t('즉발 피해 배율 {instantDamageMultiplier}x', { instantDamageMultiplier: instantDamageMultiplier.toFixed(2) }) : null,
                 finalDamageMultiplier !== 1 ? _t('최종 피해 배율 {finalDamageMultiplier}x', { finalDamageMultiplier: finalDamageMultiplier.toFixed(2) }) : null,
                 chaosDamageMultiplier !== 1 ? _t('카오스 피해 배율 {chaosDamageMultiplier}x', { chaosDamageMultiplier: chaosDamageMultiplier.toFixed(2) }) : null,
-                skill.convertedToChaos ? '워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용' : null,
+                skill.convertedToChaos ? _t('워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용') : null,
                 (hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? _t('상호 보완: 소환수 공격력 {floor}의 75% → 기본 피해 +{floor2}', { floor: Math.floor(sbSummonAttackPower), floor2: Math.floor(sbSummonShareToPlayer) }) : null,
                 (hasKeystone('sb7') && !hasKeystone('sb5') && sbPlayerAttackPower > 0) ? _t('상호 보완: 내 공격력 {floor}의 75%(+{floor2})를 각 소환수 타격에 전달', { floor: Math.floor(sbPlayerAttackPower), floor2: Math.floor(0.75 * sbPlayerAttackPower) }) : null,
                 _t('피해 범위 {floor}% ~ {floor2}%', { floor: Math.floor(finalMinDmgRoll), floor2: Math.floor(finalMaxDmgRoll) })
@@ -4985,7 +4985,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('장비', gearBase.regenSuppress + gearExplicit.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
                 makeSourceLine('패시브', passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + reward.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
                 makeSourceLine('보조스킬룬', support.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
-                '공격 시 적의 생명력 재생을 해당 수치(%)만큼 줄여주는 옵션입니다.'
+                _t('공격 시 적의 생명력 재생을 해당 수치(%)만큼 줄여주는 옵션입니다.')
             ].filter(Boolean),
             final: `${formatValue('regenSuppress', finalRegenSuppress)}%`
         },
@@ -4996,7 +4996,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
                 makeSourceLine('보조스킬룬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                skill.instantLeech ? '흡혈 관통: 이 룬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.' : _t('타격 시 즉시 회복 대신 흡혈 인스턴스 생성'),
+                skill.instantLeech ? _t('흡혈 관통: 이 룬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.') : _t('타격 시 즉시 회복 대신 흡혈 인스턴스 생성'),
                 (hasKeystone('wlk3')) ? _t('금단 대가: 흡혈 {value}', { value: skill.instantLeech ? _t('즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.') : _t('인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.') }) : null,
                 _t('일반 흡혈 캡: 타격당 최대 생명력 {value}%, 전체 저장 {LEECH_BASE_TOTAL_CAP_PCT}%, 인스턴스당 초당 {LEECH_BASE_RATE_CAP_PCT}%', { value: LEECH_BASE_INSTANCE_CAP_PCT, LEECH_BASE_TOTAL_CAP_PCT, LEECH_BASE_RATE_CAP_PCT }),
                 _t('일반 흡혈 추가 캡: 회복 속도 +{value}%p, 전체 +{value2}%p, 타격당 +{value3}%p', { value: formatValue('leechRateCap', finalLeechRateCap), value2: formatValue('leechTotalCap', finalLeechTotalCap), value3: formatValue('leechInstanceCap', finalLeechInstanceCap) }),
@@ -5009,7 +5009,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             lines: [makeSourceLine('스킬', skill.spellLeech || 0, '%', value => `${formatValue('spellLeech', value)}%`),
                 makeSourceLine('장비', gearBase.spellLeech + gearExplicit.spellLeech, '%', value => `${formatValue('spellLeech', value)}%`),
                 makeSourceLine('기타 성장', passive.spellLeech + season.spellLeech + ascend.spellLeech + support.spellLeech + reward.spellLeech, '%', value => `${formatValue('spellLeech', value)}%`),
-                '주문 타격 피해에만 적용됩니다. 지속 피해에는 적용되지 않습니다.'].filter(Boolean),
+                _t('주문 타격 피해에만 적용됩니다. 지속 피해에는 적용되지 않습니다.')].filter(Boolean),
             final: `${formatValue('spellLeech', finalSpellLeech)}%`
         },
         ds: {
@@ -5020,7 +5020,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('보조스킬룬', support.ds, '%p', value => `${Math.floor(value)}%p`),
                 makeSourceLine('스킬', skillDsBonus, '%p', value => `${Math.floor(value)}%p`),
                 formatSignedPercentagePointLine('기타 효과', finalDs - baseDsFromSources - skillDsBonus),
-                '각 수치는 연속 타격 확률에 합산되는 %p입니다.'
+                _t('각 수치는 연속 타격 확률에 합산되는 %p입니다.')
             ].filter(Boolean),
             final: `${Math.floor(finalDs)}%`
         },
@@ -5074,14 +5074,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('장비/기타 정확도', flatAccuracy),
                 makeSourceLine('정확도 보정', accuracyBonusPct, '%', value => `${Math.floor(value)}%`),
                 _t('효과: 적의 회피 수치와 대결해 명중을 판정합니다. 정확도가 높을수록 고회피 적에게 덜 빗나갑니다.'),
-                `예: 회피 500 적 상대 예상 명중률 ${Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 500 }, playerAccuracy))}%, 회피 2000 적 상대 ${Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 2000 }, playerAccuracy))}%`,
+                _t('예: 회피 500 적 상대 예상 명중률 {floor}%, 회피 2000 적 상대 {floor2}%', { floor: Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 500 }, playerAccuracy)), floor2: Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 2000 }, playerAccuracy)) }),
                 _t('적 회피 대비 빗나감은 최대 45%p, 적의 별도 회피 확률 옵션과 합쳐 총 70%가 상한입니다.')
             ].filter(Boolean),
             final: `${Math.floor(playerAccuracy)}`
         },
         strength: {
             title: _t('힘'),
-            lines: ['1당 최대 생명력 +2, 5당 물리 피해 +1%', _t('최대 생명력 +{floor}, 물리 피해 +{floor2}%', { floor: Math.floor(totalStrength * 2), floor2: Math.floor(totalStrength / 5) })],
+            lines: [_t('1당 최대 생명력 +2, 5당 물리 피해 +1%'), _t('최대 생명력 +{floor}, 물리 피해 +{floor2}%', { floor: Math.floor(totalStrength * 2), floor2: Math.floor(totalStrength / 5) })],
             final: `${Math.floor(totalStrength)}`
         },
         dexterity: {
@@ -5091,7 +5091,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         },
         intelligence: {
             title: _t('지능'),
-            lines: ['1당 에너지 보호막 +2, 5당 주문 피해 +1%', _t('에너지 보호막 +{floor}, 주문 피해 +{floor2}%', { floor: Math.floor(totalIntelligence * 2), floor2: Math.floor(totalIntelligence / 5) })],
+            lines: [_t('1당 에너지 보호막 +2, 5당 주문 피해 +1%'), _t('에너지 보호막 +{floor}, 주문 피해 +{floor2}%', { floor: Math.floor(totalIntelligence * 2), floor2: Math.floor(totalIntelligence / 5) })],
             final: `${Math.floor(totalIntelligence)}`
         },
         blockChance: {
@@ -5103,16 +5103,16 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('기타 막기 확률 증가', blockChanceFromOtherPct, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('막기 확률 보너스', flatBlockChanceBonus, '%', value => `${value.toFixed(1)}%`),
                 _t('막기 확률 상한: {finalBlockChanceCap}%', { finalBlockChanceCap: finalBlockChanceCap.toFixed(1) }),
-                '몬스터의 일반 타격 피해를 막으면 해당 타격 피해를 받지 않습니다.'
+                _t('몬스터의 일반 타격 피해를 막으면 해당 타격 피해를 받지 않습니다.')
             ].filter(Boolean),
             final: `${finalBlockChance.toFixed(1)}%`
         },
         blockChanceMax: {
             title: _t('막기 확률 상한'),
             lines: [
-                '기본 막기 확률 상한 50%',
+                _t('기본 막기 확률 상한 50%'),
                 makeSourceLine('상한 증가', Math.max(0, sumStatAcrossBuckets('blockChanceMax')), '%', value => `${value.toFixed(1)}%`),
-                '상한 증가는 최대 75%까지 적용됩니다.'
+                _t('상한 증가는 최대 75%까지 적용됩니다.')
             ],
             final: `${finalBlockChanceCap.toFixed(1)}%`
         },
@@ -5123,7 +5123,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('패시브', passive.deflectChance + season.deflectChance + ascend.deflectChance + reward.deflectChance, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('보조스킬룬', support.deflectChance, '%', value => `${value.toFixed(1)}%`),
                 _t('비껴내기 성공 시 피해 감소: {min}%', { min: Math.min(85, 40 + finalDeflectDamageReduce).toFixed(1) }),
-                '기본 피해 감소 40%에 비껴내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.'
+                _t('기본 피해 감소 40%에 비껴내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.')
             ].filter(Boolean),
             final: `${finalDeflectChance.toFixed(1)}%`
         },
@@ -5133,7 +5133,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('장비', gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('패시브', passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + reward.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
                 makeSourceLine('보조스킬룬', support.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
-                '실제 감소율은 기본 40% + 이 수치입니다.'
+                _t('실제 감소율은 기본 40% + 이 수치입니다.')
             ].filter(Boolean),
             final: `${finalDeflectDamageReduce.toFixed(1)}%`
         },
@@ -5144,7 +5144,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('패시브', passive.physIgnore + season.physIgnore + ascend.physIgnore + reward.physIgnore, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조스킬룬', support.physIgnore, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('각인', skill.physIgnoreBonus || 0, '%', value => `${Math.floor(value)}%`),
-                '적의 양수 물리 피해 감소만 0%까지 깎습니다.'
+                _t('적의 양수 물리 피해 감소만 0%까지 깎습니다.')
             ].filter(Boolean),
             final: `${Math.floor(finalPhysIgnore)}%`
         },
@@ -5155,7 +5155,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
                 makeSourceLine('패시브', passive.resPen + season.resPen + ascend.resPen + reward.resPen, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('보조스킬룬', support.resPen, '%', value => `${Math.floor(value)}%`),
                 makeSourceLine('각인', skill.resPenBonus || 0, '%', value => `${Math.floor(value)}%`),
-                '원소/카오스 저항은 음수까지 떨어질 수 있으며, 음수만큼 추가 피해를 줍니다.'
+                _t('원소/카오스 저항은 음수까지 떨어질 수 있으며, 음수만큼 추가 피해를 줍니다.')
             ].filter(Boolean),
             final: `${Math.floor(finalResPen)}%`
         },
@@ -5225,9 +5225,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             final: `${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
         },
         igniteChance: makeAilmentChanceBreakdown('점화 확률', 'igniteChance', finalIgniteChance, ailmentCritChance.ignite, null, makeDamageAilmentEffectLines('점화 피해 증가', finalIgniteDamageMultiplierPct)),
-        chillChance: makeAilmentChanceBreakdown('냉각 확률', 'chillChance', finalChillChance, ailmentCritChance.chill, null, ['냉각은 피해형 상태이상이 아니며 적의 행동 속도를 감소시킵니다.']),
-        freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze, '냉기 피해 치명타는 동결 시도를 보장합니다. 그 외에는 해당 확률로 동결을 시도하며, 시도 성공 후 적의 최대 생명력 대비 타격 피해로 동결 적용 판정을 합니다.', ['동결은 피해형 상태이상이 아니며 적의 행동을 정지시킵니다.']),
-        shockChance: makeAilmentChanceBreakdown('감전 확률', 'shockChance', finalShockChance, ailmentCritChance.shock, null, [_t('감전 효과 증가: +{max}%', { max: Math.max(0, finalShockEffectBonusPct).toFixed(1) }), '감전은 직접 피해를 주지 않고 대상이 받는 피해를 증가시킵니다.']),
+        chillChance: makeAilmentChanceBreakdown('냉각 확률', 'chillChance', finalChillChance, ailmentCritChance.chill, null, [_t('냉각은 피해형 상태이상이 아니며 적의 행동 속도를 감소시킵니다.')]),
+        freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze, _t('냉기 피해 치명타는 동결 시도를 보장합니다. 그 외에는 해당 확률로 동결을 시도하며, 시도 성공 후 적의 최대 생명력 대비 타격 피해로 동결 적용 판정을 합니다.'), [_t('동결은 피해형 상태이상이 아니며 적의 행동을 정지시킵니다.')]),
+        shockChance: makeAilmentChanceBreakdown('감전 확률', 'shockChance', finalShockChance, ailmentCritChance.shock, null, [_t('감전 효과 증가: +{max}%', { max: Math.max(0, finalShockEffectBonusPct).toFixed(1) }), _t('감전은 직접 피해를 주지 않고 대상이 받는 피해를 증가시킵니다.')]),
         ailmentResistIgniteChance: makeAilmentResistBreakdown('점화 저항 확률', '점화', ailResIgniteTotal, finalAilmentResistIgniteChance, makeDamageAilmentMitigationLines('점화 피해 감소', finalIgniteDamageReducePct)),
         ailmentResistChillChance: makeAilmentResistBreakdown('냉각 저항 확률', '냉각', ailResFreezeTotal, finalAilmentResistChillChance, [_t('냉각 효과 감소: {max}%', { max: Math.max(0, finalChillEffectReducePct).toFixed(1) })]),
         ailmentResistFreezeChance: makeAilmentResistBreakdown('동결 저항 확률', '동결', ailResFreezeTotal, finalAilmentResistFreezeChance, [_t('동결 지속시간 감소: {max}%', { max: Math.max(0, finalFreezeDurationReducePct).toFixed(1) })]),
@@ -5613,7 +5613,7 @@ function appendPlayerDpsBreakdowns(stats, summonEstimate) {
         lines: [
             _t('현재 소환 한도 {summonCap}', { summonCap: stats.summonCap }),
             _t('최대 소환 한도 {summonCapMaximum}', { summonCapMaximum: getSummonCapMaximum() }),
-            hasKeystone('sb9') ? '대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태' : '기본 최대 한도 8'
+            _t(hasKeystone('sb9') ? '대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태' : '기본 최대 한도 8')
         ],
         final: _t('{summonCap} / 최대 {summonCapMaximum}', { summonCap: stats.summonCap, summonCapMaximum: getSummonCapMaximum() })
     };

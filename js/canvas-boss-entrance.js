@@ -29,6 +29,13 @@ const bossEntranceView = (() => {
     const share = (value, from, until) => Math.max(0, Math.min(1, (value - from) / (until - from)));
     const onStage = () => typeof stageView === 'object' && stageView.enabled();
     const holdOf = fx => fx.holdMs || 2600;
+    /** 배경과 깊이 순서로 그리는 장식이 함께 어두워졌다가 돌아오는 비율. */
+    const dimProgress = (fx, now) => now - fx.start < holdOf(fx) ? ease((now - fx.start) / 350) : Math.max(0, 1 - (now - fx.start - holdOf(fx)) / 500);
+    const dimStrength = fx => fx.red ? RED.dim : onStage() ? STAGE.dim : 0.5;
+    function sceneryDim(now) {
+        const fx = active(now);
+        return fx && bossOf(fx) ? dimProgress(fx, now) * dimStrength(fx) : 0;
+    }
     /** 섬광과 함께 이름이 뜨는 때(입장이 시작된 뒤 ms). */
     const burstOf = fx => (onStage() ? holdOf(fx) * STAGE.burstAt : BURST_AT);
 
@@ -71,10 +78,10 @@ const bossEntranceView = (() => {
         if (!at) return;
         const t = state.now - fx.start, dot = Math.max(2, state.gridProj.tileW / 16), color = colorOf(fx, boss);
         spot = { id: boss.id, top: at.y - state.gridProj.tileW * BOSS_TILES, feet: at.y };
-        const hold = holdOf(fx), dim = t < hold ? ease(t / 350) : Math.max(0, 1 - (t - hold) / 500);
+        const hold = holdOf(fx), dim = dimProgress(fx, state.now);
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        ctx.globalAlpha = dim * (fx.red ? RED.dim : onStage() ? STAGE.dim : 0.5);
+        ctx.globalAlpha = dim * dimStrength(fx);
         ctx.fillStyle = '#040302';
         ctx.fillRect(-4000, -4000, 8000, 8000);
         if (onStage()) groundOfBosses(ctx, state, { fx, t, hold, dim, at });
@@ -248,6 +255,6 @@ const bossEntranceView = (() => {
         ctx.restore();
     }
 
-    return { enemyAge, stageLook, revealedBoss, shake, drawGround, drawScreen, enteringSpans, bannerLine };
+    return { enemyAge, stageLook, revealedBoss, shake, drawGround, drawScreen, enteringSpans, bannerLine, sceneryDim };
 })();
 safeExposeGlobals({ bossEntranceView });

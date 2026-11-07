@@ -66,8 +66,8 @@ const atlas = (() => {
     /** 루프 ATLAS.unlockLoop부터 혼돈 20이 관문이다: 그 뒤 처음 깨면 아틀라스가 영구히 열리고, 지도는 루프마다 이번 루프 혼돈 20을 깬 뒤에 연다. */
     const opensNow = state => state.atlas.unlocked || (Math.floor(state.season || 1) >= ATLAS.unlockLoop && hasCurrentLoopChaos20Clear(state));
     function lockReason(state) {
-        if (!opensNow(state)) return `루프 ${ATLAS.unlockLoop}부터 혼돈 20을 클리어하면 세계수 아틀라스가 열립니다.`;
-        if (!hasCurrentLoopChaos20Clear(state)) return '이번 루프에서 혼돈 20을 클리어해야 지도를 열 수 있습니다.';
+        if (!opensNow(state)) return _t('루프 {loop}부터 혼돈 20을 클리어하면 세계수 아틀라스가 열립니다.', { loop: ATLAS.unlockLoop });
+        if (!hasCurrentLoopChaos20Clear(state)) return _t('이번 루프에서 혼돈 20을 클리어해야 지도를 열 수 있습니다.');
         return '';
     }
     /** 열린 지도가 있으면 다른 지도, 정점, 보드, 시대 재생, 최종 보스, 기억 싸움을 열지 않는다(거절 문구는 여기 하나). */

@@ -1005,10 +1005,13 @@ function ensureMobileBattlePip() {
         host.className = 'mobile-battle-dock';
         host.style.display = 'none';
         host.setAttribute('role', 'region');
-        host.setAttribute('aria-label', _t('작은 전투 화면'));
-        host.innerHTML = '<button type="button" class="mobile-battle-pip-preview" data-pip-return aria-label="전투 화면으로 이동"><canvas width="320" height="180" aria-hidden="true"></canvas></button>'
-            + '<div class="mobile-battle-pip-actions"><button type="button" data-pip-return class="mobile-battle-dock-label">전투로</button>'
+        host.setAttribute('aria-label', '작은 전투 화면');
+        host.dataset.i18nAttr = 'aria-label';
+        host.innerHTML = '<button type="button" class="mobile-battle-pip-preview" data-pip-return data-i18n-attr="aria-label" aria-label="전투 화면으로 이동"><canvas width="320" height="180" aria-hidden="true"></canvas></button>'
+            + '<div class="mobile-battle-pip-actions"><button type="button" data-pip-return data-i18n class="mobile-battle-dock-label">전투로</button>'
             + '<button type="button" data-pip-toggle aria-expanded="true" aria-label="작은 전투 화면 접기">접기</button></div>';
+        i18n.applyStatic(host);
+        setMobileBattlePipCollapsed(host, false);
         host.addEventListener('click', event => {
             const toggle = event.target.closest('[data-pip-toggle]');
             if (toggle) {
@@ -1034,7 +1037,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
     host.classList.toggle('is-collapsed', collapsed);
     const toggle = host.querySelector('[data-pip-toggle]');
     toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute('aria-label', collapsed ? '작은 전투 화면 펼치기' : '작은 전투 화면 접기');
+    toggle.setAttribute('aria-label', _t(collapsed ? '작은 전투 화면 펼치기' : '작은 전투 화면 접기'));
     toggle.textContent = collapsed ? _t('전투 보기') : _t('접기');
 }
 
@@ -1303,16 +1306,20 @@ function createMobileTabDrawerHead() {
     let head = document.createElement('div');
     head.className = 'mobile-tab-drawer-head';
     let title = document.createElement('strong');
-    title.textContent = _t('전체 메뉴');
+    title.textContent = '전체 메뉴';
+    title.dataset.i18n = '';
     let actions = document.createElement('span');
     actions.className = 'mobile-tab-drawer-actions';
     let close = document.createElement('button');
     close.type = 'button';
-    close.textContent = _t('닫기');
-    close.setAttribute('aria-label', _t('전체 메뉴 닫기'));
+    close.textContent = '닫기';
+    close.dataset.i18n = '';
+    close.setAttribute('aria-label', '전체 메뉴 닫기');
+    close.dataset.i18nAttr = 'aria-label';
     close.addEventListener('click', () => setMobileTabDrawerOpen(false));
     actions.append(close);
     head.append(title, actions);
+    i18n.applyStatic(head);
     return head;
 }
 
@@ -1323,8 +1330,10 @@ function createMobileMoreButton() {
     button.className = 'mobile-nav-more';
     button.setAttribute('aria-controls', 'tab-header-main');
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', _t('전체 메뉴 열기'));
-    button.innerHTML = '<span>전체</span><span class="noti-dot"></span>';
+    button.setAttribute('aria-label', '전체 메뉴 열기');
+    button.dataset.i18nAttr = 'aria-label';
+    button.innerHTML = '<span data-i18n>전체</span><span class="noti-dot"></span>';
+    i18n.applyStatic(button);
     button.addEventListener('click', toggleMobileTabDrawer);
     return button;
 }
@@ -1419,8 +1428,8 @@ function renderMobileMenuGroups(header) {
             title = document.createElement('div');
             title.className = 'mobile-menu-group-title';
             title.dataset.mobileGroup = group.key;
-            title.textContent = _t(group.label);
         }
+        title.textContent = _t(group.label);
         title.hidden = buttons.length === 0;
         header.appendChild(title);
         buttons.forEach(button => header.appendChild(button));
@@ -1823,12 +1832,22 @@ function scheduleTabHeaderViewportSync() {
 if (typeof window !== 'undefined') {
     window.addEventListener('resize', scheduleTabHeaderViewportSync);
     window.addEventListener('orientationchange', scheduleTabHeaderViewportSync);
+    window.addEventListener('game:languagechange', () => {
+        playerStatCache.invalidate();
+        cachedTooltipStats = null;
+        gemTooltipCache = null;
+        if (document.getElementById('info-tooltip')) hideInfoTooltip();
+        const pip = document.getElementById('mobile-battle-pip');
+        if (pip) setMobileBattlePipCollapsed(pip, pip.classList.contains('is-collapsed'));
+        scheduleTabHeaderViewportSync();
+    });
 }
 
 function getTabHeaderUiSignature() {
     let unlocks = game.unlocks || {};
     let mobileBattle = uiDisplay.matches(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`) ? 'mobileBattle' : 'desktopBattle';
     return [
+        i18n.language,
         mobileBattle,
         isMobilePrimaryNavigationEnabled() ? 'mobilePrimary' : 'legacyTabs',
         (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
@@ -5597,7 +5616,7 @@ function getRuneLevelTooltipLine(name, support) {
 }
 function showGemTooltip(event, type, name, target = null) {
     if (!target && document.getElementById('gem-selection')?.matches(':popover-open')) return;
-    let cacheKey = `${type || 'active'}:${name}`;
+    let cacheKey = `${i18n.language}:${type || 'active'}:${name}`;
     if (!target && reuseInfoTooltip(event, cacheKey)) return;
     let stats = cachedTooltipStats || getUiPlayerStats();
     if (gemTooltipCache && gemTooltipCache.key === cacheKey && gemTooltipCache.stats === stats) {
@@ -5606,17 +5625,17 @@ function showGemTooltip(event, type, name, target = null) {
         return;
     }
     let info = getUiGemPresentation(name, type === 'support', stats);
-    let html = `<div class="tooltip-title">${name}</div>${getRuneLevelTooltipLine(name, type === 'support')}`;
+    let html = `<div class="tooltip-title">${escapeHTML(_t(name))}</div>${getRuneLevelTooltipLine(name, type === 'support')}`;
     if (type === 'support') {
-        html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div>`;
+        html += `<div class="tooltip-line">${keepKoreanUnitParticles(_t(info.desc))}</div>`;
         let tierText = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, info.activeTier) : (info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급');
         let valueText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.value) : Number(info.value || 0).toFixed(1);
-        html += `<div class="tooltip-line" style="margin-top:6px;">${_t('효과({tierText}): {effectText}', { tierText, effectText: escapeHTML(gemSelectionUi.effectText(name, info.activeTier, stats)) })}</div>` + gemSlotDialog.tierLineHtml(name, stats);
+        html += `<div class="tooltip-line" style="margin-top:6px;">${_t('효과({tierText}): {effectText}', { tierText: _t(tierText), effectText: escapeHTML(gemSelectionUi.effectText(name, info.activeTier, stats)) })}</div>` + gemSlotDialog.tierLineHtml(name, stats);
         if (info.scaleWithOwnStat) {
             let baseText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleBase) : Number(info.scaleBase || 0).toFixed(1);
             let ratioText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleRatioPct) : Number(info.scaleRatioPct || 0).toFixed(1);
-            html += `<div class="tooltip-line" style="color:#9fd4ff;">${_t('계산: 보조스킬룬 제외 {statName} {baseText}% × 공명 계수 {ratioText}% = +{valueText}%', { statName: info.statName, baseText, ratioText, valueText })}</div>`;
-            html += `<div class="tooltip-line" style="color:#b8a6ff;">${_t('제외: 이 보조스킬룬 및 다른 보조스킬룬으로 얻은 {statName} 증가', { statName: info.statName })}</div>`;
+            html += `<div class="tooltip-line" style="color:#9fd4ff;">${_t('계산: 보조스킬룬 제외 {statName} {baseText}% × 공명 계수 {ratioText}% = +{valueText}%', { statName: _t(info.statName), baseText, ratioText, valueText })}</div>`;
+            html += `<div class="tooltip-line" style="color:#b8a6ff;">${_t('제외: 이 보조스킬룬 및 다른 보조스킬룬으로 얻은 {statName} 증가', { statName: _t(info.statName) })}</div>`;
         }
         if (TAGGED_DAMAGE_STAT_BY_TAG && Object.values(TAGGED_DAMAGE_STAT_BY_TAG).includes(info.statId)) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);
@@ -5635,7 +5654,7 @@ function showGemTooltip(event, type, name, target = null) {
         let skill = info.skill || SKILL_DB[name];
         let rawSkillTags = Array.isArray(skill.tags) ? skill.tags : [];
         let isSummonAttackTooltip = rawSkillTags.includes('summon');
-        html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div><div class="tooltip-line">${escapeHTML(gemSelectionUi.summonEffect(name, stats))}</div>`;
+        html += `<div class="tooltip-line">${keepKoreanUnitParticles(_t(info.desc))}</div><div class="tooltip-line">${escapeHTML(gemSelectionUi.summonEffect(name, stats))}</div>`;
         if (!isSummonAttackTooltip && typeof describeSkillGridProfile === 'function') {
             html += `<div class="tooltip-line" style="margin-top:6px;color:#7fffd4;">${describeSkillGridProfile(name, skill)}</div>`;
         }
@@ -8819,13 +8838,13 @@ const renderCharacterPassiveSpecialStats = function(pStats) {
     const mystique = Math.max(0, Number(pStats.mystique) || 0);
     const cycle = Math.max(0, Number(pStats.cycle) || 0);
     const devotion = Math.max(0, Number(pStats.devotion) || 0);
-    const ailment = getAilmentDisplayLabel(pStats.mystiqueAilmentType);
+    const ailment = _t(getAilmentDisplayLabel(pStats.mystiqueAilmentType));
     setTextById('ui-mystique', formatValue('mystique', mystique));
-    setTextById('ui-mystique-effect', mystique > 0 ? _t('{ailment} 피해/위력 +{value}%', { ailment, value: formatValue('mystique', mystique) }) : '효과 없음');
+    setTextById('ui-mystique-effect', mystique > 0 ? _t('{ailment} 피해/위력 +{value}%', { ailment, value: formatValue('mystique', mystique) }) : _t('효과 없음'));
     setTextById('ui-cycle', formatValue('cycle', cycle));
-    setTextById('ui-cycle-effect', cycle > 0 ? '상태이상 종료 시 6초 강화' : '효과 없음');
+    setTextById('ui-cycle-effect', _t(cycle > 0 ? '상태이상 종료 시 6초 강화' : '효과 없음'));
 
-    let revelationLabel = devotion > 0 ? (pStats.passiveRevelationLabel || '계시 활성') : '미해금';
+    let revelationLabel = _t(devotion > 0 ? (pStats.passiveRevelationLabel || '계시 활성') : '미해금');
     let revelationEffect = _t('계시 수치 {value}', { value: formatValue('devotion', devotion) });
     if (devotion > 0 && pStats.passiveRevelation === 'combat') {
         revelationEffect += _t(', 피해 {value}% 증폭', { value: formatValue('devotion', pStats.passiveRevelationCombatDamageMorePct) });
@@ -11091,9 +11110,13 @@ function openStartupGate(options = {}) {
 /** The card's one line for a save: level, loop and the zone it was in. */
 function renderStartupSaveSummary(el, save) {
     if (!el) return;
-    const zone = save && typeof getZone === 'function' ? getZone(save.currentZoneId) : null;
-    const loopLabel = Math.max(1, Math.floor((save && save.season) || 1));
-    el.innerText = _t('Lv.{level}, 루프 {loopLabel}, {zoneLabel}', { level: (save && save.level) || 1, loopLabel, zoneLabel: _t(zone && zone.name ? zone.name : '액트 1: 버려진 해안') });
+    const current = save || {};
+    const zone = getZone(current.currentZoneId) || { name: '액트 1: 버려진 해안' };
+    const loopLabel = Math.max(1, Math.floor(current.season || 1));
+    const act = getStoryActByZoneId(zone.id);
+    const floors = { underworld: '지하계 {floor}층', skyTower: '창공의 탑 {floor}층', chaosRealm: '혼돈계 {floor}층' };
+    const zoneLabel = act ? `${formatStoryActLabel(act)}: ${_t(act.title)}` : _t(floors[zone.type] || zone.name, { floor: zone.floor });
+    el.innerText = _t('Lv.{level}, 루프 {loopLabel}, {zoneLabel}', { level: current.level || 1, loopLabel, zoneLabel });
 }
 
 /** The save the card shows: the slot in use, or, while the page is still on the guest slot with an account signed in (a reload with a

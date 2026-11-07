@@ -38,7 +38,7 @@ const contentProgression = (() => {
         const def = definitions.get(id);
         if (!def) return [];
         const rows = [[_t('루프 {minLoop}', { minLoop: def.minLoop }), owner.season >= def.minLoop]];
-        for (const key of parents(def)) rows.push([definitions.get(key).name + ' 해금', isUnlocked(key, owner)]);
+        for (const key of parents(def)) rows.push([_t('{name} 해금', { name: _t(definitions.get(key).name) }), isUnlocked(key, owner)]);
         if (def.progress) rows.push(...progressChecks[def.progress](owner));
         return rows.map(([label, met]) => ({ label, met: !!met }));
     }
@@ -227,7 +227,7 @@ const contentProgression = (() => {
         if (!def) return { available: false, reason: _t('알 수 없는 콘텐츠입니다.') };
         if (isUnlocked(id, owner)) return { available: false, reason: _t('해금 완료'), unlocked: true };
         const missing = requirements(id, owner).filter(row => !row.met);
-        if (missing.length) return { available: false, reason: missing[0].label + ' 필요' };
+        if (missing.length) return { available: false, reason: _t('{label} 필요', { label: _t(missing[0].label) }) };
         if (balance(owner) < def.cost) return { available: false, reason: _t('해금 포인트 부족') };
         return { available: true, reason: _t('{cost}점으로 해금', { cost: def.cost }) };
     }
@@ -269,7 +269,7 @@ const contentProgression = (() => {
         owner.contentProgression.unlocked.push(id);
         owner.contentProgression.paidCosts[id] = def.cost;
         sync(owner);
-        return { ok: true, message: def.name + ' 해금' };
+        return { ok: true, message: _t('{name} 해금', { name: _t(def.name) }) };
     }
 
     function legacyAccess(def, owner) {

@@ -4663,9 +4663,10 @@ function formatKoreanFullDamageNumber(value) {
     let remaining = Math.max(0, Math.floor(Number(value) || 0));
     if (remaining < 10000) return `${remaining}`;
     const units = [
-        { value: 1000000000000, label: _t('조') },
-        { value: 100000000, label: _t('억') },
-        { value: 10000, label: _t('만') }
+        // These units belong to the selected number system, regardless of the UI language.
+        { value: 1000000000000, label: '조' },
+        { value: 100000000, label: '억' },
+        { value: 10000, label: '만' }
     ];
     let text = '';
     units.forEach(unit => {
@@ -4681,9 +4682,9 @@ function formatKoreanFullDamageNumber(value) {
 function formatKoreanShortDamageNumber(value) {
     let amount = Math.max(0, Number(value) || 0);
     const units = [
-        { value: 1000000000000, label: _t('조') },
-        { value: 100000000, label: _t('억') },
-        { value: 10000, label: _t('만') }
+        { value: 1000000000000, label: '조' },
+        { value: 100000000, label: '억' },
+        { value: 10000, label: '만' }
     ];
     for (const unit of units) {
         if (amount >= unit.value) return `${trimFixedNumber(amount / unit.value, 1)}${unit.label}`;
@@ -5299,13 +5300,13 @@ function applyPanelLayoutSettings() {
     document.body.classList.toggle('left-pane-collapsed', isLeftCollapsed);
     // 정적 UI를 새로 그릴 때마다 불린다. 같은 글자와 속성을 다시 쓰고 innerText를 읽으면 문서 스타일과 배치를 강제로 다시
     // 계산했다(2026-10-07 프레임 드랍: 몇 초마다 한 번씩 튀던 프레임). 바뀐 것만 쓴다.
-    const leftLabel = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
+    const leftLabel = _t(isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기');
     leftToggleButtons.forEach(button => syncPanelToggle(button, isLeftCollapsed ? '▶' : '◀', { 'data-tip': leftLabel, 'aria-label': leftLabel }));
     if (leftExpandFab) syncPanelToggle(leftExpandFab, '▶', {});
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     document.body.classList.toggle('combat-log-collapsed', isLogCollapsed);
-    const logText = isLogCollapsed ? '펼치기' : '접기';
-    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, logText, { 'aria-expanded': String(!isLogCollapsed), 'aria-label': _t('전투 기록 {logText}', { logText: _t(logText) }) });
+    const [logText, logLabel] = isLogCollapsed ? ['펼치기', '전투 기록 펼치기'] : ['접기', '전투 기록 접기'];
+    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, _t(logText), { 'aria-expanded': String(!isLogCollapsed), 'aria-label': _t(logLabel) });
 }
 
 /** A panel toggle's text and attributes, written only where they differ. */
