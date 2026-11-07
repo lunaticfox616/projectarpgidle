@@ -595,8 +595,7 @@ begin
         revision = revision + 1, updated_at = now() where user_id = account_id;
     update public.hall_listings set copies_sold = copies_sold + 1,
         status = case when copies_sold + 1 >= copy_cap then 'sold_out' else status end,
-        retired_at = case when copies_sold + 1 >= copy_cap then now() else retired_at end
-     where id = listing_row.id;
+        retired_at = case when copies_sold + 1 >= copy_cap then now() else retired_at end where id = listing_row.id;
     insert into public.hall_curator_profiles(user_id, honor, copies_shared)
     values (listing_row.curator_id, listing_row.honor_per_copy, 1)
     on conflict (user_id) do update set honor = hall_curator_profiles.honor + excluded.honor,
