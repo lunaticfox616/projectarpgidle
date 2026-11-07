@@ -2364,8 +2364,8 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '완료 후 행동: {action}': 'After clear: {action}',
         '전투 완료 후 행동: {action}': 'Action after combat: {action}',
         '현재 지역 또는 층을 다시 진행합니다.': 'Replays the current zone or floor.',
-        '일반 자동 진행 규칙에 따라 다음 지역으로 이동합니다.': 'Moves to the next zone by the normal auto-progress rules.',
-        '이번 루프의 최고 심화/미궁 기록 다음 층으로 이동합니다.': "Moves to the floor after this loop's best depth or labyrinth record.",
+        '지역은 열린 가장 먼 지역으로, 층은 방금 깬 층의 다음 층으로 갑니다.': 'Goes to the farthest open zone, or to the floor after the one just cleared.',
+        '혼돈 심화, 미궁, 혼돈계에서 이번 루프에 깬 가장 높은 층의 다음 층으로 바로 갑니다.': 'In Chaos Depths, the labyrinth and the Chaos Realm, goes straight to the floor after the highest one cleared this loop.',
         '전투를 멈추고 현재 위치에서 대기합니다.': 'Stops fighting and waits at the current position.',
         '순환 완성': 'Cycle complete',
         '우로보로스 원환': 'Ouroboros Ring',
@@ -10528,6 +10528,8 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '제안 {name} {amount}개': 'Offer: {amount} {name}',
         // 2026-11-07 장비 가방: 보고 있는 페이지
         '{page} / {count} 페이지': 'Page {page} / {count}',
+        '관문이 아직 닫혀 있습니다.': 'The gate is still closed.',
+        '보스 관문이 열렸습니다.': 'The boss gate is open.',
     })
 });
 

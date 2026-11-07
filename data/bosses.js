@@ -14,9 +14,12 @@ const ATLAS_BOSS_BODIES = Object.freeze(['roots', 'trunk', 'canopy', 'garden', '
     .flatMap(region => Array.from({ length: 9 }, (_, slot) => `atlas-${region}-${slot}`)));
 
 
+// 액트 10은 새로 그린 '고치에서 태어난 존재'(bossAct10_2, 무대 그림이 있는 하나) 한 장만 쓴다(2026-11-08 사용자: 자꾸 옛 그림으로
+// 되돌아감). 예전에는 다섯 장을 시드로 골라 넷이 옛 정지 그림이었고, 혼돈은 액트를 시드 % 10으로 고른 뒤 같은 시드 % 5로 그림을
+// 골라 액트 10(9)이면 늘 다섯째(옛 그림)였다. 옛 그림 다섯 장은 저장된 적을 위해 BOSS_ASSET_SOURCES에 남긴다.
 const ACT_BOSS_ASSET_KEYS = [
     'bossAct1', 'bossAct2', 'bossAct3', 'bossAct4_1', 'bossAct5',
-    'bossAct6', 'bossAct7', 'bossAct8_1', 'bossAct9', 'bossAct10_1'
+    'bossAct6', 'bossAct7', 'bossAct8_1', 'bossAct9', 'bossAct10_2'
 ];
 
 // 원본 보스 그림. 게임은 이것을 실행 중에 정리(배경을 투명하게, js/passives.js sanitizeBattleSheet)하던 것을 미리 해 둔
@@ -46,8 +49,7 @@ const BOSS_ASSET_MANIFEST = Object.fromEntries(Object.entries(BOSS_ASSET_SOURCES
 
 const BOSS_ASSET_VARIANTS_BY_ACT = {
     4: ['bossAct4_1', 'bossAct4_2'],
-    8: ['bossAct8_1', 'bossAct8_2', 'bossAct8_3'],
-    10: ['bossAct10_1', 'bossAct10_2', 'bossAct10_3', 'bossAct10_4', 'bossAct10_5']
+    8: ['bossAct8_1', 'bossAct8_2', 'bossAct8_3']
 };
 
 // 보스 그림은 왼쪽을 보고 그려졌다(2026-10-06 열일곱 장 확인). 정면을 보는 이 셋만 뒤집지 않고,
@@ -313,9 +315,27 @@ const ACT_MONSTER_VISUALS = Object.freeze([
     ['deacon-act2-melee', '중정 철퇴 부제사', 'melee'], ['deacon-act2-ranged', '중정 성수 부제녀', 'ranged'],
     ['deacon-act6-melee', '고갈 철퇴 부제사', 'melee'], ['deacon-act6-ranged', '고갈 성수 부제녀', 'ranged'],
     ['deacon-act7-melee', '고목 철퇴 부제사', 'melee'], ['deacon-act7-ranged', '고목 성수 부제녀', 'ranged'],
-    ['deacon-act8-melee', '장막 철퇴 부제사', 'melee'], ['deacon-act8-ranged', '장막 성수 부제녀', 'ranged']
+    ['deacon-act8-melee', '장막 철퇴 부제사', 'melee'], ['deacon-act8-ranged', '장막 성수 부제녀', 'ranged'],
+    ['ashveil-stalker', '잿빛 장막의 추적자', 'melee']
 ].map(([id, name, attack]) => Object.freeze({ id, name, attack })).concat(ROOT_MONSTER_VISUALS));
 const ACT_MONSTER_VISUAL_BY_ID = Object.freeze(Object.fromEntries(ACT_MONSTER_VISUALS.map(def => [def.id, def])));
+
+/** 기습 정예(2026-11-08 사용자: Codex가 만든 기습 몬스터, 정예 이상에서만. 그림 artifacts/elite-blink-ambush-20261107): species의 외형이
+ * 정예면 minCells칸 이상 떨어진 목표에게 걸어가지 않고 사라졌다가 옆 칸에 나타나 친다(js/enemy-ambush.js). 처음 싸움에 든 뒤 firstDelayMs,
+ * 그 뒤로 cooldownMs마다. windUp: 나타난 몬스터의 공격 게이지(습격방의 windUp처럼 곧 친다). vanishMs, hiddenMs, appearMs: 사라짐 효과,
+ * 숨은 동안, 나타남 효과(js/canvas-enemy-ambush.js). 잿빛 장막의 추적자는 정예로만 나오는 새 몬스터로, stalkerPools(장막 액트 8~10과
+ * 혼돈 이후)의 정예 가운데 stalkerShare만큼을 맡는다. 균열 척후, 장막접힘 위습, 장막 두꺼비는 제 자리 그대로 나오고 정예일 때만 기습한다. */
+const ELITE_AMBUSH = Object.freeze({
+    species: Object.freeze(['ashveil-stalker', 'breach-scout', 'wisp-s04', 'act8-shroud-toad']),
+    stalker: 'ashveil-stalker', stalkerPools: Object.freeze([8, 9, 10, 'postChaos']), stalkerShare: 0.25,
+    minCells: 3, firstDelayMs: 700, cooldownMs: 6000, windUp: 0.7, vanishMs: 220, hiddenMs: 105, appearMs: 220
+});
+/** 정예 자리에 잿빛 장막의 추적자가 서는가: 장막 액트와 혼돈 이후의 무리에서 시드의 stalkerShare만큼(같은 시드는 늘 같다). */
+function getEliteStalkerVisual(zone, seed) {
+    const pool = getActMonsterPool(zone);
+    if (!ELITE_AMBUSH.stalkerPools.some(key => ACT_MONSTER_POOLS[key] === pool)) return null;
+    return Math.floor(seed / 11) % 100 < ELITE_AMBUSH.stalkerShare * 100 ? ACT_MONSTER_VISUAL_BY_ID[ELITE_AMBUSH.stalker] : null;
+}
 
 /** 액트 번호(1~10) → 그 액트의 몬스터 외형. postChaos = 혼돈 이후. */
 const ACT_MONSTER_POOLS = (() => {
@@ -390,6 +410,11 @@ function getRootMonsterWeapon(enemy) {
 
 /** 일반·정예 외형: 다섯에 하나는 원소 위습, 마흔에 하나는 무기 뿌리촉수, 나머지는 지역 목록에서 시드와 원소로 고른다. */
 /** marker.ownLook: a content room that draws its own sheet (the atlas hive's bees, js/atlas-encounters.js) rolls none. */
+/** 무리가 정한 일반 배역, 아니면 정예 자리의 잿빛 장막의 추적자(getEliteStalkerVisual). 둘 다 아니면 null. */
+function chosenMonsterVisual(zone, seed, marker) {
+    if (marker?.packVisualId) return ACT_MONSTER_VISUAL_BY_ID[marker.packVisualId];
+    return marker?.elite ? getEliteStalkerVisual(zone, seed) : null;
+}
 function getMonsterVariantDefinition(variantSeed, element, zone, marker) {
     if (marker && marker.ownLook) return null;
     const seed = Math.abs(Math.floor(Number(variantSeed) || 0));
@@ -397,7 +422,8 @@ function getMonsterVariantDefinition(variantSeed, element, zone, marker) {
     const root = getRootMonsterVisualDefinition(seed);
     if (root) return root;
     // 무리의 일반 배역만 지정한다. 위습/무기 뿌리와 그 방어·드랍 규칙은 위의 기존 굴림을 따른다.
-    if (marker?.packVisualId) return ACT_MONSTER_VISUAL_BY_ID[marker.packVisualId];
+    const chosen = chosenMonsterVisual(zone, seed, marker);
+    if (chosen) return chosen;
     const elementOffset = Math.max(0, ['phys', 'fire', 'cold', 'light', 'chaos'].indexOf(element));
     const pool = getActMonsterPool(zone);
     return ACT_MONSTER_VISUAL_BY_ID[pool[(seed + elementOffset) % pool.length]];
@@ -486,5 +512,5 @@ safeExposeData({
     getMonsterVisualAttackKind, ROOT_MONSTER_RULES, ROOT_MONSTER_VISUALS, getRootMonsterVisualDefinition, getRootMonsterWeapon,
     WISP_ENEMY_RULES, WISP_NEUTRAL_RULES, WISP_MONSTER_ASSET_MANIFEST, WISP_MONSTER_VISUALS, getWispMonsterVisualDefinition,
     REALM_MONSTER_VISUAL_SETS, getRealmMonsterVisualSet, getRealmMonsterVisualDefinition,
-    getRealmMonsterVisualDefinitionById
+    getRealmMonsterVisualDefinitionById, ELITE_AMBUSH, getEliteStalkerVisual
 });

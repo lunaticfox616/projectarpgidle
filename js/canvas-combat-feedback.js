@@ -91,7 +91,11 @@ worldTreeSkillFx.feedback = (() => {
     }
 
     const elementSounds = {fire: fireSound, cold: coldSound, light: lightSound, chaos: chaosSound};
+    // 플라스크 룬의 깨지는 소리(2026-11-08 사용자 소리 두 개, 번갈아 무작위): 빈 플라스크를 뺀 플라스크 계열 룬(data/skills.js SKILL_RUNE_FAMILY)은
+    // 속성과 상관없이 이 소리를 낸다. 두 파일은 예전 플라스크 소리의 크기에 맞췄다(assets/audio/game-sfx-v2/sounds-20261108).
+    const flaskGlass = name => SKILL_RUNE_FAMILY[name] === 'flask' && name !== '빈 플라스크';
     function skillSound(fx) {
+        if (flaskGlass(fx.skillName)) return 'hitFlaskGlass';
         const skill = SKILL_DB[fx.skillName] || {}, tags = skill.tags || [];
         // Cast-time element wins: staged/prismatic skills may differ from their base definition.
         const element = fx.element || skill.ele || 'phys';

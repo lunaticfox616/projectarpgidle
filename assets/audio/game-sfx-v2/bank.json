@@ -267,6 +267,19 @@
     "priority": 0,
     "enabled": true
   },
+  "hitFlaskGlass": {
+    "label": "플라스크 룬 깨짐",
+    "files": [
+      "sounds-20261108/flask-arcane.wav",
+      "sounds-20261108/flask-shatter.wav"
+    ],
+    "gain": 0.32,
+    "rate": 1,
+    "group": "impact",
+    "cooldown": 110,
+    "priority": 0,
+    "enabled": true
+  },
   "playerHurt": {
     "label": "플레이어 피격",
     "files": [

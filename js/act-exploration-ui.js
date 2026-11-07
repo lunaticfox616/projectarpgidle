@@ -50,9 +50,8 @@ const actExplorationUi=(()=>{
         const remaining=actExplorationState.remainingElites(run),seal=document.getElementById('act-exploration-seal');
         // '봉인 n'은 무엇을 세는지 보이지 않았다(검토 4차): 남은 정예 수와, 다 잡으면 무엇이 열리는지.
         seal.textContent=remaining?'정예 '+remaining:_t('관문 개방');
-        const sealText=remaining?_t('남은 정예 {remaining}, 모두 처치하면 보스 관문이 열립니다', { remaining }):'보스 관문이 열렸습니다';
-        seal.dataset.tip=sealText;
-        seal.setAttribute('aria-label',sealText);
+        // 설명은 hint가 창 안에 띄운다(data-tip은 몸에 붙은 툴팁이라 크게 보기 창 뒤에 깔렸다).
+        seal.setAttribute('aria-label',sealText(run,remaining));
     }
     /** 약도 한 장: 방 단위 무대는 방과 길의 약도(바탕과 표식을 따로 그린다), 이어진 지도는 주인공 둘레의 지형. */
     function paintMiniMap(canvas,run,map) {
@@ -296,10 +295,23 @@ const actExplorationUi=(()=>{
         if(actExplorationProgress.canMove(run)&&run.destination)actExplorationState.selectDestination(run,footing(run),KEYED);
     }
     function expand(){document.getElementById('act-exploration-dialog').showModal();render();}
+    function sealText(run,remaining) {
+        if(remaining)return _t('남은 정예 {remaining}, 모두 처치하면 보스 관문이 열립니다', { remaining });
+        return run.sealed?_t('관문이 아직 닫혀 있습니다.'):_t('보스 관문이 열렸습니다.');
+    }
+    /** 정예, 관문 칸의 설명. 크게 보기 창은 맨 위 층(showModal)이라 몸에 붙은 #info-tooltip이 창 뒤에 깔려 읽을 수 없었다(2026-11-08
+     * 사용자): 창이 열린 동안 툴팁을 창 안으로 옮기고, 창이 닫히면 몸으로 돌려놓는다. */
     function hint(event) {
         const run=actExplorationState.current(game);if(!run)return;
         const rect=event.currentTarget.getBoundingClientRect(),count=actExplorationState.remainingElites(run);
-        showInfoTooltipHtml(rect.left,rect.bottom,count?'남은 정예 몬스터 수: '+count:run.sealed?'관문이 아직 닫혀 있습니다.':'보스 관문이 열렸습니다.','#b79c58','act-gate-'+count);
+        hostTooltipIn(event.currentTarget.closest('dialog'));
+        showInfoTooltipHtml(rect.left,rect.bottom,escapeHTML(sealText(run,count)),'#b79c58','act-gate-'+count+(run.sealed?'s':''));
+    }
+    function hostTooltipIn(dialog) {
+        const tip=document.getElementById('info-tooltip');
+        if(!dialog?.open || tip.parentElement===dialog)return;
+        dialog.append(tip);
+        dialog.addEventListener('close',()=>{hideInfoTooltip();document.body.append(tip);},{once:true});
     }
     // Only explicit travel controls participate. Automatic travel and combat never depend on this UI.
     function departureClick(event) {
