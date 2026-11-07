@@ -162,6 +162,7 @@ function drawEnemyDeathFx(ctx, fx, t, at) {
     const deathEnemy = enemy.enemy || {}, isBossDeath = !!(fx.boss || deathEnemy.isBoss), elite = !!fx.elite;
     const legacyT = isBossDeath ? Math.min(1, t * fx.duration / BOSS_DEATH_LEGACY_MS) : t;
     const deathMotion = getEnemyDeathMotion(enemy, at.playerPos, legacyT, isBossDeath, elite);
+    if (uiDisplay.reducedEffects()) Object.assign(deathMotion, { x: enemy.x, y: enemy.y, scaleX: 1, scaleY: 1, impactAlpha: 0 });
     drawEnemyDeathGroundReaction(ctx, enemy, deathMotion, fx.color, isBossDeath, elite);
     drawEnemyDeathContactFlash(ctx, enemy, deathMotion, fx.color, isBossDeath, elite);
     if (!(isBossDeath && drawBossDefeat(ctx, fx, t, at))) drawEnemyDeathAfterimage(ctx, fx, deathMotion, at);
@@ -1787,10 +1788,11 @@ function drawDamageImpactAccent(ctx, fx, t, enemyPosMap, playerPos) {
 function drawLevelUpFx(ctx, fx, t, playerPos, now) {
     const fade = t < 0.4 ? 1 : Math.max(0, (1 - t) / 0.6);
     const cx = playerPos.x, footY = playerPos.y + 2;
+    const reduced = worldTreeSkillFx.feedback.reduced();
     ctx.save();
     ctx.globalAlpha = 0.95 * fade;
     ctx.globalCompositeOperation = 'lighter';
-    const pillarHeight = worldTreeSkillFx.feedback.reduced() ? 40 : 70 + 20 * Math.min(1, t * 2.4);
+    const pillarHeight = reduced ? 0 : 70 + 20 * Math.min(1, t * 2.4);
     const pillar = ctx.createLinearGradient(cx, footY, cx, footY - pillarHeight);
     pillar.addColorStop(0, 'rgba(255,214,120,0.85)');
     pillar.addColorStop(0.45, 'rgba(255,229,154,0.4)');
@@ -1803,7 +1805,7 @@ function drawLevelUpFx(ctx, fx, t, playerPos, now) {
     ctx.strokeStyle = '#ffe59a';
     ctx.lineWidth = 2 * (1 - t) + 0.8;
     ctx.beginPath();
-    const radius = worldTreeSkillFx.feedback.reduced() ? 24 : 18 + t * 25;
+    const radius = reduced ? 24 : 18 + t * 25;
     ctx.ellipse(cx, footY, radius, radius * 0.36, 0, 0, Math.PI * 2);
     ctx.stroke();
     // The stage hero changes size with the viewport. Keep the label above its head and health bar, not on its torso.
@@ -2033,7 +2035,7 @@ function sortBattleActorsByDepth(actors) {
 }
 
 function drawPlayerReturnWarpEffect(ctx, position, warp, frontLayer) {
-    if (!warp) return;
+    if (!warp || uiDisplay.reducedEffects()) return;
     let ringRadius = 22 * warp.ringScale;
     let beamAlpha = Math.sin(warp.progress * Math.PI) * 0.42;
     ctx.save();
@@ -2054,8 +2056,8 @@ function drawPlayerReturnWarpEffect(ctx, position, warp, frontLayer) {
     ctx.strokeStyle = frontLayer ? '#e8e2ff' : '#86d9ff';
     ctx.lineWidth = frontLayer ? 2.1 : 2.8;
     ctx.beginPath();
-    ctx.ellipse(position.x, position.y + 7, ringRadius, ringRadius * 0.32, 0,
-        frontLayer ? 0 : Math.PI, frontLayer ? Math.PI : Math.PI * 2);
+    const arcStart = frontLayer ? 0 : Math.PI;
+    ctx.ellipse(position.x, position.y + 7, ringRadius, ringRadius * 0.32, 0, arcStart, arcStart + Math.PI);
     ctx.stroke();
     if (frontLayer) {
         for (let spark = 0; spark < 4; spark++) {
@@ -2071,7 +2073,7 @@ function drawPlayerReturnWarpEffect(ctx, position, warp, frontLayer) {
 }
 
 function drawPlayerReturnDepartureEffect(ctx, position, departure, frontLayer) {
-    if (!departure) return;
+    if (!departure || uiDisplay.reducedEffects()) return;
     ctx.save();
     if (!frontLayer) {
         let beam = ctx.createLinearGradient(position.x, position.y - 76, position.x, position.y + 8);
@@ -2105,6 +2107,7 @@ function drawPlayerReturnDepartureEffect(ctx, position, departure, frontLayer) {
 }
 
 function drawPlayerReturnWhiteShroud(ctx, position, strength, frontLayer) {
+    if (uiDisplay.reducedEffects()) return;
     let alpha = clampNumber(Number(strength) || 0, 0, 1);
     if (alpha <= 0.01) return;
     ctx.save();
@@ -2248,11 +2251,11 @@ function getEnemyHitRecoil(fx, state, tile) {
 
 /** Direct-hit flash in visual ms. Independent of skill-effect duration; DoT must not leave a monster permanently white. */
 function getEnemyHitFlash(fx, now) {
-    if (fx.dot || (fx.type !== 'hit' && fx.type !== 'enemyDeath')) return 0;
+    if (fx.dot || !['hit', 'enemyDeath'].includes(fx.type)) return 0;
     if (fx.type === 'hit' && !(fx.damage > 0)) return 0;
     const age = now - fx.start, duration = fx.crit ? 140 : 110;
     if (age < 0 || age >= duration) return 0;
-    const strength = game.settings.hitEmphasis === 'mild' ? 0.42 : 0.92;
+    const strength = game.settings.hitEmphasis === 'mild' || uiDisplay.reducedEffects() ? 0.42 : 0.92;
     return strength * Math.min(1, (duration - age) / (duration - 40));
 }
 
@@ -3162,6 +3165,7 @@ function getBattleCameraShake(now) {
 // 피격감(2026-10-04): every hit on the hero flashes the screen edge red for a moment, stronger the more life it took.
 const PLAYER_HURT_EDGE = Object.freeze({ ms: 300, min: 0.16, perLife: 3, max: 0.7 });
 function drawPlayerHurtEdge(ctx, width, height, now) {
+    if (uiDisplay.reducedEffects()) return;
     const hit = findRecentBattleFx('playerHit', now, PLAYER_HURT_EDGE.ms);
     if (!hit || !(Number(hit.damage) > 0)) return;
     const fade = 1 - (now - hit.start) / PLAYER_HURT_EDGE.ms;

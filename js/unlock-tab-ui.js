@@ -192,6 +192,7 @@ const unlockTabUi = {
     shownOwned: null,
     shownOpenParents: null,
     layoutNow: null,
+    plannedPath: new Set(),
 
     // ---------------------------------------------------------------- 칸의 상태
     /** owned 열림, ready 지금 가능, short 포인트 모자람, soon 앞 해금은 열렸고 루프나 조건을 기다림, far 앞 해금이 아직. */
@@ -237,7 +238,8 @@ const unlockTabUi = {
     // ---------------------------------------------------------------- 판
     nodeClass(def, state, marks) {
         const lit = marks.lit.has(def.id) ? ' is-lit' : '', fresh = marks.fresh.has(def.id) ? ' is-fresh' : '', chosen = this.selectedId === def.id ? ' is-chosen' : '';
-        return `fam-${unlockBoard.familyOf(def)} kind-${contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}${marks.unseen.has(def.id) ? ' is-unseen' : ''}`;
+        const plan = this.plannedPath.has(def.id) ? ' is-planned' : '', goal = game.contentProgression.plannedUnlockId === def.id ? ' is-goal' : '';
+        return `fam-${unlockBoard.familyOf(def)} kind-${contentProgression.kind(def)} is-${state}${lit}${fresh}${chosen}${plan}${goal}${marks.unseen.has(def.id) ? ' is-unseen' : ''}`;
     },
     unseenHtml: (def, marks) => (marks.unseen.has(def.id) ? '<i class="unlock-unseen" aria-hidden="true">!</i>' : ''),
     /** 고른 적 없는 칸(UNLOCK_UNSEEN_STATES). 칸을 누르거나 다른 창에서 불러 고르면 본 것이 된다(select). 창을 열 때 저절로 고른 칸은 아니다. */
@@ -261,7 +263,8 @@ const unlockTabUi = {
             edges.push({ from, to: def.id, points, long, state, side: def.after !== from, fresh: marks.lit.has(from) && marks.fresh.has(def.id) });
         }));
         return edges.sort((a, b) => rank[a.state] - rank[b.state]).map(edge => {
-            const name = `fam-${unlockBoard.familyOf(CONTENT_UNLOCK_CATALOG.find(row => row.id === edge.from))} ${edge.state}${edge.fresh ? ' is-new' : ''}${edge.long ? ' is-long' : ''}${edge.side ? ' is-side' : ''}`;
+            const planned = this.plannedPath.has(edge.from) && this.plannedPath.has(edge.to) ? ' is-planned' : '';
+            const name = `fam-${unlockBoard.familyOf(CONTENT_UNLOCK_CATALOG.find(row => row.id === edge.from))} ${edge.state}${planned}${edge.fresh ? ' is-new' : ''}${edge.long ? ' is-long' : ''}${edge.side ? ' is-side' : ''}`;
             return `<polyline class="${name}"${edge.fresh ? ' pathLength="1"' : ''} data-from="${edge.from}" data-to="${edge.to}" points="${edge.points.map(point => point.join(',')).join(' ')}"/>`;
         }).join('');
     },
@@ -313,6 +316,37 @@ const unlockTabUi = {
         return `<header class="unlocks-head">${this.pointsHtml()}<button type="button" class="unlock-stat is-ready" data-unlock-next="1"${ready ? '' : ' disabled'}><span>${_t('해금 가능')}</span><strong>${ready}</strong></button>
             <div class="unlock-over-slot"></div><div class="unlock-stat is-total"><span>${_t('전체')}</span><strong>${this.openCount()}<small>/${unlockBoard.rows.length}</small></strong></div></header>`;
     },
+    goalHtml(plan) {
+        if (!plan?.valid) return '';
+        const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === plan.id);
+        const status = plan.complete ? _t('목표 달성 · 다음 목표를 골라 보세요') : _t('남은 경로 {cost}P · 부족 {deficit}P', { cost: plan.totalCost, deficit: plan.deficit });
+        return `<div class="unlock-goal${plan.complete ? ' is-complete' : ''}" aria-label="${_t('고정한 해금 목표')}"><button type="button" data-unlock-select="${def.id}"><b>${_t('목표')} · ${escapeHTML(_t(def.name))}</b><span>${status}</span></button>
+            <button type="button" data-unlock-goal-clear="1" aria-label="${_t('해금 목표 해제')}">${_t('해제')}</button></div>`;
+    },
+    planStepsHtml(plan) {
+        const steps = plan.remainingIds.map(id => CONTENT_UNLOCK_CATALOG.find(row => row.id === id));
+        return steps.length ? `<ol class="unlock-plan-steps">${steps.map(def => `<li><button type="button" data-unlock-select="${def.id}">${escapeHTML(_t(def.name))}</button><span>${contentProgression.holds(def.id) ? _t('구매 완료') : def.cost ? `${def.cost}P` : _t('자동')}</span></li>`).join('')}</ol>` : `<p>${_t('필요한 해금을 모두 열었습니다.')}</p>`;
+    },
+    planHtml(def, plan) {
+        if (!plan.valid) return `<p class="unlock-plan-error">${_t('해금 경로를 확인할 수 없습니다.')}</p>`;
+        if (plan.complete) return `<p class="unlock-plan-complete">${_t('선택한 해금은 이미 열려 있습니다.')}</p>`;
+        const pointAt = plan.pointLoop === null ? _t('계산할 수 없음') : plan.pointLoop === game.season ? _t('현재 충족') : _t('루프 {minLoop}', { minLoop: plan.pointLoop });
+        const unmet = plan.world.filter(row => !row.met).length;
+        const world = plan.world.map(row => `<li class="${row.met ? 'is-met' : ''}"><b>${escapeHTML(_t(row.name))}</b> ${row.met ? '✓' : '○'} ${escapeHTML(_t(row.label))}</li>`).join('');
+        return `<div class="unlock-plan-stats"><strong>${_t('남은 경로 {cost}P', { cost: plan.totalCost })}</strong><span>${_t('보유 {balance}P · 부족 {deficit}P', { balance: plan.balance, deficit: plan.deficit })}</span>
+            <span>${_t('포인트 충족: {loop}', { loop: pointAt })}</span><span class="${game.season >= plan.minLoop ? 'is-met' : ''}">${_t('루프 조건: {loop} 이상', { loop: plan.minLoop })}</span></div>
+            <details class="unlock-plan-details" id="unlock-plan-${def.id}"><summary>${_t('남은 해금 {count}개 · 세계 조건 미충족 {unmet}개', { count: plan.remainingIds.length, unmet })}</summary><div class="unlock-plan-body"><h5>${_t('목표까지 필요한 해금')}</h5>${this.planStepsHtml(plan)}
+            <h5>${_t('별도로 달성할 세계 조건')}</h5>${world ? `<ul class="unlock-plan-world">${world}</ul>` : `<p>${_t('추가 세계 조건 없음')}</p>`}<p class="unlock-plan-note">${_t('포인트 예상은 다른 해금에 쓰지 않을 때 기준입니다. 세계 진행 조건은 별도로 달성해야 합니다.')}</p></div></details>`;
+    },
+    lifecycleSummaryHtml(def) {
+        const life = def.lifecycle;
+        return `<div class="unlock-lifecycle-summary" aria-label="${_t('다음 루프에 남는 것')}"><p><b>${_t('유지')}</b>${_t('기능 해금')}${life?.kept ? ` · ${escapeHTML(_t(life.kept))}` : ''}</p>
+            ${life?.reset ? `<p><b>${_t('초기화')}</b>${escapeHTML(_t(life.reset))}</p>` : ''}</div>`;
+    },
+    pinHtml(def) {
+        const pinned = game.contentProgression.plannedUnlockId === def.id;
+        return `<button type="button" class="unlock-pin" data-unlock-goal="${def.id}" aria-pressed="${pinned}">${_t(pinned ? '목표 고정 해제' : '이 해금을 목표로 고정')}</button>`;
+    },
     lifecycleHtml(def) {
         const life = def.lifecycle;
         if (!life) return `<p class="unlock-lifetime-note">${_t('기능 해금은 다음 루프에도 유지됩니다.')}</p>`;
@@ -343,14 +377,14 @@ const unlockTabUi = {
         if (contentProgression.kind(def) === 'auto') return `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
         return status.available ? `<button type="button" class="unlock-act is-go" data-unlock-content="${def.id}">${_t('{cost}P 해금', { cost: def.cost })}</button>` : `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
     },
-    detailHtml(def) {
+    detailHtml(def, plan) {
         const status = contentProgression.status(def.id), kind = contentProgression.kind(def), kindName = kind === 'auto' ? '자동 개방' : def.rail ? '강화' : '포인트 해금';
         const conditions = contentProgression.requirements(def.id).map(row => `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(_t(row.label))}</span>`).join('');
         const gain = this.gainOf(def);
         return `<div class="unlock-detail-art fam-${unlockBoard.familyOf(def)} kind-${kind} is-${this.stateOf(def)}"><span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt=""></span></div>
             <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${unlockBoard.familyOf(def)}">${def.rail ? _t(kindName) : `${escapeHTML(_t(def.group))}, ${_t(kindName)}`}</span><h4>${escapeHTML(_t(def.name))}${gain ? `<em>${escapeHTML(gain)}</em>` : ''}</h4>
-            <p class="unlock-desc">${escapeHTML(_t(def.description))}</p><div class="unlock-reqs">${status.unlocked ? '' : conditions}</div></div>
-            ${this.nextHtml(def)}<div class="unlock-detail-action">${contentUnlockUi.entryReward(def, status)}${this.actionHtml(def, status)}${this.moreHtml(def)}</div>`;
+            <p class="unlock-desc">${escapeHTML(_t(def.description))}</p><div class="unlock-reqs">${status.unlocked ? '' : conditions}</div>${this.planHtml(def, plan)}</div>
+            ${this.nextHtml(def)}<div class="unlock-detail-action">${contentUnlockUi.entryReward(def, status)}${this.actionHtml(def, status)}${this.lifecycleSummaryHtml(def)}${this.pinHtml(def)}${this.moreHtml(def)}</div>`;
     },
 
     // ---------------------------------------------------------------- 그리기
@@ -375,21 +409,27 @@ const unlockTabUi = {
         this.shownOpenParents = open;
         return marks;
     },
+    readPlans(id) {
+        const goalId = game.contentProgression.plannedUnlockId;
+        const goal = goalId ? window.GameModules.unlockPlan.read(goalId) : null;
+        this.plannedPath = new Set(goal?.valid ? goal.ids : []);
+        return { plan: window.GameModules.unlockPlan.read(id), goal };
+    },
     render() {
         const root = document.getElementById('content-unlock-panel');
         if (!root || !game.contentProgression) return;
-        const selected = this.settleSelection();
+        const selected = this.settleSelection(), { plan, goal } = this.readPlans(selected.id);
         const states = unlockBoard.rows.map(def => this.stateOf(def)).join();
-        const key = JSON.stringify([i18n.language, game.season, contentProgression.balance(), states, this.selectedId, (game.seenUnlocks || []).length, root.clientHeight, root.clientWidth]);
+        const key = JSON.stringify([i18n.language, game.season, contentProgression.balance(), states, this.selectedId, plan, goal, (game.seenUnlocks || []).length, root.clientHeight, root.clientWidth]);
         if (this.shownKey === key && root.childNodes.length) return;
         this.shownKey = key;
         this.bindPanel(root);
         const keep = root.querySelector('.unlocks-scroll')?.scrollLeft || 0, keepTop = root.querySelector('.unlocks-scroll')?.scrollTop || 0;
         captureUiDisclosureState(root);
-        root.innerHTML = `${this.headHtml()}<div class="unlocks-view"><div class="unlocks-scroll"><div class="unlocks-canvas"></div></div>
+        root.innerHTML = `${this.headHtml()}${this.goalHtml(goal)}<div class="unlocks-view"><div class="unlocks-scroll"><div class="unlocks-canvas"></div></div>
             <div class="unlock-fade is-left"></div><div class="unlock-fade is-right"></div><div class="unlock-corner">${_t('루프')}</div>
             <button type="button" class="unlock-edge is-left" data-unlock-edge="-1"></button><button type="button" class="unlock-edge is-right" data-unlock-edge="1"></button>
-            <button type="button" class="unlock-to-now" data-unlock-now="1">${_t('지금으로')}</button></div><aside class="unlock-detail" aria-label="${_t('고른 해금')}">${this.detailHtml(selected)}</aside>`;
+            <button type="button" class="unlock-to-now" data-unlock-now="1">${_t('지금으로')}</button></div><aside class="unlock-detail" aria-label="${_t('고른 해금')}">${this.detailHtml(selected, plan)}</aside>`;
         restoreUiDisclosureState(root);
         this.fillBoard(root, keep, keepTop);
     },
@@ -454,10 +494,20 @@ const unlockTabUi = {
         this.jump = (this.jump + 1) % list.length;
         this.select(list[this.jump].id);
     },
+    pin(id) {
+        const target = game.contentProgression.plannedUnlockId === id ? '' : id;
+        const keepFocus = document.activeElement?.matches?.('[data-unlock-goal], [data-unlock-goal-clear]');
+        if (!contentProgression.planTarget(target)) return;
+        this.render();
+        if (keepFocus) document.querySelector('#content-unlock-panel .unlock-pin')?.focus({ preventScroll: true });
+        saveGame({ skipCloudSync: false });
+    },
     handleClick(event) {
         const control = event.target.closest?.('#content-unlock-panel button');
         if (!control) return;
         const root = document.getElementById('content-unlock-panel'), data = control.dataset;
+        if (data.unlockGoal) { this.pin(data.unlockGoal); return; }
+        if (data.unlockGoalClear) { this.pin(game.contentProgression.plannedUnlockId); return; }
         if (data.unlockSelect) { this.select(data.unlockSelect); return; }
         if (data.unlockNext) { this.cycleReady(); return; }
         if (data.unlockEdge) { this.jumpOffscreen(root, Number(data.unlockEdge)); return; }

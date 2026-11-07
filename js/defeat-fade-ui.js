@@ -17,7 +17,7 @@
     }
 
     function showDefeatFade(event) {
-        if (event.detail?.background || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        if (event.detail?.background || uiDisplay.reducedEffects()) return;
         const wrap = document.getElementById('battlefield-wrap'), canvas = document.getElementById('battlefield-canvas');
         if (!wrap || !canvas || !canvas.width || !canvas.height) return;
         wrap.querySelector('.battle-defeat-fade')?.remove();

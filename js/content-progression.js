@@ -340,6 +340,13 @@ const contentProgression = (() => {
         return [...new Set((Array.isArray(raw) ? raw : []).filter(id => definitions.has(id)))];
     }
 
+    /** A saved destination is only a UI preference. It never changes purchase eligibility or the ledger. */
+    function planTarget(id, owner = game) {
+        if (!owner.contentProgression || (id !== '' && !definitions.has(id))) return false;
+        owner.contentProgression.plannedUnlockId = id;
+        return true;
+    }
+
     function restoredLedger(record, owner, legacy) {
         const savedLoop = Number.isFinite(record.highestLoop) ? record.highestLoop : 1;
         const highestLoop = Math.max(1, owner.season, Math.min(1000000, Math.floor(savedLoop)));
@@ -352,6 +359,7 @@ const contentProgression = (() => {
             graftFloor: Number(record.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(record.graftFloor) || 0)) : 0,
             paceCarry: Number(record.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(record.paceCarry) || 0)) : paceGap(highestLoop),
             unlocked: [], paidCosts: {}, inherited: savedIds(inherited), grandfathered: savedIds(grandfathered),
+            plannedUnlockId: definitions.has(record.plannedUnlockId) ? record.plannedUnlockId : '',
             automatic: savedIds(record.automatic).filter(id => kind(definitions.get(id)) === 'auto') };
     }
 
@@ -427,6 +435,6 @@ const contentProgression = (() => {
     }
 
     return Object.freeze({ kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, npcsMet, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
-        purchase, restore });
+        purchase, restore, planTarget });
 })();
 safeExposeGlobals({ contentProgression });

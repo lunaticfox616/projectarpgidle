@@ -358,6 +358,7 @@ const stageRoomsView = (() => {
     // ---------------------------------------------------------------- fade
     /** 방을 옮긴 직후의 어둠: 화면 전체를 덮고 fadeMs 동안 걷힌다. 전투 화면의 맨 위에 그린다. */
     function drawFade(ctx, area) {
+        if (uiDisplay.reducedEffects()) return;
         const run = actExplorationState.current(game);
         if (!run || shown.run !== run) return;
         const left = 1 - (performance.now() - shown.at) / STAGE_ROOMS.fadeMs;

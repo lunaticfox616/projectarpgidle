@@ -19,6 +19,7 @@ const openingJourney = (() => {
     const REPLACED = Object.freeze(['story_prologue']), STAGE_REPLACED = Object.freeze(['story_act_1_start', 'tutorial_battle_basics']);
     const TICK_MS = 150, LEAVE_MS = 900, REVEAL_MS = 1100, AUTO_HINT_MS = 45000, CARD_GAP = 8;
     let intro = null, rising = null, movedFrom = null, hintEl = null, hintTop = 0, hintBelow = false, hintField = '', wakeEl = null, autoHintUntil = 0, heldAuto = null;
+    let introReturnFocus = null, introOwner = null;
 
     const seen = key => Array.isArray(game.seenTutorials) && game.seenTutorials.includes(key);
     const mark = key => { if (!seen(key)) game.seenTutorials.push(key); };
@@ -35,7 +36,7 @@ const openingJourney = (() => {
     }
     const coarse = () => typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
     const tutorialOpen = () => !!document.querySelector('#tutorial-overlay.active');
-    /** A guide card is queued (its key counts as seen from then, js/state.js queueTutorialNotice) or on screen. */
+    /** A guide card is queued or on screen; seenTutorials records actual presentation, not queuing. */
     const guideWaits = key => (!!activeTutorial && activeTutorial.key === key) || tutorialQueue.some(row => row.key === key);
 
     /** A brand-new game: first loop, level 1 with no experience, standing in act 1 before any other map, the opening not yet played. */
@@ -44,7 +45,7 @@ const openingJourney = (() => {
     }
     const newGame = () => (game.season || 1) === 1 && (game.level || 1) === 1 && !(Number(game.exp) > 0) && !(Number(game.maxZoneId) > 0)
         && game.currentZoneId === 0;
-    const started = () => !!game.heroSelectionInitialized && !isLoopHeroSelectOpen();
+    const started = () => !!game.heroSelectionInitialized && !isLoopHeroSelectOpen() && !isStartupOverlayOpen() && !isLoadingOverlayOpen();
     /** The opening is under way: from the intro until the auto hunt opens (old saves never start it, so nothing locks for them). */
     const active = () => (game.season || 1) === 1 && (!!intro || seen(KEY.intro)) && !seen(KEY.done);
     const gemOnFloor = run => !!run && (run.groundLoot || []).some(row => row.kind === 'gem');
@@ -84,14 +85,18 @@ const openingJourney = (() => {
             stageActors.preloadRise(game.selectedClassId);
             stageActors.setRise({ start: null }); // the stage under the intro already shows the hero lying when the dark lifts
         }
-        intro = document.createElement('div');
+        introReturnFocus = document.activeElement;
+        introOwner = game;
+        intro = document.createElement('dialog');
         intro.id = 'opening-intro';
         intro.className = 'opening-intro';
-        intro.setAttribute('role', 'dialog');
         intro.setAttribute('aria-label', _t('프롤로그'));
         intro.innerHTML = introHtml();
         intro.addEventListener('click', event => (event.target.closest('[data-opening-skip]') ? endIntro() : advanceIntro()));
+        intro.addEventListener('cancel', event => { event.preventDefault(); endIntro(); });
         document.body.appendChild(intro);
+        intro.showModal();
+        intro.querySelector('[data-opening-next]').focus({ preventScroll: true });
         requestAnimationFrame(() => requestAnimationFrame(() => intro && intro.classList.add('is-playing')));
     }
     function introHtml() {
@@ -104,13 +109,23 @@ const openingJourney = (() => {
             <div class="opening-intro-text"><p class="opening-intro-kicker">${_t('프롤로그')}</p><h1 class="opening-intro-title">${escapeHTML(title)}</h1>
             <blockquote class="opening-intro-verdict">${verdict.map(text => line('', text)).join('')}${source ? line('opening-intro-source', _t(source)) : ''}</blockquote>
             ${scene.lines.map(text => line('opening-intro-line', _t(text))).join('')}
-            <p class="opening-intro-next" data-step style="--step:${step}">${_t('눌러서 계속')}</p></div></div>`;
+            <button type="button" class="opening-intro-next" data-opening-next>${_t('계속')} <kbd>Enter / Space</kbd></button></div></div>`;
+    }
+    /** Closing the native modal releases its inert background; restore the previous control or the battlefield. */
+    function removeIntro(scene) {
+        if (intro !== scene) return;
+        intro = null;
+        introOwner = null;
+        scene.close();
+        scene.remove();
+        const previous = introReturnFocus;
+        introReturnFocus = null;
+        selectionDialog.restoreFocus(previous);
     }
     /** A save loaded under the intro (a sign-in, a test fixture): the game is no longer new, so the intro goes without a trace and the
      * auto hunt setting it turned off comes back (only on the settings it touched; a loaded save brings its own). */
     function dropIntro() {
-        intro.remove();
-        intro = null;
+        removeIntro(intro);
         rising = null;
         stageActors.setRise(null);
         if (heldAuto && heldAuto.settings === game.settings) game.settings.autoMove = heldAuto.autoMove;
@@ -118,7 +133,7 @@ const openingJourney = (() => {
     }
     function advanceIntro() {
         if (!intro || intro.classList.contains('is-leaving')) return;
-        if (!intro.classList.contains('is-all')) { intro.classList.add('is-all'); return; }
+        if (!intro.classList.contains('is-all')) { intro.classList.add('is-all', 'is-playing'); return; }
         endIntro();
     }
     function endIntro() {
@@ -126,11 +141,13 @@ const openingJourney = (() => {
         const scene = intro;
         scene.classList.add('is-leaving');
         setTimeout(() => {
+            if (intro !== scene) return;
+            if (introOwner !== game) { dropIntro(); return; }
             mark(KEY.intro);
             heldAuto = null;
             scene.classList.add('is-revealing');
-            setTimeout(() => { scene.remove(); if (intro === scene) intro = null; }, REVEAL_MS);
-        }, LEAVE_MS);
+            setTimeout(() => removeIntro(scene), uiDisplay.reducedEffects() ? 0 : REVEAL_MS);
+        }, uiDisplay.reducedEffects() ? 0 : LEAVE_MS);
     }
 
     // ------------------------------------------------------------------ lessons
@@ -144,9 +161,20 @@ const openingJourney = (() => {
         if (hero && Math.abs(point.x - hero.x) < 90 && point.y > hero.y - 90 && point.y < hero.y + 30) startRise();
     }
     function onKey(event) {
+        if (intro) { onIntroKey(event); return; }
         if (!lying() || rising || intro || !['Space', 'Enter'].includes(event.code)) return;
         event.preventDefault();
         startRise();
+    }
+    /** Window capture precedes game hotkeys; the shared dialog owner contains Tab at both edges. */
+    function onIntroKey(event) {
+        event.stopImmediatePropagation();
+        if (event.code === 'Tab') { selectionDialog.containFocus(event, intro); return; }
+        if (!['Escape', 'Space', 'Enter'].includes(event.code)) return;
+        event.preventDefault();
+        if (event.repeat) return;
+        if (event.code === 'Escape' || event.target.closest('[data-opening-skip]')) endIntro();
+        else advanceIntro();
     }
     function startRise() {
         rising = { start: battleVisualState.visualNow };
@@ -170,11 +198,10 @@ const openingJourney = (() => {
         if (!movedFrom) movedFrom = { gx: hero.gx, gy: hero.gy };
         if ((run && run.destination) || hero.gx !== movedFrom.gx || hero.gy !== movedFrom.gy) mark(KEY.move);
     }
-    /** The gem lesson ends once the gem is in hand and its guide is over: the card read (not while it waits in the queue; closing
-     * it equips the gem, js/tutorial-ui.js equipSkippedStarterGem) and the follow-along guide, if taken, done or left. */
+    /** Reading in the archive has no equip side effect. The lesson requires a worn rune as well as finished guidance. */
     function gemLearnt() {
         const guide = 'tutorial_starter_gem_equip';
-        return game.skills.length > 1 && seen(guide) && !guideWaits(guide) && !tutorialOpen() && !tutorialActionUi.active;
+        return getEquippedEnhanceableGemNames().length > 0 && seen(guide) && !guideWaits(guide) && !tutorialOpen() && !tutorialActionUi.active;
     }
     function trackLesson(now, run) {
         const step = lesson();
@@ -345,14 +372,15 @@ const openingJourney = (() => {
     }
     /** Starts the intro for a new game; drops it when the game under it stopped being new. */
     function followGame() {
-        if (intro && !intro.classList.contains('is-leaving') && !newGame()) dropIntro();
+        if (intro && (introOwner !== game || !newGame())) dropIntro();
         else if (!intro && fresh()) startIntro();
     }
     function init() {
         const canvas = document.getElementById('battlefield-canvas');
         if (!canvas) return;
         ['pointerdown', 'mousedown', 'click'].forEach(type => canvas.addEventListener(type, onBattlefieldPress, true));
-        document.addEventListener('keydown', onKey, true);
+        window.addEventListener('keydown', onKey, true);
+        window.addEventListener('keyup', event => { if (intro) event.stopImmediatePropagation(); }, true);
         setInterval(tick, TICK_MS);
     }
     if (typeof document === 'object' && document.readyState !== 'loading') init();

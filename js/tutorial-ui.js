@@ -30,7 +30,7 @@ const tutorialActionUi = {
         if (!activeTutorial || this.requiresAttention(activeTutorial) || now < this.noticeUntil) return;
         const card = document.querySelector('#tutorial-overlay .tutorial-card');
         if (card?.matches(':hover, :focus-within')) return;
-        dismissTutorial(false);
+        dismissTutorial(false, 'unread');
     },
     active: null,
     highlighted: null,
@@ -266,7 +266,7 @@ const tutorialActionUi = {
         else target.removeAttribute('aria-describedby');
         this.highlighted = null;
     },
-    finish(completed) {
+    finish(completed, withoutSkip = false) {
         const action = this.active;
         this.active = null;
         this.placedFor = null;
@@ -274,10 +274,13 @@ const tutorialActionUi = {
         if (this.card) this.card.hidden = true;
         if (!action) return;
         if (action.guide.spotlight) action.guide.spotlight(false);
+        if (withoutSkip || action.notice.replay) return this.waitBetweenNotices();
         if (completed) {
-            game.seenTutorials.push('action_' + action.notice.key);
+            const key = 'action_' + action.notice.key;
+            if (!game.seenTutorials.includes(key)) game.seenTutorials.push(key);
             showGameToast(action.guide.title + ' 완료', { tone: 'success' });
         } else applySkippedGuide(action.notice.key);
+        queueImportantSave(0);
         this.waitBetweenNotices();
     }
 };
@@ -508,13 +511,15 @@ function refreshTutorialCardPlacement() {
 /** The first map notice sends the player to the act reward; after claiming it, the map button remains the way back. */
 function tutorialNoticeAllowed(notice) {
     if (notice.key === 'unlock_map' && (game.claimedActRewards || []).includes(0)) return false;
-    return storyJournalUi.allowsNotice(notice.key) && contentProgression.canOpen(notice.subtabId || notice.tabId);
+    return storyJournalUi.allowsNotice(notice.key) && contentProgression.canOpen(notice.tabId) && contentProgression.canOpen(notice.subtabId);
 }
 function tutorialWaitsForReward() {
     return !!tutorialQueue[0] && !String(tutorialQueue[0].key).startsWith('story_') && actRewardPromptPending();
 }
 function tutorialQueueIsHeld() { return tutorialActionUi.holdsQueue() || Date.now() < tutorialActionUi.quietUntil; }
 function showNextTutorial() {
+    window.GameModules.state.tutorials.sync(game);
+    window.GameModules.tutorialHistoryUi.sync();
     tutorialActionUi.expireNotice(Date.now());
     refreshTutorialCardPlacement();
     if (activeTutorial || tutorialQueueIsHeld() || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
@@ -524,8 +529,11 @@ function showNextTutorial() {
             activeTutorial = next;
             break;
         }
+        window.GameModules.state.tutorials.transition(game, next.key, 'unread');
     }
     if (!activeTutorial) return;
+    window.GameModules.state.tutorials.transition(game, activeTutorial.key, 'displayed');
+    queueImportantSave(0);
     tutorialActionUi.noticeUntil = Date.now() + 8000;
     activeTutorial.title = stripDecorativeEmoji(activeTutorial.title);
     activeTutorial.body = stripDecorativeEmoji(activeTutorial.body);
@@ -648,21 +656,21 @@ function plantSkippedStumpStarter(key) {
     if (stumpBox.plantStored(game) > 0) showGameToast(_t('그루터기 함: 받은 씨앗을 배치했습니다'), { tone: 'success' });
 }
 
-/** The queue and the card on screen belonged to the game running until now; a loaded save brings its own (js/ui.js
- * refreshRuntimeForLoadedSave). No skip bookkeeping: the keys were marked in the game that is gone. 2026-11-01: a signed-in player
- * whose guest slot is empty booted into a fresh default, which queued the prologue, act 1 and first-journey cards, and the account save
- * loaded under them, so they came back on every launch. */
+/** A loaded save owns its pending/displayed records. Discard the old foreground without acknowledging it. */
 function discardQueuedNotices() {
     tutorialQueue.length = 0;
+    window.GameModules.state.tutorials.reset();
+    tutorialActionUi.finish(false, true);
     if (!activeTutorial) return;
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
     activeTutorialStep = 0;
 }
 
-function dismissTutorial(openTarget) {
+function dismissTutorial(openTarget, status = 'read') {
     if (!activeTutorial) return;
     const notice = activeTutorial, tabId = notice.tabId;
+    window.GameModules.state.tutorials.transition(game, notice.key, status);
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
     activeTutorialStep = 0;
@@ -671,9 +679,11 @@ function dismissTutorial(openTarget) {
     // Phone notices held while the card was up: after the next card (if any) has had its turn.
     setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
     if (!openTarget) {
-        applySkippedGuide(notice.key);
+        if (status === 'read' && !notice.replay) applySkippedGuide(notice.key);
+        queueImportantSave(0);
         return tutorialActionUi.waitBetweenNotices();
     }
+    queueImportantSave(0);
     if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
     openTutorialTarget(notice);
     if (['tutorial_first_gear', 'unlock_items'].includes(notice.key)) tutorialActionUi.openEquipment();

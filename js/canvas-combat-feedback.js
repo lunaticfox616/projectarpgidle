@@ -1,10 +1,9 @@
 /* Transient contact/reward presentation. No gameplay state, timers or random draws.
  * Lives on the existing canvas FX owner; battleFx remains the sole event queue. */
 worldTreeSkillFx.feedback = (() => {
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
     let epoch = -1, sceneState = null, lastNow = 0, notice = null;
     let contacts = 0, fragments = 0;
-    const reduced = () => motion.matches;
+    const reduced = () => uiDisplay.reducedEffects();
 
     /** Resume on the same timebase addBattleFx uses after a >250ms render gap.
      * Only the presentation clock changes; combat/rewards continue on combatTimeMs. */

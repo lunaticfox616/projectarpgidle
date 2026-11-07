@@ -25,6 +25,7 @@
     const selects = {
         'sel-language': 'language',
         'sel-hit-emphasis': 'hitEmphasis',
+        'sel-effect-intensity': 'effectIntensity',
         'sel-chat-message-size': 'chatMessageSize',
         'sel-damage-number-format': 'damageNumberFormat',
         'sel-map-complete-action': 'mapCompleteAction',
@@ -45,6 +46,7 @@
     }
 
     function sync() {
+        uiDisplay.syncEffects();
         if (!root) return;
         Object.entries(checks).forEach(([id, keys]) => syncCheck(id, keys));
         Object.entries(selects).forEach(([id, key]) => {
@@ -81,6 +83,7 @@
     }
 
     function applyEffects(key) {
+        if (key === 'effectIntensity') uiDisplay.syncEffects();
         applySoundEffects(key);
         if (key === 'highContrast') applyHighContrast(game.settings.highContrast);
         if (key === 'chatMessageSize') applyChatMessageSize(game.settings.chatMessageSize);

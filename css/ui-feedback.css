@@ -74,7 +74,7 @@ body:has(.tutorial-action-card:not([hidden])) :is(#info-tooltip, #canvas-tooltip
 .passive-guide-ring { position: absolute; box-sizing: border-box; border: calc(2 * var(--guide-px, 1px)) solid #f3d28c; box-shadow: 0 0 0 var(--guide-px, 1px) #050404, inset 0 0 0 var(--guide-px, 1px) #050404; pointer-events: none; }
 .passive-guide-ring::after { content: ''; position: absolute; inset: calc(-2 * var(--guide-px, 1px)); border: inherit; animation: passive-guide-wave 1.2s steps(4, end) infinite; }
 @keyframes passive-guide-wave { from { scale: 1; opacity: .9; } to { scale: 1.7; opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .passive-guide-ring::after { animation: none; opacity: 0; } }
+body.reduced-effects .passive-guide-ring::after { animation: none; opacity: 0; }
 .game-toast-mark { display: grid; place-items: center; width: 12px; color: var(--toast-tone); font-size: 11px; line-height: 1; }
 /* 휴대폰 전투 로그 알림(js/ui.js showNextMobileToast): 같은 반투명 돌판, 누르면 바로 다음 알림으로 */
 .mobile-log-toast { --toast-tone: #d9b066; padding: 7px 11px 7px 12px; border: 2px solid rgba(5,4,4,.85); background: rgba(18,16,13,.72); box-shadow: inset 0 0 0 1px rgba(93,74,46,.8), inset 3px 0 0 var(--toast-tone), 3px 3px 0 rgba(0,0,0,.3); color: #e6dcc6; font: 13px/1.45 var(--font-pixel-read, var(--font-body)); text-shadow: 1px 1px 0 #000; cursor: pointer; pointer-events: auto; }
@@ -98,7 +98,7 @@ body:has(.tutorial-action-card:not([hidden])) :is(#info-tooltip, #canvas-tooltip
   from { box-shadow: inset 0 0 0 1px #ff8a7a, inset 3px 0 0 var(--toast-tone), 0 0 8px rgba(255, 94, 108, .4), 3px 3px 0 rgba(0, 0, 0, .35); }
   to { box-shadow: inset 0 0 0 1px #ffd0c0, inset 3px 0 0 var(--toast-tone), 0 0 22px rgba(255, 94, 108, .9), 3px 3px 0 rgba(0, 0, 0, .35); }
 }
-@media (prefers-reduced-motion: reduce) { .game-toast-chase.active, .game-toast-chase.active::after { animation: none; } }
+body.reduced-effects .game-toast-chase.active, body.reduced-effects .game-toast-chase.active::after { animation: none; }
 
 @media (max-width: 640px) {
   /* 전투 로그 알림(아래 84px) 위로 쌓아 두 알림이 겹치지 않게. 좁은 화면이라 가장 최근 두 개만 보인다(체이싱 티어 알림은 남는다). */

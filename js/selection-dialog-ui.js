@@ -3,7 +3,7 @@
 // 창 안의 내용은 각 화면이 그린다. 모양은 .selection-overlay 계열 CSS 그대로다. 단축키는 hotkeys-ui.js가 이 창을 보고 멈춘다.
 const selectionDialog = (() => {
     const PANEL = '.selection-overlay-panel';
-    const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]';
     const openers = new Map();
     let listening = false;
 
@@ -13,7 +13,33 @@ const selectionDialog = (() => {
     }
 
     function focusables(panel) {
-        return Array.from(panel.querySelectorAll(FOCUSABLE));
+        const items = Array.from(panel.querySelectorAll(FOCUSABLE)).filter(node => node.tabIndex >= 0 && visibleControl(node));
+        return items.filter(node => radioTabStop(node, items)).sort((a, b) => (a.tabIndex || Infinity) - (b.tabIndex || Infinity));
+    }
+    function visibleControl(node) {
+        return !!node && node.isConnected !== false && !!node.getClientRects().length
+            && !node.closest('[hidden], [inert], [aria-hidden="true"]') && !node.matches(':disabled') && getComputedStyle(node).visibility !== 'hidden';
+    }
+    function radioTabStop(node, items) {
+        if (node.type !== 'radio' || !node.name) return true;
+        const group = items.filter(item => item.type === 'radio' && item.name === node.name && item.form === node.form);
+        return node === (group.find(item => item.checked) || group[0]);
+    }
+    function focusVisibleControl(node) {
+        if (!visibleControl(node)) return false;
+        // Canvas and legacy div tabs need programmatic focus; native controls retain their normal Tab position.
+        if (node.tabIndex < 0) node.tabIndex = -1;
+        node.focus({ preventScroll: true });
+        return document.activeElement === node;
+    }
+    /** A closed picker or hidden battlefield returns to the current visible tab, then the mobile menu or another tab. */
+    function restoreFocus(previous, fallback = document.getElementById('battlefield-canvas')) {
+        if (document.querySelector('dialog:modal')) return;
+        if (!isIdleFocus(previous) && focusVisibleControl(previous)) return;
+        if (focusVisibleControl(fallback)) return;
+        const navigation = [...document.querySelectorAll('.tab-header .tab-btn.active'),
+            document.getElementById('btn-mobile-nav-more'), ...document.querySelectorAll('.tab-header .tab-btn')];
+        navigation.some(focusVisibleControl);
     }
 
     function isIdleFocus(element) {
@@ -72,7 +98,7 @@ const selectionDialog = (() => {
         const opener = isIdleFocus(active) || overlay.contains(active) ? openers.get(id) : null;
         openers.delete(id);
         overlay.remove();
-        if (!isIdleFocus(opener) && opener.isConnected) opener.focus({ preventScroll: true });
+        restoreFocus(opener);
     }
 
     function listen() {
@@ -93,16 +119,21 @@ const selectionDialog = (() => {
 
     /** Tab and Shift+Tab go round inside the panel. Focus that slipped outside comes back in. */
     function trapTab(event, overlay) {
-        const panel = overlay.querySelector(PANEL);
+        containFocus(event, overlay.querySelector(PANEL));
+    }
+    /** Native dialogs can otherwise hand focus to browser chrome after their last control. */
+    function containFocus(event, panel) {
+        if (event.key !== 'Tab' || !panel) return;
+        event.stopPropagation();
         const items = focusables(panel), active = document.activeElement;
         const first = items[0] || panel, last = items[items.length - 1] || panel;
-        const inside = panel.contains(active);
-        const wraps = !inside || (event.shiftKey ? active === first || active === panel : active === last);
+        const wraps = !items.includes(active) || (event.shiftKey ? active === first : active === last);
         if (!wraps) return;
         event.preventDefault();
-        (event.shiftKey && inside ? last : first).focus({ preventScroll: true });
+        if (!items.length) panel.tabIndex = -1;
+        (event.shiftKey ? last : first).focus({ preventScroll: true });
     }
 
-    return Object.freeze({ show, close, isOpen: id => !!document.getElementById(id) });
+    return Object.freeze({ show, close, containFocus, restoreFocus, isOpen: id => !!document.getElementById(id) });
 })();
 safeExposeGlobals({ selectionDialog });

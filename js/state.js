@@ -90,7 +90,7 @@ window.GameModules.state.underworldMilestoneReward = function (floor) {
     } };
 };
 
-// Transient notices: domains enqueue data; the foreground UI decides when to present it.
+// The foreground queue projects durable tutorialHistory records; queuing is not reading.
 let tutorialQueue = [];
 // 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
 // 다시 띄웠다(검토 5차).
@@ -98,11 +98,8 @@ const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear
 /** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
 function queueTutorialNotice(key, title, body, tabId, target) {
     if (game.isBackgroundCalculation) return;
-    game.seenTutorials = game.seenTutorials || [];
-    if (game.seenTutorials.includes(key) || game.seenTutorials.includes(TUTORIAL_SEEN_ALIASES[key])) return;
-    game.seenTutorials.push(key);
     const extra = target && typeof target === 'object' ? target : { subtabId: target };
-    tutorialQueue.push({ ...extra, key, title, body, tabId: tabId || null, subtabId: extra.subtabId || null });
+    window.GameModules.state.tutorials.enqueue(game, { ...extra, key, title, body, tabId: tabId || null, subtabId: extra.subtabId || null });
 }
 /** A notice about content bought in 해금 (talent, …): before it is bought, the card says where to buy it and
  * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */
@@ -2505,7 +2502,7 @@ const defaultGame = {
     // without a ledger takes it during the load, and the bag counts its pages by loop until contentProgression.restore makes the ledger
     // (version 10 with graftFloor, js/content-progression.js) and turns those pages into owned 가방 쪽 steps.
     knitting: { season: 1, counts: {}, seen: [], knitted: {}, once: [] },
-    contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [] },
+    contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [], plannedUnlockId: '' },
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,
@@ -2531,6 +2528,7 @@ const defaultGame = {
     pendingStarterRuneChoice: null,
     starterGemTutorialPending: null,
     settings: {
+        effectIntensity: 'system',
         // PC와 모바일 메뉴 편집은 서로의 순서·배치를 덮어쓰지 않는다.
         tabLayouts: {
             desktop: { tabOrder: [], tabPlacement: {}, tabGroupOrder: [] },
@@ -2801,6 +2799,8 @@ const defaultGame = {
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],
     seenTutorials: [],
+    // Durable notice lifecycle. Millisecond timestamps; shown notices interrupted by reload resume once.
+    tutorialHistory: [],
     // Unlock rows the player has picked in the unlock tab; the others that are open or within reach wear a ! (js/unlock-tab-ui.js unseenIds).
     seenUnlocks: [],
     // The NPC window's keywords already heard, "npcId:keyword" (js/content-progression-ui.js npcHeard): kept across loops.

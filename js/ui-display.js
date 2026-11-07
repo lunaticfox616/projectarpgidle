@@ -6,6 +6,18 @@ const uiDisplay = (() => {
     let sideBattleHudQuery;
     const mediaRules = new Map();
     const visitedSheets = new WeakSet();
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    /** The saved choice is separate from the device preference; changing devices never overwrites it. */
+    function reducedEffects() {
+        const choice = game.settings.effectIntensity;
+        if (choice === 'reduced') return true;
+        if (choice === 'full') return false;
+        return motionQuery.matches;
+    }
+    function syncEffects() {
+        document.body.classList.toggle('reduced-effects', reducedEffects());
+    }
+    motionQuery.addEventListener('change', syncEffects);
     // iPadOS Safari asks for desktop pages and identifies as Mac; it still needs the mobile draw budget.
     const mobileDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
         || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -148,6 +160,7 @@ const uiDisplay = (() => {
     /** 저장된 설정의 배율을 적용한다. 사용자가 고른 적이 없으면(uiScaleChosen이 true가 아니고 값이 기본 100) 화면에 맞는 추천값을 쓰고,
      * 적용한 단계를 설정에 되돌려 적는다(옛 열 단계 값은 PC 단계로 바뀐다). */
     function applySaved(settings) {
+        syncEffects();
         const dpr = Math.max(1, window.devicePixelRatio || 1);
         const chosen = settings.uiScaleChosen === true || normalizeUiScale(settings.uiScale) !== 100;
         if (!mobileDevice && !chosen) settings.uiScale = recommendedScale((window.screen ? window.screen.width : 1920) * dpr, dpr);
@@ -157,6 +170,7 @@ const uiDisplay = (() => {
 
     function init() {
         apply(100);
+        syncEffects();
         document.getElementById('sel-ui-scale').addEventListener('change', event => select(event.target.value));
         // 선택 상자의 꼬리표는 번역한 글이라 언어가 바뀌면 다시 쓴다(js/i18n.js).
         window.addEventListener('game:languagechange', () => syncScaleSelect(Math.max(1, window.devicePixelRatio || 1)));
@@ -164,7 +178,7 @@ const uiDisplay = (() => {
         new MutationObserver(() => registerStyles()).observe(document.head, { childList: true });
     }
 
-    return Object.freeze({ apply, applySaved, init, matches, registerStyles, recommendedScale, isCrispStep, pcScaleStep, get factor() { return factor; },
+    return Object.freeze({ apply, applySaved, init, matches, registerStyles, recommendedScale, isCrispStep, pcScaleStep, reducedEffects, syncEffects, get factor() { return factor; },
         get battleHudAtSide() { return !!sideBattleHudQuery && sideBattleHudQuery.matches; },
         // Time since the last input: a long gap means the player is away (an idle run must not stop on a reward window).
         get inputIdleMs() { return performance.now() - lastInputAt; },
