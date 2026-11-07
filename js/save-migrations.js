@@ -1458,6 +1458,7 @@ function mergeDefaults(save) {
     merged.npcMet = record(merged.npcMet);
     merged.npcShops = record(merged.npcShops);
     normalizeStarterGemTutorialSave(merged);
+    window.GameModules.state.tutorials.normalize(merged);
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해를
     // 잃은 기록으로 업적을 잘못 판정하지 않도록 새 조우에서만 다시 시작한다.
@@ -1505,6 +1506,7 @@ function mergeDefaults(save) {
     merged.settings.combatLogCollapsed = !!merged.settings.combatLogCollapsed;
     merged.settings.mobileCombatLogExpanded = merged.settings.mobileCombatLogExpanded === true;
     merged.settings.hitEmphasis = merged.settings.hitEmphasis === 'mild' ? 'mild' : 'normal';
+    merged.settings.effectIntensity = ['system', 'reduced', 'full'].includes(merged.settings.effectIntensity) ? merged.settings.effectIntensity : 'system';
     equipmentLootPolicy.normalizeSettings(merged.settings);
     merged.settings.autoEnterGrandBreach = !!merged.settings.autoEnterGrandBreach;
     merged.settings.inventoryViewRarities = { ...(defaultGame.settings.inventoryViewRarities || {}), ...(merged.settings.inventoryViewRarities || {}) };

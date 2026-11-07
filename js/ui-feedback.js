@@ -288,8 +288,30 @@
     }
     /** 살아 있는 문서인지(노드 검사 런타임의 가짜 문서에는 알림을 띄우지 않는다). */
     const liveDocument = () => typeof document !== 'undefined' && !!document.body && document.body.isConnected === true;
+    /** 로그인 화면(시작 화면이 떠 있는 동안 body.startup-active, js/ui.js setStartupOverlayActive)에 온 알림은 접속한 뒤에 띄운다
+     * (2026-11-08 사용자: 아직 접속하지 않았는데 로그인 화면에 알림이 떴다. 저장된 로그인으로 켜면 채팅 확인이 먼저 돈다). 알림 칸처럼
+     * 넷까지만 들고, 시작 화면이 닫히면 온 순서대로 띄운다. */
+    const heldToasts = [];
+    let heldToastWatch = null;
+    function holdToastUntilEntry(message, options) {
+        heldToasts.push([message, options]);
+        if (heldToasts.length > 4) heldToasts.shift();
+        if (heldToastWatch) return;
+        heldToastWatch = new MutationObserver(() => {
+            if (document.body.classList.contains('startup-active')) return;
+            heldToastWatch.disconnect();
+            heldToastWatch = null;
+            heldToasts.splice(0).forEach(([text, opts]) => renderGameToast(text, opts));
+        });
+        heldToastWatch.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    }
     function showGameToast(message, options) {
         if (!message || !liveDocument()) return null;
+        if (!document.body.classList.contains('startup-active')) return renderGameToast(message, options);
+        holdToastUntilEntry(message, options);
+        return null;
+    }
+    function renderGameToast(message, options) {
         ensureFeedbackRoot();
         let opts = typeof options === 'string' ? { tone: options } : (options || {});
         let region = document.getElementById('game-toast-region');

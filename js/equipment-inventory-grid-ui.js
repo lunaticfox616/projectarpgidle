@@ -243,8 +243,10 @@
         renderTemporaryStorage();
         if (!root) return page;
         let used = getPageCellsUsed(layout), cells = layout.columns * layout.rowsPerPage;
+        // 보고 있는 쪽을 줄 끝에 글로도 둔다(2026-11-07 사용자: 지금 몇 페이지인지 모르겠다). 단추 뒤에 두어 keepPageInView의 children[page]가 그대로다.
+        let now = layout.pageCount > 1 ? `<span class="equipment-inventory-page-now">${_t('{page} / {count} 페이지', { page: page + 1, count: layout.pageCount })}</span>` : '';
         writeHtmlIfChanged(root, Array.from({ length: layout.pageCount }, (_, index) =>
-            pageButtonHtml(index, index === page, search, found, { used: used[index], cells })).join(''));
+            pageButtonHtml(index, index === page, search, found, { used: used[index], cells })).join('') + now);
         keepPageInView(root, page);
         return page;
     }

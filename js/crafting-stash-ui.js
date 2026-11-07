@@ -31,15 +31,30 @@ const craftingStashUi = (() => {
 
     const stashTabOf = key => TABS.find(tab => tab.groups.some(group => group.keys.includes(key)));
 
-    /** One slot: the picture, the held count in the corner, and the name, count and short effect on hover. */
+    /** One slot: the picture, the held count in the corner, and the name, count and short effect on hover (stashTip).
+     * data-info-tooltip-anchor: js/ui.js's mousemove guard keeps the card while the pointer stays on the slot. */
     function stashCellHtml(key, picked) {
         if (!craftingCatalogUi.visible(key)) return '<span class="cl-stash-cell is-blank" aria-hidden="true"></span>';
         const amount = game.currencies[key] || 0, name = craftingCatalogUi.name(key), omen = CRAFT_OMENS.keys.includes(key);
         const on = omen ? picked.omen === key : picked.recipe === key;
         const count = amount.toLocaleString(i18n.locale), held = _t('보유 {currencies}', { currencies: count });
-        const tip = `${name}\n${held}\n${craftingCatalogUi.summary(key)}`;
         return `<button type="button" id="cl-stash-${key}" class="cl-stash-cell${amount ? '' : ' is-empty'}${on ? ' is-on' : ''}" data-theme="${craftingCatalogUi.theme(key)}"
-            ${omen ? 'data-omen' : 'data-recipe'}="${key}" aria-pressed="${on}" aria-label="${esc(name)}, ${esc(held)}" data-tip="${esc(tip)}"><img src="${esc(ORB_DB[key].icon)}" alt="" draggable="false">${amount ? `<b>${count}</b>` : ''}</button>`;
+            ${omen ? 'data-omen' : 'data-recipe'}="${key}" aria-pressed="${on}" aria-label="${esc(name)}, ${esc(held)}" data-info-tooltip-anchor="1"
+            onpointerenter="craftingStashUi.tip(event,'${key}')" onpointerleave="hideInfoTooltip()"><img src="${esc(ORB_DB[key].icon)}" alt="" draggable="false">${amount ? `<b>${count}</b>` : ''}</button>`;
+    }
+
+    /** The hover card of a slot, mouse only (2026-11-07 사용자: 재화별 툴팁에도 색감): the name in its own colour on its theme's tone
+     * (css/crafting-workspace.css .cl-stash-tip), the held count (red when none), and the effect with its keywords coloured as in the
+     * currency list (craftingCatalogUi.description). The card's edge takes the theme's tone. */
+    function stashTip(event, key) {
+        if (event.pointerType !== 'mouse') return;
+        const amount = game.currencies[key] || 0;
+        const held = _t('보유 {currencies}', { currencies: amount.toLocaleString(i18n.locale) });
+        const html = `<div class="cl-stash-tip"><div class="tooltip-title">${craftingCatalogUi.styledName(key)}</div>`
+            + `<div class="tooltip-line cl-stash-tip-held${amount ? '' : ' is-empty'}">${esc(held)}</div>`
+            + `<div class="tooltip-line cl-stash-tip-effect">${craftingCatalogUi.description(key, true)}</div></div>`;
+        const tone = getComputedStyle(event.currentTarget).getPropertyValue('--resource-tone').trim();
+        showInfoTooltipHtml(event.clientX, event.clientY, html, tone || '#a98546', `stash:${key}:${amount}`);
     }
 
     function stashGroupHtml(group, picked) {
@@ -71,6 +86,6 @@ const craftingStashUi = (() => {
         if (TABS.some(tab => tab.id === id)) shownTab = id;
     }
 
-    return Object.freeze({ html: stashHtml, showTab: stashShowTab });
+    return Object.freeze({ html: stashHtml, showTab: stashShowTab, tip: stashTip });
 })();
 safeExposeGlobals({ craftingStashUi });

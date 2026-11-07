@@ -426,14 +426,19 @@ const playerStallUi = {
         return `<div class="stall-records" data-latest="${stall.history[0]?.id || 0}">${button('sales', _t('판매 기록'), _t('{count}건', { count: stall.sales.length }))}
             ${button('visits', _t('최근 방문'), _t('{callers}명 중 {bought}명 구매', { callers: callers.length, bought }))}${button('terms', _t('판매 규칙'), _t('진열, 제안, 방문'))}</div>`;
     },
-    /** Opens (or redraws) the record window on one of its three pages. */
+    /** Opens (or redraws) the record window on one of its three pages. A redraw (a visit or sale coming in) keeps the sale records
+     * that were open, with their gear cards. */
     openRecords(kind) {
         const page = { sales: () => this.salesLedger(), visits: () => this.visitsHtml(game.playerStall), terms: () => this.terms() }[kind];
         if (!page) return;
         this.recordsKind = kind;
+        const before = document.getElementById(STALL_RECORDS_DIALOG);
+        const open = new Set(before ? [...before.querySelectorAll('details.stall-sale[open]')].map(node => node.dataset.saleId) : []);
         const panel = selectionDialog.show({ id: STALL_RECORDS_DIALOG, title: escapeHTML(_t(STALL_RECORD_TITLES[kind])), panelClass: 'stall-records-panel',
             body: `<div class="stall-records-body">${page()}</div>` });
-        if (panel) this.fillSaleCards(panel);
+        if (!panel) return;
+        panel.querySelectorAll('details.stall-sale').forEach(node => { node.open = open.has(node.dataset.saleId); });
+        this.fillSaleCards(panel);
     },
     visitsHtml(stall) {
         return `<ol class="stall-history">${stall.history.map(event => this.history(event)).join('') || _t('<li>아직 방문객이 없습니다.</li>')}</ol>`;
@@ -488,11 +493,9 @@ const playerStallUi = {
                 <div class="shop-info" aria-live="polite">${this.infoHtml()}</div>
             <section class="shop-bag" aria-label="${_t('가방')}">${shopView.bagHtml(item => this.bagPick(item))}</section></div></div>`;
         if (host.stallMarkup === html) return;
-        const expanded = new Set([...host.querySelectorAll('details[open]')].map(node => node.dataset.saleId || node.className));
+        // 판매 기록의 펼침과 장비 카드는 기록 창이 맡는다(openRecords). 가판대 판에는 펼치는 칸이 없다.
         host.innerHTML = html;
         host.stallMarkup = html;
-        host.querySelectorAll('details').forEach(node => { node.open = expanded.has(node.dataset.saleId || node.className); });
-        this.fillSaleCards(host);
         this.paintVisitors(this.visitorsVisible);
         this.preview();
         if (selectionDialog.isOpen(STALL_RECORDS_DIALOG)) this.openRecords(this.recordsKind); // a new visit or sale reaches the open window
@@ -500,7 +503,7 @@ const playerStallUi = {
 };
 // A sale record opened: its gear's card (toggle does not bubble, so it is caught on the way down).
 document.addEventListener('toggle', event => {
-    const host = event.target.closest?.('#market-panel-stall, #stall-records-dialog');
+    const host = event.target.closest?.('#stall-records-dialog');
     if (host && event.target.matches('.stall-sale')) playerStallUi.fillSaleCards(host);
 }, true);
 
@@ -512,7 +515,7 @@ shopView.registerShop('stall', {
         return row ? `${this.peekDealHtml(row)}${shopView.itemCardHtml(row.item)}` : '';
     },
     peekDealHtml(row) {
-        const offer = row.offer ? `<p class="shop-deal-purse">제안 ${formatCurrencyCosts([{ key: row.currency, amount: row.offer.amount }])}개</p>` : '';
+        const offer = row.offer ? `<p class="shop-deal-purse">${_t('제안 {name} {amount}개', { name: escapeHTML(shopView.currencyName(row.currency)), amount: Number(row.offer.amount || 0).toLocaleString(i18n.locale) })}</p>` : '';
         return `<div class="shop-deal is-peek"><p class="shop-deal-price"><span>${_t('판매가')}</span>${shopView.coinHtml(row.currency)}
             <strong>${escapeHTML(shopView.currencyName(row.currency))} ${Number(row.price).toLocaleString()}</strong></p>${offer}</div>`;
     },

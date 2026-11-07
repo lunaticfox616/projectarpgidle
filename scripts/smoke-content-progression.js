@@ -833,4 +833,71 @@ run('game.currencies.runeShard=0;game.currencies.underGold=0;grantUnderworldFloo
 assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[70,24],'deep floors keep their material rewards');
 run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));grantUnderworldFloorMilestone(310,game.underworldProgress)');
 assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[70,24],'deep-floor material claims persist across loading');
+// Durable guide notices survive both waiting and interrupted display; expiration is not acknowledgement.
+{
+    const originalGet = runtime.document.getElementById, originalCreate = runtime.document.createElement;
+    const nodes = new Map(), created = [];
+    function guideElement() {
+        const node = originalCreate('div'), children = new Map();
+        created.push(node);
+        node.style.removeProperty = () => {}; node.style.setProperty = () => {}; node.style.getPropertyValue = () => '';
+        node.getClientRects = () => []; node.focus = () => {};
+        node.showModal = () => { node.open = true; }; node.close = () => { node.open = false; };
+        node.querySelector = selector => {
+            if (!children.has(selector)) children.set(selector, guideElement());
+            return children.get(selector);
+        };
+        return node;
+    }
+    runtime.document.createElement = guideElement;
+    runtime.document.getElementById = id => {
+        if (!/^(tutorial-|tab-|btn-tab-)/.test(id) && !['chk-hide-act-journal','info-tooltip','item-tooltip-box'].includes(id)) return originalGet(id);
+        if (!nodes.has(id)) { const node = guideElement(); node.id = id; nodes.set(id, node); }
+        return nodes.get(id);
+    };
+    try {
+        run("game=mergeDefaults({});discardQueuedNotices();setStartupOverlayActive(false);queueTutorialNotice('notice_history_test','보관 시험','안내 본문','tab-items')");
+        assert.deepEqual(json('[game.tutorialHistory[0].status,game.seenTutorials.includes("notice_history_test")]'),['pending',false],'queueing is not reading or delivery');
+        run("game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();queueTutorialNotice('notice_history_test','보관 시험','안내 본문','tab-items');tutorialActionUi.quietUntil=0;showNextTutorial()");
+        assert(run("activeTutorial.key==='notice_history_test' && tutorialQueue.length===0 && game.tutorialHistory.length===1 && game.tutorialHistory[0].status==='displayed' && game.tutorialHistory[0].readAt===0"),'a pending save shows one card without marking it read');
+        run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();tutorialActionUi.quietUntil=0;showNextTutorial()');
+        assert(run("activeTutorial.key==='notice_history_test' && tutorialQueue.length===0"),'an interrupted displayed card is recovered exactly once');
+        run('dismissTutorial(false);game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();tutorialActionUi.quietUntil=0;showNextTutorial()');
+        assert(run("!activeTutorial && tutorialQueue.length===0 && game.tutorialHistory[0].status==='read'"),'an acknowledged card never repeats after reload');
+        run("queueTutorialNotice('notice_history_timeout','놓친 시험','검색할 본문 <img src=x onerror=alert(1)>','tab-items');showNextTutorial();tutorialActionUi.noticeUntil=0;tutorialActionUi.expireNotice(Date.now());game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();tutorialActionUi.quietUntil=0;showNextTutorial()");
+        assert(run("!activeTutorial && game.tutorialHistory.find(row=>row.key==='notice_history_timeout').status==='unread'"),'timeout remains unread without repeating automatically');
+        run("game=mergeDefaults({seenTutorials:['unlock_items']});discardQueuedNotices();queueTutorialNotice('unlock_items','옛 장비 안내','옛 본문','tab-items')");
+        assert(run("tutorialQueue.length===0"),'old seen flags remain consumed');
+        run("game=mergeDefaults({seenTutorials:['unlock_items'],tutorialHistory:[{key:'unlock_items',title:'예전',body:'이전 본문',status:'read'},{key:'tutorial_first_gear',title:'최신 안내',body:'최신 본문',status:'pending',queuedAt:100}]});discardQueuedNotices();window.GameModules.state.tutorials.sync(game)");
+        assert(run("game.tutorialHistory.length===1 && game.tutorialHistory[0].body==='최신 본문' && game.tutorialHistory[0].status==='pending' && tutorialQueue.length===1"),'legacy read aliases cannot replace a newer pending guide or its body');
+        run("window.GameModules.state.tutorials.transition(game,'unlock_items','read');game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();window.GameModules.state.tutorials.sync(game)");
+        assert(run("game.tutorialHistory.length===1 && game.tutorialHistory[0].status==='read' && tutorialQueue.length===0"),'acknowledging either alias consumes the canonical guide after reload');
+        run("game=mergeDefaults({seenTutorials:['unlock_items'],tutorialHistory:[{key:'unlock_items',title:'예전',body:'이전 본문',status:'read'},{key:'tutorial_first_gear',title:'놓친 최신 안내',body:'유지할 본문',status:'unread',displayedAt:200}]});discardQueuedNotices();window.GameModules.state.tutorials.sync(game)");
+        assert(run("game.tutorialHistory.length===1 && game.tutorialHistory[0].body==='유지할 본문' && game.tutorialHistory[0].status==='unread'"),'a newer missed guide keeps its unread status when legacy aliases are restored');
+        run("game=mergeDefaults({skills:['기본 공격','이중 베기'],starterGemTutorialPending:'이중 베기'});discardQueuedNotices();queueTutorialNotice('tutorial_starter_gem_equip','첫 룬','장착 안내','tab-skills')");
+        run("window.GameModules.state.tutorials.transition(game,'tutorial_starter_gem_equip','read');game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();window.GameModules.state.tutorials.sync(game)");
+        assert(run("game.tutorialHistory[0].status==='read' && tutorialQueue.length===0 && game.starterGemTutorialPending==='이중 베기'"),'acknowledging the starter notice persists across reload without equipping or repeating');
+        const beforeOpeningGet = runtime.document.getElementById, beforeOpeningInterval = runtime.setInterval;
+        let openingTick;
+        runtime.document.getElementById = id => id === 'battlefield-canvas' ? guideElement() : beforeOpeningGet(id);
+        runtime.setInterval = callback => { openingTick = callback; return 0; };
+        try { vm.runInContext(require('fs').readFileSync(require('path').join(__dirname, '../js/opening-journey-ui.js'), 'utf8'), runtime); }
+        finally { runtime.document.getElementById = beforeOpeningGet; runtime.setInterval = beforeOpeningInterval; }
+        run("game.seenTutorials.push('opening_intro','opening_rise','opening_move','opening_attack');game.settings.battleView='top';game.settings.autoMove=true");
+        openingTick();
+        assert(run("openingJourney.autoLocked() && !game.seenTutorials.includes('opening_done')"),'acknowledgement cannot finish the first-rune lesson while no rune is equipped');
+        run("changeSkill('이중 베기')");
+        openingTick();
+        assert(run("game.activeSkill==='이중 베기' && !game.starterGemTutorialPending && !openingJourney.autoLocked()"),'actually equipping the first rune finishes the acknowledged lesson after reload');
+        run("game=mergeDefaults({tutorialHistory:[null,{key:'bad key',title:'x',body:'x'},{key:'notice_bad',title:'손상',body:'본문',status:'wrong',tabId:'javascript:alert(1)',queuedAt:Infinity},{key:'notice_dup',title:'x',body:'x',status:'pending'},{key:'notice_dup',title:'x',body:'x',status:'read'}]})");
+        assert.deepEqual(json('game.tutorialHistory.map(row=>[row.key,row.status,row.tabId])'),[['notice_bad','unread',null],['notice_dup','read',null]],'corrupt states and duplicate records cannot force arbitrary navigation or repeat an acknowledged guide');
+        run("game=mergeDefaults({tutorialHistory:Array.from({length:1800},(_,i)=>({key:'notice_'+i,title:'x'.repeat(400),body:'y'.repeat(7000),status:'pending'}))})");
+        assert(run('game.tutorialHistory.length===320 && game.tutorialHistory.every(row=>row.title.length===180 && row.body.length===5000)'),'imported oversized histories have bounded record counts and text');
+        run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();window.GameModules.state.tutorials.sync(game)');
+        assert(run('tutorialQueue.length===320 && new Set(tutorialQueue.map(row=>row.key)).size===320'),'bounded restored guides have no duplicate queue entries');
+    } finally {
+        runtime.document.getElementById = originalGet;
+        runtime.document.createElement = originalCreate;
+    }
+}
 console.log('smoke-content-progression passed');

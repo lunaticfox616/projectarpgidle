@@ -18,7 +18,7 @@ const stageObjects = (() => {
         if (!sheets.has(file)) {
             const sheet = new Image();
             sheet.decoding = 'async';
-            sheet.src = file;
+            sheet.src = file + '?v=' + STAGE_OBJECTS.version;
             sheets.set(file, sheet);
         }
         const sheet = sheets.get(file);

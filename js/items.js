@@ -115,19 +115,16 @@ function getCraftSelectionRef() { return craftingSelectionState.ref; }
 function isCraftSelectionEquip() { return !!craftingSelectionState.isEquip; }
 function clearCraftSelection() { craftingSelectionState.ref = null; craftingSelectionState.isEquip = false; }
 
+/** The craft target. A hall piece never is one, also when it was put on in the slot the target points at (picking one is refused below). */
 function getSelectedCraftItem() {
     if (craftingSelectionState.ref === null) return null;
-    if (craftingSelectionState.isEquip) return game.equipment[craftingSelectionState.ref] || null;
-    return (game.inventory || []).find(item => item.id === craftingSelectionState.ref) || null;
+    const item = craftingSelectionState.isEquip ? game.equipment[craftingSelectionState.ref]
+        : (game.inventory || []).find(row => row.id === craftingSelectionState.ref);
+    return item && !item.hallReplica ? item : null;
 }
 
 function ensureCraftSelectionValid() {
-    if (craftingSelectionState.ref === null) return;
-    if (craftingSelectionState.isEquip) {
-        if (!game.equipment[craftingSelectionState.ref]) clearCraftSelection();
-        return;
-    }
-    if (!game.inventory.some(item => item.id === craftingSelectionState.ref)) clearCraftSelection();
+    if (craftingSelectionState.ref !== null && !getSelectedCraftItem()) clearCraftSelection();
 }
 
 function selectForCrafting(ref, isEquip) {
@@ -839,19 +836,46 @@ function getBaseUpgradeCandidates(currentBase) {
     return candidates;
 }
 
+/** The item's base lines rolled for nextBase: the altar lines and the exceptional marks come over, and a shield keeps its block. */
 function rollUpgradedBaseStats(item, nextBase) {
-    let rolled = rollBaseStats(nextBase, nextBase.reqTier || 1);
-    if (!item || nextBase.slot !== '방패') return rolled;
-    let previous = (item.baseStats || []).find(stat => stat && stat.id === 'baseBlockChance');
-    let next = rolled.find(stat => stat && stat.id === 'baseBlockChance');
+    let previousStats = item.baseStats || [];
+    item.baseStats = rollBaseStats(nextBase, nextBase.reqTier || 1);
+    carryUpgradedBaseMarks(item, previousStats);
+    if (nextBase.slot !== '방패') return;
+    let previous = previousStats.find(stat => stat && stat.id === 'baseBlockChance');
+    let next = item.baseStats.find(stat => stat && stat.id === 'baseBlockChance');
     let floor = Math.max(0, Number(previous && previous.val) || 0);
-    if (!next || floor <= 0 || Number(next.val || 0) >= floor) return rolled;
+    if (!next || floor <= 0 || Number(next.val || 0) >= floor) return;
     next.val = floor;
     next.valMin = Math.max(Number(next.valMin || 0), floor);
     next.valMax = Math.max(Number(next.valMax || 0), floor);
     next.baseRollMin = Math.max(Number(next.baseRollMin || 0), floor);
     next.baseRollMax = Math.max(Number(next.baseRollMax || 0), floor);
-    return rolled;
+}
+
+// 제단 줄이 대신하지 않는 베이스의 방어 줄(js/item-influences.js replaceIndex의 DEFENSE와 같다).
+const UPGRADE_ALTAR_KEPT_LINE_IDS = Object.freeze(['armor', 'evasion', 'energyShield']);
+const EXCEPTIONAL_BASE_ITEM_FIELDS = Object.freeze(['exceptionalBase', 'exceptionalStatNames', 'exceptionalStatName', 'exceptionalAllLines']);
+/** After a base upgrade: each altar line comes over unchanged, and the stats that were exceptional turn exceptional again where the new
+ * base has them (the drop's boostExceptionalBaseLine, so the item's exceptional fields list exactly those lines). */
+function carryUpgradedBaseMarks(item, previousStats) {
+    const exceptionalIds = new Set(previousStats.filter(stat => stat && stat.exceptional && !stat.altar).map(stat => stat.id));
+    previousStats.filter(stat => stat && stat.altar).forEach(line => carryAltarLineToUpgradedBase(item.baseStats, line, exceptionalIds));
+    EXCEPTIONAL_BASE_ITEM_FIELDS.forEach(key => delete item[key]);
+    item.baseStats.forEach(stat => { if (stat && !stat.altar && exceptionalIds.has(stat.id)) boostExceptionalBaseLine(item, stat); });
+}
+/** An altar line takes the place of a new line of its own stat, else of the stat it replaced before, else of the last ordinary line (no
+ * defence line, no line turning exceptional, no other altar line). With none left it is added. */
+function carryAltarLineToUpgradedBase(stats, line, exceptionalIds) {
+    const open = stat => !!stat && !stat.altar && !exceptionalIds.has(stat.id) && !UPGRADE_ALTAR_KEPT_LINE_IDS.includes(stat.id);
+    const replacedId = line.replaced ? line.replaced.id : null;
+    let index = stats.findIndex(stat => open(stat) && stat.id === line.id);
+    if (index < 0) index = stats.findIndex(stat => open(stat) && stat.id === replacedId);
+    if (index < 0) index = stats.map(open).lastIndexOf(true);
+    const carried = Object.assign({}, line);
+    delete carried.replaced;
+    if (index < 0) stats.push(carried);
+    else stats[index] = Object.assign(carried, { replaced: { id: stats[index].id, statName: stats[index].statName || getStatName(stats[index].id) } });
 }
 // 업그레이드로 이어진 베이스들을 하나의 체인으로 보고, 각 베이스가 그 체인에서 몇 단계인지 계산한다.
 // step = 아래(저티어)에서부터의 위치(1부터), total = 그 베이스를 지나는 가장 긴 체인의 길이.
@@ -940,7 +964,8 @@ function upgradeSelectedItemBase() {
     if (!item) return addLog(_t('먼저 제작 대상 장비를 선택하세요.'), 'attack-monster');
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || BASE_ITEM_DB.find(base => base && base.name === item.baseName && base.slot === item.slot);
     if (!currentBase) return addLog(_t('현재 베이스 정보를 찾을 수 없습니다.'), 'attack-monster');
-    if (currentBase.realmBase) return addLog(_t('계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.'), 'attack-monster');
+    const refusal = getBaseUpgradeRefusal(item, currentBase);
+    if (refusal) return addLog(_t(refusal), 'attack-monster');
     let candidates = getBaseUpgradeCandidates(currentBase);
     let nextBase = candidates[0];
     if (!nextBase) return addLog(_t('해당 계열의 다음 베이스가 없습니다.'), 'attack-monster');
@@ -964,6 +989,14 @@ function closeBaseUpgradeOverlay() {
     if (overlay) overlay.close();
 }
 
+/** Why the item's base cannot be upgraded, or '': a realm base has no chain, a hall piece keeps its original state and corrupted gear
+ * takes no more crafting, as every other craft refuses them (getCraftActionValidators in js/ui.js greys the button out with this too). */
+function getBaseUpgradeRefusal(item, currentBase = null) {
+    if (currentBase && currentBase.realmBase) return '계 전용 베이스 장비는 베이스 업그레이드로 변경할 수 없습니다.';
+    if (item.hallReplica) return '전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.';
+    return item.corrupted ? '타락한 아이템은 더 이상 제작할 수 없습니다.' : '';
+}
+
 /** What the wallet lacks for a base upgrade's cost, or ''. */
 function getBaseUpgradeShortfall(cost) {
     if ((game.currencies.formlessDew || 0) < cost.formlessDew) return _t('형체 없는 이슬이 부족합니다. (필요: {formlessDew})', { formlessDew: cost.formlessDew });
@@ -979,6 +1012,8 @@ function confirmSelectedItemBaseUpgrade() {
         if (equipMatch) item = equipMatch[1];
     }
     if (!item) { closeBaseUpgradeOverlay(); return addLog(_t('대상 장비를 찾을 수 없습니다.'), 'attack-monster'); }
+    const refusal = getBaseUpgradeRefusal(item);
+    if (refusal) { closeBaseUpgradeOverlay(); return addLog(_t(refusal), 'attack-monster'); }
     let currentBase = BASE_ITEM_DB.find(base => base && base.id === item.baseId) || null;
     let nextBase = BASE_ITEM_DB.find(base => base && base.id === pending.nextBaseId);
     if (!nextBase) return closeBaseUpgradeOverlay();
@@ -989,9 +1024,9 @@ function confirmSelectedItemBaseUpgrade() {
     game.currencies.goldenRule = Math.max(0, (game.currencies.goldenRule || 0) - cost.goldenRule);
     item.baseId = nextBase.id;
     item.baseName = nextBase.name;
-    if (item.rarity !== 'unique') item.name = nextBase.name;
+    updateItemName(item); // 마법의, 희귀한은 그대로 두고 베이스 이름만 바뀐다(고유는 제 이름).
     item.itemTier = Math.max(item.itemTier || 1, nextBase.reqTier || 1);
-    item.baseStats = rollUpgradedBaseStats(item, nextBase);
+    rollUpgradedBaseStats(item, nextBase);
     addLog(_t('🛠️ 베이스 업그레이드: {from} → {to} (형체 없는 이슬 {dew}{rule})', { from: _t((currentBase && currentBase.name) || '기존'), to: _t(nextBase.name), dew: cost.formlessDew, rule: cost.goldenRule ? ` + ${_t('황금률')} ${cost.goldenRule}` : '' }), 'loot-magic');
     closeBaseUpgradeOverlay();
     updateStaticUI();

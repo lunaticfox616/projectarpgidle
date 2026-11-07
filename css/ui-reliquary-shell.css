@@ -709,10 +709,6 @@ body #death-overlay .deathlog-bar { background: var(--color-control); border-col
     flex: 0 0 auto;
   }
 
-  body.desktop-windowed-ui .social-mobile-sheet-header {
-    display: none;
-  }
-
   body.desktop-windowed-ui .ui-community-dock .social-root {
     flex: 1 1 auto;
     min-height: 0;
@@ -1466,104 +1462,33 @@ body #tab-map .map-state-badge.recommended {
     font-size: .82em;
   }
 
-  #tab-social.active {
-    position: relative;
-    inset: auto;
-    z-index: auto;
+  /* 휴대폰 채팅은 전투 화면 기록 판의 채팅 탭에 선다(2026-11-07, js/message-frames-ui.js showPhoneTab). 판이 테두리와 바탕이라 채팅은 비친다. */
+  #tab-social.is-feed-chat {
     flex-direction: column;
-    width: auto;
-    height: 100%;
     min-height: 0;
-    max-height: 100%;
-    padding: 0 12px max(10px, env(safe-area-inset-bottom));
+    padding: 0;
     overflow: hidden;
-    border: 1px solid #4b4130;
-    border-bottom: 0;
-    border-radius: 8px 8px 0 0;
     color: var(--color-shell-copy);
-    background: linear-gradient(180deg, #171713, #080908 22%);
-    box-shadow: none;
   }
 
-  #tab-social.active .social-mobile-sheet-header {
-    flex: 0 0 48px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--color-shell-line);
-    color: #ead9bc;
-  }
-
-  #tab-social.active .social-mobile-sheet-header button {
-    min-width: 54px;
-    min-height: 36px;
-    border: 1px solid #4b4130;
-    border-radius: 3px;
-    color: #d4cab9;
-    background: #11120f;
-  }
-
-  #tab-social.active .social-root {
+  #tab-social.is-feed-chat .social-root {
     position: relative;
     z-index: 1;
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
-    padding: 8px 0 0;
+    padding: 0;
     overflow: hidden;
-    background: #080908;
   }
 
-  #tab-social.active .social-root > h2 {
-    display: none;
-  }
-
-  #tab-social.active .social-toolbar {
-    flex: 0 0 auto;
-    gap: 4px;
-    margin: 0 0 6px;
-  }
-
-  #tab-social.active .social-profile-summary {
-    flex: 1 1 auto;
-  }
-
-  #tab-social.active .social-profile-summary > span {
-    color: #777066;
-    font-size: 9px;
-  }
-
-  #tab-social.active .social-profile-summary > strong {
-    color: #e0bd7d;
-    font-size: 11px;
-  }
-
-  #tab-social.active .social-toolbar-actions {
-    flex: 0 0 auto;
-    gap: 3px;
-  }
-
-  #tab-social.active .social-online {
-    margin-bottom: 6px;
-    border-color: rgba(92, 82, 64, .55);
-    border-radius: 2px;
-    background: #0c0d0b;
-  }
-
-  #tab-social.active .social-toolbar button {
-    min-height: 34px;
-    padding: 4px 7px;
-    font-size: 10px;
-  }
-
-  #tab-social.active .social-chat-wrap {
+  #tab-social.is-feed-chat .social-chat-wrap {
     flex: 1 1 auto;
     min-height: 0;
-    gap: 6px;
+    gap: 4px;
   }
 
-  #tab-social.active .social-chat-list {
+  #tab-social.is-feed-chat .social-chat-list {
     flex: 1 1 auto;
     height: auto;
     min-height: 0;
@@ -1574,11 +1499,11 @@ body #tab-map .map-state-badge.recommended {
     background: transparent;
   }
 
-  #tab-social.active .social-chat-msg,
-  #tab-social.active .social-chat-msg.mine {
+  #tab-social.is-feed-chat .social-chat-msg,
+  #tab-social.is-feed-chat .social-chat-msg.mine {
     align-self: stretch;
     max-width: none;
-    padding: 9px 2px;
+    padding: 5px 2px;
     border: 0;
     border-bottom: 1px solid rgba(92, 82, 64, .42);
     border-radius: 0;
@@ -1586,23 +1511,23 @@ body #tab-map .map-state-badge.recommended {
     box-shadow: none;
   }
 
-  #tab-social.active .social-chat-author {
+  #tab-social.is-feed-chat .social-chat-author {
     min-height: 24px;
     margin: 0;
     padding: 0;
   }
 
-  #tab-social.active .social-chat-msg.mine {
+  #tab-social.is-feed-chat .social-chat-msg.mine {
     box-shadow: inset 2px 0 #6c5231;
   }
 
-  /* 안내 칸(로그인 전의 커뮤니티 안내)이 창보다 길면 창을 민다. 채팅 때문에 넘침을 숨겨 가로 휴대폰에서 로그인 화면 열기 단추가 잘려 누를 수 없었다 */
-  #tab-social.active .social-root:has(> .social-notice:is(.social-empty-state, .social-notice-loading)) {
+  /* 안내 칸(로그인 전의 채팅 안내)이 판보다 길면 판 안에서 밀린다: 넘침을 숨기면 로그인 화면 열기 단추가 잘려 누를 수 없었다 */
+  #tab-social.is-feed-chat .social-root:has(> .social-notice:is(.social-empty-state, .social-notice-loading)) {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
 
-  #tab-social.active .social-notice {
+  #tab-social.is-feed-chat .social-notice {
     flex: none;
     border: 1px solid #51432f;
     border-radius: 3px;
@@ -1611,39 +1536,27 @@ body #tab-map .map-state-badge.recommended {
     box-shadow: none;
   }
 
-  #tab-social.active .social-empty-state {
-    flex: 1 1 auto;
+  #tab-social.is-feed-chat .social-empty-state {
     display: grid;
     place-content: center;
     justify-items: center;
-    min-height: 260px;
     margin: 0;
-    padding: 20px 18px;
+    padding: 10px 12px;
     text-align: center;
   }
 
-  #tab-social.active .social-empty-sigil {
-    display: grid;
-    place-items: center;
-    width: 48px;
-    height: 48px;
-    margin-bottom: 10px;
-    border: 1px solid #6b5130;
-    border-radius: 50%;
-    color: #d9b36d;
-    background: radial-gradient(circle, #211b12, #090a08 70%);
-    font-family: Georgia, serif;
-    font-size: 22px;
+  #tab-social.is-feed-chat .social-empty-sigil {
+    display: none;
   }
 
-  #tab-social.active .social-empty-state p {
+  #tab-social.is-feed-chat .social-empty-state p {
     max-width: 270px;
-    margin: 8px 0 14px;
+    margin: 4px 0 8px;
     color: #9f978b;
     line-height: 1.5;
   }
 
-  #tab-social.active .social-empty-state button {
+  #tab-social.is-feed-chat .social-empty-state button {
     min-height: 38px;
     border: 1px solid #6c5231;
     border-radius: 2px;
@@ -1651,22 +1564,21 @@ body #tab-map .map-state-badge.recommended {
     background: linear-gradient(180deg, #241e15, #0e0f0c);
   }
 
-  #tab-social.active .social-notice strong,
-  #tab-social.active .social-chat-nick {
+  #tab-social.is-feed-chat .social-notice strong,
+  #tab-social.is-feed-chat .social-chat-nick {
     color: #e0bd7d;
   }
 
-  #tab-social.active .social-chat-body {
+  #tab-social.is-feed-chat .social-chat-body {
     color: #d8d1c7;
   }
 
-  #tab-social.active .social-chat-inputbar {
+  #tab-social.is-feed-chat .social-chat-inputbar {
     flex: 0 0 auto;
-    padding-bottom: max(2px, env(safe-area-inset-bottom));
     border-top-color: var(--color-shell-line);
   }
 
-  #tab-social.active :where(.social-chat-input-shell, .social-chat-inputbar input) {
+  #tab-social.is-feed-chat :where(.social-chat-input-shell, .social-chat-inputbar input) {
     border-color: #3b352a;
     border-radius: 2px;
     color: var(--color-shell-copy);
@@ -2533,46 +2445,13 @@ body #tab-skills .gem-card-utility {
     box-shadow: inset 0 -2px var(--color-shell-brass-bright);
   }
 
-  body.mobile-community-sheet-open .combat-feed,
-  body.mobile-community-sheet-open .combat-feed * {
-    display: none;
-    visibility: hidden;
-  }
-
-  body.mobile-community-sheet-open #mobile-toast-root {
-    /* The toast renderer sets inline display:flex; the open chat sheet must suppress battle notices. */
-    display: none !important;
-  }
-
-  #tab-social.active {
-    display: flex;
-  }
-
-  #tab-social.active .social-online-chip {
-    border: 1px solid #403a30;
-    border-radius: 2px;
-    color: #cbc3b7;
-    background: #11120f;
-    box-shadow: none;
-  }
-
-  #tab-social.active .social-online-chip.me {
-    border-color: #806037;
-  }
-
-  #tab-social.active .social-toolbar button {
-    border-color: #4a3e2c;
-    color: #d5c9b6;
-    background: linear-gradient(180deg, #1b1914, #0d0e0c);
-  }
-
-  #tab-social.active .social-chat-author {
+  #tab-social.is-feed-chat .social-chat-author {
     border: 0;
     background: transparent;
     box-shadow: none;
   }
 
-  #tab-social.active :where(.social-attach-btn, .social-send-btn) {
+  #tab-social.is-feed-chat :where(.social-attach-btn, .social-send-btn) {
     border: 1px solid #5b4930;
     border-radius: 2px;
     color: #e4d5bd;
@@ -2580,7 +2459,7 @@ body #tab-skills .gem-card-utility {
     box-shadow: inset 0 1px rgba(255, 255, 255, .035);
   }
 
-  #tab-social.active .social-send-btn {
+  #tab-social.is-feed-chat .social-send-btn {
     border-color: #806037;
     color: #fff0d2;
     background: linear-gradient(180deg, #49351d, #22180f);

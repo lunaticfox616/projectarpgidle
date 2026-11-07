@@ -87,6 +87,13 @@ const stageScene = (() => {
         ctx.fillRect(0, 0, area.width, Math.max(0, y + 2));
         ctx.imageSmoothingEnabled = false;
         for (let x = Math.round(offset - w); x < area.width; x += w) ctx.drawImage(image, x, y, w, h);
+        if (y > 0) {
+            const edge = ctx.createLinearGradient(0, y, 0, y + 56 * dot);
+            edge.addColorStop(0, kit.sky);
+            edge.addColorStop(1, kit.sky + '00');
+            ctx.fillStyle = edge;
+            ctx.fillRect(0, y, area.width, 56 * dot);
+        }
     }
 
     /** 방의 먼 그림(지역 그림, 없으면 조각 묶음의 먼 띠)이 화면 위끝까지 닿는 가장 작은 칸 너비(px). 그림의 위끝은 바닥의 앞쪽 끝
@@ -130,7 +137,7 @@ const stageScene = (() => {
         ctx.translate(-box.x * WIDE, -box.y * DEEP);
         // 한 장 안에 방 전체가 들어오도록 방 중심에 맞춘다. 기본 15~21칸에서는 바닥의 좌우 이음이 전투 칸 밖에 놓인다.
         const floorShift = Math.round((room.x0 + room.x1 + 1) * WIDE / 2 - kit.floor.width / 2);
-        strip(ctx, box, picture(kit, floor), { width: kit.floor.width, shift: floorShift, y: top + kit.floor.top, fadeTop: 28 });
+        strip(ctx, box, picture(kit, floor), { width: kit.floor.width, shift: floorShift, y: top + kit.floor.top, fadeTop: 28, fadeBottom: 16 });
         strip(ctx, box, picture(kit, kit.back.file), { width: kit.back.width, shift: kit.back.shift, y: top + kit.back.bottom - kit.back.height, fadeBottom: 14 });
         // 수액 계단: 바닥 그림과 같은 자리에 한 장. 놓임새(양쪽, 왼쪽만, 오른쪽만)는 바닥처럼 방마다 정해진 하나다.
         const side = kit.terraces.sides[(room.index + (Number(map.act) || 0)) % kit.terraces.sides.length];

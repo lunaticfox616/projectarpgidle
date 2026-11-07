@@ -181,11 +181,9 @@ body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::befo
 #right-pane .message-frame-body > #tab-social .social-attach-btn > span { font-size: var(--font-size-ui); }
 .message-frame .social-chat-counter { display: none; }
 
-/* 휴대폰 채팅 머리: ⚙는 닫기 바로 옆에, 메뉴의 설정과 같은 도트 톱니(26px, menu-icons.png 19번).
-   도트 스킨의 탭 글자 규칙(id 하나 무게)이 글자 크기를 되돌리므로 id 둘로 덮는다. */
-.social-mobile-sheet-header > .social-mobile-settings { margin-left: auto; }
-body[data-ui-skin] #tab-social #social-mobile-settings { display: grid; place-items: center; font-size: 0; }
-body[data-ui-skin] #tab-social #social-mobile-settings::before {
+/* 휴대폰 전투 화면 기록 판의 채팅 설정(⚙): 메뉴의 설정과 같은 도트 톱니(26px, menu-icons.png 19번). 채팅을 고른 동안만 보인다(css/themes/rift-stage.css). */
+body[data-ui-skin] #btn-combat-chat-settings { display: none; place-items: center; padding: 0; font-size: 0; }
+body[data-ui-skin] #btn-combat-chat-settings::before {
   content: '';
   width: 26px;
   height: 26px;

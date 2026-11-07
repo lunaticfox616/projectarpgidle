@@ -47,10 +47,11 @@ body .cl-goal-dialog:focus-visible{outline:none}.cl-goal-dialog::backdrop{backgr
 .cl-affix.is-max-tier{position:relative}.just-crafted .is-max-tier::after{content:"";position:absolute;left:0;top:0;width:28px;height:2px;background:#fff4cf;box-shadow:0 0 5px 2px #ffe0a0;offset-path:inset(1px round 5px);offset-rotate:auto;pointer-events:none;opacity:0;animation:cl-border-orbit 1.8s linear}
 @keyframes cl-border-orbit{0%{offset-distance:0%;opacity:0}5%{opacity:1}95%{opacity:1}100%{offset-distance:100%;opacity:0}}
 @media(prefers-reduced-motion:reduce){.just-crafted .is-max-tier::after{display:none;animation:none}}
-.cl-catalog [data-theme],#crafting-workspace [data-theme]{--resource-tone:#dfbf82}
-:is(.cl-catalog,#crafting-workspace) [data-theme="fossil"]{--resource-tone:#bcb1d4}
-:is(.cl-catalog,#crafting-workspace) [data-theme="special"]{--resource-tone:#d8a2bf}
-:is(.cl-catalog,#crafting-workspace) [data-theme="omen"]{--resource-tone:#b8a1df}
+/* 재화 테마의 빛: 재화 목록, 제작실, 재화 보관함 칸의 툴팁 카드(.cl-stash-tip, #info-tooltip 안이라 제작실 밖이다) */
+.cl-catalog [data-theme],#crafting-workspace [data-theme],.cl-stash-tip [data-theme]{--resource-tone:#dfbf82}
+:is(.cl-catalog,#crafting-workspace,.cl-stash-tip) [data-theme="fossil"]{--resource-tone:#bcb1d4}
+:is(.cl-catalog,#crafting-workspace,.cl-stash-tip) [data-theme="special"]{--resource-tone:#d8a2bf}
+:is(.cl-catalog,#crafting-workspace,.cl-stash-tip) [data-theme="omen"]{--resource-tone:#b8a1df}
 /* 성화의 뿌리: 결과 셋을 나란히(휴대폰은 위아래로), 고를 때까지 닫히지 않는다. */
 .cl-goal-dialog.cl-choice-dialog{width:min(920px,94vw)}.cl-choice-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.cl-choice{display:flex;flex-direction:column;padding:12px;border:1px solid #484233;border-radius:8px;background:#23251d}.cl-choice h3{margin:0 0 6px;font-size:14px;color:#e0c185}.cl-choice ul{flex:1;margin:0;padding:0;list-style:none;font-size:var(--font-size-ui);line-height:1.55}.cl-choice small{color:var(--cl-muted)}.cl-goal-dialog .cl-choice button{margin-top:12px}
 @media(max-width:700px){.cl-choice-list{grid-template-columns:1fr}}
@@ -62,6 +63,8 @@ body .cl-goal-dialog:focus-visible{outline:none}.cl-goal-dialog::backdrop{backgr
 :is(.cl-catalog,#crafting-workspace) [data-theme="cold"]{--resource-tone:#8ccedd}
 :is(.cl-catalog,#crafting-workspace) [data-theme="light"]{--resource-tone:#ddd77d}
 .cl-currency-name{color:var(--resource-tone);font-weight:600}
+/* 재화 보관함 칸의 툴팁 카드: 보유 수는 흐린 금빛(없으면 붉게), 효과 글은 밝게(낱말 색은 .cl-keyword) */
+.cl-stash-tip .cl-stash-tip-held{color:#cdb88a}.cl-stash-tip .cl-stash-tip-held.is-empty{color:#e0806e}.cl-stash-tip .cl-stash-tip-effect{color:#eae1cc}
 .cl-keyword{font-weight:600;color:var(--keyword-tone)}
 .cl-keyword[data-keyword="normal"]{--keyword-tone:#fff}.cl-keyword[data-keyword="magic"]{--keyword-tone:#9fd3ff}.cl-keyword[data-keyword="rare"]{--keyword-tone:#ffe07a}.cl-keyword[data-keyword="unique"]{--keyword-tone:#e9ae7a}
 .cl-keyword[data-keyword="physical"]{--keyword-tone:#d7c4a8}.cl-keyword[data-keyword="life"]{--keyword-tone:#eba4a2}.cl-keyword[data-keyword="defense"]{--keyword-tone:#afc4d4}

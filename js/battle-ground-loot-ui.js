@@ -6,7 +6,7 @@ const battleGroundLoot = (() => {
     let seen = new WeakSet();
     const entries = new Map();
     const motes = new Set();
-    const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = () => uiDisplay.reducedEffects();
     // The canvas width from the box measured once per resize: canvas.clientWidth here, read every frame by consume(), forced a
     // style and layout pass whenever anything had touched the page earlier in the frame (2026-10-07: about 8% of a frame with a window open).
     const narrow = () => canvasBox(canvas).width < 600;

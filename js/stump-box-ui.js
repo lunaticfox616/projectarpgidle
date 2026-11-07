@@ -129,17 +129,17 @@ const stumpBoxUi = (() => {
     /** What each frame button does now: its name (aria-label) and the part of it that names a frame (coloured in the tooltip). */
     function frameButtonLabels() {
         const box = frameView === 'box', cube = frameView === 'cube';
-        const turn = (frame, rest = '') => ({ frame, text: _t('{frame}으로 전환{rest}', { frame, rest }) }), here = cube ? '조합창' : box ? '그루터기 함' : '생육함';
-        return { top: turn(box ? '조합창' : '그루터기 함'), left: { text: rightView === 'bag' ? '그루터기 보관함 보기' : '장비 인벤토리 보기' },
-            right: { frame: here, text: _t('{here} 비우기', { here }) },
-            bottom: onNursery() ? turn('그루터기 함') : turn('생육함', canEnterNursery() ? '' : ' (해금 필요)') };
+        const turn = (frame, rest = '') => ({ frame, text: _t('{frame}으로 전환{rest}', { frame: _t(frame), rest }) }), here = cube ? '조합창' : box ? '그루터기 함' : '생육함';
+        return { top: turn(box ? '조합창' : '그루터기 함'), left: { text: _t(rightView === 'bag' ? '그루터기 보관함 보기' : '장비 인벤토리 보기') },
+            right: { frame: here, text: _t('{here} 비우기', { here: _t(here) }) },
+            bottom: onNursery() ? turn('그루터기 함') : turn('생육함', canEnterNursery() ? '' : ` (${_t('해금 필요')})`) };
     }
     /** Open, or left holding items after losing the unlock: they must stay reachable. */
     const canEnterNursery = () => stumpBox.nurseryOpen(game) || game.stumpBox.nursery.some(id => id !== null);
     /** The frame art (dark holds the board, ivory the cube, green the nursery) and its four buttons, in the art's own 256px canvas. */
     function stumpFrameHtml() {
         const buttons = Object.entries(frameButtonLabels()).map(([side, label]) => `<button type="button" class="stump-frame-button is-${side}"`
-            + ` data-stump-action="frame-button" data-side="${side}" aria-label="${label.text}" data-stump-tip="frame" data-info-tooltip-anchor="1"`
+            + ` data-stump-action="frame-button" data-side="${side}" aria-label="${escStump(label.text)}" data-stump-tip="frame" data-info-tooltip-anchor="1"`
             + `${side === 'left' ? ` aria-pressed="${rightView === 'bag'}"` : ''}></button>`).join('');
         return `<div class="stump-frame">${buttons}</div>`;
     }
@@ -147,7 +147,8 @@ const stumpBoxUi = (() => {
     function frameTipHtml(side) {
         const label = frameButtonLabels()[side];
         if (!label) return '';
-        const named = label.frame ? `<span style="color:${FRAME_NAME_TONES[label.frame]}">${label.frame}</span>${escStump(label.text.slice(label.frame.length))}` : escStump(label.text);
+        const frameName = escStump(_t(label.frame || ''));
+        const named = label.frame ? escStump(label.text).replace(frameName, `<span style="color:${FRAME_NAME_TONES[label.frame]}">${frameName}</span>`) : escStump(label.text);
         return `<div class="tooltip-line plain-tip">${named}</div>`;
     }
     /** The grid area a run of cells covers, bars between them included. */
@@ -607,7 +608,7 @@ const stumpBoxUi = (() => {
         const total = STUMP_BOX_HARVEST.rows.length * COLORS.length;
         const tabs = [['harvest', _t('수확 일지 {length}/{total}', { length: game.stumpBox.harvest.grown.length, total })],
             ['unlocks', _t('함 해금 {length}/{length2}', { length: stumpBox.openUnlocks(game).length, length2: STUMP_BOX_UNLOCKS.length })], ['wallet', _t('재화')]];
-        return contentProgression.isUnlocked('talisman') ? tabs.concat([['talisman', '부적']]) : tabs;
+        return contentProgression.isUnlocked('talisman') ? tabs.concat([['talisman', _t('부적')]]) : tabs;
     }
     const STUMP_MORE_BODIES = Object.freeze({
         harvest: () => stumpHarvestUi.journalHtml(),
@@ -646,7 +647,7 @@ const stumpBoxUi = (() => {
         const graftInputs = [selectedCell, stumpBox.graftPoints(game).free, Math.floor(game.currencies.blightSpore || 0)];
         // 함 해금(보관함 한도, 뿌리 기억, 봉인 칸, 품질 상한, 씨앗 주머니 …)은 저널과 루프에서 계산된다(함이 그대로여도 바뀐다).
         const unlockInputs = [stumpBox.storageLimit(game), stumpBox.openUnlocks(game).map(row => row.id)];
-        return JSON.stringify([game.stumpBox, selectedId, moreTab, moreOpen, colorFilter, storageSort, stateFilter, compareOpen, comparedId,
+        return JSON.stringify([i18n.language, game.stumpBox, selectedId, moreTab, moreOpen, colorFilter, storageSort, stateFilter, compareOpen, comparedId,
             stumpBox.canUndoPlacement(game), stumpBox.openCount(game), !!game.woodsmanBuildLock, talismanInputs,
             graftInputs, unlockInputs, frameView, rightView, summaryOpen, storagePage, stumpCubeUi.cubeSignature()]);
     }
@@ -1365,7 +1366,7 @@ const stumpBoxUi = (() => {
         if (!scar) return;
         game.noti.stump = true;
         lastSignature = '';
-        addLog(_t('🔥 그루터기 함: {name} 받았습니다. 그루터기 함에 배치해 깨우세요.', { name: withObjectParticle(STUMP_BOX_SCAR.name) }), 'loot-unique');
+        addLog(_t('🔥 그루터기 함: {name} 받았습니다. 그루터기 함에 배치해 깨우세요.', { name: withObjectParticle(_t(STUMP_BOX_SCAR.name)) }), 'loot-unique');
     }
     /** 함 안내를 예전에 보고 선물은 이번에 받은 저장: 놓는 법만 따로 한 번 안내한다. */
     function announceStumpStarter() {
@@ -1375,11 +1376,9 @@ const stumpBoxUi = (() => {
     function announceStumpGraft() {
         if (!stumpBox.graftOpen(game) || (game.seenTutorials || []).includes('unlock_stump_graft')) return;
         game.noti.stump = true;
-        queueTutorialNotice('unlock_stump_graft', _t('접붙이기'),
-            `루프 ${STUMP_BOX_GRAFT.startLoop}부터 루프마다 접붙이기 점수 ${STUMP_BOX_GRAFT.pointsPerLoop}점을 받습니다.\n`
-            + _t('그루터기 함에서 칸을 고르고 [접붙이기]로 강화합니다. n단계에 n점(최대 {maxRank}단계), ', { maxRank: STUMP_BOX_GRAFT.maxRank })
-            + `단계마다 그 칸의 효과 +${STUMP_BOX_GRAFT.pctPerRank}%.\n마름병 포자로 한 단계씩 되돌리면 점수가 돌아옵니다.`,
-            'tab-stump');
+        queueTutorialNotice('unlock_stump_graft', '접붙이기',
+            '루프 {loop}부터 루프마다 접붙이기 점수 {points}점을 받습니다.\n그루터기 함에서 칸을 고르고 [접붙이기]로 강화합니다. n단계에 n점(최대 {maxRank}단계), 단계마다 그 칸의 효과 +{pct}%.\n마름병 포자로 한 단계씩 되돌리면 점수가 돌아옵니다.',
+            'tab-stump', { bodyParams: { loop: STUMP_BOX_GRAFT.startLoop, points: STUMP_BOX_GRAFT.pointsPerLoop, maxRank: STUMP_BOX_GRAFT.maxRank, pct: STUMP_BOX_GRAFT.pctPerRank } });
     }
     const STUMP_LOG_ICONS = Object.freeze({ talisman: '🧿', scar: '🔥' });
     /** A drop's log line and tone: talismans by rarity; scars and golden seeds stand out. */

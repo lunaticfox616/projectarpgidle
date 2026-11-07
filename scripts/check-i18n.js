@@ -329,6 +329,15 @@ function exportTable(code, pack, sources, staticKeys, argv) {
 function jsString(text) { return /['\n\r\\]/.test(text) ? JSON.stringify(text) : `'${text}'`; }   // 줄바꿈·따옴표는 JSON 꼴("…\n…")로
 function jsValue(value) { return typeof value === 'string' ? jsString(value) : `{ ${Object.entries(value).map(([k, v]) => `${k}: ${jsString(v)}`).join(', ')} }`; }
 
+function translationValueRanges(source) {
+    const ranges = new Map();
+    walk(espree.parse(source, { ecmaVersion: 'latest', sourceType: 'script', range: true }), node => {
+        if (node.type !== 'Property' || node.key.type !== 'Literal' || typeof node.key.value !== 'string') return;
+        ranges.set(node.key.value, node.value.range);
+    });
+    return ranges;
+}
+
 function importTable(code, file) {
     const rows = JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
     const target = path.join(ROOT, packFile(code));
@@ -336,13 +345,16 @@ function importTable(code, file) {
     if (source.lastIndexOf('    })\n});') < 0) throw new Error(`${packFile(code)}: strings를 닫는 '    })\\n});'를 찾지 못했다`);
     const filled = rows.filter(row => row && typeof row.key === 'string' && row[code] && (typeof row[code] === 'string' ? row[code].trim() : typeof row[code] === 'object'));
     const added = [];
-    let replaced = 0;
-    for (const row of filled) {
-        const value = typeof row[code] === 'string' ? row[code].trim() : row[code];
-        const line = new RegExp(`^(\\s*)(?:'${row.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/'/g, "\\\\'")}'|${JSON.stringify(row.key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}):\\s*(?:'(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*"|\\{[^}]*\\})(,?)\\s*$`, 'm');
-        if (line.test(source)) { source = source.replace(line, (whole, indent, comma) => `${indent}${jsString(row.key)}: ${jsValue(value)}${comma}`); replaced++; }
+    const replacements = [];
+    const ranges = translationValueRanges(source);
+    for (const row of new Map(filled.map(entry => [entry.key, entry])).values()) {
+        // trim is only for the empty-value check above. Prefixes and separators need their boundary spaces.
+        const value = row[code];
+        const range = ranges.get(row.key);
+        if (range) replacements.push({ start: range[0], end: range[1], text: jsValue(value) });
         else added.push(`        ${jsString(row.key)}: ${jsValue(value)},`);
     }
+    for (const edit of replacements.sort((a, b) => b.start - a.start)) source = source.slice(0, edit.start) + edit.text + source.slice(edit.end);
     if (added.length) {
         const close = source.lastIndexOf('    })\n});');   // 값을 바꾼 뒤에 찾는다(바뀐 길이만큼 자리가 밀린다)
         let head = source.slice(0, close).replace(/\s+$/, '');
@@ -351,7 +363,7 @@ function importTable(code, file) {
     }
     try { espree.parse(source, { ecmaVersion: 'latest', sourceType: 'script' }); } catch (error) { throw new Error(`${packFile(code)}: 넣은 결과가 JS로 읽히지 않아 쓰지 않았다(${error.message}). 표의 값에 따옴표나 줄바꿈이 있는지 본다`); }
     fs.writeFileSync(target, source);
-    console.log(`${packFile(code)}: 새 열쇠 ${added.length}개, 바뀐 값 ${replaced}개 (표의 ${rows.length}줄 중 채워진 ${filled.length}줄)`);
+    console.log(`${packFile(code)}: 새 열쇠 ${added.length}개, 바뀐 값 ${replacements.length}개 (표의 ${rows.length}줄 중 채워진 ${filled.length}줄)`);
 }
 
 function main() {

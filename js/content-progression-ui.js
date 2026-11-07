@@ -22,26 +22,26 @@ const contentUnlockUi = {
         game.unlocks.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('tutorial_starter_gem_equip', _t('첫 스킬룬 장착'),
-            `[${name}] 룬을 얻었습니다.\n‘스킬룬’에서 빛나는 룬을 누르고 ‘장착’을 누르세요.\n장착한 룬으로 자동 전투의 공격이 바뀝니다.`, 'tab-skills');
+            _t('[{name}] 룬을 얻었습니다.\n‘스킬룬’에서 빛나는 룬을 누르고 ‘장착’을 누르세요.\n장착한 룬으로 자동 전투의 공격이 바뀝니다.', { name: _t(name) }), 'tab-skills');
     },
     /** The loop card: the points, then the unlocks this loop adds to the tab, by name only (2026-10-27 사용자: 짧게, 필요한 것만).
      * Free contents are left out: each gets its own card when it opens (announceContent). A loop that adds none names the next one. */
     announceLoop() {
         if (!game.contentProgression) {
             queueTutorialNotice('unlock_content_loop_' + game.season, _t('다음 콘텐츠 선택'),
-                `루프 ${game.season}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.`, 'tab-unlocks');
+                _t('루프 {loop}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.', { loop: game.season }), 'tab-unlocks');
             return;
         }
         const added = this.listed(game.season).filter(def => contentProgression.kind(def) === 'paid' && !contentProgression.isUnlocked(def.id)
             && contentProgression.parents(def).every(id => contentProgression.isUnlocked(id)));
-        const paid = added.map(def => `[${def.name}]`);
+        const paid = added.map(def => `[${_t(def.name)}]`);
         if (contentProgression.points().complete && !added.length) return;
         const lines = [_t('해금 포인트 {balance}P', { balance: contentProgression.balance() })];
-        if (paid.length) lines.push(`새 해금: ${paid.join(', ')}`);
+        if (paid.length) lines.push(_t('새 해금: {names}', { names: paid.join(', ') }));
         // 고를 것이 새로 없는 루프(7, 9)는 다음에 열리는 루프를 한 줄 미리 보인다.
         if (!added.length) {
             const ahead = CONTENT_UNLOCK_CATALOG.filter(def => !def.series && def.minLoop > game.season).reduce((min, def) => Math.min(min, def.minLoop), Infinity);
-            if (Number.isFinite(ahead)) lines.push(`루프 ${ahead}: ${this.listed(ahead).map(def => `[${def.name}]`).join(', ')}`);
+            if (Number.isFinite(ahead)) lines.push(_t('루프 {loop}: {names}', { loop: ahead, names: this.listed(ahead).map(def => `[${_t(def.name)}]`).join(', ') }));
         }
         queueTutorialNotice('unlock_content_loop_' + game.season, _t('루프 {season}', { season: game.season }), lines.join('\n'), 'tab-unlocks');
     },
@@ -94,7 +94,7 @@ const contentUnlockUi = {
     },
     entryReward(def, status) {
         const text = def.rewardText;
-        const reward = !status.unlocked && text ? `<p class="unlock-reward">${escapeHTML(text)}</p>` : '';
+        const reward = !status.unlocked && text ? `<p class="unlock-reward">${escapeHTML(_t(text))}</p>` : '';
         const picker = !status.unlocked && def.rewardChoices?.length > 1 ? `<label class="content-unlock-choice">${_t('첫 보상')}<select data-unlock-reward="${def.id}" aria-label="${_t('{name} 첫 보상', { name: escapeHTML(_t(def.name)) })}">${def.rewardChoices.map(row => `<option value="${row.key}">${escapeHTML(_t(row.label))}</option>`).join('')}</select></label>` : '';
         return reward + picker;
     },
@@ -157,8 +157,8 @@ const contentUnlockUi = {
         const action = this.routeAction(def), route = action ? this.routeKey(action) : null;
         const path = CONTENT_ROUTE_PATHS[route];
         const before = tutorialQueue.length;
-        queueTutorialNotice(`unlock_content_${id}`, def.name, path ? `${def.description}\n‘${path}’에 있습니다.` : def.description,
-            action ? action.tab : null, { subtabId: route, contentId: id, openLabel: _t('{name} 열기', { name: def.name }) });
+        queueTutorialNotice(`unlock_content_${id}`, def.name, path ? _t('{description}\n‘{path}’에 있습니다.', { description: _t(def.description), path: _t(path) }) : def.description,
+            action ? action.tab : null, { subtabId: route, contentId: id, openLabel: _t('{name} 열기', { name: _t(def.name) }) });
         return tutorialQueue.length > before;
     },
     /** Free contents open right now (contentProgression keeps them in automatic once reached). */
@@ -224,10 +224,10 @@ const contentUnlockUi = {
         const keys = open.map(row => {
             const heard = this.npcHeard(npc, row.topic);
             return `<li><button type="button" class="${heard ? 'is-heard' : 'is-new'}" data-npc-topic="${escapeHTML(row.topic)}" aria-pressed="${row === topic}">
-                <span>${escapeHTML(row.topic)}</span>${heard ? '' : _t('<em>새 이야기</em>')}</button></li>`;
+                <span>${escapeHTML(_t(row.topic))}</span>${heard ? '' : _t('<em>새 이야기</em>')}</button></li>`;
         }).join('');
-        return `<section class="npc-dialog-speech" aria-live="polite">${topic ? `<h3>${escapeHTML(topic.topic)}</h3>` : ''}
-            <p>${escapeHTML(topic ? topic.line : this.npcGreeting(npc))}</p></section>
+        return `<section class="npc-dialog-speech" aria-live="polite">${topic ? `<h3>${escapeHTML(_t(topic.topic))}</h3>` : ''}
+            <p>${escapeHTML(_t(topic ? topic.line : this.npcGreeting(npc)))}</p></section>
             <nav class="npc-dialog-talk" aria-label="${_t('이야깃거리')}"><h4>${_t('이야기')}</h4><ul class="npc-dialog-topics">${keys}</ul></nav>
             ${this.npcFoot(view)}`;
     },

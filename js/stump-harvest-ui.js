@@ -153,7 +153,7 @@ const stumpHarvestUi = (() => {
         if (game.isBackgroundCalculation || !game.stumpBox.acquired) return;
         const found = stumpCube.learn(game);
         if (!found.length) return;
-        const names = found.map(recipe => recipe.name).join(', ');
+        const names = found.map(recipe => _t(recipe.name)).join(', ');
         game.noti.stump = true;
         addLog(_t('🧩 새 조합법: {names}', { names }), 'loot-rare');
         showGameToast(_t('새 조합법: {names}', { names }), { tone: 'success' });

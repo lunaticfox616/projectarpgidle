@@ -13,7 +13,7 @@ const path = require('node:path');
 
 const TAG = /<(script|link)\b([^>]*?)\b(src|href)="([^"?#:]+)(\?[^"#]*)?"([^>]*)>/g;
 
-const isStylesheet = attributes => /\brel="stylesheet"/.test(attributes);
+const isVersionedLink = attributes => /\brel="(?:stylesheet|rignin-language)"/.test(attributes);
 
 async function contentHash(destination, file) {
     const bytes = await fs.readFile(path.join(destination, file)).catch(error => {
@@ -26,7 +26,7 @@ async function contentHash(destination, file) {
 async function markImmutableUrls(destination, html) {
     const hashes = new Map();
     for (const [, tag, before, , file, , after] of html.matchAll(TAG)) {
-        if (tag === 'link' && !isStylesheet(before + after)) continue;
+        if (tag === 'link' && !isVersionedLink(before + after)) continue;
         if (!hashes.has(file)) hashes.set(file, await contentHash(destination, file));
     }
     return html.replace(TAG, (match, tag, before, attribute, file, query = '', after) => {

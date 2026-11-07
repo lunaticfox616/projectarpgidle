@@ -113,8 +113,13 @@ returns boolean language sql stable set search_path = public as $$
          cross join lateral (
                select public.cheat_number(lines.line -> 'val') as val,
                       public.hall_line_bounds(item_data, lines.line, lines.line_kind) as bounds) roll
-         where jsonb_typeof(lines.line -> 'val') = 'number'
-           and (abs(roll.val) > 10000000
+         -- 없는 부가 줄(null)은 허용한다. 존재하는 줄의 숫자 문자열은 구매자 쪽에서
+         -- Number로 바뀌므로 검사에서 건너뛰지 않고 거절한다.
+         where lines.line is not null and lines.line <> 'null'::jsonb
+           and (jsonb_typeof(lines.line) <> 'object'
+                or jsonb_typeof(lines.line -> 'val') is distinct from 'number'
+                or (lines.line ? 'tier' and jsonb_typeof(lines.line -> 'tier') is distinct from 'number')
+                or abs(roll.val) > 10000000
                 or public.cheat_number(lines.line -> 'tier') > 20
                 or (roll.bounds is not null
                     and roll.val > roll.bounds[2] + greatest(abs(roll.bounds[1]), abs(roll.bounds[2]), 1) + 1))
@@ -123,15 +128,26 @@ $$;
 
 -- 고유 효과의 값(uniqueEffectParams)과 품질: 클라이언트가 상한 없이 곱하는 칸이라 서버가 크기를 본다(2026-10-27).
 -- 배율(mul, explicitStatMultiplier)과 젬 레벨 보너스(level)는 10까지, 그 밖의 숫자 값은 100000까지(데이터의 가장 큰 값은 sleepMs 10000),
--- 품질은 30까지(한계 돌파와 타락의 상한).
+-- 품질은 30까지(한계 돌파와 타락의 상한). 숫자는 JSON number만 허용한다. 숫자가 아닌
+-- 정상 효과 값은 투사체 방식(mode)과 만화경의 allowAllSlotMods뿐이며 효과와 타입을 함께 확인한다.
 create or replace function public.hall_item_params_out_of_range(item_data jsonb)
 returns boolean language sql immutable set search_path = public as $$
     select public.cheat_number(item_data -> 'quality') > 30
-        or (jsonb_typeof(item_data -> 'uniqueEffectParams') = 'object' and exists (
-            select 1 from jsonb_each(item_data -> 'uniqueEffectParams') param
-             where jsonb_typeof(param.value) = 'number'
-               and (abs(public.cheat_number(param.value)) > 100000
-                    or (param.key in ('mul', 'explicitStatMultiplier', 'level') and public.cheat_number(param.value) > 10))));
+        or case
+            when item_data -> 'uniqueEffectParams' is null or item_data -> 'uniqueEffectParams' = 'null'::jsonb then false
+            when jsonb_typeof(item_data -> 'uniqueEffectParams') <> 'object' then true
+            else exists (
+                select 1 from jsonb_each(item_data -> 'uniqueEffectParams') param
+                 where case
+                     when param.key = 'mode' then item_data ->> 'uniqueEffectKey' is distinct from 'projectilePatternMode'
+                         or jsonb_typeof(param.value) <> 'string' or param.value #>> '{}' not in ('split', 'focus', 'return')
+                     when param.key = 'allowAllSlotMods' then item_data ->> 'uniqueEffectKey' is distinct from 'kaleidoscopeShield'
+                         or jsonb_typeof(param.value) <> 'boolean'
+                     else jsonb_typeof(param.value) <> 'number'
+                         or abs(public.cheat_number(param.value)) > 100000
+                         or (param.key in ('mul', 'explicitStatMultiplier', 'level') and abs(public.cheat_number(param.value)) > 10)
+                 end)
+        end;
 $$;
 
 -- create_hall_listing이 전시를 넣을 때 돈다. 오류가 나면 등록 전체가 되돌아가 장비는 가방에 그대로 남는다.

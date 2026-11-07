@@ -93,6 +93,8 @@ const atlasUi = (() => {
         const ok = await requestGameConfirmation(_t('{tier}등급 이하 일반 지도석 {count}개를 모두 버릴까요?\n마법, 희귀, 품질, 타락 지도석은 남습니다.', { tier, count }),
             { title: _t('지도석 정리'), tone: 'danger', confirmLabel: _t('{count}개 버리기', { count }), cancelLabel: _t('취소'), dismissOnBackdrop: false });
         if (!ok) return;
+        // 묻는 사이 보관함이 바뀌었으면(새로 떨어진 지도석) 확인한 수와 다르다: 지우지 않고 다시 누르게 한다.
+        if (plainUpTo(tier) !== count) return addLog(_t('보관함이 바뀌어 정리를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
         const removed = atlas.discardPlainUpTo(game, tier);
         if (!ledger().stash.includes(map)) selectedUid = null;
         addLog(_t('🗺️ {tier}등급 이하 일반 지도석 {removed}개를 버렸습니다.', { tier, removed }), 'attack-monster');
@@ -107,6 +109,9 @@ const atlasUi = (() => {
         const set = atlas.combineSet(game, map.uid);
         if (set.some(entry => !atlas.plainMap(entry)) && !await requestGameConfirmation(_t('제작한 지도석이 함께 합쳐집니다.\n{names}', { names: set.map(mapName).join('\n') }),
             { title: _t('지도석 합치기'), confirmLabel: _t('합치기'), cancelLabel: _t('취소'), dismissOnBackdrop: false })) return;
+        // 묻는 사이 보관함이 바뀌면 합칠 셋도 바뀔 수 있다: 확인한 셋과 같을 때만 합친다.
+        const now = atlas.combineSet(game, map.uid);
+        if (!now || now.length !== set.length || now.some((entry, at) => entry !== set[at])) return addLog(_t('보관함이 바뀌어 합치기를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
         const result = atlas.combine(game, map.uid);
         if (result.reason) return addLog(result.reason, 'attack-monster');
         selectedUid = result.map.uid;

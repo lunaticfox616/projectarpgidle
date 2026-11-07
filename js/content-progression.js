@@ -38,7 +38,7 @@ const contentProgression = (() => {
         const def = definitions.get(id);
         if (!def) return [];
         const rows = [[_t('루프 {minLoop}', { minLoop: def.minLoop }), owner.season >= def.minLoop]];
-        for (const key of parents(def)) rows.push([definitions.get(key).name + ' 해금', isUnlocked(key, owner)]);
+        for (const key of parents(def)) rows.push([_t('{name} 해금', { name: _t(definitions.get(key).name) }), isUnlocked(key, owner)]);
         if (def.progress) rows.push(...progressChecks[def.progress](owner));
         return rows.map(([label, met]) => ({ label, met: !!met }));
     }
@@ -227,7 +227,7 @@ const contentProgression = (() => {
         if (!def) return { available: false, reason: _t('알 수 없는 콘텐츠입니다.') };
         if (isUnlocked(id, owner)) return { available: false, reason: _t('해금 완료'), unlocked: true };
         const missing = requirements(id, owner).filter(row => !row.met);
-        if (missing.length) return { available: false, reason: missing[0].label + ' 필요' };
+        if (missing.length) return { available: false, reason: _t('{label} 필요', { label: _t(missing[0].label) }) };
         if (balance(owner) < def.cost) return { available: false, reason: _t('해금 포인트 부족') };
         return { available: true, reason: _t('{cost}점으로 해금', { cost: def.cost }) };
     }
@@ -269,7 +269,7 @@ const contentProgression = (() => {
         owner.contentProgression.unlocked.push(id);
         owner.contentProgression.paidCosts[id] = def.cost;
         sync(owner);
-        return { ok: true, message: def.name + ' 해금' };
+        return { ok: true, message: _t('{name} 해금', { name: _t(def.name) }) };
     }
 
     function legacyAccess(def, owner) {
@@ -340,6 +340,13 @@ const contentProgression = (() => {
         return [...new Set((Array.isArray(raw) ? raw : []).filter(id => definitions.has(id)))];
     }
 
+    /** A saved destination is only a UI preference. It never changes purchase eligibility or the ledger. */
+    function planTarget(id, owner = game) {
+        if (!owner.contentProgression || (id !== '' && !definitions.has(id))) return false;
+        owner.contentProgression.plannedUnlockId = id;
+        return true;
+    }
+
     function restoredLedger(record, owner, legacy) {
         const savedLoop = Number.isFinite(record.highestLoop) ? record.highestLoop : 1;
         const highestLoop = Math.max(1, owner.season, Math.min(1000000, Math.floor(savedLoop)));
@@ -352,6 +359,7 @@ const contentProgression = (() => {
             graftFloor: Number(record.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(record.graftFloor) || 0)) : 0,
             paceCarry: Number(record.version) >= SERIES_VERSION ? Math.max(0, Math.floor(Number(record.paceCarry) || 0)) : paceGap(highestLoop),
             unlocked: [], paidCosts: {}, inherited: savedIds(inherited), grandfathered: savedIds(grandfathered),
+            plannedUnlockId: definitions.has(record.plannedUnlockId) ? record.plannedUnlockId : '',
             automatic: savedIds(record.automatic).filter(id => kind(definitions.get(id)) === 'auto') };
     }
 
@@ -427,6 +435,6 @@ const contentProgression = (() => {
     }
 
     return Object.freeze({ kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, npcsMet, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
-        purchase, restore });
+        purchase, restore, planTarget });
 })();
 safeExposeGlobals({ contentProgression });

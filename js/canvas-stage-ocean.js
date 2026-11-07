@@ -26,7 +26,7 @@ const stageOcean = (() => {
             const row = { image: new Image(), failed: false };
             row.image.decoding = 'async';
             row.image.onerror = () => { row.failed = true; };
-            row.image.src = STAGE_OCEAN.path + name + '.png?v=20261020-1';
+            row.image.src = STAGE_OCEAN.path + name + '.png?v=20261106-1';
             pictures.set(name, row);
         }
         return pictures.get(name);

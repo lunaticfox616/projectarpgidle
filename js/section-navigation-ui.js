@@ -11,7 +11,9 @@
             this.navigation.className = 'mobile-section-navigation';
             this.navigation.setAttribute('role', 'tablist');
             this.navigation.setAttribute('aria-label', navigationLabel);
+            this.navigation.dataset.i18nAttr = 'aria-label';
             this.sections.forEach((section, index) => this.addButton(section, index, rootId, labels[index]));
+            i18n.applyStatic(this.navigation);
             this.sections[0].before(this.navigation);
             this.navigation.addEventListener('keydown', event => this.navigate(event));
             const observer = new MutationObserver(() => this.syncAvailability());
@@ -27,6 +29,7 @@
             button.type = 'button';
             button.id = section.id + '-tab';
             button.textContent = label;
+            button.dataset.i18n = '';
             button.setAttribute('role', 'tab');
             button.setAttribute('aria-controls', section.id);
             button.addEventListener('click', () => this.select(index));

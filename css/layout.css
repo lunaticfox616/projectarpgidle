@@ -76,13 +76,19 @@
         .tier-7 { color: #ff9a67; }
         .tier-8 { color: #ff6f6f; }
         .tier-9 { color: #ff5bd1; text-shadow: 0 0 8px rgba(255,91,209,0.65); }
-        /* 글자색과 그림자로 끊어서 빛난다(steps): 후반 장비는 옵션 대부분이 10등급 이상이라 제작실과 설명 창에서 계속 돈다. 예전 밝기
-           filter는 단계식이어도 합성 단계에서 매 프레임 돌아, 제작실을 열어 둔 동안 화면을 주사율대로 다시 그렸다(2026-10-21 측정, 프레임
-           제한 없이 렌더러 1.12코어 + GPU 0.26코어에서 0.13 + 0.10). */
-        .tier-10 { color: #ffd166; text-shadow: 0 0 10px rgba(255,209,102,0.82), 0 0 18px rgba(255,130,60,0.45); animation: tierPulse 1.35s steps(4, end) infinite; }
-        @keyframes tierPulse {
-            0%, 100% { color: #ffd166; text-shadow: 0 0 10px rgba(255,209,102,0.82), 0 0 18px rgba(255,130,60,0.45); }
-            50% { color: #ffe3a1; text-shadow: 0 0 14px rgba(255,224,150,1), 0 0 26px rgba(255,150,70,0.7); }
+        /* 10등급 위(2026-11-07 사용자: T10 / T11~T14, T15 / T16~T19, T20으로 나누되 이웃 등급은 비슷한 색): T10 금빛, T11~T14 백금,
+           T15 밝은 백금, T16~T19 홍옥, T20 밝은 홍옥. T15와 T20은 바로 아래 묶음과 같은 색으로 더 밝게 빛나 색은 T16에서 한 번만
+           바뀐다. 빛나는 움직임은 T20만 쓴다. 후반 장비는 옵션 대부분이 10등급 이상이라 예전 T10 깜빡임이 제작실과 설명 창에서 계속
+           돌았다. 움직임은 글자색과 그림자를 끊어 바꾼다(steps): 밝기 filter는 단계식이어도 합성 단계에서 매 프레임 돌아 화면을
+           주사율대로 다시 그렸다(2026-10-21 측정, 프레임 제한 없이 렌더러 1.12코어 + GPU 0.26코어에서 0.13 + 0.10). */
+        .tier-10 { color: #ffd166; text-shadow: 0 0 10px rgba(255,209,102,0.82), 0 0 18px rgba(255,130,60,0.45); }
+        .tier-11, .tier-12, .tier-13, .tier-14 { color: #c8d3e2; text-shadow: 0 0 5px rgba(160,200,255,0.5); }
+        .tier-15 { color: #ffffff; text-shadow: 0 0 10px rgba(200,225,255,1), 0 0 20px rgba(140,180,255,0.65); }
+        .tier-16, .tier-17, .tier-18, .tier-19 { color: #ff5c84; text-shadow: 0 0 6px rgba(255,60,110,0.65); }
+        .tier-20 { color: #ff8aa5; text-shadow: 0 0 10px rgba(255,60,110,1), 0 0 20px rgba(255,120,150,0.65); animation: tierPeak 1.6s steps(4, end) infinite; }
+        @keyframes tierPeak {
+            0%, 100% { color: #ff8aa5; text-shadow: 0 0 10px rgba(255,60,110,1), 0 0 20px rgba(255,120,150,0.65); }
+            50% { color: #ffc4d2; text-shadow: 0 0 14px rgba(255,110,150,1), 0 0 26px rgba(255,150,180,0.85); }
         }
         .tutorial-overlay { display: none; position: fixed; inset: 0; z-index: 12000; background: rgba(4, 7, 12, 0.84); }
         .tutorial-overlay.active { display: flex; align-items: center; justify-content: center; }

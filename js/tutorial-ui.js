@@ -24,13 +24,13 @@ const tutorialActionUi = {
     },
     /** 새 콘텐츠 카드도 본문을 펼쳐 보인다(2026-10-26 사용자: 접힌 '자세히'는 빈 카드처럼 보였다). */
     noticeBody(notice, controls) {
-        return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body) + controls.trim();
+        return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body, notice.bodyParams) + controls.trim();
     },
     expireNotice(now) {
         if (!activeTutorial || this.requiresAttention(activeTutorial) || now < this.noticeUntil) return;
         const card = document.querySelector('#tutorial-overlay .tutorial-card');
         if (card?.matches(':hover, :focus-within')) return;
-        dismissTutorial(false);
+        dismissTutorial(false, 'unread');
     },
     active: null,
     highlighted: null,
@@ -76,7 +76,8 @@ const tutorialActionUi = {
             selector: ['#stump-placement-preview:not([hidden]) [data-stump-action="placement-apply"]',
                 '#stump-box-board .stump-cell.is-target', '#stump-box-storage .stump-item'],
             title: '그루터기 함에 심기',
-            body: '보관함의 씨앗을 누르고 그루터기 함의 빈 칸을 누르세요. 수액도 같은 방법으로 배치합니다.',
+            // 2026-11-07: 수액이 씨앗에 합쳐져(2026-11-04) 수액 배치 문장을 뺐다.
+            body: '보관함의 씨앗을 누르고 그루터기 함의 빈 칸을 누르세요.',
             read: () => [game.stumpBox.board.filter(id => id !== null).length, stumpBox.storage(game).filter(item => item.family !== 'talisman').length],
             completed: ([placed, waiting], [placedBefore]) => waiting === 0 || placed >= placedBefore + 2
         }
@@ -99,12 +100,18 @@ const tutorialActionUi = {
         this.ensureCard();
         this.card.hidden = false;
         this.card.classList.remove('is-away');
-        this.card.querySelector('strong').textContent = _t(guide.title);
-        // ‘장착’ 같은 단추 이름은 안내 판처럼 색 글씨로(도트 글꼴의 ’가 전각이라 "‘장착’ 을"처럼 띄어 보였다).
-        this.card.querySelector('p').innerHTML = tutorialMarkup(guide.body);
+        this.refreshText();
         this.rest();
         if (guide.spotlight) guide.spotlight(true, () => this.reposition());
         this.openTarget();
+    },
+    refreshText() {
+        if (!this.active || !this.card) return;
+        this.card.setAttribute('aria-label', _t('플레이 안내'));
+        this.card.querySelector('strong').textContent = _t(this.active.guide.title);
+        this.card.querySelector('p').innerHTML = tutorialMarkup(_t(this.active.guide.body));
+        this.card.querySelector('[data-open]').textContent = _t('화면 보기');
+        this.card.querySelector('[data-skip]').textContent = _t('안내 닫기');
     },
     ensureCard() {
         if (this.card) return;
@@ -112,7 +119,7 @@ const tutorialActionUi = {
         card.id = 'tutorial-action-card';
         card.className = 'tutorial-action-card';
         card.setAttribute('aria-label', _t('플레이 안내'));
-        card.innerHTML = '<strong></strong><p id="tutorial-action-description"></p><div><button type="button" data-open>화면 보기</button><button type="button" data-skip>안내 닫기</button></div>';
+        card.innerHTML = `<strong></strong><p id="tutorial-action-description"></p><div><button type="button" data-open>${_t('화면 보기')}</button><button type="button" data-skip>${_t('안내 닫기')}</button></div>`;
         card.querySelector('[data-open]').addEventListener('click', () => this.openTarget());
         card.querySelector('[data-skip]').addEventListener('click', () => this.finish(false));
         document.body.appendChild(card);
@@ -260,7 +267,7 @@ const tutorialActionUi = {
         else target.removeAttribute('aria-describedby');
         this.highlighted = null;
     },
-    finish(completed) {
+    finish(completed, withoutSkip = false) {
         const action = this.active;
         this.active = null;
         this.placedFor = null;
@@ -268,10 +275,13 @@ const tutorialActionUi = {
         if (this.card) this.card.hidden = true;
         if (!action) return;
         if (action.guide.spotlight) action.guide.spotlight(false);
+        if (withoutSkip || action.notice.replay) return this.waitBetweenNotices();
         if (completed) {
-            game.seenTutorials.push('action_' + action.notice.key);
+            const key = 'action_' + action.notice.key;
+            if (!game.seenTutorials.includes(key)) game.seenTutorials.push(key);
             showGameToast(action.guide.title + ' 완료', { tone: 'success' });
         } else applySkippedGuide(action.notice.key);
+        queueImportantSave(0);
         this.waitBetweenNotices();
     }
 };
@@ -370,20 +380,20 @@ function tutorialMarkup(line) {
  * data/story-journal.js STORY_LOOP_MILESTONES (the stump box card: who hands the box over says it as it is given). */
 function tutorialQuoteHtml(lore) {
     if (!lore || !lore.quote) return '';
-    return `<blockquote class="story-scene-quote"><p>${escapeHTML(lore.quote)} - ${escapeHTML(speakerShortName(lore.speaker))}</p></blockquote>`;
+    return `<blockquote class="story-scene-quote"><p>${escapeHTML(_t(lore.quote))} - ${escapeHTML(_t(speakerShortName(lore.speaker)))}</p></blockquote>`;
 }
-function tutorialBodyHtml(body) {
-    const [lead = '', ...rest] = String(body || '').split('\n').map(line => line.trim()).filter(Boolean);
+function tutorialBodyHtml(body, params) {
+    const [lead = '', ...rest] = _t(String(body || ''), params).split('\n').map(line => line.trim()).filter(Boolean);
     const head = `<p class="tutorial-summary">${tutorialMarkup(lead)}</p>`;
     if (!rest.length) return head;
     if (rest.some(line => /^[\u201c"]/.test(line))) return head + rest.map(line => `<p class="tutorial-line">${tutorialMarkup(line)}</p>`).join('');
     return head + `<ul class="tutorial-steps">${rest.map(line => `<li>${tutorialMarkup(line)}</li>`).join('')}</ul>`;
 }
 function tutorialOpenLabel(notice) {
-    if (tutorialActionUi.guideFor(notice.key)) return '따라 해보기';
-    if (notice.openLabel) return notice.openLabel;
+    if (tutorialActionUi.guideFor(notice.key)) return _t('따라 해보기');
+    if (notice.openLabel) return _t(notice.openLabel);
     const name = TUTORIAL_TAB_NAMES[notice.tabId];
-    return name ? _t('{name} 열기', { name }) : '화면 열기';
+    return name ? _t('{name} 열기', { name: _t(name) }) : _t('화면 열기');
 }
 /** "○○ 열기": an unlock card opens its exact screen (sub-tab, explore list, section); other cards open their tab. */
 function openTutorialTarget(notice) {
@@ -421,7 +431,7 @@ function renderTutorialStep() {
     if (storyJournalUi.renderTutorial(activeTutorial)) return;
     const kind = tutorialNoticeKind(activeTutorial), overlay = document.getElementById('tutorial-overlay');
     if (overlay.dataset) overlay.dataset.noticeKind = kind;
-    document.getElementById('tutorial-kicker').innerText = TUTORIAL_KIND_LABELS[kind];
+    document.getElementById('tutorial-kicker').innerText = _t(TUTORIAL_KIND_LABELS[kind]);
     document.getElementById('tutorial-title').innerText = _t(activeTutorial.title);
     syncTutorialQueueCount();
     let pauseEnabled = game.settings.pauseGameOnOverlay !== false;
@@ -462,8 +472,9 @@ function tutorialWaitsForTitleCard() {
 }
 /** 설정으로 가는 길: 휴대폰은 하단 "전체" 서랍, PC는 HUD의 "기타" 목록. */
 function settingsMenuPath() {
-    return isMobilePrimaryNavigationEnabled() ? '전체 → 설정' : '기타 → 설정';
+    return _t(isMobilePrimaryNavigationEnabled() ? '전체 → 설정' : '기타 → 설정');
 }
+window.addEventListener('game:languagechange', () => { renderTutorialStep(); tutorialActionUi.refreshText(); });
 
 function isTutorialPresentationBlocked() {
     if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
@@ -501,13 +512,23 @@ function refreshTutorialCardPlacement() {
 /** The first map notice sends the player to the act reward; after claiming it, the map button remains the way back. */
 function tutorialNoticeAllowed(notice) {
     if (notice.key === 'unlock_map' && (game.claimedActRewards || []).includes(0)) return false;
-    return storyJournalUi.allowsNotice(notice.key) && contentProgression.canOpen(notice.subtabId || notice.tabId);
+    return storyJournalUi.allowsNotice(notice.key) && contentProgression.canOpen(notice.tabId) && contentProgression.canOpen(notice.subtabId);
 }
 function tutorialWaitsForReward() {
     return !!tutorialQueue[0] && !String(tutorialQueue[0].key).startsWith('story_') && actRewardPromptPending();
 }
 function tutorialQueueIsHeld() { return tutorialActionUi.holdsQueue() || Date.now() < tutorialActionUi.quietUntil; }
+let savedTutorialRevision = -1;
+/** 안내 기록(game.tutorialHistory)이 바뀌면 바로 저장한다. 시작 화면이 떠 있는 동안은 빈 게임이라 저장하지 않는다. */
+function saveTutorialHistoryChange() {
+    const revision = window.GameModules.state.tutorials.revision;
+    if (revision === savedTutorialRevision || (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen())) return;
+    savedTutorialRevision = revision;
+    queueImportantSave(0);
+}
 function showNextTutorial() {
+    window.GameModules.state.tutorials.sync(game);
+    saveTutorialHistoryChange();
     tutorialActionUi.expireNotice(Date.now());
     refreshTutorialCardPlacement();
     if (activeTutorial || tutorialQueueIsHeld() || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;
@@ -517,8 +538,11 @@ function showNextTutorial() {
             activeTutorial = next;
             break;
         }
+        window.GameModules.state.tutorials.transition(game, next.key, 'unread');
     }
     if (!activeTutorial) return;
+    window.GameModules.state.tutorials.transition(game, activeTutorial.key, 'displayed');
+    queueImportantSave(0);
     tutorialActionUi.noticeUntil = Date.now() + 8000;
     activeTutorial.title = stripDecorativeEmoji(activeTutorial.title);
     activeTutorial.body = stripDecorativeEmoji(activeTutorial.body);
@@ -641,21 +665,21 @@ function plantSkippedStumpStarter(key) {
     if (stumpBox.plantStored(game) > 0) showGameToast(_t('그루터기 함: 받은 씨앗을 배치했습니다'), { tone: 'success' });
 }
 
-/** The queue and the card on screen belonged to the game running until now; a loaded save brings its own (js/ui.js
- * refreshRuntimeForLoadedSave). No skip bookkeeping: the keys were marked in the game that is gone. 2026-11-01: a signed-in player
- * whose guest slot is empty booted into a fresh default, which queued the prologue, act 1 and first-journey cards, and the account save
- * loaded under them, so they came back on every launch. */
+/** A loaded save owns its pending/displayed records. Discard the old foreground without acknowledging it. */
 function discardQueuedNotices() {
     tutorialQueue.length = 0;
+    window.GameModules.state.tutorials.reset();
+    tutorialActionUi.finish(false, true);
     if (!activeTutorial) return;
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
     activeTutorialStep = 0;
 }
 
-function dismissTutorial(openTarget) {
+function dismissTutorial(openTarget, status = 'read') {
     if (!activeTutorial) return;
     const notice = activeTutorial, tabId = notice.tabId;
+    window.GameModules.state.tutorials.transition(game, notice.key, status);
     document.getElementById('tutorial-overlay').classList.remove('active');
     activeTutorial = null;
     activeTutorialStep = 0;
@@ -664,9 +688,11 @@ function dismissTutorial(openTarget) {
     // Phone notices held while the card was up: after the next card (if any) has had its turn.
     setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
     if (!openTarget) {
-        applySkippedGuide(notice.key);
+        if (status === 'read' && !notice.replay) applySkippedGuide(notice.key);
+        queueImportantSave(0);
         return tutorialActionUi.waitBetweenNotices();
     }
+    queueImportantSave(0);
     if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
     openTutorialTarget(notice);
     if (['tutorial_first_gear', 'unlock_items'].includes(notice.key)) tutorialActionUi.openEquipment();

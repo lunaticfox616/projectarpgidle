@@ -78,22 +78,52 @@ async function openCloudSaveHistory() {
 }
 
 async function restoreCloudSaveVersion(revision) {
+    const context = captureCloudSaveContext();
     let confirmed = await requestGameConfirmation(`리비전 ${revision}의 저장으로 복구할까요?\n현재 저장은 복구 직전 이력으로 보관됩니다.`, {
         title: '클라우드 저장 복구', tone: 'warning', confirmLabel: '복구'
     });
     if (!confirmed) return;
+    if (cloudState.busy) return showGameToast(_t('클라우드 작업이 끝난 뒤 다시 눌러 주세요.'), 'warning');
+    // 복구와 그 저장을 받는 사이에 자동 업로드가 같은 리비전으로 끼어들지 않게 막는다(2026-11-07 리뷰).
+    cloudState.busy = true;
+    cancelScheduledCloudSync();
     try {
-        let rows = await cloudJsonRequest('/rest/v1/rpc/restore_cloud_save_version', {
-            method: 'POST', body: { target_revision: revision, expected_revision: getLocalCloudRevision() }
-        });
-        let result = Array.isArray(rows) ? rows[0] : rows;
-        if (!result || result.restored !== true) throw new Error('다른 기기에서 저장이 변경되었습니다. 서버 저장을 다시 불러오세요.');
-        await pullCloudSave({ silent: true });
-        closeCloudToolsDialog();
-        showGameToast(_t('선택한 클라우드 저장을 복구했습니다.'), 'success');
+        await commitCloudSaveRestore(revision, context);
+        await receiveRestoredCloudSave();
     } catch (error) {
-        showGameToast(_t('저장 복구 실패: {value}', { value: error.message || error }), 'danger');
+        const message = /CLOUD_SAVE_HALL_HISTORY_CONFLICT/.test(String(error.message || error))
+            ? _t('전당 거래 전의 저장으로는 복구할 수 없습니다. 현재 저장은 유지됩니다.') : error.message || error;
+        showGameToast(_t('저장 복구 실패: {value}', { value: message }), 'danger');
+    } finally {
+        cloudState.busy = false;
+        updateCloudSaveUI();
     }
+}
+
+/** The server takes the chosen revision as its newest save (db restore_cloud_save_version), or this throws. */
+async function commitCloudSaveRestore(revision, context) {
+    assertCloudSaveContext(context);
+    let rows = await cloudJsonRequest('/rest/v1/rpc/restore_cloud_save_version', {
+        method: 'POST', expectedUserId: context.userId, body: { target_revision: revision, expected_revision: getLocalCloudRevision() }
+    });
+    assertCloudSaveContext(context);
+    let result = Array.isArray(rows) ? rows[0] : rows;
+    if (!result || result.restored !== true) throw new Error('다른 기기에서 저장이 변경되었습니다. 서버 저장을 다시 불러오세요.');
+}
+
+/** The restored save comes down. When it cannot, the restore still stands on the server: uploads stop so this device's older copy
+ * never goes over it, and the player is told to fetch it (전: "복구 실패"로 보여 옛 사본으로 계속하다 다음 접속에 그 진행이 지워졌다). */
+async function receiveRestoredCloudSave() {
+    try {
+        await pullCloudSave({ silent: true });
+    } catch (error) {
+        console.warn('restored cloud save could not be fetched:', error);
+        cloudState.syncHalted = true;
+        showGameToast(_t('복구는 끝났지만 복구한 저장을 받지 못했습니다. 설정의 서버 저장 다시 받기를 눌러 주세요.'), 'warning');
+        return;
+    }
+    closeCloudToolsDialog();
+    showGameToast(_t('선택한 클라우드 저장을 복구했습니다.'), 'success');
 }
 
 /** 설정 > 클라우드 세이브의 계정 삭제 단추. 지워지는 것을 알린 뒤 "삭제"를 그대로 쳐야 delete_my_account(db/cloud-and-playtest.sql)를 부른다.

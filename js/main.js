@@ -29,7 +29,7 @@ safeExposeGlobals({runForegroundExplorationFrame});
 /** The styled start screen (index.html html.app-preload) as soon as it is drawn and its fonts are in, so the pixel font does not swap
  * in after it shows. Until 2026-10-28 only the head script revealed it, on `load`, which also waits for every image the boot starts
  * (stage scenes, effect and enemy sheets: 19MB, a hundred seconds of black on a slow line). That `load` reveal stays as the fallback
- * for a page whose scripts failed. Resolves once the screen is visible; init starts the battle sheets only then, so they do not compete
+ * for a page whose scripts failed. Resolves once the screen is visible; schedules battle sheets only then, so they do not compete
  * with its fonts (19MB on a slow line). */
 function revealStartupScreen() {
     settingsUi.syncStartupSound(); // 오른쪽 위 음표(2026-11-04)는 방금 읽은 저장의 설정으로
@@ -37,12 +37,15 @@ function revealStartupScreen() {
     return fontsReady.then(() => new Promise(shown => requestAnimationFrame(() => {
         document.documentElement.classList.remove('app-preload');
         shown();
+        setTimeout(() => {
+            if (!document.hidden && !navigator.connection?.saveData) initBattleAssets();
+        }, 1800);
     })));
 }
 /** 저장에서 읽은 표현 설정: 언어(설정 창과 정적 글, docs/i18n.md)와 화면 배율. 첫 렌더 전에 둘 다 정한다. */
 function applySavedPresentation(settings) {
-    i18n.applySaved(settings);
     uiDisplay.applySaved(settings);
+    return i18n.applySaved(settings).catch(error => console.warn('[i18n] Saved language could not be loaded; keeping the current language.', error));
 }
 // Bootstrap and scheduling own orchestration; render functions remain in ui.js.
 function init() {
@@ -59,10 +62,10 @@ function init() {
             addLog(`⚠️ ${localSaveStatus.message}`, 'loot-rare');
         }
         updateCloudSaveUI();
-        revealStartupScreen().then(() => setTimeout(() => {
-            if (!document.hidden && !navigator.connection?.saveData) initBattleAssets();
-        }, 1800));
-        setTimeout(init, 0);
+        applySavedPresentation(game.settings).then(() => {
+            revealStartupScreen();
+            setTimeout(init, 0);
+        });
         return;
     }
     applySeasonContentProgression({ silent: true });
@@ -75,7 +78,6 @@ function init() {
     applyUiSkin(game.settings.uiSkin);
     applyHighContrast(game.settings.highContrast);
     hotkeysUi.init();
-    applySavedPresentation(game.settings);
     syncMapCompleteActionQuickControl();
     ensureInitialHeroSelection();
     settingsUi.sync();

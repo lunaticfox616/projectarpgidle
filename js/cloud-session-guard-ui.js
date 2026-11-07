@@ -52,36 +52,50 @@ const cloudSessionGuard = (() => {
         console.warn('cloud session guard ' + step + ' failed:', error);
     }
 
+    const matchesCloudSessionEntry = (userId, token) => guard.token === token && getActiveCloudUserId() === userId;
+
     /** 이 화면의 표를 적는다. 성공해야 머리말을 싣고(armed) 읽기를 시작한다. 적는 사이에 계정이 바뀌었으면 이 표는 쓰지 않고 다음 차례에 새 표를 적는다. */
     async function claimCloudSession() {
         const userId = getActiveCloudUserId(), token = guard.token;
         if (!userId || !token || guard.disabled || guard.superseded) return;
         try {
             await cloudJsonRequest('/rest/v1/rpc/claim_cloud_session', { method: 'POST', expectedUserId: userId, body: { p_token: token } });
-            if (guard.token !== token || getActiveCloudUserId() !== userId) return;
+            if (!matchesCloudSessionEntry(userId, token)) return;
             guard.armed = true;
             guard.userId = userId;
         } catch (error) {
+            if (!matchesCloudSessionEntry(userId, token)) return;
             noteGuardFailure('claim', error);
         }
     }
 
     /** 적힌 표를 읽는다: 다른 표면 다른 기기가 그 뒤에 접속했다. */
     async function readClaimedSession() {
-        const userId = guard.userId;
+        const userId = guard.userId, token = guard.token;
         try {
             const rows = await cloudJsonRequest('/rest/v1/cloud_sessions?select=token&user_id=eq.' + encodeURIComponent(userId), { expectedUserId: userId });
+            if (!guard.armed || guard.userId !== userId || !matchesCloudSessionEntry(userId, token)) return;
             const row = Array.isArray(rows) ? rows[0] : null;
-            if (row && typeof row.token === 'string' && row.token !== guard.token) supersedeCloudSession();
+            if (row && typeof row.token === 'string' && row.token !== token) supersedeCloudSession();
         } catch (error) {
+            if (!matchesCloudSessionEntry(userId, token)) return;
             noteGuardFailure('check', error);
         }
+    }
+
+    /** Only a changed account entry gets an immediate follow-up; network failures retain the ordinary polling interval. */
+    async function checkSessionEntry() {
+        do {
+            const token = guard.token, userId = getActiveCloudUserId();
+            await (guard.armed ? readClaimedSession() : claimCloudSession());
+            if (guard.token === token && getActiveCloudUserId() === userId) return;
+        } while (!guard.disabled && !guard.superseded && !document.hidden && getActiveCloudUserId());
     }
 
     /** 한 차례: 아직 못 적었으면 적고, 적었으면 읽는다. 숨은 화면은 게임이 멈춰 있어 건너뛴다(다시 보일 때 바로 한 차례 돈다). */
     function pollCloudSession() {
         if (guard.pending || guard.disabled || guard.superseded || document.hidden || !getActiveCloudUserId()) return;
-        guard.pending = (guard.armed ? readClaimedSession() : claimCloudSession()).finally(() => { guard.pending = null; });
+        guard.pending = checkSessionEntry().finally(() => { guard.pending = null; });
     }
 
     function stopPolling() {
@@ -98,6 +112,8 @@ const cloudSessionGuard = (() => {
             stopPolling();
             guard.armed = false;
             guard.userId = null;
+            guard.token = null;
+            guard.tokenUser = null;
             return;
         }
         if (guard.armed && guard.userId === userId) return;
@@ -161,11 +177,12 @@ const cloudSessionGuard = (() => {
         if (guard.superseded) throw new Error(STANDBY_TEXT.refused);
     }
     /** 서버가 거절한 본문: 접속 표가 다르다는 거절이면 바로 멈춘다(읽기 차례를 기다리지 않는다). */
-    function noteServerRefusal(data) {
-        if (guard.armed && data && typeof data === 'object' && data.message === REFUSAL) supersedeCloudSession();
+    function noteServerRefusal(data, requestToken) {
+        if (guard.armed && requestToken === guard.token && data && typeof data === 'object' && data.message === REFUSAL) supersedeCloudSession();
     }
 
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && guard.armed) pollCloudSession(); });
+    // 다시 보이면 바로 한 차례 돈다. 숨은 채 켜져 아직 표를 못 적은 화면도 여기서 적는다(전: 적은 화면만 돌아 다음 주기까지 1분 비었다).
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && guard.timer) pollCloudSession(); });
 
     return Object.freeze({ ready: untilSessionMayBoot, syncSession: syncCloudSessionGuard, requestHeaders, assertActive, noteServerRefusal, refusalCode: REFUSAL });
 })();

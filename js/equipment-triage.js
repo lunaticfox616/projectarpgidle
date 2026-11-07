@@ -57,6 +57,7 @@
         try {
             game = JSON.parse(snapshot.gameJson);
             game.inventory = snapshot.inventory;
+            if (snapshot.exploration !== undefined) game.actExploration = snapshot.exploration;
             if (item) game.equipment[slot] = JSON.parse(JSON.stringify(item));
             return getPlayerStats(false);
         } finally {
@@ -80,10 +81,12 @@
     function createAnalysisWork(only = null) {
         // Stat providers only read inventory (e.g. the old-box jewel's rarity bonus).
         // Share its isolated, immutable copy; reparsing hundreds of full items per slot
-        // would cost more than the numeric-only evaluation saves.
+        // would cost more than the numeric-only evaluation saves. The exploration run is no stat input
+        // (js/combat-equipment-stats.js permanentSnapshot): one copy, shared by every slot.
         const inventory = freezeInventoryRecord(JSON.parse(JSON.stringify(game.inventory)));
-        const snapshot = { inventory, gameJson: JSON.stringify({ ...game,
-            inventory: undefined, combatTimeMs: getCombatTime() }) };
+        const exploration = game.actExploration === undefined ? undefined : JSON.parse(JSON.stringify(game.actExploration));
+        const snapshot = { inventory, exploration,
+            gameJson: JSON.stringify({ ...game, inventory: undefined, actExploration: undefined, combatTimeMs: getCombatTime() }) };
         const items = inventory.filter(item => analyzable(item) && (!only || only.has(String(item.id))))
             .map(item => ({ item, slots: getCandidateSlots(item), key: JSON.stringify(item) }));
         return { items, index: 0, snapshot, baseline: createBaseline(snapshot) };
@@ -269,17 +272,23 @@
         if (typeof updateStaticUI === 'function') updateStaticUI();
     }
 
+    // A chunk runs at least three items, then more until 10 ms have passed, and yields to drawing and the game tick. 2026-11-07, 120
+    // items: on this PC three items fill about 10 ms either way; at a quarter of the CPU (a phone) one item passes 10 ms, and a time
+    // budget alone drew the battle between every item and finished in 8.9 s instead of 5.6 s.
+    const CHUNK_MIN_ITEMS = 3;
+    const CHUNK_BUDGET_MS = 10;
     function runChunk(token) {
         if (token !== state.token || !state.work) return;
         state.timer = null;
-        const end = Math.min(state.work.items.length, state.work.index + 3);
+        const started = performance.now(), first = state.work.index;
         try {
             sync();
             if (!state.work) return;
-            while (state.work.index < end) {
+            do {
                 const candidate = state.work.items[state.work.index++];
                 state.results.set(String(candidate.item.id), classifyCandidate(candidate, state.work));
-            }
+            } while (state.work.index < state.work.items.length
+                && (state.work.index - first < CHUNK_MIN_ITEMS || performance.now() - started < CHUNK_BUDGET_MS));
         } catch (error) {
             failAnalysis(error);
             return;
@@ -343,26 +352,29 @@
         return new Set(changed.map(([id]) => id));
     }
 
-    function later(run) {
+    /** Runs run after the wait (ms). Opening the window waits 0: the 300 ms there only delayed the results (2026-11-07). The wait stays
+     * for changes while the window shows, which come in bursts. */
+    function later(run, wait = AUTO_DELAY_MS) {
         state.autoTimer = setTimeout(() => {
             state.autoTimer = null;
             if (!state.work) run();
-        }, AUTO_DELAY_MS);
+        }, wait);
     }
 
     /** The equipment window's refresh while it shows (js/ui.js updateStaticUI): one analysis when due, else a top-up of new bag items. */
     function autoStart() {
         sync(true);
         if (game.itemSubtab !== 'item-tab-equip') return;
+        const opening = autoArmed;
         const full = wantsFullRun();
         autoArmed = false;
         if (state.autoTimer || state.work) return;
         if (full) {
-            later(() => { if (state.status !== 'ready') start(); });
+            later(() => { if (state.status !== 'ready') start(); }, opening ? 0 : AUTO_DELAY_MS);
             return;
         }
         const changed = state.status === 'ready' ? changedIds() : new Set();
-        if (changed.size) later(() => { sync(true); if (state.status === 'ready') begin(changed); });
+        if (changed.size) later(() => { sync(true); if (state.status === 'ready') begin(changed); }, opening ? 0 : AUTO_DELAY_MS);
     }
 
     function setFilter(filterId) {

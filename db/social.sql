@@ -280,11 +280,24 @@ returns boolean language sql stable security definer set search_path = public as
                                                                  else public.chat_text_normalized(p_text) end) > 0);
 $$;
 
+-- 채팅 행의 삭제/자동 정리와 독립인 전송 상태. 계정당 한 행만 잠가 동시 요청도 같은 제한을 적용한다.
+-- 본문 대신 해시만 남긴다. 최근 전송 시각은 60초, 반복 본문 해시는 5분 창만 다음 성공한 전송 때 남긴다.
+create table if not exists public.chat_send_state (
+    user_id uuid primary key references auth.users(id) on delete cascade,
+    last_sent_at timestamptz,
+    sent_at timestamptz[] not null default '{}',
+    recent_plain jsonb not null default '[]'::jsonb,
+    last_plain_hash text,
+    last_plain_at timestamptz
+);
+alter table public.chat_send_state enable row level security;
+revoke all on public.chat_send_state from public, anon, authenticated;
+
 -- 스팸 방지: 서버 측 속도 제한 트리거 -----------------------------------------
 --   * 같은 사용자가 1.5초 안에 연속 전송 → 차단
 --   * 같은 사용자가 최근 60초 동안 15개 초과 전송 → 차단
 --   * 직전 메시지와 완전히 동일한 본문 연속 전송 → 차단
--- SECURITY DEFINER 로 RLS 우회하여 본인 최근 메시지를 집계한다.
+-- SECURITY DEFINER 로 비공개 전송 상태만 읽고 쓴다. 실패한 INSERT는 상태 변경도 함께 롤백한다.
 --   * 시각은 서버가 정한다(2026-10-27: 클라이언트가 과거 시각을 넣어 이 제한을 비켜 갔다). payload는 64KB와 아이템 3개까지(끝판 장비 셋이 jsonb로 약 20KB).
 create or replace function public.chat_messages_rate_limit()
 returns trigger
@@ -293,11 +306,16 @@ security definer
 set search_path = public
 as $$
 declare
-    recent_count int;
-    last_at      timestamptz;
-    last_body    text;
+    send_state public.chat_send_state%rowtype;
+    send_time timestamptz;
+    plain_hash text;
 begin
-    new.created_at := now();
+    if auth.uid() is not null and auth.uid() <> new.user_id then raise exception 'AUTH_REQUIRED'; end if;
+    insert into public.chat_send_state (user_id) values (new.user_id) on conflict (user_id) do nothing;
+    select * into send_state from public.chat_send_state where user_id = new.user_id for update;
+    -- 잠금을 기다린 시간도 서버 시각에 포함한다(now()는 트랜잭션 시작 시각에 고정되어 있다).
+    send_time := clock_timestamp();
+    new.created_at := send_time;
     if public.chat_muted_until(new.user_id) is not null then
         raise exception 'CHAT_MUTED: 채팅이 금지된 상태입니다. %분 뒤 풀립니다.',
             greatest(1, ceil(extract(epoch from (public.chat_muted_until(new.user_id) - now())) / 60));
@@ -305,7 +323,70 @@ begin
     if new.payload is not null then
         if jsonb_typeof(new.payload) <> 'object' or pg_column_size(new.payload) > 65536
            or coalesce(jsonb_typeof(new.payload -> 'items'), '') <> 'array' or jsonb_array_length(new.payload -> 'items') not between 1 and 3
-           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked where jsonb_typeof(linked) <> 'object') then
+           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked where jsonb_typeof(linked) <> 'object')
+           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked
+                       where linked ->> 'kind' = 'core' and case
+                           when jsonb_typeof(linked -> 'lines') is distinct from 'array' then true
+                           when jsonb_array_length(linked -> 'lines') > 4 then true
+                           else exists (select 1 from jsonb_array_elements(linked -> 'lines') line
+                                         where jsonb_typeof(line) <> 'string') end)
+           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked
+                       where linked ->> 'kind' = 'talisman' and linked ? 'lines' and case
+                           when jsonb_typeof(linked -> 'lines') is distinct from 'array' then true
+                           when jsonb_array_length(linked -> 'lines') > 5 then true
+                           else exists (select 1 from jsonb_array_elements(linked -> 'lines') line
+                                         where jsonb_typeof(line) is distinct from 'object'
+                                            or jsonb_typeof(line -> 'text') is distinct from 'string'
+                                            or (line ? 'condition' and jsonb_typeof(line -> 'condition') is distinct from 'boolean')) end)
+           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked
+                       where linked ->> 'kind' = 'jewel' and linked ? 'stats' and case
+                           when jsonb_typeof(linked -> 'stats') is distinct from 'array' then true
+                           when jsonb_array_length(linked -> 'stats') > 8 then true
+                           else exists (select 1 from jsonb_array_elements(linked -> 'stats') stat
+                                         where jsonb_typeof(stat) <> 'object') end)
+           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked
+                       where coalesce(linked -> 'kind', 'null'::jsonb) in ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '""'::jsonb)
+                         and exists (select 1 from jsonb_each(linked) field
+                                      where field.key in ('baseStats','stats','ember','anoint','sockets') and case
+                                          when jsonb_typeof(field.value) is distinct from 'array' then true
+                                          when field.key <> 'sockets' and jsonb_array_length(field.value) >
+                                              case field.key when 'baseStats' then 8 when 'stats' then 12 else 2 end then true
+                                          else exists (select 1 from jsonb_array_elements(field.value) row_data
+                                                        where jsonb_typeof(row_data) <> 'object') end))
+           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked
+                       where coalesce(linked -> 'kind', 'null'::jsonb) in ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '""'::jsonb)
+                         and exists (select 1 from jsonb_array_elements(jsonb_path_query_array(linked, '$.baseStats[*]')
+                                              || jsonb_path_query_array(linked, '$.stats[*]')
+                                              || jsonb_build_array(linked -> 'chaosInfusion')) line
+                                      where line ? 'extraStats' and case
+                                          when jsonb_typeof(line -> 'extraStats') is distinct from 'array' then true
+                                          when jsonb_array_length(line -> 'extraStats') > 4 then true
+                                          else exists (select 1 from jsonb_array_elements(line -> 'extraStats') extra
+                                                        where jsonb_typeof(extra) <> 'object') end))
+           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked
+                       where coalesce(linked -> 'kind', 'null'::jsonb) in ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '""'::jsonb)
+                         -- Preserved harvest sockets can exceed eight; only each displayed jewel's stats has that wire limit.
+                         and exists (select 1 from jsonb_array_elements(jsonb_path_query_array(linked, '$.sockets[*].jewel')) jewel
+                                      where jewel ? 'stats' and case
+                                          when jsonb_typeof(jewel -> 'stats') is distinct from 'array' then true
+                                          when jsonb_array_length(jewel -> 'stats') > 8 then true
+                                          else exists (select 1 from jsonb_array_elements(jewel -> 'stats') stat
+                                                        where jsonb_typeof(stat) <> 'object') end))
+           or exists (select 1 from jsonb_array_elements(new.payload -> 'items') linked
+                       -- Match renderSimpleCard only; gear with no kind may legitimately have more than eight stats.
+                       where linked -> 'kind' not in ('null'::jsonb, 'false'::jsonb, '0'::jsonb, '""'::jsonb)
+                         and linked ->> 'kind' not in ('jewel','core','stump')
+                         and (linked ->> 'kind' <> 'talisman' or not (linked ? 'lines'))
+                         and ((linked ? 'effects' and case
+                             when jsonb_typeof(linked -> 'effects') is distinct from 'array' then true
+                             when jsonb_array_length(linked -> 'effects') > 8 then true
+                             else exists (select 1 from jsonb_array_elements(linked -> 'effects') effect
+                                           where jsonb_typeof(effect) <> 'string') end)
+                           or (linked ? 'stats' and case
+                             when jsonb_typeof(linked -> 'stats') is distinct from 'array' then true
+                             when jsonb_array_length(linked -> 'stats') > 8 then true
+                             else exists (select 1 from jsonb_array_elements(linked -> 'stats') stat
+                                           where jsonb_typeof(stat) <> 'object') end))) then
             raise exception 'CHAT_PAYLOAD_INVALID: 아이템 링크는 메시지마다 3개까지입니다.';
         end if;
     end if;
@@ -322,41 +403,41 @@ begin
         raise exception 'SPAM_FLOOD: 같은 글자를 너무 많이 반복했습니다.';
     end if;
 
-    select count(*), max(created_at)
-      into recent_count, last_at
-      from public.chat_messages
-     where user_id = new.user_id
-       and created_at > now() - interval '60 seconds';
+    select coalesce(array_agg(stamp), '{}'::timestamptz[]) into send_state.sent_at
+      from unnest(send_state.sent_at) stamp where stamp > send_time - interval '60 seconds';
+    select coalesce(jsonb_agg(entry), '[]'::jsonb) into send_state.recent_plain
+      from jsonb_array_elements(send_state.recent_plain) entry
+     where (entry ->> 'at')::timestamptz > send_time - interval '5 minutes';
 
-    if last_at is not null and last_at > now() - interval '1.5 seconds' then
+    if send_state.last_sent_at > send_time - interval '1.5 seconds' then
         raise exception 'SPAM_TOO_FAST: 메시지를 너무 빠르게 보냈습니다.';
     end if;
 
-    if recent_count >= 15 then
+    if cardinality(send_state.sent_at) >= 15 then
         raise exception 'SPAM_RATE_LIMIT: 잠시 후 다시 시도해주세요.';
     end if;
 
     -- 5분 안에 같은 본문을 세 번째 보내면 막는다(연속이 아니어도). "ㅇㅇ", "ㅋㅋ" 같은 짧은 반응(6자 미만)은 둔다.
-    if new.payload is null and char_length(new.body) >= 6 and (select count(*) from public.chat_messages
-         where user_id = new.user_id and payload is null and body = new.body and created_at > now() - interval '5 minutes') >= 2 then
+    plain_hash := case when new.payload is null then md5(new.body) else null end;
+    if plain_hash is not null and char_length(new.body) >= 6 and (select count(*) from jsonb_array_elements(send_state.recent_plain) entry
+         where entry ->> 'hash' = plain_hash) >= 2 then
         raise exception 'SPAM_REPEAT: 같은 메시지를 5분 안에 세 번 보낼 수 없습니다.';
     end if;
 
     -- 아이템 링크가 포함된 메시지(payload 존재)는 본문 토큰이 같을 수 있으므로
     -- 중복 검사에서 제외한다. 순수 텍스트 메시지만 연속 중복을 차단한다.
-    if new.payload is null then
-        select body into last_body
-          from public.chat_messages
-         where user_id = new.user_id
-           and payload is null
-         order by created_at desc
-         limit 1;
-
-        if last_body is not null and last_body = new.body then
+    if plain_hash is not null then
+        if send_state.last_plain_hash = plain_hash and send_state.last_plain_at > send_time - interval '3 days' then
             raise exception 'SPAM_DUPLICATE: 동일한 메시지를 연속으로 보낼 수 없습니다.';
         end if;
+        send_state.recent_plain := send_state.recent_plain || jsonb_build_array(jsonb_build_object('at', send_time, 'hash', plain_hash));
+        send_state.last_plain_hash := plain_hash;
+        send_state.last_plain_at := send_time;
     end if;
 
+    update public.chat_send_state set last_sent_at = send_time, sent_at = array_append(send_state.sent_at, send_time),
+        recent_plain = send_state.recent_plain, last_plain_hash = send_state.last_plain_hash, last_plain_at = send_state.last_plain_at
+      where user_id = new.user_id;
     return new;
 end;
 $$;
@@ -412,7 +493,7 @@ create trigger trg_chat_messages_prune
 create or replace function public.chat_messages_auto_mute()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-    if (select count(*) from public.chat_messages where user_id = new.user_id and created_at > now() - interval '60 seconds') >= 15 then
+    if (select cardinality(sent_at) from public.chat_send_state where user_id = new.user_id) >= 15 then
         insert into public.chat_mutes (user_id, until_at, note) values (new.user_id, now() + interval '10 minutes', '자동: 60초 안 15개')
         on conflict (user_id) do update
             set until_at = greatest(chat_mutes.until_at, excluded.until_at),
@@ -473,6 +554,8 @@ begin
     if p_target_user_id is null or p_target_user_id = account_id then raise exception 'REPORT_INVALID_TARGET'; end if;
     if not exists (select 1 from public.player_profiles target where target.user_id = p_target_user_id) then raise exception 'REPORT_INVALID_TARGET'; end if;
     if p_reason is null or char_length(trim(p_reason)) not between 1 and 200 then raise exception 'REPORT_INVALID_REASON'; end if;
+    -- Serialize one reporter before reading either limit; parallel requests must see the earlier accepted report.
+    perform pg_advisory_xact_lock(hashtext('chat_report:' || account_id::text));
     if exists (select 1 from public.chat_reports where reporter_id = account_id and target_user_id = p_target_user_id
                   and created_at >= now() - interval '1 day') then raise exception 'REPORT_ALREADY_SENT'; end if;
     if (select count(*) from public.chat_reports where reporter_id = account_id and created_at >= now() - interval '1 day') >= 20 then

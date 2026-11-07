@@ -5,8 +5,32 @@
 -- 스크립트 태그를 넣어 전시하면 복제품을 산 사람의 장비 툴팁에서 실행될 수 있었다(클라이언트도 2026-11-03부터 그 칸을
 -- 이스케이프한다). 정상 장비의 어떤 글자에도 < 와 > 는 없으므로 장비 데이터 전체에서 그 둘을 거절한다.
 --
--- db/hall-watch-20261030.sql의 validate_hall_item을 그 한 줄만 더해 다시 정의한다. 줄 끝의 맨 case ... end는 SQL Editor가
+-- db/hall-watch-20261030.sql의 현재 validate_hall_item을 함께 유지한다(2026-11-07 모든 소켓 내용 검사 포함). 줄 끝의 맨 case ... end는 SQL Editor가
 -- 문장을 거기서 끊으므로 같은 줄에 then을 둔다.
+
+create or replace function public.validate_hall_sockets(item_data jsonb)
+returns void language plpgsql immutable set search_path = public as $$
+begin
+    -- Every stored socket type must be empty: nested jewels/harvests would otherwise be copied with every replica.
+    if exists (select 1 from jsonb_each(item_data) field
+                where (field.key in ('abyssSockets','harvestSockets') and jsonb_typeof(field.value) not in ('array','null'))
+                   or (field.key in ('voidSocket','corruptionSocket') and jsonb_typeof(field.value) not in ('object','null')))
+       or exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')
+                         || public.hall_array(item_data -> 'harvestSockets')) socket
+                   where jsonb_typeof(socket) not in ('object','null')) then
+        raise exception 'HALL_ITEM_REJECTED';
+    end if;
+    if exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')
+                         || public.hall_array(item_data -> 'harvestSockets')
+                         || jsonb_build_array(item_data -> 'voidSocket', item_data -> 'corruptionSocket')) socket
+                where coalesce(socket -> 'jewel', 'null'::jsonb) <> 'null'::jsonb
+                   or coalesce(socket -> 'harvest', 'null'::jsonb) <> 'null'::jsonb) then
+        raise exception 'HALL_SOCKET_NOT_EMPTY';
+    end if;
+end;
+$$;
+
+revoke all on function public.validate_hall_sockets(jsonb) from public, anon, authenticated;
 
 create or replace function public.validate_hall_item(item_data jsonb)
 returns void language plpgsql stable set search_path = public as $$
@@ -40,13 +64,7 @@ begin
                       then abs((stat ->> 'val')::numeric) > 9000000000000 else true end) then
         raise exception 'HALL_ITEM_REJECTED';
     end if;
-    if item_data ? 'abyssSockets' and jsonb_typeof(item_data -> 'abyssSockets') not in ('array','null') then
-        raise exception 'HALL_ITEM_REJECTED';
-    end if;
-    if exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'abyssSockets')) socket
-                where jsonb_typeof(socket -> 'jewel') = 'object') then
-        raise exception 'HALL_SOCKET_NOT_EMPTY';
-    end if;
+    perform public.validate_hall_sockets(item_data);
     if item_data ->> 'rarity' = 'rare' and (
         exists (select 1 from jsonb_array_elements(public.hall_array(item_data -> 'stats')) stat
                  where case when jsonb_typeof(stat -> 'tier') = 'number'

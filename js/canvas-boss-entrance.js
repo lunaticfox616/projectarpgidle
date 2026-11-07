@@ -29,6 +29,13 @@ const bossEntranceView = (() => {
     const share = (value, from, until) => Math.max(0, Math.min(1, (value - from) / (until - from)));
     const onStage = () => typeof stageView === 'object' && stageView.enabled();
     const holdOf = fx => fx.holdMs || 2600;
+    /** 배경과 깊이 순서로 그리는 장식이 함께 어두워졌다가 돌아오는 비율. */
+    const dimProgress = (fx, now) => now - fx.start < holdOf(fx) ? ease((now - fx.start) / 350) : Math.max(0, 1 - (now - fx.start - holdOf(fx)) / 500);
+    const dimStrength = fx => fx.red ? RED.dim : onStage() ? STAGE.dim : 0.5;
+    function sceneryDim(now) {
+        const fx = active(now);
+        return fx && bossOf(fx) ? dimProgress(fx, now) * dimStrength(fx) : 0;
+    }
     /** 섬광과 함께 이름이 뜨는 때(입장이 시작된 뒤 ms). */
     const burstOf = fx => (onStage() ? holdOf(fx) * STAGE.burstAt : BURST_AT);
 
@@ -38,6 +45,7 @@ const bossEntranceView = (() => {
         const fx = onStage() ? active(now) : null;
         if (!fx || !fx.enemyIds.includes(enemy.id)) return null;
         const hold = holdOf(fx), t = now - fx.start, burst = burstOf(fx), color = colorOf(fx, enemy);
+        if (uiDisplay.reducedEffects()) return { alpha: 1, shade: 0, rim: 0.2, flash: 0, color };
         if (t >= burst) return { alpha: 1, shade: 0, rim: 0, flash: 1 - share(t, burst, burst + STAGE.flashMs), color };
         return { alpha: ease(t / (hold * STAGE.fadeIn)), shade: 1, rim: share(t, hold * STAGE.rimFrom, burst), flash: 0, color };
     }
@@ -46,6 +54,7 @@ const bossEntranceView = (() => {
     function enemyAge(enemy, now) {
         const fx = active(now);
         if (!fx || !fx.enemyIds.includes(enemy.id)) return null;
+        if (uiDisplay.reducedEffects()) return 1;
         return Math.max(0, Math.min(1, (now - fx.start - RISE_AT) / RISE_MS));
     }
     /** The boss whose name banner already shows (from the burst on), before it has joined the fight. */
@@ -55,6 +64,7 @@ const bossEntranceView = (() => {
     }
     /** Camera shake amplitude (CSS px): a low rumble while it rises, a jolt at the burst. */
     function shake(now) {
+        if (uiDisplay.reducedEffects()) return 0;
         const fx = active(now);
         if (!fx) return 0;
         const t = now - fx.start, burst = burstOf(fx), big = fx.red ? RED.shake : 1;
@@ -71,19 +81,21 @@ const bossEntranceView = (() => {
         if (!at) return;
         const t = state.now - fx.start, dot = Math.max(2, state.gridProj.tileW / 16), color = colorOf(fx, boss);
         spot = { id: boss.id, top: at.y - state.gridProj.tileW * BOSS_TILES, feet: at.y };
-        const hold = holdOf(fx), dim = t < hold ? ease(t / 350) : Math.max(0, 1 - (t - hold) / 500);
+        if (uiDisplay.reducedEffects()) return;
+        const hold = holdOf(fx), dim = dimProgress(fx, state.now);
         ctx.save();
         ctx.imageSmoothingEnabled = false;
-        ctx.globalAlpha = dim * (fx.red ? RED.dim : onStage() ? STAGE.dim : 0.5);
+        ctx.globalAlpha = dim * dimStrength(fx);
         ctx.fillStyle = '#040302';
         ctx.fillRect(-4000, -4000, 8000, 8000);
         if (onStage()) groundOfBosses(ctx, state, { fx, t, hold, dim, at });
-        else {
-            wakingRing(ctx, at, { t, dot, color });
-            if (t >= RISE_AT - 200) pillar(ctx, at, { t, dot, color });
-            if (t >= BURST_AT) burst(ctx, at, { t: t - BURST_AT, dot, color, seed: boss.id });
-        }
+        else legacyGround(ctx, at, { t, dot, color, seed: boss.id });
         ctx.restore();
+    }
+    function legacyGround(ctx, at, o) {
+        wakingRing(ctx, at, o);
+        if (o.t >= RISE_AT - 200) pillar(ctx, at, o);
+        if (o.t >= BURST_AT) burst(ctx, at, { ...o, t: o.t - BURST_AT });
     }
     /** 입장하는 보스마다의 무대 바닥: 보스가 둘이면 둘 다 발밑에 빛이 고인다. */
     function groundOfBosses(ctx, state, o) {
@@ -217,8 +229,11 @@ const bossEntranceView = (() => {
 
     /** Over everything, in screen space: the flash of the burst. area = { width, height, now }. */
     function drawScreen(ctx, area) {
-        const fx = active(area.now), burst = fx ? burstOf(fx) : 0, t = fx ? area.now - fx.start : -1;
-        if (fx && fx.red) drawRedVeil(ctx, area, { t, hold: holdOf(fx) });
+        if (uiDisplay.reducedEffects()) return;
+        const fx = active(area.now);
+        if (!fx) return;
+        const burst = burstOf(fx), t = area.now - fx.start;
+        if (fx.red) drawRedVeil(ctx, area, { t, hold: holdOf(fx) });
         if (t < burst || t >= burst + 240) return;
         ctx.save();
         ctx.globalAlpha = (fx.red ? RED.flashAlpha : onStage() ? 0.24 : 0.38) * (1 - (t - burst) / 240);
@@ -248,6 +263,6 @@ const bossEntranceView = (() => {
         ctx.restore();
     }
 
-    return { enemyAge, stageLook, revealedBoss, shake, drawGround, drawScreen, enteringSpans, bannerLine };
+    return { enemyAge, stageLook, revealedBoss, shake, drawGround, drawScreen, enteringSpans, bannerLine, sceneryDim };
 })();
 safeExposeGlobals({ bossEntranceView });

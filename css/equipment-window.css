@@ -237,6 +237,27 @@
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-grid-item.selected { outline: 2px solid #ffd27a; outline-offset: -2px; box-shadow: 0 0 14px rgba(255, 210, 122, .75); z-index: 3; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-new-dot { position: absolute; top: 2px; right: 2px; z-index: 6; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
   box-shadow: 0 0 0 1px #000; pointer-events: none; }
+/* 장비 칸 오른쪽 위의 아이템 등급(js/equipment-window-ui.js tierHtml, 2026-11-07 사용자: T1~20, 티어 색). 색은 툴팁의 등급 표시와 같은
+   tier-N(css/layout.css)이다. 작은 글씨라 빛과 움직임 대신 검은 그림자를 쓰고, T15~T19는 같은 색 테로, T20은 홍옥을 채운
+   칸으로 가른다(빛이 없으면 T14와 T15, T19와 T20이 글자색만으로는 비슷하다). 새 아이템 점은 그 아래로 비킨다. */
+:root body .eqw-item-tier { position: absolute; top: 2px; right: 2px; z-index: 5; padding: 0 2px; background: #151008; font-family: var(--font-pixel-meta);
+  font-size: var(--font-size-meta); font-weight: 400; line-height: 12px; text-shadow: 1px 1px 0 #000; white-space: nowrap; animation: none; pointer-events: none; }
+:root body .eqw-item-tier:is(.tier-15, .tier-16, .tier-17, .tier-18, .tier-19) { box-shadow: inset 0 0 0 1px currentColor; }
+:root body .eqw-item-tier.tier-20 { color: #2a0710; background: linear-gradient(90deg, #ff5c84, #ffb3c4); text-shadow: none; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-grid-item:has(> .eqw-item-tier) > .eqw-new-dot { top: 15px; }
+/* 휴대폰의 1칸 장비(반지, 목걸이)는 왼쪽 위 비교 수치와 겹치므로 등급을 왼쪽 아래에 둔다(소켓은 오른쪽 아래). */
+@media (max-width: 640px) {
+  :root body .equipment-grid-item[style*="--item-grid-columns:1;"] > .eqw-item-tier { top: auto; right: auto; bottom: 2px; left: 2px; }
+}
+/* 보고 있는 쪽(2026-11-07 사용자: 지금 몇 페이지인지 모르겠다): 차오르는 금빛 칸과 섞이지 않게 밝은 금 테와 글로 뚜렷하게 하고,
+   줄 끝에 'N / M 페이지'를 둔다(js/equipment-inventory-grid-ui.js renderPageControls). */
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages button.active {
+  border: 2px solid #f3d28c; border-image: none; color: #fff4c8; background: #3a2c17; box-shadow: 0 0 0 1px #000, 0 0 8px rgba(243, 210, 140, .55);
+}
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages button.active > span { color: #fff4c8; font-weight: 700; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-page-now {
+  align-self: center; margin-left: 4px; color: #f3d28c; font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); line-height: 12px; white-space: nowrap;
+}
 
 /* 선택한 장비: 그림과 이름, 지금 장착, 바꾸면 증감표, 단추, 툴팁 */
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-pick { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; margin-bottom: 8px; }
@@ -415,6 +436,21 @@
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-manage-toggle[aria-expanded="true"] { border-color: #ecc982; color: #fff3d6; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-manage-toggle:disabled { display: none; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-grid-inspector-actions:has(.eqw-manage-toggle:disabled) .equipment-card-primary { grid-column: 1 / -1; }
+}
+/* 장비 창이 680px 넘게 넓은 휴대폰 배치(절반 폭 PC 창, 태블릿): 장착 장비를 접지 않고 PC 두 칸 창처럼 가방 왼쪽에 둔다(2026-11-07 사용자: 좁은
+   창에서 장착 장비가 사라졌다). 요약도 PC 것(장착 칸 아래 DPS, 유효 생명력)이고 펼치는 단추(장착 장비 ▾)는 없다. 680px은 PC 두 칸 창의 기준과 같다. */
+@media (max-width: 1080px) {
+  @container eqw (min-width: 680px) {
+    :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window { grid-template-columns: clamp(262px, calc(100cqw - 718px), 330px) minmax(0, 1fr); gap: 12px; }
+    :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window .equipment-loadout-panel { display: flex; }
+    :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window :is(.eqw-doll-card, .eqw-summary-card) { order: 0; }
+    :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window:not([data-mobile-pane="loadout"]) .eqw-doll-card { display: block; }
+    /* 세팅 단추는 손가락 크기(44px)라 왼쪽 칸 한 줄에 제목과 함께 들지 않는다: 제목 아래 줄로 */
+    :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window .eqw-doll-head { grid-template-columns: minmax(0, 1fr); }
+    :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window .eqw-summary-card { padding: 0 4px; border: 0; background: none; box-shadow: none; }
+    :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-summary-mini { display: none; }
+    :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-summary-full { display: grid; }
+  }
 }
 /* 휴대폰: 가방 판이 한 단이 되어 도구 줄은 가방 아래 가로 한 줄, 펼침 창은 위로(가방을 덮으며) 연다. */
 @media (max-width: 640px) {

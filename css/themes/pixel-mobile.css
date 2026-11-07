@@ -25,10 +25,10 @@
     margin: 0;
     pointer-events: auto;
   }
-  /* 세로 rift 화면은 지역 줄이 전장 위에 겹친다(css/themes/rift-stage.css): 띠는 그 줄(--zone-row-bottom, js/ui-window-manager.js
+  /* 세로 rift 화면(키가 601px 넘는 가로 창도)은 지역 줄이 전장 위에 겹친다(css/themes/rift-stage.css): 띠는 그 줄(--zone-row-bottom, js/ui-window-manager.js
      watchZoneRowClearance)과 그 아래 재화, 변이 줄(줄 아래 끝 2px 위부터 16px) 밑에 선다. 맨 위에서 96px로 깔리던 때는 지역 이름과 띠의
      지도 이름이 포개지고 자동, 귀환, 목표 단추가 띠를 덮었다. */
-  @media (orientation: portrait) {
+  @media (orientation: portrait), (min-height: 601px) {
   :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #ui-atlas-combat { top: calc(var(--zone-row-bottom, 44px) + 18px); }
   }
   /* 아틀라스 단추는 위의 자동, 귀환, 목표 단추와 같은 28px */
@@ -81,22 +81,15 @@
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) #mobile-toast-root { --mobile-toast-bottom: calc(254px + env(safe-area-inset-bottom)); }
   /* 2026-10-22: 세로 화면의 게임 알림은 전장 위쪽(지역 줄 아래, 목표 단추 왼쪽)으로. 기록 막대 위 자리(302px)는 두 줄 알림이 전장 바닥, 곧 싸우는
      자리까지 올라와 몬스터를 가렸다. 전장 위쪽은 배경이다. */
-  /* 가로 화면은 아래 landscape 묶음의 전장 오른쪽 위 자리를 쓴다(여기 left, right가 가로까지 새어 알림이 HUD 위로 화면 폭 전체에 퍼졌다) */
-  @media (orientation: portrait) {
+  /* 키가 601px 넘는 가로 창도 세로 화면과 같은 쌓인 배치라 같은 자리다(2026-11-07). 낮은 가로 휴대폰은 전장 오른쪽 위 기본 자리를 쓴다
+     (여기 left, right가 그 화면까지 새어 알림이 HUD 위로 화면 폭 전체에 퍼졌다) */
+  @media (orientation: portrait), (min-height: 601px) {
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: calc(56px + env(safe-area-inset-top)); right: 60px; bottom: auto; left: 10px; width: auto; }
   /* 정예와 보스를 노리는 동안은 전장 위쪽에 그 이름표와 체력 막대(#ui-enemy-list)가 있어 두 줄 알림이 이름표를 덮었다: 그동안 알림은 지역 이름
      줄 위, 자동 켬 단추 왼쪽까지에 띄운다(잠시 가리는 것은 지역 이름뿐이다). */
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast-region {
     top: calc(7px + env(safe-area-inset-top)); right: 132px; }
   /* 그 자리의 알림은 바탕을 채운다(반투명 바탕 너머로 지역 이름 글자가 비쳤다) */
-  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast { background-color: #12100d; }
-  }
-  /* 높은 가로 화면(태블릿): 기본 자리(오른쪽 위)는 자동 켬, 귀환, 목표 단추를 덮었다. 전장 위쪽 가운데에 띄우고, 정예와 보스를 노리는 동안은
-     세로 화면처럼 지역 이름 줄 위로 */
-  @media (orientation: landscape) and (min-height: 601px) {
-  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .game-toast-region { top: calc(56px + env(safe-area-inset-top)); right: auto; bottom: auto; left: 50%; width: min(420px, calc(100vw - 280px)); translate: -50% 0; }
-  :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast-region {
-    top: calc(7px + env(safe-area-inset-top)); right: 140px; left: 10px; width: auto; translate: none; }
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast { background-color: #12100d; }
   }
   /* 전체 메뉴 서랍이나 확인 창이 열려 있는 동안 알림은 감춘다(닫으면 남은 알림이 다시 보인다) — 알림이 서랍의 기록 단추를

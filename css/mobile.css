@@ -293,8 +293,8 @@
     min-width: 0;
   }
   .tab-content { overflow-x: clip; }
+  /* 장비 창(.equipment-workspace)은 뺀다: 휴대폰 칸 수는 css/equipment-window.css가 정한다(넓으면 장착 장비와 가방 두 칸, 2026-11-07). */
   .responsive-split-grid,
-  .equipment-workspace,
   .gem-forge-workspace {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ grid-template-columns: minmax(0, 1fr) !important; }
 
   body.mobile-battle-tab #tab-battle { padding: 4px; }

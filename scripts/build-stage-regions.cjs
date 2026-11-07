@@ -3,8 +3,9 @@
  * (docs/stage-view-20261011.md). 묶음의 문틀과 닫힌 문 그림(door-*)은 옮기지 않는다: 문은 공용 뿌리 봉인이 맡는다.
  *
  *   node scripts/build-stage-regions.cjs <묶음 폴더> [복사해 둘 폴더]
- *   node scripts/build-stage-regions.cjs --refresh-current
- *     게임에 있는 그림의 캐시 키와 위아래 메움 색만 다시 잰다. 조립 수치와 방·소품 배치는 바꾸지 않는다.
+ *   node scripts/build-stage-regions.cjs --refresh-current [--bounds]
+ *     게임에 있는 그림의 캐시 키와 위아래 메움 색을 다시 잰다. --bounds는 교체한 소품의 알파 상자도 다시 잰다.
+ *     칸 크기, 발 기준점, 방·소품 배치는 바꾸지 않는다.
  *   node scripts/build-stage-regions.cjs --add-variant <지역> <이름> <본뜰 지역> <방 그림.png>
  *     묶음 밖의 방 그림 한 장을 본뜰 지역과 같은 크기, 바닥 줄, 문 자리, 재질, 소품 규칙으로 더한다(2026-10-20 심해의 수심 띠).
  *     묶음을 다시 옮길 때 묶음에 없는 지역은 표에 있던 그대로 남는다.
@@ -114,7 +115,7 @@ function writeTable(families, regions, version) {
 //   regions 지역 → 방 그림(<지역>.png)의 가로와 세로, ground 바닥이 시작하는 줄, door 뒤쪽 문이 서는 가로 자리(그림 너비의 비율, 없으면 null),
 //           family 재질, sky와 earth 그림 맨 위와 맨 아래의 색, normal, elite, boss 그 구실의 방에 놓는 소품 번호, bossSide 보스 방의 큰 구조물이 서는 쪽,
 //           rooms(있으면) 방 구실 → 그 방에만 쓰는 방 그림(<이름>.png, 크기와 바닥 줄은 지역과 같다): general 입구와 전투 방과 곁방, elite, boss.
-//           2026-10-30 액트 2~10은 PixelLab Pro로 다시 그린 묶음(재질 A02~A10, 정예와 보스 방 그림)이다(--act-rework).
+//           2026-11-06 전체 배경과 소품을 world-environment-redraw-20261106 묶음으로 교체. 재질 A02~A10과 방별 그림 연결은 유지한다.
 const STAGE_REGIONS = Object.freeze({
     path: 'assets/stage-scenes/regions/',
     version: '${version}',
@@ -226,7 +227,22 @@ function importActRework(from) {
     importActOne(from, layout);
     writeTable(table.families, table.regions, table.version);
 }
-/** 기존 게임 그림을 색 보정한 뒤, 재수입 없이 표의 캐시 키와 메움 색만 갱신한다. */
+/** 교체된 소품의 알파 상자를 갱신한다. 충돌, 발 기준점과 원본 칸 크기는 유지한다. */
+function refreshBounds(current, folder, source) {
+    let updated = source;
+    for (const [id, family] of Object.entries(current.families)) {
+        const entries = Object.entries(family.pieces).map(([name, row]) => {
+            const png = decodePng(fs.readFileSync(path.join(folder, id, name + '.png')));
+            if (png.width !== row[0] || png.height !== row[1]) throw new Error(id + '/' + name + ': 소품 칸 크기가 바뀌었다');
+            return `'${name}': Object.freeze([${[...row.slice(0, 4), ...alphaBox(png)].join(', ')}])`;
+        });
+        const line = new RegExp(`(${id}: Object.freeze\\(\\{\\s+pieces: Object.freeze\\(\\{ )[^\\n]+`);
+        if (!line.test(updated)) throw new Error(id + ': 소품 표를 찾지 못했다');
+        updated = updated.replace(line, (_match, head) => head + entries.join(', ') + ' })');
+    }
+    return updated;
+}
+/** 재수입 없이 표의 캐시 키와 메움 색, 요청한 경우 소품 알파 상자를 갱신한다. */
 function refreshCurrent() {
     const file = path.join(root, 'data/stage-regions.js'), original = fs.readFileSync(file, 'utf8');
     const current = currentTable();
@@ -238,7 +254,7 @@ function refreshCurrent() {
         }
         return '#' + sum.map(v => Math.round(v / (4 * png.width)).toString(16).padStart(2, '0')).join('');
     };
-    let updated = original;
+    let updated = process.argv.includes('--bounds') ? refreshBounds(current, folder, original) : original;
     for (const [id, region] of Object.entries(current.regions)) {
         const png = decodePng(fs.readFileSync(path.join(folder, id + '.png')));
         if (png.width !== region.width || png.height !== region.height) throw new Error(id + ': 그림 크기가 바뀌었다');

@@ -55,6 +55,18 @@ function readAccountSaveCopy(userId) {
     }
 }
 
+/** Whether some account's copy is on this device. The login screen says so over an empty guest slot (js/ui.js startupEmptyText), since
+ * a signed-out player whose session ended, or whose pre-slot save moved out of the guest slot at boot (migrateOwnedGuestSave), otherwise
+ * reads "저장된 모험이 없습니다" and takes the save for lost (2026-11-08). */
+function hasAccountSaveCopy() {
+    try {
+        return Object.keys(localStorage).some(key => key.startsWith(ACCOUNT_SAVE_KEY_PREFIX) && !key.includes('_corrupt_'));
+    } catch (error) {
+        console.warn('account save copies could not be listed:', error);
+        return false;
+    }
+}
+
 /** Removes the guest save (after it moved into an account), with its earlier key names and corrupt copies. */
 function removeGuestSave() {
     const earlier = /^[a-z]{3}IdleSaveData_/i;
@@ -325,11 +337,30 @@ function createCloudSaveRequestBody(userId, sourceGame) {
 /** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock
  * (playerStall.lastAt) and talentCardRuntime (never uploaded). Equal prints mean an upload would change nothing. */
 function cloudSaveFingerprint(saveData) {
+    return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData)));
+}
+
+/** The same print with object keys sorted. The server keeps saves as jsonb, which reorders keys, so a body read back from the server is
+ * compared with this device's copy this way (js/ui.js pullAccountSave). Slower than cloudSaveFingerprint: once per account entry. */
+function cloudSaveContentPrint(saveData) {
+    return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData), sortSaveKeys));
+}
+
+function cloudSavePrintSource(saveData) {
     const stall = saveData.playerStall && typeof saveData.playerStall === 'object' ? { ...saveData.playerStall, lastAt: 0 } : saveData.playerStall;
-    const text = JSON.stringify({ ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall });
+    return { ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall };
+}
+
+function printOfSaveText(text) {
     let hash = 0x811c9dc5;
     for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
     return `${text.length}:${hash >>> 0}`;
+}
+
+/** JSON.stringify replacer: every object is written with its keys in sorted order (the same order on both sides of a comparison). */
+function sortSaveKeys(key, value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.keys(value).sort().map(name => [name, value[name]]));
 }
 
 function sanitizeForSave(value, seen = new WeakSet()) {
@@ -452,7 +483,9 @@ function loadGame() {
         game = cloneDefaultGame();
     } else {
         try {
-            const saved = JSON.parse(result.save), refusal = laterBuildSaveError(saved);
+            const saved = JSON.parse(result.save);
+            if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('Invalid save root: expected an object.');
+            const refusal = laterBuildSaveError(saved);
             if (refusal) {
                 // A later release's save stays as it is for that release: this page starts empty and writes nothing (canPersistLocalSave).
                 setLocalSaveRuntimeState('newer-build', { writable: false, sourceKey: result.sourceKey, message: refusal.message });

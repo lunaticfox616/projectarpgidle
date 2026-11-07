@@ -2571,6 +2571,7 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         addLog(outcome.text, outcome.tone);
         unlockPassiveStarEvolution();
         updateStaticUI();
+        queueImportantSave(200);
         return;
     }
     if (currencyKey === 'goldenRule') {
@@ -2581,6 +2582,7 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
         syncPaleBlueDotPassivePoints(previousTranscendent, entry.transcendent);
         addLog(_t('✨ 초월 공허 패시브 수치 재굴림: {replace}', { replace: formatTranscendentVoidPassive(entry.transcendent).replace(/<[^>]*>/g, '') }), 'loot-unique');
         updateStaticUI();
+        queueImportantSave(200);
         return;
     }
     if (entry.transcendent) return addLog(_t('초월 공허 패시브에는 마법의 새싹을 사용할 수 없습니다.'), 'attack-monster');
@@ -2588,6 +2590,7 @@ function applyVoidPassiveCurrency(nodeId, currencyKey) {
     rollMagicBudOnVoid(entry);
     addLog(_t('🕳️ 공허 패시브에 {name} 사용: {replace}', { name: _t(ORB_DB[currencyKey].name), replace: getVoidPassiveEffectLabel(node.id).replace(/<[^>]*>/g, '') }), 'loot-magic');
     updateStaticUI();
+    queueImportantSave(200);
 }
 
 function getPassiveConnectionNodeIds() {
@@ -4663,9 +4666,10 @@ function formatKoreanFullDamageNumber(value) {
     let remaining = Math.max(0, Math.floor(Number(value) || 0));
     if (remaining < 10000) return `${remaining}`;
     const units = [
-        { value: 1000000000000, label: _t('조') },
-        { value: 100000000, label: _t('억') },
-        { value: 10000, label: _t('만') }
+        // These units belong to the selected number system, regardless of the UI language.
+        { value: 1000000000000, label: '조' },
+        { value: 100000000, label: '억' },
+        { value: 10000, label: '만' }
     ];
     let text = '';
     units.forEach(unit => {
@@ -4681,9 +4685,9 @@ function formatKoreanFullDamageNumber(value) {
 function formatKoreanShortDamageNumber(value) {
     let amount = Math.max(0, Number(value) || 0);
     const units = [
-        { value: 1000000000000, label: _t('조') },
-        { value: 100000000, label: _t('억') },
-        { value: 10000, label: _t('만') }
+        { value: 1000000000000, label: '조' },
+        { value: 100000000, label: '억' },
+        { value: 10000, label: '만' }
     ];
     for (const unit of units) {
         if (amount >= unit.value) return `${trimFixedNumber(amount / unit.value, 1)}${unit.label}`;
@@ -5299,13 +5303,13 @@ function applyPanelLayoutSettings() {
     document.body.classList.toggle('left-pane-collapsed', isLeftCollapsed);
     // 정적 UI를 새로 그릴 때마다 불린다. 같은 글자와 속성을 다시 쓰고 innerText를 읽으면 문서 스타일과 배치를 강제로 다시
     // 계산했다(2026-10-07 프레임 드랍: 몇 초마다 한 번씩 튀던 프레임). 바뀐 것만 쓴다.
-    const leftLabel = isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기';
+    const leftLabel = _t(isLeftCollapsed ? '전투 패널 펼치기' : '전투 패널 접기');
     leftToggleButtons.forEach(button => syncPanelToggle(button, isLeftCollapsed ? '▶' : '◀', { 'data-tip': leftLabel, 'aria-label': leftLabel }));
     if (leftExpandFab) syncPanelToggle(leftExpandFab, '▶', {});
     if (combatFeed) combatFeed.classList.toggle('collapsed', isLogCollapsed);
     document.body.classList.toggle('combat-log-collapsed', isLogCollapsed);
-    const logText = isLogCollapsed ? '펼치기' : '접기';
-    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, logText, { 'aria-expanded': String(!isLogCollapsed), 'aria-label': _t('전투 기록 {logText}', { logText: _t(logText) }) });
+    const [logText, logLabel] = isLogCollapsed ? ['펼치기', '전투 기록 펼치기'] : ['접기', '전투 기록 접기'];
+    if (combatLogToggleBtn) syncPanelToggle(combatLogToggleBtn, _t(logText), { 'aria-expanded': String(!isLogCollapsed), 'aria-label': _t(logLabel) });
 }
 
 /** A panel toggle's text and attributes, written only where they differ. */
@@ -8518,16 +8522,13 @@ function isFixedEquipmentAffix(stat) {
     return FOSSIL_EXCLUSIVE_MODS.some(mod => (mod.statId || mod.id) === stat.id && mod.step === 0);
 }
 
-function getTierVisualLevel(tierValue) {
-    return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 10);
-}
-
 function getTierDisplayLevel(tierValue) {
     return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 20);
 }
 
+/** tier-1 ~ tier-20. 색은 css/layout.css가 T10, T11~T14, T15, T16~T19, T20으로 묶는다. */
 function getTierClassName(tierValue) {
-    return `tier-${getTierVisualLevel(tierValue)}`;
+    return `tier-${getTierDisplayLevel(tierValue)}`;
 }
 
 function getTierBadgeHtml(tierValue, labelPrefix) {
@@ -9382,9 +9383,11 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
 }
 
 
-/** 독벌침을 쓸 수 없는 까닭. 무기에만 쓰고, 새 줄은 추가 옵션 6줄 안에서만 붙는다(이미 붙은 독벌침 줄은 바꿔 끼우므로 자리를 묻지 않는다). */
+/** 독벌침을 쓸 수 없는 까닭. 마법, 희귀, 고유 무기에 쓰고(일반은 줄 한도가 없어 막는다, 고유는 사용자 결정 2026-11-07),
+ * 새 줄은 추가 옵션 6줄 안에서만 붙는다(이미 붙은 독벌침 줄은 바꿔 끼우므로 자리를 묻지 않는다). */
 function getVenomStingerRefusal(item) {
     if (item.slot !== '무기') return '독벌침은 무기에만 사용할 수 있습니다.';
+    if (!['magic', 'rare', 'unique'].includes(item.rarity)) return '독벌침은 마법, 희귀, 고유 무기에만 사용할 수 있습니다.';
     const replaces = (Array.isArray(item.stats) ? item.stats : []).some(stat => stat && stat.venomStingerBonus);
     return !replaces && getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP ? '추가 옵션이 6줄이라 독벌침 줄을 붙일 수 없습니다.' : '';
 }
@@ -10552,12 +10555,20 @@ const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB)
 const rotHarvestKeys = () => STUMP_BOX_HARVEST_CRAFT.rot.map(color => stumpBox.harvestPriceKey('any', color));
 const riftHarvestKey = () => stumpBox.harvestPriceKey(STUMP_BOX_HARVEST_CRAFT.riftKind);
 const holdsHarvest = key => stumpBox.harvestPriceHeld(game, key) >= 1;
+/** Why a rot harvest cannot take a line off the item, or '': corrupted gear, a fused relic (as for the pruning shears, craftCurrencyUse
+ * RELIC_ACTIONS) and a hall piece. */
+function getRotHarvestRefusal(item) {
+    if (item.corrupted) return '타락한 아이템에는 사용할 수 없습니다.';
+    if (item.fusedRelic) return '융합 유물은 황금률, 잿불가지, 축복의 꽃잎만 사용할 수 있습니다.';
+    return item.hallReplica ? '전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.' : '';
+}
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!contentProgression.isUnlocked('advancedSpores')) return addLog(_t('부패 수확은 고급 수확 제작을 해금해야 쓸 수 있습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item) return addLog(_t('먼저 아이템을 선택하세요.'), 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog(_t('수확 제작은 장비에만 사용할 수 있습니다.'), 'attack-monster');
-    if (item.corrupted) return addLog(_t('타락한 아이템에는 사용할 수 없습니다.'), 'attack-monster');
+    const refusal = getRotHarvestRefusal(item);
+    if (refusal) return addLog(_t(refusal), 'attack-monster');
     if (!rotHarvestKeys().every(holdsHarvest)) return addLog(_t('부패 수확에는 화염, 냉기, 번개 식물이 하나씩 필요합니다.'), 'attack-monster');
     let ids = new Set(ROT_SPORE_STAT_IDS);
     item.stats = Array.isArray(item.stats) ? item.stats : [];
@@ -10576,11 +10587,10 @@ function applyRiftSporeToSelectedItem() { if (game.woodsmanBuildLock) return add
     let item = getSelectedCraftItem();
     if (!item) return addLog(_t('먼저 아이템을 선택하세요.'), 'attack-monster');
     if (!isSporeCraftEquipment(item)) return addLog(_t('수확 제작은 장비에만 사용할 수 있습니다.'), 'attack-monster');
-    const craftBlock = equipmentCrafting.getBlockReason(item, 'fossil');
+    const craftBlock = equipmentCrafting.getRiftHarvestBlockReason(item);
     if (craftBlock) return addLog(craftBlock, 'attack-monster');
     if ((game.currencies.fossil || 0) < 1 || !holdsHarvest(riftHarvestKey())) return addLog(_t('균열 수확에는 미궁 화석 1개와 뿌리 1개가 필요합니다.'), 'attack-monster');
     item.stats = Array.isArray(item.stats) ? item.stats : [];
-    if (item.stats.length >= EXPLICIT_AFFIX_LINE_CAP) return addLog(_t('옵션이 가득 차 있습니다.'), 'attack-monster');
     let pool = typeof getFossilExclusivePool === 'function' ? getFossilExclusivePool(item) : FOSSIL_EXCLUSIVE_MODS.filter(mod => mod.slots.includes(item.slot));
     if (!pool || pool.length <= 0) return addLog(_t('이 장비 슬롯에 붙일 수 있는 화석 전용 옵션이 없습니다.'), 'attack-monster');
     game.currencies.fossil--;
@@ -10718,6 +10728,7 @@ function corruptCraftedItem(item) {
     item.corrupted = true;
     if (kind === 'addMod') {
         item.stats.push(rollAffixValue(pickWeightedMod(getAvailableMods(item)), getItemCraftTier(item)));
+        if (item.rarity === 'normal') item.rarity = 'magic'; // 줄이 붙은 일반 장비는 마법이 된다(균열 수확과 같다)
         updateItemName(item);
         return { kind, text: _t('추가 옵션이 부여되었습니다.') };
     }
@@ -10824,6 +10835,9 @@ const craftCurrencyUse = (() => {
         item.uniqueEffect = _t('심연 주얼 슬롯 ({socketCount})개, 장착 심연 주얼 효과 +{ampPct}%', { socketCount, ampPct: p.ampPct });
     }
     const jewelsBack = jewels => (jewels ? _t(' 끼운 주얼 {jewels}개는 가방으로 돌아왔습니다.', { jewels }) : '');
+    // 요정의 고리로 고유가 되어도 남는 칸: id와 instanceId(가방 자리, 장비 프리셋, 그루터기 큐브가 이것으로 찾는다), 우로보로스 봉인, 잠금,
+    // 거래 막힘 표시.
+    const FAIRY_RING_KEPT_FIELDS = Object.freeze(['id', 'instanceId', 'loopSealed', 'locked', 'tradeLocked', 'hallRelistBlocked']);
     /** 요정의 고리: a quarter of the time the item breaks, else it becomes a unique of its slot and tier (same id), a chase one at the
      * drop's chase chance. false when no unique exists for it (FITS.chance refuses that before the payment). */
     function fairyRing(item, run) {
@@ -10834,12 +10848,12 @@ const craftCurrencyUse = (() => {
         const pools = getFairyRingUniquePools(item), pool = pools.chase.length && Math.random() < getChaseUniqueChance(getZone(game.currentZoneId) || {}) ? pools.chase : pools.normal;
         const unique = pool.length ? generateUniqueItem(pools.tier, item.slot, rndChoice(pool).name) : null;
         if (!unique) { run.logs.push([_t('승급할 수 있는 고유가 없습니다.'), 'attack-monster']); return false; }
-        const previousId = item.id;
-        // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared.
+        // The unique is a fresh item: socketed jewels go back to storage before the old keys are cleared. What names the piece and what was
+        // set on it stay (FAIRY_RING_KEPT_FIELDS).
+        const kept = Object.fromEntries(FAIRY_RING_KEPT_FIELDS.filter(key => Object.hasOwn(item, key)).map(key => [key, item[key]]));
         const jewels = equipmentSockets.returnJewels(item);
         Object.keys(item).forEach(key => delete item[key]);
-        Object.assign(item, unique);
-        item.id = previousId; // 배치 참조가 끊기지 않도록 원래 id를 유지한다.
+        Object.assign(item, unique, kept);
         run.logs.push([_t('🌟 요정의 고리: [{name}] 고유로 진화했습니다.{jewels}', { name: _t(item.name), jewels: jewelsBack(jewels) }), 'loot-unique']);
         return true;
     }

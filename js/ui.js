@@ -486,8 +486,10 @@ function recordBackgroundCombatEntry(nowMs) {
 function recordOfflineCombatEntry(nowMs) {
     let savedAt = Math.max(0, Math.floor(Number(game && game.saveMeta && game.saveMeta.lastModifiedAt) || 0));
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
-    if (backgroundCombatRuntime.offlineConsumed || savedAt <= 0 || now <= savedAt) return false;
-    backgroundCombatRuntime.offlineConsumed = true;
+    // 저장 칸마다 한 번 정산한다: 게임 안에서 다른 계정으로 들어가도 그 계정의 자리 비운 시간이 남는다(전: 화면마다 한 번이라 먼저 들어간 저장만).
+    const slotKey = getSaveSlot().key;
+    if (backgroundCombatRuntime.offlineSettledSlots.includes(slotKey) || savedAt <= 0 || now <= savedAt) return false;
+    backgroundCombatRuntime.offlineSettledSlots.push(slotKey);
     backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
     backgroundCombatRuntime.snapshot = isOfflineCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
     // Nothing to settle keeps no away span: a stale one would be stamped by a save made while the app is paused (js/save.js
@@ -1005,10 +1007,13 @@ function ensureMobileBattlePip() {
         host.className = 'mobile-battle-dock';
         host.style.display = 'none';
         host.setAttribute('role', 'region');
-        host.setAttribute('aria-label', _t('작은 전투 화면'));
-        host.innerHTML = '<button type="button" class="mobile-battle-pip-preview" data-pip-return aria-label="전투 화면으로 이동"><canvas width="320" height="180" aria-hidden="true"></canvas></button>'
-            + '<div class="mobile-battle-pip-actions"><button type="button" data-pip-return class="mobile-battle-dock-label">전투로</button>'
+        host.setAttribute('aria-label', '작은 전투 화면');
+        host.dataset.i18nAttr = 'aria-label';
+        host.innerHTML = '<button type="button" class="mobile-battle-pip-preview" data-pip-return data-i18n-attr="aria-label" aria-label="전투 화면으로 이동"><canvas width="320" height="180" aria-hidden="true"></canvas></button>'
+            + '<div class="mobile-battle-pip-actions"><button type="button" data-pip-return data-i18n class="mobile-battle-dock-label">전투로</button>'
             + '<button type="button" data-pip-toggle aria-expanded="true" aria-label="작은 전투 화면 접기">접기</button></div>';
+        i18n.applyStatic(host);
+        setMobileBattlePipCollapsed(host, false);
         host.addEventListener('click', event => {
             const toggle = event.target.closest('[data-pip-toggle]');
             if (toggle) {
@@ -1034,7 +1039,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
     host.classList.toggle('is-collapsed', collapsed);
     const toggle = host.querySelector('[data-pip-toggle]');
     toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.setAttribute('aria-label', collapsed ? '작은 전투 화면 펼치기' : '작은 전투 화면 접기');
+    toggle.setAttribute('aria-label', _t(collapsed ? '작은 전투 화면 펼치기' : '작은 전투 화면 접기'));
     toggle.textContent = collapsed ? _t('전투 보기') : _t('접기');
 }
 
@@ -1303,16 +1308,20 @@ function createMobileTabDrawerHead() {
     let head = document.createElement('div');
     head.className = 'mobile-tab-drawer-head';
     let title = document.createElement('strong');
-    title.textContent = _t('전체 메뉴');
+    title.textContent = '전체 메뉴';
+    title.dataset.i18n = '';
     let actions = document.createElement('span');
     actions.className = 'mobile-tab-drawer-actions';
     let close = document.createElement('button');
     close.type = 'button';
-    close.textContent = _t('닫기');
-    close.setAttribute('aria-label', _t('전체 메뉴 닫기'));
+    close.textContent = '닫기';
+    close.dataset.i18n = '';
+    close.setAttribute('aria-label', '전체 메뉴 닫기');
+    close.dataset.i18nAttr = 'aria-label';
     close.addEventListener('click', () => setMobileTabDrawerOpen(false));
     actions.append(close);
     head.append(title, actions);
+    i18n.applyStatic(head);
     return head;
 }
 
@@ -1323,8 +1332,10 @@ function createMobileMoreButton() {
     button.className = 'mobile-nav-more';
     button.setAttribute('aria-controls', 'tab-header-main');
     button.setAttribute('aria-expanded', 'false');
-    button.setAttribute('aria-label', _t('전체 메뉴 열기'));
-    button.innerHTML = '<span>전체</span><span class="noti-dot"></span>';
+    button.setAttribute('aria-label', '전체 메뉴 열기');
+    button.dataset.i18nAttr = 'aria-label';
+    button.innerHTML = '<span data-i18n>전체</span><span class="noti-dot"></span>';
+    i18n.applyStatic(button);
     button.addEventListener('click', toggleMobileTabDrawer);
     return button;
 }
@@ -1419,14 +1430,16 @@ function renderMobileMenuGroups(header) {
             title = document.createElement('div');
             title.className = 'mobile-menu-group-title';
             title.dataset.mobileGroup = group.key;
-            title.textContent = _t(group.label);
         }
+        title.textContent = _t(group.label);
         title.hidden = buttons.length === 0;
         header.appendChild(title);
         buttons.forEach(button => header.appendChild(button));
     }
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
+// 휴대폰 하단 메뉴는 누르면 바로 열리므로 끌기는 더 길게 눌러야 시작한다(2026-11-07 사용자: 길게 눌러 끌어 자리를 바꾼다).
+const MOBILE_DOCK_LONG_PRESS_MS = 450;
 const TAB_DRAG_CANCEL_PX = 8;
 let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
@@ -1451,7 +1464,7 @@ const TAB_GROUPS = [
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-trade'] },
-    { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
+    { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
     game.settings = game.settings || {};
@@ -1610,8 +1623,14 @@ function beginTabHeaderDrag(state) {
     document.body.classList.add('tab-drag-active');
 }
 
+/** Whether menu buttons drag only inside the phone's bottom dock (they never move into the full menu drawer). */
+function isMobileDockDrag() {
+    return document.body.classList.contains('mobile-primary-navigation');
+}
+
 function moveDraggedTabToPoint(state, clientX, clientY) {
-    let header = getTabHeaderUnderPoint(clientX, clientY) || state.button.parentElement;
+    let header = isMobileDockDrag() ? state.header : getTabHeaderUnderPoint(clientX, clientY);
+    header = header || state.button.parentElement;
     if (!header) return;
     if (state.button.parentElement !== header) header.appendChild(state.button);
     let siblings = Array.from(header.querySelectorAll('.tab-btn')).filter(el => el !== state.button);
@@ -1619,10 +1638,20 @@ function moveDraggedTabToPoint(state, clientX, clientY) {
         let rect = el.getBoundingClientRect();
         return clientX < rect.left + rect.width / 2;
     });
-    header.insertBefore(state.button, before || null);
+    // 하단 메뉴의 전체 단추는 늘 맨 끝이다
+    header.insertBefore(state.button, before || header.querySelector(':scope > #btn-mobile-nav-more'));
+}
+
+/** The phone dock's order after a drag: its buttons first in their new order (each kept on the dock), the rest as they were. */
+function commitMobileDockOrder() {
+    const layout = tabLayoutUi.current();
+    const dock = Array.from(document.querySelectorAll('#tab-header-bottom > .tab-btn')).map(button => button.id);
+    dock.forEach(id => { layout.tabPlacement[id] = 'top'; });
+    layout.tabOrder = [...dock, ...layout.tabOrder.filter(id => !dock.includes(id))];
 }
 
 function commitTabHeaderDragOrder() {
+    if (isMobileDockDrag()) { commitMobileDockOrder(); return; }
     let headers = getTabHeaders();
     game.settings = game.settings || {};
     tabLayoutUi.current().tabPlacement = tabLayoutUi.current().tabPlacement || {};
@@ -1634,7 +1663,8 @@ function commitTabHeaderDragOrder() {
 }
 
 function activateTabButtonFromDrag(button) {
-    if (!button || !button.id || typeof switchTab !== 'function') return;
+    // 하단 메뉴에서는 자리만 바꾼다(끌어 놓은 탭이 열리지 않는다)
+    if (!button || !button.id || typeof switchTab !== 'function' || isMobileDockDrag()) return;
     if (!button.id.startsWith('btn-tab-')) return;
     switchTab(button.id.replace(/^btn-/, ''));
 }
@@ -1656,12 +1686,20 @@ function clearTabHeaderDragState(saveOrder) {
     }
 }
 
+/** How long a press waits before the button drags (ms), or 0 where menu buttons do not drag: the PC window rail, and on phones
+ * everything but the bottom dock. */
+function tabDragPressMs(button) {
+    const classes = document.body.classList;
+    if (classes.contains('desktop-windowed-ui')) return 0;
+    if (!classes.contains('mobile-primary-navigation')) return TAB_DRAG_LONG_PRESS_MS;
+    return button.closest('#tab-header-bottom') ? MOBILE_DOCK_LONG_PRESS_MS : 0;
+}
+
 function onTabHeaderPointerDown(event) {
-    if (document.body && document.body.classList.contains('desktop-windowed-ui')) return;
-    if (document.body && document.body.classList.contains('mobile-primary-navigation')) return;
     if (tabHeaderDragState) return;
     let button = getTabButtonFromTarget(event.target);
-    if (!button || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    let pressMs = button ? tabDragPressMs(button) : 0;
+    if (!pressMs || (event.pointerType === 'mouse' && event.button !== 0)) return;
     let header = button.closest ? button.closest('.tab-header') : null;
     tabHeaderDragState = {
         button,
@@ -1678,7 +1716,7 @@ function onTabHeaderPointerDown(event) {
         ghost: null,
         dragging: false,
         scrolling: false,
-        longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), TAB_DRAG_LONG_PRESS_MS)
+        longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), pressMs)
     };
     if (button.setPointerCapture) button.setPointerCapture(event.pointerId);
 }
@@ -1739,7 +1777,18 @@ function onTabHeaderClickCapture(event) {
     if (Date.now() <= tabHeaderSuppressClickUntil && getTabButtonFromTarget(event.target)) {
         event.preventDefault();
         event.stopPropagation();
+        return;
     }
+    returnToBattleFromOpenTab(event);
+}
+
+/** 휴대폰 하단 메뉴에서 이미 열린 탭을 다시 누르면(두 번 누르면) 전투 화면으로 돌아간다(2026-11-07 사용자). */
+function returnToBattleFromOpenTab(event) {
+    const button = event.target.closest && event.target.closest('#tab-header-bottom > .tab-btn.active');
+    if (!button || button.id === 'btn-tab-battle' || !document.body.classList.contains('mobile-primary-navigation')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    switchTab('tab-battle');
 }
 
 function installTabHeaderDragReorder() {
@@ -1772,7 +1821,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
     let primaryIds = new Set(tabLayoutUi.mobilePrimaryIds());
     if (!mobilePrimary) teardownMobilePrimaryNavigation(topHeader, bottomHeader);
     else ensureMobilePrimaryNavigation(topHeader, bottomHeader);
-    if (!mobilePrimary) installTabHeaderDragReorder();
+    installTabHeaderDragReorder();
     let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
     let ids=allTabButtons.map(el=>el.id);
     let order = Array.from(new Set(['btn-tab-battle', ...tabLayoutUi.current().tabOrder, ...tabLayoutUi.defaultOrder]));
@@ -1789,6 +1838,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
         let target = mobilePrimary && primaryIds.has(id) ? bottomHeader : topHeader;
         target.appendChild(map[id]);
     });
+    if (mobilePrimary) primaryIds.forEach(id => { if (map[id]) bottomHeader.appendChild(map[id]); });
     if (bottomHeader) {
         let more = document.getElementById('btn-mobile-nav-more');
         if (more) bottomHeader.appendChild(more);
@@ -1823,12 +1873,22 @@ function scheduleTabHeaderViewportSync() {
 if (typeof window !== 'undefined') {
     window.addEventListener('resize', scheduleTabHeaderViewportSync);
     window.addEventListener('orientationchange', scheduleTabHeaderViewportSync);
+    window.addEventListener('game:languagechange', () => {
+        playerStatCache.invalidate();
+        cachedTooltipStats = null;
+        gemTooltipCache = null;
+        if (document.getElementById('info-tooltip')) hideInfoTooltip();
+        const pip = document.getElementById('mobile-battle-pip');
+        if (pip) setMobileBattlePipCollapsed(pip, pip.classList.contains('is-collapsed'));
+        scheduleTabHeaderViewportSync();
+    });
 }
 
 function getTabHeaderUiSignature() {
     let unlocks = game.unlocks || {};
     let mobileBattle = uiDisplay.matches(`(max-width: ${MOBILE_BATTLE_BREAKPOINT}px)`) ? 'mobileBattle' : 'desktopBattle';
     return [
+        i18n.language,
         mobileBattle,
         isMobilePrimaryNavigationEnabled() ? 'mobilePrimary' : 'legacyTabs',
         (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
@@ -1894,7 +1954,7 @@ function updateTabUnlockButtons() {
 }
 
 function isUngatedPersistentTabButton(btn) {
-    return btn && (btn.id === 'btn-tab-social' || btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character');
+    return btn && (btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character');
 }
 // updateTabUnlockButtons 뒤에서 호출되는 그룹 가시성 적용부. 재진입 없이 display만 조정한다.
 function hideOutOfGroupTabButtons() {
@@ -2311,7 +2371,6 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     runWindowOpenHooks(tabId, shownId);
-    document.body.classList.toggle('mobile-community-sheet-open', tabId === 'tab-social' && uiDisplay.matches('(max-width: 1080px)'));
     // 열 수 있는 화면을 다시 세웠으므로 잠금 정리 후의 복귀 예약은 소진된다.
     pendingRelockedTabFallback = false;
     let activeBtn = document.getElementById('btn-' + tabId);
@@ -2337,8 +2396,7 @@ function switchTab(tabId) {
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
     lastActiveTabId = tabId;
-    if (tabId === 'tab-social' && typeof renderSocialTab === 'function') renderSocialTab();
-    else if (typeof syncSocialChatPolling === 'function') syncSocialChatPolling();
+    if (typeof syncSocialChatPolling === 'function') syncSocialChatPolling();
     if (tabId === 'tab-talent') talentUi.render();
     if (shownId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
@@ -5597,7 +5655,7 @@ function getRuneLevelTooltipLine(name, support) {
 }
 function showGemTooltip(event, type, name, target = null) {
     if (!target && document.getElementById('gem-selection')?.matches(':popover-open')) return;
-    let cacheKey = `${type || 'active'}:${name}`;
+    let cacheKey = `${i18n.language}:${type || 'active'}:${name}`;
     if (!target && reuseInfoTooltip(event, cacheKey)) return;
     let stats = cachedTooltipStats || getUiPlayerStats();
     if (gemTooltipCache && gemTooltipCache.key === cacheKey && gemTooltipCache.stats === stats) {
@@ -5606,17 +5664,17 @@ function showGemTooltip(event, type, name, target = null) {
         return;
     }
     let info = getUiGemPresentation(name, type === 'support', stats);
-    let html = `<div class="tooltip-title">${name}</div>${getRuneLevelTooltipLine(name, type === 'support')}`;
+    let html = `<div class="tooltip-title">${escapeHTML(_t(name))}</div>${getRuneLevelTooltipLine(name, type === 'support')}`;
     if (type === 'support') {
-        html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div>`;
+        html += `<div class="tooltip-line">${keepKoreanUnitParticles(_t(info.desc))}</div>`;
         let tierText = typeof getSupportTierLabel === 'function' ? getSupportTierLabel(name, info.activeTier) : (info.activeTier === 3 ? '상급' : info.activeTier === 2 ? '중급' : '하급');
         let valueText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.value) : Number(info.value || 0).toFixed(1);
-        html += `<div class="tooltip-line" style="margin-top:6px;">${_t('효과({tierText}): {effectText}', { tierText, effectText: escapeHTML(gemSelectionUi.effectText(name, info.activeTier, stats)) })}</div>` + gemSlotDialog.tierLineHtml(name, stats);
+        html += `<div class="tooltip-line" style="margin-top:6px;">${_t('효과({tierText}): {effectText}', { tierText: _t(tierText), effectText: escapeHTML(gemSelectionUi.effectText(name, info.activeTier, stats)) })}</div>` + gemSlotDialog.tierLineHtml(name, stats);
         if (info.scaleWithOwnStat) {
             let baseText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleBase) : Number(info.scaleBase || 0).toFixed(1);
             let ratioText = typeof formatSupportGemEffectValue === 'function' ? formatSupportGemEffectValue(info.scaleRatioPct) : Number(info.scaleRatioPct || 0).toFixed(1);
-            html += `<div class="tooltip-line" style="color:#9fd4ff;">${_t('계산: 보조스킬룬 제외 {statName} {baseText}% × 공명 계수 {ratioText}% = +{valueText}%', { statName: info.statName, baseText, ratioText, valueText })}</div>`;
-            html += `<div class="tooltip-line" style="color:#b8a6ff;">${_t('제외: 이 보조스킬룬 및 다른 보조스킬룬으로 얻은 {statName} 증가', { statName: info.statName })}</div>`;
+            html += `<div class="tooltip-line" style="color:#9fd4ff;">${_t('계산: 보조스킬룬 제외 {statName} {baseText}% × 공명 계수 {ratioText}% = +{valueText}%', { statName: _t(info.statName), baseText, ratioText, valueText })}</div>`;
+            html += `<div class="tooltip-line" style="color:#b8a6ff;">${_t('제외: 이 보조스킬룬 및 다른 보조스킬룬으로 얻은 {statName} 증가', { statName: _t(info.statName) })}</div>`;
         }
         if (TAGGED_DAMAGE_STAT_BY_TAG && Object.values(TAGGED_DAMAGE_STAT_BY_TAG).includes(info.statId)) {
             let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === info.statId);
@@ -5635,7 +5693,7 @@ function showGemTooltip(event, type, name, target = null) {
         let skill = info.skill || SKILL_DB[name];
         let rawSkillTags = Array.isArray(skill.tags) ? skill.tags : [];
         let isSummonAttackTooltip = rawSkillTags.includes('summon');
-        html += `<div class="tooltip-line">${keepKoreanUnitParticles(info.desc)}</div><div class="tooltip-line">${escapeHTML(gemSelectionUi.summonEffect(name, stats))}</div>`;
+        html += `<div class="tooltip-line">${keepKoreanUnitParticles(_t(info.desc))}</div><div class="tooltip-line">${escapeHTML(gemSelectionUi.summonEffect(name, stats))}</div>`;
         if (!isSummonAttackTooltip && typeof describeSkillGridProfile === 'function') {
             html += `<div class="tooltip-line" style="margin-top:6px;color:#7fffd4;">${describeSkillGridProfile(name, skill)}</div>`;
         }
@@ -8819,13 +8877,13 @@ const renderCharacterPassiveSpecialStats = function(pStats) {
     const mystique = Math.max(0, Number(pStats.mystique) || 0);
     const cycle = Math.max(0, Number(pStats.cycle) || 0);
     const devotion = Math.max(0, Number(pStats.devotion) || 0);
-    const ailment = getAilmentDisplayLabel(pStats.mystiqueAilmentType);
+    const ailment = _t(getAilmentDisplayLabel(pStats.mystiqueAilmentType));
     setTextById('ui-mystique', formatValue('mystique', mystique));
-    setTextById('ui-mystique-effect', mystique > 0 ? _t('{ailment} 피해/위력 +{value}%', { ailment, value: formatValue('mystique', mystique) }) : '효과 없음');
+    setTextById('ui-mystique-effect', mystique > 0 ? _t('{ailment} 피해/위력 +{value}%', { ailment, value: formatValue('mystique', mystique) }) : _t('효과 없음'));
     setTextById('ui-cycle', formatValue('cycle', cycle));
-    setTextById('ui-cycle-effect', cycle > 0 ? '상태이상 종료 시 6초 강화' : '효과 없음');
+    setTextById('ui-cycle-effect', _t(cycle > 0 ? '상태이상 종료 시 6초 강화' : '효과 없음'));
 
-    let revelationLabel = devotion > 0 ? (pStats.passiveRevelationLabel || '계시 활성') : '미해금';
+    let revelationLabel = _t(devotion > 0 ? (pStats.passiveRevelationLabel || '계시 활성') : '미해금');
     let revelationEffect = _t('계시 수치 {value}', { value: formatValue('devotion', devotion) });
     if (devotion > 0 && pStats.passiveRevelation === 'combat') {
         revelationEffect += _t(', 피해 {value}% 증폭', { value: formatValue('devotion', pStats.passiveRevelationCombatDamageMorePct) });
@@ -9336,8 +9394,8 @@ function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
     return {
         honey: !!item && (game.currencies.enchantedHoney || 0) > 0 && !hasHoneyLocked,
-        stinger: !!item && (game.currencies.venomStinger || 0) > 0 && item.slot === '무기',
-        baseUpgrade: !!item,
+        stinger: !!item && (game.currencies.venomStinger || 0) > 0 && !getVenomStingerRefusal(item),
+        baseUpgrade: !!item && !getBaseUpgradeRefusal(item),
         voidSocket: !!item && equipmentSockets.canChisel(item)
     };
 }
@@ -9426,7 +9484,7 @@ function buildSporeSummaryHtml() {
     const item = getSelectedCraftItem();
     const targetDisabled = !item || !isSporeCraftEquipment(item);
     const advanced = contentProgression.isUnlocked('advancedSpores');
-    const riftBlock = item ? equipmentCrafting.getBlockReason(item, 'fossil') : '';
+    const riftBlock = item ? equipmentCrafting.getRiftHarvestBlockReason(item) : '';
     const rule = STUMP_BOX_HARVEST_CRAFT;
     const costs = [...rule.rot.map(color => [stumpBox.harvestPriceKey('any', color), color]), [stumpBox.harvestPriceKey(rule.riftKind), 'physical']];
     const held = costs.map(([key, color]) => `<div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:${STUMP_BOX_COLORS[color].tone}; font-size:12px;">${stumpBox.harvestPriceName(key)}<br><strong>x ${stumpBox.harvestPriceHeld(game, key)}</strong></div>`).join('');
@@ -9550,6 +9608,9 @@ function renderCraftPickerInventory(currentRef, currentIsEquip, browse) {
 function refreshCraftItemPickerOverlay() {
     let overlay = document.getElementById('craft-item-picker-overlay');
     if (!overlay || !window.__craftPickerKind) return;
+    // 장비, 인벤토리 고르기 창은 장비 창의 진짜 칸을 옮겨 와 보여 준다(js/craft-picker-host-ui.js): 몸통을 다시 쓰면 그 칸이 문서에서 사라진다.
+    // 등급 필터를 바꾸면 applyInventoryRarityFilterChange의 updateStaticUI가 옮겨 온 가방을 그 자리에서 다시 그린다.
+    if (craftPickerHostUi.shows(window.__craftPickerKind)) return;
     let filterEl = overlay.querySelector('.craft-picker-filter');
     if (filterEl) filterEl.innerHTML = `<span class="inventory-view-filter-label">${_t('표시')}</span>${renderRarityFilterChips('picker')}`;
     let bodyEl = overlay.querySelector('.craft-picker-body');
@@ -11091,9 +11152,13 @@ function openStartupGate(options = {}) {
 /** The card's one line for a save: level, loop and the zone it was in. */
 function renderStartupSaveSummary(el, save) {
     if (!el) return;
-    const zone = save && typeof getZone === 'function' ? getZone(save.currentZoneId) : null;
-    const loopLabel = Math.max(1, Math.floor((save && save.season) || 1));
-    el.innerText = _t('Lv.{level}, 루프 {loopLabel}, {zoneLabel}', { level: (save && save.level) || 1, loopLabel, zoneLabel: _t(zone && zone.name ? zone.name : '액트 1: 버려진 해안') });
+    const current = save || {};
+    const zone = getZone(current.currentZoneId) || { name: '액트 1: 버려진 해안' };
+    const loopLabel = Math.max(1, Math.floor(current.season || 1));
+    const act = getStoryActByZoneId(zone.id);
+    const floors = { underworld: '지하계 {floor}층', skyTower: '창공의 탑 {floor}층', chaosRealm: '혼돈계 {floor}층' };
+    const zoneLabel = act ? `${formatStoryActLabel(act)}: ${_t(act.title)}` : _t(floors[zone.type] || zone.name, { floor: zone.floor });
+    el.innerText = _t('Lv.{level}, 루프 {loopLabel}, {zoneLabel}', { level: current.level || 1, loopLabel, zoneLabel });
 }
 
 /** The save the card shows: the slot in use, or, while the page is still on the guest slot with an account signed in (a reload with a
@@ -11146,8 +11211,16 @@ function startupSaveCardState(shown, stamp) {
         hasSave,
         hasGuestSave: shown.preview ? guestStamp > 0 : (shown.account ? !!cloudState.guestSaveSummary : hasSave),
         title: shown.account ? '계정 저장' : (hasSave ? '이 기기 저장' : '새 모험'),
-        emptyText: shown.preview ? '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.' : null
+        emptyText: startupEmptyText(shown, hasSave)
     };
+}
+
+/** The line under an empty card, or null for the card's own line (index.html): in the preview the entry fetches the server save; signed
+ * out on an empty guest slot with an account's copy on this device (js/save.js hasAccountSaveCopy), that logging in continues it. */
+function startupEmptyText(shown, hasSave) {
+    if (shown.preview) return '계정 저장으로 이어하기를 누르면 서버의 저장을 받습니다.';
+    if (!hasSave && !shown.account && hasAccountSaveCopy()) return '이 기기에 로그인한 계정의 저장이 있습니다. 그 계정으로 로그인하면 이어서 할 수 있습니다.';
+    return null;
 }
 
 /** 이 기기 저장을 쓸 수 없어 멈춘 경우의 제목과 안내(js/save.js loadGame): 읽지 못한 저장(corrupt, 원래 저장은 따로 보관한다)과
@@ -11417,6 +11490,7 @@ function watchSupabaseTokenRefresh(client) {
     client.__rigninTokenWatch = true;
     client.auth.onAuthStateChange((event, session) => {
         if (event !== 'TOKEN_REFRESHED' || !session || !session.access_token) return;
+        if (!getActiveCloudUserId() || session.user?.id !== getActiveCloudUserId()) return;
         if (cloudState.session && cloudState.session.refresh_token === session.refresh_token) return;
         applyCloudSession(session);
     });
@@ -11434,6 +11508,7 @@ function gameSessionComesFirst() {
 }
 
 async function tryRestoreSupabaseOAuthSession() {
+    const owner = cloudState.session, epoch = cloudState.sessionEpoch;
     let client = getSupabaseClient();
     // 게임이 저장한 세션이 있고 주소에 로그인 인자가 없으면 그 세션으로 복원한다(restoreCloudSession). getSession과 onAuthStateChange의 첫 호출은
     // 저장된 토큰이 만료됐으면 스스로 갱신하는데, 그 토큰이 게임 것보다 두 세대 이상 묵었으면 서버가 세션 사슬을 끊어 부팅 직후 로그아웃됐다
@@ -11442,12 +11517,13 @@ async function tryRestoreSupabaseOAuthSession() {
     watchSupabaseTokenRefresh(client);
     try {
         let { data, error } = await client.auth.getSession();
+        if (!isCurrentCloudSession(owner, epoch)) return false;
         if (error) throw error;
         let session = data && data.session;
         if (!session || !session.access_token) return false;
         applyCloudSession(session);
         await refreshCloudLinkedIdentities();
-        let userLabel = (session.user && session.user.email) ? session.user.email : (session.user && session.user.id ? session.user.id : '알 수 없음');
+        let userLabel = session.user && (session.user.email || session.user.id) || '알 수 없음';
         setCloudMessage('로그인됨: ' + userLabel);
         return true;
     } catch (error) {
@@ -11636,18 +11712,29 @@ function syncSupabaseClientSession() {
         .catch(error => console.warn('supabase-js 세션 맞추기 실패:', error));
 }
 
+function resetCloudAccountSync(session) {
+    const nextUserId = session?.access_token ? session.user?.id || getActiveCloudUserId() : null;
+    // Every adopted token supersedes an older in-flight refresh. Account changes also invalidate save reads and confirmations.
+    cloudState.tokenRefreshPromise = null;
+    if (getActiveCloudUserId() === nextUserId) return;
+    cloudState.sessionEpoch++;
+    cloudState.lastRemoteRevision = 0;
+    cloudState.syncHalted = false;
+    cloudState.uploadFailureNoticed = false;
+    cloudState.lastUploadedFingerprint = null;
+    cloudState.pendingForcedSyncOptions = null;
+    cancelScheduledCloudSync();
+}
+
+/** Drops the automatic upload waiting to start (an account change, or a restore that moves the server revision itself). */
+function cancelScheduledCloudSync() {
+    if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = null;
+}
+
 function applyCloudSession(session) {
     let previousUserId = cloudState.user && cloudState.user.id;
-    let nextUserId = session && session.user && session.user.id;
-    if (previousUserId !== nextUserId) {
-        cloudState.lastRemoteRevision = 0;
-        cloudState.syncHalted = false;
-        cloudState.uploadFailureNoticed = false;
-        cloudState.lastUploadedFingerprint = null;
-        cloudState.pendingForcedSyncOptions = null;
-        if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
-        cloudSyncTimer = null;
-    }
+    resetCloudAccountSync(session);
     if (!session || !session.access_token) {
         cloudState.session = null;
         cloudState.user = null;
@@ -11711,42 +11798,59 @@ async function readSupabaseClientSession() {
     }
 }
 
+/** A rejected old refresh cannot clear a newer token or adopt another account's SDK session. */
+function isCurrentCloudSession(owner, epoch) {
+    return cloudState.session === owner && cloudState.sessionEpoch === epoch;
+}
+function hasNewerCloudSession(owner, epoch) {
+    return cloudState.sessionEpoch === epoch && getActiveCloudUserId() === owner.user?.id && hasUsableCloudSessionToken();
+}
+async function recoverCloudSessionRefresh(owner, error) {
+    if (cloudState.session !== owner) return undefined;
+    console.warn('cloud token refresh failed:', error);
+    if (!isCloudAuthRejection(error)) {
+        setCloudMessage(_t('클라우드 로그인 갱신을 못 했습니다(연결 상태). 잠시 뒤 다시 시도합니다.'));
+        return undefined;
+    }
+    // The SDK may have already refreshed this same account; unrelated or superseded sessions are never adopted.
+    const adopted = await readSupabaseClientSession();
+    return adopted?.user?.id === owner.user?.id ? adopted : null;
+}
+
 async function refreshCloudSession(reason) {
-    if (!cloudState.session || !cloudState.session.refresh_token) {
+    const owner = cloudState.session, epoch = cloudState.sessionEpoch;
+    if (!owner || !owner.refresh_token) {
         notifyCloudSessionExpired('클라우드 로그인 갱신 정보가 없습니다. 다시 로그인해주세요.');
         return false;
     }
     if (cloudState.tokenRefreshPromise) return await cloudState.tokenRefreshPromise;
-    cloudState.tokenRefreshPromise = (async () => {
+    const pending = (async () => {
         try {
             setCloudMessage(reason ? _t('클라우드 로그인 갱신 중... ({reason})', { reason }) : '클라우드 로그인 갱신 중...');
             let refreshed = await cloudJsonRequest('/auth/v1/token?grant_type=refresh_token', {
                 method: 'POST',
                 useAuth: false,
-                body: { refresh_token: cloudState.session.refresh_token }
+                body: { refresh_token: owner.refresh_token }
             });
+            if (cloudState.session !== owner) return hasNewerCloudSession(owner, epoch);
             applyCloudSession(refreshed);
             setCloudMessage(_t('클라우드 로그인 세션을 자동 갱신했습니다.'));
             return true;
         } catch (error) {
-            console.warn('cloud token refresh failed:', error);
-            if (isCloudAuthRejection(error)) {
-                // 같은 refresh_token을 supabase-js(autoRefreshToken)가 먼저 써서 거절된 경우: 그쪽의 새 세션을 이어받는다.
-                let adopted = await readSupabaseClientSession();
-                if (adopted) { applyCloudSession(adopted); setCloudMessage(_t('클라우드 로그인 세션을 이어받았습니다.')); return true; }
-                applyCloudSession(null);
-                notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
-            } else {
-                // 망이 끊기거나 서버가 잠시 답하지 않은 것: 세션을 지우지 않는다(전: 어떤 오류든 로그아웃). 다음 요청 전에 다시 갱신한다.
-                setCloudMessage(_t('클라우드 로그인 갱신을 못 했습니다(연결 상태). 잠시 뒤 다시 시도합니다.'));
-            }
+            const adopted = await recoverCloudSessionRefresh(owner, error);
+            if (cloudState.session !== owner) return hasNewerCloudSession(owner, epoch);
+            if (adopted === undefined) return false;
+            applyCloudSession(adopted);
+            if (adopted) { setCloudMessage(_t('클라우드 로그인 세션을 이어받았습니다.')); return true; }
+            notifyCloudSessionExpired('클라우드 로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
             return false;
-        } finally {
-            cloudState.tokenRefreshPromise = null;
-            updateCloudSaveUI();
         }
     })();
-    return await cloudState.tokenRefreshPromise;
+    cloudState.tokenRefreshPromise = pending;
+    try { return await pending; } finally {
+        if (cloudState.tokenRefreshPromise === pending) cloudState.tokenRefreshPromise = null;
+        updateCloudSaveUI();
+    }
 }
 
 async function ensureCloudSessionFresh(reason) {
@@ -11777,15 +11881,29 @@ async function cloudJsonRequest(path, options = {}) {
     }
     cloudSessionGuard.assertActive();
     if (options.expectedUserId && options.expectedUserId !== getActiveCloudUserId()) throw new Error('로그인 계정이 변경되어 작업을 중단했습니다.');
+    const requestEpoch = cloudState.sessionEpoch;
     let body = options.body, headers = cloudRequestHeaders(config, options, body);
     // onSend: the request is about to leave (after the token and account checks above), for callers that must know it went out
     if (options.onSend) options.onSend();
-    let response = await fetch(config.supabaseUrl + path, {
-        method: options.method || 'GET',
-        headers,
-        body: body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body))
-    });
-    let text = await response.text();
+    // The deadline includes reading the body, not only receiving HTTP headers. A lost reply may still mean the server committed:
+    // callers keep their existing conflict/unknown-result recovery; a timed-out mutation is never retried here.
+    async function readResponse() {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30000);
+        try {
+            const response = await fetch(config.supabaseUrl + path, {
+                method: options.method || 'GET', headers, signal: controller.signal,
+                body: body === undefined ? undefined : (typeof body === 'string' ? body : JSON.stringify(body))
+            });
+            return { response, text: await response.text() };
+        } catch (error) {
+            if (controller.signal.aborted) throw Object.assign(new Error(_t('서버 응답 시간이 초과되었습니다. 연결을 확인해 주세요.')), { code: 'CLOUD_REQUEST_TIMEOUT' });
+            throw error;
+        } finally {
+            clearTimeout(timer);
+        }
+    }
+    let { response, text } = await readResponse();
     let data = null;
     if (text) {
         try {
@@ -11795,7 +11913,7 @@ async function cloudJsonRequest(path, options = {}) {
         }
     }
     if (!response.ok) {
-        cloudSessionGuard.noteServerRefusal(data);   // 다른 기기의 접속에 밀려난 거절이면 이 화면은 바로 멈춘다
+        if (cloudState.sessionEpoch === requestEpoch) cloudSessionGuard.noteServerRefusal(data, headers['x-rignin-session']);
         throw Object.assign(new Error(describeCloudServerError(data, response.status)), { status: response.status });
     }
     return data;
@@ -12251,18 +12369,25 @@ async function restoreCloudSession() {
     let stored = loadStoredCloudSession();
     if (!stored || !stored.access_token) return false;
     if (stored.refresh_token) {
+        resetCloudAccountSync(stored);
         cloudState.session = stored;
         cloudState.user = stored.user || null;
-        if (await refreshCloudSession('저장된 세션 복원')) return true;
+        const epoch = cloudState.sessionEpoch;
+        const refreshed = await refreshCloudSession('저장된 세션 복원');
+        if (cloudState.sessionEpoch !== epoch) return false;
+        if (refreshed) return true;
         if (!cloudState.session) return false;   // 서버가 거절해 지웠다
         // 갱신에 못 닿았지만 세션은 남겼다: 토큰이 아직 살아 있으면 그대로 쓰고, 끝났으면 이번 실행은 로그인 없이 가되
         // 저장된 세션은 두어 다음 실행 때 다시 시도한다(전: 망이 끊긴 채 켜면 로그아웃).
         if (cloudState.user && getCloudSessionExpiresAtMs() - Date.now() > CLOUD_TOKEN_REFRESH_LEEWAY_MS) {
             setCloudMessage(_t('클라우드 로그인 갱신은 못 했지만 기존 로그인으로 계속합니다.'));
+            cloudSessionGuard.syncSession();   // 갱신이 성공할 때처럼 접속 표를 적고 읽기 시작한다(전: 다음 갱신까지 중복 접속을 못 막았다)
             return true;
         }
+        resetCloudAccountSync(null);
         cloudState.session = null;
         cloudState.user = null;
+        cloudSessionGuard.syncSession();
         setCloudMessage(_t('연결이 없어 저장된 로그인을 확인하지 못했습니다. 다음 실행 때 다시 시도합니다.'));
         return false;
     }
@@ -12272,12 +12397,12 @@ async function restoreCloudSession() {
 }
 
 async function fetchLatestCloudSaveRow(userId, select) {
-    let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=${select}&order=updated_at.desc.nullslast&limit=1`, {
-        headers: { Accept: 'application/json' }
+    let rows = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${encodeURIComponent(userId)}&select=${select}&order=updated_at.desc.nullslast&limit=1`, {
+        expectedUserId: userId, headers: { Accept: 'application/json' }
     });
     if (Array.isArray(rows) && rows[0]) return rows[0];
-    let fallback = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${userId}&select=${select}`, {
-        headers: { Accept: 'application/json' }
+    let fallback = await cloudJsonRequest(`/rest/v1/cloud_saves?user_id=eq.${encodeURIComponent(userId)}&select=${select}`, {
+        expectedUserId: userId, headers: { Accept: 'application/json' }
     });
     return (Array.isArray(fallback) ? fallback : []).filter(Boolean).sort((a, b) => {
         let at = a.updated_at ? (new Date(a.updated_at).getTime() || 0) : 0;
@@ -12311,7 +12436,9 @@ function cloudSummaryRecord(row) {
 /** The entry check's read: a few hundred bytes instead of the whole save. An odd row (no summary fields) reads the full save. */
 async function fetchCloudSaveSummary() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
-    let row = await fetchLatestCloudSaveRow(encodeURIComponent(cloudState.user.id), `user_id,updated_at,revision,${CLOUD_SAVE_SUMMARY_FIELDS}`);
+    const context = captureCloudSaveContext();
+    let row = await fetchLatestCloudSaveRow(context.userId, `user_id,updated_at,revision,${CLOUD_SAVE_SUMMARY_FIELDS}`);
+    assertCloudSaveContext(context);
     let record = cloudSummaryRecord(row);
     if (row && !record.save_data) return await fetchCloudSaveRecord();
     return rememberCloudRecord(record);
@@ -12319,9 +12446,13 @@ async function fetchCloudSaveSummary() {
 
 async function fetchCloudSaveRecord() {
     if (!cloudState.user || !cloudState.user.id) throw new Error('로그인이 필요합니다.');
+    const context = captureCloudSaveContext();
     try {
-        return rememberCloudRecord(await fetchLatestCloudSaveRow(encodeURIComponent(cloudState.user.id), 'user_id,save_data,updated_at,revision'));
+        const record = await fetchLatestCloudSaveRow(context.userId, 'user_id,save_data,updated_at,revision');
+        assertCloudSaveContext(context);
+        return rememberCloudRecord(record);
     } catch (error) {
+        assertCloudSaveContext(context);
         cloudState.isLoaded = false;
         updateCloudSaveUI();
         throw error;
@@ -12405,13 +12536,13 @@ async function commitCloudSavePayload(payload, options = {}) {
     };
 }
 
-/** After a commit the server holds this device's copy: its revision and time, nothing pending, and the content print (an unchanged
- * page-exit upload is skipped). The slot is written so a closed page keeps the revision. */
+/** A commit acknowledges the body that was sent, not progress made while its reply was on the way. Advance the revision but keep
+ * later changes pending (also for page-exit replies). The slot is written so a closed page keeps both the revision and that progress. */
 function rememberCloudCommit(row, fingerprint) {
     ensureSaveMeta();
     game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(row.revision) || 0));
     game.saveMeta.lastCloudSyncAt = row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
-    game.saveMeta.cloudPending = false;
+    game.saveMeta.cloudPending = cloudSaveFingerprint(createCloudSyncPayload(game)) !== fingerprint;
     cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
     cloudState.lastRemoteUpdatedAt = game.saveMeta.lastCloudSyncAt;
     cloudState.lastCloudCommitAt = Date.now();
@@ -12460,9 +12591,21 @@ function checkCloudUploadOwner(owner, userId) {
     if (game !== owner || getActiveCloudUserId() !== userId) throw new Error('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.');
 }
 
+/** A save operation belongs to one live game, slot and account entry; a token refresh of that same entry is allowed. */
+function captureCloudSaveContext() {
+    return { owner: game, userId: getActiveCloudUserId(), slotKey: getSaveSlot().key, sessionEpoch: cloudState.sessionEpoch };
+}
+function assertCloudSaveContext(context) {
+    checkCloudUploadOwner(context.owner, context.userId);
+    if (getSaveSlot().key !== context.slotKey || cloudState.sessionEpoch !== context.sessionEpoch) throw new Error(_t('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.'));
+}
+safeExposeGlobals({ captureCloudSaveContext, assertCloudSaveContext });
+
 /** The server save replaces this device's copy of the account save (설정의 서버 저장 다시 받기). */
 async function pullCloudSave(options = {}) {
+    const context = captureCloudSaveContext();
     let record = cloudRecordForThisBuild(await fetchCloudSaveRecord());
+    assertCloudSaveContext(context);
     if (!record || !record.save_data) {
         setCloudMessage(_t('서버에 저장이 없습니다.'));
         return null;
@@ -12477,45 +12620,43 @@ async function pullCloudSave(options = {}) {
  * account's slot on this device (js/save.js saveSlot) is read and compared with the server by revision alone:
  * - no server save: this device's copy (or the guest save on sign-up) becomes the first server save;
  * - the server is at this copy's revision: what the copy has not uploaded yet goes up, and play continues from the copy;
- * - the server's latest save is this copy's own last upload (the page-exit upload answers after the page is gone, so the copy still
- *   says pending at the old revision): the copy takes the server's revision and plays on;
- * - the server moved on (another device committed): its save replaces the copy; progress the copy had not uploaded is dropped, with one
+ * - the server moved on (another upload, a hall trade or a restore): its full save replaces the copy; progress the copy had not uploaded is dropped, with one
  *   log line (2026-11-01 사용자: 플레이어에게 파일을 받게 하지 않는다).
- * Clocks and loop numbers decide nothing (the own-upload check compares the save's own lastModifiedAt stamp, carried in the upload),
- * and a failed server read leaves every slot as it was (the guest slot is never touched). */
+ * A matching lastModifiedAt is not evidence of our own upload: server trades preserve that client stamp while changing the body.
+ * Revision mismatches always read the authoritative full body, including when our own page-exit reply was lost. */
 async function enterAccountSave(options = {}) {
     const userId = getActiveCloudUserId();
     if (!userId) throw new Error('로그인이 필요합니다.');
+    const context = captureCloudSaveContext();
     const record = cloudRecordForThisBuild(await fetchCloudSaveSummary());
+    assertCloudSaveContext(context);
+    const previousUserId = getSaveSlot().userId || null;
     activateAccountSaveSlot(userId);
     if (!record || !record.save_data) return await createFirstCloudSave(options.signUp === true);
     const kept = await continueFromAccountCopy(userId);
     if (kept) return kept;
-    if (adoptOwnUpload(record, userId)) return 'cached-current';
-    const dropped = getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending;
-    const full = await readFullCloudSaveForPull();
+    return await pullAccountSave(userId, previousUserId, options);
+}
+
+/** The server moved past this device's copy: its full save replaces the copy. When the read fails, the slot that was in use comes back
+ * (전: 이 기기에 사본이 없으면 빈 1레벨 캐릭터가 남았다). Progress is reported dropped only when the copy held something the server body
+ * lacks: a page-exit upload whose reply was lost leaves the same content there, and the server's jsonb only reorders its keys. */
+async function pullAccountSave(userId, previousUserId, options) {
+    const pending = getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending;
+    const localPrint = pending ? cloudSaveContentPrint(createCloudSyncPayload(game)) : '';
+    let full;
+    try {
+        full = await readFullCloudSaveForPull();
+    } catch (error) {
+        if (previousUserId !== userId) loadSaveSlotIntoGame(previousUserId);
+        throw error;
+    }
+    const dropped = pending && localPrint !== cloudSaveContentPrint(full.save_data);
     applyExternalSave(full.save_data, getRemoteSaveStamp(full));
     const note = dropped ? '다른 기기에서 저장한 뒤라 서버 저장으로 이어서 합니다. 이 기기에서 올리지 못한 진행은 지웠습니다.' : '서버 저장으로 이어서 합니다.';
     setCloudMessage(note);
     if (!options.silent) addLog(note, 'loot-magic');
     return 'pulled-server';
-}
-
-/** The server's latest save carries the very stamp this copy was written with (saveMeta.lastModifiedAt goes up inside the upload), so it
- * is this copy's own upload whose answer never came back (a page-exit upload): the copy takes the server's revision and nothing is
- * pending. 2026-11-01: after every play session the next launch asked to keep "this device's progress" as a file against the player's
- * own save. A save another device made after pulling this one carries a later stamp, so the server save replaces the copy.
- * So does a copy that could not be written: the slot still holds the old game and saving stays off until the server save repairs it. */
-function adoptOwnUpload(record, userId) {
-    const remote = record && record.save_data && record.save_data.saveMeta;
-    const stamp = remote && Number(remote.lastModifiedAt);
-    if (getCloudSaveOwnerId() !== userId || !stamp || stamp !== Number(game.saveMeta.lastModifiedAt) || getLocalSaveStatus().status !== 'ok') return false;
-    game.saveMeta.cloudRevision = cloudState.lastRemoteRevision;
-    game.saveMeta.cloudPending = false;
-    game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, getRemoteSaveStamp(record));
-    persistLocalSave({ touchModifiedAt: false });
-    setCloudMessage(_t('이 기기에서 마지막으로 올린 저장이라 그대로 이어서 합니다.'));
-    return true;
 }
 
 /** The slot holds this account's copy at the server's revision, read and written without fault: what it has not uploaded yet goes up,
@@ -12537,34 +12678,42 @@ async function continueFromAccountCopy(userId) {
 function activateAccountSaveSlot(userId) {
     if (getSaveSlot().userId === userId) return;
     if (getLocalSaveStatus().status === 'ok' && canPersistLocalSave()) persistLocalSave({ touchModifiedAt: false });
-    selectSaveSlot(userId);
-    loadGame();
-    applySeasonContentProgression({ silent: true });
-    cloudState.guestSaveSummary = summarizeGuestSave(readGuestSave());
-    refreshRuntimeForLoadedSave();
+    loadSaveSlotIntoGame(userId);
 }
 
 /** Loads the guest slot back into the running game (leaving an account). */
 function activateGuestSaveSlot() {
     if (getSaveSlot().kind === 'guest') return;
-    selectSaveSlot(null);
+    loadSaveSlotIntoGame(null);
+}
+
+/** Switches to a slot (an account's, or the guest's for null) and loads it into the running game, without writing the slot in use. */
+function loadSaveSlotIntoGame(userId) {
+    selectSaveSlot(userId);
     loadGame();
     applySeasonContentProgression({ silent: true });
-    cloudState.guestSaveSummary = null;
+    cloudState.guestSaveSummary = userId ? summarizeGuestSave(readGuestSave()) : null;
     refreshRuntimeForLoadedSave();
 }
 
 /** Loop and level of a guest save with progress, or null (none, or a fresh default). Read once per account entry, not per screen update. */
 function summarizeGuestSave(guestSave) {
     if (!guestSave || isLikelyBootstrapLocalSave(guestSave)) return null;
-    return { loop: getSaveLoopNumber(guestSave), level: Math.max(1, Math.floor(Number(guestSave.level) || 1)) };
+    return saveProgressSummary(guestSave);
 }
 
-/** The account has no server save: the game in its slot (a fresh default, a copy whose first upload failed, or on sign-up this device's
- * guest save) goes up as revision 1. */
+/** Loop and level of a save: what the move question names and what decides whether the guest save is ahead (guestSaveIsAhead). */
+function saveProgressSummary(save) {
+    return { loop: getSaveLoopNumber(save), level: Math.max(1, Math.floor(Number(save.level) || 1)) };
+}
+
+/** The account has no server save: the game in its slot (a fresh default, a copy whose first upload failed, or this device's guest save)
+ * goes up as revision 1. Sign-up takes the guest save (the 2026-10-03 rule); a first login (a social account's first entry, an email
+ * account confirmed by mail) asks, since a new account's first login is its sign-up (2026-11-08: before, the login uploaded a fresh
+ * default and the settings' move button was the only way, gone after the first kill). */
 async function createFirstCloudSave(signUp) {
-    const guestSave = signUp ? readGuestSave() : null;
-    const wanted = !!summarizeGuestSave(guestSave);
+    const guestSave = readGuestSave();
+    const wanted = await wantsGuestSaveAsFirstSave(guestSave, signUp);
     const adopted = wanted && adoptGuestSaveIntoAccount(guestSave);
     markCurrentSaveCloudOwner();
     game.saveMeta.cloudRevision = 0;
@@ -12575,6 +12724,20 @@ async function createFirstCloudSave(signUp) {
     }
     setCloudMessage(adopted ? '게스트 저장을 이 계정의 첫 서버 저장으로 올렸습니다.' : '이 계정의 첫 서버 저장을 올렸습니다.');
     return adopted ? 'pushed-guest' : 'pushed-first';
+}
+
+/** Whether the guest save becomes the account's first server save: it has progress, the account's slot on this device is still a fresh
+ * default (a copy whose first upload failed stays), and on a login the player says so (sign-up takes it without asking). */
+async function wantsGuestSaveAsFirstSave(guestSave, signUp) {
+    const summary = summarizeGuestSave(guestSave);
+    if (!summary || !isLikelyBootstrapLocalSave(game)) return false;
+    if (signUp) return true;
+    const message = [
+        _t('이 계정에는 아직 서버 저장이 없습니다. 이 기기의 게스트 저장(루프 {loop}, 레벨 {level})을 이 계정의 저장으로 옮길까요?', summary),
+        _t('옮기면 게스트 저장은 이 기기에서 지워지고, 다른 계정으로는 옮길 수 없습니다. 옮기지 않으면 새 모험으로 시작하고, 게스트 저장은 이 기기에 남습니다.')
+    ].join('\n');
+    const answer = await requestGameConfirmation(message, { title: _t('게스트 저장 옮기기'), tone: 'warning', confirmLabel: _t('옮기기'), cancelLabel: _t('새로 시작'), dismissOnBackdrop: false });
+    return answer === true;   // 새로 시작 and Escape resolve null
 }
 
 /** Moves the guest save into the account's slot as this device's copy, keeping the slot's revision; the guest slot empties, so one guest
@@ -12600,20 +12763,35 @@ function adoptGuestSaveIntoAccount(guestSave) {
     return true;
 }
 
-/** 설정 > 클라우드 세이브의 게스트 저장 옮기기 단추가 보이는 때: 계정 모드이고, 이 기기에 진행이 있는 게스트 저장이 있고, 계정의 저장은 아직
- * 아무것도 하지 않은 새 게임일 때(한 번 진행한 계정 저장은 게스트 저장으로 바꿀 수 없다). */
+/** 설정 > 클라우드 세이브의 게스트 저장 옮기기 단추가 보이는 때: 계정 모드이고, 이 기기에 진행이 있는 게스트 저장이 있고, 계정의 저장이 아직
+ * 아무것도 하지 않은 새 게임이거나 게스트 저장보다 뒤일 때(2026-11-08: 전에는 새 게임일 때만이라, 새 계정으로 들어간 뒤 자동 사냥의 첫
+ * 처치만으로 단추가 사라졌고 게스트 저장을 옮길 길이 없었다). */
 function canMoveGuestSaveIntoAccount() {
-    return !!(cloudState.user && cloudState.guestSaveSummary && getSaveSlot().kind === 'account' && isLikelyBootstrapLocalSave(game));
+    return !!(cloudState.user && cloudState.guestSaveSummary && getSaveSlot().kind === 'account' && guestSaveIsAhead(cloudState.guestSaveSummary, game));
 }
 
-/** 설정 > 클라우드 세이브의 게스트 저장 옮기기: the guest save replaces the account's untouched save and goes up. */
+/** The account save a guest save (its summary) may replace: a fresh default, or one behind it, a lower loop or the same loop and a lower level. */
+function guestSaveIsAhead(guest, accountSave) {
+    if (isLikelyBootstrapLocalSave(accountSave)) return true;
+    const account = saveProgressSummary(accountSave);
+    return guest.loop > account.loop || (guest.loop === account.loop && guest.level > account.level);
+}
+
+/** The move question's text: the guest save (its summary), the account save it replaces unless that is a fresh default, and what the move means. */
+function guestSaveMoveMessage(summary) {
+    const lines = [_t('이 기기의 게스트 저장(루프 {loop}, 레벨 {level})을 이 계정의 저장으로 옮깁니다.', summary)];
+    if (!isLikelyBootstrapLocalSave(game)) lines.push(_t('이 계정의 지금 저장(루프 {loop}, 레벨 {level})은 지워집니다.', saveProgressSummary(game)));
+    lines.push(_t('옮긴 뒤 게스트 저장은 이 기기에서 지워지고, 다른 계정으로는 옮길 수 없습니다.'));
+    return lines.join('\n');
+}
+
+/** 설정 > 클라우드 세이브의 게스트 저장 옮기기: the guest save replaces the account's save (a fresh default, or one behind it) and goes up. */
 async function moveGuestSaveIntoAccount() {
     if (!cloudState.user || cloudState.busy) return;
     const guestSave = readGuestSave();
-    if (!canMoveGuestSaveIntoAccount() || !summarizeGuestSave(guestSave)) return setCloudMessage(_t('옮길 게스트 저장이 없거나, 이 계정에 이미 진행이 있어 옮길 수 없습니다.'));
+    if (!canMoveGuestSaveIntoAccount() || !summarizeGuestSave(guestSave)) return setCloudMessage(_t('옮길 게스트 저장이 없거나, 이 계정의 저장이 게스트 저장보다 앞서 있어 옮길 수 없습니다.'));
     const summary = summarizeGuestSave(guestSave);
-    if (!await requestGameConfirmation(`이 기기의 게스트 저장(루프 ${summary.loop}, 레벨 ${summary.level})을 이 계정의 저장으로 옮깁니다.\n옮긴 뒤 게스트 저장은 이 기기에서 지워지고, 다른 계정으로는 옮길 수 없습니다.`,
-        { title: _t('게스트 저장 옮기기'), tone: 'warning', confirmLabel: _t('옮기기') })) return;
+    if (!await requestGameConfirmation(guestSaveMoveMessage(summary), { title: _t('게스트 저장 옮기기'), tone: 'warning', confirmLabel: _t('옮기기') })) return;
     cloudState.busy = true;
     updateCloudSaveUI();
     try {
@@ -12733,6 +12911,7 @@ function schedulePendingForcedCloudSyncDrain() {
 
 async function syncCloudSave(options = {}) {
     if (!cloudState.configured || !cloudState.user) return;
+    await waitForPageExitUpload();
     if (cloudState.busy) {
         if (options.force === true) {
             cloudState.pendingForcedSyncOptions = { ...options, force: true, reason: options.reason || 'important' };
@@ -13055,7 +13234,7 @@ function isPageExitCloudPushRedundant(fingerprint) {
  * only hidden (switching tabs or apps) it still finishes; a closed page may lose it, and the slot keeps it pending for the next
  * account entry (enterAccountSave). sendBeacon cannot carry the Supabase auth headers. */
 function sendPageExitCloudSave(request, reason, exitSave) {
-    fetch(request.endpoint, {
+    trackPageExitUpload(fetch(request.endpoint, {
         method: 'POST',
         headers: request.headers,
         body: request.body,
@@ -13073,7 +13252,22 @@ function sendPageExitCloudSave(request, reason, exitSave) {
         } else {
             console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
         }
+    }));
+}
+
+/** A hidden page can come back before its leaving upload answers. Until it does, no second leaving upload goes out and the next sync
+ * waits for the reply (it moves the revision): both sent from the same revision, the later one halted syncing on this device's own
+ * upload (2026-11-07 리뷰). */
+const CLOUD_EXIT_UPLOAD_WAIT_MS = 15000;
+function trackPageExitUpload(upload) {
+    const tracked = upload.finally(() => {
+        if (cloudState.exitUpload === tracked) cloudState.exitUpload = null;
     });
+    cloudState.exitUpload = tracked;
+}
+async function waitForPageExitUpload() {
+    if (!cloudState.exitUpload) return;
+    await Promise.race([cloudState.exitUpload, new Promise(resolve => setTimeout(resolve, CLOUD_EXIT_UPLOAD_WAIT_MS))]);
 }
 
 /** A session whose access token has not expired: on page exit there is no time to refresh, and an expired token only failed
@@ -13086,7 +13280,7 @@ function hasUsableCloudSessionToken() {
 
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
-    if (cloudState.busy || cloudState.syncHalted) return false;
+    if (cloudState.busy || cloudState.syncHalted || cloudState.exitUpload) return false;
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) return false;
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !hasUsableCloudSessionToken()) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;

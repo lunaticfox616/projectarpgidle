@@ -21,7 +21,7 @@
     // 바에 다 못 실을 때 기타로 보내는 순서: 나중에 열리는 부가 메뉴(뒤쪽부터)가 먼저, 이 핵심 창들은 마지막까지 바에 남는다.
     const RAIL_CORE_TAB_IDS = new Set(['btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-map', 'btn-tab-journal']);
     const RAIL_EXTERNAL_TAB_IDS = new Set([
-        'btn-tab-battle', 'btn-tab-social', 'btn-tab-settings', 'btn-map-complete-action-picker'
+        'btn-tab-battle', 'btn-tab-settings', 'btn-map-complete-action-picker'
     ]);
     const WINDOW_DEFS = {
         'tab-character': { title: '캐릭터 능력치', x: 90, y: 40, width: 900, height: 940, minWidth: 520, minHeight: 480 },
@@ -433,8 +433,10 @@
         focusWindow(tabId);
     }
 
+    // ↺는 처음 자리와 크기로 되돌리되 최대화는 푼다(2026-11-08 사용자: 최대화한 창은 되돌리기를 3번쯤 눌러야 했다). 처음 열 때
+    // 최대화로 뜨는 창(defaultMaximized)도 기본값을 따르면 다시 최대화라 아무 일도 없어 보였다.
     function resetWindow(tabId) {
-        delete layoutState.windows[tabId];
+        layoutState.windows[tabId] = { maximized: false };
         saveLayoutState();
         openWindow(tabId);
     }
@@ -553,15 +555,19 @@
         handle.addEventListener('pointercancel', up);
     }
 
-    // PC의 채팅은 전투 기록과 같은 창의 탭이다(js/message-frames-ui.js). 휴대폰은 채팅 탭으로 연다.
+    // 채팅은 전투 기록과 같은 판의 탭이다(js/message-frames-ui.js): PC는 기록 창, 휴대폰은 전투 화면의 기록 판(2026-11-07, 커뮤니티 탭 없앰).
     function openCommunityDock() {
-        if (!isDesktopWindowed()) { window.switchTab('tab-social'); return; }
-        if (typeof messageFrames === 'object') messageFrames.showTab('chat');
+        if (typeof messageFrames !== 'object') return;
+        if (isDesktopWindowed()) { messageFrames.showTab('chat'); return; }
+        window.switchTab('tab-battle');
+        messageFrames.showPhoneTab('chat');
     }
 
     function closeCommunityDock() {
         // Startup closes the community dock too: switching back must not unfold the saved/default combat log.
-        if (isDesktopWindowed() && typeof messageFrames === 'object') messageFrames.showTab('log', false);
+        if (typeof messageFrames !== 'object') return;
+        if (isDesktopWindowed()) messageFrames.showTab('log', false);
+        else messageFrames.showPhoneTab('log');
     }
 
 
@@ -1222,10 +1228,24 @@
         }
     }
 
+    /** 닫았던 같은 창을 다시 열면 원본 switchTab은 이미 활성인 탭이라 여는 일과 다시 그리기를 건너뛴다: 장비 분석에 창이 열렸다고
+     * 알리고 한 번 다시 그린다. 분석은 그 다시 그리기에서 시작한다(2026-11-07: 다시 열 때마다 300ms를 기다렸고, 전투가 없어 화면을
+     * 다시 그릴 일이 없으면 분석이 시작되지 않았다). */
+    function noteEquipmentReopen(tabId, st) {
+        if (tabId !== 'tab-items' || (st && st.open && !st.minimized) || !window.equipmentTriage) return;
+        window.equipmentTriage.onOpen();
+        if (typeof window.updateStaticUI === 'function') window.updateStaticUI();
+    }
+
     function patchSwitchTab() {
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
         window.switchTab = function windowedSwitchTab(tabId, options = {}) {
+            // 채팅은 따로 여는 화면이 아니라 기록 판의 탭이다(PC 기록 창, 휴대폰 전투 화면의 기록 판)
+            if (tabId === 'tab-social') {
+                openCommunityDock();
+                return;
+            }
             if (!isDesktopWindowed()) {
                 collapseGoalDrawerUnlessPinned();
                 return originalSwitchTab(tabId);
@@ -1233,10 +1253,6 @@
             if (tabId === 'tab-battle') {
                 closeAllWindows();
                 return originalSwitchTab(tabId);
-            }
-            if (tabId === 'tab-social') {
-                openCommunityDock();
-                return;
             }
             // 잠긴 탭은 원본 switchTab의 잠금 안내만 실행하고 창을 열지 않는다.
             let gateKey = (typeof TAB_UNLOCK_GATES !== 'undefined' && TAB_UNLOCK_GATES) ? TAB_UNLOCK_GATES[tabId] : null;
@@ -1251,6 +1267,7 @@
                 closeWindow(tabId);
                 return;
             }
+            noteEquipmentReopen(tabId, st);
             let result = originalSwitchTab(tabId);
             openWindow(tabId);
             return result;
@@ -1316,14 +1333,13 @@
     }
 
     function restoreSelectedMobileWindow() {
-        let mobileTab = Object.keys(WINDOW_DEFS).concat('tab-battle', 'tab-social').find(id => {
+        let mobileTab = Object.keys(WINDOW_DEFS).concat('tab-battle').find(id => {
             let el = document.getElementById(id);
             return el && el.classList.contains('active');
         });
         if (!mobileTab) return;
         if (WINDOW_DEFS[mobileTab]) { openWindow(mobileTab); return; }
         closeAllWindows();
-        if (mobileTab === 'tab-social') openCommunityDock();
     }
 
     function restoreSelectedDesktopTab() {
@@ -1332,7 +1348,7 @@
             let state = layoutState.windows[id];
             return state && state.open && !state.minimized;
         });
-        originalSwitchTab(tabId || (layoutState.community.open ? 'tab-social' : 'tab-battle'));
+        originalSwitchTab(tabId || 'tab-battle');
     }
 
     /** 세로 화면에서 지역 줄은 전장 위쪽에 겹친다(css/themes/rift-stage.css): 그 아래 끝(전장 위에서 px)을 #tab-battle의 --zone-row-bottom에
