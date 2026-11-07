@@ -28,8 +28,8 @@
   --psd-glow-gold: brightness(1.12) drop-shadow(0 0 2px #f3d28c) drop-shadow(0 0 7px #d7b36fbb);
 }
 
-/* 큰 판 가운데 도트 스킨의 무거운 판 목록에 없는 것: 로그인 카드, 새 모험 카드, 방치 정산 결과, 이야기 읽기 */
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-frame, .startup-entry, .startup-summary-card, .background-combat-result-card, #journal-reader) {
+/* 큰 판 가운데 도트 스킨의 무거운 판 목록에 없는 것: 로그인 카드, 새 모험 카드, 방치 정산 결과, 이야기 읽기, 안내 보관함 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-frame, .startup-entry, .startup-summary-card, .background-combat-result-card, #journal-reader, #tutorial-history-dialog) {
   border: var(--px-window-edge) solid transparent;
   border-image: var(--px-window-frame);
   border-radius: 0;
@@ -53,6 +53,11 @@
 }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui .ui-window-titlebar [data-window-action="minimize"] { background-image: url("../../assets/ui/psd/min.png"); }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui .ui-window-titlebar [data-window-action="maximize"] { background-image: url("../../assets/ui/psd/max.png"); }
+/* 안내 보관함(js/tutorial-history-ui.js)의 닫기도 창 닫기와 같은 그림 */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tutorial-history-dialog [data-history-close] {
+  width: 30px; height: 29px; min-height: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none; color: transparent;
+  background: url("../../assets/ui/psd/close.png") center / 100% 100% no-repeat;
+}
 
 /* 탭 줄(가운데 탭): 장비 창의 장비 창과 제작실, 거래의 NPC와 가판대, 기록의 분류, 그루터기 아래 탭, 지도의 첫 줄 */
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-tabs, .ui-window :is(.subtab-row, .market-tabs, .journal-category-strip, .stump-more-tabs)) {
@@ -83,7 +88,7 @@
 /* 단추: 판 속 단추는 귀환 단추와 같은 테, 주 단추는 금빛 고른 테. PSD 단추 조각(모양_1)은 어두운 판과 같은 빛이라 쓰지 않는다. */
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-btn, :is(#tutorial-overlay, #death-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) :is(.tutorial-actions, .loop-settlement-actions, .reward-next) button,
   .tutorial-action-card button, #startup-overlay .startup-actions-stack button:not(.social-login-image-btn), #startup-overlay .startup-social-login > summary,
-  .background-combat-result-card footer button, #journal-reader button, .game-dialog-card button, #tab-items .search-action-row button) {
+  .background-combat-result-card footer button, #journal-reader button, .game-dialog-card button, #tutorial-history-dialog .tutorial-history-entry button, #tab-items .search-action-row button) {
   border: 10px solid transparent;
   border-image: var(--psd-button-frame);
   border-radius: 0;
@@ -98,7 +103,7 @@
   color: #ffe8a8;
 }
 /* 입력칸 */
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-input, #startup-overlay .startup-form :is(input[type="email"], input[type="password"]), #tab-items .search-filter-input) {
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui :is(.psd-input, #startup-overlay .startup-form :is(input[type="email"], input[type="password"]), #tab-items .search-filter-input, #tutorial-history-dialog .tutorial-history-search input[type="search"]) {
   border: 0; border-radius: 0; background: var(--psd-input); box-shadow: none;
 }
 
