@@ -76,7 +76,8 @@ const tutorialActionUi = {
             selector: ['#stump-placement-preview:not([hidden]) [data-stump-action="placement-apply"]',
                 '#stump-box-board .stump-cell.is-target', '#stump-box-storage .stump-item'],
             title: '그루터기 함에 심기',
-            body: '보관함의 씨앗을 누르고 그루터기 함의 빈 칸을 누르세요. 수액도 같은 방법으로 배치합니다.',
+            // 2026-11-07: 수액이 씨앗에 합쳐져(2026-11-04) 수액 배치 문장을 뺐다.
+            body: '보관함의 씨앗을 누르고 그루터기 함의 빈 칸을 누르세요.',
             read: () => [game.stumpBox.board.filter(id => id !== null).length, stumpBox.storage(game).filter(item => item.family !== 'talisman').length],
             completed: ([placed, waiting], [placedBefore]) => waiting === 0 || placed >= placedBefore + 2
         }

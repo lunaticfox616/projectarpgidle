@@ -151,7 +151,7 @@ const openingJourney = (() => {
     }
 
     // ------------------------------------------------------------------ lessons
-    /** Pressing the lying hero (or Space or Enter) plays the rise; other presses on the battlefield do nothing meanwhile. */
+    /** Pressing the lying hero (or Space, Enter or a walking key) plays the rise; other presses on the battlefield do nothing meanwhile. */
     function onBattlefieldPress(event) {
         if (!lying()) return;
         event.stopImmediatePropagation();
@@ -160,9 +160,16 @@ const openingJourney = (() => {
         const point = getBattlefieldClientPoint(event.currentTarget, event.clientX, event.clientY), hero = battleVisualState.playerPos;
         if (hero && Math.abs(point.x - hero.x) < 90 && point.y > hero.y - 90 && point.y < hero.y + 30) startRise();
     }
+    /** 쓰러진 주인공을 깨우는 키: Space, Enter, 방향키, 걷기 키(기본 W, A, S, D, 바꾼 배정 그대로, 2026-11-07 사용자). */
+    function wakesHero(code) {
+        if (['Space', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(code)) return true;
+        return hotkeyBindings.actionForCode(game.settings.hotkeyOverrides, code)?.kind === 'move';
+    }
     function onKey(event) {
         if (intro) { onIntroKey(event); return; }
-        if (!lying() || rising || intro || !['Space', 'Enter'].includes(event.code)) return;
+        if (!lying() || rising || intro || !wakesHero(event.code)) return;
+        // 깨우는 키는 깨우기만 한다: 같은 누름으로 걷기 시작하지 않게 단축키로 넘기지 않는다(누름도 같다, onBattlefieldPress).
+        event.stopImmediatePropagation();
         event.preventDefault();
         startRise();
     }
@@ -229,14 +236,15 @@ const openingJourney = (() => {
     }
 
     // ------------------------------------------------------------------ hint
+    // 2026-11-07: 안내 줄과 방향 이름이 _t를 거치지 않아 다른 언어에서도 한국어로 나왔다.
     const HINTS = {
-        rise: () => '쓰러진 캐릭터를 눌러 깨우세요',
-        move: () => (coarse() ? '바닥을 눌러 움직이세요' : '바닥을 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 움직이세요'),
-        attack: side => `${side ? _t('{SIDES}으로 가서 하켄을 구하세요', { SIDES: SIDES[side] }) : _t('하켄을 치는 괴물에게 다가가세요')}. 가까이 가면 자동으로 공격합니다`,
-        go: side => _t('{SIDES} 문으로 나아가세요', { SIDES: SIDES[side] || _t('앞쪽') }),
-        pickup: () => '떨어진 룬을 누르거나 그 위로 걸어가 주우세요',
-        gem: () => '스킬룬 창에서 주운 룬을 장착하세요',
-        auto: () => '오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요'
+        rise: () => _t(coarse() ? '쓰러진 캐릭터를 눌러 깨우세요' : '쓰러진 캐릭터를 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 깨우세요'),
+        move: () => _t(coarse() ? '바닥을 눌러 움직이세요' : '바닥을 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 움직이세요'),
+        attack: side => `${side ? _t('{SIDES}으로 가서 하켄을 구하세요', { SIDES: _t(SIDES[side]) }) : _t('하켄을 치는 괴물에게 다가가세요')}. ${_t('가까이 가면 자동으로 공격합니다')}`,
+        go: side => _t('{SIDES} 문으로 나아가세요', { SIDES: SIDES[side] ? _t(SIDES[side]) : _t('앞쪽') }),
+        pickup: () => _t('떨어진 룬을 누르거나 그 위로 걸어가 주우세요'),
+        gem: () => _t('스킬룬 창에서 주운 룬을 장착하세요'),
+        auto: () => _t('오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요')
     };
     /** The card stays through the story lines, the guide cards and the rune window (2026-10-27 사용자: 대사나 첫 스킬룬 장착 창이 떠도
      * 계속 켜져 있게, 스킬룬 창보다는 밑에): it lives in the battlefield box, so windows over the battlefield cover it. */
@@ -269,7 +277,7 @@ const openingJourney = (() => {
         const at = LESSON_ORDER.indexOf(name === 'go' ? 'attack' : name);
         const dots = LESSON_ORDER.map((_, i) => `<i class="${i < at ? 'is-done' : i === at ? 'is-now' : ''}"></i>`).join('');
         return `<div class="opening-lesson-head"><span class="opening-lesson-kicker">${_t('시작 안내 {value}/{length}', { value: at + 1, length: LESSON_ORDER.length })}</span><span class="opening-lesson-dots" aria-hidden="true">${dots}</span></div>`
-            + `<strong class="opening-lesson-title">${LESSON_TITLES[name]}</strong><p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
+            + `<strong class="opening-lesson-title">${_t(LESSON_TITLES[name])}</strong><p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
     }
     /** The auto button's line: for a while after the opening ends, until the auto hunt is switched on. */
     const autoHintDue = now => seen(KEY.done) && now < autoHintUntil && game.settings.autoMove === false;
