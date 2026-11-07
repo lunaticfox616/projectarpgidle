@@ -10523,6 +10523,16 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '왼쪽': 'left',
         '위쪽': 'up',
         '아래쪽': 'down',
+        // 2026-11-07 리뷰 수정: 아틀라스 합치기와 정리, NPC 목록, 가판대 제안
+        '수호자 지도석은 합칠 수 없습니다.': 'Guardian map stones cannot be combined.',
+        '가장 높은 등급이라 합칠 수 없습니다.': 'Already the highest tier, so it cannot be combined.',
+        '{tier}등급 지도석이 {count}개 있어야 합칩니다.': 'Combining needs {count} tier {tier} map stones.',
+        '{tier}등급 노드가 아직 열리지 않았습니다.': 'No tier {tier} node is open yet.',
+        '보관함이 바뀌어 정리를 취소했습니다. 다시 눌러 주세요.': 'Storage changed, so tidying was cancelled. Press it again.',
+        '보관함이 바뀌어 합치기를 취소했습니다. 다시 눌러 주세요.': 'Storage changed, so combining was cancelled. Press it again.',
+        '새 이야기': 'New talk',
+        '아직 만난 NPC가 없습니다.': 'You have not met any NPCs yet.',
+        '제안 {name} {amount}개': 'Offer: {amount} {name}',
     })
 });
 

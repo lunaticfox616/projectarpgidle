@@ -41,13 +41,14 @@ const loopMutation = (() => {
         if (ele === rule.immune) return 0;
         return ele === rule.weak ? 1 + LOOP_MUTATION.weakTakenPct / 100 : 1;
     }
-    /** 강화 변이시간선: what a monster hit adds, LOOP_MUTATION.empowered.addedPct% of the raw hit as the empowered element after the
-     * player's resistance to it (resOf(element) in %). [] while the rule does not bite, before the empowered loops and for the woodsman. */
-    function empoweredRows(enemy, rawHit, resOf) {
+    /** 강화 변이시간선: what a monster hit adds before the player's mitigation, LOOP_MUTATION.empowered.addedPct% of the raw hit as the
+     * empowered element ({ ele, amount }). The hit puts it through the same mitigation as its own damage of that element (js/combat.js
+     * performMonsterAttacks). null while the rule does not bite, before the empowered loops and for the woodsman. */
+    function empoweredHit(enemy, rawHit) {
         const rule = enemy && !enemy.isWoodsman && mutationBites() ? mutationOfLoop(game.season) : null;
-        if (!rule || !rule.empowered) return [];
-        const amount = Math.floor(rawHit * LOOP_MUTATION.empowered.addedPct / 100 * (1 - Math.min(100, resOf(rule.empowered)) / 100));
-        return amount > 0 ? [{ ele: rule.empowered, amount }] : [];
+        if (!rule || !rule.empowered) return null;
+        const amount = Math.floor(rawHit * LOOP_MUTATION.empowered.addedPct / 100);
+        return amount > 0 ? { ele: rule.empowered, amount } : null;
     }
     /** Reward scale of a monster while the rule bites: 1 + LOOP_MUTATION.rewardPct / 100, or empowered.rewardPct in 강화 변이시간선;
      * 1 outside it and in the woodsman's zone. */
@@ -102,7 +103,7 @@ const loopMutation = (() => {
     function describeSides(rule) {
         if (rule.empowered) return _t('{immune} 면역, {weak} 약점, {strong} 공격 강화', { immune: _t(DAMAGE_ELEMENT_LABELS[rule.immune]),
             weak: _t(DAMAGE_ELEMENT_LABELS[rule.weak]), strong: _t(DAMAGE_ELEMENT_LABELS[rule.empowered]) });
-        return _t('{DAMAGE_ELEMENT_LABELS} 면역, {DAMAGE_ELEMENT_LABELS2} 약점', { DAMAGE_ELEMENT_LABELS: DAMAGE_ELEMENT_LABELS[rule.immune], DAMAGE_ELEMENT_LABELS2: DAMAGE_ELEMENT_LABELS[rule.weak] });
+        return _t('{DAMAGE_ELEMENT_LABELS} 면역, {DAMAGE_ELEMENT_LABELS2} 약점', { DAMAGE_ELEMENT_LABELS: _t(DAMAGE_ELEMENT_LABELS[rule.immune]), DAMAGE_ELEMENT_LABELS2: _t(DAMAGE_ELEMENT_LABELS[rule.weak]) });
     }
     /** One side of a mutation in its element's colour ('화염 면역'): the battle chip and the class screen (css/loop-mutation.css). */
     function mutationPartHtml(ele, word) {
@@ -118,6 +119,6 @@ const loopMutation = (() => {
 
     return Object.freeze({ of: mutationOfLoop, current: currentMutation, bites: mutationBites, takenMul, begin: beginLoop,
         starterChoices, pendingStarter, offerStarter, takeStarter, describe: describeMutation, partHtml: mutationPartHtml, partsHtml: mutationPartsHtml,
-        empoweredRows, rewardMul, rewardPct: rewardPctOf });
+        empoweredHit, rewardMul, rewardPct: rewardPctOf });
 })();
 safeExposeGlobals({ loopMutation });

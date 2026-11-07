@@ -13738,10 +13738,22 @@ function tickAilments(pStats, dt) {
 }
 
 
-/** 강화 변이시간선의 추가 피해에 드는 저항(js/loop-mutation.js empoweredRows): 물리는 이번 타격의 물리 경감(방어도, 피해 감소), 원소와
- * 카오스는 적 보정 뒤 저항. 우주계 균형 경감은 둘 다 그 값이다. */
-function getMutationHitResistance(pStats, enemy, element, physRes) {
-    return element === 'phys' || pStats.cosmosBalanceMitigation ? physRes : getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy);
+/** 강화 변이시간선의 추가 피해(js/loop-mutation.js empoweredHit) 가운데 이번 타격의 물리에 더할 몫: 물리면 그 양이다. 물리 추가분은
+ * 받는 물리 전환(physTakenAs), 방어도(합친 타격 크기로), 피해 감소를 이번 타격의 물리와 함께 거친다(2026-11-07 리뷰: 따로 붙어 비켜 갔다). */
+function getEmpoweredPhysicalDamage(empowered) {
+    return empowered && empowered.ele === 'phys' ? empowered.amount : 0;
+}
+/** 우주계 균등 분배가 나눌 추가분: 강화 변이의 추가 피해 전부(분배가 속성마다 경감한다). */
+function getEmpoweredRawDamage(empowered) {
+    return empowered ? empowered.amount : 0;
+}
+/** 강화 변이의 원소, 카오스 추가 피해를 따로 줄로: 그 속성 저항(적 보정 뒤, 우주계 균형 경감이면 그 값 balancedRes). 물리는 이번 타격의
+ * 물리에 들어가고 균등 분배는 추가분까지 나누므로 그때는 줄이 없다. */
+function getEmpoweredElementRows(empowered, pStats, enemy, balancedRes) {
+    if (!empowered || empowered.ele === 'phys' || pStats.cosmosEqualDamageSplit) return [];
+    const res = pStats.cosmosBalanceMitigation ? balancedRes : getPlayerResistanceAfterEnemyModifiers(pStats, empowered.ele, enemy);
+    const amount = Math.floor(empowered.amount * (1 - Math.min(100, res) / 100));
+    return amount > 0 ? [{ ele: empowered.ele, amount }] : [];
 }
 function getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy, effectMultiplier) {
     let keyByElement = { fire: 'F', cold: 'C', light: 'L', chaos: 'Chaos' };
@@ -14199,8 +14211,8 @@ function performMonsterAttacks(pStats) {
                 physicalPortion = dmg;
                 elementalPortion = 0;
             }
-            let convertedTakenAsBreakdown = [];
-            let originalPhysicalPortion = physicalPortion;
+            let convertedTakenAsBreakdown = [], empowered = loopMutation.empoweredHit(enemy, dmg);
+            let originalPhysicalPortion = physicalPortion + getEmpoweredPhysicalDamage(empowered);
             let physTakenAs = (pStats && pStats.physTakenAs) || {};
             let takenAsEntries = [['fire', physTakenAs.fire || 0], ['cold', physTakenAs.cold || 0], ['light', physTakenAs.light || 0], ['chaos', physTakenAs.chaos || 0]];
             let totalTakenAs = takenAsEntries.reduce((sum, row) => sum + Math.max(0, Number(row[1]) || 0), 0);
@@ -14231,13 +14243,13 @@ function performMonsterAttacks(pStats) {
             let mitigatedPhysical = Math.max(0, Math.floor(physicalPortion * (1 - (physRes / 100))));
             let damageBreakdown = [];
             if (pStats.cosmosEqualDamageSplit) {
-                damageBreakdown = getCosmosEqualSplitDamageBreakdown(dmg, pStats, enemy);
+                damageBreakdown = getCosmosEqualSplitDamageBreakdown(dmg + getEmpoweredRawDamage(empowered), pStats, enemy);
             } else {
                 if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
                 if (mitigatedElemental > 0) damageBreakdown.push({ ele: attackElement, amount: mitigatedElemental });
             }
             if (convertedTakenAsBreakdown.length > 0) damageBreakdown = damageBreakdown.concat(convertedTakenAsBreakdown);
-            damageBreakdown = damageBreakdown.concat(loopMutation.empoweredRows(enemy, dmg, ele => getMutationHitResistance(pStats, enemy, ele, physRes)));
+            damageBreakdown = damageBreakdown.concat(getEmpoweredElementRows(empowered, pStats, enemy, physRes));
             damageBreakdown = damageBreakdown.map(row => {
                 let less = 0;
                 if (row.ele === 'fire') less = pStats.fireTakenDamageReducePct || 0;

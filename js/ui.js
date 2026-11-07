@@ -9569,6 +9569,9 @@ function renderCraftPickerInventory(currentRef, currentIsEquip, browse) {
 function refreshCraftItemPickerOverlay() {
     let overlay = document.getElementById('craft-item-picker-overlay');
     if (!overlay || !window.__craftPickerKind) return;
+    // 장비, 인벤토리 고르기 창은 장비 창의 진짜 칸을 옮겨 와 보여 준다(js/craft-picker-host-ui.js): 몸통을 다시 쓰면 그 칸이 문서에서 사라진다.
+    // 등급 필터를 바꾸면 applyInventoryRarityFilterChange의 updateStaticUI가 옮겨 온 가방을 그 자리에서 다시 그린다.
+    if (craftPickerHostUi.shows(window.__craftPickerKind)) return;
     let filterEl = overlay.querySelector('.craft-picker-filter');
     if (filterEl) filterEl.innerHTML = `<span class="inventory-view-filter-label">${_t('표시')}</span>${renderRarityFilterChips('picker')}`;
     let bodyEl = overlay.querySelector('.craft-picker-body');

@@ -174,8 +174,11 @@ const atlas = (() => {
         state.atlas.stash.splice(index, 1);
         return '';
     }
-    /** 손대지 않은 지도석: 일반 희귀도, 품질 없음, 타락 안 함(기운은 저절로 붙는다). 버리기와 합치기가 묻지 않고 쓰는 것. */
-    const plainMap = map => map.rarity === 'normal' && !map.quality && !map.corrupted;
+    /** 지도 노드의 지도석인지: 지역 수호자 지도석(kind 'guardian')은 일반 희귀도로 떨어져도 버리기와 합치기의 재료가 아니다. */
+    const isMapStone = map => BY_ID.get(map && map.node)?.kind === 'map';
+    /** 손대지 않은 지도 노드의 지도석: 일반 희귀도, 품질 없음, 타락 안 함(기운은 저절로 붙는다). 버리기와 합치기가 묻지 않고 쓰는 것.
+     * 수호자 지도석은 들지 않는다(2026-11-07 리뷰: 일괄 버리기와 합치기가 묻지 않고 지우고 썼다). */
+    const plainMap = map => isMapStone(map) && map.rarity === 'normal' && !map.quality && !map.corrupted;
     /** 그 등급 이하의 손대지 않은 지도석 모두. @returns {number} 버린 수 */
     function discardPlainUpTo(state, tier) {
         if (runOpenReason(state)) return 0;
@@ -185,11 +188,11 @@ const atlas = (() => {
     }
     /** 등급의 빛깔 줄(data/atlas.js tierBands): { id, max, tone }. */
     const tierBand = tier => ATLAS.tierBands.find(band => tier <= band.max);
-    /** 합칠 셋: 고른 지도석과 같은 등급의 다른 지도석 둘(손대지 않은 것, 오래된 것부터). 모자라면 null. */
+    /** 합칠 셋: 고른 지도석과 같은 등급의 다른 지도석 둘(손대지 않은 것, 오래된 것부터). 지도 노드의 지도석끼리만. 모자라면 null. */
     function combineSet(state, uid) {
         const picked = state.atlas.stash.find(map => map.uid === uid);
-        if (!picked) return null;
-        const others = state.atlas.stash.filter(map => map !== picked && map.tier === picked.tier)
+        if (!picked || !isMapStone(picked)) return null;
+        const others = state.atlas.stash.filter(map => map !== picked && map.tier === picked.tier && isMapStone(map))
             .sort((a, b) => Number(plainMap(b)) - Number(plainMap(a)) || a.uid - b.uid).slice(0, ATLAS.combine.count - 1);
         return others.length === ATLAS.combine.count - 1 ? [picked, ...others] : null;
     }
@@ -197,11 +200,12 @@ const atlas = (() => {
     function combineReason(state, uid) {
         const busy = runOpenReason(state), set = combineSet(state, uid), picked = state.atlas.stash.find(map => map.uid === uid);
         if (busy) return busy;
-        if (!picked) return '보관함에 없는 지도석입니다.';
-        if (picked.tier >= ATLAS.tierCap) return '가장 높은 등급이라 합칠 수 없습니다.';
-        if (!set) return `${picked.tier}등급 지도석이 ${ATLAS.combine.count}개 있어야 합칩니다.`;
+        if (!picked) return _t('보관함에 없는 지도석입니다.');
+        if (!isMapStone(picked)) return _t('수호자 지도석은 합칠 수 없습니다.');
+        if (picked.tier >= ATLAS.tierCap) return _t('가장 높은 등급이라 합칠 수 없습니다.');
+        if (!set) return _t('{tier}등급 지도석이 {count}개 있어야 합칩니다.', { tier: picked.tier, count: ATLAS.combine.count });
         const next = MAP_NODES.some(node => reachable(state, node.id) && effectiveTier(state, node) === picked.tier + 1);
-        return next ? '' : `${picked.tier + 1}등급 노드가 아직 열리지 않았습니다.`;
+        return next ? '' : _t('{tier}등급 노드가 아직 열리지 않았습니다.', { tier: picked.tier + 1 });
     }
     /** 같은 등급 셋을 한 등급 위 지도석 하나로(지금 갈 수 있는 그 등급 노드 중 하나, 떨어진 지도석과 같은 규칙). @returns {{reason?:string, used?:object[], map?:object}} */
     function combine(state, uid, random = Math.random) {

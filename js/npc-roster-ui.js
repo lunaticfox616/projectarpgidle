@@ -12,8 +12,8 @@ const npcRosterUi = (() => {
 
     function rosterTagsHtml(npc) {
         const stock = npcShop.stock(npc.id), shop = NPC_SHOPS[npc.id];
-        const talk = contentUnlockUi.npcTopics(npc).open.some(row => !contentUnlockUi.npcHeard(npc, row.topic)) ? '<em class="is-talk">새 이야기</em>' : '';
-        const wares = stock && stock.offers.length ? `<em class="is-shop">${escapeHTML(_t(shop.label))} ${stock.offers.length}개</em>` : '';
+        const talk = contentUnlockUi.npcTopics(npc).open.some(row => !contentUnlockUi.npcHeard(npc, row.topic)) ? `<em class="is-talk">${_t('새 이야기')}</em>` : '';
+        const wares = stock && stock.offers.length ? `<em class="is-shop">${_t('{label} {count}개', { label: escapeHTML(_t(shop.label)), count: stock.offers.length })}</em>` : '';
         return talk + wares;
     }
 
@@ -35,14 +35,14 @@ const npcRosterUi = (() => {
         const root = document.getElementById('npc-roster-panel');
         if (!root) return;
         const list = metRosterNpcs(), black = marketUi.blackCardHtml(); // 암거래상도 NPC 칸에 선다(2026-11-06 사용자, js/market-ui.js)
-        const key = JSON.stringify([game.season, contentProgression.balance(), game.npcHeard.length, NPC_SHOP_CURRENCIES.map(id => game.currencies[id] || 0),
+        const key = JSON.stringify([i18n.language, game.season, contentProgression.balance(), game.npcHeard.length, NPC_SHOP_CURRENCIES.map(id => game.currencies[id] || 0),
             (game.skills || []).length, (game.supports || []).length, black,
             list.map(npc => [npc.id, game.npcMet[npc.id], contentUnlockUi.npcNews(npc), npcShop.stock(npc.id)?.offers.length || 0])]);
         if (key === renderedKey && root.childNodes.length) return;
         renderedKey = key;
         root.innerHTML = list.length || black
             ? `<ul class="npc-roster">${list.map(rosterCardHtml).join('')}${black}</ul>`
-            : '<p class="npc-roster-empty">아직 만난 NPC가 없습니다.</p>';
+            : `<p class="npc-roster-empty">${_t('아직 만난 NPC가 없습니다.')}</p>`;
     }
 
     function openRosterNpc(id, mode) {
