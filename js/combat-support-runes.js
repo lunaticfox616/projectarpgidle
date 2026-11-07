@@ -298,6 +298,16 @@
         return result;
     }
     function capValue(def,level) { return (def.capBase||0)+getGemLevelGrowthSteps(level,def.capGrowAfterLevel||0)*(def.capPerLevel||0); }
+    /** Whether a worn support rune or a blessing in the summon slots grants strength, dexterity or intelligence (none did on
+     * 2026-11-07). Only then does the equip requirement check need the rune pass (js/combat.js getPlayerStats attributesOnly). */
+    function grantsAttributes(state,names) {
+        const attribute=stat=>stat==='strength' || stat==='dexterity' || stat==='intelligence';
+        const support=names.some(name=>{ const def=SUPPORT_GEM_DB[name]; return !!def && (attribute(def.stat) || attribute(def.capStat)); });
+        return support || (state.equippedSummonSkills || []).some(name=>{
+            const aura=SKILL_DB[name] && SKILL_DB[name].aura;
+            return !!aura && (attribute(aura.flatStat) || aura.stats.some(row=>attribute(row.stat)));
+        });
+    }
     window.GameModules.combat.supports=Object.freeze({resolve,grid,stages,targetMultiplier,conversionContacts,afterHit,tickDots,onDeath,auraValues,
-        values,auraFlat,activeBlessing,splitConversion,lockState,igniteDuration,dealHit,deferAttack,retire,expectedMultiplier,repeatNative,augmentNative,nativeDot,playerProjectile,activeSkillStats});
+        values,auraFlat,activeBlessing,splitConversion,lockState,igniteDuration,dealHit,deferAttack,retire,expectedMultiplier,repeatNative,augmentNative,nativeDot,playerProjectile,activeSkillStats,grantsAttributes});
 })();

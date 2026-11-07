@@ -238,9 +238,12 @@
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-new-dot { position: absolute; top: 2px; right: 2px; z-index: 6; width: 6px; height: 6px; border-radius: 50%; background: #ff3b30;
   box-shadow: 0 0 0 1px #000; pointer-events: none; }
 /* 장비 칸 오른쪽 위의 아이템 등급(js/equipment-window-ui.js tierHtml, 2026-11-07 사용자: T1~20, 티어 색). 색은 툴팁의 등급 표시와 같은
-   tier-N(css/layout.css)이고, 칸이 많아 T10의 빛남 애니메이션은 끈다. 새 아이템 점은 그 아래로 비킨다. */
+   tier-N(css/layout.css)이다. 작은 글씨라 빛과 움직임 대신 검은 그림자를 쓰고, T15~T19는 같은 색 테로, T20은 홍옥을 채운
+   칸으로 가른다(빛이 없으면 T14와 T15, T19와 T20이 글자색만으로는 비슷하다). 새 아이템 점은 그 아래로 비킨다. */
 :root body .eqw-item-tier { position: absolute; top: 2px; right: 2px; z-index: 5; padding: 0 2px; background: #151008; font-family: var(--font-pixel-meta);
   font-size: var(--font-size-meta); font-weight: 400; line-height: 12px; text-shadow: 1px 1px 0 #000; white-space: nowrap; animation: none; pointer-events: none; }
+:root body .eqw-item-tier:is(.tier-15, .tier-16, .tier-17, .tier-18, .tier-19) { box-shadow: inset 0 0 0 1px currentColor; }
+:root body .eqw-item-tier.tier-20 { color: #2a0710; background: linear-gradient(90deg, #ff5c84, #ffb3c4); text-shadow: none; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-grid-item:has(> .eqw-item-tier) > .eqw-new-dot { top: 15px; }
 /* 휴대폰의 1칸 장비(반지, 목걸이)는 왼쪽 위 비교 수치와 겹치므로 등급을 왼쪽 아래에 둔다(소켓은 오른쪽 아래). */
 @media (max-width: 640px) {

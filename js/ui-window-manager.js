@@ -1228,6 +1228,15 @@
         }
     }
 
+    /** 닫았던 같은 창을 다시 열면 원본 switchTab은 이미 활성인 탭이라 여는 일과 다시 그리기를 건너뛴다: 장비 분석에 창이 열렸다고
+     * 알리고 한 번 다시 그린다. 분석은 그 다시 그리기에서 시작한다(2026-11-07: 다시 열 때마다 300ms를 기다렸고, 전투가 없어 화면을
+     * 다시 그릴 일이 없으면 분석이 시작되지 않았다). */
+    function noteEquipmentReopen(tabId, st) {
+        if (tabId !== 'tab-items' || (st && st.open && !st.minimized) || !window.equipmentTriage) return;
+        window.equipmentTriage.onOpen();
+        if (typeof window.updateStaticUI === 'function') window.updateStaticUI();
+    }
+
     function patchSwitchTab() {
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
@@ -1258,6 +1267,7 @@
                 closeWindow(tabId);
                 return;
             }
+            noteEquipmentReopen(tabId, st);
             let result = originalSwitchTab(tabId);
             openWindow(tabId);
             return result;

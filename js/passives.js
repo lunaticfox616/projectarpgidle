@@ -8522,16 +8522,13 @@ function isFixedEquipmentAffix(stat) {
     return FOSSIL_EXCLUSIVE_MODS.some(mod => (mod.statId || mod.id) === stat.id && mod.step === 0);
 }
 
-function getTierVisualLevel(tierValue) {
-    return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 10);
-}
-
 function getTierDisplayLevel(tierValue) {
     return clampNumber(Math.max(1, Math.floor(Number(tierValue) || 1)), 1, 20);
 }
 
+/** tier-1 ~ tier-20. 색은 css/layout.css가 T10, T11~T14, T15, T16~T19, T20으로 묶는다. */
 function getTierClassName(tierValue) {
-    return `tier-${getTierVisualLevel(tierValue)}`;
+    return `tier-${getTierDisplayLevel(tierValue)}`;
 }
 
 function getTierBadgeHtml(tierValue, labelPrefix) {

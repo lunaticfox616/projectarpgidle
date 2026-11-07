@@ -3630,6 +3630,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             + season[statId] + ascend[statId] + reward[statId] + (starBlessing[statId] || 0);
     }
 
+    if (attributesOnly && !window.GameModules.combat.supports.grantsAttributes(game, safeEquippedSupports)) return readRequirementAttributes({ gearBase, gearExplicit, passive, season, ascend, support, reward, starBlessing }, game);
     // Offline replay already owns a build memo. Foreground inputs live only through this call.
     const gemEvaluation = getBackgroundBuildMemo(game) ? undefined : createGemBonusEvaluation(resolvedStats);
     let gemSources = getTargetGemBonusSources(game.activeSkill, undefined, resolvedStats, gemEvaluation);
@@ -3638,8 +3639,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         bonus:name=>getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation).total,
         ownStat:sumNonSupportStat, add:(stat,value)=>addStatToBucket(support,stat,value)});
 
-    let constellation = game.meteorSite && game.meteorSite.constellationBuff;
-    if (constellation && constellation.stat) addStatToBucket(reward, constellation.stat, constellation.val || 0);
+    addConstellationBuffStat(reward, game);
     // 가호는 소환 칸 차례대로 한도 안에 든 것만 걸린다(단 하나의 사역이면 한도 1). 가호는 summonCap을 바꾸지 않으므로 지금 버킷으로 센다.
     const summonCapTotal = () => (gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0);
     // 단 하나의 사역은 공격 소환수만 하나로 줄인다: 수호 골렘과 가호는 그대로(전령이 보조룬이던 때와 같다)

@@ -295,9 +295,9 @@ const equipmentWindowUi = (() => {
     /** The panel without a selection: in the right column it keeps its title band. */
     const emptyHtml = message => `<h4 class="eqw-title">${_t('선택한 장비')}</h4><div class="equipment-grid-inspector-empty">${message}</div>`;
 
-    /** Stats with `item` in `slot`, by the comparison tooltip's own swap (js/ui.js buildSlotPanel). @returns [before, after] */
-    function swapStats(item, slot) {
-        const before = getUiPlayerStats({}, false);
+    /** Stats with `item` in `slot`, by the comparison tooltip's own swap (js/ui.js buildSlotPanel). @returns [before, after]
+     * @param {object} before the stats now, read once for all of one item's slots (fillDeltas) */
+    function swapStats(item, slot, before) {
         const equipment = game.equipment, had = Object.prototype.hasOwnProperty.call(equipment, slot), backup = equipment[slot];
         const twins = Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
         try {
@@ -338,8 +338,8 @@ const equipmentWindowUi = (() => {
         button.textContent = open ? _t('접기') : _t('나머지 변화 {rest}줄 보기', { rest: button.dataset.rest });
         equipmentInventoryInteraction.positionInspector();
     }
-    function deltaHtml(item, slot) {
-        const [before, after] = swapStats(item, slot);
+    function deltaHtml(item, slot, now) {
+        const [before, after] = swapStats(item, slot, now);
         const keys = Object.keys(COMPARE_STAT_META).filter(key => Math.abs((Number(after[key]) || 0) - (Number(before[key]) || 0)) >= 0.001);
         const rest = keys.filter(key => !DELTA_TINT[key]);
         const fold = rest.length < keys.length ? rest : []; // 요약 능력치가 하나도 안 바뀌면 접지 않는다
@@ -354,17 +354,19 @@ const equipmentWindowUi = (() => {
         for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
         return (h >>> 0).toString(36);
     }
-    /** Fills the panel's 바꾸면 tables once the browser is idle; the same item and gear (signature) reuse the last result. */
+    /** Fills the panel's 바꾸면 tables right after the panel's first frame; the same item and gear (signature) reuse the last result.
+     * It waited for an idle moment before (up to 200 ms of "계산 중" while the fight kept the browser busy, 2026-11-07). */
     function fillDeltas(root, item, signature) {
         const job = {};
         deltaJobs.set(root, job);
         const tables = [...root.querySelectorAll('.eqw-deltas[data-eqw-slot]')];
         if (!tables.length) return;
         const sig = hashKey(String(signature));
+        let now = null; // the stats before the swap, once for every slot of the item (a ring tries three)
         const fill = table => {
             if (!table.isConnected) return;
             const key = `${sig}|${table.dataset.eqwSlot}`;
-            if (!deltaCache.has(key)) deltaCache.set(key, deltaHtml(item, table.dataset.eqwSlot));
+            if (!deltaCache.has(key)) deltaCache.set(key, deltaHtml(item, table.dataset.eqwSlot, now || (now = getUiPlayerStats({}, false))));
             const body = table.querySelector('.eqw-dl-body');
             const focused = body.contains(document.activeElement);
             body.innerHTML = deltaCache.get(key);
@@ -378,8 +380,7 @@ const equipmentWindowUi = (() => {
             equipmentInventoryInteraction.positionInspector(); // the taller floating panel finds its place again
         };
         if (deltaCache.size > 24) deltaCache.clear();
-        if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 200 });
-        else setTimeout(run, 0);
+        requestAnimationFrame(() => setTimeout(run, 0));
     }
 
     if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {

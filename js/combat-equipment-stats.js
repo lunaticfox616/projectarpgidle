@@ -26,8 +26,11 @@ const combatEquipmentStats = (() => {
     function offhandWeaponRequirement(item, slot, owner) {
         return slot === '방패' && item.slot === '무기' && typeof hasKeystone === 'function' && !hasKeystone('w3', owner) ? '쌍수 훈련 키스톤' : '';
     }
+    /** The exploration run (the room map, about 60% of a save in a room stage) is no stat input (data/build-stat-inputs.js) and the
+     * calculation never writes it: shared, not copied. Copying it was a third of a bag analysis (2026-11-07). */
     function permanentSnapshot(owner) {
-        const snapshot = JSON.parse(JSON.stringify({ ...owner, inventory: [] }));
+        const snapshot = JSON.parse(JSON.stringify({ ...owner, inventory: [], actExploration: undefined }));
+        if (owner.actExploration !== undefined) snapshot.actExploration = owner.actExploration;
         snapshot.isBackgroundCalculation = true;
         snapshot.uniqueEliteTraitBuff = null;
         snapshot.incidentBreath = null; // 세계수의 숨결도 잠깐의 전투 버프다
