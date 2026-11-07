@@ -2371,7 +2371,8 @@ let cloudState = {
     sessionEpoch: 0,
     tokenExpiryWarned: false,
     pendingForcedSyncOptions: null,
-    pendingForcedSyncRetryTimer: null
+    pendingForcedSyncRetryTimer: null,
+    exitUpload: null   // 종료 업로드가 답을 기다리는 동안의 Promise(js/ui.js trackPageExitUpload)
 };
 let startupOverlayActive = true;
 let gameplayStarted = false;
@@ -2442,7 +2443,7 @@ function getPaidPassiveNodeIds(nodeIds) {
 }
 
 // Shared transaction state belongs below both persistence and the UI scheduler.
-let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, failed: false, accelerationTier: 0, finishRequested: false, offlineConsumed: false, appInactive: false };
+let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, failed: false, accelerationTier: 0, finishRequested: false, offlineSettledSlots: [], appInactive: false };
 
 /**
  * @typedef {{statId:string,minValue:number,minTier:number}} EquipmentTargetRule

@@ -233,12 +233,37 @@
     background: linear-gradient(180deg, rgba(10, 11, 13, .74), rgba(6, 7, 8, .92));
   }
 }
+/* 휴대폰 배치의 전투 기록 판은 [전투 로그][채팅] 탭(2026-11-07 사용자: 커뮤니티 탭을 지우고 판에서 바꾼다). 채팅을 고르면 기록 자리에 채팅
+   (#tab-social, js/message-frames-ui.js showPhoneTab)이 선다. 낮은 가로 휴대폰의 접는 막대에서는 탭 옆에 접기 단추가 남고, 접으면 채팅도 접힌다. */
+@media (max-width: 1080px) {
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed-title > .ui-context-dock-tab,
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-combat-chat-tab {
+    position: relative; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; padding-inline: 10px; }
+  /* 고른 탭은 PC 기록 창의 고른 탭과 같은 금빛 판, 안 고른 탭은 흐린 판(css/themes/pixel.css .ui-context-dock-tab) */
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed-title > .ui-context-dock-tab:not(.active) {
+    box-shadow: inset 0 0 0 1px var(--px-bronze-lo); color: var(--px-copy-muted); }
+  /* 접는 막대를 펼치면 접기 단추 앞의 "전투 로그" 글은 뺀다(탭이 이름이다). 접은 막대의 최근 한 줄은 그대로다. */
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-combat-log-toggle[aria-expanded="true"]::before { content: ''; }
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed-title > .ui-context-dock-tab.active,
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-combat-chat-tab.active {
+    border-color: var(--px-gold); background: var(--px-board-hot), var(--px-stone-raised); box-shadow: var(--px-gold-rim); color: var(--px-gold-bright); }
+  /* 채팅 설정(⚙)은 채팅을 고른 동안 탭 줄 끝에 */
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed.is-chat #btn-combat-chat-settings {
+    display: grid; flex: 0 0 auto; min-width: 40px; border: 1px solid var(--px-ink); border-radius: 0; background: var(--px-board), var(--px-stone-control); box-shadow: var(--px-bevel); }
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed.is-chat > #log { display: none; }
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed:not(.collapsed) > #tab-social { display: flex; flex: 1 1 0; }
+}
 /* 세로 화면(2026-11-03 사용자): 전장 위에 지역 줄과 단추 줄이 PC처럼 겹치고(전장 그림 위쪽은 덜 보여도 된다), 생명력 · 미니맵 · 경험치는
    따로 띠를 두지 않고 전장 아래쪽에 섞여 겹친다. 전장은 가로 20칸을 다 보이고(data/stage-view.js STAGE_ROOMS.stacked,
-   js/canvas-stage-actors.js stageView.stacked) 바닥의 앞쪽 끝이 HUD 위에 온다. 그 아래 남는 높이는 펼친 전투 기록(접지 않는다). */
-@media (max-width: 1080px) and (orientation: portrait) {
+   js/canvas-stage-actors.js stageView.stacked) 바닥의 앞쪽 끝이 HUD 위에 온다. 그 아래 남는 높이는 펼친 전투 기록(접지 않는다).
+   키가 600px 넘는 가로 창(절반 폭 PC 창, 태블릿 가로)도 같은 배치다(2026-11-07 사용자: 중간 크기 전투 화면을 없애고 작은 화면과 하나로).
+   가로 창에서 4:3 전장이 판 자리를 다 먹지 않게 전장 높이는 기록 판 176px(탭 줄, 채팅 입력 줄, 두세 줄)을 남긴 데까지다. */
+@media (max-width: 1080px) and (orientation: portrait), (max-width: 1080px) and (min-height: 601px) {
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-panel { grid-template-rows: auto minmax(0, 1fr); }
-  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-stage { grid-row: 1; aspect-ratio: 4 / 3; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-stage { grid-row: 1; aspect-ratio: 4 / 3;
+    max-height: calc(100dvh - var(--bottom-tab-height, 0px) - env(safe-area-inset-top) - 176px); }
+  /* 전장은 판 폭을 다 쓴다(816px 한도는 예전 가운데 전장 몫, css/mobile.css): 화면 배율 100%의 125% 모니터 절반 창은 CSS 폭이 960px이라 양옆이 비었다 */
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .battlefield-wrap { width: 100%; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-zone-row { grid-row: 1; align-self: start; margin: 0; padding: 8px 8px 0 10px; }
   /* 지역 이름과 단추는 PC와 같은 모양(2026-11-03 사용자): 이름은 독립 제목(css/themes/pixel.css, 24px 굵은 금빛), 한 줄에 안 들어가면 단추가 다음 줄
      오른쪽으로 내려간다. 줄의 아래 끝(--zone-row-bottom, js/ui-window-manager.js watchZoneRowClearance) 밑에 적 생명력 게이지가 선다. */
@@ -271,10 +296,10 @@
   }
   /* 돌판 그림(css/themes/pixel-mobile.css .player-hud-shell::before)은 그리지 않는다: 띠 없이 전장에 섞인다 */
   :root body[data-ui-skin="rift"].mobile-primary-navigation.mobile-battle-tab #battle-column .player-hud-shell::before { content: none; }
-  /* 알림(사건, 전리품)은 싸움 위가 아니라 전장 바로 밑, 기록 판의 위쪽에 뜬다(전장은 화면 폭의 4:3) */
+  /* 알림(사건, 전리품)은 싸움 위가 아니라 전장 바로 밑, 기록 판의 위쪽에 뜬다(전장은 화면 폭의 4:3, 가로 창은 위의 높이 한도까지) */
   :root body[data-ui-skin="rift"].mobile-battle-tab:has(#tab-battle.active) .game-toast-region,
   :root body[data-ui-skin="rift"].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast-region {
-    top: calc(100vw * .75 + 8px);
+    top: calc(min(100vw * .75, 100dvh - var(--bottom-tab-height, 0px) - env(safe-area-inset-top) - 176px) + 8px);
     right: 10px;
     left: 10px;
   }
@@ -289,8 +314,12 @@
     padding-block: 4px;
   }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed #log { display: block; flex: 1 1 0; height: auto; min-height: 0; max-height: none; overflow-y: auto; }
-  /* 휴대폰의 기록 머리 줄은 접기 단추만 남아 있어(기록, 채팅 탭은 숨는다) 줄째 숨긴다 */
-  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed-title { display: none; }
+  /* 기록 판 머리는 두 탭이 판 폭을 나눈다. 판을 접지 않으니 접기 단추는 없다. */
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed-title { display: flex; flex: 0 0 auto; gap: 4px; margin: 0 0 4px; padding: 0; border: 0; }
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed-title > .ui-context-dock-tab,
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-combat-chat-tab { flex: 1 1 0; min-height: 36px; }
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle #btn-combat-log-toggle { display: none; }
+  :root body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-feed > #tab-social { display: flex; flex: 1 1 0; }
   /* 펼친 기록이 HUD 자리까지 쓰던 규칙(css/ui-responsive-refine.css)은 여기서는 HUD를 숨기지 않는다 */
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-panel:has(.combat-feed:not(.collapsed)) > .player-hud { visibility: visible; }
 }

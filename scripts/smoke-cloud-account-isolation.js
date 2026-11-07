@@ -230,11 +230,20 @@ async function checkRestoreAccountBoundary(phase) {
         return response;
     };
     const pending = d.runtime.restoreCloudSaveVersion(6); await reached;
-    if (phase === 'confirmation') { d.signIn(OTHER); d.signIn(); } else await d.runtime.prepareStartupAccountSwitch();
+    if (phase !== 'confirmation') {
+        // 복구와 그 저장을 받는 동안은 다른 클라우드 작업처럼 busy라 계정 전환이 기다린다(2026-11-07): 복구는 같은 계정에서 끝난다.
+        await d.runtime.prepareStartupAccountSwitch();
+        assert.strictEqual(d.slot().userId, USER, 'the account switch waits for the restore');
+        release(); await pending;
+        assert.deepStrictEqual([restores, d.cloud().busy, d.cloud().syncHalted], [1, false, false]);
+        assert.ok(d.toasts.includes('선택한 클라우드 저장을 복구했습니다.'));
+        return;
+    }
+    d.signIn(OTHER); d.signIn();
     const before = [d.runtime.game, d.storage.getItem(d.key), d.storage.getItem(d.accountKey), d.cloud().lastRemoteRevision];
     release(); await pending;
     assert.deepStrictEqual([d.runtime.game, d.storage.getItem(d.key), d.storage.getItem(d.accountKey), d.cloud().lastRemoteRevision], before);
-    assert.strictEqual(restores, phase === 'confirmation' ? 0 : 1);
+    assert.strictEqual(restores, 0);
     assert.ok(d.toasts.some(text => text.includes('복구 실패')), 'late restore completion is refused instead of reporting success');
 }
 

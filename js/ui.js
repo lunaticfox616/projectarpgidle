@@ -486,8 +486,10 @@ function recordBackgroundCombatEntry(nowMs) {
 function recordOfflineCombatEntry(nowMs) {
     let savedAt = Math.max(0, Math.floor(Number(game && game.saveMeta && game.saveMeta.lastModifiedAt) || 0));
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
-    if (backgroundCombatRuntime.offlineConsumed || savedAt <= 0 || now <= savedAt) return false;
-    backgroundCombatRuntime.offlineConsumed = true;
+    // 저장 칸마다 한 번 정산한다: 게임 안에서 다른 계정으로 들어가도 그 계정의 자리 비운 시간이 남는다(전: 화면마다 한 번이라 먼저 들어간 저장만).
+    const slotKey = getSaveSlot().key;
+    if (backgroundCombatRuntime.offlineSettledSlots.includes(slotKey) || savedAt <= 0 || now <= savedAt) return false;
+    backgroundCombatRuntime.offlineSettledSlots.push(slotKey);
     backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
     backgroundCombatRuntime.snapshot = isOfflineCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
     // Nothing to settle keeps no away span: a stale one would be stamped by a save made while the app is paused (js/save.js
@@ -1436,6 +1438,8 @@ function renderMobileMenuGroups(header) {
     }
 }
 const TAB_DRAG_LONG_PRESS_MS = 180;
+// 휴대폰 하단 메뉴는 누르면 바로 열리므로 끌기는 더 길게 눌러야 시작한다(2026-11-07 사용자: 길게 눌러 끌어 자리를 바꾼다).
+const MOBILE_DOCK_LONG_PRESS_MS = 450;
 const TAB_DRAG_CANCEL_PX = 8;
 let tabHeaderDragState = null;
 let tabHeaderSuppressClickUntil = 0;
@@ -1460,7 +1464,7 @@ const TAB_GROUPS = [
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
     { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-trade'] },
-    { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-social', 'tab-settings', 'tab-battle'] }
+    { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-settings', 'tab-battle'] }
 ];
 function getOrderedTabGroups() {
     game.settings = game.settings || {};
@@ -1619,8 +1623,14 @@ function beginTabHeaderDrag(state) {
     document.body.classList.add('tab-drag-active');
 }
 
+/** Whether menu buttons drag only inside the phone's bottom dock (they never move into the full menu drawer). */
+function isMobileDockDrag() {
+    return document.body.classList.contains('mobile-primary-navigation');
+}
+
 function moveDraggedTabToPoint(state, clientX, clientY) {
-    let header = getTabHeaderUnderPoint(clientX, clientY) || state.button.parentElement;
+    let header = isMobileDockDrag() ? state.header : getTabHeaderUnderPoint(clientX, clientY);
+    header = header || state.button.parentElement;
     if (!header) return;
     if (state.button.parentElement !== header) header.appendChild(state.button);
     let siblings = Array.from(header.querySelectorAll('.tab-btn')).filter(el => el !== state.button);
@@ -1628,10 +1638,20 @@ function moveDraggedTabToPoint(state, clientX, clientY) {
         let rect = el.getBoundingClientRect();
         return clientX < rect.left + rect.width / 2;
     });
-    header.insertBefore(state.button, before || null);
+    // 하단 메뉴의 전체 단추는 늘 맨 끝이다
+    header.insertBefore(state.button, before || header.querySelector(':scope > #btn-mobile-nav-more'));
+}
+
+/** The phone dock's order after a drag: its buttons first in their new order (each kept on the dock), the rest as they were. */
+function commitMobileDockOrder() {
+    const layout = tabLayoutUi.current();
+    const dock = Array.from(document.querySelectorAll('#tab-header-bottom > .tab-btn')).map(button => button.id);
+    dock.forEach(id => { layout.tabPlacement[id] = 'top'; });
+    layout.tabOrder = [...dock, ...layout.tabOrder.filter(id => !dock.includes(id))];
 }
 
 function commitTabHeaderDragOrder() {
+    if (isMobileDockDrag()) { commitMobileDockOrder(); return; }
     let headers = getTabHeaders();
     game.settings = game.settings || {};
     tabLayoutUi.current().tabPlacement = tabLayoutUi.current().tabPlacement || {};
@@ -1643,7 +1663,8 @@ function commitTabHeaderDragOrder() {
 }
 
 function activateTabButtonFromDrag(button) {
-    if (!button || !button.id || typeof switchTab !== 'function') return;
+    // 하단 메뉴에서는 자리만 바꾼다(끌어 놓은 탭이 열리지 않는다)
+    if (!button || !button.id || typeof switchTab !== 'function' || isMobileDockDrag()) return;
     if (!button.id.startsWith('btn-tab-')) return;
     switchTab(button.id.replace(/^btn-/, ''));
 }
@@ -1665,12 +1686,20 @@ function clearTabHeaderDragState(saveOrder) {
     }
 }
 
+/** How long a press waits before the button drags (ms), or 0 where menu buttons do not drag: the PC window rail, and on phones
+ * everything but the bottom dock. */
+function tabDragPressMs(button) {
+    const classes = document.body.classList;
+    if (classes.contains('desktop-windowed-ui')) return 0;
+    if (!classes.contains('mobile-primary-navigation')) return TAB_DRAG_LONG_PRESS_MS;
+    return button.closest('#tab-header-bottom') ? MOBILE_DOCK_LONG_PRESS_MS : 0;
+}
+
 function onTabHeaderPointerDown(event) {
-    if (document.body && document.body.classList.contains('desktop-windowed-ui')) return;
-    if (document.body && document.body.classList.contains('mobile-primary-navigation')) return;
     if (tabHeaderDragState) return;
     let button = getTabButtonFromTarget(event.target);
-    if (!button || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    let pressMs = button ? tabDragPressMs(button) : 0;
+    if (!pressMs || (event.pointerType === 'mouse' && event.button !== 0)) return;
     let header = button.closest ? button.closest('.tab-header') : null;
     tabHeaderDragState = {
         button,
@@ -1687,7 +1716,7 @@ function onTabHeaderPointerDown(event) {
         ghost: null,
         dragging: false,
         scrolling: false,
-        longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), TAB_DRAG_LONG_PRESS_MS)
+        longPressTimer: setTimeout(() => beginTabHeaderDrag(tabHeaderDragState), pressMs)
     };
     if (button.setPointerCapture) button.setPointerCapture(event.pointerId);
 }
@@ -1748,7 +1777,18 @@ function onTabHeaderClickCapture(event) {
     if (Date.now() <= tabHeaderSuppressClickUntil && getTabButtonFromTarget(event.target)) {
         event.preventDefault();
         event.stopPropagation();
+        return;
     }
+    returnToBattleFromOpenTab(event);
+}
+
+/** 휴대폰 하단 메뉴에서 이미 열린 탭을 다시 누르면(두 번 누르면) 전투 화면으로 돌아간다(2026-11-07 사용자). */
+function returnToBattleFromOpenTab(event) {
+    const button = event.target.closest && event.target.closest('#tab-header-bottom > .tab-btn.active');
+    if (!button || button.id === 'btn-tab-battle' || !document.body.classList.contains('mobile-primary-navigation')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    switchTab('tab-battle');
 }
 
 function installTabHeaderDragReorder() {
@@ -1781,7 +1821,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
     let primaryIds = new Set(tabLayoutUi.mobilePrimaryIds());
     if (!mobilePrimary) teardownMobilePrimaryNavigation(topHeader, bottomHeader);
     else ensureMobilePrimaryNavigation(topHeader, bottomHeader);
-    if (!mobilePrimary) installTabHeaderDragReorder();
+    installTabHeaderDragReorder();
     let allTabButtons = headers.flatMap(header => Array.from(header.querySelectorAll('.tab-btn')));
     let ids=allTabButtons.map(el=>el.id);
     let order = Array.from(new Set(['btn-tab-battle', ...tabLayoutUi.current().tabOrder, ...tabLayoutUi.defaultOrder]));
@@ -1798,6 +1838,7 @@ function applyTabHeaderOrder(shouldRenderSettings){
         let target = mobilePrimary && primaryIds.has(id) ? bottomHeader : topHeader;
         target.appendChild(map[id]);
     });
+    if (mobilePrimary) primaryIds.forEach(id => { if (map[id]) bottomHeader.appendChild(map[id]); });
     if (bottomHeader) {
         let more = document.getElementById('btn-mobile-nav-more');
         if (more) bottomHeader.appendChild(more);
@@ -1913,7 +1954,7 @@ function updateTabUnlockButtons() {
 }
 
 function isUngatedPersistentTabButton(btn) {
-    return btn && (btn.id === 'btn-tab-social' || btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character');
+    return btn && (btn.id === 'btn-tab-settings' || btn.id === 'btn-tab-character');
 }
 // updateTabUnlockButtons 뒤에서 호출되는 그룹 가시성 적용부. 재진입 없이 display만 조정한다.
 function hideOutOfGroupTabButtons() {
@@ -2330,7 +2371,6 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab-content:not(.merged-subtab-pane), .tab-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     runWindowOpenHooks(tabId, shownId);
-    document.body.classList.toggle('mobile-community-sheet-open', tabId === 'tab-social' && uiDisplay.matches('(max-width: 1080px)'));
     // 열 수 있는 화면을 다시 세웠으므로 잠금 정리 후의 복귀 예약은 소진된다.
     pendingRelockedTabFallback = false;
     let activeBtn = document.getElementById('btn-' + tabId);
@@ -2356,8 +2396,7 @@ function switchTab(tabId) {
     // 도감 탭에서 다른 탭으로 벗어날 때, 신규 등록 강조를 해제(처음 열었을 때만 강조).
     if (lastActiveTabId === 'tab-codex' && tabId !== 'tab-codex') game.codexNewlyRegistered = {};
     lastActiveTabId = tabId;
-    if (tabId === 'tab-social' && typeof renderSocialTab === 'function') renderSocialTab();
-    else if (typeof syncSocialChatPolling === 'function') syncSocialChatPolling();
+    if (typeof syncSocialChatPolling === 'function') syncSocialChatPolling();
     if (tabId === 'tab-talent') talentUi.render();
     if (shownId === 'tab-items') switchItemSubtab('item-tab-equip');
     updateMobileBattlePipVisibility();
@@ -9355,8 +9394,8 @@ function getCraftActionValidators(item) {
     let hasHoneyLocked = (item.stats || []).some(v => v.lockedByHoney);
     return {
         honey: !!item && (game.currencies.enchantedHoney || 0) > 0 && !hasHoneyLocked,
-        stinger: !!item && (game.currencies.venomStinger || 0) > 0 && item.slot === '무기',
-        baseUpgrade: !!item,
+        stinger: !!item && (game.currencies.venomStinger || 0) > 0 && !getVenomStingerRefusal(item),
+        baseUpgrade: !!item && !getBaseUpgradeRefusal(item),
         voidSocket: !!item && equipmentSockets.canChisel(item)
     };
 }
@@ -9445,7 +9484,7 @@ function buildSporeSummaryHtml() {
     const item = getSelectedCraftItem();
     const targetDisabled = !item || !isSporeCraftEquipment(item);
     const advanced = contentProgression.isUnlocked('advancedSpores');
-    const riftBlock = item ? equipmentCrafting.getBlockReason(item, 'fossil') : '';
+    const riftBlock = item ? equipmentCrafting.getRiftHarvestBlockReason(item) : '';
     const rule = STUMP_BOX_HARVEST_CRAFT;
     const costs = [...rule.rot.map(color => [stumpBox.harvestPriceKey('any', color), color]), [stumpBox.harvestPriceKey(rule.riftKind), 'physical']];
     const held = costs.map(([key, color]) => `<div class="orb-tone" style="padding:5px; border-width:1px; border-style:solid; --orb-tone:${STUMP_BOX_COLORS[color].tone}; font-size:12px;">${stumpBox.harvestPriceName(key)}<br><strong>x ${stumpBox.harvestPriceHeld(game, key)}</strong></div>`).join('');
@@ -11676,6 +11715,11 @@ function resetCloudAccountSync(session) {
     cloudState.uploadFailureNoticed = false;
     cloudState.lastUploadedFingerprint = null;
     cloudState.pendingForcedSyncOptions = null;
+    cancelScheduledCloudSync();
+}
+
+/** Drops the automatic upload waiting to start (an account change, or a restore that moves the server revision itself). */
+function cancelScheduledCloudSync() {
     if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
     cloudSyncTimer = null;
 }
@@ -12329,6 +12373,7 @@ async function restoreCloudSession() {
         // 저장된 세션은 두어 다음 실행 때 다시 시도한다(전: 망이 끊긴 채 켜면 로그아웃).
         if (cloudState.user && getCloudSessionExpiresAtMs() - Date.now() > CLOUD_TOKEN_REFRESH_LEEWAY_MS) {
             setCloudMessage(_t('클라우드 로그인 갱신은 못 했지만 기존 로그인으로 계속합니다.'));
+            cloudSessionGuard.syncSession();   // 갱신이 성공할 때처럼 접속 표를 적고 읽기 시작한다(전: 다음 갱신까지 중복 접속을 못 막았다)
             return true;
         }
         resetCloudAccountSync(null);
@@ -12577,12 +12622,28 @@ async function enterAccountSave(options = {}) {
     const context = captureCloudSaveContext();
     const record = cloudRecordForThisBuild(await fetchCloudSaveSummary());
     assertCloudSaveContext(context);
+    const previousUserId = getSaveSlot().userId || null;
     activateAccountSaveSlot(userId);
     if (!record || !record.save_data) return await createFirstCloudSave(options.signUp === true);
     const kept = await continueFromAccountCopy(userId);
     if (kept) return kept;
-    const dropped = getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending;
-    const full = await readFullCloudSaveForPull();
+    return await pullAccountSave(userId, previousUserId, options);
+}
+
+/** The server moved past this device's copy: its full save replaces the copy. When the read fails, the slot that was in use comes back
+ * (전: 이 기기에 사본이 없으면 빈 1레벨 캐릭터가 남았다). Progress is reported dropped only when the copy held something the server body
+ * lacks: a page-exit upload whose reply was lost leaves the same content there, and the server's jsonb only reorders its keys. */
+async function pullAccountSave(userId, previousUserId, options) {
+    const pending = getCloudSaveOwnerId() === userId && game.saveMeta.cloudPending;
+    const localPrint = pending ? cloudSaveContentPrint(createCloudSyncPayload(game)) : '';
+    let full;
+    try {
+        full = await readFullCloudSaveForPull();
+    } catch (error) {
+        if (previousUserId !== userId) loadSaveSlotIntoGame(previousUserId);
+        throw error;
+    }
+    const dropped = pending && localPrint !== cloudSaveContentPrint(full.save_data);
     applyExternalSave(full.save_data, getRemoteSaveStamp(full));
     const note = dropped ? '다른 기기에서 저장한 뒤라 서버 저장으로 이어서 합니다. 이 기기에서 올리지 못한 진행은 지웠습니다.' : '서버 저장으로 이어서 합니다.';
     setCloudMessage(note);
@@ -12609,20 +12670,21 @@ async function continueFromAccountCopy(userId) {
 function activateAccountSaveSlot(userId) {
     if (getSaveSlot().userId === userId) return;
     if (getLocalSaveStatus().status === 'ok' && canPersistLocalSave()) persistLocalSave({ touchModifiedAt: false });
-    selectSaveSlot(userId);
-    loadGame();
-    applySeasonContentProgression({ silent: true });
-    cloudState.guestSaveSummary = summarizeGuestSave(readGuestSave());
-    refreshRuntimeForLoadedSave();
+    loadSaveSlotIntoGame(userId);
 }
 
 /** Loads the guest slot back into the running game (leaving an account). */
 function activateGuestSaveSlot() {
     if (getSaveSlot().kind === 'guest') return;
-    selectSaveSlot(null);
+    loadSaveSlotIntoGame(null);
+}
+
+/** Switches to a slot (an account's, or the guest's for null) and loads it into the running game, without writing the slot in use. */
+function loadSaveSlotIntoGame(userId) {
+    selectSaveSlot(userId);
     loadGame();
     applySeasonContentProgression({ silent: true });
-    cloudState.guestSaveSummary = null;
+    cloudState.guestSaveSummary = userId ? summarizeGuestSave(readGuestSave()) : null;
     refreshRuntimeForLoadedSave();
 }
 
@@ -12805,6 +12867,7 @@ function schedulePendingForcedCloudSyncDrain() {
 
 async function syncCloudSave(options = {}) {
     if (!cloudState.configured || !cloudState.user) return;
+    await waitForPageExitUpload();
     if (cloudState.busy) {
         if (options.force === true) {
             cloudState.pendingForcedSyncOptions = { ...options, force: true, reason: options.reason || 'important' };
@@ -13127,7 +13190,7 @@ function isPageExitCloudPushRedundant(fingerprint) {
  * only hidden (switching tabs or apps) it still finishes; a closed page may lose it, and the slot keeps it pending for the next
  * account entry (enterAccountSave). sendBeacon cannot carry the Supabase auth headers. */
 function sendPageExitCloudSave(request, reason, exitSave) {
-    fetch(request.endpoint, {
+    trackPageExitUpload(fetch(request.endpoint, {
         method: 'POST',
         headers: request.headers,
         body: request.body,
@@ -13145,7 +13208,22 @@ function sendPageExitCloudSave(request, reason, exitSave) {
         } else {
             console.warn(`cloud save on ${reason || 'page exit'} failed:`, error);
         }
+    }));
+}
+
+/** A hidden page can come back before its leaving upload answers. Until it does, no second leaving upload goes out and the next sync
+ * waits for the reply (it moves the revision): both sent from the same revision, the later one halted syncing on this device's own
+ * upload (2026-11-07 리뷰). */
+const CLOUD_EXIT_UPLOAD_WAIT_MS = 15000;
+function trackPageExitUpload(upload) {
+    const tracked = upload.finally(() => {
+        if (cloudState.exitUpload === tracked) cloudState.exitUpload = null;
     });
+    cloudState.exitUpload = tracked;
+}
+async function waitForPageExitUpload() {
+    if (!cloudState.exitUpload) return;
+    await Promise.race([cloudState.exitUpload, new Promise(resolve => setTimeout(resolve, CLOUD_EXIT_UPLOAD_WAIT_MS))]);
 }
 
 /** A session whose access token has not expired: on page exit there is no time to refresh, and an expired token only failed
@@ -13158,7 +13236,7 @@ function hasUsableCloudSessionToken() {
 
 function pushCloudSaveOnPageExit(reason) {
     let config = getCloudConfig();
-    if (cloudState.busy || cloudState.syncHalted) return false;
+    if (cloudState.busy || cloudState.syncHalted || cloudState.exitUpload) return false;
     if (typeof canPersistLocalSave === 'function' && !canPersistLocalSave()) return false;
     if (!config.enabled || !cloudState.user || !cloudState.user.id || !hasUsableCloudSessionToken()) return false;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return false;

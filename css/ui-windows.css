@@ -32,7 +32,6 @@
   body.desktop-windowed-ui #btn-tab-skills::before { content: '💎'; }
   body.desktop-windowed-ui #btn-tab-journal::before { content: '📓'; }
   body.desktop-windowed-ui #btn-tab-codex::before { content: '📚'; }
-  body.desktop-windowed-ui #btn-tab-social::before { content: '💬'; }
   body.desktop-windowed-ui #btn-tab-settings::before { content: '⚙️'; }
   body.desktop-windowed-ui #btn-map-complete-action-picker { white-space: normal; line-height: 1.05; text-align: center; }
   body.desktop-windowed-ui #btn-map-complete-action-picker::before { content: '↻'; height: 14px; font-size: 15px; }
@@ -366,7 +365,6 @@
   body.desktop-windowed-ui #left-pane-floating-toggle,
   body.desktop-windowed-ui #left-pane-expand-fab { display: none; }
   body.desktop-windowed-ui .tab-header-bottom, body.desktop-windowed-ui #tab-category-bar {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
-  body.desktop-windowed-ui #btn-tab-social {/* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display: none !important; }
   body.desktop-windowed-ui #tab-battle { display: none; }
   body.desktop-windowed-ui .map-progress-row #ui-progress-label { font-size: 11px; color: var(--color-accent, #d7b36f); }
   body.desktop-windowed-ui .ui-window-minimized { display: none; }

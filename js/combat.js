@@ -406,7 +406,7 @@ function explodeCorpse(enemy, splash, label, onKill, noun = '피해') {
     let reached = [];
     (game.enemies || []).forEach(target => {
         if (!target || target.id === enemy.id || target.hp <= 0) return;
-        target.hp = Math.max(0, target.hp - splash);
+        applyDamageToEnemyResource(target, splash);
         reached.push(target.name);
         if (target.hp <= 0) onKill(target);
     });
@@ -2332,8 +2332,8 @@ function sanitizeTickRuntime(pStats) {
     reconcileMapProgressRuntimeState();
 }
 
-/** The tick's conditions on the hero's stats: condition debuffs and hexes, casts and channels, pending hits, ailments, talisman
- * condition effects and the cosmos debuffs. */
+/** The tick's conditions on the hero's stats: condition debuffs and hexes, casts and channels, pending hits, talisman condition
+ * effects and the cosmos debuffs, then ailments. */
 function applyTickConditions(pStats) {
     if (pStats.uniqueClosedEyes) {
         game.enemyConditionDebuffs = {};
@@ -2345,12 +2345,13 @@ function applyTickConditions(pStats) {
     processPendingSkillStageHits();
     processPendingSlamEchoHits();
     processTalentInquisitorMarks();
-    tickAilments(pStats, 0.1);
-    applyPlayerAilmentsToTick(pStats);
+    // 부적 조건 효과와 우주계 약화가 먼저: 이번 틱 지속 피해가 이독제독, 조건부 저항과 피해 감소, 정화를 읽는다(2026-11-07 리뷰).
     const activeConditionEffects = talismanCombat.effects(pStats);
     applyConditionPhysicalReductionEffects(pStats, activeConditionEffects);
     activeConditionEffects.forEach(({ delta }) => applyConditionDelta(pStats, delta));
     applyCosmosPlayerDebuffsToStats(pStats);
+    tickAilments(pStats, 0.1);
+    applyPlayerAilmentsToTick(pStats);
 }
 const isStrongerShock = (ail, current) => Boolean(ail && ail.type === 'shock' && (ail.time || 0) > 0 && (!current || (ail.power || 0) > (current.power || 0)));
 /** Chill slows the swing; the strongest shock raises the damage the hero takes. */
@@ -2676,7 +2677,7 @@ function processPendingSlamEchoHits() {
         let enemy = (game.enemies || []).find(e => e && e.id === row.enemyId && e.hp > 0);
         if (!enemy) return;
         let bonus = Math.max(1, Math.floor(row.damage || 0));
-        enemy.hp = Math.max(0, enemy.hp - bonus);
+        applyDamageToEnemyResource(enemy, bonus);
         addBattleFx('hit', { enemyId: enemy.id, color: getElementColor(row.element || 'phys'), damage: bonus, duration: 220, syncToSwing: false });
         if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🌋 여진으로 {name}에게 {bonus} 추가 피해', { name: i18n.enemyName(enemy.name), bonus: formatNumberKR(bonus) }), 'attack-player', { noToast: true });
         if (enemy.hp <= 0) handleEnemyDeath(enemy, getPlayerStats());
@@ -3104,7 +3105,7 @@ function processTalentInquisitorMarks() {
         if (!enemy) { delete store[id]; return; }
         if (mk.explodeAt && now >= mk.explodeAt) {
             let dmg = Math.max(1, Math.floor((mk.accumulated || 0) * 0.12 * Math.max(1, lv) / TALENT_CARD_MAX_LEVEL_REF));
-            enemy.hp = Math.max(0, enemy.hp - dmg);
+            applyDamageToEnemyResource(enemy, dmg);
             addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: dmg, duration: 240, syncToSwing: false });
             if (game.settings && game.settings.showCombatLog !== false) addLog(_t('⚖️ 심판 표식 폭발로 {name}에게 {dmg} 피해', { name: i18n.enemyName(enemy.name), dmg: formatNumberKR(dmg) }), 'attack-player', { noToast: true });
             mk.accumulated = 0; mk.explodeAt = 0; mk.cooldownUntil = now + 6000;
@@ -5994,6 +5995,10 @@ function applyDamageToEnemyResource(enemy, damage) {
     }
     combatIncidents.noteDamage(enemy, dealt); // 행운의 숫자
     return dealt;
+}
+/** 즉시 처치, 처형이 줄 피해: 남은 생명력에 에너지 보호막까지(applyDamageToEnemyResource가 보호막부터 깎는다). */
+function getEnemyLifeAndShield(enemy) {
+    return Math.max(0, Number(enemy.hp) || 0) + Math.max(0, Number(enemy.energyShield) || 0);
 }
 function getEnemyLifeDamagePct(enemy) {
     if (!enemy || !(enemy.maxHp > 0)) return 0;
@@ -10822,7 +10827,7 @@ function handleEnemyDeath(enemy, pStats) {
     const overkill = getOverkillSplash(enemy, pStats);
     if (overkill > 0) (game.enemies || []).forEach(target => {
         if (!target || target.id === enemy.id || target.hp <= 0) return;
-        target.hp = Math.max(0, target.hp - overkill);
+        applyDamageToEnemyResource(target, overkill);
         if (target.hp <= 0) handleEnemyDeath(target, pStats);
     });
     if (game.enemyWitherStacks && typeof game.enemyWitherStacks === 'object') delete game.enemyWitherStacks[enemy.id];
@@ -12353,6 +12358,7 @@ function applySkillGemContact(command,targets) {
         if (enemy.hp<=0 || enemy.hp+(enemy.energyShield||0)>=before[i]) return;
         const ele=command.ailment==='poison'?'chaos':'phys';
         applyEnemyAilmentFromHit(enemy,{...stats,sSkill:{...stats.sSkill,ele}},stats.baseDmg,false,{primaryAilmentChance:1});
+        if (enemy.hp<=0) handleEnemyDeath(enemy,stats); // 촉매 ct8 터뜨림이 쓰러뜨린 적(타격의 죽음 처리는 이미 지났다)
     });
 }
 
@@ -13055,20 +13061,20 @@ function performPlayerAttack(pStats, attackOptions) {
             if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && (pStats.cullStrikePct || 0) > 0) {
                 let cullThr = Math.max(0, Math.min(20, Number(pStats.cullStrikePct) || 0)) / 100;
                 if (cullThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= cullThr) {
-                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, getEnemyLifeAndShield(targetEnemy));
                     showAttackFeedback(targetEnemy, { key:'cull', text:_t('처형'), color:'#ff9b79' });
                 }
             }
             // 우주 먼지: 공격 시 일정 확률로 일반(비정예/비보스) 적 즉시 처치
             if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.isElite && !targetEnemy.elite
                 && (pStats.uniqueInstakillNormalPct || 0) > 0 && Math.random() * 100 < pStats.uniqueInstakillNormalPct) {
-                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, getEnemyLifeAndShield(targetEnemy));
                 showAttackFeedback(targetEnemy, { key:'instant-kill', text:_t('즉시 처치'), color:'#d7b0ff' });
             }
-            // 스팅어: 남아 있는 지속 피해 총량이 현재 생명력을 덮으면 즉시 마무리한다.
+            // 스팅어: 남아 있는 지속 피해 총량이 생명력과 에너지 보호막을 덮으면 즉시 마무리한다.
             if (dmg > 0 && targetEnemy.hp > 0 && typeof getTalentDotOccupancyDamage === 'function'
-                && getTalentDotOccupancyDamage(targetEnemy, pStats) >= targetEnemy.hp) {
-                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, targetEnemy.hp);
+                && getTalentDotOccupancyDamage(targetEnemy, pStats) >= getEnemyLifeAndShield(targetEnemy)) {
+                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, getEnemyLifeAndShield(targetEnemy));
                 showAttackFeedback(targetEnemy, { key:'dot-execute', text:_t('지속 피해 처형'), color:'#c88cff' });
             }
             // 8 심문궁: 표식 누적(쿨타임 아닐 때), 5초 후 processTalentInquisitorMarks에서 폭발
@@ -13092,7 +13098,7 @@ function performPlayerAttack(pStats, attackOptions) {
                 let splash = Math.max(1, Math.floor(dmg * 0.2));
                 (game.enemies || []).forEach(e => {
                     if (!e || e.hp <= 0) return;
-                    e.hp = Math.max(0, e.hp - splash);
+                    applyDamageToEnemyResource(e, splash);
                     addBattleFx('hit', { enemyId: e.id, color: getElementColor('chaos'), damage: splash, duration: 220, syncToSwing: true });
                     if (e.hp <= 0) handleEnemyDeath(e, pStats);
                 });
@@ -13192,7 +13198,7 @@ function performPlayerAttack(pStats, attackOptions) {
             }
             if (hitCrit && pStats.uniqueMeteorFootsteps && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueMeteorFootsteps.chance || 0) / 100))) {
                 let meteor = Math.max(1, Math.floor(dmg * (Math.max(1, Number(pStats.uniqueMeteorFootsteps.damagePct || 180)) / 100)));
-                (game.enemies || []).forEach(e => { if (!e || e.hp <= 0) return; e.hp = Math.max(0, e.hp - meteor); });
+                (game.enemies || []).forEach(e => { if (!e || e.hp <= 0) return; applyDamageToEnemyResource(e, meteor); });
             }
             if (pStats.uniqueShockTracer && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'shock' && (a.time || 0) > 0)) {
                 let now = getCombatTime();
@@ -13748,12 +13754,57 @@ function getEmpoweredRawDamage(empowered) {
     return empowered ? empowered.amount : 0;
 }
 /** 강화 변이의 원소, 카오스 추가 피해를 따로 줄로: 그 속성 저항(적 보정 뒤, 우주계 균형 경감이면 그 값 balancedRes). 물리는 이번 타격의
- * 물리에 들어가고 균등 분배는 추가분까지 나누므로 그때는 줄이 없다. */
+ * 물리에 들어가고 균등 분배는 추가분까지 나누므로 그때는 줄이 없다. 성전사 cr4 전환은 저항 전에 한다. */
 function getEmpoweredElementRows(empowered, pStats, enemy, balancedRes) {
     if (!empowered || empowered.ele === 'phys' || pStats.cosmosEqualDamageSplit) return [];
-    const res = pStats.cosmosBalanceMitigation ? balancedRes : getPlayerResistanceAfterEnemyModifiers(pStats, empowered.ele, enemy);
-    const amount = Math.floor(empowered.amount * (1 - Math.min(100, res) / 100));
-    return amount > 0 ? [{ ele: empowered.ele, amount }] : [];
+    const resOf = row => (pStats.cosmosBalanceMitigation ? balancedRes : getPlayerResistanceAfterEnemyModifiers(pStats, row.ele, enemy));
+    return mitigateTakenRows(splitCrusaderLightningTaken([{ ele: empowered.ele, amount: empowered.amount }]), resOf);
+}
+const CRUSADER_LIGHTNING_TAKEN_ELEMENTS = Object.freeze(['fire', 'cold', 'chaos']);
+/** 성전사 cr4(전하 보루): 받는 화염, 냉기, 카오스 피해의 30%를 번개로. 저항 전 피해 줄에 쓴다: 옮긴 몫은 번개 저항과 번개 받는 피해
+ * 감소를 거친다(2026-11-07 리뷰: 경감 뒤에 옮겨 둘 다 비켜 갔다). */
+function splitCrusaderLightningTaken(rows) {
+    if (!hasKeystone('cr4')) return rows;
+    return rows.flatMap(row => {
+        if (!CRUSADER_LIGHTNING_TAKEN_ELEMENTS.includes(row.ele)) return [row];
+        const shift = Math.floor(row.amount * 0.3);
+        return [{ ele: row.ele, amount: row.amount - shift }, { ele: 'light', amount: shift }];
+    });
+}
+/** 출혈 봉쇄 투구: 받는 물리 피해의 15%를 카오스로. 저항 전 피해 줄에 쓴다: 옮긴 몫은 카오스 저항과 카오스 받는 피해 감소를 거친다. */
+function splitHelmChaosTaken(rows, pStats) {
+    if (!pStats.uniqueBleedBlockHelm) return rows;
+    return rows.flatMap(row => {
+        if (row.ele !== 'phys') return [row];
+        const chaos = Math.floor(row.amount * 0.15);
+        return [{ ele: 'phys', amount: row.amount - chaos }, { ele: 'chaos', amount: chaos }];
+    });
+}
+/** 받는 피해 전환을 저항 전 줄에: cr4 다음 투구(투구가 옮긴 카오스는 번개가 되지 않는다, 예전 순서 그대로). */
+function convertTakenRowsRaw(rows, pStats) {
+    return splitHelmChaosTaken(splitCrusaderLightningTaken(rows), pStats);
+}
+/** 저항 전 피해 줄을 줄마다 resOf(row)의 경감 %로 줄인다. 0이 된 줄은 뺀다. */
+function mitigateTakenRows(rows, resOf) {
+    return rows.map(row => ({ ele: row.ele, amount: Math.max(0, Math.floor(row.amount * (1 - resOf(row) / 100))) })).filter(row => row.amount > 0);
+}
+/** 받는 물리 전환 physTakenAs(합 75% 상한): 옮긴 몫은 cr4를 거쳐 그 속성 저항(적 보정 뒤)으로 줄인 줄로, physical은 남은 물리. */
+function shiftPhysicalTakenAs(physical, pStats, enemy) {
+    const takenAs = pStats.physTakenAs || {};
+    const entries = ['fire', 'cold', 'light', 'chaos'].map(ele => [ele, Math.max(0, Number(takenAs[ele]) || 0)]);
+    const total = entries.reduce((sum, row) => sum + row[1], 0);
+    const scale = total > 75 ? 75 / total : 1;
+    const rows = [];
+    let shiftedTotal = 0;
+    for (const [ele, raw] of entries) {
+        const pct = raw * scale;
+        const shifted = Math.min(physical - shiftedTotal, Math.floor(physical * pct / 100));
+        if (shifted <= 0) continue;
+        shiftedTotal += shifted;
+        rows.push({ ele, amount: shifted });
+    }
+    const resOf = row => getPlayerResistanceAfterEnemyModifiers(pStats, row.ele, enemy);
+    return { physical: Math.max(0, physical - shiftedTotal), rows: mitigateTakenRows(splitCrusaderLightningTaken(rows), resOf) };
 }
 function getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy, effectMultiplier) {
     let keyByElement = { fire: 'F', cold: 'C', light: 'L', chaos: 'Chaos' };
@@ -13783,16 +13834,18 @@ function getCosmosBalancedMitigationPct(pStats, enemy, physRes) {
 function getCosmosEqualSplitDamageBreakdown(rawDamage, pStats, enemy) {
     let total = Math.max(1, Math.floor(Number(rawDamage) || 1));
     let elements = ['phys', 'fire', 'cold', 'light', 'chaos'];
-    let remaining = total;
-    return elements.map((ele, idx) => {
+    let remaining = total, mitigationOf = {};
+    let rows = elements.map((ele, idx) => {
         let portion = idx === elements.length - 1 ? remaining : Math.floor(total / elements.length);
         remaining = Math.max(0, remaining - portion);
         let mitigation = ele === 'phys'
             ? Math.max(-60, (pStats.dr || 0) + getArmorPhysicalReductionPct(pStats.armor || 0, portion))
             : getPlayerResistanceAfterEnemyModifiers(pStats, ele, enemy);
-        if (pStats.cosmosBalanceMitigation) mitigation = getCosmosBalancedMitigationPct(pStats, enemy, mitigation);
-        return { ele, amount: Math.max(0, Math.floor(portion * (1 - mitigation / 100))) };
-    }).filter(row => row.amount > 0);
+        mitigationOf[ele] = pStats.cosmosBalanceMitigation ? getCosmosBalancedMitigationPct(pStats, enemy, mitigation) : mitigation;
+        return { ele, amount: portion };
+    });
+    // 받는 피해 전환(cr4, 출혈 봉쇄 투구)은 나눈 몫에 저항 전에: 옮긴 몫은 새 속성 몫의 경감을 받는다.
+    return mitigateTakenRows(convertTakenRowsRaw(rows, pStats), row => mitigationOf[row.ele]);
 }
 
 function getColonyDefenseCoreTarget() {
@@ -14075,6 +14128,21 @@ function readyMonsterAttackSources() {
     return sources;
 }
 const colonyRunEndedDuringAttacks=zone=>zone.type==='colony' && !game.colony?.inRun;
+/** 수호자 gd6: 맞을 때마다 인내 중첩, 5중첩이면 받은 피해만큼 되돌려 친다. 반사로 쓰러진 적은 바로 죽음 처리를 한다(뒤의 몬스터
+ * 흡혈이 되살리고 연속 공격이 이어지던 일, 2026-11-07 리뷰). */
+function applyGuardianEnduranceReflect(enemy, remaining, pStats) {
+    let stacks = Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) + 1;
+    game.guardianEnduranceExpiresAt = getCombatTime() + 4000;
+    if (stacks < 5) {
+        game.guardianEnduranceStacks = stacks;
+        return;
+    }
+    let reflect = Math.max(1, Math.floor((pStats.guardianReflectDamage || 1) + remaining));
+    applyDamageToEnemyResource(enemy, reflect);
+    addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: reflect, duration: 260, element: 'phys', syncToSwing: false });
+    game.guardianEnduranceStacks = 2;
+    if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
+}
 
 function performMonsterAttacks(pStats) {
     let zone = getZone(game.currentZoneId);
@@ -14134,7 +14202,7 @@ function performMonsterAttacks(pStats) {
         let bossPatternTelegraphReady = !!pendingAttack || (enemy.isBoss
             ? updateBossPatternTelegraph(enemy, getCombatTime(), attackTarget, atkRate) : enemyAttackRules.ready(enemy,getCombatTime(),attackTarget));
         let bossAttacksThisTick = 0;
-        while (pendingAttack || enemy.attackTimer >= 1) {
+        while (pendingAttack || (enemy.hp > 0 && enemy.attackTimer >= 1)) {
             if (enemy.isBoss && bossAttacksThisTick >= 1) {
                 enemy.attackTimer = Math.min(enemy.attackTimer, 1);
                 break;
@@ -14211,25 +14279,9 @@ function performMonsterAttacks(pStats) {
                 physicalPortion = dmg;
                 elementalPortion = 0;
             }
-            let convertedTakenAsBreakdown = [], empowered = loopMutation.empoweredHit(enemy, dmg);
-            let originalPhysicalPortion = physicalPortion + getEmpoweredPhysicalDamage(empowered);
-            let physTakenAs = (pStats && pStats.physTakenAs) || {};
-            let takenAsEntries = [['fire', physTakenAs.fire || 0], ['cold', physTakenAs.cold || 0], ['light', physTakenAs.light || 0], ['chaos', physTakenAs.chaos || 0]];
-            let totalTakenAs = takenAsEntries.reduce((sum, row) => sum + Math.max(0, Number(row[1]) || 0), 0);
-            let takenAsScale = totalTakenAs > 75 ? 75 / totalTakenAs : 1;
-            let totalShiftedPhysical = 0;
-            takenAsEntries.forEach(row => {
-                let ele = row[0];
-                let pct = Math.max(0, Number(row[1]) || 0) * takenAsScale;
-                if (pct <= 0 || originalPhysicalPortion <= 0) return;
-                let shifted = Math.min(originalPhysicalPortion - totalShiftedPhysical, Math.floor(originalPhysicalPortion * pct / 100));
-                if (shifted <= 0) return;
-                totalShiftedPhysical += shifted;
-                let res = getPlayerResistanceAfterEnemyModifiers(pStats, ele, enemy);
-                let mitigated = Math.max(0, Math.floor(shifted * (1 - (res / 100))));
-                if (mitigated > 0) convertedTakenAsBreakdown.push({ ele, amount: mitigated });
-            });
-            physicalPortion = Math.max(0, originalPhysicalPortion - totalShiftedPhysical);
+            let empowered = loopMutation.empoweredHit(enemy, dmg);
+            let physTaken = shiftPhysicalTakenAs(physicalPortion + getEmpoweredPhysicalDamage(empowered), pStats, enemy);
+            physicalPortion = physTaken.physical;
             let elementalRes = ['fire', 'cold', 'light', 'chaos'].includes(attackElement)
                 ? getPlayerResistanceAfterEnemyModifiers(pStats, attackElement, enemy)
                 : 0;
@@ -14239,17 +14291,13 @@ function performMonsterAttacks(pStats) {
                 physRes = balanced;
                 elementalRes = balanced;
             }
-            let mitigatedElemental = Math.max(0, Math.floor(elementalPortion * (1 - (elementalRes / 100))));
-            let mitigatedPhysical = Math.max(0, Math.floor(physicalPortion * (1 - (physRes / 100))));
-            let damageBreakdown = [];
-            if (pStats.cosmosEqualDamageSplit) {
-                damageBreakdown = getCosmosEqualSplitDamageBreakdown(dmg + getEmpoweredRawDamage(empowered), pStats, enemy);
-            } else {
-                if (mitigatedPhysical > 0) damageBreakdown.push({ ele: 'phys', amount: mitigatedPhysical });
-                if (mitigatedElemental > 0) damageBreakdown.push({ ele: attackElement, amount: mitigatedElemental });
-            }
-            if (convertedTakenAsBreakdown.length > 0) damageBreakdown = damageBreakdown.concat(convertedTakenAsBreakdown);
-            damageBreakdown = damageBreakdown.concat(getEmpoweredElementRows(empowered, pStats, enemy, physRes));
+            // 받는 피해 전환(cr4, 출혈 봉쇄 투구)은 저항 전에: 옮긴 몫은 새 속성의 저항과 받는 피해 감소를 거친다.
+            let hitResOf = row => (row.ele === 'phys' ? physRes
+                : (row.ele === attackElement || pStats.cosmosBalanceMitigation ? elementalRes : getPlayerResistanceAfterEnemyModifiers(pStats, row.ele, enemy)));
+            let damageBreakdown = pStats.cosmosEqualDamageSplit
+                ? getCosmosEqualSplitDamageBreakdown(dmg + getEmpoweredRawDamage(empowered), pStats, enemy)
+                : mitigateTakenRows(convertTakenRowsRaw([{ ele: 'phys', amount: physicalPortion }, { ele: attackElement, amount: elementalPortion }], pStats), hitResOf);
+            damageBreakdown = damageBreakdown.concat(physTaken.rows, getEmpoweredElementRows(empowered, pStats, enemy, physRes));
             damageBreakdown = damageBreakdown.map(row => {
                 let less = 0;
                 if (row.ele === 'fire') less = pStats.fireTakenDamageReducePct || 0;
@@ -14261,29 +14309,6 @@ function performMonsterAttacks(pStats) {
                 if (less > 0) return { ele: row.ele, amount: Math.max(0, Math.floor((row.amount || 0) * (1 - Math.max(0, Math.min(0.9, less / 100))))) };
                 return row;
             }).filter(row => row.amount > 0);
-            if (hasKeystone('cr4')) {
-                let converted = [];
-                damageBreakdown.forEach(row => {
-                    if (!row || row.amount <= 0) return;
-                    if (row.ele === 'fire' || row.ele === 'cold' || row.ele === 'chaos') {
-                        let shift = Math.floor(row.amount * 0.3);
-                        converted.push({ ele: row.ele, amount: Math.max(0, row.amount - shift) });
-                        if (shift > 0) converted.push({ ele: 'light', amount: shift });
-                    } else converted.push(row);
-                });
-                damageBreakdown = converted.filter(row => row.amount > 0);
-            }
-            if (pStats.uniqueBleedBlockHelm) {
-                damageBreakdown = damageBreakdown.flatMap(row => {
-                    if (row.ele !== 'phys' || row.amount <= 0) return [row];
-                    let chaosPart = Math.max(0, Math.floor(row.amount * 0.15));
-                    let physPart = Math.max(0, row.amount - chaosPart);
-                    let out = [];
-                    if (physPart > 0) out.push({ ele: 'phys', amount: physPart });
-                    if (chaosPart > 0) out.push({ ele: 'chaos', amount: chaosPart });
-                    return out;
-                });
-            }
             let takenFlatReduce = (pStats && pStats.takenFlatReduce) || {};
             damageBreakdown = damageBreakdown.map(row => {
                 if (!row || row.amount <= 0) return row;
@@ -14562,18 +14587,8 @@ function performMonsterAttacks(pStats) {
                 game.crusaderLightningAegisUntil = getCombatTime() + 4000;
                 game.crusaderEsRegenCooldownUntil = getCombatTime() + 4000;
             }
-            if (remaining > 0 && hasKeystone('gd6')) {
-                let stacks = Math.max(0, Math.min(5, Math.floor(game.guardianEnduranceStacks || 0))) + 1;
-                game.guardianEnduranceExpiresAt = getCombatTime() + 4000;
-                if (stacks >= 5) {
-                    let reflect = Math.max(1, Math.floor((pStats.guardianReflectDamage || 1) + remaining));
-                    applyDamageToEnemyResource(enemy, reflect);
-                    addBattleFx('hit', { enemyId: enemy.id, color: getElementColor('phys'), damage: reflect, duration: 260, element: 'phys', syncToSwing: false });
-                    stacks = 2;
-                }
-                game.guardianEnduranceStacks = Math.max(0, Math.min(5, stacks));
-            }
-            if ((enemy.leechPct || 0) > 0 && remaining > 0) {
+            if (remaining > 0 && hasKeystone('gd6')) applyGuardianEnduranceReflect(enemy, remaining, pStats);
+            if ((enemy.leechPct || 0) > 0 && remaining > 0 && enemy.hp > 0) {
                 let leeched = Math.max(1, Math.floor(remaining * (enemy.leechPct || 0) / 100));
                 if ((enemy.energyShield || 0) < (enemy.maxEnergyShield || 0)) enemy.energyShield = Math.min(enemy.maxEnergyShield || 0, (enemy.energyShield || 0) + leeched);
                 else enemy.hp = Math.min(enemy.maxHp || enemy.hp || 1, (enemy.hp || 0) + leeched);

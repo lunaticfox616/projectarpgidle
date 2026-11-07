@@ -32,6 +32,8 @@ const messageFrames = (() => {
     let dot = null;
     let visible = new Set();
     let suppressClick = false;
+    // 휴대폰 전투 화면의 기록 판에서 고른 탭(log, chat). 저장하지 않는다: 새로 켜면 전투 로그다.
+    let phoneTab = 'log';
 
     function defaultFrameState() {
         // 새 모험은 탭 줄만 둔다. 펼친 전투 기록이 첫 방 오른쪽 출구를 덮지 않게 한다.
@@ -87,8 +89,10 @@ const messageFrames = (() => {
         return tabs.length > 1 ? state.active : tabs[0];
     }
 
+    /** On screen now: a PC frame's tab, or on phones the tab picked on the battle screen's log panel while the fight is shown. */
     function isFrameTabVisible(tab) {
-        return mounted && FRAMES.some(frame => shownTab(frame) === tab);
+        if (!mounted) return phoneTab === tab && !!document.getElementById('tab-battle')?.classList.contains('active');
+        return FRAMES.some(frame => shownTab(frame) === tab);
     }
 
     /** Where a frame may go: the floating windows' range, down over the bottom HUD to the screen edge (a layer above the HUD). */
@@ -405,12 +409,44 @@ const messageFrames = (() => {
         visible = new Set();
     }
 
+    /** Phone layout: the battle screen's log panel switches between the log and the chat (2026-11-07 사용자: 커뮤니티 탭을 지우고 전투
+     * 로그와 채팅을 판에서 바꾼다). The chat is the page's own #tab-social, moved into the panel while picked and home again otherwise. */
+    function placePhoneFeed() {
+        const feed = document.querySelector('#tab-battle .combat-feed'), social = document.getElementById('tab-social');
+        if (!feed || !social) return;
+        const chat = !mounted && phoneTab === 'chat';
+        rememberHome(social);
+        if (chat && social.parentElement !== feed) feed.appendChild(social);
+        if (!chat && social.parentElement === feed) {
+            const home = homes.get(social);
+            home.parent.insertBefore(social, home.next && home.next.parentNode === home.parent ? home.next : null);
+        }
+        social.classList.toggle('is-feed-chat', chat);
+        feed.classList.toggle('is-chat', chat);
+        feed.querySelectorAll('.combat-feed-title > .ui-context-dock-tab').forEach(button => {
+            const on = (button.id === 'btn-combat-chat-tab') === chat;
+            button.classList.toggle('active', on);
+            button.setAttribute('aria-selected', String(on));
+        });
+    }
+
+    /** Picks the phone log panel's tab. The folded bar of a low landscape phone (uiDisplay.battleHudAtSide) unfolds to show it. */
+    function showPhoneTab(tab) {
+        if (mounted || !TABS[tab]) return false;
+        phoneTab = tab;
+        placePhoneFeed();
+        if (uiDisplay.battleHudAtSide && document.body.classList.contains('combat-log-collapsed')) toggleCombatLogCollapse();
+        noticeFrameVisibility();
+        return true;
+    }
+
     /** Called by js/ui-window-manager.js whenever the layout is (re)applied: { desktop, workspaceRect }. */
     function syncFrames(environment) {
         const changed = !env || env.desktop !== environment?.desktop;
         env = environment || env;
         if (env && env.desktop) mountFrames();
         else unmountFrames();
+        placePhoneFeed();
         if (changed && typeof applyPanelLayoutSettings === 'function') applyPanelLayoutSettings();
     }
 
@@ -489,7 +525,7 @@ const messageFrames = (() => {
         return limit;
     }
 
-    return Object.freeze({ sync: syncFrames, showTab: showFrameTab, isTabVisible: isFrameTabVisible, isActive: () => mounted, reset: resetFrames, heroAt: fadeFramesOverHero,
-        coveredFrom: stageCoveredFrom });
+    return Object.freeze({ sync: syncFrames, showTab: showFrameTab, showPhoneTab, isTabVisible: isFrameTabVisible, isActive: () => mounted, reset: resetFrames,
+        heroAt: fadeFramesOverHero, coveredFrom: stageCoveredFrom });
 })();
 safeExposeGlobals({ messageFrames });

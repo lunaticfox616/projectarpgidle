@@ -181,7 +181,8 @@ const cloudSessionGuard = (() => {
         if (guard.armed && requestToken === guard.token && data && typeof data === 'object' && data.message === REFUSAL) supersedeCloudSession();
     }
 
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && guard.armed) pollCloudSession(); });
+    // 다시 보이면 바로 한 차례 돈다. 숨은 채 켜져 아직 표를 못 적은 화면도 여기서 적는다(전: 적은 화면만 돌아 다음 주기까지 1분 비었다).
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && guard.timer) pollCloudSession(); });
 
     return Object.freeze({ ready: untilSessionMayBoot, syncSession: syncCloudSessionGuard, requestHeaders, assertActive, noteServerRefusal, refusalCode: REFUSAL });
 })();

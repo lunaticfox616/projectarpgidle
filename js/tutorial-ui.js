@@ -518,9 +518,17 @@ function tutorialWaitsForReward() {
     return !!tutorialQueue[0] && !String(tutorialQueue[0].key).startsWith('story_') && actRewardPromptPending();
 }
 function tutorialQueueIsHeld() { return tutorialActionUi.holdsQueue() || Date.now() < tutorialActionUi.quietUntil; }
+let savedTutorialRevision = -1;
+/** 안내 기록(game.tutorialHistory)이 바뀌면 바로 저장한다. 시작 화면이 떠 있는 동안은 빈 게임이라 저장하지 않는다. */
+function saveTutorialHistoryChange() {
+    const revision = window.GameModules.state.tutorials.revision;
+    if (revision === savedTutorialRevision || (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen())) return;
+    savedTutorialRevision = revision;
+    queueImportantSave(0);
+}
 function showNextTutorial() {
     window.GameModules.state.tutorials.sync(game);
-    window.GameModules.tutorialHistoryUi.sync();
+    saveTutorialHistoryChange();
     tutorialActionUi.expireNotice(Date.now());
     refreshTutorialCardPlacement();
     if (activeTutorial || tutorialQueueIsHeld() || tutorialQueue.length === 0 || isTutorialPresentationBlocked()) return;

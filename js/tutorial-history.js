@@ -102,16 +102,5 @@ window.GameModules.state.tutorials = (() => {
         }
         revision++;
     }
-    /** Known first-action text is recoverable for older saves; do not invent missing historical timestamps. */
-    function rememberLegacy(state, notices) {
-        let added = false;
-        for (const notice of notices) {
-            if (!legacySeen(state, notice.key) || state.tutorialHistory.some(row => row.key === canonicalKey(notice.key))) continue;
-            const row = recordOf({ ...notice, status: 'read' });
-            if (row) { state.tutorialHistory.push(row); added = true; }
-        }
-        state.tutorialHistory = retain(state.tutorialHistory);
-        if (added) revision++;
-    }
-    return { normalize, sync, enqueue, transition, rememberLegacy, get revision() { return revision; }, reset() { owner = null; } };
+    return { normalize, sync, enqueue, transition, get revision() { return revision; }, reset() { owner = null; } };
 })();

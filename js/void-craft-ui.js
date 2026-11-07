@@ -143,7 +143,10 @@ const voidCraftUi = (() => {
         run = null;
         playerStatCache.invalidate();
         const text = resultText(outcome, nodeId, used);
-        if (used > 0) addLog(`🕳️ ${text}`, outcome === 'hit' ? 'loot-rare' : 'loot-magic');
+        if (used > 0) {
+            addLog(`🕳️ ${text}`, outcome === 'hit' ? 'loot-rare' : 'loot-magic');
+            queueImportantSave(200); // 쓴 새싹과 바뀐 옵션을 바로 저장한다(한 번 쓰기와 같다)
+        }
         updateStaticUI();
         if (!reopen) return;
         openVoidPassiveCraftOverlay(nodeId, text);

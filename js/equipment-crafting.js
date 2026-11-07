@@ -59,7 +59,7 @@ const equipmentCrafting = (() => {
         return getRerollSpaceReason(item, 1, ['transmute', 'alteration'].includes(action) ? magicLineCap() : EXPLICIT_AFFIX_LINE_CAP);
     }
 
-    /** Uniques, fused relics and hall pieces keep what they are: no reroll (fossils), no imprint. */
+    /** Uniques, fused relics and hall pieces keep what they are: no reroll (fossils), no fossil line (rift harvest), no imprint. */
     const KEEPS_KIND = '고유 장비, 융합 유물, 전당 소장품에는 쓸 수 없습니다.';
     const keepsKind = item => item.rarity === 'unique' || !!item.fusedRelic || !!item.hallReplica;
     function getFossilBlockReason(item, fossilKey) {
@@ -68,6 +68,14 @@ const equipmentCrafting = (() => {
         // The blank + amplifier are one fossil effect with a two-affix cost, not two fossil crafts.
         const marker = fossilKey === 'fossilRift' ? 'fossilRiftBlank' : '';
         return getBlockReason(item, 'fossil', true, marker) || getRerollSpaceReason(item, marker ? 2 : 1, EXPLICIT_AFFIX_LINE_CAP, marker);
+    }
+
+    /** 균열 수확(js/passives.js applyRiftSporeToSelectedItem): adds one fossil line, so the fossil rules hold, and the line needs a free
+     * place among the six (the chaos infusion counts). */
+    function getRiftHarvestBlockReason(item) {
+        if (keepsKind(item)) return KEEPS_KIND;
+        const reason = getBlockReason(item, 'fossil');
+        return reason || (getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP ? '옵션이 가득 차 있습니다.' : '');
     }
 
     function getFossilUseReason(item, fossil, season, currencies) {
@@ -427,7 +435,7 @@ const equipmentCrafting = (() => {
         return { ok: true };
     }
 
-    return Object.freeze({ basicActions, rerollActions, basicRule, basicFits, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getFossilUseReason,
+    return Object.freeze({ basicActions, rerollActions, basicRule, basicFits, applyBasic, sporePool, pickSporeMod, rollSporeLine, getSource, getLabel, filterSporeMods, resolveAction, getBlockReason, getSporeBlockReason, getFossilBlockReason, getRiftHarvestBlockReason, getFossilUseReason,
         affixKind, storedAffixKind, keptOnReroll, affixCounts, affixRoom, fitsRoom, pickReplacement, affixHeader,
         omenSpec, armOmen, omenFits, omenReason, armedSideReason, onOmenSide, filterOmenMods, weighOmenPool, omenFor, spendOmen, pickAddMod, pickPruneLine, craftBasic, pendingChoice, choiceWaitReason, fossilCraftReason, pickChoice,
         normalizeImprint, engraveReason, engrave, restoreReason, restoreImprint, buildLockReason });

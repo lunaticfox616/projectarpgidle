@@ -325,11 +325,30 @@ function createCloudSaveRequestBody(userId, sourceGame) {
 /** Content print of a cloud save without what moves while nothing happens: saveMeta (save times), the stall clock
  * (playerStall.lastAt) and talentCardRuntime (never uploaded). Equal prints mean an upload would change nothing. */
 function cloudSaveFingerprint(saveData) {
+    return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData)));
+}
+
+/** The same print with object keys sorted. The server keeps saves as jsonb, which reorders keys, so a body read back from the server is
+ * compared with this device's copy this way (js/ui.js pullAccountSave). Slower than cloudSaveFingerprint: once per account entry. */
+function cloudSaveContentPrint(saveData) {
+    return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData), sortSaveKeys));
+}
+
+function cloudSavePrintSource(saveData) {
     const stall = saveData.playerStall && typeof saveData.playerStall === 'object' ? { ...saveData.playerStall, lastAt: 0 } : saveData.playerStall;
-    const text = JSON.stringify({ ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall });
+    return { ...saveData, saveMeta: null, talentCardRuntime: undefined, playerStall: stall };
+}
+
+function printOfSaveText(text) {
     let hash = 0x811c9dc5;
     for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
     return `${text.length}:${hash >>> 0}`;
+}
+
+/** JSON.stringify replacer: every object is written with its keys in sorted order (the same order on both sides of a comparison). */
+function sortSaveKeys(key, value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+    return Object.fromEntries(Object.keys(value).sort().map(name => [name, value[name]]));
 }
 
 function sanitizeForSave(value, seen = new WeakSet()) {

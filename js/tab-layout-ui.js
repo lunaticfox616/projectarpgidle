@@ -11,18 +11,23 @@ const tabLayoutUi = {
         return game.settings.tabLayouts[tabLayoutUi.platform()];
     },
 
+    /** The phone dock's order before the player moves anything (2026-11-07 사용자): 전투, 캐릭터, 스킬트리, 장비, 그루터기 함, 지도, 루프,
+     * 기록, then the 전체 button. Tabs past what fits stay in the full menu. */
+    mobileDefaultOrder: Object.freeze(['btn-tab-battle', 'btn-tab-character', 'btn-tab-char', 'btn-tab-items', 'btn-tab-stump', 'btn-tab-map',
+        'btn-tab-season', 'btn-tab-journal', 'btn-tab-trade']),
+
     buttons() {
         return Array.from(document.querySelectorAll('.tab-header .tab-btn'))
             .filter(button => button.style.display !== 'none' && !button.hidden
                 && button.dataset.mergedTabMember !== '1'
-                && !['btn-tab-battle', 'btn-tab-settings', 'btn-map-complete-action-picker'].includes(button.id)
-                && ((tabLayoutUi.selectedPlatform || tabLayoutUi.platform()) !== 'desktop' || button.id !== 'btn-tab-social'));
+                && !['btn-tab-battle', 'btn-tab-settings', 'btn-map-complete-action-picker'].includes(button.id));
     },
 
     orderedButtons(layout) {
         const available = tabLayoutUi.buttons();
         const byId = new Map(available.map(button => [button.id, button]));
-        return [...layout.tabOrder, ...tabLayoutUi.defaultOrder, ...available.map(button => button.id)]
+        const defaults = layout === game.settings.tabLayouts.mobile ? tabLayoutUi.mobileDefaultOrder : [];
+        return [...layout.tabOrder, ...defaults, ...tabLayoutUi.defaultOrder, ...available.map(button => button.id)]
             .filter((id, index, ids) => byId.has(id) && ids.indexOf(id) === index)
             .map(id => byId.get(id));
     },
@@ -44,20 +49,26 @@ const tabLayoutUi = {
             || layout.tabPlacement[id] === 'bottom';
     },
 
-    // The phone dock: battle, as many shortcuts as fit the screen's width (a cell of about 52px, 3 to 7) and the full menu
+    // The phone dock in its order: battle, as many shortcuts as fit the screen's width (a cell of about 52px, 3 to 7) and the full menu
     // button; every other tab stays in the full menu (2026-11-03 사용자: 하단 탭이 너무 적다, 390px 휴대폰은 셋에서 다섯).
+    // The order is the player's (long press and drag, js/ui.js commitMobileDockOrder) before mobileDefaultOrder; battle may move too.
     mobilePrimaryIds(layout = game.settings.tabLayouts.mobile) {
         const preferred = layout.tabOrder.filter(id => layout.tabPlacement[id] === 'top');
         // 스킬룬은 장비 단추로 열린다(2026-10-13): 그 자리에는 스킬트리가 선다
-        const defaults = ['btn-tab-items', 'btn-tab-char', 'btn-tab-map', 'btn-tab-stump', 'btn-tab-season', 'btn-tab-character', 'btn-tab-journal', 'btn-tab-trade']
-            .filter(id => layout.tabPlacement[id] !== 'bottom');
-        const candidates = [...new Set([...preferred, ...defaults])].filter(id => {
-            const button = document.getElementById(id);
-            return id.startsWith('btn-tab-') && button && button.style.display !== 'none' && !button.hidden
-                && button.dataset.mergedTabMember !== '1' && !['btn-tab-battle', 'btn-tab-settings'].includes(id);
-        });
+        const defaults = tabLayoutUi.mobileDefaultOrder.filter(id => id === 'btn-tab-battle' || layout.tabPlacement[id] !== 'bottom');
+        const ordered = [...new Set([...preferred, ...defaults])].filter(id => id === 'btn-tab-battle' || tabLayoutUi.isDockable(id));
         const fit = Math.max(3, Math.min(7, Math.floor(document.documentElement.clientWidth / 52) - 2));
-        return ['btn-tab-battle', ...candidates.slice(0, fit)];
+        const shortcuts = ordered.filter(id => id !== 'btn-tab-battle').slice(0, fit);
+        const battleAt = ordered.slice(0, ordered.indexOf('btn-tab-battle')).filter(id => shortcuts.includes(id)).length;
+        shortcuts.splice(battleAt, 0, 'btn-tab-battle');
+        return shortcuts;
+    },
+
+    /** A tab button that may sit on the phone dock: shown, not a screen inside a merged window, not battle or settings. */
+    isDockable(id) {
+        const button = document.getElementById(id);
+        return id.startsWith('btn-tab-') && !!button && button.style.display !== 'none' && !button.hidden
+            && button.dataset.mergedTabMember !== '1' && !['btn-tab-battle', 'btn-tab-settings'].includes(id);
     },
 
     placementOptions(id, target, layout) {

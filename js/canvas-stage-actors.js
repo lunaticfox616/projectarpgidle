@@ -427,9 +427,10 @@ const stageView = Object.freeze({
         return width >= STAGE_VIEW.minColumns.narrowBelow ? Math.min(share.wide, 1 - STAGE_ROOMS.hudClear / height) : share.narrow;
     },
     /** 세로 화면의 전투 탭: 전장, HUD, 전투 기록이 위아래로 쌓인 배치(STAGE_ROOMS.stacked). css/themes/rift-stage.css와 같은 조건이다:
-     * 휴대폰 배치(.mobile-battle-tab, 폭 1080px까지)의 세로(orientation: portrait, 높이 ≥ 너비). 프레임마다 묻으므로 미디어 질의를 만들지 않는다. */
+     * 휴대폰 배치(.mobile-battle-tab, 폭 1080px까지)의 세로(orientation: portrait, 높이 ≥ 너비)이거나 키가 601px 이상인 창(2026-11-07, 미디어
+     * 질의처럼 화면 배율 uiDisplay.factor를 곱한다). 프레임마다 묻으므로 미디어 질의를 만들지 않는다. */
     stacked: () => typeof document === 'object' && document.body.dataset.uiSkin === 'rift' && document.body.classList.contains('mobile-battle-tab')
-        && window.innerHeight >= window.innerWidth,
+        && (window.innerHeight >= window.innerWidth || window.innerHeight >= 601 * uiDisplay.factor),
     /** 휴대폰과 태블릿 세로: 전장이 세로로 길고 폭이 휴대폰 배치(STAGE_ROOMS.phoneWidth)까지라 하단 HUD가 전장 아래를 덮는다. */
     phonePortrait(width, height) {
         return height > width && width <= STAGE_ROOMS.phoneWidth;

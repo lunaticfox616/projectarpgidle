@@ -961,11 +961,9 @@ function setLastSeenChatId(id) {
     if (cur != null && n <= cur) return;
     try { localStorage.setItem(SOCIAL_LAST_SEEN_CHAT_KEY, String(n)); } catch (e) { /* 무시 */ }
 }
-/** Chat on screen: the chat tab of a PC message frame (js/message-frames-ui.js), or the phone chat tab. */
+/** Chat on screen: the chat tab of a PC message frame or of the phone battle screen's log panel (js/message-frames-ui.js). */
 function isSocialTabActive() {
-    if (typeof messageFrames === 'object' && messageFrames.isActive()) return messageFrames.isTabVisible('chat');
-    let tabEl = document.getElementById('tab-social');
-    return !!(tabEl && tabEl.classList.contains('active'));
+    return typeof messageFrames === 'object' && messageFrames.isTabVisible('chat');
 }
 function isSocialChatNotificationEnabled() {
     return !(typeof game !== 'undefined' && game && game.settings && game.settings.socialChatNotifications === false);
