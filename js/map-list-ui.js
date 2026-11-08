@@ -105,8 +105,9 @@ const mapListUi = (() => {
     }
 
     // ── 강대한 적 ──────────────────────────────────────────────────
-    // 보스마다 그림이 없어(전투에서는 일반 몬스터 그림을 쓴다) 피해 속성의 도트 문장을 그 색으로 그린다.
-    const BOSS_EMBLEMS = Object.freeze({ fire: 'flame', cold: 'drop', light: 'up', chaos: 'eye', phys: 'sword' });
+    // 보스마다 그림이 없어(전투에서는 일반 몬스터 그림을 쓴다) 이름 옆에 피해 속성만 작은 도트 문장과 이름으로 적는다(2026-11-08 사용자: 큰 네모 그림 대신
+    // 속성만, 번개는 번개 모양).
+    const BOSS_EMBLEMS = Object.freeze({ fire: 'flame', cold: 'drop', light: 'bolt', chaos: 'eye', phys: 'sword' });
     function bossTrack(zone) {
         const tracks = { underworld: '지하계 종착', ocean: '심해 종착', sky: '창공 종착', convergence: '아틀라스 종착' };
         return _t(tracks[zone.pinnacleTrack] || (zone.cosmosCapstone ? '우주계 종착' : ''));
@@ -134,27 +135,27 @@ const mapListUi = (() => {
         const entry = explorationAtlasUi.bossEntry(zone), done = Array.isArray(game.clearedRootBosses) && game.clearedRootBosses.includes(zone.id);
         const ele = BOSS_EMBLEMS[zone.ele] ? zone.ele : 'phys', track = bossTrack(zone), reward = explorationAtlasUi.bossRewardLabel(zone);
         const cls = ['map-boss-card', `is-${ele}`, entry.ready ? 'is-ready' : 'is-locked', game.currentZoneId === zone.id ? 'current' : ''].filter(Boolean).join(' ');
-        return `<div class="${cls}" data-boss-id="${zone.id}"><span class="map-boss-emblem">${renderPixelIcon(BOSS_EMBLEMS[ele], 'map-boss-glyph')}</span>`
-            + `<div class="map-boss-body"><div class="map-boss-title"><strong>${esc(_t(zone.name))}</strong><em${done ? ' class="is-done"' : ''}>${_t(done ? '격파 완료' : '미격파')}</em></div>`
+        const element = `<span class="map-boss-element">${renderPixelIcon(BOSS_EMBLEMS[ele], 'map-boss-glyph')}${getMapEstimateElementName(ele)}</span>`;
+        return `<div class="${cls}" data-boss-id="${zone.id}">`
+            + `<div class="map-boss-body"><div class="map-boss-title">${element}<strong>${esc(_t(zone.name))}</strong><em${done ? ' class="is-done"' : ''}>${_t(done ? '격파 완료' : '미격파')}</em></div>`
             + `${track ? `<span class="map-boss-track">${track}</span>` : ''}${buildMapPowerEstimateHtml(zone, { hideReward })}</div>`
             + `${reward ? `<p class="map-boss-row is-reward"><span>${_t('보상')}</span><b>${esc(reward)}</b></p>` : ''}${bossKeyHtml(zone, entry)}`
             + `<div class="map-boss-foot"><span>${esc(bossStatus(zone, entry, done))}</span>${bossActionHtml(zone, entry)}</div></div>`;
     }
+    /** 목록(2026-11-08 사용자): 선행 조건을 아직 못 채운 보스는 이름을 감추려 아예 빼고(격파한 적이 있으면 둔다), 위가 약하고 아래로 갈수록 세다.
+     * 묶음은 진행 순(뿌리 보스, 버려진 날붙이, 경계의 수호자, 최종 관문)이고 묶음 안은 tier 순이다. 입장 가능 여부는 카드의 상태와 단추가 말한다. */
     function bossGroupsHtml(zones) {
-        if (!zones.length) return `<p class="encounter-empty">${_t('아직 발견한 보스가 없습니다.')}</p>`;
-        const hideReward = zones.every(zone => levelProgressionUi.rewardHint(zone));
+        const cleared = Array.isArray(game.clearedRootBosses) ? game.clearedRootBosses : [];
+        const met = zones.filter(zone => cleared.includes(zone.id) || explorationAtlasUi.bossEntry(zone).gate.met).sort((a, b) => (a.tier || 0) - (b.tier || 0));
+        if (!met.length) return `<p class="encounter-empty">${_t('아직 발견한 보스가 없습니다.')}</p>`;
+        const hideReward = met.every(zone => levelProgressionUi.rewardHint(zone));
         const cards = list => list.map(zone => ({ html: bossCardHtml(zone, hideReward) }));
-        const ready = zones.filter(zone => explorationAtlasUi.bossEntry(zone).ready)
-            .sort((a, b) => Number(game.clearedRootBosses.includes(a.id)) - Number(game.clearedRootBosses.includes(b.id)));
-        const pending = zones.filter(zone => !ready.includes(zone));
         const groups = [['rootBosses', '뿌리 보스', zone => !zone.rivalBlade && !zone.cosmosCapstone && !zone.milestonePinnacle],
             ['rivalBosses', '버려진 날붙이', zone => zone.rivalBlade], ['pinnacleBosses', '경계의 수호자', zone => (zone.cosmosCapstone || zone.milestonePinnacle) && !zone.pinnacleCapstone],
-            ['finalGate', '최종 관문', zone => zone.pinnacleCapstone]].map(([key, title, test]) => [key, title, pending.filter(test)]).filter(([, , list]) => list.length);
-        const done = zones.filter(zone => game.clearedRootBosses.includes(zone.id)).length;
-        const head = `<header class="map-list-head"><strong>${_t('강대한 적')}</strong>${hideReward ? `<em>${_t('모든 보스 보상 감소')}</em>` : ''}<b>${_t('격파')} ${done}/${zones.length}</b>${bar(done, zones.length)}</header>`;
-        return head + (ready.length ? buildMapZoneGroupHtml('availableBosses', _t('입장 가능'), cards(ready)) : '')
-            + (pending.length ? `<h3 class="encounter-pending-title">${_t('준비가 필요한 보스')}</h3>` : '')
-            + groups.map(([key, title, list], index) => buildMapZoneGroupHtml(key, _t(title), cards(list), ready.length > 0 || index > 0)).join('');
+            ['finalGate', '최종 관문', zone => zone.pinnacleCapstone]].map(([key, title, test]) => [key, title, met.filter(test)]).filter(([, , list]) => list.length);
+        const done = met.filter(zone => cleared.includes(zone.id)).length;
+        const head = `<header class="map-list-head"><strong>${_t('강대한 적')}</strong>${hideReward ? `<em>${_t('모든 보스 보상 감소')}</em>` : ''}<b>${_t('격파')} ${done}/${met.length}</b>${bar(done, met.length)}</header>`;
+        return head + groups.map(([key, title, list], index) => buildMapZoneGroupHtml(key, _t(title), cards(list), index > 0)).join('');
     }
     /** The 강대한 적 list; keeps focus on the same boss button across a redraw. */
     function renderBosses(zones) {

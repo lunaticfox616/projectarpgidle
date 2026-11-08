@@ -98,8 +98,8 @@ function upgradeActiveGemWithCondensedSkyPower() {
 
 function upgradeSkyEngraveCap() {
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
-    if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) {
-        addLog(_t('창공 각인 확장은 루프4부터 가능합니다.'), 'attack-monster');
+    if (!contentProgression.isUnlocked('engraving')) {
+        addLog(_t('각인 칸 확장은 ‘해금’의 룬 각인을 열어야 쓸 수 있습니다.'), 'attack-monster');
         return false;
     }
     let active = getGemEnhanceTargetSkill();
@@ -242,11 +242,11 @@ function getSkillRuneBonusLevels(name, record) {
 /** The extra levels of a rune that is not a skill rune. */
 const NO_RUNE_BONUS_LEVELS = Object.freeze({ permanentSkyBonus: 0, materialBonus: 0, engraveLevel: 0 });
 
-/** Why an engraving cannot go on now, or '': the woodsman fight's build lock, the engraving unlock (loop 4), sky essence, and the
- * awakening unlock for awakened engravings. */
+/** Why an engraving cannot go on now, or '': the woodsman fight's build lock, the engraving unlock (룬 각인; its loop lives in the unlock
+ * catalog, not here), sky essence, and the awakening unlock for awakened engravings. */
 function getSkyEngraveApplyRefusal(enhanceId) {
     if (game.woodsmanBuildLock) return '☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.';
-    if (!contentProgression.isUnlocked('engraving') || (game.season || 1) < 4) return '창공의 정수는 루프4부터 사용할 수 있습니다.';
+    if (!contentProgression.isUnlocked('engraving')) return _t('각인은 ‘해금’의 룬 각인을 열어야 쓸 수 있습니다.');
     if ((game.currencies.skyEssence || 0) <= 0) return '창공의 정수가 부족합니다.';
     return canUseSkyEnhancement(enhanceId) ? '' : '각성 각인은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.';
 }

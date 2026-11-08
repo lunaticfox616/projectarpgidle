@@ -276,6 +276,18 @@ assert(run("contentProgression.purchase('engraving').ok"));
 assert.deepEqual(json("getSkyEnhancementForSkill('이중 베기')"),['sky_fury']);
 assert(run("applySkyGemEnhancementToActive('sky_swiftness',0)"));
 assert(run('upgradeSkyEngraveCap()'));
+// 2026-11-06 moved 룬 각인 from loop 4 to 6 (nine more rows moved too): a save that bought it before keeps it on every load (장부 14).
+const earlyEngraving=unlocked=>`game=mergeDefaults({});game.season=5;game.contentProgression={version:${unlocked},highestLoop:5,carry:0,paceCarry:0,graftFloor:0,
+    unlocked:['support','gemForge','engraving'],paidCosts:{support:2,gemForge:2,engraving:2},inherited:[],grandfathered:[],automatic:[]};
+    game.skyGemEnhancements={'이중 베기':['sky_fury']};game=mergeDefaults(JSON.parse(JSON.stringify(game)));`;
+run(earlyEngraving(13));
+assert(run("contentProgression.isUnlocked('engraving')"),'a purchase made before its row moved to a later loop survives the load');
+assert.equal(run('contentProgression.balance()'),2,'and still counts as spent');
+assert.deepEqual(json("getSkyEnhancementForSkill('이중 베기')"),['sky_fury']);
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert(run("contentProgression.isUnlocked('engraving')"),'the second load keeps it too');
+run(earlyEngraving('CONTENT_UNLOCK_RECORD_VERSION'));
+assert(!run("contentProgression.isUnlocked('engraving')"),'a record written under the moved loops cannot hold a purchase below them');
 run(`game=mergeDefaults({});game.season=4;
     game.contentProgression={version:6,highestLoop:4,unlocked:['craft','flask'],paidCosts:{craft:1,flask:1},
         inherited:['support','research','gemForge'],grandfathered:[],automatic:[]};

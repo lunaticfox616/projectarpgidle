@@ -77,13 +77,15 @@ body.message-frames-on .combat-feed { display: none; }
 .message-frame-tab:hover { color: var(--px-gold-bright, #e0c283); }
 .message-frame-actions button:hover { background-color: rgba(224, 194, 131, .12); }
 
-/* ⚙(채팅 설정)는 메뉴의 설정과 같은 도트 톱니(menu-icons.png 19번)를 13도트 그대로 그린다. */
-body[data-ui-skin] .message-frame-actions [data-message-action="settings"] { font-size: 0; }
+/* ⚙(채팅 설정)는 메뉴의 설정과 같은 도트 톱니(menu-icons.png 19번)를 13도트 그대로 그린다. 글자 ⚙(font-size 0)도 단추 안의 한 항목이라
+   격자(grid)에서는 둘째 줄이 되어 톱니가 위쪽 반에만 가운데 섰다(2026-11-08 사용자: 톱니가 가운데가 아니다). 한 줄 flex로 둘을 나란히 두면
+   톱니가 단추 세로 가운데에 온다. 위 여백 1px: 36px 단추에 13도트는 반 도트에 걸치므로 14로 맞춰 도트가 또렷하다. */
+body[data-ui-skin] .message-frame-actions [data-message-action="settings"] { display: flex; align-items: center; justify-content: center; font-size: 0; }
 body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::before {
   content: '';
   width: 13px;
   height: 13px;
-  margin-top: 2px;
+  margin-top: 1px;
   background: var(--px-menu-icons) calc(19 * -13px) 0 / calc(var(--px-icon-count) * 13px) 13px no-repeat;
   image-rendering: pixelated;
 }
@@ -175,10 +177,13 @@ body[data-ui-skin] .message-frame-actions [data-message-action="settings"]::befo
 .message-frame .social-chat-inputbar button { min-height: 30px; }
 .message-frame .social-send-btn { min-width: 44px; padding: 0 10px; }
 /* 채팅은 탭 내용(.tab-content)이라 도트 스킨의 탭 글자 규칙(:not(#tab-battle)로 id 하나 무게)이 단추 글자를 12px로 되돌린다. id 둘로 덮는다. */
+/* ＋는 한 줄 flex로 세로 가운데: 글자 크기 0인 단추 안에서 글줄 높이도 0이라 ＋의 글상자가 위로 3px 떠 있었다(2026-11-08 사용자). 글줄 높이 1이면
+   28px 안쪽에 12px 상자가 8px씩 떨어져 도트 글꼴이 또렷하다. 가로는 Galmuri11의 ＋가 12px 너비 안에서 왼쪽 10도트에 찍혀 1px 왼쪽으로 치우치므로
+   안쪽 여백을 10/8로 나눠 그림이 단추 가운데(32px의 11~21)에 온다(같은 날 사용자). */
 .message-frame .social-attach-btn,
-#right-pane .message-frame-body > #tab-social .social-attach-btn { min-width: 0; padding: 0 9px; font-size: 0; }
+#right-pane .message-frame-body > #tab-social .social-attach-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 0; padding: 0 8px 0 10px; font-size: 0; }
 .message-frame .social-attach-btn > span,
-#right-pane .message-frame-body > #tab-social .social-attach-btn > span { font-size: var(--font-size-ui); }
+#right-pane .message-frame-body > #tab-social .social-attach-btn > span { font-size: var(--font-size-ui); line-height: 1; }
 .message-frame .social-chat-counter { display: none; }
 
 /* 휴대폰 전투 화면 기록 판의 채팅 설정(⚙): 메뉴의 설정과 같은 도트 톱니(26px, menu-icons.png 19번). 채팅을 고른 동안만 보인다(css/themes/rift-stage.css). */

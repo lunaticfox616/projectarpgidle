@@ -833,7 +833,7 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
     .cl-affix .tier-badge) { font-family: var(--font-pixel); font-size: 12px; }
 /* 지도 콘텐츠 화면(원정 소개, 군락지 액막이, 아틀라스 목적지, 시련, 보스 목록, 심해, 낚시)과 보상 창: 긴 글과 수치는 갈무리14 15px.
    아래 층의 15 ~ 18px이 맨 위의 글꼴 되돌림에 지워져 갈무리11 15 ~ 18px로 번졌다(2026-10-21). 그 안의 짧은 이름표와 제목은 갈무리11. */
-:root body[data-ui-skin] :is(.map-expedition-intro, .colony-ward-panel, #ui-exploration-atlas .atlas-route-target, #tab-map :is(.encounter-card p, .encounter-reward,
+:root body[data-ui-skin] :is(.map-expedition-intro, .colony-ward-panel, #tab-map :is(.encounter-card p, .encounter-reward,
     #ui-season-boss-list .map-zone-group-header, .map-boss-title strong), .dive-oxygen > div:first-child > b, #ui-ocean-panel .dive-upgrades > header strong,
     #map-tab-fishing .fishing-strategy > header strong, #fishing-workshop :is(.fishing-workshop-intro, .fishing-effect p, .fishing-lines li, .fishing-preview p, .fishing-empty p, .fishing-result p),
     .beehive-choice-heading strong, .hive-choice strong, #reward-overlay :is(.tutorial-body, .reward-choice strong)) {
@@ -844,7 +844,7 @@ body[data-ui-skin] :where(*), body[data-ui-skin] :where(*)::before, body[data-ui
   font-family: var(--font-pixel); font-size: var(--font-size-ui); }
 :root body[data-ui-skin] .map-expedition-heading > strong { font-family: var(--font-pixel-title); font-size: var(--font-size-heading); }
 /* 좁은 칸의 표식(아틀라스 액트 칸 번호, 낚시 전략 카드의 효과 칩)은 갈무리9 10px: 12px이면 칩이 카드 안에서 두 줄로 넘쳤다. */
-:root body[data-ui-skin] :is(#ui-exploration-atlas .atlas-act-steps > span, .fishing-chips > i) { font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); }
+:root body[data-ui-skin] .fishing-chips > i { font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); }
 /* 가방 칸의 유일한 표식은 12px 높이의 갈무리9 10px 칩이다. */
 :root body[data-ui-skin] .equipment-grid-item-badges span { font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); }
 /* 스킬트리 노드 툴팁의 효과 상자, 장비 창 장착 칸의 그림 자리: 둥근 모서리 · 대각선 그라데이션 · 남색 원형 그라데이션 대신

@@ -10,7 +10,6 @@
 #tab-map #map-ready-destinations details>div{position:absolute;top:calc(100% + 4px);right:0;z-index:5;display:flex;flex-direction:column;gap:4px;min-width:180px;padding:6px;border:1px solid #a9976d70;border-radius:4px;background:#0e130f;box-shadow:0 8px 18px #000a}
 #tab-map #map-ready-destinations details button{font-size:12px;padding:8px 10px}
 #tab-map .encounter-empty{padding:12px 14px;background:#172019;color:#c7cabb;border:1px solid #a9976d40;border-radius:4px;font-size:12px}
-#tab-map .encounter-pending-title{margin:18px 0 8px;font-size:12px;color:#b7b7a7;font-weight:500}
 #tab-map #ui-season-boss-list .map-zone-group-count::after{content:var(--copy-expand);margin-left:8px}
 #tab-map #ui-season-boss-list .map-zone-group:not(.collapsed) .map-zone-group-count::after{content:var(--copy-collapse)}
 #tab-map #ui-season-boss-list{display:block;container-type:inline-size}

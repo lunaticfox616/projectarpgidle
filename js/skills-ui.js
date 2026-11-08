@@ -279,11 +279,9 @@
                     { title: _t('각성 룬 변환'), action: 'awakenActiveGemCandidate()', done: !!activeGem?.awakened, ready: awakenReady && (game.currencies.awakenedEcho || 0) >= 3, details: _t('{value}기본 Lv.20, 각성 잔향 {awakenedEcho}/3{replace}', { value: gemAwakening ? '' : _t('‘룬 각성’ 해금 필요, '), awakenedEcho: game.currencies.awakenedEcho || 0, replace: getGemAwakenedPerkNote(active).replace(/^ (.*)\.$/, ', $1') }), gain: 2 }
                 ];
                 writeHtmlIfChanged(document.getElementById('ui-gem-upgrade-actions'), isGem ? upgrades.map(upgrade => renderGemUpgradeButton(upgrade, currentTotalGemLevel)).join('') : '<div class="gem-process-empty">강화할 공격 룬을 먼저 장착하세요.<br><button type="button" onclick="switchSkillSubtab(\'skill-tab-equip\')">공격 룬 장착하기</button></div>');
-                if ((game.season || 1) >= 4) {
-                    writeHtmlIfChanged(document.getElementById('ui-gem-enhance-options'), `<div class="gem-engrave-slot-guide"><strong>${_t('전체 각인')}</strong><span>${_t('누르면 빈 슬롯에 적용되고 다시 누르면 해제됩니다.')}</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, isGem)).join(''));
-                } else {
-                    writeHtmlIfChanged(document.getElementById('ui-gem-enhance-options'), '<div class="gem-process-empty">창공 각인은 루프 4부터 해금됩니다.</div>');
-                }
+                // The whole 창공 각인 section hides until 룬 각인 is unlocked (data/content-progression.js sections, contentUnlockUi.sync), so the
+                // list needs no loop gate of its own (it read loop 4 after the unlock moved to loop 6).
+                writeHtmlIfChanged(document.getElementById('ui-gem-enhance-options'), `<div class="gem-engrave-slot-guide"><strong>${_t('전체 각인')}</strong><span>${_t('누르면 빈 슬롯에 적용되고 다시 누르면 해제됩니다.')}</span></div>` + Object.values(GEM_SKY_ENHANCEMENTS).map(enh => renderSkyEnhancementOption(enh, activeSlots, isGem)).join(''));
             }
         }
 

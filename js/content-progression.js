@@ -151,7 +151,7 @@ const contentProgression = (() => {
     const AWARDS_BEFORE_NPC_SPLIT = Object.freeze({ early: Object.freeze([4, 4, 3, 3]), perLoop: 2 });
     // The awards before the 강화 series joined the catalog (2026-10-25, ledger version 10): a record from before then is read with them.
     const AWARDS_BEFORE_GROWTH = Object.freeze({ early: Object.freeze([2, 2, 3, 3, 2, 1, 1, 1, 2]), perLoop: 2 });
-    const NPC_SPLIT_VERSION = 9, SERIES_VERSION = CONTENT_UNLOCK_SERIES_VERSION, LEDGER_VERSION = CONTENT_UNLOCK_TREE_VERSION;
+    const NPC_SPLIT_VERSION = 9, SERIES_VERSION = CONTENT_UNLOCK_SERIES_VERSION, LEDGER_VERSION = CONTENT_UNLOCK_TREE_VERSION, LOOP_MOVE_VERSION = CONTENT_UNLOCK_LOOP_MOVE_VERSION;
     const carryGap = loop => Math.max(0, earnedBy(loop, AWARDS_BEFORE_NPC_SPLIT) - earnedBy(loop, AWARDS_BEFORE_GROWTH));
     /** Points beyond the version-9 awards: a ledger from before version 9 is owed the whole gap at the loop it reached; a later one
      * keeps the carry fixed when it was first loaded (never more than that gap). */
@@ -297,6 +297,16 @@ const contentProgression = (() => {
         }
     }
 
+    /** 장부 14: a row whose loop moved later (2026-11-06, 룬 각인 4→6 and nine more) keeps the purchases made at its earlier loop. A record from
+     * before the move holding such a purchase below today's loop bought it when purchase() allowed it, so it joins the grandfathered rows and
+     * every later load keeps it; restorePurchases measures the others against today's loop and dropped these (룬 각인 vanished at loops 4, 5). */
+    function keepEarlyPurchases(purchased, next, record) {
+        if (Number(record.version) >= LOOP_MOVE_VERSION) return;
+        for (const id of purchased) {
+            if (next.highestLoop < definitions.get(id).minLoop && !next.grandfathered.includes(id)) next.grandfathered.push(id);
+        }
+    }
+
     /** A purchase from before the tree (version 11) stays whatever its new prerequisites are. Later ones need theirs among the saved rows,
      * in any order (a save moved over from before the tree keeps its old order). An automatic prerequisite cannot be read here (it depends on
      * the rest of the save), and a purchase needed it when it was made. */
@@ -369,7 +379,9 @@ const contentProgression = (() => {
         const next = restoredLedger(record, owner, raw === undefined && existingSave);
         inheritFormerTactics(record, next, owner, existingSave);
         inheritFormerFreeAccess(record, next, owner);
-        restorePurchases(savedPurchases(record), next, record);
+        const purchases = savedPurchases(record);
+        keepEarlyPurchases(purchases, next, record);
+        restorePurchases(purchases, next, record);
         if (Number(record.version) < 5 && [...next.unlocked, ...next.inherited].some(id => kind(definitions.get(id)) !== 'auto')
             && ![...next.unlocked, ...next.inherited].includes('craft')) next.inherited.push('craft');
         next.grandfathered = next.grandfathered.filter(id => next.unlocked.includes(id));
