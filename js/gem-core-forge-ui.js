@@ -20,8 +20,12 @@ const gemCoreForgeUi = (() => {
         return `<div class="gem-forge-steps" aria-label="${_t('{level}강 / 최대 {maxLevel}강', { level, maxLevel: FORGE.maxLevel })}">${pips}</div>`;
     }
 
+    /** 그릴 값: 굴린 시도는 결과를 열기 전까지 굴리기 직전 모습을 보인다. 담금질을 멈추고 굴리기까지(stopTiming, 0.32초)는 busy인데
+     * 결과가 아직 없어 지금 값을 그린다(2026-11-08 오류 기록: 그 틈에 룬 탭이 다시 그려지면 "reading 'spares'"로 멈췄다). */
+    const shownState = (name, options) => (busy && name === target && result) || gemCoreForge.inspect(name, options);
+
     function trackCard(name) {
-        const state = busy && name === target ? result : gemCoreForge.inspect(name);
+        const state = shownState(name);
         const spares = state.spares ? _t(', 여분 {spares}개', { spares: state.spares }) : '';
         return `<button type="button" class="gem-forge-track forge-tier-${gemCoreForge.tierOf(state.level)}" data-forge-open>
             <span class="gem-forge-track-head"><strong>${_t('룬 강화')}</strong><b>+${state.level}</b></span>
@@ -117,7 +121,7 @@ const gemCoreForgeUi = (() => {
     function renderOverlay() {
         // The attempt is committed and saved immediately, but its pre-roll snapshot
         // stays visible until the charge finishes so neither outcome is revealed early.
-        const state = busy ? result : gemCoreForge.inspect(target, { cores });
+        const state = shownState(target, { cores });
         const status = timing ? 'timing' : busy ? 'charging' : result?.status || '';
         dialog.className = `gem-forge-dialog forge-tier-${gemCoreForge.tierOf(state.level)} ${status} ${state.done ? 'mastered' : ''}`;
         dialog.style.setProperty('--forge-heat', String(state.level / FORGE.maxLevel));

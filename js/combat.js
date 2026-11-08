@@ -13906,6 +13906,7 @@ function advanceEnemyGridApproach(enemy, target, slowPct) {
         target = game.gridPlayer;
     }
     target = target || game.gridPlayer;
+    if (enemyAmbush.tryBlink(enemy, target)) return; // 기습 정예는 걸어가지 않고 옆 칸에 나타난다(js/enemy-ambush.js)
     let slow = Math.max(0, Math.min(0.9, slowPct || 0));
     let interval = getGridUnitStepSec(enemy) / (1 - slow);
     advanceGridUnitMovement(enemy, target, 0.1, interval);

@@ -715,7 +715,7 @@ function renderPaperdoll(targetId) {
             let sourceTone = (sourceMeta ? sourceMeta.toneClass : '') + thirdRingOffClass(slot);
             let preview = `if(window.matchMedia('(hover: hover)').matches) showItemTooltip(event, '${slot}', true)`;
             html += `<div class="slot-box equipment-slot slot-${slot} rarity-${item.rarity || 'normal'} ${selected ? 'selected' : ''} ${sourceTone}${itemInfluencesUi.influenceClasses(item)}" style="${itemInfluencesUi.influenceStyle(item)}" data-slot="${slot}" data-item-tooltip-anchor="1" onclick="${click}" ondblclick="${doubleClick}" onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
-                <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false">${equipmentSocketsUi.badgesHtml(item, `slot:${slot}`)}${equipmentWindowUi.tierHtml(item)}</div>
+                <div class="equipment-slot-head"><span>${displaySlot}</span></div><div class="equipment-slot-visual"><img src="${getEquipmentGridVisualAsset(item)}" alt="" aria-hidden="true" draggable="false">${equipmentSocketsUi.badgesHtml(item, `slot:${slot}`)}${equipmentWindowUi.tierHtml(item)}${equipmentWindowUi.baseStepHtml(item)}</div>
                 <div class="item-title equipment-slot-name ${item.rarity}">${hi(paperdollItemLabel(item))}</div>
             </div>`;
         } else {
@@ -760,7 +760,7 @@ function renderEquipmentGridItem(item, idx, triageResult, placement, filterState
         onclick="equipmentInventoryInteraction.handleItemClick(event,this.dataset.equipmentGridKey,${idx})"
         ondblclick="equipmentInventoryInteraction.handleItemDoubleClick(event,this.dataset.equipmentGridKey,${item.id})"
         onmouseenter="${preview}" onmousemove="${preview}" onmouseleave="hideItemTooltip(event)">
-        <img class="equipment-grid-item-art" src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentWindowUi.tierHtml(item)}${equipmentWindowUi.newDotHtml(item)}${equipmentSocketsUi.badgesHtml(item, `item:${item.id}`)}
+        <img class="equipment-grid-item-art" src="${asset}" alt="" aria-hidden="true" draggable="false">${equipmentWindowUi.tierHtml(item)}${equipmentWindowUi.baseStepHtml(item)}${equipmentWindowUi.newDotHtml(item)}${equipmentSocketsUi.badgesHtml(item, `item:${item.id}`)}
         <span class="equipment-grid-item-badges">${badges}</span>
     </button>`;
 }

@@ -44,7 +44,7 @@
     }
 
     async function fetchFile(path) {
-        const response = await fetch(path + '?v=20261106-selected');
+        const response = await fetch(path + '?v=20261108-flask'); // 묶음(bank.json)이나 소리 파일이 바뀌면 올린다
         if (!response.ok) throw Error(`Audio fetch failed: ${response.status} ${path}`);
         return response;
     }

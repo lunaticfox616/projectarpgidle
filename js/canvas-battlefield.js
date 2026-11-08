@@ -2437,7 +2437,7 @@ function drawBattleEnemyActor(ctx, entry, state) {
     if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
     const crowdScale = getEnemyCrowdScale(enemy, state.enemyCount);
     ctx.save();
-    ctx.globalAlpha = easedAge;
+    ctx.globalAlpha = easedAge * enemyAmbushView.alphaOf(enemy, state.now); // 기습 정예는 순간이동하는 동안 숨는다(js/canvas-enemy-ambush.js)
     drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale, spawnScale });
     if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
     ctx.restore();
@@ -3105,6 +3105,8 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             worldTreeSkillFx.feedback.object(ctx, fx, t, gridProj);
         } else if (fx.type === 'playerHit') {
             return;
+        } else if (fx.type === 'ambushBlink') {
+            enemyAmbushView.draw(ctx, fx, now, gridProj);
         } else if (fx.type === 'enemySpawn') {
             drawEnemySpawnFx(ctx, fx, t, enemyPosMap[fx.enemyId]);
         } else if (fx.type === 'enemyDeath') {

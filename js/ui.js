@@ -5012,6 +5012,13 @@ function applyHighContrast(enabled) {
     document.body.classList.toggle('high-contrast', enabled === true);
 }
 
+/** 불러온 저장의 화면 설정(외형, 고대비). 부팅 때(js/main.js)만 입혀서, 로그인 뒤 서버 저장을 받으면 설정 창은 켜짐인데
+ * 화면은 앞 저장 그대로였다(2026-11-08 사용자: 고대비 모드가 켜짐으로만 남고 풀려 있음). */
+function applyLoadedSaveLook() {
+    applyUiSkin(game.settings.uiSkin);
+    applyHighContrast(game.settings.highContrast);
+}
+
 function getHeroSelectionDef(id) {
     return PLAYER_CLASS_DEFS[id] || HERO_SELECTION_DEFS[id] || PLAYER_CLASS_DEFS.archer;
 }
@@ -5247,8 +5254,8 @@ safeExposeGlobals({ togglePastLoopMilestones });
 function getMapCompleteActionOptions() {
     return [
         { value: 'repeatZone', label: _t('반복'), detail: _t('현재 지역 또는 층을 다시 진행합니다.') },
-        { value: 'nextZone', label: _t('다음 지역'), detail: _t('일반 자동 진행 규칙에 따라 다음 지역으로 이동합니다.') },
-        { value: 'nextLoopBestPlusOne', label: _t('최고 기록 다음 층'), detail: _t('이번 루프의 최고 심화/미궁 기록 다음 층으로 이동합니다.') },
+        { value: 'nextZone', label: _t('다음 지역'), detail: _t('지역은 열린 가장 먼 지역으로, 층은 방금 깬 층의 다음 층으로 갑니다.') },
+        { value: 'nextLoopBestPlusOne', label: _t('이번 루프 최고층 다음'), detail: _t('혼돈 심화, 미궁, 혼돈계에서 이번 루프에 깬 가장 높은 층의 다음 층으로 바로 갑니다.') },
         { value: 'stop', label: _t('중단'), detail: _t('전투를 멈추고 현재 위치에서 대기합니다.') }
     ];
 }
@@ -6159,15 +6166,12 @@ function itemExplicitAffixHeaderHtml(item, count) {
     return `<div class="tooltip-line tooltip-section tooltip-section-explicit"${style}><span class="px-center">${_t(header.text)}</span></div>${note}`;
 }
 
-/** The base line's badges: the upgrade step ([2/4]) and 수평 for a horizontal base (a base with a family, 2026-10-09). */
+/** The base line's badge: the upgrade step ([2/4]). The 수평 word for a horizontal base is gone (2026-11-08 사용자: 무엇인지 모르겠다, 문구 삭제). */
 function getItemBaseBadgesHtml(item) {
     let info = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     let step = info && info.total > 1
         ? ` <span style="color:#7fd1a8;" data-tip="${_t('업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)')}">[${info.step}/${info.total}]</span>` : '';
-    let base = BASE_ITEM_DB.find(row => row.id === item.baseId);
-    let family = base && base.family
-        ? ' <span style="color:#e3c37a;" data-tip="수평 베이스: 같은 등급 베이스보다 세지 않은 대신 기본 옵션이 다르고, 같은 계열 안에서만 승급합니다.">수평</span>' : '';
-    return step + family;
+    return step;
 }
 
 function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
@@ -12321,6 +12325,7 @@ function markCurrentSaveCloudOwner() {
 function refreshRuntimeForLoadedSave() {
     discardQueuedNotices();
     recoverRuntimeState();
+    applyLoadedSaveLook();
     resetCombatRuntimesForLoadedSave();
     resetHeroSelectionForSave();
     refreshPassiveVisibility();
