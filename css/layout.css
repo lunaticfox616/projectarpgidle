@@ -90,6 +90,12 @@
             0%, 100% { color: #ff8aa5; text-shadow: 0 0 10px rgba(255,60,110,1), 0 0 20px rgba(255,120,150,0.65); }
             50% { color: #ffc4d2; text-shadow: 0 0 14px rgba(255,110,150,1), 0 0 26px rgba(255,150,180,0.85); }
         }
+        /* 베이스 단계 [단계/전체](js/items.js getBaseStepClassName, 2026-11-08 사용자: 가장 높은 베이스에 가까울수록 색이 바뀐다): 아래쪽은 예전 베이스
+           초록, 가운데는 금빛, 위쪽은 백금, 맨 위 베이스는 밝은 백금에 빛. 등급 색의 T10, T11~T14, T15와 같은 색이라 '위일수록 귀하다'가 같은 말로 읽힌다. */
+        .base-step-low { color: #7fd1a8; }
+        .base-step-mid { color: #ffd166; }
+        .base-step-high { color: #c8d3e2; text-shadow: 0 0 5px rgba(160,200,255,0.5); }
+        .base-step-top { color: #ffffff; text-shadow: 0 0 8px rgba(200,225,255,1), 0 0 16px rgba(140,180,255,0.65); }
         .tutorial-overlay { display: none; position: fixed; inset: 0; z-index: 12000; background: rgba(4, 7, 12, 0.84); }
         .tutorial-overlay.active { display: flex; align-items: center; justify-content: center; }
         dialog#death-overlay { margin: 0; padding: 0; border: 0; max-width: none; max-height: none; width: 100%; height: 100%; }
