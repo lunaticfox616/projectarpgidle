@@ -42,6 +42,9 @@
 .unlocks-scroll{position:absolute;inset:0;overflow:auto;scrollbar-width:none;cursor:grab}
 .unlocks-scroll::-webkit-scrollbar{display:none}
 .unlocks-scroll.is-panning{cursor:grabbing;user-select:none}
+/* 스크롤바 숨김이 css/ui-luxe.css의 :root body * {scrollbar-width:thin}에 져서 가로 스크롤바(13px)가 판 높이를 먹고 세로로 넘쳤다
+   (2026-11-08 사용자: 해금 탭에 세로 스크롤). 패널 아이디로 이긴다. */
+#content-unlock-panel .unlocks-scroll{scrollbar-width:none}#content-unlock-panel .unlocks-scroll::-webkit-scrollbar{display:none}
 .unlocks-canvas{position:relative;min-height:100%}
 .unlock-corner{position:absolute;left:0;top:0;z-index:4;box-sizing:border-box;width:38px;height:24px;font-size:12px;line-height:23px;text-align:center;color:var(--color-text-tertiary);background:#14100b;border-bottom:1px solid var(--skin-line);box-shadow:1px 0 0 var(--skin-line);pointer-events:none}
 .unlock-fade{position:absolute;top:24px;bottom:0;z-index:3;width:36px;opacity:0;pointer-events:none;transition:opacity .15s}

@@ -7,6 +7,7 @@
  *   npm run probe -- --save <game.json|none> [--size 1280x720] [--script <file.js>] [--out <path prefix>]
  *
  * --save    a save as JSON (a saved game object, e.g. tests/fixtures/world-tree-atlas/*.json), or none for a brand new game.
+ * --query   a query string for the game page, e.g. dev=1 for the local test panel (js/dev-test-panel-ui.js).
  * --script  the body of an async function run in the page once the game is up; what it returns is printed as JSON. It may call
  *           `await window.__shot(name)` for a screenshot at <out>-NN-<name>.png (out defaults to probe-output/shot).
  * The save goes in before the page's own scripts run (addInitScript, once per tab), the title screen's 이어하기 is pressed, and the
@@ -91,7 +92,8 @@ async function main() {
         await page.screenshot({ path: `${out}-${String(++shots).padStart(2, '0')}-${name}.png` });
         return true;
     });
-    await page.goto(ORIGIN + '/');
+    const query = option('query', '');
+    await page.goto(ORIGIN + '/' + (query ? '?' + query : ''));
     await page.waitForSelector('#btn-startup-guest:not([disabled])', { timeout: 90000 });
     if (entry) {
         await page.click('#btn-startup-guest');

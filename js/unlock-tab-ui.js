@@ -1,7 +1,9 @@
 /** 해금 탭(2026-11-02 사용자: 선행 조건 2~3개에서 갈래로 뻗어, 다음 해금만 고민하게. 한눈에 보이고 가로 스크롤로. 분류로 나누지 말 것).
  * 세 뿌리(장비 제련, 보조스킬룬, 루프 패시브)에서 뻗는 한 나무: 가로축은 루프, 줄은 unlockBoard가 채운다. 위에 해금 포인트, 해금 가능, 판 전체 지도, 아래에 고른 해금의 설명.
  * 규칙과 장부는 contentProgression, 사고 받는 일은 contentUnlockUi의 것이다. 칸에 NPC 그림은 넣지 않는다. */
-const UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 30, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
+// minPitch: 줄 간격은 판 높이에 맞춰 24px까지 줄어든다(2026-11-08 사용자: 해금 탭에 세로 스크롤이 생겨 보기 불편했다. 30px에 묶여 있어
+// 12줄이면 판 자리가 384px보다 낮은 창에서 넘쳤다). 24px에서도 칸(20px)에 그림과 이름 한 줄이 들어간다.
+const UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 24, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
 // side: 가지가 먼저 뻗는 쪽(위 -1, 아래 1), at: 뿌리가 놓이는 높이(줄 수에 대한 몫). 심화 혼돈은 어느 뿌리에도 묶지 않지만 빛깔은 전투 쪽을 쓴다.
 const UNLOCK_FAMILIES = Object.freeze([
     { id: 'gear', root: 'craft', side: -1, at: 0.22 },

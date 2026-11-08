@@ -271,8 +271,10 @@ const equipmentWindowUi = (() => {
         if (slot) return _t('{slot} 칸에 장착 중', { slot: slotName(slot) });
         return slots.length ? _t('{slots} 칸과 비교', { slots: slots.map(slotName).join(', ') }) : '';
     }
-    const deltaTablesHtml = slots => slots.map(target => `<div class="eqw-deltas" data-eqw-slot="${escapeHTML(target)}"><div class="eqw-dl-head">바꾸면${slots.length > 1 ? `, ${escapeHTML(slotName(target))}` : ''}</div>
-        <div class="eqw-dl-body"><p class="eqw-none">${_t('계산 중')}</p></div></div>`).join('');
+    /** The 바꾸면 card. A two-slot item (rings, gloves, a second weapon) shows every side in the same card, a column each (2026-11-08
+     * 사용자: 바꾸면 왼쪽과 바꾸면 오른쪽을 한 줄, 한 카드에). data-eqw-slot holds the slots joined by commas. */
+    const deltaTablesHtml = slots => slots.length ? `<div class="eqw-deltas${slots.length > 1 ? ' is-multi' : ''}" data-eqw-slot="${escapeHTML(slots.join(','))}" style="--eqw-sides:${slots.length}"><div class="eqw-dl-head">바꾸면</div>
+        <div class="eqw-dl-body"><p class="eqw-none">${_t('계산 중')}</p></div></div>` : '';
     /** The panel's markup (js/canvas-passive-tree.js renderEquipmentInventoryInspector); the 바꾸면 tables fill in afterwards (fillDeltas). */
     function inspectorHtml(item, slot, actionsHtml, flags) {
         const slots = slot ? [] : compareSlots(item);
@@ -315,13 +317,49 @@ const equipmentWindowUi = (() => {
             game.cosmosTwinKeystones = twins;
         }
     }
-    function deltaRow(key, a, b, rest) {
-        const meta = COMPARE_STAT_META[key], d = b - a, sign = d > 0 ? '+' : '-';
-        // DPS는 앞뒤 값이 이미 길어서 증감은 비율만 적는다(좁은 칸에서 "-473,651 (-24.7%)"가 네 줄로 꺾였다).
-        const pct = key === 'dps' && a > 0 ? `${sign}${Math.abs(100 * d / a).toFixed(1)}%` : '';
+    /** The change of a stat from a by d. DPS는 앞뒤 값이 이미 길어서 증감은 비율만 적는다(좁은 칸에서 "-473,651 (-24.7%)"가 네 줄로 꺾였다). */
+    function deltaText(key, a, d) {
+        const sign = d > 0 ? '+' : '-';
+        return key === 'dps' && a > 0 ? `${sign}${Math.abs(100 * d / a).toFixed(1)}%` : `${sign}${pretty(COMPARE_STAT_META[key].format(Math.abs(d)))}`;
+    }
+    const deltaLabel = key => {
         const tint = COLOR[DELTA_TINT[key]];
-        return `<div class="eqw-dl ${d > 0 ? 'up' : 'down'}${rest ? ' is-rest' : ''}"><span${tint ? ` style="color:${tint}"` : ''}>${_t(meta.label)}</span><b>${pretty(meta.format(a))}</b><i>→</i>`
-            + `<b>${pretty(meta.format(b))}</b><em>${pct || `${sign}${pretty(meta.format(Math.abs(d)))}`}</em></div>`;
+        return `<span${tint ? ` style="color:${tint}"` : ''}>${_t(COMPARE_STAT_META[key].label)}</span>`;
+    };
+    function deltaRow(key, a, b, rest) {
+        const meta = COMPARE_STAT_META[key], d = b - a;
+        return `<div class="eqw-dl ${d > 0 ? 'up' : 'down'}${rest ? ' is-rest' : ''}">${deltaLabel(key)}<b>${pretty(meta.format(a))}</b><i>→</i>`
+            + `<b>${pretty(meta.format(b))}</b><em>${deltaText(key, a, d)}</em></div>`;
+    }
+    /** One stat across the sides of a two-slot item: the value now, then each side's value after the swap with its change, - where that
+     * side leaves the stat alone. */
+    function multiDeltaRow(key, now, sides, rest) {
+        const meta = COMPARE_STAT_META[key], a = Number(now[key]) || 0;
+        const cells = sides.map(side => {
+            const d = (Number(side.after[key]) || 0) - a;
+            if (Math.abs(d) < 0.001) return '<span class="eqw-dl-side is-same">-</span>';
+            return `<span class="eqw-dl-side ${d > 0 ? 'up' : 'down'}"><b>${pretty(meta.format(a + d))}</b><em>${deltaText(key, a, d)}</em></span>`;
+        }).join('');
+        return `<div class="eqw-dl eqw-dl-multi${rest ? ' is-rest' : ''}">${deltaLabel(key)}<b>${pretty(meta.format(a))}</b>${cells}</div>`;
+    }
+    /** A side's ward and unique effect changes, under the side's name. */
+    function sideNotes(item, slot) {
+        const notes = wardRows(item, slot) + uniqueRows(item, game.equipment[slot]);
+        return notes ? `<div class="eqw-dl-side-name">${escapeHTML(slotName(slot))}</div>${notes}` : '';
+    }
+    /** The card of a two-slot item: a head row (지금, then each side's name) and a row per stat any side changes. */
+    function multiDeltaHtml(item, slots, now) {
+        const sides = slots.map(slot => ({ slot, after: swapStats(item, slot, now)[1] }));
+        const keys = Object.keys(COMPARE_STAT_META).filter(key => sides.some(side => Math.abs((Number(side.after[key]) || 0) - (Number(now[key]) || 0)) >= 0.001));
+        const rest = keys.filter(key => !DELTA_TINT[key]), fold = rest.length < keys.length ? rest : [];
+        const head = `<div class="eqw-dl eqw-dl-multi eqw-dl-cols"><span></span><b>${_t('지금')}</b>${sides.map(side => `<b>${escapeHTML(slotName(side.slot))}</b>`).join('')}</div>`;
+        const rows = keys.map(key => multiDeltaRow(key, now, sides, fold.includes(key))).join('');
+        return ((rows ? head + rows + restButton(fold.length) : '') + sides.map(side => sideNotes(item, side.slot)).join('')) || '<p class="eqw-none">능력치 변화 없음</p>';
+    }
+    /** The card's body for its slots (data-eqw-slot, commas between the sides of a two-slot item). */
+    function slotsDeltaHtml(item, slotsKey, now) {
+        const slots = slotsKey.split(',');
+        return slots.length > 1 ? multiDeltaHtml(item, slots, now) : deltaHtml(item, slots[0], now);
     }
     function uniqueRows(item, worn) {
         if ((worn && worn.uniqueEffect) === item.uniqueEffect) return '';
@@ -372,7 +410,7 @@ const equipmentWindowUi = (() => {
         const fill = table => {
             if (!table.isConnected) return;
             const key = `${sig}|${table.dataset.eqwSlot}`;
-            if (!deltaCache.has(key)) deltaCache.set(key, deltaHtml(item, table.dataset.eqwSlot, now || (now = getUiPlayerStats({}, false))));
+            if (!deltaCache.has(key)) deltaCache.set(key, slotsDeltaHtml(item, table.dataset.eqwSlot, now || (now = getUiPlayerStats({}, false))));
             const body = table.querySelector('.eqw-dl-body');
             const focused = body.contains(document.activeElement);
             body.innerHTML = deltaCache.get(key);

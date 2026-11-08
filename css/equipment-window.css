@@ -286,6 +286,16 @@
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-note { font-size: var(--font-size-ui); }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-note.is-gain { color: #d8b5ff; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-note.is-loss { color: #c98f9f; }
+/* 두 칸 장비의 바꾸면 카드 하나(js/equipment-window-ui.js multiDeltaHtml): 능력치, 지금, 그리고 칸마다 바꾼 값과 증감 */
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl.eqw-dl-multi { grid-template-columns: minmax(44px, 96px) auto repeat(var(--eqw-sides, 2), minmax(0, 1fr)); gap: 10px; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi > :is(b, .eqw-dl-side) { text-align: right; white-space: nowrap; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-multi > .eqw-dl-side { display: flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 6px; overflow: visible; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-side.up :is(b, em) { color: #8fe08f; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-side.down :is(b, em) { color: #ff8a80; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-side em { font-style: normal; font-weight: 700; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-cols { padding-bottom: 3px; border-bottom: 1px solid #3a2d1a; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-cols > b { color: var(--eqw-muted); }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-side-name { margin-top: 4px; color: var(--eqw-muted); font-size: var(--font-size-ui); }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-none { margin: 4px 0; color: var(--eqw-muted); font-size: 12px; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-dl-more { display: none; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-inspector .equipment-grid-inspector-actions { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, round(down, calc((100% - 18px) / 5), 1px)); grid-auto-flow: row;
@@ -388,6 +398,8 @@
     background: linear-gradient(180deg, #221a12, #120e0a); box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 12px 28px rgba(0, 0, 0, .8); }
   /* 지금 낀 장비와 나란히 볼 때는 두 칸 폭. 가방을 가리지 않게 가방 옆에 뜬다(js/equipment-inventory-grid-ui.js getBesidePosition). */
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-inspector:popover-open[data-eqw-panes="2"] { width: 600px; }
+  /* 두 칸 장비는 고른 장비와 지금 낀 왼쪽, 오른쪽 장비를 한 줄 세 칸으로(2026-11-08 사용자). 화면이 좁으면 화면 폭까지만 */
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-inspector:popover-open[data-eqw-panes="3"] { width: min(860px, calc(100vw - 24px)); }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-inspector:popover-open .equipment-grid-inspector-close { position: absolute; top: 4px; right: 6px; min-height: 0; padding: 0 6px; }
 }
 

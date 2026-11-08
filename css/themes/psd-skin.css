@@ -160,6 +160,8 @@
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #skill-tab-equip #ui-skill-board { padding: 0; border: 18px solid transparent; border-image: var(--psd-panel-frame); background: none; box-shadow: none; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-linked-row {
   display: grid; grid-template-columns: 1fr 1fr; grid-template-areas: "main main" "mob sum"; gap: 6px; justify-items: center; width: auto;
+  /* 이동 칸과 소환 칸은 윗변을 맞춘다: 소환 칸에만 이름 위의 소환 한도(0/1) 한 줄이 더 있다 */
+  align-items: start;
 }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-main { grid-area: main; width: 100%; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-board-mobility { grid-area: mob; width: auto; }

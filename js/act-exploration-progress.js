@@ -140,6 +140,11 @@ const actExplorationProgress = (() => {
         return runMode(run)!=='manual' && walkToLoot(run,stats);
     }
     /** Floor pickups on every settled step; a cleared map only walks to its floor items. Returns whether exploration goes on. */
+    const GREED_PICKUP_RANGE=999;
+    function pickupRange(stats) {
+        if(window.GameModules.combat.supports.blessingGreed(game))return GREED_PICKUP_RANGE;
+        return stats.moveSpeed>=COMBAT_GRID_CONFIG.explorationWidePickupMoveSpeed?1:0;
+    }
     function explore(run,stats) {
         pickUp(run,stats);
         if(run.status==='cleared' && collectingLoot(run) && runMode(run)!=='manual')walkToLoot(run,stats);
@@ -153,9 +158,10 @@ const actExplorationProgress = (() => {
         return !!target && beginExplorationGridStep(target,interval,undefined,diagonal);
     }
     /** Floor items on the hero's cell are picked up, and from the eight around it at COMBAT_GRID_CONFIG.explorationWidePickupMoveSpeed
-     * (2026-11-04 사용자); an offline replay walks no detours and picks everything up at once. */
+     * (2026-11-04 사용자); an offline replay walks no detours and picks everything up at once. 탐욕의 광기(2026-11-08 전달본 V3.13)가 걸려 있으면
+     * 맵에 내려앉은 아이템을 걷지 않고 모두 줍는다(GREED_PICKUP_RANGE칸). */
     function pickUp(run,stats) {
-        const range=stats.moveSpeed>=COMBAT_GRID_CONFIG.explorationWidePickupMoveSpeed?1:0;
+        const range=pickupRange(stats);
         const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer,getCombatTime(),range);
         if(rows.length)collectExplorationFloorLoot(rows);
     }

@@ -117,6 +117,20 @@ function writeHtmlIfChanged(node, html) {
     node.innerHTML = node.__lastHtml = html;
     return true;
 }
+/** Input types that take typed text. input.type reads 'text' for a missing or unknown type. */
+const TEXT_ENTRY_INPUT_TYPES = Object.freeze(new Set(['text', 'search', 'email', 'password', 'tel', 'url', 'number', 'date', 'datetime-local', 'month', 'time', 'week']));
+/**
+ * Whether a key press goes into a field that takes typed text (a text-like input, a textarea, editable content): the game's hotkeys and
+ * Esc leave such a key alone. A select box, checkbox, slider or button keeps focus after a click but takes no typing, so the keys still
+ * work there (2026-11-08 사용자: 그루터기 함과 설정에서 셀렉박스를 고르거나 옵션을 바꾼 뒤 단축키로 창이 닫히지 않았다).
+ * @param {EventTarget|null} target the key event's target
+ */
+function isTextEntryTarget(target) {
+    if (!(target instanceof Element)) return false;
+    if (target.closest('textarea,[contenteditable="true"]')) return true;
+    const input = target.closest('input');
+    return !!input && TEXT_ENTRY_INPUT_TYPES.has(input.type);
+}
 /** Bag pages: 1 plus the 가방 쪽 steps the unlock ledger holds (2026-10-25 사용자: 저절로 늘지 않고 해금 탭의 강화로). A state without
  * a ledger, or with one saved before the steps existed (version below CONTENT_UNLOCK_SERIES_VERSION), counts by loop as before:
  * loading fits the bag before it restores the ledger (js/save-migrations.js), and the restore turns those pages into owned steps. */

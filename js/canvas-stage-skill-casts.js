@@ -20,7 +20,8 @@ const stageSkillCasts = (() => {
     const LOBBED = new Set(['flask', 'emptyFlask']);
     /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
     const PHASE_KEYS = Object.freeze(['flaskPhase', 'lancePhase', 'mixturePhase', 'supercooledPhase', 'emptyFlaskPhase', 'holyMistPhase', 'assassinationPhase',
-        'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase', 'rockFlaskPhase', 'homingPhase', 'petrifyPhase', 'timeSlashPhase']);
+        'riftPhase', 'smokePhase', 'harpoonPhase', 'timePhase', 'judgmentPhase', 'flickerPhase', 'rockFlaskPhase', 'homingPhase', 'petrifyPhase', 'timeSlashPhase',
+        'frozenOrbPhase', 'orbitPhase', 'singularityPhase', 'issenPhase', 'voidPhase', 'stormFlaskPhase', 'cauldronPhase', 'bellPhase', 'chandelierPhase', 'gavelPhase']);
     /** 위습이 쏜 구슬이 맞을 때의 타격 클립(속성별). */
     const WISP_HIT = Object.freeze({ fire: 'h_fire@fire', cold: 'h_ice@cold', light: 'h_lit@light', chaos: 'h_chaos@chaos', phys: 'h_xs@phys' });
     /** 제 때가 된 사건을 처음 보는가(때가 되기 전에 알려진 사건은 아직 틀지 않는다). */
@@ -357,7 +358,18 @@ const stageSkillCasts = (() => {
         70: { jump: castFlickerJump, cut: castFlickerCut, discharge: castFlickerDischarge },
         78: { fly: stageNewRunes.homingFly },
         79: { flight: castBody, shatter: stageNewRunes.petrifyBurst },
-        80: { field: stageNewRunes.timeField, blades: stageNewRunes.timeBlades, bounce: stageNewRunes.timeBounce }
+        80: { field: stageNewRunes.timeField, blades: stageNewRunes.timeBlades, bounce: stageNewRunes.timeBounce },
+        // 2026-11-08 전달본 V3.13의 새 룬(js/canvas-stage-runes-v313-a.js, -b.js)
+        82: { orb: stageRunesV313A.frozenOrb },
+        83: { orbit: stageRunesV313A.orbit, zap: stageRunesV313A.zap },
+        84: { rift: stageRunesV313A.rift, collapse: stageRunesV313A.collapse },
+        85: { line: stageRunesV313A.issenLine, cut: stageRunesV313A.issenCut },
+        86: { pull: stageRunesV313A.voidPull, spirit: stageRunesV313A.voidSpirit, weak: stageRunesV313A.voidWeak },
+        87: { flight: stageRunesV313B.stormFlight, charge: stageRunesV313B.stormCharge, bolt: stageRunesV313B.stormBolt },
+        88: { cauldron: stageRunesV313B.cauldron, splash: stageRunesV313B.cauldronSplash },
+        89: { bell: stageRunesV313B.bell },
+        90: { chandelier: stageRunesV313B.chandelier, burn: stageRunesV313B.chandelierBurn },
+        91: { gavel: stageRunesV313B.gavel, verdict: stageRunesV313B.verdict }
     });
 
     // ---------------------------------------------------------------- movement gems

@@ -2,7 +2,7 @@
 // 가운데 주 공격 룬, 둘레에 그 룬의 각인 5칸, 아래 이동 · 소환 칸, 따로 보조스킬룬 칸 줄(장착 한도만큼 + 다음 칸 미리보기).
 // 칸을 누르면 룬 칸 창(js/gem-slot-dialog-ui.js)이 바로 뜬다: 지금 낀 룬의 등급, 해제와 그 칸에 바꿔 낄 룬(2026-10-11 사용자 요청).
 // 옆 목록(js/skills-ui.js)도 그 칸에 낄 수 있는 룬으로 바뀐다. 낀 룬과 각인에 마우스를 올리면 수치가 든 툴팁이 뜬다.
-// 찬 · 빈 각인 칸은 각인 고르기 창을 바로 열고, 다음 · 잠긴 칸은 강화 · 각인 탭으로 간다. 표시 · 칸 고르기만 하며 장착 규칙은 기존 함수(changeSkill · toggleSupport)가 갖는다.
+// 찬 · 빈 각인 칸은 각인 고르기 창을 바로 열고, 다음 칸은 묻고 창공의 정수로 연다(2026-11-08 사용자), 잠긴 칸은 강화 · 각인 탭으로 간다. 표시 · 칸 고르기만 하며 장착 규칙은 기존 함수(changeSkill · toggleSupport)가 갖는다.
 (function () {
     'use strict';
 
@@ -12,7 +12,7 @@
     const PICKER_TITLES = Object.freeze({ active: '주 공격 칸에 낄 룬', mobility: '이동 칸에 낄 룬', summon: '소환 칸에 낄 룬', support: '보조스킬룬 칸에 낄 룬' });
     const RING_RADIUS = 96;
     /** What a click on an engraving slot without an engraving does (the hover tooltip's second line). */
-    const ENGRAVE_HINTS = Object.freeze({ open: '눌러서 넣을 각인을 고릅니다.', next: '강화와 각인에서 이 칸을 엽니다.', lock: '앞 칸부터 차례로 엽니다.' });
+    const ENGRAVE_HINTS = Object.freeze({ open: '눌러서 넣을 각인을 고릅니다.', next: '눌러서 이 칸을 엽니다.', lock: '앞 칸부터 차례로 엽니다.' });
     const GROUP_TONES = Object.freeze({ basic: '#7aa4d6', crafted: '#d9a650', awakened: '#b48ae6' });
     // data-info-tooltip-anchor: 마우스가 이 칸 위에 있는 동안 툴팁을 지우지 않게 한다(js/ui.js의 mousemove 감시).
     const hoverHint = (type, name) => `data-info-tooltip-anchor="1" onpointerenter="skillGemBoardUi.hint(event,'${type}','${name}')" onpointerleave="hideInfoTooltip()"`;
@@ -39,6 +39,18 @@
         });
     }
 
+    /** What opening the slot at index takes (js/skills.js upgradeSkyEngraveCap): loop 4, and index + 1 창공의 정수 (the next slot costs the
+     * open count plus one, so the slot at index costs index + 1 when its turn comes). */
+    function engraveUnlockNeed(index) {
+        return { need: index + 1, have: Math.floor(Number(game.currencies.skyEssence) || 0), loopOk: (game.season || 1) >= 4 };
+    }
+
+    /** Why the next slot cannot open now, or ''. */
+    function engraveUnlockBlock(need) {
+        if (!need.loopOk) return _t('루프 4부터 열 수 있습니다.');
+        return need.have < need.need ? _t('창공의 정수가 부족합니다. (필요: {need})', { need: need.need }) : '';
+    }
+
     function engraveLabel(slot) {
         if (slot.state === 'full') return _t(slot.def.name);
         return _t(slot.state === 'open' ? '빈 각인' : (slot.state === 'next' ? '다음 칸' : '잠김'));
@@ -58,16 +70,21 @@
         return `<div class="skill-board-ring" aria-hidden="false">${marks}</div>`;
     }
 
-    function renderSatellite(kind, label, name, extra) {
-        if (!name) return `<button type="button" class="skill-board-satellite is-empty" data-board-pick="${kind}" aria-label="${_t('{label} 칸 비어 있음, 룬 고르기', { label })}"><i>+</i><small>${label}</small><b>${_t('비어 있음')}</b></button>`;
-        return `<button type="button" class="skill-board-satellite active element-${getGemCardMeta(SKILL_DB[name]).className}" data-board-pick="${kind}" data-board-gem="${escapeHTML(name)}" ${hoverHint('active', name)} aria-label="${label}: ${escapeHTML(_t(name))}">${gemArt(name, 'skill-board-satellite-art')}<small>${label}${extra || ''}</small><b>${escapeHTML(_t(name))}</b></button>`;
+    /** cap: the summon limit ("0/1") written small above the first summon slot's label. Only the empty slot names it on hover: a worn
+     * rune's slot shows the rune's own tooltip. */
+    function renderSatellite(kind, label, name, extra, cap = '') {
+        if (!name) return `<button type="button" class="skill-board-satellite is-empty" data-board-pick="${kind}" aria-label="${_t('{label} 칸 비어 있음, 룬 고르기', { label })}"><i>+</i>${cap ? `<em class="skill-board-cap" data-tip="${_t('소환 한도')}">${cap}</em>` : ''}<small>${label}</small><b>${_t('비어 있음')}</b></button>`;
+        return `<button type="button" class="skill-board-satellite active element-${getGemCardMeta(SKILL_DB[name]).className}" data-board-pick="${kind}" data-board-gem="${escapeHTML(name)}" ${hoverHint('active', name)} aria-label="${label}: ${escapeHTML(_t(name))}">${gemArt(name, 'skill-board-satellite-art')}${cap ? `<em class="skill-board-cap">${cap}</em>` : ''}<small>${label}${extra || ''}</small><b>${escapeHTML(_t(name))}</b></button>`;
     }
 
+    /** The summon slots. The limit sits small above the first slot's label instead of a line under the column (2026-11-08 사용자:
+     * 그 줄 때문에 소환 칸이 이동 칸보다 높이 떠 있었다). */
     function renderSummons(stats) {
         const worn = game.equippedSummonSkills || [];
-        const parts = worn.map(name => renderSatellite('summon', _t('소환'), name, ` ×${getSummonSkillCount(name)}`));
-        if (getEquippedSummonCount() < getSummonEquipCapFromStats(stats)) parts.push(renderSatellite('summon', _t('소환'), ''));
-        return `<div class="skill-board-summons">${parts.join('')}<small>${_t('소환 한도')} ${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)}</small></div>`;
+        const cap = `${getEquippedSummonCount()}/${getSummonEquipCapFromStats(stats)}`;
+        const parts = worn.map((name, index) => renderSatellite('summon', _t('소환'), name, ` ×${getSummonSkillCount(name)}`, index ? '' : cap));
+        if (getEquippedSummonCount() < getSummonEquipCapFromStats(stats)) parts.push(renderSatellite('summon', _t('소환'), '', '', parts.length ? '' : cap));
+        return `<div class="skill-board-summons">${parts.join('')}</div>`;
     }
 
     function renderBoard(stats) {
@@ -159,7 +176,19 @@
             openGemEngraveSlotOverlay(index);
             return;
         }
+        if (slot.state === 'next') { openNextEngrave(main, index); return; }
         openEquippedGemManagement(main);
+    }
+
+    /** The next slot opens here too (2026-11-08 사용자: 룬 탭에서도 칸 해금): after a yes, openGemEngraveSlotOverlay spends the essence
+     * (upgradeSkyEngraveCap) and shows the engraving choice for the new slot. */
+    async function openNextEngrave(main, index) {
+        const block = engraveUnlockBlock(engraveUnlockNeed(index));
+        if (block) { showGameToast(block, { tone: 'warning' }); return; }
+        const message = _t('창공의 정수 {need}개를 써서 {n}번 각인 칸을 엽니다.', { need: index + 1, n: index + 1 });
+        if (await requestGameConfirmation(message, { title: _t('각인 칸 열기'), confirmLabel: _t('열기') }) !== true) return;
+        game.gemEnhanceTargetSkill = main;
+        openGemEngraveSlotOverlay(index);
     }
 
     document.addEventListener('click', event => {
@@ -185,7 +214,18 @@
         if (hoversWithMouse(event)) showGemTooltip(event, type, name);
     }
 
+    /** The next and locked slots name what opening them takes: the essence (red when short) and loop 4, then how to open them. */
+    function engraveNeedTooltipHtml(slot) {
+        const need = engraveUnlockNeed(slot.index), short = need.have < need.need ? ' style="color:#ff8a80"' : '';
+        const lines = [`<div class="tooltip-line"${short}>${_t('필요: 창공의 정수 {need}개, 보유 {have}개', need)}</div>`];
+        if (!need.loopOk) lines.push(`<div class="tooltip-line" style="color:#ff8a80">${_t('루프 4부터 열 수 있습니다.')}</div>`);
+        const ready = slot.state === 'next' && !engraveUnlockBlock(need);
+        if (ready || slot.state === 'lock') lines.push(`<div class="tooltip-line gem-card-hint">${_t(ENGRAVE_HINTS[slot.state])}</div>`);
+        return `<div class="tooltip-title">${engraveLabel(slot)}</div>${lines.join('')}`;
+    }
+
     function boardEngraveTooltipHtml(slot) {
+        if (slot.state === 'next' || slot.state === 'lock') return engraveNeedTooltipHtml(slot);
         if (slot.state !== 'full') return `<div class="tooltip-title">${engraveLabel(slot)}</div><div class="tooltip-line">${_t(ENGRAVE_HINTS[slot.state])}</div>`;
         const group = getSkyEnhancementGroup(slot.def);
         return `<div class="tooltip-title engrave-tone-${group.className}">${escapeHTML(_t(slot.def.name))}</div><div class="tooltip-line engrave-tooltip-group">${_t('{group} 각인, {n}번 칸', { group: _t(group.label), n: slot.index + 1 })}</div>`

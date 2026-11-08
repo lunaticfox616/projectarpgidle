@@ -17,8 +17,9 @@ const hotkeysUi = (() => {
     function isBlocked(event) {
         if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || event.repeat) return true;
         if (document.body.classList.contains('startup-active')) return true;
-        const typing = event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable="true"]');
-        return !!typing || !!document.querySelector('dialog:modal, .tutorial-overlay.active, .selection-overlay');
+        // 글을 치는 칸만 막는다(js/utils.js isTextEntryTarget): 셀렉박스나 체크박스에 포커스가 남아도 단축키는 듣는다. 셀렉박스에서는
+        // 키가 쓰이면 막아서(preventDefault, onKeydown) 글자로 항목을 고르는 일도 없다.
+        return isTextEntryTarget(event.target) || !!document.querySelector('dialog:modal, .tutorial-overlay.active, .selection-overlay');
     }
 
     function flashHudButton(button, ok) {

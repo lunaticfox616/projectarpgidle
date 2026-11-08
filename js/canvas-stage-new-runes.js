@@ -1,4 +1,4 @@
-/** 새 룬 넷의 무대 연출 (2026-11-01 사용자가 준 "스킬 전체 디렉터 전달" V3.6의 78 추적 사격, 79 석화 혼합물, 80 시간의 사선, 81 정화의 집행).
+/** 새 룬 셋의 무대 연출 (2026-11-01 사용자가 준 "스킬 전체 디렉터 전달" V3.6의 78 추적 사격, 79 석화 혼합물, 80 시간의 사선. 넷째 81 정화의 집행은 2026-11-08 V3.13이 지웠다).
  * 시뮬레이터(time-slash-homage.js, time-buff-vfx.js, censer-fire-detail.js, index.html의 censerWhirlFx, petrifyMob, stoneBits)의 그림과 시간을 게임의 사건에 옮겼다.
  * 칸의 크기만 시뮬레이터의 72×36에서 게임의 64×32로 옮기고 길이는 도트 그대로다. 원래 색을 지켜야 하는 띠(Fire Mage, Buff n Debuff, 사선 칼날)는 다시 칠하지 않고
  * assets/stage-vfx/vfx3.png에서 바로 그린다(STAGE_SKILL_VFX.raw). 그 그림이 없는 판에서는 띠만 빠지고 코드로 그리는 부분은 그대로 나온다.
@@ -347,118 +347,7 @@ const stageNewRunes = (() => {
         return true;
     }
 
-    // ---------------------------------------------------------------- 81 정화의 집행
-    const ORBIT = Object.freeze({ radius: 146, up: 46, period: 560, trail: 160, tail: 60 });
-    /** 3차원 궤도: 몸 허리 높이를 가운데로 한 원. 기울기(15도~75도)와 방향이 돌면서 바뀌어 납작한 고리, 비스듬한 고리, 머리 위 세로 고리가 겹친다. */
-    function orbitAt(t, dir) {
-        const th = dir * t / ORBIT.period * TAU + Math.PI * 0.5, phi = (45 + 30 * Math.sin(t / ORBIT.period * Math.PI * 0.85 + 0.6)) * Math.PI / 180, psi = dir * t / ORBIT.period * 0.42 * Math.PI;
-        const X0 = Math.cos(th) * ORBIT.radius, Z0 = Math.sin(th) * ORBIT.radius, Y = Z0 * Math.sin(phi), Z1 = Z0 * Math.cos(phi);
-        const X = X0 * Math.cos(psi) - Z1 * Math.sin(psi), Z = X0 * Math.sin(psi) + Z1 * Math.cos(psi);
-        return { x: X, y: -ORBIT.up - Y + Z * 0.5, Y, Z, front: Z >= 0 };
-    }
-    function orbitPose(t, dir) {
-        const p = orbitAt(t, dir), a = orbitAt(t + 10, dir), b = orbitAt(t - 10, dir);
-        p.tan = Math.atan2(a.y - b.y, a.x - b.x);
-        return p;
-    }
-    /** 그 때에 태어난 것의 흔들림(같은 때면 늘 같은 값). */
-    const orbitNoise = (birth, salt) => { const x = Math.sin(birth * 12.9898 + salt * 78.233) * 43758.5453; return x - Math.floor(x); };
-    const TONGUE = Object.freeze({ every: 40, life: 120, frames: [0, 1, 2, 4], ms: 30, scale: 0.27, alpha: 0.72 });
-    const PUFF = Object.freeze({ every: 48, life: 308, ms: 22, scale: 0.26, alpha: 0.38 });
-    const EMBER = Object.freeze({ every: 26, life: 580 });
-    const FIRE_INK = () => STAGE_SKILL_VFX.ramps.fire;
-    /** 한 층(side: 뒤 또는 앞)에서 그 쪽에 있는 불꽃 혀와 불똥. 지나간 자리에 짧게 남는다. */
-    function orbitTrail(ctx, t, o, side) {
-        for (let birth = Math.max(0, Math.ceil((t - PUFF.life) / PUFF.every)) * PUFF.every; birth <= Math.min(t, o.total); birth += PUFF.every) {
-            const p = orbitPose(birth, o.dir), age = t - birth;
-            if (p.front !== side) continue;
-            drawRaw(ctx, 'fire4', Math.min(13, Math.floor(age / PUFF.ms)), { x: p.x + (orbitNoise(birth, 1) - 0.5) * 6, y: p.y + (orbitNoise(birth, 2) - 0.5) * 6, scale: PUFF.scale * (0.9 + orbitNoise(birth, 3) * 0.4), alpha: PUFF.alpha * (0.38 + orbitNoise(birth, 4) * 0.12) });
-        }
-        for (let birth = Math.max(0, Math.ceil((t - TONGUE.life) / TONGUE.every)) * TONGUE.every; birth <= Math.min(t, o.total); birth += TONGUE.every) {
-            const p = orbitPose(birth, o.dir), age = t - birth;
-            if (p.front !== side) continue;
-            const fade = Math.min(1, (TONGUE.life - age) / 95), wave = 0.82 + 0.22 * (0.5 + 0.5 * Math.sin(birth * 0.037));
-            drawRaw(ctx, 'fire10', TONGUE.frames[Math.min(3, Math.floor(age / TONGUE.ms))], { x: p.x, y: p.y, rot: p.tan - Math.PI * 0.5, scale: TONGUE.scale * wave, alpha: TONGUE.alpha * fade });
-        }
-    }
-    /** 사슬과 향로(시뮬레이터 censer-fire-detail.js metal): 어두운 사슬 위에 번갈아 빛나는 고리, 금빛 뚜껑과 숨구멍의 불빛. */
-    const CENSER_ROWS = Object.freeze(['.....oo......', '....oHGo.....', '...ooGGSoo...', '..oHHGGSSSo..', '.oHGGGGGSSSo.', 'oHHGGGGGSSSSo', '.oGGGGGGSSSo.', '.oGvEvEvSSSo.', '.oGvCvCvSSSo.', '.oGvEvEvSSSo.', '.oGGGGGGSSSo.', '..oGGGGSSSo..', '...oGGSSSo...', '....oSSSo....', '.....ooo.....']);
-    function censerChain(ctx, p, hand) {
-        const lidX = Math.round(p.x), lidY = Math.round(p.y - 14), dx = lidX - hand.x, dy = lidY - hand.y, length = Math.hypot(dx, dy), n = Math.max(1, Math.ceil(length));
-        for (let i = 0; i <= n; i++) { ctx.fillStyle = '#251913'; ctx.fillRect(Math.round(hand.x + dx * i / n) - 1, Math.round(hand.y + dy * i / n) - 1, 3, 3); }
-        for (let i = 0; i <= n; i++) { ctx.fillStyle = (Math.floor(i / 4) % 2) ? '#a37434' : '#e6b85e'; ctx.fillRect(Math.round(hand.x + dx * i / n), Math.round(hand.y + dy * i / n), 1, 1); }
-        for (let d = 4; d < length - 5; d += 7) {
-            const x = Math.round(hand.x + dx * d / length), y = Math.round(hand.y + dy * d / length);
-            ctx.fillStyle = '#d5a74c'; ctx.fillRect(x - 1, y - 1, 3, 1); ctx.fillRect(x - 1, y + 1, 3, 1);
-            ctx.fillStyle = '#5e411e'; ctx.fillRect(x - 1, y, 1, 1); ctx.fillRect(x + 1, y, 1, 1);
-        }
-    }
-    function censerBody(ctx, p, t) {
-        const glow = Math.floor(t / 72) % 3, x0 = Math.round(p.x) - 13, y0 = Math.round(p.y) - 15;
-        const ink = { o: '#24170f', S: '#8f5726', G: '#bc843b', H: '#f2cb77', v: '#351b10', E: glow === 0 ? '#ffb442' : '#e66d1b', C: glow === 1 ? '#fff1ab' : '#ffca5d' };
-        CENSER_ROWS.forEach((row, y) => { for (let x = 0; x < row.length; x++) if (row[x] !== '.') { ctx.fillStyle = ink[row[x]]; ctx.fillRect(x0 + x * 2, y0 + y * 2, 2, 2); } });
-        ctx.fillStyle = '#ffe2a0'; ctx.fillRect(x0 + 7, y0 + 10, 9, 1); ctx.fillRect(x0 + 5, y0 + 12, 2, 3);
-        ctx.fillStyle = '#6a3b1d'; ctx.fillRect(x0 + 20, y0 + 15, 1, 7);
-    }
-    /** 향로 머리: 뒤로 말리는 불덩이, 둘레의 작은 불꽃, 그 위에 사슬과 금빛 그릇. */
-    function censerHead(ctx, t, o) {
-        const p = orbitPose(Math.min(t, o.total), o.dir);
-        drawRaw(ctx, 'fire8', Math.floor(t / 65) % 4, { x: p.x, y: p.y, rot: p.tan, scale: 0.7, anchor: [98, 64], alpha: 0.95 });
-        drawRaw(ctx, 'fire3', Math.floor(t / 47) % 12, { x: p.x, y: p.y - 5, rot: p.tan * 0.34, scale: 0.53, alpha: 0.82 });
-        censerChain(ctx, p, { x: o.face * 6, y: -62 });
-        censerBody(ctx, p, t);
-    }
-    /** 튀어 올랐다 떨어지는 불티(코드, 위층). */
-    function censerEmbers(ctx, t, o) {
-        const ink = FIRE_INK();
-        for (let birth = Math.max(0, Math.ceil((t - EMBER.life) / EMBER.every)) * EMBER.every; birth <= Math.min(t, o.total); birth += EMBER.every) {
-            const age = t - birth, life = 260 + orbitNoise(birth, 5) * 320;
-            if (age > life) continue;
-            const p = orbitAt(birth, o.dir), a = orbitNoise(birth, 6) * TAU, speed = 30 + orbitNoise(birth, 7) * 80, s = age / 1000, k = age / life;
-            ctx.globalAlpha = 1 - k * k;
-            ctx.fillStyle = k < 0.35 ? ink[5] : k < 0.7 ? ink[4] : ink[3];
-            const size = orbitNoise(birth, 8) < 0.3 ? 2 : 1;
-            ctx.fillRect(Math.round(p.x + Math.cos(a) * speed * s), Math.round(p.y + (-20 - orbitNoise(birth, 9) * 80) * s + 160 * s * s), size, size);
-        }
-        ctx.globalAlpha = 1;
-    }
-    /** 불씨 클립과, 궤도가 낮게 지날 때의 바닥 불꽃(시간이 된 만큼 그 자리에 튼다). */
-    function censerClips(t, o, map) {
-        while (o.nextEmber <= Math.min(t, o.total)) {
-            const birth = o.nextEmber, p = orbitAt(birth, o.dir);
-            o.nextEmber += EMBER.every;
-            if (orbitNoise(birth, 10) < 0.3) stageSkillVfx.play(map.ember, K.at(K.heroDrawn(), p.x, p.y - 6), { face: orbitNoise(birth, 11) < 0.5 ? 1 : -1, scale: 0.6 + orbitNoise(birth, 12) * 0.5, alpha: 0.85 });
-        }
-        while (o.nextGround <= Math.min(t, o.total)) {
-            const birth = o.nextGround, p = orbitAt(birth, o.dir);
-            o.nextGround += 95;
-            if (p.Y < 2) stageSkillVfx.play(map.ground, K.at(K.heroDrawn(), p.x, p.Z * 0.5 + 2), { face: orbitNoise(birth, 13) < 0.5 ? 1 : -1, layer: 'ground', scale: 0.55 + orbitNoise(birth, 14) * 0.35, alpha: 0.7, life: 420 });
-        }
-    }
-    /** 정화의 집행: 몸을 따라다니는 불의 고리. 궤도의 뒤쪽은 몸 뒤 층에, 앞쪽은 몸 앞 층에 그린다. 도는 동안 다시 쓰면 새 향로를 띄우지 않고 그 고리가 더 돈다
-     * (시뮬레이터는 회전이 끝나야 다음 공격이 나간다. 게임은 공격 속도대로 나가 회전이 겹칠 수 있다). */
-    let censerRun = null;
-    const censerLife = o => o.total + TONGUE.life + PUFF.life;
-    function censerWhirl(gem, total) {
-        const o = { total, dir: K.heroFace() > 0 ? 1 : -1, face: K.heroFace(), nextEmber: 0, nextGround: 0, rows: [] }, follow = () => K.heroDrawn();
-        const pass = (side, layer) => stageSkillVfx.paint(K.at(K.heroDrawn()), { life: censerLife(o), layer, follow }, (ctx, t, dot) => {
-            ctx.scale(dot, dot);
-            orbitTrail(ctx, t, o, side);
-            if (t < o.total + ORBIT.tail && orbitPose(Math.min(t, o.total), o.dir).front === side) censerHead(ctx, t, o);
-            if (side) { censerEmbers(ctx, t, o); censerClips(t, o, gem.map.censer); }
-        });
-        o.rows = [pass(false, 'ground'), pass(true, 'top')].filter(Boolean);
-        censerRun = o;
-    }
-    /** 시전 시작(js/canvas-stage-skill-runes.js runeWindup): 도는 시간은 회전 수 × 간격 + 0.14초. */
-    function censerStart(gem) {
-        const def = SKILL_DB[gem.meta.name] || {}, total = (Number(def.targets) || 7) * (Number(def.whirlIntervalMs) || 120) + 140, row = censerRun && censerRun.rows[0];
-        const age = row ? stageSkillVfx.now() - row.start : Infinity;
-        if (!row || age >= censerRun.total) { censerWhirl(gem, total); return; }
-        censerRun.total = age + total;
-        for (const pass of censerRun.rows) pass.life = censerLife(censerRun);
-    }
     const fieldBusy = () => stageSkillVfx.now() < fieldUntil;
-    return Object.freeze({ raw: drawRaw, homingFly, petrifyBurst, timeField, fieldBusy, timeBlades, timeBounce, censerStart, glazeOf, heldAt });
+    return Object.freeze({ raw: drawRaw, homingFly, petrifyBurst, timeField, fieldBusy, timeBlades, timeBounce, glazeOf, heldAt });
 })();
 safeExposeGlobals({ stageNewRunes });

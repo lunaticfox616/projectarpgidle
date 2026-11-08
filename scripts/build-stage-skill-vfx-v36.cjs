@@ -77,9 +77,8 @@ const packageSkills = readJson('데이터/skills.json');
 const packageClips = readJson('에셋/runtime-clip-bindings.json').clips;
 /** 룬 번호 → 전달본의 연결(데이터/skills.json vfx)에 게임의 연출이 읽는 이름을 더한 것. 코드로 그리는 연출이 맡는 룬은 그 표시를 둔다. */
 const GEM_OVERRIDES = {
-    // 시간의 사선은 타격 클립 없이 코드로 그린 충돌이 맡는다. 정화의 집행의 향로 머리와 불똥은 원래 색 띠로 그린다(canvas-stage-new-runes.js)
+    // 시간의 사선은 타격 클립 없이 코드로 그린 충돌이 맡는다
     80: () => ({ swing: 'none', hit: 'none' }),
-    81: () => ({ swing: 'none', censer: { ember: 'q_ember@fire', ground: 'q_fireground@fire' }, hit: 'q_firehit@fire' }),
     // 유성 낙화: 폭발은 원래 색 띠가 맡는다(meteor-impact-tuning). 심연 전염과 암흑 파열: Warlock 띠가 맡는다(warlock-vfx-remake)
     34: map => { const { area, ...rest } = map; return { ...rest, meteor: true }; },
     23: () => ({ hit: 'none', warlock: 'infection' }),
@@ -116,12 +115,12 @@ const POLISH = Object.fromEntries(readJson('시뮬레이터/vfx-polish-config.js
 const META = {
     78: { name: '추적 사격', el: 'phys', cast: false, melee: false, kind: 'proj' },
     79: { name: '석화 혼합물', el: 'phys', cast: false, melee: false, kind: 'point' },
-    80: { name: '시간의 사선', el: 'phys', cast: false, melee: false, kind: 'proj' },
-    81: { name: '정화의 집행', el: 'fire', cast: false, melee: true, kind: 'whirl' }
+    80: { name: '시간의 사선', el: 'phys', cast: false, melee: false, kind: 'proj' }
 };
 const NEW_RUNES = Object.keys(META).map(Number);
 /** 전달본이 지운 룬(skill-exclusions-v25.json): 표에서 뺀다. 그 룬을 가진 저장은 data/skills.js RETIRED_GEM_SUCCESSORS가 잇는다. */
-const REMOVED = [116];
+// 116 분광 위습(V3.6), 81 정화의 집행(2026-11-08 전달본 V3.13이 지움)
+const REMOVED = [116, 81];
 /** 원래 색 그대로 그리는 띠: 이름 → 전달본의 파일과 칸. */
 const RAW = {
     fire3: { file: 'fire-mage81-assets/fire-mage-03.png', w: 128, h: 128, n: 12 },

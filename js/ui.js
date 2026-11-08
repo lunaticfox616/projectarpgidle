@@ -4172,7 +4172,7 @@ function renderGemEnhanceTargetCard(name, selected, stats) {
     let info = getUiGemPresentation(name, false, stats);
     let meta = getGemCardMeta(def);
     let enhanceCount = getSkyEnhancementForSkill(name).length;
-    return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${renderSkillGemArt(name, 'gem-target-icon')}<span><strong>${escapeHTML(name)}</strong><small>Lv.${formatValue('', info.totalLevel)}, 퀄리티 ${rec.quality || 0}%, 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}${gemDropRewards.spareCount(game, name) ? _t(', 여분 {spareCount}개', { spareCount: gemDropRewards.spareCount(game, name) }) : ''}</small></span>${selected ? _t('<b>선택</b>') : ''}</button>`;
+    return `<button class="gem-target-card element-${meta.className} ${selected ? 'selected' : ''}" onclick="selectGemEnhanceTargetSkill('${name}')">${renderSkillGemArt(name, 'gem-target-icon')}<span><strong>${escapeHTML(_t(name))}</strong><small>Lv.${formatValue('', info.totalLevel)}, 퀄리티 ${rec.quality || 0}%, 각인 ${enhanceCount}/${rec.skyEnhanceCap || 1}${gemDropRewards.spareCount(game, name) ? _t(', 여분 {spareCount}개', { spareCount: gemDropRewards.spareCount(game, name) }) : ''}</small></span>${selected ? _t('<b>선택</b>') : ''}</button>`;
 }
 
 function renderGemResourceStrip(activeGem, condensedPower) {

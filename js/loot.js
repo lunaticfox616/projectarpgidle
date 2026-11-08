@@ -52,7 +52,7 @@ function getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMu
 /** One capped multiplier for equipment, wild talismans and bonus currency rolls. */
 function getEnemyLootDropMultiplier(zone, enemy) {
     let progression = getAdditiveDropBonusMultiplier(getCodexBonusPct());
-    let raw = progression * getAbyssMonsterScales(zone).dropMul * (Number(enemy.dropMul) || 1);
+    let raw = progression * getAbyssMonsterScales(zone).dropMul * (Number(enemy.dropMul) || 1) * (Number(enemy.greedDropMul) || 1);   // greedDropMul: 탐욕의 광기(js/combat.js rollLootForEnemy)
     return capEndlessContentDropMultiplier(zone, raw) * getContentDropRateMultiplier(zone);
 }
 

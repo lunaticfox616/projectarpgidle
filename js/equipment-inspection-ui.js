@@ -93,7 +93,8 @@
             const name = getDualSlotDisplayLabel(slot);
             panes.push({ tab: worn.length > 1 ? _t('지금 {name}', { name }) : '지금 장착', label: _t('지금 장착, {name}', { name }), node: tooltipBox(game.equipment[slot], slot, true) });
         });
-        root.dataset.eqwPanes = String(Math.min(2, panes.length));
+        // 세 칸(고른 장비, 지금 낀 왼쪽과 오른쪽)도 한 줄에 놓는다(2026-11-08 사용자): 뜨는 창 폭이 칸 수를 따른다(css/equipment-window.css).
+        root.dataset.eqwPanes = String(Math.min(3, panes.length));
         details.replaceChildren(equipmentWindowUi.compareNode(panes, view?.pane));
         equipmentWindowUi.fillDeltas(root, item, signature);
         if (view) restoreView(root, view);
