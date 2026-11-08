@@ -5,6 +5,8 @@
  * - 결정진 둘레 네 방향에 같은 룬 글자(5×7 격자의 획). 글자 위쪽이 바깥을 향하게 바닥 평면에서 돌린 뒤 눕힌다: 앞쪽 글자는 바로 서고 양옆은 눕는다.
  *   결정진과 같은 빠르기로 돌고, 앞쪽(아래)에 올수록 또렷하다.
  * 가호가 걸리는 순간(끼거나 다시 살아났을 때) 0.36초 몸 테두리에 속성 색이 돌고(js/canvas-stage-actors.js drawAura) 발밑에 빛 조각 10개가 튄다.
+ * 룬의 갈래에 blessLook이 있으면(2026-11-08 전달본 V3.13 탐욕의 광기 'greed') 속성 대신 그 이름으로 결정진과 색을 고르고, 걸리는 순간 금빛 점선 고리가
+ * 바닥을 따라 무대 끝까지 퍼진다(시뮬레이터 greedCastFx, 맵 전체 줍기 표시).
  * 가호가 풀리면 0.13초에 걷힌다. 그림(구매 팩)이 없는 판이나 무대 이펙트를 끈 창에서는 그리지 않는다. 표시만 한다: 가호의 수치는
  * js/combat-support-runes.js, 어느 가호가 걸렸는지도 그쪽이 답한다(activeBlessing).
  */
@@ -19,8 +21,21 @@ const stageBlessing = (() => {
     function blessingLook(name) {
         const id = stageSkillKit.gemId(name), meta = id ? STAGE_SKILL_VFX.meta[id] : null;
         if (!meta || !meta.rune || !looks()) return null;
-        const element = meta.el, colours = looks().colours[element] || STAGE_SKILL_VFX.elements[element] || STAGE_SKILL_VFX.elements.phys;
-        return { element, rune: meta.rune, colours, floor: looks().floors[element] || null };
+        const element = meta.el, key = meta.blessLook || element, colours = looks().colours[key] || STAGE_SKILL_VFX.elements[element] || STAGE_SKILL_VFX.elements.phys;
+        return { element, rune: meta.rune, colours, floor: looks().floors[key] || null, wave: key === 'greed' };
+    }
+    const WAVE = Object.freeze({ life: 900, from: 40, reach: 1000, dots: 120 });   // 탐욕의 광기 물결: 0.9초에 반지름 40 → 1040도트(세로 ½), 120 등분의 둘째마다 2×2 점
+    function blessWave(look) {
+        if (!stageSkillVfx.ready()) return;
+        const follow = () => stageSkillKit.heroDrawn();
+        stageSkillVfx.paint(stageSkillKit.at(follow()), { life: WAVE.life, layer: 'ground', follow }, (ctx, t, dot) => {
+            const u = t / WAVE.life, R = WAVE.from + u * WAVE.reach;
+            ctx.scale(dot, dot);
+            ctx.globalAlpha = 0.7 * (1 - u);
+            ctx.fillStyle = look.colours.c2;
+            for (let j = 0; j < WAVE.dots; j += 2) { const q = j / WAVE.dots * Math.PI * 2; ctx.fillRect(Math.round(Math.cos(q) * R), Math.round(Math.sin(q) * R * 0.5), 2, 2); }
+            ctx.globalAlpha = 1;
+        });
     }
     /** 지금 걸린 가호의 이름(주인공이 쓰러져 있으면 없음). */
     function activeName() {
@@ -47,6 +62,7 @@ const stageBlessing = (() => {
         if (current) leaving = { ...current, until: now + FADE_OUT };
         const look = name ? blessingLook(name) : null;
         current = look ? { name, ...look, from: now, sparks: sparksFor(now) } : null;
+        if (current && current.wave) blessWave(current);
     }
     /** 받는 순간의 몸 테두리 색(없으면 null): 0.12초마다 밝은색과 중간색이 번갈아. */
     function blessingAura() {

@@ -119,12 +119,13 @@
         queuePendingSkillStageHits(stages,stats,{...command.attackOptions,skillName:command.name,baseDelayMs:0,forcedElement:stats.sSkill.ele});
     }
     const LEAPS=new Set([56,77]);                  // 작살화살, 바위 플라스크: 주인공이 따라 날아가 발이 늘지 않는다
-    const LANDS_ONCE=new Set([47,48,49,79]);       // 떨어진 자리에서 한 번만 연쇄한다(병 하나에 한 번)
+    const LANDS_ONCE=new Set([47,48,49,79,87]);    // 떨어진 자리에서 한 번만 연쇄한다(병 하나에 한 번)
     /** Native casts retain their own bounce, shard, wave and movement stages; supports append contacts only.
      * 갈래 투사체의 발은 그 룬이 스스로 낸다(js/skill-gem-casts.js). 탄성 플라스크의 연쇄는 튕김이 된다. */
+    // noAugment: 잦은 작은 타격(절대 영도의 서리 화살, 전도성 형상체의 정전기, js/skill-gem-casts-v313.js)은 덧타격을 받지 않는다.
     function augmentNative(command, targets) {
         const fx=command.stats.sSkill.supportEffects, first=targets[0], seen=new Set(targets.map(enemy=>enemy.id));
-        if(!fx || !first)return;
+        if(!fx || !first || command.noAugment)return;
         const plan=[],id=command.stats.sSkill.nativeCastId;
         if(id!==44 && (command.leadContact || !LANDS_ONCE.has(id)))nativeChain(plan,first,seen,fx.chain);
         nativeRays(plan,command.sourceCell || game.gridPlayer,first,seen,LEAPS.has(id) ? fx : {pierce:fx.pierce});
@@ -258,6 +259,11 @@
     function summonPlaces(state, name, def) {
         return def.tags.includes('summon_attack') ? Math.max(1, Math.floor(Number((state.summonSkillCounts || {})[name]) || 1)) : 1;
     }
+    /** 걸린 가호의 탐욕(탐욕의 광기 greed: 처치 드랍률과 맵 줍기, 2026-11-08 전달본 V3.13), 아니면 null. */
+    function blessingGreed(state) {
+        const name = activeBlessing(state);
+        return (name && SKILL_DB[name].greed) || null;
+    }
     function auraValues(state, bonus, cap) {
         const values = {}, name = activeBlessing(state, cap), aura = name && SKILL_DB[name].aura;
         if (!aura) return values;
@@ -309,5 +315,5 @@
         });
     }
     window.GameModules.combat.supports=Object.freeze({resolve,grid,stages,targetMultiplier,conversionContacts,afterHit,tickDots,onDeath,auraValues,
-        values,auraFlat,activeBlessing,splitConversion,lockState,igniteDuration,dealHit,deferAttack,retire,expectedMultiplier,repeatNative,augmentNative,nativeDot,playerProjectile,activeSkillStats,grantsAttributes});
+        values,auraFlat,activeBlessing,blessingGreed,splitConversion,lockState,igniteDuration,dealHit,deferAttack,retire,expectedMultiplier,repeatNative,augmentNative,nativeDot,playerProjectile,activeSkillStats,grantsAttributes});
 })();

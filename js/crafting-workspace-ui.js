@@ -121,6 +121,19 @@ const craftingWorkspaceUi = (() => {
         return `[${workspaceAffixValue(stat,stat.valMin,true)} ~ ${workspaceAffixValue(stat,stat.valMax,true)}]`;
     }
 
+    /** ' is-max' when the roll sits at the top of its range (2026-11-08 사용자: 최대 옵션이면 강조). A fixed range ([5 ~ 5]) is always at
+     * its top, so it is not marked. */
+    function workspaceMaxRollClass(stat) {
+        const {val,valMin,valMax}=stat;
+        return Number.isFinite(valMin)&&Number.isFinite(valMax)&&valMax>valMin&&val>=valMax-1e-9?' is-max':'';
+    }
+
+    /** One base option in the base line: the name in its stat colour like the added options, the value, its range. */
+    function workspaceBaseStatHtml(item,stat) {
+        return `<span class="cl-base-stat${workspaceMaxRollClass(stat)}" style="--cl-affix-tone:${getItemStatToneColor(stat.id)}"><span class="cl-base-name">${esc(stat.statName||getStatName(stat.id))}</span> `
+            +`<b class="cl-base-value">${esc(formatSignedValue(stat.id,stat.val))}</b> <span class="cl-affix-range">${esc(workspaceAffixRange(stat))}</span>${itemInfluencesUi.lineBadgeHtml(item,stat)}</span>`;
+    }
+
     function workspaceAffixQuality(stat,changed) {
         if(!changed||isFixedEquipmentAffix(stat))return '';
         const mod=findStoredEquipmentAffix(selected(),stat);
@@ -143,7 +156,7 @@ const craftingWorkspaceUi = (() => {
         const hit=goal.rules.some(rule=>equipmentLootPolicy.lineMatchesRule(stat,rule));
         const quality=workspaceAffixQuality(stat,changed);
         return `<li class="cl-affix ${hit?'is-target':''} ${changed?'is-changed':''} ${quality}" data-affix="${index}">
-            <div><span style="--cl-affix-tone:${getItemStatToneColor(stat.id)}">${esc(stat.statName||getStatName(stat.id))} <span class="cl-affix-value"><b>+${esc(workspaceAffixValue(stat,stat.val))}</b> <span class="cl-affix-range">${esc(workspaceAffixRange(stat))}</span></span></span>
+            <div><span style="--cl-affix-tone:${getItemStatToneColor(stat.id)}">${esc(stat.statName||getStatName(stat.id))} <span class="cl-affix-value${workspaceMaxRollClass(stat)}"><b>+${esc(workspaceAffixValue(stat,stat.val))}</b> <span class="cl-affix-range">${esc(workspaceAffixRange(stat))}</span></span></span>
             <span class="cl-tier">${getItemAffixTierHtml(stat)}${itemInfluencesUi.lineBadgeHtml(selected(),stat)}</span></div>
             <small>${workspaceAffixNotes(stat,prior,changed,hit,quality)}</small></li>`;
     }
@@ -160,7 +173,7 @@ const craftingWorkspaceUi = (() => {
             <div><small>${_t('제작 중인 장비 &ensp; T{item}', { item: getItemCraftTier(item) })}</small><h2>${esc(getItemDisplayName(item))}${craftingWorkspaceUi.imprintMark(item)}</h2>${itemInfluencesUi.tagsHtml(item)}<span>${_t('{baseName} &ensp; 추가 옵션 {item}/6', { baseName: esc(_t(item.baseName)), item: getItemExplicitOptionCount(item) })}</span></div></div>
             <div class="cl-sources"><span class="${sources.has('spore')?'filled':''}">${_t('수확 {value}/1', { value: sources.has('spore')?'1':'0' })}</span><span class="${sources.has('fossil')?'filled':''}">${_t('화석 {value}/1', { value: sources.has('fossil')?'1':'0' })}</span></div>
             <div class="cl-section-title">${_t('추가 옵션')}</div><ul class="cl-affixes">${item.stats.map(workspaceAffixHtml).join('')}${item.chaosInfusion?`<li class="cl-affix">${_t('혼돈 주입 {id} +{chaosInfusion}', { id: esc(getStatName(item.chaosInfusion.id)), chaosInfusion: esc(workspaceAffixValue(item.chaosInfusion,item.chaosInfusion.val)) })}</li>`:''}</ul>
-            <div class="cl-base">기본 옵션 &ensp; ${[workspaceWardSlotsText(item),...(item.baseStats||[]).map(stat=>`${esc(stat.statName||getStatName(stat.id))} ${esc(formatSignedValue(stat.id,stat.val))} ${esc(workspaceAffixRange(stat))}${itemInfluencesUi.lineBadgeHtml(item,stat)}`)].filter(Boolean).join(' / ')}</div>${workspaceImprintHtml(item)}${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
+            <div class="cl-base">기본 옵션 &ensp; ${[esc(workspaceWardSlotsText(item)),...(item.baseStats||[]).map(stat=>workspaceBaseStatHtml(item,stat))].filter(Boolean).join(' / ')}</div>${workspaceImprintHtml(item)}${workspaceEncroachmentHtml(item)}${emberCorruptionUi.cardHtml(item)}
             ${extras}</section>`;
     }
 
@@ -211,10 +224,11 @@ const craftingWorkspaceUi = (() => {
         return '<div class="cl-base">잠식 미해방 <button type="button" onclick="liberateSelectedEncroachedItem()">해방</button></div>';
     }
 
-    function workspaceMethodsHtml() {
+    /** 재화 보관함과 고른 재화. 오른쪽 아래에도 사용 단추가 있다(2026-11-08 사용자: 목표 조건을 많이 달면 아래 단추까지 내려가야 했다). */
+    function workspaceMethodsHtml(state,stopped) {
         return `<section class="cl-methods"><div class="cl-section-title">${_t('재화 보관함')}</div>${craftingStashUi.html({recipe:recipe.key,omen:workspaceArmedOmen()?.key||''})}
             <p class="cl-method-note" data-theme="${craftingCatalogUi.theme(recipe.key)}"><span class="cl-method-heading"><strong>${_t('선택 중 &ensp; {styledName}', { styledName: craftingCatalogUi.styledName(recipe.key) })}</strong><small>${_t('보유 {currencies}', { currencies: game.currencies[recipe.key] })}</small></span>${craftingCatalogUi.description(recipe.key)}</p>${workspaceSporeHtml()}${workspaceOmenHtml()}
-            </section>`;
+            <div class="cl-method-use">${workspacePrimaryButtonHtml(state,stopped)}</div></section>`;
     }
 
 
@@ -313,10 +327,17 @@ const craftingWorkspaceUi = (() => {
         return '';
     }
 
-    function workspaceActionHtml(state,stopped) {
+    /** The main button: stop the auto run, acknowledge a goal hit, or use the chosen currency once. Drawn twice: under the currency
+     * stash (workspaceMethodsHtml) and under the goal options (workspaceActionHtml). */
+    function workspacePrimaryButtonHtml(state,stopped) {
         if(auto)return `<button data-command="stop" class="cl-primary cl-stop">${_t('자동 사용 중지 {runCount}/{limit}회', { runCount, limit })}</button>`;
-        const button=stopped?'<button data-command="ack" class="cl-primary">목표 옵션 확인</button>':`<button data-command="craft" class="cl-primary" aria-label="${_t('{name} 1회 사용', { name: esc(_t(ORB_DB[recipe.key].name)) })}" ${busy||!state.enabled?'disabled':''}>${busy?_t('사용 중…'):_t('1회 사용')}</button>`;
-        if(!['reroll','add','fossil'].includes(recipe.kind))return button;
+        if(stopped)return '<button data-command="ack" class="cl-primary">목표 옵션 확인</button>';
+        return `<button data-command="craft" class="cl-primary" aria-label="${_t('{name} 1회 사용', { name: esc(_t(ORB_DB[recipe.key].name)) })}" ${busy||!state.enabled?'disabled':''}>${busy?_t('사용 중…'):_t('1회 사용')}</button>`;
+    }
+
+    function workspaceActionHtml(state,stopped) {
+        const button=workspacePrimaryButtonHtml(state,stopped);
+        if(auto||!['reroll','add','fossil'].includes(recipe.kind))return button;
         return button+workspaceAutoControlsHtml(state);
     }
 
@@ -376,7 +397,7 @@ const craftingWorkspaceUi = (() => {
         if(!item){workspacePaintEmpty();return;}
         const state=workspaceUseState(), stopped=held();
         const html=`<div class="cl-heading">${adapter.targetControls()}<button id="cl-inventory-open" data-command="inventory">${_t('재화 인벤토리')}</button></div>
-            <div class="cl-workspace">${workspaceItemHtml()}<div class="cl-controls">${workspaceMethodsHtml()}${workspaceGoalHtml()}<div class="cl-action"><small>${esc(workspaceCostText())}</small>
+            <div class="cl-workspace">${workspaceItemHtml()}<div class="cl-controls">${workspaceMethodsHtml(state,stopped)}${workspaceGoalHtml()}<div class="cl-action"><small>${esc(workspaceCostText())}</small>
             ${workspaceActionHtml(state,stopped)}<span class="cl-block cl-error" role="status">${!state.enabled?`<span class="px-center">${esc(state.reason)}</span>`:''}</span></div></div></div>${workspaceResultHtml()}`;
         workspaceReplaceMarkup(html,reveal);
         if(reveal)root.querySelector('.cl-item').classList.add('just-crafted');

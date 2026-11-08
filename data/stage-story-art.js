@@ -5,9 +5,9 @@
 // revives: 쓰러진 뒤 다시 일어나는 보스의 쓰러짐 효과(ms): start 일어남이 시작하는 때, fadeFrom 흐려지기 시작하는 때, total 효과 길이.
 const STAGE_STORY_ART = Object.freeze({
     path: 'assets/stage-story/',
-    version: 'environment-20261106',
+    version: 'deacon-revive-20261108',
     clips: Object.freeze({
-        'deacon-revive': Object.freeze({ kind: 'revive', frames: 6, w: 147, h: 136, feet: Object.freeze([73, 136]), ms: Object.freeze([350, 160, 170, 200, 190, 800]) }),
+        'deacon-revive': Object.freeze({ kind: 'revive', frames: 6, w: 148, h: 144, feet: Object.freeze([77, 140]), ms: Object.freeze([350, 160, 170, 200, 190, 800]) }),
         'sap-conduit': Object.freeze({ kind: 'story', frames: 3, w: 300, h: 149, feet: Object.freeze([150, 124]), ms: Object.freeze([900, 900, 1200]) }),
         'haken-bridge': Object.freeze({ kind: 'story', frames: 3, w: 720, h: 133, feet: Object.freeze([360, 137]), ms: Object.freeze([900, 900, 1200]) }),
         'mother-cocoon': Object.freeze({ kind: 'story', frames: 3, w: 192, h: 244, feet: Object.freeze([96, 262]), ms: Object.freeze([900, 900, 1200]) }),

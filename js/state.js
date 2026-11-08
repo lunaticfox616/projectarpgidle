@@ -931,8 +931,8 @@ function getRunZone(id) {
             bossMods: { hpMul: 4, atkMul: 1.25, damageMul: 1.5, patternMode: 'intro' }
         });
     }
-    if (id === OUTSIDE_CHAOS_ZONE_ID) return contentMaps.withRooms({ id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', tier: 25, maxKills: 1, ele: 'chaos', fixedDifficultyMul: 1 });
-    if (id === WOODSMAN_ECHO_ZONE_ID) return contentMaps.withRooms({ id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' });
+    if (id === OUTSIDE_CHAOS_ZONE_ID) return contentMaps.withRooms({ id: OUTSIDE_CHAOS_ZONE_ID, name: '혼돈 밖', type: 'outsideChaos', bossVisualId: 'woodsman', tier: 25, maxKills: 1, ele: 'chaos', fixedDifficultyMul: 1 });
+    if (id === WOODSMAN_ECHO_ZONE_ID) return contentMaps.withRooms({ id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', bossVisualId: 'woodsman_echo', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' });
     return undefined;
 }
 /** The zones with floors or depths, at the current one: chaos realm, sky tower, time rift (past or future), underworld, meteor site,

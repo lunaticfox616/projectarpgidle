@@ -12,6 +12,26 @@ const bossMoveView = (() => {
     const sheets = new Map();
     const fx = () => (typeof BOSS_FX === 'object' ? BOSS_FX : null);
     const sum = list => list.reduce((total, ms) => total + ms, 0);
+    // 칼끝 좌표는 나무꾼 공격 시트의 자세별 도트 위치다. 파편은 적중한 칸에서만 솟는다.
+    const WOODSMAN_BLADE = [
+        [70,-22], [68,-28], [-60,-134], [71,-52], [91,-103], [77,-52], [70,-22], [70,-22],
+        [70,-22], [62,-104], [-54,-159], [-46,-169], [86,-24], [77,-34], [73,-43], [70,-22],
+        [70,-22], [41,-127], [25,-167], [63,-165], [64,-165], [70,-162], [50,-111], [70,-22]
+    ];
+    // Separate authored shapes and timing. Only the quiet pre-strike glint is shared.
+    const WOODSMAN_SHAPES = {
+        phys: { slash: [20,55,75,110], impact: [25,55,80,130], speed: .14, rise: -.035, size: 1.12 },
+        fire: { slash: [30,65,100,140], impact: [30,70,110,180], speed: .10, rise: .14, size: 1.32 },
+        cold: { slash: [15,45,65,95], impact: [20,100,100,150], speed: .27, rise: 0, size: 1.36 },
+        light: { slash: [15,35,35,65], impact: [15,35,45,100], speed: .42, rise: 0, size: 1.42 },
+        chaos: { slash: [60,100,100,140], impact: [60,100,110,180], speed: .045, rise: -.04, size: 1.34 }
+    };
+    const woodsmanOrigins = new WeakMap();
+    const WOODSMAN_CLIPS = Object.fromEntries(Object.entries(WOODSMAN_SHAPES).map(([element, shape], palette) => [
+        element, [[64,64,[1,1,1,1]], [8,64,shape.slash], [64,112,shape.impact]]
+            .map(([x, y, ms], row) => ({ sheet: 'woodsman-elements-v2', cell: 128, cols: 4, ms,
+                frames: ms.map((_, i) => [(palette * 3 + row) * 4 + i, x, y, 0, 0, 0]) }))
+    ]));
 
     function sheetOf(key) {
         if (!stageActors.available()) return null; // a build without the stage art has no effect sheets either: never ask for them
@@ -35,7 +55,7 @@ const bossMoveView = (() => {
     function drawFrame(ctx, clip, frame, at, look) {
         const sheet = frame && sheetOf(clip.sheet);
         if (!sheet) return;
-        const cell = fx().cell, cols = fx().cols, s = look.scale;
+        const { cell = fx().cell, cols = fx().cols } = clip, s = look.scale;
         ctx.save();
         ctx.translate(at.x, at.y);
         if (look.angle) ctx.rotate(look.angle);
@@ -137,6 +157,7 @@ const bossMoveView = (() => {
     function drawGround(ctx, projection) {
         if (!projection) return;
         const now = bossAttackView.now();
+        drawShiftMarks(ctx, projection, now);
         for (const entry of bossMoves.live(now)) {
             const move = entry.move, found = bossMoves.fxOf(entry.source);
             for (const stage of move.stages) {
@@ -149,11 +170,98 @@ const bossMoveView = (() => {
     }
 
     // ── air ───────────────────────────────────────────────────────────────
+    function shiftAlpha(enemy) {
+        const shift = bossMoves.shiftOf(enemy);
+        if (!shift) return 1;
+        const now = bossAttackView.now();
+        return shift.landed ? clampNumber((now - shift.landAt) / 180, 0, 1)
+            : clampNumber((shift.landAt - 100 - now) / 160, 0, 1);
+    }
+    /** Pale footprint = arrival, red footprint = damage. Neither follows the victim after being warned. */
+    function drawShiftMarks(ctx, projection, now) {
+        for (const enemy of game.enemies || []) {
+            const shift = bossMoves.shiftOf(enemy);
+            if (!shift || now > shift.landAt + 260) continue;
+            const cells = getGridFootprintCells(shift.to.gx, shift.to.gy, getGridUnitFootprint(enemy));
+            const footprint = projectSkillFootprint({ cells, kind: 'blast', center: shift.to }, projection);
+            if (footprint) drawSkillFootprintGround(ctx, footprint, '#e4d5a1', 2.8);
+        }
+    }
+    function drawShiftFlashes(ctx, projection, now) {
+        for (const enemy of game.enemies || []) {
+            const shift = bossMoves.shiftOf(enemy);
+            if (!shift || Math.abs(now - shift.landAt) > 280) continue;
+            const clip = WOODSMAN_CLIPS[shift.element][0], cell = shift.landed ? shift.to : shift.from;
+            const at = floorOf(getGridUnitCenter({ ...cell, isBoss: true, footprint: getGridUnitFootprint(enemy) }), projection);
+            const scale = projection.tileW / 96, age = now - shift.landAt;
+            const alpha = Math.max(0, 1 - Math.abs(age) / 280);
+            const frame = clip.frames[Math.min(3, Math.floor(Math.abs(age) / 70))];
+            drawFrame(ctx, clip, frame, { x: at.x, y: at.y - 65 * scale }, { scale: scale * 1.15, alpha });
+        }
+    }
+    function woodsmanBlade(placed, frame) {
+        const [x, y] = WOODSMAN_BLADE[frame];
+        return { x: placed.x + x * placed.dot * (placed.west ? -1 : 1), y: placed.y + y * placed.dot };
+    }
+
+    function drawWoodsmanCharge(ctx, enemy, element, share) {
+        const placed = stageRoster.placementOf(enemy.id);
+        if (!placed || placed.actor !== 'woodsman' || placed.clip !== 'attack' || placed.frame >= placed.strikeFrame) return;
+        const clip = WOODSMAN_CLIPS[element][0];
+        const frame = clip.frames[Math.min(3, Math.floor(share * 4))];
+        drawFrame(ctx, clip, frame, woodsmanBlade(placed, placed.frame), { scale: placed.dot * 0.68, alpha: 0.87, flip: false });
+    }
+
+    function drawWoodsmanRelease(ctx, effect, elapsed) {
+        const clip = WOODSMAN_CLIPS[effect.element][1], frame = frameAt(clip, elapsed, false);
+        if (!frame) return;
+        const origin = woodsmanOrigin(effect);
+        if (!origin) return;
+        const shape = WOODSMAN_SHAPES[effect.element], { dot, west } = origin;
+        const at = { x: origin.x + (west ? -1 : 1) * dot * elapsed * shape.speed, y: origin.y - dot * elapsed * shape.rise };
+        drawFrame(ctx, clip, frame, at, { scale: dot * shape.size, flip: west });
+    }
+
+    /** A cut leaves the blade once; recovery and a later turn do not drag it back. */
+    function woodsmanOrigin(effect) {
+        if (woodsmanOrigins.has(effect)) return woodsmanOrigins.get(effect);
+        const placed = stageRoster.placementOf(effect.enemyId);
+        if (!placed || placed.actor !== 'woodsman') return null;
+        const origin = { ...woodsmanBlade(placed, placed.strikeFrame), dot: placed.dot, west: placed.west };
+        woodsmanOrigins.set(effect, origin);
+        return origin;
+    }
+
+    function drawWoodsmanFx(ctx, effect, now, projection) {
+        const elapsed = now - effect.start;
+        if (effect.type === 'bossRelease' && effect.woodsman) return drawWoodsmanRelease(ctx, effect, elapsed);
+        if (effect.type !== 'woodsmanImpact' || !projection) return;
+        const clip = WOODSMAN_CLIPS[effect.element][2], frame = frameAt(clip, elapsed, false);
+        if (!frame) return;
+        for (const at of woodsmanImpactPoints(effect.cells, projection)) {
+            drawFrame(ctx, clip, frame, at, { scale: projection.tileW / 96, flip: false });
+        }
+    }
+
+    /** Nearby hit cells share one burst, so narrow lanes do not stack three explosions over the hero. */
+    function woodsmanImpactPoints(cells, projection) {
+        const points = [], step = Math.max(1, Math.ceil(cells.length / 6)), gap = projection.tileW * .95;
+        for (let i = 0; i < cells.length && points.length < 3; i += step) {
+            const at = floorOf(cells[i], projection);
+            if (points.every(p => Math.hypot(p.x - at.x, p.y - at.y) >= gap)) points.push(at);
+        }
+        return points;
+    }
+
     /** The charge at the boss's hand through its warning: GPT's charge frames spread over the warning, the last flash at the end. */
     function drawCharges(ctx, projection) {
         for (const enemy of game.enemies || []) {
-            const share = enemy && enemy.isBoss ? bossAttackView.warningShare(enemy) : null, found = share === null ? null : bossMoves.fxOf(enemy);
-            if (!found || !enemy.patternArea) continue;
+            const share = enemy && enemy.isBoss ? bossAttackView.warningShare(enemy) : null;
+            if (share === null || !enemy.patternArea) continue;
+            const element = woodsmanAttackFxElement(enemy);
+            if (element) { drawWoodsmanCharge(ctx, enemy, element, share); continue; }
+            const found = bossMoves.fxOf(enemy);
+            if (!found) continue;
             const clip = found.row.clips.charge, body = bodyOf(enemy, found.row, projection);
             const frame = clip.frames[Math.min(clip.frames.length - 1, Math.floor(share * (clip.frames.length - 0.5)))];
             drawFrame(ctx, clip, frame, body.hand, { scale: body.dot * found.row.scale });
@@ -239,6 +347,7 @@ const bossMoveView = (() => {
     function drawAir(ctx, projection) {
         if (!projection || !fx()) return;
         const now = bossAttackView.now();
+        drawShiftFlashes(ctx, projection, now);
         drawCharges(ctx, projection);
         for (const entry of bossMoves.live(now)) {
             if (entry.move.kind === 'grind') drawGrindSparks(ctx, entry, now);
@@ -251,6 +360,10 @@ const bossMoveView = (() => {
 
     /** 뿌리 절단자는 예고한 칸 쪽을 본 채 톱날을 간다: 칸은 그대로인데 주인공을 따라 몸만 돌면 톱날과 칸이 어긋난다. 예고와 갈기 사이에만 'west' 또는 'east', 그 밖에는 null. */
     function heldSide(enemy) {
+        const shift = enemy && bossMoves.shiftOf(enemy);
+        if (shift && (!shift.released || getCombatTime() < shift.releasedAt + 800)) {
+            return shift.target.gx < getGridUnitCenter(enemy).gx ? 'west' : 'east';
+        }
         if (!enemy || !enemy.roomInvader) return null;
         const cells = grindCells(enemy, bossAttackView.now());
         if (!cells) return null;
@@ -270,6 +383,6 @@ const bossMoveView = (() => {
         return stages[stages.length - 1].ms + BOSS_MOVE_RULES.beam.tickMs;
     }
 
-    return Object.freeze({ drawGround, drawAir, strikeHoldMs, heldSide });
+    return Object.freeze({ drawGround, drawAir, drawWoodsmanFx, strikeHoldMs, heldSide, shiftAlpha });
 })();
 safeExposeGlobals({ bossMoveView });

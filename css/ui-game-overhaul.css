@@ -1509,6 +1509,9 @@ body .item-card {
 @keyframes gem-slot-ready { 50% { box-shadow: 0 0 20px rgba(98, 199, 132, .28); } }
 
 #tab-skills .gem-enhance-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+/* 기본 성장은 강화 대상 칸의 아래(index.html): 좁은 칸이라 단추를 한 줄에 하나씩 */
+#tab-skills .gem-target-rail .gem-upgrade-section { margin-top: 10px; }
+#tab-skills .gem-target-rail .gem-enhance-actions { grid-template-columns: minmax(0, 1fr); }
 #tab-skills .gem-upgrade-btn { min-height: 62px; padding: 8px; border-color: #38536c; background: linear-gradient(150deg, #1a2a3a, #101a27); }
 #tab-skills .gem-upgrade-btn small { display: block; margin-top: 3px; line-height: 1.5; }
 #tab-skills .gem-upgrade-btn.done { border-color: #47765e; background: linear-gradient(150deg, #18352a, #10231c); }

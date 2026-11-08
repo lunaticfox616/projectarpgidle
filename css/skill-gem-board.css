@@ -28,8 +28,9 @@
 .skill-board-linked-row { display: grid; grid-template-columns: minmax(76px, 1fr) minmax(250px, 2fr) minmax(76px, 1fr); align-items: center; gap: 12px; }
 .skill-board-main { min-width: 0; }
 .skill-board-mobility, .skill-board-summons { display: grid; justify-items: center; gap: 8px; min-width: 0; }
+/* 소환 칸 묶음은 넘치면 굴리고 테두리가 잘리지 않게 4px 띄운다. 이동 칸도 같은 여백이라 두 칸의 윗변이 같다. */
+.skill-board-mobility { padding: 4px; }
 .skill-board-summons { max-height: 300px; overflow-y: auto; padding: 4px; }
-.skill-board-summons > small { color: var(--board-muted); font: 12px/18px var(--board-label); text-align: center; }
 .skill-board-head { display: flex; align-items: baseline; gap: 7px; min-width: 0; padding: 0 2px; }
 .skill-board-head > span { color: var(--board-gold); font: 12px var(--board-label); }
 .skill-board-head > b { min-width: 0; overflow: hidden; color: #fff; font: 400 var(--font-size-reading) var(--board-read); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
@@ -131,11 +132,14 @@
 }
 .skill-board-satellite-art img { width: 38px; height: 38px; object-fit: contain; image-rendering: pixelated; }
 .skill-board-satellite > i { color: var(--board-gold); font: normal var(--font-size-heading) var(--board-label); background: rgba(20, 16, 22, .6); box-shadow: none; border: 1px dashed var(--board-gold); }
-.skill-board-satellite > small { color: var(--board-gold); font: 12px var(--board-label); }
+/* 이동, 소환, 비어 있음은 밝게(2026-11-08 사용자: 흐릿하게 보였다). 소환 한도(0/1)는 첫 소환 칸의 이름 위에 갈무리9로 작게 적는다:
+   칸 밑의 따로 된 줄이 소환 칸만 키워 이동 칸과 높이가 어긋났다. */
+.skill-board-satellite > small { color: var(--board-gold-hi); font: 12px var(--board-label); }
+.skill-board-satellite > .skill-board-cap { color: var(--board-copy); font: normal 400 10px/12px var(--font-pixel-meta); }
 /* 칸 안의 그림과 글(가운데 맞춤)은 칸 폭과 제 폭이 홀수일 때 생기는 반 화소를 되돌린다(2026-10-21). */
 .skill-board-satellite > * { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 .skill-board-satellite > b { max-width: 100%; overflow: hidden; color: var(--board-copy); font: 400 12px var(--board-label); text-overflow: ellipsis; white-space: nowrap; }
-.skill-board-satellite.is-empty > b { color: var(--board-muted); }
+.skill-board-satellite.is-empty > b { color: color-mix(in srgb, var(--board-copy) 82%, var(--board-muted)); }
 .skill-board-satellite:hover > :is(.skill-board-satellite-art, i) { filter: brightness(1.2); }
 #skill-tab-equip:is([data-picking="mobility"], [data-picking="summon"]) .skill-board-satellite[data-board-pick] > :is(.skill-board-satellite-art, i) { opacity: .55; }
 #skill-tab-equip[data-picking="mobility"] .skill-board-satellite[data-board-pick="mobility"] > :is(.skill-board-satellite-art, i),
@@ -311,8 +315,8 @@
   .skill-board-engrave[style*="--y:-"] > span { bottom: 39px; }
   .skill-board-satellite { width: 100%; }
   .skill-board-satellite > b { white-space: normal; overflow-wrap: anywhere; }
+  .skill-board-mobility { padding: 0; }
   .skill-board-summons { max-height: 240px; padding: 0; }
-  .skill-board-summons > small { overflow-wrap: anywhere; }
   .support-resonance { margin-left: 0; }
   #tab-skills .skill-picker #ui-support-list, .support-library-unmatched { grid-template-columns: minmax(0, 1fr); }
 }

@@ -62,7 +62,7 @@ const skillGemCasts = (() => {
     }
     function targets(id,source,enemies,extra=0) {
         const live=enemies.filter(e=>e.hp>0);
-        if(MOVES[id])return moveTargets(id,source,live,extra);
+        if(TARGETS[id])return TARGETS[id](id,source,live,extra);
         if(id===51)return live.filter(e=>cross(source,e,1+extra));
         if(id===52)return live.filter(e=>getGridUnitDistance(source,e)<=4+extra && landing(e,source,live));
         if(id===70)return live.filter(e=>getGridUnitDistance(source,e)<=FLICKER.first && flickerLanding(e,cell(source),live));
@@ -94,13 +94,14 @@ const skillGemCasts = (() => {
         return area(board,center,shape,radius).map(cell);
     }
     function createState() {return {casts:[],events:[],sequence:0,lastSkill:''};}
+    /** 룬 번호 → 그 룬의 그림 사건에서 단계 이름이 적힌 칸(js/canvas-stage-skill-casts.js PHASE_KEYS). define이 새 룬의 칸을 더한다. */
+    const PHASE_KEYS={44:'flaskPhase',45:'lancePhase',46:'timePhase',47:'mixturePhase',48:'supercooledPhase',
+        49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',
+        54:'riftPhase',55:'smokePhase',56:'harpoonPhase',70:'flickerPhase',77:'rockFlaskPhase',78:'homingPhase',79:'petrifyPhase',80:'timeSlashPhase'};
     function event(cast,phase,at,duration,extra={}) {
-        const keys={44:'flaskPhase',45:'lancePhase',46:'timePhase',47:'mixturePhase',48:'supercooledPhase',
-            49:'emptyFlaskPhase',50:'holyMistPhase',51:'judgmentPhase',52:'assassinationPhase',
-            54:'riftPhase',55:'smokePhase',56:'harpoonPhase',70:'flickerPhase',77:'rockFlaskPhase',78:'homingPhase',79:'petrifyPhase',80:'timeSlashPhase'};
         const travel=['flight','flask','shard','fall'].includes(phase);
         const ground=['clock','wave','mist'].includes(phase);
-        return {skillName:cast.name,kind:travel?'travel':'stage',[keys[cast.id]]:phase,at,duration,
+        return {skillName:cast.name,kind:travel?'travel':'stage',[PHASE_KEYS[cast.id]]:phase,at,duration,
             sourceCell:cell(cast.source),targetCells:[cell(cast.aim)],landingCell:cell(cast.aim),
             stageIndex:cast.index||0,element:cast.stats.sSkill.ele,channelId:cast.key,
             renderLayer:ground?'ground':'foreground',...extra};
@@ -275,6 +276,8 @@ const skillGemCasts = (() => {
     // Reach is Euclidean; a landing is free (see free()) and never the caster's own cell; timings scale with attack speed.
     // Each cast carries its whole choreography in c.move (one 'move' event) for the redrawn art and the caster's motion.
     const MOVES={54:{range:4,grows:'radius'},55:{range:5,grows:'range'},56:{range:5,grows:'range'},77:{range:5,grows:'radius'}};
+    /** 룬 번호 → 대상 고르기(id, source, live, extra). 이동기는 moveTargets, 새 룬은 define이 더한다. 없는 룬은 targets()의 사거리 표를 쓴다. */
+    const TARGETS={54:moveTargets,55:moveTargets,56:moveTargets,77:moveTargets};
     const N8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
     const reach2=(a,b)=>(a.gx-b.gx)**2+(a.gy-b.gy)**2;
     const ms=(c,value)=>Math.round(value/c.speed);
@@ -767,6 +770,16 @@ const skillGemCasts = (() => {
         if(state.events.length>128)state.events.splice(0,state.events.length-128);
         return commands;
     }
-    return {createState,start,update,targets,facing,free,behind,blindSpots,cross,singleCast:SINGLE_CAST};
+    /** 새 룬의 판정을 더한다(2026-11-08 전달본 V3.13, js/skill-gem-casts-v313.js). def: targets(id, source, live, extra), launch(state, c, enemies),
+     * step(state, c, input), phase 그 룬의 그림 사건에서 단계 이름이 적힌 칸, area(c) 피해 칸(선택), single 겹쳐 쓰지 않음, thrown 던지는 병(추가 발사가 병을 더 던진다). */
+    function define(id,def) {
+        TARGETS[id]=def.targets;launch[id]=def.launch;steps[id]=def.step;PHASE_KEYS[id]=def.phase;
+        if(def.area)contactAreas[id]=def.area;
+        if(def.single)SINGLE_CAST.add(id);
+        if(def.thrown)THROWN_FLASKS.add(id);
+    }
+    /** 새 룬이 같이 쓰는 도구: 칸 계산, 그림 사건, 타격 명령, 공격 속도로 줄인 시간, 효과 확장, 갈래 투사체의 발 수, 던지기. */
+    const kit=Object.freeze({cell,same,distance,area,cells,visual,contact,ms,letGo,grow,supportShots,between,free,flight,launchFlask,FLASK_RELEASE});
+    return {createState,start,update,targets,facing,free,behind,blindSpots,cross,singleCast:SINGLE_CAST,define,kit};
 })();
 safeExposeGlobals({skillGemCasts});

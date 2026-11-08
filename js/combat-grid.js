@@ -1195,9 +1195,9 @@ function getSlamAftershockProfile(skill) {
     };
 }
 
-/** 회전 룬의 타격 간격: 룬이 정하면 그 값(정화의 집행 0.12초), 아니면 공용 값. */
-function getWhirlSequenceProfile(skill) {
-    return { kind: 'whirl', intervalMs: skill.whirlIntervalMs || SKILL_HIT_SEQUENCE_CONFIG.whirlIntervalMs };
+/** 회전 룬의 타격 간격(공용 값). 룬마다 정하던 간격은 그것을 쓰던 정화의 집행과 함께 2026-11-08에 빠졌다. */
+function getWhirlSequenceProfile() {
+    return { kind: 'whirl', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.whirlIntervalMs };
 }
 
 function getPierceSequenceProfile(skillName) {
@@ -1208,7 +1208,7 @@ function getPierceSequenceProfile(skillName) {
 function getSkillHitSequenceProfile(skillName, skill) {
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
     let mode = skill && skill.targetMode;
-    if (mode === 'whirl') return getWhirlSequenceProfile(skill);
+    if (mode === 'whirl') return getWhirlSequenceProfile();
     if (mode === 'chain') return { kind: 'chain', intervalMs: SKILL_HIT_SEQUENCE_CONFIG.chainIntervalMs, fork: getSkillGridProfile(skillName, skill).fork };
     let gridProfile = getSkillGridProfile(skillName, skill || {});
     if (mode === 'pierce' || (gridProfile && gridProfile.kind === 'line')) return getPierceSequenceProfile(skillName);

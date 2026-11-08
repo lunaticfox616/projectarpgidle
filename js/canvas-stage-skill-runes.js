@@ -253,7 +253,6 @@ const stageSkillRunes = (() => {
     // ---------------------------------------------------------------- windup, movement, bows, hits
     /** 시전 시작: 부싯돌 베기는 타격 전까지 무기 끝이 바닥을 긁어 불티가 튄다. */
     function runeWindup(gem, fx) {
-        if (gem.map.censer) stageNewRunes.censerStart(gem);   // 정화의 집행: 몸을 따라다니는 불의 고리
         if (!gem.map.drag) return;
         const hero = K.heroSpot();
         ST.dragSpark(K.at(hero), K.heroFace(), Math.max(200, Number(fx.impactDelayMs) || 0), hero.gx * 13 + hero.gy);

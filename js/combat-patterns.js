@@ -178,6 +178,8 @@
     function getBossPatternPreview(enemy) {
         if (!enemy || !enemy.isBoss || !enemy.patternMode) return null;
         let attackNumber = normalizeAttackCount(enemy) + 1;
+        const shift = bossMoves.shiftPattern(enemy, attackNumber);
+        if (shift) return shift;
         let mode = String(enemy.patternMode);
         if (OWN_PATTERN_MODES.has(mode)) return getOwnPatternState(mode, enemy, attackNumber);
         // 성좌 순환(우주계 보스)과 핵 폭주(운석 핵의 체력 절반 뒤): 같은 순환. 핵 폭주는 특수기 뒤 숨 고르기(recoveryOf)가 있다.
@@ -233,6 +235,7 @@
     /** How long a special warns (ms): its own (a final boss combo, js/atlas-endgame.js comboState) or the shared default. */
     const warningDuration = state => state.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs;
     function clearBossTelegraph(enemy) {
+        bossMoves.cancelShift(enemy);
         enemy.patternTelegraphKey = null;
         enemy.patternTelegraphStartedAt = 0;
         enemy.patternArea = null;
@@ -269,17 +272,27 @@
         // 시작했다(2026-10-07 검토). 맞는 칸은 예고를 시작할 때 정한 그대로다.
         let key = `${state.patternMode || state.mode}:${state.attackNumber}`;
         let timestamp = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-        if (enemy.patternTelegraphKey !== key) {
+        if (bossMoves.needsWarning(enemy, state, key)) {
             if (!warningMayStart(state, charge, chargePerSec)) { clearBossTelegraph(enemy); return false; }
             enemy.patternTelegraphKey = key;
             enemy.patternTelegraphStartedAt = timestamp;
             if (target) {
                 // Lines and fans leave from the boss's cell nearest the target (a boss as wide as its picture is up to 6 cells wide).
-                let profile = COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind], from = getClosestGridUnitCell(target, enemy);
-                enemy.patternArea = { ...getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, from), source: from };
+                enemy.patternArea = bossWarningArea(enemy, state, target, timestamp);
             }
         }
-        if (timestamp - enemy.patternTelegraphStartedAt < warningDuration(state)) return false;
+        return finishBossWarning(enemy, state, timestamp, charge);
+    }
+
+    function bossWarningArea(enemy, state, target, now) {
+        const shift = bossMoves.prepareShift(enemy, state, target, now);
+        if (shift) return shift;
+        const profile = COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind], from = getClosestGridUnitCell(target, enemy);
+        return { ...getSkillStageFootprint('', {}, { aimCell: target, gridProfile: profile }, from), source: from };
+    }
+    function finishBossWarning(enemy, state, now, charge) {
+        if (!bossMoves.updateShift(enemy, now)) { clearBossTelegraph(enemy); return false; }
+        if (now - enemy.patternTelegraphStartedAt < warningDuration(state)) return false;
         return releaseAfterWarning(enemy, state, charge);
     }
 

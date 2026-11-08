@@ -488,6 +488,8 @@ const BOSS_REACH = Object.freeze({
         trial_1: 'melee', trial_5: 'melee', labyrinth_guardian: 'melee',
         // 불칼은 붙어서 베고, 얼음 지팡이는 주문을 쏘며, 장창은 두 칸 앞까지 찌른다.
         s2_boss_flame: 'melee', s2_boss_frost: 'ranged', s2_boss_storm: 'polearm',
+        // 전용 외형으로 교체해도 영역 보스를 빌려 쓰던 때의 싸우는 거리는 유지한다.
+        cosmos_astra: 'melee', pinnacle_underking: 'melee', pinnacle_leviathan: 'ranged', pinnacle_sky: 'melee',
         'cerberus-head': 'ranged', 'cerberus-fang': 'melee', s6_beast_cerberus: 'melee' }),
     /** 예고하는 특수기(지면 강타, 충격파 등)는 대상이 이 칸 수 안이면 사거리 밖이어도 그 자리에서 쓴다: 근접 보스에게서 달아나기만
      * 하면 아무것도 맞지 않는 싸움이 되지 않게. */

@@ -807,7 +807,8 @@ function isSkillRuneUsableWithStance(name, stance) {
 /** 무작위로 주는 룬(몬스터 드롭, 전직 시련, 하켄의 진열대, 암시장)이 지금 무기로 쓸 수 있는 룬을 고르는 몫: 쓸 수 있는 룬은 3배로 뽑힌다.
  * 못 쓰는 룬도 나와 무기를 바꿔 볼 거리가 남는다(2026-10-17: 무기 규칙 뒤 활은 룬의 50%, 오브와 플라스크는 45%만 쓸 수 있었다). */
 const SKILL_RUNE_FIT_WEIGHT = 3;
-const getSkillRuneRewardWeight = (name, stance) => (isSkillRuneUsableWithStance(name, stance) ? SKILL_RUNE_FIT_WEIGHT : 1);
+/** 그 룬이 드랍과 진열대에 나오는 무게: 지금 무기로 쓸 수 있으면 SKILL_RUNE_FIT_WEIGHT배, 드물게 나오는 룬(SKILL_RUNE_DROP_WEIGHTS)은 그 배율만큼. */
+const getSkillRuneRewardWeight = (name, stance) => (isSkillRuneUsableWithStance(name, stance) ? SKILL_RUNE_FIT_WEIGHT : 1) * (SKILL_RUNE_DROP_WEIGHTS[name] ?? 1);
 
 /** 룬 이름들 가운데 하나를 지금 무기에 맞는 룬 쪽으로 기울여 고른다(난수 한 번). 빈 목록이면 null. */
 function pickSkillRuneReward(names, random = Math.random) {

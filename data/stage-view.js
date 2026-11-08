@@ -307,13 +307,14 @@ const STAGE_SCENES = Object.freeze({
 const STAGE_MONSTER_SCALE = Object.freeze({ 'wisp-': 0.7, 'hive-': 0.6, 'deacon-': 1.2,
     apex_gardener: 1.4, apex_archbishop: 1.4, apex_weaver: 1.2, apex_compost: 1.2, bossAct4_1: 1.2,
     s2_boss_flame: 1.15, s2_boss_frost: 1.3, s2_boss_storm: 1.2,
+    'atlas-roots-4': 1.2, 'atlas-trunk-1': 1.2, 'atlas-garden-0': 1.4, 'atlas-garden-3': 1.15, 'atlas-sanctum-1': 1.3, 'atlas-sanctum-2': 1.4,
     rival_overheat: 1.25, rival_dull: 1.4, rival_glutton: 1.2, rival_afterimage: 1.4, rival_backedge: 1.15, rival_masterwork: 1.1 });
 
 /** 그림에 제 어두운 테두리 선이 있는 몬스터 외형(js/canvas-stage-roster.js). 2026-11-03 Codex가 테두리를 다시 그린 외형은 검은 선이 빠져 주인공(도트 하나
  * 굵기의 검은 선)과 화풍이 달라 보였다. 2026-11-04 사용자 "테두리에 까만선 없는 몬스터들만 까만선 + 빨간선으로 하자": 여기 없는 외형은 무대가
- * 한 도트 검은 선을 두르고 빨간 테를 그 밖에 한 도트 더 두른다. 여기 있는 외형은 다시 그리지 않은 11종(검정, 남색, 갈색 선)이라 전처럼 빨간 테만 두른다. */
+ * 한 도트 검은 선을 두르고 빨간 테를 그 밖에 한 도트 더 두른다. 여기 있는 외형은 그림에 선이 있어 전처럼 빨간 테만 두른다. */
 const STAGE_INKED_LOOKS = Object.freeze(['league_nursery', 'pinnacle_leviathan', 'atlas-sanctum-7', 'bossAct10_2', 'apex_gardener', 's2_boss_frost',
-    's2_boss_storm', 'pinnacle_sky', 'atlas-trunk-8', 'atlas-garden-8', 'breach-reflux']);
+    'pinnacle_sky', 'atlas-trunk-8', 'atlas-garden-8', 'breach-reflux']);
 
 /** 방 단위 무대의 입구 방에 서는 이야기 NPC(js/canvas-act-title-card.js). 이야기 액트와 시련에서 그 대사의 NPC(data/story-journal.js
  * STORY_NPCS, 이름으로 찾는다)가 입구 방에 선다. 엔드게임 콘텐츠 지도에는 서지 않는다(2026-10-15 사용자: "콘텐츠 지도 입구 NPC도 빼줘",

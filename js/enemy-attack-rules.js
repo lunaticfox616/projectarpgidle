@@ -198,6 +198,7 @@ const enemyAttackRules = (() => {
     }
 
     function clearInterruptedCast(enemy, now) {
+        bossMoves.cancelShift(enemy);
         if (enemy.patternTelegraphKey || enemy.attackCast) {
             enemy.castInterruptedUntil = enemy.nextPatternState?.isSpecial || enemy.attackCast?.isSpecial ? now + 650 : 0;
             enemy.attackTimer = 0;
@@ -213,6 +214,7 @@ const enemyAttackRules = (() => {
         const cc = controls(attack.source);
         const interrupted = Number.isFinite(attack.source.castInterruptedAt) && attack.source.castInterruptedAt >= attack.castStartAt;
         if (!cc.hard && !cc.silence && !interrupted && attack.source.hp > 0) return false;
+        bossMoves.cancelShift(attack.source);
         attack.source.castInterruptedUntil = attack.bossPattern.isSpecial !== false ? now + 650 : 0;
         attack.source.attackTimer = 0;
         attack.source.attackCast = null;

@@ -95,7 +95,7 @@
         if (isSupportSlot()) return supportCandidateHtml(name, stats, state);
         const level = getUiGemPresentation(name, isSupportSlot(), stats).totalLevel;
         return `<button type="button" class="gem-slot-card${slotToneClass(name)}${state.blocked ? ' is-blocked' : ''}" data-slot-gem="${escapeHTML(name)}" aria-disabled="${state.blocked}" ${HINT_HANDLERS}>
-            ${slotArtHtml(name, 'gem-slot-card-art', false)}<span class="gem-slot-card-copy"><strong>${escapeHTML(name)}${level ? `<small>Lv.${formatValue('', level)}</small>` : ''}${!isSupportSlot() && gemDropRewards.spareCount(game, name) ? `<small>×${gemDropRewards.spareCount(game, name) + 1}</small>` : ''}</strong>
+            ${slotArtHtml(name, 'gem-slot-card-art', false)}<span class="gem-slot-card-copy"><strong>${escapeHTML(_t(name))}${level ? `<small>Lv.${formatValue('', level)}</small>` : ''}${!isSupportSlot() && gemDropRewards.spareCount(game, name) ? `<small>×${gemDropRewards.spareCount(game, name) + 1}</small>` : ''}</strong>
             <span class="gem-slot-numbers">${gemNumbersHtml(name, stats)}</span><em>${escapeHTML(_t(state.note))}</em></span></button>`;
     }
 
@@ -117,7 +117,7 @@
         const level = getUiGemPresentation(name, true, stats).totalLevel;
         const def = SUPPORT_GEM_DB[name];
         return `<article class="gem-slot-card support-candidate${slotToneClass(name)}${slot.preview === name ? ' is-preview' : ''}" data-support-candidate="${escapeHTML(name)}">
-            <button type="button" class="support-candidate-heading" data-slot-action="preview" data-name="${escapeHTML(name)}">${slotArtHtml(name, 'gem-slot-card-art', false)}<span><strong>${escapeHTML(name)}</strong><small>${_t('Lv.{value}, 공명 {name}', { value: formatValue('', level), name: getSupportTierResonanceCost(name) })}</small></span>${gemSelectionUi.indicators(name, slot.name)}</button>
+            <button type="button" class="support-candidate-heading" data-slot-action="preview" data-name="${escapeHTML(name)}">${slotArtHtml(name, 'gem-slot-card-art', false)}<span><strong>${escapeHTML(_t(name))}</strong><small>${_t('Lv.{value}, 공명 {name}', { value: formatValue('', level), name: getSupportTierResonanceCost(name) })}</small></span>${gemSelectionUi.indicators(name, slot.name)}</button>
             <p class="support-candidate-effect">${gemNumbersHtml(name, stats)}</p>${def.tradeoff ? `<p class="support-tradeoff">${_t('대가: {tradeoff}', { tradeoff: escapeHTML(def.tradeoff) })}</p>` : ''}
             ${gemSelectionUi.targetDetails(name, stats, slot.name)}${candidateComparison(name)}${candidateTierButtons(name, stats)}
             <div class="support-candidate-bottom"><small class="${state.blocked ? 'is-short' : ''}">${escapeHTML(_t(state.note))}</small><button type="button" data-slot-action="choose" data-name="${escapeHTML(name)}" ${state.blocked ? 'disabled' : ''}>${slot.name || supportIsFull(stats) ? _t('바꾸기') : _t('장착')}</button></div></article>`;
@@ -191,7 +191,7 @@
         const info = getUiGemPresentation(name, isSupportSlot(), stats);
         return `<div class="gem-slot-current${slotToneClass(name)}">
             <div class="gem-slot-current-main" data-slot-gem="${escapeHTML(name)}" ${HINT_HANDLERS}>${slotArtHtml(name, 'gem-slot-current-art', true)}
-                <div class="gem-slot-current-copy"><small>${_t('지금 낀 룬')}</small><strong>${escapeHTML(name)}${info.totalLevel ? `<i>Lv.${formatValue('', info.totalLevel)}</i>` : ''}</strong>
+                <div class="gem-slot-current-copy"><small>${_t('지금 낀 룬')}</small><strong>${escapeHTML(_t(name))}${info.totalLevel ? `<i>Lv.${formatValue('', info.totalLevel)}</i>` : ''}</strong>
                 <span class="gem-slot-numbers">${gemNumbersHtml(name, stats)}</span><p>${statToneText.html(_t(info.desc) || '')}</p><em>${escapeHTML(slotReachText(name, stats))}</em></div></div>
             <div class="gem-slot-controls">${CONTROLS[slot.kind](name, stats)}</div>${isSupportSlot() ? gemSelectionUi.targetDetails(name, stats) : gemSelectionUi.skillSummary(slot.kind, name, stats)}</div>`;
     }

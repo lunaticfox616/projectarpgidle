@@ -421,36 +421,36 @@ const SEASON_BOSS_ZONES = [
     //  - 매 루프 다시 도전하는 고정 난이도 결투 — 루프 31 진입 시점의 성장 배율에 고정하고 bossMods로 개성을 조절한다.
     //  - bossMods shape는 createEnemy의 cosmosMods와 동일: *Mul(hp/damage/attackSpeed/armor/evasion/regen)은 배율, 나머지는 가산.
     //  - 다섯 날을 한 루프 안에 모두 꺾으면 「완성작」이 모습을 드러낸다 (requiresRivals).
-    { id: 'rival_overheat', name: '버려진 두 번째 날 「과열」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'fire', reward: 'goldenRule', journalId: 'rival_overheat', rivalBlade: true, difficultyBenchmark: 'rival31',
+    { id: 'rival_overheat', bossVisualId: 'rival_overheat', name: '버려진 두 번째 날 「과열」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'fire', reward: 'goldenRule', journalId: 'rival_overheat', rivalBlade: true, difficultyBenchmark: 'rival31',
       bossMods: { hpMul: 0.75, damageMul: 1.3, attackSpeedMul: 1.3, critChanceBonus: 14, patternMode: 'burst', traitName: '과열: 먼저 베지 못하면 먼저 베인다' } },
-    { id: 'rival_dull', name: '버려진 세 번째 날 「무딤」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'cold', reward: 'goldenRule', journalId: 'rival_dull', rivalBlade: true, difficultyBenchmark: 'rival31',
+    { id: 'rival_dull', bossVisualId: 'rival_dull', name: '버려진 세 번째 날 「무딤」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'cold', reward: 'goldenRule', journalId: 'rival_dull', rivalBlade: true, difficultyBenchmark: 'rival31',
       bossMods: { hpMul: 1.5, damageMul: 1.1, attackSpeedMul: 0.78, dr: 12, resAll: 12, armorMul: 1.6, firstHitGuard: 0.3, patternMode: 'slam', traitName: '무딤: 부러지지 않는 것이 전부였던 날' } },
-    { id: 'rival_glutton', name: '버려진 네 번째 날 「탐식」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'rival_glutton', rivalBlade: true, difficultyBenchmark: 'rival31',
+    { id: 'rival_glutton', bossVisualId: 'rival_glutton', name: '버려진 네 번째 날 「탐식」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'rival_glutton', rivalBlade: true, difficultyBenchmark: 'rival31',
       bossMods: { hpMul: 1.25, regenMul: 8, resChaos: 20, ailmentChanceBonus: 0.1, patternMode: 'ramp', traitName: '탐식: 상처를 먹고 아무는 날' } },
-    { id: 'rival_afterimage', name: '버려진 다섯 번째 날 「잔영」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'light', reward: 'goldenRule', journalId: 'rival_afterimage', rivalBlade: true, difficultyBenchmark: 'rival31',
+    { id: 'rival_afterimage', bossVisualId: 'rival_afterimage', name: '버려진 다섯 번째 날 「잔영」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'light', reward: 'goldenRule', journalId: 'rival_afterimage', rivalBlade: true, difficultyBenchmark: 'rival31',
       bossMods: { hpMul: 0.85, attackSpeedMul: 1.18, evasionMul: 1.7, critChanceBonus: 8, firstHitGuard: 0.15, patternMode: 'burst', traitName: '잔영: 스치는 것조차 허락하지 않는 날' } },
-    { id: 'rival_backedge', name: '버려진 여섯 번째 날 「역린」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'phys', reward: 'goldenRule', journalId: 'rival_backedge', rivalBlade: true, difficultyBenchmark: 'rival31',
+    { id: 'rival_backedge', bossVisualId: 'rival_backedge', name: '버려진 여섯 번째 날 「역린」', type: 'seasonBoss', tier: 30, key: 'rivalKey', reqSeason: 31, ele: 'phys', reward: 'goldenRule', journalId: 'rival_backedge', rivalBlade: true, difficultyBenchmark: 'rival31',
       bossMods: { hpMul: 1.1, damageMul: 1.2, penetration: 12, dr: 8, resAll: 8, armorMul: 1.25, patternMode: 'slam', traitName: '역린: 방어를 거꾸로 베는 날' } },
-    { id: 'rival_masterwork', name: '일곱 번째 날 「완성작」', type: 'seasonBoss', tier: 32, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'woodsmanTouch', journalId: 'rival_masterwork', rivalBlade: true, capstoneRival: true, difficultyBenchmark: 'rival31',
+    { id: 'rival_masterwork', bossVisualId: 'rival_masterwork', name: '일곱 번째 날 「완성작」', type: 'seasonBoss', tier: 32, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'woodsmanTouch', journalId: 'rival_masterwork', rivalBlade: true, capstoneRival: true, difficultyBenchmark: 'rival31',
       requiresRivals: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'],
       bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작: 여섯 날의 모든 것' } },
     // 잔향체 아스트라 (루프 31+): 우주계 5개 은하의 보스(하말리스/디프다르/주베누비아/주벤샤말/에니프론)를
     // 같은 루프 안에 모두 격파해야 모습을 드러내는 우주계의 최종 관문. 다섯 보스의 정체성을 번갈아 두르며 싸운다.
-    { id: 'cosmos_astra', name: '잔향체 아스트라', type: 'seasonBoss', tier: 82, key: 'cosmosSovereignKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'cosmos_astra', cosmosCapstone: true, difficultyBenchmark: 'cosmosFinal',
+    { id: 'cosmos_astra', bossVisualId: 'cosmos_astra', name: '잔향체 아스트라', type: 'seasonBoss', tier: 82, key: 'cosmosSovereignKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'cosmos_astra', cosmosCapstone: true, difficultyBenchmark: 'cosmosFinal',
       requiresCosmosBosses: ['planet-45', 'planet-46', 'planet-47', 'planet-48', 'planet-49'],
       bossMods: { hpMul: 2.8, damageMul: 2.75, attackSpeedMul: 1.1, dr: 12, resAll: 14, armorMul: 1.45, evasionMul: 1.35, regenMul: 2, penetration: 12, critChanceBonus: 14, firstHitGuard: 0.3, patternMode: 'ramp', traitName: '잔향: 다섯 별의 마지막 메아리' } },
     // 아틀라스 최종 관문: 기존 무한 콘텐츠의 명확한 종착 목표다. 진행 이정표로 영구 해금되며
     // 입장권은 요구하지 않는다. 무료 반복 파밍을 막기 위해 보상은 최초 격파에만 지급한다.
-    { id: 'pinnacle_underking', name: '지핵군주 모르그란', signatureUnique: '모르그란의 용광로 흉갑', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'phys', journalId: 'pinnacle_underking', milestonePinnacle: true, pinnacleTrack: 'underworld', difficultyBenchmark: 'underworld30', underworldPenaltyFloor: 30,
+    { id: 'pinnacle_underking', bossVisualId: 'pinnacle_underking', name: '지핵군주 모르그란', signatureUnique: '모르그란의 용광로 흉갑', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'phys', journalId: 'pinnacle_underking', milestonePinnacle: true, pinnacleTrack: 'underworld', difficultyBenchmark: 'underworld30', underworldPenaltyFloor: 30,
       pinnacleRequirement: { kind: 'underworldFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.35, damageMul: 1.18, attackSpeedMul: 0.82, dr: 14, resAll: 10, armorMul: 1.8, penetration: 14, firstHitGuard: 0.32, patternMode: 'slam', traitName: '지핵 붕괴: 느리지만 방어를 파쇄하는 강타' } },
-    { id: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', signatureUnique: '탈라사의 해구 이빨', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'cold', journalId: 'pinnacle_leviathan', milestonePinnacle: true, pinnacleTrack: 'ocean', difficultyBenchmark: 'ocean1000', oceanPressureDepthTier: 10,
+    { id: 'pinnacle_leviathan', bossVisualId: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', signatureUnique: '탈라사의 해구 이빨', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'cold', journalId: 'pinnacle_leviathan', milestonePinnacle: true, pinnacleTrack: 'ocean', difficultyBenchmark: 'ocean1000', oceanPressureDepthTier: 10,
       pinnacleRequirement: { kind: 'oceanDepth', target: 1000 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.3, damageMul: 1.22, attackSpeedMul: 1.04, energyShieldPct: 35, regenMul: 2.4, resC: 18, resChaos: 12, penetration: 10, ailmentChanceBonus: 0.12, patternMode: 'ramp', traitName: '무광해 역류: 보호막과 냉각으로 장기전을 강요' } },
-    { id: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', signatureUnique: '빈 왕좌의 관', type: 'seasonBoss', tier: 61, reqSeason: 31, ele: 'light', journalId: 'pinnacle_sky', milestonePinnacle: true, pinnacleTrack: 'sky', difficultyBenchmark: 'sky30',
+    { id: 'pinnacle_sky', bossVisualId: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', signatureUnique: '빈 왕좌의 관', type: 'seasonBoss', tier: 61, reqSeason: 31, ele: 'light', journalId: 'pinnacle_sky', milestonePinnacle: true, pinnacleTrack: 'sky', difficultyBenchmark: 'sky30',
       pinnacleRequirement: { kind: 'skyFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.25, damageMul: 1.32, attackSpeedMul: 1.24, evasionMul: 1.75, critChanceBonus: 18, penetration: 12, firstHitGuard: 0.18, patternMode: 'burst', traitName: '천정 집행: 빠른 연격과 치명타로 빈틈을 추적' } },
-    { id: 'pinnacle_observer', name: '경계의 관측자 베일라', signatureUnique: '관측자의 마지막 기록', type: 'seasonBoss', tier: 86, reqSeason: 31, ele: 'chaos', journalId: 'pinnacle_observer', milestonePinnacle: true, pinnacleTrack: 'convergence', pinnacleCapstone: true, difficultyBenchmark: 'cosmosFinal',
+    { id: 'pinnacle_observer', bossVisualId: 'pinnacle_observer', name: '경계의 관측자 베일라', signatureUnique: '관측자의 마지막 기록', type: 'seasonBoss', tier: 86, reqSeason: 31, ele: 'chaos', journalId: 'pinnacle_observer', milestonePinnacle: true, pinnacleTrack: 'convergence', pinnacleCapstone: true, difficultyBenchmark: 'cosmosFinal',
       requiresPinnacles: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'], firstClearReward: { key: 'goldenRule', amount: 5 },
       bossMods: { hpMul: 11, damageMul: 3, attackSpeedMul: 1.12, dr: 15, resAll: 16, armorMul: 1.55, evasionMul: 1.4, energyShieldPct: 25, regenMul: 2.5, penetration: 16, critChanceBonus: 16, firstHitGuard: 0.35, patternMode: 'cosmos', traitName: '경계 관측: 강습, 강타, 격앙을 순환하며 모든 성장축을 검증' } }
 ];

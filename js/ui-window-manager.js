@@ -1394,7 +1394,8 @@
 
 
     function closeTopWindowOnEscape(event) {
-        if (event.key !== 'Escape' || event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+        // 글을 치는 칸에서만 Esc를 그 칸에 둔다(js/utils.js isTextEntryTarget): 고른 셀렉박스나 체크박스에 포커스가 남아도 창은 닫힌다.
+        if (event.key !== 'Escape' || isTextEntryTarget(event.target)) return;
         if (document.querySelector('dialog:modal')) return;
         // 선택 창은 selection-dialog-ui.js가 Esc를 먼저 받아 맨 위 것만 닫는다. 선택 창이 남아 있으면 그 뒤의 창은 그대로 둔다.
         if (document.querySelector('.selection-overlay')) return;

@@ -6117,7 +6117,15 @@ function getHitEnemyResistance(element, zoneTier, enemy, pStats, curseFx) {
 
 /** The enemy's mitigation against a hit of skillEle: its resistance (the woodsman's climbs as it loses life), less the shreds on
  * it, then the physical or elemental rules. Split into its steps on 2026-10-18 with the same reads in the same order. */
+/** 공허의 빙의(2026-11-08 전달본 V3.13)의 약화: 4초 동안 모든 피해를 20% 더 받는다. 저항을 그만큼 낮춘 값이다(신성한 안개와 같은 길). */
+const VOID_WEAK_TAKEN_MUL = 1.2;
+function applyVoidWeakMitigation(enemy, mitigation) {
+    return enemy?.voidWeakUntil > getCombatTime() ? 100 - (100 - mitigation) * VOID_WEAK_TAKEN_MUL : mitigation;
+}
 function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
+    return applyVoidWeakMitigation(enemy, getEnemyMitigationBeforeWeak(skillEle, zoneTier, enemy, pStats));
+}
+function getEnemyMitigationBeforeWeak(skillEle, zoneTier, enemy, pStats) {
     let rawMitigation = getEnemyElementResistance(skillEle, zoneTier, enemy);
     if (enemy && enemy.isWoodsman && enemy.maxHp > 0) rawMitigation = getWoodsmanResistance(skillEle, enemy, rawMitigation);
     rawMitigation = applyEnemyResistanceShred(skillEle, enemy, rawMitigation);
@@ -6742,8 +6750,10 @@ function getLoopHpScale(loopCount) {
 /** Chaos bosses borrow a random act boss; an atlas node keeps its own (zone.bossAct). */
 function getChaosBossVisual(zone, variantSeed) {
     if (!zone || !['abyss', 'chaosRealm', 'atlasMap'].includes(zone.type) || typeof getBossAssetKeyForZone !== 'function') return null;
-    let actId = Number.isInteger(zone.bossAct) ? zone.bossAct : Math.abs(Math.floor(variantSeed || 0)) % 10;
-    let assetKey = getBossAssetKeyForZone({ type: 'act', id: actId }, variantSeed);
+    const seed = Math.abs(Math.floor(variantSeed || 0)), fixedAct = Number.isInteger(zone.bossAct);
+    const actId = fixedAct ? zone.bossAct : seed % 10;
+    // 액트와 그 안의 모습을 같은 나머지로 고르면 일부 모습(예: 액트 4의 첫째)이 절대 나오지 않는다.
+    const assetKey = getBossAssetKeyForZone({ type: 'act', id: actId }, fixedAct ? seed : Math.floor(seed / 10));
     let hues = [286, 318, 202, 266, 334, 178, 244, 302, 222, 274];
     return { assetKey: assetKey, tint: hues[actId] };
 }
@@ -8778,6 +8788,7 @@ function getWoodsmanCurseDamageTakenMul() {
 
 const WOODSMAN_PHASE_OLD_FINAL_PROGRESS = 0.75;
 const WOODSMAN_PHASE_NEW_FINAL_PROGRESS = 0.95;
+const WOODSMAN_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
 
 function getWoodsmanPhaseProgress(enemy) {
     if (!enemy || !(enemy.maxHp > 0)) return 0;
@@ -8788,6 +8799,15 @@ function getWoodsmanPhaseProgress(enemy) {
     let finalWindow = 1 - WOODSMAN_PHASE_NEW_FINAL_PROGRESS;
     let finalProgress = (rawProgress - WOODSMAN_PHASE_NEW_FINAL_PROGRESS) / finalWindow;
     return clampNumber(WOODSMAN_PHASE_OLD_FINAL_PROGRESS + finalProgress * (1 - WOODSMAN_PHASE_OLD_FINAL_PROGRESS), 0, 1);
+}
+
+function woodsmanElementAt(progress) {
+    return WOODSMAN_ELEMENTS[Math.max(0, Math.floor(progress / 0.05)) % WOODSMAN_ELEMENTS.length];
+}
+
+function woodsmanAttackFxElement(enemy) {
+    return enemy.isWoodsman && game.currentZoneId === OUTSIDE_CHAOS_ZONE_ID
+        ? woodsmanElementAt(getWoodsmanPhaseProgress(enemy)) : null;
 }
 
 // 잔향체 아스트라(cosmos_astra): 우주 5개 은하 보스를 모두 격파해야 도전할 수 있는 최종 보스.
@@ -10568,7 +10588,10 @@ function placeFloorRune(enemy, gem) {
  * check reach the steps through ui. */
 function rollLootForEnemy(enemy, say = addLog) {
     let zone = getZone(game.currentZoneId) || getZone(0);
-    let contentDropMul = getContentDropRateMultiplier(zone);
+    // 탐욕의 광기(2026-11-08 전달본 V3.13)가 걸려 있으면 이 처치의 드랍률이 모두 오른다: 룬, 보석, 장비, 부적, 재화(js/loot.js getEnemyLootDropMultiplier).
+    const greed = window.GameModules.combat.supports.blessingGreed(game);
+    enemy.greedDropMul = greed ? 1 + greed.dropPct / 100 : 1;
+    let contentDropMul = getContentDropRateMultiplier(zone) * enemy.greedDropMul;
     let gemAwakening = contentProgression.isUnlocked('gemAwakening');
     // The resonance cap is read only for a support rune drop (the skill screen script owns it, some runs lack it).
     const deferred = !!actExplorationState.groundLoot.encounterOwner();
@@ -12307,12 +12330,21 @@ function enemyTimeSlowed(enemy) {
     const left=(Number(enemy.timeSlowUntil)||0)-getCombatTime();
     return left>0 && left<=TIME_SLOW_MS;
 }
-/** 사슬처럼 따로 시전하는 룬이 적에게 남기는 표시(피해 없음). */
+/** 사슬처럼 따로 시전하는 룬이 적에게 남기는 표시(피해 없음). 끌어당김(2026-11-08 전달본 V3.13의 특이점 분리, 공허의 빙의)은 그 칸 쪽으로 cells걸음까지,
+ * column이 있으면 그 세로줄 쪽으로(같은 줄을 지킨다). 약화(공허의 빙의)는 받는 피해를 늘린다(applyVoidWeakMitigation). */
 const SKILL_GEM_MARKS=Object.freeze({
     mist(command,targets) { for (const enemy of targets) enemy.holyMistUntil=command.at+4000; },
     petrify(command,targets) { for (const enemy of targets) petrifyEnemy(enemy,command.at,command.ms/1000); },
-    timeSlow(command,targets) { for (const enemy of targets) enemy.timeSlowUntil=command.at+command.ms; }
+    timeSlow(command,targets) { for (const enemy of targets) enemy.timeSlowUntil=command.at+command.ms; },
+    pull(command,targets) { for (const enemy of targets) pullEnemyToward(enemy,command); },
+    weaken(command,targets) { for (const enemy of targets) enemy.voidWeakUntil=command.at+command.ms; }
 });
+/** 끌어당김 한 번: 보스와 굳은 적은 끌려오지 않는다(밀어내기와 같다, canPushEnemy). */
+function pullEnemyToward(enemy,command) {
+    if (!canPushEnemy(enemy)) return;
+    const goal=command.column===undefined ? command.center : { gx: command.column, gy: enemy.gy };
+    for (let step=0; step<command.cells; step++) if (!gridStepToward(enemy,goal.gx,goal.gy,getGridBlockedCells(enemy))) break;
+}
 
 function applySkillGemCommand(command,stats) {
     if (command.type==='pose') return noteNativeGemArrivalSwing(command);
@@ -14000,7 +14032,7 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     const attack = {
         at: now + travelMs, castStartAt: now, enemyId: enemy.id, source: enemy, sourceCell, targetType,
         targetId: targetType === 'summon' ? target.id : null,
-        targetCell, bossPattern: bossPattern || null, delivery
+        targetCell, bossPattern: bossPattern || null, delivery, woodsmanElement: woodsmanAttackFxElement(enemy)
     };
     const flight = enemyAttackRules.trajectory(attack,enemy,travelMs);
     travelMs = flight.duration;
@@ -14017,20 +14049,29 @@ function queueEnemyCombatAttack(enemy, target, bossPattern, delivery) {
     return true;
 }
 
+/** A boss strikes visually at release, including when a warned area later misses every target. */
+function announceBossRelease(enemy, bossPattern, delivery) {
+    const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
+    const woodsman = woodsmanAttackFxElement(enemy);
+    addBattleFx('bossRelease', { enemyId: enemy.id, slam, special: !!bossPattern?.isSpecial, duration: 560,
+        cerberusHead: bossPattern?.cerberusHead, woodsman: !!woodsman, element: woodsman || enemyAttackRules.element(enemy, bossPattern) });
+}
+
 /** Keep the complete post-impact clip for every instant target, including summons, the core and the rescued NPC.
  * motionMs limits the legacy lunge to 220ms. Flights carry their own release; return their minimum visual lifetime
  * without changing flightMs or the hit time. Boss animation continues to use its existing bossRelease signal. */
 function announceEnemyAttackRelease(enemy, bossPattern, delivery, target) {
-    if (enemy.isBoss) {
-        const slam = delivery === 'patternArea' && !['line', 'fan'].includes(bossPattern.area.kind);
-        addBattleFx('bossRelease', { enemyId: enemy.id, slam, special: !!(bossPattern && bossPattern.isSpecial), duration: 560,
-            cerberusHead: bossPattern?.cerberusHead, element: enemyAttackRules.element(enemy, bossPattern) });
-    }
+    if (enemy.isBoss) announceBossRelease(enemy, bossPattern, delivery);
     const actor = getBossStageActor(enemy);
     const remaining = actor?.attackMs ? actor.attackMs.slice(actor.impactFrame).reduce((sum, ms) => sum + ms, 0) : 0;
     const duration = Math.max(220, remaining);
-    if (delivery === 'instantTarget') addBattleFx('enemyAttack', { enemyId: enemy.id, duration, motionMs: 220,
-        targetType: target === enemy.rescue ? 'rescue' : getEnemyCombatTargetType(target), targetCell: copyCombatGridCell(target) });
+    if (delivery === 'instantTarget') {
+        const targetCell = copyCombatGridCell(target);
+        addBattleFx('enemyAttack', { enemyId: enemy.id, duration, motionMs: 220,
+            targetType: target === enemy.rescue ? 'rescue' : getEnemyCombatTargetType(target), targetCell });
+        const element = woodsmanAttackFxElement(enemy);
+        if (element && targetCell) addBattleFx('woodsmanImpact', { cells: [targetCell], element, duration: 460 });
+    }
     return enemy.isBoss ? 0 : duration;
 }
 
@@ -14075,7 +14116,16 @@ function takePendingEnemyCombatAttack(enemyId, now) {
     if (attack.path && !enemyAttackRules.advanceFlight(attack,game,now)) return null;
     pendingEnemyCombatAttacks.splice(index, 1);
     if (attack.delivery === 'patternArea') landBossPatternArea(attack, now);
+    announceWoodsmanImpact(attack);
     return attack;
+}
+
+/** The released element owns its visual through landing, even if life crosses a phase boundary in flight. */
+function announceWoodsmanImpact(attack) {
+    if (!attack.woodsmanElement) return;
+    const cells = attack.delivery === 'patternArea' ? attack.bossPattern.area.cells
+        : getEnemyCombatImpactTargets(attack).map(copyCombatGridCell).filter(Boolean);
+    if (cells.length) addBattleFx('woodsmanImpact', { cells, element: attack.woodsmanElement, duration: 460 });
 }
 
 /** Interrupted ordinary specials never keep the recovery reserved for their unplayed stages. */
@@ -14185,7 +14235,7 @@ function performMonsterAttacks(pStats) {
         if (!attackTarget) continue;
         // 그리드 사거리 밖이면 공격 대신 선택한 목표에게 접근한다(냉각/둔화는 이동도 늦춘다).
         // 공격 게이지는 1회분까지만 유지해 도착 직후 바로 공격하게 한다.
-        if (!pendingAttack && !enemy.patternArea && !enemy.attackCast && !canEnemyAttackFromHere(enemy, attackTarget)) {
+        if (!pendingAttack && !enemy.patternArea && !enemy.attackCast && !bossMoves.canPrepare(enemy, attackTarget)) {
             advanceEnemyGridApproach(enemy, attackTarget, chillSlow + (enemyTimeSlowed(enemy) ? TIME_SLOW_MOVE : 0));
             enemy.attackTimer = Math.min(Number(enemy.attackTimer) || 0, 1);
             continue;
@@ -14268,9 +14318,7 @@ function performMonsterAttacks(pStats) {
             let elementalPortion = Math.max(0, dmg - physicalPortion);
             if (zone.type === 'outsideChaos' && enemy.maxHp > 0) {
                 let phaseProgress = getWoodsmanPhaseProgress(enemy);
-                let phase = Math.max(0, Math.floor(phaseProgress / 0.05));
-                let cycle = ['phys','fire','cold','light','chaos'];
-                enemy.ele = attackElement = cycle[phase % cycle.length];
+                enemy.ele = attackElement = woodsmanElementAt(phaseProgress);
                 enemy.atkMul = 1 + Math.pow(phaseProgress, 1.4) * 3.2;
                 enemy.attackSpeedVar = (1 + Math.pow(phaseProgress, 1.2) * 1.8) * 1.5;
                 enemy.penetration = 8 + Math.floor(phaseProgress * 28);
