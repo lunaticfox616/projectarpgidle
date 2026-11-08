@@ -1802,8 +1802,8 @@ function profileItemHallHtml(item) {
 
 function profileBaseLineHtml(item) {
     if (!item.baseName) return '';
-    let step = Array.isArray(item.baseStep)
-        ? ` <span style="color:#7fd1a8;">[${Math.floor(Number(item.baseStep[0]) || 0)}/${Math.floor(Number(item.baseStep[1]) || 0)}]</span>` : '';
+    let info = Array.isArray(item.baseStep) ? { step: Math.floor(Number(item.baseStep[0]) || 0), total: Math.floor(Number(item.baseStep[1]) || 0) } : null;
+    let step = info ? ` <span class="${getBaseStepClassName(info)}">[${info.step}/${info.total}]</span>` : '';
     return `<div class="social-item-base">${_t('베이스: {baseName}{step}', { baseName: socialEscape(item.baseName), step })}</div>`;
 }
 

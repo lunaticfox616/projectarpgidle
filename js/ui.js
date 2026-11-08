@@ -6170,7 +6170,7 @@ function itemExplicitAffixHeaderHtml(item, count) {
 function getItemBaseBadgesHtml(item) {
     let info = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
     let step = info && info.total > 1
-        ? ` <span style="color:#7fd1a8;" data-tip="${_t('업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)')}">[${info.step}/${info.total}]</span>` : '';
+        ? ` <span class="${getBaseStepClassName(info)}" data-tip="${_t('업그레이드 단계 (낮을수록 하위, 높을수록 상위 베이스)')}">[${info.step}/${info.total}]</span>` : '';
     return step;
 }
 

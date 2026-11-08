@@ -924,6 +924,14 @@ function getBaseChainInfo(base) {
 function getBaseChainRank(info) {
     return info ? info.step - Math.max(0, info.total - 6) : 0;
 }
+/** 베이스 단계의 색 클래스(css/layout.css .base-step-*, 2026-11-08 사용자: 가장 높은 베이스에 가까울수록 색이 바뀐다): 맨 위는 top,
+ * 그 아래는 사슬 안의 자리(0~1)로 high(2/3 이상), mid(1/3 이상), low. 장비 칸 표시, 툴팁 베이스 줄, 프로필의 [단계/전체]가 같이 쓴다. */
+function getBaseStepClassName(info) {
+    if (!info || !(info.total > 1)) return 'base-step-low';
+    if (info.step >= info.total) return 'base-step-top';
+    const ratio = (info.step - 1) / (info.total - 1);
+    return ratio >= 2 / 3 ? 'base-step-high' : ratio >= 1 / 3 ? 'base-step-mid' : 'base-step-low';
+}
 function getItemBaseChainInfo(item) {
     if (!item) return null;
     let base = BASE_ITEM_DB.find(b => b && item.baseId && b.id === item.baseId)
