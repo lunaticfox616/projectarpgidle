@@ -185,11 +185,11 @@ const equipmentWindowUi = (() => {
      * 주얼, 코어, 액막이는 장비가 아니라 붙이지 않는다. */
     const tierHtml = item => (item && !bagItems.isSpecial(item)
         ? `<span class="eqw-item-tier ${getTierClassName(getItemCraftTier(item))}" aria-hidden="true">T${getItemCraftTier(item)}</span>` : '');
-    /** 장비 칸 왼쪽 아래의 베이스 단계(2026-11-08 사용자: 몇 번째 베이스인지 1/4처럼 숫자만, 원래 쓰던 베이스 색으로): 툴팁 베이스 줄의
-     * [단계/전체]와 같은 값(getItemBaseChainInfo)이다. 한 단계뿐인 베이스와 주얼, 코어, 액막이는 붙이지 않는다. */
+    /** 장비 칸 왼쪽 아래의 베이스 단계(2026-11-08 사용자: 몇 번째 베이스인지 1/4처럼 숫자만): 툴팁 베이스 줄의 [단계/전체]와 같은 값
+     * (getItemBaseChainInfo)과 색(getBaseStepClassName, 위일수록 귀한 색)이다. 한 단계뿐인 베이스와 주얼, 코어, 액막이는 붙이지 않는다. */
     const baseStepHtml = item => {
         const info = item && !bagItems.isSpecial(item) ? getItemBaseChainInfo(item) : null;
-        return info && info.total > 1 ? `<span class="eqw-base-step" aria-hidden="true">${info.step}/${info.total}</span>` : '';
+        return info && info.total > 1 ? `<span class="eqw-base-step ${getBaseStepClassName(info)}" aria-hidden="true">${info.step}/${info.total}</span>` : '';
     };
     let watched = null, bagShown = false;
     /** The bag counts as opened while its grid is on screen; when it leaves the screen everything that came in so far is seen. */

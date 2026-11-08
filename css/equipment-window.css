@@ -245,10 +245,11 @@
 :root body .eqw-item-tier:is(.tier-15, .tier-16, .tier-17, .tier-18, .tier-19) { box-shadow: inset 0 0 0 1px currentColor; }
 :root body .eqw-item-tier.tier-20 { color: #2a0710; background: linear-gradient(90deg, #ff5c84, #ffb3c4); text-shadow: none; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-grid-item:has(> .eqw-item-tier) > .eqw-new-dot { top: 15px; }
-/* 장비 칸 왼쪽 아래의 베이스 단계(js/equipment-window-ui.js baseStepHtml, 2026-11-08 사용자: 1/4처럼 숫자만, 원래 쓰던 베이스 색).
-   색은 툴팁 베이스 줄의 [단계/전체](js/ui.js getItemBaseBadgesHtml)와 같다. */
-:root body .eqw-base-step { position: absolute; bottom: 2px; left: 2px; z-index: 5; padding: 0 2px; background: #151008; color: #7fd1a8; font-family: var(--font-pixel-meta);
+/* 장비 칸 왼쪽 아래의 베이스 단계(js/equipment-window-ui.js baseStepHtml, 2026-11-08 사용자: 1/4처럼 숫자만). 글자색은 툴팁 베이스 줄의
+   [단계/전체](js/ui.js getItemBaseBadgesHtml)와 같은 .base-step-*(css/layout.css)이고, 맨 위 베이스는 등급의 T20처럼 밝게 채운 칸이다. */
+:root body .eqw-base-step { position: absolute; bottom: 2px; left: 2px; z-index: 5; padding: 0 2px; background: #151008; font-family: var(--font-pixel-meta);
   font-size: var(--font-size-meta); font-weight: 400; line-height: 12px; text-shadow: 1px 1px 0 #000; white-space: nowrap; pointer-events: none; }
+:root body .eqw-base-step.base-step-top { color: #1b1a2a; background: linear-gradient(90deg, #d7e3f2, #ffffff); text-shadow: none; }
 /* 휴대폰의 1칸 장비(반지, 목걸이)는 왼쪽 위 비교 수치와 겹치므로 등급을 왼쪽 아래에 두고, 베이스 단계는 그 위로 올린다(소켓은 오른쪽 아래). */
 @media (max-width: 640px) {
   :root body .equipment-grid-item[style*="--item-grid-columns:1;"] > .eqw-item-tier { top: auto; right: auto; bottom: 2px; left: 2px; }
