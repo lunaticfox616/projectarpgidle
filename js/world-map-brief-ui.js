@@ -3,7 +3,7 @@
 // onclick 글로 적을 뿐이다. 강대한 적과 전직 시련은 세부 탭의 카드(DOM)를 그대로 읽어 같은 상태와 단추를 낸다: 그 두 목록은 지도 탭이 열려 있으면
 // 어느 쪽에 있든 늘 그려진다(js/ui.js updateStaticUI). 나머지 자리의 판은 그 쪽이 열려야 그려지므로 상태에서 바로 읽는다.
 const worldMapBrief = (() => {
-    const LIMIT = 5;   // 줄 수 한도. 넘치면 머리줄에 +N
+    const LIMIT = 5;   // 줄 수 한도. 넘치면 끝에 +N
     const esc = value => escapeHTML(String(value ?? ''));
     const go = (label, action, { off = false, departure = true } = {}) => ({ label, action, off, departure });
     const battle = () => go(_t('전투'), "switchTab('tab-battle')", { departure: false });
@@ -123,12 +123,12 @@ const worldMapBrief = (() => {
         const press = button && !button.off ? ` onclick="${esc(button.action)}"${button.departure ? ' data-exploration-departure' : ''}` : ' disabled';
         return `<div class="wm-brief-row"><span><b>${esc(name)}</b>${meta ? `<small>${esc(meta)}</small>` : ''}</span>${button ? `<button type="button"${press}>${esc(button.label)}</button>` : ''}</div>`;
     }
-    /** 한 자리의 바로 가기 묶음. 줄이 없으면 빈 글. */
+    /** 한 자리의 바로 가기 묶음(머리글 없이 줄만, 사용자 11-09). 줄이 없으면 빈 글, 넘치면 끝에 +N. */
     function html(route) {
         const make = BRIEFS[route];
         const all = make ? make() : [], rows = all.slice(0, LIMIT), more = all.length - rows.length;
         if (!rows.length) return '';
-        return `<div class="wm-brief"><small>${_t('바로 가기')}${more > 0 ? ` <b>+${more}</b>` : ''}</small>${rows.map(rowHtml).join('')}</div>`;
+        return `<div class="wm-brief">${rows.map(rowHtml).join('')}${more > 0 ? `<small class="wm-brief-more">+${more}</small>` : ''}</div>`;
     }
     return { html };
 })();

@@ -124,14 +124,15 @@ const worldMapUi = (() => {
         if (region.type === 'act') return api.actActionsHtml(state.index);
         return `<button class="wm-go" onclick="${state.go}">${_t('이동')}</button>`;
     }
-    /** 설명 칸(지도 왼쪽, 사용자 11-09): 고른 곳 하나의 표식, 종류와 상태, 이름, 설명, 보상 이름(갈 곳 카드에 있던 것), 추적 중인 고유, 콘텐츠 자리의
-     * 바로 가기(js/world-map-brief-ui.js: 세부 탭이 지금 내주는 일), 이동 단추. 덩이들은 넓은 칸에서 세로로 쌓이고(단추는 바닥) 좁은 칸(css/world-map.css)에서는
+    /** 설명 칸(지도 왼쪽, 사용자 11-09): 고른 곳 하나의 종류(액트 번호, 보스전 같은 한 낱말), 이름, 설명, 보상 이름(갈 곳 카드에 있던 것), 추적 중인 고유,
+     * 콘텐츠 자리의 바로 가기(js/world-map-brief-ui.js: 세부 탭이 지금 내주는 일), 이동 단추. 표식 그림과 대상, 상태 글(화염 군주 이그니스, 이번 루프 심화 20층)은
+     * 두지 않고(사용자 11-09) 칸은 그 자리의 색(--wm-tone, 표식 색)을 띤다. 덩이들은 넓은 칸에서 세로로 쌓이고(단추는 바닥) 좁은 칸(css/world-map.css)에서는
      * 지도 아래 한 줄로 눕는다. 바깥 .wm-side-wrap이 칸의 자리고 안쪽 .wm-side를 peek이 바꾼다. */
     function sideFor(entry) {
         const { region, state } = entry;
-        const line = [state.kind, state.target, state.status].filter(Boolean).map(text => escapeHTML(_t(text))).join(', ');
-        return `<div class="wm-side" data-wm="${region.id}"><i style="background-image:url('${glyph(state.symbol, state.color, 3)}')"></i>
-            <div class="wm-side-text"><small>${line}</small><strong>${escapeHTML(state.title)}</strong>${state.description ? `<p>${escapeHTML(state.description)}</p>` : ''}${api.rewardNamesHtml(state.route)}${api.trackedRewardHtml(state.route)}</div>
+        const kind = state.kind ? `<small>${escapeHTML(_t(state.kind))}</small>` : '';
+        return `<div class="wm-side" data-wm="${region.id}" style="--wm-tone:${state.color}">
+            <div class="wm-side-text">${kind}<strong>${escapeHTML(state.title)}</strong>${state.description ? `<p>${escapeHTML(state.description)}</p>` : ''}${api.rewardNamesHtml(state.route)}${api.trackedRewardHtml(state.route)}</div>
             ${region.type === 'content' ? worldMapBrief.html(region.route) : ''}<div class="wm-side-actions atlas-hunting-action">${actionsHtml(entry)}</div></div>`;
     }
     /** 올린 지역을 설명 칸에만 미리 보여 준다(전체를 다시 그리지 않는다). id가 없거나 잠긴 곳이면 쉬는 지역으로 돌아간다.
