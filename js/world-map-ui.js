@@ -161,20 +161,20 @@ const worldMapUi = (() => {
         const onMap = new Set(WORLD_MAP.regions.map(region => region.route));
         return EXPLORATION_REGIONS.regions.flatMap(region => region.routes).filter(route => route !== 'map-explore-hunting' && !onMap.has(route) && api.available(route));
     }
+    /** 그 밖의 곳: 지도에 없는 길만. 세부 지역(액트 목록) 단추는 없다(사용자 11-09: 완전 삭제). 그 목록은 액트 설명 칸의 세부 지역 단추로 간다. */
     function othersHtml() {
-        const chips = (api.available('map-explore-hunting') ? [`<button class="wm-chip" onclick="explorationAtlasUi.enter('map-explore-hunting')">${_t('세부 지역')}</button>`] : [])
-            .concat(offMapRoutes().map(route => `<button class="wm-chip" onclick="explorationAtlasUi.enter('${route}')">${escapeHTML(api.routeLabel(route))}</button>`));
+        const chips = offMapRoutes().map(route => `<button class="wm-chip" onclick="explorationAtlasUi.enter('${route}')">${escapeHTML(api.routeLabel(route))}</button>`);
         return chips.length ? `<div class="wm-others"><span>${_t('그 밖의 곳')}</span>${chips.join('')}</div>` : '';
     }
-    /** 전체 탐험 몸통: 왼쪽 설명 칸, 오른쪽 지도, 지도 아래 그 밖의 곳. reader: explorationAtlasUi의 읽기 함수 묶음. */
+    /** 전체 탐험 몸통: 왼쪽 설명 칸, 오른쪽 지도, 지도 아래 그 밖의 곳(있을 때만, has-others가 설명 칸을 그 줄까지 늘인다). reader: explorationAtlasUi의 읽기 함수 묶음. */
     function overviewHtml(reader) {
         api = reader;
-        const all = entries(), open = all.filter(e => e.state.open);
+        const all = entries(), open = all.filter(e => e.state.open), others = othersHtml();
         if (!open.some(e => e.region.id === picked)) picked = null;
         const layers = `<svg class="wm-lines" viewBox="0 0 ${WORLD_MAP.width} ${WORLD_MAP.height}" aria-hidden="true">${all.map(linesHtml).join('')}${nextLinkHtml(all)}</svg>`
             + all.map(zoneHtml).join('') + all.map(markHtml).join('') + all.map(tagHtml).join('');
-        return `<div class="world-map">${open.length ? `<div class="wm-side-wrap">${sideFor(resting(open))}</div>` : ''}<div class="wm-view"><div class="wm-map" role="group" aria-label="${_t('세계 지도')}">`
-            + `<div class="wm-art" style="background-image:url('${WORLD_MAP.src}')"></div>${layers}</div></div>${othersHtml()}</div>`;
+        return `<div class="world-map${others ? ' has-others' : ''}">${open.length ? `<div class="wm-side-wrap">${sideFor(resting(open))}</div>` : ''}<div class="wm-view"><div class="wm-map" role="group" aria-label="${_t('세계 지도')}">`
+            + `<div class="wm-art" style="background-image:url('${WORLD_MAP.src}')"></div>${layers}</div></div>${others}</div>`;
     }
     /** 세부 화면 위 길잡이의 자리 탭(explorationAtlasUi locationHtml): 지도의 열린 자리마다 표식 하나. 액트는 '나무' 하나에 현재 액트 번호. 눌린 자리만 이름이 펼쳐진다. */
     function placeTabsHtml(reader, route) {
