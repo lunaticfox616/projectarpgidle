@@ -24,7 +24,11 @@ const CONTENT_UNLOCK_SERIES_VERSION = 10;
 const CONTENT_UNLOCK_TREE_VERSION = 11;
 // 장부 12(2026-11-03 생육함): addedIn이 있는 줄은 그 버전부터 값을 받는다. 옛 기록은 그 줄 없이 읽고, 그때의 넘침 점수를 graftFloor로 지킨다(js/content-progression.js).
 // 장부 13(2026-11-06 공허 소켓): 그 전 저장은 공허 소켓을 해금 없이 쓰고 있었으므로 물려받는다(js/content-progression.js inheritVoidSockets).
-const CONTENT_UNLOCK_RECORD_VERSION = 13;
+// 장부 14(2026-11-08): 2026-11-06에 루프를 늦춘 줄(고유 도감, 룬 각인, 주얼, 제작 시뮬레이터, 부적, 고급 수확 제작, 뿌리 기억, 생육함, 생육 효율 1, 2단계)을
+// 그 전에 산 기록은 지킨다(js/content-progression.js keepEarlyPurchases). 그 전까지는 불러올 때 새 루프에 못 미친 구매를 버려 룬 각인이 사라졌다.
+// 해금 루프를 또 늦추면 이 버전을 함께 올린다.
+const CONTENT_UNLOCK_LOOP_MOVE_VERSION = 14;
+const CONTENT_UNLOCK_RECORD_VERSION = 14;
 const CONTENT_UNLOCK_SERIES = Object.freeze([
     { series: 'offlineHours', rail: 'idle', name: '시간 인식', nameTemplate: '시간 인식 {n}단계', art: 'ui/pixel/buttons/loop.png',
         description: '방치 한도가 늘어납니다.',
@@ -137,4 +141,4 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     { id: 'graft', name: '접붙이기', gain: '루프마다 3점', art: 'ui/currency/pruning-shears.png', group: '그루터기', minLoop: 18, cost: 1, since: 11, after: 'rootMemory', description: '루프마다 3점을 받아 그루터기 아이템을 접붙일 수 있습니다.' },
     { id: 'ancientSeed', name: '고대 씨앗', gain: '공명, 규율에서 어느 색이든', art: 'items/flower-growth-v3.png', group: '그루터기', minLoop: 42, cost: 1, since: 11, after: 'nursery', requires: ['stumpQuality1'], description: '공명과 규율에서 어느 색이든 되고 이웃 접붙이기가 +1 되는 씨앗이 묘목장과 최종 보스에서 나옵니다.' }
 ]);
-safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINT_AWARDS, CONTENT_UNLOCK_SERIES, CONTENT_UNLOCK_RAILS, CONTENT_UNLOCK_SERIES_VERSION, CONTENT_UNLOCK_TREE_VERSION, CONTENT_UNLOCK_RECORD_VERSION });
+safeExposeData({ CONTENT_UNLOCK_CATALOG, CONTENT_UNLOCK_POINT_AWARDS, CONTENT_UNLOCK_SERIES, CONTENT_UNLOCK_RAILS, CONTENT_UNLOCK_SERIES_VERSION, CONTENT_UNLOCK_TREE_VERSION, CONTENT_UNLOCK_LOOP_MOVE_VERSION, CONTENT_UNLOCK_RECORD_VERSION });

@@ -1,0 +1,78 @@
+/* 세계 지도(js/world-map-ui.js, data/world-map.js): 전체 탐험 화면의 지도, 권역 단추, 테와 지시선, 표식, 이름표, 아래 띠, 그 밖의 곳 줄.
+   #ui-exploration-atlas 앞머리는 css/components/tabs.css의 모든 단추 돌 바탕 규칙보다 앞서기 위해서다(exploration-atlas.css와 같다). */
+@layer components {
+#ui-exploration-atlas .world-map { padding: 12px 14px 14px; }
+/* 지도: 688x384 도트 그림을 탭 너비에 맞춰 채운다(비율 고정). 688px보다 좁은 칸(휴대폰)에서는 1배로 두고 가로로 스크롤한다.
+   표식과 이름표는 % 자리라 함께 움직이고, 표식 크기는 지도 너비 기준(cqw)이라 container-type을 둔다. */
+#ui-exploration-atlas .wm-view { overflow-x: auto; scrollbar-width: thin; scrollbar-color: #bb8c45 #282014; }
+#ui-exploration-atlas .wm-map { position: relative; width: 100%; min-width: 688px; aspect-ratio: 688 / 384; border: 1px solid #5a4322; box-shadow: 0 0 0 1px #c7ac6333, 0 6px 18px #00000080; container-type: inline-size; }
+#ui-exploration-atlas .wm-art { position: absolute; inset: 0; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; }
+/* 권역 단추: 바탕은 같은 지도 그림을 그 칸만큼 잘라 둔 것(JS가 자리와 크기를 %로 준다)이라 평소엔 투명하고, 올리면 그 지형 조각만 밝아진다.
+   clip-path가 클릭 영역도 폴리곤으로 자른다. min-height 0은 모든 단추의 최소 높이(css/base.css) 때문이다. */
+#ui-exploration-atlas .wm-zone { position: absolute; z-index: 1; min-height: 0; margin: 0; padding: 0; border: 0; box-shadow: none; background-repeat: no-repeat; image-rendering: pixelated; opacity: 0; cursor: pointer; }
+#ui-exploration-atlas .wm-zone:is(:hover, :focus-visible, .is-linked) { opacity: 1; filter: brightness(1.24) saturate(1.15); }
+#ui-exploration-atlas .wm-zone.is-locked { cursor: default; }
+/* 잠긴 곳은 밝아지는 대신 잉크색으로 가라앉는다. */
+#ui-exploration-atlas .wm-zone.is-locked:is(:hover, .is-linked) { filter: sepia(1) brightness(.9); }
+#ui-exploration-atlas .wm-zone.is-next:is(:hover, .is-linked) { filter: brightness(1.1) sepia(.25); }
+/* 테와 지시선: 688x384 viewBox라 지도와 함께 커지지만 선 굵기는 화면 픽셀로 고정한다(vector-effect). 어두운 밑테 위에 금빛 점선.
+   올린 곳, 고른 곳, 현재 위치에서 보이고 현재 위치는 색만 조금 밝다(모두 점선, 사용자 11-08). */
+#ui-exploration-atlas .wm-lines { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; shape-rendering: crispEdges; }
+#ui-exploration-atlas .wm-lines :is(polygon, polyline) { fill: none; stroke: #ffd98a; stroke-width: 2; stroke-dasharray: 4 3; stroke-linejoin: miter; vector-effect: non-scaling-stroke; opacity: 0; }
+#ui-exploration-atlas .wm-lines .wm-outline-under { stroke: #2a1708; stroke-width: 4; stroke-dasharray: none; }
+#ui-exploration-atlas .wm-lines .wm-leader { stroke: #fff3cf; stroke-dasharray: none; filter: drop-shadow(0 0 1px #2a1708) drop-shadow(0 0 1px #2a1708); }
+#ui-exploration-atlas .wm-lines :is(.is-linked, .is-picked, .is-current) { opacity: 1; }
+#ui-exploration-atlas .wm-lines .wm-outline.is-current { stroke: #ffe39a; }
+#ui-exploration-atlas .wm-lines .wm-outline.is-locked { stroke: #8a6a3f; }
+/* 다음 액트(사용자 11-08): 테도 글도 없이, 현재 위치(마우스를 올린 곳이 있으면 그곳)에서 다음 액트까지 점선 하나로만 잇는다(js/world-map-ui.js nextLink). */
+#ui-exploration-atlas .wm-lines :is(.wm-outline, .wm-outline-under).is-next { display: none; }
+#ui-exploration-atlas .wm-lines .wm-next-link { stroke: #ffe39a; stroke-width: 2; stroke-dasharray: 3 4; opacity: .8; filter: drop-shadow(0 0 1px #2a1708) drop-shadow(0 0 1px #2a1708); }
+/* 표식: 권역 단추 위의 그림(클릭은 권역이 받는다). 평소엔 반투명해 지형이 비치고, 올린 곳, 고른 곳, 현재 위치, 새 도전이 있는 곳은 또렷하게
+   1.5배로 커지며 빛난다. 현재 위치와 새 도전은 그 빛이 두 단계로 깜박인다. 잠긴 곳은 세피아 인장. */
+#ui-exploration-atlas .wm-pin { position: absolute; z-index: 3; width: clamp(26px, 3cqw, 42px); height: clamp(26px, 3cqw, 42px); transform: translate(-50%, -50%); opacity: .68; pointer-events: none; line-height: 0; color: #1a120a; transition: transform 120ms ease-out, opacity 120ms ease-out; }
+#ui-exploration-atlas .wm-pin > i { display: block; width: 100%; height: 100%; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; }
+#ui-exploration-atlas .wm-pin > b { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--font-pixel-meta); font-size: var(--font-size-meta); font-weight: 400; line-height: 1; }
+#ui-exploration-atlas .wm-pin.is-locked { opacity: .55; }
+#ui-exploration-atlas .wm-pin:is(.is-linked, .is-picked, .is-current, .is-attention) { z-index: 5; opacity: 1; transform: translate(-50%, -50%) scale(1.5); filter: brightness(1.2) drop-shadow(0 0 2px #fff6d8) drop-shadow(0 0 6px #ffb347); }
+#ui-exploration-atlas .wm-pin:is(.is-current, .is-attention) { animation: wm-glow 1s steps(2, end) infinite; }
+@keyframes wm-glow { from { filter: brightness(1.4) drop-shadow(0 0 2px #fff6d8) drop-shadow(0 0 8px #ffb347); } to { filter: brightness(1) drop-shadow(0 0 1px #fff6d8) drop-shadow(0 0 3px #ffb347); } }
+#ui-exploration-atlas .wm-pin.is-locked.is-linked { opacity: 1; filter: drop-shadow(0 0 2px #fff6d8); transform: translate(-50%, -50%) scale(1.2); }
+/* 다음 액트의 표식: 빈 금빛 마름모가 느리게 깜박여 다른 인장과 구별된다(사용자 11-08). */
+#ui-exploration-atlas .wm-pin.is-next { opacity: .95; animation: wm-next 2s steps(2, end) infinite; }
+#ui-exploration-atlas .wm-pin.is-next.is-linked { transform: translate(-50%, -50%) scale(1.3); }
+@keyframes wm-next { from { filter: brightness(1.25) drop-shadow(0 0 3px #ffd98a); } to { filter: brightness(.9); } }
+/* 받을 보상이 있는 액트: 표식 오른쪽 위의 노란 ! 도트 글자 하나(테나 바탕 없이, 사용자 11-08). 다른 표식처럼 캔버스 그림(bang)이다. */
+#ui-exploration-atlas .wm-pin > em { position: absolute; top: -12px; right: -10px; width: 20px; height: 20px; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; }
+/* 이름표: 지형을 가리지 않도록 양피지 여백(tag 자리)에 두고 지시선으로 잇는다. 올린 곳, 고른 곳, 현재 위치에서 보인다.
+   바깥 상자는 0 크기의 닻이고 글 상자(span)는 flex 정렬로 그 가운데(왼쪽 이름표는 끝)에 매달린다. 변형(translate)을 쓰지 않아 도트 글이 번지지 않는다(11-08). */
+#ui-exploration-atlas .wm-tag { position: absolute; z-index: 4; display: none; width: 0; height: 0; align-items: center; pointer-events: none; }
+#ui-exploration-atlas .wm-tag > span { display: block; padding: 3px 7px; white-space: nowrap; background: #0b0905f0; border: 1px solid #c7ac6380; color: #f6ecd2; font-size: var(--font-size-ui); line-height: 1.3; }
+/* 글 상자의 가운데 맞춤(제 높이의 반)과 왼쪽 이름표의 끝 맞춤(제 너비)이 만드는 소수 px을 되돌려 글이 화소에 맞게 앉는다(css/map-list.css 혼돈 타일과 같은 수). */
+#ui-exploration-atlas .wm-tag > span { translate: 0 calc(round(nearest, 50%, 1px) - 50%); }
+#ui-exploration-atlas .wm-tag.is-left > span { translate: calc(round(nearest, 100%, 1px) - 100%) calc(round(nearest, 50%, 1px) - 50%); }
+#ui-exploration-atlas .wm-tag small { display: block; color: #e3d6b4; font-size: var(--font-size-meta); }
+#ui-exploration-atlas .wm-tag.is-left { justify-content: flex-end; text-align: right; }
+#ui-exploration-atlas .wm-tag:is(.is-linked, .is-picked, .is-current) { display: flex; }
+#ui-exploration-atlas .wm-tag.is-locked > span { color: #ead9b6; border-style: dashed; }
+/* 띠: 고른 곳(없으면 현재 위치)의 이름, 종류와 상태, 설명, 이동 단추. 액트 단추 묶음은 exploration-atlas.css의 .atlas-hunting-action 그대로, 세로로 쌓는다. */
+#ui-exploration-atlas .wm-band { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin-top: 10px; padding: 10px 14px; border: 1px solid #c7ac6355; border-left: 3px solid #e2c27a; background: linear-gradient(115deg, #2a2213, #0f0d08 75%); color: #e8e9dd; }
+#ui-exploration-atlas .wm-band > i { width: 39px; height: 39px; background-size: 100% 100%; image-rendering: pixelated; }
+#ui-exploration-atlas .wm-band > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+#ui-exploration-atlas .wm-band small { color: #dccfab; font-size: var(--font-size-meta); }
+#ui-exploration-atlas .wm-band strong { font-size: 18px; font-weight: 500; color: #f2eee1; }
+#ui-exploration-atlas .wm-band p { margin: 0; color: #cfc6ae; font-size: var(--font-size-ui); line-height: 1.5; }
+#ui-exploration-atlas .wm-band-actions { flex-direction: column; align-items: stretch; justify-content: center; max-width: none; gap: 6px; }
+#ui-exploration-atlas .wm-go { min-height: 32px; padding: 6px 14px; border: 1px solid #c3ad7690; background: #75644250; color: #f4e4bd; font-size: var(--font-size-ui); font-weight: 600; }
+#ui-exploration-atlas .wm-go:hover { border-color: #e2c27a; color: #fff1d4; }
+/* 지도에 없는 곳: 지도 아래 한 줄의 작은 단추. */
+#ui-exploration-atlas .wm-others { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+#ui-exploration-atlas .wm-others > span { color: #a7b29c; font-size: var(--font-size-ui); margin-right: 4px; }
+#ui-exploration-atlas .wm-chip { min-height: 26px; padding: 2px 10px; border: 1px solid #c7ac6355; background: #14110b; color: #dcca9c; font-size: var(--font-size-ui); box-shadow: inset 3px 0 0 #c7ac6380; }
+#ui-exploration-atlas .wm-chip:hover { border-color: #e2c27a; color: #fff1d4; }
+@media (prefers-reduced-motion: reduce) { #ui-exploration-atlas .wm-pin { transition: none; animation: none; } }
+@container (max-width: 650px) {
+    #ui-exploration-atlas .world-map { padding: 10px; }
+    #ui-exploration-atlas .wm-band { grid-template-columns: minmax(0, 1fr); }
+    #ui-exploration-atlas .wm-band > i { display: none; }
+}
+}

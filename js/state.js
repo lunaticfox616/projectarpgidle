@@ -2454,6 +2454,7 @@ let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', pr
  * Permanent content ledger. Purchased IDs retain order; inherited IDs cost no points.
  * highestLoop records earned progress; legacy preserves pre-ledger early map access.
  * paidCosts records actual prices, preserving 1P purchases made before version 6.
+ * grandfathered lists purchases restored without the loop check: 1P-era rows, and rows bought before their loop moved later (ledger 14).
  * @typedef {{version:number, highestLoop:number, unlocked:string[], paidCosts:Record<string, number>, inherited:string[], automatic:string[], grandfathered:string[], legacy?:boolean}} ContentProgressionState
  */
 /**
