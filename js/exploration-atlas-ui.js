@@ -52,7 +52,7 @@ const explorationAtlasUi = (() => {
     function floorProgress(cleared,current) {
         return _t('돌파 {n}층', { n: cleared }) + (current == null ? '' : ` / ${_t('현재 루프 {n}층', { n: current })}`);
     }
-    /** 보상 이름(세계 지도 띠): 올리면 설명 툴팁. */
+    /** 보상 이름(세계 지도 설명 칸): 올리면 설명 툴팁. */
     function rewardNamesHtml(route) {
         const rewards = {
             'map-explore-root-boss': [[_t('고유 장비'),_t('고유 효과를 가진 장비입니다.')],[_t('군주의 핵'),_t(ORB_DB.bossCore.desc),'bossCore']],
@@ -69,7 +69,7 @@ const explorationAtlasUi = (() => {
         const bounds = target.getBoundingClientRect();
         showInfoTooltipHtml(bounds.left,bounds.bottom,`<b>${escapeHTML(target.textContent)}</b><div class="tooltip-line">${escapeHTML(_t(target.dataset.description))}</div>`,'#c9b17b');
     }
-    /** 세계 지도 띠의 액트 단추 묶음(js/world-map-ui.js): 받을 보상, 즉시 이동 또는 전투로 돌아가기, 세부 지역. */
+    /** 세계 지도 설명 칸의 액트 단추 묶음(js/world-map-ui.js): 받을 보상, 즉시 이동 또는 전투로 돌아가기, 세부 지역. */
     const actActionsHtml = index => huntingActionsHtml(index,getAvailableActRewardZoneIds());
     function huntingActionsHtml(index,rewards) {
         const current = game.currentZoneId === index && !game.combatHalted;
