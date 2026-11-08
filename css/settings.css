@@ -203,7 +203,7 @@ body.startup-settings-open #tab-settings .settings-sections > [data-settings-sec
   .settings-note { display: none; }
   .cfg-block { padding: 8px 10px 4px; }
   .cfg-row, .cfg-disclosure > summary { margin: 0 -4px; padding-inline: 4px; }
-  #tab-settings .cfg-row > .cfg-select { flex-basis: 170px; width: 170px; }
+  #tab-settings .cfg-row > .cfg-select { flex: 0 0 170px; width: 170px; }
   .cfg-row:has(> .cfg-row-actions), .cfg-row--volume { flex-wrap: wrap; }
   .cfg-row > .cfg-row-actions { flex: 1 1 100%; justify-content: flex-start; }
   .cfg-row--volume .cfg-volume { flex: 1 1 100%; flex-wrap: wrap; }

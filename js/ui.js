@@ -5255,7 +5255,7 @@ function getMapCompleteActionOptions() {
     return [
         { value: 'repeatZone', label: _t('반복'), detail: _t('현재 지역 또는 층을 다시 진행합니다.') },
         { value: 'nextZone', label: _t('다음 지역'), detail: _t('지역은 열린 가장 먼 지역으로, 층은 방금 깬 층의 다음 층으로 갑니다.') },
-        { value: 'nextLoopBestPlusOne', label: _t('최고 기록 다음 층'), detail: _t('혼돈 심화, 미궁, 혼돈계에서 이번 루프에 깬 가장 높은 층의 다음 층으로 바로 갑니다.') },
+        { value: 'nextLoopBestPlusOne', label: _t('이번 루프 최고층 다음'), detail: _t('혼돈 심화, 미궁, 혼돈계에서 이번 루프에 깬 가장 높은 층의 다음 층으로 바로 갑니다.') },
         { value: 'stop', label: _t('중단'), detail: _t('전투를 멈추고 현재 위치에서 대기합니다.') }
     ];
 }

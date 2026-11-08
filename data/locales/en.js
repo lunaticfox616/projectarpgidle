@@ -255,7 +255,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '우주계 루프': 'Cosmos loop',
         '심화 등반과 영구 강화': 'Depth climbing and permanent upgrades',
         '혼돈 심화층': 'Chaos Depths',
-        '최고 기록 다음 층': 'Floor after your best',
+        '이번 루프 최고층 다음': 'Loop best +1',
         '새 루프를 시작할 때': 'When a new loop starts',
         '새 루프가 시작될 때 한 번 적용합니다': 'Applied once when a new loop starts',
         '액트 클리어 보상': 'Act clear reward',
