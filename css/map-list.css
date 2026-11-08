@@ -60,21 +60,21 @@
   .map-chaos-tile:is(.is-next, .is-current) em { color: #f3d28c; }
   .map-chaos-tile.is-short::after { content: '!'; position: absolute; top: 3px; right: 6px; color: #ff877f; font-size: 12px; }
 
-  /* 강대한 적 카드: 피해 속성 문장(--boss-tone), 이름과 격파 표시, 종착 꼬리표, 권장 전투력, 보상 줄, 열쇠 줄(가진 수와 드랍처), 상태와 단추 */
-  .map-boss-card { --boss-tone: #e0d6c4; display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: 'art body' 'reward reward' 'key key' 'foot foot';
+  /* 강대한 적 카드: 이름 앞의 작은 속성 표시(도트 문장과 속성 이름, --boss-tone), 이름과 격파 표시, 종착 꼬리표, 권장 전투력, 보상 줄, 열쇠 줄(가진 수와 드랍처), 상태와 단추.
+     64px 네모 문장은 2026-11-08 사용자 요청으로 뺐다. */
+  .map-boss-card { --boss-tone: #e0d6c4; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'body' 'reward' 'key' 'foot';
     gap: 6px 12px; min-width: 0; padding: 10px; border: 1px solid #2a2218; background: linear-gradient(135deg, color-mix(in srgb, var(--boss-tone) 9%, rgba(10, 8, 6, .7)), rgba(10, 8, 6, .55)); }
   .map-boss-card.is-fire { --boss-tone: #ff9a76; } .map-boss-card.is-cold { --boss-tone: #8fd3ff; } .map-boss-card.is-light { --boss-tone: #ffe083; } .map-boss-card.is-chaos { --boss-tone: #c7a6ff; }
   .map-boss-card.is-ready { border-color: color-mix(in srgb, var(--boss-tone) 45%, #2a2218); }
   .map-boss-card.current { border-color: #e0c283; box-shadow: 0 0 0 1px rgba(224, 194, 131, .3); }
-  .map-boss-emblem { grid-area: art; display: grid; place-items: center; width: 64px; height: 64px; border: 1px solid color-mix(in srgb, var(--boss-tone) 55%, #050404);
-    background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--boss-tone) 26%, transparent), transparent 70%), #0b0907; }
-  .map-boss-glyph { width: 44px; height: 44px; image-rendering: pixelated; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--boss-tone) 60%, transparent)); }
-  .map-boss-glyph .m { fill: #f6ead0; }
+  .map-boss-element { flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 0 5px 0 3px; border: 1px solid color-mix(in srgb, var(--boss-tone) 55%, #050404); color: var(--boss-tone); font-size: 12px; line-height: 18px; }
+  .map-boss-glyph { width: 14px; height: 14px; image-rendering: pixelated; }
+  .map-boss-glyph .m { fill: #0b0907; }
   .map-boss-glyph .f { fill: var(--boss-tone); }
-  .map-boss-card.is-locked .map-boss-glyph { opacity: .55; }
+  .map-boss-card.is-locked .map-boss-element { opacity: .7; }
   .map-boss-body { grid-area: body; display: grid; align-content: start; gap: 3px; min-width: 0; }
-  .map-boss-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  #tab-map .map-boss-title strong { color: var(--boss-tone); font-size: 15px; font-weight: 400; overflow-wrap: anywhere; }
+  .map-boss-title { display: flex; align-items: center; gap: 8px; }
+  #tab-map .map-boss-title strong { flex: 1 1 auto; min-width: 0; color: var(--boss-tone); font-size: 15px; font-weight: 400; overflow-wrap: anywhere; }
   .map-boss-title em { flex: none; color: #8a7f6c; font-size: 12px; font-style: normal; }
   .map-boss-title em.is-done { color: #9fd46a; }
   .map-boss-track { justify-self: start; padding: 0 5px; border: 1px solid #5a4630; color: #f3d28c; font-size: 12px; }

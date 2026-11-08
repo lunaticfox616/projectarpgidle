@@ -433,7 +433,10 @@ body[data-ui-skin] .window-tab-strip > .window-tab { display: flex; align-items:
     border: 1px solid var(--px-bronze-lo);
     color: var(--px-copy-muted);
   }
-  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > :is(.ui-rail-tab-layer, .ui-rail-external-controls) > :is(.tab-btn, button):hover { z-index: 4; }
+  /* 올린 단추와 그 날개는 주인공 상태 아이콘 띠(.player-combat-effect-strip, z 9: 왼쪽 날개 위에 걸린다)보다 위: 레일은 display: contents라 쌓임 맥락이
+     없어 이름표가 단추와 날개(z 3)의 z를 따르고, 정리 단추(z 4)의 '열린 창 모두 닫기'와 왼쪽 날개의 이름표가 버프 아이콘에 가렸다(2026-11-08 사용자). */
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > :is(.ui-rail-tab-layer, .ui-rail-external-controls) > :is(.tab-btn, button):is(:hover, :focus-visible),
+  :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > .ui-rail-tab-layer:has(> .tab-btn:is(:hover, :focus-visible)) { z-index: 10; }
 
   /* 알림 점 · 가득 참 */
   :root body[data-ui-skin].desktop-windowed-ui.hud-menu-docked #tab-header-main > :is(.ui-rail-tab-layer, .ui-rail-external-controls) > :is(.tab-btn, button) > .noti-dot {
