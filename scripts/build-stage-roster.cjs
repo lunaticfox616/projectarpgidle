@@ -597,7 +597,7 @@ const text = `// 옆에서 보는 무대의 몬스터 새 그림(docs/stage-view
 // 그림은 assets/enemies/roster/에 있다(2026-10-16부터 저장소에 넣는다). 없는 곳에서는 앞서 쓰던 그림으로 그린다(js/canvas-stage-roster.js).
 // 스토리 보스는 그림 키(enemy.bossAssetKey)가 id와 같으면 이 그림을 쓴다.
 // 걸음새(gait): legs 다리로 걷는다, hop 통통 뛴다, crawl 기어간다, roll 굴러간다, fly, float, swim 떠서 움직인다.
-// 걷기 [프레임 수, cols, 프레임 시간(ms, 하나면 모두 같다), 맞추는 기준]: stride 걸어온 거리(한 바퀴 = 몸 너비의 0.7배), time 시간.
+// 걷기 [프레임 수, cols, 프레임 시간(ms, 하나면 모두 같다), 맞추는 기준, 선택 보폭(도트/한 바퀴)]: stride 걸어온 거리(기본 몸 너비의 0.7배), time 시간.
 //   프레임이 하나뿐이면 걷기 그림이 없는 몬스터다: 게임이 그 한 장을 움직여 걷는 척한다.
 // 공격 [프레임 수, cols, 프레임 시간, 타격 프레임] 또는 null(공격 그림이 없다: 서 있는 그림으로 때린다).
 // 품 [왼쪽, 오른쪽]: 서 있는 그림이 발에서 양옆으로 뻗은 도트(보스가 차지하는 칸 너비, js/combat-grid.js fitBossFootprint).
@@ -612,14 +612,16 @@ const MONSTER_STAGE_ROSTER = Object.freeze({
     // [id, 이름, 칸 가로, 칸 세로, 발 x, 발 y, 몸 높이, 몸 너비, 걸음새, 걷기, 공격, 품, 쓰러짐, 특수 공격]
     actors: Object.freeze(Object.fromEntries([
 ${rows.join(',\n')}
-    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach, death, special]) => {
+    ].map(([id, name, w, h, feetX, feetY, height, width, gait, walk, attack, reach, death, special, elements]) => {
         const times = clip => Object.freeze(Array.isArray(clip[2]) ? clip[2] : Array(clip[0]).fill(clip[2]));
         return [id, Object.freeze({
-            id, name, w, h, feet: Object.freeze([feetX, feetY]), height, width, gait, stride: Math.max(24, Math.round(width * 0.7)),
+            id, name, w, h, feet: Object.freeze([feetX, feetY]), height, width, gait, stride: walk[4] ?? Math.max(24, Math.round(width * 0.7)),
             walkMs: times(walk), walkCols: walk[1], pace: walk[3], still: walk[0] === 1,
             attackMs: attack ? times(attack) : null, attackCols: attack ? attack[1] : 0, impactFrame: attack ? attack[3] : 0, reach: Object.freeze(reach),
             death: death ? Object.freeze({ ms: times(death), cols: death[1], w: death[3], h: death[4], feet: Object.freeze([death[5], death[6]]) }) : null,
-            special: special ? Object.freeze({ attackMs: times(special), cols: special[1], impactFrame: special[3] }) : null
+            special: special ? Object.freeze({ attackMs: times(special), cols: special[1], impactFrame: special[3] }) : null,
+            elementAttacks: elements ? Object.freeze(Object.fromEntries(elements.map(([element, offset]) =>
+                [element, Object.freeze({ attackMs: times(attack), impactFrame: attack[3], offset })]))) : null
         })];
     })))
 });

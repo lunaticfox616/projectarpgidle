@@ -848,6 +848,28 @@ function clearBlessingEngraving(merged, name) {
     }
     return refund;
 }
+// 저장에 남은 옛 외형만 교체한다. 케르베로스처럼 단계별 외형을 고르는 보스는 각 단계를 유지한다.
+const SAVED_BOSS_LOOKS = new Map([
+    [OUTSIDE_CHAOS_ZONE_ID, 'woodsman'],
+    [WOODSMAN_ECHO_ZONE_ID, 'woodsman_echo'],
+    ...SEASON_BOSS_ZONES.filter(zone => zone.bossVisualId && !zone.bossStages).map(zone => [zone.id, zone.bossVisualId])
+]);
+function restoreSavedBossPicture(record, state) {
+    if (!record.isBoss || record.roomInvader || record.uninvited) return;
+    const zoneId = state.currentZoneId;
+    if (zoneId === LABYRINTH_ZONE_ID) {
+        record.monsterVisualId = getLabyrinthZoneNow(state.labyrinthFloor).bossVisualId;
+        assignEnemyGridCombatProfile(record);
+        return;
+    }
+    const visual = SAVED_BOSS_LOOKS.get(zoneId);
+    if (visual && record.monsterVisualId !== visual) {
+        record.monsterVisualId = visual;
+        record.spriteVariantId = null;
+    }
+    if (/^bossAct10_[1345]$/.test(record.bossAssetKey)) record.bossAssetKey = ACT_BOSS_ASSET_KEYS[9];
+}
+
 function mergeDefaults(save) {
     if (save && typeof save === 'object') itemSaveSlim.expandTree(save); // 축약 저장된 장비 줄을 되살린다(saveVersion 20, js/item-save-slim.js)
     function clampFiniteNumber(value, fallback, min, max) {
@@ -960,11 +982,7 @@ function mergeDefaults(save) {
     // 그리드 필드 정리: 잘못된 좌표/유형은 버려서 다음 전투 틱의 그리드 복구가 다시 배치하게 한다.
     function normalizeEnemyGridFields(record) {
         delete record.battleSlot;
-        // The labyrinth's delivered guardian was never selected on its zone. Repair both active and waiting bosses.
-        if (record.isBoss && merged.currentZoneId === LABYRINTH_ZONE_ID) {
-            record.monsterVisualId = getLabyrinthZoneNow(merged.labyrinthFloor).bossVisualId;
-            assignEnemyGridCombatProfile(record);
-        }
+        restoreSavedBossPicture(record, merged);
         // Exploration coordinates are validated against their own saved map below; never
         // silently move a saved enemy to another tile or into a wall by clamping it.
         const exploration=merged.actExploration;

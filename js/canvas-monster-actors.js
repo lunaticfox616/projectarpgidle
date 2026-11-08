@@ -111,17 +111,23 @@ const monsterActors = (() => {
         // A boss holding a beam keeps its strike frame until the beam ends (js/canvas-boss-moves.js strikeHoldMs), then finishes the clip.
         const hold = enemy.isBoss ? bossMoveView.strikeHoldMs(enemy) : 0, release = lastRelease(enemy, now, longest + hold);
         if (release) {
-            const clip = clipOf(kind, release.special), impactMs = sum(clip.attackMs.slice(0, clip.impactFrame)), since = Math.max(0, now - release.start - hold);
-            if (since + impactMs < sum(clip.attackMs)) return { clip: clip === kind ? 'attack' : 'special', index: frameAt(clip.attackMs, since + impactMs), bob: 0 };
+            const clip = clipOf(kind, release.special, release.element), impactMs = sum(clip.attackMs.slice(0, clip.impactFrame)), since = Math.max(0, now - release.start - hold);
+            if (since + impactMs < sum(clip.attackMs)) return strikePose(kind, clip, since + impactMs, 0);
         }
         const wind = windUp(enemy, moving, now);
         if (!wind) return null;
-        const clip = clipOf(kind, enemy.isBoss && enemy.nextPatternState?.isSpecial);
-        return { clip: clip === kind ? 'attack' : 'special', index: frameAt(clip.attackMs, wind.share * sum(clip.attackMs.slice(0, clip.impactFrame))), bob: wind.bob };
+        const element = kind.elementAttacks ? woodsmanAttackFxElement(enemy) : null;
+        const clip = clipOf(kind, enemy.isBoss && enemy.nextPatternState?.isSpecial, element);
+        return strikePose(kind, clip, wind.share * sum(clip.attackMs.slice(0, clip.impactFrame)), wind.bob);
     }
     /** A roster boss with a second attack (kind.special, data/monster-stage-roster.js) plays it for its specials: the release
      * tells which attack it let go, a wind-up follows the pattern coming next. */
-    const clipOf = (kind, special) => (special && kind.special ? kind.special : kind);
+    const clipOf = (kind, special, element) => kind.elementAttacks?.[element] || (special && kind.special ? kind.special : kind);
+    function strikePose(kind, clip, ms, bob) {
+        const offset = clip.offset || 0;
+        return { clip: clip === kind.special ? 'special' : 'attack', index: offset + frameAt(clip.attackMs, ms),
+            strikeFrame: offset + clip.impactFrame, bob };
+    }
     /** { clip, index, bob }: the strike or its wind-up, else idle (faster with a hop when walking). */
     function clipFrame(enemy, kind, now, moving) {
         const strike = attackFrame(enemy, kind, now, moving);

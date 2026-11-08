@@ -34,6 +34,8 @@ const BOSS_MOVE_INTRO = Object.freeze({
     fall: Object.freeze(['ring', 'impact', 'pulse']),
     none: Object.freeze(['impact', 'wave'])
 });
+// 새 전용 외형과 효과를 쓰더라도 두 정점 보스는 기존 특수기 조합과 판정 방식을 잇는다.
+const BOSS_MOVE_STYLE_BY_VISUAL = Object.freeze({ cosmos_astra: null, pinnacle_leviathan: 'projectile' });
 // The names those specials show (cast bar, log): by shape, and for some shapes by style.
 const BOSS_MOVE_NAMES = Object.freeze({
     impact: '지면 강타', wave: '십자 강타', pulse: '이중 파동',
@@ -46,6 +48,100 @@ const BOSS_MOVE_NAMES = Object.freeze({
 const bossMoves = (() => {
     const live = [];
     const LINGER_MS = 900;   // a move stays drawn this long after its last stage (the last burst plays out)
+    // Transient casts belong to this enemy and exploration run, never to a restored save.
+    const shifts = new WeakMap();
+    const SHIFT_TIMING = Object.freeze({ blink: { warning: 1200, land: 600 }, ambush: { warning: 1100, land: 400 } });
+    const cellOf = unit => ({ gx: unit.gx, gy: unit.gy });
+    function woodsmanShiftKind(enemy, attackNumber) {
+        if (!enemy.isWoodsman || game.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID || attackNumber % 4) return null;
+        return attackNumber % 8 ? 'blink' : 'ambush';
+    }
+    function shiftPattern(enemy, attackNumber) {
+        const kind = woodsmanShiftKind(enemy, attackNumber);
+        if (!kind) return null;
+        return { mode: 'burst', patternMode: enemy.patternMode, attackNumber, isSpecial: true, shapeIndex: -1, shiftKind: kind,
+            label: kind === 'blink' ? _t('공간 절단') : _t('그림자 기습'), damageMul: 1.18,
+            telegraphKind: kind === 'blink' ? 'lane' : 'impact', warningMs: SHIFT_TIMING[kind].warning, recoveryMs: 800 };
+    }
+    /** A scheduled blink may charge out of melee range, but never across rooms. */
+    function canPrepare(enemy, target) {
+        if (!woodsmanShiftKind(enemy, (Number(enemy.patternAttackCount) || 0) + 1)) return canEnemyAttackFromHere(enemy, target);
+        const map = getCombatGridSize(), room = actExplorationRooms.roomAt(map, enemy);
+        return !!room && actExplorationRooms.roomAt(map, target)?.id === room.id;
+    }
+    function shiftContext(enemy) {
+        const terrain = getGridPlacementTerrain();
+        return { terrain, room: actExplorationRooms.roomAt(terrain.map, enemy), footprint: getGridUnitFootprint(enemy), blocked: getGridBlockedCells(enemy) };
+    }
+    function legalLanding(cell, context) {
+        const { terrain, room, footprint, blocked } = context;
+        if (!room || !canPlaceGridFootprint(blocked, cell.gx, cell.gy, footprint, terrain)) return false;
+        return getGridFootprintCells(cell.gx, cell.gy, footprint, terrain.map)
+            .every(at => actExplorationRooms.roomAt(terrain.map, at)?.id === room.id);
+    }
+    /** At most 169 nearby anchors, only when starting the cast. Never search the whole map each tick. */
+    function shiftLanding(enemy, target, kind, context) {
+        const candidates = [], desired = kind === 'blink' ? 4 : 1, from = getGridUnitCenter(enemy);
+        for (let dx = -6; dx <= 6; dx++) for (let dy = -6; dy <= 6; dy++) {
+            const cell = { gx: target.gx + dx, gy: target.gy + dy };
+            if (!legalLanding(cell, context) || gridChebyshevDist(cell.gx, cell.gy, enemy.gx, enemy.gy) < 2) continue;
+            const body = { ...cell, isBoss: true, footprint: context.footprint }, distance = getGridUnitDistance(body, target);
+            if (Math.abs(distance - desired) > 1 || distance < 1) continue;
+            candidates.push({ cell, score: shiftScore(body, target, from, desired) });
+        }
+        candidates.sort((a, b) => a.score - b.score);
+        return candidates[0]?.cell || null;
+    }
+    function shiftScore(body, target, from, desired) {
+        const side = (getGridUnitCenter(body).gx - target.gx) * (from.gx - target.gx);
+        return Math.abs(getGridUnitDistance(body, target) - desired) * 10 + (side < 0 ? 0 : 3) + Math.abs(body.gy - target.gy) * .3;
+    }
+    function prepareShift(enemy, state, target, now) {
+        if (!state.shiftKind) { shifts.delete(enemy); return null; }
+        const context = shiftContext(enemy), to = shiftLanding(enemy, target, state.shiftKind, context);
+        const run = actExplorationState.current(game), key = enemy.patternTelegraphKey;
+        if (!to) { shifts.set(enemy, { run, key, stationary: true }); return null; } // cast in place if no safe landing exists
+        const source = getClosestGridUnitCell(target, { ...to, isBoss: true, footprint: context.footprint });
+        const area = { ...getSkillStageFootprint('', {}, { aimCell: target,
+            gridProfile: COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind] }, source), source };
+        shifts.set(enemy, { kind: state.shiftKind, key, run,
+            from: cellOf(enemy), to, target: cellOf(target), startedAt: now, landAt: now + SHIFT_TIMING[state.shiftKind].land,
+            element: woodsmanAttackFxElement(enemy), landed: false, cancelled: false, released: false });
+        return area;
+    }
+    function shiftOf(enemy) {
+        const shift = shifts.get(enemy);
+        if (!shift || shift.stationary || shift.cancelled || enemy.hp <= 0 || game.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID) return null;
+        if (shift.run !== actExplorationState.current(game)) return null;
+        return shift.released || enemy.patternTelegraphKey === shift.key ? shift : null;
+    }
+    /** Reloaded casts have no transient destination. Restart their full warning instead of landing an old, invisible attack. */
+    function needsWarning(enemy, state, key) {
+        if (enemy.patternTelegraphKey !== key) return true;
+        if (!state.shiftKind) return false;
+        const shift = shifts.get(enemy);
+        return !shift || shift.key !== key || shift.run !== actExplorationState.current(game);
+    }
+    /** Recheck occupancy at the actual hop; a hero stepping onto the mark cancels this cast, never gets displaced. */
+    function updateShift(enemy, now) {
+        const shift = shiftOf(enemy);
+        if (!shift || shift.landed || now < shift.landAt) return true;
+        if (!legalLanding(shift.to, shiftContext(enemy))) {
+            shift.cancelled = true;
+            enemy.attackTimer = 0;
+            enemy.castInterruptedUntil = now + 650;
+            return false;
+        }
+        Object.assign(enemy, shift.to, { gridMoveTimer: 0, gridStepFrom: null, gridStepAt: now });
+        enemy.facingDirection = skillGemCasts.facing(enemy, shift.target);
+        shift.landed = true;
+        return true;
+    }
+    function releaseShift(enemy) {
+        const shift = shiftOf(enemy);
+        if (shift) { shift.released = true; shift.releasedAt = getCombatTime(); }
+    }
+    function cancelShift(enemy) { shifts.delete(enemy); }
 
     /** The boss's effect row (data/boss-fx.js): the look it shows on the stage (js/canvas-stage-roster.js actorFor), else its asset. */
     function bossFxOf(enemy) {
@@ -56,7 +152,11 @@ const bossMoves = (() => {
         return BOSS_FX.actors[id] ? { id, row: BOSS_FX.actors[id] }
             : (BOSS_FX.actors[enemy.bossAssetKey] ? { id: enemy.bossAssetKey, row: BOSS_FX.actors[enemy.bossAssetKey] } : null);
     }
-    const styleOf = enemy => (bossFxOf(enemy) || { row: { kind: null } }).row.kind;
+    function styleOf(enemy) {
+        const visual = enemy?.monsterVisualId;
+        return Object.hasOwn(BOSS_MOVE_STYLE_BY_VISUAL, visual)
+            ? BOSS_MOVE_STYLE_BY_VISUAL[visual] : bossFxOf(enemy)?.row.kind ?? null;
+    }
 
     /** The first loops' special number n (1, 2, ...) of this boss: { label, telegraphKind }. */
     function introSpecial(enemy, n) {
@@ -153,6 +253,7 @@ const bossMoves = (() => {
     /** Puts a move on a special about to be released (consumeBossPatternAttack): state.move, or nothing (lands at once). */
     function planBossMove(state, enemy) {
         if (!state || !state.area || !state.isSpecial || !enemy) return null;
+        releaseShift(enemy);
         const style = styleOf(enemy), kind = moveKind(state.area, state.telegraphKind, style);
         if (!kind) return null;
         const source = state.area.source || { gx: enemy.gx, gy: enemy.gy }, stages = stagesOf(kind, state.area, source).filter(stage => stage.cells.length);
@@ -226,6 +327,7 @@ const bossMoves = (() => {
     }
 
     return Object.freeze({ rules: BOSS_MOVE_RULES, fxOf: bossFxOf, styleOf, intro: introSpecial, introCount, plan: planBossMove, begin: beginBossMove,
-        takeStage: takeBossMoveStage, live: liveBossMoves, cut: cutBossMove, firstImpactMs, familyShapes, shapeLook });
+        takeStage: takeBossMoveStage, live: liveBossMoves, cut: cutBossMove, firstImpactMs, familyShapes, shapeLook,
+        shiftPattern, canPrepare, prepareShift, updateShift, shiftOf, cancelShift, needsWarning });
 })();
 safeExposeGlobals({ BOSS_MOVE_RULES, bossMoves });

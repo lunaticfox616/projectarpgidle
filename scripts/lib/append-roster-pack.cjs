@@ -42,13 +42,18 @@ function actorRow(meta, dir, output, stamp) {
     const walk=readClip(dir,meta.actions.walk), attack=readClip(dir,meta.actions.attack), special=meta.actions.special?readClip(dir,meta.actions.special):null;
     const clips=[['walk',walk],['attack',attack]].concat(special?[['special',special]]:[]), all=clips.map(([,clip])=>bounds(clip)), a=all[0];
     const box=padded([Math.min(...all.map(b=>b[0])),Math.min(...all.map(b=>b[1])),Math.max(...all.map(b=>b[2])),Math.max(...all.map(b=>b[3]))]);
-    for(const [action,clip] of clips) save(output,stamp,meta.id+'-'+action+'.png',pack(clip,box));
     const gait=meta.gait || GAITS[meta.id] || 'legs', pace=['fly','float','swim'].includes(gait)?'time':'stride';
     // A motion-only pack can retain the accepted body's render scale and footprint independently of its larger motion canvas.
     const body=meta.body || {height:-a[1],width:a[2]-a[0]+1,reach:[-a[0],a[2]]};
     if(!Number.isFinite(body.height)||body.height<=0||!Number.isFinite(body.width)||body.width<=0||!Array.isArray(body.reach)||body.reach.length!==2||!body.reach.every(n=>Number.isFinite(n)&&n>=0)) throw Error('Invalid body dimensions: '+meta.id);
+    const walkRow=[walk.count,walk.cols,walk.durationsMs,pace];
+    if(walk.strideDots!=null) {
+        if(!Number.isFinite(walk.strideDots)||walk.strideDots<=0||pace!=='stride') throw Error('Invalid stride length: '+meta.id);
+        walkRow.push(walk.strideDots);
+    }
+    for(const [action,clip] of clips) save(output,stamp,meta.id+'-'+action+'.png',pack(clip,box));
     return [meta.id,meta.name,box[2]-box[0]+1,box[3]-box[1]+1,-box[0],-box[1],body.height,body.width,gait,
-        [walk.count,walk.cols,walk.durationsMs,pace],[attack.count,attack.cols,attack.durationsMs,attack.impactFrame],body.reach,deathRow(meta,dir,output,stamp)]
+        walkRow,[attack.count,attack.cols,attack.durationsMs,attack.impactFrame],body.reach,deathRow(meta,dir,output,stamp)]
         .concat(special?[[special.count,special.cols,special.durationsMs,special.impactFrame]]:[]);
 }
 // The death clip has its own cell around its frames (the roster's death column); without one the game fades the body out.

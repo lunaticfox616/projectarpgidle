@@ -122,7 +122,7 @@ const stageRoster = (() => {
      * keeps its standing picture. */
     function striking(enemy, actor, p) {
         const strike = actor.attackMs ? monsterActors.attackFrame(enemy, actor, p.now, p.moving) : null;
-        return strike ? { clip: strike.clip, index: strike.index, hop: strike.bob } : null;
+        return strike ? { clip: strike.clip, index: strike.index, hop: strike.bob, strikeFrame: strike.strikeFrame } : null;
     }
     /** An airborne actor with one picture has no wing or drift clip to run: it hangs in the air, rising and sinking a few dots. */
     const hangs = actor => actor.still && AIRBORNE.includes(actor.gait);
@@ -286,7 +286,7 @@ const stageRoster = (() => {
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
         const west = stageView.facing(enemy, p.facing) === 'west';
-        notePlacement(enemy, actor, p, { dot, west, frame: pose.index, clip: pose.clip });
+        notePlacement(enemy, actor, p, { dot, west, frame: pose.index, clip: pose.clip, strikeFrame: pose.strikeFrame });
         ctx.save();
         if (west) { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
         const left = monsterActors.snap(p.x - (size.pad + actor.feet[0]) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
@@ -329,7 +329,7 @@ const stageRoster = (() => {
 
     function notePlacement(enemy, actor, p, pose) {
         if (!enemy.isBoss) return;
-        placements.set(enemy.id, { x: p.x, y: p.y, ...pose, actor: actor.id, strikeFrame: actor.impactFrame || 0, at: tick });
+        placements.set(enemy.id, { x: p.x, y: p.y, ...pose, actor: actor.id, strikeFrame: pose.strikeFrame ?? actor.impactFrame, at: tick });
         // 쓰러진 보스의 자리는 지운다(2026-10-26: 한 판에 만난 보스마다 하나씩 남았다). placementOf는 1초 안의 자리만 돌려준다.
         if (placements.size > 8) for (const [id, placed] of placements) if (tick - placed.at > 1000) placements.delete(id);
     }

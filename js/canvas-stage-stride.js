@@ -23,6 +23,7 @@ const stageStride = (() => {
     /** How far the drawn unit still is from its cell (cells), whether it is walking, and the dots it has walked so far.
      * null → not on the stage, or the unit has not stepped yet. now = the frame's time (ms). */
     function read(unit, now) {
+        if (unit && !unit.gridStepFrom) states.delete(unit); // a teleport ends the old walking interpolation
         if (!stageView.enabled() || !unit || !unit.gridStepFrom || !Number.isFinite(Number(unit.gridStepAt))) return null;
         let state = states.get(unit);
         if (!state || state.at !== unit.gridStepAt) {

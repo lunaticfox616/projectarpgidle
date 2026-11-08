@@ -2437,7 +2437,7 @@ function drawBattleEnemyActor(ctx, entry, state) {
     if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
     const crowdScale = getEnemyCrowdScale(enemy, state.enemyCount);
     ctx.save();
-    ctx.globalAlpha = easedAge * enemyAmbushView.alphaOf(enemy, state.now); // 기습 정예는 순간이동하는 동안 숨는다(js/canvas-enemy-ambush.js)
+    ctx.globalAlpha = easedAge * enemyAmbushView.alphaOf(enemy, state.now) * bossMoveView.shiftAlpha(enemy); // 기습 정예와 순간이동하는 보스는 사라졌다 나타나는 동안 숨는다(js/canvas-enemy-ambush.js, js/canvas-boss-moves.js)
     drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale, spawnScale });
     if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
     ctx.restore();
@@ -3087,6 +3087,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
         if (now < fx.start) return;
         let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
         bossAttackView.drawHeadRelease(ctx, fx, now);
+        bossMoveView.drawWoodsmanFx(ctx, fx, now, gridProj);
         let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;
         if (ghostEnemy && !enemyPosMap[fx.enemyId]) {
             enemyPosMap[fx.enemyId] = { enemy: ghostEnemy.enemy || { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y, actualAim: ghostEnemy.actualAim };

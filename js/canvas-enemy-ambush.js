@@ -1,11 +1,11 @@
 // 기습 정예의 순간이동(js/enemy-ambush.js, battleFx 'ambushBlink'): 떠난 자리에 사라짐, 닿은 자리에 나타남 효과를 그리고(Codex 그림
-// assets/stage-vfx/ambush, 192칸 6장, 발 자리 96, 168), 그사이 몸을 숨겼다가 나타남 효과와 함께 드러낸다. 칸은 이미 옮겨져 있다.
+// assets/stage-vfx/ambush, 192칸 6장, 발 자리 96, 168, 투명도 두 단계에 30색 안팎), 그사이 몸을 숨겼다가 나타남 효과와 함께 드러낸다. 칸은 이미 옮겨져 있다.
 const enemyAmbushView = (() => {
     const RULE = ELITE_AMBUSH, CELL = 192, FRAMES = 6, FEET = Object.freeze([96, 168]), FX_SCALE = 1.2;
     const sheets = new Map();
     /** 효과 그림(처음 부를 때 불러 둔다). 다 불러오기 전에는 null이라 그 프레임은 건너뛴다. */
     function sheet(name) {
-        if (!sheets.has(name)) { const img = new Image(); img.src = `assets/stage-vfx/ambush/${name}.png?v=20261108-1`; sheets.set(name, img); }
+        if (!sheets.has(name)) { const img = new Image(); img.src = `assets/stage-vfx/ambush/${name}.png?v=20261108-2`; sheets.set(name, img); }
         const img = sheets.get(name);
         return img.complete && img.naturalWidth ? img : null;
     }
