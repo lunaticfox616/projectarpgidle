@@ -1,12 +1,14 @@
 /* 세계 지도(js/world-map-ui.js, data/world-map.js): 전체 탐험 화면의 왼쪽 설명 칸, 오른쪽 지도(권역 단추, 테와 지시선, 표식, 이름표), 아래 그 밖의 곳 줄.
    #ui-exploration-atlas 앞머리는 css/components/tabs.css의 모든 단추 돌 바탕 규칙보다 앞서기 위해서다(exploration-atlas.css와 같다). */
 @layer components {
-/* 판 짜임(사용자 11-09): 왼쪽 250px 설명 칸, 오른쪽에 지도가 남은 너비를 채우고, 그 밖의 곳은 둘 아래 한 줄. 설명 칸은 지도 높이만큼 늘어난다.
+/* 판 짜임(사용자 11-09): 왼쪽 250px 설명 칸, 오른쪽에 지도가 남은 너비를 채우고 그 아래 그 밖의 곳 한 줄. 설명 칸은 두 줄에 걸쳐 그 높이만큼 늘어나고,
+   바로 가기 줄이 많아 지도보다 길면 줄이 함께 자라 지도 쪽 아래가 빈다(기본 창의 지도는 334px쯤이라 스크롤 칸보다 낫다).
    지도 탭 창은 기본 너비가 860px쯤이라 지도가 제 크기(688px)보다 작게 그려진다(사용자 11-09: 크기는 알맞게). 760px보다 좁은 칸에서는 세로로 쌓는다(아래 @container). */
 #ui-exploration-atlas .world-map { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 10px 12px; align-items: stretch; padding: 12px 14px 14px; }
-#ui-exploration-atlas .wm-side { grid-column: 1; grid-row: 1; }
-#ui-exploration-atlas .wm-view { grid-column: 2; grid-row: 1; }
-#ui-exploration-atlas .wm-others { grid-column: 1 / -1; }
+#ui-exploration-atlas .wm-side-wrap { grid-column: 1; grid-row: 1 / span 2; min-height: 0; }
+#ui-exploration-atlas .wm-side { box-sizing: border-box; height: 100%; }
+#ui-exploration-atlas .wm-view { grid-column: 2; grid-row: 1; align-self: start; }
+#ui-exploration-atlas .wm-others { grid-column: 2; align-self: start; }
 /* 지도: 688x384 도트 그림을 제 칸 너비에 맞춰 채운다(비율 고정). 표식과 이름표는 % 자리라 함께 움직이고, 표식 크기는 지도 너비 기준(cqw)이라 container-type을 둔다.
    기본 창에서는 600px쯤이라 CSS px로는 줄어들지만 125% 화면(사용자)에서는 장치 픽셀로 1.09배라 점을 그대로(pixelated) 두는 쪽이 또렷하다. */
 #ui-exploration-atlas .wm-view { overflow-x: auto; scrollbar-width: thin; scrollbar-color: #bb8c45 #282014; }
@@ -61,13 +63,27 @@
 #ui-exploration-atlas .wm-tag.is-locked > span { color: #ead9b6; border-style: dashed; }
 /* 설명 칸(사용자 11-09): 고른 곳(없으면 현재 위치) 하나의 표식, 종류와 상태, 이름, 설명, 보상, 이동 단추를 세로로 쌓는다. 다른 지역 목록은 두지 않는다.
    단추 묶음은 exploration-atlas.css의 .atlas-hunting-action 그대로 세로로 쌓여 칸 바닥에 붙는다(margin-top auto). */
-#ui-exploration-atlas .wm-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 14px 16px; border: 1px solid #c7ac6355; border-left: 3px solid #e2c27a; background: linear-gradient(165deg, #2a2213, #0f0d08 70%); color: #e8e9dd; }
-#ui-exploration-atlas .wm-side > i { flex: none; width: 52px; height: 52px; background-size: 100% 100%; image-rendering: pixelated; }
-#ui-exploration-atlas .wm-side-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+#ui-exploration-atlas .wm-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px; border: 1px solid #c7ac6355; border-left: 3px solid #e2c27a; background: linear-gradient(165deg, #2a2213, #0f0d08 70%); color: #e8e9dd; }
+#ui-exploration-atlas .wm-side > i { flex: none; width: 39px; height: 39px; background-size: 100% 100%; image-rendering: pixelated; }
+#ui-exploration-atlas .wm-side-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 #ui-exploration-atlas .wm-side small { color: #dccfab; font-size: var(--font-size-meta); }
 #ui-exploration-atlas .wm-side strong { font-size: 18px; font-weight: 500; color: #f2eee1; }
-#ui-exploration-atlas .wm-side p { margin: 2px 0 0; color: #cfc6ae; font-size: var(--font-size-ui); line-height: 1.6; }
-#ui-exploration-atlas .wm-side-actions { flex-direction: column; align-items: stretch; justify-content: flex-start; max-width: none; gap: 6px; margin-top: auto; padding-top: 10px; border-top: 1px solid #c7ac6333; }
+#ui-exploration-atlas .wm-side p { margin: 1px 0 0; color: #cfc6ae; font-size: var(--font-size-ui); line-height: 1.5; }
+/* 단추 묶음은 칸 바닥에 붙는다(margin-top auto). */
+#ui-exploration-atlas .wm-side-actions { flex-direction: column; align-items: stretch; justify-content: flex-start; max-width: none; gap: 6px; margin-top: auto; padding-top: 8px; border-top: 1px solid #c7ac6333; }
+/* 바로 가기(사용자 11-09, js/world-map-brief-ui.js): 세부 탭이 지금 내주는 일을 줄마다 이름과 상태, 작은 단추로. 넘치는 줄 수는 머리줄의 +N.
+   단추가 넓거나 글이 길면 단추가 다음 줄 오른쪽으로 내려간다(flex-wrap). */
+#ui-exploration-atlas .wm-brief { display: flex; flex-direction: column; gap: 2px; padding-top: 6px; border-top: 1px solid #c7ac6333; }
+#ui-exploration-atlas .wm-brief > small { color: #cbb98a; font-size: var(--font-size-meta); }
+#ui-exploration-atlas .wm-brief > small > b { color: #e3d6b4; font-weight: 400; }
+#ui-exploration-atlas .wm-brief-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 28px; padding: 3px 0; border-bottom: 1px dotted #c7ac6333; }
+#ui-exploration-atlas .wm-brief-row:last-child { border-bottom: 0; }
+#ui-exploration-atlas .wm-brief-row > span { display: flex; flex: 1 1 130px; flex-direction: column; min-width: 0; }
+#ui-exploration-atlas .wm-brief-row b { overflow: hidden; color: #efe6cf; font-size: var(--font-size-ui); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+#ui-exploration-atlas .wm-brief-row small { color: #cfc3a3; font-size: var(--font-size-meta); line-height: 1.35; }
+#ui-exploration-atlas .wm-brief-row > button { flex: none; margin-left: auto; min-height: 26px; padding: 2px 9px; border: 1px solid #c3ad7690; background: #75644250; color: #f4e4bd; font-size: var(--font-size-ui); }
+#ui-exploration-atlas .wm-brief-row > button:hover:not(:disabled) { border-color: #e2c27a; color: #fff1d4; }
+#ui-exploration-atlas .wm-brief-row > button:disabled { opacity: .5; cursor: default; }
 #ui-exploration-atlas .wm-go { min-height: 32px; padding: 6px 14px; border: 1px solid #c3ad7690; background: #75644250; color: #f4e4bd; font-size: var(--font-size-ui); font-weight: 600; }
 #ui-exploration-atlas .wm-go:hover { border-color: #e2c27a; color: #fff1d4; }
 /* 지도에 없는 곳: 설명 칸과 지도 아래 한 줄의 작은 단추. */
@@ -81,9 +97,11 @@
     #ui-exploration-atlas .world-map { grid-template-columns: minmax(0, 1fr); }
     #ui-exploration-atlas .wm-view { grid-column: 1; }
     #ui-exploration-atlas .wm-map { min-width: 688px; }
-    #ui-exploration-atlas .wm-side { grid-column: 1; grid-row: 2; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; background: linear-gradient(115deg, #2a2213, #0f0d08 75%); }
-    #ui-exploration-atlas .wm-side > i { width: 39px; height: 39px; }
-    #ui-exploration-atlas .wm-side-actions { margin-top: 0; padding-top: 0; border-top: 0; justify-content: center; }
+    #ui-exploration-atlas .wm-side-wrap { grid-column: 1; grid-row: 2; }
+    #ui-exploration-atlas .wm-others { grid-column: 1; }
+    #ui-exploration-atlas .wm-side { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; background: linear-gradient(115deg, #2a2213, #0f0d08 75%); }
+    #ui-exploration-atlas .wm-brief { grid-column: 1 / -1; }
+    #ui-exploration-atlas .wm-side-actions { margin: 0; padding: 0; border-top: 0; justify-content: center; }
 }
 @container (max-width: 650px) {
     #ui-exploration-atlas .world-map { padding: 10px; }

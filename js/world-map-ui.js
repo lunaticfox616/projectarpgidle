@@ -124,14 +124,15 @@ const worldMapUi = (() => {
         if (region.type === 'act') return api.actActionsHtml(state.index);
         return `<button class="wm-go" onclick="${state.go}">${_t('이동')}</button>`;
     }
-    /** 설명 칸(지도 왼쪽, 사용자 11-09): 고른 곳 하나의 표식, 종류와 상태, 이름, 설명, 보상 이름(갈 곳 카드에 있던 것), 추적 중인 고유, 이동 단추.
-     * 세 덩이(표식, 글, 단추)는 넓은 칸에서 세로로 쌓이고 좁은 칸(css/world-map.css)에서는 지도 아래 한 줄로 눕는다. */
+    /** 설명 칸(지도 왼쪽, 사용자 11-09): 고른 곳 하나의 표식, 종류와 상태, 이름, 설명, 보상 이름(갈 곳 카드에 있던 것), 추적 중인 고유, 콘텐츠 자리의
+     * 바로 가기(js/world-map-brief-ui.js: 세부 탭이 지금 내주는 일), 이동 단추. 덩이들은 넓은 칸에서 세로로 쌓이고(단추는 바닥) 좁은 칸(css/world-map.css)에서는
+     * 지도 아래 한 줄로 눕는다. 바깥 .wm-side-wrap이 칸의 자리고 안쪽 .wm-side를 peek이 바꾼다. */
     function sideFor(entry) {
         const { region, state } = entry;
         const line = [state.kind, state.target, state.status].filter(Boolean).map(text => escapeHTML(_t(text))).join(', ');
-        return `<div class="wm-side" data-wm="${region.id}"><i style="background-image:url('${glyph(state.symbol, state.color, 4)}')"></i>
+        return `<div class="wm-side" data-wm="${region.id}"><i style="background-image:url('${glyph(state.symbol, state.color, 3)}')"></i>
             <div class="wm-side-text"><small>${line}</small><strong>${escapeHTML(state.title)}</strong>${state.description ? `<p>${escapeHTML(state.description)}</p>` : ''}${api.rewardNamesHtml(state.route)}${api.trackedRewardHtml(state.route)}</div>
-            <div class="wm-side-actions atlas-hunting-action">${actionsHtml(entry)}</div></div>`;
+            ${region.type === 'content' ? worldMapBrief.html(region.route) : ''}<div class="wm-side-actions atlas-hunting-action">${actionsHtml(entry)}</div></div>`;
     }
     /** 올린 지역을 설명 칸에만 미리 보여 준다(전체를 다시 그리지 않는다). id가 없거나 잠긴 곳이면 쉬는 지역으로 돌아간다.
      * 이미 그 지역이면 그대로 둔다: 권역을 누른 뒤 설명 칸의 단추를 누르면 권역의 blur가 먼저 오는데, 그때 칸을 다시 그리면 눌리던 단추가 사라져 클릭이 죽는다(11-08). */
@@ -172,7 +173,7 @@ const worldMapUi = (() => {
         if (!open.some(e => e.region.id === picked)) picked = null;
         const layers = `<svg class="wm-lines" viewBox="0 0 ${WORLD_MAP.width} ${WORLD_MAP.height}" aria-hidden="true">${all.map(linesHtml).join('')}${nextLinkHtml(all)}</svg>`
             + all.map(zoneHtml).join('') + all.map(markHtml).join('') + all.map(tagHtml).join('');
-        return `<div class="world-map">${open.length ? sideFor(resting(open)) : ''}<div class="wm-view"><div class="wm-map" role="group" aria-label="${_t('세계 지도')}">`
+        return `<div class="world-map">${open.length ? `<div class="wm-side-wrap">${sideFor(resting(open))}</div>` : ''}<div class="wm-view"><div class="wm-map" role="group" aria-label="${_t('세계 지도')}">`
             + `<div class="wm-art" style="background-image:url('${WORLD_MAP.src}')"></div>${layers}</div></div>${othersHtml()}</div>`;
     }
     /** 세부 화면 위 길잡이의 자리 탭(explorationAtlasUi locationHtml): 지도의 열린 자리마다 표식 하나. 액트는 '나무' 하나에 현재 액트 번호. 눌린 자리만 이름이 펼쳐진다. */

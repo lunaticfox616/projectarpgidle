@@ -692,6 +692,7 @@ const atlasUi = (() => {
         signature = '';
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, selectNode, selectMap, revealDevice, revealStash, hint, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
+    // journey: the next-goal card's title, text, label and action (the world map's 바로 가기 row, js/world-map-brief-ui.js).
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, journey: journeyState, selectNode, selectMap, revealDevice, revealStash, hint, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
 })();
 safeExposeGlobals({ atlasUi });
