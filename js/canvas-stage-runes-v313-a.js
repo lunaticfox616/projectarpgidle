@@ -1,4 +1,4 @@
-/** 스킬 전체 전달본 V3.13(2026-11-08)의 새 룬 무대 연출 a: 82 절대영도, 83 전도성 형상체, 84 특이점 분리, 85 일섬, 86 공허의 빙의.
+/** 스킬 전체 전달본 V3.13(2026-11-08)의 새 룬 무대 연출 a: 82 절대 영도, 83 전도성 형상체, 84 특이점 분리, 85 일섬, 86 공허의 빙의.
  * 시뮬레이터(index.html의 doFrozenOrb, frozenOrbFx, frostBoltFx, doOrbit, updateOrbs, drawOrbit, zap, doSingularity, riftLineFx, doIssen, issenFx,
  * buildNoStarSlash, doVoidPossess, voidPullRingFx, weakMarkFx)의 그림과 시간을 게임의 사건(js/skill-gem-casts-v313.js)에 옮겼다.
  * 칸의 크기만 시뮬레이터의 72×36에서 게임의 64×32로 옮기고 길이는 도트 그대로다. 바닥에 닿는 그림(그림자, 그늘, 점선 고리, 뒤쪽 구체)은 바닥 층에,
@@ -51,7 +51,7 @@ const stageRunesV313A = (() => {
         if (run.row) run.row.life = clock - run.row.start + 150;
     }
 
-    // ---------------------------------------------------------------- 82 절대영도
+    // ---------------------------------------------------------------- 82 절대 영도
     const ORB = Object.freeze({ lift: 50, fadeIn: 80, fadeOut: 140, muzzle: Object.freeze([26, -52]), nova: 0.9, spin: 6.5, boltSink: 26, boltLow: 20, boltIn: 40 });
     const orbLength = event => event.orbReach / event.orbSpeed * 1000;
     /** 구체가 그때 있는 칸: 떠난 칸에서 그 방향으로 초당 orbSpeed칸, orbReach칸까지. */

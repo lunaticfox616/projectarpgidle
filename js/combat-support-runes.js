@@ -122,7 +122,7 @@
     const LANDS_ONCE=new Set([47,48,49,79,87]);    // 떨어진 자리에서 한 번만 연쇄한다(병 하나에 한 번)
     /** Native casts retain their own bounce, shard, wave and movement stages; supports append contacts only.
      * 갈래 투사체의 발은 그 룬이 스스로 낸다(js/skill-gem-casts.js). 탄성 플라스크의 연쇄는 튕김이 된다. */
-    // noAugment: 잦은 작은 타격(절대영도의 서리 화살, 전도성 형상체의 정전기, js/skill-gem-casts-v313.js)은 덧타격을 받지 않는다.
+    // noAugment: 잦은 작은 타격(절대 영도의 서리 화살, 전도성 형상체의 정전기, js/skill-gem-casts-v313.js)은 덧타격을 받지 않는다.
     function augmentNative(command, targets) {
         const fx=command.stats.sSkill.supportEffects, first=targets[0], seen=new Set(targets.map(enemy=>enemy.id));
         if(!fx || !first || command.noAugment)return;

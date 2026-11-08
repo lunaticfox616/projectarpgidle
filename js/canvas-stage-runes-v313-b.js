@@ -1,4 +1,4 @@
-/** 스킬 전체 전달본 V3.13(2026-11-08)의 새 룬 무대 연출 b: 87 병에 담긴 번개, 88 연금가마솥, 89 거두어가는 종, 90 탐욕파문, 91 판결-유죄.
+/** 스킬 전체 전달본 V3.13(2026-11-08)의 새 룬 무대 연출 b: 87 병에 담긴 번개, 88 연금 가마솥, 89 거둬 가는 종, 90 탐욕 파문, 91 판결-유죄.
  * 시뮬레이터 index.html의 그림(drawLob 'static', nukeChargeFx, bigBoltFx, cauldronFx, bellFx, chandelierFx, gavelFx와 그 스프라이트)과 시간을
  * 판정의 사건(js/skill-gem-casts-v313.js)에 옮겼다. 칸의 크기만 시뮬레이터의 72×36에서 게임의 64×32로 옮기고 길이는 도트 그대로다.
  * 사건에 적힌 시간(모으기, 쏟기, 떨어짐, 울림, 매달림, 내리찍기)은 공격 속도로 줄인 값을 쓰고, 그 밖의 시간(연기, 옅어짐)은 시뮬레이터 그대로다.
@@ -356,7 +356,7 @@ const stageRunesV313B = (() => {
         return true;
     }
 
-    // ---------------------------------------------------------------- 88 연금가마솥
+    // ---------------------------------------------------------------- 88 연금 가마솥
     const POUR = Object.freeze({ tip: 2.25, scale: 1.75, green: '#7fc96a', lift: 132, top: 52 });
     function potBits(spot, A, B, pot) {
         const rr = ST.random(Math.floor(spot.gx * 320 + spot.gy * 32)), E = pot.E, G = POUR.green;
@@ -521,7 +521,7 @@ const stageRunesV313B = (() => {
         return true;
     }
 
-    // ---------------------------------------------------------------- 89 거두어가는 종
+    // ---------------------------------------------------------------- 89 거둬 가는 종
     const BELL = Object.freeze({ scale: 2.2, lift: 140, top: 62 });
     const bellIn = (t, plan) => Math.min(1, t / plan.drop);
     const bellOut = (t, plan) => (t < plan.T1 + 260 ? 1 : Math.max(0, 1 - (t - plan.T1 - 260) / 260));
@@ -604,7 +604,7 @@ const stageRunesV313B = (() => {
         return true;
     }
 
-    // ---------------------------------------------------------------- 90 탐욕파문
+    // ---------------------------------------------------------------- 90 탐욕 파문
     const CHAND = Object.freeze({ scale: 1.9, hang: 34, flameMs: 385 });
     const CHAND_CANDLE = Object.freeze([[-24, 20], [-12, 20], [0, 18], [12, 20], [24, 20]]);   // 촛불 끝(스프라이트 기준, 가운데 30, 위 0)
     const CHAND_RIPPLES = Object.freeze([[0, GOLD[2], 0.95], [60, GOLD[1], 0.6], [110, FIRE[1], 0.75]]);

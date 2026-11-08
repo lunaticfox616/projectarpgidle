@@ -161,7 +161,7 @@ Object.assign(SKILL_DB, {
         "tags":["attack","physical","aoe","mobility","strength","intelligence"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.01,"crit":5,"leech":0,
         "mobilityCooldownMs":3000,"rangeText":"사거리 5칸, 적 앞으로 순간이동, 도착 지점 둘레 1칸"},
     "작살화살": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":56,
-        "desc":"줄이 달린 작살화살을 쏴 최대 5칸 안의 적에게 물리 피해를 주고, 줄을 당겨 그 적 바로 앞 칸까지 끌려갑니다. 이미 붙어 있으면 끌려가지 않습니다.",
+        "desc":"줄이 달린 작살 화살을 쏴 최대 5칸 안의 적에게 물리 피해를 주고, 줄을 당겨 그 적 바로 앞 칸까지 끌려갑니다. 이미 붙어 있으면 끌려가지 않습니다.",
         "tags":["attack","projectile","physical","mobility","dexterity"],"baseDmg":1.7,"dmgScale":0.09,"spdScale":0.01,"crit":8,"leech":0,
         "mobilityCooldownMs":4000,"rangeText":"사거리 5칸, 적 앞 칸까지 끌려감"},
     // 2026-10-20 스킬룬 추가본(v44): 사용자가 구상한 플라스크 이동기. 피해 120, 5칸, 둘레 1칸, 돌진 0.26초는 추가본의 제안 값이다.
@@ -189,15 +189,15 @@ Object.assign(SKILL_DB, {
 // 2026-11-08 스킬 전체 전달본 V3.13의 새 룬 열(82~91). 이름, 무기, 속성은 사용자 결정, 피해는 전달본의 기본 피해 / 100이고 한 번 치는 몫(%)은 판정이 정한다
 // (js/skill-gem-casts-v313.js). 공격 속도와 레벨 성장은 같은 무기, 같은 갈래 룬에 맞춘 값이다. 병에 담긴 번개는 전달본에서 주문과 공격 겸용이지만 두 태그를 함께 단 룬이 없어 주문이다.
 Object.assign(SKILL_DB, {
-    "절대영도": {"isGem":true,"category":"spell","ele":"cold","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":82,"desc":"서리 구체를 천천히 쏘아 보냅니다. 구체가 돌며 사방으로 서리 화살을 흩뿌리고(한 발 22%), 끝에서 서리 화살 고리를 터뜨립니다. 대상 수와 투사체가 늘면 가까운 다른 적을 향해 구체가 그만큼 더 나갑니다.","tags":["spell","projectile","cold","elemental","aoe","intelligence"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.012,"crit":8,"spellFlatBase":24,"spellFlatScale":5,"leech":0,"projectilePattern":{"mode":"focus","kind":"line","fixed":true},"rangeText":"발사 방식: 사거리 6칸, 서리 화살 2.6칸, 고유 궤적"},
+    "절대 영도": {"isGem":true,"category":"spell","ele":"cold","baseSpd":0.8,"targetMode":"nearest-enemy","targets":99,"nativeCastId":82,"desc":"서리 구체를 천천히 쏘아 보냅니다. 구체가 돌며 사방으로 서리 화살을 흩뿌리고(한 발 22%), 끝에서 서리 화살 고리를 터뜨립니다. 대상 수와 투사체가 늘면 가까운 다른 적을 향해 구체가 그만큼 더 나갑니다.","tags":["spell","projectile","cold","elemental","aoe","intelligence"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.012,"crit":8,"spellFlatBase":24,"spellFlatScale":5,"leech":0,"projectilePattern":{"mode":"focus","kind":"line","fixed":true},"rangeText":"발사 방식: 사거리 6칸, 서리 화살 2.6칸, 고유 궤적"},
     "전도성 형상체": {"isGem":true,"category":"spell","ele":"light","baseSpd":1,"targetMode":"all-enemies-around-caster","targets":99,"nativeCastId":83,"desc":"시전할 때마다 번개 구체가 하나씩 생겨 몸 둘레를 돕니다(최대 5개, 12초). 구체마다 0.9초에 한 번 3칸 안의 한 대상에게 정전기를 쏩니다(32%). 최대일 때 다시 쓰면 가장 오래된 구체의 시간이 다시 찹니다. 최대 개수는 효과 확장으로 7, 10개까지 늘어납니다.","tags":["spell","lightning","elemental","duration","intelligence"],"baseDmg":0.6,"dmgScale":0.03,"spdScale":0.015,"crit":8,"spellFlatBase":18,"spellFlatScale":3.8,"leech":0,"rangeText":"주변 3칸, 구체 최대 5개, 12초"},
     "특이점 분리": {"isGem":true,"category":"attack","ele":"chaos","baseSpd":0.62,"targetMode":"aimed-cell","targets":99,"nativeCastId":84,"desc":"대검을 내리그어 앞에 세로로 9칸 길이의 혼돈 차원 틈을 엽니다. 틈 위의 적을 베고 양옆의 적을 틈으로 끌어당긴 뒤, 0.52초 뒤 특이점이 붕괴하며 한 번 더 칩니다(60%).","tags":["attack","melee","chaos","aoe","slam","strength"],"baseDmg":1.7,"dmgScale":0.085,"spdScale":0.01,"crit":6,"leech":0,"rangeText":"앞 2칸 줄, 세로 9칸, 양옆 1칸 끌어당김"},
     "일섬": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.55,"targetMode":"aimed-cell","targets":99,"nativeCastId":85,"desc":"대검을 가로로 크게 그어 화면 끝에서 끝까지 한 줄을 벱니다. 번쩍 그은 선이 지나간 뒤 0.22초 후 그 줄의 모든 적이 한꺼번에 베입니다.","tags":["attack","melee","physical","aoe","strength"],"baseDmg":2,"dmgScale":0.1,"spdScale":0.008,"crit":8,"leech":0,"rangeText":"자기 줄, 앞뒤 10칸"},
     "공허의 빙의": {"isGem":true,"category":"attack","ele":"chaos","baseSpd":0.85,"targetMode":"all-enemies-around-caster","targets":99,"nativeCastId":86,"desc":"공허를 외쳐 둘레 3칸 안의 적을 끌어당기고, 공허의 혼을 깃들게 해 피해를 준 뒤 4초 동안 받는 피해를 20% 늘립니다.","tags":["attack","chaos","aoe","shout","strength","dexterity"],"baseDmg":0.7,"dmgScale":0.035,"spdScale":0.015,"crit":3,"leech":0,"rangeText":"주변 3칸, 약화 4초"},
     "병에 담긴 번개": {"isGem":true,"category":"spell","ele":"light","baseSpd":0.7,"targetMode":"aimed-cell","targets":99,"nativeCastId":87,"desc":"정전기가 든 플라스크를 던집니다. 병이 깨진 자리로 정전기가 모였다가, 거대한 낙뢰가 한 번 강하게 내리꽂혀 둘레 2칸의 적에게 큰 피해를 줍니다(200%).","tags":["spell","projectile","lightning","elemental","aoe","potion","dexterity","intelligence"],"baseDmg":1,"dmgScale":0.055,"spdScale":0.012,"crit":8,"spellFlatBase":22,"spellFlatScale":4.6,"leech":0,"rangeText":"사거리 5칸, 떨어진 자리 둘레 2칸"},
-    "연금가마솥": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":0.6,"targetMode":"aimed-cell","targets":99,"nativeCastId":88,"desc":"대상 머리 위에 마녀의 가마솥을 불러냅니다. 가마솥이 기울어 끓는 물약을 쏟아붓고, 넓게 퍼지는 물약이 둘레 2.5칸의 적을 세 번 덮칩니다(80%, 50%, 50%).","tags":["spell","chaos","aoe","potion","dexterity","intelligence"],"baseDmg":1.1,"dmgScale":0.06,"spdScale":0.012,"crit":6,"spellFlatBase":24,"spellFlatScale":5,"leech":0,"rangeText":"사거리 6칸, 대상 둘레 2.5칸"},
-    "거두어가는 종": {"isGem":true,"category":"spell","ele":"phys","baseSpd":0.75,"targetMode":"aimed-cell","targets":99,"nativeCastId":89,"desc":"대상 위에 성당의 금빛 종을 불러내 두 번 울립니다(120%, 80%). 퍼져 나가는 음파가 둘레 3칸의 적에게 물리 피해를 주며, 종에서 멀어질수록 피해가 약해집니다(끝 35%).","tags":["spell","physical","aoe","strength","intelligence"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.014,"crit":6,"spellFlatBase":22,"spellFlatScale":4.8,"leech":0,"rangeText":"사거리 6칸, 대상 둘레 3칸"},
-    "탐욕파문": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.7,"targetMode":"aimed-cell","targets":99,"nativeCastId":90,"desc":"향로를 내려찍어 대상 위의 금빛 샹들리에를 떨어뜨립니다. 부딪히는 순간 둘레 2칸의 적에게 물리 100%와 화염 100% 피해를 주고, 금빛 파문과 불길이 퍼집니다.","tags":["attack","physical","fire","elemental","aoe","slam","strength","intelligence"],"baseDmg":1.2,"dmgScale":0.065,"spdScale":0.012,"crit":6,"leech":0,"rangeText":"사거리 5칸, 대상 둘레 2칸"},
+    "연금 가마솥": {"isGem":true,"category":"spell","ele":"chaos","baseSpd":0.6,"targetMode":"aimed-cell","targets":99,"nativeCastId":88,"desc":"대상 머리 위에 마녀의 가마솥을 불러냅니다. 가마솥이 기울어 끓는 물약을 쏟아붓고, 넓게 퍼지는 물약이 둘레 2.5칸의 적을 세 번 덮칩니다(80%, 50%, 50%).","tags":["spell","chaos","aoe","potion","dexterity","intelligence"],"baseDmg":1.1,"dmgScale":0.06,"spdScale":0.012,"crit":6,"spellFlatBase":24,"spellFlatScale":5,"leech":0,"rangeText":"사거리 6칸, 대상 둘레 2.5칸"},
+    "거둬 가는 종": {"isGem":true,"category":"spell","ele":"phys","baseSpd":0.75,"targetMode":"aimed-cell","targets":99,"nativeCastId":89,"desc":"대상 위에 성당의 금빛 종을 불러내 두 번 울립니다(120%, 80%). 퍼져 나가는 음파가 둘레 3칸의 적에게 물리 피해를 주며, 종에서 멀어질수록 피해가 약해집니다(끝 35%).","tags":["spell","physical","aoe","strength","intelligence"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.014,"crit":6,"spellFlatBase":22,"spellFlatScale":4.8,"leech":0,"rangeText":"사거리 6칸, 대상 둘레 3칸"},
+    "탐욕 파문": {"isGem":true,"category":"attack","ele":"phys","baseSpd":0.7,"targetMode":"aimed-cell","targets":99,"nativeCastId":90,"desc":"향로를 내려찍어 대상 위의 금빛 샹들리에를 떨어뜨립니다. 부딪히는 순간 둘레 2칸의 적에게 물리 100%와 화염 100% 피해를 주고, 금빛 파문과 불길이 퍼집니다.","tags":["attack","physical","fire","elemental","aoe","slam","strength","intelligence"],"baseDmg":1.2,"dmgScale":0.065,"spdScale":0.012,"crit":6,"leech":0,"rangeText":"사거리 5칸, 대상 둘레 2칸"},
     "판결-유죄": {"isGem":true,"category":"spell","ele":"light","baseSpd":0.8,"targetMode":"aimed-cell","targets":99,"nativeCastId":91,"desc":"앞에 반듯한 금빛 판결봉을 세워 전방 9칸(3×3)을 내리찍습니다(120%). 판결봉 아래 적은 번개 피해를 받고, 곧이어 하늘에서 유죄의 낙뢰가 한 번 더 떨어집니다(60%).","tags":["spell","lightning","elemental","aoe","strength","intelligence"],"baseDmg":1,"dmgScale":0.05,"spdScale":0.014,"crit":8,"spellFlatBase":22,"spellFlatScale":4.8,"leech":0,"rangeText":"앞 3칸 × 3줄"}
 });
 // The mobility slot's cooldowns for the mobility gems that were main gems before (provisional).
@@ -229,8 +229,8 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
     '원소 포션 투척': '폭발 혼합물',
     // 2026-11-01 스킬 전체 전달본 V3.6이 지운 분광 위습: 같은 번개 위습이 잇는다
     '분광 위습 소환': '번개 위습 소환',
-    // 2026-11-08 전달본 V3.13이 지운 정화의 집행: 같은 향로 전용, 화염 피해를 주는 범위 공격인 탐욕파문이 잇는다
-    '정화의 집행': '탐욕파문'
+    // 2026-11-08 전달본 V3.13이 지운 정화의 집행: 같은 향로 전용, 화염 피해를 주는 범위 공격인 탐욕 파문이 잇는다
+    '정화의 집행': '탐욕 파문'
 });
 /** 지운 보조스킬룬: 대신 받는 룬 없이 저장에서 걷어 낸다(js/save-migrations.js dropRetiredSupportGems).
  * 2026-10-23 사용자 "방패 공명: 보조 스킬 룬 삭제"(방패가 완갑이 된 뒤). */
@@ -342,14 +342,14 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '시간의 사선': 'sword',
     // orb
     '차원찢기': 'orb',
-    '절대영도': 'orb',
+    '절대 영도': 'orb',
     '전도성 형상체': 'orb',
     // censer
     '신성한 안개': 'censer',
     '파문심판': 'censer',
     '향로구름': 'censer',
-    '거두어가는 종': 'censer',
-    '탐욕파문': 'censer',
+    '거둬 가는 종': 'censer',
+    '탐욕 파문': 'censer',
     '판결-유죄': 'censer',
     // flask
     '탄성 플라스크': 'flask',
@@ -359,16 +359,16 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '바위 플라스크': 'flask',
     '석화 혼합물': 'flask',
     '병에 담긴 번개': 'flask',
-    '연금가마솥': 'flask',
+    '연금 가마솥': 'flask',
 });
 /** 룬 요구 레벨(2026-11-02 사용자: 룬의 특이함, 강력함, 고급짐으로 17, 37, 67. 각 무기의 기본 룬은 제한 없음. 보조룬은 연속 발동처럼 고급진 룬만 60, 101).
  * 여기에 없는 룬은 제한이 없다. 직업 시작 룬(LOOP_STARTER_GEM_BY_HERO, LOOP_MUTATION_STARTER_GEMS)과 액트 보상 룬은 넣지 않는다. 얻거나 사는 데에는 제한이 없고 장착만 막는다
  * (js/skills.js canUseSkillWithCurrentEquipment, js/support-runes.js conflictReason). */
 const SKILL_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
     17: ['회오리', '참격파', '올려 베기', '추적 사격', '빙결 파열창', '천뢰 분기',
-        '시간의 사선', '석화 혼합물', '돌진', '그림자 점멸', '작살화살', '향로구름', '바위 플라스크', '차원찢기', '수액 골렘 소환', '공허의 빙의', '병에 담긴 번개', '거두어가는 종'],
+        '시간의 사선', '석화 혼합물', '돌진', '그림자 점멸', '작살화살', '향로구름', '바위 플라스크', '차원찢기', '수액 골렘 소환', '공허의 빙의', '병에 담긴 번개', '거둬 가는 종'],
     37: ['공허 가르기', '불사르기', '폭발성 타격', '혹한의 지진', '전도성 난격', '화염 폭풍핵', '유성 낙화', '난타 눈보라', '번개 각인', '화살비', '도약 강타', '폭발 혼합물', '과냉각 혼합물',
-        '파문심판', '화염의 가호', '한기의 가호', '낙뢰의 가호', '심연의 가호', '수액의 가호', '절대영도', '특이점 분리', '연금가마솥', '탐욕파문', '판결-유죄'],
+        '파문심판', '화염의 가호', '한기의 가호', '낙뢰의 가호', '심연의 가호', '수액의 가호', '절대 영도', '특이점 분리', '연금 가마솥', '탐욕 파문', '판결-유죄'],
     67: ['신성한 단두대', '신성한 기도', '암살', '섬머솔트 슬래시', '시간 가속', '장군의 가호', '전도성 형상체', '일섬', '탐욕의 광기']
 }).flatMap(([level, names]) => names.map(name => [name, Number(level)]))));
 /** 드랍과 진열대에 덜 나오는 룬의 무게 배율(js/skills.js getSkillRuneRewardWeight). 2026-11-08 전달본 V3.13: 탐욕의 광기는 "드랍률이 낮은" 사역룬이다. */
@@ -431,15 +431,15 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '추적 사격': {family:'worldTree',scale:1,impactVfx:false},
     '석화 혼합물': {family:'worldTree',scale:1,impactVfx:false},
     '시간의 사선': {family:'worldTree',scale:1,impactVfx:false},
-    '절대영도': {family:'worldTree',scale:1,impactVfx:false},
+    '절대 영도': {family:'worldTree',scale:1,impactVfx:false},
     '전도성 형상체': {family:'worldTree',scale:1,impactVfx:false},
     '특이점 분리': {family:'worldTree',scale:1,impactVfx:false},
     '일섬': {family:'worldTree',scale:1,impactVfx:false},
     '공허의 빙의': {family:'worldTree',scale:1,impactVfx:false},
     '병에 담긴 번개': {family:'worldTree',scale:1,impactVfx:false},
-    '연금가마솥': {family:'worldTree',scale:1,impactVfx:false},
-    '거두어가는 종': {family:'worldTree',scale:1,impactVfx:false},
-    '탐욕파문': {family:'worldTree',scale:1,impactVfx:false},
+    '연금 가마솥': {family:'worldTree',scale:1,impactVfx:false},
+    '거둬 가는 종': {family:'worldTree',scale:1,impactVfx:false},
+    '탐욕 파문': {family:'worldTree',scale:1,impactVfx:false},
     '판결-유죄': {family:'worldTree',scale:1,impactVfx:false},
     '신성한 안개': {family:'worldTree',scale:1,impactVfx:false},
     '파문심판': {family:'worldTree',scale:1,impactVfx:false},
@@ -630,15 +630,15 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '석화 혼합물': 'assets/gems/runes/079_petrifying-mixture.png',
     '시간의 사선': 'assets/gems/runes/080_line-of-time.png',
     // 2026-11-08 전달본 V3.13의 새 룬(전달본에 아이콘이 없어 PixelLab으로 가운데 그림을 만들고 같은 속성 룬의 테를 그대로 썼다. 탐욕의 광기는 낙뢰의 가호 원판에 ᚠ를 그렸다)
-    '절대영도': 'assets/gems/runes/082_absolute-zero.png',
+    '절대 영도': 'assets/gems/runes/082_absolute-zero.png',
     '전도성 형상체': 'assets/gems/runes/083_conductive-form.png',
     '특이점 분리': 'assets/gems/runes/084_singularity-rift.png',
     '일섬': 'assets/gems/runes/085_issen.png',
     '공허의 빙의': 'assets/gems/runes/086_void-possession.png',
     '병에 담긴 번개': 'assets/gems/runes/087_bottled-lightning.png',
-    '연금가마솥': 'assets/gems/runes/088_alchemical-cauldron.png',
-    '거두어가는 종': 'assets/gems/runes/089_reaping-bell.png',
-    '탐욕파문': 'assets/gems/runes/090_ripple-of-greed.png',
+    '연금 가마솥': 'assets/gems/runes/088_alchemical-cauldron.png',
+    '거둬 가는 종': 'assets/gems/runes/089_reaping-bell.png',
+    '탐욕 파문': 'assets/gems/runes/090_ripple-of-greed.png',
     '판결-유죄': 'assets/gems/runes/091_verdict-guilty.png',
     '탐욕의 광기': 'assets/gems/runes/127_madness-of-greed.png',
 });
@@ -670,15 +670,15 @@ const SKILL_GRID_DB = {
     '추적 사격': { kind: 'line', range: 8 },
     '시간의 사선': { kind: 'line', range: 6 },
     // 2026-11-08 전달본 V3.13의 새 룬(판정은 js/skill-gem-casts-v313.js가 따로 하고, 이 표는 범위 표시와 다가가기에 쓴다)
-    '절대영도': { kind: 'line', range: 6 },
+    '절대 영도': { kind: 'line', range: 6 },
     '전도성 형상체': { kind: 'nova', range: 3, radius: 3, shape: 'square' },
     '특이점 분리': { kind: 'line', range: 3, band: 4 },
     '일섬': { kind: 'line', range: 10, band: 0 },
     '공허의 빙의': { kind: 'nova', range: 3, radius: 3, shape: 'circle', distanceMetric: 'euclidean' },
     '병에 담긴 번개': { kind: 'blast', range: 5, radius: 2, shape: 'circle', distanceMetric: 'euclidean' },
-    '연금가마솥': { kind: 'blast', range: 6, radius: 2.5, shape: 'circle', distanceMetric: 'euclidean' },
-    '거두어가는 종': { kind: 'blast', range: 6, radius: 3, shape: 'circle', distanceMetric: 'euclidean' },
-    '탐욕파문': { kind: 'blast', range: 5, radius: 2, shape: 'circle', distanceMetric: 'euclidean' },
+    '연금 가마솥': { kind: 'blast', range: 6, radius: 2.5, shape: 'circle', distanceMetric: 'euclidean' },
+    '거둬 가는 종': { kind: 'blast', range: 6, radius: 3, shape: 'circle', distanceMetric: 'euclidean' },
+    '탐욕 파문': { kind: 'blast', range: 5, radius: 2, shape: 'circle', distanceMetric: 'euclidean' },
     '판결-유죄': { kind: 'line', range: 3, band: 1 },
     "신성한 안개": {"kind":"nova","range":1,"radius":1,"shape":"square"},
     "파문심판": {"kind":"blast","range":2,"radius":1,"shape":"cross"},
