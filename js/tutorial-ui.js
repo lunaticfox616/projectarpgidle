@@ -582,6 +582,7 @@ function saveTutorialHistoryChange() {
     queueImportantSave(0);
 }
 function showNextTutorial() {
+    if (gameEntryRunning) return;   // the entry calls this itself once the time away is settled (js/cloud-save-ui.js enterGameWorld)
     window.GameModules.state.tutorials.sync(game);
     saveTutorialHistoryChange();
     tutorialActionUi.expireNotice(Date.now());

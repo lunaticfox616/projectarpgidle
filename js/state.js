@@ -2383,6 +2383,8 @@ let cloudState = {
 };
 let startupOverlayActive = true;
 let gameplayStarted = false;
+// True while the start screen hands over to the game (js/cloud-save-ui.js enterGameWorld): the guide cards wait for its end.
+let gameEntryRunning = false;
 let loadingOverlayProgress = 0;
 let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;

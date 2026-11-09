@@ -551,20 +551,33 @@ function clearCloudPasswordInput() {
     if (passwordEl) passwordEl.value = '';
 }
 
+/** Entering the game from the start screen, in this order: the loaded save's stamp is read, the battle art loads, play starts and the
+ * start screen closes, the battlefield is drawn and the loading screen closes, a save without a class asks for one, the time away is
+ * settled, and only then the guide cards wake (js/tutorial-ui.js showNextTutorial waits for gameEntryRunning). Before 2026-11-10 the
+ * cards woke by themselves when the start screen closed, and the save they made there moved the stamp before the settlement read it
+ * (v0.3.57 to v0.3.59: no launch settled). */
 async function enterGameWorld() {
-    // The save's stamp before this launch writes it (nothing touches it while the start screen is up): the away settlement at the end
-    // measures from here (recordOfflineCombatEntry).
+    // The save's stamp before this launch writes it (nothing touches it while the start screen is up): the away settlement measures from here.
     const savedAtMs = game.saveMeta.lastModifiedAt;
-    advanceLoadingOverlay({
-        title: _t('전장을 불러오는 중...'),
-        detail: _t('전투 로그와 캐릭터 상태를 복원하고 있습니다.'),
-        caption: _t('진행 복원'),
-        progress: 48
-    });
-    await ensureBattleAssetsLoadedBeforeEntry();
-    gameplayStarted = true;
-    setStartupOverlayActive(false);
-    if (typeof syncInitialPlayerProfile === 'function') syncInitialPlayerProfile(); // 이 계정의 캐릭터로 들어섰다(js/social.js profileSnapshotIsOwn)
+    gameEntryRunning = true;
+    try {
+        advanceLoadingOverlay({ title: _t('전장을 불러오는 중...'), detail: _t('전투 로그와 캐릭터 상태를 복원하고 있습니다.'), caption: _t('진행 복원'), progress: 48 });
+        await ensureBattleAssetsLoadedBeforeEntry();
+        gameplayStarted = true;
+        setStartupOverlayActive(false);
+        if (typeof syncInitialPlayerProfile === 'function') syncInitialPlayerProfile(); // 이 계정의 캐릭터로 들어섰다(js/social.js profileSnapshotIsOwn)
+        showBattlefieldOnEntry();
+        await closeLoadingOnEntry();
+        ensureInitialHeroSelection();
+        await settleAwayOnEntry(savedAtMs);
+    } finally {
+        gameEntryRunning = false;
+    }
+    showNextTutorial();
+}
+
+/** The battle tab with every window closed, drawn once under the loading screen. A failure here leaves the entry going. */
+function showBattlefieldOnEntry() {
     try {
         if (typeof closeAllWindows === 'function') closeAllWindows();
         if (typeof closeCommunityDock === 'function') closeCommunityDock();
@@ -581,15 +594,19 @@ async function enterGameWorld() {
         renderMobileBattlePipFrame();
     } catch (error) {
         console.error('renderBattlefield on enterGameWorld failed:', error);
-    } finally {
-        try {
-            await finishLoadingOverlay();
-        } catch (error) {
-            console.error('finishLoadingOverlay on enterGameWorld failed:', error);
-        }
-        setLoadingOverlayState(false);
     }
-    ensureInitialHeroSelection();
+}
+
+async function closeLoadingOnEntry() {
+    try {
+        await finishLoadingOverlay();
+    } catch (error) {
+        console.error('finishLoadingOverlay on enterGameWorld failed:', error);
+    }
+    setLoadingOverlayState(false);
+}
+
+async function settleAwayOnEntry(savedAtMs) {
     try {
         await startOfflineCombatReturn(Date.now(), savedAtMs);
     } catch (error) {
