@@ -1,5 +1,6 @@
 // 주인공 능력치 계산(getPlayerStats의 단계들)과 룬 표시 값 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** 재사용 대기시간 줄 of one stat evaluation (sum = getPlayerStats' bucket sum), for js/skills.js getSkillCooldownMs: the mobility
  * runes and the talisman curses. cooldownReductionCapBonus is 되감긴 모래시계's (js/combat-build-stats.js UNIQUE_EFFECT_STAT_LINES). */
 function collectCooldownStats(sum) {
@@ -96,7 +97,6 @@ function isDeferredTalentProjectileTargetEffect(effect) {
     return effect.cardId === 'hero1__gladiator' || effect.talentCardId === 'hero1__gladiator';
 }
 
-
 /** @param {object|null} buff The active stolen trait; the stat calculator's tick drops it once it expires. */
 /** Timed buffs on the reward bucket, each through its tick reader (js/player-stat-cache.js): the elite trait buff and 세계수의 숨결
  * (js/combat-incidents.js breathe). */
@@ -104,6 +104,7 @@ function applyTimedRewardStats(tick, bucket) {
     applyEliteTraitBuffStats(tick.get('eliteTraitBuff'), bucket);
     combatIncidents.breathStats(tick.get('incidentBreath')).forEach(([stat, value]) => addStatToBucket(bucket, stat, value));
 }
+
 function applyEliteTraitBuffStats(buff, bucket) {
     if (!buff) return;
     let trait = buff.trait || {};
@@ -126,6 +127,167 @@ function grantEliteTraitBuffFromEnemy(enemy, pStats) {
     game.uniqueEliteTraitBuff = { trait: { ...trait }, expiresAt: getCombatTime() + durationMs };
     if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🩸 정예 특성 흡수: {name}', { name: _t(trait.name || '정예 특성') }), 'loot-unique', { noToast: true });
 }
+
+/**
+ * The per-call end of getPlayerStats on a fresh copy: callers adjust the stats they get (condition buffs, chill, skill targets),
+ * and a settlement may answer many calls with one kept calculation (js/player-stat-cache.js). Then the guardian last stand
+ * cleanse, the summon DPS estimate against the current target and the immunity lines, in their old order. (The old end also
+ * added the shock tracer's shock effect to the reward bucket after the stats were built, which nothing read.)
+ */
+function finishPlayerStats(core, includeBreakdowns) {
+    const enemy = { ...core.stats };
+    if (enemy.sSkill) enemy.sSkill = { ...enemy.sSkill };
+    if (enemy.breakdowns) enemy.breakdowns = { ...enemy.breakdowns };
+    if (core.lastStandMaxHp !== null) cleanseGuardianLastStand(core.lastStandMaxHp);
+    let summonEstimate = estimateSummonDps(enemy, includeBreakdowns, core.gemEvaluation);
+    enemy.summonDps = Math.max(0, summonEstimate.total || 0);
+    enemy.directDps = Math.max(0, enemy.dps || 0);
+    enemy.totalDps = enemy.directDps + enemy.summonDps;
+    appendPlayerDpsBreakdowns(enemy, summonEstimate);
+    applyStatImmunities(enemy, core.immunity);
+    return enemy;
+}
+
+/** gd7 last stand: at half life or less, ailments are cleansed at most every 5 seconds. */
+function cleanseGuardianLastStand(maxHp) {
+    if (!((game.playerHp / Math.max(1, maxHp)) <= 0.5)) return;
+    let now = getCombatTime();
+    if ((game.guardianLastStandCleanseAt || 0) + 5000 <= now) {
+        game.playerAilments = [];
+        game.guardianLastStandCleanseAt = now;
+    }
+}
+
+function applyStatImmunities(enemy, immunity) {
+    if (immunity.ignite) enemy.immuneIgnite = true;
+    if (immunity.frostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
+    if (immunity.freeze) enemy.immuneFreeze = true;
+    if (immunity.shock) enemy.immuneShock = true;
+    if (immunity.bleed) enemy.immuneBleed = true;
+    if (immunity.closedEyes) {
+        enemy.immuneIgnite = true;
+        enemy.immuneChill = true;
+        enemy.immuneFreeze = true;
+        enemy.immuneShock = true;
+        enemy.immuneBleed = true;
+        enemy.immunePoison = true;
+    }
+}
+
+function appendPlayerDpsBreakdowns(stats, summonEstimate) {
+    if (!stats.breakdowns) return;
+    let directLines = stats.breakdowns.dps.lines;
+    stats.breakdowns.directDps = {
+        title: _t('직접 DPS'), lines: directLines.slice(), final: `${Math.floor(stats.directDps)}`
+    };
+    stats.breakdowns.summonDps = {
+        title: _t('소환 DPS'), lines: summonEstimate.lines || [], final: `${Math.floor(stats.summonDps)}`
+    };
+    stats.breakdowns.summonCap = {
+        title: _t('소환수 한도'),
+        lines: [
+            _t('현재 소환 한도 {summonCap}', { summonCap: stats.summonCap }),
+            _t('최대 소환 한도 {summonCapMaximum}', { summonCapMaximum: getSummonCapMaximum() }),
+            _t(hasKeystone('sb9') ? '대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태' : '기본 최대 한도 8')
+        ],
+        final: _t('{summonCap} / 최대 {summonCapMaximum}', { summonCap: stats.summonCap, summonCapMaximum: getSummonCapMaximum() })
+    };
+    stats.breakdowns.dps = {
+        title: _t('총 DPS'),
+        lines: [
+            _t('직접 DPS {floor}', { floor: Math.floor(stats.directDps) }),
+            _t('예상 소환 DPS {floor}', { floor: Math.floor(stats.summonDps) }),
+            _t('총 DPS = 직접 DPS + 예상 소환 DPS')
+        ].concat(directLines),
+        final: `${Math.floor(stats.totalDps)}`
+    };
+}
+
+/** A rune's shown numbers: a support rune's value at its level and active tier, else the skill at its final level (cores, quality,
+ * the sky tower boost, a projectile pattern). Split by kind on 2026-10-18, same calls in the same order. */
+function getGemPresentation(name, isSupport, statsOverride) {
+    let stats = statsOverride || getPlayerStats();
+    let targetGemSources = getTargetGemBonusSources(name, stats.gemBonusSources);
+    if (isSupport) return getSupportGemPresentation(name, stats, targetGemSources, typeof getSupportActiveTier === 'function' ? getSupportActiveTier : null);
+    return getSkillGemPresentation(name, stats, targetGemSources);
+}
+
+/** A support rune's value at its level and tier (activeTierOf: ui.js's reader of the chosen tier, null in runs without it). */
+function getSupportGemPresentation(name, stats, targetGemSources, activeTierOf) {
+    let gem = normalizeGemRecord((game.supportGemData || {})[name]);
+    let db = SUPPORT_GEM_DB[name];
+    if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: _t('정의되지 않은 보조스킬룬'), statName: name, statId: null, gemBonusSources: targetGemSources };
+    let totalLevel = Math.max(1, gem.level + targetGemSources.total);
+    let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
+    const { activeTier, tierMul } = getSupportGemTier(name, gem, activeTierOf);
+    let ratioPct = db.tierValues ? db.tierValues[activeTier - 1] : val * tierMul;
+    let scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
+    let value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
+    return { baseLevel: gem.level, totalLevel: totalLevel, value: value, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources, scaleWithOwnStat: db.scaleWithOwnStat || null, scaleBase: scaleBase, scaleRatioPct: ratioPct };
+}
+
+/** A support rune's active tier and its multiplier (fallbacks for runs without the tier helpers). */
+function getSupportGemTier(name, gem, activeTierOf) {
+    let activeTier = activeTierOf ? activeTierOf(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
+    let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
+    return { activeTier, tierMul };
+}
+
+/** A skill rune's levels, its leveled skill with a projectile pattern, and its core fields. */
+function getSkillGemPresentation(name, stats, targetGemSources) {
+    let db = SKILL_DB[name];
+    if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: _t('정의되지 않은 스킬'), skill: SKILL_DB['기본 공격'], tags: ['attack'] };
+    if (!db.isGem && !db.levelable) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
+    game.gemData = game.gemData || {};
+    let gem = normalizeGemRecord((game.gemData || {})[name]);
+    if (db.levelable) game.gemData[name] = gem;
+    const levels = getSkillGemLevels(name, db, gem, targetGemSources);
+    let skill = window.GameModules.combat.supports.resolve(applyGemPresentationPattern(name, getLeveledGemSkill(db, gem, levels.finalLevel), stats));
+    return {
+        baseLevel: gem.level, totalLevel: levels.totalLevel, finalLevel: levels.finalLevel, materialBonus: levels.materialBonus, permanentSkyBonus: levels.permanentSkyBonus, engraveLevel: levels.engraveLevel,
+        ...getSkillGemCoreFields(gem), desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources
+    };
+}
+
+/** The sky tower boost, the core and awakening levels, the gear levels, the sky engraving's rune levels (as getActiveSkillStats), and
+ * the total and final (base capped at 20) levels. */
+function getSkillGemLevels(name, db, gem, targetGemSources) {
+    const { permanentSkyBonus, materialBonus, engraveLevel } = db.isGem ? getSkillRuneBonusLevels(name, gem) : NO_RUNE_BONUS_LEVELS;
+    let levelBonus = db.isGem ? targetGemSources.total : 0;
+    let totalLevel = gem.level + levelBonus + materialBonus + engraveLevel;
+    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + engraveLevel;
+    return { permanentSkyBonus, materialBonus, engraveLevel, totalLevel, finalLevel };
+}
+
+/** The skill's damage, speed and crit at the final level, with quality and the core forge's damage and speed. */
+function getLeveledGemSkill(db, gem, finalLevel) {
+    let skill = { ...db };
+    skill.dmg = skill.baseDmg + (getGemLevelGrowthSteps(finalLevel) * skill.dmgScale);
+    skill.spd = skill.baseSpd + (getGemLevelGrowthSteps(finalLevel) * skill.spdScale);
+    if (skill.critScale) skill.crit = (skill.crit || 0) + (getGemLevelGrowthSteps(finalLevel, 0) * skill.critScale);
+    let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
+    skill.dmg *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).damage : 1);
+    skill.spd *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).speed : 1);
+    return skill;
+}
+
+/** The active skill's projectile pattern from the stats, else the sky tower's for this skill. */
+function applyGemPresentationPattern(name, skill, stats) {
+    let activePattern = name === game.activeSkill && stats.sSkill && stats.sSkill.projectilePatternSource
+        ? stats.sSkill : null;
+    let patternMode = activePattern && activePattern.projectilePattern
+        ? activePattern.projectilePattern.mode : getSkyProjectilePatternMode(name);
+    if (patternMode) skill = applyProjectilePatternMode(skill, patternMode, activePattern ? activePattern.projectilePatternSource : '창공 각인', activePattern ? activePattern.projectilePatternDamageMultiplier : null);
+    return skill;
+}
+
+function getSkillGemCoreFields(gem) {
+    return { enhanceLevel: gem.enhanceLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened };
+}
+
+exposeFileGlobals({ collectCooldownStats, collectOceanStats, applySituationalTakenReduction, grantTalentStoneShieldOnBlock, recoverEnergyShieldOnBlock, consumeLoneEvasionCounterMultiplier, advanceEnergyShieldRechargeOnCrit, triggerUniqueEnergyShieldBreakRecharge, getEquippedUniqueJewels, getLabyrinthShacklesDamageMultiplier, getAbsoluteFloorDamageRoll, getSolitaryHuntDoubleStrikeBonus, isDeferredTalentProjectileTargetEffect, applyTimedRewardStats, grantEliteTraitBuffFromEnemy, finishPlayerStats, appendPlayerDpsBreakdowns, getGemPresentation, getSupportGemPresentation, getSupportGemTier, getSkillGemLevels });
+})();
+
 
 const getPassiveSpecialStatBreakdowns = function(rules) {
     const mystique = Math.max(0, Number(rules.mystique && rules.mystique.damagePct) || 0);
@@ -2384,155 +2546,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     return keepCore ? core : finishPlayerStats(core, includeBreakdowns);
 }
 
-/**
- * The per-call end of getPlayerStats on a fresh copy: callers adjust the stats they get (condition buffs, chill, skill targets),
- * and a settlement may answer many calls with one kept calculation (js/player-stat-cache.js). Then the guardian last stand
- * cleanse, the summon DPS estimate against the current target and the immunity lines, in their old order. (The old end also
- * added the shock tracer's shock effect to the reward bucket after the stats were built, which nothing read.)
- */
-function finishPlayerStats(core, includeBreakdowns) {
-    const enemy = { ...core.stats };
-    if (enemy.sSkill) enemy.sSkill = { ...enemy.sSkill };
-    if (enemy.breakdowns) enemy.breakdowns = { ...enemy.breakdowns };
-    if (core.lastStandMaxHp !== null) cleanseGuardianLastStand(core.lastStandMaxHp);
-    let summonEstimate = estimateSummonDps(enemy, includeBreakdowns, core.gemEvaluation);
-    enemy.summonDps = Math.max(0, summonEstimate.total || 0);
-    enemy.directDps = Math.max(0, enemy.dps || 0);
-    enemy.totalDps = enemy.directDps + enemy.summonDps;
-    appendPlayerDpsBreakdowns(enemy, summonEstimate);
-    applyStatImmunities(enemy, core.immunity);
-    return enemy;
-}
-
-/** gd7 last stand: at half life or less, ailments are cleansed at most every 5 seconds. */
-function cleanseGuardianLastStand(maxHp) {
-    if (!((game.playerHp / Math.max(1, maxHp)) <= 0.5)) return;
-    let now = getCombatTime();
-    if ((game.guardianLastStandCleanseAt || 0) + 5000 <= now) {
-        game.playerAilments = [];
-        game.guardianLastStandCleanseAt = now;
-    }
-}
-
-function applyStatImmunities(enemy, immunity) {
-    if (immunity.ignite) enemy.immuneIgnite = true;
-    if (immunity.frostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
-    if (immunity.freeze) enemy.immuneFreeze = true;
-    if (immunity.shock) enemy.immuneShock = true;
-    if (immunity.bleed) enemy.immuneBleed = true;
-    if (immunity.closedEyes) {
-        enemy.immuneIgnite = true;
-        enemy.immuneChill = true;
-        enemy.immuneFreeze = true;
-        enemy.immuneShock = true;
-        enemy.immuneBleed = true;
-        enemy.immunePoison = true;
-    }
-}
-
-function appendPlayerDpsBreakdowns(stats, summonEstimate) {
-    if (!stats.breakdowns) return;
-    let directLines = stats.breakdowns.dps.lines;
-    stats.breakdowns.directDps = {
-        title: _t('직접 DPS'), lines: directLines.slice(), final: `${Math.floor(stats.directDps)}`
-    };
-    stats.breakdowns.summonDps = {
-        title: _t('소환 DPS'), lines: summonEstimate.lines || [], final: `${Math.floor(stats.summonDps)}`
-    };
-    stats.breakdowns.summonCap = {
-        title: _t('소환수 한도'),
-        lines: [
-            _t('현재 소환 한도 {summonCap}', { summonCap: stats.summonCap }),
-            _t('최대 소환 한도 {summonCapMaximum}', { summonCapMaximum: getSummonCapMaximum() }),
-            _t(hasKeystone('sb9') ? '대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태' : '기본 최대 한도 8')
-        ],
-        final: _t('{summonCap} / 최대 {summonCapMaximum}', { summonCap: stats.summonCap, summonCapMaximum: getSummonCapMaximum() })
-    };
-    stats.breakdowns.dps = {
-        title: _t('총 DPS'),
-        lines: [
-            _t('직접 DPS {floor}', { floor: Math.floor(stats.directDps) }),
-            _t('예상 소환 DPS {floor}', { floor: Math.floor(stats.summonDps) }),
-            _t('총 DPS = 직접 DPS + 예상 소환 DPS')
-        ].concat(directLines),
-        final: `${Math.floor(stats.totalDps)}`
-    };
-}
-
-/** A rune's shown numbers: a support rune's value at its level and active tier, else the skill at its final level (cores, quality,
- * the sky tower boost, a projectile pattern). Split by kind on 2026-10-18, same calls in the same order. */
-function getGemPresentation(name, isSupport, statsOverride) {
-    let stats = statsOverride || getPlayerStats();
-    let targetGemSources = getTargetGemBonusSources(name, stats.gemBonusSources);
-    if (isSupport) return getSupportGemPresentation(name, stats, targetGemSources, typeof getSupportActiveTier === 'function' ? getSupportActiveTier : null);
-    return getSkillGemPresentation(name, stats, targetGemSources);
-}
-/** A support rune's value at its level and tier (activeTierOf: ui.js's reader of the chosen tier, null in runs without it). */
-function getSupportGemPresentation(name, stats, targetGemSources, activeTierOf) {
-    let gem = normalizeGemRecord((game.supportGemData || {})[name]);
-    let db = SUPPORT_GEM_DB[name];
-    if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: _t('정의되지 않은 보조스킬룬'), statName: name, statId: null, gemBonusSources: targetGemSources };
-    let totalLevel = Math.max(1, gem.level + targetGemSources.total);
-    let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
-    const { activeTier, tierMul } = getSupportGemTier(name, gem, activeTierOf);
-    let ratioPct = db.tierValues ? db.tierValues[activeTier - 1] : val * tierMul;
-    let scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
-    let value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
-    return { baseLevel: gem.level, totalLevel: totalLevel, value: value, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources, scaleWithOwnStat: db.scaleWithOwnStat || null, scaleBase: scaleBase, scaleRatioPct: ratioPct };
-}
-/** A support rune's active tier and its multiplier (fallbacks for runs without the tier helpers). */
-function getSupportGemTier(name, gem, activeTierOf) {
-    let activeTier = activeTierOf ? activeTierOf(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
-    let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-    return { activeTier, tierMul };
-}
-/** A skill rune's levels, its leveled skill with a projectile pattern, and its core fields. */
-function getSkillGemPresentation(name, stats, targetGemSources) {
-    let db = SKILL_DB[name];
-    if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: _t('정의되지 않은 스킬'), skill: SKILL_DB['기본 공격'], tags: ['attack'] };
-    if (!db.isGem && !db.levelable) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
-    game.gemData = game.gemData || {};
-    let gem = normalizeGemRecord((game.gemData || {})[name]);
-    if (db.levelable) game.gemData[name] = gem;
-    const levels = getSkillGemLevels(name, db, gem, targetGemSources);
-    let skill = window.GameModules.combat.supports.resolve(applyGemPresentationPattern(name, getLeveledGemSkill(db, gem, levels.finalLevel), stats));
-    return {
-        baseLevel: gem.level, totalLevel: levels.totalLevel, finalLevel: levels.finalLevel, materialBonus: levels.materialBonus, permanentSkyBonus: levels.permanentSkyBonus, engraveLevel: levels.engraveLevel,
-        ...getSkillGemCoreFields(gem), desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources
-    };
-}
-/** The sky tower boost, the core and awakening levels, the gear levels, the sky engraving's rune levels (as getActiveSkillStats), and
- * the total and final (base capped at 20) levels. */
-function getSkillGemLevels(name, db, gem, targetGemSources) {
-    const { permanentSkyBonus, materialBonus, engraveLevel } = db.isGem ? getSkillRuneBonusLevels(name, gem) : NO_RUNE_BONUS_LEVELS;
-    let levelBonus = db.isGem ? targetGemSources.total : 0;
-    let totalLevel = gem.level + levelBonus + materialBonus + engraveLevel;
-    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + engraveLevel;
-    return { permanentSkyBonus, materialBonus, engraveLevel, totalLevel, finalLevel };
-}
-/** The skill's damage, speed and crit at the final level, with quality and the core forge's damage and speed. */
-function getLeveledGemSkill(db, gem, finalLevel) {
-    let skill = { ...db };
-    skill.dmg = skill.baseDmg + (getGemLevelGrowthSteps(finalLevel) * skill.dmgScale);
-    skill.spd = skill.baseSpd + (getGemLevelGrowthSteps(finalLevel) * skill.spdScale);
-    if (skill.critScale) skill.crit = (skill.crit || 0) + (getGemLevelGrowthSteps(finalLevel, 0) * skill.critScale);
-    let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
-    skill.dmg *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).damage : 1);
-    skill.spd *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).speed : 1);
-    return skill;
-}
-/** The active skill's projectile pattern from the stats, else the sky tower's for this skill. */
-function applyGemPresentationPattern(name, skill, stats) {
-    let activePattern = name === game.activeSkill && stats.sSkill && stats.sSkill.projectilePatternSource
-        ? stats.sSkill : null;
-    let patternMode = activePattern && activePattern.projectilePattern
-        ? activePattern.projectilePattern.mode : getSkyProjectilePatternMode(name);
-    if (patternMode) skill = applyProjectilePatternMode(skill, patternMode, activePattern ? activePattern.projectilePatternSource : '창공 각인', activePattern ? activePattern.projectilePatternDamageMultiplier : null);
-    return skill;
-}
-function getSkillGemCoreFields(gem) {
-    return { enhanceLevel: gem.enhanceLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened };
-}
 
 safeExposeGlobals({ getPlayerStats, getGemPresentation });
 

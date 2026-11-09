@@ -35,6 +35,7 @@ const salvageContext = {
     game: { jewelInventory: [] },
     bagItems: { isSpecial: () => false }, // 주얼, 코어, 액막이 해체는 js/bag-items.js가 따로 맡는다
     safeExposeGlobals(map) { Object.assign(salvageContext, map); },
+    exposeFileGlobals(map) { Object.assign(salvageContext, map); },
     Math: Object.create(Math)
 };
 salvageContext.Math.random = () => 0.99;

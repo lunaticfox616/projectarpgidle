@@ -124,6 +124,7 @@ const context = {
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
+context.exposeFileGlobals = map => Object.assign(context, map);   // js/utils.js의 것: 이 목록은 그 파일보다 먼저 읽는 파일이 있다
 require('./lib/load-combat-clock')(context);
 files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 context.getHeroSelectionDef = () => ({ label: '테스트 영웅', classId: null });

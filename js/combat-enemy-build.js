@@ -1,32 +1,6 @@
 // 대상 고르기와 전술 이동, 피해 경감, 몬스터 만들기와 루프 배율 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-
-/** Targets of the active gem in range now. dormant: monsters that have not noticed the hero yet, which only the attack itself
- * passes (getAttackTargets): they can be caught by the area, never aimed at. Checks and previews leave them out. */
-function getSkillTargets(pStats, dormant = []) {
-    let living = (game.enemies || []).filter(enemy => enemy.hp > 0);
-    // 시야 밖 몬스터(2026-10-09 사용자): 영웅이 직접 노리지 못하고, 시야 안 몬스터를 친 범위, 연쇄, 부채꼴에만 휘말린다(알아채지 않은
-    // 몬스터와 같은 길, options.dormant). 노릴 몬스터가 없으면 영웅은 가장 가까운 몬스터 쪽으로 걸어간다(updatePlayerGridEngagement).
-    let alive = living.filter(enemy => actExplorationState.inSight(enemy));
-    if (alive.length === 0) return [];
-    ensureCombatGridRuntime();
-    let skill = pStats.sSkill;
-    let pattern = skill && skill.projectilePattern;
-    if (pattern && pattern.kind === 'fan' && pStats.projectileExtraShots > 0) {
-        let rays = Math.min(8, Math.max(1, Math.floor(pattern.rays || 1)) + Math.floor(pStats.projectileExtraShots));
-        skill = { ...skill, targets: rays, projectilePattern: { ...pattern, rays } };
-    }
-    let now = getCombatTime();
-    let tactics = game.combatTacticsUnlocked ? resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, now) : null;
-    let options = getSkillTargetPreference(tactics, now);
-    let unseen = living.filter(enemy => !alive.includes(enemy));
-    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant: dormant.concat(unseen) });
-    if (tactics && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
-        combatTacticsRuntime.targetId = targets[0].enemy.id;
-        combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
-    }
-    return targets;
-}
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** Targets that go past the cap of 6 (projectiles 12): a target engraving (js/skills.js engraveTargets, 파동 분산 +2) and effect
  * expansion (js/skill-effect-expansion.js applyToSkill). The cap took the engraving away (2026-10-20 hunt: 6 → 6, only its -5% damage). */
 function addUncappedSkillTargets(skill, name) {
@@ -129,8 +103,6 @@ function beginSkillMobility(pStats, target, isStageReplay) {
     const landingMs = moved ? Math.max(0, Number(pStats.sSkill.mobilityPattern.airMs) || 0) : 0;
     return { landingMs, kickoff: moved && isKickoffBlink(pStats.sSkill.mobilityPattern) };
 }
-/** 공중에 뜨지 않는 점멸(그림자 점멸): 무대의 주인공이 박차고 나간 뒤 사라진다. */
-const isKickoffBlink = pattern => pattern.kind === 'blink' && !(Number(pattern.airMs) > 0);
 
 function applySkillMobilityBeforeAttack(skill, target, pStats) {
     let pattern = skill && skill.mobilityPattern;
@@ -214,8 +186,6 @@ function approachPlayerTarget(pStats, alive, target, avoidCells) {
     return advanceGridUnitMovement(game.gridPlayer, getPlayerApproachCell(pStats, open), 0, stepSec, avoidCells);
 }
 
-/** Danger the hero must not step into (avoid: { hard, soft }, js/combat.js updateCombatHazardEvasion): tactical moves wait for it. */
-const hasHardDanger = avoid => Boolean(avoid && avoid.hard && avoid.hard.length);
 /** One hero step toward its target, in seconds (move speed 100 = playerMoveIntervalSec). Every caller steps toward a monster, so
  * the 추적자 boots' pursuit speed (uniquePursuitMovePct) counts here and nowhere else. */
 function getPlayerGridStepSec(pStats) {
@@ -252,7 +222,6 @@ function getPlayerApproachCell(pStats, enemy) {
     return band.rows ? getGridBandApproachCell(game.gridPlayer, enemy, band) : enemy;
 }
 
-
 function rollEnemyTrait(zone, isElite, isBoss, seed) {
     if (!isElite && !isBoss) return null;
     let list = ENEMY_TRAIT_POOL.slice();
@@ -270,7 +239,6 @@ function rollEnemyTrait(zone, isElite, isBoss, seed) {
     let idx = Math.abs(seed || 0) % list.length;
     return { ...list[idx] };
 }
-
 
 function applyDamageToEnemyResource(enemy, damage) {
     let remaining = Math.max(0, Math.floor(Number(damage) || 0));
@@ -290,14 +258,17 @@ function applyDamageToEnemyResource(enemy, damage) {
     combatIncidents.noteDamage(enemy, dealt); // 행운의 숫자
     return dealt;
 }
+
 /** 즉시 처치, 처형이 줄 피해: 남은 생명력에 에너지 보호막까지(applyDamageToEnemyResource가 보호막부터 깎는다). */
 function getEnemyLifeAndShield(enemy) {
     return Math.max(0, Number(enemy.hp) || 0) + Math.max(0, Number(enemy.energyShield) || 0);
 }
+
 function getEnemyLifeDamagePct(enemy) {
     if (!enemy || !(enemy.maxHp > 0)) return 0;
     return Math.max(0, Math.min(100, (1 - (Math.max(0, enemy.hp || 0) / Math.max(1, enemy.maxHp || 1))) * 100));
 }
+
 function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
     if (!enemy || !enemy.isBoss) return;
     let zone = getZone(game.currentZoneId) || getZone(0);
@@ -316,6 +287,7 @@ function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
         addLog(_t('🪓 나무꾼 피해율 기록: {woodsmanBestDamagePct}% / 해금 조건 10%', { woodsmanBestDamagePct: st.woodsmanBestDamagePct.toFixed(1) }), st.woodsmanBestDamagePct >= 10 ? 'season-up' : 'attack-monster');
     }
 }
+
 function applyChaosRealmAffixesToEnemy(enemy, zone) {
     if (!enemy || !zone || (zone.type !== 'chaosRealm' && !zone.bloomTrialAffixFloor)) return enemy;
     let floor = Math.max(1, Math.floor(zone.bloomTrialAffixFloor || zone.floor || 1));
@@ -343,15 +315,18 @@ function applyChaosRealmAffixesToEnemy(enemy, zone) {
     });
     return enemy;
 }
+
 /** Zone-wide enemy modifiers: chaos-realm floor affixes and atlas map mods (js/atlas-maps.js). */
 function applyZoneEnemyMods(enemy, zone) {
     applyChaosRealmAffixesToEnemy(enemy, zone);
     return atlasMaps.applyEnemyMods(enemy, zone);
 }
+
 function getChaosRealmBonusSummary() {
     let b = (ensureChaosRealmState().permanentBonuses || {});
     return [_t('피해 +{pctDmg}%', { pctDmg: (b.pctDmg||0).toFixed(1) }), _t('이속 +{move}%', { move: (b.move||0).toFixed(1) }), _t('생명력 +{pctHp}%', { pctHp: (b.pctHp||0).toFixed(1) }), _t('카오스저항 +{floor}%', { floor: Math.floor(b.resChaos||0) }), _t('치명 +{floor}%', { floor: Math.floor(b.crit||0) }), _t('관통 +{floor}%', { floor: Math.floor(b.resPen||0) }), _t('방어/회피/보호막 +{floor}%', { floor: Math.floor(b.armorPct||0) }), _t('치피 +{floor}%', { floor: Math.floor(b.critDmg||0) }), _t('공속 +{floor}%', { floor: Math.floor(b.aspd||0) })].join(', ');
 }
+
 function grantChaosRealmFloorBonus(floor) {
     let st = ensureChaosRealmState();
     let b = st.permanentBonuses;
@@ -382,7 +357,6 @@ function getEnemyElementResistance(skillEle, zoneTier, enemy) {
     return baseRes;
 }
 
-const CURSE_ELEMENT_SHRED_KEYS = Object.freeze({ fire: 'resFShred', cold: 'resCShred', light: 'resLShred', chaos: 'resChaosShred', phys: 'physDrShred' });
 /** The target's resistance to one hit: its mitigation less the curse shreds (all and this element) and the region shreds
  * (a shocked target's lightning resistance, the chaos shred stacks; js/region-affix-effects.js). */
 /** Damage against an ailing target, as [hit, ailment]: the ct5 keystone (any ailment, ×1.2) and the region lines (bleeding, ignited,
@@ -409,16 +383,10 @@ function getHitEnemyResistance(element, zoneTier, enemy, pStats, curseFx) {
         - regionAffixEffects.resistanceShred(pStats, enemy, element);
 }
 
-/** The enemy's mitigation against a hit of skillEle: its resistance (the woodsman's climbs as it loses life), less the shreds on
- * it, then the physical or elemental rules. Split into its steps on 2026-10-18 with the same reads in the same order. */
-/** 공허의 빙의(2026-11-08 전달본 V3.13)의 약화: 4초 동안 모든 피해를 20% 더 받는다. 저항을 그만큼 낮춘 값이다(신성한 안개와 같은 길). */
-const VOID_WEAK_TAKEN_MUL = 1.2;
 function applyVoidWeakMitigation(enemy, mitigation) {
     return enemy?.voidWeakUntil > getCombatTime() ? 100 - (100 - mitigation) * VOID_WEAK_TAKEN_MUL : mitigation;
 }
-function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
-    return applyVoidWeakMitigation(enemy, getEnemyMitigationBeforeWeak(skillEle, zoneTier, enemy, pStats));
-}
+
 function getEnemyMitigationBeforeWeak(skillEle, zoneTier, enemy, pStats) {
     let rawMitigation = getEnemyElementResistance(skillEle, zoneTier, enemy);
     if (enemy && enemy.isWoodsman && enemy.maxHp > 0) rawMitigation = getWoodsmanResistance(skillEle, enemy, rawMitigation);
@@ -427,7 +395,7 @@ function getEnemyMitigationBeforeWeak(skillEle, zoneTier, enemy, pStats) {
     if (skillEle === 'fire' || skillEle === 'cold' || skillEle === 'light' || skillEle === 'chaos') return getElementalMitigation(skillEle, enemy, pStats, rawMitigation);
     return Math.min(80, rawMitigation);
 }
-const WOODSMAN_BASE_RESIST = Object.freeze({ fire: 'baseResF', cold: 'baseResC', light: 'baseResL', chaos: 'baseResChaos' });
+
 /** 혼돈 밖의 나무꾼: its base resistance of the element plus up to 28 as it loses life. */
 function getWoodsmanResistance(skillEle, enemy, rawMitigation) {
     let missingHpRatio = Math.max(0, Math.min(1, 1 - ((enemy.hp || 0) / enemy.maxHp)));
@@ -435,6 +403,7 @@ function getWoodsmanResistance(skillEle, enemy, rawMitigation) {
     const key = Object.hasOwn(WOODSMAN_BASE_RESIST, skillEle) ? WOODSMAN_BASE_RESIST[skillEle] : null;
     return key ? (enemy[key] || rawMitigation) + bonusRes : rawMitigation;
 }
+
 /** The shreds on the enemy: a unique's elemental resistance down (fire, cold, lightning), a unique's chaos resistance down and chaos
  * erosion (chaos). */
 function applyEnemyResistanceShred(skillEle, enemy, rawMitigation) {
@@ -445,15 +414,18 @@ function applyEnemyResistanceShred(skillEle, enemy, rawMitigation) {
     if (enemy.chaosErosionShred) rawMitigation -= enemy.chaosErosionShred;
     return rawMitigation;
 }
+
 function getUniqueElementalShred(enemy) {
     const deb = enemy.id && game.enemyUniqueElementalResDown && game.enemyUniqueElementalResDown[enemy.id];
     if (!deb) return 0;
     return Math.min(Math.max(0, Number(deb.max || 20)), Math.max(0, Number(deb.stacks || 0)) * Math.max(0, Number(deb.perHit || 2)));
 }
+
 function getUniqueChaosShred(enemy) {
     const deb = enemy.id && game.enemyUniqueChaosResDown && game.enemyUniqueChaosResDown[enemy.id];
     return deb ? Math.max(0, (deb.perHit || 0) * (deb.stacks || 0)) : 0;
 }
+
 /** Physical: damage reduction capped at 80, less the hero's physical ignore (below 0 only with allowNegativePhysIgnore); a negative
  * reduction counts as it is. */
 function getPhysicalMitigation(rawMitigation, pStats) {
@@ -467,6 +439,7 @@ function getPhysicalMitigation(rawMitigation, pStats) {
     if (rawMitigation < 0) return rawMitigation;
     return cappedReduction;
 }
+
 /** Fire, cold, lightning and chaos: keystone iq4 keeps part of a positive elemental resistance, the hero's penetration, the enemy's
  * resistance cap, the penetration floor (keystone e9: -300 for the elements), then 성수 안개. */
 function getElementalMitigation(skillEle, enemy, pStats, rawMitigation) {
@@ -480,12 +453,12 @@ function getElementalMitigation(skillEle, enemy, pStats, rawMitigation) {
     const resistance = Math.max(minPen, effective);
     return applyHolyMistMitigation(skillEle,enemy,resistance);
 }
+
 /** Resistance less the hero's penetration; 성전사 lightning may ignore resistance or take no penetration. */
 function getPiercedResistance(skillEle, pStats, rawMitigation) {
     if (skillEle === 'light' && pStats && pStats.crusaderLightningIgnoreRes) rawMitigation = 0;
     return rawMitigation - ((skillEle === 'light' && pStats && pStats.crusaderNoResPenOnLightning) ? 0 : Math.max(0, pStats.resPen || 0));
 }
-
 
 function applyHolyMistMitigation(element,enemy,resistance) {
     return element==='fire' && enemy?.holyMistUntil>getCombatTime() ? 100-(100-resistance)*1.2 : resistance;
@@ -505,7 +478,6 @@ function getTierDropMulWithCaps(tier, zone) {
     }
     return baseMul;
 }
-
 
 /**
  * Tier-20 defense values of a boss (data/maps.js ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES): one or two of physical damage
@@ -534,7 +506,6 @@ function getZoneDefenseVariance(zone) {
     return (seed - 3) * 0.02;
 }
 
-const zoneElementWardProfiles = new Map(); // zone type, id and name -> the profile below (read only by applyZoneElementWard)
 /** A zone's element ward (the resistance its monsters share), fixed by the zone's id or name; built once per zone (two string hashes
  * for every spawned monster before). */
 function getZoneElementWardProfile(zone) {
@@ -546,6 +517,7 @@ function getZoneElementWardProfile(zone) {
     zoneElementWardProfiles.set(cacheKey, profile);
     return profile;
 }
+
 function rollZoneElementWardProfile(zone) {
     let specialBossZone = zone.type === 'outsideChaos'
         || zone.id === 'beehive_run'
@@ -586,66 +558,6 @@ function getCosmosExclusiveEnemyTrait(zone, isElite, isBoss, seed) {
     }
     return trait;
 }
-/** Each cosmos mechanic's trait fields (c: the trait name, boss or not, the power, the seed). */
-const COSMOS_TRAIT_ARCHETYPES = Object.freeze({
-    critResist: (trait, c) => {
-        trait.name = c.name;
-        trait.critResistPct = Math.floor((c.isBoss ? 42 : 26) * c.power);
-        trait.critDamageResistPct = Math.floor((c.isBoss ? 38 : 22) * c.power);
-    },
-    critDamageResist: (trait, c) => {
-        trait.name = c.name;
-        trait.critDamageResistPct = Math.floor((c.isBoss ? 58 : 36) * c.power);
-        trait.dr = Math.floor((c.isBoss ? 10 : 6) * c.power);
-        trait.armorMul = 1 + (c.isBoss ? 0.85 : 0.55) * c.power;
-    },
-    comboGuard: (trait, c) => {
-        trait.name = c.name;
-        trait.hitRateGuard = Math.min(0.28, (c.isBoss ? 0.12 : 0.08) * c.power);
-        trait.comboTakenLessPct = Math.min(70, Math.floor((c.isBoss ? 38 : 24) * c.power));
-    },
-    heavySlow: (trait, c) => {
-        trait.name = c.name;
-        trait.atkMul = 1 + (c.isBoss ? 0.62 : 0.38) * c.power;
-        trait.damageMul = 1 + (c.isBoss ? 0.28 : 0.16) * c.power;
-        trait.attackSpeedVarMul = Math.max(0.42, 1 - (c.isBoss ? 0.32 : 0.22) * c.power);
-        trait.penetration = Math.floor((c.isBoss ? 8 : 4) * c.power);
-    },
-    fast: (trait, c) => {
-        trait.name = c.name;
-        trait.attackSpeedVarMul = 1 + (c.isBoss ? 0.55 : 0.34) * c.power;
-        trait.critChanceBonus = Math.floor((c.isBoss ? 12 : 7) * c.power);
-        trait.evasionChance = Math.floor((c.isBoss ? 18 : 10) * c.power);
-    },
-    energyShield: (trait, c) => {
-        const esPct = Math.min(100, Math.max(50, Math.floor(50 + ((Math.abs(c.seed || 0) % 51)) + (c.isBoss ? 18 : 0))));
-        trait.name = `${c.name} ${esPct}%`;
-        trait.energyShieldPct = esPct;
-        trait.resAll = Math.floor((c.isBoss ? 8 : 4) * c.power);
-    },
-    evasion: (trait, c) => {
-        trait.name = c.name;
-        trait.evasionMul = 1 + (c.isBoss ? 1.65 : 1.05) * c.power;
-        trait.evasionChance = Math.min(72, Math.floor((c.isBoss ? 42 : 28) * c.power));
-    },
-    armor: (trait, c) => {
-        trait.name = c.name;
-        trait.armorMul = 1 + (c.isBoss ? 2.2 : 1.35) * c.power;
-        trait.armorGuard = Math.min(0.72, (c.isBoss ? 0.36 : 0.24) * c.power);
-        trait.dr = Math.floor((c.isBoss ? 14 : 8) * c.power);
-    }
-});
-/** The two debuffs a cosmos boss of each mechanic lays on the hero. */
-const COSMOS_BOSS_DEBUFF_SETS = Object.freeze({
-    critResist: ['cosmos_res_down', 'cosmos_aspd_down'],
-    critDamageResist: ['cosmos_regen_down', 'cosmos_res_down'],
-    comboGuard: ['cosmos_aspd_down', 'cosmos_leech_down'],
-    heavySlow: ['cosmos_res_down', 'cosmos_regen_down'],
-    fast: ['cosmos_aspd_down', 'cosmos_leech_down'],
-    energyShield: ['cosmos_regen_down', 'cosmos_leech_down'],
-    evasion: ['cosmos_aspd_down', 'cosmos_res_down'],
-    armor: ['cosmos_leech_down', 'cosmos_regen_down']
-});
 
 function applyCosmosExclusiveTraitToEnemy(enemy, trait) {
     if (!enemy || !trait) return;
@@ -804,13 +716,6 @@ function applyCosmosDirectiveModifiers(modifiers, zone) {
     if (name) modifiers.traitName = _t('{traitName}, 탐사:{name}', { traitName: modifiers.traitName, name });
     return modifiers;
 }
-
-const getCosmosNonBossHpMultiplier = function (zone, isElite, isBoss) {
-    if (isBoss) return 1;
-    const galaxy = Math.max(1, Math.min(5, Math.floor(Number(zone && zone.cosmosGalaxy) || 1)));
-    const galaxyMultiplier = 4 + (galaxy - 1) * 0.125;
-    return galaxyMultiplier * (isElite ? 1.35 : 1);
-};
 
 function getCosmosEnemyModifiers(zone, isElite, isBoss) {
     if (!zone || zone.type !== 'cosmos') return null;
@@ -977,10 +882,12 @@ function getMonsterLoopGrowthScale(zone, kind, seasonDepth, tierShare) {
     const growth = (zone && zone.type === 'cosmos' ? MONSTER_LOOP_GROWTH.fixed : MONSTER_LOOP_GROWTH)[kind];
     return 1 + seasonDepth * (growth.base + tierShare * growth.tier);
 }
+
 /** 우주계 은하와 그 최종 보스(잔향체 아스트라, 벤치마크 cosmosFinal): 노드 등급으로 난이도를 올리는 별도 사다리라 예전 루프 공식을 쓴다. */
 function isCosmosLadderZone(zone) {
     return !!zone && (zone.type === 'cosmos' || zone.difficultyBenchmark === 'cosmosFinal');
 }
+
 /** 몬스터 생명력의 루프 배율. 루프를 타는 지역은 지역 단계와 무관한 한 곡선(data/maps.js MONSTER_LOOP_HP_CURVE), 루프를 타지 않는
  * 지역(시련 등)은 플레이어 루프의 보정 곡선, 우주계는 노드 등급에 맞춰 둔 예전 공식(성장 × 루프 카운트 × 보정)을 쓴다.
  * 전투(createEnemy)와 권장 전투력(estimateMapZonePowerRequirements)이 같은 값을 쓴다. */
@@ -992,18 +899,21 @@ function getMonsterLoopHpMultiplier(zone, loopInputs, tierProgress) {
     if (loopInputs.exempt) return getMonsterLoopPowerScale(zone, 'hp');
     return interpolateLoopCurve(MONSTER_LOOP_HP_CURVE, loopInputs.seasonLoops + 1);
 }
+
 /** 보스 생명력에 더 곱하는 완화 배율(data/maps.js): 지역 단계(tier)의 BOSS_TIER_HP_EASE 곡선, 그리고 루프 생명력 배율(loopMul)
  * 가운데 1을 넘는 몫은 BOSS_LOOP_HP_SHARE만 남긴다(1 이하는 그대로). 전투(createEnemy)와 권장 전투력이 같은 값을 쓴다. */
 function getBossHpEase(tier, loopMul) {
     const loopShare = loopMul > 1 ? (1 + (loopMul - 1) * BOSS_LOOP_HP_SHARE) / loopMul : 1;
     return loopShare * interpolateLoopCurve(BOSS_TIER_HP_EASE, Number(tier) || 1);
 }
+
 /** 정예 생명력 배율 1.4 + 루프 몫. 루프 몫은 +0.3까지(2026-10-06): 예전엔 상한 없이 루프 30에 2.6배까지 커져 루프 배율과 겹쳤다.
  * 우주계 사다리는 예전 그대로. 전투(createEnemy)와 아틀라스 무리 권장 전투력(getAtlasPackReadiness)이 같은 값을 쓴다. */
 function getEliteLoopHpMultiplier(zone, loopCount) {
     const share = getSoftenedLoopDepth(loopCount) * 0.05;
     return 1.4 + (isCosmosLadderZone(zone) ? share : Math.min(0.3, share));
 }
+
 /** 몬스터 생명력 · 피해의 루프 배율(data/maps.js MONSTER_LOOP_POWER_SCALE). 루프는 지역 난이도가 쓰는 루프(액트 상한 ·
  * 아틀라스 지도의 고정 루프 그대로), 루프를 타지 않는 지역(시련 등)은 플레이어의 루프. 전투와 권장 전투력 표시가 같은 값을 쓴다. */
 function getMonsterLoopPowerScale(zone, kind) {
@@ -1150,8 +1060,6 @@ function createEnemy(zone, marker, groupIndex) {
     return enemy;
 }
 
-/** The pool a monster's element is picked from: a chaos zone's four, else physical, the zone's own and the four. */
-const getEnemyElementPool = zone => (zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos']);
 /** The zone's seed and the monster's variant seed (its look, trait and swing rhythm). */
 function getEnemySeeds(zone, marker, groupIndex) {
     const zoneSeed = Number.isFinite(zone.id) ? zone.id : hashSeed(zone.id || zone.name || 'zone');
@@ -1170,6 +1078,7 @@ function getEnemyBaseHp(zone, ctx) {
     if (isBoss) hp = Math.floor(hp * (1 + (tierProgress * 4)));
     return applyEnemyHpScales(zone, hp, isBoss, ctx.abyssScale);
 }
+
 /** Deep chaos's normal monsters, the chaos realm, a benchmark profile or the sky tower, underworld and ocean, the boundary. */
 function applyContentEnemyHp(zone, hp, isBoss, isElite) {
     if (zone.type === 'abyss' && !isElite && !isBoss) hp = applyDeepChaosNormalHp(zone, hp);
@@ -1184,12 +1093,14 @@ function applyContentEnemyHp(zone, hp, isBoss, isElite) {
     if (zone.type === 'beyondBoundary') hp = Math.floor(hp * Math.max(1, Number(zone.boundaryHpMul) || 1));
     return hp;
 }
+
 function applyDeepChaosNormalHp(zone, hp) {
     const abyssDepth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
     const hpRamp = Math.min(0.20, Math.max(0, abyssDepth - 1) * 0.015);
     const deepNormalHpMul = abyssDepth >= 21 && abyssDepth <= 30 ? 1.2 : 1;
     return Math.floor(hp * (1 + hpRamp) * deepNormalHpMul);
 }
+
 /** A benchmark profile's life scale, else the sky tower's, underworld's or ocean's by floor. */
 function applyFloorContentEnemyHp(zone, hp) {
     const benchmarkProfile = getDifficultyBenchmarkProfile(zone);
@@ -1209,6 +1120,7 @@ function applyFloorContentEnemyHp(zone, hp) {
     const oceanTierMul = 1 + depthTier * 0.05;
     return Math.floor(hp * oceanBaseMul * oceanTierMul);
 }
+
 /** The underworld entry boss, the map's and the abyss's life scales, the flat 0.92, at least 1, and trial 3's boss at 85%. */
 function applyEnemyHpScales(zone, hp, isBoss, abyssScale) {
     const entryTuning = getEntryBossTuning(zone, isBoss);
@@ -1232,6 +1144,7 @@ function getEnemyLook(zone, marker, ctx) {
     const wispDefense = getWispEnemyDefenseBonuses(monsterVariant);
     return { ...art, trait, realmVisualSet, realmVisual, monsterVariant, wispDefense, wispVisual: wispDefense.isWisp ? monsterVariant : null };
 }
+
 /** An atlas boss keeps its own roster identity. Act art remains the fallback for an undelivered sheet. */
 function getEnemyBossArt(zone, marker, isBoss, variantSeed) {
     const chaosBossVisual = isBoss ? getChaosBossVisual(zone, variantSeed) : null;
@@ -1239,6 +1152,7 @@ function getEnemyBossArt(zone, marker, isBoss, variantSeed) {
     const bossVisualId = isBoss ? zone.bossVisualId || null : null;
     return { chaosBossVisual: bossVisualId ? null : chaosBossVisual, bossAssetKey, bossVisualId };
 }
+
 /** A pack may choose a nonboss body from its own realm without changing the member's elite rank or trait roll. */
 function getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed, packVisualId) {
     const requested = !isBoss && realmVisualSet?.members.find(member => member.id === packVisualId && member.role !== 'boss');
@@ -1246,6 +1160,7 @@ function getRealmVisualFor(realmVisualSet, isBoss, isElite, variantSeed, packVis
     const realmVisualRole = isBoss ? 'boss' : (isElite ? 'elite' : 'normal');
     return typeof getRealmMonsterVisualDefinition === 'function' ? getRealmMonsterVisualDefinition(realmVisualSet, realmVisualRole, variantSeed) : null;
 }
+
 /** A realm visual's or monster variant's name, else name; an elite's trait name goes before it. A boss keeps name. */
 function getEnemyLookName(name, isBoss, isElite, look) {
     if (isBoss) return name;
@@ -1253,13 +1168,12 @@ function getEnemyLookName(name, isBoss, isElite, look) {
     if (shown) return isElite && look.trait ? `${look.trait.name} ${shown.name}` : shown.name;
     return isElite && look.trait ? `${look.trait.name} ${name}` : name;
 }
+
 /** Life scaled by the trait, the cosmos modifiers and the cosmos exclusive trait, in that order. */
 function applyEnemyTraitHp(hp, mods) {
     for (const source of [mods.trait, mods.cosmosMods, mods.cosmosExclusiveTrait]) if (source && source.hpMul) hp = Math.floor(hp * source.hpMul);
     return hp;
 }
-/** From loop 4 a deep chaos monster that is not a boss floats 8% of the time. */
-const rollEnemySky = (zone, isBoss) => (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
 
 /** Damage reduction and resistances climb the tier curve to their tier-20 value (bosses specialise in one or two,
  * getBossDefenseTargets); armour and evasion follow the tier and loop. */
@@ -1279,6 +1193,7 @@ function getEnemyDefence(zone, ctx) {
     const chaosResBase = isBoss ? rampTo(15, bossTargets.resChaos) : resistBase;
     return { drBase, resistBases, chaosResBase, ...getEnemyArmourAndEvasion(zone, ctx.loopInputs, { isBoss, isElite, wispDefense }) };
 }
+
 function getEnemyArmourAndEvasion(zone, loopInputs, rank) {
     const defenseTierScale = Math.min(1.9, 0.6 + zone.tier * 0.08);
     const defenseLoopScale = getLoopDefenseScale(loopInputs.loopCount);
@@ -1286,10 +1201,12 @@ function getEnemyArmourAndEvasion(zone, loopInputs, rank) {
     const baseEvasion = Math.floor((16 + zone.tier * 24) * defenseTierScale * defenseLoopScale * byEnemyRank(rank, [2.1, 1.5, 1]));
     return { baseArmor, baseEvasion: Math.floor(baseEvasion * rank.wispDefense.evasionMul) };
 }
+
 /** From loop 3 the second element a monster mixes in: a boss's own pair's second, else a random chaos boss element. */
 function rollEnemyHybridElement(zone, isBoss) {
     return (game.season || 1) >= 3 ? ((isBoss && getChaosBossElements(zone)) || [null, rndChoice(CHAOS_BOSS_ELEMENTS)])[1] : null;
 }
+
 /** The cosmos encounter's pattern, else a boss's random one of this loop's modes. */
 function rollEnemyPatternMode(cosmosMods, isBoss) {
     return (cosmosMods && cosmosMods.patternMode) || (isBoss
@@ -1297,16 +1214,6 @@ function rollEnemyPatternMode(cosmosMods, isBoss) {
         : null);
 }
 
-/** values[0] for a boss, [1] for an elite, [2] for a normal monster (rank: its isBoss and isElite). */
-const byEnemyRank = (rank, values) => (rank.isBoss ? values[0] : (rank.isElite ? values[1] : values[2]));
-/** value from loop n on, else 0. */
-const fromLoopOn = (n, value) => ((game.season || 1) >= n ? value : 0);
-/** source[key] when it is set, else fallback: a trait's or modifier's bonus on a new monster. */
-const enemyBonus = (source, key, fallback = 0) => (source && source[key] ? source[key] : fallback);
-/** A finite reward scale of at least 1 from source (a trait's exp or drop scale), else 1. */
-const enemyRewardMul = (source, key) => (source && Number.isFinite(source[key]) ? Math.max(1, source[key]) : 1);
-/** The boundary's scale of key (at least 1) beyond the boundary, else 1. */
-const boundaryMul = (zone, key) => (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone[key]) || 1) : 1);
 /** The new monster's record, its fields in their fixed order. */
 function buildEnemyRecord(zone, marker, spawn) {
     const { look, mods, defence, rolled } = spawn;
@@ -1340,6 +1247,7 @@ function buildEnemyRecord(zone, marker, spawn) {
         isSky: spawn.isSky
     };
 }
+
 /** The record's head: the next id, level, life, name, rank, boss art, spawn place, swing rhythm and look. */
 function getEnemyIdentityRecord(marker, spawn) {
     const { look } = spawn;
@@ -1364,6 +1272,7 @@ function getEnemyIdentityRecord(marker, spawn) {
         baseMonsterName: look.realmVisual ? look.realmVisual.name : (look.monsterVariant ? look.monsterVariant.name : null)
     };
 }
+
 /** Damage reduction and the four resistances: the defence bases, the trait's, the abyss bonus (resistances) and wisp defenses,
  * capped at 90 and 95. */
 function getEnemyResistRecord(defence, trait, abyssScale, wispDefense) {
@@ -1376,6 +1285,7 @@ function getEnemyResistRecord(defence, trait, abyssScale, wispDefense) {
         resChaos: res(defence.chaosResBase, 'resChaos')
     };
 }
+
 /** Attack and damage scales, swing rhythm and crit chance (from loop 2 a base by rank) from the trait, the cosmos modifiers,
  * the exclusive trait, the woodsman, the map and the boundary. */
 function getEnemyOffenceRecord(zone, mods, spawn) {
@@ -1391,6 +1301,7 @@ function getEnemyOffenceRecord(zone, mods, spawn) {
         critChance: fromLoopOn(2, byEnemyRank(spawn, [16, 10, 4])) + enemyBonus(trait, 'critChanceBonus') + enemyBonus(cosmosMods, 'critChanceBonus') + enemyBonus(cosmosExclusiveTrait, 'critChanceBonus')
     };
 }
+
 /** Regeneration (from loop 3; the woodsman's a tenth), resistance pressure (from loop 4; deep chaos lowers resistance instead of
  * piercing it) and the ailment chance (from loop 4). */
 function getEnemyPressureRecord(zone, cosmosMods, rank) {
@@ -1404,6 +1315,7 @@ function getEnemyPressureRecord(zone, cosmosMods, rank) {
         ailmentChance: fromLoopOn(4, byEnemyRank(rank, [0.14, 0.08, 0.03])) + enemyBonus(cosmosMods, 'ailmentChanceBonus')
     };
 }
+
 /** From loop 5 the first-hit guard (a boss's 0.75, else the trait's) and the hit rate guard. */
 function getEnemyGuardRecord(trait, cosmosMods, isBoss) {
     return {
@@ -1411,11 +1323,13 @@ function getEnemyGuardRecord(trait, cosmosMods, isBoss) {
         hitRateGuard: fromLoopOn(5, (trait && trait.hitRateGuard) || (isBoss ? 0.06 : 0))
     };
 }
+
 /** The woodsman, 아스트라 and milestone pinnacles take no execute and no life-scaled damage. */
 function getEnemyCapRecord(zone) {
     const capped = zone.type === 'outsideChaos' || zone.id === 'cosmos_astra' || !!zone.milestonePinnacle;
     return { disableExecute: capped, disableHpScaleDamage: capped };
 }
+
 function getEnemyTraitRecord(trait, isElite) {
     return {
         trait: trait ? { ...trait } : null,
@@ -1424,6 +1338,7 @@ function getEnemyTraitRecord(trait, isElite) {
         leechEffMul: trait && Number.isFinite(trait.leechEffMul) ? Math.max(0, trait.leechEffMul) : 1
     };
 }
+
 function getEnemyRewardRecord(zone, mods) {
     const reward = boundaryMul(zone, 'boundaryRewardMul') * loopMutation.rewardMul(zone);
     return {
@@ -1432,12 +1347,11 @@ function getEnemyRewardRecord(zone, mods) {
     };
 }
 
-/** The meteor core resists its own element by 12 more (to 95); a physical one takes 12 less physical damage instead (to 90). */
-const METEOR_CORE_GUARD = Object.freeze({ fire: 'resF', cold: 'resC', light: 'resL', chaos: 'resChaos', phys: 'dr' });
 function hardenMeteorCore(enemy, ele) {
     const key = METEOR_CORE_GUARD[ele] || 'resF';
     enemy[key] = Math.min(key === 'dr' ? 90 : 95, (enemy[key] || 0) + 12);
 }
+
 /** The new monster's last steps: its defences, zone mods, the grand breach tuning, the grid profile, the severed wanderer, a boss's
  * last steps, the board carrier and root bearer marks. */
 function tuneMeteorEnemy(enemy, zone) {
@@ -1464,6 +1378,7 @@ function tuneMeteorEnemy(enemy, zone) {
     }
     enemy.hp = enemy.maxHp;
 }
+
 function finishEnemySpawn(enemy, zone, spawn) {
     applySpawnDefences(enemy, zone, spawn);
     applyZoneEnemyMods(enemy, zone);
@@ -1475,6 +1390,7 @@ function finishEnemySpawn(enemy, zone, spawn) {
     atlasBoard.markCarrier(game, enemy, zone);
     atlasEndgame.markOmenBearer(game, enemy, zone);
 }
+
 /** The boundary's bonuses, the zone's element ward, the pattern preview, cosmos modifiers, 아스트라's base, the exclusive trait
  * and the woodsman. */
 function applySpawnDefences(enemy, zone, spawn) {
@@ -1495,11 +1411,13 @@ function applySpawnDefences(enemy, zone, spawn) {
     if (enemy.cosmosBossId && typeof refreshBossPatternPreview === 'function') refreshBossPatternPreview(enemy);
     if (zone.type === 'outsideChaos') applyWoodsmanToEnemy(enemy);
 }
+
 function applyBoundaryDefenceToEnemy(enemy, zone) {
     if (zone.type !== 'beyondBoundary') return;
     enemy.dr = Math.min(90, enemy.dr + Math.max(0, Number(zone.boundaryDrBonus) || 0));
     enemy.penetration += Math.max(0, Number(zone.boundaryPenetrationBonus) || 0);
 }
+
 function applyZoneElementWard(enemy, zone) {
     const zoneWard = getZoneElementWardProfile(zone);
     if (!zoneWard) return;
@@ -1507,6 +1425,7 @@ function applyZoneElementWard(enemy, zone) {
     else if (zoneWard.elem === 'cold') enemy.resC = Math.min(95, enemy.resC + zoneWard.strength);
     else if (zoneWard.elem === 'light') enemy.resL = Math.min(95, enemy.resL + zoneWard.strength);
 }
+
 /** A cosmos encounter's modifiers: defences, armour and evasion, drops, its cosmos marks, a hybrid element, an energy shield and
  * the trait name. Shared encounter modifiers can adjust stats without adding a named trait. */
 function applyCosmosModsToEnemy(enemy, zone, cosmosMods, isBoss) {
@@ -1521,6 +1440,7 @@ function applyCosmosModsToEnemy(enemy, zone, cosmosMods, isBoss) {
     if (cosmosMods.energyShieldPct) giveEnemyEnergyShield(enemy, cosmosMods.energyShieldPct);
     enemy.traitName = [enemy.traitName, cosmosMods.traitName].filter(Boolean).join(', ');
 }
+
 function markCosmosEnemy(enemy, zone, isBoss) {
     enemy.cosmosTag = zone.cosmosTag || '';
     enemy.cosmosSizeClass = Math.max(1, Math.floor(zone.sizeClass || 1));
@@ -1528,11 +1448,13 @@ function markCosmosEnemy(enemy, zone, isBoss) {
     enemy.cosmosBossId = isBoss ? zone.cosmosNodeId || null : null;
     enemy.cosmosBaseElement = zone.ele || enemy.ele || 'phys';
 }
+
 /** An energy shield of pct% of the monster's life, kept when it already has a larger one, and full. */
 function giveEnemyEnergyShield(enemy, pct) {
     enemy.maxEnergyShield = Math.max(enemy.maxEnergyShield || 0, Math.floor(enemy.maxHp * pct / 100));
     enemy.energyShield = Math.max(enemy.energyShield || 0, enemy.maxEnergyShield);
 }
+
 /** 혼돈 밖의 나무꾼: freeze resistance, heavier defences with its resistance bases kept, the armour guard and an evasion chance. */
 function applyWoodsmanToEnemy(enemy) {
     enemy.ailResFreeze = Math.max(Number(enemy.ailResFreeze || 0), 50);
@@ -1555,60 +1477,6 @@ function finishBossSpawn(enemy, zone) {
     startHiddenJournalBossRun(enemy, zone);
     if (typeof bossVariants === 'object') bossVariants.maybeApply(enemy, zone);
 }
-
-const getChaosRealmEncounterProfile = function (zone) {
-    let floor = Math.max(1, Math.floor(zone.floor || 1));
-    return {
-        markerCount: Math.min(16, 4 + Math.floor(floor / 8)),
-        minPack: 2,
-        maxPack: Math.min(8, 3 + Math.floor(floor / 6)),
-        eliteChance: 0.35,
-        bossAdds: Math.min(6, 2 + Math.floor(floor / 12)),
-        label: _t('혼돈계 {floor}층', { floor })
-    };
-};
-
-const getUnderworldEncounterProfile = function (zone) {
-    let floor = Math.max(1, Math.floor(zone.floor || 1));
-    let minPack = Math.min(7, 3 + Math.floor(floor / 12));
-    let maxPack = Math.max(minPack, Math.min(9, minPack + 2 + Math.floor(floor / 20)));
-    return {
-        markerCount: Math.min(16, 5 + Math.floor(floor / 8)), minPack, maxPack,
-        eliteChance: Math.min(0.55, 0.2 + floor * 0.012),
-        bossAdds: Math.min(6, 2 + Math.floor(floor / 20)), label: _t('지하계 {floor}층', { floor })
-    };
-};
-
-const getLabyrinthEncounterProfile = function (zone) {
-    let floor = Math.max(1, Math.floor(zone.floor || 1));
-    let minPack = Math.min(7, 2 + Math.floor(floor / 10));
-    let maxPack = Math.max(minPack, Math.min(9, minPack + 2));
-    return {
-        markerCount: Math.min(18, 5 + Math.floor(floor / 5)), minPack, maxPack,
-        eliteChance: Math.min(0.46, 0.14 + floor * 0.009),
-        bossAdds: floor % 5 === 0 ? 2 : 1, label: _t('미궁 {floor}층', { floor })
-    };
-};
-
-const getAbyssEncounterProfile = function (zone) {
-    let scale = getAbyssMonsterScales(zone);
-    let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
-    let minPack = Math.max(1, Math.floor((2 + Math.floor(zone.tier / 7)) * (scale.hordeMul || 1)));
-    let maxPack = Math.max(minPack, Math.floor(Math.min(10, 4 + Math.floor(zone.tier * 0.42)) * (scale.hordeMul || 1)));
-    let markerCount = Math.max(6, Math.floor((8 + Math.floor(zone.tier * 0.48)) * (scale.mapLengthMul || 1)));
-    let bossAdds = 2 + Math.floor(zone.tier / 4);
-    if (depth >= 21) {
-        minPack = Math.min(7, minPack);
-        maxPack = Math.max(minPack, Math.min(11, maxPack));
-        markerCount = Math.min(20, markerCount);
-        bossAdds = Math.min(7, bossAdds);
-    }
-    return {
-        markerCount, minPack, maxPack,
-        eliteChance: Math.min(0.8, 0.13 + zone.tier * 0.012 + (scale.eliteBonus || 0)),
-        bossAdds, label: _t('{minPack}-{maxPack}기', { minPack, maxPack })
-    };
-};
 
 function getZoneEncounterProfile(zone) {
     if (zone.type === 'beyondBoundary') {
@@ -1704,5 +1572,207 @@ function resolveMapEstimateContentScale(zone) {
     }
     return scale;
 }
+
+exposeFileGlobals({ addUncappedSkillTargets, getSkillTargetPreference, selectCombatGemTargets, getSplashDormantEnemies, getAttackTargets, beginSkillMobility, applySkillMobilityBeforeAttack, advancePlayerExplorationFrame, continuePlayerExplorationApproach, updatePlayerGridEngagement, warningAllowsStep, applyDamageToEnemyResource, getEnemyLifeAndShield, maybeUnlockChaosRealmFromWoodsman, applyZoneEnemyMods, grantChaosRealmFloorBonus, applyCosmosJudgmentOnHit, applyAilingTargetDamage, getHitEnemyResistance, applyVoidWeakMitigation, getEnemyMitigationBeforeWeak, getBossDefenseTargets, getCosmosExclusiveEnemyTrait, applyCosmosBossPlayerDebuff, applyCosmosBossAttackSetup, applyCosmosPlayerDebuffsToStats, getCosmosEnemyModifiers, getSoftenedLoopDepth, getLoopDifficultyInputs, getMonsterLoopGrowthScale, getMonsterLoopHpMultiplier, getBossHpEase, getEliteLoopHpMultiplier, getMonsterLoopPowerScale, interpolateLoopCurve, getLoopHpScale, getDifficultyBenchmarkProfile, getEntryBossTuning, getUnderworldEnemyDamageMultiplier, getWispEnemyDefenseBonuses, getEnemyGemDropMul, createEnemy, getEnemySeeds, getEnemyRewardRecord, tuneMeteorEnemy, giveEnemyEnergyShield, finishBossSpawn, getZoneEncounterProfile, resolveMapEstimateContentScale });
+})();
+
+/** Targets of the active gem in range now. dormant: monsters that have not noticed the hero yet, which only the attack itself
+ * passes (getAttackTargets): they can be caught by the area, never aimed at. Checks and previews leave them out. */
+function getSkillTargets(pStats, dormant = []) {
+    let living = (game.enemies || []).filter(enemy => enemy.hp > 0);
+    // 시야 밖 몬스터(2026-10-09 사용자): 영웅이 직접 노리지 못하고, 시야 안 몬스터를 친 범위, 연쇄, 부채꼴에만 휘말린다(알아채지 않은
+    // 몬스터와 같은 길, options.dormant). 노릴 몬스터가 없으면 영웅은 가장 가까운 몬스터 쪽으로 걸어간다(updatePlayerGridEngagement).
+    let alive = living.filter(enemy => actExplorationState.inSight(enemy));
+    if (alive.length === 0) return [];
+    ensureCombatGridRuntime();
+    let skill = pStats.sSkill;
+    let pattern = skill && skill.projectilePattern;
+    if (pattern && pattern.kind === 'fan' && pStats.projectileExtraShots > 0) {
+        let rays = Math.min(8, Math.max(1, Math.floor(pattern.rays || 1)) + Math.floor(pStats.projectileExtraShots));
+        skill = { ...skill, targets: rays, projectilePattern: { ...pattern, rays } };
+    }
+    let now = getCombatTime();
+    let tactics = game.combatTacticsUnlocked ? resolveConditionalCombatTactics(normalizeCombatTacticsSettings(game.settings), pStats, game, now) : null;
+    let options = getSkillTargetPreference(tactics, now);
+    let unseen = living.filter(enemy => !alive.includes(enemy));
+    let targets = selectCombatGemTargets(game.activeSkill, skill, game.gridPlayer, alive, { ...options, dormant: dormant.concat(unseen) });
+    if (tactics && targets.length > 0 && String(targets[0].enemy.id) !== String(combatTacticsRuntime.targetId)) {
+        combatTacticsRuntime.targetId = targets[0].enemy.id;
+        combatTacticsRuntime.targetLockedUntil = now + COMBAT_TACTIC_TARGET_LOCK_MS;
+    }
+    return targets;
+}
+
+
+/** 공중에 뜨지 않는 점멸(그림자 점멸): 무대의 주인공이 박차고 나간 뒤 사라진다. */
+const isKickoffBlink = pattern => pattern.kind === 'blink' && !(Number(pattern.airMs) > 0);
+
+
+/** Danger the hero must not step into (avoid: { hard, soft }, js/combat.js updateCombatHazardEvasion): tactical moves wait for it. */
+const hasHardDanger = avoid => Boolean(avoid && avoid.hard && avoid.hard.length);
+
+
+const CURSE_ELEMENT_SHRED_KEYS = Object.freeze({ fire: 'resFShred', cold: 'resCShred', light: 'resLShred', chaos: 'resChaosShred', phys: 'physDrShred' });
+
+
+/** The enemy's mitigation against a hit of skillEle: its resistance (the woodsman's climbs as it loses life), less the shreds on
+ * it, then the physical or elemental rules. Split into its steps on 2026-10-18 with the same reads in the same order. */
+/** 공허의 빙의(2026-11-08 전달본 V3.13)의 약화: 4초 동안 모든 피해를 20% 더 받는다. 저항을 그만큼 낮춘 값이다(신성한 안개와 같은 길). */
+const VOID_WEAK_TAKEN_MUL = 1.2;
+function getEffectiveEnemyMitigation(skillEle, zoneTier, enemy, pStats) {
+    return applyVoidWeakMitigation(enemy, getEnemyMitigationBeforeWeak(skillEle, zoneTier, enemy, pStats));
+}
+const WOODSMAN_BASE_RESIST = Object.freeze({ fire: 'baseResF', cold: 'baseResC', light: 'baseResL', chaos: 'baseResChaos' });
+
+
+const zoneElementWardProfiles = new Map(); // zone type, id and name -> the profile below (read only by applyZoneElementWard)
+
+/** Each cosmos mechanic's trait fields (c: the trait name, boss or not, the power, the seed). */
+const COSMOS_TRAIT_ARCHETYPES = Object.freeze({
+    critResist: (trait, c) => {
+        trait.name = c.name;
+        trait.critResistPct = Math.floor((c.isBoss ? 42 : 26) * c.power);
+        trait.critDamageResistPct = Math.floor((c.isBoss ? 38 : 22) * c.power);
+    },
+    critDamageResist: (trait, c) => {
+        trait.name = c.name;
+        trait.critDamageResistPct = Math.floor((c.isBoss ? 58 : 36) * c.power);
+        trait.dr = Math.floor((c.isBoss ? 10 : 6) * c.power);
+        trait.armorMul = 1 + (c.isBoss ? 0.85 : 0.55) * c.power;
+    },
+    comboGuard: (trait, c) => {
+        trait.name = c.name;
+        trait.hitRateGuard = Math.min(0.28, (c.isBoss ? 0.12 : 0.08) * c.power);
+        trait.comboTakenLessPct = Math.min(70, Math.floor((c.isBoss ? 38 : 24) * c.power));
+    },
+    heavySlow: (trait, c) => {
+        trait.name = c.name;
+        trait.atkMul = 1 + (c.isBoss ? 0.62 : 0.38) * c.power;
+        trait.damageMul = 1 + (c.isBoss ? 0.28 : 0.16) * c.power;
+        trait.attackSpeedVarMul = Math.max(0.42, 1 - (c.isBoss ? 0.32 : 0.22) * c.power);
+        trait.penetration = Math.floor((c.isBoss ? 8 : 4) * c.power);
+    },
+    fast: (trait, c) => {
+        trait.name = c.name;
+        trait.attackSpeedVarMul = 1 + (c.isBoss ? 0.55 : 0.34) * c.power;
+        trait.critChanceBonus = Math.floor((c.isBoss ? 12 : 7) * c.power);
+        trait.evasionChance = Math.floor((c.isBoss ? 18 : 10) * c.power);
+    },
+    energyShield: (trait, c) => {
+        const esPct = Math.min(100, Math.max(50, Math.floor(50 + ((Math.abs(c.seed || 0) % 51)) + (c.isBoss ? 18 : 0))));
+        trait.name = `${c.name} ${esPct}%`;
+        trait.energyShieldPct = esPct;
+        trait.resAll = Math.floor((c.isBoss ? 8 : 4) * c.power);
+    },
+    evasion: (trait, c) => {
+        trait.name = c.name;
+        trait.evasionMul = 1 + (c.isBoss ? 1.65 : 1.05) * c.power;
+        trait.evasionChance = Math.min(72, Math.floor((c.isBoss ? 42 : 28) * c.power));
+    },
+    armor: (trait, c) => {
+        trait.name = c.name;
+        trait.armorMul = 1 + (c.isBoss ? 2.2 : 1.35) * c.power;
+        trait.armorGuard = Math.min(0.72, (c.isBoss ? 0.36 : 0.24) * c.power);
+        trait.dr = Math.floor((c.isBoss ? 14 : 8) * c.power);
+    }
+});
+/** The two debuffs a cosmos boss of each mechanic lays on the hero. */
+const COSMOS_BOSS_DEBUFF_SETS = Object.freeze({
+    critResist: ['cosmos_res_down', 'cosmos_aspd_down'],
+    critDamageResist: ['cosmos_regen_down', 'cosmos_res_down'],
+    comboGuard: ['cosmos_aspd_down', 'cosmos_leech_down'],
+    heavySlow: ['cosmos_res_down', 'cosmos_regen_down'],
+    fast: ['cosmos_aspd_down', 'cosmos_leech_down'],
+    energyShield: ['cosmos_regen_down', 'cosmos_leech_down'],
+    evasion: ['cosmos_aspd_down', 'cosmos_res_down'],
+    armor: ['cosmos_leech_down', 'cosmos_regen_down']
+});
+
+
+const getCosmosNonBossHpMultiplier = function (zone, isElite, isBoss) {
+    if (isBoss) return 1;
+    const galaxy = Math.max(1, Math.min(5, Math.floor(Number(zone && zone.cosmosGalaxy) || 1)));
+    const galaxyMultiplier = 4 + (galaxy - 1) * 0.125;
+    return galaxyMultiplier * (isElite ? 1.35 : 1);
+};
+
+
+/** The pool a monster's element is picked from: a chaos zone's four, else physical, the zone's own and the four. */
+const getEnemyElementPool = zone => (zone.ele === 'chaos' ? ['fire','cold','light','chaos'] : ['phys', zone.ele || 'phys', 'fire', 'cold', 'light', 'chaos']);
+
+
+/** From loop 4 a deep chaos monster that is not a boss floats 8% of the time. */
+const rollEnemySky = (zone, isBoss) => (game.season || 1) >= 4 && zone.type === 'abyss' && !isBoss && Math.random() < 0.08;
+
+
+/** values[0] for a boss, [1] for an elite, [2] for a normal monster (rank: its isBoss and isElite). */
+const byEnemyRank = (rank, values) => (rank.isBoss ? values[0] : (rank.isElite ? values[1] : values[2]));
+/** value from loop n on, else 0. */
+const fromLoopOn = (n, value) => ((game.season || 1) >= n ? value : 0);
+/** source[key] when it is set, else fallback: a trait's or modifier's bonus on a new monster. */
+const enemyBonus = (source, key, fallback = 0) => (source && source[key] ? source[key] : fallback);
+/** A finite reward scale of at least 1 from source (a trait's exp or drop scale), else 1. */
+const enemyRewardMul = (source, key) => (source && Number.isFinite(source[key]) ? Math.max(1, source[key]) : 1);
+/** The boundary's scale of key (at least 1) beyond the boundary, else 1. */
+const boundaryMul = (zone, key) => (zone.type === 'beyondBoundary' ? Math.max(1, Number(zone[key]) || 1) : 1);
+
+/** The meteor core resists its own element by 12 more (to 95); a physical one takes 12 less physical damage instead (to 90). */
+const METEOR_CORE_GUARD = Object.freeze({ fire: 'resF', cold: 'resC', light: 'resL', chaos: 'resChaos', phys: 'dr' });
+
+
+const getChaosRealmEncounterProfile = function (zone) {
+    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    return {
+        markerCount: Math.min(16, 4 + Math.floor(floor / 8)),
+        minPack: 2,
+        maxPack: Math.min(8, 3 + Math.floor(floor / 6)),
+        eliteChance: 0.35,
+        bossAdds: Math.min(6, 2 + Math.floor(floor / 12)),
+        label: _t('혼돈계 {floor}층', { floor })
+    };
+};
+
+const getUnderworldEncounterProfile = function (zone) {
+    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    let minPack = Math.min(7, 3 + Math.floor(floor / 12));
+    let maxPack = Math.max(minPack, Math.min(9, minPack + 2 + Math.floor(floor / 20)));
+    return {
+        markerCount: Math.min(16, 5 + Math.floor(floor / 8)), minPack, maxPack,
+        eliteChance: Math.min(0.55, 0.2 + floor * 0.012),
+        bossAdds: Math.min(6, 2 + Math.floor(floor / 20)), label: _t('지하계 {floor}층', { floor })
+    };
+};
+
+const getLabyrinthEncounterProfile = function (zone) {
+    let floor = Math.max(1, Math.floor(zone.floor || 1));
+    let minPack = Math.min(7, 2 + Math.floor(floor / 10));
+    let maxPack = Math.max(minPack, Math.min(9, minPack + 2));
+    return {
+        markerCount: Math.min(18, 5 + Math.floor(floor / 5)), minPack, maxPack,
+        eliteChance: Math.min(0.46, 0.14 + floor * 0.009),
+        bossAdds: floor % 5 === 0 ? 2 : 1, label: _t('미궁 {floor}층', { floor })
+    };
+};
+
+const getAbyssEncounterProfile = function (zone) {
+    let scale = getAbyssMonsterScales(zone);
+    let depth = Math.max(1, Math.floor(zone.depth || getAbyssDepthFromZoneId(zone.id) || 1));
+    let minPack = Math.max(1, Math.floor((2 + Math.floor(zone.tier / 7)) * (scale.hordeMul || 1)));
+    let maxPack = Math.max(minPack, Math.floor(Math.min(10, 4 + Math.floor(zone.tier * 0.42)) * (scale.hordeMul || 1)));
+    let markerCount = Math.max(6, Math.floor((8 + Math.floor(zone.tier * 0.48)) * (scale.mapLengthMul || 1)));
+    let bossAdds = 2 + Math.floor(zone.tier / 4);
+    if (depth >= 21) {
+        minPack = Math.min(7, minPack);
+        maxPack = Math.max(minPack, Math.min(11, maxPack));
+        markerCount = Math.min(20, markerCount);
+        bossAdds = Math.min(7, bossAdds);
+    }
+    return {
+        markerCount, minPack, maxPack,
+        eliteChance: Math.min(0.8, 0.13 + zone.tier * 0.012 + (scale.eliteBonus || 0)),
+        bossAdds, label: _t('{minPack}-{maxPack}기', { minPack, maxPack })
+    };
+};
+
 
 safeExposeGlobals({ getSkillTargets, updatePlayerGridEngagement, applySkillMobilityBeforeAttack, createEnemy, grantChaosRealmFloorBonus, maybeUnlockChaosRealmFromWoodsman });

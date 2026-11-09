@@ -1,6 +1,7 @@
 // 시작 화면과 불러오는 화면(2026-11-10에 js/ui.js에서 그대로 옮겼다): 시작 화면을 열고 닫기, 불러오는 막대, 저장 요약 카드와 상태 줄
 // (updateStartupScreenUI). 계정과 서버 저장은 js/cloud-save-ui.js.
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function isStartupOverlayOpen() {
     return !!startupOverlayActive;
 }
@@ -94,13 +95,10 @@ function renderStartupSaveSummary(el, save) {
     el.innerText = _t('Lv.{level}, 루프 {loopLabel}, {zoneLabel}', { level: current.level || 1, loopLabel, zoneLabel });
 }
 
-/** The save the card shows: the slot in use, or, while the page is still on the guest slot with an account signed in (a reload with a
- * social login, 2026-11-05 사용자: "이 기기 저장이 아니라 로그인 기준으로"), that account's copy on this device. The copy is read once
- * per account: nothing saves while the login screen shows, and entering the account switches the slot. */
-let startupAccountPreview = null;
 function startupSaveStamp(save) {
     return (save && save.saveMeta && save.saveMeta.lastModifiedAt) || 0;
 }
+
 function startupShownSave() {
     const account = getSaveSlot().kind === 'account', userId = cloudState.user && cloudState.user.id;
     if (account || !userId) {
@@ -111,8 +109,6 @@ function startupShownSave() {
     return { account: true, preview: true, save: startupAccountPreview.save };
 }
 
-// 시작 화면에는 오류·진행 결과만 적는다. 가만히 있을 때의 안내("로그인하면 …")는 버튼만으로 충분하다.
-const STARTUP_IDLE_MESSAGES = new Set(['설정 전', '로그인하면 클라우드 저장을 사용할 수 있습니다.', '시작 화면을 다시 열었습니다.']);
 function getStartupStatusText() {
     const message = cloudState.lastMessage || '';
     return STARTUP_IDLE_MESSAGES.has(message) ? '' : message;
@@ -245,3 +241,15 @@ function updateStartupScreenUI() {
     if (kakaoBtn) kakaoBtn.disabled = cloudState.busy;
     if (guestBtn) guestBtn.disabled = cloudState.busy;
 }
+
+exposeFileGlobals({ isStartupOverlayOpen, setStartupOverlayActive, setLoadingOverlayState, advanceLoadingOverlay, finishLoadingOverlay, openStartupGate, startupShownSave, startupSaveCardState, startupEmptyText, updateStartupScreenUI });
+})();
+
+
+/** The save the card shows: the slot in use, or, while the page is still on the guest slot with an account signed in (a reload with a
+ * social login, 2026-11-05 사용자: "이 기기 저장이 아니라 로그인 기준으로"), that account's copy on this device. The copy is read once
+ * per account: nothing saves while the login screen shows, and entering the account switches the slot. */
+let startupAccountPreview = null;
+
+// 시작 화면에는 오류·진행 결과만 적는다. 가만히 있을 때의 안내("로그인하면 …")는 버튼만으로 충분하다.
+const STARTUP_IDLE_MESSAGES = new Set(['설정 전', '로그인하면 클라우드 저장을 사용할 수 있습니다.', '시작 화면을 다시 열었습니다.']);

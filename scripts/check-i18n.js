@@ -185,7 +185,7 @@ function buildI18nRuntime(search, extraEnglish) {
         document: { documentElement: { lang: 'ko' }, querySelectorAll: selector => (selector === '[data-i18n]' ? [textEl] : [attrEl]) },
         CustomEvent: class CustomEvent { constructor(type, init) { this.type = type; this.detail = init && init.detail; } },
         dispatchEvent: event => events.push(event),
-        safeExposeGlobals: map => Object.assign(context, map),
+        safeExposeGlobals: map => Object.assign(context, map), exposeFileGlobals: map => Object.assign(context, map),
         safeExposeData: map => Object.assign(context, map)
     };
     context.window = context;

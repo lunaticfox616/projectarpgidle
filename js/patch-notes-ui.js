@@ -1,7 +1,6 @@
 // 패치 노트 창(2026-11-10에 js/ui.js에서 그대로 옮겼다): changelog.md를 읽어 시작 화면의 창에 그린다.
-
-let __patchNotesCache = null;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 // changelog.md 파싱: "## 버전 — 날짜" 헤더와 "- 항목" 불릿을 엔트리로 변환합니다.
 function parseChangelogMarkdown(text) {
     let entries = [];
@@ -72,13 +71,6 @@ function closePatchNotes() {
     if (overlay) overlay.classList.remove('active');
 }
 
-// Esc로 패치 노트를 닫는다(창 관리자의 Esc는 이 판이 떠 있으면 아래 창을 닫지 않고 비켜 준다).
-document.addEventListener('keydown', event => {
-    if (event.key !== 'Escape' || !document.getElementById('patch-notes-overlay')?.classList.contains('active')) return;
-    event.preventDefault();
-    closePatchNotes();
-});
-
 function renderPatchNotes() {
     if (__patchNotesCache) {
         applyPatchNotesHTML(buildPatchNotesHTML(__patchNotesCache));
@@ -96,3 +88,16 @@ function renderPatchNotes() {
             applyPatchNotesHTML('<div class="patch-note-empty">패치 노트를 불러오지 못했습니다.</div>');
         });
 }
+
+exposeFileGlobals({ openPatchNotes, closePatchNotes, renderPatchNotes });
+})();
+
+let __patchNotesCache = null;
+
+
+// Esc로 패치 노트를 닫는다(창 관리자의 Esc는 이 판이 떠 있으면 아래 창을 닫지 않고 비켜 준다).
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !document.getElementById('patch-notes-overlay')?.classList.contains('active')) return;
+    event.preventDefault();
+    closePatchNotes();
+});

@@ -1,11 +1,11 @@
 // 조우 만들기: 탐험 방의 무리, 지역 계획, 대균열과 특수 조우 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-
-/** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
-const explorationPackKey=(room,stage)=>room.id+':'+(stage===null?'pack':stage);
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** A room an atlas map's earlier entry already emptied (before a portal): its pack is there, defeated. */
 function emptiedExplorationPack(room) {
     return {key:explorationPackKey(room,null),roomId:room.id,stage:null,waiting:[],aliveIds:[],eliteIds:[]};
 }
+
 /** A pack's spawn offset (0~99) for the visual seed, so wisps, roots, act monsters and elite traits differ room by room
  * (a room always gets the same seed). Boss stages keep 0 (their art variant). With 0 everywhere every room of a zone repeated them. */
 function explorationPackSpawnAt(zone,key,stage) {
@@ -19,12 +19,14 @@ function createExplorationPackEnemy(zone,marker,index,role) {
     if(role)role.dress(enemy);
     return enemy;
 }
+
 /** 콘텐츠 외형을 최종 확정한 뒤 그 몸에 맞는 공격 방식을 적용한다. 수치 보정은 한 번만 한다. */
 function tuneExplorationEncounterEnemy(enemy,encounter,zone) {
     if(!encounter)return;
     atlasEncounters.tuneEnemy(enemy,encounter,zone);
     if(atlasEncounters.hasOwnLook(encounter))assignEnemyGridCombatProfile(enemy);
 }
+
 function createActExplorationPack(zone,room,stage,encounter=null,formation=null) {
     const shape=explorationPackFormation.prepare(zone,room,stage,encounter,formation),{key,at,cells,elite}=shape,waiting=[];
     const cast=(formation && formation.cast) || [];
@@ -83,6 +85,7 @@ function markExplorationAmbushRooms(zone,map,packs) {
     }
     return packs;
 }
+
 /** The packs a room's 습격 takes when its own pack's roll falls under the chance, else none. */
 function ambushRoomPacks(room,packs) {
     const own=packs.filter(pack=>pack.roomId===room.id && pack.stage===null && !pack.anchor && !pack.rescue && !pack.alert && !pack.sleep && !pack.treasure);
@@ -105,22 +108,21 @@ function rollExplorationRoomWaves(zone,map,packs) {
     }
     return waves;
 }
-/** 이어지는 무리를 받을 수 있는 탐험: 방 단위 무대이고, 무리를 따로 세우는 콘텐츠(벌집 같은)와 1루프의 액트 1이 아니다. */
-const explorationWavesAllowed=(zone,map)=>!!map.stage && !ownRoomPackBuilder(zone) && !(zone.type==='act' && zone.id===0 && (game.season||1)===1);
+
 /** 그 방의 굴림(0 이상 1 미만): 그 방 원래 무리의 첫 몬스터 번호로. 원래 무리가 없거나 비었거나 조우, 구출, 습격의 방이면 null. */
 function explorationWaveRoll(room,packs) {
     const own=packs.filter(pack=>pack.roomId===room.id),main=own.find(pack=>pack.key===room.id+':pack');
     if(!main || main.encounter || !main.aliveIds.length || own.some(pack=>pack.rescue || pack.ambush))return null;
     return (Math.abs(hashSeed(`waves:${main.key}:${main.aliveIds[0]}`))%1000)/1000;
 }
-/** 정예 방, 또는 문이 하나인 막다른 방(입구와 보스 방 말고). */
-const isExplorationWaveRoom=(map,room)=>room.role==='elite' || (['battle','optional'].includes(room.role) && map.doors.filter(door=>door.room===room.index).length===1);
+
 /** u(0 이상 1 미만)를 무게 줄 [값, 무게]에 대어 고른 값. */
 function weightedWaveCount(u,rows) {
     let left=u*rows.reduce((sum,row)=>sum+row[1],0);
     for(const [value,weight] of rows){left-=weight;if(left<0)return value;}
     return rows[rows.length-1][0];
 }
+
 /** 전투 틱마다: 주인공이 선 방이 비었고 그 방에 이어지는 무리가 남았으면(js/act-exploration-doors.js waveDue: 그동안 문은 닫혀 있다)
  * delayMs 뒤에 그 방 원래 무리의 자리에 보통 무리 하나를 세운다. 세운 무리는 곧 주인공을 알아채고 덤빈다. */
 function releaseExplorationWave(log) {
@@ -137,6 +139,7 @@ function releaseExplorationWave(log) {
     pack.waiting.forEach(enemy=>addBattleFx('enemySpawn',{enemyId:enemy.id,color:getElementColor(enemy.ele),duration:420,boss:false}));
     if(game.settings.showSpawnLog!==false)log(_t('⚠️ 무리가 더 몰려옵니다({number}/{total})', { number, total: wave.total }),'attack-monster');
 }
+
 /** 새 무리가 설 칸: 그 방 원래 무리의 자리에서, 막힌 칸, 그 방의 문 칸과 문 안쪽 칸, 주인공 둘레 한 칸은 피해 가까운 빈 칸으로. */
 function explorationWaveCells(map,room,count) {
     const blocked=getGridBlockedCells(),hero=game.gridPlayer,key=at=>gridCellKey(at.gx,at.gy);
@@ -160,10 +163,6 @@ function getZoneExplorationPlan(zone) {
     return zone.exploration ? {source:zone.exploration,zoneId:zone.id,bossStages:zone.exploration.bossStages||1} : null;
 }
 
-/** Each run faces north, east, south or west (2026-10-04): the map's clockwise quarter turns, 0..3.
- * The only randomness of the facing; fixtures that walk fixed coordinates pin it to undefined (the map's drawn facing). */
-function rollExplorationFacing() {return Math.floor(Math.random()*actExplorationMap.ROTATIONS);}
-
 /** exploration: false = the legacy board (regression fixtures), true = must explore (throws where no map exists). */
 function createActExplorationEncounter(zone,exploration) {
     const plan=exploration===false ? null : getZoneExplorationPlan(zone);
@@ -178,13 +177,11 @@ function createActExplorationEncounter(zone,exploration) {
     actExplorationProgress.objects.initialize(run,zone);
     return run;
 }
+
 function shouldSealEncounterRun(plan,zone) {
     return !!plan.rooms && SEALED_ROOM_ZONES.includes(zone.type) && !(zone.type==='colony' && plan.source?.arena);
 }
-/** A +28% ordinary-monster budget: one larger room, one quiet-road group, then small room additions.
- * One-time generation only; existing runs retain every enemy. Atlas and bespoke encounters keep their authored budgets. */
-/** Rooms without their own packs: the entry room, path rooms, and the first start's rescue room (its one monster comes apart). */
-const ownsNoPack=(room,rescueRoom)=>room.role==='entry' || room.role==='path' || room===rescueRoom;
+
 function createExplorationPacks(zone,map,bossStages) {
     const own=ownRoomPackBuilder(zone);
     if(own)return own(zone,map);
@@ -203,19 +200,13 @@ function createExplorationPacks(zone,map,bossStages) {
     return markExplorationAmbushRooms(zone,map,dressed);
 }
 
-/** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
- * 이번 루프의 시작 무기를 아직 떨어뜨리지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
- * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 무기가 그 자리 바닥에 떨어진다(2026-11-09까지는 시작 룬).
- * @returns {object[]} 그 무리, 없으면 빈 목록. */
-/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 무기는 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
-const startsWithRescue=(zone,map)=>zone.type==='act' && zone.id===0 && !!map.stage && (game.season||1)===1
-    && !game.loopStarterWeaponGranted;
 /** 구출 방: 입구 방 문 너머, 보스로 가는 길의 첫 전투 방(2026-10-15 사용자: "첫방에서 처음부터 하켄이 보이지 않도록 (조금 앞으로 걸어가야
  * 있도록)". PC 화면은 입구 방 전체를 한 번에 보여 주므로 입구 방 안에서는 숨길 수 없다). 루프 1의 첫 시작에만, 없으면 null. */
 function starterRescueRoom(zone,map) {
     if(!startsWithRescue(zone,map))return null;
     return map.route.map(id=>map.rooms.find(room=>room.id===id)).find(room=>room.role==='battle')||null;
 }
+
 function createStarterRescuePack(zone,map,room) {
     if(!room)return [];
     // 하켄의 양옆에 RESCUE_STRIKE.gap칸씩 떨어져 선다(방 밖이면 그 너머 칸을 쓰지 않는다): 주인공은 앞의 한 마리부터 치게 된다.
@@ -229,12 +220,7 @@ function createStarterRescuePack(zone,map,room) {
         hp:Math.round(enemy.hp*RESCUE_STRIKE.share),maxHp:Math.round(enemy.maxHp*RESCUE_STRIKE.share),damageMul:enemy.damageMul*RESCUE_STRIKE.share}));
     return [pack];
 }
-/** 하켄을 치는 첫 몬스터(createStarterRescuePack)의 한 틱: 한 대라도 맞거나 하켄을 RESCUE_STRIKE.maxStrikes번 치기 전까지는 하켄 쪽을
- * 보고 RESCUE_STRIKE.rate의 빠르기로 공격 동작만 낸다(피해 없음, 하켄 위의 번쩍임은 js/canvas-act-title-card.js가 'npcStruck'로 그린다).
- * 주인공은 하켄에서 두 칸 옆에서 시작해 곧 이 몬스터를 친다. 그 뒤로는 여느 몬스터처럼 주인공과 싸운다. true = 이번 틱은 하켄을 노렸다. */
-// pair: 두 마리가 하켄을 양옆에서 친다(대사는 "괴물들", "잔뿌리들"). share: 한 마리의 생명력과 피해 배율: 둘을 합쳐 한 마리였을 때와 비슷하게.
-// gap: 하켄에서 떨어져 서는 칸 수. 바로 옆 칸에 서면 몬스터 그림이 하켄과 겹쳤다(2026-10-17 사용자 "NPC와 겹치지 않도록", 1에서 2로).
-const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260,pair:2,share:0.55,gap:2});
+
 function strikeRescueTarget(enemy) {
     const npc=enemy.rescue;
     if(!npc)return false;
@@ -255,6 +241,7 @@ function countEncounterMarkers(zone) {
     if(zone.type==='beyondBoundary')return zone.boundaryFinalWave ? 3+(profile.bossAdds>0?1:0) : 3;
     return zone.type==='cosmos' ? profile.markerCount+1 : profile.markerCount;
 }
+
 /** 판의 표식 하나가 부르던 적들(spawnEncounterMarker와 같은 표식, 같은 차례로 만든다): 보스 표식은 곁의 정예들과 보스. */
 function createMarkerEnemies(zone,marker) {
     const count=marker.count||1;
@@ -266,6 +253,7 @@ function createMarkerEnemies(zone,marker) {
     return Array.from({length:count},(_,index)=>createEnemy(zone,
         escort && index===0?{...marker,packVisualId:'cosmos-ooze'}:marker,index));
 }
+
 /** 이미 만든 적들을 방의 무리에 세운다: 보스는 방 가운데, 나머지는 그 둘레(보스가 없으면 가운데부터). 주인공이 그 방에 들어서면 덤빈다. */
 function fillRoomPack(map,room,pack,enemies,places) {
     const bosses=enemies.filter(enemy=>enemy.isBoss),rest=enemies.filter(enemy=>!enemy.isBoss);
@@ -276,6 +264,7 @@ function fillRoomPack(map,room,pack,enemies,places) {
     if(bosses.length)placeExplorationBoss(map,room,{waiting:bosses});
     return pack;
 }
+
 /** 적들이 선 방의 무리. 끝 방의 무리는 단계 0이다(탐험은 끝 방이 비면 끝난다): 보스가 없으면 조용한 무리(quiet)라 보스 등장 연출 없이
  * 다른 방의 무리처럼 덤빈다(js/act-exploration-state.js holdBoss). */
 function createRoomPackOf(map,room,enemies,places) {
@@ -283,8 +272,7 @@ function createRoomPackOf(map,room,enemies,places) {
     if(final && !enemies.some(enemy=>enemy.isBoss))pack.quiet=true;
     return pack;
 }
-/** 한 줄 지도의 방들: 입구 다음 방부터 끝 방까지, 걷는 차례로. */
-const chainRoomsOf=map=>map.route.slice(1).map(id=>map.rooms.find(room=>room.id===id));
+
 /** 진행 막대의 무리들을 한 줄 지도에 세운다(2026-10-13 밤: 우주계, 심해, 경계 너머). 판에서 진행도에 따라 차례로 나타나던 무리가 방마다
  * 하나씩 서고, 마지막 무리는 끝 방에 선다. 방보다 무리가 많으면(STAGE_BOARD_ROOMS.chainMax) 끝 방 앞의 방에 겹쳐 선다. */
 function createMarkerRoomPacks(zone,map) {
@@ -340,14 +328,6 @@ function createMarkerRoomPacks(zone,map) {
         });
     }
 }
-/** 전용 전투 지도를 걷는 콘텐츠면 그 콘텐츠가 무리를 세우는 함수, 아니면 null. */
-const ownRoomPackBuilder=zone=>(zone.exploration && (zone.exploration.chain || zone.type==='grandBreach' || zone.type==='colony')
-    ? ROOM_PACK_BUILDERS[zone.type] || null : null);
-/** 판 콘텐츠가 방 단위 지도에 무리를 세우는 법(구역 종류 → 함수). 여기에 없는 구역은 방마다의 보통 무리와 보스 단계다. */
-const ROOM_PACK_BUILDERS=Object.freeze({beehive:createBeehiveRoomPacks,colony:createColonyDefenseRoomPacks,grandBreach:createGrandBreachRoomPacks,
-    cosmos:createMarkerRoomPacks,oceanDepth:createMarkerRoomPacks,beyondBoundary:createMarkerRoomPacks,meteor:createMarkerRoomPacks});
-/** 끝 방의 관문을 그 콘텐츠가 여는 구역(run.sealed): 군락지는 다섯째 웨이브가 설 때, 대균열은 처치 게이지가 찼을 때. */
-const SEALED_ROOM_ZONES=Object.freeze(['colony','grandBreach']);
 
 /** 방 단위 지도에서 보스가 깨어나 싸움에 드는 순간에 거는 그 콘텐츠의 규칙. 판에서는 싸움이 열릴 때 걸리던 것이다: 혼돈 밖의 나무꾼의 저주
  * (걸어가는 동안은 쌓이지 않는다). */
@@ -362,11 +342,13 @@ function createBeehiveRoomPacks(zone,map) {
     return map.rooms.filter(room=>room.role!=='entry').map(room=>room.role==='boss'
         ? placeExplorationBoss(map,room,createActExplorationPack(zone,room,0)) : emptiedExplorationPack(room));
 }
+
 /** One empty stage keeps the defense arena active without creating a map boss or an automatic clear. */
 function createColonyDefenseRoomPacks(zone,map) {
     if(!map.colonyDefense)return createBeehiveRoomPacks(zone,map);
     return map.rooms.filter(room=>room.role==='boss').map(room=>createRoomPackOf(map,room,[]));
 }
+
 /** Apply one hive wave's difficulty once, then give each bee its own combat role. */
 function tuneBeehiveWaveEnemy(enemy, zone, isBoss, empower) {
     if (isBoss) {
@@ -401,6 +383,7 @@ function tuneBeehiveWaveEnemy(enemy, zone, isBoss, empower) {
     enemy.hp = enemy.maxHp;
     return enemy;
 }
+
 /** 단일 대균열 아레나의 군주 자리. 군주는 목표 처치 수에 닿기 전에는 run.sealed로 보류한다.
  * 저장된 옛 3방 원정은 그 지도와 첫 무리를 그대로 마치게 한다. */
 function createGrandBreachRoomPacks(zone,map) {
@@ -411,6 +394,7 @@ function createGrandBreachRoomPacks(zone,map) {
     const opening=Array.from({length:rule.openingPack},(_,index)=>createEnemy(zone,{elite:index%4===0 && index/4<rule.eliteLimit,boss:false},index));
     return [createRoomPackOf(map,breach,opening),bossPack];
 }
+
 /** New runs fight in one arena; only an active old save still has separate breach and lord rooms. */
 function getGrandBreachArena(zone) {
     if(!actExplorationState.current(game) && !zone.exploration)return null;
@@ -421,12 +405,12 @@ function getGrandBreachArena(zone) {
     const woke=!run.packs.some(pack=>pack.roomId===breach.id && pack.waiting.length);
     return {run,map,arena:breach,portals:grandBreachRoomPortals(breach),inside:woke && actExplorationRooms.roomAt(map,game.gridPlayer)===breach};
 }
-/** Saved three-room runs keep their old portal positions until that run ends. */
-const grandBreachRoomPortals=room=>[{gx:room.x0+1,gy:room.y0+1},{gx:room.x1-1,gy:room.y0+1},{gx:Math.round(room.gx),gy:room.y1-1}];
+
 /** At the kill target, remove surviving horde members and their already released attacks before the lord appears. */
 function retireGrandBreachHordeAttacks() {
     for(let i=pendingEnemyCombatAttacks.length-1;i>=0;i--)dropEnemyAttack(i,getCombatTime());
 }
+
 /** 목표 처치 수에 닿으면 잔여 적을 걷고 같은 아레나에 군주를 세운다. */
 function placeGrandBreachBoss(battlefield,boss) {
     const {run,map}=battlefield;
@@ -436,11 +420,13 @@ function placeGrandBreachBoss(battlefield,boss) {
     fillRoomPack(map,map.rooms.find(room=>room.role==='boss'),run.packs.find(pack=>pack.stage===0),[boss]);
     delete run.sealed;
 }
+
 /** 벌집 원정이 방 단위 지도를 걷고 있으면 그 탐험, 판에서 싸우면 null. */
 function getBeehiveRoomRun() {
     const run=actExplorationState.current(game);
     return run && run.rooms && game.currentZoneId==='beehive_run' ? run : null;
 }
+
 /** 방금 만든 벌떼(또는 여왕)를 벌집 지도의 방에 세운다: 벌떼는 입구에서 step번째 방, 여왕은 여왕의 방. 주인공이 그 방에 들어서면 덤빈다. */
 function placeBeehiveRoomWave(run,enemies,step,isBoss) {
     const map=actExplorationMap.forRun(run),roomId=isBoss?map.route[map.route.length-1]:map.route[Math.min(step,map.route.length-2)];
@@ -457,6 +443,7 @@ function placeBeehiveRoomWave(run,enemies,step,isBoss) {
     Object.assign(pack,{waiting:enemies,aliveIds:enemies.map(enemy=>enemy.id),eliteIds:enemies.filter(enemy=>enemy.isElite).map(enemy=>enemy.id)});
     if(isBoss)placeExplorationBoss(map,room,pack);
 }
+
 /** 아직 정산하지 않은 벌집의 적: 체력 0도 사망 정산 전에는 남겨 센다. 방에서 기다리는 여왕은 제 차례에 센다. */
 function countBeehiveWaveAlive() {
     const fighting=(game.enemies||[]).length,run=getBeehiveRoomRun();
@@ -464,12 +451,6 @@ function countBeehiveWaveAlive() {
     return fighting+run.packs.filter(pack=>pack.stage===null || game.beehive.queenActive).reduce((sum,pack)=>sum+pack.waiting.length,0);
 }
 
-/** 케르베로스의 세 단계. 머리의 기존 생명력·경험치·드랍 몫을 먼저 굴린 뒤 한 몸에 합친다. */
-const CERBERUS_STAGES=Object.freeze([
-    Object.freeze({heads:['cold','fire'],boss:'fire',atk:1.7,crit:0}),
-    Object.freeze({heads:['phys'],boss:'phys',atk:1.7,crit:14,headCrit:10}),
-    Object.freeze({heads:[],boss:'phys',atk:2.1,crit:14,hybrid:'chaos'})
-]);
 /** 머리의 수치·보상 기록과 본체를 만든다. 정예 기록은 전투에 올리지 않고 joinCerberus가 합친다. */
 function cerberusStageCast(stage) {
     const dressCerberus=(enemy,ele,body=false)=>{
@@ -490,6 +471,7 @@ function cerberusStageCast(stage) {
         enemy.atkMul*=rule.atk;enemy.penetration+=18;enemy.critChance+=rule.crit;
     }});
 }
+
 /** 보스 방의 한 단계. 케르베로스도 몸·이동·타격 판정이 하나인 보스다. */
 function createExplorationBossStage(zone,map,room,stage) {
     // 나무꾼의 잔상: 보스 방에 서는 것은 혼돈 밖의 나무꾼으로 만든 허수아비다(판에서와 같다)
@@ -502,70 +484,6 @@ function createExplorationBossStage(zone,map,room,stage) {
     return placeExplorationBoss(map,room,pack);
 }
 
-/** 방 단위 무대의 방 하나에 무리들이 서는 자리 (data/stage-view.js STAGE_ROOMS.layouts와 packShapes. 2026-10-13 밤, 검토: "추가 몹팩 위치도
- * 가운데 양옆으로 정해져 있어", 사용자: "규칙 상관없으니까 바꿔줘"). 방마다 자리 묶음 하나를 고르고, 무리마다 서는 꼴을 고른다.
- * 벽에 붙은 칸(문 안쪽 자리, 상자와 항아리가 서는 가장자리)에는 서지 않고, 같은 방의 다른 무리와 겹치지 않는다. 방을 여는 때에 한 번
- * 정한다(난수는 Math.random: 무리를 뽑는 것과 같다). 이어진 지도에서는 아무것도 바꾸지 않는다. */
-const stageRoomArranger=(()=>{
-    const SHAPES=Object.freeze({
-        cluster:[[0,0],[-1,0],[0,1],[1,-1],[-1,-1],[1,1],[0,-1],[-1,1],[1,0]],
-        line:[[0,0],[1,0],[-1,0],[2,0],[-2,0],[3,0],[-3,0],[4,0],[-4,0]],
-        column:[[0,0],[0,1],[0,-1],[0,2],[0,-2],[1,0],[-1,0],[1,1],[-1,-1]],
-        loose:[[0,0],[-2,0],[0,1],[2,-1],[-2,-1],[2,1],[0,-1],[-2,1],[2,0]]
-    });
-    function weightedPick(rows) {
-        let roll=Math.random()*rows.reduce((sum,row)=>sum+row.weight,0);
-        return rows.find(row=>(roll-=row.weight)<0) || rows[0];
-    }
-    /** 들어온 문(입구 쪽으로 가는 문)의 맞은편이 +가 되는 부호. 그 문이 위아래에 있으면 반반이다. */
-    function farSign(map,room) {
-        const back=map.hops[room.index][map.entry.index];
-        if(back && back.side==='east')return -1;
-        if(back && back.side==='west')return 1;
-        return Math.random()<.5?1:-1;
-    }
-    function openRoom(map,room) {
-        return {room,layout:weightedPick(STAGE_ROOMS.layouts),sign:farSign(map,room),taken:new Set()};
-    }
-    /** 자리 묶음의 slot번째 자리(칸): 뭉친 무리(가운데에서 한 칸)가 벽에 붙지 않는 범위 안에서. */
-    function spotCentre(state,slot) {
-        const room=state.room,[fx,fy]=state.layout.spots[slot%state.layout.spots.length];
-        return {gx:room.gx+Math.round(fx*state.sign*Math.max(0,room.radiusX-3)),gy:room.gy+Math.round(fy*Math.max(0,room.radiusY-2))};
-    }
-    const ringAround=(at,ring)=>{
-        const out=[];
-        for(let dy=-ring;dy<=ring;dy++)for(let dx=-ring;dx<=ring;dx++)if(Math.max(Math.abs(dx),Math.abs(dy))===ring)out.push({gx:at.gx+dx,gy:at.gy+dy});
-        return out;
-    };
-    /** want에서 가장 가까운, 벽에 붙지 않았고 아직 아무도 서지 않은 칸. */
-    function freeCellNear(state,want) {
-        const room=state.room,inner=cell=>cell.gx>room.x0 && cell.gx<room.x1 && cell.gy>room.y0 && cell.gy<room.y1;
-        for(let ring=0;ring<=room.radiusX*2;ring++) {
-            const cell=ringAround(want,ring).find(spot=>inner(spot) && !state.taken.has(spot.gx+','+spot.gy));
-            if(cell){state.taken.add(cell.gx+','+cell.gy);return cell;}
-        }
-        return want;
-    }
-    function packCells(state,slot,count) {
-        const centre=spotCentre(state,slot),shape=SHAPES[weightedPick(STAGE_ROOMS.packShapes).id];
-        return Array.from({length:count},(_,index)=>{
-            const [dx,dy]=shape[index] || [0,0];
-            return freeCellNear(state,{gx:centre.gx+dx,gy:centre.gy+dy});
-        });
-    }
-    /** 지도 하나의 무리 자리를 정하는 것: cells(room, slot, count)는 그 방의 slot번째 무리(0 = 원래 무리, 1부터 덧무리)가 설 칸들.
-     * 이어진 지도에서는 null을 준다(전의 자리 그대로). */
-    function forMap(map) {
-        const states=new Map();
-        const stateOf=room=>states.get(room.id) || states.set(room.id,openRoom(map,room)).get(room.id);
-        return {cells:(room,slot,count)=>(map.stage?packCells(stateOf(room),slot,count):null),front:room=>approach(map,room)};
-    }
-    /** 입구로 돌아가는 문을 전열 기준으로 삼는다. 새 경로 탐색 없이 지도의 기존 hops를 사용한다. */
-    function approach(map,room) {
-        return map.hops[room.index][map.entry.index]?.landing || map.entry;
-    }
-    return {forMap};
-})();
 /** 방의 원래 무리가 설 자리: 방 단위 무대에서는 그 방의 자리 묶음을 따른다(stageRoomArranger). 이어진 지도에서는 전의 자리 그대로다. */
 function arrangedRoomFormation(arranger,zone,room,encounter,formation) {
     const cells=arranger.cells(room,0,explorationPackFormation.count(zone,encounter,formation));
@@ -606,6 +524,7 @@ function placeExplorationBoss(map,room,pack) {
     }
     return pack;
 }
+
 function placeExplorationBossAt(map,room,enemy) {
     const gate=map.gate,size=getGridUnitFootprint(enemy),core=Math.min(2,size.columns);
     const cell={gx:room.gx-(gate.gx>room.gx?core-1:0)-Math.ceil((size.columns-core)/2),gy:room.gy-(gate.gy>room.gy?size.rows-1:0)};
@@ -649,6 +568,7 @@ function startEncounterRun(exploration) {
     game.enemies = [];
     beginEncounterZoneRules(zone, explorationRun);
 }
+
 /** 전투가 열릴 때 거는 그 구역의 규칙. 혼돈 밖: 나무꾼의 저주(방 단위 지도에서는 나무꾼이 깨어날 때 걸린다: beginRoomBossRules).
  * 심해: 방 단위 지도에서는 이번 지도가 가디언의 투기장인지로 정산이 갈린다(판에서는 generateEncounterPlan이 적는다). */
 function beginEncounterZoneRules(zone, explorationRun) {
@@ -656,6 +576,7 @@ function beginEncounterZoneRules(zone, explorationRun) {
     else resetWoodsmanCurse();
     if (zone && zone.type === 'oceanDepth') beginOceanRunRules(zone, explorationRun);
 }
+
 /** 심해 판이 열릴 때. 방 단위 지도: 이번 지도가 가디언의 투기장인지로 정산이 갈리고, 투기장은 영웅을 보스 방 문 안쪽에 세운다
  * (2026-10-19 사용자: "가디언 리프트에서 가디언 방으로 시작"). 판: generateEncounterPlan이 방금 적은 가디언 판은 진행 막대 끝 바로
  * 앞에서 시작해 다음 틱에 가디언이 선다(OCEAN_GUARDIAN_BOARD_START_PROGRESS). */
@@ -667,6 +588,7 @@ function beginOceanRunRules(zone, explorationRun) {
     game.oceanBossRunPending = !!explorationRun.source.arena;
     seatOceanGuardianArena(zone, explorationRun);
 }
+
 /** 심해 가디언 투기장은 영웅을 보스 방 문 안쪽에 세운다: 지도를 지을 때(이동하는 동안 빈 입구 방이 보이지 않게)와 판이 열릴 때. */
 function seatOceanGuardianArena(zone, run) {
     if (zone && zone.type === 'oceanDepth' && run && run.source && run.source.arena) actExplorationDoors.startAtGate(run);
@@ -738,6 +660,7 @@ function prepareActExplorationArrival() {
     restoreAndRecallSummons(getPlayerStats());
     seatOceanGuardianArena(zone, run);
 }
+
 /** The act's exploration for a new encounter: the one laid out while moving here, else a new one (null outside acts).
  * returning: the character comes back from elsewhere on the board (the return warp plays), not already standing in it. */
 function openEncounterExploration(zone,exploration) {
@@ -745,6 +668,7 @@ function openEncounterExploration(zone,exploration) {
     const returning=!arrival && hasGridCell(game.gridPlayer) && getGridUnitDistance(game.gridPlayer,COMBAT_GRID_CONFIG.playerSpawn)>0;
     return {run:arrival || createActExplorationEncounter(zone,exploration),returning};
 }
+
 /** The run laid out while moving here, if this encounter starts in the same act. */
 function takeActExplorationArrival(zone, exploration) {
     const run = game.actExploration;
@@ -781,7 +705,6 @@ function finishTownReturnAction() {
     return true;
 }
 
-
 function returnToTown() {
     if (game.isTownReturning && game.moveTimer > 0) return;
     const returningFromRun = ['grand_breach_run', 'colony_run'].includes(game.currentZoneId);
@@ -806,7 +729,6 @@ function returnToTownByRule() {
     if (!atlasRun.lastPortal()) returnToTown();
 }
 
-let returnRuleReadyAt = 0;
 /** Enabled 'return_town' rules: the first whose trigger holds sends the hero home, then the action's cooldown runs. */
 function runReturnRules(pStats, now = getCombatTime()) {
     const action = CONDITION_PATTERN_ACTION_DB.find(row => row.id === 'return_town');
@@ -839,6 +761,7 @@ function isRegularAutoProgressZone(zone) {
     if (typeof zone.id === 'string' && zone.id.includes('_boss_')) return false;
     return ['act', 'abyss', 'trial', 'meteor', 'labyrinth', 'chaosRealm', 'skyTower'].includes(zone.type);
 }
+
 function reconcileMapProgressRuntimeState() {
     if(actExplorationState.current(game))return false;
     if (typeof reconcileBeehiveRunState === 'function') reconcileBeehiveRunState();
@@ -942,7 +865,6 @@ function advanceMapProgress(pStats) {
     }
 }
 
-
 function ensureWoodsmanEchoRunState() {
     game.woodsmanEchoRun = (game.woodsmanEchoRun && typeof game.woodsmanEchoRun === 'object') ? game.woodsmanEchoRun : {};
     let run = game.woodsmanEchoRun;
@@ -954,6 +876,7 @@ function ensureWoodsmanEchoRunState() {
     run.bestDps = Math.max(0, Number(run.bestDps || 0));
     return run;
 }
+
 /** Where the echo sends the hero back: where it was started (js/state.js getContentReturnZoneId), or the auto progress zone for a run
  * saved before 2026-10-20. It went to the chaos realm every time and never asked the realm's entry (this loop's chaos 20): a new
  * loop's level 1 hero fought the realm's floor 6 there. */
@@ -962,6 +885,7 @@ function takeWoodsmanEchoReturnZone(run) {
     run.returnZoneId = null;
     return back !== undefined && back !== null ? back : getAutoProgressZoneId(game.maxZoneId);
 }
+
 /** 귀환은 측정 완료가 아니다. 기록을 남기지 않고 출발한 지역의 재정비 흐름으로 돌아간다. */
 function leaveWoodsmanEchoForTown() {
     if (game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) return;
@@ -971,6 +895,7 @@ function leaveWoodsmanEchoForTown() {
     actExplorationProgress.depart(game);
     game.currentZoneId = takeWoodsmanEchoReturnZone(run);
 }
+
 function finishWoodsmanEchoRun() {
     let run = ensureWoodsmanEchoRunState();
     if (!run.active || game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) return;
@@ -988,6 +913,7 @@ function finishWoodsmanEchoRun() {
     addLog(_t('🪵 나무꾼의 잔상: 총 피해 {floor}, 최종 DPS {floor2} (최고 {floor3})', { floor: Math.floor(run.totalDamage).toLocaleString(), floor2: Math.floor(dps).toLocaleString(), floor3: Math.floor(run.bestDps).toLocaleString() }), 'season-up');
     updateStaticUI();
 }
+
 /** 잔상의 30초가 흐르는가. 방 단위 지도에서 잔상이 아직 제 방에서 기다리면 흐르지 않는다: 주인공이 그 방에 닿아 잔상이 일어설 때까지
  * 시계를 지금으로 당겨 둔다. */
 function isWoodsmanEchoClockRunning(run) {
@@ -997,6 +923,7 @@ function isWoodsmanEchoClockRunning(run) {
     run.lastTickAt = getCombatTime();
     return false;
 }
+
 function tickWoodsmanEchoRun() {
     let run = ensureWoodsmanEchoRunState();
     if (!isWoodsmanEchoClockRunning(run)) return;
@@ -1008,6 +935,7 @@ function tickWoodsmanEchoRun() {
     if (target) run.totalDamage = Math.max(0, Math.floor((target.echoStartHp || target.maxHp || 0) - Math.max(0, target.hp || 0)));
     if (run.timeLeft <= 0) finishWoodsmanEchoRun();
 }
+
 /** Append at most one reinforcement; capacity pauses the queue without consuming it.
  * @param {ReturnType<typeof getZone>} zone
  * @param {{pendingWave:boolean,spawnedCount:number,totalToSpawn:number,spawnTick:number}} rift Active run, mutated in place.
@@ -1043,6 +971,7 @@ function grandBreachSpawnCell(deployment, offset, blocked) {
     }
     return null;
 }
+
 function spawnGrandBreachEnemy(zone, deployment, blocked, elite, index) {
     const cell = grandBreachSpawnCell(deployment, index % deployment.portals.length, blocked);
     if (!cell) return false;
@@ -1057,6 +986,7 @@ function grandBreachWaveSize(run, config, alive) {
     const stage=getGrandBreachProgress(run.gauge).stage;
     return Math.min(alive.length === 0 ? config.openingPack : config.refillPack, config.capacities[stage] - alive.length);
 }
+
 function deployGrandBreachWave(zone, deployment, config, alive, count) {
     const blocked = getGridBlockedCells();
     let elites = alive.filter(e => e.isElite).length;
@@ -1066,6 +996,7 @@ function deployGrandBreachWave(zone, deployment, config, alive, count) {
         elites += Number(elite);
     }
 }
+
 /** The next arena wave keeps its two announced mouths until release, even across a gauge-stage boundary.
  * First entries and old saves without a plan use their existing all-mouth wave once. The old three-room route has no plan. */
 function planGrandBreachRefill(run, battlefield, previous) {
@@ -1074,10 +1005,12 @@ function planGrandBreachRefill(run, battlefield, previous) {
     const turn=previous && previous.turn < Number.MAX_SAFE_INTEGER ? previous.turn+1 : 0;
     run.refillPlan={portalIndices:[...pairs[turn%pairs.length]],at:run.nextRefillAt,turn};
 }
+
 function grandBreachWaveDeployment(battlefield, plan, radius) {
     const portals=battlefield?.portals || GRAND_BREACH_ENCOUNTER.portals;
     return {portals:plan ? plan.portalIndices.map(index=>portals[index]) : portals,arena:battlefield?.arena,radius};
 }
+
 /** Append one bounded pack. Missed refill intervals are not replayed as a burst.
  * @param {ReturnType<typeof getZone>} zone
  * @param {{kills:number,nextRefillAt?:number,refillPlan?:{portalIndices:number[],at:number,turn:number}}} run Combat-clock wave plan; mutated in place.
@@ -1096,6 +1029,7 @@ function refillGrandBreachWave(zone, run, now, battlefield) {
     run.nextRefillAt = now + config.intervalMs;
     planGrandBreachRefill(run,battlefield,plan);
 }
+
 function grandBreachRefillReady(run,now) {
     return run.phase==='survival' && !getGrandBreachProgress(run.gauge).complete && now>=(run.nextRefillAt||0);
 }
@@ -1105,6 +1039,7 @@ function grandBreachSurvivalReady(run, battlefield) {
     run.survivalStarted = battlefield.singleRoom || battlefield.inside;
     return run.survivalStarted;
 }
+
 function summonGrandBreachLord(zone, run, battlefield) {
     delete run.refillPlan;
     const boss=createEnemy(zone,{boss:true,count:1},0),soul=Math.max(0,Math.floor(run.kills||0));
@@ -1114,11 +1049,13 @@ function summonGrandBreachLord(zone, run, battlefield) {
     run.phase='boss';
     return soul;
 }
+
 /** The survival deadline on the combat clock, set when the fight begins (old runs get the full time on their next tick). */
 function grandBreachTimeUp(run, now) {
     if (!Number.isFinite(run.survivalEndsAt)) run.survivalEndsAt = now + GRAND_BREACH_ENCOUNTER.survivalLimitSeconds * 1000;
     return now >= run.survivalEndsAt;
 }
+
 /** The lord was not called in time: the attempt fails as a defeat does (its held loot is lost), without a death or its penalty. */
 function failGrandBreachTimeUp(zone) {
     delete game.voidRift.grandRun.refillPlan;
@@ -1130,6 +1067,7 @@ function failGrandBreachTimeUp(zone) {
     pendingHeavyUiRefresh=true;
     queueImportantSave(200);
 }
+
 function tickGrandBreachRun(zone) {
     let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
     let g = v.grandRun;
@@ -1162,5 +1100,132 @@ function tuneGrandBreachLord(boss, kills) {
     boss.traitName = _t('공허 압박 {pressure}단계 (균열 몬스터 {kills}처치)', { pressure, kills });
     return boss;
 }
+
+exposeFileGlobals({ explorationPackSpawnAt, createActExplorationPack, markExplorationAmbushRooms, rollExplorationRoomWaves, releaseExplorationWave, isAtlasExtraEliteRoom, getZoneExplorationPlan, createActExplorationEncounter, createExplorationPacks, starterRescueRoom, createStarterRescuePack, strikeRescueTarget, countEncounterMarkers, fillRoomPack, createRoomPackOf, createMarkerRoomPacks, beginRoomBossRules, createBeehiveRoomPacks, createColonyDefenseRoomPacks, tuneBeehiveWaveEnemy, createGrandBreachRoomPacks, getGrandBreachArena, getBeehiveRoomRun, placeBeehiveRoomWave, countBeehiveWaveAlive, createExplorationBossStage, createStageExtraPacks, startEncounterRun, beginOceanRunRules, startMoving, prepareActExplorationArrival, advanceActExplorationDeparture, finishTownReturnAction, returnToTown, runReturnRules, ensureEncounterRun, isRegularAutoProgressZone, reconcileMapProgressRuntimeState, spawnEncounterMarker, advanceMapProgress, ensureWoodsmanEchoRunState, finishWoodsmanEchoRun, spawnVoidBreachReinforcement, tickGrandBreachRun });
+})();
+
+/** encounter: an atlas content room (js/atlas-encounters.js) — elite-led, larger and tuned, rewarding when emptied. */
+const explorationPackKey=(room,stage)=>room.id+':'+(stage===null?'pack':stage);
+
+
+/** 이어지는 무리를 받을 수 있는 탐험: 방 단위 무대이고, 무리를 따로 세우는 콘텐츠(벌집 같은)와 1루프의 액트 1이 아니다. */
+const explorationWavesAllowed=(zone,map)=>!!map.stage && !ownRoomPackBuilder(zone) && !(zone.type==='act' && zone.id===0 && (game.season||1)===1);
+/** 정예 방, 또는 문이 하나인 막다른 방(입구와 보스 방 말고). */
+const isExplorationWaveRoom=(map,room)=>room.role==='elite' || (['battle','optional'].includes(room.role) && map.doors.filter(door=>door.room===room.index).length===1);
+
+
+/** Each run faces north, east, south or west (2026-10-04): the map's clockwise quarter turns, 0..3.
+ * The only randomness of the facing; fixtures that walk fixed coordinates pin it to undefined (the map's drawn facing). */
+function rollExplorationFacing() {return Math.floor(Math.random()*actExplorationMap.ROTATIONS);}
+
+/** A +28% ordinary-monster budget: one larger room, one quiet-road group, then small room additions.
+ * One-time generation only; existing runs retain every enemy. Atlas and bespoke encounters keep their authored budgets. */
+/** Rooms without their own packs: the entry room, path rooms, and the first start's rescue room (its one monster comes apart). */
+const ownsNoPack=(room,rescueRoom)=>room.role==='entry' || room.role==='path' || room===rescueRoom;
+
+/** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
+ * 이번 루프의 시작 무기를 아직 떨어뜨리지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
+ * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 무기가 그 자리 바닥에 떨어진다(2026-11-09까지는 시작 룬).
+ * @returns {object[]} 그 무리, 없으면 빈 목록. */
+/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 무기는 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
+const startsWithRescue=(zone,map)=>zone.type==='act' && zone.id===0 && !!map.stage && (game.season||1)===1
+    && !game.loopStarterWeaponGranted;
+/** 하켄을 치는 첫 몬스터(createStarterRescuePack)의 한 틱: 한 대라도 맞거나 하켄을 RESCUE_STRIKE.maxStrikes번 치기 전까지는 하켄 쪽을
+ * 보고 RESCUE_STRIKE.rate의 빠르기로 공격 동작만 낸다(피해 없음, 하켄 위의 번쩍임은 js/canvas-act-title-card.js가 'npcStruck'로 그린다).
+ * 주인공은 하켄에서 두 칸 옆에서 시작해 곧 이 몬스터를 친다. 그 뒤로는 여느 몬스터처럼 주인공과 싸운다. true = 이번 틱은 하켄을 노렸다. */
+// pair: 두 마리가 하켄을 양옆에서 친다(대사는 "괴물들", "잔뿌리들"). share: 한 마리의 생명력과 피해 배율: 둘을 합쳐 한 마리였을 때와 비슷하게.
+// gap: 하켄에서 떨어져 서는 칸 수. 바로 옆 칸에 서면 몬스터 그림이 하켄과 겹쳤다(2026-10-17 사용자 "NPC와 겹치지 않도록", 1에서 2로).
+const RESCUE_STRIKE=Object.freeze({rate:0.42,windUp:0.9,maxStrikes:4,fxMs:260,pair:2,share:0.55,gap:2});
+
+/** 한 줄 지도의 방들: 입구 다음 방부터 끝 방까지, 걷는 차례로. */
+const chainRoomsOf=map=>map.route.slice(1).map(id=>map.rooms.find(room=>room.id===id));
+/** 전용 전투 지도를 걷는 콘텐츠면 그 콘텐츠가 무리를 세우는 함수, 아니면 null. */
+const ownRoomPackBuilder=zone=>(zone.exploration && (zone.exploration.chain || zone.type==='grandBreach' || zone.type==='colony')
+    ? ROOM_PACK_BUILDERS[zone.type] || null : null);
+/** 판 콘텐츠가 방 단위 지도에 무리를 세우는 법(구역 종류 → 함수). 여기에 없는 구역은 방마다의 보통 무리와 보스 단계다. */
+const ROOM_PACK_BUILDERS=Object.freeze({beehive:createBeehiveRoomPacks,colony:createColonyDefenseRoomPacks,grandBreach:createGrandBreachRoomPacks,
+    cosmos:createMarkerRoomPacks,oceanDepth:createMarkerRoomPacks,beyondBoundary:createMarkerRoomPacks,meteor:createMarkerRoomPacks});
+/** 끝 방의 관문을 그 콘텐츠가 여는 구역(run.sealed): 군락지는 다섯째 웨이브가 설 때, 대균열은 처치 게이지가 찼을 때. */
+const SEALED_ROOM_ZONES=Object.freeze(['colony','grandBreach']);
+
+
+/** Saved three-room runs keep their old portal positions until that run ends. */
+const grandBreachRoomPortals=room=>[{gx:room.x0+1,gy:room.y0+1},{gx:room.x1-1,gy:room.y0+1},{gx:Math.round(room.gx),gy:room.y1-1}];
+
+/** 케르베로스의 세 단계. 머리의 기존 생명력·경험치·드랍 몫을 먼저 굴린 뒤 한 몸에 합친다. */
+const CERBERUS_STAGES=Object.freeze([
+    Object.freeze({heads:['cold','fire'],boss:'fire',atk:1.7,crit:0}),
+    Object.freeze({heads:['phys'],boss:'phys',atk:1.7,crit:14,headCrit:10}),
+    Object.freeze({heads:[],boss:'phys',atk:2.1,crit:14,hybrid:'chaos'})
+]);
+
+/** 방 단위 무대의 방 하나에 무리들이 서는 자리 (data/stage-view.js STAGE_ROOMS.layouts와 packShapes. 2026-10-13 밤, 검토: "추가 몹팩 위치도
+ * 가운데 양옆으로 정해져 있어", 사용자: "규칙 상관없으니까 바꿔줘"). 방마다 자리 묶음 하나를 고르고, 무리마다 서는 꼴을 고른다.
+ * 벽에 붙은 칸(문 안쪽 자리, 상자와 항아리가 서는 가장자리)에는 서지 않고, 같은 방의 다른 무리와 겹치지 않는다. 방을 여는 때에 한 번
+ * 정한다(난수는 Math.random: 무리를 뽑는 것과 같다). 이어진 지도에서는 아무것도 바꾸지 않는다. */
+const stageRoomArranger=(()=>{
+    const SHAPES=Object.freeze({
+        cluster:[[0,0],[-1,0],[0,1],[1,-1],[-1,-1],[1,1],[0,-1],[-1,1],[1,0]],
+        line:[[0,0],[1,0],[-1,0],[2,0],[-2,0],[3,0],[-3,0],[4,0],[-4,0]],
+        column:[[0,0],[0,1],[0,-1],[0,2],[0,-2],[1,0],[-1,0],[1,1],[-1,-1]],
+        loose:[[0,0],[-2,0],[0,1],[2,-1],[-2,-1],[2,1],[0,-1],[-2,1],[2,0]]
+    });
+    function weightedPick(rows) {
+        let roll=Math.random()*rows.reduce((sum,row)=>sum+row.weight,0);
+        return rows.find(row=>(roll-=row.weight)<0) || rows[0];
+    }
+    /** 들어온 문(입구 쪽으로 가는 문)의 맞은편이 +가 되는 부호. 그 문이 위아래에 있으면 반반이다. */
+    function farSign(map,room) {
+        const back=map.hops[room.index][map.entry.index];
+        if(back && back.side==='east')return -1;
+        if(back && back.side==='west')return 1;
+        return Math.random()<.5?1:-1;
+    }
+    function openRoom(map,room) {
+        return {room,layout:weightedPick(STAGE_ROOMS.layouts),sign:farSign(map,room),taken:new Set()};
+    }
+    /** 자리 묶음의 slot번째 자리(칸): 뭉친 무리(가운데에서 한 칸)가 벽에 붙지 않는 범위 안에서. */
+    function spotCentre(state,slot) {
+        const room=state.room,[fx,fy]=state.layout.spots[slot%state.layout.spots.length];
+        return {gx:room.gx+Math.round(fx*state.sign*Math.max(0,room.radiusX-3)),gy:room.gy+Math.round(fy*Math.max(0,room.radiusY-2))};
+    }
+    const ringAround=(at,ring)=>{
+        const out=[];
+        for(let dy=-ring;dy<=ring;dy++)for(let dx=-ring;dx<=ring;dx++)if(Math.max(Math.abs(dx),Math.abs(dy))===ring)out.push({gx:at.gx+dx,gy:at.gy+dy});
+        return out;
+    };
+    /** want에서 가장 가까운, 벽에 붙지 않았고 아직 아무도 서지 않은 칸. */
+    function freeCellNear(state,want) {
+        const room=state.room,inner=cell=>cell.gx>room.x0 && cell.gx<room.x1 && cell.gy>room.y0 && cell.gy<room.y1;
+        for(let ring=0;ring<=room.radiusX*2;ring++) {
+            const cell=ringAround(want,ring).find(spot=>inner(spot) && !state.taken.has(spot.gx+','+spot.gy));
+            if(cell){state.taken.add(cell.gx+','+cell.gy);return cell;}
+        }
+        return want;
+    }
+    function packCells(state,slot,count) {
+        const centre=spotCentre(state,slot),shape=SHAPES[weightedPick(STAGE_ROOMS.packShapes).id];
+        return Array.from({length:count},(_,index)=>{
+            const [dx,dy]=shape[index] || [0,0];
+            return freeCellNear(state,{gx:centre.gx+dx,gy:centre.gy+dy});
+        });
+    }
+    /** 지도 하나의 무리 자리를 정하는 것: cells(room, slot, count)는 그 방의 slot번째 무리(0 = 원래 무리, 1부터 덧무리)가 설 칸들.
+     * 이어진 지도에서는 null을 준다(전의 자리 그대로). */
+    function forMap(map) {
+        const states=new Map();
+        const stateOf=room=>states.get(room.id) || states.set(room.id,openRoom(map,room)).get(room.id);
+        return {cells:(room,slot,count)=>(map.stage?packCells(stateOf(room),slot,count):null),front:room=>approach(map,room)};
+    }
+    /** 입구로 돌아가는 문을 전열 기준으로 삼는다. 새 경로 탐색 없이 지도의 기존 hops를 사용한다. */
+    function approach(map,room) {
+        return map.hops[room.index][map.entry.index]?.landing || map.entry;
+    }
+    return {forMap};
+})();
+
+
+let returnRuleReadyAt = 0;
+
 
 safeExposeGlobals({ isRegularAutoProgressZone, reconcileMapProgressRuntimeState, startEncounterRun, startMoving, returnToTown, ensureEncounterRun, advanceMapProgress });

@@ -1,5 +1,6 @@
 // 지도 위협 추정, 스킬 적중 효과, 상태 이상과 주기 효과 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getMapBossPatternMultiplier(bossMods, zone) {
     let fixedMode = String((bossMods && bossMods.patternMode) || '');
     let cosmosBossMechanic = fixedMode === 'cosmosBoss' && typeof getCosmosGalaxyBossMechanic === 'function'
@@ -11,10 +12,6 @@ function getMapBossPatternMultiplier(bossMods, zone) {
         : getMaximumBossPatternDamageMultiplierForLoop(game.season || 1);
 }
 
-// A chaos depth's boss always strikes with the same element and adds the next one (2026-10-04): a random element decided a chaos 20
-// clear more than the build did (a build with low chaos resistance lived or died by the draw). Depth d: CHAOS_BOSS_ELEMENTS[d mod 4]
-// then the following one, so chaos 20 is fire with cold and the map estimate names the two resistances to prepare.
-const CHAOS_BOSS_ELEMENTS = Object.freeze(['fire', 'cold', 'light', 'chaos']);
 /** [main, added] damage elements of a chaos depth's boss; null for any other zone. */
 function getChaosBossElements(zone) {
     if (!zone || zone.type !== 'abyss') return null;
@@ -93,16 +90,6 @@ function getMapEstimateThreatProfile(zone, bossMods, baseHit, seasonDepth, tier)
     };
 }
 
-const getMapBossRequiredDps = function (bossHp, clearTimeSec, regenRate) {
-    const duration = Math.max(1, Number(clearTimeSec) || 1);
-    // regenRate is a life fraction per 0.1 s step (applyEnemyRegen); until 2026-10-04 it was read as per second, a tenth of the healing.
-    const recoveryPerSecond = Math.max(0, Number(regenRate) || 0) * (1000 / ENEMY_REGEN_STEP_MS);
-    // Average of the tiring regeneration over the fight (applyEnemyRegen): 1 − t/F before F, F/(2t) after.
-    const fatigueSec = ENEMY_REGEN_FATIGUE_MS / 1000;
-    const averageRegen = duration <= fatigueSec ? 1 - duration / (2 * fatigueSec) : fatigueSec / (2 * duration);
-    return bossHp / duration + bossHp * recoveryPerSecond * averageRegen;
-};
-
 /** Keep environmental HP drain separate from zones that only inherit underworld gravity. */
 function getMapEstimateZonePenalties(zone) {
     const underworldGravityFloor = Math.max(0, Math.floor(Number(
@@ -152,6 +139,7 @@ function estimateMapZonePowerRequirements(zone) {
         basis: 'bossThreatWindow'
     });
 }
+
 /** A normal monster's life at the zone's tier and loop (a fixed-difficulty zone by its scale). */
 function getMapEstimateMonsterHp(zone, tier, loopInputs, tierProgress) {
     let hp = ((56 + tier * 30) * 1.15)
@@ -160,6 +148,7 @@ function getMapEstimateMonsterHp(zone, tier, loopInputs, tierProgress) {
     if (loopInputs.exempt) hp *= Number(zone.fixedDifficultyMul) || 1;
     return hp;
 }
+
 /** The zone's boss modifiers (a cosmos encounter's, else the zone's own) and a cosmos boss's exclusive trait. */
 function getMapEstimateBossMods(zone) {
     let bossMods = (zone.bossMods && typeof zone.bossMods === 'object') ? zone.bossMods : {};
@@ -167,6 +156,7 @@ function getMapEstimateBossMods(zone) {
     let cosmosTrait = zone.type === 'cosmos' ? getCosmosExclusiveEnemyTrait(zone, false, true, hashSeed(zone.cosmosNodeId || zone.id)) : null;
     return { bossMods, cosmosTrait };
 }
+
 /** The boss's life with its energy shield, the underworld entry tuning and trial 3's 85%. */
 function getMapEstimateBossHp(zone, p) {
     const { hp, tier, tierProgress, loopInputs, contentScale, bossMods, cosmosTrait } = p;
@@ -181,6 +171,7 @@ function getMapEstimateBossHp(zone, p) {
     if (zone.type === 'trial' && zone.id === 'trial_3') bossHp *= 0.85;
     return bossHp;
 }
+
 /** The boss's hit: tier and loop growth, the abyss, content, modifier and map scales, the early-act ease from loop 3, the underworld
  * entry tuning and the loop power scale. */
 function getMapEstimateBossHit(zone, p) {
@@ -197,12 +188,14 @@ function getMapEstimateBossHit(zone, p) {
     bossHit *= p.entryTuning.damage * getMonsterLoopPowerScale(zone, 'damage');
     return bossHit;
 }
+
 /** The boss life's scales that default to 1: the abyss life and boss scales, the modifiers' and map's life, a cosmos trait's life. */
 function getMapEstimateBossHpFactors(zone, p) {
     const { abyssScale, bossMods, cosmosTrait } = p;
     return { abyssHp: abyssScale.hpMul || 1, abyssBoss: abyssScale.bossMul || 1, modHp: bossMods.hpMul || 1, mapHp: zone.mapHpMul || 1,
         traitHp: cosmosTrait && cosmosTrait.hpMul ? cosmosTrait.hpMul : 1 };
 }
+
 /** The boss hit's scales that default to 1: the abyss damage, taken and boss scales, the modifiers' and map's damage, a cosmos trait's
  * damage. */
 function getMapEstimateBossHitFactors(zone, p) {
@@ -210,6 +203,7 @@ function getMapEstimateBossHitFactors(zone, p) {
     return { abyssDmg: abyssScale.dmgMul || 1, abyssTaken: abyssScale.playerTakenMul || 1, abyssBoss: abyssScale.bossMul || 1, modDmg: bossMods.damageMul || 1,
         mapDmg: zone.mapDamageMul || 1, traitDmg: cosmosTrait && cosmosTrait.damageMul ? cosmosTrait.damageMul : 1 };
 }
+
 /** The boss modifiers the threat reads, with a cosmos trait's penetration, attack and speed added. */
 function getMapEstimateThreatMods(bossMods, cosmosTrait) {
     return cosmosTrait ? {
@@ -284,6 +278,7 @@ function generateChaosRealmEncounterPlan(zone) {
     return [{at:28,count:profile.minPack+1,elite:true}, {at:62,count:profile.maxPack,elite:true},
         {at:100,count:1+profile.bossAdds,boss:true}];
 }
+
 function generateMeteorEncounterPlan(zone) {
     const tier = Math.max(1, Math.floor(zone.tier || 1));
     return [{ at: 36, count: 4 + Math.min(2, Math.floor(tier / 20)) },
@@ -461,13 +456,6 @@ function handleTalentBloomClear(zone) {
     queueImportantSave(200);
 }
 
-function isCrowdProgressPaused() {
-    if (game.moveTimer > 0) return false;
-    // 방 단위 무대: 방 안의 몬스터를 다 잡아야 문이 열린다. 따로 멈출 진행이 없으니 무리가 많다는 알림도 내지 않는다.
-    if (actExplorationDoors.stageMap(actExplorationState.current(game))) return false;
-    return (game.enemies || []).filter(enemy => enemy.hp > 0).length >= ENEMY_CROWD_PAUSE_LIMIT;
-}
-
 function getDotStackMultiplier(stacks) {
     let safeStacks = Math.max(1, Math.min(DOT_STACK_MAX, Math.floor(stacks || 1)));
     return Math.pow(1 + DOT_STACK_GROWTH_PER_STACK, safeStacks - 1);
@@ -500,24 +488,23 @@ function applyEnemyDotFromHit(enemy, hitDamage, pStats) {
     enemy.dotStacks = nextStacks;
 }
 
-/** 화염 부패(2026-10-17 스킬룬 인계 v32): 이미 걸린 적에게 다시 맞히면 남은 틱 피해를 한 번에 주고 둘레 마름모 2칸에 그 타격의 70%로 터지며,
- * 폭발에 휘말린 가까운 적 가운데 아직 타지 않는 셋에게 새로 옮겨 붙는다. 걸린 채 죽어도 같은 폭발이 터진다(옮겨 붙지는 않는다).
- * 같은 시전이 막 붙인 불은 그 시전 안에서 다시 터지지 않는다(settleMs). 수치는 인계의 제안 값이다. */
-const FLAME_DECAY_BURST = Object.freeze({ radius: 2, pct: 70, spread: 3, settleMs: 100 });
 function isFlameDecayLit(enemy) {
     const dot = enemy && enemy.dotState;
     return !!dot && dot.skillName === '화염 부패' && dot.timeLeft > 0;
 }
+
 /** 지속 피해 룬의 타격: 화염 부패가 터지면 새로 걸지 않고, 아니면 지속 피해를 건다(걸린 때를 적어 둔다). */
 function applySkillDotFromHit(enemy, hitDamage, pStats) {
     if (pStats.sSkill && pStats.sSkill.flameDecayDebuff && detonateFlameDecay(enemy, hitDamage, pStats)) return;
     applyEnemyDotFromHit(enemy, hitDamage, pStats);
     markFlameDecayLit(enemy, hitDamage);
 }
+
 /** 막 붙인 불에 붙인 때와 터질 때의 피해를 적어 둔다(이미 적힌 불은 그대로). */
 function markFlameDecayLit(enemy, hitDamage) {
     if (enemy.dotState && !enemy.dotState.appliedAt) Object.assign(enemy.dotState, { appliedAt: getCombatTime(), burstDamage: Math.floor(hitDamage * FLAME_DECAY_BURST.pct / 100) });
 }
+
 /** 그 적의 불을 끈다(지속 피해, 느려짐, 화염 부패 표시). */
 function clearFlameDecay(enemy) {
     enemy.dotState = null;
@@ -525,8 +512,7 @@ function clearFlameDecay(enemy) {
     enemy.skillSlowPct = 0;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments.filter(ail => ail && ail.type !== 'flameDecay') : [];
 }
-const flameDecayMitigated = (enemy, damage, pStats) => Math.floor(Math.max(1, Math.floor(damage * (1 - getEffectiveEnemyMitigation('fire', (getZone(game.currentZoneId) || {}).tier || 1, enemy, pStats) / 100)))
-    * loopMutation.takenMul(enemy, 'fire'));
+
 /** 터짐: 그 적 둘레(마름모 radius칸)의 다른 적에게 burst 피해를 준다. @returns {object[]} 휘말린 적(가까운 차례) */
 function burstFlameDecay(enemy, burstDamage, pStats) {
     const reach = cell => Math.abs(cell.gx - enemy.gx) + Math.abs(cell.gy - enemy.gy) <= FLAME_DECAY_BURST.radius;
@@ -539,6 +525,7 @@ function burstFlameDecay(enemy, burstDamage, pStats) {
     enemy.flameDecayBurstAt = getCombatTime(); // 무대 연출이 그 자리에서 폭발을 그린다(js/canvas-stage-skill-rules.js)
     return near;
 }
+
 /** 이미 걸린 적에게 다시 맞혔다. @returns {boolean} 터뜨렸는지 */
 function detonateFlameDecay(enemy, hitDamage, pStats) {
     if (!hasGridCell(enemy) || !isFlameDecayLit(enemy) || getCombatTime() - (enemy.dotState.appliedAt || 0) < FLAME_DECAY_BURST.settleMs) return false;
@@ -552,6 +539,7 @@ function detonateFlameDecay(enemy, hitDamage, pStats) {
     enemy.flameDecaySpread = spread.map(other => other.id); // 불길 줄기를 그릴 대상
     return true;
 }
+
 /** 화염 부패가 걸린 채 죽은 적: 둘레가 터진다(옮겨 붙지는 않는다). 터짐에 죽은 적은 다음 전투 틱의 정리(coreLoop sanitizeCombatRuntimeState)가 거둔다. */
 function burstFlameDecayOnDeath(enemy, pStats) {
     if (!isFlameDecayLit(enemy) || !hasGridCell(enemy)) return;
@@ -644,8 +632,6 @@ function getSkillGridPullGeometry(skill, options) {
     return { cells, center };
 }
 
-/** 맞은 몬스터를 주인공 반대쪽으로 skill.pushAwayCells칸 민다(불사르기, 돌진: 2026-10-17 스킬룬 인계). 보스는 밀리지 않는다. */
-const canPushEnemy = enemy => !enemy.isBoss && !isEnemyPetrified(enemy) && hasGridCell(enemy);
 function pushEnemyAwayOnHit(enemy, skill) {
     let cells = Math.max(0, Math.min(3, Math.floor(Number(skill && skill.pushAwayCells) || 0)));
     if (cells <= 0 || !canPushEnemy(enemy) || !hasGridCell(game.gridPlayer)) return false;
@@ -729,7 +715,6 @@ function spreadSkillAilmentOnHit(source, skill, pStats) {
     });
 }
 
-const SKILL_PERIODIC_CHAIN_CAP = 12;
 function queueSkillPeriodicHit(enemy, config, damage, ele, visual) {
     if (!config || enemy.hp <= 0 || Math.random() >= Math.max(0, Math.min(1, Number(config.chance) || 0))) return;
     enemy.skillPeriodics = Array.isArray(enemy.skillPeriodics) ? enemy.skillPeriodics : [];
@@ -824,10 +809,6 @@ function getFreezeApplyChanceFromHitRatio(hitRatio, enemyMaxHp) {
     return Math.max(0.01, Math.min(0.7, ratio * 1.8 * hpFactor));
 }
 
-function isDamageAilmentType(type) {
-    return type === 'ignite' || type === 'poison' || type === 'bleed';
-}
-
 function getPlayerShockTakenDamageIncreasePct(pStats, power) {
     let base = 22;
     let reduction = Math.max(0, Math.min(0.95, Number(pStats && pStats.shockEffectReducePct || 0) / 100));
@@ -857,18 +838,6 @@ function getShockedEnemyHitDamageIncreaseMultiplier(enemy, pStats) {
     return (100 + existingIncrease + bonus) / (100 + existingIncrease);
 }
 
-function getStoredAilmentHitDamage(ail) {
-    if (!ail) return 0;
-    return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
-}
-
-function getDamageAilmentBaseDpsFromHit(hitDamage, power, scale, critDotBonusPct, critDotBonusScale) {
-    let source = Math.max(0, Number(hitDamage) || 0);
-    if (source <= 0) return 0;
-    let mul = getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale);
-    return Math.max(1, Math.floor(source * 0.90 * mul));
-}
-
 function getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale) {
     let baseScale = Math.max(0.01, Number(scale) || 1);
     let bonusPct = Math.max(0, Number(critDotBonusPct) || 0);
@@ -879,20 +848,6 @@ function getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusS
 function getDamageAilmentScore(sourceDamage, critDotBonusPct, scale, critDotBonusScale) {
     let source = Math.max(0, Number(sourceDamage) || 0);
     return source * getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale);
-}
-
-function getEnemyDamageAilmentDps(ail, pStats) {
-    let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
-    let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
-    const damageStat = { ignite: 'igniteDamageMultiplierPct', poison: 'poisonDamageMultiplierPct' }[ail?.type];
-    dps = Math.floor(dps * (1 + (Math.max(0, Number(pStats?.[damageStat]) || 0) + Math.max(0, Number(pStats?.ailmentDamagePct) || 0)) / 100));
-    if (ail && pStats && ail.type === pStats.mystiqueAilmentType) {
-        dps = Math.floor(dps * (1 + Math.max(0, Number(pStats.mystiqueAilmentDamagePct) || 0) / 100));
-    }
-    if (ail && (ail.talentDamageMorePct || 0) > 0) dps = Math.floor(dps * (1 + ail.talentDamageMorePct / 100));
-    if (typeof getTalentDotDamageMultiplier === 'function') dps = Math.floor(dps * getTalentDotDamageMultiplier());
-    if (ail && ail.type === 'bleed') dps = Math.floor(dps * getPassiveBleedMultiplier(pStats));
-    return dps;
 }
 
 function getEnemyDamageAilmentMaxStacks(type, pStats) {
@@ -1045,17 +1000,6 @@ function getPlayerDamageAilmentFallbackDps(type, power, pStats) {
     return perTick > 0 ? perTick * 10 : 0;
 }
 
-function getPlayerDamageAilmentDps(ail, pStats) {
-    let source = getStoredAilmentHitDamage(ail);
-    let dps = source > 0 ? getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1, ail ? ail.critDotBonusPct : 0, 1) : getPlayerDamageAilmentFallbackDps(ail ? ail.type : null, ail ? ail.power : 0, pStats);
-    if (pStats && pStats.uniqueArmorAppliesToDot) {
-        let armor = Math.max(0, Number(pStats.armor) || 0);
-        let armorRed = Math.min(0.8, armor / (armor + 1200));
-        dps = Math.max(0, Math.floor(dps * (1 - armorRed)));
-    }
-    return dps;
-}
-
 /** How long an ailment from a hit lasts, as a multiplier: damage ailments follow the DoT duration, poison its unique bonus, ignite
  * the region line. */
 function getAilmentDurationMultiplier(type, damageAilment, pStats) {
@@ -1063,6 +1007,7 @@ function getAilmentDurationMultiplier(type, damageAilment, pStats) {
     if (type === 'poison' && pStats && (pStats.uniquePoisonDurationPct || 0) > 0) durationMul *= 1 + Math.max(0, Number(pStats.uniquePoisonDurationPct) || 0) / 100;
     return durationMul * getPassiveAilmentDurationMultiplier(type, pStats) * regionAffixEffects.ailmentDurationMultiplier(pStats, type);
 }
+
 /** 패시브 트리의 상태이상별 지속시간(getPlayerStats의 ailmentDurationPct). 줄이 없는 능력치 묶음(소환수 등)은 1이다. */
 function getPassiveAilmentDurationMultiplier(type, pStats) {
     const table = pStats && pStats.ailmentDurationPct;
@@ -1092,6 +1037,7 @@ function applyHitAilment(hit, sourceType, forceChance, manifestation) {
     if (typeof afterTalentAilmentApplied === 'function') afterTalentAilmentApplied(enemy, sourceType);
     return true;
 }
+
 /** Whether the ailment gets through: the talent replacing it, keystones that forbid it, the talent card rule, the proc chance, the
  * enemy's ailment resistance (less the hero's penetration), and for freeze the hit's freeze roll. Null when it does not. */
 function passHitAilmentGates(hit, sourceType, forceChance, manifestation) {
@@ -1106,6 +1052,7 @@ function passHitAilmentGates(hit, sourceType, forceChance, manifestation) {
     if (sourceType === 'freeze' && Math.random() >= getFreezeApplyChanceFromHitRatio(effectiveHitRatio, hit.enemy.maxHp || 1)) return null;
     return { appliedType, mystiquePotency, manifestationPotency };
 }
+
 /** The proc roll, then the enemy's ailment resistance roll (less the hero's penetration, at most 95%). */
 function rollHitAilmentProc(hit, sourceType, forceChance) {
     const { enemy, pStats, isCrit } = hit;
@@ -1116,6 +1063,7 @@ function rollHitAilmentProc(hit, sourceType, forceChance) {
     let resistChance = Math.max(0, Math.min(0.95, ((enemy[resKey] || 0) - ailResPen) / 100));
     return !(Math.random() < resistChance);
 }
+
 /** Keystones and talent cards that forbid the ailment: 신비 (one ailment only), 검은 증류 (no ignite, chill, freeze or shock). */
 function hitAilmentForbidden(pStats, appliedType) {
     let passiveFlags = (pStats && pStats.passiveKeystoneFlags) || {};
@@ -1123,6 +1071,7 @@ function hitAilmentForbidden(pStats, appliedType) {
     if (passiveFlags.blackDistill && ['ignite', 'chill', 'freeze', 'shock'].includes(appliedType)) return true;
     return typeof canTalentCardApplyEnemyAilment === 'function' && !canTalentCardApplyEnemyAilment(appliedType);
 }
+
 /** A damage ailment's power is 0.9; another's follows the hit's power and ratio (chill raised by its effect bonus), 0.05 to 1.5. */
 function getHitAilmentPower(hit, type, damageAilment, gate) {
     const { pStats } = hit;
@@ -1135,6 +1084,7 @@ function getHitAilmentPower(hit, type, damageAilment, gate) {
     }
     return power;
 }
+
 /** A damage ailment's source hit, crit DoT bonus, DoT score and its more damage (the hit's, 폭발성 증류 +75, 오염된 탄두 +50). */
 function fillDamageAilmentPayload(hit, payload, at) {
     const { pStats } = hit;
@@ -1146,6 +1096,7 @@ function fillDamageAilmentPayload(hit, payload, at) {
         pStats && Number.isFinite(pStats.dotCritBonusScale) ? pStats.dotCritBonusScale : 1) * (1 + damageMorePct / 100);
     payload.talentDamageMorePct = damageMorePct;
 }
+
 function getHitAilmentDamageMorePct(hit, type, appliedType) {
     const { pStats, opts } = hit;
     let damageMorePct = Math.max(0, Number(opts.ailmentDamageMorePct && opts.ailmentDamageMorePct[type]) || 0);
@@ -1154,6 +1105,7 @@ function getHitAilmentDamageMorePct(hit, type, appliedType) {
     if (passiveFlags.taintedWarhead && ['ignite', 'poison', 'bleed'].includes(appliedType)) damageMorePct += 50;
     return damageMorePct;
 }
+
 /** The ailment again on a row: the longer time and the stronger power (as rolled, before talents decorate the payload); a damage
  * ailment keeps the stronger hit and gains a stack. */
 function refreshAilmentRow(row, payload, at) {
@@ -1173,6 +1125,7 @@ function refreshAilmentRow(row, payload, at) {
     let maxStacks = getEnemyDamageAilmentMaxStacks(at.type, at.pStats);
     row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
 }
+
 function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (!enemy || enemy.hp <= 0) return;
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
@@ -1375,10 +1328,6 @@ function getWoodsmanCurseDamageTakenMul() {
     return 1 + Math.max(0, Math.floor(game.woodsmanCurseDamageTakenStacks || 0)) * 0.0001;
 }
 
-const WOODSMAN_PHASE_OLD_FINAL_PROGRESS = 0.75;
-const WOODSMAN_PHASE_NEW_FINAL_PROGRESS = 0.95;
-const WOODSMAN_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
-
 function getWoodsmanPhaseProgress(enemy) {
     if (!enemy || !(enemy.maxHp > 0)) return 0;
     let rawProgress = clampNumber(1 - ((enemy.hp || 0) / enemy.maxHp), 0, 1);
@@ -1398,17 +1347,6 @@ function woodsmanAttackFxElement(enemy) {
     return enemy.isWoodsman && game.currentZoneId === OUTSIDE_CHAOS_ZONE_ID
         ? woodsmanElementAt(getWoodsmanPhaseProgress(enemy)) : null;
 }
-
-// 잔향체 아스트라(cosmos_astra): 우주 5개 은하 보스를 모두 격파해야 도전할 수 있는 최종 보스.
-// 그 다섯 보스의 정체성(견고/흡수/균형/심판/충격)을 4.5초 주기로 순환하며 방어·공격 프로필이 계속 바뀐다.
-const COSMOS_ASTRA_STANCES = [
-    { name: '하말리스의 메아리: 견고', ele: 'phys', drAdd: 20, armorMul: 1.7 },
-    { name: '디프다르의 메아리: 흡수', ele: 'chaos', regenMul: 8, resChaosAdd: 22 },
-    { name: '주베누비아의 메아리: 균형', ele: 'phys', resAllAdd: 18, drAdd: 8 },
-    { name: '주벤샤말의 메아리: 심판', ele: 'light', penetrationAdd: 26, critChanceAdd: 18, atkMulMul: 1.15 },
-    { name: '에니프론의 메아리: 충격', ele: 'fire', atkMulMul: 1.75, attackSpeedVarMul: 1.4 }
-];
-const COSMOS_ASTRA_STANCE_CYCLE_MS = 4500;
 
 function getEncounterTelemetryContext(zone) {
     if (!zone) return {};
@@ -1457,6 +1395,112 @@ function applyCosmosAstraStance(enemy) {
     enemy.attackSpeedVar = base.attackSpeedVar * (stance.attackSpeedVarMul || 1);
     enemy.regenRate = base.regenRate * (stance.regenMul || 1);
 }
+
+exposeFileGlobals({ getChaosBossElements, pickEnemyElement, estimateMapZonePowerRequirements, getAtlasPackReadiness, generateEncounterPlan, resetBattleRuntimeVisuals, getTrialHazardProfile, primeTrialHazardTimer, handleTalentBloomClear, getDotStackMultiplier, applySkillDotFromHit, detonateFlameDecay, getSkillAilmentStats, getSkillConditionalDamageMultiplier, getSkillRepeatDamageMultiplier, pushEnemyAwayOnHit, repelMeleeAttacker, readRepelMeleeParams, readPursuitMovePct, launchEnemyOnHit, applySkillGridControlOnHit, spreadSkillAilmentOnHit, applySkillPeriodicOnHit, addConfirmedSkillEffect, applySupportEchoOnHit, applySupportChaosErosionOnHit, transferPassiveChaosErosionToTarget, getAilmentTypeFromElement, getPlayerAilmentChance, getPassiveBleedMultiplier, getPlayerShockTakenDamageIncreasePct, getEnemyShockTakenDamageIncreasePct, getActiveEnemyShockTakenDamageIncreasePct, getShockedEnemyHitDamageIncreaseMultiplier, getDamageAilmentEffectiveDotScale, getDamageAilmentScore, cloneEnemyAilmentForSpread, mergeEnemyAilment, recordKillProgress, layStumpDrop, applyAccountRewardStats, applyAilmentEffectsOnDeath, getFlameDecayIgniteTakenMultiplier, getPlayerDamageAilmentFallbackDps, applyEnemyAilmentFromHit, tickEnemyAilments, tickEnemyDotEffects, syncCrowdPauseState, resetWoodsmanCurse, startWoodsmanCurse, tickWoodsmanCurse, getWoodsmanCurseDamageTakenMul, getWoodsmanPhaseProgress, woodsmanAttackFxElement, getEncounterTelemetryContext, applyCosmosAstraStance });
+})();
+
+
+// A chaos depth's boss always strikes with the same element and adds the next one (2026-10-04): a random element decided a chaos 20
+// clear more than the build did (a build with low chaos resistance lived or died by the draw). Depth d: CHAOS_BOSS_ELEMENTS[d mod 4]
+// then the following one, so chaos 20 is fire with cold and the map estimate names the two resistances to prepare.
+const CHAOS_BOSS_ELEMENTS = Object.freeze(['fire', 'cold', 'light', 'chaos']);
+
+
+const getMapBossRequiredDps = function (bossHp, clearTimeSec, regenRate) {
+    const duration = Math.max(1, Number(clearTimeSec) || 1);
+    // regenRate is a life fraction per 0.1 s step (applyEnemyRegen); until 2026-10-04 it was read as per second, a tenth of the healing.
+    const recoveryPerSecond = Math.max(0, Number(regenRate) || 0) * (1000 / ENEMY_REGEN_STEP_MS);
+    // Average of the tiring regeneration over the fight (applyEnemyRegen): 1 − t/F before F, F/(2t) after.
+    const fatigueSec = ENEMY_REGEN_FATIGUE_MS / 1000;
+    const averageRegen = duration <= fatigueSec ? 1 - duration / (2 * fatigueSec) : fatigueSec / (2 * duration);
+    return bossHp / duration + bossHp * recoveryPerSecond * averageRegen;
+};
+
+
+function isCrowdProgressPaused() {
+    if (game.moveTimer > 0) return false;
+    // 방 단위 무대: 방 안의 몬스터를 다 잡아야 문이 열린다. 따로 멈출 진행이 없으니 무리가 많다는 알림도 내지 않는다.
+    if (actExplorationDoors.stageMap(actExplorationState.current(game))) return false;
+    return (game.enemies || []).filter(enemy => enemy.hp > 0).length >= ENEMY_CROWD_PAUSE_LIMIT;
+}
+
+
+/** 화염 부패(2026-10-17 스킬룬 인계 v32): 이미 걸린 적에게 다시 맞히면 남은 틱 피해를 한 번에 주고 둘레 마름모 2칸에 그 타격의 70%로 터지며,
+ * 폭발에 휘말린 가까운 적 가운데 아직 타지 않는 셋에게 새로 옮겨 붙는다. 걸린 채 죽어도 같은 폭발이 터진다(옮겨 붙지는 않는다).
+ * 같은 시전이 막 붙인 불은 그 시전 안에서 다시 터지지 않는다(settleMs). 수치는 인계의 제안 값이다. */
+const FLAME_DECAY_BURST = Object.freeze({ radius: 2, pct: 70, spread: 3, settleMs: 100 });
+const flameDecayMitigated = (enemy, damage, pStats) => Math.floor(Math.max(1, Math.floor(damage * (1 - getEffectiveEnemyMitigation('fire', (getZone(game.currentZoneId) || {}).tier || 1, enemy, pStats) / 100)))
+    * loopMutation.takenMul(enemy, 'fire'));
+
+
+/** 맞은 몬스터를 주인공 반대쪽으로 skill.pushAwayCells칸 민다(불사르기, 돌진: 2026-10-17 스킬룬 인계). 보스는 밀리지 않는다. */
+const canPushEnemy = enemy => !enemy.isBoss && !isEnemyPetrified(enemy) && hasGridCell(enemy);
+
+
+const SKILL_PERIODIC_CHAIN_CAP = 12;
+
+
+function isDamageAilmentType(type) {
+    return type === 'ignite' || type === 'poison' || type === 'bleed';
+}
+
+
+function getStoredAilmentHitDamage(ail) {
+    if (!ail) return 0;
+    return Math.max(0, Number(ail.sourceHitDamage || ail.hitDamage || 0) || 0);
+}
+
+function getDamageAilmentBaseDpsFromHit(hitDamage, power, scale, critDotBonusPct, critDotBonusScale) {
+    let source = Math.max(0, Number(hitDamage) || 0);
+    if (source <= 0) return 0;
+    let mul = getDamageAilmentEffectiveDotScale(scale, critDotBonusPct, critDotBonusScale);
+    return Math.max(1, Math.floor(source * 0.90 * mul));
+}
+
+
+function getEnemyDamageAilmentDps(ail, pStats) {
+    let dotDamageScale = Math.max(0.01, (pStats && Number.isFinite(pStats.dotDamageScale)) ? pStats.dotDamageScale : 1);
+    let dps = getDamageAilmentBaseDpsFromHit(getStoredAilmentHitDamage(ail), ail ? ail.power : 0, dotDamageScale, ail ? ail.critDotBonusPct : 0, pStats ? pStats.dotCritBonusScale : 1);
+    const damageStat = { ignite: 'igniteDamageMultiplierPct', poison: 'poisonDamageMultiplierPct' }[ail?.type];
+    dps = Math.floor(dps * (1 + (Math.max(0, Number(pStats?.[damageStat]) || 0) + Math.max(0, Number(pStats?.ailmentDamagePct) || 0)) / 100));
+    if (ail && pStats && ail.type === pStats.mystiqueAilmentType) {
+        dps = Math.floor(dps * (1 + Math.max(0, Number(pStats.mystiqueAilmentDamagePct) || 0) / 100));
+    }
+    if (ail && (ail.talentDamageMorePct || 0) > 0) dps = Math.floor(dps * (1 + ail.talentDamageMorePct / 100));
+    if (typeof getTalentDotDamageMultiplier === 'function') dps = Math.floor(dps * getTalentDotDamageMultiplier());
+    if (ail && ail.type === 'bleed') dps = Math.floor(dps * getPassiveBleedMultiplier(pStats));
+    return dps;
+}
+
+
+function getPlayerDamageAilmentDps(ail, pStats) {
+    let source = getStoredAilmentHitDamage(ail);
+    let dps = source > 0 ? getDamageAilmentBaseDpsFromHit(source, ail ? ail.power : 0, 1, ail ? ail.critDotBonusPct : 0, 1) : getPlayerDamageAilmentFallbackDps(ail ? ail.type : null, ail ? ail.power : 0, pStats);
+    if (pStats && pStats.uniqueArmorAppliesToDot) {
+        let armor = Math.max(0, Number(pStats.armor) || 0);
+        let armorRed = Math.min(0.8, armor / (armor + 1200));
+        dps = Math.max(0, Math.floor(dps * (1 - armorRed)));
+    }
+    return dps;
+}
+
+
+const WOODSMAN_PHASE_OLD_FINAL_PROGRESS = 0.75;
+const WOODSMAN_PHASE_NEW_FINAL_PROGRESS = 0.95;
+const WOODSMAN_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
+
+
+// 잔향체 아스트라(cosmos_astra): 우주 5개 은하 보스를 모두 격파해야 도전할 수 있는 최종 보스.
+// 그 다섯 보스의 정체성(견고/흡수/균형/심판/충격)을 4.5초 주기로 순환하며 방어·공격 프로필이 계속 바뀐다.
+const COSMOS_ASTRA_STANCES = [
+    { name: '하말리스의 메아리: 견고', ele: 'phys', drAdd: 20, armorMul: 1.7 },
+    { name: '디프다르의 메아리: 흡수', ele: 'chaos', regenMul: 8, resChaosAdd: 22 },
+    { name: '주베누비아의 메아리: 균형', ele: 'phys', resAllAdd: 18, drAdd: 8 },
+    { name: '주벤샤말의 메아리: 심판', ele: 'light', penetrationAdd: 26, critChanceAdd: 18, atkMulMul: 1.15 },
+    { name: '에니프론의 메아리: 충격', ele: 'fire', atkMulMul: 1.75, attackSpeedVarMul: 1.4 }
+];
+const COSMOS_ASTRA_STANCE_CYCLE_MS = 4500;
+
 
 // A compact cluster (not a repeated line), rotated per room. Existing pack-size modifiers fill its 3×3.
 const explorationPackFormation=(()=>{

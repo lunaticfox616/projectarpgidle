@@ -1,63 +1,6 @@
 // TODO: phased extraction target. Kept for load-order compatibility in phase 1.
-
-const LEECH_SOFTCAP_START = 1.2;
-const LEECH_SOFTCAP_MID = 2.5;
-const LEECH_SOFTCAP_MID_EFF = 0.6;
-const LEECH_SOFTCAP_HIGH_EFF = 0.3;
-const LEECH_BASE_INSTANCE_CAP_PCT = 20;
-const LEECH_BASE_TOTAL_CAP_PCT = 40;
-const LEECH_BASE_RATE_CAP_PCT = 4;
-const ARMOR_MITIGATION_SCALE = 24;
-const SKILL_DELAY_REDUCE_CAP = 50;   // 스킬 딜레이 감소(%)의 한도: 공격 간격이 절반 아래로 줄지 않는다
-const EVASION_ACCURACY_SCALE = 3.5;
-const EVASION_ENTROPY_RESET_MS = 3330;
-const SUMMON_EVASION_CAP_PCT = 85;
-const SUMMON_EVASION_POST_20_STEP_MULTIPLIER = 4;
-const SUMMON_EFFICIENCY_EVASION_RATIO = 0.5;
-const PLAYER_ACCURACY_BASE = 80;
-const PLAYER_ACCURACY_PER_LEVEL = 3;
-const PLAYER_ACCURACY_PER_DEXTERITY = 5;
-const MIN_PENETRATED_RESISTANCE = -200;
-const CRIT_DAMAGE_BASE_MULTIPLIER = 125;
-const PLAYER_PHYSICAL_REDUCTION_CAP_PCT = 75;
-const CONDITION_GUARD_PHYSICAL_REDUCTION_CAP_PCT = 90;
-const WARCRY_PHYSICAL_REDUCTION_CAP_BONUS_PCT = 3;
-const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
-const COMBAT_PROJECTILE_MS_PER_CELL = 55;
-const BOSS_ATTACK_IMPACT_DELAY_MS = 500;
-/** The first floors' bosses of a floor ladder by zone type, from floor 1 on: life and damage eased so the entry is no wall; floors past
- * the list are not eased. The sky tower's (2026-10-19, user: "지하계 1층만큼 버틸 수 있게 더 낮춰줘", then "2층부터 6층까지 층마다 피해
- * 0.15배씩 올려"): the T15 build at loop 15 clears floor 1 as the underworld's, 6 of 6 in ten minutes, five without a death, where the
- * underworld's damage 0.74 cleared 0 of 6; floor 2 then clears 3 of 6 (underworld floor 2: 4 of 6). */
-const ENTRY_BOSS_EASING = Object.freeze({
-    underworld: Object.freeze([Object.freeze({ hp: 0.81, damage: 0.74 })]),
-    skyTower: Object.freeze([
-        Object.freeze({ hp: 0.81, damage: 0.3 }), Object.freeze({ hp: 0.85, damage: 0.45 }), Object.freeze({ hp: 0.89, damage: 0.6 }),
-        Object.freeze({ hp: 0.92, damage: 0.75 }), Object.freeze({ hp: 0.96, damage: 0.9 })
-    ])
-});
-const UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER = 0.85;
-const UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER = 0.82;
-/** 판(위에서 보는 전장)의 심해 가디언 판이 시작하는 진행도: 막대 끝 바로 앞이라 다음 틱에 가디언이 선다(beginOceanRunRules).
- * 정확히 100이면 advanceMapProgress가 무리를 부르기 전에 돌아가 가디언이 서지 않는다. */
-const OCEAN_GUARDIAN_BOARD_START_PROGRESS = 99.9;
-let pendingSkillStageHits = [];
-let pendingEnemyCombatAttacks = [];
-const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
-const COMBAT_TACTIC_STALL_MS = 2000;
-const COMBAT_TACTIC_MAX_RETREATS = 2;
-/** 공격 후딜(getPlayerAttackRecoveryMs): 공격 간격에서 차지하는 몫, 게임 프레임 하나(걸음 시계, ms), 가장 긴 프레임 수. */
-const PLAYER_ATTACK_RECOVERY = Object.freeze({ share: 0.35, frameMs: 20, maxFrames: 20 });
-/** 사거리 안에 적이 있는데 걷는 동안 공격 게이지가 차는 빠르기(배수, getWalkingChargeScale). */
-const PLAYER_WALKING_CHARGE = 0.5;
-let combatTacticsRuntime = createCombatTacticsRuntime();
-let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
-let combatChannelResumeSkillName = '';
-let nextCombatChannelId = 1;
-let nextPlayerDamageTextGroupId = 1;
-let trialHazardRuntime = { nextAt: 0, active: null };
-let skillGemCombatRuntime = null;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 // Legacy runtime state that must follow the game snapshot during offline calculation.
 function captureCombatRuntime() {
     return { pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
@@ -65,6 +8,7 @@ function captureCombatRuntime() {
         combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime,
         mobilitySkill: mobilitySkill.capture(), wispSummons: wispSummons.capture() };
 }
+
 function restoreCombatRuntime(snapshot) {
     ({ pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
@@ -72,7 +16,6 @@ function restoreCombatRuntime(snapshot) {
     mobilitySkill.restore(snapshot.mobilitySkill);
     wispSummons.restore(snapshot.wispSummons);
 }
-safeExposeGlobals({ captureCombatRuntime, restoreCombatRuntime });
 
 function createCombatTacticsRuntime(now) {
     let timestamp = Number.isFinite(now) ? now : getCombatTime();
@@ -99,28 +42,10 @@ function resetCombatRuntimesForLoadedSave() {
     resetCombatChannelRuntime();
     resetBattleRuntimeVisuals();
 }
-function resetCombatChannelRuntime() {
-    cancelCombatChannelVisuals();
-    combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
-    combatChannelResumeSkillName = '';
-    pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
-    if (game) game.passiveChannelPath = null;
-}
 
 function hasPlayerChannelBreakingAilment() {
     let breakingTypes = new Set(['freeze', 'stun', 'root', 'immobilize']);
     return (game.playerAilments || []).some(ailment => ailment && ailment.time > 0 && breakingTypes.has(ailment.type));
-}
-
-function cancelCombatChannel(reason) {
-    if (!combatChannelRuntime.id) return false;
-    cancelCombatChannelVisuals();
-    pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
-    combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
-    combatChannelResumeSkillName = '';
-    game.passiveChannelPath = null;
-    if (reason) addBattleFx('statusText', { text: _t('집중 취소, {reason}', { reason }), color: '#d7b8ff', duration: 480 });
-    return true;
 }
 
 // Combat and animation have different clocks; mark cancellation without mixing their timestamps.
@@ -281,8 +206,6 @@ function getSummonEvadeChance(summon, enemy) {
     return Math.min(SUMMON_EVASION_CAP_PCT, getEvasionChancePct(rating, getCombatEnemyAccuracy(enemy)));
 }
 
-const evasionEntropyByDefender = new WeakMap();
-
 function resolveEntropyEvasion(defender, evadeChance, now) {
     let chance = Math.max(0, Math.min(90, Number(evadeChance) || 0));
     if (chance <= 0 || !defender || typeof defender !== 'object') return false;
@@ -350,7 +273,6 @@ function getPlayerHitTargetLabel(summary) {
     return count >= 2 ? _t('적 {count}마리', { count }) : (summary.targetName || '적');
 }
 
-const PLAYER_HIT_SCALE_LABELS = Object.freeze([['regen', '재생'], ['fireRes', '화저']]);
 /** Damage scales for the detailed hit line: the flat life bonus, then the regen and fire resistance multipliers the skill shows. */
 function getPlayerHitScaleText(pStats) {
     let scales = pStats.damageScales || {};
@@ -464,6 +386,7 @@ function getLeechCaps(pStats, target) {
         ratePct: ratePct
     };
 }
+
 function getActiveLeechInstances() {
     game.playerLeechInstances = Array.isArray(game.playerLeechInstances) ? game.playerLeechInstances : [];
     game.playerLeechInstances = game.playerLeechInstances
@@ -475,9 +398,11 @@ function getActiveLeechInstances() {
         .filter(inst => inst.remaining > 0 && inst.rate > 0);
     return game.playerLeechInstances;
 }
+
 function getLeechOutstandingTotal() {
     return getActiveLeechInstances().reduce((sum, inst) => sum + Math.max(0, inst.remaining || 0), 0);
 }
+
 function addPlayerLeechInstance(rawAmount, pStats, target) {
     let amount = Math.max(0, Number(rawAmount) || 0);
     if (amount <= 0) return 0;
@@ -496,6 +421,7 @@ function addPlayerLeechInstance(rawAmount, pStats, target) {
     game.playerLeechInstances = instances;
     return stored;
 }
+
 function applyInstantPlayerLeech(rawAmount, pStats, target) {
     let leechTarget = target === 'energyShield' ? 'energyShield' : 'life';
     let instantAmount = Math.max(0, Number(rawAmount) || 0);
@@ -516,6 +442,7 @@ function applyInstantPlayerLeech(rawAmount, pStats, target) {
     let recovered = Math.max(0, game.playerHp - before);
     return recovered;
 }
+
 function tickPlayerLeech(pStats, dt) {
     let instances = getActiveLeechInstances();
     if (instances.length === 0 || dt <= 0) return 0;
@@ -556,6 +483,7 @@ function getActiveRecoupInstances() {
         .filter(inst => inst.remaining > 0 && inst.rate > 0);
     return game.playerRecoupInstances;
 }
+
 function addPlayerRecoupInstance(rawAmount, durationSec) {
     let amount = Math.max(0, Number(rawAmount) || 0);
     let duration = Math.max(0.5, Number(durationSec) || 4);
@@ -565,6 +493,7 @@ function addPlayerRecoupInstance(rawAmount, durationSec) {
     game.playerRecoupInstances = instances;
     return amount;
 }
+
 function tickPlayerRecoup(pStats, dt) {
     let instances = getActiveRecoupInstances();
     if (instances.length === 0 || dt <= 0) return 0;
@@ -650,8 +579,6 @@ function getAscendKeystoneOwnerClass(id) {
     return ascendKeystoneOwnerIndex.byId.get(id) || null;
 }
 
-let ascendKeystoneOwnerIndex = null;
-
 function buildAscendKeystoneOwnerIndex(defs) {
     const byId = new Map();
     Object.keys(defs).forEach(classKey => (defs[classKey] || []).forEach(node => { if (node && node.id && !byId.has(node.id)) byId.set(node.id, classKey); }));
@@ -664,11 +591,6 @@ function hasKeystone(id, owner = game) {
     if (!Array.isArray(owner.ascendKeystones) || !owner.ascendKeystones.includes(id)) return false;
     return getAscendKeystoneOwnerClass(id) === owner.ascendClass;
 }
-
-const WARRIOR_RAGE_STACK_MAX = 5;
-const WARRIOR_RAGE_STACK_DAMAGE_PCT = 6; // ASCENDANCY_KEYSTONE_VALUES.w5
-const WARRIOR_RAGE_DURATION_MS = 5000;
-const ELEMENTALIST_OVERLOAD_STACK_MAX = 20;
 
 function getElementalistOverloadStacks() {
     return Math.max(0, Math.min(ELEMENTALIST_OVERLOAD_STACK_MAX,
@@ -905,12 +827,6 @@ function rollWildTalismanDrop(enemy, chance) {
     announceWildTalisman(drop);
 }
 
-/** A stored wild talisman (or its overflow shard) marks the stump box; the stump box view writes the notice. */
-function announceWildTalisman(drop) {
-    if (game.noti) game.noti.stump = true;
-    dispatchRuntimeEvent('stump-box-changed', { ripened: [], drop: drop.item || null, overflow: drop.currency || null });
-}
-
 /** Expires talisman curses every combat tick (and in grand breach runs). Rows from the removed condition gems carry no delta and go too. */
 function expireConditionEffects(now) {
     let map = game.enemyConditionDebuffs || {};
@@ -986,7 +902,6 @@ function getEnemyConditionDebuffFactor(enemy, pStats) {
     return fx;
 }
 
-
 function getKeystoneEnemyTakenMultiplier(enemy, hitElement) {
     if (!enemy) return 1;
     let now = getCombatTime();
@@ -1030,7 +945,6 @@ function applyConditionPhysicalReductionEffects(pStats, conditionEffects) {
     return cap;
 }
 
-
 function snapshotWoodsmanBuildState() {
     return JSON.parse(JSON.stringify({
         passives: game.passives || [],
@@ -1068,15 +982,6 @@ function keepEarnedWoodsmanPoints(snap) {
     }
 }
 
-/** The build fields the lock holds: [field, default]. The support lock state (sealed and summon gems) is read through lockState below. */
-const WOODSMAN_LOCKED_FIELDS = Object.freeze([
-    ['passives', []], ['passiveAttributeChoices', {}], ['ascendNodes', []], ['ascendKeystones', []], ['equipment', {}], ['inventory', []],
-    ['skills', []], ['supports', []], ['equippedSupports', []], ['supportGemData', {}], ['playerLeechInstances', []],
-    ['playerRecoupInstances', []], ['gemData', {}], ['jewelInventory', []]
-]);
-const WOODSMAN_LOCKED_POINTS = Object.freeze(['passivePoints', 'seasonPoints', 'ascendPoints', 'ascendKeystonePoints', 'scour']);
-/** The snapshot's fields as JSON, built once per snapshot object (the lock runs every tick). */
-const woodsmanSnapshotPrints = new WeakMap();
 function woodsmanSnapshotPrint(snap) {
     let prints = woodsmanSnapshotPrints.get(snap);
     if (prints) return prints;
@@ -1087,6 +992,7 @@ function woodsmanSnapshotPrint(snap) {
     woodsmanSnapshotPrints.set(snap, prints);
     return prints;
 }
+
 /** Every tick of the fight: a field that drifted from the entry snapshot goes back to it. Only the drifted field is copied back
  * (2026-10-26: the whole build was deep-cloned into game ten times a second, so during the fight the bag, gear and gems were fresh
  * objects every tick, the per-object stat memos never hit, and a big bag made a few hundred KB of garbage per tick). */
@@ -1118,6 +1024,7 @@ function clearWoodsmanBuildLock() {
     game.woodsmanBuildLock = false;
     game.woodsmanBuildSnapshot = null;
 }
+
 /** The woodsman fight lives in 혼돈 밖: in it the entry build is held each tick. A hero who left (town, a hunting zone, the deep sea)
  * ended the fight, so the lock lifts as a reload lifts it (save-migrations); held there, loot picked up would vanish each tick. */
 function holdWoodsmanBuildLock(say) {
@@ -1125,68 +1032,13 @@ function holdWoodsmanBuildLock(say) {
     clearWoodsmanBuildLock();
     say('☠️ 혼돈 밖을 떠나 나무꾼 전투를 중단했습니다. 세팅 잠금이 해제되었습니다.', 'season-up');
 }
-/** Colony attempt controls live with combat. Wards and their reward rolls stay in colonyWards. */
-window.GameModules.colonyRun = (() => {
-    const nextBossWave = colony => Math.ceil(Math.max(1, colony.wave) / 5) * 5;
-    const returnWave = colony => colony.lootPending ? Math.max(5, colony.wave - 1) : nextBossWave(colony);
-    function uncollected() {
-        const run = getColonyRoomRun();
-        return { held: game.colony.pendingLoot.length, floor: run ? run.groundLoot.length : 0 };
-    }
-    function toggleReturn() {
-        const colony = game.colony;
-        if (!colony.inRun || game.currentZoneId !== 'colony_run') return false;
-        colony.returnAfterWave = colony.returnAfterWave ? 0 : returnWave(colony);
-        queueImportantSave(200);
-        return true;
-    }
-    /** End receipts record completed waves and only the unreleased loot that is actually forfeited. */
-    function recordEnd(kind) {
-        const colony = game.colony;
-        if (!colony.inRun || !['withdraw', 'scheduled', 'left', 'core', 'defeat'].includes(kind)) return null;
-        colony.lastResult = { kind, wave: colony.wave, completed: Math.max(0, colony.wave - 1), lostHeld: colony.pendingLoot.length };
-        colony.returnAfterWave = 0;
-        return colony.lastResult;
-    }
-    /** The log line for a colony run's end: leaving by travel is not a withdrawal. */
-    function endLine(kind, result) {
-        if (kind === 'left') return '🪲 군락지를 떠났습니다.';
-        return result.completed ? _t('🪲 군락지 {completed}웨이브를 마치고 철수했습니다.', { completed: result.completed }) : '🪲 군락지에서 철수했습니다.';
-    }
-    function finish(kind = 'withdraw', move = true, say = addLog) {
-        const colony = game.colony;
-        if (move && game.currentZoneId !== 'colony_run') return false;
-        const result = recordEnd(kind);
-        if (!result) return false;
-        const returnZone = colony.returnZoneId ?? getAutoProgressZoneId(game.maxZoneId);
-        // Won floor loot is settled by this existing owner; the unreleased buffer is forfeited.
-        actExplorationState.groundLoot.discardEncounter(game, 'colony_run');
-        Object.assign(colony, { inRun: false, lootPending: false, bossLootCell: null, returnZoneId: null });
-        if (move) {
-            game.currentZoneId = returnZone;
-            game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0;
-            actExplorationProgress.depart(game);
-        }
-        say(endLine(kind, result), 'season-up');
-        pendingHeavyUiRefresh = true;
-        queueImportantSave(200);
-        return true;
-    }
-    function finishScheduled(run) {
-        const colony = game.colony;
-        if (!colony.inRun || !colony.returnAfterWave || colony.wave <= colony.returnAfterWave || colony.lootPending) return false;
-        const floor = run ? run.groundLoot.length : 0;
-        if (colony.pendingLoot.length || floor || countColonyWaveAlive()) return false;
-        return finish('scheduled');
-    }
-    return Object.freeze({ returnWave, uncollected, toggleReturn, recordEnd, finish, finishScheduled });
-})();
 
 /** A colony run goes on only in 군락지: a hero who left it (travel, a map, the deep sea) ended the run there, rewards kept, and the next
  * entry starts at wave 1. Unlike 철수 it moves nobody. */
 function endColonyRunLeftBehind(say) {
     window.GameModules.colonyRun.finish('left', false, say);
 }
+
 /** A grand breach run goes on only in its own zone: a hero who left it lost the run, as a defeat does (nobody moved). Left on, the
  * panel showed no entry for the next breach and auto entry (breach and meteor) waited for the loop to end. */
 function endGrandBreachLeftBehind(grand, say) {
@@ -1195,6 +1047,7 @@ function endGrandBreachLeftBehind(grand, say) {
     Object.assign(grand, { inRun: false, phase: lordDown ? 'done' : 'failed' });
     say(lordDown ? '🌌 대균열을 떠났습니다. 군주의 전리품은 받았습니다.' : '🌌 대균열을 떠나 도전이 실패로 끝났습니다.', 'season-up');
 }
+
 /** Runs that live in one zone, checked each tick: the woodsman fight (혼돈 밖), the colony (군락지) and the grand breach. */
 function holdZoneBoundRuns(say) {
     if (game.woodsmanBuildLock) holdWoodsmanBuildLock(say);
@@ -1203,12 +1056,12 @@ function holdZoneBoundRuns(say) {
     if (grand?.inRun && game.currentZoneId !== 'grand_breach_run') endGrandBreachLeftBehind(grand, say);
     holdWoodsmanEchoRun();
 }
+
 function holdWoodsmanEchoRun() {
     if (game.woodsmanEchoRun?.active && game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID) {
         Object.assign(game.woodsmanEchoRun, { active: false, timeLeft: 0, returnZoneId: null });
     }
 }
-
 
 function sanitizeCombatRuntimeState() {
     atlasRun.recoverClosedMap();
@@ -1231,7 +1084,6 @@ function sanitizeCombatRuntimeState() {
     }
     ensureCombatGridRuntime();
 }
-
 
 /** The five rooms repeat a readable threat order from data/bosses.js. */
 function tuneColonyWaveEnemy(enemy, visual, originalHp) {
@@ -1261,12 +1113,14 @@ function tuneColonyWaveEnemy(enemy, visual, originalHp) {
     }
     enemy.hp = enemy.maxHp;
 }
+
 function colonyWaveEliteCount(count, waveNumber, pattern) {
     if (waveNumber === 1) return 0;
     const boss = pattern === 'overlord';
     const escorts = boss || pattern === 'carapace' ? 2 : 1;
     return Math.min(Math.max(0, count - Number(boss)), escorts + Math.min(2, Math.floor((waveNumber - 1) / 10)));
 }
+
 /** Combat owns wave spawns; persisted in-progress waves keep their original required kill count. */
 function spawnColonyWave(){
     const c = game.colony || {}, zone = getZone('colony_run') || getZone(0);
@@ -1299,6 +1153,7 @@ function getColonyRoomRun() {
     const run=actExplorationState.current(game);
     return run && run.rooms && game.currentZoneId==='colony_run' ? run : null;
 }
+
 /** An arena's core is persistent across waves and restored from a saved defense run. */
 function ensureColonyDefenseCore(zone) {
     const colony=game.colony;
@@ -1310,6 +1165,7 @@ function ensureColonyDefenseCore(zone) {
     colony.coreMaxHp=Math.max(1000,Math.round((estimate?.ehp || 400)*2.5));
     colony.coreHp=colony.coreMaxHp;
 }
+
 /** Spawn a wave at the three entrances, clear of the hero, summons, other enemies, and the core. */
 function placeColonyDefenseWave(map,enemies,zone) {
     ensureColonyDefenseCore(zone);
@@ -1326,6 +1182,7 @@ function placeColonyDefenseWave(map,enemies,zone) {
     }
     game.enemies=enemies;
 }
+
 /** Existing saved chain maps keep their wave rooms; new defense arenas keep one map through every wave. */
 function placeColonyRoomWave(enemies) {
     let run=getColonyRoomRun();
@@ -1341,15 +1198,18 @@ function placeColonyRoomWave(enemies) {
     fillRoomPack(map,room,run.packs.find(pack=>pack.roomId===room.id),enemies);
     if(room.role==='boss')delete run.sealed;
 }
+
 /** 군락지에 살아 있는 적: 싸우는 것과, 방 단위 지도에서 다음 방에 서서 기다리는 것(관문이 닫힌 끝 방에 미리 선 자리지킴은 세지 않는다). */
 function countColonyWaveAlive() {
     const run=getColonyRoomRun(),fighting=game.enemies.length;
     if(run && actExplorationMap.forRun(run).colonyDefense)return fighting;
     return run ? fighting+run.packs.filter(pack=>pack.stage===null || !run.sealed).reduce((sum,pack)=>sum+pack.waiting.length,0) : fighting;
 }
+
 function colonyDefenseCoreLost(run) {
     return !!run && !!actExplorationMap.forRun(run).colonyDefense && game.colony.coreMaxHp>0 && game.colony.coreHp<=0;
 }
+
 /** 군락지의 한 틱: 살아 있는 적이 없으면 웨이브를 부른다. 방 단위 지도에서는 걸음도 여기서 돈다(군락지는 진행 막대가 멈춰 있어
  * advanceMapProgress를 거치지 않는다). 끝 방(지배체)을 비운 뒤에는 떨어진 것을 주울 때까지 다음 지도를 열지 않는다. */
 function tickColonyRun(pStats) {
@@ -1363,15 +1223,13 @@ function tickColonyRun(pStats) {
     if(!settling && !game.colony.lootPending && countColonyWaveAlive()===0)spawnColonyWave();
     if(getColonyRoomRun())actExplorationProgress.advance(pStats);
 }
-// The next wave waits for the overlord's floor. Auto-move walks to it; in 직접 이동 the floor is collected after this much combat
-// time (a hero left alone held the colony forever).
-const COLONY_MANUAL_LOOT_WAIT_MS=20000;
-const colonyLootWaits=new WeakMap(); // colony → combat ms its floor wait began (transient, never saved)
+
 function collectManualColonyFloorLate(run, colony) {
     if(actExplorationProgress.runMode(run)!=='manual')return;
     if(!colonyLootWaits.has(colony))colonyLootWaits.set(colony,getCombatTime());
     if(getCombatTime()-colonyLootWaits.get(colony)>=COLONY_MANUAL_LOOT_WAIT_MS)collectExplorationFloorLoot(actExplorationState.groundLoot.takeAll(run));
 }
+
 function finishColonyLootWait(run) {
     const colony=game.colony;
     if(!colony.lootPending)return;
@@ -1545,5 +1403,186 @@ function getTargetGemBonusSources(target, fallbackSources, resolvedStats, evalua
     }
     return sources;
 }
+
+exposeFileGlobals({ captureCombatRuntime, restoreCombatRuntime, createCombatTacticsRuntime, resetCombatTacticsRuntime, resetCombatRuntimesForLoadedSave, hasPlayerChannelBreakingAilment, cancelCombatChannelVisuals, updateCombatChannelRuntime, beginCombatChannel, getCombatChannelCycleMs, createContinuousChannelStages, consumeCombatChannelContinuation, getCombatChannelGate, getPlayerAttackRecoveryMs, isPlayerAttackRecovering, getWalkingChargeScale, getTacticalMoveAttackDelayMs, syncCombatTacticsEncounterRuntime, noteCombatTacticAttack, getAverageCriticalHitDamage, applyCritDamageSoftcap, getCritDamageSoftcapReduction, getArmorPhysicalReductionPct, getEvasionChancePct, getEnemyAccuracyForZone, getSummonEvadeChance, resolveEntropyEvasion, calculatePlayerAccuracy, getEnemyTotalEvadeChance, formatNumberKR, addEvasionCombatLog, notePlayerHitSummary, getPlayerHitCombatLog, explodeCorpse, applyLeechSoftcap, getPlayerHitLeechTarget, applyPlayerHitLeech, getLeechCaps, getLeechOutstandingTotal, addPlayerLeechInstance, applyInstantPlayerLeech, tickPlayerLeech, addPlayerRecoupInstance, tickPlayerRecoup, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, absorbDamageWithTalentStoneShield, floorIncomingDamage, getAscendKeystoneOwnerClass, hasKeystone, getElementalistOverloadStacks, recordElementalistOverloadAttack, getWarriorRageStacks, getWarriorRagePhysicalDamageMultiplier, grantWarriorRageOnHit, clearAscendKeystoneRuntimeState, collectSocketedJewels, getSocketedJewels, getMirroredRingJewels, recomputeCosmosTwinKeystones, getAliveEnemyByRuntimeKey, getCombatTalentCardLevel, getActiveTalentUniqueEffects, prepareTalentPlayerAttackContext, getTalentPlayerAttackDamageMultiplier, performTalentMoonReturn, updateTalentButcherHitMark, canApplyTalentExecuteThreshold, getPlayerHpCap, getPlayerRecoveryHpCap, getMossRecoveryOccupied, getPlayerEnergyShieldRecoveryCap, isDualWielding, rollWildTalismanDrop, expireConditionEffects, pruneEnemyRuntimeDebuffMaps, getConditionDebuffDelta, getEnemyConditionDebuffFactor, getKeystoneEnemyTakenMultiplier, applyConditionPhysicalReductionEffects, snapshotWoodsmanBuildState, enforceWoodsmanBuildLock, clearWoodsmanBuildLock, holdZoneBoundRuns, sanitizeCombatRuntimeState, spawnColonyWave, getColonyRoomRun, countColonyWaveAlive, tickColonyRun, failColonyDefense, getActiveSummonGemDefs, getSummonProfile, getSummonRuntimeCap, getSummonCapFromSum, getSummonCapMaximum, applyGrandlordGhostState, buildActiveSummonRuntimeDefs, getEquippedJewelGemLevelBonusSources, getTargetGemBonusSources });
+})();
+
+const LEECH_SOFTCAP_START = 1.2;
+const LEECH_SOFTCAP_MID = 2.5;
+const LEECH_SOFTCAP_MID_EFF = 0.6;
+const LEECH_SOFTCAP_HIGH_EFF = 0.3;
+const LEECH_BASE_INSTANCE_CAP_PCT = 20;
+const LEECH_BASE_TOTAL_CAP_PCT = 40;
+const LEECH_BASE_RATE_CAP_PCT = 4;
+const ARMOR_MITIGATION_SCALE = 24;
+const SKILL_DELAY_REDUCE_CAP = 50;   // 스킬 딜레이 감소(%)의 한도: 공격 간격이 절반 아래로 줄지 않는다
+const EVASION_ACCURACY_SCALE = 3.5;
+const EVASION_ENTROPY_RESET_MS = 3330;
+const SUMMON_EVASION_CAP_PCT = 85;
+const SUMMON_EVASION_POST_20_STEP_MULTIPLIER = 4;
+const SUMMON_EFFICIENCY_EVASION_RATIO = 0.5;
+const PLAYER_ACCURACY_BASE = 80;
+const PLAYER_ACCURACY_PER_LEVEL = 3;
+const PLAYER_ACCURACY_PER_DEXTERITY = 5;
+const MIN_PENETRATED_RESISTANCE = -200;
+const CRIT_DAMAGE_BASE_MULTIPLIER = 125;
+const PLAYER_PHYSICAL_REDUCTION_CAP_PCT = 75;
+const CONDITION_GUARD_PHYSICAL_REDUCTION_CAP_PCT = 90;
+const WARCRY_PHYSICAL_REDUCTION_CAP_BONUS_PCT = 3;
+const COMBAT_PROJECTILE_MIN_TRAVEL_MS = 120;
+const COMBAT_PROJECTILE_MS_PER_CELL = 55;
+const BOSS_ATTACK_IMPACT_DELAY_MS = 500;
+/** The first floors' bosses of a floor ladder by zone type, from floor 1 on: life and damage eased so the entry is no wall; floors past
+ * the list are not eased. The sky tower's (2026-10-19, user: "지하계 1층만큼 버틸 수 있게 더 낮춰줘", then "2층부터 6층까지 층마다 피해
+ * 0.15배씩 올려"): the T15 build at loop 15 clears floor 1 as the underworld's, 6 of 6 in ten minutes, five without a death, where the
+ * underworld's damage 0.74 cleared 0 of 6; floor 2 then clears 3 of 6 (underworld floor 2: 4 of 6). */
+const ENTRY_BOSS_EASING = Object.freeze({
+    underworld: Object.freeze([Object.freeze({ hp: 0.81, damage: 0.74 })]),
+    skyTower: Object.freeze([
+        Object.freeze({ hp: 0.81, damage: 0.3 }), Object.freeze({ hp: 0.85, damage: 0.45 }), Object.freeze({ hp: 0.89, damage: 0.6 }),
+        Object.freeze({ hp: 0.92, damage: 0.75 }), Object.freeze({ hp: 0.96, damage: 0.9 })
+    ])
+});
+const UNDERWORLD_ENTRY_BENCHMARK_HP_MULTIPLIER = 0.85;
+const UNDERWORLD_ENTRY_BENCHMARK_DAMAGE_MULTIPLIER = 0.82;
+/** 판(위에서 보는 전장)의 심해 가디언 판이 시작하는 진행도: 막대 끝 바로 앞이라 다음 틱에 가디언이 선다(beginOceanRunRules).
+ * 정확히 100이면 advanceMapProgress가 무리를 부르기 전에 돌아가 가디언이 서지 않는다. */
+const OCEAN_GUARDIAN_BOARD_START_PROGRESS = 99.9;
+let pendingSkillStageHits = [];
+let pendingEnemyCombatAttacks = [];
+const COMBAT_TACTIC_TARGET_LOCK_MS = 750;
+const COMBAT_TACTIC_STALL_MS = 2000;
+const COMBAT_TACTIC_MAX_RETREATS = 2;
+/** 공격 후딜(getPlayerAttackRecoveryMs): 공격 간격에서 차지하는 몫, 게임 프레임 하나(걸음 시계, ms), 가장 긴 프레임 수. */
+const PLAYER_ATTACK_RECOVERY = Object.freeze({ share: 0.35, frameMs: 20, maxFrames: 20 });
+/** 사거리 안에 적이 있는데 걷는 동안 공격 게이지가 차는 빠르기(배수, getWalkingChargeScale). */
+const PLAYER_WALKING_CHARGE = 0.5;
+let combatTacticsRuntime = createCombatTacticsRuntime();
+let combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+let combatChannelResumeSkillName = '';
+let nextCombatChannelId = 1;
+let nextPlayerDamageTextGroupId = 1;
+let trialHazardRuntime = { nextAt: 0, active: null };
+let skillGemCombatRuntime = null;
+
+safeExposeGlobals({ captureCombatRuntime, restoreCombatRuntime });
+
+
+function resetCombatChannelRuntime() {
+    cancelCombatChannelVisuals();
+    combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    combatChannelResumeSkillName = '';
+    pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
+    if (game) game.passiveChannelPath = null;
+}
+
+
+function cancelCombatChannel(reason) {
+    if (!combatChannelRuntime.id) return false;
+    cancelCombatChannelVisuals();
+    pendingSkillStageHits = pendingSkillStageHits.filter(row => !row || !row.channelId);
+    combatChannelRuntime = { id: 0, skillName: '', endAt: 0 };
+    combatChannelResumeSkillName = '';
+    game.passiveChannelPath = null;
+    if (reason) addBattleFx('statusText', { text: _t('집중 취소, {reason}', { reason }), color: '#d7b8ff', duration: 480 });
+    return true;
+}
+
+
+const evasionEntropyByDefender = new WeakMap();
+
+
+const PLAYER_HIT_SCALE_LABELS = Object.freeze([['regen', '재생'], ['fireRes', '화저']]);
+
+
+let ascendKeystoneOwnerIndex = null;
+
+
+const WARRIOR_RAGE_STACK_MAX = 5;
+const WARRIOR_RAGE_STACK_DAMAGE_PCT = 6; // ASCENDANCY_KEYSTONE_VALUES.w5
+const WARRIOR_RAGE_DURATION_MS = 5000;
+const ELEMENTALIST_OVERLOAD_STACK_MAX = 20;
+
+
+/** A stored wild talisman (or its overflow shard) marks the stump box; the stump box view writes the notice. */
+function announceWildTalisman(drop) {
+    if (game.noti) game.noti.stump = true;
+    dispatchRuntimeEvent('stump-box-changed', { ripened: [], drop: drop.item || null, overflow: drop.currency || null });
+}
+
+
+/** The build fields the lock holds: [field, default]. The support lock state (sealed and summon gems) is read through lockState below. */
+const WOODSMAN_LOCKED_FIELDS = Object.freeze([
+    ['passives', []], ['passiveAttributeChoices', {}], ['ascendNodes', []], ['ascendKeystones', []], ['equipment', {}], ['inventory', []],
+    ['skills', []], ['supports', []], ['equippedSupports', []], ['supportGemData', {}], ['playerLeechInstances', []],
+    ['playerRecoupInstances', []], ['gemData', {}], ['jewelInventory', []]
+]);
+const WOODSMAN_LOCKED_POINTS = Object.freeze(['passivePoints', 'seasonPoints', 'ascendPoints', 'ascendKeystonePoints', 'scour']);
+/** The snapshot's fields as JSON, built once per snapshot object (the lock runs every tick). */
+const woodsmanSnapshotPrints = new WeakMap();
+
+/** Colony attempt controls live with combat. Wards and their reward rolls stay in colonyWards. */
+window.GameModules.colonyRun = (() => {
+    const nextBossWave = colony => Math.ceil(Math.max(1, colony.wave) / 5) * 5;
+    const returnWave = colony => colony.lootPending ? Math.max(5, colony.wave - 1) : nextBossWave(colony);
+    function uncollected() {
+        const run = getColonyRoomRun();
+        return { held: game.colony.pendingLoot.length, floor: run ? run.groundLoot.length : 0 };
+    }
+    function toggleReturn() {
+        const colony = game.colony;
+        if (!colony.inRun || game.currentZoneId !== 'colony_run') return false;
+        colony.returnAfterWave = colony.returnAfterWave ? 0 : returnWave(colony);
+        queueImportantSave(200);
+        return true;
+    }
+    /** End receipts record completed waves and only the unreleased loot that is actually forfeited. */
+    function recordEnd(kind) {
+        const colony = game.colony;
+        if (!colony.inRun || !['withdraw', 'scheduled', 'left', 'core', 'defeat'].includes(kind)) return null;
+        colony.lastResult = { kind, wave: colony.wave, completed: Math.max(0, colony.wave - 1), lostHeld: colony.pendingLoot.length };
+        colony.returnAfterWave = 0;
+        return colony.lastResult;
+    }
+    /** The log line for a colony run's end: leaving by travel is not a withdrawal. */
+    function endLine(kind, result) {
+        if (kind === 'left') return '🪲 군락지를 떠났습니다.';
+        return result.completed ? _t('🪲 군락지 {completed}웨이브를 마치고 철수했습니다.', { completed: result.completed }) : '🪲 군락지에서 철수했습니다.';
+    }
+    function finish(kind = 'withdraw', move = true, say = addLog) {
+        const colony = game.colony;
+        if (move && game.currentZoneId !== 'colony_run') return false;
+        const result = recordEnd(kind);
+        if (!result) return false;
+        const returnZone = colony.returnZoneId ?? getAutoProgressZoneId(game.maxZoneId);
+        // Won floor loot is settled by this existing owner; the unreleased buffer is forfeited.
+        actExplorationState.groundLoot.discardEncounter(game, 'colony_run');
+        Object.assign(colony, { inRun: false, lootPending: false, bossLootCell: null, returnZoneId: null });
+        if (move) {
+            game.currentZoneId = returnZone;
+            game.enemies = []; game.encounterPlan = []; game.encounterIndex = 0; game.runProgress = 0;
+            actExplorationProgress.depart(game);
+        }
+        say(endLine(kind, result), 'season-up');
+        pendingHeavyUiRefresh = true;
+        queueImportantSave(200);
+        return true;
+    }
+    function finishScheduled(run) {
+        const colony = game.colony;
+        if (!colony.inRun || !colony.returnAfterWave || colony.wave <= colony.returnAfterWave || colony.lootPending) return false;
+        const floor = run ? run.groundLoot.length : 0;
+        if (colony.pendingLoot.length || floor || countColonyWaveAlive()) return false;
+        return finish('scheduled');
+    }
+    return Object.freeze({ returnWave, uncollected, toggleReturn, recordEnd, finish, finishScheduled });
+})();
+
+
+// The next wave waits for the overlord's floor. Auto-move walks to it; in 직접 이동 the floor is collected after this much combat
+// time (a hero left alone held the colony forever).
+const COLONY_MANUAL_LOOT_WAIT_MS=20000;
+const colonyLootWaits=new WeakMap(); // colony → combat ms its floor wait began (transient, never saved)
+
 
 safeExposeGlobals({ getSummonCapMaximum, getTacticalMoveAttackDelayMs, resetCombatTacticsRuntime, resetCombatChannelRuntime, updateCombatChannelRuntime, cancelCombatChannel, tickPlayerLeech, addPlayerLeechInstance, applyInstantPlayerLeech, getLeechCaps, getLeechOutstandingTotal, refreshRealmDeathWard, absorbDamageWithRealmDeathWard, getAscendKeystoneOwnerClass, hasKeystone, getWarriorRageStacks, clearAscendKeystoneRuntimeState });

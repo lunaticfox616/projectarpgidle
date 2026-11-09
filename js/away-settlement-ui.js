@@ -2,9 +2,8 @@
 // (recordBackgroundCombatEntry, recordOfflineCombatEntry), 되돌려 싸우기와 반영(startBackgroundCombatReturn, commitBackgroundCombat),
 // 진행 화면과 결과 창. 화면 앞의 게임이 멈추는 조건(isForegroundGameplayPausedForBackground)도 여기 있다. 전투 재생 자체는
 // js/combat-replay.js. js/ui.js 바로 뒤에 읽는다.
-
-const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getBackgroundProgressResultLimits(state) {
     let config = getOfflineProgressConfig(state || game);
     return { ...config, effectiveLimitMs: Math.max(0, Number(config.effectiveLimitMs) || 0) };
@@ -40,6 +39,7 @@ function isForegroundGameplayPausedForBackground() {
     // 안내 카드뿐 아니라 따라 하기의 대상 화면이 열려 있는 동안도(검토 7차) — isTutorialPausingCombat이 함께 본다.
     return !!(isTutorialPausingCombat() || isPauseSettingOverlayOpenNow());
 }
+
 /** 주인공이 장면 앞에 서 있는 동안: 입구 방의 인사(js/canvas-act-title-card.js greeting, 이야기 팝업처럼 서서 듣는다: 2026-10-15 사용자
  * "처음에 바로 막 진행하는데")와 고스트 대결의 방(js/ghost-duel-stage-ui.js, 전장이 덮여 있다). */
 function isHeroHeldByScene() {
@@ -47,10 +47,6 @@ function isHeroHeldByScene() {
     return typeof ghostDuelStage === 'object' && ghostDuelStage.playing();
 }
 
-
-/** 일시정지를 거는 창이 열려 있는지(isPauseSettingOverlayOpen)를 16ms 동안 한 번만 찾는다. 주 루프, 탐험 걸음, 전장 그림이 한 프레임에
- * 여러 번 묻는다. 창은 입력으로 열리고 닫히므로 다음 프레임이 바뀐 상태를 본다. */
-const pauseOverlayMemo = { at: -Infinity, open: false };
 function isPauseSettingOverlayOpenNow() {
     const now = performance.now();
     if (now - pauseOverlayMemo.at >= 16 || now < pauseOverlayMemo.at) Object.assign(pauseOverlayMemo, { at: now, open: isPauseSettingOverlayOpen() });
@@ -226,7 +222,6 @@ function renderBackgroundSpeedControls(finish) {
     const stop = document.getElementById('background-combat-finish-button');
     if (stop) stop.disabled = finish;
 }
-
 
 function updateBackgroundProgressOverlay(doneMs, totalMs, actualElapsedMs, skippedMs = 0, phase) {
     let overlay = getBackgroundProgressOverlay();
@@ -405,9 +400,6 @@ function renderBackgroundResultNotes(result, summary, limits) {
     return notes.length ? `<ul class="background-result-notes">${notes.map(([tone, text]) => `<li class="${tone}">${text}</li>`).join('')}</ul>` : '';
 }
 
-/** 레벨이 지역보다 높아 경험치가 크게 줄었으면 그 까닭(주황 알림): 레벨 차이가 클수록 줄어, 한참 높으면 처치당 0이 된다
- * (검토 7차 "+0", 8차 "+1" — 합계가 딱 0일 때만 붙였다). 절반 밑으로 줄었을 때 적는다. */
-const BACKGROUND_EXP_NOTE_BELOW = 0.5;
 function backgroundNoExpReason(summary) {
     if (!((Number(summary.kills) || 0) > 0)) return '';
     const zone = getZone(game.currentZoneId);
@@ -432,7 +424,6 @@ function shouldApplyBackgroundCombatResult(signature) {
     return !(game.pendingLoopDecision || game.pendingLoopReady);
 }
 
-
 function restoreBattlefieldBeforeBackgroundReplay(refreshUi = true) {
     if (typeof syncBattleTabLayout === 'function') syncBattleTabLayout(false);
     if (typeof scheduleStableResize === 'function') scheduleStableResize();
@@ -440,7 +431,6 @@ function restoreBattlefieldBeforeBackgroundReplay(refreshUi = true) {
     if (refreshUi && typeof updateStaticUI === 'function') updateStaticUI();
     if (typeof renderBattlefield === 'function') renderBattlefield(true);
 }
-
 
 function commitBackgroundCombat(result, expectedGame) {
     if (game !== expectedGame) throw new Error('정산 중 저장 계정 또는 게임 상태가 변경되었습니다.');
@@ -465,8 +455,6 @@ function commitBackgroundCombat(result, expectedGame) {
     }
     if (document.hidden || backgroundCombatRuntime.appInactive) recordBackgroundCombatEntry(Date.now());
 }
-
-const backgroundReturnWaits = () => backgroundCombatRuntime.processing || backgroundCombatRuntime.appInactive || document.hidden;
 
 /** Settles the time away from backgroundCombatRuntime.hiddenAtMs to nowMs. While the page is hidden or the app paused it waits: the
  * span and snapshot stay, and the visible return (js/main.js visibilitychange, js/android-app-ui.js resume) settles the whole time. */
@@ -549,5 +537,24 @@ function handleBackgroundVisibilityChange() {
     if (document.hidden) recordBackgroundCombatEntry(Date.now());
     else startBackgroundCombatReturn(Date.now());
 }
+
+exposeFileGlobals({ calculateBackgroundProgressMs, getBackgroundCombatSignature, isForegroundGameplayPausedForBackground, recordBackgroundCombatEntry, getBackgroundAtlasGains, requestFasterBackgroundCombat, shouldApplyBackgroundCombatResult, commitBackgroundCombat, startBackgroundCombatReturn, startOfflineCombatReturn, handleBackgroundVisibilityChange });
+})();
+
+const BACKGROUND_PROGRESS_MIN_REAL_MS = 60 * 1000;
+
+
+/** 일시정지를 거는 창이 열려 있는지(isPauseSettingOverlayOpen)를 16ms 동안 한 번만 찾는다. 주 루프, 탐험 걸음, 전장 그림이 한 프레임에
+ * 여러 번 묻는다. 창은 입력으로 열리고 닫히므로 다음 프레임이 바뀐 상태를 본다. */
+const pauseOverlayMemo = { at: -Infinity, open: false };
+
+
+/** 레벨이 지역보다 높아 경험치가 크게 줄었으면 그 까닭(주황 알림): 레벨 차이가 클수록 줄어, 한참 높으면 처치당 0이 된다
+ * (검토 7차 "+0", 8차 "+1" — 합계가 딱 0일 때만 붙였다). 절반 밑으로 줄었을 때 적는다. */
+const BACKGROUND_EXP_NOTE_BELOW = 0.5;
+
+
+const backgroundReturnWaits = () => backgroundCombatRuntime.processing || backgroundCombatRuntime.appInactive || document.hidden;
+
 
 safeExposeGlobals({ requestFasterBackgroundCombat });

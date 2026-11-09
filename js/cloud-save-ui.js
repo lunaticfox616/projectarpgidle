@@ -1,7 +1,8 @@
 // 계정과 서버 저장(2026-11-10에 js/ui.js에서 그대로 옮겼다): 로그인과 세션 갱신, 서버 호출(cloudJsonRequest), 시작 화면에서 게임으로 들어가는
 // 길(enterGameWorld), 계정 저장 칸과 서버 저장 맞추기(enterAccountSave), 올리기와 받기, 종료할 때의 올리기. 시작 화면 그리기와 패치 노트는
 // js/ui.js에 남았다. js/ui.js 바로 뒤에 읽는다.
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getCloudConfig() {
     let raw = window.CLOUD_SAVE_CONFIG || {};
     let supabaseUrl = String(raw.supabaseUrl || '').trim().replace(/\/+$/, '');
@@ -11,11 +12,6 @@ function getCloudConfig() {
     if (typeof stageView === 'object' && stageView.trial()) enabled = false;
     return { enabled, supabaseUrl, supabaseAnonKey };
 }
-
-const CLOUD_TOKEN_REFRESH_LEEWAY_MS = 5 * 60 * 1000;
-const CLOUD_TOKEN_EXPIRY_WARNING_MS = 10 * 60 * 1000;
-
-const CLOUD_SKIP_OAUTH_RESTORE_KEY = 'projectidle_cloud_skip_oauth_restore';
 
 function markSkipOAuthRestoreOnce() {
     try { localStorage.setItem(CLOUD_SKIP_OAUTH_RESTORE_KEY, '1'); } catch (error) { console.warn('failed to mark OAuth restore skip:', error); }
@@ -40,8 +36,6 @@ async function clearSupabasePersistedSession() {
         console.warn('supabase local signout failed:', error);
     }
 }
-
-let supabaseClient = null;
 
 /** supabase-js가 세션을 두는 localStorage 열쇠(라이브러리 기본값: 프로젝트 참조 이름). */
 function supabaseSessionStorageKey(config) {
@@ -112,7 +106,6 @@ function getSocialOAuthOptions(provider) {
     return options;
 }
 
-
 function sanitizeKakaoScopeInUrl(rawUrl) {
     if (!rawUrl) return rawUrl;
     try {
@@ -166,11 +159,6 @@ function recoverBusyStateAfterOAuthBack() {
     setCloudMessage(_t('인증이 취소되었습니다. 다시 시도해주세요.'));
     updateCloudSaveUI();
 }
-
-window.addEventListener('pageshow', function(event) { recoverBusyStateAfterOAuthBack(event); startBackgroundCombatReturn(Date.now()); });
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) recoverBusyStateAfterOAuthBack();
-});
 
 /** supabase-js가 스스로 갱신했으면(getSession이 만료된 저장 토큰을 갱신할 때) 게임 세션도 그 토큰으로 맞춘다: 둘이 같은 refresh_token을 따로 갱신하다 늦은 쪽이
  * 거절되는 일을 줄인다(2026-10-27). 거절된 뒤의 이어받기는 refreshCloudSession이 따로 한다. 한 클라이언트에 한 번만 건다. */
@@ -388,9 +376,11 @@ async function readSupabaseClientSession() {
 function isCurrentCloudSession(owner, epoch) {
     return cloudState.session === owner && cloudState.sessionEpoch === epoch;
 }
+
 function hasNewerCloudSession(owner, epoch) {
     return cloudState.sessionEpoch === epoch && getActiveCloudUserId() === owner.user?.id && hasUsableCloudSessionToken();
 }
+
 async function recoverCloudSessionRefresh(owner, error) {
     if (cloudState.session !== owner) return undefined;
     console.warn('cloud token refresh failed:', error);
@@ -504,12 +494,6 @@ async function cloudJsonRequest(path, options = {}) {
     }
     return data;
 }
-
-// 서버 오류 코드 중 플레이어가 알아야 할 것은 문구로 바꾼다(db/operations-and-ghost.sql의 commit_cloud_save, db/hall-watch-20261030.sql의 접속 표).
-const CLOUD_SERVER_ERROR_TEXT = Object.freeze({
-    SAVE_TOO_LARGE: '클라우드 저장이 너무 커서 서버가 받지 않았습니다(8MB). 가방과 보관함을 정리한 뒤 다시 저장해 주세요.',
-    CLOUD_SESSION_SUPERSEDED: '다른 기기에서 이 계정으로 접속해 이 화면의 요청을 서버가 받지 않았습니다.'
-});
 
 function describeCloudServerError(data, status) {
     const message = data && (data.msg || data.error_description || data.message || data.error);
@@ -694,7 +678,6 @@ function startupSignUp() {
     if (!requireLegalPolicyConsent()) return;
     cloudSignUp({ source: 'startup', enterGame: true });
 }
-
 
 async function refreshCloudLinkedIdentities() {
     let client = getSupabaseClient();
@@ -887,7 +870,6 @@ function renderCloudSlotStatus(canSync) {
     moveGuestBtn.disabled = !canSync;
 }
 
-
 function formatCloudUploadProfile(profile) {
     let normalized = normalizeCloudUploadProfile(profile);
     if (!normalized || normalized.totalMs <= 0) return '없음';
@@ -1031,9 +1013,6 @@ function rememberCloudRecord(record) {
     return record;
 }
 
-// 계정에 들어갈 때의 확인은 세이브에서 루프, 저장 시각만 읽는다. 그 값만 받고(세이브 전체는 수백 KB), 전체는 불러올 때만 받는다.
-const CLOUD_SAVE_SUMMARY_FIELDS = 'season:save_data->season,loopCount:save_data->loopCount,saveMeta:save_data->saveMeta';
-
 /** A summary row as a record whose save_data holds only season, loopCount and saveMeta. A full row passes through. */
 function cloudSummaryRecord(row) {
     if (!row || row.save_data !== undefined) return row;
@@ -1118,7 +1097,6 @@ async function readFullCloudSaveForPull() {
     return record;
 }
 
-const CLOUD_REVISION_CONFLICT_CODE = 'CLOUD_REVISION_CONFLICT';
 /** The server save moved past this device's copy (another device committed): nothing from here goes up until the account is entered again. */
 function cloudRevisionConflictError() {
     return Object.assign(new Error('다른 기기에서 서버 저장이 바뀌어 이 기기의 진행은 올리지 않았습니다. 시작 화면에서 계정 저장으로 다시 들어가면 서버 저장으로 이어집니다.'),
@@ -1204,11 +1182,11 @@ function checkCloudUploadOwner(owner, userId) {
 function captureCloudSaveContext() {
     return { owner: game, userId: getActiveCloudUserId(), slotKey: getSaveSlot().key, sessionEpoch: cloudState.sessionEpoch };
 }
+
 function assertCloudSaveContext(context) {
     checkCloudUploadOwner(context.owner, context.userId);
     if (getSaveSlot().key !== context.slotKey || cloudState.sessionEpoch !== context.sessionEpoch) throw new Error(_t('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.'));
 }
-safeExposeGlobals({ captureCloudSaveContext, assertCloudSaveContext });
 
 /** The server save replaces this device's copy of the account save (설정의 서버 저장 다시 받기). */
 async function pullCloudSave(options = {}) {
@@ -1463,12 +1441,11 @@ function forgetDeletedAccountSave(userId) {
     openStartupGate();
 }
 
-let cloudSyncTimer = null;
-let lastPageExitCloudPushAt = 0;
 /** The account slot holds changes the server does not have (js/save.js persistLocalSave sets it, rememberCloudCommit clears it). */
 function isCloudSaveDirty() {
     return getSaveSlot().kind === 'account' && !!(game && game.saveMeta && game.saveMeta.cloudPending);
 }
+
 /** Only clocks moved since the last upload: an upload would change nothing on the server. */
 function isCloudSaveUnchangedSinceUpload() {
     return !!cloudState.lastUploadedFingerprint && cloudSaveFingerprint(createCloudSyncPayload(game)) === cloudState.lastUploadedFingerprint; // 올린 본문과 같은 모양
@@ -1498,7 +1475,6 @@ function scheduleCloudAutoSync() {
         });
     }, 5000);
 }
-
 
 function schedulePendingForcedCloudSyncDrain() {
     if (cloudState.pendingForcedSyncRetryTimer) return;
@@ -1710,8 +1686,6 @@ async function resendSignupConfirmation() {
     }
 }
 
-safeExposeGlobals({ resendSignupConfirmation });
-
 async function cloudLogin(options = {}) {
     let config = getCloudConfig();
     if (!config.enabled) return setCloudMessage(_t('먼저 cloud-save-config.js를 설정해주세요.'));
@@ -1805,7 +1779,6 @@ function requestImmediateCloudSave(reason) {
     return true;
 }
 
-
 /** The page-exit commit answered: committed, the slot takes the revision; refused (another device committed), uploads halt until the
  * account is entered again. */
 function applyPageExitCloudSaveResult(text, exitSave, fingerprint) {
@@ -1864,16 +1837,13 @@ function sendPageExitCloudSave(request, reason, exitSave) {
     }));
 }
 
-/** A hidden page can come back before its leaving upload answers. Until it does, no second leaving upload goes out and the next sync
- * waits for the reply (it moves the revision): both sent from the same revision, the later one halted syncing on this device's own
- * upload (2026-11-07 리뷰). */
-const CLOUD_EXIT_UPLOAD_WAIT_MS = 15000;
 function trackPageExitUpload(upload) {
     const tracked = upload.finally(() => {
         if (cloudState.exitUpload === tracked) cloudState.exitUpload = null;
     });
     cloudState.exitUpload = tracked;
 }
+
 async function waitForPageExitUpload() {
     if (!cloudState.exitUpload) return;
     await Promise.race([cloudState.exitUpload, new Promise(resolve => setTimeout(resolve, CLOUD_EXIT_UPLOAD_WAIT_MS))]);
@@ -1936,3 +1906,51 @@ async function cloudPullNow() {
         updateCloudSaveUI();
     }
 }
+
+exposeFileGlobals({ getCloudConfig, getSupabaseClient, loginWithGoogle, loginWithKakao, loginWithOAuthProvider, recoverBusyStateAfterOAuthBack, watchSupabaseTokenRefresh, tryRestoreSupabaseOAuthSession, loadStoredCloudSession, cancelScheduledCloudSync, applyCloudSession, refreshCloudSession, ensureCloudSessionFresh, cloudRequestHeaders, cloudJsonRequest, setStartupRegistrationMode, enterGameWorld, continueWithCloudSession, prepareStartupAccountSwitch, returnFromStartupGate, startGuestMode, startupLogin, startupSignUp, refreshCloudLinkedIdentities, linkGoogleAccount, linkKakaoAccount, updateCloudSaveUI, getActiveCloudUserId, refreshRuntimeForLoadedSave, applyExternalSave, fetchCloudSaveSummary, getLocalCloudRevision, getSaveLoopNumber, commitCloudSavePayload, rememberCloudCommit, pushCloudSave, captureCloudSaveContext, assertCloudSaveContext, pullCloudSave, enterAccountSave, pullAccountSave, canMoveGuestSaveIntoAccount, moveGuestSaveIntoAccount, leaveAccountForGuest, forgetDeletedAccountSave, isCloudSaveDirty, isCloudSaveUnchangedSinceUpload, scheduleCloudAutoSync, syncCloudSave, noteAutoCloudSyncFailure, initializeCloudSave, resendSignupConfirmation, clearCloudSessionLocally, cloudLogout, requestImmediateCloudSave, applyPageExitCloudSaveResult, buildPageExitCloudRequest, trackPageExitUpload, pushCloudSaveOnPageExit, cloudPullNow });
+})();
+
+
+const CLOUD_TOKEN_REFRESH_LEEWAY_MS = 5 * 60 * 1000;
+const CLOUD_TOKEN_EXPIRY_WARNING_MS = 10 * 60 * 1000;
+
+const CLOUD_SKIP_OAUTH_RESTORE_KEY = 'projectidle_cloud_skip_oauth_restore';
+
+
+let supabaseClient = null;
+
+
+window.addEventListener('pageshow', function(event) { recoverBusyStateAfterOAuthBack(event); startBackgroundCombatReturn(Date.now()); });
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) recoverBusyStateAfterOAuthBack();
+});
+
+
+// 서버 오류 코드 중 플레이어가 알아야 할 것은 문구로 바꾼다(db/operations-and-ghost.sql의 commit_cloud_save, db/hall-watch-20261030.sql의 접속 표).
+const CLOUD_SERVER_ERROR_TEXT = Object.freeze({
+    SAVE_TOO_LARGE: '클라우드 저장이 너무 커서 서버가 받지 않았습니다(8MB). 가방과 보관함을 정리한 뒤 다시 저장해 주세요.',
+    CLOUD_SESSION_SUPERSEDED: '다른 기기에서 이 계정으로 접속해 이 화면의 요청을 서버가 받지 않았습니다.'
+});
+
+
+// 계정에 들어갈 때의 확인은 세이브에서 루프, 저장 시각만 읽는다. 그 값만 받고(세이브 전체는 수백 KB), 전체는 불러올 때만 받는다.
+const CLOUD_SAVE_SUMMARY_FIELDS = 'season:save_data->season,loopCount:save_data->loopCount,saveMeta:save_data->saveMeta';
+
+
+const CLOUD_REVISION_CONFLICT_CODE = 'CLOUD_REVISION_CONFLICT';
+
+
+safeExposeGlobals({ captureCloudSaveContext, assertCloudSaveContext });
+
+
+let cloudSyncTimer = null;
+let lastPageExitCloudPushAt = 0;
+
+
+safeExposeGlobals({ resendSignupConfirmation });
+
+
+/** A hidden page can come back before its leaving upload answers. Until it does, no second leaving upload goes out and the next sync
+ * waits for the reply (it moves the revision): both sent from the same revision, the later one halted syncing on this device's own
+ * upload (2026-11-07 리뷰). */
+const CLOUD_EXIT_UPLOAD_WAIT_MS = 15000;

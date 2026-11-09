@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /**
  * One connected fracture with four prominent rock wedges and low debris between them.
  * Ground damage still covers every attack cell; decorative rock bases stay inside that area.
@@ -45,3 +47,6 @@ function drawEarthSpikeField(ctx, footprint, time, images) {
     });
     ctx.restore();
 }
+
+exposeFileGlobals({ drawEarthSpikeField });
+})();

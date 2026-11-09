@@ -15,7 +15,8 @@
  * @property {number} size
  * @property {ReturnType<typeof projectSkillFootprint>} [footprint] Cast-time attack area projected into canvas pixels.
  */
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /**
  * Consume a real hit; never predict, schedule or apply another combat hit.
  * Mutates only the supplied render queue. The caller applies its shared budget.
@@ -83,5 +84,9 @@ function drawSwordSlashVfx(ctx, effect, image, t) {
     }
     ctx.restore();
 }
+
+exposeFileGlobals({ queueContinuousSlashVfx, drawSwordSlashVfx });
+})();
+
 
 safeExposeGlobals({ queueContinuousSlashVfx, drawSwordSlashVfx });

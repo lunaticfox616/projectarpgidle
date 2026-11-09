@@ -807,6 +807,15 @@ function safeExposeGlobals(map) {
 }
 window.safeExposeGlobals = window.safeExposeGlobals || safeExposeGlobals;
 
+/** A file's functions that something outside the file reaches by name: other files, inline handlers, checks. The file keeps its
+ * functions in one closure and names these at its end (scripts/privatize-functions.cjs, 2026-11-10; before, every top-level function
+ * was a global). They become plain globals, as the declarations were: an earlier value of the name is replaced without complaint
+ * (a placeholder made above, a browser function of the same name), and safeExposeGlobals may name the same function again later. */
+function exposeFileGlobals(map) {
+    Object.keys(map).forEach(function (key) { window[key] = map[key]; });
+}
+window.exposeFileGlobals = exposeFileGlobals;
+
 if (typeof window.getPlayerStats === "undefined") {
     window.getPlayerStats = function getPlayerStatsFallback() {
         return {

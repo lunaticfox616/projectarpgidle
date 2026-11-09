@@ -1,5 +1,6 @@
 // 소환수 능력치와 공격 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getSummonGemLevel(gemName, source, pStats, evaluation) {
     let isSupport = source === 'support';
     let records = isSupport ? (game.supportGemData || {}) : (game.gemData || {});
@@ -58,8 +59,6 @@ function getRepresentativeSummonAttackPower(summonStats, evaluation) {
     });
     return Math.max(0, best);
 }
-
-const SUMMON_REGEN_PCT_PER_SEC = 0.75;
 
 function getSummonMaxHp(profile, gemLevel, pStats) {
     let levelSteps = getSummonLevelGrowthSteps(profile, gemLevel);
@@ -234,6 +233,7 @@ function getSummonHitDamageInfo(s, pStats, target, options) {
     const converted = pStats.summonSupportEffects.conversion;
     return { damage: Math.max(0, Math.floor(hit.dmg)), ailmentSourceDamage: Math.max(0, Math.floor(hit.ailmentSourceDmg)), crit: hit.crit, critChance: hit.critChance, element: converted?.pct === 100 ? converted.element : ele, parts: hit.parts };
 }
+
 /** The hit before crits: base damage (keystone sb1 more), increases and efficiency, the summon's roll and keystone sb7's share of the
  * hero's attack power. */
 function getSummonBaseHit(s, pStats, options, expected) {
@@ -255,6 +255,7 @@ function getSummonBaseHit(s, pStats, options, expected) {
     }
     return hit;
 }
+
 /** Crit chance 5% to 95% and crit damage at least 120%: the summon's own plus the hero's summon crit stats. */
 function getSummonCritProfile(s, pStats) {
     pStats = window.GameModules.combat.summonSupports.localStats(s, pStats);
@@ -262,6 +263,7 @@ function getSummonCritProfile(s, pStats) {
     let critMul = Math.max(1.2, ((s.critDmg || 140) + (pStats.summonCritDmg || 0)) / 100);
     return { critChance, critMul };
 }
+
 function getSummonHitDamageMultiplier(s, pStats) {
     pStats = window.GameModules.combat.summonSupports.localStats(s, pStats);
     let sharedIncreasePct = getSummonSharedDamageIncreasePct(s, pStats);
@@ -273,6 +275,7 @@ function getSummonHitDamageMultiplier(s, pStats) {
     }
     return dmgMul * pStats.summonSupportEffects.damageMultiplier;
 }
+
 /** 소환수마다 다른 일격 편차(dmgRollMinPct~100%): 버스트형(화염 위습 등)은 편차가 크고 연사형(냉기 위습 등)은 작아, "최소 피해"가
  * 최대 피해 대비 지나치게 미미해지지 않게 한다. An estimate takes the middle; rollOverridePct fixes it. */
 function getSummonHitRollPct(s, options, expected) {
@@ -280,6 +283,7 @@ function getSummonHitRollPct(s, options, expected) {
     if (Number.isFinite(options && options.rollOverridePct)) return Math.max(1, Math.min(100, options.rollOverridePct));
     return expected ? ((rollMinPct + 100) / 2) : (rollMinPct + Math.random() * (100 - rollMinPct));
 }
+
 /** The crit: an estimate averages it; forceCrit decides it; else a roll. A unique can make a hit that does not crit deal nothing. */
 function applySummonHitCrit(hit, pStats, options, expected) {
     if (expected) {
@@ -296,11 +300,13 @@ function applySummonHitCrit(hit, pStats, options, expected) {
         hit.ailmentSourceDmg = 0;
     }
 }
+
 /** Scales both parts of the hit by mul and floors them (each step floors). */
 function scaleSummonHit(hit, mul) {
     hit.dmg = Math.floor(hit.dmg * mul);
     hit.ailmentSourceDmg = Math.floor(hit.ailmentSourceDmg * mul);
 }
+
 /** The target's side: the boss limit, talisman curses, its resistance after the hero's (limited) penetration, an entropy dodge, the
  * element it takes more of, keystone and abyss scales, the talisman boss bonus, then the summon's final limit. */
 function applySummonHitTargetScales(hit, ctx) {
@@ -318,6 +324,7 @@ function applySummonHitTargetScales(hit, ctx) {
     applySummonElementTaken(hit, ele, target, curseFx);
     applySummonLateScales(hit, ctx, curseFx);
 }
+
 /** 변이시간선의 피해 배율(js/loop-mutation.js takenMul). 면역이면 그 몬스터 위에 '면역'을 띄운다(몬스터마다 0.8초에 한 번). */
 function mutationHitScale(enemy, ele) {
     const mul = loopMutation.takenMul(enemy, ele), now = getCombatTime();
@@ -326,6 +333,7 @@ function mutationHitScale(enemy, ele) {
     addBattleFx('enemyEvade', { enemyId: enemy.id, text: _t('면역'), color: getElementColor(ele), duration: 260 });
     return mul;
 }
+
 /** An entropy dodge: the hit does nothing, with its dodge mark and log line. */
 function dodgeSummonHitByEntropy(hit, target) {
     if (!resolveEntropyEvasion(target, target.evasionChance || 0, getCombatTime())) return;
@@ -334,6 +342,7 @@ function dodgeSummonHitByEntropy(hit, target) {
     addBattleFx('enemyEvade', { enemyId: target.id, text: _t('회피!'), color: '#c4e2ff', duration: 260 });
     addEvasionCombatLog(target, false);
 }
+
 /** The curses' crit damage taken, the keystones' taken scale, the abyss scale, the talisman boss bonus and the summon's final limit. */
 function applySummonLateScales(hit, ctx, curseFx) {
     const { s, pStats, target, ele, zone } = ctx;
@@ -346,7 +355,7 @@ function applySummonLateScales(hit, ctx, curseFx) {
     }
     scaleSummonHit(hit, getLimitedSummonFinalDamageMultiplier(pStats, s));
 }
-const SUMMON_CURSE_SHRED_BY_ELEMENT = Object.freeze({ fire: 'resFShred', cold: 'resCShred', light: 'resLShred', chaos: 'resChaosShred', phys: 'physDrShred' });
+
 /** The target's mitigation against the summon (with the summon's limited penetration), less the curses' shreds. */
 function getSummonTargetResistance(ele, zoneTier, target, from) {
     let limitedStats = getLimitedSummonPenetrationStats(from.pStats, from.s);
@@ -355,6 +364,7 @@ function getSummonTargetResistance(ele, zoneTier, target, from) {
     if (shredKey) enemyRes -= (from.curseFx[shredKey] || 0);
     return enemyRes;
 }
+
 /** Physical hits by what the target takes more of physical damage; lightning and chaos by the curses' taken scales. */
 function applySummonElementTaken(hit, ele, target, curseFx) {
     if (ele === 'phys' && target) scaleSummonHit(hit, target.physicalDamageTakenMul || 1);
@@ -496,6 +506,7 @@ function describeSummonDpsGroup(name, g, pStats, sbShare) {
     lines.push(mute(_t('&nbsp;&nbsp;기대 타격 {floor} → 1기당 {floor2} DPS (적 저항/제한 계수 반영)', { floor: Math.floor(g.hit.damage), floor2: Math.floor(g.dps) })));
     return lines;
 }
+
 /** Lowest (low roll, no crit) to highest (full roll, crit) hit; a wisp that rolls its element per attack spans them all. */
 function getSummonTooltipHitRange(hitProfile, stats) {
     const profiles = (wispSummons.elements(hitProfile.gemName) || [hitProfile.ele]).map(ele => ({ ...hitProfile, ele }));
@@ -554,6 +565,7 @@ function getSummonRedirectPct(pStats) {
     const pct = Math.max(0, Math.min(100, Math.floor((pStats.summonGuardRedirectPct || 0) + (golem ? SKILL_DB['수액 골렘 소환'].guardRedirectPct : 0))));
     return hasKeystone('sb2') ? Math.max(pct, 50) : pct;
 }
+
 function ensureSummonRuntime(pStats) {
     if (!Array.isArray(game.summons)) game.summons = [];
     game.summonSeq = Math.max(1, Math.floor(game.summonSeq || 1));
@@ -723,12 +735,32 @@ function prepareCombatTick(nowMs) {
     return pStats;
 }
 
-
 function isCombatDecisionPending(state) {
     if(actExplorationProgress.waiting(state))return true;
     return state.pendingLoopHeroSelection || state.pendingLoopDecision || state.pendingLoopReady
         || cosmosRouteRuntime.waiting(state);
 }
+
+/** Guard against malformed stat payloads from legacy saves/runtime merges. If ASPD becomes NaN/<=0, pTimer never advances and
+ * combat appears frozen. Then the runtime state is made sane and the map progress reconciled. */
+function sanitizeTickRuntime(pStats) {
+    if (!Number.isFinite(pStats.aspd) || pStats.aspd <= 0) pStats.aspd = 1;
+    if (!Number.isFinite(pStats.moveSpeed) || pStats.moveSpeed <= 0) pStats.moveSpeed = 100;
+    if (!Number.isFinite(pStats.maxHp) || pStats.maxHp <= 0) pStats.maxHp = 1;
+    if (!Number.isFinite(pTimer) || pTimer < 0) pTimer = 0;
+    sanitizeCombatRuntimeState();
+    reconcileMapProgressRuntimeState();
+}
+
+exposeFileGlobals({ getRepresentativeSummonAttackPower, getSummonEvasionRating, buildSummonRuntimeStats, getPassiveWisdomLeapDamageMultiplier, getPassiveChaosConversionShare, getSummonAttackIntervalMs, scaleSummonHit, applySummonHitTargetScales, mutationHitScale, dodgeSummonHitByEntropy, getSummonAilmentStats, applySummonAilmentFromHit, estimateSummonDps, getSummonTooltipPreview, getSummonRedirectPct, ensureSummonRuntime, restoreAndRecallSummons, resolveSummonHit, runSummonAttackTick, markPlayerMovementCompleted, prepareCombatTick, isCombatDecisionPending, sanitizeTickRuntime });
+})();
+
+
+const SUMMON_REGEN_PCT_PER_SEC = 0.75;
+
+
+const SUMMON_CURSE_SHRED_BY_ELEMENT = Object.freeze({ fire: 'resFShred', cold: 'resCShred', light: 'resLShred', chaos: 'resChaosShred', phys: 'physDrShred' });
+
 
 /** One combat tick (100 ms). 2026-10-18 split into the steps below (it was one function of complexity 153); the order of every
  * step and random roll is kept. */
@@ -772,15 +804,5 @@ function coreLoop(nowMs) {
 /** 터지는 중인 함정이 있으면 그 뒤에 끝낸다(경고에서 터지기까지 3초 안쪽). */
 const canFinishAfterTraps = () => !trialHazardRuntime.active && actExplorationProgress.canFinish();
 
-/** Guard against malformed stat payloads from legacy saves/runtime merges. If ASPD becomes NaN/<=0, pTimer never advances and
- * combat appears frozen. Then the runtime state is made sane and the map progress reconciled. */
-function sanitizeTickRuntime(pStats) {
-    if (!Number.isFinite(pStats.aspd) || pStats.aspd <= 0) pStats.aspd = 1;
-    if (!Number.isFinite(pStats.moveSpeed) || pStats.moveSpeed <= 0) pStats.moveSpeed = 100;
-    if (!Number.isFinite(pStats.maxHp) || pStats.maxHp <= 0) pStats.maxHp = 1;
-    if (!Number.isFinite(pTimer) || pTimer < 0) pTimer = 0;
-    sanitizeCombatRuntimeState();
-    reconcileMapProgressRuntimeState();
-}
 
 safeExposeGlobals({ coreLoop, ensureSummonRuntime, getSummonTooltipPreview, runSummonAttackTick, estimateSummonDps });

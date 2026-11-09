@@ -1,5 +1,5 @@
-const foregroundCombatClock = { lastAtMs: null, remainderMs: 0 };
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function foregroundCombatPaused() {
     return document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.processing
         || backgroundCombatRuntime.failed || isForegroundGameplayPausedForBackground();
@@ -17,6 +17,7 @@ function runForegroundCombat(nowMs) {
     }
     return executed;
 }
+
 function runForegroundExplorationFrame(nowMs) {
     const run = actExplorationState.current(game);
     if (!run || foregroundCombatPaused() || bossMoves.observer.sceneActive()) return;
@@ -31,7 +32,7 @@ function runForegroundExplorationFrame(nowMs) {
     const stats = game.lastCombatStats || getPlayerStats();
     advancePlayerExplorationFrame(motionNow, stats);
 }
-safeExposeGlobals({runForegroundExplorationFrame});
+
 /** The styled start screen (index.html html.app-preload) as soon as it is drawn and its fonts are in, so the pixel font does not swap
  * in after it shows. Until 2026-10-28 only the head script revealed it, on `load`, which also waits for every image the boot starts
  * (stage scenes, effect and enemy sheets: 19MB, a hundred seconds of black on a slow line). That `load` reveal stays as the fallback
@@ -48,11 +49,126 @@ function revealStartupScreen() {
         }, 1800);
     })));
 }
+
 /** 저장에서 읽은 표현 설정: 언어(설정 창과 정적 글, docs/i18n.md)와 화면 배율. 첫 렌더 전에 둘 다 정한다. */
 function applySavedPresentation(settings) {
     uiDisplay.applySaved(settings);
     return i18n.applySaved(settings).catch(error => console.warn('[i18n] Saved language could not be loaded; keeping the current language.', error));
 }
+
+function runGameTick() {
+    combatEquipmentStats.withinTick(runGameTickOnce);
+}
+
+function runGameTickOnce() {
+    try {
+        settlePlayerStall();
+        if (runForegroundCombat(performance.now()) === 0) return;
+        ensureLoopChallengeState();
+        let now = Date.now();
+        if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
+        if (pendingHeavyUiRefresh && now - lastHeavyUiRefreshAt >= 1200) {
+            pendingHeavyUiRefresh = false;
+            lastHeavyUiRefreshAt = now;
+            // 킬 이후 드랍·인벤·재화·지도 상태를 스로틀된 정적 갱신으로 반영한다.
+            updateStaticUI();
+        }
+        refreshCombatTickUi();
+    } catch (error) {
+        console.error('gameTick error:', error);
+        recoverRuntimeState();
+        try { refreshCombatTickUi(); }
+        catch (uiError) { console.error('tick UI recovery failed:', uiError); }
+    }
+}
+
+function settlePlayerStall() {
+    playerStallUi.tickVisitors(Date.now());
+    if (document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.snapshot
+        || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || Date.now() - game.playerStall.lastAt < 15000) return;
+    const stall = game.playerStall, sequence = stall.offerSequence;
+    const pending = stall.listings.filter(row => row.offer).length;
+    const paid = playerStallUi.settleSales(Date.now());
+    if (paid > 0 || sequence !== stall.offerSequence || pending !== stall.listings.filter(row => row.offer).length) pendingHeavyUiRefresh = true;
+}
+
+function refreshCombatTickUi() {
+    cosmosRouteUi.updateVitals();
+    combatCurrencyHud.update();
+    loopMutationUi.update();
+    let recentStats = game.lastCombatStats && (getCombatTime() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
+    updateCombatUI(recentStats);
+}
+
+/** Closing or leaving the page. A page already hidden keeps the time it was hidden: closing a hidden tab restamped it, and the next
+ * launch's offline settlement lost the hidden hours. Saves before the game starts (the title screen) keep the loaded save's time. */
+function notePageExit() {
+    if (!(document.hidden && backgroundCombatRuntime.hiddenAtMs)) recordBackgroundCombatEntry(Date.now());
+}
+
+function syncGameplayTimers() {
+    if (gameTickHandle) clearInterval(gameTickHandle);
+    if (autoSaveHandle) clearInterval(autoSaveHandle);
+    gameTickHandle = null;
+    autoSaveHandle = null;
+    cancelScheduledAutoSave();
+    takeForegroundCombatSteps(foregroundCombatClock, performance.now(), true);
+    if (isStartupOverlayOpen()) return;
+    gameTickHandle = setInterval(runGameTick, 100);
+    autoSaveHandle = setInterval(scheduleAutoSaveWhenIdle, 15000);
+}
+
+function cancelScheduledAutoSave() {
+    if (!autoSaveIdleHandle) return;
+    if (autoSaveIdleHandle.type === 'idle' && typeof cancelIdleCallback === 'function') cancelIdleCallback(autoSaveIdleHandle.id);
+    else clearTimeout(autoSaveIdleHandle.id);
+    autoSaveIdleHandle = null;
+}
+
+function scheduleAutoSaveWhenIdle() {
+    if (autoSaveIdleHandle || backgroundCombatRuntime.processing || isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
+    let run = () => {
+        autoSaveIdleHandle = null;
+        if (backgroundCombatRuntime.processing || isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
+        if (typeof chronicle === 'object') chronicle.check(game); // winds a chronicle ring the last 15 s earned (js/chronicle.js)
+        saveGame();
+    };
+    if (typeof requestIdleCallback === 'function') {
+        autoSaveIdleHandle = { type: 'idle', id: requestIdleCallback(run, { timeout: 4000 }) };
+    } else {
+        autoSaveIdleHandle = { type: 'timeout', id: setTimeout(run, 120) };
+    }
+}
+
+function bootGame() {
+    if (gameBooted) return;
+    gameBooted = true;
+    try {
+        if (typeof runModuleIntegrityChecks === 'function' && !runModuleIntegrityChecks()) {
+            throw new Error('필수 런타임 모듈이 아직 실제 구현으로 교체되지 않았습니다. 새로고침 후에도 반복되면 캐시가 꼬인 상태입니다.');
+        }
+        init();
+        gemSelectionUi.migrationNotice();
+    } catch (error) {
+        gameBooted = false;
+        reportFatalError('init', error);
+    }
+}
+
+// 다른 탭이 게임을 돌리고 있으면 그 탭이 저장을 마치고 놓아 준 뒤에 부팅한다(js/game-tab-guard-ui.js). 대기 화면의 탭은 부팅하지 않는다.
+// 다른 기기의 접속에 밀려난 화면(js/cloud-session-guard-ui.js)도 대기 화면이며, 탭 사이 인사보다 먼저 본다(그 화면은 다른 탭을 멈추지 않는다).
+function bootWhenStageArtKnown() {
+    const known = typeof stageActors === 'object' ? stageActors.whenStageArtKnown() : Promise.resolve();
+    const artKnown = Promise.race([known, new Promise(done => setTimeout(done, STAGE_PROBE_WAIT_MS))]);
+    cloudSessionGuard.ready().then(() => Promise.all([artKnown, gameTabGuard.ready()])).then(bootGame);
+}
+
+exposeFileGlobals({ runForegroundCombat, runForegroundExplorationFrame, revealStartupScreen, applySavedPresentation, runGameTick, settlePlayerStall, refreshCombatTickUi, notePageExit, syncGameplayTimers, bootWhenStageArtKnown });
+})();
+const foregroundCombatClock = { lastAtMs: null, remainderMs: 0 };
+
+
+safeExposeGlobals({runForegroundExplorationFrame});
 // Bootstrap and scheduling own orchestration; render functions remain in ui.js.
 function init() {
     if (!window.__startupFirstPaintDone) {
@@ -198,110 +314,13 @@ const watchBuildEditsForPlayerStats = (() => {
     };
 })();
 
-function runGameTick() {
-    combatEquipmentStats.withinTick(runGameTickOnce);
-}
-
-function runGameTickOnce() {
-    try {
-        settlePlayerStall();
-        if (runForegroundCombat(performance.now()) === 0) return;
-        ensureLoopChallengeState();
-        let now = Date.now();
-        if (typeof updateCombatOxygenBar === 'function') updateCombatOxygenBar();
-        if (pendingHeavyUiRefresh && now - lastHeavyUiRefreshAt >= 1200) {
-            pendingHeavyUiRefresh = false;
-            lastHeavyUiRefreshAt = now;
-            // 킬 이후 드랍·인벤·재화·지도 상태를 스로틀된 정적 갱신으로 반영한다.
-            updateStaticUI();
-        }
-        refreshCombatTickUi();
-    } catch (error) {
-        console.error('gameTick error:', error);
-        recoverRuntimeState();
-        try { refreshCombatTickUi(); }
-        catch (uiError) { console.error('tick UI recovery failed:', uiError); }
-    }
-}
-
-function settlePlayerStall() {
-    playerStallUi.tickVisitors(Date.now());
-    if (document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.snapshot
-        || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || Date.now() - game.playerStall.lastAt < 15000) return;
-    const stall = game.playerStall, sequence = stall.offerSequence;
-    const pending = stall.listings.filter(row => row.offer).length;
-    const paid = playerStallUi.settleSales(Date.now());
-    if (paid > 0 || sequence !== stall.offerSequence || pending !== stall.listings.filter(row => row.offer).length) pendingHeavyUiRefresh = true;
-}
-
-function refreshCombatTickUi() {
-    cosmosRouteUi.updateVitals();
-    combatCurrencyHud.update();
-    loopMutationUi.update();
-    let recentStats = game.lastCombatStats && (getCombatTime() - (game.lastCombatStatsAt || 0) < 250) ? game.lastCombatStats : getUiPlayerStats();
-    updateCombatUI(recentStats);
-}
-
-/** Closing or leaving the page. A page already hidden keeps the time it was hidden: closing a hidden tab restamped it, and the next
- * launch's offline settlement lost the hidden hours. Saves before the game starts (the title screen) keep the loaded save's time. */
-function notePageExit() {
-    if (!(document.hidden && backgroundCombatRuntime.hiddenAtMs)) recordBackgroundCombatEntry(Date.now());
-}
-
-function syncGameplayTimers() {
-    if (gameTickHandle) clearInterval(gameTickHandle);
-    if (autoSaveHandle) clearInterval(autoSaveHandle);
-    gameTickHandle = null;
-    autoSaveHandle = null;
-    cancelScheduledAutoSave();
-    takeForegroundCombatSteps(foregroundCombatClock, performance.now(), true);
-    if (isStartupOverlayOpen()) return;
-    gameTickHandle = setInterval(runGameTick, 100);
-    autoSaveHandle = setInterval(scheduleAutoSaveWhenIdle, 15000);
-}
 
 window.addEventListener('project-idle:startup-visibility', syncGameplayTimers);
-
-function cancelScheduledAutoSave() {
-    if (!autoSaveIdleHandle) return;
-    if (autoSaveIdleHandle.type === 'idle' && typeof cancelIdleCallback === 'function') cancelIdleCallback(autoSaveIdleHandle.id);
-    else clearTimeout(autoSaveIdleHandle.id);
-    autoSaveIdleHandle = null;
-}
-
-function scheduleAutoSaveWhenIdle() {
-    if (autoSaveIdleHandle || backgroundCombatRuntime.processing || isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
-    let run = () => {
-        autoSaveIdleHandle = null;
-        if (backgroundCombatRuntime.processing || isStartupOverlayOpen() || isLoadingOverlayOpen()) return;
-        if (typeof chronicle === 'object') chronicle.check(game); // winds a chronicle ring the last 15 s earned (js/chronicle.js)
-        saveGame();
-    };
-    if (typeof requestIdleCallback === 'function') {
-        autoSaveIdleHandle = { type: 'idle', id: requestIdleCallback(run, { timeout: 4000 }) };
-    } else {
-        autoSaveIdleHandle = { type: 'timeout', id: setTimeout(run, 120) };
-    }
-}
 
 
 let loopHeroSelectionCallback = null;
 
 let gameBooted = false;
-function bootGame() {
-    if (gameBooted) return;
-    gameBooted = true;
-    try {
-        if (typeof runModuleIntegrityChecks === 'function' && !runModuleIntegrityChecks()) {
-            throw new Error('필수 런타임 모듈이 아직 실제 구현으로 교체되지 않았습니다. 새로고침 후에도 반복되면 캐시가 꼬인 상태입니다.');
-        }
-        init();
-        gemSelectionUi.migrationNotice();
-    } catch (error) {
-        gameBooted = false;
-        reportFatalError('init', error);
-    }
-}
 
 window.addEventListener('error', function(event) {
     if (!event || !event.error) return;
@@ -310,13 +329,6 @@ window.addEventListener('error', function(event) {
 // 저장을 불러오기 전에 무대 그림이 있는지 알아 둔다(js/canvas-stage-actors.js whenStageArtKnown): 답이 늦게 오면 방 단위 탐험을 저장한 게임이
 // 예전 이어진 지도로 열렸다(2026-10-16). 답을 기다리는 것은 STAGE_PROBE_WAIT_MS까지다.
 const STAGE_PROBE_WAIT_MS = 2500;
-// 다른 탭이 게임을 돌리고 있으면 그 탭이 저장을 마치고 놓아 준 뒤에 부팅한다(js/game-tab-guard-ui.js). 대기 화면의 탭은 부팅하지 않는다.
-// 다른 기기의 접속에 밀려난 화면(js/cloud-session-guard-ui.js)도 대기 화면이며, 탭 사이 인사보다 먼저 본다(그 화면은 다른 탭을 멈추지 않는다).
-function bootWhenStageArtKnown() {
-    const known = typeof stageActors === 'object' ? stageActors.whenStageArtKnown() : Promise.resolve();
-    const artKnown = Promise.race([known, new Promise(done => setTimeout(done, STAGE_PROBE_WAIT_MS))]);
-    cloudSessionGuard.ready().then(() => Promise.all([artKnown, gameTabGuard.ready()])).then(bootGame);
-}
 window.addEventListener('load', bootWhenStageArtKnown);
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootWhenStageArtKnown);
 else setTimeout(bootWhenStageArtKnown, 0);

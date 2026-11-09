@@ -37,7 +37,7 @@ function declaredNames(row) {
         if (node.type === 'VariableDeclaration') node.declarations.forEach(entry => {if(entry.id.name) names.add(entry.id.name);});
     }
     walk(row.ast, node => {
-        if (node.type !== 'CallExpression' || !['safeExposeGlobals','safeExposeData'].includes(node.callee.name)) return;
+        if (node.type !== 'CallExpression' || !['safeExposeGlobals','safeExposeData','exposeFileGlobals'].includes(node.callee.name)) return;
         const argument = objects.get(node.arguments[0]?.name) || node.arguments[0];
         if (argument && argument.type === 'ObjectExpression') argument.properties.forEach(prop => names.add(prop.key.name || prop.key.value));
     });
@@ -69,9 +69,11 @@ function analyze(rows) {
     return {findings,edges:[...edges].sort(),topLevel:topLevelFunctions(rows)};
 }
 
-/** Top-level function declarations per file: each is one more name in the page's single global scope (2026-11-10: 330 files share
- * it, and js/ui.js and js/combat.js hold over 900 each). The count of a file may not grow, and a new file starts at 0: it puts its
- * functions inside one named object, const name = (() => { ... return Object.freeze({ ... }); })(), as the files since 2026-10 do.
+/** Top-level function declarations per file: each is an unlisted name in the page's single global scope. Until 2026-11-10 there
+ * were 4,308; scripts/privatize-functions.cjs moved the old files' functions into one closure per file, which hands the ones reached
+ * from outside to exposeFileGlobals (js/utils.js). That list is written on purpose and may grow; a top-level declaration may not:
+ * the count of a file may not grow, and a new file starts at 0 (its functions go in the file's closure or in its own object,
+ * const name = (() => { ... return Object.freeze({ ... }); })()).
  * Moving functions to another file (scripts/move-block.cjs) rewrites the counts with --moved, which refuses a grown total. */
 function topLevelFunctions(rows) {
     return Object.fromEntries(rows.map(row => [row.file, row.ast.body.filter(node => node.type === 'FunctionDeclaration').length]).filter(([, count]) => count > 0));
@@ -79,7 +81,7 @@ function topLevelFunctions(rows) {
 function topLevelFailures(current,baseline) {
     if (!baseline) return [];   // a baseline written before this ratchet
     return Object.entries(current).filter(([file,count]) => count > (baseline[file] || 0))
-        .map(([file,count]) => `top-level functions ${file} (${count}, baseline ${baseline[file] || 0}): put new functions inside the file's own object, not in the global scope`);
+        .map(([file,count]) => `top-level functions ${file} (${count}, baseline ${baseline[file] || 0}): put the function inside the file's closure (and in its exposeFileGlobals list only if another file, an inline handler or a check calls it), not at the top level`);
 }
 
 function ownerName(node,fallback) {

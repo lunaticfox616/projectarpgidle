@@ -116,8 +116,12 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
 - 화면에 보이는 새 글은 `_t('한국어 원문')`이나 `data-i18n`으로 적고 `toLocaleString`에는 `i18n.locale`을 넘긴다. 한국어 문자열을 새 식별자(저장 키,
   비교 값, 속성 이름)로 만들지 않으며, 저장 키인 기존 한국어(장비 부위, 아이템 이름)는 바꾸지 않고 보여 줄 때만 `_t`로 옮긴다
   ([언어 계약](docs/i18n.md), `npm run check:i18n`이 검사한다).
-- 최상위 `function` 선언은 파일마다 지금 개수에서 늘릴 수 없고 새 파일은 0개다(`npm run check:architecture`). 새 파일은 함수를 제 이름의 객체 하나에 담는다:
-  `const 이름 = (() => { ... return Object.freeze({ ... }); })();`. 함수를 다른 파일로 그대로 옮길 때는 `node scripts/move-block.cjs`(머리말에 쓰는 법)로 옮기고 `node scripts/check-runtime-architecture.js --moved`로 파일별 개수만 고친다(합계가 늘면 거절한다).
+- 최상위 `function` 선언은 파일마다 지금 개수에서 늘릴 수 없고 새 파일은 0개다(`npm run check:architecture`). 옛 파일의 함수는 파일 맨 위의 클로저 하나에 있고
+  (2026-11-10, `scripts/privatize-functions.cjs`), 다른 파일, 화면의 `onclick`, 검사가 이름으로 부르는 함수만 그 끝의 `exposeFileGlobals({ ... })`가 전역으로 내놓는다.
+  새 함수는 그 클로저 안에 쓰고, 밖에서 부를 때만 목록에 더한다(목록에 없는 함수를 다른 파일이 부르면 같은 검사가 no-undef로 막는다).
+  새 파일은 함수를 제 이름의 객체 하나에 담는다: `const 이름 = (() => { ... return Object.freeze({ ... }); })();`.
+  함수를 다른 파일로 그대로 옮길 때는 `node scripts/move-block.cjs`(머리말에 쓰는 법)로 옮기고 `node scripts/check-runtime-architecture.js --moved`로 파일별 개수만 고친다(합계가 늘면 거절한다).
+  소스 글자를 읽는 스모크는 함수가 클로저 안에, 그 밖의 문장은 클로저 뒤에 있음을 안다(예: `scripts/smoke-player-stat-cache.js` readRuntimeFunctions).
 - 배포 빌드가 스크립트 주소에 내용 해시(`h=`)를 붙인다(`scripts/lib/immutable-urls.js`). `index.html`의 `?v=` 꼬리표를 손으로 더하지 않는다.
 - 새 전역은 금지한다. 레거시 인라인 handler 때문에 불가피하면 소유 모듈에서
   `safeExposeGlobals({ name })`를 사용하고, 이름 충돌·모든 소비자·로드 순서를 검사한다.

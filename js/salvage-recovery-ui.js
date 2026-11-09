@@ -1,5 +1,5 @@
-let salvageRecoveryReturnFocus = null;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** "name N개, ..." of a recovery price; the log passes getStyledOrbName for the coloured names. */
 function getSalvageRecoveryCurrencyText(rewards, nameOf = key => getCurrencyInfo(key).name) {
     let rows = Object.entries(rewards || {}).filter(([, amount]) => Number(amount) > 0);
@@ -111,6 +111,11 @@ function showSalvageRecoveryTooltip(event, entryId) {
 function hideSalvageRecoveryTooltip(event) {
     hideItemTooltip(event);
 }
+
+exposeFileGlobals({ refreshSalvageRecoveryShortcut, closeSalvageRecoveryOverlay, openSalvageRecoveryOverlay, restoreSalvageRecoveryEntry, showSalvageRecoveryTooltip, hideSalvageRecoveryTooltip });
+})();
+let salvageRecoveryReturnFocus = null;
+
 
 const salvageRecoveryUi = Object.freeze({
     open: openSalvageRecoveryOverlay,

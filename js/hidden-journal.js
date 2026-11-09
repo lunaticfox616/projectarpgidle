@@ -1,9 +1,5 @@
-'use strict';
-
-if (typeof safeExposeGlobals !== 'function') throw new Error('js/utils.js must load before js/hidden-journal.js');
-
-const HIDDEN_JOURNAL_AILMENTS = new Set(['ignite', 'chill', 'freeze', 'shock', 'poison', 'bleed']);
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function isHiddenJournalEndgameBoss(zone) {
     if (!zone) return false;
     return !!zone.milestonePinnacle || zone.type === 'seasonBoss' || zone.type === 'outsideChaos';
@@ -74,6 +70,15 @@ function completeHiddenJournalBossRun(enemy, zone, playerStats) {
 function resetHiddenJournalBossRun() {
     game.hiddenJournalBossRun = null;
 }
+
+exposeFileGlobals({ startHiddenJournalBossRun, restartHiddenJournalBossRun, trackHiddenJournalPlayerDamage, trackHiddenJournalAilment, completeHiddenJournalBossRun, resetHiddenJournalBossRun });
+})();
+'use strict';
+
+if (typeof safeExposeGlobals !== 'function') throw new Error('js/utils.js must load before js/hidden-journal.js');
+
+const HIDDEN_JOURNAL_AILMENTS = new Set(['ignite', 'chill', 'freeze', 'shock', 'poison', 'bleed']);
+
 
 safeExposeGlobals({
     startHiddenJournalBossRun,

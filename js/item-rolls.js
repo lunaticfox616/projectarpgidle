@@ -1,6 +1,7 @@
 // 장비 굴림과 장비 손보기(2026-11-10에 js/passives.js의 뒤쪽을 그대로 옮겼다): 옛 저장의 장비 옵션 맞추기, 접사 굴림과 티어, 드롭 장비 만들기,
 // 이름 짓기, 해체와 줍기, 주얼, 재화로 장비 고치기. js/passives.js와 js/battle-assets.js 뒤에 읽어 순서는 옮기기 전과 같다.
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** Save boundary: convert old projectile counts once; stat id records the new percent unit. */
 function migrateEquipmentProjectileOption(stat) {
     if (!stat) return;
@@ -171,10 +172,6 @@ function normalizeBelt(item) {
     if (typeof colonyWards === 'object') colonyWards.stampBelt(item);
 }
 
-/** Stat ids older data put on item lines, and what they are now: venomStingerBonus (벌집 장비, never a stat) is 중독 피해 증가 since
- * 2026-10-18. The 독벌침 craft's own marker (stat.venomStingerBonus = true) is a property, not an id, and stays. Returns the item
- * (null for none). */
-const RETIRED_ITEM_STAT_IDS = Object.freeze({ venomStingerBonus: 'poisonDamageMultiplierPct' });
 function renameRetiredItemStatIds(item) {
     if (!item) return null;
     [item.baseStats, item.stats].forEach(list => (Array.isArray(list) ? list : []).forEach(stat => {
@@ -187,9 +184,6 @@ function renameRetiredItemStatIds(item) {
     return item;
 }
 
-/** Old shield IDs/slot keys remain save-compatible; only the authored equipment names change. */
-/** Renamed bases keep their ids (shields became 완갑, 2026-10-23 weapons took their category's noun): old base name → id per slot. */
-const RENAMED_BASE_NAMES_BY_SLOT = Object.freeze({ 방패: ARM_GUARD_BASE_LEGACY_NAMES, 무기: WEAPON_BASE_LEGACY_NAMES });
 function normalizeArmGuardIdentity(item) {
     const legacyNames = RENAMED_BASE_NAMES_BY_SLOT[item.slot];
     if (!legacyNames) return;
@@ -368,26 +362,17 @@ function getRealmEquipmentHiddenTierCap(zone) {
     const cap = REALM_EQUIPMENT_TIER_CAPS[zone.type];
     return cap ? cap(zone) : Math.min(15, Math.max(1, Math.floor(Number(zone.tier) || 1)));
 }
+
 /** The highest equipment tier a plain monster of the zone drops (elites and bosses can roll a little higher). */
 function getZoneEquipmentTierCap(zone) {
     if (!zone) return 1;
     const itemLevel = levelProgression.itemLevel(zone, { isBoss: false, isElite: false });
     return Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
 }
+
 function getChaosDepthEquipmentTierCap(depth) {
     return Math.min(15, 10 + Math.floor((Math.max(1, Math.floor(Number(depth) || 1)) - 1) / 5));
 }
-// 콘텐츠별 장비 베이스 티어 상한(표에 없는 콘텐츠는 전투 tier, 최대 15).
-const REALM_EQUIPMENT_TIER_CAPS = Object.freeze({
-    act: zone => Math.min(9, Math.max(1, Math.floor(Number(zone.storyOrder) || Number(zone.id) + 1 || 1))),
-    abyss: zone => getChaosDepthEquipmentTierCap(zone.depth),
-    timeRift: zone => getChaosDepthEquipmentTierCap(zone.equivalentChaosDepth),
-    // 전투 tier는 지하계 환산값(첫 지역도 50+)이다. 전리품은 아틀라스에 표시된
-    // 1~25 티어를 사용해야 G1~G5가 각각 T16~T20으로 한 단계씩 열린다.
-    cosmos: zone => Math.min(20, 16 + Math.floor((Math.max(1, Math.floor(Number(zone.lootTier) || Number(zone.tier) || 1)) - 1) / 5)),
-    // 세계수 아틀라스: 지도 등급이 오를수록 T15 → T20 (js/atlas.js lootTier).
-    atlasMap: zone => atlas.lootTier(zone.atlasTier)
-});
 
 function getRealmEquipmentAffixTierCap(zone, hiddenTierCap) {
     const itemTier = Math.max(1, Math.floor(Number(hiddenTierCap) || 1));
@@ -409,8 +394,6 @@ function getDroppedAffixTierRange(itemTier) {
     const maxTier = clampNumber(Math.floor(Number(itemTier) || 1), 1, 20);
     return { min: 1, max: maxTier };
 }
-
-const DROPPED_AFFIX_TIER_WEIGHT_FALLOFF = 0.2;
 
 function getCraftTierRangeForItem(item, source) {
     let maxTier = getItemCraftTier(item);
@@ -471,8 +454,6 @@ function registerUniqueToCodexOnAcquire(item, owner = game) {
     return true;
 }
 
-const EQUIPMENT_DROP_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'];
-
 /** 뿌리촉수 드랍: 후보에 그 무기 대분류 바탕이 있으면 그것만 남긴다(그 지역 단계에 없으면 후보 그대로). */
 function keepWeaponCategoryBases(candidates, weaponCategory) {
     const own = weaponCategory ? candidates.filter(base => getWeaponCategoryOfBase(base.id) === weaponCategory) : [];
@@ -491,6 +472,7 @@ function getBaseDropWeight(base, dropTier) {
     const top = (isBaseChainTop(base) ? rules.chainTop : 1) * getHorizontalBaseDropShare(base);
     return (base.reqTier || 1) < dropTier - rules.windowTiers ? top * rules.belowWindow : top;
 }
+
 /** A horizontal base (js/state.js family) drops at BASE_DROP_WEIGHTS.horizontal of a plain one, amulets lower. */
 function getHorizontalBaseDropShare(base) {
     const share = BASE_DROP_WEIGHTS.horizontal;
@@ -583,28 +565,6 @@ function rollBaseStat(stat, percentile = Math.random()) {
 
 function rollBaseStats(base) {
     return base.baseStats.map(stat => rollBaseStat(stat));
-}
-
-
-/**
- * The value range of one tier of an affix (or a compound line's sub-stat): tierValues rows as listed, otherwise
- * base + tier × step widened by 1.6 steps, on 0.1 steps for leech/regen lines and whole numbers for the rest.
- * @param {object} mod MOD_DB row or a compound sub-stat
- * @param {string} statId
- * @param {number} tier clamped to the tierValues length
- * @param {boolean} [roundInteger] round instead of floor whole-number ranges (crafting sources that ask for it)
- * @returns {{min: number, max: number, step: number, tier: number}}
- */
-function getAffixTierRange(mod, statId, tier, roundInteger = false) {
-    if (Array.isArray(mod.tierValues)) return getListedAffixTierRange(mod, tier);
-    const min = mod.base + (tier * mod.step);
-    const max = min + mod.step * 1.6;
-    if (isTenthStat(statId)) {
-        return { min: Math.round(min * 10) / 10, max: Math.round(max * 10) / 10, step: 0.1, tier };
-    }
-    const toInt = roundInteger ? Math.round : Math.floor;
-    const high = toInt(max);
-    return { min: high > 0 ? Math.max(1, toInt(min)) : toInt(min), max: high, step: 1, tier };
 }
 
 function getListedAffixTierRange(mod, tier) {
@@ -750,7 +710,6 @@ function rollAffixValueInTierRange(mod, minTier, maxTier, tierWeightFalloff) {
     return result;
 }
 
-
 function getImmutableItemSpecialStats(item) {
     if (!item) return [];
     // 타오른 잿불가지의 타락 전용 줄(12번 루프 30, js/ember-corruption.js)과 목걸이에 바른 기름의 노드(루프 36, js/garden-oils.js)도
@@ -760,10 +719,7 @@ function getImmutableItemSpecialStats(item) {
     let stat = item.encroached.chosen;
     return [{ ...stat, statName: _t('[잠식] {statName}', { statName: stat.statName || getStatName(stat.id) }), encroachedFinal: true }, ...ember];
 }
-function getItemExplicitOptionCount(item) {
-    if (!item) return 0;
-    return (Array.isArray(item.stats) ? item.stats.length : 0) + (item.chaosInfusion ? 1 : 0);
-}
+
 function getItemOccupiedExplicitModIds(item) {
     let ids = new Set();
     (item && Array.isArray(item.stats) ? item.stats : []).forEach(stat => {
@@ -777,6 +733,7 @@ function getItemOccupiedExplicitModIds(item) {
     });
     return ids;
 }
+
 function applyEncroachmentToItem(item, sourceFloor) {
     if (!item || item.rarity === 'unique' || item.encroached) return item;
     item.encroached = {
@@ -787,18 +744,21 @@ function applyEncroachmentToItem(item, sourceFloor) {
     };
     return item;
 }
+
 function getEncroachmentDropChance(enemy) {
     if (!enemy) return 0;
     if (enemy.isBoss) return 0.10;
     if (enemy.isElite) return 0.04;
     return 0.012;
 }
+
 function maybeApplyChaosRealmEncroachment(item, enemy, zone) {
     if (!item || !zone || zone.type !== 'chaosRealm' || item.rarity === 'unique') return item;
     if (Math.random() >= getEncroachmentDropChance(enemy)) return item;
     applyEncroachmentToItem(item, Math.max(1, Math.floor(zone.floor || 1)));
     return item;
 }
+
 function getEncroachmentLiberationTier(item) {
     let sourceFloor = Math.max(1, Math.floor(Number(item && item.encroached && item.encroached.sourceFloor) || 1));
     let sourceTier = typeof getChaosRealmTier === 'function' ? getChaosRealmTier(sourceFloor) : 15;
@@ -806,6 +766,7 @@ function getEncroachmentLiberationTier(item) {
     let realmCap = getRealmEquipmentAffixTierCap(sourceZone, getRealmEquipmentHiddenTierCap(sourceZone));
     return Math.max(getItemCraftTier(item), realmCap);
 }
+
 function rollEncroachmentLiberationOptions(item) {
     if (!item || !item.encroached || item.encroached.liberated) return [];
     let liberationTier = getEncroachmentLiberationTier(item);
@@ -819,6 +780,7 @@ function rollEncroachmentLiberationOptions(item) {
     item.encroached.pendingOptions = picks.map(mod => ({ ...rollAffixValueInTierRange(mod, liberationTier, liberationTier), encroachedCandidate: true }));
     return item.encroached.pendingOptions;
 }
+
 function liberateSelectedEncroachedItem() {
     let item = getSelectedCraftItem();
     if (!item || !item.encroached) return addLog(_t('잠식된 아이템을 선택하세요.'), 'attack-monster');
@@ -889,11 +851,6 @@ function closeEncroachmentLiberationOverlay() {
     let overlay = document.getElementById('encroachment-liberation-overlay');
     if (overlay) overlay.remove();
 }
-safeExposeGlobals({ liberateSelectedEncroachedItem, openEncroachmentLiberationOverlay, confirmEncroachmentLiberation, closeEncroachmentLiberationOverlay });
-
-const DEFENSE_TYPE_PCT_STAT = { armor: 'armorPct', evasion: 'evasionPct', energyShield: 'energyShieldPct' };
-const DEFENSE_PCT_TYPE_STAT = { armorPct: 'armor', evasionPct: 'evasion', energyShieldPct: 'energyShield' };
-const DUAL_DEFENSE_AFFIX_RATIO = 0.6;
 
 function getItemBaseDefenseTypes(item) {
     return new Set((item && Array.isArray(item.baseStats) ? item.baseStats : [])
@@ -956,6 +913,7 @@ function makeDualDefenseAffixMod(item, mod) {
     if (extras.length === 0) return mod;
     return { ...mod, compound: extras };
 }
+
 // 방어구는 베이스가 가진 방어 타입(방어도/회피/보호막)에 해당하는 옵션만 허용한다.
 // 예) 회피 베이스에 방어도(%)가, 방어도 베이스에 회피(%)가 붙지 않도록 막는다.
 // 고유 아이템과 방어구가 아닌 슬롯(장신구 등)은 제한 대상에서 제외한다.
@@ -1025,14 +983,6 @@ function weighModForWeaponCategory(mod, weaponCategory) {
     if (!off || !off.includes(mod.id)) return mod;
     return { ...mod, weight: (Number(mod.weight) || 1) * WEAPON_CATEGORY_OFF_MODS.weight };
 }
-
-// Summon lines on a weapon or ring need a base that already has one of these.
-const AVAILABLE_MOD_SUMMON_STAT_IDS = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg',
-    'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
-// The rows an item can take before its own lines are taken out depend only on the key below, so each pool is built once
-// (2026-10-07: building it was most of a roll, about 0.18 ms per drop or craft preview). Rows keep MOD_DB order: seeded
-// rolls and tests pick by position.
-const availableModPools = new Map();
 
 function hasSummonBaseStat(item) {
     return !!(item && Array.isArray(item.baseStats) && item.baseStats.some(stat => stat && AVAILABLE_MOD_SUMMON_STAT_IDS.has(stat.id)));
@@ -1137,58 +1087,13 @@ function rerollExplicitMods(item, rarity, zoneTier, options = {}) {
     updateItemName(item);
 }
 
-
-const CHAOS_INFUSER_OPTIONS = [
-    { optionId: 'weapon_flatDmg', id: 'flatDmg', min: 12, max: 18, currency: 'chaos', cost: 6, label: '무기 기본 피해', slots: ['무기'] },
-    { optionId: 'weapon_pctDmg', id: 'pctDmg', min: 18, max: 26, currency: 'chaos', cost: 6, label: '무기 피해 증가', slots: ['무기'] },
-    { optionId: 'weapon_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '무기 공격 속도', slots: ['무기'] },
-    { optionId: 'armor_pctHp', id: 'pctHp', min: 12, max: 18, currency: 'exalted', cost: 1, label: '갑옷 생명력 증가', slots: ['갑옷'] },
-    { optionId: 'armor_flatHp', id: 'flatHp', min: 55, max: 80, currency: 'transmute', cost: 18, label: '갑옷/완갑 최대 생명력', slots: ['갑옷', '방패'] },
-    { optionId: 'armor_defensePct', id: 'armorPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '갑옷/완갑 방어도 증가', slots: ['갑옷', '방패'] },
-    { optionId: 'boots_move', id: 'move', min: 16, max: 22, currency: 'exalted', cost: 1, label: '장화 이동 속도', slots: ['신발'] },
-    { optionId: 'boots_evasionPct', id: 'evasionPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '장화 회피 증가', slots: ['신발'] },
-    { optionId: 'gloves_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '장갑 공격 속도', slots: ['장갑'] },
-    { optionId: 'gloves_crit', id: 'crit', min: 4, max: 6, currency: 'exalted', cost: 1, label: '장갑 치명타 확률', slots: ['장갑'] },
-    { optionId: 'helmet_flatHp', id: 'flatHp', min: 45, max: 70, currency: 'transmute', cost: 14, label: '투구 최대 생명력', slots: ['투구'] },
-    { optionId: 'helmet_critDmg', id: 'critDmg', min: 22, max: 32, currency: 'divine', cost: 1, label: '투구 치명타 피해', slots: ['투구'] },
-    { optionId: 'belt_pctHp', id: 'pctHp', min: 10, max: 16, currency: 'exalted', cost: 1, label: '허리띠 생명력 증가', slots: ['허리띠'] },
-    { optionId: 'belt_flatHp', id: 'flatHp', min: 50, max: 76, currency: 'transmute', cost: 16, label: '허리띠 최대 생명력', slots: ['허리띠'] },
-    { optionId: 'jewelry_pctDmg', id: 'pctDmg', min: 16, max: 24, currency: 'chaos', cost: 6, label: '장신구 피해 증가', slots: ['반지', '목걸이'] },
-    { optionId: 'jewelry_resPen', id: 'resPen', min: 4, max: 6, currency: 'chaos', cost: 8, label: '장신구 저항 관통', slots: ['반지', '목걸이'] },
-    { optionId: 'res_all', id: 'resAll', min: 4, max: 7, currency: 'chaos', cost: 5, label: '낮은 모든 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
-    { optionId: 'res_fire', id: 'resF', min: 12, max: 18, currency: 'chaos', cost: 5, label: '화염 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
-    { optionId: 'res_cold', id: 'resC', min: 12, max: 18, currency: 'chaos', cost: 5, label: '냉기 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
-    { optionId: 'res_light', id: 'resL', min: 12, max: 18, currency: 'chaos', cost: 5, label: '번개 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
-    { optionId: 'shield_chaos_res', id: 'resChaos', min: 8, max: 12, currency: 'chaos', cost: 6, label: '완갑 카오스 저항', slots: ['방패'] },
-    { optionId: 'shield_block_pct', id: 'blockChancePct', min: 16, max: 24, currency: 'augment', cost: 12, label: '기본 막기 확률 증가', slots: ['방패'] }
-];
-CHAOS_INFUSER_OPTIONS.forEach(option => {
-    let merged = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(option.currency));
-    if (merged) option.currency = merged[0];
-});
-function getChaosInfuserOptionsForItem(item) {
-    let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
-    let occupied = getItemOccupiedExplicitModIds(item);
-    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)))
-        .filter(opt => !item || chaosInfusionFitsAffixRoom(item, opt));
-}
 /** 주입 줄도 접두 3, 접미 3 가운데 제 종류 자리를 쓴다. 이미 있는 주입은 바꿔 끼우므로 빼고 센다. */
 function chaosInfusionFitsAffixRoom(item, option) {
     const room = equipmentCrafting.affixRoom(item, 'rare', item.chaosInfusion || null);
     return !room || equipmentCrafting.storedAffixKind(item, { id: option.id }) === 'special'
         || room[equipmentCrafting.storedAffixKind(item, { id: option.id })] > 0;
 }
-function isChaosInfusionEligibleItem(item) {
-    if (!item) return { ok: false, reason: _t('아이템 미선택') };
-    if (item.corrupted) return { ok: false, reason: _t('타락된 아이템에는 혼돈 주입을 할 수 없습니다.') };
-    if (item.rarity === 'unique') return { ok: false, reason: _t('고유 아이템에는 혼돈 주입을 할 수 없습니다.') };
-    if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: _t('일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.') };
-    if (item.rarity !== 'rare') return { ok: false, reason: _t('희귀 장비에만 혼돈 주입을 할 수 있습니다.') };
-    let explicitCount = getItemExplicitOptionCount(item);
-    if (!item.chaosInfusion && explicitCount >= EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: _t('추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.') };
-    if (item.chaosInfusion && explicitCount > EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: _t('추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.') };
-    return { ok: true, reason: _t('사용 가능') };
-}
+
 function rollChaosInfusionOption(option) {
     let min = Number(option && option.min);
     let max = Number(option && option.max);
@@ -1209,29 +1114,21 @@ function rollChaosInfusionOption(option) {
     }
     return { id: option.id, val: val, valMin: min, valMax: max, tier: 5, statName: getStatName(option.id), temporary: true, source: 'chaosInfuser', sourceOptionId: option.optionId || option.id };
 }
-function isChaosInfuserUnlocked() {
-    return !!(game.chaosInfuserUnlocked || game.woodsmanSimulatorSeenLoop || (game.woodsmanDefeatAttempts || 0) > 0 || (game.journalEntries || []).includes('woodsman'));
-}
+
 function getChaosInfuserOption(optionId) {
     return CHAOS_INFUSER_OPTIONS.find(opt => (opt.optionId || opt.id) === optionId || opt.id === optionId) || null;
 }
-function getChaosInfusionCost(option, item) {
-    if (!option) return null;
-    let costs = [{ key: option.currency, amount: option.cost }];
-    if (item && item.chaosInfusion) costs.push({ key: 'blightSpore', amount: 1 });
-    return costs;
-}
+
 function canPayCurrencyCosts(costs) {
     return (costs || []).every(row => (game.currencies[row.key] || 0) >= row.amount);
 }
-function formatCurrencyCosts(costs) {
-    return (costs || []).map(row => `${(ORB_DB[row.key] || {}).name || row.key} ${row.amount}`).join(' + ');
-}
+
 function payCurrencyCosts(costs) {
     if (!canPayCurrencyCosts(costs)) return false;
     (costs || []).forEach(row => { game.currencies[row.key] = Math.max(0, Math.floor(game.currencies[row.key] || 0) - row.amount); });
     return true;
 }
+
 function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!isChaosInfuserUnlocked()) return addLog(_t('나무꾼을 한 번 이상 마주친 뒤 혼돈 주입을 사용할 수 있습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
@@ -1250,6 +1147,7 @@ function applyChaosInfusionToSelectedItem(optionId) { if (game.woodsmanBuildLock
     normalizeItem(item);
     updateStaticUI();
 }
+
 function removeChaosInfusionFromSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
     if (!item || !item.chaosInfusion) return;
@@ -1260,14 +1158,6 @@ function removeChaosInfusionFromSelectedItem() { if (game.woodsmanBuildLock) ret
     addLog(_t('🧼 혼돈 주입 제거: [{name}]', { name: _t(item.name) }), 'loot-normal');
     updateStaticUI();
 }
-
-window.CHAOS_INFUSER_OPTIONS = CHAOS_INFUSER_OPTIONS;
-window.getChaosInfuserOptionsForItem = getChaosInfuserOptionsForItem;
-window.isChaosInfusionEligibleItem = isChaosInfusionEligibleItem;
-window.getItemExplicitOptionCount = getItemExplicitOptionCount;
-window.isChaosInfuserUnlocked = isChaosInfuserUnlocked;
-window.getChaosInfusionCost = getChaosInfusionCost;
-window.formatCurrencyCosts = formatCurrencyCosts;
 
 function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
@@ -1286,7 +1176,6 @@ function applyEnchantedHoneyToSelectedItem() { if (game.woodsmanBuildLock) retur
     updateStaticUI();
 }
 
-
 /** 독벌침을 쓸 수 없는 까닭. 마법, 희귀, 고유 무기에 쓰고(일반은 줄 한도가 없어 막는다, 고유는 사용자 결정 2026-11-07),
  * 새 줄은 추가 옵션 6줄 안에서만 붙는다(이미 붙은 독벌침 줄은 바꿔 끼우므로 자리를 묻지 않는다). */
 function getVenomStingerRefusal(item) {
@@ -1295,7 +1184,7 @@ function getVenomStingerRefusal(item) {
     const replaces = (Array.isArray(item.stats) ? item.stats : []).some(stat => stat && stat.venomStingerBonus);
     return !replaces && getItemExplicitOptionCount(item) >= EXPLICIT_AFFIX_LINE_CAP ? '추가 옵션이 6줄이라 독벌침 줄을 붙일 수 없습니다.' : '';
 }
-const VENOM_STINGER_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.venomStinger, MOD_DB);
+
 /** 독벌침이 굴릴 무기 공격 줄: 없는 능력치이면서, 이미 붙은 독벌침 줄을 뺀 접두 3, 접미 3 자리가 남는 종류. 지역 줄은 그 지역 장비만. */
 function getVenomStingerMods(item) {
     const occupiedIds = getItemOccupiedExplicitModIds(item);
@@ -1364,8 +1253,6 @@ function ensureAbyssSockets(item) {
     let count = min + Math.floor(Math.random() * (max - min + 1));
     item.abyssSockets = Array.from({ length: count }, () => ({ jewel: null }));
 }
-
-safeExposeGlobals({ applyVoidChiselToSelectedItem, drawJewelRefine, salvageJewel });
 
 function createItemFromBase(base, rarity, zoneTier, origin) {
     itemIdCounter++;
@@ -1450,7 +1337,6 @@ function rollUniqueStatValue(stat) {
     return { min, max, val: min + Math.floor(Math.random() * (max - min + 1)) };
 }
 
-
 /** A unique drop comes from the chase pool at 0.16%, more in atlas maps past their T20 tier (js/atlas-maps.js chaseMul). */
 function getChaseUniqueChance(zone) {
     return 0.0016 * (typeof atlasMaps === 'object' ? atlasMaps.chaseMul(zone) : 1);
@@ -1466,8 +1352,7 @@ function uniqueDropsInZone(unique, zone) {
     if (dropOnly.minFloor && Math.floor(zone.floor || 0) < dropOnly.minFloor) return false;
     return true;
 }
-/** Whether unique rolls at tier (a content unique's own minimum tier first). */
-const uniqueMeetsTier = (unique, tier) => !!unique && tier >= ((unique.dropOnly && unique.dropOnly.minTier) || unique.reqTier || 1);
+
 /** 요정의 고리가 바꿀 수 있는 고유: 그 장비의 부위에 그 등급까지 이 지역에서 나오는 것 { chase, normal }. 다른 부위의 고유로 바뀌면
  * 장비 칸과 가방 칸이 어긋났다(2026-10-20 검토: 착용한 허리띠가 방패가 됐다). */
 function getFairyRingUniquePools(item, zone = getZone(game.currentZoneId) || {}) {
@@ -1707,33 +1592,6 @@ function previewEquipmentPickup(item, options) {
     return game.settings.autoSalvageEnabled && game.settings.autoSalvageRarities?.[item.rarity] ? 'salvaged' : 'kept';
 }
 
-function addItemToInventory(item, options) {
-    normalizeItem(item);
-    const logLoot = game.settings.showLootLog;
-    let guaranteedKeep = isGuaranteedEquipmentPickup(item, options), alwaysPicked = bagItems.keptOnPickup(item);
-    let ignoreFilter = guaranteedKeep || alwaysPicked || !!(options && options.ignoreFilter);
-    let ignoreAutoSalvage = guaranteedKeep || alwaysPicked || !!(options && options.ignoreAutoSalvage);
-    let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options);
-    if (autoEquipSlot) {
-        recordEquipmentAcquisition(item);
-        if (logLoot) addLog(_t("🛡️ 빈 {autoEquipSlot} 슬롯에 자동 장착: <span class='loot-{rarity}'>[{name}]</span>", { autoEquipSlot, rarity: item.rarity, name: _t(item.name) }), 'loot-rare', { item });
-        checkUnlocks();
-        return true;
-    }
-    if (!ignoreFilter && !passesItemPickupFilter(item)) {
-        if (logLoot) addLog(_t("🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>", { rarity: item.rarity, name: _t(item.name) }), 'attack-monster');
-        return false;
-    }
-    const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
-    if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
-    if (result.kind === 'protected') addLog(_t('🎒 인벤토리가 가득 찼지만 [{name}]{particle} 유실 방지를 위해 초과 보관됩니다.', { name: getItemDisplayName(item), particle: pickParticle(item.name, '은', '는') }), 'attack-monster');
-    else if (logLoot && result.rewards && result.log) {
-        const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
-        addLog(`${label}: <span class='loot-${item.rarity}'>[${_t(item.name)}]</span>, ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
-    }
-    return result.accepted;
-}
-
 /** A bought item into the bag (the NPC shops js/npc-shop.js, the black market js/black-market.js): kept whatever the pickup filter
  * and auto-salvage say, never worn on its own, then moved to place (a bag cell { column, row }, row over all pages) when given.
  * The shop checked the room first: a full bag would salvage it. */
@@ -1743,9 +1601,6 @@ function stowBoughtItem(item, place = null) {
     if (place) equipmentInventoryGridRuntime.placeInventoryItem(equipmentInventoryGridRuntime.getItemKey(item), place.column, place.row, game);
     return true;
 }
-
-/** One more gear salvaged for room during an away settlement (the result's 자동해체 count, js/combat-replay.js finishCombatReplay). */
-const countBackgroundOverflowSalvage = () => { game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1; };
 
 /** Resolve capacity and auto-salvage at pickup time. */
 function storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage }) {
@@ -1763,19 +1618,12 @@ function salvageEquipmentPickup(item, overflow) {
     return { accepted: false, kind: overflow ? 'overflow' : 'salvaged', rewards, log: !overflow || !game.isBackgroundCalculation };
 }
 
-/** Gear ids picked up since the 장비 button last rated them (js/equipment-triage.js checkFreshGear), oldest first, at most 40.
- * Gear worn on pickup is noted too and dropped there (only bag gear is rated). */
-const freshGearIds = [];
-
 function recordEquipmentAcquisition(item) {
     freshGearIds.push(item.id);
     if (freshGearIds.length > 40) freshGearIds.shift();
     combatLootReceipts.item(game,item);
     return recordUniqueAcquisition(item);
 }
-
-/** Takes up to `limit` of the gear ids noted above, oldest first. */
-const takeFreshGearIds = limit => freshGearIds.splice(0, limit);
 
 function recordUniqueAcquisition(item) {
     if (item.rarity !== 'unique') return false;
@@ -1796,16 +1644,6 @@ function passesPickupTierCount(item, settings) {
     return (item.stats || []).filter(stat => Number.isFinite(stat.tier) && stat.tier >= tierThreshold).length >= minTierCount;
 }
 
-/** 항상 줍기(2026-10-10): 특출난 베이스, 상급 옵션 희귀(data/loot-omens.js fineRare), 소켓, 타락, 도감에 없는 고유는 다른 조건과 상관없이 줍는다. */
-const PICKUP_EXCEPTIONS = Object.freeze({
-    exceptional: item => !!item.exceptionalBase,
-    fineRare: item => item.rarity === 'rare' && lootMoments.fineLines(item) >= LOOT_OMENS.fineRare.good,
-    socket: item => !!item.voidSocket || (Array.isArray(item.sockets) && item.sockets.length > 0),
-    corrupted: item => !!item.corrupted,
-    newUnique: item => lootMoments.isNewUnique(item),
-    influenced: item => itemInfluences.influenceKeys(item).some(key => key !== 'swapped'),
-    ward: item => colonyWards.isWard(item)
-});
 function isPickupException(item, always) {
     return !!always && Object.entries(PICKUP_EXCEPTIONS).some(([key, test]) => always[key] === true && test(item));
 }
@@ -1834,111 +1672,12 @@ function passesItemPickupFilter(item) {
     return true;
 }
 
-
-
 /** A unique jewel's effect text from UNIQUE_JEWEL_DB by its uniqueId (each jewel keeps the text it dropped with, which can be older),
  * else the stored text. */
 function getJewelUniqueEffectText(jewel) {
     const row = jewel && jewel.uniqueId ? UNIQUE_JEWEL_DB.find(entry => entry.id === jewel.uniqueId) : null;
     return (row && row.uniqueEffect) || (jewel && jewel.uniqueEffect) || '';
 }
-const UNIQUE_JEWEL_DB = [
-    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 룬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
-    { id:'uj_mirror_heart', name:'거울 심장', ultra:true, uniqueEffect:'반지 소켓에 끼우면 반대쪽 반지 소켓의 주얼 복제', stats:[{id:'pctDmg',val:8},{id:'resAll',val:8}] },
-    { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'가방의 마법 아이템 하나마다 공격 속도 +0.5%(최대 30%), 희귀 하나마다 피해 +1.2%(최대 60%), 고유 하나마다 물리 피해 감소 +1.5%(최대 12%)', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
-    { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },
-    { id:'uj_condensed_curse', name:'응축된 저주', ultra:true, uniqueEffect:'저주 최대치 +1, 대상 저주당 최종 피해 +10%', stats:[{id:'dotPctDmg',val:14},{id:'resPen',val:6}] },
-    { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'최대치를 넘는 화염 저항 1%마다 기본 피해 +0.5%(최대 35%)', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
-    { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'플레이어 상태이상 면역, 부적의 수호, 함성, 저주 줄 비활성', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
-    { id:'uj_spark_ember', name:'불씨의 파편', stats:[{id:'firePctDmg',val:14},{id:'igniteChance',val:10}] },
-    { id:'uj_frost_nail', name:'서리 못', stats:[{id:'coldPctDmg',val:14},{id:'chillChance',val:10}] },
-    { id:'uj_storm_shard', name:'폭풍 조각', stats:[{id:'lightPctDmg',val:14},{id:'shockEffectReducePct',val:12}] },
-    { id:'uj_venom_eye', name:'독안', stats:[{id:'chaosPctDmg',val:14},{id:'poisonChance',val:12}] },
-    { id:'uj_blood_tine', name:'혈극', stats:[{id:'physPctDmg',val:14},{id:'bleedChance',val:12}] },
-    { id:'uj_iron_husk', name:'강철 껍질', stats:[{id:'armorPct',val:16},{id:'dr',val:5}] },
-    { id:'uj_windstep', name:'바람걸음', stats:[{id:'move',val:14},{id:'aspd',val:8}] },
-    { id:'uj_null_seed', name:'영점 씨앗', stats:[{id:'resPen',val:7},{id:'crit',val:1.2}] },
-    { id:'uj_root_charm', name:'뿌리 부적', stats:[{id:'flatHp',val:55},{id:'regen',val:1.5}] },
-    { id:'uj_tide_mark', name:'조류 각인', stats:[{id:'dotPctDmg',val:12},{id:'dotTakenDamageReducePct',val:8}] },
-    { id:'uj_ash_loop', name:'잿빛 고리', stats:[{id:'critDmg',val:18},{id:'crit',val:1}] },
-    { id:'uj_horizon_pin', name:'지평 핀', stats:[{id:'projectilePctDmg',val:16},{id:'minDmgRoll',val:4}] },
-    { id:'uj_stone_beat', name:'석맥 박동', stats:[{id:'slamPctDmg',val:16},{id:'maxDmgRoll',val:4}] },
-    { id:'uj_lattice', name:'격자 파편', stats:[{id:'resAll',val:10},{id:'energyShieldPct',val:12}] },
-    { id:'uj_bramble', name:'가시덩굴', stats:[{id:'evasionPct',val:12},{id:'takenDamageReduceWhen2EnemiesPct',val:6}] },
-    { id:'uj_dawn_chip', name:'새벽 조각', stats:[{id:'pctDmg',val:12},{id:'takenDamageReduceWhen1EnemyPct',val:4}] },
-    // 2026-10-02 재능 정리: 얻을 수 없게 된 옛 재능 카드의 효과(bloomMechanic, js/talent-cards.js getGrantedBloomMechanics).
-    // 일반 고유 풀에 둔다(울트라 풀이면 고유 주얼 하나당 약 0.4%로 너무 드물다).
-    { id:'uj_judgment_mark', name:'심판의 표식', bloomMechanic:'hero1__inquisitor', uniqueEffect:'공격하면 5초 동안 피해를 모으는 표식을 남기고, 5초 뒤 모은 피해의 12%로 터짐(재사용 6초)', stats:[{id:'pctDmg',val:8},{id:'crit',val:1}] },
-    { id:'uj_hex_burst', name:'터지는 저주', bloomMechanic:'hero1__warlock', uniqueEffect:'저주에 걸린 적을 공격하면 그 저주를 터뜨려 적 모두에게 0.2배 피해', stats:[{id:'chaosPctDmg',val:10},{id:'dotPctDmg',val:10}] },
-    { id:'uj_stinger', name:'독침의 끝', bloomMechanic:'hero1__catalyst', uniqueEffect:'남은 지속 피해가 적의 남은 생명력보다 많으면 그 적을 바로 마무리', stats:[{id:'dotPctDmg',val:14},{id:'poisonChance',val:8}] },
-    { id:'uj_crowd_roar', name:'관중의 함성', bloomMechanic:'hero2__gladiator', uniqueEffect:'처치마다 관중의 함성 1중첩, 5중첩이면 다음 공격이 주변 적 다섯에게 120% 피해(적이 하나면 피해 20% 증폭)', stats:[{id:'meleePctDmg',val:12},{id:'aspd',val:5}] },
-    { id:'uj_moon_shadow', name:'달그림자', bloomMechanic:'hero3__assassin', uniqueEffect:'치명타 피해의 20%가 모든 피해 감소를 무시하는 고정 피해로 바뀜', stats:[{id:'critDmg',val:15},{id:'crit',val:1}] },
-    { id:'uj_forest_ring', name:'숲마당', bloomMechanic:'hero3__gladiator', uniqueEffect:'플레이어와 몬스터의 모든 공격이 반드시 명중함', stats:[{id:'flatHp',val:40},{id:'aspd',val:4}] },
-    { id:'uj_defiant_bolt', name:'거역의 번개', bloomMechanic:'hero5__assassin', uniqueEffect:'번개 피해가 카오스 피해로 바뀌고, 카오스 피해를 준 적의 생명력 재생 50% 감소', stats:[{id:'chaosPctDmg',val:12},{id:'lightPctDmg',val:8}] },
-    { id:'uj_pilgrim_spark', name:'순례자의 번개', bloomMechanic:'hero5__ranger', uniqueEffect:'물리 피해의 50%가 번개 피해로 바뀜', stats:[{id:'lightPctDmg',val:12},{id:'physPctDmg',val:8}] },
-    { id:'uj_endless_night', name:'끝없는 밤', bloomMechanic:'hero5__warlock', uniqueEffect:'적에게 거는 저주가 끝나지 않음', stats:[{id:'dotPctDmg',val:10},{id:'resPen',val:4}] },
-    { id:'uj_marksman_eye', name:'명사수의 눈', bloomMechanic:'hero6__ranger', uniqueEffect:'치명타 확률을 두 번 굴려 좋은 쪽을 쓰고, 치명타 확률이 100%를 넘으면 넘는 몫의 50%가 치명타 피해로 바뀜', stats:[{id:'crit',val:1.5},{id:'critDmg',val:12}] },
-    { id:'uj_three_way', name:'삼갈래 화살', bloomMechanic:'hero6__gladiator', uniqueEffect:'투사체가 세 갈래로 나뉘어 날아감, 투사체 추가 발사 +1, 투사체 연속 타격 확률 +50%', stats:[{id:'projectilePctDmg',val:12},{id:'aspd',val:4}] },
-    { id:'uj_elemental_oath', name:'원소 성전', bloomMechanic:'hero9__crusader', uniqueEffect:'생명력이 1로 고정되는 대신 받는 카오스 피해 50% 감소', stats:[{id:'energyShieldPct',val:20},{id:'resAll',val:10}] },
-    { id:'uj_root_bond', name:'뿌리 결속', bloomMechanic:'hero3__soulbinder', uniqueEffect:'소환수의 공격 속도가 플레이어의 공격 속도와 같아지는 대신 플레이어는 공격하지 않음', stats:[{id:'summonPctDmg',val:15},{id:'summonHpPct',val:10}] },
-    { id:'uj_blue_judgment', name:'푸른 심판', bloomMechanic:'hero3__inquisitor', uniqueEffect:'원소 공격의 15%가 적의 원소 저항을 반대로 셈', stats:[{id:'elementalPctDmg',val:12},{id:'resPen',val:3}] }
-];
-
-const JEWEL_SUMMON_OPTION_IDS = new Set(['summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonResPen']);
-const JEWEL_SUMMON_OPTION_GROUP = { id: '__summonOptionGroup', name: '소환수 옵션군' };
-
-const JEWEL_OPTION_POOL = [
-    { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
-    { id: 'physPctDmg', name: '물리 증폭', min: 6, max: 15 },
-    { id: 'firePctDmg', name: '화염 증폭', min: 6, max: 15 },
-    { id: 'coldPctDmg', name: '냉기 증폭', min: 6, max: 15 },
-    { id: 'lightPctDmg', name: '번개 증폭', min: 6, max: 15 },
-    { id: 'chaosPctDmg', name: '카오스 증폭', min: 6, max: 15 },
-    { id: 'flatHp', name: '생명력 주입', min: 20, max: 45 },
-    { id: 'crit', name: '치명 보석', min: 1, max: 3 },
-    { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
-    // 재사용 대기시간 세팅(2026-10-21): 한 개로는 작고, 여러 개를 모아야 난사에 다가간다.
-    { id: 'cooldownRecovery', name: '순환 수정', min: 2, max: 4 },
-    { id: 'mobilityCooldownRecovery', name: '바람결 파편', min: 3, max: 6 },
-    { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
-    { id: 'resF', name: '화염 수호', min: 8, max: 18 },
-    { id: 'resC', name: '냉기 수호', min: 8, max: 18 },
-    { id: 'resL', name: '번개 수호', min: 8, max: 18 },
-    { id: 'resChaos', name: '공허 수호', min: 4, max: 8 },
-    { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
-    { id: 'dr', name: '강인 파편', min: 3, max: 8 },
-    { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
-    { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
-    { id: 'regenSuppress', name: '봉쇄 파편', min: 0.5, max: 0.5, step: 0.1 },
-    { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
-    { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 },
-    { id: 'armorPct', name: '강화 외피', min: 4, max: 10 },
-    { id: 'evasionPct', name: '유동 보법', min: 4, max: 10 },
-    { id: 'energyShieldPct', name: '보호막 기동', min: 4, max: 10 },
-    { id: 'summonFlatDmg', name: '사역 피해 주입', min: 4, max: 12 },
-    { id: 'summonPctDmg', name: '지배자의 파편', min: 6, max: 16 },
-    { id: 'summonAspd', name: '무리의 가속', min: 3, max: 9, step: 0.5 },
-    { id: 'summonHpPct', name: '사역 생명핵', min: 6, max: 16 },
-    { id: 'summonCrit', name: '야수의 눈', min: 1, max: 4, step: 0.5 },
-    { id: 'summonCritDmg', name: '포식의 송곳니', min: 10, max: 28 },
-    { id: 'summonEfficiency', name: '영혼 결속정', min: 4, max: 12 },
-    { id: 'summonResPen', name: '사역 관통석', min: 1, max: 5, step: 0.5 },
-    { id: 'ailResIgnite', name: '소염 수정', min: 12.5, max: 50, step: 0.5 },
-    { id: 'ailResShock', name: '절연 수정', min: 12.5, max: 50, step: 0.5 },
-    { id: 'ailResFreeze', name: '방한 수정', min: 12.5, max: 50, step: 0.5 },
-    { id: 'ailResPoison', name: '해독 수정', min: 12.5, max: 50, step: 0.5 },
-    { id: 'ailResBleed', name: '지혈 수정', min: 12.5, max: 50, step: 0.5 },
-];
-const JEWEL_HIDDEN_TIER_COUNT = 5;
-const JEWEL_PETITE_OPTION_POOL = [
-    { id: 'pctDmg', name: '작은 피해결', magic: [1, 1], rare: [1, 2] },
-    { id: 'flatHp', name: '작은 생명결', magic: [4, 6], rare: [6, 9] },
-    { id: 'crit', name: '작은 치명결', magic: [0.5, 0.5], rare: [0.5, 1] },
-    { id: 'aspd', name: '작은 가속결', magic: [1, 1], rare: [1, 2] },
-    { id: 'resAll', name: '작은 수호결', magic: [1, 1], rare: [1, 2] },
-    { id: 'resPen', name: '작은 관통결', magic: [1, 1], rare: [1, 2] },
-    { id: 'regen', name: '작은 재생결', magic: [0.1, 0.1], rare: [0.1, 0.2], step: 0.1 }
-];
 
 function getJewelOptionDef(statId) {
     return JEWEL_OPTION_POOL.find(option => option.id === statId) || null;
@@ -2109,16 +1848,6 @@ function generateJewelDrop(zoneOrTier, odds = null) {
     return { id: ++itemIdCounter, name: name, tier: 1, hiddenTier: hiddenTier, rarity: rarity, stats: stats };
 }
 
-/** Jewels go straight into the bag (js/bag-items.js addJewel): with the bag full a rare or unique one waits in the temporary
- * storage and the rest are salvaged into jewel shards. One whose rarity the auto-salvage takes is salvaged instead of kept
- * (bagItems.salvagedOnDrop); the receipt then reads stored: false with the bag not full. */
-function receiveJewelDrop(jewel) {
-    if(bagItems.salvagedOnDrop(jewel))return {jewel,inventoryFull:false,stored:false,protectOverflow:false,shardGain:salvageJewelObject(jewel,true)};
-    combatLootReceipts.item(game,jewel,'jewel'); // 가방에 들어온 것만 지도 결과에 적는다(장비와 같다)
-    const added=bagItems.addJewel(jewel);
-    return {jewel,inventoryFull:added.protectOverflow||!added.stored,...added};
-}
-
 function getJewelStats(jewel) {
     if (!jewel) return [];
     if (Array.isArray(jewel.stats) && jewel.stats.length > 0) return jewel.stats.map(cloneJewelStat).filter(Boolean);
@@ -2182,7 +1911,6 @@ function drawJewelRefine() { if (game.woodsmanBuildLock) return addLog(_t('☠�
     updateStaticUI();
 }
 
-
 /** 가방의 주얼 한 개를 해체한다(고유는 확인을 거친다). 확인 사이에 주얼이 가방을 떠났으면(소켓 등) 취소한다. */
 async function salvageJewel(jewelId) {
     let jewel = bagItems.jewels().find(row => row.id === jewelId);
@@ -2205,6 +1933,7 @@ function isChaseUniqueItem(item) {
     let uniqueDef = UNIQUE_DB.find(unique => unique && unique.name === item.name);
     return !!(uniqueDef && uniqueDef.ultraRare);
 }
+
 function getUniqueDismantleDivineChance(item) {
     if (!item || item.rarity !== 'unique') return 0;
     if (isChaseUniqueItem(item)) return 1;
@@ -2409,6 +2138,7 @@ async function bulkSalvageSelected() {
     addLog(_t('🧪 선택한 등급 장비 {count}개 해체, {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedSkipped > 0 ? ` ${_t('(잠금, 세팅, 우선 보관 {n}개는 남김)', { n: lockedSkipped })}` : '' }), 'loot-normal');
     updateStaticUI();
 }
+
 /** 전체 해체, from the panel's button or the rail's 해체 button double-clicked (js/equipment-window-ui.js RAIL_DOUBLE_CLICK). Both ask
  * first with a summary of what goes (2026-11-06; the double-click used to salvage at once). Locked, set and priority-kept gear stays. */
 async function bulkSalvageAllInventory() {
@@ -2422,6 +2152,7 @@ async function bulkSalvageAllInventory() {
     addLog(_t('🧪 인벤토리 전체해체 완료 ({count}개), {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedCount > 0 ? `, ${_t('잠금, 세팅, 우선 보관 {n}개는 남김', { n: lockedCount })}` : '' }), 'loot-normal');
     updateStaticUI();
 }
+
 function confirmBulkSalvageAll(targetItems, lockedCount) {
     const count = targetItems.length;
     // 주얼, 코어, 액막이도 요약의 종류 칸에 나온다(예전에는 "주얼 N개 포함" 줄).
@@ -2454,12 +2185,6 @@ function isSporeCraftEquipment(item) {
     return EQUIPMENT_DROP_SLOTS.includes(slot);
 }
 
-// The elemental lines a rot harvest removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
-const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
-/** 부패 수확의 값: 화염, 냉기, 번개 식물 하나씩(data/stump-box.js STUMP_BOX_HARVEST_CRAFT.rot). */
-const rotHarvestKeys = () => STUMP_BOX_HARVEST_CRAFT.rot.map(color => stumpBox.harvestPriceKey('any', color));
-const riftHarvestKey = () => stumpBox.harvestPriceKey(STUMP_BOX_HARVEST_CRAFT.riftKind);
-const holdsHarvest = key => stumpBox.harvestPriceHeld(game, key) >= 1;
 /** Why a rot harvest cannot take a line off the item, or '': corrupted gear, a fused relic (as for the pruning shears, craftCurrencyUse
  * RELIC_ACTIONS) and a hall piece. */
 function getRotHarvestRefusal(item) {
@@ -2467,6 +2192,7 @@ function getRotHarvestRefusal(item) {
     if (item.fusedRelic) return '융합 유물은 황금률, 잿불가지, 축복의 꽃잎만 사용할 수 있습니다.';
     return item.hallReplica ? '전당 소장품은 원본 상태를 보존하므로 제작할 수 없습니다.' : '';
 }
+
 function applyCorruptSporeToSelectedItem() { if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!contentProgression.isUnlocked('advancedSpores')) return addLog(_t('부패 수확은 고급 수확 제작을 해금해야 쓸 수 있습니다.'), 'attack-monster');
     let item = getSelectedCraftItem();
@@ -2514,16 +2240,6 @@ function isRemovableExplicitStat(stat) {
     return !!(stat && !stat.lockedByHoney && !stat.lockedByRift && !stat.encroachedFinal && !stat.unremovable);
 }
 
-
-const QUALITY_ATTRIBUTE_MODES = ['base', 'fire', 'cold', 'light', 'chaos', 'physical', 'defense', 'speed'];
-// 기폭제(12번 루프 32, js/sap-catalysts.js)만 주는 품질 속성: 심연 촉매의 순환(QUALITY_ATTRIBUTE_MODES)에는 들지 않는다.
-const QUALITY_CATALYST_MODES = ['crit', 'summon'];
-const QUALITY_ATTRIBUTE_LABELS = { base: '기본', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', defense: '방어', speed: '속도',
-    crit: '치명', summon: '소환' };
-// The lines each quality mode scales come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.quality), unique lines included.
-const QUALITY_ATTRIBUTE_STAT_GROUPS = Object.fromEntries(Object.entries(AFFIX_TAG_LISTS.quality)
-    .map(([mode, rule]) => [mode, resolveAffixTagList(rule, MOD_DB)]));
-
 function getItemQualityAttributeMode(item) {
     let mode = item && typeof item.qualityAttribute === 'string' ? item.qualityAttribute : 'base';
     return QUALITY_ATTRIBUTE_MODES.includes(mode) || QUALITY_CATALYST_MODES.includes(mode) ? mode : 'base';
@@ -2566,8 +2282,6 @@ function getCosmosBossRelicStatTotals() {
     });
     return totals;
 }
-
-safeExposeGlobals({ getItemQualityAttributeMode, getItemQualityAttributeLabel, isQualityAttributeStat, getCosmosBossRelicStatTotals });
 
 function getAnnulmentRemovableStats(item) {
     return (item && Array.isArray(item.stats) ? item.stats : [])
@@ -2649,6 +2363,359 @@ function corruptCraftedItem(item) {
     }
     return { kind, text: _t('아이템에 변화가 없습니다.') };
 }
+
+/** The crafting workspace's currency use (js/crafting-workspace-ui.js): craftCurrencyUse.use, its log lines, a redraw. true when it
+ * crafted. Kept async for its callers. */
+async function useCurrency(currencyKey) {
+    const result = craftCurrencyUse.use(currencyKey);
+    if (result.reason) return addLog(result.reason, 'attack-monster');
+    result.logs.forEach(args => addLog(...args));
+    if (!result.ok) return undefined;
+    updateStaticUI();
+    return true;
+}
+
+function isMarketUnlocked() {
+    return contentProgression.isUnlocked('market');
+}
+
+exposeFileGlobals({ findStoredEquipmentAffix, normalizeArmGuardIdentity, migrateEquipmentBlockBases, normalizeItem, getItemCraftTier, getRealmEquipmentHiddenTierCap, getZoneEquipmentTierCap, getChaosDepthEquipmentTierCap, getRealmEquipmentAffixTierCap, getRealmItemDropTierRange, getDroppedAffixTierRange, getCraftTierRangeForItem, isFixedEquipmentAffix, getTierClassName, getTierBadgeHtml, getUniqueCodexKeyByItem, registerUniqueToCodexOnAcquire, keepWeaponCategoryBases, getBaseDropWeight, chooseItemBase, baseStatRollBounds, rollBaseStat, rollBaseStats, getListedAffixTierRange, rollTierValueAffix, rerollStoredAffixValue, rollAffixValue, rollRealmItemDropTier, rollAffixValueInTierRange, getImmutableItemSpecialStats, getItemOccupiedExplicitModIds, liberateSelectedEncroachedItem, openEncroachmentLiberationOverlay, confirmEncroachmentLiberation, closeEncroachmentLiberationOverlay, getItemBaseDefenseTypes, isDefenseTypeStatAllowed, isKaleidoscopeShieldItem, getExplicitModStatIds, isModForOrigin, buildAvailableModPool, getAvailableMods, getOpenAffixMods, updateItemName, rerollChaosInfusionForItem, rerollExplicitMods, chaosInfusionFitsAffixRoom, canPayCurrencyCosts, payCurrencyCosts, applyChaosInfusionToSelectedItem, removeChaosInfusionFromSelectedItem, applyEnchantedHoneyToSelectedItem, getVenomStingerRefusal, applyVenomStingerToSelectedItem, applyVoidChiselToSelectedItem, applyWoodsmanTouchToSelectedItem, ensureAbyssSockets, createItemFromBase, pickWeightedMod, pickRandomMods, getUniqueStatRollRange, getChaseUniqueChance, uniqueDropsInZone, getFairyRingUniquePools, generateUniqueItem, getEquipmentDropSlot, generateEquipmentDrop, boostExceptionalBaseLine, maybeApplyExceptionalBase, resolveCurrencyAward, awardCurrency, commitCurrencyGain, notifyCurrencyAcquisition, getAcquiredItemAutoEquipSlot, isGuaranteedEquipmentPickup, previewEquipmentPickup, stowBoughtItem, storeEquipmentPickup, recordEquipmentAcquisition, passesItemPickupFilter, getJewelUniqueEffectText, rollJewelCraftStats, isJewelPetiteStat, formatJewelStatValue, normalizeJewelStat, getJewelDropTierRange, generateJewelDrop, getJewelStats, getJewelRarityLabel, getJewelRarityClass, getJewelSalvageShardGain, salvageJewelObject, destroySelectedCraftItem, drawJewelRefine, salvageJewel, isChaseUniqueItem, getItemSalvageRewardProfile, mergeSalvageRewards, formatSalvageRewardSummary, getItemSalvagePreviewText, rollItemSalvageRewards, salvageItemObject, salvageItem, syncSalvageControlsFromSettings, toggleAutoSalvage, isBulkSalvageProtectedItem, salvageBagItems, confirmedSalvageTargets, bulkSalvageSelected, bulkSalvageAllInventory, confirmBulkSalvageAll, getAvailableSporeCraftModes, getSporeCraftBlockReason, isSporeCraftEquipment, applyCorruptSporeToSelectedItem, applyRiftSporeToSelectedItem, getItemQualityAttributeMode, getItemQualityAttributeLabel, isQualityAttributeStat, applyAbyssCatalystToItemQuality, getCosmosBossRelicStatTotals, getAnnulmentRemovableStats, getSporeCraftPriceKey, hasSporeCraftCost, canApplyTaintedOutcome, corruptCraftedItem, useCurrency, isMarketUnlocked });
+})();
+
+
+/** Stat ids older data put on item lines, and what they are now: venomStingerBonus (벌집 장비, never a stat) is 중독 피해 증가 since
+ * 2026-10-18. The 독벌침 craft's own marker (stat.venomStingerBonus = true) is a property, not an id, and stays. Returns the item
+ * (null for none). */
+const RETIRED_ITEM_STAT_IDS = Object.freeze({ venomStingerBonus: 'poisonDamageMultiplierPct' });
+
+/** Old shield IDs/slot keys remain save-compatible; only the authored equipment names change. */
+/** Renamed bases keep their ids (shields became 완갑, 2026-10-23 weapons took their category's noun): old base name → id per slot. */
+const RENAMED_BASE_NAMES_BY_SLOT = Object.freeze({ 방패: ARM_GUARD_BASE_LEGACY_NAMES, 무기: WEAPON_BASE_LEGACY_NAMES });
+
+
+// 콘텐츠별 장비 베이스 티어 상한(표에 없는 콘텐츠는 전투 tier, 최대 15).
+const REALM_EQUIPMENT_TIER_CAPS = Object.freeze({
+    act: zone => Math.min(9, Math.max(1, Math.floor(Number(zone.storyOrder) || Number(zone.id) + 1 || 1))),
+    abyss: zone => getChaosDepthEquipmentTierCap(zone.depth),
+    timeRift: zone => getChaosDepthEquipmentTierCap(zone.equivalentChaosDepth),
+    // 전투 tier는 지하계 환산값(첫 지역도 50+)이다. 전리품은 아틀라스에 표시된
+    // 1~25 티어를 사용해야 G1~G5가 각각 T16~T20으로 한 단계씩 열린다.
+    cosmos: zone => Math.min(20, 16 + Math.floor((Math.max(1, Math.floor(Number(zone.lootTier) || Number(zone.tier) || 1)) - 1) / 5)),
+    // 세계수 아틀라스: 지도 등급이 오를수록 T15 → T20 (js/atlas.js lootTier).
+    atlasMap: zone => atlas.lootTier(zone.atlasTier)
+});
+
+
+const DROPPED_AFFIX_TIER_WEIGHT_FALLOFF = 0.2;
+
+
+const EQUIPMENT_DROP_SLOTS = ['무기', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠', '방패'];
+
+
+/**
+ * The value range of one tier of an affix (or a compound line's sub-stat): tierValues rows as listed, otherwise
+ * base + tier × step widened by 1.6 steps, on 0.1 steps for leech/regen lines and whole numbers for the rest.
+ * @param {object} mod MOD_DB row or a compound sub-stat
+ * @param {string} statId
+ * @param {number} tier clamped to the tierValues length
+ * @param {boolean} [roundInteger] round instead of floor whole-number ranges (crafting sources that ask for it)
+ * @returns {{min: number, max: number, step: number, tier: number}}
+ */
+function getAffixTierRange(mod, statId, tier, roundInteger = false) {
+    if (Array.isArray(mod.tierValues)) return getListedAffixTierRange(mod, tier);
+    const min = mod.base + (tier * mod.step);
+    const max = min + mod.step * 1.6;
+    if (isTenthStat(statId)) {
+        return { min: Math.round(min * 10) / 10, max: Math.round(max * 10) / 10, step: 0.1, tier };
+    }
+    const toInt = roundInteger ? Math.round : Math.floor;
+    const high = toInt(max);
+    return { min: high > 0 ? Math.max(1, toInt(min)) : toInt(min), max: high, step: 1, tier };
+}
+
+
+function getItemExplicitOptionCount(item) {
+    if (!item) return 0;
+    return (Array.isArray(item.stats) ? item.stats.length : 0) + (item.chaosInfusion ? 1 : 0);
+}
+
+
+safeExposeGlobals({ liberateSelectedEncroachedItem, openEncroachmentLiberationOverlay, confirmEncroachmentLiberation, closeEncroachmentLiberationOverlay });
+
+const DEFENSE_TYPE_PCT_STAT = { armor: 'armorPct', evasion: 'evasionPct', energyShield: 'energyShieldPct' };
+const DEFENSE_PCT_TYPE_STAT = { armorPct: 'armor', evasionPct: 'evasion', energyShieldPct: 'energyShield' };
+const DUAL_DEFENSE_AFFIX_RATIO = 0.6;
+
+
+// Summon lines on a weapon or ring need a base that already has one of these.
+const AVAILABLE_MOD_SUMMON_STAT_IDS = new Set(['summonPctDmg', 'summonFlatDmg', 'summonEfficiency', 'summonHpPct', 'summonCrit', 'summonCritDmg',
+    'summonAspd', 'summonCap', 'summonResPen', 'summonGemLevel']);
+// The rows an item can take before its own lines are taken out depend only on the key below, so each pool is built once
+// (2026-10-07: building it was most of a roll, about 0.18 ms per drop or craft preview). Rows keep MOD_DB order: seeded
+// rolls and tests pick by position.
+const availableModPools = new Map();
+
+
+const CHAOS_INFUSER_OPTIONS = [
+    { optionId: 'weapon_flatDmg', id: 'flatDmg', min: 12, max: 18, currency: 'chaos', cost: 6, label: '무기 기본 피해', slots: ['무기'] },
+    { optionId: 'weapon_pctDmg', id: 'pctDmg', min: 18, max: 26, currency: 'chaos', cost: 6, label: '무기 피해 증가', slots: ['무기'] },
+    { optionId: 'weapon_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '무기 공격 속도', slots: ['무기'] },
+    { optionId: 'armor_pctHp', id: 'pctHp', min: 12, max: 18, currency: 'exalted', cost: 1, label: '갑옷 생명력 증가', slots: ['갑옷'] },
+    { optionId: 'armor_flatHp', id: 'flatHp', min: 55, max: 80, currency: 'transmute', cost: 18, label: '갑옷/완갑 최대 생명력', slots: ['갑옷', '방패'] },
+    { optionId: 'armor_defensePct', id: 'armorPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '갑옷/완갑 방어도 증가', slots: ['갑옷', '방패'] },
+    { optionId: 'boots_move', id: 'move', min: 16, max: 22, currency: 'exalted', cost: 1, label: '장화 이동 속도', slots: ['신발'] },
+    { optionId: 'boots_evasionPct', id: 'evasionPct', min: 18, max: 26, currency: 'augment', cost: 12, label: '장화 회피 증가', slots: ['신발'] },
+    { optionId: 'gloves_aspd', id: 'aspd', min: 8, max: 12, currency: 'alteration', cost: 12, label: '장갑 공격 속도', slots: ['장갑'] },
+    { optionId: 'gloves_crit', id: 'crit', min: 4, max: 6, currency: 'exalted', cost: 1, label: '장갑 치명타 확률', slots: ['장갑'] },
+    { optionId: 'helmet_flatHp', id: 'flatHp', min: 45, max: 70, currency: 'transmute', cost: 14, label: '투구 최대 생명력', slots: ['투구'] },
+    { optionId: 'helmet_critDmg', id: 'critDmg', min: 22, max: 32, currency: 'divine', cost: 1, label: '투구 치명타 피해', slots: ['투구'] },
+    { optionId: 'belt_pctHp', id: 'pctHp', min: 10, max: 16, currency: 'exalted', cost: 1, label: '허리띠 생명력 증가', slots: ['허리띠'] },
+    { optionId: 'belt_flatHp', id: 'flatHp', min: 50, max: 76, currency: 'transmute', cost: 16, label: '허리띠 최대 생명력', slots: ['허리띠'] },
+    { optionId: 'jewelry_pctDmg', id: 'pctDmg', min: 16, max: 24, currency: 'chaos', cost: 6, label: '장신구 피해 증가', slots: ['반지', '목걸이'] },
+    { optionId: 'jewelry_resPen', id: 'resPen', min: 4, max: 6, currency: 'chaos', cost: 8, label: '장신구 저항 관통', slots: ['반지', '목걸이'] },
+    { optionId: 'res_all', id: 'resAll', min: 4, max: 7, currency: 'chaos', cost: 5, label: '낮은 모든 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
+    { optionId: 'res_fire', id: 'resF', min: 12, max: 18, currency: 'chaos', cost: 5, label: '화염 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
+    { optionId: 'res_cold', id: 'resC', min: 12, max: 18, currency: 'chaos', cost: 5, label: '냉기 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
+    { optionId: 'res_light', id: 'resL', min: 12, max: 18, currency: 'chaos', cost: 5, label: '번개 저항', slots: ['투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', '방패'] },
+    { optionId: 'shield_chaos_res', id: 'resChaos', min: 8, max: 12, currency: 'chaos', cost: 6, label: '완갑 카오스 저항', slots: ['방패'] },
+    { optionId: 'shield_block_pct', id: 'blockChancePct', min: 16, max: 24, currency: 'augment', cost: 12, label: '기본 막기 확률 증가', slots: ['방패'] }
+];
+CHAOS_INFUSER_OPTIONS.forEach(option => {
+    let merged = Object.entries(CURRENCY_LEGACY_MERGE || {}).find(([, legacyKeys]) => legacyKeys.includes(option.currency));
+    if (merged) option.currency = merged[0];
+});
+function getChaosInfuserOptionsForItem(item) {
+    let slot = item && item.slot ? item.slot.replace(/[12]/, '') : '';
+    let occupied = getItemOccupiedExplicitModIds(item);
+    return CHAOS_INFUSER_OPTIONS.filter(opt => (!opt.slots || opt.slots.includes(slot)) && isDefenseTypeStatAllowed(item, opt.id) && (!occupied.has(opt.id) || (item && item.chaosInfusion && item.chaosInfusion.id === opt.id)))
+        .filter(opt => !item || chaosInfusionFitsAffixRoom(item, opt));
+}
+function isChaosInfusionEligibleItem(item) {
+    if (!item) return { ok: false, reason: _t('아이템 미선택') };
+    if (item.corrupted) return { ok: false, reason: _t('타락된 아이템에는 혼돈 주입을 할 수 없습니다.') };
+    if (item.rarity === 'unique') return { ok: false, reason: _t('고유 아이템에는 혼돈 주입을 할 수 없습니다.') };
+    if (item.rarity === 'normal' || item.rarity === 'magic') return { ok: false, reason: _t('일반/마법 등급 아이템에는 혼돈 주입을 할 수 없습니다.') };
+    if (item.rarity !== 'rare') return { ok: false, reason: _t('희귀 장비에만 혼돈 주입을 할 수 있습니다.') };
+    let explicitCount = getItemExplicitOptionCount(item);
+    if (!item.chaosInfusion && explicitCount >= EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: _t('추가 옵션 6줄 제한에 걸려 더 주입할 수 없습니다.') };
+    if (item.chaosInfusion && explicitCount > EXPLICIT_AFFIX_LINE_CAP) return { ok: false, reason: _t('추가 옵션이 6줄을 초과했습니다. 기존 주입을 제거하세요.') };
+    return { ok: true, reason: _t('사용 가능') };
+}
+function isChaosInfuserUnlocked() {
+    return !!(game.chaosInfuserUnlocked || game.woodsmanSimulatorSeenLoop || (game.woodsmanDefeatAttempts || 0) > 0 || (game.journalEntries || []).includes('woodsman'));
+}
+function getChaosInfusionCost(option, item) {
+    if (!option) return null;
+    let costs = [{ key: option.currency, amount: option.cost }];
+    if (item && item.chaosInfusion) costs.push({ key: 'blightSpore', amount: 1 });
+    return costs;
+}
+function formatCurrencyCosts(costs) {
+    return (costs || []).map(row => `${(ORB_DB[row.key] || {}).name || row.key} ${row.amount}`).join(' + ');
+}
+
+window.CHAOS_INFUSER_OPTIONS = CHAOS_INFUSER_OPTIONS;
+window.getChaosInfuserOptionsForItem = getChaosInfuserOptionsForItem;
+window.isChaosInfusionEligibleItem = isChaosInfusionEligibleItem;
+window.getItemExplicitOptionCount = getItemExplicitOptionCount;
+window.isChaosInfuserUnlocked = isChaosInfuserUnlocked;
+window.getChaosInfusionCost = getChaosInfusionCost;
+window.formatCurrencyCosts = formatCurrencyCosts;
+
+
+const VENOM_STINGER_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.venomStinger, MOD_DB);
+
+
+safeExposeGlobals({ applyVoidChiselToSelectedItem, drawJewelRefine, salvageJewel });
+
+
+/** Whether unique rolls at tier (a content unique's own minimum tier first). */
+const uniqueMeetsTier = (unique, tier) => !!unique && tier >= ((unique.dropOnly && unique.dropOnly.minTier) || unique.reqTier || 1);
+
+
+function addItemToInventory(item, options) {
+    normalizeItem(item);
+    const logLoot = game.settings.showLootLog;
+    let guaranteedKeep = isGuaranteedEquipmentPickup(item, options), alwaysPicked = bagItems.keptOnPickup(item);
+    let ignoreFilter = guaranteedKeep || alwaysPicked || !!(options && options.ignoreFilter);
+    let ignoreAutoSalvage = guaranteedKeep || alwaysPicked || !!(options && options.ignoreAutoSalvage);
+    let autoEquipSlot = getAcquiredItemAutoEquipSlot(item, options);
+    if (autoEquipSlot) {
+        recordEquipmentAcquisition(item);
+        if (logLoot) addLog(_t("🛡️ 빈 {autoEquipSlot} 슬롯에 자동 장착: <span class='loot-{rarity}'>[{name}]</span>", { autoEquipSlot, rarity: item.rarity, name: _t(item.name) }), 'loot-rare', { item });
+        checkUnlocks();
+        return true;
+    }
+    if (!ignoreFilter && !passesItemPickupFilter(item)) {
+        if (logLoot) addLog(_t("🚫 아이템 필터로 미습득: <span class='loot-{rarity}'>[{name}]</span>", { rarity: item.rarity, name: _t(item.name) }), 'attack-monster');
+        return false;
+    }
+    const result = storeEquipmentPickup(item, { guaranteedKeep, ignoreAutoSalvage });
+    if (result.accepted) { recordEquipmentAcquisition(item); checkUnlocks(); }
+    if (result.kind === 'protected') addLog(_t('🎒 인벤토리가 가득 찼지만 [{name}]{particle} 유실 방지를 위해 초과 보관됩니다.', { name: getItemDisplayName(item), particle: pickParticle(item.name, '은', '는') }), 'attack-monster');
+    else if (logLoot && result.rewards && result.log) {
+        const label = result.kind === 'overflow' ? '공간 부족 자동해체' : '자동해체';
+        addLog(`${label}: <span class='loot-${item.rarity}'>[${_t(item.name)}]</span>, ${formatSalvageRewardSummary(result.rewards)}`, 'loot-normal');
+    }
+    return result.accepted;
+}
+
+
+/** One more gear salvaged for room during an away settlement (the result's 자동해체 count, js/combat-replay.js finishCombatReplay). */
+const countBackgroundOverflowSalvage = () => { game.backgroundOverflowSalvageCount = Math.max(0, Math.floor(Number(game.backgroundOverflowSalvageCount) || 0)) + 1; };
+
+
+/** Gear ids picked up since the 장비 button last rated them (js/equipment-triage.js checkFreshGear), oldest first, at most 40.
+ * Gear worn on pickup is noted too and dropped there (only bag gear is rated). */
+const freshGearIds = [];
+
+
+/** Takes up to `limit` of the gear ids noted above, oldest first. */
+const takeFreshGearIds = limit => freshGearIds.splice(0, limit);
+
+
+/** 항상 줍기(2026-10-10): 특출난 베이스, 상급 옵션 희귀(data/loot-omens.js fineRare), 소켓, 타락, 도감에 없는 고유는 다른 조건과 상관없이 줍는다. */
+const PICKUP_EXCEPTIONS = Object.freeze({
+    exceptional: item => !!item.exceptionalBase,
+    fineRare: item => item.rarity === 'rare' && lootMoments.fineLines(item) >= LOOT_OMENS.fineRare.good,
+    socket: item => !!item.voidSocket || (Array.isArray(item.sockets) && item.sockets.length > 0),
+    corrupted: item => !!item.corrupted,
+    newUnique: item => lootMoments.isNewUnique(item),
+    influenced: item => itemInfluences.influenceKeys(item).some(key => key !== 'swapped'),
+    ward: item => colonyWards.isWard(item)
+});
+
+
+const UNIQUE_JEWEL_DB = [
+    { id:'uj_crown_empty', name:'비어 있는 왕좌', ultra:true, uniqueEffect:'다른 고유 주얼이 없으면 피해 +25%, 룬 레벨 +1 추가', stats:[{id:'pctDmg',val:25},{id:'gemLevel',val:1}] },
+    { id:'uj_mirror_heart', name:'거울 심장', ultra:true, uniqueEffect:'반지 소켓에 끼우면 반대쪽 반지 소켓의 주얼 복제', stats:[{id:'pctDmg',val:8},{id:'resAll',val:8}] },
+    { id:'uj_old_box', name:'오래된 보석함', ultra:true, uniqueEffect:'가방의 마법 아이템 하나마다 공격 속도 +0.5%(최대 30%), 희귀 하나마다 피해 +1.2%(최대 60%), 고유 하나마다 물리 피해 감소 +1.5%(최대 12%)', stats:[{id:'aspd',val:6},{id:'resAll',val:10}] },
+    { id:'uj_hurried_mind', name:'다급해지는 마음', ultra:true, uniqueEffect:'적이 없으면 이동속도 +50%', stats:[{id:'move',val:12},{id:'regen',val:1.2}] },
+    { id:'uj_condensed_curse', name:'응축된 저주', ultra:true, uniqueEffect:'저주 최대치 +1, 대상 저주당 최종 피해 +10%', stats:[{id:'dotPctDmg',val:14},{id:'resPen',val:6}] },
+    { id:'uj_burning_will', name:'불같은 의지', ultra:true, uniqueEffect:'최대치를 넘는 화염 저항 1%마다 기본 피해 +0.5%(최대 35%)', stats:[{id:'maxResF',val:2},{id:'firePctDmg',val:12}] },
+    { id:'uj_closed_eyes', name:'질끈 감은 눈', ultra:true, uniqueEffect:'플레이어 상태이상 면역, 부적의 수호, 함성, 저주 줄 비활성', stats:[{id:'dr',val:6},{id:'resAll',val:12}] },
+    { id:'uj_spark_ember', name:'불씨의 파편', stats:[{id:'firePctDmg',val:14},{id:'igniteChance',val:10}] },
+    { id:'uj_frost_nail', name:'서리 못', stats:[{id:'coldPctDmg',val:14},{id:'chillChance',val:10}] },
+    { id:'uj_storm_shard', name:'폭풍 조각', stats:[{id:'lightPctDmg',val:14},{id:'shockEffectReducePct',val:12}] },
+    { id:'uj_venom_eye', name:'독안', stats:[{id:'chaosPctDmg',val:14},{id:'poisonChance',val:12}] },
+    { id:'uj_blood_tine', name:'혈극', stats:[{id:'physPctDmg',val:14},{id:'bleedChance',val:12}] },
+    { id:'uj_iron_husk', name:'강철 껍질', stats:[{id:'armorPct',val:16},{id:'dr',val:5}] },
+    { id:'uj_windstep', name:'바람걸음', stats:[{id:'move',val:14},{id:'aspd',val:8}] },
+    { id:'uj_null_seed', name:'영점 씨앗', stats:[{id:'resPen',val:7},{id:'crit',val:1.2}] },
+    { id:'uj_root_charm', name:'뿌리 부적', stats:[{id:'flatHp',val:55},{id:'regen',val:1.5}] },
+    { id:'uj_tide_mark', name:'조류 각인', stats:[{id:'dotPctDmg',val:12},{id:'dotTakenDamageReducePct',val:8}] },
+    { id:'uj_ash_loop', name:'잿빛 고리', stats:[{id:'critDmg',val:18},{id:'crit',val:1}] },
+    { id:'uj_horizon_pin', name:'지평 핀', stats:[{id:'projectilePctDmg',val:16},{id:'minDmgRoll',val:4}] },
+    { id:'uj_stone_beat', name:'석맥 박동', stats:[{id:'slamPctDmg',val:16},{id:'maxDmgRoll',val:4}] },
+    { id:'uj_lattice', name:'격자 파편', stats:[{id:'resAll',val:10},{id:'energyShieldPct',val:12}] },
+    { id:'uj_bramble', name:'가시덩굴', stats:[{id:'evasionPct',val:12},{id:'takenDamageReduceWhen2EnemiesPct',val:6}] },
+    { id:'uj_dawn_chip', name:'새벽 조각', stats:[{id:'pctDmg',val:12},{id:'takenDamageReduceWhen1EnemyPct',val:4}] },
+    // 2026-10-02 재능 정리: 얻을 수 없게 된 옛 재능 카드의 효과(bloomMechanic, js/talent-cards.js getGrantedBloomMechanics).
+    // 일반 고유 풀에 둔다(울트라 풀이면 고유 주얼 하나당 약 0.4%로 너무 드물다).
+    { id:'uj_judgment_mark', name:'심판의 표식', bloomMechanic:'hero1__inquisitor', uniqueEffect:'공격하면 5초 동안 피해를 모으는 표식을 남기고, 5초 뒤 모은 피해의 12%로 터짐(재사용 6초)', stats:[{id:'pctDmg',val:8},{id:'crit',val:1}] },
+    { id:'uj_hex_burst', name:'터지는 저주', bloomMechanic:'hero1__warlock', uniqueEffect:'저주에 걸린 적을 공격하면 그 저주를 터뜨려 적 모두에게 0.2배 피해', stats:[{id:'chaosPctDmg',val:10},{id:'dotPctDmg',val:10}] },
+    { id:'uj_stinger', name:'독침의 끝', bloomMechanic:'hero1__catalyst', uniqueEffect:'남은 지속 피해가 적의 남은 생명력보다 많으면 그 적을 바로 마무리', stats:[{id:'dotPctDmg',val:14},{id:'poisonChance',val:8}] },
+    { id:'uj_crowd_roar', name:'관중의 함성', bloomMechanic:'hero2__gladiator', uniqueEffect:'처치마다 관중의 함성 1중첩, 5중첩이면 다음 공격이 주변 적 다섯에게 120% 피해(적이 하나면 피해 20% 증폭)', stats:[{id:'meleePctDmg',val:12},{id:'aspd',val:5}] },
+    { id:'uj_moon_shadow', name:'달그림자', bloomMechanic:'hero3__assassin', uniqueEffect:'치명타 피해의 20%가 모든 피해 감소를 무시하는 고정 피해로 바뀜', stats:[{id:'critDmg',val:15},{id:'crit',val:1}] },
+    { id:'uj_forest_ring', name:'숲마당', bloomMechanic:'hero3__gladiator', uniqueEffect:'플레이어와 몬스터의 모든 공격이 반드시 명중함', stats:[{id:'flatHp',val:40},{id:'aspd',val:4}] },
+    { id:'uj_defiant_bolt', name:'거역의 번개', bloomMechanic:'hero5__assassin', uniqueEffect:'번개 피해가 카오스 피해로 바뀌고, 카오스 피해를 준 적의 생명력 재생 50% 감소', stats:[{id:'chaosPctDmg',val:12},{id:'lightPctDmg',val:8}] },
+    { id:'uj_pilgrim_spark', name:'순례자의 번개', bloomMechanic:'hero5__ranger', uniqueEffect:'물리 피해의 50%가 번개 피해로 바뀜', stats:[{id:'lightPctDmg',val:12},{id:'physPctDmg',val:8}] },
+    { id:'uj_endless_night', name:'끝없는 밤', bloomMechanic:'hero5__warlock', uniqueEffect:'적에게 거는 저주가 끝나지 않음', stats:[{id:'dotPctDmg',val:10},{id:'resPen',val:4}] },
+    { id:'uj_marksman_eye', name:'명사수의 눈', bloomMechanic:'hero6__ranger', uniqueEffect:'치명타 확률을 두 번 굴려 좋은 쪽을 쓰고, 치명타 확률이 100%를 넘으면 넘는 몫의 50%가 치명타 피해로 바뀜', stats:[{id:'crit',val:1.5},{id:'critDmg',val:12}] },
+    { id:'uj_three_way', name:'삼갈래 화살', bloomMechanic:'hero6__gladiator', uniqueEffect:'투사체가 세 갈래로 나뉘어 날아감, 투사체 추가 발사 +1, 투사체 연속 타격 확률 +50%', stats:[{id:'projectilePctDmg',val:12},{id:'aspd',val:4}] },
+    { id:'uj_elemental_oath', name:'원소 성전', bloomMechanic:'hero9__crusader', uniqueEffect:'생명력이 1로 고정되는 대신 받는 카오스 피해 50% 감소', stats:[{id:'energyShieldPct',val:20},{id:'resAll',val:10}] },
+    { id:'uj_root_bond', name:'뿌리 결속', bloomMechanic:'hero3__soulbinder', uniqueEffect:'소환수의 공격 속도가 플레이어의 공격 속도와 같아지는 대신 플레이어는 공격하지 않음', stats:[{id:'summonPctDmg',val:15},{id:'summonHpPct',val:10}] },
+    { id:'uj_blue_judgment', name:'푸른 심판', bloomMechanic:'hero3__inquisitor', uniqueEffect:'원소 공격의 15%가 적의 원소 저항을 반대로 셈', stats:[{id:'elementalPctDmg',val:12},{id:'resPen',val:3}] }
+];
+
+const JEWEL_SUMMON_OPTION_IDS = new Set(['summonFlatDmg', 'summonPctDmg', 'summonAspd', 'summonHpPct', 'summonCrit', 'summonCritDmg', 'summonEfficiency', 'summonResPen']);
+const JEWEL_SUMMON_OPTION_GROUP = { id: '__summonOptionGroup', name: '소환수 옵션군' };
+
+const JEWEL_OPTION_POOL = [
+    { id: 'pctDmg', name: '피해 증폭', min: 4, max: 10 },
+    { id: 'physPctDmg', name: '물리 증폭', min: 6, max: 15 },
+    { id: 'firePctDmg', name: '화염 증폭', min: 6, max: 15 },
+    { id: 'coldPctDmg', name: '냉기 증폭', min: 6, max: 15 },
+    { id: 'lightPctDmg', name: '번개 증폭', min: 6, max: 15 },
+    { id: 'chaosPctDmg', name: '카오스 증폭', min: 6, max: 15 },
+    { id: 'flatHp', name: '생명력 주입', min: 20, max: 45 },
+    { id: 'crit', name: '치명 보석', min: 1, max: 3 },
+    { id: 'aspd', name: '질주 보석', min: 3, max: 7 },
+    // 재사용 대기시간 세팅(2026-10-21): 한 개로는 작고, 여러 개를 모아야 난사에 다가간다.
+    { id: 'cooldownRecovery', name: '순환 수정', min: 2, max: 4 },
+    { id: 'mobilityCooldownRecovery', name: '바람결 파편', min: 3, max: 6 },
+    { id: 'resAll', name: '수호 보석', min: 4, max: 9 },
+    { id: 'resF', name: '화염 수호', min: 8, max: 18 },
+    { id: 'resC', name: '냉기 수호', min: 8, max: 18 },
+    { id: 'resL', name: '번개 수호', min: 8, max: 18 },
+    { id: 'resChaos', name: '공허 수호', min: 4, max: 8 },
+    { id: 'physIgnore', name: '절개 파편', min: 2, max: 6 },
+    { id: 'dr', name: '강인 파편', min: 3, max: 8 },
+    { id: 'resPen', name: '관통 수정', min: 2, max: 6 },
+    { id: 'dotPctDmg', name: '부패 수정', min: 4, max: 10 },
+    { id: 'regenSuppress', name: '봉쇄 파편', min: 0.5, max: 0.5, step: 0.1 },
+    { id: 'minDmgRoll', name: '하한 수정', min: 1, max: 3 },
+    { id: 'maxDmgRoll', name: '상한 수정', min: 1, max: 3 },
+    { id: 'armorPct', name: '강화 외피', min: 4, max: 10 },
+    { id: 'evasionPct', name: '유동 보법', min: 4, max: 10 },
+    { id: 'energyShieldPct', name: '보호막 기동', min: 4, max: 10 },
+    { id: 'summonFlatDmg', name: '사역 피해 주입', min: 4, max: 12 },
+    { id: 'summonPctDmg', name: '지배자의 파편', min: 6, max: 16 },
+    { id: 'summonAspd', name: '무리의 가속', min: 3, max: 9, step: 0.5 },
+    { id: 'summonHpPct', name: '사역 생명핵', min: 6, max: 16 },
+    { id: 'summonCrit', name: '야수의 눈', min: 1, max: 4, step: 0.5 },
+    { id: 'summonCritDmg', name: '포식의 송곳니', min: 10, max: 28 },
+    { id: 'summonEfficiency', name: '영혼 결속정', min: 4, max: 12 },
+    { id: 'summonResPen', name: '사역 관통석', min: 1, max: 5, step: 0.5 },
+    { id: 'ailResIgnite', name: '소염 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResShock', name: '절연 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResFreeze', name: '방한 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResPoison', name: '해독 수정', min: 12.5, max: 50, step: 0.5 },
+    { id: 'ailResBleed', name: '지혈 수정', min: 12.5, max: 50, step: 0.5 },
+];
+const JEWEL_HIDDEN_TIER_COUNT = 5;
+const JEWEL_PETITE_OPTION_POOL = [
+    { id: 'pctDmg', name: '작은 피해결', magic: [1, 1], rare: [1, 2] },
+    { id: 'flatHp', name: '작은 생명결', magic: [4, 6], rare: [6, 9] },
+    { id: 'crit', name: '작은 치명결', magic: [0.5, 0.5], rare: [0.5, 1] },
+    { id: 'aspd', name: '작은 가속결', magic: [1, 1], rare: [1, 2] },
+    { id: 'resAll', name: '작은 수호결', magic: [1, 1], rare: [1, 2] },
+    { id: 'resPen', name: '작은 관통결', magic: [1, 1], rare: [1, 2] },
+    { id: 'regen', name: '작은 재생결', magic: [0.1, 0.1], rare: [0.1, 0.2], step: 0.1 }
+];
+
+
+/** Jewels go straight into the bag (js/bag-items.js addJewel): with the bag full a rare or unique one waits in the temporary
+ * storage and the rest are salvaged into jewel shards. One whose rarity the auto-salvage takes is salvaged instead of kept
+ * (bagItems.salvagedOnDrop); the receipt then reads stored: false with the bag not full. */
+function receiveJewelDrop(jewel) {
+    if(bagItems.salvagedOnDrop(jewel))return {jewel,inventoryFull:false,stored:false,protectOverflow:false,shardGain:salvageJewelObject(jewel,true)};
+    combatLootReceipts.item(game,jewel,'jewel'); // 가방에 들어온 것만 지도 결과에 적는다(장비와 같다)
+    const added=bagItems.addJewel(jewel);
+    return {jewel,inventoryFull:added.protectOverflow||!added.stored,...added};
+}
+
+
+// The elemental lines a rot harvest removes (data/affix-tags.js AFFIX_TAG_LISTS.rotSpore).
+const ROT_SPORE_STAT_IDS = resolveAffixTagList(AFFIX_TAG_LISTS.rotSpore, MOD_DB);
+/** 부패 수확의 값: 화염, 냉기, 번개 식물 하나씩(data/stump-box.js STUMP_BOX_HARVEST_CRAFT.rot). */
+const rotHarvestKeys = () => STUMP_BOX_HARVEST_CRAFT.rot.map(color => stumpBox.harvestPriceKey('any', color));
+const riftHarvestKey = () => stumpBox.harvestPriceKey(STUMP_BOX_HARVEST_CRAFT.riftKind);
+const holdsHarvest = key => stumpBox.harvestPriceHeld(game, key) >= 1;
+
+
+const QUALITY_ATTRIBUTE_MODES = ['base', 'fire', 'cold', 'light', 'chaos', 'physical', 'defense', 'speed'];
+// 기폭제(12번 루프 32, js/sap-catalysts.js)만 주는 품질 속성: 심연 촉매의 순환(QUALITY_ATTRIBUTE_MODES)에는 들지 않는다.
+const QUALITY_CATALYST_MODES = ['crit', 'summon'];
+const QUALITY_ATTRIBUTE_LABELS = { base: '기본', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스', physical: '물리', defense: '방어', speed: '속도',
+    crit: '치명', summon: '소환' };
+// The lines each quality mode scales come from its tag rule (data/affix-tags.js AFFIX_TAG_LISTS.quality), unique lines included.
+const QUALITY_ATTRIBUTE_STAT_GROUPS = Object.fromEntries(Object.entries(AFFIX_TAG_LISTS.quality)
+    .map(([mode, rule]) => [mode, resolveAffixTagList(rule, MOD_DB)]));
+
+
+safeExposeGlobals({ getItemQualityAttributeMode, getItemQualityAttributeLabel, isQualityAttributeStat, getCosmosBossRelicStatTotals });
+
 
 /**
  * @param {string} currencyKey Crafting action; pays one of that currency.
@@ -2856,20 +2923,6 @@ const craftCurrencyUse = (() => {
     return Object.freeze({ use, blockReason, addonReason });
 })();
 
-/** The crafting workspace's currency use (js/crafting-workspace-ui.js): craftCurrencyUse.use, its log lines, a redraw. true when it
- * crafted. Kept async for its callers. */
-async function useCurrency(currencyKey) {
-    const result = craftCurrencyUse.use(currencyKey);
-    if (result.reason) return addLog(result.reason, 'attack-monster');
-    result.logs.forEach(args => addLog(...args));
-    if (!result.ok) return undefined;
-    updateStaticUI();
-    return true;
-}
-
-function isMarketUnlocked() {
-    return contentProgression.isUnlocked('market');
-}
 
 safeExposeGlobals({
     getRealmEquipmentHiddenTierCap,

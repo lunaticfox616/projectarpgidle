@@ -1,6 +1,7 @@
 // Build-source accumulation. Each call owns its output buckets; live HP/buffs stay in combat.js.
 // Source order is significant: support scaling runs after these sources, before temporary buffs.
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** Adds allocated loop passives to the caller-owned bucket without changing progression. */
 function accumulateCombatSeasonStats(bucket, nodeIds, levels) {
     const nodeLevels = levels && typeof levels === 'object' ? levels : {};
@@ -62,9 +63,6 @@ function pushBuildKeystoneUniqueEffects(target, owner = game) {
     getActiveAscendKeystoneUniqueEffects(owner).concat(talent).forEach(effect => { if (effect && effect.key) target.push(effect); });
 }
 
-/** 작을수록 좋은 고유 효과 값(재사용 대기, 발동 최소 적 수). */
-const LOWER_IS_BETTER_UNIQUE_PARAMS = new Set(['cooldown', 'cooldownSec', 'icdSec', 'minEnemies']);
-
 /** 같은 고유 효과를 여러 곳(고유 장비, 전직 키스톤)에서 받으면 값마다 더 좋은 쪽을 쓴다. 예전에는 나중 줄이 앞 줄을 통째로 덮어
  * 더 약한 고유 장비가 키스톤 효과를 깎았다(2026-10-02 검토). 두 값은 엔진이 기본값을 채운 숫자다. */
 function mergeBetterUniqueParams(previous, next) {
@@ -95,12 +93,12 @@ function accumulateWorldTreeBarkStats(bucket, season) {
     addStatToBucket(bucket, 'move', effect.movePct);
 }
 
-const WORLD_TREE_BARK_NO_EFFECT = Object.freeze({ on: false, damagePct: 0, takenPct: 0, movePct: 0 });
 /** The bark effect holds here: an act or chaos zone within the reach that this loop has not cleared yet. Its boss and retries after a death are in, a return after the clear is not. */
 function isWorldTreeBarkZone(zone, owner = game) {
     if (!zone || !['act', 'abyss'].includes(zone.type) || !getWorldTreeBarkLayers(owner.season)) return false;
     return Number(zone.id) < getWorldTreeBarkReach(owner) && Number(zone.id) >= Math.max(0, Math.floor(owner.maxZoneId || 0));
 }
+
 /** What the 껍질 포인트 give in the zone the hero stands in (data/maps.js WORLD_TREE_BARK.stats). */
 function getWorldTreeBarkEffect(owner = game) {
     if (!isWorldTreeBarkZone(getZone(owner.currentZoneId), owner)) return WORLD_TREE_BARK_NO_EFFECT;
@@ -193,35 +191,6 @@ function getCombatEquipmentContributions(resolvedSources, excludedSlots) {
         equippedUniqueEffects: result.equippedUniqueEffects.slice() };
 }
 
-/** count × per of two stats, count at most max (params of the "per thing" unique effects). */
-const perCountLines = (count, max, lines) => lines.map(([id, per]) => ({ id, val: Math.min(Number(max) || 0, count) * (Number(per) || 0) }));
-
-/** 능력치 줄로만 동작하는 고유 효과(등급 17~20 일반 고유와 리그 우두머리 고유, 2026-10-09, data/items.js). 줄은 장비의 추가 옵션처럼
- * 더해진다. context(uniqueEffectContext): 지금 루프, 능력치를 주는 장비 중 수평 베이스 수, 타락한 장비 수, 장비 품질 합, 목걸이에
- * 새긴 노드 수, 그루터기 함 판의 다 자란 씨앗 수. */
-const UNIQUE_EFFECT_STAT_LINES = Object.freeze({
-    loopGrowth: (p, context) => perCountLines(context.loop, p.maxLoops, [['pctHp', p.hpPerLoop], ['pctDmg', p.dmgPerLoop]]),
-    familyBond: (p, context) => perCountLines(context.horizontal, p.maxPieces, [['pctDmg', p.dmgPer], ['resAll', p.resPer]]),
-    // 탐험 지도 시야 상한(js/act-exploration-state.js sightRadius)과 보급 상자 등급 확률(js/exploration-object-combat.js chestRules).
-    sightBeyond: p => [{ id: 'sightCap', val: Number(p.cap) || 0 }],
-    // 되감긴 모래시계: 재사용 대기시간 감소 상한(js/skills.js getSkillCooldownMs, 기본 60%)을 올린다.
-    cooldownReductionCap: p => [{ id: 'cooldownReductionCapBonus', val: Number(p.pct) || 0 }],
-    chestLuck: p => [{ id: 'chestGrade', val: Number(p.gradePct) || 0 }],
-    // 리그 우두머리 고유: 잿불 터(타락), 수액 상처(품질), 시든 정원(목걸이 기름), 묘목장(그루터기 함).
-    emberHeart: (p, context) => perCountLines(context.corrupted, p.max, [['pctDmg', p.dmgPer], ['resF', p.resPer]]),
-    amberTime: (p, context) => perCountLines(Math.floor(context.quality / (Number(p.qualityStep) || 10)), p.max, [['pctDmg', p.dmgPer], ['pctHp', p.hpPer]]),
-    witheredEcho: (p, context) => perCountLines(context.anoints, p.max, [['pctDmg', p.dmgPer], ['resChaos', p.resPer]]),
-    nurseryBloom: (p, context) => perCountLines(context.stumpMature, p.max, [['pctHp', p.hpPer], ['pctDmg', p.dmgPer]]),
-    // 체이싱 고유(2026-10-20): 착용한 고유 장비(달을 벤 초승달), 희귀 장비(세계수의 첫 껍질), 장착한 액막이(고요한 맹세), 빈 장비
-    // 칸(비워 둔 자리)의 수만큼.
-    uniqueChorus: (p, context) => perCountLines(context.uniques, p.max, [['pctDmg', p.dmgPer], ['aspd', p.aspdPer]]),
-    rareBark: (p, context) => perCountLines(context.rares, p.max, [['pctHp', p.hpPer], ['resAll', p.resPer]]),
-    wardVow: (p, context) => perCountLines(context.wards, p.max, [['blockChance', p.blockPer], ['dr', p.drPer]]),
-    emptyPlaces: (p, context) => perCountLines(context.empty, p.max, [['pctDmg', p.dmgPer], ['pctHp', p.hpPer]])
-});
-/** The gear slots the empty count looks at: the paperdoll's eleven (a third ring slot, opened by a void passive, is left out). */
-const UNIQUE_EFFECT_GEAR_SLOTS = Object.freeze(['무기', '투구', '갑옷', '방패', '장갑1', '장갑2', '신발', '목걸이', '반지1', '반지2', '허리띠']);
-
 /** Ripe seeds and saps on the stump box board (the board is a build field). */
 function countRipeStumpGrowth(owner) {
     const box = owner.stumpBox;
@@ -287,8 +256,6 @@ function accumulateCombatSocketJewels(result, item) {
     }
 }
 
-// 심연 군주(워록 wlk8)와 재물욕(초월 공허)은 예전의 주얼 슬롯 추가 대신 장비 소켓 주얼의 옵션을 키운다(2026-09-30).
-const SOCKET_JEWEL_BONUS = Object.freeze({ warlockLord: 0.25, greed: 0.1 });
 function getSocketJewelMultiplier(owner = game) {
     const lord = hasKeystone('wlk8', owner) ? SOCKET_JEWEL_BONUS.warlockLord : 0;
     const greed = getTranscendentVoidPassiveCount('greed', owner) > 0 ? SOCKET_JEWEL_BONUS.greed : 0;
@@ -303,10 +270,6 @@ function addSocketJewelStats(result, jewel, multiplier) {
     });
 }
 
-/** 방어도, 회피, 에너지 보호막(%) 줄이 주인공의 그 방어 합계를 올리는 경우: 주얼의 줄, 그리고 그 방어가 없는 장비의 줄. 장비의 줄은 그
- * 장비의 방어에만 붙어(accumulateCombatItemDefenses), 바탕에 그 방어가 없는 고유 장비 30줄(심층 제련검, 룬 심장 목걸이 등)과 주얼의
- * 줄은 아무것도 올리지 않았다(2026-10-17). */
-const DEFENSE_PCT_KINDS = Object.freeze({ armorPct: 'armor', evasionPct: 'evasion', energyShieldPct: 'energyShield' });
 function addGlobalDefensePct(target, statId, value) {
     if (Object.hasOwn(DEFENSE_PCT_KINDS, statId)) target[DEFENSE_PCT_KINDS[statId]] += value;
 }
@@ -354,3 +317,53 @@ function getAbyssJewelMultiplier(item) {
     const pct = Number.isFinite(Number(params.ampPct)) ? Number(params.ampPct) : (min + max) / 2;
     return 1 + pct / 100;
 }
+
+exposeFileGlobals({ accumulateCombatSeasonStats, accumulateCombatAscendStats, forEachActiveKeystoneDef, pushBuildKeystoneUniqueEffects, mergeBetterUniqueParams, accumulateCombatLoopStats, accumulateWorldTreeBarkStats, isWorldTreeBarkZone, getWorldTreeBarkEffect, getLoopDeepMorePct, accumulateCombatRuneStats, getBonusResonancePower, addConstellationBuffStat, readRequirementAttributes, getCombatEquipmentContributions, getSocketJewelMultiplier, addGlobalDefensePct, getAbyssJewelMultiplier });
+})();
+
+
+/** 작을수록 좋은 고유 효과 값(재사용 대기, 발동 최소 적 수). */
+const LOWER_IS_BETTER_UNIQUE_PARAMS = new Set(['cooldown', 'cooldownSec', 'icdSec', 'minEnemies']);
+
+
+const WORLD_TREE_BARK_NO_EFFECT = Object.freeze({ on: false, damagePct: 0, takenPct: 0, movePct: 0 });
+
+
+/** count × per of two stats, count at most max (params of the "per thing" unique effects). */
+const perCountLines = (count, max, lines) => lines.map(([id, per]) => ({ id, val: Math.min(Number(max) || 0, count) * (Number(per) || 0) }));
+
+/** 능력치 줄로만 동작하는 고유 효과(등급 17~20 일반 고유와 리그 우두머리 고유, 2026-10-09, data/items.js). 줄은 장비의 추가 옵션처럼
+ * 더해진다. context(uniqueEffectContext): 지금 루프, 능력치를 주는 장비 중 수평 베이스 수, 타락한 장비 수, 장비 품질 합, 목걸이에
+ * 새긴 노드 수, 그루터기 함 판의 다 자란 씨앗 수. */
+const UNIQUE_EFFECT_STAT_LINES = Object.freeze({
+    loopGrowth: (p, context) => perCountLines(context.loop, p.maxLoops, [['pctHp', p.hpPerLoop], ['pctDmg', p.dmgPerLoop]]),
+    familyBond: (p, context) => perCountLines(context.horizontal, p.maxPieces, [['pctDmg', p.dmgPer], ['resAll', p.resPer]]),
+    // 탐험 지도 시야 상한(js/act-exploration-state.js sightRadius)과 보급 상자 등급 확률(js/exploration-object-combat.js chestRules).
+    sightBeyond: p => [{ id: 'sightCap', val: Number(p.cap) || 0 }],
+    // 되감긴 모래시계: 재사용 대기시간 감소 상한(js/skills.js getSkillCooldownMs, 기본 60%)을 올린다.
+    cooldownReductionCap: p => [{ id: 'cooldownReductionCapBonus', val: Number(p.pct) || 0 }],
+    chestLuck: p => [{ id: 'chestGrade', val: Number(p.gradePct) || 0 }],
+    // 리그 우두머리 고유: 잿불 터(타락), 수액 상처(품질), 시든 정원(목걸이 기름), 묘목장(그루터기 함).
+    emberHeart: (p, context) => perCountLines(context.corrupted, p.max, [['pctDmg', p.dmgPer], ['resF', p.resPer]]),
+    amberTime: (p, context) => perCountLines(Math.floor(context.quality / (Number(p.qualityStep) || 10)), p.max, [['pctDmg', p.dmgPer], ['pctHp', p.hpPer]]),
+    witheredEcho: (p, context) => perCountLines(context.anoints, p.max, [['pctDmg', p.dmgPer], ['resChaos', p.resPer]]),
+    nurseryBloom: (p, context) => perCountLines(context.stumpMature, p.max, [['pctHp', p.hpPer], ['pctDmg', p.dmgPer]]),
+    // 체이싱 고유(2026-10-20): 착용한 고유 장비(달을 벤 초승달), 희귀 장비(세계수의 첫 껍질), 장착한 액막이(고요한 맹세), 빈 장비
+    // 칸(비워 둔 자리)의 수만큼.
+    uniqueChorus: (p, context) => perCountLines(context.uniques, p.max, [['pctDmg', p.dmgPer], ['aspd', p.aspdPer]]),
+    rareBark: (p, context) => perCountLines(context.rares, p.max, [['pctHp', p.hpPer], ['resAll', p.resPer]]),
+    wardVow: (p, context) => perCountLines(context.wards, p.max, [['blockChance', p.blockPer], ['dr', p.drPer]]),
+    emptyPlaces: (p, context) => perCountLines(context.empty, p.max, [['pctDmg', p.dmgPer], ['pctHp', p.hpPer]])
+});
+/** The gear slots the empty count looks at: the paperdoll's eleven (a third ring slot, opened by a void passive, is left out). */
+const UNIQUE_EFFECT_GEAR_SLOTS = Object.freeze(['무기', '투구', '갑옷', '방패', '장갑1', '장갑2', '신발', '목걸이', '반지1', '반지2', '허리띠']);
+
+
+// 심연 군주(워록 wlk8)와 재물욕(초월 공허)은 예전의 주얼 슬롯 추가 대신 장비 소켓 주얼의 옵션을 키운다(2026-09-30).
+const SOCKET_JEWEL_BONUS = Object.freeze({ warlockLord: 0.25, greed: 0.1 });
+
+
+/** 방어도, 회피, 에너지 보호막(%) 줄이 주인공의 그 방어 합계를 올리는 경우: 주얼의 줄, 그리고 그 방어가 없는 장비의 줄. 장비의 줄은 그
+ * 장비의 방어에만 붙어(accumulateCombatItemDefenses), 바탕에 그 방어가 없는 고유 장비 30줄(심층 제련검, 룬 심장 목걸이 등)과 주얼의
+ * 줄은 아무것도 올리지 않았다(2026-10-17). */
+const DEFENSE_PCT_KINDS = Object.freeze({ armorPct: 'armor', evasionPct: 'evasion', energyShieldPct: 'energyShield' });

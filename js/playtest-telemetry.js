@@ -1,23 +1,7 @@
 // 로그인 테스터의 콘텐츠 결과와 런타임 오류만 요약해 보낸다.
 // 공격/드랍/프레임 개별 이벤트와 저장 원문은 수집하지 않는다.
-const PLAYTEST_RUN_DAILY_LIMIT = 50;
-const PLAYTEST_ERROR_DAILY_LIMIT = 20;
-const PLAYTEST_RECENT_ERROR_LIMIT = 20;
-
-const playtestRuntime = {
-    sessionId: createPlaytestSessionId(),
-    attempt: null,
-    recentErrors: [],
-    disabledTables: new Set(),
-    dailyLimitedTables: new Map(),
-    frameSamples: [],
-    longFrames: 0,
-    peakFx: 0,
-    currentFx: 0,
-    lastFrameAt: 0,
-    frameHandle: null
-};
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function createPlaytestSessionId() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
     let bytes = new Uint8Array(16);
@@ -325,6 +309,27 @@ async function copyClientDiagnostics() {
     }
     return text;
 }
+
+exposeFileGlobals({ createPlaytestSessionId, getPlaytestBuildVersion, getPlaytestFrameSummary, beginPlaytestAttempt, finishPlaytestAttempt, schedulePlaytestFrame, syncPlaytestFrameSampling, isPerformancePanelEnabled, updatePerformancePanel, captureClientError, getClientDiagnosticContext, copyClientDiagnostics });
+})();
+const PLAYTEST_RUN_DAILY_LIMIT = 50;
+const PLAYTEST_ERROR_DAILY_LIMIT = 20;
+const PLAYTEST_RECENT_ERROR_LIMIT = 20;
+
+const playtestRuntime = {
+    sessionId: createPlaytestSessionId(),
+    attempt: null,
+    recentErrors: [],
+    disabledTables: new Set(),
+    dailyLimitedTables: new Map(),
+    frameSamples: [],
+    longFrames: 0,
+    peakFx: 0,
+    currentFx: 0,
+    lastFrameAt: 0,
+    frameHandle: null
+};
+
 
 window.addEventListener('project-idle:encounter-started', event => beginPlaytestAttempt(event.detail));
 window.addEventListener('project-idle:encounter-finished', event => finishPlaytestAttempt('clear', event.detail));

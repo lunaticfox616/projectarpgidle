@@ -7,17 +7,8 @@
 // 카드/조합 기록은 루프(시즌 리셋)로 초기화되지 않는다.
 // (효과의 실제 스탯 반영 및 장착 슬롯은 P4에서 연결)
 // ============================================================================
-
-// 카드 레벨 임계값(점수 기준). 점수는 "층 환산" 단위(무한 콘텐츠 최고층 합 + DPS 로그 환산).
-const TALENT_CARD_LEVEL_THRESHOLDS = [0, 20, 45, 80, 125, 180, 250, 340, 450, 600];
-const TALENT_CARD_MAX_LEVEL = TALENT_CARD_LEVEL_THRESHOLDS.length;
-// 전직마다 한 장 = 18(2026-10-02 재능 정리). 직업, 전직 정의가 없는 좁은 실행 환경에서는 카드 정의 수.
-const TALENT_BLOOM_TOTAL_CARDS = typeof ASCENDANCIES_BY_PLAYER_CLASS === 'object' && typeof PLAYER_CLASS_DEFS === 'object'
-    ? getTalentBloomCardKeys().length : Object.keys(TALENT_BLOOM_CARD_DEFS).length;
-
-// 나무꾼 잔상 전투력(최고 DPS)의 로그 환산 기준. DPS가 2배 될 때마다 +1점(층과 동일 스케일).
-const TALENT_BLOOM_DPS_BASE = 1000;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** 전직이 속한 직업(data/ascendancies.js ASCENDANCIES_BY_PLAYER_CLASS). */
 function getTalentBloomClassOfAscendancy(ascendId) {
     return Object.keys(ASCENDANCIES_BY_PLAYER_CLASS).find(classId => ASCENDANCIES_BY_PLAYER_CLASS[classId].includes(ascendId)) || null;
@@ -58,6 +49,7 @@ function parseTalentComboKey(comboKey) {
     let parts = String(comboKey || '').split('__');
     return { heroId: parts[0] || 'hero1', classKey: parts[1] || 'none' };
 }
+
 function makeTalentComboKey(heroId, classKey) {
     return `${heroId || 'hero1'}__${classKey || 'none'}`;
 }
@@ -116,14 +108,12 @@ function recordTalentBloomCard(comboKey) {
     return { card, leveledUp: card.level > prevLevel, score };
 }
 
-// ── 표면효과 = 실제 적용 키스톤, 이면효과 = 실제 스탯(배열, lv10 = 만렙 수치, 레벨 비례) ──
-// surface.desc는 기획 원문이며, 실제 합산 수치는 TALENT_PRECISE_CARD_RULES만 사용한다.
-
 function talentHiddenList(def) {
     if (!def || !def.hidden) return [];
     if (Array.isArray(def.hidden)) return def.hidden;
     return [def.hidden];
 }
+
 function talentHiddenVal(h, lv) {
     // lv10 = 만렙(10레벨) 수치 → 현재 레벨 비례. (구버전 perLevel 도 호환)
     let base = (h.lv10 !== undefined) ? (Number(h.lv10) || 0) * lv / TALENT_CARD_MAX_LEVEL : (Number(h.perLevel) || 0) * lv;
@@ -144,24 +134,6 @@ function getTalentCardStatBonuses(heroId, classKey, level) {
     return out;
 }
 
-const TALENT_STAT_LABELS = {
-    pctDmg: '피해 증가', physPctDmg: '물리 피해', meleePctDmg: '근접 피해', projectilePctDmg: '투사체 피해',
-    elementalPctDmg: '원소 피해', firePctDmg: '화염 피해', coldPctDmg: '냉기 피해', lightPctDmg: '번개 피해',
-    chaosPctDmg: '카오스 피해', dotPctDmg: '지속 피해 배율', summonPctDmg: '소환수 피해', aoePctDmg: '범위 피해',
-    slamPctDmg: '강타 피해', weaponFlatDmgPct: '무기 기본 피해', crit: '치명타 확률', critDmg: '치명타 피해',
-    aspd: '공격 속도', ds: '연속 타격', move: '이동 속도', pctHp: '생명력 증가', armorPct: '방어도',
-    evasionPct: '회피', energyShieldPct: '에너지 보호막', resPen: '저항 관통', leech: '생명력 흡수',
-    dr: '받는 피해 감소', physIgnore: '물리 피해 감소 무시', regen: '생명력 재생', regenSuppress: '재생 억제',
-    blockChance: '막기 확률', blockChancePct: '기본 막기 확률 증가', blockChanceMax: '막기 확률 최대치',
-    deflectDamageReduce: '비껴내기 피해 감소', resAll: '모든 원소 저항', resChaos: '카오스 저항',
-    igniteChance: '점화 확률', poisonChance: '중독 확률', bleedChance: '출혈 확률', shockChance: '감전 확률',
-    freezeChance: '동결 확률', chillChance: '한기 확률',
-    ailResIgnite: '점화 저항 확률', ailResShock: '감전 저항 확률', ailResFreeze: '동결 저항 확률',
-    ailResPoison: '중독 저항 확률', ailResBleed: '출혈 저항 확률',
-    summonAspd: '소환수 공격 속도', summonHpPct: '소환수 생명력', summonResPen: '소환수 저항 관통',
-    summonCritDmg: '소환수 치명타 피해', summonCrit: '소환수 치명타 확률', summonEfficiency: '소환수 효율',
-    addedFireDamagePct: '추가 화염 피해', addedColdDamagePct: '추가 냉기 피해', addedLightDamagePct: '추가 번개 피해'
-};
 function getTalentStatLabel(stat) {
     if (TALENT_STAT_LABELS[stat]) return TALENT_STAT_LABELS[stat];
     if (typeof P_STATS !== 'undefined' && P_STATS[stat] && P_STATS[stat].name) return P_STATS[stat].name;
@@ -188,7 +160,6 @@ function getTalentRuntimeAppliedText(runtime, level) {
         : '함성 시전 시간 0초';
     return '';
 }
-
 
 /** The level's applied effects as { text, stat } (stat = the stat id for a plain stat line, null for a unique or runtime one). */
 function getTalentPreciseAppliedParts(comboKey, surface, level) {
@@ -223,69 +194,6 @@ function getTalentCardEffectParts(heroId, classKey, level) {
     return { level: lv, surface: (def.surface && def.surface.desc) || '', applied, hidden };
 }
 
-// 고유 효과 키 → 실제 효과를 나타내는 간략한 한국어 설명(파라미터 반영).
-const TALENT_UNIQ_LABELS = {
-    projectilePatternMode: p => _t('투사체 패턴: {value}', { value: typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[p.mode] ? PROJECTILE_PATTERN_MODE_DB[p.mode].label : p.mode }),
-    cosmosPenetration: p => _t('저항 관통 +{pen}%', { pen: p.pen }),
-    poisonDamageMorePct: p => _t('중독 피해 +{pct}%', { pct: p.pct }),
-    igniteDamageMorePct: p => _t('점화 피해 +{pct}%', { pct: p.pct }),
-    hitShockedEnemyDamageMorePct: p => _t('감전된 적에게 주는 피해 +{pct}%', { pct: p.pct }),
-    alwaysShock: () => _t('타격마다 감전 판정을 한 번 더 함'),
-    stackingElementalResDownOnHit: p => _t('원소 타격마다 그 적의 원소 저항 -{perHit}%(최대 -{max}%)', { perHit: p.perHit, max: p.max }),
-    hitApplyChaosResDown: p => _t('타격 시 적 카오스 저항 -{perHit}%(최대 {maxStacks}중첩)', { perHit: p.perHit, maxStacks: p.maxStacks }),
-    realmAllResDownOnHit: p => _t('타격 시 적 모든 저항 -{perHit}%(최대 {max}%, {duration}초)', { perHit: p.perHit, max: p.max, duration: p.duration }),
-    minRollEqualsMaxRoll: () => _t('항상 최대 피해로 적중'),
-    maxRollBonusHit: () => _t('피해 굴림이 130% 이상이면 그 피해의 50%로 한 번 더 침'),
-    instantLeechAndDoubleDamage: p => _t('흡혈의 {instantLeechPct}%를 바로 회복, {doubleDamageChance}% 확률로 피해 2배', { instantLeechPct: p.instantLeechPct, doubleDamageChance: p.doubleDamageChance }),
-    projectileDoubleStrikePct: p => _t('투사체 연속 타격 확률 +{pct}%', { pct: p.pct }),
-    projectileExtraShotBonus: p => _t('투사체 추가 발사 +{shots}', { shots: p.shots }),
-    lifePctAsEnergyShield: p => _t('최대 생명력의 {pct}%를 에너지 보호막으로', { pct: p.pct }),
-    overhealCapPct: p => _t('생명력과 에너지 보호막 초과 회복 +{pct}%', { pct: p.pct }),
-    hpToPhysPct: () => _t('최대 생명력이 물리 피해를 강화'),
-    labyrinthShackles: () => _t('이동 속도가 피해로 전환'),
-    grandBreachCrown: p => _t('에너지 보호막 +{esPct}%, 에너지 보호막의 {spellFromEsPct}%를 주문 피해로', { esPct: p.esPct, spellFromEsPct: p.spellFromEsPct }),
-    guardianArmor: p => _t('몬스터에게 받는 피해 -{takenLessPct}%(보스 -{bossTakenLessPct}%)', { takenLessPct: p.takenLessPct, bossTakenLessPct: p.bossTakenLessPct }),
-    curseCrown: p => _t('저주 한도 +{extraCurseCap}, 저주마다 피해 +{finalDmgPerCursePct}%', { extraCurseCap: p.extraCurseCap, finalDmgPerCursePct: p.finalDmgPerCursePct }),
-    genericTakenDamageReducePct: p => _t('받는 피해 -{pct}%', { pct: p.pct }),
-    chaosTakenDamageReducePct: p => _t('받는 카오스 피해 -{pct}%', { pct: p.pct }),
-    uniqueTakenReduceWhen1Enemy: p => _t('적이 하나일 때 받는 피해 -{pct}%', { pct: p.pct }),
-    uniqueTakenReduceWhen2Enemies: p => _t('적이 둘 이상일 때 받는 피해 -{pct}%', { pct: p.pct }),
-    lifeRecoupTakenDamage: p => _t('받은 피해의 {pct}%를 {duration}초간 생명력으로 회수', { pct: p.pct, duration: p.duration }),
-    realmAllMaxRes: p => _t('모든 최대 저항 +{maxRes}%', { maxRes: p.maxRes }),
-    immuneBleed: () => _t('출혈에 걸리지 않음'),
-    immuneFreeze: () => _t('빙결에 걸리지 않음'),
-    immuneIgnite: () => _t('점화에 걸리지 않음'),
-    uniqueBlockChance: p => _t('막기 확률 +{chance}%', { chance: p.chance }),
-    blockedDamageTakenPct: p => _t('막기 시 피해의 {pct}%를 받음', { pct: p.pct }),
-    dragonVeinGuard: p => _t('타격 시 {chance}% 확률로 {duration}초 동안 최대 생명력 {hpPct}%의 보호막', { chance: p.chance, duration: p.duration, hpPct: p.hpPct }),
-    leechEfficiencyOnKill: p => _t('처치 시 {duration}초간 흡혈 효율 +{efficiencyPct}%', { duration: p.duration, efficiencyPct: p.efficiencyPct }),
-    cosmosSustain: p => _t('생명력 재생 +{regen}%, 흡혈 +{leech}%', { regen: p.regen, leech: p.leech }),
-    realmRegenRateAndRegen: p => _t('재생 속도 +{regenRatePct}%, 생명력 재생 +{regen}%', { regenRatePct: p.regenRatePct, regen: p.regen }),
-    corpseExplodeOnKill: p => _t('처치 시 {chance}% 확률로 시체 폭발(생명력 {lifePct}%)', { chance: p.chance, lifePct: p.lifePct }),
-    meteorFootsteps: p => _t('치명타 시 {chance}% 확률로 모든 적에게 그 피해의 {damagePct}%', { chance: p.chance, damagePct: p.damagePct }),
-    queenBeeSummonOnHit: p => _t('타격 시 {chance}% 확률로 벌 소환(최대 {maxBees})', { chance: p.chance, maxBees: p.maxBees }),
-    shockTracerGreaves: p => _t('감전된 적을 맞히면 그 피해의 {strikeDamagePct}%로 한 번 더 침, 감전에 걸리지 않음', { strikeDamagePct: p.strikeDamagePct }),
-    frostSentinelBoots: () => _t('한기와 빙결에 걸리지 않음'),
-    realmKillMoveStacks: p => _t('처치 시 이동 속도 +{movePerStack}%(최대 {maxStacks}중첩)', { movePerStack: p.movePerStack, maxStacks: p.maxStacks }),
-    overkillSplash: () => _t('적을 처치하고 남은 피해가 다른 적 모두에게 튐'),
-    summonDeathDamageBuff: p => _t('소환수 사망 시 피해 +{pct}%({duration}초)', { pct: p.pct, duration: p.duration }),
-    summonCritAspdStacks: p => _t('소환수 치명타 시 공격 속도 +{aspd}%(최대 {maxStacks}중첩)', { aspd: p.aspd, maxStacks: p.maxStacks }),
-    summonCapBonus: p => _t('소환수 한도 +{cap}', { cap: p.cap }),
-    summonEfficiencyBonus: p => _t('소환수 효율 +{pct}%', { pct: p.pct }),
-    projectileTargetBonus: p => _t('투사체 대상 +{target}', { target: p.target }),
-    dsAndTargetAnyBonus: p => (p.ds ? _t('연속 타격 +{ds}%, ', { ds: p.ds }) : '') + _t('공격 대상 +{target}', { target: p.target }),
-    esAmpAndRecoverOnCrit: p => _t('에너지 보호막 +{ampPct}%, 치명타 시 에너지 보호막 {recoverPctOnCrit}% 회복', { ampPct: p.ampPct, recoverPctOnCrit: p.recoverPctOnCrit }),
-    warcryResonanceBelt: p => _t('활성 함성마다 피해 +{perWarcryAmpPct}%', { perWarcryAmpPct: p.perWarcryAmpPct }),
-    // 2026-10-02 전직 18종의 새 카드
-    uniqueMinDmgRoll: p => _t('최소 피해 보정 +{pct}%', { pct: p.pct }),
-    underdogNonMaxRollMorePct: p => _t('최대가 아닌 피해 굴림의 피해 {pct}% 증폭', { pct: p.pct }),
-    cosmosSpeedBurst: p => _t('이동 속도 +{move}%, 공격 속도 +{aspd}%', { move: p.move, aspd: p.aspd }),
-    uniqueDeflectDamageReduce: p => _t('비껴내기 피해 감소 +{pct}%', { pct: p.pct }),
-    instakillNormalOnHitPct: p => _t('타격 시 {pct}% 확률로 일반 몬스터 즉시 처치', { pct: p.pct }),
-    cosmosFinalDmg: p => _t('피해 +{pct}%', { pct: p.pct }),
-    realmPoisonDuration: p => _t('중독 지속 시간 +{durationPct}%', { durationPct: p.durationPct })
-};
-
 function getTalentUniqLabel(key, p) {
     const label = TALENT_UNIQ_LABELS[key];
     return label ? label(p || {}) : key;
@@ -300,15 +208,9 @@ function getTalentCardName(heroId, classKey) {
     return { heroLabel, classLabel, bloomName };
 }
 
-
 function getOwnedTalentCardCount() {
     return (game.talentCards && typeof game.talentCards === 'object') ? Object.keys(game.talentCards).length : 0;
 }
-
-// ---- 장착 슬롯 (P4) ----
-// 슬롯은 보유 카드 수가 다음 임계값에 도달할 때마다 1칸씩 열린다. 카드 18장 기준(2026-10-02 재능 정리, 120장일 때 1, 4, 12, 25, 40, 60).
-const TALENT_CARD_SLOT_UNLOCKS = [1, 2, 4, 6, 9, 12];
-const TALENT_CARD_SLOT_COUNT = TALENT_CARD_SLOT_UNLOCKS.length;
 
 function ensureTalentCardLoadout() {
     if (!Array.isArray(game.talentCardLoadout)) game.talentCardLoadout = [];
@@ -471,12 +373,6 @@ function isTalentCardActive(comboKey) {
     return getGrantedBloomMechanics(game).has(comboKey) ? TALENT_CARD_MAX_LEVEL : 0;
 }
 
-// ── 카드가 아닌 곳에서 켜지는 옛 카드 효과(2026-10-02 재능 정리) ──
-// 얻을 수 없게 된 옛 카드 중 살린 효과는 전직 키스톤(CLASS_KEYSTONE_DEFS의 bloomMechanic)이나 고유 주얼(UNIQUE_JEWEL_DB의
-// bloomMechanic)이 켠다. 효과 코드는 카드 id로 켜졌는지 묻기 때문에(isTalentCardActive) 그대로 두고, 그 id를 최대 레벨로 켠 것처럼
-// 답한다. 정밀 규칙의 능력치 줄과 고유 효과 줄도 최대 레벨로 들어가고, 카드의 이면 효과는 들어가지 않는다.
-const talentGrantedMechanicsByOwner = new WeakMap();
-
 function collectGrantedBloomMechanics(owner) {
     const keys = new Set();
     if (typeof forEachActiveKeystoneDef === 'function') forEachActiveKeystoneDef(owner, def => { if (def.bloomMechanic) keys.add(def.bloomMechanic); });
@@ -583,6 +479,120 @@ function getActiveTalentKeystoneUniqueEffects() {
     });
     return out;
 }
+
+exposeFileGlobals({ getTalentBloomHeroIdForAscendancy, getTalentBloomCardKeyForAscendancy, getTalentBloomCardKeys, parseTalentComboKey, getTalentBloomScore, getTalentBloomScoreBreakdown, getTalentCardLevel, recordTalentBloomCard, getTalentCardEffectParts, getTalentCardName, ensureTalentCardLoadout, getUnlockedTalentSlotCount, getTalentCardSlotIndex, equipTalentCard, getActiveTalentCardStatBonuses, getTalentMistralStackCount, grantTalentStoneShield, getTalentMoonReturnConfig, canTalentCardApplyEnemyAilment, isTalentInstantWarcryActive, clearTalentCardRuntimeState, isTalentCardActive, refreshGrantedBloomMechanics, getGrantedBloomMechanics, talentOnPlayerAttack, getTalentAlwaysHit, getTalentAttackDamageMul, getActiveTalentStatMap, getActiveTalentKeystoneUniqueEffects });
+})();
+
+// 카드 레벨 임계값(점수 기준). 점수는 "층 환산" 단위(무한 콘텐츠 최고층 합 + DPS 로그 환산).
+const TALENT_CARD_LEVEL_THRESHOLDS = [0, 20, 45, 80, 125, 180, 250, 340, 450, 600];
+const TALENT_CARD_MAX_LEVEL = TALENT_CARD_LEVEL_THRESHOLDS.length;
+// 전직마다 한 장 = 18(2026-10-02 재능 정리). 직업, 전직 정의가 없는 좁은 실행 환경에서는 카드 정의 수.
+const TALENT_BLOOM_TOTAL_CARDS = typeof ASCENDANCIES_BY_PLAYER_CLASS === 'object' && typeof PLAYER_CLASS_DEFS === 'object'
+    ? getTalentBloomCardKeys().length : Object.keys(TALENT_BLOOM_CARD_DEFS).length;
+
+// 나무꾼 잔상 전투력(최고 DPS)의 로그 환산 기준. DPS가 2배 될 때마다 +1점(층과 동일 스케일).
+const TALENT_BLOOM_DPS_BASE = 1000;
+
+
+// ── 표면효과 = 실제 적용 키스톤, 이면효과 = 실제 스탯(배열, lv10 = 만렙 수치, 레벨 비례) ──
+// surface.desc는 기획 원문이며, 실제 합산 수치는 TALENT_PRECISE_CARD_RULES만 사용한다.
+
+
+const TALENT_STAT_LABELS = {
+    pctDmg: '피해 증가', physPctDmg: '물리 피해', meleePctDmg: '근접 피해', projectilePctDmg: '투사체 피해',
+    elementalPctDmg: '원소 피해', firePctDmg: '화염 피해', coldPctDmg: '냉기 피해', lightPctDmg: '번개 피해',
+    chaosPctDmg: '카오스 피해', dotPctDmg: '지속 피해 배율', summonPctDmg: '소환수 피해', aoePctDmg: '범위 피해',
+    slamPctDmg: '강타 피해', weaponFlatDmgPct: '무기 기본 피해', crit: '치명타 확률', critDmg: '치명타 피해',
+    aspd: '공격 속도', ds: '연속 타격', move: '이동 속도', pctHp: '생명력 증가', armorPct: '방어도',
+    evasionPct: '회피', energyShieldPct: '에너지 보호막', resPen: '저항 관통', leech: '생명력 흡수',
+    dr: '받는 피해 감소', physIgnore: '물리 피해 감소 무시', regen: '생명력 재생', regenSuppress: '재생 억제',
+    blockChance: '막기 확률', blockChancePct: '기본 막기 확률 증가', blockChanceMax: '막기 확률 최대치',
+    deflectDamageReduce: '비껴내기 피해 감소', resAll: '모든 원소 저항', resChaos: '카오스 저항',
+    igniteChance: '점화 확률', poisonChance: '중독 확률', bleedChance: '출혈 확률', shockChance: '감전 확률',
+    freezeChance: '동결 확률', chillChance: '한기 확률',
+    ailResIgnite: '점화 저항 확률', ailResShock: '감전 저항 확률', ailResFreeze: '동결 저항 확률',
+    ailResPoison: '중독 저항 확률', ailResBleed: '출혈 저항 확률',
+    summonAspd: '소환수 공격 속도', summonHpPct: '소환수 생명력', summonResPen: '소환수 저항 관통',
+    summonCritDmg: '소환수 치명타 피해', summonCrit: '소환수 치명타 확률', summonEfficiency: '소환수 효율',
+    addedFireDamagePct: '추가 화염 피해', addedColdDamagePct: '추가 냉기 피해', addedLightDamagePct: '추가 번개 피해'
+};
+
+
+// 고유 효과 키 → 실제 효과를 나타내는 간략한 한국어 설명(파라미터 반영).
+const TALENT_UNIQ_LABELS = {
+    projectilePatternMode: p => _t('투사체 패턴: {value}', { value: typeof PROJECTILE_PATTERN_MODE_DB !== 'undefined' && PROJECTILE_PATTERN_MODE_DB[p.mode] ? PROJECTILE_PATTERN_MODE_DB[p.mode].label : p.mode }),
+    cosmosPenetration: p => _t('저항 관통 +{pen}%', { pen: p.pen }),
+    poisonDamageMorePct: p => _t('중독 피해 +{pct}%', { pct: p.pct }),
+    igniteDamageMorePct: p => _t('점화 피해 +{pct}%', { pct: p.pct }),
+    hitShockedEnemyDamageMorePct: p => _t('감전된 적에게 주는 피해 +{pct}%', { pct: p.pct }),
+    alwaysShock: () => _t('타격마다 감전 판정을 한 번 더 함'),
+    stackingElementalResDownOnHit: p => _t('원소 타격마다 그 적의 원소 저항 -{perHit}%(최대 -{max}%)', { perHit: p.perHit, max: p.max }),
+    hitApplyChaosResDown: p => _t('타격 시 적 카오스 저항 -{perHit}%(최대 {maxStacks}중첩)', { perHit: p.perHit, maxStacks: p.maxStacks }),
+    realmAllResDownOnHit: p => _t('타격 시 적 모든 저항 -{perHit}%(최대 {max}%, {duration}초)', { perHit: p.perHit, max: p.max, duration: p.duration }),
+    minRollEqualsMaxRoll: () => _t('항상 최대 피해로 적중'),
+    maxRollBonusHit: () => _t('피해 굴림이 130% 이상이면 그 피해의 50%로 한 번 더 침'),
+    instantLeechAndDoubleDamage: p => _t('흡혈의 {instantLeechPct}%를 바로 회복, {doubleDamageChance}% 확률로 피해 2배', { instantLeechPct: p.instantLeechPct, doubleDamageChance: p.doubleDamageChance }),
+    projectileDoubleStrikePct: p => _t('투사체 연속 타격 확률 +{pct}%', { pct: p.pct }),
+    projectileExtraShotBonus: p => _t('투사체 추가 발사 +{shots}', { shots: p.shots }),
+    lifePctAsEnergyShield: p => _t('최대 생명력의 {pct}%를 에너지 보호막으로', { pct: p.pct }),
+    overhealCapPct: p => _t('생명력과 에너지 보호막 초과 회복 +{pct}%', { pct: p.pct }),
+    hpToPhysPct: () => _t('최대 생명력이 물리 피해를 강화'),
+    labyrinthShackles: () => _t('이동 속도가 피해로 전환'),
+    grandBreachCrown: p => _t('에너지 보호막 +{esPct}%, 에너지 보호막의 {spellFromEsPct}%를 주문 피해로', { esPct: p.esPct, spellFromEsPct: p.spellFromEsPct }),
+    guardianArmor: p => _t('몬스터에게 받는 피해 -{takenLessPct}%(보스 -{bossTakenLessPct}%)', { takenLessPct: p.takenLessPct, bossTakenLessPct: p.bossTakenLessPct }),
+    curseCrown: p => _t('저주 한도 +{extraCurseCap}, 저주마다 피해 +{finalDmgPerCursePct}%', { extraCurseCap: p.extraCurseCap, finalDmgPerCursePct: p.finalDmgPerCursePct }),
+    genericTakenDamageReducePct: p => _t('받는 피해 -{pct}%', { pct: p.pct }),
+    chaosTakenDamageReducePct: p => _t('받는 카오스 피해 -{pct}%', { pct: p.pct }),
+    uniqueTakenReduceWhen1Enemy: p => _t('적이 하나일 때 받는 피해 -{pct}%', { pct: p.pct }),
+    uniqueTakenReduceWhen2Enemies: p => _t('적이 둘 이상일 때 받는 피해 -{pct}%', { pct: p.pct }),
+    lifeRecoupTakenDamage: p => _t('받은 피해의 {pct}%를 {duration}초간 생명력으로 회수', { pct: p.pct, duration: p.duration }),
+    realmAllMaxRes: p => _t('모든 최대 저항 +{maxRes}%', { maxRes: p.maxRes }),
+    immuneBleed: () => _t('출혈에 걸리지 않음'),
+    immuneFreeze: () => _t('빙결에 걸리지 않음'),
+    immuneIgnite: () => _t('점화에 걸리지 않음'),
+    uniqueBlockChance: p => _t('막기 확률 +{chance}%', { chance: p.chance }),
+    blockedDamageTakenPct: p => _t('막기 시 피해의 {pct}%를 받음', { pct: p.pct }),
+    dragonVeinGuard: p => _t('타격 시 {chance}% 확률로 {duration}초 동안 최대 생명력 {hpPct}%의 보호막', { chance: p.chance, duration: p.duration, hpPct: p.hpPct }),
+    leechEfficiencyOnKill: p => _t('처치 시 {duration}초간 흡혈 효율 +{efficiencyPct}%', { duration: p.duration, efficiencyPct: p.efficiencyPct }),
+    cosmosSustain: p => _t('생명력 재생 +{regen}%, 흡혈 +{leech}%', { regen: p.regen, leech: p.leech }),
+    realmRegenRateAndRegen: p => _t('재생 속도 +{regenRatePct}%, 생명력 재생 +{regen}%', { regenRatePct: p.regenRatePct, regen: p.regen }),
+    corpseExplodeOnKill: p => _t('처치 시 {chance}% 확률로 시체 폭발(생명력 {lifePct}%)', { chance: p.chance, lifePct: p.lifePct }),
+    meteorFootsteps: p => _t('치명타 시 {chance}% 확률로 모든 적에게 그 피해의 {damagePct}%', { chance: p.chance, damagePct: p.damagePct }),
+    queenBeeSummonOnHit: p => _t('타격 시 {chance}% 확률로 벌 소환(최대 {maxBees})', { chance: p.chance, maxBees: p.maxBees }),
+    shockTracerGreaves: p => _t('감전된 적을 맞히면 그 피해의 {strikeDamagePct}%로 한 번 더 침, 감전에 걸리지 않음', { strikeDamagePct: p.strikeDamagePct }),
+    frostSentinelBoots: () => _t('한기와 빙결에 걸리지 않음'),
+    realmKillMoveStacks: p => _t('처치 시 이동 속도 +{movePerStack}%(최대 {maxStacks}중첩)', { movePerStack: p.movePerStack, maxStacks: p.maxStacks }),
+    overkillSplash: () => _t('적을 처치하고 남은 피해가 다른 적 모두에게 튐'),
+    summonDeathDamageBuff: p => _t('소환수 사망 시 피해 +{pct}%({duration}초)', { pct: p.pct, duration: p.duration }),
+    summonCritAspdStacks: p => _t('소환수 치명타 시 공격 속도 +{aspd}%(최대 {maxStacks}중첩)', { aspd: p.aspd, maxStacks: p.maxStacks }),
+    summonCapBonus: p => _t('소환수 한도 +{cap}', { cap: p.cap }),
+    summonEfficiencyBonus: p => _t('소환수 효율 +{pct}%', { pct: p.pct }),
+    projectileTargetBonus: p => _t('투사체 대상 +{target}', { target: p.target }),
+    dsAndTargetAnyBonus: p => (p.ds ? _t('연속 타격 +{ds}%, ', { ds: p.ds }) : '') + _t('공격 대상 +{target}', { target: p.target }),
+    esAmpAndRecoverOnCrit: p => _t('에너지 보호막 +{ampPct}%, 치명타 시 에너지 보호막 {recoverPctOnCrit}% 회복', { ampPct: p.ampPct, recoverPctOnCrit: p.recoverPctOnCrit }),
+    warcryResonanceBelt: p => _t('활성 함성마다 피해 +{perWarcryAmpPct}%', { perWarcryAmpPct: p.perWarcryAmpPct }),
+    // 2026-10-02 전직 18종의 새 카드
+    uniqueMinDmgRoll: p => _t('최소 피해 보정 +{pct}%', { pct: p.pct }),
+    underdogNonMaxRollMorePct: p => _t('최대가 아닌 피해 굴림의 피해 {pct}% 증폭', { pct: p.pct }),
+    cosmosSpeedBurst: p => _t('이동 속도 +{move}%, 공격 속도 +{aspd}%', { move: p.move, aspd: p.aspd }),
+    uniqueDeflectDamageReduce: p => _t('비껴내기 피해 감소 +{pct}%', { pct: p.pct }),
+    instakillNormalOnHitPct: p => _t('타격 시 {pct}% 확률로 일반 몬스터 즉시 처치', { pct: p.pct }),
+    cosmosFinalDmg: p => _t('피해 +{pct}%', { pct: p.pct }),
+    realmPoisonDuration: p => _t('중독 지속 시간 +{durationPct}%', { durationPct: p.durationPct })
+};
+
+
+// ---- 장착 슬롯 (P4) ----
+// 슬롯은 보유 카드 수가 다음 임계값에 도달할 때마다 1칸씩 열린다. 카드 18장 기준(2026-10-02 재능 정리, 120장일 때 1, 4, 12, 25, 40, 60).
+const TALENT_CARD_SLOT_UNLOCKS = [1, 2, 4, 6, 9, 12];
+const TALENT_CARD_SLOT_COUNT = TALENT_CARD_SLOT_UNLOCKS.length;
+
+
+// ── 카드가 아닌 곳에서 켜지는 옛 카드 효과(2026-10-02 재능 정리) ──
+// 얻을 수 없게 된 옛 카드 중 살린 효과는 전직 키스톤(CLASS_KEYSTONE_DEFS의 bloomMechanic)이나 고유 주얼(UNIQUE_JEWEL_DB의
+// bloomMechanic)이 켠다. 효과 코드는 카드 id로 켜졌는지 묻기 때문에(isTalentCardActive) 그대로 두고, 그 id를 최대 레벨로 켠 것처럼
+// 답한다. 정밀 규칙의 능력치 줄과 고유 효과 줄도 최대 레벨로 들어가고, 카드의 이면 효과는 들어가지 않는다.
+const talentGrantedMechanicsByOwner = new WeakMap();
 
 
 safeExposeGlobals({

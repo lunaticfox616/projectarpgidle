@@ -1,24 +1,6 @@
 // 비동기 고스트 대결. 상대 선택, 승패, Elo 갱신은 Supabase RPC가 한 번에 처리한다.
-
-const ghostArenaState = {
-    loading: false,
-    data: null,
-    message: '',
-    result: null,
-    selectedProfile: null,
-    friendlyBusy: false,
-    friendlyResult: null,
-    duel: null,
-    duelMode: '',
-    /** The account the arena was read for, and when the last read came back (ms) or failed (ms, 0 after a good read). */
-    userId: null,
-    loadedAt: 0,
-    failedAt: 0
-};
-/** Opening the tab reads the arena again once it is a minute old. A failed read waits 30 s or the retry button: the render used
- * to ask again at once, so a server or network that stayed down got the request without pause (66 in 2 s in a test). */
-const GHOST_ARENA_STALE_MS = 60000, GHOST_ARENA_RETRY_MS = 30000;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function ghostArenaEscape(value) {
     return typeof escapeHTML === 'function' ? escapeHTML(String(value == null ? '' : value)) : String(value == null ? '' : value);
 }
@@ -278,6 +260,29 @@ function injectGhostArenaStyles() {
     style.textContent = `@layer components{.map-pvp-heading{display:flex;justify-content:space-between;align-items:end;gap:16px;margin-bottom:12px}.map-pvp-heading span{color:#a999d0;font-size:12px;font-weight:800;letter-spacing:.14em}.map-pvp-heading h2{margin:2px 0 0}.map-pvp-heading p{max-width:520px;margin:0;color:#9eabc0;font-size:12px}.ghost-arena{margin:8px 0;border:1px solid #4b3d72;border-radius:9px;background:linear-gradient(145deg,#17162a,#101827);overflow:hidden}.ghost-arena>header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #342d50;background:rgba(39,31,65,.62);color:#e3d8ff}.ghost-arena>header div{display:flex;align-items:baseline;gap:8px}.ghost-arena>header small{color:#9e96b8;font-weight:500}.ghost-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:12px 10px 8px}.ghost-toolbar>span{margin-right:auto;color:#d9e7f8}.ghost-help{margin:0 10px 10px;color:#9eabc0;font-size:12px}.ghost-arena>button{margin:0 10px 10px}.ghost-error{margin:0 10px 8px;color:#ff9b9b}.ghost-retry,.ghost-replay{margin:0 10px 10px}.ghost-friendly{display:flex;align-items:center;gap:12px;margin:0 10px 10px;padding:10px;border:1px solid #4a5477;border-radius:8px;background:#18243a}.ghost-friendly>div{display:flex;flex-direction:column;gap:2px;margin-right:auto}.ghost-friendly small,.ghost-friendly span{color:#9eabc0;font-size:12px}.ghost-friendly strong{color:#f0e8ff}.ghost-result{display:flex;gap:7px;flex-wrap:wrap;margin:0 10px 8px;padding:8px;border-radius:7px;background:#172238}.ghost-result:empty{display:none}.ghost-result span{margin-left:auto}.ghost-result.win strong{color:#7ee4a1}.ghost-result.loss strong{color:#ff8f8f}.ghost-result.draw strong{color:#e5d080}.ghost-board{display:grid;gap:4px;padding:0 10px 10px}.ghost-rank{display:grid;grid-template-columns:28px minmax(120px,1fr) 58px 92px;gap:7px;align-items:center;padding:6px 8px;border:1px solid #283b56;border-radius:6px;background:#111d2d}.ghost-rank>b{color:#c9a8ff}.ghost-rank span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ghost-rank small{display:block;color:#94a7bf;overflow:hidden;text-overflow:ellipsis}.ghost-rank strong{text-align:right}.ghost-rank em{font-style:normal;color:#aebbd0;font-size:12px;text-align:right}.ghost-empty{padding:0 10px 10px;color:#9eabc0}@media(max-width:640px){.map-pvp-heading{display:block}.map-pvp-heading p{margin-top:6px}.ghost-arena>header div{align-items:flex-start;flex-direction:column;gap:2px}.ghost-friendly{align-items:stretch;flex-direction:column}.ghost-rank{grid-template-columns:24px minmax(100px,1fr) 52px}.ghost-rank em{display:none}}}`;
     document.head.appendChild(style);
 }
+
+exposeFileGlobals({ loadGhostArena, registerMyGhost, fightRandomGhost, fightCurrentProfileGhost, fightSelectedProfileGhost, playGhostDuel, renderGhostArena, injectGhostArenaStyles });
+})();
+
+const ghostArenaState = {
+    loading: false,
+    data: null,
+    message: '',
+    result: null,
+    selectedProfile: null,
+    friendlyBusy: false,
+    friendlyResult: null,
+    duel: null,
+    duelMode: '',
+    /** The account the arena was read for, and when the last read came back (ms) or failed (ms, 0 after a good read). */
+    userId: null,
+    loadedAt: 0,
+    failedAt: 0
+};
+/** Opening the tab reads the arena again once it is a minute old. A failed read waits 30 s or the retry button: the render used
+ * to ask again at once, so a server or network that stayed down got the request without pause (66 in 2 s in a test). */
+const GHOST_ARENA_STALE_MS = 60000, GHOST_ARENA_RETRY_MS = 30000;
+
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectGhostArenaStyles);
 else injectGhostArenaStyles();

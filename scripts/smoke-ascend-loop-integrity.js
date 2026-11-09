@@ -14,7 +14,8 @@ function extract(source, startNeedle, endNeedle) {
     return source.slice(start, end);
 }
 
-const keystoneBlock = extract(
+// The block's functions sit in the file's closure; the index they share is declared after it (scripts/privatize-functions.cjs).
+const keystoneBlock = 'let ascendKeystoneOwnerIndex = null;\n' + extract(
     combatSource,
     'function getAscendKeystoneOwnerClass',
     'function collectSocketedJewels'

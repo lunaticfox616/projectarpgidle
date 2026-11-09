@@ -1,8 +1,6 @@
 // Phase-2 extracted passive tree canvas draw block.
-
-let passiveEffectLabelRects = [];
-const PASSIVE_VOID_RANGES = Object.freeze([['andromeda', '#79cbbd'], ['asteroidBelt', '#dfbf79']]);
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** 반경이 있는 초월 공허(안드로메다 · 소행성대)의 범위를 트리 위 고리로 보여 준다. */
 function syncPassiveVoidRanges(world) {
     const wanted = new Set();
@@ -58,88 +56,6 @@ function updatePassiveTreeOverlayTransform(displayWidth, displayHeight) {
     parts.world.style.transform = `translate3d(${displayWidth / 2 + camX}px, ${displayHeight / 2 + camY}px, 0) scale(${camZoom})`;
     return parts;
 }
-
-/** 첫 스킬트리 안내(js/tutorial-ui.js)가 떠 있는 동안 지금 1포인트로 찍을 수 있는 노드마다 금빛 고리가 숨 쉰다 — 6~8px 노드는
- * 연결선 강조만으로 어디를 누를지 보이지 않았다(검토 2026-10-01). 고리는 CSS 겹판에 두어 캔버스를 매 프레임 다시 그리지 않고,
- * 겹판이 배율로 커지므로 크기를 배율로 나눠 화면에서 늘 같은 크기로 보인다. 안내 카드는 screenRect() 옆에 선다. */
-const passiveTreeGuide = (() => {
-    const RING_PX = 30;
-    let active = false;
-    let cache = { key: '', nodes: [] };
-    /** Called once when the tree is first drawn with rings after show(true): only then do the nodes have screen positions. */
-    let onDrawn = null;
-
-    function nodes() {
-        if (!active || !(game.passivePoints > 0)) return [];
-        const key = `${(game.passives || []).length}|${[...reachableNodes].join(',')}`;
-        if (cache.key === key) return cache.nodes;
-        const ids = [...reachableNodes].filter(id => getPassiveActivationPath(id).length === 1);
-        cache = { key, nodes: ids.map(id => PASSIVE_TREE.nodes[id]).filter(Boolean) };
-        return cache.nodes;
-    }
-
-    function ringFor(world, node) {
-        const found = [...world.querySelectorAll('.passive-guide-ring')].find(el => el.dataset.guideNode === node.id);
-        if (found) return found;
-        const el = document.createElement('div');
-        el.className = 'passive-guide-ring';
-        el.dataset.guideNode = node.id;
-        world.appendChild(el);
-        return el;
-    }
-
-    /** 고리를 지금 노드 · 배율에 맞춘다(syncPassiveTreeOverlay가 그릴 때마다 부른다). */
-    function sync(world) {
-        const list = nodes(), ids = new Set(list.map(node => node.id));
-        world.querySelectorAll('.passive-guide-ring').forEach(el => { if (!ids.has(el.dataset.guideNode)) el.remove(); });
-        list.forEach(node => {
-            const size = Math.max(RING_PX, getPassiveNodeVisualRadius(node) * 2 * camZoom + 14) / camZoom;
-            ringFor(world, node).style.cssText = `left:${node.x - size / 2}px;top:${node.y - size / 2}px;width:${size}px;height:${size}px;--guide-px:${1 / camZoom}px`;
-        });
-    }
-
-    /** 노드 둘레(고리 · 노드 중 큰 쪽)의 화면 사각형. 시작점은 아래 직업 이름까지 넣는다. */
-    function nodeExtent(node, box, root) {
-        const viewW = passiveCanvasMetrics.width || box.width, viewH = passiveCanvasMetrics.height || box.height;
-        const x = box.left + (viewW / 2 + camX + node.x * camZoom) * box.width / viewW;
-        const y = box.top + (viewH / 2 + camY + node.y * camZoom) * box.height / viewH;
-        const r = Math.max(RING_PX / 2, getPassiveNodeVisualRadius(node) * camZoom) + 6;
-        return { left: x - r, top: y - r, right: x + r, bottom: y + r + (node === root ? 22 : 0) };
-    }
-
-    /** 고리 노드와 시작점을 감싸는 화면 사각형. 캔버스 밖으로 밀려났으면 null. */
-    function screenRect() {
-        const list = nodes(), canvas = document.getElementById('tree-canvas'), root = getPassiveTreeRootNode();
-        if (!list.length || !canvas) return null;
-        const box = canvas.getBoundingClientRect();
-        const extents = [...list, root].filter(Boolean).map(node => nodeExtent(node, box, root));
-        const left = Math.min(...extents.map(e => e.left)), top = Math.min(...extents.map(e => e.top));
-        const right = Math.max(...extents.map(e => e.right)), bottom = Math.max(...extents.map(e => e.bottom));
-        const inside = left >= box.left && top >= box.top && right <= box.right && bottom <= box.bottom;
-        return inside ? { left, top, right, bottom, width: right - left, height: bottom - top } : null;
-    }
-
-    /** syncPassiveTreeOverlay가 트리를 그릴 때마다 부른다. 켠 뒤 카메라가 맞춰진 트리에 고리가 처음 보이면 알린다(안내 카드가 노드
-     * 옆으로 간다) — 탭을 열면 카메라를 맞추기(40ms 뒤) 전에 한 번 그려질 수 있다. */
-    function drawn(world) {
-        sync(world);
-        if (!onDrawn || !passiveCameraInitialized || !screenRect()) return;
-        const notify = onDrawn;
-        onDrawn = null;
-        notify();
-    }
-
-    /** @param {boolean} on @param {Function} [whenDrawn] once the rings are on a drawn tree */
-    function show(on, whenDrawn) {
-        active = !!on;
-        onDrawn = active && whenDrawn ? whenDrawn : null;
-        const parts = ensurePassiveTreeOverlay();
-        if (parts) sync(parts.world);
-    }
-
-    return Object.freeze({ show, drawn, screenRect });
-})();
-safeExposeGlobals({ passiveTreeGuide });
 
 /** The CSS hover ring of one node (overlay world units: grows with the zoom like the canvas). */
 function syncPassiveHoverRing(world, node, hoverCurrent, wanted) {
@@ -198,8 +114,6 @@ function spawnPassiveRevealBurstOverlay(burst) {
     parts.world.appendChild(el);
 }
 
-
-
 function drawPassiveSearchHighlight(ctx, node, radius, accent) {
     ctx.save();
     const ringColor = accent && accent.activeOuter ? accent.activeOuter : '#ffffff';
@@ -243,7 +157,6 @@ function drawPassiveSearchHighlight(ctx, node, radius, accent) {
     ctx.restore();
 }
 
-
 function getPassiveNodeEffectShortLabel(node) {
     if (!node) return '';
     const stat = node.stat || '';
@@ -283,9 +196,6 @@ function getPassiveNodeEffectShortLabel(node) {
     if (!label) label = getPassiveNodeDisplayName(node) || '';
     return label.length > 6 ? label.slice(0, 6) : label;
 }
-
-// 상시 문구를 직접 켠 경우에도 가까운 배율에서만 표시한다. 검색과 호버 정보는 별도 UI가 맡는다.
-const PASSIVE_EFFECT_LABEL_MIN_ZOOM = 0.62;
 
 function drawPassiveNodeEffectLabel(ctx, node, radius, active, reachable, visibility) {
     if (game.settings.passiveTreeShowLabels === false) return;
@@ -473,13 +383,6 @@ function drawPassiveNodeExtras(ctx, extras) {
         if (look.searchHit) drawPassiveSearchHighlight(ctx, node, look.radius, getPassiveStatAccent(node.stat));
     });
 }
-
-// Far views paint every node once into a bitmap of the tree at the current zoom and move it as one picture while the camera pans; it is
-// painted again when the zoom, allocations, search or loaded art change. Above this zoom few nodes are in view and they draw one by one.
-// The bitmap is skipped past PASSIVE_NODE_LAYER_MAX_PX a side (phones at high pixel ratio) to keep memory small.
-const PASSIVE_NODE_LAYER_MAX_ZOOM = 0.34;
-const PASSIVE_NODE_LAYER_MAX_PX = 2600;
-let passiveNodeLayer = { key: '', canvas: null, extras: [], boundsFor: null, bounds: null };
 
 function getPassiveTreeBounds() {
     if (passiveNodeLayer.boundsFor === passiveRenderCache.nodes) return passiveNodeLayer.bounds;
@@ -675,15 +578,12 @@ function paperdollItemLabel(item) {
     return _t(item.baseName);
 }
 
-/** 세 번째 반지 칸(초월 공허 '세 번째 손가락')이 열려 있는가. */
-const isThirdRingOpen = () => typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger', game) > 0;
-/** 세 번째 손가락이 없는데 세 번째 반지 칸에 남은 반지: 흐리게(효과가 꺼져 있다, js/combat-equipment-stats.js). */
-const thirdRingOffClass = slot => (slot === '반지3' && !isThirdRingOpen() ? ' is-off' : '');
 /** 장착 칸 목록: 세 번째 반지 칸은 세 번째 손가락이 있을 때, 또는 그 칸에 반지가 남아 있을 때만(꺼진 채, 두 번 눌러 뺀다). */
 function getPaperdollSlots(equipment = game.equipment) {
     const slots = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
     return isThirdRingOpen() || (equipment || {})['반지3'] ? [...slots, '반지3'] : slots;
 }
+
 /** 장착 칸을 그리고 배치를 고른다(css/equipment-window.css): 세 번째 반지는 코어 칸이 없으면 그 자리, 코어가 있으면 신발 아래 줄. */
 function setPaperdollHtml(targetId, html) {
     const list = document.getElementById(targetId);
@@ -836,8 +736,6 @@ function renderEquipmentInventoryInspector(rows) {
     equipmentInventoryInteraction.positionInspector();
 }
 
-safeExposeGlobals({ renderEquipmentInventoryGrid, renderEquipmentInventoryInspector });
-
 function triggerMapUnlockReveal(zoneId) {
     if (!Number.isFinite(zoneId) || zoneId < 0) return;
     pendingMapRevealZoneId = zoneId;
@@ -849,6 +747,116 @@ function triggerMapUnlockReveal(zoneId) {
         updateStaticUI();
     }, 1200);
 }
+
+exposeFileGlobals({ ensurePassiveTreeOverlay, updatePassiveTreeOverlayTransform, syncPassiveTreeOverlay, spawnPassiveRevealBurstOverlay, getHoverAllocationNodeIds, getPassiveHoverLinkLayer, getPassiveNodeLook, drawPassiveTree, handleEquipmentSlotDoubleClick, getDropOnlyItemSourceMeta, getPaperdollSlots, renderPaperdoll, renderEquipmentGridItem, renderEquipmentInventoryGrid, renderEquipmentInventoryInspector, triggerMapUnlockReveal });
+})();
+
+let passiveEffectLabelRects = [];
+const PASSIVE_VOID_RANGES = Object.freeze([['andromeda', '#79cbbd'], ['asteroidBelt', '#dfbf79']]);
+
+
+/** 첫 스킬트리 안내(js/tutorial-ui.js)가 떠 있는 동안 지금 1포인트로 찍을 수 있는 노드마다 금빛 고리가 숨 쉰다 — 6~8px 노드는
+ * 연결선 강조만으로 어디를 누를지 보이지 않았다(검토 2026-10-01). 고리는 CSS 겹판에 두어 캔버스를 매 프레임 다시 그리지 않고,
+ * 겹판이 배율로 커지므로 크기를 배율로 나눠 화면에서 늘 같은 크기로 보인다. 안내 카드는 screenRect() 옆에 선다. */
+const passiveTreeGuide = (() => {
+    const RING_PX = 30;
+    let active = false;
+    let cache = { key: '', nodes: [] };
+    /** Called once when the tree is first drawn with rings after show(true): only then do the nodes have screen positions. */
+    let onDrawn = null;
+
+    function nodes() {
+        if (!active || !(game.passivePoints > 0)) return [];
+        const key = `${(game.passives || []).length}|${[...reachableNodes].join(',')}`;
+        if (cache.key === key) return cache.nodes;
+        const ids = [...reachableNodes].filter(id => getPassiveActivationPath(id).length === 1);
+        cache = { key, nodes: ids.map(id => PASSIVE_TREE.nodes[id]).filter(Boolean) };
+        return cache.nodes;
+    }
+
+    function ringFor(world, node) {
+        const found = [...world.querySelectorAll('.passive-guide-ring')].find(el => el.dataset.guideNode === node.id);
+        if (found) return found;
+        const el = document.createElement('div');
+        el.className = 'passive-guide-ring';
+        el.dataset.guideNode = node.id;
+        world.appendChild(el);
+        return el;
+    }
+
+    /** 고리를 지금 노드 · 배율에 맞춘다(syncPassiveTreeOverlay가 그릴 때마다 부른다). */
+    function sync(world) {
+        const list = nodes(), ids = new Set(list.map(node => node.id));
+        world.querySelectorAll('.passive-guide-ring').forEach(el => { if (!ids.has(el.dataset.guideNode)) el.remove(); });
+        list.forEach(node => {
+            const size = Math.max(RING_PX, getPassiveNodeVisualRadius(node) * 2 * camZoom + 14) / camZoom;
+            ringFor(world, node).style.cssText = `left:${node.x - size / 2}px;top:${node.y - size / 2}px;width:${size}px;height:${size}px;--guide-px:${1 / camZoom}px`;
+        });
+    }
+
+    /** 노드 둘레(고리 · 노드 중 큰 쪽)의 화면 사각형. 시작점은 아래 직업 이름까지 넣는다. */
+    function nodeExtent(node, box, root) {
+        const viewW = passiveCanvasMetrics.width || box.width, viewH = passiveCanvasMetrics.height || box.height;
+        const x = box.left + (viewW / 2 + camX + node.x * camZoom) * box.width / viewW;
+        const y = box.top + (viewH / 2 + camY + node.y * camZoom) * box.height / viewH;
+        const r = Math.max(RING_PX / 2, getPassiveNodeVisualRadius(node) * camZoom) + 6;
+        return { left: x - r, top: y - r, right: x + r, bottom: y + r + (node === root ? 22 : 0) };
+    }
+
+    /** 고리 노드와 시작점을 감싸는 화면 사각형. 캔버스 밖으로 밀려났으면 null. */
+    function screenRect() {
+        const list = nodes(), canvas = document.getElementById('tree-canvas'), root = getPassiveTreeRootNode();
+        if (!list.length || !canvas) return null;
+        const box = canvas.getBoundingClientRect();
+        const extents = [...list, root].filter(Boolean).map(node => nodeExtent(node, box, root));
+        const left = Math.min(...extents.map(e => e.left)), top = Math.min(...extents.map(e => e.top));
+        const right = Math.max(...extents.map(e => e.right)), bottom = Math.max(...extents.map(e => e.bottom));
+        const inside = left >= box.left && top >= box.top && right <= box.right && bottom <= box.bottom;
+        return inside ? { left, top, right, bottom, width: right - left, height: bottom - top } : null;
+    }
+
+    /** syncPassiveTreeOverlay가 트리를 그릴 때마다 부른다. 켠 뒤 카메라가 맞춰진 트리에 고리가 처음 보이면 알린다(안내 카드가 노드
+     * 옆으로 간다) — 탭을 열면 카메라를 맞추기(40ms 뒤) 전에 한 번 그려질 수 있다. */
+    function drawn(world) {
+        sync(world);
+        if (!onDrawn || !passiveCameraInitialized || !screenRect()) return;
+        const notify = onDrawn;
+        onDrawn = null;
+        notify();
+    }
+
+    /** @param {boolean} on @param {Function} [whenDrawn] once the rings are on a drawn tree */
+    function show(on, whenDrawn) {
+        active = !!on;
+        onDrawn = active && whenDrawn ? whenDrawn : null;
+        const parts = ensurePassiveTreeOverlay();
+        if (parts) sync(parts.world);
+    }
+
+    return Object.freeze({ show, drawn, screenRect });
+})();
+safeExposeGlobals({ passiveTreeGuide });
+
+
+// 상시 문구를 직접 켠 경우에도 가까운 배율에서만 표시한다. 검색과 호버 정보는 별도 UI가 맡는다.
+const PASSIVE_EFFECT_LABEL_MIN_ZOOM = 0.62;
+
+
+// Far views paint every node once into a bitmap of the tree at the current zoom and move it as one picture while the camera pans; it is
+// painted again when the zoom, allocations, search or loaded art change. Above this zoom few nodes are in view and they draw one by one.
+// The bitmap is skipped past PASSIVE_NODE_LAYER_MAX_PX a side (phones at high pixel ratio) to keep memory small.
+const PASSIVE_NODE_LAYER_MAX_ZOOM = 0.34;
+const PASSIVE_NODE_LAYER_MAX_PX = 2600;
+let passiveNodeLayer = { key: '', canvas: null, extras: [], boundsFor: null, bounds: null };
+
+
+/** 세 번째 반지 칸(초월 공허 '세 번째 손가락')이 열려 있는가. */
+const isThirdRingOpen = () => typeof getTranscendentVoidPassiveCount === 'function' && getTranscendentVoidPassiveCount('thirdFinger', game) > 0;
+/** 세 번째 손가락이 없는데 세 번째 반지 칸에 남은 반지: 흐리게(효과가 꺼져 있다, js/combat-equipment-stats.js). */
+const thirdRingOffClass = slot => (slot === '반지3' && !isThirdRingOpen() ? ' is-off' : '');
+
+
+safeExposeGlobals({ renderEquipmentInventoryGrid, renderEquipmentInventoryInspector });
 
 
 Object.assign(window, { drawPassiveTree, syncPassiveTreeOverlay, spawnPassiveRevealBurstOverlay, updatePassiveTreeOverlayTransform });

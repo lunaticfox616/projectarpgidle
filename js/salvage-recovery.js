@@ -1,8 +1,5 @@
-const SALVAGE_RECOVERY_CAP = 8;
-const SALVAGE_RECOVERY_RARITIES = Object.freeze(['normal', 'magic', 'rare', 'unique']);
-
-/** @typedef {{id:number, loop:number, salvagedAt:number, item:Record<string, unknown>, rewards:Record<string, number>}} SalvageRecoveryEntry */
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getSalvageRecoveryLoop(targetGame) {
     return Math.max(1, Math.floor(Number(targetGame.season) || 1));
 }
@@ -139,6 +136,14 @@ function restoreSalvagedEquipment(entryId, targetGame = game) {
 function getSalvageRecoveryEntries(targetGame = game) {
     return ensureSalvageRecoveryState(targetGame).entries.slice();
 }
+
+exposeFileGlobals({ isSalvageRecoveryItem, ensureSalvageRecoveryState, getSalvageReplayRewards, prepareSalvageRecoveryRecords, recordSalvagedEquipment, getSalvageRestoreAvailability, restoreSalvagedEquipment, getSalvageRecoveryEntries });
+})();
+const SALVAGE_RECOVERY_CAP = 8;
+const SALVAGE_RECOVERY_RARITIES = Object.freeze(['normal', 'magic', 'rare', 'unique']);
+
+/** @typedef {{id:number, loop:number, salvagedAt:number, item:Record<string, unknown>, rewards:Record<string, number>}} SalvageRecoveryEntry */
+
 
 const salvageRecoveryRuntime = Object.freeze({
     ensureState: ensureSalvageRecoveryState,

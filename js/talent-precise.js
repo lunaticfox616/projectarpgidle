@@ -1,6 +1,7 @@
 // 재능 개화 표면 효과의 정밀 전투 규칙.
 // 정적 정의는 data/talent-cards.js가 소유하고, 이 파일은 상태/계산만 담당한다.
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getPreciseTalentLevel(cardId) {
     return typeof isTalentCardActive === 'function' ? Math.max(0, Number(isTalentCardActive(cardId)) || 0) : 0;
 }
@@ -204,6 +205,10 @@ function enforceTalentCombatState(pStats) {
     if (!pStats || !getPreciseTalentLevel('hero9__crusader')) return;
     game.playerHp = Math.min(1, Math.max(0, Number(game.playerHp) || 0));
 }
+
+exposeFileGlobals({ getPreciseTalentLevel, getPreciseTalentRatio, getTalentPreciseDerivedBonuses, getTalentAttackSpeedSoftcapKnee, applyTalentPrecisePostStats, rollTalentPlayerCrit, getTalentCritDamageMultiplier, getTalentPrecisePlayerHitMultiplier, getTalentRemainingResonance, getTalentDotDamageMultiplier, getTalentButcherBossMultiplier, getTalentDamageConversion, getTalentAilmentReplacement, shouldTalentSkipColdFreeze, enhanceTalentAilmentReapplication, decorateTalentAilmentPayload, afterTalentAilmentApplied, storeExpiredTalentAilmentSeed, getTalentDotOccupancyDamage, getTalentEnemyRegenMultiplier, isTalentMonsterAlwaysHit, isTalentPlayerAttackDisabled, enforceTalentCombatState });
+})();
+
 
 safeExposeGlobals({
     getPreciseTalentLevel,

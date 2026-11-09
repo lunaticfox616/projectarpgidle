@@ -1,8 +1,5 @@
-const GHOST_COMBAT_SNAPSHOT_VERSION = 1;
-const GHOST_COMBAT_RULESET_VERSION = 'ghost-combat-rules-v1';
-const GHOST_COMBAT_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
-const GHOST_COMBAT_TAGS = new Set(['attack', 'spell', 'melee', 'projectile', 'aoe', 'dot', 'channeling', 'summon', 'summon_attack']);
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getGhostCombatStyle(skill) {
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
     if (tags.includes('summon')) return 'summon';
@@ -110,5 +107,13 @@ function getGhostCombatSnapshot(suppliedStats) {
         ...getGhostCombatTactics(stats)
     };
 }
+
+exposeFileGlobals({ getGhostCombatVersion, getGhostCombatMotion, getGhostCombatSnapshot });
+})();
+const GHOST_COMBAT_SNAPSHOT_VERSION = 1;
+const GHOST_COMBAT_RULESET_VERSION = 'ghost-combat-rules-v1';
+const GHOST_COMBAT_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
+const GHOST_COMBAT_TAGS = new Set(['attack', 'spell', 'melee', 'projectile', 'aoe', 'dot', 'channeling', 'summon', 'summon_attack']);
+
 
 safeExposeGlobals({ getGhostCombatSnapshot, getGhostCombatVersion });

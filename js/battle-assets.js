@@ -1,8 +1,7 @@
 // 전투 그림(2026-11-10에 js/passives.js에서 그대로 옮겼다): 그림판을 받아 다듬고(initBattleAssets, 배경 지우기, 아틀라스 묶기) 전장에
 // 그리는 데 쓰는 조각 찾기와 그리기(drawBattleSprite). js/passives.js 바로 뒤에 읽는다.
-
-const CUSTOM_HERO_SHEET_STORAGE_KEY = 'projectidle_custom_hero_sheet';
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getCustomHeroSheetDataUrl() {
     try {
         let saved = localStorage.getItem(CUSTOM_HERO_SHEET_STORAGE_KEY);
@@ -1793,14 +1792,6 @@ function getBattleActorDrawAlpha(ctx,alpha) {
     return (alpha ?? 1)*(ctx.battleActorAlpha ?? 1);
 }
 
-// 윤곽선 스프라이트 캐시. ctx.filter(drop-shadow 4개)는 그릴 때마다 캔버스 전체 크기의 임시 버퍼를 만들어,
-// 전장이 클수록 비싸다(GPU 없는 렌더에서 1440×900 기준 프레임당 약 100ms). 같은 원본 조각·크기·색이면
-// 윤곽을 한 번만 만들어 두고 그림처럼 찍는다. 표시 전용이며 판정·좌표와 무관하다.
-const OUTLINED_SPRITE_CACHE_LIMIT = 192;
-const outlinedSpriteCache = new Map();
-const outlinedSpriteImageIds = new WeakMap();
-let outlinedSpriteNextImageId = 1;
-
 function getOutlinedSpriteSurface(sourceImage, src, size, outline) {
     let imageId = outlinedSpriteImageIds.get(sourceImage);
     if (!imageId) { imageId = outlinedSpriteNextImageId++; outlinedSpriteImageIds.set(sourceImage, imageId); }
@@ -1863,6 +1854,21 @@ function drawBattleSpriteOutline(ctx, sourceImage, src, box, options) {
     ctx.drawImage(surface, box.x - thickness, box.y - thickness, box.w + thickness * 2, box.h + thickness * 2);
     ctx.globalAlpha = options.alpha === undefined ? 1 : options.alpha;
 }
+
+exposeFileGlobals({ isLocalFileProtocol, initBattleAssets, sanitizeBattleSheet, sanitizeWhiteBackdropSheet, sanitizeLocalMonsterBackdropSheet, buildWispEnemyVariants, buildBattleAssetAtlas, getBattleActorDrawAlpha, drawBattleSpriteImage, drawBattleSpriteOutline });
+})();
+
+const CUSTOM_HERO_SHEET_STORAGE_KEY = 'projectidle_custom_hero_sheet';
+
+
+// 윤곽선 스프라이트 캐시. ctx.filter(drop-shadow 4개)는 그릴 때마다 캔버스 전체 크기의 임시 버퍼를 만들어,
+// 전장이 클수록 비싸다(GPU 없는 렌더에서 1440×900 기준 프레임당 약 100ms). 같은 원본 조각·크기·색이면
+// 윤곽을 한 번만 만들어 두고 그림처럼 찍는다. 표시 전용이며 판정·좌표와 무관하다.
+const OUTLINED_SPRITE_CACHE_LIMIT = 192;
+const outlinedSpriteCache = new Map();
+const outlinedSpriteImageIds = new WeakMap();
+let outlinedSpriteNextImageId = 1;
+
 
 function drawBattleSprite(ctx, image, rect, x, y, desiredHeight, options) {
     if (!rect) return;

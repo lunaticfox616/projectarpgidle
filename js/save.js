@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function normalizeCloudUploadProfile(profile) {
     if (!profile || typeof profile !== 'object') return null;
     return {
@@ -8,14 +10,6 @@ function normalizeCloudUploadProfile(profile) {
         payloadBytes: Math.max(0, Math.floor(Number(profile.payloadBytes) || 0))
     };
 }
-
-
-// Phase-2 extracted save helpers and persistence flow.
-
-/** The save slot this page reads and writes (2026-10-30). The guest slot (LOCAL_SAVE_KEY) lives on this device only and never goes to
- * the server. An account's slot (ACCOUNT_SAVE_KEY_PREFIX + account id) holds this device's copy of that account's server save plus
- * what it has not uploaded yet (saveMeta.cloudPending); the account mode reads and writes only that slot. userId is null for the guest. */
-const saveSlot = { kind: 'guest', key: LOCAL_SAVE_KEY, userId: null };
 
 function accountSaveKey(userId) {
     return `${ACCOUNT_SAVE_KEY_PREFIX}${userId}`;
@@ -92,14 +86,6 @@ function migrateOwnedGuestSave() {
     }
 }
 
-const localSaveRuntimeState = {
-    status: 'uninitialized',
-    writable: true,
-    sourceKey: null,
-    backupKey: null,
-    message: ''
-};
-
 function setLocalSaveRuntimeState(status, options = {}) {
     localSaveRuntimeState.status = status;
     localSaveRuntimeState.writable = options.writable !== false;
@@ -112,24 +98,10 @@ function getLocalSaveStatus() {
     return { ...localSaveRuntimeState };
 }
 
-/** The release this page runs: the time of the commit it was built from (ISO), which scripts/lib/game-build.js writes into
- * <meta name="game-build"> of a release (dist/, www/). An unbuilt page (development server, smoke runtime) has 'dev' or no tag and
- * gets null: it stamps no save and refuses none. */
-const RUNNING_GAME_BUILD = (() => {
-    const meta = typeof document === 'object' && typeof document.querySelector === 'function' ? document.querySelector('meta[name="game-build"]') : null;
-    return gameBuildTime(meta && meta.content) ? meta.content : null;
-})();
-const OUTDATED_BUILD_ERROR_CODE = 'GAME_BUILD_OUTDATED';
-
 /** A game build stamp's time in ms, or 0 for anything else (no stamp, 'dev', a damaged value). */
 function gameBuildTime(stamp) {
     const time = typeof stamp === 'string' ? Date.parse(stamp) : NaN;
     return Number.isFinite(time) && time > 0 ? time : 0;
-}
-
-/** Every save a release writes names that release, so an older release can tell it apart (outdatedBuildError). */
-function stampGameBuild(meta) {
-    if (RUNNING_GAME_BUILD) meta.gameBuild = RUNNING_GAME_BUILD;
 }
 
 /** Why this page must not take saveData (a device or cloud save) in, or null when it may: a later release wrote it, and may have
@@ -140,15 +112,18 @@ function outdatedBuildError(saveData) {
     if (localSaveRuntimeState.status === 'newer-build') return outdatedBuildRefusal(localSaveRuntimeState.message);
     return laterBuildSaveError(saveData);
 }
+
 /** The refusal for saveData written by a later release than this page's, or null; this device's save status is not read (loadGame). */
 function laterBuildSaveError(saveData) {
     const saved = gameBuildTime(saveData?.saveMeta?.gameBuild), running = gameBuildTime(RUNNING_GAME_BUILD);
     if (!running || !saved || saved <= running) return null;
     return outdatedBuildRefusal(`이 저장은 더 새 버전의 게임(${formatCloudTime(saved)} 판)에서 저장됐습니다. 새로고침하거나 앱을 업데이트한 뒤 이어 하세요.`);
 }
+
 function outdatedBuildRefusal(message) {
     return Object.assign(new Error(message), { code: OUTDATED_BUILD_ERROR_CODE });
 }
+
 /** Throws outdatedBuildError(saveData) when there is one. */
 function assertSaveFromKnownBuild(saveData) {
     const refusal = outdatedBuildError(saveData);
@@ -192,12 +167,14 @@ function readLocalSaveString() {
 function corruptSaveBackupPrefix() {
     return `${saveSlot.key}_corrupt_`;
 }
+
 /** The active slot's corrupt save backups, newest first. */
 function corruptSaveBackupKeys() {
     const prefix = corruptSaveBackupPrefix();
     return Object.keys(localStorage).filter(key => key.startsWith(prefix))
         .sort((a, b) => Number(b.slice(prefix.length)) - Number(a.slice(prefix.length)));
 }
+
 /** Keeps a copy of a save that failed to load. The same corrupt save is kept once, and only the two newest copies stay (2026-10-26:
  * every page load with the corrupt save still in place wrote another full copy, until the storage quota was used up). */
 function preserveCorruptLocalSave(rawSave) {
@@ -259,9 +236,6 @@ function refreshItemIdCounter() {
     itemIdCounter = Math.max(0, ...items.concat(jewels).map(item => item.id || 0));
 }
 
-/** Fields of game that live only while the game runs: the talent card runtime and the last combat tick's stat sheet and time
- * (about a tenth of a save, and stale after a load). Never saved or uploaded; old saves drop them on load (mergeDefaults). */
-const RUNTIME_ONLY_SAVE_KEYS = Object.freeze(['talentCardRuntime', 'lastCombatStats', 'lastCombatStatsAt']);
 function dropRuntimeOnlySaveFields(target) {
     RUNTIME_ONLY_SAVE_KEYS.forEach(key => delete target[key]);
 }
@@ -332,6 +306,7 @@ function createCloudSyncPayload(sourceGame) {
     dropRuntimeOnlySaveFields(payload);
     return itemSaveSlim.slimTree(payload);   // 올리는 본문과 그 지문(cloudSaveFingerprint)이 같은 축약 모양을 쓴다
 }
+
 function createCloudSaveRequestBody(userId, sourceGame) {
     return JSON.stringify({ user_id: userId, save_data: createCloudSyncPayload(sourceGame) });
 }
@@ -445,12 +420,12 @@ function persistLocalSave(options = {}) {
     return true;
 }
 
-
 /** Recover an empty ordinary encounter, without restarting a completed sky allowance. */
 function resumeEmptyEncounterAfterLoad(zone) {
     if (game.actExploration || game.settings.mapCompleteAction === 'stop' || isSkyTowerAtRewardLimit(zone)) return;
     if (game.enemies.length === 0 && game.encounterPlan.length === 0) game.combatHalted = false;
 }
+
 function normalizeLocalRuntimeAfterLoad() {
     if (!game) return;
     if (typeof normalizeCombatTacticsSettings === 'function') {
@@ -546,7 +521,6 @@ function saveGame(options = {}) {
     return true;
 }
 
-let importantSaveTimer = null;
 function queueImportantSave(delayMs) {
     if (!canPersistLocalSave()) return;
     if (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen()) return;
@@ -570,6 +544,50 @@ function setCloudMessage(message) {
     cloudState.lastMessage = message;
     updateCloudSaveUI();
 }
+
+exposeFileGlobals({ normalizeCloudUploadProfile, accountSaveKey, selectSaveSlot, getSaveSlot, readGuestSave, readAccountSaveCopy, hasAccountSaveCopy, removeGuestSave, migrateOwnedGuestSave, setLocalSaveRuntimeState, getLocalSaveStatus, gameBuildTime, outdatedBuildError, assertSaveFromKnownBuild, canPersistLocalSave, readLocalSaveResult, getLegacySaveKeys, readLocalSaveString, ensureSaveMeta, resetLocalSave, refreshItemIdCounter, dropRuntimeOnlySaveFields, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSyncPayload, createCloudSaveRequestBody, cloudSaveFingerprint, cloudSaveContentPrint, getPlayedUntil, touchSaveMeta, persistLocalSave, normalizeLocalRuntimeAfterLoad, loadGame, loadGameAtBoot, saveGame, queueImportantSave, formatCloudTime, setCloudMessage });
+})();
+
+
+// Phase-2 extracted save helpers and persistence flow.
+
+/** The save slot this page reads and writes (2026-10-30). The guest slot (LOCAL_SAVE_KEY) lives on this device only and never goes to
+ * the server. An account's slot (ACCOUNT_SAVE_KEY_PREFIX + account id) holds this device's copy of that account's server save plus
+ * what it has not uploaded yet (saveMeta.cloudPending); the account mode reads and writes only that slot. userId is null for the guest. */
+const saveSlot = { kind: 'guest', key: LOCAL_SAVE_KEY, userId: null };
+
+
+const localSaveRuntimeState = {
+    status: 'uninitialized',
+    writable: true,
+    sourceKey: null,
+    backupKey: null,
+    message: ''
+};
+
+
+/** The release this page runs: the time of the commit it was built from (ISO), which scripts/lib/game-build.js writes into
+ * <meta name="game-build"> of a release (dist/, www/). An unbuilt page (development server, smoke runtime) has 'dev' or no tag and
+ * gets null: it stamps no save and refuses none. */
+const RUNNING_GAME_BUILD = (() => {
+    const meta = typeof document === 'object' && typeof document.querySelector === 'function' ? document.querySelector('meta[name="game-build"]') : null;
+    return gameBuildTime(meta && meta.content) ? meta.content : null;
+})();
+const OUTDATED_BUILD_ERROR_CODE = 'GAME_BUILD_OUTDATED';
+
+
+/** Every save a release writes names that release, so an older release can tell it apart (outdatedBuildError). */
+function stampGameBuild(meta) {
+    if (RUNNING_GAME_BUILD) meta.gameBuild = RUNNING_GAME_BUILD;
+}
+
+
+/** Fields of game that live only while the game runs: the talent card runtime and the last combat tick's stat sheet and time
+ * (about a tenth of a save, and stale after a load). Never saved or uploaded; old saves drop them on load (mergeDefaults). */
+const RUNTIME_ONLY_SAVE_KEYS = Object.freeze(['talentCardRuntime', 'lastCombatStats', 'lastCombatStatsAt']);
+
+
+let importantSaveTimer = null;
 
 
 safeExposeGlobals({ readLocalSaveString, readLocalSaveResult, getLocalSaveStatus, canPersistLocalSave, ensureSaveMeta, resetLocalSave, createSaveSnapshot, serializeSaveState, createCloudSavePayload, createCloudSaveRequestBody, persistLocalSave, loadGame, loadGameAtBoot, saveGame, queueImportantSave, formatCloudTime, setCloudMessage, selectSaveSlot, getSaveSlot, accountSaveKey, readGuestSave, removeGuestSave, migrateOwnedGuestSave });

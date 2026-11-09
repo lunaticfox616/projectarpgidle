@@ -1,5 +1,6 @@
 // 전투 틱: 조건 효과, 이동과 멈춤, 공격 순서(coreLoop) (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** The tick's conditions on the hero's stats: condition debuffs and hexes, casts and channels, pending hits, talisman condition
  * effects and the cosmos debuffs, then ailments. */
 function applyTickConditions(pStats) {
@@ -21,7 +22,7 @@ function applyTickConditions(pStats) {
     tickAilments(pStats, 0.1);
     applyPlayerAilmentsToTick(pStats);
 }
-const isStrongerShock = (ail, current) => Boolean(ail && ail.type === 'shock' && (ail.time || 0) > 0 && (!current || (ail.power || 0) > (current.power || 0)));
+
 /** Chill slows the swing; the strongest shock raises the damage the hero takes. */
 function applyPlayerAilmentsToTick(pStats) {
     const ailmentMap = {};
@@ -33,6 +34,7 @@ function applyPlayerAilmentsToTick(pStats) {
     if (ailmentMap.chill) pStats.aspd *= 1 - 0.32 * (1 - clampNumber(pStats.chillEffectReducePct || 0, 0, 100) / 100);
     pStats.playerShockTakenDamageIncreasePct = activePlayerShock ? getPlayerShockTakenDamageIncreasePct(pStats, activePlayerShock.power) : 0;
 }
+
 /** One talisman condition effect's delta on the tick's stats, in its fixed order (damage first, the element bonuses after it). */
 function applyConditionDelta(pStats, delta) {
     applyConditionOffence(pStats, delta);
@@ -41,6 +43,7 @@ function applyConditionDelta(pStats, delta) {
     applyConditionFlags(pStats, delta);
     applyConditionCleanse(pStats, delta);
 }
+
 function applyConditionOffence(pStats, delta) {
     if (delta.pctDmg) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta.pctDmg / 100));
     if (delta.aspd) pStats.aspd *= (1 + delta.aspd / 100);
@@ -48,6 +51,7 @@ function applyConditionOffence(pStats, delta) {
     if (delta.targetAny) pStats.sSkill.targets = Math.min(12, (pStats.sSkill.targets || 1) + delta.targetAny);
     for (const key of ['leech', 'move']) if (delta[key]) pStats[key] += delta[key];
 }
+
 function applyConditionDefence(pStats, delta) {
     for (const key of ['resAll', 'maxResAll']) {
         if (!delta[key]) continue;
@@ -58,19 +62,18 @@ function applyConditionDefence(pStats, delta) {
     if (delta.resChaos) pStats.resChaos += delta.resChaos;
     if (delta.energyShieldRegen) pStats.energyShieldRegenRate = Math.max(0, (pStats.energyShieldRegenRate || 0) + delta.energyShieldRegen);
 }
-const CONDITION_ELEMENT_BONUS = Object.freeze([['fireBonus', 'fire'], ['coldBonus', 'cold'], ['chaosBonus', 'chaos'], ['physBonus', 'phys']]);
+
 function applyConditionElement(pStats, delta) {
     for (const [key, ele] of CONDITION_ELEMENT_BONUS) if (delta[key] && (pStats.sSkill.ele === ele)) pStats.baseDmg = Math.floor(pStats.baseDmg * (1 + delta[key]));
     if (delta.energyShieldRechargeDelayDelta) pStats.energyShieldRechargeDelay = Math.max(0, (pStats.energyShieldRechargeDelay || 3) + delta.energyShieldRechargeDelayDelta);
 }
-const CONDITION_FLAG_KEYS = Object.freeze(['poisonToHeal', 'disableEnemyLeech']);
-const CONDITION_IMMUNITIES = Object.freeze(['immuneIgnite', 'immuneChill', 'immuneFreeze', 'immuneShock', 'immuneBleed']);
+
 function applyConditionFlags(pStats, delta) {
     for (const key of CONDITION_FLAG_KEYS) if (delta[key]) pStats[key] = true;
     if (delta.delayedRegenFromTakenDamage) pStats.delayedRegenFromTakenDamage = Math.max(pStats.delayedRegenFromTakenDamage || 0, delta.delayedRegenFromTakenDamage);
     for (const key of CONDITION_IMMUNITIES) if (delta[key]) pStats[key] = true;
 }
-const CONDITION_CLEANSES = Object.freeze({ cleanseIgnite: 'ignite', cleanseChill: 'chill', cleanseFreeze: 'freeze', cleanseShock: 'shock', cleanseBleed: 'bleed' });
+
 /** The ailments a condition cleanses end now (the passive cycle records each end). */
 function applyConditionCleanse(pStats, delta) {
     const types = Object.entries(CONDITION_CLEANSES).filter(([key]) => delta[key]).map(([, type]) => type);
@@ -97,10 +100,12 @@ function stopTickBeforeCombat(pStats) {
     }
     return stopHaltedTick();
 }
+
 function sanitizeRunTimers() {
     if (!Number.isFinite(game.runProgress) || game.runProgress < 0) game.runProgress = 0;
     if (!Number.isFinite(game.moveTimer)) game.moveTimer = 0;
 }
+
 /** A halted fight: it still walks (true), stays halted (true) or resumes (false). */
 function stopHaltedTick() {
     if (!game.combatHalted) return false;
@@ -110,12 +115,14 @@ function stopHaltedTick() {
     }
     return !resumeHaltedCombat();
 }
+
 function finishHaltedTravel() {
     game.moveTimer -= 0.1;
     if (game.moveTimer > 0) return;
     markPlayerMovementCompleted();
     if (!finishWoodsmanEntrance()) startEncounterRun();
 }
+
 /** A halted fight resumes unless something still holds it: an active beehive expedition (stale beehive flags from older saves could
  * keep combatHalted forever on normal zones, so only an active one blocks), a ticket boss fight, or a stop the player chose. true
  * when it resumed. */
@@ -129,6 +136,7 @@ function resumeHaltedCombat() {
     game.combatHalted = false;
     return true;
 }
+
 function isCombatProgressStopped(zone = getZone(game.currentZoneId)) {
     const settings = game.settings || {};
     return settings.mapCompleteAction === 'stop' || settings.townReturnAction === 'stop'
@@ -153,16 +161,19 @@ function recoverPlayerTick(pStats) {
     tickPlayerRecoup(pStats, 0.1);
     rechargeEnergyShieldTick(pStats);
 }
+
 function rechargeEnergyShieldTick(pStats) {
     const cap = getPlayerEnergyShieldRecoveryCap(pStats);
     sanitizeEnergyShieldTick(pStats, cap);
     if ((pStats.energyShield || 0) > 0 && game.playerEnergyShield < cap) refillEnergyShieldTick(pStats, cap);
 }
+
 function sanitizeEnergyShieldTick(pStats, cap) {
     if (!Number.isFinite(game.playerEnergyShield)) game.playerEnergyShield = Math.floor(pStats.energyShield || 0);
     game.playerEnergyShield = Math.max(0, Math.min(game.playerEnergyShield, cap));
     if (!Number.isFinite(game.playerEsLastHitAt)) game.playerEsLastHitAt = 0;
 }
+
 /** cr5 turns life regen into shield, the crusader window adds 25% a second, and the shield's own recharge when it runs now. */
 function refillEnergyShieldTick(pStats, cap) {
     const add = perSec => { game.playerEnergyShield = Math.min(cap, game.playerEnergyShield + perSec * 0.1); };
@@ -170,7 +181,7 @@ function refillEnergyShieldTick(pStats, cap) {
     if ((game.crusaderEsRegenUntil || 0) > getCombatTime()) add((pStats.energyShield || 0) * 0.25);
     if (energyShieldRechargesNow(pStats)) add((pStats.energyShield || 0) * ((pStats.energyShieldRegenRate || 12.5) / 100));
 }
-const uniqueShieldWindowOpen = pStats => Boolean(pStats.uniqueEnergyShieldBreakRecharge && (game.uniqueEnergyShieldBreakRechargeUntil || 0) > getCombatTime());
+
 /** Whether the energy shield refills this tick: no interruption (e3, a broken-shield unique window), moving with no delay, or the
  * recharge delay passed since the last hit. */
 function energyShieldRechargesNow(pStats) {
@@ -191,6 +202,7 @@ function advanceTravelTick() {
     finishWoodsmanEntrance();
     return true;
 }
+
 function finishTravelMove() {
     markPlayerMovementCompleted();
     if (game.isTownReturning) {
@@ -199,6 +211,7 @@ function finishTravelMove() {
     }
     if (!finishWoodsmanEntrance()) startEncounterRun();
 }
+
 /** Every 2 s the per-monster debuff maps lose monsters that are gone. */
 function pruneEnemyRuntimeOnSchedule() {
     const now = getCombatTime();
@@ -207,11 +220,13 @@ function pruneEnemyRuntimeOnSchedule() {
     pruneEnemyRuntimeDebuffMaps();
     game._nextEnemyRuntimePruneAt = now + 2000;
 }
+
 /** A beehive expedition that is not waiting to be cleared holds the tick here. */
 function beehiveHoldsTick() {
     const locked = typeof isBeehiveRunLockedForMapTravel === 'function' ? isBeehiveRunLockedForMapTravel() : !!(game.beehive && game.beehive.inRun);
     return locked && !(game.beehive && game.beehive.awaitingClear);
 }
+
 /** The zone's own tick: the colony run, and from underworld floor 15 the life drain. */
 function tickZoneHazards(zone, pStats) {
     if (zone?.type === 'colony' && game.colony.inRun) tickColonyRun(pStats);
@@ -223,6 +238,7 @@ function tickZoneHazards(zone, pStats) {
     tickDmg = absorbDamageWithTalentStoneShield(tickDmg);
     game.playerHp = Math.max(0, Math.floor(game.playerHp - tickDmg));
 }
+
 /** 20 ticks with no map progress where progress is tracked: the run is rebuilt and nudged forward. */
 function trackProgressStall(progressBefore) {
     if (!actExplorationProgress.shouldTrackStall()) { progressStallTicks = 0; return; }
@@ -258,6 +274,7 @@ function runFightTick(pStats, hazardEvasion, walkedMs) {
     runSummonAttackTick(pStats);
     performMonsterAttacks(pStats);
 }
+
 /** Whether the main gem reaches a target: never while walking out of danger; a locked channel by its targets; else the grid
  * engagement (which also steps the hero in). */
 function resolveSkillRange(pStats, channelGate, hazardEvasion) {
@@ -265,11 +282,13 @@ function resolveSkillRange(pStats, channelGate, hazardEvasion) {
     if (channelGate.locked) return channelGate.hasTargets;
     return updatePlayerGridEngagement(pStats, { holdPosition: actExplorationProgress.holdPosition(hazardEvasion.holdPosition), avoidCells: hazardEvasion.avoidCells });
 }
+
 /** When the cast delay ends (a delay over 5 s away is a stale one: 0.5 s). */
 function getAttackDelayUntil(nowCast) {
     const castUntil = Math.max(0, Number(combatTacticsRuntime.attackDelayUntil) || 0);
     return castUntil > nowCast + 5000 ? nowCast + 500 : castUntil;
 }
+
 /** 연속 타격: every full 100% is an extra swing, the rest a chance of one more (rolled every swing). g2 and w2 count each. */
 function performDoubleStrikes(pStats) {
     const dsChance = Math.max(0, pStats.ds || 0);
@@ -284,6 +303,7 @@ function performDoubleStrikes(pStats) {
         if (hasKeystone('w2')) stackKeystoneRhythm('warriorRhythmDouble', 5, 2000);
     }
 }
+
 /** A keystone's short stack (game[prefix + 'Stacks'], game[prefix + 'ExpiresAt']): +1 up to cap, its timer restarted. */
 function stackKeystoneRhythm(prefix, cap, durationMs) {
     const now = getCombatTime(), countKey = prefix + 'Stacks', untilKey = prefix + 'ExpiresAt';
@@ -304,14 +324,14 @@ function tickVoidRiftWave(zone, ui) {
     }
     if (voidRiftWaveCleared(v)) closeVoidRiftWave(v, ui);
 }
+
 function sanitizeVoidRiftWave(v) {
     v.pendingWave = v.pendingWave !== false;
     v.totalToSpawn = Math.max(3, Math.floor(v.totalToSpawn || (6 + Math.floor(Math.random() * 4))));
     v.spawnedCount = Math.max(0, Math.floor(v.spawnedCount || 0));
     v.spawnTick = Math.max(0, Math.floor(v.spawnTick || 0));
 }
-const voidRiftWaveCleared = v => v.spawnedCount >= v.totalToSpawn && (v.defeatedCount || 0) >= v.totalToSpawn
-    && (game.enemies || []).filter(e => e.hp > 0 && e.fromVoidRift).length === 0;
+
 function closeVoidRiftWave(v, ui) {
     v.active = false;
     v.pendingWave = false;
@@ -326,6 +346,7 @@ function closeVoidRiftWave(v, ui) {
     ui.say(_t('🕳️ 공허의 구멍 정리 완료!{reward}', { reward: reward ? ` ${_t('공허의 끌')} +${reward}` : '' }), 'loot-magic', { noToast: true });
     if (unlockedGrand) announceGrandBreachOpen(v, ui);
 }
+
 function announceGrandBreachOpen(v, ui) {
     const enteredGrand = ui.enterGrand();
     if (!enteredGrand) ui.say(_t('🚨 대균열이 열렸습니다! [대균열 입장] 버튼을 확인하세요.'), 'loot-unique');
@@ -422,6 +443,7 @@ function pickWaveFrontTargets(row) {
     reached.forEach(entry => wave.struck.push(entry.enemy.id));
     return reached.map(entry => ({ enemy: entry.enemy, mult: wave.mults[entry.enemy.id] ?? 1 }));
 }
+
 /** The first sampled moment in span when the ring (radius = time since start / msPerCell, at most reach) touches the drawn enemy. */
 function waveTouchTime(wave, enemy, span) {
     const step = Math.max(1, COMBAT_GRID_CONFIG.waveContactSampleMs);
@@ -483,13 +505,6 @@ function getPendingSkillTravelCellMs(row) {
     return row.delivery?.startsWith('projectile') ? getCombatTravelCellMs(row.pStats && row.pStats.sSkill) : 0;
 }
 
-/** 연쇄로 건너가는 발(2026-11-09 스킬 전체 전달본 V3.14.1, 사용자 "연쇄될 때 발생하는 선형 번개도 고쳐주세요"): 투사체 룬의 연쇄 단계는
- * 앞서 맞은 적에서 이번 적으로 처음 쏜 것과 같은 투사체가 날아가 이번 타격 순간에 꽂힌다. 연쇄 단계는 120ms 간격이라
- * (js/combat-support-runes.js nativeChain) 그 사이를 난다. 앞 적을 못 찾으면 그림 없이 타격감만 남는다(주인공 자리에서 나가지 않게).
- * 겨냥한 칸(aimCell)을 적지 않아 주인공이 건너가는 쪽으로 돌아서지 않는다. 무엇을 그릴지는 무대가 고른다(js/canvas-stage-skill-casts.js castHop).
- * 연쇄 단계는 시전 시각에서 120ms씩 잡혀 첫 투사체가 날아가는 동안 다음 적을 먼저 쳤다(첫 화살이 꽂히기 전에 연쇄 화살이 떠났다):
- * 앞 적이 맞은 뒤 120ms에 닿도록 이 단계(피해 시각 포함)를 미룬다. 피해는 그대로다. */
-const CHAIN_HOP_MS = 120;
 function addChainHopTravelFx(row, attackContext, now) {
     const kind = row.options.stageKind, from = row.options.chainFromEnemyId;
     // 투사체 태그나 관통으로 나는 룬(빙결 파열창은 주문 태그뿐이다)
@@ -676,10 +691,6 @@ function queuePlayerAttackSequence(pStats, stages, context) {
     });
 }
 
-/** How far into the swing's windup a projectile leaves the hand: the stage hero plays its release frame then (playerSwing releaseDelayMs,
- * js/canvas-battle-units.js getHanaSwingTiming). */
-const PROJECTILE_RELEASE_SHARE = 0.55;
-
 /** When a stage leaves and lands. A pierce is one shot: a victim past the first is hit when that shot reaches it, timed from the
  * caster's release. It used to be a new shot from the previous victim 30ms later, which paid the fixed launch time again, so the
  * later hits landed early and the image darted through them (2026-10-04, "맞고 더 빨라진다"). Collision still runs from the
@@ -699,9 +710,6 @@ function getPendingStageTimes(stage, delivery, cells, timing) {
     }
     return { stageDelay, launchAt: now, at: now + baseDelay + stageDelay };
 }
-
-/** 발이 나뉜 공격(js/combat-projectile-shots.js)은 발마다 첫 단계부터 센다: 착탄 폭발 같은 첫 타격의 연출이 발마다 나온다. */
-const getStageIndexInShot = (stage, offset) => (stage.shotStage === undefined ? offset : stage.shotStage);
 
 function queuePendingSkillStageHits(stages, pStats, attackContext) {
     let now = getCombatTime();
@@ -814,10 +822,6 @@ function processTalentInquisitorMarks() {
         }
     });
 }
-const TALENT_CARD_MAX_LEVEL_REF = 10;
-
-
-// Phase-3 extracted core combat runtime block.
 
 function convertSkillDamageToChaos(skill) {
     let next = { ...(skill || {}) };
@@ -830,7 +834,6 @@ function convertSkillDamageToChaos(skill) {
     next.convertedToChaos = true;
     return next;
 }
-
 
 function getUniqueEffectImplementationReport() {
     let declared = [];
@@ -868,5 +871,46 @@ function recordPlayerEvadeUniqueEffects(pStats, aliveEnemyCount, now) {
     if (!counter || aliveEnemyCount < 1 || aliveEnemyCount > Math.max(1, Math.floor(counter.maxEnemies || 2))) return;
     game.uniqueLoneEvasionCounterUntil = at + Math.max(0.1, Number(counter.duration || 3)) * 1000;
 }
+
+exposeFileGlobals({ applyTickConditions, stopTickBeforeCombat, isCombatProgressStopped, recoverPlayerTick, advanceTravelTick, pruneEnemyRuntimeOnSchedule, beehiveHoldsTick, tickZoneHazards, trackProgressStall, runFightTick, tickVoidRiftWave, copyCombatGridCell, getSkillCombatDelivery, getCombatTravelMs, pickWhirlSpinTargets, pickWaveFrontTargets, getPendingSkillImpactTargets, addChainHopTravelFx, queuePlayerAttackSequence, queuePendingSkillStageHits, advanceHeroForStage, processPendingSkillStageHits, processTalentInquisitorMarks, convertSkillDamageToChaos, getUniqueEffectImplementationReport, recordPlayerEvadeUniqueEffects });
+})();
+
+const isStrongerShock = (ail, current) => Boolean(ail && ail.type === 'shock' && (ail.time || 0) > 0 && (!current || (ail.power || 0) > (current.power || 0)));
+const CONDITION_ELEMENT_BONUS = Object.freeze([['fireBonus', 'fire'], ['coldBonus', 'cold'], ['chaosBonus', 'chaos'], ['physBonus', 'phys']]);
+const CONDITION_FLAG_KEYS = Object.freeze(['poisonToHeal', 'disableEnemyLeech']);
+const CONDITION_IMMUNITIES = Object.freeze(['immuneIgnite', 'immuneChill', 'immuneFreeze', 'immuneShock', 'immuneBleed']);
+const CONDITION_CLEANSES = Object.freeze({ cleanseIgnite: 'ignite', cleanseChill: 'chill', cleanseFreeze: 'freeze', cleanseShock: 'shock', cleanseBleed: 'bleed' });
+
+
+const uniqueShieldWindowOpen = pStats => Boolean(pStats.uniqueEnergyShieldBreakRecharge && (game.uniqueEnergyShieldBreakRechargeUntil || 0) > getCombatTime());
+
+
+const voidRiftWaveCleared = v => v.spawnedCount >= v.totalToSpawn && (v.defeatedCount || 0) >= v.totalToSpawn
+    && (game.enemies || []).filter(e => e.hp > 0 && e.fromVoidRift).length === 0;
+
+
+/** 연쇄로 건너가는 발(2026-11-09 스킬 전체 전달본 V3.14.1, 사용자 "연쇄될 때 발생하는 선형 번개도 고쳐주세요"): 투사체 룬의 연쇄 단계는
+ * 앞서 맞은 적에서 이번 적으로 처음 쏜 것과 같은 투사체가 날아가 이번 타격 순간에 꽂힌다. 연쇄 단계는 120ms 간격이라
+ * (js/combat-support-runes.js nativeChain) 그 사이를 난다. 앞 적을 못 찾으면 그림 없이 타격감만 남는다(주인공 자리에서 나가지 않게).
+ * 겨냥한 칸(aimCell)을 적지 않아 주인공이 건너가는 쪽으로 돌아서지 않는다. 무엇을 그릴지는 무대가 고른다(js/canvas-stage-skill-casts.js castHop).
+ * 연쇄 단계는 시전 시각에서 120ms씩 잡혀 첫 투사체가 날아가는 동안 다음 적을 먼저 쳤다(첫 화살이 꽂히기 전에 연쇄 화살이 떠났다):
+ * 앞 적이 맞은 뒤 120ms에 닿도록 이 단계(피해 시각 포함)를 미룬다. 피해는 그대로다. */
+const CHAIN_HOP_MS = 120;
+
+
+/** How far into the swing's windup a projectile leaves the hand: the stage hero plays its release frame then (playerSwing releaseDelayMs,
+ * js/canvas-battle-units.js getHanaSwingTiming). */
+const PROJECTILE_RELEASE_SHARE = 0.55;
+
+
+/** 발이 나뉜 공격(js/combat-projectile-shots.js)은 발마다 첫 단계부터 센다: 착탄 폭발 같은 첫 타격의 연출이 발마다 나온다. */
+const getStageIndexInShot = (stage, offset) => (stage.shotStage === undefined ? offset : stage.shotStage);
+
+
+const TALENT_CARD_MAX_LEVEL_REF = 10;
+
+
+// Phase-3 extracted core combat runtime block.
+
 
 safeExposeGlobals({ getUniqueEffectImplementationReport });

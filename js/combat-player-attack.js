@@ -1,5 +1,6 @@
 // 주인공의 공격: 키스톤 배율, 투사체 발사, 스킬 적중과 지속 피해 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** 포션 스킬 키스톤의 명중 피해 배율: 폭발성 증류 ×0.75, 과잉 투여 ×1.5. */
 function getPotionKeystoneHitScale(flags) {
     return (flags.explosiveDistill ? 0.75 : 1) * (flags.potionOverdose ? 1.5 : 1);
@@ -142,22 +143,12 @@ function petrifyEnemy(enemy,at,seconds) {
     if (row) row.time=Math.max(row.time || 0,seconds);
     else enemy.ailments.push({type:'stun',time:seconds,power:0,petrified:true,petrifiedAt:at});
 }
-const isEnemyPetrified=enemy=>Array.isArray(enemy.ailments) && enemy.ailments.some(ail=>ail && ail.petrified && ail.time>0);
-/** 시간의 사선(80)의 이동 둔화가 남은 적인가: 저장에서 불러와 전투 시계가 앞서가도 그 길이 안에서만 믿는다. */
-const TIME_SLOW_MS=1300,TIME_SLOW_MOVE=0.3;
+
 function enemyTimeSlowed(enemy) {
     const left=(Number(enemy.timeSlowUntil)||0)-getCombatTime();
     return left>0 && left<=TIME_SLOW_MS;
 }
-/** 사슬처럼 따로 시전하는 룬이 적에게 남기는 표시(피해 없음). 끌어당김(2026-11-08 전달본 V3.13의 특이점 분리, 공허의 빙의)은 그 칸 쪽으로 cells걸음까지,
- * column이 있으면 그 세로줄 쪽으로(같은 줄을 지킨다). 약화(공허의 빙의)는 받는 피해를 늘린다(applyVoidWeakMitigation). */
-const SKILL_GEM_MARKS=Object.freeze({
-    mist(command,targets) { for (const enemy of targets) enemy.holyMistUntil=command.at+4000; },
-    petrify(command,targets) { for (const enemy of targets) petrifyEnemy(enemy,command.at,command.ms/1000); },
-    timeSlow(command,targets) { for (const enemy of targets) enemy.timeSlowUntil=command.at+command.ms; },
-    pull(command,targets) { for (const enemy of targets) pullEnemyToward(enemy,command); },
-    weaken(command,targets) { for (const enemy of targets) enemy.voidWeakUntil=command.at+command.ms; }
-});
+
 /** 끌어당김 한 번: 보스와 굳은 적은 끌려오지 않는다(밀어내기와 같다, canPushEnemy). */
 function pullEnemyToward(enemy,command) {
     if (!canPushEnemy(enemy)) return;
@@ -212,6 +203,60 @@ function applySkillGemContact(command,targets) {
         if (enemy.hp<=0) handleEnemyDeath(enemy,stats); // 촉매 ct8 터뜨림이 쓰러뜨린 적(타격의 죽음 처리는 이미 지났다)
     });
 }
+
+function getDefeatRecoveryZoneId() {
+    let frontier = Math.max(0, Math.floor(Number(game.maxZoneId) || 0));
+    return getZone(frontier) ? frontier : 0;
+}
+
+function recordPlayerDefeatStart(zone, options) {
+    cosmosRouteRuntime.leave(game, 'failed');
+    resetHiddenJournalBossRun();
+    addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
+    dispatchRuntimeEvent('player-defeated', {
+        zoneId: zone && zone.id,
+        zoneType: zone && zone.type,
+        contentContext: getEncounterTelemetryContext(zone),
+        background: !!game.isBackgroundCalculation,
+        noToast: !!options.noToast
+    });
+}
+
+/** 자동 진행(다음 지역) 중 스토리 액트에서 쓰러지면 바로 앞 액트로 물러난다 — 같은 무리에 거듭 쓰러지며 탐험 전리품을
+ * 잃던 반복을 끊는다. ACT_RETREAT_LEVELS만큼 오르면 holdActRetreat가 다시 앞 액트로 보낸다. Returns the retreat zone name ('' = stays). */
+function retreatAfterActDefeat(zone) {
+    if (zone?.type !== 'act' || !(zone.id > 0)) return '';
+    if ((game.settings.mapCompleteAction || 'nextZone') !== 'nextZone') return '';
+    const target = getZone(zone.id - 1);
+    if (target?.type !== 'act') return '';
+    game.actRetreat = { frontierZoneId: zone.id, level: game.level };
+    game.currentZoneId = target.id;
+    game.killsInZone = 0;
+    return target.name;
+}
+
+/** 지금까지 연 구역의 캠페인 패널티(모든 원소 저항과 카오스 저항에서 뺄 값). */
+function getCampaignResistPenalty(maxZoneId) {
+    return CAMPAIGN_RESIST_PENALTY.zones.filter(zoneId => maxZoneId >= zoneId).length * CAMPAIGN_RESIST_PENALTY.each;
+}
+
+exposeFileGlobals({ scaleKeystoneAttackSpeed, addThousandBottlesStats, getPassiveKeystoneHitMultiplier, addPlayerHitVisualFx, startSkillGemCombat, noteNativeGemSwing, shouldDeferNativeGemCast, getAttackProjectileShots, updateSkillGemCombat, advanceSkillGemCasts, skillGemRuntimeChanged, petrifyEnemy, enemyTimeSlowed, pullEnemyToward, getDefeatRecoveryZoneId, recordPlayerDefeatStart, retreatAfterActDefeat, getCampaignResistPenalty });
+})();
+
+
+const isEnemyPetrified=enemy=>Array.isArray(enemy.ailments) && enemy.ailments.some(ail=>ail && ail.petrified && ail.time>0);
+/** 시간의 사선(80)의 이동 둔화가 남은 적인가: 저장에서 불러와 전투 시계가 앞서가도 그 길이 안에서만 믿는다. */
+const TIME_SLOW_MS=1300,TIME_SLOW_MOVE=0.3;
+/** 사슬처럼 따로 시전하는 룬이 적에게 남기는 표시(피해 없음). 끌어당김(2026-11-08 전달본 V3.13의 특이점 분리, 공허의 빙의)은 그 칸 쪽으로 cells걸음까지,
+ * column이 있으면 그 세로줄 쪽으로(같은 줄을 지킨다). 약화(공허의 빙의)는 받는 피해를 늘린다(applyVoidWeakMitigation). */
+const SKILL_GEM_MARKS=Object.freeze({
+    mist(command,targets) { for (const enemy of targets) enemy.holyMistUntil=command.at+4000; },
+    petrify(command,targets) { for (const enemy of targets) petrifyEnemy(enemy,command.at,command.ms/1000); },
+    timeSlow(command,targets) { for (const enemy of targets) enemy.timeSlowUntil=command.at+command.ms; },
+    pull(command,targets) { for (const enemy of targets) pullEnemyToward(enemy,command); },
+    weaken(command,targets) { for (const enemy of targets) enemy.voidWeakUntil=command.at+command.ms; }
+});
+
 
 function performPlayerAttack(pStats, attackOptions) {
     let options = attackOptions || {};
@@ -1131,40 +1176,5 @@ function performPlayerAttack(pStats, attackOptions) {
     });
 }
 
-function getDefeatRecoveryZoneId() {
-    let frontier = Math.max(0, Math.floor(Number(game.maxZoneId) || 0));
-    return getZone(frontier) ? frontier : 0;
-}
-
-function recordPlayerDefeatStart(zone, options) {
-    cosmosRouteRuntime.leave(game, 'failed');
-    resetHiddenJournalBossRun();
-    addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
-    dispatchRuntimeEvent('player-defeated', {
-        zoneId: zone && zone.id,
-        zoneType: zone && zone.type,
-        contentContext: getEncounterTelemetryContext(zone),
-        background: !!game.isBackgroundCalculation,
-        noToast: !!options.noToast
-    });
-}
-
-/** 자동 진행(다음 지역) 중 스토리 액트에서 쓰러지면 바로 앞 액트로 물러난다 — 같은 무리에 거듭 쓰러지며 탐험 전리품을
- * 잃던 반복을 끊는다. ACT_RETREAT_LEVELS만큼 오르면 holdActRetreat가 다시 앞 액트로 보낸다. Returns the retreat zone name ('' = stays). */
-function retreatAfterActDefeat(zone) {
-    if (zone?.type !== 'act' || !(zone.id > 0)) return '';
-    if ((game.settings.mapCompleteAction || 'nextZone') !== 'nextZone') return '';
-    const target = getZone(zone.id - 1);
-    if (target?.type !== 'act') return '';
-    game.actRetreat = { frontierZoneId: zone.id, level: game.level };
-    game.currentZoneId = target.id;
-    game.killsInZone = 0;
-    return target.name;
-}
-
-/** 지금까지 연 구역의 캠페인 패널티(모든 원소 저항과 카오스 저항에서 뺄 값). */
-function getCampaignResistPenalty(maxZoneId) {
-    return CAMPAIGN_RESIST_PENALTY.zones.filter(zoneId => maxZoneId >= zoneId).length * CAMPAIGN_RESIST_PENALTY.each;
-}
 
 safeExposeGlobals({ performPlayerAttack });

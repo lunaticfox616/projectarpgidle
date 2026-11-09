@@ -7,14 +7,19 @@
  * this is the input, notice and save boundary, and the settlement notices main's tick asks for (settleSales). */
 // 가판대 기록 창(2026-11-06 사용자: 판매 기록, 최근 방문, 판매 규칙을 누르면 별도 창에서, 물건을 구매했는지 안 했는지도): 가판대 아래
 // 세 단추가 같은 선택 창(js/selection-dialog-ui.js)을 저마다의 내용으로 연다. 방문 줄마다 그 손님이 산 결과를 앞에 단다.
-const STALL_RECORDS_DIALOG = 'stall-records-dialog';
-const STALL_RECORD_TITLES = Object.freeze({ sales: '판매 기록', visits: '최근 방문', terms: '판매 규칙' });
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** A visit's outcome word and tone: bought, offered a price, a crowd arriving, or left without buying (also an offer that ran out). */
 function stallOutcomeOf(event) {
     if (event.sold) return ['구매', 'is-bought'];
     if (event.kind === 'offer') return ['가격 제안', 'is-offer'];
     return event.kind === 'crowd' ? ['손님 몰림', 'is-crowd'] : ['구매 안 함', 'is-passed'];
 }
+
+exposeFileGlobals({ stallOutcomeOf });
+})();
+const STALL_RECORDS_DIALOG = 'stall-records-dialog';
+const STALL_RECORD_TITLES = Object.freeze({ sales: '판매 기록', visits: '최근 방문', terms: '판매 규칙' });
 /** One customer's call at the stall: a sale, an offer or a look; a crowd's arrival is not a customer. */
 const isStallCustomerEvent = event => event.kind !== 'crowd';
 const playerStallUi = {

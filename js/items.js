@@ -1,22 +1,8 @@
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getCodexSlotOrder() {
     return ['무기', '방패', '투구', '갑옷', '장갑', '신발', '목걸이', '반지', '허리띠'];
 }
-
-
-// Item module bridge (phase 2).
-window.GameModules = window.GameModules || {};
-window.GameModules.items = {
-  get db() { return window.UNIQUE_DB; },
-  get orbs() { return window.ORB_DB; },
-  get market() { return window.MARKET_EXCHANGES; },
-  // TODO: move item crafting/equip/salvage functions from main/ui into here.
-};
-
-// Phase-3 extracted equipment/inventory handlers.
-
-let craftingSelectionState = { ref: null, isEquip: false };
-
 
 function getInventoryItemVisualAsset(item, kind) {
     return pickInventoryItemVisualAsset(item, kind);
@@ -37,8 +23,6 @@ function renderInventoryItemVisual(item, kind, className) {
     let label = (item && (item.name || item.baseName)) || '아이템';
     return `<img class="${className || 'inventory-item-visual'}" src="${asset}" alt="" aria-hidden="true" data-item-visual-label="${typeof escapeHTML === 'function' ? escapeHTML(label) : label}">`;
 }
-
-safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
 
 function getEquipmentGridVisualAsset(item) {
     return bagItems.artOf(item) || pickEquipmentGridVisualAsset(item);
@@ -86,8 +70,6 @@ function getUniqueEntryVisualAsset(entry) {
     return getEquipmentGridVisualAsset({ rarity: 'unique', name: entry.name, slot: entry.slots[0], baseId: rule ? rule.baseId : '' });
 }
 
-safeExposeGlobals({ getEquipmentGridVisualAsset, getEquipmentInventoryFootprint, getUniqueEntryVisualAsset });
-
 function getAverageExplicitAffixTier(items) {
     let tiers = (Array.isArray(items) ? items : []).flatMap(item => {
         if (!item || item.rarity === 'unique') return [];
@@ -97,8 +79,6 @@ function getAverageExplicitAffixTier(items) {
     });
     return tiers.length ? tiers.reduce((sum, tier) => sum + tier, 0) / tiers.length : 0;
 }
-safeExposeGlobals({ getAverageExplicitAffixTier });
-
 
 function runItemStartMoving(force) {
     try {
@@ -112,7 +92,9 @@ function runItemStartMoving(force) {
 }
 
 function getCraftSelectionRef() { return craftingSelectionState.ref; }
+
 function isCraftSelectionEquip() { return !!craftingSelectionState.isEquip; }
+
 function clearCraftSelection() { craftingSelectionState.ref = null; craftingSelectionState.isEquip = false; }
 
 /** The craft target. A hall piece never is one, also when it was put on in the slot the target points at (picking one is refused below). */
@@ -180,42 +162,6 @@ function snapshotCraftResultItem(item) {
         encroachedStat: copyCraftResultStat(item.encroached && item.encroached.chosen)
     };
 }
-
-const craftingResultLedger = (() => {
-    let latest = null, sequence = 0;
-
-    function begin(item, meta) {
-        if (!item) return null;
-        return { itemRef: item, before: snapshotCraftResultItem(item), meta: { ...(meta || {}) }, seq: ++sequence };
-    }
-
-    /** A craft wrapped in another (the crafting workspace around useCurrency) keeps the inner one's outcome line. */
-    function commit(token, item) {
-        if (!token || !item || token.itemRef !== item) return null;
-        let after = snapshotCraftResultItem(item);
-        const inner = latest && latest.itemRef === item && latest.seq > token.seq ? latest.meta.outcome : undefined;
-        const meta = inner && !token.meta.outcome ? { ...token.meta, outcome: inner } : token.meta;
-        latest = { itemRef: item, before: token.before, after, meta, seq: token.seq, afterKey: JSON.stringify(after) };
-        return latest;
-    }
-
-    function getForItem(item) {
-        if (!latest || latest.itemRef !== item) return null;
-        return JSON.stringify(snapshotCraftResultItem(item)) === latest.afterKey ? latest : null;
-    }
-
-    /** The latest result's item changed again within the same craft (성화의 뿌리 pick): its after becomes the item now. */
-    function amend(item) {
-        if (!latest || latest.itemRef !== item) return null;
-        const after = snapshotCraftResultItem(item);
-        latest = { ...latest, after, afterKey: JSON.stringify(after) };
-        return latest;
-    }
-
-    function clear() { latest = null; }
-
-    return { begin, commit, amend, getForItem, clear };
-})();
 
 function getEquipCandidateSlots(item, targetGame = game) {
     if (!item || getPassiveEquipmentRestriction(item, targetGame)) return [];
@@ -500,17 +446,18 @@ function isBeehiveRunLockedForMapTravel() {
     return reconcileBeehiveRunState() && game.currentZoneId === 'beehive_run';
 }
 
-const BEEHIVE_TRAVEL_REFUSAL = '벌집 원정 중에는 [원정 포기] 전까지 다른 지역으로 이동할 수 없습니다.';
 function warnBeehiveMapTravelBlocked() {
     if (typeof addLog === 'function') addLog(BEEHIVE_TRAVEL_REFUSAL, 'attack-monster');
     return true;
 }
+
 /** Runs that keep the hero until they end or are given up (벌집 원정, 경계 너머). changeZone and the deep sea refuse from inside one,
  * and so does every content start (getContentStartBlockReason, and 경계 너머 itself). Returns the refusal, or ''. */
 function getHeldRunBlockReason() {
     if (isBeehiveRunLockedForMapTravel()) return BEEHIVE_TRAVEL_REFUSAL;
     return ensureBeyondBoundaryState(game).activeRun ? '경계 너머 도전을 먼저 마치거나 포기하세요.' : '';
 }
+
 /** Content starts (군락지, 벌집, 혼돈 밖, 심해, 나무꾼의 잔상, 대균열, 증표 시련) refuse from a held run and from inside an atlas map:
  * they set the zone themselves, so leaving the map that way skipped the portal changeZone spends. They refuse at the loop gate too
  * (time stands still there, as for hunting-ground travel; the loop then ended the run unplayed). Returns the refusal, or ''. */
@@ -744,9 +691,6 @@ function changeZone(id) {
     updateStaticUI();
 }
 
-
-safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, canEquipItemToSlot, equipSelectedCraftInventoryItem, unequipItem, unequipItemToGrid, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, getTimeAltarItemIssue, craftingResultLedger });
-
 function buildGoldenRuleSpendPrompt(message) {
     let owned = Math.max(0, Math.floor((game.currencies && game.currencies.goldenRule) || 0));
     return `${message}\n\n현재 보유: 황금률 ${owned}개`;
@@ -756,6 +700,7 @@ function getBaseDefenseProfile(base) {
     let ids = new Set((base.baseStats || []).map(stat => stat.id));
     return ['armor', 'evasion', 'energyShield'].filter(id => ids.has(id)).join('+');
 }
+
 function getBaseSecondaryStatSignature(base, slot) {
     let coreStatsBySlot = {
         무기: new Set(['flatDmg']),
@@ -774,6 +719,7 @@ function getBaseSecondaryStatSignature(base, slot) {
         .filter(statId => !coreSet.has(statId))
         .sort();
 }
+
 // Weapons all share the '무기' slot but belong to distinct archetypes (summon/projectile/spell/melee).
 // Base upgrades must stay within the same archetype, otherwise e.g. a projectile weapon could
 // upgrade into a summoner weapon.
@@ -784,6 +730,7 @@ function getWeaponBaseArchetype(base) {
     if (ids.some(id => id.startsWith('spell'))) return 'spell';
     return 'melee';
 }
+
 // 모든 슬롯에 적용되는 빌드 계열. 무기는 기존 무기 아키타입을 따르고,
 // 그 외 슬롯은 소환 스탯을 가진 베이스를 'summon' 계열로 분리한다.
 // 이렇게 해야 소환사 반지가 일반 반지 체인에 섞이지 않는다.
@@ -795,11 +742,13 @@ function getBaseBuildArchetype(base) {
     if (ids.some(id => id.startsWith('summon'))) return 'summon';
     return 'generic';
 }
+
 /** 수평 베이스(2026-10-09, js/state.js family): 같은 family 안에서만 오른다. 다른 베이스는 family 베이스로 오르지 않는다. */
 function getBaseFamilyUpgradeCandidates(currentBase) {
     return BASE_ITEM_DB.filter(base => base.slot === currentBase.slot && base.family === currentBase.family
         && base.reqTier > currentBase.reqTier && !base.dropOnly && !base.realmBase).sort((a, b) => a.reqTier - b.reqTier);
 }
+
 function getBaseUpgradeCandidates(currentBase) {
     if (currentBase.family) return getBaseFamilyUpgradeCandidates(currentBase);
     let currentProfile = getBaseDefenseProfile(currentBase);
@@ -853,9 +802,6 @@ function rollUpgradedBaseStats(item, nextBase) {
     next.baseRollMax = Math.max(Number(next.baseRollMax || 0), floor);
 }
 
-// 제단 줄이 대신하지 않는 베이스의 방어 줄(js/item-influences.js replaceIndex의 DEFENSE와 같다).
-const UPGRADE_ALTAR_KEPT_LINE_IDS = Object.freeze(['armor', 'evasion', 'energyShield']);
-const EXCEPTIONAL_BASE_ITEM_FIELDS = Object.freeze(['exceptionalBase', 'exceptionalStatNames', 'exceptionalStatName', 'exceptionalAllLines']);
 /** After a base upgrade: each altar line comes over unchanged, and the stats that were exceptional turn exceptional again where the new
  * base has them (the drop's boostExceptionalBaseLine, so the item's exceptional fields list exactly those lines). */
 function carryUpgradedBaseMarks(item, previousStats) {
@@ -864,6 +810,7 @@ function carryUpgradedBaseMarks(item, previousStats) {
     EXCEPTIONAL_BASE_ITEM_FIELDS.forEach(key => delete item[key]);
     item.baseStats.forEach(stat => { if (stat && !stat.altar && exceptionalIds.has(stat.id)) boostExceptionalBaseLine(item, stat); });
 }
+
 /** An altar line takes the place of a new line of its own stat, else of the stat it replaced before, else of the last ordinary line (no
  * defence line, no line turning exceptional, no other altar line). With none left it is added. */
 function carryAltarLineToUpgradedBase(stats, line, exceptionalIds) {
@@ -877,10 +824,7 @@ function carryAltarLineToUpgradedBase(stats, line, exceptionalIds) {
     if (index < 0) stats.push(carried);
     else stats[index] = Object.assign(carried, { replaced: { id: stats[index].id, statName: stats[index].statName || getStatName(stats[index].id) } });
 }
-// 업그레이드로 이어진 베이스들을 하나의 체인으로 보고, 각 베이스가 그 체인에서 몇 단계인지 계산한다.
-// step = 아래(저티어)에서부터의 위치(1부터), total = 그 베이스를 지나는 가장 긴 체인의 길이.
-// 분기 합류(여러 하위가 같은 상위로 업그레이드되는 경우)는 가장 긴 경로를 기준으로 한다.
-let _baseChainInfoCache = null;
+
 function buildBaseChainInfoCache() {
     _baseChainInfoCache = {};
     let pool = BASE_ITEM_DB.filter(b => b && b.id && !b.dropOnly && !b.realmBase);
@@ -914,16 +858,19 @@ function buildBaseChainInfoCache() {
         _baseChainInfoCache[b.id] = { step: d, total: d + u - 1 };
     });
 }
+
 function getBaseChainInfo(base) {
     if (!base || !base.id) return null;
     if (!_baseChainInfoCache) buildBaseChainInfoCache();
     return _baseChainInfoCache[base.id] || null;
 }
+
 /** A base's step counted as in a six-step chain: a longer chain's top is 6 and the step below it 5 (the bow line has seven).
  * Upgrade cost floors and the rare drop weight of chain tops read this. */
 function getBaseChainRank(info) {
     return info ? info.step - Math.max(0, info.total - 6) : 0;
 }
+
 /** 베이스 단계의 색 클래스(css/layout.css .base-step-*, 2026-11-08 사용자: 가장 높은 베이스에 가까울수록 색이 바뀐다): 맨 위는 top,
  * 그 아래는 사슬 안의 자리(0~1)로 high(2/3 이상), mid(1/3 이상), low. 장비 칸 표시, 툴팁 베이스 줄, 프로필의 [단계/전체]가 같이 쓴다. */
 function getBaseStepClassName(info) {
@@ -932,6 +879,7 @@ function getBaseStepClassName(info) {
     const ratio = (info.step - 1) / (info.total - 1);
     return ratio >= 2 / 3 ? 'base-step-high' : ratio >= 1 / 3 ? 'base-step-mid' : 'base-step-low';
 }
+
 function getItemBaseChainInfo(item) {
     if (!item) return null;
     let base = BASE_ITEM_DB.find(b => b && item.baseId && b.id === item.baseId)
@@ -1010,6 +958,7 @@ function getBaseUpgradeShortfall(cost) {
     if ((game.currencies.formlessDew || 0) < cost.formlessDew) return _t('형체 없는 이슬이 부족합니다. (필요: {formlessDew})', { formlessDew: cost.formlessDew });
     return (game.currencies.goldenRule || 0) < cost.goldenRule ? _t('황금률이 부족합니다. (필요: {goldenRule})', { goldenRule: cost.goldenRule }) : '';
 }
+
 function confirmSelectedItemBaseUpgrade() {
     let pending = game.pendingBaseUpgrade;
     if (!pending) return;
@@ -1040,8 +989,6 @@ function confirmSelectedItemBaseUpgrade() {
     updateStaticUI();
 }
 
-safeExposeGlobals({ upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });
-
 /** 보여 줄 장비 이름(docs/i18n.md): 마법·희귀는 '마법의 {베이스}'처럼 베이스 이름으로 짓는다(js/item-rolls.js updateItemName). 저장된
  * 이름은 그대로 두고, 보여 줄 때 틀과 베이스 이름을 따로 옮긴다. 고유와 일반은 이름 그대로 옮긴다. */
 function getItemDisplayName(item) {
@@ -1051,3 +998,83 @@ function getItemDisplayName(item) {
     if (base && name === `희귀한 ${base}`) return _t('희귀한 {base}', { base: _t(base) });
     return _t(name);
 }
+
+exposeFileGlobals({ getCodexSlotOrder, getInventoryItemVisualAsset, renderInventoryItemVisual, getEquipmentGridVisualAsset, pickEquipmentGridVisualAsset, getEquipmentInventoryFootprint, getWeaponInventoryFootprint, getUniqueEntryVisualAsset, getAverageExplicitAffixTier, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, getSelectedCraftItem, ensureCraftSelectionValid, selectForCrafting, copyCraftResultStat, snapshotCraftResultItem, getEquipCandidateSlots, canEquipItemToSlot, tryAutoEquipEmptySlot, equipIntoFirstEmptySlot, equipIntoEmptySlots, countFillableEmptySlots, isDualSlotItem, getDualSlotDisplayLabel, equipItem, equipItemById, equipSelectedCraftInventoryItem, unequipItemToGrid, unequipItem, releaseClosedThirdRing, salvageItemById, toggleItemLockById, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getHeldRunBlockReason, getContentStartBlockReason, setTimeRiftPressure, getTimeRiftFutureEntryReason, getTimeRiftFusionMismatchReason, getTimeAltarItemIssue, placeItemOnTimeAltar, retrieveTimeAltarItems, resolveTimeRiftFusion, prepareMeteorEncounterEntry, getZoneTravelBlockReason, changeZone, buildGoldenRuleSpendPrompt, getBaseUpgradeCandidates, getBaseChainInfo, getBaseChainRank, getBaseStepClassName, getItemBaseChainInfo, upgradeSelectedItemBase, closeBaseUpgradeOverlay, getBaseUpgradeRefusal, confirmSelectedItemBaseUpgrade, getItemDisplayName });
+})();
+
+
+// Item module bridge (phase 2).
+window.GameModules = window.GameModules || {};
+window.GameModules.items = {
+  get db() { return window.UNIQUE_DB; },
+  get orbs() { return window.ORB_DB; },
+  get market() { return window.MARKET_EXCHANGES; },
+  // TODO: move item crafting/equip/salvage functions from main/ui into here.
+};
+
+// Phase-3 extracted equipment/inventory handlers.
+
+let craftingSelectionState = { ref: null, isEquip: false };
+
+
+safeExposeGlobals({ getInventoryItemVisualAsset, renderInventoryItemVisual });
+
+
+safeExposeGlobals({ getEquipmentGridVisualAsset, getEquipmentInventoryFootprint, getUniqueEntryVisualAsset });
+
+safeExposeGlobals({ getAverageExplicitAffixTier });
+
+
+const craftingResultLedger = (() => {
+    let latest = null, sequence = 0;
+
+    function begin(item, meta) {
+        if (!item) return null;
+        return { itemRef: item, before: snapshotCraftResultItem(item), meta: { ...(meta || {}) }, seq: ++sequence };
+    }
+
+    /** A craft wrapped in another (the crafting workspace around useCurrency) keeps the inner one's outcome line. */
+    function commit(token, item) {
+        if (!token || !item || token.itemRef !== item) return null;
+        let after = snapshotCraftResultItem(item);
+        const inner = latest && latest.itemRef === item && latest.seq > token.seq ? latest.meta.outcome : undefined;
+        const meta = inner && !token.meta.outcome ? { ...token.meta, outcome: inner } : token.meta;
+        latest = { itemRef: item, before: token.before, after, meta, seq: token.seq, afterKey: JSON.stringify(after) };
+        return latest;
+    }
+
+    function getForItem(item) {
+        if (!latest || latest.itemRef !== item) return null;
+        return JSON.stringify(snapshotCraftResultItem(item)) === latest.afterKey ? latest : null;
+    }
+
+    /** The latest result's item changed again within the same craft (성화의 뿌리 pick): its after becomes the item now. */
+    function amend(item) {
+        if (!latest || latest.itemRef !== item) return null;
+        const after = snapshotCraftResultItem(item);
+        latest = { ...latest, after, afterKey: JSON.stringify(after) };
+        return latest;
+    }
+
+    function clear() { latest = null; }
+
+    return { begin, commit, amend, getForItem, clear };
+})();
+
+
+const BEEHIVE_TRAVEL_REFUSAL = '벌집 원정 중에는 [원정 포기] 전까지 다른 지역으로 이동할 수 없습니다.';
+
+
+safeExposeGlobals({ selectForCrafting, equipItem, equipItemById, canEquipItemToSlot, equipSelectedCraftInventoryItem, unequipItem, unequipItemToGrid, salvageItemById, toggleItemLockById, getSelectedCraftItem, getCraftSelectionRef, isCraftSelectionEquip, clearCraftSelection, ensureCraftSelectionValid, tryAutoEquipEmptySlot, hasActiveBeehiveRuntimeState, clearBeehiveRuntimeState, reconcileBeehiveRunState, isBeehiveRunLockedForMapTravel, warnBeehiveMapTravelBlocked, getTimeRiftFusionMismatchReason, getTimeAltarItemIssue, craftingResultLedger });
+
+
+// 제단 줄이 대신하지 않는 베이스의 방어 줄(js/item-influences.js replaceIndex의 DEFENSE와 같다).
+const UPGRADE_ALTAR_KEPT_LINE_IDS = Object.freeze(['armor', 'evasion', 'energyShield']);
+const EXCEPTIONAL_BASE_ITEM_FIELDS = Object.freeze(['exceptionalBase', 'exceptionalStatNames', 'exceptionalStatName', 'exceptionalAllLines']);
+// 업그레이드로 이어진 베이스들을 하나의 체인으로 보고, 각 베이스가 그 체인에서 몇 단계인지 계산한다.
+// step = 아래(저티어)에서부터의 위치(1부터), total = 그 베이스를 지나는 가장 긴 체인의 길이.
+// 분기 합류(여러 하위가 같은 상위로 업그레이드되는 경우)는 가장 긴 경로를 기준으로 한다.
+let _baseChainInfoCache = null;
+
+
+safeExposeGlobals({ upgradeSelectedItemBase, confirmSelectedItemBaseUpgrade, closeBaseUpgradeOverlay });

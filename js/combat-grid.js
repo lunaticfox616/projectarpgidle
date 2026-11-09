@@ -3,16 +3,8 @@
 // data(COMBAT_GRID_CONFIG, SKILL_GRID_DB)와 game 상태 shape에만 의존하고 UI/렌더링을 호출하지 않는다.
 // 그리드 유닛 계약: { gx: 0~8 정수, gy: 0~7 정수, gridMoveTimer: 초 } — 플레이어(game.gridPlayer),
 // 적(game.enemies[i]), 소환수(game.summons[i])가 공유한다.
-const GRID_CARDINAL_STEPS = Object.freeze([
-    Object.freeze({ dx: -1, dy: 0 }), Object.freeze({ dx: 1, dy: 0 }),
-    Object.freeze({ dx: 0, dy: -1 }), Object.freeze({ dx: 0, dy: 1 })
-]);
-/** The cardinal steps and the four diagonals: the exploring hero out of combat (COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed). */
-const GRID_EIGHT_STEPS = Object.freeze(GRID_CARDINAL_STEPS.concat([
-    Object.freeze({ dx: -1, dy: -1 }), Object.freeze({ dx: 1, dy: -1 }),
-    Object.freeze({ dx: -1, dy: 1 }), Object.freeze({ dx: 1, dy: 1 })
-]));
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** @param {{columns:number, rows:number}} [size] The map, when the caller already read it (a loop over many cells reads it once). */
 function isGridCellInBounds(gx, gy, size = getCombatGridSize()) {
     return Number.isInteger(gx) && Number.isInteger(gy)
@@ -41,8 +33,6 @@ function getGridUnitFootprint(unit) {
         ? { columns: bossSize.columns, rows: bossSize.rows }
         : { columns: 1, rows: 1 };
 }
-
-const HERO_HALF_CELLS = 0.45;   // half the hero's drawn body with its weapon, in cells (fitBossFootprint)
 
 /** The stage picture a boss shows (data/monster-stage-roster.js, as js/canvas-stage-roster.js actorFor), or null without the table. */
 function getBossStageActor(enemy) {
@@ -154,9 +144,6 @@ function getGridPlacementTerrain() {
         holes: observer?.floor(run)?.keys, permanent: observer?.sealedFloor(run)?.keys };
 }
 
-/** Whether a footprint can stand with its top-left on (gx, gy): every cell inside the map, none blocked, none unwalkable (the sealed
- * gate counts as a wall). No cell list: findFreeGridCell asks this for every tile of the map. */
-const isGridPlacementBlocked = (blocked, terrain, key) => blocked.has(key) || terrain.holes?.has(key) || terrain.permanent?.has(key);
 function canPlaceGridFootprint(blocked, gx, gy, footprint, terrain = getGridPlacementTerrain()) {
     const map = terrain.map;
     if (!isGridFootprintInside(gx, gy, footprint, map)) return false;
@@ -169,7 +156,6 @@ function canPlaceGridFootprint(blocked, gx, gy, footprint, terrain = getGridPlac
     return true;
 }
 
-const gridWalkMasks = new WeakMap(); // map -> [mask with the gate open, mask with the gate sealed]
 /** 1 for each cell a unit may stand on by actExplorationMap.walkable (row-major), with the gate open or sealed; built once per map
  * and gate state (a map's tiles and gates are fixed once laid out). The step search asked walkable for every cell it reached, with
  * a bounds check and a gate list each time (2026-10-27: 6% of an 8-hour offline settlement). */
@@ -252,8 +238,6 @@ function findFreeGridCell(blocked, near, footprint) {
     return nearestGridCell(free, near, size);
 }
 
-const isOneTileNear = (near, size) => !!near && size.columns === 1 && size.rows === 1 && isGridCellInBounds(near.gx, near.gy);
-
 /** findFreeGridCell for a one-tile unit near an integer cell: rings outward from near, the first free cell in scan order (column,
  * then row) on the nearest ring. The same cell the full scan picks, from a few dozen checks instead of every tile of the map. */
 function findFreeGridCellNear(blocked, near) {
@@ -264,6 +248,7 @@ function findFreeGridCellNear(blocked, near) {
     }
     return null;
 }
+
 /** The cells at exactly ring from near, in scan order (column, then row); the first one a unit can stand on. */
 function firstFreeOnRing(blocked, near, ring, terrain) {
     const size = { columns: 1, rows: 1 };
@@ -477,6 +462,7 @@ function sortedGridSteps(unit, search, diagonal) {
         search.cheb(unit.gx + a.dx, unit.gy + a.dy) - search.cheb(unit.gx + b.dx, unit.gy + b.dy) ||
         search.man(unit.gx + a.dx, unit.gy + a.dy) - search.man(unit.gx + b.dx, unit.gy + b.dy));
 }
+
 /**
  * 목표 칸을 향한 최단 우회로를 찾아 한 칸 전진시킨다. 보통은 상하좌우이고, diagonal이면 대각선도 한 걸음이다(탐험 중 전투 밖의
  * 주인공, COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed). 대각선은 양옆 두 칸이 비어 있어야 한다. 점유 칸은 통과하지 못한다.
@@ -545,6 +531,7 @@ function withAvoidedGridCells(blocked, cells) {
     for (const cell of cells || []) blocked.add(gridCellKey(cell.gx, cell.gy));
     return blocked;
 }
+
 /** One step (step(blocked) → moved) around danger. avoid: { hard, soft } (an array is hard). Hard cells (a telegraphed attack) are never
  * stepped into; soft ones (lasting ground) only when no other step leads on (2026-10-18: as walls they kept a melee hero from its boss). */
 function stepAroundDanger(blocked, avoid, stepThrough) {
@@ -552,6 +539,7 @@ function stepAroundDanger(blocked, avoid, stepThrough) {
     withAvoidedGridCells(blocked, hard);
     return (soft.length > 0 && stepThrough(withAvoidedGridCells(new Set(blocked), soft))) || stepThrough(blocked);
 }
+
 /** diagonal: the hero may step diagonally (exploration out of combat at COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed). */
 function beginExplorationGridStep(target,interval,avoid,diagonal=false) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
@@ -565,10 +553,12 @@ function beginExplorationGridStep(target,interval,avoid,diagonal=false) {
     }
     return actExplorationMotion.start(run,game.gridPlayer,next,paced,run.motionTimeMs);
 }
+
 /** Whether a step toward target is free for unit now, by the rule advanceGridUnitMovement steps by, without moving it. */
 function canGridUnitStepToward(unit, target, avoid) {
     return !!getGridApproachStep(unit, target, avoid);
 }
+
 /** Read the next real cardinal path step without moving the actor, for warning-aware approach decisions. */
 function getGridApproachStep(unit, target, avoid) {
     if (!hasGridCell(unit) || !target) return null;
@@ -675,6 +665,7 @@ function findGridRetreatCell(unit, target, maxRange, previousCell, keepRows) {
     });
     return best;
 }
+
 /** 물러설 칸을 고르는 공통 조건: 막힌 칸과 발자국, 문 칸(주인공), 옆 띠(keepRows), 지금 칸 거리. */
 function gridRetreatSpace(unit, target, keepRows) {
     let blocked = getGridBlockedCells(unit);
@@ -686,6 +677,7 @@ function gridRetreatSpace(unit, target, keepRows) {
         && (!keepRows || getGridUnitCells(target).some(row => Math.abs(row.gy - cell.gy) <= keepRows));
     return { footprint, open, currentDist: getGridUnitDistance(unit, target) };
 }
+
 /** 거리 유지 전술의 벽 옆 이동(2026-10-22): 칸 거리를 늘릴 길이 없으면, 거리는 같아도 대상의 가운데에서 멀어지는 옆 칸 하나.
  * 직전 칸으로는 돌아가지 않아 멈춘 대상 앞에서 A→B→A로 왕복하지 않는다. 밀어내기(js/combat-skill-effects.js pushEnemyAwayOnHit)는 쓰지 않는다:
  * 벽에 붙은 몬스터가 옆으로 미끄러지며 두 칸을 밀려났다. */
@@ -904,14 +896,6 @@ function isGridUnitOnDiagonalRay(attacker, unit, direction) {
             && Math.sign(dx) === direction.gx && Math.sign(dy) === direction.gy;
     });
 }
-
-/** 옆으로만 치는 룬(SKILL_GRID_DB band, 2026-10-17 사용자 "넓히기로 고쳐줘. 옆으로 두툼하게, 위아래 한 줄까지 맞게"): 무대의 그림은
- * 주인공 높이에서 옆으로만 나가는데 판정은 위아래로 3칸 떨어진 적도 쳐서 허공을 치는 것처럼 보였다. 이 룬은 주인공 줄과 위아래
- * band줄 안에서 한쪽 옆으로 range칸까지 친다(바로 위나 아래 칸도 든다). 칠 쪽은 대상이 선 쪽이고, 대상이 바로 위나 아래면 대상을
- * 고를 때 정해 둔 쪽(noteGridBandSide)이다. 같은 공격의 판정 칸, 그림이 읽는 겨냥, 주인공이 보는 쪽이 모두 이 값을 쓴다. */
-let gridBandSide = 1;
-const getGridBandOf = profile => ({ rows: profile.band || 0, reach: Math.max(1, profile.range || 1) });
-const getGridBandSide = (attacker, target) => Math.sign(target.gx - attacker.gx) || gridBandSide;
 
 /** 그 룬의 띠({rows, reach}): 판정 표의 것이나, 없으면 band가 있는 단계 판정(혹한의 지진의 얼음 기둥)의 것. 옆으로 치지 않으면 rows 0. */
 function getSkillBand(skillName, skill) {
@@ -1187,16 +1171,6 @@ function selectGridSkillTargets(skillName, skill, attackerCell, enemies, options
     return hits.map((enemy, idx) => ({ enemy, mult: idx < directHits ? directMult(idx) : PROJECTILE_BONUS_SHOT_DAMAGE_PCT / 100 }));
 }
 
-const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
-    whirlIntervalMs: 80,
-    chainIntervalMs: 110,
-    pierceIntervalMs: 30,
-    // 관통하는 발이 맞은 자리에 잠깐 멈췄다 지나간다(2026-11-02 전달본 V3.8, 무게별). 맞는 때만 그만큼 늦는다.
-    pierceHoldMs: Object.freeze({ longest: 54, plain: 46, '관통 사격': 40, '부싯돌 베기': 48, '빙결 파열창': 54 }),
-    slamAftershockDelayMs: 360,
-    slamAftershockDamagePct: 32
-});
-
 /** 강타 룬 가운데 여진 수치(aftershockDamagePct)를 가진 것(강타)만 본 타격 뒤 여진으로 나눠 친다. 강타 태그만 있는 룬(불사르기, 혹한의 지진,
  * 도약 강타: 2026-10-17 강타 피해와 여진이 닿도록 붙인 태그)은 제 판정 그대로 한 번에 친다. */
 function getSlamAftershockProfile(skill) {
@@ -1348,12 +1322,6 @@ function buildMeteorSkillHitSequence(pattern, impactCells, targets) {
     }));
     return [impact, ...ground];
 }
-
-/** 판정 칸과 대상만으로 정해지는 단계 묶음: 유성 낙화(meteor)와 나눠 쏘는 부채꼴(volley). */
-const SIMPLE_HIT_SEQUENCES = Object.freeze({
-    meteor: (pattern, impactCells, targets) => buildMeteorSkillHitSequence(pattern, impactCells, targets),
-    volley: (pattern, impactCells, targets) => buildVolleySkillHitSequence(pattern, targets)
-});
 
 /** 나눠 쏘는 부채꼴(2026-10-20 스킬룬 전달본 v42의 연발 사격): 활 연타사격 그림의 쏘는 장 넷에 맞춰 화살을 shots발씩, 첫 사격에서 shotMs 뒤에
  * 쏜다. 대상은 부채꼴 갈래 순서(가운데 겨눈 화살이 먼저, js/combat-grid.js selectGridAimedFanHits)대로 나눈다. 남는 화살(추가 투사체)은 마지막
@@ -1592,29 +1560,9 @@ function getSkillHitSequenceDpsMultiplier(skillName, skill) {
     return Number.isFinite(repeatPct) ? 1 + (repeats - 1) * Math.max(0, repeatPct) / 100 : repeats;
 }
 
-
-const GRID_PROFILE_KIND_LABELS = Object.freeze({ melee: '인접 단일', arc: '전방 부채꼴', nova: '자신 중심 광역', line: '직선 관통', chain: '연쇄',
-    blast: '대상 지점 폭발', fan: '부채꼴 투사체', cone: '전방 부채꼴', summon: '소환수 공격', band: '옆으로 곧게' });
 /** 범위 종류의 이름. 'band'는 옆으로만 치는 룬(SKILL_GRID_DB band)이다: 호출부가 profile.band면 'band'를 넘긴다. */
 function getSkillGridProfileKindLabel(kind) {
     return Object.hasOwn(GRID_PROFILE_KIND_LABELS, kind) ? GRID_PROFILE_KIND_LABELS[kind] : '그리드 공격';
-}
-
-function describeSkillGridProfile(skillName, skillDef) {
-    let profile = getSkillGridProfile(skillName, skillDef || {});
-    let tags = Array.isArray(skillDef && skillDef.tags) ? skillDef.tags : [];
-    let parts = [describeGridAreaTitle(profile, tags, skillDef)];
-    parts.push(`사거리 ${Math.max(1, profile.range || 1)}칸`);
-    if (profile.band) parts.push(`위아래 ${profile.band}줄까지`);
-    if (profile.kind === 'blast' && (profile.radius || 0) > 0) parts.push(`반경 ${profile.radius}칸`);
-    if (profile.kind === 'nova') parts.push(`반경 ${Math.max(1, profile.radius || 1)}칸`);
-    let shapeLabels = { circle: '원형', diamond: '마름모형', square: '사각형', cross: '십자형', diagonal: 'X자형', ring: '고리형' };
-    if (shapeLabels[profile.shape]) parts.push(shapeLabels[profile.shape]);
-    if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
-    if (profile.kind === 'fan') parts.push(describeGridFanRays(profile));
-    if (window.GameModules.combat.supports.playerProjectile({tags})) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
-    parts.push(...describeWiderStageAreas(skillDef, profile));
-    return [getSkillGridDescriptionText(skillDef, parts), describeMobilityRuneCooldown(skillName, skillDef)].filter(Boolean).join(', ');
 }
 
 /** 이동 룬의 재사용 대기: '재사용 대기 4초', 줄이 줄였으면 '재사용 대기 4초 → 1.2초'(최근 전투 틱의 능력치, js/skills.js
@@ -1693,6 +1641,80 @@ function findNearestGridEnemy(fromCell, enemies, range) {
     });
     return best;
 }
+
+exposeFileGlobals({ isGridCellInBounds, getCombatGridSize, gridCellKey, gridChebyshevDist, getGridUnitFootprint, getBossStageActor, getStageLookScale, fitBossFootprint, getGridFootprintCells, hasGridCell, getGridUnitCells, getGridUnitCenter, getGridUnitDistance, getGridDirectHitDistanceMultiplier, getClosestGridUnitCell, getGridPlacementTerrain, canPlaceGridFootprint, gridWalkMask, isGridUnitInCellSet, getGridBlockedCells, addExplorationGridReservations, findFreeGridCell, assignEnemyGridSpawn, assignEnemyGridCombatProfile, resetPlayerGridPosition, ensureCombatGridRuntime, gridLineCells, gridProjectedLineEnd, gridStepToward, advanceGridUnitMovement, getGridUnitStepSec, markGridStep, beginExplorationGridStep, canGridUnitStepToward, getGridApproachStep, getHeroStepBlockedCells, swapSummonOutOfHeroTile, findNearestSafeGridRoute, advanceGridHazardEscape, findGridRetreatCell, advanceGridTacticalMovement, getSkillGridProfile, getGridSkillTargetMult, getSkillBand, getSkillBandSide, getGridBandAreaCells, getGridBandApproachCell, getGridAttackAreaCells, getSkillStageFootprint, selectGridSkillTargets, getSkillHitSequenceProfile, buildRadialBurstHitSequence, getRadialWaveShape, getGridUnitDrawnDelta, getGridWaveDrawnDistance, buildMeteorSkillHitSequence, buildVolleySkillHitSequence, buildSkillHitSequence, rollProjectileExtraShots, getProjectileExtraShotDpsMultiplier, splitFanSpreadDps, getFanSpreadDpsLines, getSkillHitSequenceDpsMultiplier, getSkillGridProfileKindLabel, describeMobilityRuneCooldown, describeGridAreaTitle, describeWiderStageAreas, describeGridFanRays, getSkillGridDescriptionText, extendGridTargetsBySpill, findNearestGridEnemy });
+})();
+const GRID_CARDINAL_STEPS = Object.freeze([
+    Object.freeze({ dx: -1, dy: 0 }), Object.freeze({ dx: 1, dy: 0 }),
+    Object.freeze({ dx: 0, dy: -1 }), Object.freeze({ dx: 0, dy: 1 })
+]);
+/** The cardinal steps and the four diagonals: the exploring hero out of combat (COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed). */
+const GRID_EIGHT_STEPS = Object.freeze(GRID_CARDINAL_STEPS.concat([
+    Object.freeze({ dx: -1, dy: -1 }), Object.freeze({ dx: 1, dy: -1 }),
+    Object.freeze({ dx: -1, dy: 1 }), Object.freeze({ dx: 1, dy: 1 })
+]));
+
+
+const HERO_HALF_CELLS = 0.45;   // half the hero's drawn body with its weapon, in cells (fitBossFootprint)
+
+
+/** Whether a footprint can stand with its top-left on (gx, gy): every cell inside the map, none blocked, none unwalkable (the sealed
+ * gate counts as a wall). No cell list: findFreeGridCell asks this for every tile of the map. */
+const isGridPlacementBlocked = (blocked, terrain, key) => blocked.has(key) || terrain.holes?.has(key) || terrain.permanent?.has(key);
+
+const gridWalkMasks = new WeakMap(); // map -> [mask with the gate open, mask with the gate sealed]
+
+
+const isOneTileNear = (near, size) => !!near && size.columns === 1 && size.rows === 1 && isGridCellInBounds(near.gx, near.gy);
+
+
+/** 옆으로만 치는 룬(SKILL_GRID_DB band, 2026-10-17 사용자 "넓히기로 고쳐줘. 옆으로 두툼하게, 위아래 한 줄까지 맞게"): 무대의 그림은
+ * 주인공 높이에서 옆으로만 나가는데 판정은 위아래로 3칸 떨어진 적도 쳐서 허공을 치는 것처럼 보였다. 이 룬은 주인공 줄과 위아래
+ * band줄 안에서 한쪽 옆으로 range칸까지 친다(바로 위나 아래 칸도 든다). 칠 쪽은 대상이 선 쪽이고, 대상이 바로 위나 아래면 대상을
+ * 고를 때 정해 둔 쪽(noteGridBandSide)이다. 같은 공격의 판정 칸, 그림이 읽는 겨냥, 주인공이 보는 쪽이 모두 이 값을 쓴다. */
+let gridBandSide = 1;
+const getGridBandOf = profile => ({ rows: profile.band || 0, reach: Math.max(1, profile.range || 1) });
+const getGridBandSide = (attacker, target) => Math.sign(target.gx - attacker.gx) || gridBandSide;
+
+
+const SKILL_HIT_SEQUENCE_CONFIG = Object.freeze({
+    whirlIntervalMs: 80,
+    chainIntervalMs: 110,
+    pierceIntervalMs: 30,
+    // 관통하는 발이 맞은 자리에 잠깐 멈췄다 지나간다(2026-11-02 전달본 V3.8, 무게별). 맞는 때만 그만큼 늦는다.
+    pierceHoldMs: Object.freeze({ longest: 54, plain: 46, '관통 사격': 40, '부싯돌 베기': 48, '빙결 파열창': 54 }),
+    slamAftershockDelayMs: 360,
+    slamAftershockDamagePct: 32
+});
+
+
+/** 판정 칸과 대상만으로 정해지는 단계 묶음: 유성 낙화(meteor)와 나눠 쏘는 부채꼴(volley). */
+const SIMPLE_HIT_SEQUENCES = Object.freeze({
+    meteor: (pattern, impactCells, targets) => buildMeteorSkillHitSequence(pattern, impactCells, targets),
+    volley: (pattern, impactCells, targets) => buildVolleySkillHitSequence(pattern, targets)
+});
+
+
+const GRID_PROFILE_KIND_LABELS = Object.freeze({ melee: '인접 단일', arc: '전방 부채꼴', nova: '자신 중심 광역', line: '직선 관통', chain: '연쇄',
+    blast: '대상 지점 폭발', fan: '부채꼴 투사체', cone: '전방 부채꼴', summon: '소환수 공격', band: '옆으로 곧게' });
+
+function describeSkillGridProfile(skillName, skillDef) {
+    let profile = getSkillGridProfile(skillName, skillDef || {});
+    let tags = Array.isArray(skillDef && skillDef.tags) ? skillDef.tags : [];
+    let parts = [describeGridAreaTitle(profile, tags, skillDef)];
+    parts.push(`사거리 ${Math.max(1, profile.range || 1)}칸`);
+    if (profile.band) parts.push(`위아래 ${profile.band}줄까지`);
+    if (profile.kind === 'blast' && (profile.radius || 0) > 0) parts.push(`반경 ${profile.radius}칸`);
+    if (profile.kind === 'nova') parts.push(`반경 ${Math.max(1, profile.radius || 1)}칸`);
+    let shapeLabels = { circle: '원형', diamond: '마름모형', square: '사각형', cross: '십자형', diagonal: 'X자형', ring: '고리형' };
+    if (shapeLabels[profile.shape]) parts.push(shapeLabels[profile.shape]);
+    if (profile.kind === 'chain') parts.push(`연쇄 ${Math.max(1, profile.jump || COMBAT_GRID_CONFIG.chainJumpRange)}칸`);
+    if (profile.kind === 'fan') parts.push(describeGridFanRays(profile));
+    if (window.GameModules.combat.supports.playerProjectile({tags})) parts.push(skillDef.projectilePatternSource ? `적용: ${skillDef.projectilePatternSource}` : '발사 방식 변경 가능');
+    parts.push(...describeWiderStageAreas(skillDef, profile));
+    return [getSkillGridDescriptionText(skillDef, parts), describeMobilityRuneCooldown(skillName, skillDef)].filter(Boolean).join(', ');
+}
+
 
 safeExposeGlobals({
     getCombatGridSize, isGridCellInBounds, gridCellKey, gridChebyshevDist, hasGridCell,
