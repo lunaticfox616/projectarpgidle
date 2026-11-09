@@ -69,8 +69,7 @@ const enemyAttackRules = (() => {
                 ? unit === state.gridPlayer : !unit.isColonyCore && unit !== state.gridPlayer && unit.id === attack.targetId);
         }
         if (attack.delivery === 'patternArea') {
-            const keys = new Set(attack.bossPattern.area.cells.map(cell => gridCellKey(cell.gx, cell.gy)));
-            return alive.filter(unit => hasGridCell(unit) && isGridUnitInCellSet(unit, keys));
+            return patternTargets(attack.bossPattern.area, state, alive);
         }
         const cells = attack.impactCells || [attack.targetCell];
         for (const cell of cells) {
@@ -79,6 +78,16 @@ const enemyAttackRules = (() => {
             if (unit) return [unit];
         }
         return [];
+    }
+
+    function patternTargets(area, state, alive) {
+        const keys = new Set(area.cells.map(cell => gridCellKey(cell.gx, cell.gy)));
+        const run = area.bands && actExplorationState.current(state);
+        return alive.filter(unit => {
+            if (!hasGridCell(unit)) return false;
+            if (run && unit === state.gridPlayer) return bossMoves.observer.colorHits(area, actExplorationMotion.position(run, unit));
+            return isGridUnitInCellSet(unit, keys);
+        });
     }
 
     function flightEnd(source, target, toEdge) {
@@ -233,7 +242,8 @@ const enemyAttackRules = (() => {
 
     function activeCast(enemy, pending) {
         if (pending?.delivery === 'patternArea' && pending.bossPattern.isSpecial !== false) {
-            return {label:pending.bossPattern.label,startAt:pending.castStartAt,finishAt:pending.at};
+            const pattern=pending.bossPattern, fatal=pattern.observerMove==='seal';
+            return {label:pattern.label,startAt:fatal ? pattern.castStartedAt : pending.castStartAt,finishAt:pending.at,fatal};
         }
         if (!enemy.attackCast?.isSpecial) return null;
         return {...enemy.attackCast,label:enemy.attackCast.label || enemy.attackLabel || '강력한 공격'};
@@ -245,7 +255,7 @@ const enemyAttackRules = (() => {
         const cc = controls(enemy);
         if (cc.hard || cc.silence) return null;
         const cast = activeCast(enemy,pending);
-        if (cast && now < cast.finishAt) return {label:cast.label,
+        if (cast && now < cast.finishAt) return {label:cast.label, fatal:cast.fatal,
             progress:clampNumber((now-cast.startAt)/Math.max(1,cast.finishAt-cast.startAt),0,1)};
         return warningBar(enemy,now);
     }
@@ -254,7 +264,7 @@ const enemyAttackRules = (() => {
         const state = enemy.nextPatternState;
         if (!state?.isSpecial || !enemy.patternTelegraphKey || !enemy.patternArea) return null;
         const span = (state.warningMs || COMBAT_GRID_CONFIG.bossPatternWarningMs) + bossMoves.firstImpactMs(state, enemy);
-        return {label:state.label || '강력한 공격',
+        return {label:state.label || '강력한 공격', fatal:state.observerMove === 'seal',
             progress:clampNumber((now-enemy.patternTelegraphStartedAt)/span,0,1)};
     }
 

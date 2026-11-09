@@ -483,8 +483,12 @@ function recordBackgroundCombatEntry(nowMs) {
     backgroundCombatRuntime.snapshot = isBackgroundCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
 }
 
-function recordOfflineCombatEntry(nowMs) {
-    let savedAt = Math.max(0, Math.floor(Number(game && game.saveMeta && game.saveMeta.lastModifiedAt) || 0));
+/** The launch's away span, savedAtMs (the loaded save's saveMeta.lastModifiedAt, read by enterGameWorld before this launch writes the
+ * save) to nowMs. Read here, at the end of the entry, the stamp was already this launch's own: the first guide-card tick saves the
+ * tutorial history (js/tutorial-ui.js saveTutorialHistoryChange, v0.3.57) about 300 ms before the settlement, so the span was 0 and
+ * no launch settled (2026-11-09 players: leaving the tab settles, closing and logging in does not). */
+function recordOfflineCombatEntry(nowMs, savedAtMs) {
+    let savedAt = Math.max(0, Math.floor(Number(savedAtMs) || 0));
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
     // 저장 칸마다 한 번 정산한다: 게임 안에서 다른 계정으로 들어가도 그 계정의 자리 비운 시간이 남는다(전: 화면마다 한 번이라 먼저 들어간 저장만).
     const slotKey = getSaveSlot().key;
@@ -927,8 +931,8 @@ function reportBackgroundCombatFailure(error, committed) {
     overlay.innerHTML = `<div class="background-combat-progress-card" role="alert"><strong>${_t('방치 정산을 완료하지 못했습니다')}</strong><p>${escapeHTML(error.message)}</p><p>${_t('이전 저장과 방치 시간은 보존됩니다. 다시 계산하거나 새로고침해 주세요.')}</p><button type="button" onclick="startBackgroundCombatReturn(Date.now())">${_t('다시 계산')}</button></div>`;
 }
 
-async function startOfflineCombatReturn(nowMs) {
-    if (!recordOfflineCombatEntry(nowMs)) return false;
+async function startOfflineCombatReturn(nowMs, savedAtMs) {
+    if (!recordOfflineCombatEntry(nowMs, savedAtMs)) return false;
     return startBackgroundCombatReturn(nowMs);
 }
 
@@ -1211,6 +1215,7 @@ function setupBattlefieldMovementInteraction() {
  * 그 NPC의 창을 연다(js/canvas-act-title-card.js npcAt, js/content-progression-ui.js openNpc). 몬스터를 누르면 그 몬스터를 락온한다
  * (js/act-exploration-ui.js lockOnAt). 마우스를 올린 NPC는 테가 밝아진다(setupBattlefieldMovementInteraction의 hover). */
 function commandBattlefieldMove(canvas, event) {
+    if (bossMoves.observer.sceneActive()) return;
     let point = getBattlefieldClientPoint(canvas, event.clientX, event.clientY);
     let npc = actTitleCard.npcAt(point);
     if (npc && contentUnlockUi.openNpc(npc)) { faceBattlefieldPoint(point); return; }
@@ -1218,7 +1223,7 @@ function commandBattlefieldMove(canvas, event) {
     if (door) { actExplorationUi.commandMove(door); return; }
     if (actExplorationUi.lockOnAt(point)) return;
     let cell = actExplorationView.cellAt(point);
-    if (cell) actExplorationUi.commandMove(cell);
+    if (cell) actExplorationUi.commandMove(cell, actExplorationView.cellAt(point, true));
 }
 /** A press on an NPC turns the hero toward the pressed point (2026-10-27 사용자: npc 클릭 시 캐릭터 방향도 그쪽으로). The facing holds
  * until the hero moves or strikes (js/canvas-battlefield.js). */
@@ -1894,6 +1899,7 @@ function getTabHeaderUiSignature() {
         (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
         // 알림 점은 getTabNotiSignature가 따로 본다(점 하나에 머리 전체를 다시 그리지 않게).
         TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}`).join('|'),
+        contentProgression.opening.signature(game),
         Array.isArray(game.settings && tabLayoutUi.current().tabOrder) ? tabLayoutUi.current().tabOrder.join(',') : '',
         JSON.stringify((game.settings && tabLayoutUi.current().tabPlacement) || {}),
         Array.isArray(game.settings && tabLayoutUi.current().tabGroupOrder) ? tabLayoutUi.current().tabGroupOrder.join(',') : '',
@@ -1916,9 +1922,9 @@ function updateTabNotificationDots() {
     let dockDot = document.getElementById('noti-social-dock');
     if (dockDot) dockDot.style.display = (game.noti.social && isNotiEnabled('social')) ? 'block' : 'none';
     syncMergedTabLauncherState();
-    // 스킬룬은 장비 단추로 열린다(묶음 gear): 첫 룬을 알리는 표시는 화면에 있는 그 단추에 단다
-    let skillTabButton = document.getElementById('btn-tab-items');
-    if (skillTabButton) skillTabButton.classList.toggle('starter-gem-tutorial-pending', !!getStarterGemTutorialTarget());
+    // 첫 루프의 시작 무기가 장착을 기다리면 장비 단추에 표시를 단다
+    let itemsTabButton = document.getElementById('btn-tab-items');
+    if (itemsTabButton) itemsTabButton.classList.toggle('starter-equip-tutorial-pending', !!getStarterWeaponTutorialTarget());
 }
 
 /** 해금 단추 표시. 휴대폰 하단 메뉴의 지도는 열리기 전에도 흐린 잠금 칸으로 자리를 지킨다 — 액트 1을 마쳐 지도가 열리는 순간
@@ -1926,7 +1932,7 @@ function updateTabNotificationDots() {
 function syncTabUnlockButton(key) {
     let button = document.getElementById('btn-tab-' + key);
     let reserved = key === 'map' && !game.unlocks.map && isMobilePrimaryNavigationEnabled()
-        && game.settings.tabLayouts.mobile.tabPlacement['btn-tab-map'] !== 'bottom';
+        && !contentProgression.opening.applies(game) && game.settings.tabLayouts.mobile.tabPlacement['btn-tab-map'] !== 'bottom';
     button.classList.toggle('nav-locked', reserved);
     if (reserved) button.setAttribute('aria-disabled', 'true');
     else button.removeAttribute('aria-disabled');
@@ -2252,6 +2258,7 @@ function refreshShownMergedTab(mergedEntry, shown) {
     if (!mergedEntry) return;
     renderMergedTabSubtabs(mergedEntry[0]);
     if (shown.changed) enterShownTab(shown.id);
+    tutorialActionUi.followOpeningTab(shown.id);
 }
 
 function switchMergedTabSubtab(groupKey, tabId, options = {}) {
@@ -2300,7 +2307,9 @@ function openMergedTabPicker(event, groupKey) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
-    let selectedTabId = getSelectedMergedTabId(groupKey);
+    const firstGear = groupKey === 'gear' && contentProgression.opening.applies(game)
+        && game.tutorialHistory.some(row => row.key === 'tutorial_first_gear' && row.status === 'unread');
+    let selectedTabId = firstGear ? 'tab-items' : getSelectedMergedTabId(groupKey);
     if (!selectedTabId) return;
     switchMergedTabSubtab(groupKey, selectedTabId, { keepWindowOpen: false });
 }
@@ -2337,6 +2346,7 @@ function revealActiveTabButton(button) {
 function runWindowOpenHooks(tabId, shownId) {
     if (shownId === 'tab-items' && window.equipmentTriage) window.equipmentTriage.onOpen();
     if (tabId === 'tab-trade' && marketUi.section === 'hall') loadPlayerExchange();
+    tutorialActionUi.followOpeningTab(shownId);
 }
 
 function switchTab(tabId) {
@@ -3613,7 +3623,7 @@ function switchMapSubtab(subtabId) {
     if (!isMapPrimaryContentUnlocked(game, subtabId)) subtabId = 'map-tab-zones';
     if (subtabId === game.mapSubtab) {
         if (isSelectedSubtab(subtabId)) {
-            if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+            if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-atlas');
             return;
         }
     }
@@ -3624,7 +3634,7 @@ function switchMapSubtab(subtabId) {
     let btn = document.getElementById('btn-' + subtabId);
     if (panel) panel.classList.add('active');
     if (btn) btn.classList.add('active');
-    if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+    if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-atlas');
     if (subtabId === 'map-tab-pvp' && typeof renderGhostArena === 'function') renderGhostArena();
     const renderRegion = {
         'map-tab-underworld': renderUnderworldMapPanel,
@@ -3638,7 +3648,7 @@ function switchMapSubtab(subtabId) {
 
 function switchMapExploreSubtab(subtabId) {
     if (!contentProgression.canOpen(subtabId)) return;
-    const fallback = 'map-explore-hunting';
+    const fallback = 'map-explore-atlas';
     const panel = document.getElementById(subtabId) ? document.getElementById(subtabId) : document.getElementById(fallback);
     const activeId = panel ? panel.id : fallback;
     if (activeId === game.mapExploreSubtab && isSelectedSubtab(activeId)) return;
@@ -3702,9 +3712,11 @@ function detectNewMapUnlockAlarms() {
 
 // 해당 세부 탭을 열어 확인하면 그 탭의 배지를 끈다(마지막 확인 시그니처를 현재값으로 갱신).
 function clearMapExploreAlarm(subtabId) {
-    if (!MAP_EXPLORE_ALARM_SUBTABS.includes(subtabId)) return;
+    // 세계 지도에 액트가 다 보이므로 새로 열린 액트의 알림도 거기서 본 것으로 친다(2026-11-09).
+    const key = subtabId === 'map-explore-atlas' ? 'map-explore-hunting' : subtabId;
+    if (!MAP_EXPLORE_ALARM_SUBTABS.includes(key)) return;
     ensureMapAlarmState();
-    game.mapAlarmSeen[subtabId] = getMapExploreUnlockSignatures()[subtabId];
+    game.mapAlarmSeen[key] = getMapExploreUnlockSignatures()[key];
 }
 
 // 지도 메인 탭을 열면 메인 알람 기준선을 현재값으로 맞춰 메인 빨간점을 끈다.
@@ -3735,13 +3747,15 @@ function isMapExploreSubtabOpenable(subtabId) {
 // 지도 탭의 빨간 점을 켠 원인 세부 화면을 돌려준다. 액트 보상 미수령이 우선이고,
 // 그다음이 아직 열어 보지 않은 신규 해금이다.
 function getMapAlarmSourceSubtab() {
-    if (getAvailableActRewardZoneIds().length > 0) return 'map-explore-hunting';
+    if (getAvailableActRewardZoneIds().length > 0) return 'map-explore-atlas';
     ensureMapAlarmState();
     let sigs = getMapExploreUnlockSignatures();
-    return MAP_EXPLORE_ALARM_SUBTABS.find(key => {
+    const source = MAP_EXPLORE_ALARM_SUBTABS.find(key => {
         let seen = game.mapAlarmSeen[key];
         return seen !== undefined && sigs[key] > seen && isMapExploreSubtabOpenable(key);
     }) || null;
+    // 받을 액트 보상과 새로 열린 액트는 세계 지도에서 그 액트를 고른 설명 칸으로 연다(액트 목록 대신, 2026-11-09).
+    return source === 'map-explore-hunting' ? 'map-explore-atlas' : source;
 }
 
 // 알람을 보고 지도를 열었으면 마지막에 보던 화면이 아니라 알람을 띄운 화면부터 연다.
@@ -3752,6 +3766,7 @@ function focusMapAlarmSourceSubtab() {
     if (!source) return;
     game.mapSubtab = 'map-tab-zones';
     game.mapExploreSubtab = source;
+    if (source === 'map-explore-atlas') worldMapUi.pickAct(getAvailableActRewardZoneIds()[0] ?? Math.floor(Number(game.maxZoneId) || 0));
 }
 
 // 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. subtabId는 패널/버튼 id의 공통 키
@@ -3759,7 +3774,7 @@ function focusMapAlarmSourceSubtab() {
 function setExploreSubtabAvailable(subtabId, available) {
     let btn = document.getElementById('btn-' + subtabId);
     if (btn) btn.style.display = available ? '' : 'none';
-    if (!available && game.mapExploreSubtab === subtabId) switchMapExploreSubtab('map-explore-hunting');
+    if (!available && game.mapExploreSubtab === subtabId) switchMapExploreSubtab('map-explore-atlas');
 }
 function enterLabyrinthFloor(requestedFloor) {
     const blocked = floorEntryBlockReason(LABYRINTH_ZONE_ID);
@@ -4096,13 +4111,11 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let summonEquipped = (def.tags || []).includes('summon') && (game.equippedSummonSkills || []).includes(name);
     let active = summonEquipped || [game.activeSkill, game.mobilitySkill].includes(name);
     let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
-    let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
     let state = equipmentReady ? getGemTileSummary(name, def) : getSkillRuneWeaponNote(name);
-    let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked', tutorialTarget ? 'starter-gem-tutorial-target' : ''].filter(Boolean).join(' ');
+    let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked'].filter(Boolean).join(' ');
     let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? _t('소환 ×{name}', { name: getSummonSkillCount(name) }) : _t('장착')}</span>` : '';
-    let guide = tutorialTarget ? '<span class="starter-gem-equip-guide">첫 스킬룬, 눌러서 장착</span>' : '';
     return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${formatValue('', gemInfo.totalLevel)}${active ? _t(', 장착 중') : ''}${equipmentReady ? '' : ', ' + escapeHTML(getSkillRuneWeaponNote(name))}">
-        ${guide}${renderGemTileLevel(gemInfo)}${worn}${renderGemTileCopies(name)}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
+        ${renderGemTileLevel(gemInfo)}${worn}${renderGemTileCopies(name)}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
         <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
 }
@@ -4139,13 +4152,6 @@ function renderSupportGemCard(name, highlightedName, stats) {
  * 고르는 곳의 툴팁에 수치가 없었다, 이름과 설명만 보였다). showGemTooltip stays quiet while the detail popover is open. */
 function showGemCardHint(event, type, name) {
     if (event.pointerType === 'mouse') showGemTooltip(event, type, name);
-}
-
-function renderSealedGemCard(name, highlightedName, isSupport) {
-    let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
-    let art = isSupport ? supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', 0) : renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art');
-    const refusal = game.woodsmanBuildLock ? getSkillGemSealRefusal(name, isSupport) : (game.resonancePower < 1 ? '공명력이 부족합니다.' : '');
-    return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${_t('봉인됨, 공명력 1로 복원')}</small><button type="button" class="gem-card-utility" onclick="${releaseCall}" ${refusal ? `disabled data-tip="${escapeHTML(refusal)}"` : ''}>${_t('봉인 해제')}</button></article>`;
 }
 
 /** 룬 레벨 구성(2026-10-09): 최종 레벨을 크게, 기본/재료와 각성/장비와 패시브를 한 막대에 나눠 칠하고, 그 아래 전투 수치 칩. 작은 4칸 표였다. */
@@ -4256,6 +4262,8 @@ const PIXEL_ICONS = Object.freeze({
     split: ['##...#...##', '#.#.###.#.#', '...#.#.#...', '....###....', '.....#.....', '.....#.....', '.....#.....', '.....#.....', '....###....', '....#o#....', '....###....'],
     // 자물쇠(2026-10-23, 그루터기 함 잠금 js/stump-box-ui.js)
     lock: ['...........', '...#####...', '..##...##..', '..#.....#..', '..#.....#..', '.#########.', '.####o####.', '.####o####.', '.#########.', '.#########.', '...........'],
+    // 열린 자물쇠(2026-11-09, 봉인한 룬의 해제 단추 js/skills-ui.js): 고리가 들려 왼쪽 다리가 빠진 자물쇠
+    unlock: ['....#####..', '...##...##.', '...#.....#.', '.........#.', '.........#.', '.#########.', '.####o####.', '.####o####.', '.#########.', '.#########.', '...........'],
     reticle: ['...#####...', '..#.....#..', '.#...#...#.', '#....#....#', '#...ooo...#', '#.###o###.#', '#...ooo...#', '#....#....#', '.#...#...#.', '..#.....#..', '...#####...'],
     boomerang: ['...######..', '..#oooooo#.', '.#o######..', '.#o#.......', '.#o#....#..', '.#o#....##.', '.#o#######.', '.#oooooo##.', '..#######..', '........#..', '...........'],
     pierce: ['.....#.....', '....###....', '...##o##...', '.....#.....', '.###.#.###.', '.#oo.#.oo#.', '.#oo.#.oo#.', '.#oo.#.oo#.', '..#o.#.o#..', '...#.#.#...', '....###....'],
@@ -4429,16 +4437,16 @@ function assertBuildEditable() {
     return true;
 }
 
-function getStarterGemTutorialTarget() {
-    let name = typeof game.starterGemTutorialPending === 'string' ? game.starterGemTutorialPending : '';
-    if (!name || !Array.isArray(game.skills) || !game.skills.includes(name)) return null;
-    let equipped = [game.activeSkill, game.mobilitySkill].includes(name)
-        || (Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
-    return equipped ? null : name;
-}
-
-function completeStarterGemTutorial(name) {
-    if (name && game.starterGemTutorialPending === name) game.starterGemTutorialPending = null;
+/** 첫 루프의 시작 무기(js/combat.js grantLoopStarterWeaponOnFirstKill)가 가방에서 장착 안내를 기다리면 그 아이템, 아니면 null.
+ * 끼고 나면 기다림 표시를 지운다(바닥에 있는 동안은 남는다: 주웠을 때 자동 장착하지 않고 가방으로 오게). */
+function getStarterWeaponTutorialTarget() {
+    const id = game.starterWeaponTutorialPending;
+    if (id == null) return null;
+    if (Object.values(game.equipment || {}).some(item => item && item.id === id)) {
+        game.starterWeaponTutorialPending = null;
+        return null;
+    }
+    return (game.inventory || []).find(item => item && item.id === id) || null;
 }
 
 function isSummonAttackSkillGem(name) {
@@ -4511,7 +4519,6 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
         if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
         game.summonSkillCounts[name] = Number(SKILL_DB[name].tags.includes('summon_attack')) * current + 1;
         playUiFeedbackSound('gemSocket');
-        completeStarterGemTutorial(name);
         if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
         if (game.activeSkill === name) game.activeSkill = '기본 공격';
         updateStaticUI();
@@ -4536,7 +4543,6 @@ function changeSkill(name, slotKind) { if (!assertBuildEditable()) return;
     if (mobilitySkill.isMobilityGem(name)) return wearMobilityRune(name, slotKind);
     playUiFeedbackSound('gemSocket');
     game.activeSkill = name;
-    completeStarterGemTutorial(name);
     if (SKILL_DB[name]?.isGem) game.gemEnhanceTargetSkill = name;
     updateStaticUI();
 }
@@ -4557,7 +4563,7 @@ function wearMobilityGem(name) {
     if (name && name !== game.mobilitySkill) playUiFeedbackSound('gemSocket');
     game.mobilitySkill = name;
     mobilitySkill.reset();
-    if (name) { completeStarterGemTutorial(name); game.gemEnhanceTargetSkill = name; }
+    if (name) game.gemEnhanceTargetSkill = name;
     updateStaticUI();
 }
 
@@ -4573,7 +4579,6 @@ function wearMobilityRune(name, slotKind) {
         return wearMobilityGem(name);
     }
     game.activeSkill = name;
-    completeStarterGemTutorial(name);
     game.gemEnhanceTargetSkill = name;
     playUiFeedbackSound('gemSocket');
     updateStaticUI();
@@ -4882,7 +4887,10 @@ function scrollCombatLogToLatest(log) {
 function isCombatLogHidden(log) {
     if (typeof log.closest !== 'function') return false;
     const pane = log.closest('.tab-content');
-    return (!!pane && !pane.classList.contains('active')) || !!log.closest('.combat-feed.collapsed') || !!log.closest('.message-frame-stash');
+    // 접힌 판은 PC와 예전 휴대폰 배치에서 #log를 숨기지만, 좁은 전투 화면(css/themes/rift-stage.css 세로 배치)은 접힘 표시가 남아도 판을 보인다:
+    // 접힘만 보고 숨겼다고 여겨 맨 아래로 내리지 않았다(2026-11-09 사용자: 전투로그가 자동으로 맨 밑으로 안 가).
+    return (!!pane && !pane.classList.contains('active')) || !!log.closest('.message-frame-stash')
+        || (!!log.closest('.combat-feed.collapsed') && log.offsetHeight === 0);
 }
 
 /** 읽던 줄을 같은 화면 위치에 둔다. 앞에서 지워져 사라졌으면 가장 가까운 남은 줄(첫 줄)을 쓴다.
@@ -5333,8 +5341,9 @@ function syncCombatTacticsControls() {
     positionSelect.value = tactics.positionMode;
     targetSelect.disabled = !unlocked;
     positionSelect.disabled = !unlocked;
+    const firstUse = contentProgression.opening.applies(game) && !game.seenTutorials.includes('opening_tactics_selected');
     if (help) help.textContent = unlocked
-        ? _t('조건부 규칙이 맞지 않을 때 쓰는 전술입니다. 전술 이동 시 다음 공격이 0.3~0.65초 미뤄집니다.')
+        ? _t(firstUse ? '먼저 공격할 적을 골라 보세요.' : '조건부 규칙이 맞지 않을 때 쓰는 전술입니다. 전술 이동 시 다음 공격이 0.3~0.65초 미뤄집니다.')
         : TACTICS_RULES_LOCK_MESSAGE;
 }
 
@@ -5344,6 +5353,10 @@ document.getElementById('combat-tactics-defaults')?.addEventListener('change', e
     const key = keys[event.target.id];
     if (!key || ![...event.target.options].some(option => option.value === event.target.value)) return;
     game.settings[key] = event.target.value;
+    if (contentProgression.opening.applies(game) && !game.seenTutorials.includes('opening_tactics_selected')) {
+        game.seenTutorials.push('opening_tactics_selected');
+        syncCombatTacticsControls();
+    }
     queueImportantSave(180);
 });
 
@@ -8417,7 +8430,7 @@ function updateCombatUI(pStats) {
     let focusedEnemy = bossEnemy || enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
-        enemyListEl.hidden = false;
+        enemyListEl.hidden = !!woodsmanBattle.introduction();
         if (enemyListEl.dataset.enemyId !== '') {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = '';
@@ -11970,6 +11983,9 @@ function clearCloudPasswordInput() {
 }
 
 async function enterGameWorld() {
+    // The save's stamp before this launch writes it (nothing touches it while the start screen is up): the away settlement at the end
+    // measures from here (recordOfflineCombatEntry).
+    const savedAtMs = game.saveMeta.lastModifiedAt;
     advanceLoadingOverlay({
         title: _t('전장을 불러오는 중...'),
         detail: _t('전투 로그와 캐릭터 상태를 복원하고 있습니다.'),
@@ -12006,7 +12022,7 @@ async function enterGameWorld() {
     }
     ensureInitialHeroSelection();
     try {
-        await startOfflineCombatReturn(Date.now());
+        await startOfflineCombatReturn(Date.now(), savedAtMs);
     } catch (error) {
         console.error('offline combat replay failed:', error);
     }
@@ -13571,17 +13587,12 @@ function isJournalTabUnlockReady() {
 function checkUnlocks() {
     storyJournalUi.sync();
     let u = game.unlocks;
-    let starterTutorialGem = getStarterGemTutorialTarget();
+    let starterWeapon = getStarterWeaponTutorialTarget();
     if (typeof stumpBoxUi === 'object') stumpBoxUi.checkStumpBoxUnlock();
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', _t('첫 여정'), _t('전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 룬을 얻으면 그때마다 조작을 안내합니다.'));
     }
-    if (game.level >= 2 && !u.char) {
-        u.char = true;
-        game.noti.char = true;
-        queueTutorialNotice('unlock_char', _t('스킬트리'), _t('레벨 2가 되어 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.'), 'tab-char');
-    }
-    if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
+    if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items && !starterWeapon) {
         u.items = true;
         game.noti.items = true;
         queueTutorialNotice('unlock_items', _t('첫 장비'), _t('장비나 제작 재화를 처음 얻었습니다.\n‘장비’에서 아이템을 눌러 지금 착용한 장비와 비교하고 착용하세요.'), 'tab-items');
@@ -13590,9 +13601,12 @@ function checkUnlocks() {
         queueContentNotice('unlock_jewel', '주얼', 'jewel', { open: '주얼을 모을 수 있게 되었습니다.\n장비를 선택해 [소켓]에서 주얼을 끼우세요. 반지, 목걸이, 허리띠에는 소켓이 처음부터 있습니다.',
             locked: '주얼과 주얼 결정을 모을 수 있게 되었습니다.\n‘해금’에서 주얼을 열면 장비 소켓에 끼울 수 있습니다.' }, 'tab-items');
     }
-    contentUnlockUi.announceStarterGem(starterTutorialGem);
+    // 새 시작 안내는 닫힌 화면을 겨눈 안내를 버린다(js/state.js queueTutorialNotice): 주운 무기로 장비 창이 열리는 것을 먼저 맞춰야
+    // 무기 장착 안내가 쌓이고 '무기 장착하기'를 누르면 따라 하기 카드가 뜬다(2026-11-09 튜토리얼 점검).
+    contentProgression.opening.sync(game);
+    contentUnlockUi.announceStarterWeapon(starterWeapon);
     queueStarterGuides(game);
-    if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills && !starterTutorialGem) {
+    if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills) {
         u.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('unlock_skills', _t('새 스킬룬'), _t('새 룬을 얻었습니다.\n‘스킬룬’에서 룬을 눌러 효과를 보고 공격 룬을 바꿔 보세요.'), 'tab-skills');
@@ -14152,7 +14166,7 @@ function notifyLockedTab(tabId) {
 }
 
 function getLockedTabMessage(tabId) {
-    if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
+    if (tabId === 'tab-char') return _t('루프 2부터 해금 탭에서 스킬트리를 열 수 있습니다.');
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬룬이나 보조스킬룬을 획득하면 스킬룬 탭이 열립니다.';

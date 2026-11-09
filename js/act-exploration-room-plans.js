@@ -137,8 +137,8 @@ const actExplorationRoomPlans = (() => {
         if (pairs.length && rng() < rule.loop) links.push(pickOne(rng, pairs));
     }
     /** 준 랜덤 놓임새: 같은 씨앗이면 언제나 같다. */
-    function semiRandomPlan(base, seed) {
-        const rule = STAGE_ROOM_PLANS.random, rng = createSeededRng(`rooms:${base.id}:${seed}`), roles = splitRoles(roleCounts(base), rng, rule);
+    function semiRandomPlan(base, seed, profile) {
+        const rule = { ...STAGE_ROOM_PLANS.random, ...profile }, rng = createSeededRng(`rooms:${base.id}:${seed}`), roles = splitRoles(roleCounts(base), rng, rule);
         const cells = [{ role: 'entry', col: 0, row: 0, main: true }], links = [];
         walkMainPath(cells, links, [...roles.main, 'boss'], rng, rule);
         for (const role of roles.side) attachSideRoom(cells, links, role, rng, rule);
@@ -185,11 +185,11 @@ const actExplorationRoomPlans = (() => {
     /** @param {object} base 지도(data/act-exploration-maps.js의 한 줄, 투기장이면 구실이 바뀐 것)
      * @param {string} plan 놓임새 열쇠: 'p0'~'p3' 프리셋, 'g' 또는 'g숫자' 준 랜덤(숫자가 없으면 seed를 쓴다), 'c' 한 줄(벌집 원정)
      * @returns {?object} 방 이름이 붙은 놓임새. 없는 프리셋이면 null. */
-    function buildRoomPlan(base, plan, seed) {
+    function buildRoomPlan(base, plan, seed, profile) {
         if (base.rooms.some(row => row[5] === 'path')) return arenaPlan(base);
         if (plan === 'c') return chainPlan(base);
         if (plan[0] === 'p') return presetPlan(base, Number(plan.slice(1)));
-        return semiRandomPlan(base, plan.length > 1 ? plan.slice(1) : seed);
+        return semiRandomPlan(base, plan.length > 1 ? plan.slice(1) : seed, profile);
     }
     const validPlanKey = plan => /^(p[0-3]|g\d{0,9}|c)$/.test(String(plan));
 
@@ -229,14 +229,24 @@ const actExplorationRoomPlans = (() => {
         const band = rule.bands.find(([below]) => depth < below);
         return band ? band[1] : rule.deep;
     }
+    /** 아틀라스의 고대 권역. 나이테 원정은 자기 보드의 무대를 유지한다. */
+    function atlasRegion(zone) {
+        if (zone.type !== 'atlasMap' || zone.boardBoss) return '';
+        const boss = ATLAS.lore.bosses.find(row => row.id === zone.atlasNode);
+        return boss?.scene || ATLAS.lore.regions[boss?.region || zone.atlasRegion]?.scene || '';
+    }
+    function contentRegion(zone) {
+        const rule = STAGE_ROOM_PLANS.regions;
+        return rule.zones[zone.id] || (zone.type === 'abyss' && zone.isEndlessDepth ? rule.deep : rule.types[zone.type])
+            || (zone.type === 'timeRift' ? rule.rift[zone.riftPhase] : bossRegionName(zone, rule));
+    }
     /** 구역의 무대 그림(data/stage-regions.js의 지역 이름). 정해 둔 것이 없으면 그 구역이 빌려 걷는 액트 지도의 그림이다. */
     function regionForZone(zone, where) {
-        const rule = STAGE_ROOM_PLANS.regions;
+        const ancient = atlasRegion(zone);
+        if (ancient) return ancient;
         if (where.act) return actRegionName(where.act);
         if (zone.type === 'oceanDepth') return oceanRegion(zone, !!where.source.arena);
-        const own = rule.zones[zone.id] || (zone.type === 'abyss' && zone.isEndlessDepth ? rule.deep : rule.types[zone.type])
-            || (zone.type === 'timeRift' ? rule.rift[zone.riftPhase] : bossRegionName(zone, rule));
-        return own || (where.source.style === 'act' ? actRegionName(where.source.act) : '');
+        return contentRegion(zone) || (where.source.style === 'act' ? actRegionName(where.source.act) : '');
     }
     return Object.freeze({ parse: parsePlanLines, text: planLines, build: buildRoomPlan, valid: validPlanKey, choose: chooseRoomPlan, region: regionForZone,
         oceanRegion, random: semiRandomPlan, countsOf: roleCounts });

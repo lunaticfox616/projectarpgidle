@@ -17,16 +17,18 @@ const CONTENT_CARD_DEDICATED = Object.freeze({
     ocean: 'unlock_ocean_fishing', fishing: 'unlock_ocean_fishing', beyond: 'unlock_beyond_boundary', meteorSite: 'meteor_unlocked'
 });
 const contentUnlockUi = {
-    announceStarterGem(name) {
-        if (!name || (game.seenTutorials || []).includes('tutorial_starter_gem_equip')) return;
-        game.unlocks.skills = true;
-        game.noti.skills = true;
-        queueTutorialNotice('tutorial_starter_gem_equip', _t('첫 스킬룬 장착'),
-            _t('[{name}] 룬을 얻었습니다.\n‘스킬룬’에서 빛나는 룬을 누르고 ‘장착’을 누르세요.\n장착한 룬으로 자동 전투의 공격이 바뀝니다.', { name: _t(name) }), 'tab-skills');
+    /** 첫 루프의 시작 무기가 가방에 들어오면 장착 안내(2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착 안내로). */
+    announceStarterWeapon(item) {
+        if (!item || (game.seenTutorials || []).includes(basicSkills.weaponGuide)) return;
+        game.unlocks.items = true;
+        game.noti.items = true;
+        queueTutorialNotice(basicSkills.weaponGuide, _t('첫 무기 장착'),
+            _t('[{name}] 무기를 주웠습니다.\n‘장비’에서 가방의 무기를 누르고 ‘장착’을 누르세요.\n무기를 들면 기초 스킬로 싸웁니다.', { name: _t(item.name) }), 'tab-items');
     },
     /** The loop card: the points, then the unlocks this loop adds to the tab, by name only (2026-10-27 사용자: 짧게, 필요한 것만).
      * Free contents are left out: each gets its own card when it opens (announceContent). A loop that adds none names the next one. */
     announceLoop() {
+        if (game.season === 2 && !contentProgression.isUnlocked('passiveTree')) return;
         if (!game.contentProgression) {
             queueTutorialNotice('unlock_content_loop_' + game.season, _t('다음 콘텐츠 선택'),
                 _t('루프 {loop}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.', { loop: game.season }), 'tab-unlocks');
@@ -49,6 +51,7 @@ const contentUnlockUi = {
         if (!game.contentProgression) return;
         const enabled = !!game.contentProgression;
         document.body.classList.toggle('content-choice-progression', enabled);
+        this.syncOpeningHud();
         document.body.classList.toggle('content-support-locked', enabled && !contentProgression.isUnlocked('support'));
         document.body.classList.toggle('content-craft-locked', !contentProgression.isUnlocked('craft'));
         document.getElementById('loop-passive-locked')?.toggleAttribute('hidden', contentProgression.isUnlocked('loopTree'));
@@ -62,12 +65,42 @@ const contentUnlockUi = {
             for (const route of def.routes || []) this.syncRoute(route, !contentProgression.canOpen(route));
         }
         // 해금 목록 항목 없이 진행 조건으로만 열리는 경로.
-        for (const route of ['tab-map', 'tab-season', 'tab-unlocks']) this.syncRoute(route, !contentProgression.canOpen(route));
+        for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'tab-skills', 'tab-items', 'tab-character', 'tab-char', 'tab-social', 'tab-trade']) {
+            this.syncRoute(route, !contentProgression.canOpen(route));
+        }
         this.resetClosedSelection('itemSubtab', 'item-tab-equip', '#tab-items');
         this.resetClosedSelection('skillSubtab', 'skill-tab-equip', '#tab-skills');
         this.resetClosedSelection('mapSubtab', 'map-tab-zones', '#tab-map');
         this.resetClosedSelection('mapExploreSubtab', 'map-explore-hunting', '#map-tab-zones');
         this.render();
+    },
+    syncOpeningHud() {
+        const locked = contentProgression.opening.combatOnly(game);
+        for (const id of ['btn-act-exploration-auto', 'btn-combat-return', 'btn-combat-goal-toggle']) {
+            document.getElementById(id)?.toggleAttribute('data-content-locked', locked);
+        }
+        const chatLocked = !contentProgression.canOpen('tab-social');
+        document.body.classList.toggle('opening-chat-locked', chatLocked);
+        for (const id of ['btn-combat-chat-tab', 'btn-combat-chat-settings']) {
+            document.getElementById(id)?.toggleAttribute('data-content-locked', chatLocked);
+        }
+        this.syncRuneLauncher();
+    },
+    syncRuneLauncher() {
+        const button = document.getElementById('btn-tab-items');
+        if (!button) return;
+        const runeOnly = !contentProgression.canOpen('tab-items') && contentProgression.canOpen('tab-skills');
+        if (runeOnly) button.dataset.openingRunes = '1';
+        else {
+            if (!button.dataset.openingRunes) return;
+            delete button.dataset.openingRunes;
+        }
+        const name = runeOnly ? '스킬룬' : '장비';
+        const caption = name + '|하단 메뉴';
+        const label = button.querySelector('.ui-rail-label');
+        if (label && label.textContent !== _t(name)) label.textContent = _t(name);
+        button.dataset.i18nSourceDataCaption = caption;
+        button.dataset.caption = _t(caption);
     },
     syncRoute(route, locked) {
         // A merged launcher may remain available through another purchased child.
@@ -116,7 +149,7 @@ const contentUnlockUi = {
         const result = contentProgression.purchase(id, game, key);
         if (!result.ok) { addLog(result.message, 'attack-monster', { toast: true }); return; }
         // The unlock card says the same and more: no toast (PC) or bottom notice (phone) on top of it.
-        const carded = this.announceContent(id);
+        const carded = id === 'passiveTree' || this.announceContent(id);
         addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
         this.announceOpenedSince(opened); // free content that comes with it (장비 전당 with 고유 도감)
         // 공허 소켓은 스킬트리에 숨어 있던 공허 칸을 드러낸다(js/passives.js isVoidSocketHidden): 길과 화면을 다시 잇고 스킬트리에 알림 점을 켠다.
@@ -166,7 +199,14 @@ const contentUnlockUi = {
         return new Set(game.contentProgression ? game.contentProgression.automatic : []);
     },
     announceOpenedSince(before) {
-        this.openedContents().forEach(id => { if (!before.has(id)) this.announceContent(id); });
+        this.openedContents().forEach(id => {
+            if (before.has(id)) return;
+            if (id === 'tactics' && contentProgression.opening.applies(game)) {
+                game.noti.skills = true;
+                return;
+            }
+            this.announceContent(id);
+        });
     },
     /** contentProgression.sync, plus a card for each free content that has just opened (loop reached, condition met).
      * Contents open at load are not news: the save migration syncs before any of this runs. */
@@ -190,6 +230,7 @@ const contentUnlockUi = {
     openNpc(npc, mode = 'talk') {
         const old = document.getElementById('npc-dialog');
         if (!npc || (old && old.open)) return false;
+        if (!contentProgression.opening.canOpen(game, 'tab-trade')) mode = 'talk';
         if (old) old.remove(); // closed a moment ago, its close event (which removes it) not yet run
         const view = { npc, mode, topic: null };
         const dialog = document.createElement('dialog');
@@ -233,6 +274,7 @@ const contentUnlockUi = {
     },
     /** The doors to the shop and, at Orga's, to the currency exchange. */
     npcFoot(view) {
+        if (!contentProgression.opening.canOpen(game, 'tab-trade')) return '';
         const doors = npcShopUi.door(view.npc) + orgaExchangeUi.door(view.npc);
         return doors ? `<footer class="npc-dialog-foot">${doors}</footer>` : '';
     },
@@ -273,7 +315,10 @@ const contentUnlockUi = {
         if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); }
     },
     npcPickTopic(view, topic) {
-        if (topic === 'shop' || topic === 'exchange') { view.mode = topic; return; }
+        if (topic === 'shop' || topic === 'exchange') {
+            if (contentProgression.opening.canOpen(game, 'tab-trade')) view.mode = topic;
+            return;
+        }
         const known = this.npcTopics(view.npc).open.some(row => row.topic === topic);
         Object.assign(view, { mode: 'talk', topic: known ? topic : null });
         if (known) this.hearNpcTopic(view.npc, topic);
@@ -297,12 +342,6 @@ document.addEventListener('click', event => {
     if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail') || document);
     const open = event.target.closest('[data-open-content]');
     if (open) contentUnlockUi.open(open.dataset.openContent);
-});
-// The loop's starter gem picked up from the floor (js/combat.js receiveStarterGemRow): its log line, and in a first loop the equip
-// guide right there (checkUnlocks → announceStarterGem), with the room already cleared.
-window.addEventListener('project-idle:starter-gem-received', event => {
-    addLog(_t('스킬룬 [{gem}] 획득', { gem: event.detail.gem }), 'loot-rare');
-    checkUnlocks();
 });
 // NPC pictures are local stage art (assets/stage-npcs): where one is missing, drop it rather than show a broken image.
 document.addEventListener('error', event => {

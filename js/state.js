@@ -98,8 +98,15 @@ const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear
 /** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
 function queueTutorialNotice(key, title, body, tabId, target) {
     if (game.isBackgroundCalculation) return;
+    const opening = typeof contentProgression === 'object' ? contentProgression.opening : null;
+    const inline = opening?.inlineNotice(game, key);
+    if (inline && !opening.canOpen(game, tabId)) return;
     const extra = target && typeof target === 'object' ? target : { subtabId: target };
-    window.GameModules.state.tutorials.enqueue(game, { ...extra, key, title, body, tabId: tabId || null, subtabId: extra.subtabId || null });
+    const notice = { ...extra, key, title, body, tabId };
+    window.GameModules.state.tutorials.enqueue(game, notice);
+    if (inline) {
+        window.GameModules.state.tutorials.archivePending(game, key);
+    }
 }
 /** A notice about content bought in 해금 (talent, …): before it is bought, the card says where to buy it and
  * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */
@@ -2498,13 +2505,13 @@ const defaultGame = {
     // (js/weapon-mastery.js) and the chronicle's claimed rings (js/chronicle.js).
     weaponMastery: { xp: {} },
     chronicle: { rings: 0 },
-    saveVersion: 20,   // 20(2026-10-30): 장비 줄의 다시 만들 수 있는 칸을 빼고 저장한다(js/item-save-slim.js)
+    saveVersion: 21,   // 20(2026-10-30): 장비 줄의 다시 만들 수 있는 칸을 빼고 저장한다(js/item-save-slim.js). 21(2026-11-09): resonancePower에서 봉인 몫을 뺐다(js/save-migrations.js removeOldSealResonanceSave)
     // Permanent ledger: income follows CONTENT_UNLOCK_POINT_AWARDS (contentProgression.earnedBy), starting at loop two. carry: points a
     // save from before 2026-10-21 keeps beyond those awards (the earlier table's), 0 for a new game. The default stays version 9: a save
     // without a ledger takes it during the load, and the bag counts its pages by loop until contentProgression.restore makes the ledger
     // (version 10 with graftFloor, js/content-progression.js) and turns those pages into owned 가방 쪽 steps.
     knitting: { season: 1, counts: {}, seen: [], knitted: {}, once: [] },
-    contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [], plannedUnlockId: '' },
+    contentProgression: { version: CONTENT_UNLOCK_RECORD_VERSION, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [], plannedUnlockId: '' },
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,
@@ -2524,11 +2531,14 @@ const defaultGame = {
     killsInZone: 0,
     loopDeaths: 0,
     loopKills: 0,
-    loopStarterGemGranted: false,
-    // 변이시간선(js/loop-mutation.js): 규칙이 걸린 루프 번호(0이면 없음)와 첫 처치 공격룬 3택({ gems: 룬 이름 }, 고를 때까지)
+    // 루프의 첫 처치가 직업 무기를 떨어뜨렸는가(js/combat.js grantLoopStarterWeaponOnFirstKill), 첫 루프의 그 무기가 장착 안내를 기다리는 동안 그 아이템 id
+    loopStarterWeaponGranted: false,
+    starterWeaponTutorialPending: null,
+    // 기초 스킬(js/basic-skills.js): 이번 루프의 속성 선택지({ loop, elements }, 고를 때까지)와 지난번 고른 속성(자동 루프가 쓴다)
+    basicSkillOffer: null,
+    basicSkillElement: '',
+    // 변이시간선(js/loop-mutation.js): 규칙이 걸린 루프 번호(0이면 없음)
     loopMutationSeason: 0,
-    pendingStarterRuneChoice: null,
-    starterGemTutorialPending: null,
     settings: {
         effectIntensity: 'system',
         // PC와 모바일 메뉴 편집은 서로의 순서·배치를 덮어쓰지 않는다.
@@ -2701,7 +2711,8 @@ const defaultGame = {
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0, lastFusion: null },
     mapSubtab: 'map-tab-zones',
     unlockedMapContents: ['map-tab-zones'],
-    mapExploreSubtab: 'map-explore-hunting',
+    // 지도 탭의 처음 화면은 세계 지도다(2026-11-09 사용자: 지도 안내가 구버전 맵으로 이동시킴). 액트 목록은 그 안의 세부 지역.
+    mapExploreSubtab: 'map-explore-atlas',
     gemFoldInactiveAttack: false,
     gemFoldInactiveSupport: false,
     autoRepeatSeasonBoss: false,

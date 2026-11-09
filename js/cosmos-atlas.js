@@ -2030,7 +2030,8 @@
     window.getCosmosCapstoneProgress = getCosmosCapstoneProgress;
     window.focusCosmosCapstoneBoss = focusCosmosCapstoneBoss;
     window.openCosmosCapstoneBossPanel = openCosmosCapstoneBossPanel;
-    safeExposeGlobals({ getCosmosNodeRecommendation, getCosmosProgressGuide, focusRecommendedCosmosNode, continueCosmosChallengeAfterClear, grantCosmosSkyPower });
+    // handleCosmosRouteAction: the world map's 바로 가기 starts an expedition with it (js/world-map-brief-ui.js, 'start' + galaxy).
+    safeExposeGlobals({ getCosmosNodeRecommendation, getCosmosProgressGuide, focusRecommendedCosmosNode, continueCosmosChallengeAfterClear, grantCosmosSkyPower, handleCosmosRouteAction });
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
     else boot();

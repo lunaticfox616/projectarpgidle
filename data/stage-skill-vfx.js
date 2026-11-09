@@ -19,6 +19,35 @@
 //           runes 룬 글자의 획(5×7 격자의 선분 [x0, y0, x1, y1]).
 //   raw     원래 색 그대로 그리는 띠(새 룬 넷, scripts/build-stage-skill-vfx-v36.cjs가 덧붙인다): x, y 그 장의 자리, w, h 한 칸, n 칸 수. files의 셋째 장(vfx3.png)에 있다.
 //   pivot   클립의 기준점을 칸 안의 자리 [x, y]로 정할 때(pixelfx로 구운 클립, scripts/build-stage-skill-vfx-v39.cjs가 덧붙인다). proj 날아가는 몸, pfxImpact 맞은 자리의 섬광, pfxBurst 꿰뚫은 자리, pfxWave 바닥을 달리는 파동, pfxSmite 내리꽂힘.
+// 기초 스킬 201~255(2026-11-09 스킬 전체 전달본 V3.14, data/skills.js BASIC_SKILL_ROWS): 무기마다 동작과 클립이 하나이고 속성은 색(램프)만 바꾼다.
+// 대검 내려베기는 강타처럼 머리 위에서 내려찍는 초승달, 한손검 찌르기는 흡혈 관통 같은 곧은 바늘, 향로 치기는 향로의 기본 휘두름,
+// 활 겨냥 사격은 물리면 보통 화살이고 다른 속성은 그 속성의 마법 화살, 오브 마력탄은 그 속성 빛깔의 구슬, 플라스크 약병 던지기는 작은 병과
+// 그 속성의 작은 터짐. body: 날아가는 몸(js/canvas-stage-skill-casts.js bodyOf). 동작은 그 무기 자세의 것만 있다(제 무기 전용).
+const BASIC_STAGE_HITS = Object.freeze({ phys: 'q_cut@phys', fire: 'q_firehit@fire', cold: 'q_icehit@cold', light: 'q_lighthit@light', chaos: 'q_voidhit@chaos' });
+const BASIC_STAGE_ARROWS = Object.freeze({ phys: ['q_arrowphys@phys', 'q_hit@phys'], fire: ['ma_fire@=', 'ma_firex@='], cold: ['ma_cold@=', 'ma_coldx@='],
+    light: ['ma_light@=', 'ma_lightx@='], chaos: ['ma_chaos@=', 'ma_chaosx@='] });
+const BASIC_STAGE_LOOKS = Object.freeze({
+    greatsword: ele => ({ gem: { swing: `sl_white2@${ele}`, chop: { rot: 62, from: -120, to: -34 }, hit: BASIC_STAGE_HITS[ele] }, motion: 'slam', melee: true, kind: 'strike', polish: 'melee' }),
+    sword: ele => ({ gem: { ramp: ele, swing: 'pierce', hit: BASIC_STAGE_HITS[ele] }, motion: 'thrust', melee: true, kind: 'strike', polish: 'melee' }),
+    censer: ele => ({ gem: { hit: BASIC_STAGE_HITS[ele] }, motion: 'attack', melee: true, kind: 'strike', polish: 'censer' }),
+    bow: ele => ({ gem: { muzzle: `shot@${ele}`, bow: { arrow: BASIC_STAGE_ARROWS[ele][0], exp: BASIC_STAGE_ARROWS[ele][1] }, hit: BASIC_STAGE_HITS[ele] },
+        motion: 'attack', melee: false, kind: 'proj', body: 'arrow', polish: 'bow' }),
+    orb: ele => ({ gem: { muzzle: `shot@${ele}`, proj: `pfx_fireball@${ele}`, hit: BASIC_STAGE_HITS[ele] }, motion: 'attack', melee: false, kind: 'proj', cast: true,
+        body: 'spear', polish: 'spell' }),
+    flask: ele => ({ gem: { hit: BASIC_STAGE_HITS[ele], blast: `puff@${ele}` }, motion: 'throw', melee: false, kind: 'point', body: 'flask', polish: 'flask' })
+});
+const BASIC_STAGE_CLASSES = Object.freeze(['wanderer', 'warrior', 'archer', 'occultist', 'alchemist', 'cleric']);
+const BASIC_STAGE = (() => {
+    const out = { gems: {}, meta: {}, motions: {}, polish: {} };
+    BASIC_SKILL_ROWS.forEach(({ id, name, family, ele }) => {
+        const look = BASIC_STAGE_LOOKS[family](ele);
+        out.gems[id] = look.gem;
+        out.meta[id] = { name, el: ele, cast: !!look.cast, melee: look.melee, kind: look.kind, ...(look.body ? { body: look.body } : {}) };
+        out.motions[id] = Object.fromEntries(BASIC_STAGE_CLASSES.map(classId => [classId, { [family]: look.motion }]));
+        out.polish[id] = [look.polish];
+    });
+    return out;
+})();
 const STAGE_SKILL_VFX = Object.freeze({
     path: 'assets/stage-vfx/',
     files: Object.freeze(['vfx.png','vfx2.png','vfx3.png','vfx5.png']),
@@ -458,7 +487,8 @@ const STAGE_SKILL_VFX = Object.freeze({
         '124': {},
         '125': {},
         '126': {},
-        '127': {}
+        '127': {},
+        ...BASIC_STAGE.gems
     }),
     meta: Object.freeze({
         '1': {name:'이중 베기',el:'phys',cast:false,melee:true,kind:'strike'},
@@ -545,7 +575,8 @@ const STAGE_SKILL_VFX = Object.freeze({
         '125': {name:'심연의 가호',el:'chaos',cast:true,melee:false,kind:'servant',rune:'berkano'},
         '126': {name:'수액의 가호',el:'none',cast:true,melee:false,kind:'servant',rune:'jera'},
         // 2026-11-08 전달본 V3.13의 탐욕의 광기: 금빛 결정진과 ᚠ(재물) 룬, blessLook이 속성 대신 bless의 floors.greed와 colours.greed를 고른다(js/canvas-stage-blessing.js)
-        '127': {name:'탐욕의 광기',el:'none',cast:true,melee:false,kind:'servant',rune:'fehu',blessLook:'greed'}
+        '127': {name:'탐욕의 광기',el:'none',cast:true,melee:false,kind:'servant',rune:'fehu',blessLook:'greed'},
+        ...BASIC_STAGE.meta
     }),
     motions: Object.freeze({
         '1': {wanderer:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},warrior:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},archer:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},occultist:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},alchemist:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'},cleric:{unarmed:'flurry',greatsword:'flurry',sword:'flurry',censer:'flurry'}},
@@ -631,7 +662,8 @@ const STAGE_SKILL_VFX = Object.freeze({
         '124': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
         '125': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
         '126': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
-        '127': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}}
+        '127': {wanderer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},warrior:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},archer:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},occultist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},alchemist:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'},cleric:{greatsword:'cast',sword:'cast',bow:'cast',orb:'cast',flask:'cast',censer:'cast'}},
+        ...BASIC_STAGE.motions
     }),
     bless: Object.freeze({
         spin: 1.05,
@@ -639,7 +671,7 @@ const STAGE_SKILL_VFX = Object.freeze({
         colours: Object.freeze({none:{c1:'#fbfcfe',c2:'#c5ccd6',c3:'#6b707c'},greed:{c1:'#fbecae',c2:'#e3bf5e',c3:'#6e4b14'}}),
         runes: Object.freeze({uruz:[[0,6,0,0],[0,0,4,2],[4,2,4,6]],ingwaz:[[2,1,0,3],[0,3,2,5],[2,5,4,3],[4,3,2,1]],isa_:[[2,0,2,6],[1,0,3,0],[1,6,3,6]],sowilo:[[3,0,1,3],[1,3,3,3],[3,3,1,6]],berkano:[[1,0,1,6],[1,0,3,2],[3,2,1,3],[1,3,3,4],[3,4,1,6]],jera:[[1,0,3,1],[3,1,1,2],[3,4,1,5],[1,5,3,6]],fehu:[[0,0,0,6],[0,3,3,0],[0,5,4,1]]})
     }),
-    polish: Object.freeze({'1':['melee'],'2':['melee',1],'3':['melee'],'4':['melee'],'5':['melee'],'6':['melee'],'7':['projectile'],'8':['melee'],'9':['projectile'],'11':['projectile'],'14':['bow'],'16':['melee'],'18':['shout',1],'19':['spell'],'20':['spell'],'21':['spell'],'22':['spell'],'23':['spell'],'25':['bow'],'26':['projectile'],'27':['spell'],'28':['spell'],'29':['spell'],'30':['spell'],'31':['spell'],'34':['spell'],'35':['spell'],'37':['spell'],'40':['movement'],'44':['flask'],'45':['shout'],'46':['spell'],'47':['flask'],'48':['flask'],'49':['flask'],'50':['censer'],'51':['censer'],'52':['movement'],'54':['movement'],'55':['movement'],'56':['bow'],'60':['melee'],'61':['melee'],'62':['movement',1],'63':['movement',1],'64':['movement',1],'65':['melee',1],'66':['melee'],'67':['melee'],'68':['melee'],'69':['melee'],'70':['movement'],'71':['melee'],'72':['melee'],'73':['melee',1],'74':['shout',1],'75':['shout'],'76':['bow'],'77':['flask',1],'78':['bow'],'79':['flask'],'80':['time'],'82':['spell'],'83':['spell'],'84':['melee',1],'85':['melee',1],'86':['shout',1],'87':['flask'],'88':['spell'],'89':['spell'],'90':['censer',1],'91':['spell'],'111':['summon'],'112':['summon'],'113':['summon'],'114':['summon'],'115':['summon'],'121':['blessing'],'122':['blessing'],'123':['blessing'],'124':['blessing'],'125':['blessing'],'126':['blessing'],'127':['blessing']}),
+    polish: Object.freeze({'1':['melee'],'2':['melee',1],'3':['melee'],'4':['melee'],'5':['melee'],'6':['melee'],'7':['projectile'],'8':['melee'],'9':['projectile'],'11':['projectile'],'14':['bow'],'16':['melee'],'18':['shout',1],'19':['spell'],'20':['spell'],'21':['spell'],'22':['spell'],'23':['spell'],'25':['bow'],'26':['projectile'],'27':['spell'],'28':['spell'],'29':['spell'],'30':['spell'],'31':['spell'],'34':['spell'],'35':['spell'],'37':['spell'],'40':['movement'],'44':['flask'],'45':['shout'],'46':['spell'],'47':['flask'],'48':['flask'],'49':['flask'],'50':['censer'],'51':['censer'],'52':['movement'],'54':['movement'],'55':['movement'],'56':['bow'],'60':['melee'],'61':['melee'],'62':['movement',1],'63':['movement',1],'64':['movement',1],'65':['melee',1],'66':['melee'],'67':['melee'],'68':['melee'],'69':['melee'],'70':['movement'],'71':['melee'],'72':['melee'],'73':['melee',1],'74':['shout',1],'75':['shout'],'76':['bow'],'77':['flask',1],'78':['bow'],'79':['flask'],'80':['time'],'82':['spell'],'83':['spell'],'84':['melee',1],'85':['melee',1],'86':['shout',1],'87':['flask'],'88':['spell'],'89':['spell'],'90':['censer',1],'91':['spell'],'111':['summon'],'112':['summon'],'113':['summon'],'114':['summon'],'115':['summon'],'121':['blessing'],'122':['blessing'],'123':['blessing'],'124':['blessing'],'125':['blessing'],'126':['blessing'],'127':['blessing'],...BASIC_STAGE.polish}),
     censerHeads: Object.freeze({wanderer:[[31,-30,1],[34,-30,1],[42,-30,1],[47,-39,0],[13,-29,0],[-29,-28,0],[-57,-40,1],[-41,-40,1],[-3,-26,1]],warrior:[[34,-21,1],[37,-22,1],[42,-23,1],[50,-26,0],[19,-26,0],[-35,-19,0],[-57,-21,1],[-60,-30,1],[-63,-35,1]],archer:[[30,-25,1],[33,-29,1],[40,-30,1],[48,-38,0],[18,-35,0],[-39,-39,0],[-67,-49,1],[-54,-35,1],[-15,-22,1]],occultist:[[31,-28,1],[39,-24,1],[50,-26,1],[56,-35,0],[31,-35,0],[-41,-26,0],[-68,-37,1],[-62,-35,1],[-52,-34,1]],alchemist:[[31,-30,1],[34,-30,1],[43,-31,1],[44,-45,0],[16,-31,0],[-31,-29,0],[-53,-35,1],[-30,-43,1],[4,-29,1]],cleric:[[29,-29,1],[31,-29,1],[38,-28,1],[53,-37,0],[12,-27,0],[-42,-30,0],[-59,-44,1],[-29,-30,1],null]}),
     wisps: Object.freeze({path:'assets/stage-vfx/wisps/',size:32,frames:4,ms:120,files:{fire:'fire.png',cold:'cold.png',light:'light.png',phys:'phys.png',chaos:'chaos.png'}}),
     raw: Object.freeze({fire4:{x:0,y:0,w:128,h:128,n:14},fire3:{x:0,y:129,w:128,h:128,n:12},clock:{x:0,y:258,w:48,h:48,n:26},clock46:{x:0,y:307,w:48,h:64,n:19},hourglass:{x:0,y:372,w:48,h:48,n:25},fire6:{x:0,y:421,w:128,h:128,n:8},wl3:{x:0,y:550,w:128,h:128,n:8},fire1:{x:1025,y:550,w:128,h:128,n:7},wl7:{x:0,y:679,w:128,h:128,n:7},fire10:{x:897,y:679,w:128,h:128,n:5},wl9:{x:0,y:808,w:128,h:128,n:5},wl10:{x:641,y:808,w:128,h:128,n:5},fire8:{x:1282,y:808,w:128,h:128,n:4},blade:{x:1795,y:808,w:64,h:64,n:1}}),

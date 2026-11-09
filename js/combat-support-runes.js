@@ -2,6 +2,10 @@
 (function () {
     'use strict';
     window.GameModules.combat = window.GameModules.combat || {};
+    /** 이중 발동, 이중 시전의 두 번째 발동이 앞 발동(여러 단계면 마지막 단계) 뒤에 나가는 간격(ms). 2026-11-08 전달본 V3.9.6(사용자 "이중 시전이나
+     * 이중 공격도 시간차를 두어 시각적으로 시전이 여러번 발생했다는걸 인지하게"): 180에서 280으로. 피해는 그대로다. 무대는 이 간격만큼 앞의 자세로
+     * 잔상을 그린다(js/canvas-stage-skill-rules.js ruleNoteRepeat). 소환수의 반복(js/combat-support-summons.js)은 따로 180이다. */
+    const REPEAT_GAP_MS = 280;
     function resolve(skill) {
         const out = window.GameModules.skills.supports.prepare(skill), fx = out.supportEffects;
         out.dmg = (out.dmg ?? out.baseDmg ?? 1) * fx.damageMultiplier;
@@ -49,7 +53,7 @@
             mult:stageTargetMultiplier(entry,i,skill)}))}));
         if (fx.chain) result = skill.combatPattern ? appendAuthoredChain(result,fx.chain,skill.combatPattern.kind==='authored') : chainStages(uniqueStageTargets(result), fx.chain);
         if (fx.repeat) {
-            const delay = Math.max(...result.map(row=>row.delayMs || 0)) + 180;
+            const delay = Math.max(...result.map(row=>row.delayMs || 0)) + REPEAT_GAP_MS;
             result = result.concat(result.map(row=>({...row, kind:'supportRepeat', label:_t('반복'),
                 singleRepeat:true, delayMs:(row.delayMs||0)+delay, damageMultiplier:row.damageMultiplier*fx.repeat.damagePct/100})));
         }
@@ -111,12 +115,21 @@
         return !extra || skill.projectilePattern?.kind==='fan' || LEAPS.has(id) ? 1 : 1+extra;
     }
     function nativeDot(skill) { return (skill.supportBaseTags || skill.tags || []).includes('dot'); }
+    /** 따로 시전하는 룬의 반복: 맞힌 자리마다 REPEAT_GAP_MS 뒤 한 번 더. 무리 이름(damageTextGroupId)은 그 시전의 열쇠라 무대가 시전 하나에 잔상 하나만 낸다. */
     function repeatNative(command,targets) {
         const stats=command.stats,repeat=stats.sSkill.supportEffects?.repeat;
         if(!repeat)return;
-        const stages=[{kind:'supportRepeat',label:_t('반복'),delayMs:180,damageMultiplier:(command.damagePct??100)/100*repeat.damagePct/100,
+        const stages=[{kind:'supportRepeat',label:_t('반복'),delayMs:REPEAT_GAP_MS,damageMultiplier:(command.damagePct??100)/100*repeat.damagePct/100,
             targets:targets.map(enemy=>({enemy,mult:1})),singleRepeat:true}];
-        queuePendingSkillStageHits(stages,stats,{...command.attackOptions,skillName:command.name,baseDelayMs:0,forcedElement:stats.sSkill.ele});
+        queuePendingSkillStageHits(stages,stats,{...command.attackOptions,skillName:command.name,baseDelayMs:0,forcedElement:stats.sSkill.ele,damageTextGroupId:command.key});
+    }
+    /** 반복 단계 하나가 제 때를 맞았다(js/combat.js processPendingSkillStageHits, 맞을 적이 없어도): 무대가 두 번째 발동의 연출을 그리게 알린다
+     * (js/canvas-stage-skill-rules.js ruleNoteRepeat, 한 공격에 한 번). 날아가는 반복은 떠나는 순간을 그 날아가는 기록이 먼저 알린다. 그리기만 한다. */
+    function repeatReleased(row) {
+        const options=row.options,skill=row.pStats.sSkill;
+        if(options.stageKind!=='supportRepeat' || game.isBackgroundCalculation)return;
+        addBattleFx('supportEcho',{skillName:skill.visualName || options.skillName,element:options.forcedElement || skill.ele,stageKind:options.stageKind,
+            damageTextGroupId:options.damageTextGroupId,sourceCell:options.sourceCell,attackFootprint:options.attackFootprint,duration:420});
     }
     const LEAPS=new Set([56,77]);                  // 작살화살, 바위 플라스크: 주인공이 따라 날아가 발이 늘지 않는다
     const LANDS_ONCE=new Set([47,48,49,79,87]);    // 떨어진 자리에서 한 번만 연쇄한다(병 하나에 한 번)
@@ -170,7 +183,7 @@
         let rows=plan.map(row=>({kind:row.kind,label:_t('추가 타격'),delayMs:row.delay,damageMultiplier:base*row.mult,
             chainFromEnemyId:row.from,delivery:'instantTarget',singleRepeat:true,skipGridControl:true,targets:[{enemy:row.enemy,mult:1}]}));
         const repeat=stats.sSkill.supportEffects.repeat;
-        if(repeat)rows=rows.concat(rows.map(row=>({...row,delayMs:row.delayMs+180,damageMultiplier:row.damageMultiplier*repeat.damagePct/100})));
+        if(repeat)rows=rows.concat(rows.map(row=>({...row,delayMs:row.delayMs+REPEAT_GAP_MS,damageMultiplier:row.damageMultiplier*repeat.damagePct/100})));
         queuePendingSkillStageHits(rows,stats,{...command.attackOptions,skillName:command.name,baseDelayMs:0,
             forcedElement:command.attackOptions?.forcedElement || stats.sSkill.ele,damageTextGroupId:command.key});
     }
@@ -315,5 +328,6 @@
         });
     }
     window.GameModules.combat.supports=Object.freeze({resolve,grid,stages,targetMultiplier,conversionContacts,afterHit,tickDots,onDeath,auraValues,
-        values,auraFlat,activeBlessing,blessingGreed,splitConversion,lockState,igniteDuration,dealHit,deferAttack,retire,expectedMultiplier,repeatNative,augmentNative,nativeDot,playerProjectile,activeSkillStats,grantsAttributes});
+        values,auraFlat,activeBlessing,blessingGreed,splitConversion,lockState,igniteDuration,dealHit,deferAttack,retire,expectedMultiplier,repeatNative,augmentNative,nativeDot,playerProjectile,activeSkillStats,grantsAttributes,
+        repeatGapMs:REPEAT_GAP_MS,repeatReleased});
 })();

@@ -20,7 +20,7 @@ const ACT_REWARD_DB = {
         ]
     },
     1: {
-        // 루프 첫 처치 확정 지급(LOOP_STARTER_GEM_BY_HERO)으로 이미 공격 스킬룬 하나를
+        // 직업을 고를 때 받은 기초 스킬(data/skills.js BASIC_SKILL_ROWS)로 이미 공격 스킬룬 하나를
         // 들고 있는 시점이라, 여기서 또 공격 룬을 고르게 하면 선택이 겹치거나 무의미해진다.
         // 대신 방금 얻은 공격 스킬을 살려줄 보조스킬룬을 고르게 한다.
         title: '액트 2 클리어 보상',
@@ -41,6 +41,15 @@ const ACT_REWARD_DB = {
     2: {
         title: '액트 3 클리어 보상',
         body: '추가 스킬트리 포인트입니다.',
+        firstLoop: {
+            title: '액트 3 클리어 보상',
+            body: '다음 구간을 준비할 전리품 하나를 고르세요.',
+            choices: [
+                { kind: 'item', slot: '반지', rarity: 'magic', label: '반지', desc: '' },
+                { kind: 'item', slot: '목걸이', rarity: 'magic', label: '목걸이', desc: '' },
+                { kind: 'item', slot: '허리띠', rarity: 'magic', label: '허리띠', desc: '' }
+            ]
+        },
         choices: [
             { kind: 'points', value: 2, label: '스킬트리 포인트 +2', desc: '스킬트리에서 노드 두 개를 더 열 수 있습니다.' }
         ]

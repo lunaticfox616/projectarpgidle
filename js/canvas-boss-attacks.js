@@ -33,6 +33,7 @@ const bossAttackView = (() => {
     let stepClock = -1, stepAt = 0;
     function smoothCombatTime() {
         const combat = getCombatTime(), now = performance.now();
+        if (bossMoves.observer.sceneActive()) { stepClock = combat; stepAt = now; return combat; }
         if (combat !== stepClock) { stepClock = combat; stepAt = now; }
         const since = now - stepAt;
         return since < 150 ? combat + Math.min(100, since) : combat;
@@ -179,6 +180,7 @@ const bossAttackView = (() => {
         return projection.cellToScreen(centre.gx, centre.gy);
     }
     function drawMark(ctx, area, projection, look) {
+        if (area.observerMove) return;
         const footprint = projectSkillFootprint(area, projection);
         if (!footprint) return;
         ctx.save();
@@ -222,7 +224,7 @@ const bossAttackView = (() => {
     function drawEdges(ctx, scene) {
         const areas = (scene.layout || []).filter(({ enemy }) => isLiveWarning(enemy)).map(({ enemy }) => enemy.patternArea);
         (scene.pending || []).forEach(attack => { if (attack.delivery === 'patternArea') areas.push(attack.bossPattern.area); });
-        new Set(areas).forEach(area => drawBossPatternArea(ctx, area, scene.projection, 0.92, true));
+        new Set(areas.filter(area => !area.woodsman)).forEach(area => drawBossPatternArea(ctx, area, scene.projection, 0.92, true));
     }
     /** Every landing's flash of the struck cells (battleFx bossAreaImpact), on the floor like its warning. Effects are stamped on the
      * battlefield's clock (battleVisualState.visualNow, held back by hit stops), so the flash is timed on it too. */
@@ -240,7 +242,7 @@ const bossAttackView = (() => {
         if (!scene || !scene.projection) return;
         drawImpactFlashes(ctx, scene.projection);
         drawEdges(ctx, scene);
-        for (const { enemy } of scene.layout || []) {
+        for (const { enemy } of (scene.layout || []).filter(row => !row.enemy.patternArea?.woodsman)) {
             const share = isLiveWarning(enemy) ? warningShare(enemy) : null;
             if (share !== null) drawMark(ctx, enemy.patternArea, scene.projection, { share, source: enemy, blink: blink(share, warnMsOf(enemy)) });
         }
@@ -382,6 +384,6 @@ const bossAttackView = (() => {
         ctx.stroke(); ctx.restore();
     }
 
-    return { groundAlpha, pendingAlpha, drawMarks, addMotions, spriteOffsetY, drawImpact, drawGround, drawHeadRelease, warningShare, now: smoothCombatTime };
+    return { groundAlpha, pendingAlpha, drawMarks, addMotions, spriteOffsetY, drawImpact, drawGround, drawHeadRelease, isLiveWarning, warningShare, now: smoothCombatTime };
 })();
 safeExposeGlobals({ bossAttackView });

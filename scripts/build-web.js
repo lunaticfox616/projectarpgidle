@@ -5,7 +5,7 @@ const path = require('node:path');
 const { buildCss } = require('./build-css');
 const { prepareRelease } = require('./lib/release-bundle');
 const { stampGameBuild } = require('./lib/game-build');
-const { markImmutableUrls } = require('./lib/immutable-urls');
+const { markImmutableUrls, stampBootBytes } = require('./lib/immutable-urls');
 const root = path.resolve(__dirname, '..');
 const destination = path.join(root, 'dist');
 
@@ -34,7 +34,7 @@ async function buildWeb() {
     const released = await prepareRelease(destination, built.replace(placeholder, `<meta name="app-deploy" content="${build}">`)
         .replace(stageArt, `<meta name="stage-art" content="${packed ? 'probe' : 'none'}">`));
     // Content-named script and style URLs (scripts/lib/immutable-urls.js), hashed after the release strip changed the files.
-    await fs.writeFile(path.join(destination, 'index.html'), await markImmutableUrls(destination, released));
+    await fs.writeFile(path.join(destination, 'index.html'), await stampBootBytes(destination, await markImmutableUrls(destination, released)));
     await fs.writeFile(path.join(destination, 'version.json'), JSON.stringify({ build }) + '\n');
     await fs.writeFile(path.join(destination, '.nojekyll'), '');
     console.log('Web bundle: dist/index.html (one content-hashed CSS file, content-named script and style URLs)');

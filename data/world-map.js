@@ -5,6 +5,77 @@
 // 콘텐츠는 여는 길(route)과 지도 이름, 설명(사용자 글, 없으면 빈 글), 색, 표식. 그리기는 js/world-map-ui.js.
 const WORLD_MAP = Object.freeze({
     src: 'assets/ui/world-map.png', width: 688, height: 384,
+    atlas: Object.freeze({
+        src: 'assets/ui/world-map-atlas-temple-20261109.png',
+        entrance: 'content-01',
+        // 원화 위 백분율 좌표. nodes는 해당 권역의 슬롯 0~8과 수호자 순서다.
+        regions: Object.freeze([
+            { id: 'canopy', label: [53, 6.5], nodes: [[52, 37], [38, 34], [67, 34], [44, 29], [61, 29], [41, 19], [66, 22], [47, 19], [58, 20], [53, 16.5]] },
+            { id: 'roots', label: [24, 28], nodes: [[44, 57], [37, 59], [39, 48], [29, 56], [33, 46], [26, 46], [30, 37], [15, 47], [21, 39], [21, 54]] },
+            { id: 'trunk', label: [76, 32], nodes: [[58, 58], [65, 61], [66, 52], [73, 61], [73, 52], [81, 56], [80, 43], [88, 52], [88, 43], [74, 41]] },
+            { id: 'garden', label: [22, 93], nodes: [[46, 79], [39, 85], [31, 87], [39, 74], [32, 78], [24, 84], [31, 69], [15, 83], [18, 74], [25, 74]] },
+            { id: 'sanctum', label: [75, 95], nodes: [[57, 72], [64, 70], [65, 80], [71, 71], [71, 85], [79, 66], [78, 81], [85, 87], [90, 77], [84, 75]] }
+        ].map(Object.freeze)),
+        pinnacle: [51, 50],
+        // 표식 그림(js/world-map-ui.js atlasIcon, 2026-11-09 사용자: 아틀라스 아이콘 개선): 15x15 도트, 글자마다 색. o 테두리, Y y d 금빛(밝음, 중간, 어둠),
+        // a b c 권역 색(밝음, 중간, 어둠), g G 보석, s 돌판 바탕, w 흰자, p q 홍채(밝음, 어둠), k 눈동자. 잠긴 곳은 같은 그림을 회색 팔레트로 그린다.
+        icons: Object.freeze({
+            // 지도 노드: 권역 색 테의 팔각 돌판(등급 숫자가 위에 선다)
+            stone: [
+                '...ooooooooo...',
+                '..ooaaaaaaaoo..',
+                '.ooabbbbbbbaoo.',
+                'ooabsssssssbcoo',
+                'oabsssssssssbco',
+                'oabsssssssssbco',
+                'oabsssssssssbco',
+                'oabsssssssssbco',
+                'oabsssssssssbco',
+                'oabsssssssssbco',
+                'oabsssssssssbco',
+                'ooabsssssssbcoo',
+                '.oocbbbbbbbcoo.',
+                '..oocccccccoo..',
+                '...ooooooooo...'
+            ],
+            // 지역 수호자: 뿔 달린 방패와 보석
+            guardian: [
+                'o.............o',
+                'oyo.........oyo',
+                '.oyoooooooooyo.',
+                '..oYYYYYYYYYo..',
+                '..oyaaaaaaado..',
+                '..oyaabgbccdo..',
+                '..oyabgGgccdo..',
+                '..oyaabgbccdo..',
+                '..oyaabbbccdo..',
+                '...oyabbccdo...',
+                '....oybbcdo....',
+                '.....oycdo.....',
+                '......odo......',
+                '.......o.......',
+                '...............'
+            ],
+            // 정점(경계의 관측자): 눈을 품은 여덟 갈래 별
+            pinnacle: [
+                '.......o.......',
+                '......oYo......',
+                '......oYo......',
+                '..oo..oyo..oo..',
+                '..oYo.oyo.oyo..',
+                '...oyoqqqoyo...',
+                '.oooqwpppwqooo.',
+                'oYYyqwpkpwqdddo',
+                '.oooqwpppwqooo.',
+                '...oyoqqqodo...',
+                '..oyo.odo.odo..',
+                '..oo..odo..oo..',
+                '......odo......',
+                '......odo......',
+                '.......o.......'
+            ]
+        })
+    }),
     // 11x11 도트 표식(임시): 콘텐츠는 symbol(같은 꼴을 색만 바꿔 나눠 쓴다), 액트는 diamond. 진짜 표식 그림이 오면 바꾼다.
     symbols: Object.freeze({
         diamond: ['.....#.....', '....###....', '...#####...', '..#######..', '.#########.', '###########', '.#########.', '..#######..', '...#####...', '....###....', '.....#.....'],

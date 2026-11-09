@@ -175,11 +175,16 @@
         return globalThis.atlasEndgame ? globalThis.atlasEndgame.patternState(enemy.apexMechanic, attackNumber) : null;
     }
 
+    const authoredBossPattern = (enemy, attackNumber) => bossMoves.observer.pattern(enemy, attackNumber) || bossMoves.shiftPattern(enemy, attackNumber);
+
     function getBossPatternPreview(enemy) {
+        if (woodsmanBattle.owns(enemy)) return woodsmanBattle.preview(enemy);
         if (!enemy || !enemy.isBoss || !enemy.patternMode) return null;
         let attackNumber = normalizeAttackCount(enemy) + 1;
-        const shift = bossMoves.shiftPattern(enemy, attackNumber);
-        if (shift) return shift;
+        return authoredBossPattern(enemy, attackNumber) || modePatternState(enemy, attackNumber);
+    }
+    /** The boss's own pattern mode when no authored cast (Veila, the woodsman's blink) takes this attack. */
+    function modePatternState(enemy, attackNumber) {
         let mode = String(enemy.patternMode);
         if (OWN_PATTERN_MODES.has(mode)) return getOwnPatternState(mode, enemy, attackNumber);
         // 성좌 순환(우주계 보스)과 핵 폭주(운석 핵의 체력 절반 뒤): 같은 순환. 핵 폭주는 특수기 뒤 숨 고르기(recoveryOf)가 있다.
@@ -243,6 +248,7 @@
     /** 정점, 우주 보스는 새 후딜이 없어 예전 시계 그대로다: 게이지 절반에서 예고하고 게이지가 찬 뒤에 쓴다(앞당겨 예고하면 공격이 9~18% 잦아졌다). */
     const keepsOldClock = state => OWN_PATTERN_MODES.has(state.patternMode) || state.patternMode === 'cosmos';
     function warningMayStart(state, charge, chargePerSec) {
+        if (state.mode === 'woodsman') return charge >= 1;
         if (keepsOldClock(state) || !(chargePerSec > 0)) return charge >= 0.5;
         return (1 - charge) / chargePerSec * 1000 <= warningDuration(state);
     }
@@ -277,6 +283,10 @@
             enemy.patternTelegraphKey = key;
             enemy.patternTelegraphStartedAt = timestamp;
             if (target) {
+                if (state.mode === 'woodsman') {
+                    enemy.patternArea = woodsmanBattle.warning(enemy, state, target, timestamp);
+                    return false;
+                }
                 // Lines and fans leave from the boss's cell nearest the target (a boss as wide as its picture is up to 6 cells wide).
                 enemy.patternArea = bossWarningArea(enemy, state, target, timestamp);
             }
@@ -285,6 +295,8 @@
     }
 
     function bossWarningArea(enemy, state, target, now) {
+        const observer = bossMoves.observer.area(enemy, state, target);
+        if (observer) return observer;
         const shift = bossMoves.prepareShift(enemy, state, target, now);
         if (shift) return shift;
         const profile = COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind], from = getClosestGridUnitCell(target, enemy);
@@ -292,6 +304,7 @@
     }
     function finishBossWarning(enemy, state, now, charge) {
         if (!bossMoves.updateShift(enemy, now)) { clearBossTelegraph(enemy); return false; }
+        bossMoves.observer.followSeal(enemy, state, now);
         if (now - enemy.patternTelegraphStartedAt < warningDuration(state)) return false;
         return releaseAfterWarning(enemy, state, charge);
     }
@@ -300,9 +313,13 @@
     function getBossWarningCells(state, pending = []) {
         const enemies = (state.enemies || []).filter(enemy => enemy.hp > 0 && !enemy.noAttack
             && !(enemy.ailments || []).some(ail => ['freeze','stun','silence'].includes(ail.type) && ail.time > 0));
-        const areas = enemies.map(enemy => enemy.patternArea).filter(Boolean);
+        const areas = enemies.map(enemy => enemy.patternArea).filter(Boolean).map(area => area.woodsman
+            ? { cells: woodsmanBattle.warningCells(area.woodsman, getCombatTime()) } : area);
         pending.forEach(attack => {
-            if (attack.delivery === 'patternArea') areas.push(attack.bossPattern.area);
+            if (attack.delivery !== 'patternArea') return;
+            const move = attack.bossPattern.move;
+            areas.push(move?.kind === 'woodsman'
+                ? { cells: woodsmanBattle.warningCells(move.cast, getCombatTime(), move.releasedAt) } : attack.bossPattern.area);
         });
         return areas.flatMap(area => area.cells);
     }

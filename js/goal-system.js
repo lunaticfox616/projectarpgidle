@@ -47,6 +47,12 @@
         return num > 0 ? num : 0;
     }
 
+    /** A map action that opens the world map with this story zone's act picked (js/ui-window-manager.js openGoalTarget). */
+    function withMapAct(target, zoneId) {
+        if (target.actionTabId && Number.isInteger(zoneId)) target.actionMapAct = zoneId;
+        return target;
+    }
+
     function buildNotice(text, actionTabId, actionSubtabId) {
         let notice = { text };
         if (actionTabId && isTabActionAvailable(actionTabId)) notice.actionTabId = actionTabId;
@@ -138,17 +144,19 @@
     // 설명은 꼭 필요할 때만 한 줄로 둔다.
     const GOAL_RULES = [
         {
-            id: 'first-skill-choice',
+            // 첫 루프의 시작 무기가 가방에서 장착을 기다린다(js/combat.js grantLoopStarterWeaponOnFirstKill)
+            id: 'first-weapon-equip',
             priority: 850,
             matches(g) {
-                return !!(g.starterGemTutorialPending && g.unlocks && g.unlocks.skills
-                    && g.skills.includes(g.starterGemTutorialPending));
+                const id = g.starterWeaponTutorialPending;
+                return id != null && (g.inventory || []).some(item => item && item.id === id);
             },
             build(g) {
+                const item = g.inventory.find(row => row && row.id === g.starterWeaponTutorialPending);
                 return buildTabAction({
-                    id: 'first-skill-choice', type: 'progression', categoryLabel: _t('첫 룬'),
-                    title: _t('{gem} 룬 장착', { gem: _t(g.starterGemTutorialPending) })
-                }, _t('룬 비교하기'), 'tab-skills');
+                    id: 'first-weapon-equip', type: 'progression', categoryLabel: _t('첫 무기'),
+                    title: _t('{name} 장착', { name: _t(item.name) })
+                }, _t('장비 열기'), 'tab-items');
             }
         },
         {
@@ -197,8 +205,8 @@
                     description: _t('남은 보상 {count}개', { count }),
                     mandatory: true
                 };
-                // 보상 선택 카드는 탐험 > 나무(사냥터) 화면의 액트 목록에 붙는다.
-                return buildTabAction(goal, _t('액트 보상 열기'), 'tab-map', 'map-explore-hunting');
+                // 보상 선택은 세계 지도에서 그 액트를 고른 설명 칸에 있다(js/world-map-ui.js, actionMapAct).
+                return withMapAct(buildTabAction(goal, _t('액트 보상 열기'), 'tab-map', 'map-explore-atlas'), getAvailableActRewardZoneIds(g)[0]);
             }
         },
         {
@@ -234,7 +242,7 @@
                     // 진행 상태는 바로만 보여 주고, 목표 카드의 중복 수치 문구는 생략한다.
                     goal.progressText = '';
                 }
-                return buildTabAction(goal, _t('지도 열기'), 'tab-map', 'map-explore-hunting');
+                return withMapAct(buildTabAction(goal, _t('지도 열기'), 'tab-map', 'map-explore-atlas'), frontier);
             }
         },
         {
@@ -330,7 +338,7 @@
             id: 'journal-unread',
             priority: 150,
             matches(g) {
-                return !!(g.noti && g.noti.journal);
+                return !!(g.noti && g.noti.journal) && contentProgression.canOpen('tab-journal', g);
             },
             build() {
                 return buildTabAction({
@@ -349,7 +357,7 @@
         {
             id: 'journal-unread-notice',
             matches(g, primary) {
-                return primary !== 'journal-unread' && !!(g.noti && g.noti.journal);
+                return primary !== 'journal-unread' && !!(g.noti && g.noti.journal) && contentProgression.canOpen('tab-journal', g);
             },
             build() { return buildNotice(_t('새 이야기 저널 확인'), 'tab-journal'); }
         },
@@ -358,7 +366,7 @@
             matches(g, primary) {
                 return primary !== 'claim-act-reward' && getAvailableActRewardZoneIds(g).length > 0;
             },
-            build(g) { return buildNotice(_t('액트 보상 {n}개 선택', { n: getAvailableActRewardZoneIds(g).length }), 'tab-map', 'map-explore-hunting'); }
+            build(g) { return withMapAct(buildNotice(_t('액트 보상 {n}개 선택', { n: getAvailableActRewardZoneIds(g).length }), 'tab-map', 'map-explore-atlas'), getAvailableActRewardZoneIds(g)[0]); }
         },
         {
             id: 'cosmos-journey-notice',
@@ -403,12 +411,12 @@
         },
         {
             id: 'passive-points',
-            matches(g) { return clampCount(g.passivePoints) > 0 && !!(g.unlocks && g.unlocks.char); },
+            matches(g) { return clampCount(g.passivePoints) > 0 && !!(g.unlocks && g.unlocks.char) && contentProgression.canOpen('tab-char', g); },
             build(g) { return buildNotice(_t('스킬트리 포인트 {n} 사용', { n: clampCount(g.passivePoints) }), 'tab-char'); }
         },
         {
             id: 'equippable-equipment',
-            matches(g) { return !!(g.unlocks && g.unlocks.items) && hasEquippableInventoryItem(g); },
+            matches(g) { return !!(g.unlocks && g.unlocks.items) && contentProgression.canOpen('tab-items', g) && hasEquippableInventoryItem(g); },
             build() { return buildNotice(_t('빈 장비 칸에 장비 장착'), 'tab-items', 'item-tab-equip'); }
         },
         {
@@ -503,7 +511,8 @@
             requirements: unlock.requirements || [],
             actionLabel: unlock.actionLabel,
             actionTabId: unlock.actionTabId,
-            actionSubtabId: unlock.actionSubtabId
+            actionSubtabId: unlock.actionSubtabId,
+            actionMapAct: unlock.actionMapAct
         };
     }
 

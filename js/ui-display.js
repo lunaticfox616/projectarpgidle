@@ -52,7 +52,14 @@ const uiDisplay = (() => {
     ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'].forEach(type =>
         window.addEventListener(type, markInput, { capture: true, passive: true }));
     window.addEventListener('focus', markInput);
+    /** Watching a visible boss's telegraph is active play, even without input or with a test control focused. */
+    function watchingBoss() {
+        if (typeof game !== 'object' || game.combatHalted || !(game.playerHp > 0)) return false;
+        if (!document.getElementById('tab-battle')?.classList.contains('active')) return false;
+        return game.enemies.some(enemy => enemy && enemy.isBoss && enemy.hp > 0);
+    }
     function restingFrameMs() {
+        if (!document.hidden && watchingBoss()) return 0;
         if (!document.hasFocus()) return UNFOCUSED_FRAME_MS;
         return performance.now() - lastInputAt > RESTING_AFTER_MS ? RESTING_FRAME_MS : 0;
     }

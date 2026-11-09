@@ -17,7 +17,7 @@ const files = [
   'data/severed-wanderers.js',
   'data/items.js', 'data/currency-exchange.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/item-influences.js', 'data/colony-wards.js', 'data/weapon-categories.js',
   'data/unique-equipment.js',
-  'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
+  'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js', 'data/hana-weapon-combos.js',
   'data/passives.js',
   'data/passive-tree-v22.js',
   'data/bosses.js', 'data/monster-sprites.js', 'data/monster-combat-roles.js', 'data/monster-stage-roster.js', 'data/stage-view.js', 'data/knitting.js',
@@ -52,12 +52,13 @@ const files = [
   'js/condition-patterns.js',
   'js/hidden-journal.js',
   'js/severed-wanderers.js',
+  'data/woodsman-battle.js', 'js/combat-woodsman.js', 'js/combat-woodsman-stumps.js',
   'js/enemy-attack-rules.js', 'js/combat-patterns.js', 'js/boss-moves.js', 'js/combat-room-invader.js', 'js/enemy-ambush.js',
   'js/cosmos-rules.js',
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/loop-mutation.js', 'js/combat.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js', 'js/knitting.js', 'js/knitting-rewards.js',
 ];
@@ -2558,8 +2559,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
   assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '한손검은 한손검 자세다');
   assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
-  // 룬 요구 레벨: 시작 룬은 제한이 없고, 레벨이 모자라면 무기보다 먼저 레벨을 말한다.
-  vm.runInContext("[...Object.values(LOOP_STARTER_GEM_BY_HERO),...Object.values(LOOP_MUTATION_STARTER_GEMS).flatMap(Object.values)].forEach(name=>{if(getRuneLevelReq(name))throw new Error('시작 룬에 요구 레벨: '+name);})", context);
+  // 룬 요구 레벨: 처음 받는 기초 스킬은 제한이 없고, 레벨이 모자라면 무기보다 먼저 레벨을 말한다.
+  vm.runInContext("BASIC_SKILL_ROWS.forEach(row=>{if(getRuneLevelReq(row.name))throw new Error('기초 스킬에 요구 레벨: '+row.name);})", context);
   assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), 'Lv.67 필요');
   context.game.level = 100;
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('도약 강타'), false, '돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용이다');
@@ -3274,5 +3275,70 @@ for (const kind of ['nest', 'ambush']) {
   })()`,runtime)));
   assert.deepStrictEqual(result,{mixed:true,owner:true,held:true,opened:true,unpaid:true},
     'mixed meteor rooms preserve ownership, gate progress and the boss-only encounter settlement across a save');
+}
+// Giant Woodsman: element locks at warning; authored waves hit each occupant once, and reload never skips the warning.
+{
+  const runtime=buildGameRuntime();
+  const result=JSON.parse(JSON.stringify(vm.runInContext(`(()=>{
+    game=mergeDefaults({season:10,level:100,currentZoneId:OUTSIDE_CHAOS_ZONE_ID});window.game=game;
+    const enemy=createEnemy(getZone(OUTSIDE_CHAOS_ZONE_ID),{boss:true,count:1,at:0},0);
+    game.enemies=[enemy];game.gridPlayer={gx:4,gy:5};woodsmanBattle.prepare(enemy);
+    const elements=[98,90,84,78,72].map(hp=>{enemy.hp=enemy.maxHp*hp/100;woodsmanBattle.prepare(enemy);return enemy.ele;});
+    enemy.hp=enemy.maxHp;woodsmanBattle.prepare(enemy);
+    const results=[];
+    for(let i=0;i<6;i++){
+      enemy.patternAttackCount=i;
+      const pattern=woodsmanBattle.preview(enemy);
+      pattern.area=woodsmanBattle.warning(enemy,pattern,game.gridPlayer,getCombatTime());
+      const move=woodsmanBattle.plan(pattern),attack={source:enemy,enemyId:enemy.id,delivery:'patternArea',bossPattern:pattern};
+      Object.assign(game.gridPlayer,move.stages[0].cells[0]);
+      let hits=0;
+      while(move.next<move.stages.length){bossMoves.takeStage(attack,[],getCombatTime());hits+=getEnemyCombatImpactTargets(attack).length;}
+      results.push(hits>0&&hits<=pattern.area.woodsman.events.length);
+    }
+    enemy.patternAttackCount=0;
+    const state=woodsmanBattle.preview(enemy);enemy.patternArea=woodsmanBattle.warning(enemy,state,game.gridPlayer,getCombatTime());
+    enemy.hp=enemy.maxHp*.72;woodsmanBattle.prepare(enemy);
+    const held=woodsmanBattle.preview(enemy).attackElement;
+    const restored=mergeDefaults(JSON.parse(serializeSaveState(game))).enemies[0];
+    const release=Object.entries(WOODSMAN_BATTLE.motions).every(([motion,spec])=>woodsmanView.poseAt({motion,startedAt:1000,releasedAt:1000+spec.release},1000+spec.release)===spec.releaseFrame);
+    game.currentZoneId=1;
+    return {elements,results,held,reload:restored.hp===enemy.hp&&!restored.patternArea&&restored.attackTimer===0,release,other:!woodsmanBattle.owns(enemy)};
+  })()`,runtime)));
+  assert.deepStrictEqual(result,{elements:['phys','fire','cold','light','chaos'],results:Array(6).fill(true),held:'phys',reload:true,release:true,other:true});
+}
+// Crossing the threshold latches despite regeneration; a saved installation never duplicates its collision anchors.
+{
+  const runtime=buildGameRuntime();
+  const result=JSON.parse(JSON.stringify(vm.runInContext(`(()=>{
+    game=mergeDefaults({season:10,level:100,currentZoneId:OUTSIDE_CHAOS_ZONE_ID});window.game=game;
+    game.playerHp=1000;game.gridPlayer={gx:4,gy:5};
+    const enemy=createEnemy(getZone(OUTSIDE_CHAOS_ZONE_ID),{boss:true,at:0},0);game.enemies=[enemy];
+    enemy.hp=enemy.maxHp*.6;woodsmanBattle.prepare(enemy);enemy.hp=enemy.maxHp*.7;
+    const pattern=woodsmanBattle.preview(enemy);pattern.area=woodsmanBattle.warning(enemy,pattern,game.gridPlayer,getCombatTime());
+    const cast=pattern.area.woodsman;
+    const attack={source:enemy,bossPattern:{move:{cast}}};woodsmanStumps.resolve(attack,getCombatTime());
+    const first=JSON.stringify(enemy.woodsmanStumps);woodsmanStumps.resolve(attack,getCombatTime()+9999);
+    const restored=mergeDefaults(JSON.parse(serializeSaveState(game))).enemies[0];
+    const result={latched:cast.type==='stump',once:first===JSON.stringify(enemy.woodsmanStumps),
+      saved:restored.woodsmanStumpsPlaced&&restored.woodsmanStumps[0].footprint.columns===3,
+      count:woodsmanStumps.rows().length,coverage:woodsmanStumps.cells().length,
+      blocks:woodsmanStumps.cells().every(c=>getGridBlockedCells().has(gridCellKey(c.gx,c.gy))),
+      next:woodsmanBattle.preview(enemy).woodsmanType!=='stump'};
+    let cube=enemy.woodsmanStumps[0];
+    for(let i=0;i<6;i++){game.combatTimeMs=cube.nextSpawnAt;woodsmanStumps.tick(enemy);}
+    game.combatTimeMs+=900;woodsmanStumps.tick(enemy);
+    game.combatTimeMs+=WOODSMAN_BATTLE.stumps.riseMs;woodsmanStumps.tick(enemy);
+    const absorbed=game.enemies.filter(e=>e.woodsmanAdd===enemy.id).length===0&&cube.absorbedCount===6;
+    game=mergeDefaults(JSON.parse(serializeSaveState(game)));window.game=game;
+    const resumed=game.enemies.find(e=>e.isWoodsman);cube=resumed.woodsmanStumps[0];
+    const hp=resumed.hp;
+    game.combatTimeMs=cube.phaseAt+WOODSMAN_BATTLE.stumps.absorbMs;woodsmanStumps.tick(resumed);
+    const healed=resumed.hp===Math.min(resumed.maxHp,hp+Math.round(resumed.maxHp*.02));
+    const finalHp=resumed.hp;woodsmanStumps.tick(resumed);
+    result.absorbReload=absorbed&&healed&&resumed.hp===finalHp&&cube.absorbedCount===0;
+    return result;
+  })()`,runtime)));
+  assert.deepStrictEqual(result,{latched:true,once:true,saved:true,count:1,coverage:6,blocks:true,next:true,absorbReload:true});
 }
 console.log('smoke-grid-combat passed');

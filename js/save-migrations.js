@@ -20,6 +20,12 @@ function stripBossPatternRuntime(enemy) {
     if (!enemy || typeof enemy !== 'object') return;
     // 다음 예고 미리보기(nextPatternState)는 영역이 없어 겹치지 않으니 그대로 둔다 — 지우면 불러온 탐험이 저장 전과 달라졌다.
     delete enemy.lastPatternState;
+    // The shared pending-hit queue is runtime-only. Restart this authored cast with its full warning on reload.
+    if (enemy.patternMode === 'woodsman') {
+        normalizeWoodsmanStumps(enemy);
+        Object.assign(enemy, { patternArea: null, patternTelegraphKey: null, patternTelegraphStartedAt: 0,
+            nextPatternState: null, attackCast: null, attackTimer: 0, apexRecoveryUntil: 0 });
+    }
     const center = enemy.patternArea && enemy.patternArea.center;
     const nested = center && typeof center === 'object' && ['hp', 'patternArea', 'lastPatternState'].some(key => key in center);
     if (nested) enemy.patternArea.center = { gx: Math.floor(Number(center.gx) || 0), gy: Math.floor(Number(center.gy) || 0) };
@@ -413,31 +419,26 @@ function normalizeSkillSlotsSave(merged) {
     merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
 }
 
-/** An unfinished starter equip guide survives reload. Old versions let bulk sealing consume its target: undo that
- * seal and its one resonance reward, keeping the gem's growth. A deliberately sealed gem without a pending guide stays sealed.
- * A guide is unfinished only while the hero still fights with 기본 공격: a save that wears another attack rune (the guide's mark
- * left from an earlier loop, or a rune the weapon refused) just loses the mark, and its seals stay (2026-10-26 review). */
-/** The guide's rune is worn, or the hero already fights with another attack rune. */
-function starterGuideFinished(state, name) {
-    const summons = Array.isArray(state.equippedSummonSkills) ? state.equippedSummonSkills : [];
-    return [state.activeSkill, state.mobilitySkill, ...summons].includes(name) || state.activeSkill !== '기본 공격';
+/** The loop start (2026-11-09 스킬 전달본 V3.14): the first kill's weapon drop flag, the first loop's starter weapon waiting for its equip guide
+ * (an item id still in the bag, else none), this loop's basic skill elements ({ loop, elements }, valid and distinct, else none) and the
+ * element picked last (the auto loop keeps it). A save from the starter rune days (until 2026-11-09) loses its rune guide mark: the rune it
+ * named is worn when the hero still fights with 기본 공격 (as closing that guide did), and its first-kill flag carries over. */
+function normalizeStarterWeaponSave(state) {
+    wearOldStarterGem(state, state.starterGemTutorialPending);
+    state.loopStarterWeaponGranted = state.loopStarterWeaponGranted === true || state.loopStarterGemGranted === true;
+    for (const key of ['starterGemTutorialPending', 'loopStarterGemGranted', 'pendingStarterRuneChoice']) delete state[key];
+    const pending = state.starterWeaponTutorialPending, bag = Array.isArray(state.inventory) ? state.inventory : [];
+    state.starterWeaponTutorialPending = Number.isSafeInteger(pending) && bag.some(item => item && item.id === pending) ? pending : null;
+    normalizeBasicSkillOfferSave(state);
 }
-function normalizeStarterGemTutorialSave(state) {
-    const name = state.starterGemTutorialPending;
-    const owned = state.skills.concat(state.sealedSkills);
-    state.starterGemTutorialPending = typeof name === 'string' && SKILL_DB[name]?.isGem && owned.includes(name) ? name : null;
-    if (!state.starterGemTutorialPending) return;
-    if (starterGuideFinished(state, name)) {
-        state.starterGemTutorialPending = null;
-        return;
-    }
-    if (state.sealedSkills.includes(name)) {
-        state.skills.push(name);
-        state.sealedSkills = state.sealedSkills.filter(gem => gem !== name);
-        const power = Number.isFinite(state.resonancePower) ? state.resonancePower : defaultGame.resonancePower;
-        state.resonancePower = Math.max(0, power - 1);
-    }
-    state.seenTutorials = state.seenTutorials.filter(key => key !== 'tutorial_starter_gem_equip' && key !== 'action_tutorial_starter_gem_equip');
+function wearOldStarterGem(state, name) {
+    if (typeof name === 'string' && state.activeSkill === '기본 공격' && state.skills.includes(name) && SKILL_DB[name]?.isGem) state.activeSkill = name;
+}
+function normalizeBasicSkillOfferSave(state) {
+    const offer = state.basicSkillOffer, elements = BASIC_SKILL_ELEMENTS.map(row => row.ele);
+    const picked = offer && Number.isInteger(offer.loop) && Array.isArray(offer.elements) ? offer.elements.filter(ele => elements.includes(ele)) : [];
+    state.basicSkillOffer = picked.length && new Set(picked).size === picked.length ? { loop: offer.loop, elements: picked } : null;
+    if (!elements.includes(state.basicSkillElement)) state.basicSkillElement = '';
 }
 
 /** Ownership lists and the base resonance capacity are normalized together before rune operations. Zero is a valid capacity. */
@@ -449,6 +450,12 @@ function normalizeOwnedGemLibrariesSave(state) {
     state.sealedSupports = dedupeList(Array.isArray(state.sealedSupports) ? state.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !state.supports.includes(name)) : []);
     state.equippedSupports = Array.isArray(state.equippedSupports) ? dedupeList(state.equippedSupports.filter(name => state.supports.includes(name))) : [];
     state.resonancePower = Number.isFinite(state.resonancePower) ? Math.max(0, Math.floor(state.resonancePower)) : defaultGame.resonancePower;
+}
+
+/** Before saveVersion 21 every seal added 1 to resonancePower and a restore took it back. The base now leaves the seals out and
+ * gemDropRewards.sealResonance adds 1 per two sealed runes (2026-11-09 사용자). Once, after the rune lists are normalized. */
+function removeOldSealResonanceSave(state) {
+    state.resonancePower = Math.max(0, state.resonancePower - state.sealedSkills.length - state.sealedSupports.length);
 }
 
 /** A mobility gem in the main slot goes to the empty mobility slot, unless the save wears 칼이 된 발걸음 (data/items.js), which keeps
@@ -595,14 +602,10 @@ function normalizePlayerAilmentRow(row, clampFiniteNumber) { // clampFiniteNumbe
     if (row.sourceEnemyName) Object.assign(out, { sourceEnemyId: row.sourceEnemyId === undefined ? null : row.sourceEnemyId, sourceEnemyName: String(row.sourceEnemyName) });
     return out;
 }
-/** 변이시간선(js/loop-mutation.js): the marked loop number (else 0, so a broken one meets the rule from the next loop) and the first
- * kill's pick (offered rune names that still exist, at most three, else none). */
+/** 변이시간선(js/loop-mutation.js): the marked loop number (else 0, so a broken one meets the rule from the next loop). */
 function normalizeLoopMutationState(merged) {
     const season = Number(merged.loopMutationSeason);
     merged.loopMutationSeason = Number.isInteger(season) && season > 0 ? season : 0;
-    const raw = merged.pendingStarterRuneChoice;
-    const gems = raw && Array.isArray(raw.gems) ? raw.gems.filter(name => typeof name === 'string' && SKILL_DB[name]).slice(0, 3) : [];
-    merged.pendingStarterRuneChoice = gems.length ? { gems } : null;
 }
 /** Removed support runes (data/skills.js RETIRED_SUPPORT_GEMS) leave every saved place before validation: their record, the run's
  * rune rewards, rune rows on the floor and in encounter buffers, NPC shelves and the woodsman snapshot. The rune lists are filtered by
@@ -1286,6 +1289,7 @@ function mergeDefaults(save) {
     // Do not treat that unknown legacy flag as a full chase-unique blacklist.
     merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;
     normalizeOwnedGemLibrariesSave(merged);
+    if ((save.saveVersion || 0) < 21) removeOldSealResonanceSave(merged);
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!getSeasonPassiveNodeDef(id)) : [];
     merged.seasonNodeLevels = (merged.seasonNodeLevels && typeof merged.seasonNodeLevels === 'object') ? merged.seasonNodeLevels : {};
     merged.seasonNodes.forEach(id => {
@@ -1475,7 +1479,7 @@ function mergeDefaults(save) {
     const record = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
     merged.npcMet = record(merged.npcMet);
     merged.npcShops = record(merged.npcShops);
-    normalizeStarterGemTutorialSave(merged);
+    normalizeStarterWeaponSave(merged);
     window.GameModules.state.tutorials.normalize(merged);
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해를
@@ -1997,3 +2001,44 @@ function cloneDefaultGame() {
 }
 
 safeExposeGlobals({ mergeDefaults, cloneDefaultGame });
+
+/** Keep only the bounded, non-transient summon anchors when loading a Woodsman encounter. */
+function normalizeWoodsmanStumps(enemy) {
+        enemy.woodsmanStumpsDue = !!enemy.woodsmanStumpsDue;
+        enemy.woodsmanStumpsPlaced = !!enemy.woodsmanStumpsPlaced;
+        const rows = Array.isArray(enemy.woodsmanStumps) ? enemy.woodsmanStumps : [];
+        enemy.woodsmanStumps = rows.filter(c => c && Number.isInteger(c.gx) && Number.isInteger(c.gy)
+            && c.gx >= 0 && c.gy >= 0 && c.gx < 999 && c.gy < 999).slice(0, 1)
+            .map(normalizeWoodsmanStumpAnchor);
+}
+function normalizeWoodsmanStumpAnchor(c) {
+    const time = value => Number.isFinite(value) ? Math.max(0, value) : 0;
+    // Old 1-cell chests retain their footprint: never enlarge a restored obstacle underneath a player.
+    const large = c.footprint?.columns === 3 && c.footprint?.rows === 2;
+    const footprint = large ? { columns: 3, rows: 2 } : { columns: 1, rows: 1 };
+    const { phase, target } = normalizeWoodsmanCycle(c);
+    const cap = WOODSMAN_BATTLE.stumps.maxAdds, count = Number.isFinite(c.absorbedCount) ? Math.floor(c.absorbedCount) : 0;
+    return { gx: c.gx, gy: c.gy, footprint, plantedAt: time(c.plantedAt), nextSpawnAt: time(c.nextSpawnAt),
+        phase, phaseAt: time(c.phaseAt), target, lastSpawnAt: time(c.lastSpawnAt), healAt: time(c.healAt),
+        spawnSerial: Math.floor(time(c.spawnSerial)) % WOODSMAN_BATTLE.stumps.summons.length,
+        absorbedCount: phase === 'absorbing' ? Math.max(0, Math.min(cap, count)) : 0,
+        echoes: phase === 'absorbing' ? normalizeWoodsmanEchoes(c.echoes) : [] };
+}
+function normalizeWoodsmanCycle(c) {
+    let phase = ['idle', 'rising', 'absorbing', 'seeking', 'moving'].includes(c.phase) ? c.phase : 'idle';
+    const target = phase === 'moving' ? normalizeWoodsmanLanding(c.target) : null;
+    if (phase === 'moving' && !target) phase = 'seeking';
+    return { phase, target };
+}
+function normalizeWoodsmanLanding(cell) {
+    return cell && Number.isInteger(cell.gx) && Number.isInteger(cell.gy)
+        && cell.gx >= 0 && cell.gy >= 0 && cell.gx < 999 && cell.gy < 999 ? { gx: cell.gx, gy: cell.gy } : null;
+}
+function normalizeWoodsmanEchoes(value) {
+    const looks = new Set(WOODSMAN_BATTLE.stumps.summons.map(row => row.look));
+    return (Array.isArray(value) ? value : []).filter(e => normalizeWoodsmanLanding(e) && looks.has(e.spriteVariantId))
+        .slice(0, WOODSMAN_BATTLE.stumps.maxAdds).map((e, index) => ({
+            ...normalizeWoodsmanLanding(e), id: Number.isFinite(e.id) ? e.id : -3000 - index,
+            spriteVariantId: e.spriteVariantId, hp: 1, maxHp: 1, isBoss: false,
+            ele: WOODSMAN_BATTLE.elements.includes(e.ele) ? e.ele : 'chaos' }));
+}

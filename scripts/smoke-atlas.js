@@ -34,6 +34,28 @@ assert.deepEqual(graph.tiers, Array.from({ length: 16 }, (_, i) => i + 1), 'ever
 assert.ok(graph.linksValid && graph.inside);
 assert.equal(graph.reached, 50, 'completing nodes outward from tier 1 opens every map and guardian (the pinnacle opens with tickets)');
 
+// Ancient paths must not unlock a final encounter by killing only one subordinate.
+{
+    const { run: gate } = fixture(86);
+    gate("game.atlas.endgame.kills.pinnacle=1;game.atlas.completed=['roots_g','garden_g','canopy_g','sanctum_g']");
+    assert.equal(gate("atlas.status(game,'trunk_0')"),'open');
+    assert.equal(gate("atlasEndgame.ancientGate(game,'apex_archbishop')"),'');
+    gate("game.atlas.endgame.kills.apex_archbishop=1");
+    assert.ok(gate("atlasEndgame.ancientGate(game,'pinnacle_underking')"));
+    gate("game.atlas.endgame.kills.apex_devourer=1");
+    assert.equal(gate("atlasEndgame.ancientGate(game,'pinnacle_underking')"),'');
+    gate("game.atlas.endgame.kills.pinnacle_underking=1");
+    assert.ok(gate("atlasEndgame.ancientGate(game,'woodsman')"));
+    gate("game.atlas.endgame.kills.pinnacle_sky=1;game.atlas.endgame.kills.pinnacle_leviathan=1");
+    assert.equal(gate("atlasEndgame.ancientGate(game,'cosmos_astra')"),'');
+    gate("game.atlas.endgame.kills.cosmos_astra=1");
+    assert.equal(gate("atlasEndgame.ancientGate(game,'woodsman')"),'');
+    assert.ok(gate("atlasEndgame.ancientGate(game,'pinnacle_observer')"));
+    gate("game.atlas.endgame.kills.woodsman=1;game=mergeDefaults(JSON.parse(JSON.stringify(game)))");
+    assert.equal(gate("atlasEndgame.ancientGate(game,'pinnacle_observer')"),'');
+    assert.equal(gate("game.clearedRootBosses.length"),0,'atlas recognition must not consume external bosses first-clear rewards');
+}
+
 // ---------------------------------------------------------------- map items and crafting
 run(`
     var seeded = (seed => () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 0x100000000; })(99);

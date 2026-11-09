@@ -66,7 +66,8 @@ const atlasEndgameUi = (() => {
         const row = fight.row, tier = atlas.effectiveTier(game, atlas.node(row.id)), why = fight.reason || block, [who, where] = titleOf(row);
         const lockId = `atlas-late-lock-${row.id}`;
         return `<div class="atlas-late-card${why ? '' : ' is-ready'}${fight.unlocked ? '' : ' is-locked'}" data-atlas-fight="${row.id}" tabindex="-1">
-            <strong>${escapeHTML(who)}</strong><small>${escapeHTML(where)}, ${tier}등급, ${row.stages.length}단계${fight.kills ? _t(', 처치 {kills}회', { kills: fight.kills }) : ''}</small>
+            ${ATLAS.lore.bosses.some(b => b.id === row.id) ? `<img class="atlas-ancient-portrait" src="assets/enemies/ancients/${row.id}.png" alt="" loading="lazy" decoding="async">` : ''}
+            <strong>${escapeHTML(_t(who))}</strong><small>${escapeHTML(where)}, ${tier}등급, ${row.stages.length}단계${fight.kills ? _t(', 처치 {kills}회', { kills: fight.kills }) : ''}</small>
             ${powerHtml(row, tier)}<div class="atlas-late-entry">${entryHtml(fight.entry)}</div>
             ${sourcesHtml(fight)}${fight.lock ? `<p class="atlas-lock" id="${lockId}">${escapeHTML(fight.lock)}</p>` : ''}
             <button class="atlas-primary" data-exploration-departure onclick="atlasEndgameUi.challenge('${row.id}')" aria-label="${_t('{who} 도전', { who: escapeHTML(who) })}"
@@ -104,13 +105,17 @@ const atlasEndgameUi = (() => {
     function groupHtml(title, fights, block, awakened) {
         const shown = fights.filter(fight => !awakened || filter === 'all' || (filter === 'ready' ? ready(fight, block) : !fight.kills));
         if (!shown.length) return '';
-        shown.sort((a, b) => Number(!ready(a, block)) - Number(!ready(b, block)) || Number(a.kills > 0) - Number(b.kills > 0));
         return `<section class="atlas-late-group"><h3>${title}</h3><div class="atlas-late-cards">${shown.map(fight => fightHtml(fight, block)).join('')}</div></section>`;
     }
     function html() {
         const view = atlasEndgame.overview(game), block = view.awakened ? departBlock() : '';
-        const groups = groupHtml('최종 보스', view.apexes, block, view.awakened) + groupHtml('리그 우두머리', view.leagues, block, view.awakened);
-        return `<div class="atlas-late">${headHtml(view, block)}${followupHtml(view)}
+        const ancientIds = new Set(ATLAS.lore.bosses.map(row => row.id));
+        const groups = [['sun','태양의 계열'],['moon','달의 계열'],['pinnacle','피나클']].map(([path,title]) => {
+            const fights = ATLAS.lore.bosses.filter(row => row.path === path).map(row => view.apexes.find(fight => fight.row.id === row.id));
+            return groupHtml(_t(title), fights, block, view.awakened);
+        }).join('') + groupHtml(_t('남겨진 시련'), view.apexes.filter(fight => !ancientIds.has(fight.row.id)), block, view.awakened)
+            + groupHtml(_t('리그 우두머리'), view.leagues, block, view.awakened);
+        return `<div class="atlas-late">${headHtml(view, block)}<p class="atlas-ancient-order">${_t('괴브니우와 케르눈노스 → 벨라-루 / 비포르네우스와 엘라하 → 아리안로드 / 두 계열 → 나무꾼 → 베일라')}</p>${followupHtml(view)}
             ${groups || `<div class="atlas-fight-empty"><p class="atlas-muted">${_t('조건에 맞는 보스가 없습니다.')}</p><button onclick="atlasEndgameUi.setFilter('all')">${_t('전체 목록 보기')}</button></div>`}
             ${blightHtml(view)}</div>`;
     }

@@ -6,10 +6,12 @@
 (function () {
     'use strict';
 
-    /** 목록이 보여 줄 칸 종류. 화면에만 있는 고르기 상태라 저장하지 않는다. @type {'active'|'mobility'|'summon'|'support'} */
+    /** 목록이 보여 줄 칸 종류, sealed는 봉인한 룬 목록(js/skills-ui.js의 봉인 탭). 화면에만 있는 고르기 상태라 저장하지 않는다.
+     * @type {'active'|'mobility'|'summon'|'support'|'sealed'} */
     let pickerKind = 'active';
     let focusedSkill = { kind: 'active', name: '' };
-    const PICKER_TITLES = Object.freeze({ active: '주 공격 칸에 낄 룬', mobility: '이동 칸에 낄 룬', summon: '소환 칸에 낄 룬', support: '보조스킬룬 칸에 낄 룬' });
+    // 목록 제목(2026-11-09 사용자: 주 공격 칸에 낄 룬 -> 공격스킬룬). 다른 칸도 같은 꼴로 맞췄다.
+    const PICKER_TITLES = Object.freeze({ active: '공격스킬룬', mobility: '이동스킬룬', summon: '소환스킬룬', support: '보조스킬룬', sealed: '봉인한 룬' });
     const RING_RADIUS = 96;
     /** What a click on an engraving slot without an engraving does (the hover tooltip's second line). */
     const ENGRAVE_HINTS = Object.freeze({ open: '눌러서 넣을 각인을 고릅니다.', next: '눌러서 이 칸을 엽니다.', lock: '앞 칸부터 차례로 엽니다.' });
@@ -154,7 +156,7 @@
         return pickerKind;
     }
 
-    /** @param {'active'|'mobility'|'summon'|'support'} kind the board slot whose gems the picker lists next
+    /** @param {'active'|'mobility'|'summon'|'support'|'sealed'} kind the board slot whose gems the picker lists next, or the sealed runes
      * @param {boolean} [stay] the slot dialog opens over the board, so the phone does not scroll to the list */
     function pick(kind, stay) {
         pickerKind = kind;
@@ -194,16 +196,13 @@
     document.addEventListener('click', event => {
         const engrave = event.target.closest('[data-board-engrave]');
         if (engrave) { openEngrave(Number(engrave.dataset.boardEngrave)); return; }
-        const fold = event.target.closest('#btn-skill-picker-fold');
-        if (fold) { toggleGemFoldMode(currentKind() === 'support' ? 'support' : 'attack'); return; }
         const slot = event.target.closest('[data-board-pick]');
         if (!slot) return;
         const kind = slot.dataset.boardPick;
         if (kind !== 'support') { focusedSkill = { kind, name: slot.dataset.boardGem || '' }; render(getUiPlayerStats()); }
-        // 칸을 누르면 룬 칸 창이 바로 뜬다(찬 칸: 등급, 해제, 바꿔 낄 룬 / 빈 칸: 낄 룬). 첫 룬 따라 하기 중에는 옆 목록의 표시를 따라가게 둔다.
-        const guided = !!getStarterGemTutorialTarget();
-        if (kind !== pickerKind) pick(kind, !guided);
-        if (!guided) gemSlotDialog.open(kind, slot.dataset.boardGem || '');
+        // 칸을 누르면 룬 칸 창이 바로 뜬다(찬 칸: 등급, 해제, 바꿔 낄 룬 / 빈 칸: 낄 룬).
+        if (kind !== pickerKind) pick(kind, true);
+        gemSlotDialog.open(kind, slot.dataset.boardGem || '');
     });
 
     /** A real mouse on a device that can hover: after a tap the browser may fire a mouse-type enter on the redrawn slot. */

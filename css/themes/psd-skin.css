@@ -172,9 +172,10 @@
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .support-slot { width: auto; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-picker { border: 0; background: none; box-shadow: none; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-picker-head { padding-bottom: 12px; background: url("../../assets/ui/psd/line.png") left bottom / 100% 8px no-repeat; }
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .skill-picker-fold { border: 8px solid transparent; border-image: url("../../assets/ui/psd/silver.png") 10 fill / 8px stretch; background: none; box-shadow: none; }
+/* 검색 줄의 장착 중 단추가 켜지면 주 단추의 금빛 테(2026-11-09). */
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .search-action-row button[aria-pressed="true"] { border-image: var(--psd-button-on); color: #ffe8a8; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items .search-filter-panel { border: 10px solid transparent; border-image: url("../../assets/ui/psd/search.png") 10 fill / 10px stretch; background: none; box-shadow: none; }
-:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile { border: 12px solid transparent; border-image: url("../../assets/ui/psd/slot.png") 14 fill / 12px stretch; background: none; box-shadow: none; }
+:root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile:not(.sealed-gem-card) { border: 12px solid transparent; border-image: url("../../assets/ui/psd/slot.png") 14 fill / 12px stretch; background: none; box-shadow: none; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui #tab-items #ui-skills-list .gem-tile.active { border-image: url("../../assets/ui/psd/slot-on.png") 14 fill / 12px stretch; }
 :root body[data-ui-skin].psd-skin.desktop-windowed-ui .psd-panel { border: 18px solid transparent; border-image: var(--psd-panel-frame); background: none; }
 }

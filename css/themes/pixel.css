@@ -141,7 +141,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin] :is(
   .equipment-slot-head span, .equipment-empty-label, .equipment-summary-stat span,
   .equipment-triage-copy small, .inventory-view-filter-label,
-  .gem-tag, .gem-card-range, .gem-usage-state, .gem-card-utility, .starter-gem-equip-guide,
+  .gem-tag, .gem-card-range, .gem-usage-state, .starter-gem-equip-guide,
   .map-state-badge, .map-zone-group-count, .ui-goal-desc, .ui-goal-notice-action span, .ailment-stat-title,
   .subtab-btn, .ui-window-actions button, [class*="kicker"]
 ) { font-size: 12px; }
@@ -716,6 +716,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   :root body[data-ui-skin] #loop-hero-select-overlay .tutorial-card { display: flex; flex-direction: column; box-sizing: border-box; max-height: calc(100% - 16px); overflow: hidden; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-confirm { display: flex; flex: none; flex-direction: column; gap: 8px; margin-top: 10px; }
+  /* 속성 고르기 단계(js/passives.js openLoopBasicSkillPick)는 카드를 누르면 바로 정해진다: 직업 확인 판은 숨긴다. */
+  :root body[data-ui-skin] #loop-hero-select-overlay:has(#loop-hero-select-grid.is-basic-pick) .hero-choice-confirm { display: none; }
   :root body[data-ui-skin] #loop-hero-select-overlay :is(.hero-choice-detail, .hero-choice-hint) {
     margin: 0;
     padding: 8px 10px;

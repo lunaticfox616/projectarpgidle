@@ -30,7 +30,7 @@ async function capture(browser, variant, mobile) {
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);
         game.settings.pauseGameOnOverlay = false;
-        grantLoopStarterGemOnFirstKill();
+        if (!game.skills.includes('이중 베기')) game.skills.push('이중 베기');
         changeSkill('이중 베기');
         switchTab('tab-battle');
         // Pause automatic progression only for this disposable screenshot fixture.

@@ -1,22 +1,134 @@
 // Navigation only: existing content entry handlers retain costs, gates and combat rules.
 const explorationAtlasUi = (() => {
-    let signature = '';
+    let signature = '', atlasTurn = null, atlasPlate = null;
+    const overviewSelected = () => game.mapSubtab === 'map-tab-zones' && game.mapExploreSubtab === 'map-explore-atlas';
     const regionFor = route => EXPLORATION_REGIONS.regions.find(region => region.routes.includes(route));
     function available(route) {
         const button = document.getElementById('btn-' + route);
         return !!button && !button.hidden && button.style.display !== 'none' && contentProgression.canOpen(route);
     }
     /** 전체 탐험은 세계 지도(js/world-map-ui.js)다. 권역을 고르는 중간 화면은 없다(2026-11-08: 지도의 자리가 그 몫이다). */
-    function open() {
+    function open(atlasMap = false) {
+        clearAtlasTurn();
+        worldMapUi.showAtlas(atlasMap);
         switchTab('tab-map', { keepWindowOpen: true });
         switchMapSubtab('map-tab-zones');
         switchMapExploreSubtab('map-explore-atlas');
         render();
         scrollToTop();
+        if (atlasMap) focusAtlasControl(true);
+    }
+    /** The world map with a story act picked: its side panel holds the act's reward, travel and 세부 지역. Goals open this, not the act list
+     * (2026-11-09 사용자: 지도 안내가 구버전 맵으로 이동시킴). */
+    function openAct(zoneId) {
+        open();
+        worldMapUi.pickAct(zoneId);
+    }
+    function revealAtlasMap(on) {
+        worldMapUi.showAtlas(on);
+        render();
+        focusAtlasControl(on);
+    }
+    function focusAtlasControl(on) {
+        const selector = on ? '.wm-atlas-back' : '.wm-atlas-entrance';
+        const control = document.querySelector('#ui-exploration-atlas ' + selector);
+        if (!on) control?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        control?.focus({ preventScroll: true });
+    }
+    function clearAtlasTurn() {
+        const turn = atlasTurn;
+        if (!turn) return;
+        atlasTurn = null;
+        turn.motions.forEach(motion => motion.cancel());
+        turn.layer?.remove();
+        turn.view.classList.remove('is-atlas-turning');
+        turn.map.inert = false;
+        turn.map.removeAttribute('aria-busy');
+    }
+    function decodeAtlasPlate() {
+        if (!atlasPlate) {
+            atlasPlate = new Image();
+            atlasPlate.src = WORLD_MAP.atlas.src;
+        }
+        return atlasPlate.decode();
+    }
+    function turnIsVisible(turn) {
+        return turn.owner === game && overviewSelected() && turn.map.isConnected && turn.map.getClientRects().length > 0;
+    }
+    function beginAtlasTurn(map) {
+        const turn = atlasTurn = { map, view: map.parentElement, owner: game, layer: null, motions: [] };
+        map.inert = true;
+        map.setAttribute('aria-busy', 'true');
+        return turn;
+    }
+    function addAtlasLayer(turn) {
+        const layer = document.createElement('div');
+        layer.className = 'wm-map wm-atlas-arriving';
+        layer.setAttribute('aria-hidden', 'true');
+        layer.style.backgroundImage = `url('${WORLD_MAP.atlas.src}')`;
+        turn.view.classList.add('is-atlas-turning');
+        turn.view.append(layer);
+        return layer;
+    }
+    /** Invert the live chart while the decoded art covers it in place. No pause or empty frame. */
+    function blendAtlasTurn(turn) {
+        if (uiDisplay.reducedEffects() || !turn.map.animate) return;
+        const oldHeight = turn.view.offsetHeight;
+        const layer = turn.layer = addAtlasLayer(turn);
+        const timing = { duration: 760, fill: 'both' };
+        turn.motions.push(
+            turn.map.animate([{ filter: 'invert(0)', easing: 'ease-in-out' }, { filter: 'invert(1)', offset: .54 }, { filter: 'invert(1)' }], timing),
+            layer.animate([{ opacity: 0 }, { opacity: 0, offset: .24, easing: 'ease-in-out' }, { opacity: 1 }], timing)
+        );
+        if (Math.abs(oldHeight - layer.offsetHeight) > 1) turn.motions.push(turn.view.animate([
+            { height: `${oldHeight}px` }, { height: `${oldHeight}px`, offset: .24, easing: 'ease-in-out' }, { height: `${layer.offsetHeight}px` }
+        ], timing));
+        return Promise.all(turn.motions.map(motion => motion.finished));
+    }
+    function atlasTurnFailed(turn, error) {
+        if (atlasTurn !== turn) return; // Navigation cancelled the animation intentionally.
+        atlasPlate = null;
+        clearAtlasTurn();
+        console.warn('[atlas-map] Failed to prepare chart', error);
+        if (!turnIsVisible(turn)) return;
+        turn.map.querySelector('.wm-atlas-entrance')?.focus();
+        showGameToast(_t('아틀라스 지도를 불러오지 못했습니다. 다시 눌러 주세요.'));
+    }
+    /** Decode first so the outgoing map remains visible until the new picture can blend over it. */
+    async function transitionAtlasMap(turn) {
+        try {
+            await decodeAtlasPlate();
+            if (atlasTurn === turn && turnIsVisible(turn)) await blendAtlasTurn(turn);
+        } catch (error) {
+            atlasTurnFailed(turn, error);
+            return;
+        }
+        if (atlasTurn !== turn) return;
+        const visible = turnIsVisible(turn);
+        clearAtlasTurn();
+        if (visible) revealAtlasMap(true);
+    }
+    function showAtlasMap(on) {
+        if (!on) { clearAtlasTurn(); revealAtlasMap(false); return; }
+        if (atlasTurn || !overviewSelected()) return;
+        const map = document.querySelector('#ui-exploration-atlas .wm-map:not(.wm-atlas-map)');
+        if (map?.getClientRects().length) return transitionAtlasMap(beginAtlasTurn(map));
+    }
+    function enterAtlasRegion(id) {
+        if (!available('map-explore-worldtree') || !ATLAS.regions.some(region => region.id === id)) return;
+        atlasUi.selectRegion(id, true);
+        enter('map-explore-worldtree');
+        document.querySelector('#ui-atlas .atlas-region-tabs [aria-pressed="true"]')?.focus({ preventScroll: true });
+    }
+    function enterAtlasNode(id) {
+        if (!available('map-explore-worldtree') || !atlas.nodes.some(node => node.id === id)) return;
+        enter('map-explore-worldtree');
+        atlasUi.selectNode(id, true);
     }
     function enter(route) {
         if (!regionFor(route) && route !== 'map-tab-pvp') return;
         if (!available(route)) return;
+        clearAtlasTurn();
         if (route.startsWith('map-explore-')) {
             switchMapSubtab('map-tab-zones');
             switchMapExploreSubtab(route);
@@ -52,7 +164,7 @@ const explorationAtlasUi = (() => {
     function floorProgress(cleared,current) {
         return _t('돌파 {n}층', { n: cleared }) + (current == null ? '' : ` / ${_t('현재 루프 {n}층', { n: current })}`);
     }
-    /** 보상 이름(세계 지도 띠): 올리면 설명 툴팁. */
+    /** 보상 이름(세계 지도 설명 칸): 올리면 설명 툴팁. */
     function rewardNamesHtml(route) {
         const rewards = {
             'map-explore-root-boss': [[_t('고유 장비'),_t('고유 효과를 가진 장비입니다.')],[_t('군주의 핵'),_t(ORB_DB.bossCore.desc),'bossCore']],
@@ -69,7 +181,7 @@ const explorationAtlasUi = (() => {
         const bounds = target.getBoundingClientRect();
         showInfoTooltipHtml(bounds.left,bounds.bottom,`<b>${escapeHTML(target.textContent)}</b><div class="tooltip-line">${escapeHTML(_t(target.dataset.description))}</div>`,'#c9b17b');
     }
-    /** 세계 지도 띠의 액트 단추 묶음(js/world-map-ui.js): 받을 보상, 즉시 이동 또는 전투로 돌아가기, 세부 지역. */
+    /** 세계 지도 설명 칸의 액트 단추 묶음(js/world-map-ui.js): 받을 보상, 즉시 이동 또는 전투로 돌아가기, 세부 지역. */
     const actActionsHtml = index => huntingActionsHtml(index,getAvailableActRewardZoneIds());
     function huntingActionsHtml(index,rewards) {
         const current = game.currentZoneId === index && !game.combatHalted;
@@ -157,7 +269,10 @@ const explorationAtlasUi = (() => {
     function render() {
         const host = document.getElementById('ui-exploration-atlas');
         syncLocation();
-        if (!host || game.mapSubtab !== 'map-tab-zones' || game.mapExploreSubtab !== 'map-explore-atlas') return;
+        // Runtime refreshes may change the map markup while the current chart is being turned.
+        if (atlasTurn && turnIsVisible(atlasTurn)) return;
+        clearAtlasTurn();
+        if (!host || !overviewSelected()) return;
         const arena = available('map-tab-pvp') ? `<button class="atlas-arena" onclick="explorationAtlasUi.enter('map-tab-pvp')">${_t('대전')}</button>` : '';
         const body = worldMapUi.overviewHtml(reader());
         const key = JSON.stringify([body,arena]);
@@ -166,8 +281,10 @@ const explorationAtlasUi = (() => {
         updateOverview(host,body,arena);
     }
     function updateOverview(host,body,arena) {
+        const left = host.querySelector('.wm-view')?.scrollLeft || 0;
         const focus = host.contains(document.activeElement) ? document.activeElement.getAttribute('onclick') : null;
         host.innerHTML = `<header class="atlas-heading"><h2>${_t('탐험')}</h2>${arena}</header>` + body;
+        host.querySelector('.wm-view').scrollLeft = left;
         if (focus) [...host.querySelectorAll('button')].find(button => button.getAttribute('onclick') === focus)?.focus({preventScroll:true});
     }
     /** 세부 화면 위 길잡이(2026-11-08, 세계 지도에 맞춘 탭. 2026-10-25의 권역 탭 두 줄과 권역 고르기 화면을 대신한다): 첫 줄은 세계 지도로
@@ -217,7 +334,8 @@ const explorationAtlasUi = (() => {
         const others = worldMapUi.offMapRoutes().map(entry => `<button class="exploration-place-tab is-plain" aria-pressed="${entry === route}" onclick="explorationAtlasUi.enter('${entry}')"><span>${escapeHTML(routeLabel(entry))}</span></button>`).join('');
         const chips = pageChips(route).map(chip => `<button aria-pressed="${!!chip.on}" onclick="${chip.action}">${escapeHTML(_t(chip.label))}`
             + `${chip.badge ? `<i>${escapeHTML(chip.badge)}</i>` : ''}</button>`).join('');
-        return `<div class="exploration-regions"><button class="exploration-home" onclick="explorationAtlasUi.open()">${_t('세계 지도')}</button>${places}${others}</div>`
+        const atlasMap = route === 'map-explore-worldtree' ? `<button class="exploration-home" onclick="explorationAtlasUi.open(true)">${_t('아틀라스 지도')}</button>` : '';
+        return `<div class="exploration-regions"><button class="exploration-home" onclick="explorationAtlasUi.open()">${_t('세계 지도')}</button>${atlasMap}${places}${others}</div>`
             + `<div class="exploration-routes" role="group" aria-label="${escapeHTML(routeLabel(route))}">${chips}</div>`;
     }
     /** Regions whose progress line is the list of their places (regionProgress). */
@@ -242,6 +360,6 @@ const explorationAtlasUi = (() => {
             <h2>${escapeHTML(_t(!route ? region.name : hunting ? '나무' : routeLabel(route)))}</h2>${progress}</div>`;
         if (writeHtmlIfChanged(banner, html)) banner.className='atlas-theme-'+region.id;
     }
-    return {open,enter,page,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};
+    return {open,openAct,enter,showAtlasMap,enterAtlasRegion,enterAtlasNode,page,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};
 })();
 safeExposeGlobals({explorationAtlasUi});

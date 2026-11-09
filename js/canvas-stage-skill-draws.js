@@ -3,6 +3,7 @@
  * - 혈기 폭쇄의 바늘 찌르기: 뿌리 굵고 끝이 가는 방추가 0.08초에 뻗고, 잠깐 머문 뒤 뿌리부터 걷힌다. 끝에 십자 번쩍임과 속도선 둘.
  * - 공허 가르기의 우주 틈: 베는 선이 0.08초에 그어지고, 그 자국이 별과 성운이 보이는 틈으로 벌어졌다가 닫힌다.
  * - 투사체의 몸: 속성 장식이 붙은 창과 큰 창, 쌍독니, 세로로 도는 방패, 화살, 작살, 던지는 플라스크, 바위 플라스크의 바위 병.
+ * - 이중 발동, 이중 시전의 두 번째 발동: 앞 발동 자세의 원소 색 잔상과 머리 위 ×2(2026-11-08 전달본 V3.9.6).
  * 도트 하나가 캐릭터 도트 하나다. 그리기만 한다: 언제 어디에 그릴지는 js/canvas-stage-skill-rules.js가 정한다.
  */
 const stageSkillDraws = (() => {
@@ -479,6 +480,45 @@ const stageSkillDraws = (() => {
         ctx.restore();
         return true;
     }
-    return Object.freeze({ pierce: piercePaint, gash: gashPaint, body: drawBody, rock: ROCK });
+
+    // ---------------------------------------------------------------- echo (이중 발동, 이중 시전)
+    /** 두 번째 발동의 잔상과 머리 위 표시(2026-11-08 전달본 V3.9.6 echoFx). 0.07초에 떠오르고, 0.42초 가운데 앞 2할은 그대로, 뒤는 옅어진다.
+     * 밝은 잔상(중간색, 진하기 0.5)은 6도트 뒤에서 12도트 뒤로 물러나고, 옅은 잔상(밝은색, 0.18)은 3도트 뒤에 선다. ×n은 발에서 128도트 위, 앞으로 18도트에서
+     * 10도트 오르며 옅어진다(갈무리11, 어두운 테). */
+    const ECHO = Object.freeze({ life: 420, pop: 70, hold: 0.2, back: 6, near: 3, bright: 0.5, faint: 0.18, lift: 128, rise: 10, ahead: 18, font: 12, rim: '#0b0a10' });
+    /** @param {{face:number, count:number, ink:{c1:string,c2:string}, bright:?Function, faint:?Function}} look bright, faint: stageActors.afterimage가 준
+     * 그리기(그린 적이 없으면 null) @returns {{life:number, paint:Function}} paint의 붓은 주인공의 발 자리에 놓인다 */
+    function echoPaint(look) {
+        return { life: ECHO.life, paint: (ctx, t, dot) => {
+            const u = t / ECHO.life, pop = Math.min(1, t / ECHO.pop), fade = u < ECHO.hold ? 1 : Math.max(0, 1 - (u - ECHO.hold) / (1 - ECHO.hold));
+            echoGhost(ctx, look.bright, { dx: -look.face * ECHO.back * (1 + u) * dot, alpha: ECHO.bright * fade * pop, dot });
+            echoGhost(ctx, look.faint, { dx: -look.face * ECHO.near * dot, alpha: ECHO.faint * fade, dot });
+            echoMark(ctx, look, { x: look.face * ECHO.ahead * dot, y: -(ECHO.lift + ECHO.rise * u) * dot, alpha: fade, dot });
+        } };
+    }
+    function echoGhost(ctx, ghost, at) {
+        if (!ghost) return;
+        ctx.save();
+        ctx.translate(Math.round(at.dx), 0);
+        ghost(ctx, at.dot, at.alpha);
+        ctx.restore();
+    }
+    /** 머리 위 ×n: 갈무리11의 제 크기(12px, 도트가 크면 그 배수)로 정수 화소에 찍는다. */
+    function echoMark(ctx, look, at) {
+        const size = ECHO.font * Math.max(1, Math.round(at.dot)), label = `×${look.count}`;
+        ctx.save();
+        ctx.globalAlpha *= at.alpha;
+        ctx.font = `${size}px ${i18n.fontFamily("'Galmuri11'")}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.lineWidth = Math.round(size / 4);
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = ECHO.rim;
+        ctx.fillStyle = look.ink.c1;
+        drawCrispCanvasText(ctx, label, at.x, at.y, 'strokeText');
+        drawCrispCanvasText(ctx, label, at.x, at.y);
+        ctx.restore();
+    }
+    return Object.freeze({ pierce: piercePaint, gash: gashPaint, body: drawBody, rock: ROCK, echo: echoPaint });
 })();
 safeExposeGlobals({ stageSkillDraws });

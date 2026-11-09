@@ -100,10 +100,11 @@ test('the phone dock keeps its cells when the map unlocks', async ({ page }, inf
     // Review 2026-10-01 #24: the dock grew from 4 to 5 cells after act 1 and 스킬룬 moved under the thumb.
     // 2026-10-13: 스킬룬 opens from the 장비 button (one window, two tabs); the dock's third shortcut is 스킬트리.
     // 2026-11-03 사용자: the dock fits as many shortcuts as its width holds, so a Pixel 5 also shows 캐릭터 and 기록.
+    // 2026-11-09: the skill tree is bought in loop 2, so loop 1's dock has no 스킬트리 cell.
     const cells = () => page.locator('#tab-header-bottom > :is(.tab-btn, .mobile-nav-more):visible').evaluateAll(elements =>
         elements.map(el => el.id + '@' + Math.round(el.getBoundingClientRect().left)));
     const before = await cells();
-    expect(before.map(cell => cell.split('@')[0]).sort()).toEqual(['btn-mobile-nav-more', 'btn-tab-battle', 'btn-tab-char', 'btn-tab-character', 'btn-tab-items', 'btn-tab-journal', 'btn-tab-map']);
+    expect(before.map(cell => cell.split('@')[0]).sort()).toEqual(['btn-mobile-nav-more', 'btn-tab-battle', 'btn-tab-character', 'btn-tab-items', 'btn-tab-journal', 'btn-tab-map']);
     const map = page.locator('#btn-tab-map');
     await expect(map).toHaveClass(/nav-locked/);
     await expect(map).toHaveAttribute('aria-disabled', 'true');
@@ -133,7 +134,12 @@ test('a class card shows its start gem before the pick and leaves no class toolt
     const overlay = page.locator('#loop-hero-select-overlay');
     const detail = overlay.locator('#loop-hero-select-detail');
     const start = overlay.locator('#loop-hero-select-start');
-    const gemLine = classId => page.evaluate(id => `시작 스킬룬: ${LOOP_STARTER_GEM_BY_HERO[PLAYER_CLASS_DEFS[id].recommendedTalentHeroId]}`, classId);
+    const gemLine = classId => page.evaluate(id => `기초 스킬: ${BASIC_SKILL_WEAPONS.find(row => row.family === basicSkills.familyOf(id)).base}`, classId);
+    // 직업을 정하면 같은 창이 기초 스킬의 속성을 묻는다(js/passives.js openLoopBasicSkillPick)
+    const pickElement = async () => {
+        await expect(overlay).toHaveClass(/active/);
+        await overlay.locator('.basic-skill-choice').first()[mobile ? 'tap' : 'click']();
+    };
     const started = () => page.evaluate(() => game.heroSelectionInitialized);
     if (mobile) {
         await expect(start).toBeDisabled();
@@ -149,11 +155,13 @@ test('a class card shows its start gem before the pick and leaves no class toolt
         await expect(start).toBeInViewport({ ratio: 1 });
         expect((await start.boundingBox()).height).toBeGreaterThanOrEqual(44);
         await start.tap();
+        await pickElement();
     } else {
         await expect(start).toBeHidden();
         await overlay.locator('[data-class-id="warrior"]').hover();
         await expect(page.locator('#info-tooltip')).toContainText(await gemLine('warrior'));
         await overlay.locator('[data-class-id="warrior"]').click();
+        await pickElement();
     }
     await expect(overlay).not.toHaveClass(/active/);
     expect(await page.evaluate(() => [game.heroSelectionInitialized, game.selectedClassId])).toEqual([true, 'warrior']);
@@ -210,6 +218,6 @@ test('the phone goal drawer folds on a screen change unless pinned', async ({ pa
     await opener.tap();
     await expect(drawer).toHaveClass(/expanded/);
     await page.locator('#ui-goal-pin').tap();
-    await page.locator('#btn-tab-char').tap();
+    await page.locator('#btn-tab-character').tap();
     await expect(drawer).toHaveClass(/expanded/);
 });

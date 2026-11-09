@@ -259,7 +259,8 @@ function getHeroRunRate(move) {
     return clampNumber(rate, 0.8, HERO_RUN_RATE_MAX);
 }
 
-/** Timing the Hana sprite needs. Its attack clip outlives the legacy swing window, so it reads battleFx directly. */
+/** Timing the hero sprites need. An attack clip outlives the swing's windup (duration): the record stays tailMs longer for that
+ * (js/passives.js cleanupBattleFx), so the frames after the hit still find it. */
 function collectHanaPlayerMotion(motion, now) {
     let found = { swing: null, hit: null, down: null };
     for (let index = battleFx.length - 1; index >= 0; index--) {

@@ -1,11 +1,19 @@
-/* 세계 지도(js/world-map-ui.js, data/world-map.js): 전체 탐험 화면의 지도, 권역 단추, 테와 지시선, 표식, 이름표, 아래 띠, 그 밖의 곳 줄.
+/* 세계 지도(js/world-map-ui.js, data/world-map.js): 전체 탐험 화면의 왼쪽 설명 칸, 오른쪽 지도(권역 단추, 테와 지시선, 표식, 이름표), 아래 그 밖의 곳 줄.
    #ui-exploration-atlas 앞머리는 css/components/tabs.css의 모든 단추 돌 바탕 규칙보다 앞서기 위해서다(exploration-atlas.css와 같다). */
 @layer components {
-#ui-exploration-atlas .world-map { padding: 12px 14px 14px; }
-/* 지도: 688x384 도트 그림을 탭 너비에 맞춰 채운다(비율 고정). 688px보다 좁은 칸(휴대폰)에서는 1배로 두고 가로로 스크롤한다.
-   표식과 이름표는 % 자리라 함께 움직이고, 표식 크기는 지도 너비 기준(cqw)이라 container-type을 둔다. */
+/* 판 짜임(사용자 11-09): 왼쪽 250px 설명 칸, 오른쪽에 지도가 남은 너비를 채우고 그 아래 그 밖의 곳 한 줄. 설명 칸은 두 줄에 걸쳐 그 높이만큼 늘어나고,
+   바로 가기 줄이 많아 지도보다 길면 줄이 함께 자라 지도 쪽 아래가 빈다(기본 창의 지도는 334px쯤이라 스크롤 칸보다 낫다).
+   지도 탭 창은 기본 너비가 860px쯤이라 지도가 제 크기(688px)보다 작게 그려진다(사용자 11-09: 크기는 알맞게). 760px보다 좁은 칸에서는 세로로 쌓는다(아래 @container). */
+#ui-exploration-atlas .world-map { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 10px 12px; align-items: stretch; padding: 12px 14px 14px; }
+#ui-exploration-atlas .wm-side-wrap { grid-column: 1; grid-row: 1; min-height: 0; }
+#ui-exploration-atlas .world-map.has-others .wm-side-wrap { grid-row: 1 / span 2; }
+#ui-exploration-atlas .wm-side { box-sizing: border-box; height: 100%; }
+#ui-exploration-atlas .wm-view { grid-column: 2; grid-row: 1; align-self: start; }
+#ui-exploration-atlas .wm-others { grid-column: 2; align-self: start; }
+/* 지도: 688x384 도트 그림을 제 칸 너비에 맞춰 채운다(비율 고정). 표식과 이름표는 % 자리라 함께 움직이고, 표식 크기는 지도 너비 기준(cqw)이라 container-type을 둔다.
+   기본 창에서는 600px쯤이라 CSS px로는 줄어들지만 125% 화면(사용자)에서는 장치 픽셀로 1.09배라 점을 그대로(pixelated) 두는 쪽이 또렷하다. */
 #ui-exploration-atlas .wm-view { overflow-x: auto; scrollbar-width: thin; scrollbar-color: #bb8c45 #282014; }
-#ui-exploration-atlas .wm-map { position: relative; width: 100%; min-width: 688px; aspect-ratio: 688 / 384; border: 1px solid #5a4322; box-shadow: 0 0 0 1px #c7ac6333, 0 6px 18px #00000080; container-type: inline-size; }
+#ui-exploration-atlas .wm-map { position: relative; box-sizing: border-box; width: 100%; aspect-ratio: 688 / 384; border: 1px solid #5a4322; box-shadow: 0 0 0 1px #c7ac6333, 0 6px 18px #00000080; container-type: inline-size; }
 #ui-exploration-atlas .wm-art { position: absolute; inset: 0; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: pixelated; }
 /* 권역 단추: 바탕은 같은 지도 그림을 그 칸만큼 잘라 둔 것(JS가 자리와 크기를 %로 준다)이라 평소엔 투명하고, 올리면 그 지형 조각만 밝아진다.
    clip-path가 클릭 영역도 폴리곤으로 자른다. min-height 0은 모든 단추의 최소 높이(css/base.css) 때문이다. */
@@ -54,25 +62,122 @@
 #ui-exploration-atlas .wm-tag.is-left { justify-content: flex-end; text-align: right; }
 #ui-exploration-atlas .wm-tag:is(.is-linked, .is-picked, .is-current) { display: flex; }
 #ui-exploration-atlas .wm-tag.is-locked > span { color: #ead9b6; border-style: dashed; }
-/* 띠: 고른 곳(없으면 현재 위치)의 이름, 종류와 상태, 설명, 이동 단추. 액트 단추 묶음은 exploration-atlas.css의 .atlas-hunting-action 그대로, 세로로 쌓는다. */
-#ui-exploration-atlas .wm-band { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; margin-top: 10px; padding: 10px 14px; border: 1px solid #c7ac6355; border-left: 3px solid #e2c27a; background: linear-gradient(115deg, #2a2213, #0f0d08 75%); color: #e8e9dd; }
-#ui-exploration-atlas .wm-band > i { width: 39px; height: 39px; background-size: 100% 100%; image-rendering: pixelated; }
-#ui-exploration-atlas .wm-band > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-#ui-exploration-atlas .wm-band small { color: #dccfab; font-size: var(--font-size-meta); }
-#ui-exploration-atlas .wm-band strong { font-size: 18px; font-weight: 500; color: #f2eee1; }
-#ui-exploration-atlas .wm-band p { margin: 0; color: #cfc6ae; font-size: var(--font-size-ui); line-height: 1.5; }
-#ui-exploration-atlas .wm-band-actions { flex-direction: column; align-items: stretch; justify-content: center; max-width: none; gap: 6px; }
-#ui-exploration-atlas .wm-go { min-height: 32px; padding: 6px 14px; border: 1px solid #c3ad7690; background: #75644250; color: #f4e4bd; font-size: var(--font-size-ui); font-weight: 600; }
-#ui-exploration-atlas .wm-go:hover { border-color: #e2c27a; color: #fff1d4; }
-/* 지도에 없는 곳: 지도 아래 한 줄의 작은 단추. */
-#ui-exploration-atlas .wm-others { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+/* 설명 칸(사용자 11-09): 고른 곳(없으면 현재 위치) 하나의 종류, 이름, 설명, 보상, 바로 가기, 이동 단추를 세로로 쌓는다. 다른 지역 목록과 표식 그림은 두지 않는다.
+   색감(사용자 11-09): --wm-tone은 그 자리의 표식 색(js/world-map-ui.js sideFor)이고 왼쪽 띠, 바탕의 첫 색, 종류 글, 이름, 줄 사이 선, 단추가 그 색을 섞어 쓴다.
+   단추 묶음은 exploration-atlas.css의 .atlas-hunting-action 그대로 세로로 쌓여 칸 바닥에 붙는다(margin-top auto). */
+#ui-exploration-atlas .wm-side { --wm-tone: #e2c27a; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--wm-tone) 35%, #0c0a07); border-left: 3px solid var(--wm-tone); background: linear-gradient(165deg, color-mix(in srgb, var(--wm-tone) 20%, #15120b), #0f0d08 72%); color: #e8e9dd; }
+#ui-exploration-atlas .wm-side-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+#ui-exploration-atlas .wm-side-text > small { color: color-mix(in srgb, var(--wm-tone) 75%, #fff8e6); font-size: var(--font-size-meta); }
+#ui-exploration-atlas .wm-side strong { font-size: 18px; font-weight: 500; color: color-mix(in srgb, var(--wm-tone) 30%, #f7f1e3); }
+#ui-exploration-atlas .wm-side p { margin: 1px 0 0; color: #cfc6ae; font-size: var(--font-size-ui); line-height: 1.5; }
+/* 단추 묶음은 칸 바닥에 붙는다(margin-top auto). */
+#ui-exploration-atlas .wm-side-actions { flex-direction: column; align-items: stretch; justify-content: flex-start; max-width: none; gap: 6px; margin-top: auto; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--wm-tone) 30%, transparent); }
+/* 바로 가기(사용자 11-09, js/world-map-brief-ui.js): 세부 탭이 지금 내주는 일을 줄마다 이름과 상태, 작은 단추로. 머리글은 없고(사용자 11-09) 넘치는 줄 수는 끝의 +N.
+   단추가 넓거나 글이 길면 단추가 다음 줄 오른쪽으로 내려간다(flex-wrap). */
+#ui-exploration-atlas .wm-brief { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; border-top: 1px solid color-mix(in srgb, var(--wm-tone) 30%, transparent); }
+#ui-exploration-atlas .wm-brief-more { align-self: flex-end; color: color-mix(in srgb, var(--wm-tone) 60%, #e3d6b4); font-size: var(--font-size-meta); }
+#ui-exploration-atlas .wm-brief-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 28px; padding: 3px 0; border-bottom: 1px dotted color-mix(in srgb, var(--wm-tone) 30%, transparent); }
+#ui-exploration-atlas .wm-brief-row:last-child { border-bottom: 0; }
+#ui-exploration-atlas .wm-brief-row > span { display: flex; flex: 1 1 130px; flex-direction: column; min-width: 0; }
+#ui-exploration-atlas .wm-brief-row b { overflow: hidden; color: #efe6cf; font-size: var(--font-size-ui); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+#ui-exploration-atlas .wm-brief-row small { color: #cfc3a3; font-size: var(--font-size-meta); line-height: 1.35; }
+#ui-exploration-atlas .wm-brief-row > button { flex: none; margin-left: auto; min-height: 26px; padding: 2px 9px; border: 1px solid color-mix(in srgb, var(--wm-tone) 55%, #0c0a07); background: color-mix(in srgb, var(--wm-tone) 14%, #14110b); color: color-mix(in srgb, var(--wm-tone) 45%, #fff4dc); font-size: var(--font-size-ui); }
+#ui-exploration-atlas .wm-brief-row > button:hover:not(:disabled) { border-color: var(--wm-tone); background: color-mix(in srgb, var(--wm-tone) 26%, #14110b); color: #fff8ea; }
+#ui-exploration-atlas .wm-brief-row > button:disabled { opacity: .5; cursor: default; }
+#ui-exploration-atlas .wm-go { min-height: 32px; padding: 6px 14px; border: 1px solid color-mix(in srgb, var(--wm-tone) 60%, #0c0a07); background: color-mix(in srgb, var(--wm-tone) 22%, #14110b); color: #fff1d4; font-size: var(--font-size-ui); font-weight: 600; }
+#ui-exploration-atlas .wm-go:hover { border-color: var(--wm-tone); background: color-mix(in srgb, var(--wm-tone) 34%, #14110b); }
+/* 지도에 없는 곳(군락지, 창공, 낚시, 경계 너머가 열렸을 때만): 지도 아래 한 줄의 작은 단추. */
+#ui-exploration-atlas .wm-others { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 #ui-exploration-atlas .wm-others > span { color: #a7b29c; font-size: var(--font-size-ui); margin-right: 4px; }
 #ui-exploration-atlas .wm-chip { min-height: 26px; padding: 2px 10px; border: 1px solid #c7ac6355; background: #14110b; color: #dcca9c; font-size: var(--font-size-ui); box-shadow: inset 3px 0 0 #c7ac6380; }
 #ui-exploration-atlas .wm-chip:hover { border-color: #e2c27a; color: #fff1d4; }
+/* 수관의 문은 그림을 바꾸고, 새 지도의 권역은 기존 지도석 화면을 연다. */
+#ui-exploration-atlas .wm-atlas-entrance,
+#ui-exploration-atlas .wm-atlas-back,
+#ui-exploration-atlas .wm-atlas-region {
+    border: 1px solid #899fbc; background: #101827f5; color: #eef4ff;
+    font-family: var(--font-pixel-meta); font-size: var(--font-size-ui); line-height: 1.2;
+}
+#ui-exploration-atlas .wm-atlas-entrance {
+    position: absolute; z-index: 6; display: flex; align-items: center; gap: 4px;
+    min-height: 30px; padding: 2px 4px 2px 8px; transform: translate(-87%, -50%);
+    border-color: #a5c7b2; background: #14241ef5; color: #dcffe6; white-space: nowrap;
+}
+#ui-exploration-atlas .wm-atlas-entrance > i { width: 20px; height: 20px; background-size: contain; image-rendering: pixelated; }
+#ui-exploration-atlas .wm-atlas-back { min-height: 32px; padding: 4px 10px; }
+#ui-exploration-atlas .wm-atlas-overview .wm-side { --wm-tone: #a0badd; }
+#ui-exploration-atlas .wm-atlas-lock { padding-top: 8px; border-top: 1px solid #899fbc50; }
+#ui-exploration-atlas .wm-atlas-legend {
+    display: flex; flex-wrap: wrap; gap: 4px 12px; color: #e5cf9b;
+}
+#ui-exploration-atlas .wm-atlas-legend > span { display: inline-flex; align-items: center; gap: 4px; }
+#ui-exploration-atlas .wm-atlas-legend i { width: 18px; height: 18px; background-size: contain; image-rendering: pixelated; }
+#ui-exploration-atlas .wm-map:is(.wm-atlas-map, .wm-atlas-arriving) {
+    border-color: #7189ac; background: #111827; overflow: hidden;
+}
+#ui-exploration-atlas .wm-view.is-atlas-turning { position: relative; overflow: hidden; }
+#ui-exploration-atlas .wm-map.wm-atlas-arriving {
+    position: absolute; top: 0; left: 0; z-index: 8; pointer-events: none;
+    background-size: 100% 100%; background-repeat: no-repeat;
+}
+#ui-exploration-atlas .wm-art.wm-atlas-art { image-rendering: auto; }
+#ui-exploration-atlas .wm-atlas-region {
+    position: absolute; z-index: 1; transform: translate(-50%, -50%);
+    min-height: 23px; max-width: 29%; padding: 2px 6px; font-size: var(--font-size-meta);
+    border-color: color-mix(in srgb, var(--wm-region) 55%, #ead9bd);
+    background: color-mix(in srgb, var(--wm-region) 48%, #191522); color: #fff1d9;
+    box-shadow: 0 1px 3px #0009;
+}
+#ui-exploration-atlas .wm-atlas-region:disabled { opacity: .9; color: #ced9ea; cursor: default; }
+#ui-exploration-atlas .wm-atlas-routes {
+    position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
+    stroke: color-mix(in srgb, var(--wm-region) 35%, #231a25); stroke-width: 1.5; stroke-dasharray: 3 2;
+}
+/* 아틀라스 지도의 표식(2026-11-09 사용자: 아틀라스 아이콘 개선): 여러 색 도트 그림(js/world-map-ui.js atlasIcon, data/world-map.js atlas.icons)을
+   정수 배로 키운다. 지도 노드는 권역 색 테의 팔각 돌판 위에 등급 숫자(--wm-tier: 흰색, 노란색, 빨간색), 수호자는 뿔 달린 방패, 정점은 관측자의 눈을
+   품은 별이고 크기가 그 순서로 커진다. 잠긴 곳은 그림이 회색이고 숫자는 등급 색을 흐리게 남긴다. 갈 수 있는 곳은 빛나고 깨면 ✓, 보너스는 ★. */
+#ui-exploration-atlas .wm-atlas-node {
+    --wm-node-size: clamp(20px, 4.2cqw, 30px);
+    position: absolute; z-index: 2; transform: translate(-50%, -50%);
+    display: grid; place-items: center; width: var(--wm-node-size); height: var(--wm-node-size); min-height: 0; padding: 0;
+    border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--wm-tier, #ece6d8);
+}
+#ui-exploration-atlas .wm-atlas-node.kind-guardian { --wm-node-size: clamp(24px, 4.9cqw, 34px); z-index: 3; }
+#ui-exploration-atlas .wm-atlas-node.kind-pinnacle { --wm-node-size: clamp(30px, 6.2cqw, 44px); z-index: 3; }
+#ui-exploration-atlas .wm-atlas-node > span {
+    display: grid; place-items: center; position: relative; width: 100%; height: 100%;
+    background: center / 100% 100% no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 1px #000c);
+    font: 700 clamp(9px, 1.9cqw, 13px)/1 var(--font-pixel-meta); text-shadow: 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000;
+}
+#ui-exploration-atlas .wm-atlas-node.is-locked { color: color-mix(in srgb, var(--wm-tier, #ece6d8) 60%, #5d5563); }
+#ui-exploration-atlas .wm-atlas-node[aria-disabled="true"] { cursor: default; }
+#ui-exploration-atlas .wm-atlas-node.is-open > span { filter: drop-shadow(0 0 3px #ffe7a6) drop-shadow(0 1px 1px #000c); }
+#ui-exploration-atlas .wm-atlas-node:is(.is-complete, .is-bonus) > span::after {
+    content: '✓'; position: absolute; right: -3px; bottom: -2px; padding: 1px;
+    border-radius: 2px; background: #221d27; color: #daf2b8; font: 700 9px/1 sans-serif; text-shadow: none;
+}
+#ui-exploration-atlas .wm-atlas-node.is-bonus > span::after { content: '★'; color: #f4d989; }
+#ui-exploration-atlas .wm-atlas-node:is(:hover, :focus-visible) { z-index: 4; outline: 2px solid #fff0cf; outline-offset: 1px; }
+#ui-exploration-atlas .wm-atlas-node:is(:hover, :focus-visible) > span { color: #fff7e5; }
+#ui-exploration-atlas :is(.wm-atlas-entrance, .wm-atlas-back, .wm-atlas-region):not(:disabled):is(:hover, :focus-visible) {
+    border-color: #d7f0ff; color: #fff; background: #283b54; outline: 2px solid #bcdbff; outline-offset: 1px;
+}
 @media (prefers-reduced-motion: reduce) { #ui-exploration-atlas .wm-pin { transition: none; animation: none; } }
+/* 좁은 칸: 지도가 한 줄을 다 쓰고 설명 칸은 그 아래 띠 한 줄(표식, 글, 단추)로 눕는다. 688px보다 좁은 칸(휴대폰)에서는 지도를 1배로 두고 가로로 스크롤한다. */
+@container (max-width: 760px) {
+    #ui-exploration-atlas .world-map { grid-template-columns: minmax(0, 1fr); }
+    #ui-exploration-atlas .wm-view { grid-column: 1; }
+    #ui-exploration-atlas .wm-map { min-width: 688px; }
+    #ui-exploration-atlas .wm-atlas-region { min-height: 28px; }
+    #ui-exploration-atlas .wm-side-wrap { grid-column: 1; grid-row: 2; }
+    #ui-exploration-atlas .wm-others { grid-column: 1; }
+    #ui-exploration-atlas .wm-side { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; background: linear-gradient(115deg, color-mix(in srgb, var(--wm-tone) 20%, #15120b), #0f0d08 75%); }
+    #ui-exploration-atlas .wm-brief { grid-column: 1 / -1; }
+    #ui-exploration-atlas .wm-side-actions { margin: 0; padding: 0; border-top: 0; justify-content: center; }
+}
 @container (max-width: 650px) {
     #ui-exploration-atlas .world-map { padding: 10px; }
-    #ui-exploration-atlas .wm-band { grid-template-columns: minmax(0, 1fr); }
-    #ui-exploration-atlas .wm-band > i { display: none; }
+    #ui-exploration-atlas .wm-side { grid-template-columns: minmax(0, 1fr); }
+    #ui-exploration-atlas .wm-atlas-back { align-self: flex-start; }
 }
 }

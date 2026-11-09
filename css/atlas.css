@@ -331,4 +331,22 @@
     (지역 줄 자리 css/themes/rift-stage.css + 줄 안 여백 13px). */
  body.desktop-windowed-ui #ui-atlas-combat{position:absolute;left:calc(var(--stage-rail-width, 0px) + var(--stage-gutter, 16px) + 13px);top:72px;z-index:7;width:max-content;max-width:calc(100% - var(--combat-log-width) - 26px);box-sizing:border-box}
 }
+
+/* Ancient atlas: regional routes, then the sun/moon encounters. */
+#ui-atlas .atlas-region-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+#ui-atlas .atlas-region-tabs button{flex:1 1 100px;min-height:64px;padding:8px;display:grid;gap:3px;text-align:left;border-top:3px solid var(--tint)}
+#ui-atlas .atlas-region-tabs button[aria-pressed="true"]{border-color:var(--atlas-gold);background:#2a241b}
+#ui-atlas .atlas-region-tabs small{color:var(--atlas-muted)}
+#ui-atlas .atlas-region-tabs b{font-size:11px;color:var(--atlas-gold)}
+#ui-atlas .atlas-region-route{padding:12px;border:1px solid var(--atlas-edge);background:#121318}
+#ui-atlas .atlas-region-route h3{margin:0;color:var(--atlas-gold-hi)}
+#ui-atlas .atlas-route-chart{border-radius:0;aspect-ratio:1;overflow:visible;max-width:720px}
+#ui-atlas .atlas-route-chart .atlas-art{border-radius:0}
+#ui-atlas .atlas-route-chart .atlas-node{overflow:visible}
+#ui-atlas .atlas-route-name{position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:11px;color:var(--atlas-ink);white-space:nowrap;background:#121318e8;padding:2px 4px;pointer-events:none}
+#ui-atlas .atlas-ancient-entry{padding:10px 18px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .atlas-ancient-entry button{min-height:44px;padding:8px 18px}
+#ui-atlas .atlas-ancient-order{padding:12px 18px;line-height:1.7;color:var(--atlas-gold-hi)}
+#ui-atlas .atlas-ancient-portrait{height:148px;width:100%;object-fit:contain;image-rendering:pixelated;display:block;margin:0 0 10px}
+@container(max-width:480px){#ui-atlas .atlas-route-name{font-size:10px;max-width:100px;white-space:normal;width:max-content}}
 }

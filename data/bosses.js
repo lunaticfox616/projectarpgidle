@@ -383,11 +383,11 @@ function getWispMonsterVisualDefinition(variantSeed, element) {
 
 /** 아틀라스는 지역의 생물군을 쓴다. 위습과 무기 뿌리는 기존 희귀 등장 굴림에서만 고른다. */
 const ATLAS_MONSTER_POOLS = Object.freeze({
-    roots: Object.freeze(['act1-ant', 'act3-worm', 'act3-slime', 'postchaos-inverted-sapling']),
+    roots: Object.freeze(['act1-ant', 'colony-borer-grub', 'colony-carapace-beetle', 'postchaos-inverted-sapling']),
     trunk: Object.freeze(['act7-husk-stag', 'act7-crackback-tick', 'act8-shroud-toad', 'postchaos-inverted-sapling']),
     canopy: Object.freeze(['atlas-canopy-leafglider', 'act8-veil-moth', 'act9-dirge-crane']),
-    garden: Object.freeze(['atlas-garden-bonsai-snail', 'act7-husk-stag', 'act9-chorus-bulbs']),
-    sanctum: Object.freeze(['deacon-act8-melee', 'deacon-act8-ranged', 'act10-graft-beast', 'act9-chorus-bulbs'])
+    garden: Object.freeze(['underworld-beetle', 'underworld-hound', 'underworld-obsidian-centipede']),
+    sanctum: Object.freeze(['ocean-angler', 'ocean-crab', 'ocean-shell', 'ocean-oracle'])
 });
 /** 이 지역의 일반·정예 외형 목록: 스토리 액트와 아틀라스는 지역 몫, 그 밖은 혼돈 목록. */
 function getActMonsterPool(zone) {

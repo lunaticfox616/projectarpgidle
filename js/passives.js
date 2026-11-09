@@ -3711,6 +3711,7 @@ function getPassiveKeystoneConflict(path) {
  * 거절한다(2026-10-20 검토: "활성화!"가 뜬 뒤 다음 틱에 되돌아갔다). */
 function activatePassivePath(targetNodeId, options) {
     if (game.woodsmanBuildLock) return { activated: false, cost: 0, path: [], reason: 'locked', message: _t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.') };
+    if (!contentProgression.canOpen('tab-char')) return { activated: false, cost: 0, path: [], reason: 'locked' };
     return allocatePassivePath(targetNodeId, options);
 }
 
@@ -3858,10 +3859,15 @@ function importPassiveTreePreset(slotIndex, code) {
     return preset;
 }
 
+function getPassiveAutoInvestPreset() {
+    if (game.woodsmanBuildLock || !contentProgression.canOpen('tab-char')) return null;
+    const planner = ensurePassiveTreePlannerState();
+    return planner.autoInvest ? planner.presets[planner.activeSlot] : null;
+}
+
 function runPassiveTreeAutoInvest() {
-    let planner = ensurePassiveTreePlannerState();
-    let preset = planner.presets[planner.activeSlot];
-    if (!planner.autoInvest || !preset || game.woodsmanBuildLock) return { nodes: 0, points: 0 };
+    const preset = getPassiveAutoInvestPreset();
+    if (!preset) return { nodes: 0, points: 0 };
     let result = { nodes: 0, points: 0 };
     let guard = Math.min(preset.nodeIds.length + 1, Math.max(0, Math.floor(game.passivePoints || 0)) + 1);
     while (guard-- > 0 && game.passivePoints > 0) {
@@ -4503,7 +4509,7 @@ function addBattleFx(type, data) {
         let requestedDelay = Number(payload.impactDelayMs);
         let delay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : (payload.projectile ? 260 : 205);
         latestPlayerSwingImpactAt = now + delay;
-        payload = { ...payload, impactAt: latestPlayerSwingImpactAt, motionVariantSeed: Math.random() };
+        payload = { ...payload, impactAt: latestPlayerSwingImpactAt, motionVariantSeed: Math.random(), tailMs: getPlayerSwingTailMs() };
     }
     if (type === 'combatTravel' && payload.patternKind === 'field' && payload.skillName === '난타 눈보라') {
         battleFx = battleFx.filter(fx => !(fx && fx.type === type
@@ -4617,8 +4623,24 @@ function trimRectToContent(image, rect, padding) {
         return rect;
     }
 }
+/** 휘두름 기록(playerSwing)이 준비 시간(duration) 뒤에도 남는 시간(tailMs): 전달본 그림(data/stage-characters.js)의 타격 장이 있는 클립 가운데
+ * 첫 장을 뺀 가장 긴 것. 주인공 그림은 타격 장 뒤의 장(되돌리기)을 타격 뒤에 그림 속도 이하로 그리고 타격 장은 1장 이상이라(js/canvas-hana-actors.js
+ * attackPose) 되돌리기가 이보다 길 수 없다. 기록이 duration에서 지워지던 동안 되돌리기는 어느 직업과 무기에서도 안 나왔고, 타격 장이 2장인
+ * 연금술사 활 공격은 기본 공격에서 두 장만 보였다(2026-11-09 사용자). 그림은 제 길이에서 끝나므로 기록만 더 남는다. */
+let playerSwingTailMs = null;
+function getPlayerSwingTailMs() {
+    if (playerSwingTailMs === null) {
+        const classes = typeof STAGE_CHARACTERS === 'object' && STAGE_CHARACTERS ? Object.values(STAGE_CHARACTERS.classes) : [];
+        const clips = classes.flatMap(entry => Object.values(entry.weapons)).flatMap(set => Object.values(set)).filter(clip => Array.isArray(clip.hit));
+        playerSwingTailMs = clips.reduce((longest, clip) => {
+            const ms = Array.isArray(clip.ms) ? clip.ms : Array(clip.frames).fill(clip.ms);
+            return Math.max(longest, ms.slice(1).reduce((sum, value) => sum + value, 0));
+        }, 0);
+    }
+    return playerSwingTailMs;
+}
 function cleanupBattleFx(now) {
-    battleFx = battleFx.filter(fx => now - fx.start <= fx.duration);
+    battleFx = battleFx.filter(fx => now - fx.start <= fx.duration + (fx.tailMs || 0));
 }
 function cleanupBattleVisualState(now) {
     battleVisualState.projectiles = (battleVisualState.projectiles || []).filter(projectile => now - projectile.start <= projectile.duration + 60);
@@ -5116,18 +5138,14 @@ function isLoopHeroSelectOpen() {
     return !!overlay && overlay.classList.contains('active');
 }
 
-/** 직업 카드 툴팁: 고를 때 필요한 것만, 첫 처치 때 받는 시작 스킬룬과 그 설명, 전직 셋(검토 2026-10-01, 대표 무기 줄은
- * 사용자 요청으로 뺐다 2026-10-15). */
+/** 직업 카드 툴팁: 고를 때 필요한 것만, 그 직업의 기초 스킬(속성은 고른 뒤 정한다, 2026-11-09 전달본 V3.14)과 그 설명, 전직 셋(검토 2026-10-01). */
 function buildHeroChoiceTooltipHtml(classId, experienced) {
     let def = PLAYER_CLASS_DEFS[classId];
     if (!def) return '';
-    // 변이 루프는 첫 처치에서 셋 중 하나를 고른다(js/loop-mutation.js starterChoices)
-    const choices = loopMutation.starterChoices(classId) || [];
-    const gem = choices.length > 1 ? _t('{choices} 중 하나', { choices: choices.join(', ') }) : LOOP_STARTER_GEM_BY_HERO[def.recommendedTalentHeroId] || '이중 베기';
-    const gemLine = String((SKILL_DB[gem] || {}).desc || '').split('.')[0];
+    const basic = BASIC_SKILL_WEAPONS.find(row => row.family === basicSkills.familyOf(classId));
     return `<div class="tooltip-title">${escapeHTML(_t(def.label))}${experienced ? _t(' <span style="color:#9fd8ff;">경험함</span>') : ''}</div>
-        <div class="tooltip-line" style="color:#f6c461;">${_t('시작 스킬룬: {gem}', { gem: escapeHTML(gem) })}</div>
-        ${gemLine ? `<div class="tooltip-line">${escapeHTML(gemLine)}.</div>` : ''}
+        ${basic ? `<div class="tooltip-line" style="color:#f6c461;">${escapeHTML(_t('기초 스킬: {name}, 속성은 골라서 받습니다', { name: _t(basic.base) }))}</div>
+        <div class="tooltip-line">${escapeHTML(_t(basic.desc))}</div>` : ''}
         <div class="tooltip-line" style="color:#d8b4ff;">전직: ${escapeHTML(getAscendanciesForClass(classId).map(id => CLASS_TEMPLATES[id].name).join(', '))}</div>`;
 }
 
@@ -5139,7 +5157,7 @@ function showHeroChoiceTooltip(event, classId, experienced) {
 }
 
 /** 직업 확인 판(index.html #loop-hero-select-overlay .hero-choice-confirm, 휴대폰 배치에서만 보인다): 고른 카드 표시, 툴팁과 같은
- * 시작 스킬룬과 전직, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
+ * 기초 스킬과 전직, "이 직업으로 시작" 단추(value = 고른 직업). 판이 커지며 카드 목록이 줄어도 고른 카드는 보이게 둔다.
  * classId가 없으면 고르기 전(안내 문구, 단추 잠김)으로 되돌린다. 판이 없는 DOM(노드 스모크)에서는 하는 일이 없다. */
 function renderLoopHeroChoiceDetail(classId, experienced) {
     let detail = document.getElementById('loop-hero-select-detail');
@@ -5157,7 +5175,7 @@ function renderLoopHeroChoiceDetail(classId, experienced) {
 }
 
 /** 직업 카드 누름. PC는 바로 정한다. 휴대폰 배치는 툴팁이 없어 직업을 모르고 골랐다(검토 2026-10-01) — 첫 누름은 카드를 고르고
- * 판에 시작 스킬룬과 전직을 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
+ * 판에 기초 스킬과 전직을 보이며, 고른 카드를 다시 누르거나 "이 직업으로 시작"을 누르면 chooseLoopHero로 정한다. */
 function pressLoopHeroChoice(classId, experienced) {
     let start = document.getElementById('loop-hero-select-start');
     if (!uiDisplay.matches('(max-width: 1080px)') || start.value === classId) return chooseLoopHero(classId);
@@ -5186,6 +5204,8 @@ function openLoopHeroSelection(onSelect, options = {}) {
     if (titleEl) titleEl.innerText = options.title || _t('다음 루프 직업 선택');
     if (bodyEl) bodyEl.innerHTML = escapeHTML(options.body || _t('이번 루프에서 사용할 직업을 선택하세요.')) + loopHeroMutationHtml();
     let experiencedSet = new Set(game.heroSelectionInitialized && Array.isArray(game.discoveredClassIds) ? game.discoveredClassIds : []);
+    grid.classList.remove('is-basic-pick');
+    loopBasicSkillClassId = null;
     grid.innerHTML = PLAYER_CLASS_ORDER.map(id => {
         let def = PLAYER_CLASS_DEFS[id];
         let experienced = experiencedSet.has(id);
@@ -5200,12 +5220,51 @@ function openLoopHeroSelection(onSelect, options = {}) {
     return true;
 }
 
+/** 직업을 정하면 같은 창에서 기초 스킬의 속성을 고른다(openLoopBasicSkillPick). 무기는 루프의 첫 처치가 떨어뜨린다
+ * (js/combat.js grantLoopStarterWeaponOnFirstKill, 2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착 안내로). */
 function chooseLoopHero(classId) {
     if (!PLAYER_CLASS_DEFS[classId]) return;
     applyHeroSelection(classId, { silent: true, skipSave: true, alignTalent: true });
-    grantClassStarterWeapon(classId);
+    openLoopBasicSkillPick(classId);
+}
+let loopBasicSkillClassId = null;   // 속성 고르기를 기다리는 직업
+/** 기초 스킬의 속성 고르기(2026-11-09 사용자 "캐릭터 고를 때, 5가지 속성 중 랜덤 2개 중 선택"): 직업 카드 자리에 선택지마다 그 직업 무기의
+ * 기초 스킬 카드(아이콘, 이름, 속성, 설명)를 놓는다. 변이시간선의 약점 속성은 적어 둔다(면역 속성은 선택지에 없다, js/basic-skills.js offer). */
+function openLoopBasicSkillPick(classId) {
+    const grid = document.getElementById('loop-hero-select-grid'), family = basicSkills.familyOf(classId);
+    if (!grid || !family) {   // 창이 없는 실행(노드 검사)은 자동 루프처럼 고른다
+        if (family) basicSkills.grant(game, classId, basicSkills.autoPick(game));
+        return finishLoopHeroChoice(classId);
+    }
+    loopBasicSkillClassId = classId;
+    const rule = loopMutation.of(game.season), elements = basicSkills.offer(game);
+    document.getElementById('loop-hero-select-title').innerText = _t('시작 속성 선택');
+    document.getElementById('loop-hero-select-body').innerHTML = escapeHTML(_t('{label}의 기초 스킬 속성을 고르세요.', { label: _t(PLAYER_CLASS_DEFS[classId].label) }))
+        + loopHeroMutationHtml();
+    grid.classList.add('is-basic-pick');
+    grid.innerHTML = elements.map(ele => loopBasicSkillCardHtml(basicSkills.nameOf(family, ele), ele, rule)).join('');
+    renderLoopHeroChoiceDetail(null);
+    grid.parentElement.scrollTo(0, 0);
+}
+function loopBasicSkillCardHtml(name, ele, rule) {
+    const weak = rule && rule.weak === ele ? _t(', 약점 피해 +{weakTakenPct}%', { weakTakenPct: LOOP_MUTATION.weakTakenPct }) : '';
+    return `<button type="button" class="basic-skill-choice" style="--basic-ele:${getElementColor(ele)}" onclick="chooseLoopBasicSkill('${ele}')">
+        <img class="basic-skill-icon" src="${escapeHTML(SKILL_GEM_ART_PATHS[name] || '')}" alt="" draggable="false">
+        <strong>${escapeHTML(_t(name))}</strong><span class="basic-skill-element">${escapeHTML(_t(DAMAGE_ELEMENT_LABELS[ele]) + weak)}</span>
+        <small>${escapeHTML(_t(SKILL_DB[name].desc))}</small></button>`;
+}
+/** 고른 속성의 기초 스킬을 받고 직업 고르기를 끝낸다. */
+function chooseLoopBasicSkill(ele) {
+    const classId = loopBasicSkillClassId;
+    if (!PLAYER_CLASS_DEFS[classId]) return;
+    loopBasicSkillClassId = null;
+    basicSkills.grant(game, classId, ele);
+    finishLoopHeroChoice(classId);
+}
+function finishLoopHeroChoice(classId) {
     let overlay = document.getElementById('loop-hero-select-overlay');
     if (overlay) overlay.classList.remove('active');
+    document.getElementById('loop-hero-select-grid')?.classList.remove('is-basic-pick');
     let callback = loopHeroSelectionCallback;
     loopHeroSelectionCallback = null;
     if (typeof callback === 'function') callback(classId);
@@ -5455,7 +5514,7 @@ function getDeathHints() {
     const rewards = getAvailableActRewardZoneIds(), fillable = countFillableEmptySlots();
     return [
         rewards.length ? { text: _t('받지 않은 액트 보상 {length}개', { length: rewards.length }), action: { label: _t('받기'), onclick: `closeDeathOverlay();openActReward(${rewards[0]})` } } : null,
-        game.passivePoints > 0 ? { text: _t('쓰지 않은 스킬트리 포인트 {passivePoints}점', { passivePoints: game.passivePoints }), action: { label: _t('스킬트리'), onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
+        game.passivePoints > 0 && contentProgression.canOpen('tab-char') ? { text: _t('쓰지 않은 스킬트리 포인트 {passivePoints}점', { passivePoints: game.passivePoints }), action: { label: _t('스킬트리'), onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
         game.equipment['무기'] ? null : { text: _t('무기 칸이 비어 있습니다') },
         fillable ? { text: _t('가방에 바로 낄 수 있는 장비 {fillable}개', { fillable }), action: { label: _t('채우기'), onclick: 'fillEmptyEquipmentSlots();renderDeathHints()' } } : null,
         shopDeathHint(),
@@ -5676,6 +5735,7 @@ function buildDeathMonsterSummary(windowMs, events) {
 function getActRewardConfig(zoneId, owner = game) {
     const config = ACT_REWARD_DB[zoneId];
     if (!config) return null;
+    if (config.firstLoop && owner.season === 1) return config.firstLoop;
     // All original choices locked: keep the act reward useful without unlocking its content early.
     if (config.lockedChoices && !config.choices.some(choice => isActRewardChoiceAvailable(choice, owner))) {
         return { ...config, body: config.lockedBody, choices: config.lockedChoices };
@@ -5695,6 +5755,7 @@ function getSupportActRewardFallback(choice) {
 }
 
 function isActRewardChoiceAvailable(choice, owner = game) {
+    if (choice.kind === 'points' && owner.season === 1) return contentProgression.canOpen('tab-char', owner);
     if (choice.kind === 'support' || choice.stat === 'suppCap') return contentProgression.isUnlocked('support', owner);
     if (choice.kind === 'currency') return contentProgression.canDropCurrency(choice.currency, owner);
     return true;
@@ -5726,16 +5787,14 @@ function getActRewardChoices(zoneId) {
         return enriched;
     });
 }
-/** 루프를 시작하며 직업을 고를 때 무기 칸이 비어 있으면 그 직업의 대표 무기(직업 카드의 '대표 무기' 대분류에서 가장 낮은 바탕)를 보통 등급으로
- * 쥐여 준다. 2026-10-17 스킬룬 무기 규칙(맨손은 주문과 투사체 룬을 못 쓴다)으로 맨손 시작의 궁수와 연금술사가 시작 룬을 쓰지 못했다(사용자 결정:
- * "대표 무기를 들고 시작"). 봉인해 물려받은 무기가 있으면 그대로 둔다. @returns {?object} 쥐여 준 무기 */
-function grantClassStarterWeapon(classId) {
+/** 그 직업의 대표 무기(대표 무기 대분류에서 가장 낮은 바탕)를 보통 등급으로 만든다. 무기 칸이 차 있으면(봉인해 물려받은 무기) null.
+ * 루프의 첫 처치가 떨어뜨린다(js/combat.js grantLoopStarterWeaponOnFirstKill, 2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착
+ * 안내로). 2026-10-17부터는 직업을 고를 때 쥐여 주었다(맨손은 주문과 투사체 룬을 못 쓴다). @returns {?object} */
+function createClassStarterWeapon(classId) {
     if (!game.equipment || game.equipment['무기']) return null;
     const bases = keepWeaponCategoryBases(BASE_ITEM_DB.filter(base => base.slot === '무기' && !base.realmBase && !base.dropOnly), HANA_WEAPON_COMBOS.classWeapons[classId]);
     const base = bases.reduce((best, row) => (!best || row.reqTier < best.reqTier ? row : best), null);
-    if (!base) return null;
-    const item = createItemFromBase(base, 'normal', 1);
-    return equipIntoFirstEmptySlot(item) ? item : null;
+    return base ? createItemFromBase(base, 'normal', 1) : null;
 }
 /** 액트 보상 무기는 직업 대표 무기(직업 카드의 '대표 무기')의 대분류로 나온다. 아무 무기나 나와 궁수가 대검을 받기도 했다(플레이 리뷰 2026-10-07). */
 function describeActRewardWeapon() {
@@ -5849,7 +5908,9 @@ function grantJournalBonus(entryId, state = game) {
     if (state === game) {
         if (entry.bonus.stat === 'passivePoint' && typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
         playerStatCache.invalidate();
-        addLog(_t('저널 영구 보너스 획득: {label}', { label: _t(entry.bonus.label) }), 'season-up');
+        if (contentProgression.opening.canOpen(game, 'tab-journal')) {
+            addLog(_t('저널 영구 보너스 획득: {label}', { label: _t(entry.bonus.label) }), 'season-up');
+        }
     }
 }
 function unlockJournalEntry(entryId, state = game) {
@@ -5858,15 +5919,20 @@ function unlockJournalEntry(entryId, state = game) {
     if (!state.journalEntries.includes(entryId)) {
         state.journalEntries.push(entryId);
         if (JOURNAL_DB[entryId].discoveryOnly) return; // 읽을거리만 보관: 보상·새 기록 목표·팝업을 추가하지 않는다.
-        state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
-        state.noti.journal = true;
+        markJournalUnread(state);
         if (state === game) {
-            addLog(_t('📓 저널 해금: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
+            if (contentProgression.opening.canOpen(state, 'tab-journal')) {
+                addLog(_t('📓 새 기록: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
+            }
             worldTreeBark.rewardPinnacleFirstKill(entryId);
             if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
         }
     }
     grantJournalBonus(entryId, state);
+}
+function markJournalUnread(state) {
+    state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
+    state.noti.journal = true;
 }
 function ensureActJournalCompletionForLoop(options) {
     let silent = !options || options.silent !== false;
@@ -9779,9 +9845,10 @@ function unlockLegacyCurrencyFeatures(currencyKey) {
     return unlocked;
 }
 
-// Explicit returns from crafting stay in inventory; ordinary drops keep the auto-equip setting.
+// Explicit returns from crafting stay in inventory; ordinary drops keep the auto-equip setting. The first loop's starter weapon waits in the
+// bag for its equip guide (js/combat.js grantLoopStarterWeaponOnFirstKill, starterWeaponTutorialPending).
 function getAcquiredItemAutoEquipSlot(item, options) {
-    if (options?.skipAutoEquip) return null;
+    if (options?.skipAutoEquip || (item && item.id === game.starterWeaponTutorialPending)) return null;
     return typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;
 }
 

@@ -62,7 +62,11 @@ body.reduced-effects .opening-intro .opening-intro-next { animation:none; }
   padding:10px 18px; border:var(--px-window-edge, 2px) solid transparent; border-image:var(--px-window-frame, none); background:var(--px-wood, #15110c), var(--px-stone, #0b0a08);
   background-clip:padding-box; box-shadow:6px 6px 0 rgba(0,0,0,.5); color:#efe3c8; text-align:left; word-break:keep-all; pointer-events:none; animation:opening-lesson-in .32s steps(4, jump-end); }
 .opening-lesson::after { content:''; position:absolute; top:0; right:16px; left:16px; height:2px; background:var(--lesson-kind); opacity:.8; pointer-events:none; }
-.opening-lesson[hidden] { display:none; }
+.opening-lesson-action { pointer-events:auto; font:inherit; color:#f0d9a0; background:#33281c; border:1px solid #a08657; padding:6px 14px; cursor:pointer; }
+.opening-lesson-action:is(:hover, :focus-visible) { background:#513d25; }
+.opening-lesson:has(> .opening-lesson-action) { min-width:0; padding:8px 12px; }
+.opening-lesson-text + .opening-lesson-action { margin-top:6px; }
+body.opening-chat-locked [data-message-tab="chat"] { display:none; }
 .opening-lesson-head { display:flex; align-items:center; gap:10px; }
 .opening-lesson-kicker { color:var(--lesson-kind); font-size:12px; font-weight:700; line-height:16px; }
 .opening-lesson-dots { display:flex; gap:4px; }
@@ -80,6 +84,7 @@ body.reduced-effects .opening-intro .opening-intro-next { animation:none; }
 .opening-lesson.is-compact .opening-lesson-title { grid-row:1; grid-column:1; margin:0; font-size:12px; line-height:16px; }
 .opening-lesson.is-compact .opening-lesson-head { grid-row:1; grid-column:2; }
 .opening-lesson.is-compact .opening-lesson-text { grid-column:1 / -1; }
+.opening-lesson[hidden] { display:none; }
 
 /* 쓰러진 주인공의 머리 위에서 누를 곳을 가리키는 화살표(showWakeMark): 깨어나기 단계에서만, 카드와 같은 전장 상자 안. */
 .opening-wake-mark { position:absolute; z-index:19; width:0; height:0; pointer-events:none; }

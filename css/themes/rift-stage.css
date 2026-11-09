@@ -1,4 +1,6 @@
 @layer overrides {
+/* 기록 판 높이 손잡이(js/ui-window-manager.js)는 좁은 전투 화면의 세로 배치에서만 보인다(아래 max-width 1080px 규칙). */
+.combat-log-resize { display: none; }
 /* 균열 등불(rift) 스킨의 "전장 전체 화면" 배치.
    프로토타입처럼 전투 캔버스가 화면 전체를 쓰고, 메뉴 레일·지역 줄·미니맵·전투 기록·목표·HUD는 캔버스 위에 떠 있다.
    DOM·ID·스크립트 참조는 그대로이고 자리와 표면만 바꾼다. 캔버스 크기는 resizeBattlefieldCanvas가
@@ -257,11 +259,21 @@
    따로 띠를 두지 않고 전장 아래쪽에 섞여 겹친다. 전장은 가로 20칸을 다 보이고(data/stage-view.js STAGE_ROOMS.stacked,
    js/canvas-stage-actors.js stageView.stacked) 바닥의 앞쪽 끝이 HUD 위에 온다. 그 아래 남는 높이는 펼친 전투 기록(접지 않는다).
    키가 600px 넘는 가로 창(절반 폭 PC 창, 태블릿 가로)도 같은 배치다(2026-11-07 사용자: 중간 크기 전투 화면을 없애고 작은 화면과 하나로).
-   가로 창에서 4:3 전장이 판 자리를 다 먹지 않게 전장 높이는 기록 판 176px(탭 줄, 채팅 입력 줄, 두세 줄)을 남긴 데까지다. */
+   가로 창에서 4:3 전장이 판 자리를 다 먹지 않게 전장 높이는 기록 판 176px(탭 줄, 채팅 입력 줄, 두세 줄)을 남긴 데까지다.
+   판 위 가장자리의 손잡이로 그 몫(--combat-log-reserve, js/ui-window-manager.js)을 늘린다. 전장은 160px 아래로 줄지 않는다. */
 @media (max-width: 1080px) and (orientation: portrait), (max-width: 1080px) and (min-height: 601px) {
+  body[data-ui-skin="rift"].mobile-battle-tab {
+    --rift-stage-room: calc(100dvh - var(--bottom-tab-height, 0px) - env(safe-area-inset-top));
+    --rift-stage-cap: calc(var(--rift-stage-room) - min(var(--combat-log-reserve, 176px), var(--rift-stage-room) - 160px));
+  }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-panel { grid-template-rows: auto minmax(0, 1fr); }
-  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-stage { grid-row: 1; aspect-ratio: 4 / 3;
-    max-height: calc(100dvh - var(--bottom-tab-height, 0px) - env(safe-area-inset-top) - 176px); }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-stage { grid-row: 1; aspect-ratio: 4 / 3; max-height: var(--rift-stage-cap); }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-log-resize {
+    display: block; grid-row: 2; grid-column: 1; align-self: start; position: relative; z-index: 21;
+    height: 14px; margin: 0 6px; cursor: ns-resize; touch-action: none; }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-log-resize::before {
+    content: ""; position: absolute; top: 4px; left: 50%; width: 48px; height: 4px; margin-left: -24px; border-radius: 2px; background: rgba(226, 194, 122, .5); }
+  body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-log-resize:is(:hover, :focus-visible, .is-dragging)::before { background: #e2c27a; }
   /* 전장은 판 폭을 다 쓴다(816px 한도는 예전 가운데 전장 몫, css/mobile.css): 화면 배율 100%의 125% 모니터 절반 창은 CSS 폭이 960px이라 양옆이 비었다 */
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .battlefield-wrap { width: 100%; }
   body[data-ui-skin="rift"].mobile-battle-tab #tab-battle .combat-zone-row { grid-row: 1; align-self: start; margin: 0; padding: 8px 8px 0 10px; }
@@ -299,7 +311,7 @@
   /* 알림(사건, 전리품)은 싸움 위가 아니라 전장 바로 밑, 기록 판의 위쪽에 뜬다(전장은 화면 폭의 4:3, 가로 창은 위의 높이 한도까지) */
   :root body[data-ui-skin="rift"].mobile-battle-tab:has(#tab-battle.active) .game-toast-region,
   :root body[data-ui-skin="rift"].mobile-battle-tab:has(#tab-battle.active):has(#ui-enemy-list:not([hidden]) .enemy-card.targeted) .game-toast-region {
-    top: calc(min(100vw * .75, 100dvh - var(--bottom-tab-height, 0px) - env(safe-area-inset-top) - 176px) + 8px);
+    top: calc(min(100vw * .75, var(--rift-stage-cap)) + 8px);
     right: 10px;
     left: 10px;
   }

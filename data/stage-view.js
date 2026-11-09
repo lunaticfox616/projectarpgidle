@@ -41,8 +41,11 @@ const STAGE_VIEW = Object.freeze({
      * kickoff 사라지기 전에 박차고 나가기(암살, 그림자 점멸: 한손검 이동), pull 끌려가는 동안 밧줄 당기기(작살화살: 활 이동). */
     poseMotions: Object.freeze({ kickoff: 'move', pull: 'move' }),
     /** 룬이 동작 표(data/stage-skill-vfx.js motions, 전달본에서 만드는 표)와 다른 동작을 쓰는 자세: 룬 → 자세 → 동작.
-     * 빙결 파열창은 주문 룬이지만 창을 날리므로 활을 들면 다른 원소 창처럼 활을 쏜다(2026-11-02 사용자). */
-    runeStanceMotions: Object.freeze({ '빙결 파열창': Object.freeze({ bow: 'attack' }) }),
+     * 빙결 파열창은 주문 룬이지만 창을 날리므로 활을 들면 다른 원소 창처럼 활을 쏜다(2026-11-02 사용자).
+     * 연발 사격은 표의 연타사격(13장, 10-20 원본 그대로) 대신 활 공격(개선본)을 쓴다(2026-11-09 사용자: "개선된 활 공격으로"). 휘두름 효과는
+     * 준비 시간(투사체 400ms)만 살아 있어 연타사격은 첫 발사까지 7장만 나오고 남은 세 발은 대기 자세에서 날아갔다(들썩들썩 제보). 화살은
+     * 전처럼 네 번에 나눠 나가고 그림만 한 번 당겨 쏜다. */
+    runeStanceMotions: Object.freeze({ '빙결 파열창': Object.freeze({ bow: 'attack' }), '연발 사격': Object.freeze({ bow: 'attack' }) }),
     /** 그림자 점멸이 박차고 나가는 시간(ms): 그동안 그림은 떠난 칸에 있고 휘두름 앞부분에 이동 동작을 그린 뒤 사라져 닿는 칸에 나타난다. */
     kickoffMs: 200
 });

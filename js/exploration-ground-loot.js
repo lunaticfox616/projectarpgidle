@@ -18,11 +18,8 @@ actExplorationState.groundLoot = (() => {
      * @typedef {{gx:number, gy:number, kind:'stump', item:object}} GroundLootStumpRow a rolled stump box seed or sap (stumpBox.rollKillDrop:
      *   no id until it reaches the box; compost when the storage is full by then).
      * @typedef {{gx:number, gy:number, kind:'leaf', leaf:string}} GroundLootLeafRow a memory leaf id (data/memory-leaves.js, 2026-10-09).
-     * @typedef {{gx:number, gy:number, kind:'gem', gem:string, choices?:string[]}} GroundLootGemRow the loop's starter gem by name
-     *   (SKILL_DB), dropped by the loop's first kill (js/combat.js grantLoopStarterGemOnFirstKill, 2026-10-15). In a mutation loop
-     *   choices are the three runes offered (js/loop-mutation.js starterChoices) and gem is the first, taken when the row is settled.
      * @typedef {{gx:number, gy:number, kind:'rune', gem:{kind:'attack'|'support',name:string,awakened?:boolean,tier?:number}}} GroundLootRuneRow an exact gem reward (gemDropRewards.validateGem).
-     * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootStumpRow|GroundLootLeafRow|GroundLootGemRow|GroundLootRuneRow} GroundLootRow
+     * @typedef {GroundLootEquipmentRow|GroundLootCurrencyRow|GroundLootStoreRow|GroundLootTalismanRow|GroundLootStumpRow|GroundLootLeafRow|GroundLootRuneRow} GroundLootRow
      */
     // 놓인 줄마다 떨어지기 시작하는 전투 시각: 한꺼번에 떨어지지 않고 줄마다 GROUND_LOOT_DROP.gapMs씩 차례를 기다린다(2026-11-02 사용자: "약간의 텀을 두고 쌓이도록")
     // 그래서 앞날일 수 있다. 그림이 바닥에 닿아 이름이 뜬 뒤(readyMs)에야 주인공이 줍거나 주우러 간다
@@ -39,7 +36,7 @@ actExplorationState.groundLoot = (() => {
     const touchedDown = (row, now) => !laidAt.has(row) || now - laidAt.get(row) >= GROUND_LOOT_DROP.flightMs;
     const rows = run => (run && Array.isArray(run.groundLoot) ? run.groundLoot : []);
     const floor = run => (Array.isArray(run.groundLoot) ? run.groundLoot : (run.groundLoot = []));
-    /** The kind of a row: 'equipment', 'currency', 'jewel', 'core', 'talisman', 'leaf', 'gem' or 'rune'. */
+    /** The kind of a row: 'equipment', 'currency', 'jewel', 'core', 'talisman', 'leaf' or 'rune'. */
     const kindOf = row => row.kind || (typeof row.currency === 'string' ? 'currency' : 'equipment');
 
     // 방 단위 무대의 문 봉인은 캐릭터와 함께 바닥 전리품 위에 그려진다(js/battle-ground-loot-ui.js actorContext): 봉인이 서는 자리에 떨어진 것은
@@ -95,10 +92,6 @@ actExplorationState.groundLoot = (() => {
     /** Lays a yarn (js/knitting.js) on a walkable cell. */
     function placeYarn(run, cell, yarn) {
         lay(run, { gx: cell.gx, gy: cell.gy, kind: 'yarn', yarn });
-    }
-    /** Lays the loop's starter gem (its name; in a mutation loop also the runes offered) on a walkable cell. */
-    function placeGem(run, cell, gem, choices) {
-        lay(run, { gx: cell.gx, gy: cell.gy, kind: 'gem', gem, ...(choices ? { choices } : {}) });
     }
     /** Lays a rolled rune reward (gemDropRewards row: attack, or a support tier) on a walkable cell; it is granted when picked up. */
     function placeRune(run, cell, gem) {
@@ -243,7 +236,7 @@ actExplorationState.groundLoot = (() => {
         if (owner.pendingLoot === undefined) owner.pendingLoot = [];
         if (!Array.isArray(owner.pendingLoot)) throw Error('잘못된 원정 보류 전리품');
         // An older save spread defaultGame.colony: its own copy, or a reserve would write into the default (and the next loop)
-        owner.pendingLoot = [...owner.pendingLoot];
+        owner.pendingLoot = owner.pendingLoot.map(retireStarterGemRow);
         for (const row of owner.pendingLoot) {
             if (!validPendingRow(row)) throw Error('잘못된 원정 보류 전리품');
             const id = row.item?.id;
@@ -274,7 +267,6 @@ actExplorationState.groundLoot = (() => {
         stump: (state, row) => { stumpBox.receiveDrop(state, row.item); },
         leaf: (state, row) => { memoryLeaves.receive(state, row.leaf); },
         yarn: (state, row) => { knitting.receive(state, row.yarn); },
-        gem: (state, row) => { receiveStarterGem(state, row.gem); },
         rune: (state, row) => {
             gemDropRewards.grant(state, row.gem, 0);
         }
@@ -289,10 +281,11 @@ actExplorationState.groundLoot = (() => {
     function validate(run) {
         if (run.groundLoot === undefined) run.groundLoot = [];
         if (!Array.isArray(run.groundLoot)) throw Error('잘못된 탐험 바닥 아이템 저장');
+        run.groundLoot = run.groundLoot.map(retireStarterGemRow);
         const map = actExplorationMap.forRun(run), ids = new Set();
         for (const row of run.groundLoot) {
             if (!validRow(map, row)) throw Error('잘못된 탐험 바닥 아이템 저장');
-            if (['talisman', 'stump', 'leaf', 'yarn', 'gem', 'rune'].includes(kindOf(row))) continue; // these rows do not own item ids
+            if (['talisman', 'stump', 'leaf', 'yarn', 'rune'].includes(kindOf(row))) continue; // these rows do not own item ids
             const key = row.item ? `item:${row.item.id}` : `currency:${row.gx},${row.gy},${row.currency}`;
             if (ids.has(key)) throw Error('중복된 탐험 바닥 아이템 저장');
             ids.add(key);
@@ -311,9 +304,13 @@ actExplorationState.groundLoot = (() => {
         stump: row => stumpBox.validDrop(row.item),
         leaf: row => memoryLeaves.validId(row.leaf) && !row.item,
         yarn: row => knitting.validId(row.yarn) && !row.item,
-        gem: row => typeof row.gem === 'string' && !!SKILL_DB[row.gem] && !row.item,
         rune: row => validRune(row)
     };
+    /** 예전 시작 룬 줄(kind 'gem', 2026-11-09까지 루프의 첫 처치가 떨어뜨렸다)은 같은 룬의 룬 줄로 읽는다: 줍지 못한 채 저장한 룬을 잃지 않게. */
+    function retireStarterGemRow(row) {
+        if (!row || row.kind !== 'gem') return row;
+        return { gx: row.gx, gy: row.gy, kind: 'rune', gem: { kind: 'attack', name: row.gem, awakened: false } };
+    }
     /** gemDropRewards.validateGem throws on malformed records; turn that into the floor validator's boolean contract. */
     function validRune(row) {
         if (row.item) return false;
@@ -330,6 +327,6 @@ actExplorationState.groundLoot = (() => {
         return !!check && check(row);
     }
 
-    return { kindOf, place, placeItem, placeLeaf, placeYarn, placeGem, placeRune, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, inAir, piles,
+    return { kindOf, place, placeItem, placeLeaf, placeYarn, placeRune, placeCurrency, takeNear, takeAt, takeAll, nearest, falling, inAir, piles,
         encounterOwner, reserve, releaseEncounter, discardEncounter, normalizeEncounter, reservedItems, settleOnLoad, validate };
 })();

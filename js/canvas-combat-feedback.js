@@ -7,12 +7,13 @@ worldTreeSkillFx.feedback = (() => {
 
     /** Resume on the same timebase addBattleFx uses after a >250ms render gap.
      * Only the presentation clock changes; combat/rewards continue on combatTimeMs. */
-    function advanceClock(wallNow) {
+    function advanceClock(wallNow, cinematic = false) {
         const state = battleVisualState, elapsed = wallNow - state.lastWallNow;
         const rawDeltaMs = state.lastWallNow > 0 ? clampNumber(elapsed, 0, 50) : 16;
         const continuous = Number.isFinite(state.visualNow) && state.visualNow > 0 && elapsed < 250;
         if (!continuous) { state.visualNow = wallNow; state.hitStopRemainingMs = 0; }
         state.lastWallNow = wallNow;
+        if (cinematic) return { now: state.visualNow, rawDeltaMs, deltaMs: 0 };
         const remaining = Math.max(0, Number(state.hitStopRemainingMs) || 0);
         const frozen = Math.min(rawDeltaMs, remaining);
         state.hitStopRemainingMs = Math.max(0, remaining - frozen);
@@ -34,6 +35,7 @@ worldTreeSkillFx.feedback = (() => {
     /** Called only when the shared renderer consumes an unprocessed event. */
     function observe(fx, now) {
         if (now - fx.start > 500 || game.isBackgroundCalculation || document.hidden) return;
+        stageSkillRules.repeat(fx, now); // 이중 발동, 이중 시전의 두 번째 발동 연출(js/canvas-stage-skill-rules.js)
         eventSound(fx);
         if (fx.type === 'enemyDeath') deathNotice(fx, now);
     }
@@ -116,6 +118,7 @@ worldTreeSkillFx.feedback = (() => {
         lootBurst: () => playUiFeedbackSound('lootBurst'),
         fishCatch: fx => { if (!fx.background) playUiFeedbackSound('fishCatch'); },
         bossEntrance: () => playUiFeedbackSound('bossEntrance'),
+        observerCollapse: () => playUiFeedbackSound('riftOpen'),
         playerReturnDepart: () => playUiFeedbackSound('returnWarp')
     };
     function eventSound(fx) {

@@ -48,7 +48,7 @@ const battleDrawList = (() => {
         if (!point || performance.now() - drawn.at > DRAWN_LIVE_MS) return null;
         let front = null;
         for (const entry of drawn.entries) if (entry.enemy.hp > 0 && covers(entry, point) && (!front || entry.y > front.y)) front = entry;
-        return front ? front.enemy : null;
+        return front ? front.enemy : woodsmanView.hitAt(point);
     }
     /** 이번 프레임에 그린 그 적의 자리({ x, y }: 발), 그리지 않았으면 null. */
     function drawnEntry(enemy) {

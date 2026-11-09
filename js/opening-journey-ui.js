@@ -4,8 +4,8 @@
  * 고맙다는 말과 함께 ... 스킬룬 사용법 튜토리얼까지", "루프 하고 난 다음에는 시작연출, 쓰러져있는 캐릭터, 첫번째 방에 하켄까지 없는게").
  *
  * 인트로(프롤로그 삽화와 판결문) → 어둠에서 밝아지면 액트 1 입구 방에 쓰러진 주인공(누르면 일어난다) → 이동(바닥 클릭, WASD) →
- * 하켄을 치는 괴물에게 다가가 자동 공격(js/combat.js createStarterRescuePack) → 하켄의 감사와 바닥에 떨어진 시작 룬 → 룬 장착 안내
- * (js/content-progression-ui.js announceStarterGem) → 자동 사냥이 열린다. 새 게임의 첫 루프에서 한 번만 돈다.
+ * 하켄을 치는 괴물에게 다가가 자동 공격(js/combat.js createStarterRescuePack) → 하켄의 감사와 바닥에 떨어진 직업 무기 → 무기 장착 안내
+ * (js/content-progression-ui.js announceStarterWeapon, 2026-11-09까지는 시작 룬) → 자동 사냥이 열린다. 새 게임의 첫 루프에서 한 번만 돈다.
  * 진행은 seenTutorials의 열쇠로 남는다(KEY). 그 사이 자동 사냥은 꺼진 채 잠기고(autoLocked, js/act-exploration-ui.js), 쓰러진 동안과
  * 일어나는 동안 게임이 멈춘다(holds, js/canvas-act-title-card.js greeting이 함께 읽는다). 주인공 그림은 받은 그림이다
  * (js/canvas-stage-actors.js setRise, data/stage-view.js STAGE_HERO_RISE, scripts/import-stage-characters.cjs). 무대 그림이 없으면
@@ -22,7 +22,11 @@ const openingJourney = (() => {
     let introReturnFocus = null, introOwner = null;
 
     const seen = key => Array.isArray(game.seenTutorials) && game.seenTutorials.includes(key);
-    const mark = key => { if (!seen(key)) game.seenTutorials.push(key); };
+    function mark(key) {
+        if (seen(key)) return;
+        game.seenTutorials.push(key);
+        if (contentProgression.opening.applies(game)) queueImportantSave(220);
+    }
     const actRun = () => { const run = actExplorationState.current(game); return run && run.zoneId === 0 && run.status === 'active' ? run : null; };
     const inEntry = run => { const room = run && actExplorationDoors.room(run); return !!room && room.role === 'entry'; };
     const SIDES = Object.freeze({ east: '오른쪽', west: '왼쪽', north: '위쪽', south: '아래쪽' });
@@ -48,19 +52,20 @@ const openingJourney = (() => {
     const started = () => !!game.heroSelectionInitialized && !isLoopHeroSelectOpen() && !isStartupOverlayOpen() && !isLoadingOverlayOpen();
     /** The opening is under way: from the intro until the auto hunt opens (old saves never start it, so nothing locks for them). */
     const active = () => (game.season || 1) === 1 && (!!intro || seen(KEY.intro)) && !seen(KEY.done);
-    const gemOnFloor = run => !!run && (run.groundLoot || []).some(row => row.kind === 'gem');
+    const weaponOnFloor = run => !!run && game.starterWeaponTutorialPending != null
+        && (run.groundLoot || []).some(row => row.item && row.item.id === game.starterWeaponTutorialPending);
     function rescueStruck(run) {
         const pack = run && run.packs.find(row => row.rescue);
         if (!pack || !pack.aliveIds.length) return true;
         return game.enemies.some(enemy => enemy && pack.aliveIds.includes(enemy.id) && enemy.hp < enemy.maxHp);
     }
-    /** The lesson in hand: rise, move, attack, pickup (the gem on the floor) or gem (its guide), null outside the opening. */
+    /** The lesson in hand: rise, move, attack, pickup (the weapon on the floor) or equip (its guide), null outside the opening. */
     function lesson() {
         if (!active()) return null;
         if (!seen(KEY.rise)) return 'rise';
         if (!seen(KEY.move)) return 'move';
         if (!seen(KEY.attack)) return 'attack';
-        return gemOnFloor(actRun()) ? 'pickup' : 'gem';
+        return weaponOnFloor(actRun()) ? 'pickup' : 'equip';
     }
     /** The hero lies in act 1's entry room (or is getting up): the game waits, the story lines wait (js/canvas-act-title-card.js). */
     function lying() {
@@ -80,6 +85,8 @@ const openingJourney = (() => {
         for (let i = tutorialQueue.length - 1; i >= 0; i--) if (replaced.includes(tutorialQueue[i].key)) tutorialQueue.splice(i, 1);
         if (activeTutorial && replaced.includes(activeTutorial.key)) dismissTutorial(false);
         if (staged) {
+            contentProgression.opening.enroll(game);
+            updateTabUnlockButtons();
             heldAuto = { settings: game.settings, autoMove: game.settings.autoMove };
             game.settings.autoMove = false;
             stageActors.preloadRise(game.selectedClassId);
@@ -205,10 +212,12 @@ const openingJourney = (() => {
         if (!movedFrom) movedFrom = { gx: hero.gx, gy: hero.gy };
         if ((run && run.destination) || hero.gx !== movedFrom.gx || hero.gy !== movedFrom.gy) mark(KEY.move);
     }
-    /** Reading in the archive has no equip side effect. The lesson requires a worn rune as well as finished guidance. */
-    function gemLearnt() {
-        const guide = 'tutorial_starter_gem_equip';
-        return getEquippedEnhanceableGemNames().length > 0 && seen(guide) && !guideWaits(guide) && !tutorialOpen() && !tutorialActionUi.active;
+    /** Reading in the archive has no equip side effect. The lesson needs a worn weapon; the new opening advances as soon as it is worn,
+     * the old one also waits for the weapon guide to close. */
+    function weaponLearnt() {
+        const guide = basicSkills.weaponGuide;
+        if (getEquippedWeaponStance() === 'unarmed') return false;
+        return contentProgression.opening.applies(game) || (seen(guide) && !guideWaits(guide) && !tutorialOpen() && !tutorialActionUi.active);
     }
     function trackLesson(now, run) {
         const step = lesson();
@@ -216,16 +225,21 @@ const openingJourney = (() => {
         if (step === 'rise') trackRise();
         else if (step === 'move') trackMove(run);
         else if (step === 'attack' && rescueStruck(run)) mark(KEY.attack);
-        else if (step === 'gem' && gemLearnt()) finish(now);
+        else if (step === 'equip' && weaponLearnt()) finish(now);
     }
     /** The opening ends: the auto hunt opens, its guide card comes, and the auto button glows until it is switched on. The battle comes
-     * back to the front first: the rune window the gem guide opened covered the glowing button and half of the line naming it (2026-10-21). */
+     * back to the front first: the window the equip guide opened covered the glowing button and half of the line naming it (2026-10-21). */
     function finish(now) {
         mark(KEY.done);
         autoHintUntil = now + AUTO_HINT_MS;
         switchTab('tab-battle');
         const key = coarse() ? '' : hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, 'combat:autoMove'));
         queueTutorialNotice('opening_auto', _t('자동 사냥'), `이제 자동 사냥을 쓸 수 있습니다.\n오른쪽 위 자동 단추${key ? _t('나 {key} 키', { key }) : ''}로 켜면 캐릭터가 알아서 걷고 싸웁니다.\n지금 할 일은 ‘목표’에 나옵니다.`);
+        if (contentProgression.opening.applies(game)) {
+            window.GameModules.state.tutorials.archivePending(game, 'opening_auto');
+            updateStaticUI();
+            queueImportantSave(0);
+        }
         actExplorationUi.render();
     }
     /** While the opening runs on the stage the auto hunt stays off. */
@@ -242,22 +256,35 @@ const openingJourney = (() => {
         move: () => _t(coarse() ? '바닥을 눌러 움직이세요' : '바닥을 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 움직이세요'),
         attack: side => `${side ? _t('{SIDES}으로 가서 하켄을 구하세요', { SIDES: _t(SIDES[side]) }) : _t('하켄을 치는 괴물에게 다가가세요')}. ${_t('가까이 가면 자동으로 공격합니다')}`,
         go: side => _t('{SIDES} 문으로 나아가세요', { SIDES: SIDES[side] ? _t(SIDES[side]) : _t('앞쪽') }),
-        pickup: () => _t('떨어진 룬을 누르거나 그 위로 걸어가 주우세요'),
-        gem: () => _t('스킬룬 창에서 주운 룬을 장착하세요'),
+        pickup: () => _t('떨어진 무기를 누르거나 그 위로 걸어가 주우세요'),
+        equip: () => _t('장비 창에서 주운 무기를 장착하세요'),
         auto: () => _t('오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요')
     };
+    const SYSTEM_CUES = Object.freeze({
+        'tab-map': '다음 지역 지도 보기',
+        'tab-items': '첫 장비 살펴보기',
+        'tab-character': '달라진 능력치 보기',
+        'tab-journal': '새 기록 읽기',
+        'tab-trade': 'NPC 상점 보기'
+    });
     /** The card stays through the story lines, the guide cards and the rune window (2026-10-27 사용자: 대사나 첫 스킬룬 장착 창이 떠도
      * 계속 켜져 있게, 스킬룬 창보다는 밑에): it lives in the battlefield box, so windows over the battlefield cover it. */
     function hintFor(now) {
         if (intro) return null;
         const step = lesson();
         if (step === 'rise') return lying() ? 'rise' : null;
-        if (step === 'gem') return gemInHand() ? 'gem' : lessonHint('attack');
+        if (step === 'equip') return weaponInHand() ? 'equip' : lessonHint('attack');
         if (step) return lessonHint(step);
-        return autoHintDue(now) ? 'auto' : null;
+        const system = systemHint();
+        if (system === 'system:tab-items') return system;
+        return autoHintDue(now) ? 'auto' : system;
     }
-    /** The gem step starts with the strike on Haken's monster: until the starter gem is picked up the fight goes on (rescue card). */
-    const gemInHand = () => !!game.starterGemTutorialPending || seen('tutorial_starter_gem_equip');
+    function systemHint() {
+        const cue = contentProgression.opening.nextCue(game);
+        return cue && !isRewardOpen() && !actRewardPromptPending() ? `system:${cue}` : null;
+    }
+    /** The equip step starts with the strike on Haken's monster: until the starter weapon drops the fight goes on (rescue card). */
+    const weaponInHand = () => game.starterWeaponTutorialPending != null || seen(basicSkills.weaponGuide);
     /** Before Haken's room is reached the attack lesson names the door to take; inside it, while the monster is beyond a phone's few
      * cells of view, the side to walk to. */
     function lessonHint(step) {
@@ -271,9 +298,18 @@ const openingJourney = (() => {
     }
     // 배우기 카드(2026-10-27 사용자: 안내 방식과 창이 구리고 글이 흐릿하다, 새 콘텐츠 카드와 이어지게): 시작 안내 카드와 같은 틀과 머리말
     // 색, 단계 점, 단계 이름, 할 일 한 줄(얼굴 그림은 빼기로 했다). 이름은 LESSON_TITLES, 순서는 LESSON_ORDER(문으로 가는 줄은 구하기 단계).
-    const LESSON_ORDER = Object.freeze(['rise', 'move', 'attack', 'pickup', 'gem', 'auto']);
-    const LESSON_TITLES = Object.freeze({ rise: '깨어나기', move: '움직이기', attack: '하켄 구하기', go: '하켄 구하기', pickup: '룬 줍기', gem: '룬 장착하기', auto: '자동 사냥' });
+    const LESSON_ORDER = Object.freeze(['rise', 'move', 'attack', 'pickup', 'equip', 'auto']);
+    const LESSON_TITLES = Object.freeze({ rise: '깨어나기', move: '움직이기', attack: '하켄 구하기', go: '하켄 구하기', pickup: '무기 줍기', equip: '무기 장착하기', auto: '자동 사냥' });
     function lessonCardHtml(name, arg) {
+        if (contentProgression.opening.applies(game)) {
+            if (name === 'equip') return `<button class="opening-lesson-action" type="button" data-opening-weapon>${_t('무기 장착하기')}</button>`;
+            if (name === 'system') {
+                const description = arg === 'tab-items'
+                    ? `<p class="opening-lesson-text">${_t('가방의 장비를 착용 중인 장비와 비교해 바꿔 낄 수 있습니다.')}</p>` : '';
+                return description + `<button class="opening-lesson-action" type="button" data-opening-route="${arg}">${_t(SYSTEM_CUES[arg])}</button>`;
+            }
+            return `<p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
+        }
         const at = LESSON_ORDER.indexOf(name === 'go' ? 'attack' : name);
         const dots = LESSON_ORDER.map((_, i) => `<i class="${i < at ? 'is-done' : i === at ? 'is-now' : ''}"></i>`).join('');
         return `<div class="opening-lesson-head"><span class="opening-lesson-kicker">${_t('시작 안내 {value}/{length}', { value: at + 1, length: LESSON_ORDER.length })}</span><span class="opening-lesson-dots" aria-hidden="true">${dots}</span></div>`
@@ -305,10 +341,11 @@ const openingJourney = (() => {
         const canvas = document.getElementById('battlefield-canvas');
         showWakeMark(step === 'rise' && !rising, canvas);
         if (!step || !canvas) return markLessonBottom(null);
-        const fresh = hintEl.dataset.step !== step;
+        const fresh = hintEl.dataset.step !== step || hintEl.dataset.language !== i18n.language;
         if (fresh) {
             const [name, arg] = step.split(':');
             hintEl.dataset.step = step;
+            hintEl.dataset.language = i18n.language;
             hintEl.classList.remove('is-compact');
             hintEl.innerHTML = lessonCardHtml(name, arg);
         }
@@ -383,10 +420,22 @@ const openingJourney = (() => {
         if (intro && (introOwner !== game || !newGame())) dropIntro();
         else if (!intro && fresh()) startIntro();
     }
+    function openCue(route) {
+        if (!Object.hasOwn(SYSTEM_CUES, route)) return;
+        if (route !== 'tab-map') return openTabPane(route);
+        explorationAtlasUi.open();
+        worldMapUi.pick('act-02');
+        document.querySelector('#ui-exploration-atlas .wm-side .atlas-hunt-now')?.focus();
+    }
     function init() {
         const canvas = document.getElementById('battlefield-canvas');
         if (!canvas) return;
         ['pointerdown', 'mousedown', 'click'].forEach(type => canvas.addEventListener(type, onBattlefieldPress, true));
+        document.getElementById('battlefield-wrap')?.addEventListener('click', event => {
+            if (event.target.closest('[data-opening-weapon]')) openTabPane('tab-items');
+            const route = event.target.closest('[data-opening-route]')?.dataset.openingRoute;
+            openCue(route);
+        });
         window.addEventListener('keydown', onKey, true);
         window.addEventListener('keyup', event => { if (intro) event.stopImmediatePropagation(); }, true);
         setInterval(tick, TICK_MS);

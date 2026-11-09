@@ -35,4 +35,19 @@ async function markImmutableUrls(destination, html) {
     });
 }
 
-module.exports = { markImmutableUrls };
+/** html with the boot-bytes meta set to the byte total of the released scripts and stylesheets it names (language packs load on demand,
+ * js/i18n.js, and are left out): the loading screen's size line shows how much of it has arrived (index.html watchBootBytes, 2026-11-09). */
+async function stampBootBytes(destination, html) {
+    const placeholder = '<meta name="boot-bytes" content="dev">';
+    if (!html.includes(placeholder)) throw new Error('index.html has no boot-bytes placeholder');
+    const files = new Set();
+    for (const [, tag, before, , file, , after] of html.matchAll(TAG)) {
+        if (tag === 'link' && !/\brel="stylesheet"/.test(before + after)) continue;
+        files.add(file);
+    }
+    let total = 0;
+    for (const file of files) total += (await fs.stat(path.join(destination, file))).size;
+    return html.replace(placeholder, `<meta name="boot-bytes" content="${total}">`);
+}
+
+module.exports = { markImmutableUrls, stampBootBytes };

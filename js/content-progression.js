@@ -2,9 +2,67 @@
 const contentProgression = (() => {
     const definitions = new Map(CONTENT_UNLOCK_CATALOG.map(row => [row.id, row]));
     const routes = new Map(CONTENT_UNLOCK_CATALOG.flatMap(row => (row.routes || []).map(route => [route, row.id])));
-    const coreRoutes = new Set(['tab-character', 'tab-char', 'tab-items', 'tab-skills', 'tab-battle', 'tab-settings', 'tab-social',
+    const coreRoutes = new Set(['tab-character', 'tab-items', 'tab-skills', 'tab-battle', 'tab-settings', 'tab-social',
         'item-tab-equip', 'skill-tab-equip', 'map-tab-zones', 'map-explore-atlas', 'map-explore-hunting', 'map-explore-chaos',
         'map-explore-root-boss']);
+
+    const opening = (() => {
+        const ENROLLED = 'opening_systems_v2', GEAR = 'opening_gear_ready', PROFILE = 'opening_profile_ready', TRADE = 'opening_trade_ready';
+        const cues = ['tab-items', 'tab-map', 'tab-character', 'tab-journal', 'tab-trade'];
+        const inlineKeys = new Set(['unlock_items', 'tutorial_first_gear',
+            'tutorial_starter_gem_equip', 'unlock_map']);
+        const seen = (owner, key) => !!owner.seenTutorials?.includes(key);
+        const visitKey = route => 'opening_visited_' + route;
+        const enrolled = owner => seen(owner, ENROLLED);
+        const applies = owner => (owner.season || 1) === 1 && enrolled(owner);
+        const equipped = owner => seen(owner, 'opening_done');
+        const combatOnly = owner => applies(owner) && !equipped(owner);
+        const hasLoot = owner => owner.inventory.some(Boolean)
+            || Object.entries(owner.equipment).some(([slot, item]) => slot !== '무기' && !!item);
+        const gates = {
+            'tab-skills': owner => !!SKILL_DB[owner.activeSkill]?.isGem || equipped(owner) || owner.maxZoneId >= 1,
+            'tab-items': owner => seen(owner, GEAR),
+            'tab-character': owner => seen(owner, PROFILE),
+            'tab-trade': owner => seen(owner, TRADE),
+            'tab-journal': owner => owner.maxZoneId >= 4 || seen(owner, visitKey('tab-journal')),
+            'tab-social': () => false,
+            'tab-records': () => false
+        };
+        const canOpen = (owner, route) => !applies(owner) || !Object.hasOwn(gates, route) || !!gates[route](owner);
+        const signature = owner => applies(owner) ? Object.keys(gates).map(route => Number(canOpen(owner, route))).join('') : '';
+        function enroll(owner) {
+            if (!seen(owner, ENROLLED)) owner.seenTutorials.push(ENROLLED);
+        }
+        const tradeReady = owner => equipped(owner) && owner.maxZoneId >= 5
+            && Object.values(owner.npcShops || {}).some(shop => shop.loop === owner.season && shop.zoneId >= 5 && shop.offers?.length > 0);
+        /** A screen counts as seen once opened. The equipment window opened to wear the starter weapon is not the first-gear lesson
+         * (compare and swap): that one waits for real gear (cueReady), 2026-11-09. */
+        function visit(owner, route) {
+            if (!applies(owner) || !cues.includes(route) || seen(owner, visitKey(route))) return false;
+            if (route === 'tab-items' && owner.starterWeaponTutorialPending != null) return false;
+            owner.seenTutorials.push(visitKey(route));
+            return true;
+        }
+        function cueReady(owner, route) {
+            if (seen(owner, visitKey(route)) || !canOpen(owner, route)) return false;
+            if (route === 'tab-map') return owner.maxZoneId === 1 && owner.currentZoneId === 0;
+            if (route === 'tab-items') return hasLoot(owner);
+            if (route === 'tab-journal') return !seen(owner, TRADE);
+            if (route === 'tab-trade') return true;
+            return owner.maxZoneId < 4;
+        }
+        const nextCue = owner => applies(owner) && equipped(owner) ? cues.find(route => cueReady(owner, route)) : null;
+        const inlineNotice = (owner, key) => applies(owner) && inlineKeys.has(key);
+        /** A first-use menu stays open even if its point is spent or its reward is salvaged. */
+        function sync(owner) {
+            if (!applies(owner)) return;
+            if (!seen(owner, GEAR) && hasLoot(owner)) owner.seenTutorials.push(GEAR);
+            if (!seen(owner, PROFILE) && owner.passives.length > 0) owner.seenTutorials.push(PROFILE);
+            if (!seen(owner, TRADE) && tradeReady(owner)) owner.seenTutorials.push(TRADE);
+        }
+        return Object.freeze({ applies, enroll, combatOnly, hasLoot, canOpen, signature, sync,
+            visit, nextCue, inlineNotice });
+    })();
 
     // Predicates only read normalized save state; unlocking a menu never grants world progress.
     const progressChecks = {
@@ -133,6 +191,7 @@ const contentProgression = (() => {
     };
 
     function canOpen(route, owner = game) {
+        if (!opening.canOpen(owner, route)) return false;
         if (!owner.contentProgression || !route || coreRoutes.has(route)) return true;
         if (progressRoutes[route]) return progressRoutes[route](owner);
         const feature = routes.get(route);
@@ -236,7 +295,7 @@ const contentProgression = (() => {
         const state = owner.contentProgression;
         if (!state) return;
         state.highestLoop = Math.max(state.highestLoop, Math.floor(owner.season || 1));
-        Object.assign(owner.unlocks, { char: true, items: true, skills: true, map: canOpen('tab-map', owner), season: owner.season >= 2 });
+        Object.assign(owner.unlocks, { char: canOpen('tab-char', owner), items: true, skills: true, map: canOpen('tab-map', owner), season: owner.season >= 2 });
         for (const def of CONTENT_UNLOCK_CATALOG) {
             const opened = isUnlocked(def.id, owner);
             if (def.gate) owner.unlocks[def.gate] = opened;
@@ -390,6 +449,7 @@ const contentProgression = (() => {
         inheritTreeAccess(record, next, existingSave);
         keepOverflowOfAddedRows(record, next, existingSave);
         inheritVoidSockets(record, next, existingSave);
+        inheritPassiveTree(record, next, owner, existingSave);
         return next;
     }
 
@@ -422,6 +482,12 @@ const contentProgression = (() => {
         if (!(Number(record.version) < def.addedIn) || !existingSave || next.highestLoop < def.minLoop) return;
         if (!next.unlocked.includes(def.id) && !next.inherited.includes(def.id)) next.inherited.push(def.id);
     }
+    function inheritPassiveTree(record, next, owner, existingSave) {
+        const def = definitions.get('passiveTree');
+        if (!existingSave || (Number(record.version) || 0) >= def.addedIn) return;
+        if (next.unlocked.includes(def.id) || next.inherited.includes(def.id)) return;
+        if (next.highestLoop >= def.minLoop || owner.passives?.length || owner.passivePoints > 0) next.inherited.push(def.id);
+    }
     function inheritTreeAccess(record, next, existingSave) {
         if (Number(record.version) >= LEDGER_VERSION || !existingSave || next.highestLoop < 2) return;
         next.looseContent = true;
@@ -446,7 +512,7 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, npcsMet, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
+    return Object.freeze({ opening, kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, npcsMet, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
         purchase, restore, planTarget });
 })();
 safeExposeGlobals({ contentProgression });

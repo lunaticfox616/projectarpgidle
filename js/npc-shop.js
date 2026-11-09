@@ -39,14 +39,14 @@ const npcShop = (() => {
         game.unlocks.npcs = true;
         // Saves from before the count met Haken in loop 1 already: only loop 1 has a first meeting.
         const first = before.count === 0 && (game.season || 1) === 1;
-        if (!allRunesOpen() && !(shop.firstMeetingClosed && first)) {
+        if (!allRunesOpen(npc.id) && !(shop.firstMeetingClosed && first)) {
             game.npcShops[npc.id] = rollShopStock(npc.id, zoneId);
             dispatchRuntimeEvent('npc-shop-stocked', { id: npc.id });
         }
         return game.npcMet[npc.id];
     }
 
-    const allRunesOpen = () => !!game.npcMet[ALL_RUNES.npc] && (game.maxZoneId || 0) >= ALL_RUNES.act;
+    const allRunesOpen = (id = ALL_RUNES.npc) => id === ALL_RUNES.npc && !!game.npcMet[id] && (game.maxZoneId || 0) >= ALL_RUNES.act;
     /** What the whole shelf holds: supports join once their unlock opens, so the mark tells when to lay it again. */
     // 이름이 달라지면 진열대를 다시 편다(2026-11-02: 가진 룬도 팔게 되어 옛 진열대에는 빠진 룬이 있다. 2026-11-04: 호박석 값이 뿌리와 덩굴이 됐다).
     const allRunesMark = () => (contentProgression.isUnlocked('support') ? 'full-roots' : 'attacks-roots');

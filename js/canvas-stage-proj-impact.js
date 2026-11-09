@@ -1,5 +1,6 @@
 /** 투사체가 맞는 자리의 타격감(2026-11-02 스킬 전체 전달본 V3.8, V3.9.1, 사용자 "투사체 적중시의 타격감이 부족합니다"): 맞을 때마다 맞은 자리의 섬광(pixelfx hit-spark), 부드러운 빛,
- * 바닥의 빛 웅덩이와 퍼지는 점선 고리, 무게만큼의 화면 흔들림. 연쇄로 건너간 적에게는 번개선과 작은 전기 매듭(zap-hit)만. 룬의 타격 클립은 그대로 함께 나온다(js/canvas-stage-skill-rules.js).
+ * 바닥의 빛 웅덩이와 퍼지는 점선 고리, 무게만큼의 화면 흔들림. 연쇄로 건너간 적에게는 같은 투사체가 날아와 꽂히는 타격감(2026-11-09 V3.14.1),
+ * 연쇄 주문, 독창 투척, 탄성 플라스크만 번개선과 작은 전기 매듭(zap-hit). 룬의 타격 클립은 그대로 함께 나온다(js/canvas-stage-skill-rules.js).
  * 피해와 판정에는 닿지 않는다. 관통하는 발이 잠깐 멈추는 일은 js/combat-grid.js pierceHoldMs가 맡는다. 시뮬레이터의 "판정 표시" 칠은 게임에 그 설정이 없어 넣지 않았다.
  * 크기는 캐릭터 도트다. 무게: 화살 1, 창 1.3, 큰 창 1.7, 화염 검기 1.4, 플라스크 1.2. */
 const stageProjectileImpact = (() => {
@@ -8,7 +9,9 @@ const stageProjectileImpact = (() => {
      * 2026-11-05 전달본 V3.9.2와 V3.9.3: 신성한 기도의 창이 꽂힐 때마다(창 무게), 빈 플라스크는 맞은 적에게 꽂히는 남은 파편만(화살 무게, ONLY). */
     const WEIGHT = Object.freeze({ 7: 1.3, 9: 1.3, 11: 1.3, 26: 1.3, 30: 1.7, 14: 1, 25: 1, 78: 1, 44: 1.2, 66: 1.4, 45: 1.3, 49: 1 });
     const ONLY = Object.freeze({ 49: fx => String(fx.damageTextGroupId).endsWith(':stab') });
-    const weightOf = (gem, fx) => (WEIGHT[gem.id] && (!ONLY[gem.id] || ONLY[gem.id](fx)) ? WEIGHT[gem.id] : 0);
+    /** 기초 스킬의 화살, 구슬, 약병(data/stage-skill-vfx.js BASIC_STAGE body)도 같은 타격감을 받는다. */
+    const BODY_WEIGHT = Object.freeze({ arrow: 1, spear: 1, flask: 1.2 });
+    const weightOf = (gem, fx) => (WEIGHT[gem.id] && (!ONLY[gem.id] || ONLY[gem.id](fx)) ? WEIGHT[gem.id] : BODY_WEIGHT[gem.meta.body] || 0);
     const SKIP = 23, SPARK_HEIGHT = -44, KNOT_HEIGHT = -50, KNOT_WEIGHT = 0.7;
     let kick = { until: -1e9, amp: 0, ms: 1 };
 
@@ -64,10 +67,10 @@ const stageProjectileImpact = (() => {
             ctx.fillRect(-r, -r, r * 2, r * 2);
         };
     }
-    /** 한 발이 맞은 자리. */
-    function playStrike(gem, hit, weight) {
-        const { victim, look, fx } = hit, hero = K.heroSpot(), face = look.face, shade = colours(fx.element);
-        const angle = Math.atan2((victim.gy - hero.gy) * K.DEEP, Math.abs(victim.gx - hero.gx) * K.WIDE + 1), own = gem.map.pfxImpact;
+    /** 한 발이 맞은 자리. from: 날아온 자리(연쇄로 건너온 발은 앞 적, 그 밖에는 주인공). */
+    function playStrike(gem, hit, weight, from = K.heroSpot()) {
+        const { victim, look, fx } = hit, face = look.face, shade = colours(fx.element);
+        const angle = Math.atan2((victim.gy - from.gy) * K.DEEP, Math.abs(victim.gx - from.gx) * K.WIDE + 1), own = gem.map.pfxImpact;
         const spot = K.at(victim, -face * 4, SPARK_HEIGHT);
         stageSkillVfx.play(own || `pfx_hitspark@${rampOf(fx.element)}`, spot, { face, rot: own ? 0 : angle, scale: 0.9 + 0.25 * (weight - 1) });
         if (gem.map.pfxBurst) stageSkillVfx.play(gem.map.pfxBurst, K.at(victim, 0, 1), { face, alpha: 0.95 });
@@ -94,10 +97,26 @@ const stageProjectileImpact = (() => {
         if (!gem.map.zap && from) stageSkillVfx.paint(K.at(from, 0, KNOT_HEIGHT), { life: 200 }, paintZap(colours(fx.element), (victim.gx - from.gx) * K.WIDE, (victim.gy - from.gy) * K.DEEP));
         stageSkillVfx.play(`pfx_zaphit@${fx.element === 'light' ? '=' : rampOf(fx.element)}`, K.at(victim, -look.face * 4, KNOT_HEIGHT), { face: look.face, scale: KNOT_WEIGHT, alpha: 0.9 });
     }
+    /** 연쇄로 건너온 발이 꽂힌 자리(2026-11-09 전달본 V3.14.1, 사용자 "연쇄될 때 발생하는 선형 번개도 고쳐주세요"): 번개선과 전기 매듭 대신
+     * 같은 투사체가 날아와(js/canvas-stage-skill-casts.js castHop) 꽂히는 타격감. 던지는 플라스크는 그 룬의 터짐을 0.7배로, 병에 담긴 번개는
+     * 작은 낙뢰도. 번개선은 연쇄 주문(map.zap), 독창 투척(중독을 옮긴다), 탄성 플라스크에만 남는다(KNOT_KEEP). */
+    const KNOT_KEEP = new Set([9, 44]);
+    const HOP_WEIGHT = Object.freeze({ 47: 1.2, 48: 1.2, 79: 1.2, 87: 1.2 });
+    function playHop(gem, hit) {
+        const { victim, look, fx } = hit, before = fx.chainFromEnemyId == null ? null : K.enemy(fx.chainFromEnemyId);
+        playStrike(gem, hit, WEIGHT[gem.id] || HOP_WEIGHT[gem.id] || 1, before ? K.enemySpot(before) : undefined);
+        const burst = HOP_WEIGHT[gem.id] ? gem.map.burst || gem.map.area : null;
+        if (burst) stageSkillVfx.play(burst, K.at(victim, 0, K.onGround(burst) ? 1 : -30), { face: look.face, ramp: look.ramp, scale: 0.7 });
+        if (gem.map.bolt) stageSkillVfx.play(gem.map.bolt, K.at(victim, 0, 1), { face: look.face, ramp: look.ramp, scale: 0.7 });
+    }
     /** 맞은 적마다 한 번(js/canvas-stage-skill-rules.js ruleNoteHit). */
     function impactNote(gem, hit) {
         if (gem.id === SKIP || splash(hit.fx)) return;
-        if (chained(hit.fx)) { if (WEIGHT[gem.id] || isProjectile(gem)) playKnot(gem, hit); return; }
+        if (chained(hit.fx)) {
+            if (!(WEIGHT[gem.id] || isProjectile(gem))) return;
+            if (gem.map.zap || KNOT_KEEP.has(gem.id)) playKnot(gem, hit); else playHop(gem, hit);
+            return;
+        }
         const weight = weightOf(gem, hit.fx);
         if (weight) playStrike(gem, hit, weight);
     }
