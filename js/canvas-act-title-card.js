@@ -212,10 +212,13 @@ const actTitleCard = (() => {
         if (!npc || watch.met) return;
         watch.met = true;
         const tabShown = !!game.unlocks.npcs;
+        const tradeShown = contentProgression.opening.canOpen(game, 'tab-trade');
         npcShop.meet(npc, zone);
+        contentProgression.opening.sync(game);
+        const tradeOpen = contentProgression.opening.canOpen(game, 'tab-trade');
         // 해금할 것이 있거나 진열대가 새로 놓였으면(만날 때마다 새로 놓인다, 1회차 첫 만남의 하켄만 닫혀 있다) NPC 탭에 점을 켠다.
-        if (npcShop.stock(npc.id)) game.noti.npcs = true;
-        if (!tabShown) updateTabUnlockButtons();
+        if (tradeOpen && npcShop.stock(npc.id)) game.noti.npcs = true;
+        if (!tabShown || tradeShown !== tradeOpen) updateTabUnlockButtons();
     }
     const greets = row => !!row && GREET.keys.has(row.key) && row.zone === zone;
     /** The run whose entry room greets the hero now: an active map with the hero in its entry room and no move command given

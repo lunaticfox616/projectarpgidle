@@ -204,7 +204,10 @@ const contentUnlockUi = {
     announceOpenedSince(before) {
         this.openedContents().forEach(id => {
             if (before.has(id)) return;
-            if (id === 'tactics' && contentProgression.opening.applies(game)) game.noti.skills = true;
+            if (id === 'tactics' && contentProgression.opening.applies(game)) {
+                game.noti.skills = true;
+                return;
+            }
             this.announceContent(id);
         });
     },
@@ -230,6 +233,7 @@ const contentUnlockUi = {
     openNpc(npc, mode = 'talk') {
         const old = document.getElementById('npc-dialog');
         if (!npc || (old && old.open)) return false;
+        if (!contentProgression.opening.canOpen(game, 'tab-trade')) mode = 'talk';
         if (old) old.remove(); // closed a moment ago, its close event (which removes it) not yet run
         const view = { npc, mode, topic: null };
         const dialog = document.createElement('dialog');
@@ -273,6 +277,7 @@ const contentUnlockUi = {
     },
     /** The doors to the shop and, at Orga's, to the currency exchange. */
     npcFoot(view) {
+        if (!contentProgression.opening.canOpen(game, 'tab-trade')) return '';
         const doors = npcShopUi.door(view.npc) + orgaExchangeUi.door(view.npc);
         return doors ? `<footer class="npc-dialog-foot">${doors}</footer>` : '';
     },
@@ -313,7 +318,10 @@ const contentUnlockUi = {
         if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); }
     },
     npcPickTopic(view, topic) {
-        if (topic === 'shop' || topic === 'exchange') { view.mode = topic; return; }
+        if (topic === 'shop' || topic === 'exchange') {
+            if (contentProgression.opening.canOpen(game, 'tab-trade')) view.mode = topic;
+            return;
+        }
         const known = this.npcTopics(view.npc).open.some(row => row.topic === topic);
         Object.assign(view, { mode: 'talk', topic: known ? topic : null });
         if (known) this.hearNpcTopic(view.npc, topic);

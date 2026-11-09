@@ -5849,7 +5849,9 @@ function grantJournalBonus(entryId, state = game) {
     if (state === game) {
         if (entry.bonus.stat === 'passivePoint' && typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
         playerStatCache.invalidate();
-        addLog(_t('저널 영구 보너스 획득: {label}', { label: _t(entry.bonus.label) }), 'season-up');
+        if (contentProgression.opening.canOpen(game, 'tab-journal')) {
+            addLog(_t('저널 영구 보너스 획득: {label}', { label: _t(entry.bonus.label) }), 'season-up');
+        }
     }
 }
 function unlockJournalEntry(entryId, state = game) {
@@ -5858,15 +5860,20 @@ function unlockJournalEntry(entryId, state = game) {
     if (!state.journalEntries.includes(entryId)) {
         state.journalEntries.push(entryId);
         if (JOURNAL_DB[entryId].discoveryOnly) return; // 읽을거리만 보관: 보상·새 기록 목표·팝업을 추가하지 않는다.
-        state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
-        state.noti.journal = true;
+        markJournalUnread(state);
         if (state === game) {
-            addLog(_t('📓 새 기록: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
+            if (contentProgression.opening.canOpen(state, 'tab-journal')) {
+                addLog(_t('📓 새 기록: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
+            }
             worldTreeBark.rewardPinnacleFirstKill(entryId);
             if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
         }
     }
     grantJournalBonus(entryId, state);
+}
+function markJournalUnread(state) {
+    state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
+    state.noti.journal = true;
 }
 function ensureActJournalCompletionForLoop(options) {
     let silent = !options || options.silent !== false;

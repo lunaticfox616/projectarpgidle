@@ -29,13 +29,30 @@ test('loop one exposes the four basics and prevents advanced shortcuts', async (
     await page.screenshot({ path: info.outputPath('loop-one.png') });
 });
 
-test('the first act handoff teaches the map before any other system opens', async ({ page }, info) => {
+test('the opening introduces the map, equipment, passives, journal and trade on separate milestones', async ({ page }, info) => {
     const routes = () => page.evaluate(() => ['tab-map', 'tab-items', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade', 'tab-records', 'tab-social']
         .filter(id => contentProgression.canOpen(id)));
+    // Skip fight duration while running the production clear and first-kill handlers.
+    const clearAct = async id => {
+        await page.evaluate(zoneId => {
+            finishZoneClear(getZone(zoneId), 'stop', { say: addLog, redraw: updateStaticUI, unlocks: checkUnlocks, reveal: triggerMapUnlockReveal });
+        }, id);
+        await page.waitForFunction(() => !actRewardPromptPending() || isRewardOpen());
+        const later = page.locator('#reward-overlay').getByRole('button', { name: '나중에', exact: true });
+        if (await later.isVisible()) await later.click();
+    };
+    const recordFirstKill = () => page.evaluate(() => {
+        game.moveTimer = 0;
+        startEncounterRun(true);
+        const enemy = game.enemies[0] || game.actExploration.packs.find(pack => pack.waiting.length).waiting[0];
+        recordKillProgress(enemy);
+        updateStaticUI();
+    });
     await page.evaluate(() => {
         contentProgression.opening.enroll(game);
         game.level = 4; game.passivePoints = 3;
         game.settings.autoMove = false;
+        storyJournalUi.setAutoShow(false);
         game.seenTutorials.push('story_prologue', 'story_act_1_start', 'tutorial_battle_basics');
         window.GameModules.state.tutorials.sync(game);
         if (activeTutorial) dismissTutorial(false);
@@ -62,7 +79,8 @@ test('the first act handoff teaches the map before any other system opens', asyn
     const map = page.getByRole('button', { name: '다음 지역 지도 보기' });
     await expect(map).toBeVisible();
     await expect(page.locator('[data-opening-route]')).toHaveCount(1);
-    await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
+    await expect.poll(routes).toEqual(['tab-map']);
+    await expect(page.getByRole('button', { name: '첫 장비 살펴보기' })).toHaveCount(0);
     await expect(page.locator('#ui-goal-drawer')).not.toContainText('새 이야기 저널 확인');
     await expect(page.locator('#ui-goal-drawer')).not.toContainText('스킬트리 포인트');
     await expect(page.locator(':is(#btn-combat-chat-tab, [data-message-tab="chat"]):visible')).toHaveCount(0);
@@ -72,23 +90,50 @@ test('the first act handoff teaches the map before any other system opens', asyn
     await expect(go).toBeVisible();
     await go.click();
     await expect.poll(() => page.evaluate(() => game.currentZoneId)).toBe(1);
-    expect(await routes()).toEqual(['tab-map', 'tab-items']);
+    expect(await routes()).toEqual(['tab-map']);
     await page.screenshot({ path: info.outputPath('act-two-arrival.png') });
+    await recordFirstKill();
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
+    await page.getByRole('button', { name: '첫 장비 살펴보기' }).click();
+    await expect(page.locator('#item-tab-equip')).toBeVisible();
+    await page.locator('#item-tab-equip .tutorial-action-target').click();
+    await page.screenshot({ path: info.outputPath('act-two-equipment.png') });
     await page.evaluate(() => {
-        game.moveTimer = 0;
-        startEncounterRun(true);
-        const enemy = game.enemies[0] || game.actExploration.packs.find(pack => pack.waiting.length).waiting[0];
-        recordKillProgress(enemy);
+        switchTab('tab-battle');
+        npcShop.meet(STORY_NPCS.orga, 1);
+        contentUnlockUi.openNpc({ id: 'orga', ...STORY_NPCS.orga }, 'shop');
+    });
+    await expect(page.locator('#npc-dialog [data-npc-topic]')).not.toHaveCount(0);
+    await expect(page.locator('#npc-dialog [data-npc-topic="shop"], #npc-dialog [data-npc-topic="exchange"], #npc-dialog .shop-view')).toHaveCount(0);
+    await page.locator('#npc-dialog [data-npc-close]').click();
+
+    await clearAct(1);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
+    await page.evaluate(() => { game.currentZoneId = 2; });
+    await recordFirstKill();
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char']);
+    await expect(page.getByRole('button', { name: '스킬트리 열기' })).toBeVisible();
+    await page.screenshot({ path: info.outputPath('act-three-passives.png') });
+    await clearAct(2);
+    await expect.poll(() => page.evaluate(() => contentProgression.canOpen('skill-tab-condition'))).toBe(true);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char']);
+    await clearAct(3);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal']);
+    expect(await page.evaluate(() => ['act_1', 'act_2', 'act_3', 'act_4'].every(id => game.journalEntries.includes(id)))).toBe(true);
+    await expect(page.getByRole('button', { name: '새 기록 읽기' })).toBeVisible();
+    await page.screenshot({ path: info.outputPath('act-five-journal.png') });
+    await clearAct(4);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal']);
+    await page.evaluate(() => {
+        game.currentZoneId = 5;
+        npcShop.meet(STORY_NPCS.bern, 5);
         updateStaticUI();
     });
-    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char']);
-    await expect(page.getByRole('button', { name: '첫 장비 살펴보기' })).toBeVisible();
-    await page.evaluate(() => {
-        finishZoneClear(getZone(1), 'stop', { say: addLog, redraw: updateStaticUI, unlocks: checkUnlocks, reveal: triggerMapUnlockReveal });
-    });
-    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal']);
-    await page.evaluate(() => { npcShop.meet(STORY_NPCS.haken, 2); updateStaticUI(); });
     await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal', 'tab-trade']);
+    await page.getByRole('button', { name: 'NPC 상점 보기' }).click();
+    await page.locator('#npc-roster-panel [data-npc-open="bern"][data-npc-mode="shop"]').click();
+    await expect(page.locator('#npc-dialog [data-npc-shop="bern"] .shop-item').first()).toBeVisible();
+    await page.screenshot({ path: info.outputPath('act-six-trade.png') });
 });
 
 

@@ -8,11 +8,13 @@ const contentProgression = (() => {
 
     const opening = (() => {
         const ENROLLED = 'opening_systems_v2', GEAR = 'opening_gear_ready', PASSIVES = 'opening_passives_ready', PROFILE = 'opening_profile_ready';
-        const ACT_TWO_COMBAT = 'opening_act_two_combat', TRADE = 'opening_trade_ready';
+        const ACT_TWO_COMBAT = 'opening_act_two_combat', ACT_THREE_COMBAT = 'opening_act_three_combat', TRADE = 'opening_trade_ready';
+        const firstCombat = [null, ACT_TWO_COMBAT, ACT_THREE_COMBAT];
         const cues = ['tab-map', 'tab-items', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade'];
         const inlineKeys = new Set(['unlock_items', 'unlock_char', 'tutorial_first_gear', 'tutorial_first_passive',
             'tutorial_starter_gem_equip', 'unlock_map']);
         const seen = (owner, key) => !!owner.seenTutorials?.includes(key);
+        const visitKey = route => 'opening_visited_' + route;
         const enrolled = owner => seen(owner, ENROLLED);
         const applies = owner => (owner.season || 1) === 1 && enrolled(owner);
         const equipped = owner => seen(owner, 'opening_done');
@@ -25,7 +27,7 @@ const contentProgression = (() => {
             'tab-character': owner => seen(owner, PROFILE),
             'tab-char': owner => seen(owner, PASSIVES),
             'tab-trade': owner => seen(owner, TRADE),
-            'tab-journal': owner => owner.maxZoneId >= 2,
+            'tab-journal': owner => owner.maxZoneId >= 4 || seen(owner, visitKey('tab-journal')),
             'tab-social': () => false,
             'tab-records': () => false
         };
@@ -34,30 +36,27 @@ const contentProgression = (() => {
         function enroll(owner) {
             if (!seen(owner, ENROLLED)) owner.seenTutorials.push(ENROLLED);
         }
-        function inspectGear(owner) {
-            const key = 'action_tutorial_first_gear';
-            if (!applies(owner) || !seen(owner, GEAR) || seen(owner, key)) return false;
-            owner.seenTutorials.push(key);
-            return true;
-        }
-        const gearReady = owner => equipped(owner) && hasLoot(owner);
+        const gearReady = owner => equipped(owner)
+            && (owner.maxZoneId >= 2 || (seen(owner, ACT_TWO_COMBAT) && hasLoot(owner)));
         const passiveReady = owner => (owner.passivePoints > 0 || owner.passives.length > 0)
-            && (seen(owner, 'action_tutorial_first_gear') || seen(owner, ACT_TWO_COMBAT) || owner.maxZoneId >= 2);
-        const tradeReady = owner => equipped(owner)
-            && Object.values(owner.npcShops || {}).some(shop => shop.zoneId >= 2 && shop.offers?.length > 0);
-        const visitKey = route => 'opening_visited_' + route;
+            && (seen(owner, ACT_THREE_COMBAT) || owner.maxZoneId >= 3);
+        const tradeReady = owner => equipped(owner) && owner.maxZoneId >= 5
+            && Object.values(owner.npcShops || {}).some(shop => shop.loop === owner.season && shop.zoneId >= 5 && shop.offers?.length > 0);
         function visit(owner, route) {
             if (!applies(owner) || !cues.includes(route) || seen(owner, visitKey(route))) return false;
             owner.seenTutorials.push(visitKey(route));
             return true;
         }
         function noteKill(owner) {
-            if (owner.currentZoneId !== 1 || !applies(owner) || seen(owner, ACT_TWO_COMBAT)) return;
-            owner.seenTutorials.push(ACT_TWO_COMBAT);
+            const key = firstCombat[owner.currentZoneId];
+            if (key && applies(owner) && !seen(owner, key)) owner.seenTutorials.push(key);
         }
         function cueReady(owner, route) {
             if (seen(owner, visitKey(route)) || !canOpen(owner, route)) return false;
             if (route === 'tab-map') return owner.maxZoneId === 1 && !seen(owner, ACT_TWO_COMBAT);
+            if (route === 'tab-items') return owner.maxZoneId < 3 && !seen(owner, ACT_THREE_COMBAT);
+            if (route === 'tab-journal') return !seen(owner, TRADE);
+            if (route === 'tab-trade') return true;
             return owner.maxZoneId < 4;
         }
         const nextCue = owner => applies(owner) && equipped(owner) ? cues.find(route => cueReady(owner, route)) : null;
@@ -70,7 +69,7 @@ const contentProgression = (() => {
             if (!seen(owner, PROFILE) && owner.passives.length > 0) owner.seenTutorials.push(PROFILE);
             if (!seen(owner, TRADE) && tradeReady(owner)) owner.seenTutorials.push(TRADE);
         }
-        return Object.freeze({ applies, enrolled, enroll, combatOnly, hasLoot, canOpen, signature, sync, inspectGear,
+        return Object.freeze({ applies, enrolled, enroll, combatOnly, hasLoot, canOpen, signature, sync,
             noteKill, visit, nextCue, inlineNotice });
     })();
 
