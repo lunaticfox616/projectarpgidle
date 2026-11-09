@@ -110,6 +110,8 @@
 #ui-exploration-atlas .wm-atlas-legend {
     display: flex; flex-wrap: wrap; gap: 4px 12px; color: #e5cf9b;
 }
+#ui-exploration-atlas .wm-atlas-legend > span { display: inline-flex; align-items: center; gap: 4px; }
+#ui-exploration-atlas .wm-atlas-legend i { width: 18px; height: 18px; background-size: contain; image-rendering: pixelated; }
 #ui-exploration-atlas .wm-map:is(.wm-atlas-map, .wm-atlas-arriving) {
     border-color: #7189ac; background: #111827; overflow: hidden;
 }
@@ -144,13 +146,20 @@
     background: #221d27; box-shadow: 0 1px 3px #171320c9;
     font: 700 clamp(9px, 1.9cqw, 13px)/1 var(--font-pixel-meta);
 }
-#ui-exploration-atlas .wm-atlas-node:is(.kind-guardian, .kind-pinnacle) > span { border-radius: 4px; }
+/* 등급 숫자는 아틀라스 창과 같은 등급 색(--wm-tier, js/world-map-ui.js atlasNodeHtml), 테는 권역 색(2026-11-09 사용자: 숫자 색깔 개선). */
+#ui-exploration-atlas .wm-atlas-node:not(.kind-guardian, .kind-pinnacle) > span { border-color: var(--wm-node-tone); color: var(--wm-tier, #ece6d8); text-shadow: 1px 1px 0 #000; }
+/* 수호자와 정점은 도트 그림 하나(바탕 원 없이). */
+#ui-exploration-atlas .wm-atlas-node:is(.kind-guardian, .kind-pinnacle) > span { width: 100%; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#ui-exploration-atlas .wm-atlas-node > span > i { width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 1px #000c); }
 #ui-exploration-atlas .wm-atlas-node.is-locked { color: #c6bac3; }
+/* 잠긴 노드도 등급 색을 흐리게 남겨 어디가 어려운지 보인다(아틀라스 창의 잠긴 번호와 같은 생각). */
+#ui-exploration-atlas .wm-atlas-node.is-locked:not(.kind-guardian, .kind-pinnacle) > span { border-color: #6f6676; color: color-mix(in srgb, var(--wm-tier, #ece6d8) 60%, #5d5563); }
 #ui-exploration-atlas .wm-atlas-node[aria-disabled="true"] { cursor: default; }
-#ui-exploration-atlas .wm-atlas-node:is(.is-open, .is-complete, .is-bonus) > span {
+#ui-exploration-atlas .wm-atlas-node:not(.kind-guardian, .kind-pinnacle):is(.is-open, .is-complete, .is-bonus) > span {
     background: color-mix(in srgb, var(--wm-region, #baa271) 34%, #231a25);
 }
-#ui-exploration-atlas .wm-atlas-node.is-open > span { box-shadow: 0 0 6px 1px var(--wm-node-tone); }
+#ui-exploration-atlas .wm-atlas-node:not(.kind-guardian, .kind-pinnacle).is-open > span { box-shadow: 0 0 6px 1px var(--wm-tier, var(--wm-node-tone)); }
+#ui-exploration-atlas .wm-atlas-node:is(.kind-guardian, .kind-pinnacle).is-open > span > i { filter: drop-shadow(0 0 3px #ffe7a6) drop-shadow(0 1px 1px #000c); }
 #ui-exploration-atlas .wm-atlas-node:is(.is-complete, .is-bonus) > span::after {
     content: '✓'; position: absolute; right: -4px; bottom: -3px; padding: 1px;
     border-radius: 2px; background: #221d27; color: #daf2b8; font: 700 9px/1 sans-serif;

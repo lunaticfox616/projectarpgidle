@@ -69,8 +69,15 @@
         state.community = { ...base.community, ...((next.community && typeof next.community === 'object') ? next.community : {}) };
         state.community.width = clampNumberLocal(state.community.width, COMMUNITY_MIN_WIDTH, COMMUNITY_MAX_WIDTH, DEFAULT_COMMUNITY_WIDTH);
         state.goals = { ...base.goals, ...((next.goals && typeof next.goals === 'object') ? next.goals : {}) };
-        state.combatLog = { ...base.combatLog, ...((next.combatLog && typeof next.combatLog === 'object') ? next.combatLog : {}) };
+        state.combatLog = normalizeCombatLogLayout(base.combatLog, next.combatLog);
         return state;
+    }
+
+    /** { expanded, reserve? }: the stacked layout's log share (setupCombatLogResize) stays a sane pixel count. */
+    function normalizeCombatLogLayout(base, stored) {
+        const combatLog = { ...base, ...((stored && typeof stored === 'object') ? stored : {}) };
+        if (combatLog.reserve != null) combatLog.reserve = clampNumberLocal(combatLog.reserve, COMBAT_LOG_RESERVE_MIN, 4000, COMBAT_LOG_RESERVE_MIN);
+        return combatLog;
     }
 
     function applyWindowPresentationUpdates(state, next) {
@@ -1025,14 +1032,25 @@
         } else {
             return;
         }
-        if (!target.actionSubtabId) return;
-        if (target.actionSubtabId.startsWith('item-tab-') && typeof window.switchItemSubtab === 'function') window.switchItemSubtab(target.actionSubtabId);
-        if (target.actionSubtabId.startsWith('skill-tab-') && typeof window.switchSkillSubtab === 'function') window.switchSkillSubtab(target.actionSubtabId);
-        if (target.actionSubtabId.startsWith('map-tab-') && typeof window.switchMapSubtab === 'function') window.switchMapSubtab(target.actionSubtabId);
-        if (target.actionSubtabId.startsWith('map-explore-')) {
-            if (typeof window.switchMapSubtab === 'function') window.switchMapSubtab('map-tab-zones');
-            if (typeof window.switchMapExploreSubtab === 'function') window.switchMapExploreSubtab(target.actionSubtabId);
+        openGoalSubtab(target);
+    }
+
+    /** The screen inside the opened window: a story act on the world map (actionMapAct, js/goal-system.js), else the sub-tab. */
+    function openGoalSubtab(target) {
+        if (Number.isInteger(target.actionMapAct) && window.explorationAtlasUi) { window.explorationAtlasUi.openAct(target.actionMapAct); return; }
+        const subtab = target.actionSubtabId;
+        if (!subtab) return;
+        if (subtab.startsWith('map-explore-')) {
+            callGlobalIfPresent('switchMapSubtab', 'map-tab-zones');
+            callGlobalIfPresent('switchMapExploreSubtab', subtab);
+            return;
         }
+        const row = GOAL_SUBTAB_SWITCHES.find(([prefix]) => subtab.startsWith(prefix));
+        if (row) callGlobalIfPresent(row[1], subtab);
+    }
+    const GOAL_SUBTAB_SWITCHES = [['item-tab-', 'switchItemSubtab'], ['skill-tab-', 'switchSkillSubtab'], ['map-tab-', 'switchMapSubtab']];
+    function callGlobalIfPresent(name, arg) {
+        if (typeof window[name] === 'function') window[name](arg);
     }
 
     function openGoalDrawerTarget() {
@@ -1432,6 +1450,89 @@
         return { windowId, shownId: pane ? pane.dataset.tabId : '' };
     }
 
+    // 좁은 전투 화면(css/themes/rift-stage.css 세로 배치)의 기록 판 높이(2026-11-09 사용자: 중간 크기 화면에서 전투 로그가 너무 작아 위아래로 크기 조절):
+    // 판 위 가장자리의 손잡이를 끌면 전장 높이 한도에서 빼는 몫(--combat-log-reserve, 기본 176px)이 바뀐다. 이 기기의 배치 저장에 남고, 두 번 누르면 기본으로.
+    const COMBAT_LOG_RESERVE_MIN = 176;
+    const COMBAT_LOG_MIN_STAGE = 160;
+    const COMBAT_LOG_KEY_STEP = 24;
+    let combatLogResizeFrame = 0;
+
+    function applyCombatLogReserve(px) {
+        document.documentElement.style.setProperty('--combat-log-reserve', Math.round(px) + 'px');
+        const log = document.getElementById('log');
+        if (log && log.combatLogAtBottom !== false && typeof window.scrollCombatLogToLatest === 'function') window.scrollCombatLogToLatest(log);
+    }
+
+    function saveCombatLogReserve(px) {
+        layoutState.combatLog.reserve = clampNumberLocal(px, COMBAT_LOG_RESERVE_MIN, 4000, COMBAT_LOG_RESERVE_MIN);
+        applyCombatLogReserve(layoutState.combatLog.reserve);
+        saveLayoutState();
+    }
+
+    /** What the stage leaves now (CSS px; a stage held by its 4:3 width leaves more than the stored share) and the most it may leave.
+     * The stage's limit read with a zero share is the whole height the stage and the log split. Null outside the stacked layout. */
+    function measureCombatLogShare() {
+        const stage = document.querySelector('#tab-battle .combat-stage');
+        if (!stage) return null;
+        const root = document.documentElement.style, stored = layoutState.combatLog.reserve || COMBAT_LOG_RESERVE_MIN;
+        root.setProperty('--combat-log-reserve', '0px');
+        const whole = parseFloat(getComputedStyle(stage).maxHeight);
+        root.setProperty('--combat-log-reserve', stored + 'px');
+        if (!Number.isFinite(whole)) return null;
+        const factor = (window.uiDisplay && window.uiDisplay.factor) || 1;
+        return { now: whole - stage.getBoundingClientRect().height / factor, most: Math.max(COMBAT_LOG_RESERVE_MIN, whole - COMBAT_LOG_MIN_STAGE), factor };
+    }
+
+    function startCombatLogResize(event) {
+        if (event.button > 0) return;
+        const share = measureCombatLogShare();
+        if (!share) return;
+        const handle = event.currentTarget, startY = event.clientY;
+        let reserve = share.now;
+        event.preventDefault();
+        handle.setPointerCapture(event.pointerId);
+        handle.classList.add('is-dragging');
+        const move = moved => {
+            reserve = Math.min(share.most, Math.max(COMBAT_LOG_RESERVE_MIN, share.now + (startY - moved.clientY) / share.factor));
+            if (combatLogResizeFrame) return;
+            combatLogResizeFrame = requestAnimationFrame(() => { combatLogResizeFrame = 0; applyCombatLogReserve(reserve); });
+        };
+        const end = () => {
+            ['pointermove', 'pointerup', 'pointercancel'].forEach((type, i) => handle.removeEventListener(type, i ? end : move));
+            handle.classList.remove('is-dragging');
+            saveCombatLogReserve(reserve);
+        };
+        handle.addEventListener('pointermove', move);
+        handle.addEventListener('pointerup', end);
+        handle.addEventListener('pointercancel', end);
+    }
+
+    function nudgeCombatLogResize(event) {
+        const step = { ArrowUp: COMBAT_LOG_KEY_STEP, ArrowDown: -COMBAT_LOG_KEY_STEP }[event.key];
+        const share = step ? measureCombatLogShare() : null;
+        if (!share) return;
+        event.preventDefault();
+        saveCombatLogReserve(Math.min(share.most, Math.max(COMBAT_LOG_RESERVE_MIN, share.now + step)));
+    }
+
+    function setupCombatLogResize() {
+        // #battle-column moves into #tab-battle after boot (index.html keeps it outside), so the feed is found on its own.
+        const feed = document.querySelector('.combat-feed');
+        if (!feed || document.getElementById('combat-log-resize')) return;
+        const handle = document.createElement('div');
+        handle.id = 'combat-log-resize';
+        handle.className = 'combat-log-resize';
+        handle.tabIndex = 0;
+        handle.setAttribute('role', 'separator');
+        handle.setAttribute('aria-orientation', 'horizontal');
+        handle.setAttribute('aria-label', typeof _t === 'function' ? _t('전투 기록 높이 조절') : '전투 기록 높이 조절');
+        feed.parentNode.insertBefore(handle, feed);
+        handle.addEventListener('pointerdown', startCombatLogResize);
+        handle.addEventListener('keydown', nudgeCombatLogResize);
+        handle.addEventListener('dblclick', () => saveCombatLogReserve(COMBAT_LOG_RESERVE_MIN));
+        if (layoutState.combatLog.reserve) applyCombatLogReserve(layoutState.combatLog.reserve);
+    }
+
     function initWindowManager() {
         if (initialized) return;
         initialized = true;
@@ -1439,6 +1540,7 @@
         closePersistedSurfacesForBoot();
         patchSwitchTab();
         patchCombatLogToggle();
+        setupCombatLogResize();
         applyResponsiveMode();
         window.addEventListener('resize', applyResponsiveMode);
         document.addEventListener('keydown', closeTopWindowOnEscape);

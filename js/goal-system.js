@@ -47,6 +47,12 @@
         return num > 0 ? num : 0;
     }
 
+    /** A map action that opens the world map with this story zone's act picked (js/ui-window-manager.js openGoalTarget). */
+    function withMapAct(target, zoneId) {
+        if (target.actionTabId && Number.isInteger(zoneId)) target.actionMapAct = zoneId;
+        return target;
+    }
+
     function buildNotice(text, actionTabId, actionSubtabId) {
         let notice = { text };
         if (actionTabId && isTabActionAvailable(actionTabId)) notice.actionTabId = actionTabId;
@@ -199,8 +205,8 @@
                     description: _t('남은 보상 {count}개', { count }),
                     mandatory: true
                 };
-                // 보상 선택 카드는 탐험 > 나무(사냥터) 화면의 액트 목록에 붙는다.
-                return buildTabAction(goal, _t('액트 보상 열기'), 'tab-map', 'map-explore-hunting');
+                // 보상 선택은 세계 지도에서 그 액트를 고른 설명 칸에 있다(js/world-map-ui.js, actionMapAct).
+                return withMapAct(buildTabAction(goal, _t('액트 보상 열기'), 'tab-map', 'map-explore-atlas'), getAvailableActRewardZoneIds(g)[0]);
             }
         },
         {
@@ -236,7 +242,7 @@
                     // 진행 상태는 바로만 보여 주고, 목표 카드의 중복 수치 문구는 생략한다.
                     goal.progressText = '';
                 }
-                return buildTabAction(goal, _t('지도 열기'), 'tab-map', 'map-explore-hunting');
+                return withMapAct(buildTabAction(goal, _t('지도 열기'), 'tab-map', 'map-explore-atlas'), frontier);
             }
         },
         {
@@ -360,7 +366,7 @@
             matches(g, primary) {
                 return primary !== 'claim-act-reward' && getAvailableActRewardZoneIds(g).length > 0;
             },
-            build(g) { return buildNotice(_t('액트 보상 {n}개 선택', { n: getAvailableActRewardZoneIds(g).length }), 'tab-map', 'map-explore-hunting'); }
+            build(g) { return withMapAct(buildNotice(_t('액트 보상 {n}개 선택', { n: getAvailableActRewardZoneIds(g).length }), 'tab-map', 'map-explore-atlas'), getAvailableActRewardZoneIds(g)[0]); }
         },
         {
             id: 'cosmos-journey-notice',

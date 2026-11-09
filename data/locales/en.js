@@ -10535,6 +10535,8 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '시작 속성 선택': 'Choose a Starting Element',
         '{label}의 기초 스킬 속성을 고르세요.': 'Choose the element of the {label} basic skill.',
         '첫 무기 장착': 'Equip Your First Weapon',
+        '전투 기록 높이 조절': 'Resize the combat log',
+        '미완료': 'Incomplete',
         '[{name}] 무기를 주웠습니다.\n‘장비’에서 가방의 무기를 누르고 ‘장착’을 누르세요.\n무기를 들면 기초 스킬로 싸웁니다.': 'You picked up [{name}].\nIn ‘Equipment’, select the weapon in your bag and press ‘Equip’.\nWith a weapon in hand you fight with your basic skill.',
         '[{name}] 무기를 장착했습니다, \'장비\'에서 바꿀 수 있습니다': 'Equipped [{name}]; you can change it in \'Equipment\'',
         '첫 무기': 'First weapon',

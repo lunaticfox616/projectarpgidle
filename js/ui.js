@@ -4878,7 +4878,10 @@ function scrollCombatLogToLatest(log) {
 function isCombatLogHidden(log) {
     if (typeof log.closest !== 'function') return false;
     const pane = log.closest('.tab-content');
-    return (!!pane && !pane.classList.contains('active')) || !!log.closest('.combat-feed.collapsed') || !!log.closest('.message-frame-stash');
+    // 접힌 판은 PC와 예전 휴대폰 배치에서 #log를 숨기지만, 좁은 전투 화면(css/themes/rift-stage.css 세로 배치)은 접힘 표시가 남아도 판을 보인다:
+    // 접힘만 보고 숨겼다고 여겨 맨 아래로 내리지 않았다(2026-11-09 사용자: 전투로그가 자동으로 맨 밑으로 안 가).
+    return (!!pane && !pane.classList.contains('active')) || !!log.closest('.message-frame-stash')
+        || (!!log.closest('.combat-feed.collapsed') && log.offsetHeight === 0);
 }
 
 /** 읽던 줄을 같은 화면 위치에 둔다. 앞에서 지워져 사라졌으면 가장 가까운 남은 줄(첫 줄)을 쓴다.

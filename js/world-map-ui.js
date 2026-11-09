@@ -2,8 +2,8 @@
 // 올리면 그 지형 조각만 밝아지고(같은 지도 그림을 clip-path로 잘라 둔 단추, 조각 그림 없음) 금빛 점선 테가 두르며, 이름표는 지형을 가리지 않도록
 // 양피지 여백(tag)에 지시선으로 빼서 뜬다. 표식은 폴리곤의 무게중심에 있고, 올린 곳, 고른 곳, 현재 위치는 표식이 커지며 빛난다(표식 둘레의 네모 테는
 // 쓰지 않는다, 사용자 11-08). 한 번 누르면 지도 왼쪽의 설명 칸에 고정하고(고른 곳 하나만, 다른 지역 목록은 없다, 사용자 11-09) 두 번 누르면 그 자리로
-// 들어간다. 열린 곳만 이름을 내준다: 액트는 game.maxZoneId까지, 콘텐츠는 그 길의 열림(explorationAtlasUi available). 잠긴 곳은 세피아 인장으로만 찍혀 있고
-// 다음 액트는 빈 마름모. 이동은 기존 입구(explorationAtlasUi.hunt, enter, 액트 단추 묶음)가 맡고, 이 파일은 그 이름을 onclick 글로만 적는다. 세부 화면 위
+// 들어간다. 열린 곳만 이름을 내준다: 액트는 game.maxZoneId까지, 콘텐츠는 그 길의 열림(explorationAtlasUi available). 잠긴 곳은 바로 다음 액트만
+// 빈 마름모로 보이고 나머지는 열릴 때 나타난다. 이동은 기존 입구(explorationAtlasUi.hunt, enter, 액트 단추 묶음)가 맡고, 이 파일은 그 이름을 onclick 글로만 적는다. 세부 화면 위
 // 길잡이의 자리 탭(placeTabsHtml)도 같은 표식으로 그린다. 지도는 설명 칸 오른쪽의 남은 너비를 채우고(비율 고정) 688px보다 좁으면 가로로 스크롤한다.
 const worldMapUi = (() => {
     const urls = new Map();
@@ -45,7 +45,7 @@ const worldMapUi = (() => {
         const index = region.act - 1, maximum = game.maxZoneId, act = STORY_ACTS[index];
         const current = game.currentZoneId === index, cleared = index < maximum;
         return { index, open: api.available('map-explore-hunting') && index <= maximum, cleared, current, next: index === maximum + 1, attention: false,
-            reward: api.actRewardZoneIds().includes(index), status: _t(current ? '현재 위치' : cleared ? '완료' : '진행 중'),
+            reward: api.actRewardZoneIds().includes(index), status: _t(current ? '현재 위치' : cleared ? '완료' : '미완료'),
             color: current ? '#ffe39a' : cleared ? '#c9a862' : '#f2d28a', title: _t(act.title), kind: formatStoryActLabel(act),
             description: act.subtitle ? _t(act.subtitle) : '', target: '', symbol: 'diamond', route: 'map-explore-hunting', go: `explorationAtlasUi.hunt(${index})` };
     }
@@ -113,7 +113,6 @@ const worldMapUi = (() => {
     /** 이름표: 자리(tag)는 그림 픽셀 단위라 지도 너비에 따라 소수 px이 되는데, 글이 번지지 않게 정수 px으로 반올림하고(round) 변형 대신 0 크기 상자의 flex 정렬로 가운데를 맞춘다. */
     function tagHtml(entry) {
         const { region, state } = entry, [cx] = centre(region.zone);
-        if (state.next) return '';
         const body = state.open ? `${escapeHTML(state.title)}${state.status ? `<small>${escapeHTML(state.status)}</small>` : ''}` : escapeHTML(lockedLabel());
         const at = `left:round(nearest,${pct(region.tag[0], WORLD_MAP.width)},1px);top:round(nearest,${pct(region.tag[1], WORLD_MAP.height)},1px)`;
         return `<span class="wm-tag ${region.tag[0] < cx ? 'is-left' : ''} ${pieceClasses(entry)}" data-wm="${region.id}" style="${at}"><span>${body}</span></span>`;
@@ -158,6 +157,12 @@ const worldMapUi = (() => {
         document.querySelectorAll(`#ui-exploration-atlas [data-wm="${id}"]`).forEach(piece => piece.classList.add('is-picked'));
         peek(id);
     }
+    /** A story zone's act on the map (region.act is the act number, the zone index + 1); false when the map has no place for it. */
+    function pickAct(zoneId) {
+        const region = WORLD_MAP.regions.find(row => row.type === 'act' && row.act === zoneId + 1);
+        if (region) pick(region.id);
+        return !!region;
+    }
     /** 지도에 없는 열린 길(군락지, 창공, 낚시, 경계 너머): 지도 아래 줄과 길잡이의 이름 탭이 같은 목록을 쓴다. */
     function offMapRoutes() {
         const onMap = new Set(WORLD_MAP.regions.map(region => region.route));
@@ -168,7 +173,9 @@ const worldMapUi = (() => {
         const chips = offMapRoutes().map(route => `<button class="wm-chip" onclick="explorationAtlasUi.enter('${route}')">${escapeHTML(api.routeLabel(route))}</button>`);
         return chips.length ? `<div class="wm-others"><span>${_t('그 밖의 곳')}</span>${chips.join('')}</div>` : '';
     }
+    /** 아틀라스 입구: 아틀라스가 열린 뒤에만 지도에 선다(2026-11-09 사용자: 아틀라스 해금 전에는 없어야). */
     function atlasEntranceHtml() {
+        if (!api.available('map-explore-worldtree')) return '';
         const region = WORLD_MAP.regions.find(row => row.id === WORLD_MAP.atlas.entrance);
         const [x, y] = centre(region.zone);
         const icon = glyph(region.symbol, region.color, 2);
@@ -176,11 +183,16 @@ const worldMapUi = (() => {
             ${_t('아틀라스')}<i aria-hidden="true" style="background-image:url('${icon}')"></i></button>`;
     }
     const atlasAnchorStyle = ([x, y]) => `left:${x}%;top:${y}%`;
+    /** 아틀라스 지도의 표식(2026-11-09 사용자: 구역별 숫자 색깔 및 아이콘 개선): 지도 노드는 등급 숫자를 아틀라스 창과 같은 등급 색(흰색, 노란색,
+     * 빨간색, js/atlas.js tierBand)으로, 수호자와 정점은 세계 지도와 같은 도트 그림으로 그린다. 잠긴 곳은 회색. */
+    const ATLAS_NODE_ICONS = Object.freeze({ guardian: { symbol: 'boss', color: '#f2d28a' }, pinnacle: { symbol: 'star', color: '#eedcff' } });
+    const atlasIcon = (kind, locked) => glyph(ATLAS_NODE_ICONS[kind].symbol, locked ? '#8d8494' : ATLAS_NODE_ICONS[kind].color, 2);
     function atlasNodeHtml(node, point, { open, lock }) {
         const status = open && !lock ? atlas.status(game, node.id) : 'locked', tier = atlas.effectiveTier(game, node);
         const label = atlasUi.nodeLabel(node, tier, status);
-        const symbol = { guardian: '◆', pinnacle: '✦' }[node.kind] || tier;
-        return `<button type="button" class="wm-atlas-node is-${status} kind-${node.kind}" style="${atlasAnchorStyle(point)}" data-atlas-node="${node.id}"
+        const tone = (Number.isFinite(tier) && atlas.tierBand(tier)?.tone) || '#ece6d8';
+        const symbol = ATLAS_NODE_ICONS[node.kind] ? `<i style="background-image:url('${atlasIcon(node.kind, status === 'locked')}')"></i>` : tier;
+        return `<button type="button" class="wm-atlas-node is-${status} kind-${node.kind}" style="${atlasAnchorStyle(point)};--wm-tier:${tone}" data-atlas-node="${node.id}"
             aria-label="${label}" data-tip="${label}" aria-disabled="${!open}" onclick="explorationAtlasUi.enterAtlasNode('${node.id}')"><span aria-hidden="true">${symbol}</span></button>`;
     }
     function atlasRegionRoutes(points) {
@@ -206,7 +218,7 @@ const worldMapUi = (() => {
         return `<div class="world-map wm-atlas-overview"><div class="wm-side-wrap"><div class="wm-side">
             <div class="wm-side-text"><strong>${_t('아틀라스')}</strong>
             <p>${_t('어머니 나무 이전, 고대 존재들이 남긴 다섯 권역입니다.')}</p>
-            <p class="wm-atlas-legend"><span>◆ ${_t('지역 수호자')}</span><span>✦ ${_t('정점')}</span></p>
+            <p class="wm-atlas-legend"><span><i style="background-image:url('${atlasIcon('guardian')}')"></i>${_t('지역 수호자')}</span><span><i style="background-image:url('${atlasIcon('pinnacle')}')"></i>${_t('정점')}</span></p>
             ${access.lock ? `<p class="wm-atlas-lock">${escapeHTML(access.lock)}</p>` : ''}</div>
             <div class="wm-side-actions atlas-hunting-action"><button type="button" class="wm-atlas-back" onclick="explorationAtlasUi.showAtlasMap(false)"><span aria-hidden="true">←</span> ${_t('세계 지도')}</button></div>
             </div></div><div class="wm-view"><div class="wm-map wm-atlas-map" role="group" aria-label="${_t('아틀라스')}">
@@ -221,8 +233,10 @@ const worldMapUi = (() => {
         const all = entries().filter(e => e.region.id !== WORLD_MAP.atlas.entrance);
         const open = all.filter(e => e.state.open), others = othersHtml();
         if (!open.some(e => e.region.id === picked)) picked = null;
-        const layers = `<svg class="wm-lines" viewBox="0 0 ${WORLD_MAP.width} ${WORLD_MAP.height}" aria-hidden="true">${all.map(linesHtml).join('')}${nextLinkHtml(all)}</svg>`
-            + all.map(zoneHtml).join('') + all.map(markHtml).join('') + all.map(tagHtml).join('');
+        // 잠긴 곳은 바로 다음 액트만 보인다(2026-11-09 사용자: 아직 닿지 않은 곳이 너무 많으니 차근차근 생기게): 나머지는 열릴 때 나타난다.
+        const shown = all.filter(e => e.state.open || e.state.next);
+        const layers = `<svg class="wm-lines" viewBox="0 0 ${WORLD_MAP.width} ${WORLD_MAP.height}" aria-hidden="true">${shown.map(linesHtml).join('')}${nextLinkHtml(all)}</svg>`
+            + shown.map(zoneHtml).join('') + shown.map(markHtml).join('') + shown.map(tagHtml).join('');
         return `<div class="world-map${others ? ' has-others' : ''}">${open.length ? `<div class="wm-side-wrap">${sideFor(resting(open))}</div>` : ''}<div class="wm-view"><div class="wm-map" role="group" aria-label="${_t('세계 지도')}">`
             + `<div class="wm-art" style="background-image:url('${WORLD_MAP.src}')"></div>${layers}${atlasEntranceHtml()}</div></div>${others}</div>`;
     }
@@ -239,6 +253,6 @@ const worldMapUi = (() => {
         return `<button class="exploration-place-tab${state.attention ? ' is-attention' : ''}" aria-pressed="${on}"${on ? '' : ` data-tip="${escapeHTML(state.title)}"`} onclick="explorationAtlasUi.enter('${state.route}')">`
             + `<i style="background-image:url('${glyph(state.symbol, state.color, 2)}')">${number ? `<b>${number}</b>` : ''}${state.reward ? bangHtml() : ''}</i><span>${escapeHTML(state.title)}</span></button>`;
     }
-    return { overviewHtml, placeTabsHtml, offMapRoutes, pick, link, showAtlas: on => { atlasMap = on; } };
+    return { overviewHtml, placeTabsHtml, offMapRoutes, pick, pickAct, link, showAtlas: on => { atlasMap = on; } };
 })();
 safeExposeGlobals({ worldMapUi });

@@ -18,6 +18,12 @@ const explorationAtlasUi = (() => {
         scrollToTop();
         if (atlasMap) focusAtlasControl(true);
     }
+    /** The world map with a story act picked: its side panel holds the act's reward, travel and 세부 지역. Goals open this, not the act list
+     * (2026-11-09 사용자: 지도 안내가 구버전 맵으로 이동시킴). */
+    function openAct(zoneId) {
+        open();
+        worldMapUi.pickAct(zoneId);
+    }
     function revealAtlasMap(on) {
         worldMapUi.showAtlas(on);
         render();
@@ -354,6 +360,6 @@ const explorationAtlasUi = (() => {
             <h2>${escapeHTML(_t(!route ? region.name : hunting ? '나무' : routeLabel(route)))}</h2>${progress}</div>`;
         if (writeHtmlIfChanged(banner, html)) banner.className='atlas-theme-'+region.id;
     }
-    return {open,enter,showAtlasMap,enterAtlasRegion,enterAtlasNode,page,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};
+    return {open,openAct,enter,showAtlasMap,enterAtlasRegion,enterAtlasNode,page,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};
 })();
 safeExposeGlobals({explorationAtlasUi});
