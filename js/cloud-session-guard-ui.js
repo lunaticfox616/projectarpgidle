@@ -152,6 +152,7 @@ const cloudSessionGuard = (() => {
         fill('.startup-standby-note', STANDBY_TEXT.note);
         overlay.classList.add('standby');
         panel.hidden = false;
+        gameTabGuard.uncover();   // 이 화면은 부팅하지 않는다: 받는 동안의 덮개를 여기서 걷는다
         const resume = document.getElementById('btn-startup-standby');
         if (!resume) return;
         resume.textContent = STANDBY_TEXT.button;
