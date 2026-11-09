@@ -3619,7 +3619,7 @@ function switchMapSubtab(subtabId) {
     if (!isMapPrimaryContentUnlocked(game, subtabId)) subtabId = 'map-tab-zones';
     if (subtabId === game.mapSubtab) {
         if (isSelectedSubtab(subtabId)) {
-            if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+            if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-atlas');
             return;
         }
     }
@@ -3630,7 +3630,7 @@ function switchMapSubtab(subtabId) {
     let btn = document.getElementById('btn-' + subtabId);
     if (panel) panel.classList.add('active');
     if (btn) btn.classList.add('active');
-    if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-hunting');
+    if (subtabId === 'map-tab-zones') switchMapExploreSubtab(game.mapExploreSubtab || 'map-explore-atlas');
     if (subtabId === 'map-tab-pvp' && typeof renderGhostArena === 'function') renderGhostArena();
     const renderRegion = {
         'map-tab-underworld': renderUnderworldMapPanel,
@@ -3644,7 +3644,7 @@ function switchMapSubtab(subtabId) {
 
 function switchMapExploreSubtab(subtabId) {
     if (!contentProgression.canOpen(subtabId)) return;
-    const fallback = 'map-explore-hunting';
+    const fallback = 'map-explore-atlas';
     const panel = document.getElementById(subtabId) ? document.getElementById(subtabId) : document.getElementById(fallback);
     const activeId = panel ? panel.id : fallback;
     if (activeId === game.mapExploreSubtab && isSelectedSubtab(activeId)) return;
@@ -3708,9 +3708,11 @@ function detectNewMapUnlockAlarms() {
 
 // 해당 세부 탭을 열어 확인하면 그 탭의 배지를 끈다(마지막 확인 시그니처를 현재값으로 갱신).
 function clearMapExploreAlarm(subtabId) {
-    if (!MAP_EXPLORE_ALARM_SUBTABS.includes(subtabId)) return;
+    // 세계 지도에 액트가 다 보이므로 새로 열린 액트의 알림도 거기서 본 것으로 친다(2026-11-09).
+    const key = subtabId === 'map-explore-atlas' ? 'map-explore-hunting' : subtabId;
+    if (!MAP_EXPLORE_ALARM_SUBTABS.includes(key)) return;
     ensureMapAlarmState();
-    game.mapAlarmSeen[subtabId] = getMapExploreUnlockSignatures()[subtabId];
+    game.mapAlarmSeen[key] = getMapExploreUnlockSignatures()[key];
 }
 
 // 지도 메인 탭을 열면 메인 알람 기준선을 현재값으로 맞춰 메인 빨간점을 끈다.
@@ -3741,13 +3743,15 @@ function isMapExploreSubtabOpenable(subtabId) {
 // 지도 탭의 빨간 점을 켠 원인 세부 화면을 돌려준다. 액트 보상 미수령이 우선이고,
 // 그다음이 아직 열어 보지 않은 신규 해금이다.
 function getMapAlarmSourceSubtab() {
-    if (getAvailableActRewardZoneIds().length > 0) return 'map-explore-hunting';
+    if (getAvailableActRewardZoneIds().length > 0) return 'map-explore-atlas';
     ensureMapAlarmState();
     let sigs = getMapExploreUnlockSignatures();
-    return MAP_EXPLORE_ALARM_SUBTABS.find(key => {
+    const source = MAP_EXPLORE_ALARM_SUBTABS.find(key => {
         let seen = game.mapAlarmSeen[key];
         return seen !== undefined && sigs[key] > seen && isMapExploreSubtabOpenable(key);
     }) || null;
+    // 받을 액트 보상과 새로 열린 액트는 세계 지도에서 그 액트를 고른 설명 칸으로 연다(액트 목록 대신, 2026-11-09).
+    return source === 'map-explore-hunting' ? 'map-explore-atlas' : source;
 }
 
 // 알람을 보고 지도를 열었으면 마지막에 보던 화면이 아니라 알람을 띄운 화면부터 연다.
@@ -3758,6 +3762,7 @@ function focusMapAlarmSourceSubtab() {
     if (!source) return;
     game.mapSubtab = 'map-tab-zones';
     game.mapExploreSubtab = source;
+    if (source === 'map-explore-atlas') worldMapUi.pickAct(getAvailableActRewardZoneIds()[0] ?? Math.floor(Number(game.maxZoneId) || 0));
 }
 
 // 탐험 좌측 세부 탭 버튼 노출 여부를 갱신한다. subtabId는 패널/버튼 id의 공통 키
@@ -3765,7 +3770,7 @@ function focusMapAlarmSourceSubtab() {
 function setExploreSubtabAvailable(subtabId, available) {
     let btn = document.getElementById('btn-' + subtabId);
     if (btn) btn.style.display = available ? '' : 'none';
-    if (!available && game.mapExploreSubtab === subtabId) switchMapExploreSubtab('map-explore-hunting');
+    if (!available && game.mapExploreSubtab === subtabId) switchMapExploreSubtab('map-explore-atlas');
 }
 function enterLabyrinthFloor(requestedFloor) {
     const blocked = floorEntryBlockReason(LABYRINTH_ZONE_ID);
@@ -13589,6 +13594,9 @@ function checkUnlocks() {
         queueContentNotice('unlock_jewel', '주얼', 'jewel', { open: '주얼을 모을 수 있게 되었습니다.\n장비를 선택해 [소켓]에서 주얼을 끼우세요. 반지, 목걸이, 허리띠에는 소켓이 처음부터 있습니다.',
             locked: '주얼과 주얼 결정을 모을 수 있게 되었습니다.\n‘해금’에서 주얼을 열면 장비 소켓에 끼울 수 있습니다.' }, 'tab-items');
     }
+    // 새 시작 안내는 닫힌 화면을 겨눈 안내를 버린다(js/state.js queueTutorialNotice): 주운 무기로 장비 창이 열리는 것을 먼저 맞춰야
+    // 무기 장착 안내가 쌓이고 '무기 장착하기'를 누르면 따라 하기 카드가 뜬다(2026-11-09 튜토리얼 점검).
+    contentProgression.opening.sync(game);
     contentUnlockUi.announceStarterWeapon(starterWeapon);
     queueStarterGuides(game);
     if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills) {

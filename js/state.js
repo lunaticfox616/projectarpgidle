@@ -2711,7 +2711,8 @@ const defaultGame = {
     timeRift: { pressure: 1, activePressure: null, altarOpen: false, altarUnique: null, altarRare: null, fusionCount: 0, lastFusion: null },
     mapSubtab: 'map-tab-zones',
     unlockedMapContents: ['map-tab-zones'],
-    mapExploreSubtab: 'map-explore-hunting',
+    // 지도 탭의 처음 화면은 세계 지도다(2026-11-09 사용자: 지도 안내가 구버전 맵으로 이동시킴). 액트 목록은 그 안의 세부 지역.
+    mapExploreSubtab: 'map-explore-atlas',
     gemFoldInactiveAttack: false,
     gemFoldInactiveSupport: false,
     autoRepeatSeasonBoss: false,

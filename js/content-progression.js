@@ -35,15 +35,18 @@ const contentProgression = (() => {
         }
         const tradeReady = owner => equipped(owner) && owner.maxZoneId >= 5
             && Object.values(owner.npcShops || {}).some(shop => shop.loop === owner.season && shop.zoneId >= 5 && shop.offers?.length > 0);
+        /** A screen counts as seen once opened. The equipment window opened to wear the starter weapon is not the first-gear lesson
+         * (compare and swap): that one waits for real gear (cueReady), 2026-11-09. */
         function visit(owner, route) {
             if (!applies(owner) || !cues.includes(route) || seen(owner, visitKey(route))) return false;
+            if (route === 'tab-items' && owner.starterWeaponTutorialPending != null) return false;
             owner.seenTutorials.push(visitKey(route));
             return true;
         }
         function cueReady(owner, route) {
             if (seen(owner, visitKey(route)) || !canOpen(owner, route)) return false;
             if (route === 'tab-map') return owner.maxZoneId === 1 && owner.currentZoneId === 0;
-            if (route === 'tab-items') return true;
+            if (route === 'tab-items') return hasLoot(owner);
             if (route === 'tab-journal') return !seen(owner, TRADE);
             if (route === 'tab-trade') return true;
             return owner.maxZoneId < 4;

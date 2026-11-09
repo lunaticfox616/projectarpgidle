@@ -15381,7 +15381,7 @@ function resetLoopContents(kept) {
     game.itemSubtab = 'item-tab-equip';
     game.skillSubtab = 'skill-tab-equip';
     game.mapSubtab = 'map-tab-zones';
-    game.mapExploreSubtab = 'map-explore-hunting';
+    game.mapExploreSubtab = 'map-explore-atlas';
     game.chaosRealm = preservedChaosRealm;
     atlas.onLoopReset(game);
     knitting.resetForLoop(game);

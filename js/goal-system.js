@@ -511,7 +511,8 @@
             requirements: unlock.requirements || [],
             actionLabel: unlock.actionLabel,
             actionTabId: unlock.actionTabId,
-            actionSubtabId: unlock.actionSubtabId
+            actionSubtabId: unlock.actionSubtabId,
+            actionMapAct: unlock.actionMapAct
         };
     }
 
