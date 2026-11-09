@@ -4141,13 +4141,6 @@ function showGemCardHint(event, type, name) {
     if (event.pointerType === 'mouse') showGemTooltip(event, type, name);
 }
 
-function renderSealedGemCard(name, highlightedName, isSupport) {
-    let releaseCall = isSupport ? `unsealSupportGem('${name}')` : `unsealSkillGem('${name}')`;
-    let art = isSupport ? supportGemSigil.html(name, 'gem-card-sigil gem-tile-art gem-tile-support-art', 0) : renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art');
-    const refusal = game.woodsmanBuildLock ? getSkillGemSealRefusal(name, isSupport) : (game.resonancePower < 1 ? '공명력이 부족합니다.' : '');
-    return `<article class="skill-gem gem-library-card gem-tile sealed-gem-card">${art}<strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${_t('봉인됨, 공명력 1로 복원')}</small><button type="button" class="gem-card-utility" onclick="${releaseCall}" ${refusal ? `disabled data-tip="${escapeHTML(refusal)}"` : ''}>${_t('봉인 해제')}</button></article>`;
-}
-
 /** 룬 레벨 구성(2026-10-09): 최종 레벨을 크게, 기본/재료와 각성/장비와 패시브를 한 막대에 나눠 칠하고, 그 아래 전투 수치 칩. 작은 4칸 표였다. */
 function getGemGrowthSummaryHtml(name, presentation) {
     if (!presentation || !presentation.skill) return '';
@@ -4256,6 +4249,8 @@ const PIXEL_ICONS = Object.freeze({
     split: ['##...#...##', '#.#.###.#.#', '...#.#.#...', '....###....', '.....#.....', '.....#.....', '.....#.....', '.....#.....', '....###....', '....#o#....', '....###....'],
     // 자물쇠(2026-10-23, 그루터기 함 잠금 js/stump-box-ui.js)
     lock: ['...........', '...#####...', '..##...##..', '..#.....#..', '..#.....#..', '.#########.', '.####o####.', '.####o####.', '.#########.', '.#########.', '...........'],
+    // 열린 자물쇠(2026-11-09, 봉인한 룬의 해제 단추 js/skills-ui.js): 고리가 들려 왼쪽 다리가 빠진 자물쇠
+    unlock: ['....#####..', '...##...##.', '...#.....#.', '.........#.', '.........#.', '.#########.', '.####o####.', '.####o####.', '.#########.', '.#########.', '...........'],
     reticle: ['...#####...', '..#.....#..', '.#...#...#.', '#....#....#', '#...ooo...#', '#.###o###.#', '#...ooo...#', '#....#....#', '.#...#...#.', '..#.....#..', '...#####...'],
     boomerang: ['...######..', '..#oooooo#.', '.#o######..', '.#o#.......', '.#o#....#..', '.#o#....##.', '.#o#######.', '.#oooooo##.', '..#######..', '........#..', '...........'],
     pierce: ['.....#.....', '....###....', '...##o##...', '.....#.....', '.###.#.###.', '.#oo.#.oo#.', '.#oo.#.oo#.', '.#oo.#.oo#.', '..#o.#.o#..', '...#.#.#...', '....###....'],

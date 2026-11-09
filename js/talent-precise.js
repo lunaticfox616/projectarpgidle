@@ -108,7 +108,7 @@ function getTalentPrecisePlayerHitMultiplier(ele) {
 }
 
 function getTalentRemainingResonance(pStats) {
-    let cap = Math.max(0, Math.floor(Number(game.resonancePower) || 0)
+    let cap = Math.max(0, Math.floor(Number(game.resonancePower) || 0) + gemDropRewards.sealResonance(game)
         + Math.floor(Number(pStats && pStats.runeResonancePower) || 0)
         + Math.floor(Number(pStats && pStats.inquisitorResonanceBonus) || 0));
     let used = (game.equippedSupports || []).reduce((sum, name) => {

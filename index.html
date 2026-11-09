@@ -1044,13 +1044,14 @@
                     <section id="ui-support-slots" class="support-slots" aria-label="장착한 보조스킬룬" data-i18n-attr="aria-label"></section>
                 </div>
                 <section class="skill-picker" aria-labelledby="ui-skill-picker-title">
+                    <!-- 룬 종류 탭(2026-11-09 사용자: 칸을 눌러야만 룬을 볼 수 있었다): 공격, 이동, 소환, 보조, 봉인 목록을 바로 연다(js/skills-ui.js). -->
+                    <nav id="ui-skill-picker-tabs" class="skill-picker-tabs" role="tablist" aria-label="룬 종류" data-i18n-attr="aria-label"></nav>
                     <div class="skill-picker-head">
-                        <h3 id="ui-skill-picker-title" data-i18n>주 공격 칸에 낄 룬</h3>
-                        <span id="ui-skill-picker-count" class="skill-picker-count"></span>
-                        <button id="btn-skill-picker-fold" type="button" class="skill-picker-fold" aria-pressed="false" data-i18n>장착 중만</button>
+                        <h3 id="ui-skill-picker-title" data-i18n>공격스킬룬</h3>
                     </div>
                     <div id="ui-skills-list" class="skill-gem-library attack-library"></div>
                     <div id="ui-support-list" class="skill-gem-library support-library" hidden></div>
+                    <div id="ui-sealed-list" class="sealed-library" hidden></div>
                 </section>
             </div>
         </div>

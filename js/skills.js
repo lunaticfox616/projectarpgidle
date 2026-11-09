@@ -1043,6 +1043,10 @@ function getSkillGemSealRefusal(name, support) {
     if (game.starterGemTutorialPending === name) return '첫 스킬룬을 먼저 장착하세요.';
     return (game.equippedSummonSkills || []).includes(name) ? '장착 중 소환수 룬은 봉인할 수 없습니다.' : '';
 }
+/** The seal line's tail: how many runes are sealed and the resonance they give now (봉인 2개당 공명력 1, gemDropRewards.sealResonance). */
+function getSealLogParams(name) {
+    return { name, count: game.sealedSkills.length + game.sealedSupports.length, power: gemDropRewards.sealResonance(game) };
+}
 function sealSkillGem(name) {
     const refusal = getSkillGemSealRefusal(name);
     if (refusal) return addLog(refusal, 'attack-monster');
@@ -1050,19 +1054,16 @@ function sealSkillGem(name) {
     game.skills = game.skills.filter(gem => gem !== name);
     delete game.summonSkillCounts[name];
     if (!game.sealedSkills.includes(name)) game.sealedSkills.push(name);
-    game.resonancePower += 1;
-    addLog(_t('🔒 공격 룬 봉인: {name} (공명력 +1)', { name }), 'loot-magic');
+    addLog(_t('🔒 공격 룬 봉인: {name} (봉인 {count}개, 공명력 +{power})', getSealLogParams(name)), 'loot-magic');
     queueImportantSave(180);
     updateStaticUI();
 }
 function unsealSkillGem(name) {
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!game.sealedSkills.includes(name) || game.skills.includes(name)) return;
-    if (game.resonancePower < 1) return addLog(_t('공명력이 부족합니다.'), 'attack-monster');
-    game.resonancePower -= 1;
     game.skills.push(name);
     game.sealedSkills = game.sealedSkills.filter(gem => gem !== name);
-    addLog(_t('🔓 공격 룬 해제: {name} (공명력 -1)', { name }), 'loot-normal');
+    addLog(_t('🔓 공격 룬 해제: {name} (봉인 {count}개, 공명력 +{power})', getSealLogParams(name)), 'loot-normal');
     queueImportantSave(180);
     updateStaticUI();
 }
@@ -1072,19 +1073,16 @@ function sealSupportGem(name) {
     if (!game.supports.includes(name)) return;
     game.supports = game.supports.filter(gem => gem !== name);
     if (!game.sealedSupports.includes(name)) game.sealedSupports.push(name);
-    game.resonancePower += 1;
-    addLog(_t('🔒 보조스킬룬 봉인: {name} (공명력 +1)', { name }), 'loot-magic');
+    addLog(_t('🔒 보조스킬룬 봉인: {name} (봉인 {count}개, 공명력 +{power})', getSealLogParams(name)), 'loot-magic');
     queueImportantSave(180);
     updateStaticUI();
 }
 function unsealSupportGem(name) {
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!game.sealedSupports.includes(name) || game.supports.includes(name)) return;
-    if (game.resonancePower < 1) return addLog(_t('공명력이 부족합니다.'), 'attack-monster');
-    game.resonancePower -= 1;
     game.supports.push(name);
     game.sealedSupports = game.sealedSupports.filter(gem => gem !== name);
-    addLog(_t('🔓 보조스킬룬 해제: {name} (공명력 -1)', { name }), 'loot-normal');
+    addLog(_t('🔓 보조스킬룬 해제: {name} (봉인 {count}개, 공명력 +{power})', getSealLogParams(name)), 'loot-normal');
     queueImportantSave(180);
     updateStaticUI();
 }

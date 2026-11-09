@@ -1078,8 +1078,7 @@ body #tab-skills .search-filter-panel {
 }
 
 :root 
-body #tab-skills .search-action-row button,:root 
-body #tab-skills .gem-card-utility {
+body #tab-skills .search-action-row button {
   border-color: #4c4030;
   color: #cfc4b4;
   background: #151612;
@@ -2319,8 +2318,7 @@ body .hero-choice {
 }
 
 :root 
-body #tab-skills .search-action-row button,:root 
-body #tab-skills .gem-card-utility {
+body #tab-skills .search-action-row button {
   border-radius: 2px;
 }
 

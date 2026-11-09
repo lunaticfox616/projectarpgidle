@@ -804,7 +804,7 @@ run('game.skyTower.currentFloor=2;game.actExploration=null;finishEncounterRun()'
 assert(run("game.loopProgressCurrent.bestSkyFloor===1 && game.skyTower.lastResult.kind==='practice' && game.skyTower.condensedPower===13"),'practice cannot advance this loop\'s sky record or grant essence');
 // The first rune cannot disappear into bulk sealing while the player is learning to equip it.
 run("game=mergeDefaults({skills:['기본 공격','이중 베기','서리바람 내지르기'],starterGemTutorialPending:'이중 베기',resonancePower:10});sealSkillGem('이중 베기');sealAllInactiveSkillGems()");
-assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower]'),[['기본 공격','이중 베기'],['서리바람 내지르기'],11],'only an eligible spare rune can be sealed during the starter guide');
+assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower]'),[['기본 공격','이중 베기'],['서리바람 내지르기'],10],'only an eligible spare rune can be sealed during the starter guide');
 run("game=mergeDefaults({skills:['기본 공격'],sealedSkills:['이중 베기'],starterGemTutorialPending:'이중 베기',resonancePower:11,seenTutorials:['tutorial_starter_gem_equip'],gemData:{'이중 베기':{level:2,exp:17}}})");
 assert(run("getStarterGemTutorialTarget()==='이중 베기' && game.resonancePower===10 && !game.sealedSkills.includes('이중 베기')"),'an old sealed guide target is restored without keeping its seal reward');
 const starterRestored=json('[game.skills,game.sealedSkills,game.resonancePower,game.gemData]');
@@ -813,16 +813,23 @@ assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower,game.g
 assert(run("tutorialQueue.some(row=>row.key==='tutorial_starter_gem_equip')"),'an unfinished equip guide resumes after loading');
 run("equipSkippedStarterGem('tutorial_starter_gem_equip')");
 assert(run("game.activeSkill==='이중 베기' && !game.starterGemTutorialPending"),'closing the resumed guide still equips its rune');
-// A zero resonance capacity is a balance, not a missing default: one seal grants one, and restoration costs one.
-for (const [type,name] of [['Skill','서리바람 내지르기'],['Support','가속']]) {
-    run("game=mergeDefaults({skills:['기본 공격','서리바람 내지르기'],supports:['가속'],resonancePower:0,gemData:{'서리바람 내지르기':{level:7,exp:23}},supportGemData:{'가속':{level:6,exp:19,unlockedTier:2}}})");
+// A zero base resonance is a balance, not a missing default: every two sealed runes give one (2026-11-09), and a restore takes its share back.
+for (const [type,name,other] of [['Skill','서리바람 내지르기','이중 베기'],['Support','가속','생명력 흡수']]) {
+    run("game=mergeDefaults({saveVersion:21,skills:['기본 공격','서리바람 내지르기','이중 베기'],supports:['가속','생명력 흡수'],resonancePower:0,gemData:{'서리바람 내지르기':{level:7,exp:23}},supportGemData:{'가속':{level:6,exp:19,unlockedTier:2}}})");
     const runeGrowth=json('[game.gemData,game.supportGemData]');
     run(`seal${type}Gem('${name}');seal${type}Gem('${name}')`);
-    assert.equal(run('game.resonancePower'),1,'sealing one rune cannot refill the starting capacity or pay twice');
+    assert.equal(run('gemDropRewards.resonanceCap(game,{})'),0,'one sealed rune gives no resonance yet, and sealing it twice counts once');
+    run(`seal${type}Gem('${other}')`);
+    assert.equal(run('gemDropRewards.resonanceCap(game,{})'),1,'two sealed runes give one resonance');
     run(`game=mergeDefaults(JSON.parse(serializeSaveState(game)));unseal${type}Gem('${name}');unseal${type}Gem('${name}')`);
-    assert.equal(run('game.resonancePower'),0,'restoring a rune spends exactly its one seal reward');
+    assert.deepEqual(json('[game.resonancePower,gemDropRewards.resonanceCap(game,{})]'),[0,0],'a reload keeps the base, and a restore takes the pair share back once');
     assert.deepEqual(json('[game.gemData,game.supportGemData]'),runeGrowth,'sealing, reload and restoration preserve rune growth');
 }
+// Saves before version 21 kept 1 resonance per seal in the base: the load takes it out once, then two seals give one.
+run("game=mergeDefaults({skills:['기본 공격'],sealedSkills:['이중 베기','서리바람 내지르기'],sealedSupports:['가속'],resonancePower:13})");
+assert.deepEqual(json('[game.resonancePower,gemDropRewards.resonanceCap(game,{})]'),[10,11],'an old base loses its seal share once');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)))');
+assert.deepEqual(json('[game.resonancePower,gemDropRewards.resonanceCap(game,{})]'),[10,11],'reloading a converted save does not take the seals out again');
 // New hive offers follow actual crafting access; an old promised offer is not rerolled here.
 run('game=mergeDefaults({});game.season=8;contentProgression.sync()');
 assert.deepEqual(json('getBeehiveRewardPool(1).map(row=>row.type)'),['pollen','beeswax']);

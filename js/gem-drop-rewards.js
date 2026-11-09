@@ -1,8 +1,14 @@
 // Exact gem-drop records and collection merging. No random draws, UI or global game mutations.
 const gemDropRewards=(()=>{
+    /** Sealed runes per point of resonance (2026-11-09 사용자: 봉인 2개당 공명력 1, 전에는 1개당 1). */
+    const SEALED_RUNES_PER_RESONANCE = 2;
+    /** Resonance the sealed attack and support runes give. state.resonancePower is the base without it (saveVersion 21). */
+    function sealResonance(state) {
+        return Math.floor(((state.sealedSkills || []).length + (state.sealedSupports || []).length) / SEALED_RUNES_PER_RESONANCE);
+    }
     /** Shared by the support-rune UI and deferred floor pickups. Pure calculation from the supplied build. */
     function resonanceCap(state, stats) {
-        const base = Math.max(0, Math.floor(state.resonancePower || 0));
+        const base = Math.max(0, Math.floor(state.resonancePower || 0)) + sealResonance(state);
         const floor = Math.max(0, Math.floor(stats?.uniqueResonanceFloor || 0));
         const inquisitor = Math.max(0, Math.floor(stats?.inquisitorResonanceBonus || 0));
         const runes = Math.max(0, Math.floor(stats?.runeResonancePower || 0));
@@ -96,6 +102,6 @@ const gemDropRewards=(()=>{
         const extra=getSupportResonanceCostAtTier(name,record.unlockedTier)-getSupportResonanceCostAtTier(name,before);
         if(!state.equippedSupports.includes(name)||Math.max(0,cap-used)>=extra)record.activeTier=record.unlockedTier;
     }
-    return {resonanceCap,attackRunes,spareCount,copyCount,takeSpare,nextSupport,validate,validateGem,prepare,grant};
+    return {resonanceCap,sealResonance,attackRunes,spareCount,copyCount,takeSpare,nextSupport,validate,validateGem,prepare,grant};
 })();
 safeExposeGlobals({gemDropRewards});

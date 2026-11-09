@@ -1360,7 +1360,6 @@ body .item-card {
 #tab-skills .element-chaos { --gem-accent: #9a72d4; }
 #tab-skills .element-physical { --gem-accent: #a7b1bc; }
 #tab-skills .support-gem.gem-library-card { --gem-accent: #55ae91; background: linear-gradient(150deg, rgba(17, 45, 43, .94), rgba(6, 18, 22, .98)); }
-#tab-skills .sealed-gem-card { --gem-accent: #596574; opacity: .72; border-style: dashed; cursor: default; }
 .gem-card-sigil { display: grid; place-items: center; width: 40px; height: 40px; overflow: hidden; color: var(--gem-accent); border: 0; border-radius: 50%; background: rgba(4, 9, 15, .66); font-size: 13px; }
 .gem-card-art,
 .gem-target-icon,
@@ -1393,8 +1392,6 @@ body .item-card {
 .gem-card-tags .gem-tag--support { color: #a9ead2; border-color: rgba(69, 157, 126, .68); background: rgba(13, 55, 43, .72); }
 .gem-usage-state { min-width: 0; margin-right: auto; overflow: hidden; color: #eef2f6; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .gem-library-card.active .gem-usage-state { color: #d7bd76; }
-.gem-card-utility { min-width: 23px; min-height: 22px; padding: 2px 5px; font-size: 8px; }
-.gem-card-utility { color: #eef2f6; border-color: #3b5065; background: #172434; }
 
 .gem-forge-workspace { display: grid; grid-template-columns: minmax(220px, .68fr) minmax(430px, 1.45fr); gap: 10px; align-items: start; }
 .gem-target-rail,
@@ -1559,7 +1556,6 @@ body .item-card {
 #tab-skills .gem-library-card { color: #ffffff; }
 #tab-skills .gem-card-tags span { font-size: 9px; } /* 색은 꼬리표 종류(.gem-tag--*)가 정한다 — 흰색으로 덮으면 근접 · 투사체 · 주문이 구분되지 않았다(2026-10-06) */
 #tab-skills .gem-usage-state { color: #eef2f6; font-size: 9.5px; }
-#tab-skills .gem-card-utility { font-size: 9.5px; }
 #tab-skills .gem-target-rail-heading span { font-size: 13px; }
 #tab-skills .gem-target-rail-heading small { color: #eef2f6; font-size: 9.5px; }
 #tab-skills .gem-target-card strong { color: #ffffff; font-size: 11px; }
@@ -1851,7 +1847,6 @@ body .item-card {
 #btn-tab-skills.starter-gem-tutorial-pending {
   border-color: #70d8ff;
 }
-.gem-card-utility { border-radius: 5px; }
 .gem-orbit-slot { clip-path: none; border-radius: 50%; }
 .condition-gem-rule-list > div { border-radius: 2px 10px 2px 10px; background: linear-gradient(150deg, rgba(17, 29, 43, .94), rgba(7, 13, 21, .96)); }
 .player-hud-vitals { grid-template-columns: auto minmax(0, 1fr); } }

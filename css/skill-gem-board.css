@@ -197,15 +197,33 @@
 /* ── 고르기 목록 ─────────────────────────────────────────────────────────────── */
 /* 룬 목록의 칸 폭 계산(100cqw)이 이 판의 내용 폭을 쓰도록 크기 기준으로 둔다. */
 .skill-picker { min-width: 0; padding: 10px; container-type: inline-size; }
+/* 룬 종류 탭(2026-11-09 사용자: 칸을 눌러야만 룬을 볼 수 있었다): 도트 그림, 이름, 가진 개수. 고른 탭은 금빛 테와 아랫줄. */
+.skill-picker-tabs { display: grid; grid-auto-columns: minmax(0, 1fr); grid-auto-flow: column; gap: 4px; margin-bottom: 8px; }
+.skill-picker-tab {
+  display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 34px; padding: 4px 5px;
+  border: 1px solid var(--board-ink); border-radius: 0; background: linear-gradient(180deg, #221d26, #16121a); box-shadow: inset 0 0 0 1px #3a3140;
+  color: var(--board-muted); font: 12px var(--board-label); cursor: pointer;
+}
+.skill-picker-tab > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.skill-picker-tab > b { min-width: 18px; padding: 1px 4px; background: #0d0b0f; box-shadow: inset 0 0 0 1px #3a3140; color: var(--board-copy); font: 400 12px var(--board-label); text-align: center; }
+.skill-picker-tab-icon { flex: none; width: 11px; height: 11px; }
+.skill-picker-tab-icon .m { fill: #7d7184; }
+.skill-picker-tab-icon .f { fill: #3a3140; }
+.skill-picker-tab:hover:not(:disabled, .is-active) { box-shadow: inset 0 0 0 1px #5d5063; color: var(--board-copy); }
+.skill-picker-tab.is-active { background: linear-gradient(180deg, #3a2c22, #221912); box-shadow: inset 0 0 0 1px var(--board-gold), inset 0 -2px 0 var(--board-gold-hi); color: var(--board-gold-hi); }
+.skill-picker-tab.is-active .skill-picker-tab-icon .m { fill: var(--board-gold-hi); }
+.skill-picker-tab.is-active .skill-picker-tab-icon .f { fill: #7a5a34; }
+.skill-picker-tab.is-sealed .skill-picker-tab-icon .m { fill: #a597cf; }
+.skill-picker-tab:disabled { opacity: .45; cursor: default; }
+.skill-picker-tab.is-bumped > b { animation: skillPickerTabBump .6s steps(3, end); }
+/* 휴대폰 폭: 그림과 이름 한 줄, 개수는 그 아래(한 줄이면 이름이 잘려 그림과 숫자만 남았다). */
+@container (max-width: 420px) {
+  .skill-picker-tab { display: grid; grid-template-columns: auto auto; justify-content: center; align-content: center; gap: 2px 3px; padding: 3px 2px; }
+  .skill-picker-tab > b { grid-column: 1 / -1; justify-self: center; }
+}
+@keyframes skillPickerTabBump { 0%, 40% { background: #b9a8e6; color: #19141f; transform: translateY(-2px); } 100% { transform: none; } }
 .skill-picker-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .skill-picker-head h3 { margin: 0; color: var(--board-gold-hi); font: 400 15px var(--board-read); }
-.skill-picker-count { color: var(--board-muted); font: 12px var(--board-label); }
-.skill-picker-fold {
-  margin-left: auto; min-height: 28px; padding: 3px 9px;
-  border: 1px solid var(--board-ink); border-radius: 0; background: #221e26; box-shadow: inset 0 0 0 1px #3a3140;
-  color: var(--board-muted); font: 12px var(--board-label);
-}
-.skill-picker-fold[aria-pressed="true"] { background: #3a2c22; box-shadow: inset 0 0 0 1px var(--board-gold); color: var(--board-gold-hi); }
 #tab-skills .skill-picker .skill-gem-library { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 6px; }
 /* 칸 폭은 정수 px(남는 몇 px는 오른쪽 끝): 1fr 칸은 소수 폭이라 룬 이름이 번졌다(2026-10-21). */
 @supports (width: calc(1px / 1px * 1px)) {
@@ -215,12 +233,13 @@
 #tab-skills .skill-picker .skill-gem-library[hidden] { display: none; }
 #tab-skills .skill-picker #ui-support-list { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
 .support-library-unmatched { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; }
-.support-library-footer { grid-column: 1 / -1; padding-top: 12px; text-align: right; }
 #tab-skills .support-library-effect { color: var(--board-copy); font: 15px/24px var(--board-read); text-align: center; }
 /* 너비 100%(inline)에 여백과 테두리를 넣어 잰다: 그렇지 않으면 룬 목록보다 14px 넓어 오른쪽으로 삐져나왔다 */
 #tab-skills .skill-picker .search-filter-panel { box-sizing: border-box; margin-bottom: 4px; padding: 6px; border: 1px solid #2c2532; border-radius: 0; background: #120f14; }
 #tab-skills .skill-picker .search-filter-input { min-height: 30px; border: 1px solid var(--board-ink); border-radius: 0; background: #0d0b0f; color: var(--board-copy); font: 12px var(--board-label); }
 #tab-skills .skill-picker .search-action-row button { min-height: 26px; font: 12px var(--board-label); }
+/* 장착 중(2026-11-09: 검색어 리셋 옆으로 옮긴 장착한 룬만 보기)이 켜지면 금빛. */
+#tab-skills .skill-picker .search-action-row button[aria-pressed="true"] { background: #3a2c22; box-shadow: inset 0 0 0 1px var(--board-gold); color: var(--board-gold-hi); }
 #tab-skills .skill-picker .gem-library-pager { grid-column: 1 / -1; }
 
 /* 타일: 속성색 윗줄 · 그림 뒤 은은한 빛 · 이름 · 한 줄 요약. 장착은 금빛 테와 꼬리표, 조건 미달은 빛을 빼고 붉은 글씨. */
@@ -238,7 +257,7 @@
 #tab-skills .gem-tile:focus-visible { outline: 2px solid var(--board-gold-hi); outline-offset: 1px; }
 #tab-skills .gem-tile .gem-tile-art { width: 44px; height: 44px; border-radius: 0; background: none; }
 /* 카드 안의 그림과 글(가운데 맞춤)은 카드 폭과 제 폭이 홀수일 때 생기는 반 화소를 되돌린다(2026-10-21). */
-#tab-skills .gem-tile > :not(.gem-tile-level, .gem-tile-worn, .gem-tile-copies, .starter-gem-equip-guide) { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
+#tab-skills .gem-tile > :not(.gem-tile-level, .gem-tile-worn, .gem-tile-copies, .gem-tile-seal, .starter-gem-equip-guide) { position: relative; left: calc(round(down, 50%, 1px) - 50%); translate: calc(round(up, 50%, 1px) - 50%); }
 #tab-skills .gem-tile .gem-tile-art img { image-rendering: pixelated; }
 #tab-skills .gem-tile .gem-tile-name { max-width: 100%; overflow: hidden; color: #fff; font: 400 var(--font-size-ui) var(--board-label); text-overflow: ellipsis; white-space: nowrap; text-shadow: 1px 1px 0 #000; }
 /* 쓰임("전방 부채꼴, 1칸")은 휴대폰 카드에서 한 줄이면 잘렸다: 단어째 두 줄까지 쓴다. */
@@ -262,8 +281,76 @@
   box-shadow: inset 0 0 0 1px #3f9c80; color: var(--board-support); font: normal 20px var(--board-label);
 }
 #tab-skills .gem-tile .gem-tile-support-art > em { position: absolute; right: 2px; bottom: 0; color: var(--board-gold-hi); font: normal var(--font-size-meta) var(--font-pixel-meta, 'Galmuri9', sans-serif); letter-spacing: -1px; }
-#tab-skills .gem-tile.sealed-gem-card { cursor: default; border-style: dashed; filter: grayscale(.6); }
-#tab-skills .gem-tile .gem-card-utility { min-height: 26px; margin-top: 2px; padding: 2px 8px; font: 12px var(--board-label); }
+
+/* 타일의 봉인 단추(2026-11-09 사용자: 룬마다 봉인할 길이 없었다): 왼쪽 위 모서리, 장착 꼬리표 자리(장착한 룬에는 단추가 없다). */
+#tab-skills .gem-tile .gem-tile-seal {
+  position: absolute; left: 0; top: 0; z-index: 1; display: flex; align-items: center; gap: 3px; min-height: 22px; padding: 1px 6px 1px 4px;
+  border: 0; border-radius: 0; background: rgba(13, 11, 15, .78); box-shadow: inset -1px -1px 0 #3a3140;
+  color: var(--board-muted); font: 12px var(--board-label); cursor: pointer;
+}
+#tab-skills .gem-tile .gem-tile-seal .m { fill: #8a7da6; }
+#tab-skills .gem-tile .gem-tile-seal .f { fill: #2c2538; }
+#tab-skills .gem-tile .gem-tile-seal:is(:hover, :focus-visible) { background: #2a2236; box-shadow: inset 0 0 0 1px #9a86c8; color: #e6dcff; }
+#tab-skills .gem-tile .gem-tile-seal:is(:hover, :focus-visible) .m { fill: #d8ccff; }
+.gem-tile-seal-icon { flex: none; width: 11px; height: 11px; }
+/* 휴대폰 타일(폭 70px대)에서는 글을 빼고 자물쇠 칩만: 글까지 쓰면 오른쪽 위 레벨을 덮었다. 터치 단추는 44px로 커지므로(css/mobile.css)
+   단추 바탕은 비워 그림을 가리지 않는다. 이름은 aria-label에 있다. */
+@container (max-width: 420px) {
+  #tab-skills .gem-tile .gem-tile-seal { align-items: flex-start; padding: 3px; background: none; box-shadow: none; }
+  #tab-skills .gem-tile .gem-tile-seal > span { display: none; }
+  #tab-skills .gem-tile .gem-tile-seal > .gem-tile-seal-icon { padding: 3px; background: rgba(13, 11, 15, .82); box-shadow: inset -1px -1px 0 #3a3140; }
+}
+/* 봉인한 룬: 점선 테, 흐린 그림 위 자물쇠, 이름, 봉인 해제 단추(아랫줄은 공명력이 어떻게 되는지). */
+#tab-skills .gem-tile.sealed-gem-card {
+  --gem-accent: #6d6280; padding-top: 26px; border-style: dashed; border-top-style: solid; cursor: default; /* 위 여백: 해제 단추(22px) 밑으로 그림이 오게 */
+  background: radial-gradient(circle at 50% 34%, rgba(150, 128, 200, .12), transparent 46px), linear-gradient(180deg, #1b1721, #111015);
+}
+#tab-skills .gem-tile .gem-tile-sealed-art { display: grid; place-items: center; }
+#tab-skills .gem-tile .gem-tile-sealed-art > .gem-tile-art { grid-area: 1 / 1; filter: grayscale(1) brightness(.55); }
+/* 자물쇠는 그림 오른쪽 아래 모서리에 겹친다(그림이 position: relative라 z-index 없이는 그 밑에 깔렸다). */
+#tab-skills .gem-tile .gem-tile-sealed-lock { position: relative; z-index: 1; grid-area: 1 / 1; align-self: end; justify-self: end; width: 22px; height: 22px; margin: 0 -9px -3px 0; }
+#tab-skills .gem-tile .gem-tile-sealed-lock .m { fill: #c7b8f0; }
+#tab-skills .gem-tile .gem-tile-sealed-lock .f { fill: #3b3150; }
+#tab-skills .gem-tile.sealed-gem-card .gem-tile-name { color: #b3abc0; }
+/* 해제 단추는 봉인 단추 자리에 같은 모양으로, 밝은 보라로 눈에 띄게. */
+#tab-skills .gem-tile .gem-tile-seal.is-unseal { background: #2a2236; box-shadow: inset -1px -1px 0 #6f5c9a; color: #ebe3ff; }
+#tab-skills .gem-tile .gem-tile-seal.is-unseal .m { fill: #c7b8f0; }
+#tab-skills .gem-tile .gem-tile-seal.is-unseal .f { fill: #3b3150; }
+#tab-skills .gem-tile .gem-tile-seal.is-unseal:is(:hover, :focus-visible) { background: #3a2f4c; box-shadow: inset 0 0 0 1px #c7b8f0; }
+#tab-skills .gem-tile.sealed-gem-card .gem-usage-state { color: #a99fc0; }
+/* 휴대폰 타일: 해제 단추도 봉인 단추처럼 바탕을 비우고 열린 자물쇠 칩만(이 규칙이 위의 해제 색보다 뒤에 와야 한다). */
+@container (max-width: 420px) {
+  #tab-skills .gem-tile .gem-tile-seal.is-unseal { background: none; box-shadow: none; }
+  #tab-skills .gem-tile .gem-tile-seal.is-unseal > .gem-tile-seal-icon { background: #2a2236; box-shadow: inset -1px -1px 0 #6f5c9a; }
+}
+/* 봉인 탭: 머리(자물쇠, 봉인 수, 공명력과 다음 1까지 두 칸, 일괄 봉인), 그 아래 공격 룬과 보조스킬룬 묶음. */
+.sealed-library { display: grid; gap: 12px; }
+.sealed-library[hidden] { display: none; }
+.sealed-library-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 12px;
+  border: 1px solid #2c2532; background: linear-gradient(180deg, #1d1824, #120f16); box-shadow: inset 0 0 0 1px #3a3047;
+}
+.sealed-library-icon { flex: none; width: 22px; height: 22px; }
+.sealed-library-icon .m { fill: #c7b8f0; }
+.sealed-library-icon .f { fill: #3b3150; }
+.sealed-library-sum { display: grid; gap: 4px; }
+.sealed-library-sum > b { color: #fff; font: 400 14px var(--board-read); }
+.sealed-library-power { display: flex; align-items: center; gap: 6px; }
+.sealed-library-power > em { color: #c9b8ff; font: normal 12px var(--board-label); }
+.sealed-library-pips { display: flex; gap: 2px; }
+.sealed-library-pips > i { width: 8px; height: 8px; background: #0d0b0f; box-shadow: inset 0 0 0 1px #6f5c9a; }
+.sealed-library-pips > i.is-on { background: #b9a8e6; }
+/* 일괄 봉인 단추는 목록의 검색 줄 단추와 같은 단추다(.search-action-row, 그 줄의 인라인 여백도 같게). */
+.sealed-library-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.sealed-library-actions button { flex: 0 0 auto; padding: 4px 8px; font-size: 12px; white-space: nowrap; }
+.sealed-library-group > h4 { display: flex; align-items: baseline; gap: 6px; margin: 0 0 6px; color: var(--board-gold-hi); font: 400 12px var(--board-label); }
+.sealed-library-group > h4 small { color: var(--board-muted); font: 12px var(--board-label); }
+.sealed-library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 6px; }
+@supports (width: calc(1px / 1px * 1px)) {
+  .sealed-library-grid { --gem-cols: max(1, round(down, (100cqw + 6px) / 104px, 1));
+    grid-template-columns: repeat(auto-fill, round(down, calc((100cqw - (var(--gem-cols) - 1) * 6px) / var(--gem-cols)), 1px)); }
+}
+.sealed-library-empty { margin: 0; padding: 18px; border: 1px dashed #3a3140; color: var(--board-muted); font: 12px var(--board-label); text-align: center; }
 
 /* ── 상세(고를 때만): 도트 판 · 장착하면 비교 · 아래 시트(휴대폰) ───────────────────────── */
 #gem-selection {

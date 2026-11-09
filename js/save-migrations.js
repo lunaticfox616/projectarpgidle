@@ -434,8 +434,6 @@ function normalizeStarterGemTutorialSave(state) {
     if (state.sealedSkills.includes(name)) {
         state.skills.push(name);
         state.sealedSkills = state.sealedSkills.filter(gem => gem !== name);
-        const power = Number.isFinite(state.resonancePower) ? state.resonancePower : defaultGame.resonancePower;
-        state.resonancePower = Math.max(0, power - 1);
     }
     state.seenTutorials = state.seenTutorials.filter(key => key !== 'tutorial_starter_gem_equip' && key !== 'action_tutorial_starter_gem_equip');
 }
@@ -449,6 +447,12 @@ function normalizeOwnedGemLibrariesSave(state) {
     state.sealedSupports = dedupeList(Array.isArray(state.sealedSupports) ? state.sealedSupports.filter(name => !!SUPPORT_GEM_DB[name] && !state.supports.includes(name)) : []);
     state.equippedSupports = Array.isArray(state.equippedSupports) ? dedupeList(state.equippedSupports.filter(name => state.supports.includes(name))) : [];
     state.resonancePower = Number.isFinite(state.resonancePower) ? Math.max(0, Math.floor(state.resonancePower)) : defaultGame.resonancePower;
+}
+
+/** Before saveVersion 21 every seal added 1 to resonancePower and a restore took it back. The base now leaves the seals out and
+ * gemDropRewards.sealResonance adds 1 per two sealed runes (2026-11-09 사용자). Once, after the rune lists are normalized. */
+function removeOldSealResonanceSave(state) {
+    state.resonancePower = Math.max(0, state.resonancePower - state.sealedSkills.length - state.sealedSupports.length);
 }
 
 /** A mobility gem in the main slot goes to the empty mobility slot, unless the save wears 칼이 된 발걸음 (data/items.js), which keeps
@@ -1286,6 +1290,7 @@ function mergeDefaults(save) {
     // Do not treat that unknown legacy flag as a full chase-unique blacklist.
     merged.seasonChaseUniqueDropped = merged.seasonChaseUniqueDrops.length > 0;
     normalizeOwnedGemLibrariesSave(merged);
+    if ((save.saveVersion || 0) < 21) removeOldSealResonanceSave(merged);
     merged.seasonNodes = Array.isArray(merged.seasonNodes) ? merged.seasonNodes.filter(id => !!getSeasonPassiveNodeDef(id)) : [];
     merged.seasonNodeLevels = (merged.seasonNodeLevels && typeof merged.seasonNodeLevels === 'object') ? merged.seasonNodeLevels : {};
     merged.seasonNodes.forEach(id => {
