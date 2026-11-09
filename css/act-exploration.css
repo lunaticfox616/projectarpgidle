@@ -35,6 +35,13 @@
 #act-exploration-dialog button {padding:7px 16px;border:1px solid #aa8e53;background:#292719;color:#eee1bd;cursor:pointer;font:inherit;}
 #act-exploration-panel :focus-visible,#act-exploration-dialog :focus-visible {outline:2px solid #f0cf80;outline-offset:2px;}
 
+/* Keep the arena's layout fixed while the Observer's shot covers it. */
+:root body[data-observer-scene] :is(#enemy-area, .player-hud, .combat-zone-row, .battlefield-caption, .ui-goal-panel) {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
 @media(max-width:1080px) {
     #act-exploration-panel {--minimap-size:96px;top:88px;right:12px;}
     #act-exploration-panel #btn-act-exploration-map {width:20px;height:20px;right:-4px;bottom:-4px;}

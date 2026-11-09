@@ -185,7 +185,7 @@ const actTitleCard = (() => {
     }
     /** ...and its words on seeing the guide struck (spotLine), in the room where that happens (js/combat.js starterRescueRoom). */
     function queueSpotLine(lore, run, now) {
-        if (firstAct() && lore && run.packs.some(pack => pack.rescue)) queueStoryLine({ key: 'spot', who: 'hero', speaker: lore.label, text: lore.spotLine, tone: 'gold' }, now);
+        if (firstAct() && lore && rescuing(run)) queueStoryLine({ key: 'spot', who: 'hero', speaker: lore.label, text: lore.spotLine, tone: 'gold' }, now);
     }
     /** The monster striking the guide in act 1 still stands (js/combat.js createStarterRescuePack). */
     const rescuing = run => run.packs.some(pack => pack.rescue && pack.aliveIds.length > 0);
@@ -615,7 +615,7 @@ const actTitleCard = (() => {
         // A first line queued after track still needs the current window state for the greeting hold and the next frame.
         if (unlooked && (line || queue.length)) covered = storyCovered();
         holding = stageView.enabled() && holdsGreeting(waited);
-        if (!drawWoodsmanIntroduction(ctx, scene)) drawQueuedStory(ctx, scene);
+        if (!scene.observerScene && !drawWoodsmanIntroduction(ctx, scene)) drawQueuedStory(ctx, scene);
         npcHead = null; // the guide's head is placed again by the next frame's actor layer, if it stands there
     }
     function drawQueuedStory(ctx, scene) {

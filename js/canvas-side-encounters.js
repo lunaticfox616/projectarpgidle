@@ -22,7 +22,7 @@ const sideEncounterCanvas = (() => {
         const meteor = getZone(game.currentZoneId).type === 'meteor';
         const now = getCombatTime();
         for (const attack of attacks) {
-            if (attack.delivery !== 'patternArea') continue;
+            if (attack.delivery !== 'patternArea' || attack.bossPattern.area.observerMove) continue;
             const footprint = projectSkillFootprint(attack.bossPattern.area,projection);
             if (!footprint) continue;
             drawSkillFootprintGround(ctx,footprint,meteor ? '#ff9b52' : '#ff684f',bossAttackView.pendingAlpha());

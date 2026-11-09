@@ -17,6 +17,7 @@ const actExplorationProgress = (() => {
     // 동안은 자동으로 걷거나 다가가지 않고 제자리에서 사거리 안만 친다. 화면 앞의 조작에 맞춘 것이라 방치 정산에는 없다.
     const AUTO_START_GRACE_MS=1000,AUTO_RESUME_GRACE_MS=1500;
     const autoHolds=new WeakMap(); // run → movement-clock ms until which auto-move waits (transient, never saved)
+    const manualSteerHolds=new WeakMap(); // A locked target must not keep renewing the WASD release grace.
     const clockOf=run=>run.motionTimeMs||getCombatTime();
     function holdAuto(run,ms) {autoHolds.set(run,Math.max(autoHolds.get(run)||0,clockOf(run)+ms));}
     function autoHeld(run) {return !game.isBackgroundCalculation && (autoHolds.get(run)||0)>clockOf(run);}
@@ -28,6 +29,11 @@ const actExplorationProgress = (() => {
     }
     /** Auto-move was just turned on (js/act-exploration-ui.js toggleAuto, mode): it starts walking after the grace. */
     function holdAutoStart(run) {if(run)holdAuto(run,AUTO_START_GRACE_MS);}
+    function holdAutoManual(run) {
+        holdAuto(run,AUTO_RESUME_GRACE_MS);
+        manualSteerHolds.set(run,clockOf(run)+AUTO_RESUME_GRACE_MS);
+    }
+    const clearManualSteerHold=run=>manualSteerHolds.delete(run);
     const ground=actExplorationState.groundLoot;
     function advance(stats) {
         const run=actExplorationState.current(game);
@@ -38,7 +44,7 @@ const actExplorationProgress = (() => {
     /** Foreground frames and offline combat ticks advance the same 20 ms movement clock. */
     /** A live run walks; a cleared one (its boss down) finishes the step it was taking, so the hero can still fight, and with
      * auto-move picks up the floor items before the map completes. */
-    const stepsLeft=run=>canMove(run) || (run.status==='cleared' && !!run.motion);
+    const stepsLeft=run=>canMove(run) || (run.status==='cleared' && (run.motion || actExplorationMotion.freeMoving(run)));
     function tick(now,stats) {
         const run=actExplorationState.current(game);
         if(!run || !stepsLeft(run))return;
@@ -60,9 +66,11 @@ const actExplorationProgress = (() => {
     /** One 20 ms movement frame: the step, the approach after a finished step, and the walked time (takeWalkedMs). */
     function stepFrame(run,stats) {
         const walking=run.motion;
+        const freeWalking=actExplorationMotion.freeBusy(run);
         step(run,stats);
         continueApproachAfterStep(run,walking,stats);
-        if(walking)walkedMs.set(run,(walkedMs.get(run)||0)+20);
+        if(freeWalking && !actExplorationMotion.freeBusy(run))continuePlayerExplorationApproach(stats);
+        if(walking || actExplorationMotion.freeMoving(run))walkedMs.set(run,(walkedMs.get(run)||0)+20);
     }
     /** A step that ends goes on toward the fight at once, on a foreground frame and inside a combat tick alike. Waiting for
      * the next 100 ms tick (offline replay) locked the hero and an enemy across a blocked cell into mirrored steps: no kill
@@ -72,10 +80,9 @@ const actExplorationProgress = (() => {
     }
     function step(run,stats) {
         actExplorationProgress.objects.step(run,20);
-        const from=run.motion&&run.motion.from;
-        actExplorationMotion.advance(run,game.gridPlayer,run.motionTimeMs,canEnterMotionTile(run));
+        const from=advanceMovement(run,stats);
         swapSummonOutOfHeroTile(from);
-        if(run.motion)return;
+        if(run.motion || actExplorationMotion.freeBusy(run))return;
         if(!explore(run,stats)){walkClearedCommand(run,stats);return;}
         actExplorationDoors.cross(run); // 방 단위 무대: 열린 문 칸에 서 있으면 이어진 방으로 옮겨진 뒤 그 방을 본다
         actExplorationState.discover(run,game.gridPlayer,stats);
@@ -92,6 +99,25 @@ const actExplorationProgress = (() => {
         if(!target)return;
         if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
         walk(run,target,stats);
+    }
+    function advanceMovement(run,stats) {
+        const motion=actExplorationMotion, player=game.gridPlayer;
+        if(bossMoves.observer.playerBoundary(run)){
+            const from={gx:player.gx,gy:player.gy};
+            const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed/actExplorationDoors.pace(run);
+            const point=motion.takeDirectAim(run) || motion.preciseTarget(run,player);
+            if(point)motion.startFree(run,player,point,interval);
+            let blocked;
+            motion.advanceFree(run,player,interval,cell=>{
+                blocked ||= getHeroStepBlockedCells();
+                return canPlaceGridFootprint(blocked,cell.gx,cell.gy,{columns:1,rows:1});
+            });
+            return from;
+        }
+        motion.stopFree(run);
+        const from=run.motion&&run.motion.from;
+        motion.advance(run,player,run.motionTimeMs,canEnterMotionTile(run));
+        return from;
     }
     /** 복원 첫 걸음과 방을 바꿀 때 확인한다. 옛 방문 목록에 있는 방도 다시 들어서면 기록할 수 있다. */
     function recordVisitedInscription(run) {
@@ -219,7 +245,10 @@ const actExplorationProgress = (() => {
         if(!motion || motion.elapsed>=motion.duration/2 || run.motionTimeMs-motion.startedAt<motion.duration/2)return true;
         return canPlaceGridFootprint(getHeroStepBlockedCells(),motion.to.gx,motion.to.gy,{columns:1,rows:1});
     }
-    function moving() {return !!actExplorationState.current(game)?.motion;}
+    function moving() {
+        const run=actExplorationState.current(game);
+        return !!run?.motion || actExplorationMotion.freeMoving(run);
+    }
     /** The ms the hero walked (20 ms movement frames) since the last call, then 0: each combat tick takes it (js/combat.js
      * getWalkingChargeScale). */
     function takeWalkedMs() {
@@ -277,8 +306,9 @@ const actExplorationProgress = (() => {
         if(!run)return !!requested;
         const locked=!!actExplorationState.lockedEnemy(run);
         // 자동 이동의 유예 동안도 제자리(락온한 몬스터는 명령이라 다가간다)
-        return requested || (runMode(run)==='manual' && !locked) || !!run.destination || (autoHeld(run) && !locked);
+        return requested || (runMode(run)==='manual' && !locked) || !!run.destination || holdsManualSteer(run,locked);
     }
+    function holdsManualSteer(run,locked) {return locked ? (manualSteerHolds.get(run)||0)>clockOf(run) : autoHeld(run);}
     function waiting(state) {
         const run=actExplorationState.current(state);
         return !!(run && (run.status==='failed' || (run.completionApplied && !run.departure)));
@@ -312,6 +342,6 @@ const actExplorationProgress = (() => {
         const run=actExplorationState.current(state);
         if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
     }
-    return {advance,tick,moving,takeWalkedMs,collectPile,canMove,canFinish,beginCompletion,shouldTrackStall,holdPosition,holdAutoStart,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+    return {advance,tick,moving,takeWalkedMs,collectPile,canMove,canFinish,beginCompletion,shouldTrackStall,holdPosition,holdAutoStart,holdAutoManual,clearManualSteerHold,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
 })();
 safeExposeGlobals({actExplorationProgress});

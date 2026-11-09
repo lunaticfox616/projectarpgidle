@@ -198,10 +198,11 @@ const actExplorationView=(()=>{
     }
     /** The cell under a canvas point (CSS px, getBattlefieldClientPoint) in this frame's projection; null before the
      * first exploration frame. A camera shake (a few px for a moment) is not undone. */
-    function cellAt(point) {
+    function cellAt(point, precise=false) {
         const run=actExplorationState.current(game);
         if(!run || lastOrigin?.run!==run || !point)return null;
-        return {gx:Math.floor((point.x-lastOrigin.x)/lastOrigin.tile),gy:Math.floor((point.y-lastOrigin.y)/lastOrigin.deep)};
+        const gx=(point.x-lastOrigin.x)/lastOrigin.tile,gy=(point.y-lastOrigin.y)/lastOrigin.deep;
+        return precise ? {gx:gx-.5,gy:gy-.5} : {gx:Math.floor(gx),gy:Math.floor(gy)};
     }
     /** Discovered ground is clear within the sight radius and dims with distance past it (≤40%). Undiscovered ground is not a wall
      * of black: just past the sight it shows as a dim outline of what lies ahead (enemies there stay hidden until discovered). */

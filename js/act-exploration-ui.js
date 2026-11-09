@@ -205,6 +205,7 @@ const actExplorationUi=(()=>{
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return false;
         const enemy=battleDrawList.enemyAt(point);if(!enemy)return false;
         if(!actExplorationState.lockOn(run,enemy))showGameToast(_t('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
+        else actExplorationProgress.clearManualSteerHold(run);
         render();
         return true;
     }
@@ -225,9 +226,11 @@ const actExplorationUi=(()=>{
         if(canvas.style.cursor!==cursor)canvas.style.cursor=cursor;
     }
     /** An explicit move order (minimap, large map, battlefield click): walk there; auto-move stays as it was. */
-    function commandMove(cell) {
+    function commandMove(cell,point) {
+        if(bossMoves.observer.sceneActive())return false;
         const run=actExplorationState.current(game);if(!actExplorationProgress.canMove(run)||!cell)return false;
         const accepted=actExplorationState.selectDestination(run,cell);
+        if(accepted && point && bossMoves.observer.playerBoundary(run))actExplorationMotion.aimFree(run,point);
         if(!accepted)showGameToast(_t('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
         render();
         return accepted;
@@ -271,6 +274,7 @@ const actExplorationUi=(()=>{
      * click on the map, and the hero walks there once the game runs again. */
     function nudge(run,direction) {
         held.length=0;
+        actExplorationMotion.setFreeInput(run,game.gridPlayer,0,0);
         if(walkTimer){clearInterval(walkTimer);walkTimer=null;}
         if(!STEPS[direction])return true;
         const [dx,dy]=STEPS[direction],from=run.destination||footing(run);
@@ -283,6 +287,8 @@ const actExplorationUi=(()=>{
     function steer() {
         const run=actExplorationState.current(game),direction=held[held.length-1];
         if(!actExplorationProgress.canMove(run)||!direction){held.length=0;return stopWalking(run);}
+        if(bossMoves.observer.sceneActive())return;
+        if(bossMoves.observer.playerBoundary(run)){steerFree(run);return;}
         const [dx,dy]=STEPS[direction],from=footing(run);
         let reached=0;
         // 키보드로 거는 명령은 화면에 표시하지 않는다(KEYED: 클릭한 자리가 아니라 누른 방향의 몇 칸 앞이다)
@@ -290,8 +296,20 @@ const actExplorationUi=(()=>{
         if(!reached)actExplorationState.selectDestination(run,from,KEYED);
         render();
     }
+    function steerFree(run) {
+        if(isForegroundGameplayPausedForBackground()){actExplorationMotion.setFreeInput(run,game.gridPlayer,0,0);return;}
+        const dx=Number(held.includes('right'))-Number(held.includes('left'));
+        const dy=Number(held.includes('down'))-Number(held.includes('up'));
+        run.destination=null;
+        actExplorationProgress.objects.cancel(run);
+        actExplorationProgress.holdAutoManual(run);
+        actExplorationMotion.setFreeInput(run,game.gridPlayer,dx,dy);
+    }
     function stopWalking(run) {
         if(walkTimer){clearInterval(walkTimer);walkTimer=null;}
+        actExplorationMotion.setFreeInput(run,game.gridPlayer,0,0);
+        if(bossMoves.observer.sceneActive())return;
+        if(bossMoves.observer.playerBoundary(run))return;
         if(actExplorationProgress.canMove(run)&&run.destination)actExplorationState.selectDestination(run,footing(run),KEYED);
     }
     function expand(){document.getElementById('act-exploration-dialog').showModal();render();}

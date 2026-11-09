@@ -452,7 +452,7 @@ const SEASON_BOSS_ZONES = [
       bossMods: { hpMul: 1.25, damageMul: 1.32, attackSpeedMul: 1.24, evasionMul: 1.75, critChanceBonus: 18, penetration: 12, firstHitGuard: 0.18, patternMode: 'burst', traitName: '천정 집행: 빠른 연격과 치명타로 빈틈을 추적' } },
     { id: 'pinnacle_observer', bossVisualId: 'pinnacle_observer', name: '경계의 관측자 베일라', signatureUnique: '관측자의 마지막 기록', type: 'seasonBoss', tier: 86, reqSeason: 31, ele: 'chaos', journalId: 'pinnacle_observer', milestonePinnacle: true, pinnacleTrack: 'convergence', pinnacleCapstone: true, difficultyBenchmark: 'cosmosFinal',
       requiresPinnacles: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'], firstClearReward: { key: 'goldenRule', amount: 5 },
-      bossMods: { hpMul: 11, damageMul: 3, attackSpeedMul: 1.12, dr: 15, resAll: 16, armorMul: 1.55, evasionMul: 1.4, energyShieldPct: 25, regenMul: 2.5, penetration: 16, critChanceBonus: 16, firstHitGuard: 0.35, patternMode: 'cosmos', traitName: '경계 관측: 강습, 강타, 격앙을 순환하며 모든 성장축을 검증' } }
+      bossMods: { hpMul: 11, damageMul: 3, attackSpeedMul: 1.12, dr: 15, resAll: 16, armorMul: 1.55, evasionMul: 1.4, energyShieldPct: 25, regenMul: 2.5, penetration: 16, critChanceBonus: 16, firstHitGuard: 0.35, patternMode: 'cosmos', traitName: '경계 관측' } }
 ];
 
 const LABYRINTH_ZONE_ID = 'labyrinth_endless';

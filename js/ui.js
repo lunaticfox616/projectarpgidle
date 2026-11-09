@@ -1211,6 +1211,7 @@ function setupBattlefieldMovementInteraction() {
  * 그 NPC의 창을 연다(js/canvas-act-title-card.js npcAt, js/content-progression-ui.js openNpc). 몬스터를 누르면 그 몬스터를 락온한다
  * (js/act-exploration-ui.js lockOnAt). 마우스를 올린 NPC는 테가 밝아진다(setupBattlefieldMovementInteraction의 hover). */
 function commandBattlefieldMove(canvas, event) {
+    if (bossMoves.observer.sceneActive()) return;
     let point = getBattlefieldClientPoint(canvas, event.clientX, event.clientY);
     let npc = actTitleCard.npcAt(point);
     if (npc && contentUnlockUi.openNpc(npc)) { faceBattlefieldPoint(point); return; }
@@ -1218,7 +1219,7 @@ function commandBattlefieldMove(canvas, event) {
     if (door) { actExplorationUi.commandMove(door); return; }
     if (actExplorationUi.lockOnAt(point)) return;
     let cell = actExplorationView.cellAt(point);
-    if (cell) actExplorationUi.commandMove(cell);
+    if (cell) actExplorationUi.commandMove(cell, actExplorationView.cellAt(point, true));
 }
 /** A press on an NPC turns the hero toward the pressed point (2026-10-27 사용자: npc 클릭 시 캐릭터 방향도 그쪽으로). The facing holds
  * until the hero moves or strikes (js/canvas-battlefield.js). */

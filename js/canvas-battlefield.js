@@ -1495,6 +1495,7 @@ function drawBossPatternLabel(ctx, entry, enemy) {
     if (!enemy.patternTelegraphKey && !enemy.attackCast && !(enemy.castInterruptedUntil > getCombatTime())) return;
     const cast = enemyAttackRules.castBar(enemy,getCombatTime(),pendingEnemyCombatAttacks.find(attack => attack.enemyId === enemy.id));
     if (!cast) return;
+    if (cast.fatal) { drawObserverFatalCast(ctx, entry, enemy, cast); return; }
     ctx.save();
     const width = enemy.isBoss ? 84 : 60;
     const viewWidth = ctx.canvas.width / ctx.getTransform().a;
@@ -1521,9 +1522,31 @@ function drawBossPatternLabel(ctx, entry, enemy) {
     ctx.restore();
 }
 
+function drawObserverFatalCast(ctx, entry, enemy, cast) {
+    const width = 116, viewWidth = ctx.canvas.width / ctx.getTransform().a;
+    const x = Math.round(clampNumber(entry.x - width / 2, 4, viewWidth - width - 4));
+    const y = Math.round(Math.max(28, entry.y - getEnemyFieldBarLift(enemy) - 16));
+    reserveBossText(enemy, { x, y: y - 21, w: width, h: 32 });
+    ctx.save();
+    ctx.fillStyle = '#230b15';
+    ctx.fillRect(x, y, width, 10);
+    ctx.strokeStyle = '#ff7188';
+    ctx.strokeRect(x + .5, y + .5, width - 1, 9);
+    ctx.fillStyle = '#ef365d';
+    ctx.fillRect(x + 2, y + 2, (width - 4) * cast.progress, 6);
+    ctx.fillStyle = '#ffe4e8';
+    ctx.strokeStyle = '#2a0d1a';
+    ctx.lineWidth = 3;
+    ctx.font = `bold 13px ${battlePixelFont()}`;
+    ctx.textAlign = 'center';
+    ctx.strokeText(cast.label, x + width / 2, y - 4);
+    ctx.fillText(cast.label, x + width / 2, y - 4);
+    ctx.restore();
+}
+
 /** The same immutable cell snapshot drives the red warning, impact and collision. */
 function drawBossPatternArea(ctx, area, projection, alpha = 3, outlineOnly = false) {
-    if (!area || area.woodsman) return;
+    if (!area || area.woodsman || area.observerMove) return;
     let footprint = projectSkillFootprint(area, projection);
     if (footprint) drawSkillFootprintGround(ctx, footprint, outlineOnly ? '#ff9970' : '#ff684f', alpha, outlineOnly);
 }
@@ -1532,6 +1555,7 @@ function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendi
     woodsmanView.field(ctx, projection);
     sideEncounterCanvas.pendingWarnings(ctx, projection, pendingAttacks.filter(attack => !attack.bossPattern?.area?.woodsman));
     bossMoveView.drawGround(ctx, projection); // boss moves: each stage's warning and the bursts out of the ground (js/canvas-boss-moves.js)
+    if (game.currentZoneId === BEYOND_BOUNDARY_UNLOCK_BOSS_ID) bossMoveView.drawObserverWarnings(ctx, layout, projection);
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
         if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
@@ -1939,7 +1963,8 @@ function getExplorationPlayerVisualMotion(projection, player) {
     position.y += Number(projection.actorGroundOffsetY) || 0;
     // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
     return {position, targetPosition: position, direction: run.motionDirection,
-        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
+        progress: run.motion ? run.motion.elapsed / run.motion.duration : 1,
+        animating: (run.motion || actExplorationMotion.freeMoving(run)) && !isForegroundGameplayPausedForBackground()};
 }
 
 function getPlayerDisplacementCell(player) {
@@ -2448,11 +2473,17 @@ function drawBattleEnemyActor(ctx, entry, state) {
     let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
     if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
     const crowdScale = getEnemyCrowdScale(enemy, state.enemyCount);
+    const awakening = bossEntranceView.observer.frame(enemy);
+    const awakenedBody = bossEntranceView.observer.body(awakening);
+    bossEntranceView.observer.seal(ctx, entry, awakening);
     ctx.save();
     ctx.globalAlpha = easedAge * enemyAmbushView.alphaOf(enemy, state.now) * bossMoveView.shiftAlpha(enemy); // 기습 정예와 순간이동하는 보스는 사라졌다 나타나는 동안 숨는다(js/canvas-enemy-ambush.js, js/canvas-boss-moves.js)
-    drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale, spawnScale });
+    drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale,
+        spawnScale, ...awakenedBody });
     if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
     ctx.restore();
+    bossEntranceView.observer.globe(ctx, enemy, awakening);
+    bossEntranceView.observer.caption(ctx, entry, awakening);
 }
 
 /** 예전 그림(한 장의 큰 그림에서 잘라 쓰는 것)을 그리는 배율: 적이 많을수록 조금 작게, 보스와 정예는 크게. */
@@ -2495,7 +2526,7 @@ function drawEncounterSparks(ctx, entry, state, color) {
 function drawEnemyAfterimage(ctx, enemy, pose) {
     if (stageView.enabled() && woodsmanBattle.owns(enemy)) return;
     const tile = pose.gridProj && pose.gridProj.tileW, boss = getBossDrawScale(enemy);
-    const sheetPose = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash, spawnScale: boss };
+    const sheetPose = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash, spawnScale: boss, afterimage: true };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
     drawEnemySprite(ctx, enemy, pose.x, pose.y, pose.scale * boss, !!pose.flash, pose.now);
 }
@@ -2550,7 +2581,7 @@ function drawEnemyActorSprite(ctx, entry, state, pose) {
     const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
     const x = entry.x + recoil.x, y = pose.y + recoil.y, boss = getBossDrawScale(enemy);
     const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale * boss, moving: entry.moving === true,
-        shade: veil.shade, rim: veil.rim };
+        shade: veil.shade, rim: veil.rim, awakened: pose.awakened, openingFrame: pose.openingFrame };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
     noteEnemySpriteSide(enemy, entry, state.playerPos, tile);
     drawEnemySprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
@@ -2870,7 +2901,8 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     const view = battleCanvasBox.read(canvas); // measured again only when the resize above changed it
     const width = Math.max(1, view.width || Math.round(canvas.width / renderScale) || canvas.width);
     const height = Math.max(1, view.height || Math.round(canvas.height / renderScale) || canvas.height);
-    const { now, rawDeltaMs, deltaMs } = worldTreeSkillFx.feedback.advanceClock(performance.now());
+    const wallNow = performance.now(), observerScene = bossMoveView.observerScene(wallNow);
+    const { now, rawDeltaMs, deltaMs } = worldTreeSkillFx.feedback.advanceClock(wallNow, !!observerScene);
     worldTreeSkillFx.feedback.begin(now);
     const deltaSec = deltaMs / 1000;
     battleVisualState.lastNow = now;
@@ -2890,6 +2922,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     let currentZone = getZone(game.currentZoneId);
     let zoneTheme = getBattleZoneTheme(currentZone);
     let gridProj = getBattleGridProjection(width, height, 'grid-contain');
+    bossMoveView.observerCamera(ctx, observerScene, width, height, gridProj);
     let backdropActive = drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone, gridProj);
     let framePlayerStats = getCanvasPlayerStats();
     let currentTargets = getCanvasSkillTargets(framePlayerStats);
@@ -3135,7 +3168,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
             drawLootCelebrationFx(ctx, fx, t, enemyPosMap[fx.enemyId], { width, height });
         }
     });
-    const lightScene = { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks };
+    const lightScene = { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks, observerScene };
     drawBattleLightingAndBars(ctx, lightScene);
     if (typeof stageScene === 'object' && stageView.enabled()) stageScene.drawMarks(ctx, gridProj);
     drawDamageTexts(ctx, now, bossTextExclusions.concat(view.enemyOverlays.map(rect => ({ ...rect, x: rect.x - cameraShake.x, y: rect.y - cameraShake.y }))));
@@ -3145,8 +3178,10 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
     drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
     if (typeof stageRoomsView === 'object') stageRoomsView.drawOverlay(ctx, view, gridProj);
+    bossMoveView.drawObserverTransition(ctx, observerScene, width, height);
 
     // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
+    bossMoveView.syncObserverHud(observerScene);
     setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
     if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
     stageWarmup.afterBattleDraw(ctx); // 낀 룬의 이펙트를 미리 준비해 둔다(전투에서 처음 그릴 때 그림을 푸느라 멈추지 않게)
@@ -3241,6 +3276,7 @@ function drawBattleLightingAndBars(ctx, scene) {
     if (typeof stageOcean === 'object') stageOcean.front(ctx, scene); // 심해: 영웅 머리 위 거품과 가까운 입자(조명을 같이 받는다)
     drawBattleLightingPass(ctx, scene);
     drawBattlePlayerFigure.readability.draw(ctx);
+    if (scene.observerScene) return;
     if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)
     // 락온한 몬스터(js/act-exploration-state.js lockOn)는 겨눈 적처럼 막대가 늘 보이고 금빛 테를 두른다. 그 위에 화살표가 선다.
     const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
@@ -3349,6 +3385,7 @@ function drawnBossSpans(boss) {
 }
 
 function drawBossAnnouncement(ctx, area, banner) {
+    if (bossMoves.observer.sceneActive()) return;
     bossEntranceView.drawScreen(ctx, area);
     if (!banner) return;
     const { width } = area;

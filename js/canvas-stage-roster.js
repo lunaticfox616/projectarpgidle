@@ -23,6 +23,13 @@ const stageRoster = (() => {
     const RIM = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]), RIM_NONE = Object.freeze([0, 0]);
     const RIM_OUTER = Object.freeze([[2, 0], [-2, 0], [0, 2], [0, -2], [1, 1], [1, -1], [-1, 1], [-1, -1]]);   // 두 도트 밖의 테(한 도트 안쪽은 검은 선이 덮는다)
     const AIRBORNE = Object.freeze(['fly', 'float', 'swim']);
+    const OBSERVER_FORMS = 'pinnacle_observer-forms-v3.png';
+    const OBSERVER_FORM_COLS = 3;
+    const OBSERVER_IDLE_MS = [720, 440, 460, 570, 460, 540];
+    const OBSERVER_CAST = Object.freeze({
+        attackMs: [75, 95, 95, 90, 85, 170, 90, 80, 75, 75, 80],
+        impactFrame: 5
+    });
     const sheets = new Map();
     let mapLooks = new Set();        // 지금 지도의 무리가 쓰는 외형 id: 화면에 나오기 전에도 그림을 들고 있는다(keepFor)
     let sweepAt = 0;                 // 지난 지도의 그림을 놓을 때(keepFor가 건다. 0이면 걸린 것이 없다)
@@ -58,6 +65,7 @@ const stageRoster = (() => {
         if (pair.attack) stagePictures.closePicture(pair.attack);
         if (pair.special) stagePictures.closePicture(pair.special);
         if (pair.death) stagePictures.closePicture(pair.death);
+        if (pair.forms) stagePictures.closePicture(pair.forms);
         sheets.delete(id);
     }
     /** A pair that may be let go: not a look of this map's packs and not drawn for a while. */
@@ -109,7 +117,10 @@ const stageRoster = (() => {
     /** Starts decoding the actor's sheets; the ones it has no art for are null. */
     function openPair(actor) {
         const sheet = (has, clip) => (has ? load(actor.id + '-' + clip + '.png', actor.version) : null);
-        return { walk: sheet(true, 'walk'), attack: sheet(actor.attackMs, 'attack'), special: sheet(actor.special, 'special'), death: sheet(actor.death, 'death'), at: tick };
+        const forms = actor.id === 'pinnacle_observer' ? load(OBSERVER_FORMS) : null;
+        const formActor = forms ? { ...actor, w: 216, feet: [111, 167] } : null;
+        return { walk: sheet(true, 'walk'), attack: sheet(actor.attackMs, 'attack'), special: sheet(actor.special, 'special'),
+            death: sheet(actor.death, 'death'), forms, formActor, at: tick };
     }
 
     /** The frame an actor stands on: its attack's first frame (the ready pose), or its walk's when it has no attack art. */
@@ -138,6 +149,36 @@ const stageRoster = (() => {
         if (AIRBORNE.includes(actor.gait)) return { clip: 'walk', index: walkFrame(enemy, actor, p) };
         if (p.moving) return { clip: 'walk', index: walkFrame(enemy, actor, p) };
         return { ...rest(actor), breath: frac((p.now + seedOf(enemy) * 211) / BREATH_MS) < 0.45 };
+    }
+
+    /** Veila's cast takes its wind-up and release from the same clock as the normal attack clips. */
+    function observerPose(enemy, actor, p) {
+        if (p.afterimage) return enemy.hp <= enemy.maxHp / 2 ? { clip: 'forms', index: 1 } : poseOf(enemy, actor, p);
+        if (!game.enemies.includes(enemy)) return { clip: 'forms', index: 0 };
+        if (Number.isInteger(p.openingFrame)) return { clip: 'forms', index: p.openingFrame };
+        if (!p.awakened) return observerCombatPose(enemy, actor, p);
+        const strike = monsterActors.attackFrame(enemy, OBSERVER_CAST, p.now, p.moving);
+        if (uiDisplay.reducedEffects()) {
+            return { clip: 'forms', index: strike?.index === OBSERVER_CAST.impactFrame ? 2 : 1 };
+        }
+        return { clip: 'forms', index: strike ? OBSERVER_FORM_COLS + strike.index : 1, hop: hangLift(enemy, p) };
+    }
+
+    function observerCombatPose(enemy, actor, p) {
+        const strike = striking(enemy, actor, p);
+        if (strike) return { ...strike, hop: 0 };
+        if (uiDisplay.reducedEffects()) return rest(actor);
+        const elapsed = (p.now + seedOf(enemy) * 137) % sum(OBSERVER_IDLE_MS);
+        return { clip: 'walk', index: monsterActors.frameAt(OBSERVER_IDLE_MS, elapsed) };
+    }
+
+    function visiblePose(enemy, actor, p, pair) {
+        const held = stageNewRunes.heldAt(enemy);
+        const time = held === null ? p : { ...p, now: held, moving: false };
+        if (!pair.forms?.ready || enemy.monsterVisualId !== 'pinnacle_observer' || game.currentZoneId !== BEYOND_BOUNDARY_UNLOCK_BOSS_ID) {
+            return poseOf(enemy, actor, time);
+        }
+        return observerPose(enemy, actor, time);
     }
 
     /** The working surface (the art's own dots, one dot = one px), cleared for a picture of this size. */
@@ -185,7 +226,8 @@ const stageRoster = (() => {
     }
     /** Where a clip's frame sits in its sheet (a grid, `cols` to a row). */
     function cellOf(actor, pose) {
-        const cols = pose.clip === 'attack' ? actor.attackCols : (pose.clip === 'special' ? actor.special.cols : actor.walkCols);
+        const cols = pose.clip === 'forms' ? OBSERVER_FORM_COLS
+            : pose.clip === 'attack' ? actor.attackCols : (pose.clip === 'special' ? actor.special.cols : actor.walkCols);
         return { x: (pose.index % cols) * actor.w, y: Math.floor(pose.index / cols) * actor.h };
     }
     /** The pose on the working surface: the rim (the silhouette a dot out on four sides; a look without its own dark line gets a
@@ -282,16 +324,16 @@ const stageRoster = (() => {
         if (!pair) return false;
         const dot = dotFor(enemy, actor, p);
         if (pair === 'loading') { shadow(ctx, actor, p, dot, 0); return true; }
-        const held = stageNewRunes.heldAt(enemy);     // 굳은 몬스터는 자세가 멈춘다
-        const pose = poseOf(enemy, actor, held === null ? p : { ...p, now: held, moving: false }), hop = pose.hop || 0;
-        const size = picture(pair, actor, pose, lookOf(enemy, p));
+        const pose = visiblePose(enemy, actor, p, pair), hop = pose.hop || 0;
+        const art = pose.clip === 'forms' ? pair.formActor : actor;
+        const size = picture(pair, art, pose, lookOf(enemy, p));
         shadow(ctx, actor, p, dot, hop);
         noteEnemyDrawnHeight(enemy, actor.height * dot);   // 뛰는 높이는 넣지 않는다: 체력 막대가 걸음마다 따라 튄다
         const west = stageView.facing(enemy, p.facing) === 'west';
-        notePlacement(enemy, actor, p, { dot, west, frame: pose.index, clip: pose.clip, strikeFrame: pose.strikeFrame });
+        notePlacement(enemy, actor, p, { dot, west, hop, frame: pose.index, clip: pose.clip, strikeFrame: pose.strikeFrame });
         ctx.save();
         if (west) { ctx.translate(p.x * 2, 0); ctx.scale(-1, 1); }
-        const left = monsterActors.snap(p.x - (size.pad + actor.feet[0]) * dot), top = monsterActors.snap(p.y - (size.pad + actor.feet[1] + hop) * dot);
+        const left = monsterActors.snap(p.x - (size.pad + art.feet[0]) * dot), top = monsterActors.snap(p.y - (size.pad + art.feet[1] + hop) * dot);
         stageDots.blit(ctx, size.canvas, { x: 0, y: 0, w: size.width, h: size.height }, { x: left, y: top, scale: dot }, size.fixed);
         ctx.restore();
         return true;

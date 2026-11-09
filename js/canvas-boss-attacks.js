@@ -33,6 +33,7 @@ const bossAttackView = (() => {
     let stepClock = -1, stepAt = 0;
     function smoothCombatTime() {
         const combat = getCombatTime(), now = performance.now();
+        if (bossMoves.observer.sceneActive()) { stepClock = combat; stepAt = now; return combat; }
         if (combat !== stepClock) { stepClock = combat; stepAt = now; }
         const since = now - stepAt;
         return since < 150 ? combat + Math.min(100, since) : combat;
@@ -179,6 +180,7 @@ const bossAttackView = (() => {
         return projection.cellToScreen(centre.gx, centre.gy);
     }
     function drawMark(ctx, area, projection, look) {
+        if (area.observerMove) return;
         const footprint = projectSkillFootprint(area, projection);
         if (!footprint) return;
         ctx.save();
@@ -382,6 +384,6 @@ const bossAttackView = (() => {
         ctx.stroke(); ctx.restore();
     }
 
-    return { groundAlpha, pendingAlpha, drawMarks, addMotions, spriteOffsetY, drawImpact, drawGround, drawHeadRelease, warningShare, now: smoothCombatTime };
+    return { groundAlpha, pendingAlpha, drawMarks, addMotions, spriteOffsetY, drawImpact, drawGround, drawHeadRelease, isLiveWarning, warningShare, now: smoothCombatTime };
 })();
 safeExposeGlobals({ bossAttackView });

@@ -149,18 +149,22 @@ function getClosestGridUnitCell(from, unit) {
  * (each neighbour of a path search counted the living elites again, 2026-10-07 frame drops). */
 function getGridPlacementTerrain() {
     const run=actExplorationState.current(game);
-    return { map: getCombatGridSize(), sealed: !!run && actExplorationState.gateSealed(run) };
+    const observer = game.currentZoneId === BEYOND_BOUNDARY_UNLOCK_BOSS_ID ? bossMoves.observer : null;
+    return { map: getCombatGridSize(), sealed: !!run && actExplorationState.gateSealed(run),
+        holes: observer?.floor(run)?.keys, permanent: observer?.sealedFloor(run)?.keys };
 }
 
 /** Whether a footprint can stand with its top-left on (gx, gy): every cell inside the map, none blocked, none unwalkable (the sealed
  * gate counts as a wall). No cell list: findFreeGridCell asks this for every tile of the map. */
+const isGridPlacementBlocked = (blocked, terrain, key) => blocked.has(key) || terrain.holes?.has(key) || terrain.permanent?.has(key);
 function canPlaceGridFootprint(blocked, gx, gy, footprint, terrain = getGridPlacementTerrain()) {
     const map = terrain.map;
     if (!isGridFootprintInside(gx, gy, footprint, map)) return false;
     const walk = map.tiles ? gridWalkMask(map, terrain.sealed) : null;
     for (let dx = 0; dx < footprint.columns; dx++) for (let dy = 0; dy < footprint.rows; dy++) {
         const cx = gx + dx, cy = gy + dy;
-        if (blocked.has(gridCellKey(cx, cy)) || (walk && !walk[cy * map.columns + cx])) return false;
+        const key = gridCellKey(cx, cy);
+        if (isGridPlacementBlocked(blocked, terrain, key) || (walk && !walk[cy * map.columns + cx])) return false;
     }
     return true;
 }
@@ -432,6 +436,8 @@ function createGridStepSearch(unit, tx, ty, blocked) {
     const scoring = getGridUnitFootprint({ isBoss: cols > 1 || rows > 1 });
     const terrain = getGridPlacementTerrain(), map = terrain.map, width = map.columns, height = map.rows;
     const blockedAt = gridBlockedIndexSet(blocked, width, height), visited = new Uint8Array(width * height);
+    if (terrain.holes) for (const at of gridBlockedIndexSet(terrain.holes, width, height)) blockedAt.add(at);
+    if (terrain.permanent) for (const at of gridBlockedIndexSet(terrain.permanent, width, height)) blockedAt.add(at);
     const walk = map.tiles ? gridWalkMask(map, terrain.sealed) : null;
     visited[unit.gy * width + unit.gx] = 1;
     const inside = (gx, gy) => gx >= 0 && gy >= 0 && gx + cols <= width && gy + rows <= height;
@@ -549,9 +555,15 @@ function stepAroundDanger(blocked, avoid, stepThrough) {
 /** diagonal: the hero may step diagonally (exploration out of combat at COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed). */
 function beginExplorationGridStep(target,interval,avoid,diagonal=false) {
     const run=actExplorationState.current(game);if(!run || run.motion)return false;
-    const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy};
-    if(!stepAroundDanger(getExplorationPlanningBlockedCells(run),avoid,blocked=>gridStepToward(next,target.gx,target.gy,blocked,diagonal)))return false;
-    return actExplorationMotion.start(run,game.gridPlayer,next,interval/actExplorationDoors.pace(run),run.motionTimeMs);
+    if(actExplorationMotion.freeBusy(run))return false;
+    const next={gx:game.gridPlayer.gx,gy:game.gridPlayer.gy}, free=bossMoves.observer.playerBoundary(run);
+    if(!stepAroundDanger(getExplorationPlanningBlockedCells(run),avoid,blocked=>gridStepToward(next,target.gx,target.gy,blocked,diagonal || !!free)))return false;
+    const paced=interval/actExplorationDoors.pace(run);
+    if(free){
+        const point=actExplorationMotion.preciseTarget(run,next);
+        return actExplorationMotion.startFree(run,game.gridPlayer,point||next,paced);
+    }
+    return actExplorationMotion.start(run,game.gridPlayer,next,paced,run.motionTimeMs);
 }
 /** Whether a step toward target is free for unit now, by the rule advanceGridUnitMovement steps by, without moving it. */
 function canGridUnitStepToward(unit, target, avoid) {

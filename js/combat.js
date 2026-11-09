@@ -14126,7 +14126,7 @@ function landBossPatternArea(attack, now) {
 
 /** Resolve current occupants of the released attack, never its original victim's id. */
 function getEnemyCombatImpactTargets(pendingAttack) {
-    return woodsmanBattle.takeTargets(pendingAttack, enemyAttackRules.impactTargets(pendingAttack,game));
+    return pendingAttack.observerTargets || woodsmanBattle.takeTargets(pendingAttack, enemyAttackRules.impactTargets(pendingAttack,game));
 }
 
 /** Base hit before the enemy's own modifiers and the victim's defenses. */
@@ -14176,6 +14176,15 @@ function applyGuardianEnduranceReflect(enemy, remaining, pStats) {
     if (enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
 }
 
+function resolveObserverFatal(attack, zone, stats) {
+    if (!attack?.observerFatal) return false;
+    const sourceName = enemyAttackRules.damageName(attack.source, attack.bossPattern);
+    recordIncomingDamage('chaos', game.playerHp, sourceName);
+    game.playerHp = 0;
+    handlePlayerDefeat(zone, stats, null, { fatalElement: 'chaos', sourceName });
+    return true;
+}
+
 function performMonsterAttacks(pStats) {
     let zone = getZone(game.currentZoneId);
     let abyssScale = getAbyssMonsterScales(zone);
@@ -14188,6 +14197,7 @@ function performMonsterAttacks(pStats) {
         woodsmanBattle.prepare(enemy);
         if (game.currentZoneId !== zone.id || game.playerHp <= 0) return; // A cube landing can end the encounter here.
         let pendingAttack = takePendingEnemyCombatAttack(enemy.id, getCombatTime());
+        if (resolveObserverFatal(pendingAttack, zone, pStats)) return;
         if (enemy.hp <= 0 && !pendingAttack) continue;
         if ((enemy.noAttack || actExplorationState.inArrivalGrace(actExplorationState.current(game), getCombatTime())) && !pendingAttack) continue;
         let ailMap = {};
@@ -14212,6 +14222,7 @@ function performMonsterAttacks(pStats) {
         if (!pendingAttack && strikeRescueTarget(enemy)) continue;
         if (!pendingAttack && (Number(enemy.skillHeldUntil) || 0) > getCombatTime()) continue; // 띄워진 몬스터(launchEnemyOnHit)
         if (!pendingAttack && (enemy.apexRecoveryUntil || 0) > getCombatTime()) continue;
+        if (!pendingAttack && bossMoves.observer.wait(enemy, getCombatTime())) continue;
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
         let attackTarget = impactTargets[0];
         enemyAttackRules.noteAim(enemy,getColonyDefenseCoreTarget() ? attackTarget : null);

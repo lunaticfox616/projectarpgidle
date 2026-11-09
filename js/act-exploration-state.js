@@ -476,6 +476,7 @@ const actExplorationState = (() => {
         if(!['active','cleared','failed'].includes(run.status) || !['manual','direct','full'].includes(run.mode))throw Error('탐험 저장의 진행 상태가 잘못되었습니다.');
         if(!Array.isArray(run.packs) || !run.packs.length)throw Error('탐험 저장의 적 배치가 없습니다.');
         validateDiscovery(map,run);
+        validateObserverSeals(run,map);
         const context={keys:new Set(),alive:new Map(),records:new Set()};
         run.packs.forEach(pack=>validatePack(map,pack,context));
         enemies.filter(enemy=>enemy.hp>0 && enemy.explorationPack).forEach(enemy=>validateEnemy(map,enemy,run.packs.find(pack=>pack.key===enemy.explorationPack),context));
@@ -485,6 +486,30 @@ const actExplorationState = (() => {
         validateProgress(run);
         actExplorationState.objects.validate(run);
         return run;
+    }
+
+    function validateObserverSeals(run,map) {
+        const cells=run.observerSeals;
+        if(cells===undefined)return; // Saves from before the Observer's permanent seal.
+        if(run.zoneId!==BEYOND_BOUNDARY_UNLOCK_BOSS_ID || !Array.isArray(cells) || cells.length>map.tiles.length) {
+            throw Error('베일라의 봉인 기록이 잘못되었습니다.');
+        }
+        const keys=new Set();
+        for(const cell of cells) {
+            if(!validObserverSeal(map,cell) || keys.has(gridCellKey(cell.gx,cell.gy))) {
+                throw Error('베일라의 봉인 칸이 잘못되었습니다.');
+            }
+            keys.add(gridCellKey(cell.gx,cell.gy));
+        }
+    }
+
+    function validObserverSeal(map,cell) {
+        if(!cell || !actExplorationMap.walkable(map,cell))return false;
+        const room=actExplorationRooms.roomAt(map,cell);
+        return room?.role==='boss' && !observerDoorLanding(map,cell);
+    }
+    function observerDoorLanding(map,cell) {
+        return (map.doors||[]).some(door=>door.landings.some(at=>at.gx===cell.gx && at.gy===cell.gy));
     }
     function validateFacing(run) {
         if(!Number.isInteger(run.rotation) || run.rotation<0 || run.rotation>=actExplorationMap.ROTATIONS)throw Error('탐험 저장의 맵 방향이 잘못되었습니다.');
@@ -622,6 +647,6 @@ const actExplorationState = (() => {
         // Older saves may be partway through the former 5.5 second presentation.
         exit.remainingMs=Math.min(exit.remainingMs,settlementMs);
     }
-    return {openEntrance,settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,lockOn,lockedEnemy,destination,validate,restore,joinCerberus,dropRetired,upgradeRotation};
+    return {openEntrance,settlementMs,current,create,arrive,inArrivalGrace,packRooms,packPosition,sightRadius,sight,inSight,fogDistance,discover,engage,dormantNear,wake,alerted,entrance,bossRoomAt,recordDeath,retireCombat,remainingElites,gateSealed,selectDestination,markedDestination,lockOn,lockedEnemy,destination,validate,restore,joinCerberus,dropRetired,upgradeRotation,validObserverSeal};
 })();
 safeExposeGlobals({actExplorationState});

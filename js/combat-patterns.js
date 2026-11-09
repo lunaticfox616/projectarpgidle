@@ -175,12 +175,14 @@
         return globalThis.atlasEndgame ? globalThis.atlasEndgame.patternState(enemy.apexMechanic, attackNumber) : null;
     }
 
+    const authoredBossPattern = (enemy, attackNumber) => bossMoves.observer.pattern(enemy, attackNumber) || bossMoves.shiftPattern(enemy, attackNumber);
+
     function getBossPatternPreview(enemy) {
         if (woodsmanBattle.owns(enemy)) return woodsmanBattle.preview(enemy);
         if (!enemy || !enemy.isBoss || !enemy.patternMode) return null;
         let attackNumber = normalizeAttackCount(enemy) + 1;
-        const shift = bossMoves.shiftPattern(enemy, attackNumber);
-        if (shift) return shift;
+        const authored = authoredBossPattern(enemy, attackNumber);
+        if (authored) return authored;
         let mode = String(enemy.patternMode);
         if (OWN_PATTERN_MODES.has(mode)) return getOwnPatternState(mode, enemy, attackNumber);
         // 성좌 순환(우주계 보스)과 핵 폭주(운석 핵의 체력 절반 뒤): 같은 순환. 핵 폭주는 특수기 뒤 숨 고르기(recoveryOf)가 있다.
@@ -291,6 +293,8 @@
     }
 
     function bossWarningArea(enemy, state, target, now) {
+        const observer = bossMoves.observer.area(enemy, state, target);
+        if (observer) return observer;
         const shift = bossMoves.prepareShift(enemy, state, target, now);
         if (shift) return shift;
         const profile = COMBAT_GRID_CONFIG.bossPatternProfiles[state.telegraphKind], from = getClosestGridUnitCell(target, enemy);
@@ -298,6 +302,7 @@
     }
     function finishBossWarning(enemy, state, now, charge) {
         if (!bossMoves.updateShift(enemy, now)) { clearBossTelegraph(enemy); return false; }
+        bossMoves.observer.followSeal(enemy, state, now);
         if (now - enemy.patternTelegraphStartedAt < warningDuration(state)) return false;
         return releaseAfterWarning(enemy, state, charge);
     }

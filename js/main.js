@@ -1,19 +1,25 @@
 const foregroundCombatClock = { lastAtMs: null, remainderMs: 0 };
 
+function foregroundCombatPaused() {
+    return document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.processing
+        || backgroundCombatRuntime.failed || isForegroundGameplayPausedForBackground();
+}
+
 function runForegroundCombat(nowMs) {
-    let paused = document.hidden || backgroundCombatRuntime.appInactive || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || isForegroundGameplayPausedForBackground();
-    let steps = takeForegroundCombatSteps(foregroundCombatClock, nowMs, paused);
+    const paused = foregroundCombatPaused();
+    const cinematic = bossMoves.observer.advanceScene(nowMs, paused);
+    let steps = takeForegroundCombatSteps(foregroundCombatClock, nowMs, paused || cinematic);
     let executed = 0;
     for (; executed < steps; executed++) {
         if (isForegroundGameplayPausedForBackground()) break;
         runUiCoreLoop();
+        if (bossMoves.observer.advanceScene(nowMs, false)) return executed + 1;
     }
     return executed;
 }
 function runForegroundExplorationFrame(nowMs) {
     const run = actExplorationState.current(game);
-    if (!run || document.hidden || backgroundCombatRuntime.appInactive) return;
-    if (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || isForegroundGameplayPausedForBackground()) return;
+    if (!run || foregroundCombatPaused() || bossMoves.observer.sceneActive()) return;
     const sinceTick = foregroundCombatClock.lastAtMs === null ? 0 : Math.max(0, nowMs - foregroundCombatClock.lastAtMs);
     // The pending fraction and time since the last 100 ms callback can each approach
     // 100 ms. Clamping their sum to 100 freezes walking until the next combat tick.
