@@ -1,7 +1,7 @@
 // Moves a run of top-level code from one script to a new file loaded right after a given script (move only).
 // node move-block.cjs <from.js> <new.js> <after-script.js> <head comment file> <startPrefix> <endPrefix> [<startPrefix> <endPrefix> ...]
 // A block runs from the line that starts with startPrefix (pulled back over its leading comment lines) up to the line that starts
-// with endPrefix (also pulled back over that line's comments), which stays.
+// with endPrefix (also pulled back over that line's comments), which stays; EOF as endPrefix takes the rest of the file.
 'use strict';
 const fs = require('fs');
 const [from, target, after, headFile, ...marks] = process.argv.slice(2);
@@ -12,7 +12,7 @@ const at = (prefix, fromLine = 0) => { const i = lines.findIndex((l, n) => n >= 
 const back = i => { while (i > 0 && /^(\/\/|\/\*\*| \*)/.test(lines[i - 1])) i--; return i; };
 const moved = [];
 for (let k = 0; k < marks.length; k += 2) {
-    const s = back(at(marks[k])), e = back(at(marks[k + 1], s + 1));
+    const s = back(at(marks[k])), e = marks[k + 1] === 'EOF' ? lines.length : back(at(marks[k + 1], s + 1));
     const block = lines.slice(s, e);
     while (block.length && block[block.length - 1] === '') block.pop();
     moved.push(...block, '');

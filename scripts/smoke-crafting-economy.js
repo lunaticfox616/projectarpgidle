@@ -2,7 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
+const passiveSource = ['js/passives.js', 'js/battle-assets.js', 'js/item-rolls.js'].map(file => fs.readFileSync(file, 'utf8')).join('\n');
 const itemSource = fs.readFileSync('js/items.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 

@@ -8,7 +8,7 @@ const npcShopUi = (() => {
     let chosen = null;    // { id, index }: the chosen ware, the one the buy button buys
     let shown = null;     // { id, stock }: the shelf drawn last; a meeting on the next map lays out a new stock object
     let runeQuery = '', runePage = 0;   // 모든 룬 진열대의 검색어와 보고 있는 쪽
-    // Where a short currency comes from (js/passives.js getItemSalvageRewardProfile). Until 장비 제련 opens they never drop
+    // Where a short currency comes from (js/item-rolls.js getItemSalvageRewardProfile). Until 장비 제련 opens they never drop
     // (data/items.js dropUnlocks), so in loop 1 salvage is the only way.
     const EARN_HINTS = Object.freeze({ magicBud: '일반 장비나 마법 장비를 해체하면 마법의 새싹을 얻습니다.',
         formlessDew: '희귀 장비나 고유 장비를 해체하면 형체 없는 이슬을 얻습니다.', goldenRule: '고유 장비를 해체하면 가끔 황금률을 얻습니다.' });

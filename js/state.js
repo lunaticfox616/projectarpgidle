@@ -1848,7 +1848,7 @@ const MOD_DB = [
     {"id":"attackPctDmg","type":"prefix","statName":"공격 피해 증가(%)","slots":["무기","장갑","목걸이"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
     {"id":"spellPctDmg","type":"prefix","statName":"주문 피해 증가(%)","slots":["무기","목걸이","방패","허리띠"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
     {"id":"spellLeech","type":"suffix","statName":"주문 피해의 생명력 흡수(%)","slots":["무기","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[0.16,0.16],[0.17,0.24],[0.25,0.32],[0.33,0.4],[0.41,0.48],[0.49,0.56],[0.57,0.64],[0.65,0.72],[0.73,0.8],[0.81,0.88],[0.89,0.96],[0.97,1.04],[1.05,1.12],[1.13,1.2],[1.21,1.28],[1.29,1.36],[1.37,1.44],[1.45,1.52],[1.53,1.6],[1.61,1.72]],"valueStep":0.01},
-    // 무기 대분류 전용 줄(2026-10-07 드랍 풀 1단계): weaponCategories의 대분류 무기에만 붙는다(js/passives.js getAvailableMods).
+    // 무기 대분류 전용 줄(2026-10-07 드랍 풀 1단계): weaponCategories의 대분류 무기에만 붙는다(js/item-rolls.js getAvailableMods).
     {"id":"greatswordSlamPctDmg","statId":"slamPctDmg","type":"prefix","statName":"강타 피해(%)","slots":["무기"],"weaponCategories":["greatsword"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
     {"id":"greatswordSlamGemLevel","statId":"slamGemLevel","type":"prefix","statName":"강타 스킬룬 레벨","slots":["무기"],"weaponCategories":["greatsword"],"weight":0.2,"affixBalanceVersion":3,"tierValues":[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[3,3],[3,3],[3,3],[3,3],[4,4]],"valueStep":1},
     {"id":"scimitarBleedChance","statId":"bleedChance","type":"suffix","statName":"출혈 확률(%)","slots":["무기"],"weaponCategories":["scimitar"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,7],[8,9],[10,10],[11,12],[13,13],[14,15],[16,16],[17,18],[19,19],[20,21],[22,22],[23,24],[25,25],[26,27],[28,28],[29,30],[31,31],[32,33]],"valueStep":1},
@@ -2117,7 +2117,7 @@ const BASE_ITEM_DB = [
     { id: 'root_blade_fang', slot: '무기', name: '뿌리 한손검', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
     { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'poisonDamageMultiplierPct', base: 10 }] },
     // 재사용 대기시간 세팅(2026-10-21): 대균열 파편투구와 시련 감시자 장화의 저항 관통 줄을 재사용 대기시간 줄로 바꿨다. 장비는 베이스 줄을
-    // 떨어질 때 제 몸에 적으므로(js/passives.js rollBaseStat) 이미 가진 장비는 그대로다.
+    // 떨어질 때 제 몸에 적으므로(js/item-rolls.js rollBaseStat) 이미 가진 장비는 그대로다.
     { id: 'grand_breach_shard_helm', slot: '투구', name: '대균열 파편투구', reqTier: 16, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'flatHp', base: 95 }, { id: 'resAll', base: 9 }, { id: 'dr', base: 4 }, { id: 'energyShield', base: 96 }, { id: 'cooldownRecovery', base: 8 }] },
     { id: 'laby_1_greaves', slot: '신발', name: '미궁 수호 각반', reqTier: 8, dropOnly: { type: 'labyrinth', minFloor: 1, minTier: 7 }, baseStats: [{ id: 'move', base: 14 }, { id: 'armor', base: 130 }, { id: 'dr', base: 2 }] },
     { id: 'laby_10_crown', slot: '투구', name: '미궁 심층 관', reqTier: 12, dropOnly: { type: 'labyrinth', minFloor: 10, minTier: 10 }, baseStats: [{ id: 'flatHp', base: 76 }, { id: 'resAll', base: 8 }, { id: 'armor', base: 230 }, { id: 'regen', base: 0.8 }] },
@@ -2598,7 +2598,7 @@ const defaultGame = {
         itemFilterMinTierCount: 0,
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
-        // 줍기 필터 세분화(2026-10-10 사용자): 희귀도마다 최소 티어, 부위, 무기 종류, 항상 줍는 예외(js/passives.js passesItemPickupFilter).
+        // 줍기 필터 세분화(2026-10-10 사용자): 희귀도마다 최소 티어, 부위, 무기 종류, 항상 줍는 예외(js/item-rolls.js passesItemPickupFilter).
         itemFilterMinTiers: { normal: 1, magic: 1, rare: 1, unique: 1 },
         itemFilterSlots: { 무기: true, 투구: true, 갑옷: true, 장갑: true, 신발: true, 목걸이: true, 반지: true, 허리띠: true, 방패: true },
         itemFilterWeaponCategories: { greatsword: true, scimitar: true, shortbow: true, orb: true, flask: true, censer: true },

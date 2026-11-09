@@ -8807,7 +8807,7 @@ async function bulkSalvageEquipBySearch(salvageUnmatched) {
         tone: 'danger',
         confirmLabel: _t('{targetCount}개 해체', { targetCount })
     })) return;
-    // 끼운 주얼이 가방으로 돌아오므로 가방은 해체하는 쪽에서 다시 맞춘다(js/passives.js salvageBagItems)
+    // 끼운 주얼이 가방으로 돌아오므로 가방은 해체하는 쪽에서 다시 맞춘다(js/item-rolls.js salvageBagItems)
     const targets = confirmedSalvageTargets(targetItems), lockedSkipped = targetCount - targets.length;
     const rewards = salvageBagItems(targets);
     addLog(_t('🧪 장비 {count}개 해체 완료, {rewards}{kept}', { count: targets.length, rewards: formatSalvageRewardSummary(rewards), kept: lockedSkipped > 0 ? ` ${_t('(잠금, 세팅, 우선 보관 {n}개는 남김)', { n: lockedSkipped })}` : '' }), 'loot-normal');

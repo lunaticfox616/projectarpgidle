@@ -186,12 +186,17 @@ function nativeTooltipFailures(rows,html) {
 
 if(require.main===module){
     if(process.argv.includes('--moved')) {
-        // After a move-only change (scripts/move-block.cjs): only the per-file counts of top-level functions are rewritten, from the
-        // working tree, and only when their total did not grow.
-        const baseline=JSON.parse(fs.readFileSync(baselinePath,'utf8')), next=topLevelFunctions(readSources(false));
+        // After a move-only change (scripts/move-block.cjs): the per-file counts of top-level functions are rewritten from the working
+        // tree, only when their total did not grow; and an edge that names its file (window:, load-order:, a file's #top) follows the
+        // code: the baseline's edge is renamed when the same edge under another file is in the baseline and gone from the tree.
+        const baseline=JSON.parse(fs.readFileSync(baselinePath,'utf8')), current=analyze(readSources(false)), next=current.topLevel;
         const sum=counts=>Object.values(counts).reduce((total,count)=>total+count,0);
+        const fileless=edge=>edge.replace(/(?:js|data)\/[\w.-]+\.js/g,'FILE'), now=new Set(current.edges), known=new Set(baseline.edges);
+        const gone=new Map(baseline.edges.filter(edge=>!edge.startsWith('dependency:') && !now.has(edge)).map(edge=>[fileless(edge),edge]));
+        const edges=new Set(baseline.edges);
+        for(const edge of current.edges) if(!edge.startsWith('dependency:') && !known.has(edge) && gone.has(fileless(edge))) { edges.delete(gone.get(fileless(edge))); edges.add(edge); }
         if(sum(next)>sum(baseline.topLevel || {})) {console.error(`top-level functions grew (${sum(baseline.topLevel || {})} -> ${sum(next)}): not a move`);process.exitCode=1;}
-        else fs.writeFileSync(baselinePath,JSON.stringify({...baseline,topLevel:next},null,2)+'\n');
+        else fs.writeFileSync(baselinePath,JSON.stringify({...baseline,edges:[...edges].sort(),topLevel:next},null,2)+'\n');
     } else if(process.argv.includes('--baseline-from-head')) {
         fs.writeFileSync(baselinePath,JSON.stringify(analyze(readSources(true)),null,2)+'\n');
     } else {

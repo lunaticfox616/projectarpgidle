@@ -150,7 +150,7 @@
 | 넘치는 해금 포인트 | js/content-progression.js overflow, js/stump-box.js graftEarned | 카탈로그를 다 사면(루프 20쯤) 잔액이 0으로 잘려 루프마다 2점이 사라졌다. 이제 카탈로그가 더 받을 수 없는 몫(번 점수 - 쓴 점수 - 남은 비용)이 그루터기 함 접붙이기 점수가 된다(루프 50에 +70쯤). 저장을 불러올 때 그루터기 함이 해금 기록보다 먼저 복원되므로 저장된 기록을 그대로 읽는다 |
 | 미궁 깊은 층 | data/items.js LABYRINTH_DEEP_FOSSIL, js/loot.js | 원시와 고대 화석이 상한에 닿는 115층 아래로 심연 화석 확률이 층마다 +1%(215층 2배, 315층 3배) |
 | 지하계 깊은 층 | data/constants.js UNDERWORLD_DEEP_FLOOR_REWARD, js/combat.js grantUnderworldFloorMilestone | 룬 해금이 끝나는 300층 아래로 10층마다 한 번 룬 조각과 금(310층 70과 24, 400층 160과 60). 가장 깊이 받은 층(underworldProgress.deepRewardFloor)을 기억해 같은 층 반복으로는 다시 주지 않는다. 기록은 런타임 이벤트로 화면 쪽이 남긴다 |
-| 고유의 등급 | js/passives.js getUniqueCraftTier | 고유가 옵션 등급 정규화의 상한 10에 걸려 20등급 고유도 "등급 T10"이었고 분해 황금률 확률이 8%에서 멈췄다. 고유는 자기 등급(최대 20)을 쓴다 |
+| 고유의 등급 | js/item-rolls.js getUniqueCraftTier | 고유가 옵션 등급 정규화의 상한 10에 걸려 20등급 고유도 "등급 T10"이었고 분해 황금률 확률이 8%에서 멈췄다. 고유는 자기 등급(최대 20)을 쓴다 |
 | 남는 시대 정수 | data/atlas.js epoch.perks ages | 다른 특전을 다 사면(정수 64, 시대 셋쯤) 정수가 쌓이기만 했다. 쌓인 시대: 단계마다 아이템 희귀도 +3%, 20단계(정수 210, 시대를 열 번 넘게) |
 
 ### 감사 (scripts/audit-loop-content-power.js, 혼돈 20, 꽃과 수액 평균, 잿불 줄, 숙련 30)

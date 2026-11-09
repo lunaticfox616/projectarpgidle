@@ -611,7 +611,7 @@ safeExposeGlobals({ getCurrencyDrops });
         const hunted = receipt.highlight && (equipmentLootPolicy.highlight(receipt.item, game)?.priority || 0) >= 3;
         return hunted ? higher(tier, 'great') : tier;
     }
-    /** Whether picking this unique up opens a new codex entry (js/passives.js registerUniqueToCodexOnAcquire): the floor reveal and the
+    /** Whether picking this unique up opens a new codex entry (js/item-rolls.js registerUniqueToCodexOnAcquire): the floor reveal and the
      * map result mark it. */
     function isNewUnique(item, state = game) {
         if (!item || item.rarity !== 'unique') return false;

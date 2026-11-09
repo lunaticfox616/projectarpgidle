@@ -6,7 +6,7 @@ const { createZipArchive } = require('./lib/zip-archive');
 
 const ROOT = path.resolve(__dirname, '..');
 
-const source = fs.readFileSync('js/passives.js', 'utf8');
+const source = fs.readFileSync('js/battle-assets.js', 'utf8');
 const manifestStart = source.indexOf('    const manifest = {', source.indexOf('function initBattleAssets('));
 const manifestEnd = source.indexOf('\n    };', manifestStart);
 

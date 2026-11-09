@@ -3,7 +3,7 @@
  * 비싸게 산다. 이번 루프의 시세, 견적(바뀌는 것 없음), 거래(지갑을 바꾼다). 묻기, 기록, 그리기는 js/orga-exchange-ui.js의 몫이다.
  *
  * 한 번이라도 가진 재화는 state.currencySeen(재화 열쇠 배열, 루프가 지나도 남는다)에 모은다. 지갑에 1개 이상 있던 재화를 그린 화면마다,
- * 받는 순간(js/passives.js commitCurrencyGain), 루프를 비우기 전에 넣는다. 이 기록이 생기기 전 저장은 제작실이 모은 발견 기록
+ * 받는 순간(js/item-rolls.js commitCurrencyGain), 루프를 비우기 전에 넣는다. 이 기록이 생기기 전 저장은 제작실이 모은 발견 기록
  * (craftingWorkspace.discovered)과 지금 지갑으로 시작한다. 시세는 루프와 재화 이름의 해시로 정하므로 저장하지 않는다.
  */
 const currencyExchange = (() => {
@@ -22,7 +22,7 @@ const currencyExchange = (() => {
         return seen;
     }
 
-    /** One received currency (js/passives.js commitCurrencyGain): remembered before anything can spend it. */
+    /** One received currency (js/item-rolls.js commitCurrencyGain): remembered before anything can spend it. */
     function exchangeNoteSeen(state, key) {
         if (!isTraded(key)) return;
         if (!Array.isArray(state.currencySeen)) state.currencySeen = [];

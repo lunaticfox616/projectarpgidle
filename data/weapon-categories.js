@@ -42,7 +42,7 @@ const SLENDER_GREATSWORD_BASES = Object.freeze(['gale_fang_spear', 'echo_lance',
 safeExposeData({ WEAPON_CATEGORIES, WEAPON_BASE_CATEGORIES, SLENDER_GREATSWORD_BASES });
 
 // 대분류에 어울리지 않는 무기 추가 옵션(js/state.js MOD_DB id): 그 대분류 무기에서는 weight배로 덜 붙는다(2026-10-07 드랍 풀 1단계,
-// js/passives.js getAvailableMods). 스킬은 무기를 가리지 않으므로 막지 않고 줄이기만 한다. 대분류 전용 줄은 MOD_DB weaponCategories.
+// js/item-rolls.js getAvailableMods). 스킬은 무기를 가리지 않으므로 막지 않고 줄이기만 한다. 대분류 전용 줄은 MOD_DB weaponCategories.
 const WEAPON_CATEGORY_OFF_MODS = Object.freeze({
     weight: 0.25,
     byCategory: Object.freeze({

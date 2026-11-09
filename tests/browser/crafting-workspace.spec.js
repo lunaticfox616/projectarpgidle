@@ -37,7 +37,8 @@ test('goal hit consumes once and requires acknowledgement before another craft',
         const row=equipmentCrafting.filterSporeMods(getAvailableMods({...getSelectedCraftItem(),stats:[]}),'fire')[0];return row.statId||row.id;
     });
     await page.locator('#cl-goal-stat').selectOption(stat);
-    await page.getByRole('button',{name:/1회 사용$/}).click();
+    // 사용 버튼은 둘이다(v0.3.58: 재화 보관함 아래에도 하나). 둘 다 같은 명령이다.
+    await page.getByRole('button',{name:/1회 사용$/}).first().click();
     await expect(page.locator('.cl-goal-dialog')).toBeVisible();
     expect(await page.evaluate(()=>game.currencies.formlessDew)).toBe(49);
     await page.keyboard.press('Escape');
@@ -78,7 +79,7 @@ test('automatic use respects its count limit and the available materials',async(
     await page.waitForTimeout(600);expect(await page.evaluate(()=>game.currencies.formlessDew)).toBe(48);
     await page.evaluate(()=>{game.currencies.formlessDew=1;updateStaticUI();});await settle(page);
     await page.getByRole('button',{name:'목표까지 자동 사용',exact:true}).click();
-    await expect(page.locator('[data-command="craft"]')).toBeDisabled();
-    expect(await page.evaluate(()=>game.currencies.formlessDew)).toBe(0);
+    await expect.poll(()=>page.evaluate(()=>game.currencies.formlessDew)).toBe(0);
+    for (const button of await page.locator('[data-command="craft"]').all()) await expect(button).toBeDisabled();
     await page.waitForTimeout(600);expect(await page.evaluate(()=>game.currencies.formlessDew)).toBe(0);
 });

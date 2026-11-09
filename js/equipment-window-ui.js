@@ -146,7 +146,7 @@ const equipmentWindowUi = (() => {
     }
 
     // ---------------------------------------------------------------- 해체 요약
-    /** What a whole-bag salvage takes, under its question (js/passives.js confirmBulkSalvageAll): the share of each grade as a bar, the
+    /** What a whole-bag salvage takes, under its question (js/item-rolls.js confirmBulkSalvageAll): the share of each grade as a bar, the
      * count of each grade, and the count of each kind (worn slot, or 주얼, 코어, 액막이) in the bag's slot order. */
     const SALVAGE_KIND_ORDER = Object.freeze(['무기', '방패', '투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', bagItems.JEWEL, bagItems.CORE, '액막이']);
     function salvageKind(item) {
