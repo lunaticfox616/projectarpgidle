@@ -4503,7 +4503,7 @@ function addBattleFx(type, data) {
         let requestedDelay = Number(payload.impactDelayMs);
         let delay = Number.isFinite(requestedDelay) ? Math.max(0, requestedDelay) : (payload.projectile ? 260 : 205);
         latestPlayerSwingImpactAt = now + delay;
-        payload = { ...payload, impactAt: latestPlayerSwingImpactAt, motionVariantSeed: Math.random() };
+        payload = { ...payload, impactAt: latestPlayerSwingImpactAt, motionVariantSeed: Math.random(), tailMs: getPlayerSwingTailMs() };
     }
     if (type === 'combatTravel' && payload.patternKind === 'field' && payload.skillName === '난타 눈보라') {
         battleFx = battleFx.filter(fx => !(fx && fx.type === type
@@ -4617,8 +4617,24 @@ function trimRectToContent(image, rect, padding) {
         return rect;
     }
 }
+/** 휘두름 기록(playerSwing)이 준비 시간(duration) 뒤에도 남는 시간(tailMs): 전달본 그림(data/stage-characters.js)의 타격 장이 있는 클립 가운데
+ * 첫 장을 뺀 가장 긴 것. 주인공 그림은 타격 장 뒤의 장(되돌리기)을 타격 뒤에 그림 속도 이하로 그리고 타격 장은 1장 이상이라(js/canvas-hana-actors.js
+ * attackPose) 되돌리기가 이보다 길 수 없다. 기록이 duration에서 지워지던 동안 되돌리기는 어느 직업과 무기에서도 안 나왔고, 타격 장이 2장인
+ * 연금술사 활 공격은 기본 공격에서 두 장만 보였다(2026-11-09 사용자). 그림은 제 길이에서 끝나므로 기록만 더 남는다. */
+let playerSwingTailMs = null;
+function getPlayerSwingTailMs() {
+    if (playerSwingTailMs === null) {
+        const classes = typeof STAGE_CHARACTERS === 'object' && STAGE_CHARACTERS ? Object.values(STAGE_CHARACTERS.classes) : [];
+        const clips = classes.flatMap(entry => Object.values(entry.weapons)).flatMap(set => Object.values(set)).filter(clip => Array.isArray(clip.hit));
+        playerSwingTailMs = clips.reduce((longest, clip) => {
+            const ms = Array.isArray(clip.ms) ? clip.ms : Array(clip.frames).fill(clip.ms);
+            return Math.max(longest, ms.slice(1).reduce((sum, value) => sum + value, 0));
+        }, 0);
+    }
+    return playerSwingTailMs;
+}
 function cleanupBattleFx(now) {
-    battleFx = battleFx.filter(fx => now - fx.start <= fx.duration);
+    battleFx = battleFx.filter(fx => now - fx.start <= fx.duration + (fx.tailMs || 0));
 }
 function cleanupBattleVisualState(now) {
     battleVisualState.projectiles = (battleVisualState.projectiles || []).filter(projectile => now - projectile.start <= projectile.duration + 60);
