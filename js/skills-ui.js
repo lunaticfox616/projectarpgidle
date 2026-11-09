@@ -170,7 +170,6 @@
             engraving: contentProgression.isUnlocked('engraving'),
             mobileLibrary: uiDisplay.matches('(max-width: 1080px)'),
             activeSkill: game.activeSkill || '', mobilitySkill: game.mobilitySkill,
-            starterGemTutorialPending: game.starterGemTutorialPending,
             buildLocked: !!game.woodsmanBuildLock,
             skills: game.skills || [],
             supports: game.supports || [],

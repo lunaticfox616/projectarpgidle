@@ -17,7 +17,7 @@ const files = [
   'data/severed-wanderers.js',
   'data/items.js', 'data/currency-exchange.js', 'data/affix-tags.js', 'data/region-affixes.js', 'data/item-influences.js', 'data/colony-wards.js', 'data/weapon-categories.js',
   'data/unique-equipment.js',
-  'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js',
+  'data/core-items.js', 'data/talismans.js', 'data/stump-cube.js', 'data/hana-weapon-combos.js',
   'data/passives.js',
   'data/passive-tree-v22.js',
   'data/bosses.js', 'data/monster-sprites.js', 'data/monster-combat-roles.js', 'data/monster-stage-roster.js', 'data/stage-view.js', 'data/knitting.js',
@@ -57,7 +57,7 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/loop-mutation.js', 'js/combat.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js', 'js/knitting.js', 'js/knitting-rewards.js',
 ];
@@ -2558,8 +2558,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.equipment['무기'] = weaponOf('scimitar', 9912);
   assert.strictEqual(context.getEquippedWeaponStance(), 'sword', '한손검은 한손검 자세다');
   assert.strictEqual(context.getSkillRuneWeaponNote('연발 사격'), '활 필요', '전용 룬의 이유에는 그 무기 이름이 붙는다');
-  // 룬 요구 레벨: 시작 룬은 제한이 없고, 레벨이 모자라면 무기보다 먼저 레벨을 말한다.
-  vm.runInContext("[...Object.values(LOOP_STARTER_GEM_BY_HERO),...Object.values(LOOP_MUTATION_STARTER_GEMS).flatMap(Object.values)].forEach(name=>{if(getRuneLevelReq(name))throw new Error('시작 룬에 요구 레벨: '+name);})", context);
+  // 룬 요구 레벨: 처음 받는 기초 스킬은 제한이 없고, 레벨이 모자라면 무기보다 먼저 레벨을 말한다.
+  vm.runInContext("BASIC_SKILL_ROWS.forEach(row=>{if(getRuneLevelReq(row.name))throw new Error('기초 스킬에 요구 레벨: '+row.name);})", context);
   assert.strictEqual(context.getSkillRuneWeaponNote('섬머솔트 슬래시'), 'Lv.67 필요');
   context.game.level = 100;
   assert.strictEqual(context.canUseSkillWithCurrentEquipment('도약 강타'), false, '돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용이다');

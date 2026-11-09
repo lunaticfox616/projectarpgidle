@@ -1336,24 +1336,12 @@ body .item-card {
   background: linear-gradient(150deg, rgba(49, 29, 34, .96), rgba(16, 13, 19, .98));
 }
 #tab-skills .gem-library-card.equipment-blocked .gem-usage-state { color: #ffaaa4; }
-#btn-tab-skills.starter-gem-tutorial-pending {
+/* 첫 루프의 시작 무기가 장착을 기다리는 동안 장비 단추(js/ui.js getStarterWeaponTutorialTarget) */
+#btn-tab-items.starter-equip-tutorial-pending {
   box-shadow: inset 3px 0 #70d8ff, 0 0 14px rgba(79, 203, 255, .4);
-  animation: starterGemTabPulse 1.15s ease-in-out infinite;
+  animation: starterEquipTabPulse 1.15s ease-in-out infinite;
 }
-#tab-skills .gem-library-card.starter-gem-tutorial-target {
-  border-color: #78dcff;
-  box-shadow: 0 0 0 2px rgba(83, 205, 255, .24), 0 0 24px rgba(83, 205, 255, .35);
-  animation: starterGemCardPulse 1.15s ease-in-out infinite;
-}
-.starter-gem-equip-guide {
-  margin: -2px 0 7px;
-  color: #b9edff;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .02em;
-}
-@keyframes starterGemTabPulse { 50% { filter: brightness(1.28); } }
-@keyframes starterGemCardPulse { 50% { box-shadow: 0 0 0 2px rgba(111, 221, 255, .5), 0 0 30px rgba(83, 205, 255, .52); } }
+@keyframes starterEquipTabPulse { 50% { filter: brightness(1.28); } }
 #tab-skills .element-fire { --gem-accent: #d77a45; }
 #tab-skills .element-cold { --gem-accent: #6db9df; }
 #tab-skills .element-lightning { --gem-accent: #b8a15a; }
@@ -1848,7 +1836,7 @@ body .item-card {
 @media (prefers-reduced-motion: reduce) {
   .game-mote-field i { animation: none; }
 }
-#btn-tab-skills.starter-gem-tutorial-pending {
+#btn-tab-items.starter-equip-tutorial-pending {
   border-color: #70d8ff;
 }
 .gem-card-utility { border-radius: 5px; }

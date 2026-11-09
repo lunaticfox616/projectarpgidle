@@ -782,7 +782,7 @@ run('getLabyrinthZoneNow(5);game=mergeDefaults(JSON.parse(JSON.stringify(game)))
 assert.equal(run('game.labyrinthFloor'),8,'previewing another floor does not change the active floor');
 assert.deepEqual(json('[game.currencies,game.labyrinthLastResult]'),labyrinthStored,'loading a floor receipt does not pay it again');
 // A defeated training target cannot farm combat rewards or record the same measurement twice.
-run("game=mergeDefaults({season:20,maxZoneId:9,selectedClassId:'warrior',loopStarterGemGranted:true});game.currentZoneId=WOODSMAN_ECHO_ZONE_ID;game.combatTimeMs=100000;Object.assign(game.woodsmanEchoRun,{active:true,timeLeft:20,lastTickAt:100000,returnZoneId:9});game.enemies=[dressWoodsmanEchoDummy(createEnemy(getZone(OUTSIDE_CHAOS_ZONE_ID),{at:0,count:1,boss:true},0))]");
+run("game=mergeDefaults({season:20,maxZoneId:9,selectedClassId:'warrior',loopStarterWeaponGranted:true});game.currentZoneId=WOODSMAN_ECHO_ZONE_ID;game.combatTimeMs=100000;Object.assign(game.woodsmanEchoRun,{active:true,timeLeft:20,lastTickAt:100000,returnZoneId:9});game.enemies=[dressWoodsmanEchoDummy(createEnemy(getZone(OUTSIDE_CHAOS_ZONE_ID),{at:0,count:1,boss:true},0))]");
 const practiceOwned=json('[game.exp,game.loopKills,game.currencies,game.inventory,game.weaponMastery]');
 run('game.enemies[0].hp=0;handleEnemyDeath(game.enemies[0],getPlayerStats())');
 assert.deepEqual(json('[game.exp,game.loopKills,game.currencies,game.inventory,game.weaponMastery]'),practiceOwned,'a training target grants no kill rewards');
@@ -802,17 +802,29 @@ assert(run('game.combatHalted'),'loading a completed sky allowance cannot restar
 assert.deepEqual(json('game.skyTower'),skyFinished,'a sky receipt is restored without paying again');
 run('game.skyTower.currentFloor=2;game.actExploration=null;finishEncounterRun()');
 assert(run("game.loopProgressCurrent.bestSkyFloor===1 && game.skyTower.lastResult.kind==='practice' && game.skyTower.condensedPower===13"),'practice cannot advance this loop\'s sky record or grant essence');
-// The first rune cannot disappear into bulk sealing while the player is learning to equip it.
-run("game=mergeDefaults({skills:['기본 공격','이중 베기','서리바람 내지르기'],starterGemTutorialPending:'이중 베기',resonancePower:10});sealSkillGem('이중 베기');sealAllInactiveSkillGems()");
-assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower]'),[['기본 공격','이중 베기'],['서리바람 내지르기'],11],'only an eligible spare rune can be sealed during the starter guide');
-run("game=mergeDefaults({skills:['기본 공격'],sealedSkills:['이중 베기'],starterGemTutorialPending:'이중 베기',resonancePower:11,seenTutorials:['tutorial_starter_gem_equip'],gemData:{'이중 베기':{level:2,exp:17}}})");
-assert(run("getStarterGemTutorialTarget()==='이중 베기' && game.resonancePower===10 && !game.sealedSkills.includes('이중 베기')"),'an old sealed guide target is restored without keeping its seal reward');
-const starterRestored=json('[game.skills,game.sealedSkills,game.resonancePower,game.gemData]');
-run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));tutorialQueue=[];contentUnlockUi.announceStarterGem(getStarterGemTutorialTarget())');
-assert.deepEqual(json('[game.skills,game.sealedSkills,game.resonancePower,game.gemData]'),starterRestored,'reloading the repaired guide cannot charge resonance again or reset rune growth');
-assert(run("tutorialQueue.some(row=>row.key==='tutorial_starter_gem_equip')"),'an unfinished equip guide resumes after loading');
-run("equipSkippedStarterGem('tutorial_starter_gem_equip')");
-assert(run("game.activeSkill==='이중 베기' && !game.starterGemTutorialPending"),'closing the resumed guide still equips its rune');
+// The loop start (2026-11-09 스킬 전달본 V3.14): the basic skill is picked with the class from two random elements, never the mutation's
+// immune one, and the offer holds while the loop lasts (js/basic-skills.js).
+run("game=mergeDefaults({season:5,selectedClassId:'archer'});game.loopMutationSeason=5");
+const basicOffer=json('basicSkills.offer(game)');
+assert(basicOffer.length===2 && !basicOffer.includes(json('loopMutation.of(5).immune')),'two elements, never the immune one');
+assert.deepEqual(json('basicSkills.offer(game)'),basicOffer,'reopening the pick keeps its offer');
+run(`basicSkills.grant(game,'archer','${basicOffer[1]}')`);
+assert(run(`game.weaponBlockedSkill===basicSkills.nameOf('bow','${basicOffer[1]}') && game.skills.includes(game.weaponBlockedSkill) && !game.basicSkillOffer`),'the picked basic skill joins the runes and is worn');
+assert(run('!loopMutation.bites(game) || getEquippedWeaponStance()==="bow"'),'the mutation waits while the basic skill rests for its weapon');
+// The first kill drops the class weapon once; in a new game it waits in the bag for its equip guide instead of the auto-equip, the guide
+// resumes after loading, and closing it equips the weapon. A save from the starter rune days wears its rune and keeps its first-kill flag.
+run("game=mergeDefaults({selectedClassId:'warrior',seenTutorials:[]});grantLoopStarterWeaponOnFirstKill();grantLoopStarterWeaponOnFirstKill()");
+assert(run("game.inventory.length===1 && game.starterWeaponTutorialPending===game.inventory[0].id && getEquippedWeaponStance()==='unarmed'"),'the first kill drops one class weapon into the bag');
+const weaponWaiting=json('[game.inventory.map(item=>item.id),game.starterWeaponTutorialPending]');
+run('game=mergeDefaults(JSON.parse(serializeSaveState(game)));tutorialQueue=[];checkUnlocks()');
+assert.deepEqual(json('[game.inventory.map(item=>item.id),game.starterWeaponTutorialPending]'),weaponWaiting,'reloading keeps the waiting weapon');
+assert(run('tutorialQueue.some(row=>row.key===basicSkills.weaponGuide)'),'an unfinished weapon guide resumes after loading');
+// Equipping hides the item tooltip, which this headless page lacks: lend it one for the call.
+const withTooltipBox = code => run(`(()=>{const get=document.getElementById;document.getElementById=id=>id==='item-tooltip-box'?{style:{}}:get.call(document,id);try{${code}}finally{document.getElementById=get;}})()`);
+withTooltipBox('equipSkippedStarterWeapon(basicSkills.weaponGuide)');
+assert(run("getEquippedWeaponStance()==='greatsword' && game.starterWeaponTutorialPending===null && game.inventory.length===0"),'closing the resumed guide equips the weapon');
+run("game=mergeDefaults({skills:['기본 공격','이중 베기'],starterGemTutorialPending:'이중 베기',loopStarterGemGranted:true})");
+assert(run("game.activeSkill==='이중 베기' && game.loopStarterWeaponGranted===true && !('starterGemTutorialPending' in game)"),'an old starter rune guide save wears its rune');
 // A zero resonance capacity is a balance, not a missing default: one seal grants one, and restoration costs one.
 for (const [type,name] of [['Skill','서리바람 내지르기'],['Support','가속']]) {
     run("game=mergeDefaults({skills:['기본 공격','서리바람 내지르기'],supports:['가속'],resonancePower:0,gemData:{'서리바람 내지르기':{level:7,exp:23}},supportGemData:{'가속':{level:6,exp:19,unlockedTier:2}}})");
@@ -886,9 +898,9 @@ assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[
         assert(run("game.tutorialHistory.length===1 && game.tutorialHistory[0].status==='read' && tutorialQueue.length===0"),'acknowledging either alias consumes the canonical guide after reload');
         run("game=mergeDefaults({seenTutorials:['unlock_items'],tutorialHistory:[{key:'unlock_items',title:'예전',body:'이전 본문',status:'read'},{key:'tutorial_first_gear',title:'놓친 최신 안내',body:'유지할 본문',status:'unread',displayedAt:200}]});discardQueuedNotices();window.GameModules.state.tutorials.sync(game)");
         assert(run("game.tutorialHistory.length===1 && game.tutorialHistory[0].body==='유지할 본문' && game.tutorialHistory[0].status==='unread'"),'a newer missed guide keeps its unread status when legacy aliases are restored');
-        run("game=mergeDefaults({skills:['기본 공격','이중 베기'],starterGemTutorialPending:'이중 베기'});discardQueuedNotices();queueTutorialNotice('tutorial_starter_gem_equip','첫 룬','장착 안내','tab-skills')");
-        run("window.GameModules.state.tutorials.transition(game,'tutorial_starter_gem_equip','read');game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();window.GameModules.state.tutorials.sync(game)");
-        assert(run("game.tutorialHistory[0].status==='read' && tutorialQueue.length===0 && game.starterGemTutorialPending==='이중 베기'"),'acknowledging the starter notice persists across reload without equipping or repeating');
+        run("game=mergeDefaults({selectedClassId:'warrior'});var starterWeapon=createClassStarterWeapon('warrior');game.inventory.push(starterWeapon);game.starterWeaponTutorialPending=starterWeapon.id;discardQueuedNotices();queueTutorialNotice(basicSkills.weaponGuide,'첫 무기','장착 안내','tab-items')");
+        run("window.GameModules.state.tutorials.transition(game,basicSkills.weaponGuide,'read');game=mergeDefaults(JSON.parse(serializeSaveState(game)));discardQueuedNotices();window.GameModules.state.tutorials.sync(game)");
+        assert(run("game.tutorialHistory.find(row=>row.key===basicSkills.weaponGuide).status==='read' && tutorialQueue.length===0 && game.starterWeaponTutorialPending===game.inventory[0].id"),'acknowledging the starter notice persists across reload without equipping or repeating');
         const beforeOpeningGet = runtime.document.getElementById, beforeOpeningInterval = runtime.setInterval;
         let openingTick;
         runtime.document.getElementById = id => id === 'battlefield-canvas' ? guideElement() : beforeOpeningGet(id);
@@ -897,10 +909,10 @@ assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[
         finally { runtime.document.getElementById = beforeOpeningGet; runtime.setInterval = beforeOpeningInterval; }
         run("game.seenTutorials.push('opening_intro','opening_rise','opening_move','opening_attack');game.settings.battleView='top';game.settings.autoMove=true");
         openingTick();
-        assert(run("openingJourney.autoLocked() && !game.seenTutorials.includes('opening_done')"),'acknowledgement cannot finish the first-rune lesson while no rune is equipped');
-        run("changeSkill('이중 베기')");
+        assert(run("openingJourney.autoLocked() && !game.seenTutorials.includes('opening_done')"),'acknowledgement cannot finish the first-weapon lesson while no weapon is worn');
+        withTooltipBox('equipItemById(game.inventory[0].id)');
         openingTick();
-        assert(run("game.activeSkill==='이중 베기' && !game.starterGemTutorialPending && !openingJourney.autoLocked()"),'actually equipping the first rune finishes the acknowledged lesson after reload');
+        assert(run("getEquippedWeaponStance()==='greatsword' && !openingJourney.autoLocked()"),'actually equipping the first weapon finishes the acknowledged lesson after reload');
         run("game=mergeDefaults({tutorialHistory:[null,{key:'bad key',title:'x',body:'x'},{key:'notice_bad',title:'손상',body:'본문',status:'wrong',tabId:'javascript:alert(1)',queuedAt:Infinity},{key:'notice_dup',title:'x',body:'x',status:'pending'},{key:'notice_dup',title:'x',body:'x',status:'read'}]})");
         assert.deepEqual(json('game.tutorialHistory.map(row=>[row.key,row.status,row.tabId])'),[['notice_bad','unread',null],['notice_dup','read',null]],'corrupt states and duplicate records cannot force arbitrary navigation or repeat an acknowledged guide');
         run("game=mergeDefaults({tutorialHistory:Array.from({length:1800},(_,i)=>({key:'notice_'+i,title:'x'.repeat(400),body:'y'.repeat(7000),status:'pending'}))})");

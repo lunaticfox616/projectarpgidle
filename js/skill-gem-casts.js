@@ -408,10 +408,24 @@ const skillGemCasts = (() => {
     // 쏜 화살이 가장 가까운 적 쪽으로 초당 11라디안까지 방향을 틀며 난다. 판정은 화면과 같은 도트 공간(칸 64×32)에서 20ms 걸음으로 본다. 대상이 쓰러지면
     // 아직 안 맞힌 다음 적을 쫓는다. 화살 N발은 가까운 다른 적을 하나씩 겨누고 모자라면 같은 적에게 이어서 난다(V3.7). 한 번 맞히면 사라지고, 8칸(효과 확장 +N칸)을 날면 사라진다.
     // 속도는 전달본의 640(칸 72)을 칸 64로 옮긴 값이라 회전 반지름 약 0.8칸이 같다.
-    const HOMING={cells:8,wide:64,deep:32,speed:569,turn:11,stepMs:20,release:200,hitX:32,hitY:16};
-    function homingArrow(c,foe,startAt) {
-        const p=getGridUnitCenter(foe),angle=Math.atan2((p.gy-c.source.gy)*HOMING.deep,(p.gx-c.source.gx)*HOMING.wide);
+    // 휘어 들어감(2026-11-09 전달본 V3.14, 사용자 "추적화살은 화살이 조금 휘어서 공격되면 좋을거같습니다"): 0.5rad(curve) 옆으로 비껴 쏘고, 꺾는 힘이
+    // 0.38초(ramp) 동안 초당 2.75 → 11rad로 커지며 휘어 들어간다. 가까운 적일수록 덜 비낀다(bendFrom부터 bendSpan에 걸쳐 30 → 100%).
+    // 적 가까이(near 안) 오거나 1rad 넘게 어긋나면 세게 꺾어 맞힌다(적 둘레를 맴돌다 사거리를 다 쓰지 않게). 휘는 쪽은 쏠 때마다 위아래로
+    // 번갈아, 여러 발이면 발마다 번갈아 부채처럼 휜다. 거리는 전달본의 도트(칸 72)를 칸 64로 옮겼다(30 → 27, 170 → 151, 110 → 98, 24 → 21).
+    // 피해, 사거리, 관통은 그대로다.
+    const HOMING={cells:8,wide:64,deep:32,speed:569,turn:11,stepMs:20,release:200,hitX:32,hitY:16,curve:0.5,ramp:380,bendFrom:27,bendSpan:151,near:98,nearest:21};
+    let homingBend=1;
+    const homingDistance=(from,p)=>Math.hypot((p.gx-from.gx)*HOMING.wide,(p.gy-from.gy)*HOMING.deep);
+    function homingArrow(c,foe,startAt,index) {
+        const p=getGridUnitCenter(foe),aim=Math.atan2((p.gy-c.source.gy)*HOMING.deep,(p.gx-c.source.gx)*HOMING.wide);
+        const angle=aim+(index%2?-1:1)*homingBend*HOMING.curve*Math.max(0.3,Math.min(1,(homingDistance(c.source,p)-HOMING.bendFrom)/HOMING.bendSpan));
         return {gx:c.source.gx,gy:c.source.gy,angle,flown:0,foe,dead:false,startAt,path:[{at:startAt,gx:c.source.gx,gy:c.source.gy,angle}]};
+    }
+    /** 이번 걸음에 꺾을 수 있는 각(rad): 쏜 뒤 ramp 동안 커지고, 적 가까이거나 크게 어긋나면 세게. */
+    function homingTurnLimit(arrow,turn,dist,at) {
+        let rate=HOMING.turn*Math.min(1,0.25+0.75*(at-arrow.startAt)/HOMING.ramp);
+        if(Math.abs(turn)>1 || dist<HOMING.near)rate=Math.max(rate,2.2*HOMING.speed/Math.max(HOMING.nearest,dist));
+        return rate*HOMING.stepMs/1000;
     }
     function launchHoming(state,c,enemies) {
         const release=c.at+ms(c,HOMING.release),shots=1+supportShots(c)+rollProjectileExtraShots(c.stats.projectileExtraShots);
@@ -419,7 +433,8 @@ const skillGemCasts = (() => {
         const aimed=[first,...targets(78,c.source,enemies,grow(c.stats)).filter(e=>e!==first).sort(near)].slice(0,shots);
         letGo(c,release,release+ms(c,160));
         c.nextAt=release;c.flownTo=release;c.claimed=new Set(aimed.map(e=>e.id));
-        c.arrows=Array.from({length:shots},(_,i)=>homingArrow(c,aimed[i%aimed.length],release+projectileShots.gapOf(i,aimed.length,false)));
+        homingBend=-homingBend;
+        c.arrows=Array.from({length:shots},(_,i)=>homingArrow(c,aimed[i%aimed.length],release+projectileShots.gapOf(i,aimed.length,false),i));
         c.arrows.forEach(arrow=>{arrow.event=visual(state,c,'fly',arrow.startAt,4000,{homingPath:arrow.path,sourceCell:cell(c.source)});});
     }
     /** 화살이 쫓는 적: 쫓던 적이 살아 있으면 그대로, 아니면 다른 화살이 안 고른 가장 가까운 적, 그것도 없으면 가장 가까운 적. */
@@ -433,10 +448,11 @@ const skillGemCasts = (() => {
     const homingGap=(arrow,e)=>{const p=getGridUnitCenter(e);return Math.hypot((p.gx-arrow.gx)*HOMING.wide,(p.gy-arrow.gy)*HOMING.deep);};
     const homingTouches=(arrow,e)=>getGridUnitCells(e).some(p=>Math.abs((p.gx-arrow.gx)*HOMING.wide)<=HOMING.hitX && Math.abs((p.gy-arrow.gy)*HOMING.deep)<=HOMING.hitY);
     /** 한 걸음: 쫓는 적 쪽으로 돌고 나아간다. 닿은 적을 돌려준다. */
-    function homingStep(c,arrow,live) {
+    function homingStep(c,arrow,live,at) {
         const foe=homingFoe(c,arrow,live),step=HOMING.speed*HOMING.stepMs/1000;
         if(foe) {
-            const p=getGridUnitCenter(foe),want=Math.atan2((p.gy-arrow.gy)*HOMING.deep,(p.gx-arrow.gx)*HOMING.wide),turn=Math.atan2(Math.sin(want-arrow.angle),Math.cos(want-arrow.angle)),limit=HOMING.turn*HOMING.stepMs/1000;
+            const p=getGridUnitCenter(foe),want=Math.atan2((p.gy-arrow.gy)*HOMING.deep,(p.gx-arrow.gx)*HOMING.wide),turn=Math.atan2(Math.sin(want-arrow.angle),Math.cos(want-arrow.angle));
+            const limit=homingTurnLimit(arrow,turn,homingDistance(arrow,p),at);
             arrow.angle+=Math.max(-limit,Math.min(limit,turn));
         }
         arrow.gx+=Math.cos(arrow.angle)*step/HOMING.wide;arrow.gy+=Math.sin(arrow.angle)*step/HOMING.deep;arrow.flown+=step;
@@ -450,7 +466,7 @@ const skillGemCasts = (() => {
     function homingFly(c,arrow,live,at) {
         const reach=(HOMING.cells+grow(c.stats))*HOMING.wide;
         if(arrow.dead || at<=arrow.startAt)return null;
-        const hit=homingStep(c,arrow,live);
+        const hit=homingStep(c,arrow,live,at);
         arrow.path.push({at,gx:arrow.gx,gy:arrow.gy,angle:arrow.angle});
         if(hit){homingEnd(arrow,at);return contact(c,[hit],at);}
         if(arrow.flown>=reach){homingEnd(arrow,at);arrow.event.homingMissed=true;}

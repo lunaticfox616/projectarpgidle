@@ -295,6 +295,56 @@ const stageSkillRules = (() => {
         stageSkillRunes.victim(gem, hit, lead);
     }
 
+    // ---------------------------------------------------------------- double strike, double cast (이중 발동, 이중 시전)
+    /** 두 번째 발동의 연출(2026-11-08 전달본 V3.9.6 scheduleExtra, 사용자 "이중 시전이나 이중 공격도 시간차를 두어 시각적으로 시전이 여러번 발생했다는걸
+     * 인지하게"): 앞 발동의 타격 자세가 원소 색 잔상으로 뒤쪽에 겹쳐 0.42초에 사라지고 머리 위에 ×2가 뜬다(js/canvas-stage-skill-draws.js echo).
+     * 주문은 마법진(손 마법진, 그것을 쓰지 않는 주문은 발밑 고리)이 0.22초 한 번 더 서고, 그 밖에는 몸 외곽선이 0.14초 빛나며 휘두르는 룬이면 휘두름 자국이 한 번 더 나온다.
+     * 두 번째 발동은 앞 발동 뒤 0.28초(js/combat-support-runes.js REPEAT_GAP_MS)라 잔상은 그만큼 앞에 그린 자세다. 피해와 때는 게임의 것 그대로다. */
+    const ECHO_SIGIL_MS = 220, ECHO_AURA_MS = 140;
+    const ECHO_SPACING = 140;                     // 같은 룬의 잔상 사이(ms): 따로 시전하는 룬은 갈래 투사체의 발마다 열쇠가 달라도 잔상은 하나
+    const echoed = new Map();                     // "룬:공격 묶음"과 "룬" → 잔상을 낸 시각(무대의 시계)
+    /** 반복 단계가 나가는 때: 반복이 제 때를 맞았다는 알림(supportEcho, js/combat-support-runes.js repeatReleased)은 그 순간, 날아가는 기록은
+     * 떠나는 순간(자리에 서는 것은 닿는 순간). 다른 기록은 알리지 않는다. */
+    function ruleRepeatAt(fx) {
+        if (fx.type === 'supportEcho') return fx.start;
+        if (fx.type !== 'combatTravel') return Infinity;
+        const flies = String(fx.delivery).startsWith('projectile') || fx.delivery === 'magicMoving';
+        return fx.start + Math.max(0, Number(flies ? fx.releaseDelayMs : fx.flightMs) || 0);
+    }
+    /** 이 공격의 첫 반복인가: 같은 공격(묶음)의 반복 단계가 여럿이거나 같은 룬의 잔상이 막 나갔으면 아니다. 맞으면 적어 둔다. */
+    function ruleEchoDue(fx) {
+        const now = stageSkillVfx.now(), key = `${fx.skillName}:${String(fx.damageTextGroupId).split(':')[0]}`;
+        ruleForget(echoed, now, 4000);   // 묶음 번호는 다시 쓰인다(새 시전 상태, 다른 판)
+        const last = echoed.get(fx.skillName);
+        if (echoed.has(key) || (last !== undefined && now - last < ECHO_SPACING)) return false;
+        echoed.set(key, now).set(fx.skillName, now);
+        return true;
+    }
+    /** 전투 기록을 볼 때마다 불린다: 처음 볼 때(js/canvas-combat-feedback.js observe)와 날아가는 기록을 그리는 프레임마다(js/canvas-battlefield.js
+     * drawCombatTravelFx). now는 그 기록의 시계다. 반복 단계(stageKind supportRepeat)면 그 공격의 첫 반복이 나가는 순간에 한 번 연출을 낸다. */
+    function ruleNoteRepeat(fx, now) {
+        if (fx.stageKind !== 'supportRepeat' || now < ruleRepeatAt(fx)) return;
+        const gem = stageSkillVfx.ready() ? K.gemOf(fx.skillName) : null;
+        if (gem && ruleEchoDue(fx)) rulePlayEcho(gem, fx);
+    }
+    function rulePlayEcho(gem, fx) {
+        const element = fx.element || gem.meta.el, ink = STAGE_SKILL_VFX.elements[element === 'prism' ? 'light' : element] || STAGE_SKILL_VFX.elements.phys;
+        const look = { face: K.heroFace(), element }, ago = window.GameModules.combat.supports.repeatGapMs;
+        const echo = stageSkillDraws.echo({ face: look.face, count: 2, ink, bright: stageActors.afterimage(ink.c2, ago), faint: stageActors.afterimage(ink.c1, ago) });
+        stageSkillVfx.paint(K.at(K.heroDrawn()), { life: echo.life }, echo.paint);
+        if (ruleCastsAtHand(gem, fx)) ruleEchoCast(gem, look); else ruleEchoStrike(gem, fx, look);
+    }
+    /** 주문: 손 마법진(그 룬이 손 마법진을 쓰면)과 외곽선 오라가 0.22초, 발밑 고리를 쓰는 룬은 그 고리가 한 번 더. */
+    function ruleEchoCast(gem, look) {
+        stageSkillSigil.cast({ spot: K.heroSpot(), face: look.face, element: look.element, ms: ECHO_SIGIL_MS, hand: stageSkillPolish.handSigil(gem) });
+        stageSkillPolish.recast(gem, ECHO_SIGIL_MS);
+    }
+    /** 공격: 외곽선 오라만 0.14초, 휘두르는 룬은 휘두름 자국이 한 번 더. */
+    function ruleEchoStrike(gem, fx, look) {
+        stageSkillSigil.cast({ spot: K.heroSpot(), face: look.face, element: look.element, ms: ECHO_AURA_MS, hand: false });
+        if (ruleSwings(gem)) rulePlaySwing(gem, { ...fx, repeatIndex: 0 }, { face: look.face, ramp: K.ramp(gem, look.element) });
+    }
+
     // ---------------------------------------------------------------- cast start
     /** 시전 시작에 룬마다 더 거는 것: 부싯돌 베기의 불티와 향로 고리, 준비와 놓음의 빛(전달본 V3.6), 암흑 파열의 조짐. */
     function ruleWindupExtras(gem, fx) {
@@ -505,6 +555,6 @@ const stageSkillRules = (() => {
     }
     /** 무대의 새 연출이 이 룬을 그리는가(옛 그림 표에 없는 새 룬의 사건을 여기로 보낼지: js/canvas-world-tree-fx.js). */
     const ruleOwns = skillName => stageSkillVfx.ready() && !!K.gemOf(skillName);
-    return Object.freeze({ claim: ruleClaimEvent, hit: ruleNoteHit, windup: ruleNoteWindup, clipsOf: ruleClipsOf, owns: ruleOwns });
+    return Object.freeze({ claim: ruleClaimEvent, hit: ruleNoteHit, windup: ruleNoteWindup, repeat: ruleNoteRepeat, clipsOf: ruleClipsOf, owns: ruleOwns });
 })();
 safeExposeGlobals({ stageSkillRules });

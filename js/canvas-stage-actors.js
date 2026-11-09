@@ -10,6 +10,8 @@ const stageActors = (() => {
     const SILHOUETTE_LIMIT = 48;
     const images = new Map(), lists = new WeakMap(), silhouettes = new Map(), headrooms = new Map();
     let kept = '', body = null, facingLeft = false, probe = null, present = false;
+    const POSE_TRAIL_MS = 600;
+    const poseTrail = [];              // 지난 0.6초 동안 그린 자세(먼저 그린 것부터): 이중 발동의 잔상이 앞 발동 때의 자세를 찾는다
     let chain = { start: -1, index: -1 };
     let hits = { at: -Infinity, chained: false };
 
@@ -337,15 +339,34 @@ const stageActors = (() => {
         drawBody(ctx, image(pose.clip.file), { pose, look, dest: cellCorner(pose.clip, figure.axis, y, figure.scale) });
         ctx.restore();
         body = { now, pose, sheet: image(pose.clip.file), left: figure.left, headY: y - headroom(set) * figure.scale };
+        keepPose(body);
         return true;
+    }
+    /** 그린 자세를 자취에 남기고 오래된 것을 걷는다. 시계가 되돌아가면(다른 판) 자취를 비운다. */
+    function keepPose(drawn) {
+        if (poseTrail.length && drawn.now < poseTrail[poseTrail.length - 1].now) poseTrail.length = 0;
+        poseTrail.push(drawn);
+        while (drawn.now - poseTrail[0].now > POSE_TRAIL_MS) poseTrail.shift();
+    }
+    /** agoMs 전에 그린 자세: 그때나 그 바로 앞에 그린 것, 자취가 그보다 짧으면 가장 오래된 것. */
+    function poseAgo(agoMs) {
+        const at = body.now - agoMs;
+        let found = poseTrail[0] || body;
+        for (const drawn of poseTrail) {
+            if (drawn.now > at) break;
+            found = drawn;
+        }
+        return found;
     }
     /** CSS y of the top of the head drawn this frame (overhead bars sit above it), or null when the stage hero was not drawn. */
     function headY(now) { return body && body.now === now ? body.headY : null; }
     /** 지난 프레임에 그린 자세를 한 색으로(전도성 난격이 떠난 자리의 잔상, js/canvas-stage-skill-casts.js). 아직 그린 적이 없으면 null.
+     * agoMs를 주면 그만큼 앞에 그린 자세(0.6초까지, 이중 발동의 잔상이 앞 발동의 타격 자세를 쓴다: js/canvas-stage-skill-rules.js).
      * 돌려준 함수(ctx, dot, alpha)는 붓의 원점에 발을 두고 그때 보던 쪽을 보며 빛을 더해 그린다. */
-    function afterimage(colour) {
-        if (!body || !body.sheet || !body.sheet.ready) return null;
-        const clip = body.pose.clip, rim = silhouette(body.sheet, clip, body.pose.frame, colour), left = body.left;
+    function afterimage(colour, agoMs = 0) {
+        const drawn = body && poseAgo(agoMs);
+        if (!drawn || !drawn.sheet || !drawn.sheet.ready) return null;
+        const clip = drawn.pose.clip, rim = silhouette(drawn.sheet, clip, drawn.pose.frame, colour), left = drawn.left;
         return (ctx, dot, alpha) => {
             ctx.save();
             if (left) ctx.scale(-1, 1);

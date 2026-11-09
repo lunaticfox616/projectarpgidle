@@ -67,7 +67,7 @@ const devTestPanel = (() => {
         const category = Object.keys(SKILL_RUNE_STANCE_BY_CATEGORY).find(id => SKILL_RUNE_STANCE_BY_CATEGORY[id] === stance);
         wearTestItem(WEAPON_CATEGORIES[category].name, base => base.slot === '무기' && getWeaponCategoryOfBase(base.id) === category);
     }
-    /** 가방에 맞는 장비가 있으면 그것을, 없으면 가장 낮은 바탕의 보통 등급을 만들어 낀다(grantClassStarterWeapon과 같은 고르기).
+    /** 가방에 맞는 장비가 있으면 그것을, 없으면 가장 낮은 바탕의 보통 등급을 만들어 낀다(js/passives.js createClassStarterWeapon과 같은 고르기).
      * 룬을 차례로 바꿔 끼워도 시험 장비가 대분류마다 하나만 남아 가방이 차지 않는다. */
     function wearTestItem(label, fits) {
         const owned = game.inventory.find(item => fits(BASE_ITEM_DB.find(row => row.id === item.baseId) || {}));

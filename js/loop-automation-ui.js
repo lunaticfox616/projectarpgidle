@@ -1,5 +1,5 @@
 /** 자동 환생 (docs/atlas-endgame-20260930.md 5절): 루프 관문을 채우면 정산 화면에서 몇 초를 센 뒤 "루프 진행"을 대신 누르고,
- * 설정대로 다음 루프의 직업을 고른다(같은 직업 유지). 누르는 버튼과 같은 함수만 부르므로 보상 · 판정은 루프 코드 그대로다.
+ * 설정대로 다음 루프의 직업을 고른다(같은 직업 유지, 기초 스킬은 지난 루프와 같은 속성이 선택지에 있으면 그 속성). 누르는 버튼과 같은 함수만 부르므로 보상 · 판정은 루프 코드 그대로다.
  * 직업 선택을 기다리는 저장을 불러오면 선택 창을 다시 연다 — 예전에는 창 없이 전투만 멈춘 채 남았다.
  * 화면이 떠 있는 동안에만 돈다: 오프라인 재생은 루프 관문에서 멈추고, 오프라인에서 채운 관문(game.loopGateOffline)은
  * 자동으로 넘기지 않는다(사용자 결정 2026-09-30) — 플레이어가 넘긴 뒤 다음 관문부터 다시 자동이다.
@@ -15,7 +15,7 @@ const loopAutomationUi = (() => {
         if (game.settings.autoLoopClass === 'keep' && PLAYER_CLASS_DEFS[classId]) {
             if (selectionOpen()) return chooseLoopHero(classId);
             applyHeroSelection(classId, { silent: true, skipSave: true, alignTalent: true });
-            grantClassStarterWeapon(classId); // as chooseLoopHero does: the loop emptied the gear
+            basicSkills.grant(game, classId, basicSkills.autoPick(game)); // as the class window's element step does (same element when offered)
             return applyLoopHeroSelection(classId, classId);
         }
         if (selectionOpen() || now - reopenedAt < REOPEN_MS) return;

@@ -18,6 +18,10 @@ async function pickClass(page, classId, { tap = false, opening = false } = {}) {
     await press(card);
     const start = overlay.locator('#loop-hero-select-start');
     if (await start.isVisible()) await press(start);
+    // Then the same window asks for the basic skill's element (js/passives.js openLoopBasicSkillPick, 2026-11-09): the first offered.
+    const element = overlay.locator('.basic-skill-choice').first();
+    await element.waitFor();
+    await press(element);
 }
 
 /**

@@ -13,7 +13,7 @@ for(const build of builds) for(const seed of [5,17,29]) {
     r.benchmarkInput={level:8,selectedClassId:build.classId,
         selectedHeroId:r.PLAYER_CLASS_DEFS[build.classId].recommendedTalentHeroId,
         skills:['기본 공격',build.skill],activeSkill:summoned?'기본 공격':build.skill,
-        gemData:{[build.skill]:{level:3,exp:0}},loopStarterGemGranted:true,
+        gemData:{[build.skill]:{level:3,exp:0}},loopStarterWeaponGranted:true,
         equippedSummonSkills:summoned?[build.skill]:[],summonSkillCounts:summoned?{[build.skill]:1}:{},
         summonLoadoutInitialized:true};
     run('game=mergeDefaults({...game,...benchmarkInput});game.playerHp=getPlayerStats().maxHp;startEncounterRun();');

@@ -70,6 +70,14 @@ const tutorialActionUi = {
             // 룬 상세와 고른 룬 카드도 덮지 않는다(카드가 고른 룬 위로 올라와 설명을 가렸다).
             keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected', '#skill-tab-equip .skill-board-head']
         },
+        starter_weapon: {
+            // 첫 루프의 시작 무기(js/combat.js grantLoopStarterWeaponOnFirstKill, 2026-11-09): 장비 상세가 열려 있으면 그 '장착' 단추를, 아니면 가방의 무기를 가리킨다.
+            selector: ['#tab-items .equipment-card-primary', '#ui-inventory-list .equipment-grid-item'],
+            title: '무기 장착',
+            body: '가방의 무기를 누르고 ‘장착’을 누르세요. 무기를 들면 기초 스킬로 싸웁니다.',
+            read: () => getEquippedWeaponStance(),
+            completed: current => current !== 'unarmed'
+        },
         unlock_stump_box: {
             // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
             // 휴대폰은 칸을 누르면 배치 미리보기가 먼저 뜨므로 그 [배치]를 가리킨다(2026-10-24).
@@ -82,7 +90,7 @@ const tutorialActionUi = {
             completed: ([placed, waiting], [placedBefore]) => waiting === 0 || placed >= placedBefore + 2
         }
     },
-    aliases: { tutorial_starter_gem_equip: 'unlock_skills', tutorial_first_passive: 'unlock_char', tutorial_first_gear: 'unlock_items',
+    aliases: { tutorial_starter_gem_equip: 'starter_weapon', tutorial_first_passive: 'unlock_char', tutorial_first_gear: 'unlock_items',
         tutorial_stump_starter: 'unlock_stump_box' },
     guideFor(key) {
         const guideKey = this.aliases[key] || key;
@@ -591,15 +599,17 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
         body: '장비를 얻었습니다. 자동 장착이 켜져 있으면 빈 칸에 맞는 장비를 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
         // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차). 무기 칸은 세지 않는다:
-        // 직업을 고를 때 쥐여 주는 대표 무기(js/passives.js grantClassStarterWeapon) 때문에 첫 장면 끝에 스킬룬, 장비, 자동 사냥 카드가
-        // 잇달아 떴다(2026-10-21). 떨어진 무기는 무기 칸이 차 있어 가방으로 가므로 그때 뜬다.
-        starterDue: state => (state.inventory || []).some(Boolean) || Object.entries(state.equipment || {}).some(([slot, item]) => item && slot !== '무기') },
+        // 첫 처치가 떨어뜨리는 직업 무기(js/combat.js grantLoopStarterWeaponOnFirstKill)는 제 장착 안내가 맡는다(2026-11-09).
+        starterDue: state => (state.inventory || []).some(item => item && item.id !== state.starterWeaponTutorialPending)
+            || Object.entries(state.equipment || {}).some(([slot, item]) => item && slot !== '무기') },
     { key: 'tutorial_weapon_rune', seenAs: 'tutorial_weapon_rune', tabId: 'tab-skills', title: '무기와 스킬룬',
         body: '스킬룬마다 쓸 수 있는 무기가 있습니다. 지금 무기로 쓸 수 없는 룬은 흐리게 보이고, 카드에 필요한 무기가 적혀 있습니다.\n장착한 룬을 쓸 수 없는 무기로 바꾸면 기본 공격으로 싸우다가, 맞는 무기를 들면 그 룬으로 돌아갑니다.',
         starterDue: state => ownsWeaponBlockedRune(state) }
 ]);
 /** 지금 든 무기로 쓸 수 없는 룬을 가졌는가(무기를 바꿔 기본 공격으로 물러난 주 공격 룬 포함): 무기 규칙 안내를 띄울 때. */
 function ownsWeaponBlockedRune(state) {
+    // 첫 처치의 직업 무기를 기다리며 쉬는 기초 스킬은 세지 않는다: 그 무기를 들면 바로 돌아온다(js/combat.js grantLoopStarterWeaponOnFirstKill).
+    if (!state.loopStarterWeaponGranted || state.starterWeaponTutorialPending != null) return false;
     const stance = getEquippedWeaponStance();
     return !!state.weaponBlockedSkill || (state.skills || []).some(name => !isSkillRuneUsableWithStance(name, stance));
 }
@@ -643,23 +653,21 @@ function advanceTutorial() {
     if (!activeTutorial) return;
     dismissTutorial(true);
 }
-/** 첫 스킬룬 안내를 따라 하지 않고 닫으면 그 룬을 대신 장착한다 — 방치하는 플레이어는 기본 공격으로 싸우며 초반에 거듭
- * 쓰러졌다(검토 2026-10-01). 바꾸고 싶으면 '스킬룬'에서 언제든 바꾼다. */
-function equipSkippedStarterGem(key) {
-    const name = game.starterGemTutorialPending;
-    if (key !== 'tutorial_starter_gem_equip' || typeof name !== 'string') return;
-    if (game.activeSkill === '기본 공격') changeSkill(name);
-    if (game.activeSkill === name) showGameToast(_t("[{name}] 룬을 장착했습니다, '스킬룬'에서 바꿀 수 있습니다", { name }), { tone: 'success' });
-    // 닫은 안내는 끝난다: 무기가 그 룬을 받지 않거나 다른 룬을 이미 꼈어도 표시가 남아 그 룬의 봉인을 막았다.
-    game.starterGemTutorialPending = null;
+/** 첫 무기 안내를 따라 하지 않고 닫으면 그 무기를 대신 장착한다: 맨손이면 기초 스킬을 못 쓰고 기본 공격으로만 싸운다
+ * (예전 첫 스킬룬 안내와 같은 까닭, 검토 2026-10-01). 바꾸고 싶으면 '장비'에서 언제든 바꾼다. */
+function equipSkippedStarterWeapon(key) {
+    const item = getStarterWeaponTutorialTarget();
+    if (key !== basicSkills.weaponGuide || !item) return;
+    if (equipItemById(item.id)) showGameToast(_t("[{name}] 무기를 장착했습니다, '장비'에서 바꿀 수 있습니다", { name: _t(item.name) }), { tone: 'success' });
+    game.starterWeaponTutorialPending = null;
 }
 
-/** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 스킬룬은 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */
+/** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 무기는 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */
 function applySkippedGuide(key) {
-    equipSkippedStarterGem(key);
+    equipSkippedStarterWeapon(key);
     plantSkippedStumpStarter(key);
 }
-/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗을 판의 가운데부터 대신 놓는다(첫 스킬룬과 같은 이유). */
+/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗을 판의 가운데부터 대신 놓는다(첫 무기와 같은 이유). */
 function plantSkippedStumpStarter(key) {
     if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
     if (stumpBox.plantStored(game) > 0) showGameToast(_t('그루터기 함: 받은 씨앗을 배치했습니다'), { tone: 'success' });

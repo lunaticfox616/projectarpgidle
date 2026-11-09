@@ -1916,9 +1916,9 @@ function updateTabNotificationDots() {
     let dockDot = document.getElementById('noti-social-dock');
     if (dockDot) dockDot.style.display = (game.noti.social && isNotiEnabled('social')) ? 'block' : 'none';
     syncMergedTabLauncherState();
-    // 스킬룬은 장비 단추로 열린다(묶음 gear): 첫 룬을 알리는 표시는 화면에 있는 그 단추에 단다
-    let skillTabButton = document.getElementById('btn-tab-items');
-    if (skillTabButton) skillTabButton.classList.toggle('starter-gem-tutorial-pending', !!getStarterGemTutorialTarget());
+    // 첫 루프의 시작 무기가 장착을 기다리면 장비 단추에 표시를 단다
+    let itemsTabButton = document.getElementById('btn-tab-items');
+    if (itemsTabButton) itemsTabButton.classList.toggle('starter-equip-tutorial-pending', !!getStarterWeaponTutorialTarget());
 }
 
 /** 해금 단추 표시. 휴대폰 하단 메뉴의 지도는 열리기 전에도 흐린 잠금 칸으로 자리를 지킨다 — 액트 1을 마쳐 지도가 열리는 순간
@@ -4096,13 +4096,11 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let summonEquipped = (def.tags || []).includes('summon') && (game.equippedSummonSkills || []).includes(name);
     let active = summonEquipped || [game.activeSkill, game.mobilitySkill].includes(name);
     let equipmentReady = typeof canUseSkillWithCurrentEquipment !== 'function' || canUseSkillWithCurrentEquipment(name);
-    let tutorialTarget = getStarterGemTutorialTarget() === name && !active;
     let state = equipmentReady ? getGemTileSummary(name, def) : getSkillRuneWeaponNote(name);
-    let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked', tutorialTarget ? 'starter-gem-tutorial-target' : ''].filter(Boolean).join(' ');
+    let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked'].filter(Boolean).join(' ');
     let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? _t('소환 ×{name}', { name: getSummonSkillCount(name) }) : _t('장착')}</span>` : '';
-    let guide = tutorialTarget ? '<span class="starter-gem-equip-guide">첫 스킬룬, 눌러서 장착</span>' : '';
     return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${formatValue('', gemInfo.totalLevel)}${active ? _t(', 장착 중') : ''}${equipmentReady ? '' : ', ' + escapeHTML(getSkillRuneWeaponNote(name))}">
-        ${guide}${renderGemTileLevel(gemInfo)}${worn}${renderGemTileCopies(name)}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
+        ${renderGemTileLevel(gemInfo)}${worn}${renderGemTileCopies(name)}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
         <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;
 }
@@ -4429,16 +4427,16 @@ function assertBuildEditable() {
     return true;
 }
 
-function getStarterGemTutorialTarget() {
-    let name = typeof game.starterGemTutorialPending === 'string' ? game.starterGemTutorialPending : '';
-    if (!name || !Array.isArray(game.skills) || !game.skills.includes(name)) return null;
-    let equipped = [game.activeSkill, game.mobilitySkill].includes(name)
-        || (Array.isArray(game.equippedSummonSkills) && game.equippedSummonSkills.includes(name));
-    return equipped ? null : name;
-}
-
-function completeStarterGemTutorial(name) {
-    if (name && game.starterGemTutorialPending === name) game.starterGemTutorialPending = null;
+/** 첫 루프의 시작 무기(js/combat.js grantLoopStarterWeaponOnFirstKill)가 가방에서 장착 안내를 기다리면 그 아이템, 아니면 null.
+ * 끼고 나면 기다림 표시를 지운다(바닥에 있는 동안은 남는다: 주웠을 때 자동 장착하지 않고 가방으로 오게). */
+function getStarterWeaponTutorialTarget() {
+    const id = game.starterWeaponTutorialPending;
+    if (id == null) return null;
+    if (Object.values(game.equipment || {}).some(item => item && item.id === id)) {
+        game.starterWeaponTutorialPending = null;
+        return null;
+    }
+    return (game.inventory || []).find(item => item && item.id === id) || null;
 }
 
 function isSummonAttackSkillGem(name) {
@@ -4511,7 +4509,6 @@ function changeSummonSkillCount(name, delta) { if (!assertBuildEditable()) retur
         if (!game.equippedSummonSkills.includes(name)) game.equippedSummonSkills.push(name);
         game.summonSkillCounts[name] = Number(SKILL_DB[name].tags.includes('summon_attack')) * current + 1;
         playUiFeedbackSound('gemSocket');
-        completeStarterGemTutorial(name);
         if (SKILL_DB[name] && SKILL_DB[name].isGem) game.gemEnhanceTargetSkill = name;
         if (game.activeSkill === name) game.activeSkill = '기본 공격';
         updateStaticUI();
@@ -4536,7 +4533,6 @@ function changeSkill(name, slotKind) { if (!assertBuildEditable()) return;
     if (mobilitySkill.isMobilityGem(name)) return wearMobilityRune(name, slotKind);
     playUiFeedbackSound('gemSocket');
     game.activeSkill = name;
-    completeStarterGemTutorial(name);
     if (SKILL_DB[name]?.isGem) game.gemEnhanceTargetSkill = name;
     updateStaticUI();
 }
@@ -4557,7 +4553,7 @@ function wearMobilityGem(name) {
     if (name && name !== game.mobilitySkill) playUiFeedbackSound('gemSocket');
     game.mobilitySkill = name;
     mobilitySkill.reset();
-    if (name) { completeStarterGemTutorial(name); game.gemEnhanceTargetSkill = name; }
+    if (name) game.gemEnhanceTargetSkill = name;
     updateStaticUI();
 }
 
@@ -4573,7 +4569,6 @@ function wearMobilityRune(name, slotKind) {
         return wearMobilityGem(name);
     }
     game.activeSkill = name;
-    completeStarterGemTutorial(name);
     game.gemEnhanceTargetSkill = name;
     playUiFeedbackSound('gemSocket');
     updateStaticUI();
@@ -13571,7 +13566,7 @@ function isJournalTabUnlockReady() {
 function checkUnlocks() {
     storyJournalUi.sync();
     let u = game.unlocks;
-    let starterTutorialGem = getStarterGemTutorialTarget();
+    let starterWeapon = getStarterWeaponTutorialTarget();
     if (typeof stumpBoxUi === 'object') stumpBoxUi.checkStumpBoxUnlock();
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', _t('첫 여정'), _t('전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 룬을 얻으면 그때마다 조작을 안내합니다.'));
@@ -13581,7 +13576,7 @@ function checkUnlocks() {
         game.noti.char = true;
         queueTutorialNotice('unlock_char', _t('스킬트리'), _t('레벨 2가 되어 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.'), 'tab-char');
     }
-    if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
+    if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items && !starterWeapon) {
         u.items = true;
         game.noti.items = true;
         queueTutorialNotice('unlock_items', _t('첫 장비'), _t('장비나 제작 재화를 처음 얻었습니다.\n‘장비’에서 아이템을 눌러 지금 착용한 장비와 비교하고 착용하세요.'), 'tab-items');
@@ -13590,9 +13585,9 @@ function checkUnlocks() {
         queueContentNotice('unlock_jewel', '주얼', 'jewel', { open: '주얼을 모을 수 있게 되었습니다.\n장비를 선택해 [소켓]에서 주얼을 끼우세요. 반지, 목걸이, 허리띠에는 소켓이 처음부터 있습니다.',
             locked: '주얼과 주얼 결정을 모을 수 있게 되었습니다.\n‘해금’에서 주얼을 열면 장비 소켓에 끼울 수 있습니다.' }, 'tab-items');
     }
-    contentUnlockUi.announceStarterGem(starterTutorialGem);
+    contentUnlockUi.announceStarterWeapon(starterWeapon);
     queueStarterGuides(game);
-    if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills && !starterTutorialGem) {
+    if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills) {
         u.skills = true;
         game.noti.skills = true;
         queueTutorialNotice('unlock_skills', _t('새 스킬룬'), _t('새 룬을 얻었습니다.\n‘스킬룬’에서 룬을 눌러 효과를 보고 공격 룬을 바꿔 보세요.'), 'tab-skills');

@@ -17,12 +17,13 @@ const CONTENT_CARD_DEDICATED = Object.freeze({
     ocean: 'unlock_ocean_fishing', fishing: 'unlock_ocean_fishing', beyond: 'unlock_beyond_boundary', meteorSite: 'meteor_unlocked'
 });
 const contentUnlockUi = {
-    announceStarterGem(name) {
-        if (!name || (game.seenTutorials || []).includes('tutorial_starter_gem_equip')) return;
-        game.unlocks.skills = true;
-        game.noti.skills = true;
-        queueTutorialNotice('tutorial_starter_gem_equip', _t('첫 스킬룬 장착'),
-            _t('[{name}] 룬을 얻었습니다.\n‘스킬룬’에서 빛나는 룬을 누르고 ‘장착’을 누르세요.\n장착한 룬으로 자동 전투의 공격이 바뀝니다.', { name: _t(name) }), 'tab-skills');
+    /** 첫 루프의 시작 무기가 가방에 들어오면 장착 안내(2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착 안내로). */
+    announceStarterWeapon(item) {
+        if (!item || (game.seenTutorials || []).includes(basicSkills.weaponGuide)) return;
+        game.unlocks.items = true;
+        game.noti.items = true;
+        queueTutorialNotice(basicSkills.weaponGuide, _t('첫 무기 장착'),
+            _t('[{name}] 무기를 주웠습니다.\n‘장비’에서 가방의 무기를 누르고 ‘장착’을 누르세요.\n무기를 들면 기초 스킬로 싸웁니다.', { name: _t(item.name) }), 'tab-items');
     },
     /** The loop card: the points, then the unlocks this loop adds to the tab, by name only (2026-10-27 사용자: 짧게, 필요한 것만).
      * Free contents are left out: each gets its own card when it opens (announceContent). A loop that adds none names the next one. */
@@ -297,12 +298,6 @@ document.addEventListener('click', event => {
     if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail') || document);
     const open = event.target.closest('[data-open-content]');
     if (open) contentUnlockUi.open(open.dataset.openContent);
-});
-// The loop's starter gem picked up from the floor (js/combat.js receiveStarterGemRow): its log line, and in a first loop the equip
-// guide right there (checkUnlocks → announceStarterGem), with the room already cleared.
-window.addEventListener('project-idle:starter-gem-received', event => {
-    addLog(_t('스킬룬 [{gem}] 획득', { gem: event.detail.gem }), 'loot-rare');
-    checkUnlocks();
 });
 // NPC pictures are local stage art (assets/stage-npcs): where one is missing, drop it rather than show a broken image.
 document.addEventListener('error', event => {

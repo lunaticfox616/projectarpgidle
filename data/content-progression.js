@@ -28,7 +28,8 @@ const CONTENT_UNLOCK_TREE_VERSION = 11;
 // 그 전에 산 기록은 지킨다(js/content-progression.js keepEarlyPurchases). 그 전까지는 불러올 때 새 루프에 못 미친 구매를 버려 룬 각인이 사라졌다.
 // 해금 루프를 또 늦추면 이 버전을 함께 올린다.
 const CONTENT_UNLOCK_LOOP_MOVE_VERSION = 14;
-const CONTENT_UNLOCK_RECORD_VERSION = 14;
+// 장부 15(2026-11-09 기초 속성 셋, 넷): addedIn 15 줄을 더했다.
+const CONTENT_UNLOCK_RECORD_VERSION = 15;
 const CONTENT_UNLOCK_SERIES = Object.freeze([
     { series: 'offlineHours', rail: 'idle', name: '시간 인식', nameTemplate: '시간 인식 {n}단계', art: 'ui/pixel/buttons/loop.png',
         description: '방치 한도가 늘어납니다.',
@@ -82,6 +83,12 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"craftSimulator","gain":"제작 확률 시험","name":"제작 시뮬레이터","group":"장비","minLoop":7,"cost":1,"after":"fossilRestore","description":"재화를 쓰지 않고 제작 결과와 목표 확률을 시험할 수 있습니다.","action":{"tab":"tab-items","subtab":"item-tab-craft"},"art":"ui/currency/formless-dew.png"},
     {"id":"gemForge","gain":"룬 피해, 속도","art":"gems/active/molten-slam-v1.png","after":"support","name":"룬 강화","action":{"tab":"tab-skills","skillSubtab":"skill-tab-enhance"},"group":"룬","minLoop":4,"cost":2,"description":"창공의 정수로 룬을 20강까지 강화할 수 있습니다. 군주의 핵을 함께 쓰면 성공 확률이 오릅니다.","routes":["skill-tab-enhance"],"flags":["gemEnhanceUnlocked"],"lifecycle":{"label":"일부 유지","kept":"응축된 창공의 정수로 올린 영구 룬 강화","reset":"군주의 핵/창공의 정수 재료와 해당 강화 레벨"},"features":[{"name":"군주의 핵","description":"강화마다 피해 4% 증폭. 5강이면 룬 레벨 +1. 재료와 강화는 루프마다 초기화됩니다."},{"name":"창공의 정수","description":"강화마다 공격 속도와 시전 속도 2% 증폭. 5강이면 룬 레벨 +1. 재료와 강화는 루프마다 초기화됩니다."},{"name":"응축된 창공의 정수","description":"창공의 탑에서 얻는 별도 재화입니다. 창공을 해금한 뒤 영구 강화에 사용할 수 있습니다. 보유량과 영구 룬 강화는 유지됩니다."}]},
     {"id":"gemAwakening","gain":"각성 룬","art":"gems/active/immortal-vibration-v1.png","after":"engraving","name":"룬 각성","group":"룬","minLoop":14,"cost":2,"description":"정예와 보스가 각성 잔향과 각성 룬을 떨어뜨립니다. Lv.20 공격 룬을 각성 룬으로 바꾸고 각성 각인을 사용할 수 있습니다.","action":{"tab":"tab-skills","skillSubtab":"skill-tab-enhance"},"requires":["trials"]},
+    // 기초 스킬의 속성 선택지(2026-11-09 사용자 "루프 15, 30쯤 기초 룬 속성 선택지를 3개, 4개 중에 하나씩"): 직업을 고를 때 무작위 2개에서 하나씩 늘린다
+    // (js/basic-skills.js choiceCount). 장부 15에 들어온 줄이라 그 전 저장은 이 값 없이 읽고 넘침 점수를 지킨다(addedIn).
+    { id: 'basicElement3', name: '기초 속성 셋', gain: '속성 3개 중 고르기', art: 'gems/runes/202_basic-greatsword-fire.png', group: '룬', minLoop: 15, cost: 1, addedIn: 15,
+        after: 'gemAwakening', description: '루프를 시작할 때 기초 스킬의 속성을 3개 가운데 고릅니다.' },
+    { id: 'basicElement4', name: '기초 속성 넷', gain: '속성 4개 중 고르기', art: 'gems/runes/224_basic-bow-light.png', group: '룬', minLoop: 30, cost: 1, addedIn: 15,
+        after: 'basicElement3', description: '루프를 시작할 때 기초 스킬의 속성을 4개 가운데 고릅니다.' },
     {"id":"engraving","gain":"공격 방식 변경","art":"gems/active/heavenly-branch-v1.png","after":"gemForge","name":"룬 각인","group":"룬","minLoop":6,"cost":2,"description":"각인 슬롯에 특수 옵션을 넣어 룬의 공격 방식을 바꿀 수 있습니다.","sections":[".gem-inscription-section",".gem-current-inscriptions",".gem-engrave-status"],"action":{"tab":"tab-skills","skillSubtab":"skill-tab-enhance"},"lifecycle":{"label":"루프 초기화","kept":"","reset":"룬에 부여한 각인과 확장한 각인 슬롯"}},
     {"id":"market","name":"거래소","group":"편의","minLoop":2,"cost":1,"after":"craft","description":"암거래상과 가판대를 사용할 수 있습니다.","routes":["tab-trade"],"since":11,"art":"ui/currency/golden-rule.png","gain":"암거래, 가판대"},
     {"id":"hall","name":"장비 전당","group":"편의","minLoop":2,"cost":0,"after":"codex","description":"로그인하면 장비를 전시하고 소장품을 구매할 수 있습니다.","routes":["tab-trade"],"art":"items/ruby-ring-v3.png","gain":"장비 전시"},

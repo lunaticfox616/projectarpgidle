@@ -200,39 +200,56 @@ const stageRuneRemakes = (() => {
     }
 
     // ---------------------------------------------------------------- 46 시간 가속
-    const CLOCK = Object.freeze({ scale: 3.4, flat: 0.5, anchor: [24, 40], core: 8, tailFrames: [8, 9, 10, 11, 12, 13, 14, 15, 16], frameMs: 75, intervals: [1000, 800, 600, 400], whole: 3000, tail: 600, fadeIn: 110, fadeOut: 200, alpha: 0.86 });
-    /** 시계의 장: 간격이 줄수록 빨리 돌고 끝 0.6초는 흩어진다. 게임의 지속 시간에 맞춰 네 구간을 늘린다. */
-    function clockPhase(t, total) {
-        const tailStart = Math.max(0, total - CLOCK.tail);
-        if (t >= tailStart) return { frame: CLOCK.tailFrames[Math.floor(clamp((t - tailStart) / CLOCK.tail, 0, 0.999) * CLOCK.tailFrames.length)], turned: null };
-        const stretch = total / CLOCK.whole;
+    /** 2026-11-08 전달본 V3.13(사용자 "시간가속의 바닥을 로마자 시간 VFX하나로 돌리면서 색감을 보라색으로 바꿔주세요"): Buff n Debuff 02 띠의 한 장(3번, I~XII
+     * 고리와 안쪽 원)만 보라로 칠해 돌린다. 간격이 줄수록 빨리 돌고(1배, 1.25배, 1.67배, 2.5배), 끝 0.6초는 2.5배로 돌며 12% 커지고 사라진다. 장 넘김과 흩어지는
+     * 꼬리 장은 없다(전: 8장을 넘기며 돌고 끝 9장은 흩어져 여러 개처럼 보였고 하늘색이었다). 크기, 자리, 피해는 그대로다. */
+    const CLOCK = Object.freeze({ scale: 3.4, flat: 0.5, anchor: [24, 40], frame: 3, intervals: [1000, 800, 600, 400], whole: 3000, tail: 600, tailRate: 2.5, tailGrow: 0.12, fadeIn: 110, fadeOut: 200, alpha: 0.86 });
+    /** 보라 다섯 색(시뮬레이터 purpleCache): 원본 하늘색 다섯 색을 #c9a2ff, #9a5fe0, #f3eaff, #6a3fb0, #3b1f66으로. */
+    const CLOCK_PURPLE = new Map([['0,255,249', [201, 162, 255]], ['0,183,255', [154, 95, 224]], ['255,249,252', [243, 234, 255]], ['34,101,188', [106, 63, 176]], ['32,58,158', [59, 31, 102]]]);
+    /** 틱 표시의 보라(시뮬레이터 oldMarkFx를 바꾼 보라 십자 매듭). */
+    const MARK = Object.freeze({ life: 200, white: '#f3eaff', lit: '#c9a2ff', mid: '#9a5fe0', dark: '#6a3fb0', lift: -40 });
+    /** 시계의 돈 각(라디안)과 크기: 게임의 지속 시간에 맞춰 네 구간을 늘리고, 마지막 구간은 꼬리까지 이어 돈다. */
+    function clockTurn(t, total) {
+        const tailStart = Math.max(0, total - CLOCK.tail), stretch = total / CLOCK.whole, last = CLOCK.intervals.length - 1;
         let at = 0, weighted = 0;
-        for (const interval of CLOCK.intervals) {
-            const span = interval * stretch, elapsed = Math.min(Math.max(0, t - at), span);
-            weighted += elapsed * (1000 / interval);
+        CLOCK.intervals.forEach((interval, i) => {
+            const span = i === last ? Infinity : interval * stretch;
+            weighted += clamp(Math.min(t, tailStart) - at, 0, span) * 1000 / interval;
             at += span;
-            if (t < at) break;
-        }
-        return { frame: Math.floor(weighted / CLOCK.frameMs) % CLOCK.core, turned: weighted / 1300 };
+        });
+        const tail = Math.max(0, t - tailStart);
+        return { angle: (weighted + tail * CLOCK.tailRate) / 1300, grow: 1 + CLOCK.tailGrow * clamp(tail / CLOCK.tail, 0, 1) };
+    }
+    /** 맞은 자리의 틱 표시(0.2초): 가운데 십자(굵기 2, 길이 12도트), 반지름 5의 고리 점 열여섯, 0.09초까지 네 방향 8도트의 점. 흰빛에서 보라로 식는다. */
+    function clockMark(ctx, t, dot) {
+        const [cross, ring] = t < 60 ? [MARK.white, MARK.white] : t < 130 ? [MARK.lit, MARK.white] : [MARK.dark, MARK.mid];
+        ctx.scale(dot, dot);
+        ctx.globalAlpha *= 1 - Math.max(0, t - 130) / 70 * 0.6;
+        ctx.fillStyle = cross;
+        ctx.fillRect(-1, -6, 2, 12);
+        ctx.fillRect(-6, -1, 12, 2);
+        ctx.fillStyle = ring;
+        for (let q = 0; q < 16; q++) ctx.fillRect(Math.round(Math.cos(q / 8 * Math.PI) * 5) - 1, Math.round(Math.sin(q / 8 * Math.PI) * 5) - 1, 2, 2);
+        if (t >= 90) return;
+        ctx.fillStyle = MARK.mid;
+        for (const [x, y] of [[8, 0], [-8, 0], [0, 8], [0, -8]]) ctx.fillRect(x - 1, y - 1, 2, 2);
     }
     let latestClock = null;                       // 시계는 가장 최근의 것 하나만 보인다
     function clockTicks(event, shown) {
         const rows = event.timeTickTargets || [];
-        for (; shown.count < rows.length; shown.count++) for (const cell of rows[shown.count].cells || []) stageSkillVfx.play('pol_focus@chaos', K.at(cell, 0, K.BODY), { alpha: 0.7 });
+        for (; shown.count < rows.length; shown.count++) for (const cell of rows[shown.count].cells || []) stageSkillVfx.paint(K.at(cell, 0, MARK.lift), { life: MARK.life }, clockMark);
     }
-    /** 시간 가속: 발밑에 눕힌 시계가 주인공을 따라가며 점점 빨리 돌고, 틱마다 맞은 자리에 작은 빛이 든다. 시간의 사선의 시계가 떠 있으면 그쪽을 먼저 보인다. */
+    /** 시간 가속: 발밑에 눕힌 보라 시계 한 장이 주인공을 따라가며 점점 빨리 돌고, 틱마다 맞은 자리에 보라 십자 매듭이 든다. 시간의 사선의 시계가 떠 있으면 그쪽을 먼저 보인다. */
     function clock(c) {
         if (!c.first) return true;
         const event = c.event, total = Math.max(1, event.duration), token = latestClock = {}, shown = { count: 0 };
-        let angle = 0;
         stageSkillVfx.paint(K.at(K.heroDrawn(), 0, 2), { life: total, layer: 'ground', follow: K.heroDrawn }, (ctx, t, dot) => {
             clockTicks(event, shown);
             const fade = clamp(Math.min(t / CLOCK.fadeIn, (total - t) / CLOCK.fadeOut), 0, 1);
             if (latestClock !== token || !fade || stageNewRunes.fieldBusy()) return;
-            const phase = clockPhase(t, total);
-            if (phase.turned !== null) angle = phase.turned;
+            const turn = clockTurn(t, total);
             ctx.scale(dot, dot * CLOCK.flat);
-            raw(ctx, 'clock46', phase.frame, { rot: angle, scale: CLOCK.scale, anchor: CLOCK.anchor, alpha: CLOCK.alpha * fade });
+            raw(ctx, 'clock46', CLOCK.frame, { source: stageNewRunes.tint('clock46', CLOCK_PURPLE), rot: turn.angle, scale: CLOCK.scale * turn.grow, anchor: CLOCK.anchor, alpha: CLOCK.alpha * fade });
         });
         return true;
     }
