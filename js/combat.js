@@ -8362,7 +8362,6 @@ function mergeEnemyAilment(target, incoming, pStats) {
 /** Kill records that grow outside the fight: the stump box, the boss variant record (12번 루프 33, js/boss-variants.js) and the nursery's
  * seeds and saps (루프 39, js/stump-nursery.js). */
 function recordKillProgress(enemy) {
-    contentProgression.opening.noteKill(game);
     if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy, layStumpDrop(enemy));
     if (typeof bossVariants === 'object') combatLootReceipts.capture(game, () => bossVariants.onKilled(game, enemy));
     if (typeof stumpNursery === 'object') stumpNursery.onKilled(game, enemy);
@@ -10247,8 +10246,7 @@ function grantExpAndGem(enemy, pStats) {
         game.exp -= req;
         game.level++;
         leveledUp = true;
-        game.passivePoints++;
-        game.noti.char = true;
+        awardLevelPassivePoint();
         game.playerHp = getPlayerHpCap(getPlayerStats());
         addLog(_t('🎉 레벨업! (Lv.{level})', { level: game.level }), "level-up");
         req = getExpReq(game.level);
@@ -10263,6 +10261,12 @@ function grantExpAndGem(enemy, pStats) {
         queueImportantSave(250);
     }
     return gemLeveled;
+}
+
+function awardLevelPassivePoint() {
+    const unlocked = contentProgression.canOpen('tab-char');
+    if (game.season >= 2 || unlocked) game.passivePoints++;
+    if (unlocked) game.noti.char = true;
 }
 
 const GRAND_BREACH_BASE_ROLE = Object.freeze({ hp: 1, speed: 1, damage: 1, penetration: 0, chaosRes: 0, ailment: 0 });

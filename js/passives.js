@@ -3711,6 +3711,7 @@ function getPassiveKeystoneConflict(path) {
  * 거절한다(2026-10-20 검토: "활성화!"가 뜬 뒤 다음 틱에 되돌아갔다). */
 function activatePassivePath(targetNodeId, options) {
     if (game.woodsmanBuildLock) return { activated: false, cost: 0, path: [], reason: 'locked', message: _t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.') };
+    if (!contentProgression.canOpen('tab-char')) return { activated: false, cost: 0, path: [], reason: 'locked' };
     return allocatePassivePath(targetNodeId, options);
 }
 
@@ -3858,10 +3859,15 @@ function importPassiveTreePreset(slotIndex, code) {
     return preset;
 }
 
+function getPassiveAutoInvestPreset() {
+    if (game.woodsmanBuildLock || !contentProgression.canOpen('tab-char')) return null;
+    const planner = ensurePassiveTreePlannerState();
+    return planner.autoInvest ? planner.presets[planner.activeSlot] : null;
+}
+
 function runPassiveTreeAutoInvest() {
-    let planner = ensurePassiveTreePlannerState();
-    let preset = planner.presets[planner.activeSlot];
-    if (!planner.autoInvest || !preset || game.woodsmanBuildLock) return { nodes: 0, points: 0 };
+    const preset = getPassiveAutoInvestPreset();
+    if (!preset) return { nodes: 0, points: 0 };
     let result = { nodes: 0, points: 0 };
     let guard = Math.min(preset.nodeIds.length + 1, Math.max(0, Math.floor(game.passivePoints || 0)) + 1);
     while (guard-- > 0 && game.passivePoints > 0) {
@@ -5676,6 +5682,7 @@ function buildDeathMonsterSummary(windowMs, events) {
 function getActRewardConfig(zoneId, owner = game) {
     const config = ACT_REWARD_DB[zoneId];
     if (!config) return null;
+    if (config.firstLoop && owner.season === 1) return config.firstLoop;
     // All original choices locked: keep the act reward useful without unlocking its content early.
     if (config.lockedChoices && !config.choices.some(choice => isActRewardChoiceAvailable(choice, owner))) {
         return { ...config, body: config.lockedBody, choices: config.lockedChoices };
@@ -5695,6 +5702,7 @@ function getSupportActRewardFallback(choice) {
 }
 
 function isActRewardChoiceAvailable(choice, owner = game) {
+    if (choice.kind === 'points' && owner.season === 1) return contentProgression.canOpen('tab-char', owner);
     if (choice.kind === 'support' || choice.stat === 'suppCap') return contentProgression.isUnlocked('support', owner);
     if (choice.kind === 'currency') return contentProgression.canDropCurrency(choice.currency, owner);
     return true;

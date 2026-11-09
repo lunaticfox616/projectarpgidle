@@ -2511,7 +2511,7 @@ const defaultGame = {
     // without a ledger takes it during the load, and the bag counts its pages by loop until contentProgression.restore makes the ledger
     // (version 10 with graftFloor, js/content-progression.js) and turns those pages into owned 가방 쪽 steps.
     knitting: { season: 1, counts: {}, seen: [], knitted: {}, once: [] },
-    contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [], plannedUnlockId: '' },
+    contentProgression: { version: CONTENT_UNLOCK_RECORD_VERSION, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [], plannedUnlockId: '' },
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,

@@ -24,7 +24,8 @@ const tutorialActionUi = {
     },
     /** 새 콘텐츠 카드도 본문을 펼쳐 보인다(2026-10-26 사용자: 접힌 '자세히'는 빈 카드처럼 보였다). */
     noticeBody(notice, controls) {
-        return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(notice.body, notice.bodyParams) + controls.trim();
+        const body = notice.key === 'tutorial_first_passive' ? this.guides.unlock_char.body : notice.body;
+        return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(body, notice.bodyParams) + controls.trim();
     },
     expireNotice(now) {
         if (!activeTutorial || this.requiresAttention(activeTutorial) || now < this.noticeUntil) return;
@@ -41,6 +42,7 @@ const tutorialActionUi = {
     hush: null,
     guides: {
         unlock_items: {
+            available: () => game.inventory.some(Boolean) || Object.values(game.equipment).some(Boolean),
             selector: ['#ui-equip-list .equipment-slot:not(.equipment-slot-empty):not([data-slot="무기"])',
                 '#ui-inventory-list .equipment-grid-item', '#ui-equip-list .equipment-slot:not(.equipment-slot-empty)'],
             title: '첫 장비 살펴보기',
@@ -49,12 +51,20 @@ const tutorialActionUi = {
             read: () => equipmentInventoryInteraction.getFocusedKey(),
             completed: current => !!current
         },
+        tutorial_passive_tree_unlock: {
+            available: () => !contentProgression.isUnlocked('passiveTree'),
+            selector: ['#content-unlock-panel [data-unlock-content="passiveTree"]'],
+            title: '스킬트리 해금',
+            body: '해금 포인트 1점을 써서 스킬트리를 여세요.',
+            read: () => contentProgression.isUnlocked('passiveTree'),
+            completed: opened => opened
+        },
         unlock_char: {
+            available: () => game.passivePoints > 0,
             // 휴대폰에서 노드 상세가 열려 있으면 그 "포인트 사용" 단추를, 아니면 트리 캔버스를 가리킨다.
             selector: ['#passive-mobile-detail:not([hidden]) [data-passive-confirm]:not(:disabled)', '#tree-canvas'],
             title: '첫 스킬트리 투자',
-            body: '빛나는 노드에 포인트를 써 보세요.',
-            legacyBody: '연결된 시작 노드의 효과를 살펴보고, 원하는 노드에 포인트를 투자해 보세요.',
+            body: '시작점 옆에 빛나는 노드 하나를 골라 1포인트를 쓰세요.',
             read: () => game.passives.length,
             completed: (current, before) => current > before,
             // 6~8px 노드는 연결선 강조만으로 보이지 않았다: 찍을 수 있는 노드에 고리를 켜고, 카드는 캔버스 대신 그 노드 무리 옆에 둔다
@@ -74,6 +84,7 @@ const tutorialActionUi = {
             keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected', '#skill-tab-equip .skill-board-head']
         },
         unlock_stump_box: {
+            available: () => stumpBox.storage(game).some(item => item.family !== 'talisman'),
             // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
             // 휴대폰은 칸을 누르면 배치 미리보기가 먼저 뜨므로 그 [배치]를 가리킨다(2026-10-24).
             selector: ['#stump-placement-preview:not([hidden]) [data-stump-action="placement-apply"]',
@@ -90,10 +101,8 @@ const tutorialActionUi = {
         tutorial_stump_starter: 'unlock_stump_box' },
     guideFor(key) {
         const guideKey = this.aliases[key] || key;
-        if (guideKey === 'unlock_items' && !game.inventory.some(Boolean) && !Object.values(game.equipment).some(Boolean)) return null;
-        if (guideKey === 'unlock_char' && game.passivePoints < 1) return null;
-        if (guideKey === 'unlock_stump_box' && !stumpBox.storage(game).some(item => item.family !== 'talisman')) return null;
-        return Object.hasOwn(this.guides, guideKey) ? this.guides[guideKey] : null;
+        const guide = Object.hasOwn(this.guides, guideKey) ? this.guides[guideKey] : null;
+        return guide && (!guide.available || guide.available()) ? guide : null;
     },
     start(notice, open = true) {
         const guide = this.guideFor(notice.key);
@@ -163,6 +172,7 @@ const tutorialActionUi = {
         const group = getMergedTabGroup(action.notice.tabId);
         if (group) switchMergedTabSubtab(group[0], action.notice.tabId);
         else switchTab(action.notice.tabId, { keepWindowOpen: true });
+        if (action.notice.key === 'tutorial_passive_tree_unlock') contentUnlockUi.select('passiveTree');
         if (action.notice.tabId === 'tab-items') this.openEquipment();
         requestAnimationFrame(() => {
             this.refresh();
@@ -384,7 +394,7 @@ window.addEventListener('resize', () => tutorialActionUi.reposition());
 // 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프), 규칙이 바뀐 알림(notice_ 키). 이야기 장면은
 // storyJournalUi가 그린다.
 const TUTORIAL_START_KEYS = new Set(['tutorial_battle_basics', 'tutorial_starter_gem_equip', 'opening_auto', 'tutorial_first_passive', 'tutorial_first_gear',
-    'unlock_char', 'unlock_items', 'unlock_skills']);
+    'unlock_char', 'unlock_items', 'unlock_skills', 'tutorial_passive_tree_unlock']);
 // 새 콘텐츠 가운데 따라 하기가 있는 카드: 시작 안내처럼 펼친 채 저절로 닫히지 않는다(그루터기 함 시작 선물을 57분 동안 놓지 않은 판이 있었다).
 const TUTORIAL_GUIDED_CONTENT_KEYS = new Set(['unlock_stump_box', 'tutorial_stump_starter']);
 const OPENING_TAB_GUIDES = Object.freeze({
@@ -548,6 +558,8 @@ function refreshTutorialCardPlacement() {
 /** The first map notice sends the player to the act reward; after claiming it, the map button remains the way back. */
 function tutorialNoticeAllowed(notice) {
     if (notice.key === 'unlock_map' && (game.claimedActRewards || []).includes(0)) return false;
+    if (notice.key === 'tutorial_passive_tree_unlock' && contentProgression.isUnlocked('passiveTree')) return false;
+    if (notice.key === 'tutorial_first_passive' && game.passives.length > 0) return false;
     return storyJournalUi.allowsNotice(notice.key) && contentProgression.canOpen(notice.tabId) && contentProgression.canOpen(notice.subtabId);
 }
 function tutorialWaitsForReward() {
@@ -621,9 +633,6 @@ function setTutorialCallout(tabId, holdMs) {
 /** First passive point and first piece of gear for a new character: the old tab-unlock notices that carried these
  * guides never fire now (the tabs start open). Saves that saw those notices (seenAs), and later loops, skip them. */
 const TUTORIAL_STARTER_GUIDES = Object.freeze([
-    { key: 'tutorial_first_passive', seenAs: 'unlock_char', tabId: 'tab-char', title: '첫 스킬트리 포인트',
-        body: '레벨이 올라 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.\n오른 능력치는 ‘캐릭터’에서 확인할 수 있습니다.',
-        starterDue: state => state.level >= 2 && state.passivePoints > 0 },
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
         body: '장비를 얻었습니다. 자동 장착이 켜져 있으면 빈 칸에 맞는 장비를 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
         // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차). 무기 칸은 세지 않는다:
@@ -640,11 +649,24 @@ function ownsWeaponBlockedRune(state) {
     return !!state.weaponBlockedSkill || (state.skills || []).some(name => !isSkillRuneUsableWithStance(name, stance));
 }
 function queueStarterGuides(state) {
+    queuePassiveTreeGuides(state);
     if ((state.season || 1) > 1 || (state.loopCount || 0) > 0) return;
     contentProgression.opening.sync(state);
     const seen = state.seenTutorials || [];
     TUTORIAL_STARTER_GUIDES.filter(guide => !seen.includes(guide.seenAs) && contentProgression.opening.canOpen(state, guide.tabId) && guide.starterDue(state))
         .forEach(guide => queueTutorialNotice(guide.key, guide.title, guide.body, guide.tabId));
+}
+function queuePassiveTreeGuides(state) {
+    if (state.season < 2) return;
+    if (!contentProgression.canOpen('tab-char', state)) {
+        if (state.season === 2) queueTutorialNotice('tutorial_passive_tree_unlock', _t('스킬트리 해금'),
+            _t('해금 포인트 1점을 써서 스킬트리를 여세요.'), 'tab-unlocks');
+        return;
+    }
+    if (state.level < 2 || state.passivePoints < 1 || state.passives.length) return;
+    if (state.seenTutorials.includes('tutorial_first_passive') || state.seenTutorials.includes('unlock_char')) return;
+    queueTutorialNotice('tutorial_first_passive', _t('첫 스킬트리 포인트'),
+        _t('시작점 옆에 빛나는 노드 하나를 골라 1포인트를 쓰세요.'), 'tab-char');
 }
 /** Wide screens: centre the guide card right above the player HUD (life orb and panel) so it covers neither the combat
  * log nor the minimap. Phones keep the bottom sheet from CSS. Coordinates are divided by the display zoom. */

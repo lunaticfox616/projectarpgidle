@@ -2,15 +2,14 @@
 const contentProgression = (() => {
     const definitions = new Map(CONTENT_UNLOCK_CATALOG.map(row => [row.id, row]));
     const routes = new Map(CONTENT_UNLOCK_CATALOG.flatMap(row => (row.routes || []).map(route => [route, row.id])));
-    const coreRoutes = new Set(['tab-character', 'tab-char', 'tab-items', 'tab-skills', 'tab-battle', 'tab-settings', 'tab-social',
+    const coreRoutes = new Set(['tab-character', 'tab-items', 'tab-skills', 'tab-battle', 'tab-settings', 'tab-social',
         'item-tab-equip', 'skill-tab-equip', 'map-tab-zones', 'map-explore-atlas', 'map-explore-hunting', 'map-explore-chaos',
         'map-explore-root-boss']);
 
     const opening = (() => {
-        const ENROLLED = 'opening_systems_v2', GEAR = 'opening_gear_ready', PASSIVES = 'opening_passives_ready', PROFILE = 'opening_profile_ready';
-        const ACT_THREE_COMBAT = 'opening_act_three_combat', TRADE = 'opening_trade_ready';
-        const cues = ['tab-items', 'tab-map', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade'];
-        const inlineKeys = new Set(['unlock_items', 'unlock_char', 'tutorial_first_gear', 'tutorial_first_passive',
+        const ENROLLED = 'opening_systems_v2', GEAR = 'opening_gear_ready', PROFILE = 'opening_profile_ready', TRADE = 'opening_trade_ready';
+        const cues = ['tab-items', 'tab-map', 'tab-character', 'tab-journal', 'tab-trade'];
+        const inlineKeys = new Set(['unlock_items', 'tutorial_first_gear',
             'tutorial_starter_gem_equip', 'unlock_map']);
         const seen = (owner, key) => !!owner.seenTutorials?.includes(key);
         const visitKey = route => 'opening_visited_' + route;
@@ -24,7 +23,6 @@ const contentProgression = (() => {
             'tab-skills': owner => !!owner.starterGemTutorialPending || !!SKILL_DB[owner.activeSkill]?.isGem || equipped(owner) || owner.maxZoneId >= 1,
             'tab-items': owner => seen(owner, GEAR),
             'tab-character': owner => seen(owner, PROFILE),
-            'tab-char': owner => seen(owner, PASSIVES),
             'tab-trade': owner => seen(owner, TRADE),
             'tab-journal': owner => owner.maxZoneId >= 4 || seen(owner, visitKey('tab-journal')),
             'tab-social': () => false,
@@ -35,17 +33,12 @@ const contentProgression = (() => {
         function enroll(owner) {
             if (!seen(owner, ENROLLED)) owner.seenTutorials.push(ENROLLED);
         }
-        const passiveReady = owner => (owner.passivePoints > 0 || owner.passives.length > 0)
-            && (seen(owner, ACT_THREE_COMBAT) || owner.maxZoneId >= 3);
         const tradeReady = owner => equipped(owner) && owner.maxZoneId >= 5
             && Object.values(owner.npcShops || {}).some(shop => shop.loop === owner.season && shop.zoneId >= 5 && shop.offers?.length > 0);
         function visit(owner, route) {
             if (!applies(owner) || !cues.includes(route) || seen(owner, visitKey(route))) return false;
             owner.seenTutorials.push(visitKey(route));
             return true;
-        }
-        function noteKill(owner) {
-            if (owner.currentZoneId === 2 && applies(owner) && !seen(owner, ACT_THREE_COMBAT)) owner.seenTutorials.push(ACT_THREE_COMBAT);
         }
         function cueReady(owner, route) {
             if (seen(owner, visitKey(route)) || !canOpen(owner, route)) return false;
@@ -61,12 +54,11 @@ const contentProgression = (() => {
         function sync(owner) {
             if (!applies(owner)) return;
             if (!seen(owner, GEAR) && hasLoot(owner)) owner.seenTutorials.push(GEAR);
-            if (!seen(owner, PASSIVES) && passiveReady(owner)) owner.seenTutorials.push(PASSIVES);
             if (!seen(owner, PROFILE) && owner.passives.length > 0) owner.seenTutorials.push(PROFILE);
             if (!seen(owner, TRADE) && tradeReady(owner)) owner.seenTutorials.push(TRADE);
         }
-        return Object.freeze({ applies, enrolled, enroll, combatOnly, hasLoot, canOpen, signature, sync,
-            noteKill, visit, nextCue, inlineNotice });
+        return Object.freeze({ applies, enroll, combatOnly, hasLoot, canOpen, signature, sync,
+            visit, nextCue, inlineNotice });
     })();
 
     // Predicates only read normalized save state; unlocking a menu never grants world progress.
@@ -300,7 +292,7 @@ const contentProgression = (() => {
         const state = owner.contentProgression;
         if (!state) return;
         state.highestLoop = Math.max(state.highestLoop, Math.floor(owner.season || 1));
-        Object.assign(owner.unlocks, { char: true, items: true, skills: true, map: canOpen('tab-map', owner), season: owner.season >= 2 });
+        Object.assign(owner.unlocks, { char: canOpen('tab-char', owner), items: true, skills: true, map: canOpen('tab-map', owner), season: owner.season >= 2 });
         for (const def of CONTENT_UNLOCK_CATALOG) {
             const opened = isUnlocked(def.id, owner);
             if (def.gate) owner.unlocks[def.gate] = opened;
@@ -454,6 +446,7 @@ const contentProgression = (() => {
         inheritTreeAccess(record, next, existingSave);
         keepOverflowOfAddedRows(record, next, existingSave);
         inheritVoidSockets(record, next, existingSave);
+        inheritPassiveTree(record, next, owner, existingSave);
         return next;
     }
 
@@ -485,6 +478,12 @@ const contentProgression = (() => {
         const def = definitions.get('voidSocket');
         if (!(Number(record.version) < def.addedIn) || !existingSave || next.highestLoop < def.minLoop) return;
         if (!next.unlocked.includes(def.id) && !next.inherited.includes(def.id)) next.inherited.push(def.id);
+    }
+    function inheritPassiveTree(record, next, owner, existingSave) {
+        const def = definitions.get('passiveTree');
+        if (!existingSave || (Number(record.version) || 0) >= def.addedIn) return;
+        if (next.unlocked.includes(def.id) || next.inherited.includes(def.id)) return;
+        if (next.highestLoop >= def.minLoop || owner.passives?.length || owner.passivePoints > 0) next.inherited.push(def.id);
     }
     function inheritTreeAccess(record, next, existingSave) {
         if (Number(record.version) >= LEDGER_VERSION || !existingSave || next.highestLoop < 2) return;

@@ -13586,11 +13586,6 @@ function checkUnlocks() {
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', _t('첫 여정'), _t('전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 룬을 얻으면 그때마다 조작을 안내합니다.'));
     }
-    if (game.level >= 2 && !u.char) {
-        u.char = true;
-        game.noti.char = true;
-        queueTutorialNotice('unlock_char', _t('스킬트리'), _t('레벨 2가 되어 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.'), 'tab-char');
-    }
     if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
         u.items = true;
         game.noti.items = true;
@@ -14162,7 +14157,7 @@ function notifyLockedTab(tabId) {
 }
 
 function getLockedTabMessage(tabId) {
-    if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
+    if (tabId === 'tab-char') return _t('루프 2부터 해금 탭에서 스킬트리를 열 수 있습니다.');
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬룬이나 보조스킬룬을 획득하면 스킬룬 탭이 열립니다.';

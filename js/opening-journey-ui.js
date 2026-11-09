@@ -261,7 +261,6 @@ const openingJourney = (() => {
     const SYSTEM_CUES = Object.freeze({
         'tab-map': '다음 지역 지도 보기',
         'tab-items': '첫 장비 살펴보기',
-        'tab-char': '스킬트리 열기',
         'tab-character': '달라진 능력치 보기',
         'tab-journal': '새 기록 읽기',
         'tab-trade': 'NPC 상점 보기'

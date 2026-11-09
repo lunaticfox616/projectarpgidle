@@ -27,11 +27,7 @@ const contentUnlockUi = {
     /** The loop card: the points, then the unlocks this loop adds to the tab, by name only (2026-10-27 사용자: 짧게, 필요한 것만).
      * Free contents are left out: each gets its own card when it opens (announceContent). A loop that adds none names the next one. */
     announceLoop() {
-        if (game.season === 2 && contentProgression.opening.enrolled(game)) {
-            const balance = _t('해금 포인트 {balance}P', { balance: contentProgression.balance() });
-            queueTutorialNotice('unlock_content_loop_2', _t('해금'), balance + '\n' + _t('열 기능 하나를 골라 보세요.'), 'tab-unlocks');
-            return;
-        }
+        if (game.season === 2 && !contentProgression.isUnlocked('passiveTree')) return;
         if (!game.contentProgression) {
             queueTutorialNotice('unlock_content_loop_' + game.season, _t('다음 콘텐츠 선택'),
                 _t('루프 {loop}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.', { loop: game.season }), 'tab-unlocks');
@@ -152,7 +148,7 @@ const contentUnlockUi = {
         const result = contentProgression.purchase(id, game, key);
         if (!result.ok) { addLog(result.message, 'attack-monster', { toast: true }); return; }
         // The unlock card says the same and more: no toast (PC) or bottom notice (phone) on top of it.
-        const carded = this.announceContent(id);
+        const carded = id === 'passiveTree' || this.announceContent(id);
         addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
         this.announceOpenedSince(opened); // free content that comes with it (장비 전당 with 고유 도감)
         // 공허 소켓은 스킬트리에 숨어 있던 공허 칸을 드러낸다(js/passives.js isVoidSocketHidden): 길과 화면을 다시 잇고 스킬트리에 알림 점을 켠다.

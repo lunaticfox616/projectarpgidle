@@ -13,8 +13,9 @@ test.beforeEach(async ({ page }) => {
     });
 });
 
-test('loop one exposes the four basics and prevents advanced shortcuts', async ({ page }, info) => {
-    expect(await page.evaluate(() => ['tab-character','tab-char','tab-items','tab-skills'].every(isTabSurfaceAvailable))).toBe(true);
+test('loop one exposes the basics and keeps the skill tree locked', async ({ page }, info) => {
+    expect(await page.evaluate(() => ['tab-character','tab-items','tab-skills'].every(isTabSurfaceAvailable))).toBe(true);
+    expect(await page.evaluate(() => isTabSurfaceAvailable('tab-char'))).toBe(false);
     expect(await page.evaluate(() => ['tab-unlocks','tab-season','tab-map'].some(id => contentProgression.canOpen(id)))).toBe(false);
     expect(await page.evaluate(() => contentProgression.canOpen('tab-journal'))).toBe(true);
     await page.evaluate(() => { switchTab('tab-items'); updateStaticUI(); });
@@ -32,25 +33,24 @@ test('loop one exposes the four basics and prevents advanced shortcuts', async (
 test('the opening explains equipment on pickup and introduces the other menus separately', async ({ page }, info) => {
     const routes = () => page.evaluate(() => ['tab-map', 'tab-items', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade', 'tab-records', 'tab-social']
         .filter(id => contentProgression.canOpen(id)));
-    // Skip fight duration while running the production clear and first-kill handlers.
-    const clearAct = async id => {
+    // Skip fight duration while running the production clear handler.
+    const clearAct = async (id, claimSlot) => {
         await page.evaluate(zoneId => {
             finishZoneClear(getZone(zoneId), 'stop', { say: addLog, redraw: updateStaticUI, unlocks: checkUnlocks, reveal: triggerMapUnlockReveal });
         }, id);
         await page.waitForFunction(() => !actRewardPromptPending() || isRewardOpen());
+        if (claimSlot) {
+            const key = await page.evaluate(([zone, slot]) => encodeURIComponent(getActRewardChoices(zone).find(row => row.slot === slot).claimKey), [id, claimSlot]);
+            await page.locator(`#reward-overlay [data-choice-key="${key}"]`).click();
+            await expect.poll(() => page.evaluate(zone => game.claimedActRewards.includes(zone), id)).toBe(true);
+            return;
+        }
         const later = page.locator('#reward-overlay').getByRole('button', { name: '나중에', exact: true });
         if (await later.isVisible()) await later.click();
     };
-    const recordFirstKill = () => page.evaluate(() => {
-        game.moveTimer = 0;
-        startEncounterRun(true);
-        const enemy = game.enemies[0] || game.actExploration.packs.find(pack => pack.waiting.length).waiting[0];
-        recordKillProgress(enemy);
-        updateStaticUI();
-    });
     await page.evaluate(() => {
         contentProgression.opening.enroll(game);
-        game.level = 4; game.passivePoints = 3;
+        game.level = 4;
         game.settings.autoMove = false;
         storyJournalUi.setAutoShow(false);
         game.seenTutorials.push('story_prologue', 'story_act_1_start', 'tutorial_battle_basics');
@@ -115,7 +115,6 @@ test('the opening explains equipment on pickup and introduces the other menus se
     await expect.poll(() => page.evaluate(() => game.currentZoneId)).toBe(1);
     expect(await routes()).toEqual(['tab-map', 'tab-items']);
     await page.screenshot({ path: info.outputPath('act-two-arrival.png') });
-    await recordFirstKill();
     await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
     await page.evaluate(() => {
         switchTab('tab-battle');
@@ -128,31 +127,71 @@ test('the opening explains equipment on pickup and introduces the other menus se
 
     await clearAct(1);
     await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
-    await page.evaluate(() => { game.currentZoneId = 2; });
-    await recordFirstKill();
-    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char']);
-    await expect(page.getByRole('button', { name: '스킬트리 열기' })).toBeVisible();
-    await page.screenshot({ path: info.outputPath('act-three-passives.png') });
-    await clearAct(2);
+    await clearAct(2, '반지');
+    expect(await page.evaluate(() => Object.values(game.equipment).concat(game.inventory).some(item => item?.slot === '반지'))).toBe(true);
     await expect.poll(() => page.evaluate(() => contentProgression.canOpen('skill-tab-condition'))).toBe(true);
-    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char']);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
     await clearAct(3);
-    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal']);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-journal']);
     expect(await page.evaluate(() => ['act_1', 'act_2', 'act_3', 'act_4'].every(id => game.journalEntries.includes(id)))).toBe(true);
     await expect(page.getByRole('button', { name: '새 기록 읽기' })).toBeVisible();
     await page.screenshot({ path: info.outputPath('act-five-journal.png') });
     await clearAct(4);
-    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal']);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-journal']);
     await page.evaluate(() => {
         game.currentZoneId = 5;
         npcShop.meet(STORY_NPCS.bern, 5);
         updateStaticUI();
     });
-    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal', 'tab-trade']);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-journal', 'tab-trade']);
     await page.getByRole('button', { name: 'NPC 상점 보기' }).click();
     await page.locator('#npc-roster-panel [data-npc-open="bern"][data-npc-mode="shop"]').click();
     await expect(page.locator('#npc-dialog [data-npc-shop="bern"] .shop-item').first()).toBeVisible();
     await page.screenshot({ path: info.outputPath('act-six-trade.png') });
+});
+
+test('loop two teaches a paid skill tree unlock and a manual first investment', async ({ page }, info) => {
+    await page.evaluate(() => {
+        storyJournalUi.setAutoShow(false);
+        game.seenTutorials.push('tutorial_battle_basics', 'unlock_stump_box', 'tutorial_stump_starter');
+        game.season = 2;
+        game.loopCount = 1;
+        contentProgression.sync();
+        checkUnlocks();
+    });
+    const notice = page.locator('#tutorial-overlay.active');
+    await expect(notice).toContainText('스킬트리 해금');
+    await notice.getByRole('button', { name: '따라 해보기' }).click();
+    const purchase = page.locator('[data-unlock-content="passiveTree"]');
+    await expect(purchase).toBeVisible();
+    expect(await page.evaluate(() => [contentProgression.balance(), contentProgression.canOpen('tab-char')])).toEqual([2, false]);
+    await page.screenshot({ path: info.outputPath('skill-tree-purchase.png') });
+    await purchase.click();
+    await expect.poll(() => page.evaluate(() => [contentProgression.balance(), contentProgression.canOpen('tab-char')])).toEqual([1, true]);
+    expect(await page.evaluate(() => game.tutorialHistory.some(row => row.key === 'tutorial_first_passive'))).toBe(false);
+    await page.evaluate(() => {
+        switchTab('tab-battle');
+        game.exp = getExpReq(game.level);
+        grantExpAndGem({ level: 1 }, getPlayerStats());
+        updateStaticUI();
+    });
+    await expect(notice).toContainText('첫 스킬트리 포인트');
+    await notice.getByRole('button', { name: '따라 해보기' }).click();
+    const ring = page.locator('.passive-guide-ring').first();
+    await expect(ring).toBeVisible();
+    const box = await ring.boundingBox();
+    const node = await ring.getAttribute('data-guide-node');
+    const attribute = await page.evaluate(id => PASSIVE_TREE.nodes[id].kind === 'attribute', node);
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await page.screenshot({ path: info.outputPath('skill-tree-first-node.png') });
+    if (info.project.use.hasTouch) {
+        await page.touchscreen.tap(x, y);
+        await page.locator('[data-passive-confirm]').click();
+    } else {
+        await page.mouse.click(x, y);
+    }
+    if (attribute) await page.locator('#game-dialog-confirm').click();
+    await expect.poll(() => page.evaluate(() => [game.passivePoints, ...game.passives])).toEqual([0, node]);
 });
 
 

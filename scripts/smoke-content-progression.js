@@ -8,7 +8,11 @@ const run = code => vm.runInContext(code, runtime);
 const json = code => JSON.parse(run(`JSON.stringify(${code})`));
 run('game = mergeDefaults({})');
 assert.equal(run('contentProgression.balance()'), 0);
-assert(run("contentProgression.canOpen('tab-char')"));
+assert(!run("contentProgression.canOpen('tab-char')"));
+assert.deepEqual(json('getActRewardChoices(2).map(choice=>choice.slot)'),['반지','목걸이','허리띠']);
+assert(!run("contentProgression.purchase('passiveTree').ok"));
+run("awardLevelPassivePoint()");
+assert.equal(run('game.passivePoints'),0);
 assert(!run("contentProgression.canOpen('skill-tab-enhance')"));
 assert(!run("contentProgression.canOpen('tab-unregistered-feature')"));
 assert(!run("contentProgression.canOpen('tab-map')"));
@@ -43,8 +47,19 @@ let before = json('game');
 assert(!run("contentProgression.purchase('support').ok"));
 assert.deepEqual(json('game'), before);
 run('game.season=2;contentProgression.sync()');
-// 2026-11-02: three roots open at loop 2, and everything else grows from them. No unlock comes from an NPC.
-assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>contentProgression.status(def.id).available&&contentProgression.kind(def)===\'paid\').map(def=>def.id).sort()'),['craft','loopTree','support']);
+assert.deepEqual(json('CONTENT_UNLOCK_CATALOG.filter(def=>contentProgression.status(def.id).available&&contentProgression.kind(def)===\'paid\').map(def=>def.id).sort()'),['craft','loopTree','passiveTree','support']);
+assert.deepEqual(json('getActRewardChoices(2).map(choice=>choice.kind)'),['points']);
+assert(run("contentProgression.purchase('passiveTree').ok && contentProgression.canOpen('tab-char')"));
+assert.equal(run('contentProgression.balance()'),1);
+run('game=mergeDefaults(JSON.parse(JSON.stringify(game)))');
+assert(run("contentProgression.canOpen('tab-char') && !contentProgression.purchase('passiveTree').ok"));
+assert.equal(run('contentProgression.balance()'),1);
+run('game=mergeDefaults({season:1,level:3,passivePoints:2,contentProgression:{version:14,highestLoop:1}})');
+assert(run("contentProgression.canOpen('tab-char')"));
+assert.equal(run('game.passivePoints'),2);
+run('game=mergeDefaults({season:2,contentProgression:{version:14,highestLoop:2}})');
+assert(run("contentProgression.canOpen('tab-char')"));
+assert.equal(run('contentProgression.balance()'),2);
 assert(run("contentProgression.isUnlocked('journal')"));
 before=json('game');
 assert(!run("contentProgression.purchase('journal').ok"),'automatic content cannot spend points');
@@ -185,7 +200,7 @@ for(const def of runtime.CONTENT_UNLOCK_CATALOG){
  while(row){assert(!seen.has(row.id),'acyclic prerequisites');seen.add(row.id);row=runtime.CONTENT_UNLOCK_CATALOG.find(candidate=>candidate.id===row.after);}
  const kind=runtime.contentProgression.kind(def);
  assert(['paid','auto'].includes(kind) && !def.npc,`${def.id}: no unlock comes from an NPC`);
- if(def.minLoop>1&&!def.after)assert(['craft','support','loopTree','deepChaos'].includes(def.id),`${def.id}: every board row grows from a root`);
+ if(def.minLoop>1&&!def.after)assert(['craft','support','loopTree','passiveTree','deepChaos'].includes(def.id),`${def.id}: every board row grows from a root`);
  // World progress must not stand in the way of the rows behind it (재능 and 코어 stay leaves).
  if(['talent','cube'].includes(def.id))assert(!runtime.CONTENT_UNLOCK_CATALOG.some(row=>runtime.contentProgression.parents(row).includes(def.id)),`${def.id}: nothing waits behind it`);
 }
@@ -347,16 +362,16 @@ assert(!run("contentProgression.purchase('craft').ok"));
 assert.deepEqual(json('game'),before,'completed purchases cannot replay entry rewards');
 run("game=mergeDefaults({season:4,bountyHunt:{version:5,remaining:0,pending:{id:'x',status:'reward',offerIds:[]},completed:3}})");
 assert.equal(run("'bountyHunt' in game"),false,'removed treasure-hunt state is discarded without a reward');
-// 루프 2의 목표는 2점으로 2점짜리 뿌리 하나를 고르게 한다.
+// 루프 2에는 1점 스킬트리와 2점 갈래가 있다.
 // 목표는 고를 수 없는 선택을 재촉하지 않고 다음 해금까지 남은 점수를 센다(2026-10-04 사용자 보고).
 run('game=mergeDefaults({});game.season=2;game.contentProgression.inherited=[];contentProgression.sync()');
 assert.equal(run('contentProgression.balance()'),2);
 assert.deepEqual(json('[getNextMajorContentUnlock(game).id,getNextMajorContentUnlock(game).actionTabId]'),['content-choice','tab-unlocks']);
 assert.equal(run('getNextMajorContentUnlock(game).requirements[0].met'),true,'two points buy one of the 2-point loop-2 unlocks');
 assert(run("contentProgression.purchase('support').ok"));
-assert.equal(run('contentProgression.cheapestOpen(game).cost'),2);
+assert.equal(run('contentProgression.cheapestOpen(game).cost'),1);
 const waiting=json('getNextMajorContentUnlock(game)');
-assert.deepEqual(waiting.requirements[0],{label:'해금 포인트',met:false,current:0,target:2},'the next unlock waits for points');
+assert.deepEqual(waiting.requirements[0],{label:'해금 포인트',met:false,current:0,target:1},'the next unlock waits for points');
 run('game.season=3;contentProgression.sync()');
 assert.equal(run('getNextMajorContentUnlock(game).requirements[0].met'),true,'the next loop makes the choice actionable again');
 // 2026-10-21 NPC 해금 분리: 이전 표(루프 2~5에 4, 4, 3, 3)로 받은 포인트는 남고(carry) NPC 해금에 낸 포인트는 돌아온다. 불러오기가
