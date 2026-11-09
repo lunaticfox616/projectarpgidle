@@ -66,7 +66,20 @@ function analyze(rows) {
         collectEdges(row,source,owners,edges,rows.map(entry=>entry.file));
     }
     for (const [name, files] of owners) if (files.size > 1) edges.add(`duplicate:${name}:${[...files].sort().join(',')}`);
-    return {findings,edges:[...edges].sort()};
+    return {findings,edges:[...edges].sort(),topLevel:topLevelFunctions(rows)};
+}
+
+/** Top-level function declarations per file: each is one more name in the page's single global scope (2026-11-10: 330 files share
+ * it, and js/ui.js and js/combat.js hold over 900 each). The count of a file may not grow, and a new file starts at 0: it puts its
+ * functions inside one named object, const name = (() => { ... return Object.freeze({ ... }); })(), as the files since 2026-10 do.
+ * Moving functions to another file needs a new baseline (--baseline-from-head, after the move is committed). */
+function topLevelFunctions(rows) {
+    return Object.fromEntries(rows.map(row => [row.file, row.ast.body.filter(node => node.type === 'FunctionDeclaration').length]).filter(([, count]) => count > 0));
+}
+function topLevelFailures(current,baseline) {
+    if (!baseline) return [];   // a baseline written before this ratchet
+    return Object.entries(current).filter(([file,count]) => count > (baseline[file] || 0))
+        .map(([file,count]) => `top-level functions ${file} (${count}, baseline ${baseline[file] || 0}): put new functions inside the file's own object, not in the global scope`);
 }
 
 function ownerName(node,fallback) {
@@ -107,7 +120,7 @@ function collectEdges(row,source,owners,edges,order) {
 }
 
 function compare(current,baseline) {
-    const failures=[];
+    const failures=topLevelFailures(current.topLevel || {},baseline.topLevel);
     for (const [key,value] of Object.entries(current.findings)) {
         const allowed=baseline.findings[key] || {count:0,max:0};
         if(value.count>allowed.count || value.max>allowed.max) failures.push(`lint ${key} (${value.count}/${value.max}, baseline ${allowed.count}/${allowed.max})`);
