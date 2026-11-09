@@ -133,39 +133,31 @@
     position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
     stroke: color-mix(in srgb, var(--wm-region) 35%, #231a25); stroke-width: 1.5; stroke-dasharray: 3 2;
 }
+/* 아틀라스 지도의 표식(2026-11-09 사용자: 아틀라스 아이콘 개선): 여러 색 도트 그림(js/world-map-ui.js atlasIcon, data/world-map.js atlas.icons)을
+   정수 배로 키운다. 지도 노드는 권역 색 테의 팔각 돌판 위에 등급 숫자(--wm-tier: 흰색, 노란색, 빨간색), 수호자는 뿔 달린 방패, 정점은 관측자의 눈을
+   품은 별이고 크기가 그 순서로 커진다. 잠긴 곳은 그림이 회색이고 숫자는 등급 색을 흐리게 남긴다. 갈 수 있는 곳은 빛나고 깨면 ✓, 보너스는 ★. */
 #ui-exploration-atlas .wm-atlas-node {
-    --wm-node-tone: color-mix(in srgb, var(--wm-region, #baa271) 55%, #fff0ce);
-    --wm-node-size: clamp(20px, 4.55cqw, 29px);
+    --wm-node-size: clamp(20px, 4.2cqw, 30px);
     position: absolute; z-index: 2; transform: translate(-50%, -50%);
     display: grid; place-items: center; width: var(--wm-node-size); height: var(--wm-node-size); min-height: 0; padding: 0;
-    border: 0; border-radius: 50%; background: transparent; box-shadow: none; color: var(--wm-node-tone);
+    border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--wm-tier, #ece6d8);
 }
+#ui-exploration-atlas .wm-atlas-node.kind-guardian { --wm-node-size: clamp(24px, 4.9cqw, 34px); z-index: 3; }
+#ui-exploration-atlas .wm-atlas-node.kind-pinnacle { --wm-node-size: clamp(30px, 6.2cqw, 44px); z-index: 3; }
 #ui-exploration-atlas .wm-atlas-node > span {
-    display: grid; place-items: center; position: relative;
-    width: clamp(15px, 3.35cqw, 22px); aspect-ratio: 1; border: 1px solid currentColor; border-radius: 50%;
-    background: #221d27; box-shadow: 0 1px 3px #171320c9;
-    font: 700 clamp(9px, 1.9cqw, 13px)/1 var(--font-pixel-meta);
+    display: grid; place-items: center; position: relative; width: 100%; height: 100%;
+    background: center / 100% 100% no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 1px #000c);
+    font: 700 clamp(9px, 1.9cqw, 13px)/1 var(--font-pixel-meta); text-shadow: 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000;
 }
-/* 등급 숫자는 아틀라스 창과 같은 등급 색(--wm-tier, js/world-map-ui.js atlasNodeHtml), 테는 권역 색(2026-11-09 사용자: 숫자 색깔 개선). */
-#ui-exploration-atlas .wm-atlas-node:not(.kind-guardian, .kind-pinnacle) > span { border-color: var(--wm-node-tone); color: var(--wm-tier, #ece6d8); text-shadow: 1px 1px 0 #000; }
-/* 수호자와 정점은 도트 그림 하나(바탕 원 없이). */
-#ui-exploration-atlas .wm-atlas-node:is(.kind-guardian, .kind-pinnacle) > span { width: 100%; border: 0; border-radius: 0; background: none; box-shadow: none; }
-#ui-exploration-atlas .wm-atlas-node > span > i { width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; image-rendering: pixelated; filter: drop-shadow(0 1px 1px #000c); }
-#ui-exploration-atlas .wm-atlas-node.is-locked { color: #c6bac3; }
-/* 잠긴 노드도 등급 색을 흐리게 남겨 어디가 어려운지 보인다(아틀라스 창의 잠긴 번호와 같은 생각). */
-#ui-exploration-atlas .wm-atlas-node.is-locked:not(.kind-guardian, .kind-pinnacle) > span { border-color: #6f6676; color: color-mix(in srgb, var(--wm-tier, #ece6d8) 60%, #5d5563); }
+#ui-exploration-atlas .wm-atlas-node.is-locked { color: color-mix(in srgb, var(--wm-tier, #ece6d8) 60%, #5d5563); }
 #ui-exploration-atlas .wm-atlas-node[aria-disabled="true"] { cursor: default; }
-#ui-exploration-atlas .wm-atlas-node:not(.kind-guardian, .kind-pinnacle):is(.is-open, .is-complete, .is-bonus) > span {
-    background: color-mix(in srgb, var(--wm-region, #baa271) 34%, #231a25);
-}
-#ui-exploration-atlas .wm-atlas-node:not(.kind-guardian, .kind-pinnacle).is-open > span { box-shadow: 0 0 6px 1px var(--wm-tier, var(--wm-node-tone)); }
-#ui-exploration-atlas .wm-atlas-node:is(.kind-guardian, .kind-pinnacle).is-open > span > i { filter: drop-shadow(0 0 3px #ffe7a6) drop-shadow(0 1px 1px #000c); }
+#ui-exploration-atlas .wm-atlas-node.is-open > span { filter: drop-shadow(0 0 3px #ffe7a6) drop-shadow(0 1px 1px #000c); }
 #ui-exploration-atlas .wm-atlas-node:is(.is-complete, .is-bonus) > span::after {
-    content: '✓'; position: absolute; right: -4px; bottom: -3px; padding: 1px;
-    border-radius: 2px; background: #221d27; color: #daf2b8; font: 700 9px/1 sans-serif;
+    content: '✓'; position: absolute; right: -3px; bottom: -2px; padding: 1px;
+    border-radius: 2px; background: #221d27; color: #daf2b8; font: 700 9px/1 sans-serif; text-shadow: none;
 }
 #ui-exploration-atlas .wm-atlas-node.is-bonus > span::after { content: '★'; color: #f4d989; }
-#ui-exploration-atlas .wm-atlas-node:is(:hover, :focus-visible) { z-index: 3; outline: 2px solid #fff0cf; }
+#ui-exploration-atlas .wm-atlas-node:is(:hover, :focus-visible) { z-index: 4; outline: 2px solid #fff0cf; outline-offset: 1px; }
 #ui-exploration-atlas .wm-atlas-node:is(:hover, :focus-visible) > span { color: #fff7e5; }
 #ui-exploration-atlas :is(.wm-atlas-entrance, .wm-atlas-back, .wm-atlas-region):not(:disabled):is(:hover, :focus-visible) {
     border-color: #d7f0ff; color: #fff; background: #283b54; outline: 2px solid #bcdbff; outline-offset: 1px;

@@ -183,17 +183,44 @@ const worldMapUi = (() => {
             ${_t('아틀라스')}<i aria-hidden="true" style="background-image:url('${icon}')"></i></button>`;
     }
     const atlasAnchorStyle = ([x, y]) => `left:${x}%;top:${y}%`;
-    /** 아틀라스 지도의 표식(2026-11-09 사용자: 구역별 숫자 색깔 및 아이콘 개선): 지도 노드는 등급 숫자를 아틀라스 창과 같은 등급 색(흰색, 노란색,
-     * 빨간색, js/atlas.js tierBand)으로, 수호자와 정점은 세계 지도와 같은 도트 그림으로 그린다. 잠긴 곳은 회색. */
-    const ATLAS_NODE_ICONS = Object.freeze({ guardian: { symbol: 'boss', color: '#f2d28a' }, pinnacle: { symbol: 'star', color: '#eedcff' } });
-    const atlasIcon = (kind, locked) => glyph(ATLAS_NODE_ICONS[kind].symbol, locked ? '#8d8494' : ATLAS_NODE_ICONS[kind].color, 2);
+    /** 아틀라스 지도의 표식(2026-11-09 사용자: 구역별 숫자 색깔, 아이콘 개선): 여러 색 도트 그림(data/world-map.js atlas.icons). 지도 노드는 권역 색 테의
+     * 팔각 돌판 위에 등급 숫자(아틀라스 창과 같은 등급 색, js/atlas.js tierBand), 수호자는 뿔 달린 방패, 정점은 관측자의 눈을 품은 별. 잠긴 곳은 회색. */
+    const ATLAS_ICON_TINT = '#8a6a45';
+    function mixHex(from, to, share) {
+        const parts = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)), a = parts(from), b = parts(to);
+        return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * share).toString(16).padStart(2, '0')).join('');
+    }
+    function atlasPalette(tint, locked) {
+        const base = locked ? '#7a7380' : tint;
+        const gold = locked ? { Y: '#c9c2cc', y: '#9a929f', d: '#655e6b' } : { Y: '#fbe7a4', y: '#e2b85a', d: '#9a6f2c' };
+        const eye = locked ? { w: '#d8d2dc', p: '#8a8290', q: '#4f4955' } : { w: '#f6efff', p: '#a47cf0', q: '#4b2f86' };
+        return { ...gold, ...eye, o: OUTLINE, k: OUTLINE, a: mixHex(base, '#ffffff', .38), b: base, c: mixHex(base, '#000000', .42),
+            g: mixHex(base, '#ffffff', .7), G: '#ffffff', s: mixHex(base, '#14111a', .82) };
+    }
+    /** One atlas icon as a data URL (2 px per dot), cached like glyph. */
+    function atlasIcon(name, tint = ATLAS_ICON_TINT, locked = false) {
+        const key = `atlas|${name}|${tint}|${locked}`;
+        if (urls.has(key)) return urls.get(key);
+        const rows = WORLD_MAP.atlas.icons[name], palette = atlasPalette(tint, locked), canvas = document.createElement('canvas');
+        canvas.width = rows[0].length * 2;
+        canvas.height = rows.length * 2;
+        const ctx = canvas.getContext('2d');
+        rows.forEach((row, y) => [...row].forEach((ch, x) => {
+            if (!palette[ch]) return;
+            ctx.fillStyle = palette[ch];
+            ctx.fillRect(x * 2, y * 2, 2, 2);
+        }));
+        urls.set(key, canvas.toDataURL());
+        return urls.get(key);
+    }
     function atlasNodeHtml(node, point, { open, lock }) {
         const status = open && !lock ? atlas.status(game, node.id) : 'locked', tier = atlas.effectiveTier(game, node);
         const label = atlasUi.nodeLabel(node, tier, status);
         const tone = (Number.isFinite(tier) && atlas.tierBand(tier)?.tone) || '#ece6d8';
-        const symbol = ATLAS_NODE_ICONS[node.kind] ? `<i style="background-image:url('${atlasIcon(node.kind, status === 'locked')}')"></i>` : tier;
+        const tint = ATLAS.regions.find(row => row.id === node.region)?.tint || '#6f5a86';
+        const icon = atlasIcon(WORLD_MAP.atlas.icons[node.kind] ? node.kind : 'stone', tint, status === 'locked');
         return `<button type="button" class="wm-atlas-node is-${status} kind-${node.kind}" style="${atlasAnchorStyle(point)};--wm-tier:${tone}" data-atlas-node="${node.id}"
-            aria-label="${label}" data-tip="${label}" aria-disabled="${!open}" onclick="explorationAtlasUi.enterAtlasNode('${node.id}')"><span aria-hidden="true">${symbol}</span></button>`;
+            aria-label="${label}" data-tip="${label}" aria-disabled="${!open}" onclick="explorationAtlasUi.enterAtlasNode('${node.id}')"><span aria-hidden="true" style="background-image:url('${icon}')">${node.kind === 'map' ? tier : ''}</span></button>`;
     }
     function atlasRegionRoutes(points) {
         return atlas.links.filter(([from, to]) => points.has(from) && points.has(to)).map(([from, to]) => {
@@ -218,7 +245,7 @@ const worldMapUi = (() => {
         return `<div class="world-map wm-atlas-overview"><div class="wm-side-wrap"><div class="wm-side">
             <div class="wm-side-text"><strong>${_t('아틀라스')}</strong>
             <p>${_t('어머니 나무 이전, 고대 존재들이 남긴 다섯 권역입니다.')}</p>
-            <p class="wm-atlas-legend"><span><i style="background-image:url('${atlasIcon('guardian')}')"></i>${_t('지역 수호자')}</span><span><i style="background-image:url('${atlasIcon('pinnacle')}')"></i>${_t('정점')}</span></p>
+            <p class="wm-atlas-legend"><span><i style="background-image:url('${atlasIcon('guardian')}')"></i>${_t('지역 수호자')}</span><span><i style="background-image:url('${atlasIcon('pinnacle', '#6f5a86')}')"></i>${_t('정점')}</span></p>
             ${access.lock ? `<p class="wm-atlas-lock">${escapeHTML(access.lock)}</p>` : ''}</div>
             <div class="wm-side-actions atlas-hunting-action"><button type="button" class="wm-atlas-back" onclick="explorationAtlasUi.showAtlasMap(false)"><span aria-hidden="true">←</span> ${_t('세계 지도')}</button></div>
             </div></div><div class="wm-view"><div class="wm-map wm-atlas-map" role="group" aria-label="${_t('아틀라스')}">
