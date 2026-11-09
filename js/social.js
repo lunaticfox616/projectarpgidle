@@ -668,7 +668,7 @@ function syncPlayerProfileQuiet() {
     }, SOCIAL_PROFILE_SYNC_DELAY_MS);
     return true;
 }
-/** 세션의 첫 갱신: 로그인 정리 때와 전장에 들어설 때(js/ui.js enterGameWorld) 부르고, 내 캐릭터로 플레이할 때 한 번만 나간다. */
+/** 세션의 첫 갱신: 로그인 정리 때와 전장에 들어설 때(js/cloud-save-ui.js enterGameWorld) 부르고, 내 캐릭터로 플레이할 때 한 번만 나간다. */
 function syncInitialPlayerProfile() {
     let userId = socialLoggedInUserId();
     if (!userId || !getMyNickname() || socialState.profileBootSyncUserId === userId || !profileSnapshotIsOwn()) return;
@@ -1112,7 +1112,7 @@ function socialAccessToken() {
 }
 /** A Supabase client for chat alone, on the address and key of the one js/ui.js made (window.supabaseClient). Its realtime token is the
  * game's own session, read again at every heartbeat (the accessToken option): the shared client would take its auth session's token or
- * fall back to the anon key, and the game signs in and renews tokens with its own requests (js/ui.js applyCloudSession). */
+ * fall back to the anon key, and the game signs in and renews tokens with its own requests (js/cloud-save-ui.js applyCloudSession). */
 function socialChatRealtime() {
     if (socialState.chatRealtime) return socialState.chatRealtime;
     let base = typeof window !== 'undefined' ? window.supabaseClient : null;

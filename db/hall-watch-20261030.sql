@@ -281,7 +281,7 @@ create trigger trg_watch_hall_listing after insert on public.hall_listings
 -- 4) 중복 접속 차단: 같은 계정의 새 접속이 이기고, 옛 화면의 저장과 전당 요청은 거절한다
 -- ---------------------------------------------------------------------------
 -- 화면(탭)마다 접속 표(무작위 문자열)를 하나 만들어 로그인하면 claim_cloud_session으로 적는다(계정마다 한 줄, 마지막 것이 남는다). 그 뒤 모든
--- 서버 요청에 x-rignin-session 머리말로 같은 표를 싣는다(js/cloud-session-guard-ui.js, js/ui.js cloudRequestHeaders). 클라우드 저장을 쓰는 요청
+-- 서버 요청에 x-rignin-session 머리말로 같은 표를 싣는다(js/cloud-session-guard-ui.js, js/cloud-save-ui.js cloudRequestHeaders). 클라우드 저장을 쓰는 요청
 -- (commit_cloud_save의 업로드, 전당의 등록과 구매와 회수가 바꾸는 세이브)에서 머리말의 표가 적힌 표와 다르면 CLOUD_SESSION_SUPERSEDED로 거절한다:
 -- 다른 기기가 그 뒤에 접속했다는 뜻이고, 그 화면의 저장이 새 기기의 진행을 덮어쓰지 않는다. 머리말이 없는 요청(이 장치가 없는 옛 클라이언트)과
 -- 남의 줄을 고치는 관리자 요청은 막지 않는다. 옛 화면은 1분마다 자기 줄을 읽어(아래 select 정책) 다른 표가 적혀 있으면 스스로 멈춘다.

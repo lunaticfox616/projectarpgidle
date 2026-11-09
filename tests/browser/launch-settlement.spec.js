@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
 
-// Closing the game and opening it again settles the time away (js/ui.js enterGameWorld). From v0.3.57 to v0.3.59 no launch settled:
+// Closing the game and opening it again settles the time away (js/cloud-save-ui.js enterGameWorld). From v0.3.57 to v0.3.59 no launch settled:
 // a save made while entering moved the save's stamp before the settlement read it, and no check looked at the real entry.
 const AWAY_MS = 3 * 60 * 60 * 1000;
 const CLOUD = 'https://launch-test.invalid';

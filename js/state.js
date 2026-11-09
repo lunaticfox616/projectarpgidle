@@ -2379,7 +2379,7 @@ let cloudState = {
     tokenExpiryWarned: false,
     pendingForcedSyncOptions: null,
     pendingForcedSyncRetryTimer: null,
-    exitUpload: null   // 종료 업로드가 답을 기다리는 동안의 Promise(js/ui.js trackPageExitUpload)
+    exitUpload: null   // 종료 업로드가 답을 기다리는 동안의 Promise(js/cloud-save-ui.js trackPageExitUpload)
 };
 let startupOverlayActive = true;
 let gameplayStarted = false;

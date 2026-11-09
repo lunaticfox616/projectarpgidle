@@ -1,6 +1,6 @@
 // 중복 접속 차단(2026-10-30). 같은 계정이 다른 기기나 탭에서 새로 로그인하면 먼저 붙어 있던 화면이 멈춘다: 새 접속이 이긴다(다른 웹 MMO에서 본
 // 값싼 장치). 화면마다 접속 표(무작위 문자열)를 하나 만들어 로그인하면 서버에 적고(db/hall-watch-20261030.sql claim_cloud_session), 그 뒤의
-// 서버 요청마다 x-rignin-session 머리말로 싣는다(js/ui.js cloudRequestHeaders, buildPageExitCloudRequest). 서버는 클라우드 저장을 쓰는 요청
+// 서버 요청마다 x-rignin-session 머리말로 싣는다(js/cloud-save-ui.js cloudRequestHeaders, buildPageExitCloudRequest). 서버는 클라우드 저장을 쓰는 요청
 // (저장 업로드, 전당의 등록과 구매)의 머리말이 적힌 표와 다르면 CLOUD_SESSION_SUPERSEDED로 거절한다. 이 화면은 POLL_MS마다 적힌 표를 읽어
 // (cloud_sessions의 자기 줄) 다른 표가 적혀 있으면, 또는 서버가 그렇게 거절하면 지금까지를 이 기기에 저장하고 더는 쓰지 않으며
 // (js/game-tab-guard-ui.js와 같은 방식) 다시 불러와 대기 화면이 된다. 대기 화면의 단추는 이 화면이 다시 접속하게 한다(새 표를 적어 다른 기기가 멈춘다).
@@ -103,7 +103,7 @@ const cloudSessionGuard = (() => {
         guard.timer = null;
     }
 
-    /** 로그인 상태가 바뀔 때(js/ui.js applyCloudSession): 계정이 바뀌면 새 표를 적고, 로그아웃이면 머리말과 읽기를 멈춘다. 표는 화면마다 계정마다 하나다:
+    /** 로그인 상태가 바뀔 때(js/cloud-save-ui.js applyCloudSession): 계정이 바뀌면 새 표를 적고, 로그아웃이면 머리말과 읽기를 멈춘다. 표는 화면마다 계정마다 하나다:
      * 만료된 세션을 갱신하며 이 함수가 두 번 불리면 두 번째가 새 표를 만들어, 적는 중이던 첫 표가 서버에 남고 이 화면이 자기 표에 밀려나
      * "다른 기기에서 접속 중"이 떴다(2026-11-02 사용자: 창을 닫고 한참 뒤 다시 켤 때, 세션이 만료된 뒤라 간헐적이었다). */
     function syncCloudSessionGuard() {

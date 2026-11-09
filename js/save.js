@@ -322,7 +322,7 @@ function createCloudSaveState(root) {
 
 /** The everyday cloud sync's save data, in the shape of the local save and the leaving upload (serializeSaveState, createSaveSnapshot):
  * the workbench tidied, a room stage run sealed (this body alone skipped both, 2026-10-20) and the runtime-only fields dropped. The
- * "nothing changed" check compares prints of this shape (js/ui.js isCloudSaveUnchangedSinceUpload). */
+ * "nothing changed" check compares prints of this shape (js/cloud-save-ui.js isCloudSaveUnchangedSinceUpload). */
 function createCloudSyncPayload(sourceGame) {
     const payload=createCloudSaveState(sourceGame || game || {});
     payload.craftingWorkspace = craftingWorkspaceState.normalize(payload.craftingWorkspace, payload.currencies);
@@ -341,7 +341,7 @@ function cloudSaveFingerprint(saveData) {
 }
 
 /** The same print with object keys sorted. The server keeps saves as jsonb, which reorders keys, so a body read back from the server is
- * compared with this device's copy this way (js/ui.js pullAccountSave). Slower than cloudSaveFingerprint: once per account entry. */
+ * compared with this device's copy this way (js/cloud-save-ui.js pullAccountSave). Slower than cloudSaveFingerprint: once per account entry. */
 function cloudSaveContentPrint(saveData) {
     return printOfSaveText(JSON.stringify(cloudSavePrintSource(saveData), sortSaveKeys));
 }
@@ -403,7 +403,7 @@ function getSaveModifiedAt() {
 }
 
 /** A write that carries a change: the save's modified time, and in an account slot the pending mark (cleared by the commit that
- * carries the change, js/ui.js rememberCloudCommit). */
+ * carries the change, js/cloud-save-ui.js rememberCloudCommit). */
 function touchSaveMeta() {
     game.saveMeta.lastModifiedAt = getSaveModifiedAt();
     if (saveSlot.kind === 'account') game.saveMeta.cloudPending = true;

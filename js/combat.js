@@ -93,7 +93,7 @@ function resetCombatTacticsRuntime() {
 }
 
 /** The fight's module runtimes (attack timer, tactics and movement, skill stages, channels, the mobility rune, wisps in flight, battle
- * visuals) start over when another save replaces the game in play (js/ui.js applyExternalSave). Kept, their clocks from the old save
+ * visuals) start over when another save replaces the game in play (js/cloud-save-ui.js applyExternalSave). Kept, their clocks from the old save
  * held the hero still when the loaded save's combat clock was earlier (2026-10-20 hunt: nextMoveAt 2 hours ahead, no kills). */
 function resetCombatRuntimesForLoadedSave() {
     pTimer = 0;
