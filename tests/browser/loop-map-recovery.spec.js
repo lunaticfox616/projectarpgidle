@@ -30,6 +30,11 @@ test('discovered map persists and an earned early loop remains actionable after 
         game = mergeDefaults(JSON.parse(JSON.stringify(game)));
         switchTab('tab-battle'); updateStaticUI();
     });
+    // 불러온 저장은 액트 1의 이야기 카드를 다시 띄울 수 있다: 카드는 닫고 그 뒤의 루프 진행 단추를 본다.
+    await page.waitForFunction(() => {
+        if (uiRefreshRunning || uiRefreshQueued) return false;
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); return true;
+    });
     const organize = page.locator('#btn-close-all-windows');
     if (await organize.isVisible()) await organize.click();
     const advance = page.locator('#btn-combat-loop-advance');
