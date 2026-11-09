@@ -102,5 +102,12 @@ window.GameModules.state.tutorials = (() => {
         }
         revision++;
     }
-    return { normalize, sync, enqueue, transition, get revision() { return revision; }, reset() { owner = null; } };
+    /** Mark an inline lesson as delivered without placing it in the foreground modal queue. */
+    function archivePending(state, key) {
+        const row = state.tutorialHistory.find(record => record.key === canonicalKey(key));
+        if (row?.status !== 'pending') return;
+        transition(state, key, 'unread');
+        sync(state);
+    }
+    return { normalize, sync, enqueue, transition, archivePending, get revision() { return revision; }, reset() { owner = null; } };
 })();

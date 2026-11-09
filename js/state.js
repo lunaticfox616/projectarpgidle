@@ -98,8 +98,15 @@ const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear
 /** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
 function queueTutorialNotice(key, title, body, tabId, target) {
     if (game.isBackgroundCalculation) return;
+    const opening = typeof contentProgression === 'object' ? contentProgression.opening : null;
+    const inline = opening?.inlineNotice(game, key);
+    if (inline && !opening.canOpen(game, tabId)) return;
     const extra = target && typeof target === 'object' ? target : { subtabId: target };
-    window.GameModules.state.tutorials.enqueue(game, { ...extra, key, title, body, tabId: tabId || null, subtabId: extra.subtabId || null });
+    const notice = { ...extra, key, title, body, tabId };
+    window.GameModules.state.tutorials.enqueue(game, notice);
+    if (inline) {
+        window.GameModules.state.tutorials.archivePending(game, key);
+    }
 }
 /** A notice about content bought in 해금 (talent, …): before it is bought, the card says where to buy it and
  * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */

@@ -29,13 +29,75 @@ test('loop one exposes the four basics and prevents advanced shortcuts', async (
     await page.screenshot({ path: info.outputPath('loop-one.png') });
 });
 
+test('the first act handoff teaches the map before any other system opens', async ({ page }, info) => {
+    const routes = () => page.evaluate(() => ['tab-map', 'tab-items', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade', 'tab-records', 'tab-social']
+        .filter(id => contentProgression.canOpen(id)));
+    await page.evaluate(() => {
+        contentProgression.opening.enroll(game);
+        game.level = 4; game.passivePoints = 3;
+        game.settings.autoMove = false;
+        game.seenTutorials.push('story_prologue', 'story_act_1_start', 'tutorial_battle_basics');
+        window.GameModules.state.tutorials.sync(game);
+        if (activeTutorial) dismissTutorial(false);
+        npcShop.meet(STORY_NPCS.haken, 0);
+        updateStaticUI();
+    });
+    await expect.poll(routes).toEqual([]);
+    const rewardKey = await page.evaluate(() => {
+        game.settings.mapCompleteAction = 'stop';
+        const run = actExplorationState.current(game);
+        run.status = 'cleared';
+        run.mode = 'manual';
+        delete run.arrival;
+        finishEncounterRun();
+        const choice = getActRewardChoices(0).find(row => row.slot === '장갑');
+        return encodeURIComponent(choice.claimKey);
+    });
+    const reward = page.locator(`#reward-overlay [data-choice-key="${rewardKey}"]`);
+    await expect(reward).toBeVisible();
+    await expect.poll(routes).toEqual(['tab-map']);
+    await expect(page.locator('[data-opening-route]')).toHaveCount(0);
+    await reward.click();
+    await expect.poll(() => page.evaluate(() => game.claimedActRewards.includes(0))).toBe(true);
+    const map = page.getByRole('button', { name: '다음 지역 지도 보기' });
+    await expect(map).toBeVisible();
+    await expect(page.locator('[data-opening-route]')).toHaveCount(1);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
+    await expect(page.locator('#ui-goal-drawer')).not.toContainText('새 이야기 저널 확인');
+    await expect(page.locator('#ui-goal-drawer')).not.toContainText('스킬트리 포인트');
+    await expect(page.locator(':is(#btn-combat-chat-tab, [data-message-tab="chat"]):visible')).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath('act-one-reward-to-map.png') });
+    await map.click();
+    const go = page.locator('.wm-band[data-wm="act-02"] .atlas-hunt-now');
+    await expect(go).toBeVisible();
+    await go.click();
+    await expect.poll(() => page.evaluate(() => game.currentZoneId)).toBe(1);
+    expect(await routes()).toEqual(['tab-map', 'tab-items']);
+    await page.screenshot({ path: info.outputPath('act-two-arrival.png') });
+    await page.evaluate(() => {
+        game.moveTimer = 0;
+        startEncounterRun(true);
+        const enemy = game.enemies[0] || game.actExploration.packs.find(pack => pack.waiting.length).waiting[0];
+        recordKillProgress(enemy);
+        updateStaticUI();
+    });
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char']);
+    await expect(page.getByRole('button', { name: '첫 장비 살펴보기' })).toBeVisible();
+    await page.evaluate(() => {
+        finishZoneClear(getZone(1), 'stop', { say: addLog, redraw: updateStaticUI, unlocks: checkUnlocks, reveal: triggerMapUnlockReveal });
+    });
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal']);
+    await page.evaluate(() => { npcShop.meet(STORY_NPCS.haken, 2); updateStaticUI(); });
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items', 'tab-char', 'tab-journal', 'tab-trade']);
+});
+
 
 // Review round 3 #4: at 1366×768 the 해금 window body ends above the HUD and the buy button sat below it, out of view.
 test('the unlock buy button stays visible in a small desktop window', async ({ page }, info) => {
     test.skip(info.project.use.isMobile, 'Desktop window size');
     await page.setViewportSize({ width: 1366, height: 768 });
     await page.evaluate(() => { game.season = 2; game.loopCount = 1; contentProgression.sync(); updateStaticUI(); openTabPane('tab-unlocks'); });
-    const buy = page.locator('#content-unlock-panel .unlock-detail-action button');
+    const buy = page.locator('#content-unlock-panel .unlock-detail-action [data-unlock-content]');
     await expect(buy).toBeVisible();
     const hit = await buy.evaluate(button => {
         const box = button.getBoundingClientRect();

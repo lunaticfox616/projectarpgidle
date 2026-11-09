@@ -27,6 +27,11 @@ const contentUnlockUi = {
     /** The loop card: the points, then the unlocks this loop adds to the tab, by name only (2026-10-27 사용자: 짧게, 필요한 것만).
      * Free contents are left out: each gets its own card when it opens (announceContent). A loop that adds none names the next one. */
     announceLoop() {
+        if (game.season === 2 && contentProgression.opening.enrolled(game)) {
+            const balance = _t('해금 포인트 {balance}P', { balance: contentProgression.balance() });
+            queueTutorialNotice('unlock_content_loop_2', _t('해금'), balance + '\n' + _t('열 기능 하나를 골라 보세요.'), 'tab-unlocks');
+            return;
+        }
         if (!game.contentProgression) {
             queueTutorialNotice('unlock_content_loop_' + game.season, _t('다음 콘텐츠 선택'),
                 _t('루프 {loop}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.', { loop: game.season }), 'tab-unlocks');
@@ -49,6 +54,7 @@ const contentUnlockUi = {
         if (!game.contentProgression) return;
         const enabled = !!game.contentProgression;
         document.body.classList.toggle('content-choice-progression', enabled);
+        this.syncOpeningHud();
         document.body.classList.toggle('content-support-locked', enabled && !contentProgression.isUnlocked('support'));
         document.body.classList.toggle('content-craft-locked', !contentProgression.isUnlocked('craft'));
         document.getElementById('loop-passive-locked')?.toggleAttribute('hidden', contentProgression.isUnlocked('loopTree'));
@@ -62,12 +68,42 @@ const contentUnlockUi = {
             for (const route of def.routes || []) this.syncRoute(route, !contentProgression.canOpen(route));
         }
         // 해금 목록 항목 없이 진행 조건으로만 열리는 경로.
-        for (const route of ['tab-map', 'tab-season', 'tab-unlocks']) this.syncRoute(route, !contentProgression.canOpen(route));
+        for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'tab-skills', 'tab-items', 'tab-character', 'tab-char', 'tab-social', 'tab-trade']) {
+            this.syncRoute(route, !contentProgression.canOpen(route));
+        }
         this.resetClosedSelection('itemSubtab', 'item-tab-equip', '#tab-items');
         this.resetClosedSelection('skillSubtab', 'skill-tab-equip', '#tab-skills');
         this.resetClosedSelection('mapSubtab', 'map-tab-zones', '#tab-map');
         this.resetClosedSelection('mapExploreSubtab', 'map-explore-hunting', '#map-tab-zones');
         this.render();
+    },
+    syncOpeningHud() {
+        const locked = contentProgression.opening.combatOnly(game);
+        for (const id of ['btn-act-exploration-auto', 'btn-combat-return', 'btn-combat-goal-toggle']) {
+            document.getElementById(id)?.toggleAttribute('data-content-locked', locked);
+        }
+        const chatLocked = !contentProgression.canOpen('tab-social');
+        document.body.classList.toggle('opening-chat-locked', chatLocked);
+        for (const id of ['btn-combat-chat-tab', 'btn-combat-chat-settings']) {
+            document.getElementById(id)?.toggleAttribute('data-content-locked', chatLocked);
+        }
+        this.syncRuneLauncher();
+    },
+    syncRuneLauncher() {
+        const button = document.getElementById('btn-tab-items');
+        if (!button) return;
+        const runeOnly = !contentProgression.canOpen('tab-items') && contentProgression.canOpen('tab-skills');
+        if (runeOnly) button.dataset.openingRunes = '1';
+        else {
+            if (!button.dataset.openingRunes) return;
+            delete button.dataset.openingRunes;
+        }
+        const name = runeOnly ? '스킬룬' : '장비';
+        const caption = name + '|하단 메뉴';
+        const label = button.querySelector('.ui-rail-label');
+        if (label && label.textContent !== _t(name)) label.textContent = _t(name);
+        button.dataset.i18nSourceDataCaption = caption;
+        button.dataset.caption = _t(caption);
     },
     syncRoute(route, locked) {
         // A merged launcher may remain available through another purchased child.
@@ -166,7 +202,11 @@ const contentUnlockUi = {
         return new Set(game.contentProgression ? game.contentProgression.automatic : []);
     },
     announceOpenedSince(before) {
-        this.openedContents().forEach(id => { if (!before.has(id)) this.announceContent(id); });
+        this.openedContents().forEach(id => {
+            if (before.has(id)) return;
+            if (id === 'tactics' && contentProgression.opening.applies(game)) game.noti.skills = true;
+            this.announceContent(id);
+        });
     },
     /** contentProgression.sync, plus a card for each free content that has just opened (loop reached, condition met).
      * Contents open at load are not news: the save migration syncs before any of this runs. */

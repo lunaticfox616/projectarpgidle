@@ -557,7 +557,7 @@
 
     // 채팅은 전투 기록과 같은 판의 탭이다(js/message-frames-ui.js): PC는 기록 창, 휴대폰은 전투 화면의 기록 판(2026-11-07, 커뮤니티 탭 없앰).
     function openCommunityDock() {
-        if (typeof messageFrames !== 'object') return;
+        if (typeof messageFrames !== 'object' || window.isTabSurfaceAvailable('tab-social') === false) return;
         if (isDesktopWindowed()) { messageFrames.showTab('chat'); return; }
         window.switchTab('tab-battle');
         messageFrames.showPhoneTab('chat');
@@ -1241,6 +1241,7 @@
         if (originalSwitchTab || typeof window.switchTab !== 'function') return;
         originalSwitchTab = window.switchTab;
         window.switchTab = function windowedSwitchTab(tabId, options = {}) {
+            if (window.isTabSurfaceAvailable(tabId) === false) return originalSwitchTab(tabId);
             // 채팅은 따로 여는 화면이 아니라 기록 판의 탭이다(PC 기록 창, 휴대폰 전투 화면의 기록 판)
             if (tabId === 'tab-social') {
                 openCommunityDock();
@@ -1252,11 +1253,6 @@
             }
             if (tabId === 'tab-battle') {
                 closeAllWindows();
-                return originalSwitchTab(tabId);
-            }
-            // 잠긴 탭은 원본 switchTab의 잠금 안내만 실행하고 창을 열지 않는다.
-            let gateKey = (typeof TAB_UNLOCK_GATES !== 'undefined' && TAB_UNLOCK_GATES) ? TAB_UNLOCK_GATES[tabId] : null;
-            if (gateKey && typeof game !== 'undefined' && game && game.unlocks && !game.unlocks[gateKey]) {
                 return originalSwitchTab(tabId);
             }
             // 이미 열려 있고 최상단(포커스)인 창의 탭을 다시 누르면 창을 닫는다(토글).

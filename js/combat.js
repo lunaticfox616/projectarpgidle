@@ -8362,6 +8362,7 @@ function mergeEnemyAilment(target, incoming, pStats) {
 /** Kill records that grow outside the fight: the stump box, the boss variant record (12번 루프 33, js/boss-variants.js) and the nursery's
  * seeds and saps (루프 39, js/stump-nursery.js). */
 function recordKillProgress(enemy) {
+    contentProgression.opening.noteKill(game);
     if (typeof stumpBox === 'object') stumpBox.onEnemyKilled(game, enemy, layStumpDrop(enemy));
     if (typeof bossVariants === 'object') combatLootReceipts.capture(game, () => bossVariants.onKilled(game, enemy));
     if (typeof stumpNursery === 'object') stumpNursery.onKilled(game, enemy);

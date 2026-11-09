@@ -6,6 +6,74 @@ const contentProgression = (() => {
         'item-tab-equip', 'skill-tab-equip', 'map-tab-zones', 'map-explore-atlas', 'map-explore-hunting', 'map-explore-chaos',
         'map-explore-root-boss']);
 
+    const opening = (() => {
+        const ENROLLED = 'opening_systems_v2', GEAR = 'opening_gear_ready', PASSIVES = 'opening_passives_ready', PROFILE = 'opening_profile_ready';
+        const ACT_TWO_COMBAT = 'opening_act_two_combat', TRADE = 'opening_trade_ready';
+        const cues = ['tab-map', 'tab-items', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade'];
+        const inlineKeys = new Set(['unlock_items', 'unlock_char', 'tutorial_first_gear', 'tutorial_first_passive',
+            'tutorial_starter_gem_equip', 'unlock_map']);
+        const seen = (owner, key) => !!owner.seenTutorials?.includes(key);
+        const enrolled = owner => seen(owner, ENROLLED);
+        const applies = owner => (owner.season || 1) === 1 && enrolled(owner);
+        const equipped = owner => seen(owner, 'opening_done');
+        const combatOnly = owner => applies(owner) && !equipped(owner);
+        const hasLoot = owner => owner.inventory.some(Boolean)
+            || Object.entries(owner.equipment).some(([slot, item]) => slot !== '무기' && !!item);
+        const gates = {
+            'tab-skills': owner => !!owner.starterGemTutorialPending || !!SKILL_DB[owner.activeSkill]?.isGem || equipped(owner) || owner.maxZoneId >= 1,
+            'tab-items': owner => seen(owner, GEAR),
+            'tab-character': owner => seen(owner, PROFILE),
+            'tab-char': owner => seen(owner, PASSIVES),
+            'tab-trade': owner => seen(owner, TRADE),
+            'tab-journal': owner => owner.maxZoneId >= 2,
+            'tab-social': () => false,
+            'tab-records': () => false
+        };
+        const canOpen = (owner, route) => !applies(owner) || !Object.hasOwn(gates, route) || !!gates[route](owner);
+        const signature = owner => applies(owner) ? Object.keys(gates).map(route => Number(canOpen(owner, route))).join('') : '';
+        function enroll(owner) {
+            if (!seen(owner, ENROLLED)) owner.seenTutorials.push(ENROLLED);
+        }
+        function inspectGear(owner) {
+            const key = 'action_tutorial_first_gear';
+            if (!applies(owner) || !seen(owner, GEAR) || seen(owner, key)) return false;
+            owner.seenTutorials.push(key);
+            return true;
+        }
+        const gearReady = owner => equipped(owner) && hasLoot(owner);
+        const passiveReady = owner => (owner.passivePoints > 0 || owner.passives.length > 0)
+            && (seen(owner, 'action_tutorial_first_gear') || seen(owner, ACT_TWO_COMBAT) || owner.maxZoneId >= 2);
+        const tradeReady = owner => equipped(owner)
+            && Object.values(owner.npcShops || {}).some(shop => shop.zoneId >= 2 && shop.offers?.length > 0);
+        const visitKey = route => 'opening_visited_' + route;
+        function visit(owner, route) {
+            if (!applies(owner) || !cues.includes(route) || seen(owner, visitKey(route))) return false;
+            owner.seenTutorials.push(visitKey(route));
+            return true;
+        }
+        function noteKill(owner) {
+            if (owner.currentZoneId !== 1 || !applies(owner) || seen(owner, ACT_TWO_COMBAT)) return;
+            owner.seenTutorials.push(ACT_TWO_COMBAT);
+        }
+        function cueReady(owner, route) {
+            if (seen(owner, visitKey(route)) || !canOpen(owner, route)) return false;
+            if (route === 'tab-map') return owner.maxZoneId === 1 && !seen(owner, ACT_TWO_COMBAT);
+            return owner.maxZoneId < 4;
+        }
+        const nextCue = owner => applies(owner) && equipped(owner) ? cues.find(route => cueReady(owner, route)) : null;
+        const inlineNotice = (owner, key) => applies(owner) && inlineKeys.has(key);
+        /** A first-use menu stays open even if its point is spent or its reward is salvaged. */
+        function sync(owner) {
+            if (!applies(owner)) return;
+            if (!seen(owner, GEAR) && gearReady(owner)) owner.seenTutorials.push(GEAR);
+            if (!seen(owner, PASSIVES) && passiveReady(owner)) owner.seenTutorials.push(PASSIVES);
+            if (!seen(owner, PROFILE) && owner.passives.length > 0) owner.seenTutorials.push(PROFILE);
+            if (!seen(owner, TRADE) && tradeReady(owner)) owner.seenTutorials.push(TRADE);
+        }
+        return Object.freeze({ applies, enrolled, enroll, combatOnly, hasLoot, canOpen, signature, sync, inspectGear,
+            noteKill, visit, nextCue, inlineNotice });
+    })();
+
     // Predicates only read normalized save state; unlocking a menu never grants world progress.
     const progressChecks = {
         tactics: owner => [['액트 3 클리어', hasCombatTacticsUnlockProgress(owner)]],
@@ -133,6 +201,7 @@ const contentProgression = (() => {
     };
 
     function canOpen(route, owner = game) {
+        if (!opening.canOpen(owner, route)) return false;
         if (!owner.contentProgression || !route || coreRoutes.has(route)) return true;
         if (progressRoutes[route]) return progressRoutes[route](owner);
         const feature = routes.get(route);
@@ -446,7 +515,7 @@ const contentProgression = (() => {
         if (owned.has('gemForge') && !owned.has('engraving')) next.inherited.push('engraving');
     }
 
-    return Object.freeze({ kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, npcsMet, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
+    return Object.freeze({ opening, kind, parents, holds, rank, isUnlocked, canDropUnique, canDropCurrency, canOpen, npcsMet, earnedBy, points, overflow, balance, cheapestOpen, status, requirements, sync,
         purchase, restore, planTarget });
 })();
 safeExposeGlobals({ contentProgression });

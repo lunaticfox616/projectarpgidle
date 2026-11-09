@@ -343,6 +343,10 @@
             renderEquipmentInventoryInspector(game.inventory.map((item, idx) => ({ item, idx })));
         }
         if (!sameSelection) guardInspector();
+        if (focusedItemKey && contentProgression.opening.inspectGear(game)) {
+            updateStaticUI();
+            queueImportantSave(180);
+        }
         if (typeof tutorialActionUi === 'object') tutorialActionUi.refresh();
     }
 

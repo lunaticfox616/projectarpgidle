@@ -5455,7 +5455,7 @@ function getDeathHints() {
     const rewards = getAvailableActRewardZoneIds(), fillable = countFillableEmptySlots();
     return [
         rewards.length ? { text: _t('받지 않은 액트 보상 {length}개', { length: rewards.length }), action: { label: _t('받기'), onclick: `closeDeathOverlay();openActReward(${rewards[0]})` } } : null,
-        game.passivePoints > 0 ? { text: _t('쓰지 않은 스킬트리 포인트 {passivePoints}점', { passivePoints: game.passivePoints }), action: { label: _t('스킬트리'), onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
+        game.passivePoints > 0 && contentProgression.canOpen('tab-char') ? { text: _t('쓰지 않은 스킬트리 포인트 {passivePoints}점', { passivePoints: game.passivePoints }), action: { label: _t('스킬트리'), onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
         game.equipment['무기'] ? null : { text: _t('무기 칸이 비어 있습니다') },
         fillable ? { text: _t('가방에 바로 낄 수 있는 장비 {fillable}개', { fillable }), action: { label: _t('채우기'), onclick: 'fillEmptyEquipmentSlots();renderDeathHints()' } } : null,
         shopDeathHint(),
@@ -5861,7 +5861,7 @@ function unlockJournalEntry(entryId, state = game) {
         state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
         state.noti.journal = true;
         if (state === game) {
-            addLog(_t('📓 저널 해금: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
+            addLog(_t('📓 새 기록: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
             worldTreeBark.rewardPinnacleFirstKill(entryId);
             if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
         }
