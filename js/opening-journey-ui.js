@@ -274,7 +274,9 @@ const openingJourney = (() => {
         if (step === 'rise') return lying() ? 'rise' : null;
         if (step === 'gem') return gemInHand() ? 'gem' : lessonHint('attack');
         if (step) return lessonHint(step);
-        return autoHintDue(now) ? 'auto' : systemHint();
+        const system = systemHint();
+        if (system === 'system:tab-items') return system;
+        return autoHintDue(now) ? 'auto' : system;
     }
     function systemHint() {
         const cue = contentProgression.opening.nextCue(game);
@@ -300,7 +302,11 @@ const openingJourney = (() => {
     function lessonCardHtml(name, arg) {
         if (contentProgression.opening.applies(game)) {
             if (name === 'gem') return `<button class="opening-lesson-action" type="button" data-opening-rune>${_t('룬 장착하기')}</button>`;
-            if (name === 'system') return `<button class="opening-lesson-action" type="button" data-opening-route="${arg}">${_t(SYSTEM_CUES[arg])}</button>`;
+            if (name === 'system') {
+                const description = arg === 'tab-items'
+                    ? `<p class="opening-lesson-text">${_t('가방의 장비를 착용 중인 장비와 비교해 바꿔 낄 수 있습니다.')}</p>` : '';
+                return description + `<button class="opening-lesson-action" type="button" data-opening-route="${arg}">${_t(SYSTEM_CUES[arg])}</button>`;
+            }
             return `<p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
         }
         const at = LESSON_ORDER.indexOf(name === 'go' ? 'attack' : name);

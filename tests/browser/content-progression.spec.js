@@ -29,7 +29,7 @@ test('loop one exposes the four basics and prevents advanced shortcuts', async (
     await page.screenshot({ path: info.outputPath('loop-one.png') });
 });
 
-test('the opening introduces the map, equipment, passives, journal and trade on separate milestones', async ({ page }, info) => {
+test('the opening explains equipment on pickup and introduces the other menus separately', async ({ page }, info) => {
     const routes = () => page.evaluate(() => ['tab-map', 'tab-items', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade', 'tab-records', 'tab-social']
         .filter(id => contentProgression.canOpen(id)));
     // Skip fight duration while running the production clear and first-kill handlers.
@@ -60,6 +60,29 @@ test('the opening introduces the map, equipment, passives, journal and trade on 
         updateStaticUI();
     });
     await expect.poll(routes).toEqual([]);
+    await page.evaluate(() => {
+        const run = actExplorationState.current(game);
+        const item = generateEquipmentDrop({}, { zone: getZone(0), slot: '장갑', minimumRarity: 'magic' });
+        actExplorationState.groundLoot.place(run, game.gridPlayer, item);
+        commitCurrencyGain('magicBud', 1);
+        updateStaticUI();
+    });
+    await expect.poll(routes).toEqual([]);
+    await expect(page.locator('[data-opening-route]')).toHaveCount(0);
+    await page.evaluate(() => {
+        const run = actExplorationState.current(game);
+        collectExplorationFloorLoot(actExplorationState.groundLoot.takeAt(run, game.gridPlayer));
+        updateStaticUI();
+    });
+    await expect.poll(routes).toEqual(['tab-items']);
+    await expect(page.locator('.opening-lesson')).toContainText('착용 중인 장비와 비교');
+    await page.screenshot({ path: info.outputPath('act-one-gear-pickup.png'), animations: 'disabled' });
+    await page.getByRole('button', { name: '첫 장비 살펴보기' }).click();
+    await expect(page.locator('#item-tab-equip')).toBeVisible();
+    await page.locator('#item-tab-equip .tutorial-action-target').click();
+    await page.screenshot({ path: info.outputPath('act-one-first-equipment.png') });
+    await page.evaluate(() => switchTab('tab-battle'));
+
     const rewardKey = await page.evaluate(() => {
         game.settings.mapCompleteAction = 'stop';
         const run = actExplorationState.current(game);
@@ -72,14 +95,14 @@ test('the opening introduces the map, equipment, passives, journal and trade on 
     });
     const reward = page.locator(`#reward-overlay [data-choice-key="${rewardKey}"]`);
     await expect(reward).toBeVisible();
-    await expect.poll(routes).toEqual(['tab-map']);
-    await expect(page.locator('[data-opening-route]')).toHaveCount(0);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
+    await expect(page.locator('[data-opening-route]:visible')).toHaveCount(0);
     await reward.click();
     await expect.poll(() => page.evaluate(() => game.claimedActRewards.includes(0))).toBe(true);
     const map = page.getByRole('button', { name: '다음 지역 지도 보기' });
     await expect(map).toBeVisible();
     await expect(page.locator('[data-opening-route]')).toHaveCount(1);
-    await expect.poll(routes).toEqual(['tab-map']);
+    await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
     await expect(page.getByRole('button', { name: '첫 장비 살펴보기' })).toHaveCount(0);
     await expect(page.locator('#ui-goal-drawer')).not.toContainText('새 이야기 저널 확인');
     await expect(page.locator('#ui-goal-drawer')).not.toContainText('스킬트리 포인트');
@@ -90,14 +113,10 @@ test('the opening introduces the map, equipment, passives, journal and trade on 
     await expect(go).toBeVisible();
     await go.click();
     await expect.poll(() => page.evaluate(() => game.currentZoneId)).toBe(1);
-    expect(await routes()).toEqual(['tab-map']);
+    expect(await routes()).toEqual(['tab-map', 'tab-items']);
     await page.screenshot({ path: info.outputPath('act-two-arrival.png') });
     await recordFirstKill();
     await expect.poll(routes).toEqual(['tab-map', 'tab-items']);
-    await page.getByRole('button', { name: '첫 장비 살펴보기' }).click();
-    await expect(page.locator('#item-tab-equip')).toBeVisible();
-    await page.locator('#item-tab-equip .tutorial-action-target').click();
-    await page.screenshot({ path: info.outputPath('act-two-equipment.png') });
     await page.evaluate(() => {
         switchTab('tab-battle');
         npcShop.meet(STORY_NPCS.orga, 1);

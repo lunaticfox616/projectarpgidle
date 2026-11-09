@@ -9001,6 +9001,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '안내 중 전투 일시 정지': 'Pause combat during guides',
         '이후 {settingsMenuPath}에서 언제든 변경할 수 있습니다.': 'You can change this anytime later in {settingsMenuPath}.',
         '첫 장비 살펴보기': 'Check your first equipment',
+        '가방의 장비를 착용 중인 장비와 비교해 바꿔 낄 수 있습니다.': 'Compare gear in your bag with what you are wearing and swap it in.',
         '장비를 눌러 효과를 확인하세요. 빈 칸에 맞는 장비는 이미 착용되어 있습니다. 바꿔 끼우고 싶을 때 ‘장착’을 누르세요.': "Click an item to see its effects. Items that fit empty slots are already worn. Press 'Equip' when you want to swap.",
         '첫 스킬트리 투자': 'First skill tree investment',
         '연결된 시작 노드의 효과를 살펴보고, 원하는 노드에 포인트를 투자해 보세요.': 'Look at the effects of the connected starting nodes and invest a point in the node you want.',

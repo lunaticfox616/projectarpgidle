@@ -8,9 +8,8 @@ const contentProgression = (() => {
 
     const opening = (() => {
         const ENROLLED = 'opening_systems_v2', GEAR = 'opening_gear_ready', PASSIVES = 'opening_passives_ready', PROFILE = 'opening_profile_ready';
-        const ACT_TWO_COMBAT = 'opening_act_two_combat', ACT_THREE_COMBAT = 'opening_act_three_combat', TRADE = 'opening_trade_ready';
-        const firstCombat = [null, ACT_TWO_COMBAT, ACT_THREE_COMBAT];
-        const cues = ['tab-map', 'tab-items', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade'];
+        const ACT_THREE_COMBAT = 'opening_act_three_combat', TRADE = 'opening_trade_ready';
+        const cues = ['tab-items', 'tab-map', 'tab-char', 'tab-character', 'tab-journal', 'tab-trade'];
         const inlineKeys = new Set(['unlock_items', 'unlock_char', 'tutorial_first_gear', 'tutorial_first_passive',
             'tutorial_starter_gem_equip', 'unlock_map']);
         const seen = (owner, key) => !!owner.seenTutorials?.includes(key);
@@ -36,8 +35,6 @@ const contentProgression = (() => {
         function enroll(owner) {
             if (!seen(owner, ENROLLED)) owner.seenTutorials.push(ENROLLED);
         }
-        const gearReady = owner => equipped(owner)
-            && (owner.maxZoneId >= 2 || (seen(owner, ACT_TWO_COMBAT) && hasLoot(owner)));
         const passiveReady = owner => (owner.passivePoints > 0 || owner.passives.length > 0)
             && (seen(owner, ACT_THREE_COMBAT) || owner.maxZoneId >= 3);
         const tradeReady = owner => equipped(owner) && owner.maxZoneId >= 5
@@ -48,13 +45,12 @@ const contentProgression = (() => {
             return true;
         }
         function noteKill(owner) {
-            const key = firstCombat[owner.currentZoneId];
-            if (key && applies(owner) && !seen(owner, key)) owner.seenTutorials.push(key);
+            if (owner.currentZoneId === 2 && applies(owner) && !seen(owner, ACT_THREE_COMBAT)) owner.seenTutorials.push(ACT_THREE_COMBAT);
         }
         function cueReady(owner, route) {
             if (seen(owner, visitKey(route)) || !canOpen(owner, route)) return false;
-            if (route === 'tab-map') return owner.maxZoneId === 1 && !seen(owner, ACT_TWO_COMBAT);
-            if (route === 'tab-items') return owner.maxZoneId < 3 && !seen(owner, ACT_THREE_COMBAT);
+            if (route === 'tab-map') return owner.maxZoneId === 1 && owner.currentZoneId === 0;
+            if (route === 'tab-items') return true;
             if (route === 'tab-journal') return !seen(owner, TRADE);
             if (route === 'tab-trade') return true;
             return owner.maxZoneId < 4;
@@ -64,7 +60,7 @@ const contentProgression = (() => {
         /** A first-use menu stays open even if its point is spent or its reward is salvaged. */
         function sync(owner) {
             if (!applies(owner)) return;
-            if (!seen(owner, GEAR) && gearReady(owner)) owner.seenTutorials.push(GEAR);
+            if (!seen(owner, GEAR) && hasLoot(owner)) owner.seenTutorials.push(GEAR);
             if (!seen(owner, PASSIVES) && passiveReady(owner)) owner.seenTutorials.push(PASSIVES);
             if (!seen(owner, PROFILE) && owner.passives.length > 0) owner.seenTutorials.push(PROFILE);
             if (!seen(owner, TRADE) && tradeReady(owner)) owner.seenTutorials.push(TRADE);
