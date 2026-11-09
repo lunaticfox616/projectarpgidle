@@ -25,7 +25,10 @@ async function openWithAwaySave(page, { account = false, prepare = null } = {}) 
         if (!state.seenTutorials.includes('opening_done')) state.seenTutorials.push('opening_done');
         if (prepareSource) new Function('state', prepareSource)(state);
         const at = Date.now() - awayMs;
-        state.saveMeta = { ...state.saveMeta, lastModifiedAt: at, maxSeenAt: at };
+        // Two stamps since 2026-11-10: the account case keeps the one-stamp shape of an older save, the guest cases have a save
+        // written a moment ago whose play stopped hours earlier.
+        state.saveMeta = user ? { ...state.saveMeta, lastModifiedAt: at, playedUntil: 0, maxSeenAt: at }
+            : { ...state.saveMeta, lastModifiedAt: Date.now(), playedUntil: at, maxSeenAt: Date.now() };
         if (user) Object.assign(state.saveMeta, { cloudUserId: user, cloudRevision: 5, cloudPending: false, lastCloudSyncAt: at });
         localStorage.setItem(user ? ACCOUNT_SAVE_KEY_PREFIX + user : LOCAL_SAVE_KEY, serializeSaveState(state));
         window.__skipUnloadSaveOnce = true;

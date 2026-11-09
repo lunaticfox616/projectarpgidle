@@ -219,6 +219,8 @@ function preserveCorruptLocalSave(rawSave) {
 function ensureSaveMeta() {
     if (!game.saveMeta || typeof game.saveMeta !== 'object') game.saveMeta = JSON.parse(JSON.stringify(defaultGame.saveMeta));
     if (!Number.isFinite(game.saveMeta.lastModifiedAt)) game.saveMeta.lastModifiedAt = 0;
+    // A save from before 2026-11-10 has one stamp for both times.
+    if (!(game.saveMeta.playedUntil > 0)) game.saveMeta.playedUntil = game.saveMeta.lastModifiedAt;
     if (!Number.isFinite(game.saveMeta.lastCloudSyncAt)) game.saveMeta.lastCloudSyncAt = 0;
     if (!game.saveMeta.lastCloudUploadProfile || typeof game.saveMeta.lastCloudUploadProfile !== 'object') {
         game.saveMeta.lastCloudUploadProfile = null;
@@ -391,10 +393,10 @@ function noteSaveClock(meta) {
     meta.maxSeenAt = Math.max(Number(meta.maxSeenAt) || 0, Date.now());
 }
 
-/** A save's modified time: now, or while a hidden page or a paused app holds the game still (js/main.js runForegroundCombat) the time
- * play stopped (backgroundCombatRuntime.hiddenAtMs), so a tab closed while hidden (or dropped by the browser) settles its hidden
- * hours at the next launch instead of losing them. */
-function getSaveModifiedAt() {
+/** The time play is settled up to (saveMeta.playedUntil): now, or while a hidden page or a paused app holds the game still (js/main.js
+ * runForegroundCombat) the time play stopped (backgroundCombatRuntime.hiddenAtMs), so a tab closed while hidden (or dropped by the
+ * browser) settles its hidden hours at the next launch instead of losing them. */
+function getPlayedUntil() {
     const now = Date.now();
     if (typeof backgroundCombatRuntime === 'undefined' || typeof document === 'undefined') return now;
     const still = document.hidden || backgroundCombatRuntime.appInactive;
@@ -402,10 +404,13 @@ function getSaveModifiedAt() {
     return still && at > 0 ? Math.min(at, now) : now;
 }
 
-/** A write that carries a change: the save's modified time, and in an account slot the pending mark (cleared by the commit that
- * carries the change, js/cloud-save-ui.js rememberCloudCommit). */
+/** A write that carries a change stamps two times (2026-11-10; one field held both until then, and a save made while entering the
+ * game moved the away settlement's start to now, v0.3.57 to v0.3.59): lastModifiedAt, when the save was written, and playedUntil,
+ * the time the next launch settles from. playedUntil stays as loaded until the launch has read it (launchSettlementPending).
+ * In an account slot the write is also marked pending (cleared by the commit that carries it, js/cloud-save-ui.js rememberCloudCommit). */
 function touchSaveMeta() {
-    game.saveMeta.lastModifiedAt = getSaveModifiedAt();
+    game.saveMeta.lastModifiedAt = Date.now();
+    if (typeof backgroundCombatRuntime === 'undefined' || !backgroundCombatRuntime.launchSettlementPending) game.saveMeta.playedUntil = getPlayedUntil();
     if (saveSlot.kind === 'account') game.saveMeta.cloudPending = true;
 }
 

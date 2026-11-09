@@ -555,11 +555,11 @@ function clearCloudPasswordInput() {
  * start screen closes, the battlefield is drawn and the loading screen closes, a save without a class asks for one, the time away is
  * settled, and only then the guide cards wake (js/tutorial-ui.js showNextTutorial waits for gameEntryRunning). Before 2026-11-10 the
  * cards woke by themselves when the start screen closed, and the save they made there moved the stamp before the settlement read it
- * (v0.3.57 to v0.3.59: no launch settled). */
+ * (v0.3.57 to v0.3.59: no launch settled). Until the settlement reads the save's playedUntil, no save moves it
+ * (launchSettlementPending, js/save.js touchSaveMeta). */
 async function enterGameWorld() {
-    // The save's stamp before this launch writes it (nothing touches it while the start screen is up): the away settlement measures from here.
-    const savedAtMs = game.saveMeta.lastModifiedAt;
     gameEntryRunning = true;
+    backgroundCombatRuntime.launchSettlementPending = true;
     try {
         advanceLoadingOverlay({ title: _t('전장을 불러오는 중...'), detail: _t('전투 로그와 캐릭터 상태를 복원하고 있습니다.'), caption: _t('진행 복원'), progress: 48 });
         await ensureBattleAssetsLoadedBeforeEntry();
@@ -569,9 +569,10 @@ async function enterGameWorld() {
         showBattlefieldOnEntry();
         await closeLoadingOnEntry();
         ensureInitialHeroSelection();
-        await settleAwayOnEntry(savedAtMs);
+        await settleAwayOnEntry();
     } finally {
         gameEntryRunning = false;
+        backgroundCombatRuntime.launchSettlementPending = false;
     }
     showNextTutorial();
 }
@@ -606,9 +607,9 @@ async function closeLoadingOnEntry() {
     setLoadingOverlayState(false);
 }
 
-async function settleAwayOnEntry(savedAtMs) {
+async function settleAwayOnEntry() {
     try {
-        await startOfflineCombatReturn(Date.now(), savedAtMs);
+        await startOfflineCombatReturn(Date.now());
     } catch (error) {
         console.error('offline combat replay failed:', error);
     }
@@ -964,6 +965,7 @@ function applyExternalSave(snapshot, sourceStamp) {
         cloudState.lastRemoteUpdatedAt = sourceStamp;
         game.saveMeta.lastCloudSyncAt = Math.max(game.saveMeta.lastCloudSyncAt || 0, sourceStamp);
         if (!game.saveMeta.lastModifiedAt) game.saveMeta.lastModifiedAt = sourceStamp;
+        if (!(game.saveMeta.playedUntil > 0)) game.saveMeta.playedUntil = game.saveMeta.lastModifiedAt;
     }
     cloudState.syncHalted = false;
     if (!persistLocalSave({ touchModifiedAt: false, allowRecoveryWrite: true })) {

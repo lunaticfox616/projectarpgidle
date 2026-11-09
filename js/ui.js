@@ -483,12 +483,11 @@ function recordBackgroundCombatEntry(nowMs) {
     backgroundCombatRuntime.snapshot = isBackgroundCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
 }
 
-/** The launch's away span, savedAtMs (the loaded save's saveMeta.lastModifiedAt, read by enterGameWorld before this launch writes the
- * save) to nowMs. Read here, at the end of the entry, the stamp was already this launch's own: the first guide-card tick saves the
- * tutorial history (js/tutorial-ui.js saveTutorialHistoryChange, v0.3.57) about 300 ms before the settlement, so the span was 0 and
- * no launch settled (2026-11-09 players: leaving the tab settles, closing and logging in does not). */
-function recordOfflineCombatEntry(nowMs, savedAtMs) {
-    let savedAt = Math.max(0, Math.floor(Number(savedAtMs) || 0));
+/** The launch's away span: from the loaded save's saveMeta.playedUntil to nowMs. Saves made while entering leave that time alone
+ * (js/save.js touchSaveMeta, launchSettlementPending) until this has read it. */
+function recordOfflineCombatEntry(nowMs) {
+    let savedAt = Math.max(0, Math.floor(Number(game.saveMeta.playedUntil) || 0));
+    backgroundCombatRuntime.launchSettlementPending = false;
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
     // 저장 칸마다 한 번 정산한다: 게임 안에서 다른 계정으로 들어가도 그 계정의 자리 비운 시간이 남는다(전: 화면마다 한 번이라 먼저 들어간 저장만).
     const slotKey = getSaveSlot().key;
@@ -497,7 +496,7 @@ function recordOfflineCombatEntry(nowMs, savedAtMs) {
     backgroundCombatRuntime.signature = getBackgroundCombatSignature(game);
     backgroundCombatRuntime.snapshot = isOfflineCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
     // Nothing to settle keeps no away span: a stale one would be stamped by a save made while the app is paused (js/save.js
-    // getSaveModifiedAt).
+    // getPlayedUntil).
     backgroundCombatRuntime.hiddenAtMs = backgroundCombatRuntime.snapshot ? savedAt : 0;
     return !!backgroundCombatRuntime.snapshot;
 }
@@ -841,7 +840,7 @@ function commitBackgroundCombat(result, expectedGame) {
     candidate.settings.mapCompleteAction = expectedGame.settings.mapCompleteAction;
     game = candidate;
     backgroundCombatRuntime.processing = false;
-    // The settled state is stamped now: a save made while hidden keeps hiddenAtMs (js/save.js getSaveModifiedAt), which would settle
+    // The settled state is stamped now: a save made while hidden keeps hiddenAtMs (js/save.js getPlayedUntil), which would settle
     // the same time again at the next launch.
     const awaySince = backgroundCombatRuntime.hiddenAtMs;
     backgroundCombatRuntime.hiddenAtMs = 0;
@@ -931,8 +930,8 @@ function reportBackgroundCombatFailure(error, committed) {
     overlay.innerHTML = `<div class="background-combat-progress-card" role="alert"><strong>${_t('방치 정산을 완료하지 못했습니다')}</strong><p>${escapeHTML(error.message)}</p><p>${_t('이전 저장과 방치 시간은 보존됩니다. 다시 계산하거나 새로고침해 주세요.')}</p><button type="button" onclick="startBackgroundCombatReturn(Date.now())">${_t('다시 계산')}</button></div>`;
 }
 
-async function startOfflineCombatReturn(nowMs, savedAtMs) {
-    if (!recordOfflineCombatEntry(nowMs, savedAtMs)) return false;
+async function startOfflineCombatReturn(nowMs) {
+    if (!recordOfflineCombatEntry(nowMs)) return false;
     return startBackgroundCombatReturn(nowMs);
 }
 
