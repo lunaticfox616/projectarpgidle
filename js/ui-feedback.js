@@ -288,7 +288,7 @@
     }
     /** 살아 있는 문서인지(노드 검사 런타임의 가짜 문서에는 알림을 띄우지 않는다). */
     const liveDocument = () => typeof document !== 'undefined' && !!document.body && document.body.isConnected === true;
-    /** 로그인 화면(시작 화면이 떠 있는 동안 body.startup-active, js/ui.js setStartupOverlayActive)에 온 알림은 접속한 뒤에 띄운다
+    /** 로그인 화면(시작 화면이 떠 있는 동안 body.startup-active, js/startup-screen-ui.js setStartupOverlayActive)에 온 알림은 접속한 뒤에 띄운다
      * (2026-11-08 사용자: 아직 접속하지 않았는데 로그인 화면에 알림이 떴다. 저장된 로그인으로 켜면 채팅 확인이 먼저 돈다). 알림 칸처럼
      * 넷까지만 들고, 시작 화면이 닫히면 온 순서대로 띄운다. */
     const heldToasts = [];

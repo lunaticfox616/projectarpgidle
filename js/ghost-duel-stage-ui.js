@@ -10,7 +10,7 @@
  * - 숫자: 서버는 싸움이 10초쯤 걸리게 피해를 한 배율로 줄여 적는다(db/operations-and-ghost.sql simulate_ghost_duel의 shared_scale).
  *   그 배율을 되돌려 게임의 피해 크기로 보여 준다.
  * - 끝: 진 쪽은 쓰러지고 이긴 쪽은 외친 뒤 결과 창이 뜬다.
- * 전장 위를 덮어 보여 주고, 보는 동안 게임은 멈춘다(js/ui.js isForegroundGameplayPausedForBackground). 그리기만 하고 게임 상태는 바꾸지 않는다.
+ * 전장 위를 덮어 보여 주고, 보는 동안 게임은 멈춘다(js/away-settlement-ui.js isForegroundGameplayPausedForBackground). 그리기만 하고 게임 상태는 바꾸지 않는다.
  */
 const ghostDuelStage = (() => {
     const ROOM = Object.freeze({ columns: 12, rows: 5 });                    // 대전 방의 칸

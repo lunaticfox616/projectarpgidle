@@ -119,7 +119,7 @@ function getPlayerHallData() {
 }
 
 /** What keeps the hall's trades whole (2026-10-22). The woodsman fight puts the bag back every tick (js/combat.js
- * enforceWoodsmanBuildLock) and the offline replay replaces the game when it settles (js/ui.js commitBackgroundCombat): a trade made
+ * enforceWoodsmanBuildLock) and the offline replay replaces the game when it settles (js/away-settlement-ui.js commitBackgroundCombat): a trade made
  * meanwhile came back (a listing) or vanished (a withdrawal) while the server kept it. combat.js asks loopBlockReason before a loop. */
 const playerHallTrade = (() => {
     /** Why a trade must not start now, or ''. action names it in the sentence ('전시', '회수', '구매'); incoming is the item it puts in the

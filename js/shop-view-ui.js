@@ -214,7 +214,7 @@ const shopView = (() => {
     }
 
     /** Why no trade can go now, or '': while the offline fights replay, the replayed game replaces this one when it is done
-     * (js/ui.js commitBackgroundCombat), so a trade made meanwhile would be undone. */
+     * (js/away-settlement-ui.js commitBackgroundCombat), so a trade made meanwhile would be undone. */
     function busyReason() {
         const replay = backgroundCombatRuntime.snapshot || backgroundCombatRuntime.processing || backgroundCombatRuntime.failed;
         return replay ? '방치 전투 정산을 마친 뒤 이용해 주세요.' : '';

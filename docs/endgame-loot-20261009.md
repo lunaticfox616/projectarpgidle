@@ -201,7 +201,7 @@
 - **새 고유**: 도감에 처음 오르는 고유(lootMoments.isNewUnique, 줍기 전에 판정)는 주울 때 이름 위에 '새 고유' 표와 '도감 새 고유' 배너(체이싱
   고유는 체이싱 배너가 먼저). 지도 결과의 발견 칩에도 '새' 표.
 - **방치 결과의 아틀라스 칸**: 끝낸 지도, 보물 무리, 황금 보물, 기억의 잎과 처음 본 잎. 저장의 누적 수(game.atlas.tally: maps, treasure, golden,
-  atlas.normalize가 정리)와 잎 수의 전후 차이로 만든다(js/ui.js getBackgroundAtlasGains, memoryLeaves.gainedBetween).
+  atlas.normalize가 정리)와 잎 수의 전후 차이로 만든다(js/away-settlement-ui.js getBackgroundAtlasGains, memoryLeaves.gainedBetween).
 - **좋은 희귀**: 그 장비가 가질 수 있는 가장 높은 4개 등급 안의 옵션이 2줄이면 좋은 발견, 3줄이면 큰 발견(LOOT_OMENS.fineRare). 16등급 희귀의
   약 10%와 1%. 바닥 이름표에 금빛 테, 주울 때 기록에 '좋은 옵션 N줄'.
 

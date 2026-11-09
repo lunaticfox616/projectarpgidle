@@ -72,7 +72,7 @@ function analyze(rows) {
 /** Top-level function declarations per file: each is one more name in the page's single global scope (2026-11-10: 330 files share
  * it, and js/ui.js and js/combat.js hold over 900 each). The count of a file may not grow, and a new file starts at 0: it puts its
  * functions inside one named object, const name = (() => { ... return Object.freeze({ ... }); })(), as the files since 2026-10 do.
- * Moving functions to another file needs a new baseline (--baseline-from-head, after the move is committed). */
+ * Moving functions to another file (scripts/move-block.cjs) rewrites the counts with --moved, which refuses a grown total. */
 function topLevelFunctions(rows) {
     return Object.fromEntries(rows.map(row => [row.file, row.ast.body.filter(node => node.type === 'FunctionDeclaration').length]).filter(([, count]) => count > 0));
 }
@@ -185,7 +185,14 @@ function nativeTooltipFailures(rows,html) {
 }
 
 if(require.main===module){
-    if(process.argv.includes('--baseline-from-head')) {
+    if(process.argv.includes('--moved')) {
+        // After a move-only change (scripts/move-block.cjs): only the per-file counts of top-level functions are rewritten, from the
+        // working tree, and only when their total did not grow.
+        const baseline=JSON.parse(fs.readFileSync(baselinePath,'utf8')), next=topLevelFunctions(readSources(false));
+        const sum=counts=>Object.values(counts).reduce((total,count)=>total+count,0);
+        if(sum(next)>sum(baseline.topLevel || {})) {console.error(`top-level functions grew (${sum(baseline.topLevel || {})} -> ${sum(next)}): not a move`);process.exitCode=1;}
+        else fs.writeFileSync(baselinePath,JSON.stringify({...baseline,topLevel:next},null,2)+'\n');
+    } else if(process.argv.includes('--baseline-from-head')) {
         fs.writeFileSync(baselinePath,JSON.stringify(analyze(readSources(true)),null,2)+'\n');
     } else {
         const sources=readSources(false);

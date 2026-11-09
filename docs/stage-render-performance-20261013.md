@@ -255,7 +255,7 @@
 
 ## 느린 기기에서 줄인 세 가지 (2026-10-17)
 2026-10-17 측정(PSTACK 절차, artifacts/pstack-perf-20261017)이 짚은 곳을 고쳤다.
-- 창 검사(js/ui.js isForegroundGameplayPausedForBackground): "창을 열면 전투 일시정지"가 꺼져 있으면 창을 찾지 않는다. 켜져 있으면
+- 창 검사(js/away-settlement-ui.js isForegroundGameplayPausedForBackground): "창을 열면 전투 일시정지"가 꺼져 있으면 창을 찾지 않는다. 켜져 있으면
   창 찾기(isPauseSettingOverlayOpen)를 16ms에 한 번만 한다. 주 루프, 탐험 걸음, 전장 그림이 한 프레임에 여러 번 묻는다.
 - 전투 로그(js/ui.js flushLogQueue): 줄을 150ms마다 모아 붙인다. 최신 줄을 따라가는지는 읽는 사람이 스크롤할 때만 재고
   (log.combatLogAtBottom), 따라가는 동안은 붙이기 전에 높이를 재지 않는다. 이전 줄을 읽는 중이면 예전처럼 재고 되돌린다.

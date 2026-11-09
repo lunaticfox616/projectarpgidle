@@ -155,7 +155,7 @@
                         <button type="button" id="btn-startup-resend-confirmation" disabled class="startup-resend-confirmation" onclick="resendSignupConfirmation()" data-i18n>인증 메일을 못 받았다면 다시 받기</button>
                     </div>
                 </div>
-                <!-- 시작 버튼은 부팅이 저장을 읽은 뒤에 켜진다(js/ui.js updateStartupScreenUI). 그 전에 누르면 빈 새 게임으로 들어갔다. -->
+                <!-- 시작 버튼은 부팅이 저장을 읽은 뒤에 켜진다(js/startup-screen-ui.js updateStartupScreenUI). 그 전에 누르면 빈 새 게임으로 들어갔다. -->
                 <div class="startup-actions-stack two" id="startup-auth-actions">
                     <button id="btn-startup-login" disabled class="startup-primary" onclick="startupLogin()" data-i18n>로그인</button>
                     <button id="btn-startup-signup" disabled class="startup-secondary" aria-controls="startup-signup-consent" aria-expanded="false" onclick="startupSignUp()" data-i18n>회원가입</button>
@@ -1907,6 +1907,9 @@
 <script defer src="js/crafting-stash-ui.js"></script>
 <script defer src="js/crafting-workspace-ui.js"></script>
 <script defer src="js/ui.js"></script>
+<script defer src="js/away-settlement-ui.js"></script>
+<script defer src="js/startup-screen-ui.js"></script>
+<script defer src="js/patch-notes-ui.js"></script>
 <script defer src="js/cloud-save-ui.js"></script>
 <script defer src="js/shop-view-ui.js"></script>
 <script defer src="js/market-ui.js"></script>

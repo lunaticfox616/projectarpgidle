@@ -44,7 +44,7 @@ function readGuestSave() {
 }
 
 /** An account's copy on this device (its slot) as parsed data, whichever slot is active; null when there is none or it cannot be read.
- * The login screen shows it for a signed-in account before the account is entered (js/ui.js startupShownSave). */
+ * The login screen shows it for a signed-in account before the account is entered (js/startup-screen-ui.js startupShownSave). */
 function readAccountSaveCopy(userId) {
     try {
         const raw = userId ? localStorage.getItem(accountSaveKey(userId)) : null;
@@ -55,7 +55,7 @@ function readAccountSaveCopy(userId) {
     }
 }
 
-/** Whether some account's copy is on this device. The login screen says so over an empty guest slot (js/ui.js startupEmptyText), since
+/** Whether some account's copy is on this device. The login screen says so over an empty guest slot (js/startup-screen-ui.js startupEmptyText), since
  * a signed-out player whose session ended, or whose pre-slot save moved out of the guest slot at boot (migrateOwnedGuestSave), otherwise
  * reads "저장된 모험이 없습니다" and takes the save for lost (2026-11-08). */
 function hasAccountSaveCopy() {

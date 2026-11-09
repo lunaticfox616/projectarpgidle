@@ -542,7 +542,7 @@ const atlas = (() => {
     const fragmentIds = (value, limit) => (Array.isArray(value) ? value : []).filter(id => FRAGMENTS.has(id)).slice(0, limit);
     const roomIds = value => [...new Set(Array.isArray(value) ? value : [])].filter(id => typeof id === 'string' && id.length <= 64).slice(0, 100);
     const roomTypes = value => [...new Set(Array.isArray(value) ? value : [])].filter(type => Object.hasOwn(ATLAS.encounters, type));
-    /** Lifetime counts the away result compares (js/ui.js getBackgroundAtlasGains): maps finished, treasure packs and golden ones. */
+    /** Lifetime counts the away result compares (js/away-settlement-ui.js getBackgroundAtlasGains): maps finished, treasure packs and golden ones. */
     function normalizeTally(raw) {
         const count = key => Math.max(0, Math.min(Number.MAX_SAFE_INTEGER, Math.floor(Number(raw && raw[key]) || 0)));
         return { maps: count('maps'), treasure: count('treasure'), golden: count('golden') };
