@@ -1,6 +1,6 @@
 /**
  * 영향 장비와 뒤바뀐 고유(data/item-influences.js). 화면은 js/item-influences-ui.js.
- * item.influence: 'guardian' | 'blight', 그 장비의 추가 옵션 풀에 전용 줄이 더해진다(js/passives.js isModForOrigin).
+ * item.influence: 'guardian' | 'blight', 그 장비의 추가 옵션 풀에 전용 줄이 더해진다(js/item-rolls.js isModForOrigin).
  * baseStats[i].altar: 'red' | 'blue', 제단이 바꾼 베이스 옵션 줄. replaced는 그 자리에 있던 줄.
  * item.swappedUnique: 기억 던전에서 줄 하나가 바뀐 고유. 바뀐 줄은 stats[i].swapped와 replaced.
  */
@@ -129,7 +129,7 @@ const itemInfluences = (() => {
         const influence = bossInfluence(zone);
         return influence && random() < ITEM_INFLUENCE_RULES.fieldChance ? influence : null;
     };
-    /** Every equipment drop (js/passives.js generateEquipmentDrop): a late boss's reward pieces (enemy.atlasInfluence, js/atlas-finds.js)
+    /** Every equipment drop (js/item-rolls.js generateEquipmentDrop): a late boss's reward pieces (enemy.atlasInfluence, js/atlas-finds.js)
      * and now and then its field's drops take its influence; an altar room's pieces sometimes carry the altar's line. */
     function onDrop(item, enemy, zone, random = Math.random) {
         if (!item || item.rarity === 'unique') return item;

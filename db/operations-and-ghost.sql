@@ -433,7 +433,7 @@ as $$
             public.ghost_ehp_for_element(fallback_ehp, enemy_element), 1, 9000000000000000),
         'attackIntervalMs', round(1000 / public.ghost_snapshot_number(snapshot, 'attackSpeed', 1, 0.2, 8)),
         -- 100ms에 걷는 칸(이동 속도 100이면 칸마다 0.6초, 게임의 COMBAT_GRID_CONFIG.playerMoveIntervalSec): 다가갈 때는 추적자의 속도까지
-        -- (js/combat.js getPlayerGridStepSec), 전술로 옮길 때는 이동 속도만(tryPlayerTacticalMove)
+        -- (js/combat-enemy-build.js getPlayerGridStepSec), 전술로 옮길 때는 이동 속도만(tryPlayerTacticalMove)
         'approachStep', public.ghost_snapshot_number(snapshot, 'moveSpeed', 100, 20, 400)
             * (1 + public.ghost_snapshot_number(snapshot, 'pursuitMovePct', 0, 0, 100) / 100) / 600,
         'tacticStep', public.ghost_snapshot_number(snapshot, 'moveSpeed', 100, 20, 400) / 600,
@@ -498,7 +498,7 @@ immutable
 set search_path = public
 as $$
 -- 움직이며 싸우는 대결(2026-10-22 사용자: "실제 전투처럼 (몬스터와 전투하는것처럼) 범위,이동속도 등이 영향이 있도록 서로 움직이면서").
--- 두 고스트는 게임의 주인공처럼 움직인다(js/combat.js updatePlayerGridEngagement). 12칸 줄에서 7칸 떨어져 선다.
+-- 두 고스트는 게임의 주인공처럼 움직인다(js/combat-enemy-build.js updatePlayerGridEngagement). 12칸 줄에서 7칸 떨어져 선다.
 -- - 사거리 밖이면 이동 속도대로 다가간다(추적자 포함). 공격 후딜 동안은 새로 걷지 않고, 다가가도 둘이 한 칸보다 붙지 않는다.
 -- - 주 스킬은 닿지 않고 이동 스킬룬은 닿으면 단번에 제 사거리까지 간다(js/mobility-skill.js). 재사용 대기를 기다리고, 후딜을 끊는다.
 -- - 사거리 안에서는 위치 전술을 쓴다(getPlayerTacticalMovePlan, tryPlayerTacticalMove). 최후방 사격은 2칸 안, 거리 유지는 사거리보다

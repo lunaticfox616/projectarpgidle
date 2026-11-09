@@ -26,7 +26,8 @@ async function openRealms(page) {
         if(uiRefreshQueued||uiRefreshRunning)return false;
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;
     });
-    await page.locator('#exploration-location').getByRole('button',{name:'전체 탐험',exact:true}).click();
+    // 지도 탭은 전체 탐험(세계 지도)으로 바로 열린다(2026-11-09): 예전의 전체 탐험 단추는 없다.
+    await expect(page.locator('#tab-map')).toBeVisible();
 }
 
 

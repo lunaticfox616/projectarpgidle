@@ -1,5 +1,5 @@
-const UNIQUE_HUNT_TARGET_LIMIT = 3;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getUniqueHuntEntryKey(entry) {
     if (!entry || typeof entry.name !== 'string' || !Array.isArray(entry.slots) || !entry.slots[0]) return '';
     return `${entry.slots[0]}|${entry.name}`;
@@ -56,6 +56,11 @@ function completeUniqueHuntTarget(item, targetGame = game) {
     if (targetGame === game) dispatchRuntimeEvent('unique-hunt-changed', { action: 'completed', key });
     return entry;
 }
+
+exposeFileGlobals({ getUniqueHuntEntryKey, getUniqueHuntEntry, ensureUniqueHuntState, getUniqueHuntTargets, toggleUniqueHuntTarget, isUniqueHuntTargetItem, completeUniqueHuntTarget });
+})();
+const UNIQUE_HUNT_TARGET_LIMIT = 3;
+
 
 const uniqueHuntRuntime = Object.freeze({
     limit: UNIQUE_HUNT_TARGET_LIMIT,

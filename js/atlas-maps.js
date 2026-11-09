@@ -102,7 +102,7 @@ const atlasMaps = (() => {
     /** Resolved numbers for a map: zone multipliers, per-enemy mods and the reward bonuses (quantity/rarity %). */
     /** Tiers past the one where loot reaches T20 (data ATLAS.overTier): each adds quantity, rarity and chase odds. */
     const overTiers = tier => Math.max(0, (Number(tier) || 0) - ATLAS.overTier.from);
-    /** Chase-unique odds multiplier of a zone (js/passives.js generateUniqueItem): only atlas maps past ATLAS.overTier.from. */
+    /** Chase-unique odds multiplier of a zone (js/item-rolls.js generateUniqueItem): only atlas maps past ATLAS.overTier.from. */
     const chaseMul = zone => 1 + (zone && zone.type === 'atlasMap' ? overTiers(zone.atlasTier) * ATLAS.overTier.chase / 100 : 0);
     function effects(map) {
         const over = overTiers(map.tier);

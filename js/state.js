@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /**
  * @typedef {object} ActExplorationPendingLoot
  * @property {number} version Schema version (8).
@@ -52,62 +54,6 @@ function enforcePassiveEquipmentRestrictions(state = game) {
     return moved;
 }
 
-// Keeps global compatibility while giving each module a stable anchor.
-window.GameModules = window.GameModules || {};
-window.GameState = window.GameState || {
-  get game() { return window.game; },
-  set game(v) { window.game = v; },
-  get defaultGame() { return window.defaultGame; }
-};
-window.GameModules.state = window.GameState;
-
-/** Compact receipt only; equipment ownership remains in the inventory. Counts are nonnegative integers, pressure 1..10. */
-window.GameModules.state.normalizeTimeRiftResult = function (value) {
-    if (!value || typeof value !== 'object') return null;
-    const numbers = ['id', 'pressure', 'inherited', 'lost', 'season'];
-    if (!numbers.every(key => Number.isSafeInteger(value[key]) && value[key] >= 0)) return null;
-    if (![value.id, value.season, value.pressure].every(number => number > 0)) return null;
-    if (value.pressure > TIME_RIFT_MAX_PRESSURE) return null;
-    if (!Number.isSafeInteger(value.inherited + value.lost)) return null;
-    if (typeof value.name !== 'string' || typeof value.instanceId !== 'string' || !value.instanceId.trim()) return null;
-    return { id: value.id, name: value.name.slice(0, 100), instanceId: value.instanceId.trim().slice(0, 96),
-        pressure: value.pressure, inherited: value.inherited, lost: value.lost, season: value.season };
-};
-
-/** The first-clear reward of a milestone floor. Claim state stays in unlocked rune numbers and deepRewardFloor. */
-window.GameModules.state.underworldMilestoneReward = function (floor) {
-    const rule = UNDERWORLD_DEEP_FLOOR_REWARD;
-    if (!Number.isSafeInteger(floor) || floor < 10) return null;
-    if (floor <= rule.fromFloor) {
-        if (floor % 10 !== 0) return null;
-        return { floor, slots: Math.min(6, floor / 10), rune: UNDERWORLD_RUNE_DB.find(row => row.no === floor / 10), currencies: {} };
-    }
-    const depth = floor - rule.fromFloor;
-    if (depth % rule.every !== 0) return null;
-    return { floor, slots: 0, rune: null, currencies: {
-        runeShard: Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth),
-        underGold: Math.floor(rule.underGold[0] + rule.underGold[1] * depth)
-    } };
-};
-
-// The foreground queue projects durable tutorialHistory records; queuing is not reading.
-let tutorialQueue = [];
-// 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
-// 다시 띄웠다(검토 5차).
-const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear', unlock_char: 'tutorial_first_passive' });
-/** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
-function queueTutorialNotice(key, title, body, tabId, target) {
-    if (game.isBackgroundCalculation) return;
-    const opening = typeof contentProgression === 'object' ? contentProgression.opening : null;
-    const inline = opening?.inlineNotice(game, key);
-    if (inline && !opening.canOpen(game, tabId)) return;
-    const extra = target && typeof target === 'object' ? target : { subtabId: target };
-    const notice = { ...extra, key, title, body, tabId };
-    window.GameModules.state.tutorials.enqueue(game, notice);
-    if (inline) {
-        window.GameModules.state.tutorials.archivePending(game, key);
-    }
-}
 /** A notice about content bought in 해금 (talent, …): before it is bought, the card says where to buy it and
  * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */
 function queueContentNotice(key, title, contentId, bodies, route) {
@@ -127,62 +73,22 @@ function formatStoryActLabel(storyAct) {
     if (!storyAct) return _t('액트 ?');
     return storyAct.displayAct === '엔드게임' ? _t('엔드게임') : _t('액트 {n}', { n: storyAct.displayAct });
 }
+
 function getStoryActByZoneId(zoneId) {
     if (!Number.isFinite(zoneId)) return null;
     return STORY_ACTS[zoneId] || null;
 }
+
 function getStoryActByOrder(order) {
     return STORY_ACTS.find(act => act.order === order) || null;
 }
+
 function getActZoneDisplayName(zoneId) {
     let act = getStoryActByZoneId(zoneId);
     if (!act) return `액트 ${zoneId + 1}`;
     return `${formatStoryActLabel(act)}: ${act.title}`;
 }
 
-const ACT_ZONE_COUNT = STORY_ACTS.length;
-const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;
-const ABYSS_START_ZONE_ID = ACT_ZONE_COUNT;
-const OUTSIDE_CHAOS_ZONE_ID = 'outside_chaos_woodsman';
-const CHAOS_REALM_ZONE_ID = 'chaos_realm';
-const SKY_TOWER_ZONE_ID = 'sky_tower';
-const WOODSMAN_ECHO_ZONE_ID = 'woodsman_echo_challenge';
-const UNDERWORLD_ZONE_ID = 'underworld_core';
-
-const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
-    id: idx,
-    name: getActZoneDisplayName(idx),
-    type: 'act',
-    tier: act.tier,
-    maxKills: act.maxKills,
-    ele: act.ele,
-    storyActId: act.id,
-    storyOrder: act.order
-}));
-
-const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 19, 20];
-for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos", depth: i });
-
-
-const CHAOS_REALM_DEFAULT_BONUSES = { pctDmg: 0, move: 0, pctHp: 0, resChaos: 0, resPen: 0, crit: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, critDmg: 0, aspd: 0 };
-const ABYSS_ENDLESS_STEEP_FLOOR_HP_MUL = 1.198;
-const ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR = 0.0385;
-const CHAOS_REALM_AFFIX_POOL = [
-    { id: 'elemental_wall', name: '원소 장벽', desc: '화염/냉기/번개 저항 대폭 증가' },
-    { id: 'iron_bark', name: '철갑 껍질', desc: '방어도와 물리 피해 감소 증가' },
-    { id: 'mirage_step', name: '환영 보법', desc: '회피 대폭 증가' },
-    { id: 'soul_shell', name: '혼백 보호막', desc: '생명력 100%만큼 에너지 보호막 보유' },
-    { id: 'projectile_dampening', name: '투사체 굴절', desc: '투사체 피해 반감' },
-    { id: 'spell_dampening', name: '주문 왜곡', desc: '주문 피해 반감' },
-    { id: 'blood_drinker', name: '흡혈', desc: '적 공격 시 생명력 흡수' },
-    { id: 'bloodless', name: '무혈', desc: '플레이어 흡혈 효율 대폭 감소' },
-    { id: 'curse_blade', name: '저주의 검', desc: '공격력과 관통 증가' },
-    { id: 'curse_immune', name: '저주 면역', desc: '저주 적용 불가' },
-    { id: 'phys_dampening', name: '물리 반감', desc: '물리 최종 피해 반감' },
-    { id: 'deadly_crit', name: '치명적 본능', desc: '치명타 확률/피해 증가' },
-    { id: 'multi_strike', name: '연속타격', desc: '추가 타격 확률' },
-    { id: 'deep_penetration', name: '심층 관통', desc: '저항 관통 증가' }
-];
 function createDefaultChaosRealmState() {
     return {
         unlocked: false,
@@ -193,6 +99,7 @@ function createDefaultChaosRealmState() {
         permanentBonuses: { ...CHAOS_REALM_DEFAULT_BONUSES }
     };
 }
+
 function ensureChaosRealmState() {
     let st = (game && game.chaosRealm && typeof game.chaosRealm === 'object') ? game.chaosRealm : (game.chaosRealm = createDefaultChaosRealmState());
     st.unlocked = !!st.unlocked;
@@ -205,16 +112,19 @@ function ensureChaosRealmState() {
     if (st.unlocked && st.highestFloor < 1) st.highestFloor = 1;
     return st;
 }
+
 function getChaosRealmTier(floor) {
     let safeFloor = Math.max(1, Math.floor(floor || 1));
     return 30 + Math.floor((safeFloor - 1) * 0.85) + Math.floor(Math.max(0, safeFloor - 10) * 0.18);
 }
+
 function getUnderworldTier(floor) {
     let safeFloor = Math.max(1, Math.floor(Number(floor) || 1));
     let deepFloor = UNDERWORLD_DIFFICULTY_CONFIG.deepDamageThroughFloor;
     let tierGain = Math.max(0, safeFloor - deepFloor) * UNDERWORLD_DIFFICULTY_CONFIG.tierGainPerFloorAfterDeep;
     return getChaosRealmTier(30) + tierGain;
 }
+
 function getUnderworldGravityActionMultiplier(floor, reductionPct) {
     let safeFloor = Math.max(1, Math.floor(Number(floor) || 1));
     let reduction = Math.max(0, Math.min(75, Number(reductionPct) || 0)) / 100;
@@ -223,6 +133,7 @@ function getUnderworldGravityActionMultiplier(floor, reductionPct) {
     let deepMultiplier = Math.pow(1 - UNDERWORLD_DIFFICULTY_CONFIG.gravityActionLossPerFloorAfterDeep, deepFloors);
     return Math.max(0.0001, (1 - baseSlow) * deepMultiplier);
 }
+
 /** Base HP loss per 100 ms, before conditional talent mitigation and temporary shields. */
 function getUnderworldLifeDrainPerTick(maxHp, floor, reductionPct) {
     if (floor < 15) return 0;
@@ -230,6 +141,7 @@ function getUnderworldLifeDrainPerTick(maxHp, floor, reductionPct) {
     const mitigation = 1 - Math.max(0, Math.min(75, Number(reductionPct) || 0)) / 100;
     return Math.max(1, Math.floor((maxHp || 1) * fraction * mitigation));
 }
+
 function getChaosRealmAffixCount(floor) {
     let safeFloor = Math.max(1, Math.floor(floor || 1));
     if (safeFloor >= 35) return 5 + Math.floor((safeFloor - 35) / 20);
@@ -238,9 +150,11 @@ function getChaosRealmAffixCount(floor) {
     if (safeFloor >= 5) return 2;
     return 1;
 }
+
 function getChaosRealmAffixScale(floor) {
     return 1 + Math.floor(Math.max(1, Math.floor(floor || 1)) / 10) * 0.25;
 }
+
 function getChaosRealmAffixes(floor) {
     let safeFloor = Math.max(1, Math.floor(floor || 1));
     let count = Math.min(CHAOS_REALM_AFFIX_POOL.length, getChaosRealmAffixCount(safeFloor));
@@ -258,9 +172,11 @@ function hasCurrentLoopChaos20Clear(source) {
     return !!(state && state.loopProgressCurrent && state.loopProgressCurrent.chaos20Cleared)
         || (Array.isArray(state && state.abyssClearedDepths) && state.abyssClearedDepths.map(v => Math.floor(v || 0)).includes(20));
 }
+
 function canEnterChaosRealm() {
     return !!ensureChaosRealmState().unlocked && hasCurrentLoopChaos20Clear();
 }
+
 function getUnderworldEntryLockReason(source) {
     let state = source || game;
     let chaosRealm = state && state.chaosRealm;
@@ -274,9 +190,11 @@ function getUnderworldEntryLockReason(source) {
     if (labFloor < 100) return `고대 미궁 100층 필요 (현재 ${labFloor})`;
     return '';
 }
+
 function canEnterUnderworld() {
     return getUnderworldEntryLockReason(game) === '';
 }
+
 function isUnderworldUnlockReady(source) {
     let state = source || game;
     let progress = state && state.underworldProgress;
@@ -291,6 +209,7 @@ function isUnderworldUnlockReady(source) {
     return !!(chaosRealm && chaosRealm.unlocked) && rootBosses.includes('s6_beast_cerberus')
         && getHighestUnlockedEndlessChaosDepth(state) >= 30 && labFloor >= 100;
 }
+
 function isCosmosContentUnlockReady(source) {
     let state = source || game;
     let atlas = state && state.cosmosAtlas;
@@ -349,25 +268,6 @@ function getMapPrimaryContentEntryCondition(contentId, source) {
     return '';
 }
 
-
-const OCEAN_PERMANENT_UPGRADE_DEFS = {
-    oxygenMax: { label: '산소 최대치', maxLevel: 20, valuePerLevel: 10, unit: '' },
-    oxygenSaving: { label: '산소 소모 감소', maxLevel: 20, valuePerLevel: 3, unit: '%' },
-    pressureResist: { label: '수압 패널티 감소', maxLevel: 20, valuePerLevel: 4, unit: '%' }
-};
-const OCEAN_PERMANENT_UPGRADE_KEYS = Object.keys(OCEAN_PERMANENT_UPGRADE_DEFS);
-const OCEAN_STATE_FISH_KEYS = Object.freeze(Object.keys(OCEAN_FISH_DB));
-const OCEAN_COLLECTION_REQUIRED_COUNTS = Object.freeze(OCEAN_FISH_COLLECTION_MILESTONES.map(row => row.required));
-const OCEAN_NORMALIZED_FISHING_STATES = new WeakSet();
-
-const OCEAN_CURRENT_POOL = [
-    { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현, 냉기 저항 -12' },
-    { id: 'warm_current', name: '온수층', desc: '화염 적 출현, 화염 저항 -12' },
-    { id: 'riptide', name: '역류', desc: '이동 속도 15% 감폭' },
-    { id: 'bioluminescence', name: '발광 생물군', desc: '정확도 18% 감폭' },
-    { id: 'still_water', name: '정체수', desc: '산소 시간 소모 35% 증가' },
-    { id: 'school_of_fish', name: '물고기 떼', desc: '낚시 게이지 획득 50% 증가' }
-];
 function getOceanCurrentAffixes(depthTier) {
     let safeTier = Math.max(0, Math.floor(depthTier || 0));
     let count = Math.min(OCEAN_CURRENT_POOL.length, 1 + Math.floor(safeTier / 3));
@@ -379,13 +279,16 @@ function getOceanCurrentAffixes(depthTier) {
     }
     return out;
 }
+
 function hasOceanCurrent(zone, currentId) {
     return !!(zone && Array.isArray(zone.currents) && zone.currents.some(current => current && current.id === currentId));
 }
+
 // 웨이브의 몬스터 수: 12마리부터 웨이브마다 2마리, 최대 36마리(2026-10-23 사용자: 방어전도 원래 수로)
 function getColonyWaveEnemyCount(wave) {
     return Math.max(12, Math.min(36, 10 + Math.max(1, Math.floor(wave || 1)) * 2));
 }
+
 function createDefaultOceanState() {
     return {
         unlocked: false,
@@ -407,7 +310,7 @@ function createDefaultOceanState() {
         bossClearM: 0,
         // 쓰러뜨린 몬스터가 쌓았지만 아직 내려가지 않은 거리(m, js/passives.js tickOceanDepth)
         descentPendingM: 0,
-        // 자동 재잠수(js/combat.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'guardian' | 'defeat' | 'manual' | ''),
+        // 자동 재잠수(js/combat-kill-rewards.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'guardian' | 'defeat' | 'manual' | ''),
         // 잠수를 시작할 때의 소득 기록(getOceanDiveRecord), 소득 없이 떠오른 잠수가 이어진 수. 떠오르면 돌아갈 사냥터(잠수를
         // 시작한 액트나 혼돈 구역 id, 없으면 null)와 이 잠수가 자동 재잠수로 들어왔는지
         lastSurfaceReason: '',
@@ -418,49 +321,26 @@ function createDefaultOceanState() {
         permanentUpgrades: { oxygenMax: 0, oxygenSaving: 0, pressureResist: 0 }
     };
 }
+
 function getOceanPermanentUpgradeLevel(key) {
     let upgrades = (game && game.ocean && game.ocean.permanentUpgrades && typeof game.ocean.permanentUpgrades === 'object') ? game.ocean.permanentUpgrades : {};
     let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
     if (!def) return 0;
     return Math.max(0, Math.min(def.maxLevel, Math.floor(upgrades[key] || 0)));
 }
+
 function getOceanPermanentUpgradeEffect(key) {
     let def = OCEAN_PERMANENT_UPGRADE_DEFS[key];
     if (!def) return 0;
     return getOceanPermanentUpgradeLevel(key) * def.valuePerLevel;
 }
+
 function ensureOceanPermanentUpgrades(st) {
     st.permanentUpgrades = (st.permanentUpgrades && typeof st.permanentUpgrades === 'object') ? st.permanentUpgrades : {};
     OCEAN_PERMANENT_UPGRADE_KEYS.forEach(key => {
         st.permanentUpgrades[key] = Math.max(0, Math.min(OCEAN_PERMANENT_UPGRADE_DEFS[key].maxLevel, Math.floor(st.permanentUpgrades[key] || 0)));
     });
 }
-const normalizeOceanFishingProgress = function (st) {
-    st.fishStock = (st.fishStock && typeof st.fishStock === 'object' && !Array.isArray(st.fishStock)) ? st.fishStock : {};
-    let hasCaughtHistory = !!(st.fishCaughtTotal && typeof st.fishCaughtTotal === 'object' && !Array.isArray(st.fishCaughtTotal));
-    let caught = hasCaughtHistory ? st.fishCaughtTotal : st.fishStock;
-    if (!hasCaughtHistory) st.fishCaughtTotal = {};
-    OCEAN_STATE_FISH_KEYS.forEach(key => {
-        let stock = Math.max(0, Math.floor(Number(st.fishStock[key]) || 0));
-        let total = Math.max(0, Math.floor(Number(caught[key]) || 0));
-        st.fishStock[key] = stock;
-        st.fishCaughtTotal[key] = Math.max(stock, total);
-    });
-    let claims = st.claimedCollectionMilestones;
-    let validClaims = Array.isArray(claims) && claims.every((value, index) => Number.isInteger(value)
-        && OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value) && claims.indexOf(value) === index);
-    if (!validClaims) {
-        let sourceClaims = Array.isArray(claims) ? claims : [];
-        st.claimedCollectionMilestones = Array.from(new Set(sourceClaims.map(value => Math.floor(value || 0))))
-            .filter(value => OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value));
-    }
-    if (!st.lastCatch || !OCEAN_FISH_DB[st.lastCatch.key]) st.lastCatch = null;
-    else {
-        st.lastCatch.at = Math.max(0, Math.floor(st.lastCatch.at || 0));
-        st.lastCatch.guaranteed = !!st.lastCatch.guaranteed;
-    }
-    OCEAN_NORMALIZED_FISHING_STATES.add(st);
-};
 
 function mergeOceanState(savedOcean) {
     let source = savedOcean && typeof savedOcean === 'object' && !Array.isArray(savedOcean) ? savedOcean : {};
@@ -496,6 +376,7 @@ function ensureOceanState() {
     if (!st.unlocked && (game.season || 1) >= OCEAN_UNLOCK_LOOP) st.unlocked = true;
     return st;
 }
+
 /** 잠수 기록(createDefaultOceanState): 아직 내려가지 않은 하강 거리(잠수 중에만), 그리고 자동 재잠수가 읽는 떠오른 까닭, 시작할 때의
  * 소득 기록, 소득 없이 떠오른 수. */
 function normalizeOceanDiveRecord(st) {
@@ -508,19 +389,24 @@ function normalizeOceanDiveRecord(st) {
     st.returnZoneId = Number.isInteger(back) || (typeof back === 'string' && back !== '') ? back : null;
     st.autoDive = st.autoDive === true;
 }
+
 function canEnterOceanDepth() {
     return !!ensureOceanState().unlocked;
 }
+
 function getOceanOxygenMax() {
     // 산소 최대치는 영구 심해 업그레이드로만 증가합니다.
     return 100 + getOceanPermanentUpgradeEffect('oxygenMax');
 }
+
 function getOceanOxygenSavingPct() {
     return Math.max(0, Math.min(60, getOceanPermanentUpgradeEffect('oxygenSaving')));
 }
+
 function getOceanPressureResistUpgradePct() {
     return Math.max(0, Math.min(80, getOceanPermanentUpgradeEffect('pressureResist')));
 }
+
 function getOceanOxygenDrainPerSec() {
     // 산소 소모는 시간 기반입니다. 이동 속도는 더 이상 산소 소모를 늘리지 않습니다
     // (이속이 높을수록 도달 수심이 오히려 줄어들던 역설을 제거).
@@ -532,18 +418,22 @@ function getOceanOxygenDrainPerSec() {
     if (getOceanCurrentAffixes(depthTier).some(current => current.id === 'still_water')) pressureDrainMul *= 1.35;
     return Math.max(0.1, base * pressureDrainMul);
 }
+
 function getOceanOxygenPerAttackCost() {
     // 산소는 잠수 시간으로만 소모한다. 타격당 비용은 공속 10 빌드를 같은 DPS의
     // 느린 빌드보다 열 배 불리하게 만들어 심해 진행 자체를 막았으므로 폐지했다.
     return 0;
 }
+
 function getOceanDepthTier(depthM) {
     return Math.floor(Math.max(0, Math.floor(depthM || 0)) / 100);
 }
+
 function getOceanBossBoundaryInterval() {
     // 심해 가디언(보스)이 등장하는 수심 간격(m).
     return 500;
 }
+
 function getOceanPendingBossBoundary(st) {
     // 다음 보스 경계에 도달했고 아직 처치하지 않았다면 그 경계 수심을 반환한다(없으면 0).
     if (!st) return 0;
@@ -552,12 +442,14 @@ function getOceanPendingBossBoundary(st) {
     let nextBoundary = Math.floor(cleared / interval) * interval + interval;
     return (Math.floor(Math.max(0, Number(st.depthM) || 0)) >= nextBoundary) ? nextBoundary : 0;
 }
+
 /** 잠수의 소득을 재는 기록: 열린 리프트와 쓰러뜨린 가디언의 수심 합에 낚은 물고기 수를 더한다(모두 줄지 않는다). 잠수를 시작할 때와
  * 떠오를 때를 견준다. 막힌 가디언 앞에서 얕게 도는 자동 재잠수는 물고기로 소득을 낸다. */
 function getOceanDiveRecord(st) {
     const caught = Object.values(st.fishCaughtTotal || {}).reduce((sum, count) => sum + Math.max(0, Math.floor(Number(count) || 0)), 0);
     return Math.max(0, Math.floor(st.checkpointM || 0)) + Math.max(0, Math.floor(st.bossClearM || 0)) + caught;
 }
+
 function getOceanFishingGaugeGainMul() {
     let st = ensureOceanState();
     return 1 + Math.max(0, Math.min(10, st.reefInstalled || 0)) * 0.15;
@@ -577,6 +469,7 @@ function createDefaultSkyTowerState() {
         gemBoosts: {}
     };
 }
+
 function ensureSkyTowerState() {
     let st = (game && game.skyTower && typeof game.skyTower === 'object') ? game.skyTower : (game.skyTower = createDefaultSkyTowerState());
     let currentSeason = Math.max(1, Math.floor((game && game.season) || 1));
@@ -604,7 +497,9 @@ function ensureSkyTowerState() {
     if (!st.unlocked && (currentSeason > 15 || (currentSeason >= 15 && hasCurrentLoopChaos20Clear()))) st.unlocked = true;
     return st;
 }
+
 function getSkyTowerLoopClearLimit() { return 25; }
+
 /** Display-only receipt for this loop; loading it never grants its reward again. */
 function normalizeSkyTowerResult(result, season) {
     if (!result || result.season !== season || !Number.isSafeInteger(result.floor) || result.floor < 1
@@ -612,13 +507,16 @@ function normalizeSkyTowerResult(result, season) {
         || !['first', 'repeat', 'practice'].includes(result.kind)) return null;
     return { season, floor: result.floor, kind: result.kind, condensedPower: result.condensedPower };
 }
+
 function getSkyTowerRemainingClears() {
     let st = ensureSkyTowerState();
     return Math.max(0, getSkyTowerLoopClearLimit() - Math.max(0, Math.floor(st.clearedThisLoop || 0)));
 }
+
 function isSkyTowerAtRewardLimit(zone) {
     return zone?.type === 'skyTower' && getSkyTowerRemainingClears() === 0;
 }
+
 function hasCurrentLoopChaosAccess(source) {
     let state = source || game;
     if (hasCurrentLoopChaos20Clear(state)) return true;
@@ -629,6 +527,7 @@ function hasCurrentLoopChaosAccess(source) {
     let currentDepth = typeof state.currentZoneId !== 'string' ? getAbyssDepthFromZoneId(state.currentZoneId) : 0;
     return currentDepth >= 1;
 }
+
 function maybeUnlockSkyTowerFromChaos20() {
     let st = ensureSkyTowerState();
     if (!st.unlocked && (game.season || 1) >= 15 && hasCurrentLoopChaos20Clear()) {
@@ -638,33 +537,42 @@ function maybeUnlockSkyTowerFromChaos20() {
     }
     return false;
 }
+
 function canEnterSkyTower() {
     let st = ensureSkyTowerState();
     return !!st.unlocked && hasCurrentLoopChaosAccess();
 }
+
 function getSkyTowerTier(floor) {
     let safeFloor = Math.max(1, Math.floor(floor || 1));
     return 48 + Math.floor((safeFloor - 1) * 0.38);
 }
+
 function getSkyTowerRewardAmount(floor) {
     let safeFloor = Math.max(1, Math.floor(floor || 1));
     return 3 + Math.floor(safeFloor / 5);
 }
+
 function getSkyStoneMaxLevel() { return 15; }
+
 function getSkyStoneReductionPct() {
     let st = ensureSkyTowerState();
     return Math.max(0, Math.min(75, Math.floor(((st.skyStone || {}).level || 0) * 5)));
 }
+
 function getSkyStoneNextCost() {
     let st = ensureSkyTowerState();
     let lv = Math.max(0, Math.floor(((st.skyStone || {}).level || 0)));
     return 20 + lv * 10 + Math.floor(lv * lv * 2);
 }
+
 function getSkyTowerGemBoostMaxLevel() { return 3; }
+
 function getSkyTowerGemBoostLevel(skillName) {
     let st = ensureSkyTowerState();
     return Math.max(0, Math.min(getSkyTowerGemBoostMaxLevel(), Math.floor((st.gemBoosts || {})[skillName] || 0)));
 }
+
 function getSkyTowerGemBoostCost(skillName) {
     let lv = getSkyTowerGemBoostLevel(skillName);
     return [60, 120, 240][lv] || 999999;
@@ -693,17 +601,6 @@ function getTimeRiftEquivalentChaosDepth(pressure) {
 function getTimeRiftFixedSeason(pressure) {
     return getTimeRiftEquivalentChaosDepth(pressure) - TIME_RIFT_LOOP_BEHIND_DEPTH;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 function getMeteorSiteUnlockReady() {
     return (game.season || 1) >= METEOR_SITE_UNLOCK_LOOP && (game.maxZoneId || 0) >= METEOR_SITE_UNLOCK_ACT;
@@ -906,20 +803,7 @@ function createColonyZone(state) {
 function getUnderworldZone(floor) {
     return { id: UNDERWORLD_ZONE_ID, name: `지하계 ${floor}층`, type: 'underworld', tier: getUnderworldTier(floor), maxKills: 1, ele: 'chaos', floor, ...contentMaps.underworld(floor) };
 }
-/** The zone of id: a run zone, a floor zone (at its current floor or depth), a trial or root boss, a chaos depth, else a map zone.
- * Split into these groups on 2026-10-18. */
-function getZone(id) {
-    let zone = getRunZone(id);
-    if (zone === undefined) zone = getFloorZone(id);
-    if (zone !== undefined) return zone;
-    if (typeof id === 'string') {
-        if (id.startsWith('trial_')) return contentMaps.trialCorridor(TRIAL_ZONES.find(t => t.id === id));
-        let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
-        if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
-    }
-    if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) return getChaosDepthZone(id);
-    return MAP_ZONES[id];
-}
+
 /** The zones of runs that leave the map: atlas map, cosmos challenge (undefined when none is set up), boundary, hive, colony, grand
  * breach, outside chaos, woodsman echo. Undefined for any other id. */
 function getRunZone(id) {
@@ -942,6 +826,7 @@ function getRunZone(id) {
     if (id === WOODSMAN_ECHO_ZONE_ID) return contentMaps.withRooms({ id: WOODSMAN_ECHO_ZONE_ID, name: '나무꾼의 잔상', type: 'woodsmanEcho', bossVisualId: 'woodsman_echo', tier: getChaosRealmTier(30), maxKills: 1, ele: 'chaos' });
     return undefined;
 }
+
 /** The zones with floors or depths, at the current one: chaos realm, sky tower, time rift (past or future), underworld, meteor site,
  * ocean, labyrinth. Undefined for any other id. */
 function getFloorZone(id) {
@@ -954,25 +839,29 @@ function getFloorZone(id) {
     if (id === LABYRINTH_ZONE_ID) return getLabyrinthZoneNow();
     return undefined;
 }
+
 function getUnderworldZoneNow() {
     let uw = (game && game.underworldProgress) || {};
     let floor = Math.max(1, Math.floor(uw.currentFloor || 1));
     return getUnderworldZone(floor);
 }
+
 function getChaosRealmZoneNow() {
     let realm = ensureChaosRealmState();
     let floor = Math.max(1, Math.floor(realm.currentFloor || 1));
     return { id: CHAOS_REALM_ZONE_ID, name: `혼돈계 ${floor}층`, type: 'chaosRealm', tier: getChaosRealmTier(floor), maxKills: 1, ele: 'chaos', floor: floor, affixes: getChaosRealmAffixes(floor), ...contentMaps.chaosRealm(floor) };
 }
+
 function getSkyTowerZoneNow() {
     let st = ensureSkyTowerState();
     let floor = Math.max(1, Math.floor(st.currentFloor || 1));
     return { id: SKY_TOWER_ZONE_ID, name: `창공의 탑 ${floor}층`, type: 'skyTower', tier: getSkyTowerTier(floor), maxKills: 1, ele: 'chaos', floor: floor, ...contentMaps.skyTower(floor) };
 }
+
 function getTimeRiftZone(id) {
     let rift = ensureTimeRiftState();
     let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
-    // 시간압이 유일한 난이도 손잡이: 세계수 아틀라스 지도처럼 그 혼돈 깊이 · 고정 루프의 몬스터다(js/combat.js getLoopDifficultyInputs,
+    // 시간압이 유일한 난이도 손잡이: 세계수 아틀라스 지도처럼 그 혼돈 깊이 · 고정 루프의 몬스터다(js/combat-enemy-build.js getLoopDifficultyInputs,
     // getAbyssMonsterScales). 지역 레벨도 아틀라스와 같은 셈(깊이 2마다 3, data/atlas.js)이다. 미래는 같은 시간압에서 생명력이 18% 더 많다.
     let activePressure = game.currentZoneId === id && rift.activePressure ? rift.activePressure : rift.pressure;
     let depth = getTimeRiftEquivalentChaosDepth(activePressure);
@@ -981,6 +870,7 @@ function getTimeRiftZone(id) {
         fixedSeason: getTimeRiftFixedSeason(activePressure), equivalentDepth: depth, equivalentChaosDepth: depth, areaLevel: areaLevel, mapHpMul: phase === 'past' ? 1 : 1.18,
         pressure: activePressure, ...contentMaps.timeRift(phase, activePressure) };
 }
+
 /** 운석 낙하 지점에 떨어질 운석(data/maps.js METEOR_KINDS, meteorSite.kind)의 속성과 그 지역 이름. 아직 정해지지 않았으면 예전의
  * 불타는 운석으로 보이고 이름에 붙이지 않는다. */
 function meteorSiteKind(star) {
@@ -988,6 +878,7 @@ function meteorSiteKind(star) {
     return { id: kind.id, ele: kind.ele, bossHpMul: kind.bossHpMul || 1, extraEquipment: kind.extraEquipment || 0,
         zoneName: decided ? `운석 낙하 지점 (${decided.name})` : '운석 낙하 지점' };
 }
+
 function getMeteorSiteZone() {
     let star = (game && game.meteorSite) || {};
     let allowBeyond20 = !!star.skyRiftAllCosmos;
@@ -1010,12 +901,14 @@ function getMeteorSiteZone() {
             : contentMaps.arena('meteor', 'ruins')
     };
 }
+
 function getOceanZoneNow() {
     let ocean = ensureOceanState();
     let depthM = Math.max(0, Math.floor(ocean.depthM || 0));
     let depthTier = getOceanDepthTier(depthM);
     return contentMaps.withRooms({ id: OCEAN_ZONE_ID, name: `심해 ${depthM}m`, type: 'oceanDepth', tier: getChaosRealmTier(21) + depthTier, maxKills: 1, ele: 'chaos', depthM: depthM, depthTier: depthTier, currents: getOceanCurrentAffixes(depthTier) });
 }
+
 function getLabyrinthZoneNow(requestedFloor = game.labyrinthFloor) {
     let floor = Math.max(1, Math.floor(requestedFloor || 1));
     let baseTier = Math.min(20, 7 + Math.floor(floor / 3));
@@ -1024,6 +917,7 @@ function getLabyrinthZoneNow(requestedFloor = game.labyrinthFloor) {
     let extraTier = Math.floor(over50 / 5) + Math.floor(over100 / 3);
     return { id: LABYRINTH_ZONE_ID, name: `고대 미궁 ${floor}층`, type: 'labyrinth', bossVisualId: 'labyrinth_guardian', tier: baseTier + extraTier, maxKills: 1, ele: 'chaos', floor: floor, exploration: contentMaps.labyrinth(floor) };
 }
+
 function getChaosDepthZone(id) {
     let depth = getAbyssDepthFromZoneId(id);
     let displayDepth = depth;
@@ -1060,6 +954,7 @@ function getTimeRiftOptionKeepChance(pressure, keptSoFar = 0) {
     let p = Math.max(1, Math.min(TIME_RIFT_MAX_PRESSURE, Math.floor(pressure || 1)));
     return (keptSoFar < TIME_RIFT_KEEP_CAP ? TIME_RIFT_OPTION_KEEP : TIME_RIFT_OPTION_KEEP_PAST_CAP)[p - 1];
 }
+
 /** Odds of losing 0..count rare options at a pressure, index = options lost, sum 1. The options roll one after another; once
  * TIME_RIFT_KEEP_CAP have survived, the rest roll the lower chance (getTimeRiftOptionKeepChance). */
 function getTimeRiftLossOdds(pressure, count = 6) {
@@ -1075,6 +970,7 @@ function getTimeRiftLossOdds(pressure, count = 6) {
     }
     return kept.map((_, lost) => kept[n - lost]);
 }
+
 /** A fusion's grade from the options it lost: perfect (none), normal (half or fewer), unstable (more than half). */
 function getTimeRiftFusionGrade(lost, count) {
     if (lost <= 0) return 'perfect';
@@ -1088,14 +984,13 @@ function getSeasonAbyssDepthCap(seasonValue) {
     return Math.min(LOOP_GATE_ABYSS_DEPTH_CAP, uncapped);
 }
 
-const loopGateDepthName = cap => `${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap}`;
-const hasLoopGateCosmosPath = seasonValue => Math.max(1, Math.floor(seasonValue || 1)) >= LOOP_GATE_ALT_START_SEASON;
 /** The loop condition as a label (the unlock list, the loop milestones): from loop 31 each path and the loop it opens. */
 function getLoopAbyssRequirementText(seasonValue) {
     let depth = loopGateDepthName(getSeasonAbyssDepthCap(seasonValue));
     if (!hasLoopGateCosmosPath(seasonValue)) return `루프 조건: ${depth} 클리어`;
     return `루프 조건(이번 루프 안): ${depth} 클리어는 혼돈 루프, 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파는 우주계 루프`;
 }
+
 /** The sentence when the loop condition is not met yet (혼돈 밖, going on to the next loop). */
 function getLoopAbyssRequirementPrompt(seasonValue) {
     let cosmos = hasLoopGateCosmosPath(seasonValue) ? `나 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파` : '';
@@ -1182,6 +1077,7 @@ function getContentReturnZoneId(state = game) {
     const id = state.currentZoneId;
     return typeof id !== 'string' || getFloorZone(id) !== undefined ? id : getAutoProgressZoneId(state.maxZoneId);
 }
+
 function getAutoProgressZoneId(fallbackZoneId) {
     if ((game.season || 1) < 10 || !hasCurrentLoopChaos20Clear()) return fallbackZoneId;
     let depth = getLoopDeepChaosFrontierDepth();
@@ -1189,8 +1085,6 @@ function getAutoProgressZoneId(fallbackZoneId) {
     ensureNextEndlessChaosDepthUnlocked(depth - 1);
     return getAbyssZoneIdForDepth(depth);
 }
-
-
 
 // 세계수 아틀라스 지도는 등급이, 시간의 균열은 시간압이 정한 혼돈 깊이 · 루프에서 같은 배율을 받는다(js/atlas.js buildZone, getTimeRiftZone).
 function getAbyssMonsterScales(zone) {
@@ -1230,9 +1124,6 @@ function getChaosDepthScales(endlessDepth) {
         mapLengthMul: 1
     };
 }
-
-const ENDLESS_CONTENT_DROP_MULTIPLIER_CAP = 2.25;
-const UNDERWORLD_DROP_RATE_MULTIPLIER = 0.5;
 
 /**
  * 콘텐츠 자체의 기본 전리품 빈도 보정이다. 플레이어·티어 보너스와 분리한다.
@@ -1351,6 +1242,7 @@ function getWorldTreeBarkLayers(season) {
 function getWorldTreeBarkReach(owner) {
     return Math.min(WORLD_TREE_BARK.maxZones, WORLD_TREE_BARK.baseZones + Math.max(0, Math.floor(Number((owner.worldTreeBark || {}).reach) || 0)));
 }
+
 /** 껍질 포인트 earned: the loops from the start loop on, the pinnacles' first kills (the journal), the act 10 time goals reached. None before the start loop. */
 function getWorldTreeBarkEarned(owner) {
     const rule = WORLD_TREE_BARK.points, loop = Math.max(1, Math.floor(Number(owner.season) || 1));
@@ -1359,6 +1251,7 @@ function getWorldTreeBarkEarned(owner) {
     return rule.start + (loop - rule.startLoop) * rule.perLoop + PINNACLE_FIRST_KILL_JOURNALS.filter(id => journal.includes(id)).length * rule.pinnacle
         + (Array.isArray(goals) ? goals.length : 0) * rule.actTenGoal;
 }
+
 /** Load boundary. The points in each stat within its cap, and within what the save has earned. timeGoals: the act 10 goals reached, in minutes; a save from before
  * them starts from its best recorded time, whatever way that clear was made (js/world-tree-bark.js noteActTenClear counts only clears in play from then on). */
 function normalizeWorldTreeBark(raw, owner) {
@@ -1393,17 +1286,17 @@ function allocateLoopDeepStat(statKey) {
     updateStaticUI();
 }
 
-// 전직 정의(CLASS_TEMPLATES · CLASS_KEYSTONE_PICK_LIMIT · CLASS_KEYSTONE_DEFS)는 data/ascendancies.js로 옮겼다(2026-10-02).
-
 /** 직업마다 고를 수 있는 전직 셋(data/ascendancies.js, 2026-10-02 전직 18종). 모르는 직업이면 전부. */
 function getAscendanciesForClass(classId) {
     const list = ASCENDANCIES_BY_PLAYER_CLASS[classId];
     return list ? list.slice() : Object.keys(CLASS_TEMPLATES);
 }
+
 /** 전직 18종을 직업 순서로(재능 개화 화면 등). */
 function getAscendancyOrder() {
     return Object.values(ASCENDANCIES_BY_PLAYER_CLASS).flat();
 }
+
 function isAscendancyOfClass(ascendId, classId) {
     return getAscendanciesForClass(classId).includes(ascendId);
 }
@@ -1416,6 +1309,7 @@ function getAllAscendKeystoneDefs() {
     });
     return out;
 }
+
 /** 우주계 쌍둥이 주얼(주베누비아의 균형 / 주벤샤말의 심판)이 부여하는 키스톤: 지금 직업이 고를 수 있는 전직 셋의 키스톤(2026-10-02).
  * 받은 키스톤은 그 셋 중 어느 전직을 골랐든 켜진다(js/combat.js hasKeystone). */
 function pickRandomAscendKeystoneId(classId = game.selectedClassId) {
@@ -1425,6 +1319,7 @@ function pickRandomAscendKeystoneId(classId = game.selectedClassId) {
     if (!defs.length) return null;
     return defs[Math.floor(Math.random() * defs.length)].id;
 }
+
 /** 루프 초기화 직전의 전직 배치(전직, 노드 순서, 키스톤 순서)를 기억하고 비울 키스톤 목록을 돌려준다(전직 고르기의
  * '지난 루프처럼'). 이번 루프에 전직을 고르지 않았으면 예전 기억을 그대로 둔다. */
 function rememberLoopAscendancyPlan(state = game) {
@@ -1434,11 +1329,307 @@ function rememberLoopAscendancyPlan(state = game) {
     }
     return keystones;
 }
+
 function getAscendKeystoneName(id) {
     if (!id) return '';
     let node = getAllAscendKeystoneDefs().find(n => n && n.id === id);
     return node ? node.name : id;
 }
+
+function getSeasonPassiveNodeDef(id) {
+    return SEASON_NODES[id] || SEASON_INNER_NODES[id] || null;
+}
+
+function getAllSeasonPassiveNodeIds() {
+    return Object.keys(SEASON_NODES).concat(Object.keys(SEASON_INNER_NODES));
+}
+
+function getSeasonPassiveUnlockLoop(id) {
+    if (SEASON_INNER_NODES[id]) return 1;
+    const rowIndex = SEASON_NODE_ROWS.findIndex(row => row.includes(id));
+    return rowIndex >= 4 ? 5 : 1;
+}
+
+/** A passive stat's value at a node tier: 10 at tier 0, else its own size for the tier (1 s, 2 m, any other k), falling back to the
+ * nearest size it has, then 2, 4 or 8; for a stat P_STATS lacks, 8 at tier 3, 4 at tier 2, else 2. The one rule for the tree, its layout
+ * and loading. */
+function getPassiveStatTierValue(statKey, tier) {
+    const statDef = P_STATS[statKey];
+    if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
+    if (tier === 0) return 10;
+    const size = tier === 1 || tier === 2 ? tier : 3;
+    const key = PASSIVE_TIER_SIZE_ORDER[size].find(name => statDef[name] !== undefined);
+    return key ? statDef[key] : PASSIVE_TIER_FALLBACK[size];
+}
+
+function hasPermanentTalentTabUnlock(state) {
+    if (!state || typeof state !== 'object') return false;
+    if (Math.max(0, Math.floor(Number(state.talentBloomClears) || 0)) > 0) return true;
+    if (Array.isArray(state.talentBloomCombos) && state.talentBloomCombos.length > 0) return true;
+    if (Array.isArray(state.bloomedClasses) && state.bloomedClasses.length > 0) return true;
+    if (state.talentCards && typeof state.talentCards === 'object' && Object.keys(state.talentCards).length > 0) return true;
+    return false;
+}
+
+/** The tabs a loop does not close again (run at load and after the loop's reset of game.unlocks): 재능 once a talent bloom was
+ * reached, NPC once an NPC was met on a map (game.npcMet, js/npc-roster-ui.js). */
+function syncPermanentTalentTabUnlock(state) {
+    if (!state || typeof state !== 'object') return state;
+    state.unlocks = (state.unlocks && typeof state.unlocks === 'object') ? state.unlocks : {};
+    if (hasPermanentTalentTabUnlock(state)) state.unlocks.talent = true;
+    if (state.npcMet && Object.keys(state.npcMet).length) state.unlocks.npcs = true;
+    return state;
+}
+
+function normalizeCombatTacticsSettings(settings) {
+    let target = settings && COMBAT_TACTIC_TARGET_PRIORITIES.includes(settings.combatTargetPriority)
+        ? settings.combatTargetPriority : 'nearest';
+    let position = settings && COMBAT_TACTIC_POSITION_MODES.includes(settings.combatPositionMode)
+        ? settings.combatPositionMode : 'auto';
+    return { targetPriority: target, positionMode: position };
+}
+
+function hasCombatTacticsUnlockProgress(state) {
+    if (!state || typeof state !== 'object') return false;
+    let journal = [...(Array.isArray(state.journalUnlocked) ? state.journalUnlocked : []),
+        ...(Array.isArray(state.journalEntries) ? state.journalEntries : [])];
+    let claimed = Array.isArray(state.claimedActRewards) ? state.claimedActRewards : [];
+    return journal.includes('act_3') || claimed.includes(2) || Math.floor(Number(state.maxZoneId) || 0) >= 3;
+}
+
+function isFreePassiveStartNodeId(nodeId) {
+    if (String(nodeId) === 'n0') return true;
+    const authoredNodes = typeof PASSIVE_TREE_V22 !== 'undefined' && PASSIVE_TREE_V22
+        ? PASSIVE_TREE_V22.nodes : null;
+    const node = authoredNodes && authoredNodes[String(nodeId)];
+    return !!(node && node.kind === 'start');
+}
+
+function getPaidPassiveNodeIds(nodeIds) {
+    return (Array.isArray(nodeIds) ? nodeIds : []).filter(nodeId => !isFreePassiveStartNodeId(nodeId));
+}
+
+// Phase-4 extracted progression math helpers.
+function getExpReq(level) {
+    let lv = Math.max(1, Math.floor(level || 1));
+    const requirements = LEVEL_PROGRESSION.playerExperienceRequired;
+    let delta = lv - 100;
+    const base = lv <= 100 ? requirements[lv - 1]
+        : requirements[99] + Math.floor(4200 * Math.pow(delta, 1.85) + 900 * delta * delta);
+    const premium = LEVEL_PROGRESSION.playerExperienceDensityPremium;
+    const ramp = Math.max(0, Math.min(1, (lv - premium.startLevel) / (premium.fullLevel - premium.startLevel)));
+    return Math.floor(base * (1 + premium.increase * ramp));
+}
+
+function getGemReqExp(level) { return LEVEL_PROGRESSION.gemExperienceRequired[Math.max(1, Math.min(20, Math.floor(level || 1))) - 1]; }
+
+// Save boundary: failures count up to the streak that reaches the most 실패 보정 (data/gem-core-forge.js pityMaxOfBase).
+function normalizeGemCoreFailures(value, level) {
+    const most = Math.ceil(GEM_CORE_FORGE.pityMaxOfBase / GEM_CORE_FORGE.pityStepOfBase);
+    return level === GEM_CORE_FORGE.maxLevel || !Number.isFinite(value) ? 0 : Math.min(most, Math.max(0, Math.floor(value)));
+}
+
+/** 룬 강화 단계. 옛 저장의 군주의 핵 강화와 창공의 정수 강화(각 5강)는 합쳐서 옮긴다(2026-11-02). */
+function normalizeRuneEnhanceLevel(raw) {
+    const old = key => (Number.isFinite(raw[key]) ? Math.min(5, Math.max(0, Math.floor(raw[key]))) : 0);
+    const level = Number.isFinite(raw.enhanceLevel) ? Math.floor(raw.enhanceLevel) : old('bossCoreLevel') + old('skyCoreLevel');
+    return Math.min(GEM_CORE_FORGE.maxLevel, Math.max(0, level));
+}
+
+function normalizeGemRecord(raw) {
+    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, enhanceLevel: 0, enhanceFailures: 0, skyEnhanceCap: 1, unlockedTier: 1, activeTier: 1, quality: 0, awakened: false };
+    let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
+    let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
+    const enhanceLevel = normalizeRuneEnhanceLevel(raw);
+    const enhanceFailures = normalizeGemCoreFailures(raw.enhanceFailures, enhanceLevel);
+    let skyEnhanceCap = Number.isFinite(raw.skyEnhanceCap) ? Math.min(5, Math.max(1, Math.floor(raw.skyEnhanceCap))) : 1;
+    let unlockedTier = Number.isFinite(raw.unlockedTier) ? Math.max(1, Math.min(3, Math.floor(raw.unlockedTier))) : 1;
+    let activeTier = Number.isFinite(raw.activeTier) ? Math.max(1, Math.min(unlockedTier, Math.floor(raw.activeTier))) : 1;
+    let quality = Number.isFinite(raw.quality) ? Math.max(0, Math.min(20, Math.floor(raw.quality))) : 0;
+    let awakened = !!raw.awakened;
+    return { level: level, exp: exp, enhanceLevel, enhanceFailures, skyEnhanceCap: skyEnhanceCap, unlockedTier: unlockedTier, activeTier: activeTier, quality: quality, awakened: awakened };
+}
+
+exposeFileGlobals({ getPassiveEquipmentRestriction, enforcePassiveEquipmentRestrictions, queueContentNotice, queueOpenContentNotice, formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, createDefaultChaosRealmState, ensureChaosRealmState, getChaosRealmTier, getUnderworldTier, getUnderworldGravityActionMultiplier, getUnderworldLifeDrainPerTick, getChaosRealmAffixScale, getChaosRealmAffixes, hasCurrentLoopChaos20Clear, canEnterChaosRealm, getUnderworldEntryLockReason, canEnterUnderworld, isUnderworldUnlockReady, isCosmosContentUnlockReady, isMapPrimaryContentUnlockReady, isMapPrimaryContentUnlocked, reconcileMapPrimaryContentUnlocks, getMapPrimaryContentEntryCondition, getOceanCurrentAffixes, hasOceanCurrent, getColonyWaveEnemyCount, createDefaultOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, mergeOceanState, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanBossBoundaryInterval, getOceanPendingBossBoundary, getOceanDiveRecord, getOceanFishingGaugeGainMul, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, normalizeSkyTowerResult, getSkyTowerRemainingClears, isSkyTowerAtRewardLimit, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getAbyssZoneTier, getTimeRiftEquivalentChaosDepth, getTimeRiftFixedSeason, getMeteorSiteUnlockReady, getClearedSkyTowerFloor, getSeasonBossProgressGate, createCosmosChallengeZone, getBeyondBoundaryTierProfile, createBeehiveZone, getGrandBreachProgress, getUnderworldZone, getRunZone, getFloorZone, getTimeRiftZone, getLabyrinthZoneNow, getChaosDepthZone, ensureTimeRiftState, getTimeRiftOptionKeepChance, getTimeRiftLossOdds, getTimeRiftFusionGrade, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getLoopAbyssRequirementPrompt, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, hasCurrentLoopAbyssRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getContentReturnZoneId, getAutoProgressZoneId, getAbyssMonsterScales, getContentDropRateMultiplier, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getWorldTreeBarkLayers, getWorldTreeBarkReach, getWorldTreeBarkEarned, normalizeWorldTreeBark, getLoopDeepStatCost, allocateLoopDeepStat, getAscendanciesForClass, getAscendancyOrder, isAscendancyOfClass, getAllAscendKeystoneDefs, pickRandomAscendKeystoneId, rememberLoopAscendancyPlan, getAscendKeystoneName, getSeasonPassiveNodeDef, getAllSeasonPassiveNodeIds, getSeasonPassiveUnlockLoop, getPassiveStatTierValue, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock, normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress, isFreePassiveStartNodeId, getPaidPassiveNodeIds, getExpReq, getGemReqExp, normalizeGemRecord });
+})();
+
+
+// Keeps global compatibility while giving each module a stable anchor.
+window.GameModules = window.GameModules || {};
+window.GameState = window.GameState || {
+  get game() { return window.game; },
+  set game(v) { window.game = v; },
+  get defaultGame() { return window.defaultGame; }
+};
+window.GameModules.state = window.GameState;
+
+/** Compact receipt only; equipment ownership remains in the inventory. Counts are nonnegative integers, pressure 1..10. */
+window.GameModules.state.normalizeTimeRiftResult = function (value) {
+    if (!value || typeof value !== 'object') return null;
+    const numbers = ['id', 'pressure', 'inherited', 'lost', 'season'];
+    if (!numbers.every(key => Number.isSafeInteger(value[key]) && value[key] >= 0)) return null;
+    if (![value.id, value.season, value.pressure].every(number => number > 0)) return null;
+    if (value.pressure > TIME_RIFT_MAX_PRESSURE) return null;
+    if (!Number.isSafeInteger(value.inherited + value.lost)) return null;
+    if (typeof value.name !== 'string' || typeof value.instanceId !== 'string' || !value.instanceId.trim()) return null;
+    return { id: value.id, name: value.name.slice(0, 100), instanceId: value.instanceId.trim().slice(0, 96),
+        pressure: value.pressure, inherited: value.inherited, lost: value.lost, season: value.season };
+};
+
+/** The first-clear reward of a milestone floor. Claim state stays in unlocked rune numbers and deepRewardFloor. */
+window.GameModules.state.underworldMilestoneReward = function (floor) {
+    const rule = UNDERWORLD_DEEP_FLOOR_REWARD;
+    if (!Number.isSafeInteger(floor) || floor < 10) return null;
+    if (floor <= rule.fromFloor) {
+        if (floor % 10 !== 0) return null;
+        return { floor, slots: Math.min(6, floor / 10), rune: UNDERWORLD_RUNE_DB.find(row => row.no === floor / 10), currencies: {} };
+    }
+    const depth = floor - rule.fromFloor;
+    if (depth % rule.every !== 0) return null;
+    return { floor, slots: 0, rune: null, currencies: {
+        runeShard: Math.floor(rule.runeShard[0] + rule.runeShard[1] * depth),
+        underGold: Math.floor(rule.underGold[0] + rule.underGold[1] * depth)
+    } };
+};
+
+// The foreground queue projects durable tutorialHistory records; queuing is not reading.
+let tutorialQueue = [];
+// 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
+// 다시 띄웠다(검토 5차).
+const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear', unlock_char: 'tutorial_first_passive' });
+/** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
+function queueTutorialNotice(key, title, body, tabId, target) {
+    if (game.isBackgroundCalculation) return;
+    const opening = typeof contentProgression === 'object' ? contentProgression.opening : null;
+    const inline = opening?.inlineNotice(game, key);
+    if (inline && !opening.canOpen(game, tabId)) return;
+    const extra = target && typeof target === 'object' ? target : { subtabId: target };
+    const notice = { ...extra, key, title, body, tabId };
+    window.GameModules.state.tutorials.enqueue(game, notice);
+    if (inline) {
+        window.GameModules.state.tutorials.archivePending(game, key);
+    }
+}
+
+
+const ACT_ZONE_COUNT = STORY_ACTS.length;
+const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;
+const ABYSS_START_ZONE_ID = ACT_ZONE_COUNT;
+const OUTSIDE_CHAOS_ZONE_ID = 'outside_chaos_woodsman';
+const CHAOS_REALM_ZONE_ID = 'chaos_realm';
+const SKY_TOWER_ZONE_ID = 'sky_tower';
+const WOODSMAN_ECHO_ZONE_ID = 'woodsman_echo_challenge';
+const UNDERWORLD_ZONE_ID = 'underworld_core';
+
+const MAP_ZONES = STORY_ACTS.map((act, idx) => ({
+    id: idx,
+    name: getActZoneDisplayName(idx),
+    type: 'act',
+    tier: act.tier,
+    maxKills: act.maxKills,
+    ele: act.ele,
+    storyActId: act.id,
+    storyOrder: act.order
+}));
+
+const abyssTiers = [8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 14, 14, 15, 16, 16, 17, 18, 19, 20];
+for (let i = 1; i <= 20; i++) MAP_ZONES.push({ id: ABYSS_START_ZONE_ID + (i - 1), name: "혼돈 " + i, type: "abyss", tier: abyssTiers[i - 1], maxKills: 1, ele: "chaos", depth: i });
+
+
+const CHAOS_REALM_DEFAULT_BONUSES = { pctDmg: 0, move: 0, pctHp: 0, resChaos: 0, resPen: 0, crit: 0, armorPct: 0, evasionPct: 0, energyShieldPct: 0, critDmg: 0, aspd: 0 };
+const ABYSS_ENDLESS_STEEP_FLOOR_HP_MUL = 1.198;
+const ABYSS_ENDLESS_STEEP_PLAYER_TAKEN_PER_FLOOR = 0.0385;
+const CHAOS_REALM_AFFIX_POOL = [
+    { id: 'elemental_wall', name: '원소 장벽', desc: '화염/냉기/번개 저항 대폭 증가' },
+    { id: 'iron_bark', name: '철갑 껍질', desc: '방어도와 물리 피해 감소 증가' },
+    { id: 'mirage_step', name: '환영 보법', desc: '회피 대폭 증가' },
+    { id: 'soul_shell', name: '혼백 보호막', desc: '생명력 100%만큼 에너지 보호막 보유' },
+    { id: 'projectile_dampening', name: '투사체 굴절', desc: '투사체 피해 반감' },
+    { id: 'spell_dampening', name: '주문 왜곡', desc: '주문 피해 반감' },
+    { id: 'blood_drinker', name: '흡혈', desc: '적 공격 시 생명력 흡수' },
+    { id: 'bloodless', name: '무혈', desc: '플레이어 흡혈 효율 대폭 감소' },
+    { id: 'curse_blade', name: '저주의 검', desc: '공격력과 관통 증가' },
+    { id: 'curse_immune', name: '저주 면역', desc: '저주 적용 불가' },
+    { id: 'phys_dampening', name: '물리 반감', desc: '물리 최종 피해 반감' },
+    { id: 'deadly_crit', name: '치명적 본능', desc: '치명타 확률/피해 증가' },
+    { id: 'multi_strike', name: '연속타격', desc: '추가 타격 확률' },
+    { id: 'deep_penetration', name: '심층 관통', desc: '저항 관통 증가' }
+];
+
+
+const OCEAN_PERMANENT_UPGRADE_DEFS = {
+    oxygenMax: { label: '산소 최대치', maxLevel: 20, valuePerLevel: 10, unit: '' },
+    oxygenSaving: { label: '산소 소모 감소', maxLevel: 20, valuePerLevel: 3, unit: '%' },
+    pressureResist: { label: '수압 패널티 감소', maxLevel: 20, valuePerLevel: 4, unit: '%' }
+};
+const OCEAN_PERMANENT_UPGRADE_KEYS = Object.keys(OCEAN_PERMANENT_UPGRADE_DEFS);
+const OCEAN_STATE_FISH_KEYS = Object.freeze(Object.keys(OCEAN_FISH_DB));
+const OCEAN_COLLECTION_REQUIRED_COUNTS = Object.freeze(OCEAN_FISH_COLLECTION_MILESTONES.map(row => row.required));
+const OCEAN_NORMALIZED_FISHING_STATES = new WeakSet();
+
+const OCEAN_CURRENT_POOL = [
+    { id: 'cold_current', name: '냉수층', desc: '냉기 적 출현, 냉기 저항 -12' },
+    { id: 'warm_current', name: '온수층', desc: '화염 적 출현, 화염 저항 -12' },
+    { id: 'riptide', name: '역류', desc: '이동 속도 15% 감폭' },
+    { id: 'bioluminescence', name: '발광 생물군', desc: '정확도 18% 감폭' },
+    { id: 'still_water', name: '정체수', desc: '산소 시간 소모 35% 증가' },
+    { id: 'school_of_fish', name: '물고기 떼', desc: '낚시 게이지 획득 50% 증가' }
+];
+const normalizeOceanFishingProgress = function (st) {
+    st.fishStock = (st.fishStock && typeof st.fishStock === 'object' && !Array.isArray(st.fishStock)) ? st.fishStock : {};
+    let hasCaughtHistory = !!(st.fishCaughtTotal && typeof st.fishCaughtTotal === 'object' && !Array.isArray(st.fishCaughtTotal));
+    let caught = hasCaughtHistory ? st.fishCaughtTotal : st.fishStock;
+    if (!hasCaughtHistory) st.fishCaughtTotal = {};
+    OCEAN_STATE_FISH_KEYS.forEach(key => {
+        let stock = Math.max(0, Math.floor(Number(st.fishStock[key]) || 0));
+        let total = Math.max(0, Math.floor(Number(caught[key]) || 0));
+        st.fishStock[key] = stock;
+        st.fishCaughtTotal[key] = Math.max(stock, total);
+    });
+    let claims = st.claimedCollectionMilestones;
+    let validClaims = Array.isArray(claims) && claims.every((value, index) => Number.isInteger(value)
+        && OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value) && claims.indexOf(value) === index);
+    if (!validClaims) {
+        let sourceClaims = Array.isArray(claims) ? claims : [];
+        st.claimedCollectionMilestones = Array.from(new Set(sourceClaims.map(value => Math.floor(value || 0))))
+            .filter(value => OCEAN_COLLECTION_REQUIRED_COUNTS.includes(value));
+    }
+    if (!st.lastCatch || !OCEAN_FISH_DB[st.lastCatch.key]) st.lastCatch = null;
+    else {
+        st.lastCatch.at = Math.max(0, Math.floor(st.lastCatch.at || 0));
+        st.lastCatch.guaranteed = !!st.lastCatch.guaranteed;
+    }
+    OCEAN_NORMALIZED_FISHING_STATES.add(st);
+};
+
+
+/** The zone of id: a run zone, a floor zone (at its current floor or depth), a trial or root boss, a chaos depth, else a map zone.
+ * Split into these groups on 2026-10-18. */
+function getZone(id) {
+    let zone = getRunZone(id);
+    if (zone === undefined) zone = getFloorZone(id);
+    if (zone !== undefined) return zone;
+    if (typeof id === 'string') {
+        if (id.startsWith('trial_')) return contentMaps.trialCorridor(TRIAL_ZONES.find(t => t.id === id));
+        let seasonBossZone = SEASON_BOSS_ZONES.find(t => t.id === id);
+        if (seasonBossZone) return contentMaps.withArena(seasonBossZone, contentMaps.bossBiome(seasonBossZone));
+    }
+    if (Number.isFinite(id) && id >= ABYSS_START_ZONE_ID) return getChaosDepthZone(id);
+    return MAP_ZONES[id];
+}
+
+
+const loopGateDepthName = cap => `${cap > 20 ? '혼돈 심화' : '혼돈'} ${cap}`;
+const hasLoopGateCosmosPath = seasonValue => Math.max(1, Math.floor(seasonValue || 1)) >= LOOP_GATE_ALT_START_SEASON;
+
+
+const ENDLESS_CONTENT_DROP_MULTIPLIER_CAP = 2.25;
+const UNDERWORLD_DROP_RATE_MULTIPLIER = 0.5;
+
+
+// 전직 정의(CLASS_TEMPLATES · CLASS_KEYSTONE_PICK_LIMIT · CLASS_KEYSTONE_DEFS)는 data/ascendancies.js로 옮겼다(2026-10-02).
+
+
 safeExposeGlobals({ getAscendanciesForClass, getAscendancyOrder, isAscendancyOfClass, getAllAscendKeystoneDefs, pickRandomAscendKeystoneId, getAscendKeystoneName, rememberLoopAscendancyPlan });
 
 const SEASON_NODES = {
@@ -1495,25 +1686,8 @@ const SEASON_INNER_NODES = {
     si_origin: { name: '기원의 기억', desc: '모든 순환의 기억에서 경험을 얻습니다.', stat: 'expGain', val: 30, req: null, inner: true }
 };
 
-function getSeasonPassiveNodeDef(id) {
-    return SEASON_NODES[id] || SEASON_INNER_NODES[id] || null;
-}
-
-function getAllSeasonPassiveNodeIds() {
-    return Object.keys(SEASON_NODES).concat(Object.keys(SEASON_INNER_NODES));
-}
-
-function getSeasonPassiveUnlockLoop(id) {
-    if (SEASON_INNER_NODES[id]) return 1;
-    const rowIndex = SEASON_NODE_ROWS.findIndex(row => row.includes(id));
-    return rowIndex >= 4 ? 5 : 1;
-}
 
 const JEWEL_RARITY_ORDER = ['normal', 'magic', 'rare', 'unique'];
-
-
-
-
 
 
 const P_STATS = {
@@ -1657,17 +1831,6 @@ const P_STATS = {
     shockedEnemyHitDamageMorePct: { name: '감전된 적 명중 피해 증폭(%)', isPct: true },
     energyShieldRechargeFaster: { name: '에너지 보호막 재충전 대기시간 감소(초)' }
 };
-/** A passive stat's value at a node tier: 10 at tier 0, else its own size for the tier (1 s, 2 m, any other k), falling back to the
- * nearest size it has, then 2, 4 or 8; for a stat P_STATS lacks, 8 at tier 3, 4 at tier 2, else 2. The one rule for the tree, its layout
- * and loading. */
-function getPassiveStatTierValue(statKey, tier) {
-    const statDef = P_STATS[statKey];
-    if (!statDef) return tier === 3 ? 8 : (tier === 2 ? 4 : 2);
-    if (tier === 0) return 10;
-    const size = tier === 1 || tier === 2 ? tier : 3;
-    const key = PASSIVE_TIER_SIZE_ORDER[size].find(name => statDef[name] !== undefined);
-    return key ? statDef[key] : PASSIVE_TIER_FALLBACK[size];
-}
 /** The sizes a tier reads, nearest first, and its value when the stat has none. */
 const PASSIVE_TIER_SIZE_ORDER = Object.freeze({ 1: ['s', 'm', 'k'], 2: ['m', 's', 'k'], 3: ['k', 'm', 's'] });
 const PASSIVE_TIER_FALLBACK = Object.freeze({ 1: 2, 2: 4, 3: 8 });
@@ -1848,7 +2011,7 @@ const MOD_DB = [
     {"id":"attackPctDmg","type":"prefix","statName":"공격 피해 증가(%)","slots":["무기","장갑","목걸이"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
     {"id":"spellPctDmg","type":"prefix","statName":"주문 피해 증가(%)","slots":["무기","목걸이","방패","허리띠"],"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"affixBalanceVersion":2,"valueStep":1},
     {"id":"spellLeech","type":"suffix","statName":"주문 피해의 생명력 흡수(%)","slots":["무기","목걸이","방패"],"affixBalanceVersion":2,"tierValues":[[0.16,0.16],[0.17,0.24],[0.25,0.32],[0.33,0.4],[0.41,0.48],[0.49,0.56],[0.57,0.64],[0.65,0.72],[0.73,0.8],[0.81,0.88],[0.89,0.96],[0.97,1.04],[1.05,1.12],[1.13,1.2],[1.21,1.28],[1.29,1.36],[1.37,1.44],[1.45,1.52],[1.53,1.6],[1.61,1.72]],"valueStep":0.01},
-    // 무기 대분류 전용 줄(2026-10-07 드랍 풀 1단계): weaponCategories의 대분류 무기에만 붙는다(js/passives.js getAvailableMods).
+    // 무기 대분류 전용 줄(2026-10-07 드랍 풀 1단계): weaponCategories의 대분류 무기에만 붙는다(js/item-rolls.js getAvailableMods).
     {"id":"greatswordSlamPctDmg","statId":"slamPctDmg","type":"prefix","statName":"강타 피해(%)","slots":["무기"],"weaponCategories":["greatsword"],"affixBalanceVersion":2,"tierValues":[[10,12],[13,17],[18,23],[24,28],[29,34],[35,39],[40,45],[46,50],[51,55],[56,61],[62,66],[67,72],[73,77],[78,82],[83,88],[89,93],[94,98],[99,104],[105,109],[110,115]],"valueStep":1},
     {"id":"greatswordSlamGemLevel","statId":"slamGemLevel","type":"prefix","statName":"강타 스킬룬 레벨","slots":["무기"],"weaponCategories":["greatsword"],"weight":0.2,"affixBalanceVersion":3,"tierValues":[[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[1,1],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[2,2],[3,3],[3,3],[3,3],[3,3],[4,4]],"valueStep":1},
     {"id":"scimitarBleedChance","statId":"bleedChance","type":"suffix","statName":"출혈 확률(%)","slots":["무기"],"weaponCategories":["scimitar"],"affixBalanceVersion":2,"tierValues":[[3,4],[5,6],[7,7],[8,9],[10,10],[11,12],[13,13],[14,15],[16,16],[17,18],[19,19],[20,21],[22,22],[23,24],[25,25],[26,27],[28,28],[29,30],[31,31],[32,33]],"valueStep":1},
@@ -2117,7 +2280,7 @@ const BASE_ITEM_DB = [
     { id: 'root_blade_fang', slot: '무기', name: '뿌리 한손검', reqTier: 6, dropOnly: { type: 'act' }, requirementWeights: { strength: 0.6, dexterity: 0.6 }, baseStats: [{ id: 'flatDmg', base: 27, legacyDamageBase: 20 }, { id: 'physIgnore', base: 4 }, { id: 'leech', base: 0.8 }] },
     { id: 'beehive_stinger_mail', slot: '갑옷', name: '벌침 갑피', reqTier: 12, dropOnly: { type: 'beehive' }, baseStats: [{ id: 'flatHp', base: 88 }, { id: 'resChaos', base: 10 }, { id: 'evasion', base: 295 }, { id: 'poisonDamageMultiplierPct', base: 10 }] },
     // 재사용 대기시간 세팅(2026-10-21): 대균열 파편투구와 시련 감시자 장화의 저항 관통 줄을 재사용 대기시간 줄로 바꿨다. 장비는 베이스 줄을
-    // 떨어질 때 제 몸에 적으므로(js/passives.js rollBaseStat) 이미 가진 장비는 그대로다.
+    // 떨어질 때 제 몸에 적으므로(js/item-rolls.js rollBaseStat) 이미 가진 장비는 그대로다.
     { id: 'grand_breach_shard_helm', slot: '투구', name: '대균열 파편투구', reqTier: 16, dropOnly: { id: 'grand_breach_run' }, baseStats: [{ id: 'flatHp', base: 95 }, { id: 'resAll', base: 9 }, { id: 'dr', base: 4 }, { id: 'energyShield', base: 96 }, { id: 'cooldownRecovery', base: 8 }] },
     { id: 'laby_1_greaves', slot: '신발', name: '미궁 수호 각반', reqTier: 8, dropOnly: { type: 'labyrinth', minFloor: 1, minTier: 7 }, baseStats: [{ id: 'move', base: 14 }, { id: 'armor', base: 130 }, { id: 'dr', base: 2 }] },
     { id: 'laby_10_crown', slot: '투구', name: '미궁 심층 관', reqTier: 12, dropOnly: { type: 'labyrinth', minFloor: 10, minTier: 10 }, baseStats: [{ id: 'flatHp', base: 76 }, { id: 'resAll', base: 8 }, { id: 'armor', base: 230 }, { id: 'regen', base: 0.8 }] },
@@ -2379,10 +2542,12 @@ let cloudState = {
     tokenExpiryWarned: false,
     pendingForcedSyncOptions: null,
     pendingForcedSyncRetryTimer: null,
-    exitUpload: null   // 종료 업로드가 답을 기다리는 동안의 Promise(js/ui.js trackPageExitUpload)
+    exitUpload: null   // 종료 업로드가 답을 기다리는 동안의 Promise(js/cloud-save-ui.js trackPageExitUpload)
 };
 let startupOverlayActive = true;
 let gameplayStarted = false;
+// True while the start screen hands over to the game (js/cloud-save-ui.js enterGameWorld): the guide cards wait for its end.
+let gameEntryRunning = false;
 let loadingOverlayProgress = 0;
 let pendingMapRevealZoneId = null;
 let pendingMapRevealToken = 0;
@@ -2398,59 +2563,13 @@ safeExposeGlobals({ formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder
 
 // Phase-4 extracted default state schema.
 
-function hasPermanentTalentTabUnlock(state) {
-    if (!state || typeof state !== 'object') return false;
-    if (Math.max(0, Math.floor(Number(state.talentBloomClears) || 0)) > 0) return true;
-    if (Array.isArray(state.talentBloomCombos) && state.talentBloomCombos.length > 0) return true;
-    if (Array.isArray(state.bloomedClasses) && state.bloomedClasses.length > 0) return true;
-    if (state.talentCards && typeof state.talentCards === 'object' && Object.keys(state.talentCards).length > 0) return true;
-    return false;
-}
-
-/** The tabs a loop does not close again (run at load and after the loop's reset of game.unlocks): 재능 once a talent bloom was
- * reached, NPC once an NPC was met on a map (game.npcMet, js/npc-roster-ui.js). */
-function syncPermanentTalentTabUnlock(state) {
-    if (!state || typeof state !== 'object') return state;
-    state.unlocks = (state.unlocks && typeof state.unlocks === 'object') ? state.unlocks : {};
-    if (hasPermanentTalentTabUnlock(state)) state.unlocks.talent = true;
-    if (state.npcMet && Object.keys(state.npcMet).length) state.unlocks.npcs = true;
-    return state;
-}
-
 
 const COMBAT_TACTIC_TARGET_PRIORITIES = Object.freeze(['nearest', 'weakest', 'dangerous', 'dense']);
 const COMBAT_TACTIC_POSITION_MODES = Object.freeze(['auto', 'pressure', 'keepRange']);
 
-function normalizeCombatTacticsSettings(settings) {
-    let target = settings && COMBAT_TACTIC_TARGET_PRIORITIES.includes(settings.combatTargetPriority)
-        ? settings.combatTargetPriority : 'nearest';
-    let position = settings && COMBAT_TACTIC_POSITION_MODES.includes(settings.combatPositionMode)
-        ? settings.combatPositionMode : 'auto';
-    return { targetPriority: target, positionMode: position };
-}
-
-function hasCombatTacticsUnlockProgress(state) {
-    if (!state || typeof state !== 'object') return false;
-    let journal = [...(Array.isArray(state.journalUnlocked) ? state.journalUnlocked : []),
-        ...(Array.isArray(state.journalEntries) ? state.journalEntries : [])];
-    let claimed = Array.isArray(state.claimedActRewards) ? state.claimedActRewards : [];
-    return journal.includes('act_3') || claimed.includes(2) || Math.floor(Number(state.maxZoneId) || 0) >= 3;
-}
-
-function isFreePassiveStartNodeId(nodeId) {
-    if (String(nodeId) === 'n0') return true;
-    const authoredNodes = typeof PASSIVE_TREE_V22 !== 'undefined' && PASSIVE_TREE_V22
-        ? PASSIVE_TREE_V22.nodes : null;
-    const node = authoredNodes && authoredNodes[String(nodeId)];
-    return !!(node && node.kind === 'start');
-}
-
-function getPaidPassiveNodeIds(nodeIds) {
-    return (Array.isArray(nodeIds) ? nodeIds : []).filter(nodeId => !isFreePassiveStartNodeId(nodeId));
-}
 
 // Shared transaction state belongs below both persistence and the UI scheduler.
-let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, failed: false, accelerationTier: 0, finishRequested: false, offlineSettledSlots: [], appInactive: false };
+let backgroundCombatRuntime = { hiddenAtMs: 0, snapshot: null, signature: '', processing: false, failed: false, accelerationTier: 0, finishRequested: false, offlineSettledSlots: [], appInactive: false, launchSettlementPending: false };
 
 /**
  * @typedef {{statId:string,minValue:number,minTier:number}} EquipmentTargetRule
@@ -2531,7 +2650,7 @@ const defaultGame = {
     killsInZone: 0,
     loopDeaths: 0,
     loopKills: 0,
-    // 루프의 첫 처치가 직업 무기를 떨어뜨렸는가(js/combat.js grantLoopStarterWeaponOnFirstKill), 첫 루프의 그 무기가 장착 안내를 기다리는 동안 그 아이템 id
+    // 루프의 첫 처치가 직업 무기를 떨어뜨렸는가(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill), 첫 루프의 그 무기가 장착 안내를 기다리는 동안 그 아이템 id
     loopStarterWeaponGranted: false,
     starterWeaponTutorialPending: null,
     // 기초 스킬(js/basic-skills.js): 이번 루프의 속성 선택지({ loop, elements }, 고를 때까지)와 지난번 고른 속성(자동 루프가 쓴다)
@@ -2596,7 +2715,7 @@ const defaultGame = {
         itemFilterMinTierCount: 0,
         itemFilterMinHiddenTier: 1,
         itemFilterOnlyNewCodexUnique: false,
-        // 줍기 필터 세분화(2026-10-10 사용자): 희귀도마다 최소 티어, 부위, 무기 종류, 항상 줍는 예외(js/passives.js passesItemPickupFilter).
+        // 줍기 필터 세분화(2026-10-10 사용자): 희귀도마다 최소 티어, 부위, 무기 종류, 항상 줍는 예외(js/item-rolls.js passesItemPickupFilter).
         itemFilterMinTiers: { normal: 1, magic: 1, rare: 1, unique: 1 },
         itemFilterSlots: { 무기: true, 투구: true, 갑옷: true, 장갑: true, 신발: true, 목걸이: true, 반지: true, 허리띠: true, 방패: true },
         itemFilterWeaponCategories: { greatsword: true, scimitar: true, shortbow: true, orb: true, flask: true, censer: true },
@@ -2807,7 +2926,7 @@ const defaultGame = {
     // Older logs have no fatalElement; save migration keeps that uncertainty as null.
     lastDeathLog: null,
     // Auto progression retreated after a defeat in story act frontierZoneId at this level (null = not retreating).
-    // Cleared once the level rose by ACT_RETREAT_LEVELS or a map outside the retreat act finishes (js/combat.js holdActRetreat).
+    // Cleared once the level rose by ACT_RETREAT_LEVELS or a map outside the retreat act finishes (js/combat-enemy-turn.js holdActRetreat).
     actRetreat: null,
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],
@@ -2861,7 +2980,7 @@ const defaultGame = {
     },
     // cloudPending: this account slot was written since its last commit to the server (js/save.js persistLocalSave); never true in the guest slot.
     // gameBuild: the release that last wrote this save (its commit time, ISO; null before 2026-10-28 and on an unbuilt page), js/save.js.
-    saveMeta: { lastModifiedAt: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudPending: false, maxSeenAt: 0, gameBuild: null },
+    saveMeta: { lastModifiedAt: 0, playedUntil: 0, lastCloudSyncAt: 0, lastCloudUploadProfile: null, cloudUserId: null, cloudRevision: 0, cloudPending: false, maxSeenAt: 0, gameBuild: null },
     unlocks: { char: false, season: false, items: false, map: false, skills: false, codex: false, traits: false, talent: false, jewel: false, stump: false, npcs: false },
     noti: { char: false, season: false, items: false, skills: false, map: false, codex: false, traits: false, jewel: false, journal: false, currency: false, fossil: false, ascend: false, loop: false, social: false, stump: false, npcs: false },
     mapAlarmSeen: {},
@@ -2876,43 +2995,6 @@ safeExposeGlobals({
     normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress,
     isFreePassiveStartNodeId, getPaidPassiveNodeIds
 });
-
-// Phase-4 extracted progression math helpers.
-function getExpReq(level) {
-    let lv = Math.max(1, Math.floor(level || 1));
-    const requirements = LEVEL_PROGRESSION.playerExperienceRequired;
-    let delta = lv - 100;
-    const base = lv <= 100 ? requirements[lv - 1]
-        : requirements[99] + Math.floor(4200 * Math.pow(delta, 1.85) + 900 * delta * delta);
-    const premium = LEVEL_PROGRESSION.playerExperienceDensityPremium;
-    const ramp = Math.max(0, Math.min(1, (lv - premium.startLevel) / (premium.fullLevel - premium.startLevel)));
-    return Math.floor(base * (1 + premium.increase * ramp));
-}
-function getGemReqExp(level) { return LEVEL_PROGRESSION.gemExperienceRequired[Math.max(1, Math.min(20, Math.floor(level || 1))) - 1]; }
-// Save boundary: failures count up to the streak that reaches the most 실패 보정 (data/gem-core-forge.js pityMaxOfBase).
-function normalizeGemCoreFailures(value, level) {
-    const most = Math.ceil(GEM_CORE_FORGE.pityMaxOfBase / GEM_CORE_FORGE.pityStepOfBase);
-    return level === GEM_CORE_FORGE.maxLevel || !Number.isFinite(value) ? 0 : Math.min(most, Math.max(0, Math.floor(value)));
-}
-/** 룬 강화 단계. 옛 저장의 군주의 핵 강화와 창공의 정수 강화(각 5강)는 합쳐서 옮긴다(2026-11-02). */
-function normalizeRuneEnhanceLevel(raw) {
-    const old = key => (Number.isFinite(raw[key]) ? Math.min(5, Math.max(0, Math.floor(raw[key]))) : 0);
-    const level = Number.isFinite(raw.enhanceLevel) ? Math.floor(raw.enhanceLevel) : old('bossCoreLevel') + old('skyCoreLevel');
-    return Math.min(GEM_CORE_FORGE.maxLevel, Math.max(0, level));
-}
-function normalizeGemRecord(raw) {
-    if (!raw || typeof raw !== 'object') return { level: 1, exp: 0, enhanceLevel: 0, enhanceFailures: 0, skyEnhanceCap: 1, unlockedTier: 1, activeTier: 1, quality: 0, awakened: false };
-    let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
-    let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
-    const enhanceLevel = normalizeRuneEnhanceLevel(raw);
-    const enhanceFailures = normalizeGemCoreFailures(raw.enhanceFailures, enhanceLevel);
-    let skyEnhanceCap = Number.isFinite(raw.skyEnhanceCap) ? Math.min(5, Math.max(1, Math.floor(raw.skyEnhanceCap))) : 1;
-    let unlockedTier = Number.isFinite(raw.unlockedTier) ? Math.max(1, Math.min(3, Math.floor(raw.unlockedTier))) : 1;
-    let activeTier = Number.isFinite(raw.activeTier) ? Math.max(1, Math.min(unlockedTier, Math.floor(raw.activeTier))) : 1;
-    let quality = Number.isFinite(raw.quality) ? Math.max(0, Math.min(20, Math.floor(raw.quality))) : 0;
-    let awakened = !!raw.awakened;
-    return { level: level, exp: exp, enhanceLevel, enhanceFailures, skyEnhanceCap: skyEnhanceCap, unlockedTier: unlockedTier, activeTier: activeTier, quality: quality, awakened: awakened };
-}
 
 
 safeExposeGlobals({ getExpReq, getGemReqExp, normalizeGemRecord });

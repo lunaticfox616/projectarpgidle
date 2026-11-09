@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /**
  * Effects and backgrounds are independent of the character/enemy atlas. Renderers read the
  * same image keys; their normal fallback remains available while the requested image loads.
@@ -39,6 +41,7 @@ function registerDeferredBattleImage(images, group) {
         });
     }
 }
+
 /** Build the bounded startup queue; unused signature sheets remain demand-loaded.
  * @param {Record<string,string>} manifest
  * @param {Set<string>} criticalKeys
@@ -71,4 +74,7 @@ function prepareBattleAssetGroups(manifest, criticalKeys, images, activeSkill, b
         return false;
     }).sort((a, b) => a.priority - b.priority || a.src.localeCompare(b.src));
 }
+
+exposeFileGlobals({ registerDeferredBattleImage, prepareBattleAssetGroups });
+})();
 safeExposeGlobals({ registerDeferredBattleImage, prepareBattleAssetGroups });

@@ -1,21 +1,5 @@
-const SPECIAL_BATTLE_BACKDROP_SOURCES = Object.freeze({
-    bgMeteor: 'assets/background/refined-20260910/bgMeteor.webp',
-    bgSkyTower: 'assets/background/refined-20260910/bgSkyTower.webp',
-    bgUnderworld: 'assets/background/refined-20260910/bgUnderworld.webp',
-    bgOceanDepth: 'assets/background/refined-20260910/bgOceanDepth.webp',
-    bgCosmos: 'assets/background/refined-20260910/bgCosmos.webp',
-    // 웨이브 콘텐츠 판(2026-10-06, scripts/build-board-backdrops.cjs): 원소에 맞는 액트 판을 빌리던 벌집 원정과 군락지의 전용 판.
-    // 액트 판 그림과 같은 912×624, 9×8 칸이 (240,144)부터 48px.
-    bgBeehive: 'assets/background/boards-20261006/bgBeehive.png',
-    bgColony: 'assets/background/boards-20261006/bgColony.png'
-});
-// 9×8 칸에 맞춰 그린 특수 판 그림: js/ui.js drawGridAlignedBackdrop이 액트 판처럼 칸에 맞춰 놓는다(나머지 특수 그림은 화면을 덮는다).
-const GRID_ALIGNED_SPECIAL_BACKDROPS = Object.freeze(['bgUnderworld', 'bgMeteor', 'bgBeehive', 'bgColony']);
-const SPECIAL_BATTLE_BACKDROP_RETRY_MS = 5000;
-const FIXED_BATTLE_BACKDROP_KEYS = Object.freeze({labyrinth:'bgAct5',meteor:'bgMeteor',beehive:'bgBeehive',colony:'bgColony'});
-
-const specialBattleBackdropLoads = new Map();
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getBattleBackdropKeyForZone(zone) {
     if (!zone) return 'bgAct1';
     if (zone.type === 'skyTower' || zone.pinnacleTrack === 'sky') return 'bgSkyTower';
@@ -36,7 +20,7 @@ function getBattleBackdropKeyForZone(zone) {
     return 'bgAct1';
 }
 
-/** 전투 그림과 함께 먼저 받는 판 그림(js/passives.js initBattleAssets): 위에서 보는 전장만 판을 그린다(bgAct1과 그 구역의 판).
+/** 전투 그림과 함께 먼저 받는 판 그림(js/battle-assets.js initBattleAssets): 위에서 보는 전장만 판을 그린다(bgAct1과 그 구역의 판).
  * 무대에서는 먼저 받지 않고, 쓰게 되면 그때 받는다(2026-10-21: 로딩 화면에 예전 전장이 비치던 그림). */
 function getFirstBattleBackdropKeys(zone) {
     return stageView.topDown() ? ['bgAct1', getBattleBackdropKeyForZone(zone)] : [];
@@ -83,5 +67,26 @@ function requestSpecialBattleBackdrop(key) {
     image.src = src;
     return entry.promise;
 }
+
+exposeFileGlobals({ getBattleBackdropKeyForZone, getFirstBattleBackdropKeys, requestSpecialBattleBackdrop });
+})();
+const SPECIAL_BATTLE_BACKDROP_SOURCES = Object.freeze({
+    bgMeteor: 'assets/background/refined-20260910/bgMeteor.webp',
+    bgSkyTower: 'assets/background/refined-20260910/bgSkyTower.webp',
+    bgUnderworld: 'assets/background/refined-20260910/bgUnderworld.webp',
+    bgOceanDepth: 'assets/background/refined-20260910/bgOceanDepth.webp',
+    bgCosmos: 'assets/background/refined-20260910/bgCosmos.webp',
+    // 웨이브 콘텐츠 판(2026-10-06, scripts/build-board-backdrops.cjs): 원소에 맞는 액트 판을 빌리던 벌집 원정과 군락지의 전용 판.
+    // 액트 판 그림과 같은 912×624, 9×8 칸이 (240,144)부터 48px.
+    bgBeehive: 'assets/background/boards-20261006/bgBeehive.png',
+    bgColony: 'assets/background/boards-20261006/bgColony.png'
+});
+// 9×8 칸에 맞춰 그린 특수 판 그림: js/ui.js drawGridAlignedBackdrop이 액트 판처럼 칸에 맞춰 놓는다(나머지 특수 그림은 화면을 덮는다).
+const GRID_ALIGNED_SPECIAL_BACKDROPS = Object.freeze(['bgUnderworld', 'bgMeteor', 'bgBeehive', 'bgColony']);
+const SPECIAL_BATTLE_BACKDROP_RETRY_MS = 5000;
+const FIXED_BATTLE_BACKDROP_KEYS = Object.freeze({labyrinth:'bgAct5',meteor:'bgMeteor',beehive:'bgBeehive',colony:'bgColony'});
+
+const specialBattleBackdropLoads = new Map();
+
 
 safeExposeGlobals({ getBattleBackdropKeyForZone, requestSpecialBattleBackdrop, GRID_ALIGNED_SPECIAL_BACKDROPS });

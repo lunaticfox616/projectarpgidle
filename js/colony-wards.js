@@ -22,12 +22,12 @@ const colonyWards = (() => {
         if (stored >= min && stored <= max) return stored;
         return min + hashSeed(`ward-belt:${item.id === undefined ? item.name : item.id}`) % (max - min + 1);
     }
-    /** js/passives.js normalizeItem: 허리띠에 제 칸 수를 적어 둔다(거래와 복사에도 따라간다). */
+    /** js/item-rolls.js normalizeItem: 허리띠에 제 칸 수를 적어 둔다(거래와 복사에도 따라간다). */
     function stampBelt(item) {
         if (isBelt(item)) item.wardSlotRoll = beltSlots(item);
         return item;
     }
-    /** 축복의 꽃잎(js/passives.js useCurrency): 허리띠의 칸 수를 1~3에서 고르게 다시 굴린다. 허리띠가 아니면 그대로 두고 0. */
+    /** 축복의 꽃잎(js/item-rolls.js useCurrency): 허리띠의 칸 수를 1~3에서 고르게 다시 굴린다. 허리띠가 아니면 그대로 두고 0. */
     function rerollBelt(item, random = Math.random) {
         if (!isBelt(item)) return 0;
         const { min, max } = R.beltSlots;
@@ -145,7 +145,7 @@ const colonyWards = (() => {
         const value = Math.abs(Number(((item && item.baseStats) || [])[0]?.val) || 0);
         return Math.max(R.shards.base, Math.min(R.shards.max, R.shards.base + Math.floor(value / R.shards.per)));
     };
-    /** The salvage reward profile of a ward (js/passives.js getItemSalvageRewardProfile): colony shards only. */
+    /** The salvage reward profile of a ward (js/item-rolls.js getItemSalvageRewardProfile): colony shards only. */
     const salvageProfile = item => ({ guaranteed: { colonyShard: salvageShards(item) }, chances: [] });
 
     // ---------------------------------------------------------------- saves from before 2026-10-10

@@ -183,11 +183,11 @@ const actTitleCard = (() => {
         const lore = storyClassLore();
         if (!hushed() && firstAct() && lore) queueStoryLine({ key: 'wake', who: 'hero', speaker: lore.label, text: lore.wakeLine, tone: 'gold' }, now);
     }
-    /** ...and its words on seeing the guide struck (spotLine), in the room where that happens (js/combat.js starterRescueRoom). */
+    /** ...and its words on seeing the guide struck (spotLine), in the room where that happens (js/combat-encounters.js starterRescueRoom). */
     function queueSpotLine(lore, run, now) {
         if (firstAct() && lore && rescuing(run)) queueStoryLine({ key: 'spot', who: 'hero', speaker: lore.label, text: lore.spotLine, tone: 'gold' }, now);
     }
-    /** The monster striking the guide in act 1 still stands (js/combat.js createStarterRescuePack). */
+    /** The monster striking the guide in act 1 still stands (js/combat-encounters.js createStarterRescuePack). */
     const rescuing = run => run.packs.some(pack => pack.rescue && pack.aliveIds.length > 0);
     /** The hero is in the room where the map's guide stands and its first lines are said (js/act-exploration-doors.js guideRoom). */
     const inGuideRoom = run => { const map = actExplorationDoors.stageMap(run), room = actExplorationDoors.room(run); return !!map && !!room && room === actExplorationDoors.guideRoom(run, map); };
@@ -318,7 +318,7 @@ const actTitleCard = (() => {
         ctx.fillStyle = colour;
         for (let dot = -1; dot <= 1; dot++) ctx.fillRect(x + dot * 4 - 1, y + 2, 2, 2);
     }
-    // A monster striking the NPC (act 1's first monster, js/combat.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
+    // A monster striking the NPC (act 1's first monster, js/combat-encounters.js strikeRescueTarget, battle fx 'npcStruck'): the NPC's frame
     // flashes white and a few sparks burst on it. The picture itself never moves (no code-made motion).
     const npcFlashes = new Map();    // "id:frame:colour" → that idle frame painted one colour (the strike flash, the hover rim)
     /** 1 just after a strike on the NPC, fading to 0 over the fx's duration; 0 when none is recent. */

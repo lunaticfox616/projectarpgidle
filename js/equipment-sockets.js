@@ -3,7 +3,7 @@
 // 드물게 뚫린 채 떨어지고(data/items.js SOCKETED_ACCESSORY_DROP_CHANCE), 공허의 끌 1개로 뚫는다. 그 전부터 갖고 있던 장신구는
 // 처음부터 있던 소켓을 기록으로 남겨 그대로 쓴다(js/save-migrations.js keepLegacyAccessorySockets).
 // 타락 소켓(2026-10-05, 2026-10-07): 잿불가지 타락이 어느 부위에나 소켓을 하나 연다(item.corruptionSocket, 장비당 최대 1개).
-// 장신구가 아닌 부위에는 이것이 유일한 소켓이다. 주얼을 해금한 뒤에만 나오는 결과다(js/passives.js canApplyTaintedOutcome).
+// 장신구가 아닌 부위에는 이것이 유일한 소켓이다. 주얼을 해금한 뒤에만 나오는 결과다(js/item-rolls.js canApplyTaintedOutcome).
 // 뺀 주얼은 가방으로 돌아간다(가방에 자리가 없으면 뺄 수 없다, js/bag-items.js). 능력치 합산은 combat-build-stats.js, 화면은 equipment-sockets-ui.js.
 // 주얼을 읽는 곳은 모두 jewels(item)을 써서 소켓 종류가 늘어도 빠지는 곳이 없게 한다.
 // 융합(2026-10-30 사용자, 그루터기 조합 장신구 주얼 융합): 공허 소켓의 주얼이 장비에 녹아 붙는다(voidSocket.fused). 뺄 수 없고,

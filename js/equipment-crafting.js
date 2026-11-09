@@ -70,7 +70,7 @@ const equipmentCrafting = (() => {
         return getBlockReason(item, 'fossil', true, marker) || getRerollSpaceReason(item, marker ? 2 : 1, EXPLICIT_AFFIX_LINE_CAP, marker);
     }
 
-    /** 균열 수확(js/passives.js applyRiftSporeToSelectedItem): adds one fossil line, so the fossil rules hold, and the line needs a free
+    /** 균열 수확(js/item-rolls.js applyRiftSporeToSelectedItem): adds one fossil line, so the fossil rules hold, and the line needs a free
      * place among the six (the chaos infusion counts). */
     function getRiftHarvestBlockReason(item) {
         if (keepsKind(item)) return KEEPS_KIND;
@@ -190,7 +190,7 @@ const equipmentCrafting = (() => {
     /** The affix a spore mode guarantees for action on item, or null (spore mode off, or nothing of its family is open): picked by
      * weight among the open affixes in the spore's family, counted against the result's rarity (새싹 transmute and alteration: magic,
      * one and one; the rest: rare, three and three). A reroll counts only the lines it keeps (keptOnReroll, as rerollExplicitMods).
-     * The live craft (js/passives.js useCurrency) and the bench's rehearsal (js/crafting-goal-options.js rehearse) both pick here. */
+     * The live craft (js/item-rolls.js useCurrency) and the bench's rehearsal (js/crafting-goal-options.js rehearse) both pick here. */
     function sporePool(item, action, mode, omen = null) {
         if (mode === 'none' || !basicRule(action)) return [];
         const base = rerollActions.includes(action) ? { ...item, stats: (item.stats || []).filter(stat => keptOnReroll(item, stat) || !onOmenSide(item, stat, omen)) } : item;
@@ -210,7 +210,7 @@ const equipmentCrafting = (() => {
     }
     // ---------------------------------------------------------------- 제작 뿌리 (data/items.js CRAFT_OMENS)
     // 2026-10-18 사용자: "craft of exile 사이트를 참고해서 ... 가중치 메커니즘, 크래프팅 방법 및 컨텐츠와 연계성". 걸어 둔 뿌리 하나가 자기가
-    // 바꾸는 다음 제작 한 번에 쓰이고 하나 줄어든다. 실제 제작(js/passives.js useCurrency)과 제작 연구의 연습(rehearse)이 같은 규칙을 쓴다.
+    // 바꾸는 다음 제작 한 번에 쓰이고 하나 줄어든다. 실제 제작(js/item-rolls.js useCurrency)과 제작 연구의 연습(rehearse)이 같은 규칙을 쓴다.
     /** omen key with side as the rolls read it: { key, side, effect } (practice uses it without owning one), or null. */
     function omenSpec(key, side) {
         const armed = normalizeCraftOmen({ key, side });
@@ -296,7 +296,7 @@ const equipmentCrafting = (() => {
         const low = Math.min(...tiered.map(row => Number(row.stat.tier)));
         return rndChoice(tiered.filter(row => Number(row.stat.tier) === low));
     }
-    /** What an omen changes in a reroll (js/passives.js rerollExplicitMods): each new line's roll, and 엮음's weights. */
+    /** What an omen changes in a reroll (js/item-rolls.js rerollExplicitMods): each new line's roll, and 엮음's weights. */
     function omenRerollOptions(item, tier, omen) {
         if (!omen) return {};
         const before = { ...item, stats: item.stats.slice() };
@@ -339,7 +339,7 @@ const equipmentCrafting = (() => {
         Object.assign(item, JSON.parse(JSON.stringify(fields)));
     }
     /** What tells whether an item still holds a craft result: rarity, name, the chaos infusion's line and each line's id,
-     * value and tier. A load (js/passives.js normalizeItem) fills other line fields (originalVal, valMin, statName, craftSource), so the
+     * value and tier. A load (js/item-rolls.js normalizeItem) fills other line fields (originalVal, valMin, statName, craftSource), so the
      * whole-field JSON of a loaded item never matched the saved pick, and a reload dropped a waiting 성화 pick (2026-10-20). */
     const lineMark = stat => (stat ? [stat.id, Number(stat.val), Math.floor(Number(stat.tier) || 0)] : null);
     const craftMark = fields => JSON.stringify([fields.rarity || null, fields.name || null, lineMark(fields.chaosInfusion),
@@ -349,7 +349,7 @@ const equipmentCrafting = (() => {
     function findCraftItem(state, id) {
         return (state.inventory || []).find(row => row && row.id === id) || Object.values(state.equipment || {}).find(row => row && row.id === id) || null;
     }
-    /** A live basic craft (js/passives.js useCurrency): applyBasic, and with 성화의 뿌리 more rolls on copies of the item as it was. The
+    /** A live basic craft (js/item-rolls.js useCurrency): applyBasic, and with 성화의 뿌리 more rolls on copies of the item as it was. The
      * item keeps the first result; all of them wait in state.craftChoice for the player's pick (pickChoice). options.guaranteedFor(copy)
      * gives each other result its own spore line (as the research simulator rolls them), else they share options.guaranteedStat. */
     function craftBasic(state, item, action, options) {
@@ -393,7 +393,7 @@ const equipmentCrafting = (() => {
     // 2026-10-18 사용자가 고른 제작 방법(PoE 야수 제작의 Imprint에서): 장비의 제작 칸(CRAFT_FIELDS)을 새겨 두고 한 번 되돌린다. 같은
     // 장비의 칸만 바꾸므로 장비가 늘지 않는다. 타락한 장비, 고유, 융합 유물, 전당 소장품은 새기지도 되돌리지도 않는다.
     const IMPRINT_KEY = 'memoryImprint';
-    /** A saved imprint (craft fields of a magic or rare item), or null: the load boundary (js/passives.js normalizeItem). */
+    /** A saved imprint (craft fields of a magic or rare item), or null: the load boundary (js/item-rolls.js normalizeItem). */
     function normalizeImprint(value) {
         return value && typeof value === 'object' && ['magic', 'rare'].includes(value.rarity) && Array.isArray(value.stats) ? value : null;
     }

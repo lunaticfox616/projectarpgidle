@@ -1,19 +1,7 @@
 /** get_player_hall (db/equipment-hall.sql) sends the open shows with the highest appraisal, at most this many: the browse filters and
  * orders those, never the whole hall. */
-const HALL_LIST_LIMIT = 80;
-const HALL_SORTS = Object.freeze({ score: '감정 높은 순', priceAsc: '가격 낮은 순', priceDesc: '가격 높은 순' });
-const HALL_BROWSE_DEFAULT = Object.freeze({ slot: 'all', sort: 'score', query: '' });
-
-const playerExchangeState = {
-    // dataUserId: the account the hall rows (data) were read for. tipCards: tooltip cards built on hover, cleared with itemTips.
-    // selectedListingId: the show whose full card and purchase are open. asking: a hall confirmation is open (no second trade starts).
-    data: null, dataUserId: null, loading: false, message: '', selectedItemId: null, itemTips: new Map(), tipCards: new Map(),
-    // browse: how the list is looked through (slot 'all' or a slot name, sort a HALL_SORTS key, query a few letters of a name).
-    // compare: { key, html } of the chosen show against the worn gear. uncertain: { userId, revision } of a trade whose result became
-    // unknown: the account it went out under and the save revision it was sent with (isHallResultUnknown), or null.
-    selectedListingId: null, asking: false, browse: { ...HALL_BROWSE_DEFAULT }, compare: null, uncertain: null
-};
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function isPlayerExchangeServerReady() {
     return !!(cloudState && cloudState.configured && cloudState.user && cloudState.user.id
         && cloudState.revisionSupported === true);
@@ -53,16 +41,6 @@ function hasSocketedHallJewel(item) {
     return equipmentSockets.jewels(item).length > 0 || equipmentSockets.harvests(item).length > 0;
 }
 
-// What keeps a bag item off the hall, first rule that holds wins (the bag picker dims such items and says the rule when one is pressed).
-const HALL_ITEM_RULES = Object.freeze([
-    [item => !Number.isFinite(Number(item.id)) || bagItems.isSpecial(item), '전시할 수 없는 장비입니다.'],
-    [item => !['rare', 'unique'].includes(item.rarity) || !(item.baseId || item.baseName), '희귀, 고유 장비만 전시할 수 있습니다.'],
-    [item => item.locked, '잠근 장비는 전시할 수 없습니다.'],
-    [item => item.tradeLocked || item.hallReplica || item.hallRelistBlocked, '전당 복제품이나 거래가 막힌 장비는 전시할 수 없습니다.'],
-    [hasSocketedHallJewel, '소켓에 주얼이나 성장 아이템을 끼운 장비는 전시할 수 없습니다.'],
-    [item => typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item), '장비 세팅에 들어 있는 장비는 전시할 수 없습니다.']
-]);
-
 /** Why item cannot go on show, or ''. */
 function hallItemIssue(item) {
     const rule = item ? HALL_ITEM_RULES.find(([fails]) => fails(item)) : HALL_ITEM_RULES[0];
@@ -72,7 +50,6 @@ function hallItemIssue(item) {
 function getHallEligibleItems() {
     return (game.inventory || []).filter(item => !hallItemIssue(item));
 }
-
 
 function createHallItemKey() {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -117,122 +94,6 @@ function getPlayerHallData() {
     const userId = cloudState.user && cloudState.user.id;
     return userId && playerExchangeState.dataUserId === userId ? playerExchangeState.data : null;
 }
-
-/** What keeps the hall's trades whole (2026-10-22). The woodsman fight puts the bag back every tick (js/combat.js
- * enforceWoodsmanBuildLock) and the offline replay replaces the game when it settles (js/ui.js commitBackgroundCombat): a trade made
- * meanwhile came back (a listing) or vanished (a withdrawal) while the server kept it. combat.js asks loopBlockReason before a loop. */
-const playerHallTrade = (() => {
-    /** Why a trade must not start now, or ''. action names it in the sentence ('전시', '회수', '구매'); incoming is the item it puts in the
-     * bag (the server counts items, not cells, so a full bag used to send it to the temporary storage without a word). */
-    function hallTradeRefusal(action, incoming) {
-        if (isHallResultUnknown()) return getPlayerExchangeError('HALL_RESULT_UNKNOWN');
-        if (game.woodsmanBuildLock) return _t('☠️ 나무꾼 전투 중에는 {action}할 수 없습니다.', { action });
-        const replay = typeof shopView === 'object' ? shopView.busyReason() : '';
-        if (replay) return replay;
-        return incoming && !canStoreEquipmentItems([incoming], game) ? getPlayerExchangeError('HALL_INVENTORY_FULL') : '';
-    }
-
-    /** Waits while busy() holds, looking every 250 ms, for at most limitMs. @returns {Promise<boolean>} true once it no longer holds */
-    async function hallWaitClear(busy, limitMs) {
-        const until = Date.now() + limitMs;
-        while (busy() && Date.now() < until) await new Promise(resolve => setTimeout(resolve, 250));
-        return !busy();
-    }
-
-    /** Runs trade holding the cloud save (cloudState.busy): an auto save starting meanwhile raced the hall's own push and request, and
-     * one of them failed as if another device had saved. A save already running is waited for, 10 seconds at most. */
-    async function hallHoldCloud(trade) {
-        if (!await hallWaitClear(() => cloudState.busy, 10000)) throw new Error('클라우드 저장이 끝나지 않았습니다. 잠시 뒤 다시 시도해 주세요.');
-        cloudState.busy = true;
-        try {
-            return await trade();
-        } finally {
-            cloudState.busy = false;
-        }
-    }
-
-    /** The game states a result has to reach: the live game and an offline replay snapshot still waiting to run (the replay builds the
-     * next game from it), each with its woodsman fight snapshot while that lock holds (the lock puts the bag back from it every tick). */
-    function hallTradeStates() {
-        return [game, backgroundCombatRuntime.snapshot].filter(Boolean)
-            .flatMap(state => (state.woodsmanBuildLock && state.woodsmanBuildSnapshot ? [state, state.woodsmanBuildSnapshot] : [state]));
-    }
-
-    /** The listed item leaves the bag of a state (by its server key). */
-    function hallTakeItem(itemKey) {
-        return state => { state.inventory = (state.inventory || []).filter(row => row && row.tradeKey !== itemKey); };
-    }
-
-    /** A withdrawn original or a bought replica comes into the bag of a state, once (by its server key). It takes a fresh local id when
-     * it lands: the server's ids (9100000000000 + listing, 9200000000000 + purchase) pushed the save's id counter (js/save.js
-     * refreshItemIdCounter) into the range later hall items get, and two items could share an id. tradeKey stays the server's key. */
-    function hallReceiveItem(serverItem) {
-        let item = null;
-        return state => {
-            // The server can return a show written by an older game. Migrate the received copy once, without changing its stored
-            // server snapshot or ownership flags; all pending local states receive the same migrated item and fresh local id.
-            item = item || normalizeItem({ ...JSON.parse(JSON.stringify(serverItem)), id: ++itemIdCounter });
-            state.inventory = Array.isArray(state.inventory) ? state.inventory : [];
-            if (state.inventory.some(row => row && row.tradeKey === item.tradeKey)) return;
-            state.inventory.push(state === game ? item : JSON.parse(JSON.stringify(item)));
-        };
-    }
-
-    /** The price leaves the 황금률 held now (a woodsman snapshot holds no wallet). Copying the server's number lost the 황금률 picked up,
-     * or gave back what was spent, while the purchase was on its way. */
-    function hallPayPrice(price) {
-        return state => {
-            if (state.currencies) state.currencies.goldenRule = Math.max(0, (Number(state.currencies.goldenRule) || 0) - price);
-        };
-    }
-
-    /** ' 가방에 자리가 없어 임시 보관함에 넣었습니다.' when the received item no longer fit (the bag filled while the request was on its way). */
-    function hallStorageNote(tradeKey) {
-        if (!tradeKey) return '';
-        equipmentInventoryGridRuntime.ensureState(game);
-        return (game.equipmentTemporaryStorage || []).some(row => row && row.tradeKey === tradeKey) ? ' 가방에 자리가 없어 임시 보관함에 넣었습니다.' : '';
-    }
-
-    /** Keeps the held 내 전시 rows right after this device lists (row) or withdraws (row null), also when the reload after it fails: the
-     * loop waits on them (hallLoopBlockReason). */
-    function hallNoteMine(listingId, row) {
-        const userId = cloudState.user && cloudState.user.id;
-        const held = playerExchangeState.dataUserId === userId && playerExchangeState.data ? playerExchangeState.data : { listings: [], mine: [] };
-        const mine = (Array.isArray(held.mine) ? held.mine : []).filter(entry => entry && Number(entry.id) !== Number(listingId));
-        playerExchangeState.data = { ...held, mine: row ? [row, ...mine] : mine };
-        playerExchangeState.dataUserId = userId;
-    }
-
-    /** After a purchase: the held row of that show is marked collected with the server's copy count, so its button stays shut also when
-     * the reload after it fails (the server refuses a second purchase anyway: HALL_ALREADY_COLLECTED). */
-    function hallNoteBought(listingId, result) {
-        const data = getPlayerHallData();
-        if (!data || !Array.isArray(data.listings)) return;
-        data.listings = data.listings.map(row => (Number(row.id) !== Number(listingId) ? row
-            : { ...row, alreadyCollected: true, copiesSold: Math.max(Number(row.copiesSold) || 0, Number(result.copiesSold) || 0) }));
-    }
-
-    /** Why the loop must wait for the hall, or '': originals on show (open or sold out) in the hall rows this device holds for the
-     * account. The loop empties the bag but not the hall, so a withdrawal after it carried the gear into the next loop (the stall waits
-     * for the same reason, js/player-stall.js loopBlockReason). The rows are known once the hall was opened or used this session. */
-    function hallLoopBlockReason() {
-        const data = playerExchangeState.data, userId = cloudState && cloudState.user && cloudState.user.id;
-        if (!data || !userId || playerExchangeState.dataUserId !== userId) return '';
-        const shown = (Array.isArray(data.mine) ? data.mine : []).filter(row => row && ['open', 'sold_out'].includes(row.status)).length;
-        return shown ? _t('장비 전당에 전시한 원본 {shown}개가 남아 있습니다. 거래 → 장비 전당에서 회수한 뒤 루프를 진행하세요.', { shown }) : '';
-    }
-
-    /** My listing's price box: its price while on show, '복제 한도 완료' once every copy went, '전시 닫힘' when it closed before that
-     * (an operator's hold closes open listings, db/anti-cheat.sql admin_set_cheat_hold). */
-    function hallMineLabel(row) {
-        if (row.status !== 'sold_out') return _t('황금률 {price}', { price: Number(row.price || 0).toLocaleString() });
-        return Number(row.copiesSold || 0) >= Number(row.copyCap || 5) ? '복제 한도 완료' : '전시 닫힘';
-    }
-
-    return Object.freeze({ refusal: hallTradeRefusal, waitClear: hallWaitClear, holdCloud: hallHoldCloud, states: hallTradeStates,
-        take: hallTakeItem, receive: hallReceiveItem, pay: hallPayPrice, storageNote: hallStorageNote, noteMine: hallNoteMine, noteBought: hallNoteBought,
-        loopBlockReason: hallLoopBlockReason, mineLabel: hallMineLabel });
-})();
 
 /** Applies a change the server committed: mutation(state) on every state playerHallTrade.states gives, then the revision it gave. A
  * running offline replay is waited for first: it replaces the game with a result built from a snapshot taken before this change, so the
@@ -719,6 +580,7 @@ function hallHeroHtml(plaques) {
 function playerHallUnavailableHtml() {
     return hallHeroHtml([]) + playerHallUnavailableNote();
 }
+
 function playerHallUnavailableNote() {
     if (cloudState && cloudState.user) return '<div class="player-exchange-empty"><span class="px-center">장비 전당 서버를 준비 중입니다. 잠시 후 다시 열어주세요.</span></div>';
     return '<div class="player-exchange-empty"><span class="px-center">장비 전당은 클라우드 로그인 후 이용할 수 있습니다.<button type="button" onclick="openStartupGate({ accountOnly: true })">로그인 화면 열기</button></span></div>';
@@ -744,6 +606,151 @@ function renderPlayerExchange() {
     let message = playerExchangeState.message ? `<p class="player-exchange-message">${escapeHTML(playerExchangeState.message)}</p>` : '';
     hallHost.innerHTML = message + renderPlayerHallPanel();
 }
+
+exposeFileGlobals({ getPlayerExchangeError, hasSocketedHallJewel, hallItemIssue, getPlayerHallData, loadPlayerExchange, createPlayerHallListing, buyPlayerHallReplica, withdrawPlayerHallListing, isHallResultUnknown, selectPlayerHallItem, selectPlayerHallListing, showPlayerHallTooltip, hallCompareHtml, renderHallStands, setPlayerHallBrowse, resetPlayerHallBrowse, renderPlayerExchange });
+})();
+const HALL_LIST_LIMIT = 80;
+const HALL_SORTS = Object.freeze({ score: '감정 높은 순', priceAsc: '가격 낮은 순', priceDesc: '가격 높은 순' });
+const HALL_BROWSE_DEFAULT = Object.freeze({ slot: 'all', sort: 'score', query: '' });
+
+const playerExchangeState = {
+    // dataUserId: the account the hall rows (data) were read for. tipCards: tooltip cards built on hover, cleared with itemTips.
+    // selectedListingId: the show whose full card and purchase are open. asking: a hall confirmation is open (no second trade starts).
+    data: null, dataUserId: null, loading: false, message: '', selectedItemId: null, itemTips: new Map(), tipCards: new Map(),
+    // browse: how the list is looked through (slot 'all' or a slot name, sort a HALL_SORTS key, query a few letters of a name).
+    // compare: { key, html } of the chosen show against the worn gear. uncertain: { userId, revision } of a trade whose result became
+    // unknown: the account it went out under and the save revision it was sent with (isHallResultUnknown), or null.
+    selectedListingId: null, asking: false, browse: { ...HALL_BROWSE_DEFAULT }, compare: null, uncertain: null
+};
+
+
+// What keeps a bag item off the hall, first rule that holds wins (the bag picker dims such items and says the rule when one is pressed).
+const HALL_ITEM_RULES = Object.freeze([
+    [item => !Number.isFinite(Number(item.id)) || bagItems.isSpecial(item), '전시할 수 없는 장비입니다.'],
+    [item => !['rare', 'unique'].includes(item.rarity) || !(item.baseId || item.baseName), '희귀, 고유 장비만 전시할 수 있습니다.'],
+    [item => item.locked, '잠근 장비는 전시할 수 없습니다.'],
+    [item => item.tradeLocked || item.hallReplica || item.hallRelistBlocked, '전당 복제품이나 거래가 막힌 장비는 전시할 수 없습니다.'],
+    [hasSocketedHallJewel, '소켓에 주얼이나 성장 아이템을 끼운 장비는 전시할 수 없습니다.'],
+    [item => typeof equipmentLoadoutRuntime !== 'undefined' && equipmentLoadoutRuntime.isReferenced(item), '장비 세팅에 들어 있는 장비는 전시할 수 없습니다.']
+]);
+
+
+/** What keeps the hall's trades whole (2026-10-22). The woodsman fight puts the bag back every tick (js/combat.js
+ * enforceWoodsmanBuildLock) and the offline replay replaces the game when it settles (js/away-settlement-ui.js commitBackgroundCombat): a trade made
+ * meanwhile came back (a listing) or vanished (a withdrawal) while the server kept it. combat.js asks loopBlockReason before a loop. */
+const playerHallTrade = (() => {
+    /** Why a trade must not start now, or ''. action names it in the sentence ('전시', '회수', '구매'); incoming is the item it puts in the
+     * bag (the server counts items, not cells, so a full bag used to send it to the temporary storage without a word). */
+    function hallTradeRefusal(action, incoming) {
+        if (isHallResultUnknown()) return getPlayerExchangeError('HALL_RESULT_UNKNOWN');
+        if (game.woodsmanBuildLock) return _t('☠️ 나무꾼 전투 중에는 {action}할 수 없습니다.', { action });
+        const replay = typeof shopView === 'object' ? shopView.busyReason() : '';
+        if (replay) return replay;
+        return incoming && !canStoreEquipmentItems([incoming], game) ? getPlayerExchangeError('HALL_INVENTORY_FULL') : '';
+    }
+
+    /** Waits while busy() holds, looking every 250 ms, for at most limitMs. @returns {Promise<boolean>} true once it no longer holds */
+    async function hallWaitClear(busy, limitMs) {
+        const until = Date.now() + limitMs;
+        while (busy() && Date.now() < until) await new Promise(resolve => setTimeout(resolve, 250));
+        return !busy();
+    }
+
+    /** Runs trade holding the cloud save (cloudState.busy): an auto save starting meanwhile raced the hall's own push and request, and
+     * one of them failed as if another device had saved. A save already running is waited for, 10 seconds at most. */
+    async function hallHoldCloud(trade) {
+        if (!await hallWaitClear(() => cloudState.busy, 10000)) throw new Error('클라우드 저장이 끝나지 않았습니다. 잠시 뒤 다시 시도해 주세요.');
+        cloudState.busy = true;
+        try {
+            return await trade();
+        } finally {
+            cloudState.busy = false;
+        }
+    }
+
+    /** The game states a result has to reach: the live game and an offline replay snapshot still waiting to run (the replay builds the
+     * next game from it), each with its woodsman fight snapshot while that lock holds (the lock puts the bag back from it every tick). */
+    function hallTradeStates() {
+        return [game, backgroundCombatRuntime.snapshot].filter(Boolean)
+            .flatMap(state => (state.woodsmanBuildLock && state.woodsmanBuildSnapshot ? [state, state.woodsmanBuildSnapshot] : [state]));
+    }
+
+    /** The listed item leaves the bag of a state (by its server key). */
+    function hallTakeItem(itemKey) {
+        return state => { state.inventory = (state.inventory || []).filter(row => row && row.tradeKey !== itemKey); };
+    }
+
+    /** A withdrawn original or a bought replica comes into the bag of a state, once (by its server key). It takes a fresh local id when
+     * it lands: the server's ids (9100000000000 + listing, 9200000000000 + purchase) pushed the save's id counter (js/save.js
+     * refreshItemIdCounter) into the range later hall items get, and two items could share an id. tradeKey stays the server's key. */
+    function hallReceiveItem(serverItem) {
+        let item = null;
+        return state => {
+            // The server can return a show written by an older game. Migrate the received copy once, without changing its stored
+            // server snapshot or ownership flags; all pending local states receive the same migrated item and fresh local id.
+            item = item || normalizeItem({ ...JSON.parse(JSON.stringify(serverItem)), id: ++itemIdCounter });
+            state.inventory = Array.isArray(state.inventory) ? state.inventory : [];
+            if (state.inventory.some(row => row && row.tradeKey === item.tradeKey)) return;
+            state.inventory.push(state === game ? item : JSON.parse(JSON.stringify(item)));
+        };
+    }
+
+    /** The price leaves the 황금률 held now (a woodsman snapshot holds no wallet). Copying the server's number lost the 황금률 picked up,
+     * or gave back what was spent, while the purchase was on its way. */
+    function hallPayPrice(price) {
+        return state => {
+            if (state.currencies) state.currencies.goldenRule = Math.max(0, (Number(state.currencies.goldenRule) || 0) - price);
+        };
+    }
+
+    /** ' 가방에 자리가 없어 임시 보관함에 넣었습니다.' when the received item no longer fit (the bag filled while the request was on its way). */
+    function hallStorageNote(tradeKey) {
+        if (!tradeKey) return '';
+        equipmentInventoryGridRuntime.ensureState(game);
+        return (game.equipmentTemporaryStorage || []).some(row => row && row.tradeKey === tradeKey) ? ' 가방에 자리가 없어 임시 보관함에 넣었습니다.' : '';
+    }
+
+    /** Keeps the held 내 전시 rows right after this device lists (row) or withdraws (row null), also when the reload after it fails: the
+     * loop waits on them (hallLoopBlockReason). */
+    function hallNoteMine(listingId, row) {
+        const userId = cloudState.user && cloudState.user.id;
+        const held = playerExchangeState.dataUserId === userId && playerExchangeState.data ? playerExchangeState.data : { listings: [], mine: [] };
+        const mine = (Array.isArray(held.mine) ? held.mine : []).filter(entry => entry && Number(entry.id) !== Number(listingId));
+        playerExchangeState.data = { ...held, mine: row ? [row, ...mine] : mine };
+        playerExchangeState.dataUserId = userId;
+    }
+
+    /** After a purchase: the held row of that show is marked collected with the server's copy count, so its button stays shut also when
+     * the reload after it fails (the server refuses a second purchase anyway: HALL_ALREADY_COLLECTED). */
+    function hallNoteBought(listingId, result) {
+        const data = getPlayerHallData();
+        if (!data || !Array.isArray(data.listings)) return;
+        data.listings = data.listings.map(row => (Number(row.id) !== Number(listingId) ? row
+            : { ...row, alreadyCollected: true, copiesSold: Math.max(Number(row.copiesSold) || 0, Number(result.copiesSold) || 0) }));
+    }
+
+    /** Why the loop must wait for the hall, or '': originals on show (open or sold out) in the hall rows this device holds for the
+     * account. The loop empties the bag but not the hall, so a withdrawal after it carried the gear into the next loop (the stall waits
+     * for the same reason, js/player-stall.js loopBlockReason). The rows are known once the hall was opened or used this session. */
+    function hallLoopBlockReason() {
+        const data = playerExchangeState.data, userId = cloudState && cloudState.user && cloudState.user.id;
+        if (!data || !userId || playerExchangeState.dataUserId !== userId) return '';
+        const shown = (Array.isArray(data.mine) ? data.mine : []).filter(row => row && ['open', 'sold_out'].includes(row.status)).length;
+        return shown ? _t('장비 전당에 전시한 원본 {shown}개가 남아 있습니다. 거래 → 장비 전당에서 회수한 뒤 루프를 진행하세요.', { shown }) : '';
+    }
+
+    /** My listing's price box: its price while on show, '복제 한도 완료' once every copy went, '전시 닫힘' when it closed before that
+     * (an operator's hold closes open listings, db/anti-cheat.sql admin_set_cheat_hold). */
+    function hallMineLabel(row) {
+        if (row.status !== 'sold_out') return _t('황금률 {price}', { price: Number(row.price || 0).toLocaleString() });
+        return Number(row.copiesSold || 0) >= Number(row.copyCap || 5) ? '복제 한도 완료' : '전시 닫힘';
+    }
+
+    return Object.freeze({ refusal: hallTradeRefusal, waitClear: hallWaitClear, holdCloud: hallHoldCloud, states: hallTradeStates,
+        take: hallTakeItem, receive: hallReceiveItem, pay: hallPayPrice, storageNote: hallStorageNote, noteMine: hallNoteMine, noteBought: hallNoteBought,
+        loopBlockReason: hallLoopBlockReason, mineLabel: hallMineLabel });
+})();
+
 
 safeExposeGlobals({ loadPlayerExchange, renderPlayerExchange, selectPlayerHallItem, selectPlayerHallListing, hallItemIssue,
     createPlayerHallListing, buyPlayerHallReplica, withdrawPlayerHallListing, setPlayerHallBrowse, resetPlayerHallBrowse,

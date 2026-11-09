@@ -1,5 +1,6 @@
 // 수동 저장, 클라우드 저장 복구와 운영 통계 UI. 데이터 접근 권한은 Supabase RPC가 최종 판정한다.
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function cloudToolsEscape(value) {
     return typeof escapeHTML === 'function' ? escapeHTML(String(value == null ? '' : value)) : String(value == null ? '' : value);
 }
@@ -7,18 +8,6 @@ function cloudToolsEscape(value) {
 function cloudToolsNumber(value) {
     return Math.floor(Number(value) || 0).toLocaleString(i18n.locale);
 }
-
-/** 운영 창과 문의 창의 단추들: data-* 이름 → 처리 함수. 단추 하나에 이 이름은 하나만 붙인다(값은 보통 대상 id). */
-const CLOUD_TOOLS_ACTIONS = [
-    ['cheatHold', setCheatHold], ['cheatClear', clearCheatFlags], ['chatMute', setChatMute], ['chatDelete', deleteChatMessage], ['chatClear', clearAllChat],
-    ['termAdd', button => setBannedTerm(button, false)], ['termRemove', button => setBannedTerm(button, true)],
-    ['muteNick', setChatMuteByNickname], ['chatPeek', peekPlayerChat],
-    ['feedbackSend', submitPlayerFeedback], ['feedbackFilter', setAdminFeedbackFilter], ['feedbackStatus', setFeedbackStatus], ['feedbackReply', replyFeedback],
-    ['playerSearch', searchPlayers], ['playerDetail', openPlayerDetail], ['playerSave', downloadPlayerSave], ['opsJump', jumpToOpsSection]
-];
-/** 보류와 금지, 기록 지우기는 플레이어 표와 자세히 보기에도 보이는 상태라, 끝난 뒤 그 둘을 다시 그린다(refreshPlayerViews). */
-const PLAYER_STATE_ACTIONS = new Set(['cheatHold', 'cheatClear', 'chatMute', 'muteNick']);
-const CLOUD_TOOLS_ACTION_SELECTOR = CLOUD_TOOLS_ACTIONS.map(([key]) => `[data-${key.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())}]`).join(', ');
 
 function ensureCloudToolsDialog() {
     let dialog = document.getElementById('cloud-tools-dialog');
@@ -162,10 +151,6 @@ function openAccountDeletionRequest(event) {
     deleteCloudAccount();
 }
 
-const ACCOUNT_DELETE_ERROR_TEXTS = [
-    [/AUTH_REQUIRED/, '로그인이 풀렸습니다. 다시 로그인한 뒤 눌러 주세요.'],
-    [/schema cache|could not find|does not exist/i, '서버에 계정 삭제 기능이 아직 없습니다. db/account-deletion-hold-chat-20261027.sql을 실행해야 합니다.']
-];
 /** delete_my_account를 부른다. 다른 기기에서 이미 지운 계정(ACCOUNT_NOT_FOUND)은 성공으로 본다: 이 기기의 로그인 정보만 치우면 된다(검토 지적 2026-10-27). */
 async function requestAccountDeletion() {
     try {
@@ -234,13 +219,6 @@ function renderOpsStats(data) {
     return html;
 }
 
-const OPS_ZONE_TYPE_LABELS = {
-    abyss: '심연', act: '막', meteor: '유성 낙하지', labyrinth: '고대 미궁', cosmos: '우주', trial: '시련', timeRift: '시간 균열',
-    atlasMap: '지도', ocean: '심해', hunting: '사냥터', breach: '균열', colony: '군락', incident: '사건', duel: '대결', unknown: '알 수 없음'
-};
-const OPS_ZONE_ID_LABELS = {
-    meteor_fall_site: '유성 낙하지', labyrinth_endless: '끝없는 미궁', cosmos_challenge: '우주 도전', time_rift_past: '과거 균열'
-};
 /** 원격 측정의 zone_type, zone_id, 단계를 한 줄 한글로: "심연 22층", "유성 낙하지 14단계", "막 9". */
 function opsZoneLabel(type, id, stage) {
     let typeLabel = OPS_ZONE_TYPE_LABELS[type] || String(type || '');
@@ -346,25 +324,30 @@ async function reportCurrentProfile() {
         showGameToast('신고 실패: ' + translateReportError(error), 'danger');
     }
 }
+
 /** The shown profile's player, or null when it is mine or there is no login. */
 function reportTargetUserId() {
     let target = socialState && socialState.currentProfileUserId;
     if (!target || !cloudState || !cloudState.user || target === cloudState.user.id) return null;
     return target;
 }
+
 function reportReasonValue() {
     let reasonEl = document.getElementById('social-report-reason');
     return reasonEl ? String(reasonEl.value || '기타') : '기타';
 }
+
 function reportTargetName() {
     return (socialState.currentProfile && socialState.currentProfile.nickname) || '이 플레이어';
 }
+
 /** The newest chat row of that player among the rows this device holds, or null. */
 function latestChatRowId(userId) {
     let latest = (socialState.chatMessages || []).filter(m => m && String(m.user_id) === String(userId))
         .reduce((best, m) => (!best || Number(m.id) > Number(best.id)) ? m : best, null);
     return latest ? Number(latest.id) : null;
 }
+
 function translateReportError(error) {
     let msg = String(error && error.message || error);
     if (/REPORT_ALREADY_SENT/.test(msg)) return '같은 사람은 하루에 한 번만 신고할 수 있습니다.';
@@ -425,6 +408,7 @@ function renderChatReports(data) {
     ], Array.isArray(data.mutes) ? data.mutes : []);
     return html + renderBannedTerms(Array.isArray(data.terms) ? data.terms : null);
 }
+
 /** The 최근 채팅 button of one player (peekPlayerChat). */
 function peekButton(userId, name) {
     return `<button type="button" data-chat-peek="${cloudToolsEscape(userId)}" data-chat-name="${cloudToolsEscape(name || '')}">최근 채팅</button>`;
@@ -453,10 +437,12 @@ function bannedTermOf(button, remove) {
     let input = document.getElementById('banned-term-input');
     return String((input && input.value) || '').trim();
 }
+
 function bannedTermSpaced() {
     let box = document.getElementById('banned-term-spaced');
     return !box || box.checked;
 }
+
 /** Adds (from the input row) or removes (a row's button) one banned term after a confirmation, then reloads the section. */
 async function setBannedTerm(button, remove) {
     let term = bannedTermOf(button, remove);
@@ -508,9 +494,11 @@ async function setChatMuteByNickname(button) {
         showGameToast(describeMuteError(error), 'danger');
     }
 }
+
 function muteConfirmText(name, minutes) {
     return minutes ? `${name} 계정의 채팅을 ${minutes >= 10080 ? '7일' : '1일'} 동안 금지할까요?` : `${name} 계정의 채팅 금지를 풀까요?`;
 }
+
 function describeMuteError(error) {
     let text = String(error && error.message || error);
     return /PLAYER_NOT_FOUND/.test(text) ? '그 닉네임의 플레이어가 없습니다.' : `금지를 바꾸지 못했습니다: ${text}`;
@@ -530,6 +518,7 @@ async function peekPlayerChat(button) {
         box.innerHTML = `<p class="cloud-tools-error">최근 채팅을 불러오지 못했습니다: ${cloudToolsEscape(error.message || error)}</p>`;
     }
 }
+
 function renderChatPeek(name, rows) {
     return renderOpsTable(`${name || '이 플레이어'}의 최근 채팅`, [
         { label: '시각', render: row => new Date(row.created_at).toLocaleString(i18n.locale) },
@@ -613,10 +602,6 @@ async function openOpsDashboard() {
     renderOpsTop(overview || {}, dashboard || {});
 }
 
-const OPS_SECTIONS = [
-    ['ops-stats', '전투 통계', '지역, 직업과 스킬'], ['ops-cheat', '치트 감시', '감시 기록, 성장 속도, 보류'], ['ops-chat', '채팅 신고', '신고, 금지, 금칙어'],
-    ['ops-feedback', '문의와 제보', '플레이어가 보낸 글과 답변'], ['ops-players', '플레이어', '찾기, 자세히 보기, 저장 내려받기']
-];
 function renderOpsShell() {
     let nav = OPS_SECTIONS.map(([id, title]) => `<button type="button" data-ops-jump="${id}">${title}</button>`).join('');
     let section = (id, body) => {
@@ -661,10 +646,6 @@ function renderOpsAlertBlock(overview, dashboard) {
     return alerts + (overview.error ? '' : renderErrorGroups(Array.isArray(overview.errors) ? overview.errors : []));
 }
 
-const OPS_TODO_ITEMS = [
-    ['feedbackNew', '새 문의', 'ops-feedback'], ['reports24h', '24시간 신고', 'ops-chat'], ['mutesActive', '금지 중', 'ops-chat'],
-    ['ghostsUnderReview', '검토 중 고스트', 'ops-cheat'], ['holds', '보류 계정', 'ops-cheat'], ['errors24h', '24시간 오류', 'ops-stats']
-];
 function renderTodoStrip(todo) {
     let chips = OPS_TODO_ITEMS.map(([key, label, section]) => {
         let count = Number(todo[key]) || 0;
@@ -725,20 +706,6 @@ function renderErrorGroups(errors) {
         { key: 'hits', label: '횟수' }, { key: 'users', label: '사람' }, { label: '마지막', render: row => cloudToolsTime(row.last_at) }, { key: 'app_version', label: '버전' }
     ], errors);
 }
-
-// ---------------------------------------------------------------------------
-// 문의와 제보 (db/operations-and-ghost.sql player_feedback): 플레이어의 문의 창과 운영 창의 목록
-// ---------------------------------------------------------------------------
-const FEEDBACK_KIND_LABELS = { bug: '버그 제보', question: '문의', suggestion: '건의' };
-const FEEDBACK_STATUS_LABELS = { new: '새 글', seen: '확인함', done: '처리함' };
-const FEEDBACK_ERROR_TEXTS = [
-    [/FEEDBACK_DAILY_LIMIT/, '24시간 안에 5건까지 보낼 수 있습니다. 잠시 뒤 다시 보내 주세요.'],
-    [/FEEDBACK_TOO_SHORT/, '내용을 5자 이상 적어 주세요.'],
-    [/AUTH_REQUIRED/, '로그인이 풀렸습니다. 다시 로그인한 뒤 보내 주세요.'],
-    [/schema cache|could not find|does not exist/i, '서버에 문의 기능이 아직 없습니다. 잠시 뒤 다시 시도해 주세요.']
-];
-let adminFeedbackFilter = '';
-let playerDetailUserId = null;   // 자세히 보기가 열려 있는 플레이어(조치 뒤 다시 그릴 때)
 
 function cloudToolsTime(value) {
     return value ? new Date(value).toLocaleString(i18n.locale) : '';
@@ -1075,6 +1042,65 @@ function initializeCloudTools() {
     let adminButton = document.getElementById('btn-ops-dashboard');
     if (adminButton && new URLSearchParams(location.search).get('admin') === '1') adminButton.hidden = false;
 }
+
+exposeFileGlobals({ closeCloudToolsDialog, openCloudSaveHistory, restoreCloudSaveVersion, deleteCloudAccount, openAccountDeletionRequest, forgetDeletedAccountSession, setCheatHold, reportCurrentProfile, clearCheatFlags, setBannedTerm, setChatMuteByNickname, peekPlayerChat, setChatMute, deleteChatMessage, clearAllChat, openOpsDashboard, jumpToOpsSection, openFeedbackDialog, submitPlayerFeedback, setAdminFeedbackFilter, setFeedbackStatus, replyFeedback, searchPlayers, openPlayerDetail, downloadPlayerSave, initializeCloudTools });
+})();
+
+
+/** 운영 창과 문의 창의 단추들: data-* 이름 → 처리 함수. 단추 하나에 이 이름은 하나만 붙인다(값은 보통 대상 id). */
+const CLOUD_TOOLS_ACTIONS = [
+    ['cheatHold', setCheatHold], ['cheatClear', clearCheatFlags], ['chatMute', setChatMute], ['chatDelete', deleteChatMessage], ['chatClear', clearAllChat],
+    ['termAdd', button => setBannedTerm(button, false)], ['termRemove', button => setBannedTerm(button, true)],
+    ['muteNick', setChatMuteByNickname], ['chatPeek', peekPlayerChat],
+    ['feedbackSend', submitPlayerFeedback], ['feedbackFilter', setAdminFeedbackFilter], ['feedbackStatus', setFeedbackStatus], ['feedbackReply', replyFeedback],
+    ['playerSearch', searchPlayers], ['playerDetail', openPlayerDetail], ['playerSave', downloadPlayerSave], ['opsJump', jumpToOpsSection]
+];
+/** 보류와 금지, 기록 지우기는 플레이어 표와 자세히 보기에도 보이는 상태라, 끝난 뒤 그 둘을 다시 그린다(refreshPlayerViews). */
+const PLAYER_STATE_ACTIONS = new Set(['cheatHold', 'cheatClear', 'chatMute', 'muteNick']);
+const CLOUD_TOOLS_ACTION_SELECTOR = CLOUD_TOOLS_ACTIONS.map(([key]) => `[data-${key.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase())}]`).join(', ');
+
+
+const ACCOUNT_DELETE_ERROR_TEXTS = [
+    [/AUTH_REQUIRED/, '로그인이 풀렸습니다. 다시 로그인한 뒤 눌러 주세요.'],
+    [/schema cache|could not find|does not exist/i, '서버에 계정 삭제 기능이 아직 없습니다. db/account-deletion-hold-chat-20261027.sql을 실행해야 합니다.']
+];
+
+
+const OPS_ZONE_TYPE_LABELS = {
+    abyss: '심연', act: '막', meteor: '유성 낙하지', labyrinth: '고대 미궁', cosmos: '우주', trial: '시련', timeRift: '시간 균열',
+    atlasMap: '지도', ocean: '심해', hunting: '사냥터', breach: '균열', colony: '군락', incident: '사건', duel: '대결', unknown: '알 수 없음'
+};
+const OPS_ZONE_ID_LABELS = {
+    meteor_fall_site: '유성 낙하지', labyrinth_endless: '끝없는 미궁', cosmos_challenge: '우주 도전', time_rift_past: '과거 균열'
+};
+
+
+const OPS_SECTIONS = [
+    ['ops-stats', '전투 통계', '지역, 직업과 스킬'], ['ops-cheat', '치트 감시', '감시 기록, 성장 속도, 보류'], ['ops-chat', '채팅 신고', '신고, 금지, 금칙어'],
+    ['ops-feedback', '문의와 제보', '플레이어가 보낸 글과 답변'], ['ops-players', '플레이어', '찾기, 자세히 보기, 저장 내려받기']
+];
+
+
+const OPS_TODO_ITEMS = [
+    ['feedbackNew', '새 문의', 'ops-feedback'], ['reports24h', '24시간 신고', 'ops-chat'], ['mutesActive', '금지 중', 'ops-chat'],
+    ['ghostsUnderReview', '검토 중 고스트', 'ops-cheat'], ['holds', '보류 계정', 'ops-cheat'], ['errors24h', '24시간 오류', 'ops-stats']
+];
+
+
+// ---------------------------------------------------------------------------
+// 문의와 제보 (db/operations-and-ghost.sql player_feedback): 플레이어의 문의 창과 운영 창의 목록
+// ---------------------------------------------------------------------------
+const FEEDBACK_KIND_LABELS = { bug: '버그 제보', question: '문의', suggestion: '건의' };
+const FEEDBACK_STATUS_LABELS = { new: '새 글', seen: '확인함', done: '처리함' };
+const FEEDBACK_ERROR_TEXTS = [
+    [/FEEDBACK_DAILY_LIMIT/, '24시간 안에 5건까지 보낼 수 있습니다. 잠시 뒤 다시 보내 주세요.'],
+    [/FEEDBACK_TOO_SHORT/, '내용을 5자 이상 적어 주세요.'],
+    [/AUTH_REQUIRED/, '로그인이 풀렸습니다. 다시 로그인한 뒤 보내 주세요.'],
+    [/schema cache|could not find|does not exist/i, '서버에 문의 기능이 아직 없습니다. 잠시 뒤 다시 시도해 주세요.']
+];
+let adminFeedbackFilter = '';
+let playerDetailUserId = null;   // 자세히 보기가 열려 있는 플레이어(조치 뒤 다시 그릴 때)
+
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initializeCloudTools);
 else initializeCloudTools();

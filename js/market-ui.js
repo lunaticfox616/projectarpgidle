@@ -3,6 +3,43 @@
  * 암거래상의 카드, js/npc-roster-ui.js, 재화 교환은 오르가의 창 js/orga-exchange-ui.js), 가판대(js/player-stall-ui.js), 장비 전당
  * (js/player-exchange.js). 열린 칸만 보이고, 고른 칸이 닫히면 첫 열린 칸을 본다. 암거래상(js/black-market-ui.js)은 거래소 해금 뒤 NPC 칸의
  * 카드로 서고, 누르면 NPC 창 모양의 창이 뜨며 #market-panel-black 판이 그 안으로 옮겨 갔다가 창을 닫으면 돌아온다. 거래 자체는 각 모듈의 몫이다. */
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
+function marketPickHallItem(itemId) {
+    hideItemTooltip();
+    window.closeCraftItemPickerOverlay();
+    selectPlayerHallItem(itemId);
+}
+
+function renderMarketUI() {
+    const panel = document.getElementById('ui-market-panel');
+    if (!panel) return;
+    const open = marketUi.openSections();
+    if (!open.includes(marketUi.section)) marketUi.section = open[0] || 'npc';
+    if (isMarketUnlocked()) refreshBlackMarket(false);
+    panel.style.setProperty('--market-tabs', String(Math.max(1, open.length))); // css/themes/pixel.css .market-tabs
+    for (const button of panel.querySelectorAll('[data-market-section]')) {
+        const id = button.dataset.marketSection, active = id === marketUi.section;
+        button.hidden = !open.includes(id);
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+        document.getElementById('market-panel-' + id).hidden = !active;
+    }
+    renderMarketSection(marketUi.section);
+}
+
+/** The shown section's own drawing (the hall draws itself when it loads, js/player-exchange.js); the black market while its window is open. */
+function renderMarketSection(section) {
+    if (section === 'npc') {
+        if (game.noti) game.noti.npcs = false;
+        npcRosterUi.render();
+    }
+    if (section === 'stall') playerStallUi.render();
+    if (document.getElementById('black-market-dialog')?.open) blackMarketUi.render();
+}
+
+exposeFileGlobals({ marketPickHallItem, renderMarketUI });
+})();
 const MARKET_SECTIONS = Object.freeze(['npc', 'stall', 'hall']);
 const MARKET_BLACK_FACE = 'assets/ui/currency/golden-rule.png';
 const marketUi = {
@@ -75,37 +112,6 @@ const marketUi = {
     }
 };
 
-function marketPickHallItem(itemId) {
-    hideItemTooltip();
-    window.closeCraftItemPickerOverlay();
-    selectPlayerHallItem(itemId);
-}
 
-function renderMarketUI() {
-    const panel = document.getElementById('ui-market-panel');
-    if (!panel) return;
-    const open = marketUi.openSections();
-    if (!open.includes(marketUi.section)) marketUi.section = open[0] || 'npc';
-    if (isMarketUnlocked()) refreshBlackMarket(false);
-    panel.style.setProperty('--market-tabs', String(Math.max(1, open.length))); // css/themes/pixel.css .market-tabs
-    for (const button of panel.querySelectorAll('[data-market-section]')) {
-        const id = button.dataset.marketSection, active = id === marketUi.section;
-        button.hidden = !open.includes(id);
-        button.setAttribute('aria-selected', String(active));
-        button.tabIndex = active ? 0 : -1;
-        document.getElementById('market-panel-' + id).hidden = !active;
-    }
-    renderMarketSection(marketUi.section);
-}
-
-/** The shown section's own drawing (the hall draws itself when it loads, js/player-exchange.js); the black market while its window is open. */
-function renderMarketSection(section) {
-    if (section === 'npc') {
-        if (game.noti) game.noti.npcs = false;
-        npcRosterUi.render();
-    }
-    if (section === 'stall') playerStallUi.render();
-    if (document.getElementById('black-market-dialog')?.open) blackMarketUi.render();
-}
 document.addEventListener('click', event => { if (event.target.closest?.('[data-black-open]')) marketUi.openBlack(); });
 safeExposeGlobals({marketUi, renderMarketUI});

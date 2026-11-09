@@ -18,7 +18,7 @@ console.table(loopRows);
 run(`(${require('./lib/offline-endgame-fixture').toString()})()`);
 // Comparison group: same final calculator/build, only the newly added requirement evaluation removed.
 const baseline=buildGameRuntime({
-    'js/combat.js':fs.readFileSync('js/combat.js','utf8').replace('if (!equipmentView) return combatEquipmentStats.read(includeBreakdowns);',''),
+    'js/player-stats.js':fs.readFileSync('js/player-stats.js','utf8').replace('if (!equipmentView) return combatEquipmentStats.read(includeBreakdowns);',''),
     'js/combat-equipment-stats.js':fs.readFileSync('js/combat-equipment-stats.js','utf8').replace('return evaluate(owner).active;','return owner.equipment;')
 });
 baseline.auditState=JSON.parse(run('JSON.stringify(game)'));

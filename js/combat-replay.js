@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function cloneBackgroundCombatState(state) {
     let snapshot = JSON.parse(JSON.stringify(state));
     return snapshot;
@@ -167,10 +169,6 @@ function simulateBackgroundCombat(options) {
     return finishCombatReplay(replay);
 }
 
-// One slice per painted frame: work time per frame, and how long to wait for a frame before going on anyway.
-const BACKGROUND_REPLAY_SLICE_MS = 12;
-const BACKGROUND_REPLAY_FRAME_WAIT_MS = 100;
-
 function waitBackgroundReplayFrame() {
     // Let a frame paint between slices. scheduler.yield() continuations outrank rendering in Chromium, so a yield loop
     // painted about once per 100 ms (8 h idle return, 2026-10-01: 11 of 21 frames over 100 ms). The timer covers a
@@ -217,5 +215,14 @@ async function simulateBackgroundCombatChunked(options) {
     } while (pending);
     return finishCombatReplay(replay);
 }
+
+exposeFileGlobals({ cloneBackgroundCombatState, getBackgroundTotalExperience, updateBackgroundCombatMetrics, createCombatReplay, shouldStopBackgroundReplay, advanceCombatReplay, finishCombatReplay, simulateBackgroundCombat, simulateBackgroundCombatChunked });
+})();
+
+
+// One slice per painted frame: work time per frame, and how long to wait for a frame before going on anyway.
+const BACKGROUND_REPLAY_SLICE_MS = 12;
+const BACKGROUND_REPLAY_FRAME_WAIT_MS = 100;
+
 
 safeExposeGlobals({ simulateBackgroundCombat, simulateBackgroundCombatChunked });

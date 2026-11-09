@@ -117,8 +117,17 @@ const gameTabGuard = (() => {
         });
     }
 
+    /** Lifts the loading cover (html.app-preload). A booting page does it in js/main.js revealStartupScreen; a standby page never boots, so
+     * its panel sat under the "게임 파일을 받는 중" line until index.html's 20 s fallback (2026-10-28 to 2026-11-10). Waits for the fonts
+     * like the boot does. */
+    function uncover() {
+        const fonts = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+        fonts.then(() => document.documentElement.classList.remove('app-preload'));
+    }
+
     function showStandby() {
         blockWrites();
+        uncover();
         const overlay = document.getElementById('startup-overlay');
         const panel = document.getElementById('startup-standby');
         if (!overlay || !panel) return;
@@ -141,5 +150,5 @@ const gameTabGuard = (() => {
         return readyPromise;
     }
 
-    return Object.freeze({ ready: untilTabMayBoot });
+    return Object.freeze({ ready: untilTabMayBoot, uncover });
 })();

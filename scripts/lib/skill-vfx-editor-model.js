@@ -57,7 +57,7 @@ function parseActiveVfxAssets(source) {
 }
 
 function loadVfxAssetCatalog(root) {
-    const passivesFile = path.join(root, 'js', 'passives.js');
+    const passivesFile = path.join(root, 'js', 'battle-assets.js');
     const areaSource = fs.readFileSync(path.join(root, 'data', 'skills.js'), 'utf8');
     return parseActiveVfxAssets(fs.readFileSync(passivesFile, 'utf8') + '\n' + areaSource).map(entry => {
         const file = path.resolve(root, entry.path);

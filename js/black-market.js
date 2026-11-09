@@ -3,15 +3,8 @@
  * to 50. State: game.blackMarket (js/state.js), normalized here on every read. Each offer keeps its place on the shelf (column, row).
  * Moved out of js/items.js on 2026-10-18 with the shop screen (js/black-market-ui.js), which asks, logs and draws: nothing here does.
  */
-const BLACK_MARKET_BASE_SLOT_COUNT = 6;
-const BLACK_MARKET_MAX_SLOT_COUNT = 50;
-const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
-const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
-const BLACK_MARKET_BASE_CRAFT_TIER = 15;
-const BLACK_MARKET_MAX_LOCKED_OFFERS = 3;
-const BLACK_MARKET_INSIGHT_TARGET = 5;
-const BLACK_MARKET_EQUIPMENT_SLOTS = ['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패'];
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function isUniqueEligibleForBlackMarket(unique) {
     if (!unique || unique.contentOnly || unique.bossOnly || unique.realmCodexOnly) return false;
     if (!unique.dropOnly) return true;
@@ -263,8 +256,6 @@ function buildBlackMarketFeaturedOffer() {
     let unique = rndChoice(missing.length > 0 ? missing : pool);
     return createBlackMarketUniqueOffer(unique, tier, { featured: true }) || buildBlackMarketOffer(0);
 }
-
-
 
 function buildBlackMarketOffer(index) {
     let tier = (getZone(game.currentZoneId) || { tier: 1 }).tier || 1;
@@ -548,10 +539,6 @@ function createBlackMarketUniqueItem(offer) {
     return item;
 }
 
-/** The shelf the black market lays its offers on (js/black-market-ui.js): ten columns like the bag's, four rows or more when the
- * bought slots need them. */
-const BLACK_MARKET_SHELF = Object.freeze({ columns: 10, rows: 4 });
-
 /** An offer's cells on the shelf: gear takes its bag footprint, a trade or a rune one cell. */
 function getBlackMarketOfferSize(offer) {
     return offer.type === 'baseItem' || offer.type === 'unique' ? getEquipmentInventoryFootprint(offer) : { columns: 1, rows: 1 };
@@ -600,6 +587,23 @@ function placeBlackMarketOffers(bm) {
     }
     return rows;
 }
+
+exposeFileGlobals({ isUniqueEligibleForBlackMarket, isBaseEligibleForBlackMarket, rollBlackMarketExchangeOffer, normalizeBlackMarketState, getBlackMarketLockCount, getBlackMarketManualRefreshCost, getBlackMarketSlotCount, createBlackMarketUniqueOffer, buildBlackMarketOffer, getBlackMarketOfferTooltipHtml, refreshBlackMarket, lockBlackMarketOffer, setBlackMarketPreferredSlot, payBlackMarketRefresh, payBlackMarketExpansion, getBlackMarketSlotExpandCost, getBlackMarketOfferPrice, checkBlackMarketOffer, getBlackMarketConfirmText, sellBlackMarketOffer, getBlackMarketBaseItemShape, getBlackMarketOfferSize, placeBlackMarketOffers });
+})();
+const BLACK_MARKET_BASE_SLOT_COUNT = 6;
+const BLACK_MARKET_MAX_SLOT_COUNT = 50;
+const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
+const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
+const BLACK_MARKET_BASE_CRAFT_TIER = 15;
+const BLACK_MARKET_MAX_LOCKED_OFFERS = 3;
+const BLACK_MARKET_INSIGHT_TARGET = 5;
+const BLACK_MARKET_EQUIPMENT_SLOTS = ['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패'];
+
+
+/** The shelf the black market lays its offers on (js/black-market-ui.js): ten columns like the bag's, four rows or more when the
+ * bought slots need them. */
+const BLACK_MARKET_SHELF = Object.freeze({ columns: 10, rows: 4 });
+
 
 /** The black market's trades for its screen (js/black-market-ui.js), each { ok, reason }-shaped like the NPC shop's (js/npc-shop.js).
  * The functions above stay globals: the stall's audit and the NPC shop's 고유 장비 use the offer rules. */

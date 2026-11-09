@@ -1,14 +1,6 @@
 // Skill module bridge (phase 2).
-window.GameModules = window.GameModules || {};
-window.GameModules.skills = {
-  get db() { return window.SKILL_DB; },
-  sealableNames(kind) {
-    const support = kind === 'support';
-    return (support ? game.supports : game.skills).filter(name => !getSkillGemSealRefusal(name, support));
-  },
-  // TODO: move gem equip/enhance/support toggle handlers into here.
-};
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /**
  * Adds combat XP to a normalized gem record. Overflow carries until the level-20 cap.
  * @param {ReturnType<typeof normalizeGemRecord>} gem
@@ -26,8 +18,6 @@ function gainGemExperience(gem, amount) {
     if (gem.level === 20) gem.exp = 0;
     return gem.level - previousLevel;
 }
-
-// Phase-3 extracted gem/skill progression handlers.
 
 /** 각인은 '룬 각인' 해금과 함께 모두 열리고, 각성 각인만 '룬 각성' 해금이 따로 연다(2026-10-01, 룬 각인사 레벨 대신). */
 function getSkyEnhancementUnlockId(enhanceId) {
@@ -232,6 +222,7 @@ function getGemSkyEnhanceGemLevelBonus(skillName) {
     });
     return Math.max(0, Math.floor(bonus));
 }
+
 /** A skill rune's levels beyond its own: the sky tower boost (응축 창공), the material levels (the core forge, +2 awakened, the boost)
  * and the sky engraving's rune levels. The one source for the active skill, the rune presentation and the summon level. */
 function getSkillRuneBonusLevels(name, record) {
@@ -239,8 +230,6 @@ function getSkillRuneBonusLevels(name, record) {
     const materialBonus = gemCoreForge.effects(record).levels + (record.awakened ? 2 : 0) + permanentSkyBonus;
     return { permanentSkyBonus, materialBonus, engraveLevel: getGemSkyEnhanceGemLevelBonus(name) };
 }
-/** The extra levels of a rune that is not a skill rune. */
-const NO_RUNE_BONUS_LEVELS = Object.freeze({ permanentSkyBonus: 0, materialBonus: 0, engraveLevel: 0 });
 
 /** Why an engraving cannot go on now, or '': the woodsman fight's build lock, the engraving unlock (룬 각인; its loop lives in the unlock
  * catalog, not here), sky essence, and the awakening unlock for awakened engravings. */
@@ -250,6 +239,7 @@ function getSkyEngraveApplyRefusal(enhanceId) {
     if ((game.currencies.skyEssence || 0) <= 0) return '창공의 정수가 부족합니다.';
     return canUseSkyEnhancement(enhanceId) ? '' : '각성 각인은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.';
 }
+
 function applySkyGemEnhancementToActive(enhanceId, requestedSlotIndex) {
     const refusal = getSkyEngraveApplyRefusal(enhanceId);
     if (refusal) {
@@ -329,6 +319,7 @@ function findSkyEngraveSlot(slots, enhanceId, slotIndex) {
     let selectedSlot = Number.isFinite(Number(slotIndex)) ? Math.max(0, Math.min(4, Math.floor(Number(slotIndex)))) : getSelectedGemEngraveSlot();
     return slots[selectedSlot] === enhanceId ? selectedSlot : slots.indexOf(enhanceId);
 }
+
 function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
     if (!contentProgression.isUnlocked('engraving')) return false;
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
@@ -349,7 +340,6 @@ function removeSkyGemEnhancementFromActive(enhanceId, slotIndex) {
     updateStaticUI();
     return true;
 }
-
 
 function upgradeActiveGemQuality() {
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
@@ -374,10 +364,12 @@ function getGemAwakenRefusal(active, gem, echoNeed) {
     if ((gem.level || 1) < 20) return 'Lv.20 이상의 공격 룬만 각성 후보로 변환할 수 있습니다.';
     return (game.currencies.awakenedEcho || 0) < echoNeed ? _t('각성 잔향이 부족합니다. (필요: {echoNeed})', { echoNeed }) : '';
 }
+
 /** ' 각성 효과: …' for a rune with its own awakened effect (GEM_AWAKENED_PERKS), else ''. */
 function getGemAwakenedPerkNote(name) {
     return Object.hasOwn(GEM_AWAKENED_PERKS, name) ? _t(' 각성 효과: {label}.', { label: GEM_AWAKENED_PERKS[name].label }) : '';
 }
+
 function awakenActiveGemCandidate() {
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!contentProgression.isUnlocked('gemAwakening')) return addLog(_t('각성 후보 변환은 ‘해금’의 룬 각성을 열어야 쓸 수 있습니다.'), 'attack-monster');
@@ -423,17 +415,6 @@ async function applyFossilCraft() {
     addLog(_t('🪨 기본 화석 {count}개를 정제해 {summary}를 획득했습니다.', { count, summary }), 'loot-magic');
     updateStaticUI();
 }
-
-const FOSSIL_SURPLUS_REFINING_COSTS = Object.freeze({
-    fossil: 20,
-    fossilJagged: 12,
-    fossilBound: 12,
-    fossilGale: 12,
-    fossilPrismatic: 12,
-    fossilAbyssal: 16,
-    fossilBulwark: 12,
-    fossilWedge: 12
-});
 
 function getFossilSurplusRefiningCost(fossilKey) {
     let cost = Number(FOSSIL_SURPLUS_REFINING_COSTS[fossilKey]);
@@ -612,47 +593,6 @@ function restorePrimalFossil(kind) {
     updateStaticUI();
 }
 
-
-// knownStats: 이미 계산해 둔 스탯이 있으면 넘긴다. getPlayerStats는 한 번에 2.7ms가
-// 드는데, 화면 갱신마다 여기서 한 번, 바로 뒤에서 또 한 번 부르고 있었다.
-function normalizeSupportLoadout(logChange, knownStats) {
-    let stats = knownStats;
-    if (!stats) {
-        let statsProvider = (typeof getPlayerStats === 'function')
-            ? getPlayerStats
-            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
-        if (!statsProvider) return false;
-        stats = statsProvider();
-    }
-    let cap = Math.max(0, Math.floor((stats || {}).suppCap || 0));
-    const { equippedSupports, removed } = window.GameModules.skills.supports.normalize(game, cap);
-    if (!removed.length) return false;
-    game.equippedSupports = equippedSupports;
-    if (logChange) addLog(_t('🟢 장착 한도 또는 연결 제약으로 자동 해제: {removed}', { removed: removed.join(', ') }), "attack-monster");
-    playerStatCache.invalidate();
-    return removed.length > 0;
-}
-
-const GEM_LEVEL_TAG_RULES = [
-    { stat: 'elementalGemLevel', tag: 'elemental' },
-    { stat: 'fireGemLevel', tag: 'fire' },
-    { stat: 'coldGemLevel', tag: 'cold' },
-    { stat: 'lightGemLevel', tag: 'lightning' },
-    { stat: 'chaosGemLevel', tag: 'chaos' },
-    { stat: 'physGemLevel', tag: 'physical' },
-    { stat: 'projectileGemLevel', tag: 'projectile' },
-    { stat: 'meleeGemLevel', tag: 'melee' },
-    { stat: 'slamGemLevel', tag: 'slam' },
-    { stat: 'spellGemLevel', tag: 'spell' },
-    { stat: 'dotGemLevel', tag: 'dot' },
-    { stat: 'aoeGemLevel', tag: 'aoe' },
-    { stat: 'summonGemLevel', tag: 'summon' },
-    // 능력치 태그(2026-10-28 사용자: 설계자의 힘/민첩/지능 스킬 룬 레벨). 룬마다 data/skills.js tags에 하나나 둘이 붙는다.
-    { stat: 'strGemLevel', tag: 'strength' },
-    { stat: 'dexGemLevel', tag: 'dexterity' },
-    { stat: 'intGemLevel', tag: 'intelligence' }
-];
-
 function getGemLevelTargetTags(target) {
     let def = null;
     let tags = [];
@@ -776,6 +716,7 @@ function hasEquippedShield() {
 function getSupportRuneTone(name) {
     return SUPPORT_RUNE_BEHAVIOR_TONES[name] || STAT_TONES[(SUPPORT_GEM_DB[name] || {}).stat] || 'neutral';
 }
+
 /** 보조스킬룬 그림판(assets/ui/support-rune-icons-*.png)의 칸, 그림이 없는 룬은 null. @returns {?{col:number,row:number}} */
 function getSupportRuneArtCell(name) {
     const index = SUPPORT_RUNE_ART_ORDER.indexOf(name);
@@ -798,18 +739,6 @@ function getSkillDamageTagSet(skill) {
     return tags;
 }
 
-/** 그 룬을 이 무기 자세로 쓸 수 있는가: 룬의 계열(SKILL_RUNE_FAMILY)이 그 자세를 허락할 때. 계열이 없는 것(기본 공격)은 언제나. */
-function isSkillRuneUsableWithStance(name, stance) {
-    const family = SKILL_RUNE_FAMILY[name];
-    return !family || SKILL_RUNE_WEAPONS[family].includes(stance);
-}
-
-/** 무작위로 주는 룬(몬스터 드롭, 전직 시련, 하켄의 진열대, 암시장)이 지금 무기로 쓸 수 있는 룬을 고르는 몫: 쓸 수 있는 룬은 3배로 뽑힌다.
- * 못 쓰는 룬도 나와 무기를 바꿔 볼 거리가 남는다(2026-10-17: 무기 규칙 뒤 활은 룬의 50%, 오브와 플라스크는 45%만 쓸 수 있었다). */
-const SKILL_RUNE_FIT_WEIGHT = 3;
-/** 그 룬이 드랍과 진열대에 나오는 무게: 지금 무기로 쓸 수 있으면 SKILL_RUNE_FIT_WEIGHT배, 드물게 나오는 룬(SKILL_RUNE_DROP_WEIGHTS)은 그 배율만큼. */
-const getSkillRuneRewardWeight = (name, stance) => (isSkillRuneUsableWithStance(name, stance) ? SKILL_RUNE_FIT_WEIGHT : 1) * (SKILL_RUNE_DROP_WEIGHTS[name] ?? 1);
-
 /** 룬 이름들 가운데 하나를 지금 무기에 맞는 룬 쪽으로 기울여 고른다(난수 한 번). 빈 목록이면 null. */
 function pickSkillRuneReward(names, random = Math.random) {
     if (!names.length) return null;
@@ -828,8 +757,6 @@ function getSkillRuneRewardWeights(names) {
     return new Map(names.map(name => [name, getSkillRuneRewardWeight(name, stance)]));
 }
 
-/** 룬 요구 레벨(data/skills.js SKILL_RUNE_LEVEL_REQ, SUPPORT_RUNE_LEVEL_REQ). 제한이 없으면 0. */
-const getRuneLevelReq = (name, support = false) => (support ? SUPPORT_RUNE_LEVEL_REQ : SKILL_RUNE_LEVEL_REQ)[name] || 0;
 /** 레벨이 모자라면 'Lv.37 필요', 아니면 ''. */
 function getRuneLevelNote(name, support = false, state = game) {
     const need = getRuneLevelReq(name, support);
@@ -869,14 +796,11 @@ function isAttackRuneBlockedByMobilityBoots(name) {
         && isMobilityRuneAttackWorn(game);
 }
 
-/** 재사용 대기시간(2026-10-21 사용자: 재사용 대기시간 회복 속도와 감소, 이동 스킬 줄은 이동 룬에만). 감소는 더해 상한까지, 회복 속도는
- * 더한 만큼 빨리 돈다: base × (1 − 감소) ÷ (1 + 회복). options: mobility(이동 스킬 줄도 더함), extraReductionPct(그 스킬에만 붙는 감소,
- * 컨디션 교본의 저주 간격), reductionCapPct, floorMs. 감소 상한은 되감긴 모래시계(pStats.cooldownReductionCapBonus)가 올린다. */
-const SKILL_COOLDOWN_RULES = Object.freeze({ reductionCapPct: 60, floorMs: 250 });
 function sumCooldownPct(pStats, generalId, mobilityId, mobility) {
     const value = id => Math.max(0, Number(pStats && pStats[id]) || 0);
     return value(generalId) + (mobility ? value(mobilityId) : 0);
 }
+
 function getSkillCooldownMs(baseMs, pStats, options = {}) {
     const rules = { ...SKILL_COOLDOWN_RULES, ...options };
     const cap = rules.reductionCapPct + Math.max(0, Number(pStats && pStats.cooldownReductionCapBonus) || 0);
@@ -884,8 +808,6 @@ function getSkillCooldownMs(baseMs, pStats, options = {}) {
     const recovery = sumCooldownPct(pStats, 'cooldownRecovery', 'mobilityCooldownRecovery', !!rules.mobility);
     return Math.max(rules.floorMs, Math.round(baseMs * (1 - reduction / 100) / (1 + recovery / 100)));
 }
-
-
 
 /** Add ten percent only to growth earned from reaching level 20 onward. */
 function getGemHighLevelGrowth(value, level19Value) {
@@ -912,8 +834,6 @@ function getGemSpellEarlyMultiplier(skill, level) {
     return start + (1 - start) * Math.min(1, Math.max(0, (level - 1) / (until - 1)));
 }
 
-/** 이동 스킬룬(태그 mobility, js/mobility-skill.js isMobilityGem과 같은 판정)인가. */
-const isMobilityRuneName = name => (SKILL_DB[name]?.tags || []).includes('mobility');
 /** 주 공격 칸의 룬을 지금 무기에 맞춘다: 못 쓰면 기본 공격으로 바꿔 두고 그 룬을 game.weaponBlockedSkill에 적어 두며, 맞는 무기를 다시
  * 들면 그 룬으로 돌린다. 무기 자세를 보는 장비 평가가 getActiveSkillStats를 다시 부르므로 이름은 먼저 잡아 두고 확인 뒤에 쓴다. */
 function fitActiveSkillToWeapon(allowMobility = false) {
@@ -930,6 +850,7 @@ function fitActiveSkillToWeapon(allowMobility = false) {
     game.weaponBlockedSkill = worn;
     game.activeSkill = '기본 공격';
 }
+
 /** 칼이 된 발걸음을 벗으면 주 공격 칸의 이동 룬은 이동 칸으로 간다(이동 칸이 차 있으면 내려 둔다). 막혀 있던 공격 룬은 위에서 돌아온다. */
 function releaseMobilityRuneFromAttackSlot(allowMobility = false) {
     const worn = game.activeSkill;
@@ -944,11 +865,13 @@ function applyGemAwakenedPerk(stats, perk) {
     if (perk.mul) stats[perk.stat] *= perk.mul;
     else stats[perk.stat] += perk.add;
 }
+
 /** A crit hit's damage multiplier from the awakened active rune's effect (강타: x1.3), else 1. */
 function getGemCritHitPerkMul(skillName, pStats) {
     const perk = Object.hasOwn(GEM_AWAKENED_PERKS, skillName) ? GEM_AWAKENED_PERKS[skillName] : null;
     return perk && perk.critHitMul && pStats.sSkill.awakened ? perk.critHitMul : 1;
 }
+
 /** 품질과 룬 강화(gem이 없으면 품질만): 증폭은 피해와 속도에 곱하고, 피해 증가와 속도 증가는 배율이 아니라
  * getPlayerStats(js/combat.js)가 다른 증가 %와 합한다(forgeDmgPct, forgeAspdPct). */
 function applyRuneForgeToSkill(stats, gem, qualityMul) {
@@ -958,6 +881,7 @@ function applyRuneForgeToSkill(stats, gem, qualityMul) {
     stats.forgeDmgPct = forge ? forge.damageInc : 0;
     stats.forgeAspdPct = forge ? forge.speedInc : 0;
 }
+
 function getActiveSkillStats(bonusLevel, allowMobility) {
     fitActiveSkillToWeapon(allowMobility);
     let skill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
@@ -989,7 +913,7 @@ function getActiveSkillStats(bonusLevel, allowMobility) {
         if (enh.stat === 'aspd') stats.spd *= (1 + enh.val / 100);
         if (enh.stat === 'crit') stats.crit += enh.val;
         if (enh.stat === 'leech') stats.leech += enh.val;
-        if (enh.stat === 'targets') stats.engraveTargets = (stats.engraveTargets || 0) + enh.val; // 상한 뒤에 더한다(js/combat.js addUncappedSkillTargets)
+        if (enh.stat === 'targets') stats.engraveTargets = (stats.engraveTargets || 0) + enh.val; // 상한 뒤에 더한다(js/combat-enemy-build.js addUncappedSkillTargets)
         if (enh.stat === 'critDmg') stats.critDmgBonus = (stats.critDmgBonus || 0) + enh.val;
         if (enh.stat === 'ds') stats.dsBonus = (stats.dsBonus || 0) + enh.val;
         if (enh.stat === 'flatSkillDmgPct') stats.flatSkillDmgPct = (stats.flatSkillDmgPct || 0) + enh.val;
@@ -1023,16 +947,6 @@ function getActiveSkillStats(bonusLevel, allowMobility) {
     return stats;
 }
 
-safeExposeGlobals({
-    hasEquippedShield, canUseSkillWithCurrentEquipment, getEquippedWeaponStance, getSkillDamageTagSet, isSkillRuneUsableWithStance, pickSkillRuneReward, getSkillRuneRewardWeights,
-    getSkillRuneWeaponNote, getSkillRuneBlockedLine, getRuneLevelReq, getRuneLevelNote, gainGemExperience,
-    getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage
-});
-
-
-safeExposeGlobals({ upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, awakenActiveGemCandidate, getSkyEnhancementUnlockId, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
-
-
 /** 공격·보조 룬을 봉인할 수 없는 까닭(없으면 ''). 나무꾼 전투 중에는 봉인과 해제를 거절한다: 잠금이 룬 기록을 매 틱 되돌리고 공명력은 그대로라
  * 봉인을 되풀이하면 공명력이 끝없이 늘었다(2026-10-24 검수). */
 function getSkillGemSealRefusal(name, support) {
@@ -1042,10 +956,12 @@ function getSkillGemSealRefusal(name, support) {
     if (name === '기본 공격') return '기본 공격은 봉인할 수 없습니다.';
     return (game.equippedSummonSkills || []).includes(name) ? '장착 중 소환수 룬은 봉인할 수 없습니다.' : '';
 }
+
 /** The seal line's tail: how many runes are sealed and the resonance they give now (봉인 2개당 공명력 1, gemDropRewards.sealResonance). */
 function getSealLogParams(name) {
     return { name, count: game.sealedSkills.length + game.sealedSupports.length, power: gemDropRewards.sealResonance(game) };
 }
+
 function sealSkillGem(name) {
     const refusal = getSkillGemSealRefusal(name);
     if (refusal) return addLog(refusal, 'attack-monster');
@@ -1057,6 +973,7 @@ function sealSkillGem(name) {
     queueImportantSave(180);
     updateStaticUI();
 }
+
 function unsealSkillGem(name) {
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!game.sealedSkills.includes(name) || game.skills.includes(name)) return;
@@ -1066,6 +983,7 @@ function unsealSkillGem(name) {
     queueImportantSave(180);
     updateStaticUI();
 }
+
 function sealSupportGem(name) {
     const refusal = getSkillGemSealRefusal(name, true);
     if (refusal) return addLog(refusal, 'attack-monster');
@@ -1076,6 +994,7 @@ function sealSupportGem(name) {
     queueImportantSave(180);
     updateStaticUI();
 }
+
 function unsealSupportGem(name) {
     if (game.woodsmanBuildLock) return addLog(_t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.'), 'attack-monster');
     if (!game.sealedSupports.includes(name) || game.supports.includes(name)) return;
@@ -1085,5 +1004,116 @@ function unsealSupportGem(name) {
     queueImportantSave(180);
     updateStaticUI();
 }
+
 function sealAllInactiveSkillGems(){ window.GameModules.skills.sealableNames('skill').forEach(sealSkillGem); }
+
 function sealAllInactiveSupportGems(){ window.GameModules.skills.sealableNames('support').forEach(sealSupportGem); }
+
+exposeFileGlobals({ gainGemExperience, getSkyEnhancementUnlockId, canUseSkyEnhancement, isAwakenedSkyEnhancement, isEnhanceableAttackGem, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, getGemSkyEnhanceGemLevelBonus, getSkillRuneBonusLevels, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, getSkyGemEnhancementRemoveCost, removeSkyGemEnhancementFromActive, upgradeActiveGemQuality, getGemAwakenedPerkNote, awakenActiveGemCandidate, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilExclusivePool, getFossilGuaranteedPool, weighFossilTagMods, applyFossilChaosCraft, restorePrimalFossil, getGemLevelTargetTags, createGemBonusEvaluation, getGemBonusSources, hasEquippedShield, getSupportRuneTone, getSupportRuneArtCell, getEquippedWeaponStance, getSkillDamageTagSet, pickSkillRuneReward, getSkillRuneRewardWeights, getRuneLevelNote, getSkillRuneWeaponNote, getSkillRuneBlockedLine, canUseSkillWithCurrentEquipment, isAttackRuneBlockedByMobilityBoots, getSkillCooldownMs, getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage, fitActiveSkillToWeapon, releaseMobilityRuneFromAttackSlot, getGemCritHitPerkMul, applyRuneForgeToSkill, getActiveSkillStats, getSkillGemSealRefusal, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });
+})();
+window.GameModules = window.GameModules || {};
+window.GameModules.skills = {
+  get db() { return window.SKILL_DB; },
+  sealableNames(kind) {
+    const support = kind === 'support';
+    return (support ? game.supports : game.skills).filter(name => !getSkillGemSealRefusal(name, support));
+  },
+  // TODO: move gem equip/enhance/support toggle handlers into here.
+};
+
+
+// Phase-3 extracted gem/skill progression handlers.
+
+
+/** The extra levels of a rune that is not a skill rune. */
+const NO_RUNE_BONUS_LEVELS = Object.freeze({ permanentSkyBonus: 0, materialBonus: 0, engraveLevel: 0 });
+
+
+const FOSSIL_SURPLUS_REFINING_COSTS = Object.freeze({
+    fossil: 20,
+    fossilJagged: 12,
+    fossilBound: 12,
+    fossilGale: 12,
+    fossilPrismatic: 12,
+    fossilAbyssal: 16,
+    fossilBulwark: 12,
+    fossilWedge: 12
+});
+
+
+// knownStats: 이미 계산해 둔 스탯이 있으면 넘긴다. getPlayerStats는 한 번에 2.7ms가
+// 드는데, 화면 갱신마다 여기서 한 번, 바로 뒤에서 또 한 번 부르고 있었다.
+function normalizeSupportLoadout(logChange, knownStats) {
+    let stats = knownStats;
+    if (!stats) {
+        let statsProvider = (typeof getPlayerStats === 'function')
+            ? getPlayerStats
+            : ((typeof window !== 'undefined' && typeof window.getPlayerStats === 'function') ? window.getPlayerStats : null);
+        if (!statsProvider) return false;
+        stats = statsProvider();
+    }
+    let cap = Math.max(0, Math.floor((stats || {}).suppCap || 0));
+    const { equippedSupports, removed } = window.GameModules.skills.supports.normalize(game, cap);
+    if (!removed.length) return false;
+    game.equippedSupports = equippedSupports;
+    if (logChange) addLog(_t('🟢 장착 한도 또는 연결 제약으로 자동 해제: {removed}', { removed: removed.join(', ') }), "attack-monster");
+    playerStatCache.invalidate();
+    return removed.length > 0;
+}
+
+const GEM_LEVEL_TAG_RULES = [
+    { stat: 'elementalGemLevel', tag: 'elemental' },
+    { stat: 'fireGemLevel', tag: 'fire' },
+    { stat: 'coldGemLevel', tag: 'cold' },
+    { stat: 'lightGemLevel', tag: 'lightning' },
+    { stat: 'chaosGemLevel', tag: 'chaos' },
+    { stat: 'physGemLevel', tag: 'physical' },
+    { stat: 'projectileGemLevel', tag: 'projectile' },
+    { stat: 'meleeGemLevel', tag: 'melee' },
+    { stat: 'slamGemLevel', tag: 'slam' },
+    { stat: 'spellGemLevel', tag: 'spell' },
+    { stat: 'dotGemLevel', tag: 'dot' },
+    { stat: 'aoeGemLevel', tag: 'aoe' },
+    { stat: 'summonGemLevel', tag: 'summon' },
+    // 능력치 태그(2026-10-28 사용자: 설계자의 힘/민첩/지능 스킬 룬 레벨). 룬마다 data/skills.js tags에 하나나 둘이 붙는다.
+    { stat: 'strGemLevel', tag: 'strength' },
+    { stat: 'dexGemLevel', tag: 'dexterity' },
+    { stat: 'intGemLevel', tag: 'intelligence' }
+];
+
+
+/** 그 룬을 이 무기 자세로 쓸 수 있는가: 룬의 계열(SKILL_RUNE_FAMILY)이 그 자세를 허락할 때. 계열이 없는 것(기본 공격)은 언제나. */
+function isSkillRuneUsableWithStance(name, stance) {
+    const family = SKILL_RUNE_FAMILY[name];
+    return !family || SKILL_RUNE_WEAPONS[family].includes(stance);
+}
+
+/** 무작위로 주는 룬(몬스터 드롭, 전직 시련, 하켄의 진열대, 암시장)이 지금 무기로 쓸 수 있는 룬을 고르는 몫: 쓸 수 있는 룬은 3배로 뽑힌다.
+ * 못 쓰는 룬도 나와 무기를 바꿔 볼 거리가 남는다(2026-10-17: 무기 규칙 뒤 활은 룬의 50%, 오브와 플라스크는 45%만 쓸 수 있었다). */
+const SKILL_RUNE_FIT_WEIGHT = 3;
+/** 그 룬이 드랍과 진열대에 나오는 무게: 지금 무기로 쓸 수 있으면 SKILL_RUNE_FIT_WEIGHT배, 드물게 나오는 룬(SKILL_RUNE_DROP_WEIGHTS)은 그 배율만큼. */
+const getSkillRuneRewardWeight = (name, stance) => (isSkillRuneUsableWithStance(name, stance) ? SKILL_RUNE_FIT_WEIGHT : 1) * (SKILL_RUNE_DROP_WEIGHTS[name] ?? 1);
+
+
+/** 룬 요구 레벨(data/skills.js SKILL_RUNE_LEVEL_REQ, SUPPORT_RUNE_LEVEL_REQ). 제한이 없으면 0. */
+const getRuneLevelReq = (name, support = false) => (support ? SUPPORT_RUNE_LEVEL_REQ : SKILL_RUNE_LEVEL_REQ)[name] || 0;
+
+
+/** 재사용 대기시간(2026-10-21 사용자: 재사용 대기시간 회복 속도와 감소, 이동 스킬 줄은 이동 룬에만). 감소는 더해 상한까지, 회복 속도는
+ * 더한 만큼 빨리 돈다: base × (1 − 감소) ÷ (1 + 회복). options: mobility(이동 스킬 줄도 더함), extraReductionPct(그 스킬에만 붙는 감소,
+ * 컨디션 교본의 저주 간격), reductionCapPct, floorMs. 감소 상한은 되감긴 모래시계(pStats.cooldownReductionCapBonus)가 올린다. */
+const SKILL_COOLDOWN_RULES = Object.freeze({ reductionCapPct: 60, floorMs: 250 });
+
+
+/** 이동 스킬룬(태그 mobility, js/mobility-skill.js isMobilityGem과 같은 판정)인가. */
+const isMobilityRuneName = name => (SKILL_DB[name]?.tags || []).includes('mobility');
+
+
+safeExposeGlobals({
+    hasEquippedShield, canUseSkillWithCurrentEquipment, getEquippedWeaponStance, getSkillDamageTagSet, isSkillRuneUsableWithStance, pickSkillRuneReward, getSkillRuneRewardWeights,
+    getSkillRuneWeaponNote, getSkillRuneBlockedLine, getRuneLevelReq, getRuneLevelNote, gainGemExperience,
+    getGemHighLevelGrowth, getGemLevelGrowthSteps, getGemSpellBaseDamage
+});
+
+
+safeExposeGlobals({ upgradeActiveGemWithCondensedSkyPower, upgradeSkyEngraveCap, normalizeSkyGemEnhancementSlots, getSkyEnhancementSlotsForSkill, getSkyEnhancementForSkill, getSkyProjectilePatternMode, isSkyEnhancementCompatibleWithSkill, applyProjectilePatternMode, getSelectedGemEngraveSlot, selectGemEngraveSlot, getFirstEmptyGemEngraveSlot, applySkyGemEnhancementToActive, toggleSkyGemEnhancement, removeSkyGemEnhancementFromActive, getSkyGemEnhancementRemoveCost, getGemSkyEnhanceGemLevelBonus, upgradeActiveGemQuality, getEquippedEnhanceableGemNames, getGemEnhanceTargetSkill, selectGemEnhanceTargetSkill, awakenActiveGemCandidate, getSkyEnhancementUnlockId, canUseSkyEnhancement, isAwakenedSkyEnhancement, applyFossilCraft, getFossilSurplusRefiningCost, refineFossilSurplus, getFossilGuaranteedPool, applyFossilChaosCraft, restorePrimalFossil, normalizeSupportLoadout, sealSkillGem, unsealSkillGem, sealSupportGem, unsealSupportGem, sealAllInactiveSkillGems, sealAllInactiveSupportGems });

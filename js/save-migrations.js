@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** 루프 관문 대기 플래그. 오프라인에서 채운 관문 표시는 관문이 남아 있을 때만 의미가 있다. */
 function normalizeLoopGateFlags(state) {
     state.pendingLoopDecision = !!state.pendingLoopDecision;
@@ -90,8 +92,6 @@ function mergeTalentCardRecords(previous, card) {
         count: (Number(previous.count) || 0) + (Number(card.count) || 0) };
 }
 
-const RETIRED_TAB_BUTTON_IDS = Object.freeze(['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise']);
-
 /** Saved menu layouts are independent value copies; legacy shared layouts seed both once. */
 function normalizeTabLayoutSettings(settings) {
     const normalizeOrder = (list, pattern) => Array.from(new Set(
@@ -129,10 +129,6 @@ function stripRemovedGrowthBoard(merged) {
         .forEach(([row, key]) => { if (row && typeof row === 'object') delete row[key]; });
 }
 
-const METEOR_SITE_SAVE_KEYS = Object.freeze(['unlocked', 'skyRiftGauge', 'skyRiftReady', 'skyRiftMinTier', 'skyRiftAllCosmos',
-    'activeMeteorTier', 'meteorReturnZoneId', 'lastAnomalyAt', 'skyRiftCarryGauge', 'constellationBuff', 'entriesCleared']);
-const RETIRED_STAR_WEDGE_CURRENCIES = Object.freeze(['meteorShard', 'incompleteStarWedge', 'starWedge', 'astralCore']);
-
 /** 6단계(2026-10-01): 운석 낙하 지점 상태(게이지 · 단계 · 돌아갈 곳 · 별자리 관측)를 별쐐기 저장에서 meteorSite로 옮기고,
  * 별쐐기 · 장착 · 변성 기록은 보상 없이 지운다(결정 4 · 8). 별쐐기 저널은 운석 낙하 지점 저널이 된다. 두 번 불러와도 같다. */
 function moveStarWedgeSaveToMeteorSite(merged, save) {
@@ -153,8 +149,6 @@ function stripRemovedStarWedges(merged) {
     Object.keys(merged.retiredVoidPassives || {}).filter(id => id.startsWith('star_')).forEach(id => delete merged.retiredVoidPassives[id]);
 }
 
-/** 2026-11-04 사용자: 홀씨 제작이 그루터기 함 식물을 쓰는 수확 제작으로 바뀌어, 가진 속성 홀씨는 보상 없이 지운다("그냥 없애기"). 두 번 불러와도 같다. */
-const RETIRED_SPORE_CURRENCIES = Object.freeze(['sporeFire', 'sporeCold', 'sporeLight']);
 function stripRetiredSpores(merged) {
     RETIRED_SPORE_CURRENCIES.forEach(key => delete merged.currencies[key]);
 }
@@ -177,12 +171,6 @@ function stripRemovedAuxSystems(merged) {
     refundRemovedAffixKeep(merged);
 }
 
-/** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
- * 균사학자 Lv.4 잉여 화석 정제 · 원시 화석 복원, Lv.7 부패 홀씨(지금은 고급 수확 제작), 룬 각인사 Lv.12 각성 잔향 · 각성 각인. */
-const RETIRED_EXPERT_ACCESS = Object.freeze([
-    ['mycologist', 4, 'fossilRestore'], ['mycologist', 7, 'advancedSpores'], ['gemEngraver', 12, 'gemAwakening']
-]);
-
 function inheritRetiredExpertAccess(ledger, save) {
     const levels = save && save.expertise && save.expertise.levels;
     if (!levels || typeof levels !== 'object') return;
@@ -192,9 +180,6 @@ function inheritRetiredExpertAccess(ledger, save) {
     });
 }
 
-/** 2026-10-22: 거래소 특수 서비스(장비 옵션 제거, 접두 보존, 접미 보존)를 없앴다. 걸어 두고 아직 재굴림에 쓰지 않은 보존(item.affixKeep)은
- * 지우고, 낸 황금률(장비마다 4개)을 돌려준다. 프리셋에 같은 장비가 또 있어도 한 번만 센다. 지운 뒤에는 셀 것이 없어 두 번 불러와도 같다. */
-const REMOVED_AFFIX_KEEP_REFUND = 4;
 function savedItemsOf(merged) {
     const offline = merged.offlineProgress || {}, rift = merged.timeRift || {};
     const presets = ((merged.equipmentLoadouts || {}).presets || []).filter(Boolean).flatMap(preset => Object.values(preset.slots || {}));
@@ -202,10 +187,12 @@ function savedItemsOf(merged) {
     return [merged.inventory, Object.values(merged.equipment || {}), merged.equipmentTemporaryStorage, offline.stash, offline.protectedOverflow,
         rift.altarUnique, rift.altarRare, presets, listings].flat().filter(item => item && typeof item === 'object');
 }
+
 /** The kept side left in a waiting 성화 pick's saved results (they put their fields back on the item when picked). */
 function stripCraftChoiceAffixKeep(merged) {
     ((merged.craftChoice || {}).options || []).forEach(fields => { if (fields && typeof fields === 'object') delete fields.affixKeep; });
 }
+
 function refundRemovedAffixKeep(merged) {
     const refunded = new Set();
     for (const item of savedItemsOf(merged)) {
@@ -256,6 +243,7 @@ function migrateRetiredRealmMonsters(merged) {
     const packs = Array.isArray(merged.actExploration?.packs) ? merged.actExploration.packs : [];
     [merged.enemies, ...packs.map(pack => pack?.waiting)].filter(Array.isArray).flat().forEach(retireRealmMonsterVisual);
 }
+
 function retireRealmMonsterVisual(enemy) {
     const next = enemy && RETIRED_REALM_MONSTERS[enemy.monsterVisualId], def = next ? getRealmMonsterVisualDefinitionById(next) : null;
     if (!def) return;
@@ -431,9 +419,11 @@ function normalizeStarterWeaponSave(state) {
     state.starterWeaponTutorialPending = Number.isSafeInteger(pending) && bag.some(item => item && item.id === pending) ? pending : null;
     normalizeBasicSkillOfferSave(state);
 }
+
 function wearOldStarterGem(state, name) {
     if (typeof name === 'string' && state.activeSkill === '기본 공격' && state.skills.includes(name) && SKILL_DB[name]?.isGem) state.activeSkill = name;
 }
+
 function normalizeBasicSkillOfferSave(state) {
     const offer = state.basicSkillOffer, elements = BASIC_SKILL_ELEMENTS.map(row => row.ele);
     const picked = offer && Number.isInteger(offer.loop) && Array.isArray(offer.elements) ? offer.elements.filter(ele => elements.includes(ele)) : [];
@@ -514,6 +504,7 @@ function wasGrandBreachSurvivalStarted(run) {
     // Before 2026-10-23 this field was inferred from the 35-second timer in a saved room chain.
     return !!run.survivalStarted || (run.phase === 'survival' && Number.isFinite(run.timeLeft) && run.timeLeft < 35);
 }
+
 /** Missing legacy durability stays uninitialized (max 0); an explicitly destroyed core stays at 0 HP. */
 function normalizeColonyRunSave(colony, clampFiniteNumber) {
     colony.wave = Math.floor(clampFiniteNumber(colony.wave, 0, 0));
@@ -530,6 +521,7 @@ function normalizeColonyRunSave(colony, clampFiniteNumber) {
             lostHeld: Math.floor(clampFiniteNumber(result.lostHeld, 0, 0, Number.MAX_SAFE_INTEGER)) };
     } else colony.lastResult = null;
 }
+
 /** Old kill-based runs retain the same percentage; new saves store integral half-percent gauge points. */
 function normalizeGrandBreachCounters(run) {
     const savedKills = Number(run.kills);
@@ -540,6 +532,7 @@ function normalizeGrandBreachCounters(run) {
     // Combat-clock deadline of the survival phase; a broken one is set again (full time) on the next tick
     if (!Number.isFinite(run.survivalEndsAt)) delete run.survivalEndsAt;
 }
+
 /** A wave's announced mouths and clock survive a reload together. Old or damaged plans fall back to one bounded old-style refill. */
 function normalizeGrandBreachRefillPlan(run) {
     if (!Number.isFinite(run.nextRefillAt) || run.nextRefillAt < 0) run.nextRefillAt=0;
@@ -551,14 +544,17 @@ function normalizeGrandBreachRefillPlan(run) {
     }
     run.refillPlan={portalIndices:[...plan.portalIndices],at:plan.at,turn:plan.turn};
 }
+
 function isSavedGrandBreachRefillPlan(plan, at) {
     return !!plan && Number.isFinite(plan.at) && plan.at===at && Number.isSafeInteger(plan.turn) && plan.turn>=0
         && isSavedGrandBreachPortalPair(plan.portalIndices);
 }
+
 function isSavedGrandBreachPortalPair(indices) {
     return Array.isArray(indices) && indices.length===2 && indices[0]!==indices[1]
         && indices.every(index=>Number.isInteger(index) && index>=0 && index<6);
 }
+
 /** Save boundary: an absent/invalid old receipt is unknown, never an inferred payout. */
 function normalizeVoidRiftSave(state) {
     state.voidRift = (state.voidRift && typeof state.voidRift === 'object') ? state.voidRift : {};
@@ -584,6 +580,7 @@ function normalizeSavedCurrencies(currencies) {
         currencies[key] = (typeof raw === 'number' || typeof raw === 'string') && Number.isFinite(amount) && amount > 0 ? amount : 0;
     }
 }
+
 /** Talisman curse rows per enemy (transient combat state): each a list, else dropped (coreLoop's expiry threw on every tick). */
 function normalizeConditionDebuffMap(map) {
     const rows = map && typeof map === 'object' && !Array.isArray(map) ? map : {};
@@ -602,11 +599,13 @@ function normalizePlayerAilmentRow(row, clampFiniteNumber) { // clampFiniteNumbe
     if (row.sourceEnemyName) Object.assign(out, { sourceEnemyId: row.sourceEnemyId === undefined ? null : row.sourceEnemyId, sourceEnemyName: String(row.sourceEnemyName) });
     return out;
 }
+
 /** 변이시간선(js/loop-mutation.js): the marked loop number (else 0, so a broken one meets the rule from the next loop). */
 function normalizeLoopMutationState(merged) {
     const season = Number(merged.loopMutationSeason);
     merged.loopMutationSeason = Number.isInteger(season) && season > 0 ? season : 0;
 }
+
 /** Removed support runes (data/skills.js RETIRED_SUPPORT_GEMS) leave every saved place before validation: their record, the run's
  * rune rewards, rune rows on the floor and in encounter buffers, NPC shelves and the woodsman snapshot. The rune lists are filtered by
  * SUPPORT_GEM_DB below. A saved row naming one failed the exploration loot check and with it the whole load. Idempotent. */
@@ -623,222 +622,25 @@ function dropRetiredSupportGems(merged) {
     Object.values(merged.npcShops && typeof merged.npcShops === 'object' ? merged.npcShops : {}).forEach(shop => filterRows(shop, 'offers'));
     dropRetiredSupportsFrom(merged.woodsmanBuildSnapshot, retired);
 }
+
 function dropRetiredSupportsFrom(build, retired) {
     if (!build || typeof build !== 'object') return;
     ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => { if (Array.isArray(build[key])) build[key] = build[key].filter(name => !retired(name)); });
     if (build.supportGemData && typeof build.supportGemData === 'object') RETIRED_SUPPORT_GEMS.forEach(name => delete build.supportGemData[name]);
 }
 
-/** 2026-10-24 공용 보조 개편. 이름을 지우는 것이 완료 표식이므로 재저장/재로드가 환급을 반복하지 않는다.
- * 해금 이력에는 지급/가공 구분이 없으므로 기록된 등급의 옛 가공 비용(중급 2, 상급 3)을 보상한다.
- * 보유·봉인·잠금 사본은 같은 룬 한 개의 이력이다. 환급은 이름별 최고 등급을 한 번만 세고,
- * 합쳐지는 룬은 가장 높은 레벨/경험치와 각 강화의 최고 진척을 보존한다. */
-mergeDefaults.supportRunes = (() => {
-    const moved = Object.freeze({
-        '물리 전령': '장군의 가호', '방어 상승': '장군의 가호',
-        '화염 전령': '화염의 가호', '화염 장막': '화염의 가호',
-        '냉기 전령': '한기의 가호', '냉기 장막': '한기의 가호',
-        '번개 전령': '낙뢰의 가호', '번개 장막': '낙뢰의 가호',
-        '카오스 전령': '심연의 가호', '공허 장막': '심연의 가호',
-        '활력': '수액의 가호', '가벼운 발걸음': '수액의 가호', '수액 골렘 소환': '수액 골렘 소환'
-    });
-    const renamed = Object.freeze({ '범위 확장': '범위 피해', '사역 피해 증폭': '소환수 피해 증폭',
-        '사역 생명력': '소환수 생명력', '사역 가속': '소환수 가속', '사역 예리함': '소환수 예리함', '사역 무자비': '소환수 무자비' });
-    const list = value => Array.isArray(value) ? value : [];
-    const record = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-    const unique = values => [...new Set(values)];
-    const successor = name => moved[name] || renamed[name] || name;
-    const summon = name => (SKILL_DB[name]?.tags || []).some(tag => ['summon_attack', 'summon_buff', 'summon_guard'].includes(tag));
-    const single = name => !(SKILL_DB[name]?.tags || []).includes('summon_attack');
-    const copy = value => JSON.parse(JSON.stringify(value));
-
-    function mergeRecords(a, b, skill) {
-        const rows = { a: normalizeGemRecord(a), b: normalizeGemRecord(b) };
-        const out = normalizeGemRecord(mergeGrownGemRecords(rows, ['a', 'b']));
-        if (skill) { out.unlockedTier = 1; out.activeTier = 1; }
-        return out;
-    }
-
-    function renameSupports(state) {
-        state.supportGemData = { ...record(state.supportGemData) };
-        Object.entries(renamed).forEach(([from, to]) => {
-            if (!Object.hasOwn(state.supportGemData, from)) return;
-            state.supportGemData[to] = mergeRecords(state.supportGemData[to], state.supportGemData[from], false);
-            delete state.supportGemData[from];
-        });
-        ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => {
-            state[key] = unique(list(state[key]).map(name => renamed[name] || name));
-        });
-    }
-
-    function ownedSupportKind(state, name) {
-        if (state.supports.includes(name) || state.equippedSupports.includes(name)) return 'owned';
-        if (state.sealedSupports.includes(name)) return 'sealed';
-        return Object.hasOwn(state.supportGemData, name) ? 'owned' : null;
-    }
-
-    function moveOwned(state, name, report) {
-        const to = moved[name], source = state.supportGemData[name];
-        const holding = ownedSupportKind(state, name);
-        if (!holding) return;
-        state.gemData[to] = mergeRecords(state.gemData[to], source, true);
-        if (holding === 'owned') state.skills.push(to);
-        else state.sealedSkills.push(to);
-        const tier = name === '수액 골렘 소환' ? 1 : normalizeGemRecord(source).unlockedTier;
-        report.tiers[name] = Math.max(report.tiers[name] || 1, tier);
-        delete state.supportGemData[name];
-    }
-
-    function migrateLoadout(state) {
-        renameSupports(state);
-        const equip = state.equippedSupports.filter(name => Object.hasOwn(moved, name)
-            && (name.endsWith('전령') || name === '수액 골렘 소환')).map(name => moved[name]);
-        const report = { equip, tiers: {} };
-        state.skills = list(state.skills).slice(); state.sealedSkills = list(state.sealedSkills).slice();
-        state.gemData = { ...record(state.gemData) };
-        Object.keys(moved).forEach(name => moveOwned(state, name, report));
-        ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => { state[key] = state[key].filter(name => !moved[name]); });
-        state.skills = unique(state.skills);
-        state.sealedSkills = unique(state.sealedSkills).filter(name => !state.skills.includes(name));
-        if (state.activeSkill === '수액 골렘 소환') {
-            state.activeSkill = '기본 공격'; report.equip.push('수액 골렘 소환');
-        }
-        if (state.mobilitySkill === '수액 골렘 소환') state.mobilitySkill = null;
-        report.equip = unique(report.equip);
-        return report;
-    }
-
-    function reward(row) {
-        if (!row || row.kind !== 'support') return row;
-        if (moved[row.name]) return { kind: 'attack', name: moved[row.name], awakened: row.awakened === true };
-        return { ...row, name: successor(row.name) };
-    }
-
-    function rewards(rows) {
-        const out = [];
-        list(rows).map(reward).forEach(row => {
-            const held = out.find(other => other?.kind === row?.kind && other?.name === row?.name);
-            if (!held) { out.push(row); return; }
-            if (row.kind === 'attack') held.awakened = held.awakened || row.awakened;
-            if (row.kind === 'support') held.tier = Math.max(held.tier, row.tier);
-        });
-        return out;
-    }
-
-    function renameRows(owner, key) {
-        if (!Array.isArray(owner?.[key])) return;
-        owner[key] = owner[key].map(row => row?.gem?.kind === 'support' ? { ...row, gem: reward(row.gem) } : row);
-    }
-
-    function holdings(state) {
-        const run = state.actExploration;
-        if (Array.isArray(run?.loot?.gems)) run.loot.gems = rewards(run.loot.gems);
-        renameRows(run, 'groundLoot');
-        if (state.colony) { state.colony = copy(state.colony); renameRows(state.colony, 'pendingLoot'); }
-        if (state.voidRift) { state.voidRift = copy(state.voidRift); renameRows(state.voidRift.grandRun, 'pendingLoot'); }
-        if (state.npcShops) {
-            state.npcShops = copy(state.npcShops);
-            Object.values(record(state.npcShops)).forEach(shop => renameRows(shop, 'offers'));
-        }
-    }
-
-    function normalizeSupportMigrationReceipt(meta) {
-        const previous = record(meta.supportRuneMigration);
-        const names = unique(list(previous.moved).filter(name => Object.hasOwn(moved, name)));
-        if (!names.length) { delete meta.supportRuneMigration; return; }
-        const refund = Number(previous.refund);
-        meta.supportRuneMigration = { version: 1, moved: names,
-            refund: Number.isFinite(refund) ? Math.min(60, Math.max(0, Math.floor(refund))) : 0,
-            noticePending: previous.noticePending === true };
-    }
-
-    function migrateLockedLoadout(state, saved) {
-        if (!state.woodsmanBuildSnapshot || typeof state.woodsmanBuildSnapshot !== 'object') return null;
-        const snapshot = copy(state.woodsmanBuildSnapshot);
-        // Earlier locks did not snapshot summon/sealed fields. They kept using the live fields; preserve those on upgrade.
-        ['sealedSkills', 'sealedSupports', 'equippedSummonSkills', 'summonSkillCounts'].forEach(key => {
-            if (!Object.hasOwn(snapshot, key) && Object.hasOwn(saved, key)) snapshot[key] = copy(saved[key]);
-        });
-        state.woodsmanBuildSnapshot = snapshot;
-        return migrateLoadout(snapshot);
-    }
-
-    function migrate(state, saved) {
-        normalizeSupportMigrationReceipt(state.saveMeta);
-        const root = migrateLoadout(state);
-        const locked = migrateLockedLoadout(state, saved);
-        holdings(state);
-        const tiers = { ...root.tiers };
-        Object.entries(locked?.tiers || {}).forEach(([name, tier]) => { tiers[name] = Math.max(tiers[name] || 1, tier); });
-        const names = Object.keys(tiers);
-        if (names.length) {
-            const refund = Object.values(tiers).reduce((sum, tier) => sum + [0, 0, 2, 5][tier], 0);
-            const balance = Number(state.currencies.skyEssence);
-            state.currencies.skyEssence = (Number.isFinite(balance) ? Math.max(0, Math.floor(balance)) : 0) + refund;
-            state.saveMeta.supportRuneMigration = { version: 1, moved: names, refund, noticePending: true };
-        }
-        return { root, locked };
-    }
-
-    /** Preserve old summon ordering and counts first; migrated heralds/guards only use genuinely free slots. */
-    function finishLoadout(state, cap, hasCounts, candidates) {
-        const names = unique(list(state.equippedSummonSkills)).filter(name => summon(name) && state.skills.includes(name));
-        const counts = {}, old = record(state.summonSkillCounts);
-        let remaining = cap;
-        names.forEach(name => {
-            const requested = hasCounts && !single(name) ? Math.max(1, Math.floor(Number(old[name]) || 1)) : 1;
-            const count = Math.min(remaining, requested);
-            if (count > 0) counts[name] = count;
-            remaining -= count;
-        });
-        list(candidates).forEach(name => {
-            if (remaining <= 0 || counts[name] || !state.skills.includes(name)) return;
-            counts[name] = 1; remaining--;
-        });
-        const attackers = names.filter(name => !single(name));
-        let cursor = 0;
-        while (!hasCounts && remaining > 0 && attackers.length) {
-            const name = attackers[cursor++ % attackers.length];
-            counts[name] = (counts[name] || 0) + 1; remaining--;
-        }
-        state.equippedSummonSkills = Object.keys(counts); state.summonSkillCounts = counts;
-    }
-
-    return { migrate, finishLoadout, summon };
-})();
-
-/** Restore only valid ordinary windups. Boss pattern casts have a different shape (no targetCell).
- * Bad windups restart from an empty gauge; never turn a broken ranged cast into an instant hit. */
-mergeDefaults.enemyCasts = function (state) {
-    // The exploration owner has already unsealed, retired and validated the saved map.
-    const map = state.actExploration ? actExplorationMap.forRun(state.actExploration) : COMBAT_GRID_CONFIG;
-    const packs = state.actExploration?.packs || [];
-    [state.enemies, ...packs.map(pack => pack.waiting)].flat().forEach(enemy => {
-        const cast = enemy.attackCast;
-        if (!cast || enemy.isBoss) return;
-        const validClock = [cast.startAt, cast.finishAt].every(at => Number.isFinite(at) && at >= 0)
-            && cast.finishAt > cast.startAt;
-        const validTarget = [[cast.targetCell?.gx, map.columns], [cast.targetCell?.gy, map.rows]]
-            .every(([cell, limit]) => Number.isInteger(cell) && cell >= 0 && cell < limit);
-        if (validClock && validTarget) return;
-        console.warn('Invalid enemy cast discarded on load:', enemy.id);
-        Object.assign(enemy, { attackCast: null, attackTimer: 0 });
-    });
-};
-
 // 요정의 고리 실패 잠금은 이번 루프 동안 저장에 남는다. 잠기지 않은 소켓에는 칸을 만들지 않는다.
 function voidPassiveLockField(rawEntry) {
     return rawEntry.fairyLocked ? { fairyLocked: true } : {};
 }
 
-/** 가호 룬(summon_buff)의 이름들: 2026-11-04부터 각인을 받지 않는다. */
-const blessingRuneNamesForSave = () => Object.keys(SKILL_DB).filter(name => (SKILL_DB[name].tags || []).includes('summon_buff'));
 /** 가호 룬에 남은 각인을 지우고, 쓴 창공의 정수를 돌려준다: 각인마다 1, 넓힌 각인 칸마다 그때 낸 값(2칸째 2 ... 5칸째 5).
  * 지운 뒤에는 남은 각인도 넓힌 칸도 없어 다시 돌려주지 않는다. */
 function refundBlessingEngravings(merged) {
     const refund = blessingRuneNamesForSave().reduce((sum, name) => sum + clearBlessingEngraving(merged, name), 0);
     if (refund > 0) merged.currencies.skyEssence = (Number(merged.currencies.skyEssence) || 0) + refund;
 }
+
 /** One 가호 rune: its engravings and widened slots go, and what they cost comes back. */
 function clearBlessingEngraving(merged, name) {
     const slots = merged.skyGemEnhancements[name], record = merged.gemData && merged.gemData[name];
@@ -851,12 +653,7 @@ function clearBlessingEngraving(merged, name) {
     }
     return refund;
 }
-// 저장에 남은 옛 외형만 교체한다. 케르베로스처럼 단계별 외형을 고르는 보스는 각 단계를 유지한다.
-const SAVED_BOSS_LOOKS = new Map([
-    [OUTSIDE_CHAOS_ZONE_ID, 'woodsman'],
-    [WOODSMAN_ECHO_ZONE_ID, 'woodsman_echo'],
-    ...SEASON_BOSS_ZONES.filter(zone => zone.bossVisualId && !zone.bossStages).map(zone => [zone.id, zone.bossVisualId])
-]);
+
 function restoreSavedBossPicture(record, state) {
     if (!record.isBoss || record.roomInvader || record.uninvited) return;
     const zoneId = state.currentZoneId;
@@ -945,7 +742,7 @@ function mergeDefaults(save) {
         // Markers keep only their spawn shape; removed content fields (e.g. treasure-hunt ids) are dropped.
         return normalized;
     }
-    /** Regeneration fatigue (js/combat.js applyEnemyRegen) exists only after the monster's first step; a record without it stays without. */
+    /** Regeneration fatigue (js/combat-kill-rewards.js applyEnemyRegen) exists only after the monster's first step; a record without it stays without. */
     function normalizeEnemyRegenFatigue(enemy, hp) {
         if (enemy.regenHpMark === undefined && enemy.regenFatigueMs === undefined && enemy.regenLastLossAt === undefined) return {};
         return { regenFatigueMs: clampFiniteNumber(enemy.regenFatigueMs, 0, 0, 60000), regenLastLossAt: clampFiniteNumber(enemy.regenLastLossAt, 0, 0),
@@ -2000,8 +1797,6 @@ function cloneDefaultGame() {
     return mergeDefaults({});
 }
 
-safeExposeGlobals({ mergeDefaults, cloneDefaultGame });
-
 /** Keep only the bounded, non-transient summon anchors when loading a Woodsman encounter. */
 function normalizeWoodsmanStumps(enemy) {
         enemy.woodsmanStumpsDue = !!enemy.woodsmanStumpsDue;
@@ -2011,6 +1806,7 @@ function normalizeWoodsmanStumps(enemy) {
             && c.gx >= 0 && c.gy >= 0 && c.gx < 999 && c.gy < 999).slice(0, 1)
             .map(normalizeWoodsmanStumpAnchor);
 }
+
 function normalizeWoodsmanStumpAnchor(c) {
     const time = value => Number.isFinite(value) ? Math.max(0, value) : 0;
     // Old 1-cell chests retain their footprint: never enlarge a restored obstacle underneath a player.
@@ -2024,16 +1820,19 @@ function normalizeWoodsmanStumpAnchor(c) {
         absorbedCount: phase === 'absorbing' ? Math.max(0, Math.min(cap, count)) : 0,
         echoes: phase === 'absorbing' ? normalizeWoodsmanEchoes(c.echoes) : [] };
 }
+
 function normalizeWoodsmanCycle(c) {
     let phase = ['idle', 'rising', 'absorbing', 'seeking', 'moving'].includes(c.phase) ? c.phase : 'idle';
     const target = phase === 'moving' ? normalizeWoodsmanLanding(c.target) : null;
     if (phase === 'moving' && !target) phase = 'seeking';
     return { phase, target };
 }
+
 function normalizeWoodsmanLanding(cell) {
     return cell && Number.isInteger(cell.gx) && Number.isInteger(cell.gy)
         && cell.gx >= 0 && cell.gy >= 0 && cell.gx < 999 && cell.gy < 999 ? { gx: cell.gx, gy: cell.gy } : null;
 }
+
 function normalizeWoodsmanEchoes(value) {
     const looks = new Set(WOODSMAN_BATTLE.stumps.summons.map(row => row.look));
     return (Array.isArray(value) ? value : []).filter(e => normalizeWoodsmanLanding(e) && looks.has(e.spriteVariantId))
@@ -2042,3 +1841,241 @@ function normalizeWoodsmanEchoes(value) {
             spriteVariantId: e.spriteVariantId, hp: 1, maxHp: 1, isBoss: false,
             ele: WOODSMAN_BATTLE.elements.includes(e.ele) ? e.ele : 'chaos' }));
 }
+
+exposeFileGlobals({ migrateRetiredRealmMonsters, retireOfflineGrowth, markLegacyEquipmentGrace, keepLegacyAccessorySockets, renameRetiredUniques, removeOldSealResonanceSave, keepBlockedMobilityGem, dropRetiredSupportGems, mergeDefaults, cloneDefaultGame });
+})();
+
+
+const RETIRED_TAB_BUTTON_IDS = Object.freeze(['btn-tab-pruning', 'btn-tab-arcana', 'btn-tab-expertise']);
+
+
+const METEOR_SITE_SAVE_KEYS = Object.freeze(['unlocked', 'skyRiftGauge', 'skyRiftReady', 'skyRiftMinTier', 'skyRiftAllCosmos',
+    'activeMeteorTier', 'meteorReturnZoneId', 'lastAnomalyAt', 'skyRiftCarryGauge', 'constellationBuff', 'entriesCleared']);
+const RETIRED_STAR_WEDGE_CURRENCIES = Object.freeze(['meteorShard', 'incompleteStarWedge', 'starWedge', 'astralCore']);
+
+
+/** 2026-11-04 사용자: 홀씨 제작이 그루터기 함 식물을 쓰는 수확 제작으로 바뀌어, 가진 속성 홀씨는 보상 없이 지운다("그냥 없애기"). 두 번 불러와도 같다. */
+const RETIRED_SPORE_CURRENCIES = Object.freeze(['sporeFire', 'sporeCold', 'sporeLight']);
+
+
+/** 7단계: 전문가 레벨로 이미 쓰던 기능은 새 해금 항목으로 이어 준다(포인트 없이 계승). 옛 최소 레벨 기준 —
+ * 균사학자 Lv.4 잉여 화석 정제 · 원시 화석 복원, Lv.7 부패 홀씨(지금은 고급 수확 제작), 룬 각인사 Lv.12 각성 잔향 · 각성 각인. */
+const RETIRED_EXPERT_ACCESS = Object.freeze([
+    ['mycologist', 4, 'fossilRestore'], ['mycologist', 7, 'advancedSpores'], ['gemEngraver', 12, 'gemAwakening']
+]);
+
+
+/** 2026-10-22: 거래소 특수 서비스(장비 옵션 제거, 접두 보존, 접미 보존)를 없앴다. 걸어 두고 아직 재굴림에 쓰지 않은 보존(item.affixKeep)은
+ * 지우고, 낸 황금률(장비마다 4개)을 돌려준다. 프리셋에 같은 장비가 또 있어도 한 번만 센다. 지운 뒤에는 셀 것이 없어 두 번 불러와도 같다. */
+const REMOVED_AFFIX_KEEP_REFUND = 4;
+
+
+/** 2026-10-24 공용 보조 개편. 이름을 지우는 것이 완료 표식이므로 재저장/재로드가 환급을 반복하지 않는다.
+ * 해금 이력에는 지급/가공 구분이 없으므로 기록된 등급의 옛 가공 비용(중급 2, 상급 3)을 보상한다.
+ * 보유·봉인·잠금 사본은 같은 룬 한 개의 이력이다. 환급은 이름별 최고 등급을 한 번만 세고,
+ * 합쳐지는 룬은 가장 높은 레벨/경험치와 각 강화의 최고 진척을 보존한다. */
+mergeDefaults.supportRunes = (() => {
+    const moved = Object.freeze({
+        '물리 전령': '장군의 가호', '방어 상승': '장군의 가호',
+        '화염 전령': '화염의 가호', '화염 장막': '화염의 가호',
+        '냉기 전령': '한기의 가호', '냉기 장막': '한기의 가호',
+        '번개 전령': '낙뢰의 가호', '번개 장막': '낙뢰의 가호',
+        '카오스 전령': '심연의 가호', '공허 장막': '심연의 가호',
+        '활력': '수액의 가호', '가벼운 발걸음': '수액의 가호', '수액 골렘 소환': '수액 골렘 소환'
+    });
+    const renamed = Object.freeze({ '범위 확장': '범위 피해', '사역 피해 증폭': '소환수 피해 증폭',
+        '사역 생명력': '소환수 생명력', '사역 가속': '소환수 가속', '사역 예리함': '소환수 예리함', '사역 무자비': '소환수 무자비' });
+    const list = value => Array.isArray(value) ? value : [];
+    const record = value => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    const unique = values => [...new Set(values)];
+    const successor = name => moved[name] || renamed[name] || name;
+    const summon = name => (SKILL_DB[name]?.tags || []).some(tag => ['summon_attack', 'summon_buff', 'summon_guard'].includes(tag));
+    const single = name => !(SKILL_DB[name]?.tags || []).includes('summon_attack');
+    const copy = value => JSON.parse(JSON.stringify(value));
+
+    function mergeRecords(a, b, skill) {
+        const rows = { a: normalizeGemRecord(a), b: normalizeGemRecord(b) };
+        const out = normalizeGemRecord(mergeGrownGemRecords(rows, ['a', 'b']));
+        if (skill) { out.unlockedTier = 1; out.activeTier = 1; }
+        return out;
+    }
+
+    function renameSupports(state) {
+        state.supportGemData = { ...record(state.supportGemData) };
+        Object.entries(renamed).forEach(([from, to]) => {
+            if (!Object.hasOwn(state.supportGemData, from)) return;
+            state.supportGemData[to] = mergeRecords(state.supportGemData[to], state.supportGemData[from], false);
+            delete state.supportGemData[from];
+        });
+        ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => {
+            state[key] = unique(list(state[key]).map(name => renamed[name] || name));
+        });
+    }
+
+    function ownedSupportKind(state, name) {
+        if (state.supports.includes(name) || state.equippedSupports.includes(name)) return 'owned';
+        if (state.sealedSupports.includes(name)) return 'sealed';
+        return Object.hasOwn(state.supportGemData, name) ? 'owned' : null;
+    }
+
+    function moveOwned(state, name, report) {
+        const to = moved[name], source = state.supportGemData[name];
+        const holding = ownedSupportKind(state, name);
+        if (!holding) return;
+        state.gemData[to] = mergeRecords(state.gemData[to], source, true);
+        if (holding === 'owned') state.skills.push(to);
+        else state.sealedSkills.push(to);
+        const tier = name === '수액 골렘 소환' ? 1 : normalizeGemRecord(source).unlockedTier;
+        report.tiers[name] = Math.max(report.tiers[name] || 1, tier);
+        delete state.supportGemData[name];
+    }
+
+    function migrateLoadout(state) {
+        renameSupports(state);
+        const equip = state.equippedSupports.filter(name => Object.hasOwn(moved, name)
+            && (name.endsWith('전령') || name === '수액 골렘 소환')).map(name => moved[name]);
+        const report = { equip, tiers: {} };
+        state.skills = list(state.skills).slice(); state.sealedSkills = list(state.sealedSkills).slice();
+        state.gemData = { ...record(state.gemData) };
+        Object.keys(moved).forEach(name => moveOwned(state, name, report));
+        ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => { state[key] = state[key].filter(name => !moved[name]); });
+        state.skills = unique(state.skills);
+        state.sealedSkills = unique(state.sealedSkills).filter(name => !state.skills.includes(name));
+        if (state.activeSkill === '수액 골렘 소환') {
+            state.activeSkill = '기본 공격'; report.equip.push('수액 골렘 소환');
+        }
+        if (state.mobilitySkill === '수액 골렘 소환') state.mobilitySkill = null;
+        report.equip = unique(report.equip);
+        return report;
+    }
+
+    function reward(row) {
+        if (!row || row.kind !== 'support') return row;
+        if (moved[row.name]) return { kind: 'attack', name: moved[row.name], awakened: row.awakened === true };
+        return { ...row, name: successor(row.name) };
+    }
+
+    function rewards(rows) {
+        const out = [];
+        list(rows).map(reward).forEach(row => {
+            const held = out.find(other => other?.kind === row?.kind && other?.name === row?.name);
+            if (!held) { out.push(row); return; }
+            if (row.kind === 'attack') held.awakened = held.awakened || row.awakened;
+            if (row.kind === 'support') held.tier = Math.max(held.tier, row.tier);
+        });
+        return out;
+    }
+
+    function renameRows(owner, key) {
+        if (!Array.isArray(owner?.[key])) return;
+        owner[key] = owner[key].map(row => row?.gem?.kind === 'support' ? { ...row, gem: reward(row.gem) } : row);
+    }
+
+    function holdings(state) {
+        const run = state.actExploration;
+        if (Array.isArray(run?.loot?.gems)) run.loot.gems = rewards(run.loot.gems);
+        renameRows(run, 'groundLoot');
+        if (state.colony) { state.colony = copy(state.colony); renameRows(state.colony, 'pendingLoot'); }
+        if (state.voidRift) { state.voidRift = copy(state.voidRift); renameRows(state.voidRift.grandRun, 'pendingLoot'); }
+        if (state.npcShops) {
+            state.npcShops = copy(state.npcShops);
+            Object.values(record(state.npcShops)).forEach(shop => renameRows(shop, 'offers'));
+        }
+    }
+
+    function normalizeSupportMigrationReceipt(meta) {
+        const previous = record(meta.supportRuneMigration);
+        const names = unique(list(previous.moved).filter(name => Object.hasOwn(moved, name)));
+        if (!names.length) { delete meta.supportRuneMigration; return; }
+        const refund = Number(previous.refund);
+        meta.supportRuneMigration = { version: 1, moved: names,
+            refund: Number.isFinite(refund) ? Math.min(60, Math.max(0, Math.floor(refund))) : 0,
+            noticePending: previous.noticePending === true };
+    }
+
+    function migrateLockedLoadout(state, saved) {
+        if (!state.woodsmanBuildSnapshot || typeof state.woodsmanBuildSnapshot !== 'object') return null;
+        const snapshot = copy(state.woodsmanBuildSnapshot);
+        // Earlier locks did not snapshot summon/sealed fields. They kept using the live fields; preserve those on upgrade.
+        ['sealedSkills', 'sealedSupports', 'equippedSummonSkills', 'summonSkillCounts'].forEach(key => {
+            if (!Object.hasOwn(snapshot, key) && Object.hasOwn(saved, key)) snapshot[key] = copy(saved[key]);
+        });
+        state.woodsmanBuildSnapshot = snapshot;
+        return migrateLoadout(snapshot);
+    }
+
+    function migrate(state, saved) {
+        normalizeSupportMigrationReceipt(state.saveMeta);
+        const root = migrateLoadout(state);
+        const locked = migrateLockedLoadout(state, saved);
+        holdings(state);
+        const tiers = { ...root.tiers };
+        Object.entries(locked?.tiers || {}).forEach(([name, tier]) => { tiers[name] = Math.max(tiers[name] || 1, tier); });
+        const names = Object.keys(tiers);
+        if (names.length) {
+            const refund = Object.values(tiers).reduce((sum, tier) => sum + [0, 0, 2, 5][tier], 0);
+            const balance = Number(state.currencies.skyEssence);
+            state.currencies.skyEssence = (Number.isFinite(balance) ? Math.max(0, Math.floor(balance)) : 0) + refund;
+            state.saveMeta.supportRuneMigration = { version: 1, moved: names, refund, noticePending: true };
+        }
+        return { root, locked };
+    }
+
+    /** Preserve old summon ordering and counts first; migrated heralds/guards only use genuinely free slots. */
+    function finishLoadout(state, cap, hasCounts, candidates) {
+        const names = unique(list(state.equippedSummonSkills)).filter(name => summon(name) && state.skills.includes(name));
+        const counts = {}, old = record(state.summonSkillCounts);
+        let remaining = cap;
+        names.forEach(name => {
+            const requested = hasCounts && !single(name) ? Math.max(1, Math.floor(Number(old[name]) || 1)) : 1;
+            const count = Math.min(remaining, requested);
+            if (count > 0) counts[name] = count;
+            remaining -= count;
+        });
+        list(candidates).forEach(name => {
+            if (remaining <= 0 || counts[name] || !state.skills.includes(name)) return;
+            counts[name] = 1; remaining--;
+        });
+        const attackers = names.filter(name => !single(name));
+        let cursor = 0;
+        while (!hasCounts && remaining > 0 && attackers.length) {
+            const name = attackers[cursor++ % attackers.length];
+            counts[name] = (counts[name] || 0) + 1; remaining--;
+        }
+        state.equippedSummonSkills = Object.keys(counts); state.summonSkillCounts = counts;
+    }
+
+    return { migrate, finishLoadout, summon };
+})();
+
+/** Restore only valid ordinary windups. Boss pattern casts have a different shape (no targetCell).
+ * Bad windups restart from an empty gauge; never turn a broken ranged cast into an instant hit. */
+mergeDefaults.enemyCasts = function (state) {
+    // The exploration owner has already unsealed, retired and validated the saved map.
+    const map = state.actExploration ? actExplorationMap.forRun(state.actExploration) : COMBAT_GRID_CONFIG;
+    const packs = state.actExploration?.packs || [];
+    [state.enemies, ...packs.map(pack => pack.waiting)].flat().forEach(enemy => {
+        const cast = enemy.attackCast;
+        if (!cast || enemy.isBoss) return;
+        const validClock = [cast.startAt, cast.finishAt].every(at => Number.isFinite(at) && at >= 0)
+            && cast.finishAt > cast.startAt;
+        const validTarget = [[cast.targetCell?.gx, map.columns], [cast.targetCell?.gy, map.rows]]
+            .every(([cell, limit]) => Number.isInteger(cell) && cell >= 0 && cell < limit);
+        if (validClock && validTarget) return;
+        console.warn('Invalid enemy cast discarded on load:', enemy.id);
+        Object.assign(enemy, { attackCast: null, attackTimer: 0 });
+    });
+};
+
+
+/** 가호 룬(summon_buff)의 이름들: 2026-11-04부터 각인을 받지 않는다. */
+const blessingRuneNamesForSave = () => Object.keys(SKILL_DB).filter(name => (SKILL_DB[name].tags || []).includes('summon_buff'));
+// 저장에 남은 옛 외형만 교체한다. 케르베로스처럼 단계별 외형을 고르는 보스는 각 단계를 유지한다.
+const SAVED_BOSS_LOOKS = new Map([
+    [OUTSIDE_CHAOS_ZONE_ID, 'woodsman'],
+    [WOODSMAN_ECHO_ZONE_ID, 'woodsman_echo'],
+    ...SEASON_BOSS_ZONES.filter(zone => zone.bossVisualId && !zone.bossStages).map(zone => [zone.id, zone.bossVisualId])
+]);
+
+
+safeExposeGlobals({ mergeDefaults, cloneDefaultGame });

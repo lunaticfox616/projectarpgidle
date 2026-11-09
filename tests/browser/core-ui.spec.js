@@ -282,7 +282,8 @@ for (const cloud of [false, true]) {
         });
         await page.locator('[onclick="resetGame()"]').click();
         await page.locator('#game-dialog-confirm').click();
-        await expect(page.locator('#game-toast-region')).toContainText('초기화하지 못했습니다');
+        // 서버 초기화 뒤 기기 저장에 실패하면 시작 화면이 다시 열린다: 알림은 시작 화면이 떠 있는 동안 미뤄지므로(js/ui-feedback.js) 그 화면의 상태 줄이 말한다.
+        await expect(page.locator(cloud ? '#startup-status' : '#game-toast-region')).toContainText('초기화하지 못했습니다');
         expect(await page.evaluate(() => localStorage.getItem(getSaveSlot().key))).toBe(before);
         expect(await page.evaluate(() => ({ loop: game.season, writable: canPersistLocalSave(), skip: !!window.__skipUnloadSaveOnce })))
             .toEqual({ loop: cloud ? 1 : 17, writable: !cloud, skip: false });

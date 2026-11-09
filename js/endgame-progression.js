@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getEndgameProgressLoop(ownerState) {
     let source = ownerState || game;
     return Math.max(1, Math.floor(Number(source.season) || 1), Math.floor(Number(source.loopCount) || 0));
@@ -240,6 +242,10 @@ function getBeyondBoundaryGlobalStats(ownerState) {
     });
     return Object.entries(totals).map(([id, val]) => ({ id, val: Number(val.toFixed(4)) })).filter(stat => stat.val !== 0);
 }
+
+exposeFileGlobals({ getEndgameProgressLoop, createDefaultBeyondBoundaryState, getBeyondBoundaryRewardMul, getBeyondBoundaryPayoutTier, isBeyondBoundaryUnlockRequirementMet, normalizeBeyondBoundaryState, ensureBeyondBoundaryState, reconcileBeyondBoundaryUnlock, getBeyondBoundarySealLevelCost, getBeyondBoundaryIntensityCosts, startBeyondBoundaryRun, completeBeyondBoundaryEncounter, abandonBeyondBoundaryRun, selectBeyondBoundaryTier, selectBeyondBoundarySeal, getBeyondBoundaryRewardFocusStatus, selectBeyondBoundaryRewardFocus, selectBeyondBoundaryIntensity, getBeyondBoundaryGlobalStats });
+})();
+
 
 safeExposeGlobals({
     getEndgameProgressLoop,

@@ -12,6 +12,15 @@
  *   ?lang=en                              그 판에서만 언어를 덮는다(검사·갈무리용). 저장은 바뀌지 않는다.
  *   window 'game:languagechange'          언어가 바뀌면 보낸다. 번역한 글을 제 손으로 그려 둔 UI는 이 이벤트에서 다시 그린다.
  */
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
+/** 현재 언어의 글: _t('한국어 원문', { 매개변수 }). 세부는 i18n의 머리말. */
+function _t(key, params) {
+    return i18n.t(key, params);
+}
+
+exposeFileGlobals({ _t });
+})();
 {
     const LANGUAGE_PACKS = [LANGUAGE_PACK_KO,
         { code: 'en', name: 'English', global: 'LANGUAGE_PACK_EN' },
@@ -242,9 +251,5 @@
     }) });
 }
 
-/** 현재 언어의 글: _t('한국어 원문', { 매개변수 }). 세부는 i18n의 머리말. */
-function _t(key, params) {
-    return i18n.t(key, params);
-}
 
 safeExposeGlobals({ _t });

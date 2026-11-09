@@ -501,7 +501,7 @@ const sideEncounterUi = (() => {
         if (game.currentZoneId === 'grand_breach_run' && game.voidRift.grandRun?.inRun) return withdrawGrandBreach();
         return returnToTown();
     }
-    /** A withdraw dialog is up: the game waits (js/ui.js isForegroundGameplayPausedForBackground), as for the departure dialog. */
+    /** A withdraw dialog is up: the game waits (js/away-settlement-ui.js isForegroundGameplayPausedForBackground), as for the departure dialog. */
     const withdrawalPending = () => colonyWithdrawPending || grandWithdrawPending;
     function withdrawalCurrent(view, encounter, zoneId, stage) {
         return game === view.owner && encounter === view.encounter && encounter.inRun && game.currentZoneId === zoneId

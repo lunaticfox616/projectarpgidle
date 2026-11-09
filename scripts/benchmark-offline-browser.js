@@ -43,7 +43,7 @@ async function settle(page, max) {
         const page = await browser.newPage({ serviceWorkers: 'block' });
         await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
         if (baseline) {
-            for (const file of ['js/combat.js', 'js/combat-replay.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
+            for (const file of ['js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-replay.js', 'js/equipment-stat-resolution.js', 'js/skills.js']) {
                 const body = require('node:child_process').execFileSync('git', ['show', `HEAD:${file}`], { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
                 await page.route(`**/${file}?*`, route => route.fulfill({ status: 200, contentType: 'text/javascript', body }));
             }

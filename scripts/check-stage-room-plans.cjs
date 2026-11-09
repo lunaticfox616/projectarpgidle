@@ -9,7 +9,7 @@ const fs = require('node:fs'), path = require('node:path'), vm = require('node:v
 const root = path.join(__dirname, '..'), args = process.argv.slice(2);
 const option = (name, fallback) => (args.includes(name) ? Number(args[args.indexOf(name) + 1]) : fallback);
 const context = { console };
-context.safeExposeData = context.safeExposeGlobals = values => Object.assign(context, values);
+context.safeExposeData = context.safeExposeGlobals = context.exposeFileGlobals = values => Object.assign(context, values);
 vm.createContext(context);
 for (const file of ['js/utils.js', 'data/act-exploration-maps.js', 'data/stage-room-plans.js', 'js/act-exploration-room-plans.js']) {
     const source = fs.readFileSync(path.join(root, file), 'utf8');

@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getConditionPatternProgressLoop(state) {
     if (!state || typeof state !== 'object') return 1;
     return Math.max(1, Math.floor(Number(state.season) || 1), Math.floor(Number(state.loopCount) || 0));
@@ -154,6 +156,10 @@ function resolveConditionalCombatTactics(baseTactics, pStats, state, now) {
     });
     return resolved;
 }
+
+exposeFileGlobals({ getConditionPatternProgressLoop, isConditionPatternRequirementMet, getConditionPatternRequirementLabel, getConditionPatternTriggers, getConditionPatternActions, normalizeConditionPatternRule, formatConditionPatternTriggerSummary, getConditionPatternContext, doesConditionPatternMatch, isPlayerThreatenedByBoss, evaluateConditionPatternRule, resolveConditionalCombatTactics });
+})();
+
 
 safeExposeGlobals({
     getConditionPatternProgressLoop, isConditionPatternRequirementMet, getConditionPatternRequirementLabel,

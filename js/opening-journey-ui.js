@@ -4,7 +4,7 @@
  * 고맙다는 말과 함께 ... 스킬룬 사용법 튜토리얼까지", "루프 하고 난 다음에는 시작연출, 쓰러져있는 캐릭터, 첫번째 방에 하켄까지 없는게").
  *
  * 인트로(프롤로그 삽화와 판결문) → 어둠에서 밝아지면 액트 1 입구 방에 쓰러진 주인공(누르면 일어난다) → 이동(바닥 클릭, WASD) →
- * 하켄을 치는 괴물에게 다가가 자동 공격(js/combat.js createStarterRescuePack) → 하켄의 감사와 바닥에 떨어진 직업 무기 → 무기 장착 안내
+ * 하켄을 치는 괴물에게 다가가 자동 공격(js/combat-encounters.js createStarterRescuePack) → 하켄의 감사와 바닥에 떨어진 직업 무기 → 무기 장착 안내
  * (js/content-progression-ui.js announceStarterWeapon, 2026-11-09까지는 시작 룬) → 자동 사냥이 열린다. 새 게임의 첫 루프에서 한 번만 돈다.
  * 진행은 seenTutorials의 열쇠로 남는다(KEY). 그 사이 자동 사냥은 꺼진 채 잠기고(autoLocked, js/act-exploration-ui.js), 쓰러진 동안과
  * 일어나는 동안 게임이 멈춘다(holds, js/canvas-act-title-card.js greeting이 함께 읽는다). 주인공 그림은 받은 그림이다
@@ -30,7 +30,7 @@ const openingJourney = (() => {
     const actRun = () => { const run = actExplorationState.current(game); return run && run.zoneId === 0 && run.status === 'active' ? run : null; };
     const inEntry = run => { const room = run && actExplorationDoors.room(run); return !!room && room.role === 'entry'; };
     const SIDES = Object.freeze({ east: '오른쪽', west: '왼쪽', north: '위쪽', south: '아래쪽' });
-    /** While the hero is not yet in the room where Haken is struck (js/combat.js starterRescueRoom): the side of the next door toward it. */
+    /** While the hero is not yet in the room where Haken is struck (js/combat-encounters.js starterRescueRoom): the side of the next door toward it. */
     function doorToRescue(run) {
         const map = run && actExplorationDoors.stageMap(run), pack = run && run.packs.find(row => row.rescue);
         const here = map && actExplorationDoors.room(run), there = pack && map.rooms.find(room => room.id === pack.roomId);

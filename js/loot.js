@@ -1,6 +1,6 @@
 // Loot domain: drop rates, rewards and codex bonuses. No DOM or renderer dependencies.
-const UNIQUE_CODEX_KEYS = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly)
-    .map(entry => `${entry.slots[0]}|${entry.name}`));
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getUniqueCodexProgress() {
     let codex = (game.uniqueCodex && typeof game.uniqueCodex === 'object') ? game.uniqueCodex : {};
     let stored = Object.keys(codex).filter(key => !!codex[key] && UNIQUE_CODEX_KEYS.has(key)).length;
@@ -12,11 +12,6 @@ function getCodexBonusPctFromCount(storedCount) {
     let preSoftCap = Math.min(50, count) * 0.2;
     let postSoftCap = Math.max(0, count - 50) * 0.1;
     return preSoftCap + postSoftCap;
-}
-
-function getCodexBonusPct() {
-    if (!contentProgression.isUnlocked('codex')) return 0;
-    return getCodexBonusPctFromCount(getUniqueCodexProgress().stored);
 }
 
 function getWildTalismanBaseDropChance(enemy) {
@@ -52,7 +47,7 @@ function getLabyrinthFossilDropChances(floor, fossilDropMultiplier, fossilRareMu
 /** One capped multiplier for equipment, wild talismans and bonus currency rolls. */
 function getEnemyLootDropMultiplier(zone, enemy) {
     let progression = getAdditiveDropBonusMultiplier(getCodexBonusPct());
-    let raw = progression * getAbyssMonsterScales(zone).dropMul * (Number(enemy.dropMul) || 1) * (Number(enemy.greedDropMul) || 1);   // greedDropMul: 탐욕의 광기(js/combat.js rollLootForEnemy)
+    let raw = progression * getAbyssMonsterScales(zone).dropMul * (Number(enemy.dropMul) || 1) * (Number(enemy.greedDropMul) || 1);   // greedDropMul: 탐욕의 광기(js/combat-kill-rewards.js rollLootForEnemy)
     return capEndlessContentDropMultiplier(zone, raw) * getContentDropRateMultiplier(zone);
 }
 
@@ -142,10 +137,6 @@ function getMappingTicketDrops(enemy, zone, mappingOpened) {
     return drops;
 }
 
-// Classic-script consumers: combat owns committing rewards; this module owns their rules.
-safeExposeGlobals({ getEnemyLootDropMultiplier, getEquipmentDropChances, rollEquipmentDrop, getEquipmentDropRarity });
-
-
 function getUnderworldResourceDropChances(enemy) {
     if (enemy && enemy.isBoss) {
         return { fossil: 0.11, typedFossil: 0.0375, tool: 0.025, rune: 0.18, core: 0.01, ...UNDERWORLD_ORE_DROP_CHANCES };
@@ -155,6 +146,22 @@ function getUnderworldResourceDropChances(enemy) {
     }
     return { fossil: 0.0025, typedFossil: 0.0006, tool: 0.0005, rune: 0.0015, core: 0.00005, ...UNDERWORLD_ORE_DROP_CHANCES };
 }
+
+exposeFileGlobals({ getUniqueCodexProgress, getCodexBonusPctFromCount, getLabyrinthFossilDropChances, getEnemyLootDropMultiplier, getEquipmentDropChances, rollEquipmentDrop, getEquipmentDropRarity, generateRealmBossUniqueDrop, getMappingTicketDrops, getUnderworldResourceDropChances });
+})();
+const UNIQUE_CODEX_KEYS = new Set(UNIQUE_DB.filter(entry => !entry.realmCodexOnly)
+    .map(entry => `${entry.slots[0]}|${entry.name}`));
+
+
+function getCodexBonusPct() {
+    if (!contentProgression.isUnlocked('codex')) return 0;
+    return getCodexBonusPctFromCount(getUniqueCodexProgress().stored);
+}
+
+
+// Classic-script consumers: combat owns committing rewards; this module owns their rules.
+safeExposeGlobals({ getEnemyLootDropMultiplier, getEquipmentDropChances, rollEquipmentDrop, getEquipmentDropRarity });
+
 
 (function () {
 'use strict';
@@ -611,7 +618,7 @@ safeExposeGlobals({ getCurrencyDrops });
         const hunted = receipt.highlight && (equipmentLootPolicy.highlight(receipt.item, game)?.priority || 0) >= 3;
         return hunted ? higher(tier, 'great') : tier;
     }
-    /** Whether picking this unique up opens a new codex entry (js/passives.js registerUniqueToCodexOnAcquire): the floor reveal and the
+    /** Whether picking this unique up opens a new codex entry (js/item-rolls.js registerUniqueToCodexOnAcquire): the floor reveal and the
      * map result mark it. */
     function isNewUnique(item, state = game) {
         if (!item || item.rarity !== 'unique') return false;

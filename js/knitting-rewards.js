@@ -84,7 +84,7 @@ const knittingRewards = (() => {
     }
     const plannedCurrencies = (reward, random) => (reward.pickCurrencies ? [pick(reward.pickCurrencies, random)] : reward.currencies || [])
         .map(([key, n]) => [getCanonicalCurrencyKey(key), n]);
-    // 창공석은 재화 칸이 아니라 창공의 탑 상태에 쌓인다(js/passives.js commitCurrencyGain, js/exploration-ground-loot.js settleRow)
+    // 창공석은 재화 칸이 아니라 창공의 탑 상태에 쌓인다(js/item-rolls.js commitCurrencyGain, js/exploration-ground-loot.js settleRow)
     const SKY_POWER = 'condensedSkyPower';
     const heldCurrency = (state, key) => (key === SKY_POWER ? (state.skyTower && state.skyTower.condensedPower) : state.currencies[key]) || 0;
     /** 그루터기 함 씨앗 보상 [색, 개수](data/knitting.js reward.seeds). 품질은 수확 일지 선물과 같은 드랍 최고다. */

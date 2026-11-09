@@ -1,14 +1,14 @@
 {
   "hangulIdentifiers": {
-    "js/crafting-catalog-ui.js": 22,
-    "js/items.js": 9,
-    "js/passives.js": 2,
-    "js/state.js": 9,
-    "js/stump-cube-ui.js": 5,
-    "js/void-craft-ui.js": 5,
     "data/item-influences.js": 12,
     "data/items.js": 12,
     "data/loot-omens.js": 9,
-    "data/player-stall.js": 9
+    "data/player-stall.js": 9,
+    "js/crafting-catalog-ui.js": 22,
+    "js/item-rolls.js": 2,
+    "js/items.js": 9,
+    "js/state.js": 9,
+    "js/stump-cube-ui.js": 5,
+    "js/void-craft-ui.js": 5
   }
 }

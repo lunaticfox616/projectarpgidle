@@ -1,5 +1,5 @@
-const backgroundBuildMemos = new WeakMap();
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** The values of one equipment object. A stat read that masks disabled slots (combatEquipmentStats.read) swaps state.equipment
  * for the active gear while it reads, so the masked and the real gear each keep their own values. */
 function getEquipmentMemoValues(byEquipment, state) {
@@ -9,13 +9,11 @@ function getEquipmentMemoValues(byEquipment, state) {
     return values;
 }
 
-// One synchronous screen draw shares the same build memo (withBuildMemoPass): the rune screen recounted the jewel and unique gem
-// levels for each of ~140 rune cards, 290 ms a draw (2026-10-25). Nothing edits the build while it draws.
-let buildMemoPass = null;
 function getBuildMemoPassValues(state) {
     if (!buildMemoPass || buildMemoPass.owner !== state || !state.equipment) return null;
     return getEquipmentMemoValues(buildMemoPass.byEquipment, state);
 }
+
 /** Runs draw with the build memo on for game (foreground only; nested calls join the outer pass). @returns what draw returns. */
 function withBuildMemoPass(draw) {
     if (buildMemoPass) return draw();
@@ -55,3 +53,12 @@ function getBackgroundBuildMemo(state) {
 function clearBackgroundBuildMemo(state) {
     backgroundBuildMemos.delete(state);
 }
+
+exposeFileGlobals({ withBuildMemoPass, getPersistentBuildSignature, getBackgroundBuildMemo, clearBackgroundBuildMemo });
+})();
+const backgroundBuildMemos = new WeakMap();
+
+
+// One synchronous screen draw shares the same build memo (withBuildMemoPass): the rune screen recounted the jewel and unique gem
+// levels for each of ~140 rune cards, 290 ms a draw (2026-10-25). Nothing edits the build while it draws.
+let buildMemoPass = null;

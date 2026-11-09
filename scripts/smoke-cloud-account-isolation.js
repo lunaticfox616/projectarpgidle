@@ -5,10 +5,6 @@ const fs = require('fs');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
 
-const indexSource = fs.readFileSync('index.html', 'utf8');
-for (const file of ['js/save.js', 'js/ui.js']) {
-    assert.match(indexSource, new RegExp(`${file.replace(/[./]/g, '\\$&')}\\?[^"]*save-slots=20261030-1`), `${file} must leave the cache with the save slots`);
-}
 
 const USER = 'account-b', OTHER = 'account-a';
 const BUILD = '2026-10-28T00:00:00.000Z';

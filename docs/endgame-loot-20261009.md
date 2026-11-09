@@ -201,7 +201,7 @@
 - **새 고유**: 도감에 처음 오르는 고유(lootMoments.isNewUnique, 줍기 전에 판정)는 주울 때 이름 위에 '새 고유' 표와 '도감 새 고유' 배너(체이싱
   고유는 체이싱 배너가 먼저). 지도 결과의 발견 칩에도 '새' 표.
 - **방치 결과의 아틀라스 칸**: 끝낸 지도, 보물 무리, 황금 보물, 기억의 잎과 처음 본 잎. 저장의 누적 수(game.atlas.tally: maps, treasure, golden,
-  atlas.normalize가 정리)와 잎 수의 전후 차이로 만든다(js/ui.js getBackgroundAtlasGains, memoryLeaves.gainedBetween).
+  atlas.normalize가 정리)와 잎 수의 전후 차이로 만든다(js/away-settlement-ui.js getBackgroundAtlasGains, memoryLeaves.gainedBetween).
 - **좋은 희귀**: 그 장비가 가질 수 있는 가장 높은 4개 등급 안의 옵션이 2줄이면 좋은 발견, 3줄이면 큰 발견(LOOT_OMENS.fineRare). 16등급 희귀의
   약 10%와 1%. 바닥 이름표에 금빛 테, 주울 때 기록에 '좋은 옵션 N줄'.
 
@@ -237,7 +237,7 @@
   옵션은 새로 굴리고 15%(`STUMP_CUBE_UNIQUE_EXCEPTIONAL_CHANCE`)로 베이스 줄 하나가 특출(최고 굴림의 120%, js/passives.js
   boostExceptionalBaseLine). 2×3 대검 둘이 들어가도록 조합창을 4×4로(`STUMP_CUBE_SIZE`). 예전 3×3 칸 저장은 그대로 맞는다. 타락(잿불가지)도
   같은 고유의 쓸 곳이다.
-- **줍기 필터 세분화**(js/equipment-loot-ui.js, js/passives.js passesItemPickupFilter, js/loot.js normalizePickupDetail): 희귀도마다 최소 티어
+- **줍기 필터 세분화**(js/equipment-loot-ui.js, js/item-rolls.js passesItemPickupFilter, js/loot.js normalizePickupDetail): 희귀도마다 최소 티어
   (예전 한 칸짜리 최소 티어는 한 번 옮겨 담는다), 부위 9, 무기 종류 6, 항상 줍기(특출난 베이스, 좋은 희귀, 소켓, 타락, 도감에 없는 고유).
 - **발견 연출**(game.settings.lootFx): 같은 창에서 빛기둥(체이싱 티어, 큰 발견, 좋은 발견 반짝임)과 알림(체이싱 티어, 황금률, 보물, 도감 등록,
   기억의 잎)을 켜고 끈다.
@@ -262,7 +262,7 @@
 - **수호자 영향, 마름 영향**(INFLUENCE_AFFIX_MODS, MOD_DB influences): 그 영향을 띤 장비의 추가 옵션 풀에만 있는 전용 줄(수호자 8, 마름 7).
   일반 희귀에는 붙지 않던 능력치(막기 최대치, 받는 지속 피해 감소, 보스와 정예 피해, 최소와 최대 피해 보정, 중독 등)로 부위마다 둘 이상이다.
   수호자와 사도의 보상 장비는 모두, 그 싸움터의 장비는 8%로 영향을 띤다. 마법과 희귀는 떨어질 때 전용 줄 하나를 같은 종류(접두, 접미) 줄
-  자리에 달고, 다시 굴려도 전용 줄이 나올 수 있다(세계수 기운과 같은 방식, js/passives.js isModForOrigin).
+  자리에 달고, 다시 굴려도 전용 줄이 나올 수 있다(세계수 기운과 같은 방식, js/item-rolls.js isModForOrigin).
 - **뒤바뀐 고유**(기억 던전의 주요 보상, data/memory-dungeon.js swap): 기억의 고유는 1단계 25%에서 5단계 65%까지 줄 하나가 그 고유와 태그가
   겹치는 다른 줄로 바뀐다(SWAPPED_UNIQUE_LINES 33줄). 수치는 바뀐 줄이 범위에서 굴린 자리만큼이다. 기억 던전 머리에 확률을 적었다.
 - **함께 받는 규칙**(2026-10-10 사용자): 태양과 허기만 한 장비에 함께 받는다. 그 밖의 영향은 하나만 받고 다른 영향과 함께 받지 못한다

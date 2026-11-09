@@ -61,10 +61,12 @@ test('all unlocked mobile navigation entries open without page overflow or runti
     await openMobile(page);
     await page.evaluate(() => {
         game.level = 100; game.season = 100;
-        game.contentProgression.inherited = CONTENT_UNLOCK_CATALOG.map(row => row.id);
+        game.contentProgression.inherited = CONTENT_UNLOCK_CATALOG.map(row => row.id); contentProgression.sync();
         Object.keys(game.unlocks).forEach(key => { game.unlocks[key] = true; });
-        updateTabUnlockButtons(); applyTabHeaderOrder(); updateTabNotificationDots();
+        // 거래 단추(2026-11-06)는 화면 전체 갱신이 켠다(js/ui.js): 메뉴 갱신만으로는 안 보인다.
+        updateStaticUI(); updateTabUnlockButtons(); applyTabHeaderOrder(); updateTabNotificationDots();
     });
+    await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
     // 2026-11-03 사용자: 하단 메뉴는 화면 너비만큼 바로가기를 싣는다(Pixel 5 폭에 전투와 바로가기 다섯).
     await expect(page.locator('#tab-header-bottom > .tab-btn:visible')).toHaveCount(6);
     const ids = await page.locator('.tab-header > .tab-btn').evaluateAll(elements => elements

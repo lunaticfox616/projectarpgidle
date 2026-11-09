@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** 예전 저장의 동물 소환 룬 → 위습 정령 소환 룬 (스킬 변경분 2, 2026-09-30 · 표 data/wisp-summons.js LEGACY_SUMMON_GEM_TO_WISP).
  * 2026-10-13에 지운 룬 다섯도 같은 길로 대신 받는 룬이 된다(표 data/skills.js RETIRED_GEM_SUCCESSORS).
  * mergeDefaults가 SKILL_DB에 없는 이름을 걸러내기 전에 부른다. 이름이 들어 있는 저장 필드를 모두 새 이름으로 바꾸고,
@@ -126,5 +128,9 @@ function migrateLegacySummonGemSave(merged) {
     migrateLegacySummonGemHoldings(merged);
     if (merged.settings) delete merged.settings.summonArtStyle; // the animal sheets' look (glow · dark · simple · cute)
 }
+
+exposeFileGlobals({ mergeGrownGemRecords, migrateLegacySummonGemSave });
+})();
+
 
 safeExposeGlobals({ migrateLegacySummonGemSave });

@@ -92,7 +92,7 @@ const STAGE_ROOMS = Object.freeze({
      * 무대 그림에 그려진 문 자리를 따른다. */
     doorSpots: Object.freeze([0.2, 0.5, 0.8]),
     /** 방 하나에 무리들이 서는 자리 묶음(2026-10-13 밤, 검토: "추가 몹팩 위치도 가운데 양옆으로 정해져 있어"): 방을 열 때 무게대로 하나를 고른다
-     * (js/combat.js stageRoomArranger). spots는 [가로, 깊이] 자리로, 방 가운데가 0이고 ±1이 무리가 설 수 있는 끝이다. 가로의 +는 들어온 문의
+     * (js/combat-encounters.js stageRoomArranger). spots는 [가로, 깊이] 자리로, 방 가운데가 0이고 ±1이 무리가 설 수 있는 끝이다. 가로의 +는 들어온 문의
      * 맞은편이다(문이 위아래에 있으면 반반). 첫 자리가 방의 원래 무리, 그다음이 덧무리의 자리다. 한 줄 지도의 방도 이 자리를 쓴다.
      * centre 가운데와 양옆(전의 자리), wings 양 날개(가운데가 빈다), far 들어온 쪽의 맞은편에 몰려 있다, back 뒤쪽 줄, front 앞쪽 줄,
      * corners 구석들, split 앞뒤로 갈라 선다. */
@@ -355,7 +355,7 @@ const STAGE_HERO_RISE = Object.freeze({ file: 'unarmed/rise.png', ms: Object.fre
  *         bright 바닥이 밝아 문 표시의 빛무리를 어둡게 까는 띠
  *   bubbles 영웅 머리 위 거품: 칸, 장 수, 장마다 ms, 다음 거품까지 ms, 발에서 거품 칸의 아래까지 도트
  *   dust 발밑 먼지: 칸, 장 수, 장마다 ms, 그림마다 발 자리(진흙 먼지는 밑이 두 줄 위다)
- *   air 쓰러진 몬스터가 남기는 공기 기둥: 칸, 장 수, 장마다 ms, 발 자리(보이는 시간은 js/combat.js noteOceanKill, 끝 4분의 1은 옅어진다)
+ *   air 쓰러진 몬스터가 남기는 공기 기둥: 칸, 장 수, 장마다 ms, 발 자리(보이는 시간은 js/combat-kill-rewards.js noteOceanKill, 끝 4분의 1은 옅어진다)
  *   drift 떠다니는 입자 두 층: 그림, 크기, 1초에 흐르는 도트 [가로, 세로], 진하기, front 배우 앞에 그리는 층
  *   lift 가디언 방의 리프트: 그림(가디언이 서 있는 동안 닫힘, 쓰러지면 열림), 크기, 발 자리, 뒤쪽 바닥선 아래 도트 */
 const STAGE_OCEAN = Object.freeze({

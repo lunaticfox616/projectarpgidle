@@ -1,7 +1,7 @@
 /** 고유 아이템 도감(기록 창의 도감, 2026-10-09 사용자 "게임 전체에서 부족한 화면" 2순위). 171장이 같은 글 카드였다.
  * 위 줄: 등록 수와 막대, 도감 보너스, 완성 보상과 남은 수, 이번에 새로 등록된 고유. 부위 탭: 부위 그림, 모은 수, 막대.
  * 카드: 고유 그림 칸(미등록은 검은 그림자, 등록은 제 색), 이름, 드랍처. 카드를 누르면 고유 창(옵션, 드랍처 보기, 파밍 추적)이 열린다.
- * 파밍 추적 칸은 js/unique-hunt-ui.js, 등록과 보너스 규칙은 js/passives.js registerUniqueToCodexOnAcquire와 js/loot.js. */
+ * 파밍 추적 칸은 js/unique-hunt-ui.js, 등록과 보너스 규칙은 js/item-rolls.js registerUniqueToCodexOnAcquire와 js/loot.js. */
 const uniqueCodexUi = (() => {
     const DIALOG = 'unique-codex-dialog';
     let dialogKey = null, lastTop = '', lastHtml = '', lastSheet = '', bound = false;

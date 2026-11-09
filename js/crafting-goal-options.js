@@ -114,7 +114,7 @@ const craftingGoalOptions = (() => {
         return equipmentCrafting.getSporeBlockReason(item, action, mode) || (!rollPool(item, recipe, mode, omen).length ? '부여 가능한 옵션이 없습니다.' : '')
             || sporeGapReason(item, action, mode);
     }
-    /** The live craft refuses a spore mode with nothing of its family left to give (js/passives.js useCurrency): so does practice. */
+    /** The live craft refuses a spore mode with nothing of its family left to give (js/item-rolls.js useCurrency): so does practice. */
     function sporeGapReason(item, action, mode) {
         const spore = mode !== 'none' && isSporeCraftEquipment(item);
         return spore && !equipmentCrafting.sporePool(item, action, mode).length ? '선택한 수확 계열에서 새로 붙을 수 있는 옵션이 없습니다.' : '';
@@ -127,7 +127,7 @@ const craftingGoalOptions = (() => {
         const reason = rehearsalReason(item, recipe, mode, omen);
         if (reason) throw Error(reason);
         const result = JSON.parse(JSON.stringify(item)), action = equipmentCrafting.resolveAction(recipe.key, item.rarity);
-        // 수확 보장은 실제 제작과 같은 함수로 고르고 굴린다(js/passives.js useCurrency와 같은 규칙).
+        // 수확 보장은 실제 제작과 같은 함수로 고르고 굴린다(js/item-rolls.js useCurrency와 같은 규칙).
         let guaranteedStat = null;
         const used = equipmentCrafting.omenFits(item, action, omen, mode) ? omen : null;
         if (mode !== 'none' && isSporeCraftEquipment(item)) {

@@ -1,5 +1,5 @@
 /** 아틀라스 처치에 덧붙는 발견(docs/endgame-loot-20261009.md 3절): 지도 기운의 처치 드랍과 보물 무리의 보물. js/atlas-run.js onKill이
- * 처치마다 부르고, js/combat.js createActExplorationPack이 무리를 만들 때 보물 무리를 꾸민다. 규칙은 js/loot-omens.js가 정하고, 받는
+ * 처치마다 부르고, js/combat-encounters.js createActExplorationPack이 무리를 만들 때 보물 무리를 꾸민다. 규칙은 js/loot-omens.js가 정하고, 받는
  * 길은 보통 처치와 같다: 재화는 keepCurrencyDrop(지도 바닥 더미), 장비는 keepEquipmentDrop, 주얼은 바닥이나 주얼함.
  * 보물이 터지면 'atlas-find' 이벤트로 알린다(기록과 화면은 UI가).
  */
@@ -18,7 +18,7 @@ const atlasFinds = (() => {
         dispatchRuntimeEvent('jewel-drop-received', receipt);
         return true;
     }
-    /** 씨앗 비(data/loot-omens.js): a stump seed rolled as a kill's, on the floor like one (js/combat.js layStumpDrop), else into the box. */
+    /** 씨앗 비(data/loot-omens.js): a stump seed rolled as a kill's, on the floor like one (js/combat-skill-effects.js layStumpDrop), else into the box. */
     function grantOmenSeed(enemy) {
         const spec = stumpBox.seedDropSpec(game, Math.random);
         if (placeFloorItem(enemy, 'stump', spec)) return true;

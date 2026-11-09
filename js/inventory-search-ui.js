@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 // Shared search controls preserve the input element and query state across inventory refreshes.
 function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml, actionButtonsHtml) {
     let root = document.getElementById(containerId);
@@ -24,6 +26,7 @@ function renderSearchSection(containerId, key, placeholder, rowsHtml, emptyHtml,
     // 동일한 목록을 다시 그리는 비용을 없애 끊김을 줄인다.
     let v = rowsHtml || emptyHtml || ''; if (list.__lastHtml !== v) { list.innerHTML = v; list.__lastHtml = v; }
 }
+
 function getSearchFilterState() {
     game.settings = game.settings || {};
     game.settings.searchFilters = (game.settings.searchFilters && typeof game.settings.searchFilters === 'object') ? game.settings.searchFilters : {};
@@ -33,5 +36,8 @@ function getSearchFilterState() {
     }
     return d;
 }
+
+exposeFileGlobals({ renderSearchSection, getSearchFilterState });
+})();
 
 safeExposeGlobals({getSearchFilterState, renderSearchSection});

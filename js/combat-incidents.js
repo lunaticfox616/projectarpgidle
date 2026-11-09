@@ -14,7 +14,7 @@
  * - 세계수의 숨결: 처음 들어선 전투 방에서 드물게 영웅에게 seconds초짜리 숨결 하나(breathe, 능력치는 breathStats).
  * - 사냥 도전: 처음 들어선 전투 방에서 드물게 seconds초 안에 그 방을 비우라는 도전이 열리고, 해내면 재화 몇 개(openChallenge).
  * - 세계수의 하품: 처음 들어선 전투 방에서 아주 드물게 그 방의 몬스터가 잠든다(skillHeldUntil: 움직이지도 공격하지도 않는다).
- * - 행운의 숫자: 한 번에 준 피해가 7로만 된 수면 그 자릿수의 재화(noteDamage, js/combat.js applyDamageToEnemyResource).
+ * - 행운의 숫자: 한 번에 준 피해가 7로만 된 수면 그 자릿수의 재화(noteDamage, js/combat-enemy-build.js applyDamageToEnemyResource).
  * 체이싱 고유 넷이 사건을 바꾼다(worn): 수액 냄새 밴 장화(슬라임 확률과 재화), 황금을 빚는 손(쓰러뜨린 몬스터가 슬라임으로 일어난다),
  * 일곱 번째 행운의 병(같은 숫자로만 된 피해도 행운의 숫자), 꿈결의 향로(하품 확률과 잠드는 시간). 고유 액막이 '사건을 부르는 방울'은
  * 모든 사건의 확률을 두 배로 한다(often).
@@ -66,7 +66,7 @@ const combatIncidents = (() => {
         }
         return null;
     }
-    /** 지도의 무리를 모두 지은 뒤(js/combat.js createExplorationPacks, 습격방을 고르기 전): 보통 무리마다 드물게 금빛 수액 슬라임 하나를
+    /** 지도의 무리를 모두 지은 뒤(js/combat-encounters.js createExplorationPacks, 습격방을 고르기 전): 보통 무리마다 드물게 금빛 수액 슬라임 하나를
      * 곁에 세우고(방 단위 무대에서), 그러지 않은 무리는 드물게 길 잃은 몬스터를 데리고 있거나(addStray) 잠들어 있다(lullPack, 길 잃은
      * 몬스터도 함께 잔다). @returns {object[]} 그 무리 목록 */
     function dressPacks(zone, map, packs) {
@@ -156,7 +156,7 @@ const combatIncidents = (() => {
         return false;
     }
     /** 달아난 슬라임은 전리품 없이 사라진다. 무리에서 빠지는 셈은 처치와 같다(무리의 산 몬스터 목록, 지도 오브젝트의 진행:
-     * js/combat.js handleEnemyDeath). */
+     * js/combat-kill-rewards.js handleEnemyDeath). */
     function escape(run, enemy, rainbow) {
         enemy.hp = 0;
         game.enemies = game.enemies.filter(entry => entry.id !== enemy.id);
@@ -461,7 +461,7 @@ const combatIncidents = (() => {
         run.incidentRooms.push(room.id);
         return true;
     }
-    /** 전투 한 틱마다(js/combat.js prepareCombatTick): 슬라임이 달아나고, 잠든 무리가 자거나 깨고, 처음 들어선 방에서 잔치와 하품을 굴린다. */
+    /** 전투 한 틱마다(js/combat-summon-stats.js prepareCombatTick): 슬라임이 달아나고, 잠든 무리가 자거나 깨고, 처음 들어선 방에서 잔치와 하품을 굴린다. */
     function tick() {
         const zone = getZone(game.currentZoneId), run = actExplorationState.current(game);
         if (quiet(zone) || !run || !game.enemies) return;
@@ -473,7 +473,7 @@ const combatIncidents = (() => {
         tickTimed(run, now);
         if (map) tickRoom(run, room, now);
     }
-    /** 처치(js/combat.js countKillForContent): 길 잃은 몬스터의 장비, 잡은 슬라임의 보상과 알림. 슬라임이 아니면 황금을 빚는 손(rise).
+    /** 처치(js/combat-kill-rewards.js countKillForContent): 길 잃은 몬스터의 장비, 잡은 슬라임의 보상과 알림. 슬라임이 아니면 황금을 빚는 손(rise).
      * 방치 정산에서는 아무것도 하지 않는다(그동안 슬라임은 달아나지도 못한다). */
     function onKill(enemy, zone) {
         if (!enemy || quiet(zone)) return;
@@ -489,7 +489,7 @@ const combatIncidents = (() => {
     }
     /** 쓰러뜨린 몬스터(방 단위 무대의 보통 무리, 보스와 보스 단계의 호위, 오브젝트 웨이브 말고)가 그 자리에서 수액 슬라임으로 일어난다:
      * 이번 루프의 lucky.kill번째 처치는 무지갯빛으로, 황금을 빚는 손(goldenTouch)을 끼면 chance의 확률로 금빛(무지갯빛은
-     * critter.rainbow.chance대로). 슬라임은 그 무리에 들어 방이 끝나기 전에 선다(js/combat.js handleEnemyDeath가 죽은 몬스터를 무리에서
+     * critter.rainbow.chance대로). 슬라임은 그 무리에 들어 방이 끝나기 전에 선다(js/combat-kill-rewards.js handleEnemyDeath가 죽은 몬스터를 무리에서
      * 빼는 것은 이 뒤다). 방을 비우는 셈에는 들지 않는다(js/atlas-encounters.js emptiedPack). */
     function rise(enemy, zone) {
         if (enemy.isBoss || !enemy.explorationPack || !hasGridCell(enemy)) return;
@@ -538,7 +538,7 @@ const combatIncidents = (() => {
         const luck = worn('repdigitLuck');
         return luck || (digit === '7' && dealt >= rule().lucky.min) ? { digit, length: text.length, mul: luck ? luck.rewardMul : 1 } : null;
     }
-    /** 한 번에 준 피해(js/combat.js applyDamageToEnemyResource)가 행운의 숫자(111 이상)면 그 자릿수의 재화. 한 번 나오면 gapMs 동안 쉰다. */
+    /** 한 번에 준 피해(js/combat-enemy-build.js applyDamageToEnemyResource)가 행운의 숫자(111 이상)면 그 자릿수의 재화. 한 번 나오면 gapMs 동안 쉰다. */
     function noteDamage(enemy, dealt) {
         if (!(dealt >= 111) || game.isBackgroundCalculation) return;
         const hit = luckyHit(dealt), now = getCombatTime();

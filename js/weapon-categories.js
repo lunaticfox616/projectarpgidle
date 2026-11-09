@@ -1,6 +1,7 @@
 // 무기 대분류(data/weapon-categories.js): 낀 무기 → 대검 · 한손검 · 단궁 · 오브 · 플라스크 · 향로.
 // 주인공 그림(js/canvas-hana-actors.js weaponFor), 아이템 설명, 뿌리 촉수의 드랍 쏠림이 같이 쓴다.
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** The weapon base an item was made from (uniques name theirs in UNIQUE_EQUIPMENT_RULES, old items only a base name). */
 function getWeaponBaseId(item) {
     if (!item) return null;
@@ -31,5 +32,9 @@ function getWeaponCategoryName(item) {
 function weaponCategorySlotLabel(item, slot) {
     return (slot === '무기' && getWeaponCategoryName(item)) || (slot === '방패' ? '완갑' : slot);
 }
+
+exposeFileGlobals({ getWeaponBaseId, getWeaponCategoryOfBase, getWeaponCategoryId, getWeaponCategoryName, weaponCategorySlotLabel });
+})();
+
 
 safeExposeGlobals({ getWeaponBaseId, getWeaponCategoryOfBase, getWeaponCategoryId, getWeaponCategoryName, weaponCategorySlotLabel });

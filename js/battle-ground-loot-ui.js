@@ -436,7 +436,7 @@ const battleGroundLoot = (() => {
     // Row keys whose landing already played: a redraw after a tab switch does not drop them again. Only rows still on the floor
     // stay listed (pruned every sync), so the set never grows past the current map's floor.
     const landedFloorIds = new Set();
-    // The same receipts an immediate drop shows (js/combat.js queueEnemyGroundLoot), per floor row kind.
+    // The same receipts an immediate drop shows (js/combat-kill-rewards.js queueEnemyGroundLoot), per floor row kind.
     const floorReceipt = {
         currency: row => ({ currency: row.currency, count: row.count }),
         equipment: row => ({ item: row.item, itemKind: 'equipment', highlight: row.highlight, unidentified: row.item.rarity === 'unique' }),
@@ -640,7 +640,7 @@ const battleGroundLoot = (() => {
         const fresh = new Set(detail.fresh || []);
         detail.items.filter(item => item.rarity === 'unique').forEach(item => revealUnique(item, fresh.has(item.id)));
         if (!game.settings.showLootLog) return;
-        // The same lines a drop picked up at once writes (js/combat.js rollLootForEnemy).
+        // The same lines a drop picked up at once writes (js/combat-kill-rewards.js rollLootForEnemy).
         detail.currencies.forEach(({ key, count }) => addLog(`🪙 ${window.getStyledOrbName(key)} +${count}`,
             lootMoments.rank(lootMoments.ofCurrency(key)) >= 1 ? 'loot-unique' : 'loot-magic'));
         detail.items.forEach(item => addLog(_t("🛡️ <span class='loot-{rarity}'>[{name}]</span> 획득!{item}", { rarity: item.rarity, name: _t(item.name), item: fineNote(item) }), '', { item }));

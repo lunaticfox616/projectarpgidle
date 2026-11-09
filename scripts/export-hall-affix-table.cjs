@@ -81,7 +81,7 @@ function collectRows() {
     return rows;
 }
 
-/** One row per base line of every base, with the bounds rollBaseStat writes (js/passives.js baseStatRollBounds), low end first
+/** One row per base line of every base, with the bounds rollBaseStat writes (js/item-rolls.js baseStatRollBounds), low end first
  * (a negative base such as 균열유리 로브's 생명력 -40 rolls with its ends reversed). */
 function collectBaseRows() {
     const context = buildGameRuntime();

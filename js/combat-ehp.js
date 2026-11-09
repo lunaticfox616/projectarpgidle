@@ -1,6 +1,5 @@
-const PLAYER_EHP_ELEMENT_KEYS = ['phys', 'fire', 'cold', 'light', 'chaos'];
-const PLAYER_EHP_SEARCH_LIMIT = Number.MAX_SAFE_INTEGER;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getPlayerEhpResourcePool(stats) {
     return Math.max(1, Number(stats && stats.maxHp) || 1)
         + Math.max(0, Number(stats && stats.energyShield) || 0);
@@ -246,5 +245,11 @@ function getMapPowerReadiness(stats, estimate) {
 function meetsMapRecommendation(dpsRatio, ehpRatio, environment) {
     return dpsRatio >= 1 && ehpRatio >= 1 && !(environment?.deficitPct > 0);
 }
+
+exposeFileGlobals({ calculatePlayerRawHitTaken, calculatePlayerEhpProfile, getMapPowerReadiness });
+})();
+const PLAYER_EHP_ELEMENT_KEYS = ['phys', 'fire', 'cold', 'light', 'chaos'];
+const PLAYER_EHP_SEARCH_LIMIT = Number.MAX_SAFE_INTEGER;
+
 
 safeExposeGlobals({ calculatePlayerRawHitTaken, calculatePlayerEhpProfile, getMapPowerReadiness });

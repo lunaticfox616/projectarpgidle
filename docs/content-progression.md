@@ -73,7 +73,7 @@
 
 - 직업을 고르는 창의 둘째 단계에서 속성을 골라 그 직업 무기의 기초 스킬을 받는다(`js/basic-skills.js`, 표는 `data/skills.js` BASIC_SKILL_WEAPONS).
   선택지는 속성 2개, 해금 기초 속성 셋(루프 15)과 넷(루프 30)마다 하나 더, 변이 루프의 면역 속성은 빠진다. 루프마다 `game.basicSkillOffer`에 남는다.
-- 첫 처치는 직업 무기를 떨어뜨린다(`js/combat.js` grantLoopStarterWeaponOnFirstKill). 새 게임은 그 무기를 가방에 두고 장착 안내(starter_weapon)를 띄우며,
+- 첫 처치는 직업 무기를 떨어뜨린다(`js/combat-kill-rewards.js` grantLoopStarterWeaponOnFirstKill). 새 게임은 그 무기를 가방에 두고 장착 안내(starter_weapon)를 띄우며,
   무기를 들 때까지 기초 스킬은 `game.weaponBlockedSkill`에서 기다린다. 예전 첫 스킬룬 안내와 봉인 보호(2026-10-26)는 없어졌다.
 
 ## 창공 보상 한도와 결과 (2026-10-26)

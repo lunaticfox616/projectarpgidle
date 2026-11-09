@@ -96,7 +96,7 @@ const METEOR_SITE_UNLOCK_ACT = 7;
 
 // 운석의 종류(2026-11-03 사용자: 화염뿐 아니라 카오스, 냉기, 번개, 물리): 하늘 균열이 다 차면 하나가 같은 확률로 정해지고(meteorSite.kind),
 // 들어가면 운석 핵, 호위, 파편이 모두 그 속성으로 싸운다. eliteEle: 호위 사수의 속성(불타는 운석은 예전처럼 번개). 거대한 운석은 핵의 생명력이
-// bossHpMul배이고 확정 장비가 하나 더 있다. 저항 대신 물리 피해 감소가 오른다(js/combat.js tuneMeteorEnemy).
+// bossHpMul배이고 확정 장비가 하나 더 있다. 저항 대신 물리 피해 감소가 오른다(js/combat-enemy-build.js tuneMeteorEnemy).
 const METEOR_KINDS = Object.freeze([
     Object.freeze({ id: 'fire', name: '불타는 운석', element: '화염', ele: 'fire', eliteEle: 'light' }),
     Object.freeze({ id: 'chaos', name: '미지의 운석', element: '카오스', ele: 'chaos' }),
@@ -247,17 +247,17 @@ const ACT_LOOP_SCALE_CAP = 20;
 // 뛰지 않게, 층을 내려갈수록 지금 루프의 난이도까지 계단처럼 따라붙는다(루프 30이면 혼돈 5층부터 루프 30 그대로).
 const CHAOS_LOOP_RAMP_PER_DEPTH = 2;
 // 지도에 들어선 뒤와 문을 지나 다른 방에 들어선 뒤, 몬스터가 공격을 시작하지 못하는 시간(ms, 걸어오기는 한다).
-// 2026-10-16 사용자 "맵 이동 시 잠깐의 유예시간 필요" (js/act-exploration-state.js arrive, js/combat.js performMonsterAttacks).
+// 2026-10-16 사용자 "맵 이동 시 잠깐의 유예시간 필요" (js/act-exploration-state.js arrive, js/combat-enemy-turn.js performMonsterAttacks).
 const EXPLORATION_ARRIVAL_GRACE_MS = 1500;
 
-// 몬스터 생명력의 루프 배율(2026-10-06 재조율, js/combat.js getMonsterLoopHpMultiplier): [루프, 배율], 사이는 직선, 끝 뒤는 끝 값.
+// 몬스터 생명력의 루프 배율(2026-10-06 재조율, js/combat-enemy-build.js getMonsterLoopHpMultiplier): [루프, 배율], 사이는 직선, 끝 뒤는 끝 값.
 // 지역 단계와 무관한 한 곡선이라 같은 레벨의 몬스터는 어느 지역이든 같은 비율로 세진다(레벨이 강함을 말한다).
 // 예전에는 지역 단계에 비례하는 성장 × 루프 카운트 배율 × 보정 곡선이 겹쳐 혼돈 1이 루프 20에 16배 · 30에 27배였고(액트 10은 상한 탓에
 // 루프 20 이후 10.8배에 멈춤), 루프 패시브로 얻는 힘(루프 20 약 1.6배 · 40 약 2.2배, 측정 docs/loop-difficulty-20261006.md)과
 // 레벨이 같은 지역의 체감 강함이 크게 어긋났다. 지하계 · 혼돈계 · 고정 난이도 벤치마크(루프 30 고정)도 같은 곡선이라 "혼돈계 1층 ≈ 심화 30"
 // 같은 지역 사이의 기준은 그대로다. 우주계(노드 등급 사다리, js/cosmos-rules.js)만 예전 공식을 쓴다.
 const MONSTER_LOOP_HP_CURVE = Object.freeze([[1, 1], [5, 1.7], [10, 2.6], [20, 4], [30, 5.5], [50, 7.5], [100, 11], [200, 15]]);
-// 보스 생명력 완화(2026-10-16 사용자 요청, js/combat.js getBossHpEase). 스킬 포인트를 쓰지 않은 자동 플레이에서 액트 4~8 보스가 처치
+// 보스 생명력 완화(2026-10-16 사용자 요청, js/combat-enemy-build.js getBossHpEase). 스킬 포인트를 쓰지 않은 자동 플레이에서 액트 4~8 보스가 처치
 // 목표 18초의 1.7~2.8배 걸렸다. 모든 콘텐츠의 보스가 지역 단계 곡선 BOSS_TIER_HP_EASE([단계, 배율], 사이는 직선)를 받아 단계 3(액트 4)부터
 // 0.7배이고 액트 1~3은 그대로다. 액트 10과 혼돈 1이 같은 배율이라 둘 사이의 차이는 그대로다. 루프 생명력 배율 가운데 1을 넘는 몫은
 // BOSS_LOOP_HP_SHARE만 받는다(루프 20 4배 → 3.4배, 루프 30 5.5배 → 4.6배).
@@ -267,7 +267,7 @@ const BOSS_LOOP_HP_SHARE = 0.8;
 // 몬스터의 루프당 성장(시즌 깊이 1당, 지역 단계 0~1에 비례하는 몫 tier와 고정 몫 base): 생명력 1 + 깊이 × (base + 단계 × tier).
 // 2026-10-04 소폭 하향(사용자 요청): 생명력 tier 0.52 → 0.47, 피해 tier 0.07 → 0.06 — 혼돈 20 · 루프 10에서 생명력 약 −7%, 피해 약 −4%.
 // 루프를 타지 않는 지역(나무꾼 · 시련)은 깊이가 0이라 그대로다. 루프 30에 고정하고 노드 등급으로 난이도를 올리는 우주계는
-// 예전 값(fixed)을 그대로 쓴다(js/combat.js getMonsterLoopGrowthScale). 전투와 권장 전투력 · 우주계 예측이 같은 값을 쓴다.
+// 예전 값(fixed)을 그대로 쓴다(js/combat-enemy-build.js getMonsterLoopGrowthScale). 전투와 권장 전투력 · 우주계 예측이 같은 값을 쓴다.
 const MONSTER_LOOP_GROWTH = Object.freeze({
     // 생명력 성장은 2026-10-06부터 MONSTER_LOOP_HP_CURVE가 맡고, 이 값은 우주계 최종 보스(달의 존재, 아리안로드)의 예전 공식에만 남는다.
     hp: Object.freeze({ base: 0.08, tier: 0.47 }),
@@ -284,9 +284,9 @@ const MONSTER_LOOP_POWER_SCALE = Object.freeze({
     damage: Object.freeze([[1, 1], [3, 0.95], [10, 0.91], [25, 0.72], [50, 0.68], [100, 0.6]])
 });
 
-// 몬스터 방어 수치(%, js/combat.js createEnemy): 물리 피해 감소 dr와 원소 · 카오스 저항 res는 기존 지역 티어 곡선(제곱)으로
+// 몬스터 방어 수치(%, js/combat-enemy-build.js createEnemy): 물리 피해 감소 dr와 원소 · 카오스 저항 res는 기존 지역 티어 곡선(제곱)으로
 // 서서히 올라 티어 20(혼돈 20 · 심화)에서 이 값이 된다. 지역 속성 수호 같은 추가 저항은 별도로 더해진다.
-// 보스 방어 특화(2026-10-05 사용자 결정, js/combat.js getBossDefenseTargets): 액트 · 혼돈 보스는 물리 피해 감소 · 화염 · 냉기 · 번개 저항 중
+// 보스 방어 특화(2026-10-05 사용자 결정, js/combat-enemy-build.js getBossDefenseTargets): 액트 · 혼돈 보스는 물리 피해 감소 · 화염 · 냉기 · 번개 저항 중
 // 1~2개만 bossSpecialty 수치까지 오르고 나머지와 카오스 저항은 정예와 같은 수치다. 첫째 특화는 보스 속성(byElement,
 // 카오스 속성은 지역 시드로 고름), 둘째는 지역 시드로 secondChance. 고정 난이도 · 벤치마크 · 정점 지역과 다른 콘텐츠의 보스는
 // 모든 방어가 bossSpecialty 수치까지 오른다. 수치는 초기 가설이다.
@@ -309,7 +309,7 @@ const BOSS_DEFENSE_SPECIALTIES = Object.freeze({
 // 속성 피해로 더 준다(플레이어의 그 속성 저항, 물리는 방어도와 피해 감소로 깎인다, js/loop-mutation.js empoweredRows). 그 속성은 루프
 // 번호로 굴려 정한다: 면역 속성이 immuneWeight, 나머지 넷이 남은 몫을 똑같이 나눈다(루프 정산이 다음 루프를 미리 보여 줄 수 있게).
 // 보상(같은 날 사용자: 강해지는 만큼 보상도 약간 더): 변이 루프는 몬스터의 경험치와 장비, 재화 드랍이 rewardPct%, 강화 변이 루프는
-// empowered.rewardPct% 더 나온다(js/combat.js getEnemyRewardRecord).
+// empowered.rewardPct% 더 나온다(js/combat-enemy-build.js getEnemyRewardRecord).
 const LOOP_MUTATION = Object.freeze({
     startLoop: 5,
     weakTakenPct: 30,
@@ -414,7 +414,7 @@ const SEASON_BOSS_ZONES = [
     { id: 's2_boss_flame', name: '화염 군주 이그니스', bossVisualId: 's2_boss_flame', signatureUnique: '화염 군주의 숨결', type: 'seasonBoss', tier: 12, key: 'bossKeyFlame', reqSeason: 2, ele: 'fire', reward: 'bossCore', bossMods: { attackSpeedMul: 0.8 } },
     { id: 's2_boss_frost', name: '서리 여제 글라시아', bossVisualId: 's2_boss_frost', signatureUnique: '서리 여제의 인장', type: 'seasonBoss', tier: 12, key: 'bossKeyFrost', reqSeason: 2, ele: 'cold', reward: 'bossCore' },
     { id: 's2_boss_storm', name: '폭풍 군단장 볼타', bossVisualId: 's2_boss_storm', signatureUnique: '폭풍 군단장의 칼날', type: 'seasonBoss', tier: 13, key: 'bossKeyStorm', reqSeason: 2, ele: 'light', reward: 'bossCore', bossMods: { attackSpeedMul: 0.8 } },
-    // bossStages: the arena's boss rises three times (js/combat.js CERBERUS_STAGES: three heads, two heads, the body). Until 2026-10-13 it
+    // bossStages: the arena's boss rises three times (js/combat-encounters.js CERBERUS_STAGES: three heads, two heads, the body). Until 2026-10-13 it
     // was the one boss kept on the 9×8 board (user: "보스전은 방 두개 해서 다음 방에 바로 보스만 나오게 해").
     { id: 's6_beast_cerberus', name: '야수왕 케르베로스', bossVisualId: 's6_beast_cerberus', signatureUnique: '야수왕의 세 목줄', type: 'seasonBoss', tier: 18, key: 'beastKeyCerberus', reqSeason: 6, ele: 'chaos', reward: 'bossCore', bossStages: 3 },
     // 버려진 날붙이들 (루프 31+): 나무꾼이 벼리다 버린 다른 날들. 플레이어(첫 번째 날붙이)를 시험하러 온다.

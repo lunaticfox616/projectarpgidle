@@ -37,7 +37,7 @@ function declaredNames(row) {
         if (node.type === 'VariableDeclaration') node.declarations.forEach(entry => {if(entry.id.name) names.add(entry.id.name);});
     }
     walk(row.ast, node => {
-        if (node.type !== 'CallExpression' || !['safeExposeGlobals','safeExposeData'].includes(node.callee.name)) return;
+        if (node.type !== 'CallExpression' || !['safeExposeGlobals','safeExposeData','exposeFileGlobals'].includes(node.callee.name)) return;
         const argument = objects.get(node.arguments[0]?.name) || node.arguments[0];
         if (argument && argument.type === 'ObjectExpression') argument.properties.forEach(prop => names.add(prop.key.name || prop.key.value));
     });
@@ -66,7 +66,22 @@ function analyze(rows) {
         collectEdges(row,source,owners,edges,rows.map(entry=>entry.file));
     }
     for (const [name, files] of owners) if (files.size > 1) edges.add(`duplicate:${name}:${[...files].sort().join(',')}`);
-    return {findings,edges:[...edges].sort()};
+    return {findings,edges:[...edges].sort(),topLevel:topLevelFunctions(rows)};
+}
+
+/** Top-level function declarations per file: each is an unlisted name in the page's single global scope. Until 2026-11-10 there
+ * were 4,308; scripts/privatize-functions.cjs moved the old files' functions into one closure per file, which hands the ones reached
+ * from outside to exposeFileGlobals (js/utils.js). That list is written on purpose and may grow; a top-level declaration may not:
+ * the count of a file may not grow, and a new file starts at 0 (its functions go in the file's closure or in its own object,
+ * const name = (() => { ... return Object.freeze({ ... }); })()).
+ * Moving functions to another file (scripts/move-block.cjs) rewrites the counts with --moved, which refuses a grown total. */
+function topLevelFunctions(rows) {
+    return Object.fromEntries(rows.map(row => [row.file, row.ast.body.filter(node => node.type === 'FunctionDeclaration').length]).filter(([, count]) => count > 0));
+}
+function topLevelFailures(current,baseline) {
+    if (!baseline) return [];   // a baseline written before this ratchet
+    return Object.entries(current).filter(([file,count]) => count > (baseline[file] || 0))
+        .map(([file,count]) => `top-level functions ${file} (${count}, baseline ${baseline[file] || 0}): put the function inside the file's closure (and in its exposeFileGlobals list only if another file, an inline handler or a check calls it), not at the top level`);
 }
 
 function ownerName(node,fallback) {
@@ -107,7 +122,7 @@ function collectEdges(row,source,owners,edges,order) {
 }
 
 function compare(current,baseline) {
-    const failures=[];
+    const failures=topLevelFailures(current.topLevel || {},baseline.topLevel);
     for (const [key,value] of Object.entries(current.findings)) {
         const allowed=baseline.findings[key] || {count:0,max:0};
         if(value.count>allowed.count || value.max>allowed.max) failures.push(`lint ${key} (${value.count}/${value.max}, baseline ${allowed.count}/${allowed.max})`);
@@ -172,7 +187,19 @@ function nativeTooltipFailures(rows,html) {
 }
 
 if(require.main===module){
-    if(process.argv.includes('--baseline-from-head')) {
+    if(process.argv.includes('--moved')) {
+        // After a move-only change (scripts/move-block.cjs): the per-file counts of top-level functions are rewritten from the working
+        // tree, only when their total did not grow; and an edge that names its file (window:, load-order:, a file's #top) follows the
+        // code: the baseline's edge is renamed when the same edge under another file is in the baseline and gone from the tree.
+        const baseline=JSON.parse(fs.readFileSync(baselinePath,'utf8')), current=analyze(readSources(false)), next=current.topLevel;
+        const sum=counts=>Object.values(counts).reduce((total,count)=>total+count,0);
+        const fileless=edge=>edge.replace(/(?:js|data)\/[\w.-]+\.js/g,'FILE'), now=new Set(current.edges), known=new Set(baseline.edges);
+        const gone=new Map(baseline.edges.filter(edge=>!edge.startsWith('dependency:') && !now.has(edge)).map(edge=>[fileless(edge),edge]));
+        const edges=new Set(baseline.edges);
+        for(const edge of current.edges) if(!edge.startsWith('dependency:') && !known.has(edge) && gone.has(fileless(edge))) { edges.delete(gone.get(fileless(edge))); edges.add(edge); }
+        if(sum(next)>sum(baseline.topLevel || {})) {console.error(`top-level functions grew (${sum(baseline.topLevel || {})} -> ${sum(next)}): not a move`);process.exitCode=1;}
+        else fs.writeFileSync(baselinePath,JSON.stringify({...baseline,edges:[...edges].sort(),topLevel:next},null,2)+'\n');
+    } else if(process.argv.includes('--baseline-from-head')) {
         fs.writeFileSync(baselinePath,JSON.stringify(analyze(readSources(true)),null,2)+'\n');
     } else {
         const sources=readSources(false);

@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getCanvasRuntimeFunction(name) {
     if (typeof window === 'undefined') return null;
     let provider = window[name];
@@ -5,23 +7,18 @@ function getCanvasRuntimeFunction(name) {
     return provider;
 }
 
-// 렌더 전용 짧은 캐시. getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운
-// 함수인데, 렌더 경로는 결과를 읽기만 하고(HP/ES 바, 스킬 타겟, 공속 타이밍) 이
-// 값들은 천천히 변하므로 ~150ms 캐시해도 시각적으로 무해하다. 전투 틱(coreLoop)과
-// updateCombatUI는 별도로 getPlayerStats()를 직접 호출하므로 이 캐시의 영향을 받지 않는다.
-let __canvasStatsCache = null;
-let __canvasStatsCacheAt = 0;
-const CANVAS_STATS_CACHE_MS = 150;
 // 전장 글자도 갈무리11의 12px 격자를 쓴다. 독립 제목은 실제 Bold, 본문은 Regular.
 // 흐린 그림자(shadowBlur) 대신 한 도트 어긋난 검은 글자를 먼저 찍는다.
 /** 전장·피드백·결투 캔버스의 글꼴 목록. 언어별 CJK 보조 글꼴이 붙으므로 상수가 아니라 그릴 때마다 읽는다. */
 function battlePixelFont() { return i18n.fontFamily("'Galmuri11', 'Galmuri14'"); }
+
 function fillPixelText(ctx, text, x, y, color) {
     ctx.fillStyle = '#000';
     drawCrispCanvasText(ctx, text, x + 1, y + 1);
     ctx.fillStyle = color;
     drawCrispCanvasText(ctx, text, x, y);
 }
+
 /** Centred pixel text whose keywords and numbers take the item tone colours (js/stat-tone-text-ui.js segments, 2026-10-06);
  * the rest keeps baseColor. Drawn piece by piece from the left edge of the whole line. */
 function fillPixelToneText(ctx, text, centerX, y, baseColor) {
@@ -35,6 +32,7 @@ function fillPixelToneText(ctx, text, centerX, y, baseColor) {
     });
     ctx.textAlign = align;
 }
+
 function getCanvasPlayerStats(fallback = {}) {
     let provider = getCanvasRuntimeFunction('getPlayerStats');
     if (!provider) return fallback;
@@ -56,8 +54,6 @@ function getCanvasSkillTargets(stats) {
     let provider = getCanvasRuntimeFunction('getSkillTargets');
     return provider ? (provider(stats) || []) : [];
 }
-
-const BATTLE_SKILL_EFFECT_CAP = 56;
 
 function getBattleVfxDensity() {
     return clampNumber(Number(battleVisualState.vfxDensity) || 1, 0.42, 1);
@@ -137,9 +133,6 @@ function requestBattleHitStop(fx) {
     battleVisualState.hitStopRemainingMs = Math.max(Number(battleVisualState.hitStopRemainingMs) || 0, duration);
 }
 
-// Finishing blows on elites and bosses hold the frame a little longer. Ordinary kills stay fluid: an idle fight
-// kills constantly, and a stop on each would read as stutter.
-const KILL_HIT_STOP_MS = Object.freeze({ elite: 45, boss: 110 });
 /** The death effect starts on the killing hit (getBattleFxStart), so a death stamped with this hit's start is its kill. */
 function getKillHitStopMs(fx) {
     if (fx.enemyId === undefined || fx.enemyId === null) return 0;
@@ -149,10 +142,6 @@ function getKillHitStopMs(fx) {
     return death.boss ? KILL_HIT_STOP_MS.boss : (death.elite ? KILL_HIT_STOP_MS.elite : 0);
 }
 
-/** 쓰러짐 그림이 없는 보스의 사라짐 길이(ms). 보스의 쓰러짐 효과는 쓰러짐 그림을 보여 주려고 1.6초다(js/combat.js handleEnemyDeath). */
-const BOSS_DEATH_LEGACY_MS = 840;
-/** 쓰러진 보스가 흐려지기 시작하는 때(효과 길이의 비율): 그 앞까지는 쓰러짐 그림의 마지막 장(누운 모습)이 또렷하다. */
-const BOSS_DEFEAT_FADE_FROM = 0.78;
 /** 몬스터가 쓰러지는 연출(전투 효과 enemyDeath). 바닥 반응과 맞은 번쩍임은 모두 같다. 쓰러짐 그림이 있는 스토리 보스는 그 그림을 제자리에서
  * 끝까지 보여 준다(drawBossDefeat). 그 밖에는 예전처럼 밀리며 바래 사라진다(쓰러짐 그림이 없는 보스는 예전 길이 BOSS_DEATH_LEGACY_MS로).
  * at = { enemy (그 몬스터의 자리, 없으면 그리지 않는다), playerPos, gridProj, now }. */
@@ -168,6 +157,7 @@ function drawEnemyDeathFx(ctx, fx, t, at) {
     if (!(isBossDeath && drawBossDefeat(ctx, fx, t, at))) drawEnemyDeathAfterimage(ctx, fx, deathMotion, at);
     worldTreeSkillFx.feedback.death(ctx, fx, legacyT, enemy);
 }
+
 /** 스토리 보스의 쓰러짐 그림(js/canvas-stage-roster.js drawDeath): 서 있던 자리에서 쓰러져 누운 채 머물다 끝에서 흐려진다. 다시 일어나는
  * 보스(js/canvas-stage-story.js revive, 액트 2 부제녀)는 쓰러짐 뒤에 일어나는 그림을 잇고 선 채로 흐려진다. 그림이 없으면 false. */
 function drawBossDefeat(ctx, fx, t, at) {
@@ -181,6 +171,7 @@ function drawBossDefeat(ctx, fx, t, at) {
     ctx.restore();
     return drawn;
 }
+
 /** 예전 사라짐: 맞은 쪽으로 조금 밀리며 바래고 흐려지는 잔상. */
 function drawEnemyDeathAfterimage(ctx, fx, deathMotion, at) {
     const enemy = at.enemy, deathEnemy = enemy.enemy || {}, isBossDeath = !!(fx.boss || deathEnemy.isBoss), dissolve = deathMotion.dissolve;
@@ -257,36 +248,6 @@ function drawEnemyDeathContactFlash(ctx, enemy, motion, color, boss, elite) {
     ctx.stroke();
     ctx.restore();
 }
-
-const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
-    whirlwind: 'skillFxWhirlwind',
-    chainPrimary: 'skillFxChainPrimary',
-    chain: 'skillFxChainPrimary',
-    chainJump: 'skillFxChainJump',
-    slamPrimary: 'skillFxSlamPrimary',
-    slamAftershock: 'skillFxSlamAftershock',
-    meteorProjectile: 'skillFxMeteorProjectile',
-    meteorImpact: 'skillFxMeteorImpact',
-    meteorGround: 'skillFxMeteorGround',
-    slash: 'skillFxContinuousSlash',
-    basicSlash: 'skillFxBasicSlash',
-    continuousSlash: 'skillFxDoubleSlash',
-    slam: 'skillFxSlamPrimary',
-    projectile: 'skillFxProjectile',
-    venomFang: 'skillFxVenomFang',
-    frostField: 'skillFxFrostField',
-    blizzardAmbient: 'skillFxBlizzardAmbient',
-    blizzardImpact: 'skillFxBlizzardImpact',
-    frostWave: 'skillFxFrostWave',
-    chaosBoomerang: 'skillFxChaosBoomerang',
-    frostBurst: 'skillFxFrostBurst',
-    frostWaveRing: 'skillFxFrostWaveRing',
-    burst: 'skillFxImpactFlare',
-    radialWave: 'skillFxRadialWave',
-    rune: 'skillFxBurst',
-    dot: 'skillFxDotField',
-    summon: 'skillFxSummonStrike'
-});
 
 function getSkillGemVfxProfile(skillName) {
     let profiles = typeof SKILL_GEM_VFX_PROFILES !== 'undefined' ? SKILL_GEM_VFX_PROFILES : null;
@@ -370,10 +331,6 @@ function getSkillGemVfxFilter(element, imageKey) {
         blood: 'sepia(0.8) saturate(4) hue-rotate(315deg) brightness(0.96)'
     })[key] || 'none';
 }
-
-// Color-only VFX filters are fixed per image, so bake each (image, filter) pair once.
-// A live ctx.filter forces an offscreen pass on every draw, which dominated busy endgame frames.
-const filteredVfxImageCache = new WeakMap();
 
 /**
  * Set ctx.filter for one image draw and return the image to draw. A loaded image gets a cached
@@ -1169,31 +1126,6 @@ function isGroundSkillCast(fx) {
     return ['gravity', 'erosion', 'decay', 'resonance', 'mine'].includes(profile?.signature);
 }
 
-/** Shade the environment, then paint ground spells and summons before the main actor layer. */
-function drawBattleGroundLayer(ctx, effects, view) {
-    drawBattleScreenGrade(ctx, view.width, view.height);
-    drawRiftPlayerRing(ctx, view.gridProj, view.playerPos);
-    sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
-    trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
-    fxRemake.begin(ctx, view.gridProj);
-    if (typeof stageSkillVfx === 'object') stageSkillVfx.tick(view.now); // 무대의 새 스킬 이펙트(js/canvas-stage-skill-vfx.js): 프레임마다 시계를 맞춘다
-    if (typeof stageBlessing === 'object') stageBlessing.frame(view.now); // 사역룬 가호의 발밑(js/canvas-stage-blessing.js)
-    worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
-    worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
-    for (let fx of effects) {
-        if (!isGroundSkillCast(fx)) continue;
-        drawCombatTravelFx(ctx, fx, view.now, view.gridProj, view.playerPos, view.enemyPosMap);
-    }
-    redrawnSkillFx.drawLayer('ground', view.now);
-    wispSummonFx.drawLayer('ground', view.now);
-    fxRemake.end();
-    if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
-    if (typeof stageBlessing === 'object') stageBlessing.draw(ctx, view.gridProj);
-    if (typeof stageOcean === 'object') stageOcean.ground(ctx, view); // 심해: 발밑 먼지와 공기 기둥
-    if (typeof stageIncidents === 'object') stageIncidents.ground(ctx, view); // 잔잔한 사건: 별똥별
-    drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
-}
-
 /** Preserve special spell animation while fitting its range to the cast-time grid snapshot. */
 function drawFootprintCombatCell(ctx, fx, view) {
     let { now, arriveAt, targets, imageKey, element } = view;
@@ -1402,86 +1334,6 @@ function drawFootprintSkillImpact(ctx, effect, image, progress) {
     return true;
 }
 
-function drawSkillGemVfxLayer(ctx, now, gridProj) {
-    fxRemake.begin(ctx, gridProj); // stays open through the battleFx overlay loop; closed in drawBattleLightingAndBars
-    worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
-    let list = battleVisualState.skillEffects || [];
-    worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
-    if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
-    bossMoveView.drawAir(ctx, gridProj); // boss moves: the charge at the hand, shots, beams (js/canvas-boss-moves.js)
-    const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
-    list.forEach(drawSkillGemVfxLayer.ground.follow(ctx, gridProj, effect => {
-        let image = getSkillGemVfxImage(effect.imageKey);
-        let elapsed = now - effect.startAt;
-        if (elapsed < 0 || elapsed > effect.duration) return;
-        let t = clampNumber(elapsed / Math.max(1, effect.duration), 0, 1);
-        if (SKILL_FX_ATLAS[effect.skillName]) return;
-        if (drawFootprintSkillImpact(ctx, effect, image, t)) return;
-        const spriteRenderer = spriteRenderers[effect.family];
-        if (spriteRenderer) return spriteRenderer(ctx, effect, image, t);
-        let fade = Math.min(1, t / 0.045) * Math.pow(1 - t, 1.1);
-        if (effect.family === 'dot') fade = Math.min(1, t / 0.16) * Math.min(1, (1 - t) / 0.28);
-        if (effect.travel) fade = Math.min(1, t / 0.12) * Math.min(1, (1 - t) / 0.1);
-        ctx.save();
-        let imageProjectile = !!(effect.travel && effect.imageProjectile);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, imageProjectile ? 0.94 : 0.82);
-        image = useFilteredVfxImage(ctx, image, imageProjectile ? 'none' : getDrawnSkillEffectFilter(effect));
-        ctx.imageSmoothingEnabled = false;
-        if (effect.travel) {
-            // 모든 플레이어 투사체는 포물선 없이 실제 발사선 위를 빠르게 이동한다.
-            let travelProgress = t;
-            let x = effect.fromX + (effect.toX - effect.fromX) * travelProgress;
-            let y = effect.fromY + (effect.toY - effect.fromY) * travelProgress;
-            let width = imageProjectile ? effect.projectileWidth : effect.size * 1.52;
-            let height = imageProjectile ? effect.projectileHeight : effect.size * 0.52;
-            ctx.translate(x, y);
-            ctx.rotate(effect.rotation || 0);
-            if (imageProjectile && image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
-            else drawElementProjectileVfx(ctx, effect.projectileStyle || effect.element, width, height, t);
-        } else if (effect.connector) {
-            let reveal = Math.min(1, t / 0.22);
-            let fromX = effect.toX + (effect.fromX - effect.toX) * reveal;
-            let fromY = effect.toY + (effect.fromY - effect.toY) * reveal;
-            let dx = effect.toX - fromX;
-            let dy = effect.toY - fromY;
-            let length = Math.max(8, Math.hypot(dx, dy));
-            let thickness = Math.max(12, effect.size * (0.36 + Math.sin(t * Math.PI) * 0.12));
-            ctx.translate((fromX + effect.toX) / 2, (fromY + effect.toY) / 2);
-            ctx.rotate(Math.atan2(dy, dx));
-            if (image) ctx.drawImage(image, -length / 2, -thickness / 2, length, thickness);
-        } else {
-            if (image || effect.skillName === '기본 공격') drawSkillImpactImage(ctx, image, effect, t);
-            else drawProceduralSkillImpact(ctx, effect, t);
-        }
-        ctx.restore();
-    }));
-}
-
-/** Common slashes and hit sparks keep their cast-time pixels and footprint. Move only the drawing context with the camera,
- * never their shared geometry or atlas-owned effects. A changed zoom/depth keeps the existing presentation until expiry. */
-drawSkillGemVfxLayer.ground = (() => {
-    function note(list, projection) {
-        const origin = projection.cellToScreen(0, 0);
-        for (const effect of list) {
-            if (effect.spawnGround || SKILL_FX_ATLAS[effect.skillName] || (effect.family !== 'slash' && effect.family !== 'hitSpark')) continue;
-            effect.spawnGround = { x: origin.x, y: origin.y, tileW: projection.tileW, tileH: projection.tileH };
-        }
-    }
-    function follow(ctx, projection, paint) {
-        return effect => {
-            const anchor = effect.spawnGround;
-            if (!anchor || anchor.tileW !== projection.tileW || anchor.tileH !== projection.tileH) return paint(effect);
-            const now = projection.cellToScreen(0, 0);
-            if (now.x === anchor.x && now.y === anchor.y) return paint(effect);
-            ctx.save();
-            ctx.translate(now.x - anchor.x, now.y - anchor.y);
-            try { paint(effect); } finally { ctx.restore(); }
-        };
-    }
-    return Object.freeze({ note, follow });
-})();
-
 function getEnemyTelegraphColor(enemy) {
     let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
     if (element === 'fire') return { edge: '#ff7b4d', fill: 'rgba(255,76,38,0.18)' };
@@ -1669,38 +1521,7 @@ function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
     fillPixelText(ctx, label, x, y - 3, presentation.color);
     ctx.restore();
 }
-/** Read-only labels from the saved wording, never from the current zone. Unknown traits keep their text. */
-drawEliteNameplate.presentation = (() => {
-    const cache = new WeakMap();
-    const short = { critResist: '치명저항', critDamageResist: '치명피해저항', comboGuard: '연타저항', heavySlow: '강타',
-        fast: '속공', energyShield: '보호막', evasion: '회피', armor: '장갑' };
-    const names = new Map(COSMOS_MECHANIC_DB.map(row => [row.name, short[row.id]]));
-    const habitats = new Set(Object.values(COSMOS_ROUTE_G1.habitats).map(row => row.name));
-    const metadata = /^우주계:\s*\S+\s+\d+등급\/\d+(?:\.\d+)?g$/;
-    function combatLabel(part) {
-        const match = /^우주계:\s*(.+)$/.exec(part);
-        return match && names.get(match[1].replace(/\s+\d+%$/, '')) || part;
-    }
-    function compact(raw) {
-        const parts = raw.split(',').map(part => part.trim()), cosmos = parts.some(part => metadata.test(part));
-        const labels = parts.map(part => {
-            if (cosmos && (metadata.test(part) || part.startsWith('탐사:') || habitats.has(part))) return null;
-            return combatLabel(part);
-        }).filter(Boolean);
-        if (labels.length === parts.length && labels.every((label, index) => label === parts[index])) return raw;
-        return labels.join(' · ') || '정예';
-    }
-    return enemy => {
-        const raw = String(enemy.traitName || '정예'), previous = cache.get(enemy);
-        if (previous?.raw === raw) return previous;
-        const presentation = { raw, label: compact(raw), color: statToneText.lineColor(raw, '#f3d77a') };
-        cache.set(enemy, presentation);
-        return presentation;
-    };
-})();
 
-/** Atlas sprites' drawn height this frame (js/ui.js drawEnemySprite), weakly keyed so dead enemies drop out. */
-const enemyDrawnHeights = new WeakMap();
 function noteEnemyDrawnHeight(enemy, height) { if (enemy && height > 0) enemyDrawnHeights.set(enemy, height); }
 
 /** Bar height above the feet: clear of the drawn sprite (bosses grow with the tile), never below the old fixed lift; a wisp
@@ -1723,14 +1544,6 @@ function getDamageTextBodyY(feetY, bodyHeight) {
 function getBodyCueAnchor(pos, bodyHeight) {
     return { x: Math.round(pos.x), y: Math.round(pos.y - bodyHeight * (pos.enemy?.isBoss ? 0.64 : 0.92)) };
 }
-/** Only repeated body judgments share a lifetime; alerts and different actors keep their own labels. */
-getBodyCueAnchor.fromFx = function (fx, pos, bodyHeight, start) {
-    const value = fx.text || '회피!', color = fx.color || '#c4e2ff';
-    const bodyCue = fx.type === 'enemyEvade' || fx.bodyCue === true;
-    const actor = fx.enemyId == null ? 'hero' : 'enemy:' + fx.enemyId;
-    return { start, ...getBodyCueAnchor(pos, bodyHeight), value, miss: true, bodyCue, color,
-        aggregateKey: bodyCue ? `cue:${actor}:${value}:${color}` : '' };
-};
 
 /** The drawn body height an enemy's numbers and cues centre on: its bar lift less the gap (46 for a ghost left without its enemy). */
 function getEnemyBodyHeight(enemyPos) {
@@ -1750,11 +1563,6 @@ function isEnemyFieldBarShown(enemy, targeted) {
     return targeted || enemy.isElite || enemy.isBoss || enemy.hp < enemy.maxHp || (enemy.energyShield || 0) < (enemy.maxEnergyShield || 0);
 }
 
-/** This frame's top of each drawn enemy bar with its elite nameplate (screen px): the lock-on arrow stands over it (drawLockOnMark). */
-const enemyFieldBarTops = new Map();
-
-/** Actual HP/cast rectangles, recorded as they draw, including screen-edge clamping. */
-const bossTextExclusions = [];
 function reserveBossText(enemy, box) { if (enemy.isBoss) bossTextExclusions.push(box); }
 
 function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
@@ -2177,32 +1985,6 @@ function drawPlayerReturnWhiteShroud(ctx, position, strength, frontLayer) {
     ctx.restore();
 }
 
-function drawBattlePlayerActor(ctx, state) {
-    state = worldTreeSkillFx.actorState(state);
-    let position = getPlayerHurtPosition(state);
-    let returnWarp = state.returnWarp;
-    let returnDeparture = state.returnDeparture;
-    let warpPosition = returnWarp && returnWarp.position ? returnWarp.position : position;
-    let departurePosition = returnDeparture && returnDeparture.position ? returnDeparture.position : position;
-    let transition = returnWarp || returnDeparture;
-    let transitionPosition = returnWarp ? warpPosition : departurePosition;
-    let facingLeft = isBattlePlayerMirrored(state.motionState);
-    drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, false);
-    drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, false);
-    drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, false);
-    ctx.save();
-    if (transition) ctx.globalAlpha = transition.actorAlpha;
-    if (facingLeft) {
-        ctx.translate(position.x * 2, 0);
-        ctx.scale(-1, 1);
-    }
-    drawTintedBattlePlayerFigure(ctx, state, position);
-    ctx.restore();
-    drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
-    drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, true);
-    drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, true);
-}
-
 function drawBattlePlayerBody(ctx,state,position) {
     const previous=ctx.battleActorAlpha;
     ctx.battleActorAlpha=state.actorAlpha;
@@ -2224,13 +2006,6 @@ function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
     let stride = Math.sin(progress * Math.PI) * Math.max(0, Number(distance) || 0);
     return { progress, x: dx / length * stride, y: dy / length * stride };
 }
-
-// 타격감(2026-10-04): a struck enemy flinches away from the hero for a moment, further on a crit or a heavy blow (tiles).
-const ENEMY_HIT_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
-// 피격감(2026-10-04): the hero is knocked back from the attacker, further the more life the hit took (tiles).
-const PLAYER_HURT_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
-// The hero's and each summon's incoming damage numbers add up per this many ms of combat (dealt hits: 250 per skill and target).
-const HURT_TEXT_MERGE_MS = 400;
 
 /** The damage a hit took, on the hero's body. Hits landing together add up into one number ("-60 2타"), like dealt hits: in a
  * crowd up to ten stacked over the hero and hid it (2026-10-19). Blocked hits keep their own number. */
@@ -2309,43 +2084,6 @@ function buildEnemyHitFlashMap(effects, now) {
     return result;
 }
 
-/** Overlapping hit silhouettes should still read as a pack of monsters. Latch per pulse so a neighbour's
- * flash ending cannot make this body brighten again. The original FX, pulse timing and entrance veil stay intact. */
-buildEnemyHitFlashMap.crowd = (() => {
-    const softened = new WeakSet();
-    function body(entry, tile) {
-        const size = (stageView.enabled() && stageRoster.bodySize(entry.enemy, tile))
-            || { halfW: tile * .45 * getGridUnitFootprint(entry.enemy).columns, h: getEnemyBodyHeight(entry) };
-        return { id: entry.enemy.id, x: entry.x, top: entry.y - size.h, bottom: entry.y, halfW: size.halfW,
-            pulse: battleVisualState.enemyHitPulses.get(entry.enemy.id) };
-    }
-    function overlaps(a, b) {
-        return Math.abs(a.x - b.x) < a.halfW + b.halfW && a.top < b.bottom && b.top < a.bottom;
-    }
-    function markGroups(bodies) {
-        const remaining = new Set(bodies);
-        for (const first of remaining) {
-            const group = [first];
-            remaining.delete(first);
-            for (let i = 0; i < group.length; i++) {
-                remaining.forEach(other => {
-                    if (!overlaps(group[i], other)) return;
-                    group.push(other);
-                    remaining.delete(other);
-                });
-            }
-            if (group.length >= 3) group.forEach(row => softened.add(row.pulse));
-        }
-    }
-    return function (flashes, entries, tile) {
-        const targets = entries.filter(entry => entry.enemy.hp > 0 && !entry.enemy.isBoss && flashes.get(entry.enemy.id) > 0);
-        if (targets.length >= 3) markGroups(targets.map(entry => body(entry, tile)));
-        for (const { enemy } of targets) if (softened.has(battleVisualState.enemyHitPulses.get(enemy.id))) {
-            flashes.set(enemy.id, flashes.get(enemy.id) * .4);
-        }
-    };
-})();
-
 /** Each enemy's flinch this frame, from its latest direct hit (damage over time does not flinch). */
 function buildEnemyHitRecoilMap(effects, state) {
     const result = {}, tile = state.gridProj ? state.gridProj.tileW : 48;
@@ -2399,16 +2137,11 @@ function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now, gridPro
     return result;
 }
 
-/** 옆에서 보는 무대의 몬스터는 왼쪽이나 오른쪽만 본다(2026-10-13 사용자: 걸어올 때 좌우가 맞지 않는다. 전에는 주인공이 위아래로 더
- * 멀면 위나 아래를 본다고 답했고, 무대는 그때 직전 방향을 지켜서 처음 나온 몬스터가 등을 보이며 걸어왔다).
- * 걷는 동안에는 가는 쪽(enemyPos.heading, glideBattleEnemy), 서 있거나 때릴 때는 기록된 실제 목표(없으면 주인공)를 본다. 위아래로만 걷거나
- * 주인공과 거의 같은 세로줄에 서 있으면 'south'를 답한다: 무대는 그때 직전 방향을 지킨다(stageView.facing). */
-const STAGE_SIDE_DEAD_PX = 10;
 function resolveStageEnemySide(enemyPos, playerPos) {
     if (enemyPos.heading) return enemyPos.heading;
     const held = bossMoveView.heldSide(enemyPos.enemy);
     if (held) return held;
-    // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat.js strikeRescueTarget).
+    // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat-encounters.js strikeRescueTarget).
     const rescue = enemyPos.enemy && enemyPos.enemy.rescue;
     if (rescue) return rescue.gx < enemyPos.enemy.gx ? 'west' : 'east';
     const target = enemyPos.actualAim || playerPos, dx = Number(target.x) - Number(enemyPos.x);
@@ -2428,11 +2161,6 @@ function resolveEnemyFacingDirection(enemyPos, playerPos) {
     return cardinal(enemyPos.actualAim || playerPos);
 }
 
-// 왼쪽을 보고 그린 보스 그림(data BOSS_ASSET_FRONT_FACING 밖)은 주인공이 오른쪽에 서면 좌우를 뒤집는다.
-// 위아래 방향 대신 가로 거리만 본다: 오른쪽 아래의 주인공도 오른쪽이다. 보스 기둥을 지나갈 때 떨지 않게
-// 4분의 1칸 안에서는 직전 방향을 지키고, 쓰러지는 잔상도 마지막 방향을 쓴다.
-const ENEMY_SPRITE_SIDE_DEAD_ZONE = 0.25;
-const enemySpriteSides = new WeakMap();
 function noteEnemySpriteSide(enemy, enemyPos, playerPos, tile) {
     if (!enemy || !enemy.bossAssetKey || !enemyPos || !playerPos) return;
     const dx = Number((enemyPos.actualAim || playerPos).x) - Number(enemyPos.x);
@@ -2450,7 +2178,6 @@ function copyEnemySpriteSide(from, to) {
     return to;
 }
 
-const ENEMY_SPAWN_STAMP_FUTURE_MS = 1000;
 /** 0 → 1 while an enemy appears: its spawn stamp, or a boss rising through its entrance (js/canvas-boss-entrance.js).
  * A stamp well ahead of the clock came from another clock (an older session's save, a combat-clock stamp) and would keep
  * the body at alpha 0, so it counts as already appeared. */
@@ -2459,31 +2186,6 @@ function getEnemySpawnAge(enemy, now, duration) {
     if (rising !== null) return rising;
     if (!enemy.spawnStamp || enemy.spawnStamp > now + ENEMY_SPAWN_STAMP_FUTURE_MS) return 1;
     return clampNumber((now - enemy.spawnStamp) / duration, 0, 1);
-}
-
-function drawBattleEnemyActor(ctx, entry, state) {
-    if (woodsmanView.active(entry.enemy)) return;
-    let enemy = entry.enemy;
-    // 무대의 보스 입장: 그림을 키우며 띄우지 않고 제 크기로 선 검은 형체가 드러난다(js/canvas-boss-entrance.js stageLook)
-    const veil = bossEntranceView.stageLook(enemy, state.now);
-    if (veil) { drawEnteringEnemyActor(ctx, entry, state, veil); return; }
-    let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
-    let age = getEnemySpawnAge(enemy, state.now, spawnDuration);
-    let easedAge = 1 - Math.pow(1 - age, 3);
-    let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
-    if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
-    const crowdScale = getEnemyCrowdScale(enemy, state.enemyCount);
-    const awakening = bossEntranceView.observer.frame(enemy);
-    const awakenedBody = bossEntranceView.observer.body(awakening);
-    bossEntranceView.observer.seal(ctx, entry, awakening);
-    ctx.save();
-    ctx.globalAlpha = easedAge * enemyAmbushView.alphaOf(enemy, state.now) * bossMoveView.shiftAlpha(enemy); // 기습 정예와 순간이동하는 보스는 사라졌다 나타나는 동안 숨는다(js/canvas-enemy-ambush.js, js/canvas-boss-moves.js)
-    drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale,
-        spawnScale, ...awakenedBody });
-    if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
-    ctx.restore();
-    bossEntranceView.observer.globe(ctx, enemy, awakening);
-    bossEntranceView.observer.caption(ctx, entry, awakening);
 }
 
 /** 예전 그림(한 장의 큰 그림에서 잘라 쓰는 것)을 그리는 배율: 적이 많을수록 조금 작게, 보스와 정예는 크게. */
@@ -2533,7 +2235,7 @@ function drawEnemyAfterimage(ctx, enemy, pose) {
 
 /** Where an enemy is drawn this frame: { enemy, x, y, moving }. A step on the grid must not look like a jump, so its picture
  * glides from the cell it left: on the top-down field toward the new cell, most of the way at once (the wave judgement,
- * js/combat.js pickWaveFrontTargets, counts with the same glide); on the stage at a walk over the whole step
+ * js/combat-tick.js pickWaveFrontTargets, counts with the same glide); on the stage at a walk over the whole step
  * (js/canvas-stage-stride.js), with no follower in screen space, so a scrolling room does not drag the monsters.
  * frame = { now, deltaSec, gridProj }. */
 function glideBattleEnemy(entry, frame) {
@@ -2559,9 +2261,6 @@ function glideBattleEnemy(entry, frame) {
     return { enemy: entry.enemy, x: smooth.x, y: smooth.y, moving: distance >= 0.65 };
 }
 
-/** 옆에서 보는 무대: 주인공이 전투 기록이나 채팅 창 뒤에 서면 그 창이 옅어진다(js/message-frames-ui.js heroAt). 주인공의 키는 그림의
- * 도트 수로 어림한다(머리 위의 체력 막대까지, 2026-10-20 새 주인공은 키 약 110도트). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
-const STAGE_HERO_TALL_DOTS = 118;
 function noteStageHeroBehindFrames(playerPos, gridProj) {
     if (typeof messageFrames !== 'object' || !messageFrames.isActive()) return;
     if (!stageView.enabled()) { messageFrames.heroAt(NaN, NaN, NaN); return; }
@@ -2587,11 +2286,6 @@ function drawEnemyActorSprite(ctx, entry, state, pose) {
     drawEnemySprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
 }
 
-/** This frame's enemy screen positions and their after-image ghosts: every living enemy, on the screen or not (hits, projectiles
- * and chains aim by this list). On an exploration map an enemy out of the hero's sight (entry.seen, js/canvas-battle-draw-list.js)
- * gets no ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog
- * stays unseen until it steps into sight (2026-10-09 사용자). */
-const SIGHT_GATED_FX = new Set(['hit', 'enemyEvade', 'statusText']);
 function buildBattleEnemyPosMap(layout, fxList, now, gridProj) {
     const map = {}, hidden = new Set();
     layout.forEach(entry => {
@@ -2692,68 +2386,6 @@ function drawLegacyHitFeedback(ctx, fx, progress, playerPos, enemyPosMap) {
     drawDamageImpactAccent(ctx, fx, progress, enemyPosMap, playerPos);
 }
 
-/** The battlefield canvas's CSS box ({width, height, left, top}; width 0 = hidden, display:none here or above), measured once and
- * again only after it resizes, or a second later for a move without a resize. Reading offsetParent and clientWidth every frame
- * forced a style and layout pass right after the tick had touched the HUD (2026-10-07 frame drops: 1.5 s of 14 s on a 4x-throttled
- * phone in the endgame, with the reads in canvas-fx-remake.js boardView and battle-ground-loot-ui.js). A ResizeObserver, or
- * resizeBattlefieldCanvas, marks it stale. */
-const battleCanvasBox = (() => {
-    const MAX_AGE_MS = 1000;
-    let observed = null, box = null, observer = null, hudObserver = null;
-    function watch(canvas) {
-        if (observed === canvas) return;
-        observed = canvas; box = null;
-        if (observer) observer.disconnect();
-        if (hudObserver) hudObserver.disconnect();
-        const hud = document.getElementById('ui-enemy-list');
-        const observeSizes = () => {
-            box = null;
-            if (!observer) return;
-            observer.disconnect(); observer.observe(canvas);
-            if (hud) [hud, ...hud.querySelectorAll('.enemy-nameplate, .enemy-health-frame, .enemy-hud-meta, .enemy-ailments')].forEach(part => observer.observe(part));
-        };
-        if (typeof ResizeObserver === 'function') {
-            observer = new ResizeObserver(() => { box = null; }); observeSizes();
-        }
-        if (hud && typeof MutationObserver === 'function') {
-            // 같은 값을 다시 넣은 속성(틱마다 hidden = true)은 바뀐 것이 아니다: 그때마다 상자를 버리면 거의 매 프레임 배치를 다시 쟀다
-            const changed = row => (row.type === 'attributes' ? row.oldValue !== row.target.getAttribute(row.attributeName)
-                : [...row.addedNodes, ...row.removedNodes].some(node => node.nodeType === 1));
-            hudObserver = new MutationObserver(rows => { if (rows.some(changed)) observeSizes(); });
-            hudObserver.observe(hud, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'hidden'] });
-        }
-        document.addEventListener('scroll', forget, { capture: true, passive: true });
-    }
-    /** HUD children can extend outside their card. Convert their viewport bounds through CSS zoom, once per cached layout. */
-    function enemyOverlays(canvas) {
-        const hud = document.querySelector('#ui-enemy-list:not([hidden])');
-        if (!hud) return [];
-        const view = canvas.getBoundingClientRect();
-        if (!view.width || !view.height) return [];
-        const sx = canvas.clientWidth / view.width, sy = canvas.clientHeight / view.height;
-        return [...hud.querySelectorAll('.enemy-nameplate, .enemy-health-frame, .enemy-hud-meta, .enemy-ailments')].map(element => {
-            const rect = element.getBoundingClientRect();
-            const x = Math.max(0, (rect.left - view.left) * sx), y = Math.max(0, (rect.top - view.top) * sy);
-            const right = Math.min(canvas.clientWidth, (rect.right - view.left) * sx);
-            const bottom = Math.min(canvas.clientHeight, (rect.bottom - view.top) * sy);
-            return { x, y, w: right - x, h: bottom - y };
-        }).filter(rect => rect.w > 0 && rect.h > 0);
-    }
-    function measure(canvas, now) {
-        if (canvas.offsetParent === null) return { width: 0, height: 0, left: 0, top: 0, at: now, enemyOverlays: [] };
-        return { width: canvas.clientWidth, height: canvas.clientHeight, left: canvas.offsetLeft, top: canvas.offsetTop, at: now, enemyOverlays: enemyOverlays(canvas) };
-    }
-    function read(canvas) {
-        watch(canvas);
-        const now = performance.now();
-        if (!box || now - box.at >= MAX_AGE_MS || typeof ResizeObserver !== 'function') box = measure(canvas, now);
-        return box;
-    }
-    function forget() { box = null; }
-    return Object.freeze({ read, forget });
-})();
-
-const MAP_MONSTERS_LEFT_HINT = 5;
 /** Regular monsters still on the map run (waiting packs included, the boss's stage not), or null outside a map. */
 function getMapMonstersLeft() {
     const run = typeof actExplorationState === 'object' ? actExplorationState.current(game) : null;
@@ -2772,11 +2404,6 @@ function getBattlefieldCaption() {
     return [getWorldTreeBarkEffect().on ? '세계수 껍질 구간' : '', left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? _t('몬스터 {left}마리 남음', { left }) : ''].filter(Boolean).join(', ');
 }
 
-// A monster's arrival: rings, a floor glow and, for a boss, rays (the values renderBattlefield drew inline until 2026-10-19).
-const ENEMY_SPAWN_LOOK = Object.freeze({
-    boss: Object.freeze({ alpha: 0.72, width: 4, rings: 3, radius: 15, grow: 34, glow: 0.28, rx: 28, ry: 12, rays: true }),
-    plain: Object.freeze({ alpha: 0.5, width: 3, rings: 2, radius: 10, grow: 22, glow: 0.18, rx: 18, ry: 8, rays: false })
-});
 /** A monster's arrival: widening rings and a floor glow at its feet, rays too for a boss. */
 function drawEnemySpawnFx(ctx, fx, t, enemy) {
     if (!enemy) return;
@@ -2798,6 +2425,7 @@ function drawEnemySpawnFx(ctx, fx, t, enemy) {
     if (look.rays) drawEnemySpawnRays(ctx, t, enemy);
     ctx.restore();
 }
+
 function drawEnemySpawnRays(ctx, t, enemy) {
     ctx.globalAlpha = (1 - t) * 0.5;
     for (let ray = 0; ray < 8; ray++) {
@@ -2831,12 +2459,6 @@ function drawLootPickupFx(ctx, fx, t, path) {
     ctx.restore();
 }
 
-// A good drop's beam, rings and sparks: a unique's are taller and more; its strength by tier (others 0.5).
-const LOOT_CELEBRATION_LOOK = Object.freeze({
-    unique: Object.freeze({ beam: 220, half: 7, width: 4, rings: 3, grow: 44, sparks: 10 }),
-    other: Object.freeze({ beam: 145, half: 4, width: 3, rings: 2, grow: 30, sparks: 6 })
-});
-const LOOT_CELEBRATION_INTENSITY = Object.freeze({ unique: 1, rare: 0.72 });
 /** A good drop's beam, rings, sparks and name over where the monster fell. area = { width, height }. */
 function drawLootCelebrationFx(ctx, fx, t, enemy, area) {
     const cx = enemy ? enemy.x : area.width * 0.72, cy = enemy ? enemy.y - 10 : area.height * 0.62;
@@ -2863,6 +2485,7 @@ function drawLootCelebrationFx(ctx, fx, t, enemy, area) {
     drawLootHighlightLabel(ctx, fx, { x: Math.max(130, Math.min(area.width - 130, cx)), y: Math.max(74, cy) }, t);
     ctx.restore();
 }
+
 function drawLootCelebrationSparks(ctx, at, t, count) {
     for (let spark = 0; spark < count; spark++) {
         const angle = spark * (Math.PI * 2 / count) + t;
@@ -3214,9 +2837,6 @@ function getBattleCameraShake(now) {
     };
 }
 
-/** Edge shading over the battlefield. 2026-10-02: a little lighter (sides 0.44, top 0.34, bottom 0.5 before) so the map reads brighter. */
-// 피격감(2026-10-04): every hit on the hero flashes the screen edge red for a moment, stronger the more life it took.
-const PLAYER_HURT_EDGE = Object.freeze({ ms: 300, min: 0.16, perLife: 3, max: 0.7 });
 function drawPlayerHurtEdge(ctx, width, height, now) {
     if (uiDisplay.reducedEffects()) return;
     const hit = findRecentBattleFx('playerHit', now, PLAYER_HURT_EDGE.ms);
@@ -3343,8 +2963,6 @@ function drawLowHealthEdge(ctx, scene) {
     ctx.restore();
 }
 
-// 보스가 처음 전장에 보이면 이름 배너를 잠깐 띄운다. 표시 전용이며 등장·판정 시점은 전투 쪽이 소유한다.
-const BOSS_BANNER_MS = 2600;
 function updateBossAnnouncement(enemies, now) {
     const revealed = bossEntranceView.revealedBoss(now);
     const boss = (revealed && revealed.redEntrance ? revealed : null) || (enemies || []).find(enemy => enemy && enemy.isBoss) || revealed; // 들이닥치는 보스는 싸우는 보스를 앞서 이름이 뜬다
@@ -3421,10 +3039,6 @@ function getBossBannerSubLines(ctx, boss, width) {
     return !defenses.length || ctx.measureText(one).width <= width - 24 ? [one] : [head.join(', '), defenses.join(', ')];
 }
 
-/** 이름 뒤의 그늘: 이름 둘레가 가장 짙고 위아래와 양옆 모두 둥글게 옅어져 사라지는 납작한 타원. 2026-10-16 사용자 "보스 등장씬에서
- * 보스 밑의 까만색이 네모낳게 보임": 예전 판(높이 66px, 위아래가 딱 끊기고 청동 선이 둘린 어둠)이 등장하는 보스 발밑의 검은 네모로 읽혔다.
- * reach: 이름 너비 바깥으로 그늘이 옅어지는 거리(px), height: 그늘의 위아래 반지름(px). */
-const BOSS_BANNER_SHADE = Object.freeze({ reach: 150, height: 44 });
 function drawBossBannerPlate(ctx, mid, cy, half) {
     const rx = half + BOSS_BANNER_SHADE.reach, ry = BOSS_BANNER_SHADE.height;
     const shade = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
@@ -3457,15 +3071,14 @@ function getElementLabel(ele) {
     if (ele === 'chaos') return '공허';
     return '물리';
 }
+
 /** The name in the current language (the saved name is the Korean source, js/i18n.js enemyName) without colour emoji: the pixel font
  * draws them as a broken box (the beehive queen's crown did, 2026-10-06). */
 function getEnemyDisplayName(enemy) {
     if (!enemy) return _t('미확인 적');
     return stripDecorativeEmoji(i18n.enemyName(enemy.name)) || _t('미확인 적');
 }
-// A boss's standout defenses (its one or two specialties, js/combat.js getBossDefenseTargets) as the live values, traits and zone
-// wards included: at least 40% and 15 points above its weakest of the four. Early bosses whose defenses are all low show none.
-const ENEMY_DEFENSE_LABELS = Object.freeze([['dr', '물리 피해 감소'], ['resF', '화염 저항'], ['resC', '냉기 저항'], ['resL', '번개 저항']]);
+
 function getEnemyDefenseHighlights(enemy) {
     if (!enemy || !enemy.isBoss) return [];
     const rows = ENEMY_DEFENSE_LABELS.map(([key, label]) => ({ label, value: Math.floor(Number(enemy[key]) || 0) }));
@@ -3487,12 +3100,6 @@ function getEnemyTraitSummary(enemy) {
     return Array.from(new Set(tags.filter(Boolean)));
 }
 
-
-// summon1.png(가로 540 기준 7칸, 수동 분석 경계) 중 아직 쓰는 칸: 방어 소환수 수액 골렘(마지막 칸). 공격 소환수는 위습이라
-// 자기 시트로 그린다(hanaActors.drawSummon) — 그 밖의 이름은 칸이 없다(시트를 불러오는 동안 점으로 표시).
-const SUMMON1_CANONICAL_WIDTH = 540;
-const SUMMON1_FRAMES = Object.freeze({ '수액 골렘 소환': Object.freeze([464, 540]) });
-
 function getSummonSpriteFrameRectByName(name, image) {
     const span = image && image.width && image.height ? SUMMON1_FRAMES[String(name || '').trim()] : null;
     if (!span) return null;
@@ -3511,9 +3118,7 @@ function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {
     battleVisualState.playerAttackDirection = direction;
     return direction;
 }
-const STAGE_ATTACK_SIDE_DEAD_PX = 10;     // 대상이 이만큼(px) 안의 같은 세로줄이면 직전에 보던 쪽을 지킨다
-const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 룬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
-let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 룬이 겨냥한 쪽(그 룬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
+
 /** 옆에서 보는 무대: 주인공이 지금 치고 있는 쪽. 가장 늦게 시작한 공격이 겨냥한 칸(combatTravel 기록의 aimCell)이나, 그런 기록을 남기지
  * 않는 따로 시전하는 룬(js/skill-gem-casts.js)이 겨냥한 자리를 주인공이 지금 선 칸에서 본 쪽이다. 지금 선 칸에서 보므로 적 옆으로
  * 건너가 치는 이동기(그림자 점멸, 암살)는 건너간 뒤의 쪽을 답한다. 겨냥한 칸이 같은 세로줄이거나 치는 중이 아니면 null.
@@ -3529,6 +3134,7 @@ function resolveStageStrikeSide(now) {
     }
     return null;
 }
+
 /** 무대의 주인공이 볼 쪽을 정하는 공격 기록이면 그 쪽('west', 'east', 겨냥한 칸이 같은 세로줄이면 null), 아니면 undefined. 옆으로만 치는 룬
  * (js/combat-grid.js band)은 대상을 고를 때 정한 쪽을 본다: 대상이 바로 위나 아래에 서 있어도 띠를 치는 쪽이다. */
 function stageStrikeOf(fx, now, side) {
@@ -3537,12 +3143,14 @@ function stageStrikeOf(fx, now, side) {
     if (band) return band < 0 ? 'west' : 'east';
     return fx.type === 'combatTravel' && fx.owner === 'player' && fx.aimCell ? side(fx.aimCell) : undefined;
 }
+
 /** 휘두름 기록(bandSide)이나 주인공 공격 단계 기록(attackFootprint.band)이 남긴 칠 쪽(1, -1). 없으면 0. */
 function stageBandSideOf(fx) {
     if (fx.type === 'playerSwing') return fx.bandSide || 0;
     const footprint = fx.type === 'combatTravel' && fx.owner === 'player' ? fx.attackFootprint : null;
     return footprint && footprint.band ? footprint.band.side : 0;
 }
+
 function resolveStageNativeCastSide(side) {
     const clock = getCombatTime(), cast = latestStageNativeCast(clock), aimed = cast ? side(cast.aim) : null;
     if (aimed) stageNativeCastFace = { side: aimed, until: cast.at + STAGE_NATIVE_CAST_FACE_MS };
@@ -3552,6 +3160,7 @@ function resolveStageNativeCastSide(side) {
     stageNativeCastFace = null;
     return null;
 }
+
 /** 막 쓴(STAGE_NATIVE_CAST_FACE_MS 안의) 따로 시전하는 룬의 기록: 주 스킬 자리의 것이 먼저, 없으면 이동기 자리의 것. */
 function latestStageNativeCast(clock) {
     for (const state of [skillGemCombatRuntime, mobilitySkill.castState()]) {
@@ -3560,6 +3169,7 @@ function latestStageNativeCast(clock) {
     }
     return null;
 }
+
 /** 옆에서 보는 무대의 주인공은 왼쪽이나 오른쪽만 본다: 대상이 선 쪽을 본다. 위에서 보는 전장의 규칙(대상이 다른 줄에 있으면 위나 아래)을
  * 그대로 쓰면 무대의 주인공은 그때 직전 방향을 지켜, 왼쪽 위의 적을 치면서 오른쪽을 보고 서 있었고 스킬 이펙트만 왼쪽에 나왔다
  * (2026-10-13 사용자: 이펙트가 "반대로 나오고"). 대상이 거의 같은 세로줄이면 직전에 보던 쪽을 지킨다. */
@@ -3629,18 +3239,6 @@ function drawFixedBoardCells(ctx, proj, theme, backdropActive) {
         }
     }
 }
-
-// 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다. 칸 판정과 범위 계산은 그대로이고 그리는 모양만 바꾼다.
-// 고대비 모드도 같다(2026-10-16 사용자: 발밑이 네모로 바뀌고 캐릭터를 따라가지 않고 칸 단위로 옮겨 갔다. 고대비는 조명만 끈다).
-const RIFT_CELL_TONES = {
-    player: { fill: 'rgba(120, 210, 196, 0.22)', line: 'rgba(160, 236, 222, 0.7)' },
-    enemy: { fill: 'rgba(170, 52, 40, 0.24)', line: 'rgba(226, 116, 94, 0.55)' },
-    summon: { fill: 'rgba(110, 200, 140, 0.18)', line: 'rgba(150, 230, 176, 0.5)' },
-    area: { fill: 'rgba(214, 170, 92, 0.12)', line: 'rgba(233, 203, 137, 0.42)' },
-    target: { fill: 'rgba(233, 180, 84, 0.2)', line: 'rgba(246, 214, 146, 0.9)' }
-};
-/** The stage ring (js/canvas-stage-rings.js) each cell tone draws as; anything else is an enemy's. */
-const RIFT_RING_LOOKS = new Map([[RIFT_CELL_TONES.summon, 'summon'], [RIFT_CELL_TONES.target, 'target']]);
 
 function drawRiftCombatOccupants(ctx, layers) {
     const proj = layers.proj;
@@ -3720,9 +3318,7 @@ function drawRiftAreaCell(ctx, proj, cell) {
     if (stageView.enabled()) { drawStageAreaCell(ctx, c, proj, inset); return; }
     ctx.fillRect(c.x - proj.tileW / 2 + inset, c.y - proj.tileH / 2 + inset, proj.tileW - inset * 2, proj.tileH - inset * 2);
 }
-/** 옆에서 보는 무대: 스킬이 닿는 칸을 네모로 칠하면 그린 바닥 위에 상자가 얹힌 듯 보였다(2026-10-13 따로 맡긴 검토: "발밑에 황토색
- * 사각형"). 칸에 눕힌 옅은 타원으로 그린다: 닿는 칸은 그대로 읽히고 바닥의 얼룩처럼 놓인다. */
-const STAGE_AREA_CELL_ALPHA = 0.6;
+
 function drawStageAreaCell(ctx, c, proj, inset) {
     ctx.globalAlpha = STAGE_AREA_CELL_ALPHA;
     ctx.beginPath();
@@ -3765,6 +3361,478 @@ function getCanvasSkillAreaCells(skillName, skillDef, skillTargets) {
     });
 }
 
+exposeFileGlobals({ battlePixelFont, drawEnemyDeathFx, drawBossDefeat, normalizeSkillGemVfxElement, drawElementProjectileVfx, useFilteredVfxImage, getDrawnSkillEffectFilter, queueSkillGemVfx, drawMeteorDescent, prepareBossShot, drawCombatTravelFx, isGroundSkillCast, drawProceduralSkillImpact, drawTrialTrapGridFx, drawSkillImpactImage, drawFootprintSkillImpact, getEnemyTelegraphColor, drawBossPatternArea, drawEnemyAttackTelegraphs, drawEliteNameplate, noteEnemyDrawnHeight, getEnemyFieldBarLift, getBodyCueAnchor, getEnemyBodyHeight, getBattlefieldClientPoint, updatePlayerGridVisualMotion, getStageHeroAirGround, getPlayableHeroWalkMotion, drawPlayerReturnWarpEffect, drawPlayerReturnDepartureEffect, drawPlayerReturnWhiteShroud, drawBattlePlayerBody, buildEnemyHitFlashMap, getPlayerHurtPosition, resolveEnemyFacingDirection, noteEnemySpriteSide, shouldMirrorEnemySprite, getEnemySpawnAge, getEnemyCrowdScale, drawEnteringEnemyActor, drawEncounterSparks, getBossDrawScale, drawEnemyActorSprite, buildBattleEnemyPosMap, drawBattleActorLayer, getMapMonstersLeft, renderBattlefield, getBattleCameraShake, drawBattleScreenGrade, drawBattleLightingAndBars, drawLockOnMark, updateBossAnnouncement, drawBossAnnouncement, getEnemyDisplayName, getEnemyTraitSummary, getSummonSpriteFrameRectByName, resolveStageStrikeSide, drawRiftPlayerRing });
+})();
+
+// 렌더 전용 짧은 캐시. getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운
+// 함수인데, 렌더 경로는 결과를 읽기만 하고(HP/ES 바, 스킬 타겟, 공속 타이밍) 이
+// 값들은 천천히 변하므로 ~150ms 캐시해도 시각적으로 무해하다. 전투 틱(coreLoop)과
+// updateCombatUI는 별도로 getPlayerStats()를 직접 호출하므로 이 캐시의 영향을 받지 않는다.
+let __canvasStatsCache = null;
+let __canvasStatsCacheAt = 0;
+const CANVAS_STATS_CACHE_MS = 150;
+
+
+const BATTLE_SKILL_EFFECT_CAP = 56;
+
+
+// Finishing blows on elites and bosses hold the frame a little longer. Ordinary kills stay fluid: an idle fight
+// kills constantly, and a stop on each would read as stutter.
+const KILL_HIT_STOP_MS = Object.freeze({ elite: 45, boss: 110 });
+
+/** 쓰러짐 그림이 없는 보스의 사라짐 길이(ms). 보스의 쓰러짐 효과는 쓰러짐 그림을 보여 주려고 1.6초다(js/combat-kill-rewards.js handleEnemyDeath). */
+const BOSS_DEATH_LEGACY_MS = 840;
+/** 쓰러진 보스가 흐려지기 시작하는 때(효과 길이의 비율): 그 앞까지는 쓰러짐 그림의 마지막 장(누운 모습)이 또렷하다. */
+const BOSS_DEFEAT_FADE_FROM = 0.78;
+
+
+const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
+    whirlwind: 'skillFxWhirlwind',
+    chainPrimary: 'skillFxChainPrimary',
+    chain: 'skillFxChainPrimary',
+    chainJump: 'skillFxChainJump',
+    slamPrimary: 'skillFxSlamPrimary',
+    slamAftershock: 'skillFxSlamAftershock',
+    meteorProjectile: 'skillFxMeteorProjectile',
+    meteorImpact: 'skillFxMeteorImpact',
+    meteorGround: 'skillFxMeteorGround',
+    slash: 'skillFxContinuousSlash',
+    basicSlash: 'skillFxBasicSlash',
+    continuousSlash: 'skillFxDoubleSlash',
+    slam: 'skillFxSlamPrimary',
+    projectile: 'skillFxProjectile',
+    venomFang: 'skillFxVenomFang',
+    frostField: 'skillFxFrostField',
+    blizzardAmbient: 'skillFxBlizzardAmbient',
+    blizzardImpact: 'skillFxBlizzardImpact',
+    frostWave: 'skillFxFrostWave',
+    chaosBoomerang: 'skillFxChaosBoomerang',
+    frostBurst: 'skillFxFrostBurst',
+    frostWaveRing: 'skillFxFrostWaveRing',
+    burst: 'skillFxImpactFlare',
+    radialWave: 'skillFxRadialWave',
+    rune: 'skillFxBurst',
+    dot: 'skillFxDotField',
+    summon: 'skillFxSummonStrike'
+});
+
+
+// Color-only VFX filters are fixed per image, so bake each (image, filter) pair once.
+// A live ctx.filter forces an offscreen pass on every draw, which dominated busy endgame frames.
+const filteredVfxImageCache = new WeakMap();
+
+
+/** Shade the environment, then paint ground spells and summons before the main actor layer. */
+function drawBattleGroundLayer(ctx, effects, view) {
+    drawBattleScreenGrade(ctx, view.width, view.height);
+    drawRiftPlayerRing(ctx, view.gridProj, view.playerPos);
+    sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
+    trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
+    fxRemake.begin(ctx, view.gridProj);
+    if (typeof stageSkillVfx === 'object') stageSkillVfx.tick(view.now); // 무대의 새 스킬 이펙트(js/canvas-stage-skill-vfx.js): 프레임마다 시계를 맞춘다
+    if (typeof stageBlessing === 'object') stageBlessing.frame(view.now); // 사역룬 가호의 발밑(js/canvas-stage-blessing.js)
+    worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
+    worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
+    for (let fx of effects) {
+        if (!isGroundSkillCast(fx)) continue;
+        drawCombatTravelFx(ctx, fx, view.now, view.gridProj, view.playerPos, view.enemyPosMap);
+    }
+    redrawnSkillFx.drawLayer('ground', view.now);
+    wispSummonFx.drawLayer('ground', view.now);
+    fxRemake.end();
+    if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
+    if (typeof stageBlessing === 'object') stageBlessing.draw(ctx, view.gridProj);
+    if (typeof stageOcean === 'object') stageOcean.ground(ctx, view); // 심해: 발밑 먼지와 공기 기둥
+    if (typeof stageIncidents === 'object') stageIncidents.ground(ctx, view); // 잔잔한 사건: 별똥별
+    drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
+}
+
+
+function drawSkillGemVfxLayer(ctx, now, gridProj) {
+    fxRemake.begin(ctx, gridProj); // stays open through the battleFx overlay loop; closed in drawBattleLightingAndBars
+    worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
+    let list = battleVisualState.skillEffects || [];
+    worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
+    if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
+    bossMoveView.drawAir(ctx, gridProj); // boss moves: the charge at the hand, shots, beams (js/canvas-boss-moves.js)
+    const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
+    list.forEach(drawSkillGemVfxLayer.ground.follow(ctx, gridProj, effect => {
+        let image = getSkillGemVfxImage(effect.imageKey);
+        let elapsed = now - effect.startAt;
+        if (elapsed < 0 || elapsed > effect.duration) return;
+        let t = clampNumber(elapsed / Math.max(1, effect.duration), 0, 1);
+        if (SKILL_FX_ATLAS[effect.skillName]) return;
+        if (drawFootprintSkillImpact(ctx, effect, image, t)) return;
+        const spriteRenderer = spriteRenderers[effect.family];
+        if (spriteRenderer) return spriteRenderer(ctx, effect, image, t);
+        let fade = Math.min(1, t / 0.045) * Math.pow(1 - t, 1.1);
+        if (effect.family === 'dot') fade = Math.min(1, t / 0.16) * Math.min(1, (1 - t) / 0.28);
+        if (effect.travel) fade = Math.min(1, t / 0.12) * Math.min(1, (1 - t) / 0.1);
+        ctx.save();
+        let imageProjectile = !!(effect.travel && effect.imageProjectile);
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, imageProjectile ? 0.94 : 0.82);
+        image = useFilteredVfxImage(ctx, image, imageProjectile ? 'none' : getDrawnSkillEffectFilter(effect));
+        ctx.imageSmoothingEnabled = false;
+        if (effect.travel) {
+            // 모든 플레이어 투사체는 포물선 없이 실제 발사선 위를 빠르게 이동한다.
+            let travelProgress = t;
+            let x = effect.fromX + (effect.toX - effect.fromX) * travelProgress;
+            let y = effect.fromY + (effect.toY - effect.fromY) * travelProgress;
+            let width = imageProjectile ? effect.projectileWidth : effect.size * 1.52;
+            let height = imageProjectile ? effect.projectileHeight : effect.size * 0.52;
+            ctx.translate(x, y);
+            ctx.rotate(effect.rotation || 0);
+            if (imageProjectile && image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
+            else drawElementProjectileVfx(ctx, effect.projectileStyle || effect.element, width, height, t);
+        } else if (effect.connector) {
+            let reveal = Math.min(1, t / 0.22);
+            let fromX = effect.toX + (effect.fromX - effect.toX) * reveal;
+            let fromY = effect.toY + (effect.fromY - effect.toY) * reveal;
+            let dx = effect.toX - fromX;
+            let dy = effect.toY - fromY;
+            let length = Math.max(8, Math.hypot(dx, dy));
+            let thickness = Math.max(12, effect.size * (0.36 + Math.sin(t * Math.PI) * 0.12));
+            ctx.translate((fromX + effect.toX) / 2, (fromY + effect.toY) / 2);
+            ctx.rotate(Math.atan2(dy, dx));
+            if (image) ctx.drawImage(image, -length / 2, -thickness / 2, length, thickness);
+        } else {
+            if (image || effect.skillName === '기본 공격') drawSkillImpactImage(ctx, image, effect, t);
+            else drawProceduralSkillImpact(ctx, effect, t);
+        }
+        ctx.restore();
+    }));
+}
+
+/** Common slashes and hit sparks keep their cast-time pixels and footprint. Move only the drawing context with the camera,
+ * never their shared geometry or atlas-owned effects. A changed zoom/depth keeps the existing presentation until expiry. */
+drawSkillGemVfxLayer.ground = (() => {
+    function note(list, projection) {
+        const origin = projection.cellToScreen(0, 0);
+        for (const effect of list) {
+            if (effect.spawnGround || SKILL_FX_ATLAS[effect.skillName] || (effect.family !== 'slash' && effect.family !== 'hitSpark')) continue;
+            effect.spawnGround = { x: origin.x, y: origin.y, tileW: projection.tileW, tileH: projection.tileH };
+        }
+    }
+    function follow(ctx, projection, paint) {
+        return effect => {
+            const anchor = effect.spawnGround;
+            if (!anchor || anchor.tileW !== projection.tileW || anchor.tileH !== projection.tileH) return paint(effect);
+            const now = projection.cellToScreen(0, 0);
+            if (now.x === anchor.x && now.y === anchor.y) return paint(effect);
+            ctx.save();
+            ctx.translate(now.x - anchor.x, now.y - anchor.y);
+            try { paint(effect); } finally { ctx.restore(); }
+        };
+    }
+    return Object.freeze({ note, follow });
+})();
+
+
+/** Read-only labels from the saved wording, never from the current zone. Unknown traits keep their text. */
+drawEliteNameplate.presentation = (() => {
+    const cache = new WeakMap();
+    const short = { critResist: '치명저항', critDamageResist: '치명피해저항', comboGuard: '연타저항', heavySlow: '강타',
+        fast: '속공', energyShield: '보호막', evasion: '회피', armor: '장갑' };
+    const names = new Map(COSMOS_MECHANIC_DB.map(row => [row.name, short[row.id]]));
+    const habitats = new Set(Object.values(COSMOS_ROUTE_G1.habitats).map(row => row.name));
+    const metadata = /^우주계:\s*\S+\s+\d+등급\/\d+(?:\.\d+)?g$/;
+    function combatLabel(part) {
+        const match = /^우주계:\s*(.+)$/.exec(part);
+        return match && names.get(match[1].replace(/\s+\d+%$/, '')) || part;
+    }
+    function compact(raw) {
+        const parts = raw.split(',').map(part => part.trim()), cosmos = parts.some(part => metadata.test(part));
+        const labels = parts.map(part => {
+            if (cosmos && (metadata.test(part) || part.startsWith('탐사:') || habitats.has(part))) return null;
+            return combatLabel(part);
+        }).filter(Boolean);
+        if (labels.length === parts.length && labels.every((label, index) => label === parts[index])) return raw;
+        return labels.join(' · ') || '정예';
+    }
+    return enemy => {
+        const raw = String(enemy.traitName || '정예'), previous = cache.get(enemy);
+        if (previous?.raw === raw) return previous;
+        const presentation = { raw, label: compact(raw), color: statToneText.lineColor(raw, '#f3d77a') };
+        cache.set(enemy, presentation);
+        return presentation;
+    };
+})();
+
+/** Atlas sprites' drawn height this frame (js/ui.js drawEnemySprite), weakly keyed so dead enemies drop out. */
+const enemyDrawnHeights = new WeakMap();
+
+
+/** Only repeated body judgments share a lifetime; alerts and different actors keep their own labels. */
+getBodyCueAnchor.fromFx = function (fx, pos, bodyHeight, start) {
+    const value = fx.text || '회피!', color = fx.color || '#c4e2ff';
+    const bodyCue = fx.type === 'enemyEvade' || fx.bodyCue === true;
+    const actor = fx.enemyId == null ? 'hero' : 'enemy:' + fx.enemyId;
+    return { start, ...getBodyCueAnchor(pos, bodyHeight), value, miss: true, bodyCue, color,
+        aggregateKey: bodyCue ? `cue:${actor}:${value}:${color}` : '' };
+};
+
+
+/** This frame's top of each drawn enemy bar with its elite nameplate (screen px): the lock-on arrow stands over it (drawLockOnMark). */
+const enemyFieldBarTops = new Map();
+
+/** Actual HP/cast rectangles, recorded as they draw, including screen-edge clamping. */
+const bossTextExclusions = [];
+
+
+function drawBattlePlayerActor(ctx, state) {
+    state = worldTreeSkillFx.actorState(state);
+    let position = getPlayerHurtPosition(state);
+    let returnWarp = state.returnWarp;
+    let returnDeparture = state.returnDeparture;
+    let warpPosition = returnWarp && returnWarp.position ? returnWarp.position : position;
+    let departurePosition = returnDeparture && returnDeparture.position ? returnDeparture.position : position;
+    let transition = returnWarp || returnDeparture;
+    let transitionPosition = returnWarp ? warpPosition : departurePosition;
+    let facingLeft = isBattlePlayerMirrored(state.motionState);
+    drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, false);
+    drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, false);
+    drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, false);
+    ctx.save();
+    if (transition) ctx.globalAlpha = transition.actorAlpha;
+    if (facingLeft) {
+        ctx.translate(position.x * 2, 0);
+        ctx.scale(-1, 1);
+    }
+    drawTintedBattlePlayerFigure(ctx, state, position);
+    ctx.restore();
+    drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
+    drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, true);
+    drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, true);
+}
+
+
+// 타격감(2026-10-04): a struck enemy flinches away from the hero for a moment, further on a crit or a heavy blow (tiles).
+const ENEMY_HIT_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
+// 피격감(2026-10-04): the hero is knocked back from the attacker, further the more life the hit took (tiles).
+const PLAYER_HURT_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
+// The hero's and each summon's incoming damage numbers add up per this many ms of combat (dealt hits: 250 per skill and target).
+const HURT_TEXT_MERGE_MS = 400;
+
+
+/** Overlapping hit silhouettes should still read as a pack of monsters. Latch per pulse so a neighbour's
+ * flash ending cannot make this body brighten again. The original FX, pulse timing and entrance veil stay intact. */
+buildEnemyHitFlashMap.crowd = (() => {
+    const softened = new WeakSet();
+    function body(entry, tile) {
+        const size = (stageView.enabled() && stageRoster.bodySize(entry.enemy, tile))
+            || { halfW: tile * .45 * getGridUnitFootprint(entry.enemy).columns, h: getEnemyBodyHeight(entry) };
+        return { id: entry.enemy.id, x: entry.x, top: entry.y - size.h, bottom: entry.y, halfW: size.halfW,
+            pulse: battleVisualState.enemyHitPulses.get(entry.enemy.id) };
+    }
+    function overlaps(a, b) {
+        return Math.abs(a.x - b.x) < a.halfW + b.halfW && a.top < b.bottom && b.top < a.bottom;
+    }
+    function markGroups(bodies) {
+        const remaining = new Set(bodies);
+        for (const first of remaining) {
+            const group = [first];
+            remaining.delete(first);
+            for (let i = 0; i < group.length; i++) {
+                remaining.forEach(other => {
+                    if (!overlaps(group[i], other)) return;
+                    group.push(other);
+                    remaining.delete(other);
+                });
+            }
+            if (group.length >= 3) group.forEach(row => softened.add(row.pulse));
+        }
+    }
+    return function (flashes, entries, tile) {
+        const targets = entries.filter(entry => entry.enemy.hp > 0 && !entry.enemy.isBoss && flashes.get(entry.enemy.id) > 0);
+        if (targets.length >= 3) markGroups(targets.map(entry => body(entry, tile)));
+        for (const { enemy } of targets) if (softened.has(battleVisualState.enemyHitPulses.get(enemy.id))) {
+            flashes.set(enemy.id, flashes.get(enemy.id) * .4);
+        }
+    };
+})();
+
+
+/** 옆에서 보는 무대의 몬스터는 왼쪽이나 오른쪽만 본다(2026-10-13 사용자: 걸어올 때 좌우가 맞지 않는다. 전에는 주인공이 위아래로 더
+ * 멀면 위나 아래를 본다고 답했고, 무대는 그때 직전 방향을 지켜서 처음 나온 몬스터가 등을 보이며 걸어왔다).
+ * 걷는 동안에는 가는 쪽(enemyPos.heading, glideBattleEnemy), 서 있거나 때릴 때는 기록된 실제 목표(없으면 주인공)를 본다. 위아래로만 걷거나
+ * 주인공과 거의 같은 세로줄에 서 있으면 'south'를 답한다: 무대는 그때 직전 방향을 지킨다(stageView.facing). */
+const STAGE_SIDE_DEAD_PX = 10;
+
+
+// 왼쪽을 보고 그린 보스 그림(data BOSS_ASSET_FRONT_FACING 밖)은 주인공이 오른쪽에 서면 좌우를 뒤집는다.
+// 위아래 방향 대신 가로 거리만 본다: 오른쪽 아래의 주인공도 오른쪽이다. 보스 기둥을 지나갈 때 떨지 않게
+// 4분의 1칸 안에서는 직전 방향을 지키고, 쓰러지는 잔상도 마지막 방향을 쓴다.
+const ENEMY_SPRITE_SIDE_DEAD_ZONE = 0.25;
+const enemySpriteSides = new WeakMap();
+
+
+const ENEMY_SPAWN_STAMP_FUTURE_MS = 1000;
+
+function drawBattleEnemyActor(ctx, entry, state) {
+    if (woodsmanView.active(entry.enemy)) return;
+    let enemy = entry.enemy;
+    // 무대의 보스 입장: 그림을 키우며 띄우지 않고 제 크기로 선 검은 형체가 드러난다(js/canvas-boss-entrance.js stageLook)
+    const veil = bossEntranceView.stageLook(enemy, state.now);
+    if (veil) { drawEnteringEnemyActor(ctx, entry, state, veil); return; }
+    let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
+    let age = getEnemySpawnAge(enemy, state.now, spawnDuration);
+    let easedAge = 1 - Math.pow(1 - age, 3);
+    let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
+    if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
+    const crowdScale = getEnemyCrowdScale(enemy, state.enemyCount);
+    const awakening = bossEntranceView.observer.frame(enemy);
+    const awakenedBody = bossEntranceView.observer.body(awakening);
+    bossEntranceView.observer.seal(ctx, entry, awakening);
+    ctx.save();
+    ctx.globalAlpha = easedAge * enemyAmbushView.alphaOf(enemy, state.now) * bossMoveView.shiftAlpha(enemy); // 기습 정예와 순간이동하는 보스는 사라졌다 나타나는 동안 숨는다(js/canvas-enemy-ambush.js, js/canvas-boss-moves.js)
+    drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale,
+        spawnScale, ...awakenedBody });
+    if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
+    ctx.restore();
+    bossEntranceView.observer.globe(ctx, enemy, awakening);
+    bossEntranceView.observer.caption(ctx, entry, awakening);
+}
+
+
+/** 옆에서 보는 무대: 주인공이 전투 기록이나 채팅 창 뒤에 서면 그 창이 옅어진다(js/message-frames-ui.js heroAt). 주인공의 키는 그림의
+ * 도트 수로 어림한다(머리 위의 체력 막대까지, 2026-10-20 새 주인공은 키 약 110도트). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
+const STAGE_HERO_TALL_DOTS = 118;
+
+
+/** This frame's enemy screen positions and their after-image ghosts: every living enemy, on the screen or not (hits, projectiles
+ * and chains aim by this list). On an exploration map an enemy out of the hero's sight (entry.seen, js/canvas-battle-draw-list.js)
+ * gets no ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog
+ * stays unseen until it steps into sight (2026-10-09 사용자). */
+const SIGHT_GATED_FX = new Set(['hit', 'enemyEvade', 'statusText']);
+
+
+/** The battlefield canvas's CSS box ({width, height, left, top}; width 0 = hidden, display:none here or above), measured once and
+ * again only after it resizes, or a second later for a move without a resize. Reading offsetParent and clientWidth every frame
+ * forced a style and layout pass right after the tick had touched the HUD (2026-10-07 frame drops: 1.5 s of 14 s on a 4x-throttled
+ * phone in the endgame, with the reads in canvas-fx-remake.js boardView and battle-ground-loot-ui.js). A ResizeObserver, or
+ * resizeBattlefieldCanvas, marks it stale. */
+const battleCanvasBox = (() => {
+    const MAX_AGE_MS = 1000;
+    let observed = null, box = null, observer = null, hudObserver = null;
+    function watch(canvas) {
+        if (observed === canvas) return;
+        observed = canvas; box = null;
+        if (observer) observer.disconnect();
+        if (hudObserver) hudObserver.disconnect();
+        const hud = document.getElementById('ui-enemy-list');
+        const observeSizes = () => {
+            box = null;
+            if (!observer) return;
+            observer.disconnect(); observer.observe(canvas);
+            if (hud) [hud, ...hud.querySelectorAll('.enemy-nameplate, .enemy-health-frame, .enemy-hud-meta, .enemy-ailments')].forEach(part => observer.observe(part));
+        };
+        if (typeof ResizeObserver === 'function') {
+            observer = new ResizeObserver(() => { box = null; }); observeSizes();
+        }
+        if (hud && typeof MutationObserver === 'function') {
+            // 같은 값을 다시 넣은 속성(틱마다 hidden = true)은 바뀐 것이 아니다: 그때마다 상자를 버리면 거의 매 프레임 배치를 다시 쟀다
+            const changed = row => (row.type === 'attributes' ? row.oldValue !== row.target.getAttribute(row.attributeName)
+                : [...row.addedNodes, ...row.removedNodes].some(node => node.nodeType === 1));
+            hudObserver = new MutationObserver(rows => { if (rows.some(changed)) observeSizes(); });
+            hudObserver.observe(hud, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'hidden'] });
+        }
+        document.addEventListener('scroll', forget, { capture: true, passive: true });
+    }
+    /** HUD children can extend outside their card. Convert their viewport bounds through CSS zoom, once per cached layout. */
+    function enemyOverlays(canvas) {
+        const hud = document.querySelector('#ui-enemy-list:not([hidden])');
+        if (!hud) return [];
+        const view = canvas.getBoundingClientRect();
+        if (!view.width || !view.height) return [];
+        const sx = canvas.clientWidth / view.width, sy = canvas.clientHeight / view.height;
+        return [...hud.querySelectorAll('.enemy-nameplate, .enemy-health-frame, .enemy-hud-meta, .enemy-ailments')].map(element => {
+            const rect = element.getBoundingClientRect();
+            const x = Math.max(0, (rect.left - view.left) * sx), y = Math.max(0, (rect.top - view.top) * sy);
+            const right = Math.min(canvas.clientWidth, (rect.right - view.left) * sx);
+            const bottom = Math.min(canvas.clientHeight, (rect.bottom - view.top) * sy);
+            return { x, y, w: right - x, h: bottom - y };
+        }).filter(rect => rect.w > 0 && rect.h > 0);
+    }
+    function measure(canvas, now) {
+        if (canvas.offsetParent === null) return { width: 0, height: 0, left: 0, top: 0, at: now, enemyOverlays: [] };
+        return { width: canvas.clientWidth, height: canvas.clientHeight, left: canvas.offsetLeft, top: canvas.offsetTop, at: now, enemyOverlays: enemyOverlays(canvas) };
+    }
+    function read(canvas) {
+        watch(canvas);
+        const now = performance.now();
+        if (!box || now - box.at >= MAX_AGE_MS || typeof ResizeObserver !== 'function') box = measure(canvas, now);
+        return box;
+    }
+    function forget() { box = null; }
+    return Object.freeze({ read, forget });
+})();
+
+const MAP_MONSTERS_LEFT_HINT = 5;
+
+
+// A monster's arrival: rings, a floor glow and, for a boss, rays (the values renderBattlefield drew inline until 2026-10-19).
+const ENEMY_SPAWN_LOOK = Object.freeze({
+    boss: Object.freeze({ alpha: 0.72, width: 4, rings: 3, radius: 15, grow: 34, glow: 0.28, rx: 28, ry: 12, rays: true }),
+    plain: Object.freeze({ alpha: 0.5, width: 3, rings: 2, radius: 10, grow: 22, glow: 0.18, rx: 18, ry: 8, rays: false })
+});
+
+
+// A good drop's beam, rings and sparks: a unique's are taller and more; its strength by tier (others 0.5).
+const LOOT_CELEBRATION_LOOK = Object.freeze({
+    unique: Object.freeze({ beam: 220, half: 7, width: 4, rings: 3, grow: 44, sparks: 10 }),
+    other: Object.freeze({ beam: 145, half: 4, width: 3, rings: 2, grow: 30, sparks: 6 })
+});
+const LOOT_CELEBRATION_INTENSITY = Object.freeze({ unique: 1, rare: 0.72 });
+
+
+/** Edge shading over the battlefield. 2026-10-02: a little lighter (sides 0.44, top 0.34, bottom 0.5 before) so the map reads brighter. */
+// 피격감(2026-10-04): every hit on the hero flashes the screen edge red for a moment, stronger the more life it took.
+const PLAYER_HURT_EDGE = Object.freeze({ ms: 300, min: 0.16, perLife: 3, max: 0.7 });
+
+
+// 보스가 처음 전장에 보이면 이름 배너를 잠깐 띄운다. 표시 전용이며 등장·판정 시점은 전투 쪽이 소유한다.
+const BOSS_BANNER_MS = 2600;
+
+
+/** 이름 뒤의 그늘: 이름 둘레가 가장 짙고 위아래와 양옆 모두 둥글게 옅어져 사라지는 납작한 타원. 2026-10-16 사용자 "보스 등장씬에서
+ * 보스 밑의 까만색이 네모낳게 보임": 예전 판(높이 66px, 위아래가 딱 끊기고 청동 선이 둘린 어둠)이 등장하는 보스 발밑의 검은 네모로 읽혔다.
+ * reach: 이름 너비 바깥으로 그늘이 옅어지는 거리(px), height: 그늘의 위아래 반지름(px). */
+const BOSS_BANNER_SHADE = Object.freeze({ reach: 150, height: 44 });
+
+
+// A boss's standout defenses (its one or two specialties, js/combat-enemy-build.js getBossDefenseTargets) as the live values, traits and zone
+// wards included: at least 40% and 15 points above its weakest of the four. Early bosses whose defenses are all low show none.
+const ENEMY_DEFENSE_LABELS = Object.freeze([['dr', '물리 피해 감소'], ['resF', '화염 저항'], ['resC', '냉기 저항'], ['resL', '번개 저항']]);
+
+
+// summon1.png(가로 540 기준 7칸, 수동 분석 경계) 중 아직 쓰는 칸: 방어 소환수 수액 골렘(마지막 칸). 공격 소환수는 위습이라
+// 자기 시트로 그린다(hanaActors.drawSummon) — 그 밖의 이름은 칸이 없다(시트를 불러오는 동안 점으로 표시).
+const SUMMON1_CANONICAL_WIDTH = 540;
+const SUMMON1_FRAMES = Object.freeze({ '수액 골렘 소환': Object.freeze([464, 540]) });
+
+
+const STAGE_ATTACK_SIDE_DEAD_PX = 10;     // 대상이 이만큼(px) 안의 같은 세로줄이면 직전에 보던 쪽을 지킨다
+const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 룬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
+let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 룬이 겨냥한 쪽(그 룬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
+
+
+// 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다. 칸 판정과 범위 계산은 그대로이고 그리는 모양만 바꾼다.
+// 고대비 모드도 같다(2026-10-16 사용자: 발밑이 네모로 바뀌고 캐릭터를 따라가지 않고 칸 단위로 옮겨 갔다. 고대비는 조명만 끈다).
+const RIFT_CELL_TONES = {
+    player: { fill: 'rgba(120, 210, 196, 0.22)', line: 'rgba(160, 236, 222, 0.7)' },
+    enemy: { fill: 'rgba(170, 52, 40, 0.24)', line: 'rgba(226, 116, 94, 0.55)' },
+    summon: { fill: 'rgba(110, 200, 140, 0.18)', line: 'rgba(150, 230, 176, 0.5)' },
+    area: { fill: 'rgba(214, 170, 92, 0.12)', line: 'rgba(233, 203, 137, 0.42)' },
+    target: { fill: 'rgba(233, 180, 84, 0.2)', line: 'rgba(246, 214, 146, 0.9)' }
+};
+/** The stage ring (js/canvas-stage-rings.js) each cell tone draws as; anything else is an enemy's. */
+const RIFT_RING_LOOKS = new Map([[RIFT_CELL_TONES.summon, 'summon'], [RIFT_CELL_TONES.target, 'target']]);
+
+
+/** 옆에서 보는 무대: 스킬이 닿는 칸을 네모로 칠하면 그린 바닥 위에 상자가 얹힌 듯 보였다(2026-10-13 따로 맡긴 검토: "발밑에 황토색
+ * 사각형"). 칸에 눕힌 옅은 타원으로 그린다: 닿는 칸은 그대로 읽히고 바닥의 얼룩처럼 놓인다. */
+const STAGE_AREA_CELL_ALPHA = 0.6;
 
 
 safeExposeGlobals({

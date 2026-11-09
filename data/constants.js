@@ -7,7 +7,7 @@ function safeExposeData(map) {
 // Phase-1 extracted runtime constants (kept global for backward compatibility).
 const PASSIVE_LAYOUT_VERSION = 23;
 // 저장 키(2026-10-08 이름 바꿈): 예전 이름의 키(세 글자 앞말 + 'IdleSaveData_v숫자', 'IdleCloudSession_v1')는 처음 불러올 때
-// 읽고 그 뒤로는 아래 키에 쓴다(js/save.js getLegacySaveKeys, js/ui.js loadStoredCloudSession). 예전 키 이름은 꼴로만 알아본다.
+// 읽고 그 뒤로는 아래 키에 쓴다(js/save.js getLegacySaveKeys, js/cloud-save-ui.js loadStoredCloudSession). 예전 키 이름은 꼴로만 알아본다.
 const LOCAL_SAVE_KEY = 'rigninSaveData_v9';
 const LEGACY_SAVE_KEY_PATTERN = /^[a-z]{3}IdleSaveData_v(\d+)$/;
 // 계정 저장 칸(2026-10-30): 계정마다 하나, 키 끝에 계정 id. 게스트 칸(LOCAL_SAVE_KEY)과는 다른 키라 서로 건드리지 않는다(js/save.js saveSlot).
@@ -90,7 +90,7 @@ const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
     gravityActionLossPerFloorAfterDeep: 0.01
 });
 // 지하계 깊은 층 보상(2026-10-09, 루프 50 이후 레벨 디자인): 지하석 슬롯과 번호는 300층에서 끝난다. 그 아래로는 every층마다 지하석 강화
-// 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 지하석 조각 70과 금 24, 400층 160과 60(js/combat.js grantUnderworldFloorMilestone).
+// 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 지하석 조각 70과 금 24, 400층 160과 60(js/combat-kill-rewards.js grantUnderworldFloorMilestone).
 const UNDERWORLD_DEEP_FLOOR_REWARD = Object.freeze({ fromFloor: 300, every: 10, runeShard: Object.freeze([60, 1]), underGold: Object.freeze([20, 0.4]) });
 // 지하계 장비 인챈트(js/ui.js applyUnderworldEnchant): 부위마다 [능력치, 최소, 최대, 세기] 가운데 한 줄이 무작위로 붙는다(이미 있던
 // 인챈트는 바뀐다). 세기가 그 줄의 비용을 정한다: 구리 세기×6(최소 4), 은 세기×3(최소 2), 금 세기−1(최소 1). 지하계 화면이 이 표로

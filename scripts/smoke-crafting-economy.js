@@ -2,7 +2,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const passiveSource = fs.readFileSync('js/passives.js', 'utf8');
+const passiveSource = ['js/passives.js', 'js/battle-assets.js', 'js/item-rolls.js'].map(file => fs.readFileSync(file, 'utf8')).join('\n');
 const itemSource = fs.readFileSync('js/items.js', 'utf8');
 const uiSource = fs.readFileSync('js/ui.js', 'utf8');
 
@@ -35,6 +35,7 @@ const salvageContext = {
     game: { jewelInventory: [] },
     bagItems: { isSpecial: () => false }, // 주얼, 코어, 액막이 해체는 js/bag-items.js가 따로 맡는다
     safeExposeGlobals(map) { Object.assign(salvageContext, map); },
+    exposeFileGlobals(map) { Object.assign(salvageContext, map); },
     Math: Object.create(Math)
 };
 salvageContext.Math.random = () => 0.99;

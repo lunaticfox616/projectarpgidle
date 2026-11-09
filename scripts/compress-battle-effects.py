@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def build():
     paths = set()
-    for file in ['js/passives.js', 'data/skills.js']:
+    for file in ['js/battle-assets.js', 'data/skills.js']:
         paths.update(re.findall(r"skillFx\w+:\s*'(assets/effects/[^']+\.png)'", (ROOT / file).read_text(encoding='utf-8')))
     rows = []
     for path in sorted(paths):

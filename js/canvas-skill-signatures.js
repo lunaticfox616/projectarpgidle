@@ -2,8 +2,8 @@
  * @typedef {{x:number,y:number}} SignaturePoint
  * @typedef {{p:number,age:number,phase:number,prepare:boolean,fade:number,frame?:number}} SignaturePhase
  */
-const skillSignatureGeometryCache = new WeakMap();
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getSkillGemVfxImage(imageKey) {
     let image = battleAssets && battleAssets.images ? battleAssets.images[imageKey] : null;
     return image && image.complete && image.naturalWidth ? image : null;
@@ -134,5 +134,10 @@ function drawSkillSignatureImpact(ctx, effect, progress) {
         prepare:false,fade:Math.min(1,(1-progress)*3)});
     return true;
 }
+
+exposeFileGlobals({ getSkillGemVfxImage, drawSkillSpriteFrame, drawSkillSignatureTravel, drawSkillSignatureImpact });
+})();
+const skillSignatureGeometryCache = new WeakMap();
+
 
 safeExposeGlobals({drawSkillSpriteFrame,drawSkillSignatureTravel,drawSkillSignatureImpact});

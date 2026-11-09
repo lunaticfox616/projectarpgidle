@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 // Presentation only; existing fossil domain actions retain validation and payment ownership.
 function renderFossilWorkbench() {
     // 원시 화석 복원 · 잉여 정제는 '해금'의 화석 복원이 연다(2026-10-01, 균사학자 Lv.4 · 5 대신).
@@ -19,5 +21,8 @@ function renderFossilWorkbench() {
     });
     document.getElementById('ui-fossil-material-actions').innerHTML = materialButtons.join('') || '<p>정제할 화석이 없습니다.</p>';
 }
+
+exposeFileGlobals({ renderFossilWorkbench });
+})();
 
 safeExposeGlobals({ renderFossilWorkbench });

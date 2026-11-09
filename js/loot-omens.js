@@ -1,6 +1,6 @@
 /** 지도 기운과 보물 무리의 규칙(data/loot-omens.js, docs/endgame-loot-20261009.md 3절). 상태를 바꾸지 않고 계산만 한다: 지도석에 붙을
  * 기운을 고르고(js/atlas.js stamp), 지도 런의 효과(startRun), 구역 필드(buildZone), 적 배율(js/atlas-maps.js applyEnemyMods), 장비 부위와
- * 드랍 변형(js/passives.js getEquipmentDropSlot, js/loot.js), 처치마다 떨어질 것(js/atlas-finds.js)을 돌려준다. 난수는 인자로 받는다.
+ * 드랍 변형(js/item-rolls.js getEquipmentDropSlot, js/loot.js), 처치마다 떨어질 것(js/atlas-finds.js)을 돌려준다. 난수는 인자로 받는다.
  */
 const lootOmens = (() => {
     const BY_ID = new Map(LOOT_OMENS.list.map(omen => [omen.id, omen]));

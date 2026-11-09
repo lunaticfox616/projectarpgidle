@@ -9,7 +9,7 @@ const bagItems = (() => {
     const RARITIES = ['normal', 'magic', 'rare', 'unique'];
     const isJewel = item => !!item && item.slot === JEWEL;
     const isCore = item => !!item && item.slot === CORE;
-    /** Jewels and cores keep their own shape: js/passives.js normalizeItem hands them to normalize below instead of treating
+    /** Jewels and cores keep their own shape: js/item-rolls.js normalizeItem hands them to normalize below instead of treating
      * them as gear. Bulk salvage takes them like anything else in the bag that is not locked. */
     const ownShape = item => isJewel(item) || isCore(item);
     /** Not plain gear: crafting, the stall, the hall and the gear analysis leave these alone. */
@@ -119,7 +119,7 @@ const bagItems = (() => {
         return result.ok ? '' : result.reason;
     }
 
-    /** Salvage rewards of the special kinds (js/passives.js getItemSalvageRewardProfile): jewels give jewel shards as before,
+    /** Salvage rewards of the special kinds (js/item-rolls.js getItemSalvageRewardProfile): jewels give jewel shards as before,
      * wards colony shards, cores nothing (a core was only ever thrown away). */
     function salvageProfile(item) {
         if (isJewel(item)) return { guaranteed: { jewelShard: getJewelSalvageShardGain(item) }, chances: [] };

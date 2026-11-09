@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /**
  * Project a cast-time cell snapshot onto the current viewport. No enemy positions are read.
  * @param {ReturnType<typeof getSkillStageFootprint>|undefined} area Cast-time domain geometry.
@@ -140,3 +142,6 @@ function drawSmoothSkillGround(ctx, footprint, color, alpha, outlineOnly = false
     ctx.stroke();
     ctx.restore();
 }
+
+exposeFileGlobals({ projectSkillFootprint, clipSkillFootprint, getGroundTakenCellKeys, clipSkillFootprintTerrain, drawSkillFootprintGround });
+})();

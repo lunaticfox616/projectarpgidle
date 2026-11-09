@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function canRollSeveredWanderer(zone, isElite, isBoss) {
     let loop = Math.max(1, Math.floor(Number(game.season) || 1));
     if (!zone || !isElite || isBoss || loop < SEVERED_WANDERER_CONFIG.unlockLoop) return false;
@@ -96,6 +98,10 @@ function maybeApplySeveredWanderer(enemy, zone, isElite, isBoss, rng = Math.rand
     if (!canRollSeveredWanderer(zone, isElite, isBoss) || rng() >= SEVERED_WANDERER_CONFIG.eliteReplacementChance) return enemy;
     return applySeveredWandererLoadout(enemy, buildSeveredWandererLoadout(zone, rng));
 }
+
+exposeFileGlobals({ canRollSeveredWanderer, buildSeveredWandererLoadout, applySeveredWandererLoadout, maybeApplySeveredWanderer });
+})();
+
 
 safeExposeGlobals({ canRollSeveredWanderer, buildSeveredWandererLoadout,
     applySeveredWandererLoadout, maybeApplySeveredWanderer });

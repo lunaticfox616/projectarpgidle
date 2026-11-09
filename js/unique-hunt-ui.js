@@ -1,28 +1,5 @@
-const UNIQUE_HUNT_SOURCE_TYPES = Object.freeze({
-    act: { label: '액트 사냥터', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-hunting' },
-    abyss: { label: '혼돈', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-chaos' },
-    chaosRealm: { label: '혼돈계', mapSubtab: 'map-tab-chaos-realm' },
-    underworld: { label: '지하계', mapSubtab: 'map-tab-underworld' },
-    cosmos: { label: '우주계', mapSubtab: 'map-tab-cosmos' },
-    beehive: { label: '벌집 원정', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-beehive' },
-    trial: { label: '전직 시련', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-trials' },
-    labyrinth: { label: '고대 미궁', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-labyrinth' },
-    meteor: { label: '운석 낙하 지점', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-meteor' },
-    seasonBoss: { label: '강대한 적', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-root-boss' },
-    skyTower: { label: '창공의 탑 보스', mapSubtab: 'map-tab-sky' },
-    colony: { label: '군락지 지배체', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-colony' },
-    // 깨어난 아틀라스의 최종 보스와 리그 우두머리만 주는 고유(data/atlas-endgame.js, 아틀라스의 최종 보기).
-    atlasLate: { label: '깨어난 아틀라스 보스', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-worldtree', atlasView: 'late' }
-});
-const UNIQUE_HUNT_SOURCE_IDS = Object.freeze({
-    grand_breach_run: { label: '대균열', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-voidrift' },
-    cosmos_astra: { label: '잔향체 아스트라', mapSubtab: 'map-tab-cosmos' }
-});
-const UNIQUE_HUNT_COSMOS_BOSSES = Object.freeze({
-    'planet-45': '에니프론', 'planet-46': '하말리스', 'planet-47': '디프다르',
-    'planet-48': '주베누비아', 'planet-49': '주벤샤말'
-});
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** 깨어난 아틀라스의 리그 우두머리도 주는 고유(data/atlas-endgame.js leagues)와 보스의 대표 고유(data/maps.js signatureUnique):
  * 원래 자리에 더해 그 우두머리나 보스를 적는다. */
 function describeUniqueHuntSource(entry) {
@@ -111,6 +88,34 @@ function refreshUniqueHuntUi() {
     if (codexTab && codexTab.classList.contains('active')) uniqueCodexUi.render();
     else renderUniqueHuntPanel();
 }
+
+exposeFileGlobals({ describeUniqueHuntSource, renderUniqueHuntPanel, toggleUniqueHuntFromUi, navigateToUniqueHuntSource, refreshUniqueHuntUi });
+})();
+const UNIQUE_HUNT_SOURCE_TYPES = Object.freeze({
+    act: { label: '액트 사냥터', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-hunting' },
+    abyss: { label: '혼돈', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-chaos' },
+    chaosRealm: { label: '혼돈계', mapSubtab: 'map-tab-chaos-realm' },
+    underworld: { label: '지하계', mapSubtab: 'map-tab-underworld' },
+    cosmos: { label: '우주계', mapSubtab: 'map-tab-cosmos' },
+    beehive: { label: '벌집 원정', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-beehive' },
+    trial: { label: '전직 시련', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-trials' },
+    labyrinth: { label: '고대 미궁', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-labyrinth' },
+    meteor: { label: '운석 낙하 지점', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-meteor' },
+    seasonBoss: { label: '강대한 적', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-root-boss' },
+    skyTower: { label: '창공의 탑 보스', mapSubtab: 'map-tab-sky' },
+    colony: { label: '군락지 지배체', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-colony' },
+    // 깨어난 아틀라스의 최종 보스와 리그 우두머리만 주는 고유(data/atlas-endgame.js, 아틀라스의 최종 보기).
+    atlasLate: { label: '깨어난 아틀라스 보스', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-worldtree', atlasView: 'late' }
+});
+const UNIQUE_HUNT_SOURCE_IDS = Object.freeze({
+    grand_breach_run: { label: '대균열', mapSubtab: 'map-tab-zones', exploreSubtab: 'map-explore-voidrift' },
+    cosmos_astra: { label: '잔향체 아스트라', mapSubtab: 'map-tab-cosmos' }
+});
+const UNIQUE_HUNT_COSMOS_BOSSES = Object.freeze({
+    'planet-45': '에니프론', 'planet-46': '하말리스', 'planet-47': '디프다르',
+    'planet-48': '주베누비아', 'planet-49': '주벤샤말'
+});
+
 
 const uniqueHuntUi = Object.freeze({
     renderPanel: renderUniqueHuntPanel,

@@ -5,11 +5,8 @@
  * null preserves old equipment-only presets until the user saves over them.
  * @typedef {{ ok: boolean, reason?: string, preset?: EquipmentLoadoutPreset, count?: number }} EquipmentLoadoutResult
  */
-const EQUIPMENT_LOADOUT_PRESET_LIMIT = 3;
-const EQUIPMENT_LOADOUT_SLOT_KEYS = Object.freeze(Object.keys(defaultGame.equipment));
-const EQUIPMENT_LOADOUT_IDENTITY_VERSION = 1;
-let equipmentLoadoutIdentitySequence = 0;
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function ensureEquipmentLoadoutItemIdentity(item) {
     if (!item || typeof item !== 'object') return null;
     if (typeof item.instanceId === 'string' && item.instanceId.trim()) return item.instanceId;
@@ -258,6 +255,14 @@ function isEquipmentLoadoutItemReferenced(item, targetGame = game) {
     return state.presets.some(preset => preset
         && EQUIPMENT_LOADOUT_SLOT_KEYS.some(slot => getEquipmentLoadoutSavedIdentity(preset.slots[slot]) === identity));
 }
+
+exposeFileGlobals({ ensureEquipmentLoadoutItemIdentity, getEquipmentLoadoutItemIdentity, getEquipmentLoadoutOwnedItems, ensureEquipmentLoadoutState, getEquipmentLoadoutInspection, saveEquipmentLoadoutPreset, applyEquipmentLoadoutPreset, renameEquipmentLoadoutPreset, clearEquipmentLoadoutPreset, isEquipmentLoadoutItemReferenced });
+})();
+const EQUIPMENT_LOADOUT_PRESET_LIMIT = 3;
+const EQUIPMENT_LOADOUT_SLOT_KEYS = Object.freeze(Object.keys(defaultGame.equipment));
+const EQUIPMENT_LOADOUT_IDENTITY_VERSION = 1;
+let equipmentLoadoutIdentitySequence = 0;
+
 
 const equipmentLoadoutRuntime = Object.freeze({
     limit: EQUIPMENT_LOADOUT_PRESET_LIMIT,

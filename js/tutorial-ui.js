@@ -1,4 +1,406 @@
 /** Coach card spacing in px: from what it points at, and from the screen edges. */
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
+function rectsOverlap(a, b) {
+    return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+/** The card still sits where it was placed for this target and the same kind of focus (a pinned spot such as the tree's
+ * node cluster, or the whole target — the cluster has no screen position until the tree is first drawn). */
+function tutorialSamePlacement(placed, next) {
+    return !!placed && placed.target === next.target && placed.pinned === next.pinned;
+}
+
+function tutorialRectOf(box) {
+    return { left: box.left, top: box.top, right: box.left + box.width, bottom: box.top + box.height };
+}
+
+function tutorialRectFits(box) {
+    const edge = TUTORIAL_CARD_EDGE;
+    return box.left >= edge && box.top >= edge && box.left + box.width <= innerWidth - edge && box.top + box.height <= innerHeight - edge;
+}
+
+/** Rects of the selectors' first matches that are on screen. */
+function tutorialVisibleRects(selectors) {
+    return selectors.map(selector => document.querySelector(selector))
+        .filter(node => node && node.getClientRects().length).map(node => node.getBoundingClientRect());
+}
+
+/** Coach card spots in order of preference (see tutorialActionUi.placeCard): beside the target's window on the free
+ * battlefield, left / right of the focus, below / above it, then the CSS home. Below comes first: on phones the tree's
+ * start sits low with its branches above, and a target too low for the card below gets it above. Spots stay on screen
+ * and above home's bottom edge, which CSS keeps clear of the HUD orbs, the minimap and the phone tab bar. */
+function tutorialCardSpots(focus, target, home) {
+    const width = home.width, height = home.height, gap = TUTORIAL_CARD_GAP;
+    const frame = target.closest('.ui-window-open');
+    const pane = frame ? frame.getBoundingClientRect() : null;
+    const row = Math.max(TUTORIAL_CARD_EDGE, Math.min(home.bottom - height, focus.top));
+    const column = Math.max(TUTORIAL_CARD_EDGE, Math.min(innerWidth - TUTORIAL_CARD_EDGE - width, focus.left));
+    const spots = [
+        ...(pane ? [{ left: pane.left - gap - width, top: row }, { left: pane.right + gap, top: row }] : []),
+        { left: focus.left - gap - width, top: row }, { left: focus.right + gap, top: row },
+        { left: column, top: focus.bottom + gap }, { left: column, top: focus.top - gap - height },
+        { left: home.left, top: home.top }
+    ];
+    return spots.map(spot => tutorialRectOf({ ...spot, width, height }))
+        .filter(rect => rect.left >= TUTORIAL_CARD_EDGE && rect.top >= TUTORIAL_CARD_EDGE && rect.right <= innerWidth - TUTORIAL_CARD_EDGE && rect.bottom <= home.bottom);
+}
+
+/** 안내가 연 창은 맨 위에서 시작해(남아 있던 스크롤에 창 머리가 잘려 보였다) 가리키는 칸이 다 보일 만큼만 내린다. */
+function revealTutorialTarget(target) {
+    const scroller = tutorialScrollParent(target);
+    if (scroller) scroller.scrollTop = 0;
+    target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (scroller && scroller.classList.contains('ui-window-body')) tidyTutorialScroll(scroller, target);
+}
+
+function tutorialScrollParent(node) {
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+        if (parent.scrollHeight > parent.clientHeight && /(auto|scroll)/.test(getComputedStyle(parent).overflowY)) return parent;
+    }
+    return null;
+}
+
+/** 창 몸통의 맨 윗줄(직계 자식)이 반쯤 잘려 보이면 칸이 다 보이는 한 그 줄을 통째로 넘긴다 — 1440×900의 스킬룬 창은 첫 룬
+ * 카드가 다 보이려면 44px을 내려야 해 '현재 전투 세팅' 단추가 반으로 잘렸다(검토 2026-10-01). */
+function tidyTutorialScroll(scroller, target) {
+    const offset = scroller.scrollTop, top = scroller.getBoundingClientRect().top + scroller.clientTop;
+    const span = node => { const rect = node.getBoundingClientRect(); return { start: offset + rect.top - top, end: offset + rect.bottom - top }; };
+    const rows = [...scroller.children].filter(node => node.getClientRects().length).map(span);
+    const index = rows.findIndex(row => row.end > offset), cut = rows[index], next = rows[index + 1];
+    if (!offset || !cut || cut.start >= offset || !next) return;
+    const clean = Math.max(cut.end, next.start - parseFloat(getComputedStyle(scroller).paddingTop));
+    if (clean <= span(target).start) scroller.scrollTop = clean;
+}
+
+function tutorialNoticeKind(notice) {
+    if (TUTORIAL_START_KEYS.has(notice.key)) return 'start';
+    if (String(notice.key).startsWith('notice_')) return 'notice';
+    return String(notice.key).startsWith('unlock_content_loop_') ? 'loop' : 'content';
+}
+
+/** Colour in card text: ‘menu or button’ in the card's kind colour (where to go), [item name] in blue (what it is). */
+function tutorialMarkup(line) {
+    return escapeHTML(line)
+        .replace(/‘([^’]+)’/g, '<span class="tutorial-ui">$1</span>')
+        .replace(/\[([^\]]+)\]/g, '<span class="tutorial-name">[$1]</span>');
+}
+
+/** First line = what happened; the rest = what to do, as a short list (a line of speech in “…” keeps it prose). */
+/** A story line over a notice, styled like the loop close (js/loop-ui.js storyHtml). lore: { speaker, quote } as in
+ * data/story-journal.js STORY_LOOP_MILESTONES (the stump box card: who hands the box over says it as it is given). */
+function tutorialQuoteHtml(lore) {
+    if (!lore || !lore.quote) return '';
+    return `<blockquote class="story-scene-quote"><p>${escapeHTML(_t(lore.quote))} - ${escapeHTML(_t(speakerShortName(lore.speaker)))}</p></blockquote>`;
+}
+
+function tutorialBodyHtml(body, params) {
+    const [lead = '', ...rest] = _t(String(body || ''), params).split('\n').map(line => line.trim()).filter(Boolean);
+    const head = `<p class="tutorial-summary">${tutorialMarkup(lead)}</p>`;
+    if (!rest.length) return head;
+    if (rest.some(line => /^[\u201c"]/.test(line))) return head + rest.map(line => `<p class="tutorial-line">${tutorialMarkup(line)}</p>`).join('');
+    return head + `<ul class="tutorial-steps">${rest.map(line => `<li>${tutorialMarkup(line)}</li>`).join('')}</ul>`;
+}
+
+function tutorialOpenLabel(notice) {
+    if (tutorialActionUi.guideFor(notice.key)) return _t('따라 해보기');
+    if (notice.openLabel) return _t(notice.openLabel);
+    const name = TUTORIAL_TAB_NAMES[notice.tabId];
+    return name ? _t('{name} 열기', { name: _t(name) }) : _t('화면 열기');
+}
+
+/** "○○ 열기": an unlock card opens its exact screen (sub-tab, explore list, section); other cards open their tab. */
+function openTutorialTarget(notice) {
+    if (notice.contentId && contentUnlockUi.open(notice.contentId)) return;
+    const { tabId, subtabId } = notice;
+    if (tabId) switchTab(tabId, { keepWindowOpen: true });
+    if (subtabId && tabId === 'tab-items') switchItemSubtab(subtabId);
+    if (subtabId && tabId === 'tab-map') openMapTutorialTarget(subtabId);
+    if (notice.atlasView && typeof atlasUi === 'object') atlasUi.setView(notice.atlasView);
+}
+
+/** A map card may aim at an explore sub-tab (map-explore-*): open the zones tab, then that explore tab. */
+function openMapTutorialTarget(subtabId) {
+    if (!subtabId.startsWith('map-explore-')) return switchMapSubtab(subtabId);
+    switchMapSubtab('map-tab-zones');
+    switchMapExploreSubtab(subtabId);
+}
+
+/** "다음 안내 N": how many more cards will follow this one. The counter sits in the card's top-right corner. */
+function syncTutorialQueueCount() {
+    let count = document.getElementById('tutorial-queue-count');
+    const card = count ? null : document.querySelector?.('#tutorial-overlay .tutorial-card');
+    if (card) {
+        count = document.createElement('span');
+        count.id = 'tutorial-queue-count';
+        count.className = 'tutorial-queue-count';
+        card.prepend(count);
+    }
+    if (!count) return;
+    const waiting = tutorialQueue.filter(tutorialNoticeAllowed).length;
+    count.hidden = waiting === 0;
+    count.textContent = waiting ? _t('다음 안내 {waiting}', { waiting }) : '';
+}
+
+function renderTutorialStep() {
+    if (!activeTutorial) return;
+    if (storyJournalUi.renderTutorial(activeTutorial)) return;
+    const kind = tutorialNoticeKind(activeTutorial), overlay = document.getElementById('tutorial-overlay');
+    if (overlay.dataset) overlay.dataset.noticeKind = kind;
+    document.getElementById('tutorial-kicker').innerText = _t(TUTORIAL_KIND_LABELS[kind]);
+    document.getElementById('tutorial-title').innerText = _t(activeTutorial.title);
+    syncTutorialQueueCount();
+    let pauseEnabled = game.settings.pauseGameOnOverlay !== false;
+    let pauseControl = activeTutorial.key === 'tutorial_battle_basics' ? `
+        <label class="cfg-toggle tutorial-pause-toggle">
+            <input type="checkbox" id="tutorial-pause-overlay-toggle" ${pauseEnabled ? 'checked' : ''}>
+            <span class="cfg-label"><b>${_t('안내 중 전투 일시 정지')}</b><small>${_t('이후 {settingsMenuPath}에서 언제든 변경할 수 있습니다.', { settingsMenuPath: settingsMenuPath() })}</small></span>
+            <strong id="tutorial-pause-overlay-status">${pauseEnabled ? _t('켜짐') : _t('꺼짐')}</strong>
+        </label>` : '';
+    // 본문은 줄바꿈을 살려 보이므로(pre-line) 템플릿 앞의 줄바꿈이 빈 줄이 되지 않게 다듬는다.
+    document.getElementById('tutorial-body').innerHTML = tutorialActionUi.noticeBody(activeTutorial, pauseControl);
+    let pauseToggle = document.getElementById('tutorial-pause-overlay-toggle');
+    if (pauseToggle) {
+        pauseToggle.checked = pauseEnabled;
+        pauseToggle.addEventListener('change', () => {
+            let enabled = !!pauseToggle.checked;
+            game.settings.pauseGameOnOverlay = enabled;
+            let settingsToggle = document.getElementById('chk-pause-overlay');
+            let status = document.getElementById('tutorial-pause-overlay-status');
+            if (settingsToggle) settingsToggle.checked = enabled;
+            if (status) status.innerText = enabled ? _t('켜짐') : _t('꺼짐');
+            if (typeof queueImportantSave === 'function') queueImportantSave(0);
+        });
+    }
+    const hasShortcut = !!activeTutorial.tabId || !!activeTutorial.subtabId;
+    const openButton = document.getElementById('tutorial-open-btn');
+    const dismissButton = document.getElementById('tutorial-dismiss-btn');
+    openButton.style.display = hasShortcut ? 'inline-block' : 'none';
+    openButton.innerHTML = `<span class="px-center">${escapeHTML(tutorialOpenLabel(activeTutorial))}</span>`;
+    dismissButton.innerText = _t('확인');
+}
+
+/** A guide card waits while the act title card is on screen (a story scene does not: the title card waits for it). */
+function tutorialWaitsForTitleCard() {
+    const next = tutorialQueue[0];
+    if (!next || String(next.key).startsWith('story_')) return false;
+    return typeof actTitleCard === 'object' && typeof actTitleCard.busy === 'function' && actTitleCard.busy();
+}
+
+/** 설정으로 가는 길: 휴대폰은 하단 "전체" 서랍, PC는 HUD의 "기타" 목록. */
+function settingsMenuPath() {
+    return _t(isMobilePrimaryNavigationEnabled() ? '전체 → 설정' : '기타 → 설정');
+}
+
+function isTutorialPresentationBlocked() {
+    if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
+    // 방치 전투를 되돌리는 중이거나 그 결과 창이 열려 있으면 이야기 · 안내 카드는 결과를 닫은 뒤에 뜬다(두 판이 겹쳤다).
+    if (backgroundCombatRuntime.processing || document.getElementById('background-combat-result-overlay')) return true;
+    if (tutorialWaitsForTitleCard() || tutorialYieldsToMenus() || tutorialWaitsForReward()) return true;
+    return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen', 'isOpeningIntroOpen']
+        .some(name => typeof window[name] === 'function' && window[name]());
+}
+
+/** 방치 결과 창이 뜰 때 이미 떠 있던 이야기 · 안내 카드는 접어 줄 맨 앞에 돌려놓는다 — 다시 불러온 뒤 이야기 카드 위에
+ * 결과 창이 겹쳤다(검토 6차). 결과를 닫으면 showNextTutorial이 다시 띄운다. */
+function yieldTutorialCardToResult() {
+    if (!activeTutorial) return;
+    tutorialQueue.unshift(activeTutorial);
+    document.getElementById('tutorial-overlay')?.classList.remove('active');
+    clearTutorialCallout();
+    activeTutorial = null;
+    activeTutorialStep = 0;
+}
+
+/** 휴대폰 전체 메뉴 서랍이나 확인 창(모달 dialog)이 열려 있으면 안내 카드는 닫힌 뒤에 뜬다 — 열린 서랍 위에 카드가 그려져 메뉴를 가렸다. */
+function tutorialYieldsToMenus() {
+    return document.body.classList.contains('mobile-tab-drawer-open') || !!document.querySelector('dialog:modal');
+}
+
+function refreshTutorialCardPlacement() {
+    if (!activeTutorial) return;
+    const signature = [...document.querySelectorAll('.tab-content.ui-window.ui-window-open')].map(node => node.id).join(',');
+    if (signature === tutorialCardWindowSignature) return;
+    tutorialCardWindowSignature = signature;
+    placeTutorialCard();
+}
+
+/** The first map notice sends the player to the act reward; after claiming it, the map button remains the way back. */
+function tutorialNoticeAllowed(notice) {
+    if (notice.key === 'unlock_map' && (game.claimedActRewards || []).includes(0)) return false;
+    if (notice.key === 'tutorial_passive_tree_unlock' && contentProgression.isUnlocked('passiveTree')) return false;
+    if (notice.key === 'tutorial_first_passive' && game.passives.length > 0) return false;
+    return storyJournalUi.allowsNotice(notice.key) && contentProgression.canOpen(notice.tabId) && contentProgression.canOpen(notice.subtabId);
+}
+
+function tutorialWaitsForReward() {
+    return !!tutorialQueue[0] && !String(tutorialQueue[0].key).startsWith('story_') && actRewardPromptPending();
+}
+
+function tutorialQueueIsHeld() { return tutorialActionUi.holdsQueue() || Date.now() < tutorialActionUi.quietUntil; }
+
+/** 안내 기록(game.tutorialHistory)이 바뀌면 바로 저장한다. 시작 화면이 떠 있는 동안은 빈 게임이라 저장하지 않는다. */
+function saveTutorialHistoryChange() {
+    const revision = window.GameModules.state.tutorials.revision;
+    if (revision === savedTutorialRevision || (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen())) return;
+    savedTutorialRevision = revision;
+    queueImportantSave(0);
+}
+
+function tutorialShown(node) {
+    return !!(node && node.classList && node.getClientRects && node.getClientRects().length);
+}
+
+/** The menu buttons of the screen a card points to: the tab's own button when it is on screen; otherwise that button
+ * (it lights up once its menu opens) plus the visible button that opens it — the merged launcher, 기타 or 전체. */
+function tutorialMenuButtons(tabId) {
+    const own = document.getElementById(`btn-${tabId}`);
+    if (tutorialShown(own)) return [own];
+    const group = typeof getMergedTabGroup === 'function' ? getMergedTabGroup(tabId) : null;
+    const ids = [group ? `btn-${group[1].launcher}` : '', ...TUTORIAL_MENU_OPENERS];
+    const opener = ids.map(id => (id ? document.getElementById(id) : null)).find(tutorialShown) || null;
+    return [own, opener].filter(node => node && node.classList);
+}
+
+function clearTutorialCallout() {
+    clearTimeout(tutorialCalloutTimer);
+    tutorialCallouts.forEach(node => node.classList.remove('tutorial-callout'));
+    tutorialCallouts = [];
+}
+
+/** Pulses those buttons while the card is up (holdMs 0) and a little after a plain 확인 (holdMs), so a newly
+ * opened screen can be found again. */
+function setTutorialCallout(tabId, holdMs) {
+    clearTutorialCallout();
+    tutorialCallouts = tabId ? tutorialMenuButtons(tabId) : [];
+    tutorialCallouts.forEach(node => node.classList.add('tutorial-callout'));
+    if (holdMs && tutorialCallouts.length) tutorialCalloutTimer = setTimeout(clearTutorialCallout, holdMs);
+}
+
+/** 지금 든 무기로 쓸 수 없는 룬을 가졌는가(무기를 바꿔 기본 공격으로 물러난 주 공격 룬 포함): 무기 규칙 안내를 띄울 때. */
+function ownsWeaponBlockedRune(state) {
+    // 첫 처치의 직업 무기를 기다리며 쉬는 기초 스킬은 세지 않는다: 그 무기를 들면 바로 돌아온다(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill).
+    if (!state.loopStarterWeaponGranted || state.starterWeaponTutorialPending != null) return false;
+    const stance = getEquippedWeaponStance();
+    return !!state.weaponBlockedSkill || (state.skills || []).some(name => !isSkillRuneUsableWithStance(name, stance));
+}
+
+function queueStarterGuides(state) {
+    queuePassiveTreeGuides(state);
+    if ((state.season || 1) > 1 || (state.loopCount || 0) > 0) return;
+    contentProgression.opening.sync(state);
+    const seen = state.seenTutorials || [];
+    TUTORIAL_STARTER_GUIDES.filter(guide => !seen.includes(guide.seenAs) && contentProgression.opening.canOpen(state, guide.tabId) && guide.starterDue(state))
+        .forEach(guide => queueTutorialNotice(guide.key, guide.title, guide.body, guide.tabId));
+}
+
+function queuePassiveTreeGuides(state) {
+    if (state.season < 2) return;
+    if (!contentProgression.canOpen('tab-char', state)) {
+        if (state.season === 2) queueTutorialNotice('tutorial_passive_tree_unlock', _t('스킬트리 해금'),
+            _t('해금 포인트 1점을 써서 스킬트리를 여세요.'), 'tab-unlocks');
+        return;
+    }
+    if (state.level < 2 || state.passivePoints < 1 || state.passives.length) return;
+    if (state.seenTutorials.includes('tutorial_first_passive') || state.seenTutorials.includes('unlock_char')) return;
+    queueTutorialNotice('tutorial_first_passive', _t('첫 스킬트리 포인트'),
+        _t('시작점 옆에 빛나는 노드 하나를 골라 1포인트를 쓰세요.'), 'tab-char');
+}
+
+/** Wide screens: centre the guide card right above the player HUD (life orb and panel) so it covers neither the combat
+ * log nor the minimap. Phones keep the bottom sheet from CSS. Coordinates are divided by the display zoom. */
+function placeTutorialCard() {
+    const overlay = document.getElementById('tutorial-overlay');
+    if (!overlay || !overlay.style) return;
+    const hud = document.querySelector('.combat-top-status.player-hud'), orb = document.getElementById('ui-hp-bar');
+    const rect = hud ? hud.getBoundingClientRect() : null;
+    if (!rect || !rect.width || uiDisplay.matches('(max-width: 1080px)')) {
+        overlay.style.removeProperty('--tutorial-anchor-left');
+        overlay.style.removeProperty('--tutorial-anchor-bottom');
+        return;
+    }
+    const factor = uiDisplay.factor || 1, viewWidth = window.innerWidth / factor, width = Math.min(420, viewWidth - 24);
+    const top = Math.min(rect.top, orb ? orb.getBoundingClientRect().top : rect.top) / factor;
+    const centred = Math.max(12, Math.min(viewWidth - width - 12, (rect.left + rect.width / 2) / factor - width / 2));
+    const left = tutorialLeftClearOfWindows(centred, width, factor);
+    overlay.style.setProperty('--tutorial-anchor-left', `${Math.round(left)}px`);
+    overlay.style.setProperty('--tutorial-anchor-bottom', `${Math.round(window.innerHeight / factor - top + 10)}px`);
+}
+
+/** An open window docked beside the HUD (equipment, skills…) keeps its content: the card slides left into the free
+ * battlefield when there is room, otherwise it stays centred over the HUD. */
+function tutorialLeftClearOfWindows(left, width, factor) {
+    let limit = Infinity;
+    document.querySelectorAll('.tab-content.ui-window.ui-window-open').forEach(node => {
+        const rect = node.getBoundingClientRect();
+        if (rect.width && rect.left / factor < left + width && rect.right / factor > left) limit = Math.min(limit, rect.left / factor);
+    });
+    return limit !== Infinity && limit - width - 12 >= 12 ? Math.min(left, limit - width - 12) : left;
+}
+
+function advanceTutorial() {
+    if (!activeTutorial) return;
+    dismissTutorial(true);
+}
+
+/** 첫 무기 안내를 따라 하지 않고 닫으면 그 무기를 대신 장착한다: 맨손이면 기초 스킬을 못 쓰고 기본 공격으로만 싸운다
+ * (예전 첫 스킬룬 안내와 같은 까닭, 검토 2026-10-01). 바꾸고 싶으면 '장비'에서 언제든 바꾼다. */
+function equipSkippedStarterWeapon(key) {
+    const item = getStarterWeaponTutorialTarget();
+    if (key !== basicSkills.weaponGuide || !item) return;
+    if (equipItemById(item.id)) showGameToast(_t("[{name}] 무기를 장착했습니다, '장비'에서 바꿀 수 있습니다", { name: _t(item.name) }), { tone: 'success' });
+    game.starterWeaponTutorialPending = null;
+}
+
+/** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 무기는 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */
+function applySkippedGuide(key) {
+    if (contentProgression.opening.applies(game)) return;
+    equipSkippedStarterWeapon(key);
+    plantSkippedStumpStarter(key);
+}
+
+/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗을 판의 가운데부터 대신 놓는다(첫 무기와 같은 이유). */
+function plantSkippedStumpStarter(key) {
+    if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
+    if (stumpBox.plantStored(game) > 0) showGameToast(_t('그루터기 함: 받은 씨앗을 배치했습니다'), { tone: 'success' });
+}
+
+/** A loaded save owns its pending/displayed records. Discard the old foreground without acknowledging it. */
+function discardQueuedNotices() {
+    tutorialQueue.length = 0;
+    window.GameModules.state.tutorials.reset();
+    tutorialActionUi.finish(false, true);
+    if (!activeTutorial) return;
+    document.getElementById('tutorial-overlay').classList.remove('active');
+    activeTutorial = null;
+    activeTutorialStep = 0;
+}
+
+function dismissTutorial(openTarget, status = 'read') {
+    if (!activeTutorial) return;
+    const notice = activeTutorial, tabId = notice.tabId;
+    window.GameModules.state.tutorials.transition(game, notice.key, status);
+    document.getElementById('tutorial-overlay').classList.remove('active');
+    activeTutorial = null;
+    activeTutorialStep = 0;
+    lastTime = Date.now();
+    setTutorialCallout(openTarget ? null : tabId, 6000);
+    // Phone notices held while the card was up: after the next card (if any) has had its turn.
+    setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
+    if (!openTarget) {
+        if (status === 'read' && !notice.replay) applySkippedGuide(notice.key);
+        queueImportantSave(0);
+        return tutorialActionUi.waitBetweenNotices();
+    }
+    queueImportantSave(0);
+    if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
+    openTutorialTarget(notice);
+    if (['tutorial_first_gear', 'unlock_items'].includes(notice.key)) tutorialActionUi.openEquipment();
+    tutorialActionUi.waitBetweenNotices();
+}
+
+exposeFileGlobals({ rectsOverlap, tutorialSamePlacement, tutorialRectOf, tutorialRectFits, tutorialVisibleRects, tutorialCardSpots, revealTutorialTarget, tutorialMarkup, tutorialQuoteHtml, tutorialBodyHtml, renderTutorialStep, settingsMenuPath, isTutorialPresentationBlocked, yieldTutorialCardToResult, refreshTutorialCardPlacement, tutorialNoticeAllowed, tutorialQueueIsHeld, saveTutorialHistoryChange, setTutorialCallout, ownsWeaponBlockedRune, queueStarterGuides, placeTutorialCard, advanceTutorial, equipSkippedStarterWeapon, applySkippedGuide, discardQueuedNotices, dismissTutorial });
+})();
 const TUTORIAL_CARD_GAP = 12, TUTORIAL_CARD_EDGE = 8;
 /** Hover tooltips the coach card is placed clear of (they in turn avoid the card, see clearTooltipSpot). */
 const TUTORIAL_TOOLTIPS = Object.freeze(['#info-tooltip', '#canvas-tooltip', '#item-tooltip-box']);
@@ -84,7 +486,7 @@ const tutorialActionUi = {
             keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected', '#skill-tab-equip .skill-board-head']
         },
         starter_weapon: {
-            // 첫 루프의 시작 무기(js/combat.js grantLoopStarterWeaponOnFirstKill, 2026-11-09): 장비 상세가 열려 있으면 그 '장착' 단추를, 아니면 가방의 무기를 가리킨다.
+            // 첫 루프의 시작 무기(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill, 2026-11-09): 장비 상세가 열려 있으면 그 '장착' 단추를, 아니면 가방의 무기를 가리킨다.
             selector: ['#tab-items .equipment-card-primary', '#ui-inventory-list .equipment-grid-item'],
             title: '무기 장착',
             body: '가방의 무기를 누르고 ‘장착’을 누르세요. 무기를 들면 기초 스킬로 싸웁니다.',
@@ -334,69 +736,6 @@ const tutorialActionUi = {
     }
 };
 
-function rectsOverlap(a, b) {
-    return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-}
-/** The card still sits where it was placed for this target and the same kind of focus (a pinned spot such as the tree's
- * node cluster, or the whole target — the cluster has no screen position until the tree is first drawn). */
-function tutorialSamePlacement(placed, next) {
-    return !!placed && placed.target === next.target && placed.pinned === next.pinned;
-}
-function tutorialRectOf(box) {
-    return { left: box.left, top: box.top, right: box.left + box.width, bottom: box.top + box.height };
-}
-function tutorialRectFits(box) {
-    const edge = TUTORIAL_CARD_EDGE;
-    return box.left >= edge && box.top >= edge && box.left + box.width <= innerWidth - edge && box.top + box.height <= innerHeight - edge;
-}
-/** Rects of the selectors' first matches that are on screen. */
-function tutorialVisibleRects(selectors) {
-    return selectors.map(selector => document.querySelector(selector))
-        .filter(node => node && node.getClientRects().length).map(node => node.getBoundingClientRect());
-}
-/** Coach card spots in order of preference (see tutorialActionUi.placeCard): beside the target's window on the free
- * battlefield, left / right of the focus, below / above it, then the CSS home. Below comes first: on phones the tree's
- * start sits low with its branches above, and a target too low for the card below gets it above. Spots stay on screen
- * and above home's bottom edge, which CSS keeps clear of the HUD orbs, the minimap and the phone tab bar. */
-function tutorialCardSpots(focus, target, home) {
-    const width = home.width, height = home.height, gap = TUTORIAL_CARD_GAP;
-    const frame = target.closest('.ui-window-open');
-    const pane = frame ? frame.getBoundingClientRect() : null;
-    const row = Math.max(TUTORIAL_CARD_EDGE, Math.min(home.bottom - height, focus.top));
-    const column = Math.max(TUTORIAL_CARD_EDGE, Math.min(innerWidth - TUTORIAL_CARD_EDGE - width, focus.left));
-    const spots = [
-        ...(pane ? [{ left: pane.left - gap - width, top: row }, { left: pane.right + gap, top: row }] : []),
-        { left: focus.left - gap - width, top: row }, { left: focus.right + gap, top: row },
-        { left: column, top: focus.bottom + gap }, { left: column, top: focus.top - gap - height },
-        { left: home.left, top: home.top }
-    ];
-    return spots.map(spot => tutorialRectOf({ ...spot, width, height }))
-        .filter(rect => rect.left >= TUTORIAL_CARD_EDGE && rect.top >= TUTORIAL_CARD_EDGE && rect.right <= innerWidth - TUTORIAL_CARD_EDGE && rect.bottom <= home.bottom);
-}
-/** 안내가 연 창은 맨 위에서 시작해(남아 있던 스크롤에 창 머리가 잘려 보였다) 가리키는 칸이 다 보일 만큼만 내린다. */
-function revealTutorialTarget(target) {
-    const scroller = tutorialScrollParent(target);
-    if (scroller) scroller.scrollTop = 0;
-    target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    if (scroller && scroller.classList.contains('ui-window-body')) tidyTutorialScroll(scroller, target);
-}
-function tutorialScrollParent(node) {
-    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
-        if (parent.scrollHeight > parent.clientHeight && /(auto|scroll)/.test(getComputedStyle(parent).overflowY)) return parent;
-    }
-    return null;
-}
-/** 창 몸통의 맨 윗줄(직계 자식)이 반쯤 잘려 보이면 칸이 다 보이는 한 그 줄을 통째로 넘긴다 — 1440×900의 스킬룬 창은 첫 룬
- * 카드가 다 보이려면 44px을 내려야 해 '현재 전투 세팅' 단추가 반으로 잘렸다(검토 2026-10-01). */
-function tidyTutorialScroll(scroller, target) {
-    const offset = scroller.scrollTop, top = scroller.getBoundingClientRect().top + scroller.clientTop;
-    const span = node => { const rect = node.getBoundingClientRect(); return { start: offset + rect.top - top, end: offset + rect.bottom - top }; };
-    const rows = [...scroller.children].filter(node => node.getClientRects().length).map(span);
-    const index = rows.findIndex(row => row.end > offset), cut = rows[index], next = rows[index + 1];
-    if (!offset || !cut || cut.start >= offset || !next) return;
-    const clean = Math.max(cut.end, next.start - parseFloat(getComputedStyle(scroller).paddingTop));
-    if (clean <= span(target).start) scroller.scrollTop = clean;
-}
 window.addEventListener('resize', () => tutorialActionUi.reposition());
 
 // 안내 카드 종류: 처음 하는 조작(시작 안내), 새로 열린 콘텐츠(새 콘텐츠), 루프 도달(새 루프), 규칙이 바뀐 알림(notice_ 키). 이야기 장면은
@@ -417,171 +756,17 @@ const TUTORIAL_TAB_NAMES = Object.freeze({
     'tab-season': '루프 패시브', 'tab-traits': '전직', 'tab-talent': '재능', 'tab-codex': '도감',
     'tab-stump': '그루터기 함', 'tab-settings': '설정', 'tab-journal': '기록', 'tab-records': '전적', 'tab-trade': '거래'
 });
-function tutorialNoticeKind(notice) {
-    if (TUTORIAL_START_KEYS.has(notice.key)) return 'start';
-    if (String(notice.key).startsWith('notice_')) return 'notice';
-    return String(notice.key).startsWith('unlock_content_loop_') ? 'loop' : 'content';
-}
-/** Colour in card text: ‘menu or button’ in the card's kind colour (where to go), [item name] in blue (what it is). */
-function tutorialMarkup(line) {
-    return escapeHTML(line)
-        .replace(/‘([^’]+)’/g, '<span class="tutorial-ui">$1</span>')
-        .replace(/\[([^\]]+)\]/g, '<span class="tutorial-name">[$1]</span>');
-}
-/** First line = what happened; the rest = what to do, as a short list (a line of speech in “…” keeps it prose). */
-/** A story line over a notice, styled like the loop close (js/loop-ui.js storyHtml). lore: { speaker, quote } as in
- * data/story-journal.js STORY_LOOP_MILESTONES (the stump box card: who hands the box over says it as it is given). */
-function tutorialQuoteHtml(lore) {
-    if (!lore || !lore.quote) return '';
-    return `<blockquote class="story-scene-quote"><p>${escapeHTML(_t(lore.quote))} - ${escapeHTML(_t(speakerShortName(lore.speaker)))}</p></blockquote>`;
-}
-function tutorialBodyHtml(body, params) {
-    const [lead = '', ...rest] = _t(String(body || ''), params).split('\n').map(line => line.trim()).filter(Boolean);
-    const head = `<p class="tutorial-summary">${tutorialMarkup(lead)}</p>`;
-    if (!rest.length) return head;
-    if (rest.some(line => /^[\u201c"]/.test(line))) return head + rest.map(line => `<p class="tutorial-line">${tutorialMarkup(line)}</p>`).join('');
-    return head + `<ul class="tutorial-steps">${rest.map(line => `<li>${tutorialMarkup(line)}</li>`).join('')}</ul>`;
-}
-function tutorialOpenLabel(notice) {
-    if (tutorialActionUi.guideFor(notice.key)) return _t('따라 해보기');
-    if (notice.openLabel) return _t(notice.openLabel);
-    const name = TUTORIAL_TAB_NAMES[notice.tabId];
-    return name ? _t('{name} 열기', { name: _t(name) }) : _t('화면 열기');
-}
-/** "○○ 열기": an unlock card opens its exact screen (sub-tab, explore list, section); other cards open their tab. */
-function openTutorialTarget(notice) {
-    if (notice.contentId && contentUnlockUi.open(notice.contentId)) return;
-    const { tabId, subtabId } = notice;
-    if (tabId) switchTab(tabId, { keepWindowOpen: true });
-    if (subtabId && tabId === 'tab-items') switchItemSubtab(subtabId);
-    if (subtabId && tabId === 'tab-map') openMapTutorialTarget(subtabId);
-    if (notice.atlasView && typeof atlasUi === 'object') atlasUi.setView(notice.atlasView);
-}
-/** A map card may aim at an explore sub-tab (map-explore-*): open the zones tab, then that explore tab. */
-function openMapTutorialTarget(subtabId) {
-    if (!subtabId.startsWith('map-explore-')) return switchMapSubtab(subtabId);
-    switchMapSubtab('map-tab-zones');
-    switchMapExploreSubtab(subtabId);
-}
-/** "다음 안내 N": how many more cards will follow this one. The counter sits in the card's top-right corner. */
-function syncTutorialQueueCount() {
-    let count = document.getElementById('tutorial-queue-count');
-    const card = count ? null : document.querySelector?.('#tutorial-overlay .tutorial-card');
-    if (card) {
-        count = document.createElement('span');
-        count.id = 'tutorial-queue-count';
-        count.className = 'tutorial-queue-count';
-        card.prepend(count);
-    }
-    if (!count) return;
-    const waiting = tutorialQueue.filter(tutorialNoticeAllowed).length;
-    count.hidden = waiting === 0;
-    count.textContent = waiting ? _t('다음 안내 {waiting}', { waiting }) : '';
-}
 
-function renderTutorialStep() {
-    if (!activeTutorial) return;
-    if (storyJournalUi.renderTutorial(activeTutorial)) return;
-    const kind = tutorialNoticeKind(activeTutorial), overlay = document.getElementById('tutorial-overlay');
-    if (overlay.dataset) overlay.dataset.noticeKind = kind;
-    document.getElementById('tutorial-kicker').innerText = _t(TUTORIAL_KIND_LABELS[kind]);
-    document.getElementById('tutorial-title').innerText = _t(activeTutorial.title);
-    syncTutorialQueueCount();
-    let pauseEnabled = game.settings.pauseGameOnOverlay !== false;
-    let pauseControl = activeTutorial.key === 'tutorial_battle_basics' ? `
-        <label class="cfg-toggle tutorial-pause-toggle">
-            <input type="checkbox" id="tutorial-pause-overlay-toggle" ${pauseEnabled ? 'checked' : ''}>
-            <span class="cfg-label"><b>${_t('안내 중 전투 일시 정지')}</b><small>${_t('이후 {settingsMenuPath}에서 언제든 변경할 수 있습니다.', { settingsMenuPath: settingsMenuPath() })}</small></span>
-            <strong id="tutorial-pause-overlay-status">${pauseEnabled ? _t('켜짐') : _t('꺼짐')}</strong>
-        </label>` : '';
-    // 본문은 줄바꿈을 살려 보이므로(pre-line) 템플릿 앞의 줄바꿈이 빈 줄이 되지 않게 다듬는다.
-    document.getElementById('tutorial-body').innerHTML = tutorialActionUi.noticeBody(activeTutorial, pauseControl);
-    let pauseToggle = document.getElementById('tutorial-pause-overlay-toggle');
-    if (pauseToggle) {
-        pauseToggle.checked = pauseEnabled;
-        pauseToggle.addEventListener('change', () => {
-            let enabled = !!pauseToggle.checked;
-            game.settings.pauseGameOnOverlay = enabled;
-            let settingsToggle = document.getElementById('chk-pause-overlay');
-            let status = document.getElementById('tutorial-pause-overlay-status');
-            if (settingsToggle) settingsToggle.checked = enabled;
-            if (status) status.innerText = enabled ? _t('켜짐') : _t('꺼짐');
-            if (typeof queueImportantSave === 'function') queueImportantSave(0);
-        });
-    }
-    const hasShortcut = !!activeTutorial.tabId || !!activeTutorial.subtabId;
-    const openButton = document.getElementById('tutorial-open-btn');
-    const dismissButton = document.getElementById('tutorial-dismiss-btn');
-    openButton.style.display = hasShortcut ? 'inline-block' : 'none';
-    openButton.innerHTML = `<span class="px-center">${escapeHTML(tutorialOpenLabel(activeTutorial))}</span>`;
-    dismissButton.innerText = _t('확인');
-}
 
-/** A guide card waits while the act title card is on screen (a story scene does not: the title card waits for it). */
-function tutorialWaitsForTitleCard() {
-    const next = tutorialQueue[0];
-    if (!next || String(next.key).startsWith('story_')) return false;
-    return typeof actTitleCard === 'object' && typeof actTitleCard.busy === 'function' && actTitleCard.busy();
-}
-/** 설정으로 가는 길: 휴대폰은 하단 "전체" 서랍, PC는 HUD의 "기타" 목록. */
-function settingsMenuPath() {
-    return _t(isMobilePrimaryNavigationEnabled() ? '전체 → 설정' : '기타 → 설정');
-}
 window.addEventListener('game:languagechange', () => { renderTutorialStep(); tutorialActionUi.refreshText(); });
 
-function isTutorialPresentationBlocked() {
-    if (game.pendingLoopHeroSelection || game.pendingLoopReady || game.pendingLoopDecision) return true;
-    // 방치 전투를 되돌리는 중이거나 그 결과 창이 열려 있으면 이야기 · 안내 카드는 결과를 닫은 뒤에 뜬다(두 판이 겹쳤다).
-    if (backgroundCombatRuntime.processing || document.getElementById('background-combat-result-overlay')) return true;
-    if (tutorialWaitsForTitleCard() || tutorialYieldsToMenus() || tutorialWaitsForReward()) return true;
-    return ['isStartupOverlayOpen', 'isLoadingOverlayOpen', 'isRewardOpen', 'isDeathOverlayOpen', 'isLoopHeroSelectOpen', 'isOpeningIntroOpen']
-        .some(name => typeof window[name] === 'function' && window[name]());
-}
-/** 방치 결과 창이 뜰 때 이미 떠 있던 이야기 · 안내 카드는 접어 줄 맨 앞에 돌려놓는다 — 다시 불러온 뒤 이야기 카드 위에
- * 결과 창이 겹쳤다(검토 6차). 결과를 닫으면 showNextTutorial이 다시 띄운다. */
-function yieldTutorialCardToResult() {
-    if (!activeTutorial) return;
-    tutorialQueue.unshift(activeTutorial);
-    document.getElementById('tutorial-overlay')?.classList.remove('active');
-    clearTutorialCallout();
-    activeTutorial = null;
-    activeTutorialStep = 0;
-}
-/** 휴대폰 전체 메뉴 서랍이나 확인 창(모달 dialog)이 열려 있으면 안내 카드는 닫힌 뒤에 뜬다 — 열린 서랍 위에 카드가 그려져 메뉴를 가렸다. */
-function tutorialYieldsToMenus() {
-    return document.body.classList.contains('mobile-tab-drawer-open') || !!document.querySelector('dialog:modal');
-}
 
 /** 떠 있는 안내 카드는 열린 창이 바뀌면 다시 자리를 잡는다 — 카드가 뜬 뒤 연 창(장비 등)의 내용을 덮고 있었다. */
 let tutorialCardWindowSignature = '';
-function refreshTutorialCardPlacement() {
-    if (!activeTutorial) return;
-    const signature = [...document.querySelectorAll('.tab-content.ui-window.ui-window-open')].map(node => node.id).join(',');
-    if (signature === tutorialCardWindowSignature) return;
-    tutorialCardWindowSignature = signature;
-    placeTutorialCard();
-}
 
-/** The first map notice sends the player to the act reward; after claiming it, the map button remains the way back. */
-function tutorialNoticeAllowed(notice) {
-    if (notice.key === 'unlock_map' && (game.claimedActRewards || []).includes(0)) return false;
-    if (notice.key === 'tutorial_passive_tree_unlock' && contentProgression.isUnlocked('passiveTree')) return false;
-    if (notice.key === 'tutorial_first_passive' && game.passives.length > 0) return false;
-    return storyJournalUi.allowsNotice(notice.key) && contentProgression.canOpen(notice.tabId) && contentProgression.canOpen(notice.subtabId);
-}
-function tutorialWaitsForReward() {
-    return !!tutorialQueue[0] && !String(tutorialQueue[0].key).startsWith('story_') && actRewardPromptPending();
-}
-function tutorialQueueIsHeld() { return tutorialActionUi.holdsQueue() || Date.now() < tutorialActionUi.quietUntil; }
 let savedTutorialRevision = -1;
-/** 안내 기록(game.tutorialHistory)이 바뀌면 바로 저장한다. 시작 화면이 떠 있는 동안은 빈 게임이라 저장하지 않는다. */
-function saveTutorialHistoryChange() {
-    const revision = window.GameModules.state.tutorials.revision;
-    if (revision === savedTutorialRevision || (typeof isStartupOverlayOpen === 'function' && isStartupOverlayOpen())) return;
-    savedTutorialRevision = revision;
-    queueImportantSave(0);
-}
 function showNextTutorial() {
+    if (gameEntryRunning) return;   // the entry calls this itself once the time away is settled (js/cloud-save-ui.js enterGameWorld)
     window.GameModules.state.tutorials.sync(game);
     saveTutorialHistoryChange();
     tutorialActionUi.expireNotice(Date.now());
@@ -611,157 +796,17 @@ function showNextTutorial() {
 let tutorialCallouts = [], tutorialCalloutTimer = null;
 // 탭 단추가 메뉴 안에 숨어 있을 때 대신 깜빡일 여는 단추: PC 레일의 기타, 좁은 레일의 기타, 휴대폰의 전체.
 const TUTORIAL_MENU_OPENERS = Object.freeze(['btn-ui-rail-misc', 'ui-rail-misc-toggle', 'btn-mobile-nav-more']);
-function tutorialShown(node) {
-    return !!(node && node.classList && node.getClientRects && node.getClientRects().length);
-}
-/** The menu buttons of the screen a card points to: the tab's own button when it is on screen; otherwise that button
- * (it lights up once its menu opens) plus the visible button that opens it — the merged launcher, 기타 or 전체. */
-function tutorialMenuButtons(tabId) {
-    const own = document.getElementById(`btn-${tabId}`);
-    if (tutorialShown(own)) return [own];
-    const group = typeof getMergedTabGroup === 'function' ? getMergedTabGroup(tabId) : null;
-    const ids = [group ? `btn-${group[1].launcher}` : '', ...TUTORIAL_MENU_OPENERS];
-    const opener = ids.map(id => (id ? document.getElementById(id) : null)).find(tutorialShown) || null;
-    return [own, opener].filter(node => node && node.classList);
-}
-function clearTutorialCallout() {
-    clearTimeout(tutorialCalloutTimer);
-    tutorialCallouts.forEach(node => node.classList.remove('tutorial-callout'));
-    tutorialCallouts = [];
-}
-/** Pulses those buttons while the card is up (holdMs 0) and a little after a plain 확인 (holdMs), so a newly
- * opened screen can be found again. */
-function setTutorialCallout(tabId, holdMs) {
-    clearTutorialCallout();
-    tutorialCallouts = tabId ? tutorialMenuButtons(tabId) : [];
-    tutorialCallouts.forEach(node => node.classList.add('tutorial-callout'));
-    if (holdMs && tutorialCallouts.length) tutorialCalloutTimer = setTimeout(clearTutorialCallout, holdMs);
-}
 /** First passive point and first piece of gear for a new character: the old tab-unlock notices that carried these
  * guides never fire now (the tabs start open). Saves that saw those notices (seenAs), and later loops, skip them. */
 const TUTORIAL_STARTER_GUIDES = Object.freeze([
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
         body: '장비를 얻었습니다. 자동 장착이 켜져 있으면 빈 칸에 맞는 장비를 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
         // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차). 무기 칸은 세지 않는다:
-        // 첫 처치가 떨어뜨리는 직업 무기(js/combat.js grantLoopStarterWeaponOnFirstKill)는 제 장착 안내가 맡는다(2026-11-09).
+        // 첫 처치가 떨어뜨리는 직업 무기(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill)는 제 장착 안내가 맡는다(2026-11-09).
         starterDue: state => (state.inventory || []).some(item => item && item.id !== state.starterWeaponTutorialPending)
             || Object.entries(state.equipment || {}).some(([slot, item]) => item && slot !== '무기') },
     { key: 'tutorial_weapon_rune', seenAs: 'tutorial_weapon_rune', tabId: 'tab-skills', title: '무기와 스킬룬',
         body: '스킬룬마다 쓸 수 있는 무기가 있습니다. 지금 무기로 쓸 수 없는 룬은 흐리게 보이고, 카드에 필요한 무기가 적혀 있습니다.\n장착한 룬을 쓸 수 없는 무기로 바꾸면 기본 공격으로 싸우다가, 맞는 무기를 들면 그 룬으로 돌아갑니다.',
         starterDue: state => ownsWeaponBlockedRune(state) }
 ]);
-/** 지금 든 무기로 쓸 수 없는 룬을 가졌는가(무기를 바꿔 기본 공격으로 물러난 주 공격 룬 포함): 무기 규칙 안내를 띄울 때. */
-function ownsWeaponBlockedRune(state) {
-    // 첫 처치의 직업 무기를 기다리며 쉬는 기초 스킬은 세지 않는다: 그 무기를 들면 바로 돌아온다(js/combat.js grantLoopStarterWeaponOnFirstKill).
-    if (!state.loopStarterWeaponGranted || state.starterWeaponTutorialPending != null) return false;
-    const stance = getEquippedWeaponStance();
-    return !!state.weaponBlockedSkill || (state.skills || []).some(name => !isSkillRuneUsableWithStance(name, stance));
-}
-function queueStarterGuides(state) {
-    queuePassiveTreeGuides(state);
-    if ((state.season || 1) > 1 || (state.loopCount || 0) > 0) return;
-    contentProgression.opening.sync(state);
-    const seen = state.seenTutorials || [];
-    TUTORIAL_STARTER_GUIDES.filter(guide => !seen.includes(guide.seenAs) && contentProgression.opening.canOpen(state, guide.tabId) && guide.starterDue(state))
-        .forEach(guide => queueTutorialNotice(guide.key, guide.title, guide.body, guide.tabId));
-}
-function queuePassiveTreeGuides(state) {
-    if (state.season < 2) return;
-    if (!contentProgression.canOpen('tab-char', state)) {
-        if (state.season === 2) queueTutorialNotice('tutorial_passive_tree_unlock', _t('스킬트리 해금'),
-            _t('해금 포인트 1점을 써서 스킬트리를 여세요.'), 'tab-unlocks');
-        return;
-    }
-    if (state.level < 2 || state.passivePoints < 1 || state.passives.length) return;
-    if (state.seenTutorials.includes('tutorial_first_passive') || state.seenTutorials.includes('unlock_char')) return;
-    queueTutorialNotice('tutorial_first_passive', _t('첫 스킬트리 포인트'),
-        _t('시작점 옆에 빛나는 노드 하나를 골라 1포인트를 쓰세요.'), 'tab-char');
-}
-/** Wide screens: centre the guide card right above the player HUD (life orb and panel) so it covers neither the combat
- * log nor the minimap. Phones keep the bottom sheet from CSS. Coordinates are divided by the display zoom. */
-function placeTutorialCard() {
-    const overlay = document.getElementById('tutorial-overlay');
-    if (!overlay || !overlay.style) return;
-    const hud = document.querySelector('.combat-top-status.player-hud'), orb = document.getElementById('ui-hp-bar');
-    const rect = hud ? hud.getBoundingClientRect() : null;
-    if (!rect || !rect.width || uiDisplay.matches('(max-width: 1080px)')) {
-        overlay.style.removeProperty('--tutorial-anchor-left');
-        overlay.style.removeProperty('--tutorial-anchor-bottom');
-        return;
-    }
-    const factor = uiDisplay.factor || 1, viewWidth = window.innerWidth / factor, width = Math.min(420, viewWidth - 24);
-    const top = Math.min(rect.top, orb ? orb.getBoundingClientRect().top : rect.top) / factor;
-    const centred = Math.max(12, Math.min(viewWidth - width - 12, (rect.left + rect.width / 2) / factor - width / 2));
-    const left = tutorialLeftClearOfWindows(centred, width, factor);
-    overlay.style.setProperty('--tutorial-anchor-left', `${Math.round(left)}px`);
-    overlay.style.setProperty('--tutorial-anchor-bottom', `${Math.round(window.innerHeight / factor - top + 10)}px`);
-}
-/** An open window docked beside the HUD (equipment, skills…) keeps its content: the card slides left into the free
- * battlefield when there is room, otherwise it stays centred over the HUD. */
-function tutorialLeftClearOfWindows(left, width, factor) {
-    let limit = Infinity;
-    document.querySelectorAll('.tab-content.ui-window.ui-window-open').forEach(node => {
-        const rect = node.getBoundingClientRect();
-        if (rect.width && rect.left / factor < left + width && rect.right / factor > left) limit = Math.min(limit, rect.left / factor);
-    });
-    return limit !== Infinity && limit - width - 12 >= 12 ? Math.min(left, limit - width - 12) : left;
-}
 window.addEventListener('resize', () => { if (activeTutorial) placeTutorialCard(); });
-function advanceTutorial() {
-    if (!activeTutorial) return;
-    dismissTutorial(true);
-}
-/** 첫 무기 안내를 따라 하지 않고 닫으면 그 무기를 대신 장착한다: 맨손이면 기초 스킬을 못 쓰고 기본 공격으로만 싸운다
- * (예전 첫 스킬룬 안내와 같은 까닭, 검토 2026-10-01). 바꾸고 싶으면 '장비'에서 언제든 바꾼다. */
-function equipSkippedStarterWeapon(key) {
-    const item = getStarterWeaponTutorialTarget();
-    if (key !== basicSkills.weaponGuide || !item) return;
-    if (equipItemById(item.id)) showGameToast(_t("[{name}] 무기를 장착했습니다, '장비'에서 바꿀 수 있습니다", { name: _t(item.name) }), { tone: 'success' });
-    game.starterWeaponTutorialPending = null;
-}
-
-/** 따라 하기를 하지 않고 닫은 안내의 뒷정리: 첫 무기는 장착하고, 그루터기 함 시작 선물은 판에 놓는다. */
-function applySkippedGuide(key) {
-    if (contentProgression.opening.applies(game)) return;
-    equipSkippedStarterWeapon(key);
-    plantSkippedStumpStarter(key);
-}
-/** 그루터기 함 시작 선물 안내를 닫으면 받은 씨앗을 판의 가운데부터 대신 놓는다(첫 무기와 같은 이유). */
-function plantSkippedStumpStarter(key) {
-    if (!TUTORIAL_GUIDED_CONTENT_KEYS.has(key) || !game.stumpBox || !game.stumpBox.acquired) return;
-    if (stumpBox.plantStored(game) > 0) showGameToast(_t('그루터기 함: 받은 씨앗을 배치했습니다'), { tone: 'success' });
-}
-
-/** A loaded save owns its pending/displayed records. Discard the old foreground without acknowledging it. */
-function discardQueuedNotices() {
-    tutorialQueue.length = 0;
-    window.GameModules.state.tutorials.reset();
-    tutorialActionUi.finish(false, true);
-    if (!activeTutorial) return;
-    document.getElementById('tutorial-overlay').classList.remove('active');
-    activeTutorial = null;
-    activeTutorialStep = 0;
-}
-
-function dismissTutorial(openTarget, status = 'read') {
-    if (!activeTutorial) return;
-    const notice = activeTutorial, tabId = notice.tabId;
-    window.GameModules.state.tutorials.transition(game, notice.key, status);
-    document.getElementById('tutorial-overlay').classList.remove('active');
-    activeTutorial = null;
-    activeTutorialStep = 0;
-    lastTime = Date.now();
-    setTutorialCallout(openTarget ? null : tabId, 6000);
-    // Phone notices held while the card was up: after the next card (if any) has had its turn.
-    setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
-    if (!openTarget) {
-        if (status === 'read' && !notice.replay) applySkippedGuide(notice.key);
-        queueImportantSave(0);
-        return tutorialActionUi.waitBetweenNotices();
-    }
-    queueImportantSave(0);
-    if (tutorialActionUi.guideFor(notice.key)) return tutorialActionUi.start(notice);
-    openTutorialTarget(notice);
-    if (['tutorial_first_gear', 'unlock_items'].includes(notice.key)) tutorialActionUi.openEquipment();
-    tutorialActionUi.waitBetweenNotices();
-}

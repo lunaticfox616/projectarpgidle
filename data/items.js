@@ -36,7 +36,7 @@ const EQUIPMENT_DROP_VARIANTS = Object.freeze({
     corruptedBoost: 1.15
 });
 
-// 잿불가지(타락) 제작 결과(2026-10-05 사용자 요청, js/passives.js corruptCraftedItem): [결과, 비중]에서 한 번 고른다.
+// 잿불가지(타락) 제작 결과(2026-10-05 사용자 요청, js/item-rolls.js corruptCraftedItem): [결과, 비중]에서 한 번 고른다.
 // socket: 타락 소켓을 하나 연다(어느 부위나 장비당 1개). 장신구가 아닌 부위에는 이것이 유일한 소켓이고, 주얼을 해금한 뒤에만
 // 나온다(2026-10-07 사용자 요청, js/equipment-sockets.js).
 // 그 장비에 쓸 수 없는 결과(넣을 옵션 없음 · 품질 상한 · 바꿀 줄 없음 · 타락 소켓이 이미 있음 · 주얼 미해금)는 빼고 남은 비중으로 나눈다.
@@ -50,7 +50,7 @@ const TAINTED_CRAFT_OUTCOMES = Object.freeze({
 // 장신구에는 늘 뚫려 있던 소켓을 드물게, 나머지는 공허의 끌로). js/equipment-sockets.js rollDropSocket.
 const SOCKETED_ACCESSORY_DROP_CHANCE = 0.05;
 
-// 장비 베이스 드랍 가중치(2026-10-07 드랍 풀 1단계, js/passives.js getBaseDropWeight). 드랍 티어보다 windowTiers 단계 넘게 낮은
+// 장비 베이스 드랍 가중치(2026-10-07 드랍 풀 1단계, js/item-rolls.js getBaseDropWeight). 드랍 티어보다 windowTiers 단계 넘게 낮은
 // 일반 베이스는 belowWindow, 승급 체인 맨 위(6단계 체인의 6단계 또는 20단계)는 chainTop, 둘 다면 곱한다. 나머지는 1.
 // 콘텐츠 전용 · 계 전용 베이스(dropOnly, realmBase)는 창을 쓰지 않고, 20단계 이상만 contentTop(예전 그대로).
 // 수평 베이스(2026-10-09, js/state.js family)는 horizontal배로 덜 나온다. 장신구는 베이스가 적어 따로 낮게 둔다(아니면 높은 등급
@@ -1403,7 +1403,7 @@ UNIQUE_DB.forEach(unique => {
 // drops a unique only that content has (dropOnly.type). 창공의 탑, 벌집 and 군락지 joined on 2026-10-19 (주문, 플라스크, 향로 고유).
 const REALM_BOSS_UNIQUE_DROP_RULES = Object.freeze({
     chance: Object.freeze({ chaosRealm: 0.03, underworld: 0.03, cosmos: 0.03, skyTower: 0.08, beehive: 0.2, colony: 0.05, labyrinth: 0.06, trial: 0.08, meteor: 0.08, grandBreach: 0.06, oceanDepth: 0.06, beyondBoundary: 0.08 }), ultraRareShare: 0.01 });
-// Root bosses (js/combat.js grantSeasonBossRewards): the share of kills that drop a unique, and of those the boss's own
+// Root bosses (js/combat-kill-rewards.js grantSeasonBossRewards): the share of kills that drop a unique, and of those the boss's own
 // (data/maps.js signatureUnique).
 const ROOT_BOSS_UNIQUE_RULES = Object.freeze({ chance: 0.4, signatureShare: 0.5 });
 

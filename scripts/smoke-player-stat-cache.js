@@ -71,7 +71,11 @@ function readRuntimeFunctions() {
     const functions = new Map(), modules = new Map(), globals = new Set();
     for (const file of files) {
         const ast = espree.parse(fs.readFileSync(file, 'utf8'), { ecmaVersion: 'latest', sourceType: 'script', loc: true });
-        for (const node of ast.body) {
+        // A file's functions sit in its opening closure, (() => { ... exposeFileGlobals({ ... }); })(): they are read with the top level.
+        const inClosure = ast.body.flatMap(node => node.type === 'ExpressionStatement' && node.expression.type === 'CallExpression'
+            && node.expression.callee.type === 'ArrowFunctionExpression' && node.expression.callee.body.type === 'BlockStatement'
+            ? node.expression.callee.body.body.filter(inner => inner.type === 'FunctionDeclaration') : []);
+        for (const node of [...inClosure, ...ast.body]) {
             if (node.type === 'FunctionDeclaration') functions.set(node.id.name, { file, node });
             if (node.type !== 'VariableDeclaration') continue;
             for (const entry of node.declarations) {

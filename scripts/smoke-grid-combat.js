@@ -39,7 +39,7 @@ const files = [
   'js/save.js',
   'js/items.js', 'js/weapon-categories.js',
   'js/equipment-crafting.js',
-  'js/passive-routing.js', 'js/passives.js', 'js/currency-exchange.js', 'js/item-save-slim.js',
+  'js/passive-routing.js', 'js/passives.js', 'js/battle-assets.js', 'js/item-rolls.js', 'js/currency-exchange.js', 'js/item-save-slim.js',
   'js/loot.js', 'js/gem-drop-rewards.js',
   'js/unique-hunt.js',
   'js/background-build-cache.js',
@@ -58,7 +58,7 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js', 'js/knitting.js', 'js/knitting-rewards.js',
 ];
@@ -124,6 +124,7 @@ const context = {
 context.window = context;
 context.globalThis = context;
 vm.createContext(context);
+context.exposeFileGlobals = map => Object.assign(context, map);   // js/utils.js의 것: 이 목록은 그 파일보다 먼저 읽는 파일이 있다
 require('./lib/load-combat-clock')(context);
 files.forEach(file => vm.runInContext(fs.readFileSync(file, 'utf8'), context, { filename: file }));
 context.getHeroSelectionDef = () => ({ label: '테스트 영웅', classId: null });

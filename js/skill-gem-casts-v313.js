@@ -100,7 +100,7 @@ const skillGemCastsV313 = (() => {
     // ---------------------------------------------------------------- 83 전도성 형상체 (오브 전용 · 번개 · 주문)
     // 시전할 때마다 번개 구체 하나가 몸 둘레를 돈다(12초). 최대 5개(효과 확장 +1 = 7, +2 = 10). 최대일 때 다시 쓰면 가장 오래된 구체의 시간을 다시 채운다. 구체마다 0.9초에
     // 한 번 3칸(네모) 안의 한 대상에게 정전기 32%: 다른 구체가 방금(0.4초 안) 노린 적은 피해서 흩어 친다. 대상이 없으면 0.2초 뒤 다시 찾는다. 구체들은 첫 시전의 사건 하나에
-    // 모인다(orbitOrbs). 룬을 바꾸면 사라진다(js/combat.js skillGemRuntimeChanged).
+    // 모인다(orbitOrbs). 룬을 바꾸면 사라진다(js/combat-player-attack.js skillGemRuntimeChanged).
     const ORBIT = Object.freeze({ life: 12000, every: 900, pct: 32, reach: 3, max: Object.freeze([5, 7, 10]), first: 240, firstStep: 110, avoid: 400, retry: 200, release: 320 });
     const orbitMax = stats => { const g = K.grow(stats); return g < ORBIT.max.length ? ORBIT.max[g] : 10 + 3 * (g - 2); };
     const orbitReach = (id, source, foes) => foes.filter(e => getGridUnitCells(e).some(p => Math.max(Math.abs(p.gx - source.gx), Math.abs(p.gy - source.gy)) <= ORBIT.reach));

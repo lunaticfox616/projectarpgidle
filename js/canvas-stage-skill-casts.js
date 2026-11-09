@@ -99,7 +99,7 @@ const stageSkillCasts = (() => {
         if (elapsed >= 0 && elapsed < c.event.duration) castDrawBody(c, look, bow ? bow.arrow : c.gem.map.proj);
         return true;
     }
-    /** 연쇄로 건너가는 발(2026-11-09 전달본 V3.14.1, js/combat.js addChainHopTravelFx): 처음 쏜 것과 같은 몸(활이면 마법 화살, 플라스크는
+    /** 연쇄로 건너가는 발(2026-11-09 전달본 V3.14.1, js/combat-tick.js addChainHopTravelFx): 처음 쏜 것과 같은 몸(활이면 마법 화살, 플라스크는
      * 낮은 포물선의 병)이 앞 적에서 이번 적으로 날아간다. 손에서 쏜 발이 아니라 발사 섬광은 없다. 빈 플라스크는 유리 파편 하나가 날아가 꽂힌다.
      * 연쇄 주문의 번개(map.zap), 독창 투척(중독을 옮긴다), 심연 전염, 탄성 플라스크(원래 병이 튕긴다)와 몸을 모르는 룬은 그리지 않는다. */
     const HOP_SKIP = new Set([9, 23, 44]);

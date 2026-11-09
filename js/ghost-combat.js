@@ -1,8 +1,5 @@
-const GHOST_COMBAT_SNAPSHOT_VERSION = 1;
-const GHOST_COMBAT_RULESET_VERSION = 'ghost-combat-rules-v1';
-const GHOST_COMBAT_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
-const GHOST_COMBAT_TAGS = new Set(['attack', 'spell', 'melee', 'projectile', 'aoe', 'dot', 'channeling', 'summon', 'summon_attack']);
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function getGhostCombatStyle(skill) {
     let tags = skill && Array.isArray(skill.tags) ? skill.tags : [];
     if (tags.includes('summon')) return 'summon';
@@ -33,7 +30,7 @@ function getGhostCombatDirectEhp(stats, profile) {
     ]));
 }
 
-/** 대결에서 쓰는 전투 전술(js/combat.js updatePlayerGridEngagement와 같다): 위치 전술(조건부 규칙이 맞지 않을 때의 기본 전술)과
+/** 대결에서 쓰는 전투 전술(js/combat-enemy-build.js updatePlayerGridEngagement와 같다): 위치 전술(조건부 규칙이 맞지 않을 때의 기본 전술)과
  * 최후방 사격은 전술이 열렸을 때만, 추적자의 다가가는 이동 속도(%)는 늘. */
 function getGhostCombatTactics(stats) {
     let unlocked = game.combatTacticsUnlocked === true;
@@ -110,5 +107,13 @@ function getGhostCombatSnapshot(suppliedStats) {
         ...getGhostCombatTactics(stats)
     };
 }
+
+exposeFileGlobals({ getGhostCombatVersion, getGhostCombatMotion, getGhostCombatSnapshot });
+})();
+const GHOST_COMBAT_SNAPSHOT_VERSION = 1;
+const GHOST_COMBAT_RULESET_VERSION = 'ghost-combat-rules-v1';
+const GHOST_COMBAT_ELEMENTS = Object.freeze(['phys', 'fire', 'cold', 'light', 'chaos']);
+const GHOST_COMBAT_TAGS = new Set(['attack', 'spell', 'melee', 'projectile', 'aoe', 'dot', 'channeling', 'summon', 'summon_attack']);
+
 
 safeExposeGlobals({ getGhostCombatSnapshot, getGhostCombatVersion });

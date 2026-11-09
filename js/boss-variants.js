@@ -1,4 +1,4 @@
-// 보스 변이체(12번 루프 33, 2026-10-08, data/boss-variants.js): 보스가 태어날 때(js/combat.js finishBossSpawn) 드물게 변이를 입히고,
+// 보스 변이체(12번 루프 33, 2026-10-08, data/boss-variants.js): 보스가 태어날 때(js/combat-enemy-build.js finishBossSpawn) 드물게 변이를 입히고,
 // 기억 던전 3단계부터는 기억의 보스를 변이체로 다시 부른다(memoryDungeon.tuneBoss). 쓰러질 때 기록(game.atlas.memory.variants)과
 // 보상(처음 잡은 변이의 선물, 아틀라스 보스의 기억 3단계)을 정한다. 알림은 'boss-variant' 이벤트(기록은 js/boss-variants-ui.js).
 const bossVariants = (() => {
@@ -44,7 +44,7 @@ const bossVariants = (() => {
         const run = zone && zone.type === 'atlasMap' && game.atlas ? game.atlas.run : null;
         return (Number(run && run.bonus && run.bonus.variantChance) || 0) / 100;
     }
-    /** A boss just spawned (js/combat.js finishBossSpawn): from loop 33, by chance, it is a variant. */
+    /** A boss just spawned (js/combat-enemy-build.js finishBossSpawn): from loop 33, by chance, it is a variant. */
     function maybeApply(enemy, zone, random = Math.random) {
         if (!open(game) || !eligible(enemy, zone) || random() >= V.chance + atlasChance(zone)) return enemy;
         apply(enemy, pick(random));
@@ -71,7 +71,7 @@ const bossVariants = (() => {
         if (!zone || zone.type !== 'atlasMap' || !zone.atlasNode || typeof memoryDungeon !== 'object' || !memoryDungeon.open(state)) return null;
         return memoryDungeon.give(state, zone.atlasNode, V.reward.memoryTier) ? { node: zone.atlasNode, tier: V.reward.memoryTier } : null;
     }
-    /** A boss variant fell (js/combat.js recordKillProgress): its record, the first-kill gift, an atlas boss's tier-3 memory. */
+    /** A boss variant fell (js/combat-skill-effects.js recordKillProgress): its record, the first-kill gift, an atlas boss's tier-3 memory. */
     function onKilled(state, enemy) {
         const kind = BY_ID.get(enemy && enemy.bossVariant);
         if (!kind || !state.atlas || !state.atlas.memory) return null;

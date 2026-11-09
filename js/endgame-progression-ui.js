@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function formatBeyondBoundarySealStats(definition, level) {
     return definition.stats.map(stat => {
         let value = Number((stat.val * level).toFixed(2));
@@ -148,6 +150,10 @@ function leaveBeyondBoundaryRun() {
     updateStaticUI();
     if (typeof saveGame === 'function') saveGame();
 }
+
+exposeFileGlobals({ renderBeyondBoundaryPanel, setBeyondBoundaryTier, stepBeyondBoundaryTier, chooseBeyondBoundarySeal, chooseBeyondBoundaryRewardFocus, chooseBeyondBoundaryIntensity, enterBeyondBoundaryRun, viewBeyondBoundaryCombat, leaveBeyondBoundaryRun });
+})();
+
 
 safeExposeGlobals({
     renderBeyondBoundaryPanel, setBeyondBoundaryTier, stepBeyondBoundaryTier,

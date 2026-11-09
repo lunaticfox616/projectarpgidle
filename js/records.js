@@ -10,17 +10,8 @@
 //
 // 기존 세이브에는 과거 시간 데이터가 없다. 없는 것을 지어내지 않고 startedAt을 남겨
 // 화면이 "언제부터의 기록인지"를 그대로 밝힌다.
-
-const RECORDS_VERSION = 1;
-// 최근 루프 목록의 보관 개수. 저장 용량을 위해 상한을 둔다(오래된 것부터 버린다).
-const RECORDS_LOOP_HISTORY_LIMIT = 30;
-// 한 틱에서 이 이상 벌어진 간격은 "게임이 굴러간 시간"이 아니라 자리를 비운 구간으로 본다.
-// 포그라운드 틱은 100ms, 백그라운드 정산도 100ms 스텝으로 시뮬레이션 시계를 밀어 준다.
-const RECORDS_ACTIVE_TICK_MAX_MS = 5000;
-// 층 기록은 돌파한 층을 남긴다(2026-10-19 사용자 결정). 전에는 다음에 열린 층이라 한 층 높았다. 군락지 기록도 깬 웨이브를 남긴다
-// (2026-10-20, 전에는 들어선 웨이브라 하나 높았다).
-const RECORD_CLEARED_FLOOR_KEYS = Object.freeze(['labyrinthFloor', 'chaosRealmFloor', 'skyFloor', 'underworldFloor']);
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 function createDefaultRecordsState(now) {
     return {
         version: RECORDS_VERSION,
@@ -36,13 +27,13 @@ function createDefaultRecordsState(now) {
     };
 }
 
-
 /** 층 기록이 다음에 열린 층이던 저장(clearedFloorBests)과 군락지 기록이 들어선 웨이브이던 저장(clearedColonyBests)을 한 번씩 낮춘다.
  * 표식은 예전 판이 지우지 않아, 판을 오가도 두 번 낮추지 않는다. */
 function keepClearedBests(records) {
     lowerBestsOnce(records, 'clearedFloorBests', RECORD_CLEARED_FLOOR_KEYS);
     lowerBestsOnce(records, 'clearedColonyBests', ['colonyWave']);
 }
+
 function lowerBestsOnce(records, flag, keys) {
     if (records[flag] === true) return;
     keys.forEach(key => {
@@ -50,9 +41,6 @@ function lowerBestsOnce(records, flag, keys) {
     });
     records[flag] = true;
 }
-
-/** 잔잔한 사건을 겪은 횟수의 모양(열쇠마다 수인 객체), 아니면 빈 객체. */
-const keepIncidentCounts = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
 
 function toPositiveInt(value) {
     let num = Math.floor(Number(value) || 0);
@@ -138,7 +126,7 @@ function getRecordBestSources(g) {
 // 실제 경과(벽시계)와 활동 시간을 나눠 센다.
 //
 // 방치형은 자리를 비운 동안 게임이 그만큼 진행되지 않는다. 복귀 정산은 실제 경과의 일부(효율 30~75%)만,
-// 그것도 한도(3~24시간)까지만 시뮬레이션한다(js/ui.js calculateBackgroundProgressMs, data/offline-progress.js).
+// 그것도 한도(3~24시간)까지만 시뮬레이션한다(js/away-settlement-ui.js calculateBackgroundProgressMs, data/offline-progress.js).
 // 그래서 벽시계로 잰 "루프 소요 시간"은 사실상 "얼마나 자리를 안 비웠나"를 재게 되어
 // 루프끼리 비교하는 의미가 사라진다. 틱이 실제로 돈 시간만 따로 적립해 비교에 쓴다.
 // 전투 시계가 있는 저장은 실제로 실행한 틱 시간만 적립한다.
@@ -246,6 +234,7 @@ function echoMeasurementChange(echo) {
     const change = (last.dps / previous.dps - 1) * 100;
     return Number.isFinite(change) ? change : null;
 }
+
 function echoRecordsView(echo) {
     return { ...echo, last: echo.last && { ...echo.last }, previous: echo.previous && { ...echo.previous }, changePct: echoMeasurementChange(echo) };
 }
@@ -284,6 +273,24 @@ function getRecordsView(state) {
         incidents: ACT_EXPLORATION_INCIDENTS.records.map(([key, name, hidden]) => ({ key, name, hidden, count: toPositiveInt(r.incidents[key]) }))
     };
 }
+
+exposeFileGlobals({ createDefaultRecordsState, ensureRecordsState, tickRecordActiveTime, trackRecordBests, recordActClear, recordWoodsmanEchoRun, recordIncident, closeLoopRecord, getRecordsView });
+})();
+
+const RECORDS_VERSION = 1;
+// 최근 루프 목록의 보관 개수. 저장 용량을 위해 상한을 둔다(오래된 것부터 버린다).
+const RECORDS_LOOP_HISTORY_LIMIT = 30;
+// 한 틱에서 이 이상 벌어진 간격은 "게임이 굴러간 시간"이 아니라 자리를 비운 구간으로 본다.
+// 포그라운드 틱은 100ms, 백그라운드 정산도 100ms 스텝으로 시뮬레이션 시계를 밀어 준다.
+const RECORDS_ACTIVE_TICK_MAX_MS = 5000;
+// 층 기록은 돌파한 층을 남긴다(2026-10-19 사용자 결정). 전에는 다음에 열린 층이라 한 층 높았다. 군락지 기록도 깬 웨이브를 남긴다
+// (2026-10-20, 전에는 들어선 웨이브라 하나 높았다).
+const RECORD_CLEARED_FLOOR_KEYS = Object.freeze(['labyrinthFloor', 'chaosRealmFloor', 'skyFloor', 'underworldFloor']);
+
+
+/** 잔잔한 사건을 겪은 횟수의 모양(열쇠마다 수인 객체), 아니면 빈 객체. */
+const keepIncidentCounts = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+
 
 safeExposeGlobals({
     ensureRecordsState,

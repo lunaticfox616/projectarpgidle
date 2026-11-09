@@ -1,4 +1,4 @@
-/** 시련 함정의 실체 (js/combat.js createTrialHazard → 'trialTrapWarning', resolveTrialHazardImpact → 'trialTrap'):
+/** 시련 함정의 실체 (js/combat-enemy-turn.js createTrialHazard → 'trialTrapWarning', resolveTrialHazardImpact → 'trialTrap'):
  * 원소마다 바닥에서 솟는 도트 그림. 물리는 칼날 가시, 불은 불기둥, 냉기는 얼음 가시, 번개는 벼락, 카오스는 독구름.
  * 맵 그림과 같은 칸당 16점으로 그리고, 색은 다시 찍은 스킬 효과의 원소 단계(js/canvas-fx-remake.js)와 같다.
  * 바닥 부분(갈라짐, 달아오름, 서리, 문양, 독 웅덩이, 그을음)은 인물 아래에(js/canvas-battlefield.js drawBattleGroundLayer),

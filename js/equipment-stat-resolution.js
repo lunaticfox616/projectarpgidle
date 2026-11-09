@@ -1,3 +1,5 @@
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /**
  * 현재 플레이어에게 스탯을 제공하는 모든 아이템(장착한 장비)을 반환한다.
  * @returns {Array<[string, object]>}
@@ -121,5 +123,9 @@ function getResolvedEquipmentStatLists(slotKey, item, ownerState) {
     memo?.set(key, { item, result });
     return result;
 }
+
+exposeFileGlobals({ getPlayerStatSourceItemEntries, getUniqueImplicitMultiplier, getResolvedEquipmentStatLists });
+})();
+
 
 safeExposeGlobals({ getPlayerStatSourceItemEntries, getResolvedEquipmentStatLists, getUniqueImplicitMultiplier });
