@@ -36,6 +36,8 @@
     }
     #startup-preload img { image-rendering: pixelated; }
     #startup-preload p { margin: 0; }
+    /* 받은 용량(index.html watchBootBytes): 숫자 폭이 같아 줄이 흔들리지 않는다 */
+    #startup-preload .startup-preload-size { min-height: 1.5em; margin-top: -8px; opacity: .75; font-variant-numeric: tabular-nums; }
 }
 @layer overrides {
     html.app-preload body > :not(#startup-overlay) { visibility: hidden; }

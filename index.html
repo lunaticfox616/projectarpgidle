@@ -12,6 +12,8 @@
     <meta name="app-deploy" content="dev">
     <!-- 웹 묶음에 무대 그림(assets/playable/stage)이 없으면 none으로 바뀐다(scripts/build-web.js). 그때는 게임이 그 그림을 묻지 않는다. -->
     <meta name="stage-art" content="probe">
+    <!-- 웹 묶음을 만들 때 받을 스크립트와 스타일의 크기 합(바이트)으로 바뀐다(scripts/lib/immutable-urls.js stampBootBytes). 받는 동안의 용량 줄이 쓴다. -->
+    <meta name="boot-bytes" content="dev">
     <!-- 배포 묶음(웹·앱)을 만들 때 그 커밋의 시각으로 바뀐다(scripts/lib/game-build.js). 저장마다 남아, 더 새 판의 저장을 옛 판이 열지 않는다(js/save.js). -->
     <meta name="game-build" content="dev">
     <title>Rignin</title>
@@ -41,6 +43,34 @@
         document.documentElement.style.setProperty('--preload-zoom', String(mobile ? 1 : Math.floor(dpr + 1e-6) / dpr));
     })();
     </script>
+    <!-- 받는 동안의 용량(2026-11-09 사용자: 처음 로딩화면에서 얼마나 로딩됐는지 용량으로 표시): 다 받은 스크립트와 스타일의 크기를 더해
+         #startup-preload-size에 적는다. 전체는 배포 묶음이 적은 boot-bytes, 개발 트리에는 없어 받은 용량만 적는다. 덮개가 걷히면 멈춘다. -->
+    <script>
+    (function watchBootBytes() {
+        if (typeof PerformanceObserver !== 'function') return;
+        // 스크립트가 300개를 넘어 기본 기록 칸(250개)이 차면 그 뒤 기록이 버퍼에서 빠진다: 칸을 넉넉히 둔다.
+        if (performance.setResourceTimingBufferSize) performance.setResourceTimingBufferSize(2000);
+        var meta = document.querySelector('meta[name="boot-bytes"]'), total = meta ? Number(meta.content) || 0 : 0;
+        var loaded = 0, frame = 0, observer = null;
+        var mb = function (bytes) { return (bytes / 1048576).toFixed(1); };
+        function paint() {
+            frame = 0;
+            var line = document.getElementById('startup-preload-size');
+            if (!line) return;
+            line.textContent = total ? mb(Math.min(loaded, total)) + ' / ' + mb(total) + ' MB' : mb(loaded) + ' MB';
+            line.dataset.loaded = String(loaded);
+        }
+        function count(list) {
+            list.getEntries().forEach(function (entry) {
+                if (/\.(?:js|css)(?:[?#]|$)/.test(entry.name)) loaded += entry.decodedBodySize || entry.encodedBodySize || 0;
+            });
+            if (!document.documentElement.classList.contains('app-preload')) { observer.disconnect(); return; }
+            if (!frame) frame = setTimeout(paint, 100);
+        }
+        observer = new PerformanceObserver(count);
+        observer.observe({ type: 'resource', buffered: true });
+    })();
+    </script>
     <!-- 그 줄의 글꼴(505KB)은 스크립트 수백 개보다 먼저 받는다. 늦으면 글자가 늦게 나온다(css/base.css 'Galmuri11 Preload') -->
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/Galmuri11.woff2" crossorigin>
     <link rel="stylesheet" href="css/main.css">
@@ -67,7 +97,7 @@
 <div id="info-tooltip"></div>
 <div id="startup-overlay" class="startup-overlay active">
     <!-- 게임 파일을 받는 동안의 한 줄(html.app-preload인 동안만, css/document.css): 2026-10-28까지는 마지막 스크립트가 올 때까지 검은 화면이었다. -->
-    <div id="startup-preload" aria-hidden="true"><img src="assets/ui/pixel/rignin-logo-120.png" alt="" width="120" height="120"><p data-i18n>게임 파일을 받는 중…</p></div>
+    <div id="startup-preload" aria-hidden="true"><img src="assets/ui/pixel/rignin-logo-120.png" alt="" width="120" height="120"><p data-i18n>게임 파일을 받는 중…</p><p id="startup-preload-size" class="startup-preload-size"></p></div>
     <!-- 오른쪽 위(2026-11-04 사용자): 톱니는 설정 창, 음표는 배경음과 효과음을 함께 끄고 켠다(js/settings-ui.js). 아이콘은 11도트를 2배로 -->
     <div class="startup-corner-tools">
         <!-- 음표의 이름표(소리 끄기, 소리 켜기)는 js/settings-ui.js syncStartupSound가 _t로 쓴다 -->
