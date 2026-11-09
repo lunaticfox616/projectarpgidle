@@ -4,13 +4,13 @@
 // minPitch: 줄 간격은 판 높이에 맞춰 24px까지 줄어든다(2026-11-08 사용자: 해금 탭에 세로 스크롤이 생겨 보기 불편했다. 30px에 묶여 있어
 // 12줄이면 판 자리가 384px보다 낮은 창에서 넘쳤다). 24px에서도 칸(20px)에 그림과 이름 한 줄이 들어간다.
 const UNLOCK_BOARD_SIZE = Object.freeze({ cardGap: 10, minCardText: 36, gainFrom: 32, left: 38, ruler: 24, pip: 44, pipH: 22, minPitch: 24, maxPitch: 52, maxCard: 44, minRows: 8, maxRows: 24 });
-// side: 가지가 먼저 뻗는 쪽(위 -1, 아래 1), at: 뿌리가 놓이는 높이(줄 수에 대한 몫). 심화 혼돈은 어느 뿌리에도 묶지 않지만 빛깔은 전투 쪽을 쓴다.
+// side: 가지가 먼저 뻗는 쪽(위 -1, 아래 1), at: 뿌리가 놓이는 높이(줄 수에 대한 몫). 독립 해금도 대응하는 갈래의 빛깔을 쓴다.
 const UNLOCK_FAMILIES = Object.freeze([
     { id: 'gear', root: 'craft', side: -1, at: 0.22 },
     { id: 'rune', root: 'support', side: 1, at: 0.56 },
     { id: 'growth', root: 'loopTree', side: 1, at: 0.84 }
 ]);
-const UNLOCK_LOOSE_FAMILY = Object.freeze({ deepChaos: 'rune' });
+const UNLOCK_LOOSE_FAMILY = Object.freeze({ passiveTree: 'growth', deepChaos: 'rune' });
 // 칸의 ! (2026-11-06 사용자: 한 번도 확인 안 해본 해금 항목에 ! 표시): 살 수 있거나 점수만 모자란 칸, 열린 칸 가운데 고른 적 없는 칸.
 const UNLOCK_UNSEEN_STATES = Object.freeze(new Set(['ready', 'short', 'owned']));
 

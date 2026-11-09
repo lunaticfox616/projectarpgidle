@@ -209,6 +209,7 @@ const npcShopUi = (() => {
     });
     // 조건을 채운 순간의 소식: 이번 루프에 한 번.
     window.addEventListener('project-idle:npc-shop-all-runes', () => {
+        if (!contentProgression.opening.canOpen(game, 'tab-trade')) return;
         game.noti.npcs = true;
         addLog(_t('하켄이 이번 루프에 모든 룬을 판매합니다.'), 'season-up', { toast: true });
     });

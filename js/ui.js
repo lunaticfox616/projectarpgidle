@@ -1894,6 +1894,7 @@ function getTabHeaderUiSignature() {
         (game.settings && game.settings.tabNotiEnabled === false) ? 'notiOff' : 'notiOn',
         // 알림 점은 getTabNotiSignature가 따로 본다(점 하나에 머리 전체를 다시 그리지 않게).
         TAB_HEADER_NOTI_KEYS.map(key => `${key}:${unlocks[key] ? 1 : 0}`).join('|'),
+        contentProgression.opening.signature(game),
         Array.isArray(game.settings && tabLayoutUi.current().tabOrder) ? tabLayoutUi.current().tabOrder.join(',') : '',
         JSON.stringify((game.settings && tabLayoutUi.current().tabPlacement) || {}),
         Array.isArray(game.settings && tabLayoutUi.current().tabGroupOrder) ? tabLayoutUi.current().tabGroupOrder.join(',') : '',
@@ -1926,7 +1927,7 @@ function updateTabNotificationDots() {
 function syncTabUnlockButton(key) {
     let button = document.getElementById('btn-tab-' + key);
     let reserved = key === 'map' && !game.unlocks.map && isMobilePrimaryNavigationEnabled()
-        && game.settings.tabLayouts.mobile.tabPlacement['btn-tab-map'] !== 'bottom';
+        && !contentProgression.opening.applies(game) && game.settings.tabLayouts.mobile.tabPlacement['btn-tab-map'] !== 'bottom';
     button.classList.toggle('nav-locked', reserved);
     if (reserved) button.setAttribute('aria-disabled', 'true');
     else button.removeAttribute('aria-disabled');
@@ -2252,6 +2253,7 @@ function refreshShownMergedTab(mergedEntry, shown) {
     if (!mergedEntry) return;
     renderMergedTabSubtabs(mergedEntry[0]);
     if (shown.changed) enterShownTab(shown.id);
+    tutorialActionUi.followOpeningTab(shown.id);
 }
 
 function switchMergedTabSubtab(groupKey, tabId, options = {}) {
@@ -2300,7 +2302,9 @@ function openMergedTabPicker(event, groupKey) {
     if (event) { event.preventDefault(); event.stopPropagation(); }
     let group = MERGED_TAB_GROUPS[groupKey];
     if (!group) return;
-    let selectedTabId = getSelectedMergedTabId(groupKey);
+    const firstGear = groupKey === 'gear' && contentProgression.opening.applies(game)
+        && game.tutorialHistory.some(row => row.key === 'tutorial_first_gear' && row.status === 'unread');
+    let selectedTabId = firstGear ? 'tab-items' : getSelectedMergedTabId(groupKey);
     if (!selectedTabId) return;
     switchMergedTabSubtab(groupKey, selectedTabId, { keepWindowOpen: false });
 }
@@ -2337,6 +2341,7 @@ function revealActiveTabButton(button) {
 function runWindowOpenHooks(tabId, shownId) {
     if (shownId === 'tab-items' && window.equipmentTriage) window.equipmentTriage.onOpen();
     if (tabId === 'tab-trade' && marketUi.section === 'hall') loadPlayerExchange();
+    tutorialActionUi.followOpeningTab(shownId);
 }
 
 function switchTab(tabId) {
@@ -5328,8 +5333,9 @@ function syncCombatTacticsControls() {
     positionSelect.value = tactics.positionMode;
     targetSelect.disabled = !unlocked;
     positionSelect.disabled = !unlocked;
+    const firstUse = contentProgression.opening.applies(game) && !game.seenTutorials.includes('opening_tactics_selected');
     if (help) help.textContent = unlocked
-        ? _t('조건부 규칙이 맞지 않을 때 쓰는 전술입니다. 전술 이동 시 다음 공격이 0.3~0.65초 미뤄집니다.')
+        ? _t(firstUse ? '먼저 공격할 적을 골라 보세요.' : '조건부 규칙이 맞지 않을 때 쓰는 전술입니다. 전술 이동 시 다음 공격이 0.3~0.65초 미뤄집니다.')
         : TACTICS_RULES_LOCK_MESSAGE;
 }
 
@@ -5339,6 +5345,10 @@ document.getElementById('combat-tactics-defaults')?.addEventListener('change', e
     const key = keys[event.target.id];
     if (!key || ![...event.target.options].some(option => option.value === event.target.value)) return;
     game.settings[key] = event.target.value;
+    if (contentProgression.opening.applies(game) && !game.seenTutorials.includes('opening_tactics_selected')) {
+        game.seenTutorials.push('opening_tactics_selected');
+        syncCombatTacticsControls();
+    }
     queueImportantSave(180);
 });
 
@@ -13571,11 +13581,6 @@ function checkUnlocks() {
     if (!(game.seenTutorials || []).includes('tutorial_battle_basics')) {
         queueTutorialNotice('tutorial_battle_basics', _t('첫 여정'), _t('전투는 자동입니다. 캐릭터가 알아서 걷고 공격합니다.\n지금 할 일은 오른쪽 위 ‘목표’에 나옵니다.\n생명 구슬이 자주 비면 장비와 저항을 점검하세요.\n장비나 룬을 얻으면 그때마다 조작을 안내합니다.'));
     }
-    if (game.level >= 2 && !u.char) {
-        u.char = true;
-        game.noti.char = true;
-        queueTutorialNotice('unlock_char', _t('스킬트리'), _t('레벨 2가 되어 스킬트리 포인트를 얻었습니다.\n‘스킬트리’에서 시작 지점과 이어진 노드를 골라 찍으세요.'), 'tab-char');
-    }
     if ((game.inventory.length > 0 || Object.values(game.currencies).some(v => v > 0)) && !u.items) {
         u.items = true;
         game.noti.items = true;
@@ -14147,7 +14152,7 @@ function notifyLockedTab(tabId) {
 }
 
 function getLockedTabMessage(tabId) {
-    if (tabId === 'tab-char') return '레벨 2에 도달하면 스킬트리가 열립니다.';
+    if (tabId === 'tab-char') return _t('루프 2부터 해금 탭에서 스킬트리를 열 수 있습니다.');
     if (tabId === 'tab-season') return '루프 1을 클리어하면 루프 탭이 열립니다.';
     if (tabId === 'tab-items') return '장비나 제작 재화를 얻으면 장비 탭이 열립니다.';
     if (tabId === 'tab-skills') return '새 스킬룬이나 보조스킬룬을 획득하면 스킬룬 탭이 열립니다.';

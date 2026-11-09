@@ -10246,8 +10246,7 @@ function grantExpAndGem(enemy, pStats) {
         game.exp -= req;
         game.level++;
         leveledUp = true;
-        game.passivePoints++;
-        game.noti.char = true;
+        awardLevelPassivePoint();
         game.playerHp = getPlayerHpCap(getPlayerStats());
         addLog(_t('🎉 레벨업! (Lv.{level})', { level: game.level }), "level-up");
         req = getExpReq(game.level);
@@ -10262,6 +10261,12 @@ function grantExpAndGem(enemy, pStats) {
         queueImportantSave(250);
     }
     return gemLeveled;
+}
+
+function awardLevelPassivePoint() {
+    const unlocked = contentProgression.canOpen('tab-char');
+    if (game.season >= 2 || unlocked) game.passivePoints++;
+    if (unlocked) game.noti.char = true;
 }
 
 const GRAND_BREACH_BASE_ROLE = Object.freeze({ hp: 1, speed: 1, damage: 1, penetration: 0, chaosRes: 0, ailment: 0 });

@@ -27,6 +27,7 @@ const contentUnlockUi = {
     /** The loop card: the points, then the unlocks this loop adds to the tab, by name only (2026-10-27 사용자: 짧게, 필요한 것만).
      * Free contents are left out: each gets its own card when it opens (announceContent). A loop that adds none names the next one. */
     announceLoop() {
+        if (game.season === 2 && !contentProgression.isUnlocked('passiveTree')) return;
         if (!game.contentProgression) {
             queueTutorialNotice('unlock_content_loop_' + game.season, _t('다음 콘텐츠 선택'),
                 _t('루프 {loop}에 도달했습니다!\n루프 이정표와 루프 패시브 트리를 루프 탭에서 확인할 수 있습니다.', { loop: game.season }), 'tab-unlocks');
@@ -49,6 +50,7 @@ const contentUnlockUi = {
         if (!game.contentProgression) return;
         const enabled = !!game.contentProgression;
         document.body.classList.toggle('content-choice-progression', enabled);
+        this.syncOpeningHud();
         document.body.classList.toggle('content-support-locked', enabled && !contentProgression.isUnlocked('support'));
         document.body.classList.toggle('content-craft-locked', !contentProgression.isUnlocked('craft'));
         document.getElementById('loop-passive-locked')?.toggleAttribute('hidden', contentProgression.isUnlocked('loopTree'));
@@ -62,12 +64,42 @@ const contentUnlockUi = {
             for (const route of def.routes || []) this.syncRoute(route, !contentProgression.canOpen(route));
         }
         // 해금 목록 항목 없이 진행 조건으로만 열리는 경로.
-        for (const route of ['tab-map', 'tab-season', 'tab-unlocks']) this.syncRoute(route, !contentProgression.canOpen(route));
+        for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'tab-skills', 'tab-items', 'tab-character', 'tab-char', 'tab-social', 'tab-trade']) {
+            this.syncRoute(route, !contentProgression.canOpen(route));
+        }
         this.resetClosedSelection('itemSubtab', 'item-tab-equip', '#tab-items');
         this.resetClosedSelection('skillSubtab', 'skill-tab-equip', '#tab-skills');
         this.resetClosedSelection('mapSubtab', 'map-tab-zones', '#tab-map');
         this.resetClosedSelection('mapExploreSubtab', 'map-explore-hunting', '#map-tab-zones');
         this.render();
+    },
+    syncOpeningHud() {
+        const locked = contentProgression.opening.combatOnly(game);
+        for (const id of ['btn-act-exploration-auto', 'btn-combat-return', 'btn-combat-goal-toggle']) {
+            document.getElementById(id)?.toggleAttribute('data-content-locked', locked);
+        }
+        const chatLocked = !contentProgression.canOpen('tab-social');
+        document.body.classList.toggle('opening-chat-locked', chatLocked);
+        for (const id of ['btn-combat-chat-tab', 'btn-combat-chat-settings']) {
+            document.getElementById(id)?.toggleAttribute('data-content-locked', chatLocked);
+        }
+        this.syncRuneLauncher();
+    },
+    syncRuneLauncher() {
+        const button = document.getElementById('btn-tab-items');
+        if (!button) return;
+        const runeOnly = !contentProgression.canOpen('tab-items') && contentProgression.canOpen('tab-skills');
+        if (runeOnly) button.dataset.openingRunes = '1';
+        else {
+            if (!button.dataset.openingRunes) return;
+            delete button.dataset.openingRunes;
+        }
+        const name = runeOnly ? '스킬룬' : '장비';
+        const caption = name + '|하단 메뉴';
+        const label = button.querySelector('.ui-rail-label');
+        if (label && label.textContent !== _t(name)) label.textContent = _t(name);
+        button.dataset.i18nSourceDataCaption = caption;
+        button.dataset.caption = _t(caption);
     },
     syncRoute(route, locked) {
         // A merged launcher may remain available through another purchased child.
@@ -116,7 +148,7 @@ const contentUnlockUi = {
         const result = contentProgression.purchase(id, game, key);
         if (!result.ok) { addLog(result.message, 'attack-monster', { toast: true }); return; }
         // The unlock card says the same and more: no toast (PC) or bottom notice (phone) on top of it.
-        const carded = this.announceContent(id);
+        const carded = id === 'passiveTree' || this.announceContent(id);
         addLog(result.message, 'season-up', { toast: !carded, noToast: carded });
         this.announceOpenedSince(opened); // free content that comes with it (장비 전당 with 고유 도감)
         // 공허 소켓은 스킬트리에 숨어 있던 공허 칸을 드러낸다(js/passives.js isVoidSocketHidden): 길과 화면을 다시 잇고 스킬트리에 알림 점을 켠다.
@@ -166,7 +198,14 @@ const contentUnlockUi = {
         return new Set(game.contentProgression ? game.contentProgression.automatic : []);
     },
     announceOpenedSince(before) {
-        this.openedContents().forEach(id => { if (!before.has(id)) this.announceContent(id); });
+        this.openedContents().forEach(id => {
+            if (before.has(id)) return;
+            if (id === 'tactics' && contentProgression.opening.applies(game)) {
+                game.noti.skills = true;
+                return;
+            }
+            this.announceContent(id);
+        });
     },
     /** contentProgression.sync, plus a card for each free content that has just opened (loop reached, condition met).
      * Contents open at load are not news: the save migration syncs before any of this runs. */
@@ -190,6 +229,7 @@ const contentUnlockUi = {
     openNpc(npc, mode = 'talk') {
         const old = document.getElementById('npc-dialog');
         if (!npc || (old && old.open)) return false;
+        if (!contentProgression.opening.canOpen(game, 'tab-trade')) mode = 'talk';
         if (old) old.remove(); // closed a moment ago, its close event (which removes it) not yet run
         const view = { npc, mode, topic: null };
         const dialog = document.createElement('dialog');
@@ -233,6 +273,7 @@ const contentUnlockUi = {
     },
     /** The doors to the shop and, at Orga's, to the currency exchange. */
     npcFoot(view) {
+        if (!contentProgression.opening.canOpen(game, 'tab-trade')) return '';
         const doors = npcShopUi.door(view.npc) + orgaExchangeUi.door(view.npc);
         return doors ? `<footer class="npc-dialog-foot">${doors}</footer>` : '';
     },
@@ -273,7 +314,10 @@ const contentUnlockUi = {
         if (control.dataset.npcTopic) { this.npcPickTopic(view, control.dataset.npcTopic); this.renderNpc(dialog, view); }
     },
     npcPickTopic(view, topic) {
-        if (topic === 'shop' || topic === 'exchange') { view.mode = topic; return; }
+        if (topic === 'shop' || topic === 'exchange') {
+            if (contentProgression.opening.canOpen(game, 'tab-trade')) view.mode = topic;
+            return;
+        }
         const known = this.npcTopics(view.npc).open.some(row => row.topic === topic);
         Object.assign(view, { mode: 'talk', topic: known ? topic : null });
         if (known) this.hearNpcTopic(view.npc, topic);

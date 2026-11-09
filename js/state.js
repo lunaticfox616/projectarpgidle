@@ -98,8 +98,15 @@ const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear
 /** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
 function queueTutorialNotice(key, title, body, tabId, target) {
     if (game.isBackgroundCalculation) return;
+    const opening = typeof contentProgression === 'object' ? contentProgression.opening : null;
+    const inline = opening?.inlineNotice(game, key);
+    if (inline && !opening.canOpen(game, tabId)) return;
     const extra = target && typeof target === 'object' ? target : { subtabId: target };
-    window.GameModules.state.tutorials.enqueue(game, { ...extra, key, title, body, tabId: tabId || null, subtabId: extra.subtabId || null });
+    const notice = { ...extra, key, title, body, tabId };
+    window.GameModules.state.tutorials.enqueue(game, notice);
+    if (inline) {
+        window.GameModules.state.tutorials.archivePending(game, key);
+    }
 }
 /** A notice about content bought in 해금 (talent, …): before it is bought, the card says where to buy it and
  * points at 해금 — a card aimed at a closed screen would be dropped unseen. bodies = { open, locked }. */
@@ -2504,7 +2511,7 @@ const defaultGame = {
     // without a ledger takes it during the load, and the bag counts its pages by loop until contentProgression.restore makes the ledger
     // (version 10 with graftFloor, js/content-progression.js) and turns those pages into owned 가방 쪽 steps.
     knitting: { season: 1, counts: {}, seen: [], knitted: {}, once: [] },
-    contentProgression: { version: 9, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [], plannedUnlockId: '' },
+    contentProgression: { version: CONTENT_UNLOCK_RECORD_VERSION, highestLoop: 1, carry: 0, unlocked: [], paidCosts: {}, inherited: [], automatic: [], grandfathered: [], plannedUnlockId: '' },
     loopChallenge: null,
     loopChallengeHistory: [],
     level: 1,

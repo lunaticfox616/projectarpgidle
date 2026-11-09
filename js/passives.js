@@ -3711,6 +3711,7 @@ function getPassiveKeystoneConflict(path) {
  * 거절한다(2026-10-20 검토: "활성화!"가 뜬 뒤 다음 틱에 되돌아갔다). */
 function activatePassivePath(targetNodeId, options) {
     if (game.woodsmanBuildLock) return { activated: false, cost: 0, path: [], reason: 'locked', message: _t('☠️ 나무꾼 전투 중에는 세팅을 변경할 수 없습니다.') };
+    if (!contentProgression.canOpen('tab-char')) return { activated: false, cost: 0, path: [], reason: 'locked' };
     return allocatePassivePath(targetNodeId, options);
 }
 
@@ -3858,10 +3859,15 @@ function importPassiveTreePreset(slotIndex, code) {
     return preset;
 }
 
+function getPassiveAutoInvestPreset() {
+    if (game.woodsmanBuildLock || !contentProgression.canOpen('tab-char')) return null;
+    const planner = ensurePassiveTreePlannerState();
+    return planner.autoInvest ? planner.presets[planner.activeSlot] : null;
+}
+
 function runPassiveTreeAutoInvest() {
-    let planner = ensurePassiveTreePlannerState();
-    let preset = planner.presets[planner.activeSlot];
-    if (!planner.autoInvest || !preset || game.woodsmanBuildLock) return { nodes: 0, points: 0 };
+    const preset = getPassiveAutoInvestPreset();
+    if (!preset) return { nodes: 0, points: 0 };
     let result = { nodes: 0, points: 0 };
     let guard = Math.min(preset.nodeIds.length + 1, Math.max(0, Math.floor(game.passivePoints || 0)) + 1);
     while (guard-- > 0 && game.passivePoints > 0) {
@@ -5471,7 +5477,7 @@ function getDeathHints() {
     const rewards = getAvailableActRewardZoneIds(), fillable = countFillableEmptySlots();
     return [
         rewards.length ? { text: _t('받지 않은 액트 보상 {length}개', { length: rewards.length }), action: { label: _t('받기'), onclick: `closeDeathOverlay();openActReward(${rewards[0]})` } } : null,
-        game.passivePoints > 0 ? { text: _t('쓰지 않은 스킬트리 포인트 {passivePoints}점', { passivePoints: game.passivePoints }), action: { label: _t('스킬트리'), onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
+        game.passivePoints > 0 && contentProgression.canOpen('tab-char') ? { text: _t('쓰지 않은 스킬트리 포인트 {passivePoints}점', { passivePoints: game.passivePoints }), action: { label: _t('스킬트리'), onclick: "closeDeathOverlay();switchTab('tab-char')" } } : null,
         game.equipment['무기'] ? null : { text: _t('무기 칸이 비어 있습니다') },
         fillable ? { text: _t('가방에 바로 낄 수 있는 장비 {fillable}개', { fillable }), action: { label: _t('채우기'), onclick: 'fillEmptyEquipmentSlots();renderDeathHints()' } } : null,
         shopDeathHint(),
@@ -5692,6 +5698,7 @@ function buildDeathMonsterSummary(windowMs, events) {
 function getActRewardConfig(zoneId, owner = game) {
     const config = ACT_REWARD_DB[zoneId];
     if (!config) return null;
+    if (config.firstLoop && owner.season === 1) return config.firstLoop;
     // All original choices locked: keep the act reward useful without unlocking its content early.
     if (config.lockedChoices && !config.choices.some(choice => isActRewardChoiceAvailable(choice, owner))) {
         return { ...config, body: config.lockedBody, choices: config.lockedChoices };
@@ -5711,6 +5718,7 @@ function getSupportActRewardFallback(choice) {
 }
 
 function isActRewardChoiceAvailable(choice, owner = game) {
+    if (choice.kind === 'points' && owner.season === 1) return contentProgression.canOpen('tab-char', owner);
     if (choice.kind === 'support' || choice.stat === 'suppCap') return contentProgression.isUnlocked('support', owner);
     if (choice.kind === 'currency') return contentProgression.canDropCurrency(choice.currency, owner);
     return true;
@@ -5865,7 +5873,9 @@ function grantJournalBonus(entryId, state = game) {
     if (state === game) {
         if (entry.bonus.stat === 'passivePoint' && typeof runPassiveTreeAutoInvest === 'function') runPassiveTreeAutoInvest();
         playerStatCache.invalidate();
-        addLog(_t('저널 영구 보너스 획득: {label}', { label: _t(entry.bonus.label) }), 'season-up');
+        if (contentProgression.opening.canOpen(game, 'tab-journal')) {
+            addLog(_t('저널 영구 보너스 획득: {label}', { label: _t(entry.bonus.label) }), 'season-up');
+        }
     }
 }
 function unlockJournalEntry(entryId, state = game) {
@@ -5874,15 +5884,20 @@ function unlockJournalEntry(entryId, state = game) {
     if (!state.journalEntries.includes(entryId)) {
         state.journalEntries.push(entryId);
         if (JOURNAL_DB[entryId].discoveryOnly) return; // 읽을거리만 보관: 보상·새 기록 목표·팝업을 추가하지 않는다.
-        state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
-        state.noti.journal = true;
+        markJournalUnread(state);
         if (state === game) {
-            addLog(_t('📓 저널 해금: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
+            if (contentProgression.opening.canOpen(state, 'tab-journal')) {
+                addLog(_t('📓 새 기록: {title}', { title: JOURNAL_DB[entryId].title }), 'loot-rare');
+            }
             worldTreeBark.rewardPinnacleFirstKill(entryId);
             if (typeof requestGoalSystemRefresh === 'function') requestGoalSystemRefresh();
         }
     }
     grantJournalBonus(entryId, state);
+}
+function markJournalUnread(state) {
+    state.noti = state.noti && typeof state.noti === 'object' ? state.noti : {};
+    state.noti.journal = true;
 }
 function ensureActJournalCompletionForLoop(options) {
     let silent = !options || options.silent !== false;

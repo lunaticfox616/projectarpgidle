@@ -330,7 +330,7 @@
             id: 'journal-unread',
             priority: 150,
             matches(g) {
-                return !!(g.noti && g.noti.journal);
+                return !!(g.noti && g.noti.journal) && contentProgression.canOpen('tab-journal', g);
             },
             build() {
                 return buildTabAction({
@@ -349,7 +349,7 @@
         {
             id: 'journal-unread-notice',
             matches(g, primary) {
-                return primary !== 'journal-unread' && !!(g.noti && g.noti.journal);
+                return primary !== 'journal-unread' && !!(g.noti && g.noti.journal) && contentProgression.canOpen('tab-journal', g);
             },
             build() { return buildNotice(_t('새 이야기 저널 확인'), 'tab-journal'); }
         },
@@ -403,12 +403,12 @@
         },
         {
             id: 'passive-points',
-            matches(g) { return clampCount(g.passivePoints) > 0 && !!(g.unlocks && g.unlocks.char); },
+            matches(g) { return clampCount(g.passivePoints) > 0 && !!(g.unlocks && g.unlocks.char) && contentProgression.canOpen('tab-char', g); },
             build(g) { return buildNotice(_t('스킬트리 포인트 {n} 사용', { n: clampCount(g.passivePoints) }), 'tab-char'); }
         },
         {
             id: 'equippable-equipment',
-            matches(g) { return !!(g.unlocks && g.unlocks.items) && hasEquippableInventoryItem(g); },
+            matches(g) { return !!(g.unlocks && g.unlocks.items) && contentProgression.canOpen('tab-items', g) && hasEquippableInventoryItem(g); },
             build() { return buildNotice(_t('빈 장비 칸에 장비 장착'), 'tab-items', 'item-tab-equip'); }
         },
         {

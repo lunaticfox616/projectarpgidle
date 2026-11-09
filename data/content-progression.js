@@ -28,7 +28,8 @@ const CONTENT_UNLOCK_TREE_VERSION = 11;
 // 그 전에 산 기록은 지킨다(js/content-progression.js keepEarlyPurchases). 그 전까지는 불러올 때 새 루프에 못 미친 구매를 버려 룬 각인이 사라졌다.
 // 해금 루프를 또 늦추면 이 버전을 함께 올린다.
 const CONTENT_UNLOCK_LOOP_MOVE_VERSION = 14;
-const CONTENT_UNLOCK_RECORD_VERSION = 14;
+// 장부 15: 일반 스킬트리를 루프 2 유료 해금으로 옮긴다.
+const CONTENT_UNLOCK_RECORD_VERSION = 15;
 const CONTENT_UNLOCK_SERIES = Object.freeze([
     { series: 'offlineHours', rail: 'idle', name: '시간 인식', nameTemplate: '시간 인식 {n}단계', art: 'ui/pixel/buttons/loop.png',
         description: '방치 한도가 늘어납니다.',
@@ -89,6 +90,7 @@ const CONTENT_UNLOCK_CATALOG = Object.freeze([
     {"id":"journal","name":"저널","group":"기록","minLoop":1,"cost":0,"description":"발견한 기록과 영구 보상을 확인합니다.","routes":["tab-journal"],"gate":"journal"},
     {"id":"stump","name":"그루터기 함","group":"영구 성장","minLoop":1,"cost":0,"progress":"stump","description":"씨앗을 그루터기 함에 배치해 처치로 키웁니다.","routes":["tab-stump"],"gate":"stump","lifecycle":{"label":"일부 유지","kept":"그루터기 함, 열린 칸, 접붙이기, 봉인 칸의 아이템과 성장","reset":"봉인 칸 밖의 그루터기 아이템과 부적(판, 보관함, 생육함)"}},
     {"id":"records","name":"전적","group":"기록","minLoop":1,"cost":0,"description":"루프와 전투 기록을 비교합니다.","routes":["tab-records"]},
+    {"id":"passiveTree","name":"스킬트리","group":"영구 성장","minLoop":2,"cost":1,"addedIn":15,"description":"레벨업으로 얻는 스킬트리 포인트를 노드에 투자할 수 있습니다.","routes":["tab-char"],"art":"ui/pixel/buttons/passive.png"},
     {"id":"loopTree","gain":"영구 능력치","name":"루프 패시브","group":"영구 성장","minLoop":2,"cost":2,"description":"루프 포인트로 영구 노드에 투자할 수 있습니다. 해금 전에도 포인트는 쌓입니다.","sections":["#trait-season-section"],"art":"ui/currency/ouroboros.png","action":{"tab":"tab-season","section":"trait-season-section"},"lifecycle":{"label":"성장 영구 유지","kept":"루프 포인트와 투자한 패시브","reset":""}},
     {"id":"trials","gain":"전직 노드","art":"gems/active/shield-charge-v1.png","after":"loopTree","name":"전직","group":"영구 성장","minLoop":3,"cost":2,"description":"시련 포인트로 직업의 전직 셋 중 하나를 고르고 전직 노드를 할당할 수 있습니다. 전직 시련 입장도 함께 해금됩니다.","routes":["tab-traits"],"gate":"traits","lifecycle":{"label":"루프 초기화","kept":"","reset":"전직 선택, 패시브, 시련 포인트, 시련 클리어"}},
     {"id":"fossilRestore","gain":"화석 옵션 장비","art":"px/items/cosmic-slab-v3.png","after":"fossil","name":"화석 복원","group":"장비","minLoop":5,"cost":1,"description":"고대 미궁에서 원시 화석과 고대 원시 화석이 떨어집니다. 제작실에서 원시 화석을 복원하고 남는 화석을 정제할 수 있습니다. 화석 전용 옵션 장비도 떨어집니다.","action":{"tab":"tab-items","subtab":"item-tab-fossil"},"since":11},

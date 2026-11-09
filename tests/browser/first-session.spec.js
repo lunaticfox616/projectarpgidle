@@ -54,9 +54,14 @@ test('a new warrior earns and equips the first gem through visible controls', as
     await pickClass(page, 'warrior', { opening: true });
     await page.locator('#opening-intro .opening-intro-skip').click();
     await expect(page.locator('#opening-intro')).toHaveCount(0);
+    await expect(page.locator('#btn-act-exploration-auto')).toBeHidden();
+    expect(await page.evaluate(() => ['tab-skills', 'tab-items', 'tab-char', 'tab-map', 'tab-journal']
+        .filter(route => contentProgression.canOpen(route)))).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath('first-session-wake.png') });
     const startedAt = Date.now();
     const notices = [];
     let firstGemMs = null;
+    let restoredRune = false;
     await expect.poll(async () => {
         await takeOpeningStep(page);
         if (firstGemMs === null && await page.evaluate(() => !!game.starterGemTutorialPending)) {
@@ -65,8 +70,21 @@ test('a new warrior earns and equips the first gem through visible controls', as
         if (await page.locator('#tutorial-dismiss-btn').isVisible()) {
             const title = await page.locator('#tutorial-title').innerText();
             notices.push(title);
-            if (title === '첫 스킬룬 장착') await page.locator('#tutorial-open-btn').click();
-            else await page.locator('#tutorial-dismiss-btn').click();
+            await page.locator('#tutorial-dismiss-btn').click();
+        }
+        const equip = page.locator('[data-opening-rune]');
+        if (!restoredRune && await equip.isVisible()) {
+            restoredRune = true;
+            await expect(page.locator('#log')).toContainText('스킬룬 [이중 베기] 획득');
+            await expect(page.locator('#log')).not.toContainText('직업에 맞는 스킬룬');
+            await expect(page.locator('#btn-act-exploration-auto')).toBeHidden();
+            await page.evaluate(() => saveGame({ skipCloudSync: true }));
+            await page.reload();
+            await page.locator('#btn-startup-guest').click();
+            await expect(equip).toBeVisible();
+            expect(await page.evaluate(() => !!game.starterGemTutorialPending)).toBe(true);
+            await expect(page.locator('#btn-act-exploration-auto')).toBeHidden();
+            await equip.click();
         }
         return page.locator('#tutorial-action-card').isVisible();
     }, { timeout: 60000, intervals: [250, 500] }).toBe(true).catch(async error => {
@@ -103,9 +121,13 @@ test('a new warrior earns and equips the first gem through visible controls', as
     await expect(page.locator('#tutorial-action-card')).toBeHidden();
     await expect(page.locator('#game-toast-region')).toContainText('스킬룬 장착 완료');
     expect(await page.evaluate(() => game.activeSkill)).toBe('이중 베기');
-    await expect(page.locator('#log')).toContainText('스킬룬 [이중 베기] 획득');
-    await expect(page.locator('#log')).not.toContainText('직업에 맞는 스킬룬');
     expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
+    await expect(page.locator('#btn-act-exploration-auto')).toBeVisible();
+    await expect(page.locator('#btn-act-exploration-auto')).toHaveAttribute('aria-pressed', 'false');
+    await page.locator('#btn-act-exploration-auto').click();
+    await expect(page.locator('#btn-act-exploration-auto')).toHaveAttribute('aria-pressed', 'true');
+    expect(notices).not.toContain('첫 스킬룬 장착');
+    expect(restoredRune).toBe(true);
     expect(errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath('natural-first-gem.png') });
     await testInfo.attach('first-session-observation', {

@@ -41,6 +41,15 @@ const ACT_REWARD_DB = {
     2: {
         title: '액트 3 클리어 보상',
         body: '추가 스킬트리 포인트입니다.',
+        firstLoop: {
+            title: '액트 3 클리어 보상',
+            body: '다음 구간을 준비할 전리품 하나를 고르세요.',
+            choices: [
+                { kind: 'item', slot: '반지', rarity: 'magic', label: '반지', desc: '' },
+                { kind: 'item', slot: '목걸이', rarity: 'magic', label: '목걸이', desc: '' },
+                { kind: 'item', slot: '허리띠', rarity: 'magic', label: '허리띠', desc: '' }
+            ]
+        },
         choices: [
             { kind: 'points', value: 2, label: '스킬트리 포인트 +2', desc: '스킬트리에서 노드 두 개를 더 열 수 있습니다.' }
         ]
