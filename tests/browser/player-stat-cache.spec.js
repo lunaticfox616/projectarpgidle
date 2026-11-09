@@ -27,7 +27,11 @@ async function equipHelmetThroughInspector(page) {
 }
 
 async function spendPassiveOnTree(page) {
-    await page.evaluate(() => { game.passivePoints = 2; updateStaticUI(); });
+    await page.evaluate(() => {
+        // The skill tree is bought in 해금 from loop 2 (2026-11-09).
+        if (!contentProgression.canOpen('tab-char')) { game.season = 2; game.loopCount = 1; contentProgression.sync(); contentProgression.purchase('passiveTree'); }
+        game.passivePoints = 2; updateStaticUI();
+    });
     await page.locator('#btn-tab-char').click();
     await page.waitForFunction(() => passiveCameraInitialized && !uiRefreshRunning && !uiRefreshQueued);
     await page.waitForTimeout(200);

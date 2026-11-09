@@ -74,6 +74,9 @@
         // 휴대폰 배치에서는 첫 누름이 고르기만 한다: 보이는 '이 직업으로 시작'을 눌러 정한다.
         const start = document.getElementById('loop-hero-select-start');
         if (start && !start.disabled && start.offsetParent) start.click();
+        // Then the window asks for the basic skill's element (js/passives.js, 2026-11-09): the first one offered.
+        await waitFor(() => document.querySelector('#loop-hero-select-overlay .basic-skill-choice'));
+        document.querySelector('#loop-hero-select-overlay .basic-skill-choice').click();
         await waitFor(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
         clearInterval(gameTickHandle); gameTickHandle = null;
         new MutationObserver(skipNotices).observe(document.getElementById('tutorial-overlay'), { attributes:true, attributeFilter:['class'] });

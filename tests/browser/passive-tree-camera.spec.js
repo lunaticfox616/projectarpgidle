@@ -13,6 +13,9 @@ async function openTreeAsPlayer(page, touch) {
     await page.evaluate(() => {
         clearInterval(gameTickHandle); gameTickHandle = null;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
+        // The skill tree is bought in 해금 from loop 2 (2026-11-09).
+        game.season = 2; game.loopCount = 1; contentProgression.sync(); contentProgression.purchase('passiveTree');
+        tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         game.passivePoints = 1; updateStaticUI();
     });
     if (touch) await press(page.locator('#btn-mobile-nav-more'));
