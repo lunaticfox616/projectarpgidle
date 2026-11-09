@@ -160,6 +160,7 @@ const bossMoveView = (() => {
         drawShiftMarks(ctx, projection, now);
         for (const entry of bossMoves.live(now)) {
             const move = entry.move, found = bossMoves.fxOf(entry.source);
+            if (move.kind === 'woodsman') continue;
             for (const stage of move.stages) {
                 const cells = stage.cells.filter(cell => !move.spent.includes(cell.lane) || move.kind !== 'volley');
                 if (cells.length && !HELD_MOVES.includes(move.kind)) drawStageWarning(ctx, { cells }, move.releasedAt + stage.ms, now, projection);
@@ -256,6 +257,7 @@ const bossMoveView = (() => {
     /** The charge at the boss's hand through its warning: GPT's charge frames spread over the warning, the last flash at the end. */
     function drawCharges(ctx, projection) {
         for (const enemy of game.enemies || []) {
+            if (enemy.patternArea?.woodsman) continue;
             const share = enemy && enemy.isBoss ? bossAttackView.warningShare(enemy) : null;
             if (share === null || !enemy.patternArea) continue;
             const element = woodsmanAttackFxElement(enemy);

@@ -133,6 +133,7 @@ const stageRegion = (() => {
         ctx.drawImage(roomPictureSource(fit), x, y, w, h);
         if (typeof stageOcean === 'object') stageOcean.light(ctx, view.map.region, { x, y, w, h }); // 심해 띠의 빛줄기, 같은 뒤집기
         if (room.mirror) ctx.restore();
+        woodsmanView.body(ctx, view, p, { x, y, w, h });
         blendPictureEdges(ctx, region, { x, y, w, h, reach: Math.round(BLEND_DOTS * dot) }, area);
     }
     /** 방 그림이 방 바닥의 뒤쪽 끝(바닥선) 위로 올라가는 높이(칸 너비 단위, js/canvas-stage-scene.js coverTile). 지역 그림이 없는 지도는 0. */

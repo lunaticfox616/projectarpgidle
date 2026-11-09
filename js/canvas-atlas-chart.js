@@ -186,7 +186,8 @@ const atlasChartArt = (() => {
     function paint(canvas, size, model) {
         const buf = canvasBuffer(canvas, size);
         if (!buf) return false;
-        paintDisc(buf, model.regions);
+        if (model.flat) fillGround(buf, () => [18, 19, 24]);
+        else paintDisc(buf, model.regions);
         paintLinks(buf, model.links);
         model.nodes.forEach(node => (node.kind === 'pinnacle' ? paintPinnacle(buf, node, model.tickets) : paintMedallion(buf, node, model.regions)));
         buf.context.putImageData(buf.image, 0, 0);

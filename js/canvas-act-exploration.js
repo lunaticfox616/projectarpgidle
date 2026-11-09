@@ -51,6 +51,8 @@ const actExplorationView=(()=>{
      * 테스트 패널에서 고른 배율도 그대로다. */
     function stageTile(run,map,width,height) {
         const tile=stageView.tile(width,height,stageRoomRows(run));
+        const giant=woodsmanView.fitTile(map,width,height,tile);
+        if(giant<tile)return giant;
         if(Number(game.settings.stageZoom)||typeof stageScene!=='object'||!(stageView.phonePortrait(width,height)||stageView.stacked()))return tile;
         return Math.max(tile,stageScene.coverTile(map,width,height));
     }

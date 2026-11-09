@@ -201,6 +201,7 @@ function getGridBlockedCells(excludeUnit) {
     addUnit(game.gridPlayer);
     (game.enemies || []).forEach(enemy => { if (enemy && enemy.hp > 0) addUnit(enemy); });
     addExplorationGridReservations(blocked,excludeUnit);
+    woodsmanStumps.cells(excludeUnit).forEach(cell => blocked.add(gridCellKey(cell.gx, cell.gy)));
     (game.summons || []).forEach(summon => { if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) addUnit(summon); });
     return blocked;
 }

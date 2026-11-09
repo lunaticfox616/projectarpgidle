@@ -49,11 +49,23 @@ const atlasEndgame = (() => {
     /** A league waits for the unlock of its room (data/atlas.js encounters): before it there are no shards. */
     const roomLoop = row => (row.room && ATLAS.encounters[row.room] ? ATLAS.encounters[row.room].minLoop || 0 : 0);
     const roomHeld = (state, row) => { const unlock = row.room && ATLAS.encounters[row.room]?.unlock; return !unlock || contentProgression.holds(unlock, state); };
+    function ancientDone(state, id) {
+        return kills(state, id) > 0 || (state.atlas.completed || []).includes(id) || (state.clearedRootBosses || []).includes(id);
+    }
+    function ancientGate(state, id) {
+        const rule = ATLAS.lore.bosses.find(row => row.id === id);
+        if (!rule || ancientDone(state, id)) return '';
+        const missing = rule.requires.filter(key => !ancientDone(state, key));
+        const name = key => ATLAS.lore.bosses.find(row => row.id === key)?.name || atlas.node(key)?.name || key;
+        return missing.length ? _t('{names} 격파 필요', { names: missing.map(key => _t(name(key))).join(', ') }) : '';
+    }
     function unlocked(state, row) {
         if (!awakened(state) || (Number(state.season) || 1) < roomLoop(row) || !roomHeld(state, row)) return false;
+        if (ATLAS.lore.bosses.some(rule => rule.id === row.id)) return !ancientGate(state, row.id);
         return !(row.unlock && row.unlock.kill) || kills(state, row.unlock.kill) > 0;
     }
     function lockText(state, row) {
+        if (awakened(state) && ATLAS.lore.bosses.some(rule => rule.id === row.id)) return ancientGate(state, row.id);
         if (row.unlock && row.unlock.kill) return _t('{name} 처치 뒤에 열립니다.', { name: def(row.unlock.kill).stages[0].name });
         if (awakened(state) && roomLoop(row) > 0) return _t('{name} 해금 뒤에 열립니다.', { name: ATLAS.encounters[row.room].name });
         return '세계수의 그림자(정점)를 쓰러뜨리면 아틀라스가 깨어나 열립니다.';
@@ -331,7 +343,7 @@ const atlasEndgame = (() => {
             blight: ATLAS.regions.map(region => ({ region, level: book.blight[region.id] || 0 })), witness: book.witness, witnessPer: E.witness.per,
             gardenerDown: kills(state, 'apex_gardener') > 0 };
     }
-    return Object.freeze({ defaults, normalize, normalizeRun, moveAltarMaterials, reset, loopKeptCurrencies, awakened, kills, count, def, entryReason, spend, refund, runExtra,
+    return Object.freeze({ defaults, normalize, normalizeRun, ancientDone, ancientGate, moveAltarMaterials, reset, loopKeptCurrencies, awakened, kills, count, def, entryReason, spend, refund, runExtra,
         bossBoost, zoneExtras, tuneStage, patternState, roomItems, onComplete, overview, bearableOmens, markOmenBearer, takeOmen, isFight: id => DEFS.has(id),
         itemName: id => (E.items[id] ? E.items[id].name : id) });
 })();

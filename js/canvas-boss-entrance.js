@@ -59,6 +59,7 @@ const bossEntranceView = (() => {
     }
     /** The boss whose name banner already shows (from the burst on), before it has joined the fight. */
     function revealedBoss(now) {
+        if (woodsmanBattle.introduction()) return null;
         const fx = active(now);
         return fx && now - fx.start >= burstOf(fx) ? bossOf(fx) : null;
     }

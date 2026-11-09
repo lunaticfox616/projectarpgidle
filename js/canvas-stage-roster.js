@@ -78,6 +78,8 @@ const stageRoster = (() => {
         if (!data) return;
         tick = performance.now();
         mapLooks = new Set(enemies.map(enemy => actorFor(enemy)).filter(Boolean).map(actor => actor.id));
+        if (game.currentZoneId === OUTSIDE_CHAOS_ZONE_ID && enemies.some(e => e.isWoodsman))
+            WOODSMAN_BATTLE.stumps.summons.forEach(row => mapLooks.add(row.look));
         sweepAt = tick + stageCache.HOT_MS * 2;
         for (const id of mapLooks) pairOf(data.actors[id]);
     }

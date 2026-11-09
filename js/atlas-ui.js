@@ -2,7 +2,7 @@
  * 패시브 보기는 js/atlas-passives-ui.js. 상태는 js/atlas.js, 런 흐름은 js/atlas-run.js가 맡고, 여기서는 고르기 · 보여주기 · 기록만 한다.
  */
 const atlasUi = (() => {
-    let signature = '', hudSignature = '', selectedNode = null, selectedUid = null, view = 'maps', panelObserver = null, bloomedUid = null;
+    let signature = '', hudSignature = '', selectedNode = null, selectedRegion = 'roots', selectedUid = null, view = 'maps', panelObserver = null, bloomedUid = null;
     const STATUS = { locked: '잠김', open: '열림', complete: '완료', bonus: '보너스' };
     /** The state word's colour on the hover card: open is the chart's gold, done is pale. */
     const STATUS_TONE = { locked: '#8d826e', open: '#f3d28c', complete: '#efe6d2', bonus: '#fff1c9' };
@@ -37,20 +37,38 @@ const atlasUi = (() => {
         view = ['passives', 'epoch', 'late', 'memory', 'board'].includes(next) && viewOpen(next) ? next : 'maps';
         refresh();
     }
+    function selectRegion(id, showMaps = false) {
+        if (!ATLAS.regions.some(row => row.id === id)) return;
+        if (showMaps) view = 'maps';
+        selectedRegion = id;
+        selectedNode = null;
+        refresh();
+    }
     function selectNode(id, reveal = false) {
-        if (!atlas.node(id)) return;
+        const node = atlas.node(id);
+        if (!node) return;
         hideInfoTooltip(); // a tap also fires the hover card; the detail panel shows the node now
+        if (reveal) view = 'maps';
         selectedNode = id;
+        selectedRegion = node.region || 'trunk';
         const maps = ledger().stash.filter(map => map.node === id);
-        if (maps.length && !maps.some(map => map.uid === selectedUid)) selectedUid = maps[0].uid;
+        if ((reveal || maps.length) && !maps.some(map => map.uid === selectedUid)) selectedUid = maps.length ? maps[0].uid : null;
         render();
-        if (reveal) document.querySelector('#ui-atlas .atlas-node-detail')?.scrollIntoView({ block: 'start' });
+        if (reveal) revealNodeDetail();
+    }
+    function revealNodeDetail() {
+        const detail = document.querySelector('#ui-atlas .atlas-node-detail');
+        if (!detail) return;
+        detail.tabIndex = -1;
+        detail.focus({ preventScroll: true });
+        detail.scrollIntoView({ block: 'nearest' });
     }
     function selectMap(uid, reveal = false) {
         const map = ledger().stash.find(entry => entry.uid === uid);
         if (!map) return;
         selectedUid = uid;
         selectedNode = map.node;
+        selectedRegion = atlas.node(map.node).region || 'trunk';
         render();
         if (reveal) revealDevice();
     }
@@ -215,10 +233,12 @@ const atlasUi = (() => {
     }
 
     // ---------------------------------------------------------------- chart
-    /** The chart: a dot drawing of the world tree's cross-section (js/canvas-atlas-chart.js) under transparent node buttons. */
+    const shownNodes = () => atlas.nodes.filter(node => node.region === selectedRegion || (selectedRegion === 'trunk' && node.kind === 'pinnacle'));
     function chartHtml() {
-        return `<div class="atlas-chart" role="group" aria-label="${_t('세계수 아틀라스 노드')}"><canvas class="atlas-art" aria-hidden="true"></canvas>
-            ${atlas.nodes.map(nodeHtml).join('')}</div>`;
+        const region = ATLAS.regions.find(row => row.id === selectedRegion), lore = ATLAS.lore.regions[selectedRegion];
+        return `<section class="atlas-region-route"><h3>${escapeHTML(_t(region.name))}</h3><p class="atlas-muted">${escapeHTML(_t(lore.note))}</p>
+            <div class="atlas-chart atlas-route-chart" role="group" aria-label="${escapeHTML(_t(region.name))}"><canvas class="atlas-art" aria-hidden="true"></canvas>
+            ${shownNodes().map(nodeHtml).join('')}</div><p class="atlas-muted">${_t('입구에서 갈래를 선택하고 수호자를 거쳐 최초의 경계로 향합니다.')}</p></section>`;
     }
     const done = id => ['complete', 'bonus'].includes(atlas.status(game, id));
     /** Walked paths are gold, the way on from a completed node glows sap, the rest waits dim. */
@@ -226,19 +246,15 @@ const atlasUi = (() => {
         if (done(a) && done(b)) return 'done';
         return (done(a) || done(b)) && atlas.reachable(game, a) && atlas.reachable(game, b) ? 'lit' : 'dim';
     }
-    const polarOf = point => ({ angle: Math.atan2(point.y - 50, point.x - 50), radius: Math.hypot(point.x - 50, point.y - 50) });
-    /** A path between two nodes: along the ring when both sit on the same ring, straight across rings. */
+    /** Authored paths are directed; a locked target never lights a backwards shortcut. */
     function linkModel([a, b]) {
-        const from = atlas.node(a), to = atlas.node(b), p = atlas.position(from), q = atlas.position(to);
-        const sameRing = from.kind === 'map' && to.kind === 'map' && ATLAS.chart.ring[from.slot] === ATLAS.chart.ring[to.slot];
-        const arc = sameRing ? { radius: polarOf(p).radius, from: polarOf(p).angle, to: polarOf(q).angle } : null;
-        return { from: p, to: q, arc, state: linkState(a, b) };
+        return { from: atlas.position(atlas.node(a)), to: atlas.position(atlas.node(b)), state: linkState(a, b) };
     }
     function chartModel() {
         const running = ledger().run && ledger().run.map.node;
-        const nodes = atlas.nodes.map(node => ({ ...atlas.position(node), kind: node.kind, region: node.regionIndex,
+        const nodes = shownNodes().map(node => ({ ...atlas.position(node), kind: node.kind, region: node.regionIndex,
             status: atlas.status(game, node.id), selected: node.id === selectedNode, running: node.id === running }));
-        return { regions: ATLAS.regions, nodes, links: atlas.links.map(linkModel), tickets: ATLAS.pinnacle.tickets.map(key => (game.currencies[key] || 0) >= 1) };
+        return { regions: ATLAS.regions, flat: true, nodes, links: atlas.links.filter(([a,b]) => shownNodes().some(n => n.id === a) && shownNodes().some(n => n.id === b)).map(linkModel), tickets: ATLAS.pinnacle.tickets.map(key => (game.currencies[key] || 0) >= 1) };
     }
     /** Paints the drawing at about one dot per 2 CSS px of the chart's width — again whenever the panel changes size. */
     function paintChart() {
@@ -271,12 +287,15 @@ const atlasUi = (() => {
     }
     /** Region legend: tint, name and how much of it is done (its maps and guardian). */
     function legendHtml() {
-        return `<div class="atlas-legend" aria-label="${_t('지역')}">${ATLAS.regions.map(region => {
-            const nodes = atlas.nodes.filter(node => node.region === region.id);
-            const done = nodes.filter(node => ledger().completed.includes(node.id)).length;
-            return `<span style="--tint:${region.tint}"><i></i>${_t(region.name)} <small>${done}/${nodes.length}</small></span>`;
-        }).join('')}</div>`;
+        return `<nav class="atlas-region-tabs" aria-label="${_t('지역')}">${ATLAS.regions.map(region => {
+            const nodes = atlas.nodes.filter(node => node.region === region.id), done = nodes.filter(node => ledger().completed.includes(node.id)).length;
+            const branch = { sun: '태양', moon: '달', origin: '경계' }[ATLAS.lore.regions[region.id].path];
+            return `<button style="--tint:${region.tint}" aria-pressed="${region.id === selectedRegion}" onclick="atlasUi.selectRegion('${region.id}')"><small>${_t(branch)}</small>${escapeHTML(_t(region.name))}<b>${done}/${nodes.length}</b></button>`;
+        }).join('')}</nav>`;
     }
+    const nodeLabel = (node, tier, status) => escapeHTML(_t('{name} {tier}등급 {STATUS}', {
+        name: _t(node.name), tier, STATUS: _t(STATUS[status])
+    }));
     function nodeHtml(node) {
         const { x, y } = atlas.position(node), status = atlas.status(game, node.id);
         const held = ledger().stash.filter(map => map.node === node.id).length;
@@ -285,8 +304,8 @@ const atlasUi = (() => {
         const tier = atlas.effectiveTier(game, node);
         // data-info-tooltip-anchor: js/ui.js의 mousemove 감시가 이 표시가 없는 곳의 툴팁을 바로 지워, 지도 이름이 뜨자마자 사라졌다(2026-10-25 사용자).
         return `<button class="${classes}" style="--x:${x}%;--y:${y}%;${tierStyle(tier)}" data-atlas-node="${node.id}" data-info-tooltip-anchor="1" aria-pressed="${node.id === selectedNode}"
-            aria-label="${_t('{name} {tier}등급 {STATUS}', { name: escapeHTML(_t(node.name)), tier, STATUS: STATUS[status] })}" onclick="atlasUi.selectNode('${node.id}')"
-            onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><b>${tier}</b>${held ? `<i>${held}</i>` : ''}</button>`;
+            aria-label="${nodeLabel(node, tier, status)}" onclick="atlasUi.selectNode('${node.id}')"
+            onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><b>${tier}</b><span class="atlas-route-name">${escapeHTML(_t(node.name))}</span>${held ? `<i>${held}</i>` : ''}</button>`;
     }
 
     // ---------------------------------------------------------------- side: open map, map device, node
@@ -586,7 +605,7 @@ const atlasUi = (() => {
             ${stop ? _t('<button onclick="openMapCompleteActionPicker(event)">완료 후 행동 변경</button>') : ''}</section>`;
     }
     function mapsViewHtml() {
-        return `${journeyHtml()}${autoOptionsHtml()}<div class="atlas-main"><div class="atlas-chart-column">${legendHtml()}${chartHtml()}</div><div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
+        return `${journeyHtml()}<div class="atlas-ancient-entry"><button onclick="atlasUi.setView('late')">${_t('태양과 달, 피나클')}</button></div>${autoOptionsHtml()}<div class="atlas-main"><div class="atlas-chart-column">${legendHtml()}${chartHtml()}</div><div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
             ${resultHtml()}${stashHtml()}`;
     }
     const VIEWS = { maps: () => mapsViewHtml(), passives: () => atlasPassivesUi.html(), epoch: () => atlasEpochUi.html(), late: () => atlasEndgameUi.html(),
@@ -599,7 +618,7 @@ const atlasUi = (() => {
         atlasBoard.sync(game);
         const wallet = [...[...CRAFT_ORDER, ...ATLAS.pinnacle.tickets].map(key => game.currencies[key] || 0), ...flowerWallet()];
         if (!viewOpen(view)) view = 'maps'; // 다른 저장을 불러와 원정이 닫힌 뒤
-        const key = JSON.stringify([view, ledger(), selectedNode, selectedUid, wallet, atlasRun.blockReason(), game.currentZoneId, game.maxZoneId, game.settings.mapCompleteAction, getPersistentBuildSignature(game)]);
+        const key = JSON.stringify([view, selectedRegion, ledger(), selectedNode, selectedUid, wallet, atlasRun.blockReason(), game.currentZoneId, game.maxZoneId, game.settings.mapCompleteAction, getPersistentBuildSignature(game)]);
         if (key === signature && panel.innerHTML) return;
         signature = key;
         const lock = atlas.lockReason(game);
@@ -693,6 +712,6 @@ const atlasUi = (() => {
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
     // journey: the next-goal card's title, text, label and action (the world map's 바로 가기 row, js/world-map-brief-ui.js).
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, journey: journeyState, selectNode, selectMap, revealDevice, revealStash, hint, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, journey: journeyState, selectRegion, selectNode, selectMap, revealDevice, revealStash, hint, nodeLabel, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
 })();
 safeExposeGlobals({ atlasUi });

@@ -269,7 +269,7 @@ const BOSS_LOOP_HP_SHARE = 0.8;
 // 루프를 타지 않는 지역(나무꾼 · 시련)은 깊이가 0이라 그대로다. 루프 30에 고정하고 노드 등급으로 난이도를 올리는 우주계는
 // 예전 값(fixed)을 그대로 쓴다(js/combat.js getMonsterLoopGrowthScale). 전투와 권장 전투력 · 우주계 예측이 같은 값을 쓴다.
 const MONSTER_LOOP_GROWTH = Object.freeze({
-    // 생명력 성장은 2026-10-06부터 MONSTER_LOOP_HP_CURVE가 맡고, 이 값은 우주계 최종 보스(잔향체 아스트라)의 예전 공식에만 남는다.
+    // 생명력 성장은 2026-10-06부터 MONSTER_LOOP_HP_CURVE가 맡고, 이 값은 우주계 최종 보스(달의 존재, 아리안로드)의 예전 공식에만 남는다.
     hp: Object.freeze({ base: 0.08, tier: 0.47 }),
     damage: Object.freeze({ base: 0.05, tier: 0.06 }),
     fixed: Object.freeze({ hp: Object.freeze({ base: 0.08, tier: 0.52 }), damage: Object.freeze({ base: 0.05, tier: 0.07 }) })
@@ -376,7 +376,7 @@ const SEASON_CONTENT_ROADMAP = {
     28: { title: '루프 28', features: ['심화: 혼돈 단계 상승'] },
     29: { title: '루프 29', features: ['그루터기 함: 봉인 칸 2', '심화: 혼돈 단계 상승'] },
     30: { title: '루프 30', features: ['아틀라스: 잿불 터 (타오른 잿불가지로 장비를 한 번 더 타락)', '전환점: 혼돈 루프 요구 심화 40층'] },
-    31: { title: '루프 31', features: ['해금: 버려진 날붙이 / 단절된 방랑자', '조건부 해금: 혼돈/우주계 루프 경로 선택', '조건부 해금: 잔향체 아스트라 / 아틀라스 최종 관문'] },
+    31: { title: '루프 31', features: ['해금: 버려진 날붙이 / 단절된 방랑자', '조건부 해금: 혼돈/우주계 루프 경로 선택', '조건부 해금: 달의 존재, 아리안로드 / 아틀라스 최종 관문'] },
     32: { title: '루프 32', features: ['아틀라스: 수액 상처 (기폭제로 장비의 품질 속성을 고른 태그로)', '심화: 혼돈 단계 상승'] },
     33: { title: '루프 33', features: ['보스 변이체 (모든 보스가 드물게 변이체로, 처음 잡은 변이마다 보상, 기억 던전에서 다시 부르기)', '심화: 혼돈 단계 상승'] },
     34: { title: '루프 34', features: ['아틀라스: 나이테 원정 (길잡이에게서 얻은 주사위로 이동, 지도 보상 누적, 보스 처치로 정산)', '심화: 혼돈 단계 상승'] },
@@ -434,20 +434,20 @@ const SEASON_BOSS_ZONES = [
     { id: 'rival_masterwork', bossVisualId: 'rival_masterwork', name: '일곱 번째 날 「완성작」', type: 'seasonBoss', tier: 32, key: 'rivalKey', reqSeason: 31, ele: 'chaos', reward: 'woodsmanTouch', journalId: 'rival_masterwork', rivalBlade: true, capstoneRival: true, difficultyBenchmark: 'rival31',
       requiresRivals: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'],
       bossMods: { hpMul: 1.9, damageMul: 1.35, attackSpeedMul: 1.12, critChanceBonus: 10, dr: 10, resAll: 10, regenMul: 3, penetration: 8, firstHitGuard: 0.25, patternMode: 'ramp', traitName: '완성작: 여섯 날의 모든 것' } },
-    // 잔향체 아스트라 (루프 31+): 우주계 5개 은하의 보스(하말리스/디프다르/주베누비아/주벤샤말/에니프론)를
+    // 달의 존재, 아리안로드 (루프 31+): 우주계 5개 은하의 보스(하말리스/디프다르/주베누비아/주벤샤말/에니프론)를
     // 같은 루프 안에 모두 격파해야 모습을 드러내는 우주계의 최종 관문. 다섯 보스의 정체성을 번갈아 두르며 싸운다.
-    { id: 'cosmos_astra', bossVisualId: 'cosmos_astra', name: '잔향체 아스트라', type: 'seasonBoss', tier: 82, key: 'cosmosSovereignKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'cosmos_astra', cosmosCapstone: true, difficultyBenchmark: 'cosmosFinal',
+    { id: 'cosmos_astra', bossVisualId: 'cosmos_astra', name: '달의 존재, 아리안로드', type: 'seasonBoss', tier: 82, key: 'cosmosSovereignKey', reqSeason: 31, ele: 'chaos', reward: 'goldenRule', journalId: 'cosmos_astra', cosmosCapstone: true, difficultyBenchmark: 'cosmosFinal',
       requiresCosmosBosses: ['planet-45', 'planet-46', 'planet-47', 'planet-48', 'planet-49'],
       bossMods: { hpMul: 2.8, damageMul: 2.75, attackSpeedMul: 1.1, dr: 12, resAll: 14, armorMul: 1.45, evasionMul: 1.35, regenMul: 2, penetration: 12, critChanceBonus: 14, firstHitGuard: 0.3, patternMode: 'ramp', traitName: '잔향: 다섯 별의 마지막 메아리' } },
     // 아틀라스 최종 관문: 기존 무한 콘텐츠의 명확한 종착 목표다. 진행 이정표로 영구 해금되며
     // 입장권은 요구하지 않는다. 무료 반복 파밍을 막기 위해 보상은 최초 격파에만 지급한다.
-    { id: 'pinnacle_underking', bossVisualId: 'pinnacle_underking', name: '지핵군주 모르그란', signatureUnique: '모르그란의 용광로 흉갑', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'phys', journalId: 'pinnacle_underking', milestonePinnacle: true, pinnacleTrack: 'underworld', difficultyBenchmark: 'underworld30', underworldPenaltyFloor: 30,
+    { id: 'pinnacle_underking', bossVisualId: 'pinnacle_underking', name: '태양의 존재, 벨라-루', signatureUnique: '모르그란의 용광로 흉갑', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'phys', journalId: 'pinnacle_underking', milestonePinnacle: true, pinnacleTrack: 'underworld', difficultyBenchmark: 'underworld30', underworldPenaltyFloor: 30,
       pinnacleRequirement: { kind: 'underworldFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.35, damageMul: 1.18, attackSpeedMul: 0.82, dr: 14, resAll: 10, armorMul: 1.8, penetration: 14, firstHitGuard: 0.32, patternMode: 'slam', traitName: '지핵 붕괴: 느리지만 방어를 파쇄하는 강타' } },
-    { id: 'pinnacle_leviathan', bossVisualId: 'pinnacle_leviathan', name: '무광해의 포식자 탈라사', signatureUnique: '탈라사의 해구 이빨', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'cold', journalId: 'pinnacle_leviathan', milestonePinnacle: true, pinnacleTrack: 'ocean', difficultyBenchmark: 'ocean1000', oceanPressureDepthTier: 10,
+    { id: 'pinnacle_leviathan', bossVisualId: 'pinnacle_leviathan', name: '심연의 비포르네우스', signatureUnique: '탈라사의 해구 이빨', type: 'seasonBoss', tier: 60, reqSeason: 31, ele: 'cold', journalId: 'pinnacle_leviathan', milestonePinnacle: true, pinnacleTrack: 'ocean', difficultyBenchmark: 'ocean1000', oceanPressureDepthTier: 10,
       pinnacleRequirement: { kind: 'oceanDepth', target: 1000 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.3, damageMul: 1.22, attackSpeedMul: 1.04, energyShieldPct: 35, regenMul: 2.4, resC: 18, resChaos: 12, penetration: 10, ailmentChanceBonus: 0.12, patternMode: 'ramp', traitName: '무광해 역류: 보호막과 냉각으로 장기전을 강요' } },
-    { id: 'pinnacle_sky', bossVisualId: 'pinnacle_sky', name: '빈 왕좌의 집행자 카엘룸', signatureUnique: '빈 왕좌의 관', type: 'seasonBoss', tier: 61, reqSeason: 31, ele: 'light', journalId: 'pinnacle_sky', milestonePinnacle: true, pinnacleTrack: 'sky', difficultyBenchmark: 'sky30',
+    { id: 'pinnacle_sky', bossVisualId: 'pinnacle_sky', name: '창공의 엘라하', signatureUnique: '빈 왕좌의 관', type: 'seasonBoss', tier: 61, reqSeason: 31, ele: 'light', journalId: 'pinnacle_sky', milestonePinnacle: true, pinnacleTrack: 'sky', difficultyBenchmark: 'sky30',
       pinnacleRequirement: { kind: 'skyFloor', target: 30 }, firstClearReward: { key: 'goldenRule', amount: 2 },
       bossMods: { hpMul: 1.25, damageMul: 1.32, attackSpeedMul: 1.24, evasionMul: 1.75, critChanceBonus: 18, penetration: 12, firstHitGuard: 0.18, patternMode: 'burst', traitName: '천정 집행: 빠른 연격과 치명타로 빈틈을 추적' } },
     { id: 'pinnacle_observer', bossVisualId: 'pinnacle_observer', name: '경계의 관측자 베일라', signatureUnique: '관측자의 마지막 기록', type: 'seasonBoss', tier: 86, reqSeason: 31, ele: 'chaos', journalId: 'pinnacle_observer', milestonePinnacle: true, pinnacleTrack: 'convergence', pinnacleCapstone: true, difficultyBenchmark: 'cosmosFinal',
@@ -492,9 +492,9 @@ const JOURNAL_DB = {
     rival_backedge: { title: '버려진 날, 역린(제6호 폐기록)', intro: '모루터에서 버려진 여섯 번째 날, 역린을 꺾은 기록입니다.', lines: ['“제6호 시제품: 갑주의 안쪽을 파고드는 역날 구조이나, 쥐는 이의 손목까지 함께 벤다. 폐기한다.”', '(벼림꾼 오르가의 모루터 폐기 장부 제6항)'], bonus: { stat: 'pctDmg', value: 1, label: '피해 +1%' } },
     rival_masterwork: { title: '일곱 번째 날, 완성작(제7호 봉인록)', intro: '나무꾼이 끝내 손에서 놓지 않은 일곱 번째 날, 완성작을 꺾은 기록입니다.', lines: ['“제7호 최종본: 앞선 다섯 시제품의 결함을 모두 도려낸 무결점의 날붙이. 끝내 손에서 놓지 않고 보관한다.”', '“…허나 어째서 우물 바닥에 버려졌던 첫 번째 파편이, 모루 위의 완성작보다 더 날카롭게 울리는가.”', '(벼림꾼 오르가의 모루터 폐기 장부 제7항)'], bonus: { stat: 'passivePoint', value: 1, label: '영구 스킬트리 포인트 +1' }, requiresJournal: ['rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge'] },
     cosmos_astra: { title: '잔향체, 아스트라', intro: '다섯 별의 잔향이 뭉친 아스트라를 쓰러뜨린 기록입니다.', source: '(관측자 베일라의 천구 일지)', lines: ['“다섯 은하의 군주가 소멸한 궤도 위에, 별들의 유언이 뭉쳐 하나의 잔향체가 깨어났다.”', '“하말리스의 장갑, 디프다르의 심연, 주베누비아의 균형, 주벤샤말의 심판, 에니프론의 붕괴.”', '“다섯 별의 무게를 모두 베어낸 칼날만이 성간(星間)의 침묵을 통과한다.”'], bonus: { stat: 'passivePoint', value: 2, label: '영구 스킬트리 포인트 +2' } },
-    pinnacle_underking: { title: '지핵군주, 모르그란', intro: '지하계 끝에서 지핵군주 모르그란을 쓰러뜨린 기록입니다.', source: '(관측자 베일라의 경계 기록)', lines: ['“지하계의 끝은 암반이 아니라 세계수의 뿌리를 아래에서 태우던 거대한 지핵(地核)의 심장이었다.”', '“모르그란의 용광로가 식자, 뿌리 아래를 짓누르던 영겁의 침묵에 첫 균열이 갔다.”'] },
+    pinnacle_underking: { title: '지핵군주, 모르그란', intro: '지하계 끝에서 태양의 존재, 벨라-루을 쓰러뜨린 기록입니다.', source: '(관측자 베일라의 경계 기록)', lines: ['“지하계의 끝은 암반이 아니라 세계수의 뿌리를 아래에서 태우던 거대한 지핵(地核)의 심장이었다.”', '“모르그란의 용광로가 식자, 뿌리 아래를 짓누르던 영겁의 침묵에 첫 균열이 갔다.”'] },
     pinnacle_leviathan: { title: '무광해의 포식자, 탈라사', intro: '무광해의 해구에서 포식자 탈라사를 쓰러뜨린 기록입니다.', source: '(관측자 베일라의 경계 기록)', lines: ['“빛이 닿지 않는 천 미터 해구(海溝)에서, 뿌리가 흘린 썩은 수액을 먹고 자란 고대 포식자의 기록.”', '“검은 조류를 가르고 돌아온 칼날에는 심해의 수압조차 꺾지 못한 서슬이 남았다.”'] },
-    pinnacle_sky: { title: '빈 왕좌의 집행자, 카엘룸', intro: '창공의 탑 꼭대기에서 빈 왕좌의 집행자 카엘룸을 멈춰 세운 기록입니다.', source: '(관측자 베일라의 경계 기록)', lines: ['“창공의 탑 꼭대기에 놓인 왕좌는 태초부터 주인이 없었다.”', '“텅 빈 왕좌의 질서를 수호하던 자동 집행자가 멈춰 서자, 수관 너머의 천공이 비로소 열렸다.”'] },
+    pinnacle_sky: { title: '빈 왕좌의 집행자, 카엘룸', intro: '창공의 탑 꼭대기에서 창공의 엘라하을 멈춰 세운 기록입니다.', source: '(관측자 베일라의 경계 기록)', lines: ['“창공의 탑 꼭대기에 놓인 왕좌는 태초부터 주인이 없었다.”', '“텅 빈 왕좌의 질서를 수호하던 자동 집행자가 멈춰 서자, 수관 너머의 천공이 비로소 열렸다.”'] },
     pinnacle_observer: { title: '경계의 관측자, 베일라', intro: '마지막 경계에서 관측자 베일라를 넘어선 기록입니다.', source: '(경계 너머에 남은 마지막 기록)', lines: ['“지핵의 바닥, 무광해의 심연, 창공의 빈 왕좌, 그리고 다섯 별의 잔향까지 모든 기록이 수렴되었다.”', '“관측이 종료된 순간, 세계는 우물에서 기어 나온 첫 번째 날붙이를 더 이상 누군가의 도구라 부를 수 없었다.”'], requiresJournal: ['pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'cosmos_astra'] }
 };
 

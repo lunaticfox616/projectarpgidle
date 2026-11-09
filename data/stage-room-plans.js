@@ -83,6 +83,14 @@ const STAGE_ROOM_PLANS = Object.freeze({
      * turn 큰길이 위아래로 잇달아 가는 걸음의 상한, entryHost 곁가지가 입구에 붙는 무게, chain 곁가지에 다시 붙는 무게(큰길은 1),
      * upright 곁가지가 위아래로 붙는 무게(좌우는 1), loop 돌아가는 길 하나를 더 낼 확률. */
     random: Object.freeze({ mainShare: Object.freeze([0.6, 1]), eliteOnMain: 0.4, east: 3, turn: 2, entryHost: 0.25, chain: 1.3, upright: 2, loop: 0.35 }),
+    // 새 아틀라스 방만 적용한다. 이미 열린 액트 그림 기반 지도는 종전 놓임새를 유지한다.
+    atlasProfiles: Object.freeze({
+        colony: Object.freeze({ mainShare: [0.45, 0.65], eliteOnMain: 0.25, chain: 2, loop: 0.8 }),
+        underworld: Object.freeze({ mainShare: [0.8, 1], eliteOnMain: 0.9, east: 5, turn: 1, loop: 0.15 }),
+        sky: Object.freeze({ mainShare: [0.7, 0.9], east: 0.8, turn: 3, upright: 3, loop: 0.1 }),
+        'ocean-lightless': Object.freeze({ mainShare: [0.5, 0.75], east: 1.5, turn: 3, chain: 2, loop: 0.7 }),
+        beyond: Object.freeze({ mainShare: [0.8, 1], eliteOnMain: 0.8, east: 2, turn: 2, loop: 0.3 })
+    }),
     /** 구역의 무대 그림(data/stage-regions.js의 지역). types 구역 종류, deep 혼돈 심화(깊이 21부터), zones 구역 id, rift 시간의 균열의
      * 두 시대, tracks 정점 보스의 영역, rival 버려진 날들, capstone 우주의 끝, boards 고정 전장. 여기에 없는 구역은 빌려 걷는 액트 지도의 그림을 쓴다.
      * 2026-10-13 밤: 판에서 싸우던 군락지, 심해, 우주계, 대균열, 혼돈 밖, 나무꾼의 잔상, 경계 너머가 방 단위 무대에서는 제 지도를 걷는다

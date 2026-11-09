@@ -1,0 +1,133 @@
+{
+  "source": "Approved field patterns v2, 2026-11-08",
+  "art_source": "Existing approved Grok CLI videos; no new generation",
+  "motions": {
+    "cast": {
+      "frames": 13,
+      "cell": [
+        480,
+        270
+      ],
+      "columns": 8,
+      "release": 1750,
+      "releaseFrame": 6,
+      "sourceFrames": [
+        0,
+        4,
+        8,
+        11,
+        14,
+        16,
+        18,
+        21,
+        24,
+        28,
+        30,
+        33,
+        36
+      ],
+      "durations": [
+        350,
+        250,
+        250,
+        300,
+        500,
+        100,
+        200,
+        180,
+        160,
+        140,
+        160,
+        220,
+        260
+      ],
+      "decodedBytes": 8294400,
+      "bytes": 835634
+    },
+    "command": {
+      "frames": 13,
+      "cell": [
+        480,
+        270
+      ],
+      "columns": 8,
+      "release": 1584,
+      "releaseFrame": 7,
+      "sourceFrames": [
+        0,
+        3,
+        5,
+        7,
+        10,
+        13,
+        16,
+        18,
+        20,
+        23,
+        27,
+        31,
+        36
+      ],
+      "durations": [
+        300,
+        220,
+        150,
+        220,
+        300,
+        294,
+        100,
+        180,
+        200,
+        160,
+        180,
+        240,
+        280
+      ],
+      "decodedBytes": 8294400,
+      "bytes": 885155
+    },
+    "weapon": {
+      "frames": 13,
+      "cell": [
+        480,
+        270
+      ],
+      "columns": 8,
+      "release": 1500,
+      "releaseFrame": 7,
+      "sourceFrames": [
+        0,
+        4,
+        8,
+        12,
+        15,
+        17,
+        19,
+        21,
+        24,
+        27,
+        30,
+        33,
+        36
+      ],
+      "durations": [
+        300,
+        180,
+        230,
+        260,
+        330,
+        100,
+        100,
+        220,
+        200,
+        120,
+        180,
+        240,
+        280
+      ],
+      "decodedBytes": 8294400,
+      "bytes": 846897
+    }
+  },
+  "finish": "Fixed canvas, nearest-neighbour 480x270, 13 selected key poses with authored holds and release timing"
+}

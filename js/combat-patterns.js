@@ -176,6 +176,7 @@
     }
 
     function getBossPatternPreview(enemy) {
+        if (woodsmanBattle.owns(enemy)) return woodsmanBattle.preview(enemy);
         if (!enemy || !enemy.isBoss || !enemy.patternMode) return null;
         let attackNumber = normalizeAttackCount(enemy) + 1;
         const shift = bossMoves.shiftPattern(enemy, attackNumber);
@@ -243,6 +244,7 @@
     /** 정점, 우주 보스는 새 후딜이 없어 예전 시계 그대로다: 게이지 절반에서 예고하고 게이지가 찬 뒤에 쓴다(앞당겨 예고하면 공격이 9~18% 잦아졌다). */
     const keepsOldClock = state => OWN_PATTERN_MODES.has(state.patternMode) || state.patternMode === 'cosmos';
     function warningMayStart(state, charge, chargePerSec) {
+        if (state.mode === 'woodsman') return charge >= 1;
         if (keepsOldClock(state) || !(chargePerSec > 0)) return charge >= 0.5;
         return (1 - charge) / chargePerSec * 1000 <= warningDuration(state);
     }
@@ -277,6 +279,10 @@
             enemy.patternTelegraphKey = key;
             enemy.patternTelegraphStartedAt = timestamp;
             if (target) {
+                if (state.mode === 'woodsman') {
+                    enemy.patternArea = woodsmanBattle.warning(enemy, state, target, timestamp);
+                    return false;
+                }
                 // Lines and fans leave from the boss's cell nearest the target (a boss as wide as its picture is up to 6 cells wide).
                 enemy.patternArea = bossWarningArea(enemy, state, target, timestamp);
             }
@@ -300,9 +306,13 @@
     function getBossWarningCells(state, pending = []) {
         const enemies = (state.enemies || []).filter(enemy => enemy.hp > 0 && !enemy.noAttack
             && !(enemy.ailments || []).some(ail => ['freeze','stun','silence'].includes(ail.type) && ail.time > 0));
-        const areas = enemies.map(enemy => enemy.patternArea).filter(Boolean);
+        const areas = enemies.map(enemy => enemy.patternArea).filter(Boolean).map(area => area.woodsman
+            ? { cells: woodsmanBattle.warningCells(area.woodsman, getCombatTime()) } : area);
         pending.forEach(attack => {
-            if (attack.delivery === 'patternArea') areas.push(attack.bossPattern.area);
+            if (attack.delivery !== 'patternArea') return;
+            const move = attack.bossPattern.move;
+            areas.push(move?.kind === 'woodsman'
+                ? { cells: woodsmanBattle.warningCells(move.cast, getCombatTime(), move.releasedAt) } : attack.bossPattern.area);
         });
         return areas.flatMap(area => area.cells);
     }

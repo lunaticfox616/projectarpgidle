@@ -167,12 +167,17 @@ const actExplorationState = (() => {
         run.discovered=[...known];
     }
     /** False until the player has stood at the boss room for BOSS_ENTRANCE_MS; the first such step opens the entrance. */
+    function entranceHoldMs(state,run,pack) {
+        if(run.zoneId===OUTSIDE_CHAOS_ZONE_ID && pack.waiting.some(enemy=>enemy.isWoodsman && !enemy.noAttack))
+            return WOODSMAN_BATTLE.intro.revealMs+WOODSMAN_BATTLE.intro.speechMs;
+        const seen=!run.source && Object.hasOwn(state.records?.actBest||{},run.zoneId);
+        return seen?1200:BOSS_ENTRANCE_MS;
+    }
     function bossAwake(state,run,o) {
         const room=o.map.rooms.find(row=>row.id===o.pack.roomId),open=entrances.get(run);
         if(!atBossRoom(o.map,room,state.gridPlayer))return false;
         if(!open || open.key!==o.pack.key || o.now<open.at) {
-            const seen=!run.source && Object.hasOwn(state.records?.actBest||{},run.zoneId);
-            const holdMs=seen?1200:BOSS_ENTRANCE_MS;
+            const holdMs=entranceHoldMs(state,run,o.pack);
             entrances.set(run,{key:o.pack.key,at:o.now,holdMs});revealRoom(run,o.map,room);return false;
         }
         if(o.now-open.at<open.holdMs)return false;

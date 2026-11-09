@@ -235,4 +235,4 @@
         min-width: 0;
     }
 } }        @layer overrides {
-        #tab-map img:not(.atlas-landscape, .atlas-find-icon, .atlas-flower-icon, .underworld-stone-icon) { display: none; } }
+        #tab-map img:not(.atlas-landscape, .atlas-find-icon, .atlas-flower-icon, .atlas-ancient-portrait, .underworld-stone-icon) { display: none; } }

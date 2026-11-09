@@ -30,7 +30,7 @@ const actTitleCard = (() => {
     const TONES = Object.freeze({ gold: '#e0c27e', violet: '#c9a4f2', cyan: '#8fe3d6', crimson: '#ef9a92' });
     const storyFont = () => i18n.fontFamily("'Galmuri14', 'Galmuri11'");
     let zone, pending = null, card = null, frameAt = 0, line = null, watchedAt = 0, trackedAt = 0, place = null, watchedRun = null;
-    let covered = false, holding = false, greetSpent = 0, npcHead = null;
+    let covered = false, holding = false, greetSpent = 0, npcHead = null, woodsmanLine = null;
     // Per exploration run: its story and act, the bosses this view saw (id: first sight and name), the gate elites left, where
     // its guide stands, and whether a move command waived the greeting.
     const queue = [], spoken = new Set(), runs = new WeakMap();
@@ -436,7 +436,7 @@ const actTitleCard = (() => {
         if (!first) return;
         const seen = sighted(watch, first, now), lastSeen = last ? sighted(watch, last, now) : null;
         if (now - seen.at < LINE.introDelayMs) return;
-        queueBossLine('intro', seen, lines.intro, now);
+        if (!woodsmanBattle.owns(first)) queueBossLine('intro', seen, lines.intro, now);
         if (last && last.hp <= last.maxHp * LINE.halfAt) queueBossLine('half', lastSeen, lines.half, now);
     }
     /** The fall, then the hero's words for the act; an intro or half line not yet shown is past. Nothing when this view never
@@ -516,6 +516,7 @@ const actTitleCard = (() => {
     /** Where the speaker stands this frame: just above the hero's life bar, or above the boss's bar. Null for a voice with
      * no body on screen (guide, inscription, narration, a boss already gone): those take the band. */
     function storyAnchor(scene) {
+        if (line.woodsman) return woodsmanView.speechAnchor(line.woodsman);
         if (line.who === 'hero') return { x: scene.light.x, y: (getHeroHeadY(scene.now) ?? scene.light.y - 82 * HERO_SIZE_SCALE) - 18 };
         if (line.who === 'npc') return npcHead;
         if (line.who !== 'boss') return null;
@@ -583,6 +584,26 @@ const actTitleCard = (() => {
         else drawStoryBand(ctx, view);
         ctx.restore();
     }
+    /** Uses the encounter's waiting clock, not a second timer. Pausing also pauses the spoken introduction.
+     * The existing line renderer/log are reused; half-health and defeat lines keep their ordinary queue. */
+    function drawWoodsmanIntroduction(ctx, scene) {
+        const intro = woodsmanBattle.introduction();
+        if (!intro) { woodsmanLine = null; return false; }
+        const age = intro.elapsedMs - WOODSMAN_BATTLE.intro.revealMs;
+        if (age < 0 || storyCovered()) return true;
+        if (woodsmanLine?.woodsman !== intro.enemy || woodsmanLine.locale !== i18n.locale) {
+            woodsmanLine = { woodsman: intro.enemy, locale: i18n.locale, who: 'boss', colour: TONES.crimson,
+                speaker: getEnemyDisplayName(intro.enemy), text: _t(STORY_ENDGAME_ENCOUNTERS[OUTSIDE_CHAOS_ZONE_ID].intro),
+                showMs: WOODSMAN_BATTLE.intro.speechMs };
+            logStoryLine(woodsmanLine);
+        }
+        woodsmanLine.startAt = scene.now - age;
+        const queuedLine = line;
+        line = woodsmanLine;
+        drawStoryLine(ctx, scene);
+        line = queuedLine;
+        return true;
+    }
     /** Called once per battlefield frame, after the life bars and the damage numbers. scene: the battlefield's frame scene
      * (width, height, now, light = the hero's place, layout = the drawn enemies). */
     function draw(ctx, scene) {
@@ -594,9 +615,12 @@ const actTitleCard = (() => {
         // A first line queued after track still needs the current window state for the greeting hold and the next frame.
         if (unlooked && (line || queue.length)) covered = storyCovered();
         holding = stageView.enabled() && holdsGreeting(waited);
+        if (!drawWoodsmanIntroduction(ctx, scene)) drawQueuedStory(ctx, scene);
+        npcHead = null; // the guide's head is placed again by the next frame's actor layer, if it stands there
+    }
+    function drawQueuedStory(ctx, scene) {
         if (card) drawTitleCard(ctx, scene.width, scene.height, scene.now);
         else if (line) drawStoryLine(ctx, scene);
-        npcHead = null; // the guide's head is placed again by the next frame's actor layer, if it stands there
     }
     /** True while a title card is on screen or about to start — guide cards wait for it (js/tutorial-ui.js). It runs on
      * the battlefield's clock, so this asks the battlefield: a hidden or stalled view never holds the cards back. */
@@ -608,7 +632,7 @@ const actTitleCard = (() => {
         return (holding || opening) && Date.now() - frameAt < LIVE_MS;
     }
     /** True while a story line's bubble is on screen (the first start's lesson line steps aside for it, js/opening-journey-ui.js). */
-    function speaking() { return !!line && Date.now() - frameAt < LIVE_MS; }
+    function speaking() { return !!(line || woodsmanLine) && Date.now() - frameAt < LIVE_MS; }
     if (typeof document === 'object' && document.fonts?.load) document.fonts.load("20px 'Galmuri14'").catch(() => {});
     return Object.freeze({ draw, busy, greeting, speaking, appendNpc, drawNpc, npcAt, hover });
 })();

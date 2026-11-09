@@ -187,6 +187,7 @@ const bossMoves = (() => {
     /** First impact after release, for a cast bar that ends at the actual hit rather than a fixed half second. */
     function firstImpactMs(state, enemy) {
         const area = state.area || enemy.patternArea;
+        if (area?.woodsman) return area.woodsman.stages[0].ms;
         if (!area) return BOSS_ATTACK_IMPACT_DELAY_MS;
         const kind = moveKind(area, state.telegraphKind, styleOf(enemy));
         return kind ? BOSS_MOVE_RULES[kind].firstMs : BOSS_ATTACK_IMPACT_DELAY_MS;
@@ -254,6 +255,7 @@ const bossMoves = (() => {
     function planBossMove(state, enemy) {
         if (!state || !state.area || !state.isSpecial || !enemy) return null;
         releaseShift(enemy);
+        if (state.area.woodsman) return woodsmanBattle.plan(state);
         const style = styleOf(enemy), kind = moveKind(state.area, state.telegraphKind, style);
         if (!kind) return null;
         const source = state.area.source || { gx: enemy.gx, gy: enemy.gy }, stages = stagesOf(kind, state.area, source).filter(stage => stage.cells.length);
@@ -268,7 +270,7 @@ const bossMoves = (() => {
         if (!move) return;
         move.releasedAt = now;
         attack.at = now + move.stages[0].ms;
-        live.push({ move, source: attack.source, element: attack.source.ele || 'phys', endsAt: now + move.stages[move.stages.length - 1].ms + LINGER_MS });
+        live.push({ move, source: attack.source, element: enemyAttackRules.element(attack.source, attack.bossPattern), endsAt: now + move.stages[move.stages.length - 1].ms + LINGER_MS });
     }
 
     /** A volley's shots that hit someone this stage stop there (their later cells drop out). */

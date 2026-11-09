@@ -24,29 +24,16 @@ const atlas = (() => {
     const LATE_NODES = Object.freeze([...ATLAS_ENDGAME.apexes.map(row => lateNode(row, 'apex', row.domain)),
         ...ATLAS_ENDGAME.leagues.map(row => lateNode(row, 'league', `${row.name}: ${row.boss}`))]);
     const BY_ID = new Map([...NODES, ...LATE_NODES].map(node => [node.id, node]));
-    // Inside a region: the outer arc, each node to the ring within, and across rings. Between regions: each ring closes into a circle.
-    const INNER_LINKS = [[0, 1], [1, 2], [0, 3], [1, 3], [1, 4], [2, 4], [3, 4], [3, 5], [4, 6], [5, 6], [5, 7], [6, 8], [7, 8], [7, 'g'], [8, 'g']];
-    const OUTER_LINKS = [[2, 0], [4, 3], [6, 5], [8, 7]];
-    const LINKS = Object.freeze(ATLAS.regions.flatMap((region, r) => {
-        const next = ATLAS.regions[(r + 1) % ATLAS.regions.length].id;
-        return [...INNER_LINKS.map(([a, b]) => [`${region.id}_${a}`, `${region.id}_${b}`]),
-            ...OUTER_LINKS.map(([a, b]) => [`${region.id}_${a}`, `${next}_${b}`])];
-    }));
-    const NEIGHBOURS = new Map(NODES.map(node => [node.id, LINKS.filter(link => link.includes(node.id))
-        .map(([a, b]) => (a === node.id ? b : a))]));
+    const LINKS = ATLAS.lore.links;
+    const NEIGHBOURS = new Map(NODES.map(node => [node.id, LINKS.filter(([, to]) => to === node.id).map(([from]) => from)]));
     const FRAGMENTS = new Map(ATLAS.fragments.map(fragment => [fragment.id, fragment]));
     const RARITY_RANK = { normal: 0, magic: 1, rare: 2 };
     const zones = new WeakMap();
 
-    /** Chart point at a region's angle (plus degrees) and a radius, 0~100 on both axes. */
-    function polar(regionIndex, degrees, radius) {
-        const angle = (-90 + regionIndex * 360 / ATLAS.regions.length + degrees) * Math.PI / 180;
-        return { x: 50 + radius * Math.cos(angle), y: 50 + radius * Math.sin(angle) };
-    }
+    /** Local region route coordinates; the UI switches regions without changing saved ids. */
     function position(node) {
-        if (node.kind === 'pinnacle') return { x: 50, y: 50 };
-        if (node.kind === 'guardian') return polar(node.regionIndex, 0, ATLAS.guardianRules.radius);
-        return polar(node.regionIndex, ATLAS.chart.offsets[node.slot], ATLAS.chart.radii[ATLAS.chart.ring[node.slot]]);
+        const point = node.kind === 'pinnacle' ? [50, 50] : node.kind === 'guardian' ? ATLAS.lore.guardian : ATLAS.lore.points[node.slot];
+        return { x: point[0], y: point[1] };
     }
     function defaults() {
         return { version: 1, unlocked: false, completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, loadout: [], nextUid: 1,
@@ -78,7 +65,7 @@ const atlas = (() => {
         if (completed(state, id)) return 'complete';
         const node = BY_ID.get(id);
         if (node && node.kind === 'pinnacle') return hasTickets(state) ? 'open' : 'locked';
-        return node && (node.tier === 1 || (NEIGHBOURS.get(id) || []).some(other => completed(state, other))) ? 'open' : 'locked';
+        return node && (ATLAS.lore.entryNodes.includes(id) || (NEIGHBOURS.get(id) || []).some(other => completed(state, other))) ? 'open' : 'locked';
     }
     const reachable = (state, id) => status(state, id) !== 'locked';
     const points = state => state.atlas.completed.length + state.atlas.bonus.length + atlasEpoch.points(state);
@@ -725,7 +712,7 @@ const atlas = (() => {
         return id === ATLAS.zoneId && !state.atlas.run ? '지도 장치에서 지도석을 열어야 들어갈 수 있습니다.' : '';
     }
     return Object.freeze({ nodes: NODES, links: LINKS, renameSavedIds, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
-        fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, polar, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
+        fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, beginBoard, lateNodes: LATE_NODES,
         slots, setLoadout, beginReason, begin, discard, discardPlainUpTo, plainMap, tierBand, combineSet, combineReason, combine, omenChangeReason, changeOmen, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
         zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps,

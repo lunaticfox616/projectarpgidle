@@ -1499,7 +1499,7 @@ function drawBossPatternLabel(ctx, entry, enemy) {
     const width = enemy.isBoss ? 84 : 60;
     const viewWidth = ctx.canvas.width / ctx.getTransform().a;
     const x = Math.round(clampNumber(entry.x-width/2,6,Math.max(6,viewWidth-width-6)));
-    const y = Math.round(Math.max(6,entry.y-getEnemyFieldBarLift(enemy)-13));
+    const y = Math.round(Math.max(6, entry.y - (woodsmanView.active(enemy) ? 20 : getEnemyFieldBarLift(enemy) + 13)));
     reserveBossText(enemy, { x: x - 3, y: y - 3, w: width + 6, h: 14 });
     const edge = cast.cancelled ? '#a8706a' : '#8e7951';
     ctx.globalAlpha = 0.96;
@@ -1523,13 +1523,14 @@ function drawBossPatternLabel(ctx, entry, enemy) {
 
 /** The same immutable cell snapshot drives the red warning, impact and collision. */
 function drawBossPatternArea(ctx, area, projection, alpha = 3, outlineOnly = false) {
-    if (!area) return;
+    if (!area || area.woodsman) return;
     let footprint = projectSkillFootprint(area, projection);
     if (footprint) drawSkillFootprintGround(ctx, footprint, outlineOnly ? '#ff9970' : '#ff684f', alpha, outlineOnly);
 }
 
 function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendingAttacks) {
-    sideEncounterCanvas.pendingWarnings(ctx, projection, pendingAttacks);
+    woodsmanView.field(ctx, projection);
+    sideEncounterCanvas.pendingWarnings(ctx, projection, pendingAttacks.filter(attack => !attack.bossPattern?.area?.woodsman));
     bossMoveView.drawGround(ctx, projection); // boss moves: each stage's warning and the bursts out of the ground (js/canvas-boss-moves.js)
     (layout || []).forEach(entry => {
         let enemy = entry.enemy;
@@ -1721,6 +1722,7 @@ function getHeroBodyHeight(playerPos, now) {
 /** An untouched ordinary monster carries no bar: a pack walking in reads as monsters, not a row of full red strips (2026-10-04
  * visibility). The bar appears on the first hit or while targeted; elites and bosses always show theirs. */
 function isEnemyFieldBarShown(enemy, targeted) {
+    if (woodsmanView.active(enemy)) return false; // The giant already has the fixed boss HUD; keep its face clear.
     return targeted || enemy.isElite || enemy.isBoss || enemy.hp < enemy.maxHp || (enemy.energyShield || 0) < (enemy.maxEnergyShield || 0);
 }
 
@@ -1932,12 +1934,20 @@ function updatePlayerGridVisualMotion(gridProj, playerCell, now, moveSpeed) {
 
 function getExplorationPlayerVisualMotion(projection, player) {
     const run = actExplorationState.current(game);
-    const cell = getStageKickoffCell(player) || actExplorationMotion.position(run, player);
+    const cell = getPlayerDisplacementCell(player) || getStageKickoffCell(player) || actExplorationMotion.position(run, player);
     const position = projection.cellToScreen(cell.gx, cell.gy);
     position.y += Number(projection.actorGroundOffsetY) || 0;
     // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
     return {position, targetPosition: position, direction: run.motionDirection,
         progress: run.motion ? run.motion.elapsed / run.motion.duration : 1, animating: !!run.motion && !isForegroundGameplayPausedForBackground()};
+}
+
+function getPlayerDisplacementCell(player) {
+    const now = battleVisualState.visualNow;
+    const hit = findRecentBattleFx('playerHit', now, 220);
+    if (!hit?.displaceFrom || hit.displaceTo.gx !== player.gx || hit.displaceTo.gy !== player.gy) return null;
+    const t = clampNumber((now - hit.start) / 180, 0, 1), left = (1 - t) ** 2;
+    return { gx: player.gx + (hit.displaceFrom.gx - player.gx) * left, gy: player.gy + (hit.displaceFrom.gy - player.gy) * left };
 }
 
 /** 그림자 점멸이 박차고 나가는 동안(2026-10-20 스킬룬 전달본 v42, data/stage-view.js kickoffMs) 무대의 주인공 그림이 서 있는 칸: 떠난 칸.
@@ -2427,6 +2437,7 @@ function getEnemySpawnAge(enemy, now, duration) {
 }
 
 function drawBattleEnemyActor(ctx, entry, state) {
+    if (woodsmanView.active(entry.enemy)) return;
     let enemy = entry.enemy;
     // 무대의 보스 입장: 그림을 키우며 띄우지 않고 제 크기로 선 검은 형체가 드러난다(js/canvas-boss-entrance.js stageLook)
     const veil = bossEntranceView.stageLook(enemy, state.now);
@@ -2482,6 +2493,7 @@ function drawEncounterSparks(ctx, entry, state, color) {
 /** An enemy drawn once more after it left the field (death dissolve, pending-hit ghost): sheet monsters from their sheets,
  * the rest from the atlas. pose = { x, y, scale (atlas), flash, gridProj, now, facing }. */
 function drawEnemyAfterimage(ctx, enemy, pose) {
+    if (stageView.enabled() && woodsmanBattle.owns(enemy)) return;
     const tile = pose.gridProj && pose.gridProj.tileW, boss = getBossDrawScale(enemy);
     const sheetPose = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash, spawnScale: boss };
     if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
@@ -2602,12 +2614,13 @@ function drawBattleActorLayer(ctx, enemyEntries, state) {
     }));
     actors.push({ kind: 'player', id: -1, y: state.playerPos.y });
     actExplorationView.appendScenery(actors,state);
+    woodsmanView.stumps(actors, state.gridProj);
     actors.push(...trialTrapArt.riseActors(battleFx, state.now, state.gridProj)); // trap blades, flames, frost: in depth order
     bossEntranceView.drawGround(ctx, state);
     const sceneryDim = bossEntranceView.sceneryDim(state.now);
     sortBattleActorsByDepth(actors).forEach(actor => {
         if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
-        else if (actor.kind === 'trapRise') actor.draw(ctx);
+        else if (actor.kind === 'trapRise' || actor.kind === 'woodsmanStump') actor.draw(ctx);
         else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') {
             // 깊이 순서는 그대로 유지한다. 배경 위에 그려지는 문·소품에도 같은 입장 어둠을 적용하고, 인물은 밝게 남긴다.
             ctx.save();
@@ -3064,6 +3077,7 @@ function renderBattlefield(forceWhenHidden, targetFrameMs) {
     // 반투명 스킬 이미지는 몬스터 위에 표시해 투사체 이동과 적중점을 읽기 쉽게 한다.
     // 생명력 바와 피해 숫자는 뒤에서 그려지므로 항상 스킬 이미지보다 위에 남는다.
     drawSkillGemVfxLayer(ctx, now, gridProj);
+    woodsmanView.foreground(ctx, gridProj);
     if (typeof attackFxDraw === 'function') attackFxDraw(ctx);
 
     let pStatsNow = framePlayerStats;

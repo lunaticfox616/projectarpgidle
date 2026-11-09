@@ -200,7 +200,8 @@ const actExplorationProgress = (() => {
         if(!entrance || entrance===opened)return entrance;
         const pack=run.packs.find(row=>row.key===entrance.key);
         roomInvaders.onBossEntrance(run,pack); // 보스 방의 불청객: 같은 보스가 하나 더 서면 함께 떠오른다
-        addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs:entrance.holdMs,duration:entrance.holdMs+600,red:pack.waiting.some(enemy=>enemy.redEntrance)});
+        const holdMs=woodsmanBattle.introduction()?WOODSMAN_BATTLE.intro.revealMs:entrance.holdMs;
+        addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs,duration:holdMs+600,red:pack.waiting.some(enemy=>enemy.redEntrance)});
         return entrance;
     }
     /** A listening pack (data ACT_EXPLORATION_ALERT) heard the fight and runs at the hero; the view marks it (js/canvas-combat-feedback.js). */

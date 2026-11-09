@@ -10788,6 +10788,8 @@ function resolveEnemyDeath(enemy) {
 function handleEnemyDeath(enemy, pStats) {
     enemy = resolveEnemyDeath(enemy);
     if (!enemy) return;
+    woodsmanStumps.clear(enemy);
+    if (woodsmanStumps.retireAdd(enemy)) return;
     // Rewards below change build inputs under one settlement memo revision: stats asked for until the end are not kept.
     playerStatCache.beginEvent();
     // Retire the victim before rewards or corpse explosions can recursively report it again.
@@ -13905,6 +13907,7 @@ function canBossCastFromAfar(enemy, target) {
 
 /** 적이 지금 선 자리에서 공격을 이어 가는가: 목표가 사거리 안이거나, 보스가 떨어진 곳에서 쓰는 특수기의 차례다. 아니면 다가간다. */
 function canEnemyAttackFromHere(enemy, target) {
+    if (woodsmanBattle.owns(enemy)) return true;
     return isEnemyInGridAttackRange(enemy, target) || canBossCastFromAfar(enemy, target || game.gridPlayer);
 }
 
@@ -14116,13 +14119,14 @@ function clearCancelledBossRecovery(enemy, now) {
 function landBossPatternArea(attack, now) {
     attack.source.attackCast = null;
     const stage = bossMoves.takeStage(attack, pendingEnemyCombatAttacks, now);
+    if (woodsmanStumps.resolve(attack, now)) return;
     if (stage && !stage.burst) return;
     addBattleFx('bossAreaImpact', { footprint: attack.bossPattern.area, element: attack.source.ele || 'phys', duration: 560 });
 }
 
 /** Resolve current occupants of the released attack, never its original victim's id. */
 function getEnemyCombatImpactTargets(pendingAttack) {
-    return enemyAttackRules.impactTargets(pendingAttack,game);
+    return woodsmanBattle.takeTargets(pendingAttack, enemyAttackRules.impactTargets(pendingAttack,game));
 }
 
 /** Base hit before the enemy's own modifiers and the victim's defenses. */
@@ -14181,6 +14185,8 @@ function performMonsterAttacks(pStats) {
     let attackSources=readyMonsterAttackSources();
     for (let enemy of attackSources) {
         if(colonyRunEndedDuringAttacks(zone))break;
+        woodsmanBattle.prepare(enemy);
+        if (game.currentZoneId !== zone.id || game.playerHp <= 0) return; // A cube landing can end the encounter here.
         let pendingAttack = takePendingEnemyCombatAttack(enemy.id, getCombatTime());
         if (enemy.hp <= 0 && !pendingAttack) continue;
         if ((enemy.noAttack || actExplorationState.inArrivalGrace(actExplorationState.current(game), getCombatTime())) && !pendingAttack) continue;
@@ -14248,7 +14254,7 @@ function performMonsterAttacks(pStats) {
             }
             if (!resolvingPendingAttack && zone && zone.type === 'cosmos') applyCosmosBossPlayerDebuff(enemy);
             if (!resolvingPendingAttack && zone && zone.id === 'cosmos_astra' && enemy.isBoss) applyCosmosAstraStance(enemy);
-            if (zone.type === 'outsideChaos') {
+            if (zone.type === 'outsideChaos' && enemy.isWoodsman) {
                 enemy.nextCurseAt = Number.isFinite(enemy.nextCurseAt) ? enemy.nextCurseAt : 0;
                 if (getCombatTime() >= enemy.nextCurseAt) {
                     enemy.nextCurseAt = getCombatTime() + 6500;
@@ -14293,14 +14299,6 @@ function performMonsterAttacks(pStats) {
             let attackElement = enemyAttackRules.element(enemy, bossPattern);
             let physicalPortion = Math.floor(dmg * 0.5);
             let elementalPortion = Math.max(0, dmg - physicalPortion);
-            if (zone.type === 'outsideChaos' && enemy.maxHp > 0) {
-                let phaseProgress = getWoodsmanPhaseProgress(enemy);
-                enemy.ele = attackElement = woodsmanElementAt(phaseProgress);
-                enemy.atkMul = 1 + Math.pow(phaseProgress, 1.4) * 3.2;
-                enemy.attackSpeedVar = (1 + Math.pow(phaseProgress, 1.2) * 1.8) * 1.5;
-                enemy.penetration = 8 + Math.floor(phaseProgress * 28);
-                enemy.dr = 10 + Math.floor(phaseProgress * 40);
-            }
             if (attackElement === 'phys') {
                 physicalPortion = dmg;
                 elementalPortion = 0;

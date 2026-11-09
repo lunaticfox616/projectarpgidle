@@ -223,7 +223,8 @@ const actExplorationRooms = (() => {
         if (cache.has(id)) return cache.get(id);
         const shape = specialArenaShape(run);
         if (shape) return rememberRoomMap(id, specialArena(base, spec, run, shape));
-        const plan = actExplorationRoomPlans.build(base, spec.plan, seed);
+        const profile = run.zoneId === 'atlas_map' ? STAGE_ROOM_PLANS.atlasProfiles[spec.region] : undefined;
+        const plan = actExplorationRoomPlans.build(base, spec.plan, seed, profile);
         // seed: 방의 생김새와 문 자리를 고르는 씨앗(지도, 놓임새, 탐험의 씨앗). 같은 탐험은 언제나 같은 지도다.
         return rememberRoomMap(id, plan ? compileRooms(base, plan, { ...spec, act: run.source ? null : run.act, seed: [base.id, spec.plan, seed].join(':') }) : null);
     }

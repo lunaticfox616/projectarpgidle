@@ -8417,7 +8417,7 @@ function updateCombatUI(pStats) {
     let focusedEnemy = bossEnemy || enemies.find(enemy => targetIds.includes(enemy.id)) || enemies[0] || null;
     let enemyListEl = document.getElementById('ui-enemy-list');
     if (!focusedEnemy) {
-        enemyListEl.hidden = false;
+        enemyListEl.hidden = !!woodsmanBattle.introduction();
         if (enemyListEl.dataset.enemyId !== '') {
             clearUiEnemyTraitRotation(enemyListEl.querySelector('.enemy-traits'));
             enemyListEl.dataset.enemyId = '';
