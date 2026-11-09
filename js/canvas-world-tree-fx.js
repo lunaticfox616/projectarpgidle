@@ -141,6 +141,8 @@ const worldTreeSkillFx = (() => {
         const confirmed={confirmedPeriodic:{kind:'stage',duration:180},confirmedTransfer:{kind:'transfer',duration:220}}[fx.delivery];
         if(confirmed)return [{...shared,...confirmed,at:fx.start}];
         const flight=Math.max(1,fx.flightMs || 1),launch=fx.start+Math.max(0,fx.releaseDelayMs || 0);
+        // 연쇄로 건너가는 발(js/combat.js addChainHopTravelFx): 앞 적에서 이번 적으로 곧장 나는 사건 하나(무대가 그 룬의 몸으로 그린다)
+        if(fx.chainHop)return [{...shared,kind:'travel',chainHop:true,at:launch,duration:flight}];
         if(fx.delivery?.startsWith('projectile') || fx.delivery==='magicMoving')return projectileEvents(fx,shared,launch,flight);
         return stationaryEvents(fx,shared,flight);
     }
@@ -237,7 +239,8 @@ const worldTreeSkillFx = (() => {
     }
 
     function travel(ctx,fx,now,projection) {
-        if(fx.owner!=='player' || !known(fx.skillName))return false;
+        // 연쇄로 건너가는 발(js/combat.js addChainHopTravelFx)은 무대의 새 연출만 그린다: 모르는 룬이어도 예전 그림의 날아가는 이미지를 띄우지 않는다
+        if(fx.owner!=='player' || !known(fx.skillName))return fx.owner==='player' && !!fx.chainHop;
         if(fx.cancelled)return true;
         if(!adapters.has(fx))adapters.set(fx,travelEvents(fx));
         for(const event of adapters.get(fx))renderEvent(ctx,event,contactPlaybackTime(event,now),projection,fx);

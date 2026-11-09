@@ -2531,11 +2531,14 @@ const defaultGame = {
     killsInZone: 0,
     loopDeaths: 0,
     loopKills: 0,
-    loopStarterGemGranted: false,
-    // 변이시간선(js/loop-mutation.js): 규칙이 걸린 루프 번호(0이면 없음)와 첫 처치 공격룬 3택({ gems: 룬 이름 }, 고를 때까지)
+    // 루프의 첫 처치가 직업 무기를 떨어뜨렸는가(js/combat.js grantLoopStarterWeaponOnFirstKill), 첫 루프의 그 무기가 장착 안내를 기다리는 동안 그 아이템 id
+    loopStarterWeaponGranted: false,
+    starterWeaponTutorialPending: null,
+    // 기초 스킬(js/basic-skills.js): 이번 루프의 속성 선택지({ loop, elements }, 고를 때까지)와 지난번 고른 속성(자동 루프가 쓴다)
+    basicSkillOffer: null,
+    basicSkillElement: '',
+    // 변이시간선(js/loop-mutation.js): 규칙이 걸린 루프 번호(0이면 없음)
     loopMutationSeason: 0,
-    pendingStarterRuneChoice: null,
-    starterGemTutorialPending: null,
     settings: {
         effectIntensity: 'system',
         // PC와 모바일 메뉴 편집은 서로의 순서·배치를 덮어쓰지 않는다.

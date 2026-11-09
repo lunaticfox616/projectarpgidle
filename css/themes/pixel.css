@@ -716,6 +716,8 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
   :root body[data-ui-skin] #loop-hero-select-overlay .tutorial-card { display: flex; flex-direction: column; box-sizing: border-box; max-height: calc(100% - 16px); overflow: hidden; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   :root body[data-ui-skin] #loop-hero-select-overlay .hero-choice-confirm { display: flex; flex: none; flex-direction: column; gap: 8px; margin-top: 10px; }
+  /* 속성 고르기 단계(js/passives.js openLoopBasicSkillPick)는 카드를 누르면 바로 정해진다: 직업 확인 판은 숨긴다. */
+  :root body[data-ui-skin] #loop-hero-select-overlay:has(#loop-hero-select-grid.is-basic-pick) .hero-choice-confirm { display: none; }
   :root body[data-ui-skin] #loop-hero-select-overlay :is(.hero-choice-detail, .hero-choice-hint) {
     margin: 0;
     padding: 8px 10px;

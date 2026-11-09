@@ -20,7 +20,7 @@ const contentProgression = (() => {
         const hasLoot = owner => owner.inventory.some(Boolean)
             || Object.entries(owner.equipment).some(([slot, item]) => slot !== '무기' && !!item);
         const gates = {
-            'tab-skills': owner => !!owner.starterGemTutorialPending || !!SKILL_DB[owner.activeSkill]?.isGem || equipped(owner) || owner.maxZoneId >= 1,
+            'tab-skills': owner => !!SKILL_DB[owner.activeSkill]?.isGem || equipped(owner) || owner.maxZoneId >= 1,
             'tab-items': owner => seen(owner, GEAR),
             'tab-character': owner => seen(owner, PROFILE),
             'tab-trade': owner => seen(owner, TRADE),

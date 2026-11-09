@@ -4,7 +4,7 @@ const { test, expect } = require('@playwright/test');
 const { pickClass } = require('./helpers');
 
 /** One step of the first start's lessons after the intro (js/opening-journey-ui.js), the way a player takes them: the lying hero is
- * pressed, the floor beside it is clicked (move), the door toward Haken's room, then the monster striking him (attack), then the gem
+ * pressed, the floor beside it is clicked (move), the door toward Haken's room, then the monster striking him (attack), then the weapon
  * it dropped. What is not on screen yet (a phone shows a few cells) is walked toward along the hero's row. The top-down field (no
  * stage art, as in CI) has no lessons. Returns the lesson acted on, or null. */
 async function takeOpeningStep(page) {
@@ -45,13 +45,15 @@ for (const [classId, label] of [['occultist', '비술사'], ['warrior', '전사'
     });
 }
 
-test('a new warrior earns and equips the first gem through visible controls', async ({ page }, testInfo) => {
+test('a new warrior earns and equips the first weapon through visible controls', async ({ page }, testInfo) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
     await pickClass(page, 'warrior', { opening: true });
+    // The class window's element step gave the greatsword basic skill; it rests until the weapon is held (js/basic-skills.js).
+    expect(await page.evaluate(() => [game.weaponBlockedSkill === basicSkills.nameOf('greatsword', game.basicSkillElement), getEquippedWeaponStance()])).toEqual([true, 'unarmed']);
     await page.locator('#opening-intro .opening-intro-skip').click();
     await expect(page.locator('#opening-intro')).toHaveCount(0);
     await expect(page.locator('#btn-act-exploration-auto')).toBeHidden();
@@ -60,85 +62,62 @@ test('a new warrior earns and equips the first gem through visible controls', as
     await page.screenshot({ path: testInfo.outputPath('first-session-wake.png') });
     const startedAt = Date.now();
     const notices = [];
-    let firstGemMs = null;
-    let restoredRune = false;
+    let firstWeaponMs = null;
+    let restoredWeapon = false;
     await expect.poll(async () => {
         await takeOpeningStep(page);
-        if (firstGemMs === null && await page.evaluate(() => !!game.starterGemTutorialPending)) {
-            firstGemMs = Date.now() - startedAt;
-        }
+        if (firstWeaponMs === null && await page.evaluate(() => game.starterWeaponTutorialPending != null)) firstWeaponMs = Date.now() - startedAt;
         if (await page.locator('#tutorial-dismiss-btn').isVisible()) {
             const title = await page.locator('#tutorial-title').innerText();
             notices.push(title);
             await page.locator('#tutorial-dismiss-btn').click();
         }
-        const equip = page.locator('[data-opening-rune]');
-        if (!restoredRune && await equip.isVisible()) {
-            restoredRune = true;
-            await expect(page.locator('#log')).toContainText('스킬룬 [이중 베기] 획득');
-            await expect(page.locator('#log')).not.toContainText('직업에 맞는 스킬룬');
+        // The new opening shows the weapon step as a lesson button; the waiting weapon survives a reload before it is worn.
+        const equip = page.locator('[data-opening-weapon]');
+        if (!restoredWeapon && await equip.isVisible()) {
+            restoredWeapon = true;
             await expect(page.locator('#btn-act-exploration-auto')).toBeHidden();
             await page.evaluate(() => saveGame({ skipCloudSync: true }));
             await page.reload();
             await page.locator('#btn-startup-guest').click();
             await expect(equip).toBeVisible();
-            expect(await page.evaluate(() => !!game.starterGemTutorialPending)).toBe(true);
+            expect(await page.evaluate(() => game.starterWeaponTutorialPending != null)).toBe(true);
             await expect(page.locator('#btn-act-exploration-auto')).toBeHidden();
             await equip.click();
         }
         return page.locator('#tutorial-action-card').isVisible();
     }, { timeout: 60000, intervals: [250, 500] }).toBe(true).catch(async error => {
         const state = await page.evaluate(() => ({
-            seen: game.seenTutorials, pending: game.starterGemTutorialPending, skill: game.activeSkill,
+            seen: game.seenTutorials, pending: game.starterWeaponTutorialPending, skill: game.activeSkill,
             queue: tutorialQueue, active: activeTutorial, guide: tutorialActionUi.active?.notice,
             level: game.level, kills: game.loopKills
         }));
         console.log(JSON.stringify({ notices, errors, state }));
         throw error;
     });
-    // Review 2026-10-01: the coach card sat on the gem it pointed at, and the detail popover ran out of the window over the HUD.
-    const desktop = !testInfo.project.use.isMobile;
-    const layout = () => page.evaluate(() => {
-        const box = node => node && node.getBoundingClientRect().toJSON();
-        return { card: box(document.getElementById('tutorial-action-card')), target: box(document.querySelector('.tutorial-action-target')),
-            popover: box(document.querySelector('#gem-selection:popover-open')), frame: box(document.getElementById('tab-skills')),
-            chosen: box(document.querySelector('.is-gem-selected')) };
-    });
-    const apart = (a, b) => a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
-    const opening = await layout();
-    if (desktop) expect(apart(opening.card, opening.target)).toBe(true);
-    await expect(page.getByRole('button', { name: '미사용 공격 룬 일괄 봉인', exact: true })).toBeDisabled();
-    await page.locator('.starter-gem-tutorial-target').click();
-    await expect(page.locator('#gem-selection').getByRole('button', { name: '봉인', exact: true })).toBeDisabled();
-    // The coach mark follows into the detail popover: its 장착 button is what the player presses next.
-    await expect(page.locator('#gem-selection .gem-equip-primary')).toHaveClass(/tutorial-action-target/);
-    if (desktop) {
-        const { card, target, popover, frame, chosen } = await layout();
-        expect([apart(card, target), apart(card, popover), apart(card, chosen)]).toEqual([true, true, true]);
-        expect([popover.left >= frame.left, popover.top >= frame.top, popover.right <= frame.right, popover.bottom <= frame.bottom]).toEqual([true, true, true, true]);
-    }
-    await page.locator('#gem-selection').getByRole('button', { name: '장착', exact: true }).click();
+    // The guide points at the weapon in the bag, then at the inspector's 장착 button.
+    await page.locator('#ui-inventory-list .equipment-grid-item').first().click();
+    await page.locator('#tab-items .equipment-card-primary').click();
     await expect(page.locator('#tutorial-action-card')).toBeHidden();
-    await expect(page.locator('#game-toast-region')).toContainText('스킬룬 장착 완료');
-    expect(await page.evaluate(() => game.activeSkill)).toBe('이중 베기');
-    expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
+    expect(await page.evaluate(() => [getEquippedWeaponStance(), game.activeSkill === basicSkills.nameOf('greatsword', game.basicSkillElement)])).toEqual(['greatsword', true]);
+    expect(await page.evaluate(() => game.starterWeaponTutorialPending)).toBeNull();
     await expect(page.locator('#btn-act-exploration-auto')).toBeVisible();
     await expect(page.locator('#btn-act-exploration-auto')).toHaveAttribute('aria-pressed', 'false');
     await page.locator('#btn-act-exploration-auto').click();
     await expect(page.locator('#btn-act-exploration-auto')).toHaveAttribute('aria-pressed', 'true');
-    expect(notices).not.toContain('첫 스킬룬 장착');
-    expect(restoredRune).toBe(true);
+    expect(notices).not.toContain('첫 무기 장착');
+    expect(restoredWeapon).toBe(true);
     expect(errors).toEqual([]);
-    await page.screenshot({ path: testInfo.outputPath('natural-first-gem.png') });
+    await page.screenshot({ path: testInfo.outputPath('natural-first-weapon.png') });
     await testInfo.attach('first-session-observation', {
-        body: JSON.stringify({ firstGemMs, notices, kind: 'automated walkthrough, not human feedback' }, null, 2),
+        body: JSON.stringify({ firstWeaponMs, notices, kind: 'automated walkthrough, not human feedback' }, null, 2),
         contentType: 'application/json'
     });
 });
 
-// Review round 3 #1: a player who closes the first-gem card instead of following it (idle play) used to fight with the
-// basic attack and die repeatedly in acts 1-2. Closing the card equips the starter gem; 스킬룬 can still change it.
-test('closing the first-gem card without following equips the starter gem', async ({ page }) => {
+// Review round 3 #1 (then the first gem, 2026-11-09 the first weapon): a player who closes the first-weapon card instead of following it
+// (idle play) would fight bare-handed with the basic attack. Closing the card equips the weapon; 장비 can still change it.
+test('closing the first-weapon card without following equips the weapon', async ({ page }) => {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
@@ -149,12 +128,12 @@ test('closing the first-gem card without following equips the starter gem', asyn
         if (await page.locator('#tutorial-dismiss-btn').isVisible()) {
             const title = await page.locator('#tutorial-title').innerText();
             await page.locator('#tutorial-dismiss-btn').click();
-            if (title === '첫 스킬룬 장착') return 'closed';
+            if (title === '첫 무기 장착') return 'closed';
         }
         return 'waiting';
     }, { timeout: 45000, intervals: [250, 500] }).toBe('closed');
-    await expect.poll(() => page.evaluate(() => game.activeSkill)).toBe('이중 베기');
-    await expect(page.locator('#game-toast-region')).toContainText('[이중 베기] 룬을 장착했습니다');
-    expect(await page.evaluate(() => game.starterGemTutorialPending)).toBeFalsy();
+    await expect.poll(() => page.evaluate(() => getEquippedWeaponStance())).toBe('greatsword');
+    await expect(page.locator('#game-toast-region')).toContainText('무기를 장착했습니다');
+    expect(await page.evaluate(() => game.starterWeaponTutorialPending)).toBe(null);
     expect(errors).toEqual([]);
 });

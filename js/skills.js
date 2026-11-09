@@ -1040,7 +1040,6 @@ function getSkillGemSealRefusal(name, support) {
     if (support) return game.equippedSupports.includes(name) ? '장착 중 보조스킬룬은 봉인할 수 없습니다.' : '';
     if (!name || [game.activeSkill, game.mobilitySkill].includes(name)) return '활성 스킬은 봉인할 수 없습니다.';
     if (name === '기본 공격') return '기본 공격은 봉인할 수 없습니다.';
-    if (game.starterGemTutorialPending === name) return '첫 스킬룬을 먼저 장착하세요.';
     return (game.equippedSummonSkills || []).includes(name) ? '장착 중 소환수 룬은 봉인할 수 없습니다.' : '';
 }
 /** The seal line's tail: how many runes are sealed and the resonance they give now (봉인 2개당 공명력 1, gemDropRewards.sealResonance). */

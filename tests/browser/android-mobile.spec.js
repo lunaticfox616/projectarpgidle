@@ -133,7 +133,12 @@ test('a class card shows its start gem before the pick and leaves no class toolt
     const overlay = page.locator('#loop-hero-select-overlay');
     const detail = overlay.locator('#loop-hero-select-detail');
     const start = overlay.locator('#loop-hero-select-start');
-    const gemLine = classId => page.evaluate(id => `시작 스킬룬: ${LOOP_STARTER_GEM_BY_HERO[PLAYER_CLASS_DEFS[id].recommendedTalentHeroId]}`, classId);
+    const gemLine = classId => page.evaluate(id => `기초 스킬: ${BASIC_SKILL_WEAPONS.find(row => row.family === basicSkills.familyOf(id)).base}`, classId);
+    // 직업을 정하면 같은 창이 기초 스킬의 속성을 묻는다(js/passives.js openLoopBasicSkillPick)
+    const pickElement = async () => {
+        await expect(overlay).toHaveClass(/active/);
+        await overlay.locator('.basic-skill-choice').first()[mobile ? 'tap' : 'click']();
+    };
     const started = () => page.evaluate(() => game.heroSelectionInitialized);
     if (mobile) {
         await expect(start).toBeDisabled();
@@ -149,11 +154,13 @@ test('a class card shows its start gem before the pick and leaves no class toolt
         await expect(start).toBeInViewport({ ratio: 1 });
         expect((await start.boundingBox()).height).toBeGreaterThanOrEqual(44);
         await start.tap();
+        await pickElement();
     } else {
         await expect(start).toBeHidden();
         await overlay.locator('[data-class-id="warrior"]').hover();
         await expect(page.locator('#info-tooltip')).toContainText(await gemLine('warrior'));
         await overlay.locator('[data-class-id="warrior"]').click();
+        await pickElement();
     }
     await expect(overlay).not.toHaveClass(/active/);
     expect(await page.evaluate(() => [game.heroSelectionInitialized, game.selectedClassId])).toEqual([true, 'warrior']);

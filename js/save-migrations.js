@@ -413,29 +413,26 @@ function normalizeSkillSlotsSave(merged) {
     merged.mobilitySkill = worn(merged.mobilitySkill) ? merged.mobilitySkill : '';
 }
 
-/** An unfinished starter equip guide survives reload. Old versions let bulk sealing consume its target: undo that
- * seal and its one resonance reward, keeping the gem's growth. A deliberately sealed gem without a pending guide stays sealed.
- * A guide is unfinished only while the hero still fights with 기본 공격: a save that wears another attack rune (the guide's mark
- * left from an earlier loop, or a rune the weapon refused) just loses the mark, and its seals stay (2026-10-26 review). */
-/** The guide's rune is worn, or the hero already fights with another attack rune. */
-function starterGuideFinished(state, name) {
-    const summons = Array.isArray(state.equippedSummonSkills) ? state.equippedSummonSkills : [];
-    return [state.activeSkill, state.mobilitySkill, ...summons].includes(name) || state.activeSkill !== '기본 공격';
+/** The loop start (2026-11-09 스킬 전달본 V3.14): the first kill's weapon drop flag, the first loop's starter weapon waiting for its equip guide
+ * (an item id still in the bag, else none), this loop's basic skill elements ({ loop, elements }, valid and distinct, else none) and the
+ * element picked last (the auto loop keeps it). A save from the starter rune days (until 2026-11-09) loses its rune guide mark: the rune it
+ * named is worn when the hero still fights with 기본 공격 (as closing that guide did), and its first-kill flag carries over. */
+function normalizeStarterWeaponSave(state) {
+    wearOldStarterGem(state, state.starterGemTutorialPending);
+    state.loopStarterWeaponGranted = state.loopStarterWeaponGranted === true || state.loopStarterGemGranted === true;
+    for (const key of ['starterGemTutorialPending', 'loopStarterGemGranted', 'pendingStarterRuneChoice']) delete state[key];
+    const pending = state.starterWeaponTutorialPending, bag = Array.isArray(state.inventory) ? state.inventory : [];
+    state.starterWeaponTutorialPending = Number.isSafeInteger(pending) && bag.some(item => item && item.id === pending) ? pending : null;
+    normalizeBasicSkillOfferSave(state);
 }
-function normalizeStarterGemTutorialSave(state) {
-    const name = state.starterGemTutorialPending;
-    const owned = state.skills.concat(state.sealedSkills);
-    state.starterGemTutorialPending = typeof name === 'string' && SKILL_DB[name]?.isGem && owned.includes(name) ? name : null;
-    if (!state.starterGemTutorialPending) return;
-    if (starterGuideFinished(state, name)) {
-        state.starterGemTutorialPending = null;
-        return;
-    }
-    if (state.sealedSkills.includes(name)) {
-        state.skills.push(name);
-        state.sealedSkills = state.sealedSkills.filter(gem => gem !== name);
-    }
-    state.seenTutorials = state.seenTutorials.filter(key => key !== 'tutorial_starter_gem_equip' && key !== 'action_tutorial_starter_gem_equip');
+function wearOldStarterGem(state, name) {
+    if (typeof name === 'string' && state.activeSkill === '기본 공격' && state.skills.includes(name) && SKILL_DB[name]?.isGem) state.activeSkill = name;
+}
+function normalizeBasicSkillOfferSave(state) {
+    const offer = state.basicSkillOffer, elements = BASIC_SKILL_ELEMENTS.map(row => row.ele);
+    const picked = offer && Number.isInteger(offer.loop) && Array.isArray(offer.elements) ? offer.elements.filter(ele => elements.includes(ele)) : [];
+    state.basicSkillOffer = picked.length && new Set(picked).size === picked.length ? { loop: offer.loop, elements: picked } : null;
+    if (!elements.includes(state.basicSkillElement)) state.basicSkillElement = '';
 }
 
 /** Ownership lists and the base resonance capacity are normalized together before rune operations. Zero is a valid capacity. */
@@ -599,14 +596,10 @@ function normalizePlayerAilmentRow(row, clampFiniteNumber) { // clampFiniteNumbe
     if (row.sourceEnemyName) Object.assign(out, { sourceEnemyId: row.sourceEnemyId === undefined ? null : row.sourceEnemyId, sourceEnemyName: String(row.sourceEnemyName) });
     return out;
 }
-/** 변이시간선(js/loop-mutation.js): the marked loop number (else 0, so a broken one meets the rule from the next loop) and the first
- * kill's pick (offered rune names that still exist, at most three, else none). */
+/** 변이시간선(js/loop-mutation.js): the marked loop number (else 0, so a broken one meets the rule from the next loop). */
 function normalizeLoopMutationState(merged) {
     const season = Number(merged.loopMutationSeason);
     merged.loopMutationSeason = Number.isInteger(season) && season > 0 ? season : 0;
-    const raw = merged.pendingStarterRuneChoice;
-    const gems = raw && Array.isArray(raw.gems) ? raw.gems.filter(name => typeof name === 'string' && SKILL_DB[name]).slice(0, 3) : [];
-    merged.pendingStarterRuneChoice = gems.length ? { gems } : null;
 }
 /** Removed support runes (data/skills.js RETIRED_SUPPORT_GEMS) leave every saved place before validation: their record, the run's
  * rune rewards, rune rows on the floor and in encounter buffers, NPC shelves and the woodsman snapshot. The rune lists are filtered by
@@ -1480,7 +1473,7 @@ function mergeDefaults(save) {
     const record = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
     merged.npcMet = record(merged.npcMet);
     merged.npcShops = record(merged.npcShops);
-    normalizeStarterGemTutorialSave(merged);
+    normalizeStarterWeaponSave(merged);
     window.GameModules.state.tutorials.normalize(merged);
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];
     // 보스 도전 추적은 저장 복원 후 이어 붙이지 않는다. 탭이 닫힌 동안의 피해를

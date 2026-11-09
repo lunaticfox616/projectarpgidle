@@ -29,27 +29,29 @@ const stageNewRunes = (() => {
         ctx.restore();
         return true;
     }
-    /** 발밑 시계의 금빛(시뮬레이터 time-buff-vfx.js goldCache): 원본의 다섯 색만 정확히 바꾸고 알파와 자리는 그대로 둔다. 원본 그림은 고치지 않는다. */
-    const GOLD_FROM = Object.freeze(['32,58,158', '34,101,188', '0,183,255', '0,255,249', '255,249,252']);
-    const GOLD_TO = Object.freeze([[107, 74, 36], [162, 115, 55], [209, 166, 78], [239, 202, 118], [255, 240, 186]]);
-    let goldClock = null;
-    function goldFloor() {
-        if (goldClock) return goldClock;
-        const image = stageSkillVfx.picture(RAW_SHEET), row = STAGE_SKILL_VFX.raw.clock;
+    /** 띠의 원래 색 몇 가지만 정확히 바꾼 사본(시뮬레이터 time-buff-vfx.js goldCache, time-acceleration-vfx.js purpleCache): 알파와 자리는 그대로 두고
+     * 원본 그림은 고치지 않는다. 띠 하나에 칠은 하나다(띠 이름으로 둔다). swaps: 'r,g,b' → [r, g, b]. 그림이 아직 없으면 null. */
+    const tinted = new Map();
+    function tintRaw(name, swaps) {
+        if (tinted.has(name)) return tinted.get(name);
+        const image = stageSkillVfx.picture(RAW_SHEET), row = STAGE_SKILL_VFX.raw[name];
         if (!image || !row) return null;
         const canvas = document.createElement('canvas');
         canvas.width = row.w * row.n; canvas.height = row.h;
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         ctx.drawImage(image, row.x, row.y, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
-        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height), lookup = new Map(GOLD_FROM.map((key, i) => [key, GOLD_TO[i]]));
+        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
         for (let i = 0; i < pixels.data.length; i += 4) {
-            const colour = pixels.data[i + 3] ? lookup.get(`${pixels.data[i]},${pixels.data[i + 1]},${pixels.data[i + 2]}`) : null;
+            const colour = pixels.data[i + 3] ? swaps.get(`${pixels.data[i]},${pixels.data[i + 1]},${pixels.data[i + 2]}`) : null;
             if (colour) pixels.data.set(colour, i);
         }
         ctx.putImageData(pixels, 0, 0);
-        goldClock = canvas;
-        return goldClock;
+        tinted.set(name, canvas);
+        return canvas;
     }
+    /** 발밑 시계의 금빛: 원본의 다섯 색. */
+    const GOLD = new Map([['32,58,158', [107, 74, 36]], ['34,101,188', [162, 115, 55]], ['0,183,255', [209, 166, 78]], ['0,255,249', [239, 202, 118]], ['255,249,252', [255, 240, 186]]]);
+    const goldFloor = () => tintRaw('clock', GOLD);
 
     // ---------------------------------------------------------------- 78 추적 사격
     /** 길에서 지금 자리와 방향. 아직 떠나지 않았거나 다 날았으면 null. */
@@ -348,6 +350,6 @@ const stageNewRunes = (() => {
     }
 
     const fieldBusy = () => stageSkillVfx.now() < fieldUntil;
-    return Object.freeze({ raw: drawRaw, homingFly, petrifyBurst, timeField, fieldBusy, timeBlades, timeBounce, glazeOf, heldAt });
+    return Object.freeze({ raw: drawRaw, tint: tintRaw, homingFly, petrifyBurst, timeField, fieldBusy, timeBlades, timeBounce, glazeOf, heldAt });
 })();
 safeExposeGlobals({ stageNewRunes });

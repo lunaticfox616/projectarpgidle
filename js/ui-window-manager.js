@@ -698,7 +698,7 @@
     }
 
     function hasVisibleRailNotice(button) {
-        if (button.classList.contains('starter-gem-tutorial-pending')) return true;
+        if (button.classList.contains('starter-equip-tutorial-pending')) return true;
         return Array.from(button.querySelectorAll('.noti-dot, .inventory-full-warning'))
             .some(notice => {
                 let style = window.getComputedStyle ? window.getComputedStyle(notice) : notice.style;

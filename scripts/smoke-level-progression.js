@@ -256,7 +256,7 @@ for (const zone of dropOrigins) {
 // The first act gives exactly the previewed gear and cannot destroy a chosen reward through loot filters.
 for (const classId of json('Object.keys(HANA_WEAPON_COMBOS.classWeapons)')) {
     for (const choiceIndex of [0, 1, 2]) {
-        run(`game=mergeDefaults({selectedClassId:${JSON.stringify(classId)}});grantClassStarterWeapon(game.selectedClassId);
+        run(`game=mergeDefaults({selectedClassId:${JSON.stringify(classId)}});equipIntoFirstEmptySlot(createClassStarterWeapon(game.selectedClassId));
             var firstChoice=getActRewardChoices(0)[${choiceIndex}], beforeReward=JSON.stringify(game.equipment);
             var firstPreview=buildActRewardPreviewItem(0,firstChoice);`);
         assert.deepEqual(json('equipmentCrafting.affixCounts(firstPreview)'), { prefix: 1, suffix: 1, special: 0 },

@@ -109,33 +109,7 @@ const SKILL_DB = {
     '탐욕의 광기': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'phys', elementLabel: '피해 없음', tags: ['summon', 'summon_buff', 'intelligence'], aura: { stats: [] }, greed: { dropPct: 60 }, desc: '처치한 몬스터의 드랍률이 60% 오르고, 맵에 떨어진 아이템을 움직이지 않아도 줍습니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᚠ 룬이 떠오릅니다.' }
 };
 
-// 루프 시작 후 첫 처치에 재능(시작 캐릭터)별로 확정 지급되는 스킬룬.
-// 매 루프 "기본 공격"만 들고 시작하는 공백을 메우는 용도라, 각 재능의 주력 태그 안에서
-// 일부러 하위권 화력의 룬을 골랐다(강한 룬은 그대로 드랍/보상으로 찾는 재미를 유지).
-const LOOP_STARTER_GEM_BY_HERO = {
-    hero1: '연발 사격',    // 궁수 (투사체) — 투사체 태그 중 하위권 화력
-    hero2: '이중 베기',    // 전사 (근접·물리) — 근접/물리 태그 중 하위권 화력
-    hero3: '서리바람 내지르기',    // 드루이드 (원소) — 원소 태그 중 하위권 화력
-    hero4: '흡혈 관통',    // 블레이드 — 흡혈 컨셉을 유지한 하위권 근접 룬(스킬룬 인계로 카오스 일격 흡혈 타격이 물리 관통 흡혈 관통이 됐다). 2026-10-17 룬 고정 측정: 혼돈 3에 129분, 42번 쓰러짐(전도성 난격이면 1루프 88분, 0번)
-    hero5: '번개 타격',    // 성기사 (물리+번개) — 전사/수호자와 겹치지 않게 번개 계열로 차별화
-    hero6: '독창 투척',    // 저격수 (투사체) — 궁수와 다른 투사체 룬
-    hero7: '물리 위습 소환', // 소환사 (소환) — 물리 속성 소환수
-    hero8: '중력 붕괴',    // 수호자 (근접·물리) — 전사와 다른 물리 룬(주문형)
-    hero9: '서리바람 내지르기',    // 원소술사 (원소) — 원소 태그 중 하위권 화력
-    hero10: '빙결 침식'    // 연금술사 (지속피해) — 지속피해 태그 중 하위권 화력
-};
-/** 변이 루프(data/maps.js LOOP_MUTATION)의 첫 처치 3택 후보: 직업마다 속성별 하나(js/loop-mutation.js starterChoices). 그 직업의 시작
- * 무기, 영웅 Lv.1, 룬 Lv.1에서 시트 DPS가 그 직업 시작 룬(LOOP_STARTER_GEM_BY_HERO)과 가장 가까운 룬이다(2026-10-23 측정: 대부분
- * 시작 룬의 ±20% 안, 연금술사의 번개는 플라스크로 쓸 번개 룬이 주문뿐이라 1.5배). 시작 룬은 자기 속성 칸에 그대로 둔다. 첫 처치에 받는 룬이므로 요구 레벨(SKILL_RUNE_LEVEL_REQ)이 없는 룬만 둔다
- * (2026-11-02: 전사 냉기 혹한의 지진 → 서리베기, 연금술사 번개 신성한 기도 → 뇌운 낙뢰). */
-const LOOP_MUTATION_STARTER_GEMS = Object.freeze({
-    warrior: Object.freeze({ phys: '이중 베기', fire: '부싯돌 베기', cold: '서리베기', light: '번개 타격', chaos: '심연 전염' }),
-    wanderer: Object.freeze({ phys: '흡혈 관통', fire: '폭열 창탄', cold: '빙결 침식', light: '피뢰침', chaos: '심연 전염' }),
-    archer: Object.freeze({ phys: '연발 사격', fire: '폭열 창탄', cold: '빙결 침식', light: '번개 창', chaos: '독창 투척' }),
-    occultist: Object.freeze({ phys: '대지의 함성', fire: '불씨의 함성', cold: '서리바람 내지르기', light: '번개 창', chaos: '독창 투척' }),
-    alchemist: Object.freeze({ phys: '빈 플라스크', fire: '불씨의 함성', cold: '빙결 침식', light: '뇌운 낙뢰', chaos: '심연 전염' }),
-    cleric: Object.freeze({ phys: '강타', fire: '화염 참격', cold: '얼어붙은 고리', light: '번개 타격', chaos: '심연 전염' })
-});
+// 루프의 시작 스킬룬(2026-10-15~2026-11-09 LOOP_STARTER_GEM_BY_HERO, 변이 루프 3택 LOOP_MUTATION_STARTER_GEMS)은 기초 스킬(BASIC_SKILL_ROWS)이 대신했다.
 
 // v3.38 gem balance: coefficients are per confirmed contact.
 Object.assign(SKILL_DB, {
@@ -211,6 +185,43 @@ for (const name of ['탄성 플라스크','폭발 혼합물','과냉각 혼합�
 // 작살화살's harpoon flies on its own rope: one straight shot that no engraving replaces.
 Object.assign(SKILL_DB['작살화살'], { projectilePattern: { mode: 'focus', kind: 'line', fixed: true },
     rangeText: '발사 방식: ' + SKILL_DB['작살화살'].rangeText + ', 고유 궤적' });
+/** 기초 스킬(2026-11-09 스킬 전체 전달본 V3.14, 사용자 "모든 무기별 첫 시작떄 주어지는 속성별 기초스킬"): 맨손 밖의 무기 여섯마다 하나 × 속성 다섯 = 30개.
+ * 단일 대상의 단순한 기본기라 속성은 피해 속성과 색만 바꾼다(부가 효과 없음). 이름, 번호(무기 자리 200~250 + 속성 자리 1~5), 피해는 전달본의 제안이다.
+ * 루프를 시작하며 직업을 고를 때 무작위 속성 가운데 하나를 골라 그 직업 무기의 것을 받는다(js/basic-skills.js). 드랍, 진열대, 보상에는 나오지 않는다
+ * (js/gem-drop-rewards.js attackRunes). grid: 판정 범위(SKILL_GRID_DB): 근접 앞 1칸, 활 7칸, 오브 6칸, 플라스크 5칸 안의 한 칸. pattern: 투사체의 기본
+ * 발사 방식(활과 오브는 단일 집속, 플라스크는 다른 플라스크처럼 고유 곡사). 능력치 태그는 그 무기 전용 룬의 규칙대로다(대검 힘, 활 민첩 …).
+ * spellFlat: 주문의 룬 고유 피해 [spellFlatBase, spellFlatScale](주문은 무기 피해를 쓰지 않아 이것이 없으면 피해가 0이다). 오브는 Lv.1 시트 DPS가
+ * 다른 기초 스킬(27~35)과 비슷하게 맞췄다. */
+const BASIC_SKILL_WEAPONS = Object.freeze([
+    Object.freeze({ family: 'greatsword', slot: 200, base: '내려베기', names: Object.freeze(['내려베기', '화염 내려베기', '냉기 내려베기', '번개 내려베기', '카오스 내려베기']), baseDmg: 1.1, tags: ['attack', 'melee', 'strength'], grid: { kind: 'melee', range: 1 }, desc: '대검을 크게 내려 앞의 적 하나를 벱니다.' }),
+    Object.freeze({ family: 'sword', slot: 210, base: '찌르기', names: Object.freeze(['찌르기', '화염 찌르기', '냉기 찌르기', '번개 찌르기', '카오스 찌르기']), baseDmg: 0.95, tags: ['attack', 'melee', 'strength', 'dexterity'], grid: { kind: 'melee', range: 1 }, desc: '한손검으로 앞의 적 하나를 빠르게 찌릅니다.' }),
+    Object.freeze({ family: 'bow', slot: 220, base: '겨냥 사격', names: Object.freeze(['겨냥 사격', '화염 겨냥 사격', '냉기 겨냥 사격', '번개 겨냥 사격', '카오스 겨냥 사격']), baseDmg: 0.95, tags: ['attack', 'projectile', 'dexterity'], grid: { kind: 'blast', range: 7, radius: 0 },
+        pattern: { mode: 'focus', kind: 'line' },
+        desc: '화살 한 발로 앞의 적 하나를 맞힙니다.' }),
+    Object.freeze({ family: 'orb', slot: 230, base: '마력탄', names: Object.freeze(['마력탄', '화염 마력탄', '냉기 마력탄', '번개 마력탄', '카오스 마력탄']), baseDmg: 0.95, spellFlat: [8.5, 1.85], tags: ['spell', 'projectile', 'intelligence'], grid: { kind: 'blast', range: 6, radius: 0 },
+        pattern: { mode: 'focus', kind: 'line' },
+        desc: '오브에서 마력 구슬 하나를 쏘아 앞의 적 하나를 맞힙니다.' }),
+    Object.freeze({ family: 'flask', slot: 240, base: '약병 던지기', names: Object.freeze(['약병 던지기', '화염 약병 던지기', '냉기 약병 던지기', '번개 약병 던지기', '카오스 약병 던지기']), baseDmg: 1, tags: ['attack', 'projectile', 'potion', 'dexterity', 'intelligence'], grid: { kind: 'blast', range: 5, radius: 0 },
+        pattern: { mode: 'lob', kind: 'blast', fixed: true }, desc: '작은 약병을 던져 5칸 안의 적 하나를 맞힙니다.' }),
+    Object.freeze({ family: 'censer', slot: 250, base: '향로 치기', names: Object.freeze(['향로 치기', '화염 향로 치기', '냉기 향로 치기', '번개 향로 치기', '카오스 향로 치기']), baseDmg: 1, tags: ['attack', 'melee', 'strength', 'intelligence'], grid: { kind: 'melee', range: 1 }, desc: '사슬에 매단 향로를 휘둘러 앞의 적 하나를 칩니다.' })
+]);
+/** 속성 자리(1~5)의 순서와 태그. 이름은 무기 줄의 names(같은 순서: 물리는 기본 이름, 나머지는 앞에 속성 이름)다. */
+const BASIC_SKILL_ELEMENTS = Object.freeze([
+    Object.freeze({ ele: 'phys', tags: ['physical'] }),
+    Object.freeze({ ele: 'fire', tags: ['fire', 'elemental'] }),
+    Object.freeze({ ele: 'cold', tags: ['cold', 'elemental'] }),
+    Object.freeze({ ele: 'light', tags: ['lightning', 'elemental'] }),
+    Object.freeze({ ele: 'chaos', tags: ['chaos'] })
+]);
+/** 기초 스킬 하나하나: { name, id(201~255), family(무기 계열), ele, weapon(무기 줄) }. */
+const BASIC_SKILL_ROWS = Object.freeze(BASIC_SKILL_WEAPONS.flatMap(weapon => BASIC_SKILL_ELEMENTS.map((element, index) =>
+    Object.freeze({ name: weapon.names[index], id: weapon.slot + index + 1, family: weapon.family, ele: element.ele, weapon, element }))));
+BASIC_SKILL_ROWS.forEach(({ name, id, family, ele, weapon, element }) => {
+    SKILL_DB[name] = { isGem: true, basicSkill: { id, family }, baseDmg: weapon.baseDmg, baseSpd: 1, leech: 0, crit: 5, dmgScale: 0.05, spdScale: 0.01, ele,
+        targetMode: 'single', targets: 1, desc: weapon.desc, tags: [...weapon.tags, ...element.tags, 'single'],
+        ...(weapon.pattern ? { projectilePattern: { ...weapon.pattern } } : {}),
+        ...(weapon.spellFlat ? { spellFlatBase: weapon.spellFlat[0], spellFlatScale: weapon.spellFlat[1] } : {}) };
+});
 /** 지운 룬 → 그 룬을 가진 저장이 대신 받는 룬 (2026-10-13 사용자: "인계에 없는 룬 5개는 삭제해줘". 스킬 이펙트 인계가 뺀 다섯 룬이다).
  * 룬 기록(레벨, 강화, 품질, 각성, 각인)은 대신 받는 룬으로 옮기고, 그 룬을 이미 가졌으면 더 자란 쪽을 남긴다
  * (js/save-migration-wisp-summons.js: 예전 소환 룬을 위습 룬으로 옮긴 길을 같이 쓴다). 끼고 있던 자리도 대신 받는 룬이 잇는다.
@@ -235,7 +246,7 @@ const RETIRED_GEM_SUCCESSORS = Object.freeze({
 /** 지운 보조스킬룬: 대신 받는 룬 없이 저장에서 걷어 낸다(js/save-migrations.js dropRetiredSupportGems).
  * 2026-10-23 사용자 "방패 공명: 보조 스킬 룬 삭제"(방패가 완갑이 된 뒤). */
 const RETIRED_SUPPORT_GEMS = Object.freeze(['방패 공명']);
-safeExposeData({ SKILL_DB, LOOP_STARTER_GEM_BY_HERO, LOOP_MUTATION_STARTER_GEMS, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS, RETIRED_SUPPORT_GEMS });
+safeExposeData({ SKILL_DB, BASIC_SKILL_WEAPONS, BASIC_SKILL_ELEMENTS, BASIC_SKILL_ROWS, PROJECTILE_PATTERN_MODE_DB, RETIRED_GEM_SUCCESSORS, RETIRED_SUPPORT_GEMS });
 
 // 각성 룬 효과(각성 룬 변환 뒤, 2026-10-18 사용자 결정으로 룬 Lv.20 특전을 옮김). 앞의 셋은 능력치에(getActiveSkillStats), 강타는
 // 치명타 적중에(getGemCritHitPerkMul) 붙는다. 룬 툴팁과 각성 룬 변환 칸도 이 표를 읽는다.
@@ -360,9 +371,11 @@ const SKILL_RUNE_FAMILY = Object.freeze({
     '석화 혼합물': 'flask',
     '병에 담긴 번개': 'flask',
     '연금 가마솥': 'flask',
+    // 기초 스킬: 제 무기 전용
+    ...Object.fromEntries(BASIC_SKILL_ROWS.map(row => [row.name, row.family]))
 });
 /** 룬 요구 레벨(2026-11-02 사용자: 룬의 특이함, 강력함, 고급짐으로 17, 37, 67. 각 무기의 기본 룬은 제한 없음. 보조룬은 연속 발동처럼 고급진 룬만 60, 101).
- * 여기에 없는 룬은 제한이 없다. 직업 시작 룬(LOOP_STARTER_GEM_BY_HERO, LOOP_MUTATION_STARTER_GEMS)과 액트 보상 룬은 넣지 않는다. 얻거나 사는 데에는 제한이 없고 장착만 막는다
+ * 여기에 없는 룬은 제한이 없다. 기초 스킬(BASIC_SKILL_ROWS)과 액트 보상 룬은 넣지 않는다. 얻거나 사는 데에는 제한이 없고 장착만 막는다
  * (js/skills.js canUseSkillWithCurrentEquipment, js/support-runes.js conflictReason). */
 const SKILL_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
     17: ['회오리', '참격파', '올려 베기', '추적 사격', '빙결 파열창', '천뢰 분기',
@@ -498,7 +511,9 @@ const SKILL_GEM_VFX_PROFILES = Object.freeze({
     '냉기 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
     '번개 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
     '물리 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
-    '카오스 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false }
+    '카오스 위습 소환': { family: 'summon', scale: 0.8, impactVfx: false },
+    // 기초 스킬은 무대의 새 연출이 그린다(data/stage-skill-vfx.js 201~255)
+    ...Object.fromEntries(BASIC_SKILL_ROWS.map(row => [row.name, { family: 'worldTree', scale: 1, impactVfx: false }]))
 });
 
 safeExposeData({ SKILL_GEM_VFX_PROFILES });
@@ -641,6 +656,8 @@ const SKILL_GEM_ART_PATHS = Object.freeze({
     '탐욕 파문': 'assets/gems/runes/090_ripple-of-greed.png',
     '판결-유죄': 'assets/gems/runes/091_verdict-guilty.png',
     '탐욕의 광기': 'assets/gems/runes/127_madness-of-greed.png',
+    // 기초 스킬: 그 무기의 그림을 속성 룬 테두리 안에 넣은 아이콘(scripts/build-basic-skill-icons.js)
+    ...Object.fromEntries(BASIC_SKILL_ROWS.map(row => [row.name, `assets/gems/runes/${row.id}_basic-${row.family}-${row.ele}.png`])),
 });
 
 safeExposeData({ SKILL_GEM_ART_PATHS });
@@ -738,7 +755,9 @@ const SKILL_GRID_DB = {
     '냉기 위습 소환':   { kind: 'summon', range: 4 },
     '번개 위습 소환':   { kind: 'summon', range: 3 },
     '물리 위습 소환':   { kind: 'summon', range: 3 },
-    '카오스 위습 소환': { kind: 'summon', range: 4 }
+    '카오스 위습 소환': { kind: 'summon', range: 4 },
+    // 기초 스킬: 무기 줄의 판정 범위(BASIC_SKILL_WEAPONS grid)
+    ...Object.fromEntries(BASIC_SKILL_ROWS.map(row => [row.name, row.weapon.grid]))
 };
 
 safeExposeData({ SKILL_GRID_DB });

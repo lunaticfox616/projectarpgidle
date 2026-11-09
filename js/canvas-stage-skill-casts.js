@@ -16,6 +16,8 @@ const stageSkillCasts = (() => {
     /** 투사체의 몸: 룬 번호 → 인계의 생김새(js/canvas-stage-skill-draws.js). */
     const BODIES = Object.freeze({ 7: 'spear', 9: 'spear', 11: 'spear', 26: 'spear', 30: 'bigspear', 14: 'arrow', 25: 'arrow',
         44: 'flask', 47: 'flask', 48: 'flask', 49: 'emptyFlask', 79: 'flask' });
+    /** 그 룬의 날아가는 몸: 표의 것, 아니면 기초 스킬의 그림 표가 정한 것(data/stage-skill-vfx.js BASIC_STAGE body). */
+    const bodyOf = gem => BODIES[gem.id] || gem.meta.body || null;
     /** 던지는 몸 가운데 포물선으로 나는 것(빈 플라스크는 큰 빈 유리병, 2026-11-05 전달본 V3.9.3). */
     const LOBBED = new Set(['flask', 'emptyFlask']);
     /** 따로 시전하는 룬의 사건에서 단계 이름이 적힌 칸. */
@@ -62,6 +64,12 @@ const stageSkillCasts = (() => {
         });
         ctx.globalAlpha = 1;
     }
+    /** 연쇄로 건너가는 곧은 발은 살짝 떠올랐다가 꽂힌다(전달본 V3.14.1: 호 높이 = 거리 × 0.22, 8~30도트). 처음 쏜 발은 0. */
+    function hopArc(event, elapsed) {
+        if (!event.chainHop) return 0;
+        const from = event.sourceCell, to = event.targetCells[0], k = Math.max(0, Math.min(1, elapsed / Math.max(1, event.duration)));
+        return Math.sin(k * Math.PI) * Math.min(30, Math.max(8, Math.hypot((to.gx - from.gx) * WIDE, (to.gy - from.gy) * DEEP) * 0.22));
+    }
     /** 곧게 나는 투사체: 길을 따라 손 높이로 날고, 나아가는 쪽을 보며 깊이 쪽으로 가면 그만큼 기운다. 쏜 자리의 몸 앞면보다 뒤쪽은
      * 그리지 않는다(K.emerge): 창 자루가 등 뒤에서부터 보이지 않고 몸 앞에서 나온다. */
     function castDrawShot(c, look) {
@@ -70,7 +78,7 @@ const stageSkillCasts = (() => {
         const angle = Math.atan2((spot.to.gy - spot.from.gy) * DEEP, Math.abs(spot.to.gx - spot.from.gx) * WIDE);
         ctx.save();
         K.emerge(ctx, c.view.projection, event);
-        stageSkillDraws.body(ctx, look, { x: at.x, y: at.y + K.HAND * at.dot, dot: at.dot, face: spot.face, angle, t: elapsed, element: c.element });
+        stageSkillDraws.body(ctx, look, { x: at.x, y: at.y + (K.HAND - hopArc(event, elapsed)) * at.dot, dot: at.dot, face: spot.face, angle, t: elapsed, element: c.element });
         ctx.restore();
     }
     /** 활로 쏜 마법 화살과 그림으로 나는 창: 몸 대신 그 클립이 손 높이로 나아가는 쪽을 보며 난다. */
@@ -80,15 +88,27 @@ const stageSkillCasts = (() => {
         const rot = Math.atan2((spot.to.gy - spot.from.gy) * DEEP, Math.abs(spot.to.gx - spot.from.gx) * WIDE);
         ctx.save();
         K.emerge(ctx, c.view.projection, event);
-        stageSkillVfx.stamp(ctx, ref, elapsed, { x: at.x, y: at.y + K.HAND * at.dot, dot: at.dot, face: spot.face, rot, ramp: c.look.ramp });
+        stageSkillVfx.stamp(ctx, ref, elapsed, { x: at.x, y: at.y + (K.HAND - hopArc(event, elapsed)) * at.dot, dot: at.dot, face: spot.face, rot, ramp: c.look.ramp });
         ctx.restore();
     }
     /** 날아가는 사건 하나: 처음 볼 때 발사 섬광(활이면 활의 섬광)을 틀고, 나는 동안 프레임마다 몸을 그린다. */
     function castBody(c) {
-        const look = BODIES[c.gem.id], elapsed = c.view.now - c.event.at, bow = stageSkillRunes.bow(c.gem);
+        const look = bodyOf(c.gem), elapsed = c.view.now - c.event.at, bow = stageSkillRunes.bow(c.gem);
         const flash = bow ? stageSkillRunes.bowFlash(c.gem, c.element) : c.gem.map.muzzle;
         if (c.first && flash) stageSkillVfx.play(flash, K.at(K.heroSpot(), c.look.face * (bow ? 30 : 26), bow ? -54 : -52), c.look);
         if (elapsed >= 0 && elapsed < c.event.duration) castDrawBody(c, look, bow ? bow.arrow : c.gem.map.proj);
+        return true;
+    }
+    /** 연쇄로 건너가는 발(2026-11-09 전달본 V3.14.1, js/combat.js addChainHopTravelFx): 처음 쏜 것과 같은 몸(활이면 마법 화살, 플라스크는
+     * 낮은 포물선의 병)이 앞 적에서 이번 적으로 날아간다. 손에서 쏜 발이 아니라 발사 섬광은 없다. 빈 플라스크는 유리 파편 하나가 날아가 꽂힌다.
+     * 연쇄 주문의 번개(map.zap), 독창 투척(중독을 옮긴다), 심연 전염, 탄성 플라스크(원래 병이 튕긴다)와 몸을 모르는 룬은 그리지 않는다. */
+    const HOP_SKIP = new Set([9, 23, 44]);
+    const HOP_BODIES = Object.freeze({ ...BODIES, 87: 'flask' });
+    function castHop(c) {
+        if (c.gem.map.zap || HOP_SKIP.has(c.gem.id)) return true;
+        if (c.gem.id === 49) return castShard(c);
+        const bow = stageSkillRunes.bow(c.gem), look = HOP_BODIES[c.gem.id] || bodyOf(c.gem), clip = bow ? bow.arrow : c.gem.map.proj, elapsed = c.view.now - c.event.at;
+        if ((look || clip) && elapsed >= 0 && elapsed < c.event.duration) castDrawBody(c, look, clip);
         return true;
     }
     /** clip: 활의 화살, 아니면 pixelfx로 구운 창과 불덩이(2026-11-02 전달본 V3.9.1). 없으면 코드로 그린 몸. */
@@ -405,9 +425,10 @@ const stageSkillCasts = (() => {
     }
     function castClaim(gem, event, view) {
         const phase = castPhase(event), c = castContext(gem, event, view);
+        if (event.chainHop) { c.first = castFirst(c); return castHop(c); }
         if (phase) return castNativePhase(c, phase);
         const moving = event.kind === 'mobility';
-        if (!moving && !(event.kind === 'travel' && BODIES[gem.id])) return null;
+        if (!moving && !(event.kind === 'travel' && bodyOf(gem))) return null;
         c.first = castFirst(c);
         return moving ? castMobility(c) : castBody(c);
     }

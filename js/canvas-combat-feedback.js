@@ -34,6 +34,7 @@ worldTreeSkillFx.feedback = (() => {
     /** Called only when the shared renderer consumes an unprocessed event. */
     function observe(fx, now) {
         if (now - fx.start > 500 || game.isBackgroundCalculation || document.hidden) return;
+        stageSkillRules.repeat(fx, now); // 이중 발동, 이중 시전의 두 번째 발동 연출(js/canvas-stage-skill-rules.js)
         eventSound(fx);
         if (fx.type === 'enemyDeath') deathNotice(fx, now);
     }

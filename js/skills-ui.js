@@ -219,14 +219,13 @@
         return head + empty + group('공격 룬', skills, false) + group('보조스킬룬', supports, true);
     }
 
-    /** One tab per rune list with the count it holds. While the first-rune guide waits only the attack tab opens (the guide points into it). */
+    /** One tab per rune list with the count it holds. */
     function renderPickerTabs(current) {
-        const guided = !!getStarterGemTutorialTarget();
         const counts = { support: (game.supports || []).length, sealed: (game.sealedSkills || []).length + (game.sealedSupports || []).length };
         (game.skills || []).forEach(name => { const kind = skillGemBoardUi.kindOf(name); counts[kind] = (counts[kind] || 0) + 1; });
         const html = PICKER_TABS.filter(tab => tab.kind !== 'support' || contentProgression.isUnlocked('support')).map(tab => {
             const on = tab.kind === current;
-            return `<button type="button" role="tab" class="skill-picker-tab is-${tab.kind}${on ? ' is-active' : ''}" aria-selected="${on}" data-picker-kind="${tab.kind}" ${guided && tab.kind !== 'active' ? 'disabled' : ''}>`
+            return `<button type="button" role="tab" class="skill-picker-tab is-${tab.kind}${on ? ' is-active' : ''}" aria-selected="${on}" data-picker-kind="${tab.kind}">`
                 + `${renderPixelIcon(tab.icon, 'skill-picker-tab-icon')}<span>${_t(tab.label)}</span><b>${counts[tab.kind] || 0}</b></button>`;
         }).join('');
         const nav = document.getElementById('ui-skill-picker-tabs');
@@ -271,7 +270,6 @@
             engraving: contentProgression.isUnlocked('engraving'),
             mobileLibrary: uiDisplay.matches('(max-width: 1080px)'),
             activeSkill: game.activeSkill || '', mobilitySkill: game.mobilitySkill,
-            starterGemTutorialPending: game.starterGemTutorialPending,
             buildLocked: !!game.woodsmanBuildLock,
             skills: game.skills || [],
             supports: game.supports || [],

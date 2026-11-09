@@ -138,17 +138,19 @@
     // 설명은 꼭 필요할 때만 한 줄로 둔다.
     const GOAL_RULES = [
         {
-            id: 'first-skill-choice',
+            // 첫 루프의 시작 무기가 가방에서 장착을 기다린다(js/combat.js grantLoopStarterWeaponOnFirstKill)
+            id: 'first-weapon-equip',
             priority: 850,
             matches(g) {
-                return !!(g.starterGemTutorialPending && g.unlocks && g.unlocks.skills
-                    && g.skills.includes(g.starterGemTutorialPending));
+                const id = g.starterWeaponTutorialPending;
+                return id != null && (g.inventory || []).some(item => item && item.id === id);
             },
             build(g) {
+                const item = g.inventory.find(row => row && row.id === g.starterWeaponTutorialPending);
                 return buildTabAction({
-                    id: 'first-skill-choice', type: 'progression', categoryLabel: _t('첫 룬'),
-                    title: _t('{gem} 룬 장착', { gem: _t(g.starterGemTutorialPending) })
-                }, _t('룬 비교하기'), 'tab-skills');
+                    id: 'first-weapon-equip', type: 'progression', categoryLabel: _t('첫 무기'),
+                    title: _t('{name} 장착', { name: _t(item.name) })
+                }, _t('장비 열기'), 'tab-items');
             }
         },
         {

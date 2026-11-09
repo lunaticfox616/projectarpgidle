@@ -200,10 +200,9 @@
         if (!slot) return;
         const kind = slot.dataset.boardPick;
         if (kind !== 'support') { focusedSkill = { kind, name: slot.dataset.boardGem || '' }; render(getUiPlayerStats()); }
-        // 칸을 누르면 룬 칸 창이 바로 뜬다(찬 칸: 등급, 해제, 바꿔 낄 룬 / 빈 칸: 낄 룬). 첫 룬 따라 하기 중에는 옆 목록의 표시를 따라가게 둔다.
-        const guided = !!getStarterGemTutorialTarget();
-        if (kind !== pickerKind) pick(kind, !guided);
-        if (!guided) gemSlotDialog.open(kind, slot.dataset.boardGem || '');
+        // 칸을 누르면 룬 칸 창이 바로 뜬다(찬 칸: 등급, 해제, 바꿔 낄 룬 / 빈 칸: 낄 룬).
+        if (kind !== pickerKind) pick(kind, true);
+        gemSlotDialog.open(kind, slot.dataset.boardGem || '');
     });
 
     /** A real mouse on a device that can hover: after a tap the browser may fire a mouse-type enter on the redrawn slot. */

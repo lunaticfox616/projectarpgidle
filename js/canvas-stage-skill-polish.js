@@ -94,6 +94,13 @@ const stageSkillPolish = (() => {
         return refs;
     }
     const handSigil = gem => !NO_HAND_SIGIL.has(modeOf(gem));
-    return Object.freeze({ cast: polishCast, refs: polishRefs, handSigil, forgeAura: polishForgeAura });
+    /** 이중 시전의 두 번째 발동(2026-11-08 전달본 V3.9.6 "마법진이 한 번 더 깜빡"): 발밑 고리를 쓰는 갈래는 그 고리가 ms 동안 한 번 더 돈다
+     * (손 마법진을 쓰는 룬은 js/canvas-stage-skill-rules.js가 손 마법진을 다시 세운다). */
+    function polishRecast(gem, ms) {
+        const mode = modeOf(gem);
+        if (!FLOOR_MODES.has(mode)) return;
+        polishPlay('pol_cast_ring', K.at(K.heroSpot(), 0, 2), { ramp: rampOf(gem), layer: 'ground', alpha: mode === 'shout' ? 0.38 : 0.62, ms: ms / 7, follow: K.heroDrawn });
+    }
+    return Object.freeze({ cast: polishCast, refs: polishRefs, handSigil, recast: polishRecast, forgeAura: polishForgeAura });
 })();
 safeExposeGlobals({ stageSkillPolish });

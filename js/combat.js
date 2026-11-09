@@ -2815,8 +2815,40 @@ function getPendingSkillTravelCellMs(row) {
     return row.delivery?.startsWith('projectile') ? getCombatTravelCellMs(row.pStats && row.pStats.sSkill) : 0;
 }
 
+/** 연쇄로 건너가는 발(2026-11-09 스킬 전체 전달본 V3.14.1, 사용자 "연쇄될 때 발생하는 선형 번개도 고쳐주세요"): 투사체 룬의 연쇄 단계는
+ * 앞서 맞은 적에서 이번 적으로 처음 쏜 것과 같은 투사체가 날아가 이번 타격 순간에 꽂힌다. 연쇄 단계는 120ms 간격이라
+ * (js/combat-support-runes.js nativeChain) 그 사이를 난다. 앞 적을 못 찾으면 그림 없이 타격감만 남는다(주인공 자리에서 나가지 않게).
+ * 겨냥한 칸(aimCell)을 적지 않아 주인공이 건너가는 쪽으로 돌아서지 않는다. 무엇을 그릴지는 무대가 고른다(js/canvas-stage-skill-casts.js castHop).
+ * 연쇄 단계는 시전 시각에서 120ms씩 잡혀 첫 투사체가 날아가는 동안 다음 적을 먼저 쳤다(첫 화살이 꽂히기 전에 연쇄 화살이 떠났다):
+ * 앞 적이 맞은 뒤 120ms에 닿도록 이 단계(피해 시각 포함)를 미룬다. 피해는 그대로다. */
+const CHAIN_HOP_MS = 120;
+function addChainHopTravelFx(row, attackContext, now) {
+    const kind = row.options.stageKind, from = row.options.chainFromEnemyId;
+    // 투사체 태그나 관통으로 나는 룬(빙결 파열창은 주문 태그뿐이다)
+    if (!['supportChain', 'chainJump'].includes(kind) || from == null || !getSkillCombatDelivery(row.pStats.sSkill).startsWith('projectile')) return;
+    const source = (game.enemies || []).find(enemy => enemy && enemy.id === from);
+    if (!source || !hasGridCell(source)) return;
+    delayChainHopAfterSource(row, from);
+    const flightMs = Math.max(1, Math.min(CHAIN_HOP_MS, row.at - now));
+    addBattleFx('combatTravel', { owner: 'player', delivery: 'projectileTarget', chainHop: true, stageKind: kind, stageIndex: row.options.stageIndex,
+        sourceCell: copyCombatGridCell(source), targetCells: row.targetCells, targetIds: row.targetEntries.map(entry => entry.enemyId),
+        skillName: attackContext.skillName, damageTextGroupId: row.options.damageTextGroupId, element: row.options.forcedElement,
+        releaseDelayMs: Math.max(0, row.at - flightMs - now), flightMs, duration: Math.max(260, row.at - now + 260) });
+}
+
+/** 앞 적을 친 단계(이번 단계보다 늦지 않은 것 가운데 가장 늦은 것) 뒤 CHAIN_HOP_MS에 닿게 이번 연쇄 단계를 미룬다. 둘째 연쇄는 미뤄진 첫 연쇄를 따른다. */
+function delayChainHopAfterSource(row, sourceId) {
+    const sourceAt = pendingSkillStageHits.reduce((latest, other) => (other !== row && other.at < row.at + CHAIN_HOP_MS
+        && (other.targetEntries || []).some(entry => entry.enemyId === sourceId) ? Math.max(latest, other.at) : latest), -Infinity);
+    const late = sourceAt + CHAIN_HOP_MS - row.at;
+    if (!(late > 0)) return;
+    row.at += late;
+    row.launchAt += late;
+}
+
 function addPendingSkillTravelFx(row, attackContext, now) {
-    if (!row || row.delivery === 'instantTarget') return;
+    if (!row) return;
+    if (row.delivery === 'instantTarget') { addChainHopTravelFx(row, attackContext, now); return; }
     if (['field', 'channel', 'meteor'].includes(row.patternKind) && row.options.stageIndex > 0) return;
     let boomerangReturn = row.patternKind === 'boomerang' && row.options.stageKind === 'boomerangReturn';
     const visual = getSkillTravelVisualEndpoints(row);
@@ -3084,6 +3116,7 @@ function processPendingSkillStageHits() {
         let targets = row.whirl ? pickWhirlSpinTargets(row) : (row.wave ? pickWaveFrontTargets(row) : getPendingSkillImpactTargets(row));
         actExplorationProgress.objects.stage(row);
         advanceHeroForStage(row);
+        window.GameModules.combat.supports.repeatReleased(row); // 이중 발동, 이중 시전의 두 번째 발동 연출(맞을 적이 없어도)
         if (targets.length <= 0) return;
         performPlayerAttack(row.pStats, {
             ...(row.options || {}),
@@ -9212,12 +9245,12 @@ function createExplorationPacks(zone,map,bossStages) {
 }
 
 /** 액트 1의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
- * 이번 루프의 시작 룬을 아직 받지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
- * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 룬이 그 자리 바닥에 떨어진다.
+ * 이번 루프의 시작 무기를 아직 떨어뜨리지 않았을 때, 방 단위 무대의 구출 방(starterRescueRoom)에서 하켄 곁에 한 마리가 선다. 그 방의 보통 무리는
+ * 없다. 한 대 맞기 전까지는 하켄을 친다(strikeRescueTarget). 이 몬스터가 루프의 첫 처치라 시작 무기가 그 자리 바닥에 떨어진다(2026-11-09까지는 시작 룬).
  * @returns {object[]} 그 무리, 없으면 빈 목록. */
-/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 룬은 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
+/** 루프 1에만(2026-10-15 사용자: 루프 뒤에는 첫 방에 하켄이 없다). 그 뒤의 시작 무기는 그 루프의 첫 처치가 바닥에 떨어뜨린다. */
 const startsWithRescue=(zone,map)=>zone.type==='act' && zone.id===0 && !!map.stage && (game.season||1)===1
-    && !game.loopStarterGemGranted && (game.skills||[]).length<=1;
+    && !game.loopStarterWeaponGranted;
 /** 구출 방: 입구 방 문 너머, 보스로 가는 길의 첫 전투 방(2026-10-15 사용자: "첫방에서 처음부터 하켄이 보이지 않도록 (조금 앞으로 걸어가야
  * 있도록)". PC 화면은 입구 방 전체를 한 번에 보여 주므로 입구 방 안에서는 숨길 수 없다). 루프 1의 첫 시작에만, 없으면 null. */
 function starterRescueRoom(zone,map) {
@@ -10420,7 +10453,6 @@ const receiveFloorItem = {
     stump: receiveStumpDropRow,
     leaf: row => atlasFinds.receiveMemoryLeaf(row.leaf),
     yarn: row => receiveKnittingYarn(row.yarn),
-    gem: receiveStarterGemRow,
     rune: receiveDeferredRune
 };
 /** A floor seed or sap picked up: in the box, with the same notice a drop had. */
@@ -10435,28 +10467,6 @@ function receiveDeferredRune(row) {
     playerStatCache.invalidate();
     dispatchRuntimeEvent('gem-loot-received', { kind: row.gem.kind, gem: row.gem, deferred: true });
 }
-/** The loop's starter gem picked up from the floor: the gem goes in here; the log line and, in a first loop, the equip guide come
- * from the UI at once (js/content-progression-ui.js, event starter-gem-received): a floor gem misses the checks a kill runs. */
-function receiveStarterGemRow(row) {
-    const choices = Array.isArray(row.choices) ? row.choices.filter(name => SKILL_DB[name]) : [];
-    if (choices.length > 1 && !game.isBackgroundCalculation) {
-        // 변이 루프의 3택: 고를 때까지 저장에 남고 창은 js/loop-mutation-ui.js가 띄운다.
-        loopMutation.offerStarter(game, choices);
-        queueImportantSave(200);
-        return;
-    }
-    if (receiveStarterGem(game, row.gem)) dispatchRuntimeEvent('starter-gem-received', { gem: row.gem });
-}
-/** The hero's pick among the first kill's runes (js/loop-mutation-ui.js): the named one, or the first when it was not offered. */
-function chooseStarterRune(name) {
-    const gem = loopMutation.takeStarter(game, name);
-    if (!gem) return;
-    if (receiveStarterGem(game, gem)) dispatchRuntimeEvent('starter-gem-received', { gem });
-    playerStatCache.invalidate();
-    pendingHeavyUiRefresh = true;
-    queueImportantSave(200);
-}
-
 /** Jewels, cores and wild talismans wait on the exploration floor like equipment (2026-10-06 user request). Returns whether the
  * drop was laid there; elsewhere the caller grants it at once. */
 function placeFloorItem(enemy, kind, item, overflow) {
@@ -10740,57 +10750,19 @@ function clearDotFxThrottleForEnemy(enemyId) {
     });
 }
 
-// 루프 시작 시 스킬이 "기본 공격"만 남는 공백을 메우기 위해, 루프 첫 처치 때
-// 선택한 직업의 권장 전투 방식에 맞는 하위권 화력 스킬룬을 확정 지급한다.
-// (좋은 룬을 직접 찾는 재미는 유지하도록 일부러 강한 룬은 고르지 않는다.)
-// 탐험 지도에서는 그 처치 자리 바닥에 떨어지고 주울 때 들어온다(2026-10-15 사용자 "첫 방에 몬스터가 있고 그걸 잡으면 룬이 드랍되게":
-// 액트 1 입구 방의 첫 몬스터, createStarterRescuePack). enemy가 없으면(스크립트) 바로 들어온다.
-function grantLoopStarterGemOnFirstKill(enemy) {
-    const gemName = takeLoopStarterGem();
-    if (!gemName) return;
-    // 변이 루프는 셋 중 하나를 고른다(js/loop-mutation.js starterChoices). 바닥 줄은 첫째 룬을 들고 있어 고르기 전에 정산되면 그 룬이 들어온다.
-    const choices = loopMutation.starterChoices(game.selectedClassId);
-    const row = choices && choices.length > 1 ? { kind: 'gem', gem: choices[0], choices } : { kind: 'gem', gem: gemName };
-    if (enemy && actExplorationState.groundLoot.reserve({ gx: enemy.gx, gy: enemy.gy, ...row })) return;
-    const run = enemy ? explorationFloorFor(enemy) : null;
-    if (run) actExplorationState.groundLoot.placeGem(run, enemy, row.gem, row.choices);
-    else if (row.choices) receiveStarterGemRow(row);
-    else if (receiveStarterGem(game, gemName)) addLog(_t('스킬룬 [{gemName}] 획득', { gemName }), 'loot-rare');
-}
-/** 이번 루프의 시작 룬 이름(한 번만): 이미 받았거나 기본 공격 밖의 스킬이 있으면 null. */
-function takeLoopStarterGem() {
-    if (game.loopStarterGemGranted) return null;
-    game.loopStarterGemGranted = true;
-    // 마이그레이션 가드: 기존 저장 데이터는 이 플래그가 없어 false로 채워진다.
-    // 이미 기본 공격 외의 스킬을 보유한 진행 중인 루프에는 소급 지급하지 않는다.
-    if (!Array.isArray(game.skills) || game.skills.length > 1) return null;
-    const gemName = loopStarterGemName();
-    return SKILL_DB[gemName] && !hasSkillGemOwned(gemName) ? gemName : null;
-}
-/** The chosen class's starter gem (LOOP_STARTER_GEM_BY_HERO by its recommended hero). */
-function loopStarterGemName() {
-    const classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[game.selectedClassId] : null;
-    const heroId = classDef && HERO_SELECTION_DEFS[classDef.recommendedTalentHeroId] ? classDef.recommendedTalentHeroId : 'hero1';
-    return (typeof LOOP_STARTER_GEM_BY_HERO !== 'undefined' && LOOP_STARTER_GEM_BY_HERO[heroId]) || '이중 베기';
-}
-/** The starter gem reaches the hero (picked up, or settled from a dropped map's floor): the gem, its record, the gem tab, and in a
- * first loop the pending equip guide (js/content-progression-ui.js announceStarterGem). @returns {boolean} whether it went in. */
-function receiveStarterGem(state, gemName) {
-    if (!SKILL_DB[gemName] || hasSkillGemOwned(gemName, state)) return false; // 봉인해 둔 같은 룬이 있으면 두 목록에 겹쳤다
-    state.skills.push(gemName);
-    state.gemData[gemName] = state.gemData[gemName] || { level: 1, exp: 0 };
-    state.unlocks.skills = true;
-    state.noti.skills = true;
-    if (!(state.seenTutorials || []).includes('tutorial_starter_gem_equip')) state.starterGemTutorialPending = gemName;
-    else wearStarterGemWithoutGuide(state, gemName);
-    return true;
-}
-/** 장착 안내를 이미 본 루프(루프 2부터)는 받은 시작 룬을 바로 장착한다. 첫 루프는 안내를 닫을 때 장착하는데(js/tutorial-ui.js
- * equipSkippedStarterGem, 방치하면 기본 공격으로 거듭 쓰러졌다), 다음 루프부터는 안내가 없어 시작 룬을 받고도 기본 공격으로 싸웠다
- * (자연 플레이 2026-10-17). 맞지 않는 무기를 들었으면 getActiveSkillStats가 기본 공격으로 돌려 둔다. */
-function wearStarterGemWithoutGuide(state, gemName) {
-    if (state.activeSkill !== '기본 공격' || (SKILL_DB[gemName].tags || []).includes('summon') || mobilitySkill.isMobilityGem(gemName)) return;
-    state.activeSkill = gemName;
+// 루프의 첫 처치는 그 직업의 대표 무기를 떨어뜨린다(2026-11-09 사용자: "기존 몹 잡아서 룬 떨어지는 건 직업에 맞는 무기로 바꿔서 장비 장착 튜토리얼로").
+// 기초 스킬은 직업을 고를 때 받고(js/basic-skills.js) 그 무기를 들어야 쓴다. 무기 칸이 차 있으면(봉인해 물려받은 무기) 떨어뜨리지 않는다.
+// 탐험 지도에서는 그 처치 자리 바닥에 떨어지고 주울 때 들어온다(액트 1 입구 방의 첫 몬스터, createStarterRescuePack). 장착 안내를 아직 안 본
+// 저장(새 게임의 첫 루프)은 그 무기를 안내까지 가방에 둔다(starterWeaponTutorialPending, js/content-progression-ui.js announceStarterWeapon).
+// 그 뒤 루프는 빈 칸 자동 장착 설정대로 낀다. enemy가 없으면(스크립트) 바로 가방으로 간다.
+function grantLoopStarterWeaponOnFirstKill(enemy) {
+    if (game.loopStarterWeaponGranted) return;
+    game.loopStarterWeaponGranted = true;
+    const item = createClassStarterWeapon(game.selectedClassId);
+    if (!item) return;
+    if (!(game.seenTutorials || []).includes(basicSkills.weaponGuide)) game.starterWeaponTutorialPending = item.id;
+    if (enemy) keepEquipmentDrop(enemy, item, { guaranteedKeep: true });
+    else addItemToInventory(item, { guaranteedKeep: true });
 }
 
 
@@ -10828,7 +10800,7 @@ function handleEnemyDeath(enemy, pStats) {
     transferSkillDotOnDeath(enemy);
     const zone = getZone(game.currentZoneId);
     countKillForContent(enemy, zone, pStats);
-    grantLoopStarterGemOnFirstKill(enemy);
+    grantLoopStarterWeaponOnFirstKill(enemy);
     tickTalentKillRuntime(enemy);
     addBattleFx('enemyDeath', {
         enemyId: enemy.id,
@@ -15317,9 +15289,9 @@ function resetLoopBuild() {
     game.activeSkill = '기본 공격';
     game.weaponBlockedSkill = '';
     game.mobilitySkill = '';
-    game.loopStarterGemGranted = false;
-    game.pendingStarterRuneChoice = null;
-    game.starterGemTutorialPending = null; // 루프 1의 장착 안내 표시가 남아 다음 루프의 그 룬 봉인을 막았다
+    game.loopStarterWeaponGranted = false;
+    game.starterWeaponTutorialPending = null;
+    game.basicSkillOffer = null;
     game.gemData = { '기본 공격': { level: 1, exp: 0 } };
     game.runeSpares = {};
     game.skyGemEnhancements = {};

@@ -1132,6 +1132,7 @@ function prepareBossShot(fx, gridProj, enemyPosMap) {
 }
 
 function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
+    stageSkillRules.repeat(fx, now); // 이중 발동, 이중 시전의 두 번째 발동이 떠나는 순간의 잔상(js/canvas-stage-skill-rules.js)
     if (worldTreeSkillFx.travel(ctx, fx, now, gridProj)) return;
     if (fx.travelPath) return drawCombatPathFx(ctx, fx, now, gridProj);
     let launchAt = fx.start + Math.max(0, Number(fx.releaseDelayMs) || 0);
