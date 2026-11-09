@@ -425,7 +425,7 @@ const openingJourney = (() => {
         if (route !== 'tab-map') return openTabPane(route);
         explorationAtlasUi.open();
         worldMapUi.pick('act-02');
-        document.querySelector('#ui-exploration-atlas .wm-band .atlas-hunt-now')?.focus();
+        document.querySelector('#ui-exploration-atlas .wm-side .atlas-hunt-now')?.focus();
     }
     function init() {
         const canvas = document.getElementById('battlefield-canvas');

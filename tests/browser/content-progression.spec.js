@@ -109,7 +109,7 @@ test('the opening explains equipment on pickup and introduces the other menus se
     await expect(page.locator(':is(#btn-combat-chat-tab, [data-message-tab="chat"]):visible')).toHaveCount(0);
     await page.screenshot({ path: info.outputPath('act-one-reward-to-map.png') });
     await map.click();
-    const go = page.locator('.wm-band[data-wm="act-02"] .atlas-hunt-now');
+    const go = page.locator('.wm-side[data-wm="act-02"] .atlas-hunt-now');
     await expect(go).toBeVisible();
     await go.click();
     await expect.poll(() => page.evaluate(() => game.currentZoneId)).toBe(1);
