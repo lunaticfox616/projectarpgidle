@@ -1025,7 +1025,7 @@ const stumpBox = (() => {
         return state.stumpBox && state.stumpBox.acquired && dropsHere(state) ? rollDropSpec(state, enemy, Math.random) : null;
     }
     /** One call per kill (live and offline replay alike). drop: what reaches the box from this kill; a live map's kill lays it on the
-     * floor instead and passes null (js/combat.js layStumpDrop, 2026-11-02 사용자: 그냥 획득되어 뭘 먹었는지 몰랐다). */
+     * floor instead and passes null (js/combat-skill-effects.js layStumpDrop, 2026-11-02 사용자: 그냥 획득되어 뭘 먹었는지 몰랐다). */
     function onEnemyKilled(state, enemy, drop = rollKillDrop(state, enemy)) {
         const box = state.stumpBox;
         if (!box || !box.acquired) return;

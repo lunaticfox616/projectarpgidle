@@ -425,7 +425,7 @@ function renderBackgroundStoryLine() {
         <button type="button" onclick="hideItemTooltip();document.getElementById('background-combat-result-overlay').remove();switchTab('tab-journal')">${_t('기록에서 읽기')}</button></p>`;
 }
 
-/** An entry-ticket boss fight settles too: the replay fights it for real (js/combat.js departSeasonBoss, defeatInRootBossFight).
+/** An entry-ticket boss fight settles too: the replay fights it for real (js/combat-kill-rewards.js departSeasonBoss, defeatInRootBossFight).
  * It used to be refused here after the whole replay, so every 다시 계산 and every reload failed the same way (2026-11-03). */
 function shouldApplyBackgroundCombatResult(signature) {
     if (getBackgroundCombatSignature(game) !== signature) return false;

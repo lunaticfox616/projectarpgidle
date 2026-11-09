@@ -181,7 +181,7 @@ const CONTENT_EXPLORATION_MAPS = Object.freeze([
 ]);
 // Whole-map backdrops drawn at 16px per tile (shown at a whole-number zoom of the 16px art). Walkability still comes from the
 // map data above. Each map is painted once per facing (views[rotation], 0 gate north, 1 east, 2 south, 3 west — a run draws one,
-// js/combat.js createActExplorationEncounter): the light still falls from the upper left and the cliff faces still face the viewer, so a
+// js/combat-encounters.js createActExplorationEncounter): the light still falls from the upper left and the cliff faces still face the viewer, so a
 // turned map is a new painting, never a rotated picture. gate: closed|open frames side by side at the same pixel scale;
 // gateOffset = art px from the gate tile's centre to the frame's top-left; shade = the art's own darkness (the fog and the canvas
 // around the map use it). Source: scripts/build-act-maps.cjs (node, --write), the painted look of 2026-10-02 (act looks:
@@ -221,7 +221,7 @@ const ACT_EXPLORATION_ART_VERSION = '20261004d';
 // tile was still dimmed (the fog began a tile inside and the unseen fog bled over it), so only the monsters showed there.
 // Monsters still notice the hero within engageRadius (the old 5, js/act-exploration-state.js notice): the next pack shows a tile
 // before it charges, and the fights a route takes stay the same. An area attack also reaches monsters that have not noticed the hero,
-// within splashReach tiles of him (Chebyshev, js/combat.js getAttackTargets), and the strike pulls them into the fight (2026-10-04).
+// within splashReach tiles of him (Chebyshev, js/combat-enemy-build.js getAttackTargets), and the strike pulls them into the fight (2026-10-04).
 // 2026-10-09 (user): the helmet line 시야 (stat sight, +1~3) widens radius by up to sightBonusMax tiles. It uncovers more ground and
 // lets the hero see what comes; engageRadius stays, so fights start where they did.
 const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReach:12,sightBonusMax:3});
@@ -232,14 +232,14 @@ const ACT_EXPLORATION_VISION = Object.freeze({radius:6,engageRadius:5,splashReac
 // content-room and patrol packs never listen. A pack that runs in hurts its own members, so a nearby listening pack may follow.
 const ACT_EXPLORATION_ALERT = Object.freeze({fromLoop:2,chance:0.2,hearReach:12,outline:'#ff6f59',prefix:'경계하는',markMs:1200});
 // 습격방 (2026-10-17 사용자: 낮은 확률로, 들어서자마자 몬스터들이 기다리다 여럿이 한꺼번에 치는 방): 방 단위 무대의 전투 방과 들르는 방이
-// chance의 확률로 습격방이 된다(그 방 무리의 첫 몬스터 번호로 굴려 다른 난수를 밀지 않는다, js/combat.js markExplorationAmbushRooms). 1루프의
+// chance의 확률로 습격방이 된다(그 방 무리의 첫 몬스터 번호로 굴려 다른 난수를 밀지 않는다, js/combat-encounters.js markExplorationAmbushRooms). 1루프의
 // 액트 1, 정예와 조우와 구출의 방은 빠진다. 처음 들어서면 그 방의 보통 무리가 모두 들어온 문 쪽으로 다가와(문까지의 거리를 pull의 몫으로, 막혔으면
 // search칸 안의 빈 칸, 주인공의 keep칸 안은 비운다) 공격 게이지를 windUp까지 채운다(js/act-exploration-doors.js springAmbush): 들어선 뒤의 유예가
 // 끝나면 한꺼번에 덤비고, 문은 싸우는 동안 잠긴다. 테두리는 outline.
 const ACT_EXPLORATION_AMBUSH = Object.freeze({chance:0.05,pull:0.4,keep:2,search:3,windUp:0.9,outline:'#ff3d5a'});
 // 이어지는 무리 (2026-10-21 사용자: "막다른 방이나 정예 방에서 항상은 말고 가끔씩은 맵 출입구 봉인 해제되기 전에 추가 몬스터 젠, 3젠까지"):
 // 방 단위 무대의 정예 방과 막다른 방(문이 하나인 전투 방과 들르는 방)이 chance의 확률로, 그 방의 무리를 모두 쓰러뜨려도 문이 닫힌 채 delayMs
-// 뒤에 새 무리를 세운다(js/combat.js releaseExplorationWave). 몇 번 더 오는지는 counts [번, 무게]. 무리는 그 지역의 보통 무리 크기, 정예는 없다.
+// 뒤에 새 무리를 세운다(js/combat-encounters.js releaseExplorationWave). 몇 번 더 오는지는 counts [번, 무게]. 무리는 그 지역의 보통 무리 크기, 정예는 없다.
 // 그 방 무리의 첫 몬스터 번호로 굴려 다른 난수를 밀지 않는다. 1루프의 액트 1, 습격방, 조우와 구출의 방, 무리를 따로 세우는 콘텐츠(벌집 같은)는 빠진다.
 const ACT_EXPLORATION_WAVES = Object.freeze({chance:0.3,counts:Object.freeze([[1,5],[2,3],[3,2]]),delayMs:1500});
 // 잔잔한 사건 (2026-10-20 사용자: "계속 같은 게임이라고 느껴지지 않도록 낮은 확률로 나올만한 잔잔한 이벤트", js/combat-incidents.js).

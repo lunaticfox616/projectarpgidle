@@ -90,7 +90,7 @@ const UNDERWORLD_DIFFICULTY_CONFIG = Object.freeze({
     gravityActionLossPerFloorAfterDeep: 0.01
 });
 // 지하계 깊은 층 보상(2026-10-09, 루프 50 이후 레벨 디자인): 지하석 슬롯과 번호는 300층에서 끝난다. 그 아래로는 every층마다 지하석 강화
-// 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 지하석 조각 70과 금 24, 400층 160과 60(js/combat.js grantUnderworldFloorMilestone).
+// 재료 한 묶음: [기본, 300층 아래로 한 층마다 더함]. 310층 지하석 조각 70과 금 24, 400층 160과 60(js/combat-kill-rewards.js grantUnderworldFloorMilestone).
 const UNDERWORLD_DEEP_FLOOR_REWARD = Object.freeze({ fromFloor: 300, every: 10, runeShard: Object.freeze([60, 1]), underGold: Object.freeze([20, 0.4]) });
 // 지하계 장비 인챈트(js/ui.js applyUnderworldEnchant): 부위마다 [능력치, 최소, 최대, 세기] 가운데 한 줄이 무작위로 붙는다(이미 있던
 // 인챈트는 바뀐다). 세기가 그 줄의 비용을 정한다: 구리 세기×6(최소 4), 은 세기×3(최소 2), 금 세기−1(최소 1). 지하계 화면이 이 표로

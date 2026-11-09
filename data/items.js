@@ -1403,7 +1403,7 @@ UNIQUE_DB.forEach(unique => {
 // drops a unique only that content has (dropOnly.type). 창공의 탑, 벌집 and 군락지 joined on 2026-10-19 (주문, 플라스크, 향로 고유).
 const REALM_BOSS_UNIQUE_DROP_RULES = Object.freeze({
     chance: Object.freeze({ chaosRealm: 0.03, underworld: 0.03, cosmos: 0.03, skyTower: 0.08, beehive: 0.2, colony: 0.05, labyrinth: 0.06, trial: 0.08, meteor: 0.08, grandBreach: 0.06, oceanDepth: 0.06, beyondBoundary: 0.08 }), ultraRareShare: 0.01 });
-// Root bosses (js/combat.js grantSeasonBossRewards): the share of kills that drop a unique, and of those the boss's own
+// Root bosses (js/combat-kill-rewards.js grantSeasonBossRewards): the share of kills that drop a unique, and of those the boss's own
 // (data/maps.js signatureUnique).
 const ROOT_BOSS_UNIQUE_RULES = Object.freeze({ chance: 0.4, signatureShare: 0.5 });
 

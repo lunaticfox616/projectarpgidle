@@ -687,7 +687,7 @@ function gridRetreatSpace(unit, target, keepRows) {
     return { footprint, open, currentDist: getGridUnitDistance(unit, target) };
 }
 /** 거리 유지 전술의 벽 옆 이동(2026-10-22): 칸 거리를 늘릴 길이 없으면, 거리는 같아도 대상의 가운데에서 멀어지는 옆 칸 하나.
- * 직전 칸으로는 돌아가지 않아 멈춘 대상 앞에서 A→B→A로 왕복하지 않는다. 밀어내기(js/combat.js pushEnemyAwayOnHit)는 쓰지 않는다:
+ * 직전 칸으로는 돌아가지 않아 멈춘 대상 앞에서 A→B→A로 왕복하지 않는다. 밀어내기(js/combat-skill-effects.js pushEnemyAwayOnHit)는 쓰지 않는다:
  * 벽에 붙은 몬스터가 옆으로 미끄러지며 두 칸을 밀려났다. */
 function findGridSidestepCell(unit, target, maxRange, previousCell, keepRows) {
     const { footprint, open, currentDist } = gridRetreatSpace(unit, target, keepRows);
@@ -1371,7 +1371,7 @@ function buildVolleySkillHitSequence(pattern, targets) {
 }
 
 /** 집중(channel): hits번의 시간차 타격. finisher가 있으면 마지막에 제 피해와 범위로 한 번 더(2026-10-17 인계의 전도성 난격이 썼다),
- * advanceCells가 있으면 중간 타격 때 주인공이 겨눈 쪽으로 한 칸 걸어 나간다(js/combat.js advanceHeroForStage). */
+ * advanceCells가 있으면 중간 타격 때 주인공이 겨눈 쪽으로 한 칸 걸어 나간다(js/combat-tick.js advanceHeroForStage). */
 function buildChannelSkillHitSequence(skillName, skill, targets, area) {
     const pattern = skill.combatPattern, { attacker, primary, impactCells, intervalMs } = area;
     const hits = Math.max(2, Math.min(8, Math.floor(Number(pattern.hits) || 3)));

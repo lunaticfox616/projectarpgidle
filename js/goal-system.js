@@ -144,7 +144,7 @@
     // 설명은 꼭 필요할 때만 한 줄로 둔다.
     const GOAL_RULES = [
         {
-            // 첫 루프의 시작 무기가 가방에서 장착을 기다린다(js/combat.js grantLoopStarterWeaponOnFirstKill)
+            // 첫 루프의 시작 무기가 가방에서 장착을 기다린다(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill)
             id: 'first-weapon-equip',
             priority: 850,
             matches(g) {

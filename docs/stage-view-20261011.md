@@ -202,7 +202,7 @@
   방에서 싸우는 몬스터가 살아 있으면 그 방의 문이 모두 잠긴다. 보스 방으로 가는 문이 관문(map.gates)이라 정예가 남아 있으면 설 수 없다.
   습격방(data ACT_EXPLORATION_AMBUSH)에 처음 들어서면 그 방의 무리가 들어온 문 쪽으로 다가와 기다리다 한꺼번에 덤빈다(springAmbush).
   이어지는 무리(data ACT_EXPLORATION_WAVES, 2026-10-21 사용자): 정예 방과 막다른 방의 30%가 1~3번(5:3:2) 더 무리를 받는다. 그 방이
-  비어도 문이 닫힌 채 1.5초 뒤 그 방 무리의 자리에 보통 무리가 서고, 남은 번수가 없어야 열린다(js/combat.js releaseExplorationWave,
+  비어도 문이 닫힌 채 1.5초 뒤 그 방 무리의 자리에 보통 무리가 서고, 남은 번수가 없어야 열린다(js/combat-encounters.js releaseExplorationWave,
   js/act-exploration-doors.js waveDue). 남은 번수는 탐험 기록 run.waves에 저장된다. 1루프의 액트 1과 무리를 따로 세우는 콘텐츠는 빠진다.
 - 방에 들어서면 방 전체가 보이고 방 안의 무리가 모두 알아챈다(js/act-exploration-state.js roomReach). 방 사이를 걷는 길은 없으므로
   길목 무리는 없다. 자동 이동은 목표가 다른 방이면 그 방으로 가는 문을 향해 걷는다(문 순서는 지도를 만들 때 한 번 계산해 둔다).
@@ -581,7 +581,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
 - 도약과 공중제비는 그림이 스스로 뛰고 돌아, 그림이 뜨는 높이만큼 포물선을 낮추고 공중제비 그림이면 코드로 돌리지 않는다.
 - 같은 날 사용자 답: 돌진, 도약 강타, 섬머솔트 슬래시는 대검 전용(data/skills.js SKILL_RUNE_FAMILY greatsword). 한손검 투사체 룬은
   한손검 투척 그림으로 던진다(scripts/build-stage-skill-vfx.cjs motionOf, 방랑자는 그 그림이 없어 찌르기).
-- 투사체는 휘두름 준비의 55%에 손을 떠난다(js/combat.js PROJECTILE_RELEASE_SHARE). 휘두름의 releaseDelayMs로 주인공의 놓는 장도 그때 온다
+- 투사체는 휘두름 준비의 55%에 손을 떠난다(js/combat-tick.js PROJECTILE_RELEASE_SHARE). 휘두름의 releaseDelayMs로 주인공의 놓는 장도 그때 온다
   (js/canvas-battle-units.js getHanaSwingTiming).
 - 스킬룬 추가본 v44(같은 날, 77 바위 플라스크): 추가본에는 이펙트 그림이 없어, v42 전달본 폴더에 추가본을 같은 경로로 덮어 쓴 폴더에서
   이펙트 표를 뽑는다. 시전은 js/skill-gem-casts.js 77(작살화살처럼 줄을 당겨 그 앞 칸까지, 대상이 없으면 쓰지 않는다), 무대 그림은
@@ -804,7 +804,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
 - 서리 파동(js/canvas-stage-skill-rules.js ruleDrawWave): 게임의 판정은 대상이 선 칸까지의 줄이라 대상이 다른 줄에 있으면 비스듬하다. 그림을
   그 줄대로 옮기면 화면에서는 위로 떠올라 제 줄의 적 머리 위를 지나 허공에서 끝났다. 인계의 연출처럼 쓴 줄의 바닥을 따라 가로로 쓸고 가되
   대상의 줄 쪽으로는 35%만 따라간다(WAVE_DRIFT). 그림의 아래 끝(거품)은 바닥에 닿는다(WAVE_BASE).
-- 케르베로스(data/maps.js bossStages 3, js/combat.js CERBERUS_STAGES, createExplorationBossStage): 9×8 판에 남아 있던 단 하나의 보스였다.
+- 케르베로스(data/maps.js bossStages 3, js/combat-encounters.js CERBERUS_STAGES, createExplorationBossStage): 9×8 판에 남아 있던 단 하나의 보스였다.
   다른 시즌 보스처럼 투기장이 됐다: 방 단위 무대에서는 입구와 보스 방 두 칸이고, 보스 방에는 케르베로스만 있다. 판의 세 페이즈는 투기장의
   세 단계다: 머리 셋(정예 머리 둘과 보스 머리), 머리 둘, 본체. 수치와 이름은 판에서 싸울 때 그대로 옮겼다. 보스 단계의 무리에 든 정예(머리)는
   보스 관문을 막는 정예로 세지 않는다(js/act-exploration-state.js remainingElites). 위에서 보는 전장에서도 투기장이다(줄기 속 지도의 보스 방).
@@ -896,7 +896,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
 - 문 자리(STAGE_ROOMS.doorSpots, doorAlong, doorCells): 길마다 벽의 0.2, 0.5, 0.8 자리 가운데 하나를 씨앗으로 고른다. 좌우 문은 깊이의 위쪽,
   가운데, 아래쪽이고 길의 두 끝이 같은 높이에 선다(왼쪽 방의 아랫문으로 나가면 오른쪽 방의 아랫문으로 들어선다). 앞쪽 문은 가로의 왼쪽,
   가운데, 오른쪽이다(가운데가 아니면 하단 구슬에 가리지 않는다). 보스 방으로 가는 문과 한 줄 지도의 문은 가운데, 뒤쪽 문은 그림의 문 자리다.
-- 무리가 서는 자리(STAGE_ROOMS.layouts와 packShapes, js/combat.js stageRoomArranger): 전에는 원래 무리가 방 가운데, 덧무리가 그 양옆이었다.
+- 무리가 서는 자리(STAGE_ROOMS.layouts와 packShapes, js/combat-encounters.js stageRoomArranger): 전에는 원래 무리가 방 가운데, 덧무리가 그 양옆이었다.
   이제 방을 열 때 자리 묶음 일곱 가운데 하나를 고른다: 가운데와 양옆, 양 날개(가운데가 빈다), 들어온 쪽의 맞은편, 뒤쪽 줄, 앞쪽 줄, 구석들,
   앞뒤로 갈라 서기. 가로의 방향은 들어온 문의 맞은편이 기준이다. 무리마다 서는 꼴도 고른다: 뭉쳐서, 가로 한 줄, 세로 줄, 한 칸씩 띄어서.
   벽에 붙은 칸(문 안쪽 자리, 상자가 서는 가장자리)에는 서지 않고 같은 방의 무리끼리 겹치지 않는다. 무리의 수와 구성은 그대로다.
@@ -973,7 +973,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   20초쯤 서 있게 하던 문제(2026-10-15 자동 진행 측정)를 막는다.
 - 액트 1 입구 방의 첫 몬스터(2026-10-15 사용자: "첫 방에 몬스터가 있고 그걸 잡으면 젬이 드랍되게", "하켄이 그 몬스터에게 맞고있는걸로"):
   루프 1에서 시작 젬을 아직 받지 않았으면 입구 방 문 너머, 보스로 가는 길의 첫 전투 방(starterRescueRoom; 2026-10-15 저녁 사용자 "처음부터
-  하켄이 보이지 않도록". PC 화면은 입구 방 전체를 보여 준다)에 하켄이 서고 그 양옆에 두 칸씩 떨어져 두 마리가 서서(js/combat.js createStarterRescuePack, 대사가 "괴물들"이라 둘. 한 마리의 생명력과
+  하켄이 보이지 않도록". PC 화면은 입구 방 전체를 보여 준다)에 하켄이 서고 그 양옆에 두 칸씩 떨어져 두 마리가 서서(js/combat-encounters.js createStarterRescuePack, 대사가 "괴물들"이라 둘. 한 마리의 생명력과
   피해는 0.55배로 둘을 합쳐 예전 한 마리만큼) 한 대 맞기 전까지 하켄을 친다(공격 동작, 하켄의 흰 번쩍임과 불꽃, 피해 없음). 그 방에는 보통 무리,
   덧무리, 길목 무리가 서지 않는다. 주인공은 입구 방에서 일어날 때 wakeLine, 그 방에서 하켄을 볼 때 spotLine을 말하고, 하켄의 말도 그 방에서
   나온다(js/act-exploration-doors.js guideRoom). 그 전 저장은 입구 방(entry:pack) 그대로다. 루프 2부터는 첫 방에 하켄도 이 몬스터도 없고 시작 젬은 첫 처치가 떨어뜨린다. 이 처치가 루프의 첫 처치라 시작 젬이 바닥에 떨어지고(바닥 줄 kind gem), 주우면
@@ -1096,7 +1096,7 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
   빈 플라스크(V3.9.3)는 남은 파편이 병이 노린 적에게 꽂히고(stabShard, glassStab), 큰 빈 병(stageSkillDraws emptyFlask)과 새 깨짐(glassBreak)을 쓴다. 게임의 파편 수(1~4개), 사거리(3칸), 피해는 그대로다.
   무기 자동 교체(V3.9.4)는 넣지 않는다(같은 날 사용자 결정: 게임은 낀 무기 한 자루이고, 맞지 않는 룬은 기본 공격으로 돌아간다). 플라스크 투척 겹침(V3.9.5)은 게임의 무대 그림(투척 9장)에 손을 떠난 병이 따로 그려져 있지 않아 고칠 것이 없다.
 - 새 룬 78 추적 사격, 79 석화 혼합물, 80 시간의 사선(규칙은 js/skill-gem-casts.js), 81 정화의 집행(회오리 방식, data/skills.js). 연출은 js/canvas-stage-new-runes.js.
-- 석화: 기절 줄(type stun, petrified)을 쓰므로 행동이 멈춘다(js/combat.js petrifyEnemy). 보스는 굳지 않는다. 시간 둔화: 적의 이동만 낮추고 공격 주기는 그대로다(enemyTimeSlowed).
+- 석화: 기절 줄(type stun, petrified)을 쓰므로 행동이 멈춘다(js/combat-player-attack.js petrifyEnemy). 보스는 굳지 않는다. 시간 둔화: 적의 이동만 낮추고 공격 주기는 그대로다(enemyTimeSlowed).
 - 기존 룬의 전용 연출은 js/canvas-stage-rune-remakes.js(55 향로구름, 50 신성한 안개, 51 파문심판, 34 유성 낙화의 비행과 착탄, 23과 27 Warlock, 46 시계)와 js/canvas-stage-skill-spells.js(72 고리, 34 크레이터, 73 지진, 49 유리)에 있다.
   시전의 앞뒤 빛은 js/canvas-stage-skill-polish.js, 타격 클립을 온전히 트는 규칙은 js/canvas-stage-skill-vfx.js HIT.
 - 규칙이 바뀐 곳은 둘이다. 향로구름은 도착 지점과 주변 1칸에 물리 피해를 한 번 주고, 파문심판은 동작이 바닥에 닿는 장에 맞춰(비술사 0.63초, 나머지 0.54초) 칸마다 0.045초 간격으로 친다. 다른 룬의 판정과 수치는 전달본과 달라도 게임의 것을 둔다.

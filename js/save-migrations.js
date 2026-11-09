@@ -945,7 +945,7 @@ function mergeDefaults(save) {
         // Markers keep only their spawn shape; removed content fields (e.g. treasure-hunt ids) are dropped.
         return normalized;
     }
-    /** Regeneration fatigue (js/combat.js applyEnemyRegen) exists only after the monster's first step; a record without it stays without. */
+    /** Regeneration fatigue (js/combat-kill-rewards.js applyEnemyRegen) exists only after the monster's first step; a record without it stays without. */
     function normalizeEnemyRegenFatigue(enemy, hp) {
         if (enemy.regenHpMark === undefined && enemy.regenFatigueMs === undefined && enemy.regenLastLossAt === undefined) return {};
         return { regenFatigueMs: clampFiniteNumber(enemy.regenFatigueMs, 0, 0, 60000), regenLastLossAt: clampFiniteNumber(enemy.regenLastLossAt, 0, 0),

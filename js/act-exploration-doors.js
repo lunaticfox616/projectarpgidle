@@ -32,7 +32,7 @@ const actExplorationDoors = (() => {
     /** 난입 보스가 들이닥친 방(js/combat-room-invader.js): 입장 연출 동안에도 문이 닫혀 있다. */
     const invaderDue = (run, room) => run.packs.some(pack => pack.invader && pack.roomId === room.id && pack.aliveIds.length > 0);
     /** 그 방에 이어지는 무리(data ACT_EXPLORATION_WAVES)가 남았고 지금 무리를 모두 쓰러뜨렸는가: 그동안도 싸우는 중이라 문이 닫혀 있고,
-     * js/combat.js releaseExplorationWave가 잠시 뒤 새 무리를 세운다. */
+     * js/combat-encounters.js releaseExplorationWave가 잠시 뒤 새 무리를 세운다. */
     function waveDue(run, room) {
         const wave = run.waves && run.waves[room.id];
         return !!wave && wave.left > 0 && run.packs.every(pack => pack.roomId !== room.id || !pack.aliveIds.length);
@@ -118,7 +118,7 @@ const actExplorationDoors = (() => {
         bringSummons(spot);
         return true;
     }
-    /** 습격방(data ACT_EXPLORATION_AMBUSH, js/combat.js markExplorationAmbushRooms)에 처음 들어선 순간: 그 방에서 기다리던 습격 무리가
+    /** 습격방(data ACT_EXPLORATION_AMBUSH, js/combat-encounters.js markExplorationAmbushRooms)에 처음 들어선 순간: 그 방에서 기다리던 습격 무리가
      * 저마다 들어온 문(주인공이 선 칸) 쪽으로 다가와 서서(문까지의 거리를 pull의 몫으로 줄인 자리, 막혔으면 search칸 안의 가까운 빈 칸)
      * 공격 게이지를 windUp까지 채운다. 무리의 모양은 줄어든 채 남고, 주인공의 keep칸 안에는 서지 않는다. 들어선 뒤의 유예
      * (EXPLORATION_ARRIVAL_GRACE_MS)가 끝나면 한꺼번에 덤빈다. 설 칸이 없으면 제자리에서 덤빈다. 한 방에 한 번만 일어난다. */
@@ -181,7 +181,7 @@ const actExplorationDoors = (() => {
         return lines && lines.npc && !(act && act.order === 1 && (game.season || 1) > 1) ? lines.npc : null;
     }
     /** The room where the map's guide stands and its first lines are said: the entry room, or in loop 1's first start the room behind
-     * it where the guide is struck (js/combat.js starterRescueRoom; saves from before kept it in the entry room). */
+     * it where the guide is struck (js/combat-encounters.js starterRescueRoom; saves from before kept it in the entry room). */
     function guideRoom(run, map) {
         const pack = run.packs.find(row => row.rescue);
         return (pack && map.rooms.find(row => row.id === pack.roomId)) || map.entry;

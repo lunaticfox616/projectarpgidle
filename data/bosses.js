@@ -293,7 +293,7 @@ const ENEMY_TRAIT_POOL = [
 // 2026-10-02): 근접 = 몸통 돌진 · 물기 · 철퇴, 원거리 = 성수. 그림 시트 규격은 data/monster-sprites.js.
 // 무기 뿌리촉수(rignin-weapon-root-tentacles-idle-attack-v1): 뿌리가 무기 대분류(data/weapon-categories.js) 하나를 든 몬스터.
 // 영역 세트가 아닌 모든 지역에서 적 spawnOneIn에 하나꼴로 나오고, 처치마다 weaponDropChance 확률로 제 대분류 무기를 하나
-// 떨군다(보통 장비 드랍과 따로, js/combat.js grantRootWeaponPick). 그 무기와 보통 드랍의 무기는 제 대분류 바탕에서 고른다
+// 떨군다(보통 장비 드랍과 따로, js/combat-kill-rewards.js grantRootWeaponPick). 그 무기와 보통 드랍의 무기는 제 대분류 바탕에서 고른다
 // (js/item-rolls.js chooseItemBase). 대검 · 한손검 · 향로는 근접, 나머지는 원거리.
 // 2026-10-07 사용자 요청: 너무 자주 나와(위습이 아닌 적 여덟에 하나) 흔하고, 무기는 거의 주지 않았다(장비 드랍의 절반이 무기였지만
 // 장비 드랍 자체가 처치의 1% 안팎). 마흔에 하나로 드물게 하고, 대신 제 무기를 넷에 하나꼴로 떨군다.

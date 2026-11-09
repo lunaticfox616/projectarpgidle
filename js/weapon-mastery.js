@@ -1,6 +1,6 @@
 // 무기 숙련(data/weapon-mastery.js): 들고 있는 무기 대분류가 처치마다 경험치를 얻고, 레벨과 10단위 특전이 그 무기를 들었을 때의 능력치가
 // 된다. 상태는 game.weaponMastery {xp: {대분류: 누적 경험치}, v: 곡선 판}로 루프를 넘어 남는다(js/loop-reset.js triggerSeasonReset은 건드리지 않는다).
-// 처치 기록은 js/combat.js recordKillProgress, 능력치는 getPlayerStats의 계정 보상 묶음(applyAccountRewardStats), 화면은
+// 처치 기록은 js/combat-skill-effects.js recordKillProgress, 능력치는 getPlayerStats의 계정 보상 묶음(applyAccountRewardStats), 화면은
 // js/weapon-mastery-ui.js.
 const weaponMastery = (() => {
     const M = WEAPON_MASTERY;

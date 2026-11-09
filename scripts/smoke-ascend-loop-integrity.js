@@ -2,7 +2,8 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const combatSource = fs.readFileSync('js/combat.js', 'utf8') + '\n' + fs.readFileSync('js/loop-reset.js', 'utf8');
+const combatSource = fs.readdirSync('js').filter(name => /^(combat(-[a-z-]+)?|player-stats|loop-reset)\.js$/.test(name))
+    .map(name => fs.readFileSync(`js/${name}`, 'utf8')).join('\n');
 const uiSource = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
 const indexSource = fs.readFileSync('index.html', 'utf8');
 

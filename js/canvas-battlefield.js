@@ -149,7 +149,7 @@ function getKillHitStopMs(fx) {
     return death.boss ? KILL_HIT_STOP_MS.boss : (death.elite ? KILL_HIT_STOP_MS.elite : 0);
 }
 
-/** 쓰러짐 그림이 없는 보스의 사라짐 길이(ms). 보스의 쓰러짐 효과는 쓰러짐 그림을 보여 주려고 1.6초다(js/combat.js handleEnemyDeath). */
+/** 쓰러짐 그림이 없는 보스의 사라짐 길이(ms). 보스의 쓰러짐 효과는 쓰러짐 그림을 보여 주려고 1.6초다(js/combat-kill-rewards.js handleEnemyDeath). */
 const BOSS_DEATH_LEGACY_MS = 840;
 /** 쓰러진 보스가 흐려지기 시작하는 때(효과 길이의 비율): 그 앞까지는 쓰러짐 그림의 마지막 장(누운 모습)이 또렷하다. */
 const BOSS_DEFEAT_FADE_FROM = 0.78;
@@ -2408,7 +2408,7 @@ function resolveStageEnemySide(enemyPos, playerPos) {
     if (enemyPos.heading) return enemyPos.heading;
     const held = bossMoveView.heldSide(enemyPos.enemy);
     if (held) return held;
-    // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat.js strikeRescueTarget).
+    // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat-encounters.js strikeRescueTarget).
     const rescue = enemyPos.enemy && enemyPos.enemy.rescue;
     if (rescue) return rescue.gx < enemyPos.enemy.gx ? 'west' : 'east';
     const target = enemyPos.actualAim || playerPos, dx = Number(target.x) - Number(enemyPos.x);
@@ -2533,7 +2533,7 @@ function drawEnemyAfterimage(ctx, enemy, pose) {
 
 /** Where an enemy is drawn this frame: { enemy, x, y, moving }. A step on the grid must not look like a jump, so its picture
  * glides from the cell it left: on the top-down field toward the new cell, most of the way at once (the wave judgement,
- * js/combat.js pickWaveFrontTargets, counts with the same glide); on the stage at a walk over the whole step
+ * js/combat-tick.js pickWaveFrontTargets, counts with the same glide); on the stage at a walk over the whole step
  * (js/canvas-stage-stride.js), with no follower in screen space, so a scrolling room does not drag the monsters.
  * frame = { now, deltaSec, gridProj }. */
 function glideBattleEnemy(entry, frame) {
@@ -3463,7 +3463,7 @@ function getEnemyDisplayName(enemy) {
     if (!enemy) return _t('미확인 적');
     return stripDecorativeEmoji(i18n.enemyName(enemy.name)) || _t('미확인 적');
 }
-// A boss's standout defenses (its one or two specialties, js/combat.js getBossDefenseTargets) as the live values, traits and zone
+// A boss's standout defenses (its one or two specialties, js/combat-enemy-build.js getBossDefenseTargets) as the live values, traits and zone
 // wards included: at least 40% and 15 points above its weakest of the four. Early bosses whose defenses are all low show none.
 const ENEMY_DEFENSE_LABELS = Object.freeze([['dr', '물리 피해 감소'], ['resF', '화염 저항'], ['resC', '냉기 저항'], ['resL', '번개 저항']]);
 function getEnemyDefenseHighlights(enemy) {

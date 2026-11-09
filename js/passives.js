@@ -3005,7 +3005,7 @@ function takeOceanReturnZone(st) {
     st.returnZoneId = null;
     return back && ['act', 'abyss'].includes(back.type) && !(back.id > farthest) ? back.id : farthest;
 }
-/** 자동 재잠수로 들어간 잠수가 이어지고 있는가(쓰러지면 그 잠수가 끝난다: js/combat.js defeatInOceanDive). */
+/** 자동 재잠수로 들어간 잠수가 이어지고 있는가(쓰러지면 그 잠수가 끝난다: js/combat-enemy-turn.js defeatInOceanDive). */
 const isAutoOceanDive = st => !!st.diving && st.autoDive === true;
 /** 자동 재잠수가 멈췄는가: 자동 잠수에서 무리에게 쓰러졌거나 소득 없이 떠오른 잠수가 한도에 닿았다(손으로 잠수하면 풀린다). */
 const isOceanAutoRediveHalted = st => st.lastSurfaceReason === 'defeat' || st.fruitlessDives >= OCEAN_AUTO_REDIVE.missLimit;
@@ -3107,7 +3107,7 @@ function tickOceanDepth(st, dtSec) {
     applyOceanDepthGain(st, step);
 }
 
-/** 심해에서 쓰러뜨린 몬스터(js/combat.js countKillForContent): 잠수 중이면 하강 거리를 쌓고(A안), 공기 방울을 남기는 몬스터면 산소를
+/** 심해에서 쓰러뜨린 몬스터(js/combat-kill-rewards.js countKillForContent): 잠수 중이면 하강 거리를 쌓고(A안), 공기 방울을 남기는 몬스터면 산소를
  * 채운다(B안). 가디언과 그 졸개는 하강 거리를 쌓지 않는다(경계에서 멈춘다).
  * @returns {number} 채운 산소가 버티는 초(반올림, 가득 차 있었으면 0) */
 function applyOceanKill(enemy) {
@@ -5221,7 +5221,7 @@ function openLoopHeroSelection(onSelect, options = {}) {
 }
 
 /** 직업을 정하면 같은 창에서 기초 스킬의 속성을 고른다(openLoopBasicSkillPick). 무기는 루프의 첫 처치가 떨어뜨린다
- * (js/combat.js grantLoopStarterWeaponOnFirstKill, 2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착 안내로). */
+ * (js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill, 2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착 안내로). */
 function chooseLoopHero(classId) {
     if (!PLAYER_CLASS_DEFS[classId]) return;
     applyHeroSelection(classId, { silent: true, skipSave: true, alignTalent: true });
@@ -5788,7 +5788,7 @@ function getActRewardChoices(zoneId) {
     });
 }
 /** 그 직업의 대표 무기(대표 무기 대분류에서 가장 낮은 바탕)를 보통 등급으로 만든다. 무기 칸이 차 있으면(봉인해 물려받은 무기) null.
- * 루프의 첫 처치가 떨어뜨린다(js/combat.js grantLoopStarterWeaponOnFirstKill, 2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착
+ * 루프의 첫 처치가 떨어뜨린다(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill, 2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착
  * 안내로). 2026-10-17부터는 직업을 고를 때 쥐여 주었다(맨손은 주문과 투사체 룬을 못 쓴다). @returns {?object} */
 function createClassStarterWeapon(classId) {
     if (!game.equipment || game.equipment['무기']) return null;

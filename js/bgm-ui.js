@@ -144,7 +144,7 @@
     const live = handler => event => { if (!event.detail?.background) handler(); };
     window.addEventListener('project-idle:encounter-finished', live(() => duck(DUCK_MS.clear)));
     window.addEventListener('project-idle:player-defeated', live(() => duck(DUCK_MS.defeat)));
-    // 이동을 시작하는 그 순간에는 아직 적 목록이 남아 있다(js/combat.js startMoving): 비운 뒤에 고른다
+    // 이동을 시작하는 그 순간에는 아직 적 목록이 남아 있다(js/combat-encounters.js startMoving): 비운 뒤에 고른다
     window.addEventListener('project-idle:movement-started', live(() => setTimeout(() => { bossUntil = 0; bgmTick(); }, 0)));
     window.addEventListener('project-idle:startup-visibility', syncVolumeControl);
     setInterval(bgmTick, 1000);

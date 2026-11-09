@@ -123,7 +123,7 @@
             targets:targets.map(enemy=>({enemy,mult:1})),singleRepeat:true}];
         queuePendingSkillStageHits(stages,stats,{...command.attackOptions,skillName:command.name,baseDelayMs:0,forcedElement:stats.sSkill.ele,damageTextGroupId:command.key});
     }
-    /** 반복 단계 하나가 제 때를 맞았다(js/combat.js processPendingSkillStageHits, 맞을 적이 없어도): 무대가 두 번째 발동의 연출을 그리게 알린다
+    /** 반복 단계 하나가 제 때를 맞았다(js/combat-tick.js processPendingSkillStageHits, 맞을 적이 없어도): 무대가 두 번째 발동의 연출을 그리게 알린다
      * (js/canvas-stage-skill-rules.js ruleNoteRepeat, 한 공격에 한 번). 날아가는 반복은 떠나는 순간을 그 날아가는 기록이 먼저 알린다. 그리기만 한다. */
     function repeatReleased(row) {
         const options=row.options,skill=row.pStats.sSkill;
@@ -318,7 +318,7 @@
     }
     function capValue(def,level) { return (def.capBase||0)+getGemLevelGrowthSteps(level,def.capGrowAfterLevel||0)*(def.capPerLevel||0); }
     /** Whether a worn support rune or a blessing in the summon slots grants strength, dexterity or intelligence (none did on
-     * 2026-11-07). Only then does the equip requirement check need the rune pass (js/combat.js getPlayerStats attributesOnly). */
+     * 2026-11-07). Only then does the equip requirement check need the rune pass (js/player-stats.js getPlayerStats attributesOnly). */
     function grantsAttributes(state,names) {
         const attribute=stat=>stat==='strength' || stat==='dexterity' || stat==='intelligence';
         const support=names.some(name=>{ const def=SUPPORT_GEM_DB[name]; return !!def && (attribute(def.stat) || attribute(def.capStat)); });

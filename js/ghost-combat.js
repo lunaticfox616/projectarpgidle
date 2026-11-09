@@ -33,7 +33,7 @@ function getGhostCombatDirectEhp(stats, profile) {
     ]));
 }
 
-/** 대결에서 쓰는 전투 전술(js/combat.js updatePlayerGridEngagement와 같다): 위치 전술(조건부 규칙이 맞지 않을 때의 기본 전술)과
+/** 대결에서 쓰는 전투 전술(js/combat-enemy-build.js updatePlayerGridEngagement와 같다): 위치 전술(조건부 규칙이 맞지 않을 때의 기본 전술)과
  * 최후방 사격은 전술이 열렸을 때만, 추적자의 다가가는 이동 속도(%)는 늘. */
 function getGhostCombatTactics(stats) {
     let unlocked = game.combatTacticsUnlocked === true;

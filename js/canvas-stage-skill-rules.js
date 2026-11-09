@@ -182,7 +182,7 @@ const stageSkillRules = (() => {
         if (map.boom) stageSkillVfx.play(map.boom, K.at(spot, 0, K.onGround(map.boom) ? 1 : -46), { ramp: rot.ramp, scale: 0.72, alpha: 0.9 });
         if (map.boom2) ruleFillArea(map.boom2, { centre: spot, radius: 1.5 }, { ramp: rot.ramp, life: 700, layer: 'ground' });
     }
-    /** 다시 맞혀 터뜨렸다(js/combat.js detonateFlameDecay): 그 자리의 폭발, 옮겨 붙은 적마다 불길 줄기와 새 구슬. */
+    /** 다시 맞혀 터뜨렸다(js/combat-skill-effects.js detonateFlameDecay): 그 자리의 폭발, 옮겨 붙은 적마다 불길 줄기와 새 구슬. */
     function ruleRotDetonated(rot) {
         ruleRotBurst(rot);
         for (const id of rot.unit.flameDecaySpread || []) {

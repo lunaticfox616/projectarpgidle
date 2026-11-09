@@ -1565,7 +1565,7 @@ function maybeApplyDroppedFossilExclusiveAffix(item, enemy, zoneTier) {
 }
 
 /** 정해 준 칸, 아니면 아무 칸(지도 기운이 부위 가중치를 주면 그 가중치로, js/loot-omens.js slotWeights). 뿌리촉수의 제 무기는 따로
- * 굴린다(js/combat.js grantRootWeaponPick, data/bosses.js). */
+ * 굴린다(js/combat-kill-rewards.js grantRootWeaponPick, data/bosses.js). */
 function getEquipmentDropSlot(options, zone) {
     if (EQUIPMENT_DROP_SLOTS.includes(options?.slot)) return options.slot;
     const weights = lootOmens.slotWeights(zone);
@@ -1684,7 +1684,7 @@ function unlockLegacyCurrencyFeatures(currencyKey) {
 }
 
 // Explicit returns from crafting stay in inventory; ordinary drops keep the auto-equip setting. The first loop's starter weapon waits in the
-// bag for its equip guide (js/combat.js grantLoopStarterWeaponOnFirstKill, starterWeaponTutorialPending).
+// bag for its equip guide (js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill, starterWeaponTutorialPending).
 function getAcquiredItemAutoEquipSlot(item, options) {
     if (options?.skipAutoEquip || (item && item.id === game.starterWeaponTutorialPending)) return null;
     return typeof tryAutoEquipEmptySlot === 'function' ? tryAutoEquipEmptySlot(item) : null;

@@ -386,7 +386,7 @@ ID·생명력·공격 게이지·좌표와 무리 소유를 다시 만들지 않
   채움과 바닥의 화살촉, 무대의 한 점 범위기는 가운데에서 차오르는 채움이고, 위에서 보는 판은 조준 고리를 쓴다. 벽, 서 있는
   물건, 이야기 NPC 칸에는 그리지 않는다.
 - 그림 보스(이야기 보스)는 맞는 순간 10px 돌진만 했다. 예고 동안 목표 반대쪽으로 젖히고 몸을 세우며 떨다가, 놓는 순간
-  (`bossRelease` 효과, js/combat.js `announceEnemyAttackRelease`) 범위기는 뛰어올라 0.5초 뒤 땅에 닿는 순간 내려앉고, 사격과 줄은
+  (`bossRelease` 효과, js/combat-enemy-turn.js `announceEnemyAttackRelease`) 범위기는 뛰어올라 0.5초 뒤 땅에 닿는 순간 내려앉고, 사격과 줄은
   앞으로 내지른다. 뛰어오를 때 그림자는 땅에 남는다(`drawBattleSprite` offsetY).
 - 시트 보스(영역 보스, 여왕벌)는 예고 동안 게이지가 1에 멈춰 준비 동작이 풀렸고, 사격은 떠날 때와 맞을 때 두 번 쳤고,
   피한 범위기는 치는 동작이 없었다. 예고 동안 준비 자세를 지키고 `bossRelease`에서 한 번만 친다.
@@ -416,7 +416,7 @@ ID·생명력·공격 게이지·좌표와 무리 소유를 다시 만들지 않
   무한이다(`getBossReach`).
 - 배정은 `assignEnemyGridCombatProfile`(`js/combat-grid.js`)이 한다. 적 기록에 새 값은 없다(`attackKind`, `attackRange` 그대로).
   이미 만들어진 탐험의 보스와 싸우던 보스는 전의 거리(사거리 무한)를 그대로 쓴다.
-- 다가가기: 사거리 밖이면 대상에게 한 칸씩 걸어온다(`js/combat.js` `advanceEnemyGridApproach`). 보스의 한 걸음은
+- 다가가기: 사거리 밖이면 대상에게 한 칸씩 걸어온다(`js/combat-enemy-turn.js` `advanceEnemyGridApproach`). 보스의 한 걸음은
   `BOSS_REACH.stepSec`(0.3초)로, 방 단위 무대에서 주인공의 기본 걸음(0.4초)보다 빠르다. 전투가 0.1초 단위로 흐르므로 0.1의 배수로
   적는다. 걷는 모습도 같은 값을 읽는다(`getGridUnitStepSec`, `js/canvas-stage-stride.js`).
 - 떨어진 곳에서 쓰는 특수기: 예고하는 특수기(지면 강타, 충격파 등)의 차례이고 대상이 `BOSS_REACH.castRange`(6칸) 안이면 사거리

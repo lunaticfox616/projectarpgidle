@@ -1,7 +1,7 @@
 /** 아틀라스 후반부 (docs/atlas-pinnacles-20261002.md 2-1, 3절, data/atlas-endgame.js): 깨어남, 최종 보스 다섯과 리그 우두머리를 여는 조건과
  * 재료, 지도 속 마름의 사도 · 제단 · 리그 조각, 나이테의 목격, 보스 처치 보상과 단계별 특수기.
  * 상태는 game.atlas.endgame {kills, items, blight, witness, witnessed}: 루프를 넘어 남고 시대 재생 때 비운다.
- * 지도 장치 런(js/atlas.js · js/atlas-run.js)과 넓은 맵 무리(js/combat.js createActExplorationPack)가 이 모듈의 규칙을 부른다.
+ * 지도 장치 런(js/atlas.js · js/atlas-run.js)과 넓은 맵 무리(js/combat-encounters.js createActExplorationPack)가 이 모듈의 규칙을 부른다.
  * 런마다의 몫은 run.endgame {apostle, items, echoes}: 방에서 얻은 재료는 지도석처럼 보스를 잡을 때까지 런이 들고 있다.
  */
 const atlasEndgame = (() => {
@@ -140,7 +140,7 @@ const atlasEndgame = (() => {
         if (!row) return {};
         const echoes = extra.echoes || [], names = row.stages.map(stage => stageName(row, stage, echoes));
         const out = { bossName: names[0], bossStageNames: names, atlasStages: row.id, atlasEchoes: echoes };
-        // 투기장의 장판: 시련 함정 양식으로 예고한 뒤 그 원소의 지대로 남는다(js/combat.js resolveTrialHazardImpact, COMBAT_GRID_CONFIG.ground).
+        // 투기장의 장판: 시련 함정 양식으로 예고한 뒤 그 원소의 지대로 남는다(js/combat-enemy-turn.js resolveTrialHazardImpact, COMBAT_GRID_CONFIG.ground).
         const arena = E.arenas[node.id];
         if (arena) Object.assign(out, { trialHazard: { ...E.arenaHazard, persistent: true },
             trapElements: [arena.element], trapName: COMBAT_GRID_CONFIG.ground[arena.element].name });
@@ -160,7 +160,7 @@ const atlasEndgame = (() => {
         if (echo) return BODY_BY_BOSS.get(echo[0]) || {};
         return Number.isInteger(body.bossAct) && body.bossAct !== row.bossAct ? {} : row;
     }
-    /** A late fight's stage body (js/combat.js createActExplorationPack): its own name, art and special attack; echoes are weaker copies. */
+    /** A late fight's stage body (js/combat-encounters.js createActExplorationPack): its own name, art and special attack; echoes are weaker copies. */
     function tuneStage(enemy, zone, stage) {
         const row = def(zone.atlasStages), body = row && row.stages[stage];
         if (!body) return enemy;

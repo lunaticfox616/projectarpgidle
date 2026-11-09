@@ -82,7 +82,7 @@ const underworldRuneUi = (() => {
         return {state,no,level,cost};
     }
 
-    // 지하계 층 보상(js/combat.js grantUnderworldFloorMilestone): 도메인은 이벤트만 내고 기록은 여기서 남긴다.
+    // 지하계 층 보상(js/combat-kill-rewards.js grantUnderworldFloorMilestone): 도메인은 이벤트만 내고 기록은 여기서 남긴다.
     window.addEventListener('project-idle:underworld-milestone', ({ detail }) => addLog(detail.text, 'loot-unique'));
 
     // ── 지하계 지도 화면: 탐사, 지하석, 장비 가공 쪽(2026-10-25 사용자: 지하석 체계를 다듬고 장비 인챈트가 무슨 효과인지 보이게,

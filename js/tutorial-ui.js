@@ -84,7 +84,7 @@ const tutorialActionUi = {
             keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected', '#skill-tab-equip .skill-board-head']
         },
         starter_weapon: {
-            // 첫 루프의 시작 무기(js/combat.js grantLoopStarterWeaponOnFirstKill, 2026-11-09): 장비 상세가 열려 있으면 그 '장착' 단추를, 아니면 가방의 무기를 가리킨다.
+            // 첫 루프의 시작 무기(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill, 2026-11-09): 장비 상세가 열려 있으면 그 '장착' 단추를, 아니면 가방의 무기를 가리킨다.
             selector: ['#tab-items .equipment-card-primary', '#ui-inventory-list .equipment-grid-item'],
             title: '무기 장착',
             body: '가방의 무기를 누르고 ‘장착’을 누르세요. 무기를 들면 기초 스킬로 싸웁니다.',
@@ -644,7 +644,7 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
     { key: 'tutorial_first_gear', seenAs: 'unlock_items', tabId: 'tab-items', title: '첫 장비',
         body: '장비를 얻었습니다. 자동 장착이 켜져 있으면 빈 칸에 맞는 장비를 바로 착용합니다.\n‘장비’에서 착용한 장비의 효과를 확인하고, 보관 중인 장비와 비교하세요.\n바꿔 입으면 전투 화면의 생명 구슬 위에 DPS 변화가 뜹니다.',
         // 빈 칸에 바로 입은 장비도 첫 장비다: 초반 드랍은 가방을 거치지 않아 안내가 끝내 뜨지 않았다(검토 7차). 무기 칸은 세지 않는다:
-        // 첫 처치가 떨어뜨리는 직업 무기(js/combat.js grantLoopStarterWeaponOnFirstKill)는 제 장착 안내가 맡는다(2026-11-09).
+        // 첫 처치가 떨어뜨리는 직업 무기(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill)는 제 장착 안내가 맡는다(2026-11-09).
         starterDue: state => (state.inventory || []).some(item => item && item.id !== state.starterWeaponTutorialPending)
             || Object.entries(state.equipment || {}).some(([slot, item]) => item && slot !== '무기') },
     { key: 'tutorial_weapon_rune', seenAs: 'tutorial_weapon_rune', tabId: 'tab-skills', title: '무기와 스킬룬',
@@ -653,7 +653,7 @@ const TUTORIAL_STARTER_GUIDES = Object.freeze([
 ]);
 /** 지금 든 무기로 쓸 수 없는 룬을 가졌는가(무기를 바꿔 기본 공격으로 물러난 주 공격 룬 포함): 무기 규칙 안내를 띄울 때. */
 function ownsWeaponBlockedRune(state) {
-    // 첫 처치의 직업 무기를 기다리며 쉬는 기초 스킬은 세지 않는다: 그 무기를 들면 바로 돌아온다(js/combat.js grantLoopStarterWeaponOnFirstKill).
+    // 첫 처치의 직업 무기를 기다리며 쉬는 기초 스킬은 세지 않는다: 그 무기를 들면 바로 돌아온다(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill).
     if (!state.loopStarterWeaponGranted || state.starterWeaponTutorialPending != null) return false;
     const stance = getEquippedWeaponStance();
     return !!state.weaponBlockedSkill || (state.skills || []).some(name => !isSkillRuneUsableWithStance(name, stance));

@@ -5,7 +5,7 @@ if (typeof safeExposeData !== 'function') throw new Error('data/constants.js mus
 
 /** 키스톤 능력치 줄 하나(새 전직의 키스톤은 이 줄만으로 동작한다). */
 function ascendancyStatLine(stat, val) { return { stat, val }; }
-/** 고유 효과 줄: 고유 장비, 재능 카드와 같은 고유 효과 엔진 키(js/combat.js getPlayerStats). */
+/** 고유 효과 줄: 고유 장비, 재능 카드와 같은 고유 효과 엔진 키(js/player-stats.js getPlayerStats). */
 function ascendancyUniqueLine(key, params) { return params ? { key, params } : { key }; }
 /** 기준값(진입 · 주요)에 배율을 곱하는 노드. from이 있으면 그 능력치의 기준값과 배율 규칙을 쓴다. */
 function ascendancyScaledNode(stat, tier, mul, from) { return from ? { stat, tier, mul, from } : { stat, tier, mul }; }

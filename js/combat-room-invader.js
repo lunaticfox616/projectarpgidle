@@ -140,7 +140,7 @@ const roomInvaders = (() => {
         pack.aliveIds.push(enemy.id);
         cueEntrance(run, pack, enemy);
     }
-    /** 전투 틱마다(js/combat.js prepareCombatTick). */
+    /** 전투 틱마다(js/combat-summon-stats.js prepareCombatTick). */
     function tick() {
         const run = actExplorationState.current(game), surprise = run && run.status === 'active' ? run.bossSurprise : null;
         if (!surprise || surprise.kind !== 'extra' || surprise.done || game.isBackgroundCalculation) return;
@@ -148,7 +148,7 @@ const roomInvaders = (() => {
         const boss = (game.enemies || []).find(hurt), map = boss ? actExplorationDoors.stageMap(run) : null;
         if (map) dropInExtra(run, map, surprise, boss);
     }
-    /** 뿌리 절단자를 쓰러뜨린 보람(js/combat.js grantEnemyLoot): 여느 처치의 한 번에 더해 보스 드랍을 lootRolls번까지 굴린다. 빈 굴림을 버리는 곳은 js/combat.js rollCurrencyAndGear. */
+    /** 뿌리 절단자를 쓰러뜨린 보람(js/combat-kill-rewards.js grantEnemyLoot): 여느 처치의 한 번에 더해 보스 드랍을 lootRolls번까지 굴린다. 빈 굴림을 버리는 곳은 js/combat-kill-rewards.js rollCurrencyAndGear. */
     function grantExtraLoot(enemy) {
         if (!enemy.roomInvader) return;
         for (let roll = 1; roll < RULE.lootRolls; roll++) rollLootForEnemy(enemy);

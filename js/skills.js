@@ -989,7 +989,7 @@ function getActiveSkillStats(bonusLevel, allowMobility) {
         if (enh.stat === 'aspd') stats.spd *= (1 + enh.val / 100);
         if (enh.stat === 'crit') stats.crit += enh.val;
         if (enh.stat === 'leech') stats.leech += enh.val;
-        if (enh.stat === 'targets') stats.engraveTargets = (stats.engraveTargets || 0) + enh.val; // 상한 뒤에 더한다(js/combat.js addUncappedSkillTargets)
+        if (enh.stat === 'targets') stats.engraveTargets = (stats.engraveTargets || 0) + enh.val; // 상한 뒤에 더한다(js/combat-enemy-build.js addUncappedSkillTargets)
         if (enh.stat === 'critDmg') stats.critDmgBonus = (stats.critDmgBonus || 0) + enh.val;
         if (enh.stat === 'ds') stats.dsBonus = (stats.dsBonus || 0) + enh.val;
         if (enh.stat === 'flatSkillDmgPct') stats.flatSkillDmgPct = (stats.flatSkillDmgPct || 0) + enh.val;

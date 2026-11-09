@@ -16,7 +16,7 @@ const projectileShots = (() => {
     /** 한 발의 룬: 갈래 투사체의 부채꼴과 그 몫의 대상 수를 뺀다. */
     const shotSkill = skill => ({ ...skill, targets: Math.max(1, (skill.targets || 1) - supportExtra(skill)),
         supportEffects: { ...skill.supportEffects, projectiles: null, aimedShots: true } });
-    /** 더 나가는 발: plain은 갈래 투사체, bonus는 굴려 둔 추가 발사(js/combat.js getAttackProjectileShots)와 고유 장비의 확률 발사. */
+    /** 더 나가는 발: plain은 갈래 투사체, bonus는 굴려 둔 추가 발사(js/combat-player-attack.js getAttackProjectileShots)와 고유 장비의 확률 발사. */
     function moreShots(pStats) {
         const chance = pStats.uniqueProjExtraShotChance;
         const lucky = chance && Math.random() * 100 < Number(chance.chance || 0) ? Math.max(0, Math.floor(chance.shots || 0)) : 0;

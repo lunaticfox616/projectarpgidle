@@ -203,7 +203,7 @@
 
 - 고유 중 새 고유의 비중(등급별 2만 번 생성): 15~16등급 0%, 17등급 4.4%, 18등급 9.9%, 19등급 12.3%, 20등급 17.7%. 지도 등급을
   올리면 한 단계마다 새 고유가 열린다.
-- 새 효과 다섯(엔진 키는 js/combat.js getUniqueEffectImplementationReport에 등록):
+- 새 효과 다섯(엔진 키는 js/combat-tick.js getUniqueEffectImplementationReport에 등록):
   - `implicitAmp` 이 장비의 기본 옵션 효과 2배(질풍의 손목, 맹세를 지킨 자, 성약의 방벽, 백전노장의 띠). 수평 베이스의 기본 옵션을
     키운다. 능력치 계산(js/equipment-stat-resolution.js getUniqueImplicitMultiplier)과 툴팁의 방어 수치가 같은 배율을 쓴다.
     반지 복사(엮인 나이테, 거울 반지)로 옮겨진 줄에는 원래 장비의 값이 그대로 간다.

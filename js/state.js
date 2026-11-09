@@ -407,7 +407,7 @@ function createDefaultOceanState() {
         bossClearM: 0,
         // 쓰러뜨린 몬스터가 쌓았지만 아직 내려가지 않은 거리(m, js/passives.js tickOceanDepth)
         descentPendingM: 0,
-        // 자동 재잠수(js/combat.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'guardian' | 'defeat' | 'manual' | ''),
+        // 자동 재잠수(js/combat-kill-rewards.js autoRediveOceanAfterClear): 마지막으로 떠오른 까닭('oxygen' | 'guardian' | 'defeat' | 'manual' | ''),
         // 잠수를 시작할 때의 소득 기록(getOceanDiveRecord), 소득 없이 떠오른 잠수가 이어진 수. 떠오르면 돌아갈 사냥터(잠수를
         // 시작한 액트나 혼돈 구역 id, 없으면 null)와 이 잠수가 자동 재잠수로 들어왔는지
         lastSurfaceReason: '',
@@ -972,7 +972,7 @@ function getSkyTowerZoneNow() {
 function getTimeRiftZone(id) {
     let rift = ensureTimeRiftState();
     let phase = id === TIME_RIFT_PAST_ZONE_ID ? 'past' : 'future';
-    // 시간압이 유일한 난이도 손잡이: 세계수 아틀라스 지도처럼 그 혼돈 깊이 · 고정 루프의 몬스터다(js/combat.js getLoopDifficultyInputs,
+    // 시간압이 유일한 난이도 손잡이: 세계수 아틀라스 지도처럼 그 혼돈 깊이 · 고정 루프의 몬스터다(js/combat-enemy-build.js getLoopDifficultyInputs,
     // getAbyssMonsterScales). 지역 레벨도 아틀라스와 같은 셈(깊이 2마다 3, data/atlas.js)이다. 미래는 같은 시간압에서 생명력이 18% 더 많다.
     let activePressure = game.currentZoneId === id && rift.activePressure ? rift.activePressure : rift.pressure;
     let depth = getTimeRiftEquivalentChaosDepth(activePressure);
@@ -2533,7 +2533,7 @@ const defaultGame = {
     killsInZone: 0,
     loopDeaths: 0,
     loopKills: 0,
-    // 루프의 첫 처치가 직업 무기를 떨어뜨렸는가(js/combat.js grantLoopStarterWeaponOnFirstKill), 첫 루프의 그 무기가 장착 안내를 기다리는 동안 그 아이템 id
+    // 루프의 첫 처치가 직업 무기를 떨어뜨렸는가(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill), 첫 루프의 그 무기가 장착 안내를 기다리는 동안 그 아이템 id
     loopStarterWeaponGranted: false,
     starterWeaponTutorialPending: null,
     // 기초 스킬(js/basic-skills.js): 이번 루프의 속성 선택지({ loop, elements }, 고를 때까지)와 지난번 고른 속성(자동 루프가 쓴다)
@@ -2809,7 +2809,7 @@ const defaultGame = {
     // Older logs have no fatalElement; save migration keeps that uncertainty as null.
     lastDeathLog: null,
     // Auto progression retreated after a defeat in story act frontierZoneId at this level (null = not retreating).
-    // Cleared once the level rose by ACT_RETREAT_LEVELS or a map outside the retreat act finishes (js/combat.js holdActRetreat).
+    // Cleared once the level rose by ACT_RETREAT_LEVELS or a map outside the retreat act finishes (js/combat-enemy-turn.js holdActRetreat).
     actRetreat: null,
     unlockedSeasonContents: ['season_1'],
     seenSeasonContentNotices: ['season_1'],

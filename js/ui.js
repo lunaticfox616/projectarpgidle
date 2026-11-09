@@ -2357,7 +2357,7 @@ function spawnBeehiveWave(isBoss){
         let enemy = createEnemy(zone, marker, i);
         wave.push(tuneBeehiveWaveEnemy(enemy, zone, isBoss, b.enemyEmpower));
     }
-    // 방 단위 무대: 벌집 전용 지도의 다음 방(여왕은 여왕의 방)에 세운다(js/combat.js placeBeehiveRoomWave). 그 밖에서는 판에 바로 선다.
+    // 방 단위 무대: 벌집 전용 지도의 다음 방(여왕은 여왕의 방)에 세운다(js/combat-encounters.js placeBeehiveRoomWave). 그 밖에서는 판에 바로 선다.
     let roomRun = getBeehiveRoomRun();
     if (roomRun) placeBeehiveRoomWave(roomRun, wave, step, isBoss);
     else game.enemies.push(...wave);
@@ -2782,7 +2782,7 @@ function chaosRealmEntryHtml(st) {
         + `<div>${buildMapPowerEstimateHtml(getZone(CHAOS_REALM_ZONE_ID))}</div>${lock}</div><div class="underworld-entry-actions">`
         + `<button type="button" class="underworld-primary-action" data-exploration-departure onclick="enterChaosRealmPrompt()" ${ready ? '' : 'disabled'}>${_t('층 골라 입장')}</button></div></section>`;
 }
-// 영구 보너스 칩: [이름, 키, 소수 자리]. 방어, 회피, 보호막은 함께 오른다(js/combat.js grantChaosRealmFloorBonus).
+// 영구 보너스 칩: [이름, 키, 소수 자리]. 방어, 회피, 보호막은 함께 오른다(js/combat-enemy-build.js grantChaosRealmFloorBonus).
 const CHAOS_REALM_BONUS_CHIPS = [['피해', 'pctDmg', 1], ['이동 속도', 'move', 1], ['생명력', 'pctHp', 1], ['카오스 저항', 'resChaos', 0], ['치명타 확률', 'crit', 0],
     ['저항 관통', 'resPen', 0], ['방어, 회피, 보호막', 'armorPct', 0], ['치명타 피해', 'critDmg', 0], ['공격 속도', 'aspd', 0]];
 function chaosRealmDetailHtml(st, best) {
@@ -3887,7 +3887,7 @@ function assertBuildEditable() {
     return true;
 }
 
-/** 첫 루프의 시작 무기(js/combat.js grantLoopStarterWeaponOnFirstKill)가 가방에서 장착 안내를 기다리면 그 아이템, 아니면 null.
+/** 첫 루프의 시작 무기(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill)가 가방에서 장착 안내를 기다리면 그 아이템, 아니면 null.
  * 끼고 나면 기다림 표시를 지운다(바닥에 있는 동안은 남는다: 주웠을 때 자동 장착하지 않고 가방으로 오게). */
 function getStarterWeaponTutorialTarget() {
     const id = game.starterWeaponTutorialPending;
@@ -5100,7 +5100,7 @@ function showEnemyAilmentTooltip(event, payload) {
     showInfoTooltipHtml(event.clientX, event.clientY, html, '#ffcf88');
 }
 
-/** 타겟 방식과 최대 타겟 수: 수는 전투와 같은 상한(js/combat.js getPlayerStats: 6, 투사체 12)으로. 데이터가 99인 룬은 제 방식으로
+/** 타겟 방식과 최대 타겟 수: 수는 전투와 같은 상한(js/player-stats.js getPlayerStats: 6, 투사체 12)으로. 데이터가 99인 룬은 제 방식으로
  * 치는 네이티브 룬이라 수를 적지 않는다(2026-10-20 검토: 99, 8, 7로 보였지만 전투는 6이었고, 광역은 4인데 6으로 보였다). */
 function getGemTargetSummaryHtml(skill) {
     const label = { all: '광역', whirl: '광역 회전', cleave: '전방 다중', chain: '연쇄', pierce: '관통' }[skill.targetMode] || '단일';

@@ -415,7 +415,7 @@ function unequipItem(slot) {
 }
 
 /** 반지3의 반지(초월 공허 '세 번째 손가락'이 연 칸)가 그 초월이 사라진 뒤 남아 있으면 가방에 자리가 날 때 가방으로 돌려보낸다
- * (전투 틱마다, js/combat.js prepareCombatTick). 장비창에 반지3 칸이 없어 보지도 빼지도 못했다(2026-10-20 검토). 꺼지는 것은
+ * (전투 틱마다, js/combat-summon-stats.js prepareCombatTick). 장비창에 반지3 칸이 없어 보지도 빼지도 못했다(2026-10-20 검토). 꺼지는 것은
  * js/combat-equipment-stats.js missing이 맡는다. 방치 정산과 나무꾼 잠금 중에는 그대로 둔다. say: 기록(전투 틱이 넘긴다). */
 function releaseClosedThirdRing(say) {
     const ring = game.equipment && game.equipment['반지3'];

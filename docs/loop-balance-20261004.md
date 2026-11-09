@@ -108,7 +108,7 @@ DeepSeek의 최종 결론은 첫 조정으로 수용 가능이며, 해체 재화
 
 ## 2026-10-05 사용자 결정으로 바뀐 부분
 
-- **보스 방어 특화**(`data/maps.js` ENEMY_DEFENSE_TIER20 · BOSS_DEFENSE_SPECIALTIES, `js/combat.js` getBossDefenseTargets): 위 1번(모든 방어 60/65)을 대체한다.
+- **보스 방어 특화**(`data/maps.js` ENEMY_DEFENSE_TIER20 · BOSS_DEFENSE_SPECIALTIES, `js/combat-enemy-build.js` getBossDefenseTargets): 위 1번(모든 방어 60/65)을 대체한다.
   액트 · 혼돈 보스는 물리 피해 감소 · 화염 · 냉기 · 번개 저항 중 1~2개만 75 / 80까지 오른다.
   첫째는 보스 속성(물리 → 피해 감소, 화염/냉기/번개 → 같은 저항, 카오스는 지역 시드), 둘째는 지역 시드로 50%.
   나머지와 카오스 저항은 정예와 같은 수치(40 / 50)다. 이에 맞춰 정예의 티어 20 수치를 45 / 60 → 40 / 50으로 낮췄다(일반 몬스터 20 / 25는 그대로).

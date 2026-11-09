@@ -54,7 +54,7 @@ const memoryDungeon = (() => {
         return validTier(tier) ? { hp: M.fight.hpMul[tier - 1], damage: M.fight.damageMul[tier - 1] } : { hp: 1, damage: 1 };
     }
     const zoneName = (map, node) => (validTier(map.memory) ? _t('{name}: 기억 {memory}단계', { name: node.name, memory: map.memory }) : node.name);
-    /** A memory fight's boss (js/combat.js createActExplorationPack): its name says whose memory, tinted; a boss without its own special
+    /** A memory fight's boss (js/combat-encounters.js createActExplorationPack): its name says whose memory, tinted; a boss without its own special
      * (map bosses, guardians, the shadow) takes the memory special. */
     function tuneBoss(enemy, tier) {
         enemy.name = `${enemy.name}의 기억`;   // 한국어 원문으로 둔다: 보여 줄 때 옮긴다(js/i18n.js enemyName)

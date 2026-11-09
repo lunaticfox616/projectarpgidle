@@ -183,7 +183,7 @@ const skillGemCasts = (() => {
         }
         return chained.length?[...rows,contact(c,chained,hit.at,{damagePct:PROJECTILE_BONUS_SHOT_DAMAGE_PCT,key:hit.key+':chain'})]:rows;
     }
-    /** 무대의 주인공이 놓는 순간(js/combat.js noteNativeGemSwing): 그 룬의 동작이 이때 타격 장에 온다. */
+    /** 무대의 주인공이 놓는 순간(js/combat-player-attack.js noteNativeGemSwing): 그 룬의 동작이 이때 타격 장에 온다. */
     const letGo=(c,impact,until)=>{c.swing={impact,until};};
     function launchFlask(state,c) {
         const phase=c.id===49?'flask':'flight',release=c.at+ms(c,FLASK_RELEASE);

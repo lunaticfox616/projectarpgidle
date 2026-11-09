@@ -191,7 +191,7 @@ function getHanaSwingTiming(swing, direction) {
     if (!swing) return null;
     let windup = Math.max(1, (Number(swing.impactAt) || swing.start) - swing.start);
     let channelUntil = swing.duration > windup + 40 ? swing.start + swing.duration : 0;
-    // A projectile leaves the hand before the swing's impact (js/combat.js PROJECTILE_RELEASE_SHARE): the release frame plays then.
+    // A projectile leaves the hand before the swing's impact (js/combat-tick.js PROJECTILE_RELEASE_SHARE): the release frame plays then.
     let release = Number.isFinite(swing.releaseDelayMs) ? Math.max(1, Math.min(windup, swing.releaseDelayMs)) : windup;
     return { start: swing.start, impactAt: swing.start + release, direction, channelUntil, skillName: swing.skillName, pose: swing.pose || null, kickoff: !!swing.kickoff, contactFrame: swing.contactFrame };
 }

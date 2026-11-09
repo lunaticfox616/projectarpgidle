@@ -68,7 +68,7 @@ const actExplorationState = (() => {
     // 아래의 시야 규칙은 fog 방식의 것이다(js/act-exploration-sight.js: 이어진 지도와, 지역 정의가 시야를 켠 방 단위 지역). room 방식은
     // 방 소속만 본다.
     // 시야(2026-10-09 사용자): 안개가 걷힌 땅, 곧 찾은 칸이면서 시야 반경 + SIGHT_EDGE 안이거나 영웅이 선 보스 방에 선 몬스터만 보이고
-    // (js/canvas-act-exploration.js) 영웅이 직접 노릴 수 있다(js/combat.js getSkillTargets). 안개는 반경 밖으로 서서히 짙어지므로
+    // (js/canvas-act-exploration.js) 영웅이 직접 노릴 수 있다(js/combat-enemy-build.js getSkillTargets). 안개는 반경 밖으로 서서히 짙어지므로
     // SIGHT_EDGE칸 더 본다(대각선 5칸에서 쏘는 원거리 몬스터가 보이게). 그림과 조준이 이 판정 하나를 쓴다.
     const SIGHT_EDGE=1.5;
     let sightMemo={run:null,key:'',seen:null,lit:null,reach:0};
@@ -194,7 +194,7 @@ const actExplorationState = (() => {
     /** A visible boss keeps waiting through its entrance, and in background hunts set to stop before bosses. */
     function holdBoss(state,run,o) {
         if(heldByEntrance(run,o.pack))return true;
-        // 끝 방의 조용한 무리(quiet: 보스 없이 끝나는 한 줄 지도의 마지막 무리, js/combat.js createRoomPackOf)는 다른 방의 무리처럼 바로 덤빈다
+        // 끝 방의 조용한 무리(quiet: 보스 없이 끝나는 한 줄 지도의 마지막 무리, js/combat-encounters.js createRoomPackOf)는 다른 방의 무리처럼 바로 덤빈다
         if((o.pack.stage===null && !o.pack.invader) || o.pack.quiet)return false;
         // Stop before transferring a visible boss: a strong build could otherwise kill it
         // in this same tick, before the replay's next safety-policy check can see it.
@@ -299,7 +299,7 @@ const actExplorationState = (() => {
         return true;
     }
     // 락온(2026-10-17 사용자 "몬스터(락온기능) 클릭 시 타겟이 지정되었다는 표시"): 플레이어가 누른 몬스터. 영웅이 먼저 노리고, 공격이
-    // 닿지 않으면 그쪽으로 다가간다(js/combat.js updatePlayerGridEngagement). 그 몬스터가 쓰러지거나, 다른 몬스터나 바닥, 물건을 눌러
+    // 닿지 않으면 그쪽으로 다가간다(js/combat-enemy-build.js updatePlayerGridEngagement). 그 몬스터가 쓰러지거나, 다른 몬스터나 바닥, 물건을 눌러
     // 새 명령을 내리거나, 방을 옮기면 풀린다. 키보드로 걷는 동안은 그대로다. 저장하지 않는다.
     const lockOns=new WeakMap();
     /** 누른 몬스터를 락온한다. 싸우는 몬스터면 걷던 명령을 멈추고 그 자리에서 싸우고, 아직 알아채지 않은 무리의 몬스터면 그 칸
@@ -388,7 +388,7 @@ const actExplorationState = (() => {
         if(!actExplorationMap.route(map,map.entry,pack.anchor,new Set([actExplorationMap.index(map,map.gate)])).length)
             throw Error('탐험 저장의 길목 무리에 도달할 수 없습니다.');
     }
-    /** 입구 방의 무리는 액트 1의 첫 몬스터 하나뿐이다(2026-10-15 저녁 전의 저장. 지금은 js/combat.js starterRescueRoom의 전투 방에 선다):
+    /** 입구 방의 무리는 액트 1의 첫 몬스터 하나뿐이다(2026-10-15 저녁 전의 저장. 지금은 js/combat-encounters.js starterRescueRoom의 전투 방에 선다):
      * 그 방의 보통 무리 열쇠에 정예 없이. */
     const rescuePack=(map,pack,room)=>pack.rescue===true && !!map.stage && pack.key===`${room.id}:pack` && pack.stage===null
         && Array.isArray(pack.eliteIds) && !pack.eliteIds.length && pack.anchor===undefined && pack.extra===undefined;
@@ -413,12 +413,12 @@ const actExplorationState = (() => {
     }
     /** 이어지는 무리의 가장 많은 번수(data ACT_EXPLORATION_WAVES counts). */
     const mostWaves=()=>Math.max(...ACT_EXPLORATION_WAVES.counts.map(row=>row[0]));
-    /** 방이 빈 뒤에 서는 이어지는 무리(js/combat.js releaseExplorationWave): 방 단위 무대에서만, n번째 무리의 열쇠는 "방:waveN", 정예 없이. */
+    /** 방이 빈 뒤에 서는 이어지는 무리(js/combat-encounters.js releaseExplorationWave): 방 단위 무대에서만, n번째 무리의 열쇠는 "방:waveN", 정예 없이. */
     function validateWave(map,pack,room) {
         const known=map.stage && Number.isInteger(pack.wave) && pack.wave>=1 && pack.wave<=mostWaves() && pack.key===`${room.id}:wave${pack.wave}`;
         if(!known || pack.stage!==null || pack.eliteIds.length || pack.anchor!==undefined || pack.extra!==undefined)throw Error('탐험 저장의 이어지는 무리가 잘못되었습니다.');
     }
-    /** 이어지는 무리의 기록(js/combat.js rollExplorationRoomWaves): 방 id마다 { left, total, at }. 저장에서 온 잘못된 줄은 버린다(그 방에 무리가
+    /** 이어지는 무리의 기록(js/combat-encounters.js rollExplorationRoomWaves): 방 id마다 { left, total, at }. 저장에서 온 잘못된 줄은 버린다(그 방에 무리가
      * 더 오지 않을 뿐이다). 기록이 없는 탐험(이 판 전에 열린 탐험)은 그대로 둔다. */
     function validateWaves(map,run) {
         if(run.waves===undefined)return;
@@ -429,7 +429,7 @@ const actExplorationState = (() => {
         if(!shaped || kept.length!==rows.length)console.warn('탐험 저장의 이어지는 무리 기록을 일부 버렸습니다.');
         run.waves=Object.fromEntries(kept);
     }
-    /** 방 단위 무대의 방에 더 서는 무리(js/combat.js createStageExtraPacks): 방마다 둘까지, 정예 없이. */
+    /** 방 단위 무대의 방에 더 서는 무리(js/combat-encounters.js createStageExtraPacks): 방마다 둘까지, 정예 없이. */
     function validateExtra(map,pack,room) {
         const known=map.stage && [1,2].includes(pack.extra) && pack.key===`${room.id}:extra${pack.extra}`;
         if(!known || pack.stage!==null || pack.eliteIds.length || pack.anchor!==undefined || pack.objectId)throw Error('탐험 저장의 덧무리가 잘못되었습니다.');
@@ -564,7 +564,7 @@ const actExplorationState = (() => {
     }
     /** A generated map this build no longer draws, or a room-by-room run (rooms) opened where the room stage is off or laid out
      * by a room plan this build does not lay out (an older STAGE_ROOMS.version): its cells belong to a map this session does not have. */
-    /** 방 단위 무대가 켜진 창이 방 없는 탐험을 불러 왔다: 이 창에서는 새 탐험이 모두 방 단위라(js/combat.js createActExplorationEncounter)
+    /** 방 단위 무대가 켜진 창이 방 없는 탐험을 불러 왔다: 이 창에서는 새 탐험이 모두 방 단위라(js/combat-encounters.js createActExplorationEncounter)
      * 다른 주소로 열었을 때 시작한 탐험이다. 그대로 두면 구역을 다시 열 때까지 방 없는 지도가 무대에 그려진다
      * (2026-10-13 사용자: 시험판에 들어가니 액트 1조차 방이 아니다). 테스트 패널에서 방을 끈 저장은 건드리지 않는다. */
     function strayInRooms(state,run) {
