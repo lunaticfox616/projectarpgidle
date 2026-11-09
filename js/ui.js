@@ -483,8 +483,12 @@ function recordBackgroundCombatEntry(nowMs) {
     backgroundCombatRuntime.snapshot = isBackgroundCombatEligible(game) ? cloneBackgroundCombatState(game) : null;
 }
 
-function recordOfflineCombatEntry(nowMs) {
-    let savedAt = Math.max(0, Math.floor(Number(game && game.saveMeta && game.saveMeta.lastModifiedAt) || 0));
+/** The launch's away span, savedAtMs (the loaded save's saveMeta.lastModifiedAt, read by enterGameWorld before this launch writes the
+ * save) to nowMs. Read here, at the end of the entry, the stamp was already this launch's own: the first guide-card tick saves the
+ * tutorial history (js/tutorial-ui.js saveTutorialHistoryChange, v0.3.57) about 300 ms before the settlement, so the span was 0 and
+ * no launch settled (2026-11-09 players: leaving the tab settles, closing and logging in does not). */
+function recordOfflineCombatEntry(nowMs, savedAtMs) {
+    let savedAt = Math.max(0, Math.floor(Number(savedAtMs) || 0));
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
     // 저장 칸마다 한 번 정산한다: 게임 안에서 다른 계정으로 들어가도 그 계정의 자리 비운 시간이 남는다(전: 화면마다 한 번이라 먼저 들어간 저장만).
     const slotKey = getSaveSlot().key;
@@ -927,8 +931,8 @@ function reportBackgroundCombatFailure(error, committed) {
     overlay.innerHTML = `<div class="background-combat-progress-card" role="alert"><strong>${_t('방치 정산을 완료하지 못했습니다')}</strong><p>${escapeHTML(error.message)}</p><p>${_t('이전 저장과 방치 시간은 보존됩니다. 다시 계산하거나 새로고침해 주세요.')}</p><button type="button" onclick="startBackgroundCombatReturn(Date.now())">${_t('다시 계산')}</button></div>`;
 }
 
-async function startOfflineCombatReturn(nowMs) {
-    if (!recordOfflineCombatEntry(nowMs)) return false;
+async function startOfflineCombatReturn(nowMs, savedAtMs) {
+    if (!recordOfflineCombatEntry(nowMs, savedAtMs)) return false;
     return startBackgroundCombatReturn(nowMs);
 }
 
@@ -11970,6 +11974,9 @@ function clearCloudPasswordInput() {
 }
 
 async function enterGameWorld() {
+    // The save's stamp before this launch writes it (nothing touches it while the start screen is up): the away settlement at the end
+    // measures from here (recordOfflineCombatEntry).
+    const savedAtMs = game.saveMeta.lastModifiedAt;
     advanceLoadingOverlay({
         title: _t('전장을 불러오는 중...'),
         detail: _t('전투 로그와 캐릭터 상태를 복원하고 있습니다.'),
@@ -12006,7 +12013,7 @@ async function enterGameWorld() {
     }
     ensureInitialHeroSelection();
     try {
-        await startOfflineCombatReturn(Date.now());
+        await startOfflineCombatReturn(Date.now(), savedAtMs);
     } catch (error) {
         console.error('offline combat replay failed:', error);
     }
