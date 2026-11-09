@@ -6220,7 +6220,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             if (statKey === 'armor' || statKey === 'evasion' || statKey === 'energyShield') return;
             let cur = Number(stat.val || 0);
             let rangeText = getItemStatRollRangeHtml(stat, { estimateFromValue: true });
-            let label = escapeHTML(_t(stat.statName || getStatName(statKey)) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
+            let label = escapeHTML(_t(stat.statName || getStatName(statKey)) || statKey);   // the stat name goes through the language pack (2026-11-03)
             let valueColor = stat.exceptional ? '#ffb454' : resolveItemStatTone(statKey);
             let exMark = (stat.exceptional ? ' <span style="color:#ffb454; font-weight:700;">✦+20%</span>' : '') + itemInfluencesUi.lineBadgeHtml(item, stat);
             html += `<div class="tooltip-line"><span${affixClass(statKey)}><span style="color:${resolveItemStatTone(statKey)};">${label} </span><span style="color:${valueColor};">${formatSignedValue(statKey, cur)}</span></span>${rangeText}${exMark}</div>`;
@@ -6254,7 +6254,7 @@ function showItemTooltip(event, idx, isEquip, itemOverride, options = {}) {
             let tierText = getItemAffixTierHtml(stat);
             let rangeText = `${getItemStatRollRangeHtml(stat)}${tierText}`;
             let honeyLockText = getHoneyLockBadgeHtml(stat) + emberCorruptionUi.scaleBadgeHtml(stat) + itemInfluencesUi.lineBadgeHtml(item, stat);
-            let label = escapeHTML(_t(stat.statName || getStatName(statKey)) || statKey);   // � ��@ �X  �| �� (�(2026-11-03)
+            let label = escapeHTML(_t(stat.statName || getStatName(statKey)) || statKey);   // the stat name goes through the language pack (2026-11-03)
             // 복합 옵션은 한 줄에 두 스탯까지 표기하고, 듀얼+복합처럼 길어지는 경우 다음 줄로 넘긴다.
             if (Array.isArray(stat.extraStats) && stat.extraStats.length > 0) {
                 let parts = [`<span${affixClass(statKey)} style="color:${resolveItemStatTone(statKey)};">${escapeHTML(getStatName(statKey))} +${formatValue(statKey, stat.val)}</span>`];
