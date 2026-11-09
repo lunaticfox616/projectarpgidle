@@ -160,17 +160,19 @@ const bossMoveView = (() => {
         drawObserverArena(ctx, projection, now);
         drawObserverFloor(ctx, projection, now);
         drawShiftMarks(ctx, projection, now);
-        for (const entry of bossMoves.live(now)) {
-            const move = entry.move, found = bossMoves.fxOf(entry.source);
-            if (move.kind === 'woodsman') continue;
-            if (move.kind === 'observer') { drawObserverMove(ctx, entry, projection, now); continue; }
-            for (const stage of move.stages) {
-                const cells = stage.cells.filter(cell => !move.spent.includes(cell.lane) || move.kind !== 'volley');
-                if (cells.length && !HELD_MOVES.includes(move.kind)) drawStageWarning(ctx, { cells }, move.releasedAt + stage.ms, now, projection);
-            }
-            if (move.kind === 'grind') drawGrindGround(ctx, move, now, projection);
-            if (found && fx()) drawBursts(ctx, entry, found.row, now, projection);
+        for (const entry of bossMoves.live(now)) drawLiveMove(ctx, entry, projection, now);
+    }
+    /** One live move on the floor: the giant woodsman draws its own (js/canvas-woodsman.js), Veila's instruments here. */
+    function drawLiveMove(ctx, entry, projection, now) {
+        const move = entry.move, found = bossMoves.fxOf(entry.source);
+        if (move.kind === 'woodsman') return;
+        if (move.kind === 'observer') { drawObserverMove(ctx, entry, projection, now); return; }
+        for (const stage of move.stages) {
+            const cells = stage.cells.filter(cell => !move.spent.includes(cell.lane) || move.kind !== 'volley');
+            if (cells.length && !HELD_MOVES.includes(move.kind)) drawStageWarning(ctx, { cells }, move.releasedAt + stage.ms, now, projection);
         }
+        if (move.kind === 'grind') drawGrindGround(ctx, move, now, projection);
+        if (found && fx()) drawBursts(ctx, entry, found.row, now, projection);
     }
 
     /** Veila's instruments use the same warned cells the combat simulation will strike. */
@@ -746,18 +748,20 @@ const bossMoveView = (() => {
 
     /** The charge at the boss's hand through its warning: GPT's charge frames spread over the warning, the last flash at the end. */
     function drawCharges(ctx, projection) {
-        for (const enemy of game.enemies || []) {
-            if (enemy.patternArea?.woodsman) continue;
-            const share = enemy && enemy.isBoss ? bossAttackView.warningShare(enemy) : null;
-            if (share === null || !enemy.patternArea) continue;
-            const element = woodsmanAttackFxElement(enemy);
-            if (element) { drawWoodsmanCharge(ctx, enemy, element, share); continue; }
-            const found = bossMoves.fxOf(enemy);
-            if (!found) continue;
-            const clip = found.row.clips.charge, body = bodyOf(enemy, found.row, projection);
-            const frame = clip.frames[Math.min(clip.frames.length - 1, Math.floor(share * (clip.frames.length - 0.5)))];
-            drawFrame(ctx, clip, frame, body.hand, { scale: body.dot * found.row.scale });
-        }
+        for (const enemy of game.enemies || []) drawCharge(ctx, enemy, projection);
+    }
+    /** The giant woodsman's cast is drawn by js/canvas-woodsman.js; a woodsman elsewhere keeps its element charge. */
+    function drawCharge(ctx, enemy, projection) {
+        if (enemy.patternArea?.woodsman) return;
+        const share = enemy && enemy.isBoss ? bossAttackView.warningShare(enemy) : null;
+        if (share === null || !enemy.patternArea) return;
+        const element = woodsmanAttackFxElement(enemy);
+        if (element) { drawWoodsmanCharge(ctx, enemy, element, share); return; }
+        const found = bossMoves.fxOf(enemy);
+        if (!found) return;
+        const clip = found.row.clips.charge, body = bodyOf(enemy, found.row, projection);
+        const frame = clip.frames[Math.min(clip.frames.length - 1, Math.floor(share * (clip.frames.length - 0.5)))];
+        drawFrame(ctx, clip, frame, body.hand, { scale: body.dot * found.row.scale });
     }
     /** A lane's path through time: the hand at release, then cell k at hand height when its stage lands. [{ at, x, y }] */
     function lanePath(entry, row, lane, projection) {

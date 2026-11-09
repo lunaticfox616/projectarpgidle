@@ -584,15 +584,18 @@ const bossMoves = (() => {
     /** Puts a move on a special about to be released (consumeBossPatternAttack): state.move, or nothing (lands at once). */
     function planBossMove(state, enemy) {
         if (!state || !state.area || !state.isSpecial || !enemy) return null;
-        if (state.area.observerMove) {
-            const { source, observerMove, room, bands } = state.area;
-            const stages = observer.impacts(state.area).filter(stage => stage.cells.length);
-            if (!stages.length) return null;
-            state.move = { kind: 'observer', observerMove, source, room, bands, stages, next: 0, spent: [], hits: [], releasedAt: 0 };
-            return state.move;
-        }
+        if (state.area.observerMove) return planObserverMove(state);
         releaseShift(enemy);
-        if (state.area.woodsman) return woodsmanBattle.plan(state);
+        return state.area.woodsman ? woodsmanBattle.plan(state) : planStagedMove(state, enemy);
+    }
+    function planObserverMove(state) {
+        const { source, observerMove, room, bands } = state.area;
+        const stages = observer.impacts(state.area).filter(stage => stage.cells.length);
+        if (!stages.length) return null;
+        state.move = { kind: 'observer', observerMove, source, room, bands, stages, next: 0, spent: [], hits: [], releasedAt: 0 };
+        return state.move;
+    }
+    function planStagedMove(state, enemy) {
         const style = styleOf(enemy), kind = moveKind(state.area, state.telegraphKind, style);
         if (!kind) return null;
         const source = state.area.source || { gx: enemy.gx, gy: enemy.gy }, stages = stagesOf(kind, state.area, source).filter(stage => stage.cells.length);

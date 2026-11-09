@@ -181,8 +181,10 @@
         if (woodsmanBattle.owns(enemy)) return woodsmanBattle.preview(enemy);
         if (!enemy || !enemy.isBoss || !enemy.patternMode) return null;
         let attackNumber = normalizeAttackCount(enemy) + 1;
-        const authored = authoredBossPattern(enemy, attackNumber);
-        if (authored) return authored;
+        return authoredBossPattern(enemy, attackNumber) || modePatternState(enemy, attackNumber);
+    }
+    /** The boss's own pattern mode when no authored cast (Veila, the woodsman's blink) takes this attack. */
+    function modePatternState(enemy, attackNumber) {
         let mode = String(enemy.patternMode);
         if (OWN_PATTERN_MODES.has(mode)) return getOwnPatternState(mode, enemy, attackNumber);
         // 성좌 순환(우주계 보스)과 핵 폭주(운석 핵의 체력 절반 뒤): 같은 순환. 핵 폭주는 특수기 뒤 숨 고르기(recoveryOf)가 있다.
