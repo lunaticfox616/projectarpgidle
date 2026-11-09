@@ -50,4 +50,6 @@ const runtimeList = 'scripts/lib/game-runtime.js', runtime = fs.readFileSync(run
 if (!runtime.includes(`'${from}', `)) throw new Error(`${runtimeList} does not list ${from}`);
 fs.writeFileSync(runtimeList, runtime.replace(`'${from}', `, `'${from}', '${target}', `));
 console.log(`${count} functions: ${from} -> ${target}`);
+// safeExposeGlobals lines and load-time statements of <from.js> that name a moved function go with it (scripts/lib/expose-lines.cjs).
+require('./lib/expose-lines.cjs').redistribute([from, target]).forEach(line => console.log(`needs a look, names a later file while loading: ${line}`));
 cp.execFileSync(process.execPath, ['scripts/privatize-functions.cjs', '--apply', from, target], { stdio: 'inherit' });

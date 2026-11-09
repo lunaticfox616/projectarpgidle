@@ -120,7 +120,7 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
   (2026-11-10, `scripts/privatize-functions.cjs`), 다른 파일, 화면의 `onclick`, 검사가 이름으로 부르는 함수만 그 끝의 `exposeFileGlobals({ ... })`가 전역으로 내놓는다.
   새 함수는 그 클로저 안에 쓰고, 밖에서 부를 때만 목록에 더한다(목록에 없는 함수를 다른 파일이 부르면 같은 검사가 no-undef로 막는다).
   새 파일은 함수를 제 이름의 객체 하나에 담는다: `const 이름 = (() => { ... return Object.freeze({ ... }); })();`.
-  함수를 다른 파일로 그대로 옮길 때는 `node scripts/move-block.cjs`(머리말에 쓰는 법)로 옮기고 `node scripts/check-runtime-architecture.js --moved`로 파일별 개수만 고친다(합계가 늘면 거절한다).
+  클로저가 있는 파일에서 함수 묶음을 새 파일로 낼 때는 `node scripts/split-file.cjs`(머리말에 쓰는 법: 두 파일의 목록과 이름 내놓기 줄까지 고친다), 클로저가 없는 파일은 `node scripts/move-block.cjs`로 옮기고 `node scripts/check-runtime-architecture.js --moved`로 파일별 개수만 고친다(합계가 늘면 거절한다).
   소스 글자를 읽는 스모크는 함수가 클로저 안에, 그 밖의 문장은 클로저 뒤에 있음을 안다(예: `scripts/smoke-player-stat-cache.js` readRuntimeFunctions).
 - 배포 빌드가 스크립트 주소에 내용 해시(`h=`)를 붙인다(`scripts/lib/immutable-urls.js`). `index.html`의 `?v=` 꼬리표를 손으로 더하지 않는다.
 - 새 전역은 금지한다. 레거시 인라인 handler 때문에 불가피하면 소유 모듈에서
