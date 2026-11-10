@@ -315,7 +315,7 @@ const skillGemCastsV313 = (() => {
             const d = Math.min(1, K.distance(getGridUnitCenter(foe), c.aim) / radius), mul = 1 - (1 - BELL.least / 100) * d;
             c.queue.push({ at: row.at + Math.round(d * c.wave), kind: 'hit', id: foe.id, pct: BELL.pcts[row.index] * mul, index: row.index });
         }
-        return state.visuals === false ? [] : [{ type: 'bellToll', index: row.index }];
+        return state.visuals === false ? [] : [{ type: 'bellToll' }];
     }
     function bellHit(c, row, foes) {
         const foe = foes.find(e => e.id === row.id);

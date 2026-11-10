@@ -111,7 +111,7 @@ worldTreeSkillFx.feedback = (() => {
 
     const eventCues = {
         hit: hitSound,
-        bellToll: fx => playUiFeedbackSound(fx.index === 0 ? 'bellGold' : 'bellBronze'),
+        bellToll: () => playUiFeedbackSound('bellToll'),
         playerSwing: dotCastSound,
         playerHit: fx => { if (fx.damage > 0 && !fx.deflected) playUiFeedbackSound('playerHurt'); },
         enemySpawn: fx => { if (fx.boss) playUiFeedbackSound('bossEntrance'); },
