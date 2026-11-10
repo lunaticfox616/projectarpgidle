@@ -3,7 +3,7 @@
 /* 아틀라스 안에서는 길잡이 한 줄만: 세계 지도로 돌아가기와 이 화면의 쪽들. 다른 곳의 표식 탭과 따로 있던 아틀라스 지도 단추는 접는다(이 화면이 그 지도다). */
 /* 길잡이는 세계 지도의 머리줄(탐험, 54px)과 같은 높이의 한 줄: 그 아래 지도가 세계 지도와 같은 자리에 선다 */
 #tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;gap:4px 14px;box-sizing:border-box;height:54px;margin:-8px 0 -10px;padding:0 14px;overflow:hidden}
-#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location>div{display:flex;flex-wrap:nowrap;align-items:center;gap:4px;margin:0;padding:0;border:0;width:auto}
+#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location>:is(.exploration-regions,.exploration-routes){display:flex;flex-wrap:nowrap;align-items:center;gap:4px;margin:0;padding:0;border:0;width:auto}
 #tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location :is(.exploration-place-tab,.exploration-home+.exploration-home){display:none}
 #ui-atlas .atlas-sheet{container-type:inline-size;display:grid;grid-template-rows:minmax(0,1fr) auto auto;color:var(--atlas-ink)}
 /* 윗줄 */
