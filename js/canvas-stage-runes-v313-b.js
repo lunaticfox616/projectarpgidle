@@ -599,8 +599,10 @@ const stageRunesV313B = (() => {
     /** 대상 위에 금빛 종이 빛 속에서 내려와 흔들리며 울린다(시뮬레이터 bellFx). */
     function bell(c) {
         if (!c.first) return true;
-        const plan = bellPlan(c.event);
-        hangPair(c.event.landingCell, plan.LIFE, (g, t) => bellGround(g, t, plan), (g, t) => bellSky(g, t, plan));
+        const plan = bellPlan(c.event), G = stageGothicRemakes;
+        // 리메이크 V3.14.2(2026-11-10): 그림이 오면 고딕 종과 고리 그림(js/canvas-stage-gothic-remakes.js), 아니면 이 파일의 그림.
+        if (G.ready()) hangPair(c.event.landingCell, plan.LIFE, (g, t) => G.bellGround(g, t, plan), (g, t) => G.bellSky(g, t, plan));
+        else hangPair(c.event.landingCell, plan.LIFE, (g, t) => bellGround(g, t, plan), (g, t) => bellSky(g, t, plan));
         return true;
     }
 
@@ -616,7 +618,7 @@ const stageRunesV313B = (() => {
     }
     function chandPlan(c) {
         const event = c.event, [A, B] = semi(Number(event.chandRadius) || 2), hang = Math.max(1, event.chandHang), fall = Math.max(1, event.chandFall);
-        const plan = { A, B, face: Number(event.chandFace) || c.look.face, T0: hang, T1: hang + fall, fall, LIFE: hang + fall + 1100, hy: null, GY: -46 * CHAND.scale * 0.82 };
+        const plan = { A, B, face: Number(event.chandFace) || c.look.face, T0: hang, T1: hang + fall, fall, LIFE: hang + fall + 1100, hy: null, GY: -46 * CHAND.scale * 0.82, fireLag: 70 };
         chandBits(event.landingCell, plan);
         return plan;
     }
@@ -715,25 +717,29 @@ const stageRunesV313B = (() => {
         ctx.globalAlpha = 1;
     }
     /** 부딪히는 순간의 불 터짐 클립과 촛불 자리 다섯의 바닥 불꽃(시뮬레이터 doChandelier). */
-    function chandImpact(c, plan) {
+    function chandImpact(c, plan, gothic) {
         const map = c.gem.map, spot = c.event.landingCell;
-        if (map.burst) standClip(map.burst, spot, { face: plan.face, scale: 0.4, alpha: 0.75, delay: plan.T1 });
+        // 리메이크(gothic): 넓은 불 고리 터짐은 빼고, 바닥 불꽃은 도트 불꽃 클립(gothic_flame) 한 번씩.
+        if (map.burst && !gothic) standClip(map.burst, spot, { face: plan.face, scale: 0.4, alpha: 0.75, delay: plan.T1 });
         if (!map.flame) return;
-        CHAND_CANDLE.forEach(([dx], i) => standClip(map.flame, spot, { dx: dx * 1.9 + (i % 2 ? 6 : -6), dy: i % 2 ? 10 : -6, face: i % 2 ? 1 : -1, scale: 0.8, delay: plan.T1 + 40 + i * 30, life: CHAND.flameMs }));
+        const flame = gothic ? 'gothic_flame@fire' : map.flame, size = gothic ? { scale: 1, alpha: 0.85 } : { scale: 0.8, life: CHAND.flameMs };
+        CHAND_CANDLE.forEach(([dx], i) => standClip(flame, spot, { dx: dx * 1.9 + (i % 2 ? 6 : -6), dy: i % 2 ? 10 : -6, face: i % 2 ? 1 : -1, delay: plan.T1 + 40 + i * 30, ...size }));
     }
     /** 대상 위 천장의 금빛 샹들리에가 흔들리다 사슬이 끊어져 떨어진다(시뮬레이터 chandelierFx). */
     function chandelier(c) {
         if (!c.first) return true;
-        const plan = chandPlan(c);
-        chandImpact(c, plan);
-        hangPair(c.event.landingCell, plan.LIFE, (g, t) => chandGround(g, t, plan), (g, t) => chandSky(g, t, plan));
+        const plan = chandPlan(c), G = stageGothicRemakes, gothic = G.ready();
+        chandImpact(c, plan, gothic);
+        if (gothic) hangPair(c.event.landingCell, plan.LIFE, (g, t) => G.chandGround(g, t, plan), (g, t) => G.chandSky(g, t, plan));
+        else hangPair(c.event.landingCell, plan.LIFE, (g, t) => chandGround(g, t, plan), (g, t) => chandSky(g, t, plan));
         return true;
     }
     /** 화염 반: 맞은 적마다 불 타격 클립. */
     function chandelierBurn(c) {
         const ref = c.gem.map.fire, centre = c.event.landingCell;
         if (!c.first || !ref) return true;
-        for (const cell of c.event.targetCells || []) standClip(ref, cell, { face: Math.sign(cell.gx - centre.gx) || c.look.face, scale: 0.7, alpha: 0.9 });
+        const look = stageGothicRemakes.ready() ? { scale: 0.49, alpha: 0.585 } : { scale: 0.7, alpha: 0.9 };   // 리메이크: 불 타격을 작고 옅게
+        for (const cell of c.event.targetCells || []) standClip(ref, cell, { face: Math.sign(cell.gx - centre.gx) || c.look.face, ...look });
         return true;
     }
 
@@ -818,14 +824,22 @@ const stageRunesV313B = (() => {
     /** 주인공 앞에 금빛 판결봉이 서서 나타났다가 앞으로 넘어지며 내리찍는다(시뮬레이터 gavelFx). 머리가 닿는 순간 땅 클립. */
     function gavel(c) {
         if (!c.first) return true;
-        const plan = gavelPlan(c), src = c.event.sourceCell;
+        const plan = gavelPlan(c), src = c.event.sourceCell, G = stageGothicRemakes;
+        if (G.ready()) {
+            // 리메이크 V3.14.3: 저울 문양 판결봉, 판정 상자의 모서리와 칸마다 바닥 균열(땅 클립은 쓰지 않는다).
+            const cells = (c.event.gavelCells || []).map(cell => [(cell.gx - src.gx) * WIDE, (cell.gy - src.gy) * DEEP]);
+            hangPair(src, plan.LIFE, (g, t) => G.gavelGround(g, t, plan, cells), (g, t) => G.gavelSky(g, t, plan));
+            return true;
+        }
         if (c.gem.map.ground) standClip(c.gem.map.ground, src, { dx: plan.px + plan.f * (plan.L - 30), face: plan.f, scale: 1.1, delay: plan.T1 });
         hangPair(src, plan.LIFE, (g, t) => gavelGround(g, t, plan), (g, t) => gavelSky(g, t, plan));
         return true;
     }
     /** 유죄의 낙뢰: 맞은 적에게 하늘에서 낙뢰 클립. */
     function verdict(c) {
-        if (c.first && c.gem.map.bolt) standClip(c.gem.map.bolt, c.event.landingCell, { face: 1, scale: 1.1 });
+        if (!c.first) return true;
+        if (stageGothicRemakes.ready()) stageGothicRemakes.verdictBolt(c.event.landingCell);
+        else if (c.gem.map.bolt) standClip(c.gem.map.bolt, c.event.landingCell, { face: 1, scale: 1.1 });
         return true;
     }
 
