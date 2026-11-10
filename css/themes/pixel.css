@@ -289,7 +289,7 @@ body[data-ui-skin] :is(.ui-window-title, .tutorial-title, .deathlog-card .tutori
 :root body[data-ui-skin].desktop-windowed-ui .tab-content.ui-window,
 :root body[data-ui-skin] :is(#tutorial-overlay, #death-overlay, #loop-hero-select-overlay, #loop-ready-overlay, #loop-decision-overlay, #reward-overlay, #patch-notes-overlay) .tutorial-card,
 :root body[data-ui-skin] :is(#act-exploration-dialog),
-:root body[data-ui-skin] :is(.game-dialog-card, .loading-card, .selection-overlay-panel, .void-craft-dialog) {
+:root body[data-ui-skin] :is(.game-dialog-card, .loading-card, .selection-overlay-panel, .void-craft-dialog, .salvage-recovery-panel) {
   border: var(--px-window-edge) solid transparent;
   border-image: var(--px-window-frame);
   border-radius: 0;

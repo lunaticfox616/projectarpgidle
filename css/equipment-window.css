@@ -394,6 +394,23 @@
   :root body.desktop-windowed-ui :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list.equipment-paperdoll { --eqw-doll-row: round(down, clamp(56px, calc((100cqh - 200px) / 5), 68px), 1px); }
   :root body.desktop-windowed-ui :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list.equipment-paperdoll.has-ring3.has-core {
     --eqw-doll-row: round(down, clamp(56px, calc((100cqh - 205px) / 6), 68px), 1px); }
+  /* 액막이 칸 줄이 열린 뒤(2026-11-10 사용자: 코어 칸이 열렸을 때 생기는 스크롤): 위의 200px은 요약이 한 줄이던 때의 셈이라, 요약이 세 줄(89px)이 되고
+     액막이 줄(68px)이 서면 낮은 창에서 43~53px이 넘쳤다. 잰 값으로 다시 센다: 판 머리와 여백 53, 판 사이 8, 요약 89, 장착 칸 안팎 여백 4와 줄 사이
+     5px 다섯, 액막이 줄 68 = 247px에 여유 3px. 장착 칸 줄은 46px까지 줄어든다. 창이 더 낮으면(칸 높이 540px 이하) 액막이 칸도 58에서 40px로
+     낮아져 18px을 돌려준다. */
+  :root body.desktop-windowed-ui :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list.equipment-paperdoll:has(> .ward-slot-row) {
+    --eqw-doll-row: round(down, clamp(46px, calc((100cqh - 250px) / 5), 68px), 1px); }
+  :root body.desktop-windowed-ui :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list.equipment-paperdoll.has-ring3.has-core:has(> .ward-slot-row) {
+    --eqw-doll-row: round(down, clamp(46px, calc((100cqh - 255px) / 6), 68px), 1px); }
+  /* 쪽 단추 줄은 한 줄에 머문다: 가방 칸이 높이에 맞춰 줄면 가방도 좁아져, 쪽이 열둘일 때 줄 끝의 'N / M 페이지'가 다음 줄로 밀리며 16px이
+     넘쳤다. 단추가 22px까지 좁아진다(개수 표시가 붙은 단추는 그대로). */
+  :root body.desktop-windowed-ui #item-tab-equip .equipment-inventory-pages { flex-wrap: nowrap; }
+  :root body.desktop-windowed-ui #item-tab-equip .equipment-inventory-pages button:not(:has(small)) { flex: 0 1 34px; min-width: 22px; padding-inline: 2px; }
+  @container eqw (max-height: 540px) {
+    :root body.desktop-windowed-ui #item-tab-equip #ui-equip-list.equipment-paperdoll:has(> .ward-slot-row) { --eqw-doll-row: round(down, clamp(46px, calc((100cqh - 232px) / 5), 68px), 1px); }
+    :root body.desktop-windowed-ui #item-tab-equip #ui-equip-list.equipment-paperdoll.has-ring3.has-core:has(> .ward-slot-row) { --eqw-doll-row: round(down, clamp(46px, calc((100cqh - 237px) / 6), 68px), 1px); }
+    :root body.desktop-windowed-ui #item-tab-equip #ui-equip-list .ward-slot-cells .ward-slot { min-height: 40px; }
+  }
   /* 떠서 나오는 선택한 장비(두 칸 창) */
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-inspector:popover-open { display: block; width: 340px; padding: 10px 12px; overflow: auto; border: 1px solid #c79a4a; border-radius: 0;
     background: linear-gradient(180deg, #221a12, #120e0a); box-shadow: 0 0 0 1px #000, inset 0 0 0 3px #17120d, inset 0 0 0 4px rgba(227, 189, 114, .3), 0 12px 28px rgba(0, 0, 0, .8); }
