@@ -106,7 +106,9 @@ const atlasSheetUi = (() => {
     }
 
     // ---------------------------------------------------------------- 윗줄: 세계 지도로, 진행 막대, 씨앗 칸, 포인트, 자동 지도
-    function topHtml() {
+    /** 아틀라스의 모든 쪽이 쓰는 윗줄(js/atlas-ui.js render). chart: 지도 쪽을 그리는 중인가(처음 보는 완료는 지도 쪽에서만 밝힌다). */
+    function top(chart) {
+        if (chart) noteFresh();
         // 완료 수와 남은 포인트는 예전 머리줄과 같은 셈이다(js/atlas-ui.js headerHtml): 깨어난 아틀라스는 후반 싸움만큼 넓어진다.
         const st = game.atlas, total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), points = atlas.points(game), free = atlasPassives.spendable(game);
         const firstNew = st.seeds - fresh.seeds, live = revealing();
@@ -166,8 +168,7 @@ const atlasSheetUi = (() => {
 
     /** parts: js/atlas-ui.js가 건네는 고른 것과 이미 만든 조각들(node, uid, lock, block, side, tools, after, mapName). */
     function html(parts) {
-        noteFresh();
-        return `<div class="atlas-sheet">${topHtml()}<div class="as-body">${chartHtml(parts.node)}${drawerHtml(parts)}</div>
+        return `<div class="atlas-sheet"><div class="as-body">${chartHtml(parts.node)}${drawerHtml(parts)}</div>
             <footer class="as-dock">${nodeInfoHtml(parts.node)}${fragmentsHtml()}${goHtml(parts)}</footer></div>`;
     }
     /** 세계 지도의 아틀라스 입구에 붙는 말(js/world-map-ui.js): 진행과 준비된 지도석 수. */
@@ -175,6 +176,6 @@ const atlasSheetUi = (() => {
         const st = game.atlas, total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0);
         return { progress: `${st.completed.length}/${total}`, stones: st.stash.length };
     }
-    return Object.freeze({ on, html, paint, tap, entranceNote });
+    return Object.freeze({ on, html, top, paint, tap, entranceNote });
 })();
 safeExposeGlobals({ atlasSheetUi });

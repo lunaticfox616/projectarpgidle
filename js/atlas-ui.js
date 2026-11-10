@@ -637,7 +637,7 @@ const atlasUi = (() => {
         if (key === signature && panel.innerHTML) return;
         signature = key;
         const lock = atlas.lockReason(game);
-        panel.innerHTML = `<div class="atlas-shell">${headerHtml()}${lock && !ledger().unlocked ? `<p class="atlas-lock">${lock}</p>` : ''}
+        panel.innerHTML = `<div class="atlas-shell">${atlasSheetUi.on() ? atlasSheetUi.top(view === 'maps') : headerHtml()}${lock && !ledger().unlocked ? `<p class="atlas-lock">${lock}</p>` : ''}
             ${VIEWS[view]()}</div>`;
         PAINT[view]();
         watchPanel(panel);

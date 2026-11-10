@@ -1,10 +1,9 @@
 @layer components{/* 세계수 아틀라스 "한 장" 시험판(js/atlas-sheet-ui.js): 윗줄, 아틀라스 원화 차트와 오른쪽 서랍, 아래 도크. 길은 원화 위의 선(.as-art),
    노드는 그 위의 표식 단추(js/world-map-ui.js atlasIcon). 색은 css/atlas.css의 --atlas-* 를 쓴다. */
 /* 아틀라스 안에서는 길잡이 한 줄만: 세계 지도로 돌아가기와 이 화면의 쪽들. 다른 곳의 표식 탭과 따로 있던 아틀라스 지도 단추는 접는다(이 화면이 그 지도다). */
-#tab-map:has(.atlas-sheet) #exploration-location{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
-#tab-map:has(.atlas-sheet) #exploration-location :is(.exploration-place-tab,.exploration-home+.exploration-home){display:none}
-#ui-atlas .atlas-shell:has(.atlas-sheet)>.atlas-head{display:none}
-#ui-atlas .atlas-sheet{container-type:inline-size;display:grid;grid-template-rows:auto minmax(0,1fr) auto;color:var(--atlas-ink)}
+#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+#tab-map[data-map-route="map-explore-worldtree"]:has(#ui-atlas .as-top) #exploration-location :is(.exploration-place-tab,.exploration-home+.exploration-home){display:none}
+#ui-atlas .atlas-sheet{container-type:inline-size;display:grid;grid-template-rows:minmax(0,1fr) auto;color:var(--atlas-ink)}
 /* 윗줄 */
 #ui-atlas .as-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:6px 12px;border-bottom:1px solid var(--atlas-line);font-size:13px}
 #ui-atlas .as-progress{position:relative;flex:1 1 180px;max-width:320px;height:18px;border:1px solid var(--atlas-edge);background:#0c0a08}
@@ -84,6 +83,27 @@
 #ui-atlas .as-go .atlas-primary{min-width:120px;padding:8px 18px;font-size:15px}
 #ui-atlas .as-loaded{display:inline-flex;align-items:center;gap:6px;font-size:12px}
 #ui-atlas .as-loaded b{min-width:20px;padding:0 4px;border:2px solid var(--tone);color:var(--tone);font-weight:400;text-align:center}
+/* 패시브 쪽: 왼쪽 줄에 다섯 바퀴의 작은 그림, 가운데 고른 바퀴, 오른쪽에 노드 설명과 합계, 아래에 포인트 막대 */
+#ui-atlas .as-passives{display:grid;grid-template-columns:156px minmax(0,1fr);gap:10px 14px;padding:10px 12px}
+#ui-atlas .as-wheel-rail{display:grid;gap:5px;align-content:start}
+#ui-atlas .as-passives .as-wheel-rail>button{display:grid;grid-template-columns:48px minmax(0,1fr);grid-template-rows:auto auto auto;gap:1px 8px;align-items:center;min-height:0;padding:4px 6px;text-align:left;font-size:12px}
+#ui-atlas .as-wheel-rail .atlas-wheel-art{grid-row:1/-1;width:48px;margin:0}
+#ui-atlas .as-wheel-rail b{font-weight:400;color:color-mix(in srgb,var(--tint) 45%,#f4ead6);line-height:1.2}
+#ui-atlas .as-wheel-rail small{color:var(--atlas-muted);font-size:11px}
+#ui-atlas .as-wheel-rail i{height:3px;background:linear-gradient(90deg,var(--tint) var(--fill),#2a2218 var(--fill))}
+#ui-atlas .as-wheel-rail>button[aria-pressed="true"]{box-shadow:inset 3px 0 0 var(--tint);background:color-mix(in srgb,var(--tint) 16%,var(--atlas-raised))}
+#ui-atlas .as-passives .atlas-wheel{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);column-gap:16px;align-items:start}
+#ui-atlas .as-passives .atlas-wheel[hidden]{display:none}
+#ui-atlas .as-wheel-side h3{margin:0 0 4px;font-size:15px;font-weight:400;color:color-mix(in srgb,var(--tint) 45%,#fff4d6)}
+#ui-atlas .as-wheel-side h4{margin:10px 0 4px;padding-top:8px;border-top:1px solid var(--atlas-line);font-size:12px;font-weight:400;color:var(--atlas-gold)}
+#ui-atlas .as-wheel-side .atlas-wheel-note{min-height:54px;margin:0;font-size:12px}
+#ui-atlas .as-passive-totals{margin:0;padding:0;list-style:none;display:grid;gap:2px;font-size:12px}
+#ui-atlas .as-passive-totals li{display:flex;justify-content:space-between;gap:8px;padding:1px 0;border-bottom:1px dotted #2a2218}
+#ui-atlas .as-passive-totals b{font-weight:400;color:#9fd46a;white-space:nowrap}
+#ui-atlas .as-passive-points{grid-column:1/-1;position:relative;margin:0;height:18px;border:1px solid var(--atlas-edge);background:#0c0a08}
+#ui-atlas .as-passive-points::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#4f9a93,#2c5f5a)}
+#ui-atlas .as-passive-points b{position:relative;display:block;padding:0 8px;line-height:16px;font-weight:400;font-size:12px;color:#e6fffb;text-shadow:1px 1px 0 #000}
+@container (max-width:640px){#ui-atlas .as-passives{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-wheel-rail{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}#ui-atlas .as-passives .atlas-wheel{grid-template-columns:minmax(0,1fr)}}
 /* 세계 지도의 아틀라스 입구에 붙는 진행과 준비된 지도석 수(js/world-map-ui.js atlasEntranceHtml) */
 #ui-exploration-atlas .wm-atlas-entrance b{font-weight:400;color:#f3d28c}
 #ui-exploration-atlas .wm-atlas-entrance em{min-width:14px;padding:0 3px;border:1px solid #000;background:#f3d28c;color:#1a140d;font-size:11px;line-height:13px;font-style:normal;text-align:center}
