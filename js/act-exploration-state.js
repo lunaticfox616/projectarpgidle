@@ -307,11 +307,17 @@ const actExplorationState = (() => {
     function lockOn(run,enemy) {
         if(!run)return false;
         if(!enemy){lockOns.delete(run);return false;}
-        const fighting=(game.enemies||[]).includes(enemy);
-        if(!fighting && !selectDestination(run,{gx:enemy.gx,gy:enemy.gy}))return false;
-        if(fighting){run.destination=null;if(run.objects)run.objects.pendingId=null;}
+        const here=(game.enemies||[]).includes(enemy) || entering(run,enemy);
+        if(!here && !selectDestination(run,{gx:enemy.gx,gy:enemy.gy}))return false;
+        if(here){run.destination=null;if(run.objects)run.objects.pendingId=null;}
         lockOns.set(run,enemy.id);
         return true;
+    }
+    /** 등장 연출 중인 보스(2026-11-11 사용자): 그 칸을 목적지로 걸으면 연출이 끝난 뒤에도 사거리와 상관없이 보스 앞까지 걸어갔다. 곧 싸움에
+     * 드니 싸우는 몬스터처럼 락온만 걸고, 싸움이 시작되면 공격이 닿지 않을 때만 다가간다. */
+    function entering(run,enemy) {
+        const open=entrances.get(run);
+        return !!open && run.packs.some(pack=>pack.key===open.key && pack.waiting.includes(enemy));
     }
     /** 락온한 몬스터(싸우는 중이든 기다리는 무리든). 쓰러졌거나 없으면 null이고 락온도 풀린다. */
     function lockedEnemy(run) {
