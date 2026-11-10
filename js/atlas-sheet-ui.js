@@ -176,7 +176,9 @@ const atlasSheetUi = (() => {
 
     /** parts: js/atlas-ui.js가 건네는 고른 것과 이미 만든 조각들(node, uid, lock, block, side, tools, after, mapName). */
     function html(parts) {
-        return `<div class="atlas-sheet"><div class="as-body">${chartHtml(parts.node)}${drawerHtml(parts)}</div>
+        // 진행 줄은 지도 아래에 둔다(2026-11-10 사용자: 크기를 맞출 수는 없나): 지도가 세계 지도와 같은 자리, 같은 크기에 서서 전환이 튀지 않는다.
+        const strip = top(true);   // 지도석 노드보다 먼저: 처음 보는 완료를 가려 둔다
+        return `<div class="atlas-sheet"><div class="as-body">${chartHtml(parts.node)}${drawerHtml(parts)}</div>${strip}
             <footer class="as-dock">${nodeInfoHtml(parts.node)}${fragmentsHtml()}${goHtml(parts)}</footer></div>`;
     }
     /** 세계 지도의 아틀라스 입구에 붙는 말(js/world-map-ui.js): 진행과 준비된 지도석 수. */
