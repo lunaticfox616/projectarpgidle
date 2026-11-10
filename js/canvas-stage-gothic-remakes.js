@@ -345,7 +345,9 @@ const stageGothicRemakes = (() => {
         }
     }
 
-    return Object.freeze({ ready: gothicReady, bellGround, bellSky, chandGround, chandSky, gavelGround, gavelSky, verdictBolt, judgmentBolt, judgmentRing, judgmentCross,
+    /** 이 그림을 쓰는 룬(nativeCastId): 끼면 js/canvas-stage-warmup.js가 ready()로 그림을 미리 연다(첫 시전부터 새 그림). */
+    const GEMS = Object.freeze([50, 51, 89, 90, 91]);
+    return Object.freeze({ GEMS, ready: gothicReady, bellGround, bellSky, chandGround, chandSky, gavelGround, gavelSky, verdictBolt, judgmentBolt, judgmentRing, judgmentCross,
         dressCenser, incensePuff, incenseField });
 })();
 safeExposeGlobals({ stageGothicRemakes });
