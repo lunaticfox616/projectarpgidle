@@ -280,22 +280,16 @@
     "priority": 0,
     "enabled": true
   },
-  "bellGold": {
-    "label": "거둬 가는 종 첫 울림",
-    "files": ["sounds-20261110/bell-gold.wav"],
-    "gain": 0.38,
+  "bellToll": {
+    "label": "거둬 가는 종 울림",
+    "files": [
+      "sounds-20261110/09-wave-comfort-04-quiet-ring.wav",
+      "sounds-20261110/09-wave-comfort-05-light-bass.wav",
+      "sounds-20261110/09-wave-comfort-10-repeat.wav"
+    ],
+    "gain": 0.20,
     "rate": 1,
-    "group": "bellGold",
-    "cooldown": 100,
-    "priority": 1,
-    "enabled": true
-  },
-  "bellBronze": {
-    "label": "거둬 가는 종 두 번째 울림",
-    "files": ["sounds-20261110/bell-bronze.wav"],
-    "gain": 0.38,
-    "rate": 1,
-    "group": "bellBronze",
+    "group": "bellToll",
     "cooldown": 100,
     "priority": 1,
     "enabled": true
