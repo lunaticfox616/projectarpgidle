@@ -53,7 +53,7 @@ const GUEST_SAVE_CHECK = Object.freeze({
 });
 const ENEMY_CRITICAL_DAMAGE_MULTIPLIER = 1.55;
 // Sprite rims so actors read on the dark maps (2026-10-02, the user picked coloured rims over dark ones): the hero a warm cream one
-// sprite dot wide (js/canvas-hana-actors.js rim), monsters red, elites their trait colour, bosses a stronger red (canvas px,
+// sprite dot wide, monsters red, elites their trait colour, bosses a stronger red (canvas px,
 // cached outline surfaces in js/passives.js).
 const BATTLE_SPRITE_OUTLINES = Object.freeze({
     hero: Object.freeze({ color: '#f0dca6', alpha: 0.72 }),

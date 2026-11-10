@@ -1,16 +1,11 @@
-/** Battle units on the field: the player figure (the side-view stage sheets when the stage is on, else Hana +6 sheets with the
- * legacy strip as fallback) and the summons
- * (wisps from their own sheets, js/canvas-hana-actors.js; the guard golem from the legacy summon1.png frame).
+/** Battle units on the field: the player figure (the side-view stage sheets, js/canvas-stage-actors.js; the legacy strip while
+ * those load or where the art folder is missing) and the summons (wisps from the stage casts, js/canvas-stage-skill-casts.js; the
+ * guard golem from the legacy summon1.png frame).
  * Split out of canvas-battlefield.js along the unit-drawing boundary; renderBattlefield still decides when they draw
  * (drawBattlePlayerActor → drawBattlePlayerFigure, drawBattleGroundLayer → drawActiveSummons). Rendering only.
  */
 // 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
 (() => {
-function canDrawHanaPlayer() {
-    if (typeof hanaActors !== 'object' || game.settings?.heroSpriteSet === 'legacy') return false;
-    return hanaActors.isReady(getHeroAppearanceId());
-}
-
 /** The stance the stage hero holds: the worn weapon's (settings.stageStance forces one from the test panel). */
 function getStageHeroStance() {
     return stageActors.stanceFor(game.equipment?.['무기'], game.settings?.stageStance || 'auto');
@@ -18,41 +13,24 @@ function getStageHeroStance() {
 
 /** The side-view stage draws its own hero (js/canvas-stage-actors.js) once the worn class × stance sheets have loaded. */
 function canDrawStagePlayer() {
-    return stageView.enabled() && stageActors.isReady(getHeroAppearanceId(), getStageHeroStance());
+    return stageActors.isReady(getHeroAppearanceId(), getStageHeroStance());
 }
 
-/** The hero's head top drawn this frame, whichever sprite set drew it (null: neither did). */
+/** The hero's head top drawn this frame (null: the stage hero was not drawn). */
 function getHeroHeadY(now) {
-    return stageActors.headY(now) ?? hanaActors.headY(now);
+    return stageActors.headY(now) ?? null;
 }
 
-/** Legacy strips face east and are mirrored for west poses; stage, Hana and monster sheets turn by themselves. */
+/** Legacy strips face east and are mirrored for west poses; stage and monster sheets turn by themselves. */
 function isBattlePlayerMirrored(motion) {
-    if (canDrawStagePlayer() || canDrawHanaPlayer()) return false;
+    if (canDrawStagePlayer()) return false;
     let pose = motion.facingDirection || motion.attackDirection || 'east';
     return motion.advanceBlend <= 0.08 && pose === 'west';
 }
 
 function drawBattlePlayerFigure(ctx, state, position) {
     if (canDrawStagePlayer() && drawStagePlayerBody(ctx, state, position)) return;
-    if (canDrawHanaPlayer() && drawHanaPlayerBody(ctx, state, position)) return;
     drawBattlePlayerBody(ctx, state, position);
-}
-
-function drawHanaPlayerBody(ctx, state, position) {
-    let motion = state.motionState, hana = collectHanaPlayerMotion(motion, state.now);
-    let spin = redrawnSkillFx.playerSpin(state.now);
-    if (spin && hana.attack) Object.assign(hana.attack, { direction: spin.facing, channelUntil: Math.max(hana.attack.channelUntil, spin.holdUntil) });
-    let previous = ctx.battleActorAlpha;
-    ctx.battleActorAlpha = state.actorAlpha;
-    try {
-        return hanaActors.drawPlayer(ctx, position.x, position.y, {
-            ...hana, ...getHanaWeaponState(state.now), classId: getHeroAppearanceId(), tile: state.gridProj.tileW, projection: state.gridProj,
-            facing: spin ? spin.facing : motion.facingDirection || motion.attackDirection || 'east',
-            moving: motion.advanceBlend > 0.08, moveDirection: motion.moveDirection,
-            alpha: getBattleActorDrawAlpha(ctx, 1), tint: redrawnSkillFx.playerTint(state.now)
-        }, state.now);
-    } finally { ctx.battleActorAlpha = previous; }
 }
 
 /** 이 휘두름의 룬이 무대 주인공에게 정하는 것: 주문이면 시전, 던지는 플라스크면 던지기, 룬의 동작(전달본의 동작 표).
@@ -75,7 +53,7 @@ function drawStageHeroAloft(ctx, position, tile, drawHeroBodyAt) {
     try { return drawHeroBodyAt(y); } finally { ctx.restore(); }
 }
 
-/** The stage hero: timing from the same battle effects as the Hana figure; spells play the cast clips, a thrown flask the throw. */
+/** The stage hero: timing from the battle effects; spells play the cast clips, a thrown flask the throw. */
 function drawStagePlayerBody(ctx, state, position) {
     const motion = state.motionState, stance = getStageHeroStance();
     const previous = ctx.battleActorAlpha;
@@ -92,14 +70,6 @@ function drawStagePlayerBody(ctx, state, position) {
             alpha: getBattleActorDrawAlpha(ctx, 1)
         }, state.now));
     } finally { ctx.battleActorAlpha = previous; }
-}
-
-/** The weapon in hand is the one equipped (settings.heroWeaponMode: 'auto' · 'class' · a weapon slug), and the
- * active skill says when its own art takes it out of the hand. */
-function getHanaWeaponState(now) {
-    const gemId = SKILL_FX_ATLAS[game.activeSkill]?.id;
-    const weapon = hanaActors.weaponFor(getHeroAppearanceId(), game.equipment?.['무기'], game.settings?.heroWeaponMode || 'auto');
-    return { weapon, throwsWeapon: weapon === 'flask' && HANA_THROWN_FLASK_GEMS.has(gemId), hideWeapon: redrawnSkillFx.weaponHidden(now) };
 }
 
 function notePlayerMotionFx(found, fx, now) {
@@ -176,7 +146,7 @@ function drawActiveSummons(ctx, playerPos, now, proj) {
         if (summon.isGhost) drawSummonGhostRing(ctx, summon, at);
         ctx.restore();
         drawSummonHpBar(ctx, summon, at.x, top);
-        if (stageView.enabled()) stageDoorMarks.seal.body({ x: at.x, y: at.y, halfW: Math.max(12, (at.y - top) * .5), h: at.y - top });
+        stageDoorMarks.seal.body({ x: at.x, y: at.y, halfW: Math.max(12, (at.y - top) * .5), h: at.y - top });
     });
 }
 
@@ -202,27 +172,11 @@ function getLatestSummonStrikes(now) {
     return strikes;
 }
 
-/** Wisp sheets face right; a wisp turns toward the enemy it last struck. */
-function isWispSummonFacingLeft(summon, at, view) {
-    const strike = view.strike;
-    if (strike && view.proj && Number.isFinite(strike.targetGx)) {
-        const target = view.proj.cellToScreen(strike.targetGx, strike.targetGy);
-        if (Math.abs(target.x - at.x) > 1) wispSummonFacesLeft.set(summon, target.x < at.x);
-    }
-    return wispSummonFacesLeft.get(summon) === true;
-}
 
 /** @returns {?number} top of the drawn body, or null when the summon is no wisp or its sheet is still loading. */
 function drawWispSummon(ctx, summon, at, view) {
     // 옆에서 보는 무대: 인계 받은 새 스킬 이펙트의 위습 몸(js/canvas-stage-skill-casts.js).
-    const staged = view.proj && typeof stageSkillCasts === 'object' ? stageSkillCasts.wispBody(ctx, summon, at, view) : null;
-    if (staged !== null) return staged;
-    if (typeof hanaActors !== 'object' || !view.proj) return null;
-    const drawn = hanaActors.drawSummon(ctx, {
-        skillName: summon.gemName, x: at.x, y: at.y, now: view.now, tile: view.proj.tileW, phase: (Number(summon.id) || 0) * 97,
-        attackAt: view.strike ? view.strike.start : -Infinity, flipX: isWispSummonFacingLeft(summon, at, view), alpha: ctx.globalAlpha
-    });
-    return drawn ? drawn.top : null;
+    return view.proj && typeof stageSkillCasts === 'object' ? stageSkillCasts.wispBody(ctx, summon, at, view) : null;
 }
 
 function drawLegacySummon(ctx, summon, at) {
@@ -268,7 +222,7 @@ exposeFileGlobals({ getStageHeroStance, canDrawStagePlayer, getHeroHeadY, isBatt
 const OCCLUDED_RIM_DIRECTIONS = Object.freeze([[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]);
 /** Frame-local readability layout. CSS-pixel boxes and two small reused masks; never serialized with game data. */
 drawBattlePlayerFigure.readability = (() => {
-    let hero = null, boxes = [], mask, edge, cover, outline = null;
+    let hero = null, mask, edge, cover, outline = null;
     const overlaps = (a, b) => a.x < b.x + b.w + 3 && a.x + a.w + 3 > b.x && a.y < b.y + b.h + 3 && a.y + a.h + 3 > b.y;
     function surface(current, size) {
         const canvas = current || document.createElement('canvas');
@@ -291,7 +245,7 @@ drawBattlePlayerFigure.readability = (() => {
         ctx.save();
         for (const [dx, dy] of OCCLUDED_RIM_DIRECTIONS) ctx.drawImage(mask, dx * step, dy * step);
         ctx.globalCompositeOperation = 'destination-out'; ctx.drawImage(mask, 0, 0); ctx.restore();
-        if (stageView.enabled()) cutToCover(state, { x, y, size }, clips);
+        cutToCover(state, { x, y, size }, clips);
         outline = { x, y, clips };
     }
     /** On the stage the pale body and its rim stay only where a monster in front really covers the hero: those monsters are
@@ -309,7 +263,7 @@ drawBattlePlayerFigure.readability = (() => {
         }
     }
     function begin(scene, entries) {
-        boxes = []; outline = null;
+        outline = null;
         const state = worldTreeSkillFx.actorState(scene);
         const p = getPlayerHurtPosition(state), tile = state.gridProj.tileW;
         const head = getHeroHeadY(state.now) ?? p.y - 82 * HERO_SIZE_SCALE;
@@ -330,15 +284,9 @@ drawBattlePlayerFigure.readability = (() => {
         ctx.globalAlpha = style.fill; ctx.drawImage(mask, outline.x, outline.y);
         ctx.globalAlpha = style.alpha; ctx.drawImage(edge, outline.x, outline.y); ctx.restore();
     }
-    /** A free spot for a label or bar: it steps up past the hero and the boxes already placed. avoidHero false keeps it over its
-     * owner even across the hero (a boss bar beside its own cast bar; 2026-10-07 user: a boss bar leaping over the hero looked odd). */
-    function place(box, avoidHero = true) {
-        // 옆에서 보는 무대: 몬스터가 주인공과 늘 겹쳐 서므로 비켜 올리면 막대가 걸음마다 위아래로 튄다. 제 몬스터 위에 그대로 둔다.
-        if (stageView.enabled()) return { ...box };
-        const result = { ...box }, taken = avoidHero && hero ? [hero, ...boxes] : boxes;
-        for (let n = 0; n < 12 && taken.some(other => overlaps(result, other)); n++) result.y -= result.h + 5;
-        boxes.push(result);
-        return result;
+    /** The spot of a label or bar: over its own monster. 몬스터가 주인공과 늘 겹쳐 서므로 비켜 올리면 막대가 걸음마다 위아래로 튄다. */
+    function place(box) {
+        return { ...box };
     }
     return { begin, draw, place };
 })();
@@ -385,4 +333,3 @@ const drawTintedBattlePlayerFigure = (() => {
 })();
 
 
-const wispSummonFacesLeft = new WeakMap();

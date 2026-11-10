@@ -226,34 +226,6 @@ function initBattleAssets() {
         passiveTreeKeystoneIcons: 'assets/ui/passive-tree-keystone-icons-v2.png',
         passiveTreeNotableIcons: 'assets/ui/passive-tree-notable-icons-v5.png',
         passiveTreeFrames: 'assets/ui/passive-tree-frames-v1.png',
-        backdropAct1: 'assets/battlefield-act1.png',
-        backdropAct2_6: 'assets/battlefield-act2-6.png',
-        backdropAct3_7: 'assets/battlefield-act3-7.png',
-        backdropAct4_8: 'assets/battlefield-act4-8.png',
-        backdropAct5: 'assets/battlefield-act5.png',
-        backdropAct9_10: 'assets/battlefield-act9-10.png',
-
-        ...ACT_BATTLE_MAP_SOURCES,
-        bgAct9Sap: ACT_BATTLE_MAP_EFFECTS.bgAct9.source,
-        bgChaos0: 'assets/background/refined-20260910/bgChaos0.webp',
-        bgChaos1: 'assets/background/refined-20260910/bgChaos1.webp',
-        bgChaos2: 'assets/background/refined-20260910/bgChaos2.webp',
-        bgChaos3: 'assets/background/refined-20260910/bgChaos3.webp',
-        bgChaos4: 'assets/background/refined-20260910/bgChaos4.webp',
-        bgChaos5: 'assets/background/refined-20260910/bgChaos5.webp',
-        bgChaos6: 'assets/background/refined-20260910/bgChaos6.webp',
-        bgChaos7: 'assets/background/refined-20260910/bgChaos7.webp',
-        bgChaos8: 'assets/background/refined-20260910/bgChaos8.webp',
-        bgChaos9: 'assets/background/refined-20260910/bgChaos9.webp',
-        bgChaos10: 'assets/background/refined-20260910/bgChaos10.webp',
-        bgChaos11: 'assets/background/refined-20260910/bgChaos11.webp',
-        bgChaos12: 'assets/background/refined-20260910/bgChaos12.webp',
-        bgChaos13: 'assets/background/refined-20260910/bgChaos13.webp',
-        bgChaos14: 'assets/background/refined-20260910/bgChaos11.webp',
-        bgChaos15: 'assets/background/refined-20260910/bgChaos10.webp',
-        bgChaos16: 'assets/background/refined-20260910/bgChaos9.webp',
-        bgChaos17: 'assets/background/refined-20260910/bgChaos1.webp',
-        bgChaos18: 'assets/background/refined-20260910/bgChaos18.webp',
         summon1: 'assets/battle-clean/summon1.png',
         ...((typeof BOSS_ASSET_MANIFEST !== 'undefined' && BOSS_ASSET_MANIFEST) || {}),
     };
@@ -278,7 +250,7 @@ function initBattleAssets() {
     const selectedHeroKeys = new Set(Object.values((selectedHeroDef || {}).strips || {})
         .flatMap(value => Array.isArray(value) ? value : ((value && typeof value === 'object') ? Object.values(value) : [value]))
         .filter(value => typeof value === 'string' && value));
-    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', ...getFirstBattleBackdropKeys(getZone(game.currentZoneId)), ...selectedHeroKeys]);
+    const criticalManifestKeys = new Set(['enemies', 'effects', 'summon1', ...selectedHeroKeys]);
     const manifestGroups = prepareBattleAssetGroups(manifest, criticalManifestKeys, battleAssets.images, game.activeSkill, battleAssets.backdrops);
     const maxParallelLoads = Math.max(4, Math.min(8, Number((typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 6) || 6));
     let pending = manifestGroups.length;

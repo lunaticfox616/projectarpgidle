@@ -302,7 +302,7 @@ const stageRoster = (() => {
     const inkedLook = actor => STAGE_INKED_LOOKS.includes(actor.id);
     /** Stable body dimensions in screen pixels, excluding weapons, hopping and entrance scaling. */
     function bodySize(enemy, tile) {
-        const actor = stageView.enabled() ? actorFor(enemy) : null;
+        const actor = actorFor(enemy);
         if (!actor) return null;
         const dot = stageActors.scaleFor(tile) * lookScale(actor);
         return { halfW: actor.width * dot / 2, h: actor.height * dot };
@@ -320,7 +320,7 @@ const stageRoster = (() => {
     function draw(ctx, enemy, p) {
         tick = performance.now();
         if (sweepAt && tick > sweepAt) sweepLooks();
-        const actor = stageView.enabled() ? actorFor(enemy) : null, pair = actor ? pairOf(actor) : null;
+        const actor = actorFor(enemy), pair = actor ? pairOf(actor) : null;
         if (!pair) return false;
         const dot = dotFor(enemy, actor, p);
         if (pair === 'loading') { shadow(ctx, actor, p, dot, 0); return true; }
@@ -343,7 +343,7 @@ const stageRoster = (() => {
      * 꺼졌거나, 이 배포에 그림이 없거나) 아직 풀리지 않았으면 false: 부른 쪽이 예전 사라짐 연출을 그린다. */
     function drawDeath(ctx, enemy, p) {
         tick = performance.now();
-        const actor = stageView.enabled() ? actorFor(enemy) : null, death = actor ? actor.death : null;
+        const actor = actorFor(enemy), death = actor ? actor.death : null;
         const pair = death ? pairOf(actor) : null, sheet = pair && pair !== 'loading' ? pair.death : null;
         if (!sheet || !sheet.ready) return false;
         blitClip(ctx, enemy, actor, p, { source: sheet.source, clip: death, index: monsterActors.frameAt(death.ms, Math.max(0, p.deathMs)) });
@@ -353,7 +353,7 @@ const stageRoster = (() => {
      * clip 칸 w, h, 발 자리 feet, 한 줄의 칸 수 cols(없으면 frames), index 프레임 }. 무대가 꺼졌거나 그 보스의 무대 외형이 없으면 false. */
     function drawClip(ctx, enemy, p, art) {
         tick = performance.now();
-        const actor = stageView.enabled() ? actorFor(enemy) : null;
+        const actor = actorFor(enemy);
         if (!actor) return false;
         blitClip(ctx, enemy, actor, p, art);
         return true;

@@ -7,7 +7,7 @@
 // 인사(HELLO_KEY)하고 HELLO_WAIT_MS까지 "넘겼다"를 기다린다. 표시가 없거나 OPEN_FRESH_MS보다 오래됐으면(지우지 못하고 꺼진 앱, 오래 숨은 탭)
 // 인사만 하고 바로 부팅한다(혼자 여는 게임의 부팅을 늦추지 않는다). 둘이 함께 인사하면 나중에 연 탭이 이어 받는다. 잠금(Web Locks)은 쓰지
 // 않는다: 잠금을 쥔 페이지는 새 서비스 워커로 바뀌거나 오프라인에서 새로고침할 때 멈추곤 했다(tests/browser/service-worker.spec.js).
-// js/main.js bootWhenStageArtKnown이 ready()를 기다려 부팅한다. sessionStorage가 없는 페이지는 예전처럼 막지 않는다.
+// js/main.js bootWhenTabMayRun이 ready()를 기다려 부팅한다. sessionStorage가 없는 페이지는 예전처럼 막지 않는다.
 const gameTabGuard = (() => {
     'use strict';
     const STANDBY_KEY = 'rignin-game-standby';   // sessionStorage: 이 탭은 다른 탭에 넘겼다

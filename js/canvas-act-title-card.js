@@ -274,7 +274,7 @@ const actTitleCard = (() => {
      * the back row, two cells from where the hero starts), where act 1's first monsters strike it from two cells away. Nobody
      * stands on its cell (js/act-exploration-doors.js guideCells). */
     function appendNpc(actors, state) {
-        const run = stageView.enabled() ? actExplorationState.current(game) : null, watch = run ? runs.get(run) : null;
+        const run = actExplorationState.current(game), watch = run ? runs.get(run) : null;
         const npc = watch ? runNpc(watch) : null, map = npc ? actExplorationDoors.stageMap(run) : null;
         if (!map || !inGuideRoom(run)) return;
         watch.npcCell = watch.npcCell || actExplorationRooms.npcPost(actExplorationDoors.guideRoom(run, map));
@@ -611,10 +611,10 @@ const actTitleCard = (() => {
         frameAt = Date.now();
         const unlooked = !line && !queue.length;
         track(scene.now);
-        if (stageView.enabled()) watchStory(scene.now);
+        watchStory(scene.now);
         // A first line queued after track still needs the current window state for the greeting hold and the next frame.
         if (unlooked && (line || queue.length)) covered = storyCovered();
-        holding = stageView.enabled() && holdsGreeting(waited);
+        holding = holdsGreeting(waited);
         if (!scene.observerScene && !drawWoodsmanIntroduction(ctx, scene)) drawQueuedStory(ctx, scene);
         npcHead = null; // the guide's head is placed again by the next frame's actor layer, if it stands there
     }

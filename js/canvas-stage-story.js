@@ -66,7 +66,7 @@ const stageStory = (() => {
         const run = actExplorationState.current(game), map = run ? actExplorationDoors.stageMap(run) : null;
         const room = map ? actExplorationDoors.room(run) : null, rule = room && room.role === 'boss' ? STAGE_STORY.pieces[run.act] : null;
         const clip = rule ? clipOf(rule.clip) : null;
-        if (!clip || !stageView.enabled()) return;
+        if (!clip) return;
         const shown = pieceFrame(run, run.act, rule, clip), p = state.gridProj;
         if (!shown) return;
         const dot = p.tileW / WIDE, x = p.mapX + (room.x0 + room.x1 + 1) / 2 * WIDE * dot, y = p.mapY + (room.y0 * DEEP + rule.depth) * dot;
@@ -100,7 +100,7 @@ const stageStory = (() => {
     /** 그 물체 그림 이름의 { id, clip, image, index, scale }, 장면 상태 그림이 없는 물체면 null. */
     function objectArt(look) {
         const rule = Object.hasOwn(STAGE_STORY.objects.names, look.name) ? STAGE_STORY.objects.names[look.name] : null;
-        if (!rule || !stageView.enabled()) return null;
+        if (!rule) return null;
         const run = actExplorationState.current(game), act = run && run.act;
         const id = `${rule[0]}-${STAGE_STORY.objects.themes[act] || 'root'}`, clip = clipOf(id), image = clip ? sheet(id) : null;
         return image ? { id, clip, image, index: rule[1], scale: STAGE_STORY.objects.scale } : null;

@@ -25,7 +25,7 @@ const stageObjects = (() => {
         return sheet.complete && sheet.naturalWidth > 0 ? sheet : null;
     }
     /** 무대가 켜져 있고 그림이 준비됐는가. 아니면 예전 16도트 그림으로 그린다. */
-    function ready() { return stageView.enabled() && !!image(); }
+    function ready() { return !!image(); }
     /** 그림 이름(js/canvas-exploration-objects.js look)과 보급 상자 등급 → 칸 번호. 등급 그림은 chestSilver, chestGoldOpen처럼 이름에 끼워 넣는다. */
     function cellOf(look) {
         const grade = STAGE_OBJECTS.grades.includes(look.tint) ? look.tint[0].toUpperCase() + look.tint.slice(1) : '';

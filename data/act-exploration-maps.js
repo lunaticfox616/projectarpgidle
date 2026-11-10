@@ -296,9 +296,6 @@ const ACT_EXPLORATION_INCIDENTS = Object.freeze({
         ['rainbow', '무지갯빛 수액 슬라임', true], ['feast', '황금 수액 잔치', true], ['yawn', '세계수의 하품', true], ['lucky', '행운의 숫자', true], ['shower', '유성우', true],
         ['luckyKill', '루프의 7,777번째 처치', true]].map(row => Object.freeze(row)))
 });
-// Whole-pixel camera zoom for the 16px art (js/canvas-act-exploration.js tileSize). 2026-10-02: at most ×4 (was ×5): on a 125%
-// desktop display the ×5 tiles (80px) made the hero feel too big and the view cramped.
-const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
 // 바닥에 떨어지는 전리품의 시간 (2026-10-13 사용자: "아이템이 바닥에 완전히 떨어지고 이름 뜨기까지의 시간을 줄이고 아이템이 완전히 떨어지고 나서
 // 캐릭터가 아이템을 줍거나 주우러 가도록 해줘"). 그림은 flightMs에 0~flightSpreadMs를 더한 동안 날아와 닿고(js/battle-ground-loot-ui.js
 // launch), 닿으면 이름이 nameMs에 걸쳐 뜬다(css/battle-ground-loot.css의 loot-name-in에 같은 값을 적는다). 주인공은 놓인 지 readyMs(전투
@@ -306,4 +303,4 @@ const ACT_EXPLORATION_CAMERA = Object.freeze({minZoom:3,maxZoom:4});
 // 날고 이름이 240ms에 걸쳐 떴으며, 주인공은 떨어지는 중에도 줍거나 주우러 갔다.
 /** gapMs: 앞 드랍이 떨어지기 시작하고 다음 드랍이 떨어지기 시작하기까지(2026-11-02 사용자: 한꺼번에가 아니라 약간의 텀을 두고 쌓이도록). queueCapMs: 차례를 기다리는 가장 긴 시간. */
 const GROUND_LOOT_DROP = Object.freeze({flightMs:300,flightSpreadMs:60,nameMs:120,readyMs:520,gapMs:140,queueCapMs:3000});
-safeExposeData({ACT_EXPLORATION_MAPS,CONTENT_EXPLORATION_MAPS,ACT_EXPLORATION_BACKDROPS,ACT_EXPLORATION_ART_VERSION,ACT_EXPLORATION_VISION,ACT_EXPLORATION_ALERT,ACT_EXPLORATION_AMBUSH,ACT_EXPLORATION_WAVES,ACT_EXPLORATION_INCIDENTS,ACT_EXPLORATION_CAMERA,GROUND_LOOT_DROP});
+safeExposeData({ ACT_EXPLORATION_MAPS, CONTENT_EXPLORATION_MAPS, ACT_EXPLORATION_BACKDROPS, ACT_EXPLORATION_ART_VERSION, ACT_EXPLORATION_VISION, ACT_EXPLORATION_ALERT, ACT_EXPLORATION_AMBUSH, ACT_EXPLORATION_WAVES, ACT_EXPLORATION_INCIDENTS, GROUND_LOOT_DROP });

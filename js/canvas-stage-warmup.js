@@ -67,7 +67,6 @@ const stageWarmup = (() => {
     }
     /** 전장을 끝까지 그린 뒤에 부른다(js/canvas-battlefield.js). 무대가 꺼져 있으면 아무 일도 하지 않는다. */
     function afterBattleDraw(ctx) {
-        if (!stageView.enabled()) return;
         const now = performance.now();
         syncMap();
         if (now - checkedAt >= CHECK_MS) { checkedAt = now; syncBuild(); }

@@ -54,7 +54,7 @@ const stageSkillVfx = (() => {
     /** 무대가 켜져 있고, 설정에서 끄지 않았고, 첫 그림이 왔는가. 처음 물을 때 그림을 불러오기 시작한다. 둘째 장이 없는 판에서는
      * 그 장에서 자르는 클립만 나오지 않는다. */
     function vfxReady() {
-        if (typeof stageView !== 'object' || !stageView.enabled() || game.settings.stageSkillFx === 'off') return false;
+        if ((typeof stageView !== 'object') || game.settings.stageSkillFx === 'off') return false;
         loadVfxPicture();
         return vfxPictureLoaded(pictures[0]);
     }

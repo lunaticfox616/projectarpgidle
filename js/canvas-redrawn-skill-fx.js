@@ -262,7 +262,7 @@ const redrawnSkillFx = (() => {
     /** 무대 주인공이 파문심판에 향로큰회전(special2) 그림을 쓰는가: 그 그림이 향로를 휘두르므로 코드 향로는 그리지 않는다(2026-10-20 스킬룬 전달본 v42,
      * 번개와 궤적은 그대로). */
     function heroSwingsBigCenser() {
-        if (typeof stageView !== 'object' || !stageView.enabled() || typeof getStageHeroStance !== 'function') return false;
+        if ((typeof stageView !== 'object') || typeof getStageHeroStance !== 'function') return false;
         const classId = getHeroAppearanceId(), stance = getStageHeroStance(), motion = stageActors.motionFor('파문심판', classId, stance);
         return motion === 'special2' && !!stageActors.clipOf(classId, stance, motion);
     }
@@ -319,23 +319,7 @@ const redrawnSkillFx = (() => {
         const origin = p.cellToScreen(0, 0), s = p.tileW / 48, sy = p.tileH / 48;
         return { x: Math.round(((pos.x - origin.x) / s + 24) / 3), y: Math.round(((pos.y - (Number(p.actorGroundOffsetY) || 0) - origin.y) / sy + 24) / 3) };
     }
-    /** The caster's hand in board dots, from the sprite drawn this frame (hanaActors); null before it is drawn. */
-    function handDot(visualNow) {
-        const hand = typeof hanaActors === 'object' ? hanaActors.handBoard(visualNow) : null;
-        return hand ? { x: Math.round(hand.x / 3), y: Math.round(hand.y / 3) } : null;
-    }
     function castNow(cast, visualNow) { return cast.clock === 'combat' ? worldTreeSkillFx.castClock() : visualNow; }
-    /** With the caster's back to the camera (facing north), what they send forward and the ground behind their feet
-     * are hidden by the body: true for a dot under an opaque pixel of the sprite drawn this frame. Null otherwise. */
-    function backMask(view, visualNow) {
-        const body = typeof hanaActors === 'object' ? hanaActors.drawnBody(visualNow) : null;
-        if (!body || body.dir !== 'north') return null;
-        const origin = view.projection.cellToScreen(0, 0), s = view.projection.tileW / 48;
-        return (x, y) => body.covers(origin.x + (Math.round(x) * 3 + 1.5 - 24) * s, origin.y + (Math.round(y) * 3 + 1.5 - 24) * s);
-    }
-    function behindBody(dot, hidden) {
-        return hidden ? (x, y, colour) => { if (!hidden(x, y)) dot(x, y, colour); } : dot;
-    }
     function drawCasts(layer, visualNow, view, pens) {
         for (const [key, cast] of casts) {
             const now = castNow(cast, visualNow), draw = DRAWERS[cast.id] && DRAWERS[cast.id][layer];
@@ -348,11 +332,10 @@ const redrawnSkillFx = (() => {
         const projection = fxRemake.projection();
         if (!fxRemake.isOpen() || !projection) return;
         if (layer === 'ground') collectHits();
-        const view = { projection, playerDot: null, hand: handDot(visualNow) };
+        const view = { projection, playerDot: null, hand: null };
         view.playerDot = playerDot(view);
-        const hidden = layer === 'fore' ? backMask(view, visualNow) : null;
         fxRemake.drawDots(dot => {
-            const pens = { front: dot, behind: behindBody(dot, hidden) };
+            const pens = { front: dot, behind: dot };
             view.front = dot;
             drawCasts(layer, visualNow, view, pens);
         });

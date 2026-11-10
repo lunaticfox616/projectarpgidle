@@ -793,60 +793,6 @@ assert.strictEqual(context.COMBAT_GRID_CONFIG.rows, 8, '전장은 ACT 맵의 세
 assert.strictEqual(context.isGridCellInBounds(8, 7), true, '9x8 전장의 오른쪽 아래 칸은 유효해야 한다');
 assert.strictEqual(context.isGridCellInBounds(9, 7), false, '가로 9칸을 벗어난 좌표는 거부해야 한다');
 assert.strictEqual(context.isGridCellInBounds(8, 8), false, '세로 8칸을 벗어난 좌표는 거부해야 한다');
-const renderRuntime = buildGameRuntime();
-const sourceProjection = renderRuntime.getBattleGridProjection(816, 624);
-const sourceFirstCell = sourceProjection.cellToScreen(0, 0);
-const sourceLastCell = sourceProjection.cellToScreen(8, 7);
-assert.strictEqual(sourceProjection.tileW, 50.88, '전투 칸은 원본 48px보다 6% 크게 표시되어야 한다');
-assert.strictEqual(sourceProjection.tileH, 50.88, '확대한 직교 전장의 칸은 정사각형이어야 한다');
-assert.strictEqual(sourceProjection.actorGroundOffsetY, 11, '유닛의 발 기준점은 타일 중심보다 아래쪽에 있어야 한다');
-const groundedEnemy = renderRuntime.getBattleLayout([{ id: 1, gx: 0, gy: 0 }], 816, 624)[0];
-assert.strictEqual(groundedEnemy.y, sourceFirstCell.y + sourceProjection.actorGroundOffsetY,
-  '적의 발 기준점은 플레이어와 같은 타일 하단 기준을 사용해야 한다');
-const groundedBoss = renderRuntime.getBattleLayout([{ id: 2, gx: 2, gy: 3, isBoss: true }], 816, 624)[0];
-const bossLowerRowCenter = sourceProjection.cellToScreen(2.5, 4);
-assert.strictEqual(groundedBoss.x, bossLowerRowCenter.x,
-  '2x2 보스의 가로 중심은 두 점유 열 사이에 유지되어야 한다');
-assert.strictEqual(groundedBoss.y, bossLowerRowCenter.y + sourceProjection.actorGroundOffsetY,
-  '2x2 보스의 발은 네 칸 교차점이 아니라 아래쪽 점유 행의 중앙을 딛어야 한다');
-assert.ok(Math.abs(sourceLastCell.x - sourceFirstCell.x - sourceProjection.tileW * 8) < 1e-9,
-  '확대 후에도 첫 칸과 마지막 칸의 가로 간격은 타일 좌표와 일치해야 한다');
-assert.ok(Math.abs(sourceLastCell.y - sourceFirstCell.y - sourceProjection.tileH * 7) < 1e-9,
-  '확대 후에도 첫 칸과 마지막 칸의 세로 간격은 타일 좌표와 일치해야 한다');
-const mobileProjection = renderRuntime.getBattleGridProjection(360, 384, 'contain');
-assert.ok(mobileProjection.mapX >= 0 && mobileProjection.mapY >= 0,
-  '모바일 contain 투영은 맵의 위쪽이나 왼쪽을 잘라내면 안 된다');
-assert.ok(mobileProjection.mapX + mobileProjection.mapWidth <= 360 + 1e-9
-  && mobileProjection.mapY + mobileProjection.mapHeight <= 384 + 1e-9,
-  '모바일 contain 투영은 전체 맵을 전투 화면 안에 보여야 한다');
-assert.ok(Math.abs(mobileProjection.mapY + mobileProjection.mapHeight - 384) < 1e-9,
-  '모바일 전체 맵은 아래에 맞추고 위쪽 여백을 적 HUD 공간으로 사용해야 한다');
-const mobileGridProjection = renderRuntime.getBattleGridProjection(360, 384, 'grid-contain');
-const mobileFirstCell = mobileGridProjection.cellToScreen(0, 0);
-const mobileLastCell = mobileGridProjection.cellToScreen(8, 7);
-const mobileGridLeft = mobileFirstCell.x - mobileGridProjection.tileW / 2;
-const mobileGridRight = mobileLastCell.x + mobileGridProjection.tileW / 2;
-const mobileGridTop = mobileFirstCell.y - mobileGridProjection.tileH / 2;
-const mobileGridBottom = mobileLastCell.y + mobileGridProjection.tileH / 2;
-assert.ok(mobileGridLeft >= 0 && mobileGridRight <= 360 && mobileGridTop >= 0 && mobileGridBottom <= 384,
-  '모바일 확대 투영은 배경을 잘라도 플레이 가능한 9x8칸은 모두 보여야 한다');
-assert.ok(mobileGridProjection.tileW >= 30 && mobileGridProjection.tileW <= 34,
-  '모바일 확대 투영은 360px 화면에서 한 칸을 약 32px로 키워야 한다');
-assert.ok(mobileGridProjection.mapX < 0 || mobileGridProjection.mapX + mobileGridProjection.mapWidth > 360,
-  '전투 칸 확대를 위해 모바일에서는 장식 배경의 좌우 일부를 잘라야 한다');
-const desktopGridProjection = renderRuntime.getBattleGridProjection(900, 580, 'grid-contain');
-const desktopFirstCell = desktopGridProjection.cellToScreen(0, 0);
-const desktopLastCell = desktopGridProjection.cellToScreen(8, 7);
-const desktopGridTop = desktopFirstCell.y - desktopGridProjection.tileH / 2;
-const desktopGridBottom = desktopLastCell.y + desktopGridProjection.tileH / 2;
-assert.ok(desktopGridTop >= 0 && desktopGridBottom <= 580,
-  '데스크톱 전투 화면도 세로 8칸을 모두 보여야 한다');
-const actBattleMapSources = Object.values(context.ACT_BATTLE_MAP_SOURCES);
-assert.strictEqual(actBattleMapSources.length, 10, 'ACT 1~10은 각각 하나의 전투 맵을 가져야 한다');
-assert(actBattleMapSources.every(source => source.endsWith('.webp') && fs.existsSync(source)), '모든 ACT 전투 맵은 압축된 WebP로 존재해야 한다');
-// Lossless ACT art is now loaded on demand, so the budget covers startup + the largest destination.
-assert(fs.statSync(context.ACT_BATTLE_MAP_SOURCES.bgAct1).size + Math.max(...actBattleMapSources.map(source => fs.statSync(source).size)) < 2200000,
-  '처음 시작하는 맵과 목적지 맵의 로딩 합계는 기존 2.2MB 예산을 넘지 않아야 한다');
 const validKinds = new Set(['melee', 'arc', 'nova', 'line', 'chain', 'blast', 'fan', 'cone', 'summon']);
 const validShapes = new Set(['circle', 'diamond', 'square', 'cross', 'diagonal', 'ring']);
 // Auras and damage-redirecting guards have no attack footprint; only attacking runes need one.
@@ -2983,7 +2929,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   for (const scheduled of [false, true]) {
     runtime.requestColonyReturn = scheduled;
     const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
-    game=mergeDefaults({});window.game=game;stageActors.available=()=>true;
+    game=mergeDefaults({});window.game=game;
     game.settings.stageRooms='on';game.settings.autoEquipEmptySlots=false;
     game.season=15;game.level=100;game.currentZoneId='colony_run';
     Object.assign(game.colony,{inRun:true,wave:5,kills:0,requiredKills:8,returnZoneId:0});
@@ -3022,7 +2968,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   for (const left of [false, true]) {
     runtime.leaveColonyForZone = left;
     const forfeited = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
-    game=mergeDefaults({});window.game=game;stageActors.available=()=>true;
+    game=mergeDefaults({});window.game=game;
     game.settings.stageRooms='on';game.season=15;game.level=100;game.currentZoneId='colony_run';
     Object.assign(game.colony,{inRun:true,wave:1,kills:0,requiredKills:6,returnZoneId:0});
     spawnColonyWave();
@@ -3052,7 +2998,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   for (const won of [false,true]) {
     runtime.lordAlreadyDown=won;
     const result=JSON.parse(vm.runInContext(`JSON.stringify((()=>{
-      game=mergeDefaults({season:9,loopCount:8});stageActors.available=()=>true;game.settings.stageRooms='on';
+      game=mergeDefaults({season:9,loopCount:8});game.settings.stageRooms='on';
       game.voidRift.grandBreachUnlock=true;enterGrandBreach();startEncounterRun();
       const grand=game.voidRift.grandRun;grand.gauge=200;grand.kills=70;tickGrandBreachRun(getZone('grand_breach_run'));
       actExplorationState.groundLoot.reserve({currency:'formlessDew',count:3});
@@ -3081,7 +3027,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     const result = JSON.parse(vm.runInContext(`JSON.stringify((() => {
       game=mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',
         season:10,loopCount:9,currentZoneId:29,maxZoneId:39,combatTimeMs:1800000000000});window.game=game;
-      stageActors.available=()=>true;game.settings.stageRooms='on';game.voidRift.grandBreachUnlock=true;
+      game.settings.stageRooms='on';game.voidRift.grandBreachUnlock=true;
       enterGrandBreach();startEncounterRun();const zone=getZone('grand_breach_run');
       game.voidRift.grandRun.gauge=breachBoundaryGauge;tickGrandBreachRun(zone);
       const opening=game.enemies.length,openingElites=game.enemies.filter(enemy=>enemy.isElite).length;
@@ -3262,7 +3208,7 @@ for (const kind of ['nest', 'ambush']) {
     vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
   const result=JSON.parse(JSON.stringify(vm.runInContext(`(()=>{
     game=mergeDefaults({season:15,loopCount:14,level:100,currentZoneId:'meteor_fall_site',settings:{stageRooms:'on'}});window.game=game;
-    stageActors.available=()=>true;game.meteorSite.activeMeteorTier=20;startEncounterRun();
+    game.meteorSite.activeMeteorTier=20;startEncounterRun();
     const [first,second]=game.actExploration.packs;
     const mixed=[first,second].every(pack=>pack.waiting.some(enemy=>enemy.attackKind==='melee')&&pack.waiting.some(enemy=>enemy.attackKind==='ranged'));
     const sentinelId=first.waiting.find(enemy=>enemy.monsterVisualId==='meteor-sentinel').id;
