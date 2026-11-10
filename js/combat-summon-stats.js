@@ -628,7 +628,7 @@ function tickSummonRecovery() {
 function resolveSummonHit(summon, pStats, target, canGrantCritStack, multiplier) {
     let hit = getSummonHitDamageInfo(summon, pStats, target);
     window.GameModules.combat.summonSupports.scaleContact(hit, multiplier);
-    let damage = Math.max(0, hit.damage || 0);
+    let damage = Math.floor(Math.max(0, hit.damage || 0) * ascendancyNodeRules.summonHitMultiplier(pStats)) + ascendancyNodeRules.takeSharedBlow(summon);
     let dealt = applyDamageToEnemyResource(target, damage);
     let leech = window.GameModules.combat.summonSupports.inheritedLeech(pStats);
     if (dealt > 0 && leech > 0) summon.hp = Math.min(summon.maxHp || 1, summon.hp + (dealt * leech / 100));
@@ -643,7 +643,9 @@ function resolveSummonHit(summon, pStats, target, canGrantCritStack, multiplier)
     }
     window.GameModules.combat.summonSupports.afterHit(summon, pStats, target, hit);
     addBattleFx('hit', { enemyId: target.id, color: getElementColor(hit.element), damage: damage, crit: hit.crit, duration: 220, element: hit.element, skillName: summon.gemName, summon: true, syncToSwing: false });
-    if (target.hp <= 0) handleEnemyDeath(target, pStats);
+    if (target.hp > 0) return;
+    ascendancyNodeRules.onSummonKill(pStats);
+    handleEnemyDeath(target, pStats);
 }
 
 function getSummonPierceTargets(target, enemies) {

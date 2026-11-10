@@ -533,7 +533,7 @@ function performPlayerAttack(pStats, attackOptions) {
             perEnemyHitCount.set(targetEnemy.id, nextHitCount);
             let hitElement = swingElement;
             let curseFx = getEnemyConditionDebuffFactor(targetEnemy, pStats);
-            let enemyRes = getHitEnemyResistance(hitElement, zoneTier, targetEnemy, pStats, curseFx);
+            let enemyRes = getHitEnemyResistance(hitElement, zoneTier, targetEnemy, pStats, curseFx) - ascendancyNodeRules.armorBreak(targetEnemy, hitElement, getCombatTime());
             if (getPassiveChaosConversionShare(pStats, hitElement) > 0) {
                 let chaosShare = getPassiveChaosConversionShare(pStats, hitElement);
                 let chaosRes = getEffectiveEnemyMitigation('chaos', zoneTier, targetEnemy, pStats) - (curseFx.resChaosShred || 0);

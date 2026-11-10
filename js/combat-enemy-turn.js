@@ -1110,6 +1110,7 @@ function performMonsterAttacks(pStats) {
                 addBattleFx('statusText', { text: _t('회피!'), color: '#c4e2ff', duration: 260, bodyCue: true });
                 addEvasionCombatLog(null, true);
                 recordPlayerEvadeUniqueEffects(pStats, aliveEnemies, getCombatTime());
+                ascendancyNodeRules.counter(pStats, enemy, 'evade', getCombatTime());
                 if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.fullEvasion) {
                     game.passiveFullEvasionCritReady = true;
                 }
@@ -1156,6 +1157,7 @@ function performMonsterAttacks(pStats) {
                 }
                 deflected = true;
                 deflectReducePct = Math.floor(deflectReduce);
+                ascendancyNodeRules.counter(pStats, enemy, 'deflect', getCombatTime());
             }
             if ((pStats.cosmosMasteryTakenLessPct || 0) > 0) {
                 let masteryReduction = Math.max(0, Math.min(50, Number(pStats.cosmosMasteryTakenLessPct) || 0));
@@ -1192,6 +1194,7 @@ function performMonsterAttacks(pStats) {
             }
 
             grantWarriorRageOnHit(getCombatTime());
+            ascendancyNodeRules.storeArmorBlow(pStats, physicalPortion);
             if (typeof getPreciseTalentRatio === 'function' && getPreciseTalentLevel('hero5__guardian')) {
                 let missingLife = Math.max(0, getPlayerRecoveryHpCap(pStats) - Math.max(0, game.playerHp || 0));
                 let preHitRecovery = missingLife * 0.04 * getPreciseTalentRatio('hero5__guardian');
@@ -1229,6 +1232,7 @@ function performMonsterAttacks(pStats) {
                         reduced = Math.max(0, Math.min(reduced, guard.hp));
                         if (reduced <= 0) return;
                         guard.hp = Math.max(0, guard.hp - reduced);
+                        ascendancyNodeRules.storeSharedBlow(guard, reduced);
                         redirectedTotal += reduced;
                         if (guard.hp <= 0) {
                             guard.alive = false;
@@ -1274,6 +1278,7 @@ function performMonsterAttacks(pStats) {
                 nextPlayerHp = Math.max(1, Math.floor(game.playerHp || 1));
                 addBattleFx('statusText', { text: _t('죽음 저항!'), color: '#d7b8ff', duration: 420 });
             }
+            ascendancyNodeRules.onLifeDrop(pStats, game.playerHp, nextPlayerHp, getCombatTime());
             game.playerHp = nextPlayerHp;
             if (typeof recordPassiveKarmaLoss === 'function') {
                 let playerResourceAfterHit = Math.max(0, Number(game.playerHp) || 0)

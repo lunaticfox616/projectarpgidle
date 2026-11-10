@@ -58,7 +58,7 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/ascendancy-node-rules.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js', 'js/knitting.js', 'js/knitting-rewards.js',
 ];

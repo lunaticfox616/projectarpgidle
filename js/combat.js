@@ -6,7 +6,7 @@ function captureCombatRuntime() {
     return { pTimer, progressStallTicks, itemIdCounter, lastTime, pendingSkillStageHits,
         pendingEnemyCombatAttacks, combatTacticsRuntime, combatChannelRuntime,
         combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime,
-        mobilitySkill: mobilitySkill.capture(), wispSummons: wispSummons.capture() };
+        mobilitySkill: mobilitySkill.capture(), wispSummons: wispSummons.capture(), ascendancyNodeRules: ascendancyNodeRules.capture() };
 }
 
 function restoreCombatRuntime(snapshot) {
@@ -15,6 +15,7 @@ function restoreCombatRuntime(snapshot) {
         combatChannelResumeSkillName, nextCombatChannelId, nextPlayerDamageTextGroupId, trialHazardRuntime, skillGemCombatRuntime } = snapshot);
     mobilitySkill.restore(snapshot.mobilitySkill);
     wispSummons.restore(snapshot.wispSummons);
+    ascendancyNodeRules.restore(snapshot.ascendancyNodeRules);
 }
 
 function createCombatTacticsRuntime(now) {
@@ -31,6 +32,7 @@ function resetCombatTacticsRuntime() {
     skillGemCombatRuntime = null;
     mobilitySkill.reset();
     wispSummons.reset();
+    ascendancyNodeRules.reset();
 }
 
 /** The fight's module runtimes (attack timer, tactics and movement, skill stages, channels, the mobility rune, wisps in flight, battle

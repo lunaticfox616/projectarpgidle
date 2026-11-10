@@ -13,6 +13,7 @@ function applyTickConditions(pStats) {
     updateCombatChannelRuntime(getCombatTime());
     processPendingSkillStageHits();
     processPendingSlamEchoHits();
+    ascendancyNodeRules.tick(pStats, getCombatTime());
     processTalentInquisitorMarks();
     // 부적 조건 효과와 우주계 약화가 먼저: 이번 틱 지속 피해가 이독제독, 조건부 저항과 피해 감소, 정화를 읽는다(2026-11-07 리뷰).
     const activeConditionEffects = talismanCombat.effects(pStats);
@@ -662,6 +663,7 @@ function queuePlayerAttackSequence(pStats, stages, context) {
     const shots = projectileShots.plan(context.skillName, pStats, stages);   // 더 나가는 발은 저마다 제 길로 난다. 다 나눴으니 타격 때 다시 늘지 않는다
     stages = shots || window.GameModules.combat.supports.stages(stages, pStats.sSkill);
     if (shots) pStats = { ...pStats, projectileExtraShots: 0, uniqueProjExtraShotChance: null };
+    ascendancyNodeRules.onAttack(pStats, getCombatTime()); // 흐르는 칼끝 중첩, 이중 폭발 굴림(공격마다 한 번)
     if (pStats.sSkill.nativeCastId) return startSkillGemCombat(pStats, context);
     let tags = pStats.sSkill.tags || [], now = getCombatTime();
     let motionMs = getAttackMotionMs(tags);
