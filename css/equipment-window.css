@@ -247,10 +247,14 @@
 :root body .eqw-base-step { position: absolute; bottom: 2px; left: 2px; z-index: 5; padding: 0 2px; background: #151008; font-family: var(--font-pixel-meta);
   font-size: var(--font-size-meta); font-weight: 400; line-height: 12px; text-shadow: 1px 1px 0 #000; white-space: nowrap; pointer-events: none; }
 :root body .eqw-base-step.base-step-top { color: #1b1a2a; background: linear-gradient(90deg, #d7e3f2, #ffffff); text-shadow: none; }
-/* 휴대폰의 1칸 장비(반지, 목걸이)는 왼쪽 위 비교 수치와 겹치므로 등급을 왼쪽 아래에 두고, 베이스 단계는 그 위로 올린다(소켓은 오른쪽 아래). */
+/* 휴대폰의 한 줄 폭 장비는 왼쪽 위 비교 수치와 겹치므로 등급을 왼쪽 아래에 두고, 베이스 단계는 그 위로 올린다(소켓은 오른쪽 아래).
+   1칸 장비(반지, 목걸이)는 칸이 36px이라 두 배지가 그림의 3분의 2를 덮었다: 베이스 단계는 글자 없이 그 색의 점으로 등급 위에 둔다. */
 @media (max-width: 640px) {
   :root body .equipment-grid-item[style*="--item-grid-columns:1;"] > .eqw-item-tier { top: auto; right: auto; bottom: 2px; left: 2px; }
   :root body .equipment-grid-item[style*="--item-grid-columns:1;"] > .eqw-base-step { bottom: 15px; }
+  :root body .equipment-grid-item[style*="--item-grid-columns:1;"][style*="--item-grid-rows:1;"] > .eqw-base-step {
+    bottom: 17px; left: 3px; width: 5px; height: 5px; padding: 0; overflow: hidden; font-size: 0; line-height: 0; text-shadow: none;
+    background: currentColor; box-shadow: 0 0 0 1px #000; }
 }
 /* 보고 있는 쪽(2026-11-07 사용자: 지금 몇 페이지인지 모르겠다): 차오르는 금빛 칸과 섞이지 않게 밝은 금 테와 글로 뚜렷하게 하고,
    줄 끝에 'N / M 페이지'를 둔다(js/equipment-inventory-grid-ui.js renderPageControls). */
@@ -429,6 +433,18 @@
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window .equipment-inventory-panel { display: block; }
   /* Let the tool rail scroll above the folded battle button (44px touch target, 4px padding and border, 8px above the menu, 8px air). */
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-window .eqw-bag-card { padding-bottom: calc(var(--size-control-touch) + 20px); }
+  /* 장비 창의 접힌 전투 보기 단추는 요약 줄 끝(장착 장비 ▾, DPS 옆)에 든다(js/ui.js battlePipDockTarget). 화면 아래에 떠 있을 때는 첫 화면에서
+     도구 줄의 복구와 배치를 12px 덮었다. 요약 판이 그 줄의 칸을 갖고, 가방 아래 여백도 필요 없어진다. */
+  :root body #item-tab-equip .eqw-summary-card:has(> #mobile-battle-pip.is-summary-docked) {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px 8px; align-items: center; }
+  :root body #item-tab-equip .eqw-summary-card:has(> #mobile-battle-pip.is-summary-docked) :is(#ui-equipment-loadout-summary, .eqw-summary-mini) { display: contents; }
+  :root body #item-tab-equip .eqw-summary-card > #mobile-battle-pip.is-summary-docked { position: static; grid-column: 3; grid-row: 1; box-shadow: none; }
+  :root body #item-tab-equip .eqw-summary-card > #mobile-battle-pip.is-summary-docked [data-pip-toggle] { min-height: 40px; }
+  :root body #item-tab-equip .equipment-window:has(#mobile-battle-pip.is-summary-docked) .eqw-bag-card { padding-bottom: 10px; }
+  /* 장착 칸의 소켓은 18px 그림 그대로, 누르는 자리만 그림의 왼쪽 위로 44px까지 넓힌다(칸 안에 머물러 옆 칸을 가리지 않는다). 넓힌 자리는
+     소켓 그림들 아래에 깔려, 소켓이 여럿이면 그림을 누른 쪽이 이긴다. */
+  :root body #item-tab-equip #ui-equip-list .item-socket { position: relative; }
+  :root body #item-tab-equip #ui-equip-list .item-socket::before { content: ""; position: absolute; z-index: -1; top: -26px; left: -26px; right: 0; bottom: 0; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-summary-full { display: none; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-summary-mini { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 8px; align-items: center; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-mini-toggle { min-height: 44px; padding: 4px 10px; border: 1px solid #e3bd72; border-radius: 0; background: linear-gradient(180deg, #241c14, #17120d);
@@ -493,5 +509,13 @@
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool { overflow: visible; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool small { z-index: 1; top: -6px; right: -4px; box-shadow: 0 0 0 2px #0d0a07; }
   :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-panel { left: 0; right: 0; top: auto; bottom: calc(100% + 6px); width: auto; max-height: 60vh; overflow: auto; }
+  /* 쪽 단추 줄은 옆으로 밀리지 않는다: 열두 쪽이면 9~12쪽과 'N / M 페이지'가 화면 밖이었다. 단추가 남은 폭을 나눠 좁아지고(쪽이 적으면 44px),
+     검색 개수 표시는 번호 오른쪽 대신 위 모서리에 얹는다. */
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages { gap: 2px; overflow: visible; }
+  /* 손가락 크기 최소 폭(css/themes/pixel-mobile.css, 44px)을 이기려고 쪽 줄의 id까지 쓴다. */
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equipment-inventory-pages button { flex: 0 1 44px; min-width: 0; padding-inline: 0; }
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages button:has(small) { padding-right: 0; }
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-pages button small { top: 1px; right: 1px; transform: none; }
+  :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-page-now { flex: none; margin-left: 2px; }
 }
 }
