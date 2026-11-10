@@ -172,6 +172,12 @@
   .stump-frame-button.is-left { left: 0; top: 40.625%; width: 18.75%; height: 18.75%; }
   .stump-frame-button.is-right { left: 81.641%; top: 40.625%; width: 18.359%; height: 18.75%; }
   .stump-frame-button.is-bottom { left: 34.375%; top: 82.031%; width: 31.25%; height: 17.969%; }
+  /* 오른쪽 보석(비우기)과 아래 보석(생육함 전환)은 버튼 자리가 보석보다 훨씬 커서 칸 가까이를 누르다 잘못 눌렸다(2026-11-11 사용자).
+     올렸을 때와 눌렀을 때 조각은 그 자리에 그대로 겹치고, 누르는 자리만 보석 모양(전달본 조각에서 보석이 바뀌는 범위)으로 줄인다. */
+  #tab-stump .stump-frame-button:is(.is-right, .is-bottom) { pointer-events: none; }
+  #tab-stump .stump-frame-button:is(.is-right, .is-bottom)::before { content: ""; position: absolute; pointer-events: auto; }
+  #tab-stump .stump-frame-button.is-right::before { left: 6.38%; top: 16.67%; width: 40.43%; height: 66.67%; }
+  #tab-stump .stump-frame-button.is-bottom::before { left: 23.75%; top: 6.52%; width: 52.5%; height: 41.3%; }
   #tab-stump .is-box .stump-frame-button.is-top:is(:hover, :focus-visible) { background-image: url('../assets/ui/grove/stump-gems/dark/top-hover.png'); }
   #tab-stump .is-box .stump-frame-button.is-left:is(:hover, :focus-visible) { background-image: url('../assets/ui/grove/stump-gems/dark/left-hover.png'); }
   #tab-stump .is-box .stump-frame-button.is-right:is(:hover, :focus-visible) { background-image: url('../assets/ui/grove/stump-gems/dark/right-hover.png'); }
