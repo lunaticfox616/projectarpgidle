@@ -119,8 +119,8 @@ const WORLD_MAP = Object.freeze({
         planet: ['...............', '.....ooooo.....', '...ooaaaaaoo...', '..oaaaabbbbbo.o', '..oaabbbbbbboYo', '.oaabbbbbbbooYo', '.oabbbbbbooYYo.', 'ooobbbbooYYoco.', 'oYYoooYYYoocco.', 'oYYYYYooobcco..', '.ooooobbbccco..', '...obbbccccoo..', '...ooccccoo....', '.....ooooo.....', '...............'],
         // 군락지: 구멍이 숭숭 뚫린 둔덕
         colony: ['...............', '......ooo......', '.....oaaao.....', '....oaabbbo....', '...oaabobbbo...', '..oaabbbbbbco..', '..oabbbbobbco..', '.oaabobbbbbbco.', '.oabbbbbbbobco.', 'oaabbbobbbbbbco', 'oabbbbbbbbbbcco', 'oabbobbbbobbcco', 'occccccccccccco', 'ooooooooooooooo', '...............'],
-        // 창공: 구름 위로 솟은 탑
-        tower: ['.....o.o.o.....', '.....ooooo.....', '.....oaabo.....', '.....oabbo.....', '.....oasbo.....', '.oo..oabbo..oo.', 'owwo.oabbo.owwo', 'owwwooasboowwwo', '.ooo.oabbo.ooo.', '.....oabbo.....', '....ooasboo....', '....oaabbco....', '...oaabbbcco...', '...ooooooooo...', '...............'],
+        // 창공: 반듯한 탑(2026-11-10 사용자: 구름 없이 그냥 반듯한 탑 모양으로)
+        tower: ['.....o.o.o.....', '....oaoaoco....', '....ooooooo....', '....oaabbco....', '....oaabbco....', '....oasbbco....', '....oasbbco....', '....oaabbco....', '....oaabbco....', '....oaabsco....', '....oaabsco....', '....oaabbco....', '...ooaabbcoo...', '...oaaabbcco...', '...ooooooooo...'],
         // 세계 지도로 돌아가는 자리: 세계수
         tree: ['....ooooooo....', '..ooaaaaaaaoo..', '.oaaaabaaabaao.', 'oaabaaaaabaaaao', 'oaaaaabaaaaabao', 'obaaaaaaabaaaco', '.occaaYYaaacco.', '..oooccYyccoo..', '.....oYyo......', '.....oYyo......', '.....oyyo......', '....oYyydo.....', '..ooYyoydyoo...', '.oyyoo.oo.oydo.', '.oo.........oo.']
     }),

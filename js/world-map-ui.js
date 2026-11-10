@@ -109,7 +109,7 @@ const worldMapUi = (() => {
         return `<span class="wm-pin ${pieceClasses(entry)}" data-wm="${region.id}" style="left:${pct(cx, WORLD_MAP.width)};top:${pct(cy, WORLD_MAP.height)}"><i style="background-image:url('${image}')"></i>${number}${state.reward ? bangHtml() : ''}</span>`;
     }
     /** 자리의 표식(2026-11-10 사용자: 아틀라스 지도와 통일, 자리마다 다른 모양): 아틀라스 표식과 같은 그리기에 그 자리의 그림과 색. */
-    const placeIcon = (state, locked = false) => atlasIcon(state.icon || 'act', state.color, locked);
+    const placeIcon = (state, locked = false) => atlasIcon(state.icon || 'act', state.color, locked, true);
     /** 받을 보상의 !: 노란 도트 글자 하나(테나 바탕 없이, 사용자 11-08). 표식과 길잡이의 나무 탭이 같이 쓴다. */
     const bangHtml = () => `<em style="background-image:url('${glyph('bang', '#ffd82e', 2)}')"></em>`;
     /** 이름표: 자리(tag)는 그림 픽셀 단위라 지도 너비에 따라 소수 px이 되는데, 글이 번지지 않게 정수 px으로 반올림하고(round) 변형 대신 0 크기 상자의 flex 정렬로 가운데를 맞춘다. */
@@ -209,7 +209,7 @@ const worldMapUi = (() => {
             ${_t('아틀라스')}<i aria-hidden="true" style="background-image:url('${icon}')"></i></button>`;
         // 한 장 시험판(2026-11-10 사용자): 글과 숫자 없이 표식만. 누르면 색이 뒤집히고 표식에서 아틀라스가 퍼져 나와 그 지도로 바뀐다(turnToAtlas).
         return `<button type="button" class="wm-atlas-entrance is-icon" style="left:${pct(x, WORLD_MAP.width)};top:${pct(y, WORLD_MAP.height)}" aria-label="${_t('아틀라스')}" data-tip="${_t('아틀라스')}"
-            onclick="worldMapUi.turnToAtlas(this)"><i aria-hidden="true" style="background-image:url('${atlasIcon('pinnacle', region.color)}')"></i></button>`;
+            onclick="worldMapUi.turnToAtlas(this)"><i aria-hidden="true" style="background-image:url('${atlasIcon('pinnacle', region.color, false, true)}')"></i></button>`;
     }
     const atlasAnchorStyle = ([x, y]) => `left:${x}%;top:${y}%`;
     /** 아틀라스 지도의 표식(2026-11-09 사용자: 구역별 숫자 색깔, 아이콘 개선): 여러 색 도트 그림(data/world-map.js atlas.icons). 지도 노드는 권역 색 테의
@@ -219,18 +219,20 @@ const worldMapUi = (() => {
         const parts = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)), a = parts(from), b = parts(to);
         return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * share).toString(16).padStart(2, '0')).join('');
     }
-    function atlasPalette(tint, locked) {
-        const base = locked ? '#7a7380' : tint;
-        const gold = locked ? { Y: '#c9c2cc', y: '#9a929f', d: '#655e6b' } : { Y: '#fbe7a4', y: '#e2b85a', d: '#9a6f2c' };
-        const eye = locked ? { w: '#d8d2dc', p: '#8a8290', q: '#4f4955' } : { w: '#f6efff', p: '#a47cf0', q: '#4b2f86' };
-        return { ...gold, ...eye, o: OUTLINE, k: OUTLINE, a: mixHex(base, '#ffffff', .38), b: base, c: mixHex(base, '#000000', .42),
-            g: mixHex(base, '#ffffff', .7), G: '#ffffff', s: mixHex(base, '#14111a', .82) };
+    /** calm: 세계 지도의 자리 표식(2026-11-10 사용자: 아이콘 전체적으로 톤다운). 자리 색을 따뜻한 회색 쪽으로 당기고 밝은 면, 금빛, 흰색을 낮춘다. */
+    const CALM = Object.freeze({ toward: '#7d6f5c', share: .5, light: .2, gold: { Y: '#cdb884', y: '#a98a4c', d: '#75572a' }, eye: { w: '#d2c8b4', p: '#8f7bb8', q: '#463560' }, gem: '#e0d6c0' });
+    function atlasPalette(tint, locked, calm = false) {
+        const base = locked ? '#7a7380' : calm ? mixHex(tint, CALM.toward, CALM.share) : tint;
+        const gold = locked ? { Y: '#c9c2cc', y: '#9a929f', d: '#655e6b' } : calm ? CALM.gold : { Y: '#fbe7a4', y: '#e2b85a', d: '#9a6f2c' };
+        const eye = locked ? { w: '#d8d2dc', p: '#8a8290', q: '#4f4955' } : calm ? CALM.eye : { w: '#f6efff', p: '#a47cf0', q: '#4b2f86' };
+        return { ...gold, ...eye, o: OUTLINE, k: OUTLINE, a: mixHex(base, '#ffffff', calm ? CALM.light : .38), b: base, c: mixHex(base, '#000000', .42),
+            g: mixHex(base, '#ffffff', calm ? .4 : .7), G: calm ? CALM.gem : '#ffffff', s: mixHex(base, '#14111a', .82) };
     }
     /** One atlas icon as a data URL (2 px per dot), cached like glyph. */
-    function atlasIcon(name, tint = ATLAS_ICON_TINT, locked = false) {
-        const key = `atlas|${name}|${tint}|${locked}`;
+    function atlasIcon(name, tint = ATLAS_ICON_TINT, locked = false, calm = false) {
+        const key = `atlas|${name}|${tint}|${locked}|${calm}`;
         if (urls.has(key)) return urls.get(key);
-        const rows = WORLD_MAP.atlas.icons[name] || WORLD_MAP.icons[name], palette = atlasPalette(tint, locked), canvas = document.createElement('canvas');
+        const rows = WORLD_MAP.atlas.icons[name] || WORLD_MAP.icons[name], palette = atlasPalette(tint, locked, calm), canvas = document.createElement('canvas');
         canvas.width = rows[0].length * 2;
         canvas.height = rows.length * 2;
         const ctx = canvas.getContext('2d');

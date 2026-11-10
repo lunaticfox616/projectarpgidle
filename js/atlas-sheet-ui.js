@@ -106,7 +106,7 @@ const atlasSheetUi = (() => {
     function homeHtml() {
         const at = worldMapUi.atlasEntranceSpot();
         return `<button type="button" class="as-home" style="--x:${at.x.toFixed(2)}%;--y:${at.y.toFixed(2)}%" aria-label="${_t('세계 지도')}" data-tip="${_t('세계 지도')}"
-            onclick="worldMapUi.turnToWorld(this)"><i aria-hidden="true" style="background-image:url('${worldMapUi.atlasIcon('tree', '#e2a94a')}')"></i></button>`;
+            onclick="worldMapUi.turnToWorld(this)"><i aria-hidden="true" style="background-image:url('${worldMapUi.atlasIcon('tree', '#e2a94a', false, true)}')"></i></button>`;
     }
     function chartHtml(picked) {
         return `<div class="as-chart" role="group" aria-label="${_t('아틀라스 지도')}" style="aspect-ratio:${WORLD_MAP.width}/${WORLD_MAP.height};background-image:url('${WORLD_MAP.atlas.src}')">
