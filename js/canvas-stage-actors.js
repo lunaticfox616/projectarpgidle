@@ -9,7 +9,8 @@ const stageActors = (() => {
     const FALLBACK_HEADROOM = 110;     // 발에서 머리 꼭대기까지(도트), 대기 그림을 재기 전의 값
     const SILHOUETTE_LIMIT = 48;
     const images = new Map(), lists = new WeakMap(), silhouettes = new Map(), headrooms = new Map();
-    let kept = '', body = null, facingLeft = false, probe = null, present = false;
+    let kept = '', body = null, facingLeft = false, probe = null, present = false, probeFailures = 0;
+    const probeWaiters = [];
     const POSE_TRAIL_MS = 600;
     const poseTrail = [];              // 지난 0.6초 동안 그린 자세(먼저 그린 것부터): 이중 발동의 잔상이 앞 발동 때의 자세를 찾는다
     let chain = { start: -1, index: -1 };
@@ -20,27 +21,46 @@ const stageActors = (() => {
     const sheetUrl = file => table().path + file + (table().version ? `?v=${table().version}` : '');
     const loaded = img => !!img && img.complete && img.naturalWidth > 0;
 
-    /** A web bundle made without the art folder says so in index.html (scripts/build-web.js): there the art is never asked for,
-     * since asking for a file that is not there answers 404 on every page load. Anywhere else (a dev server) one sheet is asked for. */
-    const packed = typeof document !== 'object' || typeof document.querySelector !== 'function' || !document.querySelector('meta[name="stage-art"][content="none"]');
-    /** Whether the stage art is on this server at all: one small sheet is asked for once. A build without the art folder
-     * keeps the top-down field whatever the setting says (a save can carry the setting from a test build). */
+    /** What the page's build says about the stage art (index.html meta stage-art, scripts/build-web.js): 'packed' the release holds the
+     * art folder, 'none' it was made without it (the art is never asked for there: a file that is not there answers 404 on every page
+     * load), 'probe' nobody knows (a dev server): one small sheet is asked for. */
+    const artNote = typeof document === 'object' && typeof document.querySelector === 'function' ? document.querySelector('meta[name="stage-art"]') : null;
+    const packed = !artNote || artNote.content !== 'none';
+    /** A release that holds the art does not ask the network whether it does. Until 2026-11-10 every page asked for one sheet, once,
+     * and a page whose single request failed (a dropped connection while a new release's files all arrive at once) took the art for
+     * missing for good: the old top-down maps, the old chests, the old hero and monster sprites and the old skill effects for the
+     * whole visit (players, after the 2026-11-10 release renamed every script). */
+    if (artNote && artNote.content === 'packed') present = true;
+    /** A failed ask is tried again after these waits (ms); from PROBE_GIVES_UP failures on the art counts as missing, and the asking
+     * goes on at the last wait, so a server that answers later still turns the stage on. */
+    const PROBE_RETRY_MS = Object.freeze([800, 2000, 5000, 15000]), PROBE_GIVES_UP = 3;
+    function askForArt() {
+        probe = new Image();
+        probe.addEventListener('load', () => { present = true; settleProbeWaiters(); }, { once: true });
+        probe.addEventListener('error', () => {
+            probeFailures++;
+            if (probeFailures >= PROBE_GIVES_UP) settleProbeWaiters();
+            setTimeout(askForArt, PROBE_RETRY_MS[Math.min(probeFailures, PROBE_RETRY_MS.length) - 1]);
+        }, { once: true });
+        const url = sheetUrl(Object.values(table().classes)[0].weapons.unarmed.idle.file);
+        probe.src = probeFailures ? url + (url.includes('?') ? '&' : '?') + 'retry=' + probeFailures : url;   // a new address: not the failed answer again
+    }
+    function settleProbeWaiters() { probeWaiters.splice(0).forEach(done => done()); }
+    /** Whether the stage art is on this server at all. A build without the art folder keeps the top-down field whatever the setting
+     * says (a save can carry the setting from a test build). */
     function available() {
         if (present || !table() || !packed) return present;
-        if (!probe) {
-            probe = new Image();
-            probe.src = sheetUrl(Object.values(table().classes)[0].weapons.unarmed.idle.file);
-        }
-        present = loaded(probe);
+        if (!probe) askForArt();
+        present = present || loaded(probe);
         return present;
     }
-    /** Whether this page knows yet if the stage art is here: the probe sheet loaded or failed, or no sheet is ever asked for. */
-    function stageArtKnown() { return present || !table() || !packed || (!!probe && probe.complete); }
+    /** Whether this page knows yet if the stage art is here: it is, no sheet is ever asked for, or the asking failed PROBE_GIVES_UP times. */
+    function stageArtKnown() { return present || !table() || !packed || probeFailures >= PROBE_GIVES_UP; }
     /** Resolves once stageArtKnown() is true (the boot waits for it: js/main.js). */
     function whenStageArtKnown() {
         available();
         if (stageArtKnown()) return Promise.resolve();
-        return new Promise(done => { probe.addEventListener('load', done, { once: true }); probe.addEventListener('error', done, { once: true }); });
+        return new Promise(done => probeWaiters.push(done));
     }
     function setOf(classId, stance) {
         const data = table(), entry = data && data.classes[classId];
