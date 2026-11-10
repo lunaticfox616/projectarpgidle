@@ -37,16 +37,10 @@ const levelProgressionUi = (() => {
         const { level, xp, rune, loot } = rewardRates(zone);
         return `data-area-level="${level}" data-reward-xp="${xp}" data-reward-rune="${rune}" data-reward-loot="${loot}"`;
     }
+    /** 착용 조건이 모자라 꺼진 장비의 칸은 회색으로만 보인다(2026-11-10 사용자: '조건 부족' 꼬리표는 지우고 그냥 회색으로). 까닭은 장비 설명의 요구 줄에 있다. */
     function decorateSlots(root) {
         const disabled = combatEquipmentStats.evaluate(game).disabled;
-        root.querySelectorAll('.equipment-slot').forEach(card => {
-            const reason = disabled[card.dataset.slot];
-            card.classList.toggle('equipment-requirements-unmet', !!reason);
-            let badge = card.querySelector('.equipment-requirement-badge');
-            if (!reason) { if (badge) badge.remove(); return; }
-            if (!badge) { badge = document.createElement('span'); badge.className = 'equipment-requirement-badge'; card.append(badge); }
-            badge.textContent = _t('조건 부족');
-        });
+        root.querySelectorAll('.equipment-slot').forEach(card => card.classList.toggle('equipment-requirements-unmet', !!disabled[card.dataset.slot]));
     }
     return Object.freeze({ item, area, rewardHint, rewardData, decorateSlots });
 })();
