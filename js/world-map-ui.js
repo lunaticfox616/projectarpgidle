@@ -179,8 +179,11 @@ const worldMapUi = (() => {
         const region = WORLD_MAP.regions.find(row => row.id === WORLD_MAP.atlas.entrance);
         const [x, y] = centre(region.zone);
         const icon = glyph(region.symbol, region.color, 2);
-        return `<button type="button" class="wm-atlas-entrance" style="left:${pct(x, WORLD_MAP.width)};top:${pct(y, WORLD_MAP.height)}" onclick="explorationAtlasUi.showAtlasMap(true)">
-            ${_t('아틀라스')}<i aria-hidden="true" style="background-image:url('${icon}')"></i></button>`;
+        // 한 장 시험판(js/atlas-sheet-ui.js): 입구가 진행과 준비된 지도석 수를 달고, 따로 있던 아틀라스 지도를 거치지 않고 바로 그 화면으로 간다.
+        const note = atlasSheetUi.on() ? atlasSheetUi.entranceNote() : null;
+        const action = note ? "explorationAtlasUi.enter('map-explore-worldtree')" : 'explorationAtlasUi.showAtlasMap(true)';
+        return `<button type="button" class="wm-atlas-entrance" style="left:${pct(x, WORLD_MAP.width)};top:${pct(y, WORLD_MAP.height)}" onclick="${action}">
+            ${_t('아틀라스')}${note ? ` <b>${note.progress}</b>` : ''}<i aria-hidden="true" style="background-image:url('${icon}')"></i>${note && note.stones ? `<em>${note.stones}</em>` : ''}</button>`;
     }
     const atlasAnchorStyle = ([x, y]) => `left:${x}%;top:${y}%`;
     /** 아틀라스 지도의 표식(2026-11-09 사용자: 구역별 숫자 색깔, 아이콘 개선): 여러 색 도트 그림(data/world-map.js atlas.icons). 지도 노드는 권역 색 테의
@@ -280,6 +283,6 @@ const worldMapUi = (() => {
         return `<button class="exploration-place-tab${state.attention ? ' is-attention' : ''}" aria-pressed="${on}"${on ? '' : ` data-tip="${escapeHTML(state.title)}"`} onclick="explorationAtlasUi.enter('${state.route}')">`
             + `<i style="background-image:url('${glyph(state.symbol, state.color, 2)}')">${number ? `<b>${number}</b>` : ''}${state.reward ? bangHtml() : ''}</i><span>${escapeHTML(state.title)}</span></button>`;
     }
-    return { overviewHtml, placeTabsHtml, offMapRoutes, pick, pickAct, link, showAtlas: on => { atlasMap = on; } };
+    return { overviewHtml, placeTabsHtml, offMapRoutes, pick, pickAct, link, atlasIcon, showAtlas: on => { atlasMap = on; } };
 })();
 safeExposeGlobals({ worldMapUi });

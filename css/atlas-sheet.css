@@ -1,8 +1,8 @@
-@layer components{/* 세계수 아틀라스 "한 장" 시험판(js/atlas-sheet-ui.js): 윗줄, 대륙 차트와 오른쪽 서랍, 아래 도크. 땅과 길은 도트 그림(.as-art),
-   노드는 그 위의 지도석 단추. 색은 css/atlas.css의 --atlas-* 를 쓴다. */
-/* 아틀라스 안에서는 길잡이 한 줄만: 세계 지도로 돌아가기와 이 화면의 쪽들. 다른 곳의 표식 탭은 세계 지도에서 고른다. */
+@layer components{/* 세계수 아틀라스 "한 장" 시험판(js/atlas-sheet-ui.js): 윗줄, 아틀라스 원화 차트와 오른쪽 서랍, 아래 도크. 길은 원화 위의 선(.as-art),
+   노드는 그 위의 표식 단추(js/world-map-ui.js atlasIcon). 색은 css/atlas.css의 --atlas-* 를 쓴다. */
+/* 아틀라스 안에서는 길잡이 한 줄만: 세계 지도로 돌아가기와 이 화면의 쪽들. 다른 곳의 표식 탭과 따로 있던 아틀라스 지도 단추는 접는다(이 화면이 그 지도다). */
 #tab-map:has(.atlas-sheet) #exploration-location{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
-#tab-map:has(.atlas-sheet) #exploration-location .exploration-place-tab{display:none}
+#tab-map:has(.atlas-sheet) #exploration-location :is(.exploration-place-tab,.exploration-home+.exploration-home){display:none}
 #ui-atlas .atlas-shell:has(.atlas-sheet)>.atlas-head{display:none}
 #ui-atlas .atlas-sheet{container-type:inline-size;display:grid;grid-template-rows:auto minmax(0,1fr) auto;color:var(--atlas-ink)}
 /* 윗줄 */
@@ -13,41 +13,43 @@
 #ui-atlas .as-seeds{display:inline-flex;align-items:center;gap:4px;color:#c9a0f0}
 #ui-atlas .as-seeds i{width:12px;height:12px;border:1px solid #6b5488;background:#1a1420;transform:rotate(45deg);margin:0 2px}
 #ui-atlas .as-seeds i.is-on{background:#c9a0f0;border-color:#f0dcff;box-shadow:0 0 6px #c9a0f0}
+#ui-atlas .as-seeds i.is-fresh{animation:as-seed 1.4s steps(7,end) 1}
 #ui-atlas .as-points{color:var(--atlas-muted)}
 #ui-atlas .as-points b{color:#7fd6cf;font-weight:400}
 #ui-atlas .as-points em{color:#9fd46a;font-style:normal}
 #ui-atlas .as-auto{display:inline-flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer}
 /* 차트와 서랍 */
 #ui-atlas .as-body{display:grid;grid-template-columns:minmax(0,1fr) 236px;min-height:0}
-#ui-atlas .as-chart{position:relative;aspect-ratio:3/2;min-width:0;overflow:hidden;border-right:1px solid var(--atlas-line);background:#0c0a08}
-#ui-atlas .as-art{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
-#ui-atlas .as-region{position:absolute;left:var(--x);top:var(--y);display:grid;grid-template-columns:auto auto;gap:0 6px;align-items:baseline;padding:2px 6px 3px;font-size:12px;color:color-mix(in srgb,var(--tint) 55%,#f4ead6);background:#0c0a08cc;border-left:2px solid var(--tint);pointer-events:none;white-space:nowrap}
-#ui-atlas .as-region small{grid-column:1/-1;font-size:10px;color:var(--atlas-muted)}
-#ui-atlas .as-region b{font-weight:400;color:var(--atlas-gold-hi)}
-#ui-atlas .as-region i{grid-column:1/-1;height:3px;background:linear-gradient(90deg,var(--tint) var(--fill),#2a2218 var(--fill))}
-#ui-atlas .as-region.is-right{transform:translateX(-100%);border-left:0;border-right:2px solid var(--tint)}
-#ui-atlas .as-region.is-centre{transform:translate(-50%,-100%)}
-#ui-atlas .as-region.is-low:not(.is-centre){transform:translateY(-100%)}
-#ui-atlas .as-region.is-low.is-right{transform:translate(-100%,-100%)}
-/* 지도석 노드: 여덟 모 돌. 테는 등급 색, 잠긴 곳은 어둡게, 갈 수 있는 곳은 천천히 깜빡인다. */
-#ui-atlas .atlas-sheet button.as-node{--n:22px;position:absolute;left:var(--x);top:var(--y);width:var(--n);height:var(--n);margin:calc(var(--n) / -2) 0 0 calc(var(--n) / -2);padding:0;border:0;background:none;box-shadow:none;min-height:0;cursor:pointer;overflow:visible}
-#ui-atlas .atlas-sheet button.as-node.kind-guardian{--n:30px}
-#ui-atlas .atlas-sheet button.as-node.kind-pinnacle{--n:36px}
-#ui-atlas .as-stone{position:absolute;inset:0;display:grid;place-items:center;background:var(--tone);clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)}
-#ui-atlas .as-stone::before{content:"";position:absolute;inset:2px;background:#17130e;clip-path:inherit}
-#ui-atlas .as-stone b{position:relative;font-weight:400;font-size:12px;line-height:1;color:var(--tone);text-shadow:1px 1px 0 #000}
-#ui-atlas .as-node.is-locked .as-stone{background:color-mix(in srgb,var(--tone) 36%,#15110c)}
-#ui-atlas .as-node.is-locked .as-stone b{color:color-mix(in srgb,var(--tone) 58%,#15110c)}
-#ui-atlas .as-node.is-open .as-stone{animation:as-beckon 1.8s steps(3,end) infinite}
-#ui-atlas .as-node.is-open .as-stone::before{background:color-mix(in srgb,var(--tint) 30%,#17130e)}
-#ui-atlas .as-node:is(.is-complete,.is-bonus) .as-stone::before{background:color-mix(in srgb,var(--tone) 62%,#2a2016)}
-#ui-atlas .as-node:is(.is-complete,.is-bonus) .as-stone b{color:#1a140d;text-shadow:none}
-#ui-atlas .as-node.is-bonus .as-stone{background:#fff1c9}
-#ui-atlas .as-node:is(.is-selected,:hover){filter:drop-shadow(0 0 3px #fff4d6) drop-shadow(0 0 1px #fff4d6);z-index:3}
-#ui-atlas .as-node.is-running{filter:drop-shadow(0 0 4px #9fd46a)}
-#ui-atlas .as-node i{position:absolute;right:-7px;top:-7px;min-width:13px;padding:0 2px;border:1px solid #000;background:#f3d28c;color:#1a140d;font-size:10px;line-height:12px;font-style:normal;text-align:center}
-#ui-atlas .as-node em{position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);padding:1px 5px;background:#0c0a08e6;border:1px solid var(--atlas-edge);color:#fff4d6;font-size:12px;font-style:normal;white-space:nowrap;pointer-events:none;z-index:4}
-@keyframes as-beckon{0%{filter:brightness(1)}50%{filter:brightness(1.45)}100%{filter:brightness(1)}}
+#ui-atlas .as-chart{position:relative;min-width:0;overflow:hidden;border-right:1px solid var(--atlas-line);background:#16131c center/100% 100% no-repeat}
+#ui-atlas .as-art{position:absolute;inset:0;width:100%;height:100%}
+#ui-atlas .as-region{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 5px;align-items:center;padding:2px 6px 3px;font-size:12px;line-height:1.2;color:#f4ead6;background:color-mix(in srgb,var(--tint) 30%,#0e0b12f2);border:1px solid color-mix(in srgb,var(--tint) 70%,#fff);pointer-events:none;white-space:nowrap;z-index:1}
+#ui-atlas .as-region span{grid-column:1/-1}
+#ui-atlas .as-region b{font-weight:400;font-size:11px;color:var(--atlas-gold-hi)}
+#ui-atlas .as-region i{height:4px;background:linear-gradient(90deg,#f3d28c var(--fill),#0c0a08 var(--fill))}
+/* 노드: 아틀라스 지도의 표식. 갈 수 있는 곳은 천천히 빛나고, 다 깬 곳은 표시가 붙고, 잠긴 곳은 회색이다. */
+#ui-atlas .atlas-sheet button.as-node{--n:clamp(22px,4.2cqw,30px);position:absolute;left:var(--x);top:var(--y);width:var(--n);height:var(--n);margin:calc(var(--n) / -2) 0 0 calc(var(--n) / -2);padding:0;border:0;background:none;box-shadow:none;min-height:0;cursor:pointer;overflow:visible;z-index:2;color:var(--tone)}
+#ui-atlas .atlas-sheet button.as-node.kind-guardian{--n:clamp(26px,4.9cqw,34px);z-index:3}
+#ui-atlas .atlas-sheet button.as-node.kind-pinnacle{--n:clamp(32px,6.2cqw,44px);z-index:3}
+#ui-atlas .as-stone{position:absolute;inset:0;display:grid;place-items:center;background:center/100% 100% no-repeat;image-rendering:pixelated;filter:drop-shadow(0 1px 1px #000c);font:700 clamp(9px,1.9cqw,13px)/1 var(--font-pixel-meta);text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000}
+#ui-atlas .as-node.is-locked{color:color-mix(in srgb,var(--tone) 60%,#5d5563)}
+#ui-atlas .as-node.is-open .as-stone{animation:as-beckon 1.8s steps(4,end) infinite}
+#ui-atlas .as-node:is(.is-complete,.is-bonus) .as-stone::after{content:'✓';position:absolute;right:-3px;bottom:-2px;padding:1px;background:#221d27;color:#daf2b8;font:700 9px/1 sans-serif;text-shadow:none}
+#ui-atlas .as-node.is-bonus .as-stone::after{content:'★';color:#f4d989}
+#ui-atlas .as-node:is(.is-selected,:hover){z-index:5}
+#ui-atlas .as-node:is(.is-selected,:hover) .as-stone{filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 5px #fff0cf);animation:none}
+#ui-atlas .as-node.is-running .as-stone{filter:drop-shadow(0 0 5px #9fd46a)}
+#ui-atlas .as-node i{position:absolute;right:-8px;top:-7px;min-width:13px;padding:0 2px;border:1px solid #000;background:#f3d28c;color:#1a140d;font-size:10px;line-height:12px;font-style:normal;text-align:center}
+#ui-atlas .as-node em{position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);padding:1px 5px;background:#0c0a08e6;border:1px solid var(--atlas-edge);color:#fff4d6;font-size:12px;font-style:normal;white-space:nowrap;pointer-events:none}
+/* 처음 보는 완료: 깬 곳이 한 번 번쩍이고, 길이 다 자란 뒤 새로 열린 곳이 퍼지는 테와 함께 뜬다. 수호자의 봉인은 더 크게 풀린다. */
+#ui-atlas .as-node.is-fresh .as-stone{animation:as-fresh .9s steps(6,end) 1}
+#ui-atlas .as-node.is-unsealed .as-stone{animation:as-unseal .7s steps(5,end) .8s 1 backwards,as-beckon 1.8s steps(4,end) 1.5s infinite}
+#ui-atlas .as-node.is-unsealed::before{content:"";position:absolute;inset:-2px;border:2px solid #fff0cf;opacity:0;animation:as-ring .8s steps(6,end) .8s 1;pointer-events:none}
+#ui-atlas .as-node.is-unsealed.kind-guardian::before{inset:-6px;border-width:3px;border-color:#f3d28c;animation-duration:1.2s}
+@keyframes as-beckon{0%,100%{filter:drop-shadow(0 1px 1px #000c)}50%{filter:drop-shadow(0 0 4px #ffe7a6) drop-shadow(0 0 2px #ffe7a6)}}
+@keyframes as-fresh{0%{filter:brightness(3) drop-shadow(0 0 8px #fff)}100%{filter:brightness(1) drop-shadow(0 1px 1px #000c)}}
+@keyframes as-unseal{0%{opacity:.2;transform:scale(.6)}60%{opacity:1;transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes as-ring{0%{opacity:1;transform:scale(.8)}100%{opacity:0;transform:scale(2.4)}}
+@keyframes as-seed{0%{transform:rotate(45deg) scale(2.2);box-shadow:0 0 14px #fff}100%{transform:rotate(45deg) scale(1);box-shadow:0 0 6px #c9a0f0}}
 /* 서랍 */
 #ui-atlas .as-drawer{min-width:0;min-height:0;overflow-y:auto;contain:size;background:var(--atlas-panel)}
 #ui-atlas .as-stash{padding:8px 10px;border-bottom:1px solid var(--atlas-line)}
@@ -82,6 +84,9 @@
 #ui-atlas .as-go .atlas-primary{min-width:120px;padding:8px 18px;font-size:15px}
 #ui-atlas .as-loaded{display:inline-flex;align-items:center;gap:6px;font-size:12px}
 #ui-atlas .as-loaded b{min-width:20px;padding:0 4px;border:2px solid var(--tone);color:var(--tone);font-weight:400;text-align:center}
+/* 세계 지도의 아틀라스 입구에 붙는 진행과 준비된 지도석 수(js/world-map-ui.js atlasEntranceHtml) */
+#ui-exploration-atlas .wm-atlas-entrance b{font-weight:400;color:#f3d28c}
+#ui-exploration-atlas .wm-atlas-entrance em{min-width:14px;padding:0 3px;border:1px solid #000;background:#f3d28c;color:#1a140d;font-size:11px;line-height:13px;font-style:normal;text-align:center}
 /* 좁은 창: 서랍이 차트 아래로, 도크는 세로로 */
 @container (max-width:640px){#ui-atlas .as-body{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-chart{border-right:0}#ui-atlas .as-drawer{contain:none;max-height:260px}#ui-atlas .as-dock{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-go{justify-items:stretch;max-width:none}}
 }

@@ -1,82 +1,79 @@
-/** 세계수 아틀라스 "한 장" 시험판(2026-11-10 사용자: 지도 탭과 아틀라스 구성 개선 프로토타입): 다섯 지역을 한 대륙에 펴고(왼쪽 태양 계열,
- * 오른쪽 달 계열, 가운데 최초의 경계, 꼭대기 정점) 노드를 등급 색 지도석으로 그린다. 아래 도크에 고른 노드와 각인 홈과 열기, 오른쪽 서랍에
- * 고른 지도석과 보관함. 규칙과 저장은 그대로이고(js/atlas.js), 고르기와 열기는 js/atlas-ui.js의 것을 부른다. 테스트 패널에서 끌 수 있다
- * (settings.atlasSheet === 'off'). 노드의 방 안 좌표(atlas.position)는 그대로 두고 지역마다 놓는 자리와 방향만 정한다. */
+/** 세계수 아틀라스 "한 장" 시험판(2026-11-10 사용자: 지도 탭과 아틀라스 구성 개선 프로토타입): 아틀라스 지도의 원화와 표식(data/world-map.js atlas,
+ * js/world-map-ui.js atlasIcon) 위에서 바로 고르고 연다. 원화 위에 길과 지도석 노드, 아래 도크에 고른 노드와 각인 홈과 열기, 오른쪽 서랍에 고른
+ * 지도석과 보관함. 규칙과 저장은 그대로이고(js/atlas.js), 고르기와 열기는 js/atlas-ui.js의 것을 부른다. 테스트 패널에서 끌 수 있다
+ * (settings.atlasSheet === 'off'). 돌아와서 처음 보는 완료는 한 번 밝혀진다: 새 길이 그어지고, 새로 열린 곳과 수호자의 봉인, 새 씨앗이 빛난다. */
 const atlasSheetUi = (() => {
     const on = () => !!game.settings && game.settings.atlasSheet !== 'off';
-    /** 지역이 놓이는 띠: 옆 지역은 바깥에서 가운데로(from → from + run), 가운데 지역은 아래에서 위로 자란다. spread는 갈래가 벌어지는 폭. */
-    const FLOW = {
-        garden: { from: 5, run: 31, across: 30, spread: 13, tag: [1, 1, 'left'] },
-        roots: { from: 5, run: 31, across: 71, spread: 13, tag: [1, 99, 'left'] },
-        canopy: { from: 95, run: -31, across: 30, spread: 13, tag: [99, 1, 'right'] },
-        sanctum: { from: 95, run: -31, across: 71, spread: 13, tag: [99, 99, 'right'] },
-        trunk: { up: true, from: 87, run: -64, across: 50, spread: 6.5, tag: [50, 99.5, 'centre'] }
-    };
-    const PINNACLE_AT = { x: 50, y: 10 };
-    /** 같은 노드는 늘 같은 만큼 흩어진다(이름에서 낸 수). */
-    function scatter(id) {
-        let h = 7;
-        for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 9973;
-        return { x: (h % 21 - 10) / 10, y: (Math.floor(h / 21) % 21 - 10) / 10 };
-    }
+    const anchorOf = id => WORLD_MAP.atlas.regions.find(row => row.id === id);
+    /** 원화 위의 자리(백분율): 권역의 칸 0~8과 수호자(칸 9), 정점. */
     function place(node) {
-        if (node.kind === 'pinnacle') return PINNACLE_AT;
-        const local = atlas.position(node), along = (88 - local.y) / 80, side = (local.x - 50) / 28, flow = FLOW[node.region], off = scatter(node.id);
-        const a = flow.from + along * flow.run, b = flow.across + side * flow.spread;
-        return flow.up ? { x: b + off.x * 0.6, y: a + off.y } : { x: a + off.x, y: b + off.y };
+        const [x, y] = node.kind === 'pinnacle' ? WORLD_MAP.atlas.pinnacle : anchorOf(node.region).nodes[node.slot];
+        return { x, y };
     }
     const done = id => ['complete', 'bonus'].includes(atlas.status(game, id));
     function linkState(a, b) {
         if (done(a) && done(b)) return 'done';
         return (done(a) || done(b)) && atlas.reachable(game, a) && atlas.reachable(game, b) ? 'lit' : 'dim';
     }
-    const tintOf = node => (ATLAS.regions.find(row => row.id === node.region) || { tint: '#d9b066' }).tint;
-    const rgb = hex => [1, 3, 5].map(at => parseInt(hex.slice(at, at + 2), 16));
-    const mix = (hex, base, share) => { const a = rgb(hex), b = rgb(base); return `rgb(${a.map((v, i) => Math.round(v * share + b[i] * (1 - share))).join(',')})`; };
+    const tintOf = node => (ATLAS.regions.find(row => row.id === node.region) || { tint: '#6f5a86' }).tint;
 
-    // ---------------------------------------------------------------- 그림: 땅과 길(도트, CSS 2px에 한 점)
-    const ROAD = { done: '#d9b066', lit: '#9fd46a', dim: '#6a5638' };
-    function paintLand(c, w, h, nodes) {
-        // 지역마다 노드를 감싸는 둥근 땅 하나, 그 위에 노드 둘레의 밝은 자리
-        for (const region of ATLAS.regions) {
-            const spots = nodes.filter(node => node.region === region.id).map(place), xs = spots.map(p => p.x), ys = spots.map(p => p.y);
-            const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-            c.fillStyle = mix(region.tint, '#120f0b', 0.2);
-            c.beginPath(); c.ellipse(Math.round(cx / 100 * w), Math.round(cy / 100 * h), Math.round((Math.max(...xs) - Math.min(...xs) + 9) / 200 * w), Math.round((Math.max(...ys) - Math.min(...ys) + 13) / 200 * h), 0, 0, Math.PI * 2); c.fill();
-        }
-        for (const [share, radius] of [[0.2, 0.06], [0.3, 0.04]]) {
-            for (const node of nodes) {
-                const p = place(node);
-                c.fillStyle = mix(tintOf(node), '#120f0b', share);
-                c.beginPath(); c.arc(Math.round(p.x / 100 * w), Math.round(p.y / 100 * h), Math.round(w * radius * (node.kind === 'map' ? 1 : 1.25)), 0, Math.PI * 2); c.fill();
-            }
-        }
+    // ---------------------------------------------------------------- 처음 보는 완료(이 접속 동안만 기억한다. 저장에는 아무것도 남기지 않는다)
+    let seen = null, fresh = { done: new Set(), open: new Set(), seeds: 0, at: 0 };
+    const openIds = () => atlas.nodes.filter(node => atlas.status(game, node.id) === 'open').map(node => node.id);
+    /** 그리기 전에 한 번: 지난번에 본 것과 견주어 새 완료, 새로 열린 곳, 새 씨앗을 가려 둔다. 다른 저장을 불러왔거나 처음 열 때는 조용히 지금을 기억한다. */
+    function noteFresh() {
+        const st = game.atlas, now = { owner: st, done: new Set(st.completed), open: new Set(openIds()), seeds: st.seeds };
+        const same = seen && seen.owner === st;
+        const newly = key => new Set(same ? [...now[key]].filter(id => !seen[key].has(id)) : []);
+        const found = { done: newly('done'), open: newly('open'), seeds: same ? Math.max(0, now.seeds - seen.seeds) : 0, at: Date.now() };
+        seen = now;
+        if (!found.done.size && !found.seeds) return; // 열린 곳만 달라진 것(입장권)은 밝히지 않는다
+        fresh = found;
+        playUiFeedbackSound('uiConfirm');
     }
-    function paintRoad(pen, [a, b], state) {
-        const { c, w, h } = pen;
-        const from = place(atlas.node(a)), to = place(atlas.node(b)), bend = scatter(a + b);
-        const x0 = from.x / 100 * w, y0 = from.y / 100 * h, x1 = to.x / 100 * w, y1 = to.y / 100 * h;
-        const length = Math.hypot(x1 - x0, y1 - y0), mx = (x0 + x1) / 2 - (y1 - y0) / length * bend.x * 5, my = (y0 + y1) / 2 + (x1 - x0) / length * bend.x * 5;
-        c.fillStyle = ROAD[state];
-        const steps = Math.max(2, Math.round(length / (state === 'dim' ? 4 : 2)));
-        for (let i = 0; i <= steps; i++) {
-            const t = i / steps, k = 1 - t;
-            c.fillRect(Math.round(k * k * x0 + 2 * k * t * mx + t * t * x1), Math.round(k * k * y0 + 2 * k * t * my + t * t * y1), state === 'dim' ? 1 : 2, state === 'dim' ? 1 : 2);
-        }
+    const REVEAL_MS = 900;
+    const revealing = () => Date.now() - fresh.at < REVEAL_MS + 600;
+
+    // ---------------------------------------------------------------- 길: 원화 위의 선(걸은 길은 금빛, 다음 길은 수액빛, 나머지는 어두운 점선)
+    const ROAD = { done: '#f3d28c', lit: '#b7f08a', dim: '#1c1626' };
+    function strokeRoad(c, ends, state, share) {
+        const [from, to] = ends;
+        c.strokeStyle = ROAD[state];
+        c.globalAlpha = state === 'dim' ? 0.55 : 1;
+        c.lineWidth = state === 'dim' ? 1 : 2;
+        c.setLineDash(state === 'dim' ? [2, 4] : []);
+        c.beginPath(); c.moveTo(from.x, from.y); c.lineTo(from.x + (to.x - from.x) * share, from.y + (to.y - from.y) * share); c.stroke();
     }
+    /** 새로 깬 노드에 닿은 길은 그 노드에서부터 자란다(progress 0~1). */
+    function paintRoad(c, at, [a, b], progress) {
+        const state = linkState(a, b), grows = state !== 'dim' && (fresh.done.has(a) || fresh.done.has(b)) && progress < 1;
+        const ends = fresh.done.has(b) && !fresh.done.has(a) ? [at(b), at(a)] : [at(a), at(b)];
+        if (grows) strokeRoad(c, ends, 'dim', 1);
+        strokeRoad(c, ends, state, grows ? progress : 1);
+    }
+    function paintRoads(canvas, progress) {
+        const w = canvas.width, h = canvas.height, c = canvas.getContext('2d');
+        const at = id => { const p = place(atlas.node(id)); return { x: Math.round(p.x / 100 * w), y: Math.round(p.y / 100 * h) }; };
+        c.clearRect(0, 0, w, h);
+        for (const state of ['dim', 'lit', 'done']) for (const link of atlas.links) if (linkState(link[0], link[1]) === state) paintRoad(c, at, link, progress);
+        c.globalAlpha = 1;
+    }
+    let frame = 0;
     function paint() {
         const box = document.querySelector('#ui-atlas .as-chart'), canvas = box && box.querySelector('.as-art');
         if (!canvas || !box.clientWidth) return;
-        const w = Math.max(160, Math.round(box.clientWidth / 2)), h = Math.max(100, Math.round(box.clientHeight / 2));
-        canvas.width = w; canvas.height = h;
-        const c = canvas.getContext('2d');
-        c.imageSmoothingEnabled = false;
-        c.fillStyle = '#0c0a08'; c.fillRect(0, 0, w, h);
-        paintLand(c, w, h, atlas.nodes);
-        for (const state of ['dim', 'lit', 'done']) for (const [a, b] of atlas.links) if (linkState(a, b) === state) paintRoad({ c, w, h }, [a, b], state);
+        canvas.width = box.clientWidth; canvas.height = box.clientHeight;
+        cancelAnimationFrame(frame);
+        const growAtlasRoads = () => {
+            const progress = Math.min(1, (Date.now() - fresh.at) / REVEAL_MS);
+            if (!canvas.isConnected) return;
+            paintRoads(canvas, progress);
+            if (progress < 1) frame = requestAnimationFrame(growAtlasRoads);
+        };
+        growAtlasRoads();
     }
 
-    // ---------------------------------------------------------------- 차트: 지역 이름표와 지도석 노드
+    // ---------------------------------------------------------------- 차트: 권역 이름표와 지도석 노드
     let lastTap = { id: '', at: 0 };
     /** 한 번 누르면 고르고, 같은 노드를 곧바로 한 번 더 누르면 그 노드의 지도석으로 연다(고를 때 화면을 다시 그려서 dblclick이 오지 않는다). */
     function tap(id) {
@@ -84,31 +81,36 @@ const atlasSheetUi = (() => {
         lastTap = { id, at: now };
         if (again) atlasUi.openNode(id); else atlasUi.selectNode(id);
     }
+    function nodeClasses(node, status, picked) {
+        const held = game.atlas.stash.some(map => map.node === node.id), running = game.atlas.run && game.atlas.run.map.node === node.id, live = revealing();
+        return ['as-node', `is-${status}`, `kind-${node.kind}`, node.id === picked ? 'is-selected' : '', running ? 'is-running' : '', held ? 'has-stone' : '',
+            live && fresh.done.has(node.id) ? 'is-fresh' : '', live && fresh.open.has(node.id) ? 'is-unsealed' : ''].filter(Boolean).join(' ');
+    }
     function nodeHtml(node, picked) {
-        const at = place(node), status = atlas.status(game, node.id), tier = atlas.effectiveTier(game, node);
-        const held = game.atlas.stash.filter(map => map.node === node.id).length, running = game.atlas.run && game.atlas.run.map.node === node.id;
-        const classes = ['as-node', `is-${status}`, `kind-${node.kind}`, node.id === picked ? 'is-selected' : '', running ? 'is-running' : '', held ? 'has-stone' : ''].filter(Boolean).join(' ');
-        return `<button class="${classes}" style="--x:${at.x.toFixed(2)}%;--y:${at.y.toFixed(2)}%;--tone:${atlas.tierBand(tier).tone};--tint:${tintOf(node)}" data-atlas-node="${node.id}"
-            data-info-tooltip-anchor="1" aria-pressed="${node.id === picked}" aria-label="${escapeHTML(_t(node.name))}" onclick="atlasSheetUi.tap('${node.id}')"
-            onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><span class="as-stone"><b>${tier}</b></span>${held ? `<i>${held}</i>` : ''}`
-            + `${node.id === picked ? `<em>${escapeHTML(_t(node.name))}</em>` : ''}</button>`;
+        const at = place(node), status = atlas.status(game, node.id), tier = atlas.effectiveTier(game, node), tint = tintOf(node);
+        const held = game.atlas.stash.filter(map => map.node === node.id).length;
+        const icon = worldMapUi.atlasIcon(WORLD_MAP.atlas.icons[node.kind] ? node.kind : 'stone', tint, status === 'locked');
+        return `<button class="${nodeClasses(node, status, picked)}" style="--x:${at.x}%;--y:${at.y}%;--tone:${atlas.tierBand(tier).tone};--tint:${tint}" data-atlas-node="${node.id}"
+            data-info-tooltip-anchor="1" aria-pressed="${node.id === picked}" aria-label="${atlasUi.nodeLabel(node, tier, status)}" onclick="atlasSheetUi.tap('${node.id}')"
+            onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><span class="as-stone" style="background-image:url('${icon}')">${node.kind === 'map' ? tier : ''}</span>`
+            + `${held ? `<i>${held}</i>` : ''}${node.id === picked ? `<em>${escapeHTML(_t(node.name))}</em>` : ''}</button>`;
     }
     function regionTagHtml(region) {
-        const nodes = atlas.nodes.filter(node => node.region === region.id), cleared = nodes.filter(node => game.atlas.completed.includes(node.id)).length, [x, y, align] = FLOW[region.id].tag;
-        const branch = { sun: '태양', moon: '달', origin: '경계' }[ATLAS.lore.regions[region.id].path];
-        return `<span class="as-region is-${align}${y > 50 ? ' is-low' : ''}" style="--x:${x}%;--y:${y}%;--tint:${region.tint}"><small>${_t(branch)}</small>${escapeHTML(_t(region.name))}`
-            + `<b>${cleared}/${nodes.length}</b><i style="--fill:${Math.round(cleared / nodes.length * 100)}%"></i></span>`;
+        const nodes = atlas.nodes.filter(node => node.region === region.id), cleared = nodes.filter(node => game.atlas.completed.includes(node.id)).length, [x, y] = anchorOf(region.id).label;
+        return `<span class="as-region" style="--x:${x}%;--y:${y}%;--tint:${region.tint}"><span>${escapeHTML(_t(region.name))}</span>`
+            + `<i style="--fill:${Math.round(cleared / nodes.length * 100)}%"></i><b>${cleared}/${nodes.length}</b></span>`;
     }
     function chartHtml(picked) {
-        return `<div class="as-chart" role="group" aria-label="${_t('아틀라스 지도')}"><canvas class="as-art" aria-hidden="true"></canvas>
-            ${ATLAS.regions.map(regionTagHtml).join('')}${atlas.nodes.map(node => nodeHtml(node, picked)).join('')}</div>`;
+        return `<div class="as-chart" role="group" aria-label="${_t('아틀라스 지도')}" style="aspect-ratio:${WORLD_MAP.width}/${WORLD_MAP.height};background-image:url('${WORLD_MAP.atlas.src}')">
+            <canvas class="as-art" aria-hidden="true"></canvas>${ATLAS.regions.map(regionTagHtml).join('')}${atlas.nodes.map(node => nodeHtml(node, picked)).join('')}</div>`;
     }
 
-    // ---------------------------------------------------------------- 윗줄: 진행 막대, 씨앗 칸, 포인트, 자동 지도
+    // ---------------------------------------------------------------- 윗줄: 세계 지도로, 진행 막대, 씨앗 칸, 포인트, 자동 지도
     function topHtml() {
         // 완료 수와 남은 포인트는 예전 머리줄과 같은 셈이다(js/atlas-ui.js headerHtml): 깨어난 아틀라스는 후반 싸움만큼 넓어진다.
         const st = game.atlas, total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0), points = atlas.points(game), free = atlasPassives.spendable(game);
-        const seeds = Array.from({ length: ATLAS.seeds.max }, (_, i) => `<i class="${i < st.seeds ? 'is-on' : ''}"></i>`).join('');
+        const firstNew = st.seeds - fresh.seeds, live = revealing();
+        const seeds = Array.from({ length: ATLAS.seeds.max }, (_, i) => `<i class="${i < st.seeds ? 'is-on' : ''}${live && i >= firstNew && i < st.seeds ? ' is-fresh' : ''}"></i>`).join('');
         return `<header class="as-top"><span class="as-progress" style="--fill:${Math.round(st.completed.length / total * 100)}%"><b>${_t('완료')} ${st.completed.length}/${total}</b></span>
             <span class="as-seeds" aria-label="${_t('씨앗')} ${st.seeds}/${ATLAS.seeds.max}">${_t('씨앗')}${seeds}</span>
             <span class="as-points">${_t('보너스')} <b>${st.bonus.length}</b></span><span class="as-points">${_t('포인트')} <b>${points}</b>${free > 0 ? ` <em>+${free}</em>` : ''}</span>
@@ -150,7 +152,7 @@ const atlasSheetUi = (() => {
         return `<div class="as-go">${body}</div>`;
     }
 
-    // ---------------------------------------------------------------- 오른쪽 서랍: 고른 지도석(제작), 보관함(등급 색 지도석 칸)
+    // ---------------------------------------------------------------- 오른쪽 서랍: 보관함(등급 색 지도석 칸), 고른 지도석(제작)
     function stoneHtml(map, parts) {
         const mine = !parts.node || map.node === parts.node, omen = map.omen && lootOmens.describe(map.omen);
         return `<button class="as-tile rarity-${map.rarity}${mine ? '' : ' is-other'}${map.corrupted ? ' is-corrupted' : ''}" style="--tone:${atlas.tierBand(map.tier).tone}" aria-pressed="${map.uid === parts.uid}"
@@ -164,9 +166,15 @@ const atlasSheetUi = (() => {
 
     /** parts: js/atlas-ui.js가 건네는 고른 것과 이미 만든 조각들(node, uid, lock, block, side, tools, after, mapName). */
     function html(parts) {
+        noteFresh();
         return `<div class="atlas-sheet">${topHtml()}<div class="as-body">${chartHtml(parts.node)}${drawerHtml(parts)}</div>
             <footer class="as-dock">${nodeInfoHtml(parts.node)}${fragmentsHtml()}${goHtml(parts)}</footer></div>`;
     }
-    return Object.freeze({ on, html, paint, tap });
+    /** 세계 지도의 아틀라스 입구에 붙는 말(js/world-map-ui.js): 진행과 준비된 지도석 수. */
+    function entranceNote() {
+        const st = game.atlas, total = atlas.nodes.length + (atlasEndgame.awakened(game) ? atlas.lateNodes.length : 0);
+        return { progress: `${st.completed.length}/${total}`, stones: st.stash.length };
+    }
+    return Object.freeze({ on, html, paint, tap, entranceNote });
 })();
 safeExposeGlobals({ atlasSheetUi });
