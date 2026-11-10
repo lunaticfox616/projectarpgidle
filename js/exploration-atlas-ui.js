@@ -318,6 +318,9 @@ const explorationAtlasUi = (() => {
     function pageChips(route) {
         const pages = ROUTE_PAGES[route] && ROUTE_PAGES[route]();
         if (pages) return pages.items.map(page => ({...page,action:`explorationAtlasUi.page('${route}','${page.id}')`}));
+        // 한 자리에 묶인 길들(data/world-map.js also: 심해와 낚시)은 그 자리의 쪽이다
+        const place = WORLD_MAP.regions.find(region => region.also && [region.route, ...region.also].includes(route));
+        if (place) return [place.route, ...place.also].filter(available).map(entry => ({label:routeLabel(entry),on:entry === route,action:`explorationAtlasUi.enter('${entry}')`}));
         return [{label:_t(PAGE_NAMES[route] || routeLabel(route)),on:true,action:`explorationAtlasUi.enter('${route}')`}];
     }
     /** A second-row page of a one-route region: the page switches, the row follows at once and a keyboard press keeps its focus. */

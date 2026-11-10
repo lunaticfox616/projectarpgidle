@@ -263,7 +263,7 @@ const atlasUi = (() => {
         atlasChartArt.paint(canvas, Math.max(120, Math.round(box.clientWidth / 2)), chartModel());
     }
     /** The dot drawings of the current view: the chart, the passive wheels (the epoch and late views have none). */
-    const PAINT = { maps: () => paintChart(), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {}, memory: () => {}, board: () => {} };
+    const PAINT = { maps: () => (atlasSheetUi.on() ? atlasSheetUi.paint() : paintChart()), passives: () => atlasPassivesUi.paint(), epoch: () => {}, late: () => {}, memory: () => {}, board: () => {} };
     /** Drawings follow the panel's width: repaint the current view whenever the panel resizes. */
     function watchPanel(panel) {
         if (panelObserver || typeof ResizeObserver !== 'function') return;
@@ -604,7 +604,22 @@ const atlasUi = (() => {
             ${stop ? _t('<p>완료 후 멈춤 설정으로 자동 지도가 대기 중입니다.</p>') : ''}
             ${stop ? _t('<button onclick="openMapCompleteActionPicker(event)">완료 후 행동 변경</button>') : ''}</section>`;
     }
+    /** 한 장 시험판(js/atlas-sheet-ui.js)에 건네는 것: 고른 노드와 지도석, 열 수 없는 까닭, 이미 만든 조각(열린 지도나 정점이나 지도석 카드, 보관함 도구, 결과). */
+    function sheetParts() {
+        const st = ledger(), map = selectedMap(), node = atlas.node(selectedNode), busy = atlas.runOpenReason(game), block = atlasRun.blockReason();
+        const card = map ? `<section class="atlas-device" aria-label="${_t('지도 장치')}">${mapCardHtml(map, buildMapPowerEstimateHtml(atlas.preview(game, map)))}
+            <div class="atlas-crafts" aria-label="${_t('지도석 제작')}">${CRAFT_ORDER.map(key => craftButtonHtml(map, key)).join('')}</div>${flowersHtml(map)}${chancesHtml()}</section>` : '';
+        const side = st.run ? runHtml(st.run) : node && node.kind === 'pinnacle' ? pinnacleHtml(node) : card;
+        const tools = map ? `${stashToolsHtml(map, busy)}${busy ? `<small>${busy}</small>` : ''}` : '';
+        return { node: selectedNode, uid: selectedUid, lock: atlas.lockReason(game) || block, block, side, tools, after: `${autoOptionsHtml()}${resultHtml()}`, mapName };
+    }
+    /** 노드를 곧바로 두 번 누름(js/atlas-sheet-ui.js tap): 그 노드의 지도석이 있으면 고르고 연다. */
+    function openNode(id) {
+        selectNode(id);
+        if (selectedMap() && selectedMap().node === id && !ledger().run) open();
+    }
     function mapsViewHtml() {
+        if (atlasSheetUi.on()) return atlasSheetUi.html(sheetParts());
         return `${journeyHtml()}<div class="atlas-ancient-entry"><button onclick="atlasUi.setView('late')">${_t('태양과 달, 피나클')}</button></div>${autoOptionsHtml()}<div class="atlas-main"><div class="atlas-chart-column">${legendHtml()}${chartHtml()}</div><div class="atlas-side">${ledger().run ? runHtml(ledger().run) : deviceHtml()}${nodeDetailHtml()}</div></div>
             ${resultHtml()}${stashHtml()}`;
     }
@@ -618,11 +633,11 @@ const atlasUi = (() => {
         atlasBoard.sync(game);
         const wallet = [...[...CRAFT_ORDER, ...ATLAS.pinnacle.tickets].map(key => game.currencies[key] || 0), ...flowerWallet()];
         if (!viewOpen(view)) view = 'maps'; // 다른 저장을 불러와 원정이 닫힌 뒤
-        const key = JSON.stringify([view, selectedRegion, ledger(), selectedNode, selectedUid, wallet, atlasRun.blockReason(), game.currentZoneId, game.maxZoneId, game.settings.mapCompleteAction, getPersistentBuildSignature(game)]);
+        const key = JSON.stringify([atlasSheetUi.on(), view, selectedRegion, ledger(), selectedNode, selectedUid, wallet, atlasRun.blockReason(), game.currentZoneId, game.maxZoneId, game.settings.mapCompleteAction, getPersistentBuildSignature(game)]);
         if (key === signature && panel.innerHTML) return;
         signature = key;
         const lock = atlas.lockReason(game);
-        panel.innerHTML = `<div class="atlas-shell">${headerHtml()}${lock && !ledger().unlocked ? `<p class="atlas-lock">${lock}</p>` : ''}
+        panel.innerHTML = `<div class="atlas-shell">${atlasSheetUi.on() ? atlasSheetUi.top(view === 'maps') : headerHtml()}${lock && !ledger().unlocked ? `<p class="atlas-lock">${lock}</p>` : ''}
             ${VIEWS[view]()}</div>`;
         PAINT[view]();
         watchPanel(panel);
@@ -693,7 +708,6 @@ const atlasUi = (() => {
     function announce(detail) {
         const text = {
             board: () => detail.message,
-            dice: () => '나이테 길잡이에게서 심재 주사위 1개를 얻었습니다.',
             omen: () => _t('🔮 뿌리를 품은 몬스터에게서 {name}를 얻었습니다.', { name: _t(ORB_DB[detail.key].name) }),
             complete: () => `🗺️ ${detail.name} ${detail.tier}등급 완료${detail.first ? _t(', 첫 완료') : ''}${detail.bonus ? _t(', 보너스 달성') : ''}${detail.drops ? _t(', 지도석 {drops}개', { drops: detail.drops }) : ''}`
                 + (detail.ticket ? `, ${_t(ORB_DB[detail.ticket].name)}` : '') + (detail.seed ? _t(', 세계수 씨앗 {seeds}/{max}', { seeds: detail.seeds, max: ATLAS.seeds.max }) : '')
@@ -712,6 +726,6 @@ const atlasUi = (() => {
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
     // journey: the next-goal card's title, text, label and action (the world map's 바로 가기 row, js/world-map-brief-ui.js).
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, journey: journeyState, selectRegion, selectNode, selectMap, revealDevice, revealStash, hint, nodeLabel, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, journey: journeyState, selectRegion, selectNode, openNode, selectMap, revealDevice, revealStash, hint, nodeLabel, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
 })();
 safeExposeGlobals({ atlasUi });

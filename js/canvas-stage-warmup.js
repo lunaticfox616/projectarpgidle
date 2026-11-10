@@ -42,6 +42,8 @@ const stageWarmup = (() => {
         if (key === buildKey) return;
         buildKey = key;
         if (vfx) stageSkillVfx.keepStrips(worn.flatMap(name => stageSkillRules.clipsOf(name, elementsOf(name))).concat(stageBlessing.clipsOf(worn)));
+        // 향로 다섯 룬의 고딕 그림(js/canvas-stage-gothic-remakes.js): 끼면 그림을 연다. 열기 전에 쏘면 그 시전은 예전 그림이다.
+        if (worn.some(name => stageGothicRemakes.GEMS.includes((SKILL_DB[name] || {}).nativeCastId))) stageGothicRemakes.ready();
         const tree = worn.some(name => SKILL_FX_ATLAS[name]), remade = fxRemake.isEnabled();
         sheetKeys = COMMON_SHEETS.concat(tree && !remade ? [WORLD_TREE_SHEET] : []);
         remakeDue = tree && remade;

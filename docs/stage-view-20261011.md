@@ -1099,6 +1099,8 @@ PixelLab은 유료라 쓰지 않는다(2026-10-12 사용자): 몬스터 그림�
 - 석화: 기절 줄(type stun, petrified)을 쓰므로 행동이 멈춘다(js/combat-player-attack.js petrifyEnemy). 보스는 굳지 않는다. 시간 둔화: 적의 이동만 낮추고 공격 주기는 그대로다(enemyTimeSlowed).
 - 기존 룬의 전용 연출은 js/canvas-stage-rune-remakes.js(55 향로구름, 50 신성한 안개, 51 파문심판, 34 유성 낙화의 비행과 착탄, 23과 27 Warlock, 46 시계)와 js/canvas-stage-skill-spells.js(72 고리, 34 크레이터, 73 지진, 49 유리)에 있다.
   시전의 앞뒤 빛은 js/canvas-stage-skill-polish.js, 타격 클립을 온전히 트는 규칙은 js/canvas-stage-skill-vfx.js HIT.
+- 리메이크 V3.14.2~V3.14.4(2026-11-10): 향로 다섯 룬(89 거둬 가는 종, 90 탐욕 파문, 91 판결-유죄, 51 파문심판, 50 신성한 안개)의 고딕 그림은 js/canvas-stage-gothic-remakes.js와
+  assets/stage-vfx/gothic의 PNG 여섯 장이다. 그림이 오기 전이나 받지 못하면 예전 그림을 쓴다. 금색 향로는 censerHeads 자리에 몸 위로 겹치고, 게임에는 손 자리 자료가 없어 기울기의 축을 발 위 60도트로 잡는다.
 - 규칙이 바뀐 곳은 둘이다. 향로구름은 도착 지점과 주변 1칸에 물리 피해를 한 번 주고, 파문심판은 동작이 바닥에 닿는 장에 맞춰(비술사 0.63초, 나머지 0.54초) 칸마다 0.045초 간격으로 친다. 다른 룬의 판정과 수치는 전달본과 달라도 게임의 것을 둔다.
 - 전달본과 다르게 둔 것: 한손검 투사체 룬의 던지기 동작(사용자 결정 2026-10-20), 시간의 사선의 잿빛은 바닥과 둔화된 적에만, 빗나감 먼지는 추적 사격에만(게임의 다른 투사체는 빗나가지 않는다).
 - 분광 위습 소환은 지웠다. 저장은 data/skills.js RETIRED_GEM_SUCCESSORS로 번개 위습 소환이 잇는다.

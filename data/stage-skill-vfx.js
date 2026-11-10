@@ -352,6 +352,8 @@ const STAGE_SKILL_VFX = Object.freeze({
         judg51_bolt: {a:'pc1_6',f:[1,6],an:'bottom',sc:1.05,ms:30,rnd:false,fadeOut:70},
         judg51_core: {a:'pc1_6',f:[1,3],an:'bottom',sc:0.88,ms:22,rnd:false,fadeOut:45},
         judg51_impact: {a:'pc2_6',f:[0,5],an:'center',flat:0.5,sc:0.58,ms:28,rnd:false,fadeOut:65},
+        // 탐욕 파문 리메이크(2026-11-10 V3.14.2)의 바닥 불꽃: 도트 불꽃 열두 장을 한 번(js/canvas-stage-runes-v313-b.js chandImpact).
+        gothic_flame: {a:'n_flame',an:'bottom',sc:0.55,ms:42,rnd:false,fadeOut:180},
         q_smoke: {a:'x_smoke2',sc:1.15,ms:65,an:'bottom',fadeOut:70},
         q_wind: {a:'x_smwave',sc:1.2,ms:55,an:'center',fadeOut:70},
         q_firefan: {a:'pc4_10',sc:1,ms:44,an:'center',fadeOut:70},

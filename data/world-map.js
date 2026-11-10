@@ -88,6 +88,42 @@ const WORLD_MAP = Object.freeze({
         spiral: ['...#####...', '..#.....#..', '.#..###..#.', '.#.#...#.#.', '.#.#.#.#.#.', '.#.#.##..#.', '.#.#.....#.', '.#..#####..', '..#........', '...######..', '...........'],
         bang: ['....###....', '....###....', '....###....', '....###....', '....###....', '....###....', '.....#.....', '...........', '....###....', '....###....', '....###....']   // 받을 보상의 ! (표식 오른쪽 위, js/world-map-ui.js markHtml)
     }),
+    // 자리 표식(2026-11-10 사용자: 아틀라스 지도와 통일, 자리마다 다른 모양): 아틀라스 표식과 같은 15x15 도트와 같은 글자 팔레트(atlas.icons의 설명),
+    // 같은 그리기(js/world-map-ui.js atlasIcon). a b c는 그 자리의 색(region.color)이다. 자리의 icon이 여기 이름이다.
+    icons: Object.freeze({
+        // 액트: 마름모 돌판(번호가 위에 선다)
+        act: ['.......o.......', '......oao......', '.....oabao.....', '....oabsbao....', '...oabsssbao...', '..oabsssssbco..', '.oabsssssssbco.', 'oabsssssssssbco', '.ocbsssssssbco.', '..ocbsssssbco..', '...ocbsssbco...', '....ocbsbco....', '.....ocbco.....', '......oco......', '.......o.......'],
+        // 강대한 적: 뿔 달린 해골
+        boss: ['o.............o', 'oao.........oao', 'obao.......oabo', '.obaooooooaabo.', '..obwwwwwwwbo..', '..owwwwwwwwwo..', '.owwoowwwoowwo.', '.owwoobwboowwo.', '.owwwwwowwwwwo.', '..owwwwowwwwo..', '...owwwwwwwo...', '...owowowowo...', '...owowowowo...', '....ooooooo....', '...............'],
+        // 고대 미궁: 겹겹의 벽
+        maze: ['ooooooooooooooo', 'oaaaaaaaaaaaaco', 'oasssssssssssco', 'oasbbbbbbbbbsco', 'oasbsssssssbsco', 'oasbsbbbbbsbsco', 'oasbsbsssbsbsco', 'oasbsbsGsssbsco', 'oasbsbsssbsbsco', 'oasbsbbbbbsbsco', 'oasbsssssssssco', 'oasbbbbbbbbbsco', 'oasssssssssssco', 'occccccccccccco', 'ooooooooooooooo'],
+        // 대균열: 벌어진 틈
+        rift: ['.......oo......', '......oao......', '.....oabo......', '....oabwo......', '....oawbooo....', '...oabwwbbao...', '...oobbwwwbo...', '.....oobwwao...', '......oawbo....', '.....oawbo.....', '....oawboo.....', '....obwbo......', '.....obo.......', '.....oo........', '...............'],
+        // 숨겨진 벌집: 꿀이 든 육각 방
+        hive: ['....ooooooo....', '...oaaaaaaao...', '..oabbbbbbbco..', '.oabbsssssbbco.', 'oabbssssssssbco', 'oabssssYssssbco', 'oabsssYYYsssbco', 'oabsssYyYsssbco', 'oabsssyyysssbco', 'oabbsssssssbbco', '.oabbsssssbbco.', '..obbbbbbbbco..', '...occcccccco..', '....ooooooo....', '...............'],
+        // 시간의 균열: 모래시계
+        hourglass: ['.ooooooooooooo.', '.oaaaaaaaaaaco.', '..obbbbbbbbbo..', '..obwwwwwwwbo..', '...obwwwwwbo...', '....obwwwbo....', '.....obwbo.....', '......owo......', '.....obwbo.....', '....obswsbo....', '...obsswssbo...', '..obswwwwwsbo..', '..obbbbbbbbbo..', '.oaaaaaaaaaaco.', '.ooooooooooooo.'],
+        // 심해(낚시 포함): 물고기와 물결
+        fish: ['...............', '...............', '....oooooo.....', '..ooaaaaaaoo.oo', '.oaawabbbbbbobo', 'oaaaoabbbbbbbbo', 'oabbbbbbbbbbbco', 'obbbbbbbbbbbcco', '.obbbbbccccoobo', '..oocccccoo..oo', '....oooooo.....', '...............', '.oo..oo..oo..oo', 'o..oo..oo..oo..', '...............'],
+        // 유성 낙하 지역: 꼬리를 끄는 유성
+        meteor: ['...........oooo', '.........ooYYYo', '.......ooYYyyo.', '......oYYyyoo..', '....ooYyyyo....', '...oaaoyyo.....', '..oaaaaooo.....', '.oaawabbbo.....', '.oaaabbbbo.....', '.oabbbbbco.....', '.obbbbbcco.....', '..obbccco......', '...ooooo.......', '...............', '...............'],
+        // 전직 시련: 곧게 선 검
+        sword: ['.......o.......', '......owo......', '.....owwwo.....', '.....owwwo.....', '.....owwwo.....', '.....owwwo.....', '.....owwwo.....', '.....owwwo.....', '...ooooooooo...', '...oaabbbbco...', '...ooooooooo...', '......obo......', '......obo......', '.....oaaao.....', '......ooo......'],
+        // 혼돈의 뿌리: 갈라져 내려가는 뿌리
+        root: ['.....ooooo.....', '.....oaabo.....', '.....oabbo.....', '....ooabboo....', '...oaoabbobo...', '..oaoobbcoobo..', '.oao.obco.obo..', '.obo.obco..obo.', 'oao..obo...oco.', 'obo..oco....oo.', 'oo..obo........', '....oco........', '...obo.........', '...oo..........', '...............'],
+        // 지하계: 어두운 굴 입구
+        cave: ['...ooooooooo...', '..oaaaaaaaaao..', '.oaabbbbbbbbco.', 'oaabbooooobbcco', 'oabboosssoobbco', 'oabosssssssobco', 'oabosssssssobco', 'oabosssssssobco', 'oabosssssssobco', 'oabosssssssobco', 'oabosssssssobco', 'oabosssssssobco', 'occosssssssocco', 'ooooooooooooooo', '...............'],
+        // 혼돈계: 소용돌이
+        vortex: ['....ooooooo....', '..ooaaaaaaaoo..', '.oaaoooooooaao.', 'oaaoobbbbboobo.', 'oaoobooooobooco', 'oaobooaaaoobobo', 'oaoboaoooaoboco', 'oaoboaowoooboco', 'oaoboaoooooboco', 'oaobooaaaaabbco', 'oaooboooooooco.', '.oaoobbbbbbco..', '.ooaoooooooo...', '..oooaaaaao....', '....ooooooo....'],
+        // 우주계: 고리를 두른 별
+        planet: ['...............', '.....ooooo.....', '...ooaaaaaoo...', '..oaaaabbbbbo.o', '..oaabbbbbbboYo', '.oaabbbbbbbooYo', '.oabbbbbbooYYo.', 'ooobbbbooYYoco.', 'oYYoooYYYoocco.', 'oYYYYYooobcco..', '.ooooobbbccco..', '...obbbccccoo..', '...ooccccoo....', '.....ooooo.....', '...............'],
+        // 군락지: 구멍이 숭숭 뚫린 둔덕
+        colony: ['...............', '......ooo......', '.....oaaao.....', '....oaabbbo....', '...oaabobbbo...', '..oaabbbbbbco..', '..oabbbbobbco..', '.oaabobbbbbbco.', '.oabbbbbbbobco.', 'oaabbbobbbbbbco', 'oabbbbbbbbbbcco', 'oabbobbbbobbcco', 'occccccccccccco', 'ooooooooooooooo', '...............'],
+        // 창공: 반듯한 탑(2026-11-10 사용자: 구름 없이 그냥 반듯한 탑 모양으로)
+        tower: ['.....o.o.o.....', '....oaoaoco....', '....ooooooo....', '....oaabbco....', '....oaabbco....', '....oasbbco....', '....oasbbco....', '....oaabbco....', '....oaabbco....', '....oaabsco....', '....oaabsco....', '....oaabbco....', '...ooaabbcoo...', '...oaaabbcco...', '...ooooooooo...'],
+        // 세계 지도로 돌아가는 자리: 세계수
+        tree: ['....ooooooo....', '..ooaaaaaaaoo..', '.oaaaabaaabaao.', 'oaabaaaaabaaaao', 'oaaaaabaaaaabao', 'obaaaaaaabaaaco', '.occaaYYaaacco.', '..oooccYyccoo..', '.....oYyo......', '.....oYyo......', '.....oyyo......', '....oYyydo.....', '..ooYyoydyoo...', '.oyyoo.oo.oydo.', '.oo.........oo.']
+    }),
     regions: Object.freeze([
         { id: 'act-05', type: 'act', act: 1, zone: [[372, 210], [442, 212], [448, 240], [428, 254], [386, 254], [364, 236]], tag: [470, 222] },
         { id: 'act-02', type: 'act', act: 2, zone: [[372, 176], [462, 176], [468, 206], [442, 216], [392, 216], [364, 200]], tag: [480, 198] },
@@ -99,19 +135,21 @@ const WORLD_MAP = Object.freeze({
         { id: 'act-mw6qeu87', type: 'act', act: 8, zone: [[276, 100], [332, 104], [340, 130], [328, 160], [292, 168], [268, 142]], tag: [226, 160] },
         { id: 'act-09', type: 'act', act: 9, zone: [[314, 72], [378, 72], [386, 90], [372, 106], [320, 106], [306, 90]], tag: [394, 86] },
         { id: 'act-10', type: 'act', act: 10, zone: [[318, 40], [372, 40], [378, 56], [368, 70], [322, 70], [312, 56]], tag: [398, 46] },
-        { id: 'content-mw6r5xui', type: 'content', route: 'map-explore-root-boss', name: '강대한 적', description: '지주근의 밑바닥, 열쇠가 사라진 감옥입니다.', color: '#ff5c5c', symbol: 'boss', zone: [[372, 292], [414, 292], [422, 316], [402, 326], [376, 322], [364, 306]], tag: [430, 350] },
-        { id: 'content-mw6quoe1', type: 'content', route: 'map-explore-labyrinth', name: '고대 미궁', description: '뿌리 틈에 숨겨져 있던 고대의 미궁, 그 끝에 이르는 길은 당신만이 알고 있습니다.', color: '#f3fd5d', symbol: 'shield-knot', zone: [[176, 266], [228, 256], [228, 306], [182, 298]], tag: [186, 316] },
-        { id: 'content-mw6r4qv9', type: 'content', route: 'map-explore-voidrift', name: '대균열', description: '유성의 영향으로 인한 균열은 천천히 영역을 넓혀 갑니다.', color: '#950e64', symbol: 'spiral', zone: [[244, 184], [282, 186], [292, 206], [278, 220], [246, 216], [234, 200]], tag: [204, 212] },
-        { id: 'content-mw6qm5i9', type: 'content', route: 'map-explore-beehive', name: '숨겨진 벌집', description: '수액이 괴이한 방식으로 정제한 흔적들과 생명들', color: '#ff8800', symbol: 'celtic-knot', zone: [[230, 48], [298, 42], [320, 62], [308, 96], [264, 106], [226, 88]], tag: [206, 44] },
-        { id: 'content-mw6ra48b', type: 'content', route: 'map-explore-timerift', name: '시간의 균열', description: '엔트로피를 극대화하십시오.', color: '#ffffff', symbol: 'celtic-knot', zone: [[372, 96], [414, 98], [426, 122], [412, 138], [380, 134], [366, 116]], tag: [440, 104] },
-        { id: 'content-02', type: 'content', route: 'map-tab-ocean', name: '심해', description: '', color: '#047bfb', symbol: 'triskelion', zone: [[270, 314], [334, 314], [346, 340], [326, 358], [280, 354], [262, 334]], tag: [344, 356] },
-        { id: 'content-01', type: 'content', route: 'map-explore-worldtree', name: '아틀라스', description: '당신은 이방인과 어머니 나무 이전의 존재들을 찾기 위해 시간과 공간을 뛰어넘을 것입니다.', color: '#0aff9d', symbol: 'celtic-cross', zone: [[322, 8], [368, 8], [374, 24], [366, 40], [324, 40], [316, 24]], tag: [296, 22] },
-        { id: 'content-03', type: 'content', route: 'map-explore-meteor', name: '유성 낙하 지역', description: '고대의 존재들은 규율의 균열을 눈치채고 있습니다.', color: '#e43fb0', symbol: 'boss', zone: [[280, 170], [316, 170], [324, 190], [312, 204], [282, 202], [270, 186]], tag: [214, 178] },
-        { id: 'content-mw6qhzhs', type: 'content', route: 'map-explore-trials', name: '전직 시련', description: '어머니 나무 뿌리 속의 시련을 마주하라.', color: '#ab90c6', symbol: 'celtic-knot', zone: [[398, 254], [442, 254], [452, 280], [436, 294], [404, 294], [390, 274]], tag: [456, 234] },
-        { id: 'content-mw6rigds', type: 'content', route: 'map-explore-chaos', name: '혼돈의 뿌리', description: '당신의 호기심이 혼돈의 뿌리 끝을 향해 내려갑니다.', color: '#9162ea', symbol: 'celtic-knot', zone: [[428, 250], [498, 248], [498, 318], [468, 324], [432, 300]], tag: [470, 340] },
-        { id: 'content-underworld', type: 'content', route: 'map-tab-underworld', name: '지하계', description: '', color: '#d5a16f', symbol: 'shield-knot', zone: [[228, 256], [268, 270], [264, 296], [228, 306]], tag: [236, 328] },
-        { id: 'content-chaos-realm', type: 'content', route: 'map-tab-chaos-realm', name: '혼돈계', description: '', color: '#f0b3ff', symbol: 'celtic-knot', zone: [[498, 248], [522, 246], [550, 274], [538, 312], [498, 318]], tag: [556, 262] },
-        { id: 'content-cosmos', type: 'content', route: 'map-tab-cosmos', name: '우주계', description: '', color: '#aaa6e6', symbol: 'celtic-cross', zone: [[226, 154], [270, 158], [276, 176], [262, 184], [232, 182], [220, 170]], tag: [196, 166] }
+        { id: 'content-mw6r5xui', type: 'content', route: 'map-explore-root-boss', icon: 'boss', name: '강대한 적', description: '지주근의 밑바닥, 열쇠가 사라진 감옥입니다.', color: '#ff5c5c', symbol: 'boss', zone: [[372, 292], [414, 292], [422, 316], [402, 326], [376, 322], [364, 306]], tag: [430, 350] },
+        { id: 'content-mw6quoe1', type: 'content', route: 'map-explore-labyrinth', icon: 'maze', name: '고대 미궁', description: '뿌리 틈에 숨겨져 있던 고대의 미궁, 그 끝에 이르는 길은 당신만이 알고 있습니다.', color: '#f3fd5d', symbol: 'shield-knot', zone: [[176, 266], [228, 256], [228, 306], [182, 298]], tag: [186, 316] },
+        { id: 'content-mw6r4qv9', type: 'content', route: 'map-explore-voidrift', icon: 'rift', name: '대균열', description: '유성의 영향으로 인한 균열은 천천히 영역을 넓혀 갑니다.', color: '#950e64', symbol: 'spiral', zone: [[244, 184], [282, 186], [292, 206], [278, 220], [246, 216], [234, 200]], tag: [204, 212] },
+        { id: 'content-mw6qm5i9', type: 'content', route: 'map-explore-beehive', icon: 'hive', name: '숨겨진 벌집', description: '수액이 괴이한 방식으로 정제한 흔적들과 생명들', color: '#ff8800', symbol: 'celtic-knot', zone: [[230, 48], [298, 42], [320, 62], [308, 96], [264, 106], [226, 88]], tag: [206, 44] },
+        { id: 'content-mw6ra48b', type: 'content', route: 'map-explore-timerift', icon: 'hourglass', name: '시간의 균열', description: '엔트로피를 극대화하십시오.', color: '#ffffff', symbol: 'celtic-knot', zone: [[372, 96], [414, 98], [426, 122], [412, 138], [380, 134], [366, 116]], tag: [440, 104] },
+        { id: 'content-02', type: 'content', route: 'map-tab-ocean', also: ['map-tab-fishing'], icon: 'fish', name: '심해', description: '', color: '#047bfb', symbol: 'triskelion', zone: [[270, 314], [334, 314], [346, 340], [326, 358], [280, 354], [262, 334]], tag: [344, 356] },
+        { id: 'content-01', type: 'content', route: 'map-explore-worldtree', icon: 'pinnacle', name: '아틀라스', description: '당신은 이방인과 어머니 나무 이전의 존재들을 찾기 위해 시간과 공간을 뛰어넘을 것입니다.', color: '#0aff9d', symbol: 'celtic-cross', zone: [[322, 8], [368, 8], [374, 24], [366, 40], [324, 40], [316, 24]], tag: [296, 22] },
+        { id: 'content-03', type: 'content', route: 'map-explore-meteor', icon: 'meteor', name: '유성 낙하 지역', description: '고대의 존재들은 규율의 균열을 눈치채고 있습니다.', color: '#e43fb0', symbol: 'boss', zone: [[280, 170], [316, 170], [324, 190], [312, 204], [282, 202], [270, 186]], tag: [214, 178] },
+        { id: 'content-mw6qhzhs', type: 'content', route: 'map-explore-trials', icon: 'sword', name: '전직 시련', description: '어머니 나무 뿌리 속의 시련을 마주하라.', color: '#ab90c6', symbol: 'celtic-knot', zone: [[398, 254], [442, 254], [452, 280], [436, 294], [404, 294], [390, 274]], tag: [456, 234] },
+        { id: 'content-mw6rigds', type: 'content', route: 'map-explore-chaos', icon: 'root', name: '혼돈의 뿌리', description: '당신의 호기심이 혼돈의 뿌리 끝을 향해 내려갑니다.', color: '#9162ea', symbol: 'celtic-knot', zone: [[428, 250], [498, 248], [498, 318], [468, 324], [432, 300]], tag: [470, 340] },
+        { id: 'content-underworld', type: 'content', route: 'map-tab-underworld', icon: 'cave', name: '지하계', description: '', color: '#d5a16f', symbol: 'shield-knot', zone: [[228, 256], [268, 270], [264, 296], [228, 306]], tag: [236, 328] },
+        { id: 'content-chaos-realm', type: 'content', route: 'map-tab-chaos-realm', icon: 'vortex', name: '혼돈계', description: '', color: '#f0b3ff', symbol: 'celtic-knot', zone: [[498, 248], [522, 246], [550, 274], [538, 312], [498, 318]], tag: [556, 262] },
+        { id: 'content-cosmos', type: 'content', route: 'map-tab-cosmos', icon: 'planet', name: '우주계', description: '', color: '#aaa6e6', symbol: 'celtic-cross', zone: [[226, 154], [270, 158], [276, 176], [262, 184], [232, 182], [220, 170]], tag: [196, 166] },
+        { id: 'content-colony', type: 'content', route: 'map-explore-colony', icon: 'colony', name: '군락지', description: '', color: '#9fd46a', symbol: 'celtic-knot', zone: [[84, 288], [126, 274], [166, 292], [160, 318], [98, 320]], tag: [206, 330] },
+        { id: 'content-sky', type: 'content', route: 'map-tab-sky', icon: 'tower', name: '창공', description: '', color: '#8fd3ff', symbol: 'celtic-cross', zone: [[546, 150], [608, 138], [650, 160], [642, 194], [566, 198], [538, 176]], tag: [594, 122] }
     ])
 });
 safeExposeData({ WORLD_MAP });

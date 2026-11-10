@@ -60,11 +60,32 @@ const stageRuneRemakes = (() => {
             stageSkillVfx.stamp(ctx, m.map.sweep, k * length, { x: 0, y: waist, dot, face, alpha: MIST.sweepAlpha * Math.min(1, k * 5, (1 - k) * 5 + 0.2) });
         });
     }
+    /** 리메이크 V3.14.4(2026-11-10): 금색 고딕 향로를 동작의 향로 머리에 겹치고(js/canvas-stage-gothic-remakes.js dressCenser), 연기 흐름 대신
+     * 4장부터 둘레에 낮은 향연 여섯, 3~7장 동안 도트 시간 70ms마다 향연 한 줄기. 앞쪽 향연은 얼굴, 가슴과 향로 머리를 비워 둔다. */
+    const GOTHIC_MIST = Object.freeze({ fieldFrom: 4, emitFrom: 3, emitTo: 7, spacing: 70, radius: 1, face: [-13, -108, 26, 35], head: [-10, -11, 20, 24] });
+    function gothicPocket(m, spot) {
+        return (ox, oy) => {
+            if (!m.head) return null;
+            const now = K.heroDrawn(), dx = (now.gx - spot.gx) * WIDE - ox, dy = (now.gy - spot.gy) * DEEP - oy, [fx, fy, fw, fh] = GOTHIC_MIST.face, [hx, hy, hw, hh] = GOTHIC_MIST.head;
+            return [[dx + fx, dy + fy, fw, fh], [dx + m.head.x + hx, dy + m.head.y + hy, hw, hh]];
+        };
+    }
+    function gothicMistWatch(m, frame, time) {
+        const G = stageGothicRemakes, spot = K.heroDrawn();
+        m.head = censerHead(m.heads, frame);
+        if (frame >= GOTHIC_MIST.fieldFrom && !m.field) { m.field = true; G.incenseField(spot, GOTHIC_MIST.radius); }
+        if (m.head && frame >= GOTHIC_MIST.emitFrom && frame <= GOTHIC_MIST.emitTo && time - m.emitted >= GOTHIC_MIST.spacing / m.rate) {
+            m.emitted = time;
+            G.incensePuff(spot, m.head, gothicPocket(m, spot));
+        }
+        return true;
+    }
     /** 프레임마다: 동작이 3장에 닿으면 연기 흐름을 걸고, 3~7장 동안 도트 시간 44ms마다 연기를 낸다. 동작이 끝나면 그만 본다. */
     function mistWatch(m, time) {
         const frame = heroFrame(m.clip);
-        if (frame < 0) return time - m.started < 200 && !m.seen;
+        if (frame < 0) { m.head = null; return time - m.started < 200 && !m.seen; }
         m.seen = true;
+        if (m.gothic) return gothicMistWatch(m, frame, time);
         if (frame >= MIST.sweepFrom && !m.swept) {
             m.swept = true;
             const life = framesLength(m.clip, MIST.sweepFrom, MIST.sweepTo) / m.rate;
@@ -81,7 +102,11 @@ const stageRuneRemakes = (() => {
         const classId = getHeroAppearanceId(), heads = STAGE_SKILL_VFX.censerHeads[classId], motion = stageActors.motionFor(c.gem.meta.name, classId, getStageHeroStance());
         const clip = stageActors.clipOf(classId, getStageHeroStance(), motion);
         if (!heads || !clip) return true;
-        const m = { map: c.gem.map, heads, clip, rate: Number(c.event.holyRate) || 1, started: stageSkillVfx.now(), emitted: -1e9, seen: false, swept: false };
+        const m = { map: c.gem.map, heads, clip, rate: Number(c.event.holyRate) || 1, started: stageSkillVfx.now(), emitted: -1e9, seen: false, swept: false,
+            gothic: stageGothicRemakes.ready(), head: null, field: false };
+        // 향로는 그리는 때의 장을 읽는다(연기 감시는 주인공을 그리기 전에 돌아 장이 바뀌는 순간 한 장 늦다).
+        const drawnHead = () => { const frame = heroFrame(clip); return frame < 0 ? null : censerHead(heads, frame); };
+        if (m.gothic) stageGothicRemakes.dressCenser(drawnHead, framesLength(clip, 0, clip.ms.length - 1) / m.rate + 200);
         stageSkillVfx.watch(time => mistWatch(m, time));
         return true;
     }
@@ -95,7 +120,9 @@ const stageRuneRemakes = (() => {
         if (!c.first) return true;
         const kit = c.gem.map.slam, event = c.event, rate = Number(event.judgmentRate) || 1, hero = K.heroSpot(), aim = event.landingCell, face = Math.sign(aim.gx - hero.gx) || K.heroFace();
         const x = face * (SLAM_REACH[getHeroAppearanceId()] || 60), far = (aim.gx - hero.gx) * WIDE - x, deep = (aim.gy - hero.gy) * DEEP;
+        const G = stageGothicRemakes, gothic = G.ready();
         stageSkillVfx.play(kit.dust, K.at(hero, x, 0), { face, layer: 'ground', alpha: 0.65 });
+        if (gothic) return gothicSlam(c, K.at(hero, x, 0), { face, far, deep, rate });
         stageSkillVfx.play(kit.ring, K.at(hero, x, 0), { face, layer: 'ground', alpha: 0.78 });
         stageSkillVfx.play(kit.wave, K.at(hero, x, 0), { face, layer: 'ground', alpha: 0.4, move: { dx: far, dy: deep, ms: Math.max(30, 90 / rate) } });
         (event.judgmentCells || []).forEach((cell, i) => {
@@ -103,6 +130,21 @@ const stageRuneRemakes = (() => {
             stageSkillVfx.play(kit.bolt, K.at(cell, 0, 1), { delay, alpha: i ? 0.92 : 1 });
             if (!i) stageSkillVfx.play(kit.core, K.at(cell, 0, 1), { delay, face: -1, alpha: 0.42 });
             stageSkillVfx.play(kit.impact, K.at(cell, 0, 0), { delay, layer: 'ground', alpha: i ? 0.58 : 0.8 });
+        });
+        return true;
+    }
+
+    /** 리메이크 V3.14.2(2026-11-10): 향로가 닿은 자리의 상아색 고리, 옅은 물결, 십자 칸마다 가는 금빛 낙뢰(피해와 같은 때)와 작은 고리, 십자를 잇는 바닥 선.
+     * 밝은 가운데 빛(core)은 뺐다. */
+    function gothicSlam(c, contact, o) {
+        const G = stageGothicRemakes, kit = c.gem.map.slam, cells = c.event.judgmentCells || [];
+        G.judgmentRing(contact, 0, 240);
+        stageSkillVfx.play(kit.wave, contact, { face: o.face, layer: 'ground', alpha: 0.22, move: { dx: o.far, dy: o.deep, ms: Math.max(30, 90 / o.rate) } });
+        if (cells.length) G.judgmentCross(c.event.landingCell, cells);
+        cells.forEach((cell, i) => {
+            const delay = i * SLAM_GAP / o.rate;
+            G.judgmentBolt(K.at(cell, 0, 1), delay, !i);
+            G.judgmentRing(K.at(cell, 0, 0), delay, 168);
         });
         return true;
     }
