@@ -230,7 +230,7 @@ const contentUnlockUi = {
     openNpc(npc, mode = 'talk') {
         const old = document.getElementById('npc-dialog');
         if (!npc || (old && old.open)) return false;
-        if (!contentProgression.opening.canOpen(game, 'tab-trade')) mode = 'talk';
+        if (!contentProgression.opening.canOpen(game, 'tab-trade') || (mode === 'exchange' && npc.id !== NPC_CURRENCY_EXCHANGE.npc)) mode = 'talk';
         if (old) old.remove(); // closed a moment ago, its close event (which removes it) not yet run
         const view = { npc, mode, topic: null };
         const dialog = document.createElement('dialog');
@@ -254,7 +254,7 @@ const contentUnlockUi = {
             <button type="button" class="npc-dialog-close" data-npc-close>${_t('닫기')}</button></header>
             ${this.npcModeBody(view)}</div>`;
     },
-    /** The body under the head: the talk, the shop (js/npc-shop-ui.js) or Orga's currency exchange (js/orga-exchange-ui.js). */
+    /** The body under the head: the talk, the shop or the currency exchange. */
     npcModeBody(view) {
         if (view.mode === 'shop') return npcShopUi.body(view.npc);
         return view.mode === 'exchange' ? orgaExchangeUi.body() : this.npcTalkBody(view);
@@ -272,7 +272,7 @@ const contentUnlockUi = {
             <nav class="npc-dialog-talk" aria-label="${_t('이야깃거리')}"><h4>${_t('이야기')}</h4><ul class="npc-dialog-topics">${keys}</ul></nav>
             ${this.npcFoot(view)}`;
     },
-    /** The doors to the shop and, at Orga's, to the currency exchange. */
+    /** The doors to the shop and, at Veila's, to the currency exchange. */
     npcFoot(view) {
         if (!contentProgression.opening.canOpen(game, 'tab-trade')) return '';
         const doors = npcShopUi.door(view.npc) + orgaExchangeUi.door(view.npc);
@@ -316,6 +316,7 @@ const contentUnlockUi = {
     },
     npcPickTopic(view, topic) {
         if (topic === 'shop' || topic === 'exchange') {
+            if (topic === 'exchange' && view.npc.id !== NPC_CURRENCY_EXCHANGE.npc) return;
             if (contentProgression.opening.canOpen(game, 'tab-trade')) view.mode = topic;
             return;
         }

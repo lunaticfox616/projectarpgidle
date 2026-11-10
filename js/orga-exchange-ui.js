@@ -1,5 +1,5 @@
 /**
- * 벼림꾼 오르가의 재화 교환 창(js/content-progression-ui.js openNpc의 'exchange' 화면, 2026-11-06 사용자: "재화교환 역할은 오르가가 맡고").
+ * 베일라의 재화 교환 창(js/content-progression-ui.js openNpc의 'exchange' 화면).
  * 위는 판매와 구매, 왼쪽은 재화가 묶음별로 놓인 칸(가진 수), 오른쪽은 고른 재화의 이번 루프 시세(지난 루프보다 오르내린 만큼), 수량, 견적,
  * 단추다. 판매 목록에는 지금 가진 재화만, 구매 목록에는 한 번이라도 가져 본 재화 가운데 오르가가 파는 재화만 나온다(2026-11-06 사용자: 가져 본
  * 적 없는 재화는 "아예 목록에 안 보여야", 팔기/사기는 판매/구매). 규칙과 시세는 js/currency-exchange.js.
@@ -27,7 +27,7 @@ const orgaExchangeUi = (() => {
     const coinArt = (key, className = 'orga-coin') => (info(key).icon ? `<img class="${className}" src="${esc(info(key).icon)}" alt="" draggable="false">` : '');
     const count = value => Number(value).toLocaleString(i18n.locale);
     /** Whether key is on this side's list: held now to sell; held once and sold by Orga to buy. */
-    const listed = key => (side === 'sell' ? (game.currencies[key] || 0) > 0 : currencyExchange.hasSeen(game, key) && !ORGA_EXCHANGE.noBuy.includes(key));
+    const listed = key => (side === 'sell' ? (game.currencies[key] || 0) > 0 : currencyExchange.hasSeen(game, key) && !NPC_CURRENCY_EXCHANGE.noBuy.includes(key));
     const shownKeys = () => GROUPS.flatMap(group => group.keys).filter(listed);
     /** A rate as people say it: "1개 → 이슬 2.8" or "15개 → 이슬 1" (sell) / "이슬 1 → 4개" (buy). */
     function rateText(quote) {
@@ -46,7 +46,7 @@ const orgaExchangeUi = (() => {
 
     /** The way in under Orga's talk (js/content-progression-ui.js npcFoot); nothing for the other NPCs. */
     function orgaDoorHtml(npc) {
-        if (npc.id !== ORGA_EXCHANGE.npc) return '';
+        if (npc.id !== NPC_CURRENCY_EXCHANGE.npc) return '';
         return `<button type="button" class="npc-dialog-shop npc-dialog-exchange" data-npc-topic="exchange"><span>${_t('재화 교환')}</span><b>${_t('판매, 구매')}</b></button>`;
     }
 
@@ -141,7 +141,7 @@ const orgaExchangeUi = (() => {
         const result = currencyExchange.trade(chosen, side, quantity, owner);
         if (!result.ok) return addLog(result.reason, 'attack-monster');
         notifyCurrencyAcquisition(into, result.gain);
-        addLog(_t('🔨 오르가와 교환: {out} {spend}개 → {into} {gain}개', words), 'loot-magic');
+        addLog(_t('베일라와 교환: {out} {spend}개 → {into} {gain}개', words), 'loot-magic');
         queueImportantSave(180);
         checkUnlocks();
         updateStaticUI();

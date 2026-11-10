@@ -42,6 +42,7 @@ worldTreeSkillFx.feedback = (() => {
 
     function hitSound(fx) {
         if (fx.dot || !(fx.damage > 0)) return;
+        if (SKILL_DB[fx.skillName]?.nativeCastId === 89) return; // 종은 맞은 적마다 울리지 않고 울림 판정마다 한 번만 난다.
         playUiFeedbackSound(skillSound(fx));
     }
 
@@ -110,6 +111,7 @@ worldTreeSkillFx.feedback = (() => {
 
     const eventCues = {
         hit: hitSound,
+        bellToll: fx => playUiFeedbackSound(fx.index === 0 ? 'bellGold' : 'bellBronze'),
         playerSwing: dotCastSound,
         playerHit: fx => { if (fx.damage > 0 && !fx.deflected) playUiFeedbackSound('playerHurt'); },
         enemySpawn: fx => { if (fx.boss) playUiFeedbackSound('bossEntrance'); },

@@ -1,6 +1,6 @@
 /** 거래 창 (메뉴의 거래 단추, 2026-11-06 사용자: "거래소에서 이름 바꾸고 탭 안에 NPC와 장비 전당을 집어넣고", "NPC 안에 암거래상도", 같은 날
  * "장비 탭에 있는 거래를 탭 하나 새로 만들어서"): NPC(만난 NPC와
- * 암거래상의 카드, js/npc-roster-ui.js, 재화 교환은 오르가의 창 js/orga-exchange-ui.js), 가판대(js/player-stall-ui.js), 장비 전당
+ * 암거래상의 카드, js/npc-roster-ui.js, 재화 교환은 베일라의 창 js/orga-exchange-ui.js), 가판대(js/player-stall-ui.js), 장비 전당
  * (js/player-exchange.js). 열린 칸만 보이고, 고른 칸이 닫히면 첫 열린 칸을 본다. 암거래상(js/black-market-ui.js)은 거래소 해금 뒤 NPC 칸의
  * 카드로 서고, 누르면 NPC 창 모양의 창이 뜨며 #market-panel-black 판이 그 안으로 옮겨 갔다가 창을 닫으면 돌아온다. 거래 자체는 각 모듈의 몫이다. */
 // 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
@@ -41,7 +41,7 @@ function renderMarketSection(section) {
 exposeFileGlobals({ marketPickHallItem, renderMarketUI });
 })();
 const MARKET_SECTIONS = Object.freeze(['npc', 'stall', 'hall']);
-const MARKET_BLACK_FACE = 'assets/ui/currency/golden-rule.png';
+const MARKET_BLACK_FACE = 'assets/stage-npcs/black-market-portrait.webp';
 const marketUi = {
     section: 'npc',
     moveTab(event) {
@@ -80,7 +80,7 @@ const marketUi = {
     blackCardHtml() {
         if (!isMarketUnlocked()) return '';
         return `<li class="npc-roster-item" data-tone="crimson"><button type="button" class="npc-roster-card is-black" data-black-open>
-            <span class="npc-roster-face is-coin"><img class="npc-roster-portrait" src="${MARKET_BLACK_FACE}" alt=""></span>
+            <span class="npc-roster-face is-black-trader"><img class="npc-roster-portrait" src="${MARKET_BLACK_FACE}" alt=""></span>
             <span class="npc-roster-text"><strong>${_t('암거래상')}</strong><span class="npc-roster-tags"><em class="is-shop">${_t('공격 룬, 제작 베이스, 고유 장비')}</em></span></span></button>
             <span class="npc-roster-actions"><button type="button" data-black-open>${_t('상점')}</button></span></li>`;
     },
@@ -93,7 +93,7 @@ const marketUi = {
         dialog.className = 'npc-dialog is-shop is-black';
         dialog.dataset.tone = 'crimson';
         dialog.setAttribute('aria-labelledby', 'black-market-name');
-        dialog.innerHTML = `<figure class="npc-dialog-figure is-coin"><img class="npc-dialog-portrait" src="${MARKET_BLACK_FACE}" alt=""></figure>
+        dialog.innerHTML = `<figure class="npc-dialog-figure is-black-trader"><img class="npc-dialog-portrait" src="${MARKET_BLACK_FACE}" alt=""></figure>
             <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who"><h2 id="black-market-name">${_t('암거래상')}</h2></div>
             <button type="button" class="npc-dialog-close" data-black-close>${_t('닫기')}</button></header></div>`;
         dialog.querySelector('.npc-dialog-main').append(board);

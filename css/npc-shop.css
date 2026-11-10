@@ -17,10 +17,9 @@
 /* 상점 본문은 함께 쓰는 상점 화면(css/shop-view.css). 창 안에서는 머리 아래 줄 전체를 차지하고 스스로 밀린다
    (고른 물건의 시트가 이 안에서 아래에 붙는다). 배치는 상점 화면의 것을 그대로 쓴다. */
 .npc-dialog .shop-view { --shop-tone: var(--npc-tone); grid-column: 1 / -1; grid-row: 2; min-height: 0; padding: 4px 20px 18px; overflow: auto; overscroll-behavior: contain; border-top: 1px solid var(--skin-line); }
-/* 암거래상(js/market-ui.js openBlack): NPC 창 모양에 거래소의 암거래상 판(#market-panel-black)이 옮겨 와 머리 아래 줄을 다 쓴다. 얼굴 대신 황금률 그림. */
+/* 암거래상(js/market-ui.js openBlack): NPC 창 모양에 거래소의 암거래상 판(#market-panel-black)이 옮겨 와 머리 아래 줄을 다 쓴다. */
 .npc-dialog.is-black #market-panel-black { display: flex; flex-direction: column; grid-column: 1 / -1; grid-row: 2; min-height: 0; }
 .npc-dialog.is-black #market-panel-black > .shop-view { flex: 1; }
-.npc-dialog-figure.is-coin .npc-dialog-portrait, .npc-roster-face.is-coin .npc-roster-portrait { top: 50%; height: 64%; transform: translate(-50%, -50%); }
 
 /* NPC 탭: 만난 NPC의 카드. 초상, 이름과 칭호, 최근에 만난 곳, 지금 있는 일(새 이야기, 상점). */
 .npc-roster-empty { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
@@ -36,6 +35,8 @@
   border: 0; background: none; box-shadow: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
 .npc-roster-face { position: relative; width: 48px; height: 52px; overflow: hidden; border: 1px solid rgba(169, 145, 84, .45); background: linear-gradient(180deg, #1c1712, #0c0a08 88%); }
 .npc-roster-portrait { position: absolute; top: 3%; left: 50%; width: auto; max-width: none; height: 300%; transform: translateX(-50%); }
+.npc-dialog-figure.is-black-trader .npc-dialog-portrait,
+.npc-roster-face.is-black-trader .npc-roster-portrait { top: -12%; height: 250%; }
 .npc-roster-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .npc-roster-text strong { overflow: hidden; color: var(--npc-tone); text-overflow: ellipsis; white-space: nowrap; }
 .npc-roster-tags { display: flex; flex-wrap: wrap; gap: 4px; }

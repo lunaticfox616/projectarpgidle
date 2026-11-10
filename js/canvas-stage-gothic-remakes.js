@@ -1,7 +1,7 @@
-/** 스킬이펙트 리메이크 V3.14.2~V3.14.4(2026-11-10 전달본): 향로 다섯 스킬의 고딕 금빛 그림. 89 거둬 가는 종(고딕 종), 90 탐욕 파문(고딕 샹들리에와 그 조각),
+/** 스킬이펙트 리메이크 V3.14.2~V3.14.7(2026-11-10 전달본): 향로 다섯 스킬의 고딕 금빛 그림. 89 거둬 가는 종(사슬에 매단 고딕 종), 90 탐욕 파문(고딕 샹들리에와 그 조각),
  * 91 판결-유죄(저울 문양 판결봉과 유죄의 낙뢰), 51 파문심판(가는 금빛 낙뢰와 바닥 십자), 50 신성한 안개(금색 향로와 향연).
  * 시뮬레이터 cathedral-remake.js, verdict-remake.js, gothic-holy-mist.js의 그림과 시간을 옮겼다. 길이는 도트 그대로(시뮬레이터의 화소 = 게임의 도트)다.
- * 그림은 assets/stage-vfx/gothic의 작은 PNG 여섯 장(이진 알파, 제한 팔레트)이고, 자세(종 7, 판결봉 12, 향로 7)와 고리 모양은 그림이 온 뒤 한 번 만들어 둔다.
+ * 그림은 assets/stage-vfx/gothic의 작은 PNG이며, 종 사슬과 추는 저해상도 작업 캔버스 하나에 그려 2배로 올린다.
  * 그림이 아직 오지 않았거나 받지 못하면 ready()가 거짓이라 부르는 쪽(js/canvas-stage-runes-v313-b.js, js/canvas-stage-rune-remakes.js)이 예전 그림을 쓴다.
  * 전투 계산에는 닿지 않는다: 사건에 적힌 시간(울림, 떨어짐, 내리찍기, 낙뢰)을 읽기만 한다.
  */
@@ -9,12 +9,13 @@ const stageGothicRemakes = (() => {
     const K = stageSkillKit, TAU = Math.PI * 2, WIDE = K.WIDE, DEEP = K.DEEP;
     const clamp = v => Math.max(0, Math.min(1, v)), snap = v => Math.round(v / 2) * 2;
     const NAMES = Object.freeze(['bell', 'chandelier', 'bolt', 'gavel', 'censer', 'incense']);
+    const BELL_PARTS = Object.freeze(['bell-body', 'bell-clapper']);
     const pictures = {};
     let built = null;
-    /** 그림 여섯 장을 연다(처음 부를 때 한 번). */
+    /** 그림을 연다(처음 부를 때 한 번). 기존 여섯 장이 준비되면 새 종 부품의 로딩 중에도 그릴 수 있다. */
     function openGothicPictures() {
         if (pictures.bell) return;
-        for (const name of NAMES) pictures[name] = stagePictures.openPicture(`assets/stage-vfx/gothic/${name}.png`);
+        for (const name of [...NAMES, ...BELL_PARTS]) pictures[name] = stagePictures.openPicture(`assets/stage-vfx/gothic/${name}.png`);
     }
     const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
     /** 납작한 고리 모양(바깥 테, 중간, 안쪽 빛 세 색). */
@@ -95,6 +96,65 @@ const stageGothicRemakes = (() => {
     function screenTop(ctx) { const m = ctx.getTransform(); return -m.f / m.d; }
 
     // ---------------------------------------------------------------- 89 거둬 가는 종
+    const DEG = Math.PI / 180;
+    const CHAIN_SEGMENTS = 6, CHAIN_STEP = 52 / CHAIN_SEGMENTS;
+    const CAVITY_ROWS = Object.freeze([[57, 27, 10], [58, 20, 24], [59, 14, 36], [60, 9, 46], [61, 5, 54], [62, 4, 56],
+        [63, 4, 56], [64, 5, 54], [65, 7, 50], [66, 10, 44], [67, 14, 36], [68, 20, 24]]);
+    let bellRig = null;
+    function bellChainLink(edge) {
+        const c = canvas(5, 7), g = c.getContext('2d');
+        g.fillStyle = '#3c2b20'; g.fillRect(edge ? 1 : 0, 0, edge ? 3 : 5, 7);
+        g.fillStyle = '#b28b4d'; g.fillRect(edge ? 2 : 1, 0, edge ? 1 : 3, 7);
+        if (!edge) { g.fillStyle = '#211b20'; g.fillRect(2, 2, 1, 3); }
+        g.fillStyle = edge ? '#e8c982' : '#efcf8a'; g.fillRect(edge ? 2 : 1, 1, 1, 4);
+        return c;
+    }
+    function openBellRig() {
+        if (bellRig || !BELL_PARTS.every(name => pictures[name].ready)) return bellRig;
+        const image = canvas(128, 144), cavity = new Path2D();
+        for (const [y, x, w] of CAVITY_ROWS) cavity.rect(x - 32, y - 7, w, 1);
+        bellRig = { image, ctx: image.getContext('2d'), cavity, links: [bellChainLink(false), bellChainLink(true)],
+            points: Array.from({ length: CHAIN_SEGMENTS + 1 }, () => ({ x: 0, y: 0, angle: 0 })) };
+        return bellRig;
+    }
+    /** V3.14.7: 사슬 마디마다 흔들림이 조금 늦게 전해진다. 끝 마디를 종의 축으로 함께 쓴다. */
+    function bellChainPose(t, plan, sky, rig) {
+        const first = plan.tolls[0], period = Math.max(180, plan.tolls.length > 1 ? plan.tolls[1] - first : 450);
+        const entrance = clamp(t / plan.drop), phase = (t - first) * Math.PI / period, age = Math.max(0, t - plan.T1);
+        const body = 17 * Math.cos(phase) * entrance * Math.exp(-age / 370) * DEG;
+        const raw = -54 * Math.cos(phase - 0.18) / Math.cos(0.18);
+        const relative = Math.max(-54, Math.min(54, raw)) * entrance * Math.exp(-age / 470) * DEG;
+        const envelope = entrance * Math.exp(-age / 520);
+        let x = 0, y = Math.max(sky - 10, -258) - (1 - entrance) ** 2 * 30, angle = 0;
+        for (let i = 0; i < CHAIN_SEGMENTS; i++) {
+            const q = i / (CHAIN_SEGMENTS - 1);
+            angle = (17 * Math.cos(phase - 0.22 - q * 0.55) + 2.4 * Math.sin(phase * 2 - q * 0.65)) * envelope * DEG;
+            const point = rig.points[i];
+            point.x = x; point.y = y; point.angle = angle;
+            x -= Math.sin(angle) * CHAIN_STEP;
+            y += Math.cos(angle) * CHAIN_STEP;
+        }
+        const last = rig.points[CHAIN_SEGMENTS];
+        last.x = x; last.y = y; last.angle = angle;
+        return { x, y, body, relative };
+    }
+    function drawBellChain(ctx, rig, pose) {
+        const g = rig.ctx;
+        g.clearRect(0, 0, rig.image.width, rig.image.height);
+        g.save(); g.imageSmoothingEnabled = false;
+        rig.points.forEach((point, i) => {
+            g.save();
+            g.translate(Math.round(64 + (point.x - pose.x) / 2), Math.round(44 + (point.y - pose.y) / 2));
+            g.rotate(point.angle); g.drawImage(rig.links[i % 2], -2, -3);
+            g.restore();
+        });
+        g.translate(64, 44); g.rotate(pose.body); g.drawImage(image('bell-body'), -32, -7);
+        g.clip(rig.cavity); g.translate(0, 43); g.rotate(pose.relative);
+        g.drawImage(image('bell-clapper'), -8, 0, 16, 20);
+        g.restore();
+        ctx.drawImage(rig.image, snap(pose.x - 128), snap(pose.y - 88), 256, 288);
+        return { x: pose.x - Math.sin(pose.body) * 112, y: pose.y + Math.cos(pose.body) * 112 };
+    }
     /** plan: js/canvas-stage-runes-v313-b.js bellPlan({ A, B, tolls, T1, drop, wave }). */
     function bellGround(ctx, t, plan) {
         const entrance = clamp(t / plan.drop), out = 1 - clamp((t - plan.T1 - plan.wave - 80) / 300);
@@ -116,24 +176,30 @@ const stageGothicRemakes = (() => {
         });
         return swing;
     }
-    /** 줄에 매달려 내려와 울릴 때마다 흔들리는 종과 입 옆의 소리 결(화면 전체 빛은 없다). */
-    function bellSky(ctx, t, plan) {
-        const entrance = clamp(t / plan.drop), out = 1 - clamp((t - plan.T1 - plan.wave - 80) / 300);
-        if (out <= 0) return;
-        const sky = screenTop(ctx), pivot = Math.max(sky + 12, -230) - (1 - entrance) ** 2 * 38;
+    /** 새 부품이 준비되기 전에는 기존 고딕 종을 그린다. */
+    function drawLegacyGothicBell(ctx, t, plan, sky, entrance) {
+        const pivot = Math.max(sky + 12, -230) - (1 - entrance) ** 2 * 38;
         const pose = built.bell[Math.max(0, Math.min(6, Math.round(bellSwing(t, plan) / 4) + 3))];
-        ctx.save(); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = entrance * out;
         const rope = Math.max(0, snap(pivot + 5 - sky));
         ctx.fillStyle = '#3d3029'; ctx.fillRect(-2, Math.floor(sky), 4, rope);
         ctx.fillStyle = '#bd955d'; ctx.fillRect(0, Math.floor(sky), 2, rope);
         ctx.drawImage(pose, -112, snap(pivot - 20), 224, 192);
+        return { x: 0, y: pivot + 105 };
+    }
+    /** 사슬에 매달려 내려와 울릴 때마다 흔들리는 종과 입 옆의 소리 결. */
+    function bellSky(ctx, t, plan) {
+        const entrance = clamp(t / plan.drop), out = 1 - clamp((t - plan.T1 - plan.wave - 80) / 300);
+        if (out <= 0) return;
+        const sky = screenTop(ctx), rig = openBellRig();
+        ctx.save(); ctx.imageSmoothingEnabled = false; ctx.globalAlpha = entrance * out;
+        const mouth = rig ? drawBellChain(ctx, rig, bellChainPose(t, plan, sky, rig)) : drawLegacyGothicBell(ctx, t, plan, sky, entrance);
         for (const tt of plan.tolls) {
             const u = (t - tt) / 340;
             if (u < 0 || u > 1) continue;
             ctx.globalAlpha = 0.75 * (1 - u) * out; ctx.fillStyle = '#dfbf82';
             for (const side of [-1, 1]) for (let j = -5; j <= 5; j++) {
                 const a = j * 0.11, rx = 62 + u * 32;
-                ctx.fillRect(snap(side * Math.cos(a) * rx), snap(pivot + 105 + Math.sin(a) * rx * 0.65), 2, 4);
+                ctx.fillRect(snap(mouth.x + side * Math.cos(a) * rx), snap(mouth.y + Math.sin(a) * rx * 0.65), 2, 4);
             }
         }
         ctx.restore();
