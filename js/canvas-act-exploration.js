@@ -25,11 +25,6 @@ const actExplorationView=(()=>{
      * The tile is sized so one art pixel is a whole number of canvas pixels at the battle render scale
      * (48 CSS px at scale 1, 48.76 on a 2.625 phone drawing 4 canvas px per art pixel). */
     function renderScale() { return typeof uiDisplay==='object'?uiDisplay.battleRenderScale:1; }
-    function tileSize(width,height) {
-        const {minZoom,maxZoom}=ACT_EXPLORATION_CAMERA,scale=renderScale();
-        const zoom=Math.max(minZoom,Math.min(maxZoom,Math.floor(Math.min(width/16,height/12)/16)));
-        return 16*Math.max(1,Math.floor(zoom*scale+.25))/scale;
-    }
     /** The map origin on the canvas pixel grid, so the terrain, the characters and the re-dotted effects share it
      * while the camera glides between cells. */
     function snap(value) { const scale=renderScale();return Math.round(value*scale)/scale; }
@@ -37,7 +32,7 @@ const actExplorationView=(()=>{
      * 함께 눌린다. 위에서 보는 전장에서는 둘이 같다. */
     function projection(width,height) {
         const run=actExplorationState.current(game),map=actExplorationMap.forRun(run);
-        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageView.enabled()?stageTile(run,map,width,height):tileSize(width,height);
+        const cell=actExplorationMotion.position(run,game.gridPlayer),tile=stageTile(run,map,width,height);
         const deep=tile*stageView.depth(),centre=cameraCentre(run,cell,{columns:width/tile,rows:height/deep,width,height});
         const mapX=snap(width/2-centre.gx*tile),mapY=snap(height*stageView.anchorY()-centre.gy*deep);
         shiftActors(run,{x:mapX,y:mapY,tile,deep});
@@ -128,10 +123,9 @@ const actExplorationView=(()=>{
     /** The ground picture of a map: the painted top-down map, or on the side-view stage the stage terrain drawn here
      * (js/canvas-stage-terrain.js). Switching the view prepares the other picture. */
     function prepare(map) {
-        const staged=stageView.enabled();
-        if(cache?.map===map && cache.staged===staged)return;
-        const current={map,staged,surface:null,scenery:[],error:'',closed:null,open:null};cache=current;
-        (staged?Promise.resolve().then(()=>stageTerrain.paint(map)):explorationArt.terrain(map)).then(surface=>{
+        if(cache?.map===map)return;
+        const current={map,surface:null,scenery:[],error:'',closed:null,open:null};cache=current;
+        Promise.resolve().then(()=>stageTerrain.paint(map)).then(surface=>{
             if(cache!==current)return;
             current.surface=surface;current.scenery=explorationArt.scenery(map);
             current.closed=explorationArt.gate(true,map);current.open=explorationArt.gate(false,map);

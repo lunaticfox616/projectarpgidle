@@ -21,7 +21,7 @@ const bossAttackView = (() => {
     /** 옆에서 보는 무대(2026-10-16 사용자 "보스 패턴의 동그라미 강조표시가 이상하고, 좀 이상한 이펙트들도 있어"): 원근으로 납작하게 눌린 큰 타원이
      * 범위 밖에서 조여 들고 흰 꺾쇠가 돌며, 착탄 때 흰 타원 두 겹이 퍼지고 위에서 보는 전장의 파편과 바닥 금이 남았다. 무대에서는 바닥 칸의
      * 경고(깜빡이며 짙어진다)와 갈래와 줄의 화살표, 보스의 효과 그림(js/canvas-boss-moves.js)만 쓴다. 착탄 때 칸이 번쩍이는 빛과 소리는 둔다. */
-    const onStage = () => typeof stageView === 'object' && stageView.enabled();
+    const onStage = () => typeof stageView === 'object' && true;
     const isHeld = enemy => (enemy.ailments || []).some(ailment => ['freeze', 'stun', 'silence'].includes(ailment.type) && ailment.time > 0);
     function isLiveWarning(enemy) {
         if (!enemy || !enemy.isBoss || enemy.noAttack || !(enemy.hp > 0) || !enemy.patternArea) return false;

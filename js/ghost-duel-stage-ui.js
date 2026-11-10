@@ -490,7 +490,7 @@ const ghostDuelStage = (() => {
     }
     function play(duel, outcome) {
         stop();
-        if (!duel || !Array.isArray(duel.events) || !stageView.enabled()) return false;
+        if (!duel || !Array.isArray(duel.events)) return false;
         scene = sceneOf(duel, outcome);
         if (typeof closeAllWindows === 'function') closeAllWindows();
         scene.root = mountRoot();

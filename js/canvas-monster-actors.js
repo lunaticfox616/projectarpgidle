@@ -22,7 +22,7 @@ const monsterActors = (() => {
      * four-direction sheet. A stage sheet that failed to load is not asked for again. */
     function sheetSource(id) {
         const art = stageArt(id);
-        const staged = art && stageView.enabled() && !sheets.get('stage:' + art.id)?.failed ? art : null;
+        const staged = art && !sheets.get('stage:' + art.id)?.failed ? art : null;
         if (staged) return { key: 'stage:' + art.id, spec: staged, kind: MONSTER_STAGE_KIND };
         const spec = typeof MONSTER_SPRITE_SHEETS === 'object' ? MONSTER_SPRITE_SHEETS[id] : null;
         return spec ? { key: id, spec, kind: MONSTER_SPRITE_KINDS[spec.kind] } : null;
@@ -164,11 +164,11 @@ const monsterActors = (() => {
         const feet = (own && (own[row] || own)) || kind.feet;
         const src = [frame.index * cell, kind.rows.indexOf(row) * cell, cell, cell];
         const left = snap(p.x - feet[0] * dot), top = snap(p.y - (feet[1] + frame.bob) * dot);
-        return { src, left, top, size: cell * dot, dot, rim: stageRimStep(p, dot) };
+        return { src, left, top, size: cell * dot, dot, rim: stageRimStep(p) };
     }
     /** 테의 굵기(px). 옆에서 보는 무대에서는 예전 그림(한 도트가 화면의 여섯 px쯤으로 커진다)도 새 그림과 같이 캐릭터 도트 하나만큼만
      * 두른다: 제 도트만큼 두르면 붉은 테가 새 그림의 네 배 굵기로 나와 한 무리 안에서 따로 놀았다(2026-10-13 지하계를 돌려 본 결과). */
-    const stageRimStep = (p, dot) => (stageView.enabled() ? Math.max(1, Math.round(stageActors.scaleFor(p.tile))) : dot);
+    const stageRimStep = p => Math.max(1, Math.round(stageActors.scaleFor(p.tile)));
     /** A stage sheet: one row facing right at the character's dot size; facing left mirrors it about the feet (mirror = that x). */
     function stagePlacement(pair, frame, row, p) {
         const cell = pair.kind.frame, dot = stageActors.scaleFor(p.tile) * (p.spawnScale || 1), feet = pair.spec.feet;
@@ -207,8 +207,7 @@ const monsterActors = (() => {
     function groundShadow(ctx, pair, p) {
         const share = pair === 'loading' ? 0.3 : pair.kind.shadow;
         // 무대에서는 예전 그림의 몬스터도 새 그림과 같은 도트 그림자를 딛는다(한 무리 안에서 그림자 두 가지가 섞여 보였다)
-        if (stageView.enabled() || (pair !== 'loading' && pair.kind.stage)) stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
-        else drawPixelShadow(ctx, p.x, p.y + 2, p.tile * share, p.tile * 0.09, 0.2);
+        stageRings.shadow(ctx, { x: p.x, y: p.y, dot: stageActors.scaleFor(p.tile) }, Math.round(share * 64), 0.34);
     }
     /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId). On the stage a
      * monster with newer art (js/canvas-stage-roster.js: walk and attack sheets, story bosses too) draws from that first.

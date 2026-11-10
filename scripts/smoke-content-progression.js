@@ -929,7 +929,7 @@ assert.deepEqual(json('[game.currencies.runeShard,game.currencies.underGold]'),[
         runtime.setInterval = callback => { openingTick = callback; return 0; };
         try { vm.runInContext(require('fs').readFileSync(require('path').join(__dirname, '../js/opening-journey-ui.js'), 'utf8'), runtime); }
         finally { runtime.document.getElementById = beforeOpeningGet; runtime.setInterval = beforeOpeningInterval; }
-        run("game.seenTutorials.push('opening_intro','opening_rise','opening_move','opening_attack');game.settings.battleView='top';game.settings.autoMove=true");
+        run("game.seenTutorials.push('opening_intro','opening_rise','opening_move','opening_attack');game.settings.autoMove=true");
         openingTick();
         assert(run("openingJourney.autoLocked() && !game.seenTutorials.includes('opening_done')"),'acknowledgement cannot finish the first-weapon lesson while no weapon is worn');
         withTooltipBox('equipItemById(game.inventory[0].id)');

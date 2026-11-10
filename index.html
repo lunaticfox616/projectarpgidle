@@ -11,7 +11,6 @@
     <!-- 웹 묶음을 만들 때 배포 표식으로 바뀐다(scripts/build-web.js). 열려 있는 게임이 새 배포를 알아챈다(js/app-update-ui.js). -->
     <meta name="app-deploy" content="dev">
     <!-- 웹 묶음에 무대 그림(assets/playable/stage)이 없으면 none으로 바뀐다(scripts/build-web.js). 그때는 게임이 그 그림을 묻지 않는다. -->
-    <meta name="stage-art" content="probe">
     <!-- 웹 묶음을 만들 때 받을 스크립트와 스타일의 크기 합(바이트)으로 바뀐다(scripts/lib/immutable-urls.js stampBootBytes). 받는 동안의 용량 줄이 쓴다. -->
     <meta name="boot-bytes" content="dev">
     <!-- 배포 묶음(웹·앱)을 만들 때 그 커밋의 시각으로 바뀐다(scripts/lib/game-build.js). 저장마다 남아, 더 새 판의 저장을 옛 판이 열지 않는다(js/save.js). -->
@@ -1629,7 +1628,6 @@
 <script defer src="data/player-stall.js"></script>
 <script defer src="data/passives.js"></script>
 <script defer src="data/ascendancies.js"></script>
-<script defer src="data/hana-sprites.js"></script>
 <script defer src="data/hana-weapon-combos.js"></script>
 <script defer src="data/stage-characters.js"></script>
 <script defer src="data/stage-view.js"></script>
@@ -1716,7 +1714,6 @@
 <script defer src="js/currency-exchange.js"></script>
 <script defer src="js/item-save-slim.js"></script>
 <script defer src="js/loot.js"></script>
-<script defer src="js/battle-backdrops.js"></script>
 <script defer src="js/battle-asset-loading.js"></script>
 <script defer src="js/background-build-cache.js"></script>
 <script defer src="js/equipment-stat-resolution.js"></script>
@@ -1843,7 +1840,6 @@
     <script defer src="js/canvas-exploration-art.js"></script>
     <script defer src="js/canvas-act-exploration.js"></script>
 <script defer src="js/canvas-exploration-objects.js"></script>
-<script defer src="js/canvas-hana-actors.js"></script>
 <script defer src="js/canvas-stage-pictures.js"></script>
 <script defer src="js/canvas-stage-cache.js"></script>
 <script defer src="js/canvas-stage-dots.js"></script>

@@ -70,7 +70,7 @@ const openingJourney = (() => {
     /** The hero lies in act 1's entry room (or is getting up): the game waits, the story lines wait (js/canvas-act-title-card.js). */
     function lying() {
         const run = actRun();
-        return lesson() === 'rise' && !!run && inEntry(run) && stageView.enabled();
+        return lesson() === 'rise' && !!run && inEntry(run);
     }
     function holds() { return !!intro || lying(); }
     /** The entry room's lines wait: also between the class pick and the intro's first tick (the wake line would play under it). */
@@ -80,18 +80,16 @@ const openingJourney = (() => {
     /** The prologue as a short scene: the plate drifts in out of the dark, the verdict and two lines of narration rise one by one;
      * a press shows the rest at once, the next press (or 건너뛰기) fades to black and the dark lifts off the stage behind. */
     function startIntro() {
-        const staged = stageView.enabled(), replaced = staged ? [...REPLACED, ...STAGE_REPLACED] : REPLACED;
+        const replaced = [...REPLACED, ...STAGE_REPLACED];
         replaced.forEach(mark);
         for (let i = tutorialQueue.length - 1; i >= 0; i--) if (replaced.includes(tutorialQueue[i].key)) tutorialQueue.splice(i, 1);
         if (activeTutorial && replaced.includes(activeTutorial.key)) dismissTutorial(false);
-        if (staged) {
-            contentProgression.opening.enroll(game);
-            updateTabUnlockButtons();
-            heldAuto = { settings: game.settings, autoMove: game.settings.autoMove };
-            game.settings.autoMove = false;
-            stageActors.preloadRise(game.selectedClassId);
-            stageActors.setRise({ start: null }); // the stage under the intro already shows the hero lying when the dark lifts
-        }
+        contentProgression.opening.enroll(game);
+        updateTabUnlockButtons();
+        heldAuto = { settings: game.settings, autoMove: game.settings.autoMove };
+        game.settings.autoMove = false;
+        stageActors.preloadRise(game.selectedClassId);
+        stageActors.setRise({ start: null }); // the stage under the intro already shows the hero lying when the dark lifts
         introReturnFocus = document.activeElement;
         introOwner = game;
         intro = document.createElement('dialog');
@@ -200,7 +198,6 @@ const openingJourney = (() => {
     }
     function trackRise() {
         // The top-down field: no lessons (see REPLACED).
-        if (!stageView.enabled()) { [KEY.rise, KEY.move, KEY.attack, KEY.done].forEach(mark); stageActors.setRise(null); return; }
         // The hero is not in act 1's entry room (a save from elsewhere): there is no one lying to wake.
         if (!lying()) { mark(KEY.rise); stageActors.setRise(null); return; }
         if (!rising) stageActors.setRise({ start: null });
@@ -244,7 +241,6 @@ const openingJourney = (() => {
     }
     /** While the opening runs on the stage the auto hunt stays off. */
     function holdManual(run) {
-        if (!stageView.enabled()) return;
         if (game.settings.autoMove !== false) game.settings.autoMove = false;
         if (run && run.mode !== 'manual') { run.mode = 'manual'; actExplorationUi.render(); }
     }

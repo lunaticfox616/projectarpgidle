@@ -18,7 +18,7 @@ const woodsmanView = (() => {
         const pic = images.get(file);
         return pic.complete && pic.naturalWidth ? pic : null;
     }
-    const active = enemy => stageView.enabled() && stageView.backdrops() && woodsmanBattle.owns(enemy)
+    const active = enemy => stageView.backdrops() && woodsmanBattle.owns(enemy)
         && bodyRect?.enemy === enemy && performance.now() - bodyRect.at < 500;
     /** Reserve the giant's head above the ledge while retaining the complete walkable floor below it. */
     function fitTile(map, width, height, normal) {

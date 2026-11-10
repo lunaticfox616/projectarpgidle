@@ -279,7 +279,7 @@ const stageSkillRunes = (() => {
     }
     /** 무대 주인공이 그 룬을 쓸 때 그리는 동작과 그 칸(js/canvas-stage-actors.js motionFor, clipOf). 무대가 아니거나 그 그림이 없으면 null. */
     function heroMotionClip(name) {
-        if (typeof stageView !== 'object' || !stageView.enabled() || typeof getStageHeroStance !== 'function') return null;
+        if ((typeof stageView !== 'object') || typeof getStageHeroStance !== 'function') return null;
         const classId = getHeroAppearanceId(), stance = getStageHeroStance(), motion = stageActors.motionFor(name, classId, stance), clip = stageActors.clipOf(classId, stance, motion);
         return clip ? { motion, clip } : null;
     }

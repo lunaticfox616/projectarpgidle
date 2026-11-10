@@ -25,15 +25,8 @@ async function buildWeb() {
     const placeholder = '<meta name="app-deploy" content="dev">';
     const built = stampGameBuild(await buildCss(destination, await fs.readFile(path.join(root, 'index.html'), 'utf8')), root);
     if (!built.includes(placeholder)) throw new Error('index.html has no app-deploy placeholder');
-    // 무대 그림(assets/playable/stage: 저장소에 없고 묶음을 만드는 자리에 있을 때만 들어간다)이 이 묶음에 없으면 그렇다고 적어 둔다.
-    // 게임은 작은 그림 하나를 물어서 그림이 있는지 아는데(js/canvas-stage-actors.js available), 없는 묶음에서는 열 때마다 404가 난다.
-    // 그림이 든 묶음은 그렇다고 적어(packed) 게임이 묻지 않게 한다: 그 한 번의 요청이 실패한 접속은 내내 옛 전장으로 그렸다(2026-11-10).
-    const stageArt = '<meta name="stage-art" content="probe">';
-    if (!built.includes(stageArt)) throw new Error('index.html has no stage-art placeholder');
-    const packed = await fs.access(path.join(destination, 'assets/playable/stage')).then(() => true, () => false);
     // Release only: no test panel and no dev-only code (scripts/lib/release-bundle.js), checked before anything is written.
-    const released = await prepareRelease(destination, built.replace(placeholder, `<meta name="app-deploy" content="${build}">`)
-        .replace(stageArt, `<meta name="stage-art" content="${packed ? 'packed' : 'none'}">`));
+    const released = await prepareRelease(destination, built.replace(placeholder, `<meta name="app-deploy" content="${build}">`));
     // Content-named script and style URLs (scripts/lib/immutable-urls.js), hashed after the release strip changed the files.
     await fs.writeFile(path.join(destination, 'index.html'), await stampBootBytes(destination, await markImmutableUrls(destination, released)));
     await fs.writeFile(path.join(destination, 'version.json'), JSON.stringify({ build }) + '\n');

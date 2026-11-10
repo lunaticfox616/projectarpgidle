@@ -29,7 +29,6 @@ const stageRoomsView = (() => {
             : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5 + coreViewLean(map, cell, view)));
         const row = map.colonyDefense || map.grandBreach ? specialFocusRow(room, cell, view)
             : isOpen(map) ? openFocusRow(room, view) : focusRow(room, view);
-        if (!stageView.enabled()) return { gx, gy: row };
         const base = Math.min(row, heroRow(room, cell, view));
         if (!uiDisplay.battleHudAtSide) { roomCamera.room = null; return { gx, gy: base }; }
         const frame = { gx, gy: base, min: heroFeetRow(room, cell, view) };

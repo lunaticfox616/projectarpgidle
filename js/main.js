@@ -157,13 +157,11 @@ function bootGame() {
 
 // 다른 탭이 게임을 돌리고 있으면 그 탭이 저장을 마치고 놓아 준 뒤에 부팅한다(js/game-tab-guard-ui.js). 대기 화면의 탭은 부팅하지 않는다.
 // 다른 기기의 접속에 밀려난 화면(js/cloud-session-guard-ui.js)도 대기 화면이며, 탭 사이 인사보다 먼저 본다(그 화면은 다른 탭을 멈추지 않는다).
-function bootWhenStageArtKnown() {
-    const known = typeof stageActors === 'object' ? stageActors.whenStageArtKnown() : Promise.resolve();
-    const artKnown = Promise.race([known, new Promise(done => setTimeout(done, STAGE_PROBE_WAIT_MS))]);
-    cloudSessionGuard.ready().then(() => Promise.all([artKnown, gameTabGuard.ready()])).then(bootGame);
+function bootWhenTabMayRun() {
+    cloudSessionGuard.ready().then(() => gameTabGuard.ready()).then(bootGame);
 }
 
-exposeFileGlobals({ runForegroundCombat, runForegroundExplorationFrame, revealStartupScreen, applySavedPresentation, runGameTick, settlePlayerStall, refreshCombatTickUi, notePageExit, syncGameplayTimers, bootWhenStageArtKnown });
+exposeFileGlobals({ runForegroundCombat, runForegroundExplorationFrame, revealStartupScreen, applySavedPresentation, runGameTick, settlePlayerStall, refreshCombatTickUi, notePageExit, syncGameplayTimers, bootWhenTabMayRun });
 })();
 const foregroundCombatClock = { lastAtMs: null, remainderMs: 0 };
 
@@ -326,9 +324,6 @@ window.addEventListener('error', function(event) {
     if (!event || !event.error) return;
     reportFatalError('runtime', event.error);
 });
-// 저장을 불러오기 전에 무대 그림이 있는지 알아 둔다(js/canvas-stage-actors.js whenStageArtKnown): 답이 늦게 오면 방 단위 탐험을 저장한 게임이
-// 예전 이어진 지도로 열렸다(2026-10-16). 답을 기다리는 것은 STAGE_PROBE_WAIT_MS까지다.
-const STAGE_PROBE_WAIT_MS = 2500;
-window.addEventListener('load', bootWhenStageArtKnown);
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootWhenStageArtKnown);
-else setTimeout(bootWhenStageArtKnown, 0);
+window.addEventListener('load', bootWhenTabMayRun);
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootWhenTabMayRun);
+else setTimeout(bootWhenTabMayRun, 0);

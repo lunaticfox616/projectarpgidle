@@ -5,8 +5,6 @@
 const devTestPanel = (() => {
     const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
     const SPEEDS = [1, 2, 4, 8];
-    const WEAPON_MODES = [['auto', '착용 무기'], ['class', '직업 기본'], ['greatsword', '대검'], ['scimitar', '한손검'],
-        ['shortbow', '단궁'], ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     const STAGE_STANCES = [['auto', '착용 무기'], ['unarmed', '맨손'], ['greatsword', '대검'], ['sword', '한손검'], ['bow', '활'],
         ['orb', '오브'], ['flask', '플라스크'], ['censer', '향로']];
     let root = null, godTimer = null, speed = 1;
@@ -38,7 +36,6 @@ const devTestPanel = (() => {
     // ------------------------------------------------------------------ actions
     function chooseClass(classId) {
         applyHeroSelection(classId, { alignTalent: true });
-        if (typeof hanaActors === 'object') hanaActors.preload(classId);
         refresh();
         note(`직업: ${PLAYER_CLASS_DEFS[classId].label}`);
     }
@@ -306,17 +303,8 @@ const devTestPanel = (() => {
     function classRow() {
         return row(Object.keys(PLAYER_CLASS_DEFS).map(id => button(PLAYER_CLASS_DEFS[id].label, () => chooseClass(id))));
     }
-    function weaponSelect() {
-        const select = el('select', { id: 'dtp-weapon' }, WEAPON_MODES.map(([value, label]) => el('option', { value, textContent: label })));
-        select.value = game.settings.heroWeaponMode || 'auto';
-        select.onchange = () => setSetting('heroWeaponMode', select.value, `무기: ${select.selectedOptions[0].textContent}`);
-        return select;
-    }
     function characterSection() {
-        return section('캐릭터', [classRow(), row([
-            button('Hana 스프라이트', () => setSetting('heroSpriteSet', 'hana', '캐릭터: Hana +6')),
-            button('기존 스프라이트', () => setSetting('heroSpriteSet', 'legacy', '캐릭터: 기존'))
-        ]), row([el('label', { textContent: '무기' }), weaponSelect()])]);
+        return section('캐릭터', [classRow()]);
     }
     /** 무대 몬스터(js/canvas-stage-roster.js): 지금 나오는 몬스터를 모두 한 가지 모습으로 바꿔 보기(새 그림이 있는 몬스터 아무나
      * 실제 전투에서 본다). */
@@ -333,8 +321,6 @@ const devTestPanel = (() => {
         stance.value = game.settings.stageStance || 'auto';
         stance.onchange = () => setSetting('stageStance', stance.value, `무대 자세: ${stance.selectedOptions[0].textContent}`);
         return section('옆에서 보는 무대(시험판)', [
-            row([button('무대 켜기', () => setSetting('battleView', 'stage', '전장: 옆에서 보는 무대')),
-                button('끄기', () => setSetting('battleView', 'top', '전장: 위에서 보기'))]),
             row([el('label', { textContent: '크기' }), button('자동', () => setSetting('stageZoom', 0, '무대 크기: 자동')),
                 ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
             row([el('label', { textContent: '자세' }), stance]),
@@ -405,13 +391,12 @@ const devTestPanel = (() => {
     function status() {
         const line = root && root.querySelector('.dtp-status');
         if (!line) return;
-        const sprite = game.settings.heroSpriteSet === 'legacy' ? '기존' : 'Hana';
         const fx = game.settings.skillFxStyle === 'original' ? '원본' : '리메이크';
-        line.textContent = `${PLAYER_CLASS_DEFS[game.selectedClassId]?.label || '-'}, ${game.activeSkill}${game.mobilitySkill ? ' + ' + game.mobilitySkill : ''}, ${weaponLabel()}, Lv.${game.level}, ${sprite}, 이펙트 ${fx}, ×${speed}`;
+        line.textContent = `${PLAYER_CLASS_DEFS[game.selectedClassId]?.label || '-'}, ${game.activeSkill}${game.mobilitySkill ? ' + ' + game.mobilitySkill : ''}, ${weaponLabel()}, Lv.${game.level}, 이펙트 ${fx}, ×${speed}`;
     }
     function weaponLabel() {
-        const weapon = hanaActors.weaponFor(getHeroAppearanceId(), game.equipment['무기'], game.settings.heroWeaponMode || 'auto');
-        return WEAPON_CATEGORIES[weapon]?.name || '-'; // 게임의 대분류 이름(Hana 묶음의 이름표는 옛 곡도 그대로)
+        const weapon = getWeaponCategoryId(game.equipment['무기']) || HANA_WEAPON_COMBOS.classWeapons[getHeroAppearanceId()];
+        return WEAPON_CATEGORIES[weapon]?.name || '-';
     }
 
     function mount() {

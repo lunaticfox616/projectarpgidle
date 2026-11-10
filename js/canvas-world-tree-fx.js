@@ -48,7 +48,7 @@ const worldTreeSkillFx = (() => {
     }
     /** 찌르는 쪽: 적을 본다. 무대의 주인공이 뒤찌르기(한손검 전용공격)를 쓰면 돌아보지 않고 등 뒤를 찌르므로 적의 반대쪽을 본다. */
     function assassinFacing(c) {
-        const backStab=typeof stageView==='object' && stageView.enabled() && typeof getStageHeroStance==='function'
+        const backStab=typeof getStageHeroStance==='function'
             && stageActors.motionFor('암살',getHeroAppearanceId(),getStageHeroStance())==='special';
         return ((backStab ? {2:'north',4:'east',6:'west',8:'south'} : {2:'south',4:'west',6:'east',8:'north'}))[c.direction];
     }

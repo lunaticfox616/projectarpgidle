@@ -207,122 +207,11 @@ function getBattleSkillVisual(skillName, skillData) {
     return visual;
 }
 
-function getBattleBackdropForZone(zone) {
-    let list = (battleAssets.backdrops || {});
-    let key = getBattleBackdropKeyForZone(zone);
-    if (!list[key]) requestSpecialBattleBackdrop(key);
-    // Read only the destination and the already prepared first-act fallback; enumerating
-    // deferred getters here would start downloading every background on the first frame.
-    let image = list[key];
-    if (!image) { image = list.bgAct1; key = 'bgAct1'; }
-    if (!image) return null;
-    let zoneSeed = Number.isFinite(zone && zone.id) ? zone.id : 0;
-    if (!zoneSeed && zone && zone.name) zoneSeed = zone.name.split('').reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
-    let variant = BATTLE_BACKDROP_VARIANTS[Math.abs(zoneSeed) % BATTLE_BACKDROP_VARIANTS.length] || BATTLE_BACKDROP_VARIANTS[0];
-    return { image: image, variant: variant, key: key };
-}
-
-function isActBattleMapBackdropKey(key) {
-    return /^bgAct(?:[1-9]|10)$/.test(String(key || ''));
-}
-
-// ACT와 웨이브 콘텐츠 판(벌집 원정, 군락지)은 912×624, 지하계·운석은 816×624. 중앙 9×8칸은 동일한 48px 격자를 사용한다.
-// 나머지 정사각형 엔드게임 배경은 기존 cover 표시를 유지한다.
-function drawGridAlignedBackdrop(ctx, width, height, image, gridProj, backdropKey) {
-    let srcW = image.width || width;
-    let srcH = image.height || height;
-    let actMap = (isActBattleMapBackdropKey(backdropKey) || GRID_ALIGNED_SPECIAL_BACKDROPS.includes(backdropKey)) && gridProj;
-    let coverScale = Math.max(width / srcW, height / srcH);
-    let drawW = srcW * coverScale;
-    let drawH = srcH * coverScale;
-    let drawX = (width - drawW) / 2;
-    let drawY = (height - drawH) / 2;
-    if (actMap) {
-        ({ mapWidth: drawW, mapHeight: drawH, mapX: drawX, mapY: drawY } = gridProj);
-        const scale = drawW / ACT_BATTLE_MAP_LAYOUT.width;
-        drawX += (ACT_BATTLE_MAP_LAYOUT.width - srcW) * scale / 2;
-        drawW = srcW * scale;
-    }
-    ctx.fillStyle = '#070b12';
-    ctx.fillRect(0, 0, width, height);
-    const smoothing = ctx.imageSmoothingEnabled;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(image, drawX, drawY, drawW, drawH);
-    ctx.imageSmoothingEnabled = smoothing;
-    ctx.fillStyle = actMap ? 'rgba(4, 8, 14, 0.16)' : 'rgba(4, 8, 14, 0.42)';
-    ctx.fillRect(0, 0, width, height);
-    return {x:drawX,y:drawY,width:drawW,height:drawH};
-}
-
-function drawActMapEffect(ctx, rect, key, now) {
-    const effect = ACT_BATTLE_MAP_EFFECTS[key];
-    if (!effect) return;
-    const image = battleAssets.backdrops[effect.key];
-    if (!image) return;
-    const frame = Math.floor(now / effect.frameMs) % effect.frames;
-    const smoothing = ctx.imageSmoothingEnabled;
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(image,(frame % effect.columns)*effect.width,Math.floor(frame/effect.columns)*effect.height,
-        effect.width,effect.height,rect.x,rect.y,rect.width,rect.height);
-    ctx.imageSmoothingEnabled = smoothing;
-}
-
 function drawBattleBackdrop(ctx, width, height, theme, now, zone, gridProj) {
     if(actExplorationView.background(ctx,width,height,gridProj))return true;
     if(drawStageBoardBackdrop(ctx,width,height,gridProj))return true;
-    // 무대에서 지도가 아직 없는 순간(부팅, 구역을 여는 중)은 그림을 기다리는 방처럼 어둠만 둔다. 아래의 판 그림과 들판은 위에서 보는 전장에만 쓴다(2026-10-21).
-    if(!stageView.topDown()){ctx.fillStyle='#0b090c';ctx.fillRect(0,0,width,height);return true;}
-    let backdropEntry = getBattleBackdropForZone(zone);
-    if (backdropEntry && backdropEntry.image) {
-        const rect = drawGridAlignedBackdrop(ctx, width, height, backdropEntry.image, gridProj, backdropEntry.key);
-        drawActMapEffect(ctx,rect,backdropEntry.key,now);
-        return true;
-    }
-
-    let sky = ctx.createLinearGradient(0, 0, 0, height);
-    sky.addColorStop(0, theme.skyTop);
-    sky.addColorStop(1, theme.skyBottom);
-    ctx.fillStyle = sky;
-    ctx.fillRect(0, 0, width, height);
-
-    let horizon = Math.floor(height * 0.2);
-    let fieldTop = horizon;
-    let pathTop = Math.floor(height * 0.6);
-    let pathBottom = Math.floor(height * 0.84);
-    let lowerBand = Math.floor(height * 0.92);
-
-    ctx.fillStyle = theme.water;
-    ctx.fillRect(0, 0, width, horizon);
-    ctx.fillStyle = 'rgba(255,255,255,0.03)';
-    ctx.fillRect(0, horizon + 10, width, 5);
-    ctx.fillRect(0, horizon + 48, width, 4);
-
-    ctx.fillStyle = theme.floorA;
-    ctx.fillRect(0, fieldTop, width, pathTop - fieldTop);
-    ctx.fillStyle = theme.pathA;
-    ctx.fillRect(0, pathTop, width, pathBottom - pathTop);
-    ctx.fillStyle = theme.floorB;
-    ctx.fillRect(0, pathBottom, width, lowerBand - pathBottom);
-    ctx.fillStyle = '#0c1621';
-    ctx.fillRect(0, lowerBand, width, height - lowerBand);
-
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, pathTop - 1);
-    ctx.lineTo(width, pathTop - 1);
-    ctx.moveTo(0, pathBottom);
-    ctx.lineTo(width, pathBottom);
-    ctx.stroke();
-
-    ctx.save();
-    let vignette = ctx.createRadialGradient(width * 0.5, height * 0.55, width * 0.12, width * 0.5, height * 0.55, width * 0.78);
-    vignette.addColorStop(0, 'rgba(0,0,0,0)');
-    vignette.addColorStop(1, 'rgba(0,0,0,0.26)');
-    ctx.fillStyle = vignette;
-    ctx.fillRect(0, 0, width, height);
-    ctx.restore();
-    return false;
+    // 무대에서 지도가 아직 없는 순간(부팅, 구역을 여는 중)은 그림을 기다리는 방처럼 어둠만 둔다.
+    ctx.fillStyle='#0b090c';ctx.fillRect(0,0,width,height);return true;
 }
 
 function getLocalBattleHeroVisualTuning(spriteScale) {
@@ -903,5 +792,5 @@ function drawBattleHitFx(ctx, fx, t, playerPos, enemyPosMap) {
     ctx.restore();
 }
 
-exposeFileGlobals({ resizeBattlefieldCanvas, getBattleGridProjection, getFixedBattleGridProjection, getBattleLayout, getBattleZoneTheme, getBattleSkillVisual, drawGridAlignedBackdrop, drawBattleBackdrop, drawPlayerSprite, getEnemyOutlineStyle, drawEnemySprite, drawBattleHitFx });
+exposeFileGlobals({ resizeBattlefieldCanvas, getBattleGridProjection, getFixedBattleGridProjection, getBattleLayout, getBattleZoneTheme, getBattleSkillVisual, drawBattleBackdrop, drawPlayerSprite, getEnemyOutlineStyle, drawEnemySprite, drawBattleHitFx });
 })();

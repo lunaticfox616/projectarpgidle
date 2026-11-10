@@ -78,7 +78,7 @@ const wispActors = (() => {
     function draw(ctx, enemy, p) {
         if (!enemy || enemy.monsterArchetype !== 'wisp' || !(p.tile > 0) || typeof Image !== 'function') return false;
         // 옆에서 보는 무대: 캐릭터와 같은 밀도의 위습 그림이 있으면 그것으로 그린다(js/canvas-monster-actors.js).
-        if (stageView.enabled() && monsterActors.draw(ctx, enemy, p)) return true;
+        if (monsterActors.draw(ctx, enemy, p)) return true;
         const pair = sheetFor(enemy);
         if (!pair) return false;
         lastTile = p.tile;

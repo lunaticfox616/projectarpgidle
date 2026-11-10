@@ -1,18 +1,5 @@
 if (typeof safeExposeData !== 'function') throw new Error('data/constants.js must load before data/maps.js');
 
-const ACT_BATTLE_MAP_SOURCES = Object.freeze({
-    bgAct1: 'assets/background/acts-20260915/bgAct1.webp',
-    bgAct2: 'assets/background/acts-20260915/bgAct2.webp',
-    bgAct3: 'assets/background/acts-20260915/bgAct3.webp',
-    bgAct4: 'assets/background/acts-20260915/bgAct4.webp',
-    bgAct5: 'assets/background/acts-20260915/bgAct5.webp',
-    bgAct6: 'assets/background/acts-20260915/bgAct6.webp',
-    bgAct7: 'assets/background/acts-20260915/bgAct7.webp',
-    bgAct8: 'assets/background/acts-20260915/bgAct8.webp',
-    bgAct9: 'assets/background/acts-20260915/bgAct9.webp',
-    bgAct10: 'assets/background/acts-20260915/bgAct10-soft-grid.webp'
-});
-
 const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
     width: 912,
     height: 624,
@@ -25,11 +12,6 @@ const ACT_BATTLE_MAP_LAYOUT = Object.freeze({
     viewScale: 1.06
 });
 
-const ACT_BATTLE_MAP_EFFECTS = Object.freeze({
-    bgAct9: {key:'bgAct9Sap',source:'assets/background/acts-20260915/act09-sap.png',
-        columns:4,frames:12,width:912,height:624,frameMs:100}
-});
-safeExposeData({ACT_BATTLE_MAP_EFFECTS});
 
 // Phase-1 extracted map/season/journal data.
 const STORY_ACTS = [
@@ -501,4 +483,4 @@ const JOURNAL_DB = {
 const JOURNAL_ENTRY_ORDER = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'act_6', 'act_7', 'act_8', 'act_9', 'act_10', 'woodsman', 'woodsman_echo', 'meteor_fall', 'beehive_queen', 'void_grand_breach', 'labyrinth_10', 'ocean_500', 'sky_tower_10', 'time_rift_fusion', 'colony_wave_10', 'immortal', 'level_200', 'passive_star_evolution', 'hidden_last_breath', 'hidden_unscarred', 'hidden_fourfold_affliction', 'rival_overheat', 'rival_dull', 'rival_glutton', 'rival_afterimage', 'rival_backedge', 'rival_masterwork', 'cosmos_astra', 'pinnacle_underking', 'pinnacle_leviathan', 'pinnacle_sky', 'pinnacle_observer'];
 
 safeExposeData({ MONSTER_LOOP_HP_CURVE, CHAOS_LOOP_RAMP_PER_DEPTH, MONSTER_LOOP_POWER_SCALE, ENEMY_DEFENSE_TIER20, BOSS_DEFENSE_SPECIALTIES, LOOP_MUTATION, MONSTER_LOOP_GROWTH, LOOP_DEEP_STATS, WORLD_TREE_BARK, PINNACLE_FIRST_KILL_JOURNALS, EXPLORATION_EVENT_LOOPS, EXPLORATION_EVENT_NOTICES, EXPLORATION_PROP_LOOT, EXPLORATION_CHEST_GRADES });
-safeExposeData({ ACT_BATTLE_MAP_SOURCES, ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_KINDS, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_AUTO_REDIVE, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });
+safeExposeData({ ACT_BATTLE_MAP_LAYOUT, STORY_ACTS, WORLD_MAP_HOTSPOTS, TRIAL_ZONES, METEOR_FALL_ZONE_ID, METEOR_SITE_UNLOCK_LOOP, METEOR_SITE_UNLOCK_ACT, METEOR_KINDS, METEOR_CONSTELLATION_POOL, SEASON_CONTENT_ROADMAP, SEASON_BOSS_ZONES, LABYRINTH_ZONE_ID, JOURNAL_DB, JOURNAL_ENTRY_ORDER, LOOP_GATE_ABYSS_DEPTH_CAP, LOOP_GATE_ALT_START_SEASON, LOOP_GATE_ALT_COSMOS_PLANET_ID, LOOP_GATE_ALT_COSMOS_PLANET_NAME, OCEAN_UNLOCK_LOOP, OCEAN_AUTO_REDIVE, OCEAN_ZONE_ID, MAP_PRIMARY_CONTENTS, COSMOS_MECHANIC_DB, COSMOS_GALAXY_ENVIRONMENT_DB, COSMOS_EXPEDITION_DIRECTIVE_DB });

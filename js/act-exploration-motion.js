@@ -7,7 +7,7 @@ const actExplorationMotion = (() => {
     const preciseGoals=new WeakMap();
     const cellOf=p=>({gx:Math.round(p.gx),gy:Math.round(p.gy)});
     const durationFor=interval=>Math.max(120,Math.min(10000,Math.round(interval*1000/20)*20));
-    const freeDepth=()=>game.settings?.battleView==='top'?1:STAGE_VIEW.depth;
+    const freeDepth=()=>STAGE_VIEW.depth;
     function start(run,player,next,interval,now) {
         if(run.motion)return false;
         const duration=durationFor(interval);

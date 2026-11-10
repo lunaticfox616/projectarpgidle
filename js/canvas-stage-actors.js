@@ -1,7 +1,7 @@
 /** 옆에서 보는 무대의 주인공 (data/stage-characters.js, data/stage-view.js; 2026-10-20 사용자가 모션 공방으로 만든 6직업 × 7무기 모션).
  * 동작마다 가로 한 줄 시트(칸 w × h, 칸 안의 발 기준점 ax, ay, 오른쪽을 보는 그림)를 쓰고 왼쪽은 좌우로 뒤집는다. 위아래(깊이)로 움직일 때는
  * 마지막에 보던 좌우를 그대로 본다. 공격 그림은 타격 프레임이 실제 타격 순간(swing.impactAt)에 오도록 준비 구간을 줄여 맞춘다
- * (js/canvas-hana-actors.js attackPose와 같은 규칙). 피격은 그림 없이 붉은 외곽선과 밀림이다(규격의 hit).
+ * (attackPose). 피격은 그림 없이 붉은 외곽선과 밀림이다(규격의 hit).
  * 그림은 지금 쓰는 직업 × 무기 묶음만 들고 있는다. 그리기만 하고 전투 상태는 바꾸지 않는다.
  */
 const stageActors = (() => {
@@ -9,8 +9,7 @@ const stageActors = (() => {
     const FALLBACK_HEADROOM = 110;     // 발에서 머리 꼭대기까지(도트), 대기 그림을 재기 전의 값
     const SILHOUETTE_LIMIT = 48;
     const images = new Map(), lists = new WeakMap(), silhouettes = new Map(), headrooms = new Map();
-    let kept = '', body = null, facingLeft = false, probe = null, present = false, probeFailures = 0;
-    const probeWaiters = [];
+    let kept = '', body = null, facingLeft = false;
     const POSE_TRAIL_MS = 600;
     const poseTrail = [];              // 지난 0.6초 동안 그린 자세(먼저 그린 것부터): 이중 발동의 잔상이 앞 발동 때의 자세를 찾는다
     let chain = { start: -1, index: -1 };
@@ -19,49 +18,41 @@ const stageActors = (() => {
     const table = () => (typeof STAGE_CHARACTERS === 'object' ? STAGE_CHARACTERS : null);
     /** 그 시트의 주소: 이름이 같아도 칸이 바뀐 그림을 브라우저가 새로 받게 시트 묶음의 해시를 붙인다(data/stage-characters.js version). */
     const sheetUrl = file => table().path + file + (table().version ? `?v=${table().version}` : '');
-    const loaded = img => !!img && img.complete && img.naturalWidth > 0;
 
-    /** What the page's build says about the stage art (index.html meta stage-art, scripts/build-web.js): 'packed' the release holds the
-     * art folder, 'none' it was made without it (the art is never asked for there: a file that is not there answers 404 on every page
-     * load), 'probe' nobody knows (a dev server): one small sheet is asked for. */
-    const artNote = typeof document === 'object' && typeof document.querySelector === 'function' ? document.querySelector('meta[name="stage-art"]') : null;
-    const packed = !artNote || artNote.content !== 'none';
-    /** A release that holds the art does not ask the network whether it does. Until 2026-11-10 every page asked for one sheet, once,
-     * and a page whose single request failed (a dropped connection while a new release's files all arrive at once) took the art for
-     * missing for good: the old top-down maps, the old chests, the old hero and monster sprites and the old skill effects for the
-     * whole visit (players, after the 2026-11-10 release renamed every script). */
-    if (artNote && artNote.content === 'packed') present = true;
-    /** A failed ask is tried again after these waits (ms); from PROBE_GIVES_UP failures on the art counts as missing, and the asking
-     * goes on at the last wait, so a server that answers later still turns the stage on. */
-    const PROBE_RETRY_MS = Object.freeze([800, 2000, 5000, 15000]), PROBE_GIVES_UP = 3;
-    function askForArt() {
-        probe = new Image();
-        probe.addEventListener('load', () => { present = true; settleProbeWaiters(); }, { once: true });
-        probe.addEventListener('error', () => {
-            probeFailures++;
-            if (probeFailures >= PROBE_GIVES_UP) settleProbeWaiters();
-            setTimeout(askForArt, PROBE_RETRY_MS[Math.min(probeFailures, PROBE_RETRY_MS.length) - 1]);
-        }, { once: true });
-        const url = sheetUrl(Object.values(table().classes)[0].weapons.unarmed.idle.file);
-        probe.src = probeFailures ? url + (url.includes('?') ? '&' : '?') + 'retry=' + probeFailures : url;   // a new address: not the failed answer again
+    function sum(list, from = 0, to = list.length) {
+        let total = 0;
+        for (let i = from; i < to; i++) total += list[i];
+        return total;
     }
-    function settleProbeWaiters() { probeWaiters.splice(0).forEach(done => done()); }
-    /** Whether the stage art is on this server at all. A build without the art folder keeps the top-down field whatever the setting
-     * says (a save can carry the setting from a test build). */
-    function available() {
-        if (present || !table() || !packed) return present;
-        if (!probe) askForArt();
-        present = present || loaded(probe);
-        return present;
+    function frameAt(ms, elapsed, loop) {
+        const total = sum(ms);
+        let t = loop ? ((elapsed % total) + total) % total : Math.max(0, Math.min(total - 0.001, elapsed));
+        for (let i = 0; i < ms.length; i++) {
+            if (t < ms[i]) return i;
+            t -= ms[i];
+        }
+        return ms.length - 1;
     }
-    /** Whether this page knows yet if the stage art is here: it is, no sheet is ever asked for, or the asking failed PROBE_GIVES_UP times. */
-    function stageArtKnown() { return present || !table() || !packed || probeFailures >= PROBE_GIVES_UP; }
-    /** Resolves once stageArtKnown() is true (the boot waits for it: js/main.js). */
-    function whenStageArtKnown() {
-        available();
-        if (stageArtKnown()) return Promise.resolve();
-        return new Promise(done => probeWaiters.push(done));
+
+    /**
+     * Attack clip for one swing. Frames before the authored hit frame are compressed into the combat
+     * windup (start → impactAt); the recoil after the hit plays at a gentler speed (clip.steady: at the clip's own speed, for frames
+     * that still fire after the hit, the bow volley). Channels hold the hit.
+     * @returns {?{frame:number, end:number}}
+     */
+    function attackPose(clip, swing, now) {
+        const hit = Math.max(1, Math.min(clip.frames - 1, clip.hitFrame || 1));
+        const pre = sum(clip.ms, 0, hit), post = sum(clip.ms, hit);
+        const windup = Math.max(1, swing.impactAt - swing.start);
+        const speed = windup / pre, recover = clip.steady ? 1 : Math.max(0.55, Math.min(1, speed));
+        const hold = Math.max(0, (swing.channelUntil || 0) - (swing.start + windup));
+        const elapsed = now - swing.start, end = swing.start + windup + hold + post * recover;
+        if (elapsed < 0 || now >= end) return null;
+        if (elapsed >= windup && elapsed < windup + hold) return { frame: hit, end };
+        const local = elapsed < windup ? elapsed / speed : pre + (elapsed - windup - hold) / recover;
+        return { frame: frameAt(clip.ms, local, false), end };
     }
+
     function setOf(classId, stance) {
         const data = table(), entry = data && data.classes[classId];
         return entry ? entry.weapons[stance] || null : null;
@@ -175,7 +166,7 @@ const stageActors = (() => {
         if (!rise) return null;
         const clip = riseClip(classId);
         if (!image(clip.file).ready) return null;
-        return { clip, frame: rise.start === null ? 0 : hanaActors.frameAt(clip.ms, Math.max(0, now - rise.start), false) };
+        return { clip, frame: rise.start === null ? 0 : frameAt(clip.ms, Math.max(0, now - rise.start), false) };
     }
     function downPose(classId, state) {
         if (!Number.isFinite(state.downProgress)) return null;
@@ -196,7 +187,7 @@ const stageActors = (() => {
         const id = swingClip(set, state);
         if (!id) return null;
         const clip = set[id], volley = id === 'volley' && !!clip.hit, hit = strikeFrame(clip, state.attack, volley);
-        const pose = hanaActors.attackPose({ frames: clip.frames, ms: msOf(clip), hitFrame: hit, steady: volley }, state.attack, now);
+        const pose = attackPose({ frames: clip.frames, ms: msOf(clip), hitFrame: hit, steady: volley }, state.attack, now);
         return pose ? { clip, frame: pose.frame } : null;
     }
     /** 타격 순간에 올 장: 그 시전이 정한 장(파문심판은 향로가 바닥에 닿는 장), 아니면 동작의 마지막 타격 장(연타사격은 첫 장), 그것도 없으면 끝 장. */
@@ -210,17 +201,17 @@ const stageActors = (() => {
         const clip = state.attack.kickoff ? set.move : null;
         if (!clip || !image(clip.file).ready || now - state.attack.start >= kickoffMs(state.attack)) return null;
         const lead = kickoffMs(state.attack), push = clip.hit ? clip.hit[0] : clip.frames - 1;
-        const pose = hanaActors.attackPose({ frames: clip.frames, ms: msOf(clip), hitFrame: push }, { start: state.attack.start, impactAt: state.attack.start + lead * 0.8 }, now);
+        const pose = attackPose({ frames: clip.frames, ms: msOf(clip), hitFrame: push }, { start: state.attack.start, impactAt: state.attack.start + lead * 0.8 }, now);
         return pose ? { clip, frame: pose.frame } : null;
     }
     function movePose(set, state, now) {
         if (!state.moving) return null;
         const rules = table().move, rate = Math.max(rules.rateMin, Math.min(rules.rateMax, Number(state.moveRate) || 1));
-        return { clip: set.walk, frame: hanaActors.frameAt(msOf(set.walk), now * rate, true) };
+        return { clip: set.walk, frame: frameAt(msOf(set.walk), now * rate, true) };
     }
     function pickPose(set, state, now) {
         return downPose(state.classId, state) || swingPose(set, state, now) || movePose(set, state, now)
-            || { clip: set.idle, frame: hanaActors.frameAt(msOf(set.idle), now, true) };
+            || { clip: set.idle, frame: frameAt(msOf(set.idle), now, true) };
     }
 
     /** The look of a hit at `now`: the outline colour, how far back the figure sits, and whether its frame holds.
@@ -407,36 +398,27 @@ const stageActors = (() => {
     const preloadRise = classId => { if (table() && classId) image(riseClip(classId).file); };
     /** The hero lies or is getting up (the overhead bar waits: it would float over the air where a standing head would be). */
     const down = () => !!rise;
-    return { drawPlayer: drawStageHero, headY, afterimage, pose: lastPose, isReady, stanceFor, motionFor, clipOf, scaleFor, available, stageArtKnown, whenStageArtKnown, facing, setRise, preloadRise, down };
+    return { drawPlayer: drawStageHero, headY, afterimage, pose: lastPose, isReady, stanceFor, motionFor, clipOf, scaleFor, facing, setRise, preloadRise, down };
 })();
 
 const sides = new WeakMap();
 /** A local test page opened with ?stage=1 (the launcher's stage entry): a test window that keeps its own local save and
- * never uses the cloud save (stageView.trial). The stage itself no longer needs the flag (see stageView.wanted).
+ * never uses the cloud save (stageView.trial). The stage itself needs no flag.
  * Only the leading 1 counts: a link pasted into a sentence can drag what followed it into the value ("1)에서"). */
 const stageByAddress = typeof location === 'object' && ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
     && /^1(?!\d)/.test(new URLSearchParams(location.search).get('stage') || '');
-/** The side-view stage (data/stage-view.js): whether the battlefield is drawn that way, and the numbers that follow from it. */
+/** The side-view stage (data/stage-view.js), the game's one battlefield (2026-10-13 사용자: "이제 새로 만든 전투방식 (방 탐색) 을 제대로 사용하도록
+ * 해줘"), and the numbers that follow from it. Until 2026-11-10 a top-down field with a 9x8 board stood behind it: a test panel choice
+ * and the fallback of a page that failed to load one stage sheet, which then drew the old maps, chests and sprites for the whole visit. */
 const stageView = Object.freeze({
-    /** The stage is the game's own battlefield (2026-10-13 사용자: "이제 새로 만든 전투방식 (방 탐색) 을 제대로 사용하도록 해줘").
-     * settings.battleView 'top' (test panel) goes back to the top-down field. The art must be there (enabled). */
-    wanted() {
-        const choice = typeof game === 'object' && game.settings ? game.settings.battleView : '';
-        return choice !== 'top';
-    },
-    enabled: () => stageView.wanted() && stageActors.available(),
-    /** Whether the battlefield is the top-down field with its 9×8 board pictures: the test panel picked it, or this server answered
-     * that it has no stage art. While the art is still being asked for (boot) the stage is expected, so the board is not drawn
-     * (2026-10-21 사용자: 시작할 때와 로딩 화면에 이전 전장(8x9)이 뜬다). */
-    topDown: () => !stageView.wanted() || (stageActors.stageArtKnown() && !stageActors.available()),
     /** 무대 시험판으로 연 창인가(주소에 stage=1): 이 창은 클라우드 저장을 쓰지 않는다(시험하는 판이 계정의 저장을 고쳐 쓰지 않게). */
     trial: () => stageByAddress,
-    /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 무대가 켜져 있고 테스트 패널에서 끄지 않았을 때. */
-    rooms: () => stageView.enabled() && !!game.settings && game.settings.stageRooms !== 'off',
+    /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 테스트 패널에서 끄지 않았을 때. */
+    rooms: () => typeof actExplorationRoomPlans === 'object' && !!game.settings && game.settings.stageRooms !== 'off',
     /** 방을 배경 그림으로 그리는가(js/canvas-stage-backdrop.js): 테스트 패널에서 끄면 벽돌 뒷벽으로 돌아간다. */
     backdrops: () => typeof game === 'object' && !!game.settings && game.settings.stageBackdrop !== 'off',
-    /** Screen height of one depth cell ÷ its width: STAGE_VIEW.depth on the stage, 1 on the top-down field. */
-    depth: () => (stageView.enabled() ? STAGE_VIEW.depth : 1),
+    /** Screen height of one depth cell ÷ its width. */
+    depth: () => STAGE_VIEW.depth,
     /** Cell width of an exploration map on the stage: the view's width shared among STAGE_VIEW.minColumns cells, then on a PC window a step of whole dots (steppedTile), so the same
      * stretch of a room shows at about any window size (a whole number of px, and no smaller than minDot per character dot).
      * settings.stageZoom (test panel) sets the dots per pixel directly. */
@@ -481,15 +463,12 @@ const stageView = Object.freeze({
         const room = STAGE_VIEW.headroom, floor = height * stageView.floorShare(width, height);
         return (floor - top) / (rows * STAGE_VIEW.depth + room.dots / STAGE_VIEW.heroTile);
     },
-    /** Where the hero stands down the view (share of its height): the middle on the top-down field. */
-    anchorY: () => (stageView.enabled() ? STAGE_VIEW.anchorY : 0.5),
-    /** The sheet row a monster shows: on the stage only its side rows, turned by its last left or right step. */
+    /** Where the hero stands down the view (share of its height). */
+    anchorY: () => STAGE_VIEW.anchorY,
+    /** The sheet row a monster shows: only its side rows, turned by its last left or right step. */
     facing(unit, direction) {
-        if (!stageView.enabled()) return direction;
         if (direction === 'east' || direction === 'west') sides.set(unit, direction);
         return sides.get(unit) || 'west';
     }
 });
-// 그림이 있는지 미리 물어 둔다: 첫 탐험을 열 때(방 단위 지도를 고를 때) 이미 답이 와 있도록.
-stageActors.available();
 safeExposeGlobals({ stageActors, stageView });

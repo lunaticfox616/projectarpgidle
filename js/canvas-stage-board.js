@@ -17,7 +17,7 @@ const stageBoard = (() => {
     const boardLayout = () => ACT_BATTLE_MAP_LAYOUT;
     /** 구역 → 지역 이름. 무대가 꺼져 있거나 표에 없는 구역이면 ''. */
     function boardRegion(zone) {
-        if (!zone || !stageView.enabled() || typeof STAGE_ROOM_PLANS !== 'object') return '';
+        if (!zone || typeof STAGE_ROOM_PLANS !== 'object') return '';
         // 심해 판은 방 지도처럼 수심 띠의 그림이다(가디언 판은 해구)
         if (zone.type === 'oceanDepth') return actExplorationRoomPlans.oceanRegion(zone, !!game.oceanBossRunPending);
         return STAGE_ROOM_PLANS.regions.boards[zone.type] || '';
@@ -53,7 +53,6 @@ const stageBoard = (() => {
     /** 고정 전장의 화면 자리. 칸은 방 무대의 크기이되 판이 화면에 다 들어오게 줄인다(좁은 화면).
      * @returns {?object} js/ui.js getFixedBattleGridProjection과 같은 모양, 무대 그림으로 그리지 않는 구역이면 null */
     function boardProjection(width, height, zone) {
-        if (!stageView.enabled()) return null;
         const stage = boardStage(zone), layout = boardLayout();
         const { cells, left, top } = roomPlace(width, height, layout.columns, layout.rows), tile = cells.tileW, deep = cells.tileH;
         if (stage) return { ...cells, mapX: left, mapY: top, mapWidth: layout.columns * tile, mapHeight: layout.rows * deep, stageBoard: stage };

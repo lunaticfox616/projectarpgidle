@@ -27,7 +27,7 @@ const bossEntranceView = (() => {
     function bossOf(fx) { return fx.enemies.find(enemy => enemy.isBoss) || fx.enemies[0] || null; }
     function ease(t) { return 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3); }
     const share = (value, from, until) => Math.max(0, Math.min(1, (value - from) / (until - from)));
-    const onStage = () => typeof stageView === 'object' && stageView.enabled();
+    const onStage = () => typeof stageView === 'object' && true;
     const holdOf = fx => fx.holdMs || 2600;
     /** 배경과 깊이 순서로 그리는 장식이 함께 어두워졌다가 돌아오는 비율. */
     const dimProgress = (fx, now) => now - fx.start < holdOf(fx) ? ease((now - fx.start) / 350) : Math.max(0, 1 - (now - fx.start - holdOf(fx)) / 500);

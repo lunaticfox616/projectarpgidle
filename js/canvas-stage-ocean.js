@@ -45,7 +45,7 @@ const stageOcean = (() => {
     // ---------------------------------------------------------------- where
     /** 지금 무대가 심해 띠의 방 지도면 { run, map, band }, 아니면 null. */
     function here() {
-        if (typeof STAGE_OCEAN !== 'object' || !stageView.enabled()) return null;
+        if (typeof STAGE_OCEAN !== 'object') return null;
         const run = actExplorationState.current(game), map = run ? actExplorationDoors.stageMap(run) : null, band = map ? STAGE_OCEAN.bands[map.region] : null;
         return band ? { run, map, band } : null;
     }

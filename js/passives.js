@@ -6013,18 +6013,6 @@ let battleAssets = {
     atlas: null
 };
 const ENABLE_BATTLE_SHEET_SANITIZATION = true;
-const BATTLE_BACKDROP_VARIANTS = [
-    { tone: 'rgba(30, 77, 122, 0.16)', glow: 'rgba(169, 226, 255, 0.10)' },
-    { tone: 'rgba(86, 44, 24, 0.17)', glow: 'rgba(255, 198, 132, 0.10)' },
-    { tone: 'rgba(34, 86, 66, 0.14)', glow: 'rgba(173, 255, 203, 0.10)' },
-    { tone: 'rgba(64, 36, 94, 0.16)', glow: 'rgba(222, 184, 255, 0.10)' },
-    { tone: 'rgba(66, 66, 35, 0.14)', glow: 'rgba(255, 237, 171, 0.10)' },
-    { tone: 'rgba(35, 56, 92, 0.16)', glow: 'rgba(170, 210, 255, 0.10)' },
-    { tone: 'rgba(78, 39, 39, 0.17)', glow: 'rgba(255, 184, 184, 0.10)' },
-    { tone: 'rgba(32, 75, 72, 0.15)', glow: 'rgba(159, 255, 236, 0.10)' },
-    { tone: 'rgba(79, 52, 27, 0.16)', glow: 'rgba(255, 212, 158, 0.10)' },
-    { tone: 'rgba(45, 45, 80, 0.16)', glow: 'rgba(197, 189, 255, 0.10)' }
-];
 const battleImageCanvasCache = new WeakMap();
 const TAB_UNLOCK_GATES = {
     'tab-unlocks': 'season',
@@ -6127,7 +6115,7 @@ safeExposeGlobals({ setBattleFxSuppressed });
 
 
 /** 휘두름 기록(playerSwing)이 준비 시간(duration) 뒤에도 남는 시간(tailMs): 전달본 그림(data/stage-characters.js)의 타격 장이 있는 클립 가운데
- * 첫 장을 뺀 가장 긴 것. 주인공 그림은 타격 장 뒤의 장(되돌리기)을 타격 뒤에 그림 속도 이하로 그리고 타격 장은 1장 이상이라(js/canvas-hana-actors.js
+ * 첫 장을 뺀 가장 긴 것. 주인공 그림은 타격 장 뒤의 장(되돌리기)을 타격 뒤에 그림 속도 이하로 그리고 타격 장은 1장 이상이라(js/canvas-stage-actors.js
  * attackPose) 되돌리기가 이보다 길 수 없다. 기록이 duration에서 지워지던 동안 되돌리기는 어느 직업과 무기에서도 안 나왔고, 타격 장이 2장인
  * 연금술사 활 공격은 기본 공격에서 두 장만 보였다(2026-11-09 사용자). 그림은 제 길이에서 끝나므로 기록만 더 남는다. */
 let playerSwingTailMs = null;
