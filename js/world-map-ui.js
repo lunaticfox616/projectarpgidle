@@ -219,14 +219,17 @@ const worldMapUi = (() => {
         const parts = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)), a = parts(from), b = parts(to);
         return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * share).toString(16).padStart(2, '0')).join('');
     }
-    /** calm: 세계 지도의 자리 표식(2026-11-10 사용자: 아이콘 전체적으로 톤다운). 자리 색을 따뜻한 회색 쪽으로 당기고 밝은 면, 금빛, 흰색을 낮춘다. */
-    const CALM = Object.freeze({ toward: '#7d6f5c', share: .5, light: .2, gold: { Y: '#cdb884', y: '#a98a4c', d: '#75572a' }, eye: { w: '#d2c8b4', p: '#8f7bb8', q: '#463560' }, gem: '#e0d6c0' });
+    /** 표식의 세 가지 색 차림: 보통(아틀라스 지도), 잠긴 곳(회색), 차분한 것(세계 지도의 자리 표식, 2026-11-10 사용자: 아이콘 전체적으로 톤다운. 자리 색을
+     * 따뜻한 회색 쪽으로 당기고 밝은 면, 금빛, 흰색을 낮춘다). base: 자리 색에서 바탕색을 내는 법, light와 gem: 밝은 면과 보석이 흰색에 가까운 정도. */
+    const ICON_LOOKS = Object.freeze({
+        plain: { base: tint => tint, light: .38, gem: .7, G: '#ffffff', Y: '#fbe7a4', y: '#e2b85a', d: '#9a6f2c', w: '#f6efff', p: '#a47cf0', q: '#4b2f86' },
+        locked: { base: () => '#7a7380', light: .38, gem: .7, G: '#ffffff', Y: '#c9c2cc', y: '#9a929f', d: '#655e6b', w: '#d8d2dc', p: '#8a8290', q: '#4f4955' },
+        calm: { base: tint => mixHex(tint, '#7d6f5c', .5), light: .2, gem: .4, G: '#e0d6c0', Y: '#cdb884', y: '#a98a4c', d: '#75572a', w: '#d2c8b4', p: '#8f7bb8', q: '#463560' }
+    });
     function atlasPalette(tint, locked, calm = false) {
-        const base = locked ? '#7a7380' : calm ? mixHex(tint, CALM.toward, CALM.share) : tint;
-        const gold = locked ? { Y: '#c9c2cc', y: '#9a929f', d: '#655e6b' } : calm ? CALM.gold : { Y: '#fbe7a4', y: '#e2b85a', d: '#9a6f2c' };
-        const eye = locked ? { w: '#d8d2dc', p: '#8a8290', q: '#4f4955' } : calm ? CALM.eye : { w: '#f6efff', p: '#a47cf0', q: '#4b2f86' };
-        return { ...gold, ...eye, o: OUTLINE, k: OUTLINE, a: mixHex(base, '#ffffff', calm ? CALM.light : .38), b: base, c: mixHex(base, '#000000', .42),
-            g: mixHex(base, '#ffffff', calm ? .4 : .7), G: calm ? CALM.gem : '#ffffff', s: mixHex(base, '#14111a', .82) };
+        const look = ICON_LOOKS[locked ? 'locked' : calm ? 'calm' : 'plain'], base = look.base(tint);
+        return { Y: look.Y, y: look.y, d: look.d, w: look.w, p: look.p, q: look.q, G: look.G, o: OUTLINE, k: OUTLINE, a: mixHex(base, '#ffffff', look.light), b: base,
+            c: mixHex(base, '#000000', .42), g: mixHex(base, '#ffffff', look.gem), s: mixHex(base, '#14111a', .82) };
     }
     /** One atlas icon as a data URL (2 px per dot), cached like glyph. */
     function atlasIcon(name, tint = ATLAS_ICON_TINT, locked = false, calm = false) {
