@@ -630,11 +630,14 @@ function explodeRuneCorpse(enemy, pStats, chain, log) {
     log(explodeCorpse(enemy, corpseExplosionSplash(enemy, pStats.runeCorpseExplodeLifePct), '룬 시체 폭발', chain));
 }
 
-/** 종말의 논리: rolled whenever the unique is worn (even at 0%), as it always was. */
+/** 종말의 논리: rolled whenever the unique is worn (even at 0%), as it always was. 대폭발(폭약술사 bm7, 2026-11-11): 점화된 채 쓰러진
+ * 적은 굴림 없이 터진다. */
 function explodeUniqueCorpse(enemy, pStats, chain, log) {
-    if (!pStats || !pStats.uniqueCorpseExplode || Math.random() >= corpseExplosionChance(pStats.uniqueCorpseExplode.chance)) return;
+    if (!pStats || !pStats.uniqueCorpseExplode) return;
+    const ignited = hasKeystone('bm7') && (enemy.ailments || []).some(row => row && row.type === 'ignite' && (row.time || 0) > 0);
+    if (!ignited && Math.random() >= corpseExplosionChance(pStats.uniqueCorpseExplode.chance)) return;
     const splash = corpseExplosionSplash(enemy, pStats.uniqueCorpseExplode.lifePct);
-    const line = explodeCorpse(enemy, splash, '종말의 논리 시체 폭발', chain);
+    const line = explodeCorpse(enemy, splash, hasKeystone('bm7') ? '대폭발' : '종말의 논리 시체 폭발', chain);
     addBattleFx('hit', { enemyId: enemy.id, color: '#c56cff', damage: splash, duration: 360, element: 'chaos', syncToSwing: true });
     log(line);
 }

@@ -22,7 +22,7 @@ const skillEffectExpansion = (() => {
     /** Stamps +N on the resolved active skill: its level and kind, N more targets for target gems, the keystone's cost. */
     function applyToSkill(skill, name) {
         const kind = resolvedKind(skill, name);
-        const n = kind ? Math.min(rules().max, Math.max(level(), skill.supportExpansion || 0)) : 0;
+        const n = kind ? Math.min(rules().max, Math.max(level(), skill.supportExpansion || 0, potionNode(skill))) : 0;
         skill.effectExpansion = n;
         skill.effectExpansionKind = kind;
         // 넓은 판정(보조룬)이 준 +1인가: 신성한 기도는 그때 창을 늘리지 않는다(js/skill-gem-casts.js lancePlan)
@@ -30,6 +30,10 @@ const skillEffectExpansion = (() => {
         if (kind === 'targets' && n) skill.targets = Math.max(1, Math.floor(skill.targets || 1)) + n;
         if (n >= rules().penaltyFrom) skill.dmg = (skill.dmg || skill.baseDmg || 1) * (1 - rules().damagePenaltyPct / 100);
         return skill;
+    }
+    /** 불붙은 병(폭약술사 bm1, 2026-11-11): 포션 스킬의 +1. 다른 +1과 겹치지 않는다(넓은 판정과 같다). */
+    function potionNode(skill) {
+        return hasKeystone('bm1') && Array.isArray(skill.tags) && skill.tags.includes('potion') ? 1 : 0;
     }
     /** Cells (or targets) a resolved skill grows by. */
     function extra(skill) { return Number(skill && skill.effectExpansion) || 0; }

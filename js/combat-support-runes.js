@@ -94,9 +94,12 @@
         const fx = skill?.supportEffects?.execute;
         return fx ? (enemy.hp/Math.max(1,enemy.maxHp) <= fx.thresholdPct/100 ? 1+fx.damageMorePct/100 : fx.otherwiseMultiplier) : 1;
     }
+    /** The hero's hit (js/combat-player-attack.js); ascendancy node rules read and change it on the way (js/ascendancy-node-rules.js). */
     function dealHit(enemy,stats,damage) {
-        const dealt=applyDamageToEnemyResource(enemy,damage*targetMultiplier(enemy,stats.sSkill));
+        const now=getCombatTime();
+        const dealt=applyDamageToEnemyResource(enemy,ascendancyNodeRules.beforeHit(damage*targetMultiplier(enemy,stats.sSkill),enemy,stats,now));
         afterHit(enemy,stats,dealt);
+        ascendancyNodeRules.afterHit(stats,enemy,dealt,now);
         return dealt;
     }
     function deferAttack(stats,options) {
