@@ -280,6 +280,26 @@
     "priority": 0,
     "enabled": true
   },
+  "bellGold": {
+    "label": "거둬 가는 종 첫 울림",
+    "files": ["sounds-20261110/bell-gold.wav"],
+    "gain": 0.38,
+    "rate": 1,
+    "group": "bellGold",
+    "cooldown": 100,
+    "priority": 1,
+    "enabled": true
+  },
+  "bellBronze": {
+    "label": "거둬 가는 종 두 번째 울림",
+    "files": ["sounds-20261110/bell-bronze.wav"],
+    "gain": 0.38,
+    "rate": 1,
+    "group": "bellBronze",
+    "cooldown": 100,
+    "priority": 1,
+    "enabled": true
+  },
   "playerHurt": {
     "label": "플레이어 피격",
     "files": [

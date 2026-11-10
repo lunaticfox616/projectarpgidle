@@ -1,5 +1,5 @@
 /**
- * 벼림꾼 오르가의 재화 교환 규칙(data/currency-exchange.js ORGA_EXCHANGE): 가진 재화를 정해진 기본 재화로 팔고, 한 번이라도 가져 본 재화를 더
+ * 베일라의 재화 교환 규칙(data/currency-exchange.js): 가진 재화를 정해진 기본 재화로 팔고, 한 번이라도 가져 본 재화를 더
  * 비싸게 산다. 이번 루프의 시세, 견적(바뀌는 것 없음), 거래(지갑을 바꾼다). 묻기, 기록, 그리기는 js/orga-exchange-ui.js의 몫이다.
  *
  * 한 번이라도 가진 재화는 state.currencySeen(재화 열쇠 배열, 루프가 지나도 남는다)에 모은다. 지갑에 1개 이상 있던 재화를 그린 화면마다,
@@ -7,7 +7,7 @@
  * (craftingWorkspace.discovered)과 지금 지갑으로 시작한다. 시세는 루프와 재화 이름의 해시로 정하므로 저장하지 않는다.
  */
 const currencyExchange = (() => {
-    const RULE = ORGA_EXCHANGE;
+    const RULE = NPC_CURRENCY_EXCHANGE;
     const EPSILON = 1e-9;
     const isTraded = key => Object.hasOwn(RULE.prices, key);
 
@@ -54,7 +54,7 @@ const currencyExchange = (() => {
 
     /** Why key cannot be bought by state, or ''. */
     function exchangeBuyBlock(key, state) {
-        if (RULE.noBuy.includes(key)) return _t('오르가는 이 재화를 팔지 않습니다.');
+        if (RULE.noBuy.includes(key)) return _t('베일라는 이 재화를 팔지 않습니다.');
         return exchangeHasSeen(state, key) ? '' : _t('한 번이라도 가져 본 재화만 살 수 있습니다.');
     }
 
@@ -71,7 +71,7 @@ const currencyExchange = (() => {
      *   spend: number, gain: number, valid: boolean, reason: string}} sell: spend key, gain the basic currency; buy: spend the basic currency, gain key.
      */
     function exchangeQuote(key, side, quantity, state = game) {
-        if (!isTraded(key) || !['sell', 'buy'].includes(side)) return { key, side, valid: false, reason: _t('오르가가 다루지 않는 재화입니다.') };
+        if (!isTraded(key) || !['sell', 'buy'].includes(side)) return { key, side, valid: false, reason: _t('베일라가 다루지 않는 재화입니다.') };
         const { block, sell, ...base } = exchangeBase(key, side, state);
         const times = quantity === 'max' ? base.max : Number(quantity);
         const counted = Number.isSafeInteger(times) && times >= 1;
@@ -103,9 +103,9 @@ const currencyExchange = (() => {
     }
 
     /** One trade out of state's purse: { ok, reason, key, pay, spend, gain }. Synchronous; nothing changes unless the quote holds and the
-     * received balance stays a safe integer. Orga must have been met (game.npcMet). */
+     * received balance stays a safe integer. The exchange NPC must have been met (game.npcMet). */
     function exchangeTrade(key, side, quantity, state = game) {
-        if (!(state.npcMet && state.npcMet[RULE.npc])) return { ok: false, reason: _t('오르가를 만나야 교환할 수 있습니다.') };
+        if (!(state.npcMet && state.npcMet[RULE.npc])) return { ok: false, reason: _t('베일라를 만나야 교환할 수 있습니다.') };
         const quote = exchangeQuote(key, side, quantity, state);
         if (!quote.valid) return { ok: false, reason: quote.reason };
         const [out, into] = side === 'sell' ? [key, quote.pay] : [quote.pay, key];

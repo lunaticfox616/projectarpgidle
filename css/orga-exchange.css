@@ -1,5 +1,5 @@
 @layer features {
-/* 벼림꾼 오르가의 재화 교환(js/orga-exchange-ui.js, NPC 창의 'exchange' 화면). 창은 상점과 같이 넓어진다(css/npc-shop.css .npc-dialog.is-shop).
+/* 베일라의 재화 교환(js/orga-exchange-ui.js, NPC 창의 'exchange' 화면). 창은 상점과 같이 넓어진다(css/npc-shop.css .npc-dialog.is-shop).
    위에 판매, 구매 탭, 왼쪽에 묶음별 재화 칸(제작실 재화 보관함과 같은 칸: 가진 수는 왼쪽 위, 그림은 칸보다 조금 크게), 오른쪽에 고른 재화의
    시세, 수량, 견적. 각 목록에는 거래할 수 있는 재화만 있고, 구매에서 지금 없는 재화는 그림이 흐리다. 시세가 오르면 붉게, 내리면 푸르게. */
 .npc-dialog .orga-exchange { --orga-cell: 40px; display: flex; flex-direction: column; grid-column: 1 / -1; grid-row: 2; min-height: 0; padding: 4px 20px 18px;

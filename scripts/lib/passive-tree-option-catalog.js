@@ -183,8 +183,8 @@ const ARCHETYPE_PROFILES = Object.freeze({
         profile('향로의 불씨', line('censerAspd', 4), line('censerPctDmg', 10)),
         profile('기울인 향로', line('censerCrit', 1), line('censerCritDmg', 10)),
         profile('퍼지는 향', line('censerPctDmg', 10), line('censerMaxDmgRoll', 2)),
-        profile('짙은 연기', line('censerAttackPctDmg', 10), line('censerDs', 2)),
-        profile('재를 뿌리는 손', line('censerSpellPctDmg', 10), line('censerAttackPctDmg', 10))
+        profile('짙은 연기', line('censerPctDmg', 10), line('censerDs', 2)),
+        profile('재를 뿌리는 손', line('censerPctDmg', 10))
     ],
     strength: Object.freeze([
         profile('단단한 혈맥', line('strength', 10), line('flatHp', 20)),

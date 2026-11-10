@@ -1,7 +1,6 @@
 /**
- * 벼림꾼 오르가의 재화 교환(2026-11-06 사용자: "재화교환 역할은 오르가가 맡고, 내가 가진 모든 재화, 입장권, 화폐 등을 기본 재화로 판매(교환)
- * 할 수 있고 반대로 기본 재화로 한번 이상 가진 적 있는 재화, 입장권, 화폐 등을 더 비싸게 구매할 수 있도록(우로보로스 제외)", "교환비율은 좀
- * 비싸게", "루프마다 교환비가 약간씩 변할 수 있게", 값을 치르는 재화는 "재화마다 정해진 기본 재화"). 규칙은 js/currency-exchange.js, 창은
+ * 베일라의 재화 교환. 보유 재화, 입장권, 화폐를 정해진 기본 재화로 팔고, 한 번이라도 가진 재화는 더 비싸게 살 수 있다.
+ * 규칙은 js/currency-exchange.js, 창은
  * js/orga-exchange-ui.js.
  *
  * prices: 재화 1개의 시세 [값을 치르는 기본 재화, 그 재화로 몇 개]. 싼 재화는 마법의 새싹, 중간은 형체 없는 이슬, 비싼 재화는 황금률로 매긴다.
@@ -10,8 +9,8 @@
  * 처음 매긴 값이다: 얻는 곳과 쓰임으로 어림했고, 시장 교환(MARKET_EXCHANGES)의 새싹 8개 = 이슬 1개, 황금률 1개 = 이슬 30 ~ 100개를 따랐다.
  * noBuy: 팔 수만 있는 재화. 목록에 없는 재화(옛 주얼 핵, 창공 탑의 응축된 정수처럼 지갑 밖의 값)는 다루지 않는다.
  */
-const ORGA_EXCHANGE = Object.freeze({
-    npc: 'orga',
+const NPC_CURRENCY_EXCHANGE = Object.freeze({
+    npc: 'veila',
     sell: 0.5,
     buy: 2,
     swing: 0.1,
@@ -49,4 +48,4 @@ const ORGA_EXCHANGE = Object.freeze({
     })
 });
 
-safeExposeData({ ORGA_EXCHANGE });
+safeExposeData({ NPC_CURRENCY_EXCHANGE });

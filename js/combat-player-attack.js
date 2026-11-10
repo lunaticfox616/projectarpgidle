@@ -158,6 +158,10 @@ function pullEnemyToward(enemy,command) {
 
 function applySkillGemCommand(command,stats) {
     if (command.type==='pose') return noteNativeGemArrivalSwing(command);
+    if (command.type === 'bellToll') {
+        if (!game.isBackgroundCalculation) addBattleFx('bellToll', { index: command.index, duration: 180 });
+        return;
+    }
     if (command.type==='teleport') {
         if (!skillGemCasts.free(command.to,game.enemies.filter(e=>e.hp>0))) return;
         actExplorationMotion.cancel(game.actExploration);

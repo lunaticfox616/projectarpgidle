@@ -309,13 +309,13 @@ const skillGemCastsV313 = (() => {
         K.visual(state, c, 'bell', impact, tolls[tolls.length - 1] + wave + 520, { landingCell: K.cell(c.aim), bellRadius: bellRadius(c), bellDrop: K.ms(c, BELL.drop),
             bellTolls: tolls, bellWave: wave });
     }
-    function bellToll(c, row, foes) {
+    function bellToll(state, c, row, foes) {
         const radius = bellRadius(c);
         for (const foe of foes.filter(e => within(e, c.aim, radius))) {
             const d = Math.min(1, K.distance(getGridUnitCenter(foe), c.aim) / radius), mul = 1 - (1 - BELL.least / 100) * d;
             c.queue.push({ at: row.at + Math.round(d * c.wave), kind: 'hit', id: foe.id, pct: BELL.pcts[row.index] * mul, index: row.index });
         }
-        return [];
+        return state.visuals === false ? [] : [{ type: 'bellToll', index: row.index }];
     }
     function bellHit(c, row, foes) {
         const foe = foes.find(e => e.id === row.id);
@@ -323,7 +323,7 @@ const skillGemCastsV313 = (() => {
     }
     function stepBell(state, c, input) {
         const foes = live(input.enemies), commands = [];
-        for (const row of due(c, input.now)) commands.push(...(row.kind === 'toll' ? bellToll(c, row, foes) : bellHit(c, row, foes)));
+        for (const row of due(c, input.now)) commands.push(...(row.kind === 'toll' ? bellToll(state, c, row, foes) : bellHit(c, row, foes)));
         settle(c);
         return commands;
     }

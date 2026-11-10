@@ -3,7 +3,7 @@
  * what it has for the hero now (new keywords, its shop) and where it was met last. Pressing one opens its window
  * (js/content-progression-ui.js openNpc). NPCs not met yet stay out, as their names would tell the story ahead.
  * 2026-11-06 사용자("이름, 판매 항목, 새 이야기 정도만 두고 상점 버튼, 재화 교환 버튼을 NPC 카드에 포함시켜서 공간 활용, 바로 눌러서 거래"): 카드는
- * 얼굴, 이름, 새 이야기, 판매 항목 한 줄이고, 오른쪽의 상점(진열대가 있을 때)과 재화 교환(오르가) 단추가 그 화면으로 바로 연다. 카드를 누르면 대화. */
+ * 얼굴, 이름, 새 이야기, 판매 항목 한 줄이고, 오른쪽의 상점(진열대가 있을 때)과 재화 교환(베일라) 단추가 그 화면으로 바로 연다. 카드를 누르면 대화. */
 const npcRosterUi = (() => {
     let renderedKey = '';
     const NPC_SHOP_CURRENCIES = Object.freeze(['magicBud', 'formlessDew', 'goldenRule']);
@@ -23,10 +23,10 @@ const npcRosterUi = (() => {
             <span class="npc-roster-face"><img class="npc-roster-portrait" src="${STAGE_NPC_ART.path}${npc.id}-portrait.webp" alt=""></span>
             <span class="npc-roster-text"><strong>${escapeHTML(_t(npc.name))}</strong><span class="npc-roster-tags">${rosterTagsHtml(npc)}</span></span></button>${rosterActionsHtml(npc)}</li>`;
     }
-    /** The card's own buttons: 상점 while the NPC has a shelf (js/npc-shop.js), 재화 교환 at Orga's (js/orga-exchange-ui.js). */
+    /** The card's own buttons: 상점 while the NPC has a shelf, 재화 교환 at Veila's. */
     function rosterActionsHtml(npc) {
         const shop = NPC_SHOPS[npc.id] && npcShop.stock(npc.id) ? `<button type="button" data-npc-open="${npc.id}" data-npc-mode="shop">${_t('상점')}</button>` : '';
-        const exchange = npc.id === ORGA_EXCHANGE.npc ? `<button type="button" data-npc-open="${npc.id}" data-npc-mode="exchange">${_t('재화 교환')}</button>` : '';
+        const exchange = npc.id === NPC_CURRENCY_EXCHANGE.npc ? `<button type="button" data-npc-open="${npc.id}" data-npc-mode="exchange">${_t('재화 교환')}</button>` : '';
         return shop || exchange ? `<span class="npc-roster-actions">${shop}${exchange}</span>` : '';
     }
 
