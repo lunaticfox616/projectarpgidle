@@ -12,7 +12,7 @@
     /** 낮추는 크기(곡 크기의 몫)와 시간(ms): 클리어 효과음(2.1초), 쓰러지는 소리(1.8초). 다시 올라올 때는 0.4초쯤에 걸쳐 돌아온다. */
     const DUCK_LEVEL = 0.5, DUCK_MS = Object.freeze({ clear: 2200, defeat: 2000 }), DUCK_RELEASE_MS = 1500;
     const buffers = new Map(), positions = new Map(), warned = new Set();
-    let output = null, current = null, loading = null, bossUntil = 0, duckUntil = 0;
+    let output = null, current = null, loading = null, bossUntil = 0, bossTrack = 'boss', duckUntil = 0;
 
     const volume = () => game.settings.bgmVolume ?? DEFAULT_VOLUME;
     const audible = () => game.settings.bgm !== false && volume() > 0 && !document.hidden;
@@ -23,13 +23,26 @@
         console.warn(`[bgm] ${label}`, error);
     }
 
-    /** 지금 자리의 곡 이름(BGM_TRACKS 열쇠). */
+    /** 서 있는 보스들의 곡: 엔드게임 보스가 있으면 그 보스의 곡(BGM_BOSS_VISUAL_TRACKS), 없으면 지역 종류의 보스 곡. */
+    function standingBossTrack(bosses, type) {
+        const own = bosses.map(enemy => BGM_BOSS_VISUAL_TRACKS[enemy.monsterVisualId]).find(Boolean);
+        return own || BGM_BOSS_TRACKS[type] || 'boss';
+    }
+    /** 보스가 없을 때의 곡: 엔드게임 보스만의 자리(아틀라스 투기장은 atlasStages)는 그 보스의 곡, 나머지는 지역 종류의 곡. */
+    function zoneTrack(zone) {
+        if (!zone) return 'act';
+        return BGM_BOSS_VISUAL_TRACKS[zone.atlasStages || zone.bossVisualId] || BGM_ZONE_TRACKS[zone.type] || 'act';
+    }
+    /** 지금 자리의 곡 이름(BGM_TRACKS 열쇠). 보스가 쓰러진 뒤 8초도 그 보스의 곡이다. */
     function wantedTrack(now) {
         if (isStartupOverlayOpen()) return 'title';
-        const type = getZone(game.currentZoneId)?.type;
-        if ((game.enemies || []).some(enemy => enemy.isBoss && enemy.hp > 0)) bossUntil = now + BOSS_HOLD_MS;
-        if (now < bossUntil) return BGM_BOSS_TRACKS[type] || 'boss';
-        return BGM_ZONE_TRACKS[type] || 'act';
+        const zone = getZone(game.currentZoneId);
+        const bosses = (game.enemies || []).filter(enemy => enemy.isBoss && enemy.hp > 0);
+        if (bosses.length) {
+            bossUntil = now + BOSS_HOLD_MS;
+            bossTrack = standingBossTrack(bosses, zone?.type);
+        }
+        return now < bossUntil ? bossTrack : zoneTrack(zone);
     }
 
     async function bufferFor(context, id) {

@@ -6,6 +6,7 @@ loopStart sounds like the music after loopEnd (chroma + onset match, beat-aligne
 usage: python scripts/prepare-bgm-loops.py <mp3 dir> assets/audio/bgm scripts/bgm-names.json <report.json>
 A name maps to the output key, or to {"key": ..., "targetEnd": seconds} for a song whose theme comes back only later than ~100 s
 (고대미궁 보스, 2026-11-08: every cut near 100 s landed half a beat off; the theme returns after 104 bars at 181 s).
+"startMax" (seconds, default 20) lets loopStart sit later, after a long intro (엔드게임 보스 곡, 2026-11-10: 고대의 달 matches best from 45 s).
 Needs NumPy and soundfile (libsndfile with MP3 and Vorbis), e.g. the Codex runtime venv. Copy the printed loop points into data/bgm.js.
 """
 import json
@@ -43,12 +44,12 @@ def features(y):
     return chroma, flux.astype(np.float32)
 
 
-def find_loop(chroma, flux, seconds, target_end):
+def find_loop(chroma, flux, target_end, start_max):
     fps = FEAT_RATE / HOP
     win = int(4 * fps)
     pre = int(XFADE * fps)
     frames = len(flux)
-    s_min, s_max = int(3 * fps), int(20 * fps)
+    s_min, s_max = int(3 * fps), int(start_max * fps)
     l_min = int(max(target_end - 15, 40) * fps)
     l_max = min(int((target_end + 12) * fps), frames - win - 1)
     best = (-9, 0, 0)
@@ -88,13 +89,14 @@ def main():
     report = {}
     for path in sorted(src.glob('*.mp3')):
         entry = names[path.stem]
-        key, target_end = (entry, None) if isinstance(entry, str) else (entry['key'], entry.get('targetEnd'))
+        entry = {'key': entry} if isinstance(entry, str) else entry
+        key, target_end, start_max = entry['key'], entry.get('targetEnd'), entry.get('startMax', 20)
         x, rate = sf.read(str(path), always_2d=True, dtype='float32')
         mono = x.mean(axis=1)
         y_feat = downsample(mono, rate)
         chroma, flux = features(y_feat)
         target = target_end or min(100.0, len(mono) / rate - 20)
-        score, s_frame, l_frame = find_loop(chroma, flux, len(mono) / rate, target)
+        score, s_frame, l_frame = find_loop(chroma, flux, target, start_max)
         s_feat, l_feat = s_frame * HOP, l_frame * HOP
         lag, corr = refine(y_feat, s_feat, l_feat)
         ratio = rate / FEAT_RATE
