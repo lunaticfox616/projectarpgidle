@@ -10,22 +10,29 @@ const fixture = require('./lib/replay-fixture');
 const configureEndgame = require('./lib/offline-endgame-fixture');
 const revision = process.argv[2];
 assert.ok(revision, 'Pass the pre-refactor git revision explicitly');
-const source = fs.readFileSync('js/combat.js', 'utf8');
-const original = execFileSync('git', ['show', `${revision}:js/combat.js`], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-const functions = text => espree.parse(text, { ecmaVersion: 'latest', range: true }).body
-    .filter(node => node.type === 'FunctionDeclaration');
-let baseline = source;
-for (const node of functions(source).filter(node => ['getPlayerStats', 'estimateSummonDps'].includes(node.id.name)).reverse()) {
-    const previous = functions(original).find(candidate => candidate.id.name === node.id.name);
-    assert.ok(previous, `Missing baseline function ${node.id.name}`);
-    baseline = baseline.slice(0, node.range[0]) + original.slice(...previous.range) + baseline.slice(node.range[1]);
+// A file's functions are at its top level or in its opening closure (scripts/privatize-functions.cjs, 2026-11-10); the revision may
+// hold them in js/combat.js (before the split of that day) or in the files of today.
+const functions = text => espree.parse(text, { ecmaVersion: 'latest', range: true }).body.flatMap(node => {
+    const closure = node.type === 'ExpressionStatement' && node.expression.type === 'CallExpression' && node.expression.callee.type === 'ArrowFunctionExpression'
+        ? node.expression.callee.body.body : [];
+    return [node, ...closure].filter(inner => inner.type === 'FunctionDeclaration');
+});
+const atRevision = file => { try { return execFileSync('git', ['show', `${revision}:${file}`], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }); } catch { return ''; } };
+/** file with the named function's text taken from the revision (from the first of oldFiles that has it). */
+function withBaselineFunction(file, name, oldFiles) {
+    const text = fs.readFileSync(file, 'utf8'), node = functions(text).find(candidate => candidate.id.name === name);
+    assert.ok(node, `${file} has no function ${name}`);
+    for (const oldFile of oldFiles) {
+        const old = atRevision(oldFile), previous = old && functions(old).find(candidate => candidate.id.name === name);
+        if (previous) return text.slice(0, node.range[0]) + old.slice(...previous.range) + text.slice(node.range[1]);
+    }
+    assert.fail(`Missing baseline function ${name} at ${revision}`);
 }
-const skills = fs.readFileSync('js/skills.js', 'utf8');
-const oldSkills = execFileSync('git', ['show', `${revision}:js/skills.js`], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-const currentGem = functions(skills).find(node => node.id.name === 'getGemBonusSources');
-const previousGem = functions(oldSkills).find(node => node.id.name === 'getGemBonusSources');
-const baselineSkills = skills.slice(0, currentGem.range[0]) + oldSkills.slice(...previousGem.range) + skills.slice(currentGem.range[1]);
-const before = fixture(17, { 'js/combat.js': baseline, 'js/skills.js': baselineSkills });
+const before = fixture(17, {
+    'js/player-stats.js': withBaselineFunction('js/player-stats.js', 'getPlayerStats', ['js/player-stats.js', 'js/combat.js']),
+    'js/combat-summon-stats.js': withBaselineFunction('js/combat-summon-stats.js', 'estimateSummonDps', ['js/combat-summon-stats.js', 'js/combat.js']),
+    'js/skills.js': withBaselineFunction('js/skills.js', 'getGemBonusSources', ['js/skills.js'])
+});
 const after = fixture(17);
 const report = { revision, method: 'Node VM; alternating runs; median of 5 rounds, 60 evaluations per round', equivalence: [], timings: [] };
 function compare(name, setup = '') {

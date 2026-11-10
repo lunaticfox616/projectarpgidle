@@ -2661,7 +2661,7 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
 // 전장 좌표 변화와 걷기 프레임은 같은 이동 진행도를 공유해야 한다.
 {
   const battlefield = fs.readFileSync('js/canvas-battlefield.js', 'utf8');
-  const ui = fs.readFileSync('js/ui.js', 'utf8');
+  const ui = fs.readFileSync('js/ui.js', 'utf8') + fs.readFileSync('js/battlefield-sprites-ui.js', 'utf8');
   assert.ok(battlefield.includes('updatePlayerGridVisualMotion'), '전장 캔버스가 실제 칸 변경을 화면 이동으로 변환해야 한다');
   assert.ok(ui.includes('pickProgressFrame(runCycle, moveProgress)'),
     '스프라이트는 칸 이동 진행도로 걷기 프레임을 골라 도착 시 마지막 프레임에 맞춰야 한다');

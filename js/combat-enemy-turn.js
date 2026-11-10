@@ -1,5 +1,6 @@
 // 쓰러짐과 휴식, 받는 피해, 몬스터의 공격 차례, 시련 함정과 바닥 위험 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-
+// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+(() => {
 /** 패널티가 붙는 구역을 처음 열면 한 번 알린다. 액트 6과 혼돈에서 갑자기 자주 쓰러지는 까닭이 캐릭터 창의 저항 상세에만 있었다
  * (자연 플레이 측정 2026-10-17: 패시브를 찍지 않은 성직자는 혼돈 1에서 한 시간에 76번 쓰러졌다, 찍은 성직자는 0번). */
 function noteCampaignResistPenalty(zoneId) {
@@ -9,7 +10,6 @@ function noteCampaignResistPenalty(zoneId) {
     queueTutorialNotice(`notice_resist_penalty_${zoneId}`, _t('모든 저항 -{total}%', { total }),
         `캠페인 패널티로 모든 원소 저항과 카오스 저항이 ${each}%${more}.\n저항이 모자라면 받는 피해가 커집니다. 캐릭터 창의 저항에서 볼 수 있습니다.`, 'tab-character');
 }
-
 
 /** 물러난 뒤 탐험을 마치면: 덜 올랐으면 지금 액트를 한 번 더, 충분히 올랐으면 기록을 지우고 평소처럼 앞으로 간다. */
 function holdActRetreat(zone) {
@@ -32,15 +32,6 @@ function applyActRestRecovery(pStats, hpCap) {
     game.playerHp = Math.min(hpCap, game.playerHp + pStats.maxHp * ACT_REST_RECOVERY_PCT_PER_SEC / 100 * 0.1);
 }
 
-/** The hero fell in zone: this loop's death count, the content's own defeat (back to where it came from, its run closed) or else the
- * experience penalty, then the death log and notice, full life and the walk on. Split by content on 2026-10-18 with the same steps
- * in the same order; log lines reach the content parts as say. */
-/** The local test panel's god mode (js/dev-test-panel-ui.js, ?dev=1 on localhost only): a defeat refills life instead of happening.
- * The panel's 200 ms life top-up alone let one big hit through (2026-10-19: the hero fell to the 500 m guardian with god mode on). */
-/* @dev-only */
-let combatTestImmortal = false;
-function setCombatTestImmortal(on) { combatTestImmortal = !!on; }
-/* @end-dev-only */
 function handlePlayerDefeat(zone, pStats, message, options) {
     /* @dev-only */ if (combatTestImmortal) { game.playerHp = getPlayerHpCap(pStats || getPlayerStats()); return; } /* @end-dev-only */
     actExplorationProgress.defeat(game);
@@ -64,33 +55,30 @@ function handlePlayerDefeat(zone, pStats, message, options) {
     updateStaticUI();
     queueImportantSave(160);
 }
-/** 쓰러진 뒤 화면이 까매졌다 밝아지는 동안(js/defeat-fade-ui.js) 주인공은 다시 놓인 자리에 서 있다(2026-11-05 사용자: "사망 시 바로
- * 부활이 아니라 … 몇 초 뒤에 움직일 수 있게"). 이동 대기(moveTimer)로 잡으므로 귀환과 다른 지역 이동은 바로 된다. 방치 정산은 늘리지 않는다. */
-const DEFEAT_RECOVERY_SECONDS = 3;
+
 function holdAfterDefeat() {
     if (game.isBackgroundCalculation) return;
     game.moveTimer = game.moveTotalTime = Math.max(game.moveTimer || 0, DEFEAT_RECOVERY_SECONDS);
 }
+
 /** The content whose own rules a defeat in zone follows (a run by its id, else by its kind), or null for the experience penalty. */
 function getContentDefeat(zone) {
     if (!zone) return null;
     return getRunDefeat(zone) || getOceanDiveDefeat(zone) || getContentKindDefeat(zone);
 }
+
 function getRunDefeat(zone) {
     if (zone.id === OUTSIDE_CHAOS_ZONE_ID) return defeatAgainstWoodsman;
     if (zone.id === 'colony_run' && game.colony && game.colony.inRun) return defeatInColony;
     if (zone.id === 'beehive_run' && game.beehive && game.beehive.inRun) return defeatInBeehive;
     return zone.id === 'grand_breach_run' ? defeatInGrandBreach : null;
 }
+
 function getContentKindDefeat(zone) {
     if (zone.type === 'seasonBoss') return game.inTicketBossFight ? defeatInRootBossFight : null;
     return Object.hasOwn(CONTENT_DEFEAT_BY_KIND, zone.type) ? CONTENT_DEFEAT_BY_KIND[zone.type] : null;
 }
-/** 자동 재잠수로 들어간 잠수에서, 또는 가디언에게 쓰러지면 그 잠수를 끝낸다. 2026-10-19 검토: 넘지 못하는 가디언 앞에서 거듭
- * 쓰러지며 쓰러질 때마다 경험치를 잃고(한 번 잠수에 2~8번), 가디언은 생명력이 다 찬 채로 다시 나왔다. 손으로 시작한 잠수에서 무리에게
- * 쓰러지면 예전처럼 심해에서 다시 일어선다. 자동 잠수가 무리에게 쓰러지면 자동 재잠수도 멈추고, 가디언에게 쓰러지면 자동 재잠수가
- * 지난 가디언 자리부터 잇는다(recordOceanSurface). */
-const getOceanDiveDefeat = zone => (zone.id === OCEAN_ZONE_ID && (isAutoOceanDive(ensureOceanState()) || game.oceanBossRunPending) ? defeatInOceanDive : null);
+
 function defeatInOceanDive(zone, message, opts, ui) {
     const guardian = !!game.oceanBossRunPending;
     const fallback = guardian ? '☠️ 심해 가디언에게 쓰러져 수면으로 올라왔습니다.' : '☠️ 자동 재잠수로 들어간 잠수에서 쓰러졌습니다.';
@@ -98,6 +86,7 @@ function defeatInOceanDive(zone, message, opts, ui) {
     clearDefeatedEncounter();
     forceSurfaceOcean(guardian ? 'guardian' : 'defeat');
 }
+
 /** Leaves the encounter (a defeat, the loop gate): no enemies, plan or progress left. On an exploration map the fighters go back to
  * their packs (waiting), as when a hunt leaves the map: emptying the list alone left the packs counting monsters the save no longer held,
  * and that save would not load (2026-10-27, the loop gate and a save round-trip sweep). */
@@ -108,8 +97,7 @@ function clearDefeatedEncounter() {
     game.encounterIndex = 0;
     game.runProgress = 0;
 }
-/** Back where the run started, else the defeat recovery zone. */
-const defeatReturnZone = returnZoneId => (returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getDefeatRecoveryZoneId());
+
 function defeatAgainstWoodsman(zone, message, opts, ui) {
     let woodsman = (game.enemies || []).find(e => e && e.isBoss);
     if (woodsman && woodsman.maxHp > 0) {
@@ -123,6 +111,7 @@ function defeatAgainstWoodsman(zone, message, opts, ui) {
     game.currentZoneId = getDefeatRecoveryZoneId();
     game.killsInZone = 0;
 }
+
 function defeatInColony(zone, message, opts, ui) {
     ui.say(message || "☠️ 군락지 방어전에서 패배했습니다.", "death", { noToast: !!opts.noToast });
     window.GameModules.colonyRun.recordEnd('defeat');
@@ -135,6 +124,7 @@ function defeatInColony(zone, message, opts, ui) {
     clearDefeatedEncounter();
     game.killsInZone = 0;
 }
+
 function defeatInBeehive(zone, message, opts, ui) {
     ui.say(message || "☠️ 벌집 전투에서 패배했습니다. 원정이 즉시 종료됩니다.", "death", { noToast: !!opts.noToast });
     const exitRun = ui.exitBeehiveRun;
@@ -150,6 +140,7 @@ function defeatInBeehive(zone, message, opts, ui) {
     clearDefeatedEncounter();
     game.killsInZone = 0;
 }
+
 function defeatInGrandBreach(zone, message, opts, ui) {
     let v = game.voidRift || (game.voidRift = { meter: 0, active: false, breachClears: 0, grandBreachUnlock: false, activeKills: 0, requiredKills: 0 });
     let grand = v.grandRun || {};
@@ -160,6 +151,7 @@ function defeatInGrandBreach(zone, message, opts, ui) {
     game.currentZoneId = grand.returnZoneId !== undefined ? grand.returnZoneId : getDefeatRecoveryZoneId();
     game.killsInZone = 0;
 }
+
 function defeatBeyondBoundary(zone, message, opts, ui) {
     let returnZoneId = abandonBeyondBoundaryRun(game);
     ui.say(message || '경계 너머 도전에 실패했습니다. 진행 중이던 단계가 종료됩니다.', 'death', { noToast: !!opts.noToast });
@@ -167,6 +159,7 @@ function defeatBeyondBoundary(zone, message, opts, ui) {
     game.killsInZone = 0;
     clearDefeatedEncounter();
 }
+
 function defeatAtMeteor(zone, message, opts, ui) {
     ui.say(message || "☠️ 운석 낙하 지점에서 패배했습니다. 운석 지점이 닫힙니다.", "death", { noToast: !!opts.noToast });
     let st = ensureMeteorSiteState();
@@ -178,6 +171,7 @@ function defeatAtMeteor(zone, message, opts, ui) {
     game.killsInZone = 0;
     clearDefeatedEncounter();
 }
+
 /** A defeat in the time rift shatters the altar's items and closes the altar, so the past must be cleared again (2026-10-26 사용자:
  * 실패 시 아이템 파괴 패널티). The altar is empty in the past (items go on it once the past is cleared), so its line names no items.
  * The lines are the user's own, whatever killed the hero (the death record keeps the cause). */
@@ -188,6 +182,7 @@ function defeatInTimeRift(zone, message, opts, ui) {
     game.killsInZone = 0;
     clearDefeatedEncounter();
 }
+
 function defeatInRootBossFight(zone, message, opts, ui) {
     let fallbackMessage = zone.milestonePinnacle
         ? '☠️ 최종 관문 도전에 실패했습니다. 장비와 방어를 정비해 다시 도전하세요.'
@@ -197,11 +192,13 @@ function defeatInRootBossFight(zone, message, opts, ui) {
     game.killsInZone = 0;
     game.inTicketBossFight = false;
 }
+
 function defeatInTrial(zone, message, opts, ui) {
     ui.say(message || "☠️ 시련 실패! 마을로 귀환합니다.", "death", { noToast: !!opts.noToast });
     game.currentZoneId = getDefeatRecoveryZoneId();
     game.killsInZone = 0;
 }
+
 /** 지하계에서 쓰러지면 경험치를 잃고, 다음 층으로 나아가는 설정이면 한 층 얕은 곳부터 다시 내려간다(액트의 물러나기와 같은 뜻,
  * 2026-10-19 사용자 결정). 막힌 층에서 거듭 쓰러지는 쪽이 층을 깨는 쪽보다 경험치를 더 벌었다. 최고층 기록은 그대로다.
  * @returns {number} 잃은 경험치 */
@@ -213,9 +210,7 @@ function defeatOnUnderworldFloor(zone, message, opts, ui) {
     ui.say(_t('🛡️ 지하계 {value}층으로 물러나 다시 내려갑니다.', { value: floor - 1 }), 'season-up');
     return lost;
 }
-/** Content kinds whose defeat closes their run or moves it (a root boss fight is chosen in getContentKindDefeat). */
-const CONTENT_DEFEAT_BY_KIND = Object.freeze({ beyondBoundary: defeatBeyondBoundary, meteor: defeatAtMeteor, timeRift: defeatInTimeRift, trial: defeatInTrial,
-    underworld: defeatOnUnderworldFloor });
+
 /** Anywhere else: a tenth of this level's experience is lost (never below 0). Returns the experience lost. */
 function applyDeathExpPenalty(message, opts, ui) {
     let expPenalty = Math.floor(getExpReq(game.level) * 0.1);
@@ -275,9 +270,6 @@ function getEnemyCritTakenMul(enemy, pStats) {
     return 1 + Math.max(0, mul - 1) * (1 - clampNumber(pStats.critTakenDamageReducePct || 0, 0, 90) / 100);
 }
 
-/** 주인공에게 걸리는 상태이상의 지속 시간 감소(갑옷 옵션, 75%까지). 냉기는 냉각과 동결이 함께 줄어든다. */
-const PLAYER_AILMENT_DURATION_STATS = Object.freeze({ ignite: 'igniteTakenDurationReducePct', shock: 'shockTakenDurationReducePct', chill: 'coldTakenDurationReducePct',
-    freeze: 'coldTakenDurationReducePct', poison: 'poisonTakenDurationReducePct', bleed: 'bleedTakenDurationReducePct' });
 function getPlayerAilmentTakenDuration(type, duration, pStats) {
     return duration * (1 - clampNumber(pStats[PLAYER_AILMENT_DURATION_STATS[type]] || 0, 0, 75) / 100);
 }
@@ -427,16 +419,17 @@ function tickAilments(pStats, dt) {
     game.playerAilments = next;
 }
 
-
 /** 강화 변이시간선의 추가 피해(js/loop-mutation.js empoweredHit) 가운데 이번 타격의 물리에 더할 몫: 물리면 그 양이다. 물리 추가분은
  * 받는 물리 전환(physTakenAs), 방어도(합친 타격 크기로), 피해 감소를 이번 타격의 물리와 함께 거친다(2026-11-07 리뷰: 따로 붙어 비켜 갔다). */
 function getEmpoweredPhysicalDamage(empowered) {
     return empowered && empowered.ele === 'phys' ? empowered.amount : 0;
 }
+
 /** 우주계 균등 분배가 나눌 추가분: 강화 변이의 추가 피해 전부(분배가 속성마다 경감한다). */
 function getEmpoweredRawDamage(empowered) {
     return empowered ? empowered.amount : 0;
 }
+
 /** 강화 변이의 원소, 카오스 추가 피해를 따로 줄로: 그 속성 저항(적 보정 뒤, 우주계 균형 경감이면 그 값 balancedRes). 물리는 이번 타격의
  * 물리에 들어가고 균등 분배는 추가분까지 나누므로 그때는 줄이 없다. 성전사 cr4 전환은 저항 전에 한다. */
 function getEmpoweredElementRows(empowered, pStats, enemy, balancedRes) {
@@ -444,7 +437,7 @@ function getEmpoweredElementRows(empowered, pStats, enemy, balancedRes) {
     const resOf = row => (pStats.cosmosBalanceMitigation ? balancedRes : getPlayerResistanceAfterEnemyModifiers(pStats, row.ele, enemy));
     return mitigateTakenRows(splitCrusaderLightningTaken([{ ele: empowered.ele, amount: empowered.amount }]), resOf);
 }
-const CRUSADER_LIGHTNING_TAKEN_ELEMENTS = Object.freeze(['fire', 'cold', 'chaos']);
+
 /** 성전사 cr4(전하 보루): 받는 화염, 냉기, 카오스 피해의 30%를 번개로. 저항 전 피해 줄에 쓴다: 옮긴 몫은 번개 저항과 번개 받는 피해
  * 감소를 거친다(2026-11-07 리뷰: 경감 뒤에 옮겨 둘 다 비켜 갔다). */
 function splitCrusaderLightningTaken(rows) {
@@ -455,6 +448,7 @@ function splitCrusaderLightningTaken(rows) {
         return [{ ele: row.ele, amount: row.amount - shift }, { ele: 'light', amount: shift }];
     });
 }
+
 /** 출혈 봉쇄 투구: 받는 물리 피해의 15%를 카오스로. 저항 전 피해 줄에 쓴다: 옮긴 몫은 카오스 저항과 카오스 받는 피해 감소를 거친다. */
 function splitHelmChaosTaken(rows, pStats) {
     if (!pStats.uniqueBleedBlockHelm) return rows;
@@ -464,14 +458,17 @@ function splitHelmChaosTaken(rows, pStats) {
         return [{ ele: 'phys', amount: row.amount - chaos }, { ele: 'chaos', amount: chaos }];
     });
 }
+
 /** 받는 피해 전환을 저항 전 줄에: cr4 다음 투구(투구가 옮긴 카오스는 번개가 되지 않는다, 예전 순서 그대로). */
 function convertTakenRowsRaw(rows, pStats) {
     return splitHelmChaosTaken(splitCrusaderLightningTaken(rows), pStats);
 }
+
 /** 저항 전 피해 줄을 줄마다 resOf(row)의 경감 %로 줄인다. 0이 된 줄은 뺀다. */
 function mitigateTakenRows(rows, resOf) {
     return rows.map(row => ({ ele: row.ele, amount: Math.max(0, Math.floor(row.amount * (1 - resOf(row) / 100))) })).filter(row => row.amount > 0);
 }
+
 /** 받는 물리 전환 physTakenAs(합 75% 상한): 옮긴 몫은 cr4를 거쳐 그 속성 저항(적 보정 뒤)으로 줄인 줄로, physical은 남은 물리. */
 function shiftPhysicalTakenAs(physical, pStats, enemy) {
     const takenAs = pStats.physTakenAs || {};
@@ -490,6 +487,7 @@ function shiftPhysicalTakenAs(physical, pStats, enemy) {
     const resOf = row => getPlayerResistanceAfterEnemyModifiers(pStats, row.ele, enemy);
     return { physical: Math.max(0, physical - shiftedTotal), rows: mitigateTakenRows(splitCrusaderLightningTaken(rows), resOf) };
 }
+
 function getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy, effectMultiplier) {
     let keyByElement = { fire: 'F', cold: 'C', light: 'L', chaos: 'Chaos' };
     let suffix = keyByElement[element];
@@ -507,7 +505,6 @@ function getPlayerResistanceAfterEnemyModifiers(pStats, element, enemy, effectMu
     let reducedResistance = Math.min(maxResistance, uncappedResistance - resistanceReduction);
     return Math.max(MIN_PENETRATED_RESISTANCE, reducedResistance - penetration);
 }
-
 
 function getCosmosBalancedMitigationPct(pStats, enemy, physRes) {
     let resValues = ['fire', 'cold', 'light', 'chaos'].map(ele => getPlayerResistanceAfterEnemyModifiers(pStats, ele, enemy));
@@ -538,6 +535,7 @@ function getColonyDefenseCoreTarget() {
     const core=actExplorationMap.forRun(run).colonyDefense?.core;
     return core ? {...core,isColonyCore:true} : null;
 }
+
 function nearestEnemyCombatTarget(enemy,initial,reach) {
     let best=initial,distance=getGridUnitDistance(enemy,initial);
     const candidates=[game.gridPlayer,...(game.summons||[]).filter(unit=>unit && unit.alive && !unit.isGhost && unit.hp>0)];
@@ -549,6 +547,7 @@ function nearestEnemyCombatTarget(enemy,initial,reach) {
     }
     return best;
 }
+
 function getEnemyPreferredGridTarget(enemy) {
     const player=game.gridPlayer;
     if(!hasGridCell(enemy) || !hasGridCell(player))return player;
@@ -825,6 +824,7 @@ function prepareMonsterAttackShield(pStats) {
     if(!Number.isFinite(game.playerEnergyShield))game.playerEnergyShield=Math.floor(pStats.energyShield || 0);
     game.playerEnergyShield=Math.max(0,Math.min(Math.floor(Number(game.playerEnergyShield)||0),getPlayerEnergyShieldRecoveryCap(pStats)));
 }
+
 function readyMonsterAttackSources() {
     const sources=(game.enemies || []).slice();
     pendingEnemyCombatAttacks.forEach(row=>{
@@ -832,7 +832,7 @@ function readyMonsterAttackSources() {
     });
     return sources;
 }
-const colonyRunEndedDuringAttacks=zone=>zone.type==='colony' && !game.colony?.inRun;
+
 /** 수호자 gd6: 맞을 때마다 인내 중첩, 5중첩이면 받은 피해만큼 되돌려 친다. 반사로 쓰러진 적은 바로 죽음 처리를 한다(뒤의 몬스터
  * 흡혈이 되살리고 연속 공격이 이어지던 일, 2026-11-07 리뷰). */
 function applyGuardianEnduranceReflect(enemy, remaining, pStats) {
@@ -1431,14 +1431,13 @@ function updateCombatHazardEscape(hazard, pStats, now, reason = '함정 회피')
     return true;
 }
 
-/** Existing automatic escape is limited to trial traps and final-boss combos; ordinary warnings only gate the approach. */
-const isApexFight = () => game.enemies.some(enemy => enemy.hp > 0 && enemy.patternMode === 'apex');
 /** Ordinary warnings forbid entry, not all walking. Do not escape an occupied warning or retreat to find a way around it. */
 function bossWarningApproach(warned) {
     if (!warned.length || !hasGridCell(game.gridPlayer)) return { hold: false, block: [] };
     const keys = new Set(warned.map(cell => gridCellKey(cell.gx, cell.gy)));
     return { hold: isGridUnitInCellSet(game.gridPlayer, keys), block: warned };
 }
+
 function hardHazardCells() {
     let cells = [];
     if (trialHazardRuntime.active && trialHazardRuntime.active.shouldAvoid) cells.push(...trialHazardRuntime.active.cells);
@@ -1446,9 +1445,7 @@ function hardHazardCells() {
     if (isApexFight()) cells.push(...getBossWarningCells(game, pendingEnemyCombatAttacks));
     return cells;
 }
-/** Lasting ground (lava, frost, corrosion, shock): a soft danger. The hero walks around it when it can and fights in it when it must
- * (2026-10-18: as a hard danger a melee hero kept 0-16% of its damage against the final bosses). */
-const groundHazardCells = () => (trialHazardRuntime.ground || []).flatMap(ground => ground.cells);
+
 function updateCombatHazardEvasion(pStats) {
     if (game.playerHp <= 0) return { avoiding: false, holdPosition: false };
     applyTrialTrapTick(pStats, true);
@@ -1460,9 +1457,6 @@ function updateCombatHazardEvasion(pStats) {
     let frozen = game.playerAilments.some(ail => ail.type === 'freeze' && ail.time > 0);
     return { avoiding: avoiding || frozen, holdPosition, warning: warned.length > 0, avoidCells: { hard: cells.concat(approach.block), soft: groundHazardCells(), warned: approach.block } };
 }
-
-/** The trap's name in the log and the defeat line: a trial's '시련 함정', or the zone's own (the atlas late arenas' '바닥 함정'). */
-const trialTrapName = zone => zone.trapName || '시련 함정';
 
 function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
     let remaining = floorIncomingDamage(trapDamage), trapName = trialTrapName(zone);
@@ -1488,11 +1482,13 @@ function dealTrialTrapDamage(zone, pStats, hazard, trapDamage) {
         handlePlayerDefeat(zone, pStats, _t('{trapName}에 쓰러졌습니다. 마을로 귀환합니다.', { trapName }), { fatalElement: hazard.element, sourceName: trapName, noToast: true });
     }
 }
+
 /** 적이 다 쓰러진 뒤에 터진 함정은 아프기만 하다: 이긴 싸움을 남은 함정 하나로 잃지 않는다. */
 function hpAfterTrap(damage) {
     const hp = Math.floor(game.playerHp - damage);
     return hp <= 0 && !isAnyEnemyAlive() ? 1 : hp;
 }
+
 function logTrialDamage(name, hazard, damage) {
     if (!hazard.persistent) {
         dispatchRuntimeEvent('ground-damage', { name, element: hazard.element, damage, persistent: false });
@@ -1543,6 +1539,7 @@ function tickPersistentGround(zone, pStats, now) {
         if (game.playerHp <= 0) return;
     }
 }
+
 function applyGroundContact(zone, stats, area, now) {
     const rule = COMBAT_GRID_CONFIG.ground[area.element];
     if (rule.ailment) applyPlayerAilment(rule.ailment, 0.75, 0.5, stats);
@@ -1557,7 +1554,7 @@ function applyGroundContact(zone, stats, area, now) {
 function hasGroundHazard(zone) {
     return !!zone && (zone.type === 'trial' || !!zone.trialHazard);
 }
-const isAnyEnemyAlive = () => (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
+
 /** 적이 다 쓰러진 뒤: 새 함정은 없고 남은 지대는 걷히지만, 경고를 시작한 함정은 마저 터진다(2026-11-02 사용자). */
 function settleTrapAfterFight(zone, pStats, now) {
     const hazard = trialHazardRuntime.active;
@@ -1566,6 +1563,7 @@ function settleTrapAfterFight(zone, pStats, now) {
     if (hazard && hazard.persistent) trialHazardRuntime.active = null;
     else if (hazard && now >= hazard.impactAt) resolveTrialHazardImpact(zone, pStats, hazard, now);
 }
+
 function applyTrialTrapTick(pStats, deferEscape) {
     let zone = getZone(game.currentZoneId);
     if (!hasGroundHazard(zone) || game.moveTimer > 0) return false;
@@ -1588,6 +1586,57 @@ function applyTrialTrapTick(pStats, deferEscape) {
     }
     return !deferEscape && updateCombatHazardEscape(hazard, pStats, now);
 }
+
+exposeFileGlobals({ noteCampaignResistPenalty, holdActRetreat, applyActRestRecovery, handlePlayerDefeat, holdAfterDefeat, defeatInOceanDive, clearDefeatedEncounter, defeatInGrandBreach, defeatBeyondBoundary, defeatAtMeteor, defeatInTimeRift, defeatInRootBossFight, defeatInTrial, defeatOnUnderworldFloor, getPlayerAilmentResistChance, applyPlayerAilment, tickAilments, isEnemyInGridAttackRange, canEnemyAttackFromHere, advanceEnemyGridApproach, getSummonRespawnAt, getClosestLivingSummonToPlayer, applyMonsterDamageToSummon, queueEnemyCombatAttack, announceEnemyAttackRelease, retireDeadEnemyAttacks, dropEnemyAttack, settleLastEnemyAttacks, takePendingEnemyCombatAttack, getEnemyCombatImpactTargets, getMonsterBaseHitDamage, performMonsterAttacks, calculateTrialTrapDamage, getBloomTrialRegenSuppressNext, buildTrialHazardCells, createTrialHazard, isTrialHazardPositionHeld, bossWarningApproach, updateCombatHazardEvasion, dealTrialTrapDamage, resolveTrialHazardImpact, applyTrialTrapTick });
+})();
+
+
+/** The hero fell in zone: this loop's death count, the content's own defeat (back to where it came from, its run closed) or else the
+ * experience penalty, then the death log and notice, full life and the walk on. Split by content on 2026-10-18 with the same steps
+ * in the same order; log lines reach the content parts as say. */
+/** The local test panel's god mode (js/dev-test-panel-ui.js, ?dev=1 on localhost only): a defeat refills life instead of happening.
+ * The panel's 200 ms life top-up alone let one big hit through (2026-10-19: the hero fell to the 500 m guardian with god mode on). */
+/* @dev-only */
+let combatTestImmortal = false;
+function setCombatTestImmortal(on) { combatTestImmortal = !!on; }
+/* @end-dev-only */
+/** 쓰러진 뒤 화면이 까매졌다 밝아지는 동안(js/defeat-fade-ui.js) 주인공은 다시 놓인 자리에 서 있다(2026-11-05 사용자: "사망 시 바로
+ * 부활이 아니라 … 몇 초 뒤에 움직일 수 있게"). 이동 대기(moveTimer)로 잡으므로 귀환과 다른 지역 이동은 바로 된다. 방치 정산은 늘리지 않는다. */
+const DEFEAT_RECOVERY_SECONDS = 3;
+/** 자동 재잠수로 들어간 잠수에서, 또는 가디언에게 쓰러지면 그 잠수를 끝낸다. 2026-10-19 검토: 넘지 못하는 가디언 앞에서 거듭
+ * 쓰러지며 쓰러질 때마다 경험치를 잃고(한 번 잠수에 2~8번), 가디언은 생명력이 다 찬 채로 다시 나왔다. 손으로 시작한 잠수에서 무리에게
+ * 쓰러지면 예전처럼 심해에서 다시 일어선다. 자동 잠수가 무리에게 쓰러지면 자동 재잠수도 멈추고, 가디언에게 쓰러지면 자동 재잠수가
+ * 지난 가디언 자리부터 잇는다(recordOceanSurface). */
+const getOceanDiveDefeat = zone => (zone.id === OCEAN_ZONE_ID && (isAutoOceanDive(ensureOceanState()) || game.oceanBossRunPending) ? defeatInOceanDive : null);
+/** Back where the run started, else the defeat recovery zone. */
+const defeatReturnZone = returnZoneId => (returnZoneId !== undefined && returnZoneId !== null ? returnZoneId : getDefeatRecoveryZoneId());
+/** Content kinds whose defeat closes their run or moves it (a root boss fight is chosen in getContentKindDefeat). */
+const CONTENT_DEFEAT_BY_KIND = Object.freeze({ beyondBoundary: defeatBeyondBoundary, meteor: defeatAtMeteor, timeRift: defeatInTimeRift, trial: defeatInTrial,
+    underworld: defeatOnUnderworldFloor });
+
+
+/** 주인공에게 걸리는 상태이상의 지속 시간 감소(갑옷 옵션, 75%까지). 냉기는 냉각과 동결이 함께 줄어든다. */
+const PLAYER_AILMENT_DURATION_STATS = Object.freeze({ ignite: 'igniteTakenDurationReducePct', shock: 'shockTakenDurationReducePct', chill: 'coldTakenDurationReducePct',
+    freeze: 'coldTakenDurationReducePct', poison: 'poisonTakenDurationReducePct', bleed: 'bleedTakenDurationReducePct' });
+
+
+const CRUSADER_LIGHTNING_TAKEN_ELEMENTS = Object.freeze(['fire', 'cold', 'chaos']);
+
+
+const colonyRunEndedDuringAttacks=zone=>zone.type==='colony' && !game.colony?.inRun;
+
+
+/** Existing automatic escape is limited to trial traps and final-boss combos; ordinary warnings only gate the approach. */
+const isApexFight = () => game.enemies.some(enemy => enemy.hp > 0 && enemy.patternMode === 'apex');
+/** Lasting ground (lava, frost, corrosion, shock): a soft danger. The hero walks around it when it can and fights in it when it must
+ * (2026-10-18: as a hard danger a melee hero kept 0-16% of its damage against the final bosses). */
+const groundHazardCells = () => (trialHazardRuntime.ground || []).flatMap(ground => ground.cells);
+
+/** The trap's name in the log and the defeat line: a trial's '시련 함정', or the zone's own (the atlas late arenas' '바닥 함정'). */
+const trialTrapName = zone => zone.trapName || '시련 함정';
+
+
+const isAnyEnemyAlive = () => (game.enemies || []).some(enemy => enemy && enemy.hp > 0);
 
 
 safeExposeGlobals({ handlePlayerDefeat, applyPlayerAilment, tickAilments, performMonsterAttacks, applyTrialTrapTick });

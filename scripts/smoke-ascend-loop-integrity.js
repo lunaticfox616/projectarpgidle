@@ -4,7 +4,9 @@ const vm = require('vm');
 
 const combatSource = fs.readdirSync('js').filter(name => /^(combat(-[a-z-]+)?|player-stats|loop-reset)\.js$/.test(name))
     .map(name => fs.readFileSync(`js/${name}`, 'utf8')).join('\n');
-const uiSource = (fs.readFileSync('js/ui.js', 'utf8') + '\n' + fs.readFileSync('js/save-migrations.js', 'utf8'));
+// The screens split out of js/ui.js (js/*-ui.js) are read with it: a function searched for here may live in any of them.
+const uiSource = ['ui.js', ...fs.readdirSync('js').filter(name => name.endsWith('-ui.js')), 'save-migrations.js']
+    .map(name => fs.readFileSync(`js/${name}`, 'utf8')).join('\n');
 const indexSource = fs.readFileSync('index.html', 'utf8');
 
 function extract(source, startNeedle, endNeedle) {
