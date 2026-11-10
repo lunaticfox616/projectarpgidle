@@ -133,7 +133,8 @@ const worldMapUi = (() => {
         box.appendChild(veil);
         playUiFeedbackSound('open');
         const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-        setTimeout(then, still ? 0 : TURN_MS);
+        // 넘어간 뒤에는 덮개와 뒤집힌 색을 걷는다: 두 화면은 다시 그려지지 않고 남아 있어서, 걷지 않으면 돌아왔을 때 옛 그림이 지도를 덮고 있었다(2026-11-10 사용자).
+        setTimeout(() => { then(); veil.remove(); button.classList.remove('is-turning'); }, still ? 0 : TURN_MS);
     }
     const turnToAtlas = button => spreadFrom(button, button.closest('.wm-map'), WORLD_MAP.atlas.src, () => explorationAtlasUi.enter('map-explore-worldtree'));
     /** 아틀라스 지도에서 같은 자리의 단추로 돌아온다(js/atlas-sheet-ui.js). */
