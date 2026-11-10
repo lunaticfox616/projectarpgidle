@@ -58,7 +58,7 @@ const files = [
   'js/equipment-sockets.js',
   'js/combat-build-stats.js',
   'js/cosmos-route.js',
-  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
+  'js/loop-mutation.js', 'js/basic-skills.js', 'js/combat.js', 'js/combat-summon-stats.js', 'js/combat-tick.js', 'js/ascendancy-node-rules.js', 'js/player-stats.js', 'js/combat-enemy-build.js', 'js/combat-skill-effects.js', 'js/combat-encounters.js', 'js/combat-kill-rewards.js', 'js/combat-player-attack.js', 'js/combat-enemy-turn.js', 'js/loop-reset.js', 'js/combat-incidents.js', 'js/region-affix-effects.js', 'js/item-influences.js', 'js/item-influences-ui.js', 'js/colony-wards.js', 'js/world-tree-bark.js', 'js/colony-wards-ui.js', 'js/bag-items.js', 'js/bag-items-ui.js', 'js/equipment-window-ui.js', 'js/atlas-run.js', 'js/atlas-finds.js', 'js/mobility-skill.js', 'js/wisp-summons.js',
   'js/combat-ehp.js',
   'js/talent-cards.js', 'js/knitting.js', 'js/knitting-rewards.js',
 ];
@@ -2745,15 +2745,17 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     runtime.Math = Object.create(Math);
     runtime.Math.random = () => 0.75;
     runtime.document.body.insertAdjacentHTML = () => {};
+    // The board: a runtime without room layouts (js/act-exploration-room-plans.js), as every smoke that does not load them. The page always
+    // has them since the room switch left the test panel (2026-11-11), so the stage run is the one players see.
     for (const file of ['data/stage-room-plans.js','data/stage-regions.js','data/monster-stage-roster.js',
-      'js/stage-region-fit.js','js/act-exploration-room-plans.js'])
+      'js/stage-region-fit.js',...(stage ? ['js/act-exploration-room-plans.js'] : [])])
       vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
     runtime.hiveStage = stage;
     for (const lastTwo of [true, false]) {
       runtime.hiveLastTwo = lastTwo;
       const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
         game=mergeDefaults({season:8,level:100,selectedClassId:'warrior',combatTimeMs:1800000000000,
-          settings:{stageRooms:hiveStage?'on':'off',stageRoomPlan:'1',autoMove:true,pauseGameOnOverlay:false}});
+          settings:{stageRoomPlan:'1',autoMove:true,pauseGameOnOverlay:false}});
         window.game=game;gameplayStarted=true;startupOverlayActive=false;
         resetCombatRuntimesForLoadedSave();lastTime=game.combatTimeMs;
         game.currencies.hiveKey=1;startBeehiveRun();

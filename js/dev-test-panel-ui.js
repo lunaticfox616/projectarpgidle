@@ -151,13 +151,6 @@ const devTestPanel = (() => {
         refresh();
         note(level ? `효과 확장 +${level}${level >= 2 ? ' (피해 −30%)' : ''}` : '효과 확장 없음');
     }
-    /** 방 단위 이동(js/act-exploration-doors.js)을 켜고 끈다. 지금 액트의 지도를 처음부터 다시 열어 바로 보이게 한다. */
-    function setStageRooms(value) {
-        game.settings.stageRooms = value;
-        if (getZone(game.currentZoneId)?.type === 'act') changeZone(game.currentZoneId);
-        refresh();
-        note(value === 'off' ? '지도: 이어진 지도' : '지도: 방 단위 이동');
-    }
     /** 시야 방식(js/act-exploration-sight.js): 'fog'면 어느 지역의 방이든 시야 반경과 안개로 걷는다(지역 정의가 켠 지역이 걷는 방식을
      * 미리 본다). 걷던 탐험도 다음 걸음부터 그 방식을 따른다. */
     function setStageSight(value) {
@@ -326,7 +319,6 @@ const devTestPanel = (() => {
             row([el('label', { textContent: '크기' }), button('자동', () => setSetting('stageZoom', 0, '무대 크기: 자동')),
                 ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
             row([el('label', { textContent: '자세' }), stance]),
-            row([el('label', { textContent: '지도' }), button('방 단위', () => setStageRooms('on')), button('이어진 지도', () => setStageRooms('off'))]),
             // 단추에는 보통 방의 가로 칸 수를 적는다(전에는 덧칸 0이 '기본'이라고 적혀, 가장 작은 크기가 기본처럼 보였다)
             row([el('label', { textContent: '방 가로' }), ...STAGE_ROOMS.wideSteps.map(step => button(`${STAGE_ROOMS.slot + step}칸`,
                 () => setStageRoomSize('stageRoomWide', step, `방 가로: ${STAGE_ROOMS.slot + step}칸`)))]),
@@ -337,8 +329,6 @@ const devTestPanel = (() => {
                 ...[1, 2, 3, 4].map(index => button(String(index), () => setStageRoomSize('stageRoomPlan', index, `방 놓임새: 프리셋 ${index}`))),
                 button('준 랜덤', () => setStageRoomSize('stageRoomPlan', 'random', '방 놓임새: 준 랜덤'))]),
             row([el('label', { textContent: '시야' }), button('방 전체', () => setStageSight('room')), button('반경과 안개', () => setStageSight('fog'))]),
-            row([el('label', { textContent: '뒤쪽' }), button('배경 그림', () => setSetting('stageBackdrop', 'on', '방 뒤쪽: 배경 그림')),
-                button('벽돌 벽', () => setSetting('stageBackdrop', 'off', '방 뒤쪽: 벽돌 벽'))]),
             // 무대의 스킬 이펙트(js/canvas-stage-skill-vfx.js): 인계 받은 새 클립과 시전 마법진. 끄면 예전 이펙트가 나온다.
             row([el('label', { textContent: '난입' }), button('방 난입', () => testInvader('room', '이 방에 다른 보스')), button('뿌리 절단자', () => testInvader('roomGrinder', '이 방에 뿌리 절단자')), button('보스 둘', () => testInvader('twin', '다음 보스 방: 보스 둘')),
                 button('추가 보스', () => testInvader('extra', '다음 보스 방: 싸우는 도중 다른 보스')), button('추가 절단자', () => testInvader('grinder', '다음 보스 방: 싸우는 도중 뿌리 절단자'))]),

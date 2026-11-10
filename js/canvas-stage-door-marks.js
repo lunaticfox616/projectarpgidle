@@ -33,14 +33,10 @@ const stageDoorMarks = (() => {
         const region = sealRegion();
         if (region !== sheetRegion) { sheets.clear(); shadedSeals.clear(); sheetRegion = region; }
         if (!sheets.has(kind)) {
-            const image = new Image(), file = `${STAGE_ROOMS.rootSeal.regionPath}${region}-${kind}.png?v=${STAGE_ROOMS.rootSeal.version}`;
-            image.decoding = 'async';
-            image.onerror = () => console.warn('Root seal image failed to load:', file);
-            image.src = file;
-            sheets.set(kind, image);
+            sheets.set(kind, stageAssetRetry.image(`${STAGE_ROOMS.rootSeal.regionPath}${region}-${kind}.png?v=${STAGE_ROOMS.rootSeal.version}`));
         }
         const image = sheets.get(kind);
-        return image.complete && image.naturalWidth > 0 ? image : null;
+        return stageAssetRetry.loaded(image) ? image : null;
     }
     /** 두 시트를 불러 두고, 둘 다 왔는가. */
     function sealReady() {

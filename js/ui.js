@@ -298,13 +298,17 @@ function dockMobileBattlePip(host) {
         if (title) return { context: 'tree', anchor: title };
         const mapContext = mapContexts.find(([, id]) => document.querySelector(`#tab-map.active #${id}.active`));
         if (mapContext) return { context: mapContext[0], anchor: null };
-        // The bag fills the equipment tab to the menu: the preview starts folded there (opened, it covered the last rows and tools)
-        return { context: document.querySelector('#tab-items.active') ? 'items' : '', anchor: null };
+        // The bag fills the equipment tab to the menu: the preview starts folded there (opened, it covered the last rows and tools).
+        // Folded, it ends the phone summary row (장착 장비 ▾, DPS): floating over the page it covered the tool rail until the page scrolled.
+        if (!document.querySelector('#tab-items.active')) return { context: '', anchor: null };
+        const summaryToggle = document.querySelector('#tab-items.active #item-tab-equip.active .eqw-mini-toggle');
+        return { context: 'items', anchor: summaryToggle && summaryToggle.offsetParent ? summaryToggle.closest('.eqw-summary-card') : null };
     }
     const dock = battlePipDockTarget();
     syncContext(dock.context);
     const docked = !!dock.anchor && (dock.context === 'fishing' || host.classList.contains('is-collapsed'));
     host.classList.toggle('is-tree-docked', docked && dock.context === 'tree');
+    host.classList.toggle('is-summary-docked', docked && dock.context === 'items');
     host.classList.toggle('is-workshop-docked', docked && dock.context === 'fishing');
     const parent = docked ? dock.anchor : document.body;
     if (host.parentElement !== parent) parent.appendChild(host);

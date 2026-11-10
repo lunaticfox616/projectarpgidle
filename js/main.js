@@ -141,7 +141,8 @@ function scheduleAutoSaveWhenIdle() {
 }
 
 function bootGame() {
-    if (gameBooted) return;
+    // 받지 못한 게임 파일이 있으면 띄우지 않는다: 반쪽 게임이 저장을 쓰지 않게. 머리의 guardMissingAppFiles가 다시 불러온다(index.html).
+    if (gameBooted || document.documentElement.dataset.appFileMissing) return;
     gameBooted = true;
     try {
         if (typeof runModuleIntegrityChecks === 'function' && !runModuleIntegrityChecks()) {

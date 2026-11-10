@@ -96,9 +96,10 @@ const stageRoster = (() => {
         sweepAt = 0;
         for (const entry of [...sheets]) if (idlePair(entry)) letGo(entry[0], entry[1]);
     }
-    const failedSheet = sheet => !!sheet && sheet.failed, readySheet = sheet => !sheet || sheet.ready;
-    /** { walk, attack, special, death } once the sheets decode (attack and special are null for an actor without that art), 'loading' meanwhile, null
-     * when a file is missing (the older art draws instead). The defeat sheet (death, story bosses) is not waited for: a deploy
+    const readySheet = sheet => !sheet || sheet.ready;
+    /** { walk, attack, special, death } once the sheets decode (attack and special are null for an actor without that art), 'loading' meanwhile,
+     * also while a sheet that failed to arrive waits to be fetched again (js/canvas-stage-pictures.js; until 2026-11-11 a failed file drew the
+     * older art for the whole visit). The defeat sheet (death, story bosses) is not waited for: a deploy
      * without it draws the old death (drawDeath reads its own readiness). */
     function pairOf(actor) {
         let pair = sheets.get(actor.id);
@@ -110,7 +111,6 @@ const stageRoster = (() => {
             trim();
         }
         pair.at = tick;
-        if (pair.walk.failed || failedSheet(pair.attack) || failedSheet(pair.special)) return null;
         return pair.walk.ready && readySheet(pair.attack) && readySheet(pair.special) ? pair : 'loading';
     }
 

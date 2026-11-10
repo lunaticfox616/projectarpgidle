@@ -5,9 +5,9 @@ const enemyAmbushView = (() => {
     const sheets = new Map();
     /** 효과 그림(처음 부를 때 불러 둔다). 다 불러오기 전에는 null이라 그 프레임은 건너뛴다. */
     function sheet(name) {
-        if (!sheets.has(name)) { const img = new Image(); img.src = `assets/stage-vfx/ambush/${name}.png?v=20261108-2`; sheets.set(name, img); }
+        if (!sheets.has(name)) sheets.set(name, stageAssetRetry.image(`assets/stage-vfx/ambush/${name}.png?v=20261108-2`));
         const img = sheets.get(name);
-        return img.complete && img.naturalWidth ? img : null;
+        return stageAssetRetry.loaded(img) ? img : null;
     }
     /** 이 몬스터의 가장 최근 순간이동 효과, 없으면 null(기습 외형이 아니면 찾지도 않는다). */
     function blinkOf(enemy) {

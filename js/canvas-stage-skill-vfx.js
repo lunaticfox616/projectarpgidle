@@ -39,15 +39,10 @@ const stageSkillVfx = (() => {
 
     function loadVfxPicture() {
         if (pictures || typeof STAGE_SKILL_VFX !== 'object') return;
-        pictures = STAGE_SKILL_VFX.files.map(file => {
-            const image = new Image();
-            image.decoding = 'async';
-            image.onerror = () => { image.dataset.failed = '1'; };
-            image.src = STAGE_SKILL_VFX.path + file + '?v=' + STAGE_SKILL_VFX.version;
-            return image;
-        });
+        // 받지 못한 그림은 다시 받는다(js/stage-asset-retry.js): 기다리는 동안 dataset.failed가 '1'이라 그 클립은 건너뛴다.
+        pictures = STAGE_SKILL_VFX.files.map(file => stageAssetRetry.image(STAGE_SKILL_VFX.path + file + '?v=' + STAGE_SKILL_VFX.version));
     }
-    /** 그 그림이 왔는가(못 불러온 그림은 끝내 오지 않는다). */
+    /** 그 그림이 왔는가(못 받은 그림은 다시 받는 동안 오지 않은 것으로 친다). */
     const vfxPictureLoaded = image => !!image && !image.dataset.failed && image.complete && image.naturalWidth > 0;
     /** 칸 표 한 줄의 원본이 든 그림. */
     const vfxPictureOf = anim => pictures && pictures[STAGE_SKILL_VFX.atlas[anim].im || 0];

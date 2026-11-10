@@ -5,7 +5,7 @@
  * 순수 함수: 게임 상태와 DOM을 쓰지 않는다. 표가 없는 환경(검증 스크립트)에서는 지역이 없는 것으로 답한다.
  */
 const stageRegionFit = (() => {
-    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-terrain.js와 같다)
+    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-region.js와 같다)
     /** 지역 이름 → 표의 줄. 모르는 지역이면 null. */
     const regionRow = id => (typeof STAGE_REGIONS === 'object' && id && STAGE_REGIONS.regions[id]) || null;
     /** 방 바닥과 양옆 여백, 바닥선 위의 풍경, 바닥선 아래의 땅을 모두 덮는 가장 작은 배율. */

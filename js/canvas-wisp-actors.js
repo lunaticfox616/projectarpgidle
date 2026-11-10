@@ -11,12 +11,8 @@ const wispActors = (() => {
     const BODY_HALF_TILES = 0.6; // 몸(14~18도트)의 절반 남짓 — 체력바를 그 위에 둔다
     let sheets = null, lastTile = 0;
 
-    function load(src) {
-        const image = new Image();
-        image.decoding = 'async';
-        image.src = src;
-        return image;
-    }
+    /** 받지 못하면 다시 받는 그림(js/stage-asset-retry.js). */
+    const load = src => stageAssetRetry.image(src);
     /** All twelve sheets start loading with the first wisp; until they are decoded the atlas sprite draws instead. */
     function sheetFor(enemy) {
         if (!sheets) sheets = Object.fromEntries(Object.entries(WISP_SPRITE_SHEETS).map(([id, row]) => [id, { idle: load(row.idle), attack: load(row.attack) }]));

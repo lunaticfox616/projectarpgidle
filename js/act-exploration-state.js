@@ -307,11 +307,17 @@ const actExplorationState = (() => {
     function lockOn(run,enemy) {
         if(!run)return false;
         if(!enemy){lockOns.delete(run);return false;}
-        const fighting=(game.enemies||[]).includes(enemy);
-        if(!fighting && !selectDestination(run,{gx:enemy.gx,gy:enemy.gy}))return false;
-        if(fighting){run.destination=null;if(run.objects)run.objects.pendingId=null;}
+        const here=(game.enemies||[]).includes(enemy) || entering(run,enemy);
+        if(!here && !selectDestination(run,{gx:enemy.gx,gy:enemy.gy}))return false;
+        if(here){run.destination=null;if(run.objects)run.objects.pendingId=null;}
         lockOns.set(run,enemy.id);
         return true;
+    }
+    /** 등장 연출 중인 보스(2026-11-11 사용자): 그 칸을 목적지로 걸으면 연출이 끝난 뒤에도 사거리와 상관없이 보스 앞까지 걸어갔다. 곧 싸움에
+     * 드니 싸우는 몬스터처럼 락온만 걸고, 싸움이 시작되면 공격이 닿지 않을 때만 다가간다. */
+    function entering(run,enemy) {
+        const open=entrances.get(run);
+        return !!open && run.packs.some(pack=>pack.key===open.key && pack.waiting.includes(enemy));
     }
     /** 락온한 몬스터(싸우는 중이든 기다리는 무리든). 쓰러졌거나 없으면 null이고 락온도 풀린다. */
     function lockedEnemy(run) {
@@ -566,9 +572,9 @@ const actExplorationState = (() => {
      * by a room plan this build does not lay out (an older STAGE_ROOMS.version): its cells belong to a map this session does not have. */
     /** 방 단위 무대가 켜진 창이 방 없는 탐험을 불러 왔다: 이 창에서는 새 탐험이 모두 방 단위라(js/combat-encounters.js createActExplorationEncounter)
      * 다른 주소로 열었을 때 시작한 탐험이다. 그대로 두면 구역을 다시 열 때까지 방 없는 지도가 무대에 그려진다
-     * (2026-10-13 사용자: 시험판에 들어가니 액트 1조차 방이 아니다). 테스트 패널에서 방을 끈 저장은 건드리지 않는다. */
+     * (2026-10-13 사용자: 시험판에 들어가니 액트 1조차 방이 아니다). */
     function strayInRooms(state,run) {
-        return !run.rooms && actExplorationDoors.session() && (state.settings || {}).stageRooms!=='off';
+        return !run.rooms && actExplorationDoors.session();
     }
     function retired(run) {
         if(run.source && !explorationLayouts.supports(run.source))return true;

@@ -48,24 +48,6 @@ const STAGE_VIEW = Object.freeze({
     /** 그림자 점멸이 박차고 나가는 시간(ms): 그동안 그림은 떠난 칸에 있고 휘두름 앞부분에 이동 동작을 그린 뒤 사라져 닿는 칸에 나타난다. */
     kickoffMs: 200
 });
-// 무대의 지형(js/canvas-stage-terrain.js): 지도마다 바닥 판석 색과 뒷벽 벽돌 색 두 가지만 정한다. 나머지 음영은 그리는 쪽이 만든다.
-// wallMax: 뒷벽의 최대 높이(도트, 깊이 네 칸). pillarEvery: 높은 뒷벽에 기둥을 세우는 가로 간격(칸).
-const STAGE_TERRAIN = Object.freeze({
-    wallMax: 128,
-    pillarEvery: 5,
-    biomes: Object.freeze({
-        root: Object.freeze({ floor: '#4a3f42', wall: '#40343a' }),
-        courtyard: Object.freeze({ floor: '#454b3c', wall: '#364432' }),
-        aerial: Object.freeze({ floor: '#514c45', wall: '#3c4352' }),
-        maze: Object.freeze({ floor: '#4b3c30', wall: '#402d25' }),
-        sanctum: Object.freeze({ floor: '#343b4a', wall: '#2b3143' }),
-        ruins: Object.freeze({ floor: '#4c4840', wall: '#3f3b33' }),
-        trunk: Object.freeze({ floor: '#51402e', wall: '#453223' }),
-        veil: Object.freeze({ floor: '#403558', wall: '#352a50' }),
-        canopy: Object.freeze({ floor: '#3b4833', wall: '#30402d' }),
-        crown: Object.freeze({ floor: '#383b55', wall: '#2e314d' })
-    })
-});
 // 방 단위 무대 (2026-10-11 사용자: "던파처럼 방 하나마다 이동하는 방식", js/act-exploration-rooms.js). 액트 지도의 방을 따로 떨어진
 // 넓은 방으로 놓고 길을 문으로 바꾼다. 방 안의 몬스터를 모두 잡아야 문이 열린다. 무대가 켜진 곳이면 새 탐험은 모두 방 단위다(2026-10-13부터).
 const STAGE_ROOMS = Object.freeze({
@@ -121,9 +103,8 @@ const STAGE_ROOMS = Object.freeze({
     /** 방 위쪽의 벽 칸 수(뒷벽이 서는 자리)와 아래쪽 여백. */
     top: 5,
     bottom: 3,
-    /** 방 그림에 함께 담는 둘레의 벽 칸 수(좌우, 위, 아래). openFrame: 배경 그림을 쓰는 방(벽이 없어 바닥과 길이 화면 끝까지 간다). */
-    frame: Object.freeze({ side: 3, top: 5, bottom: 2 }),
-    openFrame: Object.freeze({ side: 7, top: 6, bottom: 7 }),
+    /** 방 그림에 함께 담는 둘레의 칸 수(좌우, 위, 아래): 바닥과 길이 화면 끝까지 간다. */
+    frame: Object.freeze({ side: 7, top: 6, bottom: 7 }),
     /** 배경 그림을 쓰는 방에서 바닥의 앞쪽 끝이 놓이는 세로 자리(화면 높이의 비율): 그 아래는 HUD가 덮는다. 좁고 낮은 전장(가로 휴대폰)은 narrow, 왼쪽 HUD 배치는 sideHud. */
     floorBottom: Object.freeze({ wide: 0.745, narrow: 0.6, sideHud: 0.85 }),
     /** 왼쪽 HUD 배치에서는 하단 HUD 공제 대신 최소 타일 한 칸과 이 여유만 남긴다. 타일 크기는 기존 규칙을 유지한다. */
@@ -141,8 +122,6 @@ const STAGE_ROOMS = Object.freeze({
      * 쌓인다(css/themes/rift-stage.css). 전장은 가로로 columns칸을 다 보이고, 바닥의 앞쪽 끝은 전장 아래 끝에서 clear px 위다: 전장 아래쪽에
      * 띠 없이 겹친 생명력 · 미니맵 · 경험치 HUD 위(2026-11-03 사용자). */
     stacked: Object.freeze({ columns: 20, clear: 58 }),
-    /** 방을 화면 기준 줄보다 위로 올리는 칸 수의 상한(깊이 칸): 화면 아래쪽을 덮는 HUD에서 앞쪽 문을 꺼낸다. */
-    lift: 1.25,
     /** 바닥의 앞쪽 끝 아래(걸어갈 수 없는 자리)를 덮는 어둠 (2026-10-14 사용자: "바닥 중 아래쪽의 못 가는 영역은 약간 그라데이션으로
      * 어둡게"). 앞쪽 끝에서 아래로 띠(bandDots 도트)마다 한 단씩 짙어져 bands번째 띠부터 alpha에 머문다. */
     frontShade: Object.freeze({ colour: '#06050a', alpha: 0.6, bands: 12, bandDots: 4 }),
@@ -177,37 +156,13 @@ const STAGE_ROOMS = Object.freeze({
      * apart 같은 방의 물체 사이에 두는 칸 수(가로와 세로 차이의 합). limit 지도 하나에 놓는 물체의 상한. */
     objects: Object.freeze({ chest: Object.freeze([0.1, 0.4]), props: Object.freeze([0.4, 0.75]), propCounts: Object.freeze([1, 1, 2, 2, 3, 4]), apart: 4, limit: 40 })
 });
-// 방 단위 무대의 배경 그림 (2026-10-11 사용자: "바닥이랑 오브젝트만 놔두고, 벽 대신 이런 느낌의 배경으로", js/canvas-stage-backdrop.js).
-// 지형마다 그림 한 장: 위쪽은 배경, 아래쪽은 바닥이 놓일 빈 띠다. ground = 그림에서 바닥이 시작하는 줄(그림 높이의 비율).
-// 그 지형의 방은 벽돌 벽 없이 바닥과 길만 그린다: floor 바닥 판석, kerb 바닥 옆 턱, earth 바닥 밖의 어두운 땅(그림의 빈 띠 색),
-// rim과 hollow 뒷문이 되는 굴의 테와 속, moss 바닥 뒤쪽 끝에 번지는 이끼. 그림이 없는 지형과 그림 파일이 없는 판은 벽돌 뒷벽 그대로다.
-// theme: 그 지형의 방을 제 방식으로 그리는 테마(바닥, 문), objects: 그 지형의 탐험 물체 그림 묶음(STAGE_OBJECTS.themes). 없으면 공용이다.
-// props: 그 지형의 방을 채우는 소품 묶음(STAGE_PROPS.themes). 없으면 소품을 놓지 않는다.
-// layers: 층 그림(같은 폴더의 파일). 좌우로 이어 붙는 띠이고 tall = 화면에 그릴 높이(캐릭터 도트). 없는 층은 코드로 그린 임시 그림이 대신한다.
-//   back   뒤쪽 띠: 바닥 뒤쪽 끝에 서는 울타리나 벽. 위쪽이 투명한 그림. sink = 바닥선 아래로 내려 겹치는 도트.
-//   ground 바닥 무늬: 바닥선에서 아래로 깔리는 띠. 방 바닥 일곱 줄이 224도트이므로 그보다 크게(바닥 밖까지 덮는다).
-//   예: layers: Object.freeze({ back: Object.freeze({ file: 'root-back.png', tall: 72, sink: 4 }), ground: Object.freeze({ file: 'root-ground.png', tall: 320 }) })
-// 그림은 캐릭터 그림과 같은 폴더에 두고 아직 저장소에 넣지 않는다(사용자가 준 그림: 써도 되는지 확인 뒤에 넣는다).
-const STAGE_BACKDROPS = Object.freeze({
-    version: 'environment-20261106',
-    path: 'assets/playable/stage/backdrops/',
-    /** 방이 화면보다 넓어 카메라가 움직일 때 배경이 따라 움직이는 비율(바닥보다 느리게). */
-    parallax: 0.3,
-    biomes: Object.freeze({
-        root: Object.freeze({ file: 'root.webp', ground: 0.5996, floor: '#4d4035', kerb: '#2f2620', earth: '#1e1a17', rim: '#6f5e4c', hollow: '#0e0b09', moss: '#6e5a2a',
-            // 뿌리끝 성소(js/canvas-stage-sanctum.js): 다져진 흙, 빈터 밖의 어두운 땅, 돌, 풀(몸, 밝은 잎, 밑동), 뿌리(몸, 빛 받는 쪽, 테), 수액(몸, 빛, 테), 빛나는 버섯.
-            theme: 'sanctum', objects: 'root', props: 'root',
-            palette: Object.freeze({ dirt: '#5a4532', wild: '#241d16', stone: '#74665a', grass: '#56602b', grassLight: '#808a3e', grassDark: '#2c321a',
-                root: '#6d5845', rootLight: '#957a5c', rootDark: '#241a14',
-                sap: '#c58f2a', sapLight: '#f4d572', sapDark: '#7a5416', cap: '#8fe3c8' }) })
-    })
-});
 // 무대의 탐험 물체 그림(js/canvas-stage-objects.js): 한 장에 물체마다 한 칸(cell 도트), 발 자리 feet. names의 순서가 그림의 칸 순서다
 // (scripts/stage-monsters/objects.cjs와 같아야 한다). 보급 상자의 은, 금 등급은 chestSilver, chestGold와 그 열린 모습이다.
 const STAGE_OBJECTS = Object.freeze({
     version: 'environment-20261106',
     sheet: 'assets/objects/stage/objects.png',
-    /** 지형의 테마에 맞춘 그림 묶음(STAGE_BACKDROPS.biomes의 objects가 고른다): 칸과 이름 순서는 공용 그림과 같다. */
+    /** 지형의 테마에 맞춘 그림 묶음: biomes가 지형 → 테마를 고르고 themes가 그 그림이다. 칸과 이름 순서는 공용 그림과 같다. 없는 지형은 공용 그림. */
+    biomes: Object.freeze({ root: 'root' }),
     themes: Object.freeze({ root: 'assets/objects/stage/objects-root.png' }),
     cell: 96,
     feet: Object.freeze([48, 84]),
@@ -238,28 +193,6 @@ const STAGE_STORY = Object.freeze({
             sealed: Object.freeze(['sealed-chest', 0]), sealedOpen: Object.freeze(['sealed-chest', 1]),
             nest: Object.freeze(['egg-nest', 0]), nestSpent: Object.freeze(['egg-nest', 1]) }),
         scale: 0.6
-    })
-});
-// 무대의 소품 층(js/canvas-stage-props.js): 던파의 무대처럼 배경, 뒤쪽 띠, 바닥, 소품, 앞쪽을 겹쳐 그릴 때 방을 채우는 조각 그림.
-// 한 장에 소품마다 한 칸(cell 도트), 발 자리 feet. names의 순서가 그림의 칸 순서다(scripts/stage-monsters/props.cjs와 같아야 한다).
-// themes: 지형의 소품 묶음(STAGE_BACKDROPS.biomes의 props가 고른다). back, side, front = 바닥 뒤쪽 끝, 양옆 바깥, 앞쪽 바깥에 놓일
-// [이름, 비중]. backGap, frontGap = 그 줄에서 소품 사이의 간격(도트, 가장 좁게와 넓게). sides = 한쪽 옆에 놓는 수.
-// 지금 그림은 임시다: 제대로 그린 조각이 오면 같은 이름으로 갈아 끼운다.
-const STAGE_PROPS = Object.freeze({
-    version: 'environment-20261106',
-    cell: 128,
-    feet: Object.freeze([64, 116]),
-    names: Object.freeze(['rock', 'rockSmall', 'rockTall', 'rootKnot', 'stump', 'shrineStone', 'shrineFallen', 'glowcaps', 'sapPod', 'fernSmall', 'fern', 'fernBig', 'grass']),
-    themes: Object.freeze({
-        root: Object.freeze({
-            sheet: 'assets/objects/stage/props-root.png',
-            back: Object.freeze([['rock', 3], ['rockTall', 2], ['rootKnot', 3], ['stump', 2], ['shrineStone', 2], ['glowcaps', 1], ['sapPod', 1], ['fern', 2], ['grass', 2]]),
-            side: Object.freeze([['rock', 2], ['rockSmall', 2], ['fern', 3], ['fernSmall', 2], ['stump', 1], ['glowcaps', 1], ['grass', 2]]),
-            front: Object.freeze([['rock', 2], ['rockSmall', 2], ['fernBig', 3], ['fern', 3], ['rootKnot', 1], ['shrineFallen', 1], ['grass', 3], ['glowcaps', 1]]),
-            backGap: Object.freeze([70, 170]),
-            frontGap: Object.freeze([90, 210]),
-            sides: 3
-        })
     })
 });
 // 무대 조각 묶음 (js/canvas-stage-scene.js). 2026-10-11 사용자가 이미지 생성으로 만들어 온 "뿌리 성소 무대 조각"(root-stage-kit-20261011)을
@@ -376,4 +309,4 @@ const STAGE_OCEAN = Object.freeze({
     lift: Object.freeze({ closed: 'ocean-lift-closed', open: 'ocean-lift-open', size: Object.freeze([160, 240]), feet: Object.freeze([80, 236]), below: 12 })
 });
 
-safeExposeData({ STAGE_HERO_RISE, STAGE_VIEW, STAGE_TERRAIN, STAGE_ROOMS, STAGE_BACKDROPS, STAGE_OBJECTS, STAGE_STORY, STAGE_PROPS, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_INKED_LOOKS, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS, STAGE_OCEAN });
+safeExposeData({ STAGE_HERO_RISE, STAGE_VIEW, STAGE_ROOMS, STAGE_OBJECTS, STAGE_STORY, STAGE_SCENES, STAGE_MONSTER_SCALE, STAGE_INKED_LOOKS, STAGE_NPC_ART, STAGE_BOSS_REVIVAL, STAGE_BOARD_ROOMS, STAGE_OCEAN });

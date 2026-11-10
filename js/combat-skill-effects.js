@@ -1126,6 +1126,12 @@ function refreshAilmentRow(row, payload, at) {
     row.stacks = Math.max(1, Math.min(maxStacks, Math.floor((row.stacks || 1) + 1)));
 }
 
+/** 독초(숲지기 gw2, 2026-11-11): 냉기 타격도 중독을 건다. 중독의 원천 피해는 타격의 coldPoisonPct%. */
+function applyGroveColdPoison(hit, ele) {
+    if (ele !== 'cold' || !hasKeystone('gw2')) return;
+    applyHitAilment({ ...hit, ailmentPowerSourceDamage: Math.floor(hit.ailmentPowerSourceDamage * ASCENDANCY_KEYSTONE_VALUES.gw2.coldPoisonPct / 100) }, 'poison');
+}
+
 function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     if (!enemy || enemy.hp <= 0) return;
     let ele = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
@@ -1142,6 +1148,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     const applyAilmentType = (type, forceChance, manifestation) => applyHitAilment(hit, type, forceChance, manifestation);
     applyAilmentType(primaryType, opts.primaryAilmentChance);
     if (ele === 'cold' && !(typeof shouldTalentSkipColdFreeze === 'function' && shouldTalentSkipColdFreeze())) applyAilmentType('freeze');
+    applyGroveColdPoison(hit, ele);
     if (pStats.passiveForbiddenManifestation) {
         ['ignite', 'chill', 'shock', 'poison', 'bleed'].forEach(type => {
             if (type !== primaryType) applyAilmentType(type, undefined, true);
@@ -1185,9 +1192,10 @@ function tickEnemyAilments(pStats, dt) {
         if (enemy.ailments.length <= 0) return;
         enemyAttackRules.interrupt(enemy,getCombatTime());
         let next = [];
+        const poisonHeld = ascendancyNodeRules.poisonHeld(enemy), dotMul = ascendancyNodeRules.dotMultiplier(getCombatTime());
         enemy.ailments.forEach(ail => {
             let previousAilmentTime = Math.max(0, Number(ail.time) || 0);
-            ail.time = Math.max(0, (ail.time || 0) - dt);
+            ail.time = Math.max(0, (ail.time || 0) - ascendancyNodeRules.ailmentStep(ail, poisonHeld, dt));
             let power = Math.max(0, ail.power || 0);
             let type = ail.type;
         if (ail.time > 0 && (type === 'ignite' || type === 'poison' || type === 'bleed')) {
@@ -1196,7 +1204,7 @@ function tickEnemyAilments(pStats, dt) {
                 let dps = getEnemyDamageAilmentDps(ail, pStats);
                 let igniteMul = (type === 'ignite' && (enemy.ailments || []).some(row => row && row.type === 'flameDecay' && (row.time || 0) > 0)) ? getFlameDecayIgniteTakenMultiplier(pStats) : 1;
                 let stackMul = Math.max(1, Math.floor(ail.stacks || 1));
-                let dotDmg = dps > 0 ? Math.floor(Math.max(1, Math.floor(dps * stackMul * dt * (1 - enemyRes / 100) * abyssPlayerMul * igniteMul))
+                let dotDmg = dps > 0 ? Math.floor(Math.max(1, Math.floor(dps * stackMul * dt * (1 - enemyRes / 100) * abyssPlayerMul * igniteMul * dotMul))
                     * loopMutation.takenMul(enemy, ele)) : 0;
                 let dealt = applyDamageToEnemyResource(enemy, dotDmg);
                 // 출혈/점화/중독 도트는 0.1초마다 틱이 들어와 모바일에서 히트 FX가 과도하게 누적될 수 있다.
@@ -1236,7 +1244,8 @@ function tickEnemySkillPeriodicEffects(pStats, dt) {
                 effect.timer += effect.interval;
                 effect.hitsLeft--;
                 let mitigation = getEffectiveEnemyMitigation(effect.ele, zoneTier, enemy, pStats);
-                applyDamageToEnemyResource(enemy, Math.floor(Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100))) * loopMutation.takenMul(enemy, effect.ele)));
+                let periodicMul = ascendancyNodeRules.dotMultiplier(getCombatTime());
+                applyDamageToEnemyResource(enemy, Math.floor(Math.max(1, Math.floor(effect.damage * (1 - mitigation / 100) * periodicMul)) * loopMutation.takenMul(enemy, effect.ele)));
                 addConfirmedSkillEffect('confirmedPeriodic',effect.visual,enemy,effect.ele);
             }
         });

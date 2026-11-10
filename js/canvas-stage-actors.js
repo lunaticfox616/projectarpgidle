@@ -413,10 +413,9 @@ const stageByAddress = typeof location === 'object' && ['localhost', '127.0.0.1'
 const stageView = Object.freeze({
     /** 무대 시험판으로 연 창인가(주소에 stage=1): 이 창은 클라우드 저장을 쓰지 않는다(시험하는 판이 계정의 저장을 고쳐 쓰지 않게). */
     trial: () => stageByAddress,
-    /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 테스트 패널에서 끄지 않았을 때. */
-    rooms: () => typeof actExplorationRoomPlans === 'object' && !!game.settings && game.settings.stageRooms !== 'off',
-    /** 방을 배경 그림으로 그리는가(js/canvas-stage-backdrop.js): 테스트 패널에서 끄면 벽돌 뒷벽으로 돌아간다. */
-    backdrops: () => typeof game === 'object' && !!game.settings && game.settings.stageBackdrop !== 'off',
+    /** 새 탐험을 방 단위 지도로 여는가(js/act-exploration-doors.js): 방 놓임새가 실린 판이면 언제나. 이어진 지도와 벽돌 벽, 배경 그림 방을
+     * 고르던 테스트 패널 단추는 2026-11-11에 지웠다(사용자: 구버전 맵 방식은 쓰지 않는다). 방 놓임새가 없는 판은 검증 스크립트뿐이다. */
+    rooms: () => typeof actExplorationRoomPlans === 'object',
     /** Screen height of one depth cell ÷ its width. */
     depth: () => STAGE_VIEW.depth,
     /** Cell width of an exploration map on the stage: the view's width shared among STAGE_VIEW.minColumns cells, then on a PC window a step of whole dots (steppedTile), so the same

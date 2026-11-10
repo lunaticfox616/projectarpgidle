@@ -11,7 +11,7 @@
  * 그림은 미끄러뜨리거나 흐리게만 하고 모양을 비틀지 않는다. 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
  */
 const stageOcean = (() => {
-    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-terrain.js와 같다)
+    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-region.js와 같다)
     const CHAIN_LINK = 18;                      // 리프트 그림 맨 위에서 사슬 한 마디의 줄 수
     const PUFFS = 24;                           // 한꺼번에 남는 발밑 먼지의 수
     const pictures = new Map();                 // 그림 이름 → { image, failed }
@@ -23,15 +23,11 @@ const stageOcean = (() => {
 
     function picture(name) {
         if (!pictures.has(name)) {
-            const row = { image: new Image(), failed: false };
-            row.image.decoding = 'async';
-            row.image.onerror = () => { row.failed = true; };
-            row.image.src = STAGE_OCEAN.path + name + '.png?v=20261106-1';
-            pictures.set(name, row);
+            pictures.set(name, { image: stageAssetRetry.image(STAGE_OCEAN.path + name + '.png?v=20261106-1') });
         }
         return pictures.get(name);
     }
-    const loaded = name => { const row = picture(name); return !row.failed && row.image.complete && row.image.naturalWidth > 0; };
+    const loaded = name => stageAssetRetry.loaded(picture(name).image);
     /** 그 그림을 도트 배율로 옮겨 둔 그림, 아직이면 null. 옮기기는 프레임마다 조각 몇 개씩(떠다니는 입자 한 장이 1280x720이다). */
     function fitted(name, dot) {
         if (!loaded(name)) return null;
