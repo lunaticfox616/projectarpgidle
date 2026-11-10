@@ -3,6 +3,10 @@
    .craft-picker-overlay가 [open]일 때만 보이게 바뀌어, 복구 단추를 눌러도 판이 보이지 않았다(2026-10-24 사용자). 붙어 있는 동안 늘 보인다.
    층은 창(#right-pane 1000)보다 위, 장비 툴팁(9999)보다 아래: 10000이면 장비에 마우스를 올려도 툴팁이 판 밑에 깔렸다. */
 .salvage-recovery-overlay { z-index: 9998; display: flex; }
+/* 다른 대화 상자와 같은 모양(2026-11-10 사용자): 뒤는 흐리지 않고 어둡게만(css/components/modals.css .game-dialog-overlay), 판은 공용 매듭 테
+   (css/themes/pixel.css 무거운 판)를 쓰므로 고르기 창의 위쪽 금빛 줄은 뺀다. */
+.salvage-recovery-overlay { background: rgba(0, 0, 0, .62); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.salvage-recovery-panel::before { content: none; }
 .salvage-recovery-panel { width: min(760px, 100%); }
 
 .salvage-recovery-grid {

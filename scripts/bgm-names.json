@@ -15,5 +15,24 @@
  "고대미궁 보스": {
   "key": "labyrinth-boss",
   "targetEnd": 170
+ },
+ "고대의 태양": {
+  "key": "ancient-sun",
+  "targetEnd": 131,
+  "startMax": 45
+ },
+ "고대의 달": {
+  "key": "ancient-moon",
+  "targetEnd": 168,
+  "startMax": 50
+ },
+ "관측자": {
+  "key": "observer",
+  "targetEnd": 110
+ },
+ "규율자(나무꾼)": {
+  "key": "woodsman",
+  "targetEnd": 189,
+  "startMax": 25
  }
 }

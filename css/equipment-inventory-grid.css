@@ -485,8 +485,8 @@
     .equipment-grid-item-badges span { padding-inline: 2px; }
 }
 
-.equipment-slot.equipment-requirements-unmet { filter: saturate(.3); }
-.equipment-requirement-badge { position:absolute; right:3px; top:3px; padding:1px 4px; border:1px solid #ad7162; background:#291d19; color:#f0b4a2; font-size:var(--font-size-meta); line-height:1.4; pointer-events:none; }
+/* 착용 조건이 모자란 장비: 칸 전체가 회색(2026-11-10 사용자: 꼬리표 없이 회색으로만) */
+.equipment-slot.equipment-requirements-unmet { filter: grayscale(1) brightness(.72); }
 }
 
 @layer overrides {
