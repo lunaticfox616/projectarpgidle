@@ -72,7 +72,8 @@
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-visual::after { content: none; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot-empty { --r: #3a2f20; border-style: dashed; background: radial-gradient(circle at 50% 38%, #2a2017 0%, #0b0907 72%); }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot :is(.equipment-empty-mark, .equipment-empty-label) { display: none; }
-/* 그림 칸(첫 줄)에 칸 이름과 소켓 표시, 조건 부족 표가 겹쳐 놓이고, 둘째 줄이 아이템 이름이다. */
+/* 그림 칸에 칸 이름과 소켓 표시가 겹쳐 놓인다. 아이템 이름은 두지 않는다(2026-11-10 사용자: 장착 칸에 장비 이름을 없애는 쪽이 깔끔하다).
+   이름은 칸을 고르면 뜨는 선택한 장비와 마우스를 올린 설명에 있다. */
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-visual { grid-area: 1 / 1; position: relative; inset: auto; height: auto; margin: 0; border: 0; background: none; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-visual img { position: absolute; inset: 7px 5px 1px; width: calc(100% - 10px); height: calc(100% - 8px);
   max-height: none; object-fit: contain; image-rendering: pixelated; }
@@ -81,11 +82,7 @@
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-head > span:first-child { position: absolute; left: 15px; top: 1px; color: #d9cdb4;
   font-size: var(--font-size-ui); line-height: 14px; text-shadow: 1px 1px 0 #000, 0 0 3px #000; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot.equipment-slot-empty .equipment-slot-head > span:first-child { left: 4px; color: var(--eqw-muted); }
-:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot .equipment-requirement-badge { grid-area: 1 / 1; position: static; align-self: end; justify-self: end; z-index: 3; margin: 0 2px 1px 0; }
-:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-name { grid-area: 2 / 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; margin: 0 0 3px;
-  justify-self: start; width: fit-content; max-width: 100%; position: relative; left: round(down, 50%, 1px); translate: round(up, -50%, 1px);
-  padding: 0 2px; overflow: hidden; font-size: var(--font-size-ui); font-weight: 700; line-height: 14px; text-align: center; white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
-  text-shadow: 0 1px 0 #000; }
+:root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot .equipment-slot-name { display: none; }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot.is-menu-selected,
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .equipment-slot.selected { box-shadow: 0 0 0 2px #000, 0 0 14px rgba(255, 210, 122, .85), inset 0 0 12px rgba(0, 0, 0, .8); }
 :root body :is(#item-tab-equip, #stump-equip-host, #craft-equip-host) #ui-equip-list > .ward-slot-row { grid-column: 1 / -1; gap: 4px; margin-top: 2px; }
