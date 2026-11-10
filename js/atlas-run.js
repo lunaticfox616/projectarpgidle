@@ -184,7 +184,7 @@ const atlasRun = (() => {
     function onKill(enemy) {
         const zone = getZone(game.currentZoneId);
         const dice = atlasBoard.onKill(game, enemy, zone);
-        if (dice) { notify({ kind: 'dice' }); queueImportantSave(220); }
+        if (dice) queueImportantSave(220);   // 알림 없이 쌓인다(2026-11-10 사용자)
         giveBearerOmen(enemy);
         atlasFinds.onAtlasKill(zone, enemy);
         const maps = atlas.dropFromKill(game, zone, enemy), fragments = atlas.fragmentFromKill(game, zone, enemy);

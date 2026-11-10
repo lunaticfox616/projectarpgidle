@@ -347,6 +347,5 @@
 #ui-atlas .atlas-ancient-entry{padding:10px 18px;border-bottom:1px solid var(--atlas-line)}
 #ui-atlas .atlas-ancient-entry button{min-height:44px;padding:8px 18px}
 #ui-atlas .atlas-ancient-order{padding:12px 18px;line-height:1.7;color:var(--atlas-gold-hi)}
-#ui-atlas .atlas-ancient-portrait{height:148px;width:100%;object-fit:contain;image-rendering:pixelated;display:block;margin:0 0 10px}
 @container(max-width:480px){#ui-atlas .atlas-route-name{font-size:10px;max-width:100px;white-space:normal;width:max-content}}
 }

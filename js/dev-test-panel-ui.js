@@ -321,6 +321,8 @@ const devTestPanel = (() => {
         stance.value = game.settings.stageStance || 'auto';
         stance.onchange = () => setSetting('stageStance', stance.value, `무대 자세: ${stance.selectedOptions[0].textContent}`);
         return section('옆에서 보는 무대(시험판)', [
+            row([el('label', { textContent: '아틀라스' }), button('한 장', () => { setSetting('atlasSheet', 'on', '아틀라스: 한 장'); atlasUi.refresh(); }),
+                button('예전 화면', () => { setSetting('atlasSheet', 'off', '아틀라스: 예전 화면'); atlasUi.refresh(); })]),
             row([el('label', { textContent: '크기' }), button('자동', () => setSetting('stageZoom', 0, '무대 크기: 자동')),
                 ...[1, 1.5, 2].map(zoom => button(`×${zoom}`, () => setSetting('stageZoom', zoom, `무대 크기 ×${zoom}`)))]),
             row([el('label', { textContent: '자세' }), stance]),

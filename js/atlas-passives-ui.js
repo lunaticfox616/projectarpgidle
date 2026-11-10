@@ -68,7 +68,7 @@ const atlasPassivesUi = (() => {
     function paint() {
         document.querySelectorAll('#ui-atlas .atlas-wheel-art').forEach(box => {
             const wheel = ATLAS_PASSIVES.wheels.find(row => row.id === box.dataset.wheel), canvas = box.querySelector('canvas');
-            if (wheel && canvas && box.clientWidth) atlasChartArt.paintWheel(canvas, Math.max(80, Math.round(box.clientWidth / 2)), wheelModel(wheel));
+            if (wheel && canvas && box.clientWidth) atlasChartArt.paintWheel(canvas, box.dataset.mini ? MINI_DOTS : Math.max(80, Math.round(box.clientWidth / 2)), wheelModel(wheel));
         });
     }
 
@@ -121,17 +121,41 @@ const atlasPassivesUi = (() => {
                 + `${escapeHTML(_t(wheel.name))}<span>${taken}/${wheel.nodes.length}</span></button>`;
         }).join('')}</nav>`;
     }
-    function wheelHtml(wheel) {
+    function wheelHtml(wheel, side = '') {
         const at = new Map(wheel.nodes.map(node => [node.id, point(place(node), shapeOf(wheel.id))]));
         return `<section class="atlas-wheel" style="--tint:${wheel.tint}" aria-label="${escapeHTML(_t(wheel.name))}"${wheel.id === shownWheelId() ? '' : ' hidden'}>
             <div class="atlas-wheel-art" data-wheel="${wheel.id}"><canvas aria-hidden="true"></canvas>${wheel.nodes.map(node => nodeHtml(node, at.get(node.id))).join('')}</div>
-            ${noteHtml(wheel)}</section>`;
+            ${side ? `<div class="as-wheel-side"><h3>${escapeHTML(_t(wheel.name))}</h3>${noteHtml(wheel)}${side}</div>` : noteHtml(wheel)}</section>`;
+    }
+    // ---------------------------------------------------------------- 한 장 시험판(js/atlas-sheet-ui.js): 다섯 바퀴가 한 화면에
+    /** 작은 바퀴 그림의 도트 수(한 변): 80 CSS px 상자에 한 점이 한 픽셀. */
+    const MINI_DOTS = 80;
+    /** 왼쪽 줄: 갈래마다 지금 찍힌 모습 그대로의 작은 바퀴와 이름, 찍은 수 막대. 누르면 그 바퀴가 가운데에 크게 선다. */
+    function railHtml() {
+        return `<nav class="as-wheel-rail" aria-label="${_t('패시브 갈래')}">${ATLAS_PASSIVES.wheels.map(wheel => {
+            const taken = wheel.nodes.filter(node => game.atlas.passives.includes(node.id)).length;
+            return `<button type="button" style="--tint:${wheel.tint}" aria-pressed="${wheel.id === shownWheelId()}" onclick="atlasPassivesUi.pick('${wheel.id}')">`
+                + `<span class="atlas-wheel-art" data-wheel="${wheel.id}" data-mini="1"><canvas aria-hidden="true"></canvas></span><b>${escapeHTML(_t(wheel.name))}</b>`
+                + `<small>${taken}/${wheel.nodes.length}</small><i style="--fill:${Math.round(taken / wheel.nodes.length * 100)}%"></i></button>`;
+        }).join('')}</nav>`;
+    }
+    /** 오른쪽 칸 아래: 찍은 것의 합계를 한 줄에 하나씩. */
+    function totalRowsHtml() {
+        const rows = Object.entries(atlasPassives.effects(game)).filter(([key, value]) => value && labels[key]).map(([key, value]) =>
+            `<li><span>${escapeHTML(_t(labels[key][0]))}</span>${labels[key][1] === 'on' ? '' : `<b>+${value}${labels[key][1]}</b>`}</li>`).join('');
+        return `<h4>${_t('합계')}</h4>${rows ? `<ul class="as-passive-totals">${rows}</ul>` : `<p class="atlas-muted">${_t('아직 찍은 패시브가 없습니다.')}</p>`}`;
+    }
+    function sheetHtml() {
+        const used = game.atlas.passives.length, points = atlas.points(game), side = totalRowsHtml();
+        return `<div class="atlas-passives as-passives">${railHtml()}<div class="atlas-wheels">${ATLAS_PASSIVES.wheels.map(wheel => wheelHtml(wheel, side)).join('')}</div>
+            <p class="as-passive-points" style="--fill:${points ? Math.round(used / points * 100) : 0}%"><b>${_t('아틀라스 포인트 {used}/{points} 사용', { used, points })}</b></p></div>`;
     }
     function totalsHtml() {
         const total = atlasPassives.effects(game), text = effectText(total);
         return text ? `<p class="atlas-passive-total">${_t('합계: {text}', { text: escapeHTML(text) })}</p>` : '';
     }
     function html() {
+        if (atlasSheetUi.on()) return sheetHtml();
         const used = game.atlas.passives.length, points = atlas.points(game);
         return `<div class="atlas-passives"><p class="atlas-muted">${_t('아틀라스 포인트 {used}/{points} 사용', { used, points })}</p>${totalsHtml()}${tabsHtml()}<div class="atlas-wheels">${ATLAS_PASSIVES.wheels.map(wheelHtml).join('')}</div></div>`;
     }

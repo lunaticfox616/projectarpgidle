@@ -1,6 +1,9 @@
 /** 심재의 나이테: Argon 서사, Opus 화면 용어, DeepSeek 경제 검토를 반영한 단일 콘텐츠 정의. */
 const ATLAS_BOARD = Object.freeze({
     minLoop: 34, diceCap: 99, maxRisk: 6, maxBoost: 100, lossPct: 15, diceReturnChance: .02,
+    // 심재 주사위(2026-11-10 사용자: 아틀라스 지도 안의 몬스터에게서만, 드랍률을 확 낮추고 알림 없이): 처치마다의 확률. 그 전에는 혼돈 20층 이상과
+    // 아틀라스 8등급 이상에서 이름표를 단 길잡이(일반 1.2%, 정예 12%)가 줬다.
+    diceDrop: Object.freeze({ normal: .002, elite: .02 }),
     promise: Object.freeze({ risk: 2, rewardPct: 25, lossPct: 25 }),
     text: Object.freeze({
         title: '심재의 나이테', dice: '심재 주사위', risk: '심재 위험', boost: '보상 증폭', tier: '다음 지도',
@@ -35,7 +38,7 @@ const ATLAS_BOARD = Object.freeze({
         bankTitle: '보관 보상', bankHint: '문지기 처치 시 모두 지급', bankEmpty: '아직 보관한 보상이 없습니다.', gear: '보관 장비 (희귀 이상)',
         rulesTitle: '원정 규칙과 이야기',
         rules: B => [
-            '나이테 원정 해금 뒤에 혼돈 20층 이상 또는 아틀라스 8등급 이상 지도의 길잡이가 심재 주사위를 줍니다.',
+            '나이테 원정 해금 뒤에 아틀라스 지도의 몬스터가 드물게 심재 주사위를 떨어뜨립니다.',
             `원정 내부의 몬스터와 칸에서는 주사위가 나오지 않습니다. 완주한 문지기에게서만 ${B.diceReturnChance * 100}% 확률로 1개를 되찾습니다.`,
             '일반 전리품은 즉시 얻고, 지도 완료 보너스 재화와 장비는 문지기 처치까지 보관합니다. 실패해도 보관 장비는 잃지 않습니다.',
             '보상 증폭은 이후 적립분에만 적용됩니다. 위험 1마다 적 생명력 +12%, 피해 +5%, 지도 등급 +1.',

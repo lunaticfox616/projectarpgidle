@@ -86,7 +86,7 @@ const atlasEncounters = (() => {
     /** Spawn already marked reward carriers before choosing this body. Preserve their labels and the elite trait; golden
      * dressing adds its prefix last. Reward flags remain owned by atlasBoard and atlasEndgame. */
     function rosterName(enemy, name) {
-        return [enemy.craftOmen ? '뿌리를 품은' : '', enemy.boardCarrier ? '나이테 길잡이:' : '',
+        return [enemy.craftOmen ? '뿌리를 품은' : '',
             enemy.isElite ? enemy.traitName : '', name].filter(Boolean).join(' ');
     }
     /** Golden rooms of a new map: each ordinary content room by goldenRoom.chance + the goldenRoom passive (%), fixed by the map uid
