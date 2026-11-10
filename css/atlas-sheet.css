@@ -1,0 +1,87 @@
+@layer components{/* 세계수 아틀라스 "한 장" 시험판(js/atlas-sheet-ui.js): 윗줄, 대륙 차트와 오른쪽 서랍, 아래 도크. 땅과 길은 도트 그림(.as-art),
+   노드는 그 위의 지도석 단추. 색은 css/atlas.css의 --atlas-* 를 쓴다. */
+/* 아틀라스 안에서는 길잡이 한 줄만: 세계 지도로 돌아가기와 이 화면의 쪽들. 다른 곳의 표식 탭은 세계 지도에서 고른다. */
+#tab-map:has(.atlas-sheet) #exploration-location{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+#tab-map:has(.atlas-sheet) #exploration-location .exploration-place-tab{display:none}
+#ui-atlas .atlas-shell:has(.atlas-sheet)>.atlas-head{display:none}
+#ui-atlas .atlas-sheet{container-type:inline-size;display:grid;grid-template-rows:auto minmax(0,1fr) auto;color:var(--atlas-ink)}
+/* 윗줄 */
+#ui-atlas .as-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:6px 12px;border-bottom:1px solid var(--atlas-line);font-size:13px}
+#ui-atlas .as-progress{position:relative;flex:1 1 180px;max-width:320px;height:18px;border:1px solid var(--atlas-edge);background:#0c0a08}
+#ui-atlas .as-progress::before{content:"";position:absolute;inset:0 auto 0 0;width:var(--fill);background:linear-gradient(180deg,#b98f45,#7c5b24)}
+#ui-atlas .as-progress b{position:relative;display:block;padding:0 8px;line-height:16px;font-weight:400;color:#fff1c9;text-shadow:1px 1px 0 #000}
+#ui-atlas .as-seeds{display:inline-flex;align-items:center;gap:4px;color:#c9a0f0}
+#ui-atlas .as-seeds i{width:12px;height:12px;border:1px solid #6b5488;background:#1a1420;transform:rotate(45deg);margin:0 2px}
+#ui-atlas .as-seeds i.is-on{background:#c9a0f0;border-color:#f0dcff;box-shadow:0 0 6px #c9a0f0}
+#ui-atlas .as-points{color:var(--atlas-muted)}
+#ui-atlas .as-points b{color:#7fd6cf;font-weight:400}
+#ui-atlas .as-points em{color:#9fd46a;font-style:normal}
+#ui-atlas .as-auto{display:inline-flex;align-items:center;gap:6px;margin-left:auto;cursor:pointer}
+/* 차트와 서랍 */
+#ui-atlas .as-body{display:grid;grid-template-columns:minmax(0,1fr) 236px;min-height:0}
+#ui-atlas .as-chart{position:relative;aspect-ratio:3/2;min-width:0;overflow:hidden;border-right:1px solid var(--atlas-line);background:#0c0a08}
+#ui-atlas .as-art{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+#ui-atlas .as-region{position:absolute;left:var(--x);top:var(--y);display:grid;grid-template-columns:auto auto;gap:0 6px;align-items:baseline;padding:2px 6px 3px;font-size:12px;color:color-mix(in srgb,var(--tint) 55%,#f4ead6);background:#0c0a08cc;border-left:2px solid var(--tint);pointer-events:none;white-space:nowrap}
+#ui-atlas .as-region small{grid-column:1/-1;font-size:10px;color:var(--atlas-muted)}
+#ui-atlas .as-region b{font-weight:400;color:var(--atlas-gold-hi)}
+#ui-atlas .as-region i{grid-column:1/-1;height:3px;background:linear-gradient(90deg,var(--tint) var(--fill),#2a2218 var(--fill))}
+#ui-atlas .as-region.is-right{transform:translateX(-100%);border-left:0;border-right:2px solid var(--tint)}
+#ui-atlas .as-region.is-centre{transform:translate(-50%,-100%)}
+#ui-atlas .as-region.is-low:not(.is-centre){transform:translateY(-100%)}
+#ui-atlas .as-region.is-low.is-right{transform:translate(-100%,-100%)}
+/* 지도석 노드: 여덟 모 돌. 테는 등급 색, 잠긴 곳은 어둡게, 갈 수 있는 곳은 천천히 깜빡인다. */
+#ui-atlas .atlas-sheet button.as-node{--n:22px;position:absolute;left:var(--x);top:var(--y);width:var(--n);height:var(--n);margin:calc(var(--n) / -2) 0 0 calc(var(--n) / -2);padding:0;border:0;background:none;box-shadow:none;min-height:0;cursor:pointer;overflow:visible}
+#ui-atlas .atlas-sheet button.as-node.kind-guardian{--n:30px}
+#ui-atlas .atlas-sheet button.as-node.kind-pinnacle{--n:36px}
+#ui-atlas .as-stone{position:absolute;inset:0;display:grid;place-items:center;background:var(--tone);clip-path:polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)}
+#ui-atlas .as-stone::before{content:"";position:absolute;inset:2px;background:#17130e;clip-path:inherit}
+#ui-atlas .as-stone b{position:relative;font-weight:400;font-size:12px;line-height:1;color:var(--tone);text-shadow:1px 1px 0 #000}
+#ui-atlas .as-node.is-locked .as-stone{background:color-mix(in srgb,var(--tone) 36%,#15110c)}
+#ui-atlas .as-node.is-locked .as-stone b{color:color-mix(in srgb,var(--tone) 58%,#15110c)}
+#ui-atlas .as-node.is-open .as-stone{animation:as-beckon 1.8s steps(3,end) infinite}
+#ui-atlas .as-node.is-open .as-stone::before{background:color-mix(in srgb,var(--tint) 30%,#17130e)}
+#ui-atlas .as-node:is(.is-complete,.is-bonus) .as-stone::before{background:color-mix(in srgb,var(--tone) 62%,#2a2016)}
+#ui-atlas .as-node:is(.is-complete,.is-bonus) .as-stone b{color:#1a140d;text-shadow:none}
+#ui-atlas .as-node.is-bonus .as-stone{background:#fff1c9}
+#ui-atlas .as-node:is(.is-selected,:hover){filter:drop-shadow(0 0 3px #fff4d6) drop-shadow(0 0 1px #fff4d6);z-index:3}
+#ui-atlas .as-node.is-running{filter:drop-shadow(0 0 4px #9fd46a)}
+#ui-atlas .as-node i{position:absolute;right:-7px;top:-7px;min-width:13px;padding:0 2px;border:1px solid #000;background:#f3d28c;color:#1a140d;font-size:10px;line-height:12px;font-style:normal;text-align:center}
+#ui-atlas .as-node em{position:absolute;left:50%;top:calc(100% + 3px);transform:translateX(-50%);padding:1px 5px;background:#0c0a08e6;border:1px solid var(--atlas-edge);color:#fff4d6;font-size:12px;font-style:normal;white-space:nowrap;pointer-events:none;z-index:4}
+@keyframes as-beckon{0%{filter:brightness(1)}50%{filter:brightness(1.45)}100%{filter:brightness(1)}}
+/* 서랍 */
+#ui-atlas .as-drawer{min-width:0;min-height:0;overflow-y:auto;contain:size;background:var(--atlas-panel)}
+#ui-atlas .as-stash{padding:8px 10px;border-bottom:1px solid var(--atlas-line)}
+#ui-atlas .as-stash h3{margin:0 0 6px;font-size:13px;font-weight:400;color:var(--atlas-gold)}
+#ui-atlas .as-stash h3 span{color:var(--atlas-muted)}
+#ui-atlas .as-tiles{display:grid;grid-template-columns:repeat(auto-fill,30px);gap:4px;margin-bottom:6px}
+#ui-atlas .atlas-sheet button.as-tile{position:relative;width:30px;height:30px;min-height:0;padding:0;border:2px solid var(--tone);background:#17130e;color:var(--tone);font-size:13px;box-shadow:none;cursor:pointer}
+#ui-atlas .as-tile b{font-weight:400}
+#ui-atlas .as-tile.rarity-magic{background:#16202c}
+#ui-atlas .as-tile.rarity-rare{background:#2c2612}
+#ui-atlas .as-tile.is-corrupted{background:#2a1418}
+#ui-atlas .as-tile.is-other{opacity:.38}
+#ui-atlas .as-tile[aria-pressed="true"]{outline:2px solid #fff4d6;outline-offset:1px;opacity:1}
+#ui-atlas .as-tile i{position:absolute;right:1px;bottom:1px;width:5px;height:5px;background:var(--omen)}
+#ui-atlas .as-drawer .atlas-device,#ui-atlas .as-drawer .atlas-node-detail{border:0;border-bottom:1px solid var(--atlas-line)}
+/* 도크 */
+#ui-atlas .as-dock{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 12px;border-top:1px solid var(--atlas-edge);background:linear-gradient(180deg,#1d1813,#120f0b)}
+#ui-atlas .as-info{min-width:0;padding-left:8px;border-left:3px solid var(--tint,var(--atlas-edge))}
+#ui-atlas .as-info small{color:var(--atlas-muted);font-size:11px}
+#ui-atlas .as-info h3{display:flex;align-items:center;gap:8px;margin:0;font-size:15px;font-weight:400;color:color-mix(in srgb,var(--tint) 45%,#fff4d6)}
+#ui-atlas .as-info h3 b{min-width:20px;padding:0 4px;border:1px solid var(--tone);color:var(--tone);font-weight:400;font-size:13px;text-align:center}
+#ui-atlas .as-info p{margin:1px 0 0;font-size:12px}
+#ui-atlas .as-fragments p{display:flex;align-items:center;gap:5px;margin:0 0 4px;font-size:12px;color:var(--atlas-muted)}
+#ui-atlas .as-fragments p i{width:10px;height:10px;border:1px solid var(--atlas-edge);background:#0c0a08}
+#ui-atlas .as-fragments p i.is-on{background:var(--atlas-gold);border-color:var(--atlas-gold-hi)}
+#ui-atlas .as-fragments div{display:flex;flex-wrap:wrap;gap:4px;font-size:12px}
+#ui-atlas .atlas-sheet button.as-fragment{display:inline-flex;gap:6px;min-height:0;padding:2px 7px;font-size:12px}
+#ui-atlas .as-fragment.is-on{border-color:var(--atlas-gold-hi);color:var(--atlas-gold-hi)}
+#ui-atlas .as-fragment small{color:var(--atlas-muted)}
+#ui-atlas .as-go{display:grid;justify-items:end;gap:4px;max-width:230px}
+#ui-atlas .as-go small{color:var(--atlas-muted);font-size:11px;text-align:right}
+#ui-atlas .as-go .atlas-primary{min-width:120px;padding:8px 18px;font-size:15px}
+#ui-atlas .as-loaded{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+#ui-atlas .as-loaded b{min-width:20px;padding:0 4px;border:2px solid var(--tone);color:var(--tone);font-weight:400;text-align:center}
+/* 좁은 창: 서랍이 차트 아래로, 도크는 세로로 */
+@container (max-width:640px){#ui-atlas .as-body{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-chart{border-right:0}#ui-atlas .as-drawer{contain:none;max-height:260px}#ui-atlas .as-dock{grid-template-columns:minmax(0,1fr)}#ui-atlas .as-go{justify-items:stretch;max-width:none}}
+}

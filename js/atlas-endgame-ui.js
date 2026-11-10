@@ -66,7 +66,6 @@ const atlasEndgameUi = (() => {
         const row = fight.row, tier = atlas.effectiveTier(game, atlas.node(row.id)), why = fight.reason || block, [who, where] = titleOf(row);
         const lockId = `atlas-late-lock-${row.id}`;
         return `<div class="atlas-late-card${why ? '' : ' is-ready'}${fight.unlocked ? '' : ' is-locked'}" data-atlas-fight="${row.id}" tabindex="-1">
-            ${ATLAS.lore.bosses.some(b => b.id === row.id) ? `<img class="atlas-ancient-portrait" src="assets/enemies/ancients/${row.id}.png" alt="" loading="lazy" decoding="async">` : ''}
             <strong>${escapeHTML(_t(who))}</strong><small>${escapeHTML(where)}, ${tier}등급, ${row.stages.length}단계${fight.kills ? _t(', 처치 {kills}회', { kills: fight.kills }) : ''}</small>
             ${powerHtml(row, tier)}<div class="atlas-late-entry">${entryHtml(fight.entry)}</div>
             ${sourcesHtml(fight)}${fight.lock ? `<p class="atlas-lock" id="${lockId}">${escapeHTML(fight.lock)}</p>` : ''}
