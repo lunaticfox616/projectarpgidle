@@ -32,7 +32,7 @@ const atlasBoard = (() => {
         const b = ledger(state);
         if (!unlocked(state) || b.started) return;
         b.started = true; b.dice = Math.min(C.diceCap, b.dice + 3);
-        b.message = '첫 심재 주사위 3개를 받았습니다. 혼돈 20층 이상 또는 아틀라스 8등급 이상에서 길잡이를 찾으세요.';
+        b.message = '첫 심재 주사위 3개를 받았습니다.';
     }
     function reason(state) {
         if (!unlocked(state)) return '나이테 원정 해금 뒤에 열립니다.';
@@ -146,23 +146,20 @@ const atlasBoard = (() => {
         b.message = T.messages.complete(b.lap) + (dice ? ' ' + T.messages.diceFound : '');
         return result;
     }
+    /** 주사위가 나오는 곳: 아틀라스 지도 안(원정이 연 지도는 빼고). */
     function eligible(state, zone) {
-        return unlocked(state) && !state.atlas.run?.board && zone &&
-            ((zone.type === 'abyss' && zone.depth >= 20) || (zone.type === 'atlasMap' && zone.atlasTier >= 8));
+        return unlocked(state) && !state.atlas.run?.board && !!zone && zone.type === 'atlasMap';
     }
-    function markCarrier(state, enemy, zone, random = Math.random) {
-        if (!eligible(state, zone) || enemy.isBoss || enemy.isSummon || enemy.boardCarrier || random() >= (enemy.isElite ? .12 : .012)) return;
-        enemy.boardCarrier = true;
-        enemy.name = `나이테 길잡이: ${enemy.name}`;   // 한국어 원문으로 둔다: 보여 줄 때 옮긴다(js/i18n.js enemyName)
-    }
-    function onKill(state, enemy, zone) {
-        if (!enemy.boardCarrier || enemy.boardDiceClaimed || !eligible(state, zone)) return 0;
+    /** 아틀라스 지도의 몬스터(보스와 소환수는 빼고)를 잡을 때마다 C.diceDrop의 확률로 주사위 하나. 한 몬스터는 한 번만 굴린다. */
+    function onKill(state, enemy, zone, random = Math.random) {
+        if (enemy.boardDiceClaimed || enemy.isBoss || enemy.isSummon || !eligible(state, zone)) return 0;
         enemy.boardDiceClaimed = true;
+        if (random() >= (enemy.isElite ? C.diceDrop.elite : C.diceDrop.normal)) return 0;
         sync(state);
         const b = ledger(state), n = Math.min(1, C.diceCap - b.dice);
         b.dice += n;
         return n;
     }
-    return Object.freeze({ defaults, normalize, sync, unlocked, reason, roll, choose, plan, tierFor, lossPctFor, normalizeRun, fail, complete, markCarrier, onKill });
+    return Object.freeze({ defaults, normalize, sync, unlocked, reason, roll, choose, plan, tierFor, lossPctFor, normalizeRun, fail, complete, onKill });
 })();
 safeExposeGlobals({ atlasBoard });

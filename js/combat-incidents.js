@@ -176,8 +176,8 @@ const combatIncidents = (() => {
         if (look) dressStray(enemy, look);
     }
     const plainLook = enemy => { const def = ACT_MONSTER_VISUAL_BY_ID[enemy.spriteVariantId]; return !!def && !def.weapon && !enemy.monsterVisualId; };
-    /** 길 잃은 몬스터가 될 수 있는 몬스터: 정예도, 이름표를 단 몬스터(나이테 길잡이 boardCarrier, 뿌리를 품은 craftOmen)도 아니고 액트 그림을 쓴다. */
-    const strayable = enemy => !enemy.isElite && !enemy.isBoss && !enemy.boardCarrier && !enemy.craftOmen && plainLook(enemy);
+    /** 길 잃은 몬스터가 될 수 있는 몬스터: 정예도, 이름표를 단 몬스터(뿌리를 품은 craftOmen)도 아니고 액트 그림을 쓴다. */
+    const strayable = enemy => !enemy.isElite && !enemy.isBoss && !enemy.craftOmen && plainLook(enemy);
     /** 영웅이 가 본 액트(game.maxZoneId까지)의 몬스터 그림 가운데 이 지역 목록에 없는 것 하나. 없으면(1액트만 가 봤으면) null. */
     function strayLook(zone, key) {
         const here = new Set(getActMonsterPool(zone)), reached = Math.min(Math.floor(Number(game.maxZoneId) || 0), MAP_ZONES.length - 1);

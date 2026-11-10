@@ -1387,7 +1387,6 @@ function finishEnemySpawn(enemy, zone, spawn) {
     tuneMeteorEnemy(enemy, zone);
     if (typeof maybeApplySeveredWanderer === 'function') maybeApplySeveredWanderer(enemy, zone, spawn.isElite, spawn.isBoss);
     if (!spawn.plainBoss) finishBossSpawn(enemy, zone);
-    atlasBoard.markCarrier(game, enemy, zone);
     atlasEndgame.markOmenBearer(game, enemy, zone);
 }
 

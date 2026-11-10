@@ -95,14 +95,22 @@ const atlasSheetUi = (() => {
             onmouseenter="atlasUi.hint(event,'${node.id}')" onmousemove="atlasUi.hint(event,'${node.id}')" onmouseleave="hideInfoTooltip()"><span class="as-stone" style="background-image:url('${icon}')">${node.kind === 'map' ? tier : ''}</span>`
             + `${held ? `<i>${held}</i>` : ''}${node.id === picked ? `<em>${escapeHTML(_t(node.name))}</em>` : ''}</button>`;
     }
+    /** 이름표 자리: 원화의 자리(data/world-map.js atlas label)를 쓰되, 돌아가기 단추가 선 위쪽 가운데는 비킨다. */
+    const TAG_AT = { canopy: [66, 7] };
     function regionTagHtml(region) {
-        const nodes = atlas.nodes.filter(node => node.region === region.id), cleared = nodes.filter(node => game.atlas.completed.includes(node.id)).length, [x, y] = anchorOf(region.id).label;
+        const nodes = atlas.nodes.filter(node => node.region === region.id), cleared = nodes.filter(node => game.atlas.completed.includes(node.id)).length, [x, y] = TAG_AT[region.id] || anchorOf(region.id).label;
         return `<span class="as-region" style="--x:${x}%;--y:${y}%;--tint:${region.tint}"><span>${escapeHTML(_t(region.name))}</span>`
             + `<i style="--fill:${Math.round(cleared / nodes.length * 100)}%"></i><b>${cleared}/${nodes.length}</b></span>`;
     }
+    /** 세계 지도로 돌아가는 단추: 세계 지도에서 아틀라스 입구가 선 바로 그 자리(2026-11-10 사용자). 누르면 입구와 같은 전환이 거꾸로 돈다. */
+    function homeHtml() {
+        const at = worldMapUi.atlasEntranceSpot();
+        return `<button type="button" class="as-home" style="--x:${at.x.toFixed(2)}%;--y:${at.y.toFixed(2)}%" aria-label="${_t('세계 지도')}" data-tip="${_t('세계 지도')}"
+            onclick="worldMapUi.turnToWorld(this)"><i aria-hidden="true" style="background-image:url('${worldMapUi.atlasIcon('tree', '#e2a94a')}')"></i></button>`;
+    }
     function chartHtml(picked) {
         return `<div class="as-chart" role="group" aria-label="${_t('아틀라스 지도')}" style="aspect-ratio:${WORLD_MAP.width}/${WORLD_MAP.height};background-image:url('${WORLD_MAP.atlas.src}')">
-            <canvas class="as-art" aria-hidden="true"></canvas>${ATLAS.regions.map(regionTagHtml).join('')}${atlas.nodes.map(node => nodeHtml(node, picked)).join('')}</div>`;
+            <canvas class="as-art" aria-hidden="true"></canvas>${homeHtml()}${ATLAS.regions.map(regionTagHtml).join('')}${atlas.nodes.map(node => nodeHtml(node, picked)).join('')}</div>`;
     }
 
     // ---------------------------------------------------------------- 윗줄: 세계 지도로, 진행 막대, 씨앗 칸, 포인트, 자동 지도

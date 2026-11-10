@@ -708,7 +708,6 @@ const atlasUi = (() => {
     function announce(detail) {
         const text = {
             board: () => detail.message,
-            dice: () => '나이테 길잡이에게서 심재 주사위 1개를 얻었습니다.',
             omen: () => _t('🔮 뿌리를 품은 몬스터에게서 {name}를 얻었습니다.', { name: _t(ORB_DB[detail.key].name) }),
             complete: () => `🗺️ ${detail.name} ${detail.tier}등급 완료${detail.first ? _t(', 첫 완료') : ''}${detail.bonus ? _t(', 보너스 달성') : ''}${detail.drops ? _t(', 지도석 {drops}개', { drops: detail.drops }) : ''}`
                 + (detail.ticket ? `, ${_t(ORB_DB[detail.ticket].name)}` : '') + (detail.seed ? _t(', 세계수 씨앗 {seeds}/{max}', { seeds: detail.seeds, max: ATLAS.seeds.max }) : '')
