@@ -7,14 +7,14 @@
  * - 소품: 방 가운데는 비운다. 보통 방은 낮은 소품 두셋, 정예 방은 높은 표식 둘과 낮은 소품 하나, 보스 방은 들어온 문의 맞은편에
  *   큰 구조물 하나. 모두 걸을 수 있는 칸의 바깥(바닥의 뒤쪽 끝과 앞쪽 구석)에 선다.
  * - 보급 상자(나무 등급)와 항아리, 목재 상자는 그 재질의 그림을 쓴다(js/canvas-stage-objects.js가 먼저 여기에 묻는다).
- * 조각 그림은 캐릭터 도트 하나에 1px이라 캐릭터와 같은 배율로 찍는다. 그림 폴더가 없는 판(저장소에는 넣지 않는다)에서는 status가
- * 'failed'라 예전 무대(조각 묶음이나 벽돌 벽)가 그대로 나온다. 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
+ * 조각 그림은 캐릭터 도트 하나에 1px이라 캐릭터와 같은 배율로 찍는다. 받지 못한 그림은 다시 받고(js/stage-asset-retry.js), 그동안 status는
+ * 'pending'이라 방은 어둠으로 기다린다. 예전 무대(벽돌 벽 같은)로 떨어지지 않는다(2026-11-11 사용자). 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
  */
 const stageRegion = (() => {
-    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-terrain.js와 같다)
+    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(캐릭터와 같은 밀도: 가로 64, 깊이 32)
     const KEEP = 3;                             // 기억해 두는 방 그림의 수(한 장이 풀리면 6MB쯤이다)
-    const pictures = new Map();                 // 파일 → { image, failed }
-    const settled = new Map();                  // 지역 → 'ready' | 'failed'
+    const pictures = new Map();                 // 파일 → { image }
+    const settled = new Set();                  // 그림이 모두 온 지역
     const recent = [];                          // 최근에 쓴 지역(맨 앞이 지금)
     const fits = new Map();                     // 파일 → 지금 배율(fitDot)로 옮겨 둔 그림
     const tints = new Map();                    // "파일|색" → 한 색을 얹은 그림(보급 상자의 등급, 누를 수 있는 물체의 테)
@@ -37,15 +37,13 @@ const stageRegion = (() => {
      * 더 강조". */
     const GRADE = Object.freeze({ gold: 'rgba(255,204,72,0.22)' });
 
-    const regionOfMap = map => (map && stageView.backdrops() && stageRegionFit.of(map.region)) || null;
+    const regionOfMap = map => (map && stageRegionFit.of(map.region)) || null;
     const regionFamily = region => STAGE_REGIONS.families[region.family];
     const regionPieceFile = (region, name) => region.family + '/' + name + '.png';
     function regionPicture(file) {
         if (!pictures.has(file)) {
-            const row = { image: new Image(), failed: false };
-            row.image.decoding = 'async';
-            row.image.onerror = () => { row.failed = true; };
-            row.image.src = STAGE_REGIONS.path + file + '?v=' + STAGE_REGIONS.version;
+            const row = {};
+            row.image = stageAssetRetry.image(STAGE_REGIONS.path + file + '?v=' + STAGE_REGIONS.version, () => pictures.get(file) === row);
             pictures.set(file, row);
         }
         return pictures.get(file);
@@ -67,15 +65,15 @@ const stageRegion = (() => {
             settled.delete(old);
         }
     }
-    /** @returns {?string} 'ready' 그림이 모두 왔다, 'pending' 불러오는 중, 'failed' 그림이 없다. 지역 그림이 없는 지도면 null. */
+    /** @returns {?string} 'ready' 그림이 모두 왔다, 'pending' 불러오는 중(받지 못한 그림은 다시 받는다). 지역 그림이 없는 지도면 null. */
     function regionStatus(map) {
         const region = regionOfMap(map), id = region ? map.region : null;
         if (!region) return null;
         touchRegion(id);
-        if (settled.has(id)) return settled.get(id);
-        const rows = regionFiles(id, region).map(regionPicture), state = rows.some(row => row.failed) ? 'failed' : rows.every(pictureLoaded) ? 'ready' : 'pending';
-        if (state !== 'pending') settled.set(id, state);
-        return state;
+        if (settled.has(id)) return 'ready';
+        if (!regionFiles(id, region).map(regionPicture).every(pictureLoaded)) return 'pending';
+        settled.add(id);
+        return 'ready';
     }
     function fittedRegionPiece(file, dot) {
         // 창 크기가 바뀌어 배율이 달라지면 앞 배율로 옮겨 둔 그림은 버린다(배율마다 쌓이지 않게). 재질이 바뀌어도 버린다: 지도 하나는
@@ -390,7 +388,7 @@ const stageRegion = (() => {
     }
     /** 곧 쓸 지역의 방 그림을 미리 불러 둔다(그림이 없는 지역이면 아무 일도 없다). */
     function warmRegion(id) {
-        const region = stageView.backdrops() && stageRegionFit.of(id);
+        const region = stageRegionFit.of(id);
         if (region) pictureNames(id, region).forEach(name => regionPicture(name + '.png'));
     }
     return Object.freeze({ warm: warmRegion, status: regionStatus, rise: pictureRise, drawFar: drawRoomPicture, paintRoom: paintRoomShade, append: appendRegionPieces, draw: drawRegionPiece,

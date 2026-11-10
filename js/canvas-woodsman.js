@@ -9,20 +9,16 @@ const woodsmanView = (() => {
     const viewTime = () => game.combatHalted || isForegroundGameplayPausedForBackground() ? getCombatTime() : bossAttackView.now();
     function image(file) {
         if (!images.has(file)) {
-            const pic = new Image();
-            pic.decoding = 'async';
-            pic.onerror = () => console.warn('Woodsman image failed:', file);
-            pic.src = WOODSMAN_BATTLE.path + file;
-            images.set(file, pic);
+            images.set(file, stageAssetRetry.image(WOODSMAN_BATTLE.path + file));
         }
         const pic = images.get(file);
         return pic.complete && pic.naturalWidth ? pic : null;
     }
-    const active = enemy => stageView.backdrops() && woodsmanBattle.owns(enemy)
+    const active = enemy => woodsmanBattle.owns(enemy)
         && bodyRect?.enemy === enemy && performance.now() - bodyRect.at < 500;
     /** Reserve the giant's head above the ledge while retaining the complete walkable floor below it. */
     function fitTile(map, width, height, normal) {
-        if (game.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID || !stageView.backdrops() || !map.rooms) return normal;
+        if (game.currentZoneId !== OUTSIDE_CHAOS_ZONE_ID || !map.rooms) return normal;
         const room = actExplorationRooms.roomAt(map, game.gridPlayer), region = stageRegionFit.of(map.region);
         if (room?.role !== 'boss' || !region) return normal;
         const scale = stageRegionFit.scale(region, map.frame.columns, map.frame.rows);

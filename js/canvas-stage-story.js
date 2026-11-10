@@ -9,7 +9,7 @@
  * 그림은 받은 프레임 그대로 찍는다(늘이거나 기울이지 않는다). 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
  */
 const stageStory = (() => {
-    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-terrain.js와 같다)
+    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-region.js와 같다)
     const APPEAR_MS = 300;                      // 숨어 있던 구조물이 처음 나타날 때 또렷해지는 시간
     const sheets = new Map();                   // 묶음 id → Image
     const rims = new Map();                     // "묶음|프레임|색" → 그 프레임의 실루엣을 한 색으로 칠한 캔버스
@@ -18,14 +18,9 @@ const stageStory = (() => {
     function clipOf(id) { return Object.hasOwn(STAGE_STORY_ART.clips, id) ? STAGE_STORY_ART.clips[id] : null; }
     /** 그 묶음의 시트가 풀렸으면 Image, 아니면 null(처음 부를 때 불러 둔다). */
     function sheet(id) {
-        if (!sheets.has(id)) {
-            const image = new Image();
-            image.decoding = 'async';
-            image.src = `${STAGE_STORY_ART.path}${id}.png?v=${STAGE_STORY_ART.version}`;
-            sheets.set(id, image);
-        }
+        if (!sheets.has(id)) sheets.set(id, stageAssetRetry.image(`${STAGE_STORY_ART.path}${id}.png?v=${STAGE_STORY_ART.version}`));
         const image = sheets.get(id);
-        return image.complete && image.naturalWidth > 0 ? image : null;
+        return stageAssetRetry.loaded(image) ? image : null;
     }
     /** order의 프레임을 ms[프레임] 동안씩 보여 주고 마지막에 멈출 때, elapsed ms 뒤의 프레임. */
     function frameAfter(order, ms, elapsed) {

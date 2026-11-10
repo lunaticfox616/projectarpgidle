@@ -8,7 +8,7 @@
  * 준비는 그리기 밖에서 한다(pump, 타이머): 한 차례에 BUDGET_MS까지만 일하고 다음 차례로 넘긴다. 첫 걸음은 조립, 그 뒤로는 화면
  * 배율로 옮기기를 조각마다 한 걸음씩(js/canvas-stage-dots.js fitter), 그 방이 쓰는 소품을 한 장씩 준비한다
  * (js/canvas-stage-scene.js fitJobs). 공용 뿌리 봉인은 방 그림 밖에서 하나의 시트를 공유한다.
- * 열쇠에는 지도, 방, 그리는 방식(조각 묶음, 벽 없는 방, 불러와진 층의 수), 지역 그림의 판 번호, 도트 하나의 화면 크기, 캔버스의
+ * 열쇠에는 지도, 방, 그리는 묶음(지역 그림이나 조각 묶음), 지역 그림의 판 번호, 도트 하나의 화면 크기, 캔버스의
  * 해상도 배율이 든다. 탐험이나 화면 크기가 바뀌면 열쇠가 달라지므로 준비하던 그림은 버려지고 다 된 옛 그림은 쓰이지 않는다.
  * 들고 있는 그림은 KEEP장, 넓이의 합 PIXELS까지다: 지금 방과 다음 방. 방금 나온 방의 그림은 놓는다(화면 배율 125%에서 한 장이
  * 8MB쯤이다): 되돌아가면 그 방이 다시 '걸어가는 문 너머의 방'이 되어 도착하기 전에 준비된다.
@@ -22,31 +22,21 @@ const stageRoomPictures = (() => {
     const mapIds = new WeakMap();
     let lastMapId = 0, wanted = [], job = null, pumping = false;
 
-    /** 방 그림이 담는 칸 범위: 방과 둘레의 벽. 배경 그림을 쓰는 방(open)은 바닥과 길이 화면 끝까지 가도록 더 넓게 담는다.
-     * 그림 묶음으로 그리는 방(kit)은 지도의 칸을 읽지 않으므로 지도 끝에서 자르지 않는다. 2026-10-30 사용자 "에셋 틈사이사이의 선": 지도 아래 끝에서
-     * 그늘이 끊겨 바닥을 가로지르는 곧은 선이 보였다. */
-    function boxOf(map, room, mode) {
-        const frame = mode.open ? STAGE_ROOMS.openFrame : STAGE_ROOMS.frame;
+    /** 방 그림이 담는 칸 범위: 방과 바닥이 화면 끝까지 가도록 둘레까지. 그림 묶음은 지도의 칸을 읽지 않으므로 지도 끝에서 자르지 않는다.
+     * 2026-10-30 사용자 "에셋 틈사이사이의 선": 지도 아래 끝에서 그늘이 끊겨 바닥을 가로지르는 곧은 선이 보였다. */
+    function boxOf(room) {
+        const frame = STAGE_ROOMS.frame;
         const left = room.x0 - frame.side, top = room.y0 - frame.top, right = room.x1 + frame.side + 1, bottom = room.y1 + frame.bottom + 1;
-        if (mode.kit) return { x: left, y: top, columns: right - left, rows: bottom - top };
-        const x = Math.max(0, left), y = Math.max(0, top);
-        return { x, y, columns: Math.min(map.columns, right) - x, rows: Math.min(map.rows, bottom) - y };
+        return { x: left, y: top, columns: right - left, rows: bottom - top };
     }
-    /** 이 지도의 방을 무엇으로 그리는가: kit 조각 묶음, open 벽 없는 방(묶음이나 배경 그림), layers 불러와진 층 그림의 수. */
-    function modeOf(map) {
-        const kit = stageScene.ready(map), open = kit || stageBackdrop.ready(map);
-        return { kit, open, layers: open && !kit ? stageBackdrop.layersReady(map) : 0 };
-    }
-    /** 조각 묶음이 있으면 그 바닥과 뒤쪽 띠, 배경 그림만 있으면 코드로 그린 벽 없는 방, 둘 다 없으면 벽돌 뒷벽이 선 방. */
-    function assembled(map, room, box, mode) {
-        if (mode.kit) return stageScene.paintRoom(map, room, box);
-        return mode.open ? stageTerrain.paintOpen(map, room, box, stageBackdrop.look(map)) : stageTerrain.paint(map, box);
-    }
+    /** 이 지도의 방을 그리는 묶음: 'region' 지역 그림, 'scene' 조각 묶음(stageScene.ready). 묶음이 준비되기 전에는 이 그림을 바라지 않는다:
+     * 그동안 방은 어둠으로 기다린다(js/canvas-stage-rooms.js). 벽돌 벽이나 배경 그림 방으로 그리던 예전 길은 2026-11-11에 지웠다. */
+    const modeOf = map => ({ kit: stageScene.ready(map) });
     /** 그 방의 그림 한 장을 가리키는 말. */
     function specOf(map, room, dot) {
         const mode = modeOf(map), version = typeof STAGE_REGIONS === 'object' ? STAGE_REGIONS.version : '';
         if (!mapIds.has(map)) mapIds.set(map, ++lastMapId);
-        return { map, room, dot, mode, key: [mapIds.get(map), room.id, mode.open, mode.kit, mode.layers, version, dot, uiDisplay.battleRenderScale].join('|') };
+        return { map, room, dot, mode, key: [mapIds.get(map), room.id, mode.kit, version, dot, uiDisplay.battleRenderScale].join('|') };
     }
     function roomPictureFor(map, room, dot, ahead) {
         const spec = specOf(map, room, dot), next = ahead ? specOf(map, ahead, dot) : null, hit = kept.get(spec.key) || null;
@@ -91,8 +81,8 @@ const stageRoomPictures = (() => {
     const STEPS = Object.freeze([
         row => {
             const spec = row.spec;
-            row.box = boxOf(spec.map, spec.room, spec.mode);
-            row.fitter = stageDots.fitter(assembled(spec.map, spec.room, row.box, spec.mode), spec.dot);
+            row.box = boxOf(spec.room);
+            row.fitter = stageDots.fitter(stageScene.paintRoom(spec.map, spec.room, row.box), spec.dot);
             row.pieces = stageScene.fitJobs(spec.map, spec.room, spec.dot);
             return true;
         },
@@ -120,7 +110,7 @@ const stageRoomPictures = (() => {
     }
     function keepPicture(row) {
         const spec = row.spec, canvas = row.fitter.canvas;
-        kept.set(spec.key, { map: spec.map, room: spec.room, box: row.box, open: spec.mode.open, kit: spec.mode.kit, key: spec.key, canvas,
+        kept.set(spec.key, { map: spec.map, room: spec.room, box: row.box, kit: spec.mode.kit, key: spec.key, canvas,
             pixels: canvas.width * canvas.height });
         job = null;
         failed.delete(spec.key);

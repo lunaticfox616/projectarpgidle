@@ -2745,15 +2745,17 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
     runtime.Math = Object.create(Math);
     runtime.Math.random = () => 0.75;
     runtime.document.body.insertAdjacentHTML = () => {};
+    // The board: a runtime without room layouts (js/act-exploration-room-plans.js), as every smoke that does not load them. The page always
+    // has them since the room switch left the test panel (2026-11-11), so the stage run is the one players see.
     for (const file of ['data/stage-room-plans.js','data/stage-regions.js','data/monster-stage-roster.js',
-      'js/stage-region-fit.js','js/act-exploration-room-plans.js'])
+      'js/stage-region-fit.js',...(stage ? ['js/act-exploration-room-plans.js'] : [])])
       vm.runInContext(fs.readFileSync(file,'utf8'),runtime,{filename:file});
     runtime.hiveStage = stage;
     for (const lastTwo of [true, false]) {
       runtime.hiveLastTwo = lastTwo;
       const settled = JSON.parse(JSON.stringify(vm.runInContext(`(() => {
         game=mergeDefaults({season:8,level:100,selectedClassId:'warrior',combatTimeMs:1800000000000,
-          settings:{stageRooms:hiveStage?'on':'off',stageRoomPlan:'1',autoMove:true,pauseGameOnOverlay:false}});
+          settings:{stageRoomPlan:'1',autoMove:true,pauseGameOnOverlay:false}});
         window.game=game;gameplayStarted=true;startupOverlayActive=false;
         resetCombatRuntimesForLoadedSave();lastTime=game.combatTimeMs;
         game.currencies.hiveKey=1;startBeehiveRun();

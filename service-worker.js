@@ -3,6 +3,28 @@
 const RUNTIME_CACHE_PREFIX = 'project-arpg-runtime-';
 const RUNTIME_CACHE_NAME = `${RUNTIME_CACHE_PREFIX}v1`;
 const APP_DESTINATIONS = new Set(['document', 'script', 'style', 'worker']);
+/** GitHub Pages 앞단(Fastly)은 몰린 요청을 "503 Maximum threads for service reached"로 거절한다(2026-11-11 사용자 보고: 그때 그림이
+ * 빠지고 예전 맵이 보였다). 그런 잠깐의 실패(502, 503, 504, 끊긴 연결)는 조금 쉬었다가 다시 묻는다: 쉬는 시간(ms)은 차례로 이만큼이다. */
+const RETRY_WAITS_MS = Object.freeze([600, 1500, 3500]);
+const PASSING_FAILURES = new Set([502, 503, 504]);
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+/** fetch that asks again after a passing failure. The last answer (or the last network error) goes back when the tries run out. */
+async function fetchRetrying(request, init) {
+    for (let attempt = 0; ; attempt++) {
+        const last = attempt >= RETRY_WAITS_MS.length;
+        try {
+            const response = await fetch(request, init);
+            if (last || !PASSING_FAILURES.has(response.status)) return response;
+        } catch (error) {
+            if (last) throw error;
+        }
+        await pause(RETRY_WAITS_MS[attempt]);
+    }
+}
+/** Same-origin pictures: not stored (the browser HTTP cache keeps them), only asked again after a passing failure. */
+function isPictureRequest(request) {
+    return request.method === 'GET' && request.destination === 'image' && new URL(request.url).origin === self.location.origin;
+}
 
 /** Same-origin page, script, style and worker requests: the files whose release the page must agree on. */
 function isAppRequest(request) {
@@ -60,7 +82,7 @@ async function store(cache, request, response) {
 async function cachedOrFetch(event, cache) {
     const cached = await cache.match(event.request, { ignoreVary: true });
     if (cached) return cached;
-    const response = await fetch(event.request);
+    const response = await fetchRetrying(event.request);
     if (response.ok) event.waitUntil(storeIfNamed(cache, event.request, response.clone()));
     return response;
 }
@@ -89,7 +111,7 @@ async function storeIfNamed(cache, request, response) {
  * to a different release's bytecode. */
 async function fetchLatestOrCached(event, cache) {
     try {
-        const response = await fetch(event.request, { cache: 'no-store' });
+        const response = await fetchRetrying(event.request, { cache: 'no-store' });
         if (response.ok) await store(cache, event.request, response.clone());
         return response;
     } catch (networkError) {
@@ -113,6 +135,7 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+    if (isPictureRequest(event.request)) { event.respondWith(fetchRetrying(event.request)); return; }
     if (!isAppRequest(event.request)) return;
     event.respondWith((async () => {
         const cache = await caches.open(RUNTIME_CACHE_NAME);

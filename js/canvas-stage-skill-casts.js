@@ -452,9 +452,9 @@ const stageSkillCasts = (() => {
     function wispSprite(ctx, element, spot) {
         const art = STAGE_SKILL_VFX.wisps, file = art.files[element];
         if (!file) return false;
-        if (!wispPictures.has(element)) { const image = new Image(); image.src = art.path + file; wispPictures.set(element, image); }
+        if (!wispPictures.has(element)) wispPictures.set(element, stageAssetRetry.image(art.path + file));
         const image = wispPictures.get(element);
-        if (!image.complete || !image.naturalWidth) return false;
+        if (!stageAssetRetry.loaded(image)) return false;
         const frame = ((Math.floor((spot.t + spot.phase * 500) / art.ms) % art.frames) + art.frames) % art.frames, size = art.size * spot.dot;
         ctx.save();
         ctx.imageSmoothingEnabled = false;

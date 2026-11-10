@@ -7,7 +7,8 @@
  * - 방을 옮기면 화면이 어둠에서 밝아진다(STAGE_ROOMS.fadeMs).
  */
 const stageRoomsView = (() => {
-    const WIDE = 64;                             // 방 그림에서 한 칸의 가로 도트(js/canvas-stage-terrain.js와 같다)
+    const WIDE = 64;                             // 방 그림에서 한 칸의 가로 도트(js/canvas-stage-region.js와 같다)
+    const WAIT_DARK = '#0b090c';                 // 방 그림을 기다리는 동안 화면을 덮는 어둠
     const AHEAD_MS = 250;                        // 걸어가는 문 너머의 방을 다시 묻는 간격
     const RIFT_EDGE_INSET = 14;                  // CSS px: chevron radius plus clearance from canvas/HUD edges
     let shown = { run: null, room: null, at: 0 }; // 마지막으로 그린 방과 그 방에 들어선 시각(화면 밝아지기)
@@ -28,7 +29,7 @@ const stageRoomsView = (() => {
         const gx = span <= view.columns ? (left + right) / 2
             : Math.max(left + view.columns / 2, Math.min(right - view.columns / 2, cell.gx + .5 + coreViewLean(map, cell, view)));
         const row = map.colonyDefense || map.grandBreach ? specialFocusRow(room, cell, view)
-            : isOpen(map) ? openFocusRow(room, view) : focusRow(room, view);
+            : roomFocusRow(room, view);
         const base = Math.min(row, heroRow(room, cell, view));
         if (!uiDisplay.battleHudAtSide) { roomCamera.room = null; return { gx, gy: base }; }
         const frame = { gx, gy: base, min: heroFeetRow(room, cell, view) };
@@ -107,22 +108,13 @@ const stageRoomsView = (() => {
         const gy = Math.max(room.y0, Math.min(room.y1, cell.gy));
         return gy + .5 + (stageView.anchorY() * view.height - head.dots * dot - head.top) / deep;
     }
-    /** 벽 없이 그리는 방인가: 조각 묶음(js/canvas-stage-scene.js)이나 배경 그림(js/canvas-stage-backdrop.js)이 준비된 지형. */
-    const isOpen = map => stageScene.ready(map) || stageBackdrop.ready(map);
-    /** 배경 그림을 쓰는 방: 바닥의 앞쪽 끝이 화면의 정해진 높이(STAGE_ROOMS.floorBottom)에 오게 한다. 그 위로 바닥 다섯 줄, 그 위가 배경이다. */
-    function openFocusRow(room, view) {
+    /** 방의 세로 자리: 바닥의 앞쪽 끝이 화면의 정해진 높이(STAGE_ROOMS.floorBottom)에 오게 한다. 그 위로 바닥 다섯 줄, 그 위가 배경이다. */
+    function roomFocusRow(room, view) {
         // 왼쪽 HUD는 전장 바닥을 덮지 않는다. 위치만 내리고 tallestTile의 기존 확대율은 유지한다.
         const gap = STAGE_VIEW.heroTile * STAGE_VIEW.minDot + STAGE_ROOMS.sideHudGap;
         const floor = uiDisplay.battleHudAtSide ? Math.max(0, Math.min(STAGE_ROOMS.floorBottom.sideHud, 1 - gap / view.height))
             : stageView.floorShare(view.width, view.height);
         return room.y1 + 1 - (floor - stageView.anchorY()) * view.rows;
-    }
-    /** 세로로 화면의 기준 줄(stageView.anchorY)에 올 칸: 뒷벽 꼭대기(방 위 네 칸)부터 앞쪽 문 자리까지의 가운데에서, 뒷벽이 잘리지
-     * 않는 만큼(최대 lift칸) 방을 위로 올린다. 화면 아래쪽은 HUD가 덮어 앞쪽 문이 가려지기 때문이다. */
-    function focusRow(room, view) {
-        const top = room.y0 - 4, bottom = room.y1 + 2, half = (bottom - top) / 2;
-        const headroom = stageView.anchorY() * view.rows - half - .5;
-        return (top + bottom) / 2 + Math.max(0, Math.min(STAGE_ROOMS.lift, headroom));
     }
     /** 주인공이 걸어가는 문 너머의 방(없으면 null): 이동 명령이나 자동 탐험의 목표가 다른 방이면 그 방으로 가는 문을 향해 걷는다. 그 방의
      * 그림을 미리 준비하려고 묻는다. 싸우는 동안에는 문이 잠겨 목표가 방 안에 있다. AHEAD_MS마다 한 번만 묻는다. */
@@ -134,16 +126,9 @@ const stageRoomsView = (() => {
         ahead = { run, room, at: now, next: door && door.room === room.index ? map.rooms[door.to] : null };
         return ahead.next;
     }
-    /** 방 뒤쪽: 배경 그림을 바닥선 위에 세우고 그 아래는 그림의 빈 띠와 같은 어둠으로 채운다. 방이 화면보다 넓으면 배경이 조금 따라 움직인다. */
-    function drawBackdrop(ctx, view, p, area) {
-        const room = view.room, look = stageBackdrop.look(view.map), span = (room.x1 - room.x0 + 3) * p.tileW;
-        ctx.fillStyle = look.earth;
-        ctx.fillRect(0, 0, area.width, area.height);
-        stageBackdrop.draw(ctx, view.map, { width: area.width, groundY: p.mapY + room.y0 * p.tileH, dot: stageDots.wholeDot(p.tileW / WIDE),
-            drift: p.mapX + (room.gx + .5) * p.tileW - area.width / 2, slack: Math.max(0, span - area.width) / 2 });
-    }
-    function drawWallDark(ctx, map, area) {
-        ctx.fillStyle = stageTerrain.colours(map).dark;
+    /** 방 그림을 기다리는 동안의 어둠(고정 전장과 같은 색, js/canvas-stage-board.js). */
+    function drawWaitDark(ctx, area) {
+        ctx.fillStyle = WAIT_DARK;
         ctx.fillRect(0, 0, area.width, area.height);
     }
     /** Readable approach lanes, core footprint and rift mouths on the existing painted stage floor. */
@@ -284,22 +269,20 @@ const stageRoomsView = (() => {
         const map = mapOf(run), room = map ? roomOf(run) : null;
         if (!room) return false;
         // 지역 무대 그림을 불러오는 동안은 어둠만 둔다: 다른 지형의 방이 잠깐 비쳤다가 바뀌지 않게.
-        if (stageScene.pending(map)) { drawWallDark(ctx, map, area); return true; }
+        if (stageScene.pending(map)) { drawWaitDark(ctx, area); return true; }
         // 방 그림은 그리기 밖에서 준비된다: 아직 없으면 어둠을 두고 기다린다(걷기와 전투는 그대로 간다).
         const view = stageRoomPictures.roomPictureFor(map, room, p.tileW / WIDE, aheadRoom(run, map, room));
         noteRoom(run, room, performance.now(), !view);
-        if (!view) { drawWallDark(ctx, map, area); return true; }
+        if (!view) { drawWaitDark(ctx, area); return true; }
         const box = view.box;
-        if (view.kit) stageScene.drawFar(ctx, view, p, area);
-        else if (view.open) drawBackdrop(ctx, view, p, area);
-        else drawWallDark(ctx, map, area);
+        stageScene.drawFar(ctx, view, p, area);
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(view.canvas, p.mapX + box.x * p.tileW, p.mapY + box.y * p.tileH, stageDots.span(box.columns * p.tileW), stageDots.span(box.rows * p.tileH));
         drawChaosHaze(ctx, map, area);
         drawSpecialGround(ctx, map, p);
-        for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, { run, kit: view.kit });
+        for (const row of actExplorationDoors.doorsHere(run)) drawDoor(ctx, row, p, run);
         drawFrontShade(ctx, view, p, area);
-        if (view.kit && typeof stageOcean === 'object') stageOcean.back(ctx, view, p, area); // 심해: 먼 입자와 가디언 방의 리프트
+        if (typeof stageOcean === 'object') stageOcean.back(ctx, view, p, area); // 심해: 먼 입자와 가디언 방의 리프트
         return true;
     }
     /** 혼돈 층계는 깊을수록 붉은 보랏빛이 조금씩 짙어진다(STAGE_ROOMS.chaosHaze): 방 그림과 소품 위, 문과 배우 아래에 화면 전체로 한 번,
@@ -323,10 +306,10 @@ const stageRoomsView = (() => {
     }
     /** 바닥의 앞쪽 끝 아래는 걸어갈 수 없는 자리다: 아래로 갈수록 어둡게 덮어 걸을 수 있는 바닥과 가른다(STAGE_ROOMS.frontShade).
      * 그림의 도트 줄에 맞춘 띠로 짙어진다. 앞쪽 문의 그림은 이 뒤에 깊이 순서로 그려져 덮이지 않는다(문 칸의 바닥만 따로 밝히면
-     * 계단 밑으로 네모가 비어져 나왔다). 벽으로 둘러싼 방은 앞쪽이 벽이라 하지 않는다. */
+     * 계단 밑으로 네모가 비어져 나왔다). */
     function drawFrontShade(ctx, view, p, area) {
         const rule = STAGE_ROOMS.frontShade, top = Math.round(p.mapY + (view.room.y1 + 1) * p.tileH), bottom = area.height;
-        if ((!view.kit && !view.open) || top >= bottom) return;
+        if (top >= bottom) return;
         const step = Math.max(1, Math.round(rule.bandDots * p.tileW / WIDE));
         ctx.save();
         ctx.fillStyle = rule.colour;
@@ -343,14 +326,13 @@ const stageRoomsView = (() => {
         const centre = p.cellToScreen(door.cell.gx, door.cell.gy);
         return { x: centre.x - p.tileW / 2, y: centre.y - p.tileH / 2, w: p.tileW, h: p.tileH, cx: centre.x, cy: centre.y };
     }
-    /** 공용 뿌리 봉인. 조각 묶음에서는 배우로 깊이 정렬하고, 그 밖의 방은 이 자리에서 그린다. */
-    function drawDoor(ctx, row, p, look) {
-        stageDoorMarks.seal.note(look.run, row);
+    /** 문의 화살표. 공용 뿌리 봉인은 배우로 깊이 정렬되어 그려진다(js/canvas-stage-scene.js). */
+    function drawDoor(ctx, row, p, run) {
+        stageDoorMarks.seal.note(run, row);
         const box = cellBox(row.door, p), dot = p.tileW / WIDE;
         const sideways = row.door.side === 'west' || row.door.side === 'east';
         ctx.save();
-        if (!look.kit) stageDoorMarks.seal.draw(ctx, look.run, row, { x: box.cx, y: box.cy + box.h / 2, dot });
-        if (!row.locked && !(look.kit && sideways) && !stageDoorMarks.underFrame(p, row)) stageDoorMarks.arrows(ctx, box, row.door, { dot });
+        if (!row.locked && !sideways && !stageDoorMarks.underFrame(p, row)) stageDoorMarks.arrows(ctx, box, row.door, { dot });
         ctx.restore();
     }
 

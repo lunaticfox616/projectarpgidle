@@ -133,6 +133,7 @@ let claimCount = 0;
 let networkMode = 'success';
 let latestFetchOptions = null;
 let fetchCount = 0;
+let busyLeft = 0;   // networkMode busy: this many answers are the edge's 503 before the file comes
 let networkBody = 'release bytes';
 const nameOf = text => require('crypto').createHash('sha256').update(text).digest('hex').slice(0, 10);
 
@@ -157,6 +158,7 @@ const context = {
     Promise,
     console,
     crypto: require('crypto').webcrypto,
+    setTimeout(callback) { callback(); return 0; },   // the worker's pause before asking again: no real waiting in the smoke
     self: {
         location: { origin: 'https://game.example' },
         clients: { async claim() { claimCount += 1; } },
@@ -172,6 +174,7 @@ const context = {
         latestFetchOptions = options;
         fetchCount += 1;
         if (networkMode === 'failure') throw new Error('offline');
+        if (networkMode === 'busy' && busyLeft-- > 0) return { ok: false, status: 503, marker: 'busy', clone() { return this; } };
         const body = networkBody;
         return { ok: true, marker: 'network', clone() { return this; }, async arrayBuffer() { return new TextEncoder().encode(body).buffer; } };
     }
@@ -248,6 +251,14 @@ async function requestThroughWorker(request) {
     networkMode = 'success';
     await requestThroughWorker(pageRequest);
     assert.strictEqual(latestFetchOptions.cache, 'no-store', 'the page itself is always the latest, whatever its query says');
+
+    // GitHub Pages' edge turns a crowd away with a 503 (2026-11-11): the worker asks again after a pause, so a page or script still arrives.
+    networkMode = 'busy';
+    busyLeft = 2;
+    assert.strictEqual((await requestThroughWorker(pageRequest)).marker, 'network', 'a passing 503 is asked again until the page arrives');
+    busyLeft = 9;
+    assert.strictEqual((await requestThroughWorker(scriptRequest)).status, 503, 'the tries end: the last answer goes to the page');
+    networkMode = 'success';
 
     const externalRequest = { method: 'GET', url: 'https://api.example/data', mode: 'cors', destination: 'script' };
     assert.strictEqual(await requestThroughWorker(externalRequest), null, 'cross-origin requests must remain outside app caching');

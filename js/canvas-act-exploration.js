@@ -4,7 +4,7 @@ const actExplorationView=(()=>{
     // Unseen tiles that touch seen ground: the fog is smoothed between tile centres, so a full-strength tile there darkened the
     // outer half of the last seen tile. A lighter shade keeps the sight's edge readable and still shows the ground ahead dimly.
     const FOG_BORDER_ALPHA=.35;
-    let cache=null,lastOrigin=null;
+    let lastOrigin=null;
     // The fog picture (fog mode only, js/act-exploration-sight.js): of the whole map on a continuous map, of the hero's room on a
     // room-by-room stage whose region turned sight on. A run that sees its room whole never makes one.
     let fog={map:null,columns:0,rows:0,key:'',grid:null,view:null};
@@ -120,17 +120,6 @@ const actExplorationView=(()=>{
         }
         for(const text of battleVisualState.damageTexts||[]){text.x+=dx;text.y+=dy;}
     }
-    /** The ground picture of a map: the painted top-down map, or on the side-view stage the stage terrain drawn here
-     * (js/canvas-stage-terrain.js). Switching the view prepares the other picture. */
-    function prepare(map) {
-        if(cache?.map===map)return;
-        const current={map,surface:null,scenery:[],error:'',closed:null,open:null};cache=current;
-        Promise.resolve().then(()=>stageTerrain.paint(map)).then(surface=>{
-            if(cache!==current)return;
-            current.surface=surface;current.scenery=explorationArt.scenery(map);
-            current.closed=explorationArt.gate(true,map);current.open=explorationArt.gate(false,map);
-        }).catch(error=>{current.error=error.message;console.error('탐험 지형 준비 실패',error);});
-    }
     /** 방 단위 무대(js/canvas-stage-rooms.js): 주인공이 선 방 하나만 그린다. 지도 전체 그림은 쓰지 않고, 안개는 시야를 켠 지역에서만 덮는다. */
     function drawRoomStage(ctx,run,p,area) {
         ctx.save();
@@ -149,24 +138,11 @@ const actExplorationView=(()=>{
         ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
         ctx.drawImage(veil,p.mapX+box.x*p.tileW,p.mapY+box.y*p.tileH,box.columns*p.tileW,box.rows*p.tileH);
     }
+    /** The battlefield ground: the hero's room on the room-by-room stage. A run without rooms draws nothing here (the caller leaves the
+     * dark): the continuous maps' brick terrain and painted ground were removed on 2026-11-11 (사용자: 구버전 맵 방식은 쓰지 않는다). */
     function background(ctx,width,height,p) {
-        const run=actExplorationState.current(game);if(!run)return false;
-        if(drawRoomStage(ctx,run,p,{width,height}))return true;
-        const map=actExplorationMap.forRun(run);prepare(map);
-        ctx.save();ctx.fillStyle=`rgb(${shadeOf(map).join(',')})`;ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
-        if(cache.surface){ctx.drawImage(cache.surface,p.mapX,p.mapY,p.mapWidth,p.mapHeight);actExplorationView.objects.drawGround(ctx,run,p,{width,height});}
-        else {
-            // 지도를 만드는 동안 전장 한가운데에 도트 글씨로(점 셋이 차례로 찬다). 실패하면 까닭을 적는다.
-            const dots='.'.repeat(1+Math.floor(performance.now()/400)%3);
-            ctx.font=`15px ${i18n.fontFamily("'Galmuri14', 'Galmuri11'")}`;ctx.textAlign='center';ctx.textBaseline='middle';
-            ctx.lineWidth=4;ctx.strokeStyle='rgba(8,5,8,.9)';ctx.fillStyle='#e0c283';
-            const label=cache.error?'지형을 준비하지 못했습니다: '+cache.error:'지형을 준비하는 중'+dots;
-            drawCrispCanvasText(ctx,label,width/2,height/2,'strokeText');drawCrispCanvasText(ctx,label,width/2,height/2);
-        }
-        // The fog is pre-softened into its view whenever it changes; per frame it is only copied.
-        const veil=updateFog(run,map,null);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='low';
-        ctx.drawImage(veil,p.mapX,p.mapY,p.mapWidth,p.mapHeight);
-        drawCommand(ctx,run,p,{width,height});ctx.restore();return true;
+        const run=actExplorationState.current(game);
+        return !!run && drawRoomStage(ctx,run,p,{width,height});
     }
     /** A thin pale-gold ring marks the command's floor cell, or the current-room doorstep of its known open route door.
      * Doorstep rings stay inside the visible width, like door arrows. Keyboard steering remains unmarked; the command stays intact. */
@@ -215,12 +191,6 @@ const actExplorationView=(()=>{
     /** The act art's own darkness (data ACT_EXPLORATION_BACKDROPS shade): the fog and the canvas around the map use it,
      * so unexplored ground sinks into the same dark as the map's edges. */
     function shadeOf(map) { return ACT_EXPLORATION_BACKDROPS[map.id]?.shade||[8,14,12]; }
-    const wholeBoxes=new WeakMap();
-    /** The box that covers a whole map (kept per map: asked every frame on a continuous map). */
-    function wholeMapBox(map) {
-        if(!wholeBoxes.has(map))wholeBoxes.set(map,Object.freeze({x:0,y:0,columns:map.columns,rows:map.rows}));
-        return wholeBoxes.get(map);
-    }
     /** One pixel per tile of the box: the map's shade, as dark as the tile is fogged now. */
     function paintFogGrid(run,map,area,sight) {
         const ctx=fog.grid.getContext('2d'),pixels=ctx.createImageData(area.columns,area.rows),seen=actExplorationSight.seenCells(run);
@@ -237,10 +207,9 @@ const actExplorationView=(()=>{
         grid.width=columns;grid.height=rows;view.width=columns*FOG_VIEW_PX;view.height=rows*FOG_VIEW_PX;
         return {map,columns,rows,key:'',grid,view};
     }
-    /** The fog over the map, or over a cell box of it ({x,y,columns,rows}), redrawn only when the sight changes.
+    /** The fog over a cell box of the map ({x,y,columns,rows}: the hero's room), redrawn only when the sight changes.
      * @returns {HTMLCanvasElement} the softened fog, to be stretched over the box */
-    function updateFog(run,map,box) {
-        const area=box||wholeMapBox(map);
+    function updateFog(run,map,area) {
         if(fog.map!==map || fog.columns!==area.columns || fog.rows!==area.rows)fog=fogFor(map,area.columns,area.rows);
         const sight=actExplorationState.sight(run),hero=game.gridPlayer,key=[run.discovered.length,hero.gx,hero.gy,sight,area.x,area.y].join(':');
         if(fog.key===key)return fog.view;
@@ -255,17 +224,9 @@ const actExplorationView=(()=>{
     }
     function appendScenery(actors,state) {
         actExplorationView.objects.append(actors,state);
-        stageProps.append(actors,state); // 방 단위 무대의 소품 층(js/canvas-stage-props.js)
         stageScene.append(actors,state); // 조각 묶음의 소품과 문(js/canvas-stage-scene.js)
         stageStory.append(actors,state); // 이야기 액트 보스 방의 구조물(js/canvas-stage-story.js)
         actTitleCard.appendNpc(actors,state); // 입구 방의 이야기 NPC(js/canvas-act-title-card.js)
-        // 방 단위 무대의 관문은 문으로 그려진다(js/canvas-stage-rooms.js): 옛 관문 그림을 세우지 않는다.
-        const run=actExplorationState.current(game);if(!run || !cache?.surface || actExplorationDoors.stageMap(run))return;
-        const map=cache.map,p=state.gridProj;
-        if(actExplorationSight.seenCells(run).has(actExplorationMap.index(map,map.gate))) {
-            const point=p.cellToScreen(map.gate.gx,map.gate.gy),box=gateBox(point,p);
-            actors.push({kind:'gate',id:-2,y:box?box.base:point.y+p.actorGroundOffsetY,point});
-        }
     }
     // 시야 밖 몬스터(2026-10-09 사용자 "어그로 끌려서 다가오는 몬스터들이 시야 밖에서부터 보이지 않았으면"): 안개가 걷힌 땅에 선 몬스터만
     // 그린다. 판정은 영웅의 조준과 같은 actExplorationState.inSight. 움직이지 않는 무리(waitingEnemies)는 예전처럼 찾은 방이면 보인다.
@@ -298,34 +259,17 @@ const actExplorationView=(()=>{
         if(!room)return null;
         return {x:lastOrigin.x+(room.gx+.5)*tile,y:lastOrigin.y+(room.gy+.5)*lastOrigin.deep,radius:Math.hypot(room.radiusX+1,room.radiusY+1)*tile};
     }
-    // Pixel-scale gate art (backdrop maps): integer scale, placed by its art-px offset from the gate tile centre.
-    function gateBox(point,p) {
-        const art=cache?.closed;if(!art?.pixelTile)return null;
-        const scale=p.tileW/art.pixelTile,w=art.width*scale,h=art.height*scale;
-        const x=point.x+art.offset[0]*scale,y=point.y+art.offset[1]*scale;
-        return {x,y,w,h,base:y+h};
-    }
-    /** The layer that draws a scenery actor (by the field its append put on it), or null for the boss gate drawn here. */
+    /** The layer that draws a scenery actor (by the field its append put on it). */
     function sceneryLayer(actor) {
         if(actor.kind==='object')return actExplorationView.objects;
-        if(actor.prop)return stageProps;
         if(actor.storyPiece)return stageStory;
         if(actor.piece)return stageScene;
         return null;
     }
     function drawScenery(ctx,actor,state) {
         const layer=sceneryLayer(actor);
-        if(layer){layer.draw(ctx,actor,state);return;}
-        if(actor.npc){actTitleCard.drawNpc(ctx,actor,state);return;}
-        const p=state.gridProj,player=state.playerPos;
-        ctx.save();ctx.imageSmoothingEnabled=false;
-        // The only scenery actor left is the boss gate (painted maps carry their props in the picture).
-        const point=actor.point,box=gateBox(point,p)||{x:point.x-76,y:point.y-158,w:152,h:190,base:actor.y};
-        const occluded=player.y<box.base&&player.y>box.y&&Math.abs(player.x-point.x)<box.w/2;
-        ctx.globalAlpha=occluded?.38:1;
-        const locked=actExplorationState.gateSealed(game.actExploration);
-        ctx.drawImage(locked?cache.closed:cache.open,box.x,box.y,box.w,box.h);
-        ctx.restore();
+        if(layer)layer.draw(ctx,actor,state);
+        else if(actor.npc)actTitleCard.drawNpc(ctx,actor,state);
     }
     return {projection,background,appendScenery,waitingEnemies,inSight,drawScenery,bossRoomGlow,cellAt};
 })();

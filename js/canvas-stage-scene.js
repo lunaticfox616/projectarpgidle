@@ -6,40 +6,35 @@
  *   계단이 그 위에 바닥과 같은 자리로 한 장 얹힌다.
  * - 보스 구조물과 문: 캐릭터와 같은 깊이 순서로 그리는 배우. 문은 공용 뿌리 봉인으로 막고 풀릴 때 아래로 접힌다. 주인공이 조각 뒤에
  *   서면 그 조각이 비쳐 보인다.
- * 그림은 한 장이 캐릭터 도트 하나에 1px이라 캐릭터와 같은 배율로 찍는다(js/canvas-stage-dots.js). 그림 폴더가 없는 판에서는 ready가
- * 거짓이라 코드로 그린 임시 무대(js/canvas-stage-sanctum.js)가 그대로 나온다. 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
+ * 그림은 한 장이 캐릭터 도트 하나에 1px이라 캐릭터와 같은 배율로 찍는다(js/canvas-stage-dots.js). 받지 못한 그림은 다시 받고(js/stage-asset-retry.js),
+ * 다 올 때까지 ready는 거짓이고 방은 어둠으로 기다린다. 그리기만 하고 전투와 길 찾기에는 닿지 않는다.
  * 지도에 지역 무대 그림(js/canvas-stage-region.js: 방 그림 한 장과 문, 소품)이 정해져 있고 그 그림이 준비됐으면 그쪽이 방을 그린다:
  * 방을 그리는 쪽(js/canvas-stage-rooms.js)은 여기 하나만 부르고, 여기서 어느 묶음이 그릴지 가른다.
  */
 const stageScene = (() => {
-    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-terrain.js와 같다)
+    const WIDE = 64, DEEP = 32;                 // 한 칸의 도트(js/canvas-stage-region.js와 같다)
     const images = new Map();                   // 파일 경로 → Image
     const fits = new Map();                     // 파일 → 지금 배율(fitDot)로 옮겨 둔 그림(먼 배경과 조각: 매 프레임 다시 옮기지 않는다)
     let fitDot = 0;
     const complete = new Set();                 // 그림을 모두 불러온 묶음
     const layouts = new WeakMap();              // 지도 → Map(방 번호 → 조각 자리)
 
-    /** 지도의 지형에 조각 묶음이 있는가(테스트 패널에서 벽돌 벽을 고르면 쓰지 않는다). */
+    /** 지도의 지형에 조각 묶음이 있는가(액트 1의 뿌리끝 성소). */
     function kitOf(map) {
-        return (map && stageView.backdrops() && STAGE_SCENES.biomes[map.biome]) || null;
+        return (map && STAGE_SCENES.biomes[map.biome]) || null;
     }
     function picture(kit, file) {
         const path = STAGE_SCENES.path + kit.dir + file + '?v=' + STAGE_SCENES.version;
-        if (!images.has(path)) {
-            const image = new Image();
-            image.decoding = 'async';
-            image.src = path;
-            images.set(path, image);
-        }
+        if (!images.has(path)) images.set(path, stageAssetRetry.image(path));
         const image = images.get(path);
-        return image.complete && image.naturalWidth > 0 ? image : null;
+        return stageAssetRetry.loaded(image) ? image : null;
     }
     const terraceFiles = (kit, side) => kit.terraces.files.map(name => name + side + '.png');
     const filesOf = kit => [kit.far.file, ...Object.values(kit.far.rooms), kit.back.file, ...kit.floor.files, ...kit.terraces.sides.flatMap(side => terraceFiles(kit, side)),
         ...Object.keys(kit.pieces).map(name => name + '.png')];
     /** 그 방의 먼 배경: 구실(정예, 보스)에 따로 그린 것이 있으면 그것. */
     const farFile = (kit, room) => (kit.far.rooms && kit.far.rooms[room.role]) || kit.far.file;
-    /** 지역 무대 그림의 형편: 'ready', 'pending'(불러오는 중), 'failed'(그림이 없다), 지역이 없는 지도면 null. */
+    /** 지역 무대 그림의 형편: 'ready', 'pending'(불러오는 중), 지역이 없는 지도면 null. */
     const regionState = map => (typeof stageRegion === 'object' ? stageRegion.status(map) : null);
     /** 이 지형의 조각 묶음 그림이 모두 불러와졌는가. 처음 물을 때 불러오기를 시작한다. */
     function sceneReady(map) {
@@ -50,15 +45,15 @@ const stageScene = (() => {
         if (loaded) complete.add(kit);
         return loaded;
     }
-    /** @returns {(string|boolean)} 이 지도의 방을 그릴 묶음: 'region' 지역 무대 그림, 'scene' 지형의 조각 묶음, 없으면 false.
-     * 지역 그림을 불러오는 동안은 false다(그동안 다른 지형의 그림이 잠깐 보이지 않게 pending이 화면을 가린다). */
+    /** @returns {(string|boolean)} 이 지도의 방을 그릴 묶음: 'region' 지역 무대 그림, 'scene' 지형의 조각 묶음(액트 1), 아직이면 false.
+     * false인 동안은 pending이 화면을 어둠으로 가린다: 받지 못한 그림은 다시 받고, 예전 무대로 대신 그리지 않는다(2026-11-11 사용자). */
     function ready(map) {
         stageDoorMarks.seal.ready();
         const region = regionState(map);
         if (region === 'ready') return 'region';
         return region !== 'pending' && sceneReady(map) ? 'scene' : false;
     }
-    const pending = map => regionState(map) === 'pending';
+    const pending = map => !ready(map);
 
     // ---------------------------------------------------------------- far backdrop
     function fitted(kit, file, dot) {

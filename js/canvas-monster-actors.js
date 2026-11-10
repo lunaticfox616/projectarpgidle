@@ -10,20 +10,15 @@ const monsterActors = (() => {
     const sum = list => list.reduce((total, value) => total + value, 0);
     const sheets = new Map(), silhouettes = new Map();
 
-    function load(src) {
-        const image = new Image();
-        image.decoding = 'async';
-        image.src = src;
-        return image;
-    }
+    /** 받지 못하면 다시 받는 그림(js/stage-asset-retry.js). */
+    const load = src => stageAssetRetry.image(src);
     const ready = image => image.complete && image.naturalWidth > 0;
-    const failed = image => image.complete && image.naturalWidth === 0;
-    /** The sheet a monster draws from: its side-view stage sheet while the stage is on (data MONSTER_STAGE_SHEETS), else its
-     * four-direction sheet. A stage sheet that failed to load is not asked for again. */
+    /** The sheet a monster draws from: its side-view stage sheet (data MONSTER_STAGE_SHEETS), else its four-direction sheet. A sheet
+     * that failed to arrive is fetched again (js/stage-asset-retry.js) and the monster waits for it: until 2026-11-11 a failed stage sheet
+     * switched the monster to its older four-direction look for the whole visit. */
     function sheetSource(id) {
         const art = stageArt(id);
-        const staged = art && !sheets.get('stage:' + art.id)?.failed ? art : null;
-        if (staged) return { key: 'stage:' + art.id, spec: staged, kind: MONSTER_STAGE_KIND };
+        if (art) return { key: 'stage:' + art.id, spec: art, kind: MONSTER_STAGE_KIND };
         const spec = typeof MONSTER_SPRITE_SHEETS === 'object' ? MONSTER_SPRITE_SHEETS[id] : null;
         return spec ? { key: id, spec, kind: MONSTER_SPRITE_KINDS[spec.kind] } : null;
     }
@@ -33,26 +28,18 @@ const monsterActors = (() => {
         const element = typeof WISP_SPRITE_BY_VISUAL === 'object' ? WISP_SPRITE_BY_VISUAL[id] : null;
         return element ? MONSTER_STAGE_SHEETS['wisp-' + element] || null : null;
     }
-    /** The loaded (or loading) sheet pair of a source. A stage pair whose file is missing is marked, so the next look
-     * falls back to the four-direction sheet. */
+    /** The loaded (or loading) sheet pair of a source. */
     function pairOf(source) {
         const { key, spec } = source;
         if (!sheets.has(key)) sheets.set(key, { spec, kind: source.kind, idle: load(spec.idle), attack: load(spec.attack) });
-        const pair = sheets.get(key);
-        if (source.kind.stage && (failed(pair.idle) || failed(pair.attack))) pair.failed = true;
-        return pair;
+        return sheets.get(key);
     }
-    /** { spec, kind, idle, attack } once both sheets decode; 'loading' meanwhile; null for other enemies or a failed load. */
+    /** { spec, kind, idle, attack } once both sheets decode; 'loading' meanwhile (also while a failed sheet waits to be fetched again);
+     * null for other enemies. */
     function sheetFor(id) {
-        let source = sheetSource(id);
+        const source = sheetSource(id);
         if (!source) return null;
-        let pair = pairOf(source);
-        if (pair.failed) {
-            source = sheetSource(id);
-            if (!source) return null;
-            pair = pairOf(source);
-        }
-        if (failed(pair.idle) || failed(pair.attack)) return null;
+        const pair = pairOf(source);
         return ready(pair.idle) && ready(pair.attack) ? pair : 'loading';
     }
     /** Frame index for elapsed ms inside a clip (the last frame holds). */
@@ -211,7 +198,7 @@ const monsterActors = (() => {
     }
     /** Draws a sheet monster (act monsters and roots by spriteVariantId, realm sets by monsterVisualId). On the stage a
      * monster with newer art (js/canvas-stage-roster.js: walk and attack sheets, story bosses too) draws from that first.
-     * p = { x, y (feet), tile, now, facing, flash, spawnScale, moving }. False → not one of these (or its sheet failed). */
+     * p = { x, y (feet), tile, now, facing, flash, spawnScale, moving }. False → not one of these. */
     function draw(ctx, enemy, p) {
         if (!enemy || !(p.tile > 0) || typeof Image !== 'function') return false;
         if (stageRoster.draw(ctx, enemy, p)) return true;

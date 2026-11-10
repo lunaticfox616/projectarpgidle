@@ -10,21 +10,16 @@ const stageObjects = (() => {
     /** 지금 걷는 지도의 지형에 맞춘 그림 묶음이 있으면 그 파일, 없으면 공용 그림. */
     function sheetFile() {
         const run = actExplorationState.current(game), map = run ? actExplorationMap.forRun(run) : null;
-        const look = map && typeof STAGE_BACKDROPS === 'object' ? STAGE_BACKDROPS.biomes[map.biome] : null;
-        return (look && STAGE_OBJECTS.themes[look.objects]) || STAGE_OBJECTS.sheet;
+        const theme = map ? STAGE_OBJECTS.biomes[map.biome] : null;
+        return (theme && STAGE_OBJECTS.themes[theme]) || STAGE_OBJECTS.sheet;
     }
     function image() {
         const file = sheetFile();
-        if (!sheets.has(file)) {
-            const sheet = new Image();
-            sheet.decoding = 'async';
-            sheet.src = file + '?v=' + STAGE_OBJECTS.version;
-            sheets.set(file, sheet);
-        }
+        if (!sheets.has(file)) sheets.set(file, stageAssetRetry.image(file + '?v=' + STAGE_OBJECTS.version));
         const sheet = sheets.get(file);
-        return sheet.complete && sheet.naturalWidth > 0 ? sheet : null;
+        return stageAssetRetry.loaded(sheet) ? sheet : null;
     }
-    /** 무대가 켜져 있고 그림이 준비됐는가. 아니면 예전 16도트 그림으로 그린다. */
+    /** 그림이 왔는가. 오기 전에는 탐험 물체를 그리지 않는다(못 받으면 다시 받는다. 예전 16도트 그림으로 대신 그리던 길은 2026-11-11에 지웠다). */
     function ready() { return !!image(); }
     /** 그림 이름(js/canvas-exploration-objects.js look)과 보급 상자 등급 → 칸 번호. 등급 그림은 chestSilver, chestGoldOpen처럼 이름에 끼워 넣는다. */
     function cellOf(look) {

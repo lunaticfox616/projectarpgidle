@@ -566,9 +566,9 @@ const actExplorationState = (() => {
      * by a room plan this build does not lay out (an older STAGE_ROOMS.version): its cells belong to a map this session does not have. */
     /** 방 단위 무대가 켜진 창이 방 없는 탐험을 불러 왔다: 이 창에서는 새 탐험이 모두 방 단위라(js/combat-encounters.js createActExplorationEncounter)
      * 다른 주소로 열었을 때 시작한 탐험이다. 그대로 두면 구역을 다시 열 때까지 방 없는 지도가 무대에 그려진다
-     * (2026-10-13 사용자: 시험판에 들어가니 액트 1조차 방이 아니다). 테스트 패널에서 방을 끈 저장은 건드리지 않는다. */
+     * (2026-10-13 사용자: 시험판에 들어가니 액트 1조차 방이 아니다). */
     function strayInRooms(state,run) {
-        return !run.rooms && actExplorationDoors.session() && (state.settings || {}).stageRooms!=='off';
+        return !run.rooms && actExplorationDoors.session();
     }
     function retired(run) {
         if(run.source && !explorationLayouts.supports(run.source))return true;

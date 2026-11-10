@@ -70,6 +70,32 @@
         observer.observe({ type: 'resource', buffered: true });
     })();
     </script>
+    <!-- 받지 못한 게임 파일(2026-11-11 사용자 보고: GitHub Pages 앞단이 몰린 요청을 503으로 거절했다): 스크립트나 스타일이 하나라도 빠지면
+         그 기능만 빠진 반쪽 게임이 떴다(방 놓임새가 빠지면 이어진 지도처럼). 빠진 파일이 있으면 게임을 띄우지 않고(html의
+         data-app-file-missing을 js/main.js bootGame이 본다) 덮개에 까닭을 적은 뒤 다시 불러온다. 한 탭에서 스스로는 세 번까지만 다시 부른다. -->
+    <script>
+    (function guardMissingAppFiles() {
+        var root = document.documentElement, KEY = 'rignin-missing-file-reloads', LIMIT = 3;
+        addEventListener('error', function (event) {
+            var el = event.target;
+            // 게임의 스크립트(defer)와 스타일만 센다: 언어 팩처럼 나중에 붙이는 스크립트는 제 실패를 스스로 다룬다(js/i18n.js loadPack).
+            if (el && ((el.tagName === 'SCRIPT' && el.defer) || (el.tagName === 'LINK' && /stylesheet/.test(el.rel)))) root.dataset.appFileMissing = '1';
+        }, true);
+        addEventListener('load', function () {
+            var tries = LIMIT;
+            try {
+                if (!root.dataset.appFileMissing) { sessionStorage.removeItem(KEY); return; }
+                tries = Number(sessionStorage.getItem(KEY)) || 0;
+                sessionStorage.setItem(KEY, String(tries + 1));
+            } catch (error) {
+                if (!root.dataset.appFileMissing) return;
+            }
+            var line = document.querySelector('#startup-preload p');
+            if (line) line.textContent = tries < LIMIT ? '게임 파일 일부를 받지 못해 다시 불러옵니다' : '게임 파일 일부를 받지 못했습니다. 잠시 뒤 새로고침해 주세요';
+            if (tries < LIMIT) setTimeout(function () { location.reload(); }, 1500 * (tries + 1));
+        }, { once: true });
+    })();
+    </script>
     <!-- 그 줄의 글꼴(505KB)은 스크립트 수백 개보다 먼저 받는다. 늦으면 글자가 늦게 나온다(css/base.css 'Galmuri11 Preload') -->
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/Galmuri11.woff2" crossorigin>
     <link rel="stylesheet" href="css/main.css">
@@ -81,6 +107,8 @@
     <script>
     window.addEventListener('load', function revealStyledApp() {
         // 정상 부팅은 선택 언어와 글꼴을 기다린다. load가 먼저 끝나도 한국어 화면을 미리 드러내지 않는다.
+        // 받지 못한 파일이 있는 페이지는 덮개를 걷지 않는다: 그 위에 다시 불러온다는 줄이 있다(guardMissingAppFiles).
+        if (document.documentElement.dataset.appFileMissing) return;
         const reveal = () => requestAnimationFrame(() => document.documentElement.classList.remove('app-preload'));
         if (typeof revealStartupScreen === 'function') setTimeout(reveal, 20000);
         else reveal();
@@ -1838,20 +1866,16 @@
 <script defer src="js/canvas-combat-feedback.js"></script>
 <script defer src="js/canvas-enemy-projectiles.js"></script>
 <script defer src="js/battle-ground-loot-ui.js"></script>
-    <script defer src="js/canvas-exploration-art.js"></script>
-    <script defer src="js/canvas-act-exploration.js"></script>
+        <script defer src="js/canvas-act-exploration.js"></script>
 <script defer src="js/canvas-exploration-objects.js"></script>
+<script defer src="js/stage-asset-retry.js"></script>
 <script defer src="js/canvas-stage-pictures.js"></script>
 <script defer src="js/canvas-stage-cache.js"></script>
 <script defer src="js/canvas-stage-dots.js"></script>
 <script defer src="js/canvas-stage-rings.js"></script>
 <script defer src="js/canvas-target-marks.js"></script>
 <script defer src="js/canvas-stage-actors.js"></script>
-<script defer src="js/canvas-stage-terrain.js"></script>
-<script defer src="js/canvas-stage-sanctum.js"></script>
-<script defer src="js/canvas-stage-backdrop.js"></script>
 <script defer src="js/canvas-stage-objects.js"></script>
-<script defer src="js/canvas-stage-props.js"></script>
 <script defer src="js/canvas-stage-story.js"></script>
 <script defer src="js/canvas-stage-door-marks.js"></script>
 <script defer src="js/canvas-stage-board.js"></script>
