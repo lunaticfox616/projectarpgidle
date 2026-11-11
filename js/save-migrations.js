@@ -623,6 +623,21 @@ function dropRetiredSupportGems(merged) {
     dropRetiredSupportsFrom(merged.woodsmanBuildSnapshot, retired);
 }
 
+/** Remove old shop stock without touching owned, sealed or uncollected runes. */
+function removeDropOnlyShopWares(state) {
+    for (const shop of Object.values(state.npcShops)) {
+        if (Array.isArray(shop?.offers)) {
+            shop.offers = shop.offers.filter(ware => !SKILL_DB[ware?.gem?.name]?.dropOnly);
+        }
+    }
+    const market = state.blackMarket;
+    if (Array.isArray(market?.offers)) {
+        // The black market keys locks by slot, so do not move the other offers.
+        market.offers = market.offers.map(offer =>
+            offer?.type === 'skillGem' && SKILL_DB[offer.name]?.dropOnly ? null : offer);
+    }
+}
+
 function dropRetiredSupportsFrom(build, retired) {
     if (!build || typeof build !== 'object') return;
     ['supports', 'sealedSupports', 'equippedSupports'].forEach(key => { if (Array.isArray(build[key])) build[key] = build[key].filter(name => !retired(name)); });
@@ -1276,6 +1291,7 @@ function mergeDefaults(save) {
     const record = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
     merged.npcMet = record(merged.npcMet);
     merged.npcShops = record(merged.npcShops);
+    removeDropOnlyShopWares(merged);
     normalizeStarterWeaponSave(merged);
     window.GameModules.state.tutorials.normalize(merged);
     merged.journalEntries = Array.isArray(merged.journalEntries) ? Array.from(new Set(merged.journalEntries.filter(id => typeof id === 'string' && JOURNAL_DB[id]))) : ['prologue'];

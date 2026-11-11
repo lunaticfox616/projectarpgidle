@@ -41,11 +41,11 @@ const npcShopUi = (() => {
             <section class="shop-bag" aria-label="${_t('가방')}">${shopView.bagHtml()}</section></div></div>`;
     }
 
-    /** Haken's shelf says what it is now, or what turns it into every rune. */
+    /** Haken's shelf says when the full selection opens. */
     function runeNoteHtml(shop, stock) {
         if (shop.kind !== 'gem') return '';
-        if (!stock || !stock.allRunes) return `<p class="shop-rune-note">${_t('이번 루프에 액트 {allRunesAct}를 깨면 모든 룬을 판매합니다.', { allRunesAct: npcShop.allRunesAct })}</p>`;
-        return '<p class="shop-rune-note is-open">이번 루프에는 모든 룬을 판매합니다.</p>';
+        if (!stock || !stock.allRunes) return `<p class="shop-rune-note">${_t('이번 루프에 액트 {allRunesAct}를 깨면 룬을 상시 판매합니다.', { allRunesAct: npcShop.allRunesAct })}</p>`;
+        return `<p class="shop-rune-note is-open">${_t('이번 루프에는 룬을 상시 판매합니다.')}</p>`;
     }
     /** 검색칸과 쪽 단추: 가방의 쪽 단추와 같다. 쪽이 하나면 단추는 없다. */
     function runeToolsHtml(stock) {
@@ -99,7 +99,7 @@ const npcShopUi = (() => {
     }
     /** 진열대 자리: 물건이 없으면 그 말, 모든 룬 진열대면 검색칸과 쪽 단추까지. */
     function shelfBlockHtml(id, stock) {
-        if (!stock || !stock.offers.length) return `<p class="shop-empty">${stock && stock.allRunes ? _t('모든 룬을 가졌습니다.') : _t('다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.')}</p>`;
+        if (!stock || !stock.offers.length) return `<p class="shop-empty">${stock && stock.allRunes ? _t('판매할 룬이 없습니다.') : _t('다 팔렸습니다. 다음에 만나면 새 물건을 들여옵니다.')}</p>`;
         return stock.allRunes ? runeToolsHtml(stock) + runeShelfHtml(id, stock) : shelfHtml(id, stock);
     }
     function shelfHtml(id, stock) {
@@ -211,7 +211,7 @@ const npcShopUi = (() => {
     window.addEventListener('project-idle:npc-shop-all-runes', () => {
         if (!contentProgression.opening.canOpen(game, 'tab-trade')) return;
         game.noti.npcs = true;
-        addLog(_t('하켄이 이번 루프에 모든 룬을 판매합니다.'), 'season-up', { toast: true });
+        addLog(_t('하켄의 룬 상시 판매가 열렸습니다.'), 'season-up', { toast: true });
     });
     document.addEventListener('input', event => {
         if (!event.target.matches?.('[data-npc-rune-search]')) return;

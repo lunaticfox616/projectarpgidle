@@ -14,9 +14,9 @@ const gemDropRewards=(()=>{
         const runes = Math.max(0, Math.floor(stats?.runeResonancePower || 0));
         return Math.max(base, floor) + inquisitor + runes;
     }
-    /** Every attack rune: one already held drops and sells again and adds a spare (2026-11-02 사용자). */
-    function attackRunes() {
-        return Object.keys(SKILL_DB).filter(name=>SKILL_DB[name].isGem);
+    /** Monster drops may roll drop-only runes; shops and direct rewards use the default pool. */
+    function attackRunes({ includeDropOnly = false } = {}) {
+        return Object.keys(SKILL_DB).filter(name => SKILL_DB[name].isGem && (includeDropOnly || !SKILL_DB[name].dropOnly));
     }
     /** Copies beyond the one in use. A broken rune takes one (js/gem-core-forge.js). */
     function spareCount(state,name) {

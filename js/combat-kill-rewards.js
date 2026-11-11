@@ -337,7 +337,7 @@ function awardEnemyLootCurrency(key,amount,source='reward') {
 }
 
 function rollEnemyAttackGem(awakening) {
-    const name=pickSkillRuneReward(gemDropRewards.attackRunes()),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
+    const name=pickSkillRuneReward(gemDropRewards.attackRunes({ includeDropOnly: true })),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
     return {kind:'attack',name,awakened};
 }
 
