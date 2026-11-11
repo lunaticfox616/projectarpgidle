@@ -645,7 +645,7 @@ function performPlayerAttack(pStats, attackOptions) {
             }
             if (typeof getTalentButcherBossMultiplier === 'function') talentKeystoneMul *= getTalentButcherBossMultiplier(targetEnemy);
             let talentHitMul = talentAttackMul * talentKeystoneMul * (colosseumStrikeMul || 1);
-            talentHitMul *= getPassiveKeystoneHitMultiplier(pStats, targetEnemy, hitIdx, targetIndex, skillName);
+            talentHitMul *= getPassiveKeystoneHitMultiplier(pStats, targetEnemy, hitIdx, targetIndex, skillName) * ascendancyNodeRules.blastMultiplier(pStats, hitEntries.length);
             hitBaseDamage = Math.floor(hitBaseDamage * talentHitMul);
             ailmentBaseDamage = Math.floor(ailmentBaseDamage * talentHitMul);
             if (pStats.cosmosOrbitCycle && targetEnemy) {

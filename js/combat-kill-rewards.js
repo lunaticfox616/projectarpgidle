@@ -833,9 +833,11 @@ function transferSkillDotOnDeath(enemy) {
 
 /** 급소 표식(r5): every third hit adds 3% of the target's maximum life. A boss takes at most the triggering hit again
  * (2026-10-04): a share of maximum life ignores the boss's size, so it let any ranger cut the woodsman (93M life) by a third. */
+/** 급소 표식(r5): 최대 생명력의 lifePct%, 보스에게는 최대 생명력의 bossLifePct%와 그 적중 피해의 bossHitMul배 가운데 큰 값(2026-11-11 사용자). */
 function getRangerWeakpointBonus(enemy, hitDamage) {
-    const lifeShare = Math.max(1, Math.floor((enemy.maxHp || enemy.hp || 1) * 0.03));
-    return enemy.isBoss ? Math.max(1, Math.min(lifeShare, Math.floor(hitDamage || 0))) : lifeShare;
+    const v = ASCENDANCY_KEYSTONE_VALUES.r5, maxHp = enemy.maxHp || enemy.hp || 1;
+    if (!enemy.isBoss) return Math.max(1, Math.floor(maxHp * v.lifePct / 100));
+    return Math.max(1, Math.floor(maxHp * v.bossLifePct / 100), Math.floor((hitDamage || 0) * v.bossHitMul));
 }
 
 /** Share of regeneration left after fatigueMs of fighting, 1 → 0. */
