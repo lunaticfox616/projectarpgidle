@@ -6802,7 +6802,6 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '{type} 소모: 피해 {pct}% 증폭': '{type} consumed: damage amplified {pct}%',
         '선제: 피해 {pct}% 증폭': 'Opening: damage amplified {pct}%',
         '최대 거리: 피해 {cap}% 증폭': 'Max distance: damage amplified {cap}%',
-        '최대 포위: 피해 {crowdCap}% 증폭': 'Max surrounded: damage amplified {crowdCap}%',
         '밀려남': 'Knocked back',
         '띄움': 'Launched',
         '중력 견인': 'Gravity pull',
