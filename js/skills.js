@@ -1043,7 +1043,7 @@ const FOSSIL_SURPLUS_REFINING_COSTS = Object.freeze({
 
 // knownStats: 이미 계산해 둔 스탯이 있으면 넘긴다. getPlayerStats는 한 번에 2.7ms가
 // 드는데, 화면 갱신마다 여기서 한 번, 바로 뒤에서 또 한 번 부르고 있었다.
-function normalizeSupportLoadout(logChange, knownStats) {
+function normalizeSupportLoadout(logChange, knownStats, hadOverflowKeystone = false) {
     let stats = knownStats;
     if (!stats) {
         let statsProvider = (typeof getPlayerStats === 'function')
@@ -1053,10 +1053,11 @@ function normalizeSupportLoadout(logChange, knownStats) {
         stats = statsProvider();
     }
     let cap = Math.max(0, Math.floor((stats || {}).suppCap || 0));
-    const { equippedSupports, removed } = window.GameModules.skills.supports.normalize(game, cap);
+    const resonanceCap = gemDropRewards.normalizationResonanceCap(game, stats, hadOverflowKeystone);
+    const { equippedSupports, removed } = window.GameModules.skills.supports.normalize(game, cap, resonanceCap);
     if (!removed.length) return false;
     game.equippedSupports = equippedSupports;
-    if (logChange) addLog(_t('🟢 장착 한도 또는 연결 제약으로 자동 해제: {removed}', { removed: removed.join(', ') }), "attack-monster");
+    if (logChange) addLog(_t('🟢 장착 한도, 공명력 또는 연결 제약으로 자동 해제: {removed}', { removed: removed.join(', ') }), "attack-monster");
     playerStatCache.invalidate();
     return removed.length > 0;
 }

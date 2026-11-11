@@ -14,9 +14,25 @@ const gemDropRewards=(()=>{
         const runes = Math.max(0, Math.floor(stats?.runeResonancePower || 0));
         return Math.max(base, floor) + inquisitor + runes;
     }
-    /** Every attack rune: one already held drops and sells again and adds a spare (2026-11-02 사용자). */
-    function attackRunes() {
-        return Object.keys(SKILL_DB).filter(name=>SKILL_DB[name].isGem);
+    function resonanceUsed(state, names = state.equippedSupports || []) {
+        const supports = window.GameModules.skills.supports;
+        return names.reduce((sum, name) => sum + getSupportResonanceCostAtTier(name, supports.tierOf(name, state)), 0);
+    }
+    function allowsResonanceOverflow(stats) {
+        return !!stats?.passiveKeystoneFlags?.willResonance && Math.floor(stats.suppCap) >= 9;
+    }
+    function exceedsResonanceBudget(stats, used, cap) {
+        return used > cap && !allowsResonanceOverflow(stats);
+    }
+    // Leave legacy loadouts alone. Recheck the budget when the keystone no longer gives permission.
+    function normalizationResonanceCap(state, stats, hadOverflowKeystone) {
+        if (allowsResonanceOverflow(stats)) return Infinity;
+        return hadOverflowKeystone || stats?.passiveKeystoneFlags?.willResonance ? resonanceCap(state, stats) : Infinity;
+    }
+    /** Every attack rune: one already held drops and sells again and adds a spare (2026-11-02 사용자). Monster drops may roll
+     * drop-only runes, and a boss's drop also the chase runes (SKILL_DB chase); shops and direct rewards use the default pool. */
+    function attackRunes({ includeDropOnly = false, boss = false } = {}) {
+        return Object.keys(SKILL_DB).filter(name => SKILL_DB[name].isGem && (includeDropOnly || !SKILL_DB[name].dropOnly) && (boss || !SKILL_DB[name].chase));
     }
     /** Copies beyond the one in use. A broken rune takes one (js/gem-core-forge.js). */
     function spareCount(state,name) {
@@ -102,6 +118,6 @@ const gemDropRewards=(()=>{
         const extra=getSupportResonanceCostAtTier(name,record.unlockedTier)-getSupportResonanceCostAtTier(name,before);
         if(!state.equippedSupports.includes(name)||Math.max(0,cap-used)>=extra)record.activeTier=record.unlockedTier;
     }
-    return {resonanceCap,sealResonance,attackRunes,spareCount,copyCount,takeSpare,nextSupport,validate,validateGem,prepare,grant};
+    return {resonanceCap,resonanceUsed,allowsResonanceOverflow,exceedsResonanceBudget,normalizationResonanceCap,sealResonance,attackRunes,spareCount,copyCount,takeSpare,nextSupport,validate,validateGem,prepare,grant};
 })();
 safeExposeGlobals({gemDropRewards});

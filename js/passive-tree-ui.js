@@ -104,10 +104,11 @@ function getAllocatedPassiveStatSummary() {
     const totals = {};
     const specialEffects = [];
     const allocatedIds = Array.isArray(game.passives) ? game.passives : [];
+    const balanceAttributes = hasAuthoredPassiveKeystone('균형의 공명');
     const virtualVoidCount = getVirtualVoidPassiveCount();
     let voidCount = 0;
     const add = (stat, value) => {
-        if (!stat || !P_STATS[stat] || !Number.isFinite(Number(value))) return;
+        if (!P_STATS[stat] || !Number.isFinite(Number(value)) || (balanceAttributes && stat === 'intelligence')) return;
         totals[stat] = (totals[stat] || 0) + Number(value);
     };
     allocatedIds.forEach(id => {
@@ -124,7 +125,7 @@ function getAllocatedPassiveStatSummary() {
             }
             return;
         }
-        getEffectivePassiveNodeEffects(node).forEach(effect => add(effect.stat, effect.val));
+        getEffectivePassiveNodeEffects(node, balanceAttributes).forEach(effect => add(effect.stat, effect.val));
     });
     const specialization = typeof ensurePassiveSpecializationState === 'function' ? ensurePassiveSpecializationState() : null;
     if ((totals.mystique || 0) > 0) specialEffects.push(`신비 ${formatValue('mystique', totals.mystique)}, 최고 피해 속성 상태이상 강화`);
@@ -257,11 +258,13 @@ async function resetPassiveTreeByGoldenRule() {
     }
     game.currencies.goldenRule -= 1;
     const grantedPoints = passiveRouting.paleBonus(game);
+    const hadOverflowKeystone = hasAuthoredPassiveKeystone('의지의 공명');
     game.passives = [];
     game.passiveAttributeChoices = {};
     game.passivePoints = Math.max(0, game.passivePoints + spentNodes - grantedPoints);
     calculateReachableNodes();
     refreshPassiveVisibility();
+    normalizeSupportLoadout(true, null, hadOverflowKeystone);
     addLog(_t('🧠 스킬트리 초기화: {spentNodes}점을 돌려받았습니다.', { spentNodes }), 'season-up');
     updateStaticUI();
 }

@@ -16,7 +16,7 @@ const WEAPON_MASTERY = Object.freeze({
     // 레벨 2부터 레벨마다 그 무기를 들었을 때(50에서 피해 +24.5%). 경험치가 없는 레벨 1은 아무것도 붙지 않는다.
     perLevel: Object.freeze({ stat: 'pctDmg', val: 0.5 }),
     // 레벨 10, 20, 30, 40, 50의 특전. 그 무기를 들었을 때만 붙는다. 무기 바탕의 성격을 따른다(한손검 치명타와 공격 속도, 단궁 투사체,
-    // 오브 주문과 소환, 플라스크 포션과 중독, 향로 번개와 재생).
+    // 오브 주문과 소환, 플라스크 포션과 중독, 향로 재생). 향로는 물리, 화염, 번개 바탕이 다 있어 세 속성을 함께 민다(2026-11-11).
     milestones: Object.freeze({
         greatsword: Object.freeze([[['meleePctDmg', 8]], [['pctHp', 5]], [['aoePctDmg', 10]], [['dr', 3]], [['meleeGemLevel', 1]]]),
         scimitar: Object.freeze([[['aspd', 4]], [['crit', 1.5]], [['meleePctDmg', 10]], [['critDmg', 15]], [['meleeGemLevel', 1]]]),
@@ -24,7 +24,8 @@ const WEAPON_MASTERY = Object.freeze({
         orb: Object.freeze([[['spellPctDmg', 8]], [['summonPctDmg', 12]], [['energyShieldPct', 8]], [['resPen', 3]],
             [['spellGemLevel', 1], ['summonGemLevel', 1]]]),
         flask: Object.freeze([[['potionPctDmg', 10]], [['poisonChance', 5]], [['aoePctDmg', 10]], [['ailmentDamagePct', 12]], [['aoeGemLevel', 1]]]),
-        censer: Object.freeze([[['lightPctDmg', 8]], [['regen', 0.3]], [['shockChance', 5]], [['resAll', 6]], [['lightGemLevel', 1]]])
+        censer: Object.freeze([[['physPctDmg', 8], ['firePctDmg', 8], ['lightPctDmg', 8]], [['regen', 0.3]], [['bleedChance', 5], ['igniteChance', 5], ['shockChance', 5]], [['resAll', 6]],
+            [['physGemLevel', 1], ['fireGemLevel', 1], ['lightGemLevel', 1]]])
     }),
     // 여섯 레벨 합의 이정표: 넘을 때마다 방치 효율 +1%p(최대 +6%p).
     totalSteps: Object.freeze([30, 60, 100, 150, 200, 300]),

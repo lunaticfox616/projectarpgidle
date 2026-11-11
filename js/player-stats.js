@@ -8,6 +8,40 @@ function collectCooldownStats(sum) {
     return Object.fromEntries(ids.map(id => [id, Math.max(0, sum(id))]));
 }
 
+/** 캐릭터 탭 기타의 출처 줄(2026-11-12 사용자: 투사체와 대상이 몇 개, 어디서 붙는지). b: getPlayerStats의 버킷, stats: 더할 능력치들,
+ * named: 패시브 트리 안에서 따로 보일 키스톤 몫([{ label, value }]). */
+function bucketSourceLines(b, stats, named) {
+    const sumOf = bucket => stats.reduce((sum, stat) => sum + (Number(bucket[stat]) || 0), 0);
+    return [
+        makeSourceLine('장비', sumOf(b.gearBase) + sumOf(b.gearExplicit)),
+        makeSourceLine('패시브 트리', sumOf(b.passive) - named.reduce((sum, row) => sum + row.value, 0)),
+        ...named.map(row => makeSourceLine(row.label, row.value)),
+        makeSourceLine('전직', sumOf(b.ascend)),
+        makeSourceLine('기타 성장', sumOf(b.season) + sumOf(b.reward))
+    ];
+}
+/** 투사체 추가 발사: 출처, 추가 발사 확률, 지금 주 스킬룬에 붙지 않는 까닭. extra: { skill, bladeShots, chancePct }. */
+function projectileShotsBreakdown(b, extra) {
+    const projectile = (extra.skill.tags || []).includes('projectile'), pattern = extra.skill.projectilePattern;
+    const total = ['gearBase', 'gearExplicit', 'passive', 'season', 'ascend', 'reward'].reduce((sum, key) => sum + (Number(b[key].projectileExtraShots) || 0), 0);
+    let why = projectile ? null : _t('지금 주 스킬룬은 투사체 스킬이 아니어서 붙지 않습니다.');
+    if (projectile && pattern && pattern.kind === 'fan') why = _t('부채꼴로 쏘는 스킬룬에는 붙지 않습니다.');
+    return { title: _t('투사체 추가 발사'), final: `+${Math.floor(total)}`, lines: [...bucketSourceLines(b, ['projectileExtraShots'], [{ label: '칼날 다발', value: extra.bladeShots }]),
+        extra.chancePct > 0 ? _t('추가 발사 확률 {value}%', { value: Math.round(extra.chancePct) }) : null, why].filter(Boolean) };
+}
+const atLeastOne = value => Math.max(1, Number(value) || 1);
+/** 대상 추가: 주 스킬룬의 기본 대상, 출처(투사체, 강타 스킬이면 그 줄도), 상한(투사체 12, 그 밖 6) 뒤의 각인과 효과 확장. extra: { skill, baseTargets, cappedTargets }. */
+function targetsBreakdown(b, extra) {
+    const tags = extra.skill.tags || [], projectile = tags.includes('projectile');
+    const stats = ['targetAny'].concat(projectile ? ['targetProjectile'] : [], tags.includes('slam') ? ['targetSlam'] : []);
+    const base = atLeastOne(extra.baseTargets), capped = atLeastOne(extra.cappedTargets), finalTargets = atLeastOne(extra.skill.targets);
+    const cap = projectile ? 12 : 6;
+    return { title: _t('대상 추가'), final: _t('대상 {value} (+{added})', { value: finalTargets, added: finalTargets - base }), lines: [
+        _t('주 스킬룬 기본 대상 {value}', { value: base }), ...bucketSourceLines(b, stats, []),
+        makeSourceLine('각인, 효과 확장', finalTargets - capped), capped === cap && capped > base ? _t('대상 상한 {value}', { value: cap }) : null].filter(Boolean) };
+}
+const getProjectileTargetBreakdowns = (b, extra) => ({ projectileShots: projectileShotsBreakdown(b, extra), targets: targetsBreakdown(b, extra) });
+
 /** Ocean stats of one stat evaluation (sum = getPlayerStats' bucket sum): pressure resistance (with its upgrades), depth gain, rare fish. */
 function collectOceanStats(sum) {
     const pressureUpgrade = typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0;
@@ -313,7 +347,7 @@ function getFrenzyAspdPct(tick, maxLife) {
 }
 
 
-exposeFileGlobals({ getAscendancyNodeStatMultipliers, collectCooldownStats, collectOceanStats, applySituationalTakenReduction, grantTalentStoneShieldOnBlock, recoverEnergyShieldOnBlock, consumeLoneEvasionCounterMultiplier, advanceEnergyShieldRechargeOnCrit, triggerUniqueEnergyShieldBreakRecharge, getEquippedUniqueJewels, getLabyrinthShacklesDamageMultiplier, getAbsoluteFloorDamageRoll, getSolitaryHuntDoubleStrikeBonus, isDeferredTalentProjectileTargetEffect, applyTimedRewardStats, grantEliteTraitBuffFromEnemy, finishPlayerStats, appendPlayerDpsBreakdowns, getGemPresentation, getSupportGemPresentation, getSupportGemTier, getSkillGemLevels });
+exposeFileGlobals({ getAscendancyNodeStatMultipliers, collectCooldownStats, getProjectileTargetBreakdowns, collectOceanStats, applySituationalTakenReduction, grantTalentStoneShieldOnBlock, recoverEnergyShieldOnBlock, consumeLoneEvasionCounterMultiplier, advanceEnergyShieldRechargeOnCrit, triggerUniqueEnergyShieldBreakRecharge, getEquippedUniqueJewels, getLabyrinthShacklesDamageMultiplier, getAbsoluteFloorDamageRoll, getSolitaryHuntDoubleStrikeBonus, isDeferredTalentProjectileTargetEffect, applyTimedRewardStats, grantEliteTraitBuffFromEnemy, finishPlayerStats, appendPlayerDpsBreakdowns, getGemPresentation, getSupportGemPresentation, getSupportGemTier, getSkillGemLevels });
 })();
 
 
@@ -361,6 +395,58 @@ const getPassiveSpecialStatBreakdowns = function(rules) {
         }
     };
 };
+
+const passiveTreeCombatStats = (() => {
+const PASSIVE_DAMAGE_ELEMENT_TAGS = Object.freeze({ fire: 'fire', cold: 'cold', light: 'lightning' });
+
+function getStrongestPassiveDamageElement(readStat) {
+    return Object.values(PASSIVE_DAMAGE_ELEMENT_TAGS).reduce((best, tag) => {
+        const bonus = readStat(TAGGED_DAMAGE_STAT_BY_TAG[tag]);
+        return !best || bonus > best.bonus ? { tag, bonus } : best;
+    }, null);
+}
+
+function getPlayerTaggedDamageSkill(skill, strongestElement) {
+    const tags = getSkillDamageTagSet(skill);
+    if (strongestElement && Object.hasOwn(PASSIVE_DAMAGE_ELEMENT_TAGS, skill.ele) && !skill.randomElementPool?.length) {
+        Object.values(PASSIVE_DAMAGE_ELEMENT_TAGS).forEach(tag => tags.delete(tag));
+        tags.add(strongestElement.tag);
+    }
+    return { ...skill, tags: [...tags] };
+}
+
+function getPlayerSupportBudget(baseSlots, cosmos, unique, runePower, flags) {
+    let suppCap = cosmos ? Math.max(0, Math.floor(baseSlots * Math.max(0, cosmos.supportCapMul || 0.5))) : baseSlots;
+    suppCap += Math.floor(unique.suppCap || 0);
+    let inquisitorResonanceBonus = 0;
+    if (hasKeystone('iq3')) {
+        suppCap += 1;
+        inquisitorResonanceBonus += 10 + Math.floor(((game.sealedSkills || []).length + (game.sealedSupports || []).length) / 4);
+    }
+    if (hasKeystone('iq9')) {
+        // 무한한 권능은 자신의 추가 칸과 iq6이 주는 칸을 공명력으로 세지 않는다.
+        inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
+        suppCap += ASCENDANCY_KEYSTONE_VALUES.iq9.extraSupports;
+    }
+    if (hasKeystone('iq6')) suppCap += 1;
+    return { suppCap, inquisitorResonanceBonus, runeResonancePower: runePower,
+        uniqueResonanceFloor: Math.floor(unique.resonancePower || 0), passiveKeystoneFlags: flags };
+}
+
+function applyPassiveResonanceRules(passive, budget, state) {
+    const flags = budget.passiveKeystoneFlags;
+    const canOverflow = gemDropRewards.allowsResonanceOverflow(budget);
+    if (!flags.fleshResonance && !canOverflow) return 0;
+    const free = gemDropRewards.resonanceCap(state, budget) - gemDropRewards.resonanceUsed(state);
+    if (flags.fleshResonance) passive.flatHp += Math.max(0, free) * 5;
+    if (!canOverflow || free >= 0) return 0;
+    const penalty = -free;
+    ['resF', 'resC', 'resL', 'resChaos'].forEach(stat => { passive[stat] -= penalty; });
+    return penalty;
+}
+
+return Object.freeze({ getStrongestPassiveDamageElement, getPlayerTaggedDamageSkill, getPlayerSupportBudget, applyPassiveResonanceRules });
+})();
 
 /**
  * @param {boolean} includeBreakdowns Build tooltip text for visible stats; replay only needs numeric results.
@@ -602,6 +688,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     });
 
     let virtualVoidCount = getVirtualVoidPassiveCount(), weaponStance = getEquippedWeaponStance();
+    const balanceAttributes = hasAuthoredPassiveKeystone('균형의 공명');
     safePassives.forEach(id => {
         let node = PASSIVE_TREE.nodes[id];
         if (!node) return;
@@ -611,7 +698,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
             getTranscendentVoidPassiveStats(id, entry, virtualVoidCount).forEach(line => addStatToBucket(passive, line.stat, line.val));
             return;
         }
-        getEffectivePassiveNodeEffects(node).forEach(effect => addPassiveLineToBucket(passive, effect.stat, effect.val, weaponStance));
+        getEffectivePassiveNodeEffects(node, balanceAttributes).forEach(effect => addPassiveLineToBucket(passive, effect.stat, effect.val, weaponStance));
     });
 
     accumulateCombatSeasonStats(season, safeSeasonNodes, game.seasonNodeLevels);
@@ -691,22 +778,28 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let flatAccuracy = Math.max(0, sumStatAcrossBuckets('accuracy'));
     let accuracyBonusPct = Math.max(0, sumStatAcrossBuckets('accuracyBonusPct'));
     let playerAccuracy = calculatePlayerAccuracy(game.level, totalDexterity, flatAccuracy, accuracyBonusPct);
-    passive.projectileExtraShots += getBladeBundleShots(totalStrength, totalDexterity, weaponStance);
-    let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
+    const bladeBundleShots = getBladeBundleShots(totalStrength, totalDexterity, weaponStance); passive.projectileExtraShots += bladeBundleShots;
+    let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny), skillBaseTargets = skill.targets;
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots + sumStatAcrossBuckets('projectileExtraChance') / 100;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
     if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
-    addUncappedSkillTargets(skill, game.activeSkill); // 각인의 대상 수, 효과 확장 +N: more targets for target gems, the keystone's cost
+    const cappedTargets = skill.targets; addUncappedSkillTargets(skill, game.activeSkill); // 각인의 대상 수, 효과 확장 +N: more targets for target gems, the keystone's cost
     skill.projectileChain = (skill.tags || []).includes('projectile') ? sumStatAcrossBuckets('projectileChain') : 0;   // js/combat-grid.js, js/skill-gem-casts.js
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
     if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses(tick));
+    const bonusResonancePower = getBonusResonancePower(runeResonancePower, reward, passive, gearExplicit);
+    const supportBudget = passiveTreeCombatStats.getPlayerSupportBudget(2 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap,
+        cosmosTwinStarResonance, uniqueResonanceAndSuppCap || {}, bonusResonancePower, authoredPassiveRules.flags);
+    const { suppCap, inquisitorResonanceBonus, uniqueResonanceFloor } = supportBudget;
+    const supportResonanceOverflow = passiveTreeCombatStats.applyPassiveResonanceRules(passive, supportBudget, game);
     let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? _t('재능 개화 +{value}{suffix} (위 합계에 포함)', { value: Math.round(v * 100) / 100, suffix: suffix || '%' }) : null; };
 
     const taggedSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
-    const damageSkill = { ...taggedSkill, tags: [...getSkillDamageTagSet(taggedSkill)] };
+    const strongestElement = authoredPassiveRules.flags.threeBranchLight ? passiveTreeCombatStats.getStrongestPassiveDamageElement(sumStatAcrossBuckets) : null;
+    const damageSkill = passiveTreeCombatStats.getPlayerTaggedDamageSkill(taggedSkill, strongestElement);
     let gearTagged = getTaggedDamageBreakdown(gearBase, damageSkill);
     let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, damageSkill);
     let passiveTagged = getTaggedDamageBreakdown(passive, damageSkill);
@@ -773,10 +866,10 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let hasRandomElementConversion = Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0;
     let skillHasElementalConversion = hasRandomElementConversion || ['fire','cold','light','chaos'].includes(skill.ele);
 
-    let randomElementDamagePct = Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0 ? {
-        fire: sumStatAcrossBuckets('firePctDmg'),
-        cold: sumStatAcrossBuckets('coldPctDmg'),
-        light: sumStatAcrossBuckets('lightPctDmg')
+    let randomElementDamagePct = hasRandomElementConversion ? {
+        fire: strongestElement?.bonus ?? sumStatAcrossBuckets('firePctDmg'),
+        cold: strongestElement?.bonus ?? sumStatAcrossBuckets('coldPctDmg'),
+        light: strongestElement?.bonus ?? sumStatAcrossBuckets('lightPctDmg')
     } : null;
     if (randomElementDamagePct) {
         let randomElementSummary = Object.entries(randomElementDamagePct)
@@ -837,9 +930,9 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let flatElementElementalPct = sumStatAcrossBuckets('elementalPctDmg');
     let flatElementPctByEle = {
         phys: sumStatAcrossBuckets('physPctDmg'),
-        fire: sumStatAcrossBuckets('firePctDmg') + flatElementElementalPct,
-        cold: sumStatAcrossBuckets('coldPctDmg') + flatElementElementalPct,
-        light: sumStatAcrossBuckets('lightPctDmg') + flatElementElementalPct,
+        fire: (strongestElement?.bonus ?? sumStatAcrossBuckets('firePctDmg')) + flatElementElementalPct,
+        cold: (strongestElement?.bonus ?? sumStatAcrossBuckets('coldPctDmg')) + flatElementElementalPct,
+        light: (strongestElement?.bonus ?? sumStatAcrossBuckets('lightPctDmg')) + flatElementElementalPct,
         chaos: sumStatAcrossBuckets('chaosPctDmg')
     };
     let flatElementSkillMul = (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
@@ -1053,7 +1146,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let bossTakenDamageMultiplier = 1;
     let ailmentResistBonusPct = 0;
     let inquisitorAbsoluteDoctrinePct = 0;
-    let inquisitorResonanceBonus = 0;
     let swiftOpeningTakenMultiplier = 1;
     let guardianReflectDamage = 0;
     let guardianBlockChance = 0;
@@ -1216,9 +1308,6 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         crusaderThunderDoctrinePct: crusaderThunderDoctrinePct,
         talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct
     };
-    let suppCap = 2 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap;
-    if (cosmosTwinStarResonance) suppCap = Math.max(0, Math.floor(suppCap * Math.max(0, cosmosTwinStarResonance.supportCapMul || 0.5)));
-    if (uniqueResonanceAndSuppCap) suppCap += Math.floor(uniqueResonanceAndSuppCap.suppCap || 0);
 
     let critChance = finalCrit / 100;
     let critMulti = finalCritDmg / 100;
@@ -1502,15 +1591,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalBaseDmg = Math.floor(finalBaseDmg * 1.3);
     }
     // 인퀴지터
-    if (hasKeystone('iq3')) {
-        let sealedGemCount = (game.sealedSkills || []).length + (game.sealedSupports || []).length;
-        inquisitorResonanceBonus = 10 + Math.floor(sealedGemCount / 4);
-        suppCap += 1;
-        finalAspd = Math.max(0.1, finalAspd * 0.94);
-    }
-    // 9) 무한한 권능: 확보한 보조스킬룬 한도 1당 공명력(ASCENDANCY_KEYSTONE_VALUES.iq9), 한도를 늘리기 전의 '획득' 한도 기준
-    if (hasKeystone('iq9')) inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
-    const bonusResonancePower = getBonusResonancePower(runeResonancePower, reward, passive, gearExplicit);
+    if (hasKeystone('iq3')) finalAspd = Math.max(0.1, finalAspd * 0.94);
     let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + bonusResonancePower + inquisitorResonanceBonus));
     if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
     let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
@@ -1520,17 +1601,12 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         finalCritDmg += 75;
     }
     if (hasKeystone('iq5')) { finalResPen += ASCENDANCY_KEYSTONE_VALUES.iq5.resPen; if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0; }
-    if (hasKeystone('iq6')) {
-        suppCap += 1;
-        finalMaxHp = Math.floor(finalMaxHp * 0.75);
-    }
+    if (hasKeystone('iq6')) finalMaxHp = Math.floor(finalMaxHp * 0.75);
     if (hasKeystone('iq7')) finalCritDmg += inquisitorResonancePower;
     if (hasKeystone('iq8') && inquisitorElementalSkill) {
         inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen) * ASCENDANCY_KEYSTONE_VALUES.iq8.penToDamagePct / 100;
         finalBaseDmg = Math.floor(finalBaseDmg * (1 + inquisitorAbsoluteDoctrinePct / 100));
     }
-    // 무한한 권능: 보조스킬룬 한도 증가(예전에는 무제한이었다. 보조스킬룬 칸이 인퀴지터 폭주의 원인)
-    if (hasKeystone('iq9')) suppCap += ASCENDANCY_KEYSTONE_VALUES.iq9.extraSupports;
     // 소울바인더
     if (hasKeystone('sb4')) sbSummonAspdBonus += 25;   // 소환 한도 몫은 getSummonCapFromSum
     if (hasKeystone('sb6')) finalResPen += 25;
@@ -1609,7 +1685,10 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     damageScales.dotDurationMultiplier = dotDurationMultiplier;
     damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
 
-    if ((typeof getPreciseTalentLevel === 'function' && (getPreciseTalentLevel('hero4__assassin') || getPreciseTalentLevel('hero6__ranger')))) finalCrit = Math.min(1000, finalCrit);
+    if (authoredPassiveRules.flags.criticalLimit) {
+        finalCritDmg += Math.max(0, finalCrit - 50) * 5;
+        finalCrit = Math.min(50, finalCrit);
+    } else if ((typeof getPreciseTalentLevel === 'function' && (getPreciseTalentLevel('hero4__assassin') || getPreciseTalentLevel('hero6__ranger')))) finalCrit = Math.min(1000, finalCrit);
     else finalCrit = Math.min(100, finalCrit);
     if (skill.cannotCrit && !(hasKeystone('ct7') && Array.isArray(skill.tags) && skill.tags.includes('attack'))) finalCrit = 0;
     // 신성한 맹세: 번개 스킬의 기본 피해가 최대 에너지 보호막 100당 +1%
@@ -1891,6 +1970,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
 
     let breakdowns = includeBreakdowns ? {
         ...getPassiveSpecialStatBreakdowns(authoredPassiveRules),
+        ...getProjectileTargetBreakdowns({ gearBase, gearExplicit, passive, season, ascend, reward }, { skill, bladeShots: bladeBundleShots, baseTargets: skillBaseTargets, cappedTargets, chancePct: sumStatAcrossBuckets('projectileExtraChance') }),
         atk: {
             title: _t('공격력'),
             lines: [
@@ -2462,7 +2542,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         intelligence: totalIntelligence,
         energyShieldRegenRate: finalEnergyShieldRegenRate,
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
-        projectileExtraShots: Math.max(0, totalProjectileExtraShots),
+        projectileExtraShots: Math.max(0, totalProjectileExtraShots), skillBaseTargets,
         breakdowns: breakdowns,
         uniqueClosedEyes: uniqueClosedEyes,
         uniqueShockInvertTaken: uniqueShockInvertTaken,
@@ -2494,7 +2574,8 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         uniqueDeathWard: uniqueDeathWard,
         uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
         uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniquePursuitMovePct: uniquePursuitMovePct, uniqueRepelMelee: uniqueRepelMelee,
-        uniqueResonanceFloor: uniqueResonanceAndSuppCap ? Math.floor(uniqueResonanceAndSuppCap.resonancePower || 0) : 0,
+        uniqueResonanceFloor,
+        supportResonanceOverflow,
         inquisitorResonanceBonus: inquisitorResonanceBonus,
         uniqueOverkillSplash: uniqueOverkillSplash,
         uniqueDragonVeinGuard: uniqueDragonVeinGuard,

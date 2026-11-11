@@ -42,12 +42,14 @@ function refundPassiveNode(id) { if (!assertBuildEditable()) return;
     if ((game.currencies.blightSpore || 0) < 1) return addLog(_t('패시브 노드 반환에는 마름병 포자 1개가 필요합니다.'), 'attack-monster');
     if (!canRefundPassiveNode(id)) return addLog(_t('연결 유지에 필요한 노드는 반환할 수 없습니다.'), 'attack-monster');
     const budget = passiveRouting.pointBudget(game);
+    const hadOverflowKeystone = hasAuthoredPassiveKeystone('의지의 공명');
     game.currencies.blightSpore = Math.max(0, Math.floor(game.currencies.blightSpore || 0) - 1);
     game.passives = game.passives.filter(nodeId => nodeId !== id);
     if (typeof clearPassiveAttributeChoice === 'function') clearPassiveAttributeChoice(id);
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0)) + 1;
     passiveRouting.settlePoints(game, budget);
     calculateReachableNodes();
+    normalizeSupportLoadout(true, null, hadOverflowKeystone);
     addLog(_t('패시브 노드 반환: {node} (마름병 포자 1개 소모)', { node: escapeHTML(getPassiveNodeDisplayName(node)) }), 'season-up');
     updateStaticUI();
 }

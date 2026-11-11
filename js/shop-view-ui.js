@@ -194,6 +194,7 @@ const shopView = (() => {
         const worn = Array.isArray(game.equippedSupports) ? game.equippedSupports : [], wearing = worn.includes(gem.name);
         const stats = getUiPlayerStats(), used = worn.reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
         if (!wearing && worn.length >= Math.floor(stats.suppCap || 0)) return false;
+        if (gemDropRewards.allowsResonanceOverflow(stats)) return true;
         const freed = wearing ? getSupportTierResonanceCost(gem.name) : 0;
         return getEffectiveResonanceCap(stats) - used + freed >= getSupportResonanceCostAtTier(gem.name, gem.tier);
     }

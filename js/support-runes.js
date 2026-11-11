@@ -211,13 +211,19 @@
         return `${_t(def.name)} +${formatSupportGemEffectValue(val)}${def.isPct ? '%' : ''}`;
     }
 
-    function normalize(state, cap) {
+    function normalize(state, cap, resonanceCap = Infinity) {
         const equippedSupports = [], removed = [];
+        let remaining = resonanceCap;
         (state.equippedSupports || []).forEach(name => {
             const candidateState = { ...state, equippedSupports };
+            const cost = remaining === Infinity ? 0 : getSupportResonanceCostAtTier(name, tierOf(name, state));
             if (!SUPPORT_GEM_DB[name] || equippedSupports.includes(name) || equippedSupports.length >= cap
-                || conflictReason(name, candidateState)) removed.push(name);
-            else equippedSupports.push(name);
+                || cost > remaining || conflictReason(name, candidateState)) {
+                removed.push(name);
+                return;
+            }
+            remaining -= cost;
+            equippedSupports.push(name);
         });
         return { equippedSupports, removed };
     }

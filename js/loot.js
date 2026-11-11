@@ -608,12 +608,15 @@ safeExposeGlobals({ getCurrencyDrops });
         const judge = ITEM_KINDS[kind];
         return item && judge ? judge(item) : null;
     }
+    /** A floor rune (a name, or a gem row's object): the chase runes (data/skills.js chase: 탐욕의 광기) are jackpot. */
+    const ofRune = gem => (SKILL_DB[typeof gem === 'string' ? gem : gem.name]?.chase ? 'jackpot' : null);
     /** A ground loot receipt ({currency}, {leaf} or {item, itemKind, highlight}): a hunted drop (a hunted unique, a target-option match:
      * equipmentLootPolicy.highlight priority 3) is at least great. A corrupted or exceptional-base rare stays as it is (no beam). */
     function ofReceipt(receipt) {
         if (receipt.currency) return ofCurrency(receipt.currency);
         if (receipt.leaf) return memoryLeaves.momentOf(game, receipt.leaf);
         if (receipt.yarn) return 'good';
+        if (receipt.gem) return ofRune(receipt.gem);
         const tier = ofItem(receipt.item, receipt.itemKind || 'equipment');
         const hunted = receipt.highlight && (equipmentLootPolicy.highlight(receipt.item, game)?.priority || 0) >= 3;
         return hunted ? higher(tier, 'great') : tier;

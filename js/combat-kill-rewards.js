@@ -336,8 +336,8 @@ function awardEnemyLootCurrency(key,amount,source='reward') {
     return award.gain;
 }
 
-function rollEnemyAttackGem(awakening) {
-    const name=pickSkillRuneReward(gemDropRewards.attackRunes()),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
+function rollEnemyAttackGem(awakening, boss) {
+    const name=pickSkillRuneReward(gemDropRewards.attackRunes({ includeDropOnly: true, boss })),awakened=!!awakening&&Math.random()<0.035;   // 지금 무기로 쓸 수 있는 룬 쪽으로
     return {kind:'attack',name,awakened};
 }
 
@@ -419,7 +419,7 @@ function rollAwakenedEchoDrop(enemy, contentDropMul, gemAwakening, ui) {
 
 function rollEnemyRuneDrop(enemy, contentDropMul, gemAwakening, ui) {
     if (!(Math.random() < (enemy.isBoss ? 0.09 : enemy.isElite ? 0.018 : 0.003) * contentDropMul * getEnemyGemDropMul(enemy))) return;
-    const reward=rollEnemyGemReward(gemAwakening);
+    const reward=rollEnemyGemReward(gemAwakening, !!enemy.isBoss);   // 체이싱 룬(탐욕의 광기)은 보스에게서만
     if (reward.gem && placeFloorRune(enemy, reward.gem)) return;
     if (actExplorationState.groundLoot.encounterOwner()) return;
     if(reward.gem) {
@@ -1923,8 +1923,8 @@ const rollEquipmentLoot = function (enemy, zone, roll) {
 };
 
 
-function rollEnemyGemReward(awakening) {
-    if(!contentProgression.isUnlocked('support')||Math.random()<0.5) return {kind:'attack',gem:rollEnemyAttackGem(awakening)};
+function rollEnemyGemReward(awakening, boss) {
+    if(!contentProgression.isUnlocked('support')||Math.random()<0.5) return {kind:'attack',gem:rollEnemyAttackGem(awakening, boss)};
     const names=Object.keys(SUPPORT_GEM_DB);
     if(!names.length)return {kind:'support',gem:null};
     const name=rndChoice(names);

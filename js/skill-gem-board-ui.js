@@ -129,11 +129,14 @@
         const resonanceCap = getEffectiveResonanceCap(stats);
         const used = (game.equippedSupports || []).reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
         const fill = resonanceCap > 0 ? Math.round(Math.min(1, used / resonanceCap) * 100) : 0;
+        const resonanceTip = stats.supportResonanceOverflow
+            ? _t('공명력 {value} 초과: 모든 저항 -{value}%p', { value: stats.supportResonanceOverflow })
+            : _t('장착 보조스킬룬이 쓰는 공명력');
         const slots = worn.map(name => renderSupportSlot(name, stats));
         for (let i = worn.length; i < cap; i++) slots.push(`<button type="button" class="support-slot is-empty" data-board-pick="support" aria-label="${_t('빈 보조스킬룬 칸, 룬 고르기')}"><i>+</i><b>${_t('빈 칸')}</b><small>&nbsp;</small></button>`);
         slots.push(`<div class="support-slot is-lock" aria-label="${_t('다음 보조스킬룬 칸은 장비, 패시브로 늘어납니다')}"><i></i><b>${_t('다음 칸')}</b><small>${_t('장비, 패시브')}</small></div>`);
         return `<div class="support-slots-head"><span>${_t('보조스킬룬')}</span><em>${_t('칸')} ${worn.length} / ${cap}</em>
-                <div class="support-resonance" data-tip="${_t('장착 보조스킬룬이 쓰는 공명력')}"><small>${_t('공명력')}</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${used}</b><small>/ ${resonanceCap}</small></div></div>
+                <div class="support-resonance" data-tip="${escapeHTML(resonanceTip)}"><small>${_t('공명력')}</small><span class="support-resonance-bar"><i style="width:${fill}%"></i></span><b>${used}</b><small>/ ${resonanceCap}</small></div></div>
             <div class="support-slots-row">${slots.join('')}</div>${gemSelectionUi.skillSummary(focusedSkill.kind, focusedName(), stats)}<div class="support-indicator-key">${_t('● 적용, ○ 태그 불일치, ◌ 빈 칸, ◉ 소환 대응 없음, ⊙ 사역룬 제외')}</div>`;
     }
 

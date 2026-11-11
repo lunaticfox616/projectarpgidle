@@ -92,6 +92,9 @@ safeExposeGlobals({ combatCurrencyHud });
     });
     window.addEventListener('project-idle:gem-loot-received',event=>{
         if (event.detail?.deferred) checkUnlocks();
+        // 체이싱 룬(data/skills.js chase, 2026-11-12 사용자): 체이싱 코어와 같은 알림(방치 정산 중에는 말고).
+        const name=event.detail?.gem?.name;
+        if(name && SKILL_DB[name]?.chase && !game.isBackgroundCalculation)dispatchRuntimeEvent('incident',{text:_t('체이싱 룬을 획득했습니다. 「{name}」', { name: _t(name) }),tone:'chase',chase:true});
         announceGemReward(event.detail);
     });
     function announceJewelReward(receipt) {

@@ -193,13 +193,14 @@ const atlas = (() => {
         if (!set) return _t('{tier}등급 지도석이 {count}개 있어야 합칩니다.', { tier: picked.tier, count: ATLAS.combine.count });
         return tierOpen(state, picked.tier + 1) ? '' : _t('{tier}등급 노드가 아직 열리지 않았습니다.', { tier: picked.tier + 1 });
     }
-    /** 지금 갈 수 있는 그 등급의 지도 노드들: 합친 지도석이 떨어질 곳. */
-    const tierNodes = (state, tier) => MAP_NODES.filter(node => reachable(state, node.id) && effectiveTier(state, node) === tier);
-    const tierOpen = (state, tier) => tier <= ATLAS.tierCap && tierNodes(state, tier).length > 0;
-    /** 셋을 한 등급 위 지도석 하나로(그 등급 노드 중 하나, 떨어진 지도석과 같은 규칙). 확인은 부르는 쪽이 한다. */
+    /** 그 등급까지 올라왔는지: 그 등급 이상의 지도 노드가 하나라도 열렸으면 된다. 지역마다 등급이 건너뛰어(뿌리 1, 2, 4, 5, 7, 9, 11...)
+     * 정확히 그 등급의 노드만 찾으면 11, 13등급이 열려 있어도 9등급 합치기가 막혔다(2026-11-11 사용자). */
+    const tierOpen = (state, tier) => tier <= ATLAS.tierCap && MAP_NODES.some(node => reachable(state, node.id) && effectiveTier(state, node) >= tier);
+    /** 셋을 한 등급 위 지도석 하나로. 노드는 떨어진 지도석처럼 그 등급 이하에서 가장 높은 열린 등급의 노드(그 등급 노드가 열렸으면 그 노드),
+     * 지도석의 등급은 언제나 한 등급 위(싸움의 세기는 지도석 등급을 따른다). 확인은 부르는 쪽이 한다. */
     function forgeUp(state, used, random) {
-        const tier = used[0].tier + 1, pool = tierNodes(state, tier);
-        const map = stamp(state, atlasMaps.create(pool[Math.floor(random() * pool.length)].id, tier, 'normal', random), random, bonusOf(state));
+        const tier = used[0].tier + 1, node = nodeForTier(state, tier, random);
+        const map = stamp(state, atlasMaps.create(node.id, tier, 'normal', random), random, bonusOf(state));
         state.atlas.stash = state.atlas.stash.filter(entry => !used.includes(entry));
         state.atlas.stash.push(map);
         return map;

@@ -1043,7 +1043,7 @@ function applyHitAilment(hit, sourceType, forceChance, manifestation) {
 function passHitAilmentGates(hit, sourceType, forceChance, manifestation) {
     const { pStats } = hit;
     let appliedType = typeof getTalentAilmentReplacement === 'function' ? getTalentAilmentReplacement(sourceType) : sourceType;
-    if (hitAilmentForbidden(pStats, appliedType)) return null;
+    if (hitAilmentForbidden(pStats, appliedType, sourceType, hit.element)) return null;
     if (!rollHitAilmentProc(hit, sourceType, forceChance)) return null;
     let mystiquePotency = sourceType === pStats.mystiqueAilmentType
         ? 1 + Math.max(0, Number(pStats.mystiqueAilmentPotencyPct) || 0) / 100 : 1;
@@ -1064,11 +1064,19 @@ function rollHitAilmentProc(hit, sourceType, forceChance) {
     return !(Math.random() < resistChance);
 }
 
-/** Keystones and talent cards that forbid the ailment: 신비 (one ailment only), 검은 증류 (no ignite, chill, freeze or shock). */
-function hitAilmentForbidden(pStats, appliedType) {
+const ELEMENTAL_HIT_AILMENTS = ['ignite', 'chill', 'freeze', 'shock'];
+
+function isElementalAilmentHit(element, sourceType, appliedType) {
+    return ['fire', 'cold', 'light'].includes(element)
+        || ELEMENTAL_HIT_AILMENTS.includes(sourceType) || ELEMENTAL_HIT_AILMENTS.includes(appliedType);
+}
+
+/** Keystones and talent cards that forbid the ailment. */
+function hitAilmentForbidden(pStats, appliedType, sourceType, element) {
     let passiveFlags = (pStats && pStats.passiveKeystoneFlags) || {};
+    if (passiveFlags.threeBranchLight && isElementalAilmentHit(element, sourceType, appliedType)) return true;
     if (passiveFlags.singleMystique && appliedType !== pStats.mystiqueAilmentType) return true;
-    if (passiveFlags.blackDistill && ['ignite', 'chill', 'freeze', 'shock'].includes(appliedType)) return true;
+    if (passiveFlags.blackDistill && ELEMENTAL_HIT_AILMENTS.includes(appliedType)) return true;
     return typeof canTalentCardApplyEnemyAilment === 'function' && !canTalentCardApplyEnemyAilment(appliedType);
 }
 
@@ -1144,7 +1152,7 @@ function applyEnemyAilmentFromHit(enemy, pStats, hitDamage, isCrit, options) {
     let hitRatio = Math.max(0.001, Math.min(0.35, ailmentPowerSourceDamage / Math.max(1, enemy.maxHp || 1)));
     let hitPower = Math.sqrt(Math.max(1, ailmentPowerSourceDamage)) * 0.01;
     enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
-    const hit = { enemy, pStats, isCrit, opts, hitRatio, hitPower, ailmentPowerSourceDamage, critDotBonusPct };
+    const hit = { enemy, pStats, isCrit, opts, element: ele, hitRatio, hitPower, ailmentPowerSourceDamage, critDotBonusPct };
     const applyAilmentType = (type, forceChance, manifestation) => applyHitAilment(hit, type, forceChance, manifestation);
     applyAilmentType(primaryType, opts.primaryAilmentChance);
     if (ele === 'cold' && !(typeof shouldTalentSkipColdFreeze === 'function' && shouldTalentSkipColdFreeze())) applyAilmentType('freeze');

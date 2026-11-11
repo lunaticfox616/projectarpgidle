@@ -141,7 +141,7 @@
         const summonCap = stats.passiveKeystoneFlags?.soleMinion ? 1 : Math.max(1, Math.floor(stats.summonCap || 1));
         const totals = { supportCount, supportCap, resonance, resonanceCap, summonCount, summonCap };
         if (supportCount > supportCap) return { ...failure(_t('보조룬 칸이 부족합니다. ({supportCount}/{supportCap})', { supportCount, supportCap })), ...totals };
-        if (resonance > resonanceCap) return { ...failure(_t('공명력이 부족합니다. ({resonance}/{resonanceCap})', { resonance, resonanceCap })), ...totals };
+        if (resonance > resonanceCap && !gemDropRewards.allowsResonanceOverflow(stats)) return { ...failure(_t('공명력이 부족합니다. ({resonance}/{resonanceCap})', { resonance, resonanceCap })), ...totals };
         if (summonCount > summonCap) return { ...failure(_t('소환 한도를 넘었습니다. ({summonCount}/{summonCap})', { summonCount, summonCap })), ...totals };
         return { ok: true, reason: '', ...totals };
     }
