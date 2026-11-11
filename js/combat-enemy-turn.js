@@ -889,11 +889,11 @@ function performMonsterAttacks(pStats) {
         curseDebuffs.forEach(deb => { curseSlow += (getConditionDebuffDelta(deb).enemyAspdSlow || 0); });
         curseDebuffs.forEach(deb => { enemyDmgMul *= (getConditionDebuffDelta(deb).enemyDmgMul || 1); });
         let chillSlow = ailMap.chill ? Math.min(0.45, 0.12 + ailMap.chill * 0.14) : 0;
-        chillSlow += Math.max(0, Math.min(0.5, Number(enemy.skillSlowPct || 0) / 100));
+        chillSlow += Math.max(0, Math.min(0.5, (Number(enemy.skillSlowPct || 0) + ascendancyNodeRules.mossSlowPct(enemy, getCombatTime())) / 100)); // 서리 이끼(gw1)
         chillSlow = Math.min(0.65, chillSlow + curseSlow);
         if (!pendingAttack && pendingEnemyCombatAttacks.some(row => row.enemyId === enemy.id)) continue;
         if (!pendingAttack && strikeRescueTarget(enemy)) continue;
-        if (!pendingAttack && (Number(enemy.skillHeldUntil) || 0) > getCombatTime()) continue; // 띄워진 몬스터(launchEnemyOnHit)
+        if (!pendingAttack && Math.max(Number(enemy.skillHeldUntil) || 0, Number(enemy.parryStaggerUntil) || 0) > getCombatTime()) continue; // 띄워진 몬스터(launchEnemyOnHit), 비껴내기(bd3)로 늦어진 공격
         if (!pendingAttack && (enemy.apexRecoveryUntil || 0) > getCombatTime()) continue;
         if (!pendingAttack && bossMoves.observer.wait(enemy, getCombatTime())) continue;
         let impactTargets = pendingAttack ? getEnemyCombatImpactTargets(pendingAttack) : [getEnemyPreferredGridTarget(enemy)];
@@ -1278,7 +1278,7 @@ function performMonsterAttacks(pStats) {
                 nextPlayerHp = Math.max(1, Math.floor(game.playerHp || 1));
                 addBattleFx('statusText', { text: _t('죽음 저항!'), color: '#d7b8ff', duration: 420 });
             }
-            ascendancyNodeRules.onLifeDrop(pStats, game.playerHp, nextPlayerHp, getCombatTime());
+            nextPlayerHp = ascendancyNodeRules.onLifeDrop(pStats, game.playerHp, nextPlayerHp, getCombatTime()); // 수액 재생(gw3), 불굴의 진군(w7)
             game.playerHp = nextPlayerHp;
             if (typeof recordPassiveKarmaLoss === 'function') {
                 let playerResourceAfterHit = Math.max(0, Number(game.playerHp) || 0)

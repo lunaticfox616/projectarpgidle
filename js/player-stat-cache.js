@@ -80,6 +80,7 @@ const playerStatTick = (() => {
         guardianEnduranceStacks: now => timedStacks(game.guardianEnduranceExpiresAt, game.guardianEnduranceStacks, 5, now),
         warriorUnyielding: now => ascendancyNodeRules.unyieldingActive(now),
         bladedancerFlowStacks: now => ascendancyNodeRules.flowStacks(now),
+        grovewardenRooted: now => ascendancyNodeRules.rooted(now),
         playerHp: () => game.playerHp,
         playerEnergyShield: () => game.playerEnergyShield || 0,
         summonDeathDamagePct: now => ((game.summonDeathDamageBuffExpiresAt || 0) > now ? Math.max(0, Number(game.summonDeathDamageBuffPct || 0)) : 0),

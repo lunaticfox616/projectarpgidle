@@ -287,7 +287,7 @@ function getSkillGemCoreFields(gem) {
 
 /** 전직 노드 2026-11-11 상향의 능력치 배율(js/ascendancy-node-rules.js): 불굴의 진군(생명력 절반 이하, 떨어진 순간의 발동), 광분, 흐르는 칼끝. */
 function getAscendancyNodeStatMultipliers(tick, maxLife) {
-    const out = { damageMul: 1, takenMul: 1, aspdMul: 1 };
+    const out = { damageMul: 1, takenMul: 1, aspdMul: 1, regenMul: 1 };
     if (hasKeystone('w7') && tick.when('playerHp', hp => (hp / maxLife) <= 0.5)) {
         out.damageMul *= 1 + ASCENDANCY_KEYSTONE_VALUES.w7.damageMorePct / 100;
         out.takenMul *= 0.85;
@@ -298,6 +298,10 @@ function getAscendancyNodeStatMultipliers(tick, maxLife) {
     }
     if (hasKeystone('bz2')) out.aspdMul *= 1 + getFrenzyAspdPct(tick, maxLife) / 100;
     if (hasKeystone('bd1')) out.aspdMul *= 1 + tick.get('bladedancerFlowStacks') * ASCENDANCY_KEYSTONE_VALUES.bd1.aspdPctPerStack / 100;
+    if (hasKeystone('gw6') && tick.get('grovewardenRooted')) {
+        out.takenMul *= 1 - ASCENDANCY_KEYSTONE_VALUES.gw6.takenLessPct / 100;
+        out.regenMul *= ASCENDANCY_KEYSTONE_VALUES.gw6.regenMul;
+    }
     return out;
 }
 /** 광분(bz2): 잃은 생명력 10%마다 공격 속도(%), 최대 maxPct. 생명력은 문턱과 비교만 한다(tick.when: 계산을 다시 쓸 수 있게). */
@@ -1238,7 +1242,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     if (hasKeystone('w5')) {
         warriorPhysDamageMultiplier *= tick.get('warriorRageMultiplier');
     }
-    const nodeStats = getAscendancyNodeStatMultipliers(tick, Math.max(1, finalMaxHp)); // 불굴의 진군, 광분, 흐르는 칼끝
+    const nodeStats = getAscendancyNodeStatMultipliers(tick, Math.max(1, finalMaxHp)); finalRegen *= nodeStats.regenMul; // 불굴의 진군, 광분, 흐르는 칼끝, 뿌리 갑주
     if (nodeStats.damageMul !== 1) finalBaseDmg = Math.floor(finalBaseDmg * nodeStats.damageMul);
     warriorTakenDamageMultiplier *= nodeStats.takenMul;
     if (nodeStats.aspdMul !== 1) finalAspd = Math.min(12, finalAspd * nodeStats.aspdMul);

@@ -299,7 +299,7 @@ function performDoubleStrikes(pStats) {
     for (let chain = 0; chain < extraHits && game.enemies.length > 0; chain++) {
         // 연속 타격은 줄을 남기지 않는다(2026-10-18): 후반에는 보이는 전투 기록 60줄 가운데 열 줄 남짓을 차지했고, 희귀 전리품 색이라
         // 전리품 줄처럼 보였다. 추가 타격마다 피해 줄은 그대로 남는다.
-        performPlayerAttack(pStats, { repeatChannelCast: true });
+        performPlayerAttack(pStats, hasKeystone('bd4') ? { repeatChannelCast: true, forcedCrit: true } : { repeatChannelCast: true }); // 연무(bd4)
         if (hasKeystone('g2')) stackKeystoneRhythm('gladiatorFlurry', 12, 3000);
         if (hasKeystone('w2')) stackKeystoneRhythm('warriorRhythmDouble', 5, 2000);
     }

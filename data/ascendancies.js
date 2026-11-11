@@ -65,7 +65,7 @@ const CLASS_KEYSTONE_DEFS = {
         { id: 'r2', name: '가속 시위', desc: '공격 속도 15% 증폭', req: null },
         { id: 'r3', name: '탄도 감각', desc: '투사체 스킬 타겟 수 +2, 투사체 스킬 최소 피해 보정 -10%', req: null },
         { id: 'r4', name: '질풍 동조', desc: '이동 속도 1%당 공격 속도 0.1% 증폭', req: 'r1' },
-        { id: 'r5', name: '급소 표식', desc: '같은 적 3회 연속 적중마다 적 최대 체력의 3% 추가 물리 피해 (보스에게는 그 적중 피해까지)', req: 'r2' },
+        { id: 'r5', name: '급소 표식', desc: '같은 적 3회 연속 적중마다 적 최대 체력의 3% 추가 물리 피해 (보스에게는 최대 생명력의 0.3%와 그 적중 피해의 2배 가운데 큰 값)', req: 'r2' },
         { id: 'r6', name: '궤적 관통', desc: '투사체 스킬 타겟 수 +1, 타겟마다 피해 4% 증폭', req: 'r3' },
         { id: 'r7', name: '추적 본능', desc: '피격되지 않은 시간 1초마다 치명타 확률 +3%p (피격 시 초기화)', reqAny: ['r4', 'r5'] },
         { id: 'r8', name: '폭풍 사냥', desc: '공격 속도와 이동 속도 상호 12% 효율 보정, 최대 생명력 -15%', req: 'r7' },
@@ -213,9 +213,9 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
     ],
     bladedancer: [
         { id: 'bd1', name: '흐르는 칼끝', desc: '공격 속도 +8%, 공격할 때마다 공격 속도 1% 증폭(최대 15중첩, 3초 쉬면 사라짐)', req: null, stats: [ascendancyStatLine('aspd', 8)] },
-        { id: 'bd2', name: '잔상', desc: '회피 +20%', req: null, stats: [ascendancyStatLine('evasionPct', 20)] },
-        { id: 'bd3', name: '비껴내기', desc: '비껴내기 확률 +8%', req: null, stats: [ascendancyStatLine('deflectChance', 8)] },
-        { id: 'bd4', name: '연무', desc: '연속 타격 +8%, 치명타 확률 +3%', req: 'bd1', stats: [ascendancyStatLine('ds', 8), ascendancyStatLine('crit', 3)] },
+        { id: 'bd2', name: '잔상', desc: '회피 +12%, 회피할 때마다 잔상이 하나 생김(최대 5개, 6초), 다음 공격 때 잔상이 함께 베어 하나마다 타격 피해의 15%로 한 번 더 치고 사라짐', req: null, stats: [ascendancyStatLine('evasionPct', 12)] },
+        { id: 'bd3', name: '비껴내기', desc: '비껴내기 확률 +6%, 비껴낸 적은 2초 동안 무방비(그 적에게 주는 피해 20% 증폭), 그 적의 다음 공격이 0.5초 늦어짐', req: null, stats: [ascendancyStatLine('deflectChance', 6)] },
+        { id: 'bd4', name: '연무', desc: '연속 타격 +8%, 연속 타격으로 나간 타격은 반드시 치명타', req: 'bd1', stats: [ascendancyStatLine('ds', 8)] },
         { id: 'bd5', name: '바람 걸음', desc: '회피할 때마다 4초 동안 회피 +4%, 이동 속도 +2%(최대 4중첩), 이동 스킬 재사용 대기시간 회복 속도 +12%, 회피하면 그 적에게 타격 피해만큼 반격', req: 'bd2', stats: [ascendancyStatLine('mobilityCooldownRecovery', 12)], uniques: [ascendancyUniqueLine('evasionDanceOnEvade', {maxStacks: 4, evasionPctPerStack: 4, movePerStack: 2, duration: 4})] },
         { id: 'bd6', name: '흘려보내기', desc: '비껴내기 확률 +4%, 비껴내면 3초 동안 이동 속도 +15%, 회피 +15%, 치명타 피해 +15%, 비껴내면 그 적에게 타격 피해만큼 반격', req: 'bd3', stats: [ascendancyStatLine('deflectChance', 4)], uniques: [ascendancyUniqueLine('deflectGrantShadowStealth', {duration: 3, move: 15, evasionPct: 15, critDmg: 15})] },
         { id: 'bd7', name: '검무', desc: '치명타 피해 +30%, 적이 하나뿐이면 참격이 되돌아와 원 피해의 20%로 한 번 더 스침(명중과 상태이상 판정은 따로)', reqAny: ['bd4', 'bd5'], stats: [ascendancyStatLine('critDmg', 30)], bloomMechanic: 'hero4__hunter' },
@@ -224,29 +224,29 @@ Object.assign(CLASS_KEYSTONE_DEFS, {
     ],
     stormarcher: [
         { id: 'sa1', name: '번개 화살', desc: '번개 피해 +35%, 피해의 20%를 번개 피해로 추가', req: null, stats: [ascendancyStatLine('lightPctDmg', 35), ascendancyStatLine('addedLightDamagePct', 20)] },
-        { id: 'sa2', name: '질풍 시위', desc: '투사체 피해 +30%', req: null, stats: [ascendancyStatLine('projectilePctDmg', 30)] },
-        { id: 'sa3', name: '바람 발', desc: '이동 속도 +10%, 이동 스킬 재사용 대기시간 감소 +6%', req: null, stats: [ascendancyStatLine('move', 10), ascendancyStatLine('mobilityCooldownReduction', 6)] },
+        { id: 'sa2', name: '질풍 시위', desc: '투사체 피해 +10%, 대상까지 떨어진 칸마다 투사체 피해 5% 증폭(최대 6칸)', req: null, stats: [ascendancyStatLine('projectilePctDmg', 10)] },
+        { id: 'sa3', name: '바람 발', desc: '이동 속도 +10%, 이동 스킬을 쓰면 다음 공격 3번이 바람 화살(피해 25% 증폭, 첫 적중이 둘레 1칸의 다른 적 하나에게 같은 피해로 튐)', req: null, stats: [ascendancyStatLine('move', 10)] },
         { id: 'sa4', name: '감전', desc: '감전 확률 +20%, 감전된 적에게 주는 피해 10% 증폭', req: 'sa1', stats: [ascendancyStatLine('shockChance', 20), ascendancyStatLine('shockedEnemyHitDamageMorePct', 10)] },
         { id: 'sa5', name: '연사', desc: '공격 속도 +6%, 세 번째 공격마다 그 스킬의 대상 +3, 피해 +33%', req: 'sa2', stats: [ascendancyStatLine('aspd', 6)], bloomMechanic: 'hero1__gladiator' },
         { id: 'sa6', name: '폭풍 걸음', desc: '회피 +10%, 적을 처치하면 6초 동안 이동 속도 +4%(최대 5중첩)', req: 'sa3', stats: [ascendancyStatLine('evasionPct', 10)], uniques: [ascendancyUniqueLine('realmKillMoveStacks', {movePerStack: 4, maxStacks: 5, duration: 6, cooldownSec: 1})] },
         { id: 'sa7', name: '뇌전 폭우', desc: '번개 피해 +35%, 감전 효과 +15%, 감전된 적을 맞히면 그 타격 피해의 80%로 한 번 더 침(0.8초마다), 감전에 걸리지 않음', reqAny: ['sa4', 'sa5'], stats: [ascendancyStatLine('lightPctDmg', 35)], uniques: [ascendancyUniqueLine('shockTracerGreaves', {shockEffectPct: 15, strikeDamagePct: 80, icdSec: 0.8})] },
-        { id: 'sa8', name: '폭풍의 눈', desc: '투사체 피해 +70%, 저항 관통 +10%, 대신 방어도 -30%', req: 'sa7', stats: [ascendancyStatLine('projectilePctDmg', 70), ascendancyStatLine('resPen', 10), ascendancyStatLine('armorPct', -30)] },
+        { id: 'sa8', name: '폭풍의 눈', desc: '투사체 피해 +40%, 2칸 안에 적이 없으면 피해 30% 증폭, 2칸 안으로 들어온 적에게 0.5초마다 번개가 떨어짐(타격 피해의 60%, 감전 판정), 대신 방어도 -30%', req: 'sa7', stats: [ascendancyStatLine('projectilePctDmg', 40), ascendancyStatLine('armorPct', -30)] },
         { id: 'sa9', name: '하늘을 가르는 화살', desc: '투사체 피해 +60%, 번개 피해 +60%, 타격마다 감전 판정을 한 번 더 함', fifthJobOnly: true, stats: [ascendancyStatLine('projectilePctDmg', 60), ascendancyStatLine('lightPctDmg', 60)], uniques: [ascendancyUniqueLine('alwaysShock')] }
     ],
     grovewarden: [
-        { id: 'gw1', name: '서리 이끼', desc: '냉기 피해 +35%', req: null, stats: [ascendancyStatLine('coldPctDmg', 35)] },
+        { id: 'gw1', name: '서리 이끼', desc: '냉기 피해 +20%, 냉기 타격이 맞힌 칸에 3초 동안 서리 이끼가 깔림(그 위의 적은 이동과 공격이 25% 느려지고 받는 냉기 피해 15% 증가)', req: null, stats: [ascendancyStatLine('coldPctDmg', 20)] },
         { id: 'gw2', name: '독초', desc: '중독 확률 +20%, 냉기 타격으로도 중독 발생(타격 피해의 30%로 계산)', req: null, stats: [ascendancyStatLine('poisonChance', 20)] },
-        { id: 'gw3', name: '수액 재생', desc: '생명력 재생 +0.8%', req: null, stats: [ascendancyStatLine('regen', 0.8)] },
+        { id: 'gw3', name: '수액 재생', desc: '생명력 재생 +0.5%, 생명력이 가득할 때 넘친 재생이 수액으로 고임(최대 생명력의 20%까지), 피해를 받으면 수액이 먼저 깎임', req: null, stats: [ascendancyStatLine('regen', 0.5)] },
         { id: 'gw4', name: '얼음 포자', desc: '빙결 확률 +10%, 한기와 빙결에 걸리지 않음', req: 'gw1', stats: [ascendancyStatLine('freezeChance', 10)], uniques: [ascendancyUniqueLine('frostSentinelBoots')] },
         { id: 'gw5', name: '맹독 수액', desc: '중독 피해 +25%, 중독 최대 중첩 +1, 한기나 빙결에 걸린 적의 중독은 시간이 줄지 않음', req: 'gw2', uniques: [ascendancyUniqueLine('venomStride', {poisonMorePct: 25, poisonExtraStack: 1})] },
-        { id: 'gw6', name: '뿌리 갑주', desc: '모든 원소 저항 +10%, 생명력 재생 +1%, 재생 속도 +20%', req: 'gw3', stats: [ascendancyStatLine('resAll', 10)], uniques: [ascendancyUniqueLine('realmRegenRateAndRegen', {regenRatePct: 20, regen: 1})] },
+        { id: 'gw6', name: '뿌리 갑주', desc: '모든 원소 저항 +10%, 1초 동안 움직이지 않으면 뿌리를 내림(받는 피해 15% 감폭, 생명력 재생 2배), 움직이면 풀림', req: 'gw3', stats: [ascendancyStatLine('resAll', 10)] },
         { id: 'gw7', name: '숲의 분노', desc: '원소 피해 +45%, 지속 피해 +30%, 끝난 상태이상이 씨앗으로 남아 다른 상태이상을 걸면 남은 피해가 터짐', reqAny: ['gw4', 'gw5'], stats: [ascendancyStatLine('elementalPctDmg', 45), ascendancyStatLine('dotPctDmg', 30)], bloomMechanic: 'hero3__catalyst' },
         { id: 'gw8', name: '고목의 맹세', desc: '최대 생명력 +15%, 타격 시 15% 확률로 2초 동안 최대 생명력 6%의 보호막, 보호막이 있는 동안 지속 피해 25% 증폭', req: 'gw7', stats: [ascendancyStatLine('pctHp', 15)], uniques: [ascendancyUniqueLine('dragonVeinGuard', {chance: 15, duration: 2, hpPct: 6})] },
         { id: 'gw9', name: '세계수의 숨결', desc: '냉기 피해 +90%, 중독 피해 +60%, 원소 타격마다 그 적의 원소 저항 -2%(최대 -15%)', fifthJobOnly: true, stats: [ascendancyStatLine('coldPctDmg', 90), ascendancyStatLine('poisonDamageMultiplierPct', 60)], uniques: [ascendancyUniqueLine('stackingElementalResDownOnHit', {perHit: 2, max: 15})] }
     ],
     bombardier: [
         { id: 'bm1', name: '불붙은 병', desc: '포션 스킬 피해 +35%, 포션 스킬 효과 확장 +1(다른 효과 확장 +1과 겹치지 않음)', req: null, stats: [ascendancyStatLine('potionPctDmg', 35)] },
-        { id: 'bm2', name: '넓은 투척', desc: '범위 피해 +25%', req: null, stats: [ascendancyStatLine('aoePctDmg', 25)] },
+        { id: 'bm2', name: '넓은 투척', desc: '범위 피해 +10%, 한 번의 폭발에 맞은 적 하나마다 그 폭발 피해 6% 증폭(최대 8기)', req: null, stats: [ascendancyStatLine('aoePctDmg', 10)] },
         { id: 'bm3', name: '화약 냄새', desc: '점화 확률 +15%, 피해의 10%를 화염 피해로 추가', req: null, stats: [ascendancyStatLine('igniteChance', 15), ascendancyStatLine('addedFireDamagePct', 10)] },
         { id: 'bm4', name: '이중 폭발', desc: '포션 스킬이 6% 확률로 같은 자리에서 한 번 더 터짐(두 번째 폭발은 범위 +1칸)', req: 'bm1' },
         { id: 'bm5', name: '파편', desc: '범위 피해 +20%, 적을 처치하고 남은 피해가 다른 적 모두에게 튐', req: 'bm2', stats: [ascendancyStatLine('aoePctDmg', 20)], uniques: [ascendancyUniqueLine('overkillSplash')] },
@@ -331,7 +331,7 @@ const ASCENDANCY_KEYSTONE_VALUES = Object.freeze({
     // 어쌔신
     a3: { takenPctPerStack: 2 }, a7: { extraHitPct: 50 }, a8: { critDmgMul: 1.5 },
     // 레인저
-    r2: { aspdMorePct: 15 }, r4: { aspdPctPerMovePct: 0.1 }, r6: { damageMorePctPerTarget: 4 }, r7: { critPerSecond: 3 },
+    r2: { aspdMorePct: 15 }, r4: { aspdPctPerMovePct: 0.1 }, r5: { lifePct: 3, bossLifePct: 0.3, bossHitMul: 2 }, r6: { damageMorePctPerTarget: 4 }, r7: { critPerSecond: 3 },
     // 헌터(h8은 초과 치명타를 없애 화면 추정과 전투가 같다)
     h1: { singleMorePct: 15, multiMorePct: 10 }, h2: { takenMorePct: 10 }, h5: { critDmg: 250, critLess: 10 },
     h7: { dsPerTarget: 10, dsPerTargetAfterFive: 5 }, h8: { critDmg: 50 },
@@ -357,7 +357,13 @@ const ASCENDANCY_KEYSTONE_VALUES = Object.freeze({
     jg1: { crackMs: 1500, takenMorePct: 10 }, jg2: { pctPerStack: 8, maxStacks: 5 },
     bd1: { aspdPctPerStack: 1, maxStacks: 15, idleMs: 3000 }, bd5: { counterPct: 100, icdMs: 500 }, bd6: { counterPct: 100, icdMs: 500 },
     gw2: { coldPoisonPct: 30 }, gw8: { dotMorePct: 25 },
-    bm4: { chance: 6, delayMs: 350 }
+    bm4: { chance: 6, delayMs: 350 },
+    // 2026-11-11 단순 능력치 키스톤을 규칙으로(사용자: 증폭도 아니고 너무 단순한 규칙): 검무사, 폭풍궁수, 숲지기, 폭약술사
+    bd2: { perImagePct: 15, maxImages: 5, lifeMs: 6000 }, bd3: { exposeMs: 2000, takenMorePct: 20, staggerMs: 500 },
+    sa2: { pctPerCell: 5, maxCells: 6 }, sa3: { shots: 3, damageMorePct: 25, splashCells: 1 },
+    sa8: { calmCells: 2, calmMorePct: 30, stormEveryMs: 500, stormPct: 60 },
+    gw1: { mossMs: 3000, slowPct: 25, coldTakenMorePct: 15 }, gw3: { sapMaxPct: 20 }, gw6: { stillMs: 1000, takenLessPct: 15, regenMul: 2 },
+    bm2: { pctPerEnemy: 6, maxEnemies: 8 }
 });
 
 safeExposeData({ ASCENDANCY_KEYSTONE_VALUES, CLASS_TEMPLATES, CLASS_KEYSTONE_PICK_LIMIT, CLASS_KEYSTONE_DEFS, ASCENDANCIES_BY_PLAYER_CLASS, ASCENDANCY_NODE_LAYOUT, ASCENDANCY_NODE_FALLBACK, ASCENDANCY_NODE_DEFS });
