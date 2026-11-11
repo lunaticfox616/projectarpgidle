@@ -33181,7 +33181,7 @@
       "mods": [],
       "runtimeEffects": [],
       "statAutoName": true,
-      "desc": "재사용 대기시간 1% 당 카오스 피해 2% 변환"
+      "desc": "재사용 대기시간 회복 속도를 0으로 만들고\n그 1%당 카오스 피해 2% 증가"
     },
     {
       "cat": "utility",
@@ -33191,7 +33191,7 @@
       "type": "major",
       "mods": [
         {
-          "statId": "cooldownReduction",
+          "statId": "cooldownRecovery",
           "value": 8
         },
         {
@@ -33201,7 +33201,7 @@
       ],
       "runtimeEffects": [
         {
-          "statId": "cooldownReduction",
+          "statId": "cooldownRecovery",
           "value": 8
         },
         {
@@ -33210,7 +33210,7 @@
         }
       ],
       "statAutoName": false,
-      "desc": "재사용 대기시간 감소 +8%\n스킬 딜레이 감소 +4%",
+      "desc": "재사용 대기시간 회복 속도 +8%\n스킬 딜레이 감소 +4%",
       "name": "앞당긴 순서",
       "optionProfile": "앞당긴 순서",
       "iconFamily": "cooldown",
@@ -33338,7 +33338,7 @@
           "value": 5
         },
         {
-          "statId": "cooldownReduction",
+          "statId": "cooldownRecovery",
           "value": 5
         }
       ],
@@ -33348,12 +33348,12 @@
           "value": 5
         },
         {
-          "statId": "cooldownReduction",
+          "statId": "cooldownRecovery",
           "value": 5
         }
       ],
       "statAutoName": false,
-      "desc": "재사용 대기시간 감소 한도 +5%\n재사용 대기시간 감소 +5%",
+      "desc": "재사용 대기시간 감소 한도 +5%\n재사용 대기시간 회복 속도 +5%",
       "name": "시계 바늘 밀기",
       "optionProfile": "시계 바늘 밀기",
       "iconFamily": "cooldown",
@@ -36807,7 +36807,7 @@
       "type": "major",
       "mods": [
         {
-          "statId": "cooldownReduction",
+          "statId": "cooldownRecovery",
           "value": 8
         },
         {
@@ -36817,7 +36817,7 @@
       ],
       "runtimeEffects": [
         {
-          "statId": "cooldownReduction",
+          "statId": "cooldownRecovery",
           "value": 8
         },
         {
@@ -36826,7 +36826,7 @@
         }
       ],
       "statAutoName": false,
-      "desc": "재사용 대기시간 감소 +8%\n피해 -10%",
+      "desc": "재사용 대기시간 회복 속도 +8%\n피해 -10%",
       "name": "줄어든 기다림",
       "optionProfile": "줄어든 기다림",
       "iconFamily": "cooldown",
@@ -36839,21 +36839,21 @@
       "x": 330.98,
       "y": -516.71,
       "type": "assist",
-      "name": "이동 스킬 재사용 대기시간 감소",
+      "name": "이동 스킬 재사용 대기시간 회복 속도",
       "mods": [
         {
-          "statId": "mobilityCooldownReduction",
+          "statId": "mobilityCooldownRecovery",
           "value": 3
         }
       ],
       "runtimeEffects": [
         {
-          "statId": "mobilityCooldownReduction",
+          "statId": "mobilityCooldownRecovery",
           "value": 3
         }
       ],
       "statAutoName": true,
-      "desc": "이동 스킬 재사용 대기시간 감소 +3%",
+      "desc": "이동 스킬 재사용 대기시간 회복 속도 +3%",
       "iconFamily": "mobility",
       "distanceFromClassStart": 25,
       "powerBand": 3
@@ -36870,7 +36870,7 @@
           "value": 20
         },
         {
-          "statId": "mobilityCooldownReduction",
+          "statId": "mobilityCooldownRecovery",
           "value": 8
         },
         {
@@ -36884,7 +36884,7 @@
           "value": 20
         },
         {
-          "statId": "mobilityCooldownReduction",
+          "statId": "mobilityCooldownRecovery",
           "value": 8
         },
         {
@@ -36893,7 +36893,7 @@
         }
       ],
       "statAutoName": false,
-      "desc": "기동 스킬 피해 +20%\n이동 스킬 재사용 대기시간 감소 +8%\n이동 속도 +4%",
+      "desc": "기동 스킬 피해 +20%\n이동 스킬 재사용 대기시간 회복 속도 +8%\n이동 속도 +4%",
       "name": "돌아오는 발걸음",
       "optionProfile": "돌아오는 발걸음",
       "iconFamily": "mobility",

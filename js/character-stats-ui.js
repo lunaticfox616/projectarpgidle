@@ -20,6 +20,9 @@
         setTextById('ui-accuracy', formatSettingNumber(Math.floor(pStats.accuracy || 0), 'showCharacterComma'));
         setTextById('ui-crit-dmg', Math.floor(pStats.critDmg));
         setTextById('ui-move-spd', Math.floor(pStats.moveSpeed));
+        // 투사체 추가 발사, 주 스킬룬에 더해진 대상(2026-11-12 사용자): 출처는 툴팁(breakdowns.projectileShots, targets)
+        setTextById('ui-projectile-shots', `+${Math.floor(pStats.projectileExtraShots || 0)}`);
+        setTextById('ui-target-bonus', `+${Math.max(0, (Number(pStats.sSkill && pStats.sSkill.targets) || 1) - (Number(pStats.skillBaseTargets) || 1))}`);
     }
 
     function renderDefense(pStats) {

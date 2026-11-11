@@ -8,6 +8,40 @@ function collectCooldownStats(sum) {
     return Object.fromEntries(ids.map(id => [id, Math.max(0, sum(id))]));
 }
 
+/** 캐릭터 탭 기타의 출처 줄(2026-11-12 사용자: 투사체와 대상이 몇 개, 어디서 붙는지). b: getPlayerStats의 버킷, stats: 더할 능력치들,
+ * named: 패시브 트리 안에서 따로 보일 키스톤 몫([{ label, value }]). */
+function bucketSourceLines(b, stats, named) {
+    const sumOf = bucket => stats.reduce((sum, stat) => sum + (Number(bucket[stat]) || 0), 0);
+    return [
+        makeSourceLine('장비', sumOf(b.gearBase) + sumOf(b.gearExplicit)),
+        makeSourceLine('패시브 트리', sumOf(b.passive) - named.reduce((sum, row) => sum + row.value, 0)),
+        ...named.map(row => makeSourceLine(row.label, row.value)),
+        makeSourceLine('전직', sumOf(b.ascend)),
+        makeSourceLine('기타 성장', sumOf(b.season) + sumOf(b.reward))
+    ];
+}
+/** 투사체 추가 발사: 출처, 추가 발사 확률, 지금 주 스킬룬에 붙지 않는 까닭. extra: { skill, bladeShots, chancePct }. */
+function projectileShotsBreakdown(b, extra) {
+    const projectile = (extra.skill.tags || []).includes('projectile'), pattern = extra.skill.projectilePattern;
+    const total = ['gearBase', 'gearExplicit', 'passive', 'season', 'ascend', 'reward'].reduce((sum, key) => sum + (Number(b[key].projectileExtraShots) || 0), 0);
+    let why = projectile ? null : _t('지금 주 스킬룬은 투사체 스킬이 아니어서 붙지 않습니다.');
+    if (projectile && pattern && pattern.kind === 'fan') why = _t('부채꼴로 쏘는 스킬룬에는 붙지 않습니다.');
+    return { title: _t('투사체 추가 발사'), final: `+${Math.floor(total)}`, lines: [...bucketSourceLines(b, ['projectileExtraShots'], [{ label: '칼날 다발', value: extra.bladeShots }]),
+        extra.chancePct > 0 ? _t('추가 발사 확률 {value}%', { value: Math.round(extra.chancePct) }) : null, why].filter(Boolean) };
+}
+const atLeastOne = value => Math.max(1, Number(value) || 1);
+/** 대상 추가: 주 스킬룬의 기본 대상, 출처(투사체, 강타 스킬이면 그 줄도), 상한(투사체 12, 그 밖 6) 뒤의 각인과 효과 확장. extra: { skill, baseTargets, cappedTargets }. */
+function targetsBreakdown(b, extra) {
+    const tags = extra.skill.tags || [], projectile = tags.includes('projectile');
+    const stats = ['targetAny'].concat(projectile ? ['targetProjectile'] : [], tags.includes('slam') ? ['targetSlam'] : []);
+    const base = atLeastOne(extra.baseTargets), capped = atLeastOne(extra.cappedTargets), finalTargets = atLeastOne(extra.skill.targets);
+    const cap = projectile ? 12 : 6;
+    return { title: _t('대상 추가'), final: _t('대상 {value} (+{added})', { value: finalTargets, added: finalTargets - base }), lines: [
+        _t('주 스킬룬 기본 대상 {value}', { value: base }), ...bucketSourceLines(b, stats, []),
+        makeSourceLine('각인, 효과 확장', finalTargets - capped), capped === cap && capped > base ? _t('대상 상한 {value}', { value: cap }) : null].filter(Boolean) };
+}
+const getProjectileTargetBreakdowns = (b, extra) => ({ projectileShots: projectileShotsBreakdown(b, extra), targets: targetsBreakdown(b, extra) });
+
 /** Ocean stats of one stat evaluation (sum = getPlayerStats' bucket sum): pressure resistance (with its upgrades), depth gain, rare fish. */
 function collectOceanStats(sum) {
     const pressureUpgrade = typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0;
@@ -313,7 +347,7 @@ function getFrenzyAspdPct(tick, maxLife) {
 }
 
 
-exposeFileGlobals({ getAscendancyNodeStatMultipliers, collectCooldownStats, collectOceanStats, applySituationalTakenReduction, grantTalentStoneShieldOnBlock, recoverEnergyShieldOnBlock, consumeLoneEvasionCounterMultiplier, advanceEnergyShieldRechargeOnCrit, triggerUniqueEnergyShieldBreakRecharge, getEquippedUniqueJewels, getLabyrinthShacklesDamageMultiplier, getAbsoluteFloorDamageRoll, getSolitaryHuntDoubleStrikeBonus, isDeferredTalentProjectileTargetEffect, applyTimedRewardStats, grantEliteTraitBuffFromEnemy, finishPlayerStats, appendPlayerDpsBreakdowns, getGemPresentation, getSupportGemPresentation, getSupportGemTier, getSkillGemLevels });
+exposeFileGlobals({ getAscendancyNodeStatMultipliers, collectCooldownStats, getProjectileTargetBreakdowns, collectOceanStats, applySituationalTakenReduction, grantTalentStoneShieldOnBlock, recoverEnergyShieldOnBlock, consumeLoneEvasionCounterMultiplier, advanceEnergyShieldRechargeOnCrit, triggerUniqueEnergyShieldBreakRecharge, getEquippedUniqueJewels, getLabyrinthShacklesDamageMultiplier, getAbsoluteFloorDamageRoll, getSolitaryHuntDoubleStrikeBonus, isDeferredTalentProjectileTargetEffect, applyTimedRewardStats, grantEliteTraitBuffFromEnemy, finishPlayerStats, appendPlayerDpsBreakdowns, getGemPresentation, getSupportGemPresentation, getSupportGemTier, getSkillGemLevels });
 })();
 
 
@@ -744,14 +778,14 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
     let flatAccuracy = Math.max(0, sumStatAcrossBuckets('accuracy'));
     let accuracyBonusPct = Math.max(0, sumStatAcrossBuckets('accuracyBonusPct'));
     let playerAccuracy = calculatePlayerAccuracy(game.level, totalDexterity, flatAccuracy, accuracyBonusPct);
-    passive.projectileExtraShots += getBladeBundleShots(totalStrength, totalDexterity, weaponStance);
-    let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny);
+    const bladeBundleShots = getBladeBundleShots(totalStrength, totalDexterity, weaponStance); passive.projectileExtraShots += bladeBundleShots;
+    let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny), skillBaseTargets = skill.targets;
     let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots + sumStatAcrossBuckets('projectileExtraChance') / 100;
     if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
     if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
     if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
     else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
-    addUncappedSkillTargets(skill, game.activeSkill); // 각인의 대상 수, 효과 확장 +N: more targets for target gems, the keystone's cost
+    const cappedTargets = skill.targets; addUncappedSkillTargets(skill, game.activeSkill); // 각인의 대상 수, 효과 확장 +N: more targets for target gems, the keystone's cost
     skill.projectileChain = (skill.tags || []).includes('projectile') ? sumStatAcrossBuckets('projectileChain') : 0;   // js/combat-grid.js, js/skill-gem-casts.js
     // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
     let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
@@ -1936,6 +1970,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
 
     let breakdowns = includeBreakdowns ? {
         ...getPassiveSpecialStatBreakdowns(authoredPassiveRules),
+        ...getProjectileTargetBreakdowns({ gearBase, gearExplicit, passive, season, ascend, reward }, { skill, bladeShots: bladeBundleShots, baseTargets: skillBaseTargets, cappedTargets, chancePct: sumStatAcrossBuckets('projectileExtraChance') }),
         atk: {
             title: _t('공격력'),
             lines: [
@@ -2507,7 +2542,7 @@ function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attri
         intelligence: totalIntelligence,
         energyShieldRegenRate: finalEnergyShieldRegenRate,
         energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
-        projectileExtraShots: Math.max(0, totalProjectileExtraShots),
+        projectileExtraShots: Math.max(0, totalProjectileExtraShots), skillBaseTargets,
         breakdowns: breakdowns,
         uniqueClosedEyes: uniqueClosedEyes,
         uniqueShockInvertTaken: uniqueShockInvertTaken,

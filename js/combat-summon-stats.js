@@ -159,13 +159,12 @@ function getPassiveWisdomLeapDamageMultiplier(pStats, element) {
     return damageElement === selectedElement ? 1.2 : 0;
 }
 
-/** 피해의 몇 할이 카오스로 바뀌는가: 검은 증류(원소의 50%), 시간왜곡(재사용 대기시간 감소 1%당 2%). */
+/** 피해의 몇 할이 카오스로 바뀌는가: 검은 증류(원소의 50%). 시간왜곡은 2026-11-12부터 변환이 아니다(js/passives.js applyPassiveWrittenKeystoneRules). */
 function getPassiveChaosConversionShare(pStats, element) {
     const flags = (pStats && pStats.passiveKeystoneFlags) || {};
     if (element === 'chaos') return 0;
     const distill = flags.blackDistill && ['fire', 'cold', 'light'].includes(element) ? 0.5 : 0;
-    const warp = flags.timeWarp ? Math.min(1, Math.max(0, Number(pStats.cooldownReduction) || 0) * 0.02) : 0;
-    return Math.max(distill, warp);
+    return distill;
 }
 
 function getLimitedSummonFinalDamageMultiplier(pStats, summon) {

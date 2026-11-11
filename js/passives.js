@@ -1763,9 +1763,15 @@ function applyPassiveKeystoneBucketRules(buckets) {
     if (hasAuthoredPassiveKeystone('균형의 공명')) zeroPassiveRuleStats(buckets, ['intelligence']);
 }
 
-/** 2026-11-01 사용자가 글로 쓴 키스톤: 면죄의 복음, 공허의 별자리, 지식의 반목. */
+/** 2026-11-01 사용자가 글로 쓴 키스톤: 시간왜곡, 면죄의 복음, 공허의 별자리, 지식의 반목. */
 function applyPassiveWrittenKeystoneRules(buckets) {
     const passive = buckets.passive;
+    // 시간왜곡(2026-11-12 사용자): 재사용 대기시간 회복 속도를 0으로 만들고 그 1%당 카오스 피해 2% 증가(전: 재사용 대기시간 감소만큼 피해를 카오스로 변환).
+    if (findAllocatedPassiveKeystone('시간왜곡')) {
+        const recovery = Math.max(0, sumPassiveRuleStat(buckets, 'cooldownRecovery'));
+        zeroPassiveRuleStats(buckets, ['cooldownRecovery']);
+        passive.chaosPctDmg += recovery * 2;
+    }
     if (findAllocatedPassiveKeystone('면죄의 복음')) {
         Object.values(buckets).forEach(bucket => {
             bucket.elementalPctDmg += (Number(bucket.chaosPctDmg) || 0) * 0.5;
@@ -1813,8 +1819,7 @@ function getPassiveKeystoneCombatFlags(skillTags) {
         soleMinion: !!findAllocatedPassiveKeystone('단 하나의 사역'),
         potionOverdose: tags.has('potion') && !!findAllocatedPassiveKeystone('과잉 투여'),
         selfExperiment: !!findAllocatedPassiveKeystone('자가실험'),
-        absolution: !!findAllocatedPassiveKeystone('면죄의 복음'),
-        timeWarp: !!findAllocatedPassiveKeystone('시간왜곡')
+        absolution: !!findAllocatedPassiveKeystone('면죄의 복음')
     };
 }
 
