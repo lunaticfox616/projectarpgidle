@@ -33,7 +33,9 @@ const WEAPON_BASE_CATEGORIES = Object.freeze({
     // 수평 베이스(2026-10-09, js/state.js family): 같은 대분류의 다른 정체성.
     bigtree_maul: 'greatsword', oak_maul: 'greatsword', worldbreaker_maul: 'greatsword', fang_kris: 'scimitar', venom_kris: 'scimitar', serpent_kris: 'scimitar',
     hunting_longbow: 'shortbow', hawk_longbow: 'shortbow', skyhunter_longbow: 'shortbow', spark_rod: 'orb', storm_rod: 'orb', tempest_scepter: 'orb',
-    herb_toxin_flask: 'flask', toxin_flask: 'flask', plague_flask: 'flask', coal_censer: 'censer', pyre_censer: 'censer', phoenix_censer: 'censer'
+    herb_toxin_flask: 'flask', toxin_flask: 'flask', plague_flask: 'flask', coal_censer: 'censer', pyre_censer: 'censer', phoenix_censer: 'censer',
+    // 향로 속성 줄(2026-11-11): 번개 바탕 체인의 12, 17과 화염, 물리, 복합 줄
+    thundercloud_censer: 'censer', thunder_censer: 'censer', kindling_censer: 'censer', bonfire_censer: 'censer', beacon_censer: 'censer', stone_censer: 'censer', bronze_censer: 'censer', iron_censer: 'censer', steel_censer: 'censer', flail_censer: 'censer', bellringer_censer: 'censer', candle_censer: 'censer', chandelier_censer: 'censer', relic_censer: 'censer', rod_censer: 'censer', ironbolt_censer: 'censer', thunderiron_censer: 'censer', firebolt_censer: 'censer', firestorm_censer: 'censer', skyfire_censer: 'censer'
 });
 
 // 날이 가는 대검(2026-10-26 새 그림, 창 · 장창 · 글레이브 · 랜스 바탕): 가방 1×4, 나머지 대검은 2×4(js/items.js getWeaponInventoryFootprint).
