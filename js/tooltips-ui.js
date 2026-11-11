@@ -1,18 +1,25 @@
 // 툴팁: 위치 잡기, 능력치와 효과 툴팁, 룬 툴팁, 아이템 툴팁 (2026-11-10에 js/ui.js에서 그대로 옮겼다. js/ui.js 뒤에 읽는다.)
 // 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
 (() => {
+/** 툴팁의 보이는 크기(화면 화소). 화면보다 크면 줄여서 다 보이게 한다(2026-11-12 사용자: 긴 비교 툴팁에 스크롤이 생김. 툴팁은 마우스가 지나가므로
+ * 스크롤할 수 없고 잘린 줄은 볼 수 없었다). 손가락으로 끄는 툴팁(pointer-events auto)은 제 스크롤을 쓴다. 바뀔 때만 잰다(내용, 화면 배율). */
+function measureTooltip(el) {
+    let size = tooltipSizeCache.get(el);
+    if (size && size.factor === uiDisplay.factor) return size;
+    el.style.transform = 'none';   // 지난번에 줄인 배율이 아니라 원래 크기를 잰다
+    const rect = el.getBoundingClientRect(), fixed = getComputedStyle(el).pointerEvents === 'none';
+    const fit = fixed ? Math.max(0.5, Math.min(1, (window.innerHeight - 16) / rect.height, (window.innerWidth - 16) / rect.width)) : 1;
+    size = { width: rect.width * fit, height: rect.height * fit, fit, factor: uiDisplay.factor };
+    tooltipSizeCache.set(el, size);
+    return size;
+}
 function applyTooltipPosition(el, x, y) {
     if (!el || el.style.display === 'none') return;
     if (el.style.left !== '0px' || el.style.top !== '0px') {
         el.style.left = '0px';
         el.style.top = '0px';
     }
-    let size = tooltipSizeCache.get(el);
-    if (!size || size.factor !== uiDisplay.factor) {
-        let rect = el.getBoundingClientRect();
-        size = { width: rect.width, height: rect.height, factor: uiDisplay.factor };
-        tooltipSizeCache.set(el, size);
-    }
+    const size = measureTooltip(el);
     let left = x + 18;
     let top = y + 18;
     if (left + size.width > window.innerWidth - 10) left = x - size.width - 18;
@@ -23,7 +30,7 @@ function applyTooltipPosition(el, x, y) {
     const deviceScale = Math.max(1, Number(window.devicePixelRatio) || 1);
     const snappedLeft = Math.round(left * deviceScale) / deviceScale;
     const snappedTop = Math.round(top * deviceScale) / deviceScale;
-    el.style.transform = `translate(${snappedLeft / uiDisplay.factor}px, ${snappedTop / uiDisplay.factor}px)`;
+    el.style.transform = `translate(${snappedLeft / uiDisplay.factor}px, ${snappedTop / uiDisplay.factor}px)${size.fit < 1 ? ` scale(${size.fit})` : ''}`;
 }
 
 function flushTooltipPositions() {
@@ -62,11 +69,53 @@ function clearActiveTooltip(id) {
     if (activeTooltipId === id) activeTooltipId = null;
 }
 
+// ---------------------------------------------------------------- 떠 있는 툴팁 지키기
+// 2026-11-12 사용자: 간헐적으로 커스텀 툴팁이 사라지지 않음(매초 검사처럼 성능을 쓰지 말 것). 툴팁은 마우스가 칸을 떠날 때 닫히는데, 칸이 다시 그려지거나
+// 창이 닫혀 칸이 사라지면 그 알림이 오지 않는다. 띄울 때 그 칸을 기억하고, 툴팁이 떠 있는 동안에만 문서 변화(요소 바뀜, class, hidden)를 지켜보다가
+// 프레임마다 많아야 한 번 칸이 문서에서 빠졌거나 보이지 않는지 보고 닫는다. 마우스가 창 밖으로 나가거나 창이 가려지면 모두 닫는다.
+const tooltipAnchors = new Map();
+let tooltipAnchorWatch = null, tooltipAnchorCheck = 0;
+const TOOLTIP_CLOSERS = Object.freeze({ 'info-tooltip': () => hideInfoTooltip(), 'item-tooltip-box': () => dismissItemTooltipNow() });
+const anchorShown = el => el.isConnected && (typeof el.checkVisibility === 'function' ? el.checkVisibility() : el.getClientRects().length > 0);
+function checkTooltipAnchors() {
+    tooltipAnchorCheck = 0;
+    for (const [id, el] of [...tooltipAnchors]) if (!anchorShown(el)) TOOLTIP_CLOSERS[id]();
+}
+function queueTooltipAnchorCheck() {
+    if (!tooltipAnchorCheck) tooltipAnchorCheck = requestAnimationFrame(checkTooltipAnchors);
+}
+function watchTooltipAnchor(id, el) {
+    if (!el || el === document.body || el === document.documentElement || typeof MutationObserver !== 'function') return;
+    tooltipAnchors.set(id, el);
+    if (tooltipAnchorWatch) return;
+    tooltipAnchorWatch = new MutationObserver(queueTooltipAnchorCheck);
+    tooltipAnchorWatch.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden'] });
+}
+function releaseTooltipAnchor(id) {
+    tooltipAnchors.delete(id);
+    if (tooltipAnchors.size || !tooltipAnchorWatch) return;
+    tooltipAnchorWatch.disconnect();
+    tooltipAnchorWatch = null;
+    cancelAnimationFrame(tooltipAnchorCheck);
+    tooltipAnchorCheck = 0;
+}
+function closeEveryTooltip() {
+    hideInfoTooltip();
+    dismissItemTooltipNow();
+    if (typeof window.hidePassiveNodeTooltip === 'function') window.hidePassiveNodeTooltip();
+}
+document.documentElement.addEventListener('mouseleave', closeEveryTooltip);
+window.addEventListener('blur', closeEveryTooltip);
+document.addEventListener('visibilitychange', () => { if (document.hidden) closeEveryTooltip(); });
+/** 툴팁이 기대는 칸: 넘겨받은 요소, 없으면 그 자리 아래의 요소(툴팁은 마우스가 지나가므로 그 아래가 잡힌다). */
+const tooltipAnchorAt = (el, x, y) => (el && el.nodeType === 1 ? el : document.elementFromPoint(x, y));
+
 function showInfoTooltipHtml(x, y, html, borderColor, contentToken) {
     if (tutorialActionUi.hushesTooltipAt(x, y)) return;
     let tt = document.getElementById('info-tooltip');
     let hadComparison = tt.classList.contains('item-compare-tooltip');
     if (hadComparison) tt.classList.remove('item-compare-tooltip');
+    const fresh = tt.style.display !== 'block' || tt.innerHTML !== html || hadComparison;
     if (tt.innerHTML !== html || hadComparison) {
         tt.innerHTML = html;
         invalidateTooltipSize(tt);
@@ -76,10 +125,12 @@ function showInfoTooltipHtml(x, y, html, borderColor, contentToken) {
     tt.style.display = 'block';
     positionTooltipElement(tt, x, y);
     setActiveTooltip('info-tooltip');
+    if (fresh) watchTooltipAnchor('info-tooltip', tooltipAnchorAt(null, x, y));
 }
 
 function hideInfoTooltip() {
     clearActiveTooltip('info-tooltip');
+    releaseTooltipAnchor('info-tooltip');
     activeInfoTooltipToken = null;
     document.getElementById('info-tooltip').style.display = 'none';
 }
@@ -592,6 +643,7 @@ function presentItemTooltip(context, event, item, html, isEquip) {
     tt.style.display = 'block';
     positionTooltipElement(tt, event.clientX, event.clientY);
     setActiveTooltip('item-tooltip-box');
+    watchTooltipAnchor('item-tooltip-box', tooltipAnchorAt(event.currentTarget, event.clientX, event.clientY));
     if (!isEquip) itemTooltipComparisonScheduler.schedule(item, context.token, html);
 }
 
@@ -754,6 +806,7 @@ function dismissItemTooltipNow() {
     itemTooltipComparisonScheduler.setPointer(null);
     activeItemTooltipToken = null;
     clearActiveTooltip('item-tooltip-box');
+    releaseTooltipAnchor('item-tooltip-box');
     document.getElementById('item-tooltip-box').style.display = 'none';
 }
 
