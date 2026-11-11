@@ -10745,7 +10745,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         "완력": "Might",
         "지혜": "Wisdom",
         "기민함": "Agility",
-        "패시브 노드의 힘·민첩 수치를 힘과 민첩에 절반씩 적용\n지능은 0으로 고정": "Split Strength and Dexterity from passive nodes evenly between the two attributes.\nIntelligence is fixed at 0.",
+        "패시브 노드와 아이템의 힘, 민첩 수치를 힘과 민첩에 절반씩 적용\n지능은 0으로 고정": "Split Strength and Dexterity from passive nodes and items evenly between the two attributes.\nIntelligence is fixed at 0.",
         "주 스킬룬은 속성을 유지하고 화염·냉기·번개 피해 보너스 중 가장 높은 값을 사용\n원소 피해로 상태 이상을 유발할 수 없음": "The main skill rune keeps its element and uses the highest Fire, Cold, or Lightning damage bonus.\nElemental damage cannot inflict ailments.",
         "치명타 확률 상한 50%\n초과한 치명타 확률 1%p당 치명타 피해 5% 증가": "Critical strike chance is capped at 50%.\nGain 5% critical strike damage per percentage point above the cap.",
         "남은 공명력 1당 최대 생명력 +5": "+5 maximum Life per point of unspent Resonance.",
