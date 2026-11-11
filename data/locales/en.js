@@ -7132,6 +7132,7 @@ const LANGUAGE_PACK_EN = Object.freeze({
         '제작 실패: {message}': 'Crafting failed: {message}',
         '쁘띠 ': 'Petit',
         '체이싱 코어를 획득했습니다. 「{name}」': 'Obtained a chase core. 「{name}」',
+        '체이싱 룬을 획득했습니다. 「{name}」': 'Chase rune acquired. 「{name}」',
         '🩸 타락한 장비 {name}: 제작할 수 없지만 추가 옵션이 더 강합니다.': '🩸 Corrupted item {name}: cannot be crafted, but its extra affixes are stronger.',
         '✨ 복제된 장비 {name}: 똑같은 장비가 하나 더 떨어졌습니다.': '✨ Duplicated item {name}: an identical item dropped as well.',
         '📦 장비 묶음: {baseName} {length}개가 함께 떨어졌습니다.': '📦 Item bundle: {length} {baseName} dropped together.',

@@ -30,9 +30,9 @@ const gemDropRewards=(()=>{
         return hadOverflowKeystone || stats?.passiveKeystoneFlags?.willResonance ? resonanceCap(state, stats) : Infinity;
     }
     /** Every attack rune: one already held drops and sells again and adds a spare (2026-11-02 사용자). Monster drops may roll
-     * drop-only runes; shops and direct rewards use the default pool. */
-    function attackRunes({ includeDropOnly = false } = {}) {
-        return Object.keys(SKILL_DB).filter(name => SKILL_DB[name].isGem && (includeDropOnly || !SKILL_DB[name].dropOnly));
+     * drop-only runes, and a boss's drop also the chase runes (SKILL_DB chase); shops and direct rewards use the default pool. */
+    function attackRunes({ includeDropOnly = false, boss = false } = {}) {
+        return Object.keys(SKILL_DB).filter(name => SKILL_DB[name].isGem && (includeDropOnly || !SKILL_DB[name].dropOnly) && (boss || !SKILL_DB[name].chase));
     }
     /** Copies beyond the one in use. A broken rune takes one (js/gem-core-forge.js). */
     function spareCount(state,name) {

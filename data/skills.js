@@ -105,8 +105,8 @@ const SKILL_DB = {
     '수액의 가호': { isGem: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'phys', elementLabel: '피해 없음', tags: ['summon', 'summon_buff', 'intelligence'], aura: { stats: [{ stat: 'regen', base: 0.3, scale: 0.1 }, { stat: 'move', base: 2, scale: 1 }] }, desc: '생명력이 천천히 차오르고 이동 속도가 오릅니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᛃ 룬이 떠오릅니다.' },
     // 2026-11-08 전달본 V3.13의 탐욕의 광기(사용자 "드랍률이 낮은 룬 … 처치한 몬스터의 드랍률을 높이며 맵에 있는 아이템을 이동하지 않아도 줍는 사역룬"): 다른 가호처럼
     // 끼어 있는 동안 늘 걸린다(전달본의 15초 다시 걸기는 쓰지 않는다). greed: 처치 드랍률 +dropPct%(js/combat.js), 맵의 아이템 줍기(js/act-exploration-progress.js).
-    // 2026-11-11 사용자: 몬스터 드랍 전용. 같은 무기 적합도의 일반 룬보다 낮은 무게를 쓴다(SKILL_RUNE_DROP_WEIGHTS).
-    '탐욕의 광기': { isGem: true, dropOnly: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'phys', elementLabel: '피해 없음', tags: ['summon', 'summon_buff', 'intelligence'], aura: { stats: [] }, greed: { dropPct: 60 }, desc: '처치한 몬스터의 드랍률이 60% 오르고, 맵에 떨어진 아이템을 움직이지 않아도 줍습니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᚠ 룬이 떠오릅니다.' }
+    // 2026-11-11 사용자: 몬스터 드랍 전용. 2026-11-12 사용자: 체이싱 룬(chase), 보스에게서만 같은 무기 적합도의 일반 룬의 1/50 무게로(SKILL_RUNE_DROP_WEIGHTS).
+    '탐욕의 광기': { isGem: true, dropOnly: true, chase: true, baseDmg: 0, baseSpd: 1, dmgScale: 0, spdScale: 0, ele: 'phys', elementLabel: '피해 없음', tags: ['summon', 'summon_buff', 'intelligence'], aura: { stats: [] }, greed: { dropPct: 60 }, desc: '처치한 몬스터의 드랍률이 60% 오르고, 맵에 떨어진 아이템을 움직이지 않아도 줍습니다. 소환 한도 1을 쓰고, 가호는 하나만 걸립니다. 발밑에 ᚠ 룬이 떠오릅니다.' }
 };
 
 // 루프의 시작 스킬룬(2026-10-15~2026-11-09 LOOP_STARTER_GEM_BY_HERO, 변이 루프 3택 LOOP_MUTATION_STARTER_GEMS)은 기초 스킬(BASIC_SKILL_ROWS)이 대신했다.
@@ -385,7 +385,7 @@ const SKILL_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
     67: ['신성한 단두대', '신성한 기도', '암살', '섬머솔트 슬래시', '시간 가속', '장군의 가호', '전도성 형상체', '일섬', '탐욕의 광기']
 }).flatMap(([level, names]) => names.map(name => [name, Number(level)]))));
 /** 일반 룬보다 드물게 뽑히는 룬의 무게 배율(js/skills.js getSkillRuneRewardWeight). */
-const SKILL_RUNE_DROP_WEIGHTS = Object.freeze({ '탐욕의 광기': 0.2 });
+const SKILL_RUNE_DROP_WEIGHTS = Object.freeze({ '탐욕의 광기': 0.02 });
 const SUPPORT_RUNE_LEVEL_REQ = Object.freeze(Object.fromEntries(Object.entries({
     60: ['갈래 투사체', '연쇄 투사체', '넓은 판정', '터지는 시체', '처형', '유지 시전', '집속', '분쇄의 일격', '비전 증폭', '화염 공명', '냉기 공명', '번개 공명', '혼돈 공명'],
     101: ['이중 발동', '이중 시전', '증원']
