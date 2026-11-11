@@ -281,7 +281,6 @@ function maybeUnlockChaosRealmFromWoodsman(enemy, options) {
         st.highestFloor = Math.max(1, Math.floor(st.highestFloor || 0));
         game.noti.map = true;
         addLog(_t('🌌 나무꾼의 경계가 갈라지며 혼돈계가 해금되었습니다.'), 'loot-unique');
-        if (typeof queueTutorialNotice === 'function') queueOpenContentNotice('chaosRealm', 'unlock_chaos_realm', '혼돈계', '나무꾼의 경계가 갈라져 혼돈계가 열렸습니다.\n‘지도 → 혼돈계’에서 루프가 바뀌어도 이어지는 영구 등반에 도전하세요.', 'tab-map', 'map-tab-chaos-realm');
     }
     if (options && options.log) {
         addLog(_t('🪓 나무꾼 피해율 기록: {woodsmanBestDamagePct}% / 해금 조건 10%', { woodsmanBestDamagePct: st.woodsmanBestDamagePct.toFixed(1) }), st.woodsmanBestDamagePct >= 10 ? 'season-up' : 'attack-monster');

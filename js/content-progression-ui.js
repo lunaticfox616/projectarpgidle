@@ -6,15 +6,7 @@ const CONTENT_ROUTE_PATHS = Object.freeze({
     'skill-tab-condition': '스킬룬 → 전술',
     'tab-codex': '기록 → 도감', 'tab-traits': '스킬트리 → 전직', 'tab-char': '스킬트리',
     'tab-season': '루프 패시브', 'tab-stump': '그루터기 함', 'tab-talent': '재능',
-    'map-tab-pvp': '지도 → 대전', 'map-explore-labyrinth': '지도 → 혼돈의 뿌리 → 고대 미궁', 'map-explore-beehive': '지도 → 탐험 → 벌집',
-    'map-explore-voidrift': '지도 → 혼돈의 뿌리 → 대균열', 'map-explore-colony': '지도 → 탐험 → 군락지',
-    'map-explore-trials': '지도 → 탐험 → 전직 시련', 'map-explore-chaos': '지도 → 혼돈의 뿌리 → 혼돈 심화', 'map-explore-meteor': '지도 → 탐험 → 운석 낙하'
-});
-// 자기 안내 카드가 따로 있는 콘텐츠(카드 키). 그 카드를 이미 띄웠으면 해금 카드는 띄우지 않는다.
-const CONTENT_CARD_DEDICATED = Object.freeze({
-    stump: 'unlock_stump_box', timerift: 'unlock_time_rift',
-    chaosRealm: 'unlock_chaos_realm', sky: 'unlock_sky_tower', underworld: 'unlock_underworld', cosmos: 'unlock_cosmos',
-    ocean: 'unlock_ocean_fishing', fishing: 'unlock_ocean_fishing', beyond: 'unlock_beyond_boundary', meteorSite: 'meteor_unlocked'
+    'tab-unlocks': '해금'
 });
 const contentUnlockUi = {
     /** 첫 루프의 시작 무기가 가방에 들어오면 장착 안내(2026-11-09 사용자: 첫 처치의 룬 드랍을 직업 무기와 장비 장착 안내로). */
@@ -65,7 +57,7 @@ const contentUnlockUi = {
             for (const route of def.routes || []) this.syncRoute(route, !contentProgression.canOpen(route));
         }
         // 해금 목록 항목 없이 진행 조건으로만 열리는 경로.
-        for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'tab-skills', 'tab-items', 'tab-character', 'tab-char', 'tab-social', 'tab-trade']) {
+        for (const route of ['tab-map', 'tab-season', 'tab-unlocks', 'tab-skills', 'tab-items', 'tab-character', 'tab-char', 'tab-social', 'tab-trade', 'map-explore-worldtree']) {
             this.syncRoute(route, !contentProgression.canOpen(route));
         }
         this.resetClosedSelection('itemSubtab', 'item-tab-equip', '#tab-items');
@@ -182,28 +174,88 @@ const contentUnlockUi = {
         const map = action.mapSubtab && action.mapSubtab !== 'map-tab-zones' ? action.mapSubtab : null;
         return action.explore || action.subtab || action.skillSubtab || map || action.tab;
     },
+    journeyPath(route) {
+        const guide = EXPLORATION_REGIONS.guides[route];
+        return guide ? guide.path.split(' → ').map(step => _t(step)).join(' → ') : '';
+    },
+    journeyNotice(route) {
+        const guide = EXPLORATION_REGIONS.guides[route];
+        const line = guide.notice || guide.reward;
+        return [_t(line), _t('입장 경로 · {path}', { path: this.journeyPath(route) })].join('\n');
+    },
+    noticeContentId(notice) {
+        return notice.contentId || (notice.key?.startsWith('unlock_content_') ? notice.key.slice('unlock_content_'.length) : '');
+    },
+    journeyForNotice(notice) {
+        const id = this.noticeContentId(notice);
+        const def = id && CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
+        if (!def) return Object.keys(EXPLORATION_REGIONS.guides).find(key => EXPLORATION_REGIONS.guides[key].noticeKey === notice.key);
+        const action = this.routeAction(def);
+        return action && (def.action?.guide || this.routeKey(action));
+    },
+    noticeBody(def, route) {
+        const guideKey = def.action?.guide || route;
+        if (EXPLORATION_REGIONS.guides[guideKey]) return this.journeyNotice(guideKey);
+        const path = CONTENT_ROUTE_PATHS[route];
+        return path ? _t('{description}\n‘{path}’에 있습니다.', { description: _t(def.description), path: _t(path) }) : def.description;
+    },
+    /** Destinations whose first discovery is a world event rather than a ledger purchase. */
+    announceJourney(guideKey) {
+        const guide = EXPLORATION_REGIONS.guides[guideKey];
+        const outside = guideKey === 'outside-chaos';
+        queueTutorialNotice(guide.noticeKey, guide.title, this.journeyNotice(guideKey), outside ? 'tab-season' : 'tab-map',
+            outside ? null : { subtabId: guide.mapRoute || guideKey, atlasView: guide.atlasView });
+    },
+    announceOutsideChaos() {
+        const key = EXPLORATION_REGIONS.guides['outside-chaos'].noticeKey;
+        if (game.season < 10 || game.chaosRealm.unlocked || game.isBackgroundCalculation) return;
+        if (game.seenTutorials.includes(key) || game.tutorialHistory.some(row => row.key === key)) return;
+        if (hasCurrentLoopAbyssRequirementClear(game.season)) this.announceJourney('outside-chaos');
+    },
+    canOpenProgressTarget(route) {
+        if (route === 'outside-chaos') return game.season >= 10 && contentProgression.canOpen('tab-season');
+        if (route === 'map-explore-chaos') return contentProgression.canOpen('tab-map');
+        return explorationAtlasUi.available(route);
+    },
+    openProgressTarget(route) {
+        if (!this.canOpenProgressTarget(route)) return false;
+        if (route === 'outside-chaos') {
+            switchTab('tab-season', { keepWindowOpen: true });
+            this.openSection('ui-loop10-section');
+        } else if (route === 'map-explore-chaos' && !explorationAtlasUi.available(route)) {
+            explorationAtlasUi.openAct(Math.min(STORY_ACTS.length - 1, game.maxZoneId));
+        } else {
+            switchTab('tab-map', { keepWindowOpen: true });
+            explorationAtlasUi.enter(route);
+            explorationAtlasUi.openEntryPage(route);
+        }
+        return true;
+    },
+    progressButton(route, label) {
+        if (!route || !this.canOpenProgressTarget(route)) return '';
+        return `<button type="button" data-progress-target="${escapeHTML(route)}">${escapeHTML(_t(label))}</button>`;
+    },
     /** New content card: what it is (the catalog line) and where it lives. Once per content; returns true if queued. */
-    announceContent(id) {
+    announceContent(id, inline = false) {
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
         // 강화 단계(def.series)는 카드 없이 기록만 남긴다: 가방 쪽, 그루터기 보관함은 새 콘텐츠가 아니다.
-        if (!def || def.series || (def.minLoop <= 1 && id !== 'tactics') || (game.seenTutorials || []).includes(CONTENT_CARD_DEDICATED[id])) return false;
+        if (!def || !contentProgression.isUnlocked(id) || def.series || (def.minLoop <= 1 && id !== 'tactics')) return false;
         const action = this.routeAction(def), route = action ? this.routeKey(action) : null;
-        const path = CONTENT_ROUTE_PATHS[route];
         const before = tutorialQueue.length;
-        queueTutorialNotice(`unlock_content_${id}`, def.name, path ? _t('{description}\n‘{path}’에 있습니다.', { description: _t(def.description), path: _t(path) }) : def.description,
-            action ? action.tab : null, { subtabId: route, contentId: id, openLabel: _t('{name} 열기', { name: _t(def.name) }) });
+        queueTutorialNotice(`unlock_content_${id}`, def.name, this.noticeBody(def, route),
+            action ? action.tab : null, { subtabId: route, contentId: id, inline, openLabel: _t('{name} 열기', { name: _t(def.name) }) });
         return tutorialQueue.length > before;
     },
     /** Free contents open right now (contentProgression keeps them in automatic once reached). */
-    openedContents() {
-        return new Set(game.contentProgression ? game.contentProgression.automatic : []);
+    openedContents(owner = game) {
+        return new Set(owner.contentProgression?.automatic || []);
     },
     announceOpenedSince(before) {
         this.openedContents().forEach(id => {
             if (before.has(id)) return;
             if (id === 'tactics' && contentProgression.opening.applies(game)) {
                 game.noti.skills = true;
-                return;
+                return this.announceContent(id, true);
             }
             this.announceContent(id);
         });
@@ -214,6 +266,13 @@ const contentUnlockUi = {
         const before = this.openedContents();
         contentProgression.sync();
         this.announceOpenedSince(before);
+        this.announceOutsideChaos();
+    },
+    /** Replay suppresses foreground notices. Recover only discoveries made by the settlement being committed. */
+    announceSettledUnlocks(before) {
+        this.announceOpenedSince(this.openedContents(before));
+        if (!before.atlas?.unlocked && game.atlas.unlocked) this.announceJourney('map-explore-worldtree');
+        this.announceOutsideChaos();
     },
     personal: text => String(text || '').split(/[\s,]+/).pop(),
     /** What the NPC has for the hero, for the mark over it on the stage (js/canvas-act-title-card.js) and in the NPC tab: 'talk' while
@@ -236,6 +295,7 @@ const contentUnlockUi = {
         const dialog = document.createElement('dialog');
         dialog.id = 'npc-dialog';
         dialog.className = 'npc-dialog';
+        dialog.dataset.npcId = npc.id;
         dialog.dataset.tone = npc.tone || 'gold';
         dialog.setAttribute('aria-labelledby', 'npc-dialog-name');
         dialog.addEventListener('click', event => this.npcClick(dialog, view, event));
@@ -243,6 +303,7 @@ const contentUnlockUi = {
         document.body.appendChild(dialog);
         this.renderNpc(dialog, view);
         dialog.showModal();
+        systemTutorialUi.visit('npc-shop');
         return true;
     },
     renderNpc(dialog, view) {
@@ -328,17 +389,21 @@ const contentUnlockUi = {
         if (!contentProgression.isUnlocked(id)) return false;
         const def = CONTENT_UNLOCK_CATALOG.find(row => row.id === id);
         const action = this.routeAction(def);
-        if (!action) return false;
+        if (!action || !contentProgression.canOpen(this.routeKey(action))) return false;
         switchTab(action.tab, { keepWindowOpen: true });
         if (action.subtab) switchItemSubtab(action.subtab);
         if (action.skillSubtab) switchSkillSubtab(action.skillSubtab);
         if (action.mapSubtab) switchMapSubtab(action.mapSubtab);
         if (action.explore) switchMapExploreSubtab(action.explore);
+        explorationAtlasUi.openEntryPage(this.routeKey(action));
+        if (action.atlasView) atlasUi.setView(action.atlasView);
         if (action.section) this.openSection(action.section);
         return true;
     }
 };
 document.addEventListener('click', event => {
+    const progress = event.target.closest('[data-progress-target]');
+    if (progress) contentUnlockUi.openProgressTarget(progress.dataset.progressTarget);
     const button = event.target.closest('[data-unlock-content]');
     if (button && !button.disabled) contentUnlockUi.purchase(button.dataset.unlockContent, button.closest('.unlock-detail') || document);
     const open = event.target.closest('[data-open-content]');

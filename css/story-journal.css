@@ -66,3 +66,41 @@ body #journal-reader.is-text-only { width:min(660px,calc((100vw - 24px) / var(--
 
 @layer overrides {
 #ui-journal-list [hidden] { /* Overrides inline presentation from the runtime; keep state visibility and window geometry authoritative. */ display:none!important; } }
+@layer features {
+.player-guide h3 { margin: 12px 0 4px; }
+.player-guide :is(ul, dl) { list-style: none; margin: 0; padding: 0; }
+.player-guide li, .player-guide dl > div {
+    border-bottom: 1px solid #ac9a6240;
+    padding: 10px 2px;
+}
+.player-guide li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
+.player-guide li > div { flex: 1 1 220px; }
+.player-guide dt { font-weight: 700; }
+.player-guide p, .player-guide dd { margin: 4px 0 0; color: var(--copy-muted); line-height: 1.6; }
+.player-guide button { min-height: 36px; }
+.guide-replay-bar {
+    position: fixed;
+    z-index: 20490;
+    inset-block-end: calc(4px + env(safe-area-inset-bottom));
+    inset-inline-start: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: calc(100% - 16px);
+    padding: 3px 4px 3px 10px;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 6px;
+    background: var(--color-surface);
+    box-shadow: 0 3px 12px #0007;
+}
+.guide-replay-bar span { color: var(--color-text); white-space: nowrap; }
+.guide-replay-bar button { min-height: 32px; white-space: nowrap; }
+body.guide-replay-active :is(#tab-header-main, #tab-header-bottom, #tab-category-bar) { visibility: hidden; }
+body.guide-replay-active :is(.game-toast, .mobile-log-toast) { display: none; }
+body.guide-replay-active:has(#gem-slot-dialog, #gem-engrave-slot-overlay, dialog:modal) .guide-replay-bar { visibility: hidden; }
+@media (max-width: 1080px) {
+    .player-guide button, .guide-replay-bar button { min-height: 44px; }
+}
+@media (max-width: 420px) { .guide-replay-bar span { display: none; } }
+}

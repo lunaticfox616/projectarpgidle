@@ -869,6 +869,7 @@
 .underworld-entry-copy { display: grid; gap: 3px; min-width: 0; }
 .underworld-entry-copy > span { color: var(--color-text-secondary); font-size: 14px; }
 .underworld-entry-copy > strong { color: var(--color-text); font-size: 20px; }
+.underworld-entry-block { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
 .underworld-entry-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .underworld-entry-actions .underworld-primary-action { border-color: var(--color-accent); color: var(--color-text); }
 .underworld-panel {
@@ -880,9 +881,9 @@
   background: var(--color-surface-raised);
   color: var(--color-text);
 }
-.underworld-panel button,.underworld-entry-actions button {min-height:44px;font-size:15px;white-space:normal;word-break:keep-all}
+.underworld-panel button,.underworld-entry-card button {min-height:44px;font-size:15px;white-space:normal;word-break:keep-all}
 .underworld-panel button:disabled {opacity:.72;cursor:not-allowed}
-.underworld-panel button:focus-visible,.underworld-entry-actions button:focus-visible {outline:2px solid var(--color-accent);outline-offset:2px}
+.underworld-panel button:focus-visible,.underworld-entry-card button:focus-visible {outline:2px solid var(--color-accent);outline-offset:2px}
 .underworld-panel-head,
 .underworld-section-head,
 .underworld-upgrade-card {

@@ -130,7 +130,10 @@ const npcShopUi = (() => {
     function earnHintHtml(ware) {
         if (shopView.held(ware.priceKey) >= ware.price) return '';
         const hint = stumpBox.isHarvestPrice(ware.priceKey) ? harvestHint(ware.priceKey) : EARN_HINTS[ware.priceKey];
-        return hint ? `<p class="shop-hint">${hint}</p>` : '';
+        if (!hint) return '';
+        const guide = !game.isGuideReplay && systemTutorialUi.canGuideSalvage(ware.priceKey)
+            ? `<button type="button" data-npc-guide-salvage="${ware.priceKey}">${_t('장비 해체 방법 보기')}</button>` : '';
+        return `<p class="shop-hint">${_t(hint)}</p>${guide}`;
     }
 
     /** Draws the shop again (after a sale, a bag page or a new shelf), or only its card with a note (why a sale did not go). */
@@ -159,7 +162,7 @@ const npcShopUi = (() => {
         const who = contentUnlockUi.personal(STORY_NPCS[id].name);
         addLog(_t('{who}에게서 [{offer}] 구매, {currencyName} {price}', { who, offer: escapeHTML(wareName(result.offer)), currencyName: npcShop.currencyName(result.offer.priceKey), price: result.offer.price }), 'loot-magic');
         chosen = result.offer.gem?.kind === 'attack' ? { id, index } : null;
-        checkUnlocks();
+        if (!game.isGuideReplay) checkUnlocks();
         updateStaticUI();
         saveGame({ skipCloudSync: true });
         redrawShop(root);
@@ -224,6 +227,8 @@ const npcShopUi = (() => {
         if (root) refreshStaleShelf(root);
     });
     document.addEventListener('click', event => {
+        const guide = event.target.closest?.('.shop-view.is-npc [data-npc-guide-salvage]');
+        if (guide) return systemTutorialUi.startShopSalvage(guide.closest('dialog'), guide.dataset.npcGuideSalvage);
         const page = event.target.closest?.('.shop-view.is-npc [data-npc-rune-page]');
         if (page) {
             runePage = Number(page.dataset.npcRunePage);

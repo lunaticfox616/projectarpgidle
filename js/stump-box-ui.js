@@ -912,6 +912,19 @@ const stumpBoxUi = (() => {
         selectedCell = null;
         renderStumpBoxTab(true);
     }
+
+    function beginStumpGuideView() {
+        const previous = { frameView, rightView, storagePage, stateFilter, colorFilter };
+        frameView = 'box';
+        rightView = 'storage';
+        storagePage = 0;
+        stateFilter = colorFilter = 'all';
+        selectStumpItem(null);
+        return () => {
+            selectStumpItem(null);
+            ({ frameView, rightView, storagePage, stateFilter, colorFilter } = previous);
+        };
+    }
     function undoPlacement() {
         if (!stumpBox.undoPlacement(game)) {
             notifyStump('지금은 이전 배치로 되돌릴 수 없습니다.');
@@ -1463,6 +1476,6 @@ const stumpBoxUi = (() => {
     }
 
     return { renderStumpBoxTab, refreshStumpTabNow, revealMoreTab, checkStumpBoxUnlock, tipFor, dropOnCell, dropOnStorage, showStoragePage, dropOnCube, dropCubeItem, claimReward,
-        itemTipHtml, previewCell, hoverCell, placementTip, clearPlacementPreview, syncEquipmentBag, frameShowsCube };
+        itemTipHtml, previewCell, hoverCell, placementTip, clearPlacementPreview, syncEquipmentBag, frameShowsCube, beginStumpGuideView };
 })();
 safeExposeGlobals({ stumpBoxUi });

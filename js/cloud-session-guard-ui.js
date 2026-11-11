@@ -129,6 +129,7 @@ const cloudSessionGuard = (() => {
     /** 다른 기기가 이겼다: 지금까지를 이 기기에 저장하고, 더는 쓰지 않으며, 대기 화면으로 다시 불러온다. */
     function supersedeCloudSession() {
         if (guard.superseded) return;
+        window.playerGuideUi?.dismissReplay(false);
         guard.superseded = true;
         stopPolling();
         try {

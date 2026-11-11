@@ -104,7 +104,7 @@ function renderAttackGemCard(name, highlightedName, stats) {
     let state = equipmentReady ? getGemTileSummary(name, def) : getSkillRuneWeaponNote(name);
     let classes = ['skill-gem', 'gem-library-card', 'gem-tile', `element-${meta.className}`, active ? 'active' : '', equipmentReady ? '' : 'equipment-blocked'].filter(Boolean).join(' ');
     let worn = active ? `<span class="gem-tile-worn">${summonEquipped ? _t('소환 ×{name}', { name: getSummonSkillCount(name) }) : _t('장착')}</span>` : '';
-    return `<article class="${classes}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${formatValue('', gemInfo.totalLevel)}${active ? _t(', 장착 중') : ''}${equipmentReady ? '' : ', ' + escapeHTML(getSkillRuneWeaponNote(name))}">
+    return `<article class="${classes}" data-attack-rune="${escapeHTML(name)}" ${getGemTileHandlers('active', name)} aria-label="${escapeHTML(name)} Lv.${formatValue('', gemInfo.totalLevel)}${active ? _t(', 장착 중') : ''}${equipmentReady ? '' : ', ' + escapeHTML(getSkillRuneWeaponNote(name))}">
         ${renderGemTileLevel(gemInfo)}${worn}${renderGemTileCopies(name)}${renderSkillGemArt(name, 'gem-card-sigil gem-card-art gem-tile-art')}
         <strong class="gem-tile-name">${highlightedName}</strong><small class="gem-usage-state">${escapeHTML(state)}</small>
     </article>`;

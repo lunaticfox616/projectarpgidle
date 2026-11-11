@@ -339,14 +339,11 @@ function advanceLoopCounters(loopPath, say) {
     say(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? _t(' (우주계 난이도 +{max}단계)', { max: Math.max(0, Math.floor(game.cosmosLoopCount || 0)) }) : ''}`, 'season-up');
 }
 
-/** The one-time notices of the loop the hero arrives at (exploration events, time rift, rival blades). */
+/** The one-time lessons of the loop the hero arrives at. Map unlock notices use the ledger. */
 function queueLoopArrivalNotices() {
     Object.entries(EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
         if (game.season === notice.loop) queueTutorialNotice('exploration_event_' + kind, notice.title, notice.body);
     });
-    if (game.season === 13 && typeof queueTutorialNotice === 'function') {
-        queueOpenContentNotice('timerift', 'unlock_time_rift', '시간의 균열', '루프 13에 도달해 시간의 균열이 열렸습니다.\n‘지도 → 탐험 → 시간의 균열’에서 과거를 클리어해 제단을 여세요.\n제단에 같은 부위의 고유 1개/희귀 1개를 올리고 미래를 클리어하면 두 아이템이 융합된 유물이 됩니다.\n시간압이 높을수록 어렵지만 완벽한 융합(추가 옵션 전부 계승) 확률이 오릅니다.', 'tab-map');
-    }
     if (game.season === 31 && typeof queueTutorialNotice === 'function') {
         queueTutorialNotice('unlock_rival_blades', _t('버려진 날붙이들'), _t('나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n‘지도 → 탐험 → 강대한 적’에서 결투에 도전하세요.\n도전권 [표식: 버려진 날]은 심층 보스가 떨어뜨립니다.\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.'), 'tab-map');
     }

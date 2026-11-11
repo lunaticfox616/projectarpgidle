@@ -133,8 +133,7 @@ const atlasEndgameUi = (() => {
      * Called from atlasUi.render on every static refresh; the card opens the atlas's late view. */
     function noticeAwakened() {
         if (!atlasEndgame.awakened(game)) return;
-        queueTutorialNotice('atlas_awakened', _t('깨어난 아틀라스'), _t('아틀라스의 최종 보기에서 최종 보스와 리그 우두머리에게 도전할 수 있습니다.'), 'tab-map',
-            { subtabId: 'map-explore-worldtree', atlasView: 'late' });
+        contentUnlockUi.announceJourney('atlas-late');
     }
     function spoilsText(spoils) {
         const parts = [...spoils.rewards.map(([key, amount]) => `${_t(ORB_DB[key].name)} ${amount}`),

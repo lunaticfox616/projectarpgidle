@@ -744,8 +744,7 @@ const atlasUi = (() => {
         if (!text) return;
         addLog(text(), logClass(detail));
         if (detail.kind === 'complete' && (detail.lost || detail.lostFragments)) addLog(_t('보관 한도가 가득 차 {detail}를 보관하지 못했습니다.', { detail: lostRewards(detail).join(', ') }), 'attack-monster');
-        if (detail.kind === 'starter' && detail.opened) queueTutorialNotice('unlock_world_tree_atlas', _t('세계수 아틀라스'),
-            _t('혼돈 20 너머에서 세계수 아틀라스가 열렸습니다.\n‘지도 → 세계수 아틀라스’에서 지도석을 골라 지도 장치로 여세요. 보스를 잡으면 노드가 완료되고 이웃 노드가 열립니다.'), 'tab-map', 'map-explore-worldtree');
+        if (detail.kind === 'starter' && detail.opened) contentUnlockUi.announceJourney('map-explore-worldtree');
         signature = '';
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));

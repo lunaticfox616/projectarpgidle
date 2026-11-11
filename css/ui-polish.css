@@ -233,6 +233,10 @@ input[data-search-key]:focus {
 .loop-settlement-next li.is-road { --kind: #7fb6e6; }
 .loop-settlement-next li.is-mutation { --kind: #e08a6f; }
 .loop-settlement-reset { margin: 12px 0 0; color: #d99a8a; font-size: 12px; }
+.loop-settlement-preservation { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--color-line); background: var(--color-surface); }
+.loop-settlement-preservation > strong { color: var(--color-accent-gold); }
+.loop-settlement-preservation > ul { margin: 6px 0 0; padding-inline-start: 1.3em; }
+.loop-settlement-preservation li { margin: 4px 0; }
 .loop-settlement-note, .loop-settlement-card .tutorial-body { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
 .loop-settlement-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 #loop-decision-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }

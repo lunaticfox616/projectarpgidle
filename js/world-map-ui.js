@@ -53,8 +53,9 @@ const worldMapUi = (() => {
     function contentState(region) {
         const button = document.getElementById('btn-' + region.route);
         const summary = api.routeSummary(region.route);
-        const status = region.route === 'map-explore-root-boss' ? '' : button?.dataset.entryCondition || summary.status || '';
-        return { open: api.available(region.route), cleared: false, current: false, next: false, attention: !!summary.attention, status, color: region.color,
+        const entryBlock = button?.dataset.entryCondition;
+        const status = region.route === 'map-explore-root-boss' ? '' : entryBlock || summary.status || '';
+        return { open: api.available(region.route), cleared: false, current: false, next: false, attention: !!summary.attention, status, entryBlock, color: region.color,
             title: _t(region.name), kind: EXPLORATION_REGIONS.activities[region.route]?.kind || '', description: region.description ? _t(region.description) : '',
             target: summary.target || '', symbol: region.symbol, icon: region.icon, also: region.also || [], route: region.route, go: `explorationAtlasUi.enter('${region.route}')` };
     }
@@ -157,8 +158,11 @@ const worldMapUi = (() => {
     function sideFor(entry) {
         const { region, state } = entry;
         const kind = state.kind ? `<small>${escapeHTML(_t(state.kind))}</small>` : '';
+        const reward = EXPLORATION_REGIONS.guides[state.route]?.reward;
+        const description = reward ? _t('주요 보상 · {reward}', { reward: _t(reward) }) : state.description;
+        const blocked = state.entryBlock && state.route !== 'map-tab-underworld' ? `<p>${escapeHTML(state.entryBlock)}</p>` : '';
         return `<div class="wm-side" data-wm="${region.id}" style="--wm-tone:${state.color}">
-            <div class="wm-side-text">${kind}<strong>${escapeHTML(state.title)}</strong>${state.description ? `<p>${escapeHTML(state.description)}</p>` : ''}${api.rewardNamesHtml(state.route)}${api.trackedRewardHtml(state.route)}</div>
+            <div class="wm-side-text">${kind}<strong>${escapeHTML(state.title)}</strong>${description ? `<p>${escapeHTML(description)}</p>` : ''}${blocked}${api.rewardNamesHtml(state.route)}${api.trackedRewardHtml(state.route)}</div>
             ${region.type === 'content' ? worldMapBrief.html(region.route) : ''}<div class="wm-side-actions atlas-hunting-action">${actionsHtml(entry)}</div></div>`;
     }
     /** 올린 지역을 설명 칸에만 미리 보여 준다(전체를 다시 그리지 않는다). id가 없거나 잠긴 곳이면 쉬는 지역으로 돌아간다.

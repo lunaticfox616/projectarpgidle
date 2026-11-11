@@ -266,7 +266,7 @@ function setMobileBattlePipCollapsed(host, collapsed) {
     toggle.textContent = collapsed ? _t('전투 보기') : _t('접기');
 }
 
-/** Dense map/crafting views and early landscape trees start folded; leaving restores the previous PiP choice. */
+/** Dense map, crafting and guide views start folded. Leaving restores the previous PiP choice. */
 function dockMobileBattlePip(host) {
     const mapContexts = [['atlas', 'map-explore-worldtree'], ['labyrinth', 'map-explore-labyrinth'], ['chaosRealm', 'map-tab-chaos-realm'], ['sky', 'map-tab-sky'], ['colony', 'map-explore-colony'], ['beehive', 'map-explore-beehive'], ['timerift', 'map-explore-timerift'], ['underworld', 'map-tab-underworld']];
     function syncContext(context) {
@@ -291,6 +291,7 @@ function dockMobileBattlePip(host) {
     }
     function battlePipDockTarget() {
         if (!uiDisplay.matches('(max-width: 1080px)')) return { context: '', anchor: null };
+        if (document.querySelector('#tab-guide.active')) return { context: 'guide', anchor: null };
         const workshop = document.querySelector('#tab-map.active #map-tab-fishing.active #fishing-workshop[data-mobile-selected="true"] #fishing-battle-preview');
         if (workshop) return { context: 'fishing', anchor: workshop };
         const title = uiDisplay.matches('(orientation: landscape) and (max-height: 600px)')
@@ -500,6 +501,7 @@ function switchItemSubtab(subtabId) {
     game.itemSubtab = subtabId;
     if (subtabId === 'item-tab-equip' && window.equipmentTriage) window.equipmentTriage.onOpen();
     showItemSubtabPanel(subtabId);
+    systemTutorialUi.visit(subtabId);
     updateStaticUI();
 }
 
@@ -763,6 +765,7 @@ function switchSkillSubtab(subtabId) {
     let btn = document.getElementById('btn-' + subtabId);
     if (panel) panel.classList.add('active');
     if (btn) btn.classList.add('active');
+    systemTutorialUi.visit(subtabId);
 }
 
 
@@ -1073,9 +1076,10 @@ function syncCombatTacticsControls() {
     positionSelect.value = tactics.positionMode;
     targetSelect.disabled = !unlocked;
     positionSelect.disabled = !unlocked;
-    const firstUse = contentProgression.opening.applies(game) && !game.seenTutorials.includes('opening_tactics_selected');
+    const firstUse = unlocked && contentProgression.opening.applies(game) && !game.seenTutorials.includes('opening_tactics_selected');
+    targetSelect.classList.toggle('tutorial-callout', firstUse);
     if (help) help.textContent = unlocked
-        ? _t(firstUse ? '먼저 공격할 적을 골라 보세요.' : '조건부 규칙이 맞지 않을 때 쓰는 전술입니다. 전술 이동 시 다음 공격이 0.3~0.65초 미뤄집니다.')
+        ? _t(firstUse ? '먼저 공격할 적을 골라 보세요. 자동 전투가 그 대상을 우선합니다.' : '조건부 규칙이 맞지 않을 때 쓰는 전술입니다. 전술 이동 시 다음 공격이 0.3~0.65초 미뤄집니다.')
         : TACTICS_RULES_LOCK_MESSAGE;
 }
 
@@ -1355,7 +1359,7 @@ function processQueuedUIRefresh() {
     captureUiDisclosureState(document);
     uiRefreshRunning = true;
     try {
-        checkUnlocks();
+        if (!game.isGuideReplay) checkUnlocks();
         performUpdateStaticUI();
         updateBuildFeedback(cachedTooltipStats);
         tutorialActionUi.refresh();
@@ -2010,22 +2014,11 @@ function gameLoop(frameNow = performance.now()) {
     gameLoopFrameHandle = null;
     try {
         if (isBattlePresentationSuspended()) return;
-        runForegroundExplorationFrame(frameNow);
-        actExplorationUi.render();
-        // 백그라운드 재계산 중에는 캔버스 렌더를 쉬어 계산 청크에 프레임을 양보한다.
-        // RAF timestamps share the display clock; callback execution can be delayed by combat/UI work.
-        showNextTutorial();
-        openDeathOverlay.flushPending();
-        let tutorialPause = isTutorialPausingCombat();
-        if (tutorialPause || isRewardOpen() || isLoopHeroSelectOpen()) {
-            if (document.getElementById('tab-char').classList.contains('active')) {
-                if (shouldRedrawPassiveTree()) {
-                    resizePassiveTreeCanvas(false);
-                    drawPassiveTree();
-                }
-            }
-            renderBattlefieldThrottled(frameNow);
-            return;
+        if (!game.isGuideReplay) {
+            runForegroundExplorationFrame(frameNow);
+            actExplorationUi.render();
+            showNextTutorial();
+            openDeathOverlay.flushPending();
         }
         if (document.getElementById('tab-char').classList.contains('active')) {
             if (shouldRedrawPassiveTree()) {
@@ -2033,7 +2026,7 @@ function gameLoop(frameNow = performance.now()) {
                 drawPassiveTree();
             }
         }
-        renderBattlefieldThrottled(frameNow);
+        if (!game.isGuideReplay) renderBattlefieldThrottled(frameNow);
     } catch (error) {
         console.error('gameLoop error:', error);
         recoverRuntimeState();
@@ -2251,7 +2244,7 @@ const MERGED_TAB_GROUPS = Object.freeze({
     growth: { launcher: 'tab-char', title: '스킬트리', tabs: [{ id: 'tab-char', label: '스킬트리', icon: 2, count: () => game.passivePoints, detail: '스킬트리 노드에 포인트를 씁니다.' }, { id: 'tab-traits', label: '전직', icon: 16, detail: '전직을 고르고 노드와 키스톤을 할당합니다.' }, { id: 'tab-talent', gate: 'talent', label: '재능', icon: 17, detail: '재능 개화 카드를 고르고 키웁니다.' }] },
     gear: { launcher: 'tab-items', title: '장비', tabs: [{ id: 'tab-items', label: '장비', icon: 6, detail: '장비와 가방을 봅니다.' }, { id: 'tab-skills', label: '스킬룬', icon: 9, detail: '룬을 장착하고 키웁니다.' }] },
     loop: { launcher: 'tab-season', title: '루프', tabs: [{ id: 'tab-season', label: '루프 패시브', icon: 4, count: () => game.seasonPoints, detail: '루프 포인트로 영구 노드에 투자합니다.' }, { id: 'tab-unlocks', label: '해금', icon: 3, count: () => contentProgression.points(game).balance, detail: '해금 포인트로 다음 콘텐츠를 고릅니다.' }] },
-    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '이야기 저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
+    records: { launcher: 'tab-journal', title: '기록', tabs: [{ id: 'tab-journal', gate: 'journal', label: '이야기 저널', icon: 10, detail: '진행 기록과 안내를 확인합니다.' }, { id: 'tab-guide', gate: 'journal', label: '가이드', icon: 10, detail: '주요 조작을 다시 따라 하거나 용어를 확인합니다.' }, { id: 'tab-codex', gate: 'codex', label: '도감', icon: 13, detail: '발견한 항목과 수집 현황을 확인합니다.' }, { id: 'tab-records', gate: 'journal', label: '기록', icon: 20, detail: '루프 소요 시간과 최고 기록을 확인합니다.' }] }
 });
 
 // 탭 2단 그룹핑: 상단 카테고리 바에서 그룹을 고르면 해당 그룹의 탭만 보인다.
@@ -2259,7 +2252,7 @@ const MERGED_TAB_GROUPS = Object.freeze({
 const TAB_GROUPS = [
     { key: 'character', label: '캐릭터', icon: '👤', tabs: ['tab-character'] },
     { key: 'growth', label: '성장', icon: '📈', tabs: ['tab-char', 'tab-traits', 'tab-talent', 'tab-unlocks', 'tab-season', 'tab-stump', 'tab-skills'] },
-    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-records'] },
+    { key: 'content', label: '콘텐츠', icon: '🗺️', tabs: ['tab-map', 'tab-codex', 'tab-journal', 'tab-guide', 'tab-records'] },
     { key: 'gear', label: '장비', icon: '⚔️', tabs: ['tab-items', 'tab-trade'] },
     { key: 'etc', label: '기타', icon: '⚙️', tabs: ['tab-settings', 'tab-battle'] }
 ];
@@ -2280,6 +2273,7 @@ let mergedTabSwitching = false;
 
 
 function switchTab(tabId) {
+    if (window.playerGuideUi?.allowsTab(tabId, true) === false) return;
     hideInfoTooltip();
     hideItemTooltip();
     if (typeof window.hidePassiveNodeTooltip === 'function') window.hidePassiveNodeTooltip();
@@ -3930,15 +3924,15 @@ function buildCraftActionButtons(item) {
     let routeSummaryHtml = buildMapRouteSummaryHtml(getZone(game.currentZoneId), recommendedHuntingZone);
     writeHtmlIfChanged(mapRouteSummary, routeSummaryHtml);
     // 나무(일반 사냥터)와 혼돈을 탐험 좌측 세부 탭으로 나눠 그린다(js/map-list-ui.js: 액트 카드, 혼돈 층 타일).
-    setExploreSubtabAvailable('map-explore-chaos', mapListUi.render(mapZones, recommendedHuntingZoneId) > 0);
-    setExploreSubtabAvailable('map-explore-beehive', (game.season || 1) >= 8);
-    setExploreSubtabAvailable('map-explore-voidrift', (game.season || 1) >= 9);
-    setExploreSubtabAvailable('map-explore-colony', (game.season || 1) >= 15);
+    mapListUi.render(mapZones, recommendedHuntingZoneId);
+    for (const route of ['map-explore-chaos', 'map-explore-beehive', 'map-explore-voidrift', 'map-explore-colony']) {
+        setExploreSubtabAvailable(route, explorationAtlasUi.discovered(route));
+    }
     let boundaryState = ensureBeyondBoundaryState(game);
-    setExploreSubtabAvailable('map-explore-beyond', boundaryState.unlocked);
+    setExploreSubtabAvailable('map-explore-beyond', explorationAtlasUi.discovered('map-explore-beyond'));
     if (boundaryState.unlocked) renderBeyondBoundaryPanel();
 
-    let seasonBosses = SEASON_BOSS_ZONES.filter(zone => (game.season || 1) >= (zone.reqSeason || 2));
+    let seasonBosses = explorationAtlasUi.bosses();
     document.getElementById('ui-season-boss-header').style.display = seasonBosses.length > 0 ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-root-boss', seasonBosses.length > 0);
     let seasonBossRepeatWrap = document.getElementById('ui-season-boss-repeat-wrap');
@@ -3952,11 +3946,11 @@ function buildCraftActionButtons(item) {
     }
     mapListUi.renderBosses(seasonBosses);
 
-    let timeRiftOpen = (game.season || 1) >= TIME_RIFT_UNLOCK_LOOP;
+    let timeRiftOpen = explorationAtlasUi.discovered('map-explore-timerift');
     setExploreSubtabAvailable('map-explore-timerift', timeRiftOpen);
     if (timeRiftOpen) renderTimeRiftPanel();
 
-    let labyrinthOpen = (game.season || 1) >= 3;
+    let labyrinthOpen = explorationAtlasUi.discovered('map-explore-labyrinth');
     document.getElementById('ui-labyrinth-header').style.display = labyrinthOpen ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-labyrinth', labyrinthOpen);
     if (labyrinthOpen) {
@@ -3971,7 +3965,7 @@ function buildCraftActionButtons(item) {
     if (deepChaosTabBtn) deepChaosTabBtn.style.display = 'none';
     if (game.mapExploreSubtab === 'map-explore-deep-chaos') switchMapExploreSubtab('map-explore-hunting');
 
-    let meteorUnlocked = !!(game.meteorSite && game.meteorSite.unlocked);
+    let meteorUnlocked = explorationAtlasUi.discovered('map-explore-meteor');
     document.getElementById('ui-meteor-header').style.display = meteorUnlocked ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-meteor', meteorUnlocked);
 
@@ -3994,11 +3988,7 @@ function buildCraftActionButtons(item) {
         fishingUi.render();
     }
 
-    let availTrials = TRIAL_ZONES.filter(trial => {
-        if (!contentProgression.isUnlocked('battleTrials')) return false;
-        if (trial.bloomTrial) return canSeeTalentBloomTrial();
-        return (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id);
-    }).sort((a, b) => Number(game.completedTrials.includes(a.id)) - Number(game.completedTrials.includes(b.id)));
+    let availTrials = explorationAtlasUi.trials().sort((a, b) => Number(game.completedTrials.includes(a.id)) - Number(game.completedTrials.includes(b.id)));
     document.getElementById('ui-trials-header').style.display = availTrials.length > 0 ? 'block' : 'none';
     setExploreSubtabAvailable('map-explore-trials', availTrials.length > 0);
     sideEncounterUi.refreshDestinations();
@@ -4119,6 +4109,7 @@ function buildCraftActionButtons(item) {
     __mark('progressionTabs');
     if (isTabRendering('tab-codex')) uniqueCodexUi.render();
     if (isTabRendering('tab-records') && typeof renderRecordsTab === 'function') renderRecordsTab();
+    if (isTabRendering('tab-guide')) playerGuideUi.render();
 
     // 룬 카드 140장 가까이가 같은 주얼과 고유 장비의 룬 레벨을 쓴다: 한 번 그리는 동안 빌드 메모를 나눠 쓴다(js/background-build-cache.js)
     if (isTabRendering('tab-skills') && typeof renderSkillGemScreen === 'function') withBuildMemoPass(() => renderSkillGemScreen({ pStats, searchFilters: sf }));
@@ -4131,7 +4122,7 @@ function buildCraftActionButtons(item) {
         let entries = orderedIds.map(id => ({ id: id, def: JOURNAL_DB[id] }));
         let journalHintById = {
             prologue: '게임 시작',
-            woodsman: '혼돈 5층 클리어',
+            woodsman: '혼돈 밖의 나무꾼 처치',
             woodsman_echo: '혼돈 밖에서 나무꾼 완전 격파',
             meteor_fall: '운석 낙하 지점 첫 정산',
             beehive_queen: '벌집 원정에서 여왕 격파',
@@ -4377,8 +4368,8 @@ function checkUnlocks() {
     if ((game.skills.length > 1 || game.supports.length > 0) && !u.skills) {
         u.skills = true;
         game.noti.skills = true;
-        queueTutorialNotice('unlock_skills', _t('새 스킬룬'), _t('새 룬을 얻었습니다.\n‘스킬룬’에서 룬을 눌러 효과를 보고 공격 룬을 바꿔 보세요.'), 'tab-skills');
     }
+    tutorialActionUi.announceRune();
     // 도감이 잠겨 있을 때만 인벤토리 전체를 훑는다. (이미 해금된 뒤에도 매 드랍마다
     // O(인벤토리) 스캔을 돌면 대량 처치/드랍 시 스파이크가 생긴다.)
     if (!u.codex) {
@@ -4405,7 +4396,6 @@ function checkUnlocks() {
             boundaryButton.classList.add('map-explore-tab-unlock-reveal');
             setTimeout(() => boundaryButton.classList.remove('map-explore-tab-unlock-reveal'), 1400);
         }
-        queueOpenContentNotice('beyond', 'unlock_beyond_boundary', '경계 너머', '완전한 수관과 최종 관문 너머로 끝없는 도전이 열렸습니다.\n‘지도 → 탐험 → 경계 너머’에서 단계를 고르고 키울 경계 인장을 정하세요.', 'tab-map');
     }
     if (game.season > 1 && !u.season) {
         u.season = true;

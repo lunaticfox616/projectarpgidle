@@ -496,9 +496,12 @@ const skillGemCasts = (() => {
     }
     // ---------------------------------------------------------------- 80 시간의 사선 (같은 전달본, 시뮬레이터 time-slash-homage.js)
     // 공격 속도 1에서 찌르기 7장 0.89초. 2번째 장(0.23초)에 6칸 안의 적을 1.3초 둔화하고(이동만 30%, js/combat.js) 대상을 정한다. 칼날이 대상 머리 위에 서 있다가
-    // 0.12초에 날아가 맞힌다(궁수와 성직자는 칼이 앞으로 나오는 장이 하나 늦어 0.66초, 나머지 0.46초). 투사체 N발은 가까운 적 N명에게 먼저, 모자라면 0.06초 간격으로
-    // 다시 친다. 대상마다 첫 적중은 2칸 안의 다른 적 둘에게 20% 피해로 0.09초 뒤 튕긴다(주대상과 이미 튕긴 적은 빼고, 다시 튕기지 않는다). 칼날 일곱은 그림이고 피해는 한 번이다.
-    const TIME_SLASH={range:6,cycle:890,slowStart:229.7,slow:1300,hit:459.4,lateHit:660.3,lateClasses:new Set(['archer','cleric']),flight:120,again:60,bounce:90,bounceReach:2,bounceTargets:2,bouncePct:20};
+    // 0.12초에 날아가 맞힌다(궁수와 성직자는 칼이 앞으로 나오는 장이 하나 늦어 0.66초, 나머지 0.46초). 대상마다 첫 적중은 2칸 안의 다른 적 둘에게 20% 피해로
+    // 0.09초 뒤 튕긴다(주대상과 이미 튕긴 적은 빼고, 다시 튕기지 않는다).
+    // V3.14.10(2026-11-12 전달본, time-slash-homage.js): 투사체 한 발은 차례로 날아가는 검 묶음이다. 첫 발과 대상이 모자라 다시 치는 발은 검 일곱이 0.024초 간격으로,
+    // 새 대상에게 가는 발은 검 하나다. 다음 발의 첫 검은 앞 발의 마지막 검 0.048초 뒤에 닿는다. 피해는 묶음의 마지막 검에 한 번이다. 간격은 공격 속도로 줄어든다.
+    const TIME_SLASH={range:6,cycle:890,slowStart:229.7,slow:1300,hit:459.4,lateHit:660.3,lateClasses:new Set(['archer','cleric']),flight:120,step:24,volleyGap:48,swords:7,bounce:90,bounceReach:2,bounceTargets:2,bouncePct:20};
+    let timeSlashCasts=0;                         // 시전마다 검의 진입 각도를 돌리는 번호(js/canvas-stage-new-runes.js timeBlades)
     function launchTimeSlash(state,c) {
         const late=TIME_SLASH.lateClasses.has(getHeroAppearanceId());
         c.hitDelay=ms(c,late?TIME_SLASH.lateHit:TIME_SLASH.hit);c.flightMs=ms(c,TIME_SLASH.flight);
@@ -509,15 +512,19 @@ const skillGemCasts = (() => {
     function timeSlashRelease(state,c,input) {
         const range=TIME_SLASH.range+grow(c.stats),near=input.enemies.filter(e=>e.hp>0 && getGridUnitCells(e).some(p=>distance(input.source,p)<=range)).sort((a,b)=>getGridUnitDistance(input.source,a)-getGridUnitDistance(input.source,b));
         const shots=1+supportShots(c)+rollProjectileExtraShots(c.stats.projectileExtraShots),aimed=near.slice(0,shots),at=c.at+c.hitDelay;
-        c.index=1;c.source=cell(input.source);
+        c.index=1;c.source=cell(input.source);c.cast=++timeSlashCasts;
         aimed.forEach(e=>c.primary.add(e.id));
         visual(state,c,'field',c.nextAt,ms(c,TIME_SLASH.cycle-TIME_SLASH.slowStart)+TIME_SLASH.slow,{timeSlowUntil:c.nextAt+TIME_SLASH.slow,timeActorEnd:c.at+ms(c,TIME_SLASH.cycle),timeSpeed:c.speed,sourceCell:c.source});
-        for(let i=0;i<(aimed.length?shots:0);i++) {
-            const foe=aimed[i%aimed.length],again=i>=aimed.length,arrive=at+(again?(i-aimed.length+1)*ms(c,TIME_SLASH.again):0);
-            c.queue.push({at:arrive,kind:'strike',id:foe.id,first:!again,index:i});
-            visual(state,c,'blades',c.nextAt,arrive-c.nextAt+ms(c,200),{timeFoe:foe.id,timeCell:getGridUnitCenter(foe),timeArrive:arrive,timeFly:again?ms(c,TIME_SLASH.again):c.flightMs,timeShot:i,timeSpeed:c.speed});
-        }
+        for(let i=0,last=0;i<(aimed.length?shots:0);i++)last=timeSlashVolley(state,c,aimed,i,i?last+ms(c,TIME_SLASH.volleyGap):at);
         return [{type:'timeSlow',targets:near.map(e=>e.id),at:c.nextAt,ms:TIME_SLASH.slow}];
+    }
+    /** i번째 발: 첫 검이 first에 닿고, 묶음(첫 발과 다시 치는 발은 일곱, 새 대상은 하나)의 마지막 검이 닿는 때를 돌려준다. 그때 피해 한 번. */
+    function timeSlashVolley(state,c,aimed,i,first) {
+        const foe=aimed[i%aimed.length],again=i>=aimed.length,swords=i===0||again?TIME_SLASH.swords:1,arrive=first+(swords-1)*ms(c,TIME_SLASH.step);
+        c.queue.push({at:arrive,kind:'strike',id:foe.id,first:!again,index:i});
+        visual(state,c,'blades',c.nextAt,arrive-c.nextAt+ms(c,200),{timeFoe:foe.id,timeCell:getGridUnitCenter(foe),timeFirst:first,timeArrive:arrive,timeSwords:swords,
+            timeStep:ms(c,TIME_SLASH.step),timeFly:c.flightMs,timeShot:i,timeCast:c.cast,timeSpeed:c.speed});
+        return arrive;
     }
     /** 첫 적중의 튕김: 2칸 안의 다른 적 둘(가까운 순). */
     function timeSlashBounces(state,c,foe,at,enemies) {
@@ -527,7 +534,7 @@ const skillGemCasts = (() => {
             c.bounced.add(e.id);
             const arrive=at+ms(c,TIME_SLASH.bounce);
             c.queue.push({at:arrive,kind:'bounce',id:e.id});
-            visual(state,c,'bounce',at,arrive-at+ms(c,110),{sourceCell:getGridUnitCenter(foe),landingCell:getGridUnitCenter(e),targetCells:[getGridUnitCenter(e)],timeArrive:arrive});
+            visual(state,c,'bounce',at,arrive-at+ms(c,110),{sourceCell:getGridUnitCenter(foe),landingCell:getGridUnitCenter(e),targetCells:[getGridUnitCenter(e)],timeArrive:arrive,timeSpeed:c.speed});
         }
     }
     function timeSlashContact(state,c,row,enemies) {

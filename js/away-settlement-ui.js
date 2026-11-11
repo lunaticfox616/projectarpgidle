@@ -81,6 +81,7 @@ function isOfflineCombatEligible(state) {
 /** The page went away (hidden, closing, the app paused): play stops here, and the return or the next launch settles from this time.
  * Nothing plays before the game starts (the title screen); the launch's offline settlement covers that time. */
 function recordBackgroundCombatEntry(nowMs) {
+    window.playerGuideUi?.dismissReplay();
     if (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed || !gameplayStarted) return;
     let now = Number.isFinite(nowMs) ? nowMs : Date.now();
     backgroundCombatRuntime.hiddenAtMs = now;
@@ -437,6 +438,7 @@ function commitBackgroundCombat(result, expectedGame) {
     let candidate = mergeDefaults(result.game);
     candidate.saveMeta = { ...expectedGame.saveMeta };
     candidate.settings.mapCompleteAction = expectedGame.settings.mapCompleteAction;
+    yieldTutorialCardToResult();
     game = candidate;
     backgroundCombatRuntime.processing = false;
     // The settled state is stamped now: a save made while hidden keeps hiddenAtMs (js/save.js getPlayedUntil), which would settle
@@ -444,12 +446,14 @@ function commitBackgroundCombat(result, expectedGame) {
     const awaySince = backgroundCombatRuntime.hiddenAtMs;
     backgroundCombatRuntime.hiddenAtMs = 0;
     try {
+        contentUnlockUi.announceSettledUnlocks(expectedGame);
         if (!persistLocalSave({allowRecoveryWrite: getLocalSaveStatus().status === 'write-failed'})) throw new Error('방치 보상 저장에 실패했습니다. 이전 진행은 유지됩니다.');
         restoreCombatRuntime(result.runtime);
         backgroundCombatRuntime.snapshot = null;
         backgroundCombatRuntime.signature = '';
     } catch (error) {
         game = expectedGame;
+        window.GameModules.state.tutorials.sync(game);
         backgroundCombatRuntime.hiddenAtMs = awaySince;
         throw error;
     }

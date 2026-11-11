@@ -17,8 +17,8 @@ const openingJourney = (() => {
     // card (by the lessons). The top-down field (a build without the stage art) keeps those two and has no lessons: after the intro
     // it plays as before, auto hunt and all.
     const REPLACED = Object.freeze(['story_prologue']), STAGE_REPLACED = Object.freeze(['story_act_1_start', 'tutorial_battle_basics']);
-    const TICK_MS = 150, LEAVE_MS = 900, REVEAL_MS = 1100, AUTO_HINT_MS = 45000, CARD_GAP = 8;
-    let intro = null, rising = null, movedFrom = null, hintEl = null, hintTop = 0, hintBelow = false, hintField = '', wakeEl = null, autoHintUntil = 0, heldAuto = null;
+    const TICK_MS = 150, LEAVE_MS = 900, REVEAL_MS = 1100, CARD_GAP = 8;
+    let intro = null, rising = null, movedFrom = null, hintEl = null, hintTop = 0, hintBelow = false, hintField = '', wakeEl = null, autoHint = null, heldAuto = null;
     let introReturnFocus = null, introOwner = null;
 
     const seen = key => Array.isArray(game.seenTutorials) && game.seenTutorials.includes(key);
@@ -216,19 +216,19 @@ const openingJourney = (() => {
         if (getEquippedWeaponStance() === 'unarmed') return false;
         return contentProgression.opening.applies(game) || (seen(guide) && !guideWaits(guide) && !tutorialOpen() && !tutorialActionUi.active);
     }
-    function trackLesson(now, run) {
+    function trackLesson(run) {
         const step = lesson();
         if (intro) return;
         if (step === 'rise') trackRise();
         else if (step === 'move') trackMove(run);
         else if (step === 'attack' && rescueStruck(run)) mark(KEY.attack);
-        else if (step === 'equip' && weaponLearnt()) finish(now);
+        else if (step === 'equip' && weaponLearnt()) finish(run);
     }
     /** The opening ends: the auto hunt opens, its guide card comes, and the auto button glows until it is switched on. The battle comes
      * back to the front first: the window the equip guide opened covered the glowing button and half of the line naming it (2026-10-21). */
-    function finish(now) {
+    function finish(run) {
         mark(KEY.done);
-        autoHintUntil = now + AUTO_HINT_MS;
+        autoHint = run && game.gridPlayer ? { owner: game, run, gx: game.gridPlayer.gx, gy: game.gridPlayer.gy } : null;
         switchTab('tab-battle');
         const key = coarse() ? '' : hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, 'combat:autoMove'));
         queueTutorialNotice('opening_auto', _t('자동 사냥'), `이제 자동 사냥을 쓸 수 있습니다.\n오른쪽 위 자동 단추${key ? _t('나 {key} 키', { key }) : ''}로 켜면 캐릭터가 알아서 걷고 싸웁니다.\n지금 할 일은 ‘목표’에 나옵니다.`);
@@ -265,15 +265,13 @@ const openingJourney = (() => {
     });
     /** The card stays through the story lines, the guide cards and the rune window (2026-10-27 사용자: 대사나 첫 스킬룬 장착 창이 떠도
      * 계속 켜져 있게, 스킬룬 창보다는 밑에): it lives in the battlefield box, so windows over the battlefield cover it. */
-    function hintFor(now) {
+    function hintFor() {
         if (intro) return null;
         const step = lesson();
         if (step === 'rise') return lying() ? 'rise' : null;
         if (step === 'equip') return weaponInHand() ? 'equip' : lessonHint('attack');
         if (step) return lessonHint(step);
-        const system = systemHint();
-        if (system === 'system:tab-items') return system;
-        return autoHintDue(now) ? 'auto' : system;
+        return autoHintDue() ? 'auto' : systemHint();
     }
     function systemHint() {
         const cue = contentProgression.opening.nextCue(game);
@@ -311,8 +309,15 @@ const openingJourney = (() => {
         return `<div class="opening-lesson-head"><span class="opening-lesson-kicker">${_t('시작 안내 {value}/{length}', { value: at + 1, length: LESSON_ORDER.length })}</span><span class="opening-lesson-dots" aria-hidden="true">${dots}</span></div>`
             + `<strong class="opening-lesson-title">${_t(LESSON_TITLES[name])}</strong><p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
     }
-    /** The auto button's line: for a while after the opening ends, until the auto hunt is switched on. */
-    const autoHintDue = now => seen(KEY.done) && now < autoHintUntil && game.settings.autoMove === false;
+    /** Stop pointing to Auto once the player turns it on or deliberately walks on. */
+    function autoHintDue() {
+        if (!autoHint) return false;
+        const { gx, gy } = game.gridPlayer;
+        if (autoHint.owner !== game || autoHint.run !== actRun() || game.settings.autoMove || gx !== autoHint.gx || gy !== autoHint.gy) {
+            autoHint = null;
+        }
+        return !!autoHint;
+    }
     /** The card and the arrow live in the battlefield box and are placed in its own pixels each tick, from the canvas offsets: page
      * pixels went off under the UI scale (the root zoom) and on other screen sizes (2026-10-27 사용자: 화면 크기에 따라 창과 화살표
      * 자리를 맞추게). Whole pixels: a translate(-50%) put the pixel font on half pixels and blurred it. */
@@ -402,14 +407,13 @@ const openingJourney = (() => {
     const ticking = () => typeof game === 'object' && !!game && Array.isArray(game.seenTutorials) && !game.isBackgroundCalculation;
     function tick() {
         if (!ticking()) return;
-        const now = Date.now();
         followGame();
         if (active()) {
             const run = actRun();
             holdManual(run);
-            trackLesson(now, run);
+            trackLesson(run);
         } else if (stageActors.down()) stageActors.setRise(null); // a save loaded mid-opening: no one lies there any more
-        showHint(hintFor(now));
+        showHint(hintFor());
     }
     /** Starts the intro for a new game; drops it when the game under it stopped being new. */
     function followGame() {

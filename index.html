@@ -459,6 +459,7 @@
 <div id="right-pane">
     <dialog id="act-exploration-dialog" aria-label="확대 탐험 지도" data-i18n-attr="aria-label">
         <div class="act-exploration-heading"><strong data-i18n>탐험 지도</strong></div>
+        <p id="act-exploration-elite-guide" hidden data-i18n>금빛 마름모가 있는 방에 정예가 남아 있습니다. 표식이 보이지 않으면 아직 가 보지 않은 방을 탐색하세요.</p>
         <canvas id="act-exploration-map-large" tabindex="0" aria-label="확대 탐험 지도. 클릭, WASD 또는 방향키로 이동" onclick="actExplorationUi.choose(event)" data-i18n-attr="aria-label"></canvas>
         <div class="act-exploration-modes">
             <button type="button" data-exploration-mode="direct" onclick="actExplorationUi.mode('direct')" data-i18n>보스 직행</button>
@@ -486,6 +487,7 @@
         <div class="tab-btn" id="btn-tab-map" data-button-art onclick="switchTab('tab-map')" data-i18n>지도 <span id="noti-map" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-skills" data-merged-tab-member="1" data-merged-tab-group="gear" onclick="switchTab('tab-skills')" data-i18n>스킬룬 <span id="noti-skills" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-journal" data-button-art data-merged-tab-launcher="records" onclick="openMergedTabPicker(event,'records')" style="display:none;" data-i18n>기록 <span id="noti-journal" class="noti-dot"></span></div>
+        <div class="tab-btn" id="btn-tab-guide" data-merged-tab-member="1" onclick="switchTab('tab-guide')" data-i18n>가이드</div>
         <div class="tab-btn" id="btn-tab-codex" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-codex')" data-i18n>도감 <span id="noti-codex" class="noti-dot"></span></div>
         <div class="tab-btn" id="btn-tab-records" data-button-art data-merged-tab-member="1" onclick="switchTab('tab-records')" data-i18n>전적</div>
         <div class="tab-btn" id="btn-tab-settings" data-button-art onclick="switchTab('tab-settings')" style="display: flex;" data-i18n>설정</div>
@@ -1216,6 +1218,10 @@
         <div id="ui-records-body" class="records-archive"></div>
     </div>
 
+    <div id="tab-guide" class="tab-content" data-merged-tab-member="1">
+        <div id="ui-player-guide"></div>
+    </div>
+
     <div id="tab-settings" class="tab-content" data-settings-category="display">
         <!-- 설정(2026-10-16 사용자: "같은 계열인데 칸이 너무 나뉘어", "필요한 설정을 찾기 쉽도록", 오래된 설정 삭제): 왼쪽 분류 여섯,
              오른쪽은 분류 한 장에 묶음별 한 줄 항목(이름과 짧은 설명, 오른쪽 끝에 조절). 저장과 동작은 js/settings-ui.js. -->
@@ -1924,7 +1930,9 @@
 <script defer src="js/passive-selection-ui.js"></script>
 <script defer src="js/endgame-progression-ui.js"></script>
     <script defer src="legal/policies-content.js"></script>
+<script defer src="js/system-tutorials-ui.js"></script>
 <script defer src="js/tutorial-ui.js"></script>
+<script defer src="js/player-guide-ui.js"></script>
 <script defer src="js/story-journal-ui.js"></script>
 <script defer src="js/inventory-search-ui.js"></script>
 <script defer src="js/colony-ward-ui.js"></script>

@@ -77,6 +77,7 @@ const gameTabGuard = (() => {
     /** A newer tab said hello: this tab saves (when that tab waits and the hello came in time), writes nothing after that, says it handed
      * over (after the save, so the save reaches that tab first) and reloads into standby. */
     function handOver(asker) {
+        window.playerGuideUi?.dismissReplay(false);
         yielded = true;
         boot = null;
         if (asker.waits && gameplayStarted && Date.now() - asker.at < SAVE_WINDOW_MS && canPersistLocalSave()) saveGame({ skipCloudSync: true });

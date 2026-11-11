@@ -62,12 +62,6 @@ function queueContentNotice(key, title, contentId, bodies, route) {
     queueTutorialNotice(key, title, bodies.locked, 'tab-unlocks');
 }
 
-/** A notice about content the unlock tree may still hold shut: only when it is open (a card aimed at a closed screen is dropped unseen,
- * and the row's own card comes when it opens, contentUnlockUi.announceContent). */
-function queueOpenContentNotice(contentId, ...notice) {
-    if (contentProgression.isUnlocked(contentId)) queueTutorialNotice(...notice);
-}
-
 // Phase-3 extracted world/season progression helpers.
 function formatStoryActLabel(storyAct) {
     if (!storyAct) return _t('액트 ?');
@@ -177,50 +171,57 @@ function canEnterChaosRealm() {
     return !!ensureChaosRealmState().unlocked && hasCurrentLoopChaos20Clear();
 }
 
+function underworldGateFacts(state) {
+    const rootBosses = Array.isArray(state.clearedRootBosses) ? state.clearedRootBosses : [];
+    return { chaosRealm: !!state.chaosRealm?.unlocked, cerberus: rootBosses.includes('s6_beast_cerberus'),
+        deep: getHighestUnlockedEndlessChaosDepth(state), labyrinth: Math.max(1, Math.floor(state.labyrinthUnlockedMaxFloor || state.labyrinthFloor || 1)) };
+}
+
+function getUnderworldEntryBlock(source) {
+    const state = source || game, { chaosRealm, cerberus, deep, labyrinth } = underworldGateFacts(state);
+    if (!chaosRealm) return { label: _t('혼돈계 해금 필요'), route: 'outside-chaos' };
+    if (!hasCurrentLoopChaos20Clear(state)) return { label: _t('이번 루프 혼돈 20 클리어 필요'), route: 'map-explore-chaos' };
+    if (!cerberus) return { label: _t('케르베로스 처치 필요'), route: 'map-explore-root-boss' };
+    if (deep < 30) return { label: _t('혼돈 심화 30층 필요 (현재 {floor})', { floor: deep }), route: 'map-explore-chaos' };
+    if (labyrinth < 100) return { label: _t('고대 미궁 100층 필요 (현재 {floor})', { floor: labyrinth }), route: 'map-explore-labyrinth' };
+    return null;
+}
+
 function getUnderworldEntryLockReason(source) {
-    let state = source || game;
-    let chaosRealm = state && state.chaosRealm;
-    if (!(chaosRealm && chaosRealm.unlocked)) return '혼돈계 해금 필요';
-    if (!hasCurrentLoopChaos20Clear(state)) return '이번 루프 혼돈 20 클리어 필요';
-    let rootBosses = Array.isArray(state && state.clearedRootBosses) ? state.clearedRootBosses : [];
-    if (!rootBosses.includes('s6_beast_cerberus')) return '케르베로스 처치 필요';
-    let deepMax = getHighestUnlockedEndlessChaosDepth(state);
-    if (deepMax < 30) return `혼돈 심화 30층 필요 (현재 ${deepMax})`;
-    let labFloor = Math.max(1, Math.floor((state && state.labyrinthUnlockedMaxFloor) || (state && state.labyrinthFloor) || 1));
-    if (labFloor < 100) return `고대 미궁 100층 필요 (현재 ${labFloor})`;
-    return '';
+    return getUnderworldEntryBlock(source)?.label || '';
 }
 
 function canEnterUnderworld() {
     return getUnderworldEntryLockReason(game) === '';
 }
 
+function underworldHasProgress(state) {
+    const progress = state.underworldProgress;
+    return Math.floor(progress?.highestFloor || 1) > 1 || !!progress?.floor10Cleared
+        || Math.floor(state.underworldRunes?.unlockedSlots || 0) > 0;
+}
+
+function getUnderworldUnlockChecks(state) {
+    const { chaosRealm, cerberus, deep, labyrinth } = underworldGateFacts(state);
+    const inherited = underworldHasProgress(state);
+    return [['혼돈계 개방 기록', inherited || chaosRealm, 'outside-chaos'], ['케르베로스 처치', inherited || cerberus, 'map-explore-root-boss'],
+        ['혼돈 심화 30층 도달', inherited || deep >= 30, 'map-explore-chaos'], ['고대 미궁 100층 도달', inherited || labyrinth >= 100, 'map-explore-labyrinth']];
+}
+
 function isUnderworldUnlockReady(source) {
-    let state = source || game;
-    let progress = state && state.underworldProgress;
-    let runes = state && state.underworldRunes;
-    let hasProgress = Math.max(1, Math.floor((progress && progress.highestFloor) || 1)) > 1
-        || !!(progress && progress.floor10Cleared)
-        || Math.max(0, Math.floor((runes && runes.unlockedSlots) || 0)) > 0;
-    if (hasProgress) return true;
-    let chaosRealm = state && state.chaosRealm;
-    let rootBosses = Array.isArray(state && state.clearedRootBosses) ? state.clearedRootBosses : [];
-    let labFloor = Math.max(1, Math.floor((state && state.labyrinthUnlockedMaxFloor) || (state && state.labyrinthFloor) || 1));
-    return !!(chaosRealm && chaosRealm.unlocked) && rootBosses.includes('s6_beast_cerberus')
-        && getHighestUnlockedEndlessChaosDepth(state) >= 30 && labFloor >= 100;
+    return getUnderworldUnlockChecks(source || game).every(row => row[1]);
+}
+
+function getCosmosUnlockChecks(state) {
+    const { unlocked, cleared, bossClears } = state.cosmosAtlas || {};
+    const inherited = !!unlocked || [cleared, bossClears].some(rows => Array.isArray(rows) && rows.length > 0);
+    const journal = Array.isArray(state.journalEntries) ? state.journalEntries : [];
+    const highest = Math.floor(state.underworldProgress?.highestFloor || 1);
+    return [['혼돈 밖의 나무꾼 처치', inherited || journal.includes('woodsman'), 'outside-chaos'], ['지하계 30층 도달', inherited || highest >= 30, 'map-tab-underworld']];
 }
 
 function isCosmosContentUnlockReady(source) {
-    let state = source || game;
-    let atlas = state && state.cosmosAtlas;
-    let hasAtlasProgress = !!(atlas && atlas.unlocked)
-        || (Array.isArray(atlas && atlas.cleared) && atlas.cleared.length > 0)
-        || (Array.isArray(atlas && atlas.bossClears) && atlas.bossClears.length > 0);
-    if (hasAtlasProgress) return true;
-    let journal = Array.isArray(state && state.journalEntries) ? state.journalEntries : [];
-    let underworld = state && state.underworldProgress;
-    let highestFloor = Math.max(1, Math.floor((underworld && underworld.highestFloor) || 1));
-    return journal.includes('woodsman') && highestFloor >= 30;
+    return getCosmosUnlockChecks(source || game).every(row => row[1]);
 }
 
 function isMapPrimaryContentUnlockReady(contentId, source) {
@@ -262,8 +263,8 @@ function reconcileMapPrimaryContentUnlocks(source) {
 function getMapPrimaryContentEntryCondition(contentId, source) {
     let state = source || game;
     if (!isMapPrimaryContentUnlocked(state, contentId)) return '';
-    if (contentId === 'map-tab-chaos-realm' && !hasCurrentLoopChaos20Clear(state)) return '혼돈 20 필요';
-    if (contentId === 'map-tab-sky' && !hasCurrentLoopChaosAccess(state)) return '혼돈 진입 필요';
+    if (contentId === 'map-tab-chaos-realm' && !hasCurrentLoopChaos20Clear(state)) return _t('이번 루프 혼돈 20 클리어 필요');
+    if (contentId === 'map-tab-sky' && !hasCurrentLoopChaosAccess(state)) return _t('혼돈 진입 필요');
     if (contentId === 'map-tab-underworld') return getUnderworldEntryLockReason(state);
     return '';
 }
@@ -993,8 +994,11 @@ function getLoopAbyssRequirementText(seasonValue) {
 
 /** The sentence when the loop condition is not met yet (혼돈 밖, going on to the next loop). */
 function getLoopAbyssRequirementPrompt(seasonValue) {
-    let cosmos = hasLoopGateCosmosPath(seasonValue) ? `나 우주계 ${LOOP_GATE_ALT_COSMOS_PLANET_NAME} 행성 돌파` : '';
-    return `이번 루프에 ${loopGateDepthName(getSeasonAbyssDepthCap(seasonValue))} 클리어${cosmos}가 먼저 필요합니다.`;
+    const cap = getSeasonAbyssDepthCap(seasonValue);
+    const depth = `${_t(cap > 20 ? '혼돈 심화' : '혼돈')} ${cap}`;
+    return hasLoopGateCosmosPath(seasonValue)
+        ? _t('이번 루프에 {depth} 클리어나 우주계 {planet} 행성 돌파가 먼저 필요합니다.', { depth, planet: _t(LOOP_GATE_ALT_COSMOS_PLANET_NAME) })
+        : _t('이번 루프에 {depth} 클리어가 먼저 필요합니다.', { depth });
 }
 
 function hasCurrentLoopChaosRequirementClear(seasonValue) {
@@ -1450,7 +1454,7 @@ function normalizeGemRecord(raw) {
     return { level: level, exp: exp, enhanceLevel, enhanceFailures, skyEnhanceCap: skyEnhanceCap, unlockedTier: unlockedTier, activeTier: activeTier, quality: quality, awakened: awakened };
 }
 
-exposeFileGlobals({ getPassiveEquipmentRestriction, enforcePassiveEquipmentRestrictions, queueContentNotice, queueOpenContentNotice, formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, createDefaultChaosRealmState, ensureChaosRealmState, getChaosRealmTier, getUnderworldTier, getUnderworldGravityActionMultiplier, getUnderworldLifeDrainPerTick, getChaosRealmAffixScale, getChaosRealmAffixes, hasCurrentLoopChaos20Clear, canEnterChaosRealm, getUnderworldEntryLockReason, canEnterUnderworld, isUnderworldUnlockReady, isCosmosContentUnlockReady, isMapPrimaryContentUnlockReady, isMapPrimaryContentUnlocked, reconcileMapPrimaryContentUnlocks, getMapPrimaryContentEntryCondition, getOceanCurrentAffixes, hasOceanCurrent, getColonyWaveEnemyCount, createDefaultOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, mergeOceanState, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanBossBoundaryInterval, getOceanPendingBossBoundary, getOceanDiveRecord, getOceanFishingGaugeGainMul, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, normalizeSkyTowerResult, getSkyTowerRemainingClears, isSkyTowerAtRewardLimit, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getAbyssZoneTier, getTimeRiftEquivalentChaosDepth, getTimeRiftFixedSeason, getMeteorSiteUnlockReady, getClearedSkyTowerFloor, getSeasonBossProgressGate, createCosmosChallengeZone, getBeyondBoundaryTierProfile, createBeehiveZone, getGrandBreachProgress, getUnderworldZone, getRunZone, getFloorZone, getTimeRiftZone, getLabyrinthZoneNow, getChaosDepthZone, ensureTimeRiftState, getTimeRiftOptionKeepChance, getTimeRiftLossOdds, getTimeRiftFusionGrade, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getLoopAbyssRequirementPrompt, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, hasCurrentLoopAbyssRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getContentReturnZoneId, getAutoProgressZoneId, getAbyssMonsterScales, getContentDropRateMultiplier, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getWorldTreeBarkLayers, getWorldTreeBarkReach, getWorldTreeBarkEarned, normalizeWorldTreeBark, getLoopDeepStatCost, allocateLoopDeepStat, getAscendanciesForClass, getAscendancyOrder, isAscendancyOfClass, getAllAscendKeystoneDefs, pickRandomAscendKeystoneId, rememberLoopAscendancyPlan, getAscendKeystoneName, getSeasonPassiveNodeDef, getAllSeasonPassiveNodeIds, getSeasonPassiveUnlockLoop, getPassiveStatTierValue, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock, normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress, isFreePassiveStartNodeId, getPaidPassiveNodeIds, getExpReq, getGemReqExp, normalizeGemRecord });
+exposeFileGlobals({ getPassiveEquipmentRestriction, enforcePassiveEquipmentRestrictions, queueContentNotice, formatStoryActLabel, getStoryActByZoneId, getStoryActByOrder, getActZoneDisplayName, createDefaultChaosRealmState, ensureChaosRealmState, getChaosRealmTier, getUnderworldTier, getUnderworldGravityActionMultiplier, getUnderworldLifeDrainPerTick, getChaosRealmAffixScale, getChaosRealmAffixes, hasCurrentLoopChaos20Clear, canEnterChaosRealm, getUnderworldEntryLockReason, getUnderworldEntryBlock, getUnderworldUnlockChecks, canEnterUnderworld, isUnderworldUnlockReady, isCosmosContentUnlockReady, getCosmosUnlockChecks, isMapPrimaryContentUnlockReady, isMapPrimaryContentUnlocked, reconcileMapPrimaryContentUnlocks, getMapPrimaryContentEntryCondition, getOceanCurrentAffixes, hasOceanCurrent, getColonyWaveEnemyCount, createDefaultOceanState, getOceanPermanentUpgradeLevel, getOceanPermanentUpgradeEffect, mergeOceanState, ensureOceanState, canEnterOceanDepth, getOceanOxygenMax, getOceanOxygenSavingPct, getOceanPressureResistUpgradePct, getOceanOxygenDrainPerSec, getOceanOxygenPerAttackCost, getOceanDepthTier, getOceanBossBoundaryInterval, getOceanPendingBossBoundary, getOceanDiveRecord, getOceanFishingGaugeGainMul, createDefaultSkyTowerState, ensureSkyTowerState, getSkyTowerLoopClearLimit, normalizeSkyTowerResult, getSkyTowerRemainingClears, isSkyTowerAtRewardLimit, hasCurrentLoopChaosAccess, maybeUnlockSkyTowerFromChaos20, canEnterSkyTower, getSkyTowerTier, getSkyTowerRewardAmount, getSkyStoneMaxLevel, getSkyStoneReductionPct, getSkyStoneNextCost, getSkyTowerGemBoostMaxLevel, getSkyTowerGemBoostLevel, getSkyTowerGemBoostCost, getAbyssDepthFromZoneId, getAbyssZoneIdForDepth, getAbyssZoneTier, getTimeRiftEquivalentChaosDepth, getTimeRiftFixedSeason, getMeteorSiteUnlockReady, getClearedSkyTowerFloor, getSeasonBossProgressGate, createCosmosChallengeZone, getBeyondBoundaryTierProfile, createBeehiveZone, getGrandBreachProgress, getUnderworldZone, getRunZone, getFloorZone, getTimeRiftZone, getLabyrinthZoneNow, getChaosDepthZone, ensureTimeRiftState, getTimeRiftOptionKeepChance, getTimeRiftLossOdds, getTimeRiftFusionGrade, getSeasonAbyssDepthCap, getLoopAbyssRequirementText, getLoopAbyssRequirementPrompt, hasCurrentLoopChaosRequirementClear, hasCurrentLoopCosmosRequirementClear, hasCurrentLoopAbyssRequirementClear, getAvailableLoopAdvancePaths, markLoopCosmosPlanetClear, getSeasonFinalZoneId, getCurrentSeasonFinalZoneId, getVisibleHuntingMapCapZoneId, getHighestUnlockedEndlessChaosDepth, getContentReturnZoneId, getAutoProgressZoneId, getAbyssMonsterScales, getContentDropRateMultiplier, capEndlessContentDropMultiplier, applySeasonContentProgression, getLoop10StatCost, allocateLoop10BonusStat, enterNextEndlessChaosDepth, enterUnlockedEndlessDepth, getWorldTreeBarkLayers, getWorldTreeBarkReach, getWorldTreeBarkEarned, normalizeWorldTreeBark, getLoopDeepStatCost, allocateLoopDeepStat, getAscendanciesForClass, getAscendancyOrder, isAscendancyOfClass, getAllAscendKeystoneDefs, pickRandomAscendKeystoneId, rememberLoopAscendancyPlan, getAscendKeystoneName, getSeasonPassiveNodeDef, getAllSeasonPassiveNodeIds, getSeasonPassiveUnlockLoop, getPassiveStatTierValue, hasPermanentTalentTabUnlock, syncPermanentTalentTabUnlock, normalizeCombatTacticsSettings, hasCombatTacticsUnlockProgress, isFreePassiveStartNodeId, getPaidPassiveNodeIds, getExpReq, getGemReqExp, normalizeGemRecord });
 })();
 
 
@@ -1496,14 +1500,20 @@ window.GameModules.state.underworldMilestoneReward = function (floor) {
 let tutorialQueue = [];
 // 같은 안내의 두 이름: 새 캐릭터의 시작 안내(tutorial_first_*)를 본 사람에게 루프 2의 탭 해금 안내(unlock_*)가 '처음 얻었습니다'를
 // 다시 띄웠다(검토 5차).
-const TUTORIAL_SEEN_ALIASES = Object.freeze({ unlock_items: 'tutorial_first_gear', unlock_char: 'tutorial_first_passive' });
-/** target: a sub-tab id, or { subtabId, contentId, openLabel } for unlock cards (contentUnlockUi.announceContent). */
+const TUTORIAL_SEEN_ALIASES = Object.freeze({
+    unlock_items: 'tutorial_first_gear', unlock_char: 'tutorial_first_passive',
+    unlock_chaos_realm: 'unlock_content_chaosRealm', unlock_sky_tower: 'unlock_content_sky',
+    unlock_underworld: 'unlock_content_underworld', unlock_cosmos: 'unlock_content_cosmos',
+    unlock_ocean_fishing: 'unlock_content_ocean', unlock_time_rift: 'unlock_content_timerift',
+    meteor_unlocked: 'unlock_content_meteorSite', unlock_beyond_boundary: 'unlock_content_beyond'
+});
+/** target: a sub-tab id, or notice metadata. Inline notices are shown by the originating screen and kept in the archive. */
 function queueTutorialNotice(key, title, body, tabId, target) {
-    if (game.isBackgroundCalculation) return;
+    if (isTransientGameState(game)) return;
     const opening = typeof contentProgression === 'object' ? contentProgression.opening : null;
-    const inline = opening?.inlineNotice(game, key);
-    if (inline && !opening.canOpen(game, tabId)) return;
     const extra = target && typeof target === 'object' ? target : { subtabId: target };
+    const inline = extra.inline || opening?.inlineNotice(game, key);
+    if (inline && !opening.canOpen(game, tabId)) return;
     const notice = { ...extra, key, title, body, tabId };
     window.GameModules.state.tutorials.enqueue(game, notice);
     if (inline) {
@@ -1511,6 +1521,7 @@ function queueTutorialNotice(key, title, body, tabId, target) {
     }
 }
 
+const isTransientGameState = owner => !!(owner?.isBackgroundCalculation || owner?.isGuideReplay);
 
 const ACT_ZONE_COUNT = STORY_ACTS.length;
 const LAST_STORY_ZONE_ID = ACT_ZONE_COUNT - 1;

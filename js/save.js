@@ -133,7 +133,7 @@ function assertSaveFromKnownBuild(saveData) {
 function canPersistLocalSave(options = {}) {
     // A save from a later release is never written over, not even to repair it from the server (applyExternalSave).
     const recovery = options.allowRecoveryWrite === true && localSaveRuntimeState.status !== 'newer-build';
-    return (localSaveRuntimeState.writable !== false || recovery) && !(game && game.isBackgroundCalculation)
+    return (localSaveRuntimeState.writable !== false || recovery) && !isTransientGameState(game)
         && !(typeof backgroundCombatRuntime !== 'undefined' && (backgroundCombatRuntime.processing || backgroundCombatRuntime.failed));
 }
 
@@ -193,21 +193,22 @@ function preserveCorruptLocalSave(rawSave) {
     }
 }
 
-function ensureSaveMeta() {
-    if (!game.saveMeta || typeof game.saveMeta !== 'object') game.saveMeta = JSON.parse(JSON.stringify(defaultGame.saveMeta));
-    if (!Number.isFinite(game.saveMeta.lastModifiedAt)) game.saveMeta.lastModifiedAt = 0;
+function ensureSaveMeta(owner = game) {
+    if (!owner.saveMeta || typeof owner.saveMeta !== 'object') owner.saveMeta = JSON.parse(JSON.stringify(defaultGame.saveMeta));
+    const meta = owner.saveMeta;
+    if (!Number.isFinite(meta.lastModifiedAt)) meta.lastModifiedAt = 0;
     // A save from before 2026-11-10 has one stamp for both times.
-    if (!(game.saveMeta.playedUntil > 0)) game.saveMeta.playedUntil = game.saveMeta.lastModifiedAt;
-    if (!Number.isFinite(game.saveMeta.lastCloudSyncAt)) game.saveMeta.lastCloudSyncAt = 0;
-    if (!game.saveMeta.lastCloudUploadProfile || typeof game.saveMeta.lastCloudUploadProfile !== 'object') {
-        game.saveMeta.lastCloudUploadProfile = null;
+    if (!(meta.playedUntil > 0)) meta.playedUntil = meta.lastModifiedAt;
+    if (!Number.isFinite(meta.lastCloudSyncAt)) meta.lastCloudSyncAt = 0;
+    if (!meta.lastCloudUploadProfile || typeof meta.lastCloudUploadProfile !== 'object') {
+        meta.lastCloudUploadProfile = null;
     }
-    if (typeof game.saveMeta.cloudUserId !== 'string' || !game.saveMeta.cloudUserId.trim()) {
-        game.saveMeta.cloudUserId = null;
+    if (typeof meta.cloudUserId !== 'string' || !meta.cloudUserId.trim()) {
+        meta.cloudUserId = null;
     }
-    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(game.saveMeta.cloudRevision) || 0));
+    meta.cloudRevision = Math.max(0, Math.floor(Number(meta.cloudRevision) || 0));
     // cloudPending: an account slot has been written since its last commit to the server (the next account entry uploads it first).
-    game.saveMeta.cloudPending = game.saveMeta.cloudPending === true;
+    meta.cloudPending = meta.cloudPending === true;
 }
 
 /** Persist a fresh save atomically before removing legacy copies; unrelated browser data stays intact. */
