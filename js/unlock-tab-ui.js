@@ -379,13 +379,25 @@ const unlockTabUi = {
         if (contentProgression.kind(def) === 'auto') return `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
         return status.available ? `<button type="button" class="unlock-act is-go" data-unlock-content="${def.id}">${_t('{cost}P 해금', { cost: def.cost })}</button>` : `<button type="button" class="unlock-act" disabled>${escapeHTML(status.reason)}</button>`;
     },
+    requirementsHtml(def) {
+        return contentProgression.requirements(def.id).map(row => {
+            const follow = row.met ? '' : contentUnlockUi.progressButton(row.route, _t('{label} 보기', { label: _t(row.label) }));
+            return follow || `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(_t(row.label))}</span>`;
+        }).join('');
+    },
+    detailDescriptionHtml(def, unlocked) {
+        const route = def.action?.guide || def.routes?.[0];
+        const path = contentUnlockUi.journeyPath(route);
+        const journey = EXPLORATION_REGIONS.guides[route];
+        const description = unlocked && journey?.entry ? _t('입장 조건 · {condition}', { condition: _t(journey.entry) }) : _t(def.description);
+        return `<p class="unlock-desc">${escapeHTML(description)}</p>${path ? `<p class="unlock-desc">${escapeHTML(path)}</p>` : ''}`;
+    },
     detailHtml(def, plan) {
         const status = contentProgression.status(def.id), kind = contentProgression.kind(def), kindName = kind === 'auto' ? '자동 개방' : def.rail ? '강화' : '포인트 해금';
-        const conditions = contentProgression.requirements(def.id).map(row => `<span class="${row.met ? 'is-met' : ''}">${escapeHTML(_t(row.label))}</span>`).join('');
         const gain = this.gainOf(def);
         return `<div class="unlock-detail-art fam-${unlockBoard.familyOf(def)} kind-${kind} is-${this.stateOf(def)}"><span class="unlock-ic"><img src="${contentUnlockUi.art(def)}" alt=""></span></div>
             <div class="unlock-detail-text"><span class="unlock-eyebrow fam-${unlockBoard.familyOf(def)}">${def.rail ? _t(kindName) : `${escapeHTML(_t(def.group))}, ${_t(kindName)}`}</span><h4>${escapeHTML(_t(def.name))}${gain ? `<em>${escapeHTML(gain)}</em>` : ''}</h4>
-            <p class="unlock-desc">${escapeHTML(_t(def.description))}</p><div class="unlock-reqs">${status.unlocked ? '' : conditions}</div>${this.planHtml(def, plan)}</div>
+            ${this.detailDescriptionHtml(def, status.unlocked)}<div class="unlock-reqs">${status.unlocked ? '' : this.requirementsHtml(def)}</div>${this.planHtml(def, plan)}</div>
             ${this.nextHtml(def)}<div class="unlock-detail-action">${contentUnlockUi.entryReward(def, status)}${this.actionHtml(def, status)}${this.lifecycleSummaryHtml(def)}${this.pinHtml(def)}${this.moreHtml(def)}</div>`;
     },
 

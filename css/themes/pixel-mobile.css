@@ -124,7 +124,7 @@
   :root body[data-ui-skin] #passive-filter-row { flex-wrap: wrap; overflow-x: visible; }
   :root body[data-ui-skin] #passive-filter-row > button { flex: 1 0 auto; }
   /* 스킬트리 노드 상세가 열려 있으면 안내 카드는 비켜 선다(상세의 "포인트 사용" 단추를 덮었다 — 표시는 그 단추로 옮겨 간다) */
-  :root body[data-ui-skin]:has(#passive-mobile-detail:not([hidden])) .tutorial-action-card { visibility: hidden; }
+  :root body[data-ui-skin]:has(#passive-mobile-detail:not([hidden])) .tutorial-action-card:not(.is-docked) { visibility: hidden; }
   /* DPS 변화 칩은 생명 구슬 위에 뜬다: 전체 메뉴 서랍이 HUD를 덮으면 칩만 서랍 위에 떠 있었다 */
   :root body[data-ui-skin].mobile-tab-drawer-open .build-dps-chip { visibility: hidden; }
   /* 따라 하기 대상이 다른 화면에 있을 때(전투 화면으로 돌아옴): 제목과 단추만 한 줄로 줄여 전장을 덜 가린다(js/tutorial-ui.js) */
@@ -300,7 +300,7 @@
   :root body[data-ui-skin].mobile-battle-tab:has(#tab-battle.active) .tutorial-action-card { bottom: calc(84px + env(safe-area-inset-bottom)); }
   /* 따라 하기 카드: 기본 크기(356x162)로는 메뉴 띠 위 270px 안에서 가리키는 칸 옆에 둘 자리가 없어 늘 숨었다(첫 스킬룬, 첫 스킬트리 안내 글이
      가로 화면에서는 한 번도 보이지 않았다). 좁고 낮게 해 칸 옆에 선다 */
-  :root body[data-ui-skin] .tutorial-action-card { width: min(276px, calc(50vw - 64px)); padding: 8px 10px; }
+  :root body[data-ui-skin] .tutorial-action-card:not(.is-docked) { width: min(276px, calc(50vw - 64px)); padding: 8px 10px; }
   :root body[data-ui-skin] .tutorial-action-card p { margin: 4px 0 6px; }
   /* 정예와 보스 카드: 전장 높이가 170px쯤이라 세로용 36px 내림(css/themes/pixel-hud.css)과 30px 막대가 카드를 주인공 위 한가운데로 밀었다.
      맨 위에 붙이고(오른쪽 목표 단추를 비켜 폭을 줄인다) 보스 막대는 얇게. 그동안 알림은 전장 위가 아니라 지역 이름 줄 위에 뜬다 */

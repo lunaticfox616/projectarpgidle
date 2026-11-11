@@ -122,11 +122,12 @@ const underworldRuneUi = (() => {
     }
     function entryCardHtml() {
         const progress = game.underworldProgress || {}, floor = Math.max(1, Math.floor(progress.currentFloor || 1));
-        const highest = Math.max(1, Math.floor(progress.highestFloor || 1)), open = canEnterUnderworld(), off = open ? '' : 'disabled';
-        const lock = open ? '' : `<small class="underworld-lock">${escapeHTML(getUnderworldEntryLockReason(game))}</small>`;
+        const highest = Math.max(1, Math.floor(progress.highestFloor || 1)), block = getUnderworldEntryBlock(game), off = block ? 'disabled' : '';
+        const lock = block ? `<div class="underworld-entry-block"><small class="underworld-lock">${escapeHTML(block.label)}</small>
+            ${contentUnlockUi.progressButton(block.route, '조건을 채울 곳 보기')}</div>` : '';
         const other = floor === highest ? '' : `<button type="button" data-exploration-departure onclick="enterUnderworldFloor(${floor})" ${off}>${_t('{floor}층 입장', { floor })}</button>`;
         return `<section class="underworld-entry-card ${game.currentZoneId === UNDERWORLD_ZONE_ID ? 'current' : ''}"><div class="underworld-entry-copy">`
-            + `<span>${_t('최고층 도전 기준, 현재 선택 {floor}층', { floor })}</span><strong>${_t('입장 가능 {highest}층', { highest })}</strong><div>${buildMapPowerEstimateHtml(getUnderworldZone(highest))}</div>${lock}</div>`
+            + `<span>${_t('최고층 도전 기준, 현재 선택 {floor}층', { floor })}</span><strong>${_t('최고 개방 {highest}층', { highest })}</strong><div>${buildMapPowerEstimateHtml(getUnderworldZone(highest))}</div>${lock}</div>`
             + `<div class="underworld-entry-actions"><button type="button" class="underworld-primary-action" data-exploration-departure onclick="enterUnderworldFloor(${highest})" ${off}>${_t('최고층 {highest} 입장', { highest })}</button>`
             + `${other}<button type="button" data-exploration-departure onclick="enterUnderworldPrompt()" ${off}>${_t('다른 층…')}</button></div></section>`;
     }

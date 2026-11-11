@@ -894,13 +894,10 @@ function announceMapPrimaryContentUnlocks() {
     let newlyUnlocked = reconcileMapPrimaryContentUnlocks(game);
     if (newlyUnlocked.length === 0) return newlyUnlocked;
     game.noti.map = true;
-    newlyUnlocked.forEach(id => pendingMapPrimaryTabReveals.add(id));
-    let queuedKeys = new Set();
     newlyUnlocked.forEach(id => {
-        let def = MAP_PRIMARY_CONTENTS.find(row => row.id === id);
-        if (!def || !def.noticeKey || queuedKeys.has(def.noticeKey)) return;
-        queuedKeys.add(def.noticeKey);
-        queueTutorialNotice(def.noticeKey, def.noticeTitle, def.noticeBody, 'tab-map', def.noticeTargetId || def.id);
+        pendingMapPrimaryTabReveals.add(id);
+        const content = CONTENT_UNLOCK_CATALOG.find(row => row.routes?.[0] === id);
+        if (content) contentUnlockUi.announceContent(content.id);
     });
     syncMapPrimaryContentTabs();
     return newlyUnlocked;

@@ -73,9 +73,17 @@ const worldMapBrief = (() => {
     function underworld() {
         const progress = game.underworldProgress || {}, highest = Math.max(1, Math.floor(progress.highestFloor || 1)), open = canEnterUnderworld();
         if (inZone(UNDERWORLD_ZONE_ID)) return [row(_t('{floor}층', { floor: Math.max(1, Math.floor(progress.currentFloor || 1)) }), _t('탐험 중'), battle())];
-        const rows = [row(_t('입장 가능 {highest}층', { highest }), open ? '' : getUnderworldEntryLockReason(game), go(_t('{highest}층 입장', { highest }), `enterUnderworldFloor(${highest})`, { off: !open }))];
+        const rows = [row(_t('최고 개방 {highest}층', { highest }), open ? '' : getUnderworldEntryLockReason(game), go(_t('{highest}층 입장', { highest }), `enterUnderworldFloor(${highest})`, { off: !open }))];
         if (open && highest > 1) rows.push(row(_t('다른 층…'), '', go(_t('선택'), 'enterUnderworldPrompt()')));
         return rows;
+    }
+    function sky() {
+        const tower = game.skyTower;
+        if (inZone(SKY_TOWER_ZONE_ID)) return [row(_t('{floor}층', { floor: tower.currentFloor }), _t('탐험 중'), battle())];
+        const meta = _t('이번 루프 남은 보상 전투: {skyTowerRemainingClears}/{skyTowerLoopClearLimit}', {
+            skyTowerRemainingClears: getSkyTowerRemainingClears(), skyTowerLoopClearLimit: getSkyTowerLoopClearLimit()
+        });
+        return [row(_t('최고 입장 {highest}층', { highest: tower.highestFloor }), meta, go(_t('층 골라 입장'), 'enterSkyTowerPrompt()', { off: !canEnterSkyTower() }))];
     }
     function chaosRealm() {
         const st = ensureChaosRealmState(), highest = Math.max(1, Math.floor(st.highestFloor || 1));
@@ -117,7 +125,7 @@ const worldMapBrief = (() => {
 
     const BRIEFS = Object.freeze({ 'map-explore-root-boss': bosses, 'map-explore-trials': trials, 'map-explore-labyrinth': labyrinth, 'map-explore-beehive': hive,
         'map-explore-voidrift': grand, 'map-explore-meteor': meteor, 'map-explore-timerift': timeRift, 'map-tab-ocean': ocean, 'map-tab-underworld': underworld,
-        'map-tab-chaos-realm': chaosRealm, 'map-explore-chaos': chaos, 'map-explore-worldtree': atlasNext, 'map-tab-cosmos': cosmos });
+        'map-tab-chaos-realm': chaosRealm, 'map-explore-chaos': chaos, 'map-explore-worldtree': atlasNext, 'map-tab-cosmos': cosmos, 'map-tab-sky': sky });
 
     function rowHtml({ name, meta, button }) {
         const press = button && !button.off ? ` onclick="${esc(button.action)}"${button.departure ? ' data-exploration-departure' : ''}` : ' disabled';

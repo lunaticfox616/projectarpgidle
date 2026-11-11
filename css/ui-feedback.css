@@ -56,25 +56,39 @@ body.mobile-primary-navigation:not(:has(#tab-battle.active)) .build-dps-chip { v
    그 한계(HUD 구슬 · 미니맵 · 하단 메뉴 위)이기도 하다. */
 .tutorial-action-card { position: fixed; z-index: 20500; right: 20px; bottom: 100px; width: min(320px, calc(100vw - 32px)); padding: 14px; border: 1px solid var(--color-line-strong); border-radius: 8px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 8px 28px #0008; font: 13px/1.6 var(--font-body); }
 .tutorial-action-card[hidden] { display: none; }
-body:has(.tutorial-overlay.active, dialog:modal) .tutorial-action-card { visibility: hidden; }
+body:has(.tutorial-overlay.active) .tutorial-action-card,
+body:has(dialog:modal) .tutorial-action-card:not(dialog:modal .tutorial-action-card) { visibility: hidden; }
 /* 둘 곳이 없으면(휴대폰에서 룬 상세가 화면을 채울 때) 비켜 선다 — 표시는 가리키는 칸에 남는다 */
 .tutorial-action-card.is-covered { visibility: hidden; }
+.tutorial-action-card.is-docked { position: static; box-sizing: border-box; width: auto; flex: none; margin: 8px 0; }
+#gem-selection > .tutorial-action-card.is-docked { margin-inline: 10px; }
+/* Keep the placement confirmation visible while the selected seed is still pinned. */
+#tab-stump:has(#stump-placement-preview:not([hidden]) .tutorial-action-card) #stump-box-detail:popover-open { visibility: hidden; }
+/* The selected item's details already show under the purchase button. */
+#npc-dialog:has(.shop-info-deal .tutorial-action-card) .shop-float { visibility: hidden; }
+/* Tapping the highlighted rune should open its details; sealing is a separate action. */
+#tab-skills .gem-tile.tutorial-action-target .gem-tile-seal { visibility: hidden; }
 /* 툴팁은 카드를 비켜 뜨고(js/ui.js applyTooltipPosition), 비킬 곳이 없을 때만 카드 위에 그린다 — 카드가 노드 툴팁을 덮었다 */
 body:has(.tutorial-action-card:not([hidden])) :is(#info-tooltip, #canvas-tooltip, #item-tooltip-box) { z-index: 20600; }
 .tutorial-action-card > strong { font-size: 14px; color: var(--color-accent-gold); }
-.tutorial-action-card p { margin: 8px 0 12px; }
+.tutorial-action-card > [data-step]:not([hidden]) { display: block; width: max-content; margin-bottom: 6px; padding: 2px 6px; color: #ffe1a5; background: #a17a3b26; border: 1px solid #a17a3b70; }
+.tutorial-action-card.is-away > [data-step] { display: none; }
+.tutorial-action-card p { margin: 8px 0 12px; color: #fff0d0; word-break: keep-all; overflow-wrap: anywhere; }
+.tutorial-action-card:not(:has(button:not([hidden]))) > #tutorial-action-description { margin-bottom: 0; }
 /* ‘장착’ 같은 단추 이름: 안내 판(시작 안내)과 같은 색 글씨. 따옴표는 빠진다(도트 글꼴의 ’가 전각이라 "‘장착’ 을"처럼 띄어 보였다). */
 .tutorial-action-card .tutorial-ui { color: #9cc98a; }
 .tutorial-action-card > div { display: flex; justify-content: flex-end; gap: 8px; }
 .tutorial-action-card button { min-height: 36px; font: inherit; }
-.tutorial-action-target { outline-offset: -3px; }
+#act-exploration-elite-guide { margin: 0; padding: 8px 10px; color: #ffe2a6; }
+#content-unlock-panel:has([data-unlock-content="passiveTree"].tutorial-action-target) .unlock-unseen { opacity: .25; }
 @media (max-width: 1080px) { .tutorial-action-card { right: 16px; bottom: 86px; } }
 /* 첫 스킬트리 안내(js/canvas-passive-tree.js passiveTreeGuide): 지금 찍을 수 있는 노드의 금빛 고리, 바깥 고리가 퍼지며 사라진다.
    트리 겹판은 배율로 커지므로 위치 · 크기는 JS가 월드 좌표로 주고, 굵기는 --guide-px(화면 1px)로 맞춘다. */
-.passive-guide-ring { position: absolute; box-sizing: border-box; border: calc(2 * var(--guide-px, 1px)) solid #f3d28c; box-shadow: 0 0 0 var(--guide-px, 1px) #050404, inset 0 0 0 var(--guide-px, 1px) #050404; pointer-events: none; }
-.passive-guide-ring::after { content: ''; position: absolute; inset: calc(-2 * var(--guide-px, 1px)); border: inherit; animation: passive-guide-wave 1.2s steps(4, end) infinite; }
-@keyframes passive-guide-wave { from { scale: 1; opacity: .9; } to { scale: 1.7; opacity: 0; } }
-body.reduced-effects .passive-guide-ring::after { animation: none; opacity: 0; }
+.passive-guide-ring { position: absolute; box-sizing: border-box; border: calc(2 * var(--guide-px, 1px)) solid #ffe2a6; box-shadow: 0 0 0 var(--guide-px, 1px) #050404, inset 0 0 0 var(--guide-px, 1px) #050404; pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  body:not(.reduced-effects) .passive-guide-ring::after { content: ''; position: absolute; inset: calc(-2 * var(--guide-px, 1px)); border: inherit; animation: passive-guide-wave 1.4s ease-out infinite; }
+}
+@keyframes passive-guide-wave { from { scale: 1; opacity: 1; } to { scale: 1.65; opacity: 0; } }
 .game-toast-mark { display: grid; place-items: center; width: 12px; color: var(--toast-tone); font-size: 11px; line-height: 1; }
 /* 휴대폰 전투 로그 알림(js/ui.js showNextMobileToast): 같은 반투명 돌판, 누르면 바로 다음 알림으로 */
 .mobile-log-toast { --toast-tone: #d9b066; padding: 7px 11px 7px 12px; border: 2px solid rgba(5,4,4,.85); background: rgba(18,16,13,.72); box-shadow: inset 0 0 0 1px rgba(93,74,46,.8), inset 3px 0 0 var(--toast-tone), 3px 3px 0 rgba(0,0,0,.3); color: #e6dcc6; font: 13px/1.45 var(--font-pixel-read, var(--font-body)); text-shadow: 1px 1px 0 #000; cursor: pointer; pointer-events: auto; }
@@ -113,6 +127,21 @@ body.reduced-effects .game-toast-chase.active, body.reduced-effects .game-toast-
 } }
 
 @layer overrides {
-.tutorial-action-target { outline: 2px solid var(--color-accent-gold); }
+/* The current control gets a persistent inner frame. Only that frame pulses, even inside a popover. */
+:root body .tutorial-callout,
+:root body .tutorial-action-target:not(:where(#tree-canvas)),
+#tutorial-overlay.active #tutorial-open-btn {
+    outline: 2px solid #ffe2a6;
+    outline-offset: -3px;
+}
+@media (prefers-reduced-motion: no-preference) {
+    :root body:not(.reduced-effects) :where(.tutorial-callout, .tutorial-action-target:not(#tree-canvas), #tutorial-overlay.active #tutorial-open-btn) {
+        animation: tutorial-control-pulse 1.4s ease-in-out infinite;
+    }
+}
+@keyframes tutorial-control-pulse {
+    0%, 100% { outline-color: #d09648; outline-width: 2px; outline-offset: -3px; }
+    45% { outline-color: #fff4cf; outline-width: 4px; outline-offset: -5px; }
+}
 /* 도트 스킨은 모서리를 모두 각지게 한다(themes/pixel.css) — 둥근 노드를 감싸는 안내 고리는 호버 고리처럼 둥글게 */
 #tree-container .passive-guide-ring, #tree-container .passive-guide-ring::after { border-radius: 50%; } }

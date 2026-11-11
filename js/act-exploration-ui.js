@@ -1,6 +1,7 @@
 // Exploration controls render the domain snapshot; destination selection stays in the domain.
 const actExplorationUi=(()=>{
     let departurePending=false,approvedDeparture=null;
+    let gateHintRun=null;
     // 약도가 보여 주는 것의 요약(2026-10-13 성능 작업, docs/stage-render-performance-20261013.md). 프레임마다 읽어 앞의 것과 견주고 바뀐
     // 부분만 다시 그린다. 수와 참조만 담는다: 예전에는 프레임마다 모든 무리의 상태를 문자열로 이어 붙여 견줬다. 저장하지 않는다.
     //   BASE  지도 바탕이 바뀌는 것: 탐험, 지도, 무리(packDigest), 가 본 방의 수, 발견한 칸의 목록, 진행 상태, 닫힌 관문
@@ -27,7 +28,7 @@ const actExplorationUi=(()=>{
         const run=actExplorationState.current(game);panel.toggleAttribute('hidden',!run);
         document.getElementById('btn-act-exploration-map').toggleAttribute('hidden',!run);
         document.getElementById('btn-act-exploration-auto').toggleAttribute('hidden',!run);
-        if(!run){shown={};return;}
+        if(!run){shown={};if(gateHintRun)syncGateHint(null,0);return;}
         refreshMaps(run,actExplorationMap.forRun(run));
     }
     /** 요약이 앞의 것과 같으면 아무것도 하지 않는다. 다르면 바뀐 부분(바탕, 단추, 표식)만 다시 그린다. */
@@ -52,6 +53,28 @@ const actExplorationUi=(()=>{
         seal.textContent=remaining?'정예 '+remaining:_t('관문 개방');
         // 설명은 hint가 창 안에 띄운다(data-tip은 몸에 붙은 툴팁이라 크게 보기 창 뒤에 깔렸다).
         seal.setAttribute('aria-label',sealText(run,remaining));
+        syncGateHint(run,remaining);
+    }
+    function syncGateHint(run,remaining) {
+        if(gateHintRun!==run || !remaining)gateHintRun=null;
+        const pending=!!gateHintRun, dialog=document.getElementById('act-exploration-dialog');
+        document.getElementById('btn-act-exploration-map').classList.toggle('tutorial-callout',pending&&!dialog.open);
+        document.getElementById('act-exploration-elite-guide').hidden=!pending;
+    }
+    function guideBlockedGate(run,cell) {
+        const key='tutorial_elite_gate';
+        if(game.isGuideReplay || game.seenTutorials.includes(key))return false;
+        const map=actExplorationMap.forRun(run);
+        const atGate=actExplorationMap.walkable(map,cell) && !actExplorationMap.walkable(map,cell,true);
+        if(!atGate && (!map.stage || actExplorationRooms.roomAt(map,cell)?.role!=='boss'))return false;
+        const remaining=actExplorationState.remainingElites(run);
+        if(!remaining)return false;
+        game.seenTutorials.push(key);
+        gateHintRun=run;
+        syncGateHint(run,remaining);
+        showGameToast(_t('보스 관문을 열려면 남은 정예를 처치하세요. 탐험 지도에서 금빛 표식을 찾을 수 있습니다.'),{tone:'warning',duration:6500});
+        queueImportantSave(180);
+        return true;
     }
     /** 약도 한 장: 방 단위 무대는 방과 길의 약도(바탕과 표식을 따로 그린다), 이어진 지도는 주인공 둘레의 지형. */
     function paintMiniMap(canvas,run,map) {
@@ -180,7 +203,7 @@ const actExplorationUi=(()=>{
     function mode(value) {
         const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
         if(!['direct','full','manual'].includes(value))throw Error('알 수 없는 탐험 방식');
-        if(value!=='manual' && autoLocked()){showGameToast(_t('자동 사냥은 첫 스킬룬을 장착하면 열립니다'),{tone:'warning',duration:2000});return;}
+        if(value!=='manual' && autoLocked()){showGameToast(_t('자동 사냥은 첫 무기를 장착하면 열립니다.'),{tone:'warning',duration:2000});return;}
         run.mode=value;run.destination=null;
         game.settings.autoMove=value!=='manual';
         if(value!=='manual')actExplorationProgress.holdAutoStart(run);
@@ -191,7 +214,7 @@ const actExplorationUi=(()=>{
     const autoLocked=()=>typeof openingJourney==='object' && openingJourney.autoLocked();
     /** 미니맵의 자동 이동 단추·단축키: 켜면 고른 탐험 방식(보스 직행 · 전체 탐색), 끄면 직접 이동. 걷던 이동 명령은 그대로 간다. */
     function toggleAuto() {
-        if(autoLocked()){showGameToast(_t('자동 사냥은 첫 스킬룬을 장착하면 열립니다'),{tone:'warning',duration:2000});return false;}
+        if(autoLocked()){showGameToast(_t('자동 사냥은 첫 무기를 장착하면 열립니다.'),{tone:'warning',duration:2000});return false;}
         const on=game.settings.autoMove===false,run=actExplorationState.current(game);
         game.settings.autoMove=on;
         if(run&&run.status==='active'){run.mode=actExplorationProgress.startMode(game.settings);if(on)actExplorationProgress.holdAutoStart(run);}
@@ -231,7 +254,7 @@ const actExplorationUi=(()=>{
         const run=actExplorationState.current(game);if(!actExplorationProgress.canMove(run)||!cell)return false;
         const accepted=actExplorationState.selectDestination(run,cell);
         if(accepted && point && bossMoves.observer.playerBoundary(run))actExplorationMotion.aimFree(run,point);
-        if(!accepted)showGameToast(_t('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
+        if(!accepted && !guideBlockedGate(run,cell))showGameToast(_t('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
         render();
         return accepted;
     }
@@ -312,7 +335,15 @@ const actExplorationUi=(()=>{
         if(bossMoves.observer.playerBoundary(run))return;
         if(actExplorationProgress.canMove(run)&&run.destination)actExplorationState.selectDestination(run,footing(run),KEYED);
     }
-    function expand(){document.getElementById('act-exploration-dialog').showModal();render();}
+    function expand(){
+        const dialog=document.getElementById('act-exploration-dialog');
+        dialog.showModal();
+        if(gateHintRun){
+            syncGateHint(gateHintRun,actExplorationState.remainingElites(gateHintRun));
+            dialog.addEventListener('close',()=>{gateHintRun=null;syncGateHint(null,0);},{once:true});
+        }
+        render();
+    }
     function sealText(run,remaining) {
         if(remaining)return _t('남은 정예 {remaining}, 모두 처치하면 보스 관문이 열립니다', { remaining });
         return run.sealed?_t('관문이 아직 닫혀 있습니다.'):_t('보스 관문이 열렸습니다.');

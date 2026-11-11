@@ -307,6 +307,7 @@
     }
     function showGameToast(message, options) {
         if (!message || !liveDocument()) return null;
+        if (document.body.classList.contains('guide-replay-active')) return null;
         if (!document.body.classList.contains('startup-active')) return renderGameToast(message, options);
         holdToastUntilEntry(message, options);
         return null;

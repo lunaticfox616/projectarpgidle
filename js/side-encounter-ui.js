@@ -594,7 +594,7 @@ const sideEncounterUi = (() => {
             <details class="map-expedition-details" id="sky-tower-guide"><summary>${_t('등반, 보상 규칙')}</summary>
             <p>${_t('새 층을 돌파하면 다음 층이 열립니다. 25회 소진 후에는 등반 기록과 응축 보상이 늘지 않습니다.')}</p>
             <p>${_t('돌파 기록/응축된 창공의 정수/영구 강화는 루프를 넘어 유지됩니다. 보상 전투 횟수만 루프마다 회복됩니다.')}</p></details>
-            <div class="map-expedition-actions">${skyEntryActions(tower,remaining)}</div></div>`;
+            <div class="map-expedition-actions">${skyEntryActions(tower, remaining, ready)}</div></div>`;
     }
 
     function skyLastResult(tower) {
@@ -606,11 +606,13 @@ const sideEncounterUi = (() => {
         return `<div class="map-expedition-result"><strong>${_t('{floor}층 {title}', { floor: result.floor, title })}</strong><span>${reward}</span></div>`;
     }
 
-    function skyEntryActions(tower,remaining) {
-        const disabled = canEnterSkyTower() ? '' : 'disabled';
+    function skyEntryActions(tower, remaining, ready) {
+        const disabled = ready ? '' : 'disabled';
         const action = game.currentZoneId === SKY_TOWER_ZONE_ID && !game.combatHalted ? `<button onclick="switchTab('tab-battle')">${_t('전투 보기')}</button>` :
             `<button data-exploration-departure onclick="enterSkyTowerPrompt(${tower.currentFloor})" ${disabled}>${_t('{currentFloor}층 {value}', { currentFloor: tower.currentFloor, value: remaining?_t('입장'):_t('연습 입장') })}</button>`;
-        return action + (tower.highestFloor>1?`<button data-exploration-departure onclick="enterSkyTowerPrompt()" ${disabled}>${_t('다른 층 선택')}</button>`:'');
+        const other = tower.highestFloor > 1 ? `<button data-exploration-departure onclick="enterSkyTowerPrompt()" ${disabled}>${_t('다른 층 선택')}</button>` : '';
+        const next = ready ? '' : contentUnlockUi.progressButton('map-explore-chaos', '혼돈으로 가는 길 보기');
+        return action + other + next;
     }
 
     function skyGrowth(tower) {

@@ -3,9 +3,32 @@ const explorationAtlasUi = (() => {
     let signature = '', atlasTurn = null, atlasPlate = null;
     const overviewSelected = () => game.mapSubtab === 'map-tab-zones' && game.mapExploreSubtab === 'map-explore-atlas';
     const regionFor = route => EXPLORATION_REGIONS.regions.find(region => region.routes.includes(route));
-    function available(route) {
+    function trials() {
+        if (!contentProgression.isUnlocked('battleTrials')) return [];
+        return TRIAL_ZONES.filter(trial => trial.bloomTrial ? canSeeTalentBloomTrial()
+            : (trial.reqZone !== -1 && game.maxZoneId >= trial.reqZone) || game.unlockedTrials.includes(trial.id));
+    }
+    const bosses = () => SEASON_BOSS_ZONES.filter(zone => (game.season || 1) >= (zone.reqSeason || 2));
+    const discoveredBy = Object.freeze({
+        'map-explore-chaos': () => Math.min(game.maxZoneId, getVisibleHuntingMapCapZoneId()) >= ABYSS_START_ZONE_ID || getDeepChaosEntryState().open,
+        'map-explore-root-boss': () => bosses().length > 0,
+        'map-explore-beehive': () => game.season >= 8,
+        'map-explore-voidrift': () => game.season >= 9,
+        'map-explore-colony': () => game.season >= 15,
+        'map-explore-beyond': () => !!game.beyondBoundary?.unlocked,
+        'map-explore-timerift': () => game.season >= TIME_RIFT_UNLOCK_LOOP,
+        'map-explore-labyrinth': () => game.season >= 3,
+        'map-explore-meteor': () => !!game.meteorSite?.unlocked,
+        'map-explore-trials': () => trials().length > 0
+    });
+    /** HUD guide can ask before the map has painted its buttons. */
+    function discovered(route) {
+        if (discoveredBy[route]) return discoveredBy[route]();
         const button = document.getElementById('btn-' + route);
-        return !!button && !button.hidden && button.style.display !== 'none' && contentProgression.canOpen(route);
+        return !!button && !button.hidden && button.style.display !== 'none';
+    }
+    function available(route) {
+        return contentProgression.canOpen(route) && discovered(route);
     }
     /** 전체 탐험은 세계 지도(js/world-map-ui.js)다. 권역을 고르는 중간 화면은 없다(2026-11-08: 지도의 자리가 그 몫이다). */
     function open(atlasMap = false) {
@@ -332,6 +355,10 @@ const explorationAtlasUi = (() => {
         syncLocation();
         if (keyboard) document.querySelector('#exploration-location .exploration-routes [aria-pressed="true"]')?.focus();
     }
+    function openEntryPage(route) {
+        const entry = EXPLORATION_REGIONS.guides[route]?.page;
+        if (entry) page(route, entry);
+    }
     function locationHtml(route) {
         const places = worldMapUi.placeTabsHtml(reader(),route);
         const others = worldMapUi.offMapRoutes().map(entry => `<button class="exploration-place-tab is-plain" aria-pressed="${entry === route}" onclick="explorationAtlasUi.enter('${entry}')"><span>${escapeHTML(routeLabel(entry))}</span></button>`).join('');
@@ -348,8 +375,8 @@ const explorationAtlasUi = (() => {
     function bannerLine(region, route) {
         const status = route && routeSummary(route).status;
         if (status) return status;
-        const kind = route && LISTING_REGIONS.has(region.id) && EXPLORATION_REGIONS.activities[route]?.kind;
-        return kind || regionProgress(region);
+        const goal = EXPLORATION_REGIONS.guides[route]?.goal;
+        return goal ? _t(goal) : regionProgress(region);
     }
     /** route: the open place, or null on the region's own page (its name and progress). */
     function syncRegionBanner(region,route) {
@@ -363,6 +390,6 @@ const explorationAtlasUi = (() => {
             <h2>${escapeHTML(_t(!route ? region.name : hunting ? '나무' : routeLabel(route)))}</h2>${progress}</div>`;
         if (writeHtmlIfChanged(banner, html)) banner.className='atlas-theme-'+region.id;
     }
-    return {open,openAct,enter,showAtlasMap,enterAtlasRegion,enterAtlasNode,page,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};
+    return {open,openAct,enter,available,discovered,bosses,trials,routeLabel,showAtlasMap,enterAtlasRegion,enterAtlasNode,page,openEntryPage,hunt,render,syncLocation,bossRewardLabel,bossEntry,rewardTooltip};
 })();
 safeExposeGlobals({explorationAtlasUi});

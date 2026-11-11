@@ -108,6 +108,7 @@
     }
 
     function saveLayoutState() {
+        if (game.isGuideReplay) return;
         try {
             if (window.localStorage) window.localStorage.setItem(UI_LAYOUT_STORAGE_KEY, JSON.stringify(layoutState));
         } catch (error) {
@@ -420,6 +421,25 @@
         saveLayoutState();
         requestCanvasResize();
         syncWorkspacePresentation();
+    }
+
+    /** The guide opens only its exercise window. Keep the player's window positions and open panels. */
+    function beginGuideWindowLayout() {
+        if (!isDesktopWindowed()) return null;
+        const previousLayout = layoutState, previousOrder = zOrder;
+        const previousActive = document.querySelector('.ui-window-active')?.id;
+        layoutState = structuredClone(layoutState);
+        closeAllWindows();
+        return () => {
+            layoutState = previousLayout;
+            zOrder = previousOrder;
+            document.querySelectorAll('.ui-window[data-window-prepared]').forEach(windowNode => {
+                windowNode.classList.remove('ui-window-active');
+                applyWindowState(windowNode.id);
+            });
+            if (previousActive) focusWindow(previousActive);
+            else syncWorkspacePresentation();
+        };
     }
 
     function minimizeWindow(tabId) {
@@ -1549,5 +1569,5 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initWindowManager);
     else initWindowManager();
 
-    safeExposeGlobals({ toggleWindowFromHotkey, openWindow, closeWindow, closeAllWindows, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation, refitDockedWindows });
+    safeExposeGlobals({ toggleWindowFromHotkey, openWindow, closeWindow, closeAllWindows, beginGuideWindowLayout, minimizeWindow, toggleMaximizeWindow, resetWindowLayout, openCommunityDock, closeCommunityDock, toggleGoalDrawer, presentGoalDrawer, openGoalNoticeTarget, syncDesktopRailGroups, syncWorkspacePresentation, refitDockedWindows });
 }());

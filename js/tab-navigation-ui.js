@@ -760,6 +760,7 @@ function isNotiEnabled(key){ game.settings=game.settings||{}; if (game.settings.
 
 function isMergedTabAvailable(tab) {
     let tabId = typeof tab === 'string' ? tab : tab.id;
+    if (window.playerGuideUi?.allowsTab(tabId) === false) return false;
     if (game.contentProgression) return contentProgression.canOpen(tabId);
     let gateKey = typeof tab === 'string' ? TAB_UNLOCK_GATES[tabId] : tab.gate || TAB_UNLOCK_GATES[tabId];
     // 저널은 루프를 건너 유지되는 영구 기록이라 고유 아이템 보유 여부와 무관하게 열려 있어야 한다.
@@ -838,7 +839,7 @@ function renderVisibleManagementPanels(tabIds) {
 // 지금 이 탭 화면(창/패널)을 열어 둘 수 있는지 판정한다.
 // 병합 그룹의 런처는 안쪽에 열 수 있는 탭이 하나라도 남아 있어야 유효하다.
 function isTabSurfaceAvailable(tabId) {
-    if (!tabId) return false;
+    if (!tabId || window.playerGuideUi?.allowsTab(tabId, true) === false) return false;
     let mergedEntry = getMergedTabGroup(tabId);
     if (mergedEntry) {
         if (mergedEntry[1].launcher === tabId) return !!getSelectedMergedTabId(mergedEntry[0]);

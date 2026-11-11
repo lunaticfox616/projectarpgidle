@@ -103,6 +103,7 @@ test('a new warrior earns and equips the first weapon through visible controls',
     expect(await page.evaluate(() => game.starterWeaponTutorialPending)).toBeNull();
     await expect(page.locator('#btn-act-exploration-auto')).toBeVisible();
     await expect(page.locator('#btn-act-exploration-auto')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#btn-act-exploration-auto')).toHaveClass(/is-opening-glow/);
     await page.locator('#btn-act-exploration-auto').click();
     await expect(page.locator('#btn-act-exploration-auto')).toHaveAttribute('aria-pressed', 'true');
     expect(notices).not.toContain('첫 무기 장착');

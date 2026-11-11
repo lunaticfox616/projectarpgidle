@@ -11,6 +11,7 @@ window.GameModules.state.tutorials = (() => {
     const aliasesOf = key => [key, ...Object.keys(TUTORIAL_SEEN_ALIASES).filter(alias => TUTORIAL_SEEN_ALIASES[alias] === key)];
     const updatedAt = row => Math.max(row.queuedAt, row.displayedAt, row.readAt);
     function preferredRecord(prior, next) {
+        if (prior && !!prior.readAt !== !!next.readAt) return prior.readAt ? prior : next;
         if (!prior || updatedAt(next) > updatedAt(prior)) return next;
         if (updatedAt(next) === updatedAt(prior) && next.status === 'read') return next;
         return prior;

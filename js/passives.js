@@ -2382,7 +2382,6 @@ function tryUnlockMeteorContentByProgress() {
     if (st.unlocked || !getMeteorSiteUnlockReady()) return false;
     st.unlocked = true;
     addLog(_t('☄️ 말라가는 줄기 위로 검은 별이 떨어지기 시작했다.'), 'loot-unique');
-    queueOpenContentNotice('meteorSite', 'meteor_unlocked', '운석 낙하 지점', '검은 별이 떨어지기 시작했습니다.\n액트 7을 넘긴 사냥터에서 사냥하면 하늘의 균열 게이지가 찹니다.\n게이지가 100%가 되면 ‘지도 → 탐험 → 운석 낙하’에 한 번 들어갈 수 있습니다.', 'tab-map');
     return true;
 }
 

@@ -57,6 +57,10 @@ function applySavedPresentation(settings) {
 }
 
 function runGameTick() {
+    if (game.isGuideReplay) {
+        takeForegroundCombatSteps(foregroundCombatClock, performance.now(), true);
+        return;
+    }
     combatEquipmentStats.withinTick(runGameTickOnce);
 }
 

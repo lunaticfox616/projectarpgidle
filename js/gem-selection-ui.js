@@ -307,6 +307,6 @@
     document.addEventListener('scroll', position, true);
     document.addEventListener('dblclick', quickEquip);
     window.addEventListener('resize', position);
-    safeExposeGlobals({ gemSelectionUi: Object.freeze({ open, application, preview: previewStats, compareHtml,
+    safeExposeGlobals({ gemSelectionUi: Object.freeze({ open, close, application, preview: previewStats, compareHtml,
         indicators, targetRows, targetCount, targetDetails, effectText, summonEffect, skillSummary, migrationNotice }) });
 })();

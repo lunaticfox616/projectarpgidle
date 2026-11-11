@@ -95,13 +95,12 @@ const mapListUi = (() => {
         host.innerHTML = html;
         if (cacheKey === 'acts') lastActs = html; else lastChaos = html;
     }
-    /** Draws both lists; returns how many chaos entries there are (the chaos sub-tab shows only when there is one). */
+    /** Draws both lists. The explore guide and tab share the route's discovery rule. */
     function render(mapZones, recommendedId) {
         const facts = mapZones.map(zone => factsOf(zone, recommendedId));
         const chaos = facts.filter(item => item.chaos), chaosMarkup = chaosHtml(chaos);
         paint('ui-map-list', actsHtml(facts.filter(item => !item.chaos)), 'acts');
         paint('ui-chaos-map-list', chaosMarkup, 'chaos');
-        return chaosMarkup ? Math.max(1, chaos.length) : 0;
     }
 
     // ── 강대한 적 ──────────────────────────────────────────────────

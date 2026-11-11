@@ -19,7 +19,7 @@ const loopSettlementUi = {
     /** Three parts, shown one press at a time like the opening (2026-10-27 사용자: 이야기 / 루프 달성과 다음 루프 / 설정과 단추가 확실하게
      * 갈라지고 누를 때마다 한 칸씩): data-loop-section 1~3, the card's data-loop-step says how many show (reveal). The overlay's note and
      * buttons (index.html) are part 3. */
-    summaryHtml() {
+    summaryHtml(preservation = this.firstPreservationHtml()) {
         const loop = game.season || 1;
         const record = game.records && game.records.currentLoop;
         const time = record ? formatRecordDuration(record.activeMs) : _t('기록 없음');
@@ -27,9 +27,25 @@ const loopSettlementUi = {
             <section class="loop-settlement-result" data-loop-section="2"><h2 aria-label="${_t('루프 {n} 달성', { n: loop + 1 })}">${_t('루프')} <span class="loop-settlement-count${this.rolledLoop === loop ? ' is-rolled' : ''}" data-loop-count aria-hidden="true"><span><b>${loop}</b><b>${loop + 1}</b></span></span> ${_t('달성')}</h2>
             <dl class="loop-settlement-stats"><div><dt>${_t('도달 레벨')}</dt><dd>${game.level}</dd></div><div><dt>${_t('처치')}</dt><dd>${Number(game.loopKills || 0).toLocaleString()}</dd></div><div><dt>${_t('활동 시간')}</dt><dd>${time}</dd></div></dl>${worldTreeBarkUi.barkSettlementHtml()}
             <div class="loop-settlement-next"><ul>${this.nextLoopLines(loop).map(row => `<li class="is-${row.kind}">${escapeHTML(_t(row.text)).replace(/\+\d+/g, gain => `<b>${gain}</b>`)}</li>`).join('')}</ul></div>
-            <p class="loop-settlement-reset">${_t('루프 시 레벨, 장비 및 재화를 포함한 대부분의 진행도가 초기화됩니다.')}</p></section>
+            <p class="loop-settlement-reset">${_t('루프 시 레벨, 장비 및 재화를 포함한 대부분의 진행도가 초기화됩니다.')}</p>${preservation}</section>
             <section class="loop-settlement-controls" data-loop-section="3">${this.stallWarningHtml()}${loopAutomationUi.controlsHtml()}</section>
             <button type="button" class="loop-settlement-continue" data-loop-continue>${_t('눌러서 계속')}</button>`;
+    },
+    firstPreservationHtml() {
+        if (game.season !== 1) return '';
+        const gear = [...Object.values(game.equipment), ...game.inventory, ...(game.equipmentTemporaryStorage || [])]
+            .filter(item => item && !bagItems.isSpecial(item));
+        const gearKept = gear.filter(item => item.loopSealed).length;
+        const box = game.stumpBox;
+        const stumpKept = box?.sealed.filter(cell => box.board[cell] != null).length || 0;
+        const lines = [_t('장비 {kept}개 유지 · 미봉인 장비 {lost}개 초기화', { kept: gearKept, lost: gear.length - gearKept })];
+        if (game.currencies.ouroboros > 0) lines.push(_t('장비를 가져가려면 장비 정리에서 나무꾼의 손길로 봉인하세요.'));
+        if (box?.acquired) {
+            lines.push(_t('그루터기 함 {kept}개 유지 · 봉인 칸 밖 {lost}개 초기화', { kept: stumpKept, lost: box.items.length - stumpKept }));
+            lines.push(_t(stumpBox.sealLimit(game) ? '가져갈 그루터기 아이템을 봉인 칸에 놓으세요.' : '그루터기 함의 봉인 칸은 아직 열리지 않았습니다.'));
+        }
+        return `<aside class="loop-settlement-preservation"><strong>${_t('다음 루프에 가져갈 것')}</strong>
+            <ul>${lines.map(line => `<li>${escapeHTML(line)}</li>`).join('')}</ul></aside>`;
     },
     /** What the next loop brings (2026-10-27 사용자: 짧게), each with its kind for its colour (css/ui-polish.css .loop-settlement-next):
      * unlock points, the stump box's next cell, the loop point, the roadmap lines, the next loop's mutations. */
@@ -131,12 +147,13 @@ const loopSettlementUi = {
         overlay.classList.toggle('active', ready && this.dismissedReadyLoop !== game.season);
         document.getElementById('loop-decision-overlay').classList.toggle('active', decision);
         if (!ready && !decision) { this.renderedKey = ''; this.dismissedReadyLoop = 0; return; }
-        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${getHeldGearLoopBlockReason()}:${game.settings.autoLoop}:${game.settings.autoLoopClass}:${worldTreeBark.barkPoints(game).free}`;
+        const preservation = this.firstPreservationHtml();
+        const key = `${game.season}:${ready}:${decision}:${this.unlockRewardText()}:${getHeldGearLoopBlockReason()}:${game.settings.autoLoop}:${game.settings.autoLoopClass}:${worldTreeBark.barkPoints(game).free}:${preservation}`;
         if (key === this.renderedKey) return;
         // A new loop's summary starts at its top: shown again, the cards came back at the last loop's scroll spot.
         if (!this.renderedKey.startsWith(`${game.season}:`)) document.querySelectorAll('#loop-ready-overlay .tutorial-card, #loop-decision-overlay .tutorial-card').forEach(card => card.scrollTo(0, 0));
         this.renderedKey = key;
-        const html = this.summaryHtml();
+        const html = this.summaryHtml(preservation);
         document.getElementById('loop-ready-summary').innerHTML = html;
         document.getElementById('loop-decision-summary').innerHTML = html;
         this.showFreshReveal();

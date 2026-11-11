@@ -27,7 +27,9 @@ const loopClimbUi = (() => {
             ? `<button type="button" onclick="chooseLoopAdvancePath('chaos')" ${loopSettlementUi.resetButtonAttr(hasCurrentLoopChaosRequirementClear(season()))}>${_t('혼돈 루프')}</button>`
                 + `<button type="button" onclick="chooseLoopAdvancePath('cosmos')" ${loopSettlementUi.resetButtonAttr(hasCurrentLoopCosmosRequirementClear(season()))}>${_t('우주계 루프')}</button>`
             : `<button type="button" onclick="triggerSeasonReset()" ${loopSettlementUi.resetButtonAttr(ready)}>${_t('지금 즉시 루프')}</button>`;
-        return `<div class="climb-buttons">${loops}<button type="button" class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()"${ready ? '' : ' disabled'}>${_t('혼돈 밖 진입')}</button></div>${loopSettlementUi.stallWarningHtml()}`;
+        const journey = EXPLORATION_REGIONS.guides['outside-chaos'];
+        const next = game.chaosRealm.unlocked ? '' : `<p>${esc(_t(journey.notice))}</p>`;
+        return `<div class="climb-buttons">${loops}<button type="button" class="ominous-entry-btn" data-exploration-departure onclick="enterOutsideChaos()"${ready ? '' : ' disabled'}>${_t('혼돈 밖 진입')}</button></div>${next}${loopSettlementUi.stallWarningHtml()}`;
     }
     function reentryHtml(open) {
         const top = Math.max(21, Math.floor(game.abyssEndlessDepth || 20));

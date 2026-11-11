@@ -111,11 +111,22 @@ function tutorialOpenLabel(notice) {
 
 /** "○○ 열기": an unlock card opens its exact screen (sub-tab, explore list, section); other cards open their tab. */
 function openTutorialTarget(notice) {
-    if (notice.contentId && contentUnlockUi.open(notice.contentId)) return;
+    if (notice.key === EXPLORATION_REGIONS.guides['outside-chaos'].noticeKey) {
+        return contentUnlockUi.openProgressTarget('outside-chaos');
+    }
+    const contentId = contentUnlockUi.noticeContentId(notice);
+    if (contentId && contentUnlockUi.open(contentId)) return;
+    openSavedTutorialRoute(notice);
+}
+
+function openSavedTutorialRoute(notice) {
     const { tabId, subtabId } = notice;
     if (tabId) switchTab(tabId, { keepWindowOpen: true });
     if (subtabId && tabId === 'tab-items') switchItemSubtab(subtabId);
-    if (subtabId && tabId === 'tab-map') openMapTutorialTarget(subtabId);
+    if (subtabId && tabId === 'tab-map') {
+        openMapTutorialTarget(subtabId);
+        explorationAtlasUi.openEntryPage(subtabId);
+    }
     if (notice.atlasView && typeof atlasUi === 'object') atlasUi.setView(notice.atlasView);
 }
 
@@ -212,9 +223,10 @@ function yieldTutorialCardToResult() {
     activeTutorialStep = 0;
 }
 
-/** 휴대폰 전체 메뉴 서랍이나 확인 창(모달 dialog)이 열려 있으면 안내 카드는 닫힌 뒤에 뜬다 — 열린 서랍 위에 카드가 그려져 메뉴를 가렸다. */
+/** 열린 메뉴나 확인 창을 안내 카드가 가리지 않도록 끝날 때까지 기다린다. */
 function tutorialYieldsToMenus() {
-    return document.body.classList.contains('mobile-tab-drawer-open') || !!document.querySelector('dialog:modal');
+    return document.body.classList.contains('mobile-tab-drawer-open')
+        || !!document.querySelector('dialog:modal, .selection-overlay, .game-choice-overlay');
 }
 
 function refreshTutorialCardPlacement() {
@@ -388,7 +400,7 @@ function dismissTutorial(openTarget, status = 'read') {
     // Phone notices held while the card was up: after the next card (if any) has had its turn.
     setTimeout(() => { if (typeof pumpMobileToastQueue === 'function') pumpMobileToastQueue(); }, 120);
     if (!openTarget) {
-        if (status === 'read' && !notice.replay) applySkippedGuide(notice.key);
+        if (status === 'read') applySkippedGuide(notice.key);
         queueImportantSave(0);
         return tutorialActionUi.waitBetweenNotices();
     }
@@ -399,7 +411,7 @@ function dismissTutorial(openTarget, status = 'read') {
     tutorialActionUi.waitBetweenNotices();
 }
 
-exposeFileGlobals({ rectsOverlap, tutorialSamePlacement, tutorialRectOf, tutorialRectFits, tutorialVisibleRects, tutorialCardSpots, revealTutorialTarget, tutorialMarkup, tutorialQuoteHtml, tutorialBodyHtml, renderTutorialStep, settingsMenuPath, isTutorialPresentationBlocked, yieldTutorialCardToResult, refreshTutorialCardPlacement, tutorialNoticeAllowed, tutorialQueueIsHeld, saveTutorialHistoryChange, setTutorialCallout, ownsWeaponBlockedRune, queueStarterGuides, placeTutorialCard, advanceTutorial, equipSkippedStarterWeapon, applySkippedGuide, discardQueuedNotices, dismissTutorial });
+exposeFileGlobals({ rectsOverlap, tutorialSamePlacement, tutorialRectOf, tutorialRectFits, tutorialVisibleRects, tutorialCardSpots, revealTutorialTarget, tutorialMarkup, tutorialQuoteHtml, tutorialBodyHtml, openTutorialTarget, renderTutorialStep, settingsMenuPath, isTutorialPresentationBlocked, yieldTutorialCardToResult, refreshTutorialCardPlacement, tutorialNoticeAllowed, tutorialQueueIsHeld, saveTutorialHistoryChange, setTutorialCallout, ownsWeaponBlockedRune, queueStarterGuides, placeTutorialCard, advanceTutorial, equipSkippedStarterWeapon, applySkippedGuide, discardQueuedNotices, dismissTutorial });
 })();
 const TUTORIAL_CARD_GAP = 12, TUTORIAL_CARD_EDGE = 8;
 /** Hover tooltips the coach card is placed clear of (they in turn avoid the card, see clearTooltipSpot). */
@@ -408,6 +420,112 @@ const TUTORIAL_TOOLTIPS = Object.freeze(['#info-tooltip', '#canvas-tooltip', '#i
 const TUTORIAL_HUSH_WAKERS = Object.freeze(['pointermove', 'pointerdown', 'wheel']);
 /** ms after a guide starts while it holds the next card even before its target is drawn (see holdsQueue). */
 const TUTORIAL_GUIDE_OPENING_MS = 1500;
+const tutorialPractice = (() => {
+    const step = (number, total, body, selector, inline) => ({ number, total, body, selector, inline });
+    const selectors = (prefix, attribute, values) => values.map(value => `${prefix}[${attribute}="${CSS.escape(String(value))}"]`);
+    const gearChoices = () => game.inventory.filter(item => item && !bagItems.isSpecial(item)
+        && getEquipCandidateSlots(item).some(slot => canEquipItemToSlot(item, slot)));
+    const equippedKeys = () => Object.values(game.equipment).filter(Boolean).map(equipmentInventoryGridRuntime.getItemKey);
+    const worn = () => !!equipmentInventoryInteraction.getFocusedEquipmentSlot();
+    const gearCards = keys => selectors('#ui-inventory-list .equipment-grid-item', 'data-equipment-grid-key', keys);
+    const equipButton = '#ui-equipment-inventory-inspector .equipment-card-primary:not(:disabled)';
+    const equippedRunes = () => [game.activeSkill, game.mobilitySkill, ...game.equippedSummonSkills];
+    const runeChoices = () => {
+        const worn = equippedRunes();
+        return game.skills.filter(name => SKILL_DB[name]?.isGem && !SKILL_DB[name].basicSkill
+            && !worn.includes(name) && canUseSkillWithCurrentEquipment(name));
+    };
+    const runeCards = names => selectors('#ui-skills-list .gem-library-card:not(.active,.equipment-blocked)', 'data-attack-rune', names);
+    const runeEquipButton = '#gem-selection:popover-open .gem-equip-primary:not(:disabled)';
+    const seedIds = () => stumpBox.storage(game).filter(item => item.family === 'seed' && !stumpBox.isMature(item) && !item.locked).map(item => item.id);
+    const emptyStumpCell = () => game.stumpBox.board.some((id, cell) => id === null && stumpBox.isOpen(game, cell));
+    const seedCards = ids => selectors('#stump-box-storage .stump-item', 'data-item', ids);
+    const emptyCell = '#stump-box-board .stump-board.is-box .stump-cell.is-target';
+    const placement = '#stump-placement-preview:not([hidden]) [data-stump-action="placement-apply"]';
+    const passivePanel = '#passive-mobile-detail:not([hidden])';
+    const passiveConfirm = passivePanel + ' [data-passive-confirm]:not(:disabled)';
+
+    function gearStep(before) {
+        if (!before.keys.length) return step(1, 1, '빛나는 착용 장비를 눌러 어떤 능력치가 붙어 있는지 확인하세요.', ['#ui-equip-list .equipment-slot:not(.equipment-slot-empty):not([data-slot="무기"])', '#ui-equip-list .equipment-slot:not(.equipment-slot-empty)']);
+        if (before.keys.includes(equipmentInventoryInteraction.getFocusedKey()) && !worn()) {
+            return {
+                ...step(2, 2, '장비를 더블클릭, 혹은 장착 위치에 드래그 앤 드롭하거나 장착 버튼을 눌러서 장착하세요.',
+                    equipButton, '#ui-equipment-inventory-inspector .eqw-pick'),
+                dock: true
+            };
+        }
+        return step(1, 2, '가방에서 빛나는 장비를 골라 비교 화면을 여세요.', before.cards);
+    }
+    function runeStep(before) {
+        if (before.cards.some(selector => document.querySelector(selector + '.is-gem-selected')) && document.querySelector(runeEquipButton)) {
+            return step(2, 2, '룬을 더블클릭하거나 장착 버튼을 눌러 장착하세요.', runeEquipButton, '#gem-selection:popover-open .gem-selection-actions');
+        }
+        const kind = skillGemBoardUi.currentKind();
+        const picker = before.kinds.includes(kind) ? [] : before.kinds.map(type => `#ui-skill-picker-tabs [data-picker-kind="${type}"]`);
+        return step(1, 2, '빛나는 룬을 고르세요. 다른 분류에 있다면 빛나는 분류 탭부터 누르세요.',
+            [...before.cards, ...picker], '#tab-skills #ui-skill-picker-tabs');
+    }
+    function seedStep(before) {
+        const touch = uiDisplay.matches('(hover: none), (max-width: 680px)');
+        const total = touch ? 3 : 2;
+        const board = document.querySelector('#stump-box-board .stump-board');
+        if (board?.matches('.is-cube,.is-nursery')) {
+            const side = board.matches('.is-nursery') ? 'bottom' : 'top';
+            return step(1, total, '빛나는 보석을 눌러 그루터기 함을 여세요.', `#stump-box-board .stump-frame-button.is-${side}`);
+        }
+        if (document.getElementById('stump-box-storage')?.hidden) {
+            return step(1, total, '왼쪽 보석을 눌러 씨앗 보관함을 여세요.', '#stump-box-board .stump-frame-button.is-left');
+        }
+        if (before.cards.some(selector => document.querySelector(selector + '.is-selected'))) {
+            if (document.querySelector(placement)) return step(3, 3, '미리보기에서 ‘배치’를 눌러 씨앗을 심으세요.', placement);
+            return step(2, total, '그루터기 함의 빈 칸을 누르거나 씨앗을 더블클릭하여 장착하세요. 장착한 씨앗은 적을 처치하면 성장합니다.',
+                emptyCell, '#stump-box-detail:popover-open .stump-detail-head');
+        }
+        return step(1, total, '그루터기 보관함에서 빛나는 씨앗을 고르세요.', before.cards);
+    }
+    function passiveStep() {
+        if (!uiDisplay.matches('(max-width: 1080px)')) {
+            return step(1, 1, '이미 투자한 경로에 닿아 있는 노드만 1포인트로 열 수 있어요. 금빛 고리가 있는 노드를 눌러 투자하세요.', '#tree-canvas');
+        }
+        const node = document.querySelector(passivePanel)?.dataset.nodeId;
+        if (node && !game.passives.includes(node) && getPassiveActivationPath(node).length === 1 && document.querySelector(passiveConfirm)) {
+            return step(2, 2, '노드의 효과를 확인하고 ‘1포인트 사용’을 누르세요.', passiveConfirm);
+        }
+        return step(1, 2, '이미 투자한 경로에 닿아 있는 금빛 고리 노드를 눌러 효과를 확인하세요.', '#tree-canvas');
+    }
+
+    return Object.freeze({
+        gear: {
+            available: () => !game.woodsmanBuildLock && (gearChoices().length > 0 || equippedKeys().length > 0),
+            begin: () => {
+                const keys = gearChoices().map(equipmentLoadoutRuntime.ensureItemIdentity);
+                return { keys, cards: gearCards(keys) };
+            },
+            step: gearStep, read: equippedKeys,
+            completed: (current, before) => before.keys.length ? current.some(key => before.keys.includes(key)) : worn(),
+            result: before => before.keys.length ? '장비를 장착했습니다.' : '착용 장비의 옵션을 확인했습니다.'
+        },
+        rune: {
+            available: () => !game.woodsmanBuildLock && runeChoices().length > 0,
+            begin: () => {
+                const choices = runeChoices();
+                return { choices, cards: runeCards(choices), kinds: [...new Set(choices.map(skillGemBoardUi.kindOf))] };
+            },
+            step: runeStep, read: equippedRunes,
+            completed: (current, before) => current.some(name => before.choices.includes(name)),
+            result: () => '스킬룬을 장착했습니다.'
+        },
+        seed: {
+            available: () => !game.woodsmanBuildLock && emptyStumpCell() && seedIds().length > 0,
+            begin: () => { const ids = seedIds(); return { ids, cards: seedCards(ids) }; },
+            keepClear: ['#stump-box-detail:popover-open'],
+            step: seedStep, read: () => game.stumpBox.board,
+            completed: (current, before) => current.some(id => before.ids.includes(id)),
+            result: () => '씨앗을 심었습니다. 이제 적을 처치하면 자랍니다.'
+        },
+        passiveStep
+    });
+})();
 const TUTORIAL_CHAIN_GAP_MS = 700;
 /**
  * Optional action guidance owned by the UI. Reads real loadouts; never equips or
@@ -426,7 +544,9 @@ const tutorialActionUi = {
     },
     /** 새 콘텐츠 카드도 본문을 펼쳐 보인다(2026-10-26 사용자: 접힌 '자세히'는 빈 카드처럼 보였다). */
     noticeBody(notice, controls) {
-        const body = notice.key === 'tutorial_first_passive' ? this.guides.unlock_char.body : notice.body;
+        const journey = contentUnlockUi.journeyForNotice(notice);
+        const body = EXPLORATION_REGIONS.guides[journey] ? contentUnlockUi.journeyNotice(journey)
+            : notice.key === 'tutorial_first_passive' ? this.guides.unlock_char.body : notice.body;
         return tutorialQuoteHtml(notice.quote) + tutorialBodyHtml(body, notice.bodyParams) + controls.trim();
     },
     expireNotice(now) {
@@ -443,47 +563,44 @@ const tutorialActionUi = {
     /** { at: pointer position when a guide changed the screen, wake: listener } while hover tooltips are hushed. */
     hush: null,
     guides: {
+        ...systemTutorialUi.guides,
         unlock_items: {
-            available: () => game.inventory.some(Boolean) || Object.values(game.equipment).some(Boolean),
-            selector: ['#ui-equip-list .equipment-slot:not(.equipment-slot-empty):not([data-slot="무기"])',
-                '#ui-inventory-list .equipment-grid-item', '#ui-equip-list .equipment-slot:not(.equipment-slot-empty)'],
-            title: '첫 장비 살펴보기',
-            body: '새 장비를 눌러 효과를 확인하세요.',
-            legacyBody: '장비를 눌러 효과를 확인하세요. 빈 칸에 맞는 장비는 이미 착용되어 있습니다. 바꿔 끼우고 싶을 때 ‘장착’을 누르세요.',
-            read: () => equipmentInventoryInteraction.getFocusedKey(),
-            completed: current => !!current
+            ...tutorialPractice.gear,
+            title: '장비 비교와 교체'
         },
         tutorial_passive_tree_unlock: {
             available: () => !contentProgression.isUnlocked('passiveTree'),
             selector: ['#content-unlock-panel [data-unlock-content="passiveTree"]'],
             title: '스킬트리 해금',
             body: '해금 포인트 1점을 써서 스킬트리를 여세요.',
+            step: () => {
+                const balance = contentProgression.balance();
+                return { body: balance > 0
+                    ? _t('해금 포인트 {balance}점 중 1점을 씁니다. 해금 후 {remaining}점이 남습니다.', { balance, remaining: balance - 1 })
+                    : _t('해금 포인트 1점을 써서 스킬트리를 여세요.') };
+            },
             read: () => contentProgression.isUnlocked('passiveTree'),
             completed: opened => opened
         },
         unlock_char: {
-            available: () => game.passivePoints > 0,
+            available: () => game.passivePoints > 0 && !game.woodsmanBuildLock,
             // 휴대폰에서 노드 상세가 열려 있으면 그 "포인트 사용" 단추를, 아니면 트리 캔버스를 가리킨다.
-            selector: ['#passive-mobile-detail:not([hidden]) [data-passive-confirm]:not(:disabled)', '#tree-canvas'],
             title: '첫 스킬트리 투자',
             body: '시작점 옆에 빛나는 노드 하나를 골라 1포인트를 쓰세요.',
-            read: () => game.passives.length,
-            completed: (current, before) => current > before,
+            step: tutorialPractice.passiveStep,
+            begin: () => ({ nodes: new Set(game.passives), points: game.passivePoints }),
+            read: () => game.passives,
+            completed: (current, before) => game.passivePoints < before.points && current.some(id => !before.nodes.has(id)),
+            result: () => '스킬트리 노드에 포인트를 사용했습니다.',
             // 6~8px 노드는 연결선 강조만으로 보이지 않았다: 찍을 수 있는 노드에 고리를 켜고, 카드는 캔버스 대신 그 노드 무리 옆에 둔다
             // (트리는 탭을 연 뒤 40ms에 처음 그려지므로 그때 카드 자리를 다시 잡는다).
             spotlight: (on, whenDrawn) => passiveTreeGuide.show(on, whenDrawn),
             focus: target => (target.id === 'tree-canvas' ? passiveTreeGuide.screenRect() : null)
         },
         unlock_skills: {
-            // 룬 상세가 열려 있으면 그 '장착' 단추를, 아니면 첫 스킬룬 카드를 가리킨다.
-            selector: ['#gem-selection .gem-equip-primary', '#tab-skills .starter-gem-tutorial-target, #tab-skills .gem-library-card:not(.active):not(.equipment-blocked)'],
+            ...tutorialPractice.rune,
             title: '스킬룬 장착',
-            body: '빛나는 룬을 골라 장착하세요.',
-            legacyBody: '룬을 선택해 효과를 확인하고 ‘장착’을 누르세요. 선택한 룬에 따라 자동 전투가 달라집니다.',
-            read: () => JSON.stringify([game.activeSkill, game.mobilitySkill, game.equippedSupports, game.equippedSummonSkills]),
-            completed: (current, before) => current !== before,
-            // 룬 상세와 고른 룬 카드도 덮지 않는다(카드가 고른 룬 위로 올라와 설명을 가렸다).
-            keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected', '#skill-tab-equip .skill-board-head']
+            keepClear: ['#gem-selection:popover-open', '#tab-skills .is-gem-selected']
         },
         starter_weapon: {
             // 첫 루프의 시작 무기(js/combat-kill-rewards.js grantLoopStarterWeaponOnFirstKill, 2026-11-09): 장비 상세가 열려 있으면 그 '장착' 단추를, 아니면 가방의 무기를 가리킨다.
@@ -494,17 +611,8 @@ const tutorialActionUi = {
             completed: current => current !== 'unarmed'
         },
         unlock_stump_box: {
-            available: () => stumpBox.storage(game).some(item => item.family !== 'talisman'),
-            // 그루터기 함 시작 선물 놓기(2026-10-07): 보관함의 씨앗을 고르면 판의 빈 칸이 빛나고, 그 칸을 누르면 놓인다.
-            // 휴대폰은 칸을 누르면 배치 미리보기가 먼저 뜨므로 그 [배치]를 가리킨다(2026-10-24).
-            selector: ['#stump-placement-preview:not([hidden]) [data-stump-action="placement-apply"]',
-                '#stump-box-board .stump-cell.is-target', '#stump-box-storage .stump-item'],
-            title: '그루터기 함에 심기',
-            // 2026-11-07: 수액이 씨앗에 합쳐져(2026-11-04) 수액 배치 문장을 뺐다.
-            body: '보관함의 씨앗을 누르고 그루터기 함의 빈 칸을 누르세요.',
-            read: () => [game.stumpBox.board.filter(id => id !== null).length, stumpBox.storage(game).filter(item => item.family !== 'talisman').length],
-            completed: ([placed, waiting], [placedBefore]) => waiting === 0
-                || placed >= placedBefore + (contentProgression.opening.applies(game) ? 1 : 2)
+            ...tutorialPractice.seed,
+            title: '그루터기 함에 심기'
         }
     },
     aliases: { tutorial_starter_gem_equip: 'starter_weapon', tutorial_first_passive: 'unlock_char', tutorial_first_gear: 'unlock_items',
@@ -514,15 +622,23 @@ const tutorialActionUi = {
         const guide = Object.hasOwn(this.guides, guideKey) ? this.guides[guideKey] : null;
         return guide && (!guide.available || guide.available()) ? guide : null;
     },
+    announceRune() {
+        const key = 'unlock_skills';
+        if (game.seenTutorials.includes(key) || game.tutorialHistory.some(row => row.key === key) || !this.guideFor(key)) return;
+        game.noti.skills = true;
+        queueTutorialNotice(key, _t('새 스킬룬'), _t('새 룬을 얻었습니다.\n‘스킬룬’에서 룬을 눌러 효과를 보고 공격 룬을 바꿔 보세요.'), 'tab-skills');
+    },
     start(notice, open = true) {
         const guide = this.guideFor(notice.key);
         if (!guide) return;
-        this.finish(false);
+        this.finish(false, true);
         if (guide === this.guides.unlock_items) equipmentInventoryInteraction.focus(null);
-        this.active = { notice, guide, before: guide.read(), startedAt: Date.now(), contextual: !open };
+        const before = guide.begin ? guide.begin(notice) : guide.read();
+        this.active = { notice, guide, before, step: guide.step?.(before), startedAt: Date.now(), contextual: !open };
         this.ensureCard();
         this.card.hidden = false;
         this.card.classList.remove('is-away');
+        this.card.querySelector('[data-skip]').hidden = notice.replay === true;
         this.refreshText();
         this.rest();
         if (guide.spotlight) guide.spotlight(true, () => this.reposition());
@@ -533,6 +649,8 @@ const tutorialActionUi = {
         }
     },
     followOpeningTab(tabId) {
+        if (game.isGuideReplay) return;
+        if (tabId === 'tab-skills') systemTutorialUi.visit(game.skillSubtab);
         if (!contentProgression.opening.applies(game)) return;
         if (contentProgression.opening.visit(game, tabId)) queueImportantSave(180);
         this.followOpeningGuide(tabId);
@@ -545,7 +663,7 @@ const tutorialActionUi = {
         const pendingWeapon = tabId === 'tab-items' && !!getStarterWeaponTutorialTarget();
         const notice = game.tutorialHistory.find(row => keys.includes(row.key) && (row.status === 'unread' || pendingWeapon));
         if (!notice || !this.guideFor(notice.key)) return;
-        window.GameModules.state.tutorials.transition(game, notice.key, 'read');
+        if (notice.key !== 'tutorial_first_gear') window.GameModules.state.tutorials.transition(game, notice.key, 'read');
         this.start(notice, false);
         if (tabId === 'tab-items') requestAnimationFrame(() => this.openEquipment());
     },
@@ -554,12 +672,14 @@ const tutorialActionUi = {
     },
     refreshText() {
         if (!this.active || !this.card) return;
-        const { guide } = this.active;
-        const body = contentProgression.opening.applies(game) ? guide.body : guide.legacyBody || guide.body;
+        const { guide, step } = this.active;
+        const count = this.card.querySelector('[data-step]');
         this.card.setAttribute('aria-label', _t('플레이 안내'));
         this.card.querySelector('strong').textContent = _t(guide.title);
-        this.card.querySelector('p').innerHTML = tutorialMarkup(_t(body));
-        this.card.querySelector('[data-open]').textContent = _t('화면 보기');
+        count.hidden = !step?.total || step.total < 2;
+        count.textContent = count.hidden ? '' : _t('{step} / {total}단계', { step: step.number, total: step.total });
+        this.card.querySelector('p').innerHTML = tutorialMarkup(_t(step?.body || guide.body));
+        this.card.querySelector('[data-open]').textContent = _t('이어 하기');
         this.card.querySelector('[data-skip]').textContent = _t('안내 닫기');
     },
     ensureCard() {
@@ -568,9 +688,10 @@ const tutorialActionUi = {
         card.id = 'tutorial-action-card';
         card.className = 'tutorial-action-card';
         card.setAttribute('aria-label', _t('플레이 안내'));
-        card.innerHTML = `<strong></strong><p id="tutorial-action-description"></p><div><button type="button" data-open>${_t('화면 보기')}</button><button type="button" data-skip>${_t('안내 닫기')}</button></div>`;
+        card.innerHTML = '<small data-step hidden></small><strong></strong><p id="tutorial-action-description" aria-live="polite"></p>'
+            + '<div><button type="button" data-open hidden></button><button type="button" data-skip></button></div>';
         card.querySelector('[data-open]').addEventListener('click', () => this.openTarget());
-        card.querySelector('[data-skip]').addEventListener('click', () => this.finish(false));
+        card.querySelector('[data-skip]').addEventListener('click', () => this.finish(false, this.active?.notice.replay));
         document.body.appendChild(card);
         this.card = card;
     },
@@ -579,45 +700,102 @@ const tutorialActionUi = {
         if (!action) return;
         this.hushHover();
         hideInfoTooltip();
-        const group = getMergedTabGroup(action.notice.tabId);
-        if (group) switchMergedTabSubtab(group[0], action.notice.tabId);
-        else switchTab(action.notice.tabId, { keepWindowOpen: true });
-        if (action.notice.key === 'tutorial_passive_tree_unlock') contentUnlockUi.select('passiveTree');
-        if (action.notice.tabId === 'tab-items') this.openEquipment();
+        this.openGuidePane(action);
         requestAnimationFrame(() => {
             this.refresh();
             if (!this.highlighted) return;
             revealTutorialTarget(this.highlighted);
-            this.placeCard(this.highlighted, true);
+            if (this.card.classList.contains('is-docked')) this.card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            else this.placeCard(this.highlighted, true);
         });
+    },
+    openGuidePane(action) {
+        const group = getMergedTabGroup(action.notice.tabId);
+        if (group) switchMergedTabSubtab(group[0], action.notice.tabId);
+        else switchTab(action.notice.tabId, { keepWindowOpen: true });
+        if (action.guide.open) return action.guide.open();
+        if (action.notice.key === 'tutorial_passive_tree_unlock') contentUnlockUi.select('passiveTree');
+        if (action.notice.tabId === 'tab-items') this.openEquipment();
+        if (action.notice.tabId === 'tab-skills') switchSkillSubtab('skill-tab-equip');
     },
     openEquipment() {
         switchItemSubtab('item-tab-equip');
         if (isMobilePrimaryNavigationEnabled()) {
-            setEquipmentMobilePane(game.inventory.some(Boolean) ? 'inventory' : 'loadout');
+            const bag = this.active?.before?.keys ? this.active.before.keys.length > 0 : game.inventory.some(Boolean);
+            setEquipmentMobilePane(bag ? 'inventory' : 'loadout');
         }
+    },
+    currentTarget(action) {
+        const step = action.guide.step?.(action.before);
+        if (step?.body !== action.step?.body) {
+            action.step = step;
+            this.refreshText();
+        }
+        return this.findTarget(step?.selector ?? action.guide.selector);
+    },
+    /** Use the same card beside the requested content, or inside a modal or narrow pane. */
+    dockCard(target, step) {
+        const anchor = target && this.inlineGuideAnchor(target, step);
+        if (!anchor || !this.canDockCard(anchor, step)) {
+            this.floatCard();
+            return false;
+        }
+        const card = this.card;
+        if (card.classList.contains('is-docked') && this.dockAnchor === anchor && card.isConnected) return true;
+        card.classList.add('is-docked');
+        if (step.inline) anchor.after(card);
+        else anchor.before(card);
+        this.dockAnchor = anchor;
+        this.rest();
+        return true;
+    },
+    canDockCard(anchor, step) {
+        return step.dock || uiDisplay.matches('(max-width: 1080px)')
+            || !!anchor.closest('dialog[open], #gem-slot-dialog, #gem-engrave-slot-overlay');
+    },
+    floatCard() {
+        if (!this.card.classList.contains('is-docked')) return;
+        this.card.classList.remove('is-docked');
+        document.body.appendChild(this.card);
+        this.dockAnchor = null;
+        this.rest();
+    },
+    inlineGuideAnchor(target, step) {
+        if (!step) return null;
+        if (step.inline) return document.querySelector(step.inline);
+        return target?.closest('#passive-mobile-detail [data-passive-confirm], .cl-method-use, .cl-action, .npc-dialog-shop, .shop-deal-actions, #stump-placement-preview .stump-actions');
+    },
+    leftGuideContext(action) {
+        return action.contextual && action.guide.view && !action.guide.view();
     },
     refresh() {
         const action = this.active;
         if (!action) return;
-        if (action.guide.completed(action.guide.read(), action.before)) return this.finish(true);
-        const target = this.findTarget(action.guide.selector);
-        this.clearHighlight();
-        // 가리킬 칸이 다른 화면에 있으면(전투 화면으로 돌아옴) 제목 · 단추만 한 줄로 기본 자리에 둔다.
-        this.card.classList.toggle('is-away', !target);
+        if (action.guide.completed(action.guide.read(action.before), action.before)) return this.finish(true);
+        if (this.leftGuideContext(action)) return this.finish(false, true);
+        const target = this.currentTarget(action);
+        const docked = this.dockCard(target, action.step);
+        this.setGuideTarget(target);
+        const away = !target && !document.getElementById(action.notice.tabId)?.classList.contains('active');
+        this.card.classList.toggle('is-away', away);
+        this.card.querySelector('[data-open]').hidden = !away;
         if (!target) return this.rest();
-        target.classList.add('tutorial-action-target');
-        const describedBy = target.getAttribute('aria-describedby') || '';
-        target.setAttribute('aria-describedby', (describedBy + ' tutorial-action-description').trim());
-        this.highlighted = target;
-        this.placeCard(target);
+        this.revealStep(action, target, docked);
+        if (!docked) this.placeCard(target);
+    },
+    // The next target may be painted a frame after the step changes.
+    revealStep(action, target, docked) {
+        if (action.revealedStep === action.step) return;
+        action.revealedStep = action.step;
+        target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        if (docked) this.card.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     },
     /** 카드는 가리키는 칸(트리는 찍을 수 있는 노드 무리)과 안내가 함께 지키는 곁 정보(룬 상세 · 고른 룬)를 덮지 않는다.
      * PC는 칸이 든 창 바깥의 빈 전장(칸과 같은 높이) → 칸의 왼쪽 · 오른쪽 → 아래 · 위 → 기본 자리 순, 휴대폰은 칸의 위 · 아래.
      * 한 번 둔 자리는 계속 비켜 있는 한 그대로 둔다(누르려던 자리로 카드가 옮겨 오지 않게). fresh는 화면을 연 직후 · 창 크기 변경. */
     placeCard(target, fresh) {
         const guide = this.active.guide, pinned = guide.focus ? guide.focus(target) : null;
-        const focus = pinned || target.getBoundingClientRect(), avoid = this.avoidRects(focus, fresh);
+        const focus = pinned || target.getBoundingClientRect(), avoid = this.avoidRects(focus, target, fresh);
         const placed = { target, pinned: !!pinned };
         if (!fresh && tutorialSamePlacement(this.placedFor, placed) && this.keepsClear(avoid)) return;
         const home = this.homeRect();
@@ -633,10 +811,13 @@ const tutorialActionUi = {
     },
     /** 카드가 덮으면 안 되는 사각형: 곁 정보, 가리키는 칸(트리 캔버스처럼 화면 절반이 넘으면 어디에 두어도 겹치니 뺀다),
      * 새로 둘 때는 떠 있는 툴팁까지. */
-    avoidRects(focus, withTooltips) {
+    avoidRects(focus, target, withTooltips) {
         const rects = tutorialVisibleRects(this.active.guide.keepClear || []);
+        const popover = target.closest(':popover-open');
+        if (popover) rects.push(popover.getBoundingClientRect());
         if (focus.height <= innerHeight / 2) rects.push(focus);
         if (withTooltips) rects.push(...tutorialVisibleRects(TUTORIAL_TOOLTIPS));
+        rects.push(...tutorialVisibleRects(['.guide-replay-bar']));
         return rects;
     },
     keepsClear(avoid) {
@@ -708,6 +889,15 @@ const tutorialActionUi = {
         }
         return null;
     },
+    setGuideTarget(target) {
+        if (target === this.highlighted) return;
+        this.clearHighlight();
+        if (!target) return;
+        target.classList.add('tutorial-action-target');
+        const describedBy = target.getAttribute('aria-describedby') || '';
+        target.setAttribute('aria-describedby', (describedBy + ' tutorial-action-description').trim());
+        this.highlighted = target;
+    },
     clearHighlight() {
         const target = this.highlighted;
         if (!target) return;
@@ -717,20 +907,32 @@ const tutorialActionUi = {
         else target.removeAttribute('aria-describedby');
         this.highlighted = null;
     },
+    completeGuideAction(action) {
+        if (action.notice.onComplete) return action.notice.onComplete();
+        const key = 'action_' + action.notice.key;
+        if (!game.seenTutorials.includes(key)) game.seenTutorials.push(key);
+        const result = action.guide.result ? _t(action.guide.result(action.before)) : action.guide.title + ' 완료';
+        showGameToast(result, { tone: 'success' });
+    },
+    dismissGuideAction(action) {
+        if (action.guide.view) game.seenTutorials.push('dismiss_' + action.notice.key);
+        else applySkippedGuide(action.notice.key);
+    },
     finish(completed, withoutSkip = false) {
         const action = this.active;
         this.active = null;
         this.placedFor = null;
         this.clearHighlight();
-        if (this.card) this.card.hidden = true;
+        if (this.card) {
+            this.card.hidden = true;
+            this.floatCard();
+        }
         if (!action) return;
         if (action.guide.spotlight) action.guide.spotlight(false);
-        if (withoutSkip || action.notice.replay) return this.waitBetweenNotices();
-        if (completed) {
-            const key = 'action_' + action.notice.key;
-            if (!game.seenTutorials.includes(key)) game.seenTutorials.push(key);
-            showGameToast(action.guide.title + ' 완료', { tone: 'success' });
-        } else applySkippedGuide(action.notice.key);
+        if (withoutSkip) return this.waitBetweenNotices();
+        if (action.notice.key === 'tutorial_first_gear') window.GameModules.state.tutorials.transition(game, action.notice.key, 'read');
+        if (completed) this.completeGuideAction(action);
+        else this.dismissGuideAction(action);
         queueImportantSave(0);
         this.waitBetweenNotices();
     }
@@ -766,7 +968,7 @@ let tutorialCardWindowSignature = '';
 
 let savedTutorialRevision = -1;
 function showNextTutorial() {
-    if (gameEntryRunning) return;   // the entry calls this itself once the time away is settled (js/cloud-save-ui.js enterGameWorld)
+    if (gameEntryRunning || game.isGuideReplay) return;
     window.GameModules.state.tutorials.sync(game);
     saveTutorialHistoryChange();
     tutorialActionUi.expireNotice(Date.now());

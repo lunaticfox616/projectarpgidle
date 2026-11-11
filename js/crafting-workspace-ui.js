@@ -332,7 +332,7 @@ const craftingWorkspaceUi = (() => {
     function workspacePrimaryButtonHtml(state,stopped) {
         if(auto)return `<button data-command="stop" class="cl-primary cl-stop">${_t('자동 사용 중지 {runCount}/{limit}회', { runCount, limit })}</button>`;
         if(stopped)return '<button data-command="ack" class="cl-primary">목표 옵션 확인</button>';
-        return `<button data-command="craft" class="cl-primary" aria-label="${_t('{name} 1회 사용', { name: esc(_t(ORB_DB[recipe.key].name)) })}" ${busy||!state.enabled?'disabled':''}>${busy?_t('사용 중…'):_t('1회 사용')}</button>`;
+        return `<button data-command="craft" data-craft-resource="${recipe.key}" class="cl-primary" aria-label="${_t('{name} 1회 사용', { name: esc(_t(ORB_DB[recipe.key].name)) })}" ${busy||!state.enabled?'disabled':''}>${busy?_t('사용 중…'):_t('1회 사용')}</button>`;
     }
 
     function workspaceActionHtml(state,stopped) {

@@ -877,12 +877,12 @@ function formatCloudUploadProfile(profile) {
     return _t('{totalMs}ms (직렬화 {serializeMs}ms, 전송 {uploadMs}ms, {sizeKb}KB)', { totalMs: normalized.totalMs, serializeMs: normalized.serializeMs, uploadMs: normalized.uploadMs, sizeKb });
 }
 
-function rememberCloudUploadProfile(profile) {
+function rememberCloudUploadProfile(profile, owner = game) {
     let normalized = normalizeCloudUploadProfile(profile);
     if (!normalized) return null;
-    ensureSaveMeta();
+    ensureSaveMeta(owner);
     normalized.at = normalized.at || Date.now();
-    game.saveMeta.lastCloudUploadProfile = normalized;
+    owner.saveMeta.lastCloudUploadProfile = normalized;
     cloudState.lastSyncProfile = normalized;
     return normalized;
 }
@@ -937,6 +937,7 @@ function refreshRuntimeForLoadedSave() {
  * pending (progress this device had not uploaded is gone from here on; enterAccountSave offered it as a file first). */
 function applyExternalSave(snapshot, sourceStamp) {
     assertSaveFromKnownBuild(snapshot);
+    window.playerGuideUi?.dismissReplay(false);
     game = mergeDefaults(snapshot || {});
     applySeasonContentProgression({ silent: true });
     ensureSaveMeta();
@@ -1126,12 +1127,14 @@ async function commitCloudSavePayload(payload, options = {}) {
 /** A commit acknowledges the body that was sent, not progress made while its reply was on the way. Advance the revision but keep
  * later changes pending (also for page-exit replies). The slot is written so a closed page keeps both the revision and that progress. */
 function rememberCloudCommit(row, fingerprint) {
-    ensureSaveMeta();
-    game.saveMeta.cloudRevision = Math.max(0, Math.floor(Number(row.revision) || 0));
-    game.saveMeta.lastCloudSyncAt = row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
-    game.saveMeta.cloudPending = cloudSaveFingerprint(createCloudSyncPayload(game)) !== fingerprint;
-    cloudState.lastRemoteRevision = game.saveMeta.cloudRevision;
-    cloudState.lastRemoteUpdatedAt = game.saveMeta.lastCloudSyncAt;
+    const owner = window.playerGuideUi?.liveGame() ?? game;
+    ensureSaveMeta(owner);
+    const meta = owner.saveMeta;
+    meta.cloudRevision = Math.max(0, Math.floor(Number(row.revision) || 0));
+    meta.lastCloudSyncAt = row.updated_at ? (new Date(row.updated_at).getTime() || Date.now()) : Date.now();
+    meta.cloudPending = cloudSaveFingerprint(createCloudSyncPayload(owner)) !== fingerprint;
+    cloudState.lastRemoteRevision = meta.cloudRevision;
+    cloudState.lastRemoteUpdatedAt = meta.lastCloudSyncAt;
     cloudState.lastCloudCommitAt = Date.now();
     cloudState.syncHalted = false;
     cloudState.uploadFailureNoticed = false;
@@ -1159,10 +1162,10 @@ async function pushCloudSave() {
     checkCloudUploadOwner(uploadOwner, uploadUserId);
     let tUpload = Date.now();
     rememberCloudCommit(row, cloudSaveFingerprint(request.save_data));
-    rememberCloudUploadProfile({ at: game.saveMeta.lastCloudSyncAt, serializeMs: tSerialize - t0, uploadMs: tUpload - tSerialize, totalMs: tUpload - t0, payloadBytes: payloadSize });
+    rememberCloudUploadProfile({ at: uploadOwner.saveMeta.lastCloudSyncAt, serializeMs: tSerialize - t0, uploadMs: tUpload - tSerialize, totalMs: tUpload - t0, payloadBytes: payloadSize }, uploadOwner);
     persistLocalSave({ touchModifiedAt: false });
     updateCloudSaveUI();
-    if (typeof syncPlayerProfileQuiet === 'function') syncPlayerProfileQuiet();
+    if (!game.isGuideReplay && typeof syncPlayerProfileQuiet === 'function') syncPlayerProfileQuiet();
     return row;
 }
 
@@ -1175,7 +1178,7 @@ function cloudRecordForThisBuild(record) {
 
 /** An upload may finish after logout or a different save load. Never commit that upload into the new session. */
 function checkCloudUploadOwner(owner, userId) {
-    if (game !== owner || getActiveCloudUserId() !== userId) throw new Error('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.');
+    if ((window.playerGuideUi?.liveGame() ?? game) !== owner || getActiveCloudUserId() !== userId) throw new Error('로그인 계정이나 게임 상태가 바뀌어 클라우드 저장을 중단했습니다.');
 }
 
 /** A save operation belongs to one live game, slot and account entry; a token refresh of that same entry is allowed. */
@@ -1264,6 +1267,7 @@ async function continueFromAccountCopy(userId) {
  * the server save, or a fresh default when this device has none. The guest save that stays behind is noted for the move button. */
 function activateAccountSaveSlot(userId) {
     if (getSaveSlot().userId === userId) return;
+    window.playerGuideUi?.dismissReplay(false);
     if (getLocalSaveStatus().status === 'ok' && canPersistLocalSave()) persistLocalSave({ touchModifiedAt: false });
     loadSaveSlotIntoGame(userId);
 }
@@ -1276,6 +1280,7 @@ function activateGuestSaveSlot() {
 
 /** Switches to a slot (an account's, or the guest's for null) and loads it into the running game, without writing the slot in use. */
 function loadSaveSlotIntoGame(userId) {
+    window.playerGuideUi?.dismissReplay(false);
     selectSaveSlot(userId);
     loadGame();
     applySeasonContentProgression({ silent: true });
@@ -1443,7 +1448,7 @@ function forgetDeletedAccountSave(userId) {
 
 /** The account slot holds changes the server does not have (js/save.js persistLocalSave sets it, rememberCloudCommit clears it). */
 function isCloudSaveDirty() {
-    return getSaveSlot().kind === 'account' && !!(game && game.saveMeta && game.saveMeta.cloudPending);
+    return getSaveSlot().kind === 'account' && !game?.isGuideReplay && !!game?.saveMeta?.cloudPending;
 }
 
 /** Only clocks moved since the last upload: an upload would change nothing on the server. */
@@ -1458,10 +1463,13 @@ function markCloudSaveUnchanged() {
     persistLocalSave({ touchModifiedAt: false });
 }
 
+// Hidden tabs use the page-exit upload. A superseded copy waits for a new account entry.
+const cloudAutoSyncReady = () => cloudState.configured && cloudState.user && !cloudState.busy
+    && !cloudState.syncHalted && !isStartupOverlayOpen() && !document.hidden;
+
 function scheduleCloudAutoSync() {
-    // 숨겨진 화면에서는 게임이 멈춰 있어 올릴 것이 없다(숨겨지는 순간의 업로드는 pushCloudSaveOnPageExit가 한다). 다른 기기에 밀린 뒤에는
-    // 계정에 다시 들어갈 때까지 올리지 않는다(syncHalted).
-    if (!cloudState.configured || !cloudState.user || cloudState.busy || cloudState.syncHalted || isStartupOverlayOpen() || document.hidden) return;
+    if (!cloudAutoSyncReady()) return;
+    if (cloudState.pendingForcedSyncOptions) return schedulePendingForcedCloudSyncDrain();
     if (!isCloudSaveDirty()) return;
     if (Date.now() - cloudState.lastSyncAttemptAt < CLOUD_SYNC_MIN_INTERVAL_MS) return;
     if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
@@ -1477,11 +1485,11 @@ function scheduleCloudAutoSync() {
 }
 
 function schedulePendingForcedCloudSyncDrain() {
-    if (cloudState.pendingForcedSyncRetryTimer) return;
+    if (cloudState.pendingForcedSyncRetryTimer || game.isGuideReplay) return;
     cloudState.pendingForcedSyncRetryTimer = setTimeout(() => {
         cloudState.pendingForcedSyncRetryTimer = null;
         let pendingForced = cloudState.pendingForcedSyncOptions;
-        if (!pendingForced || !cloudState.configured || !cloudState.user) return;
+        if (!pendingForced || !cloudState.configured || !cloudState.user || game.isGuideReplay) return;
         if (cloudState.busy) {
             schedulePendingForcedCloudSyncDrain();
             return;
@@ -1497,7 +1505,7 @@ function schedulePendingForcedCloudSyncDrain() {
 async function syncCloudSave(options = {}) {
     if (!cloudState.configured || !cloudState.user) return;
     await waitForPageExitUpload();
-    if (cloudState.busy) {
+    if (cloudState.busy || game.isGuideReplay) {
         if (options.force === true) {
             cloudState.pendingForcedSyncOptions = { ...options, force: true, reason: options.reason || 'important' };
             setCloudMessage(_t('클라우드 업로드 대기 중... ({reason})', { reason: cloudState.pendingForcedSyncOptions.reason }));
@@ -1513,6 +1521,10 @@ async function syncCloudSave(options = {}) {
     try {
         let fresh = await ensureCloudSessionFresh(options.reason || '클라우드 저장');
         if (!fresh) return;
+        if (game.isGuideReplay) {
+            if (options.force === true) cloudState.pendingForcedSyncOptions ??= options;
+            return;
+        }
         await pushCloudSave();
         setCloudMessage(options.automatic ? '서버에 자동으로 올렸습니다.' : '서버에 올렸습니다.');
         if (!options.automatic) addLog(_t('서버에 저장을 올렸습니다.'), 'loot-magic');
@@ -1782,7 +1794,7 @@ function requestImmediateCloudSave(reason) {
 /** The page-exit commit answered: committed, the slot takes the revision; refused (another device committed), uploads halt until the
  * account is entered again. */
 function applyPageExitCloudSaveResult(text, exitSave, fingerprint) {
-    if (cloudState.busy || game !== exitSave || !text) return;
+    if (cloudState.busy || (window.playerGuideUi?.liveGame() ?? game) !== exitSave || !text) return;
     let result = JSON.parse(text);
     result = Array.isArray(result) ? result[0] : result;
     if (!result) return;

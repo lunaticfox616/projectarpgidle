@@ -1791,21 +1791,6 @@ body .item-card {
   max-width: 1120px !important;
 }
 
-/* 안내 카드가 가리키는 화면의 메뉴 단추(js/tutorial-ui.js setTutorialCallout): 금빛 테가 두 박자로 깜빡인다.
-   도트 단추의 음각(box-shadow)은 그대로 두고 outline만 쓴다. 레일·하단 바가 넘친 부분을 자르므로 단추 안쪽에 긋는다. */
-:root body .tutorial-callout {
-  outline: 2px solid #f3d28c;
-  outline-offset: -2px;
-  animation: tutorial-callout-blink 1.1s steps(1, end) infinite;
-}
-@keyframes tutorial-callout-blink {
-  0%, 60% { outline-color: #f3d28c; }
-  61%, 100% { outline-color: rgba(243, 210, 140, .28); }
-}
-@media (prefers-reduced-motion: reduce) {
-  :root body .tutorial-callout { animation: none; }
-}
-
 :root body.desktop-windowed-ui .battlefield-wrap {
   height: min(100%, 760px);
 }

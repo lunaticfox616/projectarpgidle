@@ -70,10 +70,10 @@ const contentProgression = (() => {
         trials: owner => [['액트 3 클리어', owner.maxZoneId >= 3 || owner.completedTrials.length > 0]],
         meteor: owner => [['루프 7에서 액트 7 클리어', owner.maxZoneId >= 7]],
         deepChaos: owner => [['혼돈 20층 클리어', hasCurrentLoopChaos20Clear(owner)]],
-        chaosRealm: owner => [['나무꾼에게 10% 피해 후 전투 종료', !!owner.chaosRealm.unlocked]],
-        underworld: owner => [['혼돈계, 케르베로스, 심화 30층, 미궁 100층', isUnderworldUnlockReady(owner)]],
-        cosmos: owner => [['나무꾼 기록과 지하계 30층 도달', isCosmosContentUnlockReady(owner)]],
-        sky: owner => [['혼돈 20층 클리어', owner.skyTower.unlocked || owner.season > 15 || hasCurrentLoopChaos20Clear(owner)]],
+        chaosRealm: owner => [['나무꾼에게 10% 피해 후 전투 종료', !!owner.chaosRealm.unlocked, 'outside-chaos']],
+        underworld: getUnderworldUnlockChecks,
+        cosmos: getCosmosUnlockChecks,
+        sky: owner => [['혼돈 20층 클리어', owner.skyTower.unlocked || owner.season > 15 || hasCurrentLoopChaos20Clear(owner), 'map-explore-chaos']],
         beyond: owner => [['경계의 관측자 처치, 그리고 루프 50 또는 세계수 씨앗 4개', isBeyondBoundaryUnlockRequirementMet(owner)]],
         cube: owner => [['지하계 10층 클리어', owner.underworldProgress.highestFloor >= 11]],
         talent: owner => [['재능 개화', hasPermanentTalentTabUnlock(owner)]],
@@ -98,7 +98,7 @@ const contentProgression = (() => {
         const rows = [[_t('루프 {minLoop}', { minLoop: def.minLoop }), owner.season >= def.minLoop]];
         for (const key of parents(def)) rows.push([_t('{name} 해금', { name: _t(definitions.get(key).name) }), isUnlocked(key, owner)]);
         if (def.progress) rows.push(...progressChecks[def.progress](owner));
-        return rows.map(([label, met]) => ({ label, met: !!met }));
+        return rows.map(([label, met, route]) => ({ label, met: !!met, route }));
     }
 
     function meetsUsageGate(def, owner) {
@@ -183,11 +183,12 @@ const contentProgression = (() => {
         'tab-map': canOpenMap,
         'tab-season': owner => owner.season >= 2,
         'tab-unlocks': owner => owner.season >= 2,
+        'tab-guide': owner => canOpen('tab-journal', owner),
         // 거래 창(js/market-ui.js): 만난 NPC, 거래소 해금(암거래상, 가판대), 장비 전당 가운데 하나라도 열리면 연다(2026-11-06, NPC 탭과 장비 전당이
         // 들어왔고, 같은 날 장비 창의 칸에서 제 창이 됐다). 옛 칸 주소(item-tab-market, item-tab-hall)는 js/ui.js switchItemSubtab이 이 창으로 보낸다.
         'tab-trade': owner => npcsMet(owner) || isUnlocked('market', owner) || isUnlocked('hall', owner),
-        // 세계수 탐험 창(아틀라스)은 혼돈계와 같은 경로지만, 아틀라스가 열렸으면 혼돈계 관문 전이라도 연다.
-        'map-explore-worldtree': owner => !!owner.atlas?.unlocked || isUnlocked('chaosRealm', owner)
+        // 아틀라스와 혼돈계의 최초 개방 기록은 서로 독립적이다.
+        'map-explore-worldtree': owner => !!owner.atlas?.unlocked
     };
 
     function canOpen(route, owner = game) {
