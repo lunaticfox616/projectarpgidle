@@ -6,7 +6,7 @@
  * 시뮬레이터와 다른 점: 시간의 사선의 잿빛은 화면 전체가 아니라 바닥과, 둔화된 적의 그림에 입힌다(주인공만 다시 그리는 길이 게임에는 없다).
  */
 const stageNewRunes = (() => {
-    const K = stageSkillKit, ST = stageSkillStrokes, TAU = Math.PI * 2;
+    const K = stageSkillKit, ST = stageSkillStrokes;
     const RAW_SHEET = 2;                          // STAGE_SKILL_VFX.files의 vfx3.png
     const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
 
@@ -227,124 +227,89 @@ const stageNewRunes = (() => {
         }
         ctx.restore();
     }
-    const BLADES = Object.freeze({ lift: -42, wide: [86, 59], tall: [69, 45], scale: [1, 0.72], appear: 5, appearMs: 24, ghosts: [[24, 0.14], [12, 0.3]], easing: 1.8,
-        first: [-2.35619449, -1.42, -0.55, 0.35, 1.25, 2.12, 2.94], again: [-2.35619449, -0.3, 1.45] });
-    const IMPACT = Object.freeze({ flash: 90, trail: 200, fade: 150, ring: 170, spark: 180 });
-    /** 대상 몸 둘레에 칼날이 서고(첫 타는 일곱, 이어 치는 타는 셋), 맞는 순간으로 날아가 모인다. 칼날은 그림이고 피해는 한 번이다. */
+    // V3.14.10(2026-11-12 전달본, 시뮬레이터 time-sword-remake.js): 고딕 금빛 장검이 차례로 날아가 찌른다. 첫 발과 다시 치는 발은 일곱, 새 대상은 하나.
+    // 묶음마다 진입 각도가 22도, 시전마다 13도 돌고, 검마다 작은 각도와 닿는 자리가 흩어진다(난수가 아니라 시전, 발, 검 번호로 정한다). 잔상은 검마다 둘이다.
+    // 장검 그림(js/canvas-stage-gothic-remakes.js)이 아직 없으면 예전 칼날(blade)로 그린다. 피해와 시간은 js/skill-gem-casts.js의 사건(timeFirst, timeArrive, timeStep, timeFly)이 정한다.
+    const SWORDS = Object.freeze({ lift: -42, ring: [-2.35619449, -1.42, -0.55, 0.35, 1.25, 2.12, 2.94], radius: [86, 69], slots: [[-93, -54], [93, -54], [0, -93]],
+        appear: 5, appearMs: 24, fade: 190, ghosts: [[32, 0.09], [16, 0.18]], trail: 20, easing: 1.8, volleyTurn: 22, castTurn: 13, jitterTurn: 16 });
+    const G = () => stageGothicRemakes;
+    const drawSword = (ctx, o) => (G().swordReady() ? G().timeSword(ctx, o) : blade(ctx, o));
+    /** 시전, 발, 검, 갈래로 정해지는 0~1(시뮬레이터 noise). 프레임마다 흔들리지 않는다. */
+    function swordNoise(cast, shot, sword, channel) {
+        let n = (Math.imul(cast + 1, 73856093) ^ Math.imul(shot + 1, 19349663) ^ Math.imul(sword + 1, 83492791) ^ Math.imul(channel + 1, 0x9e3779b9)) >>> 0;
+        n = Math.imul(n ^ (n >>> 16), 0x7feb352d);
+        n = Math.imul(n ^ (n >>> 15), 0x846ca68b);
+        return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+    }
+    /** 검들이 서는 자리(대상 몸 가운데 기준, 도트)와 닿는 자리의 흩어짐(dx, dy). 일곱은 둘레에, 하나는 세 자리를 돌아가며. */
+    function swordOrigins(event) {
+        const many = event.timeSwords > 1, cast = Number(event.timeCast) || 1, shot = event.timeShot || 0;
+        return Array.from({ length: event.timeSwords }, (_, i) => {
+            const base = many ? [Math.cos(SWORDS.ring[i]) * SWORDS.radius[0], Math.sin(SWORDS.ring[i]) * SWORDS.radius[1]] : SWORDS.slots[(shot + 2) % 3];
+            const turn = ((cast - 1) * SWORDS.castTurn + shot * SWORDS.volleyTurn + (swordNoise(cast, shot, i, 0) - 0.5) * SWORDS.jitterTurn) * Math.PI / 180;
+            const a = Math.atan2(base[1], base[0]) + turn, r = Math.hypot(base[0], base[1]) * (0.92 + swordNoise(cast, shot, i, 1) * 0.18);
+            return { x: Math.cos(a) * r, y: SWORDS.lift + Math.sin(a) * r, i,
+                dx: Math.round((swordNoise(cast, shot, i, 2) - 0.5) * 14), dy: Math.round((swordNoise(cast, shot, i, 3) - 0.5) * 20) };
+        });
+    }
+    /** 한 발의 검 묶음: 대상 몸 둘레에 서 있다가 0.024초 간격으로 차례로 날아가 박히고, 0.19초 동안 옅어진다. 피해는 판정 쪽이 마지막 검에 한 번 준다. */
     function timeBlades(c) {
         if (!c.first) return true;
-        const event = c.event, role = event.timeShot ? 1 : 0, angles = event.timeShot ? BLADES.again : BLADES.first, speed = Number(event.timeSpeed) || 1;
-        const center = { x: 0, y: BLADES.lift }, enemy = K.enemy(event.timeFoe), anchor = event.timeCell;
-        const swords = angles.map((a, i) => { const x = Math.cos(a) * BLADES.wide[role], y = center.y + Math.sin(a) * BLADES.tall[role]; return { x, y, angle: Math.atan2(center.y - y, -x), i }; });
-        const arrive = event.timeArrive - event.at, flyFrom = arrive - event.timeFly, plan = { swords, role, speed, arrive, flyFrom, anchor, enemy };
-        stageSkillVfx.paint(K.at(anchor), { life: arrive + IMPACT.trail / speed + 40 }, (ctx, t, dot) => {
+        const event = c.event, speed = Number(event.timeSpeed) || 1, first = event.timeFirst - event.at, fly = Math.max(1, event.timeFly);
+        const plan = { speed, first, fly, step: event.timeStep, appear: event.timeShot ? first - fly : 0, scale: event.timeSwords > 1 ? 1 : 0.88, extra: event.timeShot > 0,
+            anchor: event.timeCell, enemy: K.enemy(event.timeFoe), origins: swordOrigins(event) };
+        stageSkillVfx.paint(K.at(event.timeCell), { life: event.timeArrive - event.at + SWORDS.fade / speed + 20 }, (ctx, t, dot) => {
             ctx.scale(dot, dot);
             const live = bladeTarget(plan);
-            if (t < arrive) bladeFormation(ctx, t, plan, live);
-            else bladeImpact(ctx, t, plan, live);
+            for (const origin of plan.origins) volleySword(ctx, t, plan, origin, live);
         });
         return true;
     }
-    /** 맞는 자리: 대상이 움직이면 따라간다(맞은 뒤에는 그 자리에 남는다). */
+    /** 맞는 자리: 대상이 움직이면 따라간다(쓰러진 뒤에는 마지막에 본 자리). */
     function bladeTarget(plan) {
         const alive = plan.enemy && K.enemy(plan.enemy.id) === plan.enemy && plan.enemy.hp > 0, spot = alive ? K.enemySpot(plan.enemy) : plan.anchor;
         if (alive) plan.seen = spot;
         const at = plan.seen || plan.anchor;
-        return { x: (at.gx - plan.anchor.gx) * K.WIDE, y: (at.gy - plan.anchor.gy) * K.DEEP + BLADES.lift };
+        return { x: (at.gx - plan.anchor.gx) * K.WIDE, y: (at.gy - plan.anchor.gy) * K.DEEP + SWORDS.lift };
     }
-    function bladeSpot(sword, t, plan, live) {
-        const u = clamp((t - plan.flyFrom) / Math.max(1, plan.arrive - plan.flyFrom), 0, 1), k = Math.pow(u, BLADES.easing);
-        return { x: sword.x + (live.x - sword.x) * k, y: sword.y + (live.y - sword.y) * k, flying: t >= plan.flyFrom };
+    /** 검 하나의 때: 나타남, 떠남, 닿음(도트 시간). */
+    function swordTimes(t, plan, origin) {
+        const launch = plan.first - plan.fly + origin.i * plan.step, arrival = plan.first + origin.i * plan.step;
+        const shown = clamp((t - plan.appear - origin.i * SWORDS.appear / plan.speed) / (SWORDS.appearMs / plan.speed), 0, 1), age = (t - arrival) * plan.speed;
+        const alpha = t < launch ? shown * 0.9 : t >= arrival ? 0.62 * Math.pow(1 - clamp(age / SWORDS.fade, 0, 1), 1.2) : shown;
+        return { launch, arrival, age, alpha, flying: t >= launch && t < arrival, progress: (t - launch) / plan.fly };
     }
-    /** 날아가는 칼날의 잔상 둘. */
-    function bladeGhosts(ctx, sword, spot, z) {
-        for (const [lag, alpha] of BLADES.ghosts) {
-            const back = bladeSpot(sword, Math.max(z.plan.flyFrom, z.t - lag / z.plan.speed), z.plan, z.live);
-            if (Math.hypot(spot.x - back.x, spot.y - back.y) > 1) blade(ctx, { x: back.x, y: back.y, angle: sword.angle, alpha, scale: BLADES.scale[z.plan.role] });
+    function volleySword(ctx, t, plan, origin, live) {
+        const time = swordTimes(t, plan, origin);
+        if (time.age >= SWORDS.fade || time.alpha <= 0) return;
+        const centre = { x: live.x + origin.dx, y: live.y + origin.dy }, angle = Math.atan2(centre.y - origin.y, centre.x - origin.x);
+        const along = u => { const k = Math.pow(clamp(u, 0, 1), SWORDS.easing); return { x: origin.x + (centre.x - origin.x) * k, y: origin.y + (centre.y - origin.y) * k }; };
+        const spot = along(time.progress);
+        if (time.flying) swordFlight(ctx, { along, spot, angle, time, plan });
+        drawSword(ctx, { x: spot.x, y: spot.y, angle, alpha: time.alpha, scale: plan.scale });
+        if (time.age >= 0) G().swordContact(ctx, { x: spot.x, y: spot.y, angle, t: time.age, extra: plan.extra });
+    }
+    /** 날아가는 검의 옅은 앞선 자세 둘과 칼끝 뒤 점선: 투사체를 늘리지 않고 빽빽함만 보인다. */
+    function swordFlight(ctx, f) {
+        for (const [lag, opacity] of SWORDS.ghosts) {
+            const back = f.time.progress - lag / f.plan.speed / f.plan.fly;
+            if (back > 0) drawSword(ctx, { ...f.along(back), angle: f.angle, alpha: opacity * f.time.alpha, scale: f.plan.scale });
         }
+        const prior = f.along(f.time.progress - SWORDS.trail / f.plan.speed / f.plan.fly);
+        G().swordStroke(ctx, { x: f.spot.x, y: f.spot.y, angle: f.angle, length: Math.min(38, Math.hypot(f.spot.x - prior.x, f.spot.y - prior.y)), alpha: 0.3 });
     }
-    function bladeFormation(ctx, t, plan, live) {
-        for (const sword of plan.swords) {
-            const spot = bladeSpot(sword, t, plan, live), alpha = spot.flying ? 1 : clamp((t - sword.i * BLADES.appear / plan.speed) / (BLADES.appearMs / plan.speed), 0, 1);
-            if (spot.flying) bladeGhosts(ctx, sword, spot, { t, plan, live });
-            blade(ctx, { x: spot.x, y: spot.y, angle: sword.angle, alpha, scale: BLADES.scale[plan.role] });
-        }
-    }
-    /** 맞는 순간: 칼날이 모인 자리의 빛줄기, 흰 심지, 바닥 고리, 불티 여섯. 화면을 번쩍이지 않고 멈추지도 않는다. */
-    function bladeImpact(ctx, t, plan, live) {
-        const age = (t - plan.arrive) * plan.speed, cx = live.x, cy = live.y;
-        bladeStreaks(ctx, plan, live, age);
-        bladeFlash(ctx, plan, cx, cy, clamp(1 - age / IMPACT.flash, 0, 1));
-        bladeRing(ctx, cx, cy, age);
-        bladeSparks(ctx, cx, cy, age);
-        ctx.globalAlpha = 1;
-    }
-    function bladeStreaks(ctx, plan, at, age) {
-        const scale = BLADES.scale[plan.role], width = plan.role ? [1, 3] : [4, 8], fade = clamp(1 - age / IMPACT.trail, 0, 1);
-        for (const sword of plan.swords) {
-            const length = Math.hypot(sword.x, sword.y - BLADES.lift), main = sword.i === 0;
-            ctx.save();
-            ctx.translate(at.x, at.y); ctx.rotate(sword.angle);
-            const grad = ctx.createLinearGradient(-length, 0, 14, 0);
-            grad.addColorStop(0, 'rgba(206,153,65,0)'); grad.addColorStop(0.65, 'rgba(245,205,116,.65)'); grad.addColorStop(1, 'rgba(255,245,197,1)');
-            ctx.globalAlpha = fade * (main ? 1 : 0.62);
-            ctx.fillStyle = grad;
-            ctx.fillRect(-length, main ? -width[0] : -1, length + 18, main ? width[1] : 3);
-            ctx.restore();
-            blade(ctx, { x: at.x, y: at.y, angle: sword.angle, alpha: clamp(1 - age / IMPACT.fade, 0, 1) * (main ? 1 : 0.42), scale });
-        }
-    }
-    function bladeFlash(ctx, plan, cx, cy, flash) {
-        if (flash <= 0) return;
-        const x = Math.round(cx), y = Math.round(cy);
-        ctx.save();
-        ctx.translate(x, y); ctx.rotate(plan.swords[0].angle);
-        ctx.globalAlpha = flash * 0.92;
-        ctx.fillStyle = '#dca849'; ctx.fillRect(-31, -5, 57, 10);
-        ctx.fillStyle = '#fff2be'; ctx.fillRect(-25, -2, 49, 4);
-        ctx.fillStyle = '#fffbe4'; ctx.fillRect(-10, -1, 24, 2);
-        ctx.restore();
-        ctx.globalAlpha = flash;
-        ctx.fillStyle = '#f6d47d'; ctx.fillRect(x - 10, y - 4, 21, 9); ctx.fillRect(x - 4, y - 12, 9, 25);
-        ctx.fillStyle = '#fff7d2'; ctx.fillRect(x - 6, y - 3, 13, 7); ctx.fillRect(x - 3, y - 7, 7, 15);
-        ctx.fillStyle = '#fffde8'; ctx.fillRect(x - 3, y - 3, 7, 7);
-    }
-    function bladeRing(ctx, cx, cy, age) {
-        const ring = clamp(1 - age / IMPACT.ring, 0, 1);
-        if (ring <= 0) return;
-        const p = age / IMPACT.ring, rx = 14 + 34 * Math.pow(p, 0.55), ry = 3 + 6 * p, ground = cy + 40;
-        ctx.globalAlpha = ring * 0.86; ctx.strokeStyle = '#d4a344'; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.ellipse(cx, ground, rx, ry, 0, 0, TAU); ctx.stroke();
-        ctx.globalAlpha = ring * 0.9; ctx.strokeStyle = '#fff0b2'; ctx.lineWidth = 1;
-        ctx.beginPath(); ctx.ellipse(cx, ground - 1, Math.max(6, rx - 3), Math.max(2, ry - 1), 0, 0, TAU); ctx.stroke();
-    }
-    function bladeSparks(ctx, cx, cy, age) {
-        const sparks = clamp(1 - age / IMPACT.spark, 0, 1);
-        if (sparks <= 0) return;
-        for (let i = 0; i < 6; i++) {
-            const a = -0.35 + i * Math.PI / 3, r = 9 + age * (0.13 + (i % 2) * 0.045), x = Math.round(cx + Math.cos(a) * r), y = Math.round(cy + Math.sin(a) * r * 0.72);
-            ctx.globalAlpha = sparks * 0.95;
-            ctx.fillStyle = i % 2 ? '#f5c96a' : '#fff1bd'; ctx.fillRect(x - 1, y - 1, i % 2 ? 4 : 3, 2);
-            ctx.fillStyle = '#c58b36'; ctx.fillRect(x - 2, y + 1, 3, 1);
-        }
-    }
-    /** 튕김: 작은 칼날이 맞은 적에게서 다음 적으로 날아가 작은 빛 십자로 끝난다. */
+    /** 튕김: 작은 장검이 맞은 적에게서 다음 적으로 날아가 작은 놋빛 베임으로 끝난다. */
     function timeBounce(c) {
         if (!c.first) return true;
-        const event = c.event, from = event.sourceCell, to = event.landingCell, dx = (to.gx - from.gx) * K.WIDE, dy = (to.gy - from.gy) * K.DEEP, fly = Math.max(1, event.timeArrive - event.at);
-        stageSkillVfx.paint(K.at(from, 0, BLADES.lift), { life: event.duration }, (ctx, t, dot) => {
-            const u = clamp(t / fly, 0, 1), k = Math.pow(u, 1.25), x = dx * k, y = dy * k, angle = Math.atan2(dy, dx);
+        const event = c.event, from = event.sourceCell, to = event.landingCell, dx = (to.gx - from.gx) * K.WIDE, dy = (to.gy - from.gy) * K.DEEP;
+        const fly = Math.max(1, event.timeArrive - event.at), speed = Number(event.timeSpeed) || 1, angle = Math.atan2(dy, dx);
+        stageSkillVfx.paint(K.at(from, 0, SWORDS.lift), { life: event.duration }, (ctx, t, dot) => {
+            const k = Math.pow(clamp(t / fly, 0, 1), 1.25), x = dx * k, y = dy * k;
             ctx.scale(dot, dot);
             if (t < fly) {
-                blade(ctx, { x, y, angle, alpha: 0.92, scale: 0.35 });
-                ctx.globalAlpha = 0.45; ctx.strokeStyle = '#efc86f'; ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.moveTo(x - Math.cos(angle) * 12, y - Math.sin(angle) * 12); ctx.lineTo(x, y); ctx.stroke();
-            } else {
-                ctx.globalAlpha = clamp(1 - (t - fly) / 110, 0, 1);
-                ctx.fillStyle = '#fff2c0';
-                ctx.fillRect(Math.round(x) - 5, Math.round(y) - 1, 11, 3); ctx.fillRect(Math.round(x) - 1, Math.round(y) - 5, 3, 11);
-            }
-            ctx.globalAlpha = 1;
+                drawSword(ctx, { x, y, angle, alpha: 0.85, scale: 0.47 });
+                G().swordStroke(ctx, { x, y, angle, length: 14, alpha: 0.3 });
+            } else G().swordContact(ctx, { x, y, angle, t: (t - fly) * speed, extra: true });
         });
         return true;
     }

@@ -15,7 +15,7 @@ const stageGothicRemakes = (() => {
     /** 그림을 연다(처음 부를 때 한 번). 기존 여섯 장이 준비되면 새 종 부품의 로딩 중에도 그릴 수 있다. */
     function openGothicPictures() {
         if (pictures.bell) return;
-        for (const name of [...NAMES, ...BELL_PARTS]) pictures[name] = stagePictures.openPicture(`assets/stage-vfx/gothic/${name}.png`);
+        for (const name of [...NAMES, ...BELL_PARTS, 'time-sword']) pictures[name] = stagePictures.openPicture(`assets/stage-vfx/gothic/${name}.png`);
     }
     const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
     /** 납작한 고리 모양(바깥 테, 중간, 안쪽 빛 세 색). */
@@ -411,9 +411,49 @@ const stageGothicRemakes = (() => {
         }
     }
 
+    // ---------------------------------------------------------------- 80 시간의 사선의 고딕 금빛 장검(V3.14.8~V3.14.10, 시뮬레이터 time-sword-remake.js)
+    // 20×72 그림을 72방향으로 미리 돌려 둔다(96×96 캔버스, 끝은 [10, 2]). 그리는 자리는 칼끝이다. 칼날의 순서와 시간은 js/canvas-stage-new-runes.js timeBlades가 정한다.
+    let swordPoses = null;
+    function swordReady() {
+        openGothicPictures();
+        if (swordPoses) return true;
+        if (!pictures['time-sword'].ready) return false;
+        swordPoses = Array.from({ length: 72 }, (_, i) => {
+            const a = i * TAU / 72, c = canvas(96, 96), g = c.getContext('2d');
+            g.imageSmoothingEnabled = false; g.translate(48, 48); g.rotate(a + Math.PI / 2); g.drawImage(image('time-sword'), -10, -36);
+            return { image: c, tipX: 48 + 34 * Math.cos(a), tipY: 48 + 34 * Math.sin(a) };
+        });
+        return true;
+    }
+    /** 장검 하나(o: x, y 칼끝, angle 날아가는 쪽, alpha, scale). */
+    function timeSword(ctx, o) {
+        if (o.alpha <= 0) return;
+        const pose = swordPoses[((Math.round(o.angle / TAU * 72) % 72) + 72) % 72], s = o.scale;
+        ctx.save(); ctx.imageSmoothingEnabled = false; ctx.globalAlpha *= o.alpha;
+        ctx.drawImage(pose.image, Math.round(o.x - pose.tipX * s), Math.round(o.y - pose.tipY * s), Math.round(96 * s), Math.round(96 * s));
+        ctx.restore();
+    }
+    /** 칼끝 뒤로 남는 놋빛 점선(o: x, y 칼끝, angle, length 도트, alpha). */
+    function swordStroke(ctx, o) {
+        if (o.alpha <= 0) return;
+        ctx.save(); ctx.globalAlpha *= o.alpha; ctx.fillStyle = '#bd934e';
+        const n = Math.min(12, Math.ceil(o.length / 4));
+        for (let i = 1; i <= n; i++) { const d = i * o.length / n; ctx.fillRect(Math.round(o.x - Math.cos(o.angle) * d), Math.round(o.y - Math.sin(o.angle) * d), 2, 2); }
+        ctx.restore();
+    }
+    /** 닿은 자리: 작은 놋빛 베임과 바깥으로 튀는 조각 둘(o: x, y, angle, t 닿은 뒤 시간에 공격 속도를 곱한 값, extra 추가 발). 밝은 십자나 넓은 번쩍임은 없다. */
+    function swordContact(ctx, o) {
+        const { x, y, angle, t, extra } = o, fade = 1 - clamp(t / 150);
+        if (fade <= 0) return;
+        ctx.save(); ctx.fillStyle = '#d6b774'; ctx.globalAlpha *= fade * 0.7;
+        for (const side of [-1, 1]) { const q = angle + side * Math.PI / 2, d = 5 + clamp(t / 120) * 12; ctx.fillRect(Math.round(x + Math.cos(q) * d), Math.round(y + Math.sin(q) * d), extra ? 3 : 4, 2); }
+        ctx.restore();
+        swordStroke(ctx, { x: x + Math.cos(angle) * 7, y: y + Math.sin(angle) * 7, angle, length: extra ? 14 : 21, alpha: fade * 0.65 });
+    }
+
     /** 이 그림을 쓰는 룬(nativeCastId): 끼면 js/canvas-stage-warmup.js가 ready()로 그림을 미리 연다(첫 시전부터 새 그림). */
-    const GEMS = Object.freeze([50, 51, 89, 90, 91]);
+    const GEMS = Object.freeze([50, 51, 80, 89, 90, 91]);
     return Object.freeze({ GEMS, ready: gothicReady, bellGround, bellSky, chandGround, chandSky, gavelGround, gavelSky, verdictBolt, judgmentBolt, judgmentRing, judgmentCross,
-        dressCenser, incensePuff, incenseField });
+        dressCenser, incensePuff, incenseField, swordReady, timeSword, swordStroke, swordContact });
 })();
 safeExposeGlobals({ stageGothicRemakes });
