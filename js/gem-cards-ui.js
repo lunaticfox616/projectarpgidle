@@ -118,6 +118,7 @@ function getSupportEquipFailure(name, stats) {
     if (equippedSupports.length >= supportCap) return '';
     const conflict = window.GameModules.skills.supports.conflictReason(name, game);
     if (conflict) return conflict;
+    if (gemDropRewards.allowsResonanceOverflow(stats)) return '';
     let used = equippedSupports.reduce((sum, supportName) => sum + getSupportTierResonanceCost(supportName), 0);
     let available = Math.max(0, getEffectiveResonanceCap(stats) - used);
     let cost = getSupportTierResonanceCost(name);
@@ -455,8 +456,9 @@ function setSupportActiveTier(name, tier) { if (!assertBuildEditable()) return;
         rec.activeTier = nextTier;
         game.supportGemData[name] = rec;
         let nextUsed = (game.equippedSupports || []).reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
-        let resonancePower = getEffectiveResonanceCap();
-        if (nextUsed > resonancePower) {
+        const stats = getUiPlayerStats();
+        let resonancePower = getEffectiveResonanceCap(stats);
+        if (gemDropRewards.exceedsResonanceBudget(stats, nextUsed, resonancePower)) {
             rec.activeTier = prevTier;
             game.supportGemData[name] = rec;
             let need = Math.max(0, nextUsed - used);
@@ -489,7 +491,7 @@ function toggleSupport(name) { if (!assertBuildEditable()) return;
         let used = game.equippedSupports.reduce((sum, n) => sum + getSupportTierResonanceCost(n), 0);
         let remain = Math.max(0, getEffectiveResonanceCap(stats) - used);
         let cost = getSupportTierResonanceCost(name);
-        if (remain < cost) return addLog(_t('공명력 부족 ({remain}/{cost})', { remain, cost }), 'attack-monster', { toast: true });
+        if (remain < cost && !gemDropRewards.allowsResonanceOverflow(stats)) return addLog(_t('공명력 부족 ({remain}/{cost})', { remain, cost }), 'attack-monster', { toast: true });
         game.equippedSupports.push(name);
         playUiFeedbackSound('gemSocket');
     }

@@ -3509,8 +3509,8 @@
     {
       "cat": "int",
       "id": "nb3s9jae3yp",
-      "x": -976.18,
-      "y": -1146.07,
+      "x": -974.18,
+      "y": -1142.59,
       "type": "minor",
       "name": "지능",
       "desc": "지능 +5",
@@ -3534,34 +3534,26 @@
     {
       "cat": "attr",
       "id": "nflfu8ce3yp",
-      "x": -762,
-      "y": -1296.04,
+      "x": -763.87,
+      "y": -1297.28,
       "type": "minor",
-      "name": "모든 능력치",
-      "desc": "모든 능력치 +3",
+      "name": "지능",
+      "desc": "지능 +5",
       "mods": [
         {
-          "statId": "attribute",
-          "value": 3,
+          "statId": "intelligence",
+          "value": 5,
           "target": "all"
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "strength",
-          "value": 3
-        },
-        {
-          "statId": "dexterity",
-          "value": 3
-        },
-        {
           "statId": "intelligence",
-          "value": 3
+          "value": 5
         }
       ],
-      "distanceFromClassStart": 13,
+      "distanceFromClassStart": 12,
       "powerBand": 1
     },
     {
@@ -3636,7 +3628,8 @@
         }
       ],
       "distanceFromClassStart": 10,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3660,7 +3653,8 @@
         }
       ],
       "distanceFromClassStart": 9,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3669,22 +3663,23 @@
       "y": 1099.72,
       "type": "normal",
       "name": "공명력",
-      "desc": "공명력 +1",
+      "desc": "공명력 +3",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3708,7 +3703,8 @@
         }
       ],
       "distanceFromClassStart": 7,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3717,22 +3713,23 @@
       "y": 1001.74,
       "type": "normal",
       "name": "공명력",
-      "desc": "공명력 +1",
+      "desc": "공명력 +3",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3756,7 +3753,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3780,7 +3778,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "spell",
@@ -3804,7 +3803,8 @@
         }
       ],
       "distanceFromClassStart": 10,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3828,7 +3828,8 @@
         }
       ],
       "distanceFromClassStart": 9,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3840,19 +3841,20 @@
       "desc": "공명력 +1",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3876,7 +3878,8 @@
         }
       ],
       "distanceFromClassStart": 7,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3888,19 +3891,20 @@
       "desc": "공명력 +1",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3924,7 +3928,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3948,7 +3953,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "spell",
@@ -3972,7 +3978,8 @@
         }
       ],
       "distanceFromClassStart": 10,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -3996,7 +4003,8 @@
         }
       ],
       "distanceFromClassStart": 9,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4020,7 +4028,8 @@
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4044,7 +4053,8 @@
         }
       ],
       "distanceFromClassStart": 7,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4068,7 +4078,8 @@
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4092,7 +4103,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4116,7 +4128,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "spell",
@@ -4140,7 +4153,8 @@
         }
       ],
       "distanceFromClassStart": 10,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4164,7 +4178,8 @@
         }
       ],
       "distanceFromClassStart": 9,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4173,22 +4188,23 @@
       "y": -1096.24,
       "type": "normal",
       "name": "공명력",
-      "desc": "공명력 +1",
+      "desc": "공명력 +3",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4212,7 +4228,8 @@
         }
       ],
       "distanceFromClassStart": 7,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4221,22 +4238,23 @@
       "y": -999.13,
       "type": "normal",
       "name": "공명력",
-      "desc": "공명력 +1",
+      "desc": "공명력 +3",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4260,7 +4278,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4284,7 +4303,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "spell",
@@ -4308,7 +4328,8 @@
         }
       ],
       "distanceFromClassStart": 10,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4332,7 +4353,8 @@
         }
       ],
       "distanceFromClassStart": 9,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4344,19 +4366,20 @@
       "desc": "공명력 +1",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4380,7 +4403,8 @@
         }
       ],
       "distanceFromClassStart": 7,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4392,19 +4416,20 @@
       "desc": "공명력 +1",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4428,7 +4453,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4452,7 +4478,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "spell",
@@ -4476,7 +4503,8 @@
         }
       ],
       "distanceFromClassStart": 10,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4500,7 +4528,8 @@
         }
       ],
       "distanceFromClassStart": 9,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4512,19 +4541,20 @@
       "desc": "공명력 +1",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4548,7 +4578,8 @@
         }
       ],
       "distanceFromClassStart": 7,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4560,19 +4591,20 @@
       "desc": "공명력 +1",
       "mods": [
         {
-          "statId": "resonance",
-          "value": 1
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
           "statId": "runeResonancePower",
-          "value": 1
+          "value": 3
         }
       ],
       "distanceFromClassStart": 8,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4596,7 +4628,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "resonance",
@@ -4620,7 +4653,8 @@
         }
       ],
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "constellation"
     },
     {
       "cat": "str",
@@ -8433,7 +8467,7 @@
           "value": 5
         }
       ],
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 24,
       "powerBand": 3
     },
     {
@@ -8474,7 +8508,7 @@
           "value": 5
         }
       ],
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 23,
       "powerBand": 3
     },
     {
@@ -8515,7 +8549,7 @@
           "value": 5
         }
       ],
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 24,
       "powerBand": 3
     },
     {
@@ -9333,7 +9367,7 @@
       ],
       "desc": "치명타 피해 배율 +15%",
       "iconFamily": "critical",
-      "distanceFromClassStart": 22,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -9358,8 +9392,8 @@
       ],
       "desc": "치명타 피해 배율 +15%",
       "iconFamily": "critical",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "dex",
@@ -9392,7 +9426,7 @@
       "desc": "치명타 확률 +3%\n치명타 피해 배율 +10%",
       "optionProfile": "한 번 더 노리기",
       "iconFamily": "critical",
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 19,
       "powerBand": 2
     },
     {
@@ -9417,8 +9451,8 @@
       ],
       "desc": "치명타 확률 +1.5%",
       "iconFamily": "critical",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "utility",
@@ -9442,7 +9476,7 @@
       ],
       "desc": "치명타 확률 +1.5%",
       "iconFamily": "critical",
-      "distanceFromClassStart": 22,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -9493,7 +9527,7 @@
       "name": "숨통 겨냥",
       "optionProfile": "숨통 겨냥",
       "iconFamily": "critical",
-      "distanceFromClassStart": 23,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -10157,33 +10191,34 @@
       "id": "n7k0kdn8ksc",
       "x": -1.24,
       "y": -1001.87,
-      "type": "assist",
+      "type": "normal",
       "name": "공격 속도",
       "desc": "공격 속도 +6%",
       "mods": [
         {
-          "statId": "aspd",
-          "value": 6
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "runtimeEffects": [
         {
-          "statId": "aspd",
-          "value": 6
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "lightning",
       "distanceFromClassStart": 17,
-      "powerBand": 2
+      "powerBand": 2,
+      "iconFamily": "constellation"
     },
     {
       "cat": "ailment",
       "id": "nvfb7e68ksc",
       "x": 257.58,
       "y": -967.8,
-      "type": "assist",
-      "name": "중독 피해",
+      "type": "minor",
+      "name": "지능과 민첩",
       "mods": [
         {
           "statId": "intelligence",
@@ -10206,7 +10241,8 @@
       ],
       "statAutoName": true,
       "distanceFromClassStart": 18,
-      "powerBand": 2
+      "powerBand": 2,
+      "desc": "지능 +5\n민첩 +5"
     },
     {
       "cat": "ailment",
@@ -10214,7 +10250,7 @@
       "x": 498.76,
       "y": -867.9,
       "type": "assist",
-      "name": "중독 피해",
+      "name": "지능과 민첩",
       "mods": [
         {
           "statId": "intelligence",
@@ -10237,32 +10273,34 @@
       ],
       "statAutoName": true,
       "distanceFromClassStart": 17,
-      "powerBand": 2
+      "powerBand": 2,
+      "desc": "지능 +5\n민첩 +5"
     },
     {
       "cat": "atk",
       "id": "nbrubvo8ksc",
       "x": 864.79,
       "y": -501.87,
-      "type": "assist",
-      "name": "치명타 확률",
-      "desc": "치명타 확률 +1.5%",
+      "type": "normal",
+      "name": "공명",
+      "desc": "민첩 +10",
       "mods": [
         {
-          "statId": "crit",
-          "value": 1.5
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "runtimeEffects": [
         {
-          "statId": "crit",
-          "value": 1.5
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "critical",
       "distanceFromClassStart": 17,
-      "powerBand": 2
+      "powerBand": 2,
+      "iconFamily": "constellation"
     },
     {
       "cat": "atk",
@@ -10338,23 +10376,23 @@
       "id": "nysiank8ksc",
       "x": 864.79,
       "y": 498.13,
-      "type": "assist",
-      "name": "피해",
-      "desc": "피해 +12%",
+      "type": "normal",
+      "name": "공명",
+      "desc": "공명력 +3",
       "mods": [
         {
-          "statId": "pctDmg",
-          "value": 12
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "runtimeEffects": [
         {
-          "statId": "pctDmg",
-          "value": 12
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
-      "iconFamily": "blade",
+      "iconFamily": "constellation",
       "distanceFromClassStart": 16,
       "powerBand": 2
     },
@@ -10364,8 +10402,8 @@
       "x": 705.87,
       "y": 705.24,
       "type": "assist",
-      "name": "피해",
-      "desc": "피해 +15%",
+      "name": "힘과 민첩",
+      "desc": "힘 +5\n민첩 +5",
       "mods": [
         {
           "statId": "strength",
@@ -10388,7 +10426,7 @@
       ],
       "statAutoName": true,
       "archetype": "bgTree",
-      "distanceFromClassStart": 17,
+      "distanceFromClassStart": 16,
       "powerBand": 2
     },
     {
@@ -10397,7 +10435,40 @@
       "x": 498.76,
       "y": 864.16,
       "type": "assist",
-      "name": "재사용 대기시간 회복 속도",
+      "name": "힘과 민첩",
+      "desc": "재사용 대기시간 회복 속도 +6%",
+      "mods": [
+        {
+          "statId": "strength",
+          "value": 5
+        },
+        {
+          "statId": "dexterity",
+          "value": 5
+        }
+      ],
+      "runtimeEffects": [
+        {
+          "statId": "strength",
+          "value": 5
+        },
+        {
+          "statId": "dexterity",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "archetype": "cooldown",
+      "distanceFromClassStart": 15,
+      "powerBand": 2
+    },
+    {
+      "cat": "none",
+      "id": "nlsy9498ksc",
+      "x": 257.58,
+      "y": 964.06,
+      "type": "assist",
+      "name": "힘과 민첩",
       "desc": "재사용 대기시간 회복 속도 +6%",
       "mods": [
         {
@@ -10425,62 +10496,30 @@
       "powerBand": 2
     },
     {
-      "cat": "none",
-      "id": "nlsy9498ksc",
-      "x": 257.58,
-      "y": 964.06,
-      "type": "assist",
-      "name": "재사용 대기시간 회복 속도",
-      "desc": "재사용 대기시간 회복 속도 +6%",
-      "mods": [
-        {
-          "statId": "strength",
-          "value": 5
-        },
-        {
-          "statId": "dexterity",
-          "value": 5
-        }
-      ],
-      "runtimeEffects": [
-        {
-          "statId": "strength",
-          "value": 5
-        },
-        {
-          "statId": "dexterity",
-          "value": 5
-        }
-      ],
-      "statAutoName": true,
-      "archetype": "cooldown",
-      "distanceFromClassStart": 17,
-      "powerBand": 2
-    },
-    {
       "cat": "atk",
       "id": "nwhegd28ksc",
       "x": -1.24,
       "y": 998.13,
-      "type": "assist",
-      "name": "피해",
-      "desc": "피해 +12%",
+      "type": "normal",
+      "name": "공명",
+      "desc": "공명력 +3",
       "mods": [
         {
-          "statId": "pctDmg",
-          "value": 12
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "runtimeEffects": [
         {
-          "statId": "pctDmg",
-          "value": 12
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
-      "iconFamily": "blade",
+      "iconFamily": "constellation",
       "distanceFromClassStart": 17,
-      "powerBand": 2
+      "powerBand": 2,
+      "archetype": "strength"
     },
     {
       "cat": "def",
@@ -10488,8 +10527,8 @@
       "x": -260.06,
       "y": 964.06,
       "type": "assist",
-      "name": "최대 생명력",
-      "desc": "최대 생명력 +6%",
+      "name": "힘",
+      "desc": "힘 +10",
       "mods": [
         {
           "statId": "strength",
@@ -10513,8 +10552,8 @@
       "x": -501.24,
       "y": 864.16,
       "type": "assist",
-      "name": "최대 생명력",
-      "desc": "최대 생명력 +6%",
+      "name": "힘",
+      "desc": "힘 +10",
       "mods": [
         {
           "statId": "strength",
@@ -10538,8 +10577,8 @@
       "x": -708.34,
       "y": 705.24,
       "type": "assist",
-      "name": "최대 생명력",
-      "desc": "최대 생명력 +6%",
+      "name": "힘",
+      "desc": "힘 +10",
       "mods": [
         {
           "statId": "strength",
@@ -10562,23 +10601,23 @@
       "id": "nha9zva8ksc",
       "x": -867.26,
       "y": 498.13,
-      "type": "assist",
+      "type": "normal",
       "name": "화염 피해",
       "desc": "화염 피해 +12%",
       "mods": [
         {
-          "statId": "firePctDmg",
-          "value": 12
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "runtimeEffects": [
         {
-          "statId": "firePctDmg",
-          "value": 12
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
-      "iconFamily": "fire",
+      "iconFamily": "constellation",
       "distanceFromClassStart": 17,
       "powerBand": 2
     },
@@ -10588,8 +10627,8 @@
       "x": -967.16,
       "y": 256.95,
       "type": "assist",
-      "name": "원소 피해",
-      "desc": "원소 피해 +15%",
+      "name": "지능과 힘",
+      "desc": "지능 +5\n힘 +5",
       "mods": [
         {
           "statId": "intelligence",
@@ -10621,8 +10660,8 @@
       "x": -1000.37,
       "y": -1.37,
       "type": "assist",
-      "name": "원소 피해",
-      "desc": "원소 피해 +15%",
+      "name": "지능과 힘",
+      "desc": "지능 +5\n힘 +5",
       "mods": [
         {
           "statId": "intelligence",
@@ -10655,7 +10694,7 @@
       "y": -260.69,
       "type": "assist",
       "name": "원소 피해",
-      "desc": "원소 피해 +15%",
+      "desc": "지능 +5\n힘 +5",
       "mods": [
         {
           "statId": "intelligence",
@@ -10686,25 +10725,26 @@
       "id": "novh8ic8ksc",
       "x": -867.26,
       "y": -501.87,
-      "type": "assist",
-      "name": "최대 생명력",
+      "type": "normal",
+      "name": "공명",
       "desc": "최대 생명력 +30",
       "mods": [
         {
-          "statId": "flatHp",
-          "value": 30
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "runtimeEffects": [
         {
-          "statId": "flatHp",
-          "value": 30
+          "statId": "runeResonancePower",
+          "value": 3
         }
       ],
       "statAutoName": true,
       "archetype": "life",
       "distanceFromClassStart": 17,
-      "powerBand": 2
+      "powerBand": 2,
+      "iconFamily": "constellation"
     },
     {
       "cat": "def",
@@ -10712,8 +10752,8 @@
       "x": -708.34,
       "y": -708.98,
       "type": "assist",
-      "name": "최대 생명력",
-      "desc": "최대 생명력 +30",
+      "name": "지능",
+      "desc": "지능 +10",
       "mods": [
         {
           "statId": "intelligence",
@@ -10737,8 +10777,8 @@
       "x": -501.24,
       "y": -867.9,
       "type": "assist",
-      "name": "최대 생명력",
-      "desc": "최대 생명력 +30",
+      "name": "지능",
+      "desc": "지능 +10",
       "mods": [
         {
           "statId": "intelligence",
@@ -10762,8 +10802,8 @@
       "x": -260.06,
       "y": -967.8,
       "type": "assist",
-      "name": "에너지 보호막",
-      "desc": "에너지 보호막 +15",
+      "name": "지능",
+      "desc": "지능 +10",
       "mods": [
         {
           "statId": "intelligence",
@@ -11097,7 +11137,8 @@
         }
       ],
       "distanceFromClassStart": 4,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "blade"
     },
     {
       "id": "ng9rolwkjf1",
@@ -11121,7 +11162,8 @@
         }
       ],
       "distanceFromClassStart": 5,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "blade"
     },
     {
       "id": "ne6ahswkjf1",
@@ -11266,7 +11308,8 @@
         }
       ],
       "distanceFromClassStart": 2,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "blade"
     },
     {
       "id": "n0bq7oukjf1",
@@ -11290,7 +11333,8 @@
         }
       ],
       "distanceFromClassStart": 3,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "blade"
     },
     {
       "id": "npp3thum5oe",
@@ -14612,18 +14656,18 @@
       "x": -2145,
       "y": -640,
       "type": "minor",
-      "name": "향로 사용 시 공격 피해",
-      "desc": "향로 사용 시 공격 피해 +10%",
+      "name": "향로 사용 시 피해",
+      "desc": "향로 사용 시 피해 +10%",
       "mods": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
@@ -14638,18 +14682,18 @@
       "x": -2140,
       "y": -595,
       "type": "minor",
-      "name": "향로 사용 시 주문 피해",
-      "desc": "향로 사용 시 주문 피해 +10%",
+      "name": "향로 사용 시 피해",
+      "desc": "향로 사용 시 피해 +10%",
       "mods": [
         {
-          "statId": "censerSpellPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "censerSpellPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
@@ -14716,18 +14760,18 @@
       "x": -2105,
       "y": -565,
       "type": "minor",
-      "name": "향로 사용 시 공격 피해",
-      "desc": "향로 사용 시 공격 피해 +10%",
+      "name": "향로 사용 시 피해",
+      "desc": "향로 사용 시 피해 +10%",
       "mods": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
@@ -14742,18 +14786,18 @@
       "x": -2005,
       "y": -650,
       "type": "minor",
-      "name": "향로 사용 시 공격 피해",
-      "desc": "향로 사용 시 공격 피해 +10%",
+      "name": "향로 사용 시 피해",
+      "desc": "향로 사용 시 피해 +10%",
       "mods": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
@@ -14768,18 +14812,18 @@
       "x": -2060,
       "y": -555,
       "type": "minor",
-      "name": "향로 사용 시 주문 피해",
-      "desc": "향로 사용 시 주문 피해 +10%",
+      "name": "향로 사용 시 피해",
+      "desc": "향로 사용 시 피해 +10%",
       "mods": [
         {
-          "statId": "censerSpellPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "censerSpellPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
@@ -14794,18 +14838,18 @@
       "x": -1955,
       "y": -595,
       "type": "minor",
-      "name": "향로 사용 시 주문 피해",
-      "desc": "향로 사용 시 주문 피해 +10%",
+      "name": "향로 사용 시 피해",
+      "desc": "향로 사용 시 피해 +10%",
       "mods": [
         {
-          "statId": "censerSpellPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "censerSpellPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
@@ -14820,18 +14864,18 @@
       "x": -1895,
       "y": -525,
       "type": "minor",
-      "name": "향로 사용 시 공격 피해",
-      "desc": "향로 사용 시 공격 피해 +10%",
+      "name": "향로 사용 시 피해",
+      "desc": "향로 사용 시 피해 +10%",
       "mods": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 10
         }
       ],
@@ -14873,34 +14917,18 @@
       "y": -595,
       "type": "major",
       "name": "연기 속의 기도",
-      "desc": "향로 사용 시 피해 +30%\n향로 사용 시 공격 피해 +15%\n향로 사용 시 주문 피해 +15%",
+      "desc": "향로 사용 시 피해 +45%",
       "mods": [
         {
           "statId": "censerPctDmg",
-          "value": 30
-        },
-        {
-          "statId": "censerAttackPctDmg",
-          "value": 15
-        },
-        {
-          "statId": "censerSpellPctDmg",
-          "value": 15
+          "value": 45
         }
       ],
       "statAutoName": false,
       "runtimeEffects": [
         {
           "statId": "censerPctDmg",
-          "value": 30
-        },
-        {
-          "statId": "censerAttackPctDmg",
-          "value": 15
-        },
-        {
-          "statId": "censerSpellPctDmg",
-          "value": 15
+          "value": 45
         }
       ],
       "iconFamily": "censer",
@@ -16486,57 +16514,7 @@
       "id": "nmvsehzzh3g",
       "x": -715,
       "y": -1365,
-      "type": "minor",
-      "name": "에너지 보호막",
-      "desc": "에너지 보호막 +10%",
-      "mods": [
-        {
-          "statId": "energyShieldPct",
-          "value": 10
-        }
-      ],
-      "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "energyShieldPct",
-          "value": 10
-        }
-      ],
-      "archetype": "energyShield",
-      "distanceFromClassStart": 13,
-      "powerBand": 1
-    },
-    {
-      "cat": "elemental",
-      "id": "nmvsei14d3h",
-      "x": -850,
-      "y": -1285,
-      "type": "minor",
-      "name": "저항 관통",
-      "desc": "저항 관통 +2%",
-      "mods": [
-        {
-          "statId": "resPen",
-          "value": 2
-        }
-      ],
-      "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "resPen",
-          "value": 2
-        }
-      ],
-      "archetype": "chaos",
-      "distanceFromClassStart": 13,
-      "powerBand": 1
-    },
-    {
-      "cat": "def",
-      "id": "nmvsej9n43i",
-      "x": -675,
-      "y": -1335,
-      "type": "minor",
+      "type": "normal",
       "name": "에너지 보호막",
       "desc": "에너지 보호막 +10%",
       "mods": [
@@ -16554,6 +16532,57 @@
       ],
       "archetype": "energyShield",
       "distanceFromClassStart": 12,
+      "powerBand": 1
+    },
+    {
+      "cat": "elemental",
+      "id": "nmvsei14d3h",
+      "x": -845.04,
+      "y": -1292.48,
+      "type": "normal",
+      "name": "저항 관통",
+      "desc": "저항 관통 +2%",
+      "mods": [
+        {
+          "statId": "resPen",
+          "value": 2
+        }
+      ],
+      "statAutoName": true,
+      "runtimeEffects": [
+        {
+          "statId": "resPen",
+          "value": 2
+        }
+      ],
+      "archetype": "chaos",
+      "distanceFromClassStart": 12,
+      "powerBand": 1,
+      "iconFamily": "orb"
+    },
+    {
+      "cat": "def",
+      "id": "nmvsej9n43i",
+      "x": -675,
+      "y": -1335,
+      "type": "minor",
+      "name": "지능",
+      "desc": "지능 +5",
+      "mods": [
+        {
+          "statId": "intelligence",
+          "value": 5
+        }
+      ],
+      "statAutoName": true,
+      "runtimeEffects": [
+        {
+          "statId": "intelligence",
+          "value": 5
+        }
+      ],
+      "archetype": "energyShield",
+      "distanceFromClassStart": 11,
       "powerBand": 1
     },
     {
@@ -16584,26 +16613,26 @@
     {
       "cat": "elemental",
       "id": "nmvsejdhw3n",
-      "x": -845,
-      "y": -1245,
+      "x": -844,
+      "y": -1243.26,
       "type": "minor",
-      "name": "저항 관통",
-      "desc": "저항 관통 +2%",
+      "name": "지능",
+      "desc": "지능 +5",
       "mods": [
         {
-          "statId": "resPen",
-          "value": 2
+          "statId": "intelligence",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "resPen",
-          "value": 2
+          "statId": "intelligence",
+          "value": 5
         }
       ],
       "archetype": "chaos",
-      "distanceFromClassStart": 12,
+      "distanceFromClassStart": 11,
       "powerBand": 1
     },
     {
@@ -16628,7 +16657,7 @@
         }
       ],
       "archetype": "spell",
-      "distanceFromClassStart": 13,
+      "distanceFromClassStart": 12,
       "powerBand": 1
     },
     {
@@ -16746,57 +16775,7 @@
         }
       ],
       "archetype": "damageOverTime",
-      "distanceFromClassStart": 13,
-      "powerBand": 1
-    },
-    {
-      "cat": "def",
-      "id": "nmvsenvej3w",
-      "x": -600,
-      "y": -1370,
-      "type": "minor",
-      "name": "에너지 보호막",
-      "desc": "에너지 보호막 +10%",
-      "mods": [
-        {
-          "statId": "energyShieldPct",
-          "value": 10
-        }
-      ],
-      "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "energyShieldPct",
-          "value": 10
-        }
-      ],
-      "archetype": "energyShield",
-      "distanceFromClassStart": 11,
-      "powerBand": 1
-    },
-    {
-      "cat": "elemental",
-      "id": "nmvseoomt3x",
-      "x": -910,
-      "y": -1197.32,
-      "type": "minor",
-      "name": "저항 관통",
-      "desc": "저항 관통 +2%",
-      "mods": [
-        {
-          "statId": "resPen",
-          "value": 2
-        }
-      ],
-      "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "resPen",
-          "value": 2
-        }
-      ],
-      "archetype": "chaos",
-      "distanceFromClassStart": 11,
+      "distanceFromClassStart": 12,
       "powerBand": 1
     },
     {
@@ -17635,8 +17614,8 @@
     {
       "cat": "atk",
       "id": "nmvt5okiae",
-      "x": 915.94,
-      "y": 1480.07,
+      "x": 914.94,
+      "y": 1478.33,
       "type": "major",
       "name": "거침없는 휘두름",
       "desc": "공격 속도 +12%\n물리 피해 +30%",
@@ -17669,8 +17648,8 @@
     {
       "cat": "atk",
       "id": "nmvt5okiaf",
-      "x": 970.94,
-      "y": 1495.07,
+      "x": 969.94,
+      "y": 1493.33,
       "type": "minor",
       "name": "공격 속도",
       "desc": "공격 속도 +4%",
@@ -17895,8 +17874,8 @@
     {
       "cat": "def",
       "id": "nmvt5p9jqo",
-      "x": 806.06,
-      "y": 1586.12,
+      "x": 804.21,
+      "y": 1592.93,
       "type": "minor",
       "name": "최대 생명력",
       "desc": "최대 생명력 +4%",
@@ -17914,7 +17893,7 @@
         }
       ],
       "archetype": "life",
-      "distanceFromClassStart": 13,
+      "distanceFromClassStart": 10,
       "powerBand": 1
     },
     {
@@ -17939,7 +17918,7 @@
         }
       ],
       "archetype": "bleed",
-      "distanceFromClassStart": 12,
+      "distanceFromClassStart": 11,
       "powerBand": 1
     },
     {
@@ -18191,8 +18170,8 @@
     {
       "cat": "physical",
       "id": "nmvt5p9jqz",
-      "x": 876.16,
-      "y": 1604.84,
+      "x": 874.31,
+      "y": 1611.65,
       "type": "major",
       "name": "한 걸음 안쪽",
       "desc": "근접 피해 +30%\n이동 속도 +6%",
@@ -18220,8 +18199,8 @@
       "archetype": "melee",
       "optionProfile": "한 걸음 안쪽",
       "iconFamily": "blade",
-      "distanceFromClassStart": 14,
-      "powerBand": 2
+      "distanceFromClassStart": 11,
+      "powerBand": 1
     },
     {
       "cat": "atk",
@@ -19000,7 +18979,8 @@
       "archetype": "bgIce",
       "optionProfile": "novel:서리 깃 화살",
       "distanceFromClassStart": 6,
-      "powerBand": 0
+      "powerBand": 0,
+      "iconFamily": "cold"
     },
     {
       "cat": "cold",
@@ -22441,7 +22421,8 @@
       "archetype": "bgBlood",
       "optionProfile": "한 방울의 대가",
       "distanceFromClassStart": 7,
-      "powerBand": 1
+      "powerBand": 1,
+      "iconFamily": "life"
     },
     {
       "cat": "physical",
@@ -26284,6 +26265,10 @@
           "value": 10
         },
         {
+          "statId": "strength",
+          "value": 10
+        },
+        {
           "statId": "ds",
           "value": 4
         }
@@ -26295,12 +26280,16 @@
           "value": 10
         },
         {
+          "statId": "strength",
+          "value": 10
+        },
+        {
           "statId": "ds",
           "value": 4
         }
       ],
-      "iconFamily": "dexterity",
-      "desc": "민첩 +10\n연속 타격 +4%",
+      "iconFamily": "blessing",
+      "desc": "민첩 +10\n힘 +10\n연속 타격(%) +4%",
       "name": "엮인 고리",
       "optionProfile": "엮인 고리",
       "distanceFromClassStart": 11,
@@ -26332,36 +26321,17 @@
       "powerBand": 1
     },
     {
-      "cat": "utility",
-      "id": "nmvwdztdh1p",
-      "x": 235.02,
-      "y": 1628.09,
-      "type": "major",
-      "mods": [
-        {
-          "statId": "dexterity",
-          "value": 20
-        },
-        {
-          "statId": "aspd",
-          "value": 8
-        }
-      ],
+      "cat": "chaos",
+      "id": "pt_keystone_balance_resonance",
+      "x": 235.63,
+      "y": 1623.11,
+      "type": "keystone",
+      "mods": [],
       "statAutoName": false,
-      "runtimeEffects": [
-        {
-          "statId": "dexterity",
-          "value": 20
-        },
-        {
-          "statId": "aspd",
-          "value": 8
-        }
-      ],
-      "iconFamily": "dexterity",
-      "desc": "민첩 +20\n공격 속도 +8%",
-      "name": "빠져나가는 손",
-      "optionProfile": "빠져나가는 손",
+      "runtimeEffects": [],
+      "iconFamily": "blessing",
+      "desc": "패시브 노드의 힘·민첩 수치를 힘과 민첩에 절반씩 적용\n지능은 0으로 고정",
+      "name": "균형의 공명",
       "distanceFromClassStart": 13,
       "powerBand": 1
     },
@@ -26418,8 +26388,8 @@
     {
       "cat": "utility",
       "id": "nmvwdzwqg1s",
-      "x": 86.22,
-      "y": 1733.74,
+      "x": 85,
+      "y": 1735,
       "type": "major",
       "mods": [
         {
@@ -26507,7 +26477,7 @@
       "type": "major",
       "mods": [
         {
-          "statId": "strength",
+          "statId": "dexterity",
           "value": 20
         },
         {
@@ -26518,7 +26488,7 @@
       "statAutoName": false,
       "runtimeEffects": [
         {
-          "statId": "strength",
+          "statId": "dexterity",
           "value": 20
         },
         {
@@ -26526,8 +26496,8 @@
           "value": 6
         }
       ],
-      "iconFamily": "strength",
-      "desc": "힘 +20\n최대 피해 보정 +6%",
+      "iconFamily": "dexterity",
+      "desc": "민첩 +20\n최대 피해 보정(%) +6%",
       "name": "당겨 올리는 힘",
       "optionProfile": "당겨 올리는 힘",
       "distanceFromClassStart": 13,
@@ -26564,22 +26534,22 @@
       "x": 277.61,
       "y": 1798.5,
       "type": "assist",
-      "name": "최대 피해 보정",
+      "name": "연속 타격",
       "mods": [
         {
-          "statId": "maxDmgRoll",
+          "statId": "ds",
           "value": 3
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "maxDmgRoll",
+          "statId": "ds",
           "value": 3
         }
       ],
       "iconFamily": "dexterity",
-      "desc": "최대 피해 보정 +3%",
+      "desc": "연속 타격(%) +3%",
       "distanceFromClassStart": 10,
       "powerBand": 1
     },
@@ -27214,18 +27184,18 @@
       "y": 900.43,
       "type": "major",
       "name": "날아가는 칼날",
-      "desc": "한손검 사용 시 투사체 추가 발사 +1개",
+      "desc": "한손검 사용 시 투사체 추가 발사 +2",
       "mods": [
         {
           "statId": "swordProjectileExtraShots",
-          "value": 1
+          "value": 2
         }
       ],
       "statAutoName": false,
       "runtimeEffects": [
         {
           "statId": "swordProjectileExtraShots",
-          "value": 1
+          "value": 2
         }
       ],
       "archetype": "weaponSword",
@@ -29710,7 +29680,7 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 17,
+      "distanceFromClassStart": 16,
       "powerBand": 2
     },
     {
@@ -29734,7 +29704,7 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -29758,7 +29728,7 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 18,
       "powerBand": 2
     },
     {
@@ -30762,19 +30732,35 @@
       "x": -330,
       "y": 215,
       "type": "minor",
-      "name": "최대 생명력",
-      "desc": "최대 생명력 +4%",
+      "name": "모든 능력치",
+      "desc": "힘 +5\n민첩 +5\n지능 +5",
       "mods": [
         {
-          "statId": "pctHp",
-          "value": 4
+          "statId": "strength",
+          "value": 5
+        },
+        {
+          "statId": "dexterity",
+          "value": 5
+        },
+        {
+          "statId": "intelligence",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "pctHp",
-          "value": 4
+          "statId": "strength",
+          "value": 5
+        },
+        {
+          "statId": "dexterity",
+          "value": 5
+        },
+        {
+          "statId": "intelligence",
+          "value": 5
         }
       ],
       "archetype": "bgTree",
@@ -30787,11 +30773,19 @@
       "x": -385,
       "y": 75,
       "type": "minor",
-      "name": "힘",
-      "desc": "힘 +5",
+      "name": "모든 능력치",
+      "desc": "힘 +5\n민첩 +5\n지능 +5",
       "mods": [
         {
           "statId": "strength",
+          "value": 5
+        },
+        {
+          "statId": "dexterity",
+          "value": 5
+        },
+        {
+          "statId": "intelligence",
           "value": 5
         }
       ],
@@ -30799,6 +30793,14 @@
       "runtimeEffects": [
         {
           "statId": "strength",
+          "value": 5
+        },
+        {
+          "statId": "dexterity",
+          "value": 5
+        },
+        {
+          "statId": "intelligence",
           "value": 5
         }
       ],
@@ -30812,19 +30814,35 @@
       "x": -400,
       "y": 190,
       "type": "minor",
-      "name": "모든 원소 저항",
-      "desc": "모든 원소 저항 +4%",
+      "name": "모든 능력치",
+      "desc": "힘 +5\n민첩 +5\n지능 +5",
       "mods": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "strength",
+          "value": 5
+        },
+        {
+          "statId": "dexterity",
+          "value": 5
+        },
+        {
+          "statId": "intelligence",
+          "value": 5
         }
       ],
       "statAutoName": true,
       "runtimeEffects": [
         {
-          "statId": "resAll",
-          "value": 4
+          "statId": "strength",
+          "value": 5
+        },
+        {
+          "statId": "dexterity",
+          "value": 5
+        },
+        {
+          "statId": "intelligence",
+          "value": 5
         }
       ],
       "archetype": "life",
@@ -30863,7 +30881,8 @@
       "archetype": "bgTree",
       "optionProfile": "오래된 나이테",
       "distanceFromClassStart": 28,
-      "powerBand": 4
+      "powerBand": 4,
+      "iconFamily": "area"
     },
     {
       "cat": "def",
@@ -30871,7 +30890,7 @@
       "x": 705.87,
       "y": -708.98,
       "type": "assist",
-      "name": "최대 생명력",
+      "name": "지능과 민첩",
       "mods": [
         {
           "statId": "intelligence",
@@ -30894,7 +30913,8 @@
       ],
       "statAutoName": true,
       "distanceFromClassStart": 18,
-      "powerBand": 2
+      "powerBand": 2,
+      "desc": "지능 +5\n민첩 +5"
     },
     {
       "cat": "def",
@@ -31518,7 +31538,7 @@
       ],
       "desc": "스킬 딜레이 감소 +1%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 23,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -31543,7 +31563,7 @@
       ],
       "desc": "재사용 대기시간 회복 속도 +4%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 22,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -31568,8 +31588,8 @@
       ],
       "desc": "재사용 대기시간 회복 속도 +4%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "atk",
@@ -31593,7 +31613,7 @@
       ],
       "desc": "재사용 대기시간 회복 속도 +4%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 19,
       "powerBand": 2
     },
     {
@@ -31618,7 +31638,7 @@
       ],
       "desc": "재사용 대기시간 회복 속도 +4%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 18,
       "powerBand": 2
     },
     {
@@ -31643,7 +31663,7 @@
       ],
       "desc": "재사용 대기시간 회복 속도 +4%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -31668,7 +31688,7 @@
       ],
       "desc": "스킬 딜레이 감소 +1%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 17,
+      "distanceFromClassStart": 16,
       "powerBand": 2
     },
     {
@@ -31693,7 +31713,7 @@
       ],
       "desc": "스킬 딜레이 감소 +1%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -31718,7 +31738,7 @@
       ],
       "desc": "스킬 딜레이 감소 +1%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 18,
       "powerBand": 2
     },
     {
@@ -31743,7 +31763,7 @@
       ],
       "desc": "스킬 딜레이 감소 +1%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 19,
       "powerBand": 2
     },
     {
@@ -31768,8 +31788,8 @@
       ],
       "desc": "스킬 딜레이 감소 +1%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -31793,7 +31813,7 @@
       ],
       "desc": "스킬 딜레이 감소 +1%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 22,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -33022,7 +33042,7 @@
       "statAutoName": true,
       "desc": "재사용 대기시간 회복 속도 +6%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 22,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -33047,7 +33067,7 @@
       "statAutoName": true,
       "desc": "스킬 딜레이 감소 +2%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 22,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -33072,7 +33092,7 @@
       "statAutoName": true,
       "desc": "스킬 딜레이 감소 +2%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 22,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -33097,8 +33117,8 @@
       ],
       "desc": "스킬 딜레이 감소 +2%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "utility",
@@ -33123,7 +33143,7 @@
       "name": "끊기지 않는 손",
       "optionProfile": "끊기지 않는 손",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 23,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -33148,7 +33168,7 @@
       "statAutoName": true,
       "desc": "스킬 딜레이 감소 +2%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 23,
       "powerBand": 3
     },
     {
@@ -33194,7 +33214,7 @@
       "name": "앞당긴 순서",
       "optionProfile": "앞당긴 순서",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 23,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -33219,7 +33239,7 @@
       "statAutoName": true,
       "desc": "스킬 딜레이 감소 +2%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 23,
       "powerBand": 3
     },
     {
@@ -33244,7 +33264,7 @@
       "statAutoName": true,
       "desc": "재사용 대기시간 회복 속도 +6%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 23,
       "powerBand": 3
     },
     {
@@ -33278,7 +33298,7 @@
       "name": "숨 고를 틈",
       "optionProfile": "숨 고를 틈",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 23,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -33303,7 +33323,7 @@
       "statAutoName": true,
       "desc": "재사용 대기시간 회복 속도 +6%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 24,
+      "distanceFromClassStart": 23,
       "powerBand": 3
     },
     {
@@ -33337,7 +33357,7 @@
       "name": "시계 바늘 밀기",
       "optionProfile": "시계 바늘 밀기",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 23,
+      "distanceFromClassStart": 22,
       "powerBand": 3
     },
     {
@@ -33362,7 +33382,7 @@
       "statAutoName": true,
       "desc": "재사용 대기시간 회복 속도 +6%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 22,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -33387,8 +33407,8 @@
       ],
       "desc": "재사용 대기시간 회복 속도 +6%",
       "iconFamily": "cooldown",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "atk",
@@ -33609,7 +33629,7 @@
       "mods": [
         {
           "statId": "pctDmg",
-          "value": 60
+          "value": 80
         },
         {
           "statId": "aspd",
@@ -33620,14 +33640,14 @@
       "runtimeEffects": [
         {
           "statId": "pctDmg",
-          "value": 60
+          "value": 80
         },
         {
           "statId": "aspd",
           "value": -6
         }
       ],
-      "desc": "피해 +60%\n공격 속도 -6%",
+      "desc": "피해(%) +80%\n공격 속도(%) -6%",
       "name": "왕관의 무게",
       "optionProfile": "왕관의 무게",
       "iconFamily": "blade",
@@ -34691,7 +34711,7 @@
       ],
       "desc": "번개 피해 +10%",
       "iconFamily": "lightning",
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 19,
       "powerBand": 2
     },
     {
@@ -34716,8 +34736,8 @@
       ],
       "desc": "화염 피해 +10%",
       "iconFamily": "fire",
-      "distanceFromClassStart": 22,
-      "powerBand": 3
+      "distanceFromClassStart": 19,
+      "powerBand": 2
     },
     {
       "cat": "atk",
@@ -34741,8 +34761,8 @@
       ],
       "desc": "냉기 피해 +10%",
       "iconFamily": "cold",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 18,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -34766,8 +34786,8 @@
       ],
       "desc": "번개 피해 +10%",
       "iconFamily": "lightning",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -34791,8 +34811,8 @@
       ],
       "desc": "화염 피해 +10%",
       "iconFamily": "fire",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -34816,7 +34836,7 @@
       ],
       "desc": "화염 피해 +10%",
       "iconFamily": "fire",
-      "distanceFromClassStart": 20,
+      "distanceFromClassStart": 19,
       "powerBand": 2
     },
     {
@@ -34841,8 +34861,8 @@
       ],
       "desc": "냉기 피해 +10%",
       "iconFamily": "cold",
-      "distanceFromClassStart": 21,
-      "powerBand": 3
+      "distanceFromClassStart": 18,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -34866,8 +34886,8 @@
       ],
       "desc": "냉기 피해 +10%",
       "iconFamily": "cold",
-      "distanceFromClassStart": 22,
-      "powerBand": 3
+      "distanceFromClassStart": 19,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -34891,48 +34911,22 @@
       ],
       "desc": "번개 피해 +10%",
       "iconFamily": "lightning",
-      "distanceFromClassStart": 22,
-      "powerBand": 3
+      "distanceFromClassStart": 20,
+      "powerBand": 2
     },
     {
       "cat": "def",
-      "id": "nmvxdnvqxs",
+      "id": "pt_keystone_three_lights",
       "x": -329.97,
       "y": 572.32,
-      "type": "major",
-      "mods": [
-        {
-          "statId": "firePctDmg",
-          "value": 20
-        },
-        {
-          "statId": "coldPctDmg",
-          "value": 20
-        },
-        {
-          "statId": "lightPctDmg",
-          "value": 20
-        }
-      ],
+      "type": "keystone",
+      "mods": [],
       "statAutoName": false,
-      "runtimeEffects": [
-        {
-          "statId": "firePctDmg",
-          "value": 20
-        },
-        {
-          "statId": "coldPctDmg",
-          "value": 20
-        },
-        {
-          "statId": "lightPctDmg",
-          "value": 20
-        }
-      ],
-      "desc": "화염 피해 +20%\n냉기 피해 +20%\n번개 피해 +20%",
+      "runtimeEffects": [],
+      "desc": "주 스킬룬은 속성을 유지하고 화염·냉기·번개 피해 보너스 중 가장 높은 값을 사용\n원소 피해로 상태 이상을 유발할 수 없음",
       "name": "세 갈래 불빛",
-      "optionProfile": "세 갈래 불빛",
-      "iconFamily": "fire",
+      "optionProfile": "분광의 빛",
+      "iconFamily": "constellation",
       "distanceFromClassStart": 23,
       "powerBand": 3
     },
@@ -34958,8 +34952,8 @@
       ],
       "desc": "화염 피해 +10%",
       "iconFamily": "fire",
-      "distanceFromClassStart": 24,
-      "powerBand": 3
+      "distanceFromClassStart": 18,
+      "powerBand": 2
     },
     {
       "cat": "def",
@@ -34984,7 +34978,7 @@
       "name": "빛을 쪼개는 결",
       "optionProfile": "빛을 쪼개는 결",
       "iconFamily": "elemental",
-      "distanceFromClassStart": 23,
+      "distanceFromClassStart": 21,
       "powerBand": 3
     },
     {
@@ -35026,8 +35020,8 @@
       "name": "고른 방패막",
       "optionProfile": "고른 방패막",
       "iconFamily": "fire",
-      "distanceFromClassStart": 25,
-      "powerBand": 3
+      "distanceFromClassStart": 17,
+      "powerBand": 2
     },
     {
       "cat": "cold",
@@ -35060,8 +35054,8 @@
       "name": "스며드는 색",
       "optionProfile": "스며드는 색",
       "iconFamily": "elemental",
-      "distanceFromClassStart": 25,
-      "powerBand": 3
+      "distanceFromClassStart": 17,
+      "powerBand": 2
     },
     {
       "cat": "physical",
@@ -35154,7 +35148,7 @@
       ],
       "archetype": "melee",
       "optionProfile": "칼등 막기",
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 18,
       "powerBand": 2
     },
     {
@@ -35188,7 +35182,7 @@
       ],
       "archetype": "poison",
       "optionProfile": "독니",
-      "distanceFromClassStart": 19,
+      "distanceFromClassStart": 18,
       "powerBand": 2
     },
     {
@@ -35213,7 +35207,7 @@
         }
       ],
       "iconFamily": "evasion",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -35238,7 +35232,7 @@
         }
       ],
       "archetype": "wind",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -35263,7 +35257,7 @@
         }
       ],
       "archetype": "poison",
-      "distanceFromClassStart": 18,
+      "distanceFromClassStart": 17,
       "powerBand": 2
     },
     {
@@ -35968,7 +35962,8 @@
       "archetype": "spell",
       "optionProfile": "내장 주문",
       "distanceFromClassStart": 14,
-      "powerBand": 2
+      "powerBand": 2,
+      "iconFamily": "spell"
     },
     {
       "cat": "def",
@@ -36397,7 +36392,7 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 26,
+      "distanceFromClassStart": 25,
       "powerBand": 3
     },
     {
@@ -36421,7 +36416,7 @@
           "value": 1
         }
       ],
-      "distanceFromClassStart": 25,
+      "distanceFromClassStart": 24,
       "powerBand": 3
     },
     {
@@ -37366,25 +37361,15 @@
     },
     {
       "cat": "utility",
-      "id": "nmvxq0b3g1j",
-      "x": -550.67,
-      "y": -327.45,
-      "type": "assist",
-      "name": "치명타 피해 배율",
-      "mods": [
-        {
-          "statId": "critDmg",
-          "value": 15
-        }
-      ],
+      "id": "pt_keystone_critical_conversion",
+      "x": -529.35,
+      "y": -312.5,
+      "type": "keystone",
+      "name": "회심의 일격",
+      "mods": [],
       "statAutoName": true,
-      "runtimeEffects": [
-        {
-          "statId": "critDmg",
-          "value": 15
-        }
-      ],
-      "desc": "치명타 피해 배율 +15%",
+      "runtimeEffects": [],
+      "desc": "치명타 확률 상한 50%\n초과한 치명타 확률 1%p당 치명타 피해 5% 증가",
       "iconFamily": "critical",
       "distanceFromClassStart": 26,
       "powerBand": 3
@@ -37570,16 +37555,12 @@
       "id": "nmvxq0b3g1r",
       "x": -819.31,
       "y": -482.55,
-      "type": "normal",
+      "type": "assist",
       "name": "찌르는 직감",
       "mods": [
         {
           "statId": "crit",
           "value": 2
-        },
-        {
-          "statId": "physIgnore",
-          "value": 4
         }
       ],
       "statAutoName": false,
@@ -37587,13 +37568,9 @@
         {
           "statId": "crit",
           "value": 2
-        },
-        {
-          "statId": "physIgnore",
-          "value": 4
         }
       ],
-      "desc": "치명타 확률 +2%\n적 물리 피해 감소 무시 +4%",
+      "desc": "치명타 확률(%) +2%",
       "optionProfile": "찌르는 직감",
       "iconFamily": "critical",
       "distanceFromClassStart": 18,
@@ -38274,7 +38251,7 @@
       "type": "major",
       "mods": [
         {
-          "statId": "censerSpellPctDmg",
+          "statId": "censerPctDmg",
           "value": 40
         },
         {
@@ -38284,7 +38261,7 @@
       ],
       "runtimeEffects": [
         {
-          "statId": "censerSpellPctDmg",
+          "statId": "censerPctDmg",
           "value": 40
         },
         {
@@ -38293,7 +38270,7 @@
         }
       ],
       "statAutoName": false,
-      "desc": "향로 사용 시 주문 피해 +40%\n향로 사용 시 공격 속도 +8%",
+      "desc": "향로 사용 시 피해 +40%\n향로 사용 시 공격 속도 +8%",
       "name": "흔들리는 불씨",
       "optionProfile": "흔들리는 불씨",
       "iconFamily": "censer",
@@ -38309,7 +38286,7 @@
       "type": "major",
       "mods": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 40
         },
         {
@@ -38319,7 +38296,7 @@
       ],
       "runtimeEffects": [
         {
-          "statId": "censerAttackPctDmg",
+          "statId": "censerPctDmg",
           "value": 40
         },
         {
@@ -38328,7 +38305,7 @@
         }
       ],
       "statAutoName": false,
-      "desc": "향로 사용 시 공격 피해 +40%\n향로 사용 시 치명타 확률 +3%",
+      "desc": "향로 사용 시 피해 +40%\n향로 사용 시 치명타 확률 +3%",
       "name": "재를 뿌리는 손",
       "optionProfile": "재를 뿌리는 손",
       "iconFamily": "censer",
@@ -38884,9 +38861,9 @@
     {
       "cat": "int",
       "id": "nmvzwisdomd",
-      "x": -150,
-      "y": -1060,
-      "type": "minor",
+      "x": -135,
+      "y": -1055,
+      "type": "void",
       "mods": [
         {
           "statId": "chaosPctDmg",
@@ -38900,12 +38877,258 @@
         }
       ],
       "statAutoName": false,
-      "desc": "카오스 피해 +10%",
-      "name": "공허의 도약",
-      "iconFamily": "chaos",
+      "desc": "",
+      "name": "공허",
       "keepOwnName": true,
       "distanceFromClassStart": 18,
       "powerBand": 2
+    },
+    {
+      "cat": "none",
+      "id": "nmwc5ddlx0",
+      "x": 320,
+      "y": -250,
+      "type": "minor",
+      "name": "소형 패시브",
+      "desc": "",
+      "mods": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "iconFamily": "constellation",
+      "distanceFromClassStart": 27,
+      "powerBand": 3
+    },
+    {
+      "cat": "none",
+      "id": "nmwc5deiq1",
+      "x": 410,
+      "y": -255,
+      "type": "minor",
+      "name": "소형 패시브",
+      "desc": "",
+      "mods": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "iconFamily": "constellation",
+      "distanceFromClassStart": 28,
+      "powerBand": 4
+    },
+    {
+      "cat": "none",
+      "id": "nmwc5dia92",
+      "x": 485,
+      "y": -310,
+      "type": "keystone",
+      "name": "육신의 공명",
+      "desc": "남은 공명력 1당 최대 생명력 +5",
+      "mods": [],
+      "statAutoName": false,
+      "runtimeEffects": [],
+      "iconFamily": "constellation"
+    },
+    {
+      "cat": "none",
+      "id": "nmwc5lu2h3",
+      "x": -425,
+      "y": -235,
+      "type": "keystone",
+      "name": "의지의 공명",
+      "desc": "보조 스킬룬 장착 한도가 9칸 이상이면 공명력 한도를 넘겨 장착 가능\n초과한 공명력 1당 모든 저항 -1%p",
+      "mods": [],
+      "statAutoName": false,
+      "runtimeEffects": [],
+      "iconFamily": "constellation"
+    },
+    {
+      "cat": "none",
+      "id": "nmwc5lzzk4",
+      "x": -325,
+      "y": -185,
+      "type": "minor",
+      "name": "소형 패시브",
+      "desc": "",
+      "mods": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "iconFamily": "constellation",
+      "distanceFromClassStart": 25,
+      "powerBand": 3
+    },
+    {
+      "cat": "none",
+      "id": "nmwc5mcxz6",
+      "x": -385,
+      "y": -165,
+      "type": "minor",
+      "name": "소형 패시브",
+      "desc": "",
+      "mods": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "iconFamily": "constellation",
+      "distanceFromClassStart": 26,
+      "powerBand": 3
+    },
+    {
+      "cat": "none",
+      "id": "nmwc5mdpd7",
+      "x": -330,
+      "y": -255,
+      "type": "minor",
+      "name": "소형 패시브",
+      "desc": "",
+      "mods": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "runeResonancePower",
+          "value": 1
+        }
+      ],
+      "iconFamily": "constellation",
+      "distanceFromClassStart": 27,
+      "powerBand": 3
+    },
+    {
+      "cat": "none",
+      "id": "nmwc6bw9n8",
+      "x": 1445,
+      "y": 45,
+      "type": "normal",
+      "name": "완력",
+      "desc": "힘 +30",
+      "mods": [
+        {
+          "statId": "strength",
+          "value": 30
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "strength",
+          "value": 30
+        }
+      ],
+      "distanceFromClassStart": 13,
+      "powerBand": 1
+    },
+    {
+      "cat": "none",
+      "id": "nmwc6bxop9",
+      "x": 1444,
+      "y": -48,
+      "type": "normal",
+      "name": "지혜",
+      "desc": "",
+      "mods": [
+        {
+          "statId": "intelligence",
+          "value": 30.1
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "intelligence",
+          "value": 30.1
+        }
+      ],
+      "distanceFromClassStart": 13,
+      "powerBand": 1
+    },
+    {
+      "cat": "none",
+      "id": "nmwc6dlqea",
+      "x": -690,
+      "y": -1270,
+      "type": "normal",
+      "name": "기민함",
+      "desc": "",
+      "mods": [
+        {
+          "statId": "dexterity",
+          "value": 30
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "dexterity",
+          "value": 30
+        }
+      ],
+      "distanceFromClassStart": 13,
+      "powerBand": 1
+    },
+    {
+      "cat": "none",
+      "id": "nmwc6dr3ie",
+      "x": -775.26,
+      "y": -1219.48,
+      "type": "normal",
+      "name": "완력",
+      "desc": "",
+      "mods": [
+        {
+          "statId": "strength",
+          "value": 30
+        }
+      ],
+      "statAutoName": false,
+      "runtimeEffects": [
+        {
+          "statId": "strength",
+          "value": 30
+        }
+      ],
+      "distanceFromClassStart": 13,
+      "powerBand": 1
     }
   ],
   "edges": [
@@ -41830,14 +42053,6 @@
       "b": "nmvsejdhw3n"
     },
     {
-      "a": "n75pe85e3yp",
-      "b": "nmvsenvej3w"
-    },
-    {
-      "a": "nmvsenvej3w",
-      "b": "nmvsej9n43i"
-    },
-    {
       "a": "nmvsej9n43i",
       "b": "nmvsenri23v"
     },
@@ -41856,14 +42071,6 @@
     {
       "a": "nmvsemv943t",
       "b": "nmvsejelj3q"
-    },
-    {
-      "a": "nmvsejdhw3n",
-      "b": "nmvseoomt3x"
-    },
-    {
-      "a": "nmvseoomt3x",
-      "b": "nb3s9jae3yp"
     },
     {
       "a": "ne6nh3th4l7",
@@ -43599,10 +43806,10 @@
     },
     {
       "a": "nmvwdzu4z1q",
-      "b": "nmvwdztdh1p"
+      "b": "pt_keystone_balance_resonance"
     },
     {
-      "a": "nmvwdztdh1p",
+      "a": "pt_keystone_balance_resonance",
       "b": "nmvwdzsq31o"
     },
     {
@@ -45167,10 +45374,10 @@
     },
     {
       "a": "nmvxdneqek",
-      "b": "nmvxdnvqxs"
+      "b": "pt_keystone_three_lights"
     },
     {
-      "a": "nmvxdnvqxs",
+      "a": "pt_keystone_three_lights",
       "b": "nmvxdnlpdq"
     },
     {
@@ -45250,11 +45457,11 @@
       "b": "nmvxdwyzs1k"
     },
     {
-      "a": "nmvxdnvqxs",
+      "a": "pt_keystone_three_lights",
       "b": "nmvxdnq40r"
     },
     {
-      "a": "nmvxdnvqxs",
+      "a": "pt_keystone_three_lights",
       "b": "nmvxdnx76t"
     },
     {
@@ -45667,10 +45874,10 @@
     },
     {
       "a": "nmvxq0b3g1i",
-      "b": "nmvxq0b3g1j"
+      "b": "pt_keystone_critical_conversion"
     },
     {
-      "a": "nmvxq0b3g1j",
+      "a": "pt_keystone_critical_conversion",
       "b": "nmvxq0b3g1k"
     },
     {
@@ -45940,6 +46147,90 @@
     {
       "a": "nmvzwisdom",
       "b": "nmvzwisdomd"
+    },
+    {
+      "a": "nmvt5okiai",
+      "b": "nmvt5p9jqx"
+    },
+    {
+      "a": "nmvt5okiaf",
+      "b": "nmvt5p9jqo"
+    },
+    {
+      "a": "ni4djd2yzc57",
+      "b": "nmwc5ddlx0"
+    },
+    {
+      "a": "nmwc5ddlx0",
+      "b": "nmwc5deiq1"
+    },
+    {
+      "a": "nmwc5deiq1",
+      "b": "nmwc5dia92"
+    },
+    {
+      "a": "nmwc5lzzk4",
+      "b": "nrkgoj5bcwd3"
+    },
+    {
+      "a": "nmwc5lzzk4",
+      "b": "nmwc5mcxz6"
+    },
+    {
+      "a": "nmwc5mdpd7",
+      "b": "nmwc5lu2h3"
+    },
+    {
+      "a": "nmwc5mcxz6",
+      "b": "nmwc5mdpd7"
+    },
+    {
+      "a": "nmvxbwsu62j",
+      "b": "nmvxdo1bav"
+    },
+    {
+      "a": "nmvxdo37kw",
+      "b": "nmvxbwsu62j"
+    },
+    {
+      "a": "nmvxdo37kw",
+      "b": "nmvxdnkx6p"
+    },
+    {
+      "a": "nmvxdo1bav",
+      "b": "nmvxdnfzml"
+    },
+    {
+      "a": "n3p74atcawv",
+      "b": "n3jcj848ksc"
+    },
+    {
+      "a": "n3jcj848ksc",
+      "b": "necltw2fwgx"
+    },
+    {
+      "a": "nmwc6bw9n8",
+      "b": "n2bk54ge3yp"
+    },
+    {
+      "a": "n2bk54ge3yp",
+      "b": "nmwc6bxop9"
+    },
+    {
+      "a": "nflfu8ce3yp",
+      "b": "nmwc6dlqea"
+    },
+    {
+      "a": "nflfu8ce3yp",
+      "b": "nmwc6dr3ie"
+    },
+    {
+      "a": "n75pe85e3yp",
+      "b": "nmvsej9n43i"
+    },
+    {
+      "a": "nmvsejdhw3n",
+      "b": "nb3s9jae3yp"
     }
   ],
   "allocated": [],
@@ -46988,7 +47279,7 @@
         "nmvxdnkx6p",
         "nmvxdnlpdq",
         "nmvxdnq40r",
-        "nmvxdnvqxs",
+        "pt_keystone_three_lights",
         "nmvxdnx76t",
         "nmvxdnzkfu",
         "nmvxdo1bav",
@@ -47129,7 +47420,7 @@
         "nmvxq0b3g1g",
         "nmvxq0b3g1h",
         "nmvxq0b3g1i",
-        "nmvxq0b3g1j",
+        "pt_keystone_critical_conversion",
         "nmvxq0b3g1k",
         "nmvxq0b3g1l",
         "nmvxq0b3g1m",

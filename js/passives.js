@@ -32,7 +32,7 @@ function getPassiveEffectLabel(node) {
     if (node.intentionalNoEffect) return '효과 없음';
     if (node.effectLabel) return node.effectLabel;
     if (node.kind === 'void') return getVoidPassiveEffectLabel(node.id);
-    if (node.kind === 'keystone') return node.desc || '키스톤 효과';
+    if (node.kind === 'keystone') return _t(node.desc || '키스톤 효과');
     if (Array.isArray(node.effects) && node.effects.length > 0) {
         const effects = node.connectedDevotionPenalty ? getEffectivePassiveNodeEffects(node) : node.effects;
         const labels = effects.map(effect => {
@@ -1376,10 +1376,12 @@ function rebasePassiveTreeForClassChange(previousClassId, nextClassId) {
     if (!previousRoot || !nextRoot || previousRoot === nextRoot) return 0;
     const invested = (Array.isArray(game.passives) ? game.passives : [])
         .filter(nodeId => PASSIVE_TREE.nodes[nodeId] && PASSIVE_TREE.nodes[nodeId].kind !== 'start');
+    const hadOverflowKeystone = hasAuthoredPassiveKeystone('의지의 공명');
     game.passivePoints = Math.max(0, Math.floor(game.passivePoints || 0) + invested.length - passiveRouting.paleBonus(game));
     game.passives = [];
     game.passiveAttributeChoices = {};
     game.discoveredPassives = [nextRoot];
+    if (hadOverflowKeystone) normalizeSupportLoadout(true, null, true);
     if (typeof markPassiveRenderCacheDirty === 'function') markPassiveRenderCacheDirty('state');
     return invested.length;
 }
@@ -1475,8 +1477,16 @@ function getPassiveNodeActivationState(node) {
  * not per devotion stat point. Allocation counts even when that spoke's own effect is inactive.
  * Derive on read so refunds, presets and restored saves never persist a reduced base value.
  */
-function getEffectivePassiveNodeEffects(node) {
+function getEffectivePassiveNodeEffects(node, balanceAttributes = false) {
     if (!getPassiveNodeActivationState(node).active) return [];
+    const effects = getDevotionAdjustedPassiveEffects(node);
+    if (!balanceAttributes) return effects;
+    return effects.flatMap(effect => effect.stat === 'strength' || effect.stat === 'dexterity'
+        ? [{ stat: 'strength', val: effect.val / 2 }, { stat: 'dexterity', val: effect.val / 2 }]
+        : [effect]);
+}
+
+function getDevotionAdjustedPassiveEffects(node) {
     const effects = getPassiveNodeRawEffects(node);
     if (!node || !node.connectedDevotionPenalty) return effects;
     const neighbors = getPassiveTreeAdjacency().get(String(node.id)) || [];
@@ -1524,7 +1534,8 @@ function setPassiveRevelation(revelationId) {
     return true;
 }
 
-function hasAuthoredPassiveKeystone(nodeId) {
+function hasAuthoredPassiveKeystone(idOrTitle) {
+    const nodeId = PASSIVE_KEYSTONE_NODE_ID_BY_TITLE[idOrTitle] || idOrTitle;
     let node = PASSIVE_TREE.nodes[nodeId];
     return !!(node && node.kind === 'keystone' && (game.passives || []).includes(nodeId));
 }
@@ -1749,6 +1760,7 @@ function applyPassiveKeystoneBucketRules(buckets) {
     applyPassiveDefenseKeystoneRules(buckets);
     applyPassiveRecoveryKeystoneRules(buckets);
     applyPassiveWrittenKeystoneRules(buckets);
+    if (hasAuthoredPassiveKeystone('균형의 공명')) zeroPassiveRuleStats(buckets, ['intelligence']);
 }
 
 /** 2026-11-01 사용자가 글로 쓴 키스톤: 면죄의 복음, 공허의 별자리, 지식의 반목. */
@@ -1777,6 +1789,10 @@ function getBladeBundleShots(strength, dexterity, stance) {
 function getPassiveKeystoneCombatFlags(skillTags) {
     const tags = new Set(Array.isArray(skillTags) ? skillTags : []);
     return {
+        threeBranchLight: hasAuthoredPassiveKeystone('세 갈래 불빛'),
+        criticalLimit: hasAuthoredPassiveKeystone('회심의 일격'),
+        fleshResonance: hasAuthoredPassiveKeystone('육신의 공명'),
+        willResonance: hasAuthoredPassiveKeystone('의지의 공명'),
         farshot: tags.has('projectile') && !!findAllocatedPassiveKeystone('최후방 사격'),
         duel: tags.has('attack') && !!findAllocatedPassiveKeystone('결투의 규율'),
         bloodCradle: !!findAllocatedPassiveKeystone('피빛 요람'),
@@ -5500,6 +5516,11 @@ const PASSIVE_WISDOM_ELEMENT_BY_NODE_ID = Object.freeze({
 const PASSIVE_AILMENT_BY_ELEMENT = Object.freeze({ phys: 'bleed', fire: 'ignite', cold: 'chill', light: 'shock', chaos: 'poison' });
 const PASSIVE_KARMA_PER_TARGET_CAP = 500;
 const PASSIVE_KEYSTONE_NODE_ID_BY_TITLE = Object.freeze({
+    '균형의 공명': 'pt_keystone_balance_resonance',
+    '세 갈래 불빛': 'pt_keystone_three_lights',
+    '회심의 일격': 'pt_keystone_critical_conversion',
+    '육신의 공명': 'nmwc5dia92',
+    '의지의 공명': 'nmwc5lu2h3',
     '금단의 만상': 'pt_core_keystone_01',
     '타락한 복음': 'pt_core_keystone_02',
     '육신과 정신의 성약': 'pt_core_keystone_03',

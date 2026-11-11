@@ -1,12 +1,92 @@
 const assert = require('assert');
 const vm = require('vm');
 const { buildGameRuntime } = require('./lib/game-runtime');
+const replayFixture = require('./lib/replay-fixture');
 
 const context = buildGameRuntime();
 const run = source => vm.runInContext(source, context);
 
 async function resetPassiveTree() {
     return vm.runInContext('resetPassiveTreeByGoldenRule()', context);
+}
+
+function verifyEditedTree() {
+    const { run: play } = replayFixture();
+    const read = expression => JSON.parse(play('JSON.stringify(' + expression + ')'));
+    play(`
+        const edited = ['pt_keystone_balance_resonance', 'pt_keystone_three_lights',
+            'pt_keystone_critical_conversion', 'nmwc5dia92', 'nmwc5lu2h3'];
+        const initial = game;
+        const reward = (stat, value) => ({ stat, value });
+        const evaluate = (overrides, passives) => {
+            game = { ...initial, ...overrides, passives };
+            playerStatCache.invalidate();
+            const stats = getPlayerStats(false);
+            return { stats, row: {
+                attributes: [stats.strength, stats.dexterity, stats.intelligence], hp: stats.maxHp,
+                crit: stats.crit, critDamage: stats.rawCritDmg, damage: stats.baseDmg, element: stats.sSkill.ele,
+                slots: stats.suppCap, overflow: stats.supportResonanceOverflow,
+                res: [stats.rawResF, stats.rawResC, stats.rawResL, stats.rawResChaos]
+            } };
+        };
+        const paired = (index, state, nodes = []) => [evaluate(state, nodes).row, evaluate(state, [...nodes, edited[index]]).row];
+        const supportTiers = Object.fromEntries(['가속', '날카로움'].map(name => [name, { unlockedTier: 1, activeTier: 1 }]));
+        const supported = { resonancePower: 16, equippedSupports: ['가속'], supportGemData: supportTiers };
+    `);
+    assert.ok(read('edited.map(id => getPassiveActivationPath(id)?.length)').every(length => length > 0));
+    const attr = read("paired(0, {actRewardBonuses:[reward('strength',4),reward('intelligence',20)]}, ['n3p74atcawv'])");
+    assert.deepStrictEqual(attr.map(s => s.attributes), [[9, 0, 20], [6.5, 2.5, 0]]);
+    assert.strictEqual(play('getPlayerStats(false,true,true).intelligence'), 0, 'gear requirements must also see zero intelligence');
+
+    const critical = read("paired(2, {actRewardBonuses:[reward('crit',100)]})");
+    assert.strictEqual(critical[1].crit, 50);
+    assert.ok(Math.abs(critical[1].critDamage - critical[0].critDamage - (critical[0].crit - 50) * 5) < 1e-9);
+    const lowCrit = read("paired(2, {actRewardBonuses:[reward('crit',10)]})");
+    assert.strictEqual(lowCrit[1].crit, lowCrit[0].crit);
+    assert.strictEqual(lowCrit[1].critDamage, lowCrit[0].critDamage);
+
+    const fire = read(`paired(1, {
+        level: 60, equipment: { ...initial.equipment, '무기': createClassStarterWeapon('occultist') },
+        skills: [...initial.skills, '화염 폭풍핵'], activeSkill: '화염 폭풍핵',
+        actRewardBonuses: [reward('firePctDmg',5),reward('coldPctDmg',80),reward('lightPctDmg',20)]
+    })`);
+    assert.deepStrictEqual(fire.map(s => s.element), ['fire', 'fire'], 'only the bonus changes, not the element');
+    assert.ok(fire[1].damage > fire[0].damage);
+    const ailments = read(`[[], [edited[1]]].map(ids => {
+        const { stats } = evaluate({}, ids);
+        return ['fire', 'light', 'phys'].map(ele => {
+            const enemy = { maxHp: 1000, ailments: [] };
+            applyEnemyAilmentFromHit(enemy, { ...stats, sSkill: {...stats.sSkill, ele} }, 300, false, { primaryAilmentChance: 1 });
+            return enemy.ailments.map(ailment => ailment.type);
+        });
+    })`);
+    assert.deepStrictEqual(ailments, [[['ignite'], ['shock'], ['bleed']], [[], [], ['bleed']]]);
+
+    const life = read('paired(3, supported)');
+    assert.strictEqual(life[1].hp - life[0].hp, 50, 'six spent out of sixteen leaves ten resonance');
+    const overload = read(`[6, 7, 7].map((extraSlots, i) => evaluate({
+        ...supported, resonancePower: 10, equippedSupports: ['가속','날카로움'],
+        actRewardBonuses: [reward('suppCap',extraSlots)]
+    }, i === 2 ? [] : [edited[4]]).row)`);
+    assert.deepStrictEqual(overload.map(s => [s.slots,s.overflow,s.res]), [
+        [8,0,[0,0,0,0]], [9,2,[-2,-2,-2,-2]], [9,0,[0,0,0,0]]
+    ]);
+    assert.deepStrictEqual(read('game.equippedSupports'), ['가속', '날카로움']);
+    assert.strictEqual(play('normalizeSupportLoadout(false, null, true)'), true);
+    assert.deepStrictEqual(read('game.equippedSupports'), ['가속']);
+
+    const saved = read(`(() => {
+        game = { ...initial, passivePoints: 999 };
+        const neighbor = [...getPassiveTreeAdjacency().get(getPassiveTreeRootNodeId())]
+            .find(id => PASSIVE_TREE.nodes[id].kind !== 'start');
+        const changed = mergeDefaults({ ...game, passives: [neighbor,'nmvwdztdh1p','nmvsenvej3w'] });
+        const restored = mergeDefaults({ ...changed });
+        const newPath = getPassiveActivationPath(edited[0]);
+        const newSave = mergeDefaults({ ...game, passives: newPath });
+        return [changed.passives, neighbor, changed.autoRefundedPassivePoints,
+            restored.passivePoints === changed.passivePoints, newSave.passives.includes(edited[0])];
+    })()`);
+    assert.deepStrictEqual(saved, [[saved[1]], saved[1], 2, true, true], 'retired nodes refund once; other reachable allocations stay');
 }
 
 async function main() {
@@ -111,6 +191,7 @@ async function main() {
     assert.strictEqual(run('game.ascendKeystonePoints'), 3, 'keystone reset should refund every allocation');
     assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.ascendKeystones)')), []);
 
+    verifyEditedTree();
     console.log('smoke-passive-respec-points passed');
 }
 

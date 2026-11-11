@@ -60,6 +60,7 @@
     function slotSupportFailure(name, stats) {
         const conflict = window.GameModules.skills.supports.conflictReason(name, game, slot.name);
         if (conflict) return conflict;
+        if (gemDropRewards.allowsResonanceOverflow(stats)) return '';
         const worn = supportsInOtherSlots();
         const free = Math.max(0, getEffectiveResonanceCap(stats) - worn.reduce((sum, gem) => sum + getSupportTierResonanceCost(gem), 0));
         const cost = getSupportTierResonanceCost(name);
@@ -101,8 +102,9 @@
 
     function candidateTierButtons(name, stats) {
         const free = getEffectiveResonanceCap(stats) - supportsInOtherSlots().reduce((sum, gem) => sum + getSupportTierResonanceCost(gem), 0);
+        const canOverflow = gemDropRewards.allowsResonanceOverflow(stats);
         return `<div class="support-candidate-tiers" role="group" aria-label="${_t('{name} 등급', { name: escapeHTML(name) })}">${supportTierRows(name, stats).map(row =>
-            `<button type="button" data-slot-action="candidate-tier" data-name="${escapeHTML(name)}" data-tier="${row.tier}" aria-pressed="${row.active}"${row.open ? '' : ' disabled'} class="${row.open && row.cost <= free ? 'is-affordable' : ''}"><b>${_t(row.label)}</b><small>${row.open ? _t('공명 {cost}', { cost: row.cost }) : _t('잠김')}</small></button>`).join('')}</div>`;
+            `<button type="button" data-slot-action="candidate-tier" data-name="${escapeHTML(name)}" data-tier="${row.tier}" aria-pressed="${row.active}"${row.open ? '' : ' disabled'} class="${row.open && (canOverflow || row.cost <= free) ? 'is-affordable' : ''}"><b>${_t(row.label)}</b><small>${row.open ? _t('공명 {cost}', { cost: row.cost }) : _t('잠김')}</small></button>`).join('')}</div>`;
     }
 
     function candidateComparison(name) {
@@ -219,7 +221,10 @@
         const used = supportsInOtherSlots().reduce((sum, name) => sum + getSupportTierResonanceCost(name), 0);
         const cost = slot.preview ? getSupportTierResonanceCost(slot.preview) : 0;
         const width = value => cap ? Math.min(100, value / cap * 100) : 0;
-        const caption = slot.preview ? `${slot.preview} 선택, ${used + cost}/${cap}${used + cost > cap ? _t(', 공명력 {value} 모자람', { value: used + cost - cap }) : ''}` : '후보 이름을 누르면 공명 비용을 미리 봅니다.';
+        const overflow = Math.max(0, used + cost - cap);
+        const budgetNote = overflow ? _t(gemDropRewards.allowsResonanceOverflow(stats)
+            ? ', 모든 저항 -{value}%p' : ', 공명력 {value} 모자람', { value: overflow }) : '';
+        const caption = slot.preview ? `${_t('{name} 선택', { name: _t(slot.preview) })}, ${used + cost}/${cap}${budgetNote}` : _t('후보 이름을 누르면 공명 비용을 미리 봅니다.');
         return `<div class="support-budget-preview"><div class="support-budget-track"><i style="width:${width(used)}%"></i><em style="left:${width(used)}%;width:${Math.min(100 - width(used), width(cost))}%"></em></div><small>${escapeHTML(caption)}</small></div>`;
     }
 
