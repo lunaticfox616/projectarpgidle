@@ -191,20 +191,72 @@ const atlas = (() => {
         if (!isMapStone(picked)) return _t('수호자 지도석은 합칠 수 없습니다.');
         if (picked.tier >= ATLAS.tierCap) return _t('가장 높은 등급이라 합칠 수 없습니다.');
         if (!set) return _t('{tier}등급 지도석이 {count}개 있어야 합칩니다.', { tier: picked.tier, count: ATLAS.combine.count });
-        const next = MAP_NODES.some(node => reachable(state, node.id) && effectiveTier(state, node) === picked.tier + 1);
-        return next ? '' : _t('{tier}등급 노드가 아직 열리지 않았습니다.', { tier: picked.tier + 1 });
+        return tierOpen(state, picked.tier + 1) ? '' : _t('{tier}등급 노드가 아직 열리지 않았습니다.', { tier: picked.tier + 1 });
     }
-    /** 같은 등급 셋을 한 등급 위 지도석 하나로(지금 갈 수 있는 그 등급 노드 중 하나, 떨어진 지도석과 같은 규칙). @returns {{reason?:string, used?:object[], map?:object}} */
+    /** 지금 갈 수 있는 그 등급의 지도 노드들: 합친 지도석이 떨어질 곳. */
+    const tierNodes = (state, tier) => MAP_NODES.filter(node => reachable(state, node.id) && effectiveTier(state, node) === tier);
+    const tierOpen = (state, tier) => tier <= ATLAS.tierCap && tierNodes(state, tier).length > 0;
+    /** 셋을 한 등급 위 지도석 하나로(그 등급 노드 중 하나, 떨어진 지도석과 같은 규칙). 확인은 부르는 쪽이 한다. */
+    function forgeUp(state, used, random) {
+        const tier = used[0].tier + 1, pool = tierNodes(state, tier);
+        const map = stamp(state, atlasMaps.create(pool[Math.floor(random() * pool.length)].id, tier, 'normal', random), random, bonusOf(state));
+        state.atlas.stash = state.atlas.stash.filter(entry => !used.includes(entry));
+        state.atlas.stash.push(map);
+        return map;
+    }
+    /** 같은 등급 셋을 한 등급 위 지도석 하나로. @returns {{reason?:string, used?:object[], map?:object}} */
     function combine(state, uid, random = Math.random) {
         const reason = combineReason(state, uid);
         if (reason) return { reason };
-        const used = combineSet(state, uid), tier = used[0].tier + 1;
-        const pool = MAP_NODES.filter(node => reachable(state, node.id) && effectiveTier(state, node) === tier);
-        const node = pool[Math.floor(random() * pool.length)];
-        const map = stamp(state, atlasMaps.create(node.id, tier, 'normal', random), random, bonusOf(state));
-        state.atlas.stash = state.atlas.stash.filter(entry => !used.includes(entry));
-        state.atlas.stash.push(map);
-        return { used, map };
+        const used = combineSet(state, uid);
+        return { used, map: forgeUp(state, used, random) };
+    }
+    /** 일괄 합치기의 재료: 지도 노드의 지도석 가운데 타락하지 않은 것(마법, 희귀, 품질도 든다. 2026-11-11 사용자: 타락, 수호자는 X). */
+    const batchable = map => isMapStone(map) && !map.corrupted;
+    /** 한 등급 안에서 먼저 쓰는 순서: 손대지 않은 것 0, 품질만 1, 마법 2, 희귀 3. 남는 한두 개가 값진 쪽이 되게. */
+    const batchRank = map => (map.rarity === 'rare' ? 3 : map.rarity === 'magic' ? 2 : map.quality ? 1 : 0);
+    const tally = (counts, tier) => { counts[tier] = (counts[tier] || 0) + 1; };
+    /** 일괄 합치기의 차례(2026-11-11 사용자: 지도석 일괄합성): 낮은 등급부터 재료를 셋씩 합치고, 그렇게 만든 지도석이 다시 셋이
+     * 되면 이어서 합친다(만든 지도석은 보관함에 보이기 전이라 품질이 붙어도 손대지 않은 것으로 친다). 위 등급 노드가 닫혔거나
+     * 가장 높은 등급이면 그 등급에서 멈춘다.
+     * @returns {{steps:{tier:number, sets:number}[], used:number, made:Object<number, number>}} 등급마다 합칠 셋, 쓰는 보관함 지도석 수, 남을 새 지도석(등급: 수) */
+    function combineAllPlan(state) {
+        const plan = { steps: [], used: 0, made: {} }, own = {}, plain = {};
+        if (runOpenReason(state)) return plan;
+        for (const map of state.atlas.stash.filter(batchable)) {
+            tally(own, map.tier);
+            if (!batchRank(map)) tally(plain, map.tier);
+        }
+        for (let tier = Math.min(...Object.keys(own).map(Number)); tier < ATLAS.tierCap; tier++) {
+            const sets = Math.floor(((own[tier] || 0) + (plan.made[tier] || 0)) / ATLAS.combine.count);
+            if (sets && tierOpen(state, tier + 1)) planStep(plan, tier, sets, plain);
+        }
+        plan.made = Object.fromEntries(Object.entries(plan.made).filter(([, count]) => count > 0));
+        return plan;
+    }
+    /** 한 등급의 셋들: 보관함의 손대지 않은 지도석, 이번에 만든 지도석, 품질, 마법, 희귀 순서로 쓴다(combineAll의 정렬과 같다). */
+    function planStep(plan, tier, sets, plain) {
+        const take = sets * ATLAS.combine.count, fresh = plan.made[tier] || 0, fromFresh = Math.min(fresh, Math.max(0, take - (plain[tier] || 0)));
+        plan.used += take - fromFresh;
+        plan.made[tier] = fresh - fromFresh;
+        plan.made[tier + 1] = (plan.made[tier + 1] || 0) + sets;
+        plan.steps.push({ tier, sets });
+    }
+    /** combineAllPlan대로 합친다. @returns {{used:number, made:object[]}} 쓴 보관함 지도석 수와 남은 새 지도석 */
+    function combineAll(state, random = Math.random) {
+        const count = ATLAS.combine.count, fresh = new Set(), order = map => (fresh.has(map) ? 0.5 : batchRank(map));
+        let used = 0;
+        for (const { tier, sets } of combineAllPlan(state).steps) {
+            const pool = state.atlas.stash.filter(map => map.tier === tier && batchable(map))
+                .sort((a, b) => order(a) - order(b) || (a.quality || 0) - (b.quality || 0) || a.uid - b.uid);
+            for (let at = 0; at < sets; at++) {
+                const set = pool.slice(at * count, (at + 1) * count);
+                used += set.filter(map => !fresh.has(map)).length;
+                set.forEach(map => fresh.delete(map));
+                fresh.add(forgeUp(state, set, random));
+            }
+        }
+        return { used, made: [...fresh] };
     }
     /** '' when a flower can change this stone's omen, otherwise why not: guardian stones carry none, and corruption closes a stone as it does for crafts. */
     function omenChangeReason(map) {
@@ -714,7 +766,7 @@ const atlas = (() => {
     return Object.freeze({ nodes: NODES, links: LINKS, renameSavedIds, node: id => BY_ID.get(id) || null, neighbours: id => NEIGHBOURS.get(id) || [],
         fragment: id => FRAGMENTS.get(id) || null, pinnacle: PINNACLE, position, defaults, lockReason, runOpenReason, status, reachable, points, bestTier, sync,
         effectiveTier, hasTickets, pinnacleReason, beginPinnacle, beginSpecial, beginMemory, beginBoard, lateNodes: LATE_NODES,
-        slots, setLoadout, beginReason, begin, discard, discardPlainUpTo, plainMap, tierBand, combineSet, combineReason, combine, omenChangeReason, changeOmen, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
+        slots, setLoadout, beginReason, begin, discard, discardPlainUpTo, plainMap, tierBand, combineSet, combineReason, combine, combineAllPlan, combineAll, omenChangeReason, changeOmen, cancel, complete, markCleared, keepLoot, usePortal, close, nextAuto, dropFromKill, extraMap, fragmentFromKill, fragmentOpen,
         zone, preview, lootTier, equivalentDepth, normalize, onLoopReset, travelReason, rewardMaps,
         inMap: state => state.currentZoneId === ATLAS.zoneId });
 })();
