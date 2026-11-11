@@ -411,8 +411,7 @@ function performPlayerAttack(pStats, attackOptions) {
     let talentMoonPrimaryHit = false;
     let hasSkillConditionalFeedback = !!(pStats.sSkill.activeAilmentDamageMore
         || (pStats.sSkill.consumeAilmentDamageMore || []).length
-        || pStats.sSkill.fullLifeDamageMorePct || pStats.sSkill.distanceDamageMoreCapPct
-        || pStats.sSkill.crowdDamageMoreCapPct);
+        || pStats.sSkill.fullLifeDamageMorePct || pStats.sSkill.distanceDamageMoreCapPct);
     let isProjectileSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('projectile');
     let isFanProjectile = isProjectileSkill && pStats.sSkill.projectilePattern && pStats.sSkill.projectilePattern.kind === 'fan';
     let projectileBonusShots = isProjectileSkill && !isFanProjectile ? Math.max(0, Math.floor(pStats.projectileExtraShots || 0)) : 0;

@@ -1760,7 +1760,18 @@ function applyPassiveKeystoneBucketRules(buckets) {
     applyPassiveDefenseKeystoneRules(buckets);
     applyPassiveRecoveryKeystoneRules(buckets);
     applyPassiveWrittenKeystoneRules(buckets);
-    if (hasAuthoredPassiveKeystone('균형의 공명')) zeroPassiveRuleStats(buckets, ['intelligence']);
+    if (hasAuthoredPassiveKeystone('균형의 공명')) applyBalanceResonance(buckets);
+}
+
+/** 균형의 공명: 패시브 노드의 힘과 민첩은 노드를 읽을 때 반씩 나뉘고(getEffectivePassiveNodeEffects), 아이템(장비 기본, 옵션)의 힘과
+ * 민첩도 여기서 둘의 합을 반씩 나눈다(2026-11-12 사용자). 지능은 0. */
+function applyBalanceResonance(buckets) {
+    [buckets.gearBase, buckets.gearExplicit].filter(Boolean).forEach(bucket => {
+        const half = ((Number(bucket.strength) || 0) + (Number(bucket.dexterity) || 0)) / 2;
+        bucket.strength = half;
+        bucket.dexterity = half;
+    });
+    zeroPassiveRuleStats(buckets, ['intelligence']);
 }
 
 /** 2026-11-01 사용자가 글로 쓴 키스톤: 시간왜곡, 면죄의 복음, 공허의 별자리, 지식의 반목. */

@@ -1496,8 +1496,8 @@ assert.ok(!ringCells.some(cell => cell.gx === 4 && cell.gy === 3), '고리형은
   context.game.enemies = Array.from({ length: 8 }, (_, idx) => makeEnemy(100 + idx, 2 + (idx % 4), 2 + Math.floor(idx / 4)));
   const crowdCues = [];
   assert.strictEqual(context.getSkillConditionalDamageMultiplier(context.SKILL_DB['회오리'], context.game.enemies[0], cue => crowdCues.push(cue)), 1.28, '회오리의 밀집 보너스는 28% 상한을 지켜야 한다');
-  assert.deepStrictEqual(Array.from(crowdCues, cue => cue.text), ['최대 포위: 피해 28% 증폭'],
-    '포위 상한 달성은 전투 화면에 전달해야 한다');
+  assert.deepStrictEqual(Array.from(crowdCues, cue => cue.text), [],
+    '회오리의 포위 상한은 피해만 올리고 문구는 띄우지 않는다(2026-11-12 사용자: 칠 때마다 떠서)');
 
   const frozenTarget = makeEnemy(134, 4, 6, { ailments:[{ type:'freeze', time:2 }] });
   const consumeCues = [];

@@ -611,8 +611,7 @@ function getSkillConditionalDamageMultiplier(skill, enemy, onCue) {
     let crowdBonus = Math.max(0, nearbyEnemies - 1) * Math.max(0, Number(skill.crowdDamageMorePerEnemyPct) || 0);
     let crowdCap = Math.max(0, Number(skill.crowdDamageMoreCapPct) || 0);
     let appliedCrowdBonus = Math.min(crowdCap, crowdBonus);
-    multiplier *= 1 + appliedCrowdBonus / 100;
-    if (crowdCap > 0 && appliedCrowdBonus >= crowdCap && typeof onCue === 'function') onCue({ key:'max-crowd', text:_t('최대 포위: 피해 {crowdCap}% 증폭', { crowdCap }), color:'#f0c993' });
+    multiplier *= 1 + appliedCrowdBonus / 100;   // 최대 포위 문구는 띄우지 않는다(2026-11-12 사용자: 회오리가 칠 때마다 떠서)
     return multiplier;
 }
 

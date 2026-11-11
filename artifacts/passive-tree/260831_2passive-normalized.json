@@ -26330,7 +26330,7 @@
       "statAutoName": false,
       "runtimeEffects": [],
       "iconFamily": "blessing",
-      "desc": "패시브 노드의 힘·민첩 수치를 힘과 민첩에 절반씩 적용\n지능은 0으로 고정",
+      "desc": "패시브 노드와 아이템의 힘, 민첩 수치를 힘과 민첩에 절반씩 적용\n지능은 0으로 고정",
       "name": "균형의 공명",
       "distanceFromClassStart": 13,
       "powerBand": 1
