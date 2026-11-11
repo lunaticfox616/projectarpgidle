@@ -540,6 +540,26 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
             alchemist_retort: "assets/items/pixel-v1/base/base-alchemist_retort.png",
             philosopher_flask: "assets/items/pixel-v1/base/base-philosopher_flask.png",
             tin_censer: "assets/items/pixel-v1/base/base-tin_censer.png",
+            thundercloud_censer: "assets/items/pixel-v1/base/base-coal_censer.png", // 향로 속성 줄(2026-11-11): 그림은 GPT로 그릴 때까지 같은 모양의 향로 그림을 빌린다(받으면 pixel-v2/censer/base-<id>.png)
+            thunder_censer: "assets/items/pixel-v1/base/base-pyre_censer.png",
+            kindling_censer: "assets/items/pixel-v1/base/base-incense_censer.png",
+            bonfire_censer: "assets/items/pixel-v1/base/base-ember_censer.png",
+            beacon_censer: "assets/items/pixel-v1/base/base-chapel_censer.png",
+            stone_censer: "assets/items/pixel-v1/base/base-tin_censer.png",
+            bronze_censer: "assets/items/pixel-v1/base/base-incense_censer.png",
+            iron_censer: "assets/items/pixel-v1/base/base-coal_censer.png",
+            steel_censer: "assets/items/pixel-v1/base/base-chapel_censer.png",
+            flail_censer: "assets/items/pixel-v1/base/base-pyre_censer.png",
+            bellringer_censer: "assets/items/pixel-v1/base/base-sunrise_censer.png",
+            candle_censer: "assets/items/pixel-v1/base/base-ember_censer.png",
+            chandelier_censer: "assets/items/pixel-v1/base/base-chapel_censer.png",
+            relic_censer: "assets/items/pixel-v1/base/base-sunrise_censer.png",
+            rod_censer: "assets/items/pixel-v1/base/base-ember_censer.png",
+            ironbolt_censer: "assets/items/pixel-v1/base/base-pyre_censer.png",
+            thunderiron_censer: "assets/items/pixel-v1/base/base-phoenix_censer.png",
+            firebolt_censer: "assets/items/pixel-v1/base/base-incense_censer.png",
+            firestorm_censer: "assets/items/pixel-v1/base/base-coal_censer.png",
+            skyfire_censer: "assets/items/pixel-v1/base/base-phoenix_censer.png",
             incense_censer: "assets/items/pixel-v1/base/base-incense_censer.png",
             ember_censer: "assets/items/pixel-v1/base/base-ember_censer.png",
             chapel_censer: "assets/items/pixel-v1/base/base-chapel_censer.png",
@@ -663,6 +683,7 @@ const ITEM_VISUAL_ASSET_DB = Object.freeze({
  * 다 바꿀 필요가 있음"; 2026-10-26 곡도 → 한손검): old name → base id, for saved gear that has only its old base name. Ids stay. */
 const WEAPON_BASE_LEGACY_NAMES = Object.freeze({
     '처형자의 검': 'executioner_blade',
+    '잉걸 향로': 'ember_censer', // 2026-11-11 번개 향로가 화염처럼 읽혀 섬광 향로로
     '심연의 창': 'abyss_spear',
     '질풍 송곳창': 'gale_fang_spear',
     '메아리 창': 'echo_lance',
@@ -934,7 +955,7 @@ const UNIQUE_DB = [
     { name: "현자의 불꽃 플라스크", slots: ["무기"], reqTier: 20, ultraRare: true, uniqueEffect: "점화 피해 40% 증폭", uniqueEffectKey: "igniteDamageMorePct", uniqueEffectParams: { pct: 40 }, stats: [{ id: "flatDmg", min: 110, max: 150 }, { id: "potionPctDmg", min: 40, max: 60 }, { id: "firePctDmg", min: 30, max: 45 }, { id: "igniteChance", min: 15, max: 25 }, { id: "aoePctDmg", min: 20, max: 30 }] },
     { name: "순례자의 향로", slots: ["무기"], reqTier: 4, uniqueEffect: "이 무기는 항상 감전 부여", uniqueEffectKey: "alwaysShock", stats: [{ id: "flatDmg", min: 16, max: 24 }, { id: "lightPctDmg", min: 18, max: 26 }, { id: "regen", min: 0.4, max: 0.7 }, { id: "shockEffect", min: 20, max: 30 }] },
     { name: "성가대의 사슬", slots: ["무기"], reqTier: 12, uniqueEffect: "연속 타격 +10%, 스킬 타겟 수 +1", uniqueEffectKey: "dsAndTargetAnyBonus", uniqueEffectParams: { ds: 10, target: 1 }, stats: [{ id: "flatDmg", min: 55, max: 75 }, { id: "lightPctDmg", min: 28, max: 40 }, { id: "regen", min: 0.8, max: 1.2 }, { id: "resAll", min: 12, max: 18 }] },
-    { name: "새벽 성화의 향로", slots: ["무기"], reqTier: 20, ultraRare: true, uniqueEffect: "원소 타격마다 적의 원소 저항 −2%(최대 −20%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 20 }, stats: [{ id: "flatDmg", min: 120, max: 160 }, { id: "lightPctDmg", min: 40, max: 55 }, { id: "elementalPctDmg", min: 30, max: 40 }, { id: "regen", min: 1.2, max: 1.8 }, { id: "flatHp", min: 80, max: 120 }] },
+    { name: "새벽 성화의 향로", slots: ["무기"], reqTier: 20, ultraRare: true, uniqueEffect: "원소 타격마다 적의 원소 저항 −2%(최대 −20%)", uniqueEffectKey: "stackingElementalResDownOnHit", uniqueEffectParams: { perHit: 2, max: 20 }, stats: [{ id: "flatDmg", min: 120, max: 160 }, { id: "firePctDmg", min: 40, max: 55 }, { id: "elementalPctDmg", min: 30, max: 40 }, { id: "regen", min: 1.2, max: 1.8 }, { id: "flatHp", min: 80, max: 120 }] },
     // 체이싱 고유 아홉(2026-10-20 사용자: "체이싱 아이템들을 지금 그런 컨텐츠가 없는 장비 종류들 위주(약간 밸런스 파괴급이라도 괜찮아)"): 어디서나
     // 떨어지는 체이싱 고유가 없던 한손검, 갑옷, 방패와 하나뿐이던 신발, 플라스크, 향로, 장갑, 반지, 허리띠. 넷은 착용한 장비나 빈 칸의 수만큼
     // 자라고(js/combat-build-stats.js), 넷은 잔잔한 사건을 바꾸고(js/combat-incidents.js), 허리띠는 액막이를 키운다(js/colony-wards.js).
@@ -943,7 +964,7 @@ const UNIQUE_DB = [
     { name: "고요한 맹세", slots: ["방패"], reqTier: 15, ultraRare: true, uniqueEffect: "장착한 액막이 하나마다 막기 확률 +3%p, 물리 피해 감소 +3%(최대 5개)", uniqueEffectKey: "wardVow", uniqueEffectParams: { blockPer: 3, drPer: 3, max: 5 }, stats: [{ id: "blockChance", min: 2, max: 3 }, { id: "maxResAll", min: 2, max: 3 }, { id: "flatHp", min: 80, max: 120 }, { id: "resAll", min: 12, max: 16 }] },
     { name: "수액 냄새 밴 장화", slots: ["신발"], reqTier: 12, ultraRare: true, uniqueEffect: "금빛 수액 슬라임을 세 배 자주 만나고, 잡으면 재화를 두 배로 받습니다", uniqueEffectKey: "critterLure", uniqueEffectParams: { chanceMul: 3, rewardMul: 2 }, stats: [{ id: "move", min: 15, max: 20 }, { id: "evasionPct", min: 25, max: 35 }, { id: "resC", min: 15, max: 20 }, { id: "flatHp", min: 60, max: 90 }] },
     { name: "일곱 번째 행운의 병", slots: ["무기"], reqTier: 15, ultraRare: true, uniqueEffect: "행운의 숫자가 같은 숫자로만 된 피해(111, 2,222 같은)에도 나오고, 그 재화를 두 배로 받습니다", uniqueEffectKey: "repdigitLuck", uniqueEffectParams: { rewardMul: 2 }, stats: [{ id: "flatDmg", min: 90, max: 120 }, { id: "potionPctDmg", min: 35, max: 50 }, { id: "poisonChance", min: 15, max: 25 }, { id: "chaosPctDmg", min: 25, max: 35 }, { id: "aspd", min: 6, max: 10 }] },
-    { name: "꿈결의 향로", slots: ["무기"], reqTier: 15, ultraRare: true, uniqueEffect: "처음 들어선 전투 방의 10%에서 세계수가 하품을 하고, 그 방의 몬스터가 10초 동안 잠듭니다", uniqueEffectKey: "drowsyIncense", uniqueEffectParams: { chance: 0.1, sleepMs: 10000 }, stats: [{ id: "flatDmg", min: 95, max: 125 }, { id: "lightPctDmg", min: 35, max: 45 }, { id: "regen", min: 1.0, max: 1.5 }, { id: "flatHp", min: 70, max: 100 }] },
+    { name: "꿈결의 향로", slots: ["무기"], reqTier: 15, ultraRare: true, uniqueEffect: "처음 들어선 전투 방의 10%에서 세계수가 하품을 하고, 그 방의 몬스터가 10초 동안 잠듭니다", uniqueEffectKey: "drowsyIncense", uniqueEffectParams: { chance: 0.1, sleepMs: 10000 }, stats: [{ id: "flatDmg", min: 95, max: 125 }, { id: "physPctDmg", min: 35, max: 45 }, { id: "regen", min: 1.0, max: 1.5 }, { id: "flatHp", min: 70, max: 100 }] },
     { name: "황금을 빚는 손", slots: ["장갑"], reqTier: 13, ultraRare: true, uniqueEffect: "몬스터를 쓰러뜨리면 1% 확률로 그 자리에서 금빛 수액 슬라임이 일어납니다", uniqueEffectKey: "goldenTouch", uniqueEffectParams: { chance: 0.01 }, stats: [{ id: "aspd", min: 10, max: 14 }, { id: "crit", min: 4, max: 6 }, { id: "flatHp", min: 60, max: 90 }, { id: "resL", min: 15, max: 20 }] },
     { name: "비워 둔 자리", slots: ["반지"], reqTier: 12, ultraRare: true, uniqueEffect: "비어 있는 장비 칸 하나마다 피해 +15%, 최대 생명력 +5%(최대 6칸)", uniqueEffectKey: "emptyPlaces", uniqueEffectParams: { dmgPer: 15, hpPer: 5, max: 6 }, stats: [{ id: "resAll", min: 8, max: 12 }, { id: "evasionPct", min: 15, max: 25 }, { id: "move", min: 4, max: 6 }, { id: "flatHp", min: 50, max: 80 }] },
     { name: "편린을 꿴 허리띠", slots: ["허리띠"], reqTier: 14, ultraRare: true, uniqueEffect: "액막이 칸 +2, 끼운 액막이의 효과가 두 배가 됩니다", uniqueEffectKey: "wardString", uniqueEffectParams: { slots: 2, mul: 2 }, stats: [{ id: "flatHp", min: 110, max: 160 }, { id: "resAll", min: 12, max: 16 }, { id: "armorPct", min: 25, max: 40 }, { id: "regen", min: 1.0, max: 1.6 }] },
@@ -1012,7 +1033,7 @@ const UNIQUE_DB = [
     // 공격 칸에 두고(js/skills.js isAttackRuneBlockedByMobilityBoots), 되감긴 모래시계는 재사용 대기시간 감소 상한을 올린다.
     { name: "칼이 된 발걸음", slots: ["신발"], reqTier: 14, uniqueEffect: "공격 스킬룬을 쓸 수 없음. 이동 스킬룬을 공격 스킬룬 칸에 둘 수 있고, 그 룬은 공격 속도대로 나가며 보조스킬룬을 받음", uniqueEffectKey: "mobilityRuneAsAttack", stats: [{ id: "move", min: 12, max: 18 }, { id: "aspd", min: 6, max: 10 }, { id: "evasion", min: 90, max: 140 }, { id: "mobilityCooldownRecovery", min: 10, max: 20 }, { id: "resAll", min: 8, max: 12 }] },
     { name: "되감긴 모래시계", slots: ["목걸이"], reqTier: 16, uniqueEffect: "재사용 대기시간 감소 상한 +10%p", uniqueEffectKey: "cooldownReductionCap", uniqueEffectParams: { pct: 10 }, stats: [{ id: "cooldownRecovery", min: 15, max: 25 }, { id: "cooldownReduction", min: 6, max: 10 }, { id: "pctHp", min: 6, max: 10 }, { id: "resAll", min: 10, max: 16 }, { id: "aspd", min: 4, max: 8 }] },
-    { name: "마지막 수호의 향로", slots: ["무기"], reqTier: 15, dropOnly: { type: 'colony' }, uniqueEffect: "사망 방지 보호막(최대 생명력 15%) 25초마다 재생성", uniqueEffectKey: "realmDeathWard", uniqueEffectParams: { hpPct: 15, cooldown: 25 }, stats: [{ id: "flatDmg", min: 70, max: 100 }, { id: "lightPctDmg", min: 30, max: 40 }, { id: "lightFlatDmg", min: 30, max: 45 }, { id: "resAll", min: 8, max: 12 }] }
+    { name: "마지막 수호의 향로", slots: ["무기"], reqTier: 15, dropOnly: { type: 'colony' }, uniqueEffect: "사망 방지 보호막(최대 생명력 15%) 25초마다 재생성", uniqueEffectKey: "realmDeathWard", uniqueEffectParams: { hpPct: 15, cooldown: 25 }, stats: [{ id: "flatDmg", min: 95, max: 140 }, { id: "physPctDmg", min: 30, max: 40 }, { id: "resAll", min: 8, max: 12 }] }
 ];
 
 // 수확물 소켓(2026-11-03 사용자): 이 고유들의 소켓에는 그루터기 함의 다 자란 꽃, 열매, 덩굴, 뿌리(STUMP_BOX_KINDS)를 넣는다.

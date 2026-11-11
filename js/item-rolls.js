@@ -946,6 +946,25 @@ function isModForWeaponCategory(mod, weaponCategory) {
     return !mod.weaponCategories || mod.weaponCategories.includes(weaponCategory);
 }
 
+/** 속성 전용 줄(MOD_DB baseElements, 2026-11-11 향로의 속성 스킬룬 레벨)은 그 속성 피해를 바탕에 가진 무기에만 붙는다. 속성이 없는 바탕
+ * (양철 향로)은 어느 속성 줄이든 받는다. */
+function isModForBaseElement(mod, item) {
+    if (!mod.baseElements) return true;
+    const own = getBaseElements(item.baseId);
+    return own.length === 0 || mod.baseElements.some(element => own.includes(element));
+}
+
+/** 바탕이 주는 속성 피해의 속성(phys, fire, light). */
+function getBaseElements(baseId) {
+    const base = BASE_ITEM_DB.find(row => row.id === baseId);
+    return Object.entries(BASE_ELEMENT_STATS).filter(([, stat]) => (base?.baseStats || []).some(row => row.id === stat)).map(([element]) => element);
+}
+const BASE_ELEMENT_STATS = Object.freeze({ phys: 'physPctDmg', fire: 'firePctDmg', light: 'lightPctDmg' });
+
+function isModForWeapon(mod, weaponCategory, item) {
+    return isModForWeaponCategory(mod, weaponCategory) && isModForBaseElement(mod, item);
+}
+
 /** 세계수 기운(12번 루프 27): 지역 전용 줄(MOD_DB regions, data/region-affixes.js)은 그 지역 아틀라스 지도에서 떨어진 장비에만 붙는다. */
 function isModForDropRegion(mod, region) {
     return !mod.regions || mod.regions.includes(region);
@@ -994,7 +1013,7 @@ function getAvailableModPoolKey(item) {
     const summonSlot = item.slot === '무기' || item.slot === '반지';
     return [item.slot, item.rarity === 'unique' ? 'unique' : '', isKaleidoscopeShieldItem(item) ? 'kaleidoscope' : '', getWeaponCategoryId(item) || '',
         summonSlot && hasSummonBaseStat(item) ? 'summon' : '', [...getItemBaseDefenseTypes(item)].join('+'),
-        isDefenseTypeStatAllowed(item, 'blockChancePct') ? 'block' : '', item.dropRegion || '', item.influence || ''].join('|');
+        isDefenseTypeStatAllowed(item, 'blockChancePct') ? 'block' : '', item.dropRegion || '', item.influence || '', getBaseElements(item.baseId).join('+')].join('|');
 }
 
 /** Stats this base never takes: deflection without evasion, spell gem levels on a shield without energy shield (the kaleidoscope
@@ -1010,7 +1029,7 @@ function getBlockedAvailableModStats(item) {
 /** Every row the item's kind can take, each with the stats it would occupy (dual defence parts included). */
 function buildAvailableModPool(item) {
     const allowedSlots = getAvailableModSlotsForItem(item), blocked = getBlockedAvailableModStats(item), weaponCategory = getWeaponCategoryId(item);
-    return Object.freeze(MOD_DB.filter(mod => isModForWeaponCategory(mod, weaponCategory) && isModForOrigin(mod, item) && !blocked.has(mod.statId || mod.id)
+    return Object.freeze(MOD_DB.filter(mod => isModForWeapon(mod, weaponCategory, item) && isModForOrigin(mod, item) && !blocked.has(mod.statId || mod.id)
         && isDefenseTypeStatAllowed(item, mod.statId || mod.id) && isPrimaryDualDefenseAffixMod(item, mod)
         && allowedSlots.some(slot => mod.slots.includes(slot))).map(mod => {
         const shaped = makeDualDefenseAffixMod(item, mod);

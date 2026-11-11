@@ -222,7 +222,7 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['현자의 불꽃 플라스크','philosopher_flask',69,0,80,80],
     ['순례자의 향로','incense_censer',5,5,0,5],
     ['성가대의 사슬','chapel_censer',37,40,0,40],
-    ['새벽 성화의 향로','sunrise_censer',69,80,0,80],
+    ['새벽 성화의 향로','phoenix_censer',69,80,0,80],
     // 등급 17~20 일반 고유(2026-10-09, data/items.js): 수평 베이스 위
     ['왕을 베는 고목','oak_maul',62,95,0,0],
     ['쫓는 자의 발자국','phantom_treads',62,0,90,0],
@@ -267,7 +267,7 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['끓어넘치는 밀랍병','alchemist_retort',49,0,55,55],
     ['액막이 향로','ember_censer',29,30,0,30],
     ['군락을 사르는 향','coal_censer',41,45,0,45],
-    ['마지막 수호의 향로','chapel_censer',49,55,0,55],
+    ['마지막 수호의 향로','steel_censer',49,55,0,55],
     // 콘텐츠 귀속 고유(2026-10-22)
     ['미궁 수문장의 관','bastion_helm',21,40,0,0],
     ['층계참의 반지','topaz_ring',17,0,0,0],
@@ -286,7 +286,7 @@ const UNIQUE_EQUIPMENT_RULES = Object.freeze(Object.fromEntries([
     ['고요한 맹세','bastion_aegis',57,80,0,40],
     ['수액 냄새 밴 장화','hawkstride_boots',45,0,60,0],
     ['일곱 번째 행운의 병','alchemist_retort',53,0,60,60],
-    ['꿈결의 향로','chapel_censer',53,60,0,60],
+    ['꿈결의 향로','steel_censer',53,60,0,60],
     ['황금을 빚는 손','hunting_gauntlets',49,40,40,0],
     ['비워 둔 자리','engraved_ring',45,0,0,0],
     ['편린을 꿴 허리띠','vine_chain_belt',53,60,0,0]
