@@ -137,6 +137,25 @@ const atlasUi = (() => {
         queueImportantSave(200);
         refresh();
     }
+    /** { 등급: 수 } -> "9등급 2개, 8등급 1개"(높은 등급부터). */
+    const tierCounts = made => Object.entries(made).sort(([a], [b]) => b - a).map(([tier, count]) => _t('{tier}등급 {count}개', { tier, count })).join(', ');
+    const sumOf = made => Object.values(made).reduce((sum, count) => sum + count, 0);
+    /** 타락, 수호자 지도석을 뺀 지도석을 등급마다 셋씩 모두 합친다(atlas.combineAllPlan). 한 번만 묻고, 묻는 사이 보관함이 바뀌면 합치지 않는다. */
+    async function combineAll() {
+        const busy = atlas.runOpenReason(game), plan = atlas.combineAllPlan(game);
+        if (busy) return addLog(busy, 'attack-monster');
+        if (!plan.used) return addLog(_t('셋씩 합칠 지도석이 없습니다.'), 'attack-monster');
+        const ok = await requestGameConfirmation(_t('지도석 {used}개를 합쳐 새 지도석 {made}개를 만들까요?\n{list}\n타락, 수호자 지도석은 남습니다.', { used: plan.used, made: sumOf(plan.made), list: tierCounts(plan.made) }),
+            { title: _t('지도석 합치기'), confirmLabel: _t('합치기'), cancelLabel: _t('취소'), dismissOnBackdrop: false });
+        if (!ok) return;
+        if (JSON.stringify(atlas.combineAllPlan(game)) !== JSON.stringify(plan)) return addLog(_t('보관함이 바뀌어 합치기를 취소했습니다. 다시 눌러 주세요.'), 'attack-monster');
+        const result = atlas.combineAll(game), made = {};
+        for (const map of result.made) made[map.tier] = (made[map.tier] || 0) + 1;
+        if (!ledger().stash.some(map => map.uid === selectedUid)) selectedUid = [...result.made].sort((a, b) => b.tier - a.tier)[0]?.uid ?? null;
+        addLog(_t('🗺️ 지도석 {used}개를 합쳐 새 지도석 {made}개를 얻었습니다({list}).', { used: result.used, made: result.made.length, list: tierCounts(made) }), 'loot-normal');
+        queueImportantSave(200);
+        refresh();
+    }
     function craft(key) {
         const map = selectedMap();
         if (!map) return;
@@ -440,12 +459,17 @@ const atlasUi = (() => {
         return `<button class="atlas-stash-row rarity-${map.rarity}" aria-pressed="${map.uid === selectedUid}" onclick="atlasUi.selectMap(${map.uid})">
             <b style="${tierStyle(map.tier)}">${map.tier}</b><span>${escapeHTML(nodeName(map.node))}${omenChipHtml(map)}</span><small>${_t(ATLAS.rarities[map.rarity].name)}${map.mods.length ? _t(', 옵션 {length}', { length: map.mods.length }) : ''}${map.quality ? `, ${map.quality}%` : ''}${map.corrupted ? _t(', 타락') : ''}</small></button>`;
     }
-    /** 고른 지도석의 도구: 같은 등급 셋 합치기, 버리기, 그 등급 이하 일반 지도석 정리. */
+    /** 모두 합치기(고른 지도석이 없어도 보인다): 쓰는 보관함 지도석 수. */
+    const combineAllHtml = () => {
+        const used = atlas.combineAllPlan(game).used;
+        return `<button class="atlas-combine" onclick="atlasUi.combineAll()" ${used ? '' : 'disabled'}>${_t('모두 합치기')} <span>${used}</span></button>`;
+    };
+    /** 고른 지도석의 도구: 같은 등급 셋 합치기, 모두 합치기(좁은 서랍에서 버리기와 한 줄), 버리기, 그 등급 이하 일반 지도석 정리. */
     function stashToolsHtml(selected, busy) {
         const same = ledger().stash.filter(map => map.tier === selected.tier).length, reason = atlas.combineReason(game, selected.uid);
         const low = plainUpTo(selected.tier), off = busy ? 'disabled' : '';
         const why = reason && same >= ATLAS.combine.count && !busy ? `<small>${escapeHTML(reason)}</small>` : '';
-        return `<div class="atlas-stash-tools"><button class="atlas-combine" onclick="atlasUi.combine()" ${reason ? 'disabled' : ''}>${_t('같은 등급 {count}개 합치기', { count: ATLAS.combine.count })} <span>${Math.min(same, ATLAS.combine.count)}/${ATLAS.combine.count}</span></button>
+        return `<div class="atlas-stash-tools"><button class="atlas-combine" onclick="atlasUi.combine()" ${reason ? 'disabled' : ''}>${_t('같은 등급 {count}개 합치기', { count: ATLAS.combine.count })} <span>${Math.min(same, ATLAS.combine.count)}/${ATLAS.combine.count}</span></button>${combineAllHtml()}
             <button class="atlas-discard" onclick="atlasUi.discard()" ${off}>${_t('버리기')}</button>
             <button class="atlas-discard" onclick="atlasUi.discardLow()" ${off || (low ? '' : 'disabled')}>${_t('{tier}등급 이하 일반 모두 버리기', { tier: selected.tier })} <span>${low}</span></button></div>${why}`;
     }
@@ -454,7 +478,7 @@ const atlasUi = (() => {
         const selected = selectedMap(), busy = atlas.runOpenReason(game), full = maps.length >= ATLAS.stashCap;
         const capacity = full ? '보관함이 가득 찼습니다.' : _t('빈자리 {value}칸', { value: ATLAS.stashCap - maps.length });
         const management = selected ? `<div class="atlas-stash-management"><p><strong>${_t('선택: {node}', { node: escapeHTML(nodeName(selected.node)) })}</strong><span><b style="${tierStyle(selected.tier)}">${selected.tier}등급</b>, ${_t(ATLAS.rarities[selected.rarity].name)}${selected.quality ? _t(', 품질 {quality}%', { quality: selected.quality }) : ''}${selected.corrupted ? _t(', 타락') : ''}</span></p>
-            ${stashToolsHtml(selected, busy)}${busy ? `<small>${busy}</small>` : ''}</div>` : '';
+            ${stashToolsHtml(selected, busy)}${busy ? `<small>${busy}</small>` : ''}</div>` : `<div class="atlas-stash-management"><div class="atlas-stash-tools">${combineAllHtml()}</div></div>`;
         return `<section class="atlas-stash" aria-label="${_t('지도석 보관함')}"><h3>${_t('지도석 보관함')} <span>${maps.length}/${ATLAS.stashCap}</span></h3>
             <p class="atlas-stash-capacity${full ? ' is-full' : ''}" role="status">${capacity}</p>${management}
             ${maps.length ? `<div class="atlas-stash-list">${maps.map(stashRowHtml).join('')}</div>` : _t('<p class="atlas-muted">비어 있습니다. 보관함은 루프마다 비워집니다.</p>')}</section>`;
@@ -610,7 +634,7 @@ const atlasUi = (() => {
         const card = map ? `<section class="atlas-device" aria-label="${_t('지도 장치')}">${mapCardHtml(map, buildMapPowerEstimateHtml(atlas.preview(game, map)))}
             <div class="atlas-crafts" aria-label="${_t('지도석 제작')}">${CRAFT_ORDER.map(key => craftButtonHtml(map, key)).join('')}</div>${flowersHtml(map)}${chancesHtml()}</section>` : '';
         const side = st.run ? runHtml(st.run) : node && node.kind === 'pinnacle' ? pinnacleHtml(node) : card;
-        const tools = map ? `${stashToolsHtml(map, busy)}${busy ? `<small>${busy}</small>` : ''}` : '';
+        const tools = map ? `${stashToolsHtml(map, busy)}${busy ? `<small>${busy}</small>` : ''}` : `<div class="atlas-stash-tools">${combineAllHtml()}</div>`;
         return { node: selectedNode, uid: selectedUid, lock: atlas.lockReason(game) || block, block, side, tools, after: `${autoOptionsHtml()}${resultHtml()}`, mapName };
     }
     /** 노드를 곧바로 두 번 누름(js/atlas-sheet-ui.js tap): 그 노드의 지도석이 있으면 고르고 연다. */
@@ -726,6 +750,6 @@ const atlasUi = (() => {
     }
     window.addEventListener('project-idle:atlas-map', event => announce(event.detail));
     // journey: the next-goal card's title, text, label and action (the world map's 바로 가기 row, js/world-map-brief-ui.js).
-    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, journey: journeyState, selectRegion, selectNode, openNode, selectMap, revealDevice, revealStash, hint, nodeLabel, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
+    return Object.freeze({ render, refresh, updateHud, openPanel, setView, pages, progressLine, journey: journeyState, selectRegion, selectNode, openNode, selectMap, revealDevice, revealStash, hint, nodeLabel, craft, flowerOmen, goldenFlowerOmen, discard, discardLow, combine, combineAll, toggleFragment, open, openPinnacle, reenter, abandon, toggleAuto, toggleAutoGuardians });
 })();
 safeExposeGlobals({ atlasUi });
