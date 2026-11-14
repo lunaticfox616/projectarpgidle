@@ -21,9 +21,13 @@ export function allocationGetPassiveTreeRootNode(env, owner) {
     return env.deps.PASSIVE_TREE.nodes[allocationGetPassiveTreeRootNodeId(env, owner)] || null;
 }
 
-export function allocationGetPassiveGatedStartIds(env, owner) {
+function grantedClassStarts(env, owner) {
     const opened = (owner.passives || []).map(id => env.deps.PASSIVE_TREE.nodes[id]).filter(node => node && node.kind === 'keystone' && env.deps.PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]);
-    return new Set(opened.map(node => env.deps.PASSIVE_TREE_V22.classStarts[env.deps.PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]]).filter(Boolean));
+    return new Map(opened.map(node => [node.id, env.deps.PASSIVE_TREE_V22.classStarts[env.deps.PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]]]).filter(([, startId]) => !!startId));
+}
+
+export function allocationGetPassiveGatedStartIds(env, owner) {
+    return new Set(grantedClassStarts(env, owner).values());
 }
 
 export function allocationGetPassiveBlockedStartIds(env, owner) {
@@ -33,9 +37,11 @@ export function allocationGetPassiveBlockedStartIds(env, owner) {
     return new Set(Object.values(env.deps.PASSIVE_TREE.nodes).filter(node => node.kind === 'start' && node.id !== rootId && !gated.has(node.id)).map(node => node.id));
 }
 
-/** 연결 판정 재료: 직업 시작점, 블랙홀 초월 공허(무료 연결 거점), 안드로메다 초월 공허 반경 안의 노드(연결 없이 할당), 길 간선. */
+/** 직업 시작점과 키스톤으로 부여한 시작점, 블랙홀은 무료 연결 거점이다. 저장·반환도 같은 거점을 사용한다. */
 export function allocationGetPassiveRouting(env, owner) {
     const allocated = new Set(owner.passives || []);
-    return { root: allocationGetPassiveTreeRootNodeId(env, owner), virtual: env.deps.passiveRouting.transcendentNodeIds(owner, 'blackHole'),
-        free: env.deps.passiveRouting.freeNodes(env.deps.PASSIVE_TREE, owner), passable: allocationGetPassiveGatedStartIds(env, owner), edges: env.deps.PASSIVE_TREE.edges.filter(edge => env.deps.isPassiveTreePathEdge(owner, edge, allocated)) };
+    const virtual = env.deps.passiveRouting.transcendentNodeIds(owner, 'blackHole');
+    return { root: allocationGetPassiveTreeRootNodeId(env, owner), virtual,
+        grantedStarts: grantedClassStarts(env, owner),
+        free: env.deps.passiveRouting.freeNodes(env.deps.PASSIVE_TREE, owner), edges: env.deps.PASSIVE_TREE.edges.filter(edge => env.deps.isPassiveTreePathEdge(owner, edge, allocated)) };
 }

@@ -1377,9 +1377,12 @@
   function allocationGetPassiveTreeRootNode(env, owner) {
     return env.deps.PASSIVE_TREE.nodes[allocationGetPassiveTreeRootNodeId(env, owner)] || null;
   }
-  function allocationGetPassiveGatedStartIds(env, owner) {
+  function grantedClassStarts(env, owner) {
     const opened = (owner.passives || []).map((id) => env.deps.PASSIVE_TREE.nodes[id]).filter((node) => node && node.kind === "keystone" && env.deps.PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]);
-    return new Set(opened.map((node) => env.deps.PASSIVE_TREE_V22.classStarts[env.deps.PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]]).filter(Boolean));
+    return new Map(opened.map((node) => [node.id, env.deps.PASSIVE_TREE_V22.classStarts[env.deps.PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]]]).filter(([, startId]) => !!startId));
+  }
+  function allocationGetPassiveGatedStartIds(env, owner) {
+    return new Set(grantedClassStarts(env, owner).values());
   }
   function allocationGetPassiveBlockedStartIds(env, owner) {
     const hasGates = Object.values(env.deps.PASSIVE_TREE.nodes).some((node) => node.kind === "keystone" && env.deps.PASSIVE_START_GATE_CLASS_BY_TITLE[node.title]);
@@ -1389,11 +1392,12 @@
   }
   function allocationGetPassiveRouting(env, owner) {
     const allocated = new Set(owner.passives || []);
+    const virtual = env.deps.passiveRouting.transcendentNodeIds(owner, "blackHole");
     return {
       root: allocationGetPassiveTreeRootNodeId(env, owner),
-      virtual: env.deps.passiveRouting.transcendentNodeIds(owner, "blackHole"),
+      virtual,
+      grantedStarts: grantedClassStarts(env, owner),
       free: env.deps.passiveRouting.freeNodes(env.deps.PASSIVE_TREE, owner),
-      passable: allocationGetPassiveGatedStartIds(env, owner),
       edges: env.deps.PASSIVE_TREE.edges.filter((edge) => env.deps.isPassiveTreePathEdge(owner, edge, allocated))
     };
   }
@@ -1416,6 +1420,9 @@
     let result = new Set((owner && Array.isArray(owner.passives) ? owner.passives : []).filter((id) => allocationIsPassiveNodeAvailable(env, owner, id)).map(String));
     const rootId = allocationGetPassiveTreeRootNodeId(env, owner);
     if (allocationIsPassiveNodeAvailable(env, owner, rootId)) result.add(rootId);
+    for (const id of allocationGetPassiveGatedStartIds(env, owner || {})) {
+      if (allocationIsPassiveNodeAvailable(env, owner, id)) result.add(id);
+    }
     return result;
   }
 
@@ -1504,7 +1511,7 @@
     let queueIndex = 0;
     const previous = new Map(queue.map((id) => [id, null]));
     const adjacency = env.deps.getPassiveTreeAdjacency(owner);
-    const blockedStarts = allocationGetPassiveBlockedStartIds(env, owner), openedStarts = allocationGetPassiveGatedStartIds(env, owner);
+    const blockedStarts = allocationGetPassiveBlockedStartIds(env, owner);
     const walkable = (id) => allocationIsPassiveNodeAvailable(env, owner, id) && !blockedStarts.has(id);
     while (queueIndex < queue.length && !previous.has(targetNodeId)) {
       const current2 = queue[queueIndex++];
@@ -1521,7 +1528,7 @@
       path.push(current);
       current = previous.get(current);
     }
-    return path.reverse().filter((id) => !openedStarts.has(id));
+    return path.reverse();
   }
   function allocationGetPassiveKeystoneConflict(env, owner, path) {
     const owned = new Set(owner.passives || []), pending = new Set(path || []);

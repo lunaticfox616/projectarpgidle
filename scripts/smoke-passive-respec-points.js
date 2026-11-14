@@ -10,6 +10,62 @@ async function resetPassiveTree() {
     return vm.runInContext('resetPassiveTreeByGoldenRule()', context);
 }
 
+function verifyGrantedClassStarts() {
+    const { run: play } = replayFixture();
+    const rows = JSON.parse(play(`JSON.stringify((() => {
+        game.season = 2;
+        contentProgression.purchase('passiveTree');
+        const initial = JSON.parse(serializeSaveState(game));
+        return Object.entries(PASSIVE_START_GATE_CLASS_BY_TITLE).map(([title, classId]) => {
+            game = mergeDefaults({ ...initial, selectedClassId: classId === 'warrior' ? 'archer' : 'warrior' });
+            game.passivePoints = 999;
+            const gate = Object.values(PASSIVE_TREE.nodes).find(node => node.title === title);
+            const start = PASSIVE_TREE_V22.classStarts[classId];
+            const neighbors = getPassiveTreeAdjacency().get(start);
+            calculateReachableNodes();
+            const closedBefore = !reachableNodes.has(start);
+            const grant = activatePassivePath(gate.id);
+            calculateReachableNodes();
+            const remoteOpened = reachableNodes.has(start);
+            const targets = neighbors.filter(id => !game.passives.includes(id));
+            const onePoint = targets.every(id => getPassiveActivationPath(id).length === 1);
+            const clickable = targets.every(id => reachableNodes.has(id));
+            const before = game.passivePoints;
+            const taken = activatePassivePath(targets[0]);
+            const paidOnce = before - game.passivePoints === 1 && !game.passives.includes(start);
+            const refundBlocked = !canRefundPassiveNode(gate.id);
+            const ids = game.passives.slice(), points = game.passivePoints;
+            game = mergeDefaults(JSON.parse(serializeSaveState(game)));
+            calculateReachableNodes();
+            const restored = JSON.stringify(ids) === JSON.stringify(game.passives) && points === game.passivePoints;
+            const stillClickable = targets.slice(1).every(id => reachableNodes.has(id));
+            game.passives = game.passives.filter(id => id !== targets[0]);
+            const refundAllowed = canRefundPassiveNode(gate.id);
+            game.passives = game.passives.filter(id => id !== gate.id);
+            calculateReachableNodes();
+            const closedAgain = !reachableNodes.has(start) && targets.every(id => getPassiveActivationPath(id).length > 1);
+            game.passives = ids.filter(id => id !== grant.path[0]);
+            const budget = passiveRouting.pointBudget(game);
+            refreshPassiveConnectivity();
+            const revoked = !game.passives.includes(gate.id) && !game.passives.includes(targets[0])
+                && passiveRouting.pointBudget(game) === budget;
+            return { title, unlocked: grant.activated, closedBefore, remoteOpened, count: targets.length, onePoint, clickable,
+                activated: taken.activated, paidOnce, restored, stillClickable, closedAgain, refundBlocked, refundAllowed, revoked };
+        });
+    })())`));
+    assert.strictEqual(rows.length, 6);
+    for (const row of rows) {
+        assert.ok(row.unlocked && row.count > 0, `${row.title}: the keystone is allocated through a legal path`);
+        assert.ok(row.closedBefore && row.remoteOpened, `${row.title}: allocation grants the remote starting point immediately`);
+        assert.ok(row.onePoint && row.clickable, `${row.title}: one-point nodes across the start must be clickable`);
+        assert.ok(row.activated && row.paidOnce, `${row.title}: charge only the paid node, never the free start`);
+        assert.ok(row.restored && row.stillClickable, `${row.title}: save/load preserves the route and points`);
+        assert.ok(row.closedAgain, `${row.title}: a missing gate must close traversal`);
+        assert.ok(row.refundBlocked && row.refundAllowed, `${row.title}: refund must protect nodes relying on the granted start`);
+        assert.ok(row.revoked, `${row.title}: automatic removal must revoke the origin and refund dependent nodes immediately`);
+    }
+}
+
 function verifyEditedTree() {
     const { run: play } = replayFixture();
     const read = expression => JSON.parse(play('JSON.stringify(' + expression + ')'));
@@ -191,6 +247,7 @@ async function main() {
     assert.strictEqual(run('game.ascendKeystonePoints'), 3, 'keystone reset should refund every allocation');
     assert.deepStrictEqual(JSON.parse(run('JSON.stringify(game.ascendKeystones)')), []);
 
+    verifyGrantedClassStarts();
     verifyEditedTree();
     console.log('smoke-passive-respec-points passed');
 }

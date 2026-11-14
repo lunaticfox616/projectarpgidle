@@ -1,6 +1,6 @@
 // Passive-tree connectivity, point settlement and void-passive line scaling. No UI or passive-controller dependencies.
 // Moved out of the star-wedge rules when star wedges were removed (2026-10-01, docs/aux-consolidation-20260930.md 6단계):
-// - roots are the class start plus allocated voids whose transcendent is 블랙홀 (a free connection root);
+// - roots are the class start, starts granted by keystones, and allocated 블랙홀 voids (free connection roots);
 // - allocated 안드로메다 voids let nodes within andromedaRadius be allocated without a path (points and unlock
 //   conditions still apply);
 // - 창백한 푸른 점 voids lend passive points, which settlement takes back when their node goes.
@@ -48,15 +48,23 @@ function adjacencyOf(state, routing) {
     });
     return adjacency;
 }
+function connectionRoots(state, routing, owned) {
+    const roots = new Set([routing.root, ...routing.virtual.filter(id => owned.has(id))]);
+    // Settlement may remove a granting keystone between passes. Never keep its stale origin.
+    for (const [keystone, start] of routing.grantedStarts || []) {
+        if (owned.has(keystone)) roots.add(start);
+    }
+    state.passives.forEach(id => { if (routing.free.has(id)) roots.add(id); });
+    return roots;
+}
 function connected(state, tree, routing) {
     const owned = new Set(state.passives);
-    const roots = new Set([routing.root, ...routing.virtual]);
-    state.passives.forEach(id => { if (routing.free.has(id)) roots.add(id); });
+    const roots = connectionRoots(state, routing, owned);
     const adjacency = adjacencyOf(state, routing);
     const queue = [...roots], seen = new Set(roots);
     for (let i = 0; i < queue.length; i++) {
         (adjacency.get(queue[i]) || []).forEach(id => {
-            if ((!owned.has(id) && !(routing.passable && routing.passable.has(id))) || seen.has(id)) return;   // passable: a start opened by its route keystone
+            if (!owned.has(id) || seen.has(id)) return;
             seen.add(id); queue.push(id);
         });
     }

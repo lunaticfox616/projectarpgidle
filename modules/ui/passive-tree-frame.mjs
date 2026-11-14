@@ -54,7 +54,7 @@ export function getHoveredPassiveLinkedIds(runtime, hoverId) {
 
 export function createPassiveDrawFrame(runtime) {
     const hoverId = runtime.deps.hoverNode && runtime.deps.hoverNode.id ? runtime.deps.hoverNode.id : null;
-    const allocated = new Set(runtime.deps.game.passives || []);
+    const allocated = connectionNodes(runtime);
     return {
         hoverId,
         allocated,

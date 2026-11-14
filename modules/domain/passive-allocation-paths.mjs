@@ -1,5 +1,5 @@
 import { allocationIsPassiveNodeAvailable, allocationGetPassiveConnectionNodeIds } from './passive-allocation-availability.mjs';
-import { allocationGetPassiveTreeRootNodeId, allocationGetPassiveBlockedStartIds, allocationGetPassiveGatedStartIds } from './passive-allocation-roots.mjs';
+import { allocationGetPassiveTreeRootNodeId, allocationGetPassiveBlockedStartIds } from './passive-allocation-roots.mjs';
 
 /** Inactive nodes on the shortest available route, preserving tree edge order. */
 export function allocationGetPassiveActivationPath(env, owner, targetNodeId) {
@@ -24,7 +24,7 @@ function findActivationPath(env, owner, targetNodeId, connectionNodes, startNode
     let queueIndex = 0;
     const previous = new Map(queue.map(id => [id, null]));
     const adjacency = env.deps.getPassiveTreeAdjacency(owner);
-    const blockedStarts = allocationGetPassiveBlockedStartIds(env, owner), openedStarts = allocationGetPassiveGatedStartIds(env, owner);
+    const blockedStarts = allocationGetPassiveBlockedStartIds(env, owner);
     const walkable = id => allocationIsPassiveNodeAvailable(env, owner, id) && !blockedStarts.has(id);
     while (queueIndex < queue.length && !previous.has(targetNodeId)) {
         const current = queue[queueIndex++];
@@ -41,7 +41,7 @@ function findActivationPath(env, owner, targetNodeId, connectionNodes, startNode
         path.push(current);
         current = previous.get(current);
     }
-    return path.reverse().filter(id => !openedStarts.has(id));
+    return path.reverse();
 }
 
 export function allocationGetPassiveKeystoneConflict(env, owner, path) {

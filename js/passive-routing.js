@@ -43,17 +43,24 @@
     });
     return adjacency;
   }
-  function connected(state, tree, routing) {
-    const owned = new Set(state.passives);
-    const roots = /* @__PURE__ */ new Set([routing.root, ...routing.virtual]);
+  function connectionRoots(state, routing, owned) {
+    const roots = /* @__PURE__ */ new Set([routing.root, ...routing.virtual.filter((id) => owned.has(id))]);
+    for (const [keystone, start] of routing.grantedStarts || []) {
+      if (owned.has(keystone)) roots.add(start);
+    }
     state.passives.forEach((id) => {
       if (routing.free.has(id)) roots.add(id);
     });
+    return roots;
+  }
+  function connected(state, tree, routing) {
+    const owned = new Set(state.passives);
+    const roots = connectionRoots(state, routing, owned);
     const adjacency = adjacencyOf(state, routing);
     const queue = [...roots], seen = new Set(roots);
     for (let i = 0; i < queue.length; i++) {
       (adjacency.get(queue[i]) || []).forEach((id) => {
-        if (!owned.has(id) && !(routing.passable && routing.passable.has(id)) || seen.has(id)) return;
+        if (!owned.has(id) || seen.has(id)) return;
         seen.add(id);
         queue.push(id);
       });

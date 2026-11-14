@@ -1,4 +1,4 @@
-import { allocationGetPassiveTreeRootNodeId } from './passive-allocation-roots.mjs';
+import { allocationGetPassiveTreeRootNodeId, allocationGetPassiveGatedStartIds } from './passive-allocation-roots.mjs';
 
 export function allocationIsPassiveNodeAvailable(env, owner, nodeOrId) {
     let node = typeof nodeOrId === 'string' ? env.deps.PASSIVE_TREE.nodes[nodeOrId] : nodeOrId;
@@ -25,5 +25,9 @@ export function allocationGetPassiveConnectionNodeIds(env, owner) {
     let result = new Set((owner && Array.isArray(owner.passives) ? owner.passives : []).filter(id => allocationIsPassiveNodeAvailable(env, owner, id)).map(String));
     const rootId = allocationGetPassiveTreeRootNodeId(env, owner);
     if (allocationIsPassiveNodeAvailable(env, owner, rootId)) result.add(rootId);
+    // Granted class starts are free origins, even without a path from the original class.
+    for (const id of allocationGetPassiveGatedStartIds(env, owner || {})) {
+        if (allocationIsPassiveNodeAvailable(env, owner, id)) result.add(id);
+    }
     return result;
 }
