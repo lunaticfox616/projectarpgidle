@@ -18,7 +18,7 @@ test('an early resize waits for deferred combat dependencies before drawing', as
     await navigation;
     await page.locator('#btn-startup-guest').click();
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await expect(page.locator('#battlefield-canvas')).toBeVisible();
     expect(await page.locator('#battlefield-canvas').evaluate(canvas => canvas.width > 0 && canvas.height > 0)).toBe(true);
     expect(errors).toEqual([]);

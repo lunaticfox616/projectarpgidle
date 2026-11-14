@@ -68,9 +68,9 @@ async function captureEarlyGame(page) {
     await capture(page, 'login');
     await page.locator('#btn-startup-guest').click();
     await page.locator('[data-class-id="warrior"]').click();
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && window.GameModules.uiRuntime.status().idle);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length = 0;
         if (activeTutorial) dismissTutorial(false);
         game.combatHalted = true;

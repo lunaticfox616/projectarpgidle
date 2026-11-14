@@ -1,2661 +1,5154 @@
-// 주인공 능력치 계산(getPlayerStats의 단계들)과 룬 표시 값 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/player-stats*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-/** 재사용 대기시간 줄 of one stat evaluation (sum = getPlayerStats' bucket sum), for js/skills.js getSkillCooldownMs: the mobility
- * runes and the talisman curses. cooldownReductionCapBonus is 되감긴 모래시계's (js/combat-build-stats.js UNIQUE_EFFECT_STAT_LINES). */
-function collectCooldownStats(sum) {
-    const ids = ['cooldownRecovery', 'cooldownReduction', 'mobilityCooldownRecovery', 'mobilityCooldownReduction', 'cooldownReductionCapBonus'];
-    return Object.fromEntries(ids.map(id => [id, Math.max(0, sum(id))]));
-}
+  // modules/data/rune-runtime-settings.mjs
+  var NO_RUNE_BONUS_LEVELS = /* @__PURE__ */ Object.freeze({ permanentSkyBonus: 0, materialBonus: 0, engraveLevel: 0 });
 
-/** 캐릭터 탭 기타의 출처 줄(2026-11-12 사용자: 투사체와 대상이 몇 개, 어디서 붙는지). b: getPlayerStats의 버킷, stats: 더할 능력치들,
- * named: 패시브 트리 안에서 따로 보일 키스톤 몫([{ label, value }]). */
-function bucketSourceLines(b, stats, named) {
-    const sumOf = bucket => stats.reduce((sum, stat) => sum + (Number(bucket[stat]) || 0), 0);
-    return [
-        makeSourceLine('장비', sumOf(b.gearBase) + sumOf(b.gearExplicit)),
-        makeSourceLine('패시브 트리', sumOf(b.passive) - named.reduce((sum, row) => sum + row.value, 0)),
-        ...named.map(row => makeSourceLine(row.label, row.value)),
-        makeSourceLine('전직', sumOf(b.ascend)),
-        makeSourceLine('기타 성장', sumOf(b.season) + sumOf(b.reward))
-    ];
-}
-/** 투사체 추가 발사: 출처, 추가 발사 확률, 지금 주 스킬룬에 붙지 않는 까닭. extra: { skill, bladeShots, chancePct }. */
-function projectileShotsBreakdown(b, extra) {
-    const projectile = (extra.skill.tags || []).includes('projectile'), pattern = extra.skill.projectilePattern;
-    const total = ['gearBase', 'gearExplicit', 'passive', 'season', 'ascend', 'reward'].reduce((sum, key) => sum + (Number(b[key].projectileExtraShots) || 0), 0);
-    let why = projectile ? null : _t('지금 주 스킬룬은 투사체 스킬이 아니어서 붙지 않습니다.');
-    if (projectile && pattern && pattern.kind === 'fan') why = _t('부채꼴로 쏘는 스킬룬에는 붙지 않습니다.');
-    return { title: _t('투사체 추가 발사'), final: `+${Math.floor(total)}`, lines: [...bucketSourceLines(b, ['projectileExtraShots'], [{ label: '칼날 다발', value: extra.bladeShots }]),
-        extra.chancePct > 0 ? _t('추가 발사 확률 {value}%', { value: Math.round(extra.chancePct) }) : null, why].filter(Boolean) };
-}
-const atLeastOne = value => Math.max(1, Number(value) || 1);
-/** 대상 추가: 주 스킬룬의 기본 대상, 출처(투사체, 강타 스킬이면 그 줄도), 상한(투사체 12, 그 밖 6) 뒤의 각인과 효과 확장. extra: { skill, baseTargets, cappedTargets }. */
-function targetsBreakdown(b, extra) {
-    const tags = extra.skill.tags || [], projectile = tags.includes('projectile');
-    const stats = ['targetAny'].concat(projectile ? ['targetProjectile'] : [], tags.includes('slam') ? ['targetSlam'] : []);
-    const base = atLeastOne(extra.baseTargets), capped = atLeastOne(extra.cappedTargets), finalTargets = atLeastOne(extra.skill.targets);
-    const cap = projectile ? 12 : 6;
-    return { title: _t('대상 추가'), final: _t('대상 {value} (+{added})', { value: finalTargets, added: finalTargets - base }), lines: [
-        _t('주 스킬룬 기본 대상 {value}', { value: base }), ...bucketSourceLines(b, stats, []),
-        makeSourceLine('각인, 효과 확장', finalTargets - capped), capped === cap && capped > base ? _t('대상 상한 {value}', { value: cap }) : null].filter(Boolean) };
-}
-const getProjectileTargetBreakdowns = (b, extra) => ({ projectileShots: projectileShotsBreakdown(b, extra), targets: targetsBreakdown(b, extra) });
-
-/** Ocean stats of one stat evaluation (sum = getPlayerStats' bucket sum): pressure resistance (with its upgrades), depth gain, rare fish. */
-function collectOceanStats(sum) {
-    const pressureUpgrade = typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0;
-    return {
-        oceanPressureResist: Math.max(0, Math.min(80, sum('oceanPressureResist') + pressureUpgrade)),
-        oceanDepthGainPct: Math.max(0, sum('oceanDepthGainPct')),
-        oceanRareFishChancePct: Math.max(0, sum('oceanRareFishChancePct'))
-    };
-}
-
-/** The next attack's counter multiplier, used once: the lone-evasion counter (unique) and the block empower (region line). */
-/** Damage taken after the situational reductions: one or two-plus enemies alive, then the region lines (half life or less, a chilled
- * attacker; js/region-affix-effects.js). */
-function applySituationalTakenReduction(dmg, pStats, attacker, aliveEnemies) {
-    const crowdPct = aliveEnemies >= 2 ? pStats.takenDamageReduceWhen2EnemiesPct : pStats.takenDamageReduceWhen1EnemyPct;
-    const reduced = aliveEnemies >= 1 ? Math.max(1, Math.floor(dmg * (1 - Math.max(0, Math.min(0.9, (crowdPct || 0) / 100))))) : dmg;
-    const regionMul = regionAffixEffects.takenDamageMultiplier(pStats, attacker);
-    return regionMul === 1 ? reduced : Math.max(1, Math.floor(reduced * regionMul));
-}
-
-/** A block's stone shield (talent card), with its status text. */
-function grantTalentStoneShieldOnBlock(pStats) {
-    if (typeof grantTalentStoneShield !== 'function') return;
-    const stoneShield = grantTalentStoneShield(pStats.maxHp);
-    if (stoneShield) addBattleFx('statusText', { text: _t('돌 보호막 +{amount}', { amount: stoneShield.amount }), color: '#d8b77a', duration: 300 });
-}
-
-/** A block's energy shield recovery (unique): a share of the maximum, up to the recovery cap. */
-function recoverEnergyShieldOnBlock(pStats) {
-    if (!((pStats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (pStats.energyShield || 0) > 0)) return;
-    const recover = Math.max(1, Math.floor((pStats.energyShield || 0) * Math.max(0, Number(pStats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100));
-    game.playerEnergyShield = Math.min(getPlayerEnergyShieldRecoveryCap(pStats), Math.max(0, Number(game.playerEnergyShield) || 0) + recover);
-}
-
-function consumeLoneEvasionCounterMultiplier(pStats, now) {
-    let at = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    return consumeLoneEvasionCounter(pStats, at) * regionAffixEffects.consumeBlockEmpower(at);
-}
-
-function consumeLoneEvasionCounter(pStats, at) {
-    let counter = pStats && pStats.uniqueLoneEvasionCounter;
-    if (!counter || (game.uniqueLoneEvasionCounterUntil || 0) <= at) return 1;
-    game.uniqueLoneEvasionCounterUntil = 0;
+  // modules/domain/player-combat-effects.mjs
+  function effectTime(now, clock) {
+    return Number.isFinite(Number(now)) ? Number(now) : clock();
+  }
+  function situationalTakenReduction(damage, stats, aliveEnemies, regionMultiplierOf) {
+    const crowdPct = aliveEnemies >= 2 ? stats.takenDamageReduceWhen2EnemiesPct : stats.takenDamageReduceWhen1EnemyPct;
+    const reduced = aliveEnemies >= 1 ? Math.max(1, Math.floor(damage * (1 - Math.max(0, Math.min(0.9, (crowdPct || 0) / 100))))) : damage;
+    const regionMultiplier = regionMultiplierOf();
+    return regionMultiplier === 1 ? reduced : Math.max(1, Math.floor(reduced * regionMultiplier));
+  }
+  function recoverBlockShield(owner, stats, recoveryCap) {
+    if (!((stats.uniqueBlockRecoverEnergyShieldPct || 0) > 0 && (stats.energyShield || 0) > 0)) return;
+    const recovered = Math.max(1, Math.floor((stats.energyShield || 0) * Math.max(0, Number(stats.uniqueBlockRecoverEnergyShieldPct || 0)) / 100));
+    owner.playerEnergyShield = Math.min(recoveryCap(stats), Math.max(0, Number(owner.playerEnergyShield) || 0) + recovered);
+  }
+  function consumeEvasionCounter(owner, stats, at) {
+    const counter = stats && stats.uniqueLoneEvasionCounter;
+    if (!counter || (owner.uniqueLoneEvasionCounterUntil || 0) <= at) return 1;
+    owner.uniqueLoneEvasionCounterUntil = 0;
     return 1 + Math.max(0, Number(counter.damageMorePct || 20)) / 100;
-}
-
-function advanceEnergyShieldRechargeOnCrit(pStats, now) {
-    let config = pStats && pStats.uniqueCritAdvanceEsRecharge;
-    let at = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    let recoveryCap = pStats ? getPlayerEnergyShieldRecoveryCap(pStats) : 0;
-    if (!config || recoveryCap <= 0 || (game.playerEnergyShield || 0) >= recoveryCap || (game.uniqueCritEsAdvanceReadyAt || 0) > at) return false;
-    let previousHitAt = Number.isFinite(game.playerEsLastHitAt) ? game.playerEsLastHitAt : at;
-    game.playerEsLastHitAt = Math.max(0, previousHitAt - Math.max(0, Number(config.advanceSec || 0.25)) * 1000);
-    game.uniqueCritEsAdvanceReadyAt = at + Math.max(0, Number(config.cooldownSec || 0.6)) * 1000;
+  }
+  function rechargeBlocked(owner, cap, at) {
+    return cap <= 0 || (owner.playerEnergyShield || 0) >= cap || (owner.uniqueCritEsAdvanceReadyAt || 0) > at;
+  }
+  function advanceShieldRecharge(owner, stats, now, deps) {
+    const config = stats && stats.uniqueCritAdvanceEsRecharge;
+    const at = effectTime(now, deps.clock);
+    const cap = stats ? deps.recoveryCap(stats) : 0;
+    if (!config || rechargeBlocked(owner, cap, at)) return false;
+    const previousHitAt = Number.isFinite(owner.playerEsLastHitAt) ? owner.playerEsLastHitAt : at;
+    owner.playerEsLastHitAt = Math.max(0, previousHitAt - Math.max(0, Number(config.advanceSec || 0.25)) * 1e3);
+    owner.uniqueCritEsAdvanceReadyAt = at + Math.max(0, Number(config.cooldownSec || 0.6)) * 1e3;
     return true;
-}
-
-function triggerUniqueEnergyShieldBreakRecharge(pStats, energyShieldBeforeHit, now) {
-    let config = pStats && pStats.uniqueEnergyShieldBreakRecharge;
-    let at = Number.isFinite(Number(now)) ? Number(now) : getCombatTime();
-    if (!config || energyShieldBeforeHit <= 0 || (game.playerEnergyShield || 0) > 0 || (game.uniqueEnergyShieldBreakRechargeReadyAt || 0) > at) return false;
-    game.uniqueEnergyShieldBreakRechargeUntil = at + Math.max(0.1, Number(config.duration || 3)) * 1000;
-    game.uniqueEnergyShieldBreakRechargeReadyAt = at + Math.max(0.1, Number(config.cooldown || 12)) * 1000;
+  }
+  function triggerShieldBreakRecharge(owner, stats, shieldBeforeHit, now, clock) {
+    const config = stats && stats.uniqueEnergyShieldBreakRecharge;
+    const at = effectTime(now, clock);
+    if (!config || shieldBeforeHit <= 0 || (owner.playerEnergyShield || 0) > 0 || (owner.uniqueEnergyShieldBreakRechargeReadyAt || 0) > at) return false;
+    owner.uniqueEnergyShieldBreakRechargeUntil = at + Math.max(0.1, Number(config.duration || 3)) * 1e3;
+    owner.uniqueEnergyShieldBreakRechargeReadyAt = at + Math.max(0.1, Number(config.cooldown || 12)) * 1e3;
     return true;
-}
-
-function getEquippedUniqueJewels() {
-    return getSocketedJewels().filter(row => row.jewel.rarity === 'unique' && row.jewel.uniqueId);
-}
-
-function getLabyrinthShacklesDamageMultiplier(moveSpeed) {
-    let reducedMoveSpeed = Math.max(0, Number(moveSpeed || 0) - 100);
-    return 1 + (reducedMoveSpeed * 0.5) / 100;
-}
-
-function getAbsoluteFloorDamageRoll(maxDamageRoll) {
-    return Math.max(5, Number(maxDamageRoll || 0) * 0.85);
-}
-
-function getSolitaryHuntDoubleStrikeBonus(originalTargets) {
-    let reducedTargets = Math.max(0, Math.floor(Number(originalTargets || 1)) - 1);
-    return (Math.min(5, reducedTargets) * ASCENDANCY_KEYSTONE_VALUES.h7.dsPerTarget) + (Math.max(0, reducedTargets - 5) * ASCENDANCY_KEYSTONE_VALUES.h7.dsPerTargetAfterFive);
-}
-
-function isDeferredTalentProjectileTargetEffect(effect) {
-    if (!effect || effect.key !== 'projectileTargetBonus') return false;
-    return effect.cardId === 'hero1__gladiator' || effect.talentCardId === 'hero1__gladiator';
-}
-
-/** @param {object|null} buff The active stolen trait; the stat calculator's tick drops it once it expires. */
-/** Timed buffs on the reward bucket, each through its tick reader (js/player-stat-cache.js): the elite trait buff and 세계수의 숨결
- * (js/combat-incidents.js breathe). */
-function applyTimedRewardStats(tick, bucket) {
-    applyEliteTraitBuffStats(tick.get('eliteTraitBuff'), bucket);
-    combatIncidents.breathStats(tick.get('incidentBreath')).forEach(([stat, value]) => addStatToBucket(bucket, stat, value));
-}
-
-function applyEliteTraitBuffStats(buff, bucket) {
-    if (!buff) return;
-    let trait = buff.trait || {};
-    if (trait.atkMul) addStatToBucket(bucket, 'pctDmg', Math.max(0, (Number(trait.atkMul) - 1) * 100));
-    if (trait.attackSpeedVarMul) addStatToBucket(bucket, 'aspd', Math.max(0, (Number(trait.attackSpeedVarMul) - 1) * 100));
-    if (trait.hpMul) addStatToBucket(bucket, 'pctHp', Math.max(0, (Number(trait.hpMul) - 1) * 100));
-    if (trait.critChanceBonus) addStatToBucket(bucket, 'crit', Number(trait.critChanceBonus || 0));
-    if (trait.dr) addStatToBucket(bucket, 'dr', Number(trait.dr || 0));
-    ['resF', 'resC', 'resL', 'resChaos'].forEach(stat => {
-        if (trait[stat]) addStatToBucket(bucket, stat, Number(trait[stat] || 0));
-    });
-    if (trait.hitRateGuard) addStatToBucket(bucket, 'evasionPct', Math.max(0, Number(trait.hitRateGuard || 0) * 100));
-}
-
-function grantEliteTraitBuffFromEnemy(enemy, pStats) {
-    if (!enemy || !enemy.isElite || !pStats || !pStats.uniqueStealEliteTrait) return;
-    let trait = enemy.trait || null;
+  }
+  function stealEliteTrait(owner, enemy, stats, clock) {
+    if (!enemy || !enemy.isElite || !stats || !stats.uniqueStealEliteTrait) return;
+    const trait = enemy.trait || null;
     if (!trait) return;
-    let durationMs = Math.max(1000, Math.floor(Number(pStats.uniqueStealEliteTrait.duration || 30) * 1000));
-    game.uniqueEliteTraitBuff = { trait: { ...trait }, expiresAt: getCombatTime() + durationMs };
-    if (game.settings && game.settings.showCombatLog !== false) addLog(_t('🩸 정예 특성 흡수: {name}', { name: _t(trait.name || '정예 특성') }), 'loot-unique', { noToast: true });
-}
-
-/**
- * The per-call end of getPlayerStats on a fresh copy: callers adjust the stats they get (condition buffs, chill, skill targets),
- * and a settlement may answer many calls with one kept calculation (js/player-stat-cache.js). Then the guardian last stand
- * cleanse, the summon DPS estimate against the current target and the immunity lines, in their old order. (The old end also
- * added the shock tracer's shock effect to the reward bucket after the stats were built, which nothing read.)
- */
-function finishPlayerStats(core, includeBreakdowns) {
-    const enemy = { ...core.stats };
-    if (enemy.sSkill) enemy.sSkill = { ...enemy.sSkill };
-    if (enemy.breakdowns) enemy.breakdowns = { ...enemy.breakdowns };
-    if (core.lastStandMaxHp !== null) cleanseGuardianLastStand(core.lastStandMaxHp);
-    let summonEstimate = estimateSummonDps(enemy, includeBreakdowns, core.gemEvaluation);
-    enemy.summonDps = Math.max(0, summonEstimate.total || 0);
-    enemy.directDps = Math.max(0, enemy.dps || 0);
-    enemy.totalDps = enemy.directDps + enemy.summonDps;
-    appendPlayerDpsBreakdowns(enemy, summonEstimate);
-    applyStatImmunities(enemy, core.immunity);
-    return enemy;
-}
-
-/** gd7 last stand: at half life or less, ailments are cleansed at most every 5 seconds. */
-function cleanseGuardianLastStand(maxHp) {
-    if (!((game.playerHp / Math.max(1, maxHp)) <= 0.5)) return;
-    let now = getCombatTime();
-    if ((game.guardianLastStandCleanseAt || 0) + 5000 <= now) {
-        game.playerAilments = [];
-        game.guardianLastStandCleanseAt = now;
-    }
-}
-
-function applyStatImmunities(enemy, immunity) {
-    if (immunity.ignite) enemy.immuneIgnite = true;
-    if (immunity.frostSentinel) { enemy.immuneChill = true; enemy.immuneFreeze = true; }
-    if (immunity.freeze) enemy.immuneFreeze = true;
-    if (immunity.shock) enemy.immuneShock = true;
-    if (immunity.bleed) enemy.immuneBleed = true;
-    if (immunity.closedEyes) {
-        enemy.immuneIgnite = true;
-        enemy.immuneChill = true;
-        enemy.immuneFreeze = true;
-        enemy.immuneShock = true;
-        enemy.immuneBleed = true;
-        enemy.immunePoison = true;
-    }
-}
-
-function appendPlayerDpsBreakdowns(stats, summonEstimate) {
-    if (!stats.breakdowns) return;
-    let directLines = stats.breakdowns.dps.lines;
-    stats.breakdowns.directDps = {
-        title: _t('직접 DPS'), lines: directLines.slice(), final: `${Math.floor(stats.directDps)}`
-    };
-    stats.breakdowns.summonDps = {
-        title: _t('소환 DPS'), lines: summonEstimate.lines || [], final: `${Math.floor(stats.summonDps)}`
-    };
-    stats.breakdowns.summonCap = {
-        title: _t('소환수 한도'),
-        lines: [
-            _t('현재 소환 한도 {summonCap}', { summonCap: stats.summonCap }),
-            _t('최대 소환 한도 {summonCapMaximum}', { summonCapMaximum: getSummonCapMaximum() }),
-            _t(hasKeystone('sb9') ? '대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태' : '기본 최대 한도 8')
-        ],
-        final: _t('{summonCap} / 최대 {summonCapMaximum}', { summonCap: stats.summonCap, summonCapMaximum: getSummonCapMaximum() })
-    };
-    stats.breakdowns.dps = {
-        title: _t('총 DPS'),
-        lines: [
-            _t('직접 DPS {floor}', { floor: Math.floor(stats.directDps) }),
-            _t('예상 소환 DPS {floor}', { floor: Math.floor(stats.summonDps) }),
-            _t('총 DPS = 직접 DPS + 예상 소환 DPS')
-        ].concat(directLines),
-        final: `${Math.floor(stats.totalDps)}`
-    };
-}
-
-/** A rune's shown numbers: a support rune's value at its level and active tier, else the skill at its final level (cores, quality,
- * the sky tower boost, a projectile pattern). Split by kind on 2026-10-18, same calls in the same order. */
-function getGemPresentation(name, isSupport, statsOverride) {
-    let stats = statsOverride || getPlayerStats();
-    let targetGemSources = getTargetGemBonusSources(name, stats.gemBonusSources);
-    if (isSupport) return getSupportGemPresentation(name, stats, targetGemSources, typeof getSupportActiveTier === 'function' ? getSupportActiveTier : null);
-    return getSkillGemPresentation(name, stats, targetGemSources);
-}
-
-/** A support rune's value at its level and tier (activeTierOf: ui.js's reader of the chosen tier, null in runs without it). */
-function getSupportGemPresentation(name, stats, targetGemSources, activeTierOf) {
-    let gem = normalizeGemRecord((game.supportGemData || {})[name]);
-    let db = SUPPORT_GEM_DB[name];
-    if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: _t('정의되지 않은 보조스킬룬'), statName: name, statId: null, gemBonusSources: targetGemSources };
-    let totalLevel = Math.max(1, gem.level + targetGemSources.total);
-    let val = db.baseVal + (getGemLevelGrowthSteps(totalLevel) * db.scale);
-    const { activeTier, tierMul } = getSupportGemTier(name, gem, activeTierOf);
-    let ratioPct = db.tierValues ? db.tierValues[activeTier - 1] : val * tierMul;
-    let scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
-    let value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
-    return { baseLevel: gem.level, totalLevel: totalLevel, value: value, desc: db.desc, statName: db.name, statId: db.stat, activeTier: activeTier, gemBonusSources: targetGemSources, scaleWithOwnStat: db.scaleWithOwnStat || null, scaleBase: scaleBase, scaleRatioPct: ratioPct };
-}
-
-/** A support rune's active tier and its multiplier (fallbacks for runs without the tier helpers). */
-function getSupportGemTier(name, gem, activeTierOf) {
-    let activeTier = activeTierOf ? activeTierOf(name) : Math.max(1, Math.min((typeof getSupportTierCap === 'function' ? getSupportTierCap(name) : 3), Math.floor(gem.activeTier || gem.unlockedTier || 1)));
-    let tierMul = typeof getSupportTierMultiplier === 'function' ? getSupportTierMultiplier(name, activeTier) : (activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2);
-    return { activeTier, tierMul };
-}
-
-/** A skill rune's levels, its leveled skill with a projectile pattern, and its core fields. */
-function getSkillGemPresentation(name, stats, targetGemSources) {
-    let db = SKILL_DB[name];
-    if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: _t('정의되지 않은 스킬'), skill: SKILL_DB['기본 공격'], tags: ['attack'] };
-    if (!db.isGem && !db.levelable) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: db.desc, statName: name, skill: db, tags: getSkillTagList(db) };
-    game.gemData = game.gemData || {};
-    let gem = normalizeGemRecord((game.gemData || {})[name]);
-    if (db.levelable) game.gemData[name] = gem;
-    const levels = getSkillGemLevels(name, db, gem, targetGemSources);
-    let skill = window.GameModules.combat.supports.resolve(applyGemPresentationPattern(name, getLeveledGemSkill(db, gem, levels.finalLevel), stats));
-    return {
-        baseLevel: gem.level, totalLevel: levels.totalLevel, finalLevel: levels.finalLevel, materialBonus: levels.materialBonus, permanentSkyBonus: levels.permanentSkyBonus, engraveLevel: levels.engraveLevel,
-        ...getSkillGemCoreFields(gem), desc: db.desc, skill: skill, tags: getSkillTagList(skill), gemBonusSources: targetGemSources
-    };
-}
-
-/** The sky tower boost, the core and awakening levels, the gear levels, the sky engraving's rune levels (as getActiveSkillStats), and
- * the total and final (base capped at 20) levels. */
-function getSkillGemLevels(name, db, gem, targetGemSources) {
-    const { permanentSkyBonus, materialBonus, engraveLevel } = db.isGem ? getSkillRuneBonusLevels(name, gem) : NO_RUNE_BONUS_LEVELS;
-    let levelBonus = db.isGem ? targetGemSources.total : 0;
-    let totalLevel = gem.level + levelBonus + materialBonus + engraveLevel;
-    let finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + engraveLevel;
-    return { permanentSkyBonus, materialBonus, engraveLevel, totalLevel, finalLevel };
-}
-
-/** The skill's damage, speed and crit at the final level, with quality and the core forge's damage and speed. */
-function getLeveledGemSkill(db, gem, finalLevel) {
-    let skill = { ...db };
-    skill.dmg = skill.baseDmg + (getGemLevelGrowthSteps(finalLevel) * skill.dmgScale);
-    skill.spd = skill.baseSpd + (getGemLevelGrowthSteps(finalLevel) * skill.spdScale);
-    if (skill.critScale) skill.crit = (skill.crit || 0) + (getGemLevelGrowthSteps(finalLevel, 0) * skill.critScale);
-    let qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
-    skill.dmg *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).damage : 1);
-    skill.spd *= qualityMul * (db.isGem ? gemCoreForge.effects(gem).speed : 1);
-    return skill;
-}
-
-/** The active skill's projectile pattern from the stats, else the sky tower's for this skill. */
-function applyGemPresentationPattern(name, skill, stats) {
-    let activePattern = name === game.activeSkill && stats.sSkill && stats.sSkill.projectilePatternSource
-        ? stats.sSkill : null;
-    let patternMode = activePattern && activePattern.projectilePattern
-        ? activePattern.projectilePattern.mode : getSkyProjectilePatternMode(name);
-    if (patternMode) skill = applyProjectilePatternMode(skill, patternMode, activePattern ? activePattern.projectilePatternSource : '창공 각인', activePattern ? activePattern.projectilePatternDamageMultiplier : null);
-    return skill;
-}
-
-function getSkillGemCoreFields(gem) {
-    return { enhanceLevel: gem.enhanceLevel || 0, skyEnhanceCap: gem.skyEnhanceCap || 1, quality: gem.quality || 0, awakened: !!gem.awakened };
-}
-
-/** 전직 노드 2026-11-11 상향의 능력치 배율(js/ascendancy-node-rules.js): 불굴의 진군(생명력 절반 이하, 떨어진 순간의 발동), 광분, 흐르는 칼끝. */
-function getAscendancyNodeStatMultipliers(tick, maxLife) {
-    const out = { damageMul: 1, takenMul: 1, aspdMul: 1, regenMul: 1 };
-    if (hasKeystone('w7') && tick.when('playerHp', hp => (hp / maxLife) <= 0.5)) {
-        out.damageMul *= 1 + ASCENDANCY_KEYSTONE_VALUES.w7.damageMorePct / 100;
-        out.takenMul *= 0.85;
-    }
-    if (hasKeystone('w7') && tick.get('warriorUnyielding')) {
-        out.takenMul *= 1 - ASCENDANCY_KEYSTONE_VALUES.w7.burstTakenLessPct / 100;
-        out.aspdMul *= 1 + ASCENDANCY_KEYSTONE_VALUES.w7.burstAspdMorePct / 100;
-    }
-    if (hasKeystone('bz2')) out.aspdMul *= 1 + getFrenzyAspdPct(tick, maxLife) / 100;
-    if (hasKeystone('bd1')) out.aspdMul *= 1 + tick.get('bladedancerFlowStacks') * ASCENDANCY_KEYSTONE_VALUES.bd1.aspdPctPerStack / 100;
-    if (hasKeystone('gw6') && tick.get('grovewardenRooted')) {
-        out.takenMul *= 1 - ASCENDANCY_KEYSTONE_VALUES.gw6.takenLessPct / 100;
-        out.regenMul *= ASCENDANCY_KEYSTONE_VALUES.gw6.regenMul;
-    }
-    return out;
-}
-/** 광분(bz2): 잃은 생명력 10%마다 공격 속도(%), 최대 maxPct. 생명력은 문턱과 비교만 한다(tick.when: 계산을 다시 쓸 수 있게). */
-function getFrenzyAspdPct(tick, maxLife) {
-    const v = ASCENDANCY_KEYSTONE_VALUES.bz2, steps = Math.ceil(v.maxPct / v.pctPerTenth);
-    let tenths = 0;
-    for (let k = 1; k <= steps; k++) if (tick.when('playerHp', hp => hp / maxLife <= 1 - k / 10)) tenths = k;
-    return Math.min(v.maxPct, tenths * v.pctPerTenth);
-}
-
-
-exposeFileGlobals({ getAscendancyNodeStatMultipliers, collectCooldownStats, getProjectileTargetBreakdowns, collectOceanStats, applySituationalTakenReduction, grantTalentStoneShieldOnBlock, recoverEnergyShieldOnBlock, consumeLoneEvasionCounterMultiplier, advanceEnergyShieldRechargeOnCrit, triggerUniqueEnergyShieldBreakRecharge, getEquippedUniqueJewels, getLabyrinthShacklesDamageMultiplier, getAbsoluteFloorDamageRoll, getSolitaryHuntDoubleStrikeBonus, isDeferredTalentProjectileTargetEffect, applyTimedRewardStats, grantEliteTraitBuffFromEnemy, finishPlayerStats, appendPlayerDpsBreakdowns, getGemPresentation, getSupportGemPresentation, getSupportGemTier, getSkillGemLevels });
-})();
-
-
-const getPassiveSpecialStatBreakdowns = function(rules) {
-    const mystique = Math.max(0, Number(rules.mystique && rules.mystique.damagePct) || 0);
-    const cycle = Math.max(0, Number(rules.cycle) || 0);
-    const devotion = Math.max(0, Number(rules.devotion) || 0);
-    const ailmentLabel = _t(getAilmentDisplayLabel(rules.mystique && rules.mystique.ailment));
-    const activeCycleLines = (rules.activeCycleBuffEffects || []).map(effect => {
-        const stat = P_STATS[effect.stat] || {};
-        const suffix = stat.isPct ? '%' : '';
-        return _t('{source} 종료 효과: {stat} +{stat2}{suffix}', { source: _t(getAilmentDisplayLabel(effect.source)), stat: _t(getStatName(effect.stat)), stat2: formatValue(effect.stat, effect.val), suffix });
+    const durationMs = Math.max(1e3, Math.floor(Number(stats.uniqueStealEliteTrait.duration || 30) * 1e3));
+    owner.uniqueEliteTraitBuff = { trait: { ...trait }, expiresAt: clock() + durationMs };
+    return trait;
+  }
+  function createPlayerCombatEffects(deps) {
+    return Object.freeze({
+      taken: (damage, stats, attacker, alive) => situationalTakenReduction(damage, stats, alive, () => deps.regionMultiplier(stats, attacker)),
+      recoverBlock: (owner, stats) => recoverBlockShield(owner, stats, deps.recoveryCap),
+      consumeCounter: (owner, stats, now) => {
+        const at = effectTime(now, deps.clock);
+        return consumeEvasionCounter(owner, stats, at) * deps.consumeBlockEmpower(at);
+      },
+      advanceRecharge: (owner, stats, now) => advanceShieldRecharge(owner, stats, now, deps),
+      breakRecharge: (owner, stats, shield, now) => triggerShieldBreakRecharge(owner, stats, shield, now, deps.clock),
+      stealTrait: (owner, enemy, stats) => stealEliteTrait(owner, enemy, stats, deps.clock)
     });
-    let revelationEffect = _t('헌신을 1 이상 확보하면 계시를 선택할 수 있습니다.');
-    if (devotion > 0 && rules.revelation === 'combat') {
-        revelationEffect = _t('주는 피해 {combatDamageMorePct}% 증폭', { combatDamageMorePct: rules.combatDamageMorePct });
-    } else if (devotion > 0 && rules.revelation === 'guard') {
-        revelationEffect = _t('받는 피해 {guardTakenLessPct}% 감폭', { guardTakenLessPct: rules.guardTakenLessPct });
-    } else if (devotion > 0 && rules.revelation === 'life') {
-        revelationEffect = _t('최대 생명력/에너지 보호막/초당 재생 각각 +{value}%', { value: formatValue('regen', rules.lifeBonusPct) });
-    } else if (devotion > 0 && rules.revelation === 'fanaticism') {
-        revelationEffect = _t('열광 {fanaticismStacks}/{floor}, 1당 피해 1.5%, 공격 속도 0.5% 증가', { fanaticismStacks: rules.fanaticismStacks, floor: Math.floor(devotion) });
-    }
-    return {
-        mystique: {
-            title: _t('신비'),
-            lines: [_t('가장 높은 피해 속성에 대응하는 {ailmentLabel} 강화', { ailmentLabel }),
-                _t('{ailmentLabel} 피해 +{value}%, 위력 +{value2}%', { ailmentLabel, value: formatValue('mystique', mystique), value2: formatValue('mystique', mystique) }),
-                _t('{ailmentLabel} 유발 확률 +{floor}%p', { ailmentLabel, floor: Math.floor(mystique / 3) })],
-            final: formatValue('mystique', mystique)
-        },
-        cycle: {
-            title: _t('순환'),
-            lines: [_t('적에게 적용한 상태이상이 종료되면 해당 유형에 따른 강화가 6초간 적용됩니다.'),
-                _t('순환 1당 대응 속성 피해 +2%와 유형별 보조 효과를 얻습니다.'),
-                ...(activeCycleLines.length > 0 ? activeCycleLines : [_t('현재 활성화된 순환 강화 없음')]),
-                rules.cycleAddedFireFromPhysicalPct > 0 ? _t('순환의 원석: 물리 피해의 {value}%를 화염 피해로 추가', { value: rules.cycleAddedFireFromPhysicalPct }) : null
-            ].filter(Boolean),
-            final: formatValue('cycle', cycle)
-        },
-        revelation: {
-            title: _t('계시'),
-            lines: [_t('계시 수치(헌신) {value}', { value: formatValue('devotion', devotion) }), revelationEffect],
-            final: _t(devotion > 0 ? rules.revelationLabel : '미해금')
-        }
+  }
+
+  // modules/combat/player-stat-events.mjs
+  function* playerGrantStoneShieldOnBlock(env, stats) {
+    if (typeof env.deps.grantTalentStoneShield !== "function") return;
+    const shield = env.deps.grantTalentStoneShield(stats.maxHp);
+    if (shield) yield { kind: "addBattleFx", args: ["statusText", {
+      text: env.deps._t("돌 보호막 +{amount}", { amount: shield.amount }),
+      color: "#d8b77a",
+      duration: 300
+    }] };
+  }
+  function* playerGrantEliteTraitOnKill(env, enemy, stats) {
+    const trait = stealEliteTrait(env.owner, enemy, stats, env.deps.getCombatTime);
+    if (!trait) return;
+    if (env.owner.settings && env.owner.settings.showCombatLog !== false) yield {
+      kind: "addLog",
+      args: [env.deps._t("🩸 정예 특성 흡수: {name}", { name: env.deps._t(trait.name || "정예 특성") }), "loot-unique", { noToast: true }]
     };
-};
+  }
 
-const passiveTreeCombatStats = (() => {
-const PASSIVE_DAMAGE_ELEMENT_TAGS = Object.freeze({ fire: 'fire', cold: 'cold', light: 'lightning' });
-
-function getStrongestPassiveDamageElement(readStat) {
-    return Object.values(PASSIVE_DAMAGE_ELEMENT_TAGS).reduce((best, tag) => {
-        const bonus = readStat(TAGGED_DAMAGE_STAT_BY_TAG[tag]);
-        return !best || bonus > best.bonus ? { tag, bonus } : best;
-    }, null);
-}
-
-function getPlayerTaggedDamageSkill(skill, strongestElement) {
-    const tags = getSkillDamageTagSet(skill);
-    if (strongestElement && Object.hasOwn(PASSIVE_DAMAGE_ELEMENT_TAGS, skill.ele) && !skill.randomElementPool?.length) {
-        Object.values(PASSIVE_DAMAGE_ELEMENT_TAGS).forEach(tag => tags.delete(tag));
-        tags.add(strongestElement.tag);
+  // modules/common/stat-bucket.mjs
+  var TAGGED_DAMAGE_STAT_BY_TAG2 = {
+    attack: "attackPctDmg",
+    melee: "meleePctDmg",
+    projectile: "projectilePctDmg",
+    physical: "physPctDmg",
+    elemental: "elementalPctDmg",
+    fire: "firePctDmg",
+    cold: "coldPctDmg",
+    lightning: "lightPctDmg",
+    chaos: "chaosPctDmg",
+    aoe: "aoePctDmg",
+    slam: "slamPctDmg",
+    spell: "spellPctDmg",
+    shield: "shieldPctDmg",
+    mine: "minePctDmg",
+    potion: "potionPctDmg",
+    mobility: "mobilityPctDmg",
+    channeling: "channelingPctDmg"
+  };
+  function createEmptyStatBucket() {
+    return {
+      flatDmg: 0,
+      weaponFlatDmgPct: 0,
+      pctDmg: 0,
+      flatHp: 0,
+      pctHp: 0,
+      aspd: 0,
+      crit: 0,
+      move: 0,
+      cooldownRecovery: 0,
+      cooldownReduction: 0,
+      mobilityCooldownRecovery: 0,
+      mobilityCooldownReduction: 0,
+      cooldownReductionCapBonus: 0,
+      sight: 0,
+      sightCap: 0,
+      chestGrade: 0,
+      gemLevel: 0,
+      elementalGemLevel: 0,
+      fireGemLevel: 0,
+      coldGemLevel: 0,
+      lightGemLevel: 0,
+      chaosGemLevel: 0,
+      physGemLevel: 0,
+      projectileGemLevel: 0,
+      meleeGemLevel: 0,
+      slamGemLevel: 0,
+      spellGemLevel: 0,
+      dotGemLevel: 0,
+      aoeGemLevel: 0,
+      strGemLevel: 0,
+      dexGemLevel: 0,
+      intGemLevel: 0,
+      suppCap: 0,
+      runeResonancePower: 0,
+      regenFlat: 0,
+      dr: 0,
+      physIgnore: 0,
+      resPen: 0,
+      resF: 0,
+      resC: 0,
+      resL: 0,
+      maxResAll: 0,
+      maxResF: 0,
+      maxResC: 0,
+      maxResL: 0,
+      maxResChaos: 0,
+      resChaos: 0,
+      leech: 0,
+      leechRateCap: 0,
+      leechTotalCap: 0,
+      leechInstanceCap: 0,
+      leechKeepFullLife: 0,
+      critDmg: 0,
+      regen: 0,
+      regenSuppress: 0,
+      ds: 0,
+      expGain: 0,
+      minDmgRoll: 0,
+      maxDmgRoll: 0,
+      slamEchoChance: 0,
+      slamEchoDamagePct: 0,
+      doubleDamageChance: 0,
+      blockChanceMax: 0,
+      physFlatTakenReduce: 0,
+      fireFlatTakenReduce: 0,
+      coldFlatTakenReduce: 0,
+      lightFlatTakenReduce: 0,
+      chaosFlatTakenReduce: 0,
+      allFlatTakenReduce: 0,
+      physTakenAsFire: 0,
+      physTakenAsCold: 0,
+      physTakenAsLight: 0,
+      physTakenAsChaos: 0,
+      addedFireDamagePct: 0,
+      addedColdDamagePct: 0,
+      addedLightDamagePct: 0,
+      addedChaosDamagePct: 0,
+      addedPhysDamagePct: 0,
+      fireFlatDmg: 0,
+      coldFlatDmg: 0,
+      lightFlatDmg: 0,
+      chaosFlatDmg: 0,
+      physFlatDmg: 0,
+      meleePctDmg: 0,
+      slamPctDmg: 0,
+      projectilePctDmg: 0,
+      physPctDmg: 0,
+      elementalPctDmg: 0,
+      firePctDmg: 0,
+      coldPctDmg: 0,
+      lightPctDmg: 0,
+      chaosPctDmg: 0,
+      aoePctDmg: 0,
+      dotPctDmg: 0,
+      spellPctDmg: 0,
+      shieldPctDmg: 0,
+      minePctDmg: 0,
+      potionPctDmg: 0,
+      mobilityPctDmg: 0,
+      channelingPctDmg: 0,
+      igniteChance: 0,
+      chillChance: 0,
+      freezeChance: 0,
+      shockChance: 0,
+      poisonChance: 0,
+      bleedChance: 0,
+      spellFlatDmg: 0,
+      spellFlatPct: 0,
+      targetAny: 0,
+      targetProjectile: 0,
+      targetSlam: 0,
+      projectileExtraShots: 0,
+      projectileExtraChance: 0,
+      projectileChain: 0,
+      igniteDurationPct: 0,
+      chillDurationPct: 0,
+      freezeDurationPct: 0,
+      shockDurationPct: 0,
+      poisonDurationPct: 0,
+      bleedDurationPct: 0,
+      skillDelayReduce: 0,
+      attackPctDmg: 0,
+      spellLeech: 0,
+      spellCritDmg: 0,
+      spellRepeatChance: 0,
+      strength: 0,
+      dexterity: 0,
+      intelligence: 0,
+      accuracy: 0,
+      mystique: 0,
+      devotion: 0,
+      cycle: 0,
+      ailmentDamagePct: 0,
+      ailmentPotencyPct: 0,
+      armor: 0,
+      evasion: 0,
+      energyShield: 0,
+      armorPct: 0,
+      evasionPct: 0,
+      energyShieldPct: 0,
+      energyShieldRegen: 0,
+      energyShieldRechargeFaster: 0,
+      deflectChance: 0,
+      deflectDamageReduce: 0,
+      blockChance: 0,
+      blockChancePct: 0,
+      ailResIgnite: 0,
+      ailResShock: 0,
+      ailResFreeze: 0,
+      ailResPoison: 0,
+      ailResBleed: 0,
+      chillEffectReducePct: 0,
+      freezeDurationReducePct: 0,
+      shockEffectReducePct: 0,
+      igniteDamageReducePct: 0,
+      bleedDamageReducePct: 0,
+      poisonDamageReducePct: 0,
+      dotTakenDamageReducePct: 0,
+      takenDamageReduceWhen2EnemiesPct: 0,
+      takenDamageReduceWhen1EnemyPct: 0,
+      genericTakenDamageReducePct: 0,
+      critTakenDamageReducePct: 0,
+      igniteTakenDurationReducePct: 0,
+      shockTakenDurationReducePct: 0,
+      coldTakenDurationReducePct: 0,
+      poisonTakenDurationReducePct: 0,
+      bleedTakenDurationReducePct: 0,
+      shockedEnemyHitDamageMorePct: 0,
+      shockedEnemyHitDamagePct: 0,
+      igniteDamageMultiplierPct: 0,
+      poisonDamageMultiplierPct: 0,
+      accuracyBonusPct: 0,
+      chillEffect: 0,
+      shockEffect: 0,
+      summonFlatDmg: 0,
+      summonPctDmg: 0,
+      summonAspd: 0,
+      summonHpPct: 0,
+      summonCrit: 0,
+      summonCritDmg: 0,
+      summonCap: 0,
+      summonEfficiency: 0,
+      summonGuardRedirectPct: 0,
+      summonResPen: 0,
+      summonGemLevel: 0,
+      curseCap: 0,
+      oxygenMax: 0,
+      oxygenRegen: 0,
+      oceanPressureResist: 0,
+      oceanDepthGainPct: 0,
+      oceanRareFishChancePct: 0,
+      bossDamagePct: 0,
+      eliteDamagePct: 0,
+      firstStrikeDamagePct: 0,
+      cullStrikePct: 0,
+      echoPower: 0,
+      chaosErosion: 0,
+      chaosErosionCap: 0,
+      // 우주계 보스 유물석과 보스 부적의 줄(js/combat.js가 reward에서 읽는다): 통에 없어 addStatToBucket이 버렸다(2026-10-20).
+      firstHitDamageMorePct: 0,
+      cosmosAlwaysFirstHitChancePct: 0,
+      uniqueInstantLeechPct: 0,
+      cosmosLightningVariance: 0,
+      cosmosBossDamageMorePct: 0,
+      regionPoisonSpread: 0,
+      regionChaosShred: 0,
+      regionPoisonedLeech: 0,
+      regionChaosOvercap: 0,
+      regionBlockEmpower: 0,
+      regionArmorToPhys: 0,
+      regionBleedingDamage: 0,
+      regionLowLifeDR: 0,
+      regionShockChain: 0,
+      regionCritMove: 0,
+      regionShockSpread: 0,
+      regionShockedLightPen: 0,
+      regionIgniteSpread: 0,
+      regionFullLifeFire: 0,
+      regionIgniteDuration: 0,
+      regionIgnitedDamage: 0,
+      regionFrozenCritDamage: 0,
+      regionShatter: 0,
+      regionChillOnHit: 0,
+      regionChilledAttackerDR: 0
+    };
+  }
+  var DIRECT_STAT_BUCKET_KEYS = new Set(Object.keys(createEmptyStatBucket()).filter((key) => key !== "oxygenMax" && key !== "oxygenRegen"));
+  var COMPOSITE_STAT_BUCKET_LINES = Object.freeze({
+    resAll: [["resF", 1, 0], ["resC", 1, 0], ["resL", 1, 0]],
+    moveEvasion: [["move", 1, 0], ["evasionPct", 1, 0]],
+    hpArmor: [["flatHp", 1, 0], ["armor", 2, 0]],
+    aspdMove: [["aspd", 1, 0], ["move", 1, 0]],
+    chaosResElemPenalty: [["resChaos", 1, 0], ["resF", -1, 0], ["resC", -1, 0], ["resL", -1, 0]],
+    deflectMajor: [["deflectChance", 1, 0], ["deflectDamageReduce", 0, 3]],
+    targetCount: [["targetAny", 1, 0]]
+  });
+  function addStatToBucket(bucket, statId, value) {
+    value = Number(value);
+    if (typeof statId !== "string" || !Number.isFinite(value)) return;
+    if (DIRECT_STAT_BUCKET_KEYS.has(statId)) {
+      bucket[statId] += value;
+      return;
     }
-    return { ...skill, tags: [...tags] };
-}
-
-function getPlayerSupportBudget(baseSlots, cosmos, unique, runePower, flags) {
-    let suppCap = cosmos ? Math.max(0, Math.floor(baseSlots * Math.max(0, cosmos.supportCapMul || 0.5))) : baseSlots;
-    suppCap += Math.floor(unique.suppCap || 0);
-    let inquisitorResonanceBonus = 0;
-    if (hasKeystone('iq3')) {
-        suppCap += 1;
-        inquisitorResonanceBonus += 10 + Math.floor(((game.sealedSkills || []).length + (game.sealedSupports || []).length) / 4);
+    if (!Object.hasOwn(COMPOSITE_STAT_BUCKET_LINES, statId)) return;
+    for (const [key, multiplier, flat] of COMPOSITE_STAT_BUCKET_LINES[statId]) {
+      bucket[key] += value * multiplier + flat;
     }
-    if (hasKeystone('iq9')) {
-        // 무한한 권능은 자신의 추가 칸과 iq6이 주는 칸을 공명력으로 세지 않는다.
-        inquisitorResonanceBonus += ASCENDANCY_KEYSTONE_VALUES.iq9.resonancePerSupport * Math.max(0, suppCap);
-        suppCap += ASCENDANCY_KEYSTONE_VALUES.iq9.extraSupports;
+  }
+  function addPassiveLineToBucket(bucket, statId, value, stance, weaponConditions) {
+    const weaponLine = weaponConditions[statId];
+    if (!weaponLine) addStatToBucket(bucket, statId, value);
+    else if (weaponLine.stance === stance) addStatToBucket(bucket, weaponLine.stat, value);
+  }
+  function applyStatsToBucket(bucket, stats) {
+    (stats || []).forEach((stat) => {
+      if (!stat) return;
+      addStatToBucket(bucket, stat.id, stat.val);
+      if (Array.isArray(stat.extraStats)) stat.extraStats.forEach((extra) => {
+        if (extra) addStatToBucket(bucket, extra.id, extra.val);
+      });
+    });
+  }
+  function getTaggedDamageBreakdown(bucket, skill) {
+    let tags = new Set(skill.tags || []);
+    let randomElementPool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool.map((ele) => {
+      let key = String(ele || "").toLowerCase();
+      return key === "lightning" || key === "thunder" ? "light" : key;
+    }).filter(Boolean) : [];
+    let isRandomElementSkill = randomElementPool.length > 0;
+    let parts = [];
+    let total = 0;
+    Object.keys(TAGGED_DAMAGE_STAT_BY_TAG2).forEach((tag) => {
+      if (isRandomElementSkill && ["fire", "cold", "lightning"].includes(tag)) return;
+      let statId = TAGGED_DAMAGE_STAT_BY_TAG2[tag];
+      let value = bucket[statId] || 0;
+      if (!value || !tags.has(tag)) return;
+      total += value;
+      parts.push({ tag, statId, value });
+    });
+    return { total, parts };
+  }
+  function sumOrderedPlayerStatSources(input, stat) {
+    return (input.gearBase[stat] || 0) + (input.gearExplicit[stat] || 0) + (input.passive[stat] || 0) + (input.season[stat] || 0) + (input.ascend[stat] || 0) + (input.support[stat] || 0) + (input.reward[stat] || 0);
+  }
+
+  // modules/domain/player-unique-effects.mjs
+  var DEFAULT_EFFECTS = Object.freeze({
+    uniqueXpGainPct: 0,
+    uniqueFlatDmgPerLevel: 0,
+    uniqueEsAmpPct: 0,
+    uniqueShockInvertTaken: false,
+    uniqueAlwaysShock: false,
+    uniqueProjectileDoubleStrikePct: 0,
+    uniqueChaosResDownOnHit: null,
+    uniqueCorpseExplode: null,
+    uniqueInstantLeechPct: 0,
+    uniqueDoubleDamageChancePct: 0,
+    uniqueEsRecoverOnCritPct: 0,
+    uniqueRiderCompass: false,
+    uniqueMaxRollBonusHit: false,
+    uniqueCeilingSmashDouble: false,
+    uniqueMinRollEqualsMaxRoll: false,
+    uniqueHpToPhysPct: false,
+    uniqueImmuneIgnite: false,
+    uniqueFateTwinRollSync: false,
+    uniqueFrostSentinel: false,
+    uniqueShockTracer: null,
+    uniqueVenomStride: null,
+    uniqueBleedBlockHelm: false,
+    uniqueImmuneBleed: false,
+    uniqueImmuneFreeze: false,
+    uniqueCurseCrownPerCursePct: 0,
+    uniqueWarcryResonancePct: 0,
+    uniqueConditionManual: null,
+    uniqueStackingElementalResDownOnHit: null,
+    uniqueBleedingEnemyDamageMorePct: 0,
+    uniqueRiftWaveOnHit: null,
+    uniqueChaosDamageInstantLeechPct: 0,
+    uniqueInvulnerableBarrierOnHit: null,
+    uniquePoisonDurationPct: 0,
+    uniqueArmorToPhysicalDamagePctPer1000: 0,
+    uniqueDeathWard: null,
+    uniqueAllResDownOnHit: null,
+    uniqueKillMoveStacks: null,
+    uniqueCursedTakenAndRefresh: null,
+    uniqueEnemyRegenCutAndMinRoll: null,
+    uniquePhysDrHalfTakenAsMore: null,
+    uniqueArmorAppliesToDot: false,
+    uniqueMeleeArmorAmp: null,
+    uniquePursuitMovePct: 0,
+    uniqueRepelMelee: null,
+    uniqueResonanceAndSuppCap: null,
+    uniqueRegenRateAndRegen: null,
+    uniqueMaxHpPct: 0,
+    uniqueAllMaxRes: 0,
+    uniqueLeechEfficiencyOnKill: null,
+    uniqueOverkillSplash: false,
+    uniqueDragonVeinGuard: null,
+    uniqueGuardianArmor: null,
+    uniqueStealEliteTrait: null,
+    fixedAllMaxRes: null,
+    cosmosAlwaysFirstHit: false,
+    cosmosEnergyShieldBypassPct: 0,
+    cosmosOrbitCycle: null,
+    cosmosDeepSeaLeechCaps: null,
+    cosmosTideEsRegenToLife: false,
+    cosmosEqualDamageSplit: false,
+    cosmosBalanceMitigation: false,
+    cosmosTwinStarResonance: null,
+    cosmosJudgmentLightning: null,
+    cosmosDeathResistPct: 0,
+    cosmosVerdictSupportDamagePct: 0,
+    cosmosGuardianConditionInstant: false,
+    cosmosBossDamageMorePct: 0,
+    cosmosCometChillNoFreeze: false,
+    uniqueQueenBeeSummon: null,
+    uniqueBleedWeightOnBleedingHit: false,
+    uniqueGrandBreachCrown: null,
+    uniqueLabyrinthShackles: false,
+    uniqueMeteorFootsteps: null,
+    uniqueRollGapDamage: false,
+    uniqueRollGapCritDs: false,
+    uniqueCrowdEvasionMore: null,
+    uniqueFewEnemyEvasionMore: null,
+    uniqueEsToLightPct: false,
+    uniqueUnderdogMorePct: 0,
+    uniqueInstakillNormalPct: 0,
+    uniqueProjExtraShotChance: null,
+    projectilePatternEffect: null,
+    uniqueEvasionDance: null,
+    uniqueLoneEvasionCounter: null,
+    uniqueCritAdvanceEsRecharge: null,
+    uniqueEnergyShieldBreakRecharge: null,
+    uniqueSummonDeathDamageBuff: null,
+    uniqueSummonCritAspdStacks: null,
+    uniqueSummonNonCritNoDamage: false,
+    uniqueBlockRecoverEnergyShieldPct: 0,
+    uniqueBlockedDamageTakenPct: 0,
+    uniqueDeflectStealth: null,
+    uniqueChaosTakenDamageReducePct: 0,
+    uniqueLifeRecoupTakenDamage: null,
+    uniqueOverhealCapPct: 0
+  });
+  var EFFECTS = Object.freeze({
+    "xpGainPct": (result2, context, ep) => {
+      result2.uniqueXpGainPct += Number(ep.pct || 0);
+    },
+    "flatDmgPerLevel": (result2, context, ep) => {
+      result2.uniqueFlatDmgPerLevel += Number(ep.perLevel || 0);
+    },
+    "esAmpAndRecoverOnCrit": (result2, context, ep) => {
+      result2.uniqueEsAmpPct = Math.max(result2.uniqueEsAmpPct, Number(ep.ampPct ?? 50));
+      result2.uniqueEsRecoverOnCritPct = Math.max(result2.uniqueEsRecoverOnCritPct, Number(ep.recoverPctOnCrit || 2));
+    },
+    "invertShockTaken": (result2) => {
+      result2.uniqueShockInvertTaken = true;
+    },
+    "alwaysShock": (result2) => {
+      result2.uniqueAlwaysShock = true;
+    },
+    "projectileDoubleStrikePct": (result2, context, ep) => {
+      result2.uniqueProjectileDoubleStrikePct += Number(ep.pct || 100);
+    },
+    "projectilePatternMode": (result2, context, ep, effect, deps) => {
+      if (!(deps.projectilePatterns[ep.mode] && !result2.projectilePatternEffect)) return;
+      result2.projectilePatternEffect = {
+        mode: ep.mode,
+        source: effect.itemName ? deps.translate("{itemName} (고유 장비)", { itemName: effect.itemName }) : "재능",
+        damageMultiplier: Number.isFinite(Number(ep.damageMultiplier)) ? Number(ep.damageMultiplier) : null
+      };
+    },
+    "hitApplyChaosResDown": (result2, context, ep, effect, deps) => {
+      result2.uniqueChaosResDownOnHit = deps.mergeParams(result2.uniqueChaosResDownOnHit, { perHit: Number(ep.perHit || 3), maxStacks: Number(ep.maxStacks || 10) });
+    },
+    "corpseExplodeOnKill": (result2, context, ep, effect, deps) => {
+      result2.uniqueCorpseExplode = deps.mergeParams(result2.uniqueCorpseExplode, { chance: Number(ep.chance || 15), lifePct: Number(ep.lifePct || 25) });
+    },
+    "instantLeechAndDoubleDamage": (result2, context, ep) => {
+      result2.uniqueInstantLeechPct += Number(ep.instantLeechPct || 25);
+      result2.uniqueDoubleDamageChancePct += Number(ep.doubleDamageChance || 20);
+    },
+    "riderCompass": (result2) => {
+      result2.uniqueRiderCompass = true;
+    },
+    "maxRollBonusHit": (result2) => {
+      result2.uniqueMaxRollBonusHit = true;
+    },
+    "ceilingSmashDouble": (result2) => {
+      result2.uniqueCeilingSmashDouble = true;
+    },
+    "minRollEqualsMaxRoll": (result2) => {
+      result2.uniqueMinRollEqualsMaxRoll = true;
+    },
+    "hpToPhysPct": (result2) => {
+      result2.uniqueHpToPhysPct = true;
+    },
+    "immuneIgnite": (result2) => {
+      result2.uniqueImmuneIgnite = true;
+    },
+    "fateTwinRollSync": (result2) => {
+      result2.uniqueFateTwinRollSync = true;
+    },
+    "frostSentinelBoots": (result2) => {
+      result2.uniqueFrostSentinel = true;
+    },
+    "shockTracerGreaves": (result2, context, ep, effect, deps) => {
+      result2.uniqueShockTracer = deps.mergeParams(result2.uniqueShockTracer, { shockEffectPct: Number(ep.shockEffectPct || 25), strikeDamagePct: Number(ep.strikeDamagePct || 500), icdSec: Number(ep.icdSec || 0.5) });
+    },
+    "venomStride": (result2, context, ep) => {
+      result2.uniqueVenomStride = result2.uniqueVenomStride || { poisonMorePct: 0, poisonExtraStack: 0 };
+      result2.uniqueVenomStride.poisonMorePct = Math.max(result2.uniqueVenomStride.poisonMorePct, Number(ep.poisonMorePct ?? 30));
+      result2.uniqueVenomStride.poisonExtraStack = Math.max(result2.uniqueVenomStride.poisonExtraStack, Number(ep.poisonExtraStack ?? 1));
+      addStatToBucket(context.reward, "poisonDamageMultiplierPct", Number(ep.poisonMorePct ?? 30));
+    },
+    "bleedBlockHelm": (result2) => {
+      result2.uniqueBleedBlockHelm = true;
+    },
+    "curseCrown": (result2, context, ep) => {
+      addStatToBucket(context.reward, "curseCap", Number(ep.extraCurseCap || 1));
+      result2.uniqueCurseCrownPerCursePct = Math.max(result2.uniqueCurseCrownPerCursePct, Number(ep.finalDmgPerCursePct || 6));
+    },
+    "warcryResonanceBelt": (result2, context, ep) => {
+      result2.uniqueWarcryResonancePct = Math.max(result2.uniqueWarcryResonancePct, Number(ep.perWarcryAmpPct || 20));
+    },
+    "conditionManual": (result2, context, ep) => {
+      result2.uniqueConditionManual = { durationPct: Number(ep.durationPct || 100), cdrPct: Number(ep.cdrPct || 20) };
+    },
+    "stackingElementalResDownOnHit": (result2, context, ep, effect, deps) => {
+      result2.uniqueStackingElementalResDownOnHit = deps.mergeParams(result2.uniqueStackingElementalResDownOnHit, { perHit: Number(ep.perHit || 2), max: Number(ep.max || 20) });
+    },
+    "leechEfficiencyOnKill": (result2, context, ep, effect, deps) => {
+      result2.uniqueLeechEfficiencyOnKill = deps.mergeParams(result2.uniqueLeechEfficiencyOnKill, { duration: Number(ep.duration || 8), efficiencyPct: Number(ep.efficiencyPct || 100) });
+    },
+    "overkillSplash": (result2) => {
+      result2.uniqueOverkillSplash = true;
+    },
+    "dragonVeinGuard": (result2, context, ep, effect, deps) => {
+      result2.uniqueDragonVeinGuard = deps.mergeParams(result2.uniqueDragonVeinGuard, { chance: Number(ep.chance || 20), duration: Number(ep.duration || 2), hpPct: Number(ep.hpPct || 8) });
+    },
+    "guardianArmor": (result2, context, ep, effect, deps) => {
+      result2.uniqueGuardianArmor = deps.mergeParams(result2.uniqueGuardianArmor, { takenLessPct: Number(ep.takenLessPct || 8), bossTakenLessPct: Number(ep.bossTakenLessPct || 12) });
+    },
+    "queenBeeSummonOnHit": (result2, context, ep) => {
+      result2.uniqueQueenBeeSummon = { chance: Number(ep.chance || 8), hitPct: Number(ep.hitPct || 125), attacks: Number(ep.attacks || 3), maxBees: Number(ep.maxBees || 10) };
+    },
+    "bleedWeightOnBleedingHit": (result2) => {
+      result2.uniqueBleedWeightOnBleedingHit = true;
+    },
+    "grandBreachCrown": (result2, context, ep) => {
+      result2.uniqueGrandBreachCrown = { spellFromEsPct: Number(ep.spellFromEsPct || 10), esPct: Number(ep.esPct || 30) };
+    },
+    "labyrinthShackles": (result2) => {
+      result2.uniqueLabyrinthShackles = true;
+    },
+    "rollGapDamagePct": (result2) => {
+      result2.uniqueRollGapDamage = true;
+    },
+    "rollGapCritAndDs": (result2) => {
+      result2.uniqueRollGapCritDs = true;
+    },
+    "crowdEvasionMore": (result2, context, ep) => {
+      result2.uniqueCrowdEvasionMore = { minEnemies: Number(ep.minEnemies || 10), morePct: Number(ep.morePct || 100) };
+    },
+    "fewEnemyEvasionMore": (result2, context, ep, effect, deps) => {
+      result2.uniqueFewEnemyEvasionMore = deps.mergeParams(result2.uniqueFewEnemyEvasionMore, { minEnemies: Number(ep.minEnemies || 1), maxEnemies: Number(ep.maxEnemies || 2), morePct: Number(ep.morePct || 45) });
+    },
+    "evasionDanceOnEvade": (result2, context, ep, effect, deps) => {
+      result2.uniqueEvasionDance = deps.mergeParams(result2.uniqueEvasionDance, { maxStacks: Number(ep.maxStacks || 4), evasionPctPerStack: Number(ep.evasionPctPerStack || 4), movePerStack: Number(ep.movePerStack || 2), duration: Number(ep.duration || 4) });
+    },
+    "loneEvasionCounter": (result2, context, ep, effect, deps) => {
+      result2.uniqueLoneEvasionCounter = deps.mergeParams(result2.uniqueLoneEvasionCounter, { maxEnemies: Number(ep.maxEnemies || 2), damageMorePct: Number(ep.damageMorePct || 20), duration: Number(ep.duration || 3) });
+    },
+    "critAdvanceEnergyShieldRecharge": (result2, context, ep) => {
+      result2.uniqueCritAdvanceEsRecharge = { advanceSec: Number(ep.advanceSec || 0.25), cooldownSec: Number(ep.cooldownSec || 0.6) };
+    },
+    "energyShieldBreakRecharge": (result2, context, ep) => {
+      result2.uniqueEnergyShieldBreakRecharge = { duration: Number(ep.duration || 3), cooldown: Number(ep.cooldown || 12) };
+    },
+    "esToLightPct": (result2) => {
+      result2.uniqueEsToLightPct = true;
+    },
+    "underdogNonMaxRollMorePct": (result2, context, ep) => {
+      result2.uniqueUnderdogMorePct = Math.max(result2.uniqueUnderdogMorePct, Number(ep.pct || 20));
+    },
+    "instakillNormalOnHitPct": (result2, context, ep) => {
+      result2.uniqueInstakillNormalPct = Math.max(result2.uniqueInstakillNormalPct, Number(ep.pct || 5));
+    },
+    "projectileExtraShotChance": (result2, context, ep, effect, deps) => {
+      result2.uniqueProjExtraShotChance = deps.mergeParams(result2.uniqueProjExtraShotChance, { chance: Number(ep.chance || 10), shots: Number(ep.shots || 2) });
+    },
+    "realmBleedingEnemyDamageMore": (result2, context, ep) => {
+      result2.uniqueBleedingEnemyDamageMorePct = Math.max(result2.uniqueBleedingEnemyDamageMorePct, Number(ep.morePct || 22));
+    },
+    "realmRiftWaveOnHit": (result2, context, ep, effect, deps) => {
+      result2.uniqueRiftWaveOnHit = deps.mergeParams(result2.uniqueRiftWaveOnHit, { chance: Number(ep.chance || 12), damagePct: Number(ep.damagePct || 80) });
+    },
+    "realmChaosDamageInstantLeech": (result2, context, ep) => {
+      result2.uniqueChaosDamageInstantLeechPct = Math.max(result2.uniqueChaosDamageInstantLeechPct, Number(ep.pct || 8));
+    },
+    "realmInvulnerableBarrierOnHit": (result2, context, ep) => {
+      result2.uniqueInvulnerableBarrierOnHit = { chance: Number(ep.chance || 10), duration: Number(ep.duration || 1.5) };
+    },
+    "realmPoisonDuration": (result2, context, ep) => {
+      result2.uniquePoisonDurationPct = Math.max(result2.uniquePoisonDurationPct, Number(ep.durationPct || 35));
+    },
+    "realmArmorToPhysicalDamage": (result2, context, ep) => {
+      result2.uniqueArmorToPhysicalDamagePctPer1000 = Math.max(result2.uniqueArmorToPhysicalDamagePctPer1000, Number(ep.pctPer1000 || 3));
+    },
+    "realmDeathWard": (result2, context, ep, effect, deps) => {
+      result2.uniqueDeathWard = deps.mergeParams(result2.uniqueDeathWard, { hpPct: Number(ep.hpPct || 12), cooldown: Number(ep.cooldown || 20) });
+    },
+    "realmAllResDownOnHit": (result2, context, ep) => {
+      result2.uniqueAllResDownOnHit = { perHit: Number(ep.perHit || 5), max: Number(ep.max || 4), duration: Number(ep.duration || 5) };
+    },
+    "realmKillMoveStacks": (result2, context, ep, effect, deps) => {
+      result2.uniqueKillMoveStacks = deps.mergeParams(result2.uniqueKillMoveStacks, { movePerStack: Number(ep.movePerStack || 10), maxStacks: Number(ep.maxStacks || 20), duration: Number(ep.duration || 20), cooldownSec: Number(ep.cooldownSec || 1) });
+    },
+    "realmCursedTakenAndRefresh": (result2, context, ep) => {
+      result2.uniqueCursedTakenAndRefresh = { takenMul: Number(ep.takenMul || 1.1), refreshSec: Number(ep.refreshSec || 4) };
+    },
+    "realmEnemyRegenCutAndMinRoll": (result2, context, ep) => {
+      result2.uniqueEnemyRegenCutAndMinRoll = { enemyRegenRateMul: Number(ep.enemyRegenRateMul || 0.5), minRoll: Number(ep.minRoll || 10) };
+    },
+    "realmPhysDrHalfTakenAsMore": (result2, context, ep) => {
+      result2.uniquePhysDrHalfTakenAsMore = { ratio: Number(ep.ratio || 0.5) };
+    },
+    "realmArmorAppliesToDot": (result2) => {
+      result2.uniqueArmorAppliesToDot = true;
+    },
+    "realmMeleeArmorAmp": (result2, context, ep, effect, deps) => {
+      result2.uniqueMeleeArmorAmp = deps.mergeParams(result2.uniqueMeleeArmorAmp, { ampPct: Number(ep.ampPct || 5), maxStacks: Number(ep.maxStacks || 3), duration: Number(ep.duration || 2) });
+    },
+    "realmRepelMelee": (result2, context, ep, effect, deps) => {
+      result2.uniqueRepelMelee = deps.repelParams(ep);
+    },
+    "realmResonanceAndSuppCap": (result2, context, ep) => {
+      result2.uniqueResonanceAndSuppCap = { resonancePower: Number(ep.resonancePower || 150), suppCap: Number(ep.suppCap || 3) };
+    },
+    "realmRegenRateAndRegen": (result2, context, ep, effect, deps) => {
+      result2.uniqueRegenRateAndRegen = deps.mergeParams(result2.uniqueRegenRateAndRegen, { regenRatePct: Number(ep.regenRatePct || 25), regen: Number(ep.regen || 2) });
+    },
+    "realmMaxHpPct": (result2, context, ep) => {
+      result2.uniqueMaxHpPct += Number(ep.pctHp || 35);
+    },
+    "realmAllMaxRes": (result2, context, ep) => {
+      result2.uniqueAllMaxRes += Number(ep.maxRes || 3);
+    },
+    "meteorFootsteps": (result2, context, ep) => {
+      result2.uniqueMeteorFootsteps = { chance: Number(ep.chance || 20), damagePct: Number(ep.damagePct || 180) };
+    },
+    "summonCapBonus": (result2, context, ep) => {
+      addStatToBucket(context.reward, "summonCap", Number(ep.cap || 1));
+    },
+    "summonEfficiencyBonus": (result2, context, ep) => {
+      addStatToBucket(context.reward, "summonEfficiency", Number(ep.pct || 10));
+    },
+    "rightRingSummonCap": (result2, context, ep, effect) => {
+      if (effect.sourceSlot === "반지2") addStatToBucket(context.reward, "summonCap", Number(ep.cap || 1));
+    },
+    "summonDeathDamageBuff": (result2, context, ep) => {
+      result2.uniqueSummonDeathDamageBuff = { pct: Number(ep.pct || 40), duration: Number(ep.duration || 4) };
+    },
+    "summonCritAspdStacks": (result2, context, ep) => {
+      result2.uniqueSummonCritAspdStacks = { aspd: Number(ep.aspd || 10), maxStacks: Number(ep.maxStacks || 3), duration: Number(ep.duration || 4) };
+    },
+    "summonNonCritNoDamage": (result2) => {
+      result2.uniqueSummonNonCritNoDamage = true;
+    },
+    "genericTakenDamageReducePct": (result2, context, ep) => {
+      addStatToBucket(context.reward, "genericTakenDamageReducePct", Number(ep.pct || 0));
+    },
+    "uniqueBlockChance": (result2, context, ep) => {
+      addStatToBucket(context.reward, "blockChance", Number(ep.chance || 0));
+    },
+    "uniqueDeflectDamageReduce": (result2, context, ep) => {
+      addStatToBucket(context.reward, "deflectDamageReduce", Number(ep.pct || 0));
+    },
+    "blockRecoverEnergyShieldPct": (result2, context, ep) => {
+      result2.uniqueBlockRecoverEnergyShieldPct = Math.max(result2.uniqueBlockRecoverEnergyShieldPct, Number(ep.pct || 2));
+    },
+    "blockedDamageTakenPct": (result2, context, ep) => {
+      result2.uniqueBlockedDamageTakenPct = Math.max(result2.uniqueBlockedDamageTakenPct, Number(ep.pct || 0));
+    },
+    "uniqueTakenReduceWhen2Enemies": (result2, context, ep) => {
+      addStatToBucket(context.reward, "takenDamageReduceWhen2EnemiesPct", Number(ep.pct || 0));
+    },
+    "uniqueTakenReduceWhen1Enemy": (result2, context, ep) => {
+      addStatToBucket(context.reward, "takenDamageReduceWhen1EnemyPct", Number(ep.pct || 0));
+    },
+    "uniqueMaxResAll": (result2, context, ep) => {
+      addStatToBucket(context.reward, "maxResAll", Number(ep.pct || 0));
+    },
+    "deflectGrantShadowStealth": (result2, context, ep, effect, deps) => {
+      result2.uniqueDeflectStealth = deps.mergeParams(result2.uniqueDeflectStealth, { duration: Number(ep.duration || 3), move: Number(ep.move || 20), evasionPct: Number(ep.evasionPct || 20), critDmg: Number(ep.critDmg || 20) });
+    },
+    "chaosTakenDamageReducePct": (result2, context, ep) => {
+      result2.uniqueChaosTakenDamageReducePct = Math.max(result2.uniqueChaosTakenDamageReducePct, Number(ep.pct || 15));
+    },
+    "uniqueGemLevelBonus": (result2, context, ep) => {
+      addStatToBucket(context.reward, "gemLevel", Number(ep.level || 1));
+    },
+    "lifeRecoupTakenDamage": (result2, context, ep, effect, deps) => {
+      result2.uniqueLifeRecoupTakenDamage = deps.mergeParams(result2.uniqueLifeRecoupTakenDamage, { pct: Number(ep.pct || 25), duration: Number(ep.duration || 4) });
+    },
+    "immuneBleed": (result2) => {
+      result2.uniqueImmuneBleed = true;
+    },
+    "immuneFreeze": (result2) => {
+      result2.uniqueImmuneFreeze = true;
+    },
+    "lifePctAsEnergyShield": (result2, context, ep) => {
+      addStatToBucket(context.reward, "energyShield", Math.floor(Math.max(0, context.baseHp) * Math.max(0, Number(ep.pct || 10)) / 100));
+    },
+    "overhealCapPct": (result2, context, ep) => {
+      result2.uniqueOverhealCapPct = Math.max(result2.uniqueOverhealCapPct, Number(ep.pct || 0));
+    },
+    "dsAndTargetAnyBonus": (result2, context, ep) => {
+      addStatToBucket(context.reward, "ds", Number(ep.ds !== void 0 ? ep.ds : 8));
+      addStatToBucket(context.reward, "targetAny", Number(ep.target !== void 0 ? ep.target : 1));
+    },
+    "poisonDamageMorePct": (result2, context, ep) => {
+      addStatToBucket(context.reward, "poisonDamageMultiplierPct", Number(ep.pct || 25));
+    },
+    "uniqueMinDmgRoll": (result2, context, ep) => {
+      addStatToBucket(context.reward, "minDmgRoll", Number(ep.pct || 5));
+    },
+    "hitShockedEnemyDamageMorePct": (result2, context, ep) => {
+      addStatToBucket(context.reward, "shockedEnemyHitDamageMorePct", Number(ep.pct || 50));
+    },
+    "pursuitMoveSpeed": (result2, context, ep, effect, deps) => {
+      result2.uniquePursuitMovePct = Math.max(result2.uniquePursuitMovePct, deps.pursuitPct(ep));
+    },
+    "projectileTargetBonus": (result2, context, ep, effect, deps) => {
+      if (deps.deferredTarget(effect)) return;
+      addStatToBucket(context.reward, "targetProjectile", Number(ep.target || 1));
+    },
+    "projectileExtraShotBonus": (result2, context, ep) => {
+      addStatToBucket(context.reward, "projectileExtraShots", Number(ep.shots || 1));
+    },
+    "igniteDamageMorePct": (result2, context, ep) => {
+      addStatToBucket(context.reward, "igniteDamageMultiplierPct", Number(ep.pct || 25));
+    },
+    "cosmosFinalDmg": (result2, context, ep) => {
+      addStatToBucket(context.reward, "pctDmg", Number(ep.pct || 12));
+    },
+    "cosmosTakenLess": (result2, context, ep) => {
+      addStatToBucket(context.reward, "dr", Number(ep.dr || 8));
+    },
+    "cosmosSpeedBurst": (result2, context, ep) => {
+      addStatToBucket(context.reward, "move", Number(ep.move || 12));
+      addStatToBucket(context.reward, "aspd", Number(ep.aspd || 10));
+    },
+    "cosmosPenetration": (result2, context, ep) => {
+      addStatToBucket(context.reward, "resPen", Number(ep.pen || 8));
+    },
+    "cosmosSustain": (result2, context, ep) => {
+      addStatToBucket(context.reward, "regen", Number(ep.regen || 1.2));
+      addStatToBucket(context.reward, "leech", Number(ep.leech || 0.8));
+    },
+    "cosmosBossSlayer": (result2, context, ep) => {
+      addStatToBucket(context.reward, "pctDmg", Number(ep.pct || 14));
+      addStatToBucket(context.reward, "critDmg", Number(ep.critDmg || 20));
+    },
+    "cosmosAlwaysFirstHit": (result2) => {
+      result2.cosmosAlwaysFirstHit = true;
+    },
+    "cosmosEnergyShieldAmpBypass": (result2, context, ep) => {
+      result2.uniqueEsAmpPct = Math.max(result2.uniqueEsAmpPct, Number(ep.ampPct || 25));
+      result2.cosmosEnergyShieldBypassPct = Math.max(result2.cosmosEnergyShieldBypassPct, Number(ep.bypassPct || 25));
+    },
+    "cosmosOrbitCycle": (result2, context, ep) => {
+      result2.cosmosOrbitCycle = { high: Number(ep.high || 1.3), low: Number(ep.low || 0.7), step: Number(ep.step || 0.2) };
+    },
+    "cosmosDeepSeaLeechCaps": (result2, context, ep) => {
+      result2.cosmosDeepSeaLeechCaps = { rateLessPct: Number(ep.rateLessPct || 20), capMul: Number(ep.capMul || 2) };
+    },
+    "cosmosTideEsRegenToLife": (result2) => {
+      result2.cosmosTideEsRegenToLife = true;
+    },
+    "cosmosEqualDamageSplit": (result2) => {
+      result2.cosmosEqualDamageSplit = true;
+    },
+    "cosmosBalanceMitigation": (result2) => {
+      result2.cosmosBalanceMitigation = true;
+    },
+    "cosmosTwinStarResonance": (result2, context, ep) => {
+      result2.cosmosTwinStarResonance = { resonanceMul: Number(ep.resonanceMul || 1.5), supportCapMul: Number(ep.supportCapMul || 0.5) };
+    },
+    "cosmosJudgmentLightning": (result2, context, ep) => {
+      result2.cosmosJudgmentLightning = { resDown: Number(ep.resDown || 15), duration: Number(ep.duration || 4) };
+    },
+    "cosmosDeathResist": (result2, context, ep) => {
+      result2.cosmosDeathResistPct = Math.max(result2.cosmosDeathResistPct, Number(ep.chance || 12));
+    },
+    "cosmosVerdictSupportDamage": (result2, context, ep) => {
+      result2.cosmosVerdictSupportDamagePct += Number(ep.morePerSupportPct || 2);
+    },
+    "cosmosGuardianConditionInstant": (result2) => {
+      result2.cosmosGuardianConditionInstant = true;
+    },
+    "cosmosBossDamageMore": (result2, context, ep) => {
+      result2.cosmosBossDamageMorePct = Math.max(result2.cosmosBossDamageMorePct, Number(ep.morePct || 25));
+    },
+    "cosmosCometChillNoFreeze": (result2) => {
+      result2.cosmosCometChillNoFreeze = true;
+    },
+    "fixedAllMaxRes": (result2, context, ep) => {
+      result2.fixedAllMaxRes = Math.max(1, Math.min(90, Number(ep.max || 82)));
+    },
+    "stealEliteTrait": (result2, context, ep) => {
+      result2.uniqueStealEliteTrait = { duration: Number(ep.duration || 30) };
+    },
+    "thousandBottles": (result2, context, ep, effect, deps) => {
+      deps.bottleStats(context.reward);
+    },
+    "cosmosStatBundle": (result2, context, ep) => {
+      addStatToBucket(context.reward, "pctDmg", Number(ep.pctDmg || 0));
+      addStatToBucket(context.reward, "dr", Number(ep.dr || 0));
+      addStatToBucket(context.reward, "move", Number(ep.move || 0));
+      addStatToBucket(context.reward, "aspd", Number(ep.aspd || 0));
+      addStatToBucket(context.reward, "resPen", Number(ep.resPen || 0));
+      addStatToBucket(context.reward, "critDmg", Number(ep.critDmg || 0));
+      addStatToBucket(context.reward, "regen", Number(ep.regen || 0));
+      addStatToBucket(context.reward, "leech", Number(ep.leech || 0));
+    },
+    "astraUniqueConvergence": (result2, context, ep) => {
+      const uniqueCount = Object.values(context.owner.equipment || {}).filter((it) => it && it.rarity === "unique").length;
+      const otherUniques = Math.min(Number(ep.capCount || 8), Math.max(0, uniqueCount - 1));
+      addStatToBucket(context.reward, "pctDmg", otherUniques * Number(ep.pctPerUnique || 5));
     }
-    if (hasKeystone('iq6')) suppCap += 1;
-    return { suppCap, inquisitorResonanceBonus, runeResonancePower: runePower,
-        uniqueResonanceFloor: Math.floor(unique.resonancePower || 0), passiveKeystoneFlags: flags };
-}
-
-function applyPassiveResonanceRules(passive, budget, state) {
-    const flags = budget.passiveKeystoneFlags;
-    const canOverflow = gemDropRewards.allowsResonanceOverflow(budget);
-    if (!flags.fleshResonance && !canOverflow) return 0;
-    const free = gemDropRewards.resonanceCap(state, budget) - gemDropRewards.resonanceUsed(state);
-    if (flags.fleshResonance) passive.flatHp += Math.max(0, free) * 5;
-    if (!canOverflow || free >= 0) return 0;
-    const penalty = -free;
-    ['resF', 'resC', 'resL', 'resChaos'].forEach(stat => { passive[stat] -= penalty; });
-    return penalty;
-}
-
-return Object.freeze({ getStrongestPassiveDamageElement, getPlayerTaggedDamageSkill, getPlayerSupportBudget, applyPassiveResonanceRules });
-})();
-
-/**
- * @param {boolean} includeBreakdowns Build tooltip text for visible stats; replay only needs numeric results.
- * With equipmentView this is the calculation itself: it reads the clock, the hero's life and charges, timed buffs and the enemies
- * only through `tick` (js/player-stat-cache.js). Given a tick (playerStatCache) it returns the part a settlement may keep, which
- * finishPlayerStats completes on every call; without one it returns finished stats as before.
- */
-function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attributesOnly = false, equipmentView = false, tick = null) {
-    if (!equipmentView) return combatEquipmentStats.read(includeBreakdowns);
-    const keepCore = tick !== null;
-    tick = tick || playerStatTick.create();
-    recomputeCosmosTwinKeystones();
-    const safePassives = Array.isArray(game.passives) ? game.passives : [];
-    const safeSeasonNodes = Array.isArray(game.seasonNodes) ? game.seasonNodes : [];
-    const safeAscendNodes = Array.isArray(game.ascendNodes) ? game.ascendNodes : [];
-    const safeRewardBonuses = Array.isArray(game.actRewardBonuses) ? game.actRewardBonuses : [];
-    const safeJournalBonuses = Array.isArray(game.journalBonuses) ? game.journalBonuses : [];
-    const safeEquippedSupports = Array.isArray(game.equippedSupports) ? game.equippedSupports : [];
-    let baseDmg = 16 + (game.level * 1.5);
-    let baseHp = 90 + (game.level * 8);
-    let baseMove = 100;
-    let glovePairAspdBonus = 0;
-    let glove1 = game.equipment ? game.equipment['장갑1'] : null;
-    let glove2 = game.equipment ? game.equipment['장갑2'] : null;
-    if (glove1 && glove2 && glove1.baseId && glove2.baseId && glove1.baseId === glove2.baseId) glovePairAspdBonus = 0.1;
-
-    let passive = createEmptyStatBucket();
-    let support = createEmptyStatBucket();
-    let season = createEmptyStatBucket();
-    let ascend = createEmptyStatBucket();
-    let reward = createEmptyStatBucket();
-    let starBlessing = createEmptyStatBucket();
-    let colonyWardBonus = {};
-
-    let resolvedSources = getPlayerStatSourceItemEntries().map(([slotKey, item]) =>
-        [slotKey, item, getResolvedEquipmentStatLists(slotKey, item, game)]);
-    let resolvedStats = resolvedSources.map(([, , stats]) => stats);
-    let excludedSlots = new Set();
-    let barbarismKeystone = findAllocatedPassiveKeystone('야만');
-    if (barbarismKeystone) excludedSlots.add('all:무기');
-    if (hasKeystone('cr3') && !hasKeystone('cr9')) excludedSlots.add('무기');
-    let { gearBase, gearExplicit, localDefenseTotals, globalDefensePct, shieldArmorForDamage, shieldBaseBlockChance,
-        shieldBlockChancePct, shieldBlockChanceFlat, equippedUniqueEffects } =
-        getCombatEquipmentContributions(resolvedSources, excludedSlots);
-    getActiveTalentUniqueEffects().forEach(effect => equippedUniqueEffects.push(effect));
-    let equippedUniqueJewels = getEquippedUniqueJewels();
-    let activeUniqueIds = new Set(equippedUniqueJewels.map(entry => entry.jewel.uniqueId));
-    globalDefensePct = { ...globalDefensePct };
-    getMirroredRingJewels().forEach(jewel => getJewelStats(jewel).forEach(stat => { addStatToBucket(gearExplicit, stat.id, stat.val); addGlobalDefensePct(globalDefensePct, stat.id, stat.val); }));
-    if (activeUniqueIds.has('uj_old_box')) {
-        let r = tick.get('inventoryRarity');
-        addStatToBucket(reward, 'aspd', Math.min(30, r.magic * 0.5));
-        addStatToBucket(reward, 'pctDmg', Math.min(60, r.rare * 1.2));
-        addStatToBucket(reward, 'dr', Math.min(12, r.unique * 1.5));
-    }
-    if (activeUniqueIds.has('uj_condensed_curse')) addStatToBucket(reward, 'curseCap', 1);
-    let uniqueClosedEyes = activeUniqueIds.has('uj_closed_eyes');
-    let uniqueXpGainPct = 0, uniqueFlatDmgPerLevel = 0, uniqueEsAmpPct = 0, uniqueShockInvertTaken = false, uniqueAlwaysShock = false, uniqueProjectileDoubleStrikePct = 0;
-    let uniqueChaosResDownOnHit = null, uniqueCorpseExplode = null, uniqueInstantLeechPct = 0, uniqueDoubleDamageChancePct = 0, uniqueEsRecoverOnCritPct = 0;
-    let uniqueRiderCompass = false, uniqueMaxRollBonusHit = false, uniqueCeilingSmashDouble = false, uniqueMinRollEqualsMaxRoll = false, uniqueHpToPhysPct = false, uniqueImmuneIgnite = false;
-    let uniqueFateTwinRollSync=false, uniqueFrostSentinel=false, uniqueShockTracer=null, uniqueVenomStride=null, uniqueBleedBlockHelm=false, uniqueImmuneBleed=false, uniqueImmuneFreeze=false, uniqueCurseCrownPerCursePct=0, uniqueWarcryResonancePct=0, uniqueConditionManual=null, uniqueStackingElementalResDownOnHit=null;
-    let uniqueBleedingEnemyDamageMorePct=0, uniqueRiftWaveOnHit=null, uniqueChaosDamageInstantLeechPct=0, uniqueInvulnerableBarrierOnHit=null, uniquePoisonDurationPct=0, uniqueArmorToPhysicalDamagePctPer1000=0, uniqueDeathWard=null;
-    let uniqueAllResDownOnHit=null, uniqueKillMoveStacks=null, uniqueCursedTakenAndRefresh=null, uniqueEnemyRegenCutAndMinRoll=null, uniquePhysDrHalfTakenAsMore=null, uniqueArmorAppliesToDot=false, uniqueMeleeArmorAmp=null, uniquePursuitMovePct=0, uniqueRepelMelee=null, uniqueResonanceAndSuppCap=null, uniqueRegenRateAndRegen=null, uniqueMaxHpPct=0, uniqueAllMaxRes=0;
-    let uniqueLeechEfficiencyOnKill=null, uniqueOverkillSplash=false, uniqueDragonVeinGuard=null, uniqueGuardianArmor=null, uniqueStealEliteTrait=null, fixedAllMaxRes=null;
-    let cosmosAlwaysFirstHit=false, cosmosEnergyShieldBypassPct=0, cosmosOrbitCycle=null, cosmosDeepSeaLeechCaps=null, cosmosTideEsRegenToLife=false, cosmosEqualDamageSplit=false, cosmosBalanceMitigation=false, cosmosTwinStarResonance=null, cosmosJudgmentLightning=null, cosmosDeathResistPct=0, cosmosVerdictSupportDamagePct=0, cosmosGuardianConditionInstant=false, cosmosBossDamageMorePct=0, cosmosCometChillNoFreeze=false;
-    let uniqueQueenBeeSummon=null, uniqueBleedWeightOnBleedingHit=false, uniqueGrandBreachCrown=null, uniqueLabyrinthShackles=false, uniqueMeteorFootsteps=null;
-    let uniqueRollGapDamage=false, uniqueRollGapCritDs=false, uniqueCrowdEvasionMore=null, uniqueFewEnemyEvasionMore=null, uniqueEsToLightPct=false, uniqueUnderdogMorePct=0, uniqueInstakillNormalPct=0, uniqueProjExtraShotChance=null, projectilePatternEffect=null;
-    let uniqueEvasionDance=null, uniqueLoneEvasionCounter=null, uniqueCritAdvanceEsRecharge=null, uniqueEnergyShieldBreakRecharge=null;
-    if (activeUniqueIds.has('uj_crown_empty')) {
-        let otherUniqueCount = equippedUniqueJewels.filter(entry => entry && entry.jewel && entry.jewel.uniqueId !== 'uj_crown_empty').length;
+  });
+  function createPlayerUniqueEffects(deps) {
+    const evaluate = (owner, input) => {
+      const context = { ...input, owner };
+      const result2 = { uniqueClosedEyes: context.activeUniqueIds.has("uj_closed_eyes"), ...DEFAULT_EFFECTS };
+      if (context.activeUniqueIds.has("uj_crown_empty")) {
+        const otherUniqueCount = context.equippedUniqueJewels.filter((entry) => entry && entry.jewel && entry.jewel.uniqueId !== "uj_crown_empty").length;
         if (otherUniqueCount === 0) {
-            addStatToBucket(reward, 'pctDmg', 25);
-            addStatToBucket(reward, 'gemLevel', 1);
+          addStatToBucket(context.reward, "pctDmg", 25);
+          addStatToBucket(context.reward, "gemLevel", 1);
         }
+      }
+      if (context.activeUniqueIds.has("uj_condensed_curse")) result2.uniqueCurseCrownPerCursePct = Math.max(result2.uniqueCurseCrownPerCursePct, 10);
+      for (const effect of context.effects) {
+        if (!effect || !effect.key || !Object.hasOwn(EFFECTS, effect.key)) continue;
+        EFFECTS[effect.key](result2, context, effect.params || {}, effect, deps);
+      }
+      return result2;
+    };
+    return Object.freeze({ evaluate });
+  }
+
+  // modules/domain/player-passive-stats.mjs
+  var ELEMENT_TAGS = Object.freeze({ fire: "fire", cold: "cold", light: "lightning" });
+  var PlayerPassiveStats = class {
+    constructor(deps) {
+      this.deps = deps;
     }
-    if (activeUniqueIds.has('uj_condensed_curse')) uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, 10);
-    let uniqueSummonDeathDamageBuff=null, uniqueSummonCritAspdStacks=null, uniqueSummonNonCritNoDamage=false;
-    let uniqueBlockRecoverEnergyShieldPct=0, uniqueBlockedDamageTakenPct=0, uniqueDeflectStealth=null, uniqueChaosTakenDamageReducePct=0, uniqueLifeRecoupTakenDamage=null, uniqueOverhealCapPct=0;
-    // 재능 개화 표면 키스톤과 전직 키스톤의 고유 효과를 같은 파이프라인에 주입(combat-build-stats.js)
-    pushBuildKeystoneUniqueEffects(equippedUniqueEffects);
-    equippedUniqueEffects.forEach(effect => {
-        if (!effect || !effect.key) return;
-        let ep = effect.params || {};
-        if (effect.key === 'xpGainPct') uniqueXpGainPct += Number(ep.pct || 0);
-        else if (effect.key === 'flatDmgPerLevel') uniqueFlatDmgPerLevel += Number(ep.perLevel || 0);
-        else if (effect.key === 'esAmpAndRecoverOnCrit') { uniqueEsAmpPct = Math.max(uniqueEsAmpPct, Number(ep.ampPct ?? 50)); uniqueEsRecoverOnCritPct = Math.max(uniqueEsRecoverOnCritPct, Number(ep.recoverPctOnCrit || 2)); }
-        else if (effect.key === 'invertShockTaken') uniqueShockInvertTaken = true;
-        else if (effect.key === 'alwaysShock') uniqueAlwaysShock = true;
-        else if (effect.key === 'projectileDoubleStrikePct') uniqueProjectileDoubleStrikePct += Number(ep.pct || 100);
-        else if (effect.key === 'projectilePatternMode' && PROJECTILE_PATTERN_MODE_DB[ep.mode] && !projectilePatternEffect) {
-            projectilePatternEffect = {
-                mode: ep.mode,
-                source: effect.itemName ? _t('{itemName} (고유 장비)', { itemName: effect.itemName }) : '재능',
-                damageMultiplier: Number.isFinite(Number(ep.damageMultiplier)) ? Number(ep.damageMultiplier) : null
-            };
-        }
-        else if (effect.key === 'hitApplyChaosResDown') uniqueChaosResDownOnHit = mergeBetterUniqueParams(uniqueChaosResDownOnHit, { perHit: Number(ep.perHit || 3), maxStacks: Number(ep.maxStacks || 10) });
-        else if (effect.key === 'corpseExplodeOnKill') uniqueCorpseExplode = mergeBetterUniqueParams(uniqueCorpseExplode, { chance: Number(ep.chance || 15), lifePct: Number(ep.lifePct || 25) });
-        else if (effect.key === 'instantLeechAndDoubleDamage') { uniqueInstantLeechPct += Number(ep.instantLeechPct || 25); uniqueDoubleDamageChancePct += Number(ep.doubleDamageChance || 20); }
-        else if (effect.key === 'riderCompass') uniqueRiderCompass = true;
-        else if (effect.key === 'maxRollBonusHit') uniqueMaxRollBonusHit = true;
-        else if (effect.key === 'ceilingSmashDouble') uniqueCeilingSmashDouble = true;
-        else if (effect.key === 'minRollEqualsMaxRoll') uniqueMinRollEqualsMaxRoll = true;
-        else if (effect.key === 'hpToPhysPct') uniqueHpToPhysPct = true;
-        else if (effect.key === 'immuneIgnite') uniqueImmuneIgnite = true;
-
-        else if (effect.key === 'fateTwinRollSync') uniqueFateTwinRollSync = true;
-        else if (effect.key === 'frostSentinelBoots') uniqueFrostSentinel = true;
-        else if (effect.key === 'shockTracerGreaves') uniqueShockTracer = mergeBetterUniqueParams(uniqueShockTracer, { shockEffectPct: Number(ep.shockEffectPct || 25), strikeDamagePct: Number(ep.strikeDamagePct || 500), icdSec: Number(ep.icdSec || 0.5) });
-        else if (effect.key === 'venomStride') {
-            uniqueVenomStride = uniqueVenomStride || { poisonMorePct: 0, poisonExtraStack: 0 };
-            uniqueVenomStride.poisonMorePct = Math.max(uniqueVenomStride.poisonMorePct, Number(ep.poisonMorePct ?? 30));
-            uniqueVenomStride.poisonExtraStack = Math.max(uniqueVenomStride.poisonExtraStack, Number(ep.poisonExtraStack ?? 1));
-            addStatToBucket(reward, 'poisonDamageMultiplierPct', Number(ep.poisonMorePct ?? 30));
-        }
-        else if (effect.key === 'bleedBlockHelm') uniqueBleedBlockHelm = true;
-        else if (effect.key === 'curseCrown') { addStatToBucket(reward, 'curseCap', Number(ep.extraCurseCap || 1)); uniqueCurseCrownPerCursePct = Math.max(uniqueCurseCrownPerCursePct, Number(ep.finalDmgPerCursePct || 6)); }
-        else if (effect.key === 'warcryResonanceBelt') uniqueWarcryResonancePct = Math.max(uniqueWarcryResonancePct, Number(ep.perWarcryAmpPct || 20));
-        else if (effect.key === 'conditionManual') uniqueConditionManual = { durationPct: Number(ep.durationPct || 100), cdrPct: Number(ep.cdrPct || 20) };
-        else if (effect.key === 'stackingElementalResDownOnHit') uniqueStackingElementalResDownOnHit = mergeBetterUniqueParams(uniqueStackingElementalResDownOnHit, { perHit: Number(ep.perHit || 2), max: Number(ep.max || 20) });
-        else if (effect.key === 'leechEfficiencyOnKill') uniqueLeechEfficiencyOnKill = mergeBetterUniqueParams(uniqueLeechEfficiencyOnKill, { duration: Number(ep.duration || 8), efficiencyPct: Number(ep.efficiencyPct || 100) });
-        else if (effect.key === 'overkillSplash') uniqueOverkillSplash = true;
-        else if (effect.key === 'dragonVeinGuard') uniqueDragonVeinGuard = mergeBetterUniqueParams(uniqueDragonVeinGuard, { chance: Number(ep.chance || 20), duration: Number(ep.duration || 2), hpPct: Number(ep.hpPct || 8) });
-        else if (effect.key === 'guardianArmor') uniqueGuardianArmor = mergeBetterUniqueParams(uniqueGuardianArmor, { takenLessPct: Number(ep.takenLessPct || 8), bossTakenLessPct: Number(ep.bossTakenLessPct || 12) });
-        else if (effect.key === 'queenBeeSummonOnHit') uniqueQueenBeeSummon = { chance: Number(ep.chance || 8), hitPct: Number(ep.hitPct || 125), attacks: Number(ep.attacks || 3), maxBees: Number(ep.maxBees || 10) };
-        else if (effect.key === 'bleedWeightOnBleedingHit') uniqueBleedWeightOnBleedingHit = true;
-        else if (effect.key === 'grandBreachCrown') uniqueGrandBreachCrown = { spellFromEsPct: Number(ep.spellFromEsPct || 10), esPct: Number(ep.esPct || 30) };
-        else if (effect.key === 'labyrinthShackles') uniqueLabyrinthShackles = true;
-        else if (effect.key === 'rollGapDamagePct') uniqueRollGapDamage = true;
-        else if (effect.key === 'rollGapCritAndDs') uniqueRollGapCritDs = true;
-        else if (effect.key === 'crowdEvasionMore') uniqueCrowdEvasionMore = { minEnemies: Number(ep.minEnemies || 10), morePct: Number(ep.morePct || 100) };
-        else if (effect.key === 'fewEnemyEvasionMore') uniqueFewEnemyEvasionMore = mergeBetterUniqueParams(uniqueFewEnemyEvasionMore, { minEnemies: Number(ep.minEnemies || 1), maxEnemies: Number(ep.maxEnemies || 2), morePct: Number(ep.morePct || 45) });
-        else if (effect.key === 'evasionDanceOnEvade') uniqueEvasionDance = mergeBetterUniqueParams(uniqueEvasionDance, { maxStacks: Number(ep.maxStacks || 4), evasionPctPerStack: Number(ep.evasionPctPerStack || 4), movePerStack: Number(ep.movePerStack || 2), duration: Number(ep.duration || 4) });
-        else if (effect.key === 'loneEvasionCounter') uniqueLoneEvasionCounter = mergeBetterUniqueParams(uniqueLoneEvasionCounter, { maxEnemies: Number(ep.maxEnemies || 2), damageMorePct: Number(ep.damageMorePct || 20), duration: Number(ep.duration || 3) });
-        else if (effect.key === 'critAdvanceEnergyShieldRecharge') uniqueCritAdvanceEsRecharge = { advanceSec: Number(ep.advanceSec || 0.25), cooldownSec: Number(ep.cooldownSec || 0.6) };
-        else if (effect.key === 'energyShieldBreakRecharge') uniqueEnergyShieldBreakRecharge = { duration: Number(ep.duration || 3), cooldown: Number(ep.cooldown || 12) };
-        else if (effect.key === 'esToLightPct') uniqueEsToLightPct = true;
-        else if (effect.key === 'underdogNonMaxRollMorePct') uniqueUnderdogMorePct = Math.max(uniqueUnderdogMorePct, Number(ep.pct || 20));
-        else if (effect.key === 'instakillNormalOnHitPct') uniqueInstakillNormalPct = Math.max(uniqueInstakillNormalPct, Number(ep.pct || 5));
-        else if (effect.key === 'projectileExtraShotChance') uniqueProjExtraShotChance = mergeBetterUniqueParams(uniqueProjExtraShotChance, { chance: Number(ep.chance || 10), shots: Number(ep.shots || 2) });
-
-        else if (effect.key === 'realmBleedingEnemyDamageMore') uniqueBleedingEnemyDamageMorePct = Math.max(uniqueBleedingEnemyDamageMorePct, Number(ep.morePct || 22));
-        else if (effect.key === 'realmRiftWaveOnHit') uniqueRiftWaveOnHit = mergeBetterUniqueParams(uniqueRiftWaveOnHit, { chance: Number(ep.chance || 12), damagePct: Number(ep.damagePct || 80) });
-        else if (effect.key === 'realmChaosDamageInstantLeech') uniqueChaosDamageInstantLeechPct = Math.max(uniqueChaosDamageInstantLeechPct, Number(ep.pct || 8));
-        else if (effect.key === 'realmInvulnerableBarrierOnHit') uniqueInvulnerableBarrierOnHit = { chance: Number(ep.chance || 10), duration: Number(ep.duration || 1.5) };
-        else if (effect.key === 'realmPoisonDuration') uniquePoisonDurationPct = Math.max(uniquePoisonDurationPct, Number(ep.durationPct || 35));
-        else if (effect.key === 'realmArmorToPhysicalDamage') uniqueArmorToPhysicalDamagePctPer1000 = Math.max(uniqueArmorToPhysicalDamagePctPer1000, Number(ep.pctPer1000 || 3));
-        else if (effect.key === 'realmDeathWard') uniqueDeathWard = mergeBetterUniqueParams(uniqueDeathWard, { hpPct: Number(ep.hpPct || 12), cooldown: Number(ep.cooldown || 20) });
-        else if (effect.key === 'realmAllResDownOnHit') uniqueAllResDownOnHit = { perHit: Number(ep.perHit || 5), max: Number(ep.max || 4), duration: Number(ep.duration || 5) };
-        else if (effect.key === 'realmKillMoveStacks') uniqueKillMoveStacks = mergeBetterUniqueParams(uniqueKillMoveStacks, { movePerStack: Number(ep.movePerStack || 10), maxStacks: Number(ep.maxStacks || 20), duration: Number(ep.duration || 20), cooldownSec: Number(ep.cooldownSec || 1) });
-        else if (effect.key === 'realmCursedTakenAndRefresh') uniqueCursedTakenAndRefresh = { takenMul: Number(ep.takenMul || 1.1), refreshSec: Number(ep.refreshSec || 4) };
-        else if (effect.key === 'realmEnemyRegenCutAndMinRoll') uniqueEnemyRegenCutAndMinRoll = { enemyRegenRateMul: Number(ep.enemyRegenRateMul || 0.5), minRoll: Number(ep.minRoll || 10) };
-        else if (effect.key === 'realmPhysDrHalfTakenAsMore') uniquePhysDrHalfTakenAsMore = { ratio: Number(ep.ratio || 0.5) };
-        else if (effect.key === 'realmArmorAppliesToDot') uniqueArmorAppliesToDot = true;
-        else if (effect.key === 'realmMeleeArmorAmp') uniqueMeleeArmorAmp = mergeBetterUniqueParams(uniqueMeleeArmorAmp, { ampPct: Number(ep.ampPct || 5), maxStacks: Number(ep.maxStacks || 3), duration: Number(ep.duration || 2) });
-        else if (effect.key === 'realmRepelMelee') uniqueRepelMelee = readRepelMeleeParams(ep);
-        else if (effect.key === 'realmResonanceAndSuppCap') uniqueResonanceAndSuppCap = { resonancePower: Number(ep.resonancePower || 150), suppCap: Number(ep.suppCap || 3) };
-        else if (effect.key === 'realmRegenRateAndRegen') uniqueRegenRateAndRegen = mergeBetterUniqueParams(uniqueRegenRateAndRegen, { regenRatePct: Number(ep.regenRatePct || 25), regen: Number(ep.regen || 2) });
-        else if (effect.key === 'realmMaxHpPct') uniqueMaxHpPct += Number(ep.pctHp || 35);
-        else if (effect.key === 'realmAllMaxRes') uniqueAllMaxRes += Number(ep.maxRes || 3);
-        else if (effect.key === 'meteorFootsteps') uniqueMeteorFootsteps = { chance: Number(ep.chance || 20), damagePct: Number(ep.damagePct || 180) };
-        else if (effect.key === 'summonCapBonus') addStatToBucket(reward, 'summonCap', Number(ep.cap || 1));
-        else if (effect.key === 'summonEfficiencyBonus') addStatToBucket(reward, 'summonEfficiency', Number(ep.pct || 10));
-        else if (effect.key === 'rightRingSummonCap') { if (effect.sourceSlot === '반지2') addStatToBucket(reward, 'summonCap', Number(ep.cap || 1)); }
-        else if (effect.key === 'summonDeathDamageBuff') uniqueSummonDeathDamageBuff = { pct: Number(ep.pct || 40), duration: Number(ep.duration || 4) };
-        else if (effect.key === 'summonCritAspdStacks') uniqueSummonCritAspdStacks = { aspd: Number(ep.aspd || 10), maxStacks: Number(ep.maxStacks || 3), duration: Number(ep.duration || 4) };
-        else if (effect.key === 'summonNonCritNoDamage') uniqueSummonNonCritNoDamage = true;
-        else if (effect.key === 'genericTakenDamageReducePct') addStatToBucket(reward, 'genericTakenDamageReducePct', Number(ep.pct || 0));
-        else if (effect.key === 'uniqueBlockChance') addStatToBucket(reward, 'blockChance', Number(ep.chance || 0));
-        else if (effect.key === 'uniqueDeflectDamageReduce') addStatToBucket(reward, 'deflectDamageReduce', Number(ep.pct || 0));
-        else if (effect.key === 'blockRecoverEnergyShieldPct') uniqueBlockRecoverEnergyShieldPct = Math.max(uniqueBlockRecoverEnergyShieldPct, Number(ep.pct || 2));
-        else if (effect.key === 'blockedDamageTakenPct') uniqueBlockedDamageTakenPct = Math.max(uniqueBlockedDamageTakenPct, Number(ep.pct || 0));
-        else if (effect.key === 'uniqueTakenReduceWhen2Enemies') addStatToBucket(reward, 'takenDamageReduceWhen2EnemiesPct', Number(ep.pct || 0));
-        else if (effect.key === 'uniqueTakenReduceWhen1Enemy') addStatToBucket(reward, 'takenDamageReduceWhen1EnemyPct', Number(ep.pct || 0));
-        else if (effect.key === 'uniqueMaxResAll') addStatToBucket(reward, 'maxResAll', Number(ep.pct || 0));
-        else if (effect.key === 'deflectGrantShadowStealth') uniqueDeflectStealth = mergeBetterUniqueParams(uniqueDeflectStealth, { duration: Number(ep.duration || 3), move: Number(ep.move || 20), evasionPct: Number(ep.evasionPct || 20), critDmg: Number(ep.critDmg || 20) });
-        else if (effect.key === 'chaosTakenDamageReducePct') uniqueChaosTakenDamageReducePct = Math.max(uniqueChaosTakenDamageReducePct, Number(ep.pct || 15));
-        else if (effect.key === 'uniqueGemLevelBonus') addStatToBucket(reward, 'gemLevel', Number(ep.level || 1));
-        else if (effect.key === 'lifeRecoupTakenDamage') uniqueLifeRecoupTakenDamage = mergeBetterUniqueParams(uniqueLifeRecoupTakenDamage, { pct: Number(ep.pct || 25), duration: Number(ep.duration || 4) });
-        else if (effect.key === 'immuneBleed') uniqueImmuneBleed = true;
-        else if (effect.key === 'immuneFreeze') uniqueImmuneFreeze = true;
-        else if (effect.key === 'lifePctAsEnergyShield') addStatToBucket(reward, 'energyShield', Math.floor(Math.max(0, baseHp) * Math.max(0, Number(ep.pct || 10)) / 100));
-        else if (effect.key === 'overhealCapPct') uniqueOverhealCapPct = Math.max(uniqueOverhealCapPct, Number(ep.pct || 0));
-        else if (effect.key === 'dsAndTargetAnyBonus') {
-            addStatToBucket(reward, 'ds', Number(ep.ds !== undefined ? ep.ds : 8));
-            addStatToBucket(reward, 'targetAny', Number(ep.target !== undefined ? ep.target : 1));
-        }
-        else if (effect.key === 'poisonDamageMorePct') addStatToBucket(reward, 'poisonDamageMultiplierPct', Number(ep.pct || 25));
-        else if (effect.key === 'uniqueMinDmgRoll') addStatToBucket(reward, 'minDmgRoll', Number(ep.pct || 5));
-        else if (effect.key === 'hitShockedEnemyDamageMorePct') addStatToBucket(reward, 'shockedEnemyHitDamageMorePct', Number(ep.pct || 50));
-        else if (effect.key === 'pursuitMoveSpeed') uniquePursuitMovePct = Math.max(uniquePursuitMovePct, readPursuitMovePct(ep));
-        else if (effect.key === 'projectileTargetBonus') {
-            if (isDeferredTalentProjectileTargetEffect(effect)) return;
-            addStatToBucket(reward, 'targetProjectile', Number(ep.target || 1));
-        }
-        else if (effect.key === 'projectileExtraShotBonus') addStatToBucket(reward, 'projectileExtraShots', Number(ep.shots || 1));
-        else if (effect.key === 'igniteDamageMorePct') addStatToBucket(reward, 'igniteDamageMultiplierPct', Number(ep.pct || 25));
-        else if (effect.key === 'cosmosFinalDmg') addStatToBucket(reward, 'pctDmg', Number(ep.pct || 12));
-        else if (effect.key === 'cosmosTakenLess') addStatToBucket(reward, 'dr', Number(ep.dr || 8));
-        else if (effect.key === 'cosmosSpeedBurst') { addStatToBucket(reward, 'move', Number(ep.move || 12)); addStatToBucket(reward, 'aspd', Number(ep.aspd || 10)); }
-        else if (effect.key === 'cosmosPenetration') addStatToBucket(reward, 'resPen', Number(ep.pen || 8));
-        else if (effect.key === 'cosmosSustain') { addStatToBucket(reward, 'regen', Number(ep.regen || 1.2)); addStatToBucket(reward, 'leech', Number(ep.leech || 0.8)); }
-        else if (effect.key === 'cosmosBossSlayer') { addStatToBucket(reward, 'pctDmg', Number(ep.pct || 14)); addStatToBucket(reward, 'critDmg', Number(ep.critDmg || 20)); }
-        else if (effect.key === 'cosmosAlwaysFirstHit') cosmosAlwaysFirstHit = true;
-        else if (effect.key === 'cosmosEnergyShieldAmpBypass') { uniqueEsAmpPct = Math.max(uniqueEsAmpPct, Number(ep.ampPct || 25)); cosmosEnergyShieldBypassPct = Math.max(cosmosEnergyShieldBypassPct, Number(ep.bypassPct || 25)); }
-        else if (effect.key === 'cosmosOrbitCycle') cosmosOrbitCycle = { high: Number(ep.high || 1.3), low: Number(ep.low || 0.7), step: Number(ep.step || 0.2) };
-        else if (effect.key === 'cosmosDeepSeaLeechCaps') cosmosDeepSeaLeechCaps = { rateLessPct: Number(ep.rateLessPct || 20), capMul: Number(ep.capMul || 2) };
-        else if (effect.key === 'cosmosTideEsRegenToLife') cosmosTideEsRegenToLife = true;
-        else if (effect.key === 'cosmosEqualDamageSplit') cosmosEqualDamageSplit = true;
-        else if (effect.key === 'cosmosBalanceMitigation') cosmosBalanceMitigation = true;
-        else if (effect.key === 'cosmosTwinStarResonance') cosmosTwinStarResonance = { resonanceMul: Number(ep.resonanceMul || 1.5), supportCapMul: Number(ep.supportCapMul || 0.5) };
-        else if (effect.key === 'cosmosJudgmentLightning') cosmosJudgmentLightning = { resDown: Number(ep.resDown || 15), duration: Number(ep.duration || 4) };
-        else if (effect.key === 'cosmosDeathResist') cosmosDeathResistPct = Math.max(cosmosDeathResistPct, Number(ep.chance || 12));
-        else if (effect.key === 'cosmosVerdictSupportDamage') cosmosVerdictSupportDamagePct += Number(ep.morePerSupportPct || 2);
-        else if (effect.key === 'cosmosGuardianConditionInstant') cosmosGuardianConditionInstant = true;
-        else if (effect.key === 'cosmosBossDamageMore') cosmosBossDamageMorePct = Math.max(cosmosBossDamageMorePct, Number(ep.morePct || 25));
-        else if (effect.key === 'cosmosCometChillNoFreeze') cosmosCometChillNoFreeze = true;
-        else if (effect.key === 'fixedAllMaxRes') fixedAllMaxRes = Math.max(1, Math.min(90, Number(ep.max || 82)));
-        else if (effect.key === 'stealEliteTrait') uniqueStealEliteTrait = { duration: Number(ep.duration || 30) };
-        else if (effect.key === 'kaleidoscopeShield' || effect.key === 'mirrorOppositeRing') { /* item stat path handles these */ }
-        else if (effect.key === 'thousandBottles') addThousandBottlesStats(reward);
-        else if (effect.key === 'cosmosStatBundle') {
-            addStatToBucket(reward, 'pctDmg', Number(ep.pctDmg || 0));
-            addStatToBucket(reward, 'dr', Number(ep.dr || 0));
-            addStatToBucket(reward, 'move', Number(ep.move || 0));
-            addStatToBucket(reward, 'aspd', Number(ep.aspd || 0));
-            addStatToBucket(reward, 'resPen', Number(ep.resPen || 0));
-            addStatToBucket(reward, 'critDmg', Number(ep.critDmg || 0));
-            addStatToBucket(reward, 'regen', Number(ep.regen || 0));
-            addStatToBucket(reward, 'leech', Number(ep.leech || 0));
-        }
-
-        else if (effect.key === 'abyssSocketOnItem' || effect.key === 'abyssSocketAndJewelAmp') { /* handled by item generation/socket stat merge path */ }
-        else if (effect.key === 'astraUniqueConvergence') {
-            let uniqueCount = Object.values(game.equipment || {}).filter(it => it && it.rarity === 'unique').length;
-            let otherUniques = Math.min(Number(ep.capCount || 8), Math.max(0, uniqueCount - 1));
-            addStatToBucket(reward, 'pctDmg', otherUniques * Number(ep.pctPerUnique || 5));
-        }
-    });
-
-    let virtualVoidCount = getVirtualVoidPassiveCount(), weaponStance = getEquippedWeaponStance();
-    const balanceAttributes = hasAuthoredPassiveKeystone('균형의 공명');
-    safePassives.forEach(id => {
-        let node = PASSIVE_TREE.nodes[id];
-        if (!node) return;
-        if (node.kind === 'void') {
-            let entry = getVoidPassiveCraft(id);
-            passiveRouting.voidStats(entry, game, getVoidLinkScale(id)).forEach(line => addPassiveLineToBucket(passive, line.id, line.val, weaponStance));
-            getTranscendentVoidPassiveStats(id, entry, virtualVoidCount).forEach(line => addStatToBucket(passive, line.stat, line.val));
-            return;
-        }
-        getEffectivePassiveNodeEffects(node, balanceAttributes).forEach(effect => addPassiveLineToBucket(passive, effect.stat, effect.val, weaponStance));
-    });
-
-    accumulateCombatSeasonStats(season, safeSeasonNodes, game.seasonNodeLevels);
-    accumulateCombatAscendStats(ascend, safeAscendNodes, game.ascendClass);
-    safeRewardBonuses.forEach(entry => {
-        if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
-    });
-    accumulateCombatLoopStats(reward, game.loop10BonusStats, game.loopDeepStats, game.season);
-    let chaosRealmBonus = (ensureChaosRealmState().permanentBonuses || {});
-    Object.keys(chaosRealmBonus).forEach(statKey => addStatToBucket(reward, statKey, chaosRealmBonus[statKey] || 0));
-    const { runeCorpseExplodeChance, runeCorpseExplodeLifePct, runeResonancePower } =
-        accumulateCombatRuneStats(reward, game.underworldRunes);
-    applyTimedRewardStats(tick, reward);
-    applyAccountRewardStats(reward);
-    if (typeof getCosmosBossRelicStatTotals === 'function') {
-        let relicStats = getCosmosBossRelicStatTotals();
-        Object.keys(relicStats).forEach(statKey => addStatToBucket(reward, statKey, relicStats[statKey]));
+    strongestElement(readStat) {
+      return Object.values(ELEMENT_TAGS).reduce((best, tag) => {
+        const bonus = readStat(TAGGED_DAMAGE_STAT_BY_TAG2[tag]);
+        return !best || bonus > best.bonus ? { tag, bonus } : best;
+      }, null);
     }
-    safeJournalBonuses.forEach(entry => {
-        if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
-    });
-    getBeyondBoundaryGlobalStats(game).forEach(stat => addStatToBucket(reward, stat.id, stat.val));
-    let heroDef = game.bloomedClassThisLoop === game.ascendClass
-        ? HERO_SELECTION_DEFS[game.bloomedTalentThisLoop] : null;
-    (heroDef && Array.isArray(heroDef.stats) ? heroDef.stats : []).forEach(row => {
-        if (row && row.stat) addStatToBucket(reward, row.stat, row.value);
-    });
-    if (game.passiveStarEvolution && Array.isArray(game.journalEntries) && game.journalEntries.includes('passive_star_evolution')) {
-        Object.keys(PASSIVE_STAR_BLESSING).forEach(statId => addStatToBucket(starBlessing, statId, PASSIVE_STAR_BLESSING[statId]));
+    taggedSkill(skill, strongestElement) {
+      const tags = this.deps.damageTags(skill);
+      if (strongestElement && Object.hasOwn(ELEMENT_TAGS, skill.ele) && !skill.randomElementPool?.length) {
+        Object.values(ELEMENT_TAGS).forEach((tag) => tags.delete(tag));
+        tags.add(strongestElement.tag);
+      }
+      return { ...skill, tags: [...tags] };
     }
-    let talismanSummary = talismanEffects.summarize();
-    Object.keys(talismanSummary.stats).forEach(stat => addStatToBucket(reward, stat, talismanSummary.stats[stat]));
-
-    function sumNonSupportStat(statId) {
-        return gearBase[statId] + gearExplicit[statId] + passive[statId]
-            + season[statId] + ascend[statId] + reward[statId] + (starBlessing[statId] || 0);
+    supportBudget(owner, input) {
+      const { baseSlots, cosmos, unique, runePower, flags } = input;
+      let suppCap = cosmos ? Math.max(0, Math.floor(baseSlots * Math.max(0, cosmos.supportCapMul || 0.5))) : baseSlots;
+      suppCap += Math.floor(unique.suppCap || 0);
+      let inquisitorResonanceBonus = 0;
+      if (this.deps.keystone("iq3", owner)) {
+        suppCap += 1;
+        inquisitorResonanceBonus += 10 + Math.floor(((owner.sealedSkills || []).length + (owner.sealedSupports || []).length) / 4);
+      }
+      if (this.deps.keystone("iq9", owner)) {
+        inquisitorResonanceBonus += this.deps.values.iq9.resonancePerSupport * Math.max(0, suppCap);
+        suppCap += this.deps.values.iq9.extraSupports;
+      }
+      if (this.deps.keystone("iq6", owner)) suppCap += 1;
+      return {
+        suppCap,
+        inquisitorResonanceBonus,
+        runeResonancePower: runePower,
+        uniqueResonanceFloor: Math.floor(unique.resonancePower || 0),
+        passiveKeystoneFlags: flags
+      };
     }
-
-    if (attributesOnly && !window.GameModules.combat.supports.grantsAttributes(game, safeEquippedSupports)) return readRequirementAttributes({ gearBase, gearExplicit, passive, season, ascend, support, reward, starBlessing }, game);
-    // Offline replay already owns a build memo. Foreground inputs live only through this call.
-    const gemEvaluation = getBackgroundBuildMemo(game) ? undefined : createGemBonusEvaluation(resolvedStats);
-    let gemSources = getTargetGemBonusSources(game.activeSkill, undefined, resolvedStats, gemEvaluation);
-    let skill = window.GameModules.combat.supports.activeSkillStats(gemSources.total);
-    const supportValues = window.GameModules.combat.supports.values(skill, {names:safeEquippedSupports,
-        bonus:name=>getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation).total,
-        ownStat:sumNonSupportStat, add:(stat,value)=>addStatToBucket(support,stat,value)});
-
-    addConstellationBuffStat(reward, game);
-    // 가호는 소환 칸 차례대로 한도 안에 든 것만 걸린다(단 하나의 사역이면 한도 1). 가호는 summonCap을 바꾸지 않으므로 지금 버킷으로 센다.
-    const summonCapTotal = () => (gearBase.summonCap || 0) + (gearExplicit.summonCap || 0) + (passive.summonCap || 0) + (season.summonCap || 0) + (ascend.summonCap || 0) + (support.summonCap || 0) + (reward.summonCap || 0);
-    // 단 하나의 사역은 공격 소환수만 하나로 줄인다: 수호 골렘과 가호는 그대로(전령이 보조룬이던 때와 같다)
-    const blessingCap = findAllocatedPassiveKeystone('단 하나의 사역') ? Infinity : getSummonCapFromSum(summonCapTotal());
-    const auraValues = window.GameModules.combat.supports.auraValues(game, name => getTargetGemBonusSources(name, undefined, resolvedStats, gemEvaluation).total, blessingCap);
-    Object.entries(auraValues).forEach(([stat, value]) => addStatToBucket(reward, stat, value));
-    if (projectilePatternEffect && !skill.projectilePatternSource) skill = applyProjectilePatternMode(skill, projectilePatternEffect.mode, projectilePatternEffect.source, projectilePatternEffect.damageMultiplier);
-    let authoredPassiveRules = typeof applyAuthoredPassiveStatRules === 'function'
-        ? applyAuthoredPassiveStatRules({
-            buckets: { gearBase, gearExplicit, passive, support, season, ascend, reward, starBlessing },
-            skillElement: skill.ele,
-            skillTags: skill.tags,
-            tick
-        })
-        : { mystique: { ailment: 'bleed', damagePct: 0, potencyPct: 0 }, devotion: 0, cycle: 0,
-            revelation: 'combat', revelationLabel: '전투의 계시', wisdomElement: 'fire',
-            combatDamageMorePct: 0, guardTakenLessPct: 0, lifeBonusPct: 0,
-            cycleAddedFireFromPhysicalPct: 0, fanaticismStacks: 0, activeCycleBuffEffects: [], flags: {} };
-    // 범용 스탯 전환 — 힘: 1당 생명력 +2, 5당 물리 피해 +1% / 민첩: 1당 회피 +3, 1당 정확도 +5, 5당 투사체 피해 +1%
-    // / 지능: 1당 ES +2, 5당 주문 피해 +1%. 어떤 출처(장비/패시브/보상)의 스탯이든 합산 후 전환된다.
-    let totalStrength = Math.max(0, sumStatAcrossBuckets('strength'));
-    let totalDexterity = Math.max(0, sumStatAcrossBuckets('dexterity'));
-    let totalIntelligence = Math.max(0, sumStatAcrossBuckets('intelligence'));
-    if (attributesOnly) return { strength: totalStrength, dexterity: totalDexterity, intelligence: totalIntelligence };
-    if (totalStrength > 0) { addStatToBucket(reward, 'flatHp', totalStrength * 2); addStatToBucket(reward, 'physPctDmg', Math.floor(totalStrength / 5)); }
-    if (totalDexterity > 0) { addStatToBucket(reward, 'evasion', totalDexterity * 3); addStatToBucket(reward, 'projectilePctDmg', Math.floor(totalDexterity / 5)); }
-    if (totalIntelligence > 0) { addStatToBucket(reward, 'energyShield', totalIntelligence * 2); addStatToBucket(reward, 'spellPctDmg', Math.floor(totalIntelligence / 5)); }
-    // 레벨 자동 성장보다 민첩과 장비가 정확도의 주 공급원이 되도록 한다.
-    let flatAccuracy = Math.max(0, sumStatAcrossBuckets('accuracy'));
-    let accuracyBonusPct = Math.max(0, sumStatAcrossBuckets('accuracyBonusPct'));
-    let playerAccuracy = calculatePlayerAccuracy(game.level, totalDexterity, flatAccuracy, accuracyBonusPct);
-    const bladeBundleShots = getBladeBundleShots(totalStrength, totalDexterity, weaponStance); passive.projectileExtraShots += bladeBundleShots;
-    let targetBonus = (gearBase.targetAny + gearExplicit.targetAny + passive.targetAny + season.targetAny + ascend.targetAny + reward.targetAny), skillBaseTargets = skill.targets;
-    let totalProjectileExtraShots = gearBase.projectileExtraShots + gearExplicit.projectileExtraShots + passive.projectileExtraShots + season.projectileExtraShots + ascend.projectileExtraShots + reward.projectileExtraShots + sumStatAcrossBuckets('projectileExtraChance') / 100;
-    if (Array.isArray(skill.tags) && skill.tags.includes('projectile')) targetBonus += (gearBase.targetProjectile + gearExplicit.targetProjectile + passive.targetProjectile + season.targetProjectile + ascend.targetProjectile + reward.targetProjectile);
-    if (Array.isArray(skill.tags) && skill.tags.includes('slam')) targetBonus += (gearBase.targetSlam + gearExplicit.targetSlam + passive.targetSlam + season.targetSlam + ascend.targetSlam + reward.targetSlam);
-    if (targetBonus > 0) skill.targets = Math.min(Array.isArray(skill.tags) && skill.tags.includes('projectile') ? 12 : 6, Math.max(1, (skill.targets || 1) + Math.floor(targetBonus)));
-    else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
-    const cappedTargets = skill.targets; addUncappedSkillTargets(skill, game.activeSkill); // 각인의 대상 수, 효과 확장 +N: more targets for target gems, the keystone's cost
-    skill.projectileChain = (skill.tags || []).includes('projectile') ? sumStatAcrossBuckets('projectileChain') : 0;   // js/combat-grid.js, js/skill-gem-casts.js
-    // 재능 개화 카드(장착) 효과를 보상 버킷에 합산 → 이후 모든 최종 스탯/태그 피해에 반영
-    let talentStatMap = (typeof getActiveTalentStatMap === 'function') ? getActiveTalentStatMap() : {};
-    if (typeof getActiveTalentCardStatBonuses === 'function') applyStatsToBucket(reward, getActiveTalentCardStatBonuses(tick));
-    const bonusResonancePower = getBonusResonancePower(runeResonancePower, reward, passive, gearExplicit);
-    const supportBudget = passiveTreeCombatStats.getPlayerSupportBudget(2 + gearBase.suppCap + gearExplicit.suppCap + passive.suppCap + season.suppCap + ascend.suppCap + reward.suppCap,
-        cosmosTwinStarResonance, uniqueResonanceAndSuppCap || {}, bonusResonancePower, authoredPassiveRules.flags);
-    const { suppCap, inquisitorResonanceBonus, uniqueResonanceFloor } = supportBudget;
-    const supportResonanceOverflow = passiveTreeCombatStats.applyPassiveResonanceRules(passive, supportBudget, game);
-    let talentLine = function (stat, suffix) { let v = talentStatMap[stat]; return v ? _t('재능 개화 +{value}{suffix} (위 합계에 포함)', { value: Math.round(v * 100) / 100, suffix: suffix || '%' }) : null; };
-
-    const taggedSkill = authoredPassiveRules.flags.duel ? { ...skill, tags: [...skill.tags, 'spell'] } : skill;
-    const strongestElement = authoredPassiveRules.flags.threeBranchLight ? passiveTreeCombatStats.getStrongestPassiveDamageElement(sumStatAcrossBuckets) : null;
-    const damageSkill = passiveTreeCombatStats.getPlayerTaggedDamageSkill(taggedSkill, strongestElement);
-    let gearTagged = getTaggedDamageBreakdown(gearBase, damageSkill);
-    let gearExplicitTagged = getTaggedDamageBreakdown(gearExplicit, damageSkill);
-    let passiveTagged = getTaggedDamageBreakdown(passive, damageSkill);
-    let seasonTagged = getTaggedDamageBreakdown(season, damageSkill);
-    let ascendTagged = getTaggedDamageBreakdown(ascend, damageSkill);
-    let supportTagged = getTaggedDamageBreakdown(support, damageSkill);
-    let rewardTagged = getTaggedDamageBreakdown(reward, damageSkill);
-    let starTagged = getTaggedDamageBreakdown(starBlessing, damageSkill);
-
-    let taggedTotal = gearTagged.total + gearExplicitTagged.total + passiveTagged.total + seasonTagged.total + ascendTagged.total + supportTagged.total + rewardTagged.total + starTagged.total;
-    let taggedParts = [].concat(gearTagged.parts, gearExplicitTagged.parts, passiveTagged.parts, seasonTagged.parts, ascendTagged.parts, supportTagged.parts, rewardTagged.parts, starTagged.parts);
-    let taggedMap = {};
-    taggedParts.forEach(part => {
-        let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG).find(key => TAGGED_DAMAGE_STAT_BY_TAG[key] === part.statId);
-        if (!tag) return;
-        taggedMap[tag] = (taggedMap[tag] || 0) + part.value;
+    applyResonance(passive2, budget, owner) {
+      const flags = budget.passiveKeystoneFlags;
+      const canOverflow = this.deps.runes.allowsResonanceOverflow(budget);
+      if (!flags.fleshResonance && !canOverflow) return 0;
+      const free = this.deps.runes.resonanceCap(owner, budget) - this.deps.runes.resonanceUsed(owner);
+      if (flags.fleshResonance) passive2.flatHp += Math.max(0, free) * 5;
+      if (!canOverflow || free >= 0) return 0;
+      const penalty = -free;
+      ["resF", "resC", "resL", "resChaos"].forEach((stat) => {
+        passive2[stat] -= penalty;
+      });
+      return penalty;
+    }
+  };
+  function createPlayerPassiveStats(deps) {
+    const runtime = new PlayerPassiveStats(deps);
+    return Object.freeze({
+      strongestElement: runtime.strongestElement.bind(runtime),
+      taggedSkill: runtime.taggedSkill.bind(runtime),
+      supportBudget: runtime.supportBudget.bind(runtime),
+      applyResonance: runtime.applyResonance.bind(runtime)
     });
-    let taggedSummary = Object.keys(taggedMap).map(tag => `${translateSkillTag(tag)} ${Math.floor(taggedMap[tag])}%`);
-    let baseTaggedTotal = taggedTotal;
-    function sumStatAcrossBuckets(statId) {
-        return gearBase[statId] + gearExplicit[statId] + passive[statId] + season[statId] + ascend[statId] + support[statId] + reward[statId] + (starBlessing[statId] || 0);
+  }
+
+  // modules/domain/player-stat-finish.mjs
+  function cleanseLastStand(owner, maxHp, now) {
+    if (!(owner.playerHp / Math.max(1, maxHp) <= 0.5)) return;
+    const time = now();
+    if ((owner.guardianLastStandCleanseAt || 0) + 5e3 <= time) {
+      owner.playerAilments = [];
+      owner.guardianLastStandCleanseAt = time;
     }
+  }
+  function applyImmunities(stats, immunity) {
+    if (immunity.ignite) stats.immuneIgnite = true;
+    if (immunity.frostSentinel) {
+      stats.immuneChill = true;
+      stats.immuneFreeze = true;
+    }
+    if (immunity.freeze) stats.immuneFreeze = true;
+    if (immunity.shock) stats.immuneShock = true;
+    if (immunity.bleed) stats.immuneBleed = true;
+    if (immunity.closedEyes) {
+      stats.immuneIgnite = true;
+      stats.immuneChill = true;
+      stats.immuneFreeze = true;
+      stats.immuneShock = true;
+      stats.immuneBleed = true;
+      stats.immunePoison = true;
+    }
+  }
+  function createPlayerStatFinish(deps) {
+    const finish = (owner, core, includeBreakdowns) => {
+      const stats = { ...core.stats };
+      if (stats.sSkill) stats.sSkill = { ...stats.sSkill };
+      if (stats.breakdowns) stats.breakdowns = { ...stats.breakdowns };
+      if (core.lastStandMaxHp !== null) cleanseLastStand(owner, core.lastStandMaxHp, deps.now);
+      const summonEstimate = deps.summonEstimate(owner, stats, includeBreakdowns, core.gemEvaluation);
+      stats.summonDps = Math.max(0, summonEstimate.total || 0);
+      stats.directDps = Math.max(0, stats.dps || 0);
+      stats.totalDps = stats.directDps + stats.summonDps;
+      deps.appendDps(stats, summonEstimate);
+      applyImmunities(stats, core.immunity);
+      return stats;
+    };
+    return Object.freeze({ finish });
+  }
+
+  // modules/domain/player-stat-math.mjs
+  function computePlayerCoreModifiers(input) {
+    let { sumStatAcrossBuckets } = input;
     let coreCubeAddedDamagePct = {
-        phys: sumStatAcrossBuckets('addedPhysDamagePct'),
-        fire: sumStatAcrossBuckets('addedFireDamagePct'),
-        cold: sumStatAcrossBuckets('addedColdDamagePct'),
-        light: sumStatAcrossBuckets('addedLightDamagePct'),
-        chaos: sumStatAcrossBuckets('addedChaosDamagePct')
+      phys: sumStatAcrossBuckets("addedPhysDamagePct"),
+      fire: sumStatAcrossBuckets("addedFireDamagePct"),
+      cold: sumStatAcrossBuckets("addedColdDamagePct"),
+      light: sumStatAcrossBuckets("addedLightDamagePct"),
+      chaos: sumStatAcrossBuckets("addedChaosDamagePct")
     };
     let coreCubeFlatElementDamage = {
-        fire: sumStatAcrossBuckets('fireFlatDmg'),
-        cold: sumStatAcrossBuckets('coldFlatDmg'),
-        light: sumStatAcrossBuckets('lightFlatDmg'),
-        chaos: sumStatAcrossBuckets('chaosFlatDmg')
+      fire: sumStatAcrossBuckets("fireFlatDmg"),
+      cold: sumStatAcrossBuckets("coldFlatDmg"),
+      light: sumStatAcrossBuckets("lightFlatDmg"),
+      chaos: sumStatAcrossBuckets("chaosFlatDmg")
     };
-    let coreCubeFlatElementDamageTotal = Object.values(coreCubeFlatElementDamage).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0);
     let coreCubeTakenFlatReduce = {
-        phys: sumStatAcrossBuckets('physFlatTakenReduce'),
-        fire: sumStatAcrossBuckets('fireFlatTakenReduce'),
-        cold: sumStatAcrossBuckets('coldFlatTakenReduce'),
-        light: sumStatAcrossBuckets('lightFlatTakenReduce'),
-        chaos: sumStatAcrossBuckets('chaosFlatTakenReduce'),
-        all: sumStatAcrossBuckets('allFlatTakenReduce')
+      phys: sumStatAcrossBuckets("physFlatTakenReduce"),
+      fire: sumStatAcrossBuckets("fireFlatTakenReduce"),
+      cold: sumStatAcrossBuckets("coldFlatTakenReduce"),
+      light: sumStatAcrossBuckets("lightFlatTakenReduce"),
+      chaos: sumStatAcrossBuckets("chaosFlatTakenReduce"),
+      all: sumStatAcrossBuckets("allFlatTakenReduce")
     };
     let coreCubePhysTakenAs = {
-        fire: sumStatAcrossBuckets('physTakenAsFire'),
-        cold: sumStatAcrossBuckets('physTakenAsCold'),
-        light: sumStatAcrossBuckets('physTakenAsLight'),
-        chaos: sumStatAcrossBuckets('physTakenAsChaos')
+      fire: sumStatAcrossBuckets("physTakenAsFire"),
+      cold: sumStatAcrossBuckets("physTakenAsCold"),
+      light: sumStatAcrossBuckets("physTakenAsLight"),
+      chaos: sumStatAcrossBuckets("physTakenAsChaos")
     };
-    let coreCubeDoubleDamageChance = sumStatAcrossBuckets('doubleDamageChance');
-    let coreCubeSlamEchoDamagePct = sumStatAcrossBuckets('slamEchoDamagePct');
-    let crusaderThunderDoctrinePct = 0;
-    if (hasKeystone('cr2') && skill.ele === 'light') {
-        let firePct = sumStatAcrossBuckets('firePctDmg');
-        let coldPct = sumStatAcrossBuckets('coldPctDmg');
-        crusaderThunderDoctrinePct = Math.max(0, firePct + coldPct);
-        if (crusaderThunderDoctrinePct > 0) {
-            taggedTotal += crusaderThunderDoctrinePct;
-            taggedSummary.push(_t('천뢰 교리: 화염/냉기 피해 {floor}%를 번개 피해에 추가 적용', { floor: Math.floor(crusaderThunderDoctrinePct) }));
-        }
-    }
-
-    let hasRandomElementConversion = Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0;
-    let skillHasElementalConversion = hasRandomElementConversion || ['fire','cold','light','chaos'].includes(skill.ele);
-
-    let randomElementDamagePct = hasRandomElementConversion ? {
-        fire: strongestElement?.bonus ?? sumStatAcrossBuckets('firePctDmg'),
-        cold: strongestElement?.bonus ?? sumStatAcrossBuckets('coldPctDmg'),
-        light: strongestElement?.bonus ?? sumStatAcrossBuckets('lightPctDmg')
-    } : null;
-    if (randomElementDamagePct) {
-        let randomElementSummary = Object.entries(randomElementDamagePct)
-            .filter(([, value]) => value)
-            .map(([ele, value]) => `${ele === 'fire' ? _t('화염') : (ele === 'cold' ? _t('냉기') : _t('번개'))} ${Math.floor(value)}%`);
-        if (randomElementSummary.length > 0) taggedSummary.push(_t('무작위 원소별 적용: {summary}', { summary: randomElementSummary.join(' / ') }));
-    }
-
-    let weaponBaseDmgPct = Math.max(0, gearBase.weaponFlatDmgPct + gearExplicit.weaponFlatDmgPct
-        + passive.weaponFlatDmgPct + season.weaponFlatDmgPct + ascend.weaponFlatDmgPct + reward.weaponFlatDmgPct);
-    let gearFlatDmg = (gearBase.flatDmg * (1 + weaponBaseDmgPct / 100)) + gearExplicit.flatDmg;
-    let passiveFlatDmg = passive.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
-    let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
+    let coreCubeDoubleDamageChance = sumStatAcrossBuckets("doubleDamageChance");
+    let coreCubeSlamEchoDamagePct = sumStatAcrossBuckets("slamEchoDamagePct");
+    return { coreCubeAddedDamagePct, coreCubeFlatElementDamage, coreCubeTakenFlatReduce, coreCubePhysTakenAs, coreCubeDoubleDamageChance, coreCubeSlamEchoDamagePct };
+  }
+  function computePlayerWeaponDamage(input) {
+    let { gearBase, gearExplicit, passive: passive2, season, ascend, reward, support, starBlessing } = input;
+    let weaponBaseDmgPct = Math.max(0, gearBase.weaponFlatDmgPct + gearExplicit.weaponFlatDmgPct + passive2.weaponFlatDmgPct + season.weaponFlatDmgPct + ascend.weaponFlatDmgPct + reward.weaponFlatDmgPct);
+    let gearFlatDmg = gearBase.flatDmg * (1 + weaponBaseDmgPct / 100) + gearExplicit.flatDmg;
+    let passiveFlatDmg = passive2.flatDmg + season.flatDmg + ascend.flatDmg + reward.flatDmg;
+    let generalPctDmg = gearBase.pctDmg + gearExplicit.pctDmg + passive2.pctDmg + season.pctDmg + ascend.pctDmg + support.pctDmg + reward.pctDmg + starBlessing.pctDmg;
     let summonSharedGeneralPctDmg = Math.max(0, generalPctDmg);
-    let dotPctDmg = gearBase.dotPctDmg + gearExplicit.dotPctDmg + passive.dotPctDmg + season.dotPctDmg + ascend.dotPctDmg + support.dotPctDmg + reward.dotPctDmg;
-    function sumAilmentChanceStat(statId) {
-        return (gearBase[statId] || 0) + (gearExplicit[statId] || 0) + (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (support[statId] || 0) + (reward[statId] || 0) + (starBlessing[statId] || 0);
-    }
-    let finalIgniteChance = sumAilmentChanceStat('igniteChance');
-    let finalChillChance = sumAilmentChanceStat('chillChance');
-    let finalFreezeChance = sumAilmentChanceStat('freezeChance');
-    let finalShockChance = sumAilmentChanceStat('shockChance');
-    let finalPoisonChance = sumAilmentChanceStat('poisonChance');
-    let finalBleedChance = sumAilmentChanceStat('bleedChance');
-    let ailmentCritChance = { ignite: 25, chill: 25, freeze: 25, shock: 25, poison: 25, bleed: 25 };
-    const bleedChanceMultiplier = authoredPassiveRules.flags.bloodCradle ? 0.7 : 1;
-    finalBleedChance *= bleedChanceMultiplier;
-    ailmentCritChance.bleed *= bleedChanceMultiplier;
-    let isSpellSkill = Array.isArray(skill.tags) && skill.tags.includes('spell');
-    // Reuse extra casts; this source applies to spells only and cannot recursively repeat itself.
-    if (isSpellSkill) reward.ds += sumStatAcrossBuckets('spellRepeatChance');
-    let isDotSkill = window.GameModules.combat.supports.nativeDot(skill);
+    let dotPctDmg = gearBase.dotPctDmg + gearExplicit.dotPctDmg + passive2.dotPctDmg + season.dotPctDmg + ascend.dotPctDmg + support.dotPctDmg + reward.dotPctDmg;
+    return { gearFlatDmg, passiveFlatDmg, generalPctDmg, summonSharedGeneralPctDmg, dotPctDmg };
+  }
+  function computePlayerSpellDamage(input, deps) {
+    let { isSpellSkill, skill, gearBase, gearExplicit, passive: passive2, season, ascend, reward, support, uniqueGrandBreachCrown, localDefenseTotals, baseDmg, gearFlatDmg, passiveFlatDmg } = input;
+    const { spellBase, keystoneActive, codexPct } = deps;
     let spellFlatDmg = 0;
     if (isSpellSkill) {
-        let skillLevel = Number.isFinite(skill.finalLevel) ? skill.finalLevel : 1;
-        let spellFlatBonus = gearBase.spellFlatDmg + gearExplicit.spellFlatDmg + passive.spellFlatDmg + season.spellFlatDmg + ascend.spellFlatDmg + reward.spellFlatDmg + support.spellFlatDmg;
-        if (uniqueGrandBreachCrown) spellFlatBonus += Math.floor(Math.max(0, localDefenseTotals.energyShield) * (Math.max(0, uniqueGrandBreachCrown.spellFromEsPct || 10) / 100));
-        let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
-        spellFlatDmg = Math.max(1, (getGemSpellBaseDamage(skill, skillLevel) + spellFlatBonus) * (1 + spellFlatPct / 100));
-        spellFlatDmg *= (1 + Math.max(0, Number(skill.spellFlatMulBonus) || 0) / 100);
-        // 부패 증식(워록 wlk2): 지속 피해 배율 20% 증폭과 동일하게 주문 내장 피해도 20% 증가시킨다.
-        if (hasKeystone('wlk2')) spellFlatDmg *= 1.20;
+      let skillLevel = Number.isFinite(skill.finalLevel) ? skill.finalLevel : 1;
+      let spellFlatBonus = gearBase.spellFlatDmg + gearExplicit.spellFlatDmg + passive2.spellFlatDmg + season.spellFlatDmg + ascend.spellFlatDmg + reward.spellFlatDmg + support.spellFlatDmg;
+      if (uniqueGrandBreachCrown) spellFlatBonus += Math.floor(Math.max(0, localDefenseTotals.energyShield) * (Math.max(0, uniqueGrandBreachCrown.spellFromEsPct || 10) / 100));
+      let spellFlatPct = gearBase.spellFlatPct + gearExplicit.spellFlatPct + passive2.spellFlatPct + season.spellFlatPct + ascend.spellFlatPct + reward.spellFlatPct + support.spellFlatPct;
+      spellFlatDmg = Math.max(1, (spellBase(skill, skillLevel) + spellFlatBonus) * (1 + spellFlatPct / 100));
+      spellFlatDmg *= 1 + Math.max(0, Number(skill.spellFlatMulBonus) || 0) / 100;
+      if (keystoneActive("wlk2")) spellFlatDmg *= 1.2;
     }
-    // 속성별 기본 피해(flat)는 일반 피해 풀에 섞지 않고, 아래에서 속성 타입을 유지한 별도 타격으로 적용한다.
-    let totalFlatDmg = (isSpellSkill ? spellFlatDmg : (baseDmg + gearFlatDmg + passiveFlatDmg));
-    let codexBonusRatio = 1 + (getCodexBonusPct() / 100);
-
-    // 속성별 기본 피해(flat): 무기/반지/장갑의 속성 flat 옵션 + 코어 큐브 속성 flat을 합산하여,
-    // 각 속성의 피해% 증가(원소는 원소 피해% 포함)와 전체 피해 증가를 반영한 1타 기준 피해로 환산한다.
-    // 실제 타격 시에는 해당 속성 저항으로 경감되고 치명타/굴림 보정을 함께 받는다.
+    let totalFlatDmg = isSpellSkill ? spellFlatDmg : baseDmg + gearFlatDmg + passiveFlatDmg;
+    let codexBonusRatio = 1 + codexPct() / 100;
+    return { spellFlatDmg, totalFlatDmg, codexBonusRatio };
+  }
+  function computePlayerElementHits(input) {
+    let { sumStatAcrossBuckets, strongestElement, skill, codexBonusRatio, generalPctDmg } = input;
     let flatElementSources = {
-        phys: sumStatAcrossBuckets('physFlatDmg'),
-        fire: sumStatAcrossBuckets('fireFlatDmg'),
-        cold: sumStatAcrossBuckets('coldFlatDmg'),
-        light: sumStatAcrossBuckets('lightFlatDmg'),
-        chaos: sumStatAcrossBuckets('chaosFlatDmg')
+      phys: sumStatAcrossBuckets("physFlatDmg"),
+      fire: sumStatAcrossBuckets("fireFlatDmg"),
+      cold: sumStatAcrossBuckets("coldFlatDmg"),
+      light: sumStatAcrossBuckets("lightFlatDmg"),
+      chaos: sumStatAcrossBuckets("chaosFlatDmg")
     };
-    let flatElementElementalPct = sumStatAcrossBuckets('elementalPctDmg');
+    let flatElementElementalPct = sumStatAcrossBuckets("elementalPctDmg");
     let flatElementPctByEle = {
-        phys: sumStatAcrossBuckets('physPctDmg'),
-        fire: (strongestElement?.bonus ?? sumStatAcrossBuckets('firePctDmg')) + flatElementElementalPct,
-        cold: (strongestElement?.bonus ?? sumStatAcrossBuckets('coldPctDmg')) + flatElementElementalPct,
-        light: (strongestElement?.bonus ?? sumStatAcrossBuckets('lightPctDmg')) + flatElementElementalPct,
-        chaos: sumStatAcrossBuckets('chaosPctDmg')
+      phys: sumStatAcrossBuckets("physPctDmg"),
+      fire: (strongestElement?.bonus ?? sumStatAcrossBuckets("firePctDmg")) + flatElementElementalPct,
+      cold: (strongestElement?.bonus ?? sumStatAcrossBuckets("coldPctDmg")) + flatElementElementalPct,
+      light: (strongestElement?.bonus ?? sumStatAcrossBuckets("lightPctDmg")) + flatElementElementalPct,
+      chaos: sumStatAcrossBuckets("chaosPctDmg")
     };
     let flatElementSkillMul = (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
     let flatElementHitDamage = { phys: 0, fire: 0, cold: 0, light: 0, chaos: 0 };
-    ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(ele => {
-        let amt = Math.max(0, Number(flatElementSources[ele]) || 0);
-        if (amt <= 0) return;
-        let inc = 1 + (generalPctDmg + Math.max(0, flatElementPctByEle[ele])) / 100;
-        flatElementHitDamage[ele] = amt * inc * flatElementSkillMul;
+    ["phys", "fire", "cold", "light", "chaos"].forEach((ele) => {
+      let amt = Math.max(0, Number(flatElementSources[ele]) || 0);
+      if (amt <= 0) return;
+      let inc = 1 + (generalPctDmg + Math.max(0, flatElementPctByEle[ele])) / 100;
+      flatElementHitDamage[ele] = amt * inc * flatElementSkillMul;
     });
-
+    return { flatElementHitDamage };
+  }
+  function computePlayerLifeDamage(input) {
+    let { gearBase, gearExplicit, passive: passive2, season, ascend, reward, baseHp, starBlessing, support, codexBonusRatio, skill, totalFlatDmg, shieldArmorForDamage } = input;
     let gearFlatHp = gearBase.flatHp + gearExplicit.flatHp;
-    let passiveFlatHp = passive.flatHp + season.flatHp + ascend.flatHp + reward.flatHp;
+    let passiveFlatHp = passive2.flatHp + season.flatHp + ascend.flatHp + reward.flatHp;
     let totalFlatHp = baseHp + gearFlatHp + passiveFlatHp + starBlessing.flatHp;
-    let totalPctHp = gearBase.pctHp + gearExplicit.pctHp + passive.pctHp + season.pctHp + ascend.pctHp + support.pctHp + reward.pctHp;
+    let totalPctHp = gearBase.pctHp + gearExplicit.pctHp + passive2.pctHp + season.pctHp + ascend.pctHp + support.pctHp + reward.pctHp;
     let finalMaxHp = Math.floor(totalFlatHp * (1 + totalPctHp / 100) * codexBonusRatio);
-
     let hpScaleRatio = Math.max(0, finalMaxHp * (skill.hpDmgScale || 0));
     let hpFlatBonus = Math.floor(totalFlatDmg * hpScaleRatio);
     let scaledFlatDmg = totalFlatDmg + hpFlatBonus;
     if (skill.shieldArmorDamageRatio) {
-        scaledFlatDmg = Math.max(1, shieldArmorForDamage * Math.max(0, Number(skill.shieldArmorDamageRatio) || 0));
+      scaledFlatDmg = Math.max(1, shieldArmorForDamage * Math.max(0, Number(skill.shieldArmorDamageRatio) || 0));
     }
+    return { gearFlatHp, passiveFlatHp, totalPctHp, finalMaxHp, hpScaleRatio, hpFlatBonus, scaledFlatDmg };
+  }
+  function computePlayerShieldSkillDamage(damage, skill, equippedShield) {
+    if (!skill.shieldDamageBonusPct || !equippedShield || equippedShield.slot !== "방패") return damage;
+    return Math.floor(damage * (1 + Math.max(0, Number(skill.shieldDamageBonusPct) || 0) / 100));
+  }
+  function computePlayerTalentDamage(input, deps) {
+    let { sumStatAcrossBuckets, skill, taggedTotal, generalPctDmg, codexBonusRatio, scaledFlatDmg, owner } = input;
+    const { talentDerived } = deps;
     let talentSourceStats = {
-        elementalPct: sumStatAcrossBuckets('elementalPctDmg'),
-        firePct: sumStatAcrossBuckets('firePctDmg'),
-        coldPct: sumStatAcrossBuckets('coldPctDmg'),
-        lightPct: sumStatAcrossBuckets('lightPctDmg'),
-        summonPct: sumStatAcrossBuckets('summonPctDmg')
+      elementalPct: sumStatAcrossBuckets("elementalPctDmg"),
+      firePct: sumStatAcrossBuckets("firePctDmg"),
+      coldPct: sumStatAcrossBuckets("coldPctDmg"),
+      lightPct: sumStatAcrossBuckets("lightPctDmg"),
+      summonPct: sumStatAcrossBuckets("summonPctDmg")
     };
-    let preciseTalentDerived = typeof getTalentPreciseDerivedBonuses === 'function'
-        ? getTalentPreciseDerivedBonuses({ ...talentSourceStats, skill })
-        : { skillIncreasePct: 0 };
+    let preciseTalentDerived = typeof talentDerived === "function" ? talentDerived({ ...talentSourceStats, skill }) : { skillIncreasePct: 0 };
     taggedTotal += Math.max(0, Number(preciseTalentDerived.skillIncreasePct) || 0);
-    let baseDamageIncreaseMultiplier = (1 + (generalPctDmg + taggedTotal + (Number(skill.forgeDmgPct) || 0)) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio; // + 룬 강화의 피해 증가
-    baseDamageIncreaseMultiplier *= (1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100);
+    let baseDamageIncreaseMultiplier = (1 + (generalPctDmg + taggedTotal + (Number(skill.forgeDmgPct) || 0)) / 100) * (skill.dmg || skill.baseDmg || 1) * codexBonusRatio;
+    baseDamageIncreaseMultiplier *= 1 + Math.max(0, Number(skill.flatSkillDmgPct) || 0) / 100;
     let finalBaseDmg = Math.floor(scaledFlatDmg * baseDamageIncreaseMultiplier);
-    let equippedShield = game.equipment && game.equipment['방패'];
-    if (skill.shieldDamageBonusPct && equippedShield && equippedShield.slot === '방패') {
-        finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(0, Number(skill.shieldDamageBonusPct) || 0) / 100));
-    }
-
+    let equippedShield = owner.equipment && owner.equipment["방패"];
+    finalBaseDmg = computePlayerShieldSkillDamage(finalBaseDmg, skill, equippedShield);
+    return { talentSourceStats, baseDamageIncreaseMultiplier, finalBaseDmg, taggedTotal };
+  }
+  function computePlayerAttackSpeed(input, deps) {
+    let { gearBase, gearExplicit, passive: passive2, season, ascend, reward, support, skill, glovePairAspdBonus, sumStatAcrossBuckets, authoredPassiveRules, tick } = input;
+    const { keystoneActive, talentKnee, SKILL_DELAY_REDUCE_CAP: SKILL_DELAY_REDUCE_CAP2, keystoneSpeed } = deps;
     let gearAspd = gearBase.aspd + gearExplicit.aspd;
-    let passiveAspd = passive.aspd + season.aspd + ascend.aspd + reward.aspd;
-    let totalAspdPct = gearAspd + passiveAspd + support.aspd + (Number(skill.forgeAspdPct) || 0);   // 룬 강화의 속도 증가도 합한다
-    let rawAspd = (1.0 + glovePairAspdBonus) * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1) * 0.88;
-    // 극한의 속사(레인저 r9): 공격 속도 소프트캡 기준치 +2
-    let aspdSoftCapKnee = (hasKeystone('r9')) ? 7 : 5;
-    if (typeof getTalentAttackSpeedSoftcapKnee === 'function') aspdSoftCapKnee = getTalentAttackSpeedSoftcapKnee(aspdSoftCapKnee);
-    let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : (aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72));
-    const skillDelayPct = Math.min(SKILL_DELAY_REDUCE_CAP, sumStatAcrossBuckets('skillDelayReduce'));
+    let passiveAspd = passive2.aspd + season.aspd + ascend.aspd + reward.aspd;
+    let totalAspdPct = gearAspd + passiveAspd + support.aspd + (Number(skill.forgeAspdPct) || 0);
+    let rawAspd = (1 + glovePairAspdBonus) * (1 + totalAspdPct / 100) * (skill.spd || skill.baseSpd || 1) * 0.88;
+    let aspdSoftCapKnee = keystoneActive("r9") ? 7 : 5;
+    if (typeof talentKnee === "function") aspdSoftCapKnee = talentKnee(aspdSoftCapKnee);
+    let finalAspd = rawAspd <= aspdSoftCapKnee ? rawAspd : aspdSoftCapKnee + Math.pow(Math.max(0, rawAspd - aspdSoftCapKnee), 0.72);
+    const skillDelayPct = Math.min(SKILL_DELAY_REDUCE_CAP2, sumStatAcrossBuckets("skillDelayReduce"));
     finalAspd = Math.min(12, finalAspd / (1 - skillDelayPct / 100));
-    finalAspd = scaleKeystoneAttackSpeed(finalAspd, authoredPassiveRules.flags);
-    if (authoredPassiveRules.flags.bloodAcceleration && tick.get('leechActive')) {
-        finalAspd = Math.min(12, finalAspd * 1.15);
+    finalAspd = keystoneSpeed(finalAspd, authoredPassiveRules.flags);
+    if (authoredPassiveRules.flags.bloodAcceleration && tick.get("leechActive")) {
+      finalAspd = Math.min(12, finalAspd * 1.15);
     }
-
-    let gearCrit = gearBase.crit + gearExplicit.crit;
-    let passiveCrit = passive.crit + season.crit + ascend.crit + reward.crit;
-    let finalCrit = (2.5 + gearCrit + passiveCrit + support.crit + (skill.crit || 0)) * 0.82;
-    let finalMove = baseMove + gearBase.move + gearExplicit.move + passive.move + season.move + ascend.move + support.move + reward.move + starBlessing.move;
-    if (authoredPassiveRules.flags.bloodAcceleration && tick.get('leechActive')) finalMove *= 1.15;
-    let danceStacks = uniqueEvasionDance ? tick.get('evasionDanceStacks') : null;
-    let activeEvasionDanceStacks = danceStacks !== null
-        ? Math.max(0, Math.min(uniqueEvasionDance.maxStacks, danceStacks))
-        : 0;
-    if (activeEvasionDanceStacks > 0) finalMove += activeEvasionDanceStacks * Math.max(0, uniqueEvasionDance.movePerStack);
-    game.oceanOxygenMaxBonus = Math.max(0, gearBase.oxygenMax + gearExplicit.oxygenMax + passive.oxygenMax + season.oxygenMax + ascend.oxygenMax + reward.oxygenMax);
-    game.oceanOxygenDrainReductionPct = Math.max(0, Math.min(80, gearBase.oxygenRegen + gearExplicit.oxygenRegen + passive.oxygenRegen + season.oxygenRegen + ascend.oxygenRegen + reward.oxygenRegen));
-    let activeShadowStealth = uniqueDeflectStealth && tick.get('shadowStealth');
-    if (activeShadowStealth) finalMove += Math.max(0, Number(uniqueDeflectStealth.move || 20));
-    let killMoveStacks = uniqueKillMoveStacks ? tick.get('killMoveStacks') : null;
-    if (killMoveStacks !== null) finalMove += killMoveStacks * Math.max(0, Number(uniqueKillMoveStacks.movePerStack || 10));
-    finalMove += tick.get('regionMoveBonus');
-    let zonePenalty = getZone(game.currentZoneId) || getZone(0);
-    // The attack speed this zone takes away (gravity, pressure): other zones' map cards put it back (js/combat-ehp.js).
-    let zoneSpeedMultiplier = 1;
-    if (zonePenalty && (zonePenalty.type === 'underworld' || (zonePenalty.milestonePinnacle && zonePenalty.underworldPenaltyFloor))) {
-        let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || zonePenalty.floor || 1));
-        let skyStoneReduction = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
-        let gravityActionMultiplier = getUnderworldGravityActionMultiplier(uf, skyStoneReduction);
-        finalAspd *= gravityActionMultiplier;
-        finalMove *= gravityActionMultiplier;
-        zoneSpeedMultiplier *= gravityActionMultiplier;
-    }
-    let oceanPressureDamageMul = 1;
-    let oceanCurrentResPenaltyF = 0;
-    let oceanCurrentResPenaltyC = 0;
-    if (zonePenalty && (zonePenalty.type === 'oceanDepth' || Number(zonePenalty.oceanPressureDepthTier) > 0)) {
-        let depthTier = Math.max(0, Math.floor(zonePenalty.oceanPressureDepthTier || zonePenalty.depthTier || 0));
-        let pressureResistPct = Math.max(0, Math.min(80, sumStatAcrossBuckets('oceanPressureResist') + (typeof getOceanPressureResistUpgradePct === 'function' ? getOceanPressureResistUpgradePct() : 0)));
-        let pressureSlow = Math.min(0.65, depthTier * 0.05) * (1 - pressureResistPct / 100);
-        finalAspd *= (1 - pressureSlow);
-        zoneSpeedMultiplier *= (1 - pressureSlow);
-        oceanPressureDamageMul *= (1 - pressureSlow * 0.6);
-        // 이동속도는 수압의 영향을 압축해서 받아 100%에 가깝게 유지(체감 페널티 완만화)
-        finalMove *= (1 - pressureSlow * 0.2);
-        if (hasOceanCurrent(zonePenalty, 'riptide')) finalMove *= 0.85;
-        if (hasOceanCurrent(zonePenalty, 'bioluminescence')) playerAccuracy *= 0.82;
-        if (hasOceanCurrent(zonePenalty, 'warm_current')) oceanCurrentResPenaltyF = 12;
-        if (hasOceanCurrent(zonePenalty, 'cold_current')) oceanCurrentResPenaltyC = 12;
-    }
-    if (zonePenalty && zonePenalty.bloomTrial && zonePenalty.underworldPenaltyFloor) {
-        // 개화 시련은 입장 기준인 지하계와 같은 중력 완화 수단을 인정한다.
-        let uf = Math.max(1, Math.floor(zonePenalty.underworldPenaltyFloor || 1));
-        let skyStoneReduction = typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0;
-        let gravityActionMultiplier = getUnderworldGravityActionMultiplier(uf, skyStoneReduction);
-        finalAspd *= gravityActionMultiplier;
-        finalMove *= gravityActionMultiplier;
-        zoneSpeedMultiplier *= gravityActionMultiplier;
-    }
-    let currentStatsZone = getZone(game.currentZoneId);
-    let activeCosmosMastery = currentStatsZone && currentStatsZone.type === 'cosmos' && typeof window.getCosmosMasteryValue === 'function';
-    let cosmosMasteryFinalDamagePct = activeCosmosMastery ? Math.max(0, Number(window.getCosmosMasteryValue('resonanceDrive')) || 0) * 0.6 : 0;
-    let cosmosMasteryTakenLessPct = activeCosmosMastery ? Math.max(0, Number(window.getCosmosMasteryValue('riftGuard')) || 0) * 0.7 : 0;
-    let cosmosMasteryBossDamagePct = activeCosmosMastery ? Math.max(0, Number(window.getCosmosMasteryValue('starbreaker')) || 0) * 1.8 : 0;
-    let finalDamageMultiplier = (1 + cosmosMasteryFinalDamagePct / 100) * oceanPressureDamageMul;
-    finalDamageMultiplier *= 1 + Math.max(0, authoredPassiveRules.combatDamageMorePct) / 100;
-    finalDamageMultiplier *= 1 + getLoopDeepMorePct(game.loopDeepStats) / 100;
-    finalDamageMultiplier *= 1 + getWorldTreeBarkEffect().damagePct / 100;
-    if (authoredPassiveRules.flags.selfExperiment) finalDamageMultiplier *= 1 + tick.get('playerAilmentCount') * 0.05;   // 자가실험
-    let wisdomLeapActive = typeof findAllocatedPassiveKeystone === 'function'
-        && !!findAllocatedPassiveKeystone('지혜의 도약');
-    let passiveWisdomElement = wisdomLeapActive ? authoredPassiveRules.wisdomElement : '';
-    if (authoredPassiveRules.fanaticismStacks > 0) {
-        finalDamageMultiplier *= 1 + authoredPassiveRules.fanaticismStacks * 0.015;
-    }
-    cosmosBossDamageMorePct = Math.max(cosmosBossDamageMorePct, cosmosMasteryBossDamagePct);
-    if (uniqueLabyrinthShackles) {
-        finalDamageMultiplier *= getLabyrinthShacklesDamageMultiplier(finalMove);
-        finalMove = 100;
-    }
-    
-    let extraFlatArmor = passive.armor + season.armor + ascend.armor + reward.armor;
-    let extraFlatEvasion = passive.evasion + season.evasion + ascend.evasion + reward.evasion;
-    let extraFlatEnergyShield = passive.energyShield + season.energyShield + ascend.energyShield + reward.energyShield;
+    return { gearAspd, passiveAspd, totalAspdPct, rawAspd, finalAspd, skillDelayPct };
+  }
+  function computePlayerDefenseBase(input) {
+    let { passive: passive2, season, ascend, reward, localDefenseTotals, globalDefensePct, activeShadowStealth, uniqueDeflectStealth, activeEvasionDanceStacks, uniqueEvasionDance } = input;
+    let extraFlatArmor = passive2.armor + season.armor + ascend.armor + reward.armor;
+    let extraFlatEvasion = passive2.evasion + season.evasion + ascend.evasion + reward.evasion;
+    let extraFlatEnergyShield = passive2.energyShield + season.energyShield + ascend.energyShield + reward.energyShield;
     let gearArmor = localDefenseTotals.armor + extraFlatArmor;
     let gearEvasion = localDefenseTotals.evasion + extraFlatEvasion;
     let gearEnergyShield = localDefenseTotals.energyShield + extraFlatEnergyShield;
-    let totalArmorPct = passive.armorPct + season.armorPct + ascend.armorPct + reward.armorPct + globalDefensePct.armor;
-    let totalEvasionPct = passive.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct + globalDefensePct.evasion + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.evasionPct || 20)) : 0);
+    let totalArmorPct = passive2.armorPct + season.armorPct + ascend.armorPct + reward.armorPct + globalDefensePct.armor;
+    let totalEvasionPct = passive2.evasionPct + season.evasionPct + ascend.evasionPct + reward.evasionPct + globalDefensePct.evasion + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.evasionPct || 20)) : 0);
     totalEvasionPct += activeEvasionDanceStacks * Math.max(0, uniqueEvasionDance ? uniqueEvasionDance.evasionPctPerStack : 0);
-    let totalEnergyShieldPct = passive.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct + globalDefensePct.energyShield;
+    let totalEnergyShieldPct = passive2.energyShieldPct + season.energyShieldPct + ascend.energyShieldPct + reward.energyShieldPct + globalDefensePct.energyShield;
     let finalArmor = Math.max(0, Math.floor(gearArmor * (1 + totalArmorPct / 100)));
     let finalEvasion = Math.max(0, Math.floor(gearEvasion * (1 + totalEvasionPct / 100)));
     let finalEnergyShield = Math.max(0, Math.floor(gearEnergyShield * (1 + totalEnergyShieldPct / 100)));
-    let omniscientKeystone = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('사중합일');
-    let omniscientActive = !!omniscientKeystone && totalStrength >= 14 && totalStrength === totalDexterity
-        && totalDexterity === totalIntelligence && totalIntelligence === Math.max(0, passive.mystique);
-    if (omniscientActive) finalEnergyShield += Math.floor((totalStrength + totalDexterity + totalIntelligence + passive.mystique) * 2);
+    return { totalArmorPct, totalEvasionPct, totalEnergyShieldPct, finalArmor, finalEvasion, finalEnergyShield };
+  }
+  function computePlayerShieldBonuses(input, deps) {
+    let { totalStrength, totalDexterity, totalIntelligence, passive: passive2, finalEnergyShield, uniqueGrandBreachCrown, uniqueEsAmpPct } = input;
+    const { passiveNode } = deps;
+    let omniscientKeystone = typeof passiveNode === "function" && passiveNode("사중합일");
+    let omniscientActive = !!omniscientKeystone && totalStrength >= 14 && totalStrength === totalDexterity && totalDexterity === totalIntelligence && totalIntelligence === Math.max(0, passive2.mystique);
+    if (omniscientActive) finalEnergyShield += Math.floor((totalStrength + totalDexterity + totalIntelligence + passive2.mystique) * 2);
     if (uniqueGrandBreachCrown) finalEnergyShield = Math.max(0, Math.floor(finalEnergyShield * (1 + Math.max(0, uniqueGrandBreachCrown.esPct || 30) / 100)));
     if (uniqueEsAmpPct > 0) finalEnergyShield = Math.floor(finalEnergyShield * (1 + uniqueEsAmpPct / 100));
-    let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + support.energyShieldRegen + reward.energyShieldRegen);
-    let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + support.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
-    let referenceIncomingPhysical = Math.max(1, Math.floor((2 + ((getZone(game.currentZoneId) || { tier: 1 }).tier || 1) * 3.1)));
-    let armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
-    let enemyAccuracy = getEnemyAccuracyForZone(getZone(game.currentZoneId) || getZone(0));
-    let evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
-    let finalDeflectChance = Math.max(0, gearBase.deflectChance + gearExplicit.deflectChance + passive.deflectChance + season.deflectChance + ascend.deflectChance + support.deflectChance + reward.deflectChance);
-    let finalDeflectDamageReduce = Math.max(0, gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce + passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + support.deflectDamageReduce + reward.deflectDamageReduce);
-
-    let finalCritDmg = CRIT_DAMAGE_BASE_MULTIPLIER + gearBase.critDmg + gearExplicit.critDmg + passive.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0);
-    let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive.leech + season.leech + ascend.leech + support.leech + reward.leech;
-    let wildnessLeech = hasKeystone('sb3') ? 3.5 : 0;
+    return { omniscientActive, finalEnergyShield };
+  }
+  function computePlayerDefenseRates(input, deps) {
+    let { gearBase, gearExplicit, passive: passive2, season, ascend, support, reward, owner, finalArmor, finalEvasion } = input;
+    const { zoneOf, armorMitigation, zoneAccuracy, evasionChance } = deps;
+    let finalEnergyShieldRegenRate = Math.max(0, 12.5 + gearBase.energyShieldRegen + gearExplicit.energyShieldRegen + passive2.energyShieldRegen + season.energyShieldRegen + ascend.energyShieldRegen + support.energyShieldRegen + reward.energyShieldRegen);
+    let finalEnergyShieldRechargeDelay = Math.max(0.25, 1 - (gearBase.energyShieldRechargeFaster + gearExplicit.energyShieldRechargeFaster + passive2.energyShieldRechargeFaster + season.energyShieldRechargeFaster + ascend.energyShieldRechargeFaster + support.energyShieldRechargeFaster + reward.energyShieldRechargeFaster));
+    let referenceIncomingPhysical = Math.max(1, Math.floor(2 + ((zoneOf(owner.currentZoneId) || { tier: 1 }).tier || 1) * 3.1));
+    let armorReduction = armorMitigation(finalArmor, referenceIncomingPhysical);
+    let enemyAccuracy = zoneAccuracy(zoneOf(owner.currentZoneId) || zoneOf(0));
+    let evadeChance = evasionChance(finalEvasion, enemyAccuracy);
+    let finalDeflectChance = Math.max(0, gearBase.deflectChance + gearExplicit.deflectChance + passive2.deflectChance + season.deflectChance + ascend.deflectChance + support.deflectChance + reward.deflectChance);
+    let finalDeflectDamageReduce = Math.max(0, gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce + passive2.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + support.deflectDamageReduce + reward.deflectDamageReduce);
+    return { finalEnergyShieldRegenRate, finalEnergyShieldRechargeDelay, referenceIncomingPhysical, armorReduction, enemyAccuracy, evadeChance, finalDeflectChance, finalDeflectDamageReduce };
+  }
+  function computePlayerCriticalDamage(input, baseMultiplier) {
+    const { gearBase, gearExplicit, passive: passive2, season, ascend, support, reward, skill, activeShadowStealth, uniqueDeflectStealth } = input;
+    return baseMultiplier + gearBase.critDmg + gearExplicit.critDmg + passive2.critDmg + season.critDmg + ascend.critDmg + support.critDmg + reward.critDmg + (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0);
+  }
+  function computePlayerLeech(input, deps) {
+    let { gearBase, gearExplicit, passive: passive2, season, ascend, support, reward, skill, sumStatAcrossBuckets, isSpellSkill, uniqueLeechEfficiencyOnKill, tick } = input;
+    const { CRIT_DAMAGE_BASE_MULTIPLIER: CRIT_DAMAGE_BASE_MULTIPLIER2, keystoneActive, capLeech } = deps;
+    let finalCritDmg = computePlayerCriticalDamage(input, CRIT_DAMAGE_BASE_MULTIPLIER2);
+    let rawLeech = (skill.leech || 0) + gearBase.leech + gearExplicit.leech + passive2.leech + season.leech + ascend.leech + support.leech + reward.leech;
+    let wildnessLeech = keystoneActive("sb3") ? 3.5 : 0;
     rawLeech += wildnessLeech;
-    let finalLeech = applyLeechSoftcap(rawLeech - wildnessLeech) + wildnessLeech;
-    let finalSpellLeech = applyLeechSoftcap(sumStatAcrossBuckets('spellLeech') + (skill.spellLeech || 0));
-    if (isSpellSkill) finalCritDmg += sumStatAcrossBuckets('spellCritDmg');
-    if (uniqueLeechEfficiencyOnKill && tick.get('leechEfficiency')) {
-        finalLeech *= (1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100);
-        finalSpellLeech *= (1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100);
+    let finalLeech = capLeech(rawLeech - wildnessLeech) + wildnessLeech;
+    let finalSpellLeech = capLeech(sumStatAcrossBuckets("spellLeech") + (skill.spellLeech || 0));
+    if (isSpellSkill) finalCritDmg += sumStatAcrossBuckets("spellCritDmg");
+    if (uniqueLeechEfficiencyOnKill && tick.get("leechEfficiency")) {
+      finalLeech *= 1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100;
+      finalSpellLeech *= 1 + Math.max(0, uniqueLeechEfficiencyOnKill.efficiencyPct || 0) / 100;
     }
-    let finalLeechRateCap = gearBase.leechRateCap + gearExplicit.leechRateCap + passive.leechRateCap + season.leechRateCap + ascend.leechRateCap + support.leechRateCap + reward.leechRateCap;
-    let finalLeechTotalCap = gearBase.leechTotalCap + gearExplicit.leechTotalCap + passive.leechTotalCap + season.leechTotalCap + ascend.leechTotalCap + support.leechTotalCap + reward.leechTotalCap;
-    let finalLeechInstanceCap = gearBase.leechInstanceCap + gearExplicit.leechInstanceCap + passive.leechInstanceCap + season.leechInstanceCap + ascend.leechInstanceCap + support.leechInstanceCap + reward.leechInstanceCap;
-    let finalLeechKeepFullLife = gearBase.leechKeepFullLife + gearExplicit.leechKeepFullLife + passive.leechKeepFullLife + season.leechKeepFullLife + ascend.leechKeepFullLife + support.leechKeepFullLife + reward.leechKeepFullLife;
+    return { finalCritDmg, rawLeech, wildnessLeech, finalLeech, finalSpellLeech };
+  }
+  function computePlayerLeechCaps(input, deps) {
+    let { gearBase, gearExplicit, passive: passive2, season, ascend, support, reward, cosmosDeepSeaLeechCaps, finalLeech, finalSpellLeech } = input;
+    const { LEECH_BASE_RATE_CAP_PCT: LEECH_BASE_RATE_CAP_PCT2, LEECH_BASE_TOTAL_CAP_PCT: LEECH_BASE_TOTAL_CAP_PCT2, LEECH_BASE_INSTANCE_CAP_PCT: LEECH_BASE_INSTANCE_CAP_PCT2 } = deps;
+    let finalLeechRateCap = gearBase.leechRateCap + gearExplicit.leechRateCap + passive2.leechRateCap + season.leechRateCap + ascend.leechRateCap + support.leechRateCap + reward.leechRateCap;
+    let finalLeechTotalCap = gearBase.leechTotalCap + gearExplicit.leechTotalCap + passive2.leechTotalCap + season.leechTotalCap + ascend.leechTotalCap + support.leechTotalCap + reward.leechTotalCap;
+    let finalLeechInstanceCap = gearBase.leechInstanceCap + gearExplicit.leechInstanceCap + passive2.leechInstanceCap + season.leechInstanceCap + ascend.leechInstanceCap + support.leechInstanceCap + reward.leechInstanceCap;
+    let finalLeechKeepFullLife = gearBase.leechKeepFullLife + gearExplicit.leechKeepFullLife + passive2.leechKeepFullLife + season.leechKeepFullLife + ascend.leechKeepFullLife + support.leechKeepFullLife + reward.leechKeepFullLife;
     if (cosmosDeepSeaLeechCaps) {
-        finalLeech *= Math.max(0, 1 - Math.max(0, cosmosDeepSeaLeechCaps.rateLessPct || 20) / 100);
-        finalSpellLeech *= Math.max(0, 1 - Math.max(0, cosmosDeepSeaLeechCaps.rateLessPct || 20) / 100);
-        finalLeechRateCap += LEECH_BASE_RATE_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
-        finalLeechTotalCap += LEECH_BASE_TOTAL_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
-        finalLeechInstanceCap += LEECH_BASE_INSTANCE_CAP_PCT * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
+      finalLeech *= Math.max(0, 1 - Math.max(0, cosmosDeepSeaLeechCaps.rateLessPct || 20) / 100);
+      finalSpellLeech *= Math.max(0, 1 - Math.max(0, cosmosDeepSeaLeechCaps.rateLessPct || 20) / 100);
+      finalLeechRateCap += LEECH_BASE_RATE_CAP_PCT2 * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
+      finalLeechTotalCap += LEECH_BASE_TOTAL_CAP_PCT2 * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
+      finalLeechInstanceCap += LEECH_BASE_INSTANCE_CAP_PCT2 * Math.max(0, (cosmosDeepSeaLeechCaps.capMul || 2) - 1);
     }
-    // 저항과 같은 방식으로 상한 적용 전 합계(rawDr)를 함께 들고 다닌다.
-    // 캐릭터 탭이 "적용값 (비-제한값)"으로 표기하려면 잘리기 전 값이 필요하다.
-    let rawDr = gearBase.dr + gearExplicit.dr + passive.dr + season.dr + ascend.dr + support.dr + reward.dr;
-    let finalDr = Math.min(PLAYER_PHYSICAL_REDUCTION_CAP_PCT, rawDr);
-    let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
-    let allowNegativePhysIgnore = false;
-    let warriorPhysDamageMultiplier = 1;
-    let warriorTakenDamageMultiplier = 1;
-    let genericTakenDamageMultiplier = 1;
-    genericTakenDamageMultiplier *= 1 - Math.max(0, authoredPassiveRules.guardTakenLessPct) / 100;
-    let forbiddenManifestation = typeof findAllocatedPassiveKeystone === 'function' && findAllocatedPassiveKeystone('금단의 만상');
-    if (forbiddenManifestation) {
-        finalArmor = Math.floor(finalArmor * 0.4);
-        finalEvasion = Math.floor(finalEvasion * 0.4);
-        finalEnergyShield = Math.floor(finalEnergyShield * 0.4);
-        finalDeflectChance = Math.min(25, finalDeflectChance);
-    }
-    if (authoredPassiveRules.fanaticismStacks > 0) {
-        let defenseMultiplier = Math.max(0, 1 - authoredPassiveRules.fanaticismStacks * 0.0075);
-        finalArmor = Math.floor(finalArmor * defenseMultiplier);
-        finalEvasion = Math.floor(finalEvasion * defenseMultiplier);
-        finalEnergyShield = Math.floor(finalEnergyShield * defenseMultiplier);
-        finalAspd = Math.min(12, finalAspd * (1 + authoredPassiveRules.fanaticismStacks * 0.005));
-    }
-    let genericTakenDamageReducePct = Math.max(0, Math.min(90, (gearBase.genericTakenDamageReducePct || 0) + (gearExplicit.genericTakenDamageReducePct || 0) + (passive.genericTakenDamageReducePct || 0) + (season.genericTakenDamageReducePct || 0) + (ascend.genericTakenDamageReducePct || 0) + (support.genericTakenDamageReducePct || 0) + (reward.genericTakenDamageReducePct || 0)));
-    genericTakenDamageMultiplier *= (1 - genericTakenDamageReducePct / 100);
-    let bossDamageDealtMultiplier = 1;
-    let bossTakenDamageMultiplier = 1;
-    let ailmentResistBonusPct = 0;
-    let inquisitorAbsoluteDoctrinePct = 0;
-    let swiftOpeningTakenMultiplier = 1;
-    let guardianReflectDamage = 0;
-    let guardianBlockChance = 0;
-    let guardianDamageNullifyChance = 0;
-    let guardianHitCapPct = 0;
-    let guardianArmorDamageBonus = false;
-    let sbSummonAspdBonus = 0;
-    let sbPlayerAttackPower = 0;
-    let sbSummonAttackPower = 0;
-    let sbSummonShareToPlayer = 0;
-    let ailmentResistPenPct = 0;
-    let crusaderLightningIgnoreRes = false;
-    let crusaderNoResPenOnLightning = false;
-    let crusaderHolyFlatDmg = 0;
-    let crusaderHolyScaledDmg = 0;
-    let baseDsFromSources = gearBase.ds + gearExplicit.ds + passive.ds + season.ds + ascend.ds + support.ds + reward.ds;
-    let skillDsBonus = skill.dsBonus || 0;
-    let finalDs = baseDsFromSources + skillDsBonus;
-    let finalSlamEchoChance = gearBase.slamEchoChance + gearExplicit.slamEchoChance + passive.slamEchoChance + season.slamEchoChance + ascend.slamEchoChance + support.slamEchoChance + reward.slamEchoChance;
-    let finalSlamEchoDamagePct = Math.max(0, coreCubeSlamEchoDamagePct || 0);
-    let finalRegen = gearBase.regen + gearExplicit.regen + passive.regen + season.regen + ascend.regen + support.regen + reward.regen + (skill.regenBonus || 0);
-    let flatRegen = gearBase.regenFlat + gearExplicit.regenFlat + passive.regenFlat + season.regenFlat + ascend.regenFlat + support.regenFlat + reward.regenFlat;
-    finalRegen += (flatRegen / Math.max(1, finalMaxHp)) * 100;
-    if (cosmosTideEsRegenToLife) { finalRegen += Math.max(0, finalEnergyShieldRegenRate); finalEnergyShieldRegenRate = 0; }
-    if (activeUniqueIds.has('uj_hurried_mind')) {
-        if (tick.get('aliveEnemies') === 0) finalMove *= 1.5;
-    }
-    let finalRegenSuppress = gearBase.regenSuppress + gearExplicit.regenSuppress + passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + support.regenSuppress + reward.regenSuppress;
-    let finalResPen = gearBase.resPen + gearExplicit.resPen + passive.resPen + season.resPen + ascend.resPen + support.resPen + reward.resPen + (skill.resPenBonus || 0);
-    let finalChillEffectReducePct = gearBase.chillEffectReducePct + gearExplicit.chillEffectReducePct + passive.chillEffectReducePct + season.chillEffectReducePct + ascend.chillEffectReducePct + support.chillEffectReducePct + reward.chillEffectReducePct;
-    let finalFreezeDurationReducePct = gearBase.freezeDurationReducePct + gearExplicit.freezeDurationReducePct + passive.freezeDurationReducePct + season.freezeDurationReducePct + ascend.freezeDurationReducePct + support.freezeDurationReducePct + reward.freezeDurationReducePct;
-    let finalShockEffectReducePct = gearBase.shockEffectReducePct + gearExplicit.shockEffectReducePct + passive.shockEffectReducePct + season.shockEffectReducePct + ascend.shockEffectReducePct + support.shockEffectReducePct + reward.shockEffectReducePct;
-    let finalCritResist = (gearBase.critResist || 0) + (gearExplicit.critResist || 0) + (passive.critResist || 0) + (season.critResist || 0) + (ascend.critResist || 0) + (support.critResist || 0) + (reward.critResist || 0);
-    let finalIgniteDamageReducePct = gearBase.igniteDamageReducePct + gearExplicit.igniteDamageReducePct + passive.igniteDamageReducePct + season.igniteDamageReducePct + ascend.igniteDamageReducePct + support.igniteDamageReducePct + reward.igniteDamageReducePct;
-    let finalBleedDamageReducePct = gearBase.bleedDamageReducePct + gearExplicit.bleedDamageReducePct + passive.bleedDamageReducePct + season.bleedDamageReducePct + ascend.bleedDamageReducePct + support.bleedDamageReducePct + reward.bleedDamageReducePct;
-    let finalPoisonDamageReducePct = gearBase.poisonDamageReducePct + gearExplicit.poisonDamageReducePct + passive.poisonDamageReducePct + season.poisonDamageReducePct + ascend.poisonDamageReducePct + support.poisonDamageReducePct + reward.poisonDamageReducePct;
-    let finalDotTakenDamageReducePct = gearBase.dotTakenDamageReducePct + gearExplicit.dotTakenDamageReducePct + passive.dotTakenDamageReducePct + season.dotTakenDamageReducePct + ascend.dotTakenDamageReducePct + support.dotTakenDamageReducePct + reward.dotTakenDamageReducePct;
-    let finalTakenDamageReduceWhen2EnemiesPct = gearBase.takenDamageReduceWhen2EnemiesPct + gearExplicit.takenDamageReduceWhen2EnemiesPct + passive.takenDamageReduceWhen2EnemiesPct + season.takenDamageReduceWhen2EnemiesPct + ascend.takenDamageReduceWhen2EnemiesPct + support.takenDamageReduceWhen2EnemiesPct + reward.takenDamageReduceWhen2EnemiesPct;
-    let finalTakenDamageReduceWhen1EnemyPct = gearBase.takenDamageReduceWhen1EnemyPct + gearExplicit.takenDamageReduceWhen1EnemyPct + passive.takenDamageReduceWhen1EnemyPct + season.takenDamageReduceWhen1EnemyPct + ascend.takenDamageReduceWhen1EnemyPct + support.takenDamageReduceWhen1EnemyPct + reward.takenDamageReduceWhen1EnemyPct;
-    let finalIgniteDamageMultiplierPct = gearBase.igniteDamageMultiplierPct + gearExplicit.igniteDamageMultiplierPct + passive.igniteDamageMultiplierPct + season.igniteDamageMultiplierPct + ascend.igniteDamageMultiplierPct + support.igniteDamageMultiplierPct + reward.igniteDamageMultiplierPct;
-    let finalPoisonDamageMultiplierPct = gearBase.poisonDamageMultiplierPct + gearExplicit.poisonDamageMultiplierPct + passive.poisonDamageMultiplierPct + season.poisonDamageMultiplierPct + ascend.poisonDamageMultiplierPct + support.poisonDamageMultiplierPct + reward.poisonDamageMultiplierPct;
-    let finalChillEffectBonusPct = Math.max(0, sumStatAcrossBuckets('chillEffect'));
-    let finalShockEffectBonusPct = (gearExplicit.shockEffect || 0) + (passive.shockEffect || 0) + (season.shockEffect || 0) + (ascend.shockEffect || 0) + (reward.shockEffect || 0) + Math.max(0, Number(uniqueShockTracer && uniqueShockTracer.shockEffectPct || 0));
-    let finalMinDmgRoll = Math.max(5, 80 + gearBase.minDmgRoll + gearExplicit.minDmgRoll + passive.minDmgRoll + season.minDmgRoll + ascend.minDmgRoll + support.minDmgRoll + reward.minDmgRoll);
-    let finalMaxDmgRoll = Math.max(finalMinDmgRoll, 100 + gearBase.maxDmgRoll + gearExplicit.maxDmgRoll + passive.maxDmgRoll + season.maxDmgRoll + ascend.maxDmgRoll + support.maxDmgRoll + reward.maxDmgRoll);
-    if (authoredPassiveRules.flags.maximumRoll) finalMinDmgRoll = finalMaxDmgRoll;
-    if (uniqueMaxHpPct) finalMaxHp = Math.floor(finalMaxHp * (1 + Math.max(0, uniqueMaxHpPct) / 100));
-    let meleeArmorAmpStacks = uniqueMeleeArmorAmp ? tick.get('meleeArmorAmpStacks') : null;
-    if (meleeArmorAmpStacks !== null) {
-        let stacks = Math.max(0, Math.min(Math.floor(uniqueMeleeArmorAmp.maxStacks || 3), meleeArmorAmpStacks));
-        if (stacks > 0) finalArmor = Math.floor(finalArmor * Math.pow(1 + Math.max(0, Number(uniqueMeleeArmorAmp.ampPct || 5)) / 100, stacks));
-    }
-    if (uniqueMinRollEqualsMaxRoll) {
-        finalMaxDmgRoll = getAbsoluteFloorDamageRoll(finalMaxDmgRoll);
-        finalMinDmgRoll = finalMaxDmgRoll;
-    }
-    if (uniqueHpToPhysPct && skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalMaxHp / 100) / 100));
+    return { finalLeechRateCap, finalLeechTotalCap, finalLeechInstanceCap, finalLeechKeepFullLife, finalLeech, finalSpellLeech };
+  }
+  function computePlayerPhysicalMitigation(input, deps) {
+    let { gearBase, gearExplicit, passive: passive2, season, ascend, support, reward, skill } = input;
+    const { PLAYER_PHYSICAL_REDUCTION_CAP_PCT: PLAYER_PHYSICAL_REDUCTION_CAP_PCT2 } = deps;
+    let rawDr = gearBase.dr + gearExplicit.dr + passive2.dr + season.dr + ascend.dr + support.dr + reward.dr;
+    let finalDr = Math.min(PLAYER_PHYSICAL_REDUCTION_CAP_PCT2, rawDr);
+    let finalPhysIgnore = gearBase.physIgnore + gearExplicit.physIgnore + passive2.physIgnore + season.physIgnore + ascend.physIgnore + support.physIgnore + reward.physIgnore + (skill.physIgnoreBonus || 0);
+    return { rawDr, finalDr, finalPhysIgnore };
+  }
+  function createPlayerStatMath(deps) {
+    return Object.freeze({
+      coreModifiers: (input) => computePlayerCoreModifiers(input),
+      weaponDamage: (input) => computePlayerWeaponDamage(input),
+      spellDamage: (input) => computePlayerSpellDamage(input, deps),
+      elementHits: (input) => computePlayerElementHits(input),
+      lifeDamage: (input) => computePlayerLifeDamage(input),
+      talentDamage: (input) => computePlayerTalentDamage(input, deps),
+      attackSpeed: (input) => computePlayerAttackSpeed(input, deps),
+      defenseBase: (input) => computePlayerDefenseBase(input),
+      shieldBonuses: (input) => computePlayerShieldBonuses(input, deps),
+      defenseRates: (input) => computePlayerDefenseRates(input, deps),
+      leech: (input) => computePlayerLeech(input, deps),
+      leechCaps: (input) => computePlayerLeechCaps(input, deps),
+      physicalMitigation: (input) => computePlayerPhysicalMitigation(input, deps)
+    });
+  }
 
-    let resistPenalty = getCampaignResistPenalty(game.maxZoneId);
-    let resistanceBlendBonus = 0;
-    let resistanceBlendMaxBonus = 0;
-    let crusaderLightningMaxResBonus = 0;
-    let elementalistResistanceShift = { resF: 0, resC: 0, resL: 0, resChaos: 0 };
-    let elementalistChaosConversionBonus = 0;
-    let sharedElementalMaxRes = gearBase.maxResAll + gearExplicit.maxResAll + passive.maxResAll + season.maxResAll + ascend.maxResAll + support.maxResAll + reward.maxResAll;
-    let finalMaxResF = Math.min(90, 75 + sharedElementalMaxRes + gearBase.maxResF + gearExplicit.maxResF + passive.maxResF + season.maxResF + ascend.maxResF + support.maxResF + reward.maxResF);
-    let finalMaxResC = Math.min(90, 75 + sharedElementalMaxRes + gearBase.maxResC + gearExplicit.maxResC + passive.maxResC + season.maxResC + ascend.maxResC + support.maxResC + reward.maxResC);
-    let finalMaxResL = Math.min(90, 75 + sharedElementalMaxRes + gearBase.maxResL + gearExplicit.maxResL + passive.maxResL + season.maxResL + ascend.maxResL + support.maxResL + reward.maxResL);
-    let finalMaxResChaos = Math.min(90, 75 + gearBase.maxResChaos + gearExplicit.maxResChaos + passive.maxResChaos + season.maxResChaos + ascend.maxResChaos + support.maxResChaos + reward.maxResChaos);
-    let hasElementalistPrismaticShell = hasKeystone('e2');
-    if (hasElementalistPrismaticShell) {
-        elementalistResistanceShift = { resF: 15, resC: 15, resL: 15, resChaos: -10 };
-        finalMaxResF = Math.min(90, finalMaxResF + 3);
-        finalMaxResC = Math.min(90, finalMaxResC + 3);
-        finalMaxResL = Math.min(90, finalMaxResL + 3);
+  // modules/domain/player-growth-stats.mjs
+  function eliteTraitStats(buff, bucket) {
+    if (!buff) return;
+    const trait = buff.trait || {};
+    for (const [key, stat] of [["atkMul", "pctDmg"], ["attackSpeedVarMul", "aspd"], ["hpMul", "pctHp"]]) {
+      if (trait[key]) addStatToBucket(bucket, stat, Math.max(0, (Number(trait[key]) - 1) * 100));
     }
-    let rawResF = gearBase.resF + gearExplicit.resF + passive.resF + season.resF + ascend.resF + support.resF + reward.resF + elementalistResistanceShift.resF - resistPenalty - oceanCurrentResPenaltyF;
-    let rawResC = gearBase.resC + gearExplicit.resC + passive.resC + season.resC + ascend.resC + support.resC + reward.resC + elementalistResistanceShift.resC - resistPenalty - oceanCurrentResPenaltyC;
-    let rawResL = gearBase.resL + gearExplicit.resL + passive.resL + season.resL + ascend.resL + support.resL + reward.resL + elementalistResistanceShift.resL - resistPenalty;
-    let rawResChaos = gearBase.resChaos + gearExplicit.resChaos + passive.resChaos + season.resChaos + ascend.resChaos + support.resChaos + reward.resChaos + elementalistResistanceShift.resChaos - resistPenalty;
-    if (uniqueRegenRateAndRegen) { finalRegen += Number(uniqueRegenRateAndRegen.regen || 0); finalRegen *= (1 + Math.max(0, Number(uniqueRegenRateAndRegen.regenRatePct || 0)) / 100); }
-    if (uniqueAllMaxRes) { finalMaxResF += uniqueAllMaxRes; finalMaxResC += uniqueAllMaxRes; finalMaxResL += uniqueAllMaxRes; }
-    if (uniqueEnemyRegenCutAndMinRoll) finalMinDmgRoll += Number(uniqueEnemyRegenCutAndMinRoll.minRoll || 0);
-    if (hasKeystone('ct2')) {
-        resistanceBlendBonus = Math.max(0, dotPctDmg) * ASCENDANCY_KEYSTONE_VALUES.ct2.resPctOfDot / 100;
-        resistanceBlendMaxBonus = Math.floor(Math.max(0, dotPctDmg) * ASCENDANCY_KEYSTONE_VALUES.ct2.maxResPctOfDot / 100);
-        rawResF += resistanceBlendBonus; rawResC += resistanceBlendBonus; rawResL += resistanceBlendBonus; rawResChaos += resistanceBlendBonus;
-        finalMaxResF = Math.min(90, finalMaxResF + resistanceBlendMaxBonus);
-        finalMaxResC = Math.min(90, finalMaxResC + resistanceBlendMaxBonus);
-        finalMaxResL = Math.min(90, finalMaxResL + resistanceBlendMaxBonus);
-        finalMaxResChaos = Math.min(90, finalMaxResChaos + resistanceBlendMaxBonus);
+    if (trait.critChanceBonus) addStatToBucket(bucket, "crit", Number(trait.critChanceBonus));
+    if (trait.dr) addStatToBucket(bucket, "dr", Number(trait.dr));
+    ["resF", "resC", "resL", "resChaos"].forEach((stat) => {
+      if (trait[stat]) addStatToBucket(bucket, stat, Number(trait[stat] || 0));
+    });
+    if (trait.hitRateGuard) addStatToBucket(bucket, "evasionPct", Math.max(0, Number(trait.hitRateGuard) * 100));
+  }
+  var PlayerGrowthStats = class {
+    constructor(deps) {
+      this.deps = deps;
     }
-    if (fixedAllMaxRes !== null) {
-        finalMaxResF = fixedAllMaxRes;
-        finalMaxResC = fixedAllMaxRes;
-        finalMaxResL = fixedAllMaxRes;
-        finalMaxResChaos = fixedAllMaxRes;
+    passives(owner, passive2, ids) {
+      const d = this.deps;
+      const virtualVoidCount = d.voidCount(owner), weaponStance = d.weaponStance(owner);
+      const balanceAttributes = d.hasAuthoredKeystone("균형의 공명", owner);
+      const addLine = (stat, value) => addPassiveLineToBucket(passive2, stat, value, weaponStance, d.weaponConditions);
+      ids.forEach((id) => {
+        const node = d.passiveTree.nodes[id];
+        if (!node) return;
+        if (node.kind === "void") {
+          const entry = d.voidCraft(id, owner);
+          d.voidStats(entry, owner, d.voidLinkScale(id, owner)).forEach((line) => addLine(line.id, line.val));
+          d.transcendentStats(id, entry, virtualVoidCount, owner).forEach((line) => addStatToBucket(passive2, line.stat, line.val));
+          return;
+        }
+        d.nodeEffects(node, balanceAttributes).forEach((effect) => addLine(effect.stat, effect.val));
+      });
+      return weaponStance;
     }
-    let finalResF = Math.min(finalMaxResF, rawResF);
-    let finalResC = Math.min(finalMaxResC, rawResC);
-    let finalResL = Math.min(finalMaxResL, rawResL);
-    let warlockElementalOvercapToChaos = (hasKeystone('wlk4'))
-        ? (Math.max(0, rawResF - finalMaxResF) + Math.max(0, rawResC - finalMaxResC) + Math.max(0, rawResL - finalMaxResL)) * 0.25
-        : 0;
-    let finalResChaos = Math.min(finalMaxResChaos, rawResChaos + warlockElementalOvercapToChaos);
-    // 액막이 부적(군락 수호구)의 원소 저항/최대 화염 저항도 초과 화염 저항 계수에 반영되도록
-    // 화염 저항 오버캡 계산 전에 군락 수호구 보너스를 먼저 합산한다.
-    // 2026-10-10부터 액막이는 장비의 액막이 칸(열린 칸만)에서 읽는다(js/colony-wards.js equippedLines).
-    let cw = typeof colonyWards === 'object' ? colonyWards.equippedLines(game) : [];
-    cw.forEach(w => { if (w && w.stat) colonyWardBonus[w.stat] = (colonyWardBonus[w.stat] || 0) + Number(w.val || 0); });
-    let fireResForOvercap = rawResF + (colonyWardBonus.resAll || 0);
-    let maxResFForOvercap = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
-    if (activeUniqueIds.has('uj_burning_will')) {
-        let overcapFire = Math.max(0, fireResForOvercap - maxResFForOvercap);
-        finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(0.35, overcapFire * 0.005)));
+    timed(tick, bucket) {
+      eliteTraitStats(tick.get("eliteTraitBuff"), bucket);
+      this.deps.breathStats(tick.get("incidentBreath")).forEach(([stat, value]) => addStatToBucket(bucket, stat, value));
     }
-    let regenDmgScale = Math.max(0, Number(skill.regenDmgScale) || 0);
-    let regenScaledBonus = regenDmgScale > 0 ? 1 + Math.max(0, finalRegen * regenDmgScale / 100) : 1;
-    let fireResOvercap = Math.max(0, fireResForOvercap - maxResFForOvercap);
-    let fireResOvercapCap = Number.isFinite(Number(skill.fireResOvercapCap)) ? Math.max(0, Number(skill.fireResOvercapCap)) : Infinity;
-    let effectiveFireResOvercap = Math.min(fireResOvercap, fireResOvercapCap);
-    let fireResOvercapAdditiveMultiplier = Math.max(0, skill.fireResOvercapMulPerPct || 0);
-    let fireResDmgScale = Math.max(0, Number(skill.fireResDmgScale) || 0);
-    let fireResScaledBonus = fireResOvercapAdditiveMultiplier > 0
-        ? 1 + (effectiveFireResOvercap * fireResOvercapAdditiveMultiplier)
-        : (fireResDmgScale > 0 ? 1 + Math.max(0, finalResF * fireResDmgScale) : 1);
-    let dotMultiplier = skill.dotMultiplier || 1;
-    let dotStatMultiplier = 1 + Math.max(0, dotPctDmg) / 100;
-    let totalDotDamageMultiplier = dotMultiplier * dotStatMultiplier;
-    let instantDamageMultiplier = 1;
-    let ailmentPowerMultiplier = 1 + Math.max(0, sumStatAcrossBuckets('ailmentPotencyPct')) / 100;
-    // 상태이상 피해(%): 점화, 중독, 출혈의 피해 증가(종류별 증가와 합산). 패시브 노드와 플라스크 숙련 40레벨이 주는데 합산하는 곳이 없었다(2026-10-17).
-    let finalAilmentDamagePct = Math.max(0, sumStatAcrossBuckets('ailmentDamagePct'));
-    let talismanBossFinalDmgBonusPct = 0;
-    let chaosDamageMultiplier = 1;
-    let dotTickIntervalMultiplier = 1;
-    let dotDurationMultiplier = 1;
-    if (uniqueCurseCrownPerCursePct>0){ let n=tick.get('targetCurseCount'); if(n>0) finalDamageMultiplier*=(1+(n*uniqueCurseCrownPerCursePct)/100);}
-    if (cosmosVerdictSupportDamagePct > 0) finalDamageMultiplier *= (1 + (safeEquippedSupports.length * cosmosVerdictSupportDamagePct) / 100);
-    finalBaseDmg = Math.floor(finalBaseDmg * regenScaledBonus * fireResScaledBonus);
-    if (uniqueArmorToPhysicalDamagePctPer1000 > 0 && skill && skill.ele === 'phys') {
-        let armorSteps = Math.max(0, Math.floor(finalArmor / 1000));
-        if (armorSteps > 0) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (armorSteps * uniqueArmorToPhysicalDamagePctPer1000) / 100));
+    journalAndHero(owner, buckets, journalBonuses) {
+      const { reward, starBlessing } = buckets, d = this.deps;
+      journalBonuses.forEach((entry) => {
+        if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
+      });
+      d.boundaryStats(owner).forEach((stat) => addStatToBucket(reward, stat.id, stat.val));
+      const hero = owner.bloomedClassThisLoop === owner.ascendClass ? d.heroDefs[owner.bloomedTalentThisLoop] : null;
+      (hero && Array.isArray(hero.stats) ? hero.stats : []).forEach((row) => {
+        if (row && row.stat) addStatToBucket(reward, row.stat, row.value);
+      });
+      if (owner.passiveStarEvolution && Array.isArray(owner.journalEntries) && owner.journalEntries.includes("passive_star_evolution")) {
+        Object.keys(d.starBlessing).forEach((id) => addStatToBucket(starBlessing, id, d.starBlessing[id]));
+      }
+      const talismanSummary = d.talismanSummary(owner);
+      Object.keys(talismanSummary.stats).forEach((stat) => addStatToBucket(reward, stat, talismanSummary.stats[stat]));
+      return talismanSummary;
     }
-    if (uniqueFlatDmgPerLevel > 0) finalBaseDmg += Math.floor(Math.max(1, game.level || 1) * uniqueFlatDmgPerLevel);
-    talismanBossFinalDmgBonusPct = Math.max(talismanBossFinalDmgBonusPct, Number(talismanSummary.bossFinalDmgBonusPct) || 0);
-    let damageScales = {
-        hpFlatBonus: hpFlatBonus,
-        hpScaleRatio: hpScaleRatio,
-        regen: regenScaledBonus,
-        fireRes: fireResScaledBonus,
-        fireResOvercap: fireResOvercap,
-        effectiveFireResOvercap: effectiveFireResOvercap,
-        fireResOvercapCap: fireResOvercapCap,
-        rawResF: fireResForOvercap,
-        fireResOvercapAdditiveMultiplier: fireResOvercapAdditiveMultiplier,
-        dot: dotMultiplier,
-        dotStat: dotStatMultiplier,
-        randomElementDamagePct: randomElementDamagePct,
-        crusaderThunderDoctrinePct: crusaderThunderDoctrinePct,
-        talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct
+    /** Keeps source order: season, class, act, loop, chaos, runes, timed/account/relic, journal/hero/star, talisman. */
+    rewards(owner, buckets, tick, lists) {
+      const { season, ascend, reward } = buckets, d = this.deps;
+      d.seasonStats(season, lists.season, owner.seasonNodeLevels);
+      d.ascendStats(ascend, lists.ascend, owner.ascendClass);
+      lists.act.forEach((entry) => {
+        if (entry && entry.stat) addStatToBucket(reward, entry.stat, entry.value);
+      });
+      d.loopStats(reward, owner.loop10BonusStats, owner.loopDeepStats, owner.season);
+      const chaos = d.chaosState(owner).permanentBonuses || {};
+      Object.keys(chaos).forEach((stat) => addStatToBucket(reward, stat, chaos[stat] || 0));
+      const runes = d.runeStats(reward, owner.underworldRunes);
+      this.timed(tick, reward);
+      d.accountStats(reward, owner);
+      if (typeof d.relicStats === "function") {
+        const relicStats = d.relicStats(owner);
+        Object.keys(relicStats).forEach((stat) => addStatToBucket(reward, stat, relicStats[stat]));
+      }
+      const talismanSummary = this.journalAndHero(owner, buckets, lists.journal);
+      return { ...runes, talismanSummary };
+    }
+  };
+  function createPlayerGrowthStats(deps) {
+    const rules = new PlayerGrowthStats(deps);
+    return Object.freeze({ passives: rules.passives.bind(rules), rewards: rules.rewards.bind(rules), timed: rules.timed.bind(rules) });
+  }
+
+  // modules/domain/player-ascendancy-nodes.mjs
+  function frenzyAttackSpeed(tick, maxLife, values2) {
+    const steps = Math.ceil(values2.maxPct / values2.pctPerTenth);
+    let tenths = 0;
+    for (let k = 1; k <= steps; k++) {
+      if (tick.when("playerHp", (hp) => hp / maxLife <= 1 - k / 10)) tenths = k;
+    }
+    return Math.min(values2.maxPct, tenths * values2.pctPerTenth);
+  }
+  function applyUnyielding(out, tick, maxLife, values2) {
+    if (tick.when("playerHp", (hp) => hp / maxLife <= 0.5)) {
+      out.damageMul *= 1 + values2.damageMorePct / 100;
+      out.takenMul *= 0.85;
+    }
+    if (tick.get("warriorUnyielding")) {
+      out.takenMul *= 1 - values2.burstTakenLessPct / 100;
+      out.aspdMul *= 1 + values2.burstAspdMorePct / 100;
+    }
+  }
+  function computeAscendancyNodeMultipliers(owner, tick, maxLife, deps) {
+    const out = { damageMul: 1, takenMul: 1, aspdMul: 1, regenMul: 1 };
+    if (deps.keystone("w7", owner)) applyUnyielding(out, tick, maxLife, deps.values.w7);
+    if (deps.keystone("bz2", owner)) out.aspdMul *= 1 + frenzyAttackSpeed(tick, maxLife, deps.values.bz2) / 100;
+    if (deps.keystone("bd1", owner)) out.aspdMul *= 1 + tick.get("bladedancerFlowStacks") * deps.values.bd1.aspdPctPerStack / 100;
+    if (deps.keystone("gw6", owner) && tick.get("grovewardenRooted")) {
+      out.takenMul *= 1 - deps.values.gw6.takenLessPct / 100;
+      out.regenMul *= deps.values.gw6.regenMul;
+    }
+    return out;
+  }
+
+  // modules/domain/player-ascendancy-stats.mjs
+  function sumSharedSummonStat(input, stat) {
+    return Math.max(0, sumOrderedPlayerStatSources(input, stat));
+  }
+  var transforms = {
+    w1(state, input, deps) {
+      state.warriorPhysDamageMultiplier *= 1 + deps.values.w1.physMorePct / 100;
+      state.finalArmor = Math.floor(state.finalArmor * (1 + deps.values.w1.armorMorePct / 100));
+    },
+    w2(state, input, deps) {
+      let stacks = input.tick.get("warriorRhythmStacks");
+      if (stacks > 0) state.finalAspd = Math.min(12, state.finalAspd * Math.pow(1 + deps.values.w2.aspdPctPerStack / 100, stacks));
+    },
+    w3(state, input, deps) {
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * (deps.dualWielding() ? 1.08 : 1));
+    },
+    w4(state, input, deps) {
+      state.finalPhysIgnore += deps.values.w4.physIgnore;
+      state.allowNegativePhysIgnore = true;
+    },
+    w5(state, input) {
+      state.warriorPhysDamageMultiplier *= input.tick.get("warriorRageMultiplier");
+    },
+    nodeMultipliers(state, input, deps) {
+      const nodeStats = computeAscendancyNodeMultipliers(input.owner, input.tick, Math.max(1, state.finalMaxHp), deps);
+      state.finalRegen *= nodeStats.regenMul;
+      if (nodeStats.damageMul !== 1) state.finalBaseDmg = Math.floor(state.finalBaseDmg * nodeStats.damageMul);
+      state.warriorTakenDamageMultiplier *= nodeStats.takenMul;
+      if (nodeStats.aspdMul !== 1) state.finalAspd = Math.min(12, state.finalAspd * nodeStats.aspdMul);
+    },
+    w8(state, input, deps) {
+      state.finalCrit = Math.min(200, state.finalCrit + deps.values.w8.crit);
+      state.finalCritDmg += deps.values.w8.critDmg;
+      state.finalAspd = Math.min(12, state.finalAspd * (1 + deps.values.w8.aspdMorePct / 100));
+      state.finalMove *= 1 + deps.values.w8.moveMorePct / 100;
+      state.finalDamageMultiplier *= 1 + deps.values.w8.damageMorePct / 100;
+      state.finalDs += deps.values.w8.ds;
+    },
+    w9(state, input, deps) {
+      state.finalDamageMultiplier *= 1 + deps.values.w9.damageMorePct / 100;
+      state.warriorTakenDamageMultiplier *= 1 + deps.values.w9.takenMorePct / 100;
+    },
+    g1(state, input, deps) {
+      if (input.skill.ele === "phys") state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 + deps.values.g1.physMorePct / 100));
+      else state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 - deps.values.g1.otherLessPct / 100));
+    },
+    g2(state, input, deps) {
+      let stacks = input.tick.get("gladiatorFlurryStacks");
+      if (stacks > 0) {
+        state.finalAspd = Math.min(12, state.finalAspd * (1 + stacks * deps.values.g2.aspdPctPerStack / 100));
+        state.finalEvasion = Math.floor(state.finalEvasion * (1 + stacks * 0.03));
+      }
+    },
+    g3(state, input) {
+      state.finalCrit = Math.min(100, state.finalCrit + input.tick.get("gladiatorVeteranCrit"));
+    },
+    g4(state, input, deps) {
+      let crowdCount = input.tick.get("aliveEnemies");
+      if (crowdCount >= 3) {
+        state.finalBaseDmg = Math.floor(state.finalBaseDmg * 1.2);
+        state.rawDr += 20;
+        state.finalDr = Math.min(deps.physicalCap, state.rawDr);
+      }
+    },
+    g5(state, input) {
+      if (input.tick.get("gladiatorSwiftGuard")) state.swiftOpeningTakenMultiplier = 0.7;
+    },
+    g7(state, input, deps) {
+      state.finalDs += Math.min(deps.values.g7.dsMax, Math.floor(Math.max(0, state.finalEvasion) / deps.values.g7.evasionPerDs));
+      state.finalCrit += Math.min(deps.values.g7.critMax, Math.floor(Math.max(0, state.finalArmor) / deps.values.g7.armorPerCrit));
+    },
+    g8(state, input, deps) {
+      state.finalDs += deps.values.g8.ds;
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 + deps.values.g8.damageMorePct / 100));
+      state.bossDamageDealtMultiplier *= 1 + deps.values.g8.bossDamageMorePct / 100;
+      state.bossTakenDamageMultiplier *= 1 + deps.values.g8.bossTakenMorePct / 100;
+      state.finalRegen *= 0.5;
+      state.finalEnergyShieldRegenRate = 0;
+    },
+    a1(state) {
+      state.finalCrit = Math.max(0, state.finalCrit - 6);
+      state.finalCritDmg += 66;
+    },
+    a2(state, input) {
+      if (!input.tick.get("assassinBlurred")) return;
+      state.finalMove *= 1.2;
+      state.finalCritDmg += 25;
+      state.finalEvasion = Math.floor(state.finalEvasion * 1.2);
+    },
+    a4(state) {
+      state.finalPhysIgnore += 25;
+      state.finalResPen += 25;
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * 0.92);
+    },
+    a6(state, input) {
+      const highLifeLimit = Math.max(1, state.finalMaxHp);
+      if (input.tick.when("playerHp", (hp) => hp / highLifeLimit > 0.66)) state.finalCritDmg = Math.floor(state.finalCritDmg * 1.2);
+      else state.finalEvasion = Math.floor(state.finalEvasion * 1.2);
+    },
+    a7(state) {
+      state.finalCritDmg -= 200;
+    },
+    a8(state, input, deps) {
+      state.finalCritDmg *= deps.values.a8.critDmgMul;
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * 0.75);
+    },
+    a9(state) {
+      state.finalCritDmg = Math.floor(state.finalCritDmg * 1.2);
+      state.finalEvasion = Math.floor(state.finalEvasion * 1.2);
+    },
+    r1(state) {
+      state.finalMove *= 1.15;
+      state.finalArmor = 0;
+      state.finalEnergyShield = 0;
+    },
+    r2(state, input, deps) {
+      state.finalAspd = Math.min(12, state.finalAspd * (1 + deps.values.r2.aspdMorePct / 100));
+    },
+    r3(state) {
+      state.finalMinDmgRoll = Math.max(5, state.finalMinDmgRoll - 10);
+    },
+    r4(state, input, deps) {
+      state.finalAspd = Math.min(12, state.finalAspd * (1 + Math.max(0, state.finalMove) * deps.values.r4.aspdPctPerMovePct / 100));
+    },
+    r6(state, input, deps) {
+      if (!(Array.isArray(input.skill.tags) && input.skill.tags.includes("projectile"))) return;
+      input.skill.targets = Math.min(12, Math.max(1, (input.skill.targets || 1) + 1));
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 + Math.max(1, Math.floor(input.skill.targets || 1)) * deps.values.r6.damageMorePctPerTarget / 100));
+    },
+    r8(state) {
+      let aspdBonus = Math.max(0, state.finalAspd - 1) * 0.12;
+      let moveBonus = Math.max(0, state.finalMove) * 12e-4;
+      state.finalAspd = Math.min(12, state.finalAspd * (1 + moveBonus));
+      state.finalMove *= 1 + aspdBonus;
+      state.finalMaxHp = Math.floor(state.finalMaxHp * 0.85);
+    },
+    r7(state, input, deps) {
+      state.finalCrit = Math.min(100, state.finalCrit + input.tick.get("sinceHitSeconds") * deps.values.r7.critPerSecond);
+    },
+    h3(state) {
+      state.finalEvasion = Math.floor(state.finalEvasion * (1 + Math.max(0, state.finalMove) * 2e-3));
+    },
+    h5(state, input, deps) {
+      state.finalCritDmg += deps.values.h5.critDmg;
+      state.finalCrit = Math.max(0, state.finalCrit - deps.values.h5.critLess);
+    },
+    h6(state, input) {
+      if (!(Array.isArray(input.skill.tags) && input.skill.tags.includes("projectile"))) return;
+      input.skill.targets = Math.min(12, Math.max(1, (input.skill.targets || 1) + 1));
+      state.totalProjectileExtraShots += 1;
+    },
+    h7(state, input, deps) {
+      let solitaryOriginalTargets = Math.max(1, Math.floor(input.skill.targets || 1));
+      state.finalDs += deps.solitaryBonus(solitaryOriginalTargets);
+      input.skill.targets = 1;
+    },
+    h8(state, input, deps) {
+      let dsAsCrit = Math.max(0, state.finalDs);
+      state.finalDs = 0;
+      state.finalCrit = Math.min(1e3, state.finalCrit + dsAsCrit);
+      state.finalCritDmg += deps.values.h8.critDmg;
+    },
+    h9(state, input) {
+      state.finalDamageMultiplier *= 1 + Math.max(0, input.totalAspdPct) / 100;
+      state.finalAspd = 1;
+    },
+    cr1(state) {
+      state.finalRegen += 1.5;
+      state.finalRegen *= 1.4;
+    },
+    cr2(state) {
+      state.crusaderLightningIgnoreRes = true;
+      state.crusaderNoResPenOnLightning = true;
+    },
+    cr4(state) {
+      let previousMaxResL = state.finalMaxResL;
+      state.finalMaxResL = Math.min(90, state.finalMaxResL + 3);
+      state.crusaderLightningMaxResBonus = state.finalMaxResL - previousMaxResL;
+    },
+    cr5(state) {
+      state.finalRegen += 3;
+      state.finalMaxHp = Math.floor(state.finalMaxHp * 1.15);
+      state.finalArmor = Math.floor(state.finalArmor * 1.4);
+      state.finalEnergyShield = Math.floor(state.finalEnergyShield * 1.4);
+    },
+    cr6(state, input, deps) {
+      if (!(input.skill.ele === "light")) return;
+      state.finalMaxDmgRoll = Math.floor(state.finalMaxDmgRoll * deps.values.cr6.maxRollMul);
+    },
+    cr7(state) {
+      let addEs = Math.floor(state.finalArmor * 0.5);
+      let addArmor = Math.floor(state.finalEnergyShield * 0.5);
+      state.finalEnergyShield += addEs;
+      state.finalArmor += addArmor;
+      state.finalEnergyShieldRechargeDelay = Math.max(0.1, state.finalEnergyShieldRechargeDelay * 0.5);
+    },
+    cr3(state, input, deps) {
+      if (!(input.skill.ele === "light")) return;
+      state.crusaderHolyFlatDmg = Math.floor(Math.max(0, state.finalEnergyShield) / 100 * Math.max(1, Math.floor(input.owner.level || 1)) * deps.values.cr3.levelMulPer100Es);
+      state.crusaderHolyScaledDmg = Math.floor(state.crusaderHolyFlatDmg * input.baseDamageIncreaseMultiplier);
+      state.finalBaseDmg = Math.max(1, state.finalBaseDmg + state.crusaderHolyScaledDmg);
+    },
+    cr8(state, input) {
+      if (!input.tick.get("crusaderAegis")) return;
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * (input.skill.ele === "light" ? 1.75 : 1));
+    },
+    e1(state, input) {
+      if (input.skill.ele === "phys" && !input.skillHasElementalConversion) state.finalBaseDmg = 0;
+      else state.finalDamageMultiplier *= 1.15;
+    },
+    e3(state) {
+      state.finalMaxHp = Math.floor(state.finalMaxHp * 0.85);
+      state.finalEnergyShieldRegenRate += 10;
+      state.finalEnergyShieldRechargeDelay = 0;
+    },
+    e5(state, input) {
+      let maxElemRes = Math.max(input.finalResF, input.finalResC, input.finalResL);
+      state.elementalistChaosConversionBonus = Math.floor(maxElemRes * 0.5);
+      state.finalResChaos = Math.min(input.finalMaxResChaos, state.finalResChaos + state.elementalistChaosConversionBonus);
+      state.finalDamageMultiplier *= 1 + Math.max(0, state.finalResChaos) / 100;
+    },
+    e6(state) {
+      state.finalResPen += 20;
+      state.finalCritDmg -= 25;
+    },
+    e9(state, input, deps) {
+      state.finalResPen += deps.values.e9.resPen;
+    },
+    e8(state, input, deps) {
+      let stacks = input.tick.get("elementalistOverload");
+      state.finalDamageMultiplier *= 1 + stacks * deps.values.e8.morePctPerStack / 100;
+      state.finalCrit = Math.max(0, state.finalCrit - stacks);
+    },
+    e7(state, input, deps) {
+      let pool = Array.isArray(input.skill.randomElementPool) ? input.skill.randomElementPool : [];
+      if (["fire", "cold", "light"].every((ele) => pool.includes(ele))) {
+        state.finalDamageMultiplier *= 1.05;
+        state.ailmentPowerMultiplier = Math.max(state.ailmentPowerMultiplier, deps.values.e7.ailmentPowerMul);
+      }
+    },
+    wlk1(state, input, deps) {
+      state.chaosDamageMultiplier *= 1 + deps.values.wlk1.chaosMorePct / 100;
+    },
+    wlk2(state) {
+      state.totalDotDamageMultiplier *= 1.2;
+      state.instantDamageMultiplier *= 0.9;
+    },
+    wlk3(state) {
+      state.finalEnergyShieldRegenRate = 0;
+    },
+    wlk6(state, input, deps) {
+      state.finalResPen += 21 + Math.max(0, state.finalCrit) * deps.values.wlk6.critToPenPct / 100;
+      state.finalCrit = 0;
+    },
+    wlk8(state, input, deps) {
+      state.chaosDamageMultiplier *= 1 + deps.values.wlk8.chaosMorePct / 100;
+      state.finalLeech *= 0.5;
+      state.finalSpellLeech *= 0.5;
+      state.finalRegen *= 0.5;
+    },
+    wlk5(state) {
+      state.dotTickIntervalMultiplier /= 1.5;
+      state.dotDurationMultiplier *= 0.5;
+    },
+    wlk7(state, input, deps) {
+      const shieldHalf = state.finalEnergyShield * 0.5;
+      if (input.tick.when("playerEnergyShield", (shield) => shield >= shieldHalf)) state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 + deps.values.wlk7.esDamageMorePct / 100));
+    },
+    gd1(state) {
+      state.finalArmor = Math.floor(state.finalArmor * 1.15);
+      state.guardianArmorDamageBonus = true;
+    },
+    gd2(state, input, deps) {
+      state.finalMaxHp = Math.floor(state.finalMaxHp * (1 + deps.values.gd2.lifeMorePct / 100));
+      state.finalEnergyShield = Math.floor(state.finalEnergyShield * (1 + deps.values.gd2.esMorePct / 100));
+    },
+    gd3(state) {
+      state.finalRegen *= 1.2;
+      state.finalEnergyShieldRegenRate *= 0.8;
+    },
+    gd4(state, input, deps) {
+      let converted = Math.floor(state.finalEvasion * deps.values.gd4.evasionToArmorPct / 100);
+      state.finalArmor += converted;
+    },
+    gd5(state) {
+      state.genericTakenDamageMultiplier *= 0.85;
+    },
+    gd6(state, input) {
+      let stacks = input.tick.get("guardianEnduranceStacks");
+      if (stacks > 0) state.finalArmor = Math.floor(state.finalArmor * (1 + stacks * 0.11));
+      state.guardianReflectDamage = Math.max(1, Math.floor(state.finalArmor * 0.6));
+    },
+    armorDamage(state, input, deps) {
+      if (state.guardianArmorDamageBonus) state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 + Math.min(deps.values.gd1.damagePctMax, Math.max(0, state.finalArmor) / 100 * deps.values.gd1.damagePctPer100Armor) / 100));
+    },
+    gd8(state) {
+      state.guardianDamageNullifyChance += 30;
+      state.ailmentResistBonusPct += 50;
+    },
+    gd9(state) {
+      state.guardianHitCapPct = 35;
+      state.finalRegen *= 0.65;
+      state.finalLeech *= 0.65;
+      state.finalSpellLeech *= 0.65;
+    },
+    lastStand(state, input, deps) {
+      state.lastStandMaxHp = deps.keystone("gd7", input.owner) ? state.finalMaxHp : null;
+      if (state.lastStandMaxHp !== null && input.tick.when("playerHp", (hp) => hp / Math.max(1, state.lastStandMaxHp) <= 0.5)) {
+        state.genericTakenDamageMultiplier *= 0.8;
+        state.finalBaseDmg = Math.floor(state.finalBaseDmg * 1.3);
+      }
+    },
+    iq3(state) {
+      state.finalAspd = Math.max(0.1, state.finalAspd * 0.94);
+    },
+    resonance(state, input) {
+      state.inquisitorResonancePower = Math.max(0, Math.floor((input.owner.resonancePower || 0) + input.bonusResonancePower + input.inquisitorResonanceBonus));
+      if (input.cosmosTwinStarResonance) state.inquisitorResonancePower = Math.floor(state.inquisitorResonancePower * Math.max(0, input.cosmosTwinStarResonance.resonanceMul || 1.5));
+      state.inquisitorElementalSkill = ["fire", "cold", "light"].includes(input.skill.ele) || Array.isArray(input.skill.randomElementPool) && input.skill.randomElementPool.length > 0;
+    },
+    iq1(state, input, deps) {
+      if (!state.inquisitorElementalSkill) return;
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 + state.inquisitorResonancePower * deps.values.iq1.resonancePct / 100 / 100));
+    },
+    iq2(state) {
+      state.finalCrit = Math.max(0, state.finalCrit - 8);
+      state.finalCritDmg += 75;
+    },
+    iq5(state, input, deps) {
+      state.finalResPen += deps.values.iq5.resPen;
+      if (input.skill.ele === "phys" && !input.skillHasElementalConversion) state.finalBaseDmg = 0;
+    },
+    iq6(state) {
+      state.finalMaxHp = Math.floor(state.finalMaxHp * 0.75);
+    },
+    iq7(state) {
+      state.finalCritDmg += state.inquisitorResonancePower;
+    },
+    iq8(state, input, deps) {
+      if (!state.inquisitorElementalSkill) return;
+      state.inquisitorAbsoluteDoctrinePct = Math.max(0, state.finalResPen) * deps.values.iq8.penToDamagePct / 100;
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 + state.inquisitorAbsoluteDoctrinePct / 100));
+    },
+    sb4(state) {
+      state.sbSummonAspdBonus += 25;
+    },
+    sb6(state) {
+      state.finalResPen += 25;
+    },
+    sb5(state, input, deps) {
+      let sumFlat = sumSharedSummonStat(input, "summonFlatDmg");
+      let sumPct = sumSharedSummonStat(input, "summonPctDmg");
+      let sumCrit = sumSharedSummonStat(input, "summonCrit");
+      let sumCritDmg = sumSharedSummonStat(input, "summonCritDmg");
+      let sumAspd = sumSharedSummonStat(input, "summonAspd");
+      const sb5Share = deps.values.sb5.sharePct / 100;
+      state.finalBaseDmg += Math.floor(sumFlat * sb5Share);
+      state.finalBaseDmg = Math.floor(state.finalBaseDmg * (1 + sumPct * sb5Share / 100));
+      state.finalCrit += sumCrit * sb5Share;
+      state.finalCritDmg += sumCritDmg * sb5Share;
+      state.finalAspd = Math.max(0.1, state.finalAspd * (1 + sumAspd * sb5Share / 100));
+    },
+    sb7(state, input, deps) {
+      state.sbPlayerAttackPower = Math.max(0, state.finalBaseDmg);
+      let summonStatsForShare = {
+        summonFlatDmg: sumSharedSummonStat(input, "summonFlatDmg"),
+        summonPctDmg: sumSharedSummonStat(input, "summonPctDmg"),
+        summonEfficiency: sumSharedSummonStat(input, "summonEfficiency"),
+        summonSharedPctDmg: input.summonSharedGeneralPctDmg,
+        summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(deps.damageTags))).map((statId) => [statId, Math.max(0, input.sumStatAcrossBuckets(statId))]))
+      };
+      state.sbSummonAttackPower = deps.summonPower(summonStatsForShare, input.gemEvaluation);
+      if (!deps.keystone("sb5", input.owner)) {
+        state.sbSummonShareToPlayer = Math.floor(deps.values.sb7.sharePct / 100 * state.sbSummonAttackPower);
+        state.finalBaseDmg += state.sbSummonShareToPlayer;
+      }
+    },
+    ct4(state) {
+      state.finalMove *= 1.2;
+      state.finalCritDmg += 25;
+      state.finalEvasion = Math.floor(state.finalEvasion * 1.2);
+    },
+    ct6(state, input, deps) {
+      state.totalDotDamageMultiplier *= 1 + deps.values.ct6.dotMorePct / 100;
+      state.dotDurationMultiplier *= 1 - deps.values.ct6.durationLessPct / 100;
+    },
+    ct7(state, input, deps) {
+      let convertedCritChance = Math.max(0, state.finalCrit) * deps.values.ct7.critChanceToDotPct / 100;
+      let convertedCritDamage = Math.max(0, state.finalCritDmg) * deps.values.ct7.critDmgToDotPct / 100;
+      state.totalDotDamageMultiplier *= 1 + (convertedCritChance + convertedCritDamage) / 100;
+      if (Array.isArray(input.skill.tags) && input.skill.tags.includes("attack")) state.finalCrit = 100;
+      state.finalCritDmg = 100 + Math.max(0, (state.totalDotDamageMultiplier - 1) * 100 * 0.2);
+    },
+    ct9(state, input, deps) {
+      state.dotTickIntervalMultiplier *= 1 - deps.values.ct9.fasterPct / 100;
+      state.dotDurationMultiplier *= 1 - deps.values.ct9.fasterPct / 100;
+    }
+  };
+  var order = [
+    ["w1", transforms.w1],
+    ["w2", transforms.w2],
+    ["w3", transforms.w3],
+    ["w4", transforms.w4],
+    ["w5", transforms.w5],
+    [null, transforms.nodeMultipliers],
+    ["w8", transforms.w8],
+    ["w9", transforms.w9],
+    ["g1", transforms.g1],
+    ["g2", transforms.g2],
+    ["g3", transforms.g3],
+    ["g4", transforms.g4],
+    ["g5", transforms.g5],
+    ["g7", transforms.g7],
+    ["g8", transforms.g8],
+    ["a1", transforms.a1],
+    ["a2", transforms.a2],
+    ["a4", transforms.a4],
+    ["a6", transforms.a6],
+    ["a7", transforms.a7],
+    ["a8", transforms.a8],
+    ["a9", transforms.a9],
+    ["r1", transforms.r1],
+    ["r2", transforms.r2],
+    ["r3", transforms.r3],
+    ["r4", transforms.r4],
+    ["r6", transforms.r6],
+    ["r8", transforms.r8],
+    ["r7", transforms.r7],
+    ["h3", transforms.h3],
+    ["h5", transforms.h5],
+    ["h6", transforms.h6],
+    ["h7", transforms.h7],
+    ["h8", transforms.h8],
+    ["h9", transforms.h9],
+    ["cr1", transforms.cr1],
+    ["cr2", transforms.cr2],
+    ["cr4", transforms.cr4],
+    ["cr5", transforms.cr5],
+    ["cr6", transforms.cr6],
+    ["cr7", transforms.cr7],
+    ["cr3", transforms.cr3],
+    ["cr8", transforms.cr8],
+    ["e1", transforms.e1],
+    ["e3", transforms.e3],
+    ["e5", transforms.e5],
+    ["e6", transforms.e6],
+    ["e9", transforms.e9],
+    ["e8", transforms.e8],
+    ["e7", transforms.e7],
+    ["wlk1", transforms.wlk1],
+    ["wlk2", transforms.wlk2],
+    ["wlk3", transforms.wlk3],
+    ["wlk6", transforms.wlk6],
+    ["wlk8", transforms.wlk8],
+    ["wlk5", transforms.wlk5],
+    ["wlk7", transforms.wlk7],
+    ["gd1", transforms.gd1],
+    ["gd2", transforms.gd2],
+    ["gd3", transforms.gd3],
+    ["gd4", transforms.gd4],
+    ["gd5", transforms.gd5],
+    ["gd6", transforms.gd6],
+    [null, transforms.armorDamage],
+    ["gd8", transforms.gd8],
+    ["gd9", transforms.gd9],
+    [null, transforms.lastStand],
+    ["iq3", transforms.iq3],
+    [null, transforms.resonance],
+    ["iq1", transforms.iq1],
+    ["iq2", transforms.iq2],
+    ["iq5", transforms.iq5],
+    ["iq6", transforms.iq6],
+    ["iq7", transforms.iq7],
+    ["iq8", transforms.iq8],
+    ["sb4", transforms.sb4],
+    ["sb6", transforms.sb6],
+    ["sb5", transforms.sb5],
+    ["sb7", transforms.sb7],
+    ["ct4", transforms.ct4],
+    ["ct6", transforms.ct6],
+    ["ct7", transforms.ct7],
+    ["ct9", transforms.ct9]
+  ];
+  function createPlayerAscendancyStats(deps) {
+    return Object.freeze({
+      nodeMultipliers: (owner, tick, maxLife) => computeAscendancyNodeMultipliers(owner, tick, maxLife, deps),
+      transform(initial, input) {
+        const state = { ...initial };
+        for (const [key, apply] of order) {
+          if (key === null || deps.keystone(key, input.owner)) apply(state, input, deps);
+        }
+        return state;
+      }
+    });
+  }
+
+  // modules/domain/player-stat-final.mjs
+  function isGravityRegion(zone) {
+    return zone && (zone.type === "underworld" || zone.milestonePinnacle && zone.underworldPenaltyFloor);
+  }
+  function isPressureRegion(zone) {
+    return zone && (zone.type === "oceanDepth" || Number(zone.oceanPressureDepthTier) > 0);
+  }
+  function applyRegionGravity(state, floor, deps) {
+    const reduction = typeof deps.skyReduction === "function" ? deps.skyReduction() : 0;
+    const multiplier = deps.gravityMultiplier(floor, reduction);
+    state.finalAspd *= multiplier;
+    state.finalMove *= multiplier;
+    state.zoneSpeedMultiplier *= multiplier;
+  }
+  function applyRegionPressure(state, zone, input, deps) {
+    const depth = Math.max(0, Math.floor(zone.oceanPressureDepthTier || zone.depthTier || 0));
+    const resistance = Math.max(0, Math.min(80, input.sumStatAcrossBuckets("oceanPressureResist") + (typeof deps.oceanResistanceUpgrade === "function" ? deps.oceanResistanceUpgrade() : 0)));
+    const slow = Math.min(0.65, depth * 0.05) * (1 - resistance / 100);
+    state.finalAspd *= 1 - slow;
+    state.zoneSpeedMultiplier *= 1 - slow;
+    state.oceanPressureDamageMul *= 1 - slow * 0.6;
+    state.finalMove *= 1 - slow * 0.2;
+    if (deps.oceanCurrent(zone, "riptide")) state.finalMove *= 0.85;
+    if (deps.oceanCurrent(zone, "bioluminescence")) state.playerAccuracy *= 0.82;
+    if (deps.oceanCurrent(zone, "warm_current")) state.oceanCurrentResPenaltyF = 12;
+    if (deps.oceanCurrent(zone, "cold_current")) state.oceanCurrentResPenaltyC = 12;
+  }
+  function computeFinalRegion(input, deps) {
+    const zone = deps.zoneOf(input.owner.currentZoneId) || deps.zoneOf(0);
+    const state = {
+      finalAspd: input.finalAspd,
+      finalMove: input.finalMove,
+      playerAccuracy: input.playerAccuracy,
+      zoneSpeedMultiplier: 1,
+      oceanPressureDamageMul: 1,
+      oceanCurrentResPenaltyF: 0,
+      oceanCurrentResPenaltyC: 0
     };
-
-    let critChance = finalCrit / 100;
-    let critMulti = finalCritDmg / 100;
-    let avgHit = finalBaseDmg * (1 - critChance) + finalBaseDmg * critChance * critMulti;
-    let finalDps = avgHit * finalAspd;
-
-    // 전직 키스톤의 전투 효과. 키스톤 id는 전직을 통틀어 하나라 hasKeystone만으로 고른 키스톤(그 전직일 때)과 우주계 쌍둥이
-    // 키스톤(어느 전직이든)을 함께 가린다. 예전에는 전직별 if/else로 묶여 다른 전직의 쌍둥이 키스톤이 효과가 없었다(2026-10-02).
-    // 워리어
-    // 1) Base multipliers / penalties
-    if (hasKeystone('w1')) {
-        warriorPhysDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.w1.physMorePct / 100;
-        finalArmor = Math.floor(finalArmor * (1 + ASCENDANCY_KEYSTONE_VALUES.w1.armorMorePct / 100));
-    }
-    if (hasKeystone('w2')) {
-        let stacks = tick.get('warriorRhythmStacks');
-        if (stacks > 0) finalAspd = Math.min(12, finalAspd * Math.pow(1 + ASCENDANCY_KEYSTONE_VALUES.w2.aspdPctPerStack / 100, stacks));
-    }
-    if (hasKeystone('w3')) finalBaseDmg = Math.floor(finalBaseDmg * (isDualWielding() ? 1.08 : 1));
-    if (hasKeystone('w4')) { finalPhysIgnore += ASCENDANCY_KEYSTONE_VALUES.w4.physIgnore; allowNegativePhysIgnore = true; }
-    if (hasKeystone('w5')) {
-        warriorPhysDamageMultiplier *= tick.get('warriorRageMultiplier');
-    }
-    const nodeStats = getAscendancyNodeStatMultipliers(tick, Math.max(1, finalMaxHp)); finalRegen *= nodeStats.regenMul; // 불굴의 진군, 광분, 흐르는 칼끝, 뿌리 갑주
-    if (nodeStats.damageMul !== 1) finalBaseDmg = Math.floor(finalBaseDmg * nodeStats.damageMul);
-    warriorTakenDamageMultiplier *= nodeStats.takenMul;
-    if (nodeStats.aspdMul !== 1) finalAspd = Math.min(12, finalAspd * nodeStats.aspdMul);
-    // 2) Keystone cap/transform phase
-    if (hasKeystone('w8')) {
-        finalCrit = Math.min(200, finalCrit + ASCENDANCY_KEYSTONE_VALUES.w8.crit);
-        finalCritDmg += ASCENDANCY_KEYSTONE_VALUES.w8.critDmg;
-        finalAspd = Math.min(12, finalAspd * (1 + ASCENDANCY_KEYSTONE_VALUES.w8.aspdMorePct / 100));
-        finalMove *= 1 + ASCENDANCY_KEYSTONE_VALUES.w8.moveMorePct / 100;
-        finalDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.w8.damageMorePct / 100;
-        finalDs += ASCENDANCY_KEYSTONE_VALUES.w8.ds;
-    }
-    // 9) 전쟁광: 주는 피해와 받는 피해 증폭(ASCENDANCY_KEYSTONE_VALUES.w9)
-    if (hasKeystone('w9')) {
-        finalDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.w9.damageMorePct / 100;
-        warriorTakenDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.w9.takenMorePct / 100;
-    }
-    // 글래디에이터
-    if (hasKeystone('g1')) {
-        if (skill.ele === 'phys') finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.g1.physMorePct / 100));
-        else finalBaseDmg = Math.floor(finalBaseDmg * (1 - ASCENDANCY_KEYSTONE_VALUES.g1.otherLessPct / 100));
-    }
-    if (hasKeystone('g2')) {
-        let stacks = tick.get('gladiatorFlurryStacks');
-        if (stacks > 0) {
-            finalAspd = Math.min(12, finalAspd * (1 + stacks * ASCENDANCY_KEYSTONE_VALUES.g2.aspdPctPerStack / 100));
-            finalEvasion = Math.floor(finalEvasion * (1 + stacks * 0.03));
-        }
-    }
-    if (hasKeystone('g3')) finalCrit = Math.min(100, finalCrit + tick.get('gladiatorVeteranCrit'));
-    if (hasKeystone('g4')) {
-        let crowdCount = tick.get('aliveEnemies');
-        if (crowdCount >= 3) {
-            finalBaseDmg = Math.floor(finalBaseDmg * 1.20);
-            rawDr += 20;
-            finalDr = Math.min(PLAYER_PHYSICAL_REDUCTION_CAP_PCT, rawDr);
-        }
-    }
-    if (hasKeystone('g5')) {
-        if (tick.get('gladiatorSwiftGuard')) swiftOpeningTakenMultiplier = 0.70;
-    }
-    if (hasKeystone('g7')) {
-        finalDs += Math.min(ASCENDANCY_KEYSTONE_VALUES.g7.dsMax, Math.floor(Math.max(0, finalEvasion) / ASCENDANCY_KEYSTONE_VALUES.g7.evasionPerDs));
-        finalCrit += Math.min(ASCENDANCY_KEYSTONE_VALUES.g7.critMax, Math.floor(Math.max(0, finalArmor) / ASCENDANCY_KEYSTONE_VALUES.g7.armorPerCrit));
-    }
-    if (hasKeystone('g8')) {
-        finalDs += ASCENDANCY_KEYSTONE_VALUES.g8.ds;
-        finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.g8.damageMorePct / 100));
-        bossDamageDealtMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.g8.bossDamageMorePct / 100;
-        bossTakenDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.g8.bossTakenMorePct / 100;
-        finalRegen *= 0.5;
-        finalEnergyShieldRegenRate = 0;
-    }
-    // 어쌔신
-    if (hasKeystone('a1')) {
-        finalCrit = Math.max(0, finalCrit - 6);
-        finalCritDmg += 66;
-    }
-    if (hasKeystone('a2') && tick.get('assassinBlurred')) {
-        finalMove *= 1.2;
-        finalCritDmg += 25;
-        finalEvasion = Math.floor(finalEvasion * 1.2);
-    }
-    if (hasKeystone('a4')) {
-        finalPhysIgnore += 25;
-        finalResPen += 25;
-        finalBaseDmg = Math.floor(finalBaseDmg * 0.92);
-    }
-    if (hasKeystone('a6')) {
-        const highLifeLimit = Math.max(1, finalMaxHp);
-        if (tick.when('playerHp', hp => (hp / highLifeLimit) > 0.66)) finalCritDmg = Math.floor(finalCritDmg * 1.2);
-        else finalEvasion = Math.floor(finalEvasion * 1.2);
-    }
-    if (hasKeystone('a7')) finalCritDmg -= 200;
-    if (hasKeystone('a8')) {
-        finalCritDmg *= ASCENDANCY_KEYSTONE_VALUES.a8.critDmgMul;
-        finalBaseDmg = Math.floor(finalBaseDmg * 0.75);
-    }
-    // 9) 암영 극의: 치명타 피해 배율 20% 증폭 및 회피 20% 증폭
-    if (hasKeystone('a9')) {
-        finalCritDmg = Math.floor(finalCritDmg * 1.2);
-        finalEvasion = Math.floor(finalEvasion * 1.2);
-    }
-    // 레인저
-    if (hasKeystone('r1')) {
-        finalMove *= 1.15;
-        finalArmor = 0;
-        finalEnergyShield = 0;
-    }
-    if (hasKeystone('r2')) {
-        finalAspd = Math.min(12, finalAspd * (1 + ASCENDANCY_KEYSTONE_VALUES.r2.aspdMorePct / 100));
-    }
-    if (hasKeystone('r3')) {
-        finalMinDmgRoll = Math.max(5, finalMinDmgRoll - 10);
-    }
-    if (hasKeystone('r4')) finalAspd = Math.min(12, finalAspd * (1 + Math.max(0, finalMove) * ASCENDANCY_KEYSTONE_VALUES.r4.aspdPctPerMovePct / 100));
-    if (hasKeystone('r6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
-        skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
-        finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.max(1, Math.floor(skill.targets || 1)) * ASCENDANCY_KEYSTONE_VALUES.r6.damageMorePctPerTarget / 100));
-    }
-    if (hasKeystone('r8')) {
-        let aspdBonus = Math.max(0, finalAspd - 1) * 0.12;
-        let moveBonus = Math.max(0, finalMove) * 0.0012;
-        finalAspd = Math.min(12, finalAspd * (1 + moveBonus));
-        finalMove *= (1 + aspdBonus);
-        finalMaxHp = Math.floor(finalMaxHp * 0.85);
-    }
-    if (hasKeystone('r7')) {
-        finalCrit = Math.min(100, finalCrit + tick.get('sinceHitSeconds') * ASCENDANCY_KEYSTONE_VALUES.r7.critPerSecond);
-    }
-    // 헌터
-    if (hasKeystone('h3')) finalEvasion = Math.floor(finalEvasion * (1 + Math.max(0, finalMove) * 0.002));
-    if (hasKeystone('h5')) { finalCritDmg += ASCENDANCY_KEYSTONE_VALUES.h5.critDmg; finalCrit = Math.max(0, finalCrit - ASCENDANCY_KEYSTONE_VALUES.h5.critLess); }
-    if (hasKeystone('h6') && Array.isArray(skill.tags) && skill.tags.includes('projectile')) {
-        skill.targets = Math.min(12, Math.max(1, (skill.targets || 1) + 1));
-        // 추가 발사는 보통의 보너스 샷 피해(PROJECTILE_BONUS_SHOT_DAMAGE_PCT)로 맞힌다(2026-10-07 직업 밸런스: 예전 70% 강화는 뺐다).
-        totalProjectileExtraShots += 1;
-    }
-    if (hasKeystone('h7')) {
-        let solitaryOriginalTargets = Math.max(1, Math.floor(skill.targets || 1));
-        finalDs += getSolitaryHuntDoubleStrikeBonus(solitaryOriginalTargets);
-        skill.targets = 1;
-    }
-    if (hasKeystone('h8')) {
-        let dsAsCrit = Math.max(0, finalDs);
-        finalDs = 0;
-        finalCrit = Math.min(1000, finalCrit + dsAsCrit);
-        finalCritDmg += ASCENDANCY_KEYSTONE_VALUES.h8.critDmg;
-    }
-    // 9) 일격필살: 공격 속도 1 고정, 공격 속도 증가분을 피해량 증폭으로 전환
-    if (hasKeystone('h9')) {
-        finalDamageMultiplier *= (1 + Math.max(0, totalAspdPct) / 100);
-        finalAspd = 1;
-    }
-    // 크루세이더
-    if (hasKeystone('cr1')) { finalRegen += 1.5; finalRegen *= 1.4; }
-    if (hasKeystone('cr2')) {
-        crusaderLightningIgnoreRes = true;
-        crusaderNoResPenOnLightning = true;
-    }
-    if (hasKeystone('cr4')) {
-        let previousMaxResL = finalMaxResL;
-        finalMaxResL = Math.min(90, finalMaxResL + 3);
-        crusaderLightningMaxResBonus = finalMaxResL - previousMaxResL;
-    }
-    if (hasKeystone('cr5')) {
-        finalRegen += 3;
-        finalMaxHp = Math.floor(finalMaxHp * 1.15);
-        finalArmor = Math.floor(finalArmor * 1.4);
-        finalEnergyShield = Math.floor(finalEnergyShield * 1.4);
-    }
-    if (hasKeystone('cr6') && skill.ele === 'light') finalMaxDmgRoll = Math.floor(finalMaxDmgRoll * ASCENDANCY_KEYSTONE_VALUES.cr6.maxRollMul);
-    if (hasKeystone('cr7')) {
-        let addEs = Math.floor(finalArmor * 0.5);
-        let addArmor = Math.floor(finalEnergyShield * 0.5);
-        finalEnergyShield += addEs;
-        finalArmor += addArmor;
-        finalEnergyShieldRechargeDelay = Math.max(0.1, finalEnergyShieldRechargeDelay * 0.5);
-    }
-    if (hasKeystone('cr3') && skill.ele === 'light') {
-        crusaderHolyFlatDmg = Math.floor((Math.max(0, finalEnergyShield) / 100) * Math.max(1, Math.floor(game.level || 1)) * ASCENDANCY_KEYSTONE_VALUES.cr3.levelMulPer100Es);
-        crusaderHolyScaledDmg = Math.floor(crusaderHolyFlatDmg * baseDamageIncreaseMultiplier);
-        finalBaseDmg = Math.max(1, finalBaseDmg + crusaderHolyScaledDmg);
-    }
-    if (hasKeystone('cr8') && tick.get('crusaderAegis')) finalBaseDmg = Math.floor(finalBaseDmg * (skill.ele === 'light' ? 1.75 : 1));
-    // 엘리멘탈리스트
-    if (hasKeystone('e1')) {
-        if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0;
-        else finalDamageMultiplier *= 1.15;
-    }
-    if (hasKeystone('e3')) {
-        finalMaxHp = Math.floor(finalMaxHp * 0.85);
-        finalEnergyShieldRegenRate += 10;
-        finalEnergyShieldRechargeDelay = 0;
-    }
-    if (hasKeystone('e4')) { /* 융해 결합: 원소 풀 변환은 skill 생성 직후 적용됨 */ }
-    if (hasKeystone('e5')) {
-        let maxElemRes = Math.max(finalResF, finalResC, finalResL);
-        elementalistChaosConversionBonus = Math.floor(maxElemRes * 0.5);
-        finalResChaos = Math.min(finalMaxResChaos, finalResChaos + elementalistChaosConversionBonus);
-        finalDamageMultiplier *= (1 + Math.max(0, finalResChaos) / 100);
-    }
-    if (hasKeystone('e6')) {
-        finalResPen += 20;
-        finalCritDmg -= 25;
-    }
-    // 9) 절대 관통: 원소 저항 관통(ASCENDANCY_KEYSTONE_VALUES.e9), 관통 하한은 -300%까지(적용은 mitigation 계산부)
-    if (hasKeystone('e9')) finalResPen += ASCENDANCY_KEYSTONE_VALUES.e9.resPen;
-    if (hasKeystone('e8')) {
-        let stacks = tick.get('elementalistOverload');
-        finalDamageMultiplier *= (1 + stacks * ASCENDANCY_KEYSTONE_VALUES.e8.morePctPerStack / 100);
-        finalCrit = Math.max(0, finalCrit - stacks);
-    }
-    if (hasKeystone('e7')) {
-        let pool = Array.isArray(skill.randomElementPool) ? skill.randomElementPool : [];
-        if (['fire','cold','light'].every(ele => pool.includes(ele))) {
-            finalDamageMultiplier *= 1.05;
-            ailmentPowerMultiplier = Math.max(ailmentPowerMultiplier, ASCENDANCY_KEYSTONE_VALUES.e7.ailmentPowerMul);
-        }
-    }
-    // 워록
-    if (hasKeystone('wlk1')) {
-        chaosDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.wlk1.chaosMorePct / 100;
-    }
-    if (hasKeystone('wlk2')) {
-        totalDotDamageMultiplier *= 1.20;
-        instantDamageMultiplier *= 0.90;
-    }
-    if (hasKeystone('wlk3')) {
-        finalEnergyShieldRegenRate = 0;
-    }
-    if (hasKeystone('wlk6')) {
-        finalResPen += 21 + Math.max(0, finalCrit) * ASCENDANCY_KEYSTONE_VALUES.wlk6.critToPenPct / 100;
-        finalCrit = 0;
-    }
-    if (hasKeystone('wlk8')) {
-        chaosDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.wlk8.chaosMorePct / 100;
-        finalLeech *= 0.5;
-        finalSpellLeech *= 0.5;
-        finalRegen *= 0.5;
-    }
-    if (hasKeystone('wlk5')) {
-        dotTickIntervalMultiplier /= 1.50;
-        dotDurationMultiplier *= 0.5;
-    }
-    if (hasKeystone('wlk7')) {
-        const shieldHalf = finalEnergyShield * 0.5;
-        if (tick.when('playerEnergyShield', shield => shield >= shieldHalf)) finalBaseDmg = Math.floor(finalBaseDmg * (1 + ASCENDANCY_KEYSTONE_VALUES.wlk7.esDamageMorePct / 100));
-    }
-    // 가디언
-    if (hasKeystone('gd1')) {
-        finalArmor = Math.floor(finalArmor * 1.15);
-        guardianArmorDamageBonus = true;
-    }
-    if (hasKeystone('gd2')) { finalMaxHp = Math.floor(finalMaxHp * (1 + ASCENDANCY_KEYSTONE_VALUES.gd2.lifeMorePct / 100)); finalEnergyShield = Math.floor(finalEnergyShield * (1 + ASCENDANCY_KEYSTONE_VALUES.gd2.esMorePct / 100)); }
-    if (hasKeystone('gd3')) { finalRegen *= 1.2; finalEnergyShieldRegenRate *= 0.8; }
-    if (hasKeystone('gd4')) {
-        let converted = Math.floor(finalEvasion * ASCENDANCY_KEYSTONE_VALUES.gd4.evasionToArmorPct / 100);
-        finalArmor += converted;
-    }
-    if (hasKeystone('gd5')) {
-        genericTakenDamageMultiplier *= 0.85;
-    }
-    if (hasKeystone('gd6')) { let stacks = tick.get('guardianEnduranceStacks'); if (stacks > 0) finalArmor = Math.floor(finalArmor * (1 + stacks * 0.11)); guardianReflectDamage = Math.max(1, Math.floor(finalArmor * 0.6)); }
-    if (guardianArmorDamageBonus) finalBaseDmg = Math.floor(finalBaseDmg * (1 + Math.min(ASCENDANCY_KEYSTONE_VALUES.gd1.damagePctMax, Math.max(0, finalArmor) / 100 * ASCENDANCY_KEYSTONE_VALUES.gd1.damagePctPer100Armor) / 100));
-    if (hasKeystone('gd8')) { guardianDamageNullifyChance += 30; ailmentResistBonusPct += 50; }
-    if (hasKeystone('gd9')) {
-        guardianHitCapPct = 35;
-        finalRegen *= 0.65;
-        finalLeech *= 0.65;
-        finalSpellLeech *= 0.65;
-    }
-    // The last stand cleanse happens on every call, so finishPlayerStats runs it against this life total.
-    const lastStandMaxHp = hasKeystone('gd7') ? finalMaxHp : null;
-    if (lastStandMaxHp !== null && tick.when('playerHp', hp => (hp / Math.max(1, lastStandMaxHp)) <= 0.5)) {
-        genericTakenDamageMultiplier *= 0.8;
-        finalBaseDmg = Math.floor(finalBaseDmg * 1.3);
-    }
-    // 인퀴지터
-    if (hasKeystone('iq3')) finalAspd = Math.max(0.1, finalAspd * 0.94);
-    let inquisitorResonancePower = Math.max(0, Math.floor((game.resonancePower || 0) + bonusResonancePower + inquisitorResonanceBonus));
-    if (cosmosTwinStarResonance) inquisitorResonancePower = Math.floor(inquisitorResonancePower * Math.max(0, cosmosTwinStarResonance.resonanceMul || 1.5));
-    let inquisitorElementalSkill = ['fire', 'cold', 'light'].includes(skill.ele) || (Array.isArray(skill.randomElementPool) && skill.randomElementPool.length > 0);
-    if (hasKeystone('iq1') && inquisitorElementalSkill) finalBaseDmg = Math.floor(finalBaseDmg * (1 + (inquisitorResonancePower * ASCENDANCY_KEYSTONE_VALUES.iq1.resonancePct / 100) / 100));
-    if (hasKeystone('iq2')) {
-        finalCrit = Math.max(0, finalCrit - 8);
-        finalCritDmg += 75;
-    }
-    if (hasKeystone('iq5')) { finalResPen += ASCENDANCY_KEYSTONE_VALUES.iq5.resPen; if (skill.ele === 'phys' && !skillHasElementalConversion) finalBaseDmg = 0; }
-    if (hasKeystone('iq6')) finalMaxHp = Math.floor(finalMaxHp * 0.75);
-    if (hasKeystone('iq7')) finalCritDmg += inquisitorResonancePower;
-    if (hasKeystone('iq8') && inquisitorElementalSkill) {
-        inquisitorAbsoluteDoctrinePct = Math.max(0, finalResPen) * ASCENDANCY_KEYSTONE_VALUES.iq8.penToDamagePct / 100;
-        finalBaseDmg = Math.floor(finalBaseDmg * (1 + inquisitorAbsoluteDoctrinePct / 100));
-    }
-    // 소울바인더
-    if (hasKeystone('sb4')) sbSummonAspdBonus += 25;   // 소환 한도 몫은 getSummonCapFromSum
-    if (hasKeystone('sb6')) finalResPen += 25;
-    if (hasKeystone('sb5')) {
-        let sumFlat = Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0));
-        let sumPct = Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0));
-        let sumCrit = Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0));
-        let sumCritDmg = Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0));
-        let sumAspd = Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0));
-        const sb5Share = ASCENDANCY_KEYSTONE_VALUES.sb5.sharePct / 100;
-        finalBaseDmg += Math.floor(sumFlat * sb5Share);
-        finalBaseDmg = Math.floor(finalBaseDmg * (1 + sumPct * sb5Share / 100));
-        finalCrit += sumCrit * sb5Share;
-        finalCritDmg += sumCritDmg * sb5Share;
-        finalAspd = Math.max(0.1, finalAspd * (1 + sumAspd * sb5Share / 100));
-    }
-    if (hasKeystone('sb7')) {
-        // 상호 보완: 플레이어/소환수가 서로의 '공격력'(타격당 기본 피해)의 일부(ASCENDANCY_KEYSTONE_VALUES.sb7)를 나눠 가집니다.
-        // 각 측의 공격력은 상대의 보너스를 제외한 자기 스탯만으로 계산하므로 무한 피드백이 없습니다.
-        // 플레이어 공격력(보너스 적용 전)을 소환수에게 전달.
-        sbPlayerAttackPower = Math.max(0, finalBaseDmg);
-        // 소환수 공격력(대표 소환수의 타격당 기본 피해)의 50%를 플레이어 기본 피해에 가산.
-        let summonStatsForShare = {
-            summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
-            summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0)),
-            summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
-            summonSharedPctDmg: summonSharedGeneralPctDmg,
-            summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId))]))
-        };
-        sbSummonAttackPower = getRepresentativeSummonAttackPower(summonStatsForShare, gemEvaluation);
-        if (!hasKeystone('sb5')) {
-            sbSummonShareToPlayer = Math.floor(ASCENDANCY_KEYSTONE_VALUES.sb7.sharePct / 100 * sbSummonAttackPower);
-            finalBaseDmg += sbSummonShareToPlayer;
-        }
-    }
-    // 카탈리스트
-    if (hasKeystone('ct4')) {
-        finalMove *= 1.2;
-        finalCritDmg += 25;
-        finalEvasion = Math.floor(finalEvasion * 1.2);
-    }
-    if (hasKeystone('ct6')) {
-        totalDotDamageMultiplier *= 1 + ASCENDANCY_KEYSTONE_VALUES.ct6.dotMorePct / 100;
-        dotDurationMultiplier *= 1 - ASCENDANCY_KEYSTONE_VALUES.ct6.durationLessPct / 100;
-    }
-    if (hasKeystone('ct7')) {
-        let convertedCritChance = Math.max(0, finalCrit) * ASCENDANCY_KEYSTONE_VALUES.ct7.critChanceToDotPct / 100;
-        let convertedCritDamage = Math.max(0, finalCritDmg) * ASCENDANCY_KEYSTONE_VALUES.ct7.critDmgToDotPct / 100;
-        totalDotDamageMultiplier *= (1 + (convertedCritChance + convertedCritDamage) / 100);
-        if (Array.isArray(skill.tags) && skill.tags.includes('attack')) finalCrit = 100;
-        finalCritDmg = 100 + Math.max(0, (totalDotDamageMultiplier - 1) * 100 * 0.2);
-    }
-    // 9) 급성 발현: 점화/중독/출혈 피해 간격 및 지속 시간 감폭(ASCENDANCY_KEYSTONE_VALUES.ct9, 총 피해 유지, 더 빠르게 폭발)
-    if (hasKeystone('ct9')) {
-        dotTickIntervalMultiplier *= 1 - ASCENDANCY_KEYSTONE_VALUES.ct9.fasterPct / 100;
-        dotDurationMultiplier *= 1 - ASCENDANCY_KEYSTONE_VALUES.ct9.fasterPct / 100;
-    }
-
+    if (isGravityRegion(zone)) applyRegionGravity(state, Math.max(1, Math.floor(zone.underworldPenaltyFloor || zone.floor || 1)), deps);
+    if (isPressureRegion(zone)) applyRegionPressure(state, zone, input, deps);
+    if (zone && zone.bloomTrial && zone.underworldPenaltyFloor) applyRegionGravity(state, Math.max(1, Math.floor(zone.underworldPenaltyFloor || 1)), deps);
+    return state;
+  }
+  function computeFinalDefenseTransform(input, deps) {
+    let {
+      finalCritDmg,
+      authoredPassiveRules,
+      finalArmor,
+      finalEvasion,
+      armorReduction,
+      referenceIncomingPhysical,
+      evadeChance,
+      enemyAccuracy
+    } = input;
     finalCritDmg = Math.max(0, finalCritDmg);
     if (authoredPassiveRules.flags.movingWall) {
-        finalArmor = Math.max(0, finalArmor + finalEvasion);
-        finalEvasion = 0;
+      finalArmor = Math.max(0, finalArmor + finalEvasion);
+      finalEvasion = 0;
     }
     if (authoredPassiveRules.flags.fullEvasion) finalArmor = 0;
-    armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
-    evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
+    armorReduction = deps.armorMitigation(finalArmor, referenceIncomingPhysical);
+    evadeChance = deps.evasionChance(finalEvasion, enemyAccuracy);
     if (authoredPassiveRules.flags.fullEvasion) evadeChance = Math.min(90, evadeChance + 15);
-
-    damageScales.dot = dotMultiplier;
-    damageScales.dotStat = dotStatMultiplier;
-    damageScales.instantDamageMultiplier = instantDamageMultiplier;
-    damageScales.finalDamageMultiplier = finalDamageMultiplier;
-    damageScales.ailmentPowerMultiplier = ailmentPowerMultiplier;
-    damageScales.chaosDamageMultiplier = chaosDamageMultiplier;
-    damageScales.dotTickIntervalMultiplier = dotTickIntervalMultiplier;
-    damageScales.dotDurationMultiplier = dotDurationMultiplier;
-    damageScales.warlockElementalOvercapToChaos = warlockElementalOvercapToChaos;
-
+    return {
+      finalCritDmg,
+      finalArmor,
+      finalEvasion,
+      armorReduction,
+      evadeChance
+    };
+  }
+  function computeFinalCriticalCap(input, deps) {
+    let {
+      authoredPassiveRules,
+      finalCritDmg,
+      finalCrit,
+      skill
+    } = input;
     if (authoredPassiveRules.flags.criticalLimit) {
-        finalCritDmg += Math.max(0, finalCrit - 50) * 5;
-        finalCrit = Math.min(50, finalCrit);
-    } else if ((typeof getPreciseTalentLevel === 'function' && (getPreciseTalentLevel('hero4__assassin') || getPreciseTalentLevel('hero6__ranger')))) finalCrit = Math.min(1000, finalCrit);
+      finalCritDmg += Math.max(0, finalCrit - 50) * 5;
+      finalCrit = Math.min(50, finalCrit);
+    } else if (typeof deps.preciseTalent === "function" && (deps.preciseTalent("hero4__assassin") || deps.preciseTalent("hero6__ranger"))) finalCrit = Math.min(1e3, finalCrit);
     else finalCrit = Math.min(100, finalCrit);
-    if (skill.cannotCrit && !(hasKeystone('ct7') && Array.isArray(skill.tags) && skill.tags.includes('attack'))) finalCrit = 0;
-    // 신성한 맹세: 번개 스킬의 기본 피해가 최대 에너지 보호막 100당 +1%
-    if (uniqueEsToLightPct && skill.ele === 'light') finalBaseDmg = Math.floor(finalBaseDmg * (1 + (finalEnergyShield / 100) / 100));
-    // 뒤바뀐 운명 / 최대 이윤: 최소~최대 피해 보정 차이를 피해·치명타 피해·연속 타격으로 환산
+    if (skill.cannotCrit && !(deps.keystone("ct7") && Array.isArray(skill.tags) && skill.tags.includes("attack"))) finalCrit = 0;
+    return {
+      finalCritDmg,
+      finalCrit
+    };
+  }
+  function computeCrowdEvasion(evasion, tick, crowd, few) {
+    if (crowd) {
+      const count = tick.get("aliveEnemies");
+      if (count >= crowd.minEnemies) evasion = Math.floor(evasion * (1 + crowd.morePct / 100));
+    }
+    if (few) {
+      const count = tick.get("aliveEnemies");
+      if (count >= few.minEnemies && count <= few.maxEnemies) evasion = Math.floor(evasion * (1 + few.morePct / 100));
+    }
+    return evasion;
+  }
+  function computeFinalVariance(input) {
+    let {
+      uniqueEsToLightPct,
+      skill,
+      finalBaseDmg,
+      finalEnergyShield,
+      finalMaxDmgRoll,
+      finalMinDmgRoll,
+      uniqueRollGapDamage,
+      uniqueRollGapCritDs,
+      finalCritDmg,
+      finalDs,
+      uniqueCrowdEvasionMore,
+      tick,
+      finalEvasion,
+      uniqueFewEnemyEvasionMore,
+      uniqueFateTwinRollSync,
+      finalCrit
+    } = input;
+    if (uniqueEsToLightPct && skill.ele === "light") finalBaseDmg = Math.floor(finalBaseDmg * (1 + finalEnergyShield / 100 / 100));
     let cosmosRollGap = Math.max(0, finalMaxDmgRoll - finalMinDmgRoll);
     if (uniqueRollGapDamage) finalBaseDmg = Math.floor(finalBaseDmg * (1 + cosmosRollGap / 100));
-    if (uniqueRollGapCritDs) { finalCritDmg += cosmosRollGap; finalDs += cosmosRollGap; }
+    if (uniqueRollGapCritDs) {
+      finalCritDmg += cosmosRollGap;
+      finalDs += cosmosRollGap;
+    }
     finalDs = Math.max(0, finalDs);
-    // 스쳐가는 그림자: 주변 적이 일정 수 이상이면 회피 대폭 증폭
-    if (uniqueCrowdEvasionMore) {
-        let aliveCnt = tick.get('aliveEnemies');
-        if (aliveCnt >= uniqueCrowdEvasionMore.minEnemies) finalEvasion = Math.floor(finalEvasion * (1 + uniqueCrowdEvasionMore.morePct / 100));
-    }
-    if (uniqueFewEnemyEvasionMore) {
-        let aliveCnt = tick.get('aliveEnemies');
-        if (aliveCnt >= uniqueFewEnemyEvasionMore.minEnemies && aliveCnt <= uniqueFewEnemyEvasionMore.maxEnemies) finalEvasion = Math.floor(finalEvasion * (1 + uniqueFewEnemyEvasionMore.morePct / 100));
-    }
+    finalEvasion = computeCrowdEvasion(finalEvasion, tick, uniqueCrowdEvasionMore, uniqueFewEnemyEvasionMore);
     if (uniqueFateTwinRollSync) {
-        let critForTwin = Math.max(0, finalCrit);
-        let v = Math.max(finalMinDmgRoll, finalMaxDmgRoll) + (critForTwin * 0.2);
-        finalMinDmgRoll = v;
-        finalMaxDmgRoll = v;
+      let critForTwin = Math.max(0, finalCrit);
+      let v = Math.max(finalMinDmgRoll, finalMaxDmgRoll) + critForTwin * 0.2;
+      finalMinDmgRoll = v;
+      finalMaxDmgRoll = v;
     }
+    return {
+      finalBaseDmg,
+      finalMaxDmgRoll,
+      finalMinDmgRoll,
+      finalCritDmg,
+      finalDs,
+      finalEvasion
+    };
+  }
+  function computeFinalCriticalEstimate(input, deps) {
+    let {
+      finalCritDmg,
+      critChance,
+      finalCrit,
+      critMulti,
+      avgHit,
+      finalBaseDmg,
+      finalDps,
+      finalAspd
+    } = input;
     let rawFinalCritDmg = Math.max(0, finalCritDmg);
-    finalCritDmg = applyCritDamageSoftcap(rawFinalCritDmg);
-    let critDmgSoftcapReduction = getCritDamageSoftcapReduction(rawFinalCritDmg);
+    finalCritDmg = deps.critSoftcap(rawFinalCritDmg);
+    let critDmgSoftcapReduction = deps.critReduction(rawFinalCritDmg);
     critChance = Math.max(0, Math.min(1, finalCrit / 100));
     critMulti = finalCritDmg / 100;
-    avgHit = getAverageCriticalHitDamage(finalBaseDmg, finalCrit, finalCritDmg, false);
+    avgHit = deps.averageCriticalHit(finalBaseDmg, finalCrit, finalCritDmg, false);
     finalDps = avgHit * finalAspd;
-
-    let avgRollMultiplier = Math.max(0.05, (finalMinDmgRoll + finalMaxDmgRoll) / 200);
-    let expectedDoubleStrikeMultiplier = Math.max(1, 1 + (Math.max(0, finalDs) / 100));
-    let coreCubeAddedDamageLabels = { phys: '물리', fire: '화염', cold: '냉기', light: '번개', chaos: '카오스' };
-    let coreCubeAddedDamageTotalPct = Math.max(0, Object.values(coreCubeAddedDamagePct).reduce((sum, value) => sum + (Number(value) || 0), 0));
-    let coreCubeAddedDamageParts = Object.keys(coreCubeAddedDamagePct)
-        .filter(ele => Math.max(0, Number(coreCubeAddedDamagePct[ele] || 0)) > 0)
-        .map(ele => `${_t(coreCubeAddedDamageLabels[ele])} ${Math.floor(coreCubeAddedDamagePct[ele])}%`);
-    let wisdomPreviewStats = { passiveWisdomElement, passiveKeystoneFlags: authoredPassiveRules.flags };
-    let previewTalentConversion = wisdomLeapActive && typeof getTalentDamageConversion === 'function'
-        ? getTalentDamageConversion(skill.ele)
-        : { element: skill.ele, mainPct: 1, added: {} };
-    let previewSkillElement = previewTalentConversion.element || skill.ele;
-    let wisdomSkillDamageMultiplier = Math.max(0, Number(previewTalentConversion.mainPct) || 0)
-        * getPassiveWisdomLeapDamageMultiplier(wisdomPreviewStats, previewSkillElement);
-    let previewAddedDamagePct = { ...coreCubeAddedDamagePct };
-    Object.entries(previewTalentConversion.added || {}).forEach(([element, value]) => {
-        previewAddedDamagePct[element] = (Number(previewAddedDamagePct[element]) || 0) + (Number(value) || 0);
-    });
-    let wisdomAddedDamageMultiplier = Object.entries(previewAddedDamagePct).reduce((sum, [element, value]) => {
-        let addedRatio = Math.max(0, Number(value) || 0) / 100;
-        return sum + addedRatio * getPassiveWisdomLeapDamageMultiplier(wisdomPreviewStats, element);
-    }, 0);
-    let expectedAddedDamageMultiplier = 1 + coreCubeAddedDamageTotalPct / 100;
-    let expectedWisdomDamageMultiplier = wisdomSkillDamageMultiplier + wisdomAddedDamageMultiplier;
-    if (expectedAddedDamageMultiplier > 1) damageScales.coreCubeAddedDamageMultiplier = expectedAddedDamageMultiplier;
-    if (wisdomLeapActive) damageScales.wisdomLeapDamageMultiplier = expectedWisdomDamageMultiplier;
-    // Soulbinder sb7 player gain is now baked into finalBaseDmg as flat attack power, so no separate multiplier here.
-    let warriorPhysicalDpsMultiplier = skill.ele === 'phys' ? warriorPhysDamageMultiplier : 1;
-    if (wisdomLeapActive) warriorPhysicalDpsMultiplier = previewSkillElement === 'phys' ? warriorPhysDamageMultiplier : 1;
-    let dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * warriorPhysicalDpsMultiplier
-        * (previewSkillElement === 'chaos' ? chaosDamageMultiplier : 1);
-    let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier * expectedWisdomDamageMultiplier;
-    let flatElementAverage = Object.entries(flatElementHitDamage).reduce((sum, [element, value]) => sum + value
-        * getPassiveWisdomLeapDamageMultiplier(wisdomPreviewStats, element) * (element === 'phys' ? warriorPhysDamageMultiplier : 1), 0);
-    finalDpsAdjusted += flatElementAverage * (avgHit / Math.max(1, finalBaseDmg)) * finalAspd * avgRollMultiplier
-        * expectedDoubleStrikeMultiplier * finalDamageMultiplier;
-    let isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes('projectile');
-    let projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, totalProjectileExtraShots || 0) : 0;
-    let projectileBonusShotDamagePct = Math.max(0, Number(skill.extraProjectileDamagePct) || PROJECTILE_BONUS_SHOT_DAMAGE_PCT);
-    let projectileExtraShotDpsMul = getProjectileExtraShotDpsMultiplier(skill, projectileExtraShotsForDps);
-    let estimatedSkillDotDps = 0;
-    const nativeDotPattern = skill.nativeCastId === 46 ? skill.combatPattern : null;
-    if (isDotSkill && !nativeDotPattern) {
-        let dotTickInterval = DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier);
-        let dotDuration = DOT_EFFECT_DURATION * Math.max(0.05, dotDurationMultiplier);
-        let expectedDotStackRate = finalAspd * expectedDoubleStrikeMultiplier;
-        let expectedDotStacks = Math.max(1, Math.min(DOT_STACK_MAX, Math.floor(expectedDotStackRate * dotDuration)));
-        let expectedDotStackMultiplier = getDotStackMultiplier(expectedDotStacks);
-        let expectedDotSourceHit = avgHit * avgRollMultiplier * warriorPhysicalDpsMultiplier
-            * (previewSkillElement === 'chaos' ? chaosDamageMultiplier : 1) * wisdomSkillDamageMultiplier;
-        estimatedSkillDotDps = Math.max(0, expectedDotSourceHit * DOT_TICK_FROM_HIT_RATIO * totalDotDamageMultiplier * expectedDotStackMultiplier / Math.max(0.02, dotTickInterval));
-        damageScales.estimatedDotStackRate = expectedDotStackRate;
-        damageScales.estimatedDotStacks = expectedDotStacks;
-        damageScales.estimatedDotStackMultiplier = expectedDotStackMultiplier;
-        damageScales.estimatedSkillDotDps = estimatedSkillDotDps;
-    }
-    let skillSequenceDpsMultiplier = typeof getSkillHitSequenceDpsMultiplier === 'function'
-        ? Math.max(1, Number(getSkillHitSequenceDpsMultiplier(game.activeSkill, skill)) || 1)
-        : 1;
-    // 부채꼴(연발 사격)은 한 대상이 받는 몫만 DPS로 센다. 옆 화살까지 다 맞을 때는 packDps(js/combat-grid.js splitFanSpreadDps).
-    const fanSpread = splitFanSpreadDps(skill, projectileExtraShotDpsMul, skillSequenceDpsMultiplier);
-    skillSequenceDpsMultiplier = fanSpread.sequenceDpsMul;
-    let finalDpsWithProjectileShots = finalDpsAdjusted * fanSpread.extraShotDpsMul * window.GameModules.combat.supports.expectedMultiplier(skill);
-    if (skillSequenceDpsMultiplier > 1) damageScales.skillSequenceMultiplier = skillSequenceDpsMultiplier;
-    // Native clock contacts use baseDmg * dotDamageScale, without generic hit/stack effects.
-    // The active clock cannot overlap another cast; speed cannot accelerate its ticks.
-    let finalPlayerSkillDps = nativeDotPattern
-        ? finalBaseDmg * totalDotDamageMultiplier * nativeDotPattern.ticks
-            / Math.max(nativeDotPattern.ticks * nativeDotPattern.intervalMs / 1000, 1 / finalAspd)
-        : finalDpsWithProjectileShots * skillSequenceDpsMultiplier + estimatedSkillDotDps;
-    let flameDecayIgniteTakenMultiplierPreview = skill.flameDecayDebuff ? getFlameDecayIgniteTakenMultiplier({ maxHp: finalMaxHp, sSkill: skill }) : 1;
-    let flameDecayDpsLines = [];
-    if (includeBreakdowns && skill.flameDecayDebuff) {
-        flameDecayDpsLines = [
-            _t('화염 부패 기대 지속 DPS {floor} (생명력/초과 화염 저항/지속 피해 배율 적용, 적 저항 적용 전)', { floor: Math.floor(estimatedSkillDotDps) }),
-            _t('생명력 계수: 최대 생명력 {floor} → 내장 피해 +{floor2}', { floor: Math.floor(finalMaxHp), floor2: Math.floor(hpFlatBonus) }),
-            (skill.regenDmgScale || 0) > 0 ? _t('생명력 재생 계수: {regenScaledBonus}x (재생 {value}%)', { regenScaledBonus: regenScaledBonus.toFixed(2), value: formatValue('regen', finalRegen) }) : null,
-            _t('초과 화염 저항 계수: {fireResScaledBonus}x (미적용 화염 저항 {floor}% / 최대 {floor2}%, 초과 {fireResOvercap}% 중 적용 {effectiveFireResOvercap}%)', { fireResScaledBonus: fireResScaledBonus.toFixed(2), floor: Math.floor(fireResForOvercap), floor2: Math.floor(maxResFForOvercap), fireResOvercap: fireResOvercap.toFixed(1), effectiveFireResOvercap: effectiveFireResOvercap.toFixed(1) }),
-            _t('지속 피해 총 배율: {totalDotDamageMultiplier}x (스킬 {dotMultiplier}x, 스탯 {dotStatMultiplier}x)', { totalDotDamageMultiplier: totalDotDamageMultiplier.toFixed(2), dotMultiplier: dotMultiplier.toFixed(2), dotStatMultiplier: dotStatMultiplier.toFixed(2) }),
-            _t('화염 부패 대상 점화 피해 증폭: {value}x (생명력 100당 {value2}%, 최대 {max}x)', { value: flameDecayIgniteTakenMultiplierPreview.toFixed(2), value2: (Math.max(0, Number(skill.igniteTakenHpScalePer100 || 0)) * 100).toFixed(1), max: (Math.max(1, Number(skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1) }),
-            _t('실제 적별 화염 부패 DPS는 적 상태이상 툴팁에서 저항/심연 배율까지 반영해 표시됩니다.')
-        ].filter(Boolean);
-    }
-
-    function makeAilmentChanceBreakdown(title, statId, finalValue, critValue, note, effectLines) {
-        return {
-            title: _t(title),
-            lines: [
-                makeSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0), '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0), '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조스킬룬', support[statId] || 0, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('성좌 각성', starBlessing[statId] || 0, '%', value => `${value.toFixed(1)}%`),
-                note || _t('치명타 시 해당 상태 이상 확률: {floor}%', { floor: Math.floor(critValue) }),
-                note ? null : _t('비치명타는 위 확률을 사용하며, 치명타는 해당 상태 이상 확률에 +25%가 추가됩니다.'),
-                ...(effectLines || [])
-            ].filter(Boolean),
-            final: `${Math.max(0, finalValue).toFixed(1)}%`
-        };
-    }
-
-    function makeAilmentResistBreakdown(title, ailmentLabel, ailmentResValue, finalValue, mitigationLines) {
-        return {
-            title: _t(title),
-            lines: [
-                makeSourceLine(_t('{ailmentLabel} 방지 확률', { ailmentLabel: _t(ailmentLabel) }), finalValue, '%', value => `${Math.max(0, value).toFixed(1)}%`),
-                _t('계산 기준: {ailmentLabel} 방지 옵션 {ailmentResValue}% + 공통 방지 {floor}%', { ailmentLabel: _t(ailmentLabel), ailmentResValue: Number(ailmentResValue || 0).toFixed(1), floor: Math.floor(ailmentResistBonusPct) }),
-                medicineResistanceAilmentBonus.ignite > 0 || medicineResistanceAilmentBonus.freeze > 0 || medicineResistanceAilmentBonus.shock > 0
-                    ? _t('약품 내성: 최고 비-제한 원소 저항 상태이상 방지 +100% (점화 {ignite}% / 냉각/동결 {freeze}% / 감전 {shock}%)', { ignite: medicineResistanceAilmentBonus.ignite, freeze: medicineResistanceAilmentBonus.freeze, shock: medicineResistanceAilmentBonus.shock })
-                    : null,
-                ...(mitigationLines || []),
-                _t('피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 직접 합산되지 않습니다.')
-            ].filter(Boolean),
-            final: `${Math.max(0, finalValue).toFixed(1)}%`
-        };
-    }
-
-
+    return {
+      rawFinalCritDmg,
+      critDmgSoftcapReduction,
+      finalCritDmg,
+      critChance,
+      critMulti,
+      avgHit,
+      finalDps
+    };
+  }
+  function computeFinalWardMaxima(input) {
+    let {
+      finalMaxResF,
+      colonyWardBonus,
+      finalMaxResC,
+      finalMaxResL,
+      finalMaxResChaos,
+      fixedAllMaxRes
+    } = input;
     finalMaxResF = Math.min(90, finalMaxResF + (colonyWardBonus.maxResF || 0));
     finalMaxResC = Math.min(90, finalMaxResC + (colonyWardBonus.maxResC || 0));
     finalMaxResL = Math.min(90, finalMaxResL + (colonyWardBonus.maxResL || 0));
     finalMaxResChaos = Math.min(90, finalMaxResChaos + (colonyWardBonus.maxResChaos || 0));
     if (fixedAllMaxRes !== null) {
-        finalMaxResF = fixedAllMaxRes;
-        finalMaxResC = fixedAllMaxRes;
-        finalMaxResL = fixedAllMaxRes;
-        finalMaxResChaos = fixedAllMaxRes;
+      finalMaxResF = fixedAllMaxRes;
+      finalMaxResC = fixedAllMaxRes;
+      finalMaxResL = fixedAllMaxRes;
+      finalMaxResChaos = fixedAllMaxRes;
     }
-    finalMaxHp += (colonyWardBonus.flatHp || 0);
-    finalArmor += (colonyWardBonus.armor || 0);
-    finalEvasion += (colonyWardBonus.evasion || 0);
+    return {
+      finalMaxResF,
+      finalMaxResC,
+      finalMaxResL,
+      finalMaxResChaos
+    };
+  }
+  function computeFinalWardVitals(input, deps) {
+    let {
+      finalMaxHp,
+      colonyWardBonus,
+      finalArmor,
+      finalEvasion,
+      uniqueRiderCompass,
+      finalMove,
+      armorReduction,
+      referenceIncomingPhysical,
+      evadeChance,
+      enemyAccuracy,
+      finalEnergyShield
+    } = input;
+    finalMaxHp += colonyWardBonus.flatHp || 0;
+    finalArmor += colonyWardBonus.armor || 0;
+    finalEvasion += colonyWardBonus.evasion || 0;
     let riderCompassEvasionMorePct = uniqueRiderCompass && finalMove >= 200 ? 20 : 0;
     if (riderCompassEvasionMorePct > 0) finalEvasion = Math.floor(finalEvasion * (1 + riderCompassEvasionMorePct / 100));
-    armorReduction = getArmorPhysicalReductionPct(finalArmor, referenceIncomingPhysical);
-    evadeChance = getEvasionChancePct(finalEvasion, enemyAccuracy);
-    finalEnergyShield += (colonyWardBonus.energyShield || 0);
-    rawDr += (colonyWardBonus.dr || 0);
-    finalDr = Math.min(PLAYER_PHYSICAL_REDUCTION_CAP_PCT, rawDr);
+    armorReduction = deps.armorMitigation(finalArmor, referenceIncomingPhysical);
+    evadeChance = deps.evasionChance(finalEvasion, enemyAccuracy);
+    finalEnergyShield += colonyWardBonus.energyShield || 0;
+    return {
+      riderCompassEvasionMorePct,
+      finalMaxHp,
+      finalArmor,
+      finalEvasion,
+      armorReduction,
+      evadeChance,
+      finalEnergyShield
+    };
+  }
+  function computeFinalWardResistance(input, deps) {
+    let {
+      rawDr,
+      colonyWardBonus,
+      finalDr,
+      finalResF,
+      finalMaxResF,
+      finalResC,
+      finalMaxResC,
+      finalResL,
+      finalMaxResL,
+      finalResChaos,
+      finalMaxResChaos,
+      finalRegen,
+      finalEnergyShieldRegenRate,
+      finalCritResist
+    } = input;
+    rawDr += colonyWardBonus.dr || 0;
+    finalDr = Math.min(deps.physicalCap, rawDr);
     finalResF = Math.min(finalMaxResF, finalResF + (colonyWardBonus.resAll || 0));
     finalResC = Math.min(finalMaxResC, finalResC + (colonyWardBonus.resAll || 0));
     finalResL = Math.min(finalMaxResL, finalResL + (colonyWardBonus.resAll || 0));
     finalResChaos = Math.min(finalMaxResChaos, finalResChaos + (colonyWardBonus.resChaos || 0));
-    finalRegen += (colonyWardBonus.regenFlat || 0);
-    finalEnergyShieldRegenRate += (colonyWardBonus.energyShieldRegen || 0);
+    finalRegen += colonyWardBonus.regenFlat || 0;
+    finalEnergyShieldRegenRate += colonyWardBonus.energyShieldRegen || 0;
     finalCritResist = Math.min(80, finalCritResist + (colonyWardBonus.critResist || 0));
-    finalDotTakenDamageReducePct += (colonyWardBonus.dotTakenDamageReducePct || 0);
-    finalIgniteDamageReducePct += (colonyWardBonus.igniteDamageReducePct || 0);
-    finalBleedDamageReducePct += (colonyWardBonus.bleedDamageReducePct || 0);
-    finalPoisonDamageReducePct += (colonyWardBonus.poisonDamageReducePct || 0);
-    finalTakenDamageReduceWhen2EnemiesPct += (colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0);
-    finalTakenDamageReduceWhen1EnemyPct += (colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0);
-
+    return {
+      rawDr,
+      finalDr,
+      finalResF,
+      finalResC,
+      finalResL,
+      finalResChaos,
+      finalRegen,
+      finalEnergyShieldRegenRate,
+      finalCritResist
+    };
+  }
+  function computeFinalWardAilmentDefense(input) {
+    let {
+      finalDotTakenDamageReducePct,
+      colonyWardBonus,
+      finalIgniteDamageReducePct,
+      finalBleedDamageReducePct,
+      finalPoisonDamageReducePct,
+      finalTakenDamageReduceWhen2EnemiesPct,
+      finalTakenDamageReduceWhen1EnemyPct
+    } = input;
+    finalDotTakenDamageReducePct += colonyWardBonus.dotTakenDamageReducePct || 0;
+    finalIgniteDamageReducePct += colonyWardBonus.igniteDamageReducePct || 0;
+    finalBleedDamageReducePct += colonyWardBonus.bleedDamageReducePct || 0;
+    finalPoisonDamageReducePct += colonyWardBonus.poisonDamageReducePct || 0;
+    finalTakenDamageReduceWhen2EnemiesPct += colonyWardBonus.takenDamageReduceWhen2EnemiesPct || 0;
+    finalTakenDamageReduceWhen1EnemyPct += colonyWardBonus.takenDamageReduceWhen1EnemyPct || 0;
+    return {
+      finalDotTakenDamageReducePct,
+      finalIgniteDamageReducePct,
+      finalBleedDamageReducePct,
+      finalPoisonDamageReducePct,
+      finalTakenDamageReduceWhen2EnemiesPct,
+      finalTakenDamageReduceWhen1EnemyPct
+    };
+  }
+  function computeFinalMedicine(input, deps) {
+    let {
+      rawResF,
+      colonyWardBonus,
+      rawResC,
+      rawResL,
+      rawResChaos,
+      warlockElementalOvercapToChaos,
+      elementalistChaosConversionBonus
+    } = input;
     let uncappedResF = rawResF + (colonyWardBonus.resAll || 0);
     let uncappedResC = rawResC + (colonyWardBonus.resAll || 0);
     let uncappedResL = rawResL + (colonyWardBonus.resAll || 0);
     let uncappedResChaos = rawResChaos + warlockElementalOvercapToChaos + elementalistChaosConversionBonus + (colonyWardBonus.resChaos || 0);
     let medicineResistanceAilmentBonus = { ignite: 0, freeze: 0, shock: 0 };
-    if (hasKeystone('ct2')) {
-        let highestUncappedElementalResistance = Math.max(uncappedResF, uncappedResC, uncappedResL);
-        if (uncappedResF === highestUncappedElementalResistance) medicineResistanceAilmentBonus.ignite = 100;
-        if (uncappedResC === highestUncappedElementalResistance) medicineResistanceAilmentBonus.freeze = 100;
-        if (uncappedResL === highestUncappedElementalResistance) medicineResistanceAilmentBonus.shock = 100;
+    if (deps.keystone("ct2")) {
+      let highestUncappedElementalResistance = Math.max(uncappedResF, uncappedResC, uncappedResL);
+      if (uncappedResF === highestUncappedElementalResistance) medicineResistanceAilmentBonus.ignite = 100;
+      if (uncappedResC === highestUncappedElementalResistance) medicineResistanceAilmentBonus.freeze = 100;
+      if (uncappedResL === highestUncappedElementalResistance) medicineResistanceAilmentBonus.shock = 100;
     }
-
-    let ailResIgniteTotal = (gearBase.ailResIgnite || 0) + (gearExplicit.ailResIgnite || 0) + (passive.ailResIgnite || 0) + (season.ailResIgnite || 0) + (ascend.ailResIgnite || 0) + (reward.ailResIgnite || 0) + (colonyWardBonus.ailResIgnite || 0) + medicineResistanceAilmentBonus.ignite;
-    let ailResFreezeTotal = (gearBase.ailResFreeze || 0) + (gearExplicit.ailResFreeze || 0) + (passive.ailResFreeze || 0) + (season.ailResFreeze || 0) + (ascend.ailResFreeze || 0) + (reward.ailResFreeze || 0) + (colonyWardBonus.ailResFreeze || 0) + medicineResistanceAilmentBonus.freeze;
-    let ailResShockTotal = (gearBase.ailResShock || 0) + (gearExplicit.ailResShock || 0) + (passive.ailResShock || 0) + (season.ailResShock || 0) + (ascend.ailResShock || 0) + (reward.ailResShock || 0) + (colonyWardBonus.ailResShock || 0) + medicineResistanceAilmentBonus.shock;
-    let ailResPoisonTotal = (gearBase.ailResPoison || 0) + (gearExplicit.ailResPoison || 0) + (passive.ailResPoison || 0) + (season.ailResPoison || 0) + (ascend.ailResPoison || 0) + (reward.ailResPoison || 0) + (colonyWardBonus.ailResPoison || 0);
-    let ailResBleedTotal = (gearBase.ailResBleed || 0) + (gearExplicit.ailResBleed || 0) + (passive.ailResBleed || 0) + (season.ailResBleed || 0) + (ascend.ailResBleed || 0) + (reward.ailResBleed || 0) + (colonyWardBonus.ailResBleed || 0);
-    let finalAilmentResistIgniteChance = getPlayerAilmentResistChance('ignite', { ailResIgnite: ailResIgniteTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistChillChance = getPlayerAilmentResistChance('chill', { ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistFreezeChance = getPlayerAilmentResistChance('freeze', { ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistShockChance = getPlayerAilmentResistChance('shock', { ailResShock: ailResShockTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistPoisonChance = getPlayerAilmentResistChance('poison', { ailResPoison: ailResPoisonTotal, ailmentResistBonusPct }) * 100;
-    let finalAilmentResistBleedChance = getPlayerAilmentResistChance('bleed', { ailResBleed: ailResBleedTotal, ailmentResistBonusPct }) * 100;
-    let catalystAilmentSourceMultiplier = hasKeystone('ct1') ? 2 : 1;
-    let makeDamageAilmentEffectLines = (specificLabel, specificPct) => {
-        let specificMultiplier = 1 + (Math.max(0, Number(specificPct || 0)) + finalAilmentDamagePct) / 100;
-        let totalMultiplier = catalystAilmentSourceMultiplier * totalDotDamageMultiplier * specificMultiplier;
-        return [
-            _t('지속 피해 배율 스탯: +{max}%', { max: Math.max(0, dotPctDmg).toFixed(1) }),
-            catalystAilmentSourceMultiplier > 1 ? _t('과잉 촉매 기준 피해: x{value}', { value: catalystAilmentSourceMultiplier.toFixed(2) }) : null,
-            totalDotDamageMultiplier !== dotStatMultiplier ? _t('키스톤/스킬 포함 지속 피해 배율: x{totalDotDamageMultiplier}', { totalDotDamageMultiplier: totalDotDamageMultiplier.toFixed(2) }) : null,
-            specificPct > 0 ? `${_t(specificLabel)}: +${Number(specificPct).toFixed(1)}%` : null,
-            finalAilmentDamagePct > 0 ? _t('상태이상 피해: +{finalAilmentDamagePct}%', { finalAilmentDamagePct: finalAilmentDamagePct.toFixed(1) }) : null,
-            _t('해당 상태이상 피해 총 배율: x{totalMultiplier} (기본 대비 +{max}%)', { totalMultiplier: totalMultiplier.toFixed(2), max: Math.max(0, (totalMultiplier - 1) * 100).toFixed(1) })
-        ].filter(Boolean);
+    return {
+      uncappedResF,
+      uncappedResC,
+      uncappedResL,
+      uncappedResChaos,
+      medicineResistanceAilmentBonus
     };
-    let makeDamageAilmentMitigationLines = (specificLabel, specificPct) => {
-        let common = Math.max(0, Math.min(90, Number(finalDotTakenDamageReducePct || 0)));
-        let specific = Math.max(0, Math.min(90, Number(specificPct || 0)));
-        let combined = (1 - ((1 - common / 100) * (1 - specific / 100))) * 100;
-        return [
-            _t('받는 지속 피해 감소: {common}%', { common: common.toFixed(1) }),
-            `${_t(specificLabel)}: ${specific.toFixed(1)}%`,
-            _t('복합 적용 피해 감소: {combined}%', { combined: combined.toFixed(1) })
-        ];
+  }
+  function sumFinalAilmentResistance(input, stat) {
+    return (input.gearBase[stat] || 0) + (input.gearExplicit[stat] || 0) + (input.passive[stat] || 0) + (input.season[stat] || 0) + (input.ascend[stat] || 0) + (input.reward[stat] || 0) + (input.colonyWardBonus[stat] || 0);
+  }
+  function computeFinalAilmentResistance(input, deps) {
+    let {
+      medicineResistanceAilmentBonus,
+      ailmentResistBonusPct
+    } = input;
+    let ailResIgniteTotal = sumFinalAilmentResistance(input, "ailResIgnite") + medicineResistanceAilmentBonus.ignite;
+    let ailResFreezeTotal = sumFinalAilmentResistance(input, "ailResFreeze") + medicineResistanceAilmentBonus.freeze;
+    let ailResShockTotal = sumFinalAilmentResistance(input, "ailResShock") + medicineResistanceAilmentBonus.shock;
+    let ailResPoisonTotal = sumFinalAilmentResistance(input, "ailResPoison");
+    let ailResBleedTotal = sumFinalAilmentResistance(input, "ailResBleed");
+    let finalAilmentResistIgniteChance = deps.ailmentResistance("ignite", { ailResIgnite: ailResIgniteTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistChillChance = deps.ailmentResistance("chill", { ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistFreezeChance = deps.ailmentResistance("freeze", { ailResFreeze: ailResFreezeTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistShockChance = deps.ailmentResistance("shock", { ailResShock: ailResShockTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistPoisonChance = deps.ailmentResistance("poison", { ailResPoison: ailResPoisonTotal, ailmentResistBonusPct }) * 100;
+    let finalAilmentResistBleedChance = deps.ailmentResistance("bleed", { ailResBleed: ailResBleedTotal, ailmentResistBonusPct }) * 100;
+    let catalystAilmentSourceMultiplier = deps.keystone("ct1") ? 2 : 1;
+    return {
+      ailResIgniteTotal,
+      ailResFreezeTotal,
+      ailResShockTotal,
+      ailResPoisonTotal,
+      ailResBleedTotal,
+      finalAilmentResistIgniteChance,
+      finalAilmentResistChillChance,
+      finalAilmentResistFreezeChance,
+      finalAilmentResistShockChance,
+      finalAilmentResistPoisonChance,
+      finalAilmentResistBleedChance,
+      catalystAilmentSourceMultiplier
     };
-
-
-    // 완갑/대검 막기 공식(저장 호환을 위해 shield* 변수 이름은 유지).
-    // 1) 장비 옵션의 막기 확률(%) 증가는 장비 기본 막기 확률 자체를 상승시킨다.
-    // 2) 패시브/키스톤 등 기타 막기 확률(%) 증가는 원본 베이스 막기 확률에서만 %로 증가한다.
-    // 3) 막기 확률 +%p는 마지막에 더한다.
-    // 4) 최종 상한은 기본 50%, 막기 확률 상한 증가로 최대 75%까지 상승한다.
+  }
+  function computeFinalBlock(input) {
+    let {
+      shieldBaseBlockChance,
+      shieldBlockChancePct,
+      guardianBlockChance,
+      gearBase,
+      passive: passive2,
+      season,
+      ascend,
+      support,
+      reward,
+      shieldBlockChanceFlat,
+      forbiddenManifestation,
+      sumStatAcrossBuckets,
+      authoredPassiveRules
+    } = input;
     let effectiveShieldBaseBlockChance = Math.max(0, shieldBaseBlockChance * (1 + Math.max(0, shieldBlockChancePct) / 100));
-    let blockChanceFromOtherPct = Math.max(0,
-        guardianBlockChance + gearBase.blockChancePct + passive.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
+    let blockChanceFromOtherPct = Math.max(
+      0,
+      guardianBlockChance + gearBase.blockChancePct + passive2.blockChancePct + season.blockChancePct + ascend.blockChancePct + support.blockChancePct + reward.blockChancePct
     );
-    let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
-    let finalBlockChanceCap = forbiddenManifestation ? 25 : Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets('blockChanceMax'))));
-    let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + (shieldBaseBlockChance * blockChanceFromOtherPct / 100) + flatBlockChanceBonus));
+    let flatBlockChanceBonus = Math.max(0, shieldBlockChanceFlat + gearBase.blockChance + passive2.blockChance + season.blockChance + ascend.blockChance + support.blockChance + reward.blockChance);
+    let finalBlockChanceCap = forbiddenManifestation ? 25 : Math.max(50, Math.min(75, 50 + Math.max(0, sumStatAcrossBuckets("blockChanceMax"))));
+    let finalBlockChance = Math.min(finalBlockChanceCap, Math.max(0, effectiveShieldBaseBlockChance + shieldBaseBlockChance * blockChanceFromOtherPct / 100 + flatBlockChanceBonus));
     if (authoredPassiveRules.flags.fullEvasion || authoredPassiveRules.flags.proxyCovenant) finalBlockChance = 0;
-
-    function formatSignedPercentagePointLine(label, value) {
-        let amount = Number(value || 0);
-        if (!amount) return null;
-        return `${_t(label)} ${amount > 0 ? '+' : ''}${Math.floor(amount)}%p`;
-    }
-
-    function formatResistanceSourceLine(label, value) {
-        let amount = Number(value || 0);
-        if (!amount) return null;
-        let rendered = Number.isInteger(amount) ? `${Math.abs(amount)}` : Math.abs(amount).toFixed(1);
-        return `${_t(label)} ${amount > 0 ? '+' : '-'}${rendered}%`;
-    }
-
-    function makeResistanceBreakdown(title, statId, maxStatId, finalValue, maxValue, extraLines, extraMaxLines) {
-        let maxGear = (gearBase[maxStatId] || 0) + (gearExplicit[maxStatId] || 0);
-        let maxPassive = (passive[maxStatId] || 0) + (season[maxStatId] || 0) + (ascend[maxStatId] || 0) + (reward[maxStatId] || 0);
-        return {
-            title: _t(title),
-            lines: [
-                formatResistanceSourceLine('장비', (gearBase[statId] || 0) + (gearExplicit[statId] || 0)),
-                formatResistanceSourceLine('패시브', (passive[statId] || 0) + (season[statId] || 0) + (ascend[statId] || 0) + (reward[statId] || 0)),
-                formatResistanceSourceLine('보조스킬룬', support[statId] || 0),
-                ...(extraLines || []),
-                formatResistanceSourceLine('캠페인 패널티', -resistPenalty),
-                _t('최대 저항: {floor}% (기본 75%)', { floor: Math.floor(maxValue) }),
-                formatResistanceSourceLine('최대 저항, 장비', maxGear),
-                formatResistanceSourceLine('최대 저항, 패시브', maxPassive),
-                formatResistanceSourceLine('최대 저항, 보조스킬룬', support[maxStatId] || 0),
-                ...(extraMaxLines || [])
-            ].filter(Boolean),
-            final: `${Math.floor(finalValue)}%`
-        };
-    }
-
-    let breakdowns = includeBreakdowns ? {
-        ...getPassiveSpecialStatBreakdowns(authoredPassiveRules),
-        ...getProjectileTargetBreakdowns({ gearBase, gearExplicit, passive, season, ascend, reward }, { skill, bladeShots: bladeBundleShots, baseTargets: skillBaseTargets, cappedTargets, chancePct: sumStatAcrossBuckets('projectileExtraChance') }),
-        atk: {
-            title: _t('공격력'),
-            lines: [
-                isSpellSkill ? _t('주문 내장 피해 {floor}', { floor: Math.floor(spellFlatDmg) }) : _t('기본 공격력 {floor}', { floor: Math.floor(baseDmg) }),
-                isSpellSkill ? null : makeSourceLine('장비', gearFlatDmg),
-                isSpellSkill ? null : makeSourceLine('패시브', passiveFlatDmg),
-                makeSourceLine('성좌 각성', starBlessing.pctDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('총 피해 증가', generalPctDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('태그 보너스', baseTaggedTotal, '%', value => `${Math.floor(value)}%`),
-                talentLine('pctDmg'),
-                crusaderThunderDoctrinePct > 0 ? makeSourceLine('천뢰 교리(화염/냉기 → 번개)', crusaderThunderDoctrinePct, '%', value => `${Math.floor(value)}%`) : null,
-                crusaderThunderDoctrinePct > 0 ? makeSourceLine('피해 증가 합계', generalPctDmg + taggedTotal, '%', value => `${Math.floor(value)}%`) : null,
-                taggedSummary.length > 0 ? _t('적용 태그: {taggedSummary}', { taggedSummary: taggedSummary.join(' / ') }) : null,
-                _t('스킬 배율 {dmg}', { dmg: formatPercentMultiplier(skill.dmg || 1) }),
-                (skill.hpDmgScale || 0) > 0 ? _t('생명력 계수 내장 피해 +{floor} (최대 생명력 {floor2}, 피해 증가 적용)', { floor: Math.floor(hpFlatBonus), floor2: Math.floor(finalMaxHp) }) : null,
-                crusaderHolyFlatDmg > 0 ? _t('신성한 검 번개 기본 피해 +{floor} → {floor2} (피해 증가 적용)', { floor: Math.floor(crusaderHolyFlatDmg), floor2: Math.floor(crusaderHolyScaledDmg) }) : null,
-                (skill.regenDmgScale || 0) > 0 ? _t('재생 계수 배율 {regenScaledBonus}x (재생 {value}%)', { regenScaledBonus: regenScaledBonus.toFixed(2), value: formatValue('regen', finalRegen) }) : null,
-                (skill.fireResDmgScale || 0) > 0 ? _t('화염 저항 계수 배율 {fireResScaledBonus}x (화염 저항 {floor}%)', { fireResScaledBonus: fireResScaledBonus.toFixed(2), floor: Math.floor(finalResF) }) : null,
-                (skill.fireResOvercapMulPerPct || 0) > 0 ? _t('초과 화염 저항 계수 배율 {fireResScaledBonus}x (미적용 화염 저항 {floor}%/{floor2}%, 초과 {fireResOvercap}% 중 적용 {effectiveFireResOvercap}%)', { fireResScaledBonus: fireResScaledBonus.toFixed(2), floor: Math.floor(fireResForOvercap), floor2: Math.floor(maxResFForOvercap), fireResOvercap: fireResOvercap.toFixed(1), effectiveFireResOvercap: effectiveFireResOvercap.toFixed(1) }) : null,
-                (skill.dotMultiplier || 1) !== 1 ? _t('스킬 지속 피해 배율 {dotMultiplier}x', { dotMultiplier: dotMultiplier.toFixed(2) }) : null,
-                dotPctDmg > 0 ? _t('지속 피해 배율 스탯 {floor}% ({dotStatMultiplier}x)', { floor: Math.floor(dotPctDmg), dotStatMultiplier: dotStatMultiplier.toFixed(2) }) : null,
-                instantDamageMultiplier !== 1 ? _t('즉발 피해 배율 {instantDamageMultiplier}x', { instantDamageMultiplier: instantDamageMultiplier.toFixed(2) }) : null,
-                finalDamageMultiplier !== 1 ? _t('최종 피해 배율 {finalDamageMultiplier}x', { finalDamageMultiplier: finalDamageMultiplier.toFixed(2) }) : null,
-                chaosDamageMultiplier !== 1 ? _t('카오스 피해 배율 {chaosDamageMultiplier}x', { chaosDamageMultiplier: chaosDamageMultiplier.toFixed(2) }) : null,
-                skill.convertedToChaos ? _t('워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용') : null,
-                (hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? _t('상호 보완: 소환수 공격력 {floor}의 75% → 기본 피해 +{floor2}', { floor: Math.floor(sbSummonAttackPower), floor2: Math.floor(sbSummonShareToPlayer) }) : null,
-                (hasKeystone('sb7') && !hasKeystone('sb5') && sbPlayerAttackPower > 0) ? _t('상호 보완: 내 공격력 {floor}의 75%(+{floor2})를 각 소환수 타격에 전달', { floor: Math.floor(sbPlayerAttackPower), floor2: Math.floor(0.75 * sbPlayerAttackPower) }) : null,
-                _t('피해 범위 {floor}% ~ {floor2}%', { floor: Math.floor(finalMinDmgRoll), floor2: Math.floor(finalMaxDmgRoll) })
-            ].filter(Boolean),
-            final: `${Math.floor(finalBaseDmg)}`
-        },
-        aps: {
-            title: _t('공속'),
-            lines: [
-                _t('기본 1.00'),
-                makeSourceLine('장비', gearAspd, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passiveAspd, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조스킬룬', support.aspd, '%', value => `${Math.floor(value)}%`),
-                talentLine('aspd'),
-                glovePairAspdBonus > 0 ? _t('동형 장갑 세트 보너스 +{glovePairAspdBonus} 기본 공속', { glovePairAspdBonus: glovePairAspdBonus.toFixed(2) }) : null,
-                _t('공격 속도 배율 {spd}', { spd: formatPercentMultiplier(skill.spd || 1) }),
-                skillDelayPct > 0 ? _t('스킬 딜레이 감소 {skillDelayPct}%: 공격 횟수와 DPS {value}', { skillDelayPct, value: formatPercentMultiplier(1 / (1 - skillDelayPct / 100)) }) : null,
-                rawAspd > 5 ? _t('소프트캡 적용중 (원시 {rawAspd} → 최종 {finalAspd})', { rawAspd: rawAspd.toFixed(2), finalAspd: finalAspd.toFixed(2) }) : null
-            ].filter(Boolean),
-            final: `${finalAspd.toFixed(2)}`
-        },
-        crit: {
-            title: _t('치명타 확률'),
-            lines: [
-                _t('기본 2.5%'),
-                makeSourceLine('장비', gearCrit, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('패시브', passiveCrit, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조스킬룬', support.crit, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('스킬', skill.crit || 0, '%', value => `${value.toFixed(1)}%`),
-                talentLine('crit')
-            ].filter(Boolean),
-            final: `${finalCrit.toFixed(1)}%`
-        },
-        critDmg: {
-            title: _t('치명타 피해'),
-            lines: [
-                _t('기본 {value}%', { value: CRIT_DAMAGE_BASE_MULTIPLIER }),
-                makeSourceLine('장비', gearBase.critDmg + gearExplicit.critDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.critDmg + season.critDmg + ascend.critDmg + reward.critDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조스킬룬', support.critDmg, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('스킬/특수 효과', (skill.critDmgBonus || 0) + (activeShadowStealth ? Math.max(0, Number(uniqueDeflectStealth.critDmg || 20)) : 0), '%', value => `${Math.floor(value)}%`),
-                ...(critDmgSoftcapReduction > 0 ? [makeSourceLine('소프트캡(200/400/800/1200)', -critDmgSoftcapReduction, '%', value => `${Math.floor(value)}%`)] : []),
-                talentLine('critDmg')
-            ].filter(Boolean),
-            final: `${Math.floor(finalCritDmg)}%`
-        },
-        move: {
-            title: _t('이동 속도'),
-            lines: [
-                _t('기본 100%'),
-                makeSourceLine('장비', gearBase.move + gearExplicit.move, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.move + season.move + ascend.move + reward.move, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('성좌 각성', starBlessing.move, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조스킬룬', support.move, '%', value => `${Math.floor(value)}%`),
-                talentLine('move'),
-                _t('전장 이동: 칸당 {value}초, 초당 {value2}칸', { value: (COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / finalMove).toFixed(2), value2: (finalMove / (COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100)).toFixed(2) }),
-                _t('지도 진행도: 기본 대비 {value}배 ({value2}{floor}%)', { value: (finalMove / 100).toFixed(2), value2: finalMove >= 100 ? '+' : '', floor: Math.floor(finalMove - 100) }),
-                _t('구간 이동: {max}초', { max: Math.max(0.5, 1.2 * 100 / finalMove).toFixed(2) })
-            ].filter(Boolean),
-            final: `${Math.floor(finalMove)}%`
-        },
-        hp: {
-            title: _t('최대 생명력'),
-            lines: [
-                _t('기본 생명력 {floor}', { floor: Math.floor(baseHp) }),
-                makeSourceLine('장비', gearFlatHp),
-                makeSourceLine('패시브', passiveFlatHp),
-                makeSourceLine('성좌 각성', starBlessing.flatHp),
-                makeSourceLine('생명력 증가', totalPctHp, '%', value => `${Math.floor(value)}%`),
-                talentLine('pctHp')
-            ].filter(Boolean),
-            final: `${Math.floor(finalMaxHp)}`
-        },
-        regen: {
-            title: _t('초당 재생'),
-            lines: [
-                makeSourceLine('장비', gearBase.regen + gearExplicit.regen, '%', value => `${formatValue('regen', value)}%`),
-                makeSourceLine('패시브', passive.regen + season.regen + ascend.regen + reward.regen, '%', value => `${formatValue('regen', value)}%`),
-                makeSourceLine('보조스킬룬', support.regen, '%', value => `${formatValue('regen', value)}%`),
-                talentLine('regen')
-            ].filter(Boolean),
-            final: `${formatValue('regen', finalRegen)}%`
-        },
-        regenSuppress: {
-            title: _t('재생 억제'),
-            lines: [
-                makeSourceLine('장비', gearBase.regenSuppress + gearExplicit.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
-                makeSourceLine('패시브', passive.regenSuppress + season.regenSuppress + ascend.regenSuppress + reward.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
-                makeSourceLine('보조스킬룬', support.regenSuppress, '%', value => `${formatValue('regenSuppress', value)}%`),
-                _t('공격 시 적의 생명력 재생을 해당 수치(%)만큼 줄여주는 옵션입니다.')
-            ].filter(Boolean),
-            final: `${formatValue('regenSuppress', finalRegenSuppress)}%`
-        },
-        leech: {
-            title: _t('공격 피해의 생명력 흡수'),
-            lines: [
-                makeSourceLine('스킬', skill.leech || 0, '%', value => `${formatValue('leech', value)}%`),
-                makeSourceLine('장비', gearBase.leech + gearExplicit.leech, '%', value => `${formatValue('leech', value)}%`),
-                makeSourceLine('패시브', passive.leech + season.leech + ascend.leech + reward.leech, '%', value => `${formatValue('leech', value)}%`),
-                makeSourceLine('보조스킬룬', support.leech, '%', value => `${formatValue('leech', value)}%`),
-                skill.instantLeech ? _t('흡혈 관통: 이 룬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.') : _t('타격 시 즉시 회복 대신 흡혈 인스턴스 생성'),
-                (hasKeystone('wlk3')) ? _t('금단 대가: 흡혈 {value}', { value: skill.instantLeech ? _t('즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.') : _t('인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.') }) : null,
-                _t('일반 흡혈 캡: 타격당 최대 생명력 {value}%, 전체 저장 {LEECH_BASE_TOTAL_CAP_PCT}%, 인스턴스당 초당 {LEECH_BASE_RATE_CAP_PCT}%', { value: LEECH_BASE_INSTANCE_CAP_PCT, LEECH_BASE_TOTAL_CAP_PCT, LEECH_BASE_RATE_CAP_PCT }),
-                _t('일반 흡혈 추가 캡: 회복 속도 +{value}%p, 전체 +{value2}%p, 타격당 +{value3}%p', { value: formatValue('leechRateCap', finalLeechRateCap), value2: formatValue('leechTotalCap', finalLeechTotalCap), value3: formatValue('leechInstanceCap', finalLeechInstanceCap) }),
-                _t('적용 전 {value}% → 적용 후 {value2}%', { value: formatValue('leech', rawLeech), value2: formatValue('leech', finalLeech) })
-            ].filter(Boolean),
-            final: `${formatValue('leech', finalLeech)}%`
-        },
-        spellLeech: {
-            title: _t('주문 피해의 생명력 흡수'),
-            lines: [makeSourceLine('스킬', skill.spellLeech || 0, '%', value => `${formatValue('spellLeech', value)}%`),
-                makeSourceLine('장비', gearBase.spellLeech + gearExplicit.spellLeech, '%', value => `${formatValue('spellLeech', value)}%`),
-                makeSourceLine('기타 성장', passive.spellLeech + season.spellLeech + ascend.spellLeech + support.spellLeech + reward.spellLeech, '%', value => `${formatValue('spellLeech', value)}%`),
-                _t('주문 타격 피해에만 적용됩니다. 지속 피해에는 적용되지 않습니다.')].filter(Boolean),
-            final: `${formatValue('spellLeech', finalSpellLeech)}%`
-        },
-        ds: {
-            title: _t('연속 타격'),
-            lines: [
-                makeSourceLine('장비', gearBase.ds + gearExplicit.ds, '%p', value => `${Math.floor(value)}%p`),
-                makeSourceLine('패시브', passive.ds + season.ds + ascend.ds + reward.ds, '%p', value => `${Math.floor(value)}%p`),
-                makeSourceLine('보조스킬룬', support.ds, '%p', value => `${Math.floor(value)}%p`),
-                makeSourceLine('스킬', skillDsBonus, '%p', value => `${Math.floor(value)}%p`),
-                formatSignedPercentagePointLine('기타 효과', finalDs - baseDsFromSources - skillDsBonus),
-                _t('각 수치는 연속 타격 확률에 합산되는 %p입니다.')
-            ].filter(Boolean),
-            final: `${Math.floor(finalDs)}%`
-        },
-        dr: {
-            title: _t('물리 피해 감소'),
-            lines: [
-                makeSourceLine('장비', gearBase.dr + gearExplicit.dr, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.dr + season.dr + ascend.dr + reward.dr, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조스킬룬', support.dr, '%', value => `${Math.floor(value)}%`)
-            ].filter(Boolean),
-            final: rawDr > finalDr ? _t('{floor}% (상한 {value}% 적용, 합계 {floor2}%)', { floor: Math.floor(finalDr), value: PLAYER_PHYSICAL_REDUCTION_CAP_PCT, floor2: Math.floor(rawDr) }) : `${Math.floor(finalDr)}%`
-        },
-        armor: {
-            title: _t('방어도'),
-            lines: [
-                makeSourceLine('장비', gearBase.armor + gearExplicit.armor),
-                makeSourceLine('패시브', passive.armor + season.armor + ascend.armor + reward.armor),
-                makeSourceLine('방어도 증가', totalArmorPct, '%', value => `${Math.floor(value)}%`),
-                _t('예상 물리 피해 감소율(기준 타격 {floor}): {armorReduction}%', { floor: Math.floor(referenceIncomingPhysical), armorReduction: armorReduction.toFixed(1) })
-            ].filter(Boolean),
-            final: `${Math.floor(finalArmor)}`
-        },
-        evasion: {
-            title: _t('회피'),
-            lines: [
-                makeSourceLine('장비', gearBase.evasion + gearExplicit.evasion),
-                makeSourceLine('패시브', passive.evasion + season.evasion + ascend.evasion + reward.evasion),
-                makeSourceLine('회피 증가', totalEvasionPct, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('기수의 나침반 증폭', riderCompassEvasionMorePct, '%', value => `${Math.floor(value)}%`),
-                _t('예상 회피 확률(동일 레벨 적 기준): {evadeChance}%', { evadeChance: evadeChance.toFixed(1) }),
-                _t('정확도: {floor} (힘 {floor2}, 민첩 {floor3}, 지능 {floor4})', { floor: Math.floor(playerAccuracy), floor2: Math.floor(totalStrength), floor3: Math.floor(totalDexterity), floor4: Math.floor(totalIntelligence) })
-            ].filter(Boolean),
-            final: `${Math.floor(finalEvasion)}`
-        },
-        energyShield: {
-            title: _t('에너지 보호막'),
-            lines: [
-                makeSourceLine('장비', gearBase.energyShield + gearExplicit.energyShield),
-                makeSourceLine('패시브', passive.energyShield + season.energyShield + ascend.energyShield + reward.energyShield),
-                makeSourceLine('보호막 증가', totalEnergyShieldPct, '%', value => `${Math.floor(value)}%`),
-                _t('재충전 대기시간: {value}초', { value: finalEnergyShieldRechargeDelay.toFixed(2) }),
-                _t('에너지 보호막 재생량: 초당 {floor} ({value}%)', { floor: Math.floor(finalEnergyShield * (finalEnergyShieldRegenRate / 100)), value: finalEnergyShieldRegenRate.toFixed(1) })
-            ].filter(Boolean),
-            final: `${Math.floor(finalEnergyShield)}`
-        },
-        accuracy: {
-            title: _t('정확도'),
-            lines: [
-                _t('기본 {PLAYER_ACCURACY_BASE} + 레벨 성장(레벨 {max} × {value} = {value2})', { PLAYER_ACCURACY_BASE, max: Math.max(1, Math.floor(game.level || 1)), value: PLAYER_ACCURACY_PER_LEVEL, value2: Math.max(1, Math.floor(game.level || 1)) * PLAYER_ACCURACY_PER_LEVEL }),
-                makeSourceLine(_t('민첩 파생(민첩 × {value})', { value: PLAYER_ACCURACY_PER_DEXTERITY }), totalDexterity * PLAYER_ACCURACY_PER_DEXTERITY),
-                makeSourceLine('장비/기타 정확도', flatAccuracy),
-                makeSourceLine('정확도 보정', accuracyBonusPct, '%', value => `${Math.floor(value)}%`),
-                _t('효과: 적의 회피 수치와 대결해 명중을 판정합니다. 정확도가 높을수록 고회피 적에게 덜 빗나갑니다.'),
-                _t('예: 회피 500 적 상대 예상 명중률 {floor}%, 회피 2000 적 상대 {floor2}%', { floor: Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 500 }, playerAccuracy)), floor2: Math.floor(100 - getEnemyTotalEvadeChance({ evasion: 2000 }, playerAccuracy)) }),
-                _t('적 회피 대비 빗나감은 최대 45%p, 적의 별도 회피 확률 옵션과 합쳐 총 70%가 상한입니다.')
-            ].filter(Boolean),
-            final: `${Math.floor(playerAccuracy)}`
-        },
-        strength: {
-            title: _t('힘'),
-            lines: [_t('1당 최대 생명력 +2, 5당 물리 피해 +1%'), _t('최대 생명력 +{floor}, 물리 피해 +{floor2}%', { floor: Math.floor(totalStrength * 2), floor2: Math.floor(totalStrength / 5) })],
-            final: `${Math.floor(totalStrength)}`
-        },
-        dexterity: {
-            title: _t('민첩'),
-            lines: [_t('1당 회피 +3, 정확도 +{value}, 5당 투사체 피해 +1%', { value: PLAYER_ACCURACY_PER_DEXTERITY }), _t('회피 +{floor}, 정확도 +{floor2}, 투사체 피해 +{floor3}%', { floor: Math.floor(totalDexterity * 3), floor2: Math.floor(totalDexterity * PLAYER_ACCURACY_PER_DEXTERITY), floor3: Math.floor(totalDexterity / 5) })],
-            final: `${Math.floor(totalDexterity)}`
-        },
-        intelligence: {
-            title: _t('지능'),
-            lines: [_t('1당 에너지 보호막 +2, 5당 주문 피해 +1%'), _t('에너지 보호막 +{floor}, 주문 피해 +{floor2}%', { floor: Math.floor(totalIntelligence * 2), floor2: Math.floor(totalIntelligence / 5) })],
-            final: `${Math.floor(totalIntelligence)}`
-        },
-        blockChance: {
-            title: _t('막기 확률'),
-            lines: [
-                makeSourceLine('완갑과 대검 기본 막기', shieldBaseBlockChance, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('장비 막기 확률 증가', shieldBlockChancePct, '%', value => `${value.toFixed(1)}%`),
-                effectiveShieldBaseBlockChance !== shieldBaseBlockChance ? _t('증가 적용 기본 막기: {value}%', { value: effectiveShieldBaseBlockChance.toFixed(1) }) : null,
-                makeSourceLine('기타 막기 확률 증가', blockChanceFromOtherPct, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('막기 확률 보너스', flatBlockChanceBonus, '%', value => `${value.toFixed(1)}%`),
-                _t('막기 확률 상한: {finalBlockChanceCap}%', { finalBlockChanceCap: finalBlockChanceCap.toFixed(1) }),
-                _t('몬스터의 일반 타격 피해를 막으면 해당 타격 피해를 받지 않습니다.')
-            ].filter(Boolean),
-            final: `${finalBlockChance.toFixed(1)}%`
-        },
-        blockChanceMax: {
-            title: _t('막기 확률 상한'),
-            lines: [
-                _t('기본 막기 확률 상한 50%'),
-                makeSourceLine('상한 증가', Math.max(0, sumStatAcrossBuckets('blockChanceMax')), '%', value => `${value.toFixed(1)}%`),
-                _t('상한 증가는 최대 75%까지 적용됩니다.')
-            ],
-            final: `${finalBlockChanceCap.toFixed(1)}%`
-        },
-        deflectChance: {
-            title: _t('비껴내기 확률'),
-            lines: [
-                makeSourceLine('장비', gearBase.deflectChance + gearExplicit.deflectChance, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('패시브', passive.deflectChance + season.deflectChance + ascend.deflectChance + reward.deflectChance, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조스킬룬', support.deflectChance, '%', value => `${value.toFixed(1)}%`),
-                _t('비껴내기 성공 시 피해 감소: {min}%', { min: Math.min(85, 40 + finalDeflectDamageReduce).toFixed(1) }),
-                _t('기본 피해 감소 40%에 비껴내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.')
-            ].filter(Boolean),
-            final: `${finalDeflectChance.toFixed(1)}%`
-        },
-        deflectDamageReduce: {
-            title: _t('비껴내기 피해 감소'),
-            lines: [
-                makeSourceLine('장비', gearBase.deflectDamageReduce + gearExplicit.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('패시브', passive.deflectDamageReduce + season.deflectDamageReduce + ascend.deflectDamageReduce + reward.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
-                makeSourceLine('보조스킬룬', support.deflectDamageReduce, '%', value => `${value.toFixed(1)}%`),
-                _t('실제 감소율은 기본 40% + 이 수치입니다.')
-            ].filter(Boolean),
-            final: `${finalDeflectDamageReduce.toFixed(1)}%`
-        },
-        physIgnore: {
-            title: _t('물리 피해 감소 무시'),
-            lines: [
-                makeSourceLine('장비', gearBase.physIgnore + gearExplicit.physIgnore, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.physIgnore + season.physIgnore + ascend.physIgnore + reward.physIgnore, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조스킬룬', support.physIgnore, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('각인', skill.physIgnoreBonus || 0, '%', value => `${Math.floor(value)}%`),
-                _t('적의 양수 물리 피해 감소만 0%까지 깎습니다.')
-            ].filter(Boolean),
-            final: `${Math.floor(finalPhysIgnore)}%`
-        },
-        resPen: {
-            title: _t('저항 관통'),
-            lines: [
-                makeSourceLine('장비', gearBase.resPen + gearExplicit.resPen, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('패시브', passive.resPen + season.resPen + ascend.resPen + reward.resPen, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('보조스킬룬', support.resPen, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('각인', skill.resPenBonus || 0, '%', value => `${Math.floor(value)}%`),
-                _t('원소/카오스 저항은 음수까지 떨어질 수 있으며, 음수만큼 추가 피해를 줍니다.')
-            ].filter(Boolean),
-            final: `${Math.floor(finalResPen)}%`
-        },
-        resF: makeResistanceBreakdown('화염 저항', 'resF', 'maxResF', finalResF, finalMaxResF, [
-            formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
-            formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resF),
-            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
-        ], [
-            formatResistanceSourceLine('최대 저항, 공통 효과', sharedElementalMaxRes),
-            formatResistanceSourceLine('최대 저항, 영역 고유 효과', uniqueAllMaxRes),
-            formatResistanceSourceLine('최대 저항, 약품 내성', resistanceBlendMaxBonus),
-            formatResistanceSourceLine('최대 저항, 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
-            formatResistanceSourceLine('최대 저항, 군락 수호구', colonyWardBonus.maxResF || 0)
-        ]),
-        resC: makeResistanceBreakdown('냉기 저항', 'resC', 'maxResC', finalResC, finalMaxResC, [
-            formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
-            formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resC),
-            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
-        ], [
-            formatResistanceSourceLine('최대 저항, 공통 효과', sharedElementalMaxRes),
-            formatResistanceSourceLine('최대 저항, 영역 고유 효과', uniqueAllMaxRes),
-            formatResistanceSourceLine('최대 저항, 약품 내성', resistanceBlendMaxBonus),
-            formatResistanceSourceLine('최대 저항, 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
-            formatResistanceSourceLine('최대 저항, 군락 수호구', colonyWardBonus.maxResC || 0)
-        ]),
-        resL: makeResistanceBreakdown('번개 저항', 'resL', 'maxResL', finalResL, finalMaxResL, [
-            formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
-            formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resL),
-            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resAll || 0)
-        ], [
-            formatResistanceSourceLine('최대 저항, 공통 효과', sharedElementalMaxRes),
-            formatResistanceSourceLine('최대 저항, 영역 고유 효과', uniqueAllMaxRes),
-            formatResistanceSourceLine('최대 저항, 약품 내성', resistanceBlendMaxBonus),
-            formatResistanceSourceLine('최대 저항, 분광 외피', hasElementalistPrismaticShell ? 3 : 0),
-            formatResistanceSourceLine('최대 저항, 전하 보루', crusaderLightningMaxResBonus),
-            formatResistanceSourceLine('최대 저항, 군락 수호구', colonyWardBonus.maxResL || 0)
-        ]),
-        resChaos: makeResistanceBreakdown('카오스 저항', 'resChaos', 'maxResChaos', finalResChaos, finalMaxResChaos, [
-            formatResistanceSourceLine('약품 내성', resistanceBlendBonus),
-            formatResistanceSourceLine('암흑 치환', warlockElementalOvercapToChaos),
-            formatResistanceSourceLine('분광 외피', elementalistResistanceShift.resChaos),
-            formatResistanceSourceLine('공허 결합', elementalistChaosConversionBonus),
-            formatResistanceSourceLine('군락 수호구', colonyWardBonus.resChaos || 0)
-        ], [
-            formatResistanceSourceLine('최대 저항, 약품 내성', resistanceBlendMaxBonus),
-            formatResistanceSourceLine('최대 저항, 군락 수호구', colonyWardBonus.maxResChaos || 0)
-        ]),
-
-        ailmentResist: {
-            title: _t('상태이상 방지 확률'),
-            lines: [
-                _t('점화 방지: {value}%', { value: finalAilmentResistIgniteChance.toFixed(1) }),
-                _t('냉각 방지: {value}%', { value: finalAilmentResistChillChance.toFixed(1) }),
-                _t('동결 방지: {value}%', { value: finalAilmentResistFreezeChance.toFixed(1) }),
-                _t('감전 방지: {value}%', { value: finalAilmentResistShockChance.toFixed(1) }),
-                _t('중독 방지: {value}%', { value: finalAilmentResistPoisonChance.toFixed(1) }),
-                _t('출혈 방지: {value}%', { value: finalAilmentResistBleedChance.toFixed(1) })
-            ],
-            final: _t('{floor}% 공통 방지', { floor: Math.floor(ailmentResistBonusPct) })
-        },
-        dmgRoll: {
-            title: _t('피해 보정 범위'),
-            lines: [
-                makeSourceLine('최소', finalMinDmgRoll, '%', value => `${Math.floor(value)}%`),
-                makeSourceLine('최대', finalMaxDmgRoll, '%', value => `${Math.floor(value)}%`)
-            ],
-            final: `${Math.floor(finalMinDmgRoll)}% ~ ${Math.floor(finalMaxDmgRoll)}%`
-        },
-        igniteChance: makeAilmentChanceBreakdown('점화 확률', 'igniteChance', finalIgniteChance, ailmentCritChance.ignite, null, makeDamageAilmentEffectLines('점화 피해 증가', finalIgniteDamageMultiplierPct)),
-        chillChance: makeAilmentChanceBreakdown('냉각 확률', 'chillChance', finalChillChance, ailmentCritChance.chill, null, [_t('냉각은 피해형 상태이상이 아니며 적의 행동 속도를 감소시킵니다.')]),
-        freezeChance: makeAilmentChanceBreakdown('동결 확률', 'freezeChance', finalFreezeChance, ailmentCritChance.freeze, _t('냉기 피해 치명타는 동결 시도를 보장합니다. 그 외에는 해당 확률로 동결을 시도하며, 시도 성공 후 적의 최대 생명력 대비 타격 피해로 동결 적용 판정을 합니다.'), [_t('동결은 피해형 상태이상이 아니며 적의 행동을 정지시킵니다.')]),
-        shockChance: makeAilmentChanceBreakdown('감전 확률', 'shockChance', finalShockChance, ailmentCritChance.shock, null, [_t('감전 효과 증가: +{max}%', { max: Math.max(0, finalShockEffectBonusPct).toFixed(1) }), _t('감전은 직접 피해를 주지 않고 대상이 받는 피해를 증가시킵니다.')]),
-        ailmentResistIgniteChance: makeAilmentResistBreakdown('점화 저항 확률', '점화', ailResIgniteTotal, finalAilmentResistIgniteChance, makeDamageAilmentMitigationLines('점화 피해 감소', finalIgniteDamageReducePct)),
-        ailmentResistChillChance: makeAilmentResistBreakdown('냉각 저항 확률', '냉각', ailResFreezeTotal, finalAilmentResistChillChance, [_t('냉각 효과 감소: {max}%', { max: Math.max(0, finalChillEffectReducePct).toFixed(1) })]),
-        ailmentResistFreezeChance: makeAilmentResistBreakdown('동결 저항 확률', '동결', ailResFreezeTotal, finalAilmentResistFreezeChance, [_t('동결 지속시간 감소: {max}%', { max: Math.max(0, finalFreezeDurationReducePct).toFixed(1) })]),
-        ailmentResistShockChance: makeAilmentResistBreakdown('감전 저항 확률', '감전', ailResShockTotal, finalAilmentResistShockChance, [_t('감전 효과 감소: {max}%', { max: Math.max(0, finalShockEffectReducePct).toFixed(1) })]),
-        ailmentResistPoisonChance: makeAilmentResistBreakdown('중독 저항 확률', '중독', ailResPoisonTotal, finalAilmentResistPoisonChance, makeDamageAilmentMitigationLines('중독 피해 감소', finalPoisonDamageReducePct)),
-        ailmentResistBleedChance: makeAilmentResistBreakdown('출혈 저항 확률', '출혈', ailResBleedTotal, finalAilmentResistBleedChance, makeDamageAilmentMitigationLines('출혈 피해 감소', finalBleedDamageReducePct)),
-        poisonChance: makeAilmentChanceBreakdown('중독 확률', 'poisonChance', finalPoisonChance, ailmentCritChance.poison, null, makeDamageAilmentEffectLines('중독 피해 증가', finalPoisonDamageMultiplierPct)),
-        bleedChance: makeAilmentChanceBreakdown('출혈 확률', 'bleedChance', finalBleedChance, ailmentCritChance.bleed, null, makeDamageAilmentEffectLines('출혈 전용 피해 증가', 0)),
-        dps: {
-            title: 'DPS',
-            lines: nativeDotPattern ? [
-                _t('지속 피해 1회 {floor}', { floor: Math.floor(finalBaseDmg * totalDotDamageMultiplier) }),
-                _t('{value}초마다 {ticks}회', { value: nativeDotPattern.intervalMs / 1000, ticks: nativeDotPattern.ticks }),
-                _t('중복 시전 불가')
-            ] : [
-                _t('평균 한 방 {floor}', { floor: Math.floor(avgHit) }),
-                _t('공격 속도 {finalAspd}', { finalAspd: finalAspd.toFixed(2) }),
-                _t('치명 기대값 반영'),
-                crusaderThunderDoctrinePct > 0 ? _t('천뢰 교리 반영: 화염/냉기 피해 증가 +{floor}%가 번개 공격력/평균 한 방/DPS에 적용', { floor: Math.floor(crusaderThunderDoctrinePct) }) : null,
-                inquisitorAbsoluteDoctrinePct > 0 ? _t('절대 교리 반영: 저항 관통 +{floor}%가 원소 피해/평균 한 방/DPS에 적용', { floor: Math.floor(inquisitorAbsoluteDoctrinePct) }) : null,
-                _t('피해 보정 기대값 x{avgRollMultiplier} ({floor}~{floor2}%)', { avgRollMultiplier: avgRollMultiplier.toFixed(2), floor: Math.floor(finalMinDmgRoll), floor2: Math.floor(finalMaxDmgRoll) }),
-                _t('연속 타격 기대값 x{value} ({floor}%)', { value: expectedDoubleStrikeMultiplier.toFixed(2), floor: Math.floor(finalDs) }),
-                coreCubeAddedDamageTotalPct > 0 ? _t('추가 피해 x{value} (총 피해의 {floor}% → {coreCubeAddedDamageParts})', { value: expectedAddedDamageMultiplier.toFixed(2), floor: Math.floor(coreCubeAddedDamageTotalPct), coreCubeAddedDamageParts: coreCubeAddedDamageParts.join(' / ') }) : null,
-                isProjectileSkillForDps && fanSpread.extraShotDpsMul > 1 ? _t('투사체 추가 발사 기대값 x{value} (추가 확률 {value2}%, 발사 상한 반영, 발당 {round}% 피해)', { value: projectileExtraShotDpsMul.toFixed(2), value2: formatValue('projectileExtraChance', projectileExtraShotsForDps * 100), round: Math.round(projectileBonusShotDamagePct) }) : null,
-                skillSequenceDpsMultiplier > 1 ? _t('강타 여진 기대값 x{value} (본 타격 후 독립 여진)', { value: skillSequenceDpsMultiplier.toFixed(2) }) : null,
-                estimatedSkillDotDps > 0 ? _t('지속 피해 기대값 +{floor} DPS (틱 {value}% / {max}초, 예상 중첩 {floor2}/{DOT_STACK_MAX})', { floor: Math.floor(estimatedSkillDotDps), value: DOT_TICK_FROM_HIT_RATIO * 100, max: Math.max(0.02, DOT_TICK_INTERVAL * Math.max(0.05, dotTickIntervalMultiplier)).toFixed(2), floor2: Math.floor((damageScales.estimatedDotStacks || 1)), DOT_STACK_MAX }) : null,
-                warriorPhysicalDpsMultiplier > 1 ? _t('격노 순환 x{value} ({get}/{WARRIOR_RAGE_STACK_MAX}중첩)', { value: warriorPhysicalDpsMultiplier.toFixed(2), get: tick.get('warriorRageStacks'), WARRIOR_RAGE_STACK_MAX }) : null,
-                (hasKeystone('sb7') && sbSummonShareToPlayer > 0) ? _t('상호 보완: 소환수 공격력 공유로 기본 피해 +{floor} 반영 (DPS 포함)', { floor: Math.floor(sbSummonShareToPlayer) }) : null
-            ].concat(getFanSpreadDpsLines(fanSpread, finalPlayerSkillDps), flameDecayDpsLines).filter(Boolean),
-            final: `${Math.floor(finalPlayerSkillDps)}`
-        },
-        gem: {
-            title: _t('룬 레벨 보너스'),
-            lines: [
-                makeSourceLine('패시브', gemSources.passive + gemSources.reward),
-                makeSourceLine('장비', gemSources.gear)
-            ].filter(Boolean),
-            final: _t('총 +{total}', { total: gemSources.total })
-        }
-    } : null;
-
-
-    let enemy = {
-        activeZoneId: game.currentZoneId,
-        activeUnderworldFloor: currentStatsZone && currentStatsZone.type === 'underworld' ? currentStatsZone.floor : 0,
-        zoneSpeedMultiplier,
-        zoneDamageMultiplier: oceanPressureDamageMul,
-        underworldGravityReductionPct: Math.max(0, Math.min(75,
-            typeof getSkyStoneReductionPct === 'function' ? getSkyStoneReductionPct() : 0)),
-        baseDmg: finalBaseDmg,
-        damageIncreasePct: Math.max(0, generalPctDmg + taggedTotal),
-        maxHp: finalMaxHp,
-        lifeRecoveryCap: getPlayerRecoveryHpCap({ maxHp: finalMaxHp, uniqueOverhealCapPct: uniqueOverhealCapPct }, tick),
-        aspd: finalAspd || 1.0,
-        crit: finalCrit,
-        rawCrit: finalCrit,
-        moveSpeed: finalMove, sightRange: Math.max(0, gearBase.sight + gearExplicit.sight), sightCap: Math.max(0, gearExplicit.sightCap), chestGrade: Math.max(0, gearExplicit.chestGrade),
-        chillEffectReducePct: finalChillEffectReducePct,
-        critTakenDamageReducePct: sumStatAcrossBuckets('critTakenDamageReducePct'),
-        igniteTakenDurationReducePct: sumStatAcrossBuckets('igniteTakenDurationReducePct'),
-        shockTakenDurationReducePct: sumStatAcrossBuckets('shockTakenDurationReducePct'),
-        coldTakenDurationReducePct: sumStatAcrossBuckets('coldTakenDurationReducePct'),
-        poisonTakenDurationReducePct: sumStatAcrossBuckets('poisonTakenDurationReducePct'),
-        bleedTakenDurationReducePct: sumStatAcrossBuckets('bleedTakenDurationReducePct'),
-        freezeDurationReducePct: finalFreezeDurationReducePct,
-        shockEffectReducePct: finalShockEffectReducePct,
-        igniteDamageReducePct: finalIgniteDamageReducePct,
-        bleedDamageReducePct: finalBleedDamageReducePct,
-        poisonDamageReducePct: finalPoisonDamageReducePct,
-        fireTakenDamageReducePct: Math.max(0, colonyWardBonus.fireTakenDamageReducePct || 0),
-        coldTakenDamageReducePct: Math.max(0, colonyWardBonus.coldTakenDamageReducePct || 0),
-        lightTakenDamageReducePct: Math.max(0, colonyWardBonus.lightTakenDamageReducePct || 0),
-        chaosTakenDamageReducePct: Math.max(0, colonyWardBonus.chaosTakenDamageReducePct || 0),
-        dotTakenDamageReducePct: finalDotTakenDamageReducePct,
-        takenDamageReduceWhen2EnemiesPct: finalTakenDamageReduceWhen2EnemiesPct,
-        takenDamageReduceWhen1EnemyPct: finalTakenDamageReduceWhen1EnemyPct,
-        igniteDamageMultiplierPct: finalIgniteDamageMultiplierPct,
-        dps: finalPlayerSkillDps || 0,
-        hitDps: finalDpsWithProjectileShots || 0,
-        packDps: (finalPlayerSkillDps || 0) * fanSpread.packMul,
-        skillDotDps: estimatedSkillDotDps || 0,
-        dpsBaseNoProjectileShots: finalDpsAdjusted || 0,
-        critDmg: finalCritDmg,
-        rawCritDmg: rawFinalCritDmg,
-        regen: finalRegen,
-        regenSuppress: finalRegenSuppress,
-        leech: finalLeech,
-        summonInheritedLeech: finalLeech * (applyLeechSoftcap(rawLeech - wildnessLeech - support.leech) + wildnessLeech) / Math.max(0.0001, applyLeechSoftcap(rawLeech - wildnessLeech) + wildnessLeech),
-        spellLeech: finalSpellLeech,
-        leechRateCap: finalLeechRateCap,
-        leechTotalCap: finalLeechTotalCap,
-        leechInstanceCap: finalLeechInstanceCap,
-        leechKeepFullLife: finalLeechKeepFullLife,
-        dr: finalDr,
-        rawDr: rawDr,
-        physIgnore: finalPhysIgnore,
-        allowNegativePhysIgnore: allowNegativePhysIgnore,
-        warriorPhysDamageMultiplier: warriorPhysDamageMultiplier,
-        warriorTakenDamageMultiplier: warriorTakenDamageMultiplier,
-        genericTakenDamageMultiplier: genericTakenDamageMultiplier,
-        bossDamageDealtMultiplier: bossDamageDealtMultiplier,
-        bossTakenDamageMultiplier: bossTakenDamageMultiplier,
-        swiftOpeningTakenMultiplier: swiftOpeningTakenMultiplier,
-        guardianReflectDamage: guardianReflectDamage,
-        guardianBlockChance: guardianBlockChance,
-        guardianDamageNullifyChance: guardianDamageNullifyChance,
-        guardianHitCapPct: guardianHitCapPct,
-        shieldBaseBlockChance: shieldBaseBlockChance,
-        effectiveShieldBaseBlockChance: effectiveShieldBaseBlockChance,
-        shieldBlockChancePct: shieldBlockChancePct,
-        shieldBlockChanceFlat: shieldBlockChanceFlat,
-        blockChance: finalBlockChance,
-        blockChanceMax: finalBlockChanceCap,
-        deflectChance: finalDeflectChance,
-        deflectDamageReduce: finalDeflectDamageReduce,
-        ailmentResistBonusPct: ailmentResistBonusPct,
-        ailmentResistPenPct: ailmentResistPenPct,
-        crusaderLightningIgnoreRes: crusaderLightningIgnoreRes,
-        crusaderNoResPenOnLightning: crusaderNoResPenOnLightning,
-        ds: finalDs,
-        slamEchoChance: finalSlamEchoChance,
-        slamEchoDamagePct: finalSlamEchoDamagePct,
-        minDmgRoll: finalMinDmgRoll,
-        maxDmgRoll: finalMaxDmgRoll,
-        gemLv: gemSources.total,
-        gemBonusSources: gemSources,
-        glovePairAspdBonus: glovePairAspdBonus,
-        suppCap: suppCap,
-        expGain: season.expGain + reward.expGain + uniqueXpGainPct,
-        sSkill: skill,
-        resPen: finalResPen,
-        resF: finalResF,
-        rawResF: uncappedResF,
-        resC: finalResC,
-        rawResC: uncappedResC,
-        resL: finalResL,
-        rawResL: uncappedResL,
-        maxResF: finalMaxResF,
-        maxResC: finalMaxResC,
-        maxResL: finalMaxResL,
-        maxResChaos: finalMaxResChaos,
-        resChaos: finalResChaos,
-        rawResChaos: uncappedResChaos,
-        critResist: Math.max(0, Math.min(80, finalCritResist)),
-        ailResIgnite: ailResIgniteTotal,
-        ailResShock: ailResShockTotal,
-        ailResFreeze: ailResFreezeTotal,
-        ailResPoison: ailResPoisonTotal,
-        ailResBleed: ailResBleedTotal,
-        ailmentResistIgniteChance: finalAilmentResistIgniteChance,
-        ailmentResistChillChance: finalAilmentResistChillChance,
-        ailmentResistFreezeChance: finalAilmentResistFreezeChance,
-        ailmentResistShockChance: finalAilmentResistShockChance,
-        ailmentResistPoisonChance: finalAilmentResistPoisonChance,
-        ailmentResistBleedChance: finalAilmentResistBleedChance,
-        resistPenalty: resistPenalty,
-        dotDamageScale: totalDotDamageMultiplier,
-        flameDecayIgniteTakenMultiplier: flameDecayIgniteTakenMultiplierPreview,
-        dotCritBonusScale: dotMultiplier,
-        instantDamageMultiplier: instantDamageMultiplier,
-        finalDamageMultiplier: finalDamageMultiplier,
-        ailmentPowerMultiplier: ailmentPowerMultiplier, ailmentDamagePct: finalAilmentDamagePct,
-        mystique: Math.max(0, passive.mystique),
-        devotion: authoredPassiveRules.devotion,
-        cycle: authoredPassiveRules.cycle,
-        passiveRevelation: authoredPassiveRules.revelation,
-        passiveRevelationLabel: authoredPassiveRules.revelationLabel,
-        passiveRevelationCombatDamageMorePct: authoredPassiveRules.combatDamageMorePct,
-        passiveRevelationGuardTakenLessPct: authoredPassiveRules.guardTakenLessPct,
-        passiveRevelationLifeBonusPct: authoredPassiveRules.lifeBonusPct,
-        passiveWisdomElement: passiveWisdomElement,
-        mystiqueAilmentType: authoredPassiveRules.mystique.ailment,
-        mystiqueAilmentDamagePct: authoredPassiveRules.mystique.damagePct,
-        mystiqueAilmentPotencyPct: authoredPassiveRules.mystique.potencyPct,
-        passiveForbiddenManifestation: !!forbiddenManifestation,
-        passiveAshura: typeof findAllocatedPassiveKeystone === 'function' && !!findAllocatedPassiveKeystone('아슈라'),
-        passiveCycleAddedFireFromPhysicalPct: authoredPassiveRules.cycleAddedFireFromPhysicalPct,
-        passiveFanaticismStacks: authoredPassiveRules.fanaticismStacks,
-        passiveKeystoneFlags: authoredPassiveRules.flags,
-        passiveOmniscientTrueDamagePct: omniscientActive ? Math.min(25, totalStrength * 0.5) : 0,
-        passiveAlwaysHit: !!barbarismKeystone,
-        chillEffectBonusPct: finalChillEffectBonusPct,
-        shockEffectBonusPct: finalShockEffectBonusPct,
-        chaosDamageMultiplier: chaosDamageMultiplier,
-        dotTickIntervalMultiplier: dotTickIntervalMultiplier,
-        dotDurationMultiplier: dotDurationMultiplier,
-        ailmentDurationPct: Object.fromEntries(['ignite', 'chill', 'freeze', 'shock', 'poison', 'bleed'].map(type => [type, sumStatAcrossBuckets(`${type}DurationPct`)])),
-        igniteChance: finalIgniteChance,
-        chillChance: finalChillChance,
-        freezeChance: finalFreezeChance,
-        shockChance: finalShockChance,
-        poisonChance: finalPoisonChance,
-        bleedChance: finalBleedChance,
-        ailmentCritChance: ailmentCritChance,
-        damageScales: damageScales,
-        randomElementDamagePct: randomElementDamagePct,
-        addedDamagePctByElement: coreCubeAddedDamagePct,
-        flatElementDamage: coreCubeFlatElementDamage,
-        flatElementHitDamage: flatElementHitDamage,
-        takenFlatReduce: coreCubeTakenFlatReduce,
-        physTakenAs: coreCubePhysTakenAs,
-        talismanBossFinalDmgBonusPct: talismanBossFinalDmgBonusPct,
-        armor: finalArmor,
-        evasion: finalEvasion,
-        energyShield: finalEnergyShield,
-        armorReduction: armorReduction,
-        evadeChance: evadeChance,
-        enemyAccuracy: enemyAccuracy,
-        accuracy: playerAccuracy,
-        strength: totalStrength,
-        dexterity: totalDexterity,
-        intelligence: totalIntelligence,
-        energyShieldRegenRate: finalEnergyShieldRegenRate,
-        energyShieldRechargeDelay: finalEnergyShieldRechargeDelay,
-        projectileExtraShots: Math.max(0, totalProjectileExtraShots), skillBaseTargets,
-        breakdowns: breakdowns,
-        uniqueClosedEyes: uniqueClosedEyes,
-        uniqueShockInvertTaken: uniqueShockInvertTaken,
-        uniqueAlwaysShock: uniqueAlwaysShock,
-        uniqueProjectileDoubleStrikePct: uniqueProjectileDoubleStrikePct,
-        uniqueChaosResDownOnHit: uniqueChaosResDownOnHit,
-        uniqueCorpseExplode: uniqueCorpseExplode,
-        uniqueInstantLeechPct: uniqueInstantLeechPct + Math.max(0, reward.uniqueInstantLeechPct || 0),
-        uniqueDoubleDamageChancePct: uniqueDoubleDamageChancePct + Math.max(0, coreCubeDoubleDamageChance || 0),
-        uniqueDoubleDamageMultiplier: 2 + Math.max(0, sumStatAcrossBuckets('doubleDamageMultiplierPct') || 0) / 100,
-        uniqueEsRecoverOnCritPct: uniqueEsRecoverOnCritPct,
-        uniqueEvasionDance: uniqueEvasionDance,
-        uniqueLoneEvasionCounter: uniqueLoneEvasionCounter,
-        uniqueCritAdvanceEsRecharge: uniqueCritAdvanceEsRecharge,
-        uniqueEnergyShieldBreakRecharge: uniqueEnergyShieldBreakRecharge,
-        uniqueRiderCompass: uniqueRiderCompass,
-        uniqueMaxRollBonusHit: uniqueMaxRollBonusHit,
-        uniqueCeilingSmashDouble: uniqueCeilingSmashDouble,
-        uniqueUnderdogMorePct: uniqueUnderdogMorePct,
-        uniqueInstakillNormalPct: uniqueInstakillNormalPct,
-        uniqueProjExtraShotChance: uniqueProjExtraShotChance,
-        uniqueConditionManual: uniqueConditionManual, uniqueWarcryResonancePct: uniqueWarcryResonancePct, cosmosGuardianAlways: cosmosGuardianConditionInstant,
-        uniqueStackingElementalResDownOnHit: uniqueStackingElementalResDownOnHit,
-        uniqueBleedingEnemyDamageMorePct: uniqueBleedingEnemyDamageMorePct,
-        uniqueRiftWaveOnHit: uniqueRiftWaveOnHit,
-        uniqueChaosDamageInstantLeechPct: uniqueChaosDamageInstantLeechPct,
-        uniqueInvulnerableBarrierOnHit: uniqueInvulnerableBarrierOnHit,
-        uniquePoisonDurationPct: uniquePoisonDurationPct,
-        uniqueDeathWard: uniqueDeathWard,
-        uniqueLeechEfficiencyOnKill: uniqueLeechEfficiencyOnKill,
-        uniqueKillMoveStacks: uniqueKillMoveStacks, uniqueEnemyRegenCutAndMinRoll: uniqueEnemyRegenCutAndMinRoll, uniqueAllResDownOnHit: uniqueAllResDownOnHit, uniqueCursedTakenAndRefresh: uniqueCursedTakenAndRefresh, uniquePhysDrHalfTakenAsMore: uniquePhysDrHalfTakenAsMore, uniqueMeleeArmorAmp: uniqueMeleeArmorAmp, uniqueArmorAppliesToDot: uniqueArmorAppliesToDot, uniquePursuitMovePct: uniquePursuitMovePct, uniqueRepelMelee: uniqueRepelMelee,
-        uniqueResonanceFloor,
-        supportResonanceOverflow,
-        inquisitorResonanceBonus: inquisitorResonanceBonus,
-        uniqueOverkillSplash: uniqueOverkillSplash,
-        uniqueDragonVeinGuard: uniqueDragonVeinGuard,
-        uniqueGuardianArmor: uniqueGuardianArmor,
-        uniqueStealEliteTrait: uniqueStealEliteTrait,
-        uniqueQueenBeeSummon: uniqueQueenBeeSummon,
-        uniqueSummonDeathDamageBuff: uniqueSummonDeathDamageBuff,
-        uniqueSummonCritAspdStacks: uniqueSummonCritAspdStacks,
-        uniqueSummonNonCritNoDamage: uniqueSummonNonCritNoDamage,
-        uniqueBlockRecoverEnergyShieldPct: uniqueBlockRecoverEnergyShieldPct,
-        uniqueBlockedDamageTakenPct: uniqueBlockedDamageTakenPct,
-        uniqueDeflectStealth: uniqueDeflectStealth,
-        uniqueChaosTakenDamageReducePct: uniqueChaosTakenDamageReducePct,
-        uniqueLifeRecoupTakenDamage: uniqueLifeRecoupTakenDamage,
-        uniqueOverhealCapPct: uniqueOverhealCapPct,
-        cosmosAlwaysFirstHit: cosmosAlwaysFirstHit,
-        cosmosEnergyShieldBypassPct: cosmosEnergyShieldBypassPct,
-        cosmosOrbitCycle: cosmosOrbitCycle,
-        cosmosEqualDamageSplit: cosmosEqualDamageSplit,
-        cosmosBalanceMitigation: cosmosBalanceMitigation,
-        cosmosJudgmentLightning: cosmosJudgmentLightning,
-        cosmosDeathResistPct: Math.max(cosmosDeathResistPct, reward.cosmosDeathResistPct || 0),
-        cosmosBossDamageMorePct: Math.max(cosmosBossDamageMorePct, reward.cosmosBossDamageMorePct || 0),
-        cosmosMasteryFinalDamagePct: cosmosMasteryFinalDamagePct,
-        cosmosMasteryTakenLessPct: cosmosMasteryTakenLessPct,
-        cosmosCometChillNoFreeze: cosmosCometChillNoFreeze,
-        cosmosLightningVariance: reward.cosmosLightningVariance || 0,
-        firstHitDamageMorePct: reward.firstHitDamageMorePct || 0,
-        cosmosAlwaysFirstHitChancePct: reward.cosmosAlwaysFirstHitChancePct || 0,
-        uniqueBleedWeightOnBleedingHit: uniqueBleedWeightOnBleedingHit,
-        uniqueImmuneBleed: uniqueImmuneBleed,
-        uniqueImmuneFreeze: uniqueImmuneFreeze,
-        uniqueMeteorFootsteps: uniqueMeteorFootsteps,
-        uniqueShockTracer: uniqueShockTracer,
-        uniquePoisonExtraStacks: uniqueVenomStride ? Math.max(0, Math.floor(uniqueVenomStride.poisonExtraStack || 0)) : 0,
-        runeCorpseExplodeChance: runeCorpseExplodeChance,
-        runeCorpseExplodeLifePct: runeCorpseExplodeLifePct,
-        runeResonancePower: bonusResonancePower,
-        supportScaleBases: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumNonSupportStat(statId))])),
-        summonFlatDmg: Math.max(0, (gearBase.summonFlatDmg || 0) + (gearExplicit.summonFlatDmg || 0) + (passive.summonFlatDmg || 0) + (season.summonFlatDmg || 0) + (ascend.summonFlatDmg || 0) + (support.summonFlatDmg || 0) + (reward.summonFlatDmg || 0)),
-        summonPctDmg: Math.max(0, (gearBase.summonPctDmg || 0) + (gearExplicit.summonPctDmg || 0) + (passive.summonPctDmg || 0) + (season.summonPctDmg || 0) + (ascend.summonPctDmg || 0) + (support.summonPctDmg || 0) + (reward.summonPctDmg || 0) + tick.get('summonDeathDamagePct')),
-        summonSharedPctDmg: summonSharedGeneralPctDmg,
-        supportValues,
-        supportAuraFlat: window.GameModules.combat.supports.auraFlat(auraValues),
-        summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(TAGGED_DAMAGE_STAT_BY_TAG))).map(statId => [statId, Math.max(0, sumStatAcrossBuckets(statId) - (support[statId] || 0))])),
-        summonAspd: Math.max(0, (gearBase.summonAspd || 0) + (gearExplicit.summonAspd || 0) + (passive.summonAspd || 0) + (season.summonAspd || 0) + (ascend.summonAspd || 0) + (support.summonAspd || 0) + (reward.summonAspd || 0) + sbSummonAspdBonus + tick.get('summonCritAspd')),
-        summonHpPct: Math.max(0, (gearBase.summonHpPct || 0) + (gearExplicit.summonHpPct || 0) + (passive.summonHpPct || 0) + (season.summonHpPct || 0) + (ascend.summonHpPct || 0) + (support.summonHpPct || 0) + (reward.summonHpPct || 0)),
-        summonCrit: Math.max(0, (gearBase.summonCrit || 0) + (gearExplicit.summonCrit || 0) + (passive.summonCrit || 0) + (season.summonCrit || 0) + (ascend.summonCrit || 0) + (support.summonCrit || 0) + (reward.summonCrit || 0)),
-        summonCritDmg: Math.max(0, (gearBase.summonCritDmg || 0) + (gearExplicit.summonCritDmg || 0) + (passive.summonCritDmg || 0) + (season.summonCritDmg || 0) + (ascend.summonCritDmg || 0) + (support.summonCritDmg || 0) + (reward.summonCritDmg || 0)),
-        summonCap: getSummonCapFromSum(summonCapTotal()),
-        curseCap: 1 + sumStatAcrossBuckets('curseCap') + ((hasKeystone('wlk9')) ? 1 : 0),
-        summonEfficiency: Math.max(0, (gearBase.summonEfficiency || 0) + (gearExplicit.summonEfficiency || 0) + (passive.summonEfficiency || 0) + (season.summonEfficiency || 0) + (ascend.summonEfficiency || 0) + (support.summonEfficiency || 0) + (reward.summonEfficiency || 0)),
-        summonResPen: Math.max(0, (gearBase.summonResPen || 0) + (gearExplicit.summonResPen || 0) + (passive.summonResPen || 0) + (season.summonResPen || 0) + (ascend.summonResPen || 0) + (support.summonResPen || 0) + (reward.summonResPen || 0)),
-        summonGuardRedirectPct: Math.max(0, Math.min(100, (gearBase.summonGuardRedirectPct || 0) + (gearExplicit.summonGuardRedirectPct || 0) + (passive.summonGuardRedirectPct || 0) + (season.summonGuardRedirectPct || 0) + (ascend.summonGuardRedirectPct || 0) + (support.summonGuardRedirectPct || 0) + (reward.summonGuardRedirectPct || 0))),
-        poisonDamageMultiplierPct: Math.max(0, finalPoisonDamageMultiplierPct),
-        shockedEnemyHitDamagePct: Math.max(0, sumStatAcrossBuckets('shockedEnemyHitDamagePct')),
-        shockedEnemyHitDamageMorePct: Math.max(0, (gearBase.shockedEnemyHitDamageMorePct || 0) + (gearExplicit.shockedEnemyHitDamageMorePct || 0) + (passive.shockedEnemyHitDamageMorePct || 0) + (season.shockedEnemyHitDamageMorePct || 0) + (ascend.shockedEnemyHitDamageMorePct || 0) + (support.shockedEnemyHitDamageMorePct || 0) + (reward.shockedEnemyHitDamageMorePct || 0)),
-        sbPlayerAttackPower: Math.max(0, sbPlayerAttackPower),
-        ...collectOceanStats(sumStatAcrossBuckets), ...collectCooldownStats(sumStatAcrossBuckets),
-        regionAffix: regionAffixEffects.collect(sumStatAcrossBuckets),
-        bossDamagePct: Math.max(0, sumStatAcrossBuckets('bossDamagePct')),
-        eliteDamagePct: Math.max(0, sumStatAcrossBuckets('eliteDamagePct')),
-        firstStrikeDamagePct: Math.max(0, sumStatAcrossBuckets('firstStrikeDamagePct')),
-        cullStrikePct: Math.max(0, Math.min(20, sumStatAcrossBuckets('cullStrikePct'))),
-        echoPower: Math.max(0, sumStatAcrossBuckets('echoPower')),
-        chaosErosion: Math.max(0, sumStatAcrossBuckets('chaosErosion')),
-        chaosErosionCap: Math.max(0, sumStatAcrossBuckets('chaosErosionCap'))
+    return {
+      effectiveShieldBaseBlockChance,
+      blockChanceFromOtherPct,
+      flatBlockChanceBonus,
+      finalBlockChanceCap,
+      finalBlockChance
     };
-    enemy.passiveSoleMinionLostCap = authoredPassiveRules.flags.soleMinion
-        ? Math.max(0, enemy.summonCap - 1) : 0;
-    enemy.talentSourceStats = talentSourceStats;
-    if (typeof applyTalentPrecisePostStats === 'function') applyTalentPrecisePostStats(enemy);
-    const core = { stats: enemy, gemEvaluation, lastStandMaxHp,
-        immunity: { ignite: uniqueImmuneIgnite, frostSentinel: uniqueFrostSentinel, freeze: uniqueImmuneFreeze,
-            shock: !!uniqueShockTracer, bleed: uniqueBleedBlockHelm || uniqueImmuneBleed, closedEyes: uniqueClosedEyes } };
-    return keepCore ? core : finishPlayerStats(core, includeBreakdowns);
-}
+  }
+  function createPlayerStatFinal(deps) {
+    return Object.freeze({
+      region: (input) => computeFinalRegion(input, deps),
+      defenseTransform: (input) => computeFinalDefenseTransform(input, deps),
+      criticalCap: (input) => computeFinalCriticalCap(input, deps),
+      variance: (input) => computeFinalVariance(input),
+      criticalEstimate: (input) => computeFinalCriticalEstimate(input, deps),
+      wardMaxima: (input) => computeFinalWardMaxima(input),
+      wardVitals: (input) => computeFinalWardVitals(input, deps),
+      wardResistance: (input) => computeFinalWardResistance(input, deps),
+      wardAilmentDefense: (input) => computeFinalWardAilmentDefense(input),
+      medicine: (input) => computeFinalMedicine(input, deps),
+      ailmentResistance: (input) => computeFinalAilmentResistance(input, deps),
+      block: (input) => computeFinalBlock(input)
+    });
+  }
 
+  // modules/domain/player-dps-estimate.mjs
+  function buildWisdomPreview(input, deps) {
+    const { skill, coreCubeAddedDamagePct, passiveWisdomElement, authoredPassiveRules, wisdomLeapActive } = input;
+    const coreCubeAddedDamageTotalPct = Math.max(0, Object.values(coreCubeAddedDamagePct).reduce((sum, value) => sum + (Number(value) || 0), 0));
+    const wisdomPreviewStats = { passiveWisdomElement, passiveKeystoneFlags: authoredPassiveRules.flags };
+    const conversion = wisdomLeapActive && typeof deps.talentConversion === "function" ? deps.talentConversion(skill.ele) : { element: skill.ele, mainPct: 1, added: {} };
+    const previewSkillElement = conversion.element || skill.ele;
+    const wisdomSkillDamageMultiplier = Math.max(0, Number(conversion.mainPct) || 0) * deps.wisdomMultiplier(wisdomPreviewStats, previewSkillElement);
+    const previewAddedDamagePct = { ...coreCubeAddedDamagePct };
+    Object.entries(conversion.added || {}).forEach(([element, value]) => {
+      previewAddedDamagePct[element] = (Number(previewAddedDamagePct[element]) || 0) + (Number(value) || 0);
+    });
+    const wisdomAddedDamageMultiplier = Object.entries(previewAddedDamagePct).reduce((sum, [element, value]) => {
+      const addedRatio = Math.max(0, Number(value) || 0) / 100;
+      return sum + addedRatio * deps.wisdomMultiplier(wisdomPreviewStats, element);
+    }, 0);
+    return {
+      coreCubeAddedDamageTotalPct,
+      wisdomPreviewStats,
+      previewSkillElement,
+      wisdomSkillDamageMultiplier,
+      expectedAddedDamageMultiplier: 1 + coreCubeAddedDamageTotalPct / 100,
+      expectedWisdomDamageMultiplier: wisdomSkillDamageMultiplier + wisdomAddedDamageMultiplier
+    };
+  }
+  function buildHitPreview(input, state, deps) {
+    const {
+      skill,
+      wisdomLeapActive,
+      warriorPhysDamageMultiplier,
+      damageScales,
+      finalDps,
+      finalBaseDmg,
+      finalAspd,
+      finalDamageMultiplier,
+      instantDamageMultiplier,
+      chaosDamageMultiplier,
+      flatElementHitDamage,
+      avgHit
+    } = input;
+    const avgRollMultiplier = Math.max(0.05, (input.finalMinDmgRoll + input.finalMaxDmgRoll) / 200);
+    const expectedDoubleStrikeMultiplier = Math.max(1, 1 + Math.max(0, input.finalDs) / 100);
+    if (state.expectedAddedDamageMultiplier > 1) damageScales.coreCubeAddedDamageMultiplier = state.expectedAddedDamageMultiplier;
+    if (wisdomLeapActive) damageScales.wisdomLeapDamageMultiplier = state.expectedWisdomDamageMultiplier;
+    let warriorPhysicalDpsMultiplier = skill.ele === "phys" ? warriorPhysDamageMultiplier : 1;
+    if (wisdomLeapActive) warriorPhysicalDpsMultiplier = state.previewSkillElement === "phys" ? warriorPhysDamageMultiplier : 1;
+    const dpsDamageMultiplier = instantDamageMultiplier * finalDamageMultiplier * warriorPhysicalDpsMultiplier * (state.previewSkillElement === "chaos" ? chaosDamageMultiplier : 1);
+    let finalDpsAdjusted = finalDps * avgRollMultiplier * expectedDoubleStrikeMultiplier * dpsDamageMultiplier * state.expectedWisdomDamageMultiplier;
+    const flatElementAverage = Object.entries(flatElementHitDamage).reduce((sum, [element, value]) => sum + value * deps.wisdomMultiplier(state.wisdomPreviewStats, element) * (element === "phys" ? warriorPhysDamageMultiplier : 1), 0);
+    finalDpsAdjusted += flatElementAverage * (avgHit / Math.max(1, finalBaseDmg)) * finalAspd * avgRollMultiplier * expectedDoubleStrikeMultiplier * finalDamageMultiplier;
+    return { avgRollMultiplier, expectedDoubleStrikeMultiplier, warriorPhysicalDpsMultiplier, finalDpsAdjusted };
+  }
+  function buildProjectilePreview(input, deps) {
+    const { skill, totalProjectileExtraShots } = input;
+    const isProjectileSkillForDps = Array.isArray(skill.tags) && skill.tags.includes("projectile");
+    const projectileExtraShotsForDps = isProjectileSkillForDps ? Math.max(0, totalProjectileExtraShots || 0) : 0;
+    const projectileBonusShotDamagePct = Math.max(0, Number(skill.extraProjectileDamagePct) || deps.projectileBonusPct);
+    return {
+      isProjectileSkillForDps,
+      projectileExtraShotsForDps,
+      projectileBonusShotDamagePct,
+      projectileExtraShotDpsMul: deps.projectileMultiplier(skill, projectileExtraShotsForDps),
+      estimatedSkillDotDps: 0,
+      nativeDotPattern: skill.nativeCastId === 46 ? skill.combatPattern : null
+    };
+  }
+  function addStackPreview(input, state, deps) {
+    if (!input.isDotSkill || state.nativeDotPattern) return;
+    const {
+      finalAspd,
+      dotTickIntervalMultiplier,
+      dotDurationMultiplier,
+      avgHit,
+      chaosDamageMultiplier,
+      totalDotDamageMultiplier,
+      damageScales
+    } = input;
+    const dotTickInterval = deps.dotInterval * Math.max(0.05, dotTickIntervalMultiplier);
+    const dotDuration = deps.dotDuration * Math.max(0.05, dotDurationMultiplier);
+    const expectedDotStackRate = finalAspd * state.expectedDoubleStrikeMultiplier;
+    const expectedDotStacks = Math.max(1, Math.min(deps.dotStackMax, Math.floor(expectedDotStackRate * dotDuration)));
+    const expectedDotStackMultiplier = deps.stackMultiplier(expectedDotStacks);
+    const expectedDotSourceHit = avgHit * state.avgRollMultiplier * state.warriorPhysicalDpsMultiplier * (state.previewSkillElement === "chaos" ? chaosDamageMultiplier : 1) * state.wisdomSkillDamageMultiplier;
+    state.estimatedSkillDotDps = Math.max(0, expectedDotSourceHit * deps.dotHitRatio * totalDotDamageMultiplier * expectedDotStackMultiplier / Math.max(0.02, dotTickInterval));
+    damageScales.estimatedDotStackRate = expectedDotStackRate;
+    damageScales.estimatedDotStacks = expectedDotStacks;
+    damageScales.estimatedDotStackMultiplier = expectedDotStackMultiplier;
+    damageScales.estimatedSkillDotDps = state.estimatedSkillDotDps;
+  }
+  function buildSequencePreview(input, state, deps) {
+    const { skill, owner, damageScales, finalBaseDmg, totalDotDamageMultiplier, finalAspd } = input;
+    let skillSequenceDpsMultiplier = typeof deps.sequenceMultiplier === "function" ? Math.max(1, Number(deps.sequenceMultiplier(owner.activeSkill, skill)) || 1) : 1;
+    const fanSpread = deps.splitFan(skill, state.projectileExtraShotDpsMul, skillSequenceDpsMultiplier);
+    skillSequenceDpsMultiplier = fanSpread.sequenceDpsMul;
+    const finalDpsWithProjectileShots = state.finalDpsAdjusted * fanSpread.extraShotDpsMul * deps.supportMultiplier(skill);
+    if (skillSequenceDpsMultiplier > 1) damageScales.skillSequenceMultiplier = skillSequenceDpsMultiplier;
+    const pattern = state.nativeDotPattern;
+    const finalPlayerSkillDps = pattern ? finalBaseDmg * totalDotDamageMultiplier * pattern.ticks / Math.max(pattern.ticks * pattern.intervalMs / 1e3, 1 / finalAspd) : finalDpsWithProjectileShots * skillSequenceDpsMultiplier + state.estimatedSkillDotDps;
+    return { skillSequenceDpsMultiplier, fanSpread, finalDpsWithProjectileShots, finalPlayerSkillDps };
+  }
+  function computePlayerDpsPreview(input, deps) {
+    const wisdom = buildWisdomPreview(input, deps);
+    const state = { ...wisdom, ...buildHitPreview(input, wisdom, deps), ...buildProjectilePreview(input, deps) };
+    addStackPreview(input, state, deps);
+    return { ...state, ...buildSequencePreview(input, state, deps) };
+  }
+  function createPlayerDpsEstimate(deps) {
+    return Object.freeze({ estimate: (input) => computePlayerDpsPreview(input, deps) });
+  }
 
-safeExposeGlobals({ getPlayerStats, getGemPresentation });
+  // modules/domain/player-stat-result.mjs
+  function assembleRegion(input, deps) {
+    return {
+      activeZoneId: input.owner.currentZoneId,
+      activeUnderworldFloor: input.currentStatsZone && input.currentStatsZone.type === "underworld" ? input.currentStatsZone.floor : 0,
+      zoneSpeedMultiplier: input.zoneSpeedMultiplier,
+      zoneDamageMultiplier: input.oceanPressureDamageMul,
+      underworldGravityReductionPct: Math.max(0, Math.min(
+        75,
+        typeof deps.skyReduction === "function" ? deps.skyReduction() : 0
+      )),
+      baseDmg: input.finalBaseDmg,
+      damageIncreasePct: Math.max(0, input.generalPctDmg + input.taggedTotal),
+      maxHp: input.finalMaxHp,
+      lifeRecoveryCap: deps.recoveryCap({ maxHp: input.finalMaxHp, uniqueOverhealCapPct: input.uniqueOverhealCapPct }, input.tick),
+      aspd: input.finalAspd || 1,
+      crit: input.finalCrit,
+      rawCrit: input.finalCrit,
+      moveSpeed: input.finalMove,
+      sightRange: Math.max(0, input.gearBase.sight + input.gearExplicit.sight),
+      sightCap: Math.max(0, input.gearExplicit.sightCap),
+      chestGrade: Math.max(0, input.gearExplicit.chestGrade)
+    };
+  }
+  function assembleMitigation(input) {
+    return {
+      chillEffectReducePct: input.finalChillEffectReducePct,
+      critTakenDamageReducePct: input.sumStatAcrossBuckets("critTakenDamageReducePct"),
+      igniteTakenDurationReducePct: input.sumStatAcrossBuckets("igniteTakenDurationReducePct"),
+      shockTakenDurationReducePct: input.sumStatAcrossBuckets("shockTakenDurationReducePct"),
+      coldTakenDurationReducePct: input.sumStatAcrossBuckets("coldTakenDurationReducePct"),
+      poisonTakenDurationReducePct: input.sumStatAcrossBuckets("poisonTakenDurationReducePct"),
+      bleedTakenDurationReducePct: input.sumStatAcrossBuckets("bleedTakenDurationReducePct"),
+      freezeDurationReducePct: input.finalFreezeDurationReducePct,
+      shockEffectReducePct: input.finalShockEffectReducePct,
+      igniteDamageReducePct: input.finalIgniteDamageReducePct,
+      bleedDamageReducePct: input.finalBleedDamageReducePct,
+      poisonDamageReducePct: input.finalPoisonDamageReducePct,
+      fireTakenDamageReducePct: Math.max(0, input.colonyWardBonus.fireTakenDamageReducePct || 0),
+      coldTakenDamageReducePct: Math.max(0, input.colonyWardBonus.coldTakenDamageReducePct || 0),
+      lightTakenDamageReducePct: Math.max(0, input.colonyWardBonus.lightTakenDamageReducePct || 0),
+      chaosTakenDamageReducePct: Math.max(0, input.colonyWardBonus.chaosTakenDamageReducePct || 0),
+      dotTakenDamageReducePct: input.finalDotTakenDamageReducePct,
+      takenDamageReduceWhen2EnemiesPct: input.finalTakenDamageReduceWhen2EnemiesPct,
+      takenDamageReduceWhen1EnemyPct: input.finalTakenDamageReduceWhen1EnemyPct,
+      igniteDamageMultiplierPct: input.finalIgniteDamageMultiplierPct
+    };
+  }
+  function assembleDamage(input) {
+    return {
+      dps: input.finalPlayerSkillDps || 0,
+      hitDps: input.finalDpsWithProjectileShots || 0,
+      packDps: (input.finalPlayerSkillDps || 0) * input.fanSpread.packMul,
+      skillDotDps: input.estimatedSkillDotDps || 0,
+      dpsBaseNoProjectileShots: input.finalDpsAdjusted || 0,
+      critDmg: input.finalCritDmg,
+      rawCritDmg: input.rawFinalCritDmg
+    };
+  }
+  function assembleRecovery(input, deps) {
+    return {
+      regen: input.finalRegen,
+      regenSuppress: input.finalRegenSuppress,
+      leech: input.finalLeech,
+      summonInheritedLeech: input.finalLeech * (deps.capLeech(input.rawLeech - input.wildnessLeech - input.support.leech) + input.wildnessLeech) / Math.max(1e-4, deps.capLeech(input.rawLeech - input.wildnessLeech) + input.wildnessLeech),
+      spellLeech: input.finalSpellLeech,
+      leechRateCap: input.finalLeechRateCap,
+      leechTotalCap: input.finalLeechTotalCap,
+      leechInstanceCap: input.finalLeechInstanceCap,
+      leechKeepFullLife: input.finalLeechKeepFullLife,
+      dr: input.finalDr,
+      rawDr: input.rawDr
+    };
+  }
+  function assembleGuard(input) {
+    return {
+      physIgnore: input.finalPhysIgnore,
+      allowNegativePhysIgnore: input.allowNegativePhysIgnore,
+      warriorPhysDamageMultiplier: input.warriorPhysDamageMultiplier,
+      warriorTakenDamageMultiplier: input.warriorTakenDamageMultiplier,
+      genericTakenDamageMultiplier: input.genericTakenDamageMultiplier,
+      bossDamageDealtMultiplier: input.bossDamageDealtMultiplier,
+      bossTakenDamageMultiplier: input.bossTakenDamageMultiplier,
+      swiftOpeningTakenMultiplier: input.swiftOpeningTakenMultiplier,
+      guardianReflectDamage: input.guardianReflectDamage,
+      guardianBlockChance: input.guardianBlockChance,
+      guardianDamageNullifyChance: input.guardianDamageNullifyChance,
+      guardianHitCapPct: input.guardianHitCapPct,
+      shieldBaseBlockChance: input.shieldBaseBlockChance,
+      effectiveShieldBaseBlockChance: input.effectiveShieldBaseBlockChance,
+      shieldBlockChancePct: input.shieldBlockChancePct,
+      shieldBlockChanceFlat: input.shieldBlockChanceFlat,
+      blockChance: input.finalBlockChance,
+      blockChanceMax: input.finalBlockChanceCap,
+      deflectChance: input.finalDeflectChance,
+      deflectDamageReduce: input.finalDeflectDamageReduce,
+      ailmentResistBonusPct: input.ailmentResistBonusPct,
+      ailmentResistPenPct: input.ailmentResistPenPct,
+      crusaderLightningIgnoreRes: input.crusaderLightningIgnoreRes,
+      crusaderNoResPenOnLightning: input.crusaderNoResPenOnLightning
+    };
+  }
+  function assembleSkill(input) {
+    return {
+      ds: input.finalDs,
+      slamEchoChance: input.finalSlamEchoChance,
+      slamEchoDamagePct: input.finalSlamEchoDamagePct,
+      minDmgRoll: input.finalMinDmgRoll,
+      maxDmgRoll: input.finalMaxDmgRoll,
+      gemLv: input.gemSources.total,
+      gemBonusSources: input.gemSources,
+      glovePairAspdBonus: input.glovePairAspdBonus,
+      suppCap: input.suppCap,
+      expGain: input.season.expGain + input.reward.expGain + input.uniqueXpGainPct,
+      sSkill: input.skill,
+      resPen: input.finalResPen
+    };
+  }
+  function assembleResistances(input) {
+    return {
+      resF: input.finalResF,
+      rawResF: input.uncappedResF,
+      resC: input.finalResC,
+      rawResC: input.uncappedResC,
+      resL: input.finalResL,
+      rawResL: input.uncappedResL,
+      maxResF: input.finalMaxResF,
+      maxResC: input.finalMaxResC,
+      maxResL: input.finalMaxResL,
+      maxResChaos: input.finalMaxResChaos,
+      resChaos: input.finalResChaos,
+      rawResChaos: input.uncappedResChaos,
+      critResist: Math.max(0, Math.min(80, input.finalCritResist)),
+      ailResIgnite: input.ailResIgniteTotal,
+      ailResShock: input.ailResShockTotal,
+      ailResFreeze: input.ailResFreezeTotal,
+      ailResPoison: input.ailResPoisonTotal,
+      ailResBleed: input.ailResBleedTotal,
+      ailmentResistIgniteChance: input.finalAilmentResistIgniteChance,
+      ailmentResistChillChance: input.finalAilmentResistChillChance,
+      ailmentResistFreezeChance: input.finalAilmentResistFreezeChance,
+      ailmentResistShockChance: input.finalAilmentResistShockChance,
+      ailmentResistPoisonChance: input.finalAilmentResistPoisonChance,
+      ailmentResistBleedChance: input.finalAilmentResistBleedChance,
+      resistPenalty: input.resistPenalty,
+      dotDamageScale: input.totalDotDamageMultiplier,
+      flameDecayIgniteTakenMultiplier: input.flameDecayIgniteTakenMultiplierPreview,
+      dotCritBonusScale: input.dotMultiplier,
+      instantDamageMultiplier: input.instantDamageMultiplier,
+      finalDamageMultiplier: input.finalDamageMultiplier,
+      ailmentPowerMultiplier: input.ailmentPowerMultiplier,
+      ailmentDamagePct: input.finalAilmentDamagePct
+    };
+  }
+  function assemblePassives(input, deps) {
+    return {
+      mystique: Math.max(0, input.passive.mystique),
+      devotion: input.authoredPassiveRules.devotion,
+      cycle: input.authoredPassiveRules.cycle,
+      passiveRevelation: input.authoredPassiveRules.revelation,
+      passiveRevelationLabel: input.authoredPassiveRules.revelationLabel,
+      passiveRevelationCombatDamageMorePct: input.authoredPassiveRules.combatDamageMorePct,
+      passiveRevelationGuardTakenLessPct: input.authoredPassiveRules.guardTakenLessPct,
+      passiveRevelationLifeBonusPct: input.authoredPassiveRules.lifeBonusPct,
+      passiveWisdomElement: input.passiveWisdomElement,
+      mystiqueAilmentType: input.authoredPassiveRules.mystique.ailment,
+      mystiqueAilmentDamagePct: input.authoredPassiveRules.mystique.damagePct,
+      mystiqueAilmentPotencyPct: input.authoredPassiveRules.mystique.potencyPct,
+      passiveForbiddenManifestation: !!input.forbiddenManifestation,
+      passiveAshura: typeof deps.passiveNode === "function" && !!deps.passiveNode("아슈라"),
+      passiveCycleAddedFireFromPhysicalPct: input.authoredPassiveRules.cycleAddedFireFromPhysicalPct,
+      passiveFanaticismStacks: input.authoredPassiveRules.fanaticismStacks,
+      passiveKeystoneFlags: input.authoredPassiveRules.flags,
+      passiveOmniscientTrueDamagePct: input.omniscientActive ? Math.min(25, input.totalStrength * 0.5) : 0,
+      passiveAlwaysHit: !!input.barbarismKeystone,
+      chillEffectBonusPct: input.finalChillEffectBonusPct,
+      shockEffectBonusPct: input.finalShockEffectBonusPct,
+      chaosDamageMultiplier: input.chaosDamageMultiplier,
+      dotTickIntervalMultiplier: input.dotTickIntervalMultiplier,
+      dotDurationMultiplier: input.dotDurationMultiplier,
+      ailmentDurationPct: Object.fromEntries(["ignite", "chill", "freeze", "shock", "poison", "bleed"].map((type) => [type, input.sumStatAcrossBuckets(`${type}DurationPct`)]))
+    };
+  }
+  function assembleAilments(input) {
+    return {
+      igniteChance: input.finalIgniteChance,
+      chillChance: input.finalChillChance,
+      freezeChance: input.finalFreezeChance,
+      shockChance: input.finalShockChance,
+      poisonChance: input.finalPoisonChance,
+      bleedChance: input.finalBleedChance,
+      ailmentCritChance: input.ailmentCritChance,
+      damageScales: input.damageScales,
+      randomElementDamagePct: input.randomElementDamagePct,
+      addedDamagePctByElement: input.coreCubeAddedDamagePct,
+      flatElementDamage: input.coreCubeFlatElementDamage,
+      flatElementHitDamage: input.flatElementHitDamage,
+      takenFlatReduce: input.coreCubeTakenFlatReduce,
+      physTakenAs: input.coreCubePhysTakenAs,
+      talismanBossFinalDmgBonusPct: input.talismanBossFinalDmgBonusPct
+    };
+  }
+  function assembleAttributes(input) {
+    return {
+      armor: input.finalArmor,
+      evasion: input.finalEvasion,
+      energyShield: input.finalEnergyShield,
+      armorReduction: input.armorReduction,
+      evadeChance: input.evadeChance,
+      enemyAccuracy: input.enemyAccuracy,
+      accuracy: input.playerAccuracy,
+      strength: input.totalStrength,
+      dexterity: input.totalDexterity,
+      intelligence: input.totalIntelligence,
+      energyShieldRegenRate: input.finalEnergyShieldRegenRate,
+      energyShieldRechargeDelay: input.finalEnergyShieldRechargeDelay,
+      projectileExtraShots: Math.max(0, input.totalProjectileExtraShots),
+      skillBaseTargets: input.skillBaseTargets,
+      breakdowns: input.breakdowns
+    };
+  }
+  function assembleUniqueHits(input) {
+    return {
+      uniqueClosedEyes: input.uniqueClosedEyes,
+      uniqueShockInvertTaken: input.uniqueShockInvertTaken,
+      uniqueAlwaysShock: input.uniqueAlwaysShock,
+      uniqueProjectileDoubleStrikePct: input.uniqueProjectileDoubleStrikePct,
+      uniqueChaosResDownOnHit: input.uniqueChaosResDownOnHit,
+      uniqueCorpseExplode: input.uniqueCorpseExplode,
+      uniqueInstantLeechPct: input.uniqueInstantLeechPct + Math.max(0, input.reward.uniqueInstantLeechPct || 0),
+      uniqueDoubleDamageChancePct: input.uniqueDoubleDamageChancePct + Math.max(0, input.coreCubeDoubleDamageChance || 0),
+      uniqueDoubleDamageMultiplier: 2 + Math.max(0, input.sumStatAcrossBuckets("doubleDamageMultiplierPct") || 0) / 100,
+      uniqueEsRecoverOnCritPct: input.uniqueEsRecoverOnCritPct,
+      uniqueEvasionDance: input.uniqueEvasionDance,
+      uniqueLoneEvasionCounter: input.uniqueLoneEvasionCounter,
+      uniqueCritAdvanceEsRecharge: input.uniqueCritAdvanceEsRecharge,
+      uniqueEnergyShieldBreakRecharge: input.uniqueEnergyShieldBreakRecharge,
+      uniqueRiderCompass: input.uniqueRiderCompass,
+      uniqueMaxRollBonusHit: input.uniqueMaxRollBonusHit,
+      uniqueCeilingSmashDouble: input.uniqueCeilingSmashDouble,
+      uniqueUnderdogMorePct: input.uniqueUnderdogMorePct,
+      uniqueInstakillNormalPct: input.uniqueInstakillNormalPct,
+      uniqueProjExtraShotChance: input.uniqueProjExtraShotChance,
+      uniqueConditionManual: input.uniqueConditionManual,
+      uniqueWarcryResonancePct: input.uniqueWarcryResonancePct,
+      cosmosGuardianAlways: input.cosmosGuardianConditionInstant,
+      uniqueStackingElementalResDownOnHit: input.uniqueStackingElementalResDownOnHit,
+      uniqueBleedingEnemyDamageMorePct: input.uniqueBleedingEnemyDamageMorePct,
+      uniqueRiftWaveOnHit: input.uniqueRiftWaveOnHit,
+      uniqueChaosDamageInstantLeechPct: input.uniqueChaosDamageInstantLeechPct,
+      uniqueInvulnerableBarrierOnHit: input.uniqueInvulnerableBarrierOnHit,
+      uniquePoisonDurationPct: input.uniquePoisonDurationPct,
+      uniqueDeathWard: input.uniqueDeathWard,
+      uniqueLeechEfficiencyOnKill: input.uniqueLeechEfficiencyOnKill,
+      uniqueKillMoveStacks: input.uniqueKillMoveStacks,
+      uniqueEnemyRegenCutAndMinRoll: input.uniqueEnemyRegenCutAndMinRoll,
+      uniqueAllResDownOnHit: input.uniqueAllResDownOnHit,
+      uniqueCursedTakenAndRefresh: input.uniqueCursedTakenAndRefresh,
+      uniquePhysDrHalfTakenAsMore: input.uniquePhysDrHalfTakenAsMore,
+      uniqueMeleeArmorAmp: input.uniqueMeleeArmorAmp,
+      uniqueArmorAppliesToDot: input.uniqueArmorAppliesToDot,
+      uniquePursuitMovePct: input.uniquePursuitMovePct,
+      uniqueRepelMelee: input.uniqueRepelMelee
+    };
+  }
+  function assembleUniqueRecovery(input) {
+    return {
+      uniqueResonanceFloor: input.uniqueResonanceFloor,
+      supportResonanceOverflow: input.supportResonanceOverflow,
+      inquisitorResonanceBonus: input.inquisitorResonanceBonus,
+      uniqueOverkillSplash: input.uniqueOverkillSplash,
+      uniqueDragonVeinGuard: input.uniqueDragonVeinGuard,
+      uniqueGuardianArmor: input.uniqueGuardianArmor,
+      uniqueStealEliteTrait: input.uniqueStealEliteTrait,
+      uniqueQueenBeeSummon: input.uniqueQueenBeeSummon,
+      uniqueSummonDeathDamageBuff: input.uniqueSummonDeathDamageBuff,
+      uniqueSummonCritAspdStacks: input.uniqueSummonCritAspdStacks,
+      uniqueSummonNonCritNoDamage: input.uniqueSummonNonCritNoDamage,
+      uniqueBlockRecoverEnergyShieldPct: input.uniqueBlockRecoverEnergyShieldPct,
+      uniqueBlockedDamageTakenPct: input.uniqueBlockedDamageTakenPct,
+      uniqueDeflectStealth: input.uniqueDeflectStealth,
+      uniqueChaosTakenDamageReducePct: input.uniqueChaosTakenDamageReducePct,
+      uniqueLifeRecoupTakenDamage: input.uniqueLifeRecoupTakenDamage,
+      uniqueOverhealCapPct: input.uniqueOverhealCapPct
+    };
+  }
+  function assembleCosmos(input, deps) {
+    return {
+      cosmosAlwaysFirstHit: input.cosmosAlwaysFirstHit,
+      cosmosEnergyShieldBypassPct: input.cosmosEnergyShieldBypassPct,
+      cosmosOrbitCycle: input.cosmosOrbitCycle,
+      cosmosEqualDamageSplit: input.cosmosEqualDamageSplit,
+      cosmosBalanceMitigation: input.cosmosBalanceMitigation,
+      cosmosJudgmentLightning: input.cosmosJudgmentLightning,
+      cosmosDeathResistPct: Math.max(input.cosmosDeathResistPct, input.reward.cosmosDeathResistPct || 0),
+      cosmosBossDamageMorePct: Math.max(input.cosmosBossDamageMorePct, input.reward.cosmosBossDamageMorePct || 0),
+      cosmosMasteryFinalDamagePct: input.cosmosMasteryFinalDamagePct,
+      cosmosMasteryTakenLessPct: input.cosmosMasteryTakenLessPct,
+      cosmosCometChillNoFreeze: input.cosmosCometChillNoFreeze,
+      cosmosLightningVariance: input.reward.cosmosLightningVariance || 0,
+      firstHitDamageMorePct: input.reward.firstHitDamageMorePct || 0,
+      cosmosAlwaysFirstHitChancePct: input.reward.cosmosAlwaysFirstHitChancePct || 0,
+      uniqueBleedWeightOnBleedingHit: input.uniqueBleedWeightOnBleedingHit,
+      uniqueImmuneBleed: input.uniqueImmuneBleed,
+      uniqueImmuneFreeze: input.uniqueImmuneFreeze,
+      uniqueMeteorFootsteps: input.uniqueMeteorFootsteps,
+      uniqueShockTracer: input.uniqueShockTracer,
+      uniquePoisonExtraStacks: input.uniqueVenomStride ? Math.max(0, Math.floor(input.uniqueVenomStride.poisonExtraStack || 0)) : 0,
+      runeCorpseExplodeChance: input.runeCorpseExplodeChance,
+      runeCorpseExplodeLifePct: input.runeCorpseExplodeLifePct,
+      runeResonancePower: input.bonusResonancePower,
+      supportScaleBases: Object.fromEntries(Array.from(new Set(Object.values(deps.damageTags))).map((statId) => [statId, Math.max(0, input.sumNonSupportStat(statId))]))
+    };
+  }
+  function assembleSummons(input, deps) {
+    return {
+      summonFlatDmg: Math.max(0, sumOrderedPlayerStatSources(input, "summonFlatDmg")),
+      summonPctDmg: Math.max(0, sumOrderedPlayerStatSources(input, "summonPctDmg") + input.tick.get("summonDeathDamagePct")),
+      summonSharedPctDmg: input.summonSharedGeneralPctDmg,
+      supportValues: input.supportValues,
+      supportAuraFlat: deps.auraFlat(input.auraValues),
+      summonSharedTaggedPctDmg: Object.fromEntries(Array.from(new Set(Object.values(deps.damageTags))).map((statId) => [statId, Math.max(0, input.sumStatAcrossBuckets(statId) - (input.support[statId] || 0))])),
+      summonAspd: Math.max(0, sumOrderedPlayerStatSources(input, "summonAspd") + input.sbSummonAspdBonus + input.tick.get("summonCritAspd")),
+      summonHpPct: Math.max(0, sumOrderedPlayerStatSources(input, "summonHpPct")),
+      summonCrit: Math.max(0, sumOrderedPlayerStatSources(input, "summonCrit")),
+      summonCritDmg: Math.max(0, sumOrderedPlayerStatSources(input, "summonCritDmg")),
+      summonCap: deps.summonCap(input.summonCapTotal()),
+      curseCap: 1 + input.sumStatAcrossBuckets("curseCap") + (deps.keystone("wlk9") ? 1 : 0),
+      summonEfficiency: Math.max(0, sumOrderedPlayerStatSources(input, "summonEfficiency")),
+      summonResPen: Math.max(0, sumOrderedPlayerStatSources(input, "summonResPen")),
+      summonGuardRedirectPct: Math.max(0, Math.min(100, sumOrderedPlayerStatSources(input, "summonGuardRedirectPct")))
+    };
+  }
+  function assembleContent(input, deps) {
+    return {
+      poisonDamageMultiplierPct: Math.max(0, input.finalPoisonDamageMultiplierPct),
+      shockedEnemyHitDamagePct: Math.max(0, input.sumStatAcrossBuckets("shockedEnemyHitDamagePct")),
+      shockedEnemyHitDamageMorePct: Math.max(0, sumOrderedPlayerStatSources(input, "shockedEnemyHitDamageMorePct")),
+      sbPlayerAttackPower: Math.max(0, input.sbPlayerAttackPower),
+      ...deps.oceanStats(input.sumStatAcrossBuckets),
+      ...deps.cooldownStats(input.sumStatAcrossBuckets),
+      regionAffix: deps.regionAffixes.collect(input.sumStatAcrossBuckets),
+      bossDamagePct: Math.max(0, input.sumStatAcrossBuckets("bossDamagePct")),
+      eliteDamagePct: Math.max(0, input.sumStatAcrossBuckets("eliteDamagePct")),
+      firstStrikeDamagePct: Math.max(0, input.sumStatAcrossBuckets("firstStrikeDamagePct")),
+      cullStrikePct: Math.max(0, Math.min(20, input.sumStatAcrossBuckets("cullStrikePct"))),
+      echoPower: Math.max(0, input.sumStatAcrossBuckets("echoPower")),
+      chaosErosion: Math.max(0, input.sumStatAcrossBuckets("chaosErosion")),
+      chaosErosionCap: Math.max(0, input.sumStatAcrossBuckets("chaosErosionCap"))
+    };
+  }
+  function assemblePlayerStatResult(input, deps) {
+    const stats = {
+      ...assembleRegion(input, deps),
+      ...assembleMitigation(input),
+      ...assembleDamage(input),
+      ...assembleRecovery(input, deps),
+      ...assembleGuard(input),
+      ...assembleSkill(input),
+      ...assembleResistances(input),
+      ...assemblePassives(input, deps),
+      ...assembleAilments(input),
+      ...assembleAttributes(input),
+      ...assembleUniqueHits(input),
+      ...assembleUniqueRecovery(input),
+      ...assembleCosmos(input, deps),
+      ...assembleSummons(input, deps),
+      ...assembleContent(input, deps)
+    };
+    stats.passiveSoleMinionLostCap = input.authoredPassiveRules.flags.soleMinion ? Math.max(0, stats.summonCap - 1) : 0;
+    stats.talentSourceStats = input.talentSourceStats;
+    if (typeof deps.postStats === "function") deps.postStats(stats);
+    return stats;
+  }
+  function createPlayerStatResult(deps) {
+    return Object.freeze({ build: (input) => assemblePlayerStatResult(input, deps) });
+  }
 
-// Stable calculator entry for isolated requirement views, independent of public instrumentation wrappers.
-const equipmentStatCalculator = getPlayerStats;
+  // modules/domain/player-stat-combat-descriptions.mjs
+  function describeStatAtkLines1(input, deps, helpers) {
+    return [
+      input.isSpellSkill ? deps.translate("주문 내장 피해 {floor}", { floor: Math.floor(input.spellFlatDmg) }) : deps.translate("기본 공격력 {floor}", { floor: Math.floor(input.baseDmg) }),
+      input.isSpellSkill ? null : deps.sourceLine("장비", input.gearFlatDmg),
+      input.isSpellSkill ? null : deps.sourceLine("패시브", input.passiveFlatDmg),
+      deps.sourceLine("성좌 각성", input.starBlessing.pctDmg, "%", (value) => `${Math.floor(value)}%`),
+      deps.sourceLine("총 피해 증가", input.generalPctDmg, "%", (value) => `${Math.floor(value)}%`),
+      deps.sourceLine("태그 보너스", input.baseTaggedTotal, "%", (value) => `${Math.floor(value)}%`),
+      helpers.talentLine({ stat: "pctDmg" }),
+      input.crusaderThunderDoctrinePct > 0 ? deps.sourceLine("천뢰 교리(화염/냉기 → 번개)", input.crusaderThunderDoctrinePct, "%", (value) => `${Math.floor(value)}%`) : null,
+      input.crusaderThunderDoctrinePct > 0 ? deps.sourceLine("피해 증가 합계", input.generalPctDmg + input.taggedTotal, "%", (value) => `${Math.floor(value)}%`) : null,
+      input.taggedSummary.length > 0 ? deps.translate("적용 태그: {taggedSummary}", { taggedSummary: input.taggedSummary.join(" / ") }) : null,
+      deps.translate("스킬 배율 {dmg}", { dmg: deps.percentMultiplier(input.skill.dmg || 1) }),
+      (input.skill.hpDmgScale || 0) > 0 ? deps.translate("생명력 계수 내장 피해 +{floor} (최대 생명력 {floor2}, 피해 증가 적용)", { floor: Math.floor(input.hpFlatBonus), floor2: Math.floor(input.finalMaxHp) }) : null
+    ];
+  }
+  function describeStatAtkLines2(input, deps) {
+    return [
+      input.crusaderHolyFlatDmg > 0 ? deps.translate("신성한 검 번개 기본 피해 +{floor} → {floor2} (피해 증가 적용)", { floor: Math.floor(input.crusaderHolyFlatDmg), floor2: Math.floor(input.crusaderHolyScaledDmg) }) : null,
+      (input.skill.regenDmgScale || 0) > 0 ? deps.translate("재생 계수 배율 {regenScaledBonus}x (재생 {value}%)", { regenScaledBonus: input.regenScaledBonus.toFixed(2), value: deps.valueText("regen", input.finalRegen) }) : null,
+      (input.skill.fireResDmgScale || 0) > 0 ? deps.translate("화염 저항 계수 배율 {fireResScaledBonus}x (화염 저항 {floor}%)", { fireResScaledBonus: input.fireResScaledBonus.toFixed(2), floor: Math.floor(input.finalResF) }) : null,
+      (input.skill.fireResOvercapMulPerPct || 0) > 0 ? deps.translate("초과 화염 저항 계수 배율 {fireResScaledBonus}x (미적용 화염 저항 {floor}%/{floor2}%, 초과 {fireResOvercap}% 중 적용 {effectiveFireResOvercap}%)", { fireResScaledBonus: input.fireResScaledBonus.toFixed(2), floor: Math.floor(input.fireResForOvercap), floor2: Math.floor(input.maxResFForOvercap), fireResOvercap: input.fireResOvercap.toFixed(1), effectiveFireResOvercap: input.effectiveFireResOvercap.toFixed(1) }) : null,
+      (input.skill.dotMultiplier || 1) !== 1 ? deps.translate("스킬 지속 피해 배율 {dotMultiplier}x", { dotMultiplier: input.dotMultiplier.toFixed(2) }) : null
+    ];
+  }
+  function describeStatAtkLines3(input, deps) {
+    return [
+      input.dotPctDmg > 0 ? deps.translate("지속 피해 배율 스탯 {floor}% ({dotStatMultiplier}x)", { floor: Math.floor(input.dotPctDmg), dotStatMultiplier: input.dotStatMultiplier.toFixed(2) }) : null,
+      input.instantDamageMultiplier !== 1 ? deps.translate("즉발 피해 배율 {instantDamageMultiplier}x", { instantDamageMultiplier: input.instantDamageMultiplier.toFixed(2) }) : null,
+      input.finalDamageMultiplier !== 1 ? deps.translate("최종 피해 배율 {finalDamageMultiplier}x", { finalDamageMultiplier: input.finalDamageMultiplier.toFixed(2) }) : null,
+      input.chaosDamageMultiplier !== 1 ? deps.translate("카오스 피해 배율 {chaosDamageMultiplier}x", { chaosDamageMultiplier: input.chaosDamageMultiplier.toFixed(2) }) : null,
+      input.skill.convertedToChaos ? deps.translate("워록 심연 각인: 모든 공격 피해를 카오스 피해로 적용") : null,
+      deps.keystone("sb7") && input.sbSummonShareToPlayer > 0 ? deps.translate("상호 보완: 소환수 공격력 {floor}의 75% → 기본 피해 +{floor2}", { floor: Math.floor(input.sbSummonAttackPower), floor2: Math.floor(input.sbSummonShareToPlayer) }) : null
+    ];
+  }
+  function describeStatAtkLines4(input, deps) {
+    return [
+      deps.keystone("sb7") && !deps.keystone("sb5") && input.sbPlayerAttackPower > 0 ? deps.translate("상호 보완: 내 공격력 {floor}의 75%(+{floor2})를 각 소환수 타격에 전달", { floor: Math.floor(input.sbPlayerAttackPower), floor2: Math.floor(0.75 * input.sbPlayerAttackPower) }) : null,
+      deps.translate("피해 범위 {floor}% ~ {floor2}%", { floor: Math.floor(input.finalMinDmgRoll), floor2: Math.floor(input.finalMaxDmgRoll) })
+    ];
+  }
+  function describeStatAtk(input, deps, helpers) {
+    return {
+      title: deps.translate("공격력"),
+      lines: [...describeStatAtkLines1(input, deps, helpers), ...describeStatAtkLines2(input, deps), ...describeStatAtkLines3(input, deps), ...describeStatAtkLines4(input, deps)].filter(Boolean),
+      final: `${Math.floor(input.finalBaseDmg)}`
+    };
+  }
+  function describeStatAps(input, deps, helpers) {
+    return {
+      title: deps.translate("공속"),
+      lines: [
+        deps.translate("기본 1.00"),
+        deps.sourceLine("장비", input.gearAspd, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("패시브", input.passiveAspd, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.aspd, "%", (value) => `${Math.floor(value)}%`),
+        helpers.talentLine({ stat: "aspd" }),
+        input.glovePairAspdBonus > 0 ? deps.translate("동형 장갑 세트 보너스 +{glovePairAspdBonus} 기본 공속", { glovePairAspdBonus: input.glovePairAspdBonus.toFixed(2) }) : null,
+        deps.translate("공격 속도 배율 {spd}", { spd: deps.percentMultiplier(input.skill.spd || 1) }),
+        input.skillDelayPct > 0 ? deps.translate("스킬 딜레이 감소 {skillDelayPct}%: 공격 횟수와 DPS {value}", { skillDelayPct: input.skillDelayPct, value: deps.percentMultiplier(1 / (1 - input.skillDelayPct / 100)) }) : null,
+        input.rawAspd > 5 ? deps.translate("소프트캡 적용중 (원시 {rawAspd} → 최종 {finalAspd})", { rawAspd: input.rawAspd.toFixed(2), finalAspd: input.finalAspd.toFixed(2) }) : null
+      ].filter(Boolean),
+      final: `${input.finalAspd.toFixed(2)}`
+    };
+  }
+  function describeStatCrit(input, deps, helpers) {
+    return {
+      title: deps.translate("치명타 확률"),
+      lines: [
+        deps.translate("기본 2.5%"),
+        deps.sourceLine("장비", input.gearCrit, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("패시브", input.passiveCrit, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("보조스킬룬", input.support.crit, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("스킬", input.skill.crit || 0, "%", (value) => `${value.toFixed(1)}%`),
+        helpers.talentLine({ stat: "crit" })
+      ].filter(Boolean),
+      final: `${input.finalCrit.toFixed(1)}%`
+    };
+  }
+  function describeStatCritDmg(input, deps, helpers) {
+    return {
+      title: deps.translate("치명타 피해"),
+      lines: [
+        deps.translate("기본 {value}%", { value: deps.CRIT_DAMAGE_BASE_MULTIPLIER }),
+        deps.sourceLine("장비", input.gearBase.critDmg + input.gearExplicit.critDmg, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("패시브", input.passive.critDmg + input.season.critDmg + input.ascend.critDmg + input.reward.critDmg, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.critDmg, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("스킬/특수 효과", (input.skill.critDmgBonus || 0) + (input.activeShadowStealth ? Math.max(0, Number(input.uniqueDeflectStealth.critDmg || 20)) : 0), "%", (value) => `${Math.floor(value)}%`),
+        ...input.critDmgSoftcapReduction > 0 ? [deps.sourceLine("소프트캡(200/400/800/1200)", -input.critDmgSoftcapReduction, "%", (value) => `${Math.floor(value)}%`)] : [],
+        helpers.talentLine({ stat: "critDmg" })
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalCritDmg)}%`
+    };
+  }
+  function describeStatDs(input, deps, helpers) {
+    return {
+      title: deps.translate("연속 타격"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.ds + input.gearExplicit.ds, "%p", (value) => `${Math.floor(value)}%p`),
+        deps.sourceLine("패시브", input.passive.ds + input.season.ds + input.ascend.ds + input.reward.ds, "%p", (value) => `${Math.floor(value)}%p`),
+        deps.sourceLine("보조스킬룬", input.support.ds, "%p", (value) => `${Math.floor(value)}%p`),
+        deps.sourceLine("스킬", input.skillDsBonus, "%p", (value) => `${Math.floor(value)}%p`),
+        helpers.formatSignedPercentagePointLine({ label: "기타 효과", value: input.finalDs - input.baseDsFromSources - input.skillDsBonus }),
+        deps.translate("각 수치는 연속 타격 확률에 합산되는 %p입니다.")
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalDs)}%`
+    };
+  }
+  function describeStatPhysIgnore(input, deps) {
+    return {
+      title: deps.translate("물리 피해 감소 무시"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.physIgnore + input.gearExplicit.physIgnore, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("패시브", input.passive.physIgnore + input.season.physIgnore + input.ascend.physIgnore + input.reward.physIgnore, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.physIgnore, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("각인", input.skill.physIgnoreBonus || 0, "%", (value) => `${Math.floor(value)}%`),
+        deps.translate("적의 양수 물리 피해 감소만 0%까지 깎습니다.")
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalPhysIgnore)}%`
+    };
+  }
+  function describeStatResPen(input, deps) {
+    return {
+      title: deps.translate("저항 관통"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.resPen + input.gearExplicit.resPen, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("패시브", input.passive.resPen + input.season.resPen + input.ascend.resPen + input.reward.resPen, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.resPen, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("각인", input.skill.resPenBonus || 0, "%", (value) => `${Math.floor(value)}%`),
+        deps.translate("원소/카오스 저항은 음수까지 떨어질 수 있으며, 음수만큼 추가 피해를 줍니다.")
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalResPen)}%`
+    };
+  }
+  function describeStatDmgRoll(input, deps) {
+    return {
+      title: deps.translate("피해 보정 범위"),
+      lines: [
+        deps.sourceLine("최소", input.finalMinDmgRoll, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("최대", input.finalMaxDmgRoll, "%", (value) => `${Math.floor(value)}%`)
+      ],
+      final: `${Math.floor(input.finalMinDmgRoll)}% ~ ${Math.floor(input.finalMaxDmgRoll)}%`
+    };
+  }
+  function describeStatDpsLines1(input, deps) {
+    return [
+      deps.translate("평균 한 방 {floor}", { floor: Math.floor(input.avgHit) }),
+      deps.translate("공격 속도 {finalAspd}", { finalAspd: input.finalAspd.toFixed(2) }),
+      deps.translate("치명 기대값 반영"),
+      input.crusaderThunderDoctrinePct > 0 ? deps.translate("천뢰 교리 반영: 화염/냉기 피해 증가 +{floor}%가 번개 공격력/평균 한 방/DPS에 적용", { floor: Math.floor(input.crusaderThunderDoctrinePct) }) : null,
+      input.inquisitorAbsoluteDoctrinePct > 0 ? deps.translate("절대 교리 반영: 저항 관통 +{floor}%가 원소 피해/평균 한 방/DPS에 적용", { floor: Math.floor(input.inquisitorAbsoluteDoctrinePct) }) : null,
+      deps.translate("피해 보정 기대값 x{avgRollMultiplier} ({floor}~{floor2}%)", { avgRollMultiplier: input.avgRollMultiplier.toFixed(2), floor: Math.floor(input.finalMinDmgRoll), floor2: Math.floor(input.finalMaxDmgRoll) }),
+      deps.translate("연속 타격 기대값 x{value} ({floor}%)", { value: input.expectedDoubleStrikeMultiplier.toFixed(2), floor: Math.floor(input.finalDs) }),
+      input.coreCubeAddedDamageTotalPct > 0 ? deps.translate("추가 피해 x{value} (총 피해의 {floor}% → {coreCubeAddedDamageParts})", { value: input.expectedAddedDamageMultiplier.toFixed(2), floor: Math.floor(input.coreCubeAddedDamageTotalPct), coreCubeAddedDamageParts: input.coreCubeAddedDamageParts.join(" / ") }) : null,
+      input.isProjectileSkillForDps && input.fanSpread.extraShotDpsMul > 1 ? deps.translate("투사체 추가 발사 기대값 x{value} (추가 확률 {value2}%, 발사 상한 반영, 발당 {round}% 피해)", { value: input.projectileExtraShotDpsMul.toFixed(2), value2: deps.valueText("projectileExtraChance", input.projectileExtraShotsForDps * 100), round: Math.round(input.projectileBonusShotDamagePct) }) : null,
+      input.skillSequenceDpsMultiplier > 1 ? deps.translate("강타 여진 기대값 x{value} (본 타격 후 독립 여진)", { value: input.skillSequenceDpsMultiplier.toFixed(2) }) : null,
+      input.estimatedSkillDotDps > 0 ? deps.translate("지속 피해 기대값 +{floor} DPS (틱 {value}% / {max}초, 예상 중첩 {floor2}/{DOT_STACK_MAX})", { floor: Math.floor(input.estimatedSkillDotDps), value: deps.DOT_TICK_FROM_HIT_RATIO * 100, max: Math.max(0.02, deps.DOT_TICK_INTERVAL * Math.max(0.05, input.dotTickIntervalMultiplier)).toFixed(2), floor2: Math.floor(input.damageScales.estimatedDotStacks || 1), DOT_STACK_MAX: deps.DOT_STACK_MAX }) : null,
+      input.warriorPhysicalDpsMultiplier > 1 ? deps.translate("격노 순환 x{value} ({get}/{WARRIOR_RAGE_STACK_MAX}중첩)", { value: input.warriorPhysicalDpsMultiplier.toFixed(2), get: input.tick.get("warriorRageStacks"), WARRIOR_RAGE_STACK_MAX: deps.WARRIOR_RAGE_STACK_MAX }) : null
+    ];
+  }
+  function describeStatDpsLines2(input, deps) {
+    return [
+      deps.keystone("sb7") && input.sbSummonShareToPlayer > 0 ? deps.translate("상호 보완: 소환수 공격력 공유로 기본 피해 +{floor} 반영 (DPS 포함)", { floor: Math.floor(input.sbSummonShareToPlayer) }) : null
+    ];
+  }
+  function describeStatDps(input, deps) {
+    return {
+      title: "DPS",
+      lines: input.nativeDotPattern ? [
+        deps.translate("지속 피해 1회 {floor}", { floor: Math.floor(input.finalBaseDmg * input.totalDotDamageMultiplier) }),
+        deps.translate("{value}초마다 {ticks}회", { value: input.nativeDotPattern.intervalMs / 1e3, ticks: input.nativeDotPattern.ticks }),
+        deps.translate("중복 시전 불가")
+      ] : [...describeStatDpsLines1(input, deps), ...describeStatDpsLines2(input, deps)].concat(deps.fanLines(input.fanSpread, input.finalPlayerSkillDps), input.flameDecayDpsLines).filter(Boolean),
+      final: `${Math.floor(input.finalPlayerSkillDps)}`
+    };
+  }
+  function describeStatGem(input, deps) {
+    return {
+      title: deps.translate("룬 레벨 보너스"),
+      lines: [
+        deps.sourceLine("패시브", input.gemSources.passive + input.gemSources.reward),
+        deps.sourceLine("장비", input.gemSources.gear)
+      ].filter(Boolean),
+      final: deps.translate("총 +{total}", { total: input.gemSources.total })
+    };
+  }
+
+  // modules/domain/player-stat-vitals-descriptions.mjs
+  function describeStatMove(input, deps, helpers) {
+    return {
+      title: deps.translate("이동 속도"),
+      lines: [
+        deps.translate("기본 100%"),
+        deps.sourceLine("장비", input.gearBase.move + input.gearExplicit.move, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("패시브", input.passive.move + input.season.move + input.ascend.move + input.reward.move, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("성좌 각성", input.starBlessing.move, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.move, "%", (value) => `${Math.floor(value)}%`),
+        helpers.talentLine({ stat: "move" }),
+        deps.translate("전장 이동: 칸당 {value}초, 초당 {value2}칸", { value: (deps.COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / input.finalMove).toFixed(2), value2: (input.finalMove / (deps.COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100)).toFixed(2) }),
+        deps.translate("지도 진행도: 기본 대비 {value}배 ({value2}{floor}%)", { value: (input.finalMove / 100).toFixed(2), value2: input.finalMove >= 100 ? "+" : "", floor: Math.floor(input.finalMove - 100) }),
+        deps.translate("구간 이동: {max}초", { max: Math.max(0.5, 1.2 * 100 / input.finalMove).toFixed(2) })
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalMove)}%`
+    };
+  }
+  function describeStatHp(input, deps, helpers) {
+    return {
+      title: deps.translate("최대 생명력"),
+      lines: [
+        deps.translate("기본 생명력 {floor}", { floor: Math.floor(input.baseHp) }),
+        deps.sourceLine("장비", input.gearFlatHp),
+        deps.sourceLine("패시브", input.passiveFlatHp),
+        deps.sourceLine("성좌 각성", input.starBlessing.flatHp),
+        deps.sourceLine("생명력 증가", input.totalPctHp, "%", (value) => `${Math.floor(value)}%`),
+        helpers.talentLine({ stat: "pctHp" })
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalMaxHp)}`
+    };
+  }
+  function describeStatRegen(input, deps, helpers) {
+    return {
+      title: deps.translate("초당 재생"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.regen + input.gearExplicit.regen, "%", (value) => `${deps.valueText("regen", value)}%`),
+        deps.sourceLine("패시브", input.passive.regen + input.season.regen + input.ascend.regen + input.reward.regen, "%", (value) => `${deps.valueText("regen", value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.regen, "%", (value) => `${deps.valueText("regen", value)}%`),
+        helpers.talentLine({ stat: "regen" })
+      ].filter(Boolean),
+      final: `${deps.valueText("regen", input.finalRegen)}%`
+    };
+  }
+  function describeStatRegenSuppress(input, deps) {
+    return {
+      title: deps.translate("재생 억제"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.regenSuppress + input.gearExplicit.regenSuppress, "%", (value) => `${deps.valueText("regenSuppress", value)}%`),
+        deps.sourceLine("패시브", input.passive.regenSuppress + input.season.regenSuppress + input.ascend.regenSuppress + input.reward.regenSuppress, "%", (value) => `${deps.valueText("regenSuppress", value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.regenSuppress, "%", (value) => `${deps.valueText("regenSuppress", value)}%`),
+        deps.translate("공격 시 적의 생명력 재생을 해당 수치(%)만큼 줄여주는 옵션입니다.")
+      ].filter(Boolean),
+      final: `${deps.valueText("regenSuppress", input.finalRegenSuppress)}%`
+    };
+  }
+  function describeStatLeech(input, deps) {
+    return {
+      title: deps.translate("공격 피해의 생명력 흡수"),
+      lines: [
+        deps.sourceLine("스킬", input.skill.leech || 0, "%", (value) => `${deps.valueText("leech", value)}%`),
+        deps.sourceLine("장비", input.gearBase.leech + input.gearExplicit.leech, "%", (value) => `${deps.valueText("leech", value)}%`),
+        deps.sourceLine("패시브", input.passive.leech + input.season.leech + input.ascend.leech + input.reward.leech, "%", (value) => `${deps.valueText("leech", value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.leech, "%", (value) => `${deps.valueText("leech", value)}%`),
+        input.skill.instantLeech ? deps.translate("흡혈 관통: 이 룬으로 준 피해의 흡혈은 인스턴스 대신 즉시 회복되며 1회 흡혈량 캡을 적용받습니다.") : deps.translate("타격 시 즉시 회복 대신 흡혈 인스턴스 생성"),
+        deps.keystone("wlk3") ? deps.translate("금단 대가: 흡혈 {value}", { value: input.skill.instantLeech ? deps.translate("즉시 회복이 생명력 대신 에너지 보호막에 적용됩니다.") : deps.translate("인스턴스가 생명력 대신 에너지 보호막에 저장/회복됩니다.") }) : null,
+        deps.translate("일반 흡혈 캡: 타격당 최대 생명력 {value}%, 전체 저장 {LEECH_BASE_TOTAL_CAP_PCT}%, 인스턴스당 초당 {LEECH_BASE_RATE_CAP_PCT}%", { value: deps.LEECH_BASE_INSTANCE_CAP_PCT, LEECH_BASE_TOTAL_CAP_PCT: deps.LEECH_BASE_TOTAL_CAP_PCT, LEECH_BASE_RATE_CAP_PCT: deps.LEECH_BASE_RATE_CAP_PCT }),
+        deps.translate("일반 흡혈 추가 캡: 회복 속도 +{value}%p, 전체 +{value2}%p, 타격당 +{value3}%p", { value: deps.valueText("leechRateCap", input.finalLeechRateCap), value2: deps.valueText("leechTotalCap", input.finalLeechTotalCap), value3: deps.valueText("leechInstanceCap", input.finalLeechInstanceCap) }),
+        deps.translate("적용 전 {value}% → 적용 후 {value2}%", { value: deps.valueText("leech", input.rawLeech), value2: deps.valueText("leech", input.finalLeech) })
+      ].filter(Boolean),
+      final: `${deps.valueText("leech", input.finalLeech)}%`
+    };
+  }
+  function describeStatSpellLeech(input, deps) {
+    return {
+      title: deps.translate("주문 피해의 생명력 흡수"),
+      lines: [
+        deps.sourceLine("스킬", input.skill.spellLeech || 0, "%", (value) => `${deps.valueText("spellLeech", value)}%`),
+        deps.sourceLine("장비", input.gearBase.spellLeech + input.gearExplicit.spellLeech, "%", (value) => `${deps.valueText("spellLeech", value)}%`),
+        deps.sourceLine("기타 성장", input.passive.spellLeech + input.season.spellLeech + input.ascend.spellLeech + input.support.spellLeech + input.reward.spellLeech, "%", (value) => `${deps.valueText("spellLeech", value)}%`),
+        deps.translate("주문 타격 피해에만 적용됩니다. 지속 피해에는 적용되지 않습니다.")
+      ].filter(Boolean),
+      final: `${deps.valueText("spellLeech", input.finalSpellLeech)}%`
+    };
+  }
+  function describeStatDr(input, deps) {
+    return {
+      title: deps.translate("물리 피해 감소"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.dr + input.gearExplicit.dr, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("패시브", input.passive.dr + input.season.dr + input.ascend.dr + input.reward.dr, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("보조스킬룬", input.support.dr, "%", (value) => `${Math.floor(value)}%`)
+      ].filter(Boolean),
+      final: input.rawDr > input.finalDr ? deps.translate("{floor}% (상한 {value}% 적용, 합계 {floor2}%)", { floor: Math.floor(input.finalDr), value: deps.PLAYER_PHYSICAL_REDUCTION_CAP_PCT, floor2: Math.floor(input.rawDr) }) : `${Math.floor(input.finalDr)}%`
+    };
+  }
+  function describeStatArmor(input, deps) {
+    return {
+      title: deps.translate("방어도"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.armor + input.gearExplicit.armor),
+        deps.sourceLine("패시브", input.passive.armor + input.season.armor + input.ascend.armor + input.reward.armor),
+        deps.sourceLine("방어도 증가", input.totalArmorPct, "%", (value) => `${Math.floor(value)}%`),
+        deps.translate("예상 물리 피해 감소율(기준 타격 {floor}): {armorReduction}%", { floor: Math.floor(input.referenceIncomingPhysical), armorReduction: input.armorReduction.toFixed(1) })
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalArmor)}`
+    };
+  }
+  function describeStatEvasion(input, deps) {
+    return {
+      title: deps.translate("회피"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.evasion + input.gearExplicit.evasion),
+        deps.sourceLine("패시브", input.passive.evasion + input.season.evasion + input.ascend.evasion + input.reward.evasion),
+        deps.sourceLine("회피 증가", input.totalEvasionPct, "%", (value) => `${Math.floor(value)}%`),
+        deps.sourceLine("기수의 나침반 증폭", input.riderCompassEvasionMorePct, "%", (value) => `${Math.floor(value)}%`),
+        deps.translate("예상 회피 확률(동일 레벨 적 기준): {evadeChance}%", { evadeChance: input.evadeChance.toFixed(1) }),
+        deps.translate("정확도: {floor} (힘 {floor2}, 민첩 {floor3}, 지능 {floor4})", { floor: Math.floor(input.playerAccuracy), floor2: Math.floor(input.totalStrength), floor3: Math.floor(input.totalDexterity), floor4: Math.floor(input.totalIntelligence) })
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalEvasion)}`
+    };
+  }
+  function describeStatEnergyShield(input, deps) {
+    return {
+      title: deps.translate("에너지 보호막"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.energyShield + input.gearExplicit.energyShield),
+        deps.sourceLine("패시브", input.passive.energyShield + input.season.energyShield + input.ascend.energyShield + input.reward.energyShield),
+        deps.sourceLine("보호막 증가", input.totalEnergyShieldPct, "%", (value) => `${Math.floor(value)}%`),
+        deps.translate("재충전 대기시간: {value}초", { value: input.finalEnergyShieldRechargeDelay.toFixed(2) }),
+        deps.translate("에너지 보호막 재생량: 초당 {floor} ({value}%)", { floor: Math.floor(input.finalEnergyShield * (input.finalEnergyShieldRegenRate / 100)), value: input.finalEnergyShieldRegenRate.toFixed(1) })
+      ].filter(Boolean),
+      final: `${Math.floor(input.finalEnergyShield)}`
+    };
+  }
+  function describeStatAccuracy(input, deps) {
+    return {
+      title: deps.translate("정확도"),
+      lines: [
+        deps.translate("기본 {PLAYER_ACCURACY_BASE} + 레벨 성장(레벨 {max} × {value} = {value2})", { PLAYER_ACCURACY_BASE: deps.PLAYER_ACCURACY_BASE, max: Math.max(1, Math.floor(input.owner.level || 1)), value: deps.PLAYER_ACCURACY_PER_LEVEL, value2: Math.max(1, Math.floor(input.owner.level || 1)) * deps.PLAYER_ACCURACY_PER_LEVEL }),
+        deps.sourceLine(deps.translate("민첩 파생(민첩 × {value})", { value: deps.PLAYER_ACCURACY_PER_DEXTERITY }), input.totalDexterity * deps.PLAYER_ACCURACY_PER_DEXTERITY),
+        deps.sourceLine("장비/기타 정확도", input.flatAccuracy),
+        deps.sourceLine("정확도 보정", input.accuracyBonusPct, "%", (value) => `${Math.floor(value)}%`),
+        deps.translate("효과: 적의 회피 수치와 대결해 명중을 판정합니다. 정확도가 높을수록 고회피 적에게 덜 빗나갑니다."),
+        deps.translate("예: 회피 500 적 상대 예상 명중률 {floor}%, 회피 2000 적 상대 {floor2}%", { floor: Math.floor(100 - deps.totalEvadeChance({ evasion: 500 }, input.playerAccuracy)), floor2: Math.floor(100 - deps.totalEvadeChance({ evasion: 2e3 }, input.playerAccuracy)) }),
+        deps.translate("적 회피 대비 빗나감은 최대 45%p, 적의 별도 회피 확률 옵션과 합쳐 총 70%가 상한입니다.")
+      ].filter(Boolean),
+      final: `${Math.floor(input.playerAccuracy)}`
+    };
+  }
+  function describeStatStrength(input, deps) {
+    return {
+      title: deps.translate("힘"),
+      lines: [deps.translate("1당 최대 생명력 +2, 5당 물리 피해 +1%"), deps.translate("최대 생명력 +{floor}, 물리 피해 +{floor2}%", { floor: Math.floor(input.totalStrength * 2), floor2: Math.floor(input.totalStrength / 5) })],
+      final: `${Math.floor(input.totalStrength)}`
+    };
+  }
+  function describeStatDexterity(input, deps) {
+    return {
+      title: deps.translate("민첩"),
+      lines: [deps.translate("1당 회피 +3, 정확도 +{value}, 5당 투사체 피해 +1%", { value: deps.PLAYER_ACCURACY_PER_DEXTERITY }), deps.translate("회피 +{floor}, 정확도 +{floor2}, 투사체 피해 +{floor3}%", { floor: Math.floor(input.totalDexterity * 3), floor2: Math.floor(input.totalDexterity * deps.PLAYER_ACCURACY_PER_DEXTERITY), floor3: Math.floor(input.totalDexterity / 5) })],
+      final: `${Math.floor(input.totalDexterity)}`
+    };
+  }
+  function describeStatIntelligence(input, deps) {
+    return {
+      title: deps.translate("지능"),
+      lines: [deps.translate("1당 에너지 보호막 +2, 5당 주문 피해 +1%"), deps.translate("에너지 보호막 +{floor}, 주문 피해 +{floor2}%", { floor: Math.floor(input.totalIntelligence * 2), floor2: Math.floor(input.totalIntelligence / 5) })],
+      final: `${Math.floor(input.totalIntelligence)}`
+    };
+  }
+  function describeStatBlockChance(input, deps) {
+    return {
+      title: deps.translate("막기 확률"),
+      lines: [
+        deps.sourceLine("완갑과 대검 기본 막기", input.shieldBaseBlockChance, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("장비 막기 확률 증가", input.shieldBlockChancePct, "%", (value) => `${value.toFixed(1)}%`),
+        input.effectiveShieldBaseBlockChance !== input.shieldBaseBlockChance ? deps.translate("증가 적용 기본 막기: {value}%", { value: input.effectiveShieldBaseBlockChance.toFixed(1) }) : null,
+        deps.sourceLine("기타 막기 확률 증가", input.blockChanceFromOtherPct, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("막기 확률 보너스", input.flatBlockChanceBonus, "%", (value) => `${value.toFixed(1)}%`),
+        deps.translate("막기 확률 상한: {finalBlockChanceCap}%", { finalBlockChanceCap: input.finalBlockChanceCap.toFixed(1) }),
+        deps.translate("몬스터의 일반 타격 피해를 막으면 해당 타격 피해를 받지 않습니다.")
+      ].filter(Boolean),
+      final: `${input.finalBlockChance.toFixed(1)}%`
+    };
+  }
+  function describeStatBlockChanceMax(input, deps) {
+    return {
+      title: deps.translate("막기 확률 상한"),
+      lines: [
+        deps.translate("기본 막기 확률 상한 50%"),
+        deps.sourceLine("상한 증가", Math.max(0, input.sumStatAcrossBuckets("blockChanceMax")), "%", (value) => `${value.toFixed(1)}%`),
+        deps.translate("상한 증가는 최대 75%까지 적용됩니다.")
+      ],
+      final: `${input.finalBlockChanceCap.toFixed(1)}%`
+    };
+  }
+  function describeStatDeflectChance(input, deps) {
+    return {
+      title: deps.translate("비껴내기 확률"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.deflectChance + input.gearExplicit.deflectChance, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("패시브", input.passive.deflectChance + input.season.deflectChance + input.ascend.deflectChance + input.reward.deflectChance, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("보조스킬룬", input.support.deflectChance, "%", (value) => `${value.toFixed(1)}%`),
+        deps.translate("비껴내기 성공 시 피해 감소: {min}%", { min: Math.min(85, 40 + input.finalDeflectDamageReduce).toFixed(1) }),
+        deps.translate("기본 피해 감소 40%에 비껴내기 피해 감소 옵션이 더해지며, 최대 85%까지 적용됩니다.")
+      ].filter(Boolean),
+      final: `${input.finalDeflectChance.toFixed(1)}%`
+    };
+  }
+  function describeStatDeflectDamageReduce(input, deps) {
+    return {
+      title: deps.translate("비껴내기 피해 감소"),
+      lines: [
+        deps.sourceLine("장비", input.gearBase.deflectDamageReduce + input.gearExplicit.deflectDamageReduce, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("패시브", input.passive.deflectDamageReduce + input.season.deflectDamageReduce + input.ascend.deflectDamageReduce + input.reward.deflectDamageReduce, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("보조스킬룬", input.support.deflectDamageReduce, "%", (value) => `${value.toFixed(1)}%`),
+        deps.translate("실제 감소율은 기본 40% + 이 수치입니다.")
+      ].filter(Boolean),
+      final: `${input.finalDeflectDamageReduce.toFixed(1)}%`
+    };
+  }
+
+  // modules/domain/player-stat-resistance-descriptions.mjs
+  function describeStatResF(input, helpers) {
+    return helpers.makeResistanceBreakdown({ title: "화염 저항", statId: "resF", maxStatId: "maxResF", finalValue: input.finalResF, maxValue: input.finalMaxResF, extraLines: [
+      helpers.formatResistanceSourceLine({ label: "약품 내성", value: input.resistanceBlendBonus }),
+      helpers.formatResistanceSourceLine({ label: "분광 외피", value: input.elementalistResistanceShift.resF }),
+      helpers.formatResistanceSourceLine({ label: "군락 수호구", value: input.colonyWardBonus.resAll || 0 })
+    ], extraMaxLines: [
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 공통 효과", value: input.sharedElementalMaxRes }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 영역 고유 효과", value: input.uniqueAllMaxRes }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 약품 내성", value: input.resistanceBlendMaxBonus }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 분광 외피", value: input.hasElementalistPrismaticShell ? 3 : 0 }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 군락 수호구", value: input.colonyWardBonus.maxResF || 0 })
+    ] });
+  }
+  function describeStatResC(input, helpers) {
+    return helpers.makeResistanceBreakdown({ title: "냉기 저항", statId: "resC", maxStatId: "maxResC", finalValue: input.finalResC, maxValue: input.finalMaxResC, extraLines: [
+      helpers.formatResistanceSourceLine({ label: "약품 내성", value: input.resistanceBlendBonus }),
+      helpers.formatResistanceSourceLine({ label: "분광 외피", value: input.elementalistResistanceShift.resC }),
+      helpers.formatResistanceSourceLine({ label: "군락 수호구", value: input.colonyWardBonus.resAll || 0 })
+    ], extraMaxLines: [
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 공통 효과", value: input.sharedElementalMaxRes }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 영역 고유 효과", value: input.uniqueAllMaxRes }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 약품 내성", value: input.resistanceBlendMaxBonus }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 분광 외피", value: input.hasElementalistPrismaticShell ? 3 : 0 }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 군락 수호구", value: input.colonyWardBonus.maxResC || 0 })
+    ] });
+  }
+  function describeStatResL(input, helpers) {
+    return helpers.makeResistanceBreakdown({ title: "번개 저항", statId: "resL", maxStatId: "maxResL", finalValue: input.finalResL, maxValue: input.finalMaxResL, extraLines: [
+      helpers.formatResistanceSourceLine({ label: "약품 내성", value: input.resistanceBlendBonus }),
+      helpers.formatResistanceSourceLine({ label: "분광 외피", value: input.elementalistResistanceShift.resL }),
+      helpers.formatResistanceSourceLine({ label: "군락 수호구", value: input.colonyWardBonus.resAll || 0 })
+    ], extraMaxLines: [
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 공통 효과", value: input.sharedElementalMaxRes }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 영역 고유 효과", value: input.uniqueAllMaxRes }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 약품 내성", value: input.resistanceBlendMaxBonus }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 분광 외피", value: input.hasElementalistPrismaticShell ? 3 : 0 }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 전하 보루", value: input.crusaderLightningMaxResBonus }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 군락 수호구", value: input.colonyWardBonus.maxResL || 0 })
+    ] });
+  }
+  function describeStatResChaos(input, helpers) {
+    return helpers.makeResistanceBreakdown({ title: "카오스 저항", statId: "resChaos", maxStatId: "maxResChaos", finalValue: input.finalResChaos, maxValue: input.finalMaxResChaos, extraLines: [
+      helpers.formatResistanceSourceLine({ label: "약품 내성", value: input.resistanceBlendBonus }),
+      helpers.formatResistanceSourceLine({ label: "암흑 치환", value: input.warlockElementalOvercapToChaos }),
+      helpers.formatResistanceSourceLine({ label: "분광 외피", value: input.elementalistResistanceShift.resChaos }),
+      helpers.formatResistanceSourceLine({ label: "공허 결합", value: input.elementalistChaosConversionBonus }),
+      helpers.formatResistanceSourceLine({ label: "군락 수호구", value: input.colonyWardBonus.resChaos || 0 })
+    ], extraMaxLines: [
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 약품 내성", value: input.resistanceBlendMaxBonus }),
+      helpers.formatResistanceSourceLine({ label: "최대 저항, 군락 수호구", value: input.colonyWardBonus.maxResChaos || 0 })
+    ] });
+  }
+  function describeStatAilmentResist(input, deps) {
+    return {
+      title: deps.translate("상태이상 방지 확률"),
+      lines: [
+        deps.translate("점화 방지: {value}%", { value: input.finalAilmentResistIgniteChance.toFixed(1) }),
+        deps.translate("냉각 방지: {value}%", { value: input.finalAilmentResistChillChance.toFixed(1) }),
+        deps.translate("동결 방지: {value}%", { value: input.finalAilmentResistFreezeChance.toFixed(1) }),
+        deps.translate("감전 방지: {value}%", { value: input.finalAilmentResistShockChance.toFixed(1) }),
+        deps.translate("중독 방지: {value}%", { value: input.finalAilmentResistPoisonChance.toFixed(1) }),
+        deps.translate("출혈 방지: {value}%", { value: input.finalAilmentResistBleedChance.toFixed(1) })
+      ],
+      final: deps.translate("{floor}% 공통 방지", { floor: Math.floor(input.ailmentResistBonusPct) })
+    };
+  }
+  function describeStatIgniteChance(input, helpers) {
+    return helpers.makeAilmentChanceBreakdown({ title: "점화 확률", statId: "igniteChance", finalValue: input.finalIgniteChance, critValue: input.ailmentCritChance.ignite, note: null, effectLines: helpers.makeDamageAilmentEffectLines({ specificLabel: "점화 피해 증가", specificPct: input.finalIgniteDamageMultiplierPct }) });
+  }
+  function describeStatChillChance(input, deps, helpers) {
+    return helpers.makeAilmentChanceBreakdown({ title: "냉각 확률", statId: "chillChance", finalValue: input.finalChillChance, critValue: input.ailmentCritChance.chill, note: null, effectLines: [deps.translate("냉각은 피해형 상태이상이 아니며 적의 행동 속도를 감소시킵니다.")] });
+  }
+  function describeStatFreezeChance(input, deps, helpers) {
+    return helpers.makeAilmentChanceBreakdown({ title: "동결 확률", statId: "freezeChance", finalValue: input.finalFreezeChance, critValue: input.ailmentCritChance.freeze, note: deps.translate("냉기 피해 치명타는 동결 시도를 보장합니다. 그 외에는 해당 확률로 동결을 시도하며, 시도 성공 후 적의 최대 생명력 대비 타격 피해로 동결 적용 판정을 합니다."), effectLines: [deps.translate("동결은 피해형 상태이상이 아니며 적의 행동을 정지시킵니다.")] });
+  }
+  function describeStatShockChance(input, deps, helpers) {
+    return helpers.makeAilmentChanceBreakdown({ title: "감전 확률", statId: "shockChance", finalValue: input.finalShockChance, critValue: input.ailmentCritChance.shock, note: null, effectLines: [deps.translate("감전 효과 증가: +{max}%", { max: Math.max(0, input.finalShockEffectBonusPct).toFixed(1) }), deps.translate("감전은 직접 피해를 주지 않고 대상이 받는 피해를 증가시킵니다.")] });
+  }
+  function describeStatAilmentResistIgniteChance(input, helpers) {
+    return helpers.makeAilmentResistBreakdown({ title: "점화 저항 확률", ailmentLabel: "점화", ailmentResValue: input.ailResIgniteTotal, finalValue: input.finalAilmentResistIgniteChance, mitigationLines: helpers.makeDamageAilmentMitigationLines({ specificLabel: "점화 피해 감소", specificPct: input.finalIgniteDamageReducePct }) });
+  }
+  function describeStatAilmentResistChillChance(input, deps, helpers) {
+    return helpers.makeAilmentResistBreakdown({ title: "냉각 저항 확률", ailmentLabel: "냉각", ailmentResValue: input.ailResFreezeTotal, finalValue: input.finalAilmentResistChillChance, mitigationLines: [deps.translate("냉각 효과 감소: {max}%", { max: Math.max(0, input.finalChillEffectReducePct).toFixed(1) })] });
+  }
+  function describeStatAilmentResistFreezeChance(input, deps, helpers) {
+    return helpers.makeAilmentResistBreakdown({ title: "동결 저항 확률", ailmentLabel: "동결", ailmentResValue: input.ailResFreezeTotal, finalValue: input.finalAilmentResistFreezeChance, mitigationLines: [deps.translate("동결 지속시간 감소: {max}%", { max: Math.max(0, input.finalFreezeDurationReducePct).toFixed(1) })] });
+  }
+  function describeStatAilmentResistShockChance(input, deps, helpers) {
+    return helpers.makeAilmentResistBreakdown({ title: "감전 저항 확률", ailmentLabel: "감전", ailmentResValue: input.ailResShockTotal, finalValue: input.finalAilmentResistShockChance, mitigationLines: [deps.translate("감전 효과 감소: {max}%", { max: Math.max(0, input.finalShockEffectReducePct).toFixed(1) })] });
+  }
+  function describeStatAilmentResistPoisonChance(input, helpers) {
+    return helpers.makeAilmentResistBreakdown({ title: "중독 저항 확률", ailmentLabel: "중독", ailmentResValue: input.ailResPoisonTotal, finalValue: input.finalAilmentResistPoisonChance, mitigationLines: helpers.makeDamageAilmentMitigationLines({ specificLabel: "중독 피해 감소", specificPct: input.finalPoisonDamageReducePct }) });
+  }
+  function describeStatAilmentResistBleedChance(input, helpers) {
+    return helpers.makeAilmentResistBreakdown({ title: "출혈 저항 확률", ailmentLabel: "출혈", ailmentResValue: input.ailResBleedTotal, finalValue: input.finalAilmentResistBleedChance, mitigationLines: helpers.makeDamageAilmentMitigationLines({ specificLabel: "출혈 피해 감소", specificPct: input.finalBleedDamageReducePct }) });
+  }
+  function describeStatPoisonChance(input, helpers) {
+    return helpers.makeAilmentChanceBreakdown({ title: "중독 확률", statId: "poisonChance", finalValue: input.finalPoisonChance, critValue: input.ailmentCritChance.poison, note: null, effectLines: helpers.makeDamageAilmentEffectLines({ specificLabel: "중독 피해 증가", specificPct: input.finalPoisonDamageMultiplierPct }) });
+  }
+  function describeStatBleedChance(input, helpers) {
+    return helpers.makeAilmentChanceBreakdown({ title: "출혈 확률", statId: "bleedChance", finalValue: input.finalBleedChance, critValue: input.ailmentCritChance.bleed, note: null, effectLines: helpers.makeDamageAilmentEffectLines({ specificLabel: "출혈 전용 피해 증가", specificPct: 0 }) });
+  }
+
+  // modules/domain/player-stat-description-helpers.mjs
+  function describeTalentLine(input, deps, options) {
+    const { stat, suffix } = options;
+    let v = input.talentStatMap[stat];
+    return v ? deps.translate("재능 개화 +{value}{suffix} (위 합계에 포함)", { value: Math.round(v * 100) / 100, suffix: suffix || "%" }) : null;
+  }
+  function descriptionSourceTotals(input, stat) {
+    return {
+      gear: (input.gearBase[stat] || 0) + (input.gearExplicit[stat] || 0),
+      passive: (input.passive[stat] || 0) + (input.season[stat] || 0) + (input.ascend[stat] || 0) + (input.reward[stat] || 0)
+    };
+  }
+  function describeMakeAilmentChanceBreakdown(input, deps, options) {
+    const { title, statId, finalValue, critValue, note, effectLines } = options;
+    const sources = descriptionSourceTotals(input, statId);
+    return {
+      title: deps.translate(title),
+      lines: [
+        deps.sourceLine("장비", sources.gear, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("패시브", sources.passive, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("보조스킬룬", input.support[statId] || 0, "%", (value) => `${value.toFixed(1)}%`),
+        deps.sourceLine("성좌 각성", input.starBlessing[statId] || 0, "%", (value) => `${value.toFixed(1)}%`),
+        note || deps.translate("치명타 시 해당 상태 이상 확률: {floor}%", { floor: Math.floor(critValue) }),
+        note ? null : deps.translate("비치명타는 위 확률을 사용하며, 치명타는 해당 상태 이상 확률에 +25%가 추가됩니다."),
+        ...effectLines || []
+      ].filter(Boolean),
+      final: `${Math.max(0, finalValue).toFixed(1)}%`
+    };
+  }
+  function describeMakeAilmentResistBreakdown(input, deps, options) {
+    const { title, ailmentLabel, ailmentResValue, finalValue, mitigationLines } = options;
+    return {
+      title: deps.translate(title),
+      lines: [
+        deps.sourceLine(deps.translate("{ailmentLabel} 방지 확률", { ailmentLabel: deps.translate(ailmentLabel) }), finalValue, "%", (value) => `${Math.max(0, value).toFixed(1)}%`),
+        deps.translate("계산 기준: {ailmentLabel} 방지 옵션 {ailmentResValue}% + 공통 방지 {floor}%", { ailmentLabel: deps.translate(ailmentLabel), ailmentResValue: Number(ailmentResValue || 0).toFixed(1), floor: Math.floor(input.ailmentResistBonusPct) }),
+        input.medicineResistanceAilmentBonus.ignite > 0 || input.medicineResistanceAilmentBonus.freeze > 0 || input.medicineResistanceAilmentBonus.shock > 0 ? deps.translate("약품 내성: 최고 비-제한 원소 저항 상태이상 방지 +100% (점화 {ignite}% / 냉각/동결 {freeze}% / 감전 {shock}%)", { ignite: input.medicineResistanceAilmentBonus.ignite, freeze: input.medicineResistanceAilmentBonus.freeze, shock: input.medicineResistanceAilmentBonus.shock }) : null,
+        ...mitigationLines || [],
+        deps.translate("피해 저항(화염/냉기/번개/카오스/물리 피해 감소)은 상태이상 방지 확률에 직접 합산되지 않습니다.")
+      ].filter(Boolean),
+      final: `${Math.max(0, finalValue).toFixed(1)}%`
+    };
+  }
+  function describeMakeDamageAilmentEffectLines(input, deps, options) {
+    const { specificLabel, specificPct } = options;
+    let specificMultiplier = 1 + (Math.max(0, Number(specificPct || 0)) + input.finalAilmentDamagePct) / 100;
+    let totalMultiplier = input.catalystAilmentSourceMultiplier * input.totalDotDamageMultiplier * specificMultiplier;
+    return [
+      deps.translate("지속 피해 배율 스탯: +{max}%", { max: Math.max(0, input.dotPctDmg).toFixed(1) }),
+      input.catalystAilmentSourceMultiplier > 1 ? deps.translate("과잉 촉매 기준 피해: x{value}", { value: input.catalystAilmentSourceMultiplier.toFixed(2) }) : null,
+      input.totalDotDamageMultiplier !== input.dotStatMultiplier ? deps.translate("키스톤/스킬 포함 지속 피해 배율: x{totalDotDamageMultiplier}", { totalDotDamageMultiplier: input.totalDotDamageMultiplier.toFixed(2) }) : null,
+      specificPct > 0 ? `${deps.translate(specificLabel)}: +${Number(specificPct).toFixed(1)}%` : null,
+      input.finalAilmentDamagePct > 0 ? deps.translate("상태이상 피해: +{finalAilmentDamagePct}%", { finalAilmentDamagePct: input.finalAilmentDamagePct.toFixed(1) }) : null,
+      deps.translate("해당 상태이상 피해 총 배율: x{totalMultiplier} (기본 대비 +{max}%)", { totalMultiplier: totalMultiplier.toFixed(2), max: Math.max(0, (totalMultiplier - 1) * 100).toFixed(1) })
+    ].filter(Boolean);
+  }
+  function describeMakeDamageAilmentMitigationLines(input, deps, options) {
+    const { specificLabel, specificPct } = options;
+    let common = Math.max(0, Math.min(90, Number(input.finalDotTakenDamageReducePct || 0)));
+    let specific = Math.max(0, Math.min(90, Number(specificPct || 0)));
+    let combined = (1 - (1 - common / 100) * (1 - specific / 100)) * 100;
+    return [
+      deps.translate("받는 지속 피해 감소: {common}%", { common: common.toFixed(1) }),
+      `${deps.translate(specificLabel)}: ${specific.toFixed(1)}%`,
+      deps.translate("복합 적용 피해 감소: {combined}%", { combined: combined.toFixed(1) })
+    ];
+  }
+  function describeFormatSignedPercentagePointLine(deps, options) {
+    const { label, value } = options;
+    let amount = Number(value || 0);
+    if (!amount) return null;
+    return `${deps.translate(label)} ${amount > 0 ? "+" : ""}${Math.floor(amount)}%p`;
+  }
+  function describeFormatResistanceSourceLine(deps, options) {
+    const { label, value } = options;
+    let amount = Number(value || 0);
+    if (!amount) return null;
+    let rendered = Number.isInteger(amount) ? `${Math.abs(amount)}` : Math.abs(amount).toFixed(1);
+    return `${deps.translate(label)} ${amount > 0 ? "+" : "-"}${rendered}%`;
+  }
+  function describeMakeResistanceBreakdown(input, deps, options) {
+    const { title, statId, maxStatId, finalValue, maxValue, extraLines, extraMaxLines } = options;
+    const maximum = descriptionSourceTotals(input, maxStatId);
+    const sources = descriptionSourceTotals(input, statId);
+    return {
+      title: deps.translate(title),
+      lines: [
+        describeFormatResistanceSourceLine(deps, { label: "장비", value: sources.gear }),
+        describeFormatResistanceSourceLine(deps, { label: "패시브", value: sources.passive }),
+        describeFormatResistanceSourceLine(deps, { label: "보조스킬룬", value: input.support[statId] || 0 }),
+        ...extraLines || [],
+        describeFormatResistanceSourceLine(deps, { label: "캠페인 패널티", value: -input.resistPenalty }),
+        deps.translate("최대 저항: {floor}% (기본 75%)", { floor: Math.floor(maxValue) }),
+        describeFormatResistanceSourceLine(deps, { label: "최대 저항, 장비", value: maximum.gear }),
+        describeFormatResistanceSourceLine(deps, { label: "최대 저항, 패시브", value: maximum.passive }),
+        describeFormatResistanceSourceLine(deps, { label: "최대 저항, 보조스킬룬", value: input.support[maxStatId] || 0 }),
+        ...extraMaxLines || []
+      ].filter(Boolean),
+      final: `${Math.floor(finalValue)}%`
+    };
+  }
+  function createStatDescriptionHelpers(input, deps) {
+    return {
+      talentLine: (options) => describeTalentLine(input, deps, options),
+      makeAilmentChanceBreakdown: (options) => describeMakeAilmentChanceBreakdown(input, deps, options),
+      makeAilmentResistBreakdown: (options) => describeMakeAilmentResistBreakdown(input, deps, options),
+      makeDamageAilmentEffectLines: (options) => describeMakeDamageAilmentEffectLines(input, deps, options),
+      makeDamageAilmentMitigationLines: (options) => describeMakeDamageAilmentMitigationLines(input, deps, options),
+      formatSignedPercentagePointLine: (options) => describeFormatSignedPercentagePointLine(deps, options),
+      formatResistanceSourceLine: (options) => describeFormatResistanceSourceLine(deps, options),
+      makeResistanceBreakdown: (options) => describeMakeResistanceBreakdown(input, deps, options)
+    };
+  }
+
+  // modules/domain/player-stat-extra-descriptions.mjs
+  var atLeastOne = (value) => Math.max(1, Number(value) || 1);
+  function describeExtraBucketSourceLines(deps, b, stats, named) {
+    const sumOf = (bucket) => stats.reduce((sum, stat) => sum + (Number(bucket[stat]) || 0), 0);
+    return [
+      deps.sourceLine("장비", sumOf(b.gearBase) + sumOf(b.gearExplicit)),
+      deps.sourceLine("패시브 트리", sumOf(b.passive) - named.reduce((sum, row) => sum + row.value, 0)),
+      ...named.map((row) => deps.sourceLine(row.label, row.value)),
+      deps.sourceLine("전직", sumOf(b.ascend)),
+      deps.sourceLine("기타 성장", sumOf(b.season) + sumOf(b.reward))
+    ];
+  }
+  function describeExtraProjectileShotsBreakdown(deps, b, extra) {
+    const projectile = (extra.skill.tags || []).includes("projectile"), pattern = extra.skill.projectilePattern;
+    const total = ["gearBase", "gearExplicit", "passive", "season", "ascend", "reward"].reduce((sum, key) => sum + (Number(b[key].projectileExtraShots) || 0), 0);
+    let why = projectile ? null : deps.translate("지금 주 스킬룬은 투사체 스킬이 아니어서 붙지 않습니다.");
+    if (projectile && pattern && pattern.kind === "fan") why = deps.translate("부채꼴로 쏘는 스킬룬에는 붙지 않습니다.");
+    return { title: deps.translate("투사체 추가 발사"), final: `+${Math.floor(total)}`, lines: [
+      ...describeExtraBucketSourceLines(deps, b, ["projectileExtraShots"], [{ label: "칼날 다발", value: extra.bladeShots }]),
+      extra.chancePct > 0 ? deps.translate("추가 발사 확률 {value}%", { value: Math.round(extra.chancePct) }) : null,
+      why
+    ].filter(Boolean) };
+  }
+  function describeExtraTargetsBreakdown(deps, b, extra) {
+    const tags = extra.skill.tags || [], projectile = tags.includes("projectile");
+    const stats = ["targetAny"].concat(projectile ? ["targetProjectile"] : [], tags.includes("slam") ? ["targetSlam"] : []);
+    const base = atLeastOne(extra.baseTargets), capped = atLeastOne(extra.cappedTargets), finalTargets = atLeastOne(extra.skill.targets);
+    const cap = projectile ? 12 : 6;
+    return { title: deps.translate("대상 추가"), final: deps.translate("대상 {value} (+{added})", { value: finalTargets, added: finalTargets - base }), lines: [
+      deps.translate("주 스킬룬 기본 대상 {value}", { value: base }),
+      ...describeExtraBucketSourceLines(deps, b, stats, []),
+      deps.sourceLine("각인, 효과 확장", finalTargets - capped),
+      capped === cap && capped > base ? deps.translate("대상 상한 {value}", { value: cap }) : null
+    ].filter(Boolean) };
+  }
+  function describeExtraGetProjectileTargetBreakdowns(deps, b, extra) {
+    return { projectileShots: describeExtraProjectileShotsBreakdown(deps, b, extra), targets: describeExtraTargetsBreakdown(deps, b, extra) };
+  }
+  function describeRevelationEffect(deps, rules, devotion) {
+    let revelationEffect = deps.translate("헌신을 1 이상 확보하면 계시를 선택할 수 있습니다.");
+    if (devotion > 0 && rules.revelation === "combat") {
+      revelationEffect = deps.translate("주는 피해 {combatDamageMorePct}% 증폭", { combatDamageMorePct: rules.combatDamageMorePct });
+    } else if (devotion > 0 && rules.revelation === "guard") {
+      revelationEffect = deps.translate("받는 피해 {guardTakenLessPct}% 감폭", { guardTakenLessPct: rules.guardTakenLessPct });
+    } else if (devotion > 0 && rules.revelation === "life") {
+      revelationEffect = deps.translate("최대 생명력/에너지 보호막/초당 재생 각각 +{value}%", { value: deps.valueText("regen", rules.lifeBonusPct) });
+    } else if (devotion > 0 && rules.revelation === "fanaticism") {
+      revelationEffect = deps.translate("열광 {fanaticismStacks}/{floor}, 1당 피해 1.5%, 공격 속도 0.5% 증가", { fanaticismStacks: rules.fanaticismStacks, floor: Math.floor(devotion) });
+    }
+    return revelationEffect;
+  }
+  function describeExtraGetPassiveSpecialStatBreakdowns(deps, rules) {
+    const mystique = Math.max(0, Number(rules.mystique && rules.mystique.damagePct) || 0);
+    const cycle = Math.max(0, Number(rules.cycle) || 0);
+    const devotion = Math.max(0, Number(rules.devotion) || 0);
+    const ailmentLabel = deps.translate(deps.ailmentLabel(rules.mystique && rules.mystique.ailment));
+    const activeCycleLines = (rules.activeCycleBuffEffects || []).map((effect) => {
+      const stat = deps.P_STATS[effect.stat] || {};
+      const suffix = stat.isPct ? "%" : "";
+      return deps.translate("{source} 종료 효과: {stat} +{stat2}{suffix}", { source: deps.translate(deps.ailmentLabel(effect.source)), stat: deps.translate(deps.statName(effect.stat)), stat2: deps.valueText(effect.stat, effect.val), suffix });
+    });
+    const revelationEffect = describeRevelationEffect(deps, rules, devotion);
+    return {
+      mystique: {
+        title: deps.translate("신비"),
+        lines: [
+          deps.translate("가장 높은 피해 속성에 대응하는 {ailmentLabel} 강화", { ailmentLabel }),
+          deps.translate("{ailmentLabel} 피해 +{value}%, 위력 +{value2}%", { ailmentLabel, value: deps.valueText("mystique", mystique), value2: deps.valueText("mystique", mystique) }),
+          deps.translate("{ailmentLabel} 유발 확률 +{floor}%p", { ailmentLabel, floor: Math.floor(mystique / 3) })
+        ],
+        final: deps.valueText("mystique", mystique)
+      },
+      cycle: {
+        title: deps.translate("순환"),
+        lines: [
+          deps.translate("적에게 적용한 상태이상이 종료되면 해당 유형에 따른 강화가 6초간 적용됩니다."),
+          deps.translate("순환 1당 대응 속성 피해 +2%와 유형별 보조 효과를 얻습니다."),
+          ...activeCycleLines.length > 0 ? activeCycleLines : [deps.translate("현재 활성화된 순환 강화 없음")],
+          rules.cycleAddedFireFromPhysicalPct > 0 ? deps.translate("순환의 원석: 물리 피해의 {value}%를 화염 피해로 추가", { value: rules.cycleAddedFireFromPhysicalPct }) : null
+        ].filter(Boolean),
+        final: deps.valueText("cycle", cycle)
+      },
+      revelation: {
+        title: deps.translate("계시"),
+        lines: [deps.translate("계시 수치(헌신) {value}", { value: deps.valueText("devotion", devotion) }), revelationEffect],
+        final: deps.translate(devotion > 0 ? rules.revelationLabel : "미해금")
+      }
+    };
+  }
+  function describeExtraAppendPlayerDpsBreakdowns(deps, stats, summonEstimate) {
+    if (!stats.breakdowns) return;
+    let directLines = stats.breakdowns.dps.lines;
+    stats.breakdowns.directDps = {
+      title: deps.translate("직접 DPS"),
+      lines: directLines.slice(),
+      final: `${Math.floor(stats.directDps)}`
+    };
+    stats.breakdowns.summonDps = {
+      title: deps.translate("소환 DPS"),
+      lines: summonEstimate.lines || [],
+      final: `${Math.floor(stats.summonDps)}`
+    };
+    stats.breakdowns.summonCap = {
+      title: deps.translate("소환수 한도"),
+      lines: [
+        deps.translate("현재 소환 한도 {summonCap}", { summonCap: stats.summonCap }),
+        deps.translate("최대 소환 한도 {summonCapMaximum}", { summonCapMaximum: deps.summonMaximum() }),
+        deps.translate(deps.keystone("sb9") ? "대군주: 현재 생명력이 가장 낮은 하위 1/3(최대 4기)이 유령 상태" : "기본 최대 한도 8")
+      ],
+      final: deps.translate("{summonCap} / 최대 {summonCapMaximum}", { summonCap: stats.summonCap, summonCapMaximum: deps.summonMaximum() })
+    };
+    stats.breakdowns.dps = {
+      title: deps.translate("총 DPS"),
+      lines: [
+        deps.translate("직접 DPS {floor}", { floor: Math.floor(stats.directDps) }),
+        deps.translate("예상 소환 DPS {floor}", { floor: Math.floor(stats.summonDps) }),
+        deps.translate("총 DPS = 직접 DPS + 예상 소환 DPS")
+      ].concat(directLines),
+      final: `${Math.floor(stats.totalDps)}`
+    };
+  }
+
+  // modules/domain/player-stat-descriptions.mjs
+  function describeFlameDecay(input, deps) {
+    return [
+      deps.translate("화염 부패 기대 지속 DPS {floor} (생명력/초과 화염 저항/지속 피해 배율 적용, 적 저항 적용 전)", { floor: Math.floor(input.estimatedSkillDotDps) }),
+      deps.translate("생명력 계수: 최대 생명력 {floor} → 내장 피해 +{floor2}", { floor: Math.floor(input.finalMaxHp), floor2: Math.floor(input.hpFlatBonus) }),
+      (input.skill.regenDmgScale || 0) > 0 ? deps.translate("생명력 재생 계수: {regenScaledBonus}x (재생 {value}%)", { regenScaledBonus: input.regenScaledBonus.toFixed(2), value: deps.valueText("regen", input.finalRegen) }) : null,
+      deps.translate("초과 화염 저항 계수: {fireResScaledBonus}x (미적용 화염 저항 {floor}% / 최대 {floor2}%, 초과 {fireResOvercap}% 중 적용 {effectiveFireResOvercap}%)", { fireResScaledBonus: input.fireResScaledBonus.toFixed(2), floor: Math.floor(input.fireResForOvercap), floor2: Math.floor(input.maxResFForOvercap), fireResOvercap: input.fireResOvercap.toFixed(1), effectiveFireResOvercap: input.effectiveFireResOvercap.toFixed(1) }),
+      deps.translate("지속 피해 총 배율: {totalDotDamageMultiplier}x (스킬 {dotMultiplier}x, 스탯 {dotStatMultiplier}x)", { totalDotDamageMultiplier: input.totalDotDamageMultiplier.toFixed(2), dotMultiplier: input.dotMultiplier.toFixed(2), dotStatMultiplier: input.dotStatMultiplier.toFixed(2) }),
+      deps.translate("화염 부패 대상 점화 피해 증폭: {value}x (생명력 100당 {value2}%, 최대 {max}x)", { value: input.flameDecayIgniteTakenMultiplierPreview.toFixed(2), value2: (Math.max(0, Number(input.skill.igniteTakenHpScalePer100 || 0)) * 100).toFixed(1), max: (Math.max(1, Number(input.skill.igniteTakenMaxMultiplier || 0)) || 1).toFixed(1) }),
+      deps.translate("실제 적별 화염 부패 DPS는 적 상태이상 툴팁에서 저항/심연 배율까지 반영해 표시됩니다.")
+    ].filter(Boolean);
+  }
+  function assembleStatDescriptions(input, deps) {
+    const helpers = createStatDescriptionHelpers(input, deps);
+    return {
+      ...describeExtraGetPassiveSpecialStatBreakdowns(deps, input.authoredPassiveRules),
+      ...describeExtraGetProjectileTargetBreakdowns(deps, { gearBase: input.gearBase, gearExplicit: input.gearExplicit, passive: input.passive, season: input.season, ascend: input.ascend, reward: input.reward }, { skill: input.skill, bladeShots: input.bladeBundleShots, baseTargets: input.skillBaseTargets, cappedTargets: input.cappedTargets, chancePct: input.sumStatAcrossBuckets("projectileExtraChance") }),
+      atk: describeStatAtk(input, deps, helpers),
+      aps: describeStatAps(input, deps, helpers),
+      crit: describeStatCrit(input, deps, helpers),
+      critDmg: describeStatCritDmg(input, deps, helpers),
+      move: describeStatMove(input, deps, helpers),
+      hp: describeStatHp(input, deps, helpers),
+      regen: describeStatRegen(input, deps, helpers),
+      regenSuppress: describeStatRegenSuppress(input, deps),
+      leech: describeStatLeech(input, deps),
+      spellLeech: describeStatSpellLeech(input, deps),
+      ds: describeStatDs(input, deps, helpers),
+      dr: describeStatDr(input, deps),
+      armor: describeStatArmor(input, deps),
+      evasion: describeStatEvasion(input, deps),
+      energyShield: describeStatEnergyShield(input, deps),
+      accuracy: describeStatAccuracy(input, deps),
+      strength: describeStatStrength(input, deps),
+      dexterity: describeStatDexterity(input, deps),
+      intelligence: describeStatIntelligence(input, deps),
+      blockChance: describeStatBlockChance(input, deps),
+      blockChanceMax: describeStatBlockChanceMax(input, deps),
+      deflectChance: describeStatDeflectChance(input, deps),
+      deflectDamageReduce: describeStatDeflectDamageReduce(input, deps),
+      physIgnore: describeStatPhysIgnore(input, deps),
+      resPen: describeStatResPen(input, deps),
+      resF: describeStatResF(input, helpers),
+      resC: describeStatResC(input, helpers),
+      resL: describeStatResL(input, helpers),
+      resChaos: describeStatResChaos(input, helpers),
+      ailmentResist: describeStatAilmentResist(input, deps),
+      dmgRoll: describeStatDmgRoll(input, deps),
+      igniteChance: describeStatIgniteChance(input, helpers),
+      chillChance: describeStatChillChance(input, deps, helpers),
+      freezeChance: describeStatFreezeChance(input, deps, helpers),
+      shockChance: describeStatShockChance(input, deps, helpers),
+      ailmentResistIgniteChance: describeStatAilmentResistIgniteChance(input, helpers),
+      ailmentResistChillChance: describeStatAilmentResistChillChance(input, deps, helpers),
+      ailmentResistFreezeChance: describeStatAilmentResistFreezeChance(input, deps, helpers),
+      ailmentResistShockChance: describeStatAilmentResistShockChance(input, deps, helpers),
+      ailmentResistPoisonChance: describeStatAilmentResistPoisonChance(input, helpers),
+      ailmentResistBleedChance: describeStatAilmentResistBleedChance(input, helpers),
+      poisonChance: describeStatPoisonChance(input, helpers),
+      bleedChance: describeStatBleedChance(input, helpers),
+      dps: describeStatDps(input, deps),
+      gem: describeStatGem(input, deps)
+    };
+  }
+  function createPlayerStatDescriptions(deps) {
+    return Object.freeze({
+      build: (input) => assembleStatDescriptions(input, deps),
+      flameDecay: (input) => describeFlameDecay(input, deps),
+      special: (rules) => describeExtraGetPassiveSpecialStatBreakdowns(deps, rules),
+      projectileTargets: (b, extra) => describeExtraGetProjectileTargetBreakdowns(deps, b, extra),
+      appendDps: (stats, estimate) => describeExtraAppendPlayerDpsBreakdowns(deps, stats, estimate)
+    });
+  }
+
+  // modules/domain/player-stat-inputs.mjs
+  function pairedGloveSpeed(owner) {
+    const first = owner.equipment ? owner.equipment["장갑1"] : null;
+    const second = owner.equipment ? owner.equipment["장갑2"] : null;
+    return first && second && first.baseId && second.baseId && first.baseId === second.baseId ? 0.1 : 0;
+  }
+  function beginPlayerStatInputs(owner) {
+    return {
+      safePassives: Array.isArray(owner.passives) ? owner.passives : [],
+      safeSeasonNodes: Array.isArray(owner.seasonNodes) ? owner.seasonNodes : [],
+      safeAscendNodes: Array.isArray(owner.ascendNodes) ? owner.ascendNodes : [],
+      safeRewardBonuses: Array.isArray(owner.actRewardBonuses) ? owner.actRewardBonuses : [],
+      safeJournalBonuses: Array.isArray(owner.journalBonuses) ? owner.journalBonuses : [],
+      safeEquippedSupports: Array.isArray(owner.equippedSupports) ? owner.equippedSupports : [],
+      baseDmg: 16 + owner.level * 1.5,
+      baseHp: 90 + owner.level * 8,
+      baseMove: 100,
+      glovePairAspdBonus: pairedGloveSpeed(owner),
+      passive: createEmptyStatBucket(),
+      support: createEmptyStatBucket(),
+      season: createEmptyStatBucket(),
+      ascend: createEmptyStatBucket(),
+      reward: createEmptyStatBucket(),
+      starBlessing: createEmptyStatBucket(),
+      colonyWardBonus: {}
+    };
+  }
+  function addJewelInventoryBonuses(activeIds, tick, reward) {
+    if (activeIds.has("uj_old_box")) {
+      const rarity = tick.get("inventoryRarity");
+      addStatToBucket(reward, "aspd", Math.min(30, rarity.magic * 0.5));
+      addStatToBucket(reward, "pctDmg", Math.min(60, rarity.rare * 1.2));
+      addStatToBucket(reward, "dr", Math.min(12, rarity.unique * 1.5));
+    }
+    if (activeIds.has("uj_condensed_curse")) addStatToBucket(reward, "curseCap", 1);
+  }
+  function prepareEquipmentInputs(owner, tick, reward, deps) {
+    const resolvedSources = deps.itemEntries(owner).map(([slot, item]) => [slot, item, deps.resolveLists(slot, item, owner)]);
+    const resolvedStats = resolvedSources.map(([, , stats]) => stats);
+    const excludedSlots = /* @__PURE__ */ new Set();
+    const barbarismKeystone = deps.passiveNode("야만");
+    if (barbarismKeystone) excludedSlots.add("all:무기");
+    if (deps.keystone("cr3", owner) && !deps.keystone("cr9", owner)) excludedSlots.add("무기");
+    const contributions = deps.equipmentContributions(resolvedSources, excludedSlots, owner);
+    const { gearExplicit, equippedUniqueEffects } = contributions;
+    deps.talentEffects().forEach((effect) => equippedUniqueEffects.push(effect));
+    const equippedUniqueJewels = deps.uniqueJewels(owner);
+    const activeUniqueIds = new Set(equippedUniqueJewels.map((entry) => entry.jewel.uniqueId));
+    const globalDefensePct = { ...contributions.globalDefensePct };
+    deps.mirroredJewels(owner).forEach((jewel) => deps.jewelStats(jewel).forEach((stat) => {
+      addStatToBucket(gearExplicit, stat.id, stat.val);
+      deps.addDefensePct(globalDefensePct, stat.id, stat.val);
+    }));
+    addJewelInventoryBonuses(activeUniqueIds, tick, reward);
+    deps.appendKeystoneEffects(equippedUniqueEffects, owner);
+    return { ...contributions, resolvedStats, barbarismKeystone, equippedUniqueJewels, activeUniqueIds, globalDefensePct };
+  }
+  function createPlayerSourceReaders(buckets) {
+    const { gearBase, gearExplicit, passive: passive2, season, ascend, reward, starBlessing, support } = buckets;
+    return {
+      sumNonSupportStat: (stat) => gearBase[stat] + gearExplicit[stat] + passive2[stat] + season[stat] + ascend[stat] + reward[stat] + (starBlessing[stat] || 0),
+      sumStatAcrossBuckets: (stat) => gearBase[stat] + gearExplicit[stat] + passive2[stat] + season[stat] + ascend[stat] + support[stat] + reward[stat] + (starBlessing[stat] || 0)
+    };
+  }
+  function prepareSkillInputs(input, deps) {
+    const { owner, buckets, resolvedStats, safeEquippedSupports, sumNonSupportStat, projectilePatternEffect } = input;
+    const gemEvaluation = deps.buildMemo(owner) ? void 0 : deps.gemEvaluation(resolvedStats);
+    const gemSources = deps.gemSources(owner.activeSkill, void 0, resolvedStats, gemEvaluation);
+    let skill = deps.activeSkill(gemSources.total);
+    const bonus = (name) => deps.gemSources(name, void 0, resolvedStats, gemEvaluation).total;
+    const supportValues = deps.supportValues(skill, {
+      names: safeEquippedSupports,
+      bonus,
+      ownStat: sumNonSupportStat,
+      add: (stat, value) => addStatToBucket(buckets.support, stat, value)
+    });
+    deps.constellation(buckets.reward, owner);
+    const summonCapTotal = () => sumOrderedPlayerStatSources(buckets, "summonCap");
+    const blessingCap = deps.passiveNode("단 하나의 사역") ? Infinity : deps.summonCap(summonCapTotal());
+    const auraValues = deps.auraValues(owner, bonus, blessingCap);
+    Object.entries(auraValues).forEach(([stat, value]) => addStatToBucket(buckets.reward, stat, value));
+    if (projectilePatternEffect && !skill.projectilePatternSource) {
+      skill = deps.projectileMode(skill, projectilePatternEffect.mode, projectilePatternEffect.source, projectilePatternEffect.damageMultiplier);
+    }
+    return { gemEvaluation, gemSources, skill, supportValues, summonCapTotal, auraValues };
+  }
+  function prepareAuthoredPassiveInputs(buckets, skill, tick, deps) {
+    if (typeof deps.authoredRules === "function") return deps.authoredRules({ buckets, skillElement: skill.ele, skillTags: skill.tags, tick });
+    return {
+      mystique: { ailment: "bleed", damagePct: 0, potencyPct: 0 },
+      devotion: 0,
+      cycle: 0,
+      revelation: "combat",
+      revelationLabel: "전투의 계시",
+      wisdomElement: "fire",
+      combatDamageMorePct: 0,
+      guardTakenLessPct: 0,
+      lifeBonusPct: 0,
+      cycleAddedFireFromPhysicalPct: 0,
+      fanaticismStacks: 0,
+      activeCycleBuffEffects: [],
+      flags: {}
+    };
+  }
+  function prepareAttributeInputs(sum, reward, attributesOnly) {
+    const totalStrength = Math.max(0, sum("strength"));
+    const totalDexterity = Math.max(0, sum("dexterity"));
+    const totalIntelligence = Math.max(0, sum("intelligence"));
+    if (!attributesOnly) {
+      if (totalStrength > 0) {
+        addStatToBucket(reward, "flatHp", totalStrength * 2);
+        addStatToBucket(reward, "physPctDmg", Math.floor(totalStrength / 5));
+      }
+      if (totalDexterity > 0) {
+        addStatToBucket(reward, "evasion", totalDexterity * 3);
+        addStatToBucket(reward, "projectilePctDmg", Math.floor(totalDexterity / 5));
+      }
+      if (totalIntelligence > 0) {
+        addStatToBucket(reward, "energyShield", totalIntelligence * 2);
+        addStatToBucket(reward, "spellPctDmg", Math.floor(totalIntelligence / 5));
+      }
+    }
+    return { totalStrength, totalDexterity, totalIntelligence };
+  }
+  function sumTargetInputSources(buckets, stat) {
+    return buckets.gearBase[stat] + buckets.gearExplicit[stat] + buckets.passive[stat] + buckets.season[stat] + buckets.ascend[stat] + buckets.reward[stat];
+  }
+  function applyTargetInputCap(skill, bonus) {
+    if (bonus > 0) {
+      skill.targets = Math.min(
+        Array.isArray(skill.tags) && skill.tags.includes("projectile") ? 12 : 6,
+        Math.max(1, (skill.targets || 1) + Math.floor(bonus))
+      );
+    } else skill.targets = Math.min(6, Math.max(1, skill.targets || 1));
+  }
+  function prepareTargetInputs(input, deps) {
+    const { owner, skill, buckets, totalStrength, totalDexterity, weaponStance, sumStatAcrossBuckets } = input;
+    const flatAccuracy = Math.max(0, sumStatAcrossBuckets("accuracy"));
+    const accuracyBonusPct = Math.max(0, sumStatAcrossBuckets("accuracyBonusPct"));
+    const playerAccuracy = deps.accuracy(owner.level, totalDexterity, flatAccuracy, accuracyBonusPct);
+    const bladeBundleShots = deps.bladeShots(totalStrength, totalDexterity, weaponStance);
+    buckets.passive.projectileExtraShots += bladeBundleShots;
+    let targetBonus = sumTargetInputSources(buckets, "targetAny");
+    const skillBaseTargets = skill.targets;
+    const totalProjectileExtraShots = sumTargetInputSources(buckets, "projectileExtraShots") + sumStatAcrossBuckets("projectileExtraChance") / 100;
+    if (Array.isArray(skill.tags) && skill.tags.includes("projectile")) targetBonus += sumTargetInputSources(buckets, "targetProjectile");
+    if (Array.isArray(skill.tags) && skill.tags.includes("slam")) targetBonus += sumTargetInputSources(buckets, "targetSlam");
+    applyTargetInputCap(skill, targetBonus);
+    const cappedTargets = skill.targets;
+    deps.uncappedTargets(skill, owner.activeSkill);
+    skill.projectileChain = (skill.tags || []).includes("projectile") ? sumStatAcrossBuckets("projectileChain") : 0;
+    return { flatAccuracy, accuracyBonusPct, playerAccuracy, bladeBundleShots, skillBaseTargets, totalProjectileExtraShots, cappedTargets };
+  }
+  function createPlayerStatInputs(deps) {
+    return Object.freeze({
+      begin: beginPlayerStatInputs,
+      equipment: (owner, tick, reward) => prepareEquipmentInputs(owner, tick, reward, deps),
+      readers: createPlayerSourceReaders,
+      skills: (input) => prepareSkillInputs(input, deps),
+      passiveRules: (buckets, skill, tick) => prepareAuthoredPassiveInputs(buckets, skill, tick, deps),
+      attributes: prepareAttributeInputs,
+      targets: (input) => prepareTargetInputs(input, deps)
+    });
+  }
+
+  // modules/domain/player-stat-pipeline-sources.mjs
+  function prepareSources(c, s, deps) {
+    deps.refreshTwinKeystones();
+    ({
+      safePassives: c.safePassives,
+      safeSeasonNodes: c.safeSeasonNodes,
+      safeAscendNodes: c.safeAscendNodes,
+      safeRewardBonuses: c.safeRewardBonuses,
+      safeJournalBonuses: c.safeJournalBonuses,
+      safeEquippedSupports: c.safeEquippedSupports,
+      baseDmg: c.baseDmg,
+      baseHp: c.baseHp,
+      baseMove: c.baseMove,
+      glovePairAspdBonus: c.glovePairAspdBonus,
+      passive: c.passive,
+      support: c.support,
+      season: c.season,
+      ascend: c.ascend,
+      reward: c.reward,
+      starBlessing: c.starBlessing,
+      colonyWardBonus: c.colonyWardBonus
+    } = s.inputs.begin(c.owner));
+    ({
+      resolvedStats: c.resolvedStats,
+      barbarismKeystone: c.barbarismKeystone,
+      gearBase: c.gearBase,
+      gearExplicit: c.gearExplicit,
+      localDefenseTotals: c.localDefenseTotals,
+      globalDefensePct: c.globalDefensePct,
+      shieldArmorForDamage: c.shieldArmorForDamage,
+      shieldBaseBlockChance: c.shieldBaseBlockChance,
+      shieldBlockChancePct: c.shieldBlockChancePct,
+      shieldBlockChanceFlat: c.shieldBlockChanceFlat,
+      equippedUniqueEffects: c.equippedUniqueEffects,
+      equippedUniqueJewels: c.equippedUniqueJewels,
+      activeUniqueIds: c.activeUniqueIds
+    } = s.inputs.equipment(c.owner, c.tick, c.reward));
+    Object.assign(c, s.uniqueEffects.evaluate(c.owner, { effects: c.equippedUniqueEffects, activeUniqueIds: c.activeUniqueIds, equippedUniqueJewels: c.equippedUniqueJewels, baseHp: c.baseHp, reward: c.reward }));
+    c.weaponStance = s.growth.passives(c.owner, c.passive, c.safePassives);
+    ({ runeCorpseExplodeChance: c.runeCorpseExplodeChance, runeCorpseExplodeLifePct: c.runeCorpseExplodeLifePct, runeResonancePower: c.runeResonancePower, talismanSummary: c.talismanSummary } = s.growth.rewards(
+      c.owner,
+      { season: c.season, ascend: c.ascend, reward: c.reward, starBlessing: c.starBlessing },
+      c.tick,
+      { season: c.safeSeasonNodes, ascend: c.safeAscendNodes, act: c.safeRewardBonuses, journal: c.safeJournalBonuses }
+    ));
+    c.statBuckets = { gearBase: c.gearBase, gearExplicit: c.gearExplicit, passive: c.passive, season: c.season, ascend: c.ascend, reward: c.reward, starBlessing: c.starBlessing, support: c.support };
+    ({ sumNonSupportStat: c.sumNonSupportStat, sumStatAcrossBuckets: c.sumStatAcrossBuckets } = s.inputs.readers(c.statBuckets));
+  }
+  function prepareRunes(c, s) {
+    ({ gemEvaluation: c.gemEvaluation, gemSources: c.gemSources, skill: c.skill, supportValues: c.supportValues, summonCapTotal: c.summonCapTotal, auraValues: c.auraValues } = s.inputs.skills({
+      owner: c.owner,
+      buckets: c.statBuckets,
+      resolvedStats: c.resolvedStats,
+      safeEquippedSupports: c.safeEquippedSupports,
+      sumNonSupportStat: c.sumNonSupportStat,
+      projectilePatternEffect: c.projectilePatternEffect
+    }));
+    c.authoredPassiveRules = s.inputs.passiveRules(c.statBuckets, c.skill, c.tick);
+    ({ totalStrength: c.totalStrength, totalDexterity: c.totalDexterity, totalIntelligence: c.totalIntelligence } = s.inputs.attributes(c.sumStatAcrossBuckets, c.reward, c.attributesOnly));
+  }
+  function prepareTargetBudget(c, s, deps) {
+    ({
+      flatAccuracy: c.flatAccuracy,
+      accuracyBonusPct: c.accuracyBonusPct,
+      playerAccuracy: c.playerAccuracy,
+      bladeBundleShots: c.bladeBundleShots,
+      skillBaseTargets: c.skillBaseTargets,
+      totalProjectileExtraShots: c.totalProjectileExtraShots,
+      cappedTargets: c.cappedTargets
+    } = s.inputs.targets({
+      owner: c.owner,
+      skill: c.skill,
+      buckets: c.statBuckets,
+      totalStrength: c.totalStrength,
+      totalDexterity: c.totalDexterity,
+      weaponStance: c.weaponStance,
+      sumStatAcrossBuckets: c.sumStatAcrossBuckets
+    }));
+    c.talentStatMap = typeof deps.talentStatMap === "function" ? deps.talentStatMap() : {};
+    if (typeof deps.talentCardStats === "function") applyStatsToBucket(c.reward, deps.talentCardStats(c.tick));
+    c.bonusResonancePower = deps.resonancePower(c.runeResonancePower, c.reward, c.passive, c.gearExplicit);
+    c.supportBudget = s.passive.supportBudget(c.owner, { baseSlots: 2 + c.gearBase.suppCap + c.gearExplicit.suppCap + c.passive.suppCap + c.season.suppCap + c.ascend.suppCap + c.reward.suppCap, cosmos: c.cosmosTwinStarResonance, unique: c.uniqueResonanceAndSuppCap || {}, runePower: c.bonusResonancePower, flags: c.authoredPassiveRules.flags });
+    ({ suppCap: c.suppCap, inquisitorResonanceBonus: c.inquisitorResonanceBonus, uniqueResonanceFloor: c.uniqueResonanceFloor } = c.supportBudget);
+    c.supportResonanceOverflow = s.passive.applyResonance(c.passive, c.supportBudget, c.owner);
+  }
+  function prepareTaggedDamage(c, s, deps) {
+    c.taggedSkill = c.authoredPassiveRules.flags.duel ? { ...c.skill, tags: [...c.skill.tags, "spell"] } : c.skill;
+    c.strongestElement = c.authoredPassiveRules.flags.threeBranchLight ? s.passive.strongestElement(c.sumStatAcrossBuckets) : null;
+    c.damageSkill = s.passive.taggedSkill(c.taggedSkill, c.strongestElement);
+    c.gearTagged = getTaggedDamageBreakdown(c.gearBase, c.damageSkill);
+    c.gearExplicitTagged = getTaggedDamageBreakdown(c.gearExplicit, c.damageSkill);
+    c.passiveTagged = getTaggedDamageBreakdown(c.passive, c.damageSkill);
+    c.seasonTagged = getTaggedDamageBreakdown(c.season, c.damageSkill);
+    c.ascendTagged = getTaggedDamageBreakdown(c.ascend, c.damageSkill);
+    c.supportTagged = getTaggedDamageBreakdown(c.support, c.damageSkill);
+    c.rewardTagged = getTaggedDamageBreakdown(c.reward, c.damageSkill);
+    c.starTagged = getTaggedDamageBreakdown(c.starBlessing, c.damageSkill);
+    c.taggedTotal = c.gearTagged.total + c.gearExplicitTagged.total + c.passiveTagged.total + c.seasonTagged.total + c.ascendTagged.total + c.supportTagged.total + c.rewardTagged.total + c.starTagged.total;
+    c.taggedParts = [].concat(c.gearTagged.parts, c.gearExplicitTagged.parts, c.passiveTagged.parts, c.seasonTagged.parts, c.ascendTagged.parts, c.supportTagged.parts, c.rewardTagged.parts, c.starTagged.parts);
+    c.taggedMap = {};
+    c.taggedParts.forEach((part) => {
+      let tag = Object.keys(TAGGED_DAMAGE_STAT_BY_TAG2).find((key) => TAGGED_DAMAGE_STAT_BY_TAG2[key] === part.statId);
+      if (!tag) return;
+      c.taggedMap[tag] = (c.taggedMap[tag] || 0) + part.value;
+    });
+    c.taggedSummary = Object.keys(c.taggedMap).map((tag) => `${deps.tagLabel(tag)} ${Math.floor(c.taggedMap[tag])}%`);
+    c.baseTaggedTotal = c.taggedTotal;
+  }
+  function applyElementalDoctrine(c, s, deps) {
+    ({ coreCubeAddedDamagePct: c.coreCubeAddedDamagePct, coreCubeFlatElementDamage: c.coreCubeFlatElementDamage, coreCubeTakenFlatReduce: c.coreCubeTakenFlatReduce, coreCubePhysTakenAs: c.coreCubePhysTakenAs, coreCubeDoubleDamageChance: c.coreCubeDoubleDamageChance, coreCubeSlamEchoDamagePct: c.coreCubeSlamEchoDamagePct } = s.math.coreModifiers(c));
+    c.crusaderThunderDoctrinePct = 0;
+    if (deps.keystone("cr2") && c.skill.ele === "light") {
+      let firePct = c.sumStatAcrossBuckets("firePctDmg");
+      let coldPct = c.sumStatAcrossBuckets("coldPctDmg");
+      c.crusaderThunderDoctrinePct = Math.max(0, firePct + coldPct);
+      if (c.crusaderThunderDoctrinePct > 0) {
+        c.taggedTotal += c.crusaderThunderDoctrinePct;
+        c.taggedSummary.push(deps.translate("천뢰 교리: 화염/냉기 피해 {floor}%를 번개 피해에 추가 적용", { floor: Math.floor(c.crusaderThunderDoctrinePct) }));
+      }
+    }
+  }
+  function prepareRandomElementDamage(c, deps) {
+    c.hasRandomElementConversion = Array.isArray(c.skill.randomElementPool) && c.skill.randomElementPool.length > 0;
+    c.skillHasElementalConversion = c.hasRandomElementConversion || ["fire", "cold", "light", "chaos"].includes(c.skill.ele);
+    c.randomElementDamagePct = c.hasRandomElementConversion ? {
+      fire: c.strongestElement?.bonus ?? c.sumStatAcrossBuckets("firePctDmg"),
+      cold: c.strongestElement?.bonus ?? c.sumStatAcrossBuckets("coldPctDmg"),
+      light: c.strongestElement?.bonus ?? c.sumStatAcrossBuckets("lightPctDmg")
+    } : null;
+    appendRandomElementSummary(c, deps);
+  }
+  function appendRandomElementSummary(c, deps) {
+    if (!c.randomElementDamagePct) return;
+    const summary = Object.entries(c.randomElementDamagePct).filter(([, value]) => value).map(([ele, value]) => `${ele === "fire" ? deps.translate("화염") : ele === "cold" ? deps.translate("냉기") : deps.translate("번개")} ${Math.floor(value)}%`);
+    if (summary.length > 0) c.taggedSummary.push(deps.translate("무작위 원소별 적용: {summary}", { summary: summary.join(" / ") }));
+  }
+  function prepareAilmentChances(c, s, deps) {
+    ({ gearFlatDmg: c.gearFlatDmg, passiveFlatDmg: c.passiveFlatDmg, generalPctDmg: c.generalPctDmg, summonSharedGeneralPctDmg: c.summonSharedGeneralPctDmg, dotPctDmg: c.dotPctDmg } = s.math.weaponDamage(c));
+    c.sumAilmentChanceStat = function(statId) {
+      return (c.gearBase[statId] || 0) + (c.gearExplicit[statId] || 0) + (c.passive[statId] || 0) + (c.season[statId] || 0) + (c.ascend[statId] || 0) + (c.support[statId] || 0) + (c.reward[statId] || 0) + (c.starBlessing[statId] || 0);
+    };
+    c.finalIgniteChance = c.sumAilmentChanceStat("igniteChance");
+    c.finalChillChance = c.sumAilmentChanceStat("chillChance");
+    c.finalFreezeChance = c.sumAilmentChanceStat("freezeChance");
+    c.finalShockChance = c.sumAilmentChanceStat("shockChance");
+    c.finalPoisonChance = c.sumAilmentChanceStat("poisonChance");
+    c.finalBleedChance = c.sumAilmentChanceStat("bleedChance");
+    c.ailmentCritChance = { ignite: 25, chill: 25, freeze: 25, shock: 25, poison: 25, bleed: 25 };
+    c.bleedChanceMultiplier = c.authoredPassiveRules.flags.bloodCradle ? 0.7 : 1;
+    c.finalBleedChance *= c.bleedChanceMultiplier;
+    c.ailmentCritChance.bleed *= c.bleedChanceMultiplier;
+    c.isSpellSkill = Array.isArray(c.skill.tags) && c.skill.tags.includes("spell");
+    if (c.isSpellSkill) c.reward.ds += c.sumStatAcrossBuckets("spellRepeatChance");
+    c.isDotSkill = deps.nativeDot(c.skill);
+  }
+  function prepareBaseDamage(c, s) {
+    ({ spellFlatDmg: c.spellFlatDmg, totalFlatDmg: c.totalFlatDmg, codexBonusRatio: c.codexBonusRatio } = s.math.spellDamage(c));
+    ({ flatElementHitDamage: c.flatElementHitDamage } = s.math.elementHits(c));
+    ({ gearFlatHp: c.gearFlatHp, passiveFlatHp: c.passiveFlatHp, totalPctHp: c.totalPctHp, finalMaxHp: c.finalMaxHp, hpScaleRatio: c.hpScaleRatio, hpFlatBonus: c.hpFlatBonus, scaledFlatDmg: c.scaledFlatDmg } = s.math.lifeDamage(c));
+    c.talentDamageResult = s.math.talentDamage(c);
+    ({ talentSourceStats: c.talentSourceStats, baseDamageIncreaseMultiplier: c.baseDamageIncreaseMultiplier, finalBaseDmg: c.finalBaseDmg } = c.talentDamageResult);
+    ({ taggedTotal: c.taggedTotal } = c.talentDamageResult);
+    ({ gearAspd: c.gearAspd, passiveAspd: c.passiveAspd, totalAspdPct: c.totalAspdPct, rawAspd: c.rawAspd, finalAspd: c.finalAspd, skillDelayPct: c.skillDelayPct } = s.math.attackSpeed(c));
+  }
+
+  // modules/domain/player-stat-pipeline-defense.mjs
+  function prepareCriticalMovement(c) {
+    c.gearCrit = c.gearBase.crit + c.gearExplicit.crit;
+    c.passiveCrit = c.passive.crit + c.season.crit + c.ascend.crit + c.reward.crit;
+    c.finalCrit = (2.5 + c.gearCrit + c.passiveCrit + c.support.crit + (c.skill.crit || 0)) * 0.82;
+    c.finalMove = c.baseMove + c.gearBase.move + c.gearExplicit.move + c.passive.move + c.season.move + c.ascend.move + c.support.move + c.reward.move + c.starBlessing.move;
+    if (c.authoredPassiveRules.flags.bloodAcceleration && c.tick.get("leechActive")) c.finalMove *= 1.15;
+    c.danceStacks = c.uniqueEvasionDance ? c.tick.get("evasionDanceStacks") : null;
+    c.activeEvasionDanceStacks = c.danceStacks !== null ? Math.max(0, Math.min(c.uniqueEvasionDance.maxStacks, c.danceStacks)) : 0;
+    if (c.activeEvasionDanceStacks > 0) c.finalMove += c.activeEvasionDanceStacks * Math.max(0, c.uniqueEvasionDance.movePerStack);
+    c.owner.oceanOxygenMaxBonus = Math.max(0, c.gearBase.oxygenMax + c.gearExplicit.oxygenMax + c.passive.oxygenMax + c.season.oxygenMax + c.ascend.oxygenMax + c.reward.oxygenMax);
+    c.owner.oceanOxygenDrainReductionPct = Math.max(0, Math.min(80, c.gearBase.oxygenRegen + c.gearExplicit.oxygenRegen + c.passive.oxygenRegen + c.season.oxygenRegen + c.ascend.oxygenRegen + c.reward.oxygenRegen));
+  }
+  function applyMovementEffects(c, s) {
+    c.activeShadowStealth = c.uniqueDeflectStealth && c.tick.get("shadowStealth");
+    if (c.activeShadowStealth) c.finalMove += Math.max(0, Number(c.uniqueDeflectStealth.move || 20));
+    c.killMoveStacks = c.uniqueKillMoveStacks ? c.tick.get("killMoveStacks") : null;
+    if (c.killMoveStacks !== null) c.finalMove += c.killMoveStacks * Math.max(0, Number(c.uniqueKillMoveStacks.movePerStack || 10));
+    c.finalMove += c.tick.get("regionMoveBonus");
+    c.regionResult = s.finalMath.region(c);
+    ({
+      zoneSpeedMultiplier: c.zoneSpeedMultiplier,
+      oceanPressureDamageMul: c.oceanPressureDamageMul,
+      oceanCurrentResPenaltyF: c.oceanCurrentResPenaltyF,
+      oceanCurrentResPenaltyC: c.oceanCurrentResPenaltyC
+    } = c.regionResult);
+    ({
+      finalAspd: c.finalAspd,
+      finalMove: c.finalMove,
+      playerAccuracy: c.playerAccuracy
+    } = c.regionResult);
+  }
+  function applyRegionDamage(c, deps) {
+    c.currentStatsZone = deps.zone(c.owner.currentZoneId);
+    c.activeCosmosMastery = c.currentStatsZone && c.currentStatsZone.type === "cosmos" && typeof deps.cosmosMastery === "function";
+    c.cosmosMasteryFinalDamagePct = c.activeCosmosMastery ? Math.max(0, Number(deps.cosmosMastery("resonanceDrive")) || 0) * 0.6 : 0;
+    c.cosmosMasteryTakenLessPct = c.activeCosmosMastery ? Math.max(0, Number(deps.cosmosMastery("riftGuard")) || 0) * 0.7 : 0;
+    c.cosmosMasteryBossDamagePct = c.activeCosmosMastery ? Math.max(0, Number(deps.cosmosMastery("starbreaker")) || 0) * 1.8 : 0;
+    c.finalDamageMultiplier = (1 + c.cosmosMasteryFinalDamagePct / 100) * c.oceanPressureDamageMul;
+    c.finalDamageMultiplier *= 1 + Math.max(0, c.authoredPassiveRules.combatDamageMorePct) / 100;
+    c.finalDamageMultiplier *= 1 + deps.loopMorePct(c.owner.loopDeepStats) / 100;
+    c.finalDamageMultiplier *= 1 + deps.barkEffect().damagePct / 100;
+  }
+  function applyConditionalDamage(c, deps) {
+    if (c.authoredPassiveRules.flags.selfExperiment) c.finalDamageMultiplier *= 1 + c.tick.get("playerAilmentCount") * 0.05;
+    c.wisdomLeapActive = typeof deps.passiveNode === "function" && !!deps.passiveNode("지혜의 도약");
+    c.passiveWisdomElement = c.wisdomLeapActive ? c.authoredPassiveRules.wisdomElement : "";
+    if (c.authoredPassiveRules.fanaticismStacks > 0) {
+      c.finalDamageMultiplier *= 1 + c.authoredPassiveRules.fanaticismStacks * 0.015;
+    }
+    c.cosmosBossDamageMorePct = Math.max(c.cosmosBossDamageMorePct, c.cosmosMasteryBossDamagePct);
+    if (c.uniqueLabyrinthShackles) {
+      c.finalDamageMultiplier *= deps.shacklesMultiplier(c.finalMove);
+      c.finalMove = 100;
+    }
+  }
+  function prepareDefenses(c, s) {
+    ({ totalArmorPct: c.totalArmorPct, totalEvasionPct: c.totalEvasionPct, totalEnergyShieldPct: c.totalEnergyShieldPct, finalArmor: c.finalArmor, finalEvasion: c.finalEvasion, finalEnergyShield: c.finalEnergyShield } = s.math.defenseBase(c));
+    c.shieldBonusesResult = s.math.shieldBonuses(c);
+    ({ omniscientActive: c.omniscientActive } = c.shieldBonusesResult);
+    ({ finalEnergyShield: c.finalEnergyShield } = c.shieldBonusesResult);
+    ({ finalEnergyShieldRegenRate: c.finalEnergyShieldRegenRate, finalEnergyShieldRechargeDelay: c.finalEnergyShieldRechargeDelay, referenceIncomingPhysical: c.referenceIncomingPhysical, armorReduction: c.armorReduction, enemyAccuracy: c.enemyAccuracy, evadeChance: c.evadeChance, finalDeflectChance: c.finalDeflectChance, finalDeflectDamageReduce: c.finalDeflectDamageReduce } = s.math.defenseRates(c));
+    ({ finalCritDmg: c.finalCritDmg, rawLeech: c.rawLeech, wildnessLeech: c.wildnessLeech, finalLeech: c.finalLeech, finalSpellLeech: c.finalSpellLeech } = s.math.leech(c));
+    c.leechCapsResult = s.math.leechCaps(c);
+    ({ finalLeechRateCap: c.finalLeechRateCap, finalLeechTotalCap: c.finalLeechTotalCap, finalLeechInstanceCap: c.finalLeechInstanceCap, finalLeechKeepFullLife: c.finalLeechKeepFullLife } = c.leechCapsResult);
+    ({ finalLeech: c.finalLeech, finalSpellLeech: c.finalSpellLeech } = c.leechCapsResult);
+    ({ rawDr: c.rawDr, finalDr: c.finalDr, finalPhysIgnore: c.finalPhysIgnore } = s.math.physicalMitigation(c));
+  }
+  function applyPassiveDefenseCosts(c, deps) {
+    c.allowNegativePhysIgnore = false;
+    c.warriorPhysDamageMultiplier = 1;
+    c.warriorTakenDamageMultiplier = 1;
+    c.genericTakenDamageMultiplier = 1;
+    c.genericTakenDamageMultiplier *= 1 - Math.max(0, c.authoredPassiveRules.guardTakenLessPct) / 100;
+    c.forbiddenManifestation = typeof deps.passiveNode === "function" && deps.passiveNode("금단의 만상");
+    if (c.forbiddenManifestation) {
+      c.finalArmor = Math.floor(c.finalArmor * 0.4);
+      c.finalEvasion = Math.floor(c.finalEvasion * 0.4);
+      c.finalEnergyShield = Math.floor(c.finalEnergyShield * 0.4);
+      c.finalDeflectChance = Math.min(25, c.finalDeflectChance);
+    }
+    if (c.authoredPassiveRules.fanaticismStacks > 0) {
+      let defenseMultiplier = Math.max(0, 1 - c.authoredPassiveRules.fanaticismStacks * 75e-4);
+      c.finalArmor = Math.floor(c.finalArmor * defenseMultiplier);
+      c.finalEvasion = Math.floor(c.finalEvasion * defenseMultiplier);
+      c.finalEnergyShield = Math.floor(c.finalEnergyShield * defenseMultiplier);
+      c.finalAspd = Math.min(12, c.finalAspd * (1 + c.authoredPassiveRules.fanaticismStacks * 5e-3));
+    }
+  }
+  function prepareTakenReduction(c) {
+    c.genericTakenDamageReducePct = Math.max(0, Math.min(90, (c.gearBase.genericTakenDamageReducePct || 0) + (c.gearExplicit.genericTakenDamageReducePct || 0) + (c.passive.genericTakenDamageReducePct || 0) + (c.season.genericTakenDamageReducePct || 0) + (c.ascend.genericTakenDamageReducePct || 0) + (c.support.genericTakenDamageReducePct || 0) + (c.reward.genericTakenDamageReducePct || 0)));
+    c.genericTakenDamageMultiplier *= 1 - c.genericTakenDamageReducePct / 100;
+  }
+  function prepareAscendancyDefaults(c) {
+    c.bossDamageDealtMultiplier = 1;
+    c.bossTakenDamageMultiplier = 1;
+    c.ailmentResistBonusPct = 0;
+    c.inquisitorAbsoluteDoctrinePct = 0;
+    c.swiftOpeningTakenMultiplier = 1;
+    c.guardianReflectDamage = 0;
+    c.guardianBlockChance = 0;
+    c.guardianDamageNullifyChance = 0;
+    c.guardianHitCapPct = 0;
+    c.guardianArmorDamageBonus = false;
+    c.sbSummonAspdBonus = 0;
+    c.sbPlayerAttackPower = 0;
+    c.sbSummonAttackPower = 0;
+    c.sbSummonShareToPlayer = 0;
+    c.ailmentResistPenPct = 0;
+    c.crusaderLightningIgnoreRes = false;
+    c.crusaderNoResPenOnLightning = false;
+    c.crusaderHolyFlatDmg = 0;
+    c.crusaderHolyScaledDmg = 0;
+  }
+  function prepareRepeatAndRecovery(c) {
+    c.baseDsFromSources = c.gearBase.ds + c.gearExplicit.ds + c.passive.ds + c.season.ds + c.ascend.ds + c.support.ds + c.reward.ds;
+    c.skillDsBonus = c.skill.dsBonus || 0;
+    c.finalDs = c.baseDsFromSources + c.skillDsBonus;
+    c.finalSlamEchoChance = c.gearBase.slamEchoChance + c.gearExplicit.slamEchoChance + c.passive.slamEchoChance + c.season.slamEchoChance + c.ascend.slamEchoChance + c.support.slamEchoChance + c.reward.slamEchoChance;
+    c.finalSlamEchoDamagePct = Math.max(0, c.coreCubeSlamEchoDamagePct || 0);
+    c.finalRegen = c.gearBase.regen + c.gearExplicit.regen + c.passive.regen + c.season.regen + c.ascend.regen + c.support.regen + c.reward.regen + (c.skill.regenBonus || 0);
+    c.flatRegen = c.gearBase.regenFlat + c.gearExplicit.regenFlat + c.passive.regenFlat + c.season.regenFlat + c.ascend.regenFlat + c.support.regenFlat + c.reward.regenFlat;
+    c.finalRegen += c.flatRegen / Math.max(1, c.finalMaxHp) * 100;
+    if (c.cosmosTideEsRegenToLife) {
+      c.finalRegen += Math.max(0, c.finalEnergyShieldRegenRate);
+      c.finalEnergyShieldRegenRate = 0;
+    }
+    if (c.activeUniqueIds.has("uj_hurried_mind")) {
+      if (c.tick.get("aliveEnemies") === 0) c.finalMove *= 1.5;
+    }
+    c.finalRegenSuppress = c.gearBase.regenSuppress + c.gearExplicit.regenSuppress + c.passive.regenSuppress + c.season.regenSuppress + c.ascend.regenSuppress + c.support.regenSuppress + c.reward.regenSuppress;
+    c.finalResPen = c.gearBase.resPen + c.gearExplicit.resPen + c.passive.resPen + c.season.resPen + c.ascend.resPen + c.support.resPen + c.reward.resPen + (c.skill.resPenBonus || 0);
+  }
+  function prepareAilmentReduction(c) {
+    c.finalChillEffectReducePct = c.gearBase.chillEffectReducePct + c.gearExplicit.chillEffectReducePct + c.passive.chillEffectReducePct + c.season.chillEffectReducePct + c.ascend.chillEffectReducePct + c.support.chillEffectReducePct + c.reward.chillEffectReducePct;
+    c.finalFreezeDurationReducePct = c.gearBase.freezeDurationReducePct + c.gearExplicit.freezeDurationReducePct + c.passive.freezeDurationReducePct + c.season.freezeDurationReducePct + c.ascend.freezeDurationReducePct + c.support.freezeDurationReducePct + c.reward.freezeDurationReducePct;
+    c.finalShockEffectReducePct = c.gearBase.shockEffectReducePct + c.gearExplicit.shockEffectReducePct + c.passive.shockEffectReducePct + c.season.shockEffectReducePct + c.ascend.shockEffectReducePct + c.support.shockEffectReducePct + c.reward.shockEffectReducePct;
+    c.finalCritResist = sumOrderedPlayerStatSources(c, "critResist");
+    c.finalIgniteDamageReducePct = c.gearBase.igniteDamageReducePct + c.gearExplicit.igniteDamageReducePct + c.passive.igniteDamageReducePct + c.season.igniteDamageReducePct + c.ascend.igniteDamageReducePct + c.support.igniteDamageReducePct + c.reward.igniteDamageReducePct;
+    c.finalBleedDamageReducePct = c.gearBase.bleedDamageReducePct + c.gearExplicit.bleedDamageReducePct + c.passive.bleedDamageReducePct + c.season.bleedDamageReducePct + c.ascend.bleedDamageReducePct + c.support.bleedDamageReducePct + c.reward.bleedDamageReducePct;
+    c.finalPoisonDamageReducePct = c.gearBase.poisonDamageReducePct + c.gearExplicit.poisonDamageReducePct + c.passive.poisonDamageReducePct + c.season.poisonDamageReducePct + c.ascend.poisonDamageReducePct + c.support.poisonDamageReducePct + c.reward.poisonDamageReducePct;
+    c.finalDotTakenDamageReducePct = c.gearBase.dotTakenDamageReducePct + c.gearExplicit.dotTakenDamageReducePct + c.passive.dotTakenDamageReducePct + c.season.dotTakenDamageReducePct + c.ascend.dotTakenDamageReducePct + c.support.dotTakenDamageReducePct + c.reward.dotTakenDamageReducePct;
+    c.finalTakenDamageReduceWhen2EnemiesPct = c.gearBase.takenDamageReduceWhen2EnemiesPct + c.gearExplicit.takenDamageReduceWhen2EnemiesPct + c.passive.takenDamageReduceWhen2EnemiesPct + c.season.takenDamageReduceWhen2EnemiesPct + c.ascend.takenDamageReduceWhen2EnemiesPct + c.support.takenDamageReduceWhen2EnemiesPct + c.reward.takenDamageReduceWhen2EnemiesPct;
+    c.finalTakenDamageReduceWhen1EnemyPct = c.gearBase.takenDamageReduceWhen1EnemyPct + c.gearExplicit.takenDamageReduceWhen1EnemyPct + c.passive.takenDamageReduceWhen1EnemyPct + c.season.takenDamageReduceWhen1EnemyPct + c.ascend.takenDamageReduceWhen1EnemyPct + c.support.takenDamageReduceWhen1EnemyPct + c.reward.takenDamageReduceWhen1EnemyPct;
+    c.finalIgniteDamageMultiplierPct = c.gearBase.igniteDamageMultiplierPct + c.gearExplicit.igniteDamageMultiplierPct + c.passive.igniteDamageMultiplierPct + c.season.igniteDamageMultiplierPct + c.ascend.igniteDamageMultiplierPct + c.support.igniteDamageMultiplierPct + c.reward.igniteDamageMultiplierPct;
+    c.finalPoisonDamageMultiplierPct = c.gearBase.poisonDamageMultiplierPct + c.gearExplicit.poisonDamageMultiplierPct + c.passive.poisonDamageMultiplierPct + c.season.poisonDamageMultiplierPct + c.ascend.poisonDamageMultiplierPct + c.support.poisonDamageMultiplierPct + c.reward.poisonDamageMultiplierPct;
+    c.finalChillEffectBonusPct = Math.max(0, c.sumStatAcrossBuckets("chillEffect"));
+    c.finalShockEffectBonusPct = (c.gearExplicit.shockEffect || 0) + (c.passive.shockEffect || 0) + (c.season.shockEffect || 0) + (c.ascend.shockEffect || 0) + (c.reward.shockEffect || 0) + Math.max(0, Number(c.uniqueShockTracer && c.uniqueShockTracer.shockEffectPct || 0));
+  }
+  function prepareDamageRange(c, deps) {
+    c.finalMinDmgRoll = Math.max(5, 80 + c.gearBase.minDmgRoll + c.gearExplicit.minDmgRoll + c.passive.minDmgRoll + c.season.minDmgRoll + c.ascend.minDmgRoll + c.support.minDmgRoll + c.reward.minDmgRoll);
+    c.finalMaxDmgRoll = Math.max(c.finalMinDmgRoll, 100 + c.gearBase.maxDmgRoll + c.gearExplicit.maxDmgRoll + c.passive.maxDmgRoll + c.season.maxDmgRoll + c.ascend.maxDmgRoll + c.support.maxDmgRoll + c.reward.maxDmgRoll);
+    if (c.authoredPassiveRules.flags.maximumRoll) c.finalMinDmgRoll = c.finalMaxDmgRoll;
+    if (c.uniqueMaxHpPct) c.finalMaxHp = Math.floor(c.finalMaxHp * (1 + Math.max(0, c.uniqueMaxHpPct) / 100));
+    applyMeleeArmorStacks(c);
+    if (c.uniqueMinRollEqualsMaxRoll) {
+      c.finalMaxDmgRoll = deps.absoluteFloorRoll(c.finalMaxDmgRoll);
+      c.finalMinDmgRoll = c.finalMaxDmgRoll;
+    }
+    if (c.uniqueHpToPhysPct && c.skill.ele === "phys" && !c.skillHasElementalConversion) c.finalBaseDmg = Math.floor(c.finalBaseDmg * (1 + c.finalMaxHp / 100 / 100));
+  }
+  function applyMeleeArmorStacks(c) {
+    c.meleeArmorAmpStacks = c.uniqueMeleeArmorAmp ? c.tick.get("meleeArmorAmpStacks") : null;
+    if (c.meleeArmorAmpStacks !== null) {
+      let stacks = Math.max(0, Math.min(Math.floor(c.uniqueMeleeArmorAmp.maxStacks || 3), c.meleeArmorAmpStacks));
+      if (stacks > 0) c.finalArmor = Math.floor(c.finalArmor * Math.pow(1 + Math.max(0, Number(c.uniqueMeleeArmorAmp.ampPct || 5)) / 100, stacks));
+    }
+  }
+
+  // modules/domain/player-stat-pipeline-damage.mjs
+  function prepareResistanceCaps(c, deps) {
+    c.resistPenalty = deps.campaignPenalty(c.owner.maxZoneId);
+    c.resistanceBlendBonus = 0;
+    c.resistanceBlendMaxBonus = 0;
+    c.crusaderLightningMaxResBonus = 0;
+    c.elementalistResistanceShift = { resF: 0, resC: 0, resL: 0, resChaos: 0 };
+    c.elementalistChaosConversionBonus = 0;
+    c.sharedElementalMaxRes = c.gearBase.maxResAll + c.gearExplicit.maxResAll + c.passive.maxResAll + c.season.maxResAll + c.ascend.maxResAll + c.support.maxResAll + c.reward.maxResAll;
+    c.finalMaxResF = Math.min(90, 75 + c.sharedElementalMaxRes + c.gearBase.maxResF + c.gearExplicit.maxResF + c.passive.maxResF + c.season.maxResF + c.ascend.maxResF + c.support.maxResF + c.reward.maxResF);
+    c.finalMaxResC = Math.min(90, 75 + c.sharedElementalMaxRes + c.gearBase.maxResC + c.gearExplicit.maxResC + c.passive.maxResC + c.season.maxResC + c.ascend.maxResC + c.support.maxResC + c.reward.maxResC);
+    c.finalMaxResL = Math.min(90, 75 + c.sharedElementalMaxRes + c.gearBase.maxResL + c.gearExplicit.maxResL + c.passive.maxResL + c.season.maxResL + c.ascend.maxResL + c.support.maxResL + c.reward.maxResL);
+    c.finalMaxResChaos = Math.min(90, 75 + c.gearBase.maxResChaos + c.gearExplicit.maxResChaos + c.passive.maxResChaos + c.season.maxResChaos + c.ascend.maxResChaos + c.support.maxResChaos + c.reward.maxResChaos);
+    c.hasElementalistPrismaticShell = deps.keystone("e2");
+    if (c.hasElementalistPrismaticShell) {
+      c.elementalistResistanceShift = { resF: 15, resC: 15, resL: 15, resChaos: -10 };
+      c.finalMaxResF = Math.min(90, c.finalMaxResF + 3);
+      c.finalMaxResC = Math.min(90, c.finalMaxResC + 3);
+      c.finalMaxResL = Math.min(90, c.finalMaxResL + 3);
+    }
+  }
+  function prepareRawResistance(c, deps) {
+    c.rawResF = c.gearBase.resF + c.gearExplicit.resF + c.passive.resF + c.season.resF + c.ascend.resF + c.support.resF + c.reward.resF + c.elementalistResistanceShift.resF - c.resistPenalty - c.oceanCurrentResPenaltyF;
+    c.rawResC = c.gearBase.resC + c.gearExplicit.resC + c.passive.resC + c.season.resC + c.ascend.resC + c.support.resC + c.reward.resC + c.elementalistResistanceShift.resC - c.resistPenalty - c.oceanCurrentResPenaltyC;
+    c.rawResL = c.gearBase.resL + c.gearExplicit.resL + c.passive.resL + c.season.resL + c.ascend.resL + c.support.resL + c.reward.resL + c.elementalistResistanceShift.resL - c.resistPenalty;
+    c.rawResChaos = c.gearBase.resChaos + c.gearExplicit.resChaos + c.passive.resChaos + c.season.resChaos + c.ascend.resChaos + c.support.resChaos + c.reward.resChaos + c.elementalistResistanceShift.resChaos - c.resistPenalty;
+    if (c.uniqueRegenRateAndRegen) {
+      c.finalRegen += Number(c.uniqueRegenRateAndRegen.regen || 0);
+      c.finalRegen *= 1 + Math.max(0, Number(c.uniqueRegenRateAndRegen.regenRatePct || 0)) / 100;
+    }
+    if (c.uniqueAllMaxRes) {
+      c.finalMaxResF += c.uniqueAllMaxRes;
+      c.finalMaxResC += c.uniqueAllMaxRes;
+      c.finalMaxResL += c.uniqueAllMaxRes;
+    }
+    if (c.uniqueEnemyRegenCutAndMinRoll) c.finalMinDmgRoll += Number(c.uniqueEnemyRegenCutAndMinRoll.minRoll || 0);
+    if (deps.keystone("ct2")) {
+      c.resistanceBlendBonus = Math.max(0, c.dotPctDmg) * deps.keystoneValues.ct2.resPctOfDot / 100;
+      c.resistanceBlendMaxBonus = Math.floor(Math.max(0, c.dotPctDmg) * deps.keystoneValues.ct2.maxResPctOfDot / 100);
+      c.rawResF += c.resistanceBlendBonus;
+      c.rawResC += c.resistanceBlendBonus;
+      c.rawResL += c.resistanceBlendBonus;
+      c.rawResChaos += c.resistanceBlendBonus;
+      c.finalMaxResF = Math.min(90, c.finalMaxResF + c.resistanceBlendMaxBonus);
+      c.finalMaxResC = Math.min(90, c.finalMaxResC + c.resistanceBlendMaxBonus);
+      c.finalMaxResL = Math.min(90, c.finalMaxResL + c.resistanceBlendMaxBonus);
+      c.finalMaxResChaos = Math.min(90, c.finalMaxResChaos + c.resistanceBlendMaxBonus);
+    }
+    if (c.fixedAllMaxRes !== null) {
+      c.finalMaxResF = c.fixedAllMaxRes;
+      c.finalMaxResC = c.fixedAllMaxRes;
+      c.finalMaxResL = c.fixedAllMaxRes;
+      c.finalMaxResChaos = c.fixedAllMaxRes;
+    }
+    c.finalResF = Math.min(c.finalMaxResF, c.rawResF);
+    c.finalResC = Math.min(c.finalMaxResC, c.rawResC);
+    c.finalResL = Math.min(c.finalMaxResL, c.rawResL);
+    c.warlockElementalOvercapToChaos = deps.keystone("wlk4") ? (Math.max(0, c.rawResF - c.finalMaxResF) + Math.max(0, c.rawResC - c.finalMaxResC) + Math.max(0, c.rawResL - c.finalMaxResL)) * 0.25 : 0;
+    c.finalResChaos = Math.min(c.finalMaxResChaos, c.rawResChaos + c.warlockElementalOvercapToChaos);
+  }
+  function prepareWardOvercap(c, deps) {
+    c.cw = typeof deps.wards === "object" ? deps.wards.equippedLines(c.owner) : [];
+    c.cw.forEach((w) => {
+      if (w && w.stat) c.colonyWardBonus[w.stat] = (c.colonyWardBonus[w.stat] || 0) + Number(w.val || 0);
+    });
+    c.fireResForOvercap = c.rawResF + (c.colonyWardBonus.resAll || 0);
+    c.maxResFForOvercap = Math.min(90, c.finalMaxResF + (c.colonyWardBonus.maxResF || 0));
+    if (c.activeUniqueIds.has("uj_burning_will")) {
+      let overcapFire = Math.max(0, c.fireResForOvercap - c.maxResFForOvercap);
+      c.finalBaseDmg = Math.floor(c.finalBaseDmg * (1 + Math.min(0.35, overcapFire * 5e-3)));
+    }
+  }
+  function prepareDamageScaling(c) {
+    c.regenDmgScale = Math.max(0, Number(c.skill.regenDmgScale) || 0);
+    c.regenScaledBonus = c.regenDmgScale > 0 ? 1 + Math.max(0, c.finalRegen * c.regenDmgScale / 100) : 1;
+    c.fireResOvercap = Math.max(0, c.fireResForOvercap - c.maxResFForOvercap);
+    c.fireResOvercapCap = Number.isFinite(Number(c.skill.fireResOvercapCap)) ? Math.max(0, Number(c.skill.fireResOvercapCap)) : Infinity;
+    c.effectiveFireResOvercap = Math.min(c.fireResOvercap, c.fireResOvercapCap);
+    c.fireResOvercapAdditiveMultiplier = Math.max(0, c.skill.fireResOvercapMulPerPct || 0);
+    c.fireResDmgScale = Math.max(0, Number(c.skill.fireResDmgScale) || 0);
+    c.fireResScaledBonus = c.fireResOvercapAdditiveMultiplier > 0 ? 1 + c.effectiveFireResOvercap * c.fireResOvercapAdditiveMultiplier : c.fireResDmgScale > 0 ? 1 + Math.max(0, c.finalResF * c.fireResDmgScale) : 1;
+    c.dotMultiplier = c.skill.dotMultiplier || 1;
+    c.dotStatMultiplier = 1 + Math.max(0, c.dotPctDmg) / 100;
+    c.totalDotDamageMultiplier = c.dotMultiplier * c.dotStatMultiplier;
+    c.instantDamageMultiplier = 1;
+    c.ailmentPowerMultiplier = 1 + Math.max(0, c.sumStatAcrossBuckets("ailmentPotencyPct")) / 100;
+    c.finalAilmentDamagePct = Math.max(0, c.sumStatAcrossBuckets("ailmentDamagePct"));
+    c.talismanBossFinalDmgBonusPct = 0;
+    c.chaosDamageMultiplier = 1;
+    c.dotTickIntervalMultiplier = 1;
+    c.dotDurationMultiplier = 1;
+  }
+  function applyUniqueDamageScaling(c) {
+    if (c.uniqueCurseCrownPerCursePct > 0) {
+      let n = c.tick.get("targetCurseCount");
+      if (n > 0) c.finalDamageMultiplier *= 1 + n * c.uniqueCurseCrownPerCursePct / 100;
+    }
+    if (c.cosmosVerdictSupportDamagePct > 0) c.finalDamageMultiplier *= 1 + c.safeEquippedSupports.length * c.cosmosVerdictSupportDamagePct / 100;
+    c.finalBaseDmg = Math.floor(c.finalBaseDmg * c.regenScaledBonus * c.fireResScaledBonus);
+    applyArmorDamageScaling(c);
+    if (c.uniqueFlatDmgPerLevel > 0) c.finalBaseDmg += Math.floor(Math.max(1, c.owner.level || 1) * c.uniqueFlatDmgPerLevel);
+    c.talismanBossFinalDmgBonusPct = Math.max(c.talismanBossFinalDmgBonusPct, Number(c.talismanSummary.bossFinalDmgBonusPct) || 0);
+    c.damageScales = {
+      hpFlatBonus: c.hpFlatBonus,
+      hpScaleRatio: c.hpScaleRatio,
+      regen: c.regenScaledBonus,
+      fireRes: c.fireResScaledBonus,
+      fireResOvercap: c.fireResOvercap,
+      effectiveFireResOvercap: c.effectiveFireResOvercap,
+      fireResOvercapCap: c.fireResOvercapCap,
+      rawResF: c.fireResForOvercap,
+      fireResOvercapAdditiveMultiplier: c.fireResOvercapAdditiveMultiplier,
+      dot: c.dotMultiplier,
+      dotStat: c.dotStatMultiplier,
+      randomElementDamagePct: c.randomElementDamagePct,
+      crusaderThunderDoctrinePct: c.crusaderThunderDoctrinePct,
+      talismanBossFinalDmgBonusPct: c.talismanBossFinalDmgBonusPct
+    };
+    c.critChance = c.finalCrit / 100;
+    c.critMulti = c.finalCritDmg / 100;
+    c.avgHit = c.finalBaseDmg * (1 - c.critChance) + c.finalBaseDmg * c.critChance * c.critMulti;
+    c.finalDps = c.avgHit * c.finalAspd;
+  }
+  function applyArmorDamageScaling(c) {
+    if (c.uniqueArmorToPhysicalDamagePctPer1000 > 0 && c.skill && c.skill.ele === "phys") {
+      const armorSteps = Math.max(0, Math.floor(c.finalArmor / 1e3));
+      if (armorSteps > 0) c.finalBaseDmg = Math.floor(c.finalBaseDmg * (1 + armorSteps * c.uniqueArmorToPhysicalDamagePctPer1000 / 100));
+    }
+  }
+
+  // modules/domain/player-stat-pipeline-finish.mjs
+  function applyAscendancy(c, s) {
+    c.ascendancyResult = s.ascendancy.transform(captureAscendancyState(c), c);
+    ({
+      finalBaseDmg: c.finalBaseDmg,
+      finalRegen: c.finalRegen,
+      warriorTakenDamageMultiplier: c.warriorTakenDamageMultiplier,
+      finalAspd: c.finalAspd,
+      finalCrit: c.finalCrit,
+      finalCritDmg: c.finalCritDmg,
+      finalEvasion: c.finalEvasion,
+      finalMaxDmgRoll: c.finalMaxDmgRoll,
+      finalResPen: c.finalResPen,
+      finalMaxHp: c.finalMaxHp,
+      sbSummonAspdBonus: c.sbSummonAspdBonus,
+      warriorPhysDamageMultiplier: c.warriorPhysDamageMultiplier,
+      finalArmor: c.finalArmor,
+      finalPhysIgnore: c.finalPhysIgnore,
+      allowNegativePhysIgnore: c.allowNegativePhysIgnore,
+      finalMove: c.finalMove,
+      finalDamageMultiplier: c.finalDamageMultiplier,
+      finalDs: c.finalDs,
+      rawDr: c.rawDr,
+      finalDr: c.finalDr,
+      swiftOpeningTakenMultiplier: c.swiftOpeningTakenMultiplier,
+      bossDamageDealtMultiplier: c.bossDamageDealtMultiplier,
+      bossTakenDamageMultiplier: c.bossTakenDamageMultiplier,
+      finalEnergyShieldRegenRate: c.finalEnergyShieldRegenRate,
+      finalEnergyShield: c.finalEnergyShield,
+      finalMinDmgRoll: c.finalMinDmgRoll,
+      totalProjectileExtraShots: c.totalProjectileExtraShots,
+      crusaderLightningIgnoreRes: c.crusaderLightningIgnoreRes,
+      crusaderNoResPenOnLightning: c.crusaderNoResPenOnLightning,
+      finalMaxResL: c.finalMaxResL,
+      crusaderLightningMaxResBonus: c.crusaderLightningMaxResBonus,
+      finalEnergyShieldRechargeDelay: c.finalEnergyShieldRechargeDelay,
+      crusaderHolyFlatDmg: c.crusaderHolyFlatDmg,
+      crusaderHolyScaledDmg: c.crusaderHolyScaledDmg,
+      elementalistChaosConversionBonus: c.elementalistChaosConversionBonus,
+      finalResChaos: c.finalResChaos,
+      ailmentPowerMultiplier: c.ailmentPowerMultiplier,
+      chaosDamageMultiplier: c.chaosDamageMultiplier,
+      totalDotDamageMultiplier: c.totalDotDamageMultiplier,
+      instantDamageMultiplier: c.instantDamageMultiplier,
+      finalLeech: c.finalLeech,
+      finalSpellLeech: c.finalSpellLeech,
+      dotTickIntervalMultiplier: c.dotTickIntervalMultiplier,
+      dotDurationMultiplier: c.dotDurationMultiplier,
+      guardianArmorDamageBonus: c.guardianArmorDamageBonus,
+      genericTakenDamageMultiplier: c.genericTakenDamageMultiplier,
+      guardianReflectDamage: c.guardianReflectDamage,
+      guardianDamageNullifyChance: c.guardianDamageNullifyChance,
+      ailmentResistBonusPct: c.ailmentResistBonusPct,
+      guardianHitCapPct: c.guardianHitCapPct,
+      inquisitorAbsoluteDoctrinePct: c.inquisitorAbsoluteDoctrinePct,
+      sbPlayerAttackPower: c.sbPlayerAttackPower,
+      sbSummonAttackPower: c.sbSummonAttackPower,
+      sbSummonShareToPlayer: c.sbSummonShareToPlayer
+    } = c.ascendancyResult);
+    ({ lastStandMaxHp: c.lastStandMaxHp } = c.ascendancyResult);
+  }
+  function finishDefenseAndScales(c, s) {
+    c.defenseTransformResult = s.finalMath.defenseTransform(c);
+    ({
+      finalCritDmg: c.finalCritDmg,
+      finalArmor: c.finalArmor,
+      finalEvasion: c.finalEvasion,
+      armorReduction: c.armorReduction,
+      evadeChance: c.evadeChance
+    } = c.defenseTransformResult);
+    c.damageScales.dot = c.dotMultiplier;
+    c.damageScales.dotStat = c.dotStatMultiplier;
+    c.damageScales.instantDamageMultiplier = c.instantDamageMultiplier;
+    c.damageScales.finalDamageMultiplier = c.finalDamageMultiplier;
+    c.damageScales.ailmentPowerMultiplier = c.ailmentPowerMultiplier;
+    c.damageScales.chaosDamageMultiplier = c.chaosDamageMultiplier;
+    c.damageScales.dotTickIntervalMultiplier = c.dotTickIntervalMultiplier;
+    c.damageScales.dotDurationMultiplier = c.dotDurationMultiplier;
+    c.damageScales.warlockElementalOvercapToChaos = c.warlockElementalOvercapToChaos;
+  }
+  function finishCriticalEstimate(c, s) {
+    c.criticalCapResult = s.finalMath.criticalCap(c);
+    ({
+      finalCritDmg: c.finalCritDmg,
+      finalCrit: c.finalCrit
+    } = c.criticalCapResult);
+    c.varianceResult = s.finalMath.variance(c);
+    ({
+      finalBaseDmg: c.finalBaseDmg,
+      finalMaxDmgRoll: c.finalMaxDmgRoll,
+      finalMinDmgRoll: c.finalMinDmgRoll,
+      finalCritDmg: c.finalCritDmg,
+      finalDs: c.finalDs,
+      finalEvasion: c.finalEvasion
+    } = c.varianceResult);
+    c.criticalEstimateResult = s.finalMath.criticalEstimate(c);
+    ({
+      rawFinalCritDmg: c.rawFinalCritDmg,
+      critDmgSoftcapReduction: c.critDmgSoftcapReduction
+    } = c.criticalEstimateResult);
+    ({
+      finalCritDmg: c.finalCritDmg,
+      critChance: c.critChance,
+      critMulti: c.critMulti,
+      avgHit: c.avgHit,
+      finalDps: c.finalDps
+    } = c.criticalEstimateResult);
+  }
+  function estimateDamage(c, s, deps) {
+    c.coreCubeAddedDamageLabels = { phys: "물리", fire: "화염", cold: "냉기", light: "번개", chaos: "카오스" };
+    c.coreCubeAddedDamageParts = Object.keys(c.coreCubeAddedDamagePct).filter((ele) => Math.max(0, Number(c.coreCubeAddedDamagePct[ele] || 0)) > 0).map((ele) => `${deps.translate(c.coreCubeAddedDamageLabels[ele])} ${Math.floor(c.coreCubeAddedDamagePct[ele])}%`);
+    c.dpsEstimate = s.dps.estimate(c);
+    ({
+      avgRollMultiplier: c.avgRollMultiplier,
+      expectedDoubleStrikeMultiplier: c.expectedDoubleStrikeMultiplier,
+      coreCubeAddedDamageTotalPct: c.coreCubeAddedDamageTotalPct,
+      expectedAddedDamageMultiplier: c.expectedAddedDamageMultiplier,
+      warriorPhysicalDpsMultiplier: c.warriorPhysicalDpsMultiplier,
+      finalDpsAdjusted: c.finalDpsAdjusted,
+      isProjectileSkillForDps: c.isProjectileSkillForDps,
+      projectileExtraShotsForDps: c.projectileExtraShotsForDps,
+      projectileBonusShotDamagePct: c.projectileBonusShotDamagePct,
+      projectileExtraShotDpsMul: c.projectileExtraShotDpsMul,
+      estimatedSkillDotDps: c.estimatedSkillDotDps,
+      nativeDotPattern: c.nativeDotPattern,
+      skillSequenceDpsMultiplier: c.skillSequenceDpsMultiplier,
+      fanSpread: c.fanSpread,
+      finalDpsWithProjectileShots: c.finalDpsWithProjectileShots,
+      finalPlayerSkillDps: c.finalPlayerSkillDps
+    } = c.dpsEstimate);
+    c.flameDecayIgniteTakenMultiplierPreview = c.skill.flameDecayDebuff ? deps.flameDecayTaken({ maxHp: c.finalMaxHp, sSkill: c.skill }) : 1;
+    c.flameDecayDpsLines = c.includeBreakdowns && c.skill.flameDecayDebuff ? s.descriptions.flameDecay(c) : [];
+  }
+  function applyWardVitals(c, s) {
+    c.wardMaximaResult = s.finalMath.wardMaxima(c);
+    ({
+      finalMaxResF: c.finalMaxResF,
+      finalMaxResC: c.finalMaxResC,
+      finalMaxResL: c.finalMaxResL,
+      finalMaxResChaos: c.finalMaxResChaos
+    } = c.wardMaximaResult);
+    c.wardVitalsResult = s.finalMath.wardVitals(c);
+    ({
+      riderCompassEvasionMorePct: c.riderCompassEvasionMorePct
+    } = c.wardVitalsResult);
+    ({
+      finalMaxHp: c.finalMaxHp,
+      finalArmor: c.finalArmor,
+      finalEvasion: c.finalEvasion,
+      armorReduction: c.armorReduction,
+      evadeChance: c.evadeChance,
+      finalEnergyShield: c.finalEnergyShield
+    } = c.wardVitalsResult);
+  }
+  function applyWardResistances(c, s) {
+    c.wardResistanceResult = s.finalMath.wardResistance(c);
+    ({
+      rawDr: c.rawDr,
+      finalDr: c.finalDr,
+      finalResF: c.finalResF,
+      finalResC: c.finalResC,
+      finalResL: c.finalResL,
+      finalResChaos: c.finalResChaos,
+      finalRegen: c.finalRegen,
+      finalEnergyShieldRegenRate: c.finalEnergyShieldRegenRate,
+      finalCritResist: c.finalCritResist
+    } = c.wardResistanceResult);
+    c.wardAilmentDefenseResult = s.finalMath.wardAilmentDefense(c);
+    ({
+      finalDotTakenDamageReducePct: c.finalDotTakenDamageReducePct,
+      finalIgniteDamageReducePct: c.finalIgniteDamageReducePct,
+      finalBleedDamageReducePct: c.finalBleedDamageReducePct,
+      finalPoisonDamageReducePct: c.finalPoisonDamageReducePct,
+      finalTakenDamageReduceWhen2EnemiesPct: c.finalTakenDamageReduceWhen2EnemiesPct,
+      finalTakenDamageReduceWhen1EnemyPct: c.finalTakenDamageReduceWhen1EnemyPct
+    } = c.wardAilmentDefenseResult);
+    c.medicineResult = s.finalMath.medicine(c);
+    ({
+      uncappedResF: c.uncappedResF,
+      uncappedResC: c.uncappedResC,
+      uncappedResL: c.uncappedResL,
+      uncappedResChaos: c.uncappedResChaos,
+      medicineResistanceAilmentBonus: c.medicineResistanceAilmentBonus
+    } = c.medicineResult);
+  }
+  function finishAilmentsAndBlock(c, s) {
+    c.ailmentResistanceResult = s.finalMath.ailmentResistance(c);
+    ({
+      ailResIgniteTotal: c.ailResIgniteTotal,
+      ailResFreezeTotal: c.ailResFreezeTotal,
+      ailResShockTotal: c.ailResShockTotal,
+      ailResPoisonTotal: c.ailResPoisonTotal,
+      ailResBleedTotal: c.ailResBleedTotal,
+      finalAilmentResistIgniteChance: c.finalAilmentResistIgniteChance,
+      finalAilmentResistChillChance: c.finalAilmentResistChillChance,
+      finalAilmentResistFreezeChance: c.finalAilmentResistFreezeChance,
+      finalAilmentResistShockChance: c.finalAilmentResistShockChance,
+      finalAilmentResistPoisonChance: c.finalAilmentResistPoisonChance,
+      finalAilmentResistBleedChance: c.finalAilmentResistBleedChance,
+      catalystAilmentSourceMultiplier: c.catalystAilmentSourceMultiplier
+    } = c.ailmentResistanceResult);
+    c.blockResult = s.finalMath.block(c);
+    ({
+      effectiveShieldBaseBlockChance: c.effectiveShieldBaseBlockChance,
+      blockChanceFromOtherPct: c.blockChanceFromOtherPct,
+      flatBlockChanceBonus: c.flatBlockChanceBonus,
+      finalBlockChanceCap: c.finalBlockChanceCap,
+      finalBlockChance: c.finalBlockChance
+    } = c.blockResult);
+  }
+  function captureAscendancyState(c) {
+    return {
+      finalBaseDmg: c.finalBaseDmg,
+      finalRegen: c.finalRegen,
+      warriorTakenDamageMultiplier: c.warriorTakenDamageMultiplier,
+      finalAspd: c.finalAspd,
+      finalCrit: c.finalCrit,
+      finalCritDmg: c.finalCritDmg,
+      finalEvasion: c.finalEvasion,
+      finalMaxDmgRoll: c.finalMaxDmgRoll,
+      finalResPen: c.finalResPen,
+      finalMaxHp: c.finalMaxHp,
+      sbSummonAspdBonus: c.sbSummonAspdBonus,
+      warriorPhysDamageMultiplier: c.warriorPhysDamageMultiplier,
+      finalArmor: c.finalArmor,
+      finalPhysIgnore: c.finalPhysIgnore,
+      allowNegativePhysIgnore: c.allowNegativePhysIgnore,
+      finalMove: c.finalMove,
+      finalDamageMultiplier: c.finalDamageMultiplier,
+      finalDs: c.finalDs,
+      rawDr: c.rawDr,
+      finalDr: c.finalDr,
+      swiftOpeningTakenMultiplier: c.swiftOpeningTakenMultiplier,
+      bossDamageDealtMultiplier: c.bossDamageDealtMultiplier,
+      bossTakenDamageMultiplier: c.bossTakenDamageMultiplier,
+      finalEnergyShieldRegenRate: c.finalEnergyShieldRegenRate,
+      finalEnergyShield: c.finalEnergyShield,
+      finalMinDmgRoll: c.finalMinDmgRoll,
+      totalProjectileExtraShots: c.totalProjectileExtraShots,
+      crusaderLightningIgnoreRes: c.crusaderLightningIgnoreRes,
+      crusaderNoResPenOnLightning: c.crusaderNoResPenOnLightning,
+      finalMaxResL: c.finalMaxResL,
+      crusaderLightningMaxResBonus: c.crusaderLightningMaxResBonus,
+      finalEnergyShieldRechargeDelay: c.finalEnergyShieldRechargeDelay,
+      crusaderHolyFlatDmg: c.crusaderHolyFlatDmg,
+      crusaderHolyScaledDmg: c.crusaderHolyScaledDmg,
+      elementalistChaosConversionBonus: c.elementalistChaosConversionBonus,
+      finalResChaos: c.finalResChaos,
+      ailmentPowerMultiplier: c.ailmentPowerMultiplier,
+      chaosDamageMultiplier: c.chaosDamageMultiplier,
+      totalDotDamageMultiplier: c.totalDotDamageMultiplier,
+      instantDamageMultiplier: c.instantDamageMultiplier,
+      finalLeech: c.finalLeech,
+      finalSpellLeech: c.finalSpellLeech,
+      dotTickIntervalMultiplier: c.dotTickIntervalMultiplier,
+      dotDurationMultiplier: c.dotDurationMultiplier,
+      guardianArmorDamageBonus: c.guardianArmorDamageBonus,
+      genericTakenDamageMultiplier: c.genericTakenDamageMultiplier,
+      guardianReflectDamage: c.guardianReflectDamage,
+      guardianDamageNullifyChance: c.guardianDamageNullifyChance,
+      ailmentResistBonusPct: c.ailmentResistBonusPct,
+      guardianHitCapPct: c.guardianHitCapPct,
+      inquisitorAbsoluteDoctrinePct: c.inquisitorAbsoluteDoctrinePct,
+      sbPlayerAttackPower: c.sbPlayerAttackPower,
+      sbSummonAttackPower: c.sbSummonAttackPower,
+      sbSummonShareToPlayer: c.sbSummonShareToPlayer
+    };
+  }
+
+  // modules/domain/player-stat-pipeline.mjs
+  function calculatePlayerStats(owner, options, s, deps) {
+    const c = { owner, includeBreakdowns: options.includeBreakdowns, attributesOnly: options.attributesOnly, tick: options.tick };
+    prepareSources(c, s, deps);
+    if (c.attributesOnly && !deps.grantsAttributes(c.owner, c.safeEquippedSupports)) return deps.requirementAttributes({ gearBase: c.gearBase, gearExplicit: c.gearExplicit, passive: c.passive, season: c.season, ascend: c.ascend, support: c.support, reward: c.reward, starBlessing: c.starBlessing }, c.owner);
+    prepareRunes(c, s);
+    if (c.attributesOnly) return { strength: c.totalStrength, dexterity: c.totalDexterity, intelligence: c.totalIntelligence };
+    prepareTargetBudget(c, s, deps);
+    prepareTaggedDamage(c, s, deps);
+    applyElementalDoctrine(c, s, deps);
+    prepareRandomElementDamage(c, deps);
+    prepareAilmentChances(c, s, deps);
+    prepareBaseDamage(c, s);
+    prepareCriticalMovement(c);
+    applyMovementEffects(c, s);
+    applyRegionDamage(c, deps);
+    applyConditionalDamage(c, deps);
+    prepareDefenses(c, s);
+    applyPassiveDefenseCosts(c, deps);
+    prepareTakenReduction(c);
+    prepareAscendancyDefaults(c);
+    prepareRepeatAndRecovery(c);
+    prepareAilmentReduction(c);
+    prepareDamageRange(c, deps);
+    prepareResistanceCaps(c, deps);
+    prepareRawResistance(c, deps);
+    prepareWardOvercap(c, deps);
+    prepareDamageScaling(c);
+    applyUniqueDamageScaling(c);
+    applyAscendancy(c, s);
+    finishDefenseAndScales(c, s);
+    finishCriticalEstimate(c, s);
+    estimateDamage(c, s, deps);
+    applyWardVitals(c, s);
+    applyWardResistances(c, s);
+    finishAilmentsAndBlock(c, s);
+    c.breakdowns = c.includeBreakdowns ? s.descriptions.build(c) : null;
+    const stats = s.result.build(c);
+    return {
+      stats,
+      gemEvaluation: c.gemEvaluation,
+      lastStandMaxHp: c.lastStandMaxHp,
+      immunity: {
+        ignite: c.uniqueImmuneIgnite,
+        frostSentinel: c.uniqueFrostSentinel,
+        freeze: c.uniqueImmuneFreeze,
+        shock: !!c.uniqueShockTracer,
+        bleed: c.uniqueBleedBlockHelm || c.uniqueImmuneBleed,
+        closedEyes: c.uniqueClosedEyes
+      }
+    };
+  }
+  function createPlayerStatPipeline(services, deps) {
+    return Object.freeze({ calculate: (owner, options) => calculatePlayerStats(owner, options, services, deps) });
+  }
+
+  // modules/state/gem-records.mjs
+  function normalizeGemCoreFailures(value, level, rules) {
+    const most = Math.ceil(rules.pityMaxOfBase / rules.pityStepOfBase);
+    return level === rules.maxLevel || !Number.isFinite(value) ? 0 : Math.min(most, Math.max(0, Math.floor(value)));
+  }
+  function normalizeRuneEnhanceLevel(raw, rules) {
+    const old = (key) => Number.isFinite(raw[key]) ? Math.min(5, Math.max(0, Math.floor(raw[key]))) : 0;
+    const level = Number.isFinite(raw.enhanceLevel) ? Math.floor(raw.enhanceLevel) : old("bossCoreLevel") + old("skyCoreLevel");
+    return Math.min(rules.maxLevel, Math.max(0, level));
+  }
+  function normalizeGemRecord(raw, rules) {
+    if (!raw || typeof raw !== "object") return { level: 1, exp: 0, enhanceLevel: 0, enhanceFailures: 0, skyEnhanceCap: 1, unlockedTier: 1, activeTier: 1, quality: 0, awakened: false };
+    let level = Number.isFinite(raw.level) ? Math.max(1, Math.floor(raw.level)) : 1;
+    let exp = Number.isFinite(raw.exp) ? Math.max(0, raw.exp) : 0;
+    const enhanceLevel = normalizeRuneEnhanceLevel(raw, rules);
+    const enhanceFailures = normalizeGemCoreFailures(raw.enhanceFailures, enhanceLevel, rules);
+    let skyEnhanceCap = Number.isFinite(raw.skyEnhanceCap) ? Math.min(5, Math.max(1, Math.floor(raw.skyEnhanceCap))) : 1;
+    let unlockedTier = Number.isFinite(raw.unlockedTier) ? Math.max(1, Math.min(3, Math.floor(raw.unlockedTier))) : 1;
+    let activeTier = Number.isFinite(raw.activeTier) ? Math.max(1, Math.min(unlockedTier, Math.floor(raw.activeTier))) : 1;
+    let quality = Number.isFinite(raw.quality) ? Math.max(0, Math.min(20, Math.floor(raw.quality))) : 0;
+    let awakened = !!raw.awakened;
+    return { level, exp, enhanceLevel, enhanceFailures, skyEnhanceCap, unlockedTier, activeTier, quality, awakened };
+  }
+
+  // modules/domain/gem-growth.mjs
+  function getGemHighLevelGrowth(value, level19Value) {
+    return value + Math.max(0, value - level19Value) * 0.1;
+  }
+  function getGemLevelGrowthSteps(level, offset = 1) {
+    return getGemHighLevelGrowth(Math.max(0, level - offset), Math.max(0, 19 - offset));
+  }
+
+  // modules/domain/gem-presentation.mjs
+  function supportTier(name, gem, activeTierOf, deps) {
+    const activeTier = activeTierOf ? activeTierOf(name) : Math.max(1, Math.min(deps.tierCap ? deps.tierCap(name) : 3, Math.floor(gem.activeTier || gem.unlockedTier || 1)));
+    const tierMul = deps.tierMultiplier ? deps.tierMultiplier(name, activeTier) : activeTier === 1 ? 1 : activeTier === 2 ? 1.55 : 2.2;
+    return { activeTier, tierMul };
+  }
+  function supportPresentation(owner, name, context, activeTierOf, deps) {
+    const { stats, sources } = context;
+    const gem = normalizeGemRecord((owner.supportGemData || {})[name], deps.forgeRules);
+    const db = deps.supports[name];
+    if (!db) return { baseLevel: gem.level, totalLevel: gem.level, value: 0, desc: deps.translate("정의되지 않은 보조스킬룬"), statName: name, statId: null, gemBonusSources: sources };
+    const totalLevel = Math.max(1, gem.level + sources.total);
+    const val = db.baseVal + getGemLevelGrowthSteps(totalLevel) * db.scale;
+    const { activeTier, tierMul } = supportTier(name, gem, activeTierOf, deps);
+    const ratioPct = db.tierValues ? db.tierValues[activeTier - 1] : val * tierMul;
+    const scaleBase = db.scaleWithOwnStat ? Math.max(0, Number(stats.supportScaleBases && stats.supportScaleBases[db.scaleWithOwnStat]) || 0) : 0;
+    const value = db.scaleWithOwnStat ? scaleBase * (ratioPct / 100) : ratioPct;
+    return {
+      baseLevel: gem.level,
+      totalLevel,
+      value,
+      desc: db.desc,
+      statName: db.name,
+      statId: db.stat,
+      activeTier,
+      gemBonusSources: sources,
+      scaleWithOwnStat: db.scaleWithOwnStat || null,
+      scaleBase,
+      scaleRatioPct: ratioPct
+    };
+  }
+  function skillLevels(name, db, gem, sources, deps) {
+    const { permanentSkyBonus, materialBonus, engraveLevel } = db.isGem ? deps.bonusLevels(name, gem) : deps.noBonusLevels;
+    const levelBonus = db.isGem ? sources.total : 0;
+    const totalLevel = gem.level + levelBonus + materialBonus + engraveLevel;
+    const finalLevel = Math.min(20, gem.level) + levelBonus + materialBonus + engraveLevel;
+    return { permanentSkyBonus, materialBonus, engraveLevel, totalLevel, finalLevel };
+  }
+  function leveledSkill(db, gem, finalLevel, forgeEffects) {
+    const skill = { ...db };
+    skill.dmg = skill.baseDmg + getGemLevelGrowthSteps(finalLevel) * skill.dmgScale;
+    skill.spd = skill.baseSpd + getGemLevelGrowthSteps(finalLevel) * skill.spdScale;
+    if (skill.critScale) skill.crit = (skill.crit || 0) + getGemLevelGrowthSteps(finalLevel, 0) * skill.critScale;
+    const qualityMul = 1 + Math.max(0, Math.min(20, gem.quality || 0)) / 200;
+    skill.dmg *= qualityMul * (db.isGem ? forgeEffects(gem).damage : 1);
+    skill.spd *= qualityMul * (db.isGem ? forgeEffects(gem).speed : 1);
+    return skill;
+  }
+  function presentationPattern(owner, name, skill, stats, deps) {
+    const active = name === owner.activeSkill && stats.sSkill && stats.sSkill.projectilePatternSource ? stats.sSkill : null;
+    const mode = active && active.projectilePattern ? active.projectilePattern.mode : deps.skyPattern(name);
+    return mode ? deps.applyPattern(skill, mode, active ? active.projectilePatternSource : "창공 각인", active ? active.projectilePatternDamageMultiplier : null) : skill;
+  }
+  function skillPresentation(owner, name, context, deps) {
+    const { stats, sources } = context;
+    const db = deps.skills[name];
+    if (!db) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: deps.translate("정의되지 않은 스킬"), skill: deps.skills["기본 공격"], tags: ["attack"] };
+    if (!db.isGem && !db.levelable) return { baseLevel: 0, totalLevel: 0, finalLevel: 0, desc: db.desc, statName: name, skill: db, tags: deps.tags(db) };
+    owner.gemData = owner.gemData || {};
+    const gem = normalizeGemRecord((owner.gemData || {})[name], deps.forgeRules);
+    if (db.levelable) owner.gemData[name] = gem;
+    const levels = skillLevels(name, db, gem, sources, deps);
+    const skill = deps.resolve(presentationPattern(owner, name, leveledSkill(db, gem, levels.finalLevel, deps.forgeEffects), stats, deps));
+    return {
+      baseLevel: gem.level,
+      totalLevel: levels.totalLevel,
+      finalLevel: levels.finalLevel,
+      materialBonus: levels.materialBonus,
+      permanentSkyBonus: levels.permanentSkyBonus,
+      engraveLevel: levels.engraveLevel,
+      enhanceLevel: gem.enhanceLevel || 0,
+      skyEnhanceCap: gem.skyEnhanceCap || 1,
+      quality: gem.quality || 0,
+      awakened: !!gem.awakened,
+      desc: db.desc,
+      skill,
+      tags: deps.tags(skill),
+      gemBonusSources: sources
+    };
+  }
+  function createGemPresentation(deps) {
+    return Object.freeze({
+      read(owner, name, isSupport, stats) {
+        const context = { stats, sources: deps.sources(name, stats.gemBonusSources) };
+        return isSupport ? supportPresentation(owner, name, context, deps.activeTier || null, deps) : skillPresentation(owner, name, context, deps);
+      },
+      support: (owner, name, context, activeTierOf) => supportPresentation(owner, name, context, activeTierOf, deps),
+      tier: (name, gem, activeTierOf) => supportTier(name, gem, activeTierOf, deps),
+      levels: (name, db, gem, sources) => skillLevels(name, db, gem, sources, deps)
+    });
+  }
+
+  // modules/domain/player-stat-values.mjs
+  function cooldownStatValues(sum) {
+    const ids = ["cooldownRecovery", "cooldownReduction", "mobilityCooldownRecovery", "mobilityCooldownReduction", "cooldownReductionCapBonus"];
+    return Object.fromEntries(ids.map((id) => [id, Math.max(0, sum(id))]));
+  }
+  function oceanStatValues(sum, pressureUpgrade) {
+    return {
+      oceanPressureResist: Math.max(0, Math.min(80, sum("oceanPressureResist") + pressureUpgrade)),
+      oceanDepthGainPct: Math.max(0, sum("oceanDepthGainPct")),
+      oceanRareFishChancePct: Math.max(0, sum("oceanRareFishChancePct"))
+    };
+  }
+  function uniqueSocketedJewels(rows) {
+    return rows.filter((row) => row.jewel.rarity === "unique" && row.jewel.uniqueId);
+  }
+  function labyrinthShacklesMultiplier(moveSpeed) {
+    const reducedMoveSpeed = Math.max(0, Number(moveSpeed || 0) - 100);
+    return 1 + reducedMoveSpeed * 0.5 / 100;
+  }
+  function absoluteFloorDamageRoll(maxDamageRoll) {
+    return Math.max(5, Number(maxDamageRoll || 0) * 0.85);
+  }
+  function solitaryHuntDoubleStrike(originalTargets, config) {
+    const reducedTargets = Math.max(0, Math.floor(Number(originalTargets || 1)) - 1);
+    return Math.min(5, reducedTargets) * config.dsPerTarget + Math.max(0, reducedTargets - 5) * config.dsPerTargetAfterFive;
+  }
+  function deferredTalentTargetEffect(effect) {
+    if (!effect || effect.key !== "projectileTargetBonus") return false;
+    return effect.cardId === "hero1__gladiator" || effect.talentCardId === "hero1__gladiator";
+  }
+
+  // modules/player-stats-classic.mjs
+  var uniqueEffects = createPlayerUniqueEffects({
+    mergeParams: (previous, next) => mergeBetterUniqueParams(previous, next),
+    repelParams: (params) => readRepelMeleeParams(params),
+    pursuitPct: (params) => readPursuitMovePct(params),
+    bottleStats: (bucket) => addThousandBottlesStats(bucket),
+    deferredTarget: (effect) => isDeferredTalentProjectileTargetEffect(effect),
+    translate: (...args) => _t(...args),
+    get projectilePatterns() {
+      return PROJECTILE_PATTERN_MODE_DB;
+    }
+  });
+  var passive = createPlayerPassiveStats({
+    damageTags: (skill) => getSkillDamageTagSet(skill),
+    keystone: (id, owner) => hasKeystone(id, owner),
+    get values() {
+      return ASCENDANCY_KEYSTONE_VALUES;
+    },
+    get runes() {
+      return gemDropRewards;
+    }
+  });
+  var finalizer = createPlayerStatFinish({
+    now: () => getCombatTime(),
+    summonEstimate: (owner, stats, includeBreakdowns, evaluation) => estimateSummonDps(stats, includeBreakdowns, evaluation),
+    appendDps: (stats, estimate) => appendPlayerDpsBreakdowns(stats, estimate)
+  });
+  var math = createPlayerStatMath({
+    spellBase: (...args) => getGemSpellBaseDamage(...args),
+    keystoneActive: (id) => hasKeystone(id),
+    codexPct: () => getCodexBonusPct(),
+    get talentDerived() {
+      return typeof getTalentPreciseDerivedBonuses === "function" ? getTalentPreciseDerivedBonuses : void 0;
+    },
+    get talentKnee() {
+      return typeof getTalentAttackSpeedSoftcapKnee === "function" ? getTalentAttackSpeedSoftcapKnee : void 0;
+    },
+    keystoneSpeed: (...args) => scaleKeystoneAttackSpeed(...args),
+    get SKILL_DELAY_REDUCE_CAP() {
+      return SKILL_DELAY_REDUCE_CAP;
+    },
+    get passiveNode() {
+      return typeof findAllocatedPassiveKeystone === "function" ? findAllocatedPassiveKeystone : void 0;
+    },
+    zoneOf: (id) => getZone(id),
+    armorMitigation: (...args) => getArmorPhysicalReductionPct(...args),
+    zoneAccuracy: (zone) => getEnemyAccuracyForZone(zone),
+    evasionChance: (...args) => getEvasionChancePct(...args),
+    get CRIT_DAMAGE_BASE_MULTIPLIER() {
+      return CRIT_DAMAGE_BASE_MULTIPLIER;
+    },
+    capLeech: (value) => applyLeechSoftcap(value),
+    get LEECH_BASE_RATE_CAP_PCT() {
+      return LEECH_BASE_RATE_CAP_PCT;
+    },
+    get LEECH_BASE_TOTAL_CAP_PCT() {
+      return LEECH_BASE_TOTAL_CAP_PCT;
+    },
+    get LEECH_BASE_INSTANCE_CAP_PCT() {
+      return LEECH_BASE_INSTANCE_CAP_PCT;
+    },
+    get PLAYER_PHYSICAL_REDUCTION_CAP_PCT() {
+      return PLAYER_PHYSICAL_REDUCTION_CAP_PCT;
+    }
+  });
+  var growth = createPlayerGrowthStats({
+    voidCount: (owner) => getVirtualVoidPassiveCount(owner),
+    weaponStance: () => getEquippedWeaponStance(),
+    hasAuthoredKeystone: (title) => hasAuthoredPassiveKeystone(title),
+    voidCraft: (id) => getVoidPassiveCraft(id),
+    voidLinkScale: (id) => getVoidLinkScale(id),
+    voidStats: (...args) => passiveRouting.voidStats(...args),
+    transcendentStats: (...args) => getTranscendentVoidPassiveStats(...args),
+    nodeEffects: (...args) => getEffectivePassiveNodeEffects(...args),
+    get passiveTree() {
+      return PASSIVE_TREE;
+    },
+    get weaponConditions() {
+      return WEAPON_CONDITION_STATS;
+    },
+    seasonStats: (...args) => accumulateCombatSeasonStats(...args),
+    ascendStats: (...args) => accumulateCombatAscendStats(...args),
+    loopStats: (...args) => accumulateCombatLoopStats(...args),
+    chaosState: () => ensureChaosRealmState(),
+    runeStats: (...args) => accumulateCombatRuneStats(...args),
+    breathStats: (breath) => combatIncidents.breathStats(breath),
+    accountStats: (reward) => applyAccountRewardStats(reward),
+    get relicStats() {
+      return typeof getCosmosBossRelicStatTotals === "function" ? getCosmosBossRelicStatTotals : void 0;
+    },
+    boundaryStats: (owner) => getBeyondBoundaryGlobalStats(owner),
+    get heroDefs() {
+      return HERO_SELECTION_DEFS;
+    },
+    get starBlessing() {
+      return PASSIVE_STAR_BLESSING;
+    },
+    talismanSummary: () => talismanEffects.summarize()
+  });
+  var ascendancy = createPlayerAscendancyStats({
+    keystone: (id, owner) => hasKeystone(id, owner),
+    get values() {
+      return ASCENDANCY_KEYSTONE_VALUES;
+    },
+    dualWielding: () => isDualWielding(),
+    get physicalCap() {
+      return PLAYER_PHYSICAL_REDUCTION_CAP_PCT;
+    },
+    solitaryBonus: (targets) => getSolitaryHuntDoubleStrikeBonus(targets),
+    get damageTags() {
+      return TAGGED_DAMAGE_STAT_BY_TAG;
+    },
+    summonPower: (...args) => getRepresentativeSummonAttackPower(...args)
+  });
+  var finalMath = createPlayerStatFinal({
+    zoneOf: (id) => getZone(id),
+    get skyReduction() {
+      return typeof getSkyStoneReductionPct === "function" ? getSkyStoneReductionPct : void 0;
+    },
+    gravityMultiplier: (...args) => getUnderworldGravityActionMultiplier(...args),
+    get oceanResistanceUpgrade() {
+      return typeof getOceanPressureResistUpgradePct === "function" ? getOceanPressureResistUpgradePct : void 0;
+    },
+    oceanCurrent: (...args) => hasOceanCurrent(...args),
+    armorMitigation: (...args) => getArmorPhysicalReductionPct(...args),
+    evasionChance: (...args) => getEvasionChancePct(...args),
+    get preciseTalent() {
+      return typeof getPreciseTalentLevel === "function" ? getPreciseTalentLevel : void 0;
+    },
+    keystone: (id) => hasKeystone(id),
+    critSoftcap: (value) => applyCritDamageSoftcap(value),
+    critReduction: (value) => getCritDamageSoftcapReduction(value),
+    averageCriticalHit: (...args) => getAverageCriticalHitDamage(...args),
+    get physicalCap() {
+      return PLAYER_PHYSICAL_REDUCTION_CAP_PCT;
+    },
+    ailmentResistance: (...args) => getPlayerAilmentResistChance(...args)
+  });
+  var dps = createPlayerDpsEstimate({
+    get talentConversion() {
+      return typeof getTalentDamageConversion === "function" ? getTalentDamageConversion : void 0;
+    },
+    wisdomMultiplier: (...args) => getPassiveWisdomLeapDamageMultiplier(...args),
+    get projectileBonusPct() {
+      return PROJECTILE_BONUS_SHOT_DAMAGE_PCT;
+    },
+    projectileMultiplier: (...args) => getProjectileExtraShotDpsMultiplier(...args),
+    get dotInterval() {
+      return DOT_TICK_INTERVAL;
+    },
+    get dotDuration() {
+      return DOT_EFFECT_DURATION;
+    },
+    get dotStackMax() {
+      return DOT_STACK_MAX;
+    },
+    get dotHitRatio() {
+      return DOT_TICK_FROM_HIT_RATIO;
+    },
+    stackMultiplier: (count) => getDotStackMultiplier(count),
+    get sequenceMultiplier() {
+      return typeof getSkillHitSequenceDpsMultiplier === "function" ? getSkillHitSequenceDpsMultiplier : void 0;
+    },
+    splitFan: (...args) => splitFanSpreadDps(...args),
+    supportMultiplier: (skill) => window.GameModules.combat.supports.expectedMultiplier(skill)
+  });
+  var result = createPlayerStatResult({
+    get skyReduction() {
+      return typeof getSkyStoneReductionPct === "function" ? getSkyStoneReductionPct : void 0;
+    },
+    recoveryCap: (...args) => getPlayerRecoveryHpCap(...args),
+    capLeech: (value) => applyLeechSoftcap(value),
+    get passiveNode() {
+      return typeof findAllocatedPassiveKeystone === "function" ? findAllocatedPassiveKeystone : void 0;
+    },
+    get damageTags() {
+      return TAGGED_DAMAGE_STAT_BY_TAG;
+    },
+    auraFlat: (values2) => window.GameModules.combat.supports.auraFlat(values2),
+    summonCap: (sum) => getSummonCapFromSum(sum),
+    keystone: (id) => hasKeystone(id),
+    oceanStats: (sum) => collectOceanStats(sum),
+    cooldownStats: (sum) => collectCooldownStats(sum),
+    get regionAffixes() {
+      return regionAffixEffects;
+    },
+    get postStats() {
+      return typeof applyTalentPrecisePostStats === "function" ? applyTalentPrecisePostStats : void 0;
+    }
+  });
+  var descriptions = createPlayerStatDescriptions({
+    translate: (...args) => _t(...args),
+    sourceLine: (...args) => makeSourceLine(...args),
+    ailmentLabel: (name) => getAilmentDisplayLabel(name),
+    statName: (name) => getStatName(name),
+    valueText: (...args) => formatValue(...args),
+    summonMaximum: () => getSummonCapMaximum(),
+    keystone: (id) => hasKeystone(id),
+    percentMultiplier: (value) => formatPercentMultiplier(value),
+    totalEvadeChance: (...args) => getEnemyTotalEvadeChance(...args),
+    fanLines: (...args) => getFanSpreadDpsLines(...args),
+    get P_STATS() {
+      return P_STATS;
+    },
+    get CRIT_DAMAGE_BASE_MULTIPLIER() {
+      return CRIT_DAMAGE_BASE_MULTIPLIER;
+    },
+    get COMBAT_GRID_CONFIG() {
+      return COMBAT_GRID_CONFIG;
+    },
+    get LEECH_BASE_INSTANCE_CAP_PCT() {
+      return LEECH_BASE_INSTANCE_CAP_PCT;
+    },
+    get LEECH_BASE_TOTAL_CAP_PCT() {
+      return LEECH_BASE_TOTAL_CAP_PCT;
+    },
+    get LEECH_BASE_RATE_CAP_PCT() {
+      return LEECH_BASE_RATE_CAP_PCT;
+    },
+    get PLAYER_PHYSICAL_REDUCTION_CAP_PCT() {
+      return PLAYER_PHYSICAL_REDUCTION_CAP_PCT;
+    },
+    get PLAYER_ACCURACY_BASE() {
+      return PLAYER_ACCURACY_BASE;
+    },
+    get PLAYER_ACCURACY_PER_LEVEL() {
+      return PLAYER_ACCURACY_PER_LEVEL;
+    },
+    get PLAYER_ACCURACY_PER_DEXTERITY() {
+      return PLAYER_ACCURACY_PER_DEXTERITY;
+    },
+    get DOT_TICK_FROM_HIT_RATIO() {
+      return DOT_TICK_FROM_HIT_RATIO;
+    },
+    get DOT_TICK_INTERVAL() {
+      return DOT_TICK_INTERVAL;
+    },
+    get DOT_STACK_MAX() {
+      return DOT_STACK_MAX;
+    },
+    get WARRIOR_RAGE_STACK_MAX() {
+      return WARRIOR_RAGE_STACK_MAX;
+    }
+  });
+  var inputs = createPlayerStatInputs({
+    itemEntries: (owner) => getPlayerStatSourceItemEntries(owner),
+    resolveLists: (...args) => getResolvedEquipmentStatLists(...args),
+    passiveNode: (title) => findAllocatedPassiveKeystone(title),
+    keystone: (id, owner) => hasKeystone(id, owner),
+    equipmentContributions: (...args) => getCombatEquipmentContributions(...args),
+    talentEffects: () => getActiveTalentUniqueEffects(),
+    uniqueJewels: (owner) => getEquippedUniqueJewels(owner),
+    mirroredJewels: (owner) => getMirroredRingJewels(owner),
+    jewelStats: (item) => getJewelStats(item),
+    addDefensePct: (...args) => addGlobalDefensePct(...args),
+    appendKeystoneEffects: (...args) => pushBuildKeystoneUniqueEffects(...args),
+    buildMemo: (owner) => getBackgroundBuildMemo(owner),
+    gemEvaluation: (stats) => createGemBonusEvaluation(stats),
+    gemSources: (...args) => getTargetGemBonusSources(...args),
+    activeSkill: (bonus) => window.GameModules.combat.supports.activeSkillStats(bonus),
+    supportValues: (...args) => window.GameModules.combat.supports.values(...args),
+    constellation: (...args) => addConstellationBuffStat(...args),
+    summonCap: (sum) => getSummonCapFromSum(sum),
+    auraValues: (...args) => window.GameModules.combat.supports.auraValues(...args),
+    projectileMode: (...args) => applyProjectilePatternMode(...args),
+    get authoredRules() {
+      return typeof applyAuthoredPassiveStatRules === "function" ? applyAuthoredPassiveStatRules : void 0;
+    },
+    accuracy: (...args) => calculatePlayerAccuracy(...args),
+    bladeShots: (...args) => getBladeBundleShots(...args),
+    uncappedTargets: (...args) => addUncappedSkillTargets(...args)
+  });
+  var pipeline = createPlayerStatPipeline({ uniqueEffects, passive, math, growth, ascendancy, finalMath, dps, result, descriptions, inputs }, {
+    refreshTwinKeystones: () => recomputeCosmosTwinKeystones(),
+    requirementAttributes: (...args) => readRequirementAttributes(...args),
+    get talentStatMap() {
+      return typeof getActiveTalentStatMap === "function" ? getActiveTalentStatMap : void 0;
+    },
+    get talentCardStats() {
+      return typeof getActiveTalentCardStatBonuses === "function" ? getActiveTalentCardStatBonuses : void 0;
+    },
+    resonancePower: (...args) => getBonusResonancePower(...args),
+    tagLabel: (tag) => translateSkillTag(tag),
+    keystone: (id) => hasKeystone(id),
+    translate: (...args) => _t(...args),
+    zone: (id) => getZone(id),
+    loopMorePct: (value) => getLoopDeepMorePct(value),
+    barkEffect: () => getWorldTreeBarkEffect(),
+    get passiveNode() {
+      return typeof findAllocatedPassiveKeystone === "function" ? findAllocatedPassiveKeystone : void 0;
+    },
+    shacklesMultiplier: (move) => getLabyrinthShacklesDamageMultiplier(move),
+    absoluteFloorRoll: (value) => getAbsoluteFloorDamageRoll(value),
+    campaignPenalty: (maxZone) => getCampaignResistPenalty(maxZone),
+    get keystoneValues() {
+      return ASCENDANCY_KEYSTONE_VALUES;
+    },
+    get wards() {
+      return typeof colonyWards === "object" ? colonyWards : void 0;
+    },
+    flameDecayTaken: (stats) => getFlameDecayIgniteTakenMultiplier(stats),
+    grantsAttributes: (...args) => window.GameModules.combat.supports.grantsAttributes(...args),
+    nativeDot: (skill) => window.GameModules.combat.supports.nativeDot(skill),
+    get cosmosMastery() {
+      return window.getCosmosMasteryValue;
+    }
+  });
+  var effects = createPlayerCombatEffects({
+    clock: () => getCombatTime(),
+    recoveryCap: (stats) => getPlayerEnergyShieldRecoveryCap(stats),
+    consumeBlockEmpower: (at) => regionAffixEffects.consumeBlockEmpower(at),
+    regionMultiplier: (stats, attacker) => regionAffixEffects.takenDamageMultiplier(stats, attacker)
+  });
+  var presentation = createGemPresentation({
+    get forgeRules() {
+      return GEM_CORE_FORGE;
+    },
+    get supports() {
+      return SUPPORT_GEM_DB;
+    },
+    get skills() {
+      return SKILL_DB;
+    },
+    get tierCap() {
+      return typeof getSupportTierCap === "function" ? getSupportTierCap : void 0;
+    },
+    get tierMultiplier() {
+      return typeof getSupportTierMultiplier === "function" ? getSupportTierMultiplier : void 0;
+    },
+    get activeTier() {
+      return typeof getSupportActiveTier === "function" ? getSupportActiveTier : void 0;
+    },
+    get noBonusLevels() {
+      return NO_RUNE_BONUS_LEVELS;
+    },
+    bonusLevels: (...args) => getSkillRuneBonusLevels(...args),
+    forgeEffects: (gem) => gemCoreForge.effects(gem),
+    translate: (...args) => _t(...args),
+    tags: (skill) => getSkillTagList(skill),
+    sources: (...args) => getTargetGemBonusSources(...args),
+    skyPattern: (name) => getSkyProjectilePatternMode(name),
+    applyPattern: (...args) => applyProjectilePatternMode(...args),
+    resolve: (skill) => window.GameModules.combat.supports.resolve(skill)
+  });
+  var values = Object.freeze({
+    cooldownStatValues,
+    oceanStatValues,
+    uniqueSocketedJewels,
+    labyrinthShacklesMultiplier,
+    absoluteFloorDamageRoll,
+    solitaryHuntDoubleStrike,
+    deferredTalentTargetEffect
+  });
+  function collectCooldownStats(sum) {
+    return values.cooldownStatValues(sum);
+  }
+  var getProjectileTargetBreakdowns = (b, extra) => descriptions.projectileTargets(b, extra);
+  function collectOceanStats(sum) {
+    const upgrade = typeof getOceanPressureResistUpgradePct === "function" ? getOceanPressureResistUpgradePct() : 0;
+    return values.oceanStatValues(sum, upgrade);
+  }
+  function applySituationalTakenReduction(dmg, pStats, attacker, aliveEnemies) {
+    return effects.taken(dmg, pStats, attacker, aliveEnemies);
+  }
+  function grantTalentStoneShieldOnBlock(stats) {
+    return presentPlayerStatEvent(playerGrantStoneShieldOnBlock(statEventEnv, stats));
+  }
+  function recoverEnergyShieldOnBlock(pStats) {
+    return effects.recoverBlock(game, pStats);
+  }
+  function consumeLoneEvasionCounterMultiplier(pStats, now) {
+    return effects.consumeCounter(game, pStats, now);
+  }
+  function advanceEnergyShieldRechargeOnCrit(pStats, now) {
+    return effects.advanceRecharge(game, pStats, now);
+  }
+  function triggerUniqueEnergyShieldBreakRecharge(pStats, energyShieldBeforeHit, now) {
+    return effects.breakRecharge(game, pStats, energyShieldBeforeHit, now);
+  }
+  function getEquippedUniqueJewels(owner = game) {
+    return values.uniqueSocketedJewels(getSocketedJewels(owner));
+  }
+  function getLabyrinthShacklesDamageMultiplier(moveSpeed) {
+    return values.labyrinthShacklesMultiplier(moveSpeed);
+  }
+  function getAbsoluteFloorDamageRoll(maxDamageRoll) {
+    return values.absoluteFloorDamageRoll(maxDamageRoll);
+  }
+  function getSolitaryHuntDoubleStrikeBonus(originalTargets) {
+    return values.solitaryHuntDoubleStrike(originalTargets, ASCENDANCY_KEYSTONE_VALUES.h7);
+  }
+  function isDeferredTalentProjectileTargetEffect(effect) {
+    return values.deferredTalentTargetEffect(effect);
+  }
+  function applyTimedRewardStats(tick, bucket) {
+    growth.timed(tick, bucket);
+  }
+  function grantEliteTraitBuffFromEnemy(enemy, stats) {
+    return presentPlayerStatEvent(playerGrantEliteTraitOnKill(statEventEnv, enemy, stats));
+  }
+  function finishPlayerStats(core, includeBreakdowns) {
+    return finalizer.finish(game, core, includeBreakdowns);
+  }
+  function appendPlayerDpsBreakdowns(stats, summonEstimate) {
+    return descriptions.appendDps(stats, summonEstimate);
+  }
+  function getGemPresentation(name, isSupport, statsOverride) {
+    return presentation.read(game, name, isSupport, statsOverride || window.getPlayerStats());
+  }
+  function getSupportGemPresentation(name, stats, targetGemSources, activeTierOf) {
+    return presentation.support(game, name, { stats, sources: targetGemSources }, activeTierOf);
+  }
+  function getSupportGemTier(name, gem, activeTierOf) {
+    return presentation.tier(name, gem, activeTierOf);
+  }
+  function getSkillGemLevels(name, db, gem, targetGemSources) {
+    return presentation.levels(name, db, gem, targetGemSources);
+  }
+  function getAscendancyNodeStatMultipliers(tick, maxLife) {
+    return ascendancy.nodeMultipliers(game, tick, maxLife);
+  }
+  function getPlayerStats(includeBreakdowns = !game.isBackgroundCalculation, attributesOnly = false, equipmentView = false, tick = null) {
+    if (!equipmentView) return combatEquipmentStats.read(includeBreakdowns);
+    const keepCore = tick !== null;
+    tick = tick || playerStatTick.create();
+    const result2 = pipeline.calculate(game, { includeBreakdowns, attributesOnly, tick });
+    return attributesOnly || keepCore ? result2 : finishPlayerStats(result2, includeBreakdowns);
+  }
+  var equipmentStatCalculator = getPlayerStats;
+  var statEventEnv = { get owner() {
+    return game;
+  }, deps: {
+    get grantTalentStoneShield() {
+      return typeof grantTalentStoneShield === "undefined" ? void 0 : grantTalentStoneShield;
+    },
+    get getCombatTime() {
+      return getCombatTime;
+    },
+    get _t() {
+      return _t;
+    }
+  } };
+  var statEventEffects = { get addLog() {
+    return addLog;
+  }, get addBattleFx() {
+    return addBattleFx;
+  } };
+  function presentPlayerStatEvent(events) {
+    let step = events.next();
+    while (!step.done) {
+      const { kind, args } = step.value;
+      step = events.next(statEventEffects[kind](...args));
+    }
+    return step.value;
+  }
+  safeExposeGlobals({ getAscendancyNodeStatMultipliers, collectCooldownStats, getProjectileTargetBreakdowns, collectOceanStats, applySituationalTakenReduction, grantTalentStoneShieldOnBlock, recoverEnergyShieldOnBlock, consumeLoneEvasionCounterMultiplier, advanceEnergyShieldRechargeOnCrit, triggerUniqueEnergyShieldBreakRecharge, getEquippedUniqueJewels, getLabyrinthShacklesDamageMultiplier, getAbsoluteFloorDamageRoll, getSolitaryHuntDoubleStrikeBonus, isDeferredTalentProjectileTargetEffect, applyTimedRewardStats, grantEliteTraitBuffFromEnemy, finishPlayerStats, appendPlayerDpsBreakdowns, getGemPresentation, getSupportGemPresentation, getSupportGemTier, getSkillGemLevels, getPlayerStats, equipmentStatCalculator });
+})();

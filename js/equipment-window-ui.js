@@ -1,439 +1,657 @@
-/**
- * 장비창(2026-10-10 개편, 사용자가 시안 6차에서 고른 고급 테마). 왼쪽은 장착 장비(인형 배치, 칸마다 그림과 칸 이름만, 머리에 세팅 I II III,
- * 2026-10-21)와 요약(DPS 하나만 크게, 그 아래 유효 생명력을 원소마다 제 색으로). 가운데는 가방이고 머리 한 줄에
- * 칸 수와 검색, 그 아래 쪽 단추, 가방 오른쪽에 도구 줄(정리, 분석, 필터, 해체, 복구, 터치 기기는 배치)을 둔다(2026-10-19, 분석은 2026-10-24까지 판단).
- * 창이 넓으면 오른쪽에 선택한 장비(바꾸면 증감표, 단추, 툴팁)가 붙고, 좁으면 같은 내용이 떠서 나오며, 휴대폰은 요약을 한 줄로 접고
- * (장착 장비 ▾로 펼친다) 선택한 장비는 아래에서 올라온다. 배치와 모양은 css/equipment-window.css.
- * 새로 들어온 아이템은 빨간 점 하나: id가 game.bagSeenId보다 크면 새 것이고, 가방을 열었다가 닫으면 그때까지 들어온 것을 모두 본 것으로 친다.
- */
-const equipmentWindowUi = (() => {
-    const COLOR = Object.freeze({ dps: '#ffcf6e', life: '#ff6b6b', es: '#7fd3ff', fire: '#ff8a50', cold: '#6cb8ff', light: '#ffd54f', chaos: '#c39bff',
-        armor: '#d2b98c', evasion: '#8fe08f', phys: '#d6cdb8' });
-    const EHP = Object.freeze([['물리', 'phys'], ['화염', 'fire'], ['냉기', 'cold'], ['번개', 'light'], ['카오스', 'chaos']]);
-    /** 바꾸면 표의 이름 색: 요약과 같은 능력치는 요약과 같은 색. */
-    const DELTA_TINT = Object.freeze({ dps: 'dps', summonDps: 'dps', maxHp: 'life', energyShield: 'es', resF: 'fire', resC: 'cold', resL: 'light',
-        resChaos: 'chaos', armor: 'armor', evasion: 'evasion' });
-    const fmt = value => Math.floor(Number(value) || 0).toLocaleString(i18n.locale);
-    const pretty = text => (/^-?\d{4,}$/.test(text) ? Number(text).toLocaleString(i18n.locale) : text);
-    const slotName = slot => (typeof getDualSlotDisplayLabel === 'function' ? getDualSlotDisplayLabel(slot) : String(slot).replace(/[123]$/, ''));
-    function setHtml(node, html) {
-        if (node && node.__eqwHtml !== html) { node.innerHTML = html; node.__eqwHtml = html; }
-    }
+// GENERATED from modules/equipment-window-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/browser/window-methods.mjs
+  var windowCancelAnimationFrame = (...args) => globalThis.cancelAnimationFrame(...args);
+  var windowClearTimeout = (...args) => globalThis.clearTimeout(...args);
+  var windowGetComputedStyle = (...args) => globalThis.getComputedStyle(...args);
+  var windowRequestAnimationFrame = (...args) => globalThis.requestAnimationFrame(...args);
+  var windowSetTimeout = (...args) => globalThis.setTimeout(...args);
 
-    // ---------------------------------------------------------------- 요약
-    function ehpItems(stats) {
-        const profile = typeof calculatePlayerEhpProfile === 'function' ? calculatePlayerEhpProfile(stats) : null;
-        if (!profile) return '';
-        return EHP.map(([name, key]) => `<span style="--c:${COLOR[key]}" data-tip="${_t('직격 {value}', { value: fmt(profile.elements[key].direct) })}">${_t(name)} <b>${fmt(profile.elements[key].entropy)}</b></span>`).join('');
+  // modules/ui/equipment-window-actions.mjs
+  function fillEmptySlots(runtime) {
+    const { deps } = runtime;
+    const equipped = deps.equipIntoEmptySlots(deps.game.inventory.slice());
+    if (equipped) deps.showGameToast(deps._t("빈 장비 칸 {equipped}개를 채웠습니다", { equipped }), { tone: "success" });
+    deps.updateStaticUI();
+  }
+  function renderLoadoutSummary(runtime, stats) {
+    render(runtime, stats);
+    runtime.deps.knittingUi.render();
+  }
+  function updateFullWarnings(runtime) {
+    const { deps } = runtime;
+    const element = deps.document.getElementById("inventory-full-warning");
+    if (!element) return;
+    const used = deps.getInventoryUsedCellCount(deps.game), limit = deps.getInventoryLimit(deps.game);
+    const full = used >= limit, display = full ? "inline-block" : "none";
+    const changed = element.style.display !== display;
+    element.style.display = display;
+    element.dataset.tip = full ? `${deps._t("{label} {used}/{limit}칸", { label: "장비", used, limit })}, ${deps._t("공간을 확보하세요")}` : "";
+    if (changed && deps.document.body.classList.contains("desktop-windowed-ui") && typeof deps.syncDesktopRailGroups === "function") {
+      deps.syncDesktopRailGroups();
     }
-    /** The phone's one-line summary: 유효 생명력 and the five values in one wrapping row. */
-    function ehpHtml(stats) {
-        const items = ehpItems(stats);
-        return items ? `<div class="eqw-ehp"><span class="eqw-ehp-label">${_t('유효 생명력')}</span>${items}</div>` : '';
+  }
+  function setHtml(runtime, node, html) {
+    if (node && node.__eqwHtml !== html) {
+      node.innerHTML = html;
+      node.__eqwHtml = html;
     }
-    /** DPS and 유효 생명력 only (2026-10-21 사용자: "DPS/EHP 만 보이게 하고 나머지는 삭제해"; 저항, 생명력, 보호막, 방어도, 회피는 캐릭터 창에).
-     * Names in the left column, values in the right one (2026-10-24 사용자: the five values stay one group when they wrap). */
-    function fullHtml(stats, dps) {
-        const ehp = ehpItems(stats);
-        return `<div class="eqw-summary-full"><span class="eqw-sum-label"><span class="px-center">DPS</span></span><div class="eqw-sum-value eqw-dps" style="--c:${COLOR.dps}"><b>${dps}</b></div>`
-            + (ehp ? `<span class="eqw-sum-label"><span class="px-center">${_t('유효 생명력')}</span></span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : '') + '</div>';
+  }
+  function ehpItems(runtime, stats) {
+    const profile = typeof runtime.deps.calculatePlayerEhpProfile === "function" ? (0, runtime.deps.calculatePlayerEhpProfile)(stats) : null;
+    if (!profile) return "";
+    return runtime.state.EHP.map(([name, key]) => `<span style="--c:${runtime.state.COLOR[key]}" data-tip="${(0, runtime.deps._t)("직격 {value}", { value: fmt(runtime, profile.elements[key].direct) })}">${(0, runtime.deps._t)(name)} <b>${fmt(runtime, profile.elements[key].entropy)}</b></span>`).join("");
+  }
+  function ehpHtml(runtime, stats) {
+    const items = ehpItems(runtime, stats);
+    return items ? `<div class="eqw-ehp"><span class="eqw-ehp-label">${(0, runtime.deps._t)("유효 생명력")}</span>${items}</div>` : "";
+  }
+  function fullHtml(runtime, stats, dps) {
+    const ehp = ehpItems(runtime, stats);
+    return `<div class="eqw-summary-full"><span class="eqw-sum-label"><span class="px-center">DPS</span></span><div class="eqw-sum-value eqw-dps" style="--c:${runtime.state.COLOR.dps}"><b>${dps}</b></div>` + (ehp ? `<span class="eqw-sum-label"><span class="px-center">${(0, runtime.deps._t)("유효 생명력")}</span></span><div class="eqw-sum-value eqw-ehp">${ehp}</div>` : "") + "</div>";
+  }
+  function miniHtml(runtime, stats, dps) {
+    const open = (runtime.deps.game.settings || {}).equipmentMobilePane === "loadout";
+    return `<div class="eqw-summary-mini"><button type="button" class="eqw-mini-toggle" aria-expanded="${open}" onclick="equipmentWindowUi.toggleLoadout()">${(0, runtime.deps._t)("장착 장비")} ${open ? "▴" : "▾"}</button>
+            <div class="eqw-mini-dps" style="--c:${runtime.state.COLOR.dps}"><small>DPS</small><b>${dps}</b></div><div class="eqw-mini-line">${ehpHtml(runtime, stats)}</div></div>`;
+  }
+  function toggleLoadout(runtime) {
+    (0, runtime.deps.setEquipmentMobilePane)((runtime.deps.game.settings || {}).equipmentMobilePane === "loadout" ? "inventory" : "loadout");
+    (0, runtime.deps.updateStaticUI)();
+  }
+  function renderHead(runtime) {
+    const cap = runtime.deps.document.getElementById("ui-equipment-bag-capacity");
+    if (cap) {
+      const used = (0, runtime.deps.getInventoryUsedCellCount)(runtime.deps.game), limit = Math.max(1, (0, runtime.deps.getInventoryLimit)(runtime.deps.game));
+      setHtml(runtime, cap, `<b>${(0, runtime.deps._t)("가방")}</b><small>${(0, runtime.deps._t)("{used}/{limit}칸", { used, limit })}</small><i style="--v:${Math.min(100, Math.round(100 * used / limit))}%"></i>`);
+      cap.classList.toggle("is-full", used >= limit);
     }
-    /** Phone: DPS and 유효 생명력 under a toggle that unfolds the equipped gear and the presets (game.settings.equipmentMobilePane). */
-    function miniHtml(stats, dps) {
-        const open = (game.settings || {}).equipmentMobilePane === 'loadout';
-        return `<div class="eqw-summary-mini"><button type="button" class="eqw-mini-toggle" aria-expanded="${open}" onclick="equipmentWindowUi.toggleLoadout()">${_t('장착 장비')} ${open ? '▴' : '▾'}</button>
-            <div class="eqw-mini-dps" style="--c:${COLOR.dps}"><small>DPS</small><b>${dps}</b></div><div class="eqw-mini-line">${ehpHtml(stats)}</div></div>`;
-    }
-    function toggleLoadout() {
-        setEquipmentMobilePane((game.settings || {}).equipmentMobilePane === 'loadout' ? 'inventory' : 'loadout');
-        updateStaticUI();
-    }
-
-    // ---------------------------------------------------------------- 가방 머리
-    function renderHead() {
-        const cap = document.getElementById('ui-equipment-bag-capacity');
-        if (cap) {
-            const used = getInventoryUsedCellCount(game), limit = Math.max(1, getInventoryLimit(game));
-            setHtml(cap, `<b>${_t('가방')}</b><small>${_t('{used}/{limit}칸', { used, limit })}</small><i style="--v:${Math.min(100, Math.round(100 * used / limit))}%"></i>`);
-            cap.classList.toggle('is-full', used >= limit);
-        }
-        const input = document.getElementById('ui-equipment-bag-search');
-        const query = String(getSearchFilterState().equip || '');
-        if (input && document.activeElement !== input && input.value !== query) input.value = query;
-    }
-    /** ⋯ and the rail's panels close when the pointer goes down anywhere outside them. */
-    function closeMenus(event) {
-        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]').forEach(menu => {
-            if (!menu.contains(event.target)) menu.removeAttribute('open');
-        });
-    }
-
-    // ---------------------------------------------------------------- 도구 줄(2026-10-19: 정리, 분석, 필터, 해체, 복구, 손가락 기기의 배치)
-    /** Each tool's pixel icon (index.html data-icon) goes in once, before its name. */
-    function fillRailIcons() {
-        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool[data-icon]').forEach(tool => {
-            if (!tool.querySelector('svg')) tool.insertAdjacentHTML('afterbegin', renderPixelIcon(tool.dataset.icon, 'eqw-rail-icon'));
-        });
-    }
-    /** 필터 has a dot while a grade is hidden or one kind of slot is picked (a picked slot the bag no longer holds shows everything);
-     * 분석 has one while its filter dims the bag, so a closed panel still says why items are dimmed. */
-    function markFilter() {
-        const summary = document.querySelector('#eqw-filter-menu > summary');
-        if (!summary) return;
-        const settings = game.settings || {};
-        const slot = String(settings.equipmentSlotFilter || 'all');
-        const slotPicked = slot !== 'all' && (game.inventory || []).some(item => item && item.slot === slot);
-        const gradeHidden = Object.values(settings.inventoryViewRarities || {}).some(shown => shown === false);
-        summary.dataset.active = String(slotPicked || gradeHidden);
-        const judge = document.querySelector('#eqw-judge-menu > summary');
-        if (judge) judge.dataset.active = String(equipmentTriage.currentFilter() !== 'all');
-        const order = settings.bagArrangeOrder || 'recent';
-        document.querySelectorAll('#eqw-arrange-menu [data-arrange-order]').forEach(button => {
-            button.setAttribute('aria-pressed', String(button.dataset.arrangeOrder === order));
-        });
-    }
-    /** 검색 항목 해체 and 미검색 항목 해체 wait for a search word: with none, the first took the whole bag and the second nothing. */
-    function markSearchSalvage() {
-        const empty = !getSearchFilterState().equip.trim();
-        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) [data-search-salvage]').forEach(button => {
-            button.disabled = empty;
-            button.dataset.tip = empty ? _t('가방 검색어를 먼저 입력하세요.') : '';
-        });
-    }
-    /** Opening one panel closes the others (the toggle event does not bubble, so the document listens in the capture phase). */
-    function keepOnePanel(event) {
-        const menu = event.target;
-        if (!menu.matches || !menu.matches(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu') || !menu.open) return;
-        document.querySelectorAll(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu[open]').forEach(other => { if (other !== menu) other.removeAttribute('open'); });
-    }
-    /** Esc, and the Android back key (it sends one, js/android-app-ui.js), closes an open panel before the window. */
-    function closePanelOnEscape(event) {
-        if (event.key !== 'Escape') return;
-        const menu = document.querySelector(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]');
-        if (!menu || !menu.getClientRects().length) return;
-        menu.removeAttribute('open');
-        menu.querySelector('summary').focus();
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    /** A rail tool double-clicked does its main job without opening its panel (2026-10-21, the user's ask; 정리 2026-10-26, in the order
-     * picked last in its panel): 해체 salvages the whole bag (locked, set and priority-kept gear stays, as with the panel's 전체 해체)
-     * after the same question with its summary of what goes (2026-11-06 사용자: 바로 해체하지 말고 어떤 아이템이 해체되는지 보여 주고
-     * 확인을 받는다), 분석 runs the analysis again (the bag marks show the results). Keyed by the panel's id; the two clicks before the
-     * double-click opened and closed it. */
-    const RAIL_DOUBLE_CLICK = Object.freeze({
-        'eqw-arrange-menu': () => equipmentInventoryInteraction.autoArrange(),
-        'eqw-salvage-menu': () => bulkSalvageAllInventory(),
-        'eqw-judge-menu': () => equipmentTriage.start()
+    const input = runtime.deps.document.getElementById("ui-equipment-bag-search");
+    const query = String((0, runtime.deps.getSearchFilterState)().equip || "");
+    if (input && runtime.deps.document.activeElement !== input && input.value !== query) input.value = query;
+  }
+  function closeMenus(runtime, event) {
+    runtime.deps.document.querySelectorAll(":is(#item-tab-equip, #stump-equip-host, #craft-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]").forEach((menu) => {
+      if (!menu.contains(event.target)) menu.removeAttribute("open");
     });
-    function runRailToolOnDoubleClick(event) {
-        const summary = event.target.closest && event.target.closest(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu > summary');
-        const action = summary && RAIL_DOUBLE_CLICK[summary.parentElement.id];
-        if (!action) return;
-        event.preventDefault();
-        summary.parentElement.removeAttribute('open');
-        action();
-    }
-    /** 해체 panel opened from elsewhere (the triage's near-full hint): auto salvage is set there now. */
-    function openSalvage() {
-        const menu = document.getElementById('eqw-salvage-menu');
-        if (menu) menu.open = true;
-    }
-    /** 아이템 필터 열기: the drop filter moved to the settings screen (2026-10-19). */
-    function openItemFilter() {
-        switchTab('tab-settings');
-        settingsUi.select('items');
-    }
-
-    // ---------------------------------------------------------------- 해체 요약
-    /** What a whole-bag salvage takes, under its question (js/item-rolls.js confirmBulkSalvageAll): the share of each grade as a bar, the
-     * count of each grade, and the count of each kind (worn slot, or 주얼, 코어, 액막이) in the bag's slot order. */
-    const SALVAGE_KIND_ORDER = Object.freeze(['무기', '방패', '투구', '갑옷', '장갑', '신발', '반지', '목걸이', '허리띠', bagItems.JEWEL, bagItems.CORE, '액막이']);
-    function salvageKind(item) {
-        if (bagItems.isJewel(item)) return bagItems.JEWEL;
-        if (bagItems.isCore(item)) return bagItems.CORE;
-        if (colonyWards.isWard(item)) return '액막이';
-        return String(item.slot || '').replace(/[123]$/, '') || '기타';
-    }
-    function countBy(items, keyOf) {
-        const counts = new Map();
-        items.forEach(item => { const key = keyOf(item); counts.set(key, (counts.get(key) || 0) + 1); });
-        return counts;
-    }
-    function salvageSummaryHtml(items) {
-        const grades = countBy(items, item => item.rarity), kinds = countBy(items, salvageKind);
-        const shown = ['normal', 'magic', 'rare', 'unique'].filter(grade => grades.get(grade));
-        const rank = kind => { const at = SALVAGE_KIND_ORDER.indexOf(kind); return at < 0 ? SALVAGE_KIND_ORDER.length : at; };
-        const chip = (label, count, grade = '') => `<span class="salvage-sum-chip"${grade ? ` data-grade="${grade}"` : ''}><b>${escapeHTML(_t(label))}</b>${count}</span>`;
-        const bar = shown.map(grade => `<i data-grade="${grade}" style="flex:${grades.get(grade)}"></i>`).join('');
-        const gradeChips = shown.map(grade => chip(ITEM_RARITY_LABELS[grade], grades.get(grade), grade)).join('');
-        const kindChips = [...kinds].sort((a, b) => rank(a[0]) - rank(b[0])).map(([kind, count]) => chip(kind, count)).join('');
-        return `<div class="salvage-sum">${bar ? `<div class="salvage-sum-bar" aria-hidden="true">${bar}</div>` : ''}
-            ${gradeChips ? `<div class="salvage-sum-row"><h5>${_t('등급')}</h5>${gradeChips}</div>` : ''}
-            <div class="salvage-sum-row"><h5>${_t('종류')}</h5>${kindChips}</div></div>`;
-    }
-
-    // ---------------------------------------------------------------- 새 아이템
-    const seenId = () => {
-        if (!Number.isFinite(Number(game.bagSeenId)) || game.bagSeenId === null) game.bagSeenId = itemIdCounter;
-        return Number(game.bagSeenId);
+  }
+  function fillRailIcons(runtime) {
+    runtime.deps.document.querySelectorAll(":is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-tool[data-icon]").forEach((tool) => {
+      if (!tool.querySelector("svg")) tool.insertAdjacentHTML("afterbegin", (0, runtime.deps.renderPixelIcon)(tool.dataset.icon, "eqw-rail-icon"));
+    });
+  }
+  function markFilter(runtime) {
+    const summary = runtime.deps.document.querySelector("#eqw-filter-menu > summary");
+    if (!summary) return;
+    const settings = runtime.deps.game.settings || {};
+    const slot = String(settings.equipmentSlotFilter || "all");
+    const slotPicked = slot !== "all" && (runtime.deps.game.inventory || []).some((item) => item && item.slot === slot);
+    const gradeHidden = Object.values(settings.inventoryViewRarities || {}).some((shown) => shown === false);
+    summary.dataset.active = String(slotPicked || gradeHidden);
+    const judge = runtime.deps.document.querySelector("#eqw-judge-menu > summary");
+    if (judge) judge.dataset.active = String(runtime.deps.equipmentTriage.currentFilter() !== "all");
+    const order = settings.bagArrangeOrder || "recent";
+    runtime.deps.document.querySelectorAll("#eqw-arrange-menu [data-arrange-order]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.arrangeOrder === order));
+    });
+  }
+  function markSearchSalvage(runtime) {
+    const empty = !(0, runtime.deps.getSearchFilterState)().equip.trim();
+    runtime.deps.document.querySelectorAll(":is(#item-tab-equip, #stump-equip-host, #craft-equip-host) [data-search-salvage]").forEach((button) => {
+      button.disabled = empty;
+      button.dataset.tip = empty ? (0, runtime.deps._t)("가방 검색어를 먼저 입력하세요.") : "";
+    });
+  }
+  function keepOnePanel(runtime, event) {
+    const menu = event.target;
+    if (!menu.matches || !menu.matches(":is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu") || !menu.open) return;
+    runtime.deps.document.querySelectorAll(":is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu[open]").forEach((other) => {
+      if (other !== menu) other.removeAttribute("open");
+    });
+  }
+  function closePanelOnEscape(runtime, event) {
+    if (event.key !== "Escape") return;
+    const menu = runtime.deps.document.querySelector(":is(#item-tab-equip, #stump-equip-host, #craft-equip-host) details:is(.eqw-more, .eqw-rail-menu)[open]");
+    if (!menu || !menu.getClientRects().length) return;
+    menu.removeAttribute("open");
+    menu.querySelector("summary").focus();
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  function runRailToolOnDoubleClick(runtime, event) {
+    const summary = event.target.closest && event.target.closest(":is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .eqw-rail-menu > summary");
+    const action = summary && runtime.state.RAIL_DOUBLE_CLICK[summary.parentElement.id];
+    if (!action) return;
+    event.preventDefault();
+    summary.parentElement.removeAttribute("open");
+    action();
+  }
+  function openSalvage(runtime) {
+    const menu = runtime.deps.document.getElementById("eqw-salvage-menu");
+    if (menu) menu.open = true;
+  }
+  function openItemFilter(runtime) {
+    (0, runtime.deps.switchTab)("tab-settings");
+    runtime.deps.settingsUi.select("items");
+  }
+  function salvageKind(runtime, item) {
+    if (runtime.deps.bagItems.isJewel(item)) return runtime.deps.bagItems.JEWEL;
+    if (runtime.deps.bagItems.isCore(item)) return runtime.deps.bagItems.CORE;
+    if (runtime.deps.colonyWards.isWard(item)) return "액막이";
+    return String(item.slot || "").replace(/[123]$/, "") || "기타";
+  }
+  function countBy(runtime, items, keyOf) {
+    const counts = /* @__PURE__ */ new Map();
+    items.forEach((item) => {
+      const key = keyOf(item);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return counts;
+  }
+  function salvageSummaryHtml(runtime, items) {
+    const grades = countBy(runtime, items, (item) => item.rarity), kinds = countBy(runtime, items, runtime.handlers.salvageKind);
+    const shown = ["normal", "magic", "rare", "unique"].filter((grade) => grades.get(grade));
+    const rank = (kind) => {
+      const at = runtime.state.SALVAGE_KIND_ORDER.indexOf(kind);
+      return at < 0 ? runtime.state.SALVAGE_KIND_ORDER.length : at;
     };
-    const isNew = item => !!item && Number(item.id) > seenId();
-    /** The red dot of a new bag item (js/canvas-passive-tree.js renderEquipmentGridItem). */
-    const newDotHtml = item => (isNew(item) ? '<span class="eqw-new-dot" aria-label="새 아이템"></span>' : '');
-    /** 장비 칸 오른쪽 위의 아이템 등급(2026-11-07 사용자: T1~20, 티어 색): 툴팁의 '등급 T'와 같은 값(getItemCraftTier)과 색(tier-N).
-     * 주얼, 코어, 액막이는 장비가 아니라 붙이지 않는다. */
-    const tierHtml = item => (item && !bagItems.isSpecial(item)
-        ? `<span class="eqw-item-tier ${getTierClassName(getItemCraftTier(item))}" aria-hidden="true">T${getItemCraftTier(item)}</span>` : '');
-    /** 장비 칸 왼쪽 아래의 베이스 단계(2026-11-08 사용자: 몇 번째 베이스인지 1/4처럼 숫자만): 툴팁 베이스 줄의 [단계/전체]와 같은 값
-     * (getItemBaseChainInfo)과 색(getBaseStepClassName, 위일수록 귀한 색)이다. 한 단계뿐인 베이스와 주얼, 코어, 액막이는 붙이지 않는다. */
-    const baseStepHtml = item => {
-        const info = item && !bagItems.isSpecial(item) ? getItemBaseChainInfo(item) : null;
-        return info && info.total > 1 ? `<span class="eqw-base-step ${getBaseStepClassName(info)}" aria-hidden="true">${info.step}/${info.total}</span>` : '';
+    const chip = (label, count, grade = "") => `<span class="salvage-sum-chip"${grade ? ` data-grade="${grade}"` : ""}><b>${(0, runtime.deps.escapeHTML)((0, runtime.deps._t)(label))}</b>${count}</span>`;
+    const bar = shown.map((grade) => `<i data-grade="${grade}" style="flex:${grades.get(grade)}"></i>`).join("");
+    const gradeChips = shown.map((grade) => chip(runtime.deps.ITEM_RARITY_LABELS[grade], grades.get(grade), grade)).join("");
+    const kindChips = [...kinds].sort((a, b) => rank(a[0]) - rank(b[0])).map(([kind, count]) => chip(kind, count)).join("");
+    return `<div class="salvage-sum">${bar ? `<div class="salvage-sum-bar" aria-hidden="true">${bar}</div>` : ""}
+            ${gradeChips ? `<div class="salvage-sum-row"><h5>${(0, runtime.deps._t)("등급")}</h5>${gradeChips}</div>` : ""}
+            <div class="salvage-sum-row"><h5>${(0, runtime.deps._t)("종류")}</h5>${kindChips}</div></div>`;
+  }
+  function watchBag(runtime) {
+    const target = runtime.deps.document.querySelector(":is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-grid-shell");
+    if (!runtime.active || !target || typeof runtime.deps.IntersectionObserver !== "function") return;
+    const owner = runtime.deps.game;
+    if (runtime.state.watched === target && runtime.state.bagOwner === owner) return;
+    runtime.state.bagObserver?.disconnect();
+    runtime.state.watched = target;
+    runtime.state.bagOwner = owner;
+    runtime.state.bagShown = false;
+    const observer = new runtime.deps.IntersectionObserver((entries) => {
+      if (!runtime.active || runtime.state.bagObserver !== observer || runtime.deps.game !== owner) return;
+      if (entries.some((entry) => entry.isIntersecting)) runtime.state.bagShown = true;
+      else if (runtime.state.bagShown) {
+        runtime.state.bagShown = false;
+        runtime.deps.game.bagSeenId = runtime.deps.window.GameModules.state.session.itemIdCounter;
+      }
+    });
+    runtime.state.bagObserver = observer;
+    observer.observe(target);
+  }
+  function render(runtime, stats) {
+    const dps = fmt(runtime, stats.totalDps || stats.dps);
+    setHtml(runtime, runtime.deps.document.getElementById("ui-equipment-loadout-summary"), fullHtml(runtime, stats, dps) + miniHtml(runtime, stats, dps));
+  }
+  function renderBag(runtime) {
+    renderHead(runtime);
+    fillRailIcons(runtime);
+    markFilter(runtime);
+    markSearchSalvage(runtime);
+    watchBag(runtime);
+  }
+  function compareSlots(runtime, item) {
+    if (runtime.deps.bagItems.isJewel(item)) return [];
+    const slots = (0, runtime.deps.getEquipCandidateSlots)(item);
+    const filled = slots.filter((slot) => (runtime.deps.game.equipment || {})[slot]);
+    return filled.length ? filled : slots;
+  }
+  function compareNode(runtime, panes, selectedLabel) {
+    const wrap = runtime.deps.document.createElement("div");
+    wrap.className = "eqw-compare";
+    wrap.dataset.panes = String(panes.length);
+    const selected = Math.max(0, panes.findIndex((pane) => pane.label === selectedLabel));
+    const tabs = panes.map((pane, index) => `<button type="button" aria-pressed="${index === selected}" class="${index === selected ? "active" : ""}" onclick="equipmentWindowUi.showPane(this, ${index})">${(0, runtime.deps.escapeHTML)(pane.tab)}</button>`);
+    wrap.innerHTML = `<div class="eqw-compare-tabs">${tabs.join("")}</div><div class="eqw-compare-panes"></div>`;
+    panes.forEach((pane, index) => {
+      const section = runtime.deps.document.createElement("section");
+      section.className = `eqw-compare-pane${index === selected ? " active" : ""}`;
+      const head = runtime.deps.document.createElement("h5");
+      head.textContent = (0, runtime.deps._t)(pane.label);
+      section.append(head, pane.node);
+      wrap.lastElementChild.append(section);
+    });
+    return wrap;
+  }
+  function showPane(runtime, button, index) {
+    const wrap = button.closest(".eqw-compare");
+    wrap.querySelectorAll(".eqw-compare-tabs > button, .eqw-compare-pane").forEach((node) => node.classList.remove("active"));
+    wrap.querySelectorAll(".eqw-compare-tabs > button").forEach((node, tabIndex) => node.setAttribute("aria-pressed", String(tabIndex === index)));
+    wrap.querySelectorAll(".eqw-compare-tabs > button")[index].classList.add("active");
+    wrap.querySelectorAll(".eqw-compare-pane")[index].classList.add("active");
+    runtime.deps.equipmentInventoryInteraction.positionInspector();
+  }
+  function wornNames(runtime, slots) {
+    const worn = slots.map((slot) => runtime.deps.game.equipment[slot]).filter(Boolean);
+    if (!worn.length) return "비어 있음";
+    return worn.map((row) => `<span class="${row.rarity || "normal"}">${(0, runtime.deps.escapeHTML)(row.name || row.baseName || "장비")}</span>`).join(", ");
+  }
+  function subtitleOf(runtime, slot, slots) {
+    if (slot) return (0, runtime.deps._t)("{slot} 칸에 장착 중", { slot: slotName(runtime, slot) });
+    return slots.length ? (0, runtime.deps._t)("{slots} 칸과 비교", { slots: slots.map(runtime.handlers.slotName).join(", ") }) : "";
+  }
+  function inspectorHtml(runtime, item, slot, actionsHtml, flags) {
+    const slots = slot ? [] : compareSlots(runtime, item);
+    const hint = slot ? (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(item.baseName || "장착 중")) : runtime.deps.bagItems.isJewel(item) ? "빈 소켓이 있는 장비에 끼웁니다" : (0, runtime.deps._t)("지금 장착: {slots}", { slots: wornNames(runtime, slots) });
+    const rarity = item.rarity || "normal";
+    return `<h4 class="eqw-title">${(0, runtime.deps._t)("선택한 장비")}<small>${(0, runtime.deps.escapeHTML)(subtitleOf(runtime, slot, slots))}</small></h4>
+            <div class="eqw-pick rarity-${rarity}"><img src="${(0, runtime.deps.getEquipmentGridVisualAsset)(item)}" alt="" draggable="false"><div><b class="${rarity}">${(0, runtime.deps.escapeHTML)(item.name || item.baseName || "장비")}</b>
+                <small>${hint}${flags ? `, ${(0, runtime.deps.escapeHTML)(flags)}` : ""}</small></div></div>
+            <div class="eqw-inspector-body">${deltaTablesHtml(runtime, slots)}${orderedBody(runtime, actionsHtml)}</div>
+            <button type="button" class="equipment-grid-inspector-close" aria-label="${(0, runtime.deps._t)("선택 닫기")}" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
+  }
+  function orderedBody(runtime, actionsHtml) {
+    const actions = `<div class="equipment-grid-inspector-actions">${actionsHtml}</div>`, details = '<div class="equipment-inspection-details"></div>';
+    const inspector = runtime.deps.document.getElementById("ui-equipment-inventory-inspector");
+    return inspector && inspectorDock(runtime, inspector) === "sheet" ? details + actions : actions + details;
+  }
+  function toggleTools(runtime, button) {
+    const actions = button.closest(".equipment-grid-inspector-actions");
+    const open = actions.classList.toggle("tools-open");
+    button.setAttribute("aria-expanded", String(open));
+    button.textContent = open ? (0, runtime.deps._t)("관리 닫기") : (0, runtime.deps._t)("장비 관리");
+  }
+  function fmt(runtime, value) {
+    return Math.floor(Number(value) || 0).toLocaleString(runtime.deps.i18n.locale);
+  }
+  function pretty(runtime, text) {
+    return /^-?\d{4,}$/.test(text) ? Number(text).toLocaleString(runtime.deps.i18n.locale) : text;
+  }
+  function slotName(runtime, slot) {
+    return typeof runtime.deps.getDualSlotDisplayLabel === "function" ? (0, runtime.deps.getDualSlotDisplayLabel)(slot) : String(slot).replace(/[123]$/, "");
+  }
+  function seenId(runtime) {
+    if (!Number.isFinite(Number(runtime.deps.game.bagSeenId)) || runtime.deps.game.bagSeenId === null) runtime.deps.game.bagSeenId = runtime.deps.window.GameModules.state.session.itemIdCounter;
+    return Number(runtime.deps.game.bagSeenId);
+  }
+  function isNew(runtime, item) {
+    return !!item && Number(item.id) > seenId(runtime);
+  }
+  function newDotHtml(runtime, item) {
+    return isNew(runtime, item) ? '<span class="eqw-new-dot" aria-label="새 아이템"></span>' : "";
+  }
+  function tierHtml(runtime, item) {
+    return item && !runtime.deps.bagItems.isSpecial(item) ? `<span class="eqw-item-tier ${(0, runtime.deps.getTierClassName)((0, runtime.deps.getItemCraftTier)(item))}" aria-hidden="true">T${(0, runtime.deps.getItemCraftTier)(item)}</span>` : "";
+  }
+  function baseStepHtml(runtime, item) {
+    const info = item && !runtime.deps.bagItems.isSpecial(item) ? (0, runtime.deps.getItemBaseChainInfo)(item) : null;
+    return info && info.total > 1 ? `<span class="eqw-base-step ${(0, runtime.deps.getBaseStepClassName)(info)}" aria-hidden="true">${info.step}/${info.total}</span>` : "";
+  }
+  function inspectorDock(runtime, inspector) {
+    return (0, runtime.deps.getComputedStyle)(inspector).getPropertyValue("--eqw-dock").trim();
+  }
+  function wornSlots(runtime, item) {
+    return runtime.deps.bagItems.isSpecial(item) ? [] : compareSlots(runtime, item).filter((slot) => (runtime.deps.game.equipment || {})[slot]).slice(0, 3);
+  }
+  function deltaTablesHtml(runtime, slots) {
+    return slots.length ? `<div class="eqw-deltas${slots.length > 1 ? " is-multi" : ""}" data-eqw-slot="${(0, runtime.deps.escapeHTML)(slots.join(","))}" style="--eqw-sides:${slots.length}"><div class="eqw-dl-head">바꾸면</div>
+        <div class="eqw-dl-body"><p class="eqw-none">${(0, runtime.deps._t)("계산 중")}</p></div></div>` : "";
+  }
+  function emptyHtml(runtime, message) {
+    return `<h4 class="eqw-title">${(0, runtime.deps._t)("선택한 장비")}</h4><div class="equipment-grid-inspector-empty">${message}</div>`;
+  }
+
+  // modules/ui/equipment-window-comparison.mjs
+  function swapStats(runtime, item, slot, before) {
+    const equipment = runtime.deps.game.equipment, had = Object.prototype.hasOwnProperty.call(equipment, slot), backup = equipment[slot];
+    const twins = Array.isArray(runtime.deps.game.cosmosTwinKeystones) ? runtime.deps.game.cosmosTwinKeystones.slice() : runtime.deps.game.cosmosTwinKeystones;
+    try {
+      equipment[slot] = item;
+      return [before, (0, runtime.deps.getUiPlayerStats)({}, false)];
+    } finally {
+      if (had) equipment[slot] = backup;
+      else delete equipment[slot];
+      runtime.deps.game.cosmosTwinKeystones = twins;
+    }
+  }
+  function deltaText(runtime, key, a, d) {
+    const sign = d > 0 ? "+" : "-";
+    return key === "dps" && a > 0 ? `${sign}${Math.abs(100 * d / a).toFixed(1)}%` : `${sign}${pretty(runtime, runtime.deps.COMPARE_STAT_META[key].format(Math.abs(d)))}`;
+  }
+  function deltaRow(runtime, key, a, b, rest) {
+    const meta = runtime.deps.COMPARE_STAT_META[key], d = b - a;
+    return `<div class="eqw-dl ${d > 0 ? "up" : "down"}${rest ? " is-rest" : ""}">${deltaLabel(runtime, key)}<b>${pretty(runtime, meta.format(a))}</b><i>→</i><b>${pretty(runtime, meta.format(b))}</b><em>${deltaText(runtime, key, a, d)}</em></div>`;
+  }
+  function multiDeltaRow(runtime, key, now, sides, rest) {
+    const meta = runtime.deps.COMPARE_STAT_META[key], a = Number(now[key]) || 0;
+    const cells = sides.map((side) => {
+      const d = (Number(side.after[key]) || 0) - a;
+      if (Math.abs(d) < 1e-3) return '<span class="eqw-dl-side is-same">-</span>';
+      return `<span class="eqw-dl-side ${d > 0 ? "up" : "down"}"><b>${pretty(runtime, meta.format(a + d))}</b><em>${deltaText(runtime, key, a, d)}</em></span>`;
+    }).join("");
+    return `<div class="eqw-dl eqw-dl-multi${rest ? " is-rest" : ""}">${deltaLabel(runtime, key)}<b>${pretty(runtime, meta.format(a))}</b>${cells}</div>`;
+  }
+  function sideNotes(runtime, item, slot) {
+    const notes = wardRows(runtime, item, slot) + uniqueRows(runtime, item, runtime.deps.game.equipment[slot]);
+    return notes ? `<div class="eqw-dl-side-name">${(0, runtime.deps.escapeHTML)(slotName(runtime, slot))}</div>${notes}` : "";
+  }
+  function multiDeltaHtml(runtime, item, slots, now) {
+    const sides = slots.map((slot) => ({ slot, after: swapStats(runtime, item, slot, now)[1] }));
+    const keys = Object.keys(runtime.deps.COMPARE_STAT_META).filter((key) => sides.some((side) => Math.abs((Number(side.after[key]) || 0) - (Number(now[key]) || 0)) >= 1e-3));
+    const rest = keys.filter((key) => !runtime.state.DELTA_TINT[key]), fold = rest.length < keys.length ? rest : [];
+    const head = `<div class="eqw-dl eqw-dl-multi eqw-dl-cols"><span></span><b>${(0, runtime.deps._t)("지금")}</b>${sides.map((side) => `<b>${(0, runtime.deps.escapeHTML)(slotName(runtime, side.slot))}</b>`).join("")}</div>`;
+    const rows = keys.map((key) => multiDeltaRow(runtime, key, now, sides, fold.includes(key))).join("");
+    return (rows ? head + rows + restButton(runtime, fold.length) : "") + sides.map((side) => sideNotes(runtime, item, side.slot)).join("") || '<p class="eqw-none">능력치 변화 없음</p>';
+  }
+  function slotsDeltaHtml(runtime, item, slotsKey, now) {
+    const slots = slotsKey.split(",");
+    return slots.length > 1 ? multiDeltaHtml(runtime, item, slots, now) : deltaHtml(runtime, item, slots[0], now);
+  }
+  function uniqueRows(runtime, item, worn) {
+    if ((worn && worn.uniqueEffect) === item.uniqueEffect) return "";
+    const gain = item.uniqueEffect ? `<div class="eqw-dl-note is-gain">${(0, runtime.deps._t)("획득: {uniqueEffect}", { uniqueEffect: (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(item.uniqueEffect)) })}</div>` : "";
+    return gain + (worn && worn.uniqueEffect ? `<div class="eqw-dl-note is-loss">${(0, runtime.deps._t)("상실: {uniqueEffect}", { uniqueEffect: (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(worn.uniqueEffect)) })}</div>` : "");
+  }
+  function wardRows(runtime, item, slot) {
+    const change = runtime.deps.colonyWards.slotChange(item, slot);
+    if (!change) return "";
+    return `<div class="eqw-dl-note ${change.to > change.from ? "is-gain" : "is-loss"}">${(0, runtime.deps._t)("액막이 칸 {from} → {to}", { from: change.from, to: change.to })}</div>`;
+  }
+  function restButton(runtime, count) {
+    return count ? `<button type="button" class="eqw-dl-more" data-rest="${count}" onclick="equipmentWindowUi.toggleDeltas(this)">${(0, runtime.deps._t)("나머지 변화 {count}줄 보기", { count })}</button>` : "";
+  }
+  function toggleDeltas(runtime, button) {
+    const open = button.closest(".eqw-dl-body").classList.toggle("is-open");
+    button.textContent = open ? (0, runtime.deps._t)("접기") : (0, runtime.deps._t)("나머지 변화 {rest}줄 보기", { rest: button.dataset.rest });
+    runtime.deps.equipmentInventoryInteraction.positionInspector();
+  }
+  function deltaHtml(runtime, item, slot, now) {
+    const [before, after] = swapStats(runtime, item, slot, now);
+    const keys = Object.keys(runtime.deps.COMPARE_STAT_META).filter((key) => Math.abs((Number(after[key]) || 0) - (Number(before[key]) || 0)) >= 1e-3);
+    const rest = keys.filter((key) => !runtime.state.DELTA_TINT[key]);
+    const fold = rest.length < keys.length ? rest : [];
+    const rows = keys.map((key) => deltaRow(runtime, key, Number(before[key]) || 0, Number(after[key]) || 0, fold.includes(key))).join("");
+    return rows + restButton(runtime, fold.length) + wardRows(runtime, item, slot) + uniqueRows(runtime, item, runtime.deps.game.equipment[slot]) || '<p class="eqw-none">능력치 변화 없음</p>';
+  }
+  function hashKey(runtime, text) {
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+    return (h >>> 0).toString(36);
+  }
+  function fillDeltas(runtime, root, item, signature) {
+    if (!runtime.active) return;
+    cancelDeltaJob(runtime, runtime.state.deltaJobs.get(root));
+    const tables = [...root.querySelectorAll(".eqw-deltas[data-eqw-slot]")];
+    if (!tables.length) return;
+    const owner = runtime.deps.game;
+    if (runtime.state.deltaOwner !== owner) runtime.state.deltaCache.clear();
+    runtime.state.deltaOwner = owner;
+    const job = { root, frame: 0, timer: 0 };
+    runtime.state.deltaJobs.set(root, job);
+    runtime.state.pendingDeltas.add(job);
+    const sig = hashKey(runtime, String(signature));
+    let now = null;
+    const fill = (table) => {
+      if (!table.isConnected) return;
+      const key = `${sig}|${table.dataset.eqwSlot}`;
+      if (!runtime.state.deltaCache.has(key)) runtime.state.deltaCache.set(key, slotsDeltaHtml(runtime, item, table.dataset.eqwSlot, now || (now = (0, runtime.deps.getUiPlayerStats)({}, false))));
+      const body = table.querySelector(".eqw-dl-body");
+      const focused = body.contains(runtime.deps.document.activeElement);
+      body.innerHTML = runtime.state.deltaCache.get(key);
+      const more = body.querySelector(".eqw-dl-more");
+      if (more && body.classList.contains("is-open")) more.textContent = (0, runtime.deps._t)("접기");
+      if (focused) more?.focus({ preventScroll: true });
     };
-    let watched = null, bagShown = false;
-    /** The bag counts as opened while its grid is on screen; when it leaves the screen everything that came in so far is seen. */
-    function watchBag() {
-        const target = document.querySelector(':is(#item-tab-equip, #stump-equip-host, #craft-equip-host) .equipment-inventory-grid-shell');
-        if (!target || watched === target || typeof IntersectionObserver !== 'function') return;
-        watched = target;
-        new IntersectionObserver(entries => {
-            if (entries.some(entry => entry.isIntersecting)) bagShown = true;
-            else if (bagShown) {
-                bagShown = false;
-                game.bagSeenId = itemIdCounter;
-            }
-        }).observe(target);
-    }
-
-    /** Items-tab refresh (js/ui.js renderEquipmentLoadoutSummary): the summary. */
-    function render(stats) {
-        const dps = fmt(stats.totalDps || stats.dps);
-        setHtml(document.getElementById('ui-equipment-loadout-summary'), fullHtml(stats, dps) + miniHtml(stats, dps));
-    }
-    /** Bag refresh (js/ui.js renderEquipmentBagPanel: the equipment window, or the stump tab's left gem): the bag head, the rail and the
-     * new-item watch. */
-    function renderBag() {
-        renderHead();
-        fillRailIcons();
-        markFilter();
-        markSearchSalvage();
-        watchBag();
-    }
-
-    // ---------------------------------------------------------------- 선택한 장비
-    /** Where the selected item panel sits (css/equipment-window.css --eqw-dock): 'panel' in the right column, 'sheet' rising from
-     * the bottom on a phone, '' floating next to the item (js/equipment-inventory-grid-ui.js positionInspector). */
-    const inspectorDock = inspector => getComputedStyle(inspector).getPropertyValue('--eqw-dock').trim();
-    /** The worn slots a bag item would replace: the filled candidate slots, else all of them. Jewels go into sockets, not slots. */
-    function compareSlots(item) {
-        if (bagItems.isJewel(item)) return [];
-        const slots = getEquipCandidateSlots(item);
-        const filled = slots.filter(slot => (game.equipment || {})[slot]);
-        return filled.length ? filled : slots;
-    }
-    /** 고른 가방 장비와 옵션을 견줄 지금 낀 장비의 칸(끼운 후보 칸, 셋까지). 주얼, 코어, 액막이는 견줄 옵션이 한두 줄이라 없다. */
-    const wornSlots = item => (bagItems.isSpecial(item) ? [] : compareSlots(item).filter(slot => (game.equipment || {})[slot]).slice(0, 3));
-    /** 고른 장비와 지금 낀 장비의 옵션(2026-10-11, 개편으로 낀 장비의 옵션이 사라져 확인하기 힘들다는 사용자 말): 칸이 넓으면 나란히,
-     * 좁으면(휴대폰, 좁게 뜬 칸) 탭으로 바꿔 본다(css/equipment-window.css .eqw-compare). @param {{ tab: string, label: string, node: Element }[]} panes */
-    function compareNode(panes, selectedLabel) {
-        const wrap = document.createElement('div');
-        wrap.className = 'eqw-compare';
-        wrap.dataset.panes = String(panes.length);
-        const selected = Math.max(0, panes.findIndex(pane => pane.label === selectedLabel));
-        const tabs = panes.map((pane, index) => `<button type="button" aria-pressed="${index === selected}" class="${index === selected ? 'active' : ''}" onclick="equipmentWindowUi.showPane(this, ${index})">${escapeHTML(pane.tab)}</button>`);
-        wrap.innerHTML = `<div class="eqw-compare-tabs">${tabs.join('')}</div><div class="eqw-compare-panes"></div>`;
-        panes.forEach((pane, index) => {
-            const section = document.createElement('section');
-            section.className = `eqw-compare-pane${index === selected ? ' active' : ''}`;
-            const head = document.createElement('h5');
-            head.textContent = _t(pane.label);
-            section.append(head, pane.node);
-            wrap.lastElementChild.append(section);
-        });
-        return wrap;
-    }
-    /** 좁은 칸의 탭: 고른 장비와 지금 낀 장비 가운데 하나를 보여 준다. */
-    function showPane(button, index) {
-        const wrap = button.closest('.eqw-compare');
-        wrap.querySelectorAll('.eqw-compare-tabs > button, .eqw-compare-pane').forEach(node => node.classList.remove('active'));
-        wrap.querySelectorAll('.eqw-compare-tabs > button').forEach((node, tabIndex) => node.setAttribute('aria-pressed', String(tabIndex === index)));
-        wrap.querySelectorAll('.eqw-compare-tabs > button')[index].classList.add('active');
-        wrap.querySelectorAll('.eqw-compare-pane')[index].classList.add('active');
-        equipmentInventoryInteraction.positionInspector();
-    }
-    function wornNames(slots) {
-        const worn = slots.map(slot => game.equipment[slot]).filter(Boolean);
-        if (!worn.length) return '비어 있음';
-        return worn.map(row => `<span class="${row.rarity || 'normal'}">${escapeHTML(row.name || row.baseName || '장비')}</span>`).join(', ');
-    }
-    function subtitleOf(slot, slots) {
-        if (slot) return _t('{slot} 칸에 장착 중', { slot: slotName(slot) });
-        return slots.length ? _t('{slots} 칸과 비교', { slots: slots.map(slotName).join(', ') }) : '';
-    }
-    /** The 바꾸면 card. A two-slot item (rings, gloves, a second weapon) shows every side in the same card, a column each (2026-11-08
-     * 사용자: 바꾸면 왼쪽과 바꾸면 오른쪽을 한 줄, 한 카드에). data-eqw-slot holds the slots joined by commas. */
-    const deltaTablesHtml = slots => slots.length ? `<div class="eqw-deltas${slots.length > 1 ? ' is-multi' : ''}" data-eqw-slot="${escapeHTML(slots.join(','))}" style="--eqw-sides:${slots.length}"><div class="eqw-dl-head">바꾸면</div>
-        <div class="eqw-dl-body"><p class="eqw-none">${_t('계산 중')}</p></div></div>` : '';
-    /** The panel's markup (js/canvas-passive-tree.js renderEquipmentInventoryInspector); the 바꾸면 tables fill in afterwards (fillDeltas). */
-    function inspectorHtml(item, slot, actionsHtml, flags) {
-        const slots = slot ? [] : compareSlots(item);
-        const hint = slot ? escapeHTML(_t(item.baseName || '장착 중')) : bagItems.isJewel(item) ? '빈 소켓이 있는 장비에 끼웁니다' : _t('지금 장착: {slots}', { slots: wornNames(slots) });
-        const rarity = item.rarity || 'normal';
-        return `<h4 class="eqw-title">${_t('선택한 장비')}<small>${escapeHTML(subtitleOf(slot, slots))}</small></h4>
-            <div class="eqw-pick rarity-${rarity}"><img src="${getEquipmentGridVisualAsset(item)}" alt="" draggable="false"><div><b class="${rarity}">${escapeHTML(item.name || item.baseName || '장비')}</b>
-                <small>${hint}${flags ? `, ${escapeHTML(flags)}` : ''}</small></div></div>
-            <div class="eqw-inspector-body">${deltaTablesHtml(slots)}${orderedBody(actionsHtml)}</div>
-            <button type="button" class="equipment-grid-inspector-close" aria-label="${_t('선택 닫기')}" onclick="equipmentInventoryInteraction.focus(null)">×</button>`;
-    }
-    /** 휴대폰 카드(sheet)는 단추 줄을 옵션 뒤에 그린다: 바꾸면 표 바로 밑의 단추 줄이 카드의 끝처럼 보여 아래의 옵션을 찾기 어려웠다.
-     * css/equipment-window.css가 그 줄을 카드 아래에 붙인다. 넓은 창은 표, 단추, 옵션 차례 그대로다. */
-    function orderedBody(actionsHtml) {
-        const actions = `<div class="equipment-grid-inspector-actions">${actionsHtml}</div>`, details = '<div class="equipment-inspection-details"></div>';
-        const inspector = document.getElementById('ui-equipment-inventory-inspector');
-        return inspector && inspectorDock(inspector) === 'sheet' ? details + actions : actions + details;
-    }
-    /** Phone management stays separate from the equip action; it changes presentation only. */
-    function toggleTools(button) {
-        const actions = button.closest('.equipment-grid-inspector-actions');
-        const open = actions.classList.toggle('tools-open');
-        button.setAttribute('aria-expanded', String(open));
-        button.textContent = open ? _t('관리 닫기') : _t('장비 관리');
-    }
-    /** The panel without a selection: in the right column it keeps its title band. */
-    const emptyHtml = message => `<h4 class="eqw-title">${_t('선택한 장비')}</h4><div class="equipment-grid-inspector-empty">${message}</div>`;
-
-    /** Stats with `item` in `slot`, by the comparison tooltip's own swap (js/ui.js buildSlotPanel). @returns [before, after]
-     * @param {object} before the stats now, read once for all of one item's slots (fillDeltas) */
-    function swapStats(item, slot, before) {
-        const equipment = game.equipment, had = Object.prototype.hasOwnProperty.call(equipment, slot), backup = equipment[slot];
-        const twins = Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones.slice() : game.cosmosTwinKeystones;
-        try {
-            equipment[slot] = item;
-            return [before, getUiPlayerStats({}, false)];
-        } finally {
-            if (had) equipment[slot] = backup;
-            else delete equipment[slot];
-            game.cosmosTwinKeystones = twins;
-        }
-    }
-    /** The change of a stat from a by d. DPS는 앞뒤 값이 이미 길어서 증감은 비율만 적는다(좁은 칸에서 "-473,651 (-24.7%)"가 네 줄로 꺾였다). */
-    function deltaText(key, a, d) {
-        const sign = d > 0 ? '+' : '-';
-        return key === 'dps' && a > 0 ? `${sign}${Math.abs(100 * d / a).toFixed(1)}%` : `${sign}${pretty(COMPARE_STAT_META[key].format(Math.abs(d)))}`;
-    }
-    const deltaLabel = key => {
-        const tint = COLOR[DELTA_TINT[key]];
-        return `<span${tint ? ` style="color:${tint}"` : ''}>${_t(COMPARE_STAT_META[key].label)}</span>`;
+    const run = () => {
+      const current = runtime.state.deltaJobs.get(root) === job;
+      cancelDeltaJob(runtime, job);
+      if (!runtime.active || !current || runtime.deps.game !== owner) return;
+      tables.forEach(fill);
+      runtime.deps.equipmentInventoryInteraction.positionInspector();
     };
-    function deltaRow(key, a, b, rest) {
-        const meta = COMPARE_STAT_META[key], d = b - a;
-        return `<div class="eqw-dl ${d > 0 ? 'up' : 'down'}${rest ? ' is-rest' : ''}">${deltaLabel(key)}<b>${pretty(meta.format(a))}</b><i>→</i>`
-            + `<b>${pretty(meta.format(b))}</b><em>${deltaText(key, a, d)}</em></div>`;
-    }
-    /** One stat across the sides of a two-slot item: the value now, then each side's value after the swap with its change, - where that
-     * side leaves the stat alone. */
-    function multiDeltaRow(key, now, sides, rest) {
-        const meta = COMPARE_STAT_META[key], a = Number(now[key]) || 0;
-        const cells = sides.map(side => {
-            const d = (Number(side.after[key]) || 0) - a;
-            if (Math.abs(d) < 0.001) return '<span class="eqw-dl-side is-same">-</span>';
-            return `<span class="eqw-dl-side ${d > 0 ? 'up' : 'down'}"><b>${pretty(meta.format(a + d))}</b><em>${deltaText(key, a, d)}</em></span>`;
-        }).join('');
-        return `<div class="eqw-dl eqw-dl-multi${rest ? ' is-rest' : ''}">${deltaLabel(key)}<b>${pretty(meta.format(a))}</b>${cells}</div>`;
-    }
-    /** A side's ward and unique effect changes, under the side's name. */
-    function sideNotes(item, slot) {
-        const notes = wardRows(item, slot) + uniqueRows(item, game.equipment[slot]);
-        return notes ? `<div class="eqw-dl-side-name">${escapeHTML(slotName(slot))}</div>${notes}` : '';
-    }
-    /** The card of a two-slot item: a head row (지금, then each side's name) and a row per stat any side changes. */
-    function multiDeltaHtml(item, slots, now) {
-        const sides = slots.map(slot => ({ slot, after: swapStats(item, slot, now)[1] }));
-        const keys = Object.keys(COMPARE_STAT_META).filter(key => sides.some(side => Math.abs((Number(side.after[key]) || 0) - (Number(now[key]) || 0)) >= 0.001));
-        const rest = keys.filter(key => !DELTA_TINT[key]), fold = rest.length < keys.length ? rest : [];
-        const head = `<div class="eqw-dl eqw-dl-multi eqw-dl-cols"><span></span><b>${_t('지금')}</b>${sides.map(side => `<b>${escapeHTML(slotName(side.slot))}</b>`).join('')}</div>`;
-        const rows = keys.map(key => multiDeltaRow(key, now, sides, fold.includes(key))).join('');
-        return ((rows ? head + rows + restButton(fold.length) : '') + sides.map(side => sideNotes(item, side.slot)).join('')) || '<p class="eqw-none">능력치 변화 없음</p>';
-    }
-    /** The card's body for its slots (data-eqw-slot, commas between the sides of a two-slot item). */
-    function slotsDeltaHtml(item, slotsKey, now) {
-        const slots = slotsKey.split(',');
-        return slots.length > 1 ? multiDeltaHtml(item, slots, now) : deltaHtml(item, slots[0], now);
-    }
-    function uniqueRows(item, worn) {
-        if ((worn && worn.uniqueEffect) === item.uniqueEffect) return '';
-        const gain = item.uniqueEffect ? `<div class="eqw-dl-note is-gain">${_t('획득: {uniqueEffect}', { uniqueEffect: escapeHTML(_t(item.uniqueEffect)) })}</div>` : '';
-        return gain + (worn && worn.uniqueEffect ? `<div class="eqw-dl-note is-loss">${_t('상실: {uniqueEffect}', { uniqueEffect: escapeHTML(_t(worn.uniqueEffect)) })}</div>` : '');
-    }
-    /** 허리띠를 바꾸면 달라지는 액막이 칸 한 줄(2026-10-11, 허리띠마다 1~3칸이라): 칸 수 변화만(사용자: "액막이 칸수 변화만 보여줘"). */
-    function wardRows(item, slot) {
-        const change = colonyWards.slotChange(item, slot);
-        if (!change) return '';
-        return `<div class="eqw-dl-note ${change.to > change.from ? 'is-gain' : 'is-loss'}">${_t('액막이 칸 {from} → {to}', { from: change.from, to: change.to })}</div>`;
-    }
-    /** 휴대폰의 바꾸면 표는 요약에 있는 능력치(DPS, 생명력, 보호막, 방어, 저항)만 먼저 보인다. 표가 열다섯 줄까지 길어져 그 아래 고른 장비의
-     * 옵션이 밀렸다(2026-10-11). 나머지 줄은 이 단추로 편다(css/equipment-window.css .eqw-dl-more, PC에서는 단추 없이 다 보인다). */
-    function restButton(count) {
-        return count ? `<button type="button" class="eqw-dl-more" data-rest="${count}" onclick="equipmentWindowUi.toggleDeltas(this)">${_t('나머지 변화 {count}줄 보기', { count })}</button>` : '';
-    }
-    function toggleDeltas(button) {
-        const open = button.closest('.eqw-dl-body').classList.toggle('is-open');
-        button.textContent = open ? _t('접기') : _t('나머지 변화 {rest}줄 보기', { rest: button.dataset.rest });
-        equipmentInventoryInteraction.positionInspector();
-    }
-    function deltaHtml(item, slot, now) {
-        const [before, after] = swapStats(item, slot, now);
-        const keys = Object.keys(COMPARE_STAT_META).filter(key => Math.abs((Number(after[key]) || 0) - (Number(before[key]) || 0)) >= 0.001);
-        const rest = keys.filter(key => !DELTA_TINT[key]);
-        const fold = rest.length < keys.length ? rest : []; // 요약 능력치가 하나도 안 바뀌면 접지 않는다
-        const rows = keys.map(key => deltaRow(key, Number(before[key]) || 0, Number(after[key]) || 0, fold.includes(key))).join('');
-        return (rows + restButton(fold.length) + wardRows(item, slot) + uniqueRows(item, game.equipment[slot])) || '<p class="eqw-none">능력치 변화 없음</p>';
-    }
-    const deltaCache = new Map();
-    const deltaJobs = new WeakMap();
-    /** A short key for the long gear signature (FNV-1a). */
-    function hashKey(text) {
-        let h = 2166136261;
-        for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
-        return (h >>> 0).toString(36);
-    }
-    /** Fills the panel's 바꾸면 tables right after the panel's first frame; the same item and gear (signature) reuse the last result.
-     * It waited for an idle moment before (up to 200 ms of "계산 중" while the fight kept the browser busy, 2026-11-07). */
-    function fillDeltas(root, item, signature) {
-        const job = {};
-        deltaJobs.set(root, job);
-        const tables = [...root.querySelectorAll('.eqw-deltas[data-eqw-slot]')];
-        if (!tables.length) return;
-        const sig = hashKey(String(signature));
-        let now = null; // the stats before the swap, once for every slot of the item (a ring tries three)
-        const fill = table => {
-            if (!table.isConnected) return;
-            const key = `${sig}|${table.dataset.eqwSlot}`;
-            if (!deltaCache.has(key)) deltaCache.set(key, slotsDeltaHtml(item, table.dataset.eqwSlot, now || (now = getUiPlayerStats({}, false))));
-            const body = table.querySelector('.eqw-dl-body');
-            const focused = body.contains(document.activeElement);
-            body.innerHTML = deltaCache.get(key);
-            const more = body.querySelector('.eqw-dl-more');
-            if (more && body.classList.contains('is-open')) more.textContent = _t('접기');
-            if (focused) more?.focus({ preventScroll: true });
-        };
-        const run = () => {
-            if (deltaJobs.get(root) !== job) return; // A newer refresh owns these reused tables.
-            tables.forEach(fill);
-            equipmentInventoryInteraction.positionInspector(); // the taller floating panel finds its place again
-        };
-        if (deltaCache.size > 24) deltaCache.clear();
-        requestAnimationFrame(() => setTimeout(run, 0));
-    }
+    if (runtime.state.deltaCache.size > 24) runtime.state.deltaCache.clear();
+    job.frame = runtime.deps.requestAnimationFrame(() => {
+      job.frame = 0;
+      job.timer = runtime.deps.setTimeout(run, 0);
+    });
+  }
+  function cancelDeltaJob(runtime, job) {
+    if (!job) return;
+    runtime.deps.cancelAnimationFrame(job.frame);
+    runtime.deps.clearTimeout(job.timer);
+    if (runtime.state.deltaJobs.get(job.root) === job) runtime.state.deltaJobs.delete(job.root);
+    runtime.state.pendingDeltas.delete(job);
+  }
+  function deltaLabel(runtime, key) {
+    const tint = runtime.state.COLOR[runtime.state.DELTA_TINT[key]];
+    return `<span${tint ? ` style="color:${tint}"` : ""}>${(0, runtime.deps._t)(runtime.deps.COMPARE_STAT_META[key].label)}</span>`;
+  }
 
-    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
-        document.addEventListener('pointerdown', closeMenus, true);
-        document.addEventListener('toggle', keepOnePanel, true);
-        document.addEventListener('keydown', closePanelOnEscape, true);
-        document.addEventListener('dblclick', runRailToolOnDoubleClick, true);
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
     }
-    return Object.freeze({ render, renderBag, toggleLoadout, newDotHtml, tierHtml, baseStepHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas,
-        openSalvage, openItemFilter, toggleTools, salvageSummaryHtml });
+    runtime.listeners.length = 0;
+  }
+
+  // modules/ui/equipment-window-view.mjs
+  function createEquipmentWindowView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null, active: true, listeners: [] };
+    const handlers = { fillEmptySlots, renderLoadoutSummary, updateFullWarnings, salvageKind, slotName, render, renderBag, toggleLoadout, newDotHtml, tierHtml, baseStepHtml, inspectorDock, inspectorHtml, emptyHtml, fillDeltas, wornSlots, compareNode, showPane, toggleDeltas, openSalvage, openItemFilter, toggleTools, salvageSummaryHtml, closeMenus, keepOnePanel, closePanelOnEscape, runRailToolOnDoubleClick };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(void 0, runtime);
+    initialize(runtime);
+    runtime.api = Object.freeze({
+      render: runtime.handlers.render,
+      renderBag: runtime.handlers.renderBag,
+      toggleLoadout: runtime.handlers.toggleLoadout,
+      newDotHtml: runtime.handlers.newDotHtml,
+      tierHtml: runtime.handlers.tierHtml,
+      baseStepHtml: runtime.handlers.baseStepHtml,
+      inspectorDock: runtime.handlers.inspectorDock,
+      inspectorHtml: runtime.handlers.inspectorHtml,
+      emptyHtml: runtime.handlers.emptyHtml,
+      fillDeltas: runtime.handlers.fillDeltas,
+      wornSlots: runtime.handlers.wornSlots,
+      compareNode: runtime.handlers.compareNode,
+      showPane: runtime.handlers.showPane,
+      toggleDeltas: runtime.handlers.toggleDeltas,
+      openSalvage: runtime.handlers.openSalvage,
+      openItemFilter: runtime.handlers.openItemFilter,
+      toggleTools: runtime.handlers.toggleTools,
+      salvageSummaryHtml: runtime.handlers.salvageSummaryHtml,
+      fillEmptySlots: runtime.handlers.fillEmptySlots,
+      renderLoadoutSummary: runtime.handlers.renderLoadoutSummary,
+      updateFullWarnings: runtime.handlers.updateFullWarnings,
+      dispose: () => disposeEquipmentWindow(runtime)
+    });
+    if (typeof runtime.deps.document !== "undefined" && typeof runtime.deps.document.addEventListener === "function") {
+      listenView(runtime, runtime.deps.document, "pointerdown", runtime.handlers.closeMenus, true);
+      listenView(runtime, runtime.deps.document, "toggle", runtime.handlers.keepOnePanel, true);
+      listenView(runtime, runtime.deps.document, "keydown", runtime.handlers.closePanelOnEscape, true);
+      listenView(runtime, runtime.deps.document, "dblclick", runtime.handlers.runRailToolOnDoubleClick, true);
+    }
+    return runtime.api;
+  }
+  function initialize(runtime) {
+    runtime.state.COLOR = Object.freeze({
+      dps: "#ffcf6e",
+      life: "#ff6b6b",
+      es: "#7fd3ff",
+      fire: "#ff8a50",
+      cold: "#6cb8ff",
+      light: "#ffd54f",
+      chaos: "#c39bff",
+      armor: "#d2b98c",
+      evasion: "#8fe08f",
+      phys: "#d6cdb8"
+    });
+    runtime.state.EHP = Object.freeze([["물리", "phys"], ["화염", "fire"], ["냉기", "cold"], ["번개", "light"], ["카오스", "chaos"]]);
+    runtime.state.DELTA_TINT = Object.freeze({
+      dps: "dps",
+      summonDps: "dps",
+      maxHp: "life",
+      energyShield: "es",
+      resF: "fire",
+      resC: "cold",
+      resL: "light",
+      resChaos: "chaos",
+      armor: "armor",
+      evasion: "evasion"
+    });
+    runtime.state.RAIL_DOUBLE_CLICK = Object.freeze({
+      "eqw-arrange-menu": () => runtime.deps.equipmentInventoryInteraction.autoArrange(),
+      "eqw-salvage-menu": () => (0, runtime.deps.bulkSalvageAllInventory)(),
+      "eqw-judge-menu": () => runtime.deps.equipmentTriage.start()
+    });
+    runtime.state.SALVAGE_KIND_ORDER = Object.freeze(["무기", "방패", "투구", "갑옷", "장갑", "신발", "반지", "목걸이", "허리띠", runtime.deps.bagItems.JEWEL, runtime.deps.bagItems.CORE, "액막이"]);
+    runtime.state.watched = null;
+    runtime.state.bagShown = false;
+    runtime.state.deltaCache = /* @__PURE__ */ new Map();
+    runtime.state.deltaJobs = /* @__PURE__ */ new WeakMap();
+    runtime.state.pendingDeltas = /* @__PURE__ */ new Set();
+    runtime.state.deltaOwner = null;
+    runtime.state.bagObserver = null;
+    runtime.state.bagOwner = null;
+  }
+  function disposeEquipmentWindow(runtime) {
+    releaseViewEvents(runtime);
+    runtime.state.bagObserver?.disconnect();
+    runtime.state.bagObserver = null;
+    runtime.state.bagOwner = null;
+    runtime.state.watched = null;
+    runtime.state.bagShown = false;
+    for (const job of runtime.state.pendingDeltas) cancelDeltaJob(runtime, job);
+    runtime.state.deltaCache.clear();
+    runtime.state.deltaOwner = null;
+  }
+
+  // modules/equipment-window-ui-classic.mjs
+  var equipmentWindowUi = createEquipmentWindowView({
+    get equipIntoEmptySlots() {
+      return equipIntoEmptySlots;
+    },
+    get showGameToast() {
+      return showGameToast;
+    },
+    get knittingUi() {
+      return knittingUi;
+    },
+    get syncDesktopRailGroups() {
+      return typeof syncDesktopRailGroups === "function" ? syncDesktopRailGroups : void 0;
+    },
+    get calculatePlayerEhpProfile() {
+      return typeof calculatePlayerEhpProfile === "undefined" ? void 0 : calculatePlayerEhpProfile;
+    },
+    get _t() {
+      return _t;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get setEquipmentMobilePane() {
+      return setEquipmentMobilePane;
+    },
+    get updateStaticUI() {
+      return updateStaticUI;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get getSearchFilterState() {
+      return getSearchFilterState;
+    },
+    get getInventoryUsedCellCount() {
+      return getInventoryUsedCellCount;
+    },
+    get getInventoryLimit() {
+      return getInventoryLimit;
+    },
+    get renderPixelIcon() {
+      return renderPixelIcon;
+    },
+    get equipmentTriage() {
+      return equipmentTriage;
+    },
+    get switchTab() {
+      return switchTab;
+    },
+    get settingsUi() {
+      return settingsUi;
+    },
+    get bagItems() {
+      return bagItems;
+    },
+    get colonyWards() {
+      return colonyWards;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get ITEM_RARITY_LABELS() {
+      return ITEM_RARITY_LABELS;
+    },
+    get IntersectionObserver() {
+      return typeof IntersectionObserver === "undefined" ? void 0 : IntersectionObserver;
+    },
+    get window() {
+      return window;
+    },
+    get getEquipCandidateSlots() {
+      return getEquipCandidateSlots;
+    },
+    get equipmentInventoryInteraction() {
+      return equipmentInventoryInteraction;
+    },
+    get getEquipmentGridVisualAsset() {
+      return getEquipmentGridVisualAsset;
+    },
+    get getUiPlayerStats() {
+      return getUiPlayerStats;
+    },
+    get COMPARE_STAT_META() {
+      return COMPARE_STAT_META;
+    },
+    get requestAnimationFrame() {
+      return windowRequestAnimationFrame;
+    },
+    get setTimeout() {
+      return windowSetTimeout;
+    },
+    get clearTimeout() {
+      return windowClearTimeout;
+    },
+    get cancelAnimationFrame() {
+      return windowCancelAnimationFrame;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get getDualSlotDisplayLabel() {
+      return typeof getDualSlotDisplayLabel === "undefined" ? void 0 : getDualSlotDisplayLabel;
+    },
+    get getTierClassName() {
+      return getTierClassName;
+    },
+    get getItemCraftTier() {
+      return getItemCraftTier;
+    },
+    get getItemBaseChainInfo() {
+      return getItemBaseChainInfo;
+    },
+    get getBaseStepClassName() {
+      return getBaseStepClassName;
+    },
+    get getComputedStyle() {
+      return windowGetComputedStyle;
+    },
+    get bulkSalvageAllInventory() {
+      return bulkSalvageAllInventory;
+    }
+  });
+  safeExposeGlobals({
+    equipmentWindowUi,
+    fillEmptyEquipmentSlots: equipmentWindowUi.fillEmptySlots,
+    renderEquipmentLoadoutSummary: equipmentWindowUi.renderLoadoutSummary,
+    updateInventoryFullWarnings: equipmentWindowUi.updateFullWarnings
+  });
 })();
-safeExposeGlobals({ equipmentWindowUi });

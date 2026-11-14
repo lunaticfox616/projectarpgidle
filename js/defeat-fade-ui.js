@@ -1,34 +1,82 @@
-/* 쓰러질 때의 화면(2026-11-05 사용자: "사망 시 바로 부활이 아니라 화면이 까매졌다가 밝아지는 연출로 몇 초 뒤에 움직일 수 있게").
- * 쓰러진 그 틱에 지도가 입구부터 다시 놓이므로(js/combat-enemy-turn.js handlePlayerDefeat의 startMoving), 쓰러진 순간의 전장을 멈춘 그림으로
- * 세워 까맣게 덮고, 잠시 뒤 걷어 다시 놓인 전장을 드러낸다(css/ui-feedback.css .battle-defeat-fade). 움직이지 못하는 시간은
- * js/combat-enemy-turn.js holdAfterDefeat가 잡는다. 그림만 다룬다: 게임 상태를 바꾸지 않는다. 동작 줄이기 설정에서는 띄우지 않는다. */
-(function () {
-    'use strict';
-
-    /** 전장 캔버스의 지금 그림을 같은 자리, 같은 크기로 멈춰 세운 복사본. */
-    function stillOf(canvas) {
-        const still = document.createElement('canvas');
-        still.width = canvas.width;
-        still.height = canvas.height;
-        still.className = 'battle-defeat-still';
-        Object.assign(still.style, { left: `${canvas.offsetLeft}px`, top: `${canvas.offsetTop}px`, width: `${canvas.offsetWidth}px`, height: `${canvas.offsetHeight}px` });
-        still.getContext('2d').drawImage(canvas, 0, 0);
-        return still;
+// GENERATED from modules/defeat-fade-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
     }
-
-    function showDefeatFade(event) {
-        if (event.detail?.background || uiDisplay.reducedEffects()) return;
-        const wrap = document.getElementById('battlefield-wrap'), canvas = document.getElementById('battlefield-canvas');
-        if (!wrap || !canvas || !canvas.width || !canvas.height) return;
-        wrap.querySelector('.battle-defeat-fade')?.remove();
-        const fade = document.createElement('div'), dark = document.createElement('div');
-        fade.className = 'battle-defeat-fade';
-        fade.setAttribute('aria-hidden', 'true');
-        dark.className = 'battle-defeat-dark';
-        fade.append(stillOf(canvas), dark);
-        fade.addEventListener('animationend', end => { if (end.target === fade) fade.remove(); });
-        wrap.append(fade);
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
     }
+    runtime.listeners = retained;
+  }
 
-    window.addEventListener('project-idle:player-defeated', showDefeatFade);
-}());
+  // modules/ui/defeat-fade-view.mjs
+  function createDefeatFadeView(deps) {
+    const runtime = { active: true, listeners: [], fade: null };
+    const clear = () => {
+      releaseViewTarget(runtime, runtime.fade);
+      runtime.fade?.remove();
+      runtime.fade = null;
+    };
+    const show = (event) => {
+      if (!runtime.active || event.detail?.background || deps.uiDisplay.reducedEffects()) return;
+      const wrap = deps.document.getElementById("battlefield-wrap");
+      const canvas = deps.document.getElementById("battlefield-canvas");
+      if (!wrap || !canvas || !canvas.width || !canvas.height) return;
+      clear();
+      const fade = deps.document.createElement("div"), dark = deps.document.createElement("div");
+      fade.className = "battle-defeat-fade";
+      fade.setAttribute("aria-hidden", "true");
+      dark.className = "battle-defeat-dark";
+      fade.append(stillOf(deps.document, canvas), dark);
+      runtime.fade = fade;
+      listenView(runtime, fade, "animationend", (end) => {
+        if (end.target === fade) clear();
+      });
+      wrap.append(fade);
+    };
+    listenView(runtime, deps.window, "project-idle:player-defeated", show);
+    return Object.freeze({ dispose() {
+      clear();
+      releaseViewEvents(runtime);
+    } });
+  }
+  function stillOf(document2, canvas) {
+    const still = document2.createElement("canvas");
+    still.width = canvas.width;
+    still.height = canvas.height;
+    still.className = "battle-defeat-still";
+    Object.assign(still.style, {
+      left: `${canvas.offsetLeft}px`,
+      top: `${canvas.offsetTop}px`,
+      width: `${canvas.offsetWidth}px`,
+      height: `${canvas.offsetHeight}px`
+    });
+    still.getContext("2d").drawImage(canvas, 0, 0);
+    return still;
+  }
+
+  // modules/defeat-fade-ui-classic.mjs
+  window.GameModules.defeatFadeView = createDefeatFadeView({
+    get document() {
+      return document;
+    },
+    get window() {
+      return window;
+    },
+    get uiDisplay() {
+      return uiDisplay;
+    }
+  });
+})();

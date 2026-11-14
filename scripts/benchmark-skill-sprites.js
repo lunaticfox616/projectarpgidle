@@ -18,7 +18,7 @@ function inspectSheets() {
 function measureSprites(oldSource) {
     const previous=new Function(oldSource.replace(/safeExposeGlobals\(\{drawSkillSignatureTravel,drawSkillSignatureImpact,drawSkillMobilitySignature\}\);/,
         'return drawSkillSignatureTravel;'))();
-    clearInterval(gameTickHandle); gameTickHandle=null;
+    window.GameModules.application.timers.stopCombat();
     const raf=window.requestAnimationFrame.bind(window);
     window.requestAnimationFrame=callback=>callback===gameLoop ? 0 : raf(callback);
     game.gridPlayer={gx:3,gy:4};
@@ -64,7 +64,7 @@ function measureSprites(oldSource) {
         await page.goto('http://127.0.0.1:4214/');
         await page.locator('#btn-startup-guest').click();
         await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
-        await page.waitForFunction(()=>battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+        await page.waitForFunction(()=>battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
         const sheets=await page.evaluate(inspectSheets);
         sheets.forEach(sheet=>assert(sheet.transparentRatio>0.1 && sheet.width>1000,`${sheet.name}: actual alpha and loaded sheet`));
         const performance=await page.evaluate(measureSprites,fs.readFileSync('artifacts/skill-procedural-before.js','utf8'));

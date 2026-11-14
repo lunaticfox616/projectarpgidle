@@ -1,80 +1,174 @@
-/**
- * 새 배포 알림(2026-10-11 사용자: "PR 올려서 github pages에 들어가고 나면 새로고침 하라고 떴으면 좋겠는데").
- * 웹 묶음을 만들 때(scripts/build-web.js) index.html의 <meta name="app-deploy">와 version.json에 같은 표식을 적는다. 열려 있는 게임은
- * 5분마다, 그리고 탭으로 돌아올 때 version.json을 다시 읽어 제 표식과 다르면 화면 위에 알림을 띄운다. 새로고침은 플레이어가 누를 때만 한다.
- * 묶음을 거치지 않은 개발 서버(표식이 dev)와 앱(네이티브)에서는 켜지지 않는다. 읽는 파일은 수십 바이트이고 클라우드 서버를 거치지 않는다.
- */
+// GENERATED from modules/app-update-ui*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-    const CHECK_MS = 5 * 60 * 1000, MIN_GAP_MS = 60 * 1000, SNOOZE_MS = 30 * 60 * 1000;
-    const own = (document.querySelector('meta[name="app-deploy"]') || {}).content || 'dev';
-    let lastCheckAt = 0, quietUntil = 0, latest = '';
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
+    }
+    runtime.listeners = retained;
+  }
 
-    // The PC build (window.rigninDesktop) is updated by Steam, not by reloading.
-    const native = () => !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) || !!window.rigninDesktop;
-    const enabled = () => own !== 'dev' && location.protocol !== 'file:' && !native();
+  // modules/ui/app-update-view.mjs
+  var CHECK_MS = 5 * 60 * 1e3;
+  var MIN_GAP_MS = 60 * 1e3;
+  var SNOOZE_MS = 30 * 60 * 1e3;
+  var AppUpdateView = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.active = true;
+      this.listeners = [];
+      this.own = deps.document.querySelector('meta[name="app-deploy"]')?.content || "dev";
+      this.lastCheckAt = 0;
+      this.quietUntil = 0;
+      this.latest = "";
+      this.timer = null;
+      this.request = null;
+      this.notice = null;
+      if (deps.document.readyState === "complete") this.start();
+      else listenView(this, deps.window, "load", () => this.start(), { once: true });
+    }
+    enabled() {
+      const capacitor = this.deps.window.Capacitor;
+      const android = capacitor && typeof capacitor.isNativePlatform === "function" && capacitor.isNativePlatform();
+      return this.own !== "dev" && this.deps.location.protocol !== "file:" && !android && !this.deps.window.rigninDesktop;
+    }
+    start() {
+      if (!this.active || this.timer !== null || !this.enabled()) return;
+      this.timer = this.deps.setInterval(() => this.check(), CHECK_MS);
+      listenView(this, this.deps.document, "visibilitychange", () => this.check());
+      if (this.deps.navigator.serviceWorker) listenView(this, this.deps.navigator.serviceWorker, "controllerchange", () => this.check());
+    }
+    hide(snooze = false) {
+      releaseViewTarget(this, this.notice);
+      this.notice?.remove();
+      this.notice = null;
+      if (snooze) this.quietUntil = this.deps.now() + SNOOZE_MS;
+    }
+    reloadSavedGame(notice) {
+      if (!this.active || notice !== this.notice) return;
+      const message = notice.querySelector("span");
+      if (this.deps.getLocalSaveStatus().status === "uninitialized") {
+        message.textContent = this.deps._t("저장 데이터를 불러오는 중입니다. 잠시 후 다시 눌러 주세요.");
+        return;
+      }
+      try {
+        if (this.deps.saveGame({ skipCloudSync: true })) {
+          this.deps.location.reload();
+          return;
+        }
+      } catch (error) {
+        this.deps.console.warn("[app-update] 진행을 저장하지 못해 새로고침을 중단했습니다.", error);
+      }
+      message.textContent = this.deps._t("새로고침을 멈췄습니다. ") + (this.deps.getLocalSaveStatus().message || this.deps._t("지금은 진행 내용을 저장할 수 없습니다. 진행 정산 또는 저장 복구를 마친 뒤 다시 눌러 주세요."));
+    }
+    show() {
+      if (!this.active || this.deps.now() < this.quietUntil || this.deps.document.getElementById("app-update-notice")) return;
+      const notice = this.deps.document.createElement("div");
+      notice.id = "app-update-notice";
+      notice.setAttribute("role", "status");
+      notice.innerHTML = '<span data-i18n>새 버전이 올라왔습니다. 새로고침하면 적용됩니다.</span><button type="button" class="app-update-reload" data-i18n>새로고침</button><button type="button" class="app-update-later" data-i18n>나중에</button>';
+      this.notice = notice;
+      listenView(this, notice, "click", (event) => {
+        if (event.target.closest(".app-update-reload")) this.reloadSavedGame(notice);
+        else if (event.target.closest(".app-update-later")) this.hide(true);
+      });
+      this.deps.document.body.appendChild(notice);
+    }
+    async check() {
+      if (!this.active || this.deps.document.hidden || this.request) return;
+      if (this.latest) {
+        this.show();
+        return;
+      }
+      const now = this.deps.now();
+      if (now - this.lastCheckAt < MIN_GAP_MS) return;
+      this.lastCheckAt = now;
+      const request = new this.deps.AbortController();
+      this.request = request;
+      try {
+        this.acceptBuild(await this.readBuild(now, request));
+      } catch (error) {
+        if (!request.signal.aborted) this.deps.console.warn("[app-update] 새 버전 확인에 실패했습니다.", error);
+      } finally {
+        if (this.request === request) this.request = null;
+      }
+    }
+    async readBuild(now, request) {
+      const response = await this.deps.fetch(`version.json?t=${now}`, { cache: "no-store", signal: request.signal });
+      if (!response.ok) return "";
+      const data = await response.json();
+      return String(data?.build || "");
+    }
+    acceptBuild(build) {
+      if (!this.active || !build || build === this.own) return;
+      this.latest = build;
+      this.show();
+    }
+    dispose() {
+      releaseViewEvents(this);
+      if (this.timer !== null) this.deps.clearInterval(this.timer);
+      this.timer = null;
+      this.request?.abort();
+      this.request = null;
+      this.hide();
+    }
+  };
+  function createAppUpdateView(deps) {
+    const view = new AppUpdateView(deps);
+    return Object.freeze({ dispose: () => view.dispose() });
+  }
 
-    function hideUpdateNotice(snooze) {
-        const notice = document.getElementById('app-update-notice');
-        if (notice) notice.remove();
-        if (snooze) quietUntil = Date.now() + SNOOZE_MS;
+  // modules/app-update-ui-classic.mjs
+  window.GameModules.appUpdateView = createAppUpdateView({
+    get document() {
+      return document;
+    },
+    get window() {
+      return window;
+    },
+    get location() {
+      return location;
+    },
+    get navigator() {
+      return navigator;
+    },
+    get console() {
+      return console;
+    },
+    get AbortController() {
+      return AbortController;
+    },
+    now: () => Date.now(),
+    fetch: function updateFetchVersion(...args) {
+      return fetch(...args);
+    },
+    setInterval: function updateStartTimer(...args) {
+      return setInterval(...args);
+    },
+    clearInterval: function updateStopTimer(...args) {
+      return clearInterval(...args);
+    },
+    getLocalSaveStatus: function updateReadSaveStatus() {
+      return getLocalSaveStatus();
+    },
+    saveGame: function updatePersistBeforeReload(options) {
+      return saveGame(options);
+    },
+    _t: function updateTranslate(...args) {
+      return _t(...args);
     }
-    /** pagehide cannot cancel a failed save, so persist synchronously before navigating. */
-    function reloadSavedGame(notice) {
-        const message = notice.querySelector('span');
-        if (getLocalSaveStatus().status === 'uninitialized') {
-            message.textContent = _t('저장 데이터를 불러오는 중입니다. 잠시 후 다시 눌러 주세요.');
-            return;
-        }
-        try {
-            if (saveGame({ skipCloudSync: true })) {
-                location.reload();
-                return;
-            }
-        } catch (error) {
-            console.warn('[app-update] 진행을 저장하지 못해 새로고침을 중단했습니다.', error);
-        }
-        message.textContent = '새로고침을 멈췄습니다. ' + (getLocalSaveStatus().message
-            || '지금은 진행 내용을 저장할 수 없습니다. 진행 정산 또는 저장 복구를 마친 뒤 다시 눌러 주세요.');
-    }
-    /** 화면 위 가운데의 알림 한 줄: 저장 후 새로고침과 나중에(30분 뒤 다시 알린다). */
-    function showUpdateNotice() {
-        if (document.getElementById('app-update-notice') || Date.now() < quietUntil) return;
-        const notice = document.createElement('div');
-        notice.id = 'app-update-notice';
-        notice.setAttribute('role', 'status');
-        notice.innerHTML = '<span>새 버전이 올라왔습니다. 새로고침하면 적용됩니다.</span>'
-            + '<button type="button" class="app-update-reload">새로고침</button><button type="button" class="app-update-later">나중에</button>';
-        notice.querySelector('.app-update-reload').addEventListener('click', () => reloadSavedGame(notice));
-        notice.querySelector('.app-update-later').addEventListener('click', () => hideUpdateNotice(true));
-        document.body.appendChild(notice);
-    }
-    async function readLatestBuild(now) {
-        const response = await fetch(`version.json?t=${now}`, { cache: 'no-store' });
-        if (!response.ok) return '';
-        const data = await response.json();
-        return String((data && data.build) || '');
-    }
-    /** 한 번 다른 표식을 본 뒤로는 다시 읽지 않는다(알림만 다시 띄운다). 읽기에 실패하면(오프라인, 배포 중) 다음 확인에서 다시 본다. */
-    async function checkForUpdate() {
-        if (document.hidden) return;
-        if (latest) return showUpdateNotice();
-        const now = Date.now();
-        if (now - lastCheckAt < MIN_GAP_MS) return;
-        lastCheckAt = now;
-        try {
-            const build = await readLatestBuild(now);
-            if (!build || build === own) return;
-            latest = build;
-            showUpdateNotice();
-        } catch (error) {
-            console.warn('[app-update] 새 버전 확인에 실패했습니다.', error);
-        }
-    }
-    function startUpdateChecks() {
-        if (!enabled()) return;
-        setInterval(checkForUpdate, CHECK_MS);
-        document.addEventListener('visibilitychange', checkForUpdate);
-        navigator.serviceWorker?.addEventListener('controllerchange', checkForUpdate);
-    }
-    window.addEventListener('load', startUpdateChecks, { once: true });
+  });
 })();

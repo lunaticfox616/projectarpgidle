@@ -1,91 +1,200 @@
-/** 무대 스킬 이펙트의 연결 규칙이 함께 쓰는 작은 도구 (js/canvas-stage-skill-rules.js, js/canvas-stage-skill-casts.js).
- * 룬 이름에서 인계의 룬 번호와 연결표를 찾고, 주인공과 적이 선 자리, 보는 쪽, 클립의 램프를 답한다. 읽기만 한다.
- */
-const stageSkillKit = (() => {
-    const WIDE = 64, DEEP = 32;                   // 한 칸의 도트
-    const BODY = -50;                             // 몸 가운데 높이(발에서, 도트)
-    const HAND = -58;                             // 손 높이: 투사체가 나는 높이
-    let lastFace = 1;
-    let names = null;                             // 인계의 룬 이름 → 번호(게임에 그림 번호가 없는 룬: 위습 소환)
-
-    function kitNames() {
-        if (!names) names = new Map(Object.entries(STAGE_SKILL_VFX.meta).map(([id, row]) => [row.name, Number(id)]));
-        return names;
+// GENERATED from modules/canvas-stage-skill-kit*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/rendering/stage-skill-catalog.mjs
+  var StageSkillCatalog = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.names = null;
     }
-    /** 룬 이름 → 인계의 번호: 게임의 그림 번호, 따로 시전하는 룬의 번호, 그것도 없으면 이름으로 찾는다. */
-    function kitGemId(skillName) {
-        const spec = SKILL_FX_ATLAS[skillName], def = SKILL_DB[skillName];
-        return (spec && spec.id) || (def && def.nativeCastId) || kitNames().get(skillName) || 0;
+    kitNames() {
+      if (!this.names) this.names = new Map(Object.entries(this.deps.STAGE_SKILL_VFX.meta).map(([id, row]) => [row.name, Number(id)]));
+      return this.names;
+    }
+    kitGemId(skillName) {
+      const spec = this.deps.SKILL_FX_ATLAS[skillName], def = this.deps.SKILL_DB[skillName];
+      return spec && spec.id || def && def.nativeCastId || this.kitNames().get(skillName) || 0;
+    }
+    kitGemOf(skillName) {
+      const id = this.kitGemId(skillName), map = id ? this.deps.STAGE_SKILL_VFX.gems[id] : null;
+      return map ? { id, map, meta: this.deps.STAGE_SKILL_VFX.meta[id] } : null;
+    }
+  };
+  function createStageSkillCatalog(deps) {
+    const view = new StageSkillCatalog(deps);
+    return Object.freeze({ gemId: view.kitGemId.bind(view), gemOf: view.kitGemOf.bind(view) });
+  }
+
+  // modules/common/stage-art-scale.mjs
+  function scaleForStageArt(tile, heroTile) {
+    return (Number(tile) || heroTile) / heroTile;
+  }
+
+  // modules/rendering/stage-skill-kit.mjs
+  var StageSkillKit = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.WIDE = 64;
+      this.DEEP = 32;
+      this.BODY = -50;
+      this.HAND = -58;
+      this.lastFace = 1;
+      this.kitRamp = (gem, element) => gem.map.ramp || this.deps.STAGE_SKILL_VFX.elementRamp[element] || this.deps.STAGE_SKILL_VFX.elementRamp[gem.meta.el] || "phys";
+      this.kitRef = (value, index = 0) => Array.isArray(value) ? value[index % value.length] : value;
+      this.kitOnGround = (ref) => {
+        const clip = this.deps.stageSkillVfx.clipOf(ref);
+        return !!clip && clip.an === "bottom";
+      };
+      this.SIDE = Object.freeze({ west: -1, east: 1 });
+      this.kitLastFace = () => this.lastFace;
+      this.kitAt = (spot, dx = 0, dy = 0) => ({ gx: spot.gx, gy: spot.gy, dx, dy });
+      this.EMERGE = 10;
     }
     /** 주문 룬인데 지금 활로 쏘는 룬(STAGE_VIEW.runeStanceMotions): 시전의 오라와 발밑 고리 대신 활의 빛을 쓴다. */
-    function kitFiredFromBow(skillName) {
-        return !!STAGE_VIEW.runeStanceMotions[skillName]?.bow && getEquippedWeaponStance() === 'bow';
+    kitFiredFromBow(skillName) {
+      return !!this.deps.STAGE_VIEW.runeStanceMotions[skillName]?.bow && this.deps.getEquippedWeaponStance() === "bow";
     }
-    /** @returns {?{id:number, map:object, meta:object}} 그 룬의 연결표와 갈래. 인계에 없는 룬이면 null. */
-    function kitGemOf(skillName) {
-        const id = kitGemId(skillName), map = id ? STAGE_SKILL_VFX.gems[id] : null;
-        return map ? { id, map, meta: STAGE_SKILL_VFX.meta[id] } : null;
+    kitHeroSpot(owner) {
+      return { gx: owner.gridPlayer.gx, gy: owner.gridPlayer.gy };
     }
-    const kitRamp = (gem, element) => gem.map.ramp || STAGE_SKILL_VFX.elementRamp[element] || STAGE_SKILL_VFX.elementRamp[gem.meta.el] || 'phys';
-    const kitRef = (value, index = 0) => (Array.isArray(value) ? value[index % value.length] : value);
-    const kitOnGround = ref => { const clip = stageSkillVfx.clipOf(ref); return !!clip && clip.an === 'bottom'; };
-    const kitHeroSpot = () => ({ gx: game.gridPlayer.gx, gy: game.gridPlayer.gy });
     /** 그려진 주인공이 선 자리(칸, 소수): 걷거나 이동 룬으로 옮겨 가는 동안 그림은 칸보다 늦게 따라간다. 주인공에 붙어 따라가는 연출이 쓴다.
      * 아직 그린 적이 없으면 주인공의 칸. */
-    function kitHeroDrawn() {
-        const p = stageSkillVfx.projection(), pos = typeof battleVisualState === 'object' ? battleVisualState.playerPos : null;
-        if (!p || !pos) return kitHeroSpot();
-        const o = p.cellToScreen(0, 0), ax = p.cellToScreen(1, 0), ay = p.cellToScreen(0, 1), lift = p.actorGroundOffsetY || 0;
-        return { gx: (pos.x - o.x) / ((ax.x - o.x) || 1), gy: (pos.y - lift - o.y) / ((ay.y - o.y) || 1) };
+    kitHeroDrawn(owner) {
+      const p = this.deps.stageSkillVfx.projection(), pos = typeof this.deps.battleVisualState === "object" ? this.deps.battleVisualState.playerPos : null;
+      if (!p || !pos) return this.kitHeroSpot(owner);
+      const o = p.cellToScreen(0, 0), ax = p.cellToScreen(1, 0), ay = p.cellToScreen(0, 1), lift = p.actorGroundOffsetY || 0;
+      return { gx: (pos.x - o.x) / (ax.x - o.x || 1), gy: (pos.y - lift - o.y) / (ay.y - o.y || 1) };
     }
-    const kitEnemy = id => (game.enemies || []).find(unit => unit.id === id && hasGridCell(unit)) || null;
+    kitEnemy(owner, id) {
+      return (owner.enemies || []).find((unit) => unit.id === id && this.deps.hasGridCell(unit)) || null;
+    }
     /** 적이 선 자리: 몸의 가로 가운데와 앞줄. */
-    function kitEnemySpot(enemy) {
-        const size = getGridUnitFootprint(enemy);
-        return { gx: enemy.gx + (size.columns - 1) / 2, gy: enemy.gy + size.rows - 1 };
+    kitEnemySpot(enemy) {
+      const size = this.deps.getGridUnitFootprint(enemy);
+      return { gx: enemy.gx + (size.columns - 1) / 2, gy: enemy.gy + size.rows - 1 };
     }
-    const SIDE = Object.freeze({ west: -1, east: 1 });
     /** 주인공이 보는 쪽(1 오른쪽, -1 왼쪽): 이번 프레임에 주인공 그림이 볼 쪽(걷는 쪽, 공격 중이면 대상이 선 쪽. js/canvas-battlefield.js가
      * 타격을 넘기기 전에 정한다), 그것이 좌우가 아니면 공격 대상이 선 쪽, 그것도 없으면 마지막으로 그려진 쪽. 주인공에게 붙는 연출(휘두름,
      * 마법진, 발사 섬광)은 이 값을 써서 늘 주인공 그림의 앞에 나온다. */
-    function kitHeroFace() {
-        const view = typeof battleVisualState === 'object' ? battleVisualState : {};
-        return SIDE[view.playerFacingDirection] || SIDE[view.playerAttackDirection]
-            || (typeof stageActors === 'object' && stageActors.facing ? stageActors.facing() : lastFace);
+    kitHeroFace() {
+      const view = typeof this.deps.battleVisualState === "object" ? this.deps.battleVisualState : {};
+      return this.SIDE[view.playerFacingDirection] || this.SIDE[view.playerAttackDirection] || (typeof this.deps.stageActors === "object" && this.deps.stageActors.facing ? this.deps.stageActors.facing() : this.lastFace);
     }
     /** 마지막으로 친 쪽을 적어 둔다(방향을 알 수 없는 사건이 쓴다). */
-    function kitNoteFace(face) { if (face) lastFace = face; }
-    const kitLastFace = () => lastFace;
-    const kitAt = (spot, dx = 0, dy = 0) => ({ gx: spot.gx, gy: spot.gy, dx, dy });
+    kitNoteFace(face) {
+      if (face) this.lastFace = face;
+    }
     /** 그 자리의 화면 좌표(발 자리)와 도트 하나의 크기. */
-    function kitScreen(p, spot) {
-        const base = p.cellToScreen(spot.gx, spot.gy);
-        return { x: base.x, y: base.y + (p.actorGroundOffsetY || 0), dot: stageActors.scaleFor(p.tileW) };
+    kitScreen(p, spot) {
+      const base = p.cellToScreen(spot.gx, spot.gy);
+      return { x: base.x, y: base.y + (p.actorGroundOffsetY || 0), dot: scaleForStageArt(p.tileW, this.deps.STAGE_VIEW.heroTile) };
     }
     /** 길(칸과 그 칸에 닿는 때)을 따라 지금 있는 자리와 나아가는 쪽. 길이 없으면 처음 칸에서 대상 칸으로 곧게 간다. */
-    function kitAlong(event, elapsed) {
-        const path = event.travelPath && event.travelPath.length > 1 ? event.travelPath
-            : [{ ...event.sourceCell, offsetMs: 0 }, { ...event.targetCells[0], offsetMs: event.duration }];
-        let i = 0;
-        while (i < path.length - 2 && path[i + 1].offsetMs <= elapsed) i++;
-        const a = path[i], b = path[i + 1], u = Math.max(0, Math.min(1, (elapsed - a.offsetMs) / Math.max(1, b.offsetMs - a.offsetMs)));
-        const face = Math.sign(b.gx - a.gx) || Math.sign(path[path.length - 1].gx - path[0].gx) || lastFace;   // 맞은 자리에 멈춘 동안(같은 칸 두 점)에도 나아가던 쪽을 본다
-        return { gx: a.gx + (b.gx - a.gx) * u, gy: a.gy + (b.gy - a.gy) * u, face, from: a, to: b };
+    kitAlong(event, elapsed) {
+      const path = event.travelPath && event.travelPath.length > 1 ? event.travelPath : [{ ...event.sourceCell, offsetMs: 0 }, { ...event.targetCells[0], offsetMs: event.duration }];
+      let i = 0;
+      while (i < path.length - 2 && path[i + 1].offsetMs <= elapsed) i++;
+      const a = path[i], b = path[i + 1], u = Math.max(0, Math.min(1, (elapsed - a.offsetMs) / Math.max(1, b.offsetMs - a.offsetMs)));
+      const face = Math.sign(b.gx - a.gx) || Math.sign(path[path.length - 1].gx - path[0].gx) || this.lastFace;
+      return { gx: a.gx + (b.gx - a.gx) * u, gy: a.gy + (b.gy - a.gy) * u, face, from: a, to: b };
     }
-    const EMERGE = 10;  // 쓴 자리에서 앞으로 내민 손까지(도트)
     /** 쓴 자리에서 나아가는 그림(파동, 곧게 나는 투사체)을 쓴 사람이 내민 손보다 앞쪽에만 그리게 한다. 그런 그림은 앞머리가 기준점이라
      * 몸통이 뒤로 길게 놓이고, 막 나갈 때는 쓴 사람의 등 뒤까지 걸쳐 등 뒤에서 나오는 것처럼 보였다(2026-10-13 사용자: 서리 파동이
      * "캐릭터 몸 뒤쪽에서부터 나오는것 같으니"). 이렇게 가리면 몸 앞에서 자라 나와 나아간다. 깊이 쪽으로 곧게 가는 것은 가리지 않는다.
      * 부른 쪽이 save와 restore로 감싼다. @param {CanvasRenderingContext2D} ctx @param {object} p 투영 @param {object} event 그림 사건 */
-    function kitEmerge(ctx, p, event) {
-        const first = kitAlong(event, 0), face = Math.sign(first.to.gx - first.from.gx);
-        if (!face || Math.abs(first.to.gx - first.from.gx) < 0.5) return;
-        const at = kitScreen(p, first.from), x = at.x + face * EMERGE * at.dot, span = ctx.canvas.width + ctx.canvas.height;
-        ctx.beginPath();
-        ctx.rect(face < 0 ? x - span : x, -span, span, span * 2);
-        ctx.clip();
+    kitEmerge(ctx, p, event) {
+      const first = this.kitAlong(event, 0), face = Math.sign(first.to.gx - first.from.gx);
+      if (!face || Math.abs(first.to.gx - first.from.gx) < 0.5) return;
+      const at = this.kitScreen(p, first.from), x = at.x + face * this.EMERGE * at.dot, span = ctx.canvas.width + ctx.canvas.height;
+      ctx.beginPath();
+      ctx.rect(face < 0 ? x - span : x, -span, span, span * 2);
+      ctx.clip();
     }
-    return Object.freeze({ WIDE, DEEP, BODY, HAND, gemId: kitGemId, gemOf: kitGemOf, firedFromBow: kitFiredFromBow, ramp: kitRamp, ref: kitRef, onGround: kitOnGround, heroSpot: kitHeroSpot, enemy: kitEnemy,
-        heroDrawn: kitHeroDrawn, enemySpot: kitEnemySpot, heroFace: kitHeroFace, noteFace: kitNoteFace, lastFace: kitLastFace, at: kitAt, screen: kitScreen, along: kitAlong, emerge: kitEmerge });
+  };
+  function createStageSkillKit(deps) {
+    const catalog = createStageSkillCatalog(deps);
+    const instance = new StageSkillKit(deps);
+    return Object.freeze({
+      catalog,
+      WIDE: instance.WIDE,
+      DEEP: instance.DEEP,
+      BODY: instance.BODY,
+      HAND: instance.HAND,
+      gemId: catalog.gemId,
+      gemOf: catalog.gemOf,
+      firedFromBow: instance.kitFiredFromBow.bind(instance),
+      ramp: instance.kitRamp,
+      ref: instance.kitRef,
+      onGround: instance.kitOnGround,
+      heroSpot: instance.kitHeroSpot.bind(instance),
+      enemy: instance.kitEnemy.bind(instance),
+      heroDrawn: instance.kitHeroDrawn.bind(instance),
+      enemySpot: instance.kitEnemySpot.bind(instance),
+      heroFace: instance.kitHeroFace.bind(instance),
+      noteFace: instance.kitNoteFace.bind(instance),
+      lastFace: instance.kitLastFace,
+      at: instance.kitAt,
+      screen: instance.kitScreen.bind(instance),
+      along: instance.kitAlong.bind(instance),
+      emerge: instance.kitEmerge.bind(instance)
+    });
+  }
+
+  // modules/canvas-stage-skill-kit-classic.mjs
+  var native = createStageSkillKit({
+    get STAGE_SKILL_VFX() {
+      return STAGE_SKILL_VFX;
+    },
+    get SKILL_FX_ATLAS() {
+      return SKILL_FX_ATLAS;
+    },
+    get SKILL_DB() {
+      return SKILL_DB;
+    },
+    get STAGE_VIEW() {
+      return STAGE_VIEW;
+    },
+    get getEquippedWeaponStance() {
+      return getEquippedWeaponStance;
+    },
+    get stageSkillVfx() {
+      return stageSkillVfx;
+    },
+    get battleVisualState() {
+      return typeof battleVisualState === "undefined" ? void 0 : battleVisualState;
+    },
+    get hasGridCell() {
+      return hasGridCell;
+    },
+    get getGridUnitFootprint() {
+      return getGridUnitFootprint;
+    },
+    get stageActors() {
+      return typeof stageActors === "undefined" ? void 0 : stageActors;
+    }
+  });
+  var stageSkillKit = Object.freeze({
+    catalog: native.catalog,
+    WIDE: native.WIDE,
+    DEEP: native.DEEP,
+    BODY: native.BODY,
+    HAND: native.HAND,
+    gemId: native.gemId,
+    gemOf: native.gemOf,
+    firedFromBow: native.firedFromBow,
+    ramp: native.ramp,
+    ref: native.ref,
+    onGround: native.onGround,
+    heroSpot: () => native.heroSpot(game),
+    enemy: (id) => native.enemy(game, id),
+    heroDrawn: () => native.heroDrawn(game),
+    enemySpot: native.enemySpot,
+    heroFace: native.heroFace,
+    noteFace: native.noteFace,
+    lastFace: native.lastFace,
+    at: native.at,
+    screen: native.screen,
+    along: native.along,
+    emerge: native.emerge
+  });
+  safeExposeGlobals({ stageSkillKit });
 })();
-safeExposeGlobals({ stageSkillKit });

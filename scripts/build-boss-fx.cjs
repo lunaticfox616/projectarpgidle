@@ -14,6 +14,7 @@
  * --check: 쓰지 않고 검수만 한다. 원본은 읽기만 한다.
  */
 'use strict';
+const { readDataSource, writeDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -29,7 +30,7 @@ const CELL = 160, COLS = 6, CLIPS = Object.freeze(['charge', 'action', 'impact']
 const problems = [];
 
 function readRoster() {
-    const source = fs.readFileSync(path.join(root, 'data/monster-stage-roster.js'), 'utf8');
+    const source = readDataSource(path.join(root, 'data/monster-stage-roster.js'));
     const sandbox = { safeExposeData: rows => Object.assign(sandbox, rows), Object };
     vm.createContext(sandbox);
     vm.runInContext(source.replace(/^const /mg, 'var '), sandbox);
@@ -174,11 +175,11 @@ function applyRuntimeLinks(actors) {
 }
 
 function refreshRuntimeLinks() {
-    const file = path.join(root, 'data/boss-fx.js'), text = fs.readFileSync(file, 'utf8');
+    const file = path.join(root, 'data/boss-fx.js'), text = readDataSource(file);
     const sandbox = { safeExposeData: values => Object.assign(sandbox, values) };
     vm.createContext(sandbox); vm.runInContext(text, sandbox);
     applyRuntimeLinks(sandbox.BOSS_FX.actors);
-    fs.writeFileSync(file, text.replace(/const BOSS_FX = Object.freeze\(.*\);/, 'const BOSS_FX = Object.freeze(' + JSON.stringify(sandbox.BOSS_FX) + ');'));
+    writeDataSource(file, text.replace(/const BOSS_FX = Object.freeze\(.*\);/, 'const BOSS_FX = Object.freeze(' + JSON.stringify(sandbox.BOSS_FX) + ');'));
     console.log('Reviewed boss effect links refreshed; existing sheets unchanged.');
 }
 
@@ -199,7 +200,7 @@ function writeOut({ actors, sheets }) {
         + `// impactScale, emit(게임의 공격 프레임마다 효과가 나오는 자리, 발에서 도트), clips(charge 준비, action 날아감, impact 맞음:\n`
         + `// sheet 시트, ms 프레임 시간, frames [칸 번호, 기준점 x, y, 그림의 왼쪽 끝 x, 오른쪽 끝 x, 좌우 뒤집기]).\n`
         + `const BOSS_FX = Object.freeze(${JSON.stringify(table)});\n\nsafeExposeData({ BOSS_FX });\n`;
-    fs.writeFileSync(path.join(root, 'data/boss-fx.js'), text);
+    writeDataSource(path.join(root, 'data/boss-fx.js'), text);
     console.log(`보스 ${Object.keys(actors).length}종, 시트 ${sheets.size}장 → assets/stage-vfx/boss-fx, data/boss-fx.js`);
 }
 

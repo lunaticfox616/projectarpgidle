@@ -341,7 +341,8 @@ function translationValueRanges(source) {
 function importTable(code, file) {
     const rows = JSON.parse(fs.readFileSync(path.resolve(ROOT, file), 'utf8'));
     const target = path.join(ROOT, packFile(code));
-    let source = fs.readFileSync(target, 'utf8');
+    const { readDataSource, writeDataSource } = require('./lib/data-authoring.cjs');
+    let source = readDataSource(target).replace(/\r\n/g, '\n');
     if (source.lastIndexOf('    })\n});') < 0) throw new Error(`${packFile(code)}: strings를 닫는 '    })\\n});'를 찾지 못했다`);
     const filled = rows.filter(row => row && typeof row.key === 'string' && row[code] && (typeof row[code] === 'string' ? row[code].trim() : typeof row[code] === 'object'));
     const added = [];
@@ -362,7 +363,7 @@ function importTable(code, file) {
         source = `${head}\n        // ── ${new Date().toISOString().slice(0, 10)} 표에서 넣음(${path.basename(file)}) ──\n${added.join('\n')}\n${source.slice(close)}`;
     }
     try { espree.parse(source, { ecmaVersion: 'latest', sourceType: 'script' }); } catch (error) { throw new Error(`${packFile(code)}: 넣은 결과가 JS로 읽히지 않아 쓰지 않았다(${error.message}). 표의 값에 따옴표나 줄바꿈이 있는지 본다`); }
-    fs.writeFileSync(target, source);
+    writeDataSource(target, source);
     console.log(`${packFile(code)}: 새 열쇠 ${added.length}개, 바뀐 값 ${replacements.length}개 (표의 ${rows.length}줄 중 채워진 ${filled.length}줄)`);
 }
 

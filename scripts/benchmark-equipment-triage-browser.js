@@ -13,9 +13,9 @@ async function main() {
         await page.goto('http://127.0.0.1:4173/');
         await page.locator('#btn-startup-guest').click();
         await page.locator('#loop-hero-select-overlay [data-class-id="warrior"]').click();
-        await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+        await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
         await page.evaluate(() => {
-            clearInterval(gameTickHandle); gameTickHandle = null;
+            window.GameModules.application.timers.stopCombat();
             tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
             Math.random = createSeededRng(17);
         });
@@ -29,7 +29,7 @@ async function main() {
             });
             switchTab('tab-items'); updateStaticUI();
         });
-        await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
+        await page.waitForFunction(() => !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
         const samples = [];
         for (let round = 0; round < 5; round++) samples.push(await page.evaluate(() => new Promise((resolve, reject) => {
             const host = document.getElementById('ui-equipment-triage');

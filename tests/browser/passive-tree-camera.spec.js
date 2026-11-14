@@ -9,9 +9,9 @@ async function openTreeAsPlayer(page, touch) {
     const press = locator => touch ? locator.tap() : locator.click();
     await press(page.locator('#btn-startup-guest'));
     await pickClass(page, 'warrior', { tap: touch });
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         // The skill tree is bought in 해금 from loop 2 (2026-11-09).
         game.season = 2; game.loopCount = 1; contentProgression.sync(); contentProgression.purchase('passiveTree');
@@ -20,13 +20,14 @@ async function openTreeAsPlayer(page, touch) {
     });
     if (touch) await press(page.locator('#btn-mobile-nav-more'));
     await press(page.locator('#btn-tab-char'));
-    await page.waitForFunction(() => passiveCameraInitialized);
+    await page.waitForFunction(() => window.GameModules.passiveScene.state.passiveCameraInitialized);
     await page.waitForTimeout(200);
 }
 
 function nodeOnScreen(page, id) {
     return page.evaluate(nodeId => {
         const canvas = document.getElementById('tree-canvas'), rect = canvas.getBoundingClientRect();
+        const { passiveCanvasMetrics, camX, camY, camZoom } = window.GameModules.passiveScene.state;
         const viewW = passiveCanvasMetrics.width || rect.width, viewH = passiveCanvasMetrics.height || rect.height;
         const node = PASSIVE_TREE.nodes[nodeId];
         const x = rect.left + (viewW / 2 + camX + node.x * camZoom) * rect.width / viewW;
@@ -55,7 +56,7 @@ test('a finger near a small passive node selects it on phones', async ({ page },
     const spot = await nodeOnScreen(page, next);
     await page.touchscreen.tap(spot.x + 12, spot.y + 9);
     await expect(page.locator('#passive-mobile-detail')).toBeVisible();
-    await expect(page.locator('#passive-mobile-detail')).toContainText(await page.evaluate(id => getPassiveNodeDisplayName(PASSIVE_TREE.nodes[id]), next));
+    await expect(page.locator('#passive-mobile-detail')).toContainText(await page.evaluate(id => window.GameModules.passiveScene.nodes.getPassiveNodeDisplayName(PASSIVE_TREE.nodes[id]), next));
 });
 
 test('the first-passive guide steps aside for the phone node sheet and points at its confirm button', async ({ page }, info) => {
@@ -68,7 +69,8 @@ test('the first-passive guide steps aside for the phone node sheet and points at
     await page.touchscreen.tap(spot.x, spot.y);
     const confirm = page.locator('#passive-mobile-detail [data-passive-confirm]');
     await expect(confirm).toHaveClass(/tutorial-action-target/);
-    await expect(page.locator('#tutorial-action-card')).toBeHidden();
+    // #1155 docks the guide beside the target. The contract is that the confirm button remains tappable,
+    // whether the guide is docked or hidden; verify hit testing and the actual allocation below.
     const box = await confirm.boundingBox();
     expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-passive-confirm]'), [box.x + box.width / 2, box.y + box.height / 2])).toBe(true);
     await confirm.tap();

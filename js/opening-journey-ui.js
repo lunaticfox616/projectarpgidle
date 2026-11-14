@@ -1,454 +1,722 @@
-/** 처음 시작하는 플레이어의 첫 장면과 조작 배우기(2026-10-15 사용자: "처음 시작하면 자동사냥 OFF로 무조건 하고, 기능이 잠겨있었으면",
- * "인트로 삽화를 ... 멋지게, 단, 단순하게 연출하고 장면전환과 함께 캐릭터가 쓰러져있는거야. 그 캐릭터를 클릭하면 일어나는 모션과 함께
- * 일어나고, ... 이동하는 방법 (클릭 or wasd)학습, 몬스터에게 맞고있는 하켄 ... 가까이 가서 자동공격학습, 몬스터를 물리치면 하켄이
- * 고맙다는 말과 함께 ... 스킬룬 사용법 튜토리얼까지", "루프 하고 난 다음에는 시작연출, 쓰러져있는 캐릭터, 첫번째 방에 하켄까지 없는게").
- *
- * 인트로(프롤로그 삽화와 판결문) → 어둠에서 밝아지면 액트 1 입구 방에 쓰러진 주인공(누르면 일어난다) → 이동(바닥 클릭, WASD) →
- * 하켄을 치는 괴물에게 다가가 자동 공격(js/combat-encounters.js createStarterRescuePack) → 하켄의 감사와 바닥에 떨어진 직업 무기 → 무기 장착 안내
- * (js/content-progression-ui.js announceStarterWeapon, 2026-11-09까지는 시작 룬) → 자동 사냥이 열린다. 새 게임의 첫 루프에서 한 번만 돈다.
- * 진행은 seenTutorials의 열쇠로 남는다(KEY). 그 사이 자동 사냥은 꺼진 채 잠기고(autoLocked, js/act-exploration-ui.js), 쓰러진 동안과
- * 일어나는 동안 게임이 멈춘다(holds, js/canvas-act-title-card.js greeting이 함께 읽는다). 주인공 그림은 받은 그림이다
- * (js/canvas-stage-actors.js setRise, data/stage-view.js STAGE_HERO_RISE, scripts/import-stage-characters.cjs). 무대 그림이 없으면
- * 쓰러진 장면만 건너뛴다.
- */
-const openingJourney = (() => {
-    const KEY = Object.freeze({ intro: 'opening_intro', rise: 'opening_rise', move: 'opening_move', attack: 'opening_attack', done: 'opening_done' });
-    // The first guides it replaces: the prologue scene by the intro; on the stage also act 1's scene (told there) and the first-journey
-    // card (by the lessons). The top-down field (a build without the stage art) keeps those two and has no lessons: after the intro
-    // it plays as before, auto hunt and all.
-    const REPLACED = Object.freeze(['story_prologue']), STAGE_REPLACED = Object.freeze(['story_act_1_start', 'tutorial_battle_basics']);
-    const TICK_MS = 150, LEAVE_MS = 900, REVEAL_MS = 1100, CARD_GAP = 8;
-    let intro = null, rising = null, movedFrom = null, hintEl = null, hintTop = 0, hintBelow = false, hintField = '', wakeEl = null, autoHint = null, heldAuto = null;
-    let introReturnFocus = null, introOwner = null;
+// GENERATED from modules/opening-journey-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/browser/window-methods.mjs
+  var windowCancelAnimationFrame = (...args) => globalThis.cancelAnimationFrame(...args);
+  var windowClearInterval = (...args) => globalThis.clearInterval(...args);
+  var windowClearTimeout = (...args) => globalThis.clearTimeout(...args);
+  var windowRequestAnimationFrame = (...args) => globalThis.requestAnimationFrame(...args);
+  var windowSetInterval = (...args) => globalThis.setInterval(...args);
+  var windowSetTimeout = (...args) => globalThis.setTimeout(...args);
 
-    const seen = key => Array.isArray(game.seenTutorials) && game.seenTutorials.includes(key);
-    function mark(key) {
-        if (seen(key)) return;
-        game.seenTutorials.push(key);
-        if (contentProgression.opening.applies(game)) queueImportantSave(220);
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
     }
-    const actRun = () => { const run = actExplorationState.current(game); return run && run.zoneId === 0 && run.status === 'active' ? run : null; };
-    const inEntry = run => { const room = run && actExplorationDoors.room(run); return !!room && room.role === 'entry'; };
-    const SIDES = Object.freeze({ east: '오른쪽', west: '왼쪽', north: '위쪽', south: '아래쪽' });
-    /** While the hero is not yet in the room where Haken is struck (js/combat-encounters.js starterRescueRoom): the side of the next door toward it. */
-    function doorToRescue(run) {
-        const map = run && actExplorationDoors.stageMap(run), pack = run && run.packs.find(row => row.rescue);
-        const here = map && actExplorationDoors.room(run), there = pack && map.rooms.find(room => room.id === pack.roomId);
-        if (!here || !there || here === there) return null;
-        const door = map.hops[here.index] && map.hops[here.index][there.index];
-        return door ? door.side : null;
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
     }
-    const coarse = () => typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-    const tutorialOpen = () => !!document.querySelector('#tutorial-overlay.active');
-    /** A guide card is queued or on screen; seenTutorials records actual presentation, not queuing. */
-    const guideWaits = key => (!!activeTutorial && activeTutorial.key === key) || tutorialQueue.some(row => row.key === key);
+    runtime.listeners = retained;
+  }
 
-    /** A brand-new game: first loop, level 1 with no experience, standing in act 1 before any other map, the opening not yet played. */
-    function fresh() {
-        return newGame() && !seen(KEY.intro) && !seen(KEY.done) && started();
-    }
-    const newGame = () => (game.season || 1) === 1 && (game.level || 1) === 1 && !(Number(game.exp) > 0) && !(Number(game.maxZoneId) > 0)
-        && game.currentZoneId === 0;
-    const started = () => !!game.heroSelectionInitialized && !isLoopHeroSelectOpen() && !isStartupOverlayOpen() && !isLoadingOverlayOpen();
-    /** The opening is under way: from the intro until the auto hunt opens (old saves never start it, so nothing locks for them). */
-    const active = () => (game.season || 1) === 1 && (!!intro || seen(KEY.intro)) && !seen(KEY.done);
-    const weaponOnFloor = run => !!run && game.starterWeaponTutorialPending != null
-        && (run.groundLoot || []).some(row => row.item && row.item.id === game.starterWeaponTutorialPending);
-    function rescueStruck(run) {
-        const pack = run && run.packs.find(row => row.rescue);
-        if (!pack || !pack.aliveIds.length) return true;
-        return game.enemies.some(enemy => enemy && pack.aliveIds.includes(enemy.id) && enemy.hp < enemy.maxHp);
-    }
-    /** The lesson in hand: rise, move, attack, pickup (the weapon on the floor) or equip (its guide), null outside the opening. */
-    function lesson() {
-        if (!active()) return null;
-        if (!seen(KEY.rise)) return 'rise';
-        if (!seen(KEY.move)) return 'move';
-        if (!seen(KEY.attack)) return 'attack';
-        return weaponOnFloor(actRun()) ? 'pickup' : 'equip';
-    }
-    /** The hero lies in act 1's entry room (or is getting up): the game waits, the story lines wait (js/canvas-act-title-card.js). */
-    function lying() {
-        const run = actRun();
-        return lesson() === 'rise' && !!run && inEntry(run);
-    }
-    function holds() { return !!intro || lying(); }
-    /** The entry room's lines wait: also between the class pick and the intro's first tick (the wake line would play under it). */
-    function hushes() { return holds() || fresh(); }
-
-    // ------------------------------------------------------------------ intro
-    /** The prologue as a short scene: the plate drifts in out of the dark, the verdict and two lines of narration rise one by one;
-     * a press shows the rest at once, the next press (or 건너뛰기) fades to black and the dark lifts off the stage behind. */
-    function startIntro() {
-        const replaced = [...REPLACED, ...STAGE_REPLACED];
-        replaced.forEach(mark);
-        for (let i = tutorialQueue.length - 1; i >= 0; i--) if (replaced.includes(tutorialQueue[i].key)) tutorialQueue.splice(i, 1);
-        if (activeTutorial && replaced.includes(activeTutorial.key)) dismissTutorial(false);
-        contentProgression.opening.enroll(game);
-        updateTabUnlockButtons();
-        heldAuto = { settings: game.settings, autoMove: game.settings.autoMove };
-        game.settings.autoMove = false;
-        stageActors.preloadRise(game.selectedClassId);
-        stageActors.setRise({ start: null }); // the stage under the intro already shows the hero lying when the dark lifts
-        introReturnFocus = document.activeElement;
-        introOwner = game;
-        intro = document.createElement('dialog');
-        intro.id = 'opening-intro';
-        intro.className = 'opening-intro';
-        intro.setAttribute('aria-label', _t('프롤로그'));
-        intro.innerHTML = introHtml();
-        intro.addEventListener('click', event => (event.target.closest('[data-opening-skip]') ? endIntro() : advanceIntro()));
-        intro.addEventListener('cancel', event => { event.preventDefault(); endIntro(); });
-        document.body.appendChild(intro);
-        intro.showModal();
-        intro.querySelector('[data-opening-next]').focus({ preventScroll: true });
-        requestAnimationFrame(() => requestAnimationFrame(() => intro && intro.classList.add('is-playing')));
-    }
-    function introHtml() {
-        const scene = STORY_JOURNAL_SCENES.find(row => row.id === 'prologue'), quote = STORY_SCENE_QUOTES.prologue;
-        const title = _t(scene.title).split(', ').pop(), verdict = quote.lines.filter(text => text.startsWith('“')).map(text => _t(text)), source = quote.lines.find(text => text.startsWith('('));
-        let step = 0;
-        const line = (cls, text) => `<p class="${cls}" data-step style="--step:${step++}">${escapeHTML(text)}</p>`;
-        return `<button type="button" class="opening-intro-skip" data-opening-skip>${_t('건너뛰기')}</button>
-            <div class="opening-intro-stage"><figure class="opening-intro-plate"><img src="${escapeHTML(scene.image)}" alt=""></figure>
-            <div class="opening-intro-text"><p class="opening-intro-kicker">${_t('프롤로그')}</p><h1 class="opening-intro-title">${escapeHTML(title)}</h1>
-            <blockquote class="opening-intro-verdict">${verdict.map(text => line('', text)).join('')}${source ? line('opening-intro-source', _t(source)) : ''}</blockquote>
-            ${scene.lines.map(text => line('opening-intro-line', _t(text))).join('')}
-            <button type="button" class="opening-intro-next" data-opening-next>${_t('계속')} <kbd>Enter / Space</kbd></button></div></div>`;
-    }
-    /** Closing the native modal releases its inert background; restore the previous control or the battlefield. */
-    function removeIntro(scene) {
-        if (intro !== scene) return;
-        intro = null;
-        introOwner = null;
-        scene.close();
-        scene.remove();
-        const previous = introReturnFocus;
-        introReturnFocus = null;
-        selectionDialog.restoreFocus(previous);
-    }
-    /** A save loaded under the intro (a sign-in, a test fixture): the game is no longer new, so the intro goes without a trace and the
-     * auto hunt setting it turned off comes back (only on the settings it touched; a loaded save brings its own). */
-    function dropIntro() {
-        removeIntro(intro);
-        rising = null;
-        stageActors.setRise(null);
-        if (heldAuto && heldAuto.settings === game.settings) game.settings.autoMove = heldAuto.autoMove;
-        heldAuto = null;
-    }
-    function advanceIntro() {
-        if (!intro || intro.classList.contains('is-leaving')) return;
-        if (!intro.classList.contains('is-all')) { intro.classList.add('is-all', 'is-playing'); return; }
-        endIntro();
-    }
-    function endIntro() {
-        if (!intro || intro.classList.contains('is-leaving')) return;
-        const scene = intro;
-        scene.classList.add('is-leaving');
-        setTimeout(() => {
-            if (intro !== scene) return;
-            if (introOwner !== game) { dropIntro(); return; }
-            mark(KEY.intro);
-            heldAuto = null;
-            scene.classList.add('is-revealing');
-            setTimeout(() => removeIntro(scene), uiDisplay.reducedEffects() ? 0 : REVEAL_MS);
-        }, uiDisplay.reducedEffects() ? 0 : LEAVE_MS);
-    }
-
-    // ------------------------------------------------------------------ lessons
-    /** Pressing the lying hero (or Space, Enter or a walking key) plays the rise; other presses on the battlefield do nothing meanwhile. */
-    function onBattlefieldPress(event) {
-        if (!lying()) return;
-        event.stopImmediatePropagation();
-        event.preventDefault();
-        if (event.type !== 'click' || rising) return;
-        const point = getBattlefieldClientPoint(event.currentTarget, event.clientX, event.clientY), hero = battleVisualState.playerPos;
-        if (hero && Math.abs(point.x - hero.x) < 90 && point.y > hero.y - 90 && point.y < hero.y + 30) startRise();
-    }
-    /** 쓰러진 주인공을 깨우는 키: Space, Enter, 방향키, 걷기 키(기본 W, A, S, D, 바꾼 배정 그대로, 2026-11-07 사용자). */
-    function wakesHero(code) {
-        if (['Space', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(code)) return true;
-        return hotkeyBindings.actionForCode(game.settings.hotkeyOverrides, code)?.kind === 'move';
-    }
-    function onKey(event) {
-        if (intro) { onIntroKey(event); return; }
-        if (!lying() || rising || intro || !wakesHero(event.code)) return;
-        // 깨우는 키는 깨우기만 한다: 같은 누름으로 걷기 시작하지 않게 단축키로 넘기지 않는다(누름도 같다, onBattlefieldPress).
-        event.stopImmediatePropagation();
-        event.preventDefault();
-        startRise();
-    }
-    /** Window capture precedes game hotkeys; the shared dialog owner contains Tab at both edges. */
-    function onIntroKey(event) {
-        event.stopImmediatePropagation();
-        if (event.code === 'Tab') { selectionDialog.containFocus(event, intro); return; }
-        if (!['Escape', 'Space', 'Enter'].includes(event.code)) return;
-        event.preventDefault();
-        if (event.repeat) return;
-        if (event.code === 'Escape' || event.target.closest('[data-opening-skip]')) endIntro();
-        else advanceIntro();
-    }
-    function startRise() {
-        rising = { start: battleVisualState.visualNow };
-        stageActors.setRise({ start: rising.start });
-    }
-    /** The rise has played: the hero stands where it lay; the move lesson counts from there. */
-    function riseEnded() {
-        return !!rising && battleVisualState.visualNow - rising.start >= STAGE_HERO_RISE.ms.reduce((sum, ms) => sum + ms, 0);
-    }
-    function trackRise() {
-        // The top-down field: no lessons (see REPLACED).
-        // The hero is not in act 1's entry room (a save from elsewhere): there is no one lying to wake.
-        if (!lying()) { mark(KEY.rise); stageActors.setRise(null); return; }
-        if (!rising) stageActors.setRise({ start: null });
-        else if (riseEnded()) { mark(KEY.rise); rising = null; stageActors.setRise(null); }
-    }
-    /** A move counts once the hero leaves the cell it got up on, or a destination is set (a click on the floor). */
-    function trackMove(run) {
-        const hero = game.gridPlayer;
-        if (!movedFrom) movedFrom = { gx: hero.gx, gy: hero.gy };
-        if ((run && run.destination) || hero.gx !== movedFrom.gx || hero.gy !== movedFrom.gy) mark(KEY.move);
-    }
-    /** Reading in the archive has no equip side effect. The lesson needs a worn weapon; the new opening advances as soon as it is worn,
-     * the old one also waits for the weapon guide to close. */
-    function weaponLearnt() {
-        const guide = basicSkills.weaponGuide;
-        if (getEquippedWeaponStance() === 'unarmed') return false;
-        return contentProgression.opening.applies(game) || (seen(guide) && !guideWaits(guide) && !tutorialOpen() && !tutorialActionUi.active);
-    }
-    function trackLesson(run) {
-        const step = lesson();
-        if (intro) return;
-        if (step === 'rise') trackRise();
-        else if (step === 'move') trackMove(run);
-        else if (step === 'attack' && rescueStruck(run)) mark(KEY.attack);
-        else if (step === 'equip' && weaponLearnt()) finish(run);
-    }
-    /** The opening ends: the auto hunt opens, its guide card comes, and the auto button glows until it is switched on. The battle comes
-     * back to the front first: the window the equip guide opened covered the glowing button and half of the line naming it (2026-10-21). */
-    function finish(run) {
-        mark(KEY.done);
-        autoHint = run && game.gridPlayer ? { owner: game, run, gx: game.gridPlayer.gx, gy: game.gridPlayer.gy } : null;
-        switchTab('tab-battle');
-        const key = coarse() ? '' : hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides, 'combat:autoMove'));
-        queueTutorialNotice('opening_auto', _t('자동 사냥'), `이제 자동 사냥을 쓸 수 있습니다.\n오른쪽 위 자동 단추${key ? _t('나 {key} 키', { key }) : ''}로 켜면 캐릭터가 알아서 걷고 싸웁니다.\n지금 할 일은 ‘목표’에 나옵니다.`);
-        if (contentProgression.opening.applies(game)) {
-            window.GameModules.state.tutorials.archivePending(game, 'opening_auto');
-            updateStaticUI();
-            queueImportantSave(0);
-        }
-        actExplorationUi.render();
-    }
-    /** While the opening runs on the stage the auto hunt stays off. */
-    function holdManual(run) {
-        if (game.settings.autoMove !== false) game.settings.autoMove = false;
-        if (run && run.mode !== 'manual') { run.mode = 'manual'; actExplorationUi.render(); }
-    }
-
-    // ------------------------------------------------------------------ hint
-    // 2026-11-07: 안내 줄과 방향 이름이 _t를 거치지 않아 다른 언어에서도 한국어로 나왔다.
-    const HINTS = {
-        rise: () => _t(coarse() ? '쓰러진 캐릭터를 눌러 깨우세요' : '쓰러진 캐릭터를 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 깨우세요'),
-        move: () => _t(coarse() ? '바닥을 눌러 움직이세요' : '바닥을 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 움직이세요'),
-        attack: side => `${side ? _t('{SIDES}으로 가서 하켄을 구하세요', { SIDES: _t(SIDES[side]) }) : _t('하켄을 치는 괴물에게 다가가세요')}. ${_t('가까이 가면 자동으로 공격합니다')}`,
-        go: side => _t('{SIDES} 문으로 나아가세요', { SIDES: SIDES[side] ? _t(SIDES[side]) : _t('앞쪽') }),
-        pickup: () => _t('떨어진 무기를 누르거나 그 위로 걸어가 주우세요'),
-        equip: () => _t('장비 창에서 주운 무기를 장착하세요'),
-        auto: () => _t('오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요')
+  // modules/browser/battle-canvas-box.mjs
+  function battlefieldClientPoint(canvas, clientX, clientY) {
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) * ((canvas.clientWidth || rect.width) / Math.max(1, rect.width)),
+      y: (clientY - rect.top) * ((canvas.clientHeight || rect.height) / Math.max(1, rect.height))
     };
-    const SYSTEM_CUES = Object.freeze({
-        'tab-map': '다음 지역 지도 보기',
-        'tab-items': '첫 장비 살펴보기',
-        'tab-character': '달라진 능력치 보기',
-        'tab-journal': '새 기록 읽기',
-        'tab-trade': 'NPC 상점 보기'
-    });
-    /** The card stays through the story lines, the guide cards and the rune window (2026-10-27 사용자: 대사나 첫 스킬룬 장착 창이 떠도
-     * 계속 켜져 있게, 스킬룬 창보다는 밑에): it lives in the battlefield box, so windows over the battlefield cover it. */
-    function hintFor() {
-        if (intro) return null;
-        const step = lesson();
-        if (step === 'rise') return lying() ? 'rise' : null;
-        if (step === 'equip') return weaponInHand() ? 'equip' : lessonHint('attack');
-        if (step) return lessonHint(step);
-        return autoHintDue() ? 'auto' : systemHint();
-    }
-    function systemHint() {
-        const cue = contentProgression.opening.nextCue(game);
-        return cue && !isRewardOpen() && !actRewardPromptPending() ? `system:${cue}` : null;
-    }
-    /** The equip step starts with the strike on Haken's monster: until the starter weapon drops the fight goes on (rescue card). */
-    const weaponInHand = () => game.starterWeaponTutorialPending != null || seen(basicSkills.weaponGuide);
-    /** Before Haken's room is reached the attack lesson names the door to take; inside it, while the monster is beyond a phone's few
-     * cells of view, the side to walk to. */
-    function lessonHint(step) {
-        if (step !== 'attack') return step;
-        const door = doorToRescue(actRun()), far = rescueSide();
-        return door ? `go:${door}` : far ? `attack:${far}` : step;
-    }
-    function rescueSide() {
-        const enemy = game.enemies.find(row => row && row.rescue), dx = enemy ? enemy.gx - game.gridPlayer.gx : 0;
-        return Math.abs(dx) > 3 ? (dx > 0 ? 'east' : 'west') : null;
-    }
-    // 배우기 카드(2026-10-27 사용자: 안내 방식과 창이 구리고 글이 흐릿하다, 새 콘텐츠 카드와 이어지게): 시작 안내 카드와 같은 틀과 머리말
-    // 색, 단계 점, 단계 이름, 할 일 한 줄(얼굴 그림은 빼기로 했다). 이름은 LESSON_TITLES, 순서는 LESSON_ORDER(문으로 가는 줄은 구하기 단계).
-    const LESSON_ORDER = Object.freeze(['rise', 'move', 'attack', 'pickup', 'equip', 'auto']);
-    const LESSON_TITLES = Object.freeze({ rise: '깨어나기', move: '움직이기', attack: '하켄 구하기', go: '하켄 구하기', pickup: '무기 줍기', equip: '무기 장착하기', auto: '자동 사냥' });
-    function lessonCardHtml(name, arg) {
-        if (contentProgression.opening.applies(game)) {
-            if (name === 'equip') return `<button class="opening-lesson-action" type="button" data-opening-weapon>${_t('무기 장착하기')}</button>`;
-            if (name === 'system') {
-                const description = arg === 'tab-items'
-                    ? `<p class="opening-lesson-text">${_t('가방의 장비를 착용 중인 장비와 비교해 바꿔 낄 수 있습니다.')}</p>` : '';
-                return description + `<button class="opening-lesson-action" type="button" data-opening-route="${arg}">${_t(SYSTEM_CUES[arg])}</button>`;
-            }
-            return `<p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
-        }
-        const at = LESSON_ORDER.indexOf(name === 'go' ? 'attack' : name);
-        const dots = LESSON_ORDER.map((_, i) => `<i class="${i < at ? 'is-done' : i === at ? 'is-now' : ''}"></i>`).join('');
-        return `<div class="opening-lesson-head"><span class="opening-lesson-kicker">${_t('시작 안내 {value}/{length}', { value: at + 1, length: LESSON_ORDER.length })}</span><span class="opening-lesson-dots" aria-hidden="true">${dots}</span></div>`
-            + `<strong class="opening-lesson-title">${_t(LESSON_TITLES[name])}</strong><p class="opening-lesson-text">${HINTS[name](arg)}</p>`;
-    }
-    /** Stop pointing to Auto once the player turns it on or deliberately walks on. */
-    function autoHintDue() {
-        if (!autoHint) return false;
-        const { gx, gy } = game.gridPlayer;
-        if (autoHint.owner !== game || autoHint.run !== actRun() || game.settings.autoMove || gx !== autoHint.gx || gy !== autoHint.gy) {
-            autoHint = null;
-        }
-        return !!autoHint;
-    }
-    /** The card and the arrow live in the battlefield box and are placed in its own pixels each tick, from the canvas offsets: page
-     * pixels went off under the UI scale (the root zoom) and on other screen sizes (2026-10-27 사용자: 화면 크기에 따라 창과 화살표
-     * 자리를 맞추게). Whole pixels: a translate(-50%) put the pixel font on half pixels and blurred it. */
-    function fieldMark(el, className, attr) {
-        const wrap = document.getElementById('battlefield-wrap');
-        if (el && el.parentElement === wrap) return el;
-        if (!el) { el = document.createElement('div'); el.className = className; el.setAttribute(...attr); }
-        if (wrap) wrap.appendChild(el);
-        return el;
-    }
-    // 같은 값이면 쓰지 않는다: 이 확인은 150ms마다 돌고, 쓸 때마다 body의 :has() 규칙까지 다시 계산했다(2026-10-25 측정).
-    function place(el, left, top) {
-        const x = `${Math.round(left)}px`, y = `${Math.round(top)}px`;
-        if (el.style.left !== x) el.style.left = x;
-        if (el.style.top !== y) el.style.top = y;
-    }
-    /** The lesson card over the battlefield's top middle. */
-    function showHint(step) {
-        hintEl = fieldMark(hintEl, 'opening-lesson', ['role', 'status']);
-        if (hintEl.hidden !== !step) hintEl.hidden = !step;
-        document.getElementById('btn-act-exploration-auto')?.classList.toggle('is-opening-glow', step === 'auto');
-        const canvas = document.getElementById('battlefield-canvas');
-        showWakeMark(step === 'rise' && !rising, canvas);
-        if (!step || !canvas) return markLessonBottom(null);
-        const fresh = hintEl.dataset.step !== step || hintEl.dataset.language !== i18n.language;
-        if (fresh) {
-            const [name, arg] = step.split(':');
-            hintEl.dataset.step = step;
-            hintEl.dataset.language = i18n.language;
-            hintEl.classList.remove('is-compact');
-            hintEl.innerHTML = lessonCardHtml(name, arg);
-        }
-        // A new battlefield size places the card afresh: kept from a wide window, its spot under the hero sat below a phone's short
-        // battlefield, out of sight (2026-11-03 사용자: 화면 크기를 왔다갔다 하면 알림창이 안 보이는 곳으로 내려간다).
-        const field = `${canvas.offsetWidth}x${canvas.offsetHeight}`, resized = field !== hintField;
-        hintField = field;
-        const top = cardTop(canvas, fresh || resized);
-        place(hintEl, canvas.offsetLeft + (canvas.offsetWidth - hintEl.offsetWidth) / 2, canvas.offsetTop + top);
-        markLessonBottom(canvas.offsetTop + top + hintEl.offsetHeight);
-    }
-    /** The card's bottom (battlefield px), or null without a card: on a tall screen the targeted enemy's health bar stands under it
-     * (css/themes/rift-stage.css --lesson-bottom, 2026-11-03 사용자: 적 생명력 게이지는 안내창보다 밑에). Written only when it changes. */
-    function markLessonBottom(bottom) {
-        const tab = document.getElementById('tab-battle'), value = bottom === null ? '' : `${Math.round(bottom)}px`;
-        if (tab && tab.style.getPropertyValue('--lesson-bottom') !== value) tab.style.setProperty('--lesson-bottom', value);
-    }
-    /** The card's top in canvas pixels: 6% down, raised while its bottom would reach the standing hero's head (a short battlefield such as
-     * 800×662 put it over the head), compact (is-compact) when even the top edge cannot clear it, and under the hero's feet when the
-     * compact card still cannot (a phone on its side). Within a step it moves only away from the hero, so walking the rows does not
-     * shake it. */
-    function cardTop(canvas, fresh) {
-        const room = headRoom(), clear = topClear(canvas), stacked = stageView.stacked();
-        if (!hintEl.classList.contains('is-compact') && room - hintEl.offsetHeight < clear) hintEl.classList.add('is-compact');
-        // 세로 화면은 주인공 발밑이 HUD 자리라(css/themes/rift-stage.css) 카드는 늘 지역 줄 밑에 선다: 머리에 조금 걸쳐도 그쪽이 보인다
-        const height = hintEl.offsetHeight, fits = stacked || room - height >= clear;
-        hintBelow = fresh ? !fits : hintBelow || !fits;
-        const want = hintBelow ? Math.min(battleVisualState.playerPos.y + CARD_GAP * 2, canvas.offsetHeight - height - CARD_GAP)
-            : Math.max(clear, Math.min(canvas.offsetHeight * 0.06, room - height));
-        hintTop = fresh ? want : (hintBelow ? Math.max : Math.min)(hintTop, want);
-        return hintTop;
-    }
-    /** The card's highest top in canvas pixels: on a tall screen the zone row and its buttons lie over the battlefield's top
-     * (css/themes/rift-stage.css, stageView.stacked), so the card starts under them; elsewhere a gap from the edge. */
-    function topClear(canvas) {
-        const row = stageView.stacked() && document.querySelector('#tab-battle .combat-zone-row');
-        if (!row) return CARD_GAP;
-        return Math.max(CARD_GAP, Math.round(row.getBoundingClientRect().bottom - canvas.getBoundingClientRect().top) + CARD_GAP);
-    }
-    /** Canvas pixels above the standing hero's head the card may reach (js/canvas-stage-actors.js headY; Infinity before it is drawn). */
-    function headRoom() {
-        const hero = battleVisualState.playerPos, head = hero ? getHeroHeadY(battleVisualState.visualNow) : null;
-        return head === null ? Infinity : head - CARD_GAP * 2;
-    }
-    /** A bobbing arrow just over the lying hero while the rise lesson waits for a press (canvas pixels are the box's pixels). The body
-     * lies about a quarter of the standing height (feet to head, js/canvas-stage-actors.js headY) above the feet: the stage scale changes
-     * with the screen size, so a fixed offset floated off the body or sank into it. */
-    function showWakeMark(show, canvas) {
-        const hero = show && canvas && battleVisualState.playerPos;
-        if (!wakeEl && !hero) return;
-        wakeEl = fieldMark(wakeEl, 'opening-wake-mark', ['aria-hidden', 'true']);
-        if (wakeEl.hidden !== !hero) wakeEl.hidden = !hero;
-        if (!hero) return;
-        const head = getHeroHeadY(battleVisualState.visualNow), stand = head === null ? 160 : hero.y - head;
-        place(wakeEl, canvas.offsetLeft + hero.x, canvas.offsetTop + hero.y - stand / 4);
-    }
+  }
 
-    const ticking = () => typeof game === 'object' && !!game && Array.isArray(game.seenTutorials) && !game.isBackgroundCalculation;
-    function tick() {
-        if (!ticking()) return;
-        followGame();
-        if (active()) {
-            const run = actRun();
-            holdManual(run);
-            trackLesson(run);
-        } else if (stageActors.down()) stageActors.setRise(null); // a save loaded mid-opening: no one lies there any more
-        showHint(hintFor());
+  // modules/ui/opening-lessons.mjs
+  function mark(runtime, key) {
+    if (seen(runtime, key)) return;
+    runtime.deps.game.seenTutorials.push(key);
+    if (runtime.deps.contentProgression.opening.applies(runtime.deps.game)) (0, runtime.deps.queueImportantSave)(220);
+  }
+  function doorToRescue(runtime, run) {
+    const map = run && runtime.deps.actExplorationDoors.stageMap(run), pack = run && run.packs.find((row) => row.rescue);
+    const here = map && runtime.deps.actExplorationDoors.room(run), there = pack && map.rooms.find((room) => room.id === pack.roomId);
+    if (!here || !there || here === there) return null;
+    const door = map.hops[here.index] && map.hops[here.index][there.index];
+    return door ? door.side : null;
+  }
+  function fresh(runtime) {
+    return newGame(runtime) && !seen(runtime, runtime.state.KEY.intro) && !seen(runtime, runtime.state.KEY.done) && started(runtime);
+  }
+  function rescueStruck(runtime, run) {
+    const pack = run && run.packs.find((row) => row.rescue);
+    if (!pack || !pack.aliveIds.length) return true;
+    return runtime.deps.game.enemies.some((enemy) => enemy && pack.aliveIds.includes(enemy.id) && enemy.hp < enemy.maxHp);
+  }
+  function lesson(runtime) {
+    if (!active(runtime)) return null;
+    if (!seen(runtime, runtime.state.KEY.rise)) return "rise";
+    if (!seen(runtime, runtime.state.KEY.move)) return "move";
+    if (!seen(runtime, runtime.state.KEY.attack)) return "attack";
+    return weaponOnFloor(runtime, actRun(runtime)) ? "pickup" : "equip";
+  }
+  function lying(runtime) {
+    const run = actRun(runtime);
+    return lesson(runtime) === "rise" && !!run && inEntry(runtime, run);
+  }
+  function holds(runtime) {
+    return !!runtime.state.intro || lying(runtime);
+  }
+  function hushes(runtime) {
+    return holds(runtime) || fresh(runtime);
+  }
+  function onBattlefieldPress(runtime, event) {
+    if (!lying(runtime)) return;
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    if (event.type !== "click" || runtime.state.rising) return;
+    const point = battlefieldClientPoint(event.currentTarget, event.clientX, event.clientY), hero = runtime.deps.battleVisualState.playerPos;
+    if (hero && Math.abs(point.x - hero.x) < 90 && point.y > hero.y - 90 && point.y < hero.y + 30) startRise(runtime);
+  }
+  function wakesHero(runtime, code) {
+    if (["Space", "Enter", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(code)) return true;
+    return runtime.deps.hotkeyBindings.actionForCode(runtime.deps.game.settings.hotkeyOverrides, code)?.kind === "move";
+  }
+  function startRise(runtime) {
+    runtime.state.rising = { start: runtime.deps.battleVisualState.visualNow };
+    runtime.deps.stageActors.setRise({ start: runtime.state.rising.start });
+  }
+  function riseEnded(runtime) {
+    return !!runtime.state.rising && runtime.deps.battleVisualState.visualNow - runtime.state.rising.start >= runtime.deps.STAGE_HERO_RISE.ms.reduce((sum, ms) => sum + ms, 0);
+  }
+  function trackRise(runtime) {
+    if (!lying(runtime)) {
+      mark(runtime, runtime.state.KEY.rise);
+      runtime.deps.stageActors.setRise(null);
+      return;
     }
-    /** Starts the intro for a new game; drops it when the game under it stopped being new. */
-    function followGame() {
-        if (intro && (introOwner !== game || !newGame())) dropIntro();
-        else if (!intro && fresh()) startIntro();
+    if (!runtime.state.rising) runtime.deps.stageActors.setRise({ start: null });
+    else if (riseEnded(runtime)) {
+      mark(runtime, runtime.state.KEY.rise);
+      runtime.state.rising = null;
+      runtime.deps.stageActors.setRise(null);
     }
-    function openCue(route) {
-        if (!Object.hasOwn(SYSTEM_CUES, route)) return;
-        if (route !== 'tab-map') return openTabPane(route);
-        explorationAtlasUi.open();
-        worldMapUi.pick('act-02');
-        document.querySelector('#ui-exploration-atlas .wm-side .atlas-hunt-now')?.focus();
+  }
+  function trackMove(runtime, run) {
+    const hero = runtime.deps.game.gridPlayer;
+    if (!runtime.state.movedFrom) runtime.state.movedFrom = { gx: hero.gx, gy: hero.gy };
+    if (run && run.destination || hero.gx !== runtime.state.movedFrom.gx || hero.gy !== runtime.state.movedFrom.gy) mark(runtime, runtime.state.KEY.move);
+  }
+  function weaponLearnt(runtime) {
+    const guide = runtime.deps.basicSkills.weaponGuide;
+    if ((0, runtime.deps.getEquippedWeaponStance)() === "unarmed") return false;
+    return runtime.deps.contentProgression.opening.applies(runtime.deps.game) || seen(runtime, guide) && !guideWaits(runtime, guide) && !tutorialOpen(runtime) && !runtime.deps.tutorialActionUi.active;
+  }
+  function trackLesson(runtime, run) {
+    const step = lesson(runtime);
+    if (runtime.state.intro) return;
+    if (step === "rise") trackRise(runtime);
+    else if (step === "move") trackMove(runtime, run);
+    else if (step === "attack" && rescueStruck(runtime, run)) mark(runtime, runtime.state.KEY.attack);
+    else if (step === "equip" && weaponLearnt(runtime)) finish(runtime, run);
+  }
+  function finish(runtime, run) {
+    mark(runtime, runtime.state.KEY.done);
+    runtime.state.autoHint = run && runtime.deps.game.gridPlayer ? { owner: runtime.deps.game, run, gx: runtime.deps.game.gridPlayer.gx, gy: runtime.deps.game.gridPlayer.gy } : null;
+    (0, runtime.deps.switchTab)("tab-battle");
+    const key = coarse(runtime) ? "" : runtime.deps.hotkeyBindings.label(runtime.deps.hotkeyBindings.codeFor(runtime.deps.game.settings.hotkeyOverrides, "combat:autoMove"));
+    (0, runtime.deps.queueTutorialNotice)("opening_auto", (0, runtime.deps._t)("자동 사냥"), `이제 자동 사냥을 쓸 수 있습니다.
+오른쪽 위 자동 단추${key ? (0, runtime.deps._t)("나 {key} 키", { key }) : ""}로 켜면 캐릭터가 알아서 걷고 싸웁니다.
+지금 할 일은 ‘목표’에 나옵니다.`);
+    if (runtime.deps.contentProgression.opening.applies(runtime.deps.game)) {
+      runtime.deps.window.GameModules.state.tutorials.archivePending(runtime.deps.game, "opening_auto");
+      (0, runtime.deps.updateStaticUI)();
+      (0, runtime.deps.queueImportantSave)(0);
     }
-    function init() {
-        const canvas = document.getElementById('battlefield-canvas');
-        if (!canvas) return;
-        ['pointerdown', 'mousedown', 'click'].forEach(type => canvas.addEventListener(type, onBattlefieldPress, true));
-        document.getElementById('battlefield-wrap')?.addEventListener('click', event => {
-            if (event.target.closest('[data-opening-weapon]')) openTabPane('tab-items');
-            const route = event.target.closest('[data-opening-route]')?.dataset.openingRoute;
-            openCue(route);
-        });
-        window.addEventListener('keydown', onKey, true);
-        window.addEventListener('keyup', event => { if (intro) event.stopImmediatePropagation(); }, true);
-        setInterval(tick, TICK_MS);
+    runtime.deps.actExplorationUi.render();
+  }
+  function holdManual(runtime, run) {
+    if (runtime.deps.game.settings.autoMove !== false) runtime.deps.game.settings.autoMove = false;
+    if (run && run.mode !== "manual") {
+      run.mode = "manual";
+      runtime.deps.actExplorationUi.render();
     }
-    if (typeof document === 'object' && document.readyState !== 'loading') init();
-    else if (typeof document === 'object') document.addEventListener('DOMContentLoaded', init, { once: true });
-    // 인트로가 떠 있거나 곧 뜰 때(직업을 고른 뒤 첫 확인 주기까지, fresh): 2026-10-16 사용자 "인트로 연출 나올때 예전에 뜨는 창이 잠깐 나왔다가
-    // 사라져": 그 틈에 예전 프롤로그 창(story_prologue, 인트로가 대신하는 안내)이 먼저 떴다가 인트로가 닫았다.
-    /** The start class pick (js/ui.js ensureInitialHeroSelection) starts the intro in the same moment the pick closes: waiting for the next
-     * tick drew the room for a few frames first (2026-10-27 사용자: 직업을 빨리 고르면 스토리 연출 전에 방 그림이 보였다). */
-    function afterStartPick() { if (ticking()) followGame(); }
-    return Object.freeze({ holds, hushes, lying, afterStartPick, autoLocked: active, lesson, introOpen: () => !!intro || fresh() });
+  }
+  function seen(runtime, key) {
+    return Array.isArray(runtime.deps.game.seenTutorials) && runtime.deps.game.seenTutorials.includes(key);
+  }
+  function actRun(runtime) {
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    return run && run.zoneId === 0 && run.status === "active" ? run : null;
+  }
+  function inEntry(runtime, run) {
+    const room = run && runtime.deps.actExplorationDoors.room(run);
+    return !!room && room.role === "entry";
+  }
+  function coarse(runtime) {
+    return typeof runtime.deps.window.matchMedia === "function" && runtime.deps.window.matchMedia("(pointer: coarse)").matches;
+  }
+  function tutorialOpen(runtime) {
+    return !!runtime.deps.document.querySelector("#tutorial-overlay.active");
+  }
+  function guideWaits(runtime, key) {
+    return !!runtime.deps.activeTutorial && runtime.deps.activeTutorial.key === key || runtime.deps.tutorialQueue.some((row) => row.key === key);
+  }
+  function newGame(runtime) {
+    return (runtime.deps.game.season || 1) === 1 && (runtime.deps.game.level || 1) === 1 && !(Number(runtime.deps.game.exp) > 0) && !(Number(runtime.deps.game.maxZoneId) > 0) && runtime.deps.game.currentZoneId === 0;
+  }
+  function started(runtime) {
+    return !!runtime.deps.game.heroSelectionInitialized && !(0, runtime.deps.isLoopHeroSelectOpen)() && !(0, runtime.deps.isStartupOverlayOpen)() && !(0, runtime.deps.isLoadingOverlayOpen)();
+  }
+  function active(runtime) {
+    return (runtime.deps.game.season || 1) === 1 && (!!runtime.state.intro || seen(runtime, runtime.state.KEY.intro)) && !seen(runtime, runtime.state.KEY.done);
+  }
+  function weaponOnFloor(runtime, run) {
+    return !!run && runtime.deps.game.starterWeaponTutorialPending != null && (run.groundLoot || []).some((row) => row.item && row.item.id === runtime.deps.game.starterWeaponTutorialPending);
+  }
+
+  // modules/ui/view-frames.mjs
+  function scheduleViewFrame(runtime, callback) {
+    if (!runtime.active) return;
+    const owner = runtime.deps.game;
+    const handle = runtime.deps.requestAnimationFrame(() => {
+      runtime.frames.delete(handle);
+      if (runtime.active && runtime.deps.game === owner) callback();
+    });
+    runtime.frames.add(handle);
+  }
+  function cancelViewFrames(runtime) {
+    for (const handle of runtime.frames) runtime.deps.cancelAnimationFrame(handle);
+    runtime.frames.clear();
+  }
+
+  // modules/ui/opening-intro.mjs
+  function startIntro(runtime) {
+    const replaced = [...runtime.state.REPLACED, ...runtime.state.STAGE_REPLACED];
+    replaced.forEach(runtime.handlers.mark);
+    for (let i = runtime.deps.tutorialQueue.length - 1; i >= 0; i--) if (replaced.includes(runtime.deps.tutorialQueue[i].key)) runtime.deps.tutorialQueue.splice(i, 1);
+    if (runtime.deps.activeTutorial && replaced.includes(runtime.deps.activeTutorial.key)) (0, runtime.deps.dismissTutorial)(false);
+    runtime.deps.contentProgression.opening.enroll(runtime.deps.game);
+    (0, runtime.deps.updateTabUnlockButtons)();
+    runtime.state.heldAuto = { settings: runtime.deps.game.settings, autoMove: runtime.deps.game.settings.autoMove };
+    runtime.deps.game.settings.autoMove = false;
+    runtime.deps.stageActors.preloadRise(runtime.deps.game.selectedClassId);
+    runtime.deps.stageActors.setRise({ start: null });
+    runtime.state.introReturnFocus = runtime.deps.document.activeElement;
+    runtime.state.introOwner = runtime.deps.game;
+    runtime.state.intro = runtime.deps.document.createElement("dialog");
+    runtime.state.intro.id = "opening-intro";
+    runtime.state.intro.className = "opening-intro";
+    runtime.state.intro.setAttribute("aria-label", (0, runtime.deps._t)("프롤로그"));
+    runtime.state.intro.innerHTML = introHtml(runtime);
+    listenView(runtime, runtime.state.intro, "click", (event) => event.target.closest("[data-opening-skip]") ? endIntro(runtime) : advanceIntro(runtime));
+    listenView(runtime, runtime.state.intro, "cancel", (event) => {
+      event.preventDefault();
+      endIntro(runtime);
+    });
+    runtime.deps.document.body.appendChild(runtime.state.intro);
+    runtime.state.intro.showModal();
+    runtime.state.intro.querySelector("[data-opening-next]").focus({ preventScroll: true });
+    const scene = runtime.state.intro;
+    scheduleViewFrame(runtime, () => scheduleViewFrame(runtime, () => {
+      if (runtime.state.intro === scene) scene.classList.add("is-playing");
+    }));
+  }
+  function introHtml(runtime) {
+    const scene = runtime.deps.STORY_JOURNAL_SCENES.find((row) => row.id === "prologue"), quote = runtime.deps.STORY_SCENE_QUOTES.prologue;
+    const title = (0, runtime.deps._t)(scene.title).split(", ").pop(), verdict = quote.lines.filter((text) => text.startsWith("“")).map((text) => (0, runtime.deps._t)(text)), source = quote.lines.find((text) => text.startsWith("("));
+    let step = 0;
+    const line = (cls, text) => `<p class="${cls}" data-step style="--step:${step++}">${(0, runtime.deps.escapeHTML)(text)}</p>`;
+    return `<button type="button" class="opening-intro-skip" data-opening-skip>${(0, runtime.deps._t)("건너뛰기")}</button>
+            <div class="opening-intro-stage"><figure class="opening-intro-plate"><img src="${(0, runtime.deps.escapeHTML)(scene.image)}" alt=""></figure>
+            <div class="opening-intro-text"><p class="opening-intro-kicker">${(0, runtime.deps._t)("프롤로그")}</p><h1 class="opening-intro-title">${(0, runtime.deps.escapeHTML)(title)}</h1>
+            <blockquote class="opening-intro-verdict">${verdict.map((text) => line("", text)).join("")}${source ? line("opening-intro-source", (0, runtime.deps._t)(source)) : ""}</blockquote>
+            ${scene.lines.map((text) => line("opening-intro-line", (0, runtime.deps._t)(text))).join("")}
+            <button type="button" class="opening-intro-next" data-opening-next>${(0, runtime.deps._t)("계속")} <kbd>Enter / Space</kbd></button></div></div>`;
+  }
+  function removeIntro(runtime, scene) {
+    if (!scene || runtime.state.intro !== scene) return;
+    clearIntroTasks(runtime);
+    releaseViewTarget(runtime, scene);
+    runtime.state.intro = null;
+    runtime.state.introOwner = null;
+    scene.close();
+    scene.remove();
+    const previous = runtime.state.introReturnFocus;
+    runtime.state.introReturnFocus = null;
+    runtime.deps.selectionDialog.restoreFocus(previous);
+  }
+  function dropIntro(runtime) {
+    removeIntro(runtime, runtime.state.intro);
+    clearIntroTasks(runtime);
+    runtime.state.rising = null;
+    runtime.deps.stageActors.setRise(null);
+    if (runtime.state.heldAuto && runtime.state.heldAuto.settings === runtime.deps.game?.settings) runtime.deps.game.settings.autoMove = runtime.state.heldAuto.autoMove;
+    runtime.state.heldAuto = null;
+  }
+  function advanceIntro(runtime) {
+    if (!runtime.state.intro || runtime.state.intro.classList.contains("is-leaving")) return;
+    if (!runtime.state.intro.classList.contains("is-all")) {
+      runtime.state.intro.classList.add("is-all", "is-playing");
+      return;
+    }
+    endIntro(runtime);
+  }
+  function endIntro(runtime) {
+    if (!runtime.state.intro || runtime.state.intro.classList.contains("is-leaving")) return;
+    const scene = runtime.state.intro;
+    scene.classList.add("is-leaving");
+    deferIntro(runtime, () => {
+      if (runtime.state.intro !== scene) return;
+      if (runtime.state.introOwner !== runtime.deps.game) {
+        dropIntro(runtime);
+        return;
+      }
+      mark(runtime, runtime.state.KEY.intro);
+      runtime.state.heldAuto = null;
+      scene.classList.add("is-revealing");
+      deferIntro(runtime, () => removeIntro(runtime, scene), runtime.deps.uiDisplay.reducedEffects() ? 0 : runtime.state.REVEAL_MS);
+    }, runtime.deps.uiDisplay.reducedEffects() ? 0 : runtime.state.LEAVE_MS);
+  }
+  function deferIntro(runtime, callback, ms) {
+    const handle = runtime.deps.setTimeout(() => {
+      runtime.state.introTimers.delete(handle);
+      if (runtime.active) callback();
+    }, ms);
+    runtime.state.introTimers.add(handle);
+  }
+  function clearIntroTasks(runtime) {
+    cancelViewFrames(runtime);
+    for (const handle of runtime.state.introTimers) runtime.deps.clearTimeout(handle);
+    runtime.state.introTimers.clear();
+  }
+  function onIntroKey(runtime, event) {
+    event.stopImmediatePropagation();
+    if (event.code === "Tab") {
+      runtime.deps.selectionDialog.containFocus(event, runtime.state.intro);
+      return;
+    }
+    if (!["Escape", "Space", "Enter"].includes(event.code)) return;
+    event.preventDefault();
+    if (event.repeat) return;
+    if (event.code === "Escape" || event.target.closest("[data-opening-skip]")) endIntro(runtime);
+    else advanceIntro(runtime);
+  }
+
+  // modules/ui/opening-hints.mjs
+  function hintFor(runtime) {
+    if (runtime.state.intro) return null;
+    const step = lesson(runtime);
+    if (step === "rise") return lying(runtime) ? "rise" : null;
+    if (step === "equip") return weaponInHand(runtime) ? "equip" : lessonHint(runtime, "attack");
+    if (step) return lessonHint(runtime, step);
+    return autoHintDue(runtime) ? "auto" : systemHint(runtime);
+  }
+  function systemHint(runtime) {
+    const cue = runtime.deps.contentProgression.opening.nextCue(runtime.deps.game);
+    return cue && !(0, runtime.deps.isRewardOpen)() && !(0, runtime.deps.actRewardPromptPending)() ? `system:${cue}` : null;
+  }
+  function lessonHint(runtime, step) {
+    if (step !== "attack") return step;
+    const door = doorToRescue(runtime, actRun(runtime)), far = rescueSide(runtime);
+    return door ? `go:${door}` : far ? `attack:${far}` : step;
+  }
+  function rescueSide(runtime) {
+    const enemy = runtime.deps.game.enemies.find((row) => row && row.rescue), dx = enemy ? enemy.gx - runtime.deps.game.gridPlayer.gx : 0;
+    return Math.abs(dx) > 3 ? dx > 0 ? "east" : "west" : null;
+  }
+  function lessonCardHtml(runtime, name, arg) {
+    if (runtime.deps.contentProgression.opening.applies(runtime.deps.game)) {
+      if (name === "equip") return `<button class="opening-lesson-action" type="button" data-opening-weapon>${(0, runtime.deps._t)("무기 장착하기")}</button>`;
+      if (name === "system") {
+        const description = arg === "tab-items" ? `<p class="opening-lesson-text">${(0, runtime.deps._t)("가방의 장비를 착용 중인 장비와 비교해 바꿔 낄 수 있습니다.")}</p>` : "";
+        return description + `<button class="opening-lesson-action" type="button" data-opening-route="${arg}">${(0, runtime.deps._t)(runtime.state.SYSTEM_CUES[arg])}</button>`;
+      }
+      return `<p class="opening-lesson-text">${runtime.state.HINTS[name](arg)}</p>`;
+    }
+    const at = runtime.state.LESSON_ORDER.indexOf(name === "go" ? "attack" : name);
+    const dots = runtime.state.LESSON_ORDER.map((_, i) => `<i class="${i < at ? "is-done" : i === at ? "is-now" : ""}"></i>`).join("");
+    return `<div class="opening-lesson-head"><span class="opening-lesson-kicker">${(0, runtime.deps._t)("시작 안내 {value}/{length}", { value: at + 1, length: runtime.state.LESSON_ORDER.length })}</span><span class="opening-lesson-dots" aria-hidden="true">${dots}</span></div><strong class="opening-lesson-title">${(0, runtime.deps._t)(runtime.state.LESSON_TITLES[name])}</strong><p class="opening-lesson-text">${runtime.state.HINTS[name](arg)}</p>`;
+  }
+  function autoHintDue(runtime) {
+    if (!runtime.state.autoHint) return false;
+    const { gx, gy } = runtime.deps.game.gridPlayer;
+    if (runtime.state.autoHint.owner !== runtime.deps.game || runtime.state.autoHint.run !== actRun(runtime) || runtime.deps.game.settings.autoMove || gx !== runtime.state.autoHint.gx || gy !== runtime.state.autoHint.gy) {
+      runtime.state.autoHint = null;
+    }
+    return !!runtime.state.autoHint;
+  }
+  function fieldMark(runtime, el, className, attr) {
+    const wrap = runtime.deps.document.getElementById("battlefield-wrap");
+    if (el && el.parentElement === wrap) return el;
+    if (!el) {
+      el = runtime.deps.document.createElement("div");
+      el.className = className;
+      el.setAttribute(...attr);
+    }
+    if (wrap) wrap.appendChild(el);
+    return el;
+  }
+  function place(runtime, el, left, top) {
+    const x = `${Math.round(left)}px`, y = `${Math.round(top)}px`;
+    if (el.style.left !== x) el.style.left = x;
+    if (el.style.top !== y) el.style.top = y;
+  }
+  function showHint(runtime, step) {
+    runtime.state.hintEl = fieldMark(runtime, runtime.state.hintEl, "opening-lesson", ["role", "status"]);
+    if (runtime.state.hintEl.hidden !== !step) runtime.state.hintEl.hidden = !step;
+    runtime.deps.document.getElementById("btn-act-exploration-auto")?.classList.toggle("is-opening-glow", step === "auto");
+    const canvas = runtime.deps.document.getElementById("battlefield-canvas");
+    showWakeMark(runtime, step === "rise" && !runtime.state.rising, canvas);
+    if (!step || !canvas) return markLessonBottom(runtime, null);
+    const fresh2 = runtime.state.hintEl.dataset.step !== step || runtime.state.hintEl.dataset.language !== runtime.deps.i18n.language;
+    if (fresh2) {
+      const [name, arg] = step.split(":");
+      runtime.state.hintEl.dataset.step = step;
+      runtime.state.hintEl.dataset.language = runtime.deps.i18n.language;
+      runtime.state.hintEl.classList.remove("is-compact");
+      runtime.state.hintEl.innerHTML = lessonCardHtml(runtime, name, arg);
+    }
+    const field = `${canvas.offsetWidth}x${canvas.offsetHeight}`, resized = field !== runtime.state.hintField;
+    runtime.state.hintField = field;
+    const top = cardTop(runtime, canvas, fresh2 || resized);
+    place(runtime, runtime.state.hintEl, canvas.offsetLeft + (canvas.offsetWidth - runtime.state.hintEl.offsetWidth) / 2, canvas.offsetTop + top);
+    markLessonBottom(runtime, canvas.offsetTop + top + runtime.state.hintEl.offsetHeight);
+  }
+  function markLessonBottom(runtime, bottom) {
+    const tab = runtime.deps.document.getElementById("tab-battle"), value = bottom === null ? "" : `${Math.round(bottom)}px`;
+    if (tab && tab.style.getPropertyValue("--lesson-bottom") !== value) tab.style.setProperty("--lesson-bottom", value);
+  }
+  function cardTop(runtime, canvas, fresh2) {
+    const room = headRoom(runtime), clear = topClear(runtime, canvas), stacked = runtime.deps.stageView.stacked();
+    if (!runtime.state.hintEl.classList.contains("is-compact") && room - runtime.state.hintEl.offsetHeight < clear) runtime.state.hintEl.classList.add("is-compact");
+    const height = runtime.state.hintEl.offsetHeight, fits = stacked || room - height >= clear;
+    runtime.state.hintBelow = fresh2 ? !fits : runtime.state.hintBelow || !fits;
+    const want = runtime.state.hintBelow ? Math.min(runtime.deps.battleVisualState.playerPos.y + runtime.state.CARD_GAP * 2, canvas.offsetHeight - height - runtime.state.CARD_GAP) : Math.max(clear, Math.min(canvas.offsetHeight * 0.06, room - height));
+    runtime.state.hintTop = fresh2 ? want : (runtime.state.hintBelow ? Math.max : Math.min)(runtime.state.hintTop, want);
+    return runtime.state.hintTop;
+  }
+  function topClear(runtime, canvas) {
+    const row = runtime.deps.stageView.stacked() && runtime.deps.document.querySelector("#tab-battle .combat-zone-row");
+    if (!row) return runtime.state.CARD_GAP;
+    return Math.max(runtime.state.CARD_GAP, Math.round(row.getBoundingClientRect().bottom - canvas.getBoundingClientRect().top) + runtime.state.CARD_GAP);
+  }
+  function headRoom(runtime) {
+    const hero = runtime.deps.battleVisualState.playerPos, head = hero ? (0, runtime.deps.getHeroHeadY)(runtime.deps.battleVisualState.visualNow) : null;
+    return head === null ? Infinity : head - runtime.state.CARD_GAP * 2;
+  }
+  function showWakeMark(runtime, show, canvas) {
+    const hero = show && canvas && runtime.deps.battleVisualState.playerPos;
+    if (!runtime.state.wakeEl && !hero) return;
+    runtime.state.wakeEl = fieldMark(runtime, runtime.state.wakeEl, "opening-wake-mark", ["aria-hidden", "true"]);
+    if (runtime.state.wakeEl.hidden !== !hero) runtime.state.wakeEl.hidden = !hero;
+    if (!hero) return;
+    const head = (0, runtime.deps.getHeroHeadY)(runtime.deps.battleVisualState.visualNow), stand = head === null ? 160 : hero.y - head;
+    place(runtime, runtime.state.wakeEl, canvas.offsetLeft + hero.x, canvas.offsetTop + hero.y - stand / 4);
+  }
+  function weaponInHand(runtime) {
+    return runtime.deps.game.starterWeaponTutorialPending != null || seen(runtime, runtime.deps.basicSkills.weaponGuide);
+  }
+
+  // modules/ui/opening-flow.mjs
+  function onKey(runtime, event) {
+    if (runtime.state.intro) {
+      onIntroKey(runtime, event);
+      return;
+    }
+    if (!lying(runtime) || runtime.state.rising || runtime.state.intro || !wakesHero(runtime, event.code)) return;
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    startRise(runtime);
+  }
+  function tick(runtime) {
+    if (!ticking(runtime)) return;
+    followGame(runtime);
+    if (active(runtime)) {
+      const run = actRun(runtime);
+      holdManual(runtime, run);
+      trackLesson(runtime, run);
+    } else if (runtime.deps.stageActors.down()) runtime.deps.stageActors.setRise(null);
+    showHint(runtime, hintFor(runtime));
+  }
+  function followGame(runtime) {
+    if (runtime.state.owner !== runtime.deps.game) {
+      dropIntro(runtime);
+      runtime.state.owner = runtime.deps.game;
+      runtime.state.movedFrom = runtime.state.autoHint = null;
+      runtime.state.hintEl?.remove();
+      runtime.state.wakeEl?.remove();
+      runtime.state.hintEl = runtime.state.wakeEl = null;
+      runtime.state.hintField = "";
+    }
+    if (runtime.state.intro && (runtime.state.introOwner !== runtime.deps.game || !newGame(runtime))) dropIntro(runtime);
+    else if (!runtime.state.intro && fresh(runtime)) startIntro(runtime);
+  }
+  function openCue(runtime, route) {
+    if (!Object.hasOwn(runtime.state.SYSTEM_CUES, route)) return;
+    if (route !== "tab-map") return (0, runtime.deps.openTabPane)(route);
+    runtime.deps.explorationAtlasUi.open();
+    runtime.deps.worldMapUi.pick("act-02");
+    runtime.deps.document.querySelector("#ui-exploration-atlas .wm-side .atlas-hunt-now")?.focus();
+  }
+  function init(runtime) {
+    if (!runtime.active || runtime.state.tickTimer !== null) return;
+    const canvas = runtime.deps.document.getElementById("battlefield-canvas");
+    if (!canvas) return;
+    ["pointerdown", "mousedown", "click"].forEach((type) => listenView(runtime, canvas, type, (event) => {
+      if (runtime.state.owner !== runtime.deps.game && ticking(runtime)) followGame(runtime);
+      runtime.handlers.onBattlefieldPress(event);
+    }, true));
+    const wrap = runtime.deps.document.getElementById("battlefield-wrap");
+    if (wrap) listenView(runtime, wrap, "click", (event) => {
+      if (event.target.closest("[data-opening-weapon]")) (0, runtime.deps.openTabPane)("tab-items");
+      const route = event.target.closest("[data-opening-route]")?.dataset.openingRoute;
+      openCue(runtime, route);
+    });
+    listenView(runtime, runtime.deps.window, "keydown", (event) => {
+      if (runtime.state.owner !== runtime.deps.game && ticking(runtime)) followGame(runtime);
+      runtime.handlers.onKey(event);
+    }, true);
+    listenView(runtime, runtime.deps.window, "keyup", (event) => {
+      if (runtime.state.intro) event.stopImmediatePropagation();
+    }, true);
+    runtime.state.tickTimer = runtime.deps.setInterval(runtime.handlers.tick, runtime.state.TICK_MS);
+  }
+  function afterStartPick(runtime) {
+    if (ticking(runtime)) followGame(runtime);
+  }
+  function ticking(runtime) {
+    return typeof runtime.deps.game === "object" && !!runtime.deps.game && Array.isArray(runtime.deps.game.seenTutorials) && !runtime.deps.game.isBackgroundCalculation;
+  }
+
+  // modules/ui/opening-journey-view.mjs
+  function createOpeningJourneyView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null, active: true, listeners: [], frames: /* @__PURE__ */ new Set() };
+    const handlers = { mark, onKey, tick, onBattlefieldPress, holds, hushes, lying, afterStartPick, active, lesson, init };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = (...args) => runtime.active ? handler(runtime, ...args) : void 0;
+    initialize(runtime);
+    runtime.api = OpeningJourneyViewApi(runtime);
+    installOpeningJourneyViewEvents(runtime);
+    return runtime.api;
+  }
+  function initialize(runtime) {
+    runtime.state.KEY = Object.freeze({ intro: "opening_intro", rise: "opening_rise", move: "opening_move", attack: "opening_attack", done: "opening_done" });
+    runtime.state.REPLACED = Object.freeze(["story_prologue"]);
+    runtime.state.STAGE_REPLACED = Object.freeze(["story_act_1_start", "tutorial_battle_basics"]);
+    runtime.state.TICK_MS = 150;
+    runtime.state.LEAVE_MS = 900;
+    runtime.state.REVEAL_MS = 1100;
+    runtime.state.CARD_GAP = 8;
+    runtime.state.intro = null;
+    runtime.state.rising = null;
+    runtime.state.movedFrom = null;
+    runtime.state.hintEl = null;
+    runtime.state.hintTop = 0;
+    runtime.state.hintBelow = false;
+    runtime.state.hintField = "";
+    runtime.state.wakeEl = null;
+    runtime.state.autoHint = null;
+    runtime.state.heldAuto = null;
+    runtime.state.introReturnFocus = null;
+    runtime.state.introOwner = null;
+    runtime.state.owner = runtime.deps.game;
+    runtime.state.introTimers = /* @__PURE__ */ new Set();
+    runtime.state.tickTimer = null;
+    runtime.state.SIDES = Object.freeze({ east: "오른쪽", west: "왼쪽", north: "위쪽", south: "아래쪽" });
+    runtime.state.HINTS = {
+      rise: () => (0, runtime.deps._t)(coarse(runtime) ? "쓰러진 캐릭터를 눌러 깨우세요" : "쓰러진 캐릭터를 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 깨우세요"),
+      move: () => (0, runtime.deps._t)(coarse(runtime) ? "바닥을 눌러 움직이세요" : "바닥을 클릭하거나 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 키로 움직이세요"),
+      attack: (side) => `${side ? (0, runtime.deps._t)("{SIDES}으로 가서 하켄을 구하세요", { SIDES: (0, runtime.deps._t)(runtime.state.SIDES[side]) }) : (0, runtime.deps._t)("하켄을 치는 괴물에게 다가가세요")}. ${(0, runtime.deps._t)("가까이 가면 자동으로 공격합니다")}`,
+      go: (side) => (0, runtime.deps._t)("{SIDES} 문으로 나아가세요", { SIDES: runtime.state.SIDES[side] ? (0, runtime.deps._t)(runtime.state.SIDES[side]) : (0, runtime.deps._t)("앞쪽") }),
+      pickup: () => (0, runtime.deps._t)("떨어진 무기를 누르거나 그 위로 걸어가 주우세요"),
+      equip: () => (0, runtime.deps._t)("장비 창에서 주운 무기를 장착하세요"),
+      auto: () => (0, runtime.deps._t)("오른쪽 위 자동 단추를 눌러 자동 사냥을 켜세요")
+    };
+    runtime.state.SYSTEM_CUES = Object.freeze({
+      "tab-map": "다음 지역 지도 보기",
+      "tab-items": "첫 장비 살펴보기",
+      "tab-character": "달라진 능력치 보기",
+      "tab-journal": "새 기록 읽기",
+      "tab-trade": "NPC 상점 보기"
+    });
+    runtime.state.LESSON_ORDER = Object.freeze(["rise", "move", "attack", "pickup", "equip", "auto"]);
+    runtime.state.LESSON_TITLES = Object.freeze({ rise: "깨어나기", move: "움직이기", attack: "하켄 구하기", go: "하켄 구하기", pickup: "무기 줍기", equip: "무기 장착하기", auto: "자동 사냥" });
+  }
+  function OpeningJourneyViewApi(runtime) {
+    const api = {
+      holds: runtime.handlers.holds,
+      hushes: runtime.handlers.hushes,
+      lying: runtime.handlers.lying,
+      afterStartPick: runtime.handlers.afterStartPick,
+      autoLocked: runtime.handlers.active,
+      lesson: runtime.handlers.lesson,
+      introOpen: () => runtime.active && (!!runtime.state.intro || fresh(runtime))
+    };
+    api.dispose = () => disposeOpeningJourneyView(runtime);
+    return Object.freeze(api);
+  }
+  function installOpeningJourneyViewEvents(runtime) {
+    if (typeof runtime.deps.document === "object" && runtime.deps.document.readyState !== "loading") init(runtime);
+    else if (typeof runtime.deps.document === "object") listenView(runtime, runtime.deps.document, "DOMContentLoaded", runtime.handlers.init, { once: true });
+  }
+  function disposeOpeningJourneyView(runtime) {
+    if (!runtime.active) return;
+    releaseViewEvents(runtime);
+    runtime.deps.clearInterval(runtime.state.tickTimer);
+    runtime.state.tickTimer = null;
+    dropIntro(runtime);
+    runtime.state.hintEl?.remove();
+    runtime.state.wakeEl?.remove();
+    runtime.state.hintEl = runtime.state.wakeEl = null;
+    runtime.deps.document.getElementById("btn-act-exploration-auto")?.classList.remove("is-opening-glow");
+    runtime.deps.document.getElementById("tab-battle")?.style.removeProperty("--lesson-bottom");
+  }
+
+  // modules/opening-journey-ui-classic.mjs
+  var openingJourney = createOpeningJourneyView({
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get contentProgression() {
+      return contentProgression;
+    },
+    get queueImportantSave() {
+      return queueImportantSave;
+    },
+    get actExplorationDoors() {
+      return actExplorationDoors;
+    },
+    get activeTutorial() {
+      return activeTutorial;
+    },
+    get dismissTutorial() {
+      return dismissTutorial;
+    },
+    get updateTabUnlockButtons() {
+      return updateTabUnlockButtons;
+    },
+    get stageActors() {
+      return stageActors;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get _t() {
+      return _t;
+    },
+    get requestAnimationFrame() {
+      return windowRequestAnimationFrame;
+    },
+    get cancelAnimationFrame() {
+      return windowCancelAnimationFrame;
+    },
+    get tutorialQueue() {
+      return tutorialQueue;
+    },
+    get STORY_JOURNAL_SCENES() {
+      return STORY_JOURNAL_SCENES;
+    },
+    get STORY_SCENE_QUOTES() {
+      return STORY_SCENE_QUOTES;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get selectionDialog() {
+      return selectionDialog;
+    },
+    get setTimeout() {
+      return windowSetTimeout;
+    },
+    get clearTimeout() {
+      return windowClearTimeout;
+    },
+    get uiDisplay() {
+      return uiDisplay;
+    },
+    get battleVisualState() {
+      return battleVisualState;
+    },
+    get hotkeyBindings() {
+      return hotkeyBindings;
+    },
+    get STAGE_HERO_RISE() {
+      return STAGE_HERO_RISE;
+    },
+    get basicSkills() {
+      return basicSkills;
+    },
+    get getEquippedWeaponStance() {
+      return getEquippedWeaponStance;
+    },
+    get tutorialActionUi() {
+      return tutorialActionUi;
+    },
+    get switchTab() {
+      return switchTab;
+    },
+    get queueTutorialNotice() {
+      return queueTutorialNotice;
+    },
+    get actExplorationUi() {
+      return actExplorationUi;
+    },
+    get window() {
+      return window;
+    },
+    get updateStaticUI() {
+      return updateStaticUI;
+    },
+    get isRewardOpen() {
+      return isRewardOpen;
+    },
+    get actRewardPromptPending() {
+      return actRewardPromptPending;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get stageView() {
+      return stageView;
+    },
+    get getHeroHeadY() {
+      return getHeroHeadY;
+    },
+    get openTabPane() {
+      return openTabPane;
+    },
+    get explorationAtlasUi() {
+      return explorationAtlasUi;
+    },
+    get worldMapUi() {
+      return worldMapUi;
+    },
+    get setInterval() {
+      return windowSetInterval;
+    },
+    get clearInterval() {
+      return windowClearInterval;
+    },
+    get actExplorationState() {
+      return actExplorationState;
+    },
+    get isLoopHeroSelectOpen() {
+      return isLoopHeroSelectOpen;
+    },
+    get isStartupOverlayOpen() {
+      return isStartupOverlayOpen;
+    },
+    get isLoadingOverlayOpen() {
+      return isLoadingOverlayOpen;
+    }
+  });
+  var isOpeningIntroOpen = () => openingJourney.introOpen();
+  safeExposeGlobals({ openingJourney, isOpeningIntroOpen });
 })();
-/** Guide cards wait for the intro, also while it is about to start (js/tutorial-ui.js isTutorialPresentationBlocked asks window functions by name). */
-const isOpeningIntroOpen = () => openingJourney.introOpen();
-safeExposeGlobals({ openingJourney, isOpeningIntroOpen });

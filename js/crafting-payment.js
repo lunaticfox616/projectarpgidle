@@ -1,15 +1,12 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/crafting-payment*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-/**
- * What one use of a crafting currency costs: one of that currency.
- * @param {string} action Currency action identifier.
- * @returns {{key: string, cost: number, have: number, affordable: boolean}}
- */
-function getCraftPayment(action) {
-    const have = game.currencies[action] || 0;
-    return {key: action, cost: 1, have, affordable: have >= 1};
-}
+  // modules/domain/crafting-payment.mjs
+  function craftingPayment(owner, action) {
+    const have = owner.currencies[action] || 0;
+    return { key: action, cost: 1, have, affordable: have >= 1 };
+  }
 
-exposeFileGlobals({ getCraftPayment });
+  // modules/crafting-payment-classic.mjs
+  var getCraftPayment = (action) => craftingPayment(game, action);
+  safeExposeGlobals({ getCraftPayment });
 })();
-safeExposeGlobals({getCraftPayment});

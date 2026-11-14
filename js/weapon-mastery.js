@@ -1,99 +1,151 @@
-// 무기 숙련(data/weapon-mastery.js): 들고 있는 무기 대분류가 처치마다 경험치를 얻고, 레벨과 10단위 특전이 그 무기를 들었을 때의 능력치가
-// 된다. 상태는 game.weaponMastery {xp: {대분류: 누적 경험치}, v: 곡선 판}로 루프를 넘어 남는다(js/loop-reset.js triggerSeasonReset은 건드리지 않는다).
-// 처치 기록은 js/combat-skill-effects.js recordKillProgress, 능력치는 getPlayerStats의 계정 보상 묶음(applyAccountRewardStats), 화면은
-// js/weapon-mastery-ui.js.
-const weaponMastery = (() => {
-    const M = WEAPON_MASTERY;
-    const IDS = Object.freeze(Object.keys(WEAPON_CATEGORIES));
-    /** Experience from level to level + 1. */
-    const need = level => Math.round(M.curve.base * M.curve.growth ** (level - 1));
-    /** reach[L]: total experience at which level L begins (reach[1] = 0) on a curve. */
-    function reachTable(curve) {
-        const reach = [0, 0];
-        for (let at = 1; at < M.maxLevel; at++) reach.push(reach[at] + Math.round(curve.base * curve.growth ** (at - 1)));
-        return reach;
-    }
-    const REACH = reachTable(M.curve);
-    const PAST_REACH = Object.fromEntries(Object.entries(M.pastCurves).map(([version, curve]) => [version, reachTable(curve)]));
-    const CAP = REACH[M.maxLevel];
-    const levelOn = (reach, xp) => {
-        let at = 1;
-        while (at < M.maxLevel && xp >= reach[at + 1]) at++;
-        return at;
-    };
+// GENERATED from modules/weapon-mastery*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/weapon-mastery-rules.mjs
+  function masteryNeed(env, level) {
+    return Math.round(env.M.curve.base * env.M.curve.growth ** (level - 1));
+  }
+  function masteryReachTable(env, curve) {
+    const reach = [0, 0];
+    for (let at = 1; at < env.M.maxLevel; at++) reach.push(reach[at] + Math.round(curve.base * curve.growth ** (at - 1)));
+    return reach;
+  }
+  function masteryLevelOn(env, reach, xp) {
+    let at = 1;
+    while (at < env.M.maxLevel && xp >= reach[at + 1]) at++;
+    return at;
+  }
+  function masteryUpgradeXp(env, xp, past) {
+    const at = masteryLevelOn(env, past, xp);
+    if (at >= env.M.maxLevel) return env.CAP;
+    const share = (xp - past[at]) / (past[at + 1] - past[at]);
+    return Math.round(env.REACH[at] + share * (env.REACH[at + 1] - env.REACH[at]));
+  }
+  function masteryUpgrade(env, book) {
+    const past = env.PAST_REACH[book.v] || env.PAST_REACH[1];
+    Object.keys(book.xp).forEach((id) => {
+      const xp = Number(book.xp[id]);
+      if (Number.isFinite(xp) && xp > 0) book.xp[id] = masteryUpgradeXp(env, xp, past);
+    });
+    book.v = env.M.curveVersion;
+  }
+  function masteryLedger(env, state) {
+    const book = state.weaponMastery;
+    if (!book || typeof book !== "object" || !book.xp || typeof book.xp !== "object" || Array.isArray(book.xp)) state.weaponMastery = { xp: {} };
+    if (state.weaponMastery.v !== env.M.curveVersion) masteryUpgrade(env, state.weaponMastery);
+    return state.weaponMastery;
+  }
+  function masteryXpOf(env, state, id) {
+    const value = Number(masteryLedger(env, state).xp[id]);
+    return Number.isFinite(value) && value > 0 ? Math.min(env.CAP, value) : 0;
+  }
+  function masteryLevelAt(env, xp) {
+    return masteryLevelOn(env, env.REACH, xp);
+  }
+  function masteryLevel(env, state, id) {
+    return masteryLevelAt(env, masteryXpOf(env, state, id));
+  }
+  function masteryProgress(env, state, id) {
+    const xp = masteryXpOf(env, state, id), at = masteryLevelAt(env, xp);
+    return { level: at, xp, into: xp - env.REACH[at], need: at >= env.M.maxLevel ? 0 : env.REACH[at + 1] - env.REACH[at] };
+  }
+  function masteryTotal(env, state) {
+    return env.IDS.reduce((sum, id) => sum + masteryLevel(env, state, id), 0);
+  }
+  function masteryWielded(env, state) {
+    return env.deps.getWeaponCategoryId(state.equipment && state.equipment["무기"]);
+  }
+  function masteryKillXp(env, enemy) {
+    return enemy && enemy.isBoss ? env.M.killXp.boss : enemy && enemy.isElite ? env.M.killXp.elite : env.M.killXp.normal;
+  }
+  function* masteryOnKilled(env, state, enemy) {
+    const id = masteryWielded(env, state);
+    if (!id) return 0;
+    const before = masteryLevel(env, state, id);
+    masteryLedger(env, state).xp[id] = Math.min(env.CAP, masteryXpOf(env, state, id) + masteryKillXp(env, enemy));
+    const after = masteryLevel(env, state, id);
+    if (after <= before) return 0;
+    yield { kind: "dispatchRuntimeEvent", args: ["weapon-mastery", { id, level: after, milestone: after % 10 === 0 }] };
+    return after;
+  }
+  function masteryOpened(env, id, at) {
+    return (env.M.milestones[id] || []).slice(0, Math.floor(at / 10));
+  }
+  function masteryPerLevel(env, at) {
+    return env.M.perLevel.val * (at - 1);
+  }
+  function masteryLines(env, state) {
+    const id = masteryWielded(env, state);
+    if (!id) return [];
+    const at = masteryLevel(env, state, id), rows = at > 1 ? [{ stat: env.M.perLevel.stat, val: masteryPerLevel(env, at) }] : [];
+    masteryOpened(env, id, at).forEach((step) => step.forEach(([stat, val]) => rows.push({ stat, val })));
+    return rows;
+  }
+  function masteryApplyStats(env, bucket, state) {
+    masteryLines(env, state).forEach((line) => env.deps.addStatToBucket(bucket, line.stat, line.val));
+  }
+  function masteryOffline(env, state) {
+    return env.M.totalSteps.filter((step) => masteryTotal(env, state) >= step).length * env.M.offlinePerStep;
+  }
+  function masteryGains(env, before, after) {
+    return env.IDS.map((id) => ({ id, from: masteryLevel(env, before, id), to: masteryLevel(env, after, id) })).filter((row) => row.to > row.from);
+  }
 
-    /** Experience on an earlier curve moved to the current one: the same level, the same share of the way to the next. */
-    function upgradeXp(xp, past) {
-        const at = levelOn(past, xp);
-        if (at >= M.maxLevel) return CAP;
-        const share = (xp - past[at]) / (past[at + 1] - past[at]);
-        return Math.round(REACH[at] + share * (REACH[at + 1] - REACH[at]));
-    }
-    /** A record kept on an earlier curve (data/weapon-mastery.js pastCurves; a record without v is from the first) keeps its levels;
-     * once per save (book.v). */
-    function upgrade(book) {
-        const past = PAST_REACH[book.v] || PAST_REACH[1];
-        Object.keys(book.xp).forEach(id => {
-            const xp = Number(book.xp[id]);
-            if (Number.isFinite(xp) && xp > 0) book.xp[id] = upgradeXp(xp, past);
-        });
-        book.v = M.curveVersion;
-    }
-    /** The save's record, repaired on read: unknown categories and bad numbers never reach the levels. */
-    function ledger(state) {
-        const book = state.weaponMastery;
-        if (!book || typeof book !== 'object' || !book.xp || typeof book.xp !== 'object' || Array.isArray(book.xp)) state.weaponMastery = { xp: {} };
-        if (state.weaponMastery.v !== M.curveVersion) upgrade(state.weaponMastery);
-        return state.weaponMastery;
-    }
-    function xpOf(state, id) {
-        const value = Number(ledger(state).xp[id]);
-        return Number.isFinite(value) && value > 0 ? Math.min(CAP, value) : 0;
-    }
-    function levelAt(xp) { return levelOn(REACH, xp); }
-    const level = (state, id) => levelAt(xpOf(state, id));
-    /** {level, xp, into, need}: need 0 at the top level. */
-    function progress(state, id) {
-        const xp = xpOf(state, id), at = levelAt(xp);
-        return { level: at, xp, into: xp - REACH[at], need: at >= M.maxLevel ? 0 : REACH[at + 1] - REACH[at] };
-    }
-    const total = state => IDS.reduce((sum, id) => sum + level(state, id), 0);
-    const wielded = state => getWeaponCategoryId(state.equipment && state.equipment['무기']);
-    const killXp = enemy => (enemy && enemy.isBoss ? M.killXp.boss : enemy && enemy.isElite ? M.killXp.elite : M.killXp.normal);
+  // modules/domain/weapon-mastery.mjs
+  function createWeaponMastery(deps) {
+    const env = { deps };
+    env.M = env.deps.WEAPON_MASTERY;
+    env.IDS = Object.freeze(Object.keys(env.deps.WEAPON_CATEGORIES));
+    env.REACH = masteryReachTable(env, env.M.curve);
+    env.PAST_REACH = Object.fromEntries(Object.entries(env.M.pastCurves).map(([version, curve]) => [version, masteryReachTable(env, curve)]));
+    env.CAP = env.REACH[env.M.maxLevel];
+    return Object.freeze({
+      ids: env.IDS,
+      need: (...args) => masteryNeed(env, ...args),
+      reach: (level) => env.REACH[level],
+      level: (...args) => masteryLevel(env, ...args),
+      progress: (...args) => masteryProgress(env, ...args),
+      total: (...args) => masteryTotal(env, ...args),
+      wielded: (...args) => masteryWielded(env, ...args),
+      onKilled: (...args) => masteryOnKilled(env, ...args),
+      opened: (...args) => masteryOpened(env, ...args),
+      perLevel: (...args) => masteryPerLevel(env, ...args),
+      lines: (...args) => masteryLines(env, ...args),
+      applyStats: (...args) => masteryApplyStats(env, ...args),
+      offline: (...args) => masteryOffline(env, ...args),
+      gains: (...args) => masteryGains(env, ...args)
+    });
+  }
 
-    /** A kill with a weapon in hand. Returns the level reached when it rose, else 0. */
-    function onKilled(state, enemy) {
-        const id = wielded(state);
-        if (!id) return 0;
-        const before = level(state, id);
-        ledger(state).xp[id] = Math.min(CAP, xpOf(state, id) + killXp(enemy));
-        const after = level(state, id);
-        if (after <= before) return 0;
-        dispatchRuntimeEvent('weapon-mastery', { id, level: after, milestone: after % 10 === 0 });
-        return after;
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/ui/runtime-event-commands.mjs
+  function runRuntimeEventCommands(commands, dispatch) {
+    return consumeDomainCommands(commands, { dispatchRuntimeEvent: dispatch });
+  }
+
+  // modules/weapon-mastery-classic.mjs
+  var rules = createWeaponMastery({
+    get getWeaponCategoryId() {
+      return getWeaponCategoryId;
+    },
+    get addStatToBucket() {
+      return addStatToBucket;
+    },
+    get WEAPON_MASTERY() {
+      return WEAPON_MASTERY;
+    },
+    get WEAPON_CATEGORIES() {
+      return WEAPON_CATEGORIES;
     }
-    /** The opened milestone lines of a category at a level: [[stat, value], ...] per opened step. */
-    const opened = (id, at) => (M.milestones[id] || []).slice(0, Math.floor(at / 10));
-    /** The per-level line's value at a level (none at level 1, before any experience). */
-    const perLevel = at => M.perLevel.val * (at - 1);
-    /** The wielded category's stat lines ({stat, val}); none without a weapon or experience. */
-    function lines(state) {
-        const id = wielded(state);
-        if (!id) return [];
-        const at = level(state, id), rows = at > 1 ? [{ stat: M.perLevel.stat, val: perLevel(at) }] : [];
-        opened(id, at).forEach(step => step.forEach(([stat, val]) => rows.push({ stat, val })));
-        return rows;
-    }
-    function applyStats(bucket, state) {
-        lines(state).forEach(line => addStatToBucket(bucket, line.stat, line.val));
-    }
-    /** Efficiency the six levels' total adds to offline progress. */
-    const offline = state => M.totalSteps.filter(step => total(state) >= step).length * M.offlinePerStep;
-    /** Levels gained per category between two states (the settlement result). */
-    function gains(before, after) {
-        return IDS.map(id => ({ id, from: level(before, id), to: level(after, id) })).filter(row => row.to > row.from);
-    }
-    return Object.freeze({ ids: IDS, need, reach: level => REACH[level], level, progress, total, wielded, onKilled, opened, perLevel, lines,
-        applyStats, offline, gains });
+  });
+  var weaponMastery = Object.freeze({
+    ...rules,
+    onKilled: (state, enemy) => runRuntimeEventCommands(rules.onKilled(state, enemy), dispatchRuntimeEvent)
+  });
+  safeExposeGlobals({ weaponMastery });
 })();
-safeExposeGlobals({ weaponMastery });

@@ -1,86 +1,144 @@
-/** 기억의 잎은 최초 발견형 저널이다. 보유 수량/교환은 없고 발견만 루프를 넘어 남는다.
- * 실제 획득과 저장 복원 모두 기존 저널 보너스 경로를 사용한다. 읽기는 보상을 주지 않는다. */
-const memoryLeaves = (() => {
-    const BY_ID = new Map(MEMORY_LEAVES.list.map(leaf => [leaf.id, leaf]));
-    const defaults = () => ({ version: 2, seen: [] });
-    const store = state => state.atlas.leaves;
-    const validIds = ids => [...new Set(ids)].filter(id => BY_ID.has(id));
-    const positiveKeys = raw => Object.keys(raw && typeof raw === 'object' ? raw : {})
-        .filter(id => Number.isFinite(Number(raw[id])) && Number(raw[id]) > 0);
+// GENERATED from modules/memory-leaves*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/memory-leaves-rules.mjs
+  function leafDefaults() {
+    return { version: 2, seen: [] };
+  }
+  function leafStore(state) {
+    return state.atlas.leaves;
+  }
+  function leafValidIds(env, ids) {
+    return [...new Set(ids)].filter((id) => env.BY_ID.has(id));
+  }
+  function leafPositiveKeys(raw) {
+    return Object.keys(raw && typeof raw === "object" ? raw : {}).filter((id) => Number.isFinite(Number(raw[id])) && Number(raw[id]) > 0);
+  }
+  function leafNormalize(env, raw) {
+    const src = raw && typeof raw === "object" ? raw : {};
+    return { ...leafDefaults(), seen: leafValidIds(env, [
+      ...Array.isArray(src.seen) ? src.seen : [],
+      ...leafPositiveKeys(src.counts),
+      ...leafPositiveKeys(src.woven)
+    ]) };
+  }
+  function leafSourceMatches(source, zone, enemy) {
+    if (source.node) return zone.atlasNode === source.node;
+    if (source.treasure) return !!enemy.treasureCarrier;
+    if (source.golden) return !!enemy.atlasGolden;
+    if (source.boss) return !!enemy.isBoss;
+    return !!source.any;
+  }
+  function leafPoolFor(env, state, zone, enemy) {
+    const seen = new Set(leafStore(state).seen);
+    for (const row of state.actExploration?.groundLoot || []) if (row.kind === "leaf") seen.add(row.leaf);
+    const open = env.deps.MEMORY_LEAVES.list.filter((leaf) => !seen.has(leaf.id) && (leaf.minTier || 0) <= (Number(zone.atlasTier) || 0) && leafSourceMatches(leaf.source, zone, enemy));
+    const special = open.filter(leafIsSpecialLeaf);
+    return special.length ? special : open;
+  }
+  function leafRankOf(enemy) {
+    return enemy.isBoss ? "boss" : enemy.isElite ? "elite" : "regular";
+  }
+  function leafSpecialMul(env, enemy) {
+    return enemy.treasureCarrier ? env.deps.MEMORY_LEAVES.treasureMul : enemy.atlasGolden ? env.deps.MEMORY_LEAVES.goldenMul : 1;
+  }
+  function leafIsSpecialLeaf(leaf) {
+    return !!(leaf.source.treasure || leaf.source.golden);
+  }
+  function leafDropChance(env, enemy, pool) {
+    return env.deps.MEMORY_LEAVES.chance[leafRankOf(enemy)] * (pool.some(leafIsSpecialLeaf) ? leafSpecialMul(env, enemy) : 1);
+  }
+  function leafIsAtlasKill(state, zone, enemy) {
+    return !!state.atlas?.unlocked && zone?.type === "atlasMap" && !!enemy && !enemy.noLoot;
+  }
+  function leafRollKill(env, state, zone, enemy, random) {
+    if (!leafIsAtlasKill(state, zone, enemy)) return null;
+    if (leafStore(state).seen.length === env.deps.MEMORY_LEAVES.list.length) return null;
+    const pool = leafPoolFor(env, state, zone, enemy), total = pool.reduce((sum, leaf) => sum + leaf.weight, 0);
+    if (random() >= leafDropChance(env, enemy, pool)) return null;
+    if (!total) return null;
+    let roll = random() * total;
+    return (pool.find((leaf) => (roll -= leaf.weight) < 0) || pool[pool.length - 1]).id;
+  }
+  function* leafReceive(env, state, id) {
+    const leaf = env.BY_ID.get(id);
+    if (!leaf || leafStore(state).seen.includes(id)) return null;
+    leafStore(state).seen.push(id);
+    yield { kind: "unlockLeafJournal", args: [leaf.journal, state] };
+    return { id, name: leaf.name, first: true, journal: leaf.journal, bonus: leaf.bonus.label };
+  }
+  function leafRestoreJournal(env, state, entries) {
+    if (!state.atlas || typeof state.atlas !== "object") return;
+    state.atlas.leaves = leafNormalize(env, state.atlas.leaves);
+    const seen = new Set(state.atlas.leaves.seen);
+    for (const leaf of env.deps.MEMORY_LEAVES.list) {
+      if (seen.has(leaf.id)) entries.add(leaf.journal);
+      if (entries.has(leaf.journal)) seen.add(leaf.id);
+    }
+    state.atlas.leaves.seen = [...seen];
+  }
+  function leafMomentOf() {
+    return "great";
+  }
+  function leafBonusText(leaf) {
+    return leaf.bonus.label;
+  }
+  function leafSourceText(env, leaf) {
+    const source = leaf.source, tier = leaf.minTier ? env.deps._t(", {minTier}등급 이상", { minTier: leaf.minTier }) : "";
+    if (source.node) return `${env.deps.atlas.nodes.find((node) => node.id === source.node)?.name || source.node}${tier}`;
+    if (source.boss) return env.deps._t("지도 보스{tier}", { tier });
+    if (source.golden) return env.deps._t("황금 방{tier}", { tier });
+    if (source.treasure) return env.deps._t("보물 무리{tier}", { tier });
+    return env.deps._t("어느 지도나{tier}", { tier });
+  }
+  function leafGainedBetween(env, before, after) {
+    const seen = new Set(before?.seen || []);
+    const fresh = (after?.seen || []).filter((id) => !seen.has(id) && env.BY_ID.has(id)).map((id) => env.BY_ID.get(id).name);
+    return { total: fresh.length, fresh };
+  }
 
-    /** 구 수량/교환 기록은 폐기하되 실제로 발견했던 잎은 새 저널로 이어진다. 반복 복원해도 같은 결과다. */
-    function normalize(raw) {
-        const src = raw && typeof raw === 'object' ? raw : {};
-        return { ...defaults(), seen: validIds([...(Array.isArray(src.seen) ? src.seen : []),
-            ...positiveKeys(src.counts), ...positiveKeys(src.woven)]) };
+  // modules/domain/memory-leaves.mjs
+  function createMemoryLeaves(deps) {
+    const env = { deps };
+    env.BY_ID = new Map(env.deps.MEMORY_LEAVES.list.map((leaf) => [leaf.id, leaf]));
+    return Object.freeze({
+      defaults: leafDefaults,
+      normalize: (...args) => leafNormalize(env, ...args),
+      rollKill: (...args) => leafRollKill(env, ...args),
+      receive: (...args) => leafReceive(env, ...args),
+      momentOf: leafMomentOf,
+      bonusText: leafBonusText,
+      sourceText: (...args) => leafSourceText(env, ...args),
+      gainedBetween: (...args) => leafGainedBetween(env, ...args),
+      restoreJournal: (...args) => leafRestoreJournal(env, ...args),
+      leaf: (id) => env.BY_ID.get(id) || null,
+      validId: (id) => env.BY_ID.has(id),
+      list: env.deps.MEMORY_LEAVES.list
+    });
+  }
+
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects2) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects2[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/memory-leaves-classic.mjs
+  var rules = createMemoryLeaves({
+    get MEMORY_LEAVES() {
+      return MEMORY_LEAVES;
+    },
+    get _t() {
+      return _t;
+    },
+    get atlas() {
+      return atlas;
     }
-    function sourceMatches(source, zone, enemy) {
-        if (source.node) return zone.atlasNode === source.node;
-        if (source.treasure) return !!enemy.treasureCarrier;
-        if (source.golden) return !!enemy.atlasGolden;
-        if (source.boss) return !!enemy.isBoss;
-        return !!source.any;
-    }
-    function poolFor(state, zone, enemy) {
-        const seen = new Set(store(state).seen);
-        for (const row of state.actExploration?.groundLoot || []) if (row.kind === 'leaf') seen.add(row.leaf);
-        const open = MEMORY_LEAVES.list.filter(leaf => !seen.has(leaf.id)
-            && (leaf.minTier || 0) <= (Number(zone.atlasTier) || 0) && sourceMatches(leaf.source, zone, enemy));
-        const special = open.filter(isSpecialLeaf);
-        return special.length ? special : open;
-    }
-    const rankOf = enemy => (enemy.isBoss ? 'boss' : enemy.isElite ? 'elite' : 'regular');
-    // 보물 운반자와 황금 배율은 그 몬스터만의 잎(보물, 황금)이 남았을 때만: 다 찾은 뒤에는 일반 잎이 보물 운반자에게서 24%로 나왔다
-    const specialMul = enemy => (enemy.treasureCarrier ? MEMORY_LEAVES.treasureMul : enemy.atlasGolden ? MEMORY_LEAVES.goldenMul : 1);
-    const isSpecialLeaf = leaf => !!(leaf.source.treasure || leaf.source.golden);
-    const dropChance = (enemy, pool) => MEMORY_LEAVES.chance[rankOf(enemy)] * (pool.some(isSpecialLeaf) ? specialMul(enemy) : 1);
-    const isAtlasKill = (state, zone, enemy) => !!state.atlas?.unlocked && zone?.type === 'atlasMap' && !!enemy && !enemy.noLoot;
-    function rollKill(state, zone, enemy, random) {
-        if (!isAtlasKill(state, zone, enemy)) return null;
-        if (store(state).seen.length === MEMORY_LEAVES.list.length) return null;
-        const pool = poolFor(state, zone, enemy), total = pool.reduce((sum, leaf) => sum + leaf.weight, 0);
-        if (random() >= dropChance(enemy, pool)) return null;
-        if (!total) return null;
-        let roll = random() * total;
-        return (pool.find(leaf => (roll -= leaf.weight) < 0) || pool[pool.length - 1]).id;
-    }
-    /** grantJournalBonus의 중복 가드와 능력치 캐시 무효화를 그대로 쓴다. 별도 state는 로드 정산용이다. */
-    function receive(state, id) {
-        const leaf = BY_ID.get(id);
-        if (!leaf || store(state).seen.includes(id)) return null;
-        store(state).seen.push(id);
-        unlockJournalEntry(leaf.journal, state);
-        return { id, name: leaf.name, first: true, journal: leaf.journal, bonus: leaf.bonus.label };
-    }
-    /** 저장 복원 시 발견 이력과 저널을 양방향으로 맞춘다. 보너스는 기존 로드 재구성에서 한 번만 적용된다. */
-    function restoreJournal(state, entries) {
-        // 손상된 아틀라스(문자열, 숫자)는 아래 아틀라스 정규화가 새로 만든다: 여기서 읽으면 불러오기 전체가 손상 저장으로 막혔다
-        if (!state.atlas || typeof state.atlas !== 'object') return;
-        // 저널 복원이 아틀라스 정규화보다 먼저 실행된다. 구 수량만 있는 저장도 여기서 발견으로 변환한다.
-        state.atlas.leaves = normalize(state.atlas.leaves);
-        const seen = new Set(state.atlas.leaves.seen);
-        for (const leaf of MEMORY_LEAVES.list) {
-            if (seen.has(leaf.id)) entries.add(leaf.journal);
-            if (entries.has(leaf.journal)) seen.add(leaf.id);
-        }
-        state.atlas.leaves.seen = [...seen];
-    }
-    const momentOf = () => 'great';
-    const bonusText = leaf => leaf.bonus.label;
-    function sourceText(leaf) {
-        const source = leaf.source, tier = leaf.minTier ? _t(', {minTier}등급 이상', { minTier: leaf.minTier }) : '';
-        if (source.node) return `${atlas.nodes.find(node => node.id === source.node)?.name || source.node}${tier}`;
-        if (source.boss) return _t('지도 보스{tier}', { tier });
-        if (source.golden) return _t('황금 방{tier}', { tier });
-        if (source.treasure) return _t('보물 무리{tier}', { tier });
-        return _t('어느 지도나{tier}', { tier });
-    }
-    function gainedBetween(before, after) {
-        const seen = new Set(before?.seen || []);
-        const fresh = (after?.seen || []).filter(id => !seen.has(id) && BY_ID.has(id)).map(id => BY_ID.get(id).name);
-        return { total: fresh.length, fresh };
-    }
-    return Object.freeze({ defaults, normalize, rollKill, receive, momentOf, bonusText, sourceText, gainedBetween, restoreJournal,
-        leaf: id => BY_ID.get(id) || null, validId: id => BY_ID.has(id), list: MEMORY_LEAVES.list });
+  });
+  var effects = { unlockLeafJournal: (...args) => unlockJournalEntry(...args) };
+  var memoryLeaves = Object.freeze({
+    ...rules,
+    receive: (state, id) => consumeDomainCommands(rules.receive(state, id), effects)
+  });
+  safeExposeGlobals({ memoryLeaves });
 })();
-safeExposeGlobals({ memoryLeaves });

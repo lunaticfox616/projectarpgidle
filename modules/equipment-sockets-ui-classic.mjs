@@ -1,0 +1,32 @@
+import { createEquipmentSocketView } from './ui/equipment-socket-view.mjs';
+const equipmentSocketsUi = createEquipmentSocketView({
+    get getJewelStats() { return getJewelStats; },
+    get isJewelPetiteStat() { return isJewelPetiteStat; },
+    get _t() { return _t; },
+    get getStatName() { return getStatName; },
+    get formatJewelStatValue() { return formatJewelStatValue; },
+    get getJewelUniqueEffectText() { return getJewelUniqueEffectText; },
+    get escapeHTML() { return escapeHTML; },
+    get getJewelRarityClass() { return getJewelRarityClass; },
+    get contentProgression() { return contentProgression; },
+    get equipmentSockets() { return equipmentSockets; },
+    get game() { return window.GameModules.state.game; },
+    get bagItems() { return bagItems; },
+    get stumpBox() { return stumpBox; },
+    get addLog() { return addLog; },
+    get hideItemTooltip() { return hideItemTooltip; },
+    get updateStaticUI() { return updateStaticUI; },
+    get pickParticle() { return pickParticle; },
+    get playUiFeedbackSound() { return playUiFeedbackSound; },
+    get getSocketJewelMultiplier() { return getSocketJewelMultiplier; },
+    get getJewelSalvageShardGain() { return getJewelSalvageShardGain; },
+    get STUMP_BOX_STAGES() { return STUMP_BOX_STAGES; },
+    get getSelectedCraftItem() { return getSelectedCraftItem; },
+    get selectionDialog() { return selectionDialog; },
+    get getItemSlotDisplayLabel() { return getItemSlotDisplayLabel; },
+    get getItemDisplayName() { return getItemDisplayName; },
+    get selectForCrafting() { return selectForCrafting; },
+    get salvageJewel() { return salvageJewel; },
+    get drawJewelRefine() { return drawJewelRefine; }
+});
+safeExposeGlobals({ equipmentSocketsUi });

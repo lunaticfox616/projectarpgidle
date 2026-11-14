@@ -1,567 +1,765 @@
-// 루프 넘기기(2026-11-10에 js/combat.js의 끝을 그대로 옮겼다): 루프 조건 달성과 관문(handleSeasonLoopConditionMet), 다음 루프로 가는 정산과
-// 초기화(triggerSeasonReset과 그 단계들), 루프의 직업 고르기, 나무꾼 등장과 혼돈 밖. js/combat.js 바로 뒤에 읽는다.
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/loop-reset*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function applyLoopHeroSelection(classId, previousClassId) {
-    game.pendingLoopHeroSelection = false;
-    saveGame({ skipCloudSync: true });
-    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 직업 선택 완료');
-    startMoving(true);
-    dispatchRuntimeEvent('loop-hero-selection-completed', {
-        classId,
-        changed: classId !== previousClassId
-    });
-}
+  // modules/domain/loop-hero-selection.mjs
+  function* loopFlowApplyLoopHeroSelection(env, owner, classId, previousClassId) {
+    owner.pendingLoopHeroSelection = false;
+    yield { kind: "loopSave", args: [{ skipCloudSync: true }] };
+    yield { kind: "loopCloudSave", args: ["루프 직업 선택 완료"] };
+    env.deps.startMoving(true);
+    yield { kind: "loopEvent", args: ["loop-hero-selection-completed", {
+      classId,
+      changed: classId !== previousClassId
+    }] };
+  }
+  function* loopFlowRequestLoopHeroSelection(owner, options = {}) {
+    let previousClassId = owner.selectedClassId || "archer";
+    return yield { kind: "loopHeroRequest", args: [previousClassId, options] };
+  }
 
-function requestLoopHeroSelection(options = {}) {
-    let previousClassId = game.selectedClassId || 'archer';
-    let detail = {
-        handled: false,
-        options,
-        select: classId => applyLoopHeroSelection(classId, previousClassId)
-    };
-    return dispatchRuntimeEvent('loop-hero-selection-requested', detail);
-}
-
-function markLoopSpecialBossKill(bossKey) {
-    game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
-    game.loopProgressCurrent.specialBosses = Array.isArray(game.loopProgressCurrent.specialBosses) ? game.loopProgressCurrent.specialBosses : [];
-    if (!game.loopProgressCurrent.specialBosses.includes(bossKey)) game.loopProgressCurrent.specialBosses.push(bossKey);
-}
-
-function addWoodsmanPendingScore(scoreGain) {
+  // modules/domain/loop-woodsman-entry.mjs
+  function loopFlowMarkLoopSpecialBossKill(owner, bossKey) {
+    owner.loopProgressCurrent = owner.loopProgressCurrent || { specialBosses: [] };
+    owner.loopProgressCurrent.specialBosses = Array.isArray(owner.loopProgressCurrent.specialBosses) ? owner.loopProgressCurrent.specialBosses : [];
+    if (!owner.loopProgressCurrent.specialBosses.includes(bossKey)) owner.loopProgressCurrent.specialBosses.push(bossKey);
+  }
+  function loopFlowAddWoodsmanPendingScore(owner, scoreGain) {
     let score = Math.max(0, Math.floor(scoreGain || 0));
     if (score <= 0) return;
-    // 나무꾼 점수는 누적합이 아니라 '최고 기록' 기반으로 관리
-    game.woodsmanPendingScore = Math.max(Math.floor(game.woodsmanPendingScore || 0), score);
-    game.woodsmanLifetimeScore = Math.max(Math.floor(game.woodsmanLifetimeScore || 0), score);
-}
-
-function finishWoodsmanEntrance() {
-    if (!game.woodsmanEntrancePending) return false;
-    game.woodsmanEntrancePending = false;
-    game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
-    let zone = getZone(OUTSIDE_CHAOS_ZONE_ID);
-    if (!zone || zone.type !== 'outsideChaos') return false;
-    game.moveTimer = 0;
-    game.moveTotalTime = 0;
-    game.runProgress = 0;
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.enemies = [];
-    game.inEncounter = true;
-    addLog(_t('☠️ 하늘이 갈라지고 도끼날의 그림자가 전장을 뒤덮습니다.'), 'loot-unique');
-    // 방 단위 무대: 입구와 나무꾼의 방, 두 칸의 투기장을 연다. 저주는 나무꾼이 깨어날 때 걸린다(beginRoomBossRules).
-    if (getZoneExplorationPlan(zone)) startEncounterRun();
+    owner.woodsmanPendingScore = Math.max(Math.floor(owner.woodsmanPendingScore || 0), score);
+    owner.woodsmanLifetimeScore = Math.max(Math.floor(owner.woodsmanLifetimeScore || 0), score);
+  }
+  function* loopFlowFinishWoodsmanEntrance(env, owner) {
+    if (!owner.woodsmanEntrancePending) return false;
+    owner.woodsmanEntrancePending = false;
+    owner.currentZoneId = env.deps.OUTSIDE_CHAOS_ZONE_ID;
+    let zone = env.deps.getZone(env.deps.OUTSIDE_CHAOS_ZONE_ID);
+    if (!zone || zone.type !== "outsideChaos") return false;
+    owner.moveTimer = 0;
+    owner.moveTotalTime = 0;
+    owner.runProgress = 0;
+    owner.encounterPlan = [];
+    owner.encounterIndex = 0;
+    owner.enemies = [];
+    owner.inEncounter = true;
+    yield { kind: "loopLog", args: [env.deps._t("☠️ 하늘이 갈라지고 도끼날의 그림자가 전장을 뒤덮습니다."), "loot-unique"] };
+    if (env.deps.getZoneExplorationPlan(zone)) env.deps.startEncounterRun();
     else {
-        startWoodsmanCurse();
-        game.enemies = [createEnemy(zone, { at: 0, count: 1, boss: true }, 0)];
+      env.deps.startWoodsmanCurse();
+      owner.enemies = [env.deps.createEnemy(zone, { at: 0, count: 1, boss: true }, 0)];
     }
-    updateStaticUI();
+    yield { kind: "loopRefresh", args: [] };
     return true;
-}
-
-function enterOutsideChaos() {
-    const held = getContentStartBlockReason();
-    if (held) return addLog(held, 'attack-monster');
-    if ((game.season || 1) < 10) return addLog(_t('혼돈 밖은 루프 10 이후 개방됩니다.'), 'attack-monster');
-    let outsideChaosRequirementMet = typeof hasCurrentLoopAbyssRequirementClear === 'function'
-        ? hasCurrentLoopAbyssRequirementClear(game.season || 1)
-        : ((getSeasonAbyssDepthCap(game.season || 1) <= 20)
-            ? (typeof hasCurrentLoopChaos20Clear === 'function' ? hasCurrentLoopChaos20Clear() : !!(game.loopProgressCurrent && game.loopProgressCurrent.chaos20Cleared))
-            : Math.max(0, Math.floor((game.loopProgressCurrent && game.loopProgressCurrent.bestAbyssDepth) || 0)) >= getSeasonAbyssDepthCap(game.season || 1));
-    if (!outsideChaosRequirementMet) return addLog(getLoopAbyssRequirementPrompt(game.season || 1), 'attack-monster');
-    actExplorationProgress.depart(game); // 바닥의 전리품을 잠금 사본보다 먼저 거둔다: 뒤에 거두면 다음 틱에 가방이 되돌아가 사라졌다(2026-10-20)
-    game.woodsmanBuildSnapshot = snapshotWoodsmanBuildState();
-    game.woodsmanBuildLock = true;
-    game.currentZoneId = OUTSIDE_CHAOS_ZONE_ID;
-    game.killsInZone = 0;
-    game.runProgress = 0;
-    game.moveTotalTime = WOODSMAN_ENTRANCE_DELAY_SECONDS;
-    game.moveTimer = WOODSMAN_ENTRANCE_DELAY_SECONDS;
-    game.isTownReturning = false;
-    game.combatHalted = false;
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.enemies = [];
-    game.inEncounter = false;
-    game.woodsmanEntrancePending = true;
-    resetWoodsmanCurse();
-    prepareActExplorationArrival(); // 방 단위 무대: 기다리는 몇 초 동안 투기장의 입구에 서 있다
-    addLog(_t('☠️ 금단의 경계 너머로 발을 들였습니다. 혼돈이 몇 초간 숨을 고릅니다.'), 'loot-unique');
-    updateStaticUI();
-}
-
-/** 나무꾼의 잔상: 혼돈 밖의 나무꾼을 생명력 1000배의, 공격하지 않는 허수아비로 꾸민다. */
-function dressWoodsmanEchoDummy(dummy) {
-    dummy.name = '나무꾼의 잔상';
-    dummy.maxHp = Math.max(1, Math.floor((dummy.maxHp || 1) * 1000));
+  }
+  function* loopFlowEnterOutsideChaos(env, owner) {
+    const held = env.deps.getContentStartBlockReason();
+    if (held) return yield { kind: "loopLog", args: [held, "attack-monster"] };
+    if ((owner.season || 1) < 10) return yield { kind: "loopLog", args: [env.deps._t("혼돈 밖은 루프 10 이후 개방됩니다."), "attack-monster"] };
+    let outsideChaosRequirementMet = hasOutsideChaosRequirement(env, owner);
+    if (!outsideChaosRequirementMet) return yield { kind: "loopLog", args: [env.deps.getLoopAbyssRequirementPrompt(owner.season || 1), "attack-monster"] };
+    env.deps.actExplorationProgress.depart(owner);
+    owner.woodsmanBuildSnapshot = env.deps.snapshotWoodsmanBuildState();
+    owner.woodsmanBuildLock = true;
+    owner.currentZoneId = env.deps.OUTSIDE_CHAOS_ZONE_ID;
+    owner.killsInZone = 0;
+    owner.runProgress = 0;
+    owner.moveTotalTime = env.WOODSMAN_ENTRANCE_DELAY_SECONDS;
+    owner.moveTimer = env.WOODSMAN_ENTRANCE_DELAY_SECONDS;
+    owner.isTownReturning = false;
+    owner.combatHalted = false;
+    owner.encounterPlan = [];
+    owner.encounterIndex = 0;
+    owner.enemies = [];
+    owner.inEncounter = false;
+    owner.woodsmanEntrancePending = true;
+    env.deps.resetWoodsmanCurse();
+    env.deps.prepareActExplorationArrival();
+    yield { kind: "loopLog", args: [env.deps._t("☠️ 금단의 경계 너머로 발을 들였습니다. 혼돈이 몇 초간 숨을 고릅니다."), "loot-unique"] };
+    yield { kind: "loopRefresh", args: [] };
+  }
+  function hasOutsideChaosRequirement(env, owner) {
+    return typeof env.deps.hasCurrentLoopAbyssRequirementClear === "function" ? env.deps.hasCurrentLoopAbyssRequirementClear(owner.season || 1) : env.deps.getSeasonAbyssDepthCap(owner.season || 1) <= 20 ? typeof env.deps.hasCurrentLoopChaos20Clear === "function" ? env.deps.hasCurrentLoopChaos20Clear() : !!(owner.loopProgressCurrent && owner.loopProgressCurrent.chaos20Cleared) : Math.max(0, Math.floor(owner.loopProgressCurrent && owner.loopProgressCurrent.bestAbyssDepth || 0)) >= env.deps.getSeasonAbyssDepthCap(owner.season || 1);
+  }
+  function loopFlowDressWoodsmanEchoDummy(dummy) {
+    dummy.name = "나무꾼의 잔상";
+    dummy.maxHp = Math.max(1, Math.floor((dummy.maxHp || 1) * 1e3));
     dummy.hp = dummy.maxHp;
     dummy.echoStartHp = dummy.maxHp;
     dummy.noAttack = true;
     dummy.regenRate = 0;
     dummy.regenBank = 0;
     return dummy;
-}
-
-function enterWoodsmanEchoChallenge() {
-    const held = getContentStartBlockReason();
-    if (held) return addLog(held, 'attack-monster');
-    let st = ensureChaosRealmState();
-    if (!st.unlocked) return addLog(_t('혼돈계 해금 이후 이용 가능합니다.'), 'attack-monster');
-    if (!(Array.isArray(game.journalEntries) && game.journalEntries.includes('woodsman_echo'))) return addLog(_t('나무꾼 완전 격파 이후에만 도전할 수 있습니다.'), 'attack-monster');
-    let run = ensureWoodsmanEchoRunState();
+  }
+  function* loopFlowEnterWoodsmanEchoChallenge(env, owner) {
+    const held = env.deps.getContentStartBlockReason();
+    if (held) return yield { kind: "loopLog", args: [held, "attack-monster"] };
+    let st = env.deps.ensureChaosRealmState();
+    if (!st.unlocked) return yield { kind: "loopLog", args: [env.deps._t("혼돈계 해금 이후 이용 가능합니다."), "attack-monster"] };
+    if (!(Array.isArray(owner.journalEntries) && owner.journalEntries.includes("woodsman_echo"))) return yield { kind: "loopLog", args: [env.deps._t("나무꾼 완전 격파 이후에만 도전할 수 있습니다."), "attack-monster"] };
+    let run = env.deps.ensureWoodsmanEchoRunState();
     run.active = true;
     run.duration = 30;
     run.timeLeft = 30;
-    run.lastTickAt = getCombatTime();
+    run.lastTickAt = env.deps.getCombatTime();
     run.totalDamage = 0;
-    // 잔상 안에서 다시 시작하면 처음 시작한 곳을 지킨다. 측정이므로 미리 받은 숨결(js/combat-incidents.js breathe)은 지운다.
-    if (game.currentZoneId !== WOODSMAN_ECHO_ZONE_ID || run.returnZoneId === undefined || run.returnZoneId === null) run.returnZoneId = getContentReturnZoneId();
-    game.incidentBreath = null;
-    actExplorationProgress.depart(game);
-    game.currentZoneId = WOODSMAN_ECHO_ZONE_ID;
-    game.killsInZone = 0;
-    game.runProgress = 0;
-    game.moveTimer = 0;
-    game.moveTotalTime = 0;
-    game.combatHalted = false;
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    // 방 단위 무대: 입구와 잔상의 방, 두 칸의 투기장(잔상은 createExplorationBossStage가 세운다). 30초는 잔상이 일어선 뒤부터 흐른다.
-    if (getZoneExplorationPlan(getZone(WOODSMAN_ECHO_ZONE_ID))) {
-        game.enemies = [];
-        startEncounterRun();
-    } else game.enemies = [dressWoodsmanEchoDummy(createEnemy(getZone(OUTSIDE_CHAOS_ZONE_ID), { at: 0, count: 1, boss: true }, 0))];
-    addLog(_t('📏 나무꾼의 잔상 도전 시작: 30초 동안 최대 피해를 기록하세요. (허수아비는 공격하지 않습니다)'), 'season-up');
-    updateStaticUI();
-}
+    if (owner.currentZoneId !== env.deps.WOODSMAN_ECHO_ZONE_ID || run.returnZoneId === void 0 || run.returnZoneId === null) run.returnZoneId = env.deps.getContentReturnZoneId();
+    owner.incidentBreath = null;
+    env.deps.actExplorationProgress.depart(owner);
+    owner.currentZoneId = env.deps.WOODSMAN_ECHO_ZONE_ID;
+    owner.killsInZone = 0;
+    owner.runProgress = 0;
+    owner.moveTimer = 0;
+    owner.moveTotalTime = 0;
+    owner.combatHalted = false;
+    owner.encounterPlan = [];
+    owner.encounterIndex = 0;
+    if (env.deps.getZoneExplorationPlan(env.deps.getZone(env.deps.WOODSMAN_ECHO_ZONE_ID))) {
+      owner.enemies = [];
+      env.deps.startEncounterRun();
+    } else owner.enemies = [loopFlowDressWoodsmanEchoDummy(env.deps.createEnemy(env.deps.getZone(env.deps.OUTSIDE_CHAOS_ZONE_ID), { at: 0, count: 1, boss: true }, 0))];
+    yield { kind: "loopLog", args: [env.deps._t("📏 나무꾼의 잔상 도전 시작: 30초 동안 최대 피해를 기록하세요. (허수아비는 공격하지 않습니다)"), "season-up"] };
+    yield { kind: "loopRefresh", args: [] };
+  }
+  function* loopFlowEndWoodsmanFightForLoop(env, owner) {
+    if (owner.woodsmanBuildLock) {
+      env.deps.clearWoodsmanBuildLock();
+      yield { kind: "loopLog", args: ["☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.", "season-up"] };
+    }
+  }
 
-function awardLoopProgressPoints() {
-    game.loopProgressBase = game.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
-    game.loopProgressCurrent = game.loopProgressCurrent || { specialBosses: [] };
-    let baseDepth = Math.max(20, Math.floor(game.loopProgressBase.abyssEndlessDepth || 20));
-    let unlockedDepths = Array.isArray(game.abyssUnlockedDepths) ? game.abyssUnlockedDepths.map(v => Math.floor(v || 0)).filter(v => v >= 21) : [];
-    let highestUnlocked = unlockedDepths.length > 0 ? Math.max(...unlockedDepths) : Math.max(20, Math.floor(game.abyssEndlessDepth || 20));
-    let nowDepth = Math.max(20, highestUnlocked >= 21 ? (highestUnlocked - 1) : highestUnlocked);
-    let depthGain = Math.max(0, nowDepth - baseDepth);
-    let baseLab = Math.max(1, Math.floor(game.loopProgressBase.labyrinthUnlockedMaxFloor || 1));
-    let nowLab = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
-    let labGain = Math.max(0, nowLab - baseLab);
-    let baseBosses = new Set(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []);
-    let newBosses = (Array.isArray(game.loopProgressCurrent.specialBosses) ? game.loopProgressCurrent.specialBosses : []).filter(id => !baseBosses.has(id));
-    let bonus = (depthGain * 2) + Math.floor(labGain / 5) + (newBosses.length * 3);
-    let woodsmanScore = Math.max(0, Math.floor(game.woodsmanPendingScore || 0));
-    let woodsmanSettled = Math.max(0, Math.floor(game.woodsmanSettledScore || 0));
+  // modules/domain/equipment-hall.mjs
+  function getHeldHallLoopBlockReason(hall, userId, translate) {
+    const data = hall?.data;
+    if (!data || !userId || hall.dataUserId !== userId) return "";
+    const shown = (Array.isArray(data.mine) ? data.mine : []).filter((row) => row && ["open", "sold_out"].includes(row.status)).length;
+    return shown ? translate("장비 전당에 전시한 원본 {shown}개가 남아 있습니다. 거래 → 장비 전당에서 회수한 뒤 루프를 진행하세요.", { shown }) : "";
+  }
+
+  // modules/domain/loop-progress.mjs
+  function loopFlowAwardLoopProgressPoints(owner) {
+    owner.loopProgressBase = owner.loopProgressBase || { abyssEndlessDepth: 20, labyrinthUnlockedMaxFloor: 1, specialBosses: [] };
+    owner.loopProgressCurrent = owner.loopProgressCurrent || { specialBosses: [] };
+    const { nowDepth, depthGain } = settledAbyssProgress(owner);
+    const { baseLab, nowLab, labGain } = settledLabyrinthProgress(owner);
+    let baseBosses = new Set(Array.isArray(owner.loopProgressBase.specialBosses) ? owner.loopProgressBase.specialBosses : []);
+    let newBosses = (Array.isArray(owner.loopProgressCurrent.specialBosses) ? owner.loopProgressCurrent.specialBosses : []).filter((id) => !baseBosses.has(id));
+    let bonus = depthGain * 2 + Math.floor(labGain / 5) + newBosses.length * 3;
+    let woodsmanScore = Math.max(0, Math.floor(owner.woodsmanPendingScore || 0));
+    let woodsmanSettled = Math.max(0, Math.floor(owner.woodsmanSettledScore || 0));
     let woodsmanDelta = Math.max(0, woodsmanScore - woodsmanSettled);
     let woodsmanGain = Math.floor(Math.sqrt(woodsmanDelta) / 25);
     bonus += woodsmanGain;
-    if (bonus > 0) game.loopDeepPoints = Math.max(0, Math.floor(game.loopDeepPoints || 0)) + bonus;
-    // 미궁은 5층마다 1점: 남은 층은 다음 루프로 넘긴다(2026-10-19 전에는 루프마다 버려 4층씩 오르면 점수가 없었다)
-    game.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: Math.min(nowLab, baseLab + Math.floor(labGain / 5) * 5), specialBosses: Array.from(new Set([...(Array.isArray(game.loopProgressBase.specialBosses) ? game.loopProgressBase.specialBosses : []), ...newBosses])) };
-    game.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, bestSkyFloor: 0, bestUnderworldFloor: 0, cosmosPlanets: [] };
-    game.woodsmanSettledScore = Math.max(woodsmanSettled, woodsmanScore);
-    game.woodsmanPendingScore = game.woodsmanSettledScore;
-    return { bonus, depthGain, labGain, bossGain: newBosses.length, woodsmanGain: woodsmanGain, woodsmanScore: woodsmanScore, woodsmanDelta: woodsmanDelta };
-}
-
-function resolveLoopAdvancePath(requestedPath) {
-    let requested = requestedPath === 'cosmos' ? 'cosmos' : (requestedPath === 'chaos' ? 'chaos' : null);
-    let available = typeof getAvailableLoopAdvancePaths === 'function'
-        ? getAvailableLoopAdvancePaths(game.season || 1)
-        : (typeof hasCurrentLoopAbyssRequirementClear === 'function' && hasCurrentLoopAbyssRequirementClear(game.season || 1) ? ['chaos'] : []);
+    if (bonus > 0) owner.loopDeepPoints = Math.max(0, Math.floor(owner.loopDeepPoints || 0)) + bonus;
+    owner.loopProgressBase = { abyssEndlessDepth: nowDepth, labyrinthUnlockedMaxFloor: Math.min(nowLab, baseLab + Math.floor(labGain / 5) * 5), specialBosses: Array.from(/* @__PURE__ */ new Set([...Array.isArray(owner.loopProgressBase.specialBosses) ? owner.loopProgressBase.specialBosses : [], ...newBosses])) };
+    owner.loopProgressCurrent = { specialBosses: [], chaos20Cleared: false, bestAbyssDepth: 0, bestLabyrinthFloor: 0, bestChaosRealmFloor: 0, bestSkyFloor: 0, bestUnderworldFloor: 0, cosmosPlanets: [] };
+    owner.woodsmanSettledScore = Math.max(woodsmanSettled, woodsmanScore);
+    owner.woodsmanPendingScore = owner.woodsmanSettledScore;
+    return { bonus, depthGain, labGain, bossGain: newBosses.length, woodsmanGain, woodsmanScore, woodsmanDelta };
+  }
+  function settledAbyssProgress(owner) {
+    const baseDepth = Math.max(20, Math.floor(owner.loopProgressBase.abyssEndlessDepth || 20));
+    const unlockedDepths = Array.isArray(owner.abyssUnlockedDepths) ? owner.abyssUnlockedDepths.map((v) => Math.floor(v || 0)).filter((v) => v >= 21) : [];
+    const highestUnlocked = unlockedDepths.length > 0 ? Math.max(...unlockedDepths) : Math.max(20, Math.floor(owner.abyssEndlessDepth || 20));
+    const nowDepth = Math.max(20, highestUnlocked >= 21 ? highestUnlocked - 1 : highestUnlocked);
+    return { nowDepth, depthGain: Math.max(0, nowDepth - baseDepth) };
+  }
+  function settledLabyrinthProgress(owner) {
+    const baseLab = Math.max(1, Math.floor(owner.loopProgressBase.labyrinthUnlockedMaxFloor || 1));
+    const nowLab = Math.max(1, Math.floor(owner.labyrinthUnlockedMaxFloor || owner.labyrinthFloor || 1));
+    return { baseLab, nowLab, labGain: Math.max(0, nowLab - baseLab) };
+  }
+  function loopFlowResolveLoopAdvancePath(env, owner, requestedPath) {
+    let requested = ["cosmos", "chaos"].includes(requestedPath) ? requestedPath : null;
+    let available = typeof env.deps.getAvailableLoopAdvancePaths === "function" ? env.deps.getAvailableLoopAdvancePaths(owner.season || 1) : typeof env.deps.hasCurrentLoopAbyssRequirementClear === "function" && env.deps.hasCurrentLoopAbyssRequirementClear(owner.season || 1) ? ["chaos"] : [];
     if (requested) return available.includes(requested) ? requested : null;
     if (available.length === 1) return available[0];
     return null;
-}
-
-function getLoopAdvancePathLabel(path) {
-    return path === 'cosmos' ? '우주계 루프' : '혼돈 루프';
-}
-
-/** 루프 밖에 맡겨 두어 루프를 막는 장비: 가판대(js/player-stall.js)와 장비 전당에 전시한 원본(js/player-exchange.js, 가판대와 같은
- * 까닭). 루프 화면의 단추, 경고 줄, 자동 루프도 이것을 묻는다(js/loop-ui.js, js/loop-automation-ui.js). 없으면 ''. */
-function getHeldGearLoopBlockReason() {
-    const stallReason = typeof playerStall === 'object' ? playerStall.loopBlockReason(game) : '';
+  }
+  function loopFlowGetLoopAdvancePathLabel(path) {
+    return path === "cosmos" ? "우주계 루프" : "혼돈 루프";
+  }
+  function loopFlowGetHeldGearLoopBlockReason(env, owner) {
+    const stallReason = typeof env.deps.playerStall === "object" ? env.deps.playerStall.loopBlockReason(owner) : "";
     if (stallReason) return stallReason;
-    return typeof playerHallTrade === 'object' ? playerHallTrade.loopBlockReason() : '';
-}
-
-function getSeasonResetBlockReason(loopPath) {
-    const heldReason = getHeldGearLoopBlockReason();
+    return getHeldHallLoopBlockReason(env.deps.hallState, env.deps.hallUserId, env.deps._t);
+  }
+  function loopFlowGetSeasonResetBlockReason(env, owner, loopPath) {
+    const heldReason = loopFlowGetHeldGearLoopBlockReason(env, owner);
     if (heldReason) return heldReason;
-    const season = game.season || 1;
-    if (season < 31 || loopPath) return '';
-    let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(season) : [];
-    return available.length > 1
-        ? '혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'
-        : getLoopAbyssRequirementPrompt(season);
-}
+    const season = owner.season || 1;
+    if (season < 31 || loopPath) return "";
+    let available = typeof env.deps.getAvailableLoopAdvancePaths === "function" ? env.deps.getAvailableLoopAdvancePaths(season) : [];
+    return available.length > 1 ? "혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요." : env.deps.getLoopAbyssRequirementPrompt(season);
+  }
+  function loopFlowClearLoopGate(owner) {
+    owner.pendingLoopDecision = false;
+    owner.pendingLoopReady = false;
+    owner.loopGateOffline = false;
+  }
+  function loopFlowDeepPointsNow(owner) {
+    return Math.max(0, Math.floor(owner.loopDeepPoints || 0));
+  }
 
-/** Sealed gear survives the loop wherever it waits: in the bag or in the temporary storage. */
-function collectLoopSealedBagItems(owner) {
-    return [...(owner.inventory || []), ...(owner.equipmentTemporaryStorage || [])]
-        .filter(item => item && item.loopSealed).map(item => JSON.parse(JSON.stringify(item)));
-}
-
-/** A new loop starts with an empty bag and an empty temporary storage; sealed gear comes back into the bag afterwards.
- * The temporary storage had no cap and survived loops, so it could grow past the browser's save quota (user, 2026-10-03). */
-function clearLoopItemStorage(owner) {
+  // modules/domain/loop-preservation.mjs
+  function loopFlowCollectLoopSealedBagItems(owner) {
+    return [...owner.inventory || [], ...owner.equipmentTemporaryStorage || []].filter((item) => item && item.loopSealed).map((item) => JSON.parse(JSON.stringify(item)));
+  }
+  function loopFlowClearLoopItemStorage(owner) {
     owner.inventory = [];
     owner.equipmentTemporaryStorage = [];
-}
-
-/** The map the hero stands on closes before the loop is settled (2026-10-20 hunt): its floor is picked up into the old loop, so the
- * currencies a loop keeps stay and the rest goes with the old bag and wallet (it came into the new loop when the class was picked or
- * the save loaded), and no saved map counts the fight's monsters alive once game.enemies is cleared (looping mid-fight wrote a save
- * that threw on load: 탐험 저장에서 살아 있는 적이 누락되었습니다). */
-function closeLoopMap() {
-    if (game.actExploration) actExplorationProgress.depart(game);
-}
-
-/** The loop goes on (by chaos unless the cosmos path is chosen): its record closed, points settled, then the game reset for the next
- * loop with what it keeps. Split into its phases on 2026-10-18; the phases run the same lines in the same order. */
-function triggerSeasonReset(options) {
-    let loopPath = resolveLoopAdvancePath(typeof options === 'string' ? options : (options && options.path));
-    let blockedReason = getSeasonResetBlockReason(loopPath);
-    if (blockedReason) {
-        addLog(blockedReason, 'attack-monster');
-        return false;
-    }
-    if (!loopPath) loopPath = 'chaos';
-    if (isRewardOpen()) closeRewardOverlay();
-    endWoodsmanFightForLoop(addLog);
-    clearLoopGate();
-    closeLoopMap();
-    game.pendingLoopHeroSelection = true;
-    let codexReveal = getLoopCodexReveal();
-    // 전적: 상태를 초기화하기 전에 이번 루프 기록(소요 시간·도달 액트·액트별 돌파 시간)을 닫는다.
-    if (typeof closeLoopRecord === 'function') closeLoopRecord(loopPath);
-    dispatchRuntimeEvent('loop-rewrite-started');
-    const kept = captureLoopKeptState();
-    let loopDeepBeforeReset = loopDeepPointsNow();
-    let loopReward = awardLoopProgressPoints();
-    let loopDeepExpectedAfterSettle = loopDeepPointsNow();
-    advanceLoopCounters(loopPath, addLog);
-    queueLoopArrivalNotices();
-    addLog(...getLoopSettleLogLine(loopReward));
-    resetLoopProgress();
-    resetLoopBuild();
-    resetLoopItems(kept, codexReveal);
-    resetLoopContents(kept);
-    applyLoopSettings();
-    game.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
-    grantCodexLegacyStarterUniques();
-    game.enemies = [];
-    game.encounterPlan = [];
-    game.encounterIndex = 0;
-    game.runProgress = 0;
-    progressStallTicks = 0;
-    clearCraftSelection();
-    applySeasonContentProgression({ silent: false });
-    calculateReachableNodes();
-    refreshPassiveVisibility();
-    let presetInvest = typeof runPassiveTreeAutoInvest === 'function' ? runPassiveTreeAutoInvest() : { nodes: 0 };
-    if (presetInvest.nodes > 0) addLog(_t('🧭 새 루프 프리셋 자동 투자: {nodes}개 노드 활성화', { nodes: presetInvest.nodes }), 'season-up');
-    game.playerHp = getPlayerHpCap(getPlayerStats());
-    ensureActJournalCompletionForLoop({ silent: false });
-    addLog(_t('🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다.'), "season-up");
-    worldTreeBark.noticeFirstBark();
-    checkUnlocks();
-    saveGame({ skipCloudSync: true });
-    if (typeof requestImmediateCloudSave === 'function') requestImmediateCloudSave('루프 진행');
-    requestLoopHeroSelection();
-}
-
-/** A woodsman fight still on when the loop goes on ends, its build lock lifted. */
-function endWoodsmanFightForLoop(say) {
-    if (game.woodsmanBuildLock) {
-        clearWoodsmanBuildLock();
-        say('☠️ 혼돈 밖 전투를 중단하고 루프를 진행합니다. 세팅 잠금이 해제되었습니다.', 'season-up');
-    }
-}
-
-/** The unique codex for the next loop: each found entry only revealed (its slot and name), the items not kept. */
-function getLoopCodexReveal() {
+  }
+  function loopFlowGetLoopCodexReveal(owner) {
     let codexReveal = {};
-    Object.keys(game.uniqueCodex || {}).forEach(key => {
-        if (!key || !game.uniqueCodex[key]) return;
-        let parts = key.split('|');
-        codexReveal[key] = { revealed: true, slot: parts[0] || '', name: parts[1] || '' };
+    Object.keys(owner.uniqueCodex || {}).forEach((key) => {
+      if (!key || !owner.uniqueCodex[key]) return;
+      let parts = key.split("|");
+      codexReveal[key] = { revealed: true, slot: parts[0] || "", name: parts[1] || "" };
     });
     return codexReveal;
-}
-
-/** What the loop keeps, read before the reset: its content states, then its gear and currencies. */
-function captureLoopKeptState() {
-    return { ...captureLoopKeptContents(), ...captureLoopKeptItems() };
-}
-
-/** The constellation buff, labyrinth floor, chaos realm, time rift, sky tower, ocean and rune enhancement the loop keeps. */
-function captureLoopKeptContents() {
-    let prevMeteorSite = ensureMeteorSiteState();
-    let preservedConstellationBuff = (prevMeteorSite.constellationBuff && prevMeteorSite.constellationBuff.permanent)
-        ? JSON.parse(JSON.stringify(prevMeteorSite.constellationBuff))
-        : null;
-    let prevLabMax = Math.max(1, Math.floor(game.labyrinthUnlockedMaxFloor || game.labyrinthFloor || 1));
-    let preservedChaosRealm = JSON.parse(JSON.stringify(ensureChaosRealmState()));
-    // 시간의 균열은 시간압 기록만 루프를 건넌다: 제단은 정산이 비운다(resetLoopContents, 2026-10-20 사용자).
-    let preservedTimeRift = JSON.parse(JSON.stringify(ensureTimeRiftState()));
-    let preservedSkyTower = JSON.parse(JSON.stringify(ensureSkyTowerState()));
-    let preservedOcean = JSON.parse(JSON.stringify(ensureOceanState()));
-    let preservedGemEnhanceUnlocked = !!game.gemEnhanceUnlocked;
+  }
+  function loopFlowCaptureLoopKeptState(env, owner) {
+    return { ...loopFlowCaptureLoopKeptContents(env, owner), ...loopFlowCaptureLoopKeptItems(env, owner) };
+  }
+  function loopFlowCaptureLoopKeptContents(env, owner) {
+    let prevMeteorSite = env.deps.ensureMeteorSiteState();
+    let preservedConstellationBuff = prevMeteorSite.constellationBuff && prevMeteorSite.constellationBuff.permanent ? JSON.parse(JSON.stringify(prevMeteorSite.constellationBuff)) : null;
+    let prevLabMax = Math.max(1, Math.floor(owner.labyrinthUnlockedMaxFloor || owner.labyrinthFloor || 1));
+    let preservedChaosRealm = JSON.parse(JSON.stringify(env.deps.ensureChaosRealmState()));
+    let preservedTimeRift = JSON.parse(JSON.stringify(env.deps.ensureTimeRiftState()));
+    let preservedSkyTower = JSON.parse(JSON.stringify(env.deps.ensureSkyTowerState()));
+    let preservedOcean = JSON.parse(JSON.stringify(env.deps.ensureOceanState()));
+    let preservedGemEnhanceUnlocked = !!owner.gemEnhanceUnlocked;
     return { preservedConstellationBuff, prevLabMax, preservedChaosRealm, preservedTimeRift, preservedSkyTower, preservedOcean, preservedGemEnhanceUnlocked };
-}
-
-/** Loop-sealed gear and bag items, 나무꾼의 손길, time remnants, altar materials and offline progress the loop keeps. */
-function captureLoopKeptItems() {
-    // 나무꾼의 손길로 봉인된 장비(장착/인벤)와 나무꾼의 손길 보유분은 루프가 지나도 유지한다.
+  }
+  function loopFlowCaptureLoopKeptItems(env, owner) {
     let preservedSealedEquipment = {};
-    Object.keys(game.equipment || {}).forEach(slot => {
-        let it = game.equipment[slot];
-        if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
+    Object.keys(owner.equipment || {}).forEach((slot) => {
+      let it = owner.equipment[slot];
+      if (it && it.loopSealed) preservedSealedEquipment[slot] = JSON.parse(JSON.stringify(it));
     });
-    let preservedSealedInventory = collectLoopSealedBagItems(game);
-    let preservedWoodsmanTouch = Math.max(0, Math.floor((game.currencies && game.currencies.ouroboros) || 0));
-    let preservedAltarMaterials = atlasEndgame.loopKeptCurrencies(game);
-    let preservedWoodsmanTouchSeen = !!game.woodsmanTouchSeen;
+    let preservedSealedInventory = loopFlowCollectLoopSealedBagItems(owner);
+    let preservedWoodsmanTouch = Math.max(0, Math.floor(owner.currencies && owner.currencies.ouroboros || 0));
+    let preservedAltarMaterials = env.deps.atlasEndgame.loopKeptCurrencies(owner);
+    let preservedWoodsmanTouchSeen = !!owner.woodsmanTouchSeen;
     return { preservedSealedEquipment, preservedSealedInventory, preservedWoodsmanTouch, preservedAltarMaterials, preservedWoodsmanTouchSeen };
-}
+  }
 
-/** The loop counters: the cosmos path count, the path, the season, the loop count and the loop point, with the arrival line. */
-function advanceLoopCounters(loopPath, say) {
-    if (loopPath === 'cosmos') game.cosmosLoopCount = Math.max(0, Math.floor(game.cosmosLoopCount || 0)) + 1;
-    game.lastLoopAdvancePath = loopPath;
-    game.season++;
-    loopMutation.begin(game);
-    game.loopCount = Math.max(0, Math.floor(game.loopCount || 0)) + 1;
-    game.seasonPoints++;
-    say(`🔁 ${getLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === 'cosmos' ? _t(' (우주계 난이도 +{max}단계)', { max: Math.max(0, Math.floor(game.cosmosLoopCount || 0)) }) : ''}`, 'season-up');
-}
-
-/** The one-time lessons of the loop the hero arrives at. Map unlock notices use the ledger. */
-function queueLoopArrivalNotices() {
-    Object.entries(EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
-        if (game.season === notice.loop) queueTutorialNotice('exploration_event_' + kind, notice.title, notice.body);
-    });
-    if (game.season === 31 && typeof queueTutorialNotice === 'function') {
-        queueTutorialNotice('unlock_rival_blades', _t('버려진 날붙이들'), _t('나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n‘지도 → 탐험 → 강대한 적’에서 결투에 도전하세요.\n도전권 [표식: 버려진 날]은 심층 보스가 떨어뜨립니다.\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다.'), 'tab-map');
+  // modules/domain/loop-reset-state.mjs
+  function loopFlowCloseLoopMap(env, owner) {
+    if (owner.actExploration) env.deps.actExplorationProgress.depart(owner);
+  }
+  function loopFlowResetLoopProgress(owner) {
+    owner.level = 1;
+    owner.exp = 0;
+    owner.killsInZone = 0;
+    owner.loopDeaths = 0;
+    owner.loopKills = 0;
+    owner.woodsmanSimulatorSeenLoop = false;
+    owner.currentZoneId = 0;
+    owner.maxZoneId = 0;
+    if (owner.cosmosAtlas && typeof owner.cosmosAtlas === "object") {
+      owner.cosmosAtlas.bossStones = {};
+      owner.cosmosAtlas.bossStoneOptions = {};
+      owner.cosmosAtlas.bossRelics = [];
+      owner.cosmosAtlas.bossKills = {};
+      owner.cosmosAtlas.bossClears = [];
+      owner.cosmosAtlas.equippedStoneGalaxy = 0;
+      owner.cosmosAtlas.equippedStones = {};
     }
-}
-
-/** The deep loop settlement line: its points and their sources, as a log line and its tone. */
-function getLoopSettleLogLine(loopReward) {
-    return [_t('🧬 심화 루프 정산: +{bonus}pt (혼돈 심화 +{depthGain}, 미궁 +{labGain}, 특수보스 +{bossGain}, 나무꾼 +{woodsmanGain})', { bonus: loopReward.bonus, depthGain: loopReward.depthGain, labGain: loopReward.labGain, bossGain: loopReward.bossGain, woodsmanGain: loopReward.woodsmanGain || 0 }), loopReward.bonus > 0 ? 'season-up' : 'attack-monster'];
-}
-
-/** Level, experience, kills, deaths, the zone and frontier back to the start; cosmos boss stones cleared; fighting resumes. */
-function resetLoopProgress() {
-    game.level = 1;
-    game.exp = 0;
-    game.killsInZone = 0;
-    game.loopDeaths = 0;
-    game.loopKills = 0;
-    game.woodsmanSimulatorSeenLoop = false;
-    game.currentZoneId = 0;
-    game.maxZoneId = 0;
-    if (game.cosmosAtlas && typeof game.cosmosAtlas === 'object') {
-        game.cosmosAtlas.bossStones = {};
-        game.cosmosAtlas.bossStoneOptions = {};
-        game.cosmosAtlas.bossRelics = [];
-        game.cosmosAtlas.bossKills = {};
-        game.cosmosAtlas.bossClears = [];
-        game.cosmosAtlas.equippedStoneGalaxy = 0;
-        game.cosmosAtlas.equippedStones = {};
-    }
-    game.combatHalted = false;
-}
-
-/** The build back to its start: passive points from the journal, passives, runes and supports, trials and ascendancy. */
-function resetLoopBuild() {
-    game.passivePoints = typeof getClaimedJournalPassivePointTotal === 'function' ? getClaimedJournalPassivePointTotal(game) : 0;
-    game.passives = [];
-    game.passiveAttributeChoices = {};
-    game.voidPassives = {};
-    game.skills = ['기본 공격'];
-    game.activeSkill = '기본 공격';
-    game.weaponBlockedSkill = '';
-    game.mobilitySkill = '';
-    game.loopStarterWeaponGranted = false;
-    game.starterWeaponTutorialPending = null;
-    game.basicSkillOffer = null;
-    game.gemData = { '기본 공격': { level: 1, exp: 0 } };
-    game.runeSpares = {};
-    game.skyGemEnhancements = {};
-    game.supports = [];
-    game.equippedSupports = [];
-    game.supportGemData = {};
-    // 전술 규칙은 영구 빌드 설정이다. 루프는 적에게 걸린 저주만 비운다.
-    game.enemyConditionDebuffs = {};
-    game.dotFxThrottle = {};
-    game.sealedSkills = [];
-    game.sealedSupports = [];
-    game.resonancePower = 10;
-    game.completedTrials = [];
-    game.unlockedTrials = [];
-    // 지난 루프의 전직 배치는 노드를 비우기 전에 기억한다('지난 루프처럼'이 키스톤만 되살리던 문제).
-    let clearedAscendKeystones = rememberLoopAscendancyPlan(game);
-    game.ascendNodes = [];
-    game.ascendPoints = 0;
-    clearAscendKeystoneRuntimeState(clearedAscendKeystones, { force: true, forceAll: true });
-    game.ascendKeystones = [];
-    game.ascendKeystonePoints = 0;
-    game.cosmosTwinKeystones = [];
-    game.realmDeathWard = null;
-    game.realmInvulnerableBarrierUntil = 0;
-    game.ascendRank = 0;
-    game.ascendClass = null;
-    game.bloomLoopSpecGranted = null;
-    game.bloomedClassThisLoop = null;
-    game.bloomedTalentThisLoop = null;
-    game.pendingTalentBloomHeroId = null;
-}
-
-/** Items and rewards: loop storage, gear and currencies emptied, then what the loop keeps restored; act rewards, chase uniques and
- * the codex for the new loop. */
-function resetLoopItems(kept, codexReveal) {
+    owner.combatHalted = false;
+  }
+  function loopFlowResetLoopBuild(env, owner) {
+    owner.passivePoints = typeof env.deps.getClaimedJournalPassivePointTotal === "function" ? env.deps.getClaimedJournalPassivePointTotal(owner) : 0;
+    owner.passives = [];
+    owner.passiveAttributeChoices = {};
+    owner.voidPassives = {};
+    owner.skills = ["기본 공격"];
+    owner.activeSkill = "기본 공격";
+    owner.weaponBlockedSkill = "";
+    owner.mobilitySkill = "";
+    owner.loopStarterWeaponGranted = false;
+    owner.starterWeaponTutorialPending = null;
+    owner.basicSkillOffer = null;
+    owner.gemData = { "기본 공격": { level: 1, exp: 0 } };
+    owner.runeSpares = {};
+    owner.skyGemEnhancements = {};
+    owner.supports = [];
+    owner.equippedSupports = [];
+    owner.supportGemData = {};
+    owner.enemyConditionDebuffs = {};
+    owner.dotFxThrottle = {};
+    owner.sealedSkills = [];
+    owner.sealedSupports = [];
+    owner.resonancePower = 10;
+    owner.completedTrials = [];
+    owner.unlockedTrials = [];
+    let clearedAscendKeystones = env.deps.rememberLoopAscendancyPlan(owner);
+    owner.ascendNodes = [];
+    owner.ascendPoints = 0;
+    env.deps.clearAscendKeystoneRuntimeState(clearedAscendKeystones, { force: true, forceAll: true });
+    owner.ascendKeystones = [];
+    owner.ascendKeystonePoints = 0;
+    owner.cosmosTwinKeystones = [];
+    owner.realmDeathWard = null;
+    owner.realmInvulnerableBarrierUntil = 0;
+    owner.ascendRank = 0;
+    owner.ascendClass = null;
+    owner.bloomLoopSpecGranted = null;
+    owner.bloomedClassThisLoop = null;
+    owner.bloomedTalentThisLoop = null;
+    owner.pendingTalentBloomHeroId = null;
+  }
+  function loopFlowResetLoopItems(env, owner, kept, codexReveal) {
     const { preservedAltarMaterials, preservedSealedEquipment, preservedSealedInventory, preservedWoodsmanTouch, preservedWoodsmanTouchSeen, prevLabMax } = kept;
-    clearLoopItemStorage(game);
-    game.equipment = { ...defaultGame.equipment };
-    craftingWorkspaceState.capture(game);
-    currencyExchange.capture(game);
-    game.currencies = { ...defaultGame.currencies };
-    preservedAltarMaterials.forEach(([key, value]) => { game.currencies[key] = value; });
-    // 봉인된 장비/나무꾼의 손길 복원(루프 유지)
-    // 봉인 장비도 요구 레벨과 능력치를 따른다(2026-10-31 사용자). 입던 칸에 두면 1레벨 영웅의 칸이 꺼진 채 막히므로 가방으로 돌아온다.
-    game.inventory.push(...Object.values(preservedSealedEquipment), ...preservedSealedInventory);
-    if (preservedWoodsmanTouch > 0) game.currencies.ouroboros = preservedWoodsmanTouch;
-    game.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
-    game.labyrinthFloor = 1;
-    game.labyrinthLastResult = null;
-    game.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
-    game.jewelInventory = [];
-    game.abyssClearedDepths = [];
-    game.claimableActRewards = [];
-    game.claimedActRewards = [];
-    game.actRewardBonuses = [];
-    game.seasonChaseUniqueDropped = false;
-    game.seasonChaseUniqueDrops = [];
-    game.uniqueCodex = codexReveal;
-    game.codexNewlyRegistered = {};
-}
-
-/** Contents back to their loop start with what they keep: colony, hive, void rift, meteor site (its permanent constellation), unlocks,
- * notices, cores and the stump box, the open sub tabs, the chaos realm, atlas, time rift, sky tower, ocean. */
-function resetLoopContents(kept) {
+    loopFlowClearLoopItemStorage(owner);
+    owner.equipment = { ...env.deps.defaultGame.equipment };
+    env.deps.craftingWorkspaceState.capture(owner);
+    env.deps.currencyExchange.capture(owner);
+    owner.currencies = { ...env.deps.defaultGame.currencies };
+    preservedAltarMaterials.forEach(([key, value]) => {
+      owner.currencies[key] = value;
+    });
+    owner.inventory.push(...Object.values(preservedSealedEquipment), ...preservedSealedInventory);
+    if (preservedWoodsmanTouch > 0) owner.currencies.ouroboros = preservedWoodsmanTouch;
+    owner.woodsmanTouchSeen = preservedWoodsmanTouchSeen;
+    owner.labyrinthFloor = 1;
+    owner.labyrinthLastResult = null;
+    owner.labyrinthUnlockedMaxFloor = Math.max(1, Math.floor(prevLabMax || 1));
+    owner.jewelInventory = [];
+    owner.abyssClearedDepths = [];
+    owner.claimableActRewards = [];
+    owner.claimedActRewards = [];
+    owner.actRewardBonuses = [];
+    owner.seasonChaseUniqueDropped = false;
+    owner.seasonChaseUniqueDrops = [];
+    owner.uniqueCodex = codexReveal;
+    owner.codexNewlyRegistered = {};
+  }
+  function loopFlowResetLoopContents(env, owner, kept) {
     const { preservedConstellationBuff, preservedChaosRealm, preservedTimeRift, preservedSkyTower, preservedOcean, preservedGemEnhanceUnlocked } = kept;
-    // 군락지 액막이 부적(보유/장착/슬롯)도 루프 시 초기화한다.
-    game.colony = JSON.parse(JSON.stringify(defaultGame.colony));
-    clearBeehiveRuntimeState(game.beehive);
-    abandonBeyondBoundaryRun(game); // a 경계 너머 run held over would refuse every move and content start of the new loop
-    // 열린 대균열도 닫는다(2026-10-20 사용자: 지난 루프의 대균열이 새 루프의 1레벨 영웅을 들여보냈다)
-    Object.assign(game.voidRift, {active:false, activeKills:0, requiredKills:0, pendingWave:false, totalToSpawn:0, spawnedCount:0, spawnTick:0, grandRun:null, grandBreachUnlock:false});
-    if (game.woodsmanEchoRun) Object.assign(game.woodsmanEchoRun, { active: false, timeLeft: 0, returnZoneId: null }); // 잔상도 끝낸다
-    game.meteorSite = JSON.parse(JSON.stringify(defaultGame.meteorSite));
-    game.meteorSite.constellationBuff = preservedConstellationBuff;
-    game.unlocks = { ...defaultGame.unlocks };
-    if (typeof syncPermanentTalentTabUnlock === 'function') syncPermanentTalentTabUnlock(game);
-    game.noti = { ...defaultGame.noti };
-    coreItems.resetForLoop(); stumpCube.clear();
-    if (typeof stumpBox === 'object') stumpBox.regress(game);
-    game.itemSubtab = 'item-tab-equip';
-    game.skillSubtab = 'skill-tab-equip';
-    game.mapSubtab = 'map-tab-zones';
-    game.mapExploreSubtab = 'map-explore-atlas';
-    game.chaosRealm = preservedChaosRealm;
-    atlas.onLoopReset(game);
-    knitting.resetForLoop(game);
-    game.timeRift = preservedTimeRift;
-    // 제단은 루프마다 비운다(2026-10-20 사용자: 루프를 넘기는 보관함이 되면 안 된다): 올린 장비는 가방처럼 사라지고 제단은 닫힌다
-    Object.assign(game.timeRift, { altarOpen: false, altarUnique: null, altarRare: null, activePressure: null });
-    game.skyTower = preservedSkyTower;
-    game.ocean = preservedOcean;
-    forgetOceanAutoDive(game.ocean);
-    game.skyTower.loopSeason = Math.max(1, Math.floor(game.season || 1));
-    game.skyTower.clearedThisLoop = 0;
-    game.skyTower.lastResult = null;
-    game.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
-    game.inTicketBossFight = false;
-}
-
-/** After a loop the item automation can switch off and the map action becomes the post-loop choice; a chosen hero keeps the
- * character tab. */
-function applyLoopSettings() {
-    if (game.settings) {
-        if (game.settings.disableItemAutomationAfterLoop !== false) {
-            game.settings.autoSalvageEnabled = false;
-            game.settings.itemFilterEnabled = false;
-        }
-        game.settings.mapCompleteAction = game.settings.postLoopMapCompleteAction || 'nextLoopBestPlusOne';
+    owner.colony = JSON.parse(JSON.stringify(env.deps.defaultGame.colony));
+    env.deps.clearBeehiveRuntimeState(owner.beehive);
+    env.deps.abandonBeyondBoundaryRun(owner);
+    Object.assign(owner.voidRift, { active: false, activeKills: 0, requiredKills: 0, pendingWave: false, totalToSpawn: 0, spawnedCount: 0, spawnTick: 0, grandRun: null, grandBreachUnlock: false });
+    if (owner.woodsmanEchoRun) Object.assign(owner.woodsmanEchoRun, { active: false, timeLeft: 0, returnZoneId: null });
+    owner.meteorSite = JSON.parse(JSON.stringify(env.deps.defaultGame.meteorSite));
+    owner.meteorSite.constellationBuff = preservedConstellationBuff;
+    owner.unlocks = { ...env.deps.defaultGame.unlocks };
+    if (typeof env.deps.syncPermanentTalentTabUnlock === "function") env.deps.syncPermanentTalentTabUnlock(owner);
+    owner.noti = { ...env.deps.defaultGame.noti };
+    env.deps.coreItems.resetForLoop();
+    env.deps.stumpCube.clear();
+    if (typeof env.deps.stumpBox === "object") env.deps.stumpBox.regress(owner);
+    owner.itemSubtab = "item-tab-equip";
+    owner.skillSubtab = "skill-tab-equip";
+    owner.mapSubtab = "map-tab-zones";
+    owner.mapExploreSubtab = "map-explore-atlas";
+    owner.chaosRealm = preservedChaosRealm;
+    env.deps.atlas.onLoopReset(owner);
+    env.deps.knitting.resetForLoop(owner);
+    owner.timeRift = preservedTimeRift;
+    Object.assign(owner.timeRift, { altarOpen: false, altarUnique: null, altarRare: null, activePressure: null });
+    owner.skyTower = preservedSkyTower;
+    owner.ocean = preservedOcean;
+    env.deps.forgetOceanAutoDive(owner.ocean);
+    owner.skyTower.loopSeason = Math.max(1, Math.floor(owner.season || 1));
+    owner.skyTower.clearedThisLoop = 0;
+    owner.skyTower.lastResult = null;
+    owner.gemEnhanceUnlocked = preservedGemEnhanceUnlocked;
+    owner.inTicketBossFight = false;
+  }
+  function loopFlowApplyLoopSettings(owner) {
+    if (owner.settings) {
+      if (owner.settings.disableItemAutomationAfterLoop !== false) {
+        owner.settings.autoSalvageEnabled = false;
+        owner.settings.itemFilterEnabled = false;
+      }
+      owner.settings.mapCompleteAction = owner.settings.postLoopMapCompleteAction || "nextLoopBestPlusOne";
     }
-    if (game.heroSelectionInitialized && game.unlocks) game.unlocks.char = true;
-}
+    if (owner.heroSelectionInitialized && owner.unlocks) owner.unlocks.char = true;
+  }
 
-/**
- * 루프 조건 달성 시 진입점. 루프 10 미만에서는 즉시 리셋하지 않고
- * 시간을 멈춘 상태(pendingLoopReady)로 전환해 아이템 정리·도감 등록 시간을 준다.
- * 루프 10부터는 정산을 확인한 뒤 다음 루프로 가거나 심화 등반을 계속한다.
- */
-function handleSeasonLoopConditionMet() {
-    game.pendingLoopReady = (game.season || 1) < 10;
-    game.pendingLoopDecision = !game.pendingLoopReady;
-    // Reached while nobody watched (offline / hidden-tab replay): the auto-loop leaves this gate to the player.
-    game.loopGateOffline = !!game.isBackgroundCalculation;
-    game.combatHalted = true;
-    clearDefeatedEncounter();
-    addLog(_t('루프 {value} 달성. 이번 여정의 기록과 다음 해금 요소를 확인하세요.', { value: game.season || 1 }), 'season-up');
-    updateStaticUI();
-}
+  // modules/domain/loop-arrival.mjs
+  function* loopFlowAdvanceLoopCounters(env, owner, loopPath) {
+    if (loopPath === "cosmos") owner.cosmosLoopCount = Math.max(0, Math.floor(owner.cosmosLoopCount || 0)) + 1;
+    owner.lastLoopAdvancePath = loopPath;
+    owner.season++;
+    env.deps.loopMutation.begin(owner);
+    owner.loopCount = Math.max(0, Math.floor(owner.loopCount || 0)) + 1;
+    owner.seasonPoints++;
+    yield { kind: "loopLog", args: [`🔁 ${loopFlowGetLoopAdvancePathLabel(loopPath)}로 다음 루프에 진입합니다.${loopPath === "cosmos" ? env.deps._t(" (우주계 난이도 +{max}단계)", { max: Math.max(0, Math.floor(owner.cosmosLoopCount || 0)) }) : ""}`, "season-up"] };
+  }
+  function loopFlowQueueLoopArrivalNotices(env, owner) {
+    Object.entries(env.deps.EXPLORATION_EVENT_NOTICES).forEach(([kind, notice]) => {
+      if (owner.season === notice.loop) env.deps.queueTutorialNotice("exploration_event_" + kind, notice.title, notice.body);
+    });
+    if (owner.season === 31 && typeof env.deps.queueTutorialNotice === "function") {
+      env.deps.queueTutorialNotice("unlock_rival_blades", env.deps._t("버려진 날붙이들"), env.deps._t("나무꾼이 벼리다 버린 다른 날들이 당신을 찾아옵니다.\n‘지도 → 탐험 → 강대한 적’에서 결투에 도전하세요.\n도전권 [표식: 버려진 날]은 심층 보스가 떨어뜨립니다.\n한 루프 안에 다섯 날을 모두 꺾으면 「완성작」이 모습을 드러냅니다."), "tab-map");
+    }
+  }
+  function loopFlowGetLoopSettleLogLine(env, loopReward) {
+    return [env.deps._t("🧬 심화 루프 정산: +{bonus}pt (혼돈 심화 +{depthGain}, 미궁 +{labGain}, 특수보스 +{bossGain}, 나무꾼 +{woodsmanGain})", { bonus: loopReward.bonus, depthGain: loopReward.depthGain, labGain: loopReward.labGain, bossGain: loopReward.bossGain, woodsmanGain: loopReward.woodsmanGain || 0 }), loopReward.bonus > 0 ? "season-up" : "attack-monster"];
+  }
 
-/** The waiting loop gate is resolved (loop taken or climbing continued): its offline mark goes with it. */
-function clearLoopGate() {
-    game.pendingLoopDecision = false;
-    game.pendingLoopReady = false;
-    game.loopGateOffline = false;
-}
+  // modules/domain/loop-transition.mjs
+  function* loopFlowTriggerSeasonReset(env, owner, options) {
+    let loopPath = loopFlowResolveLoopAdvancePath(env, owner, typeof options === "string" ? options : options && options.path);
+    let blockedReason = loopFlowGetSeasonResetBlockReason(env, owner, loopPath);
+    if (blockedReason) {
+      yield { kind: "loopLog", args: [blockedReason, "attack-monster"] };
+      return false;
+    }
+    if (!loopPath) loopPath = "chaos";
+    yield { kind: "loopCloseReward", args: [] };
+    yield* loopFlowEndWoodsmanFightForLoop(env, owner);
+    loopFlowClearLoopGate(owner);
+    loopFlowCloseLoopMap(env, owner);
+    owner.pendingLoopHeroSelection = true;
+    let codexReveal = loopFlowGetLoopCodexReveal(owner);
+    if (typeof env.deps.closeLoopRecord === "function") env.deps.closeLoopRecord(loopPath);
+    yield { kind: "loopEvent", args: ["loop-rewrite-started"] };
+    const kept = loopFlowCaptureLoopKeptState(env, owner);
+    let loopDeepBeforeReset = loopFlowDeepPointsNow(owner);
+    let loopReward = loopFlowAwardLoopProgressPoints(owner);
+    let loopDeepExpectedAfterSettle = loopFlowDeepPointsNow(owner);
+    yield* loopFlowAdvanceLoopCounters(env, owner, loopPath);
+    loopFlowQueueLoopArrivalNotices(env, owner);
+    yield { kind: "loopLog", args: [...loopFlowGetLoopSettleLogLine(env, loopReward)] };
+    loopFlowResetLoopProgress(owner);
+    loopFlowResetLoopBuild(env, owner);
+    loopFlowResetLoopItems(env, owner, kept, codexReveal);
+    loopFlowResetLoopContents(env, owner, kept);
+    loopFlowApplyLoopSettings(owner);
+    owner.loopDeepPoints = Math.max(loopDeepBeforeReset, loopDeepExpectedAfterSettle);
+    yield* grantLoopCodexStarter(env, owner);
+    owner.enemies = [];
+    owner.encounterPlan = [];
+    owner.encounterIndex = 0;
+    owner.runProgress = 0;
+    yield { kind: "loopResetStall", args: [] };
+    env.deps.clearCraftSelection();
+    env.deps.applySeasonContentProgression({ silent: false });
+    yield { kind: "loopPassiveReachable", args: [] };
+    yield { kind: "loopPassiveVisibility", args: [] };
+    let presetInvest = typeof env.deps.runPassiveTreeAutoInvest === "function" ? env.deps.runPassiveTreeAutoInvest() : { nodes: 0 };
+    if (presetInvest.nodes > 0) yield { kind: "loopLog", args: [env.deps._t("🧭 새 루프 프리셋 자동 투자: {nodes}개 노드 활성화", { nodes: presetInvest.nodes }), "season-up"] };
+    owner.playerHp = env.deps.getPlayerHpCap(env.deps.getPlayerStats());
+    env.deps.ensureActJournalCompletionForLoop({ silent: false });
+    yield { kind: "loopLog", args: [env.deps._t("🌟 [루프 포인트 1점] 획득. 밝혀낸 성좌 지형은 유지됩니다."), "season-up"] };
+    yield { kind: "loopBarkNotice", args: [] };
+    yield { kind: "loopCheckUnlocks", args: [] };
+    yield { kind: "loopSave", args: [{ skipCloudSync: true }] };
+    yield { kind: "loopCloudSave", args: ["루프 진행"] };
+    yield* loopFlowRequestLoopHeroSelection(owner);
+  }
+  function* grantLoopCodexStarter(env, owner) {
+    const reward = env.deps.grantCodexStarter(owner);
+    if (reward) yield { kind: "loopCodexRewardNotice", args: [reward] };
+  }
 
-function confirmLoopReady() {
-    if (!game.pendingLoopReady) return;
-    let available = typeof getAvailableLoopAdvancePaths === 'function' ? getAvailableLoopAdvancePaths(game.season || 1) : [];
+  // modules/domain/loop-gates.mjs
+  function* loopFlowHandleSeasonLoopConditionMet(env, owner) {
+    owner.pendingLoopReady = (owner.season || 1) < 10;
+    owner.pendingLoopDecision = !owner.pendingLoopReady;
+    owner.loopGateOffline = !!owner.isBackgroundCalculation;
+    owner.combatHalted = true;
+    env.deps.clearDefeatedEncounter();
+    yield { kind: "loopLog", args: [env.deps._t("루프 {value} 달성. 이번 여정의 기록과 다음 해금 요소를 확인하세요.", { value: owner.season || 1 }), "season-up"] };
+    yield { kind: "loopRefresh", args: [] };
+  }
+  function* loopFlowConfirmLoopReady(env, owner) {
+    if (!owner.pendingLoopReady) return;
+    let available = typeof env.deps.getAvailableLoopAdvancePaths === "function" ? env.deps.getAvailableLoopAdvancePaths(owner.season || 1) : [];
     if (available.length > 1) {
-        game.pendingLoopReady = false;
-        game.pendingLoopDecision = true;
-        addLog(_t('혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요.'), 'season-up');
-        updateStaticUI();
-        return;
+      owner.pendingLoopReady = false;
+      owner.pendingLoopDecision = true;
+      yield { kind: "loopLog", args: [env.deps._t("혼돈 루프와 우주계 루프 조건을 모두 달성했습니다. 진행할 루프 경로를 선택하세요."), "season-up"] };
+      yield { kind: "loopRefresh", args: [] };
+      return;
     }
-    triggerSeasonReset();
-}
-
-function chooseLoopAdvancePath(path) {
-    let loopPath = resolveLoopAdvancePath(path);
-    if (!loopPath) return addLog(getLoopAbyssRequirementPrompt(game.season || 1), 'attack-monster');
-    triggerSeasonReset({ path: loopPath });
-}
-
-function chooseLoopAdvance(shouldLoop) {
-    if (!game.pendingLoopDecision) return;
+    yield* loopFlowTriggerSeasonReset(env, owner);
+  }
+  function* loopFlowChooseLoopAdvancePath(env, owner, path) {
+    let loopPath = loopFlowResolveLoopAdvancePath(env, owner, path);
+    if (!loopPath) return yield { kind: "loopLog", args: [env.deps.getLoopAbyssRequirementPrompt(owner.season || 1), "attack-monster"] };
+    yield* loopFlowTriggerSeasonReset(env, owner, { path: loopPath });
+  }
+  function* loopFlowChooseLoopAdvance(env, owner, shouldLoop) {
+    if (!owner.pendingLoopDecision) return;
     if (shouldLoop) {
-        triggerSeasonReset({ path: 'chaos' });
-        return;
+      yield* loopFlowTriggerSeasonReset(env, owner, { path: "chaos" });
+      return;
     }
-    clearLoopGate();
-    addLog(_t('♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 {max}부터 시작)', { max: Math.max(21, Math.floor((game.abyssEndlessDepth || 20) + 1)) }), 'season-up');
-    enterNextEndlessChaosDepth();
-}
+    loopFlowClearLoopGate(owner);
+    yield { kind: "loopLog", args: [env.deps._t("♾️ 루프를 보류하고 혼돈 심화 등반을 이어갑니다. (혼돈 {max}부터 시작)", { max: Math.max(21, Math.floor((owner.abyssEndlessDepth || 20) + 1)) }), "season-up"] };
+    env.deps.enterNextEndlessChaosDepth();
+  }
 
-exposeFileGlobals({ applyLoopHeroSelection, requestLoopHeroSelection, markLoopSpecialBossKill, addWoodsmanPendingScore, finishWoodsmanEntrance, enterOutsideChaos, dressWoodsmanEchoDummy, enterWoodsmanEchoChallenge, getHeldGearLoopBlockReason, clearLoopItemStorage, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvancePath, chooseLoopAdvance });
+  // modules/domain/loop-reset.mjs
+  function createLoopReset(deps) {
+    const env = { deps };
+    env.WOODSMAN_ENTRANCE_DELAY_SECONDS = 3;
+    return Object.freeze({
+      applyLoopHeroSelection: (...args) => loopFlowApplyLoopHeroSelection(env, ...args),
+      requestLoopHeroSelection: loopFlowRequestLoopHeroSelection,
+      markLoopSpecialBossKill: loopFlowMarkLoopSpecialBossKill,
+      addWoodsmanPendingScore: loopFlowAddWoodsmanPendingScore,
+      finishWoodsmanEntrance: (...args) => loopFlowFinishWoodsmanEntrance(env, ...args),
+      enterOutsideChaos: (...args) => loopFlowEnterOutsideChaos(env, ...args),
+      dressWoodsmanEchoDummy: loopFlowDressWoodsmanEchoDummy,
+      enterWoodsmanEchoChallenge: (...args) => loopFlowEnterWoodsmanEchoChallenge(env, ...args),
+      getHeldGearLoopBlockReason: (...args) => loopFlowGetHeldGearLoopBlockReason(env, ...args),
+      clearLoopItemStorage: loopFlowClearLoopItemStorage,
+      triggerSeasonReset: (...args) => loopFlowTriggerSeasonReset(env, ...args),
+      handleSeasonLoopConditionMet: (...args) => loopFlowHandleSeasonLoopConditionMet(env, ...args),
+      confirmLoopReady: (...args) => loopFlowConfirmLoopReady(env, ...args),
+      chooseLoopAdvancePath: (...args) => loopFlowChooseLoopAdvancePath(env, ...args),
+      chooseLoopAdvance: (...args) => loopFlowChooseLoopAdvance(env, ...args)
+    });
+  }
+
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects2) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects2[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/loop-reset-classic.mjs
+  var rules = createLoopReset({
+    get startMoving() {
+      return startMoving;
+    },
+    get OUTSIDE_CHAOS_ZONE_ID() {
+      return OUTSIDE_CHAOS_ZONE_ID;
+    },
+    get getZone() {
+      return getZone;
+    },
+    get _t() {
+      return _t;
+    },
+    get getZoneExplorationPlan() {
+      return getZoneExplorationPlan;
+    },
+    get startEncounterRun() {
+      return startEncounterRun;
+    },
+    get startWoodsmanCurse() {
+      return startWoodsmanCurse;
+    },
+    get createEnemy() {
+      return createEnemy;
+    },
+    get getContentStartBlockReason() {
+      return getContentStartBlockReason;
+    },
+    get hasCurrentLoopAbyssRequirementClear() {
+      return typeof hasCurrentLoopAbyssRequirementClear === "undefined" ? void 0 : hasCurrentLoopAbyssRequirementClear;
+    },
+    get getSeasonAbyssDepthCap() {
+      return getSeasonAbyssDepthCap;
+    },
+    get hasCurrentLoopChaos20Clear() {
+      return typeof hasCurrentLoopChaos20Clear === "undefined" ? void 0 : hasCurrentLoopChaos20Clear;
+    },
+    get getLoopAbyssRequirementPrompt() {
+      return getLoopAbyssRequirementPrompt;
+    },
+    get actExplorationProgress() {
+      return actExplorationProgress;
+    },
+    get snapshotWoodsmanBuildState() {
+      return snapshotWoodsmanBuildState;
+    },
+    get resetWoodsmanCurse() {
+      return resetWoodsmanCurse;
+    },
+    get prepareActExplorationArrival() {
+      return prepareActExplorationArrival;
+    },
+    get ensureChaosRealmState() {
+      return ensureChaosRealmState;
+    },
+    get ensureWoodsmanEchoRunState() {
+      return ensureWoodsmanEchoRunState;
+    },
+    get getCombatTime() {
+      return getCombatTime;
+    },
+    get WOODSMAN_ECHO_ZONE_ID() {
+      return WOODSMAN_ECHO_ZONE_ID;
+    },
+    get getContentReturnZoneId() {
+      return getContentReturnZoneId;
+    },
+    get clearWoodsmanBuildLock() {
+      return clearWoodsmanBuildLock;
+    },
+    get getAvailableLoopAdvancePaths() {
+      return typeof getAvailableLoopAdvancePaths === "undefined" ? void 0 : getAvailableLoopAdvancePaths;
+    },
+    get playerStall() {
+      return typeof playerStall === "undefined" ? void 0 : playerStall;
+    },
+    get hallState() {
+      return window.GameModules.equipmentHall?.state;
+    },
+    get hallUserId() {
+      return window.GameModules.cloudAccountState.current.user?.id;
+    },
+    get ensureMeteorSiteState() {
+      return ensureMeteorSiteState;
+    },
+    get ensureTimeRiftState() {
+      return ensureTimeRiftState;
+    },
+    get ensureSkyTowerState() {
+      return ensureSkyTowerState;
+    },
+    get ensureOceanState() {
+      return ensureOceanState;
+    },
+    get atlasEndgame() {
+      return atlasEndgame;
+    },
+    get getClaimedJournalPassivePointTotal() {
+      return typeof getClaimedJournalPassivePointTotal === "undefined" ? void 0 : getClaimedJournalPassivePointTotal;
+    },
+    get rememberLoopAscendancyPlan() {
+      return rememberLoopAscendancyPlan;
+    },
+    get clearAscendKeystoneRuntimeState() {
+      return clearAscendKeystoneRuntimeState;
+    },
+    get defaultGame() {
+      return defaultGame;
+    },
+    get craftingWorkspaceState() {
+      return craftingWorkspaceState;
+    },
+    get currencyExchange() {
+      return currencyExchange;
+    },
+    get clearBeehiveRuntimeState() {
+      return clearBeehiveRuntimeState;
+    },
+    get abandonBeyondBoundaryRun() {
+      return abandonBeyondBoundaryRun;
+    },
+    get syncPermanentTalentTabUnlock() {
+      return typeof syncPermanentTalentTabUnlock === "undefined" ? void 0 : syncPermanentTalentTabUnlock;
+    },
+    get coreItems() {
+      return coreItems;
+    },
+    get stumpCube() {
+      return stumpCube;
+    },
+    get stumpBox() {
+      return typeof stumpBox === "undefined" ? void 0 : stumpBox;
+    },
+    get atlas() {
+      return atlas;
+    },
+    get knitting() {
+      return knitting;
+    },
+    get forgetOceanAutoDive() {
+      return forgetOceanAutoDive;
+    },
+    get loopMutation() {
+      return loopMutation;
+    },
+    get EXPLORATION_EVENT_NOTICES() {
+      return EXPLORATION_EVENT_NOTICES;
+    },
+    get queueTutorialNotice() {
+      return typeof queueTutorialNotice === "undefined" ? void 0 : queueTutorialNotice;
+    },
+    get closeLoopRecord() {
+      return typeof closeLoopRecord === "undefined" ? void 0 : closeLoopRecord;
+    },
+    grantCodexStarter: (owner) => window.GameModules.lootRules.grantCodexStarter(owner),
+    get clearCraftSelection() {
+      return clearCraftSelection;
+    },
+    get applySeasonContentProgression() {
+      return applySeasonContentProgression;
+    },
+    get runPassiveTreeAutoInvest() {
+      return typeof runPassiveTreeAutoInvest === "undefined" ? void 0 : runPassiveTreeAutoInvest;
+    },
+    get getPlayerHpCap() {
+      return getPlayerHpCap;
+    },
+    get getPlayerStats() {
+      return getPlayerStats;
+    },
+    get ensureActJournalCompletionForLoop() {
+      return ensureActJournalCompletionForLoop;
+    },
+    get clearDefeatedEncounter() {
+      return clearDefeatedEncounter;
+    },
+    get enterNextEndlessChaosDepth() {
+      return enterNextEndlessChaosDepth;
+    }
+  });
+  var effects = {
+    get loopCodexRewardNotice() {
+      return loopSettlementUi.announceCodexStarter;
+    },
+    get loopLog() {
+      return addLog.bind(void 0);
+    },
+    get loopRefresh() {
+      return updateStaticUI.bind(void 0);
+    },
+    get loopSave() {
+      return saveGame.bind(void 0);
+    },
+    get loopCloudSave() {
+      return typeof requestImmediateCloudSave === "function" ? requestImmediateCloudSave.bind(void 0) : () => void 0;
+    },
+    get loopEvent() {
+      return dispatchRuntimeEvent.bind(void 0);
+    },
+    get loopCheckUnlocks() {
+      return checkUnlocks.bind(void 0);
+    },
+    get loopPassiveReachable() {
+      return calculateReachableNodes.bind(void 0);
+    },
+    get loopPassiveVisibility() {
+      return refreshPassiveVisibility.bind(void 0);
+    },
+    get loopCloseReward() {
+      return window.GameModules.playFeedback.reward.dismissForLoop.bind(window.GameModules.playFeedback.reward);
+    },
+    loopResetStall: () => {
+      window.GameModules.state.session.progressStallTicks = 0;
+    },
+    loopBarkNotice: () => worldTreeBark.noticeFirstBark(),
+    loopHeroRequest: (previousClassId, options) => dispatchRuntimeEvent("loop-hero-selection-requested", {
+      handled: false,
+      options,
+      select: (classId) => applyLoopHeroSelection(classId, previousClassId)
+    })
+  };
+  var applyLoopHeroSelection = (...args) => consumeDomainCommands(rules.applyLoopHeroSelection(game, ...args), effects);
+  var requestLoopHeroSelection = (...args) => consumeDomainCommands(rules.requestLoopHeroSelection(game, ...args), effects);
+  var markLoopSpecialBossKill = (...args) => rules.markLoopSpecialBossKill(game, ...args);
+  var addWoodsmanPendingScore = (...args) => rules.addWoodsmanPendingScore(game, ...args);
+  var finishWoodsmanEntrance = (...args) => consumeDomainCommands(rules.finishWoodsmanEntrance(game, ...args), effects);
+  var enterOutsideChaos = (...args) => consumeDomainCommands(rules.enterOutsideChaos(game, ...args), effects);
+  var dressWoodsmanEchoDummy = rules.dressWoodsmanEchoDummy;
+  var enterWoodsmanEchoChallenge = (...args) => consumeDomainCommands(rules.enterWoodsmanEchoChallenge(game, ...args), effects);
+  var getHeldGearLoopBlockReason = (...args) => rules.getHeldGearLoopBlockReason(game, ...args);
+  var clearLoopItemStorage = rules.clearLoopItemStorage;
+  var triggerSeasonReset = (...args) => consumeDomainCommands(rules.triggerSeasonReset(game, ...args), effects);
+  var handleSeasonLoopConditionMet = (...args) => consumeDomainCommands(rules.handleSeasonLoopConditionMet(game, ...args), effects);
+  var confirmLoopReady = (...args) => consumeDomainCommands(rules.confirmLoopReady(game, ...args), effects);
+  var chooseLoopAdvancePath = (...args) => consumeDomainCommands(rules.chooseLoopAdvancePath(game, ...args), effects);
+  var chooseLoopAdvance = (...args) => consumeDomainCommands(rules.chooseLoopAdvance(game, ...args), effects);
+  safeExposeGlobals({ applyLoopHeroSelection, requestLoopHeroSelection, markLoopSpecialBossKill, addWoodsmanPendingScore, finishWoodsmanEntrance, enterOutsideChaos, dressWoodsmanEchoDummy, enterWoodsmanEchoChallenge, getHeldGearLoopBlockReason, clearLoopItemStorage, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvancePath, chooseLoopAdvance });
 })();
-
-
-const WOODSMAN_ENTRANCE_DELAY_SECONDS = 3;
-
-
-const loopDeepPointsNow = () => Math.max(0, Math.floor(game.loopDeepPoints || 0));
-
-
-safeExposeGlobals({ enterWoodsmanEchoChallenge, triggerSeasonReset, handleSeasonLoopConditionMet, confirmLoopReady, chooseLoopAdvance, chooseLoopAdvancePath, markLoopSpecialBossKill, addWoodsmanPendingScore, enterOutsideChaos });

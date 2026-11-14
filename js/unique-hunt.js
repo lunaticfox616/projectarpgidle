@@ -1,68 +1,113 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/unique-hunt*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function getUniqueHuntEntryKey(entry) {
-    if (!entry || typeof entry.name !== 'string' || !Array.isArray(entry.slots) || !entry.slots[0]) return '';
+  // modules/domain/unique-hunt-rules.mjs
+  function huntGetUniqueHuntEntryKey(entry) {
+    if (!entry || typeof entry.name !== "string" || !Array.isArray(entry.slots) || !entry.slots[0]) return "";
     return `${entry.slots[0]}|${entry.name}`;
-}
-
-function getUniqueHuntEntry(key) {
-    let targetKey = typeof key === 'string' ? key : '';
-    return UNIQUE_DB.find(entry => !entry.realmCodexOnly && getUniqueHuntEntryKey(entry) === targetKey) || null;
-}
-
-function ensureUniqueHuntState(targetGame = game) {
+  }
+  function huntGetUniqueHuntEntry(env, key) {
+    let targetKey = typeof key === "string" ? key : "";
+    return env.deps.UNIQUE_DB.find((entry) => !entry.realmCodexOnly && huntGetUniqueHuntEntryKey(entry) === targetKey) || null;
+  }
+  function huntEnsureUniqueHuntState(env, targetGame) {
     let source = Array.isArray(targetGame.uniqueHuntTargets) ? targetGame.uniqueHuntTargets : [];
-    let seen = new Set();
-    targetGame.uniqueHuntTargets = source.filter(key => {
-        if (typeof key !== 'string' || seen.has(key) || !getUniqueHuntEntry(key)) return false;
-        seen.add(key);
-        return true;
-    }).slice(0, UNIQUE_HUNT_TARGET_LIMIT);
+    let seen = /* @__PURE__ */ new Set();
+    targetGame.uniqueHuntTargets = source.filter((key) => {
+      if (typeof key !== "string" || seen.has(key) || !huntGetUniqueHuntEntry(env, key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, env.UNIQUE_HUNT_TARGET_LIMIT);
     return targetGame.uniqueHuntTargets;
-}
-
-function getUniqueHuntTargets(targetGame = game) {
-    return ensureUniqueHuntState(targetGame).map(getUniqueHuntEntry).filter(Boolean);
-}
-
-function toggleUniqueHuntTarget(key, targetGame = game) {
-    let entry = getUniqueHuntEntry(key);
-    if (!entry) return { ok: false, tracked: false, reason: _t('추적할 수 없는 고유 아이템입니다.') };
-    let targets = ensureUniqueHuntState(targetGame);
+  }
+  function huntGetUniqueHuntTargets(env, targetGame) {
+    return huntEnsureUniqueHuntState(env, targetGame).map((...args) => huntGetUniqueHuntEntry(env, ...args)).filter(Boolean);
+  }
+  function* huntToggleUniqueHuntTarget(env, key, targetGame) {
+    let entry = huntGetUniqueHuntEntry(env, key);
+    if (!entry) return { ok: false, tracked: false, reason: env.deps._t("추적할 수 없는 고유 아이템입니다.") };
+    let targets = huntEnsureUniqueHuntState(env, targetGame);
     let index = targets.indexOf(key);
     if (index >= 0) {
-        targetGame.uniqueHuntTargets = targets.filter(target => target !== key);
-        dispatchRuntimeEvent('unique-hunt-changed', { action: 'removed', key });
-        return { ok: true, tracked: false, entry };
+      targetGame.uniqueHuntTargets = targets.filter((target) => target !== key);
+      yield { kind: "dispatchRuntimeEvent", args: ["unique-hunt-changed", { action: "removed", key }] };
+      return { ok: true, tracked: false, entry };
     }
-    if (targets.length >= UNIQUE_HUNT_TARGET_LIMIT) {
-        return { ok: false, tracked: false, reason: _t('파밍 목표는 최대 {UNIQUE_HUNT_TARGET_LIMIT}개까지 지정할 수 있습니다.', { UNIQUE_HUNT_TARGET_LIMIT }) };
+    if (targets.length >= env.UNIQUE_HUNT_TARGET_LIMIT) {
+      return { ok: false, tracked: false, reason: env.deps._t("파밍 목표는 최대 {UNIQUE_HUNT_TARGET_LIMIT}개까지 지정할 수 있습니다.", { UNIQUE_HUNT_TARGET_LIMIT: env.UNIQUE_HUNT_TARGET_LIMIT }) };
     }
     targetGame.uniqueHuntTargets = targets.concat(key);
-    dispatchRuntimeEvent('unique-hunt-changed', { action: 'added', key });
+    yield { kind: "dispatchRuntimeEvent", args: ["unique-hunt-changed", { action: "added", key }] };
     return { ok: true, tracked: true, entry };
-}
-
-function isUniqueHuntTargetItem(item, targetGame = game) {
-    if (!item || item.rarity !== 'unique' || typeof item.slot !== 'string' || typeof item.name !== 'string') return false;
-    return ensureUniqueHuntState(targetGame).includes(`${item.slot}|${item.name}`);
-}
-
-function completeUniqueHuntTarget(item, targetGame = game) {
-    if (!isUniqueHuntTargetItem(item, targetGame)) return null;
+  }
+  function huntIsUniqueHuntTargetItem(env, item, targetGame) {
+    if (!item || item.rarity !== "unique" || typeof item.slot !== "string" || typeof item.name !== "string") return false;
+    return huntEnsureUniqueHuntState(env, targetGame).includes(`${item.slot}|${item.name}`);
+  }
+  function* huntCompleteUniqueHuntTarget(env, item, targetGame, notify) {
+    if (!huntIsUniqueHuntTargetItem(env, item, targetGame)) return null;
     let key = `${item.slot}|${item.name}`;
-    let entry = getUniqueHuntEntry(key);
-    targetGame.uniqueHuntTargets = ensureUniqueHuntState(targetGame).filter(target => target !== key);
-    if (targetGame === game) dispatchRuntimeEvent('unique-hunt-changed', { action: 'completed', key });
+    let entry = huntGetUniqueHuntEntry(env, key);
+    targetGame.uniqueHuntTargets = huntEnsureUniqueHuntState(env, targetGame).filter((target) => target !== key);
+    if (notify) yield { kind: "dispatchRuntimeEvent", args: ["unique-hunt-changed", { action: "completed", key }] };
     return entry;
-}
+  }
 
-exposeFileGlobals({ getUniqueHuntEntryKey, getUniqueHuntEntry, ensureUniqueHuntState, getUniqueHuntTargets, toggleUniqueHuntTarget, isUniqueHuntTargetItem, completeUniqueHuntTarget });
-})();
-const UNIQUE_HUNT_TARGET_LIMIT = 3;
+  // modules/domain/unique-hunt.mjs
+  function createUniqueHunt(deps) {
+    const env = { deps };
+    env.UNIQUE_HUNT_TARGET_LIMIT = 3;
+    return Object.freeze({
+      limit: env.UNIQUE_HUNT_TARGET_LIMIT,
+      ensureState: (...args) => huntEnsureUniqueHuntState(env, ...args),
+      getKey: huntGetUniqueHuntEntryKey,
+      getEntry: (...args) => huntGetUniqueHuntEntry(env, ...args),
+      getTargets: (...args) => huntGetUniqueHuntTargets(env, ...args),
+      toggle: (...args) => huntToggleUniqueHuntTarget(env, ...args),
+      isTargetItem: (...args) => huntIsUniqueHuntTargetItem(env, ...args),
+      complete: (...args) => huntCompleteUniqueHuntTarget(env, ...args)
+    });
+  }
 
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects[step.value.kind](...step.value.args));
+    return step.value;
+  }
 
-const uniqueHuntRuntime = Object.freeze({
+  // modules/ui/runtime-event-commands.mjs
+  function runRuntimeEventCommands(commands, dispatch) {
+    return consumeDomainCommands(commands, { dispatchRuntimeEvent: dispatch });
+  }
+
+  // modules/unique-hunt-classic.mjs
+  var rules = createUniqueHunt({
+    get UNIQUE_DB() {
+      return UNIQUE_DB;
+    },
+    get _t() {
+      return _t;
+    }
+  });
+  var UNIQUE_HUNT_TARGET_LIMIT = rules.limit;
+  var getUniqueHuntEntryKey = rules.getKey;
+  var getUniqueHuntEntry = rules.getEntry;
+  function ensureUniqueHuntState(targetGame = game) {
+    return rules.ensureState(targetGame);
+  }
+  function getUniqueHuntTargets(targetGame = game) {
+    return rules.getTargets(targetGame);
+  }
+  function toggleUniqueHuntTarget(key, targetGame = game) {
+    return runRuntimeEventCommands(rules.toggle(key, targetGame), dispatchRuntimeEvent);
+  }
+  function isUniqueHuntTargetItem(item, targetGame = game) {
+    return rules.isTargetItem(item, targetGame);
+  }
+  function completeUniqueHuntTarget(item, targetGame = game) {
+    return runRuntimeEventCommands(rules.complete(item, targetGame, targetGame === game), dispatchRuntimeEvent);
+  }
+  var uniqueHuntRuntime = Object.freeze({
     limit: UNIQUE_HUNT_TARGET_LIMIT,
     ensureState: ensureUniqueHuntState,
     getKey: getUniqueHuntEntryKey,
@@ -71,6 +116,16 @@ const uniqueHuntRuntime = Object.freeze({
     toggle: toggleUniqueHuntTarget,
     isTargetItem: isUniqueHuntTargetItem,
     complete: completeUniqueHuntTarget
-});
-
-safeExposeGlobals({ uniqueHuntRuntime });
+  });
+  safeExposeGlobals({
+    UNIQUE_HUNT_TARGET_LIMIT,
+    getUniqueHuntEntryKey,
+    getUniqueHuntEntry,
+    ensureUniqueHuntState,
+    getUniqueHuntTargets,
+    toggleUniqueHuntTarget,
+    isUniqueHuntTargetItem,
+    completeUniqueHuntTarget,
+    uniqueHuntRuntime
+  });
+})();

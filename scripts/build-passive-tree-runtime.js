@@ -2,6 +2,7 @@
 'use strict';
 
 const fs = require('fs');
+const { writeDataSource } = require('./lib/data-authoring.cjs');
 const path = require('path');
 const { readTree } = require('./audit-passive-tree-source');
 const { resolvePassiveNodeName } = require('./lib/passive-tree-naming');
@@ -49,7 +50,7 @@ function buildRuntimeTree(tree) {
 function writeRuntimeModule(file, runtime) {
     const source = serializeRuntimeModule(runtime);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, source, 'utf8');
+    writeDataSource(file, source);
 }
 
 function serializeRuntimeModule(runtime) {

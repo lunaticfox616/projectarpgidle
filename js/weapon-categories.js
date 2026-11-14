@@ -1,40 +1,45 @@
-// 무기 대분류(data/weapon-categories.js): 낀 무기 → 대검 · 한손검 · 단궁 · 오브 · 플라스크 · 향로.
-// 아이템 설명, 뿌리 촉수의 드랍 쏠림이 같이 쓴다.
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/weapon-categories*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-/** The weapon base an item was made from (uniques name theirs in UNIQUE_EQUIPMENT_RULES, old items only a base name). */
-function getWeaponBaseId(item) {
-    if (!item) return null;
-    if (item.baseId) return item.baseId;
-    const rule = typeof UNIQUE_EQUIPMENT_RULES === 'object' && item.name ? UNIQUE_EQUIPMENT_RULES[item.name] : null;
-    if (rule && rule.baseId) return rule.baseId;
-    const base = item.baseName ? BASE_ITEM_DB.find(row => row.slot === '무기' && row.name === item.baseName) : null;
-    return base ? base.id : null;
-}
+  // modules/domain/weapon-categories.mjs
+  function createWeaponCategories(deps) {
+    function getWeaponBaseId2(item) {
+      if (!item) return null;
+      if (item.baseId) return item.baseId;
+      const rule = typeof deps.uniqueRules === "object" && item.name ? deps.uniqueRules[item.name] : null;
+      if (rule && rule.baseId) return rule.baseId;
+      const base = item.baseName ? deps.bases.find((row) => row.slot === "무기" && row.name === item.baseName) : null;
+      return base ? base.id : null;
+    }
+    function getWeaponCategoryOfBase2(baseId) {
+      return baseId && Object.hasOwn(deps.baseCategories, baseId) ? deps.baseCategories[baseId] : null;
+    }
+    function getWeaponCategoryId2(item) {
+      return getWeaponCategoryOfBase2(getWeaponBaseId2(item));
+    }
+    function getWeaponCategoryName2(item) {
+      const id = getWeaponCategoryId2(item);
+      return id ? deps.categories[id].name : "";
+    }
+    function weaponCategorySlotLabel2(item, slot) {
+      return slot === "무기" && getWeaponCategoryName2(item) || (slot === "방패" ? "완갑" : slot);
+    }
+    return Object.freeze({ getWeaponBaseId: getWeaponBaseId2, getWeaponCategoryOfBase: getWeaponCategoryOfBase2, getWeaponCategoryId: getWeaponCategoryId2, getWeaponCategoryName: getWeaponCategoryName2, weaponCategorySlotLabel: weaponCategorySlotLabel2 });
+  }
 
-/** @returns {?string} greatsword · scimitar · shortbow · orb · flask · censer for a weapon base id, else null */
-function getWeaponCategoryOfBase(baseId) {
-    return baseId && Object.hasOwn(WEAPON_BASE_CATEGORIES, baseId) ? WEAPON_BASE_CATEGORIES[baseId] : null;
-}
-
-/** @returns {?string} the category of an item's weapon base, null when it is not a weapon */
-function getWeaponCategoryId(item) {
-    return getWeaponCategoryOfBase(getWeaponBaseId(item));
-}
-
-/** @returns {string} the category name shown in item text ('' when not a weapon) */
-function getWeaponCategoryName(item) {
-    const id = getWeaponCategoryId(item);
-    return id ? WEAPON_CATEGORIES[id].name : '';
-}
-
-/** Item titles show a weapon's category (대검, 한손검 ...) where other items show their slot ([투구] ...). */
-function weaponCategorySlotLabel(item, slot) {
-    return (slot === '무기' && getWeaponCategoryName(item)) || (slot === '방패' ? '완갑' : slot);
-}
-
-exposeFileGlobals({ getWeaponBaseId, getWeaponCategoryOfBase, getWeaponCategoryId, getWeaponCategoryName, weaponCategorySlotLabel });
+  // modules/weapon-categories-classic.mjs
+  var { getWeaponBaseId, getWeaponCategoryOfBase, getWeaponCategoryId, getWeaponCategoryName, weaponCategorySlotLabel } = createWeaponCategories({
+    get uniqueRules() {
+      return typeof UNIQUE_EQUIPMENT_RULES === "undefined" ? void 0 : UNIQUE_EQUIPMENT_RULES;
+    },
+    get bases() {
+      return BASE_ITEM_DB;
+    },
+    get baseCategories() {
+      return WEAPON_BASE_CATEGORIES;
+    },
+    get categories() {
+      return WEAPON_CATEGORIES;
+    }
+  });
+  safeExposeGlobals({ getWeaponBaseId, getWeaponCategoryOfBase, getWeaponCategoryId, getWeaponCategoryName, weaponCategorySlotLabel });
 })();
-
-
-safeExposeGlobals({ getWeaponBaseId, getWeaponCategoryOfBase, getWeaponCategoryId, getWeaponCategoryName, weaponCategorySlotLabel });

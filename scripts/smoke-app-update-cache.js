@@ -61,6 +61,7 @@ function createNoticeRuntime() {
         return {
             events: {}, setAttribute() {},
             addEventListener(type, handler) { this.events[type] = handler; },
+            removeEventListener(type, handler) { if (this.events[type] === handler) delete this.events[type]; },
             querySelector(selector) {
                 if (!children.has(selector)) children.set(selector, makeElement());
                 return children.get(selector);
@@ -73,6 +74,7 @@ function createNoticeRuntime() {
     runtime.document.querySelector = selector => selector === 'meta[name="app-deploy"]' ? { content: 'release-old' } : null;
     runtime.document.body.appendChild = node => elements.set(node.id, node);
     runtime.document.addEventListener = (type, handler) => { documentEvents[type] = handler; };
+    runtime.document.readyState = 'loading';
     runtime.addEventListener = (type, handler) => { windowEvents[type] = handler; };
     runtime.Date = class extends Date { static now() { return boundary.now; } };
     runtime.localStorage = {
@@ -98,7 +100,7 @@ async function verifyNoticeSaveBoundary() {
     await documentEvents.visibilitychange();
     const notice = elements.get('app-update-notice');
     assert(notice, 'a new deployment must show a choice');
-    const reload = () => notice.querySelector('.app-update-reload').events.click();
+    const reload = () => notice.events.click({ target: { closest: selector => selector === '.app-update-reload' } });
     vm.runInContext('backgroundCombatRuntime.processing = true;', runtime);
     reload();
     assert.strictEqual(boundary.reloadCount, 0, 'update must wait while background rewards are being settled');
@@ -117,7 +119,7 @@ async function verifyNoticeSaveBoundary() {
     reload();
     assert.strictEqual(boundary.reloadCount, 1, 'an explicitly requested update may reload after saving');
     assert.strictEqual(JSON.parse(runtime.readLocalSaveString()).level, 39, 'save must finish before navigation, without depending on pagehide');
-    notice.querySelector('.app-update-later').events.click();
+    notice.events.click({ target: { closest: selector => selector === '.app-update-later' } });
     await documentEvents.visibilitychange();
     assert(!elements.has('app-update-notice'), 'later must suppress the notice');
     boundary.now += 30 * 60 * 1000;

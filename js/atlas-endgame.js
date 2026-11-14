@@ -1,350 +1,475 @@
-/** 아틀라스 후반부 (docs/atlas-pinnacles-20261002.md 2-1, 3절, data/atlas-endgame.js): 깨어남, 최종 보스 다섯과 리그 우두머리를 여는 조건과
- * 재료, 지도 속 마름의 사도 · 제단 · 리그 조각, 나이테의 목격, 보스 처치 보상과 단계별 특수기.
- * 상태는 game.atlas.endgame {kills, items, blight, witness, witnessed}: 루프를 넘어 남고 시대 재생 때 비운다.
- * 지도 장치 런(js/atlas.js · js/atlas-run.js)과 넓은 맵 무리(js/combat-encounters.js createActExplorationPack)가 이 모듈의 규칙을 부른다.
- * 런마다의 몫은 run.endgame {apostle, items, echoes}: 방에서 얻은 재료는 지도석처럼 보스를 잡을 때까지 런이 들고 있다.
- */
-const atlasEndgame = (() => {
-    const E = ATLAS_ENDGAME;
-    const DEFS = new Map([...E.apexes.map(row => [row.id, { ...row, kind: 'apex' }]), ...E.leagues.map(row => [row.id, { ...row, kind: 'league' }])]);
-    const LEAGUE_BY_ROOM = new Map(E.leagues.map(row => [row.room, row]));
-    // 자기 그림이 있는 리그 보스(벌집 여왕): 메아리로 다시 나와도 그 그림을 쓴다(목격 기록은 [이름, 액트]뿐이다).
-    const BODY_BY_BOSS = new Map([...E.leagues, ...E.apexes].filter(row => row.bodyVisual).map(row => [row.boss || row.stages[0].name, row]));
-    const APOSTLES = new Map(E.apostles.map(row => [row.id, row]));
-    const ITEM_IDS = Object.freeze(Object.keys(E.items));
-    const LATE_BOSSES = new Set(['guardian', 'pinnacle', 'apex', 'league']);
+// GENERATED from modules/atlas-endgame*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/atlas-endgame-ledger.mjs
+  function atlasLateLedger(state) {
+    return state.atlas.endgame;
+  }
+  function atlasLateDefaults() {
+    return { kills: {}, items: {}, blight: {}, witness: 0, witnessed: [] };
+  }
+  function atlasLateKills(state, id) {
+    return atlasLateLedger(state).kills[id] || 0;
+  }
+  function atlasLateAwakened(state) {
+    return atlasLateKills(state, "pinnacle") > 0;
+  }
+  function atlasLateCount(env, state, item) {
+    return Number(env.WALLET[item] ? state.currencies[env.WALLET[item]] : atlasLateLedger(state).items[item]) || 0;
+  }
+  function atlasLateStore(env, state, item, value) {
+    if (env.WALLET[item]) state.currencies[env.WALLET[item]] = value;
+    else atlasLateLedger(state).items[item] = value;
+  }
+  function atlasLateGive(env, state, item, amount) {
+    if (!(amount > 0) || !Object.hasOwn(env.E.items, item)) return 0;
+    const before = atlasLateCount(env, state, item);
+    atlasLateStore(env, state, item, Math.min(env.E.itemCap, before + Math.floor(amount)));
+    return atlasLateCount(env, state, item) - before;
+  }
+  function atlasLateMoveAltarMaterials(env, state, raw) {
+    const items = raw && raw.items && typeof raw.items === "object" ? raw.items : null;
+    if (!items || !state.currencies) return;
+    for (const [item, key] of Object.entries(env.WALLET)) {
+      const held = Math.floor(Number(items[item]) || 0);
+      if (held > 0) state.currencies[key] = Math.min(env.E.itemCap, (Number(state.currencies[key]) || 0) + held);
+      delete items[item];
+    }
+  }
+  function atlasLateDef(env, id) {
+    return env.DEFS.get(id) || null;
+  }
+  function atlasLateEntryOf(row) {
+    return row.kind === "league" ? [[row.item, row.need]] : row.entry;
+  }
+  function atlasLateWitness(env, state, name, bossAct) {
+    const book = atlasLateLedger(state);
+    book.witness += 1;
+    book.witnessed = [...book.witnessed, [name, Number.isInteger(bossAct) ? bossAct : 9]].slice(-env.E.witness.keep);
+    return book.witness % env.E.witness.per === 0 ? atlasLateGive(env, state, "ringInvite", 1) : 0;
+  }
+  function atlasLateCountKill(env, state, node, apostle) {
+    const wasAwake = atlasLateAwakened(state);
+    if (env.LATE_BOSSES.has(node.kind)) atlasLateLedger(state).kills[node.id] = atlasLateKills(state, node.id) + 1;
+    if (apostle) atlasLateLedger(state).kills[apostle.id] = atlasLateKills(state, apostle.id) + 1;
+    return !wasAwake && atlasLateAwakened(state);
+  }
 
-    const ledger = state => state.atlas.endgame;
-    const defaults = () => ({ kills: {}, items: {}, blight: {}, witness: 0, witnessed: [] });
-    const kills = (state, id) => ledger(state).kills[id] || 0;
-    /** 세계수의 그림자를 한 번이라도 쓰러뜨리면 아틀라스가 깨어난다(후반부가 열린다). */
-    const awakened = state => kills(state, 'pinnacle') > 0;
-    // 성화 잉걸과 허기의 즙은 지갑 재화다(2026-10-10): 최종 보스 입장과 함께 제작실에서 영향 줄을 새기는 데도 쓴다(data/item-influences.js).
-    const WALLET = Object.freeze({ ember: ITEM_INFLUENCES.red.currency, ichor: ITEM_INFLUENCES.blue.currency });
-    const count = (state, item) => Number(WALLET[item] ? state.currencies[WALLET[item]] : ledger(state).items[item]) || 0;
-    function store(state, item, value) {
-        if (WALLET[item]) state.currencies[WALLET[item]] = value;
-        else ledger(state).items[item] = value;
+  // modules/domain/atlas-endgame-run.mjs
+  function atlasLateRollApostle(env, state, node, random) {
+    if (!node || node.kind !== "map" || atlasLateKills(state, "apex_gardener") < 1) return null;
+    const level = atlasLateLedger(state).blight[node.region] || 0;
+    if (random() * 100 >= level * env.E.blight.chancePerLevel) return null;
+    const pool = env.E.apostles.filter((row) => row.regions.includes(node.region));
+    return pool.length ? pool[Math.floor(random() * pool.length)].id : null;
+  }
+  function atlasLateEchoesFor(state, node) {
+    return node && node.id === "apex_weaver" ? atlasLateLedger(state).witnessed.slice(-2).reverse() : [];
+  }
+  function atlasLateRunExtra(env, state, node, random) {
+    return { apostle: atlasLateRollApostle(env, state, node, random), items: {}, echoes: atlasLateEchoesFor(state, node) };
+  }
+  function atlasLateCapped(raw, keys, cap) {
+    const out = {};
+    for (const key of keys) {
+      const value = Math.floor(Number(raw && raw[key]) || 0);
+      if (value > 0) out[key] = Math.min(cap, value);
     }
-    function give(state, item, amount) {
-        if (!(amount > 0) || !Object.hasOwn(E.items, item)) return 0;
-        const before = count(state, item);
-        store(state, item, Math.min(E.itemCap, before + Math.floor(amount)));
-        return count(state, item) - before;
-    }
-    /** A save from before the altar materials became wallet currencies: the ledger's embers and ichors move to the wallet. */
-    function moveAltarMaterials(state, raw) {
-        const items = raw && raw.items && typeof raw.items === 'object' ? raw.items : null;
-        if (!items || !state.currencies) return;
-        for (const [item, key] of Object.entries(WALLET)) {
-            const held = Math.floor(Number(items[item]) || 0);
-            if (held > 0) state.currencies[key] = Math.min(E.itemCap, (Number(state.currencies[key]) || 0) + held);
-            delete items[item];
-        }
-    }
-    const def = id => DEFS.get(id) || null;
-    const entryOf = row => (row.kind === 'league' ? [[row.item, row.need]] : row.entry);
+    return out;
+  }
+  function atlasLateValidEcho(row) {
+    return Array.isArray(row) && typeof row[0] === "string" && row[0].length <= 40 && Number.isInteger(row[1]) && row[1] >= 0 && row[1] <= 9;
+  }
+  function atlasLateNormalizeRun(env, raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return {
+      apostle: env.APOSTLES.has(source.apostle) ? source.apostle : null,
+      items: atlasLateCapped(source.items, env.ITEM_IDS, env.E.itemCap * 10),
+      echoes: (Array.isArray(source.echoes) ? source.echoes : []).filter(atlasLateValidEcho).slice(0, 2)
+    };
+  }
 
-    // ---------------------------------------------------------------- what is open
-    /** A league waits for the unlock of its room (data/atlas.js encounters): before it there are no shards. */
-    const roomLoop = row => (row.room && ATLAS.encounters[row.room] ? ATLAS.encounters[row.room].minLoop || 0 : 0);
-    const roomHeld = (state, row) => { const unlock = row.room && ATLAS.encounters[row.room]?.unlock; return !unlock || contentProgression.holds(unlock, state); };
-    function ancientDone(state, id) {
-        return kills(state, id) > 0 || (state.atlas.completed || []).includes(id) || (state.clearedRootBosses || []).includes(id);
-    }
-    function ancientGate(state, id) {
-        const rule = ATLAS.lore.bosses.find(row => row.id === id);
-        if (!rule || ancientDone(state, id)) return '';
-        const missing = rule.requires.filter(key => !ancientDone(state, key));
-        const name = key => ATLAS.lore.bosses.find(row => row.id === key)?.name || atlas.node(key)?.name || key;
-        return missing.length ? _t('{names} 격파 필요', { names: missing.map(key => _t(name(key))).join(', ') }) : '';
-    }
-    function unlocked(state, row) {
-        if (!awakened(state) || (Number(state.season) || 1) < roomLoop(row) || !roomHeld(state, row)) return false;
-        if (ATLAS.lore.bosses.some(rule => rule.id === row.id)) return !ancientGate(state, row.id);
-        return !(row.unlock && row.unlock.kill) || kills(state, row.unlock.kill) > 0;
-    }
-    function lockText(state, row) {
-        if (awakened(state) && ATLAS.lore.bosses.some(rule => rule.id === row.id)) return ancientGate(state, row.id);
-        if (row.unlock && row.unlock.kill) return _t('{name} 처치 뒤에 열립니다.', { name: def(row.unlock.kill).stages[0].name });
-        if (awakened(state) && roomLoop(row) > 0) return _t('{name} 해금 뒤에 열립니다.', { name: ATLAS.encounters[row.room].name });
-        return '세계수의 그림자(정점)를 쓰러뜨리면 아틀라스가 깨어나 열립니다.';
-    }
-    const missingOf = (state, row) => entryOf(row).filter(([item, need]) => count(state, item) < need);
-    /** @returns {string} '' when the fight can open now, otherwise why not. */
-    function entryReason(state, id) {
-        const row = def(id);
-        if (!row) return '없는 보스입니다.';
-        const lock = atlas.lockReason(state);
-        if (lock) return lock;
-        if (state.atlas.run) return atlas.runOpenReason(state);
-        if (!unlocked(state, row)) return lockText(state, row);
-        const missing = missingOf(state, row);
-        return missing.length ? `재료가 부족합니다: ${missing.map(([item, need]) => `${E.items[item].name} ${count(state, item)}/${need}`).join(', ')}` : '';
-    }
-    function spend(state, id) {
-        for (const [item, need] of entryOf(def(id))) store(state, item, count(state, item) - need);
-    }
-    /** Travel failed right after opening: the offering comes back. */
-    function refund(state, id) {
-        for (const [item, need] of entryOf(def(id))) give(state, item, need);
-    }
+  // modules/domain/atlas-endgame-restore.mjs
+  function atlasLateNormalize(env, raw, pinnacleDone = false) {
+    const source = raw && typeof raw === "object" ? raw : {}, kills = atlasLateCapped(source.kills, env.KILL_IDS, 1e6);
+    if (pinnacleDone && !kills.pinnacle) kills.pinnacle = 1;
+    return {
+      kills,
+      items: atlasLateCapped(source.items, env.ITEM_IDS, env.E.itemCap),
+      blight: atlasLateCapped(source.blight, env.deps.ATLAS.regions.map((region) => region.id), env.E.blight.max),
+      witness: Math.max(0, Math.min(1e6, Math.floor(Number(source.witness) || 0))),
+      witnessed: (Array.isArray(source.witnessed) ? source.witnessed : []).filter(atlasLateValidEcho).slice(-env.E.witness.keep)
+    };
+  }
+  function atlasLateReset(env, state) {
+    state.atlas.endgame = atlasLateDefaults();
+    Object.values(env.WALLET).forEach((key) => {
+      state.currencies[key] = 0;
+    });
+  }
 
-    // ---------------------------------------------------------------- the run's share
-    /** A blighted region's map is sometimes held by one of the apostles of 밑거름의 장로 instead of its own boss (after the gardener falls). */
-    function rollApostle(state, node, random) {
-        if (!node || node.kind !== 'map' || kills(state, 'apex_gardener') < 1) return null;
-        const level = ledger(state).blight[node.region] || 0;
-        if (random() * 100 >= level * E.blight.chancePerLevel) return null;
-        const pool = E.apostles.filter(row => row.regions.includes(node.region));
-        return pool.length ? pool[Math.floor(random() * pool.length)].id : null;
-    }
-    /** The weaver's echoes: the bosses she witnessed most recently (newest first). */
-    const echoesFor = (state, node) => (node && node.id === 'apex_weaver' ? ledger(state).witnessed.slice(-2).reverse() : []);
-    function runExtra(state, node, random) {
-        return { apostle: rollApostle(state, node, random), items: {}, echoes: echoesFor(state, node) };
-    }
-    /** Whole counts 1..cap under known keys only (unknown and broken entries are dropped). */
-    function capped(raw, keys, cap) {
-        const out = {};
-        for (const key of keys) {
-            const value = Math.floor(Number(raw && raw[key]) || 0);
-            if (value > 0) out[key] = Math.min(cap, value);
-        }
-        return out;
-    }
-    const validEcho = row => Array.isArray(row) && typeof row[0] === 'string' && row[0].length <= 40 && Number.isInteger(row[1]) && row[1] >= 0 && row[1] <= 9;
-    function normalizeRun(raw) {
-        const source = raw && typeof raw === 'object' ? raw : {};
-        return { apostle: APOSTLES.has(source.apostle) ? source.apostle : null, items: capped(source.items, ITEM_IDS, E.itemCap * 10),
-            echoes: (Array.isArray(source.echoes) ? source.echoes : []).filter(validEcho).slice(0, 2) };
-    }
+  // modules/domain/atlas-endgame-access.mjs
+  function atlasLateRoomLoop(env, row) {
+    return row.room && env.deps.ATLAS.encounters[row.room] ? env.deps.ATLAS.encounters[row.room].minLoop || 0 : 0;
+  }
+  function atlasLateRoomHeld(env, state, row) {
+    const unlock = row.room && env.deps.ATLAS.encounters[row.room]?.unlock;
+    return !unlock || env.deps.contentProgression.holds(unlock, state);
+  }
+  function atlasLateAncientDone(state, id) {
+    return atlasLateKills(state, id) > 0 || (state.atlas.completed || []).includes(id) || (state.clearedRootBosses || []).includes(id);
+  }
+  function atlasLateAncientGate(env, state, id) {
+    const rule = env.deps.ATLAS.lore.bosses.find((row) => row.id === id);
+    if (!rule || atlasLateAncientDone(state, id)) return "";
+    const missing = rule.requires.filter((key) => !atlasLateAncientDone(state, key));
+    const name = (key) => env.deps.ATLAS.lore.bosses.find((row) => row.id === key)?.name || env.deps.atlas.node(key)?.name || key;
+    return missing.length ? env.deps._t("{names} 격파 필요", { names: missing.map((key) => env.deps._t(name(key))).join(", ") }) : "";
+  }
+  function atlasLateUnlocked(env, state, row) {
+    if (!atlasLateAwakened(state) || (Number(state.season) || 1) < atlasLateRoomLoop(env, row) || !atlasLateRoomHeld(env, state, row)) return false;
+    if (env.deps.ATLAS.lore.bosses.some((rule) => rule.id === row.id)) return !atlasLateAncientGate(env, state, row.id);
+    return !(row.unlock && row.unlock.kill) || atlasLateKills(state, row.unlock.kill) > 0;
+  }
+  function atlasLateLockText(env, state, row) {
+    if (atlasLateAwakened(state) && env.deps.ATLAS.lore.bosses.some((rule) => rule.id === row.id)) return atlasLateAncientGate(env, state, row.id);
+    if (row.unlock && row.unlock.kill) return env.deps._t("{name} 처치 뒤에 열립니다.", { name: atlasLateDef(env, row.unlock.kill).stages[0].name });
+    if (atlasLateAwakened(state) && atlasLateRoomLoop(env, row) > 0) return env.deps._t("{name} 해금 뒤에 열립니다.", { name: env.deps.ATLAS.encounters[row.room].name });
+    return "세계수의 그림자(정점)를 쓰러뜨리면 아틀라스가 깨어나 열립니다.";
+  }
+  function atlasLateMissingOf(env, state, row) {
+    return atlasLateEntryOf(row).filter(([item, need]) => atlasLateCount(env, state, item) < need);
+  }
+  function atlasLateEntryReason(env, state, id) {
+    const row = atlasLateDef(env, id);
+    if (!row) return "없는 보스입니다.";
+    const lock = env.deps.atlas.lockReason(state);
+    if (lock) return lock;
+    if (state.atlas.run) return env.deps.atlas.runOpenReason(state);
+    if (!atlasLateUnlocked(env, state, row)) return atlasLateLockText(env, state, row);
+    const missing = atlasLateMissingOf(env, state, row);
+    return missing.length ? `재료가 부족합니다: ${missing.map(([item, need]) => `${env.E.items[item].name} ${atlasLateCount(env, state, item)}/${need}`).join(", ")}` : "";
+  }
+  function atlasLateSpend(env, state, id) {
+    for (const [item, need] of atlasLateEntryOf(atlasLateDef(env, id))) atlasLateStore(env, state, item, atlasLateCount(env, state, item) - need);
+  }
+  function atlasLateRefund(env, state, id) {
+    for (const [item, need] of atlasLateEntryOf(atlasLateDef(env, id))) atlasLateGive(env, state, item, need);
+  }
 
-    // ---------------------------------------------------------------- the zone and its bosses
-    /** Boss multipliers on top of the node's own rules: an apostle hits harder than the map boss it replaces. */
-    function bossBoost(run) {
-        const apostle = run && run.endgame && run.endgame.apostle;
-        return apostle ? { hp: E.blight.hpMul, damage: E.blight.damageMul } : { hp: 1, damage: 1 };
-    }
-    function stageName(row, stage, echoes) {
-        if (!Number.isInteger(stage.echo)) return stage.name;
-        const echo = echoes[stage.echo];
-        return echo ? _t('엮인 메아리: {echo}', { echo: echo[0] }) : _t('엮인 메아리: {name}', { name: row.stages[0].name });
-    }
-    /** Zone fields an apostle map or a late fight adds (names, art, stage table, floor hazard). */
-    function zoneExtras(run, node) {
-        const extra = (run && run.endgame) || {}, apostle = APOSTLES.get(extra.apostle);
-        // 사도가 차지한 지도는 사도의 이름과 그 액트 그림이다: 지도 보스의 몸(bossVisualId)을 쓰지 않는다
-        if (node.kind === 'map' && apostle) return { bossName: apostle.name, bossAct: apostle.bossAct, bossVisualId: null, atlasApostle: apostle.id };
-        const row = def(node.id);
-        if (!row) return {};
-        const echoes = extra.echoes || [], names = row.stages.map(stage => stageName(row, stage, echoes));
-        const out = { bossName: names[0], bossStageNames: names, atlasStages: row.id, atlasEchoes: echoes };
-        // 투기장의 장판: 시련 함정 양식으로 예고한 뒤 그 원소의 지대로 남는다(js/combat-enemy-turn.js resolveTrialHazardImpact, COMBAT_GRID_CONFIG.ground).
-        const arena = E.arenas[node.id];
-        if (arena) Object.assign(out, { trialHazard: { ...E.arenaHazard, persistent: true },
-            trapElements: [arena.element], trapName: COMBAT_GRID_CONFIG.ground[arena.element].name });
-        return out;
-    }
-    /** The stage's picture: a league boss with its own sheet (the beehive queen) draws it, the rest an act boss's art. */
-    function applyStageBody(enemy, row, art) {
-        if (row.bodyVisual) return Object.assign(enemy, { monsterVisualId: row.bodyVisual, spriteVariantId: null, monsterArchetype: null, bossAssetKey: ACT_BOSS_ASSET_KEYS[art] || null });
-        enemy.monsterVisualId = null;
-        enemy.bossAssetKey = ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
-        return enemy;
-    }
-    /** Whose picture a stage draws: an echo draws the witnessed boss's own sheet when it has one (2026-10-07 review: the weaver's echo
-     * of the beehive queen came out as the act 9 boss), else that boss's act art. A stage of another act's boss (the apostles, the
-     * deacon choir) draws that act's art (2026-10-18: they came out as the elder and the archbishop); the boss's own stages its sheet. */
-    function stageBodyRow(row, echo, body) {
-        if (echo) return BODY_BY_BOSS.get(echo[0]) || {};
-        return Number.isInteger(body.bossAct) && body.bossAct !== row.bossAct ? {} : row;
-    }
-    /** A late fight's stage body (js/combat-encounters.js createActExplorationPack): its own name, art and special attack; echoes are weaker copies. */
-    function tuneStage(enemy, zone, stage) {
-        const row = def(zone.atlasStages), body = row && row.stages[stage];
-        if (!body) return enemy;
-        // An echo stage stays an echo (weaker, tinted) even when fewer bosses were witnessed than it has echoes (it copies the weaver then).
-        const isEcho = Number.isInteger(body.echo), echo = isEcho ? (zone.atlasEchoes || [])[body.echo] : null;
-        const art = echo ? echo[1] : (Number.isInteger(body.bossAct) ? body.bossAct : row.bossAct);
-        enemy.name = `👿 ${zone.bossStageNames[stage]}`;
-        applyStageBody(enemy, body.bodyVisual ? body : stageBodyRow(row, echo, body), art);
-        enemy.bossVisualTint = isEcho ? 200 : null;
-        enemy.patternMode = 'apex';
-        enemy.apexMechanic = body.mechanic;
-        if (isEcho) { enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * E.witness.echoHpMul)); enemy.hp = enemy.maxHp; }
-        return enemy;
-    }
-    /** Pattern state of a late boss's special (js/combat-patterns.js 'apex' mode): every n-th attack, the rest are its warning. */
-    function patternState(mechanicId, attackNumber) {
-        const rule = E.mechanics[mechanicId];
-        if (!rule) return null;
-        const n = Math.max(1, Math.floor(Number(attackNumber) || 1)), special = n % rule.every === 0;
-        return { mode: mechanicId, patternMode: 'apex', label: rule.name,
-            damageMul: special ? rule.damageMul : 1, isSpecial: special, attackNumber: n,
-            telegraphKind: rule.telegraph, warningMs: COMBAT_GRID_CONFIG.bossPatternWarningMs, recoveryMs: 0,
-            ...comboState(mechanicId, rule, n, special) };
-    }
-    function comboState(id, rule, n, special) {
-        const sequence = E.sequences[id];
-        if (!sequence || !special) return {};
-        const step = (Math.floor(n / rule.every) - 1 + 3) % 3, finisher = step === 2, combo = E.combo;
-        return { label: `${rule.name}, ${['첫 수', '연계', '마무리'][step]}`, telegraphKind: sequence[step],
-            warningMs: finisher ? combo.finisherWarningMs : combo.warningMs, recoveryMs: finisher ? combo.finisherRecoveryMs : combo.recoveryMs };
-    }
+  // modules/domain/atlas-endgame-overview.mjs
+  function atlasLateLoopKeptCurrencies(env, state) {
+    return Object.values(env.WALLET).map((key) => [key, Math.max(0, Math.floor(Number(state.currencies[key]) || 0))]);
+  }
+  function atlasLateLockOf(env, state, row) {
+    return atlasLateAwakened(state) && !atlasLateUnlocked(env, state, row) ? atlasLateLockText(env, state, row) : "";
+  }
+  function atlasLateOverview(env, state) {
+    const fight = (row) => ({
+      row,
+      unlocked: atlasLateUnlocked(env, state, row),
+      reason: atlasLateEntryReason(env, state, row.id),
+      lock: atlasLateLockOf(env, state, row),
+      kills: atlasLateKills(state, row.id),
+      entry: atlasLateEntryOf(row).map(([item, need]) => ({ item, name: env.E.items[item].name, have: atlasLateCount(env, state, item), need }))
+    });
+    const book = atlasLateLedger(state);
+    return {
+      awakened: atlasLateAwakened(state),
+      apexes: env.E.apexes.map((row) => fight({ ...row, kind: "apex" })),
+      leagues: env.E.leagues.map((row) => fight({ ...row, kind: "league" })),
+      blight: env.deps.ATLAS.regions.map((region) => ({ region, level: book.blight[region.id] || 0 })),
+      witness: book.witness,
+      witnessPer: env.E.witness.per,
+      gardenerDown: atlasLateKills(state, "apex_gardener") > 0
+    };
+  }
 
-    // ---------------------------------------------------------------- rooms in a map
-    function roomItem(room) {
-        if (E.altars[room]) return { item: E.altars[room].item, rate: E.altars[room].amount };
-        const league = LEAGUE_BY_ROOM.get(room);
-        return league ? { item: league.item, rate: league.shards } : null;
+  // modules/domain/atlas-endgame-boss-stage.mjs
+  function atlasLateBossBoost(env, run) {
+    const apostle = run && run.endgame && run.endgame.apostle;
+    return apostle ? { hp: env.E.blight.hpMul, damage: env.E.blight.damageMul } : { hp: 1, damage: 1 };
+  }
+  function atlasLateStageName(env, row, stage, echoes) {
+    if (!Number.isInteger(stage.echo)) return stage.name;
+    const echo = echoes[stage.echo];
+    return echo ? env.deps._t("엮인 메아리: {echo}", { echo: echo[0] }) : env.deps._t("엮인 메아리: {name}", { name: row.stages[0].name });
+  }
+  function atlasLateZoneExtras(env, run, node) {
+    const extra = run && run.endgame || {}, apostle = env.APOSTLES.get(extra.apostle);
+    if (node.kind === "map" && apostle) return { bossName: apostle.name, bossAct: apostle.bossAct, bossVisualId: null, atlasApostle: apostle.id };
+    const row = atlasLateDef(env, node.id);
+    if (!row) return {};
+    const echoes = extra.echoes || [], names = row.stages.map((stage) => atlasLateStageName(env, row, stage, echoes));
+    const out = { bossName: names[0], bossStageNames: names, atlasStages: row.id, atlasEchoes: echoes };
+    const arena = env.E.arenas[node.id];
+    if (arena) Object.assign(out, {
+      trialHazard: { ...env.E.arenaHazard, persistent: true },
+      trapElements: [arena.element],
+      trapName: env.deps.COMBAT_GRID_CONFIG.ground[arena.element].name
+    });
+    return out;
+  }
+  function atlasLateApplyStageBody(env, enemy, row, art) {
+    if (row.bodyVisual) return Object.assign(enemy, { monsterVisualId: row.bodyVisual, spriteVariantId: null, monsterArchetype: null, bossAssetKey: env.deps.ACT_BOSS_ASSET_KEYS[art] || null });
+    enemy.monsterVisualId = null;
+    enemy.bossAssetKey = env.deps.ACT_BOSS_ASSET_KEYS[art] || enemy.bossAssetKey;
+    return enemy;
+  }
+  function atlasLateStageBodyRow(env, row, echo, body) {
+    if (echo) return env.BODY_BY_BOSS.get(echo[0]) || {};
+    return Number.isInteger(body.bossAct) && body.bossAct !== row.bossAct ? {} : row;
+  }
+  function atlasLateTuneStage(env, enemy, zone, stage) {
+    const row = atlasLateDef(env, zone.atlasStages), body = row && row.stages[stage];
+    if (!body) return enemy;
+    const isEcho = Number.isInteger(body.echo), echo = isEcho ? (zone.atlasEchoes || [])[body.echo] : null;
+    const art = echo ? echo[1] : Number.isInteger(body.bossAct) ? body.bossAct : row.bossAct;
+    enemy.name = `👿 ${zone.bossStageNames[stage]}`;
+    atlasLateApplyStageBody(env, enemy, body.bodyVisual ? body : atlasLateStageBodyRow(env, row, echo, body), art);
+    enemy.bossVisualTint = isEcho ? 200 : null;
+    enemy.patternMode = "apex";
+    enemy.apexMechanic = body.mechanic;
+    if (isEcho) {
+      enemy.maxHp = Math.max(1, Math.floor(enemy.maxHp * env.E.witness.echoHpMul));
+      enemy.hp = enemy.maxHp;
     }
-    /** Expected base + perTier × tier; the fraction rolls one more. */
-    const rolledAmount = (rate, tier, random) => { const expected = rate[0] + rate[1] * tier; return Math.floor(expected) + Number(random() < expected % 1); };
-    const lateRun = state => (awakened(state) && state.atlas.run && state.atlas.run.endgame) || null;
-    /** An emptied altar or league room (once awake): its late material waits in the run until the boss falls. @returns {Array} [[item, n]]. */
-    function roomItems(state, zone, room, random = Math.random) {
-        const held = lateRun(state), found = roomItem(room);
-        if (!held || !found) return [];
-        const amount = rolledAmount(found.rate, zone.atlasTier || 1, random);
-        held.items[found.item] = (held.items[found.item] || 0) + amount;
-        return amount > 0 ? [[found.item, amount]] : [];
-    }
+    return enemy;
+  }
+  function atlasLatePatternState(env, mechanicId, attackNumber) {
+    const rule = env.E.mechanics[mechanicId];
+    if (!rule) return null;
+    const n = Math.max(1, Math.floor(Number(attackNumber) || 1)), special = n % rule.every === 0;
+    return {
+      mode: mechanicId,
+      patternMode: "apex",
+      label: rule.name,
+      damageMul: special ? rule.damageMul : 1,
+      isSpecial: special,
+      attackNumber: n,
+      telegraphKind: rule.telegraph,
+      warningMs: env.deps.COMBAT_GRID_CONFIG.bossPatternWarningMs,
+      recoveryMs: 0,
+      ...atlasLateComboState(env, mechanicId, rule, n, special)
+    };
+  }
+  function atlasLateComboState(env, id, rule, n, special) {
+    const sequence = env.E.sequences[id];
+    if (!sequence || !special) return {};
+    const step = (Math.floor(n / rule.every) - 1 + 3) % 3, finisher = step === 2, combo = env.E.combo;
+    return {
+      label: `${rule.name}, ${["첫 수", "연계", "마무리"][step]}`,
+      telegraphKind: sequence[step],
+      warningMs: finisher ? combo.finisherWarningMs : combo.warningMs,
+      recoveryMs: finisher ? combo.finisherRecoveryMs : combo.recoveryMs
+    };
+  }
 
-    // ---------------------------------------------------------------- a boss falls
-    function witness(state, name, bossAct) {
-        const book = ledger(state);
-        book.witness += 1;
-        book.witnessed = [...book.witnessed, [name, Number.isInteger(bossAct) ? bossAct : 9]].slice(-E.witness.keep);
-        return book.witness % E.witness.per === 0 ? give(state, 'ringInvite', 1) : 0;
+  // modules/domain/atlas-endgame-spoils.mjs
+  function atlasLateRoomItem(env, room) {
+    if (env.E.altars[room]) return { item: env.E.altars[room].item, rate: env.E.altars[room].amount };
+    const league = env.LEAGUE_BY_ROOM.get(room);
+    return league ? { item: league.item, rate: league.shards } : null;
+  }
+  function atlasLateRolledAmount(rate, tier, random) {
+    const expected = rate[0] + rate[1] * tier;
+    return Math.floor(expected) + Number(random() < expected % 1);
+  }
+  function atlasLateLateRun(state) {
+    return atlasLateAwakened(state) && state.atlas.run && state.atlas.run.endgame || null;
+  }
+  function atlasLateRoomItems(env, state, zone, room, random = Math.random) {
+    const held = atlasLateLateRun(state), found = atlasLateRoomItem(env, room);
+    if (!held || !found) return [];
+    const amount = atlasLateRolledAmount(found.rate, zone.atlasTier || 1, random);
+    held.items[found.item] = (held.items[found.item] || 0) + amount;
+    return amount > 0 ? [[found.item, amount]] : [];
+  }
+  function atlasLateKeepHeld(env, state, run, out) {
+    const extra = run.endgame || {};
+    for (const [item, amount] of Object.entries(extra.items || {})) {
+      const got = atlasLateGive(env, state, item, amount);
+      if (got) out.items.push([item, got]);
     }
-    function keepHeld(state, run, out) {
-        const extra = run.endgame || {};
-        for (const [item, amount] of Object.entries(extra.items || {})) {
-            const got = give(state, item, amount); // at the cap only part of it fits: tell what really came in
-            if (got) out.items.push([item, got]);
-        }
-    }
-    /** The material a late boss gives on top of its fight's spoils: guardians their shear, apostles their rot shard. */
-    function bossMaterial(state, node, run, out) {
-        if (node.kind === 'guardian' && E.guardianShears[node.region] && give(state, E.guardianShears[node.region], 1)) out.items.push([E.guardianShears[node.region], 1]);
-        const apostle = APOSTLES.get(run.endgame && run.endgame.apostle);
-        if (apostle && give(state, apostle.item, 1)) out.items.push([apostle.item, 1]);
-    }
-    function fightSpoils(state, node, out, first) {
-        const row = def(node.id);
-        if (!row) return;
-        out.rewards = row.rewards.filter(([key]) => contentProgression.canDropCurrency(key));
-        const chance = E.uniqueChance[row.kind] || 0;
-        // 고유가 둘인 우두머리(묘목장: 어미나무의 손길, 떨어지지 않는 열매, 시든 정원: 마른 꽃잎 고리, 감기는 덩굴손)는 그 가운데 하나를 준다.
-        const uniques = [].concat(row.unique || []);
-        if (uniques.length && (first || Math.random() < chance)) out.unique = uniques[Math.floor(Math.random() * uniques.length)];
-    }
-    /** Counts the kill (late bosses and apostles) and says whether this kill woke the atlas. */
-    function countKill(state, node, apostle) {
-        const wasAwake = awakened(state);
-        if (LATE_BOSSES.has(node.kind)) ledger(state).kills[node.id] = kills(state, node.id) + 1;
-        if (apostle) ledger(state).kills[apostle.id] = kills(state, apostle.id) + 1;
-        return !wasAwake && awakened(state);
-    }
-    /** The weaver witnesses late bosses (not herself, nor the kill that woke the atlas). */
-    function witnessKill(state, node, apostle) {
-        if (apostle) return witness(state, apostle.name, apostle.bossAct);
-        return LATE_BOSSES.has(node.kind) && node.id !== 'apex_weaver' ? witness(state, node.boss, node.bossAct) : 0;
-    }
-    /** Boss down in a late-atlas run or a map (js/atlas.js complete): kills, awakening, materials, blight, witness and the fight's spoils.
-     * @returns {object} what the result screen and the log tell. */
-    function onComplete(state, node, run) {
-        const out = { items: [], rewards: [], unique: null, awakened: false, invite: 0, blight: null };
-        const apostle = APOSTLES.get(run.endgame && run.endgame.apostle) || null, first = kills(state, node.id) < 1;
-        out.awakened = countKill(state, node, apostle);
-        if (!awakened(state)) return out;
-        keepHeld(state, run, out);
-        bossMaterial(state, node, run, out);
-        fightSpoils(state, node, out, first);
-        if (node.kind === 'apex') apexStumpDrops(state); // 그루터기 함 불씨의 흉터(포식이 열린 뒤)와 고대 씨앗(루프 42)
-        if (node.kind === 'map' && kills(state, 'apex_gardener') > 0) out.blight = apostle ? cleanseBlight(state, node.region) : spreadBlight(state, node.region);
-        if (!out.awakened) out.invite = witnessKill(state, node, apostle);
-        return out;
-    }
-    /** A final boss's stump box gifts: a scar (once devouring opens) and, from loop 42, sometimes an ancient seed (js/stump-nursery.js). */
-    function apexStumpDrops(state) {
-        if (typeof stumpBox === 'object') stumpBox.rollScarDrop(state);
-        if (typeof stumpNursery === 'object') stumpNursery.ancientFromBoss(state);
-    }
-    function spreadBlight(state, region) {
-        const book = ledger(state).blight;
-        book[region] = Math.min(E.blight.max, (book[region] || 0) + E.blight.perMap);
-        return { region, level: book[region] };
-    }
-    /** A fallen apostle lifts its region's blight (2026-10-10): it builds up again map by map, so an apostle holds about one map in
-     * five instead of four in five, and the rot shards come about as fast as the other final bosses' offerings. */
-    function cleanseBlight(state, region) {
-        ledger(state).blight[region] = 0;
-        return { region, level: 0, cleansed: true };
-    }
+  }
+  function atlasLateBossMaterial(env, state, node, run, out) {
+    if (node.kind === "guardian" && env.E.guardianShears[node.region] && atlasLateGive(env, state, env.E.guardianShears[node.region], 1)) out.items.push([env.E.guardianShears[node.region], 1]);
+    const apostle = env.APOSTLES.get(run.endgame && run.endgame.apostle);
+    if (apostle && atlasLateGive(env, state, apostle.item, 1)) out.items.push([apostle.item, 1]);
+  }
+  function atlasLateFightSpoils(env, state, node, out, first) {
+    const row = atlasLateDef(env, node.id);
+    if (!row) return;
+    out.rewards = row.rewards.filter(([key]) => env.deps.contentProgression.canDropCurrency(key));
+    const chance = env.E.uniqueChance[row.kind] || 0;
+    const uniques = [].concat(row.unique || []);
+    if (uniques.length && (first || Math.random() < chance)) out.unique = uniques[Math.floor(Math.random() * uniques.length)];
+  }
+  function atlasLateWitnessKill(env, state, node, apostle) {
+    if (apostle) return atlasLateWitness(env, state, apostle.name, apostle.bossAct);
+    return env.LATE_BOSSES.has(node.kind) && node.id !== "apex_weaver" ? atlasLateWitness(env, state, node.boss, node.bossAct) : 0;
+  }
 
-    // ---------------------------------------------------------------- 뿌리를 품은 몬스터 (data/items.js CRAFT_OMENS bearer)
-    /** The omens late maps carry: those of the final bosses already felled (each boss's echo spreads its omen). */
-    const bearableOmens = state => CRAFT_OMENS.keys.filter(key => kills(state, CRAFT_OMENS.effects[key].boss) > 0);
-    function bearerZone(zone) {
-        const B = CRAFT_OMENS.bearer;
-        return Boolean(zone && ((zone.type === 'atlasMap' && zone.atlasTier >= B.minAtlasTier) || (zone.type === 'abyss' && zone.depth >= B.minChaosDepth)));
-    }
-    /** An elite's or another monster's chance, raised by the map's 뿌리의 메아리 (data/loot-omens.js, run bonus omenBearer %). */
-    function bearerChance(state, enemy) {
-        const run = state.atlas.run, bonus = Number(run && run.bonus && run.bonus.omenBearer) || 0;
-        return (enemy.isElite ? CRAFT_OMENS.bearer.elite : CRAFT_OMENS.bearer.normal) * (1 + bonus / 100);
-    }
-    /** A new monster in a late map or deep chaos sometimes carries the omen of a final boss already felled, and its name says so. */
-    function markOmenBearer(state, enemy, zone, random = Math.random) {
-        if (enemy.isBoss || enemy.isSummon || enemy.craftOmen || !awakened(state) || !bearerZone(zone)) return;
-        const omens = bearableOmens(state);
-        if (!omens.length || random() >= bearerChance(state, enemy)) return;
-        enemy.craftOmen = omens[Math.floor(random() * omens.length)];
-        enemy.name = `뿌리를 품은 ${enemy.name}`;   // 한국어 원문으로 둔다: 보여 줄 때 옮긴다(js/i18n.js enemyName)
-    }
-    /** The omen key a slain bearer leaves, once ('' for any other monster). */
-    function takeOmen(enemy) {
-        if (!enemy.craftOmen || enemy.craftOmenTaken) return '';
-        enemy.craftOmenTaken = true;
-        return enemy.craftOmen;
-    }
+  // modules/domain/atlas-endgame-blight.mjs
+  function atlasLateSpreadBlight(env, state, region) {
+    const book = atlasLateLedger(state).blight;
+    book[region] = Math.min(env.E.blight.max, (book[region] || 0) + env.E.blight.perMap);
+    return { region, level: book[region] };
+  }
+  function atlasLateCleanseBlight(state, region) {
+    atlasLateLedger(state).blight[region] = 0;
+    return { region, level: 0, cleansed: true };
+  }
 
-    // ---------------------------------------------------------------- save boundary, epoch, view
-    const KILL_IDS = Object.freeze([...DEFS.keys(), ...APOSTLES.keys(), 'pinnacle', ...ATLAS.regions.map(region => `${region.id}_g`)]);
-    /** @param {boolean} pinnacleDone the shadow is a completed node: a save from before the late atlas (or one that lost it) wakes. */
-    function normalize(raw, pinnacleDone = false) {
-        const source = raw && typeof raw === 'object' ? raw : {}, kills = capped(source.kills, KILL_IDS, 1e6);
-        if (pinnacleDone && !kills.pinnacle) kills.pinnacle = 1;
-        return { kills, items: capped(source.items, ITEM_IDS, E.itemCap),
-            blight: capped(source.blight, ATLAS.regions.map(region => region.id), E.blight.max),
-            witness: Math.max(0, Math.min(1e6, Math.floor(Number(source.witness) || 0))),
-            witnessed: (Array.isArray(source.witnessed) ? source.witnessed : []).filter(validEcho).slice(-E.witness.keep) };
+  // modules/domain/atlas-endgame-completion.mjs
+  function* atlasLateOnComplete(env, state, node, run) {
+    const out = { items: [], rewards: [], unique: null, awakened: false, invite: 0, blight: null };
+    const apostle = env.APOSTLES.get(run.endgame && run.endgame.apostle) || null, first = atlasLateKills(state, node.id) < 1;
+    out.awakened = atlasLateCountKill(env, state, node, apostle);
+    if (!atlasLateAwakened(state)) return out;
+    atlasLateKeepHeld(env, state, run, out);
+    atlasLateBossMaterial(env, state, node, run, out);
+    atlasLateFightSpoils(env, state, node, out, first);
+    if (node.kind === "apex") yield* atlasLateApexStumpDrops(state);
+    if (node.kind === "map" && atlasLateKills(state, "apex_gardener") > 0) out.blight = apostle ? atlasLateCleanseBlight(state, node.region) : atlasLateSpreadBlight(env, state, node.region);
+    if (!out.awakened) out.invite = atlasLateWitnessKill(env, state, node, apostle);
+    return out;
+  }
+  function* atlasLateApexStumpDrops(state) {
+    yield { kind: "grantApexScar", args: [state] };
+    yield { kind: "grantApexAncient", args: [state] };
+  }
+
+  // modules/domain/atlas-endgame-omens.mjs
+  function atlasLateBearableOmens(env, state) {
+    return env.deps.CRAFT_OMENS.keys.filter((key) => atlasLateKills(state, env.deps.CRAFT_OMENS.effects[key].boss) > 0);
+  }
+  function atlasLateBearerZone(env, zone) {
+    const B = env.deps.CRAFT_OMENS.bearer;
+    return Boolean(zone && (zone.type === "atlasMap" && zone.atlasTier >= B.minAtlasTier || zone.type === "abyss" && zone.depth >= B.minChaosDepth));
+  }
+  function atlasLateBearerChance(env, state, enemy) {
+    const run = state.atlas.run, bonus = Number(run && run.bonus && run.bonus.omenBearer) || 0;
+    return (enemy.isElite ? env.deps.CRAFT_OMENS.bearer.elite : env.deps.CRAFT_OMENS.bearer.normal) * (1 + bonus / 100);
+  }
+  function atlasLateMarkOmenBearer(env, state, enemy, zone, random = Math.random) {
+    if (enemy.isBoss || enemy.isSummon || enemy.craftOmen || !atlasLateAwakened(state) || !atlasLateBearerZone(env, zone)) return;
+    const omens = atlasLateBearableOmens(env, state);
+    if (!omens.length || random() >= atlasLateBearerChance(env, state, enemy)) return;
+    enemy.craftOmen = omens[Math.floor(random() * omens.length)];
+    enemy.name = `뿌리를 품은 ${enemy.name}`;
+  }
+  function atlasLateTakeOmen(enemy) {
+    if (!enemy.craftOmen || enemy.craftOmenTaken) return "";
+    enemy.craftOmenTaken = true;
+    return enemy.craftOmen;
+  }
+
+  // modules/domain/atlas-endgame.mjs
+  function createAtlasEndgameEnvironment(deps) {
+    const env = { deps };
+    env.E = env.deps.ATLAS_ENDGAME;
+    env.DEFS = new Map([...env.E.apexes.map((row) => [row.id, { ...row, kind: "apex" }]), ...env.E.leagues.map((row) => [row.id, { ...row, kind: "league" }])]);
+    env.LEAGUE_BY_ROOM = new Map(env.E.leagues.map((row) => [row.room, row]));
+    env.BODY_BY_BOSS = new Map([...env.E.leagues, ...env.E.apexes].filter((row) => row.bodyVisual).map((row) => [row.boss || row.stages[0].name, row]));
+    env.APOSTLES = new Map(env.E.apostles.map((row) => [row.id, row]));
+    env.ITEM_IDS = Object.freeze(Object.keys(env.E.items));
+    env.LATE_BOSSES = /* @__PURE__ */ new Set(["guardian", "pinnacle", "apex", "league"]);
+    env.WALLET = Object.freeze({ ember: env.deps.ITEM_INFLUENCES.red.currency, ichor: env.deps.ITEM_INFLUENCES.blue.currency });
+    env.KILL_IDS = Object.freeze([...env.DEFS.keys(), ...env.APOSTLES.keys(), "pinnacle", ...env.deps.ATLAS.regions.map((region) => `${region.id}_g`)]);
+    return env;
+  }
+  function createAtlasEndgameLedgerApi(env) {
+    return {
+      defaults: atlasLateDefaults,
+      normalize: (...args) => atlasLateNormalize(env, ...args),
+      normalizeRun: (...args) => atlasLateNormalizeRun(env, ...args),
+      ancientDone: atlasLateAncientDone,
+      ancientGate: (...args) => atlasLateAncientGate(env, ...args),
+      moveAltarMaterials: (...args) => atlasLateMoveAltarMaterials(env, ...args),
+      reset: (...args) => atlasLateReset(env, ...args),
+      loopKeptCurrencies: (...args) => atlasLateLoopKeptCurrencies(env, ...args),
+      awakened: atlasLateAwakened,
+      kills: atlasLateKills,
+      count: (...args) => atlasLateCount(env, ...args),
+      def: (...args) => atlasLateDef(env, ...args),
+      entryReason: (...args) => atlasLateEntryReason(env, ...args),
+      spend: (...args) => atlasLateSpend(env, ...args),
+      refund: (...args) => atlasLateRefund(env, ...args),
+      runExtra: (...args) => atlasLateRunExtra(env, ...args)
+    };
+  }
+  function createAtlasEndgameFightApi(env) {
+    return {
+      bossBoost: (...args) => atlasLateBossBoost(env, ...args),
+      zoneExtras: (...args) => atlasLateZoneExtras(env, ...args),
+      tuneStage: (...args) => atlasLateTuneStage(env, ...args),
+      patternState: (...args) => atlasLatePatternState(env, ...args),
+      roomItems: (...args) => atlasLateRoomItems(env, ...args),
+      onComplete: (...args) => atlasLateOnComplete(env, ...args),
+      overview: (...args) => atlasLateOverview(env, ...args),
+      bearableOmens: (...args) => atlasLateBearableOmens(env, ...args),
+      markOmenBearer: (...args) => atlasLateMarkOmenBearer(env, ...args),
+      takeOmen: atlasLateTakeOmen,
+      isFight: (id) => env.DEFS.has(id),
+      itemName: (id) => env.E.items[id] ? env.E.items[id].name : id
+    };
+  }
+  function createAtlasEndgame(deps) {
+    const env = createAtlasEndgameEnvironment(deps);
+    return Object.freeze({
+      ...createAtlasEndgameLedgerApi(env),
+      ...createAtlasEndgameFightApi(env)
+    });
+  }
+
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects2) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects2[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/atlas-endgame-classic.mjs
+  var rules = createAtlasEndgame({
+    get ATLAS() {
+      return ATLAS;
+    },
+    get contentProgression() {
+      return contentProgression;
+    },
+    get _t() {
+      return _t;
+    },
+    get atlas() {
+      return atlas;
+    },
+    get COMBAT_GRID_CONFIG() {
+      return COMBAT_GRID_CONFIG;
+    },
+    get ACT_BOSS_ASSET_KEYS() {
+      return ACT_BOSS_ASSET_KEYS;
+    },
+    get CRAFT_OMENS() {
+      return CRAFT_OMENS;
+    },
+    get ATLAS_ENDGAME() {
+      return ATLAS_ENDGAME;
+    },
+    get ITEM_INFLUENCES() {
+      return ITEM_INFLUENCES;
     }
-    /** 시대 재생: 후반부 진행(깨어남, 처치, 재료, 마름, 목격)도 되돌린다. 지갑에 있는 제단 재료도 함께. */
-    function reset(state) {
-        state.atlas.endgame = defaults();
-        Object.values(WALLET).forEach(key => { state.currencies[key] = 0; });
+  });
+  var effects = {
+    grantApexScar(state) {
+      if (typeof stumpBox === "object") stumpBox.rollScarDrop(state);
+    },
+    grantApexAncient(state) {
+      if (typeof stumpNursery === "object") stumpNursery.ancientFromBoss(state);
     }
-    /** 루프가 바뀌어도 남는 지갑의 제단 재료(성화 잉걸, 허기의 즙): 루프 정산이 지갑을 비운 뒤 되돌린다(js/combat.js).
-     * 2026-10-10 지갑으로 옮긴 뒤 루프마다 사라지고 있었다. @returns {Array<[string, number]>} [재화, 수] */
-    function loopKeptCurrencies(state) {
-        return Object.values(WALLET).map(key => [key, Math.max(0, Math.floor(Number(state.currencies[key]) || 0))]);
-    }
-    /** Everything the late-atlas view shows. */
-    /** lock: the unlock condition a card shows once the atlas is awake and the fight is still closed (asleep, the view's head says it). */
-    const lockOf = (state, row) => (awakened(state) && !unlocked(state, row) ? lockText(state, row) : '');
-    function overview(state) {
-        const fight = row => ({ row, unlocked: unlocked(state, row), reason: entryReason(state, row.id), lock: lockOf(state, row), kills: kills(state, row.id),
-            entry: entryOf(row).map(([item, need]) => ({ item, name: E.items[item].name, have: count(state, item), need })) });
-        const book = ledger(state);
-        return { awakened: awakened(state), apexes: E.apexes.map(row => fight({ ...row, kind: 'apex' })), leagues: E.leagues.map(row => fight({ ...row, kind: 'league' })),
-            blight: ATLAS.regions.map(region => ({ region, level: book.blight[region.id] || 0 })), witness: book.witness, witnessPer: E.witness.per,
-            gardenerDown: kills(state, 'apex_gardener') > 0 };
-    }
-    return Object.freeze({ defaults, normalize, normalizeRun, ancientDone, ancientGate, moveAltarMaterials, reset, loopKeptCurrencies, awakened, kills, count, def, entryReason, spend, refund, runExtra,
-        bossBoost, zoneExtras, tuneStage, patternState, roomItems, onComplete, overview, bearableOmens, markOmenBearer, takeOmen, isFight: id => DEFS.has(id),
-        itemName: id => (E.items[id] ? E.items[id].name : id) });
+  };
+  var atlasEndgame = Object.freeze({
+    ...rules,
+    onComplete: (...args) => consumeDomainCommands(rules.onComplete(...args), effects)
+  });
+  safeExposeGlobals({ atlasEndgame });
 })();
-safeExposeGlobals({ atlasEndgame });

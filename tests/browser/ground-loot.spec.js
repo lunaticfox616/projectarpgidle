@@ -38,7 +38,7 @@ test('a kill drops one floor pile that a click picks up exactly once', async ({ 
         const enemy = Object.assign(createEnemy(getZone(game.currentZoneId), { at: 0, count: 1 }, 0), cell);
         const currency = Object.keys(ORB_DB).find(key => contentProgression.canDropCurrency(key));
         const wallet = game.currencies[currency] || 0, inventory = game.inventory.length;
-        rollEquipmentLoot(enemy, getZone(game.currentZoneId), rollEquipmentDrop(getZone(game.currentZoneId), enemy, 1));
+        grantEquipmentPick(enemy, getZone(game.currentZoneId));
         keepCurrencyDrop(enemy, currency, 2);
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         return { currency, wallet, inventory, ids: run.groundLoot.filter(row => row.item).map(row => row.item.id),
@@ -96,7 +96,7 @@ test('a save with currency on the floor boots and reaches the cloud setup', asyn
     });
     await page.reload();
     // init binds the page-exit saves right after its first battlefield draw and sets the cloud save up next.
-    await page.waitForFunction(() => window.__cloudVisibilitySaveBound === true, { timeout: 30000 });
+    await page.waitForFunction(() => window.GameModules.application.startup.ready === true, { timeout: 30000 });
     expect(await page.evaluate(() => actExplorationState.current(game).groundLoot.length)).toBe(1);
     expect(await page.evaluate(() => typeof window.getStyledOrbName)).toBe('function');
     await page.locator('#btn-startup-guest').click();

@@ -5,19 +5,16 @@
  *   node scripts/check-stage-room-plans.cjs --random 6 --act 3 --from 40   액트 3만, 씨앗 40번부터
  * 끝낼 때의 코드: 잘못된 프리셋이 있으면 1.
  */
-const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm');
-const root = path.join(__dirname, '..'), args = process.argv.slice(2);
+const args = process.argv.slice(2);
 const option = (name, fallback) => (args.includes(name) ? Number(args[args.indexOf(name) + 1]) : fallback);
-const context = { console };
-context.safeExposeData = context.safeExposeGlobals = context.exposeFileGlobals = values => Object.assign(context, values);
-vm.createContext(context);
-for (const file of ['js/utils.js', 'data/act-exploration-maps.js', 'data/stage-room-plans.js', 'js/act-exploration-room-plans.js']) {
-    const source = fs.readFileSync(path.join(root, file), 'utf8');
-    // 유틸은 필요한 두 함수만 꺼낸다(나머지는 게임 상태를 읽는다).
-    const body = file === 'js/utils.js' ? source.slice(source.indexOf('function hashSeed'), source.indexOf('const SKILL_TAG_LABELS')) + '\nsafeExposeGlobals({ hashSeed, createSeededRng });' : source;
-    vm.runInContext(body, context, { filename: file });
+// Use native modules; the checker needs neither game state nor browser/global setup.
+async function loadPlans() {
+    const [numbers, roomPlans, maps, presets] = await Promise.all([
+        import('../modules/common/numbers.mjs'), import('../modules/act-exploration-room-plans.mjs'),
+        import('../modules/data/act-exploration-maps.mjs'), import('../modules/data/stage-room-plans.mjs')
+    ]);
+    return { ...maps, ...presets, plans: roomPlans.createRoomPlans(presets.STAGE_ROOM_PLANS, numbers.createSeededRng) };
 }
-const { ACT_EXPLORATION_MAPS, CONTENT_EXPLORATION_MAPS, STAGE_ROOM_PLANS, actExplorationRoomPlans: plans } = context;
 
 /** 놓임새가 온전한가: 모든 방이 입구에서 닿고, 보스 방의 문은 하나이며 좌우 벽에 있고(2026-10-21), 들르는 방의 문도 하나. */
 function problems(plan) {
@@ -39,6 +36,7 @@ function problems(plan) {
 }
 const show = (title, lines) => console.log(title + '\n' + lines.map(line => '    ' + line).join('\n') + '\n');
 
+function checkPlans({ ACT_EXPLORATION_MAPS, CONTENT_EXPLORATION_MAPS, STAGE_ROOM_PLANS, plans }) {
 let bad = 0;
 if (args.includes('--random')) {
     const count = option('--random', 6), only = option('--act', 0), from = option('--from', 0);
@@ -65,4 +63,6 @@ if (args.includes('--random')) {
     console.log('액트의 방 수(전투/정예/들르는 방): ' + counts);
 }
 console.log(bad ? `잘못된 곳 ${bad}군데` : '모두 온전하다');
-process.exit(bad ? 1 : 0);
+process.exitCode = bad ? 1 : 0;
+}
+loadPlans().then(checkPlans).catch(error => { console.error(error); process.exitCode = 1; });

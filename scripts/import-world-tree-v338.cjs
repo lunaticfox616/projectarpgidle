@@ -1,16 +1,18 @@
+const { writeDataSource, readDataSource } = require('./lib/data-authoring.cjs');
 /* Import vetted source artwork and renderer expressions, never execute archive build/install scripts. */
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const espree = require('espree');
 const splitNativeGemDrawing = require('./lib/split-native-gem-drawing.cjs');
+const worldTreeEffectModules = require('./lib/world-tree-effect-modules.cjs');
 const root = path.resolve(__dirname, '..');
 const source = path.join(root, 'artifacts/imports/pixellab-v3.38');
 const read = name => fs.readFileSync(path.join(source, name), 'utf8');
-const write = (name, text) => fs.writeFileSync(path.join(root, name), text);
+const write = (name, text) => writeDataSource(path.join(root, name), text);
 const dataContext = {safeExposeData() {}};
 vm.createContext(dataContext);
-vm.runInContext(fs.readFileSync(path.join(root, 'data/skill-fx-atlas.js'), 'utf8') + ';globalThis.old=SKILL_FX_ATLAS;', dataContext);
+vm.runInContext(readDataSource(path.join(root, 'data/skill-fx-atlas.js')) + ';globalThis.old=SKILL_FX_ATLAS;', dataContext);
 const atlas = JSON.parse(read('atlas.json'));
 Object.assign(atlas.skills[49].holyMist.swing,{extension:8,links:1,step:8});
 const catalog = JSON.parse(read('catalog.js').slice(read('catalog.js').indexOf('[')).replace(/;\s*$/, ''));
@@ -19,7 +21,7 @@ write('data/skill-fx-atlas.js', '// Supplied PixelLab v3.38. Art IDs never ident
 
 // Names are stable gameplay keys. No new skill or balance definition is installed.
 const skillsPath = path.join(root, 'data/skills.js');
-let skills = fs.readFileSync(skillsPath, 'utf8');
+let skills = readDataSource(skillsPath);
 vm.runInContext(skills+';globalThis.gemDefs={skills:SKILL_DB,grid:SKILL_GRID_DB};',dataContext);
 fs.mkdirSync(path.join(root, 'assets/gems/world-tree'), {recursive:true});
 const icons = [];
@@ -222,5 +224,8 @@ output=output.replace("p10(e,s) {\n\n    const ray=e.focusBeamRay||G.WT_FOCUS_BE
 output=output.replace('parts=sheet.focusBeam,scale=parts?.scale||2','parts=sheet.focusBeam,scale=parts.scale');
 output=output.replace("if(e.kind==='hit'){\n     const stage=this.effects.find", "if(e.kind!=='hit')return;\n    {\n     const stage=this.effects.find").replace('if(stage)for(const p of e._points)', 'if(!stage)return;for(const p of e._points)');
 output=splitNativeGemDrawing(output).replace(/[\t ]+$/gm, '');
-write('js/canvas-world-tree-native.js', "'use strict';\n"+output);
+// The capture pass needs the originating event and interpolated time as well as the pixels.
+output = output.replace("ground:e.renderLayer==='ground'}", "ground:e.renderLayer==='ground',effect:e,now}");
+for (const [file, source] of worldTreeEffectModules(output)) write(file, source);
+console.log('ESM effect sources updated; run npm run build:modules to refresh the classic runtime.');
 console.log('Imported', specs.length, 'effect metadata records and', icons.length, 'icons.');

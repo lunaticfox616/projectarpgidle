@@ -1,0 +1,31 @@
+import { createBlackMarketView } from './ui/black-market-view.mjs';
+const blackMarketUi = createBlackMarketView({
+    get shopView() { return shopView; },
+    get getEquipmentGridVisualAsset() { return getEquipmentGridVisualAsset; },
+    get blackMarketShop() { return blackMarketShop; },
+    get _t() { return _t; },
+    get escapeHTML() { return escapeHTML; },
+    get BLACK_MARKET_INSIGHT_TARGET() { return BLACK_MARKET_INSIGHT_TARGET; },
+    get BLACK_MARKET_EQUIPMENT_SLOTS() { return BLACK_MARKET_EQUIPMENT_SLOTS; },
+    get BLACK_MARKET_MAX_LOCKED_OFFERS() { return BLACK_MARKET_MAX_LOCKED_OFFERS; },
+    get getItemSlotDisplayLabel() { return getItemSlotDisplayLabel; },
+    get BLACK_MARKET_MAX_SLOT_COUNT() { return BLACK_MARKET_MAX_SLOT_COUNT; },
+    get Date() { return Date; },
+    get getInventoryUsedCellCount() { return getInventoryUsedCellCount; },
+    get game() { return window.GameModules.state.game; },
+    get getPersistentBuildSignature() { return getPersistentBuildSignature; },
+    get normalizeItem() { return normalizeItem; },
+    get getBlackMarketOfferTooltipHtml() { return getBlackMarketOfferTooltipHtml; },
+    get document() { return document; },
+    get getActiveCloudUserId() { return getActiveCloudUserId; },
+    get requestGameConfirmation() { return requestGameConfirmation; },
+    get playUiFeedbackSound() { return playUiFeedbackSound; },
+    get addLog() { return addLog; },
+    get checkUnlocks() { return checkUnlocks; },
+    get updateStaticUI() { return updateStaticUI; },
+    get saveGame() { return saveGame; },
+    get queueImportantSave() { return queueImportantSave; },
+    get buildGoldenRuleSpendPrompt() { return buildGoldenRuleSpendPrompt; },
+    get ORB_DB() { return ORB_DB; }
+});
+safeExposeGlobals({ blackMarketUi });

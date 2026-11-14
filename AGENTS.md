@@ -25,10 +25,13 @@
 
 ## 2. 런타임과 저장소 지도
 
-이 애플리케이션은 ES module이 없는 브라우저 JavaScript 게임이다. CSS는 `npm run build`에서
-PostCSS로 번들링하며, 개발 진입점은 `css/main.css`, 배포 디렉터리는 `dist/`다. `index.html`의
-`<script>` 순서와 명시적으로 노출된 브라우저 전역이 런타임 계약이다. import/export 기반
-프로젝트처럼 가정하지 않는다.
+이 게임의 브라우저 런타임은 classic script이며, `index.html`의 순서와 명시적으로 노출된 전역이 계약이다.
+게임 원본은 `modules/`의 ES module이며, `*-classic.mjs` 어댑터를 통해 기존 호출 이름을 연결한다.
+게임 코드·데이터 또는 생성 도구를 수정할 때는 [ES module 원본·어댑터·생성 규칙](README.md#es-module-독립-기능-전환-2026-11-12)을 따른다.
+`js/`·`data/`의 생성 출력은 직접 편집하지 않고 원본을 고친 뒤 `npm run build:modules`로 함께 갱신한다.
+아래 표의 `js/` 경로는 런타임 진입점이며 원본 위치는 파일 머리말과 빌드 항목에서 확인한다.
+모듈 내부 선언은 전역이 아니며, 기존 클래식 파일의 전역 제한은 유지한다.
+CSS는 `npm run build`에서 PostCSS로 번들링하며, 개발 진입점은 `css/main.css`, 배포 디렉터리는 `dist/`다.
 
 CSS 전역 기본값은 `css/tokens.css`만 소유한다. 레이어 순서는
 `reset, base, components, features, overrides`이며, 공통 바·탭·모달·툴팁은 `css/components/`에서
@@ -38,8 +41,12 @@ CSS 전역 기본값은 `css/tokens.css`만 소유한다. 레이어 순서는
 
 | 경로 | 책임 |
 | --- | --- |
-| `data/` | 게임 상수, 정적 데이터, 콘텐츠 정의 |
-| `js/utils.js` | 도메인 비종속 유틸리티와 안전한 전역 노출 도구 |
+| `modules/data/` | 게임 상수·정적 데이터·콘텐츠의 ESM 원본. `entries.json`이 기존 출력 경로를 명시한다 |
+| `data/` | 위 원본의 생성 출력과 JSON. 표 편집 도구는 README의 데이터 원본 계약을 따른다 |
+| `modules/common/`, `modules/browser/` | 전환한 공용 계산·브라우저 서비스 원본 |
+| `modules/state/`, `modules/persistence/`, `modules/domain/`, `modules/combat/` | 런타임 상태·저장·도메인·전투 규칙의 원본 |
+| `modules/rendering/`, `modules/ui/`, `modules/application/` | 그리기·사용자 입력·최상위 실행 흐름의 원본 |
+| `js/utils.js` | `modules/utils-classic.mjs`가 상태 소유자와 공용 계산을 기존 이름에 연결하는 생성 출력 |
 | `js/i18n.js`, `data/locales/` | 언어: 한국어 원문을 열쇠로 다른 언어 팩이 옮긴다. 화면 글은 `_t()`·`data-i18n`, 로캘은 `i18n.locale`([언어 계약](docs/i18n.md)) |
 | `js/state.js` | 런타임 상태의 기본 shape, 초기화, 불변식 |
 | `js/save.js`, `js/save-migrations.js` | 직렬화, 복원, 저장 마이그레이션 경계 |
@@ -66,8 +73,8 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
 
 오른쪽 계층은 왼쪽을 사용할 수 있지만 반대 방향 의존은 금지한다. 도메인은 UI 전용 함수나 DOM에
 의존하지 않는다. 양방향 호출과 이벤트·콜백으로 숨긴 순환 의존도 금지한다. 공통 shape는 가장 낮은
-공통 계층이 소유한다: 정적 정의는 `data/`, 런타임 상태는 `js/state.js`, 도메인 비종속 변환은
-`js/utils.js`가 단일 출처다. 서버 호출 함수 `cloudJsonRequest`는 `js/cloud-save-ui.js`(계정과 서버 저장, ui 계층)에 있어, 도메인 파일(`js/social.js`,
+공통 계층이 소유한다: 정적 정의는 `modules/data/`, 런타임 상태는 `modules/state/`, 도메인 비종속 변환은
+`modules/common/`이 단일 출처다. 서버 호출 함수 `cloudJsonRequest`는 `js/cloud-save-ui.js`(계정과 서버 저장, ui 계층)에 있어, 도메인 파일(`js/social.js`,
 `js/ghost-pvp.js`)의 새 함수가 부르면 래칫의 layer 위반이다. 새 서버 호출은 ui 파일(`js/cloud-tools-ui.js` 등)에 둔다.
 
 `index.html`의 스크립트 순서를 바꾸거나 새 소비자를 추가하면 생산자가 먼저 로드되는지 확인하고,
@@ -98,7 +105,7 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
   쌓지 말고 소유 스타일을 수정하거나 변경 범위 안에서 중복을 정리한다.
 - 글꼴·크기·강조·텍스트 여백은 [갈무리 역할 규칙](docs/ui-display.md#글꼴과-텍스트-규칙-2026-10-16)을 따른다.
   기본 도트 글꼴을 화면 배율 때문에 일반 글꼴로 자동 전환하지 않는다.
-- 마우스를 올리면 나오는 설명은 `data-tip="글"`로 단다(`js/plain-tip-ui.js`, `title`은 `npm run check:architecture`가 막는다). 화면에 안 보이는 정보만 적고, 아이템 툴팁이 뜨는 칸 안에는 달지 않는다.
+- 마우스를 올리면 나오는 설명은 `data-tip="글"`로 단다(`modules/browser/plain-tip.mjs`, `title`은 `npm run check:architecture`가 막는다). 화면에 안 보이는 정보만 적고, 아이템 툴팁이 뜨는 칸 안에는 달지 않는다.
 - 시안에는 예시 데이터와 실제 동작 범위를 표시한다. 반영한 UI는 실제 게임에서도 확인한다.
   비교가 필요하면 같은 해상도와 비슷한 게임 상태로 전후 화면을 보여준다.
 - 화면에 맞는 대표 상태를 검증한다. 전투는 일반전·보스전·다수 이펙트, 장비는 빈 목록·

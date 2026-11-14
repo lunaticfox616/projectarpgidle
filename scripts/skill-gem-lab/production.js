@@ -6,7 +6,7 @@ const newSkillLab = (() => {
     lab.reset=()=>{
         game.currentZoneId=1;game.maxZoneId=1;game.enemies=[];game.encounterPlan=[];
         resetCombatTacticsRuntime();resetCombatChannelRuntime();
-        game.playerCastDelayUntil=0;pendingSkillStageHits=[];battleFx=[];pTimer=0;
+        game.playerCastDelayUntil=0;window.GameModules.state.combat.pendingSkillStageHits=[];battleFx=[];window.GameModules.state.session.pTimer=0;
         startEncounterRun();game.moveTimer=0;game.gridPlayer={gx:3,gy:4,gridMoveTimer:0};
         const cells=lab.bossMode?[[5,3]]:[[4,4],[5,3],[5,5],[6,4],[2,3],[2,5]];
         game.enemies=cells.map(([gx,gy],i)=>Object.assign(createEnemy(getZone(1),{boss:lab.bossMode,at:0},i),
@@ -21,13 +21,13 @@ const newSkillLab = (() => {
     }
     function quiet() {tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);}
     async function boot() {
-        await wait(()=>window.__startupFirstPaintDone && document.getElementById('btn-startup-guest'));
+        await wait(()=>window.GameModules.application.startup.firstPaintDone && document.getElementById('btn-startup-guest'));
         document.getElementById('btn-startup-guest').click();
         await wait(()=>document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]'));
         document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]').click();
         const start=document.getElementById('loop-hero-select-start');if(start.getClientRects().length)start.click();
-        await wait(()=>battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
-        clearInterval(gameTickHandle);gameTickHandle=null;quiet();
+        await wait(()=>battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && window.GameModules.uiRuntime.status().idle);
+        window.GameModules.application.timers.stopCombat();quiet();
         game.season=2;game.level=30;
         game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(s=>s.id);contentProgression.sync();
         game.seenTutorials.push(...STORY_JOURNAL_SCENES.map(s=>'story_'+s.id),'story_illustrations_v1','tutorial_starter_gem_equip');

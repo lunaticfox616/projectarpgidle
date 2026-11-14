@@ -1,2681 +1,180 @@
-// ============================================================================
-// 소셜 기능: 채팅 + 접속자 목록 + 다른 플레이어 프로필(장비/주얼/부적/스탯)
-// ----------------------------------------------------------------------------
-// 백엔드는 Supabase(player_profiles / chat_messages). 스키마는 db/social.sql.
-// ui.js 이후 로드되며 cloudState / cloudJsonRequest / getPlayerStats / getJewelStats
-// / getItemStatToneColor / getTierBadgeHtml 등 전역을 재사용.
-// 보안: 사용자/상대가 보낸 모든 문자열은 socialEscape 로 이스케이프한다.
-// ============================================================================
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/social*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-// --- 공통 유틸 -------------------------------------------------------------
-function socialLoggedInUserId() {
-    return (typeof cloudState !== 'undefined' && cloudState && cloudState.user && cloudState.user.id) ? cloudState.user.id : null;
-}
-
-function socialCloudReady() {
-    return !!socialLoggedInUserId() && typeof cloudJsonRequest === 'function';
-}
-
-/** Account changes invalidate pending work even when the player later returns to the same account. Token renewal keeps this epoch. */
-function socialSessionContext() {
-    return { userId: socialLoggedInUserId(), epoch: typeof cloudState !== 'undefined' ? cloudState.sessionEpoch || 0 : 0 };
-}
-
-function isSocialSessionCurrent(context) {
-    let current = socialSessionContext();
-    return !!context.userId && context.userId === current.userId && context.epoch === current.epoch;
-}
-
-function releaseSocialRequest(key, context) {
-    if (socialState[key] === context) socialState[key] = false;
-}
-
-function socialEscape(text) {
-    if (typeof escapeHTML === 'function') return escapeHTML(String(text == null ? '' : text));
-    return String(text == null ? '' : text).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-}
-
-function socialComma(n) { return (Math.floor(Number(n) || 0)).toLocaleString('en-US'); }
-
-function getSocialNicknameStorageKey(userId) {
-    return userId ? `${SOCIAL_NICK_KEY}:${userId}` : '';
-}
-
-function syncSocialIdentityUser() {
-    let { userId, epoch } = socialSessionContext();
-    if (socialState.nicknameUserId === userId && socialState.sessionEpoch === epoch) return userId;
-    resetSocialSessionViews();
-    socialState.sessionEpoch = epoch;
-    socialState.nickname = '';
-    socialState.nicknameUserId = userId || null;
-    socialState.identityCheckedUserId = null;
-    socialState.identityCheckPromise = null;
-    socialState.profileBootSyncUserId = null;
-    // 첨부해 둔 아이템은 그 계정의 것이다: 다른 계정이 들어오면 비운다(쓰던 글은 renderSocialTab이 계정을 보고 버린다).
-    socialState.pendingChatItems = [];
-    try {
-        if (typeof localStorage !== 'undefined' && typeof localStorage.removeItem === 'function') localStorage.removeItem(SOCIAL_NICK_KEY);
-    } catch (error) {
-        console.warn('이전 소셜 닉네임 캐시 정리 실패:', error);
-    }
-    return userId;
-}
-
-/** Login-only responses and item snapshots cannot survive account departure or re-enter through an old request. */
-function resetSocialSessionViews() {
-    stopChatPolling();
-    clearTimeout(socialState.profileSyncTimer);
-    Object.assign(socialState, {
-        chatMessages: [], chatTips: {}, profileTips: {}, pickTips: {}, chatInitialized: false,
-        chatLoading: false, chatSending: false, chatSendRequest: null, onlineLoading: false, bgNotiLoading: false, onlineRefreshAgain: false,
-        lastChatFullSyncAt: 0, lastChatPollAt: 0, lastChatNoticeAt: 0, lastOnlineLoadAt: 0,
-        lastOnlineLoadWasList: false, lastChatRenderKey: '', lastOnlineRenderKey: '',
-        lastNotifiedChatId: null, profileSentKey: '', profileRowFor: '', profileSyncTimer: null,
-        profileUploadPromise: null, profileUploadUserId: null
-    });
-    if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
-    if (typeof document === 'undefined') return;
-    closePlayerProfile();
-    for (let id of ['social-chat-list', 'social-online', 'social-chat-online', 'social-profile-body', 'social-tooltip']) {
-        let element = document.getElementById(id);
-        if (element) { element.innerHTML = ''; delete element.dataset.counts; }
-    }
-    let settings = document.getElementById(CHAT_SETTINGS_ID);
-    if (settings) settings.remove();
-}
-
-function getMyNickname() {
-    let userId = syncSocialIdentityUser();
-    if (!userId) return '';
-    if (socialState.nickname) return socialState.nickname;
-    try {
-        let key = getSocialNicknameStorageKey(userId);
-        let stored = key && localStorage.getItem(key);
-        if (stored) socialState.nickname = stored;
-    } catch (error) {
-        console.warn('소셜 닉네임 캐시 읽기 실패:', error);
-    }
-    return socialState.nickname || '';
-}
-
-function setMyNicknameLocal(name) {
-    let userId = syncSocialIdentityUser();
-    socialState.nickname = userId ? (name || '') : '';
-    if (!userId) return;
-    try {
-        let key = getSocialNicknameStorageKey(userId);
-        if (socialState.nickname) localStorage.setItem(key, socialState.nickname);
-        else if (typeof localStorage.removeItem === 'function') localStorage.removeItem(key);
-    } catch (error) {
-        console.warn('소셜 닉네임 캐시 저장 실패:', error);
-    }
-}
-
-function socialClassLabel(ascendClass) {
-    if (ascendClass && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[ascendClass]) return CLASS_TEMPLATES[ascendClass].name;
-    return '미전직';
-}
-
-// 색상값이 안전한 hex/rgb 인지 확인(스타일 속성 주입 방지). 아니면 기본색.
-function socialSafeColor(c, fallback) {
-    fallback = fallback || '#cfe0f5';
-    return (typeof c === 'string' && /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,\s]+\))$/.test(c)) ? c : fallback;
-}
-
-function socialRarityColor(rarity) {
-    return socialSafeColor(typeof getRarityColor === 'function' ? getRarityColor(rarity) : null, '#cfe0f5');
-}
-
-// ============================================================================
-// 스냅샷 빌드(장비/주얼/부적) — 옵션에 티어·롤범위 포함
-// ============================================================================
-function snapStat(st) {
-    let o = { id: st.id || st.stat, val: st.val, statName: st.statName, tier: st.tier,
-        valMin: st.valMin, valMax: st.valMax, baseRollMin: st.baseRollMin, baseRollMax: st.baseRollMax };
-    return Object.assign(o, snapStatMarks(st));
-}
-
-/** 줄 옆 표시(게임 툴팁과 같다): 특출 베이스 ✦, 고정 옵션 [T0], 제작 출처(수확, 화석, 이식), 벌꿀 고정. 주얼은 쁘띠와 밀랍. */
-function snapStatMarks(st) {
-    let marks = {
-        exceptional: !!st.exceptional, honey: !!st.lockedByHoney, wax: !!st.waxBonus, petite: !!st.petite && !st.waxBonus, ember: st.emberScale,
-        fixed: typeof isFixedEquipmentAffix === 'function' && isFixedEquipmentAffix(st),
-        source: typeof equipmentCrafting === 'object' ? equipmentCrafting.getLabel(st) : ''
-    };
-    return Object.fromEntries(Object.entries(marks).filter(([, value]) => value));
-}
-
-/** 추가 옵션 한 줄의 종류(접두, 접미; 2026-10-07)를 프로필 머리말 "접두 2/3, 접미 3/3"에 쓰려고 남긴다. 그 밖의 줄은 남기지 않는다. */
-function snapAffixKind(item, st) {
-    const kind = typeof equipmentCrafting === 'object' ? equipmentCrafting.storedAffixKind(item, st) : 'special';
-    return kind === 'prefix' || kind === 'suffix' ? { kind } : {};
-}
-
-/** A weapon's category (대검, 한손검 ...) for its title tag, as item text shows it in the game (js/weapon-categories.js). It reads
- * the item's own slot: a weapon worn in the shield slot (쌍수 훈련) was tagged [방패]. */
-function profileItemCategory(item) {
-    return item.slot === '무기' && typeof getWeaponCategoryName === 'function' ? getWeaponCategoryName(item) || undefined : undefined;
-}
-
-/** The tag before an item's name: a weapon's category, otherwise its slot without the 1, 2, 3 of paired slots. */
-function profileItemTag(item) {
-    return weaponCategorySlotLabel(item, item.category || String(item.slot || '').replace(/[123]$/, ''));
-}
-
-function buildItemSnapshot(item, slotOverride) {
-    if (!item) return null;
-    let slot = slotOverride || item.slot || '';
-    let snap = {
-        slot,
-        category: profileItemCategory(item),
-        name: item.name || '',
-        rarity: item.rarity || 'normal',
-        baseName: item.baseName || '',
-        uniqueEffect: item.uniqueEffect || '',
-        // 베이스 수치를 키우는 고유(implicitAmp)의 방어도와 회피(itemTooltipRules.defenseView)가 절반으로 나오지 않게.
-        uniqueEffectKey: item.uniqueEffectKey,
-        uniqueEffectParams: item.uniqueEffectParams,
-        corrupted: !!item.corrupted,
-        baseStats: (item.baseStats || []).slice(0, 8).map(snapStat),
-        // 고유 융합 유물은 고유 줄과 희귀 줄을 합쳐 12줄까지 된다(8에서 자르면 줄이 빠졌다).
-        stats: (item.stats || []).slice(0, 12).map(st => {
-            let o = snapStat(st);
-            if (Array.isArray(st.extraStats)) o.extraStats = st.extraStats.slice(0, 4).map(snapStat);
-            return Object.assign(o, snapAffixKind(item, st));
-        })
-    };
-    if (item.hallReplica) {
-        snap.hallReplica = true;
-        snap.hallCuratorName = item.hallCuratorName || '';
-        snap.hallAppraisalScore = Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0));
-    }
-    if (item.hallRelistBlocked) snap.hallRelistBlocked = true;
-    // 특수 상태: 봉인(나무꾼의 손길), 고유 융합 유물, 혼돈 주입, 잠식 — 실제 툴팁과 동일하게 노출.
-    if (item.loopSealed) snap.loopSealed = true;
-    if (item.fusedRelic) {
-        snap.fusedRelic = true;
-        snap.fusionGrade = item.fusionGrade || '';
-        snap.fusedRareName = item.fusedRareName || '';
-    }
-    if (item.chaosInfusion) snap.chaosInfusion = Object.assign(snapStat(item.chaosInfusion), snapAffixKind(item, item.chaosInfusion));
-    if (item.encroached) {
-        snap.encroached = {
-            liberated: !!item.encroached.liberated,
-            chosen: (item.encroached.liberated && item.encroached.chosen) ? snapStat(item.encroached.chosen) : null
-        };
-    }
-    return Object.assign(snap, buildItemMetaSnapshot(item));
-}
-
-/** What the game's item tooltip shows above the options (js/ui.js showItemTooltip): base step, item level and grade,
- * requirements and sockets. Read on the owner's device, so a viewer sees the owner's numbers. */
-function buildItemMetaSnapshot(item) {
-    let chain = typeof getItemBaseChainInfo === 'function' ? getItemBaseChainInfo(item) : null;
-    return {
-        baseId: item.baseId, // 인형 배치의 장비 그림(profileItemArt)
-        wardSlots: typeof colonyWards === 'object' ? colonyWards.beltRoll(item) : undefined, // 허리띠의 액막이 칸 수(profileWardSlotsHtml)
-        baseStep: chain && chain.total > 1 ? [chain.step, chain.total] : undefined,
-        itemLevel: profileItemLevel(item),
-        grade: typeof getItemCraftTier === 'function' ? getItemCraftTier(item) : undefined,
-        requirements: buildRequirementSnapshot(item),
-        sockets: buildSocketSnapshots(item),
-        ember: item.burned ? (item.emberLines || []).slice(0, 2).map(snapStat) : undefined,
-        anoint: profileAnointSnapshot(item)
-    };
-}
-
-/** 아이템 레벨(게임 툴팁과 같은 값): 저장된 레벨이 없으면 등급에서 계산한다. */
-function profileItemLevel(item) {
-    if (item.itemLevel) return Math.floor(Number(item.itemLevel)) || undefined;
-    if (typeof levelProgression !== 'object') return undefined;
-    return Math.floor(Number(levelProgression.tierLevel(item.hiddenTier || item.itemTier)) || 0) || undefined;
-}
-
-function buildRequirementSnapshot(item) {
-    if (typeof levelProgression !== 'object' || typeof levelProgression.requirements !== 'function') return undefined;
-    let required = levelProgression.requirements(item);
-    return { level: required.level, attributes: required.attributes };
-}
-
-/** Sockets with the jewel in each, as the game's item tooltip lists them once jewels are open. */
-function buildSocketSnapshots(item) {
-    let unlocked = typeof contentProgression === 'object' && contentProgression.isUnlocked('jewel');
-    let rows = unlocked && typeof equipmentSockets === 'object' ? equipmentSockets.list(item) : [];
-    if (!rows.length) return undefined;
-    return rows.map(row => ({ label: equipmentSockets.label(row), jewel: buildJewelSnapshot(row.jewel) }));
-}
-
-/** 우주계 쌍둥이 주얼의 배정 키스톤(게임 툴팁 getCosmosKeystoneTooltipLine과 같은 정보). */
-function buildJewelKeystoneSnapshot(jewel) {
-    if (!jewel.cosmosKeystoneJewel || !jewel.cosmosKeystone) return undefined;
-    let id = jewel.cosmosKeystone;
-    let owner = typeof getAscendKeystoneOwnerClass === 'function' ? getAscendKeystoneOwnerClass(id) : null;
-    let ascend = owner && typeof CLASS_TEMPLATES !== 'undefined' && CLASS_TEMPLATES[owner] ? CLASS_TEMPLATES[owner].name : '';
-    let active = (Array.isArray(game.cosmosTwinKeystones) ? game.cosmosTwinKeystones : []).includes(id);
-    return { name: typeof getAscendKeystoneName === 'function' ? getAscendKeystoneName(id) : String(id), ascend, active };
-}
-
-function buildJewelSnapshot(jewel) {
-    if (!jewel) return null;
-    let stats = [];
-    try {
-        if (typeof getJewelStats === 'function') getJewelStats(jewel).forEach(st => stats.push(snapStat(st)));
-    } catch (e) { /* 무시 */ }
-    return { kind: 'jewel', name: jewel.name || '주얼', rarity: jewel.rarity || 'normal', stats: stats.slice(0, 8),
-        uniqueEffect: getJewelUniqueEffectText(jewel) || undefined, keystone: buildJewelKeystoneSnapshot(jewel) };
-}
-
-/** 부적(게임 그루터기 함의 부적 설명과 같은 구성): 줄은 게임과 같은 문장, 고유 효과, 순간 부적의 보스 처형, 판 위 상태. */
-function buildTalismanSnapshot(t) {
-    if (!t || !Array.isArray(t.lines)) return null;
-    let lines = t.lines.map(line => ({ text: talismans.describeLine(line), condition: line.kind === 'condition' }));
-    if (t.special === 'moment') lines.push({ text: _t('보스에게 주는 최종 피해 +{moment}%, 생명력 5% 이하 보스 처형', { moment: t.moment }), condition: true });
-    return { kind: 'talisman', name: t.name || '부적', rarity: t.rarity || 'magic', uniqueEffect: t.uniqueEffect || undefined, lines, state: talismanStateFor(t) };
-}
-
-/** 부적의 지금 상태(게임 부적 설명 stateLine과 같은 갈래): 보관, 잠듦, 척력에 막힘, 척력으로 강화, 깨어남. */
-function talismanStateFor(item) {
-    if (game.stumpBox.board.indexOf(item.id) < 0) return 'stored';
-    if (!stumpBox.isMature(item)) return 'asleep';
-    let summary = talismanEffects.summarize();
-    if (summary.suppressed.has(item.id)) return 'suppressed';
-    return summary.amplified.has(item.id) ? 'amplified' : 'awake';
-}
-
-/** 능력치 줄의 아이콘. 예전 프로필(키 없는 줄)은 자리만 비워 줄을 맞춘다. */
-function profileStatIconHtml(key) {
-    let [sheet, name] = String(PROFILE_STAT_ICONS.get(key) || '').split(':');
-    if (sheet === 'log') return `<span class="combat-log-icon combat-log-icon--${name}" aria-hidden="true"></span>`;
-    let cell = sheet === 'tree' && typeof PASSIVE_ICON_ATLAS_CELL === 'object' ? PASSIVE_ICON_ATLAS_CELL[name] : null;
-    if (!cell) return '<span class="social-stat-icon is-none" aria-hidden="true"></span>';
-    // 그림판 한 칸을 22px로 그리고 가운데 16px만 보인다(칸 가장자리의 빈 여백을 잘라 작은 크기에서도 그림이 보이게).
-    return `<span class="social-stat-icon" style="background-position:${-(cell[0] * 22 + 3)}px ${-(cell[1] * 22 + 3)}px;" aria-hidden="true"></span>`;
-}
-
-/** 능력치 이름. 2026-10-11 전에 올린 프로필은 이름 앞에 이모티콘이 붙어 있어("⚔️ DPS") 떼고 쓴다. */
-function profileStatName(label) {
-    return String(label || '').replace(/^[^\p{L}\p{N}]+/u, '');
-}
-
-/** 큰 정수에는 자릿수 쉼표(프로필 값은 "1914607"처럼 올라온다). */
-function profileStatValue(value) {
-    let text = String(value == null ? '' : value);
-    return /^-?\d{4,}$/.test(text) ? Number(text).toLocaleString('en-US') : text;
-}
-
-function profileStatRowHtml(s) {
-    let tone = PROFILE_STAT_TONES[s.key];
-    return `<div class="social-stat-item"><span class="social-stat-label">${profileStatIconHtml(s.key)}${socialEscape(profileStatName(s.label))}</span>`
-        + `<span class="social-stat-value"${tone ? ` style="color:${tone};"` : ''}>${socialEscape(profileStatValue(s.value))}</span></div>`;
-}
-
-/** 능력치 판: 키가 있는 프로필은 공격, 방어, 저항 묶음으로(묶음에 없는 키는 기타), 키가 없는 예전 프로필은 올라온 순서 그대로. */
-function profileStatsHtml(stats) {
-    let rows = stats.filter(s => s && s.label != null);
-    if (!rows.length) return '<div class="social-profile-empty">스탯 정보 없음</div>';
-    let grouped = new Set(PROFILE_STAT_GROUPS.flatMap(([, keys]) => keys));
-    let groups = PROFILE_STAT_GROUPS.map(([title, keys]) => [title, keys.map(key => rows.find(s => s.key === key)).filter(Boolean)])
-        .concat([['기타', rows.filter(s => !grouped.has(s.key))]]).filter(([, list]) => list.length);
-    if (groups.length === 1) return `<div class="social-stat-grid">${rows.map(profileStatRowHtml).join('')}</div>`;
-    return groups.map(([title, list]) => `<div class="social-stat-group"><h4>${title}</h4>`
-        + `<div class="social-stat-grid${title === '저항' ? ' is-pair' : ''}">${list.map(profileStatRowHtml).join('')}</div></div>`).join('');
-}
-
-/** 머리 줄 오른쪽의 큰 총 DPS(예전 프로필은 전투력). */
-function profilePowerHtml(p) {
-    if (!p.power) return '';
-    return `<div class="social-profile-power"><span>${p.version >= 8 ? _t('총 DPS') : _t('전투력')}</span><b>${socialComma(p.power)}</b></div>`;
-}
-
-/** What other players see: the bark zone's effect holds only in that zone, so it stays out. */
-function statsWithoutBarkZone() {
-    if (!getWorldTreeBarkEffect().on) return getPlayerStats();
-    return previewBuildStats(clone => { Object.assign(clone.worldTreeBark, { damage: 0, taken: 0, move: 0 }); }).after;
-}
-
-function buildProfileStats() {
-    let s = typeof getPlayerStats === 'function' ? statsWithoutBarkZone() : null;
-    if (!s) return { stats: [], power: 0 };
-    let rows = PROFILE_STAT_KEYS.filter(([key]) => key !== 'summonDps' || Number(s.summonDps) > 0)
-        // dps는 직접 DPS다(캐릭터 창과 같은 이름). 머리 띠의 큰 수가 총 DPS라, 'DPS'로 두면 둘이 다른 수로 보였다.
-        .map(([key]) => ({ key, label: key === 'dps' ? '직접 DPS' : COMPARE_STAT_META[key].label, value: COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
-    // 총 DPS(직접 + 소환)는 게임의 권장 전투력 비교와 같은 값이다(js/combat-ehp.js getMapPowerReadiness).
-    let power = Math.floor(Number(s.totalDps) || (Number(s.dps) || 0) + (Number(s.summonDps) || 0));
-    return { stats: rows, power };
-}
-
-/** The gems a build fights with: main skill and its supports, the movement skill, summons with their counts. */
-function buildSkillSnapshot(state) {
-    let gem = name => ({ name, level: Math.max(1, Math.floor(Number(state.gemData?.[name]?.level) || 1)), quality: Math.max(0, Math.floor(Number(state.gemData?.[name]?.quality) || 0)) });
-    let support = name => ({ name, level: Math.max(1, Math.floor(Number(state.supportGemData?.[name]?.level) || 1)) });
-    let summon = name => ({ ...gem(name), count: Math.max(1, Math.floor(Number(state.summonSkillCounts?.[name]) || 1)) });
-    return {
-        active: state.activeSkill ? gem(state.activeSkill) : null,
-        supports: (state.equippedSupports || []).filter(Boolean).slice(0, 8).map(support),
-        mobility: state.mobilitySkill ? gem(state.mobilitySkill) : null,
-        summons: (state.equippedSummonSkills || []).filter(Boolean).slice(0, 6).map(summon)
-    };
-}
-
-/** 직업(6종, 2026-09)과 전직. 전직 전이면 전직 칸은 미전직이다(HUD getUiPlayerHudIdentity와 같다). */
-function buildProfileIdentity(state) {
-    let classDef = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS[state.selectedClassId] : null;
-    return { classId: state.selectedClassId || '', heroClassName: classDef ? classDef.label : '', ascendClass: state.ascendClass || '', className: socialClassLabel(state.ascendClass) };
-}
-
-/** 장착 구성: 장비(주얼은 소켓 줄에), 코어 칸, 그루터기 함 판(부적은 판 칸에). 예전 프로필의 jewels와 talismans 목록은 그리기만 한다. */
-function buildProfileGear(state) {
-    let equipment = [];
-    let eq = state.equipment || {};
-    Object.keys(eq).filter(slot => !bagItems.isSpecial(eq[slot])).forEach(slot => { let snap = buildItemSnapshot(eq[slot], slot); if (snap) equipment.push(snap); });
-    return { equipment: equipment.slice(0, 16), core: buildCoreSnapshot(state), stump: buildStumpSnapshot(state) };
-}
-
-/** 장비창 왼쪽 위 코어 칸: 코어를 열고 하나를 끼고 있을 때만. 게임 코어 툴팁과 같은 이름과 줄. */
-function buildCoreSnapshot(state) {
-    let core = (state.equipment || {})['코어'];
-    if (!core || typeof coreItems !== 'object' || !contentProgression.isUnlocked('cube', state)) return undefined;
-    return buildCoreCard(core);
-}
-
-/** 코어 하나의 카드(게임 코어 툴팁과 같은 이름과 줄): 장착 구성의 코어 칸과 채팅 첨부. */
-function buildCoreCard(core) {
-    return { kind: 'core', name: core.name, lines: (core.lines || []).map(line => coreItems.describe(line)) };
-}
-
-/** 그루터기 함 판(2026-10-03): 함을 얻고 판에 하나라도 놓았을 때만. 칸마다 열림, 접붙이기 단계, 놓인 것과 그 성장. */
-function buildStumpSnapshot(state) {
-    let box = state.stumpBox;
-    if (!box || !box.acquired || typeof stumpBox !== 'object' || box.board.every(id => id === null)) return undefined;
-    let result = stumpBox.evaluate(state);
-    return { cells: box.board.map((id, cell) => buildStumpCellSnapshot(state, result, id, cell)) };
-}
-
-/** 닫힌 칸은 null. 열린 칸은 접붙이기 단계와 놓인 것(게임 판과 같은 그림 단계와 성장, 카드 내용). */
-function buildStumpCellSnapshot(state, result, id, cell) {
-    if (!stumpBox.isOpen(state, cell)) return null;
-    let rank = stumpBox.graftRank(state.stumpBox, cell);
-    let row = rank ? { graft: rank, graftPct: rank * STUMP_BOX_GRAFT.pctPerRank } : {};
-    let card = id === null ? null : buildStumpItemCard(stumpBox.itemById(state, id), result);
-    if (card) row.item = card;
-    return row;
-}
-
-/** 그루터기 함 아이템 하나의 카드(판 위든 보관함이든): 부적은 부적 카드, 씨앗과 흉터는 그루터기 카드, 거기에 그림 단계와 성장.
- * 장착 구성의 판 칸과 채팅 첨부가 쓴다. */
-function buildStumpItemCard(item, result) {
-    let card = !item ? null : item.family === 'talisman' ? buildTalismanSnapshot(item) : buildStumpItemSnapshot(item, result);
-    if (!card) return null;
-    return Object.assign(card, { stage: stumpBox.stageOf(item), ripe: stumpBox.isMature(item), xp: Math.floor(item.xp), need: stumpBox.need(item) });
-}
-
-/** 씨앗(게임 그루터기 함의 아이템 설명과 같은 내용): 이름(색과 단계), 품질, 효과, 추가 줄, 황금, 비활성화와 공명.
- * 불씨의 흉터도 이 카드다(흡수한 줄이 추가 줄 자리에). */
-function buildStumpItemSnapshot(item, result) {
-    let gain = stumpBox.yieldOf(item), suppressed = result.suppressed.has(item.id);
-    let value = result.values[item.id] ?? (gain ? gain.value * stumpBox.qualityOf(item) * stumpBox.goldenMul(item) : 0);
-    return { kind: 'stump', family: item.family, color: item.color, name: stumpBox.label(item), quality: Math.round(item.roll * 100),
-        yieldText: gain ? gain.text.replace('{v}', String(Math.round(value * 10) / 10)) : '', suppressed,
-        resonant: !suppressed && stumpBox.isMature(item) && !!result.synergy[item.id], note: stumpItemNote(item, result),
-        extra: stumpBox.extraLinesOf(item, result).map(line => ({ id: line.stat, text: stumpBox.lineText(line.stat, line.value) })),
-        golden: stumpBox.goldenMul(item) > 1 };
-}
-
-/** 게임 그루터기 함의 상태 줄(js/stump-box-ui.js stumpStatus)과 같은 문장. 비활성화되었거나 공명, 상생, 규율을 받을 때만. */
-function stumpItemNote(item, result) {
-    let note = stumpBox.boardNote(item, result);
-    return note ? note.text : '';
-}
-
-function buildProfileSnapshot() {
-    let state = typeof game !== 'undefined' && game ? game : {};
-    let numbers = { stats: [], power: 0 };
-    try { numbers = buildProfileStats(); } catch (e) { console.warn('프로필 스탯 계산 실패:', e); }
-    return {
-        version: 8,
-        nickname: getMyNickname(),
-        level: state.level || 1,
-        ...buildProfileIdentity(state),
-        loop: typeof getSaveLoopNumber === 'function' ? getSaveLoopNumber(state) : 0,
-        ...numbers,
-        ...buildProfileGear(state),
-        skills: buildSkillSnapshot(state),
-        updatedAt: Date.now()
-    };
-}
-
-function getProfileUploadError(error) {
-    let message = String(error && error.message || error);
-    let translated = error instanceof Error ? error : new Error(message);
-    if (/NICK_COOLDOWN/.test(message)) {
-        translated = new Error('닉네임은 하루에 한 번만 변경할 수 있습니다.');
-        translated.socialCode = 'nickname_cooldown';
-    }
-    if (/NICK_INVALID/.test(message)) {
-        translated = new Error(`닉네임은 ${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자의 한글, 영문, 숫자, _ - 만 쓸 수 있습니다.`);
-        translated.socialCode = 'nickname_invalid';
-    }
-    if (/NICK_PROFANITY/.test(message)) {
-        translated = new Error('닉네임에 비속어를 쓸 수 없습니다.');
-        translated.socialCode = 'nickname_invalid';
-    }
-    if (/PROFILE_TOO_LARGE/.test(message)) translated = new Error('공개 프로필이 너무 커서 서버가 받지 않았습니다.');
-    if (translated === error && /duplicate|unique|nickname/i.test(message)) {   // 앞에서 옮긴 문구는 다시 바꾸지 않는다
-        translated = new Error('이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.');
-        translated.socialCode = 'nickname_conflict';
-    }
-    return translated;
-}
-
-/** 공개 프로필에는 이 계정의 캐릭터로 플레이하는 동안만 그림을 올린다. 부팅 때 읽은 저장은 클라우드 저장을 고르기 전이라 새 브라우저의
- * 레벨 1이거나 이 기기에 남은 다른 계정의 캐릭터일 수 있었고, 그것이 그 계정의 공개 프로필을 덮었다(2026-10-22 점검). */
-function profileSnapshotIsOwn() {
-    // js/state.js의 값만 읽는다(gameplayStarted, startupOverlayActive, 저장의 클라우드 주인): social.js는 ui.js의 함수를 부르지 않는다
-    if (!gameplayStarted || startupOverlayActive) return false;
-    let owner = game.saveMeta ? game.saveMeta.cloudUserId : null;
-    return !!owner && owner === socialLoggedInUserId();
-}
-
-/** 프로필 쓰기 하나: 조용한 갱신(클라우드 저장 뒤, 세션 첫 갱신)은 그림(profile_data)만 고친다(PATCH). 닉네임을 쓰지 않아야 다른 기기에서
- * 바꾼 닉네임을 이 탭의 옛 닉네임으로 되돌리지 않는다. 닉네임은 줄의 nickname 칸이 가지고, 공개 프로필은 그림에 닉네임이 없으면 그 칸을
- * 쓴다(showFetchedProfile). 닉네임 줄이 필요한 쓰기(채팅, 닉네임 변경, 동기화 단추)는 줄 전체(POST, profileRowWrite)다. 보낼 그림이 없는
- * 조용한 갱신은 null. */
-function profileWriteFor(options, userId, nickname) {
-    // 내 캐릭터가 아니면 채팅과 대전이 찾는 닉네임 줄만 맞춘다(있던 profile_data는 그대로 남는다).
-    let snapshot = profileSnapshotIsOwn() ? buildProfileSnapshot() : null;
-    if (!options.silent || options.required || options.fromNicknameChange) return profileRowWrite(userId, nickname, snapshot);
-    if (!snapshot) return null;
-    let data = { ...snapshot, nickname: undefined };
-    return { key: `${userId}\n\n${JSON.stringify({ ...data, updatedAt: 0 })}`, row: false,
-        path: `/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}`,
-        request: { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { profile_data: data } } };
-}
-
-function profileRowWrite(userId, nickname, snapshot) {
-    return { key: `${userId}\n${nickname}\n${snapshot ? JSON.stringify({ ...snapshot, updatedAt: 0 }) : ''}`, row: true, path: '/rest/v1/player_profiles',
-        request: { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-            // last_seen / nickname_updated_at 은 DB 기본값·트리거·하트비트가 관리한다.
-            body: snapshot ? { user_id: userId, nickname, profile_data: snapshot } : { user_id: userId, nickname } } };
-}
-
-async function performPlayerProfileUpload(options, context, nickname) {
-    if (!isSocialSessionCurrent(context)) return false;
-    let userId = context.userId;
-    try {
-        let write = profileWriteFor(options, userId, nickname);
-        if (!write) return false;
-        if (write.key === socialState.profileSentKey) return true;
-        await cloudJsonRequest(write.path, write.request);
-        if (!isSocialSessionCurrent(context)) return false;
-        socialState.profileSentKey = write.key;
-        if (write.row) socialState.profileRowFor = `${userId}\n${nickname}`;
-        return true;
-    } catch (error) {
-        if (!isSocialSessionCurrent(context)) return false;
-        return profileUploadFailure(options, error);
-    }
-}
-
-function profileUploadFailure(options, error) {
-    let translated = getProfileUploadError(error);
-    if (options.fromNicknameChange || options.required) throw translated;
-    if (!options.silent) console.warn('프로필 업로드 실패:', error);
-    return false;
-}
-
-async function uploadPlayerProfile(options = {}) {
-    if (!socialCloudReady()) {
-        if (options.required) throw new Error('클라우드 로그인 상태를 확인할 수 없습니다.');
-        return false;
-    }
-    let userId = syncSocialIdentityUser();
-    let context = socialSessionContext();
-    let nickname = getMyNickname();
-    if (!nickname) {
-        if (options.required) throw new Error('먼저 닉네임을 설정해주세요.');
-        return false;
-    }
-    let inFlight = socialState.profileUploadPromise;
-    if (inFlight && socialState.profileUploadUserId === userId) {
-        // 조용한 갱신은 진행 중인 쓰기에 묻어 간다. 닉네임 줄이 필요한 쓰기는 그 쓰기가 끝난 뒤 따로 나간다(조용한 갱신은 닉네임을 쓰지 않는다).
-        if (options.silent) return inFlight;
-        try { await inFlight; } catch (error) { console.warn('이전 프로필 갱신 실패:', error); }
-    }
-    let task = performPlayerProfileUpload(options, context, nickname);
-    socialState.profileUploadPromise = task;
-    socialState.profileUploadUserId = userId;
-    try {
-        return await task;
-    } finally {
-        if (socialState.profileUploadPromise === task) {
-            socialState.profileUploadPromise = null;
-            socialState.profileUploadUserId = null;
-        }
-    }
-}
-
-async function flushPlayerProfileQuiet() {
-    socialState.profileSyncTimer = null;
-    if (!socialCloudReady() || !getMyNickname() || !profileSnapshotIsOwn()) return false;
-    let context = socialSessionContext();
-    let inFlight = socialState.profileUploadPromise;
-    if (inFlight) {
-        try { await inFlight; } catch (error) { console.warn('이전 공개 프로필 갱신 실패:', error); }
-    }
-    if (!isSocialSessionCurrent(context) || !getMyNickname()) return false;
-    return uploadPlayerProfile({ silent: true });
-}
-
-function syncPlayerProfileQuiet() {
-    if (!socialCloudReady() || !getMyNickname()) return false;
-    if (socialState.profileSyncTimer && typeof clearTimeout === 'function') clearTimeout(socialState.profileSyncTimer);
-    if (typeof setTimeout !== 'function') {
-        Promise.resolve(flushPlayerProfileQuiet()).catch(error => console.warn('공개 프로필 자동 갱신 실패:', error));
-        return true;
-    }
-    socialState.profileSyncTimer = setTimeout(() => {
-        Promise.resolve(flushPlayerProfileQuiet()).catch(error => console.warn('공개 프로필 자동 갱신 실패:', error));
-    }, SOCIAL_PROFILE_SYNC_DELAY_MS);
-    return true;
-}
-
-/** 세션의 첫 갱신: 로그인 정리 때와 전장에 들어설 때(js/cloud-save-ui.js enterGameWorld) 부르고, 내 캐릭터로 플레이할 때 한 번만 나간다. */
-function syncInitialPlayerProfile() {
-    let userId = socialLoggedInUserId();
-    if (!userId || !getMyNickname() || socialState.profileBootSyncUserId === userId || !profileSnapshotIsOwn()) return;
-    socialState.profileBootSyncUserId = userId;
-    syncPlayerProfileQuiet();
-}
-
-async function syncPlayerProfile() {
-    let context = socialSessionContext();
-    if (!socialCloudReady()) return showGameToast(_t('먼저 클라우드 로그인이 필요합니다.'), 'warning');
-    // 닉네임 줄을 쓰기 전에 서버의 닉네임을 다시 읽는다: 다른 기기에서 바꾼 닉네임을 옛 닉네임으로 되돌리지 않는다.
-    await restoreNicknameFromServer(true);
-    if (!isSocialSessionCurrent(context)) return;
-    if (!getMyNickname()) await promptAndSetNickname();
-    if (!isSocialSessionCurrent(context) || !getMyNickname()) return;
-    try {
-        await uploadPlayerProfile({ required: true });
-        if (!isSocialSessionCurrent(context)) return;
-        showGameToast(_t('공개 프로필을 최신 상태로 갱신했습니다.'), 'success');
-    } catch (error) {
-        if (!isSocialSessionCurrent(context)) return;
-        reportProfileSyncFailure(error);
-        renderSocialTab();
-    }
-}
-
-function reportProfileSyncFailure(error) {
-    if (error && error.socialCode === 'nickname_conflict') setMyNicknameLocal('');
-    showGameToast('프로필 갱신 실패: ' + String(error && error.message || error), 'danger');
-}
-
-// ============================================================================
-// 닉네임 (하루 1회 변경 + 과거 채팅 닉네임 일괄 갱신)
-// ============================================================================
-async function updatePastChatNicknames(name) {
-    try {
-        await cloudJsonRequest(`/rest/v1/chat_messages?user_id=eq.${encodeURIComponent(socialLoggedInUserId())}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { nickname: name }
-        });
-    } catch (e) { console.warn('과거 채팅 닉네임 갱신 실패:', e); }
-}
-
-async function promptAndSetNickname() {
-    let context = socialSessionContext();
-    if (!socialCloudReady()) { showGameToast(_t('채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)'), 'warning'); return; }
-    let current = getMyNickname();
-    let input = await requestGameText({
-        title: _t('닉네임 설정'),
-        message: `사용할 닉네임을 입력하세요. (${SOCIAL_NICK_MIN}~${SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_)\n닉네임은 하루에 한 번만 변경할 수 있습니다.`,
-        value: current || '',
-        maxLength: SOCIAL_NICK_MAX,
-        placeholder: _t('닉네임'),
-        confirmLabel: _t('닉네임 적용')
-    });
-    if (!isSocialSessionCurrent(context)) return;
-    let name = socialNicknameInput(input, current);
-    if (!name) return;
-
-    let prev = getMyNickname();
-    setMyNicknameLocal(name);
-    try {
-        await uploadPlayerProfile({ fromNicknameChange: true });
-        if (!isSocialSessionCurrent(context)) return;
-        await updatePastChatNicknames(name);     // 과거 채팅도 새 닉네임으로
-        if (!isSocialSessionCurrent(context)) return;
-        if (typeof addLog === 'function') addLog(_t('🪪 닉네임이 {name} 설정되었습니다.', { name: withDirectionParticle(`"${name}"`) }), 'season-up');
-        finishSocialNicknameChange();
-    } catch (e) {
-        if (!isSocialSessionCurrent(context)) return;
-        setMyNicknameLocal(prev);
-        showGameToast(String(e && e.message || e), 'danger');
-        renderSocialTab();
-    }
-}
-
-function socialNicknameInput(input, current) {
-    if (input == null || String(input).trim() === current) return '';
-    let name = String(input).trim();
-    let error = '';
-    if (name.length < SOCIAL_NICK_MIN || name.length > SOCIAL_NICK_MAX) error = _t('닉네임은 {SOCIAL_NICK_MIN}~{SOCIAL_NICK_MAX}자여야 합니다.', { SOCIAL_NICK_MIN, SOCIAL_NICK_MAX });
-    else if (!SOCIAL_NICK_RE.test(name)) error = _t('닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.');
-    if (error) showGameToast(error, 'warning');
-    return error ? '' : name;
-}
-
-function finishSocialNicknameChange() {
-    socialState.chatInitialized = false;
-    socialState.chatMessages = [];
-    socialState.lastChatRenderKey = '';
-    renderSocialTab();
-    refreshChatSettings();
-    refreshChatPanel(false);
-}
-
-/** 서버의 닉네임을 읽어 이 탭이 따른다(세션에 한 번, force면 다시). 서버에 그 닉네임의 줄이 있으면 채팅 한 줄은 프로필을 다시 올리지 않고
- * 그 줄로 나간다(profileRowFor). */
-async function restoreNicknameFromServer(force = false) {
-    if (!socialCloudReady()) return '';
-    let userId = syncSocialIdentityUser();
-    let context = socialSessionContext();
-    if (!force && socialState.identityCheckedUserId === userId) return getMyNickname();
-    if (socialState.identityCheckPromise) return socialState.identityCheckPromise;
-    let task = (async () => {
-        try {
-            let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname`, {});
-            let serverNickname = Array.isArray(rows) && rows[0] ? String(rows[0].nickname || '') : '';
-            if (!isSocialSessionCurrent(context)) return '';
-            if (serverNickname) {
-                setMyNicknameLocal(serverNickname);
-                socialState.profileRowFor = `${userId}\n${serverNickname}`;
-            }
-            socialState.identityCheckedUserId = userId;
-            return getMyNickname();
-        } catch (error) {
-            if (!isSocialSessionCurrent(context)) return '';
-            console.warn('서버 닉네임 복원 실패:', error);
-            return getMyNickname();
-        }
-    })();
-    socialState.identityCheckPromise = task;
-    try {
-        return await task;
-    } finally {
-        if (socialState.identityCheckPromise === task) socialState.identityCheckPromise = null;
-    }
-}
-
-// ============================================================================
-// 접속자(프레즌스)
-// ============================================================================
-async function sendPresenceHeartbeat() {
-    if (!socialCloudReady() || !getMyNickname() || !socialState.onlineSupported) return;
-    let context = socialSessionContext();
-    try {
-        await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(socialLoggedInUserId())}`, {
-            method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: { last_seen: new Date().toISOString() }
-        });
-    } catch (e) { if (isSocialSessionCurrent(context) && /last_seen/i.test(String(e && e.message || e))) socialState.onlineSupported = false; }
-}
-
-function ensureHeartbeat() {
-    if (!socialCloudReady() || !getMyNickname()) return;
-    if (socialState.heartbeatTimer) return;
-    socialState.heartbeatTimer = setInterval(() => { if (socialCloudReady() && getMyNickname() && !isSocialPageHidden()) sendPresenceHeartbeat(); }, SOCIAL_HEARTBEAT_MS);
-    sendPresenceHeartbeat();
-}
-
-function stopHeartbeat() {
-    if (!socialState.heartbeatTimer) return;
-    clearInterval(socialState.heartbeatTimer);
-    socialState.heartbeatTimer = null;
-}
-
-/** 접속자 조회. 목록이 닫혀 있고 배지만 필요하면(countsOnly) 80줄 대신 인원 수만 묻는다(get_online_counts, 2026-10-27: 배지 하나에
- * 30초마다 약 9KB를 받았다). 서버에 그 함수가 없으면 이 세션은 예전처럼 줄을 받는다. */
-async function loadOnlineUsers(countsOnly) {
-    if (!socialCloudReady() || !socialState.onlineSupported) return [];
-    let context = socialSessionContext();
-    let countsPath = !!countsOnly && socialState.onlineCountsSupported !== false;
-    let result;
-    try {
-        result = await cloudJsonRequest(...onlineUsersQuery(countsPath));
-    } catch (e) {
-        if (!isSocialSessionCurrent(context)) return [];
-        if (!noteOnlineLoadError(String(e && e.message || e), countsPath)) return [];
-        countsPath = false;   // 인원 수 함수가 서버에 없다: 이번부터 줄을 받는다
-        try { result = await cloudJsonRequest(...onlineUsersQuery(false)); } catch { return []; }
-    }
-    return shapeOnlineUsers(result, countsPath);
-}
-
-function onlineUsersQuery(countsPath) {
-    if (countsPath) return ['/rest/v1/rpc/get_online_counts', { method: 'POST', body: {} }];
-    let cutoff = new Date(Date.now() - SOCIAL_RECENT_WINDOW_S * 1000).toISOString();
-    return [`/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`, {}];
-}
-
-function shapeOnlineUsers(result, countsPath) {
-    if (countsPath) return { counts: result && typeof result === 'object' ? result : {} };
-    return Array.isArray(result) ? result : [];
-}
-
-/** 조회 오류를 상태에 남긴다. 인원 수 함수가 서버에 없을 때만 true(줄 조회로 다시 간다). */
-function noteOnlineLoadError(text, countsPath) {
-    if (/last_seen/i.test(text)) socialState.onlineSupported = false;
-    if (!countsPath || !/schema cache|could not find|does not exist/i.test(text)) return false;
-    socialState.onlineCountsSupported = false;
-    return true;
-}
-
-function getSocialPresenceState(lastSeen, now = Date.now()) {
-    let seenAt = new Date(lastSeen).getTime();
-    if (!Number.isFinite(seenAt)) return '';
-    let ageSeconds = Math.max(0, now - seenAt) / 1000;
-    if (ageSeconds <= SOCIAL_ONLINE_WINDOW_S) return 'active';
-    return ageSeconds <= SOCIAL_RECENT_WINDOW_S ? 'recent' : '';
-}
-
-/** 채팅 창 오른쪽 위의 작은 접속 인원(2026-10-11 사용자: "채팅창에 기본적으로 작게 몇명 온라인인지"): 초록 점 옆에 5분 안에 신호가 온
- * 사람 수, 노란 점 옆에 30분 안에 다녀간 사람 수만 쓴다(2026-11-05 사용자: 마우스를 올리면 나오던 설명은 없앰, 접속자 목록의 요약과 같은 모양).
- * 접속자 목록과 같은 조회 결과를 쓴다(30초 주기, 새 채팅이 뜨면 socialOnlineChat.refresh가 한 번 더 읽는다). 아직 모르거나 둘 다 0명이면 숨긴다. */
-function renderChatOnlineCount(active, recent) {
-    let badge = document.getElementById('social-chat-online');
-    if (!badge) return;
-    badge.hidden = !socialState.onlineSupported || active + recent <= 0;
-    let key = `${active}|${recent}|${i18n.language}`;
-    if (badge.dataset.counts === key) return;
-    badge.dataset.counts = key;
-    badge.innerHTML = `<span><i class="social-presence-dot active" aria-hidden="true"></i>${active}</span>`
-        + `<span><i class="social-presence-dot recent" aria-hidden="true"></i>${recent}</span>`;
-    // 화면 읽기 프로그램만 읽는 이름(마우스 설명은 아니다)
-    badge.setAttribute('aria-label', _t('지금 접속 {active}명, 30분 안에 다녀간 사람 {recent}명', { active, recent }));
-}
-
-/** 인원 수만 받았을 때(loadOnlineUsers의 { counts }): 배지만 그린다. */
-function renderOnlineCounts(counts) {
-    renderChatOnlineCount(Math.max(0, Math.floor(Number(counts.active) || 0)), Math.max(0, Math.floor(Number(counts.recent) || 0)));
-}
-
-function renderSocialOnlineResult(result) {
-    if (result && result.counts) renderOnlineCounts(result.counts); else renderOnlineUsers(result);
-}
-
-function renderOnlineUsers(users, now = Date.now()) {
-    let visible = (users || []).map(user => ({ user, state: getSocialPresenceState(user.last_seen, now) })).filter(row => row.state);
-    renderChatOnlineCount(visible.filter(row => row.state === 'active').length, visible.filter(row => row.state !== 'active').length);
-    let host = document.getElementById('social-online');
-    if (!host) return;
-    if (!socialState.onlineSupported) { host.style.display = 'none'; return; }
-    host.style.display = 'block';
-    let myId = socialLoggedInUserId();
-    let key = visible.length
-        ? visible.map(row => `${row.user.user_id}:${row.user.nickname || ''}:${row.state}`).join(',')
-        : 'empty';
-    if (key === socialState.lastOnlineRenderKey) return;
-    socialState.lastOnlineRenderKey = key;
-    let activeCount = visible.filter(row => row.state === 'active').length;
-    let recentCount = visible.length - activeCount;
-    let chips = visible.length
-        ? visible.map(row => {
-            let u = row.user;
-            let me = u.user_id === myId;
-            return `<button type="button" class="social-online-chip ${row.state}${me ? ' me' : ''}" onclick="openPlayerProfile('${socialEscape(u.user_id)}')">`
-                + `<span class="social-presence-dot ${row.state}" aria-hidden="true"></span>`
-                + `<span>${socialEscape(u.nickname || '익명')}</span>${me ? _t('<em>나</em>') : ''}</button>`;
-        }).join('')
-        : `<span class="social-online-empty">${_t('지금은 조용합니다.')}</span>`;
-    host.innerHTML = `<div class="social-online-title"><span>${_t('접속 상태')}</span><span class="social-presence-summary">`
-        + `<span><i class="social-presence-dot active"></i>${activeCount}</span>`
-        + `<span><i class="social-presence-dot recent"></i>${recentCount}</span></span></div>`
-        + `<div class="social-online-list">${chips}</div>`;
-}
-
-async function refreshOnlineUsers(force = false) {
-    if (!socialCloudReady() || !socialState.onlineSupported || isSocialPageHidden()) return;
-    let listOpen = !!document.getElementById('social-online');
-    if (!socialOnlineChat.due(listOpen, force)) return;
-    // 인원 수만 묻는 조회가 도는 사이에 설정 창을 열었으면(목록이 필요해졌으면) 그 조회가 끝난 뒤 한 번 더 읽는다.
-    if (socialState.onlineLoading) { socialState.onlineRefreshAgain = !!document.getElementById('social-online'); return; }
-    let context = socialSessionContext();
-    socialState.onlineLoading = context;
-    socialState.lastOnlineLoadAt = Date.now();
-    socialState.lastOnlineLoadWasList = listOpen;
-    // 접속자 목록(채팅 설정 창)이 열려 있을 때만 줄을 받고, 그 밖에는 배지의 인원 수만 묻는다.
-    try {
-        let result = await loadOnlineUsers(!listOpen);
-        if (!isSocialSessionCurrent(context)) return;
-        renderSocialOnlineResult(result);
-    } catch { /* 무시 */ } finally { releaseSocialRequest('onlineLoading', context); }
-    if (socialState.onlineRefreshAgain) { socialState.onlineRefreshAgain = false; socialOnlineChat.refresh(true); }
-}
-
-// ============================================================================
-// 채팅
-// ============================================================================
-// --- 새 채팅 알림(커뮤니티 탭 빨간 점) --------------------------------------
-// 마지막으로 확인한 채팅 id(bigint 증가형)를 기기별로 기억해, 그보다 큰 id의
-// 남이 보낸 메시지가 있으면 game.noti.social 을 켠다. 탭을 열어 채팅이 렌더되면 갱신된다.
-function getLastSeenChatId() {
-    try {
-        let v = localStorage.getItem(SOCIAL_LAST_SEEN_CHAT_KEY);
-        if (v == null || v === '') return null;
-        let n = Number(v);
-        return Number.isFinite(n) ? n : null;
-    } catch (e) { return null; }
-}
-
-function setLastSeenChatId(id) {
-    let n = Number(id);
-    if (!Number.isFinite(n)) return;
-    let cur = getLastSeenChatId();
-    if (cur != null && n <= cur) return;
-    try { localStorage.setItem(SOCIAL_LAST_SEEN_CHAT_KEY, String(n)); } catch (e) { /* 무시 */ }
-}
-
-/** Chat on screen: the chat tab of a PC message frame or of the phone battle screen's log panel (js/message-frames-ui.js). */
-function isSocialTabActive() {
-    return typeof messageFrames === 'object' && messageFrames.isTabVisible('chat');
-}
-
-function isSocialChatNotificationEnabled() {
-    return !(typeof game !== 'undefined' && game && game.settings && game.settings.socialChatNotifications === false);
-}
-
-function refreshSocialNotificationDots() {
-    if (typeof updateTabNotificationDots === 'function') updateTabNotificationDots();
-}
-
-function getSocialChatNotificationPreview(row) {
-    let body = String(row && row.body || '').replace(new RegExp(SOCIAL_ITEM_TOKEN_RE.source, 'g'), '[아이템]').replace(/\s+/g, ' ').trim();
-    if (!body) body = row && row.payload ? '아이템을 공유했습니다.' : '새 메시지가 도착했습니다.';
-    return body.length > 54 ? `${body.slice(0, 54)}…` : body;
-}
-
-/** Chats newer than the last one seen on this device while the chat is off screen (rows newest first): the community dot and a toast
- * for the newest from someone else, one toast at a time (showChatToast). The poll below and the live feed (receiveLiveChat) both land here. */
-function noteIncomingChats(rows) {
-    let latest = rows.reduce((max, row) => Math.max(max, Number(row && row.id) || 0), 0);
-    if (!Number.isFinite(latest) || latest <= 0) return;
-    // 첫 확인(이 기기에서 채팅을 한 번도 안 봄)에는 과거 메시지로 알림하지 않고 기준점만 잡는다.
-    if (getLastSeenChatId() == null) { setLastSeenChatId(latest); return; }
-    if (!isSocialChatNotificationEnabled()) {
-        setLastSeenChatId(latest);
-        game.noti.social = false;
-        refreshSocialNotificationDots();
-        return;
-    }
-    let incoming = rows.find(row => row && row.user_id !== socialLoggedInUserId() && !isUserBlocked(row.user_id));
-    if (!incoming) {
-        setLastSeenChatId(latest);
-        return;
-    }
-    game.noti.social = true;
-    refreshSocialNotificationDots();
-    let incomingId = Number(incoming.id);
-    // 채팅 메시지 id는 로컬 저장소에 남기지 않고 세션 메모리에서만 중복 토스트를 막는다.
-    if (socialState.lastNotifiedChatId === incomingId) return;
-    socialState.lastNotifiedChatId = incomingId;
-    showChatToast(incoming);
-}
-
-/** 새 채팅 토스트는 한 번에 하나다: 앞의 것이 떠 있는 동안 온 채팅은 빨간 점만 켠다. 채팅이 몰려도 알림 칸(넷)을 채워 전리품 알림을
- * 밀어내지 않는다. */
-function showChatToast(row) {
-    let now = Date.now();
-    if (typeof showGameToast !== 'function' || now - socialState.lastChatToastAt < SOCIAL_CHAT_TOAST_GAP_MS) return;
-    socialState.lastChatToastAt = now;
-    showGameToast(_t('새 채팅, {who}: {preview}', { who: String(row.nickname || _t('플레이어')), preview: getSocialChatNotificationPreview(row) }), { tone: 'info', duration: SOCIAL_CHAT_TOAST_MS });
-}
-
-/** 닫힌 채팅의 새 채팅 확인: 점과 토스트 하나에는 남이 보낸 가장 새 줄 하나면 된다(첨부 그림은 받지 않는다). 이미 알린 채팅 뒤만 묻는다:
- * 확인하지 않은 채팅이 쌓여도 같은 줄을 매번 다시 받지 않는다. 이 기기의 첫 확인은 기준점만 잡는다(noteIncomingChats). */
-function socialChatNoticeQuery(seen) {
-    let cutoff = encodeURIComponent(new Date(Date.now() - SOCIAL_CHAT_RETENTION_MS).toISOString());
-    let base = `/rest/v1/chat_messages?select=id,user_id,nickname,body&created_at=gte.${cutoff}&order=id.desc&limit=1`;
-    if (seen == null) return base;
-    let after = Math.max(seen, Number(socialState.lastNotifiedChatId) || 0);
-    return `${base}&id=gt.${after}&user_id=neq.${encodeURIComponent(socialLoggedInUserId())}`;
-}
-
-async function checkSocialChatNotification() {
-    if (!socialCloudReady() || socialState.bgNotiLoading) return;
-    // 탭을 보고 있으면 활성 폴링이 채팅을 렌더하며 확인 처리하므로 알림이 필요 없다.
-    if (isSocialTabActive()) return;
-    if (typeof game === 'undefined' || !game || !game.noti) return;
-    let context = socialSessionContext();
-    socialState.bgNotiLoading = context;
-    socialState.lastChatNoticeAt = Date.now();
-    try {
-        let rows = await cloudJsonRequest(socialChatNoticeQuery(getLastSeenChatId()), {});
-        if (!isSocialSessionCurrent(context)) return;
-        rows = Array.isArray(rows) ? rows : [];
-        if (rows.length) noteIncomingChats(rows);
-    } catch (e) { /* 무시: 네트워크 실패 시 다음 주기에 재시도 */ } finally {
-        releaseSocialRequest('bgNotiLoading', context);
-    }
-}
-
-function syncSocialChatNotificationSetting() {
-    if (typeof game !== 'undefined' && game && game.noti && !isSocialChatNotificationEnabled()) {
-        game.noti.social = false;
-        refreshSocialNotificationDots();
-    }
-    // 알림을 켜면 실시간 연결을 붙이고, 끄면(채팅이 화면에 없을 때) 잠시 뒤 놓는다.
-    syncLiveChat();
-    Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification setting sync failed:', error));
-}
-
-/** Polls rest while the page is hidden: nobody sees the chat dot or the online list there, and each poll is a server request. */
-function isSocialPageHidden() {
-    return typeof document !== 'undefined' && document.hidden === true;
-}
-
-/** A chat poll is due on its own clock, or once a minute (SOCIAL_CHAT_LIVE_POLL_MS) while chats arrive live. */
-function socialChatPollDue(lastAt) {
-    return !socialState.chatLive || Date.now() - lastAt >= SOCIAL_CHAT_LIVE_POLL_MS;
-}
-
-/** 새 채팅 알림을 끈 동안은 실시간 연결이 없어도 1분에 한 번만 묻는다(점은 켜지 않고 기준점만 옮긴다). */
-function pollSocialChatNotification() {
-    let due = isSocialChatNotificationEnabled() ? socialChatPollDue(socialState.lastChatNoticeAt)
-        : Date.now() - socialState.lastChatNoticeAt >= SOCIAL_CHAT_LIVE_POLL_MS;
-    if (!isSocialPageHidden() && due) return checkSocialChatNotification();
-}
-
-function ensureSocialNotificationPolling() {
-    if (!socialCloudReady() || socialState.bgNotificationTimer) return;
-    socialState.bgNotificationTimer = setInterval(pollSocialChatNotification, SOCIAL_BG_NOTI_POLL_MS);
-    Promise.resolve(checkSocialChatNotification()).catch(error => console.warn('social notification refresh failed:', error));
-}
-
-function stopSocialNotificationPolling() {
-    if (!socialState.bgNotificationTimer) return;
-    clearInterval(socialState.bgNotificationTimer);
-    socialState.bgNotificationTimer = null;
-}
-
-function syncSocialBackgroundTasks() {
-    syncSocialIdentityUser();
-    syncLiveChat();
-    if (!socialCloudReady()) {
-        stopHeartbeat();
-        stopSocialNotificationPolling();
-        stopChatPolling();
-        return;
-    }
-    ensureSocialNotificationPolling();
-    if (getMyNickname()) {
-        ensureHeartbeat();
-        syncInitialPlayerProfile();
-    }
-    else stopHeartbeat();
-    if (socialState.identityCheckedUserId !== socialLoggedInUserId()) {
-        Promise.resolve(restoreNicknameFromServer()).then(nickname => {
-            if (nickname && socialCloudReady()) {
-                ensureHeartbeat();
-                syncInitialPlayerProfile();
-            }
-        }).catch(error => console.warn('소셜 계정 정보 동기화 실패:', error));
-    }
-}
-
-// --- 실시간 수신(Supabase Realtime) ---------------------------------------
-// 2026-10-21 사용자: "채팅을 Supabase Realtime으로 바꿔줘". 새 채팅은 chat_messages 표의 INSERT 알림(postgres_changes)으로 바로 받는다.
-// 서버는 db/social.sql이 표를 supabase_realtime 발행에 넣어야 보내고, 읽기가 로그인한 사용자만이라 연결은 게임의 로그인 토큰으로 붙는다.
-// 연결된 동안 채팅 조회와 알림 조회는 1분에 한 번만 돌며 빠진 틈과 닉네임 변경(5분 전체 동기화)을 메운다. 그 조회가 실시간으로 오지
-// 않은 남의 채팅을 SOCIAL_CHAT_LIVE_MISSES번 찾으면 이 세션은 예전 주기로 돌아간다(발행을 켜지 않은 서버라면 연결은 되어도 알림이
-// 오지 않는다). 연결이 끊긴 동안도 예전 주기로 묻고, 다시 붙으면 다음 조회가 바로 돌아 그 사이를 메운다.
-function socialAccessToken() {
-    return (typeof cloudState !== 'undefined' && cloudState && cloudState.session && cloudState.session.access_token) || '';
-}
-
-/** A Supabase client for chat alone, on the address and key of the one js/ui.js made (window.supabaseClient). Its realtime token is the
- * game's own session, read again at every heartbeat (the accessToken option): the shared client would take its auth session's token or
- * fall back to the anon key, and the game signs in and renews tokens with its own requests (js/cloud-save-ui.js applyCloudSession). */
-function socialChatRealtime() {
-    if (socialState.chatRealtime) return socialState.chatRealtime;
-    let base = typeof window !== 'undefined' ? window.supabaseClient : null;
-    if (!base || !base.supabaseUrl || !base.supabaseKey || !window.supabase || typeof window.supabase.createClient !== 'function') return null;
-    socialState.chatRealtime = window.supabase.createClient(base.supabaseUrl, base.supabaseKey, {
-        accessToken: async () => socialAccessToken() || null,
-        realtime: { disconnectOnEmptyChannelsAfterMs: 0 }   // 채널을 놓으면 소켓도 바로 닫는다(동시 연결 수)
-    });
-    return socialState.chatRealtime;
-}
-
-/** A chat row the server sent: on screen it joins the list, elsewhere it lights the chat dot as the poll does. */
-function receiveLiveChat(row) {
-    if (!row || !Number.isFinite(Number(row.id)) || !isSocialChatMessageCurrent(row)) return;
-    socialState.chatLiveMisses = 0;
-    socialState.chatLive = true;
-    // 첫 전체 조회가 끝나기 전에 온 행도 보관한다. 조회 응답이 늦게 와도 이 행을 덮지 않는다.
-    if (!isForgottenSocialChat(row, Date.now())) socialState.chatMessages = mergeSocialChatMessages(socialState.chatMessages, [row]);
-    showLiveChat(row);
-}
-
-/** On screen the row joins the list (someone else's chat also refreshes the online count); elsewhere it lights the chat dot. */
-function showLiveChat(row) {
-    if (!isSocialTabActive()) {
-        if (typeof game !== 'undefined' && game && game.noti) noteIncomingChats([row]);
-        return;
-    }
-    if (socialState.chatInitialized) renderChatMessages(socialState.chatMessages, false);
-    if (row.user_id !== socialLoggedInUserId()) socialOnlineChat.refresh(false);
-}
-
-function onLiveChatStatus(status) {
-    if (status === 'SUBSCRIBED') {
-        socialState.chatLive = socialState.chatLiveMisses < SOCIAL_CHAT_LIVE_MISSES;
-        socialState.chatLiveSince = Date.now();
-        // 연결되기 전과 끊긴 사이에 온 채팅: 채팅 조회와 알림 조회가 다음 차례에 바로 읽어 메운다.
-        socialState.lastChatPollAt = 0;
-        socialState.lastChatNoticeAt = 0;
-        return;
-    }
-    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') socialState.chatLive = false;
-}
-
-function openLiveChat() {
-    if (socialState.chatChannel || !socialAccessToken()) return;
-    let client = socialChatRealtime();
-    if (!client) return;
-    socialState.chatChannelUserId = socialLoggedInUserId();
-    let context = socialSessionContext();
-    socialState.chatChannelSession = context;
-    // 남이 보낸 줄이 어떤 모양이든 받기는 멈추지 않는다: 한 줄을 다루다 난 오류는 남기고 다음 줄을 받는다.
-    let channel = client.channel('social-chat')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, change => {
-            if (socialState.chatChannel !== channel || !isSocialSessionCurrent(context)) return;
-            try { receiveLiveChat(change && change.new); } catch (error) { console.warn('실시간 채팅 한 줄을 처리하지 못했습니다:', error); }
-        })
-        // 운영자가 지운 줄(한 줄 지우기, 전체 비우기): 삭제 알림은 지운 줄의 id만 싣는다. 실시간이 아닌 창은 5분 전체 조회에서 빠진다.
-        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages' }, change => {
-            if (socialState.chatChannel !== channel || !isSocialSessionCurrent(context)) return;
-            let id = change && change.old && change.old.id;
-            if (id != null) forgetSocialChatMessages([id]);
-        });
-    socialState.chatChannel = channel;
-    // 토큰을 먼저 건다: 구독 요청이 이 토큰을 싣고 나가야 처음부터 로그인한 사용자로 읽는다(라이브러리는 토큰을 한 박자 늦게 넣는다).
-    Promise.resolve(client.realtime.setAuth(socialAccessToken())).then(() => {
-        if (socialState.chatChannel !== channel || !isSocialSessionCurrent(context)) return;
-        channel.subscribe(status => { if (socialState.chatChannel === channel && isSocialSessionCurrent(context)) onLiveChatStatus(status); });
-    }).catch(error => {
-        if (socialState.chatChannel === channel) closeLiveChat();
-        console.warn('채팅 실시간 연결 준비 실패:', error);
-    });
-}
-
-function closeLiveChat() {
-    clearTimeout(socialState.chatLiveHiddenTimer);
-    socialState.chatLiveHiddenTimer = null;
-    socialState.chatLive = false;
-    let channel = socialState.chatChannel, client = socialState.chatRealtime;
-    if (!channel) return;
-    socialState.chatChannel = null;
-    socialState.chatChannelUserId = null;
-    socialState.chatChannelSession = null;
-    if (client) {
-        Promise.resolve(client.removeChannel(channel)).catch(error => console.warn('채팅 실시간 연결 해제 실패:', error));
-    }
-}
-
-/** Connected while a signed-in player has the page in view and uses the live rows (wantsLiveChat); another account gets its own
- * connection. A hidden page, or chat off screen with 새 채팅 알림 off, lets it go after SOCIAL_CHAT_LIVE_HIDDEN_MS (back in use sooner
- * keeps it), and coming back joins and fills the gap. */
-function syncLiveChat() {
-    if (!socialCloudReady() || (socialState.chatChannel && !isSocialSessionCurrent(socialState.chatChannelSession))) closeLiveChat();
-    if (!socialCloudReady()) return;
-    if (isSocialPageHidden() || !wantsLiveChat()) {
-        if (socialState.chatChannel && !socialState.chatLiveHiddenTimer) socialState.chatLiveHiddenTimer = setTimeout(releaseIdleLiveChat, SOCIAL_CHAT_LIVE_HIDDEN_MS);
-        return;
-    }
-    clearTimeout(socialState.chatLiveHiddenTimer);
-    socialState.chatLiveHiddenTimer = null;
-    openLiveChat();
-}
-
-/** 실시간 줄을 쓰는 동안: 채팅이 화면에 있거나, 새 채팅 알림을 켰을 때(빨간 점과 토스트). */
-function wantsLiveChat() {
-    return isSocialTabActive() || isSocialChatNotificationEnabled();
-}
-
-/** 기다리는 사이 다시 쓰게 되었으면(보이는 페이지에서 화면의 채팅이나 켠 알림) 놓지 않는다. */
-function releaseIdleLiveChat() {
-    socialState.chatLiveHiddenTimer = null;
-    if (isSocialPageHidden() || !wantsLiveChat()) closeLiveChat();
-}
-
-/** New rows of a chat poll that is not the first look: someone else's chat among them, past the first seconds after joining and not
- * already in the list (it may have come live while the poll was on its way), is one the connection never brought (see above). */
-function noteLiveChatGap(rows, fullSync, wasReady) {
-    if (fullSync || !wasReady || !socialState.chatLive || Date.now() - socialState.chatLiveSince < SOCIAL_CHAT_LIVE_SETTLE_MS) return;
-    let listed = new Set(socialState.chatMessages.map(row => String(row.id)));
-    if (!rows.some(row => row.user_id !== socialLoggedInUserId() && !listed.has(String(row.id)))) return;
-    if (++socialState.chatLiveMisses < SOCIAL_CHAT_LIVE_MISSES) return;
-    socialState.chatLive = false;
-    console.warn('채팅 실시간 수신이 새 채팅을 놓쳐 이 세션은 예전 조회 주기로 돌아갑니다(db/social.sql의 supabase_realtime 발행 확인).');
-}
-
-async function loadChatMessages(afterId = null, now = Date.now()) {
-    if (!socialCloudReady()) return [];
-    let cutoff = new Date(now - SOCIAL_CHAT_RETENTION_MS).toISOString();
-    let incremental = afterId != null && Number.isFinite(Number(afterId));
-    let cursor = incremental ? `&id=gt.${encodeURIComponent(String(afterId))}` : '';
-    let order = incremental ? 'id.asc' : 'created_at.desc';
-    let rows = await cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id,nickname,body,payload,created_at&created_at=gte.${encodeURIComponent(cutoff)}${cursor}&order=${order}&limit=${SOCIAL_CHAT_LIMIT}`, {});
-    let current = Array.isArray(rows) ? rows.filter(row => isSocialChatMessageCurrent(row, now)) : [];
-    return incremental ? current : current.reverse();
-}
-
-function isSocialChatMessageCurrent(row, now = Date.now()) {
-    let createdAt = new Date(row && row.created_at).getTime();
-    return Number.isFinite(createdAt) && createdAt > now - SOCIAL_CHAT_RETENTION_MS;
-}
-
-function mergeSocialChatMessages(current, incoming, now = Date.now()) {
-    let byId = new Map();
-    (current || []).concat(incoming || []).forEach(row => {
-        if (row && Number.isFinite(Number(row.id)) && isSocialChatMessageCurrent(row, now)) byId.set(String(row.id), row);
-    });
-    return Array.from(byId.values()).sort((a, b) => Number(a.id) - Number(b.id)).slice(-SOCIAL_CHAT_LIMIT);
-}
-
-function checkSendRateLimit() {
-    let now = Date.now();
-    socialState.sendTimestamps = socialState.sendTimestamps.filter(t => now - t < 60000);
-    let last = socialState.sendTimestamps[socialState.sendTimestamps.length - 1] || 0;
-    if (now - last < SOCIAL_SEND_MIN_INTERVAL_MS) return '메시지를 너무 빠르게 보냈습니다. 잠시 후 다시 시도해주세요.';
-    if (socialState.sendTimestamps.length >= SOCIAL_SEND_MAX_PER_MIN) return _t('1분에 최대 {SOCIAL_SEND_MAX_PER_MIN}개까지 보낼 수 있습니다. 잠시 후 다시 시도해주세요.', { SOCIAL_SEND_MAX_PER_MIN });
-    return true;
-}
-
-// 차단(2026-10-27): 이 기기에서만 그 사람의 채팅을 숨긴다(기기마다 따로, 서버에는 남기지 않는다). 신고는 서버(report_player_chat)로 간다.
-/** 차단 목록: [{ id, name }]. 예전 저장(id 문자열 배열)도 읽는다. 이름은 채팅 설정 창의 풀기 줄에 쓴다(숨긴 사람의 채팅은 눌러 열 수 없으니). */
-function getBlockedUsers() {
-    try {
-        let list = JSON.parse(localStorage.getItem(SOCIAL_BLOCKED_KEY) || '[]');
-        return Array.isArray(list) ? list.map(entry => entry && typeof entry === 'object' ? { id: String(entry.id || ''), name: String(entry.name || '') } : { id: String(entry || ''), name: '' }).filter(entry => entry.id && entry.id !== 'null') : [];
-    } catch { return []; }
-}
-
-function getBlockedUserIds() { return getBlockedUsers().map(entry => entry.id); }
-
-function isUserBlocked(userId) { return !!userId && getBlockedUserIds().includes(String(userId)); }
-
-function setUserBlocked(userId, blocked, name) {
-    let list = getBlockedUsers().filter(entry => entry.id !== String(userId));
-    if (blocked) list.push({ id: String(userId), name: String(name || '').slice(0, 16) });
-    try { localStorage.setItem(SOCIAL_BLOCKED_KEY, JSON.stringify(list.slice(-200))); } catch { /* 무시 */ }
-}
-
-/** 채팅 설정 창의 풀기 단추(renderBlockedUsersRow). */
-function unblockUser(userId) {
-    setUserBlocked(userId, false);
-    socialState.lastChatRenderKey = '';
-    renderChatMessages(socialState.chatMessages || [], false);
-    refreshChatSettings();
-    showGameToast(_t('차단을 풀었습니다.'), 'info');
-}
-
-function translateSpamError(msg) {
-    let hit = SOCIAL_CHAT_ERROR_TEXTS.find(([pattern]) => pattern.test(msg));
-    if (!hit) return msg;
-    return typeof hit[1] === 'function' ? hit[1](msg) : hit[1];
-}
-
-async function prepareChatSender(senderId) {
-    let context = socialSessionContext();
-    await restoreNicknameFromServer();
-    if (!isSocialSessionCurrent(context)) throw new Error('전송 중 계정이 변경되었습니다.');
-    if (!getMyNickname()) await promptAndSetNickname();
-    if (!isSocialSessionCurrent(context)) throw new Error('전송 중 계정이 변경되었습니다.');
-    if (!getMyNickname()) return false;
-    // 이 세션에 닉네임 줄을 아직 맞추지 않았으면 서버의 닉네임부터 다시 읽는다: 줄이 있으면 그 닉네임을 따르고(다른 기기에서 바꾼
-    // 닉네임을 되돌리지 않는다), 줄이 없을 때만 새로 쓴다.
-    if (!chatRowReady(senderId)) await restoreNicknameFromServer(true);
-    if (!chatRowReady(senderId)) await uploadPlayerProfile({ required: true });
-    if (!isSocialSessionCurrent(context)) throw new Error('전송 중 계정이 변경되었습니다.');
-    return true;
-}
-
-/** 이 계정과 지금 닉네임의 프로필 줄이 서버에 있다고 안다: 채팅 한 줄이 그 줄의 닉네임 검사를 지난다. */
-function chatRowReady(userId) {
-    return socialState.profileRowFor === `${userId}\n${getMyNickname()}`;
-}
-
-/** 닉네임이 서버와 어긋나 막힌 오류: 하루 한 번 제한, 이미 쓰는 닉네임(프로필 줄), 채팅 줄의 닉네임 검사(행 보안 정책). */
-function isStaleNicknameError(error) {
-    let code = error && error.socialCode;
-    return code === 'nickname_cooldown' || code === 'nickname_conflict' || /row-level security/i.test(String(error && error.message || error));
-}
-
-/** 서버의 닉네임을 다시 읽어 따른다. 다른 기기에서 바꾼 닉네임이었으면 true(그 닉네임으로 다시 보낸다). */
-async function adoptServerNickname(userId) {
-    let before = getMyNickname();
-    let after = await restoreNicknameFromServer(true);
-    if (socialLoggedInUserId() !== userId || !after || after === before) return false;
-    refreshChatSettings();
-    return true;
-}
-
-/** 채팅 한 줄 보내기(sendOnce)가 닉네임 때문에 막히면(isStaleNicknameError) 서버의 닉네임을 따른 뒤 한 번 더 보낸다. 옛 닉네임을 다시
- * 써서 다른 기기의 변경과 다투지 않는다. */
-async function withStaleNicknameRetry(userId, sendOnce) {
-    let context = socialSessionContext();
-    try {
-        return await sendOnce();
-    } catch (error) {
-        if (!isSocialSessionCurrent(context)) throw error;
-        if (!isStaleNicknameError(error) || !await adoptServerNickname(userId)) throw error;
-        return sendOnce();
-    }
-}
-
-function clearSubmittedChatDraft(inputEl, draft, items) {
-    // 보내는 사이 칸을 다시 그렸으면(renderSocialTab이 쓰던 글을 새 칸에 옮긴다) 지금 칸을 비운다.
-    let input = document.getElementById('social-chat-input') || inputEl;
-    if (input.value !== draft || socialState.pendingChatItems.length !== items.length) return;
-    if (!items.every((item, index) => socialState.pendingChatItems[index] === item)) return;
-    input.value = '';
-    socialState.pendingChatItems = [];
-    renderPendingChatItems();
-    updateChatCounter();
-}
-
-function reportChatSendFailure(error, context) {
-    if (!isSocialSessionCurrent(context)) return;
-    if (error?.socialCode === 'nickname_conflict') setMyNicknameLocal('');
-    showGameToast('메시지 전송 실패: ' + translateSpamError(String(error && error.message || error)), 'danger');
-}
-
-function finishSocialChatSend(context) {
-    if (socialState.chatSendRequest !== context) return;
-    socialState.chatSendRequest = null;
-    socialState.chatSending = false;
-    updateChatSendButton();
-}
-
-function updateChatSendButton() {
-    const button = document.getElementById('social-chat-send');
-    if (!button) return;
-    button.disabled = socialState.chatSending || !socialCloudReady() || !getMyNickname();
-    button.textContent = socialState.chatSending ? _t('전송 중') : _t('전송');
-    button.setAttribute('aria-busy', String(socialState.chatSending));
-}
-
-async function sendChatMessage() {
-    if (!socialCloudReady()) { showGameToast(_t('먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
-    if (socialState.chatSending) return;
-    let inputEl = document.getElementById('social-chat-input');
-    if (!inputEl) return;
-    let draft = inputEl.value;
-    let pending = socialState.pendingChatItems.slice(0, SOCIAL_MAX_ITEMS_PER_MSG);
-    let { body, items } = toChatBody(draft.trim(), pending);
-    if (!body && !items.length) return;
-    if (body.length > SOCIAL_MSG_MAX) { showGameToast(_t('메시지는 최대 {SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.', { SOCIAL_MSG_MAX }), 'warning'); return; }
-    if (body && body === socialState.lastSentBody && !items.length) { showGameToast(_t('같은 메시지를 연속으로 보낼 수 없습니다.'), 'warning'); return; }
-    let rate = checkSendRateLimit();
-    if (rate !== true) { showGameToast(rate, 'warning'); return; }
-
-    let payload = items.length ? { items } : null;
-    let senderId = socialLoggedInUserId();
-    let context = socialSessionContext();
-    socialState.chatSendRequest = context;
-    socialState.chatSending = true;
-    try {
-        updateChatSendButton();
-        let sent = await withStaleNicknameRetry(senderId, async () => {
-            if (!await prepareChatSender(senderId) || !isSocialSessionCurrent(context)) return false;
-            // 접속 신호를 채팅과 함께 보낸다: 창을 오래 가려 뒀다가 돌아와 바로 쳐도 접속 인원에 내가 들어간다.
-            await Promise.all([cloudJsonRequest('/rest/v1/chat_messages', {
-                method: 'POST', headers: { Prefer: 'return=minimal' },
-                body: { user_id: senderId, nickname: getMyNickname(), body: body || '🔗', payload }
-            }), sendPresenceHeartbeat()]);
-            return true;
-        });
-        if (!sent || !isSocialSessionCurrent(context)) return;
-        clearSubmittedChatDraft(inputEl, draft, pending);
-        socialState.sendTimestamps.push(Date.now());
-        socialState.lastSentBody = body;
-        await refreshChatPanel(true);
-        socialOnlineChat.refresh(true);
-    } catch (e) {
-        reportChatSendFailure(e, context);
-    } finally {
-        finishSocialChatSend(context);
-    }
-}
-
-// --- 아이템 링크 첨부 ------------------------------------------------------
-function getChatAttachSnapshot(source, key) {
-    let state = typeof game !== 'undefined' && game ? game : {};
-    if (source === 'equip') return buildChatItemSnapshot((state.equipment || {})[key], key);
-    if (source === 'inv') return buildChatItemSnapshot((state.inventory || [])[Number(key)]);
-    if (source === 'stump' && state.stumpBox) return buildStumpItemCard(stumpBox.itemById(state, Number(key)), stumpBox.evaluate(state));
-    return null;
-}
-
-/** 채팅에 붙는 장비 창과 가방의 아이템(2026-10-27 사용자: 액막이 부적과, 장비 창과 그루터기 함에 들어가는 아이템 모두): 주얼은
- * 주얼 카드, 코어는 코어 카드, 장비와 액막이는 장비 카드(액막이의 줄은 베이스 옵션 자리에). */
-function buildChatItemSnapshot(item, slot) {
-    if (!item) return null;
-    if (bagItems.isJewel(item)) return buildJewelSnapshot(item);
-    if (bagItems.isCore(item)) return buildCoreCard(item);
-    // 끼운 액막이도 칸 이름(액막이1..) 대신 액막이로 적는다: 카드가 그 이름으로 액막이를 알아본다(profileItemOptionsHtml).
-    return buildItemSnapshot(item, colonyWards.isWard(item) ? undefined : slot);
-}
-
-/** 입력 칸에서 첨부 아이템이 보이는 글: [이름](2026-10-22 사용자 "창과 채팅에 나오는 표기 개선": 예전에는 ⟦0⟧이 보였다). */
-function chatItemLabel(snap) {
-    return `[${String(snap && snap.name || '아이템')}]`;
-}
-
-/** 입력 칸의 글을 보낼 글과 아이템으로 바꾼다: 첨부한 차례대로 그 [이름]을 ⟦번호⟧로 바꾸고(채팅 줄의 형식은 그대로다, renderChatBody),
- * 글에서 지운 첨부는 뺀다. */
-function toChatBody(text, pending) {
-    let body = String(text || ''), items = [];
-    pending.forEach(snap => {
-        let label = chatItemLabel(snap), at = body.indexOf(label);
-        if (at < 0) return;
-        body = body.slice(0, at) + `⟦${items.length}⟧` + body.slice(at + label.length);
-        items.push(snap);
-    });
-    return { body, items };
-}
-
-/** 글을 쓰던 자리에 [이름]을 넣는다(칸을 누른 적이 없으면 끝에). */
-function insertChatItemLabel(inputEl, label) {
-    let value = String(inputEl.value || ''), start = inputEl.selectionStart ?? value.length, end = inputEl.selectionEnd ?? start;
-    let before = value.slice(0, start), gap = before && !/\s$/.test(before) ? ' ' : '';
-    inputEl.value = `${before}${gap}${label} ${value.slice(end)}`;
-    let caret = before.length + gap.length + label.length + 1;
-    inputEl.focus();
-    inputEl.setSelectionRange(caret, caret);
-}
-
-/** Puts one item card in the message being written; false when the message already holds the most it can. */
-function attachChatSnapshot(snap) {
-    if (socialState.pendingChatItems.length >= SOCIAL_MAX_ITEMS_PER_MSG) { showGameToast(_t('메시지당 최대 {SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.', { SOCIAL_MAX_ITEMS_PER_MSG }), 'warning'); return false; }
-    socialState.pendingChatItems.push(snap);
-    let inputEl = document.getElementById('social-chat-input');
-    if (inputEl) insertChatItemLabel(inputEl, chatItemLabel(snap));
-    renderPendingChatItems();
-    updateChatCounter();
-    return true;
-}
-
-function attachChatItem(source, idx) {
-    let snap = getChatAttachSnapshot(source, idx);
-    if (snap) attachChatSnapshot(snap);
-}
-
-/** 들고 있던 장비를 채팅 입력 줄에 놓았다(js/equipment-inventory-grid-ui.js, 2026-10-22 사용자 "아이템을 직접 채팅창에 끌어다가 놓아도
- * 가능하게"). 주얼, 코어, 액막이도 제 카드로 붙는다(buildChatItemSnapshot). */
-function attachChatItemOf(item, slot) {
-    if (!getMyNickname()) return showGameToast(_t('닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다.'), 'warning');
-    let snap = buildChatItemSnapshot(item, slot);
-    if (!snap) return showGameToast(_t('이 아이템은 채팅에 붙일 수 없습니다.'), 'warning');
-    attachChatSnapshot(snap);
-}
-
-function removePendingChatItem(idx) {
-    let [snap] = socialState.pendingChatItems.splice(idx, 1);
-    let inputEl = document.getElementById('social-chat-input');
-    if (inputEl && snap) inputEl.value = String(inputEl.value || '').replace(chatItemLabel(snap), '').replace(/ {2,}/g, ' ').trim();
-    renderPendingChatItems();
-    updateChatCounter();
-}
-
-function renderPendingChatItems() {
-    let host = document.getElementById('social-pending-items');
-    if (!host) return;
-    if (!socialState.pendingChatItems.length) { host.innerHTML = ''; host.style.display = 'none'; return; }
-    host.style.display = 'flex';
-    host.innerHTML = socialState.pendingChatItems.map((it, i) => {
-        let color = socialRarityColor(it.rarity);
-        return `<span class="social-pending-chip" style="border-color:${color};color:${color};">${socialEscape(chatItemLabel(it))}<button onclick="removePendingChatItem(${i})" aria-label="${_t('첨부 취소')}" data-tip="${_t('첨부 취소')}">✕</button></span>`;
-    }).join('');
-}
-
-function updateChatCounter() {
-    let inputEl = document.getElementById('social-chat-input');
-    let counterEl = document.getElementById('social-chat-counter');
-    if (!inputEl || !counterEl) return;
-    let len = toChatBody(inputEl.value, socialState.pendingChatItems).body.length; // 보낼 글의 길이([이름]은 ⟦번호⟧로 줄어든다)
-    counterEl.textContent = `${len}/${SOCIAL_MSG_MAX}`;
-    counterEl.style.color = len > SOCIAL_MSG_MAX ? '#e88' : 'var(--copy-muted)';
-}
-
-function renderChatBody(m) {
-    let body = String(m.body || '');
-    let items = (m.payload && Array.isArray(m.payload.items)) ? m.payload.items.slice(0, SOCIAL_MAX_ITEMS_PER_MSG) : [];
-    if (!items.length || body.indexOf('⟦') === -1) return socialEscape(body);
-    let out = '', lastIndex = 0;
-    let re = new RegExp(SOCIAL_ITEM_TOKEN_RE.source, 'g');
-    let match;
-    while ((match = re.exec(body)) !== null) {
-        out += socialEscape(body.slice(lastIndex, match.index));
-        let n = parseInt(match[1], 10);
-        let snap = items[n];
-        out += snap ? renderChatItemLink(`${m.id}:${n}`, snap) : socialEscape(match[0]);
-        lastIndex = match.index + match[0].length;
-    }
-    out += socialEscape(body.slice(lastIndex));
-    return out;
-}
-
-/** 채팅 속 아이템 링크 하나. 남이 보낸 그림은 모양을 믿을 수 없다: 카드를 그리다 오류가 나면 목록을 멈추지 않고 이름만 단 칩을 그린다. */
-function renderChatItemLink(key, snap) {
-    let name = socialEscape(snap && snap.name), card = '', color = '';
-    try {
-        card = renderProfileItemCard(snap);
-        color = socialRarityColor(snap.rarity);
-    } catch (error) {
-        console.warn('채팅 아이템 카드를 그리지 못했습니다:', error);
-    }
-    if (!card) return `<span class="social-item-link">[${name}]</span>`;
-    socialState.chatTips[key] = card;
-    return `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${socialEscape(key)}')">[${name}]</span>`;
-}
-
-function formatChatTime(iso) {
-    let d = new Date(iso);
-    if (!Number.isFinite(d.getTime())) return '';
-    let mm = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
-    let hh = String(d.getHours()).padStart(2, '0'), mi = String(d.getMinutes()).padStart(2, '0');
-    return `${mm}/${dd} ${hh}:${mi}`;
-}
-
-function scrollSocialChatToLatest(listEl) {
-    if (!listEl) return;
-    let apply = () => {
-        if (listEl.isConnected === false) return;
-        listEl.scrollTop = listEl.scrollHeight;
-    };
-    apply();
-    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
-    if (typeof setTimeout === 'function') setTimeout(apply, 50);
-}
-
-function renderChatMessages(messages, forceScroll) {
-    let listEl = document.getElementById('social-chat-list');
-    if (!listEl) return;
-    let myId = socialLoggedInUserId();
-    // 채팅 목록이 실제로 보이는 시점 = 확인한 것으로 간주. 마지막 확인 id를 갱신해
-    // 백그라운드 새 채팅 알림의 기준점을 옮기고, 커뮤니티 탭 알림 점을 끈다.
-    let maxId = messages.reduce((acc, m) => Math.max(acc, Number(m.id) || 0), 0);
-    if (maxId > 0) setLastSeenChatId(maxId);
-    if (typeof game !== 'undefined' && game && game.noti) game.noti.social = false;
-    refreshSocialNotificationDots();
-    let blocked = new Set(getBlockedUserIds());   // 차단한 사람의 줄은 이 기기에서 그리지 않는다(목록은 한 번만 읽는다)
-    messages = messages.filter(m => !blocked.has(String(m.user_id)));
-    let nearBottom = (listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight) < 60;
-    let shouldScroll = !!forceScroll || socialState.scrollChatToLatestOnNextRender || nearBottom;
-    let key = messages.map(m => `${m.id}:${m.nickname}`).join(',');
-    if (key === socialState.lastChatRenderKey) {
-        if (shouldScroll) scrollSocialChatToLatest(listEl);
-        socialState.scrollChatToLatestOnNextRender = false;
-        return;
-    }
-    socialState.lastChatRenderKey = key;
-    if (!messages.length) {
-        listEl.innerHTML = `<div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>${_t('아직 조용합니다')}</strong><small>${_t('첫 메시지를 남겨보세요.')}</small></div>`;
-        socialState.scrollChatToLatestOnNextRender = false;
-        return;
-    }
-    socialState.chatTips = {};
-    let admin = socialAdminView();
-    listEl.innerHTML = messages.map(m => {
-        let mine = m.user_id === myId;
-        let nickname = String(m.nickname || '익명');
-        return `<article class="social-chat-msg${mine ? ' mine' : ''}">`
-            + `<header class="social-chat-head"><button type="button" class="social-chat-author" onclick="openPlayerProfile('${socialEscape(m.user_id)}')">`
-            + `<span class="social-chat-nick">${socialEscape(nickname)}</span></button>`
-            + `${mine ? _t('<span class="social-chat-self">나</span>') : ''}<time class="social-chat-time">${formatChatTime(m.created_at)}</time>`
-            + `${admin ? `<button type="button" class="social-chat-delete" data-chat-delete="${socialEscape(m.id)}" onclick="deleteChatMessage(this)">${_t('지우기')}</button>` : ''}</header>`
-            + `<div class="social-chat-body">${renderChatBody(m)}</div></article>`;
-    }).join('');
-    if (shouldScroll) scrollSocialChatToLatest(listEl);
-    socialState.scrollChatToLatestOnNextRender = false;
-}
-
-/** 운영자 화면(?admin=1, 운영 통계 단추와 같은 조건): 채팅 줄마다 지우기 단추가 붙는다. 지우기는 서버가 관리자만 받는다. */
-function socialAdminView() {
-    return typeof location === 'object' && new URLSearchParams(location.search).get('admin') === '1';
-}
-
-/** Drops chat rows the server deleted (an admin's 지우기 or 전체 비우기, or the live DELETE note); no ids = every row. The rows stay
- * forgotten for SOCIAL_CHAT_FORGET_MS, so a poll that left before the delete cannot bring them back (isForgottenSocialChat). The
- * list is drawn again on a later tick and only while the chat is on screen (as showLiveChat); notes that arrive together share it. */
-function forgetSocialChatMessages(ids) {
-    let before = socialState.chatMessages || [], gone = new Set((ids || []).map(String)), now = Date.now();
-    let forgotten = socialState.chatForgotten || (socialState.chatForgotten = { ids: new Map(), through: 0, until: 0 });
-    forgotten.ids.forEach((until, id) => { if (until <= now) forgotten.ids.delete(id); });
-    if (ids) gone.forEach(id => forgotten.ids.set(id, now + SOCIAL_CHAT_FORGET_MS));
-    else Object.assign(forgotten, { through: socialChatMaxId(before), until: now + SOCIAL_CHAT_FORGET_MS });
-    socialState.chatMessages = ids ? before.filter(row => !gone.has(String(row.id))) : [];
-    if (socialState.chatMessages.length === before.length || socialState.chatForgetQueued) return;
-    socialState.chatForgetQueued = true;
-    setTimeout(() => {
-        socialState.chatForgetQueued = false;
-        if (socialState.chatInitialized && isSocialTabActive()) renderChatMessages(socialState.chatMessages, false);
-    }, 0);
-}
-
-/** True for a row an admin deleted within SOCIAL_CHAT_FORGET_MS (one id, or every id up to a 전체 비우기). */
-function isForgottenSocialChat(row, now) {
-    let forgotten = socialState.chatForgotten;
-    if (!forgotten) return false;
-    return (now < forgotten.until && Number(row.id) <= forgotten.through) || (forgotten.ids.get(String(row.id)) || 0) > now;
-}
-
-function applySocialChatPoll(incoming, knownRows, fullSync, now) {
-    // A full response drops deleted history but keeps realtime rows received while it was pending.
-    let retained = fullSync ? socialState.chatMessages.filter(row => !knownRows.has(String(row.id))) : socialState.chatMessages;
-    socialState.chatMessages = mergeSocialChatMessages(retained, incoming, now);
-    socialState.chatInitialized = true;
-    if (fullSync) socialState.lastChatFullSyncAt = now;
-}
-
-async function refreshChatPanel(forceScroll) {
-    if (!socialCloudReady() || socialState.chatLoading) return;
-    let context = socialSessionContext();
-    socialState.chatLoading = context;
-    try {
-        let now = Date.now();
-        let fullSync = !socialState.chatInitialized || now - socialState.lastChatFullSyncAt >= SOCIAL_CHAT_FULL_SYNC_MS;
-        let knownId = socialChatMaxId(socialState.chatMessages), wasReady = socialState.chatInitialized;
-        let knownRows = new Set(socialState.chatMessages.map(row => String(row.id)));
-        socialState.lastChatPollAt = now;
-        let incoming = (await loadChatMessages(fullSync ? null : knownId, now)).filter(row => !isForgottenSocialChat(row, now));
-        if (!isSocialSessionCurrent(context)) return;
-        noteLiveChatGap(incoming, fullSync, wasReady);
-        applySocialChatPoll(incoming, knownRows, fullSync, now);
-        renderChatMessages(socialState.chatMessages, forceScroll);
-        // 처음 불러올 때는 startChatPolling이 접속 인원을 함께 읽는다. 그 뒤로 새 채팅이 오면 접속 인원도 다시 읽는다.
-        if (wasReady && socialChatMaxId(incoming) > knownId) socialOnlineChat.refresh(false);
-    } catch (e) { console.warn('채팅 로드 실패:', e); } finally { releaseSocialRequest('chatLoading', context); }
-}
-
-function startChatPolling() {
-    stopChatPolling();
-    if (!socialCloudReady()) return;
-    refreshChatPanel(true);
-    refreshOnlineUsers(true);
-    socialState.chatPollTimer = setInterval(() => {
-        if (!isSocialTabActive()) { stopChatPolling(); return; }
-        if (!isSocialPageHidden() && socialChatPollDue(socialState.lastChatPollAt)) refreshChatPanel(false);
-    }, SOCIAL_CHAT_POLL_MS);
-    socialState.onlinePollTimer = setInterval(() => {
-        if (!isSocialTabActive()) { stopChatPolling(); return; }
-        if (!isSocialPageHidden()) refreshOnlineUsers();
-    }, SOCIAL_ONLINE_POLL_MS);
-}
-
-function stopChatPolling() {
-    if (socialState.chatPollTimer) clearInterval(socialState.chatPollTimer);
-    if (socialState.onlinePollTimer) clearInterval(socialState.onlinePollTimer);
-    clearTimeout(socialState.onlineChatTimer);
-    socialState.chatPollTimer = null;
-    socialState.onlinePollTimer = null;
-    socialState.onlineChatTimer = null;
-}
-
-// 다른 게임 창이 활성화돼도 화면에 남아 있는 채팅 도크의 수신은 유지한다.
-function syncSocialChatPolling() {
-    // 채팅을 열고 닫을 때(PC 창의 탭, 휴대폰 채팅 탭) 실시간 연결도 다시 맞춘다: 새 채팅 알림을 끈 동안은 채팅이 화면에 있을 때만 붙는다.
-    syncLiveChat();
-    if (!socialCloudReady() || !isSocialTabActive()) {
-        stopChatPolling();
-        return;
-    }
-    if (!socialState.chatPollTimer) startChatPolling();
-}
-
-function onSocialChatKeydown(event) {
-    if (!event || event.isComposing || event.keyCode === 229 || event.repeat) return;
-    if (event.key !== 'Enter' || event.shiftKey) return;
-    event.preventDefault();
-    sendChatMessage();
-}
-
-// ============================================================================
-// 커스텀 툴팁
-// ============================================================================
-function ensureSocialTooltip() {
-    let tip = document.getElementById('social-tooltip');
-    if (tip) return tip;
-    tip = document.createElement('div');
-    tip.id = 'social-tooltip'; tip.className = 'social-tooltip'; tip.style.display = 'none';
-    document.body.appendChild(tip);
-    return tip;
-}
-
-function tipMapByScope(scope) {
-    return scope === 'chat' ? socialState.chatTips : (scope === 'pick' ? socialState.pickTips : socialState.profileTips);
-}
-
-function showSocialTip(event, scope, key) {
-    let html = tipMapByScope(scope)[key];
-    if (!html) return;
-    let tip = ensureSocialTooltip();
-    tip.innerHTML = html; tip.style.display = 'block';
-    moveSocialTip(event);
-}
-
-function moveSocialTip(event) {
-    let tip = document.getElementById('social-tooltip');
-    if (!tip || tip.style.display === 'none') return;
-    let pad = 16, w = tip.offsetWidth * uiDisplay.factor, h = tip.offsetHeight * uiDisplay.factor;
-    let x = event.clientX + pad, y = event.clientY + pad;
-    if (x + w > window.innerWidth - 8) x = event.clientX - w - pad;
-    if (x < 8) x = 8;
-    if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
-    if (y < 8) y = 8;
-    tip.style.left = x / uiDisplay.factor + 'px'; tip.style.top = y / uiDisplay.factor + 'px';
-}
-
-function hideSocialTip() { let t = document.getElementById('social-tooltip'); if (t) t.style.display = 'none'; }
-
-function openTipModal(scope, key) {
-    let html = tipMapByScope(scope)[key];
-    if (!html) return;
-    hideSocialTip();
-    if (scope === 'profile' && showProfileItemDetail(html)) return;
-    let modal = ensureProfileModal();
-    modal.style.display = 'flex';
-    let body = document.getElementById('social-profile-body');
-    if (body) body.innerHTML = `<div class="social-equip-grid">${html}</div>`;
-}
-
-// ============================================================================
-// 카드 렌더러(티어·롤범위·색상 포함)
-// ============================================================================
-function profileStatLabel(st) {
-    return st.statName || (typeof getStatName === 'function' ? getStatName(st.id) : st.id) || st.id;
-}
-
-function profileStatTone(id) {
-    return socialSafeColor(typeof window.getItemStatToneColor === 'function' ? window.getItemStatToneColor(id) : null, '#cfe0f5');
-}
-
-function profileValue(id, value) {
-    return typeof formatValue === 'function' ? formatValue(id, value) : value;
-}
-
-/** 장비 카드(2026-10-03): 게임 툴팁(js/ui.js showItemTooltip)과 같은 순서다. 머리 줄, 전당, 베이스, 레벨과 요구, 고유 효과,
- * 주얼이 박힌 소켓, 융합, "베이스 옵션", "추가 옵션 (n/6)", 잠식. 주얼, 부적, 코어, 그루터기 아이템은 각자의 카드로 보낸다.
- * 전당과 채팅 첨부도 이 카드를 쓴다. */
-function renderProfileItemCard(item) {
-    if (!item) return '';
-    if (item.kind) return renderProfileKindCard(item);
-    item = profileEquipmentView(item);
-    let color = socialRarityColor(item.rarity);
-    return `<div class="social-item-card" style="border-color:${color};">${profileItemTitleHtml(item, color)}${profileItemHallHtml(item)}`
-        + `${profileBaseLineHtml(item)}${profileLevelLineHtml(item)}${profileItemUniqueHtml(item)}${profileItemSocketsHtml(item)}`
-        + `${profileItemFusionHtml(item)}${profileItemOptionsHtml(item)}</div>`;
-}
-
-/** Only the display copy is bounded; stars and defence calculations receive the same bounded affixes as the visible rows. */
-function profileEquipmentView(item) {
-    return { ...item,
-        baseStats: profileSnapshotRows(item.baseStats, SOCIAL_ITEM_ARRAY_LIMITS.baseStats),
-        stats: profileSnapshotRows(item.stats, SOCIAL_ITEM_ARRAY_LIMITS.stats).map(profileSharedAffix),
-        chaosInfusion: item.chaosInfusion ? profileSharedAffix(item.chaosInfusion) : item.chaosInfusion,
-        emberLines: profileSnapshotRows(item.emberLines, SOCIAL_ITEM_ARRAY_LIMITS.ember).map(profileSharedAffix),
-        encroached: item.encroached ? { ...item.encroached, chosen: profileSharedAffix(item.encroached.chosen) } : item.encroached };
-}
-
-function profileSnapshotRows(rows, limit) {
-    return Array.isArray(rows) ? rows.slice(0, limit) : [];
-}
-
-function profileSharedAffix(stat) {
-    if (!stat || typeof stat !== 'object') return stat;
-    return { ...stat, extraStats: profileSnapshotRows(stat.extraStats, SOCIAL_ITEM_ARRAY_LIMITS.extraStats) };
-}
-
-function renderProfileKindCard(item) {
-    if (item.kind === 'jewel') return renderProfileJewelCard(item);
-    if (item.kind === 'talisman') return renderProfileTalismanCard(item);
-    if (item.kind === 'core') return renderProfileCoreCard(item);
-    return item.kind === 'stump' ? renderProfileStumpCard(item) : renderSimpleCard(item);
-}
-
-function profileItemTitleHtml(item, color) {
-    let stars = typeof getExceptionalBaseStars === 'function' && Array.isArray(item.baseStats) ? getExceptionalBaseStars(item) : '';
-    let badges = (item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : '') + (item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : '')
-        + (item.loopSealed ? ' <span style="color:#7fd99a;">🌿봉인</span>' : '');
-    return `<div class="social-item-title" style="color:${color};">${item.slot ? `[${socialEscape(profileItemTag(item))}] ` : ''}${socialEscape(item.name)}`
-        + `${stars ? ` <span style="color:#ffb454;">${stars}</span>` : ''}${badges}</div>`;
-}
-
-/** 전당 소장품이나 복제 이력(게임 툴팁의 전당 줄). */
-function profileItemHallHtml(item) {
-    if (item.hallReplica) {
-        return `<div class="social-item-stat" style="color:#d2b878;">🏛️ 전당 소장품, 전시자 ${socialEscape(item.hallCuratorName || '익명')}, `
-            + `${_t('감정 {max}, 제작과 재등록 불가', { max: Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString() })}</div>`;
-    }
-    return item.hallRelistBlocked ? '<div class="social-item-stat" style="color:#bda979;">🏛️ 전당 복제 이력, 재등록 불가</div>' : '';
-}
-
-function profileBaseLineHtml(item) {
-    if (!item.baseName) return '';
-    let info = Array.isArray(item.baseStep) ? { step: Math.floor(Number(item.baseStep[0]) || 0), total: Math.floor(Number(item.baseStep[1]) || 0) } : null;
-    let step = info ? ` <span class="${getBaseStepClassName(info)}">[${info.step}/${info.total}]</span>` : '';
-    return `<div class="social-item-base">${_t('베이스: {baseName}{step}', { baseName: socialEscape(item.baseName), step })}</div>`;
-}
-
-/** 아이템 레벨과 등급, 요구 조건. 예전 프로필에는 없다. */
-function profileLevelLineHtml(item) {
-    let level = Math.floor(Number(item.itemLevel) || 0), grade = Math.floor(Number(item.grade) || 0);
-    let gradeHtml = grade && typeof getTierBadgeHtml === 'function' ? _t(' 등급 {grade}', { grade: getTierBadgeHtml(grade, 'T') }) : '';
-    let requirement = profileRequirementText(item.requirements);
-    return (level ? `<div class="social-item-base">${_t('아이템 Lv.{level}{grade}', { level, grade: gradeHtml })}</div>` : '')
-        + (requirement ? `<div class="social-item-base">${socialEscape(requirement)}</div>` : '');
-}
-
-function profileRequirementText(req) {
-    if (!req || typeof req !== 'object') return '';
-    let attributes = ['strength', 'dexterity', 'intelligence'].map(key => [key, req.attributes && req.attributes[key]]).filter(([, value]) => Number(value) > 0)
-        .map(([key, value]) => `${profileStatLabel({ id: key })} ${Math.floor(Number(value))}`);
-    return [_t('요구 Lv.{max}', { max: Math.max(1, Math.floor(Number(req.level) || 1)) }), ...attributes].join(', ');
-}
-
-function profileItemUniqueHtml(item) {
-    return item.uniqueEffect ? `<div class="social-item-unique">${_t('✨ 고유 효과: {uniqueEffect}', { uniqueEffect: socialEscape(item.uniqueEffect) })}</div>` : '';
-}
-
-/** 주얼이 박힌 소켓 줄(게임 equipmentSocketsUi.tooltipHtml과 같은 모양). 빈 소켓은 보여 주지 않는다. */
-function profileItemSocketsHtml(item) {
-    return profileSnapshotRows(item.sockets, SOCIAL_ITEM_ARRAY_LIMITS.sockets).filter(row => row && row.jewel).map(row => `<div class="social-item-socket">◆ ${socialEscape(row.label)}: `
-        + `<span style="color:${socialRarityColor(row.jewel.rarity)};">${socialEscape(row.jewel.name)}</span>${socialEscape(profileJewelSummary(row.jewel))}</div>`).join('');
-}
-
-function profileJewelValue(id, value) {
-    if (typeof formatJewelStatValue === 'function') return formatJewelStatValue(id, value);
-    return profileValue(id, value);
-}
-
-function profileJewelSummary(jewel) {
-    let lines = profileSnapshotRows(jewel.stats, SOCIAL_ITEM_ARRAY_LIMITS.jewelStats).filter(st => st && st.id != null)
-        .map(st => `${st.petite ? _t('쁘띠 ') : ''}${profileStatLabel({ id: st.id })} +${profileJewelValue(st.id, st.val)}`);
-    return lines.length ? `, ${lines.join(', ')}` : '';
-}
-
-/** 고유 융합 유물(시간의 균열): 융합 등급과 계승 원본. */
-function profileItemFusionHtml(item) {
-    if (!item.fusedRelic) return '';
-    let gradeLabel = item.fusionGrade === 'perfect' ? '완벽한 융합' : (item.fusionGrade === 'unstable' ? '불안정한 융합' : '보통 융합');
-    return `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? _t(', [{fusedRareName}]의 기억', { fusedRareName: socialEscape(item.fusedRareName) }) : ''}</div>`;
-}
-
-/** 게임 툴팁처럼 "베이스 옵션"(방어도, 회피, 에너지 보호막은 최종값과 베이스), "추가 옵션 (n/6)"(게임과 같은 순서, 혼돈 주입 포함), 잠식. */
-function profileItemOptionsHtml(item) {
-    let explicit = profileExplicitStats(item);
-    // 줄이 없는 아이템의 한 줄은 게임 툴팁과 같다(itemTooltipRules.emptyExplicitHtml): 액막이는 끼울 곳, 그 밖에는 일반 아이템.
-    let empty = typeof colonyWards === 'object' && colonyWards.isWard(item) ? '장비창의 액막이 칸에 끼웁니다' : '일반 아이템: 추가 옵션 없음';
-    let html = explicit.length
-        ? `<div class="social-item-section">${profileAffixHeaderText(item, explicit)}</div>${explicit.map(profileExplicitLineHtml).join('')}`
-        : `<div class="social-item-stat" style="color:var(--copy-muted);">${empty}</div>`;
-    return profileBaseOptionsHtml(item) + html + profileItemEncroachHtml(item) + profileItemAnointHtml(item) + profileItemEmberHtml(item);
-}
-
-/** 게임 툴팁과 같은 머리말. 줄 종류가 남은 스냅샷(2026-10-07 뒤)만 "접두 2/3, 접미 3/3"을 붙이고, 예전 프로필은 "(5/6)". */
-function profileAffixHeaderText(item, explicit) {
-    const kinds = explicit.map(st => st.kind).filter(Boolean);
-    const used = kinds.length ? { prefix: kinds.filter(kind => kind === 'prefix').length, suffix: kinds.filter(kind => kind === 'suffix').length } : null;
-    return typeof equipmentCrafting === 'object' ? equipmentCrafting.affixHeader(item.rarity, explicit.length, used).text : _t('추가 옵션 ({length}/6)', { length: explicit.length });
-}
-
-function profileExplicitStats(item) {
-    let rows = (Array.isArray(item.stats) ? item.stats : []).filter(st => st && st.id != null);
-    if (item.chaosInfusion && item.chaosInfusion.id != null) rows.push({ ...item.chaosInfusion, statName: _t('[주입] {chaosInfusion}', { chaosInfusion: profileStatLabel(item.chaosInfusion) }) });
-    return typeof itemTooltipRules === 'object' ? rows.sort(itemTooltipRules.compareStats) : rows;
-}
-
-function profileBaseOptionsHtml(item) {
-    let base = (Array.isArray(item.baseStats) ? item.baseStats : []).filter(st => st && st.id != null);
-    if (!base.length) return '';
-    let defenseIds = typeof itemTooltipRules === 'object' ? itemTooltipRules.DEFENSE_IDS : [];
-    let lines = base.filter(st => !defenseIds.includes(st.id)).map(profileBaseStatHtml).join('');
-    return `<div class="social-item-section">${_t('베이스 옵션')}</div>${profileWardSlotsHtml(item)}${lines}${profileDefenseLinesHtml(item, base)}`;
-}
-
-/** 허리띠의 액막이 칸 줄(게임 툴팁 js/colony-wards-ui.js beltLineHtml과 같다): 칸 수와 굴림 범위. */
-function profileWardSlotsHtml(item) {
-    const range = COLONY_WARD_RULES.beltSlots, slots = Math.floor(Number(item.wardSlots));
-    if (!(slots >= range.min && slots <= range.max)) return '';
-    return `<div class="social-item-stat"><span style="color:#c8b6ff;">${_t('액막이 칸')} </span><span style="color:#e6dcc6;">+${slots}</span>`
-        + ` <span class="social-roll">(${range.min}~${range.max})</span></div>`;
-}
-
-/** 베이스 옵션 한 줄(게임과 같다): 이름 +값 (굴림 범위). 특출 베이스는 값이 주황이고 ✦+20%. */
-function profileBaseStatHtml(st) {
-    let tone = profileStatTone(st.id);
-    return `<div class="social-item-stat"><span style="color:${tone};">${socialEscape(profileStatLabel(st))} </span>`
-        + `<span style="color:${st.exceptional ? '#ffb454' : tone};">+${socialEscape(profileValue(st.id, st.val))}</span>${profileRollRangeHtml(st, true)}${profileExceptionalMark(st)}</div>`;
-}
-
-/** 방어도, 회피, 에너지 보호막(게임과 같다): 최종값, 옵션으로 달라졌으면 괄호에 베이스, 그다음 굴림 범위. */
-function profileDefenseLinesHtml(item, base) {
-    if (typeof itemTooltipRules !== 'object') return '';
-    let view = itemTooltipRules.defenseView(item);
-    return itemTooltipRules.DEFENSE_IDS.map(id => {
-        let total = Math.floor(view[id]), baseValue = Math.floor(view.base[id]);
-        if (!(total > 0) && !(baseValue > 0)) return '';
-        let src = base.find(st => st.id === id) || { id };
-        let value = total === baseValue ? `${baseValue}</span>` : `${total}</span> <span style="color:var(--copy-bright);">(${baseValue})</span>`;
-        return `<div class="social-item-stat">${socialEscape(profileStatLabel({ id }))}: <span style="color:${src.exceptional ? '#ffb454' : profileStatTone(id)};">${value}`
-            + `${src.val != null ? profileRollRangeHtml(src, true) : ''}${profileExceptionalMark(src)}</div>`;
-    }).join('');
-}
-
-/** 추가 옵션 한 줄(게임과 같다): 이름 +값 (굴림 범위) [티어], 제작 출처, 벌꿀 고정. 복합 옵션은 두 개씩 한 줄에 쓰고 다음 줄은 들여 쓴다. */
-function profileExplicitLineHtml(st) {
-    let parts = profileAffixParts(st), suffix = profileAffixSuffixHtml(st), html = '';
-    for (let i = 0; i < parts.length; i += 2) {
-        html += `<div class="social-item-stat${i ? ' is-continued' : ''}">${parts.slice(i, i + 2).join(', ')}${i ? '' : suffix}</div>`;
-    }
-    return html;
-}
-
-function profileAffixParts(st) {
-    let extras = profileSnapshotRows(st.extraStats, SOCIAL_ITEM_ARRAY_LIMITS.extraStats).filter(ex => ex && ex.id != null);
-    let label = part => (extras.length ? profileStatLabel({ id: part.id }) : profileStatLabel(part));
-    return [st].concat(extras).map(part => `<span style="color:${profileStatTone(part.id)};">${socialEscape(label(part))} +${socialEscape(profileValue(part.id, part.val))}</span>`);
-}
-
-function profileAffixSuffixHtml(st) {
-    let source = st.source ? ` <span class="equipment-craft-source">${socialEscape(st.source)}</span>` : '';
-    let honey = st.honey ? ' <span class="item-affix-lock item-affix-lock--honey">🍯 벌꿀 고정</span>' : '';
-    return `${profileRollRangeHtml(st, false)}${profileTierHtml(st)}${source}${honey}${profileEmberScaleHtml(st)}`;
-}
-
-/** 티어(게임 getItemAffixTierHtml과 같다): 고정 옵션은 [T0], 티어가 있으면 [T#](0은 고유 확정 [U]). */
-function profileTierHtml(st) {
-    if (st.fixed) return ' <span class="tier-badge tier-badge-fixed">[T0]</span>';
-    return st.tier !== undefined && typeof getTierBadgeHtml === 'function' ? ` ${getTierBadgeHtml(Math.floor(Number(st.tier)), 'T')}` : '';
-}
-
-/** 굴림 범위의 끝(게임 getItemStatRollRange와 같다): 옵션의 범위, 없으면 베이스 굴림 범위. */
-function profileRollBound(value, fallback) {
-    return Number.isFinite(Number(value)) ? Number(value) : Number(fallback);
-}
-
-/** 굴림 범위(게임 getItemStatRollRangeHtml과 같다). 베이스 옵션은 범위가 없으면 값의 0.8~1.2배로 어림한다. */
-function profileRollRangeHtml(st, estimate) {
-    let min = profileRollBound(st.valMin, st.baseRollMin), max = profileRollBound(st.valMax, st.baseRollMax);
-    if (estimate && (!Number.isFinite(min) || !Number.isFinite(max))) {
-        min = Number((Number(st.val || 0) * 0.8).toFixed(2));
-        max = Number((Number(st.val || 0) * 1.2).toFixed(2));
-    }
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return '';
-    return ` <span class="social-roll">(${socialEscape(profileValue(st.id, Math.min(min, max)))}~${socialEscape(profileValue(st.id, Math.max(min, max)))})</span>`;
-}
-
-function profileExceptionalMark(st) {
-    return st.exceptional ? ' <span style="color:#ffb454;font-weight:700;">✦+20%</span>' : '';
-}
-
-/** 타오른 잿불가지가 다시 구운 줄의 몫(게임 툴팁과 같다): +12% 또는 -8%. */
-function profileEmberScaleHtml(st) {
-    const pct = Math.round(((Number(st.ember) || 1) - 1) * 100);
-    return pct ? ` <span style="color:${pct > 0 ? EMBER_CORRUPTION_TONE : '#9aa3ad'};font-weight:700;">🔥${pct > 0 ? '+' : ''}${pct}%</span>` : '';
-}
-
-/** 목걸이에 바른 기름(12번 루프 36, js/garden-oils.js): 노드 이름과 효과 문장(보는 사람의 기기에 패시브 트리가 없어도 읽힌다). */
-function profileAnointSnapshot(item) {
-    const nodes = typeof gardenOils === 'object' ? gardenOils.nodesOf(item).filter(Boolean) : [];
-    return nodes.length ? nodes.map(node => ({ title: node.title,
-        text: node.effects.map(effect => `${getStatName(effect.stat)} ${effect.val >= 0 ? '+' : ''}${formatValue(effect.stat, effect.val)}`).join(', ') })) : undefined;
-}
-
-/** 기름 줄(게임 툴팁과 같다). */
-function profileItemAnointHtml(item) {
-    return profileSnapshotRows(item.anoint, SOCIAL_ITEM_ARRAY_LIMITS.anoint).filter(row => row && row.title)
-        .map(row => `<div class="social-item-stat" style="color:#cfe0a0;">${_t('🌿 기름: {title} ({text})', { title: socialEscape(row.title), text: socialEscape(row.text || '') })}</div>`).join('');
-}
-
-/** 타오른 장비(게임 툴팁과 같다): 다시 태울 수 없다는 표시와 타락 전용 줄. */
-function profileItemEmberHtml(item) {
-    if (!Array.isArray(item.ember)) return '';
-    const lines = profileSnapshotRows(item.ember, SOCIAL_ITEM_ARRAY_LIMITS.ember).filter(line => line && line.id != null)
-        .map(line => `<div class="social-item-stat" style="color:${EMBER_CORRUPTION_TONE};">${_t('[잿불] {line} +{id}', { line: socialEscape(profileStatLabel(line)), id: socialEscape(profileValue(line.id, line.val)) })}</div>`).join('');
-    return `<div class="social-item-section" style="color:${EMBER_CORRUPTION_TONE};">${_t('🔥 타오른 장비 (다시 태울 수 없음)')}</div>${lines}`;
-}
-
-/** 잠식 특수 옵션(게임과 같다): 해방하면 고른 옵션과 티어, 아니면 효과 없음. */
-function profileItemEncroachHtml(item) {
-    let encroached = item.encroached;
-    if (!encroached) return '';
-    let chosen = encroached.liberated && encroached.chosen;
-    let line = chosen && chosen.id != null
-        ? `<div class="social-item-stat" style="color:#d7b8ff;">[잠식] ${socialEscape(profileStatLabel(chosen))} +${socialEscape(profileValue(chosen.id, chosen.val))}${profileTierHtml({ tier: Number(chosen.tier) || 10 })}</div>`
-        : '<div class="social-item-stat" style="color:#8d7bb3;">해방 전에는 효과 없음, 모든 제작으로도 변하지 않음</div>';
-    return `<div class="social-item-section" style="color:#b084ff;">${_t('잠식 특수 옵션')}</div>${line}`;
-}
-
-// ── 주얼 카드: 게임 createJewelRangeTooltipHtml과 같은 구성 ─────────────────
-function renderProfileJewelCard(jewel) {
-    let color = socialRarityColor(jewel.rarity);
-    let lines = profileSnapshotRows(jewel.stats, SOCIAL_ITEM_ARRAY_LIMITS.jewelStats).map(profileJewelLineHtml).join('');
-    return `<div class="social-item-card" style="border-color:${color};"><div class="social-item-title" style="color:${color};">${socialEscape(jewel.name || '주얼')}</div>`
-        + `${profileJewelHeadHtml(jewel)}${lines || _t('<div class="social-item-stat" style="color:var(--copy-muted);">옵션 정보 없음</div>')}</div>`;
-}
-
-function profileJewelHeadHtml(jewel) {
-    let unique = jewel.uniqueEffect ? `<div class="social-item-unique">${_t('✨ 고유 효과: {uniqueEffect}', { uniqueEffect: socialEscape(jewel.uniqueEffect) })}</div>` : '';
-    let key = jewel.keystone;
-    let keystone = key && key.name
-        ? `<div class="social-item-stat" style="color:${key.active ? '#8fe7b0' : '#ffd68a'};">🔯 배정 키스톤: ${socialEscape(key.name)}${key.ascend ? `(${socialEscape(key.ascend)})` : ''}`
-            + `${key.active ? _t(', 할당 중') : _t(', 짝 주얼의 키스톤과 같으면 할당')}</div>`
-        : '';
-    return unique + keystone + profileJewelTierHtml(jewel);
-}
-
-function profileJewelTierHtml(jewel) {
-    if (jewel.rarity === 'unique') return '<div class="social-item-base">고유 고정 옵션, 티어 평가 제외</div>';
-    let core = profileSnapshotRows(jewel.stats, SOCIAL_ITEM_ARRAY_LIMITS.jewelStats).filter(st => st && !st.petite);
-    if (!core.length) return '';
-    let average = core.reduce((sum, st) => sum + Math.max(1, Math.floor(Number(st.tier) || 1)), 0) / core.length;
-    return `<div class="social-item-base">${_t('옵션 평균 티어: T{average}', { average: average.toFixed(1) })}</div>`;
-}
-
-/** 주얼 한 줄(게임과 같다): [밀랍] [쁘띠] 이름: +값 T#, 고정 범위. 범위가 없으면 값 그대로. */
-function profileJewelLineHtml(st) {
-    if (!st || st.id == null) return '';
-    let tone = socialSafeColor(typeof window.getJewelStatToneColor === 'function' ? window.getJewelStatToneColor(st.id) : null, '#cfe0f5');
-    let marks = (st.wax ? '<span style="color:#ffd98a;">밀랍 </span>' : '') + (st.petite ? '<span style="color:var(--copy-bright);">쁘띠 </span>' : '');
-    let tier = Number.isFinite(Number(st.tier)) && !st.petite ? ` <span style="color:#ffd68a;">T${Math.floor(Number(st.tier))}</span>` : '';
-    let min = profileJewelValue(st.id, st.valMin ?? st.val), max = profileJewelValue(st.id, st.valMax ?? st.val);
-    return `<div class="social-item-stat"><span style="color:${tone};">${marks}${socialEscape(profileStatLabel({ id: st.id }))}: +${socialEscape(profileJewelValue(st.id, st.val))}${tier}</span>`
-        + ` <span class="social-roll">${_t('(고정 범위 {min}~{max})', { min: socialEscape(min), max: socialEscape(max) })}</span></div>`;
-}
-
-/** 부적 카드: 이름, 그루터기 함에서 깨어나는 중이면 그 경험치, 희귀도, 고유 효과, 줄(조건부는 보라색), 상태, 접붙이기. */
-function renderProfileTalismanCard(t) {
-    if (!Array.isArray(t.lines)) return renderSimpleCard(t);
-    let tone = profileTalismanTone(t), off = t.state !== 'awake' && t.state !== 'amplified';
-    let effect = t.uniqueEffect ? `<div class="social-item-unique"${off ? PROFILE_OFF_STYLE : ''}>${socialEscape(t.uniqueEffect)}${off ? _t(' (비활성)') : ''}</div>` : '';
-    let lines = t.lines.slice(0, SOCIAL_TALISMAN_LINE_LIMIT).filter(line => line && typeof line.text === 'string')
-        .map(line => profileTalismanLineHtml(line, off)).join('');
-    let growth = profileGrowthText(t);
-    let notes = [profileOwn(PROFILE_TALISMAN_STATES, t.state), profileGraftText(t)].filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
-    return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(t.name || '부적')}</div>`
-        + `${growth ? `<div class="social-item-base">${socialEscape(growth)}</div>` : ''}`
-        + `<div class="social-item-base" style="color:${tone};">${_t('{PROFILE_TALISMAN_RARITY} 부적', { PROFILE_TALISMAN_RARITY: profileOwn(PROFILE_TALISMAN_RARITY, t.rarity) || _t('마법') })}</div>${effect}${lines}${notes}</div>`;
-}
-
-/** One talisman line: purple for a condition line, grey with (비활성) while the talisman gives nothing (the game's rule). */
-function profileTalismanLineHtml(line, off) {
-    let style = off ? PROFILE_OFF_STYLE : (line && line.condition ? ' style="color:#d7b8ff;"' : '');
-    return `<div class="social-item-stat"${style}>${socialEscape(line && line.text)}${off ? _t(' (비활성)') : ''}</div>`;
-}
-
-function profileTalismanTone(t) {
-    return socialSafeColor(typeof TALISMAN_RARITY_TONES === 'object' ? profileOwn(TALISMAN_RARITY_TONES, t.rarity) : null, socialRarityColor(t.rarity));
-}
-
-/** 그루터기 함에서 성장 중이면 게임과 같은 "경험치 120 / 400". 성장 완료되었거나 성장 정보가 없으면 빈 글. */
-function profileGrowthText(item) {
-    let need = Math.floor(Number(item.need) || 0);
-    return item.ripe || need <= 0 ? '' : _t('경험치 {floor} / {need}', { floor: Math.floor(Number(item.xp) || 0), need });
-}
-
-function profileGraftText(item) {
-    let rank = Math.floor(Number(item.graft) || 0);
-    return rank > 0 ? _t('접붙이기 {rank}단계, +{floor}%', { rank, floor: Math.floor(Number(item.graftPct) || 0) }) : '';
-}
-
-function renderProfileCoreCard(core) {
-    // Old server rows also cross this boundary: a core has four lines, never an arbitrary tooltip-sized array.
-    let lines = (Array.isArray(core.lines) ? core.lines : []).slice(0, CORE_ITEM_RULES.lines)
-        .filter(line => typeof line === 'string').map(line => `<div class="social-item-stat">${socialEscape(line)}</div>`).join('');
-    return `<div class="social-item-card" style="border-color:${PROFILE_CORE_TONE};"><div class="social-item-title">${socialEscape(core.name || '코어')}</div>${lines}</div>`;
-}
-
-// ── 씨앗 카드: 게임 그루터기 함의 아이템 설명과 같은 순서 ──────────────
-function renderProfileStumpCard(item) {
-    let tone = profileStumpTone(item), scar = item.family === 'scar';
-    let gain = item.yieldText ? `${item.yieldText}${item.ripe && !item.suppressed ? '' : _t(' (비활성)')}` : '';
-    let head = [scar ? '' : _t('품질 {floor}%{value}', { floor: Math.floor(Number(item.quality) || 0), value: item.golden === true ? _t(', 황금') : '' }), profileGrowthText(item), gain];
-    let rows = list => list.filter(Boolean).map(text => `<div class="social-item-base">${socialEscape(text)}</div>`).join('');
-    return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${socialEscape(item.name || '그루터기 아이템')}</div>`
-        + rows(head) + profileStumpExtraHtml(item) + rows([item.note, profileGraftText(item)]) + '</div>';
-}
-
-/** 성장 완료 때 굴린 추가 줄과 흉터가 흡수한 줄(게임과 같은 문장과 색). */
-function profileStumpExtraHtml(item) {
-    let rows = Array.isArray(item.extra) ? item.extra.slice(0, 40) : [];
-    return rows.filter(row => row && typeof row.text === 'string')
-        .map(row => `<div class="social-item-stat" style="color:${profileStatTone(row.id)};">${socialEscape(row.text)}</div>`).join('');
-}
-
-function profileStumpTone(item) {
-    if (item.kind === 'talisman') return profileTalismanTone(item);
-    if (item.family === 'scar' && typeof STUMP_BOX_SCAR === 'object') return STUMP_BOX_SCAR.tone;
-    let color = typeof STUMP_BOX_COLORS === 'object' ? profileOwn(STUMP_BOX_COLORS, item.color) : '';
-    return socialSafeColor(color && color.tone, '#9d927d');
-}
-
-/** 예전 형식(부적의 stats와 effects): 이름 +값 줄과 효과 문장. */
-function renderSimpleCard(snap) {
-    let color = socialRarityColor(snap.rarity);
-    let lines = (Array.isArray(snap.stats) ? snap.stats : []).slice(0, SOCIAL_LEGACY_ITEM_LINE_LIMIT).filter(st => st && st.id != null)
-        .map(st => `<div class="social-item-stat" style="color:${profileStatTone(st.id)};">${socialEscape(profileStatLabel(st))} +${socialEscape(profileValue(st.id, st.val))}</div>`)
-        .concat((Array.isArray(snap.effects) ? snap.effects : []).slice(0, SOCIAL_LEGACY_ITEM_LINE_LIMIT).filter(effect => typeof effect === 'string')
-            .map(effect => `<div class="social-item-stat" style="color:#d7b8ff;">${socialEscape(effect)}</div>`)).join('');
-    return `<div class="social-item-card" style="border-color:${color};"><div class="social-item-title" style="color:${color};">${socialEscape(snap.name)}</div>`
-        + (lines || '<div class="social-item-stat" style="color:var(--copy-muted);">옵션 없음</div>') + '</div>';
-}
-
-// ============================================================================
-// 프로필 모달
-// ============================================================================
-function ensureProfileModal() {
-    let modal = document.getElementById('social-profile-modal');
-    if (modal) return modal;
-    modal = document.createElement('div');
-    modal.id = 'social-profile-modal'; modal.className = 'social-modal-overlay'; modal.style.display = 'none';
-    modal.onclick = function (e) { if (e.target === modal) closePlayerProfile(); };
-    modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closePlayerProfile()" aria-label="${_t('닫기')}">✕</button><div class="social-modal-content"><div id="social-profile-body"></div></div></div>`;
-    document.body.appendChild(modal);
-    return modal;
-}
-
-function closePlayerProfile() {
-    hideSocialTip();
-    socialState.profileRequest = null;
-    socialState.currentProfile = null;
-    socialState.currentProfileUserId = null;
-    socialState.profileTips = {};
-    let m = document.getElementById('social-profile-modal');
-    if (m) m.style.display = 'none';
-}
-
-// 내 프로필 미리보기: 프로필은 서버에 마지막으로 업로드된 스냅샷이므로, 그대로 열면
-// 방금 장착한 주얼/부적/장비가 빠진 옛 데이터가 보인다. 미리보기 전에 현재 상태를
-// 업로드해 남들이 보게 될 것과 동일한 최신 프로필을 보여준다.
-async function openMyProfilePreview() {
-    selectionDialog.close(CHAT_SETTINGS_ID);
-    if (!socialCloudReady()) { showGameToast(_t('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
-    let context = socialSessionContext();
-    // 닉네임 줄을 쓰기 전에 서버의 닉네임을 다시 읽는다(syncPlayerProfile과 같다).
-    await restoreNicknameFromServer(true);
-    if (!isSocialSessionCurrent(context)) return;
-    if (!getMyNickname()) await promptAndSetNickname();
-    if (!isSocialSessionCurrent(context) || !getMyNickname()) return;
-    try {
-        await uploadPlayerProfile({ required: true });
-    } catch (error) {
-        if (!isSocialSessionCurrent(context)) return;
-        reportProfileSyncFailure(error);
-        return;
-    }
-    if (isSocialSessionCurrent(context)) openPlayerProfile(context.userId);
-}
-
-/** 머리 줄: 레벨, 직업, 전직, 루프, 총 DPS를 칩으로(가운뎃점 없이). 예전 프로필(직업 없음)은 전직만 나온다. */
-function renderProfileIdentityChips(p) {
-    let chips = [`Lv.${p.level || 1}`, p.heroClassName, p.className || '미전직', _t('루프 {loop}', { loop: socialComma(p.loop || 0) })];
-    return chips.filter(Boolean).map(chip => `<span class="social-profile-chip">${socialEscape(chip)}</span>`).join('');
-}
-
-function renderProfileGemRow(label, gem, extra) {
-    if (!gem || !gem.name) return '';
-    // 남의 프로필 값이라 품질도 다른 칸처럼 이스케이프한다(2026-10-27 검토: 이 한 칸만 날것으로 들어가 저장형 XSS가 됐다).
-    let quality = gem.quality ? _t(' 품질 {quality}', { quality: socialEscape(gem.quality) }) : '';
-    return `<div class="social-skill-row"><span class="social-skill-label">${socialEscape(label)}</span>`
-        + `<strong>${socialEscape(gem.name)}</strong><span class="social-skill-level">Lv.${socialEscape(gem.level || 1)}${quality}${extra || ''}</span></div>`;
-}
-
-/** 스킬 탭(2026-10-03): 주 스킬과 연결한 보조스킬룬, 이동 스킬, 소환수. 예전 프로필에는 스킬 정보가 없다. */
-function renderProfileSkills(skills) {
-    if (!skills || !skills.active) return '';
-    let rows = [renderProfileGemRow('주 스킬', skills.active)]
-        .concat((skills.supports || []).map(gem => renderProfileGemRow('보조', gem)))
-        .concat([renderProfileGemRow('이동', skills.mobility)])
-        .concat((skills.summons || []).map(gem => renderProfileGemRow('소환', gem, Math.floor(Number(gem.count)) > 1 ? _t(' {floor}마리', { floor: Math.floor(Number(gem.count)) }) : '')));
-    return `<div class="social-skill-list">${rows.join('')}</div>`;
-}
-
-/** 프로필 안의 아이템 카드는 프로필 위에 겹쳐 띄운다. 예전에는 프로필 내용을 카드로 바꿔 버려 닫으면 프로필도 사라졌다. */
-function showProfileItemDetail(html) {
-    let box = document.querySelector('#social-profile-modal .social-modal-box');
-    if (!box) return false;
-    let layer = box.querySelector(':scope > .social-item-detail');
-    if (!layer) {
-        layer = document.createElement('div');
-        layer.className = 'social-item-detail';
-        layer.onclick = event => { if (event.target === layer || event.target.closest('[data-item-detail-close]')) layer.hidden = true; };
-        box.appendChild(layer);
-    }
-    layer.innerHTML = `<div class="social-item-detail-card">${html}<button type="button" data-item-detail-close>${_t('닫기')}</button></div>`;
-    layer.hidden = false;
-    return true;
-}
-
-// 장비 탭: 끼고 있는 장비만 장비창의 제자리에 그린다(빈 칸은 그리지 않는다). 코어를 끼고 있으면 왼쪽 위 코어 칸도.
-/** 장비 탭(2026-10-11 고급 테마): 장비창과 같은 인형 배치에 장비 그림. 낀 칸은 등급 색 테, 비어 있는 기본 칸은 점선,
- * 코어와 셋째 반지는 낀 때만 나온다. 이름과 옵션은 올리거나 누르면 뜨는 카드에 있다. */
-function renderProfileEquipPaperdoll(p) {
-    let bySlot = new Map((p.equipment || []).filter(it => it && it.slot).map(it => [it.slot, it]));
-    let core = p.core && typeof p.core === 'object' && p.core.name ? { ...p.core, kind: 'core' } : null;
-    if (!bySlot.size && !core) return '<div class="social-profile-empty">장착한 장비 없음</div>';
-    let filled = slot => profileSlotHtml(slot, bySlot.get(slot), profileItemTag(bySlot.get(slot)));
-    let cards = SOCIAL_EQUIP_SLOTS.map(slot => (bySlot.has(slot) ? filled(slot) : profileEmptySlotHtml(slot)));
-    if (bySlot.has('반지3')) cards.push(filled('반지3'));
-    if (core) cards.push(profileSlotHtml('코어', core, '코어'));
-    return `<div class="social-doll">${cards.join('')}</div>`;
-}
-
-function profileEmptySlotHtml(slot) {
-    return `<div class="social-slot is-empty slot-${slot}"><span class="social-slot-tag">${socialEscape(weaponCategorySlotLabel(null, slot.replace(/[123]$/, '')))}</span></div>`;
-}
-
-/** 코어 그림: 이름의 묶음 말(수호의 코어 ...)로 고른다. 프로필에는 코어의 줄 글만 올라온다. */
-function profileCoreArt(core) {
-    const names = CORE_ITEM_RULES.groupNames;
-    const prefix = `${CORE_ITEM_RULES.perfect.prefix} `;
-    const name = String(core && core.name || '');
-    const plainName = name.startsWith(prefix) ? name.slice(prefix.length) : name;
-    const group = Object.keys(names).find(key => plainName.startsWith(names[key]));
-    return ITEM_VISUAL_ASSET_DB.coreAssets[group || 'empty'];
-}
-
-/** 장비 그림(게임 가방과 같은 그림). 베이스 id 없이 올라온 예전 프로필은 베이스 이름으로 찾는다. */
-function profileItemArt(it) {
-    if (it.kind === 'core') return profileCoreArt(it);
-    if (typeof getEquipmentGridVisualAsset !== 'function') return '';
-    let base = !it.baseId && typeof BASE_ITEM_DB !== 'undefined' ? BASE_ITEM_DB.find(row => row.name === it.baseName) : null;
-    return getEquipmentGridVisualAsset({ slot: it.slot, rarity: it.rarity, name: it.name, baseName: it.baseName, baseId: it.baseId || (base && base.id) });
-}
-
-function profileSlotHtml(slot, it, tag) {
-    let key = `eq:${slot}`;
-    socialState.profileTips[key] = renderProfileItemCard(it);
-    let color = it.kind === 'core' ? PROFILE_CORE_TONE : socialRarityColor(it.rarity);
-    let art = profileItemArt(it);
-    return `<div class="social-slot slot-${slot}" style="--r:${color};" role="button" tabindex="0" aria-label="${socialEscape(`[${tag}] ${it.name}`)}" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
-        + `${art ? `<img src="${socialEscape(art)}" alt="" draggable="false">` : ''}<span class="social-slot-tag">${socialEscape(tag)}</span></div>`;
-}
-
-/** 주얼 탭의 줄: 장비 소켓에 박힌 주얼과 그 자리([단궁] 심연 소켓 1). 소켓 정보가 없는 예전 프로필은 주얼 목록만. */
-function profileJewelRows(p) {
-    let rows = [];
-    (p.equipment || []).forEach(item => (item && Array.isArray(item.sockets) ? item.sockets : []).forEach(row => {
-        if (row && row.jewel) rows.push({ jewel: row.jewel, where: `[${profileItemTag(item)}] ${row.label}` });
-    }));
-    return rows.length ? rows : (p.jewels || []).filter(Boolean).map(jewel => ({ jewel, where: '' }));
-}
-
-function renderProfileJewels(p) {
-    return `<div class="social-mini-grid">${profileJewelRows(p).map((row, i) => profileMiniCardHtml(`jw:${i}`, row.jewel, row.jewel.name || '주얼', row.where)).join('')}</div>`;
-}
-
-/** 판 정보가 없는 예전 프로필의 부적 목록. */
-function renderProfileTalismans(p) {
-    return `<div class="social-mini-grid">${(p.talismans || []).filter(Boolean).map((t, i) => profileMiniCardHtml(`tl:${i}`, t, t.name || '부적', '')).join('')}</div>`;
-}
-
-function profileStumpFilled(stump) {
-    return !!stump && Array.isArray(stump.cells) && stump.cells.some(row => row && row.item);
-}
-
-/** 그루터기 함 탭: 게임 판과 같은 5×5 자리. 닫힌 칸은 체크 무늬, 놓인 것은 그림과 성장 막대, 접붙이기 단계는 왼쪽 위 숫자. 누르면 카드. */
-function renderProfileStump(stump) {
-    return `<div class="social-stump-board">${stump.cells.slice(0, PROFILE_STUMP_CELLS).map(profileStumpCellHtml).join('')}</div>`;
-}
-
-function profileStumpCellHtml(row, cell) {
-    if (!row || typeof row !== 'object') return '<span class="social-stump-cell is-locked"></span>';
-    let rank = Math.floor(Number(row.graft) || 0);
-    let mark = rank > 0 ? `<span class="social-stump-graft">${rank}</span>` : '';
-    let item = row.item;
-    if (!item || typeof item !== 'object') return `<span class="social-stump-cell">${mark}</span>`;
-    let key = `st:${cell}`;
-    socialState.profileTips[key] = renderProfileItemCard({ ...item, graft: row.graft, graftPct: row.graftPct });
-    let state = (item.suppressed || item.state === 'suppressed' ? ' is-suppressed' : '') + (item.resonant ? ' is-resonant' : '');
-    return `<span class="social-stump-cell is-filled${state}" style="--stump-tone:${profileStumpTone(item)};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
-        + `${profileStumpIconHtml(item)}${profileStumpBarHtml(item)}${mark}</span>`;
-}
-
-/** 그림 파일 이름의 끝: '-색'이나 '-희귀도', 색 없는 불씨의 흉터는 '', 알 수 없는 것이면 null. */
-function profileStumpIconSuffix(item) {
-    if (item.stage === 'scar' || item.stage === 'scarAsleep') return '';
-    let tint = item.kind === 'talisman' ? profileOwn(PROFILE_TALISMAN_RARITY, item.rarity) && item.rarity
-        : typeof STUMP_BOX_COLORS === 'object' && profileOwn(STUMP_BOX_COLORS, item.color) && item.color;
-    return tint ? `-${tint}` : null;
-}
-
-/** 판 칸의 그림(게임 stumpBox.iconPath와 같은 파일). 알려진 단계, 색, 희귀도만 쓴다. */
-function profileStumpIconHtml(item) {
-    let stage = typeof STUMP_BOX_STAGES === 'object' ? profileOwn(STUMP_BOX_STAGES, item.stage) : '', suffix = profileStumpIconSuffix(item);
-    return stage && suffix !== null ? `<img src="assets/items/stump-pixel-v1/${stage.icon}${suffix}.png" alt="" draggable="false">` : '';
-}
-
-function profileStumpBarHtml(item) {
-    let need = Number(item.need) || 0;
-    if (item.ripe || need <= 0) return '';
-    return `<span class="social-stump-bar"><i style="width:${Math.max(0, Math.min(100, Math.round((Number(item.xp) || 0) / need * 100)))}%"></i></span>`;
-}
-
-function profileMiniCardHtml(key, snap, name, sub) {
-    socialState.profileTips[key] = renderProfileItemCard(snap);
-    let color = socialRarityColor(snap && snap.rarity);
-    return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">`
-        + `${socialEscape(name)}${sub ? `<small>${socialEscape(sub)}</small>` : ''}</div>`;
-}
-
-/** 탭(2026-10-03): 내용이 있는 것만 보인다. 해금하지 않았거나 끼지 않은 것은 탭도 없다. 장비 탭은 늘 있다. */
-function profileTabList(p) {
-    let tabs = [['equipment', '장비']];
-    if (p.skills && p.skills.active) tabs.push(['skills', '스킬']);
-    if (profileJewelRows(p).length) tabs.push(['jewels', '주얼']);
-    if (profileStumpFilled(p.stump)) tabs.push(['stump', '그루터기 함']);
-    else if ((p.talismans || []).length) tabs.push(['stump', '부적']);
-    return tabs;
-}
-
-function profileTabsHtml(p) {
-    return profileTabList(p).map(([cat, label], i) => `<button data-cat="${cat}"${i ? '' : ' class="active"'} onclick="switchProfileTab('${cat}')">${label}</button>`).join('');
-}
-
-function renderProfileItemsArea() {
-    let p = socialState.currentProfile;
-    if (!p) return '';
-    socialState.profileTips = {};
-    let cat = socialState.profileTab;
-    if (cat === 'skills') return renderProfileSkills(p.skills);
-    if (cat === 'jewels') return renderProfileJewels(p);
-    if (cat === 'stump') return profileStumpFilled(p.stump) ? renderProfileStump(p.stump) : renderProfileTalismans(p);
-    return renderProfileEquipPaperdoll(p);
-}
-
-function switchProfileTab(cat) {
-    socialState.profileTab = cat;
-    hideSocialTip();
-    let tabsEl = document.getElementById('social-profile-tabs');
-    if (tabsEl) Array.from(tabsEl.children).forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-cat') === cat));
-    let areaEl = document.getElementById('social-profile-items');
-    if (areaEl) areaEl.innerHTML = renderProfileItemsArea();
-}
-
-function renderProfileData(profile) {
-    let body = document.getElementById('social-profile-body');
-    if (!body) return;
-    if (!profile) { body.innerHTML = `<div class="social-profile-empty">${_t('공개 프로필을 찾을 수 없습니다.')}<br>${_t('프로필 생성 또는 동기화가 완료되지 않았을 수 있어요.')}</div>`; return; }
-    socialState.currentProfile = profile;
-    socialState.profileTab = 'equipment';
-    let p = profile;
-    let stats = Array.isArray(p.stats) ? p.stats : [];
-    let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
-    let updated = (updatedAt && Number.isFinite(updatedAt.getTime())) ? updatedAt.toLocaleString(i18n.locale) : '';
-    let actions = renderProfileActionsRow();
-    // 고급 테마(2026-10-11, css/social-profile.css): 머리 띠에 이름과 큰 총 DPS, 제목 띠가 있는 두 판(능력치 묶음, 장착 구성).
-    body.innerHTML = `
-        <div class="social-profile-header">
-            <div class="social-profile-id">
-                <div class="social-profile-name">${socialEscape(p.nickname || '익명')}</div>
-                <div class="social-profile-sub">${renderProfileIdentityChips(p)}</div>
-                ${updated ? `<div class="social-profile-updated">${_t('갱신: {updated}', { updated: socialEscape(updated) })}</div>` : ''}
-            </div>
-            ${profilePowerHtml(p)}
-        </div>
-        ${actions}
-        <div class="social-profile-cols">
-            <section class="social-profile-col social-profile-card">
-                <h3>${_t('능력치')}</h3>
-                ${profileStatsHtml(stats)}
-            </section>
-            <section class="social-profile-col social-profile-card">
-                <h3>${_t('장착 구성')}</h3>
-                <div id="social-profile-tabs" class="social-profile-tabs">${profileTabsHtml(p)}</div>
-                <div id="social-profile-items">${renderProfileItemsArea()}</div>
-            </section>
-        </div>`;
-}
-
-/** 남의 프로필에서 친선전 단추를 보여 주는가. 대전 탭은 루프 3부터 열린다(data/maps.js): 그 전에 누르면 프로필만 닫히고 지도의 다른
- * 탭이 열렸다. */
-function canDuelFromProfile() {
-    let target = socialState.currentProfileUserId;
-    if (!target || target === socialLoggedInUserId()) return false;
-    return contentProgression.canOpen('map-tab-pvp') && isMapPrimaryContentUnlocked(game, 'map-tab-pvp');
-}
-
-/** 남의 프로필 머리 아래 한 줄(2026-11-04 사용자: 설명 없이 한 줄, 같은 모양의 단추). 내 프로필에는 없다: 친선전(대전이 열렸을 때, 지도 창의 대전 탭으로),
- * 차단(2026-10-27, 이 기기에서 채팅 숨김), 신고 사유와 신고(서버에 남김). */
-function renderProfileActionsRow() {
-    let target = socialState.currentProfileUserId;
-    if (!target || target === socialLoggedInUserId()) return '';
-    let duel = canDuelFromProfile() ? '<button type="button" onclick="fightCurrentProfileGhost()">친선전</button>' : '';
-    return `<div class="social-profile-actions">${duel}`
-        + `<button type="button" onclick="toggleProfileBlock()">${isUserBlocked(target) ? _t('차단 해제') : _t('차단')}</button>`
-        + `<select id="social-report-reason" aria-label="${_t('신고 사유')}"><option value="욕설">${_t('욕설')}</option><option value="도배">${_t('도배')}</option><option value="사칭">${_t('사칭')}</option><option value="기타">${_t('기타')}</option></select>`
-        + '<button type="button" onclick="reportCurrentProfile()">신고</button></div>';
-}
-
-function toggleProfileBlock() {
-    let target = socialState.currentProfileUserId;
-    if (!target || target === socialLoggedInUserId()) return;
-    let blocked = !isUserBlocked(target);
-    setUserBlocked(target, blocked, socialState.currentProfile && socialState.currentProfile.nickname);
-    socialState.lastChatRenderKey = '';
-    renderChatMessages(socialState.chatMessages || [], false);
-    let tab = socialState.profileTab;   // 다시 그리면 장비 탭으로 돌아가므로 보던 탭을 되살린다
-    if (socialState.currentProfile) { renderProfileData(socialState.currentProfile); if (tab) switchProfileTab(tab); }
-    showGameToast(blocked ? '이 사람의 채팅을 이 기기에서 숨깁니다.' : '차단을 풀었습니다.', 'info');
-}
-
-// 신고 보내기(reportCurrentProfile)는 서버를 부르므로 js/cloud-tools-ui.js에 있다(이 파일은 ui 파일을 새로 부르지 않는다는 계층 규칙).
-/** 읽어 온 프로필 줄을 그린다. 줄이 없으면 빈 프로필이고, 이름이 없는 예전 프로필은 줄의 닉네임을 쓴다. */
-function showFetchedProfile(rows) {
-    let row = Array.isArray(rows) ? rows[0] : null;
-    if (!row) return renderProfileData(null);
-    // 스냅샷의 이름은 사용자가 고칠 수 있다. 표시와 신고 확인은 서버가 검증한 행의 닉네임을 쓴다.
-    let profile = { ...(row.profile_data || {}), nickname: row.nickname || '' };
-    renderProfileData(profile);
-}
-
-async function openPlayerProfile(userId) {
-    if (!userId) return;
-    selectionDialog.close(CHAT_SETTINGS_ID);
-    if (!socialCloudReady()) { showGameToast(_t('프로필을 보려면 먼저 클라우드 로그인이 필요합니다.'), 'warning'); return; }
-    socialState.currentProfileUserId = String(userId);
-    let context = socialSessionContext();
-    socialState.profileRequest = context;
-    let modal = ensureProfileModal();
-    modal.style.display = 'flex';
-    let body = document.getElementById('social-profile-body');
-    if (body) body.innerHTML = `<div class="social-profile-empty">${_t('불러오는 중…')}</div>`;
-    try {
-        let rows = await cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname,profile_data,updated_at`, {});
-        // 그새 다른 프로필을 열었으면 늦게 온 답이 그 창을 덮지 않게 버린다
-        if (socialState.profileRequest === context && isSocialSessionCurrent(context)) showFetchedProfile(rows);
-    } catch (e) {
-        if (body && socialState.profileRequest === context && isSocialSessionCurrent(context)) body.innerHTML = `<div class="social-profile-empty">${_t('불러오기 실패: {e}', { e: socialEscape(String(e && e.message || e)) })}</div>`;
-    }
-}
-
-// ============================================================================
-// 소셜 탭
-// ============================================================================
-// #tab-social에는 도킹 모드에서 창 관리자가 붙이는 크롬(헤더/리사이즈 핸들)이 공존하므로,
-// 소셜 콘텐츠는 전용 하위 컨테이너(.social-root)에만 렌더링해 서로를 파괴하지 않는다.
-function getSocialRenderRoot(host) {
-    let root = host.querySelector(':scope > .social-root');
-    if (!root) {
-        root = document.createElement('div');
-        root.className = 'social-root';
-        host.appendChild(root);
-    }
-    return root;
-}
-
-/** 채팅 칸을 다시 그려도(PC 창의 탭을 오가거나 휴대폰 채팅 탭을 다시 열 때) 쓰던 글과 그 안의 첨부 표시(⟦0⟧)를 잃지 않는다
- * (docs/chat-refresh-20260914.md). 칸을 그린 계정이 아니면(다른 계정이 들어옴) 버린다. */
-function takeChatDraft() {
-    let input = document.getElementById('social-chat-input');
-    if (!input || !input.value || socialState.chatDraftUserId !== socialLoggedInUserId()) return null;
-    return { text: String(input.value), start: input.selectionStart, end: input.selectionEnd, focused: document.activeElement === input };
-}
-
-/** 다시 그린 칸에 쓰던 글을 되돌린다. 쓰던 중이었으면 커서 자리와 포커스도. */
-function restoreChatDraft(draft) {
-    socialState.chatDraftUserId = socialLoggedInUserId();
-    let input = document.getElementById('social-chat-input');
-    if (!draft || !input) return;
-    input.value = draft.text;
-    if (!draft.focused || input.disabled) return;
-    input.focus({ preventScroll: true });
-    if (typeof input.setSelectionRange === 'function' && Number.isFinite(draft.start)) input.setSelectionRange(draft.start, draft.end);
-}
-
-function renderSocialTab() {
-    let host = document.getElementById('tab-social');
-    if (!host) return;
-    let root = getSocialRenderRoot(host);
-    let loggedIn = socialCloudReady();
-    let nickname = getMyNickname();
-    syncSocialBackgroundTasks();
-    if (!loggedIn) {
-        let checkingCloud = typeof cloudState !== 'undefined' && cloudState
-            && (cloudState.busy || cloudState.initialized === false);
-        root.innerHTML = checkingCloud
-            ? `<div class="social-notice social-notice-loading"><strong>${_t('클라우드 세션을 연결하는 중입니다.')}</strong><br>${_t('연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.')}</div>`
-            : `<div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>${_t('클라우드 커뮤니티')}</strong><p>${_t('로그인하면 채팅과 프로필을 바로 쓸 수 있습니다.')}</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">${_t('로그인 화면 열기')}</button></div>`;
-        stopChatPolling();
-        return;
-    }
-    // 채팅 창에는 대화와 입력 줄만 둔다. 닉네임, 프로필, 동기화, 차단한 사람, 접속자는 ⚙ 창(openChatSettings, 2026-10-03).
-    let draft = takeChatDraft();
-    root.innerHTML = `
-        ${nickname ? '' : _t('<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>')}
-        <div class="social-chat-wrap">
-            <span id="social-chat-online" class="social-chat-online" hidden></span>
-            <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>${_t('대화를 불러오는 중')}</strong></div></div>
-            <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
-            <div class="social-chat-inputbar">
-                <button class="social-attach-btn" onclick="openItemPicker()" data-tip="${_t('아이템 첨부')}" aria-label="${_t('아이템 첨부')}" ${nickname ? '' : 'disabled'}><span aria-hidden="true">＋</span> ${_t('첨부')}</button>
-                <div class="social-chat-input-shell">
-                    <input id="social-chat-input" name="social-chat-message" type="text" maxlength="${SOCIAL_MSG_MAX}" placeholder="${nickname ? _t('메시지를 입력하세요…') : _t('먼저 닉네임을 설정하세요')}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname ? '' : 'disabled'}>
-                    <span id="social-chat-counter" class="social-chat-counter">0/${SOCIAL_MSG_MAX}</span>
-                </div>
-                <button id="social-chat-send" class="social-send-btn" onclick="sendChatMessage()" ${nickname ? '' : 'disabled'}>${_t('전송')}</button>
-            </div>
-        </div>`;
-    restoreChatDraft(draft);
-    socialState.lastChatRenderKey = '';
-    socialState.lastOnlineRenderKey = '';
-    socialState.scrollChatToLatestOnNextRender = true;
-    renderPendingChatItems();
-    updateChatCounter();
-    updateChatSendButton();
-    ensureHeartbeat();
-    startChatPolling();
-    restoreNicknameFromServer().then(restored => { if (restored !== nickname) renderSocialTab(); });
-}
-
-function chatSettingsBody() {
-    if (!socialCloudReady()) {
-        return '<div class="chat-settings"><p class="social-notice">로그인하면 닉네임, 공개 프로필, 접속자 목록을 쓸 수 있습니다.</p>'
-            + `<button type="button" onclick="selectionDialog.close('${CHAT_SETTINGS_ID}'); closeCommunityDock(); openStartupGate({ accountOnly: true })">${_t('로그인 화면 열기')}</button></div>`;
-    }
-    let nickname = getMyNickname();
-    return `<div class="chat-settings">
-        <div class="chat-settings-row"><span>${_t('닉네임')}</span><strong>${nickname ? socialEscape(nickname) : _t('<em>미설정</em>')}</strong>
-            <button type="button" onclick="promptAndSetNickname()">${nickname ? _t('바꾸기') : _t('정하기')}</button></div>
-        <div class="chat-settings-row"><span>${_t('공개 프로필')}</span>
-            <button type="button" onclick="openMyProfilePreview()">${_t('보기')}</button>
-            <button type="button" onclick="syncPlayerProfile()" data-tip="${_t('지금 장비와 능력치를 공개 프로필에 올립니다')}">${_t('동기화')}</button></div>
-        ${renderBlockedUsersRow()}
-        <div id="social-online" class="social-online" style="display:none;"></div>
-    </div>`;
-}
-
-/** 이 기기에서 차단한 사람들: 이름과 풀기 단추. 없으면 줄을 두지 않는다. */
-function renderBlockedUsersRow() {
-    let blocked = getBlockedUsers();
-    if (!blocked.length) return '';
-    let chips = blocked.map(entry => `<button type="button" data-user-id="${socialEscape(entry.id)}" onclick="unblockUser(this.dataset.userId)">${_t('{name} 풀기', { name: socialEscape(entry.name || entry.id.slice(0, 8)) })}</button>`).join('');
-    return `<div class="chat-settings-row"><span>${_t('차단한 사람')}</span>${chips}</div>`;
-}
-
-function openChatSettings() {
-    selectionDialog.show({ id: CHAT_SETTINGS_ID, title: _t('채팅 설정'), panelClass: 'chat-settings-panel', body: chatSettingsBody() });
-    if (!socialCloudReady()) return;
-    socialState.lastOnlineRenderKey = '';
-    refreshOnlineUsers(true);
-}
-
-function refreshChatSettings() {
-    if (selectionDialog.isOpen(CHAT_SETTINGS_ID)) openChatSettings();
-}
-
-// ============================================================================
-// 스타일
-// ============================================================================
-function injectSocialStyles() {
-    if (document.getElementById('social-styles')) return;
-    let style = document.createElement('style');
-    style.id = 'social-styles';
-    // 레이어 안에 둔다: 레이어 밖 CSS는 모든 @layer 규칙(스킨 포함)을 이겨 테마가 덮지 못한다.
-    style.textContent = `@layer components {
-    .social-notice{color:var(--copy-bright);font-size:12px;line-height:1.5;}
-    .social-notice{background:rgba(20,34,56,0.6);border:1px solid #24344f;border-radius:8px;padding:12px;margin-top:8px;}
-    .social-notice-loading{border-color:#386383;background:linear-gradient(110deg,rgba(20,46,67,.72),rgba(17,29,48,.72));box-shadow:inset 3px 0 #64b5e5;}
-    .social-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:10px 0;}
-    .social-profile-summary{display:grid;gap:1px;min-width:0;}.social-profile-summary>span{color:var(--copy-muted);font-size:12px;}.social-profile-summary>strong{overflow:hidden;color:#e8d7b6;text-overflow:ellipsis;white-space:nowrap;}.social-profile-summary em{color:#d58478;font-style:normal;}
-    .social-toolbar-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
-    .social-online{background:rgba(13,15,13,.72);border:1px solid #40392e;border-radius:5px;padding:8px 10px;margin-bottom:8px;}
-    .social-online-title{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--copy-bright);font-size:12px;font-weight:700;margin-bottom:6px;}
-    .social-presence-summary{display:flex;gap:8px;color:var(--copy-muted);font-weight:500;}.social-presence-summary>span{display:inline-flex;align-items:center;gap:4px;}
-    .social-presence-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#767169;box-shadow:0 0 0 1px rgba(0,0,0,.7);}.social-presence-dot.active{background:#62b36f;box-shadow:0 0 6px rgba(98,179,111,.38);}.social-presence-dot.recent{background:#c8a64f;}
-    .social-online-list{display:flex;flex-wrap:wrap;gap:6px;}
-    .social-online-chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;font-size:12px;background:#11130f;border:1px solid #3d382e;border-radius:3px;padding:2px 8px;color:#ddd5c8;cursor:pointer;}.social-online-chip em{padding-left:5px;border-left:1px solid #454036;color:#bfa36d;font-size:12px;font-style:normal;}
-    .social-online-chip.active{border-color:#3f6744;}
-    .social-online-chip.recent{border-color:#6b5b32;color:#c8bfaa;opacity:.88;}
-    .social-online-chip:hover{filter:brightness(1.18);}
-    .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
-    .social-online-empty{color:var(--copy-muted);font-size:12px;}
-    .social-chat-wrap{position:relative;display:flex;flex-direction:column;gap:8px;}
-    .social-chat-online{position:absolute;top:5px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:8px;padding:1px 7px;font-size:12px;line-height:1.4;color:var(--copy-muted);background:rgba(10,12,10,.82);border:1px solid #3d382e;border-radius:9px;pointer-events:none;}
-    .social-chat-online>span{display:inline-flex;align-items:center;gap:4px;}
-    .social-chat-online[hidden]{display:none;}
-    .social-chat-online:not([hidden]) + .social-chat-list{margin-top:28px;} /* 접속 인원 칸 자리는 목록 밖에: 목록의 padding은 PC 창과 휴대폰 규칙에 덮였고, 스크롤과 함께 올라가 맨 위 줄의 시각을 가렸다. */
-    .social-chat-list{height:calc(46vh / var(--scale-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
-    .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:12px;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:12px;}
-    .social-chat-list>.social-chat-msg:first-child{margin-top:auto;} /* 메시지가 적을 때는 아래에 모인다(2026-10-30 사용자 요청). 넘치면 auto 여백이 0이 되어 그대로 스크롤된다. */
-    .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
-    .social-chat-msg.mine{align-self:flex-end;background:#1b1914;border-color:#5b4930;}
-    .social-chat-head{display:flex;align-items:center;gap:6px;min-width:0;}.social-chat-author{display:inline-flex;align-items:center;min-width:0;padding:0;border:0;background:none;color:inherit;cursor:pointer;}.social-chat-self{padding:1px 4px;border:1px solid #675132;border-radius:2px;color:#c9aa70;font-size:12px;}
-    .social-chat-nick{overflow:hidden;color:#d6b572;font-weight:700;font-size:12px;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
-    .social-chat-nick:hover{text-decoration:underline;}
-    .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:12px;white-space:nowrap;}.social-chat-delete{flex:none;min-height:0;padding:0 6px;font-size:12px;line-height:16px;color:#f0b4a0;background:#2a1714;border:1px solid #6a3a30;border-radius:3px;cursor:pointer;}
-    .social-chat-body{color:var(--copy-bright);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:var(--font-size-chat,12px);line-height:1.5;}
-    .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
-    .social-chat-input-shell{position:relative;min-width:0;}
-    .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:44px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#ffffff;}
-    .social-chat-inputbar button{box-sizing:border-box;min-width:0;min-height:44px;margin:0;padding:7px 11px;white-space:nowrap;line-height:1;}
-    .social-attach-btn{background:#16243a;border:1px solid #2f5180;color:#ffffff;cursor:pointer;}
-    .social-attach-btn span{font-size:15px;line-height:0;}
-    .social-chat-inputbar .social-send-btn{min-width:58px;background:linear-gradient(180deg,#315b7c,#203d58);border-color:#4d7898;color:var(--copy-bright);}
-    .social-chat-counter{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--copy-muted);pointer-events:none;text-align:right;}
-    .social-pending-items{display:flex;flex-wrap:wrap;gap:6px;}
-    .social-pending-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;background:#0f1a28;border:1px solid;border-radius:14px;padding:2px 6px 2px 9px;}
-    .social-pending-chip button{background:none;border:none;color:inherit;cursor:pointer;padding:0 2px;font-size:12px;}
-    .social-item-link{display:inline;font-size:12px;font-weight:700;border:0;padding:0;margin:0 1px;background:none;cursor:pointer;}
-    .social-item-link:hover{text-decoration:underline;text-underline-offset:2px;}
-    .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
-    .social-modal-box{position:relative;width:min(760px,calc(96vw / var(--scale-display-factor, 1)));max-height:calc(90vh / var(--scale-display-factor, 1));display:flex;flex-direction:column;overflow:hidden;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-lg);color:var(--color-text);}
-    .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:20px;min-height:0;overscroll-behavior:contain;}
-    /* position 계열에 !important: ui-premium.css 의 고특이도 전역 버튼 규칙(position:relative)이
-       덮어쓰면 X버튼이 왼쪽 위 일반 흐름으로 배치되어 한 줄을 차지하는 문제가 재발한다. */
-    .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:36px;height:36px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:var(--color-surface-raised);border:1px solid var(--color-line);color:var(--color-text);border-radius:50%;cursor:pointer;font-size:12px;line-height:1;}
-    .social-modal-close:hover{background:var(--color-control);}
-    .social-profile-empty{color:var(--copy-muted);text-align:center;padding:24px;}
-    .social-profile-header{border-bottom:1px solid var(--color-line);padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
-    .social-profile-name{font-size:1.4em;font-weight:800;color:var(--color-accent);}
-    .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
-    .social-profile-updated{color:var(--copy-muted);font-size:12px;margin-top:4px;}
-    .social-profile-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;}
-    .social-profile-col{min-width:0;}.social-profile-cols{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:16px;}
-    @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
-    .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
-    .social-profile-tabs{display:flex;gap:6px;margin-bottom:8px;}
-    .social-profile-tabs button{flex:1;min-width:0;min-height:40px;padding:6px 4px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:7px;color:var(--color-text);cursor:pointer;font-size:12px;}
-    .social-profile-tabs button.active{background:var(--color-control);border-color:var(--color-accent);color:var(--color-text);font-weight:700;}
-    @media(max-width:420px){
-        .social-chat-inputbar{grid-template-columns:44px minmax(0,1fr) 64px;gap:5px;}
-        .social-chat-inputbar button{padding:7px 8px;font-size:12px;}
-        .social-attach-btn{font-size:0!important;}
-        .social-attach-btn span{font-size:16px!important;}
-        .social-send-btn{min-width:52px!important;}
-    }
-    .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
-    .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:6px;padding:5px 9px;}
-    .social-stat-label{display:inline-flex;align-items:center;color:var(--copy-bright);font-size:12px;}
-    .social-stat-label .combat-log-icon,.social-stat-icon{flex:0 0 auto;width:16px;height:16px;margin-right:6px;}
-    .social-stat-icon{display:inline-block;background:url('assets/ui/passive-tree-icons-v5.png') no-repeat;background-size:110px 198px;}
-    .social-stat-icon.is-none{background:none;}
-    .social-stat-value{color:var(--color-text);font-weight:700;font-size:12px;}
-    .social-mini-grid{display:flex;flex-direction:column;gap:6px;}
-    .social-mini-card{background:var(--color-surface-raised);border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .social-mini-card:hover{background:var(--color-control);}
-    .social-paperdoll{margin:0;}
-    .social-paperdoll .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;cursor:pointer;background:var(--color-surface-raised);}
-    .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed var(--color-line);}
-    .social-paperdoll .social-slot-tag{font-size:12px;color:var(--copy-muted);font-weight:700;}
-    .social-paperdoll .social-slot-name{font-size:12px;font-weight:700;line-height:1.15;word-break:break-all;}
-    .social-equip-grid{display:flex;flex-direction:column;gap:8px;}
-    .social-item-card{background:#0f1a28;border:1px solid #2c4063;border-left-width:3px;border-radius:8px;padding:8px 10px;}
-    .social-item-title{font-weight:700;font-size:12px;}
-    .social-item-base{color:var(--copy-muted);font-size:12px;margin:2px 0 4px;}
-    .social-item-unique{color:#d7b8ff;font-size:12px;margin:3px 0;}
-    .social-item-stat{color:var(--copy-bright);font-size:12px;line-height:1.4;}
-    .social-item-stat.base{color:#f1c40f;}
-    .social-roll{color:var(--copy-muted);font-size:12px;}
-    .social-tooltip{position:fixed;z-index:10001;max-width:320px;pointer-events:none;display:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));}
-    .social-tooltip .social-item-card{background:#0c1421;border-width:1px;border-left-width:3px;}
-    }`;
-    document.head.appendChild(style);
-}
-
-exposeFileGlobals({ socialLoggedInUserId, socialCloudReady, getMyNickname, socialClassLabel, buildItemSnapshot, profileSnapshotIsOwn, uploadPlayerProfile, syncPlayerProfileQuiet, syncInitialPlayerProfile, syncPlayerProfile, promptAndSetNickname, restoreNicknameFromServer, sendPresenceHeartbeat, refreshOnlineUsers, isSocialTabActive, checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks, syncLiveChat, unblockUser, sendChatMessage, getChatAttachSnapshot, attachChatSnapshot, attachChatItem, attachChatItemOf, removePendingChatItem, updateChatCounter, renderChatMessages, forgetSocialChatMessages, refreshChatPanel, startChatPolling, stopChatPolling, syncSocialChatPolling, onSocialChatKeydown, ensureSocialTooltip, showSocialTip, moveSocialTip, hideSocialTip, openTipModal, renderProfileItemCard, closePlayerProfile, openMyProfilePreview, switchProfileTab, renderProfileActionsRow, toggleProfileBlock, openPlayerProfile, renderSocialTab, openChatSettings, injectSocialStyles });
-})();
-
-const SOCIAL_NICK_KEY = 'arpg_social_nickname';
-const SOCIAL_LAST_SEEN_CHAT_KEY = 'arpg_social_last_seen_chat_id';
-const SOCIAL_CHAT_LIMIT = 50;
-const SOCIAL_CHAT_POLL_MS = 4000;
-// 정기 조회와 새 채팅에 따른 접속 인원 조회가 공유하는 간격.
-const SOCIAL_ONLINE_POLL_MS = 30000;
-const SOCIAL_CHAT_FULL_SYNC_MS = 5 * 60 * 1000;
-// 운영자가 지운 줄은 1분 동안 조회 결과에서도 거른다: 지우기 전에 떠난 조회가 그 줄을 되살리지 않게(forgetSocialChatMessages).
-const SOCIAL_CHAT_FORGET_MS = 60 * 1000;
-// 채팅이 실시간으로 오는 동안(syncLiveChat) 채팅 조회와 새 채팅 알림 조회가 도는 간격: 실시간이 놓친 틈을 메우는 안전 조회다.
-const SOCIAL_CHAT_LIVE_POLL_MS = 60000;
-// 페이지를 가리거나, 채팅이 화면에 없고 새 채팅 알림도 끈 뒤 실시간 연결을 놓기까지: 방치형이라 가린 탭이 오래 열려 있고, 무료 요금제는
-// 동시 연결 수와 실시간 메시지 수에 한도가 있다. 그사이 다시 쓰면 그대로 둔다(releaseIdleLiveChat).
-const SOCIAL_CHAT_LIVE_HIDDEN_MS = 60000;
-// 안전 조회가 실시간으로 오지 않은 남의 채팅을 이만큼 찾으면 이 세션은 예전 주기로 돌아간다. 연결 직후 이 시간 안의 조회는 세지 않는다.
-const SOCIAL_CHAT_LIVE_MISSES = 2;
-const SOCIAL_CHAT_LIVE_SETTLE_MS = 10000;
-// 커뮤니티 탭이 비활성일 때 새 채팅 여부만 가볍게 확인하는 주기(활성 탭 폴링보다 훨씬 느리게).
-const SOCIAL_BG_NOTI_POLL_MS = 15000;
-// 새 채팅 토스트가 떠 있는 시간과 다음 채팅 토스트까지의 간격: 한 번에 하나만 떠서, 채팅이 몰려도 알림 칸(넷)의 전리품 알림을 밀어내지 않는다.
-const SOCIAL_CHAT_TOAST_MS = 3600;
-const SOCIAL_CHAT_TOAST_GAP_MS = 4000;
-const SOCIAL_MSG_MAX = 300;
-const SOCIAL_NICK_MIN = 2;
-const SOCIAL_NICK_MAX = 16;
-const SOCIAL_SEND_MIN_INTERVAL_MS = 1500;
-const SOCIAL_SEND_MAX_PER_MIN = 12;
-const SOCIAL_MAX_ITEMS_PER_MSG = 3;
-// normalizeTalisman keeps three rolled lines and one wax line; the shared card may add the moment description.
-const SOCIAL_TALISMAN_LINE_LIMIT = 5;
-// Older talismans and star wedges used stats/effects; eight also preserves the older jewel snapshot limit.
-const SOCIAL_LEGACY_ITEM_LINE_LIMIT = 8;
-// Shared snapshots mirror buildItemSnapshot/buildItemMetaSnapshot and the socket/anointment producers below.
-const SOCIAL_ITEM_ARRAY_LIMITS = Object.freeze({ baseStats: 8, stats: 12, extraStats: 4, jewelStats: 8, sockets: 8, anoint: 2, ember: 2 });
-const SOCIAL_PROFILE_SYNC_DELAY_MS = 700;
-const SOCIAL_HEARTBEAT_MS = 30000;
-const SOCIAL_ONLINE_WINDOW_S = 300;
-const SOCIAL_RECENT_WINDOW_S = 1800;
-const SOCIAL_CHAT_RETENTION_MS = 3 * 24 * 60 * 60 * 1000;
-const SOCIAL_ITEM_TOKEN_RE = /⟦(\d+)⟧/g;
-const SOCIAL_NICK_RE = /^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_\-]+$/;
-const SOCIAL_EQUIP_SLOTS = ['무기', '투구', '목걸이', '장갑1', '갑옷', '방패', '반지1', '허리띠', '반지2', '신발', '장갑2'];
-const SOCIAL_BLOCKED_KEY = 'arpg_social_blocked_users';
-
-let socialState = {
-    nickname: '',
+  var __defProp = Object.defineProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+
+  // modules/browser/window-methods.mjs
+  var windowClearInterval = (...args) => globalThis.clearInterval(...args);
+  var windowClearTimeout = (...args) => globalThis.clearTimeout(...args);
+  var windowRequestAnimationFrame = (...args) => globalThis.requestAnimationFrame(...args);
+  var windowSetInterval = (...args) => globalThis.setInterval(...args);
+  var windowSetTimeout = (...args) => globalThis.setTimeout(...args);
+
+  // modules/data/social.mjs
+  var social_exports = {};
+  __export(social_exports, {
+    CHAT_SETTINGS_ID: () => CHAT_SETTINGS_ID,
+    PROFILE_CORE_TONE: () => PROFILE_CORE_TONE,
+    PROFILE_OFF_STYLE: () => PROFILE_OFF_STYLE,
+    PROFILE_STAT_GROUPS: () => PROFILE_STAT_GROUPS,
+    PROFILE_STAT_ICONS: () => PROFILE_STAT_ICONS,
+    PROFILE_STAT_KEYS: () => PROFILE_STAT_KEYS,
+    PROFILE_STAT_TONES: () => PROFILE_STAT_TONES,
+    PROFILE_STUMP_CELLS: () => PROFILE_STUMP_CELLS,
+    PROFILE_TALISMAN_RARITY: () => PROFILE_TALISMAN_RARITY,
+    PROFILE_TALISMAN_STATES: () => PROFILE_TALISMAN_STATES,
+    SOCIAL_BG_NOTI_POLL_MS: () => SOCIAL_BG_NOTI_POLL_MS,
+    SOCIAL_BLOCKED_KEY: () => SOCIAL_BLOCKED_KEY,
+    SOCIAL_CHAT_ERROR_TEXTS: () => SOCIAL_CHAT_ERROR_TEXTS,
+    SOCIAL_CHAT_FORGET_MS: () => SOCIAL_CHAT_FORGET_MS,
+    SOCIAL_CHAT_FULL_SYNC_MS: () => SOCIAL_CHAT_FULL_SYNC_MS,
+    SOCIAL_CHAT_LIMIT: () => SOCIAL_CHAT_LIMIT,
+    SOCIAL_CHAT_LIVE_HIDDEN_MS: () => SOCIAL_CHAT_LIVE_HIDDEN_MS,
+    SOCIAL_CHAT_LIVE_MISSES: () => SOCIAL_CHAT_LIVE_MISSES,
+    SOCIAL_CHAT_LIVE_POLL_MS: () => SOCIAL_CHAT_LIVE_POLL_MS,
+    SOCIAL_CHAT_LIVE_SETTLE_MS: () => SOCIAL_CHAT_LIVE_SETTLE_MS,
+    SOCIAL_CHAT_POLL_MS: () => SOCIAL_CHAT_POLL_MS,
+    SOCIAL_CHAT_RETENTION_MS: () => SOCIAL_CHAT_RETENTION_MS,
+    SOCIAL_CHAT_TOAST_GAP_MS: () => SOCIAL_CHAT_TOAST_GAP_MS,
+    SOCIAL_CHAT_TOAST_MS: () => SOCIAL_CHAT_TOAST_MS,
+    SOCIAL_EQUIP_SLOTS: () => SOCIAL_EQUIP_SLOTS,
+    SOCIAL_HEARTBEAT_MS: () => SOCIAL_HEARTBEAT_MS,
+    SOCIAL_ITEM_ARRAY_LIMITS: () => SOCIAL_ITEM_ARRAY_LIMITS,
+    SOCIAL_ITEM_TOKEN_RE: () => SOCIAL_ITEM_TOKEN_RE,
+    SOCIAL_LAST_SEEN_CHAT_KEY: () => SOCIAL_LAST_SEEN_CHAT_KEY,
+    SOCIAL_LEGACY_ITEM_LINE_LIMIT: () => SOCIAL_LEGACY_ITEM_LINE_LIMIT,
+    SOCIAL_MAX_ITEMS_PER_MSG: () => SOCIAL_MAX_ITEMS_PER_MSG,
+    SOCIAL_MSG_MAX: () => SOCIAL_MSG_MAX,
+    SOCIAL_NICK_KEY: () => SOCIAL_NICK_KEY,
+    SOCIAL_NICK_MAX: () => SOCIAL_NICK_MAX,
+    SOCIAL_NICK_MIN: () => SOCIAL_NICK_MIN,
+    SOCIAL_NICK_RE: () => SOCIAL_NICK_RE,
+    SOCIAL_ONLINE_POLL_MS: () => SOCIAL_ONLINE_POLL_MS,
+    SOCIAL_ONLINE_WINDOW_S: () => SOCIAL_ONLINE_WINDOW_S,
+    SOCIAL_PROFILE_SYNC_DELAY_MS: () => SOCIAL_PROFILE_SYNC_DELAY_MS,
+    SOCIAL_RECENT_WINDOW_S: () => SOCIAL_RECENT_WINDOW_S,
+    SOCIAL_SEND_MAX_PER_MIN: () => SOCIAL_SEND_MAX_PER_MIN,
+    SOCIAL_SEND_MIN_INTERVAL_MS: () => SOCIAL_SEND_MIN_INTERVAL_MS,
+    SOCIAL_TALISMAN_LINE_LIMIT: () => SOCIAL_TALISMAN_LINE_LIMIT,
+    profileOwn: () => profileOwn,
+    socialChatMaxId: () => socialChatMaxId
+  });
+  var SOCIAL_NICK_KEY = "arpg_social_nickname";
+  var SOCIAL_LAST_SEEN_CHAT_KEY = "arpg_social_last_seen_chat_id";
+  var SOCIAL_CHAT_LIMIT = 50;
+  var SOCIAL_CHAT_POLL_MS = 4e3;
+  var SOCIAL_ONLINE_POLL_MS = 3e4;
+  var SOCIAL_CHAT_FULL_SYNC_MS = 5 * 60 * 1e3;
+  var SOCIAL_CHAT_FORGET_MS = 60 * 1e3;
+  var SOCIAL_CHAT_LIVE_POLL_MS = 6e4;
+  var SOCIAL_CHAT_LIVE_HIDDEN_MS = 6e4;
+  var SOCIAL_CHAT_LIVE_MISSES = 2;
+  var SOCIAL_CHAT_LIVE_SETTLE_MS = 1e4;
+  var SOCIAL_BG_NOTI_POLL_MS = 15e3;
+  var SOCIAL_CHAT_TOAST_MS = 3600;
+  var SOCIAL_CHAT_TOAST_GAP_MS = 4e3;
+  var SOCIAL_MSG_MAX = 300;
+  var SOCIAL_NICK_MIN = 2;
+  var SOCIAL_NICK_MAX = 16;
+  var SOCIAL_SEND_MIN_INTERVAL_MS = 1500;
+  var SOCIAL_SEND_MAX_PER_MIN = 12;
+  var SOCIAL_MAX_ITEMS_PER_MSG = 3;
+  var SOCIAL_TALISMAN_LINE_LIMIT = 5;
+  var SOCIAL_LEGACY_ITEM_LINE_LIMIT = 8;
+  var SOCIAL_ITEM_ARRAY_LIMITS = Object.freeze({ baseStats: 8, stats: 12, extraStats: 4, jewelStats: 8, sockets: 8, anoint: 2, ember: 2 });
+  var SOCIAL_PROFILE_SYNC_DELAY_MS = 700;
+  var SOCIAL_HEARTBEAT_MS = 3e4;
+  var SOCIAL_ONLINE_WINDOW_S = 300;
+  var SOCIAL_RECENT_WINDOW_S = 1800;
+  var SOCIAL_CHAT_RETENTION_MS = 3 * 24 * 60 * 60 * 1e3;
+  var SOCIAL_ITEM_TOKEN_RE = /⟦(\d+)⟧/g;
+  var SOCIAL_NICK_RE = /^[0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ_\-]+$/;
+  var SOCIAL_EQUIP_SLOTS = ["무기", "투구", "목걸이", "장갑1", "갑옷", "방패", "반지1", "허리띠", "반지2", "신발", "장갑2"];
+  var SOCIAL_BLOCKED_KEY = "arpg_social_blocked_users";
+  var PROFILE_STAT_KEYS = Object.freeze([
+    ["dps", "log:attack"],
+    ["summonDps", "log:attack"],
+    ["baseDmg", "log:attack"],
+    ["aspd", "tree:precision"],
+    ["crit", "tree:precision"],
+    ["critDmg", "log:attack"],
+    ["maxHp", "tree:life"],
+    ["energyShield", "tree:arcane"],
+    ["armor", "log:phys"],
+    ["evasion", "tree:wind"],
+    ["deflectChance", "tree:shield"],
+    ["blockChance", "tree:shield"],
+    ["dr", "log:phys"],
+    ["regen", "tree:life"],
+    ["resF", "log:fire"],
+    ["resC", "log:cold"],
+    ["resL", "log:light"],
+    ["resChaos", "log:chaos"]
+  ]);
+  var PROFILE_STAT_ICONS = new Map(PROFILE_STAT_KEYS);
+  var PROFILE_STAT_GROUPS = Object.freeze([
+    ["공격", ["dps", "summonDps", "baseDmg", "aspd", "crit", "critDmg"]],
+    ["방어", ["maxHp", "energyShield", "armor", "evasion", "deflectChance", "blockChance", "dr", "regen"]],
+    ["저항", ["resF", "resC", "resL", "resChaos"]]
+  ]);
+  var PROFILE_STAT_TONES = Object.freeze({
+    dps: "#ffcf6e",
+    summonDps: "#ffcf6e",
+    baseDmg: "#ffcf9f",
+    aspd: "#fff3a8",
+    crit: "#ffd6f2",
+    critDmg: "#ffd6f2",
+    maxHp: "#ff6b6b",
+    regen: "#ff9c9c",
+    energyShield: "#7fd3ff",
+    armor: "#d2b98c",
+    dr: "#d2b98c",
+    evasion: "#8fe08f",
+    deflectChance: "#8fe08f",
+    blockChance: "#b8c4cc",
+    resF: "#ff8a50",
+    resC: "#6cb8ff",
+    resL: "#ffd54f",
+    resChaos: "#c39bff"
+  });
+  var SOCIAL_CHAT_ERROR_TEXTS = [
+    [/SPAM_TOO_FAST/, "메시지를 너무 빠르게 보냈습니다."],
+    [/SPAM_RATE_LIMIT/, "너무 많이 보냈습니다. 잠시 후 다시 시도해주세요."],
+    [/SPAM_DUPLICATE/, "같은 메시지를 연속으로 보낼 수 없습니다."],
+    [/SPAM_REPEAT/, "같은 메시지를 5분 안에 세 번 보낼 수 없습니다."],
+    [/SPAM_FLOOD/, "같은 글자를 너무 많이 반복했습니다."],
+    [/CHAT_ACCOUNT_HELD/, "운영 검토 중인 계정이라 채팅을 보낼 수 없습니다."],
+    // 관리자 보류(db/anti-cheat.sql 5절)
+    [/CHAT_MUTED/, (msg) => msg.replace(/^[\s\S]*?CHAT_MUTED:\s*/, "")],
+    // 서버 문구에 남은 시간이 있다: "채팅이 금지된 상태입니다. N분 뒤 풀립니다."
+    [/CHAT_PROFANITY/, "비속어가 들어 있어 보낼 수 없습니다."],
+    [/CHAT_LINK/, "링크는 보낼 수 없습니다."],
+    [/CHAT_PAYLOAD_INVALID/, `아이템 링크는 메시지마다 ${SOCIAL_MAX_ITEMS_PER_MSG}개까지입니다.`],
+    [/CHAT_NICKNAME_MISMATCH|CHAT_UPDATE_FORBIDDEN/, "채팅 닉네임은 프로필 닉네임과 같아야 합니다."],
+    [/char_length|_body_check|violates check/, `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`],
+    [/row-level security/i, "닉네임 확인에 실패했습니다. 잠시 후 다시 보내 주세요."]
+  ];
+  var socialChatMaxId = (rows) => rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
+  var PROFILE_TALISMAN_STATES = Object.freeze({
+    awake: "",
+    asleep: "",
+    suppressed: "비활성화: 척력 인접",
+    amplified: "척력으로 효과 +25%",
+    stored: ""
+  });
+  var PROFILE_OFF_STYLE = ' style="color:#8d867a;"';
+  var PROFILE_TALISMAN_RARITY = Object.freeze({ magic: "마법", rare: "희귀", unique: "고유" });
+  var profileOwn = (table, key) => Object.prototype.hasOwnProperty.call(table, key) ? table[key] : "";
+  var PROFILE_CORE_TONE = "#6d8fa8";
+  var PROFILE_STUMP_CELLS = 25;
+  var CHAT_SETTINGS_ID = "chat-settings-overlay";
+
+  // modules/state/social-session.mjs
+  var INITIAL_SOCIAL_STATE = {
+    nickname: "",
     nicknameUserId: null,
     sessionEpoch: null,
     identityCheckedUserId: null,
@@ -2704,20 +203,20 @@ let socialState = {
     lastOnlineLoadAt: 0,
     lastOnlineLoadWasList: false,
     onlineChatTimer: null,
-    lastChatRenderKey: '',
-    lastOnlineRenderKey: '',
+    lastChatRenderKey: "",
+    lastOnlineRenderKey: "",
     profileUploadPromise: null,
     profileUploadUserId: null,
     profileSyncTimer: null,
     profileBootSyncUserId: null,
     /** The last profile write this session: account, nickname and snapshot without its clock (an identical one is not sent again),
      * and the account and nickname whose row it wrote (a chat line needs that row, not a fresh 27 KB profile before every line). */
-    profileSentKey: '',
-    profileRowFor: '',
+    profileSentKey: "",
+    profileRowFor: "",
     onlineSupported: true,
     pendingChatItems: [],
     sendTimestamps: [],
-    lastSentBody: '',
+    lastSentBody: "",
     scrollChatToLatestOnNextRender: true,
     lastNotifiedChatId: null,
     lastChatToastAt: 0,
@@ -2729,112 +228,3428 @@ let socialState = {
     currentProfile: null,
     currentProfileUserId: null,
     profileRequest: null,
-    profileTab: 'equipment',
+    profileTab: "equipment",
     bgNotiLoading: false
-};
-
-
-// 프로필 능력치(2026-10-03): 게임의 비교 표(COMPARE_STAT_META, js/utils.js)와 같은 이름과 형식이다. 소환 DPS는 소환수가 있을 때만.
-// 아이콘(2026-10-11 사용자: "이모티콘 없애고 게임에서 원래 쓰는 아이콘으로"): 캐릭터 창이 그 능력치에 쓰는 전투 기록 아이콘(log: attack, phys,
-// fire, cold, light, chaos, css/layout.css .combat-log-icon)을 쓰고, 캐릭터 창에 아이콘이 없는 능력치는 패시브 트리가 그 능력치에 쓰는
-// 아이콘(tree: js/passives.js PASSIVE_ICON_ATLAS_CELL)을 쓴다.
-const PROFILE_STAT_KEYS = Object.freeze([
-    ['dps', 'log:attack'], ['summonDps', 'log:attack'], ['baseDmg', 'log:attack'], ['aspd', 'tree:precision'], ['crit', 'tree:precision'],
-    ['critDmg', 'log:attack'], ['maxHp', 'tree:life'], ['energyShield', 'tree:arcane'], ['armor', 'log:phys'], ['evasion', 'tree:wind'],
-    ['deflectChance', 'tree:shield'], ['blockChance', 'tree:shield'], ['dr', 'log:phys'], ['regen', 'tree:life'],
-    ['resF', 'log:fire'], ['resC', 'log:cold'], ['resL', 'log:light'], ['resChaos', 'log:chaos']
-]);
-const PROFILE_STAT_ICONS = new Map(PROFILE_STAT_KEYS);
-
-// 능력치 묶음(2026-10-11 고급 테마, 사용자: "더 고급화할 수 있나?"): 공격, 방어, 저항. 저항은 한 줄에 둘씩.
-const PROFILE_STAT_GROUPS = Object.freeze([
-    ['공격', ['dps', 'summonDps', 'baseDmg', 'aspd', 'crit', 'critDmg']],
-    ['방어', ['maxHp', 'energyShield', 'armor', 'evasion', 'deflectChance', 'blockChance', 'dr', 'regen']],
-    ['저항', ['resF', 'resC', 'resL', 'resChaos']]
-]);
-// 능력치 값의 색(2026-10-11 사용자: "프로필 보기에서 폰트에 색깔이 다 사라졌어"): 장비창 요약(js/equipment-window-ui.js)과 같은 색.
-const PROFILE_STAT_TONES = Object.freeze({ dps: '#ffcf6e', summonDps: '#ffcf6e', baseDmg: '#ffcf9f', aspd: '#fff3a8', crit: '#ffd6f2', critDmg: '#ffd6f2',
-    maxHp: '#ff6b6b', regen: '#ff9c9c', energyShield: '#7fd3ff', armor: '#d2b98c', dr: '#d2b98c', evasion: '#8fe08f', deflectChance: '#8fe08f',
-    blockChance: '#b8c4cc', resF: '#ff8a50', resC: '#6cb8ff', resL: '#ffd54f', resChaos: '#c39bff' });
-
-
-/** 채팅과 주기 조회가 같은 30초 인원 수 캐시를 쓴다. 내가 보낸 뒤(force)와 인원 목록을 처음 열 때는 바로 읽는다. */
-const socialOnlineChat = Object.freeze({
-    due(listOpen, force) {
-        return force || (listOpen && !socialState.lastOnlineLoadWasList)
-            || Date.now() - socialState.lastOnlineLoadAt >= SOCIAL_ONLINE_POLL_MS;
-    },
-    refresh(force) {
-        if (socialState.onlineChatTimer && !force) return;
-        clearTimeout(socialState.onlineChatTimer);
-        let wait = force ? 0 : Math.max(0, socialState.lastOnlineLoadAt + SOCIAL_ONLINE_POLL_MS - Date.now());
-        socialState.onlineChatTimer = setTimeout(() => {
-            socialState.onlineChatTimer = null;
-            refreshOnlineUsers(force);
-        }, wait);
+  };
+  var SocialSessionState = class {
+    constructor() {
+      this.disposed = false;
+      this.current = JSON.parse(JSON.stringify(INITIAL_SOCIAL_STATE));
     }
-});
+  };
 
+  // modules/browser/social-lifecycle.mjs
+  var SocialLifecycle = class {
+    constructor(deps, state2, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.services = services;
+      this.started = false;
+      this.startupTimer = null;
+      this.mount = this.mount.bind(this);
+    }
+    mount() {
+      if (!this.started) return;
+      this.services.styles.injectSocialStyles();
+      this.services.tooltip.ensureSocialTooltip();
+    }
+    start() {
+      if (this.started || !this.deps.document) return;
+      this.started = true;
+      this.state.disposed = false;
+      const { document: document2 } = this.deps;
+      if (document2.readyState === "loading") document2.addEventListener("DOMContentLoaded", this.mount, { once: true });
+      else this.mount();
+      this.startupTimer = this.deps.setTimeout(() => {
+        this.startupTimer = null;
+        if (this.started) this.services.background.syncSocialBackgroundTasks();
+      }, 15e3);
+      document2.addEventListener("visibilitychange", this.services.realtime.syncLiveChat);
+    }
+    dispose() {
+      this.started = false;
+      this.state.disposed = true;
+      this.deps.clearTimeout(this.startupTimer);
+      this.startupTimer = null;
+      this.deps.document?.removeEventListener("DOMContentLoaded", this.mount);
+      this.deps.document?.removeEventListener("visibilitychange", this.services.realtime.syncLiveChat);
+      this.services.reset.stopHeartbeat();
+      this.services.reset.stopSocialNotificationPolling();
+      this.services.reset.closeLiveChat();
+      this.services.reset.resetSocialSessionViews();
+    }
+  };
 
-/** 서버가 채팅을 거절한 까닭(db/social.sql chat_messages_rate_limit의 오류 코드)을 플레이어 문구로. 첫 줄부터 맞는 것 하나. */
-const SOCIAL_CHAT_ERROR_TEXTS = [
-    [/SPAM_TOO_FAST/, '메시지를 너무 빠르게 보냈습니다.'],
-    [/SPAM_RATE_LIMIT/, '너무 많이 보냈습니다. 잠시 후 다시 시도해주세요.'],
-    [/SPAM_DUPLICATE/, '같은 메시지를 연속으로 보낼 수 없습니다.'],
-    [/SPAM_REPEAT/, '같은 메시지를 5분 안에 세 번 보낼 수 없습니다.'],
-    [/SPAM_FLOOD/, '같은 글자를 너무 많이 반복했습니다.'],
-    [/CHAT_ACCOUNT_HELD/, '운영 검토 중인 계정이라 채팅을 보낼 수 없습니다.'],   // 관리자 보류(db/anti-cheat.sql 5절)
-    [/CHAT_MUTED/, msg => msg.replace(/^[\s\S]*?CHAT_MUTED:\s*/, '')],   // 서버 문구에 남은 시간이 있다: "채팅이 금지된 상태입니다. N분 뒤 풀립니다."
-    [/CHAT_PROFANITY/, '비속어가 들어 있어 보낼 수 없습니다.'],
-    [/CHAT_LINK/, '링크는 보낼 수 없습니다.'],
-    [/CHAT_PAYLOAD_INVALID/, `아이템 링크는 메시지마다 ${SOCIAL_MAX_ITEMS_PER_MSG}개까지입니다.`],
-    [/CHAT_NICKNAME_MISMATCH|CHAT_UPDATE_FORBIDDEN/, '채팅 닉네임은 프로필 닉네임과 같아야 합니다.'],
-    [/char_length|_body_check|violates check/, `메시지는 1~${SOCIAL_MSG_MAX}자여야 합니다.`],
-    [/row-level security/i, '닉네임 확인에 실패했습니다. 잠시 후 다시 보내 주세요.']
-];
+  // modules/ui/social-session.mjs
+  var SocialSession = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["socialLoggedInUserId", "socialCloudReady", "socialSessionContext", "isSocialSessionCurrent", "releaseSocialRequest"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    socialLoggedInUserId() {
+      return typeof this.deps.cloudState !== "undefined" && this.deps.cloudState && this.deps.cloudState.user && this.deps.cloudState.user.id ? this.deps.cloudState.user.id : null;
+    }
+    socialCloudReady() {
+      return !this.state.disposed && !!this.socialLoggedInUserId() && typeof this.deps.cloudJsonRequest === "function";
+    }
+    socialSessionContext() {
+      return { userId: this.socialLoggedInUserId(), epoch: typeof this.deps.cloudState !== "undefined" ? this.deps.cloudState.sessionEpoch || 0 : 0 };
+    }
+    isSocialSessionCurrent(context) {
+      let current = this.socialSessionContext();
+      return !this.state.disposed && !!context.userId && context.userId === current.userId && context.epoch === current.epoch;
+    }
+    releaseSocialRequest(key, context) {
+      if (this.state.current[key] === context) this.state.current[key] = false;
+    }
+  };
 
+  // modules/ui/social-format.mjs
+  var SocialFormat = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["socialEscape", "socialComma", "getSocialNicknameStorageKey", "socialClassLabel", "socialSafeColor", "socialRarityColor"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    socialEscape(text) {
+      if (typeof this.deps.escapeHTML === "function") return this.deps.escapeHTML(String(text == null ? "" : text));
+      return String(text == null ? "" : text).replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
+    }
+    socialComma(n) {
+      return Math.floor(Number(n) || 0).toLocaleString("en-US");
+    }
+    getSocialNicknameStorageKey(userId) {
+      return userId ? `${this.data.SOCIAL_NICK_KEY}:${userId}` : "";
+    }
+    socialClassLabel(ascendClass) {
+      if (ascendClass && typeof this.deps.CLASS_TEMPLATES !== "undefined" && this.deps.CLASS_TEMPLATES[ascendClass]) return this.deps.CLASS_TEMPLATES[ascendClass].name;
+      return "미전직";
+    }
+    socialSafeColor(c, fallback) {
+      fallback = fallback || "#cfe0f5";
+      return typeof c === "string" && /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9.,\s]+\))$/.test(c) ? c : fallback;
+    }
+    socialRarityColor(rarity) {
+      return this.socialSafeColor(typeof this.deps.getRarityColor === "function" ? this.deps.getRarityColor(rarity) : null, "#cfe0f5");
+    }
+  };
 
-const socialChatMaxId = rows => rows.reduce((max, row) => Math.max(max, Number(row.id) || 0), 0);
+  // modules/ui/social-reset.mjs
+  var SocialReset = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["resetSocialSessionViews", "closePlayerProfile", "stopChatPolling", "stopHeartbeat", "stopSocialNotificationPolling", "closeLiveChat", "hideSocialTip"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    resetSocialSessionViews() {
+      this.stopChatPolling();
+      this.deps.clearTimeout(this.state.current.profileSyncTimer);
+      Object.assign(this.state.current, {
+        chatMessages: [],
+        chatTips: {},
+        profileTips: {},
+        pickTips: {},
+        chatInitialized: false,
+        chatLoading: false,
+        chatSending: false,
+        chatSendRequest: null,
+        onlineLoading: false,
+        bgNotiLoading: false,
+        onlineRefreshAgain: false,
+        lastChatFullSyncAt: 0,
+        lastChatPollAt: 0,
+        lastChatNoticeAt: 0,
+        lastOnlineLoadAt: 0,
+        lastOnlineLoadWasList: false,
+        lastChatRenderKey: "",
+        lastOnlineRenderKey: "",
+        lastNotifiedChatId: null,
+        profileSentKey: "",
+        profileRowFor: "",
+        profileSyncTimer: null,
+        profileUploadPromise: null,
+        profileUploadUserId: null
+      });
+      if (typeof this.deps.game !== "undefined" && this.deps.game && this.deps.game.noti) this.deps.game.noti.social = false;
+      if (typeof this.deps.document === "undefined") return;
+      this.closePlayerProfile();
+      for (let id of ["social-chat-list", "social-online", "social-chat-online", "social-profile-body", "social-tooltip"]) {
+        let element = this.deps.document.getElementById(id);
+        if (element) {
+          element.innerHTML = "";
+          delete element.dataset.counts;
+        }
+      }
+      let settings = this.deps.document.getElementById(this.data.CHAT_SETTINGS_ID);
+      if (settings) settings.remove();
+    }
+    stopHeartbeat() {
+      if (!this.state.current.heartbeatTimer) return;
+      this.deps.clearInterval(this.state.current.heartbeatTimer);
+      this.state.current.heartbeatTimer = null;
+    }
+    stopSocialNotificationPolling() {
+      if (!this.state.current.bgNotificationTimer) return;
+      this.deps.clearInterval(this.state.current.bgNotificationTimer);
+      this.state.current.bgNotificationTimer = null;
+    }
+    closeLiveChat() {
+      this.deps.clearTimeout(this.state.current.chatLiveHiddenTimer);
+      this.state.current.chatLiveHiddenTimer = null;
+      this.state.current.chatLive = false;
+      let channel = this.state.current.chatChannel, client = this.state.current.chatRealtime;
+      if (!channel) return;
+      this.state.current.chatChannel = null;
+      this.state.current.chatChannelUserId = null;
+      this.state.current.chatChannelSession = null;
+      if (client) {
+        Promise.resolve(client.removeChannel(channel)).catch((error) => this.deps.console.warn("채팅 실시간 연결 해제 실패:", error));
+      }
+    }
+    stopChatPolling() {
+      if (this.state.current.chatPollTimer) this.deps.clearInterval(this.state.current.chatPollTimer);
+      if (this.state.current.onlinePollTimer) this.deps.clearInterval(this.state.current.onlinePollTimer);
+      this.deps.clearTimeout(this.state.current.onlineChatTimer);
+      this.state.current.chatPollTimer = null;
+      this.state.current.onlinePollTimer = null;
+      this.state.current.onlineChatTimer = null;
+    }
+    hideSocialTip() {
+      let t = this.deps.document.getElementById("social-tooltip");
+      if (t) t.style.display = "none";
+    }
+    closePlayerProfile() {
+      this.hideSocialTip();
+      this.state.current.profileRequest = null;
+      this.state.current.currentProfile = null;
+      this.state.current.currentProfileUserId = null;
+      this.state.current.profileTips = {};
+      let m = this.deps.document.getElementById("social-profile-modal");
+      if (m) m.style.display = "none";
+    }
+  };
 
+  // modules/ui/social-identity.mjs
+  var SocialIdentity = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["syncSocialIdentityUser", "getMyNickname", "setMyNicknameLocal"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    syncSocialIdentityUser() {
+      let { userId, epoch } = this.services.session.socialSessionContext();
+      if (this.state.current.nicknameUserId === userId && this.state.current.sessionEpoch === epoch) return userId;
+      this.services.reset.resetSocialSessionViews();
+      this.state.current.sessionEpoch = epoch;
+      this.state.current.nickname = "";
+      this.state.current.nicknameUserId = userId || null;
+      this.state.current.identityCheckedUserId = null;
+      this.state.current.identityCheckPromise = null;
+      this.state.current.profileBootSyncUserId = null;
+      this.state.current.pendingChatItems = [];
+      try {
+        if (typeof this.deps.localStorage !== "undefined" && typeof this.deps.localStorage.removeItem === "function") this.deps.localStorage.removeItem(this.data.SOCIAL_NICK_KEY);
+      } catch (error) {
+        this.deps.console.warn("이전 소셜 닉네임 캐시 정리 실패:", error);
+      }
+      return userId;
+    }
+    getMyNickname() {
+      let userId = this.syncSocialIdentityUser();
+      if (!userId) return "";
+      if (this.state.current.nickname) return this.state.current.nickname;
+      try {
+        let key = this.services.format.getSocialNicknameStorageKey(userId);
+        let stored = key && this.deps.localStorage.getItem(key);
+        if (stored) this.state.current.nickname = stored;
+      } catch (error) {
+        this.deps.console.warn("소셜 닉네임 캐시 읽기 실패:", error);
+      }
+      return this.state.current.nickname || "";
+    }
+    setMyNicknameLocal(name) {
+      let userId = this.syncSocialIdentityUser();
+      this.state.current.nickname = userId ? name || "" : "";
+      if (!userId) return;
+      try {
+        let key = this.services.format.getSocialNicknameStorageKey(userId);
+        if (this.state.current.nickname) this.deps.localStorage.setItem(key, this.state.current.nickname);
+        else if (typeof this.deps.localStorage.removeItem === "function") this.deps.localStorage.removeItem(key);
+      } catch (error) {
+        this.deps.console.warn("소셜 닉네임 캐시 저장 실패:", error);
+      }
+    }
+  };
 
-// ── 부적 카드: 게임 그루터기 함의 부적 설명과 같은 구성 ───────────────────────
-// 상태 줄은 게임(js/stump-talisman-ui.js stateLine)처럼 효과가 달라질 때만 적고, 효과가 없는 동안 줄은 회색 "(비활성)"이다.
-const PROFILE_TALISMAN_STATES = Object.freeze({
-    awake: '', asleep: '', suppressed: '비활성화: 척력 인접', amplified: '척력으로 효과 +25%', stored: ''
-});
-const PROFILE_OFF_STYLE = ' style="color:#8d867a;"';
-const PROFILE_TALISMAN_RARITY = Object.freeze({ magic: '마법', rare: '희귀', unique: '고유' });
-const profileOwn = (table, key) => (Object.prototype.hasOwnProperty.call(table, key) ? table[key] : '');
+  // modules/ui/social-profile-values.mjs
+  var SocialProfileValues = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["profileAnointSnapshot", "profileItemCategory", "profileItemTag", "profileSnapshotRows", "profileStatLabel", "profileStatTone", "profileValue", "profileJewelValue"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    profileItemCategory(item) {
+      return item.slot === "무기" && typeof this.deps.getWeaponCategoryName === "function" ? this.deps.getWeaponCategoryName(item) || void 0 : void 0;
+    }
+    profileItemTag(item) {
+      return this.deps.weaponCategorySlotLabel(item, item.category || String(item.slot || "").replace(/[123]$/, ""));
+    }
+    profileStatLabel(st) {
+      return st.statName || (typeof this.deps.getStatName === "function" ? this.deps.getStatName(st.id) : st.id) || st.id;
+    }
+    profileStatTone(id) {
+      return this.services.format.socialSafeColor(typeof this.deps.window.getItemStatToneColor === "function" ? this.deps.window.getItemStatToneColor(id) : null, "#cfe0f5");
+    }
+    profileValue(id, value) {
+      return typeof this.deps.formatValue === "function" ? this.deps.formatValue(id, value) : value;
+    }
+    profileSnapshotRows(rows, limit) {
+      return Array.isArray(rows) ? rows.slice(0, limit) : [];
+    }
+    profileJewelValue(id, value) {
+      if (typeof this.deps.formatJewelStatValue === "function") return this.deps.formatJewelStatValue(id, value);
+      return this.profileValue(id, value);
+    }
+    profileAnointSnapshot(item) {
+      const nodes = typeof this.deps.gardenOils === "object" ? this.deps.gardenOils.nodesOf(item).filter(Boolean) : [];
+      return nodes.length ? nodes.map((node) => ({
+        title: node.title,
+        text: node.effects.map((effect) => `${this.deps.getStatName(effect.stat)} ${effect.val >= 0 ? "+" : ""}${this.deps.formatValue(effect.stat, effect.val)}`).join(", ")
+      })) : void 0;
+    }
+  };
 
+  // modules/ui/social-snapshot.mjs
+  var SocialSnapshot = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["snapStat", "snapStatMarks", "snapAffixKind", "buildItemSnapshot", "buildItemMetaSnapshot", "profileItemLevel", "buildRequirementSnapshot", "buildSocketSnapshots", "buildJewelKeystoneSnapshot", "buildJewelSnapshot", "buildTalismanSnapshot", "talismanStateFor", "statsWithoutBarkZone", "buildProfileStats", "buildSkillSnapshot", "buildProfileIdentity", "buildProfileGear", "buildCoreSnapshot", "buildCoreCard", "buildStumpSnapshot", "buildStumpCellSnapshot", "buildStumpItemCard", "buildStumpItemSnapshot", "stumpItemNote", "buildProfileSnapshot"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    snapStat(st) {
+      let o = {
+        id: st.id || st.stat,
+        val: st.val,
+        statName: st.statName,
+        tier: st.tier,
+        valMin: st.valMin,
+        valMax: st.valMax,
+        baseRollMin: st.baseRollMin,
+        baseRollMax: st.baseRollMax
+      };
+      return Object.assign(o, this.snapStatMarks(st));
+    }
+    snapStatMarks(st) {
+      let marks = {
+        exceptional: !!st.exceptional,
+        honey: !!st.lockedByHoney,
+        wax: !!st.waxBonus,
+        petite: !!st.petite && !st.waxBonus,
+        ember: st.emberScale,
+        fixed: typeof this.deps.isFixedEquipmentAffix === "function" && this.deps.isFixedEquipmentAffix(st),
+        source: typeof this.deps.equipmentCrafting === "object" ? this.deps.equipmentCrafting.getLabel(st) : ""
+      };
+      return Object.fromEntries(Object.entries(marks).filter(([, value]) => value));
+    }
+    snapAffixKind(item, st) {
+      const kind = typeof this.deps.equipmentCrafting === "object" ? this.deps.equipmentCrafting.storedAffixKind(item, st) : "special";
+      return kind === "prefix" || kind === "suffix" ? { kind } : {};
+    }
+    buildItemSnapshot(item, slotOverride) {
+      if (!item) return null;
+      const snap = this.itemIdentitySnapshot(item, slotOverride);
+      snap.baseStats = (item.baseStats || []).slice(0, 8).map(this.snapStat);
+      snap.stats = (item.stats || []).slice(0, 12).map((st) => {
+        const stat = this.snapStat(st);
+        if (Array.isArray(st.extraStats)) stat.extraStats = st.extraStats.slice(0, 4).map(this.snapStat);
+        return Object.assign(stat, this.snapAffixKind(item, st));
+      });
+      this.applyHallSnapshot(snap, item);
+      this.applySpecialItemSnapshot(snap, item);
+      return Object.assign(snap, this.buildItemMetaSnapshot(item));
+    }
+    itemIdentitySnapshot(item, slotOverride) {
+      let slot = slotOverride || item.slot || "";
+      return {
+        slot,
+        category: this.services.profileValues.profileItemCategory(item),
+        name: item.name || "",
+        rarity: item.rarity || "normal",
+        baseName: item.baseName || "",
+        uniqueEffect: item.uniqueEffect || "",
+        // 베이스 수치를 키우는 고유(implicitAmp)의 방어도와 회피(itemTooltipRules.defenseView)가 절반으로 나오지 않게.
+        uniqueEffectKey: item.uniqueEffectKey,
+        uniqueEffectParams: item.uniqueEffectParams,
+        corrupted: !!item.corrupted
+      };
+    }
+    applyHallSnapshot(snap, item) {
+      if (item.hallReplica) {
+        snap.hallReplica = true;
+        snap.hallCuratorName = item.hallCuratorName || "";
+        snap.hallAppraisalScore = Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0));
+      }
+      if (item.hallRelistBlocked) snap.hallRelistBlocked = true;
+    }
+    applySpecialItemSnapshot(snap, item) {
+      if (item.loopSealed) snap.loopSealed = true;
+      if (item.fusedRelic) {
+        snap.fusedRelic = true;
+        snap.fusionGrade = item.fusionGrade || "";
+        snap.fusedRareName = item.fusedRareName || "";
+      }
+      if (item.chaosInfusion) snap.chaosInfusion = Object.assign(this.snapStat(item.chaosInfusion), this.snapAffixKind(item, item.chaosInfusion));
+      if (item.encroached) {
+        snap.encroached = {
+          liberated: !!item.encroached.liberated,
+          chosen: item.encroached.liberated && item.encroached.chosen ? this.snapStat(item.encroached.chosen) : null
+        };
+      }
+    }
+    buildItemMetaSnapshot(item) {
+      let chain = typeof this.deps.getItemBaseChainInfo === "function" ? this.deps.getItemBaseChainInfo(item) : null;
+      return {
+        baseId: item.baseId,
+        // 인형 배치의 장비 그림(profileItemArt)
+        wardSlots: typeof this.deps.colonyWards === "object" ? this.deps.colonyWards.beltRoll(item) : void 0,
+        // 허리띠의 액막이 칸 수(profileWardSlotsHtml)
+        baseStep: chain && chain.total > 1 ? [chain.step, chain.total] : void 0,
+        itemLevel: this.profileItemLevel(item),
+        grade: typeof this.deps.getItemCraftTier === "function" ? this.deps.getItemCraftTier(item) : void 0,
+        requirements: this.buildRequirementSnapshot(item),
+        sockets: this.buildSocketSnapshots(item),
+        ember: item.burned ? (item.emberLines || []).slice(0, 2).map(this.snapStat) : void 0,
+        anoint: this.services.profileValues.profileAnointSnapshot(item)
+      };
+    }
+    profileItemLevel(item) {
+      if (item.itemLevel) return Math.floor(Number(item.itemLevel)) || void 0;
+      if (typeof this.deps.levelProgression !== "object") return void 0;
+      return Math.floor(Number(this.deps.levelProgression.tierLevel(item.hiddenTier || item.itemTier)) || 0) || void 0;
+    }
+    buildRequirementSnapshot(item) {
+      if (typeof this.deps.levelProgression !== "object" || typeof this.deps.levelProgression.requirements !== "function") return void 0;
+      let required = this.deps.levelProgression.requirements(item);
+      return { level: required.level, attributes: required.attributes };
+    }
+    buildSocketSnapshots(item) {
+      let unlocked = typeof this.deps.contentProgression === "object" && this.deps.contentProgression.isUnlocked("jewel");
+      let rows = unlocked && typeof this.deps.equipmentSockets === "object" ? this.deps.equipmentSockets.list(item) : [];
+      if (!rows.length) return void 0;
+      return rows.map((row) => ({ label: this.deps.equipmentSockets.label(row), jewel: this.buildJewelSnapshot(row.jewel) }));
+    }
+    buildJewelKeystoneSnapshot(jewel) {
+      if (!jewel.cosmosKeystoneJewel || !jewel.cosmosKeystone) return void 0;
+      let id = jewel.cosmosKeystone;
+      let owner = typeof this.deps.getAscendKeystoneOwnerClass === "function" ? this.deps.getAscendKeystoneOwnerClass(id) : null;
+      let ascend = owner && typeof this.deps.CLASS_TEMPLATES !== "undefined" && this.deps.CLASS_TEMPLATES[owner] ? this.deps.CLASS_TEMPLATES[owner].name : "";
+      let active = (Array.isArray(this.deps.game.cosmosTwinKeystones) ? this.deps.game.cosmosTwinKeystones : []).includes(id);
+      return { name: typeof this.deps.getAscendKeystoneName === "function" ? this.deps.getAscendKeystoneName(id) : String(id), ascend, active };
+    }
+    buildJewelSnapshot(jewel) {
+      if (!jewel) return null;
+      let stats = [];
+      try {
+        if (typeof this.deps.getJewelStats === "function") this.deps.getJewelStats(jewel).forEach((st) => stats.push(this.snapStat(st)));
+      } catch (error) {
+        this.deps.console.warn("[social] jewel snapshot unavailable:", error.message);
+      }
+      return {
+        kind: "jewel",
+        name: jewel.name || "주얼",
+        rarity: jewel.rarity || "normal",
+        stats: stats.slice(0, 8),
+        uniqueEffect: this.deps.getJewelUniqueEffectText(jewel) || void 0,
+        keystone: this.buildJewelKeystoneSnapshot(jewel)
+      };
+    }
+    buildTalismanSnapshot(t) {
+      if (!t || !Array.isArray(t.lines)) return null;
+      let lines = t.lines.map((line) => ({ text: this.deps.talismans.describeLine(line), condition: line.kind === "condition" }));
+      if (t.special === "moment") lines.push({ text: this.deps._t("보스에게 주는 최종 피해 +{moment}%, 생명력 5% 이하 보스 처형", { moment: t.moment }), condition: true });
+      return { kind: "talisman", name: t.name || "부적", rarity: t.rarity || "magic", uniqueEffect: t.uniqueEffect || void 0, lines, state: this.talismanStateFor(t) };
+    }
+    talismanStateFor(item) {
+      if (this.deps.game.stumpBox.board.indexOf(item.id) < 0) return "stored";
+      if (!this.deps.stumpBox.isMature(item)) return "asleep";
+      let summary = this.deps.talismanEffects.summarize();
+      if (summary.suppressed.has(item.id)) return "suppressed";
+      return summary.amplified.has(item.id) ? "amplified" : "awake";
+    }
+    statsWithoutBarkZone() {
+      if (!this.deps.getWorldTreeBarkEffect().on) return this.deps.getPlayerStats();
+      return this.deps.previewBuildStats((clone) => {
+        Object.assign(clone.worldTreeBark, { damage: 0, taken: 0, move: 0 });
+      }).after;
+    }
+    buildProfileStats() {
+      let s = typeof this.deps.getPlayerStats === "function" ? this.statsWithoutBarkZone() : null;
+      if (!s) return { stats: [], power: 0 };
+      let rows = this.data.PROFILE_STAT_KEYS.filter(([key]) => key !== "summonDps" || Number(s.summonDps) > 0).map(([key]) => ({ key, label: key === "dps" ? "직접 DPS" : this.deps.COMPARE_STAT_META[key].label, value: this.deps.COMPARE_STAT_META[key].format(Number(s[key]) || 0) }));
+      let power = Math.floor(Number(s.totalDps) || (Number(s.dps) || 0) + (Number(s.summonDps) || 0));
+      return { stats: rows, power };
+    }
+    buildSkillSnapshot(state2) {
+      let gem = (name) => ({ name, level: Math.max(1, Math.floor(Number(state2.gemData?.[name]?.level) || 1)), quality: Math.max(0, Math.floor(Number(state2.gemData?.[name]?.quality) || 0)) });
+      let support = (name) => ({ name, level: Math.max(1, Math.floor(Number(state2.supportGemData?.[name]?.level) || 1)) });
+      let summon = (name) => ({ ...gem(name), count: Math.max(1, Math.floor(Number(state2.summonSkillCounts?.[name]) || 1)) });
+      return {
+        active: state2.activeSkill ? gem(state2.activeSkill) : null,
+        supports: (state2.equippedSupports || []).filter(Boolean).slice(0, 8).map(support),
+        mobility: state2.mobilitySkill ? gem(state2.mobilitySkill) : null,
+        summons: (state2.equippedSummonSkills || []).filter(Boolean).slice(0, 6).map(summon)
+      };
+    }
+    buildProfileIdentity(state2) {
+      let classDef = typeof this.deps.PLAYER_CLASS_DEFS !== "undefined" ? this.deps.PLAYER_CLASS_DEFS[state2.selectedClassId] : null;
+      return { classId: state2.selectedClassId || "", heroClassName: classDef ? classDef.label : "", ascendClass: state2.ascendClass || "", className: this.services.format.socialClassLabel(state2.ascendClass) };
+    }
+    buildProfileGear(state2) {
+      let equipment = [];
+      let eq = state2.equipment || {};
+      Object.keys(eq).filter((slot) => !this.deps.bagItems.isSpecial(eq[slot])).forEach((slot) => {
+        let snap = this.buildItemSnapshot(eq[slot], slot);
+        if (snap) equipment.push(snap);
+      });
+      return { equipment: equipment.slice(0, 16), core: this.buildCoreSnapshot(state2), stump: this.buildStumpSnapshot(state2) };
+    }
+    buildCoreSnapshot(state2) {
+      let core = (state2.equipment || {})["코어"];
+      if (!core || typeof this.deps.coreItems !== "object" || !this.deps.contentProgression.isUnlocked("cube", state2)) return void 0;
+      return this.buildCoreCard(core);
+    }
+    buildCoreCard(core) {
+      return { kind: "core", name: core.name, lines: (core.lines || []).map((line) => this.deps.coreItems.describe(line)) };
+    }
+    buildStumpSnapshot(state2) {
+      let box = state2.stumpBox;
+      if (!box || !box.acquired || typeof this.deps.stumpBox !== "object" || box.board.every((id) => id === null)) return void 0;
+      let result = this.deps.stumpBox.evaluate(state2);
+      return { cells: box.board.map((id, cell) => this.buildStumpCellSnapshot(state2, result, id, cell)) };
+    }
+    buildStumpCellSnapshot(state2, result, id, cell) {
+      if (!this.deps.stumpBox.isOpen(state2, cell)) return null;
+      let rank = this.deps.stumpBox.graftRank(state2.stumpBox, cell);
+      let row = rank ? { graft: rank, graftPct: rank * this.deps.STUMP_BOX_GRAFT.pctPerRank } : {};
+      let card = id === null ? null : this.buildStumpItemCard(this.deps.stumpBox.itemById(state2, id), result);
+      if (card) row.item = card;
+      return row;
+    }
+    buildStumpItemCard(item, result) {
+      let card = !item ? null : item.family === "talisman" ? this.buildTalismanSnapshot(item) : this.buildStumpItemSnapshot(item, result);
+      if (!card) return null;
+      return Object.assign(card, { stage: this.deps.stumpBox.stageOf(item), ripe: this.deps.stumpBox.isMature(item), xp: Math.floor(item.xp), need: this.deps.stumpBox.need(item) });
+    }
+    buildStumpItemSnapshot(item, result) {
+      let gain = this.deps.stumpBox.yieldOf(item), suppressed = result.suppressed.has(item.id);
+      let value = result.values[item.id] ?? (gain ? gain.value * this.deps.stumpBox.qualityOf(item) * this.deps.stumpBox.goldenMul(item) : 0);
+      return {
+        kind: "stump",
+        family: item.family,
+        color: item.color,
+        name: this.deps.stumpBox.label(item),
+        quality: Math.round(item.roll * 100),
+        yieldText: gain ? gain.text.replace("{v}", String(Math.round(value * 10) / 10)) : "",
+        suppressed,
+        resonant: !suppressed && this.deps.stumpBox.isMature(item) && !!result.synergy[item.id],
+        note: this.stumpItemNote(item, result),
+        extra: this.deps.stumpBox.extraLinesOf(item, result).map((line) => ({ id: line.stat, text: this.deps.stumpBox.lineText(line.stat, line.value) })),
+        golden: this.deps.stumpBox.goldenMul(item) > 1
+      };
+    }
+    stumpItemNote(item, result) {
+      let note = this.deps.stumpBox.boardNote(item, result);
+      return note ? note.text : "";
+    }
+    buildProfileSnapshot() {
+      let state2 = typeof this.deps.game !== "undefined" && this.deps.game ? this.deps.game : {};
+      let numbers = { stats: [], power: 0 };
+      try {
+        numbers = this.buildProfileStats();
+      } catch (e) {
+        this.deps.console.warn("프로필 스탯 계산 실패:", e);
+      }
+      return {
+        version: 8,
+        nickname: this.services.identity.getMyNickname(),
+        level: state2.level || 1,
+        ...this.buildProfileIdentity(state2),
+        loop: typeof this.deps.getSaveLoopNumber === "function" ? this.deps.getSaveLoopNumber(state2) : 0,
+        ...numbers,
+        ...this.buildProfileGear(state2),
+        skills: this.buildSkillSnapshot(state2),
+        updatedAt: Date.now()
+      };
+    }
+  };
 
-// ── 코어 카드: 게임 코어 툴팁(core-items-ui.js)과 같은 이름과 줄 ─────────────
-const PROFILE_CORE_TONE = '#6d8fa8';
+  // modules/ui/social-stats-markup.mjs
+  var SocialStatsMarkup = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["profileStatIconHtml", "profileStatName", "profileStatValue", "profileStatRowHtml", "profileStatsHtml", "profilePowerHtml"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    profileStatIconHtml(key) {
+      let [sheet, name] = String(this.data.PROFILE_STAT_ICONS.get(key) || "").split(":");
+      if (sheet === "log") return `<span class="combat-log-icon combat-log-icon--${name}" aria-hidden="true"></span>`;
+      let cell = sheet === "tree" && typeof this.deps.window.GameModules.passiveScene.nodes.iconAtlasCell === "object" ? this.deps.window.GameModules.passiveScene.nodes.iconAtlasCell[name] : null;
+      if (!cell) return '<span class="social-stat-icon is-none" aria-hidden="true"></span>';
+      return `<span class="social-stat-icon" style="background-position:${-(cell[0] * 22 + 3)}px ${-(cell[1] * 22 + 3)}px;" aria-hidden="true"></span>`;
+    }
+    profileStatName(label) {
+      return String(label || "").replace(/^[^\p{L}\p{N}]+/u, "");
+    }
+    profileStatValue(value) {
+      let text = String(value == null ? "" : value);
+      return /^-?\d{4,}$/.test(text) ? Number(text).toLocaleString("en-US") : text;
+    }
+    profileStatRowHtml(s) {
+      let tone = this.data.PROFILE_STAT_TONES[s.key];
+      return `<div class="social-stat-item"><span class="social-stat-label">${this.profileStatIconHtml(s.key)}${this.services.format.socialEscape(this.profileStatName(s.label))}</span><span class="social-stat-value"${tone ? ` style="color:${tone};"` : ""}>${this.services.format.socialEscape(this.profileStatValue(s.value))}</span></div>`;
+    }
+    profileStatsHtml(stats) {
+      let rows = stats.filter((s) => s && s.label != null);
+      if (!rows.length) return '<div class="social-profile-empty">스탯 정보 없음</div>';
+      let grouped = new Set(this.data.PROFILE_STAT_GROUPS.flatMap(([, keys]) => keys));
+      let groups = this.data.PROFILE_STAT_GROUPS.map(([title, keys]) => [title, keys.map((key) => rows.find((s) => s.key === key)).filter(Boolean)]).concat([["기타", rows.filter((s) => !grouped.has(s.key))]]).filter(([, list]) => list.length);
+      if (groups.length === 1) return `<div class="social-stat-grid">${rows.map(this.profileStatRowHtml).join("")}</div>`;
+      return groups.map(([title, list]) => `<div class="social-stat-group"><h4>${title}</h4><div class="social-stat-grid${title === "저항" ? " is-pair" : ""}">${list.map(this.profileStatRowHtml).join("")}</div></div>`).join("");
+    }
+    profilePowerHtml(p) {
+      if (!p.power) return "";
+      return `<div class="social-profile-power"><span>${p.version >= 8 ? this.deps._t("총 DPS") : this.deps._t("전투력")}</span><b>${this.services.format.socialComma(p.power)}</b></div>`;
+    }
+  };
 
+  // modules/ui/social-upload.mjs
+  var SocialUpload = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["getProfileUploadError", "profileSnapshotIsOwn", "profileWriteFor", "profileRowWrite", "performPlayerProfileUpload", "profileUploadFailure", "uploadPlayerProfile", "flushPlayerProfileQuiet", "syncPlayerProfileQuiet", "syncInitialPlayerProfile", "reportProfileSyncFailure", "updatePastChatNicknames"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    getProfileUploadError(error) {
+      let message = String(error && error.message || error);
+      let translated = error instanceof Error ? error : new Error(message);
+      if (/NICK_COOLDOWN/.test(message)) {
+        translated = new Error("닉네임은 하루에 한 번만 변경할 수 있습니다.");
+        translated.socialCode = "nickname_cooldown";
+      }
+      if (/NICK_INVALID/.test(message)) {
+        translated = new Error(`닉네임은 ${this.data.SOCIAL_NICK_MIN}~${this.data.SOCIAL_NICK_MAX}자의 한글, 영문, 숫자, _ - 만 쓸 수 있습니다.`);
+        translated.socialCode = "nickname_invalid";
+      }
+      if (/NICK_PROFANITY/.test(message)) {
+        translated = new Error("닉네임에 비속어를 쓸 수 없습니다.");
+        translated.socialCode = "nickname_invalid";
+      }
+      if (/PROFILE_TOO_LARGE/.test(message)) translated = new Error("공개 프로필이 너무 커서 서버가 받지 않았습니다.");
+      if (translated === error && /duplicate|unique|nickname/i.test(message)) {
+        translated = new Error("이미 사용 중인 닉네임입니다. 다른 닉네임을 선택해주세요.");
+        translated.socialCode = "nickname_conflict";
+      }
+      return translated;
+    }
+    profileSnapshotIsOwn() {
+      if (!this.deps.gameplayStarted || this.deps.startupOverlayActive) return false;
+      let owner = this.deps.game.saveMeta ? this.deps.game.saveMeta.cloudUserId : null;
+      return !!owner && owner === this.services.session.socialLoggedInUserId();
+    }
+    profileWriteFor(options, userId, nickname2) {
+      let snapshot2 = this.profileSnapshotIsOwn() ? this.services.snapshot.buildProfileSnapshot() : null;
+      if (!options.silent || options.required || options.fromNicknameChange) return this.profileRowWrite(userId, nickname2, snapshot2);
+      if (!snapshot2) return null;
+      let data = { ...snapshot2, nickname: void 0 };
+      return {
+        key: `${userId}
 
-const PROFILE_STUMP_CELLS = 25; // 그루터기 함 판 5×5(data/stump-box.js STUMP_BOX_SIZE)
+${JSON.stringify({ ...data, updatedAt: 0 })}`,
+        row: false,
+        path: `/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}`,
+        request: { method: "PATCH", headers: { Prefer: "return=minimal" }, body: { profile_data: data } }
+      };
+    }
+    profileRowWrite(userId, nickname2, snapshot2) {
+      return {
+        key: `${userId}
+${nickname2}
+${snapshot2 ? JSON.stringify({ ...snapshot2, updatedAt: 0 }) : ""}`,
+        row: true,
+        path: "/rest/v1/player_profiles",
+        request: {
+          method: "POST",
+          headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+          // last_seen / nickname_updated_at 은 DB 기본값·트리거·하트비트가 관리한다.
+          body: snapshot2 ? { user_id: userId, nickname: nickname2, profile_data: snapshot2 } : { user_id: userId, nickname: nickname2 }
+        }
+      };
+    }
+    async performPlayerProfileUpload(options, context, nickname2) {
+      if (!this.services.session.isSocialSessionCurrent(context)) return false;
+      let userId = context.userId;
+      try {
+        let write = this.profileWriteFor(options, userId, nickname2);
+        if (!write) return false;
+        if (write.key === this.state.current.profileSentKey) return true;
+        await this.deps.cloudJsonRequest(write.path, write.request);
+        if (!this.services.session.isSocialSessionCurrent(context)) return false;
+        this.state.current.profileSentKey = write.key;
+        if (write.row) this.state.current.profileRowFor = `${userId}
+${nickname2}`;
+        return true;
+      } catch (error) {
+        if (!this.services.session.isSocialSessionCurrent(context)) return false;
+        return this.profileUploadFailure(options, error);
+      }
+    }
+    profileUploadFailure(options, error) {
+      let translated = this.getProfileUploadError(error);
+      if (options.fromNicknameChange || options.required) throw translated;
+      if (!options.silent) this.deps.console.warn("프로필 업로드 실패:", error);
+      return false;
+    }
+    async uploadPlayerProfile(options = {}) {
+      if (!this.services.session.socialCloudReady()) {
+        if (options.required) throw new Error("클라우드 로그인 상태를 확인할 수 없습니다.");
+        return false;
+      }
+      let userId = this.services.identity.syncSocialIdentityUser();
+      let context = this.services.session.socialSessionContext();
+      let nickname2 = this.services.identity.getMyNickname();
+      if (!nickname2) {
+        if (options.required) throw new Error("먼저 닉네임을 설정해주세요.");
+        return false;
+      }
+      let inFlight = this.state.current.profileUploadPromise;
+      if (inFlight && this.state.current.profileUploadUserId === userId) {
+        if (options.silent) return inFlight;
+        try {
+          await inFlight;
+        } catch (error) {
+          this.deps.console.warn("이전 프로필 갱신 실패:", error);
+        }
+      }
+      let task = this.performPlayerProfileUpload(options, context, nickname2);
+      this.state.current.profileUploadPromise = task;
+      this.state.current.profileUploadUserId = userId;
+      try {
+        return await task;
+      } finally {
+        this.releaseProfileUpload(task);
+      }
+    }
+    releaseProfileUpload(task) {
+      if (this.state.current.profileUploadPromise !== task) return;
+      this.state.current.profileUploadPromise = null;
+      this.state.current.profileUploadUserId = null;
+    }
+    async flushPlayerProfileQuiet() {
+      this.state.current.profileSyncTimer = null;
+      if (!this.services.session.socialCloudReady() || !this.services.identity.getMyNickname() || !this.profileSnapshotIsOwn()) return false;
+      let context = this.services.session.socialSessionContext();
+      let inFlight = this.state.current.profileUploadPromise;
+      if (inFlight) {
+        try {
+          await inFlight;
+        } catch (error) {
+          this.deps.console.warn("이전 공개 프로필 갱신 실패:", error);
+        }
+      }
+      if (!this.services.session.isSocialSessionCurrent(context) || !this.services.identity.getMyNickname()) return false;
+      return this.uploadPlayerProfile({ silent: true });
+    }
+    syncPlayerProfileQuiet() {
+      if (!this.services.session.socialCloudReady() || !this.services.identity.getMyNickname()) return false;
+      if (this.state.current.profileSyncTimer && typeof this.deps.clearTimeout === "function") this.deps.clearTimeout(this.state.current.profileSyncTimer);
+      if (typeof this.deps.setTimeout !== "function") {
+        Promise.resolve(this.flushPlayerProfileQuiet()).catch((error) => this.deps.console.warn("공개 프로필 자동 갱신 실패:", error));
+        return true;
+      }
+      this.state.current.profileSyncTimer = this.deps.setTimeout(() => {
+        Promise.resolve(this.flushPlayerProfileQuiet()).catch((error) => this.deps.console.warn("공개 프로필 자동 갱신 실패:", error));
+      }, this.data.SOCIAL_PROFILE_SYNC_DELAY_MS);
+      return true;
+    }
+    syncInitialPlayerProfile() {
+      let userId = this.services.session.socialLoggedInUserId();
+      if (!userId || !this.services.identity.getMyNickname() || this.state.current.profileBootSyncUserId === userId || !this.profileSnapshotIsOwn()) return;
+      this.state.current.profileBootSyncUserId = userId;
+      this.syncPlayerProfileQuiet();
+    }
+    reportProfileSyncFailure(error) {
+      if (error && error.socialCode === "nickname_conflict") this.services.identity.setMyNicknameLocal("");
+      this.deps.showGameToast("프로필 갱신 실패: " + String(error && error.message || error), "danger");
+    }
+    async updatePastChatNicknames(name) {
+      try {
+        await this.deps.cloudJsonRequest(`/rest/v1/chat_messages?user_id=eq.${encodeURIComponent(this.services.session.socialLoggedInUserId())}`, {
+          method: "PATCH",
+          headers: { Prefer: "return=minimal" },
+          body: { nickname: name }
+        });
+      } catch (e) {
+        this.deps.console.warn("과거 채팅 닉네임 갱신 실패:", e);
+      }
+    }
+  };
 
+  // modules/ui/social-nickname.mjs
+  var SocialNickname = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["socialNicknameInput", "restoreNicknameFromServer"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    socialNicknameInput(input, current) {
+      if (input == null || String(input).trim() === current) return "";
+      let name = String(input).trim();
+      let error = "";
+      if (name.length < this.data.SOCIAL_NICK_MIN || name.length > this.data.SOCIAL_NICK_MAX) error = this.deps._t("닉네임은 {SOCIAL_NICK_MIN}~{SOCIAL_NICK_MAX}자여야 합니다.", { SOCIAL_NICK_MIN: this.data.SOCIAL_NICK_MIN, SOCIAL_NICK_MAX: this.data.SOCIAL_NICK_MAX });
+      else if (!this.data.SOCIAL_NICK_RE.test(name)) error = this.deps._t("닉네임에는 한글, 영문, 숫자, - , _ 만 사용할 수 있습니다.");
+      if (error) this.deps.showGameToast(error, "warning");
+      return error ? "" : name;
+    }
+    async restoreNicknameFromServer(force = false) {
+      if (!this.services.session.socialCloudReady()) return "";
+      let userId = this.services.identity.syncSocialIdentityUser();
+      let context = this.services.session.socialSessionContext();
+      if (!force && this.state.current.identityCheckedUserId === userId) return this.services.identity.getMyNickname();
+      if (this.state.current.identityCheckPromise) return this.state.current.identityCheckPromise;
+      let task = (async () => {
+        try {
+          let rows = await this.deps.cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname`, {});
+          let serverNickname = Array.isArray(rows) && rows[0] ? String(rows[0].nickname || "") : "";
+          if (!this.services.session.isSocialSessionCurrent(context)) return "";
+          if (serverNickname) {
+            this.services.identity.setMyNicknameLocal(serverNickname);
+            this.state.current.profileRowFor = `${userId}
+${serverNickname}`;
+          }
+          this.state.current.identityCheckedUserId = userId;
+          return this.services.identity.getMyNickname();
+        } catch (error) {
+          if (!this.services.session.isSocialSessionCurrent(context)) return "";
+          this.deps.console.warn("서버 닉네임 복원 실패:", error);
+          return this.services.identity.getMyNickname();
+        }
+      })();
+      this.state.current.identityCheckPromise = task;
+      try {
+        return await task;
+      } finally {
+        if (this.state.current.identityCheckPromise === task) this.state.current.identityCheckPromise = null;
+      }
+    }
+  };
 
-// ============================================================================
-// 채팅 설정 창(2026-10-03 사용자 요청): 닉네임, 공개 프로필 보기와 동기화, 차단한 사람(2026-10-27), 접속자 목록을 ⚙ 하나로 연다.
-// ============================================================================
-const CHAT_SETTINGS_ID = 'chat-settings-overlay';
+  // modules/ui/social-chat-status.mjs
+  var SocialChatStatus = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["isSocialTabActive", "isSocialPageHidden", "isSocialChatNotificationEnabled", "socialChatPollDue", "getLastSeenChatId", "setLastSeenChatId", "socialAdminView"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    getLastSeenChatId() {
+      try {
+        let v = this.deps.localStorage.getItem(this.data.SOCIAL_LAST_SEEN_CHAT_KEY);
+        if (v == null || v === "") return null;
+        let n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      } catch (error) {
+        this.deps.console.warn("[social] last-seen chat read failed:", error.message);
+        return null;
+      }
+    }
+    setLastSeenChatId(id) {
+      let n = Number(id);
+      if (!Number.isFinite(n)) return;
+      let cur = this.getLastSeenChatId();
+      if (cur != null && n <= cur) return;
+      try {
+        this.deps.localStorage.setItem(this.data.SOCIAL_LAST_SEEN_CHAT_KEY, String(n));
+      } catch (error) {
+        this.deps.console.warn("[social] last-seen chat write failed:", error.message);
+      }
+    }
+    isSocialTabActive() {
+      return typeof this.deps.messageFrames === "object" && this.deps.messageFrames.isTabVisible("chat");
+    }
+    isSocialChatNotificationEnabled() {
+      return !(typeof this.deps.game !== "undefined" && this.deps.game && this.deps.game.settings && this.deps.game.settings.socialChatNotifications === false);
+    }
+    isSocialPageHidden() {
+      return typeof this.deps.document !== "undefined" && this.deps.document.hidden === true;
+    }
+    socialChatPollDue(lastAt) {
+      return !this.state.current.chatLive || Date.now() - lastAt >= this.data.SOCIAL_CHAT_LIVE_POLL_MS;
+    }
+    socialAdminView() {
+      return typeof this.deps.location === "object" && new this.deps.URLSearchParams(this.deps.location.search).get("admin") === "1";
+    }
+  };
 
+  // modules/ui/social-presence-markup.mjs
+  var SocialPresenceMarkup = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["renderChatOnlineCount", "renderOnlineCounts", "renderSocialOnlineResult", "renderOnlineUsers", "getSocialPresenceState"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    getSocialPresenceState(lastSeen, now = Date.now()) {
+      let seenAt = new Date(lastSeen).getTime();
+      if (!Number.isFinite(seenAt)) return "";
+      let ageSeconds = Math.max(0, now - seenAt) / 1e3;
+      if (ageSeconds <= this.data.SOCIAL_ONLINE_WINDOW_S) return "active";
+      return ageSeconds <= this.data.SOCIAL_RECENT_WINDOW_S ? "recent" : "";
+    }
+    renderChatOnlineCount(active, recent) {
+      let badge = this.deps.document.getElementById("social-chat-online");
+      if (!badge) return;
+      badge.hidden = !this.state.current.onlineSupported || active + recent <= 0;
+      let key = `${active}|${recent}|${this.deps.i18n.language}`;
+      if (badge.dataset.counts === key) return;
+      badge.dataset.counts = key;
+      badge.innerHTML = `<span><i class="social-presence-dot active" aria-hidden="true"></i>${active}</span><span><i class="social-presence-dot recent" aria-hidden="true"></i>${recent}</span>`;
+      badge.setAttribute("aria-label", this.deps._t("지금 접속 {active}명, 30분 안에 다녀간 사람 {recent}명", { active, recent }));
+    }
+    renderOnlineCounts(counts) {
+      this.renderChatOnlineCount(Math.max(0, Math.floor(Number(counts.active) || 0)), Math.max(0, Math.floor(Number(counts.recent) || 0)));
+    }
+    renderSocialOnlineResult(result) {
+      if (result && result.counts) this.renderOnlineCounts(result.counts);
+      else this.renderOnlineUsers(result);
+    }
+    renderOnlineUsers(users, now = Date.now()) {
+      let visible = (users || []).map((user) => ({ user, state: this.getSocialPresenceState(user.last_seen, now) })).filter((row) => row.state);
+      this.renderChatOnlineCount(visible.filter((row) => row.state === "active").length, visible.filter((row) => row.state !== "active").length);
+      let host = this.deps.document.getElementById("social-online");
+      if (!host) return;
+      if (!this.state.current.onlineSupported) {
+        host.style.display = "none";
+        return;
+      }
+      host.style.display = "block";
+      let myId = this.services.session.socialLoggedInUserId();
+      let key = visible.length ? visible.map((row) => `${row.user.user_id}:${row.user.nickname || ""}:${row.state}`).join(",") : "empty";
+      if (key === this.state.current.lastOnlineRenderKey) return;
+      this.state.current.lastOnlineRenderKey = key;
+      let activeCount = visible.filter((row) => row.state === "active").length;
+      let recentCount = visible.length - activeCount;
+      let chips = visible.length ? visible.map((row) => {
+        let u = row.user;
+        let me = u.user_id === myId;
+        return `<button type="button" class="social-online-chip ${row.state}${me ? " me" : ""}" onclick="openPlayerProfile('${this.services.format.socialEscape(u.user_id)}')"><span class="social-presence-dot ${row.state}" aria-hidden="true"></span><span>${this.services.format.socialEscape(u.nickname || "익명")}</span>${me ? this.deps._t("<em>나</em>") : ""}</button>`;
+      }).join("") : `<span class="social-online-empty">${this.deps._t("지금은 조용합니다.")}</span>`;
+      host.innerHTML = `<div class="social-online-title"><span>${this.deps._t("접속 상태")}</span><span class="social-presence-summary"><span><i class="social-presence-dot active"></i>${activeCount}</span><span><i class="social-presence-dot recent"></i>${recentCount}</span></span></div><div class="social-online-list">${chips}</div>`;
+    }
+  };
 
-if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => { injectSocialStyles(); ensureSocialTooltip(); });
-    else { injectSocialStyles(); ensureSocialTooltip(); }
-    // 클라우드 복원이 늦어지는 환경을 위한 1회성 보조 동기화. 이후 수명주기는 세션 변경 이벤트가 관리한다.
-    if (typeof setTimeout === 'function') setTimeout(syncSocialBackgroundTasks, 15000);
-    document.addEventListener('visibilitychange', syncLiveChat);   // 실시간 채팅: 가리면 잠시 뒤 놓고, 보이면 다시 붙는다
-}
+  // modules/ui/social-presence.mjs
+  var SocialPresence = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["sendPresenceHeartbeat", "ensureHeartbeat", "loadOnlineUsers", "onlineUsersQuery", "shapeOnlineUsers", "noteOnlineLoadError", "refreshOnlineUsers"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+      this.onlineChat = Object.freeze({ due: this.onlineChatDue.bind(this), refresh: this.scheduleOnlineChatRefresh.bind(this) });
+    }
+    async sendPresenceHeartbeat() {
+      if (!this.services.session.socialCloudReady() || !this.services.identity.getMyNickname() || !this.state.current.onlineSupported) return;
+      let context = this.services.session.socialSessionContext();
+      try {
+        await this.deps.cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(this.services.session.socialLoggedInUserId())}`, {
+          method: "PATCH",
+          headers: { Prefer: "return=minimal" },
+          body: { last_seen: (/* @__PURE__ */ new Date()).toISOString() }
+        });
+      } catch (e) {
+        if (this.services.session.isSocialSessionCurrent(context) && /last_seen/i.test(String(e && e.message || e))) this.state.current.onlineSupported = false;
+      }
+    }
+    ensureHeartbeat() {
+      if (!this.services.session.socialCloudReady() || !this.services.identity.getMyNickname()) return;
+      if (this.state.current.heartbeatTimer) return;
+      this.state.current.heartbeatTimer = this.deps.setInterval(() => {
+        if (this.services.session.socialCloudReady() && this.services.identity.getMyNickname() && !this.services.chatStatus.isSocialPageHidden()) this.sendPresenceHeartbeat();
+      }, this.data.SOCIAL_HEARTBEAT_MS);
+      this.sendPresenceHeartbeat();
+    }
+    async loadOnlineUsers(countsOnly) {
+      if (!this.services.session.socialCloudReady() || !this.state.current.onlineSupported) return [];
+      let context = this.services.session.socialSessionContext();
+      let countsPath = !!countsOnly && this.state.current.onlineCountsSupported !== false;
+      let result;
+      try {
+        result = await this.deps.cloudJsonRequest(...this.onlineUsersQuery(countsPath));
+      } catch (e) {
+        if (!this.services.session.isSocialSessionCurrent(context)) return [];
+        if (!this.noteOnlineLoadError(String(e && e.message || e), countsPath)) return [];
+        countsPath = false;
+        try {
+          result = await this.deps.cloudJsonRequest(...this.onlineUsersQuery(false));
+        } catch {
+          return [];
+        }
+      }
+      return this.shapeOnlineUsers(result, countsPath);
+    }
+    onlineUsersQuery(countsPath) {
+      if (countsPath) return ["/rest/v1/rpc/get_online_counts", { method: "POST", body: {} }];
+      let cutoff = new Date(Date.now() - this.data.SOCIAL_RECENT_WINDOW_S * 1e3).toISOString();
+      return [`/rest/v1/player_profiles?select=user_id,nickname,last_seen&last_seen=gte.${encodeURIComponent(cutoff)}&order=last_seen.desc&limit=80`, {}];
+    }
+    shapeOnlineUsers(result, countsPath) {
+      if (countsPath) return { counts: result && typeof result === "object" ? result : {} };
+      return Array.isArray(result) ? result : [];
+    }
+    noteOnlineLoadError(text, countsPath) {
+      if (/last_seen/i.test(text)) this.state.current.onlineSupported = false;
+      if (!countsPath || !/schema cache|could not find|does not exist/i.test(text)) return false;
+      this.state.current.onlineCountsSupported = false;
+      return true;
+    }
+    async refreshOnlineUsers(force = false) {
+      if (!this.services.session.socialCloudReady() || !this.state.current.onlineSupported || this.services.chatStatus.isSocialPageHidden()) return;
+      let listOpen = !!this.deps.document.getElementById("social-online");
+      if (!this.onlineChat.due(listOpen, force)) return;
+      if (this.state.current.onlineLoading) {
+        this.state.current.onlineRefreshAgain = !!this.deps.document.getElementById("social-online");
+        return;
+      }
+      let context = this.services.session.socialSessionContext();
+      this.state.current.onlineLoading = context;
+      this.state.current.lastOnlineLoadAt = Date.now();
+      this.state.current.lastOnlineLoadWasList = listOpen;
+      try {
+        let result = await this.loadOnlineUsers(!listOpen);
+        if (!this.services.session.isSocialSessionCurrent(context)) return;
+        this.services.presenceMarkup.renderSocialOnlineResult(result);
+      } catch (error) {
+        this.deps.console.warn("[social] online-user refresh failed:", error.message);
+      } finally {
+        this.services.session.releaseSocialRequest("onlineLoading", context);
+      }
+      if (this.state.current.onlineRefreshAgain) {
+        this.state.current.onlineRefreshAgain = false;
+        this.onlineChat.refresh(true);
+      }
+    }
+    onlineChatDue(listOpen, force) {
+      return force || listOpen && !this.state.current.lastOnlineLoadWasList || Date.now() - this.state.current.lastOnlineLoadAt >= this.data.SOCIAL_ONLINE_POLL_MS;
+    }
+    scheduleOnlineChatRefresh(force) {
+      if (this.state.current.onlineChatTimer && !force) return;
+      this.deps.clearTimeout(this.state.current.onlineChatTimer);
+      let wait = force ? 0 : Math.max(0, this.state.current.lastOnlineLoadAt + this.data.SOCIAL_ONLINE_POLL_MS - Date.now());
+      this.state.current.onlineChatTimer = this.deps.setTimeout(() => {
+        this.state.current.onlineChatTimer = null;
+        this.refreshOnlineUsers(force);
+      }, wait);
+    }
+  };
 
-if (typeof safeExposeGlobals === 'function') {
-    safeExposeGlobals({
-        socialState, getMyNickname, promptAndSetNickname, uploadPlayerProfile, syncPlayerProfileQuiet, syncPlayerProfile,
-        sendChatMessage, onSocialChatKeydown, refreshChatPanel, startChatPolling, stopChatPolling, syncSocialChatPolling,
-        openPlayerProfile, openMyProfilePreview, closePlayerProfile, renderSocialTab, socialLoggedInUserId, restoreNicknameFromServer,
-        attachChatItem, removePendingChatItem, attachChatSnapshot, openTipModal, updateChatCounter,
-        showSocialTip, moveSocialTip, hideSocialTip, switchProfileTab, sendPresenceHeartbeat, refreshOnlineUsers,
-        checkSocialChatNotification, syncSocialChatNotificationSetting, syncSocialBackgroundTasks, toggleProfileBlock, unblockUser
-    });
-}
+  // modules/ui/social-blocking.mjs
+  var SocialBlocking = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["getBlockedUsers", "getBlockedUserIds", "isUserBlocked", "setUserBlocked"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    getBlockedUsers() {
+      try {
+        let list = JSON.parse(this.deps.localStorage.getItem(this.data.SOCIAL_BLOCKED_KEY) || "[]");
+        return Array.isArray(list) ? list.map((entry) => entry && typeof entry === "object" ? { id: String(entry.id || ""), name: String(entry.name || "") } : { id: String(entry || ""), name: "" }).filter((entry) => entry.id && entry.id !== "null") : [];
+      } catch {
+        return [];
+      }
+    }
+    getBlockedUserIds() {
+      return this.getBlockedUsers().map((entry) => entry.id);
+    }
+    isUserBlocked(userId) {
+      return !!userId && this.getBlockedUserIds().includes(String(userId));
+    }
+    setUserBlocked(userId, blocked, name) {
+      let list = this.getBlockedUsers().filter((entry) => entry.id !== String(userId));
+      if (blocked) list.push({ id: String(userId), name: String(name || "").slice(0, 16) });
+      try {
+        this.deps.localStorage.setItem(this.data.SOCIAL_BLOCKED_KEY, JSON.stringify(list.slice(-200)));
+      } catch (error) {
+        this.deps.console.warn("[social] blocked-user write failed:", error.message);
+      }
+    }
+  };
+
+  // modules/ui/social-notice-view.mjs
+  var SocialNoticeView = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["refreshSocialNotificationDots", "noteIncomingChats", "showChatToast", "getSocialChatNotificationPreview"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    refreshSocialNotificationDots() {
+      if (typeof this.deps.updateTabNotificationDots === "function") this.deps.updateTabNotificationDots();
+    }
+    getSocialChatNotificationPreview(row) {
+      let body = String(row && row.body || "").replace(new RegExp(this.data.SOCIAL_ITEM_TOKEN_RE.source, "g"), "[아이템]").replace(/\s+/g, " ").trim();
+      if (!body) body = row && row.payload ? "아이템을 공유했습니다." : "새 메시지가 도착했습니다.";
+      return body.length > 54 ? `${body.slice(0, 54)}…` : body;
+    }
+    noteIncomingChats(rows) {
+      let latest = rows.reduce((max, row) => Math.max(max, Number(row && row.id) || 0), 0);
+      if (!Number.isFinite(latest) || latest <= 0) return;
+      if (this.services.chatStatus.getLastSeenChatId() == null) {
+        this.services.chatStatus.setLastSeenChatId(latest);
+        return;
+      }
+      if (!this.services.chatStatus.isSocialChatNotificationEnabled()) {
+        this.services.chatStatus.setLastSeenChatId(latest);
+        this.deps.game.noti.social = false;
+        this.refreshSocialNotificationDots();
+        return;
+      }
+      let incoming = rows.find((row) => row && row.user_id !== this.services.session.socialLoggedInUserId() && !this.services.blocking.isUserBlocked(row.user_id));
+      if (!incoming) {
+        this.services.chatStatus.setLastSeenChatId(latest);
+        return;
+      }
+      this.deps.game.noti.social = true;
+      this.refreshSocialNotificationDots();
+      let incomingId = Number(incoming.id);
+      if (this.state.current.lastNotifiedChatId === incomingId) return;
+      this.state.current.lastNotifiedChatId = incomingId;
+      this.showChatToast(incoming);
+    }
+    showChatToast(row) {
+      let now = Date.now();
+      if (typeof this.deps.showGameToast !== "function" || now - this.state.current.lastChatToastAt < this.data.SOCIAL_CHAT_TOAST_GAP_MS) return;
+      this.state.current.lastChatToastAt = now;
+      this.deps.showGameToast(this.deps._t("새 채팅, {who}: {preview}", { who: String(row.nickname || this.deps._t("플레이어")), preview: this.getSocialChatNotificationPreview(row) }), { tone: "info", duration: this.data.SOCIAL_CHAT_TOAST_MS });
+    }
+  };
+
+  // modules/ui/social-notifications.mjs
+  var SocialNotifications = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["socialChatNoticeQuery", "checkSocialChatNotification", "pollSocialChatNotification", "ensureSocialNotificationPolling"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    socialChatNoticeQuery(seen) {
+      let cutoff = encodeURIComponent(new Date(Date.now() - this.data.SOCIAL_CHAT_RETENTION_MS).toISOString());
+      let base = `/rest/v1/chat_messages?select=id,user_id,nickname,body&created_at=gte.${cutoff}&order=id.desc&limit=1`;
+      if (seen == null) return base;
+      let after = Math.max(seen, Number(this.state.current.lastNotifiedChatId) || 0);
+      return `${base}&id=gt.${after}&user_id=neq.${encodeURIComponent(this.services.session.socialLoggedInUserId())}`;
+    }
+    async checkSocialChatNotification() {
+      if (!this.services.session.socialCloudReady() || this.state.current.bgNotiLoading) return;
+      if (this.services.chatStatus.isSocialTabActive()) return;
+      if (!this.deps.game?.noti) return;
+      let context = this.services.session.socialSessionContext();
+      this.state.current.bgNotiLoading = context;
+      this.state.current.lastChatNoticeAt = Date.now();
+      try {
+        let rows = await this.deps.cloudJsonRequest(this.socialChatNoticeQuery(this.services.chatStatus.getLastSeenChatId()), {});
+        if (!this.services.session.isSocialSessionCurrent(context)) return;
+        rows = Array.isArray(rows) ? rows : [];
+        if (rows.length) this.services.noticeView.noteIncomingChats(rows);
+      } catch (error) {
+        this.deps.console.warn("[social] notification query failed; next poll will retry:", error.message);
+      } finally {
+        this.services.session.releaseSocialRequest("bgNotiLoading", context);
+      }
+    }
+    pollSocialChatNotification() {
+      let due = this.services.chatStatus.isSocialChatNotificationEnabled() ? this.services.chatStatus.socialChatPollDue(this.state.current.lastChatNoticeAt) : Date.now() - this.state.current.lastChatNoticeAt >= this.data.SOCIAL_CHAT_LIVE_POLL_MS;
+      if (!this.services.chatStatus.isSocialPageHidden() && due) return this.checkSocialChatNotification();
+    }
+    ensureSocialNotificationPolling() {
+      if (!this.services.session.socialCloudReady() || this.state.current.bgNotificationTimer) return;
+      this.state.current.bgNotificationTimer = this.deps.setInterval(this.pollSocialChatNotification, this.data.SOCIAL_BG_NOTI_POLL_MS);
+      Promise.resolve(this.checkSocialChatNotification()).catch((error) => this.deps.console.warn("social notification refresh failed:", error));
+    }
+  };
+
+  // modules/ui/social-chat-data.mjs
+  var SocialChatData = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["loadChatMessages", "isSocialChatMessageCurrent", "mergeSocialChatMessages", "checkSendRateLimit", "isForgottenSocialChat", "noteLiveChatGap"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    noteLiveChatGap(rows, fullSync, wasReady) {
+      if (fullSync || !wasReady || !this.state.current.chatLive || Date.now() - this.state.current.chatLiveSince < this.data.SOCIAL_CHAT_LIVE_SETTLE_MS) return;
+      let listed = new Set(this.state.current.chatMessages.map((row) => String(row.id)));
+      if (!rows.some((row) => row.user_id !== this.services.session.socialLoggedInUserId() && !listed.has(String(row.id)))) return;
+      if (++this.state.current.chatLiveMisses < this.data.SOCIAL_CHAT_LIVE_MISSES) return;
+      this.state.current.chatLive = false;
+      this.deps.console.warn("채팅 실시간 수신이 새 채팅을 놓쳐 이 세션은 예전 조회 주기로 돌아갑니다(db/social.sql의 supabase_realtime 발행 확인).");
+    }
+    async loadChatMessages(afterId = null, now = Date.now()) {
+      if (!this.services.session.socialCloudReady()) return [];
+      let cutoff = new Date(now - this.data.SOCIAL_CHAT_RETENTION_MS).toISOString();
+      let incremental = afterId != null && Number.isFinite(Number(afterId));
+      let cursor = incremental ? `&id=gt.${encodeURIComponent(String(afterId))}` : "";
+      let order = incremental ? "id.asc" : "created_at.desc";
+      let rows = await this.deps.cloudJsonRequest(`/rest/v1/chat_messages?select=id,user_id,nickname,body,payload,created_at&created_at=gte.${encodeURIComponent(cutoff)}${cursor}&order=${order}&limit=${this.data.SOCIAL_CHAT_LIMIT}`, {});
+      let current = Array.isArray(rows) ? rows.filter((row) => this.isSocialChatMessageCurrent(row, now)) : [];
+      return incremental ? current : current.reverse();
+    }
+    isSocialChatMessageCurrent(row, now = Date.now()) {
+      let createdAt = new Date(row && row.created_at).getTime();
+      return Number.isFinite(createdAt) && createdAt > now - this.data.SOCIAL_CHAT_RETENTION_MS;
+    }
+    mergeSocialChatMessages(current, incoming, now = Date.now()) {
+      let byId = /* @__PURE__ */ new Map();
+      (current || []).concat(incoming || []).forEach((row) => {
+        if (row && Number.isFinite(Number(row.id)) && this.isSocialChatMessageCurrent(row, now)) byId.set(String(row.id), row);
+      });
+      return Array.from(byId.values()).sort((a, b) => Number(a.id) - Number(b.id)).slice(-this.data.SOCIAL_CHAT_LIMIT);
+    }
+    checkSendRateLimit() {
+      let now = Date.now();
+      this.state.current.sendTimestamps = this.state.current.sendTimestamps.filter((t) => now - t < 6e4);
+      let last = this.state.current.sendTimestamps[this.state.current.sendTimestamps.length - 1] || 0;
+      if (now - last < this.data.SOCIAL_SEND_MIN_INTERVAL_MS) return "메시지를 너무 빠르게 보냈습니다. 잠시 후 다시 시도해주세요.";
+      if (this.state.current.sendTimestamps.length >= this.data.SOCIAL_SEND_MAX_PER_MIN) return this.deps._t("1분에 최대 {SOCIAL_SEND_MAX_PER_MIN}개까지 보낼 수 있습니다. 잠시 후 다시 시도해주세요.", { SOCIAL_SEND_MAX_PER_MIN: this.data.SOCIAL_SEND_MAX_PER_MIN });
+      return true;
+    }
+    isForgottenSocialChat(row, now) {
+      let forgotten = this.state.current.chatForgotten;
+      if (!forgotten) return false;
+      return now < forgotten.until && Number(row.id) <= forgotten.through || (forgotten.ids.get(String(row.id)) || 0) > now;
+    }
+  };
+
+  // modules/ui/social-special-cards.mjs
+  var SocialSpecialCards = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["renderProfileJewelCard", "profileJewelHeadHtml", "profileJewelTierHtml", "profileJewelLineHtml", "renderProfileTalismanCard", "profileTalismanLineHtml", "profileTalismanTone", "profileGrowthText", "profileGraftText", "renderProfileCoreCard", "renderProfileStumpCard", "profileStumpExtraHtml", "profileStumpTone", "renderSimpleCard"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    renderProfileJewelCard(jewel) {
+      let color = this.services.format.socialRarityColor(jewel.rarity);
+      let lines = this.services.profileValues.profileSnapshotRows(jewel.stats, this.data.SOCIAL_ITEM_ARRAY_LIMITS.jewelStats).map(this.profileJewelLineHtml).join("");
+      return `<div class="social-item-card" style="border-color:${color};"><div class="social-item-title" style="color:${color};">${this.services.format.socialEscape(jewel.name || "주얼")}</div>${this.profileJewelHeadHtml(jewel)}${lines || this.deps._t('<div class="social-item-stat" style="color:var(--copy-muted);">옵션 정보 없음</div>')}</div>`;
+    }
+    profileJewelHeadHtml(jewel) {
+      let unique = jewel.uniqueEffect ? `<div class="social-item-unique">${this.deps._t("✨ 고유 효과: {uniqueEffect}", { uniqueEffect: this.services.format.socialEscape(jewel.uniqueEffect) })}</div>` : "";
+      let key = jewel.keystone;
+      let keystone = key && key.name ? `<div class="social-item-stat" style="color:${key.active ? "#8fe7b0" : "#ffd68a"};">🔯 배정 키스톤: ${this.services.format.socialEscape(key.name)}${key.ascend ? `(${this.services.format.socialEscape(key.ascend)})` : ""}${key.active ? this.deps._t(", 할당 중") : this.deps._t(", 짝 주얼의 키스톤과 같으면 할당")}</div>` : "";
+      return unique + keystone + this.profileJewelTierHtml(jewel);
+    }
+    profileJewelTierHtml(jewel) {
+      if (jewel.rarity === "unique") return '<div class="social-item-base">고유 고정 옵션, 티어 평가 제외</div>';
+      let core = this.services.profileValues.profileSnapshotRows(jewel.stats, this.data.SOCIAL_ITEM_ARRAY_LIMITS.jewelStats).filter((st) => st && !st.petite);
+      if (!core.length) return "";
+      let average = core.reduce((sum, st) => sum + Math.max(1, Math.floor(Number(st.tier) || 1)), 0) / core.length;
+      return `<div class="social-item-base">${this.deps._t("옵션 평균 티어: T{average}", { average: average.toFixed(1) })}</div>`;
+    }
+    profileJewelLineHtml(st) {
+      if (!st || st.id == null) return "";
+      let tone = this.services.format.socialSafeColor(typeof this.deps.window.getJewelStatToneColor === "function" ? this.deps.window.getJewelStatToneColor(st.id) : null, "#cfe0f5");
+      let marks = (st.wax ? '<span style="color:#ffd98a;">밀랍 </span>' : "") + (st.petite ? '<span style="color:var(--copy-bright);">쁘띠 </span>' : "");
+      let tier = Number.isFinite(Number(st.tier)) && !st.petite ? ` <span style="color:#ffd68a;">T${Math.floor(Number(st.tier))}</span>` : "";
+      let min = this.services.profileValues.profileJewelValue(st.id, st.valMin ?? st.val), max = this.services.profileValues.profileJewelValue(st.id, st.valMax ?? st.val);
+      return `<div class="social-item-stat"><span style="color:${tone};">${marks}${this.services.format.socialEscape(this.services.profileValues.profileStatLabel({ id: st.id }))}: +${this.services.format.socialEscape(this.services.profileValues.profileJewelValue(st.id, st.val))}${tier}</span> <span class="social-roll">${this.deps._t("(고정 범위 {min}~{max})", { min: this.services.format.socialEscape(min), max: this.services.format.socialEscape(max) })}</span></div>`;
+    }
+    renderProfileTalismanCard(t) {
+      if (!Array.isArray(t.lines)) return this.renderSimpleCard(t);
+      let tone = this.profileTalismanTone(t), off = t.state !== "awake" && t.state !== "amplified";
+      let effect = t.uniqueEffect ? `<div class="social-item-unique"${off ? this.data.PROFILE_OFF_STYLE : ""}>${this.services.format.socialEscape(t.uniqueEffect)}${off ? this.deps._t(" (비활성)") : ""}</div>` : "";
+      let lines = t.lines.slice(0, this.data.SOCIAL_TALISMAN_LINE_LIMIT).filter((line) => line && typeof line.text === "string").map((line) => this.profileTalismanLineHtml(line, off)).join("");
+      let growth = this.profileGrowthText(t);
+      let notes = [this.data.profileOwn(this.data.PROFILE_TALISMAN_STATES, t.state), this.profileGraftText(t)].filter(Boolean).map((text) => `<div class="social-item-base">${this.services.format.socialEscape(text)}</div>`).join("");
+      return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${this.services.format.socialEscape(t.name || "부적")}</div>${growth ? `<div class="social-item-base">${this.services.format.socialEscape(growth)}</div>` : ""}<div class="social-item-base" style="color:${tone};">${this.deps._t("{PROFILE_TALISMAN_RARITY} 부적", { PROFILE_TALISMAN_RARITY: this.data.profileOwn(this.data.PROFILE_TALISMAN_RARITY, t.rarity) || this.deps._t("마법") })}</div>${effect}${lines}${notes}</div>`;
+    }
+    profileTalismanLineHtml(line, off) {
+      let style = off ? this.data.PROFILE_OFF_STYLE : line && line.condition ? ' style="color:#d7b8ff;"' : "";
+      return `<div class="social-item-stat"${style}>${this.services.format.socialEscape(line && line.text)}${off ? this.deps._t(" (비활성)") : ""}</div>`;
+    }
+    profileTalismanTone(t) {
+      return this.services.format.socialSafeColor(typeof this.deps.TALISMAN_RARITY_TONES === "object" ? this.data.profileOwn(this.deps.TALISMAN_RARITY_TONES, t.rarity) : null, this.services.format.socialRarityColor(t.rarity));
+    }
+    profileGrowthText(item) {
+      let need = Math.floor(Number(item.need) || 0);
+      return item.ripe || need <= 0 ? "" : this.deps._t("경험치 {floor} / {need}", { floor: Math.floor(Number(item.xp) || 0), need });
+    }
+    profileGraftText(item) {
+      let rank = Math.floor(Number(item.graft) || 0);
+      return rank > 0 ? this.deps._t("접붙이기 {rank}단계, +{floor}%", { rank, floor: Math.floor(Number(item.graftPct) || 0) }) : "";
+    }
+    renderProfileCoreCard(core) {
+      let lines = (Array.isArray(core.lines) ? core.lines : []).slice(0, this.deps.CORE_ITEM_RULES.lines).filter((line) => typeof line === "string").map((line) => `<div class="social-item-stat">${this.services.format.socialEscape(line)}</div>`).join("");
+      return `<div class="social-item-card" style="border-color:${this.data.PROFILE_CORE_TONE};"><div class="social-item-title">${this.services.format.socialEscape(core.name || "코어")}</div>${lines}</div>`;
+    }
+    renderProfileStumpCard(item) {
+      let tone = this.profileStumpTone(item), scar = item.family === "scar";
+      let gain = item.yieldText ? `${item.yieldText}${item.ripe && !item.suppressed ? "" : this.deps._t(" (비활성)")}` : "";
+      let head = [scar ? "" : this.deps._t("품질 {floor}%{value}", { floor: Math.floor(Number(item.quality) || 0), value: item.golden === true ? this.deps._t(", 황금") : "" }), this.profileGrowthText(item), gain];
+      let rows = (list) => list.filter(Boolean).map((text) => `<div class="social-item-base">${this.services.format.socialEscape(text)}</div>`).join("");
+      return `<div class="social-item-card" style="border-color:${tone};"><div class="social-item-title" style="color:${tone};">${this.services.format.socialEscape(item.name || "그루터기 아이템")}</div>` + rows(head) + this.profileStumpExtraHtml(item) + rows([item.note, this.profileGraftText(item)]) + "</div>";
+    }
+    profileStumpExtraHtml(item) {
+      let rows = Array.isArray(item.extra) ? item.extra.slice(0, 40) : [];
+      return rows.filter((row) => row && typeof row.text === "string").map((row) => `<div class="social-item-stat" style="color:${this.services.profileValues.profileStatTone(row.id)};">${this.services.format.socialEscape(row.text)}</div>`).join("");
+    }
+    profileStumpTone(item) {
+      if (item.kind === "talisman") return this.profileTalismanTone(item);
+      if (item.family === "scar" && typeof this.deps.STUMP_BOX_SCAR === "object") return this.deps.STUMP_BOX_SCAR.tone;
+      let color = typeof this.deps.STUMP_BOX_COLORS === "object" ? this.data.profileOwn(this.deps.STUMP_BOX_COLORS, item.color) : "";
+      return this.services.format.socialSafeColor(color && color.tone, "#9d927d");
+    }
+    renderSimpleCard(snap) {
+      let color = this.services.format.socialRarityColor(snap.rarity);
+      let lines = (Array.isArray(snap.stats) ? snap.stats : []).slice(0, this.data.SOCIAL_LEGACY_ITEM_LINE_LIMIT).filter((st) => st && st.id != null).map((st) => `<div class="social-item-stat" style="color:${this.services.profileValues.profileStatTone(st.id)};">${this.services.format.socialEscape(this.services.profileValues.profileStatLabel(st))} +${this.services.format.socialEscape(this.services.profileValues.profileValue(st.id, st.val))}</div>`).concat((Array.isArray(snap.effects) ? snap.effects : []).slice(0, this.data.SOCIAL_LEGACY_ITEM_LINE_LIMIT).filter((effect) => typeof effect === "string").map((effect) => `<div class="social-item-stat" style="color:#d7b8ff;">${this.services.format.socialEscape(effect)}</div>`)).join("");
+      return `<div class="social-item-card" style="border-color:${color};"><div class="social-item-title" style="color:${color};">${this.services.format.socialEscape(snap.name)}</div>` + (lines || '<div class="social-item-stat" style="color:var(--copy-muted);">옵션 없음</div>') + "</div>";
+    }
+  };
+
+  // modules/ui/social-item-cards.mjs
+  var SocialItemCards = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["renderProfileItemCard", "profileEquipmentView", "profileSharedAffix", "renderProfileKindCard", "profileItemTitleHtml", "profileItemHallHtml", "profileBaseLineHtml", "profileLevelLineHtml", "profileRequirementText", "profileItemUniqueHtml", "profileItemSocketsHtml", "profileJewelSummary", "profileItemFusionHtml", "profileItemOptionsHtml", "profileAffixHeaderText", "profileExplicitStats", "profileBaseOptionsHtml", "profileWardSlotsHtml", "profileBaseStatHtml", "profileDefenseLinesHtml", "profileExplicitLineHtml", "profileAffixParts", "profileAffixSuffixHtml", "profileTierHtml", "profileRollBound", "profileRollRangeHtml", "profileExceptionalMark", "profileEmberScaleHtml", "profileItemAnointHtml", "profileItemEmberHtml", "profileItemEncroachHtml"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    renderProfileItemCard(item) {
+      if (!item) return "";
+      if (item.kind) return this.renderProfileKindCard(item);
+      item = this.profileEquipmentView(item);
+      let color = this.services.format.socialRarityColor(item.rarity);
+      return `<div class="social-item-card" style="border-color:${color};">${this.profileItemTitleHtml(item, color)}${this.profileItemHallHtml(item)}${this.profileBaseLineHtml(item)}${this.profileLevelLineHtml(item)}${this.profileItemUniqueHtml(item)}${this.profileItemSocketsHtml(item)}${this.profileItemFusionHtml(item)}${this.profileItemOptionsHtml(item)}</div>`;
+    }
+    profileEquipmentView(item) {
+      return {
+        ...item,
+        baseStats: this.services.profileValues.profileSnapshotRows(item.baseStats, this.data.SOCIAL_ITEM_ARRAY_LIMITS.baseStats),
+        stats: this.services.profileValues.profileSnapshotRows(item.stats, this.data.SOCIAL_ITEM_ARRAY_LIMITS.stats).map(this.profileSharedAffix),
+        chaosInfusion: item.chaosInfusion ? this.profileSharedAffix(item.chaosInfusion) : item.chaosInfusion,
+        emberLines: this.services.profileValues.profileSnapshotRows(item.emberLines, this.data.SOCIAL_ITEM_ARRAY_LIMITS.ember).map(this.profileSharedAffix),
+        encroached: item.encroached ? { ...item.encroached, chosen: this.profileSharedAffix(item.encroached.chosen) } : item.encroached
+      };
+    }
+    profileSharedAffix(stat) {
+      if (!stat || typeof stat !== "object") return stat;
+      return { ...stat, extraStats: this.services.profileValues.profileSnapshotRows(stat.extraStats, this.data.SOCIAL_ITEM_ARRAY_LIMITS.extraStats) };
+    }
+    renderProfileKindCard(item) {
+      if (item.kind === "jewel") return this.services.specialCards.renderProfileJewelCard(item);
+      if (item.kind === "talisman") return this.services.specialCards.renderProfileTalismanCard(item);
+      if (item.kind === "core") return this.services.specialCards.renderProfileCoreCard(item);
+      return item.kind === "stump" ? this.services.specialCards.renderProfileStumpCard(item) : this.services.specialCards.renderSimpleCard(item);
+    }
+    profileItemTitleHtml(item, color) {
+      let stars = typeof this.deps.getExceptionalBaseStars === "function" && Array.isArray(item.baseStats) ? this.deps.getExceptionalBaseStars(item) : "";
+      let badges = (item.encroached ? ' <span style="color:#b084ff;">(잠식)</span>' : "") + (item.corrupted ? ' <span style="color:#e74c3c;">(타락)</span>' : "") + (item.loopSealed ? ' <span style="color:#7fd99a;">🌿봉인</span>' : "");
+      return `<div class="social-item-title" style="color:${color};">${item.slot ? `[${this.services.format.socialEscape(this.services.profileValues.profileItemTag(item))}] ` : ""}${this.services.format.socialEscape(item.name)}${stars ? ` <span style="color:#ffb454;">${stars}</span>` : ""}${badges}</div>`;
+    }
+    profileItemHallHtml(item) {
+      if (item.hallReplica) {
+        return `<div class="social-item-stat" style="color:#d2b878;">🏛️ 전당 소장품, 전시자 ${this.services.format.socialEscape(item.hallCuratorName || "익명")}, ${this.deps._t("감정 {max}, 제작과 재등록 불가", { max: Math.max(0, Math.floor(Number(item.hallAppraisalScore) || 0)).toLocaleString() })}</div>`;
+      }
+      return item.hallRelistBlocked ? '<div class="social-item-stat" style="color:#bda979;">🏛️ 전당 복제 이력, 재등록 불가</div>' : "";
+    }
+    profileBaseLineHtml(item) {
+      if (!item.baseName) return "";
+      let info = Array.isArray(item.baseStep) ? { step: Math.floor(Number(item.baseStep[0]) || 0), total: Math.floor(Number(item.baseStep[1]) || 0) } : null;
+      let step = info ? ` <span class="${this.deps.getBaseStepClassName(info)}">[${info.step}/${info.total}]</span>` : "";
+      return `<div class="social-item-base">${this.deps._t("베이스: {baseName}{step}", { baseName: this.services.format.socialEscape(item.baseName), step })}</div>`;
+    }
+    profileLevelLineHtml(item) {
+      let level = Math.floor(Number(item.itemLevel) || 0), grade = Math.floor(Number(item.grade) || 0);
+      let gradeHtml = grade && typeof this.deps.getTierBadgeHtml === "function" ? this.deps._t(" 등급 {grade}", { grade: this.deps.getTierBadgeHtml(grade, "T") }) : "";
+      let requirement = this.profileRequirementText(item.requirements);
+      return (level ? `<div class="social-item-base">${this.deps._t("아이템 Lv.{level}{grade}", { level, grade: gradeHtml })}</div>` : "") + (requirement ? `<div class="social-item-base">${this.services.format.socialEscape(requirement)}</div>` : "");
+    }
+    profileRequirementText(req) {
+      if (!req || typeof req !== "object") return "";
+      let attributes = ["strength", "dexterity", "intelligence"].map((key) => [key, req.attributes && req.attributes[key]]).filter(([, value]) => Number(value) > 0).map(([key, value]) => `${this.services.profileValues.profileStatLabel({ id: key })} ${Math.floor(Number(value))}`);
+      return [this.deps._t("요구 Lv.{max}", { max: Math.max(1, Math.floor(Number(req.level) || 1)) }), ...attributes].join(", ");
+    }
+    profileItemUniqueHtml(item) {
+      return item.uniqueEffect ? `<div class="social-item-unique">${this.deps._t("✨ 고유 효과: {uniqueEffect}", { uniqueEffect: this.services.format.socialEscape(item.uniqueEffect) })}</div>` : "";
+    }
+    profileItemSocketsHtml(item) {
+      return this.services.profileValues.profileSnapshotRows(item.sockets, this.data.SOCIAL_ITEM_ARRAY_LIMITS.sockets).filter((row) => row && row.jewel).map((row) => `<div class="social-item-socket">◆ ${this.services.format.socialEscape(row.label)}: <span style="color:${this.services.format.socialRarityColor(row.jewel.rarity)};">${this.services.format.socialEscape(row.jewel.name)}</span>${this.services.format.socialEscape(this.profileJewelSummary(row.jewel))}</div>`).join("");
+    }
+    profileJewelSummary(jewel) {
+      let lines = this.services.profileValues.profileSnapshotRows(jewel.stats, this.data.SOCIAL_ITEM_ARRAY_LIMITS.jewelStats).filter((st) => st && st.id != null).map((st) => `${st.petite ? this.deps._t("쁘띠 ") : ""}${this.services.profileValues.profileStatLabel({ id: st.id })} +${this.services.profileValues.profileJewelValue(st.id, st.val)}`);
+      return lines.length ? `, ${lines.join(", ")}` : "";
+    }
+    profileItemFusionHtml(item) {
+      if (!item.fusedRelic) return "";
+      let gradeLabel = item.fusionGrade === "perfect" ? "완벽한 융합" : item.fusionGrade === "unstable" ? "불안정한 융합" : "보통 융합";
+      return `<div class="social-item-stat" style="color:#8fd8ff;">⌛ ${gradeLabel}${item.fusedRareName ? this.deps._t(", [{fusedRareName}]의 기억", { fusedRareName: this.services.format.socialEscape(item.fusedRareName) }) : ""}</div>`;
+    }
+    profileItemOptionsHtml(item) {
+      let explicit = this.profileExplicitStats(item);
+      let empty = typeof this.deps.colonyWards === "object" && this.deps.colonyWards.isWard(item) ? "장비창의 액막이 칸에 끼웁니다" : "일반 아이템: 추가 옵션 없음";
+      let html = explicit.length ? `<div class="social-item-section">${this.profileAffixHeaderText(item, explicit)}</div>${explicit.map(this.profileExplicitLineHtml).join("")}` : `<div class="social-item-stat" style="color:var(--copy-muted);">${empty}</div>`;
+      return this.profileBaseOptionsHtml(item) + html + this.profileItemEncroachHtml(item) + this.profileItemAnointHtml(item) + this.profileItemEmberHtml(item);
+    }
+    profileAffixHeaderText(item, explicit) {
+      const kinds = explicit.map((st) => st.kind).filter(Boolean);
+      const used = kinds.length ? { prefix: kinds.filter((kind) => kind === "prefix").length, suffix: kinds.filter((kind) => kind === "suffix").length } : null;
+      return typeof this.deps.equipmentCrafting === "object" ? this.deps.equipmentCrafting.affixHeader(item.rarity, explicit.length, used).text : this.deps._t("추가 옵션 ({length}/6)", { length: explicit.length });
+    }
+    profileExplicitStats(item) {
+      let rows = (Array.isArray(item.stats) ? item.stats : []).filter((st) => st && st.id != null);
+      if (item.chaosInfusion && item.chaosInfusion.id != null) rows.push({ ...item.chaosInfusion, statName: this.deps._t("[주입] {chaosInfusion}", { chaosInfusion: this.services.profileValues.profileStatLabel(item.chaosInfusion) }) });
+      return typeof this.deps.itemTooltipRules === "object" ? rows.sort(this.deps.itemTooltipRules.compareStats) : rows;
+    }
+    profileBaseOptionsHtml(item) {
+      let base = (Array.isArray(item.baseStats) ? item.baseStats : []).filter((st) => st && st.id != null);
+      if (!base.length) return "";
+      let defenseIds = typeof this.deps.itemTooltipRules === "object" ? this.deps.itemTooltipRules.DEFENSE_IDS : [];
+      let lines = base.filter((st) => !defenseIds.includes(st.id)).map(this.profileBaseStatHtml).join("");
+      return `<div class="social-item-section">${this.deps._t("베이스 옵션")}</div>${this.profileWardSlotsHtml(item)}${lines}${this.profileDefenseLinesHtml(item, base)}`;
+    }
+    profileWardSlotsHtml(item) {
+      const range = this.deps.COLONY_WARD_RULES.beltSlots, slots = Math.floor(Number(item.wardSlots));
+      if (!(slots >= range.min && slots <= range.max)) return "";
+      return `<div class="social-item-stat"><span style="color:#c8b6ff;">${this.deps._t("액막이 칸")} </span><span style="color:#e6dcc6;">+${slots}</span> <span class="social-roll">(${range.min}~${range.max})</span></div>`;
+    }
+    profileBaseStatHtml(st) {
+      let tone = this.services.profileValues.profileStatTone(st.id);
+      return `<div class="social-item-stat"><span style="color:${tone};">${this.services.format.socialEscape(this.services.profileValues.profileStatLabel(st))} </span><span style="color:${st.exceptional ? "#ffb454" : tone};">+${this.services.format.socialEscape(this.services.profileValues.profileValue(st.id, st.val))}</span>${this.profileRollRangeHtml(st, true)}${this.profileExceptionalMark(st)}</div>`;
+    }
+    profileDefenseLinesHtml(item, base) {
+      if (typeof this.deps.itemTooltipRules !== "object") return "";
+      let view = this.deps.itemTooltipRules.defenseView(item);
+      return this.deps.itemTooltipRules.DEFENSE_IDS.map((id) => {
+        let total = Math.floor(view[id]), baseValue = Math.floor(view.base[id]);
+        if (!(total > 0) && !(baseValue > 0)) return "";
+        let src = base.find((st) => st.id === id) || { id };
+        let value = total === baseValue ? `${baseValue}</span>` : `${total}</span> <span style="color:var(--copy-bright);">(${baseValue})</span>`;
+        return `<div class="social-item-stat">${this.services.format.socialEscape(this.services.profileValues.profileStatLabel({ id }))}: <span style="color:${src.exceptional ? "#ffb454" : this.services.profileValues.profileStatTone(id)};">${value}${src.val != null ? this.profileRollRangeHtml(src, true) : ""}${this.profileExceptionalMark(src)}</div>`;
+      }).join("");
+    }
+    profileExplicitLineHtml(st) {
+      let parts = this.profileAffixParts(st), suffix = this.profileAffixSuffixHtml(st), html = "";
+      for (let i = 0; i < parts.length; i += 2) {
+        html += `<div class="social-item-stat${i ? " is-continued" : ""}">${parts.slice(i, i + 2).join(", ")}${i ? "" : suffix}</div>`;
+      }
+      return html;
+    }
+    profileAffixParts(st) {
+      let extras = this.services.profileValues.profileSnapshotRows(st.extraStats, this.data.SOCIAL_ITEM_ARRAY_LIMITS.extraStats).filter((ex) => ex && ex.id != null);
+      let label = (part) => extras.length ? this.services.profileValues.profileStatLabel({ id: part.id }) : this.services.profileValues.profileStatLabel(part);
+      return [st].concat(extras).map((part) => `<span style="color:${this.services.profileValues.profileStatTone(part.id)};">${this.services.format.socialEscape(label(part))} +${this.services.format.socialEscape(this.services.profileValues.profileValue(part.id, part.val))}</span>`);
+    }
+    profileAffixSuffixHtml(st) {
+      let source = st.source ? ` <span class="equipment-craft-source">${this.services.format.socialEscape(st.source)}</span>` : "";
+      let honey = st.honey ? ' <span class="item-affix-lock item-affix-lock--honey">🍯 벌꿀 고정</span>' : "";
+      return `${this.profileRollRangeHtml(st, false)}${this.profileTierHtml(st)}${source}${honey}${this.profileEmberScaleHtml(st)}`;
+    }
+    profileTierHtml(st) {
+      if (st.fixed) return ' <span class="tier-badge tier-badge-fixed">[T0]</span>';
+      return st.tier !== void 0 && typeof this.deps.getTierBadgeHtml === "function" ? ` ${this.deps.getTierBadgeHtml(Math.floor(Number(st.tier)), "T")}` : "";
+    }
+    profileRollBound(value, fallback) {
+      return Number.isFinite(Number(value)) ? Number(value) : Number(fallback);
+    }
+    profileRollRangeHtml(st, estimate) {
+      let min = this.profileRollBound(st.valMin, st.baseRollMin), max = this.profileRollBound(st.valMax, st.baseRollMax);
+      if (estimate && (!Number.isFinite(min) || !Number.isFinite(max))) {
+        min = Number((Number(st.val || 0) * 0.8).toFixed(2));
+        max = Number((Number(st.val || 0) * 1.2).toFixed(2));
+      }
+      if (!Number.isFinite(min) || !Number.isFinite(max)) return "";
+      return ` <span class="social-roll">(${this.services.format.socialEscape(this.services.profileValues.profileValue(st.id, Math.min(min, max)))}~${this.services.format.socialEscape(this.services.profileValues.profileValue(st.id, Math.max(min, max)))})</span>`;
+    }
+    profileExceptionalMark(st) {
+      return st.exceptional ? ' <span style="color:#ffb454;font-weight:700;">✦+20%</span>' : "";
+    }
+    profileEmberScaleHtml(st) {
+      const pct = Math.round(((Number(st.ember) || 1) - 1) * 100);
+      return pct ? ` <span style="color:${pct > 0 ? this.deps.EMBER_CORRUPTION_TONE : "#9aa3ad"};font-weight:700;">🔥${pct > 0 ? "+" : ""}${pct}%</span>` : "";
+    }
+    profileItemAnointHtml(item) {
+      return this.services.profileValues.profileSnapshotRows(item.anoint, this.data.SOCIAL_ITEM_ARRAY_LIMITS.anoint).filter((row) => row && row.title).map((row) => `<div class="social-item-stat" style="color:#cfe0a0;">${this.deps._t("🌿 기름: {title} ({text})", { title: this.services.format.socialEscape(row.title), text: this.services.format.socialEscape(row.text || "") })}</div>`).join("");
+    }
+    profileItemEmberHtml(item) {
+      if (!Array.isArray(item.ember)) return "";
+      const lines = this.services.profileValues.profileSnapshotRows(item.ember, this.data.SOCIAL_ITEM_ARRAY_LIMITS.ember).filter((line) => line && line.id != null).map((line) => `<div class="social-item-stat" style="color:${this.deps.EMBER_CORRUPTION_TONE};">${this.deps._t("[잿불] {line} +{id}", { line: this.services.format.socialEscape(this.services.profileValues.profileStatLabel(line)), id: this.services.format.socialEscape(this.services.profileValues.profileValue(line.id, line.val)) })}</div>`).join("");
+      return `<div class="social-item-section" style="color:${this.deps.EMBER_CORRUPTION_TONE};">${this.deps._t("🔥 타오른 장비 (다시 태울 수 없음)")}</div>${lines}`;
+    }
+    profileItemEncroachHtml(item) {
+      let encroached = item.encroached;
+      if (!encroached) return "";
+      let chosen = encroached.liberated && encroached.chosen;
+      let line = chosen && chosen.id != null ? `<div class="social-item-stat" style="color:#d7b8ff;">[잠식] ${this.services.format.socialEscape(this.services.profileValues.profileStatLabel(chosen))} +${this.services.format.socialEscape(this.services.profileValues.profileValue(chosen.id, chosen.val))}${this.profileTierHtml({ tier: Number(chosen.tier) || 10 })}</div>` : '<div class="social-item-stat" style="color:#8d7bb3;">해방 전에는 효과 없음, 모든 제작으로도 변하지 않음</div>';
+      return `<div class="social-item-section" style="color:#b084ff;">${this.deps._t("잠식 특수 옵션")}</div>${line}`;
+    }
+  };
+
+  // modules/ui/social-chat-markup.mjs
+  var SocialChatMarkup = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["renderChatBody", "renderChatItemLink", "formatChatTime", "scrollSocialChatToLatest", "renderChatMessages"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    renderChatBody(m) {
+      let body = String(m.body || "");
+      let items = m.payload && Array.isArray(m.payload.items) ? m.payload.items.slice(0, this.data.SOCIAL_MAX_ITEMS_PER_MSG) : [];
+      if (!items.length || body.indexOf("⟦") === -1) return this.services.format.socialEscape(body);
+      let out = "", lastIndex = 0;
+      let re = new RegExp(this.data.SOCIAL_ITEM_TOKEN_RE.source, "g");
+      let match;
+      while ((match = re.exec(body)) !== null) {
+        out += this.services.format.socialEscape(body.slice(lastIndex, match.index));
+        let n = parseInt(match[1], 10);
+        let snap = items[n];
+        out += snap ? this.renderChatItemLink(`${m.id}:${n}`, snap) : this.services.format.socialEscape(match[0]);
+        lastIndex = match.index + match[0].length;
+      }
+      out += this.services.format.socialEscape(body.slice(lastIndex));
+      return out;
+    }
+    renderChatItemLink(key, snap) {
+      let name = this.services.format.socialEscape(snap && snap.name), card = "", color = "";
+      try {
+        card = this.services.itemCards.renderProfileItemCard(snap);
+        color = this.services.format.socialRarityColor(snap.rarity);
+      } catch (error) {
+        this.deps.console.warn("채팅 아이템 카드를 그리지 못했습니다:", error);
+      }
+      if (!card) return `<span class="social-item-link">[${name}]</span>`;
+      this.state.current.chatTips[key] = card;
+      return `<span class="social-item-link" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'chat','${this.services.format.socialEscape(key)}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('chat','${this.services.format.socialEscape(key)}')">[${name}]</span>`;
+    }
+    formatChatTime(iso) {
+      let d = new Date(iso);
+      if (!Number.isFinite(d.getTime())) return "";
+      let mm = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+      let hh = String(d.getHours()).padStart(2, "0"), mi = String(d.getMinutes()).padStart(2, "0");
+      return `${mm}/${dd} ${hh}:${mi}`;
+    }
+    scrollSocialChatToLatest(listEl) {
+      if (!listEl) return;
+      let apply = () => {
+        if (listEl.isConnected === false) return;
+        listEl.scrollTop = listEl.scrollHeight;
+      };
+      apply();
+      if (typeof this.deps.requestAnimationFrame === "function") this.deps.requestAnimationFrame(apply);
+      if (typeof this.deps.setTimeout === "function") this.deps.setTimeout(apply, 50);
+    }
+    renderChatMessages(messages, forceScroll) {
+      let listEl = this.deps.document.getElementById("social-chat-list");
+      if (!listEl) return;
+      let myId = this.services.session.socialLoggedInUserId();
+      let maxId = messages.reduce((acc, m) => Math.max(acc, Number(m.id) || 0), 0);
+      if (maxId > 0) this.services.chatStatus.setLastSeenChatId(maxId);
+      if (this.deps.game?.noti) this.deps.game.noti.social = false;
+      this.services.noticeView.refreshSocialNotificationDots();
+      let blocked = new Set(this.services.blocking.getBlockedUserIds());
+      messages = messages.filter((m) => !blocked.has(String(m.user_id)));
+      let shouldScroll = this.shouldScrollChat(listEl, forceScroll);
+      let key = messages.map((m) => `${m.id}:${m.nickname}`).join(",");
+      if (key === this.state.current.lastChatRenderKey) {
+        if (shouldScroll) this.scrollSocialChatToLatest(listEl);
+        this.state.current.scrollChatToLatestOnNextRender = false;
+        return;
+      }
+      this.state.current.lastChatRenderKey = key;
+      if (!messages.length) {
+        listEl.innerHTML = `<div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>${this.deps._t("아직 조용합니다")}</strong><small>${this.deps._t("첫 메시지를 남겨보세요.")}</small></div>`;
+        this.state.current.scrollChatToLatestOnNextRender = false;
+        return;
+      }
+      this.state.current.chatTips = {};
+      let admin = this.services.chatStatus.socialAdminView();
+      listEl.innerHTML = messages.map((m) => {
+        let mine = m.user_id === myId;
+        let nickname2 = String(m.nickname || "익명");
+        return `<article class="social-chat-msg${mine ? " mine" : ""}"><header class="social-chat-head"><button type="button" class="social-chat-author" onclick="openPlayerProfile('${this.services.format.socialEscape(m.user_id)}')"><span class="social-chat-nick">${this.services.format.socialEscape(nickname2)}</span></button>${mine ? this.deps._t('<span class="social-chat-self">나</span>') : ""}<time class="social-chat-time">${this.formatChatTime(m.created_at)}</time>${admin ? `<button type="button" class="social-chat-delete" data-chat-delete="${this.services.format.socialEscape(m.id)}" onclick="deleteChatMessage(this)">${this.deps._t("지우기")}</button>` : ""}</header><div class="social-chat-body">${this.renderChatBody(m)}</div></article>`;
+      }).join("");
+      if (shouldScroll) this.scrollSocialChatToLatest(listEl);
+      this.state.current.scrollChatToLatestOnNextRender = false;
+    }
+    shouldScrollChat(listEl, forceScroll) {
+      const nearBottom = listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight < 60;
+      return !!forceScroll || this.state.current.scrollChatToLatestOnNextRender || nearBottom;
+    }
+  };
+
+  // modules/ui/social-polling.mjs
+  var SocialPolling = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["forgetSocialChatMessages", "applySocialChatPoll", "refreshChatPanel", "startChatPolling"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    forgetSocialChatMessages(ids) {
+      let before = this.state.current.chatMessages || [], gone = new Set((ids || []).map(String)), now = Date.now();
+      let forgotten = this.state.current.chatForgotten || (this.state.current.chatForgotten = { ids: /* @__PURE__ */ new Map(), through: 0, until: 0 });
+      forgotten.ids.forEach((until, id) => {
+        if (until <= now) forgotten.ids.delete(id);
+      });
+      if (ids) gone.forEach((id) => forgotten.ids.set(id, now + this.data.SOCIAL_CHAT_FORGET_MS));
+      else Object.assign(forgotten, { through: this.data.socialChatMaxId(before), until: now + this.data.SOCIAL_CHAT_FORGET_MS });
+      this.state.current.chatMessages = ids ? before.filter((row) => !gone.has(String(row.id))) : [];
+      if (this.state.current.chatMessages.length === before.length || this.state.current.chatForgetQueued) return;
+      this.state.current.chatForgetQueued = true;
+      this.deps.setTimeout(() => {
+        this.state.current.chatForgetQueued = false;
+        if (this.state.current.chatInitialized && this.services.chatStatus.isSocialTabActive()) this.services.chatMarkup.renderChatMessages(this.state.current.chatMessages, false);
+      }, 0);
+    }
+    applySocialChatPoll(incoming, knownRows, fullSync, now) {
+      let retained = fullSync ? this.state.current.chatMessages.filter((row) => !knownRows.has(String(row.id))) : this.state.current.chatMessages;
+      this.state.current.chatMessages = this.services.chatData.mergeSocialChatMessages(retained, incoming, now);
+      this.state.current.chatInitialized = true;
+      if (fullSync) this.state.current.lastChatFullSyncAt = now;
+    }
+    async refreshChatPanel(forceScroll) {
+      if (!this.services.session.socialCloudReady() || this.state.current.chatLoading) return;
+      let context = this.services.session.socialSessionContext();
+      this.state.current.chatLoading = context;
+      try {
+        let now = Date.now();
+        let fullSync = !this.state.current.chatInitialized || now - this.state.current.lastChatFullSyncAt >= this.data.SOCIAL_CHAT_FULL_SYNC_MS;
+        let knownId = this.data.socialChatMaxId(this.state.current.chatMessages), wasReady = this.state.current.chatInitialized;
+        let knownRows = new Set(this.state.current.chatMessages.map((row) => String(row.id)));
+        this.state.current.lastChatPollAt = now;
+        let incoming = (await this.services.chatData.loadChatMessages(fullSync ? null : knownId, now)).filter((row) => !this.services.chatData.isForgottenSocialChat(row, now));
+        if (!this.services.session.isSocialSessionCurrent(context)) return;
+        this.services.chatData.noteLiveChatGap(incoming, fullSync, wasReady);
+        this.applySocialChatPoll(incoming, knownRows, fullSync, now);
+        this.services.chatMarkup.renderChatMessages(this.state.current.chatMessages, forceScroll);
+        if (wasReady && this.data.socialChatMaxId(incoming) > knownId) this.services.presence.onlineChat.refresh(false);
+      } catch (e) {
+        this.deps.console.warn("채팅 로드 실패:", e);
+      } finally {
+        this.services.session.releaseSocialRequest("chatLoading", context);
+      }
+    }
+    startChatPolling() {
+      this.services.reset.stopChatPolling();
+      if (!this.services.session.socialCloudReady()) return;
+      this.refreshChatPanel(true);
+      this.services.presence.refreshOnlineUsers(true);
+      this.state.current.chatPollTimer = this.deps.setInterval(() => {
+        if (!this.services.chatStatus.isSocialTabActive()) {
+          this.services.reset.stopChatPolling();
+          return;
+        }
+        if (!this.services.chatStatus.isSocialPageHidden() && this.services.chatStatus.socialChatPollDue(this.state.current.lastChatPollAt)) this.refreshChatPanel(false);
+      }, this.data.SOCIAL_CHAT_POLL_MS);
+      this.state.current.onlinePollTimer = this.deps.setInterval(() => {
+        if (!this.services.chatStatus.isSocialTabActive()) {
+          this.services.reset.stopChatPolling();
+          return;
+        }
+        if (!this.services.chatStatus.isSocialPageHidden()) this.services.presence.refreshOnlineUsers();
+      }, this.data.SOCIAL_ONLINE_POLL_MS);
+    }
+  };
+
+  // modules/ui/social-realtime.mjs
+  var SocialRealtime = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["socialAccessToken", "socialChatRealtime", "receiveLiveChat", "showLiveChat", "onLiveChatStatus", "openLiveChat", "syncLiveChat", "wantsLiveChat", "releaseIdleLiveChat"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    socialAccessToken() {
+      return typeof this.deps.cloudState !== "undefined" && this.deps.cloudState && this.deps.cloudState.session && this.deps.cloudState.session.access_token || "";
+    }
+    socialChatRealtime() {
+      if (this.state.current.chatRealtime) return this.state.current.chatRealtime;
+      let base = typeof this.deps.window !== "undefined" ? this.deps.window.supabaseClient : null;
+      if (!base || !base.supabaseUrl || !base.supabaseKey || !this.deps.window.supabase || typeof this.deps.window.supabase.createClient !== "function") return null;
+      this.state.current.chatRealtime = this.deps.window.supabase.createClient(base.supabaseUrl, base.supabaseKey, {
+        accessToken: async () => this.socialAccessToken() || null,
+        realtime: { disconnectOnEmptyChannelsAfterMs: 0 }
+        // 채널을 놓으면 소켓도 바로 닫는다(동시 연결 수)
+      });
+      return this.state.current.chatRealtime;
+    }
+    receiveLiveChat(row) {
+      if (!row || !Number.isFinite(Number(row.id)) || !this.services.chatData.isSocialChatMessageCurrent(row)) return;
+      this.state.current.chatLiveMisses = 0;
+      this.state.current.chatLive = true;
+      if (!this.services.chatData.isForgottenSocialChat(row, Date.now())) this.state.current.chatMessages = this.services.chatData.mergeSocialChatMessages(this.state.current.chatMessages, [row]);
+      this.showLiveChat(row);
+    }
+    showLiveChat(row) {
+      if (!this.services.chatStatus.isSocialTabActive()) {
+        if (typeof this.deps.game !== "undefined" && this.deps.game && this.deps.game.noti) this.services.noticeView.noteIncomingChats([row]);
+        return;
+      }
+      if (this.state.current.chatInitialized) this.services.chatMarkup.renderChatMessages(this.state.current.chatMessages, false);
+      if (row.user_id !== this.services.session.socialLoggedInUserId()) this.services.presence.onlineChat.refresh(false);
+    }
+    onLiveChatStatus(status) {
+      if (status === "SUBSCRIBED") {
+        this.state.current.chatLive = this.state.current.chatLiveMisses < this.data.SOCIAL_CHAT_LIVE_MISSES;
+        this.state.current.chatLiveSince = Date.now();
+        this.state.current.lastChatPollAt = 0;
+        this.state.current.lastChatNoticeAt = 0;
+        return;
+      }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") this.state.current.chatLive = false;
+    }
+    openLiveChat() {
+      if (this.state.current.chatChannel || !this.socialAccessToken()) return;
+      let client = this.socialChatRealtime();
+      if (!client) return;
+      this.state.current.chatChannelUserId = this.services.session.socialLoggedInUserId();
+      let context = this.services.session.socialSessionContext();
+      this.state.current.chatChannelSession = context;
+      let channel = client.channel("social-chat").on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (change) => {
+        if (this.state.current.chatChannel !== channel || !this.services.session.isSocialSessionCurrent(context)) return;
+        try {
+          this.receiveLiveChat(change && change.new);
+        } catch (error) {
+          this.deps.console.warn("실시간 채팅 한 줄을 처리하지 못했습니다:", error);
+        }
+      }).on("postgres_changes", { event: "DELETE", schema: "public", table: "chat_messages" }, (change) => {
+        if (this.state.current.chatChannel !== channel || !this.services.session.isSocialSessionCurrent(context)) return;
+        let id = change && change.old && change.old.id;
+        if (id != null) this.services.polling.forgetSocialChatMessages([id]);
+      });
+      this.state.current.chatChannel = channel;
+      Promise.resolve(client.realtime.setAuth(this.socialAccessToken())).then(() => {
+        if (this.state.current.chatChannel !== channel || !this.services.session.isSocialSessionCurrent(context)) return;
+        channel.subscribe((status) => {
+          if (this.state.current.chatChannel === channel && this.services.session.isSocialSessionCurrent(context)) this.onLiveChatStatus(status);
+        });
+      }).catch((error) => {
+        if (this.state.current.chatChannel === channel) this.services.reset.closeLiveChat();
+        this.deps.console.warn("채팅 실시간 연결 준비 실패:", error);
+      });
+    }
+    syncLiveChat() {
+      if (!this.services.session.socialCloudReady() || this.state.current.chatChannel && !this.services.session.isSocialSessionCurrent(this.state.current.chatChannelSession)) this.services.reset.closeLiveChat();
+      if (!this.services.session.socialCloudReady()) return;
+      if (this.services.chatStatus.isSocialPageHidden() || !this.wantsLiveChat()) {
+        if (this.state.current.chatChannel && !this.state.current.chatLiveHiddenTimer) this.state.current.chatLiveHiddenTimer = this.deps.setTimeout(this.releaseIdleLiveChat, this.data.SOCIAL_CHAT_LIVE_HIDDEN_MS);
+        return;
+      }
+      this.deps.clearTimeout(this.state.current.chatLiveHiddenTimer);
+      this.state.current.chatLiveHiddenTimer = null;
+      this.openLiveChat();
+    }
+    wantsLiveChat() {
+      return this.services.chatStatus.isSocialTabActive() || this.services.chatStatus.isSocialChatNotificationEnabled();
+    }
+    releaseIdleLiveChat() {
+      this.state.current.chatLiveHiddenTimer = null;
+      if (this.services.chatStatus.isSocialPageHidden() || !this.wantsLiveChat()) this.services.reset.closeLiveChat();
+    }
+  };
+
+  // modules/ui/social-background.mjs
+  var SocialBackground = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["syncSocialChatNotificationSetting", "syncSocialBackgroundTasks", "syncSocialChatPolling"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    syncSocialChatNotificationSetting() {
+      if (typeof this.deps.game !== "undefined" && this.deps.game && this.deps.game.noti && !this.services.chatStatus.isSocialChatNotificationEnabled()) {
+        this.deps.game.noti.social = false;
+        this.services.noticeView.refreshSocialNotificationDots();
+      }
+      this.services.realtime.syncLiveChat();
+      Promise.resolve(this.services.notifications.checkSocialChatNotification()).catch((error) => this.deps.console.warn("social notification setting sync failed:", error));
+    }
+    syncSocialBackgroundTasks() {
+      this.services.identity.syncSocialIdentityUser();
+      this.services.realtime.syncLiveChat();
+      if (!this.services.session.socialCloudReady()) {
+        this.services.reset.stopHeartbeat();
+        this.services.reset.stopSocialNotificationPolling();
+        this.services.reset.stopChatPolling();
+        return;
+      }
+      this.services.notifications.ensureSocialNotificationPolling();
+      if (this.services.identity.getMyNickname()) {
+        this.services.presence.ensureHeartbeat();
+        this.services.upload.syncInitialPlayerProfile();
+      } else this.services.reset.stopHeartbeat();
+      if (this.state.current.identityCheckedUserId !== this.services.session.socialLoggedInUserId()) {
+        Promise.resolve(this.services.nickname.restoreNicknameFromServer()).then((nickname2) => {
+          if (nickname2 && this.services.session.socialCloudReady()) {
+            this.services.presence.ensureHeartbeat();
+            this.services.upload.syncInitialPlayerProfile();
+          }
+        }).catch((error) => this.deps.console.warn("소셜 계정 정보 동기화 실패:", error));
+      }
+    }
+    syncSocialChatPolling() {
+      this.services.realtime.syncLiveChat();
+      if (!this.services.session.socialCloudReady() || !this.services.chatStatus.isSocialTabActive()) {
+        this.services.reset.stopChatPolling();
+        return;
+      }
+      if (!this.state.current.chatPollTimer) this.services.polling.startChatPolling();
+    }
+  };
+
+  // modules/ui/social-composer-controls.mjs
+  var SocialComposerControls = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["updateChatSendButton"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    updateChatSendButton() {
+      const button = this.deps.document.getElementById("social-chat-send");
+      if (!button) return;
+      button.disabled = this.state.current.chatSending || !this.services.session.socialCloudReady() || !this.services.identity.getMyNickname();
+      button.textContent = this.state.current.chatSending ? this.deps._t("전송 중") : this.deps._t("전송");
+      button.setAttribute("aria-busy", String(this.state.current.chatSending));
+    }
+  };
+
+  // modules/ui/social-attachments.mjs
+  var SocialAttachments = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["getChatAttachSnapshot", "buildChatItemSnapshot", "chatItemLabel", "toChatBody", "insertChatItemLabel", "attachChatSnapshot", "attachChatItem", "attachChatItemOf", "removePendingChatItem", "renderPendingChatItems", "updateChatCounter"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    getChatAttachSnapshot(source, key) {
+      let state2 = typeof this.deps.game !== "undefined" && this.deps.game ? this.deps.game : {};
+      if (source === "equip") return this.buildChatItemSnapshot((state2.equipment || {})[key], key);
+      if (source === "inv") return this.buildChatItemSnapshot((state2.inventory || [])[Number(key)]);
+      if (source === "stump" && state2.stumpBox) return this.services.snapshot.buildStumpItemCard(this.deps.stumpBox.itemById(state2, Number(key)), this.deps.stumpBox.evaluate(state2));
+      return null;
+    }
+    buildChatItemSnapshot(item, slot) {
+      if (!item) return null;
+      if (this.deps.bagItems.isJewel(item)) return this.services.snapshot.buildJewelSnapshot(item);
+      if (this.deps.bagItems.isCore(item)) return this.services.snapshot.buildCoreCard(item);
+      return this.services.snapshot.buildItemSnapshot(item, this.deps.colonyWards.isWard(item) ? void 0 : slot);
+    }
+    chatItemLabel(snap) {
+      return `[${String(snap && snap.name || "아이템")}]`;
+    }
+    toChatBody(text, pending) {
+      let body = String(text || ""), items = [];
+      pending.forEach((snap) => {
+        let label = this.chatItemLabel(snap), at = body.indexOf(label);
+        if (at < 0) return;
+        body = body.slice(0, at) + `⟦${items.length}⟧` + body.slice(at + label.length);
+        items.push(snap);
+      });
+      return { body, items };
+    }
+    insertChatItemLabel(inputEl, label) {
+      let value = String(inputEl.value || ""), start = inputEl.selectionStart ?? value.length, end = inputEl.selectionEnd ?? start;
+      let before = value.slice(0, start), gap = before && !/\s$/.test(before) ? " " : "";
+      inputEl.value = `${before}${gap}${label} ${value.slice(end)}`;
+      let caret = before.length + gap.length + label.length + 1;
+      inputEl.focus();
+      inputEl.setSelectionRange(caret, caret);
+    }
+    attachChatSnapshot(snap) {
+      if (this.state.current.pendingChatItems.length >= this.data.SOCIAL_MAX_ITEMS_PER_MSG) {
+        this.deps.showGameToast(this.deps._t("메시지당 최대 {SOCIAL_MAX_ITEMS_PER_MSG}개의 아이템만 첨부할 수 있습니다.", { SOCIAL_MAX_ITEMS_PER_MSG: this.data.SOCIAL_MAX_ITEMS_PER_MSG }), "warning");
+        return false;
+      }
+      this.state.current.pendingChatItems.push(snap);
+      let inputEl = this.deps.document.getElementById("social-chat-input");
+      if (inputEl) this.insertChatItemLabel(inputEl, this.chatItemLabel(snap));
+      this.renderPendingChatItems();
+      this.updateChatCounter();
+      return true;
+    }
+    attachChatItem(source, idx) {
+      let snap = this.getChatAttachSnapshot(source, idx);
+      if (snap) this.attachChatSnapshot(snap);
+    }
+    attachChatItemOf(item, slot) {
+      if (!this.services.identity.getMyNickname()) return this.deps.showGameToast(this.deps._t("닉네임을 정하면 아이템을 채팅에 붙일 수 있습니다."), "warning");
+      let snap = this.buildChatItemSnapshot(item, slot);
+      if (!snap) return this.deps.showGameToast(this.deps._t("이 아이템은 채팅에 붙일 수 없습니다."), "warning");
+      this.attachChatSnapshot(snap);
+    }
+    removePendingChatItem(idx) {
+      let [snap] = this.state.current.pendingChatItems.splice(idx, 1);
+      let inputEl = this.deps.document.getElementById("social-chat-input");
+      if (inputEl && snap) inputEl.value = String(inputEl.value || "").replace(this.chatItemLabel(snap), "").replace(/ {2,}/g, " ").trim();
+      this.renderPendingChatItems();
+      this.updateChatCounter();
+    }
+    renderPendingChatItems() {
+      let host = this.deps.document.getElementById("social-pending-items");
+      if (!host) return;
+      if (!this.state.current.pendingChatItems.length) {
+        host.innerHTML = "";
+        host.style.display = "none";
+        return;
+      }
+      host.style.display = "flex";
+      host.innerHTML = this.state.current.pendingChatItems.map((it, i) => {
+        let color = this.services.format.socialRarityColor(it.rarity);
+        return `<span class="social-pending-chip" style="border-color:${color};color:${color};">${this.services.format.socialEscape(this.chatItemLabel(it))}<button onclick="removePendingChatItem(${i})" aria-label="${this.deps._t("첨부 취소")}" data-tip="${this.deps._t("첨부 취소")}">✕</button></span>`;
+      }).join("");
+    }
+    updateChatCounter() {
+      let inputEl = this.deps.document.getElementById("social-chat-input");
+      let counterEl = this.deps.document.getElementById("social-chat-counter");
+      if (!inputEl || !counterEl) return;
+      let len = this.toChatBody(inputEl.value, this.state.current.pendingChatItems).body.length;
+      counterEl.textContent = `${len}/${this.data.SOCIAL_MSG_MAX}`;
+      counterEl.style.color = len > this.data.SOCIAL_MSG_MAX ? "#e88" : "var(--copy-muted)";
+    }
+  };
+
+  // modules/ui/social-screen.mjs
+  var SocialScreen = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["getSocialRenderRoot", "takeChatDraft", "restoreChatDraft", "renderSocialTab", "chatSettingsBody", "renderBlockedUsersRow", "openChatSettings", "refreshChatSettings"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    getSocialRenderRoot(host) {
+      let root = host.querySelector(":scope > .social-root");
+      if (!root) {
+        root = this.deps.document.createElement("div");
+        root.className = "social-root";
+        host.appendChild(root);
+      }
+      return root;
+    }
+    takeChatDraft() {
+      let input = this.deps.document.getElementById("social-chat-input");
+      if (!input || !input.value || this.state.current.chatDraftUserId !== this.services.session.socialLoggedInUserId()) return null;
+      return { text: String(input.value), start: input.selectionStart, end: input.selectionEnd, focused: this.deps.document.activeElement === input };
+    }
+    restoreChatDraft(draft) {
+      this.state.current.chatDraftUserId = this.services.session.socialLoggedInUserId();
+      let input = this.deps.document.getElementById("social-chat-input");
+      if (!draft || !input) return;
+      input.value = draft.text;
+      if (!draft.focused || input.disabled) return;
+      input.focus({ preventScroll: true });
+      if (typeof input.setSelectionRange === "function" && Number.isFinite(draft.start)) input.setSelectionRange(draft.start, draft.end);
+    }
+    renderSocialTab() {
+      let host = this.deps.document.getElementById("tab-social");
+      if (!host) return;
+      let root = this.getSocialRenderRoot(host);
+      let loggedIn = this.services.session.socialCloudReady();
+      let nickname2 = this.services.identity.getMyNickname();
+      this.services.background.syncSocialBackgroundTasks();
+      if (!loggedIn) {
+        this.renderCloudNotice(root);
+        this.services.reset.stopChatPolling();
+        return;
+      }
+      let draft = this.takeChatDraft();
+      root.innerHTML = `
+            ${nickname2 ? "" : this.deps._t('<div class="social-notice social-nickname-notice">닉네임을 정하면 채팅할 수 있습니다. <button type="button" onclick="promptAndSetNickname()">닉네임 정하기</button></div>')}
+            <div class="social-chat-wrap">
+                <span id="social-chat-online" class="social-chat-online" hidden></span>
+                <div id="social-chat-list" class="social-chat-list"><div class="social-chat-empty"><span aria-hidden="true">◇</span><strong>${this.deps._t("대화를 불러오는 중")}</strong></div></div>
+                <div id="social-pending-items" class="social-pending-items" style="display:none;"></div>
+                <div class="social-chat-inputbar">
+                    <button class="social-attach-btn" onclick="openItemPicker()" data-tip="${this.deps._t("아이템 첨부")}" aria-label="${this.deps._t("아이템 첨부")}" ${nickname2 ? "" : "disabled"}><span aria-hidden="true">＋</span> ${this.deps._t("첨부")}</button>
+                    <div class="social-chat-input-shell">
+                        <input id="social-chat-input" name="social-chat-message" type="text" maxlength="${this.data.SOCIAL_MSG_MAX}" placeholder="${nickname2 ? this.deps._t("메시지를 입력하세요…") : this.deps._t("먼저 닉네임을 설정하세요")}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" onkeydown="onSocialChatKeydown(event)" oninput="updateChatCounter()" ${nickname2 ? "" : "disabled"}>
+                        <span id="social-chat-counter" class="social-chat-counter">0/${this.data.SOCIAL_MSG_MAX}</span>
+                    </div>
+                    <button id="social-chat-send" class="social-send-btn" onclick="sendChatMessage()" ${nickname2 ? "" : "disabled"}>${this.deps._t("전송")}</button>
+                </div>
+            </div>`;
+      this.restoreChatDraft(draft);
+      this.state.current.lastChatRenderKey = "";
+      this.state.current.lastOnlineRenderKey = "";
+      this.state.current.scrollChatToLatestOnNextRender = true;
+      this.services.attachments.renderPendingChatItems();
+      this.services.attachments.updateChatCounter();
+      this.services.composerControls.updateChatSendButton();
+      this.services.presence.ensureHeartbeat();
+      this.services.polling.startChatPolling();
+      this.services.nickname.restoreNicknameFromServer().then((restored) => {
+        if (!this.state.disposed && restored !== nickname2) this.renderSocialTab();
+      });
+    }
+    renderCloudNotice(root) {
+      let checkingCloud = typeof this.deps.cloudState !== "undefined" && this.deps.cloudState && (this.deps.cloudState.busy || this.deps.cloudState.initialized === false);
+      root.innerHTML = checkingCloud ? `<div class="social-notice social-notice-loading"><strong>${this.deps._t("클라우드 세션을 연결하는 중입니다.")}</strong><br>${this.deps._t("연결이 끝나면 채팅이 이 화면에서 자동으로 열립니다.")}</div>` : `<div class="social-notice social-empty-state"><span class="social-empty-sigil" aria-hidden="true">✦</span><strong>${this.deps._t("클라우드 커뮤니티")}</strong><p>${this.deps._t("로그인하면 채팅과 프로필을 바로 쓸 수 있습니다.")}</p><button type="button" onclick="closeCommunityDock(); openStartupGate({ accountOnly: true })">${this.deps._t("로그인 화면 열기")}</button></div>`;
+    }
+    chatSettingsBody() {
+      if (!this.services.session.socialCloudReady()) {
+        return `<div class="chat-settings"><p class="social-notice">로그인하면 닉네임, 공개 프로필, 접속자 목록을 쓸 수 있습니다.</p><button type="button" onclick="selectionDialog.close('${this.data.CHAT_SETTINGS_ID}'); closeCommunityDock(); openStartupGate({ accountOnly: true })">${this.deps._t("로그인 화면 열기")}</button></div>`;
+      }
+      let nickname2 = this.services.identity.getMyNickname();
+      return `<div class="chat-settings">
+            <div class="chat-settings-row"><span>${this.deps._t("닉네임")}</span><strong>${nickname2 ? this.services.format.socialEscape(nickname2) : this.deps._t("<em>미설정</em>")}</strong>
+                <button type="button" onclick="promptAndSetNickname()">${nickname2 ? this.deps._t("바꾸기") : this.deps._t("정하기")}</button></div>
+            <div class="chat-settings-row"><span>${this.deps._t("공개 프로필")}</span>
+                <button type="button" onclick="openMyProfilePreview()">${this.deps._t("보기")}</button>
+                <button type="button" onclick="syncPlayerProfile()" data-tip="${this.deps._t("지금 장비와 능력치를 공개 프로필에 올립니다")}">${this.deps._t("동기화")}</button></div>
+            ${this.renderBlockedUsersRow()}
+            <div id="social-online" class="social-online" style="display:none;"></div>
+        </div>`;
+    }
+    renderBlockedUsersRow() {
+      let blocked = this.services.blocking.getBlockedUsers();
+      if (!blocked.length) return "";
+      let chips = blocked.map((entry) => `<button type="button" data-user-id="${this.services.format.socialEscape(entry.id)}" onclick="unblockUser(this.dataset.userId)">${this.deps._t("{name} 풀기", { name: this.services.format.socialEscape(entry.name || entry.id.slice(0, 8)) })}</button>`).join("");
+      return `<div class="chat-settings-row"><span>${this.deps._t("차단한 사람")}</span>${chips}</div>`;
+    }
+    openChatSettings() {
+      this.deps.selectionDialog.show({ id: this.data.CHAT_SETTINGS_ID, title: this.deps._t("채팅 설정"), panelClass: "chat-settings-panel", body: this.chatSettingsBody() });
+      if (!this.services.session.socialCloudReady()) return;
+      this.state.current.lastOnlineRenderKey = "";
+      this.services.presence.refreshOnlineUsers(true);
+    }
+    refreshChatSettings() {
+      if (this.deps.selectionDialog.isOpen(this.data.CHAT_SETTINGS_ID)) this.openChatSettings();
+    }
+  };
+
+  // modules/ui/social-screen-actions.mjs
+  var SocialScreenActions = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["syncPlayerProfile", "promptAndSetNickname", "finishSocialNicknameChange", "unblockUser"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    async syncPlayerProfile() {
+      let context = this.services.session.socialSessionContext();
+      if (!this.services.session.socialCloudReady()) return this.deps.showGameToast(this.deps._t("먼저 클라우드 로그인이 필요합니다."), "warning");
+      await this.services.nickname.restoreNicknameFromServer(true);
+      if (!this.services.session.isSocialSessionCurrent(context)) return;
+      if (!this.services.identity.getMyNickname()) await this.promptAndSetNickname();
+      if (!this.services.session.isSocialSessionCurrent(context) || !this.services.identity.getMyNickname()) return;
+      try {
+        await this.services.upload.uploadPlayerProfile({ required: true });
+        if (!this.services.session.isSocialSessionCurrent(context)) return;
+        this.deps.showGameToast(this.deps._t("공개 프로필을 최신 상태로 갱신했습니다."), "success");
+      } catch (error) {
+        if (!this.services.session.isSocialSessionCurrent(context)) return;
+        this.services.upload.reportProfileSyncFailure(error);
+        this.services.screen.renderSocialTab();
+      }
+    }
+    async promptAndSetNickname() {
+      let context = this.services.session.socialSessionContext();
+      if (!this.services.session.socialCloudReady()) {
+        this.deps.showGameToast(this.deps._t("채팅/프로필 기능을 쓰려면 먼저 클라우드 로그인이 필요합니다. (설정 탭)"), "warning");
+        return;
+      }
+      let current = this.services.identity.getMyNickname();
+      let input = await this.deps.requestGameText({
+        title: this.deps._t("닉네임 설정"),
+        message: `사용할 닉네임을 입력하세요. (${this.data.SOCIAL_NICK_MIN}~${this.data.SOCIAL_NICK_MAX}자, 한글/영문/숫자/-/_)
+닉네임은 하루에 한 번만 변경할 수 있습니다.`,
+        value: current || "",
+        maxLength: this.data.SOCIAL_NICK_MAX,
+        placeholder: this.deps._t("닉네임"),
+        confirmLabel: this.deps._t("닉네임 적용")
+      });
+      if (!this.services.session.isSocialSessionCurrent(context)) return;
+      let name = this.services.nickname.socialNicknameInput(input, current);
+      if (!name) return;
+      let prev = this.services.identity.getMyNickname();
+      this.services.identity.setMyNicknameLocal(name);
+      try {
+        await this.services.upload.uploadPlayerProfile({ fromNicknameChange: true });
+        if (!this.services.session.isSocialSessionCurrent(context)) return;
+        await this.services.upload.updatePastChatNicknames(name);
+        if (!this.services.session.isSocialSessionCurrent(context)) return;
+        if (typeof this.deps.addLog === "function") this.deps.addLog(this.deps._t("🪪 닉네임이 {name} 설정되었습니다.", { name: this.deps.withDirectionParticle(`"${name}"`) }), "season-up");
+        this.finishSocialNicknameChange();
+      } catch (e) {
+        this.restoreNicknameAfterFailure(context, prev, e);
+      }
+    }
+    restoreNicknameAfterFailure(context, previous, error) {
+      if (!this.services.session.isSocialSessionCurrent(context)) return;
+      this.services.identity.setMyNicknameLocal(previous);
+      this.deps.showGameToast(String(error && error.message || error), "danger");
+      this.services.screen.renderSocialTab();
+    }
+    finishSocialNicknameChange() {
+      this.state.current.chatInitialized = false;
+      this.state.current.chatMessages = [];
+      this.state.current.lastChatRenderKey = "";
+      this.services.screen.renderSocialTab();
+      this.services.screen.refreshChatSettings();
+      this.services.polling.refreshChatPanel(false);
+    }
+    unblockUser(userId) {
+      this.services.blocking.setUserBlocked(userId, false);
+      this.state.current.lastChatRenderKey = "";
+      this.services.chatMarkup.renderChatMessages(this.state.current.chatMessages || [], false);
+      this.services.screen.refreshChatSettings();
+      this.deps.showGameToast(this.deps._t("차단을 풀었습니다."), "info");
+    }
+  };
+
+  // modules/ui/social-chat-send.mjs
+  var SocialChatSend = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["translateSpamError", "prepareChatSender", "chatRowReady", "isStaleNicknameError", "adoptServerNickname", "withStaleNicknameRetry", "clearSubmittedChatDraft", "reportChatSendFailure", "finishSocialChatSend", "sendChatMessage", "onSocialChatKeydown"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    translateSpamError(msg) {
+      let hit = this.data.SOCIAL_CHAT_ERROR_TEXTS.find(([pattern]) => pattern.test(msg));
+      if (!hit) return msg;
+      return typeof hit[1] === "function" ? hit[1](msg) : hit[1];
+    }
+    async prepareChatSender(senderId) {
+      let context = this.services.session.socialSessionContext();
+      await this.services.nickname.restoreNicknameFromServer();
+      if (!this.services.session.isSocialSessionCurrent(context)) throw new Error("전송 중 계정이 변경되었습니다.");
+      if (!this.services.identity.getMyNickname()) await this.services.screenActions.promptAndSetNickname();
+      if (!this.services.session.isSocialSessionCurrent(context)) throw new Error("전송 중 계정이 변경되었습니다.");
+      if (!this.services.identity.getMyNickname()) return false;
+      if (!this.chatRowReady(senderId)) await this.services.nickname.restoreNicknameFromServer(true);
+      if (!this.chatRowReady(senderId)) await this.services.upload.uploadPlayerProfile({ required: true });
+      if (!this.services.session.isSocialSessionCurrent(context)) throw new Error("전송 중 계정이 변경되었습니다.");
+      return true;
+    }
+    chatRowReady(userId) {
+      return this.state.current.profileRowFor === `${userId}
+${this.services.identity.getMyNickname()}`;
+    }
+    isStaleNicknameError(error) {
+      let code = error && error.socialCode;
+      return code === "nickname_cooldown" || code === "nickname_conflict" || /row-level security/i.test(String(error && error.message || error));
+    }
+    async adoptServerNickname(userId) {
+      let before = this.services.identity.getMyNickname();
+      let after = await this.services.nickname.restoreNicknameFromServer(true);
+      if (this.services.session.socialLoggedInUserId() !== userId || !after || after === before) return false;
+      this.services.screen.refreshChatSettings();
+      return true;
+    }
+    async withStaleNicknameRetry(userId, sendOnce) {
+      let context = this.services.session.socialSessionContext();
+      try {
+        return await sendOnce();
+      } catch (error) {
+        if (!this.services.session.isSocialSessionCurrent(context)) throw error;
+        if (!this.isStaleNicknameError(error) || !await this.adoptServerNickname(userId)) throw error;
+        return sendOnce();
+      }
+    }
+    clearSubmittedChatDraft(inputEl, draft, items) {
+      let input = this.deps.document.getElementById("social-chat-input") || inputEl;
+      if (input.value !== draft || this.state.current.pendingChatItems.length !== items.length) return;
+      if (!items.every((item, index) => this.state.current.pendingChatItems[index] === item)) return;
+      input.value = "";
+      this.state.current.pendingChatItems = [];
+      this.services.attachments.renderPendingChatItems();
+      this.services.attachments.updateChatCounter();
+    }
+    reportChatSendFailure(error, context) {
+      if (!this.services.session.isSocialSessionCurrent(context)) return;
+      if (error?.socialCode === "nickname_conflict") this.services.identity.setMyNicknameLocal("");
+      this.deps.showGameToast("메시지 전송 실패: " + this.translateSpamError(String(error && error.message || error)), "danger");
+    }
+    finishSocialChatSend(context) {
+      if (this.state.current.chatSendRequest !== context) return;
+      this.state.current.chatSendRequest = null;
+      this.state.current.chatSending = false;
+      this.services.composerControls.updateChatSendButton();
+    }
+    canSubmitChat(body, items) {
+      if (!body && !items.length) return;
+      if (body.length > this.data.SOCIAL_MSG_MAX) {
+        this.deps.showGameToast(this.deps._t("메시지는 최대 {SOCIAL_MSG_MAX}자까지 입력할 수 있습니다.", { SOCIAL_MSG_MAX: this.data.SOCIAL_MSG_MAX }), "warning");
+        return;
+      }
+      if (body && body === this.state.current.lastSentBody && !items.length) {
+        this.deps.showGameToast(this.deps._t("같은 메시지를 연속으로 보낼 수 없습니다."), "warning");
+        return;
+      }
+      let rate = this.services.chatData.checkSendRateLimit();
+      if (rate !== true) {
+        this.deps.showGameToast(rate, "warning");
+        return false;
+      }
+      return true;
+    }
+    async sendChatMessage() {
+      if (!this.services.session.socialCloudReady()) {
+        this.deps.showGameToast(this.deps._t("먼저 클라우드 로그인이 필요합니다."), "warning");
+        return;
+      }
+      if (this.state.current.chatSending) return;
+      let inputEl = this.deps.document.getElementById("social-chat-input");
+      if (!inputEl) return;
+      let draft = inputEl.value;
+      let pending = this.state.current.pendingChatItems.slice(0, this.data.SOCIAL_MAX_ITEMS_PER_MSG);
+      let { body, items } = this.services.attachments.toChatBody(draft.trim(), pending);
+      if (!this.canSubmitChat(body, items)) return;
+      let payload = items.length ? { items } : null;
+      let senderId = this.services.session.socialLoggedInUserId();
+      let context = this.services.session.socialSessionContext();
+      this.state.current.chatSendRequest = context;
+      this.state.current.chatSending = true;
+      try {
+        this.services.composerControls.updateChatSendButton();
+        let sent = await this.withStaleNicknameRetry(senderId, async () => {
+          if (!await this.prepareChatSender(senderId) || !this.services.session.isSocialSessionCurrent(context)) return false;
+          await Promise.all([this.deps.cloudJsonRequest("/rest/v1/chat_messages", {
+            method: "POST",
+            headers: { Prefer: "return=minimal" },
+            body: { user_id: senderId, nickname: this.services.identity.getMyNickname(), body: body || "🔗", payload }
+          }), this.services.presence.sendPresenceHeartbeat()]);
+          return true;
+        });
+        if (!sent || !this.services.session.isSocialSessionCurrent(context)) return;
+        this.clearSubmittedChatDraft(inputEl, draft, pending);
+        this.state.current.sendTimestamps.push(Date.now());
+        this.state.current.lastSentBody = body;
+        await this.services.polling.refreshChatPanel(true);
+        this.services.presence.onlineChat.refresh(true);
+      } catch (e) {
+        this.reportChatSendFailure(e, context);
+      } finally {
+        this.finishSocialChatSend(context);
+      }
+    }
+    onSocialChatKeydown(event) {
+      if (!event || event.isComposing || event.keyCode === 229 || event.repeat) return;
+      if (event.key !== "Enter" || event.shiftKey) return;
+      event.preventDefault();
+      this.sendChatMessage();
+    }
+  };
+
+  // modules/ui/social-profile-view.mjs
+  var SocialProfileView = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["ensureProfileModal", "openMyProfilePreview", "renderProfileIdentityChips", "renderProfileGemRow", "renderProfileSkills", "showProfileItemDetail", "renderProfileEquipPaperdoll", "profileEmptySlotHtml", "profileCoreArt", "profileItemArt", "profileSlotHtml", "profileJewelRows", "renderProfileJewels", "renderProfileTalismans", "profileStumpFilled", "renderProfileStump", "profileStumpCellHtml", "profileStumpIconSuffix", "profileStumpIconHtml", "profileStumpBarHtml", "profileMiniCardHtml", "profileTabList", "profileTabsHtml", "renderProfileItemsArea", "switchProfileTab", "renderProfileData", "canDuelFromProfile", "renderProfileActionsRow", "toggleProfileBlock", "showFetchedProfile", "openPlayerProfile"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    ensureProfileModal() {
+      let modal = this.deps.document.getElementById("social-profile-modal");
+      if (modal) return modal;
+      modal = this.deps.document.createElement("div");
+      modal.id = "social-profile-modal";
+      modal.className = "social-modal-overlay";
+      modal.style.display = "none";
+      modal.onclick = (e) => {
+        if (e.target === modal) this.services.reset.closePlayerProfile();
+      };
+      modal.innerHTML = `<div class="social-modal-box"><button class="social-modal-close" onclick="closePlayerProfile()" aria-label="${this.deps._t("닫기")}">✕</button><div class="social-modal-content"><div id="social-profile-body"></div></div></div>`;
+      this.deps.document.body.appendChild(modal);
+      return modal;
+    }
+    async openMyProfilePreview() {
+      this.deps.selectionDialog.close(this.data.CHAT_SETTINGS_ID);
+      if (!this.services.session.socialCloudReady()) {
+        this.deps.showGameToast(this.deps._t("프로필을 보려면 먼저 클라우드 로그인이 필요합니다."), "warning");
+        return;
+      }
+      let context = this.services.session.socialSessionContext();
+      await this.services.nickname.restoreNicknameFromServer(true);
+      if (!this.services.session.isSocialSessionCurrent(context)) return;
+      if (!this.services.identity.getMyNickname()) await this.services.screenActions.promptAndSetNickname();
+      if (!this.services.session.isSocialSessionCurrent(context) || !this.services.identity.getMyNickname()) return;
+      try {
+        await this.services.upload.uploadPlayerProfile({ required: true });
+      } catch (error) {
+        if (!this.services.session.isSocialSessionCurrent(context)) return;
+        this.services.upload.reportProfileSyncFailure(error);
+        return;
+      }
+      if (this.services.session.isSocialSessionCurrent(context)) this.openPlayerProfile(context.userId);
+    }
+    renderProfileIdentityChips(p) {
+      let chips = [`Lv.${p.level || 1}`, p.heroClassName, p.className || "미전직", this.deps._t("루프 {loop}", { loop: this.services.format.socialComma(p.loop || 0) })];
+      return chips.filter(Boolean).map((chip) => `<span class="social-profile-chip">${this.services.format.socialEscape(chip)}</span>`).join("");
+    }
+    renderProfileGemRow(label, gem, extra) {
+      if (!gem || !gem.name) return "";
+      let quality = gem.quality ? this.deps._t(" 품질 {quality}", { quality: this.services.format.socialEscape(gem.quality) }) : "";
+      return `<div class="social-skill-row"><span class="social-skill-label">${this.services.format.socialEscape(label)}</span><strong>${this.services.format.socialEscape(gem.name)}</strong><span class="social-skill-level">Lv.${this.services.format.socialEscape(gem.level || 1)}${quality}${extra || ""}</span></div>`;
+    }
+    renderProfileSkills(skills) {
+      if (!skills || !skills.active) return "";
+      let rows = [this.renderProfileGemRow("주 스킬", skills.active)].concat((skills.supports || []).map((gem) => this.renderProfileGemRow("보조", gem))).concat([this.renderProfileGemRow("이동", skills.mobility)]).concat((skills.summons || []).map((gem) => this.renderProfileGemRow("소환", gem, Math.floor(Number(gem.count)) > 1 ? this.deps._t(" {floor}마리", { floor: Math.floor(Number(gem.count)) }) : "")));
+      return `<div class="social-skill-list">${rows.join("")}</div>`;
+    }
+    showProfileItemDetail(html) {
+      let box = this.deps.document.querySelector("#social-profile-modal .social-modal-box");
+      if (!box) return false;
+      let layer = box.querySelector(":scope > .social-item-detail");
+      if (!layer) {
+        layer = this.deps.document.createElement("div");
+        layer.className = "social-item-detail";
+        layer.onclick = (event) => {
+          if (event.target === layer || event.target.closest("[data-item-detail-close]")) layer.hidden = true;
+        };
+        box.appendChild(layer);
+      }
+      layer.innerHTML = `<div class="social-item-detail-card">${html}<button type="button" data-item-detail-close>${this.deps._t("닫기")}</button></div>`;
+      layer.hidden = false;
+      return true;
+    }
+    renderProfileEquipPaperdoll(p) {
+      let bySlot = new Map((p.equipment || []).filter((it) => it && it.slot).map((it) => [it.slot, it]));
+      let core = p.core && typeof p.core === "object" && p.core.name ? { ...p.core, kind: "core" } : null;
+      if (!bySlot.size && !core) return '<div class="social-profile-empty">장착한 장비 없음</div>';
+      let filled = (slot) => this.profileSlotHtml(slot, bySlot.get(slot), this.services.profileValues.profileItemTag(bySlot.get(slot)));
+      let cards = this.data.SOCIAL_EQUIP_SLOTS.map((slot) => bySlot.has(slot) ? filled(slot) : this.profileEmptySlotHtml(slot));
+      if (bySlot.has("반지3")) cards.push(filled("반지3"));
+      if (core) cards.push(this.profileSlotHtml("코어", core, "코어"));
+      return `<div class="social-doll">${cards.join("")}</div>`;
+    }
+    profileEmptySlotHtml(slot) {
+      return `<div class="social-slot is-empty slot-${slot}"><span class="social-slot-tag">${this.services.format.socialEscape(this.deps.weaponCategorySlotLabel(null, slot.replace(/[123]$/, "")))}</span></div>`;
+    }
+    profileCoreArt(core) {
+      const names = this.deps.CORE_ITEM_RULES.groupNames;
+      const prefix = `${this.deps.CORE_ITEM_RULES.perfect.prefix} `;
+      const name = String(core && core.name || "");
+      const plainName = name.startsWith(prefix) ? name.slice(prefix.length) : name;
+      const group = Object.keys(names).find((key) => plainName.startsWith(names[key]));
+      return this.deps.ITEM_VISUAL_ASSET_DB.coreAssets[group || "empty"];
+    }
+    profileItemArt(it) {
+      if (it.kind === "core") return this.profileCoreArt(it);
+      if (typeof this.deps.getEquipmentGridVisualAsset !== "function") return "";
+      let base = !it.baseId && typeof this.deps.BASE_ITEM_DB !== "undefined" ? this.deps.BASE_ITEM_DB.find((row) => row.name === it.baseName) : null;
+      return this.deps.getEquipmentGridVisualAsset({ slot: it.slot, rarity: it.rarity, name: it.name, baseName: it.baseName, baseId: it.baseId || base && base.id });
+    }
+    profileSlotHtml(slot, it, tag) {
+      let key = `eq:${slot}`;
+      this.state.current.profileTips[key] = this.services.itemCards.renderProfileItemCard(it);
+      let color = it.kind === "core" ? this.data.PROFILE_CORE_TONE : this.services.format.socialRarityColor(it.rarity);
+      let art = this.profileItemArt(it);
+      return `<div class="social-slot slot-${slot}" style="--r:${color};" role="button" tabindex="0" aria-label="${this.services.format.socialEscape(`[${tag}] ${it.name}`)}" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${art ? `<img src="${this.services.format.socialEscape(art)}" alt="" draggable="false">` : ""}<span class="social-slot-tag">${this.services.format.socialEscape(tag)}</span></div>`;
+    }
+    profileJewelRows(p) {
+      let rows = [];
+      (p.equipment || []).forEach((item) => (item && Array.isArray(item.sockets) ? item.sockets : []).forEach((row) => {
+        if (row && row.jewel) rows.push({ jewel: row.jewel, where: `[${this.services.profileValues.profileItemTag(item)}] ${row.label}` });
+      }));
+      return rows.length ? rows : (p.jewels || []).filter(Boolean).map((jewel) => ({ jewel, where: "" }));
+    }
+    renderProfileJewels(p) {
+      return `<div class="social-mini-grid">${this.profileJewelRows(p).map((row, i) => this.profileMiniCardHtml(`jw:${i}`, row.jewel, row.jewel.name || "주얼", row.where)).join("")}</div>`;
+    }
+    renderProfileTalismans(p) {
+      return `<div class="social-mini-grid">${(p.talismans || []).filter(Boolean).map((t, i) => this.profileMiniCardHtml(`tl:${i}`, t, t.name || "부적", "")).join("")}</div>`;
+    }
+    profileStumpFilled(stump) {
+      return !!stump && Array.isArray(stump.cells) && stump.cells.some((row) => row && row.item);
+    }
+    renderProfileStump(stump) {
+      return `<div class="social-stump-board">${stump.cells.slice(0, this.data.PROFILE_STUMP_CELLS).map(this.profileStumpCellHtml).join("")}</div>`;
+    }
+    profileStumpCellHtml(row, cell) {
+      if (!row || typeof row !== "object") return '<span class="social-stump-cell is-locked"></span>';
+      let rank = Math.floor(Number(row.graft) || 0);
+      let mark = rank > 0 ? `<span class="social-stump-graft">${rank}</span>` : "";
+      let item = row.item;
+      if (!item || typeof item !== "object") return `<span class="social-stump-cell">${mark}</span>`;
+      let key = `st:${cell}`;
+      this.state.current.profileTips[key] = this.services.itemCards.renderProfileItemCard({ ...item, graft: row.graft, graftPct: row.graftPct });
+      let state2 = (item.suppressed || item.state === "suppressed" ? " is-suppressed" : "") + (item.resonant ? " is-resonant" : "");
+      return `<span class="social-stump-cell is-filled${state2}" style="--stump-tone:${this.services.specialCards.profileStumpTone(item)};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${this.profileStumpIconHtml(item)}${this.profileStumpBarHtml(item)}${mark}</span>`;
+    }
+    profileStumpIconSuffix(item) {
+      if (item.stage === "scar" || item.stage === "scarAsleep") return "";
+      let tint = item.kind === "talisman" ? this.data.profileOwn(this.data.PROFILE_TALISMAN_RARITY, item.rarity) && item.rarity : typeof this.deps.STUMP_BOX_COLORS === "object" && this.data.profileOwn(this.deps.STUMP_BOX_COLORS, item.color) && item.color;
+      return tint ? `-${tint}` : null;
+    }
+    profileStumpIconHtml(item) {
+      let stage = typeof this.deps.STUMP_BOX_STAGES === "object" ? this.data.profileOwn(this.deps.STUMP_BOX_STAGES, item.stage) : "", suffix = this.profileStumpIconSuffix(item);
+      return stage && suffix !== null ? `<img src="assets/items/stump-pixel-v1/${stage.icon}${suffix}.png" alt="" draggable="false">` : "";
+    }
+    profileStumpBarHtml(item) {
+      let need = Number(item.need) || 0;
+      if (item.ripe || need <= 0) return "";
+      return `<span class="social-stump-bar"><i style="width:${Math.max(0, Math.min(100, Math.round((Number(item.xp) || 0) / need * 100)))}%"></i></span>`;
+    }
+    profileMiniCardHtml(key, snap, name, sub) {
+      this.state.current.profileTips[key] = this.services.itemCards.renderProfileItemCard(snap);
+      let color = this.services.format.socialRarityColor(snap && snap.rarity);
+      return `<div class="social-mini-card" style="border-color:${color};color:${color};" onmouseenter="showSocialTip(event,'profile','${key}')" onmousemove="moveSocialTip(event)" onmouseleave="hideSocialTip()" onclick="openTipModal('profile','${key}')">${this.services.format.socialEscape(name)}${sub ? `<small>${this.services.format.socialEscape(sub)}</small>` : ""}</div>`;
+    }
+    profileTabList(p) {
+      let tabs = [["equipment", "장비"]];
+      if (p.skills && p.skills.active) tabs.push(["skills", "스킬"]);
+      if (this.profileJewelRows(p).length) tabs.push(["jewels", "주얼"]);
+      if (this.profileStumpFilled(p.stump)) tabs.push(["stump", "그루터기 함"]);
+      else if ((p.talismans || []).length) tabs.push(["stump", "부적"]);
+      return tabs;
+    }
+    profileTabsHtml(p) {
+      return this.profileTabList(p).map(([cat, label], i) => `<button data-cat="${cat}"${i ? "" : ' class="active"'} onclick="switchProfileTab('${cat}')">${label}</button>`).join("");
+    }
+    renderProfileItemsArea() {
+      let p = this.state.current.currentProfile;
+      if (!p) return "";
+      this.state.current.profileTips = {};
+      let cat = this.state.current.profileTab;
+      if (cat === "skills") return this.renderProfileSkills(p.skills);
+      if (cat === "jewels") return this.renderProfileJewels(p);
+      if (cat === "stump") return this.profileStumpFilled(p.stump) ? this.renderProfileStump(p.stump) : this.renderProfileTalismans(p);
+      return this.renderProfileEquipPaperdoll(p);
+    }
+    switchProfileTab(cat) {
+      this.state.current.profileTab = cat;
+      this.services.reset.hideSocialTip();
+      let tabsEl = this.deps.document.getElementById("social-profile-tabs");
+      if (tabsEl) Array.from(tabsEl.children).forEach((btn) => btn.classList.toggle("active", btn.getAttribute("data-cat") === cat));
+      let areaEl = this.deps.document.getElementById("social-profile-items");
+      if (areaEl) areaEl.innerHTML = this.renderProfileItemsArea();
+    }
+    renderProfileData(profile) {
+      let body = this.deps.document.getElementById("social-profile-body");
+      if (!body) return;
+      if (!profile) {
+        body.innerHTML = `<div class="social-profile-empty">${this.deps._t("공개 프로필을 찾을 수 없습니다.")}<br>${this.deps._t("프로필 생성 또는 동기화가 완료되지 않았을 수 있어요.")}</div>`;
+        return;
+      }
+      this.state.current.currentProfile = profile;
+      this.state.current.profileTab = "equipment";
+      let p = profile;
+      let stats = Array.isArray(p.stats) ? p.stats : [];
+      let updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
+      let updated = updatedAt && Number.isFinite(updatedAt.getTime()) ? updatedAt.toLocaleString(this.deps.i18n.locale) : "";
+      let actions = this.renderProfileActionsRow();
+      body.innerHTML = `
+            <div class="social-profile-header">
+                <div class="social-profile-id">
+                    <div class="social-profile-name">${this.services.format.socialEscape(p.nickname || "익명")}</div>
+                    <div class="social-profile-sub">${this.renderProfileIdentityChips(p)}</div>
+                    ${updated ? `<div class="social-profile-updated">${this.deps._t("갱신: {updated}", { updated: this.services.format.socialEscape(updated) })}</div>` : ""}
+                </div>
+                ${this.services.statsMarkup.profilePowerHtml(p)}
+            </div>
+            ${actions}
+            <div class="social-profile-cols">
+                <section class="social-profile-col social-profile-card">
+                    <h3>${this.deps._t("능력치")}</h3>
+                    ${this.services.statsMarkup.profileStatsHtml(stats)}
+                </section>
+                <section class="social-profile-col social-profile-card">
+                    <h3>${this.deps._t("장착 구성")}</h3>
+                    <div id="social-profile-tabs" class="social-profile-tabs">${this.profileTabsHtml(p)}</div>
+                    <div id="social-profile-items">${this.renderProfileItemsArea()}</div>
+                </section>
+            </div>`;
+    }
+    canDuelFromProfile() {
+      let target = this.state.current.currentProfileUserId;
+      if (!target || target === this.services.session.socialLoggedInUserId()) return false;
+      return this.deps.contentProgression.canOpen("map-tab-pvp") && this.deps.isMapPrimaryContentUnlocked(this.deps.game, "map-tab-pvp");
+    }
+    renderProfileActionsRow() {
+      let target = this.state.current.currentProfileUserId;
+      if (!target || target === this.services.session.socialLoggedInUserId()) return "";
+      let duel = this.canDuelFromProfile() ? '<button type="button" onclick="fightCurrentProfileGhost()">친선전</button>' : "";
+      return `<div class="social-profile-actions">${duel}<button type="button" onclick="toggleProfileBlock()">${this.services.blocking.isUserBlocked(target) ? this.deps._t("차단 해제") : this.deps._t("차단")}</button><select id="social-report-reason" aria-label="${this.deps._t("신고 사유")}"><option value="욕설">${this.deps._t("욕설")}</option><option value="도배">${this.deps._t("도배")}</option><option value="사칭">${this.deps._t("사칭")}</option><option value="기타">${this.deps._t("기타")}</option></select><button type="button" onclick="reportCurrentProfile()">신고</button></div>`;
+    }
+    toggleProfileBlock() {
+      let target = this.state.current.currentProfileUserId;
+      if (!target || target === this.services.session.socialLoggedInUserId()) return;
+      let blocked = !this.services.blocking.isUserBlocked(target);
+      this.services.blocking.setUserBlocked(target, blocked, this.state.current.currentProfile && this.state.current.currentProfile.nickname);
+      this.state.current.lastChatRenderKey = "";
+      this.services.chatMarkup.renderChatMessages(this.state.current.chatMessages || [], false);
+      let tab = this.state.current.profileTab;
+      if (this.state.current.currentProfile) {
+        this.renderProfileData(this.state.current.currentProfile);
+        if (tab) this.switchProfileTab(tab);
+      }
+      this.deps.showGameToast(blocked ? "이 사람의 채팅을 이 기기에서 숨깁니다." : "차단을 풀었습니다.", "info");
+    }
+    showFetchedProfile(rows) {
+      let row = Array.isArray(rows) ? rows[0] : null;
+      if (!row) return this.renderProfileData(null);
+      let profile = { ...row.profile_data || {}, nickname: row.nickname || "" };
+      this.renderProfileData(profile);
+    }
+    async openPlayerProfile(userId) {
+      if (!userId) return;
+      this.deps.selectionDialog.close(this.data.CHAT_SETTINGS_ID);
+      if (!this.services.session.socialCloudReady()) {
+        this.deps.showGameToast(this.deps._t("프로필을 보려면 먼저 클라우드 로그인이 필요합니다."), "warning");
+        return;
+      }
+      this.state.current.currentProfileUserId = String(userId);
+      let context = this.services.session.socialSessionContext();
+      this.state.current.profileRequest = context;
+      let modal = this.ensureProfileModal();
+      modal.style.display = "flex";
+      let body = this.deps.document.getElementById("social-profile-body");
+      if (body) body.innerHTML = `<div class="social-profile-empty">${this.deps._t("불러오는 중…")}</div>`;
+      try {
+        let rows = await this.deps.cloudJsonRequest(`/rest/v1/player_profiles?user_id=eq.${encodeURIComponent(userId)}&select=nickname,profile_data,updated_at`, {});
+        if (this.isProfileRequestCurrent(context)) this.showFetchedProfile(rows);
+      } catch (e) {
+        if (body && this.isProfileRequestCurrent(context)) body.innerHTML = `<div class="social-profile-empty">${this.deps._t("불러오기 실패: {e}", { e: this.services.format.socialEscape(String(e && e.message || e)) })}</div>`;
+      }
+    }
+    isProfileRequestCurrent(context) {
+      return this.state.current.profileRequest === context && this.services.session.isSocialSessionCurrent(context);
+    }
+  };
+
+  // modules/ui/social-tooltip.mjs
+  var SocialTooltip = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["ensureSocialTooltip", "tipMapByScope", "showSocialTip", "moveSocialTip", "openTipModal"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    ensureSocialTooltip() {
+      let tip = this.deps.document.getElementById("social-tooltip");
+      if (tip) return tip;
+      tip = this.deps.document.createElement("div");
+      tip.id = "social-tooltip";
+      tip.className = "social-tooltip";
+      tip.style.display = "none";
+      this.deps.document.body.appendChild(tip);
+      return tip;
+    }
+    tipMapByScope(scope) {
+      return scope === "chat" ? this.state.current.chatTips : scope === "pick" ? this.state.current.pickTips : this.state.current.profileTips;
+    }
+    showSocialTip(event, scope, key) {
+      let html = this.tipMapByScope(scope)[key];
+      if (!html) return;
+      let tip = this.ensureSocialTooltip();
+      tip.innerHTML = html;
+      tip.style.display = "block";
+      this.moveSocialTip(event);
+    }
+    moveSocialTip(event) {
+      let tip = this.deps.document.getElementById("social-tooltip");
+      if (!tip || tip.style.display === "none") return;
+      let pad = 16, w = tip.offsetWidth * this.deps.uiDisplay.factor, h = tip.offsetHeight * this.deps.uiDisplay.factor;
+      let x = event.clientX + pad, y = event.clientY + pad;
+      if (x + w > this.deps.window.innerWidth - 8) x = event.clientX - w - pad;
+      if (x < 8) x = 8;
+      if (y + h > this.deps.window.innerHeight - 8) y = this.deps.window.innerHeight - h - 8;
+      if (y < 8) y = 8;
+      tip.style.left = x / this.deps.uiDisplay.factor + "px";
+      tip.style.top = y / this.deps.uiDisplay.factor + "px";
+    }
+    openTipModal(scope, key) {
+      let html = this.tipMapByScope(scope)[key];
+      if (!html) return;
+      this.services.reset.hideSocialTip();
+      if (scope === "profile" && this.services.profileView.showProfileItemDetail(html)) return;
+      let modal = this.services.profileView.ensureProfileModal();
+      modal.style.display = "flex";
+      let body = this.deps.document.getElementById("social-profile-body");
+      if (body) body.innerHTML = `<div class="social-equip-grid">${html}</div>`;
+    }
+  };
+
+  // modules/ui/social-styles.mjs
+  var SOCIAL_STYLES = `@layer components {
+        .social-notice{color:var(--copy-bright);font-size:12px;line-height:1.5;}
+        .social-notice{background:rgba(20,34,56,0.6);border:1px solid #24344f;border-radius:8px;padding:12px;margin-top:8px;}
+        .social-notice-loading{border-color:#386383;background:linear-gradient(110deg,rgba(20,46,67,.72),rgba(17,29,48,.72));box-shadow:inset 3px 0 #64b5e5;}
+        .social-toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:10px 0;}
+        .social-profile-summary{display:grid;gap:1px;min-width:0;}.social-profile-summary>span{color:var(--copy-muted);font-size:12px;}.social-profile-summary>strong{overflow:hidden;color:#e8d7b6;text-overflow:ellipsis;white-space:nowrap;}.social-profile-summary em{color:#d58478;font-style:normal;}
+        .social-toolbar-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;}
+        .social-online{background:rgba(13,15,13,.72);border:1px solid #40392e;border-radius:5px;padding:8px 10px;margin-bottom:8px;}
+        .social-online-title{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--copy-bright);font-size:12px;font-weight:700;margin-bottom:6px;}
+        .social-presence-summary{display:flex;gap:8px;color:var(--copy-muted);font-weight:500;}.social-presence-summary>span{display:inline-flex;align-items:center;gap:4px;}
+        .social-presence-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#767169;box-shadow:0 0 0 1px rgba(0,0,0,.7);}.social-presence-dot.active{background:#62b36f;box-shadow:0 0 6px rgba(98,179,111,.38);}.social-presence-dot.recent{background:#c8a64f;}
+        .social-online-list{display:flex;flex-wrap:wrap;gap:6px;}
+        .social-online-chip{display:inline-flex;align-items:center;gap:6px;min-height:26px;font-size:12px;background:#11130f;border:1px solid #3d382e;border-radius:3px;padding:2px 8px;color:#ddd5c8;cursor:pointer;}.social-online-chip em{padding-left:5px;border-left:1px solid #454036;color:#bfa36d;font-size:12px;font-style:normal;}
+        .social-online-chip.active{border-color:#3f6744;}
+        .social-online-chip.recent{border-color:#6b5b32;color:#c8bfaa;opacity:.88;}
+        .social-online-chip:hover{filter:brightness(1.18);}
+        .social-online-chip.me{border-color:#8b6838;box-shadow:inset 0 0 0 1px rgba(213,174,105,.08);}
+        .social-online-empty{color:var(--copy-muted);font-size:12px;}
+        .social-chat-wrap{position:relative;display:flex;flex-direction:column;gap:8px;}
+        .social-chat-online{position:absolute;top:5px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:8px;padding:1px 7px;font-size:12px;line-height:1.4;color:var(--copy-muted);background:rgba(10,12,10,.82);border:1px solid #3d382e;border-radius:9px;pointer-events:none;}
+        .social-chat-online>span{display:inline-flex;align-items:center;gap:4px;}
+        .social-chat-online[hidden]{display:none;}
+        .social-chat-online:not([hidden]) + .social-chat-list{margin-top:28px;} /* 접속 인원 칸 자리는 목록 밖에: 목록의 padding은 PC 창과 휴대폰 규칙에 덮였고, 스크롤과 함께 올라가 맨 위 줄의 시각을 가렸다. */
+        .social-chat-list{height:calc(46vh / var(--scale-display-factor, 1));min-height:240px;overflow-y:auto;background:linear-gradient(170deg,#0d1420,#111c2c);border:1px solid #24344f;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;}
+        .social-chat-empty{display:grid;justify-items:center;gap:5px;color:var(--copy-muted);text-align:center;margin:auto;font-size:12px;}.social-chat-empty>span{display:grid;place-items:center;width:36px;height:36px;border:1px solid #5b4a31;border-radius:50%;color:#d6b572;font-size:18px;}.social-chat-empty strong{color:#cfc5b5;}.social-chat-empty small{font-size:12px;}
+        .social-chat-list>.social-chat-msg:first-child{margin-top:auto;} /* 메시지가 적을 때는 아래에 모인다(2026-10-30 사용자 요청). 넘치면 auto 여백이 0이 되어 그대로 스크롤된다. */
+        .social-chat-msg{max-width:82%;align-self:flex-start;background:#141713;border:1px solid #343229;border-radius:6px;padding:7px 9px;}
+        .social-chat-msg.mine{align-self:flex-end;background:#1b1914;border-color:#5b4930;}
+        .social-chat-head{display:flex;align-items:center;gap:6px;min-width:0;}.social-chat-author{display:inline-flex;align-items:center;min-width:0;padding:0;border:0;background:none;color:inherit;cursor:pointer;}.social-chat-self{padding:1px 4px;border:1px solid #675132;border-radius:2px;color:#c9aa70;font-size:12px;}
+        .social-chat-nick{overflow:hidden;color:#d6b572;font-weight:700;font-size:12px;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}
+        .social-chat-nick:hover{text-decoration:underline;}
+        .social-chat-time{margin-left:auto;color:var(--copy-muted);font-size:12px;white-space:nowrap;}.social-chat-delete{flex:none;min-height:0;padding:0 6px;font-size:12px;line-height:16px;color:#f0b4a0;background:#2a1714;border:1px solid #6a3a30;border-radius:3px;cursor:pointer;}
+        .social-chat-body{color:var(--copy-bright);margin:4px 0 0;white-space:pre-wrap;word-break:break-word;font-size:var(--font-size-chat,12px);line-height:1.5;}
+        .social-chat-inputbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;align-items:stretch;}
+        .social-chat-input-shell{position:relative;min-width:0;}
+        .social-chat-input-shell input{box-sizing:border-box;width:100%;height:100%;min-height:44px;padding:8px 52px 8px 11px;background:#0e1726;border:1px solid #2a3e5c;border-radius:7px;color:#ffffff;}
+        .social-chat-inputbar button{box-sizing:border-box;min-width:0;min-height:44px;margin:0;padding:7px 11px;white-space:nowrap;line-height:1;}
+        .social-attach-btn{background:#16243a;border:1px solid #2f5180;color:#ffffff;cursor:pointer;}
+        .social-attach-btn span{font-size:15px;line-height:0;}
+        .social-chat-inputbar .social-send-btn{min-width:58px;background:linear-gradient(180deg,#315b7c,#203d58);border-color:#4d7898;color:var(--copy-bright);}
+        .social-chat-counter{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--copy-muted);pointer-events:none;text-align:right;}
+        .social-pending-items{display:flex;flex-wrap:wrap;gap:6px;}
+        .social-pending-chip{display:inline-flex;align-items:center;gap:4px;font-size:12px;background:#0f1a28;border:1px solid;border-radius:14px;padding:2px 6px 2px 9px;}
+        .social-pending-chip button{background:none;border:none;color:inherit;cursor:pointer;padding:0 2px;font-size:12px;}
+        .social-item-link{display:inline;font-size:12px;font-weight:700;border:0;padding:0;margin:0 1px;background:none;cursor:pointer;}
+        .social-item-link:hover{text-decoration:underline;text-underline-offset:2px;}
+        .social-modal-overlay{position:fixed;inset:0;background:rgba(4,8,14,0.78);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
+        .social-modal-box{position:relative;width:min(760px,calc(96vw / var(--scale-display-factor, 1)));max-height:calc(90vh / var(--scale-display-factor, 1));display:flex;flex-direction:column;overflow:hidden;background:var(--color-surface);border:1px solid var(--color-line-strong);border-radius:var(--radius-lg);color:var(--color-text);}
+        .social-modal-content{flex:1 1 auto;overflow-y:auto;padding:20px;min-height:0;overscroll-behavior:contain;}
+        /* position 계열에 !important: ui-premium.css 의 고특이도 전역 버튼 규칙(position:relative)이
+           덮어쓰면 X버튼이 왼쪽 위 일반 흐름으로 배치되어 한 줄을 차지하는 문제가 재발한다. */
+        .social-modal-close{position:absolute !important;top:10px !important;right:12px !important;left:auto !important;z-index:3;box-sizing:border-box;width:36px;height:36px;min-height:0;padding:0;display:flex;align-items:center;justify-content:center;background:var(--color-surface-raised);border:1px solid var(--color-line);color:var(--color-text);border-radius:50%;cursor:pointer;font-size:12px;line-height:1;}
+        .social-modal-close:hover{background:var(--color-control);}
+        .social-profile-empty{color:var(--copy-muted);text-align:center;padding:24px;}
+        .social-profile-header{border-bottom:1px solid var(--color-line);padding-bottom:12px;margin-bottom:14px;padding-right:34px;}
+        .social-profile-name{font-size:1.4em;font-weight:800;color:var(--color-accent);}
+        .social-profile-sub{color:var(--copy-bright);margin-top:4px;}
+        .social-profile-updated{color:var(--copy-muted);font-size:12px;margin-top:4px;}
+        .social-profile-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:9px;}
+        .social-profile-col{min-width:0;}.social-profile-cols{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:16px;}
+        @media(max-width:640px){.social-profile-cols{grid-template-columns:1fr;}}
+        .social-profile-col h3{color:var(--copy-bright);font-size:1em;margin:0 0 8px;}
+        .social-profile-tabs{display:flex;gap:6px;margin-bottom:8px;}
+        .social-profile-tabs button{flex:1;min-width:0;min-height:40px;padding:6px 4px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:7px;color:var(--color-text);cursor:pointer;font-size:12px;}
+        .social-profile-tabs button.active{background:var(--color-control);border-color:var(--color-accent);color:var(--color-text);font-weight:700;}
+        @media(max-width:420px){
+            .social-chat-inputbar{grid-template-columns:44px minmax(0,1fr) 64px;gap:5px;}
+            .social-chat-inputbar button{padding:7px 8px;font-size:12px;}
+            .social-attach-btn{font-size:0!important;}
+            .social-attach-btn span{font-size:16px!important;}
+            .social-send-btn{min-width:52px!important;}
+        }
+        .social-stat-grid{display:grid;grid-template-columns:1fr;gap:4px;}
+        .social-stat-item{display:flex;justify-content:space-between;gap:10px;background:var(--color-surface-raised);border:1px solid var(--color-line);border-radius:6px;padding:5px 9px;}
+        .social-stat-label{display:inline-flex;align-items:center;color:var(--copy-bright);font-size:12px;}
+        .social-stat-label .combat-log-icon,.social-stat-icon{flex:0 0 auto;width:16px;height:16px;margin-right:6px;}
+        .social-stat-icon{display:inline-block;background:url('assets/ui/passive-tree-icons-v5.png') no-repeat;background-size:110px 198px;}
+        .social-stat-icon.is-none{background:none;}
+        .social-stat-value{color:var(--color-text);font-weight:700;font-size:12px;}
+        .social-mini-grid{display:flex;flex-direction:column;gap:6px;}
+        .social-mini-card{background:var(--color-surface-raised);border:1px solid;border-left-width:3px;border-radius:7px;padding:8px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .social-mini-card:hover{background:var(--color-control);}
+        .social-paperdoll{margin:0;}
+        .social-paperdoll .social-slot{min-height:62px;display:flex;flex-direction:column;gap:2px;justify-content:center;align-items:center;text-align:center;padding:6px 5px;border-radius:8px;cursor:pointer;background:var(--color-surface-raised);}
+        .social-paperdoll .social-slot.empty{cursor:default;border:1px dashed var(--color-line);}
+        .social-paperdoll .social-slot-tag{font-size:12px;color:var(--copy-muted);font-weight:700;}
+        .social-paperdoll .social-slot-name{font-size:12px;font-weight:700;line-height:1.15;word-break:break-all;}
+        .social-equip-grid{display:flex;flex-direction:column;gap:8px;}
+        .social-item-card{background:#0f1a28;border:1px solid #2c4063;border-left-width:3px;border-radius:8px;padding:8px 10px;}
+        .social-item-title{font-weight:700;font-size:12px;}
+        .social-item-base{color:var(--copy-muted);font-size:12px;margin:2px 0 4px;}
+        .social-item-unique{color:#d7b8ff;font-size:12px;margin:3px 0;}
+        .social-item-stat{color:var(--copy-bright);font-size:12px;line-height:1.4;}
+        .social-item-stat.base{color:#f1c40f;}
+        .social-roll{color:var(--copy-muted);font-size:12px;}
+        .social-tooltip{position:fixed;z-index:10001;max-width:320px;pointer-events:none;display:none;filter:drop-shadow(0 6px 18px rgba(0,0,0,0.6));}
+        .social-tooltip .social-item-card{background:#0c1421;border-width:1px;border-left-width:3px;}
+        }`;
+  var SocialStyles = class {
+    constructor(deps, state2, data, services) {
+      this.deps = deps;
+      this.state = state2;
+      this.data = data;
+      this.services = services;
+      ["injectSocialStyles"].forEach((name) => {
+        this[name] = this[name].bind(this);
+      });
+    }
+    injectSocialStyles() {
+      if (this.deps.document.getElementById("social-styles")) return;
+      let style = this.deps.document.createElement("style");
+      style.id = "social-styles";
+      style.textContent = SOCIAL_STYLES;
+      this.deps.document.head.appendChild(style);
+    }
+  };
+
+  // modules/social-classic.mjs
+  var state = new SocialSessionState();
+  var session = new SocialSession({
+    get cloudJsonRequest() {
+      return typeof cloudJsonRequest === "undefined" ? void 0 : cloudJsonRequest;
+    },
+    get cloudState() {
+      return typeof cloudState === "undefined" ? void 0 : cloudState;
+    }
+  }, state, social_exports, {});
+  var format = new SocialFormat({
+    get CLASS_TEMPLATES() {
+      return typeof CLASS_TEMPLATES === "undefined" ? void 0 : CLASS_TEMPLATES;
+    },
+    get escapeHTML() {
+      return typeof escapeHTML === "undefined" ? void 0 : escapeHTML;
+    },
+    get getRarityColor() {
+      return typeof getRarityColor === "undefined" ? void 0 : getRarityColor;
+    }
+  }, state, social_exports, {});
+  var reset = new SocialReset({
+    get clearInterval() {
+      return typeof clearInterval === "undefined" ? void 0 : windowClearInterval;
+    },
+    get clearTimeout() {
+      return typeof clearTimeout === "undefined" ? void 0 : windowClearTimeout;
+    },
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    }
+  }, state, social_exports, {});
+  var identity = new SocialIdentity({
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get localStorage() {
+      return typeof localStorage === "undefined" ? void 0 : localStorage;
+    }
+  }, state, social_exports, { session, reset, format });
+  var profileValues = new SocialProfileValues({
+    get formatJewelStatValue() {
+      return typeof formatJewelStatValue === "undefined" ? void 0 : formatJewelStatValue;
+    },
+    get formatValue() {
+      return typeof formatValue === "undefined" ? void 0 : formatValue;
+    },
+    get gardenOils() {
+      return typeof gardenOils === "undefined" ? void 0 : gardenOils;
+    },
+    get getStatName() {
+      return typeof getStatName === "undefined" ? void 0 : getStatName;
+    },
+    get getWeaponCategoryName() {
+      return typeof getWeaponCategoryName === "undefined" ? void 0 : getWeaponCategoryName;
+    },
+    get weaponCategorySlotLabel() {
+      return typeof weaponCategorySlotLabel === "undefined" ? void 0 : weaponCategorySlotLabel;
+    },
+    get window() {
+      return typeof window === "undefined" ? void 0 : window;
+    }
+  }, state, social_exports, { format });
+  var snapshot = new SocialSnapshot({
+    get console() {
+      return console;
+    },
+    get CLASS_TEMPLATES() {
+      return typeof CLASS_TEMPLATES === "undefined" ? void 0 : CLASS_TEMPLATES;
+    },
+    get COMPARE_STAT_META() {
+      return typeof COMPARE_STAT_META === "undefined" ? void 0 : COMPARE_STAT_META;
+    },
+    get PLAYER_CLASS_DEFS() {
+      return typeof PLAYER_CLASS_DEFS === "undefined" ? void 0 : PLAYER_CLASS_DEFS;
+    },
+    get STUMP_BOX_GRAFT() {
+      return typeof STUMP_BOX_GRAFT === "undefined" ? void 0 : STUMP_BOX_GRAFT;
+    },
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get bagItems() {
+      return typeof bagItems === "undefined" ? void 0 : bagItems;
+    },
+    get colonyWards() {
+      return typeof colonyWards === "undefined" ? void 0 : colonyWards;
+    },
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get contentProgression() {
+      return typeof contentProgression === "undefined" ? void 0 : contentProgression;
+    },
+    get coreItems() {
+      return typeof coreItems === "undefined" ? void 0 : coreItems;
+    },
+    get equipmentCrafting() {
+      return typeof equipmentCrafting === "undefined" ? void 0 : equipmentCrafting;
+    },
+    get equipmentSockets() {
+      return typeof equipmentSockets === "undefined" ? void 0 : equipmentSockets;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get getAscendKeystoneName() {
+      return typeof getAscendKeystoneName === "undefined" ? void 0 : getAscendKeystoneName;
+    },
+    get getAscendKeystoneOwnerClass() {
+      return typeof getAscendKeystoneOwnerClass === "undefined" ? void 0 : getAscendKeystoneOwnerClass;
+    },
+    get getItemBaseChainInfo() {
+      return typeof getItemBaseChainInfo === "undefined" ? void 0 : getItemBaseChainInfo;
+    },
+    get getItemCraftTier() {
+      return typeof getItemCraftTier === "undefined" ? void 0 : getItemCraftTier;
+    },
+    get getJewelStats() {
+      return typeof getJewelStats === "undefined" ? void 0 : getJewelStats;
+    },
+    get getJewelUniqueEffectText() {
+      return typeof getJewelUniqueEffectText === "undefined" ? void 0 : getJewelUniqueEffectText;
+    },
+    get getPlayerStats() {
+      return typeof getPlayerStats === "undefined" ? void 0 : getPlayerStats;
+    },
+    get getSaveLoopNumber() {
+      return typeof getSaveLoopNumber === "undefined" ? void 0 : getSaveLoopNumber;
+    },
+    get getWorldTreeBarkEffect() {
+      return typeof getWorldTreeBarkEffect === "undefined" ? void 0 : getWorldTreeBarkEffect;
+    },
+    get isFixedEquipmentAffix() {
+      return typeof isFixedEquipmentAffix === "undefined" ? void 0 : isFixedEquipmentAffix;
+    },
+    get levelProgression() {
+      return typeof levelProgression === "undefined" ? void 0 : levelProgression;
+    },
+    get previewBuildStats() {
+      return typeof previewBuildStats === "undefined" ? void 0 : previewBuildStats;
+    },
+    get stumpBox() {
+      return typeof stumpBox === "undefined" ? void 0 : stumpBox;
+    },
+    get talismanEffects() {
+      return typeof talismanEffects === "undefined" ? void 0 : talismanEffects;
+    },
+    get talismans() {
+      return typeof talismans === "undefined" ? void 0 : talismans;
+    }
+  }, state, social_exports, { profileValues, format, identity });
+  var statsMarkup = new SocialStatsMarkup({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get window() {
+      return typeof window === "undefined" ? void 0 : window;
+    }
+  }, state, social_exports, { format });
+  var upload = new SocialUpload({
+    get clearTimeout() {
+      return typeof clearTimeout === "undefined" ? void 0 : windowClearTimeout;
+    },
+    get cloudJsonRequest() {
+      return typeof cloudJsonRequest === "undefined" ? void 0 : cloudJsonRequest;
+    },
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get gameplayStarted() {
+      return typeof gameplayStarted === "undefined" ? void 0 : gameplayStarted;
+    },
+    get setTimeout() {
+      return typeof setTimeout === "undefined" ? void 0 : windowSetTimeout;
+    },
+    get showGameToast() {
+      return typeof showGameToast === "undefined" ? void 0 : showGameToast;
+    },
+    get startupOverlayActive() {
+      return typeof startupOverlayActive === "undefined" ? void 0 : startupOverlayActive;
+    }
+  }, state, social_exports, { session, snapshot, identity });
+  var nickname = new SocialNickname({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get cloudJsonRequest() {
+      return typeof cloudJsonRequest === "undefined" ? void 0 : cloudJsonRequest;
+    },
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get showGameToast() {
+      return typeof showGameToast === "undefined" ? void 0 : showGameToast;
+    }
+  }, state, social_exports, { session, identity });
+  var chatStatus = new SocialChatStatus({
+    get console() {
+      return console;
+    },
+    get URLSearchParams() {
+      return typeof URLSearchParams === "undefined" ? void 0 : URLSearchParams;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get localStorage() {
+      return typeof localStorage === "undefined" ? void 0 : localStorage;
+    },
+    get location() {
+      return typeof location === "undefined" ? void 0 : location;
+    },
+    get messageFrames() {
+      return typeof messageFrames === "undefined" ? void 0 : messageFrames;
+    }
+  }, state, social_exports, {});
+  var presenceMarkup = new SocialPresenceMarkup({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get i18n() {
+      return typeof i18n === "undefined" ? void 0 : i18n;
+    }
+  }, state, social_exports, { session, format });
+  var presence = new SocialPresence({
+    get console() {
+      return console;
+    },
+    get clearTimeout() {
+      return typeof clearTimeout === "undefined" ? void 0 : windowClearTimeout;
+    },
+    get cloudJsonRequest() {
+      return typeof cloudJsonRequest === "undefined" ? void 0 : cloudJsonRequest;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get setInterval() {
+      return typeof setInterval === "undefined" ? void 0 : windowSetInterval;
+    },
+    get setTimeout() {
+      return typeof setTimeout === "undefined" ? void 0 : windowSetTimeout;
+    }
+  }, state, social_exports, { session, identity, chatStatus, presenceMarkup });
+  var blocking = new SocialBlocking({
+    get console() {
+      return console;
+    },
+    get localStorage() {
+      return typeof localStorage === "undefined" ? void 0 : localStorage;
+    }
+  }, state, social_exports, {});
+  var noticeView = new SocialNoticeView({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get showGameToast() {
+      return typeof showGameToast === "undefined" ? void 0 : showGameToast;
+    },
+    get updateTabNotificationDots() {
+      return typeof updateTabNotificationDots === "undefined" ? void 0 : updateTabNotificationDots;
+    }
+  }, state, social_exports, { session, chatStatus, blocking });
+  var notifications = new SocialNotifications({
+    get cloudJsonRequest() {
+      return typeof cloudJsonRequest === "undefined" ? void 0 : cloudJsonRequest;
+    },
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get setInterval() {
+      return typeof setInterval === "undefined" ? void 0 : windowSetInterval;
+    }
+  }, state, social_exports, { session, chatStatus, noticeView });
+  var chatData = new SocialChatData({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get cloudJsonRequest() {
+      return typeof cloudJsonRequest === "undefined" ? void 0 : cloudJsonRequest;
+    },
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    }
+  }, state, social_exports, { session });
+  var specialCards = new SocialSpecialCards({
+    get CORE_ITEM_RULES() {
+      return typeof CORE_ITEM_RULES === "undefined" ? void 0 : CORE_ITEM_RULES;
+    },
+    get STUMP_BOX_COLORS() {
+      return typeof STUMP_BOX_COLORS === "undefined" ? void 0 : STUMP_BOX_COLORS;
+    },
+    get STUMP_BOX_SCAR() {
+      return typeof STUMP_BOX_SCAR === "undefined" ? void 0 : STUMP_BOX_SCAR;
+    },
+    get TALISMAN_RARITY_TONES() {
+      return typeof TALISMAN_RARITY_TONES === "undefined" ? void 0 : TALISMAN_RARITY_TONES;
+    },
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get window() {
+      return typeof window === "undefined" ? void 0 : window;
+    }
+  }, state, social_exports, { format, profileValues });
+  var itemCards = new SocialItemCards({
+    get COLONY_WARD_RULES() {
+      return typeof COLONY_WARD_RULES === "undefined" ? void 0 : COLONY_WARD_RULES;
+    },
+    get EMBER_CORRUPTION_TONE() {
+      return typeof EMBER_CORRUPTION_TONE === "undefined" ? void 0 : EMBER_CORRUPTION_TONE;
+    },
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get colonyWards() {
+      return typeof colonyWards === "undefined" ? void 0 : colonyWards;
+    },
+    get equipmentCrafting() {
+      return typeof equipmentCrafting === "undefined" ? void 0 : equipmentCrafting;
+    },
+    get getBaseStepClassName() {
+      return typeof getBaseStepClassName === "undefined" ? void 0 : getBaseStepClassName;
+    },
+    get getExceptionalBaseStars() {
+      return typeof getExceptionalBaseStars === "undefined" ? void 0 : getExceptionalBaseStars;
+    },
+    get getTierBadgeHtml() {
+      return typeof getTierBadgeHtml === "undefined" ? void 0 : getTierBadgeHtml;
+    },
+    get itemTooltipRules() {
+      return typeof itemTooltipRules === "undefined" ? void 0 : itemTooltipRules;
+    }
+  }, state, social_exports, { format, profileValues, specialCards });
+  var chatMarkup = new SocialChatMarkup({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get requestAnimationFrame() {
+      return typeof requestAnimationFrame === "undefined" ? void 0 : windowRequestAnimationFrame;
+    },
+    get setTimeout() {
+      return typeof setTimeout === "undefined" ? void 0 : windowSetTimeout;
+    }
+  }, state, social_exports, { format, itemCards, session, chatStatus, noticeView, blocking });
+  var polling = new SocialPolling({
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get setInterval() {
+      return typeof setInterval === "undefined" ? void 0 : windowSetInterval;
+    },
+    get setTimeout() {
+      return typeof setTimeout === "undefined" ? void 0 : windowSetTimeout;
+    }
+  }, state, social_exports, { chatStatus, chatMarkup, chatData, session, presence, reset });
+  var realtime = new SocialRealtime({
+    get clearTimeout() {
+      return typeof clearTimeout === "undefined" ? void 0 : windowClearTimeout;
+    },
+    get cloudState() {
+      return typeof cloudState === "undefined" ? void 0 : cloudState;
+    },
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get setTimeout() {
+      return typeof setTimeout === "undefined" ? void 0 : windowSetTimeout;
+    },
+    get window() {
+      return typeof window === "undefined" ? void 0 : window;
+    }
+  }, state, social_exports, { chatData, session, chatStatus, noticeView, chatMarkup, presence, reset, polling });
+  var background = new SocialBackground({
+    get console() {
+      return typeof console === "undefined" ? void 0 : console;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    }
+  }, state, social_exports, { chatStatus, noticeView, notifications, realtime, session, identity, upload, nickname, presence, reset, polling });
+  var composerControls = new SocialComposerControls({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    }
+  }, state, social_exports, { session, identity });
+  var attachments = new SocialAttachments({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get bagItems() {
+      return typeof bagItems === "undefined" ? void 0 : bagItems;
+    },
+    get colonyWards() {
+      return typeof colonyWards === "undefined" ? void 0 : colonyWards;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get showGameToast() {
+      return typeof showGameToast === "undefined" ? void 0 : showGameToast;
+    },
+    get stumpBox() {
+      return typeof stumpBox === "undefined" ? void 0 : stumpBox;
+    }
+  }, state, social_exports, { snapshot, identity, format });
+  var screen = new SocialScreen({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get cloudState() {
+      return typeof cloudState === "undefined" ? void 0 : cloudState;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get selectionDialog() {
+      return typeof selectionDialog === "undefined" ? void 0 : selectionDialog;
+    }
+  }, state, social_exports, { session, identity, nickname, presence, background, composerControls, attachments, polling, reset, format, blocking });
+  var screenActions = new SocialScreenActions({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get addLog() {
+      return typeof addLog === "undefined" ? void 0 : addLog;
+    },
+    get requestGameText() {
+      return typeof requestGameText === "undefined" ? void 0 : requestGameText;
+    },
+    get showGameToast() {
+      return typeof showGameToast === "undefined" ? void 0 : showGameToast;
+    },
+    get withDirectionParticle() {
+      return typeof withDirectionParticle === "undefined" ? void 0 : withDirectionParticle;
+    }
+  }, state, social_exports, { session, identity, upload, nickname, screen, polling, blocking, chatMarkup });
+  var chatSend = new SocialChatSend({
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get cloudJsonRequest() {
+      return typeof cloudJsonRequest === "undefined" ? void 0 : cloudJsonRequest;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get showGameToast() {
+      return typeof showGameToast === "undefined" ? void 0 : showGameToast;
+    }
+  }, state, social_exports, { session, identity, upload, screenActions, nickname, screen, attachments, composerControls, presence, chatData, polling });
+  var profileView = new SocialProfileView({
+    get BASE_ITEM_DB() {
+      return typeof BASE_ITEM_DB === "undefined" ? void 0 : BASE_ITEM_DB;
+    },
+    get CORE_ITEM_RULES() {
+      return typeof CORE_ITEM_RULES === "undefined" ? void 0 : CORE_ITEM_RULES;
+    },
+    get ITEM_VISUAL_ASSET_DB() {
+      return typeof ITEM_VISUAL_ASSET_DB === "undefined" ? void 0 : ITEM_VISUAL_ASSET_DB;
+    },
+    get STUMP_BOX_COLORS() {
+      return typeof STUMP_BOX_COLORS === "undefined" ? void 0 : STUMP_BOX_COLORS;
+    },
+    get STUMP_BOX_STAGES() {
+      return typeof STUMP_BOX_STAGES === "undefined" ? void 0 : STUMP_BOX_STAGES;
+    },
+    get _t() {
+      return typeof _t === "undefined" ? void 0 : _t;
+    },
+    get cloudJsonRequest() {
+      return typeof cloudJsonRequest === "undefined" ? void 0 : cloudJsonRequest;
+    },
+    get contentProgression() {
+      return typeof contentProgression === "undefined" ? void 0 : contentProgression;
+    },
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get getEquipmentGridVisualAsset() {
+      return typeof getEquipmentGridVisualAsset === "undefined" ? void 0 : getEquipmentGridVisualAsset;
+    },
+    get i18n() {
+      return typeof i18n === "undefined" ? void 0 : i18n;
+    },
+    get isMapPrimaryContentUnlocked() {
+      return typeof isMapPrimaryContentUnlocked === "undefined" ? void 0 : isMapPrimaryContentUnlocked;
+    },
+    get selectionDialog() {
+      return typeof selectionDialog === "undefined" ? void 0 : selectionDialog;
+    },
+    get showGameToast() {
+      return typeof showGameToast === "undefined" ? void 0 : showGameToast;
+    },
+    get weaponCategorySlotLabel() {
+      return typeof weaponCategorySlotLabel === "undefined" ? void 0 : weaponCategorySlotLabel;
+    }
+  }, state, social_exports, { reset, session, identity, upload, screenActions, nickname, format, profileValues, itemCards, specialCards, statsMarkup, blocking, chatMarkup });
+  var tooltip = new SocialTooltip({
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    },
+    get uiDisplay() {
+      return typeof uiDisplay === "undefined" ? void 0 : uiDisplay;
+    },
+    get window() {
+      return typeof window === "undefined" ? void 0 : window;
+    }
+  }, state, social_exports, { reset, profileView });
+  var styles = new SocialStyles({
+    get document() {
+      return typeof document === "undefined" ? void 0 : document;
+    }
+  }, state, social_exports, {});
+  var legacyNames = {
+    SOCIAL_NICK_KEY,
+    SOCIAL_LAST_SEEN_CHAT_KEY,
+    SOCIAL_CHAT_LIMIT,
+    SOCIAL_CHAT_POLL_MS,
+    SOCIAL_ONLINE_POLL_MS,
+    SOCIAL_CHAT_FULL_SYNC_MS,
+    SOCIAL_CHAT_FORGET_MS,
+    SOCIAL_CHAT_LIVE_POLL_MS,
+    SOCIAL_CHAT_LIVE_HIDDEN_MS,
+    SOCIAL_CHAT_LIVE_MISSES,
+    SOCIAL_CHAT_LIVE_SETTLE_MS,
+    SOCIAL_BG_NOTI_POLL_MS,
+    SOCIAL_CHAT_TOAST_MS,
+    SOCIAL_CHAT_TOAST_GAP_MS,
+    SOCIAL_MSG_MAX,
+    SOCIAL_NICK_MIN,
+    SOCIAL_NICK_MAX,
+    SOCIAL_SEND_MIN_INTERVAL_MS,
+    SOCIAL_SEND_MAX_PER_MIN,
+    SOCIAL_MAX_ITEMS_PER_MSG,
+    SOCIAL_TALISMAN_LINE_LIMIT,
+    SOCIAL_LEGACY_ITEM_LINE_LIMIT,
+    SOCIAL_ITEM_ARRAY_LIMITS,
+    SOCIAL_PROFILE_SYNC_DELAY_MS,
+    SOCIAL_HEARTBEAT_MS,
+    SOCIAL_ONLINE_WINDOW_S,
+    SOCIAL_RECENT_WINDOW_S,
+    SOCIAL_CHAT_RETENTION_MS,
+    SOCIAL_ITEM_TOKEN_RE,
+    SOCIAL_NICK_RE,
+    SOCIAL_EQUIP_SLOTS,
+    SOCIAL_BLOCKED_KEY,
+    PROFILE_STAT_KEYS,
+    PROFILE_STAT_ICONS,
+    PROFILE_STAT_GROUPS,
+    PROFILE_STAT_TONES,
+    SOCIAL_CHAT_ERROR_TEXTS,
+    socialChatMaxId,
+    PROFILE_TALISMAN_STATES,
+    PROFILE_OFF_STYLE,
+    PROFILE_TALISMAN_RARITY,
+    profileOwn,
+    PROFILE_CORE_TONE,
+    PROFILE_STUMP_CELLS,
+    CHAT_SETTINGS_ID,
+    socialLoggedInUserId: session.socialLoggedInUserId,
+    socialCloudReady: session.socialCloudReady,
+    getMyNickname: identity.getMyNickname,
+    socialClassLabel: format.socialClassLabel,
+    buildItemSnapshot: snapshot.buildItemSnapshot,
+    profileSnapshotIsOwn: upload.profileSnapshotIsOwn,
+    uploadPlayerProfile: upload.uploadPlayerProfile,
+    syncPlayerProfileQuiet: upload.syncPlayerProfileQuiet,
+    syncInitialPlayerProfile: upload.syncInitialPlayerProfile,
+    syncPlayerProfile: screenActions.syncPlayerProfile,
+    promptAndSetNickname: screenActions.promptAndSetNickname,
+    restoreNicknameFromServer: nickname.restoreNicknameFromServer,
+    sendPresenceHeartbeat: presence.sendPresenceHeartbeat,
+    refreshOnlineUsers: presence.refreshOnlineUsers,
+    isSocialTabActive: chatStatus.isSocialTabActive,
+    checkSocialChatNotification: notifications.checkSocialChatNotification,
+    syncSocialChatNotificationSetting: background.syncSocialChatNotificationSetting,
+    syncSocialBackgroundTasks: background.syncSocialBackgroundTasks,
+    syncLiveChat: realtime.syncLiveChat,
+    unblockUser: screenActions.unblockUser,
+    sendChatMessage: chatSend.sendChatMessage,
+    getChatAttachSnapshot: attachments.getChatAttachSnapshot,
+    attachChatSnapshot: attachments.attachChatSnapshot,
+    attachChatItem: attachments.attachChatItem,
+    attachChatItemOf: attachments.attachChatItemOf,
+    removePendingChatItem: attachments.removePendingChatItem,
+    updateChatCounter: attachments.updateChatCounter,
+    renderChatMessages: chatMarkup.renderChatMessages,
+    forgetSocialChatMessages: polling.forgetSocialChatMessages,
+    refreshChatPanel: polling.refreshChatPanel,
+    startChatPolling: polling.startChatPolling,
+    stopChatPolling: reset.stopChatPolling,
+    syncSocialChatPolling: background.syncSocialChatPolling,
+    onSocialChatKeydown: chatSend.onSocialChatKeydown,
+    ensureSocialTooltip: tooltip.ensureSocialTooltip,
+    showSocialTip: tooltip.showSocialTip,
+    moveSocialTip: tooltip.moveSocialTip,
+    hideSocialTip: reset.hideSocialTip,
+    openTipModal: tooltip.openTipModal,
+    renderProfileItemCard: itemCards.renderProfileItemCard,
+    closePlayerProfile: reset.closePlayerProfile,
+    openMyProfilePreview: profileView.openMyProfilePreview,
+    switchProfileTab: profileView.switchProfileTab,
+    renderProfileActionsRow: profileView.renderProfileActionsRow,
+    toggleProfileBlock: profileView.toggleProfileBlock,
+    openPlayerProfile: profileView.openPlayerProfile,
+    renderSocialTab: screen.renderSocialTab,
+    openChatSettings: screen.openChatSettings,
+    injectSocialStyles: styles.injectSocialStyles,
+    get socialState() {
+      return state.current;
+    }
+  };
+  var stateDescriptor = { configurable: true, get: () => state.current, set: (value) => {
+    state.current = value;
+  } };
+  Object.defineProperty(window, "socialState", stateDescriptor);
+  if (globalThis !== window) Object.defineProperty(globalThis, "socialState", stateDescriptor);
+  safeExposeGlobals(legacyNames);
+  if (globalThis !== window) Object.assign(globalThis, legacyNames);
+  var lifecycle = new SocialLifecycle({ document, console, setTimeout: windowSetTimeout, clearTimeout: windowClearTimeout }, state, { reset, styles, tooltip, background, realtime });
+  window.GameModules.social = { state, lifecycle, session, format, reset, identity, profileValues, snapshot, statsMarkup, upload, nickname, chatStatus, presenceMarkup, presence, blocking, noticeView, notifications, chatData, specialCards, itemCards, chatMarkup, polling, realtime, background, composerControls, attachments, screen, screenActions, chatSend, profileView, tooltip, styles };
+  lifecycle.start();
+})();

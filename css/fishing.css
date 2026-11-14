@@ -81,16 +81,12 @@
   /* 바다의 선물: 목적 → 제작법 → 변경 범위/재료 → 실제 결과. 상세 한 건만 보여 긴 전체 목록을 읽지 않아도 된다. */
   .fishing-workshop-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
   #fishing-battle-preview:empty { display: none; }
-  .sea-gift-group-picker { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 10px 0; }
-  .sea-gift-group-picker select, .fishing-recipe-picker select, .fishing-category-label select { width: 100%; min-width: 0; min-height: 44px; }
-  .fishing-workshop-intro { margin: 0 0 12px; color: var(--px-copy, #e8dcc0); line-height: 1.6; }
-  .fishing-workshop-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--px-gold-bright, #e0c283); }
-  .fishing-filter { display: flex; align-items: center; gap: 10px; min-height: 44px; margin-bottom: 12px; cursor: pointer; color: var(--px-copy, #e8dcc0); }
-  .fishing-filter input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: #d0aa60; }
-  .fishing-empty { padding: 18px; border: 1px solid #53412b; }
-  .fishing-empty p { margin: 0 0 12px; line-height: 1.6; }
-  .fishing-empty button { min-height: 44px; width: 100%; }
-  .fishing-workshop-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 14px; align-items: start; }
+  .sea-gift-group-picker { display: flex; gap: 8px; margin: 10px 0; }
+  .sea-gift-group-picker button { flex: 1; min-height: 44px; }
+  .sea-gift-group-picker [aria-pressed="true"] { color: #f3d28c; border-color: #d0aa60; background: #282116; }
+  .fishing-category-label select { width: 100%; min-width: 0; min-height: 44px; }
+  .fishing-workshop-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--px-gold-bright, #e0c283); }
+  .fishing-workshop-layout { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 12px; align-items: start; }
   .fishing-recipe-list { display: grid; gap: 6px; }
   #fishing-workshop .fishing-recipe-list button { display: grid; gap: 5px; width: 100%; padding: 10px; text-align: left; border: 1px solid #3a3024; background: #100e12; box-shadow: none; }
   #fishing-workshop .fishing-recipe-list button.is-selected { border-color: #d0aa60; background: #282116; box-shadow: inset 3px 0 #d0aa60; }
@@ -98,10 +94,8 @@
   .fishing-recipe-list span, .fishing-recipe-list small { color: var(--px-copy-muted, #a39883); overflow-wrap: anywhere; }
   .fishing-recipe-list .is-selected strong { color: #f3d28c; }
   .fishing-recipe-list small { color: #c2b296; }
-  .fishing-recipe-picker { display: none; }
-  .fishing-recipe { min-width: 0; display: grid; gap: 16px; padding: 14px; border: 1px solid #53412b; background: rgba(10, 8, 6, .6); }
-  .fishing-recipe > header { display: grid; gap: 6px; padding-bottom: 12px; border-bottom: 1px solid #3a3024; }
-  .fishing-recipe > header small { color: #a8c6d1; }
+  .fishing-recipe { min-width: 0; display: grid; gap: 12px; padding: 12px; border: 1px solid #53412b; background: rgba(10, 8, 6, .6); }
+  .fishing-recipe > header { padding-bottom: 8px; border-bottom: 1px solid #3a3024; }
   #fishing-workshop h4 { margin: 0; color: #f3d28c; font-size: 12px; line-height: 1.5; }
   .fishing-category-label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
   .fishing-quantity { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
@@ -114,7 +108,7 @@
   .fishing-target-buttons button { flex: 1; min-height: 44px; }
   .fishing-target-state { margin: 0; color: #9fd46a; }
   .fishing-target-state.is-blocked { color: #ffb293; }
-  .fishing-target summary { cursor: pointer; padding: 4px 0; color: #aacbd8; }
+  .fishing-target summary { cursor: pointer; min-height: 44px; padding: 10px 0; box-sizing: border-box; color: #aacbd8; }
   .fishing-preview .fishing-lines { padding: 0; list-style: none; }
   .fishing-preview li { display: grid; grid-template-columns: 106px minmax(0, 1fr); gap: 8px; padding: 7px 0; border-bottom: 1px solid #302c30; }
   .fishing-preview li b { align-self: start; padding: 2px 4px; font-weight: 400; color: #b9b2a5; }
@@ -122,18 +116,15 @@
   .fishing-preview .is-risk b { background: #3b231e; color: #ffb293; }
   .fishing-preview p { margin: 8px 0 0; line-height: 1.6; color: #aacbd8; }
   .fishing-effect { border-left: 2px solid #6e9eaf; padding-left: 12px; }
-  .fishing-effect > strong { color: #aacbd8; }
+  .fishing-effect summary { cursor: pointer; color: #aacbd8; min-height: 44px; padding: 10px 0; box-sizing: border-box; }
   .fishing-effect p { margin: 6px 0 0; color: var(--px-copy, #e8dcc0); line-height: 1.6; overflow-wrap: anywhere; }
   .fishing-effect .fishing-effect-note { color: #c4b89f; }
   .fishing-materials { display: grid; gap: 6px; }
   .fishing-materials h4 { padding-bottom: 4px; }
-  .fishing-material { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #30281c; }
-  .fishing-material > div { display: grid; gap: 4px; }
-  .fishing-material > div:last-child { text-align: right; }
+  .fishing-material { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #30281c; }
   .fishing-material strong { color: var(--px-copy, #e8dcc0); font-weight: 400; }
-  .fishing-material small { color: var(--px-copy-muted, #a39883); }
-  .fishing-material b { color: #ffb293; font-weight: 400; }
-  .fishing-material.is-ok b { color: #9fd46a; }
+  .fishing-material > span:last-child { color: var(--color-danger); white-space: nowrap; }
+  .fishing-material.is-ok > span:last-child { color: #9fd46a; }
   .fishing-craft-action { display: grid; gap: 8px; }
   .fishing-craft-action p { margin: 0; color: #c4b89f; }
   .fishing-craft-action p.is-blocked { color: var(--color-danger); }
@@ -158,8 +149,8 @@
 
   @container (max-width: 700px) {
     .fishing-workshop-layout { grid-template-columns: minmax(0, 1fr); }
-    .fishing-recipe-list { display: none; }
-    .fishing-recipe-picker { display: grid; gap: 6px; margin-bottom: 12px; }
+    .fishing-recipe-list { grid-auto-flow: column; grid-auto-columns: max-content; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+    #fishing-workshop .fishing-recipe-list button { min-width: 112px; min-height: 60px; }
   }
 
   /* 지도 창의 쌓임 순서 뒤에 숨던 전투 단추를 제목 옆에 둔다. 펼친 미리보기도 본문을 덮지 않는다. */
@@ -173,13 +164,10 @@
     .fishing-meters { grid-template-columns: minmax(0, 1fr); }
     .fishing-reef { grid-template-columns: auto minmax(40px, 1fr) auto; }
     .fishing-reef button { grid-column: 1 / -1; }
-    .sea-gift-group-picker { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-    .fishing-workshop-toolbar { align-items: stretch; flex-direction: column; }
+    .sea-gift-group-picker { gap: 6px; }
     .fishing-recipe { padding: 10px; }
     .fishing-preview li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
     .fishing-preview li b { justify-self: start; }
     .fishing-result-compare { grid-template-columns: minmax(0, 1fr); }
-    .fishing-material { grid-template-columns: 30px minmax(0, 1fr); }
-    .fishing-material > div:last-child { grid-column: 2; grid-template-columns: minmax(0, 1fr) auto; text-align: left; }
   }
 }

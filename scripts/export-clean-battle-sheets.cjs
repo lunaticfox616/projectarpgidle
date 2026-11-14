@@ -1,6 +1,6 @@
 'use strict';
 // 미리 정리한 전투 그림(assets/battle-clean)을 원본에서 다시 만든다. 게임이 예전에 실행 중에 하던 것과 같은 함수
-// (js/battle-assets.js sanitizeBattleSheet, sanitizeWhiteBackdropSheet, sanitizeLocalMonsterBackdropSheet)를 브라우저에서 돌려
+// (js/canvas-battle-assets.js sanitizeBattleSheet, sanitizeWhiteBackdropSheet, sanitizeLocalMonsterBackdropSheet)를 브라우저에서 돌려
 // 무손실 PNG로 저장한다. 적 아틀라스는 예전처럼 두 번(불러올 때와 buildEnemyTransparentImage) 정리한 것이 그려졌다.
 // 원본 보스 그림은 data/bosses.js BOSS_ASSET_SOURCES. 2026-10-07 메모리 검토(정리 사본이 따로 메모리에 남았다).
 // 사용: 게임을 띄운 서버 주소를 준다. node scripts/export-clean-battle-sheets.cjs http://127.0.0.1:4214/

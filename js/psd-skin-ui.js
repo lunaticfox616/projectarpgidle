@@ -1,80 +1,131 @@
-'use strict';
-/**
- * PSD 테 스킨(css/themes/psd-skin.css)의 스크립트 몫: 위쪽 단추의 강조(.psd-attn)를 새 알림에 붙이고 누르면 뗀다
- * (2026-11-07 사용자: 깜빡이 말고 강조만, 한 번 확인하면 강조를 없애고 다른 알림이 없을 때는 그냥 둔다).
- * 알림마다 열쇠가 있다: 루프 진행은 그 루프, 꼭 할 목표는 그 목표의 제목, 처음 자동은 한 번. 누른 열쇠는 이 기기(localStorage)에
- * 남아 같은 알림이면 다시 붙지 않고, 다음 루프나 다른 목표처럼 열쇠가 바뀌면 다시 붙는다. 메뉴 단추 안내 테(.tutorial-callout)도
- * 누르면 바로 뗀다(게임은 안내 카드가 닫힐 때 뗀다). 단추와 목표 판이 바뀔 때만 다시 본다(MutationObserver).
- */
-(function psdSkinUi() {
-    if (typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
-    const SEEN_KEY = 'rignin-psd-seen';
-    // 루프 진행 단추는 게임이 style.display로 보이고 숨긴다(js/ui.js). 크기를 재지 않아 그릴 때마다 배치를 다시 계산시키지 않는다.
-    const shown = el => el.style.display !== 'none';
-    const goalTitle = () => (document.getElementById('ui-goal-title')?.textContent || '').trim();
-    /** id: 본 열쇠를 적는 칸, button: 강조할 단추, key: 지금 알림의 열쇠(알림이 없으면 빈 값) */
-    const ALERTS = [
-        { id: 'loop', button: 'btn-combat-loop-advance', key: el => (shown(el) ? `loop-${typeof game === 'object' && game ? game.loopCount : 0}` : '') },
-        { id: 'goal', button: 'btn-combat-goal-toggle', key: el => (el.classList.contains('mandatory') ? `goal-${goalTitle()}` : '') },
-        { id: 'auto', button: 'btn-act-exploration-auto', key: el => (el.classList.contains('is-opening-glow') ? 'opening' : '') }
-    ];
-
-    function readSeen() {
-        try {
-            const parsed = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}');
-            return parsed && typeof parsed === 'object' ? parsed : {};
-        } catch (error) {
-            console.warn('[psd-skin] 본 알림을 읽지 못해 처음부터 셉니다.', error);
-            return {};
-        }
+// GENERATED from modules/psd-skin-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
     }
-    const seen = readSeen();
+    runtime.listeners.length = 0;
+  }
 
-    function remember(id, key) {
-        seen[id] = key;
-        try {
-            localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
-        } catch (error) {
-            console.warn('[psd-skin] 본 알림을 남기지 못했습니다(이번 접속 동안만 기억합니다).', error);
-        }
+  // modules/ui/psd-attention-view.mjs
+  var SEEN_KEY = "rignin-psd-seen";
+  var PsdAttentionView = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.active = true;
+      this.listeners = [];
+      this.observer = null;
+      this.actions = null;
+      this.drawer = null;
+      this.seen = this.readSeen();
+      this.alerts = [
+        { id: "loop", button: "btn-combat-loop-advance", key: (element) => element.style.display !== "none" ? `loop-${this.deps.game ? this.deps.game.loopCount : 0}` : "" },
+        { id: "goal", button: "btn-combat-goal-toggle", key: (element) => element.classList.contains("mandatory") ? `goal-${this.goalTitle()}` : "" },
+        { id: "auto", button: "btn-act-exploration-auto", key: (element) => element.classList.contains("is-opening-glow") ? "opening" : "" }
+      ];
+      if (deps.document.readyState === "loading") listenView(this, deps.document, "DOMContentLoaded", () => this.start(), { once: true });
+      else this.start();
     }
-
-    function refresh() {
-        for (const alert of ALERTS) {
-            const el = document.getElementById(alert.button);
-            if (!el) continue;
-            const key = alert.key(el);
-            el.classList.toggle('psd-attn', !!key && seen[alert.id] !== key);
-        }
+    goalTitle() {
+      return (this.deps.document.getElementById("ui-goal-title")?.textContent || "").trim();
     }
-
-    function onPress(event) {
-        const target = event.target instanceof Element ? event.target : null;
-        if (!target) return;
-        target.closest('.tutorial-callout')?.classList.remove('tutorial-callout');
-        const alert = ALERTS.find(item => target.closest(`#${item.button}`));
-        if (!alert) return;
-        const key = alert.key(document.getElementById(alert.button));
-        if (key) remember(alert.id, key);
-        refresh();
+    readSeen() {
+      try {
+        const value = JSON.parse(this.deps.storage.getItem(SEEN_KEY) || "{}");
+        return value && typeof value === "object" ? value : {};
+      } catch (error) {
+        this.deps.console.warn("[psd-skin] 본 알림을 읽지 못해 처음부터 셉니다.", error);
+        return {};
+      }
     }
-
-    function start() {
-        const actions = document.querySelector('.combat-zone-actions');
-        if (!actions) return;
-        const observer = new MutationObserver(() => {
-            const drawer = document.getElementById('ui-goal-drawer');
-            if (drawer && !drawer.dataset.psdWatched) {
-                drawer.dataset.psdWatched = '1';
-                observer.observe(drawer, { childList: true, characterData: true, subtree: true });
-            }
-            refresh();
-        });
-        observer.observe(actions, { attributes: true, attributeFilter: ['class', 'style', 'hidden'], subtree: true });
-        document.addEventListener('click', onPress, true);
-        refresh();
+    remember(id, key) {
+      this.seen[id] = key;
+      try {
+        this.deps.storage.setItem(SEEN_KEY, JSON.stringify(this.seen));
+      } catch (error) {
+        this.deps.console.warn("[psd-skin] 본 알림을 남기지 못했습니다(이번 접속 동안만 기억합니다).", error);
+      }
     }
+    refresh() {
+      if (!this.active) return;
+      for (const alert of this.alerts) {
+        const element = this.deps.document.getElementById(alert.button);
+        if (!element) continue;
+        const key = alert.key(element);
+        element.classList.toggle("psd-attn", !!key && this.seen[alert.id] !== key);
+      }
+    }
+    onPress(event) {
+      const target = event.target;
+      if (!(target instanceof this.deps.Element)) return;
+      target.closest(".tutorial-callout")?.classList.remove("tutorial-callout");
+      const alert = this.alerts.find((item) => target.closest(`#${item.button}`));
+      if (!alert) return;
+      const key = alert.key(this.deps.document.getElementById(alert.button));
+      if (key) this.remember(alert.id, key);
+      this.refresh();
+    }
+    start() {
+      if (!this.active || this.observer) return;
+      const actions = this.deps.document.querySelector(".combat-zone-actions");
+      if (!actions) return;
+      this.actions = actions;
+      this.observer = new this.deps.MutationObserver(() => {
+        this.watchDrawer();
+        this.refresh();
+      });
+      this.watchDrawer();
+      listenView(this, this.deps.document, "click", (event) => this.onPress(event), true);
+      this.refresh();
+    }
+    watchDrawer() {
+      const drawer = this.deps.document.getElementById("ui-goal-drawer");
+      if (drawer === this.drawer && this.observing) return;
+      this.observer.disconnect();
+      this.drawer = drawer;
+      this.observer.observe(this.actions, { attributes: true, attributeFilter: ["class", "style", "hidden"], subtree: true });
+      if (drawer) this.observer.observe(drawer, { childList: true, characterData: true, subtree: true });
+      this.observing = true;
+    }
+    dispose() {
+      releaseViewEvents(this);
+      this.observer?.disconnect();
+      this.observer = null;
+      this.actions = this.drawer = null;
+    }
+  };
+  function createPsdAttentionView(deps) {
+    if (!deps.document || !deps.MutationObserver) return Object.freeze({ dispose() {
+    } });
+    const view = new PsdAttentionView(deps);
+    return Object.freeze({ dispose: () => view.dispose() });
+  }
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
-    else start();
+  // modules/psd-skin-ui-classic.mjs
+  window.GameModules.psdAttentionView = createPsdAttentionView({
+    get document() {
+      return typeof document === "undefined" ? null : document;
+    },
+    get MutationObserver() {
+      return typeof MutationObserver === "undefined" ? null : MutationObserver;
+    },
+    get Element() {
+      return Element;
+    },
+    get console() {
+      return console;
+    },
+    get storage() {
+      return localStorage;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    }
+  });
 })();

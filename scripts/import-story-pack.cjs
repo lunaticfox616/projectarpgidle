@@ -15,6 +15,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const espree = require('espree');
+const { readDataSource, writeDataSource } = require('./lib/data-authoring.cjs');
 
 const root = path.resolve(__dirname, '..');
 const STORY = 'data/story-journal.js', MAPS = 'data/maps.js', BIBLE = 'docs/story-bible.md';
@@ -74,7 +75,7 @@ const COMMENTS = Object.freeze({
 });
 
 function read(file) {
-    return fs.readFileSync(file, 'utf8').replace(/^﻿/, '').replace(/\r\n/g, '\n');
+    return readDataSource(file).replace(/^﻿/, '').replace(/\r\n/g, '\n');
 }
 // 저장소에 남기지 않는 말(2026-10-16 사용자 요청, 다른 게임 이름을 붙인 문체 이름): 옮길 때 지우고 몇 곳인지 알린다.
 const SCRUB = Object.freeze([/\uB2E4\uD06C\s?\uC18C\uC6B8\s?\uC2DD\s?/g]);
@@ -87,7 +88,7 @@ function scrub(text, name) {
 function writeLike(file, raw) {
     const text = raw.endsWith('\n') ? raw : `${raw}\n`; // a pack file may end without a line break
     const crlf = fs.existsSync(file) && fs.readFileSync(file, 'utf8').includes('\r\n');
-    fs.writeFileSync(file, crlf ? text.replace(/\n/g, '\r\n') : text);
+    writeDataSource(file, crlf ? text.replace(/\n/g, '\r\n') : text);
 }
 function fail(node, why) {
     throw new Error(`${node.loc ? node.loc.start.line + '번째 줄: ' : ''}${why}`);
@@ -161,7 +162,7 @@ function gameIds() {
         STORY_ACT_ENCOUNTERS: matches(block(maps, 'STORY_ACTS'), /\border: (\d+)/g),
         STORY_TRIAL_ENCOUNTERS: matches(block(maps, 'TRIAL_ZONES'), zoneId),
         STORY_ENDGAME_ENCOUNTERS: [...matches(maps, zoneId), ...matches(file('data/atlas-endgame.js'), zoneId),
-            ...matches(file('js/state.js'), /_ZONE_ID = '([a-z0-9_]+)'/g)],
+            ...matches(file('modules/data/world-progression-definitions.mjs'), /_ZONE_ID = '([a-z0-9_]+)'/g)],
         STORY_LOOP_MILESTONES: [...matches(file('data/content-progression.js'), /\{"id":"([^"]+)"/g), 'default']
     };
 }

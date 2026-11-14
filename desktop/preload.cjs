@@ -16,12 +16,15 @@ contextBridge.exposeInMainWorld('rigninDesktop', Object.freeze({
     onOpenUrl(listener) {
         listeners.add(listener);
         waiting.splice(0).forEach(url => listener(url));
+        return () => listeners.delete(listener);
     },
     /** Full screen (true) or a window: the shell switches and answers with the mode it is in. */
     setFullScreen: on => ipcRenderer.invoke('rignin:full-screen', !!on),
     isFullScreen: () => ipcRenderer.invoke('rignin:full-screen', null),
     /** Calls back with the mode after every switch (the setting, F11 or Alt+Enter). */
     onFullScreen(listener) {
-        ipcRenderer.on('rignin:full-screen-changed', (_event, on) => listener(on));
+        const handler = (_event, on) => listener(on);
+        ipcRenderer.on('rignin:full-screen-changed', handler);
+        return () => ipcRenderer.removeListener('rignin:full-screen-changed', handler);
     }
 }));

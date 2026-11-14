@@ -1,15 +1,34 @@
-// 군락지 화면의 액막이 안내(2026-10-10): 액막이는 가방에 들어가고 장비창 액막이 칸에 끼운다(js/colony-wards.js). 여기서는 끼운 효과의
-// 합과 칸 수, 군락지 편린으로 만들기를 보여 준다(js/colony-wards-ui.js colonyPanelHtml). 예전 보관함과 칸은 불러올 때 장비로 옮긴다.
-(function () {
-    'use strict';
-    function renderColonyWardView(targetId) {
-        const panel = document.getElementById(targetId);
-        if (!panel) return;
-        const html = colonyWardsUi.colonyPanelHtml();
-        if (panel.__wardHtml === html) return;
-        panel.innerHTML = html;
-        panel.__wardHtml = html;
-    }
+// GENERATED from modules/colony-ward-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/ui/colony-ward-panel-actions.mjs
+  function renderColonyWardView(runtime, targetId) {
+    const panel = runtime.deps.document.getElementById(targetId);
+    if (!panel) return;
+    const html = runtime.deps.colonyWardsUi.colonyPanelHtml();
+    if (panel.__wardHtml === html) return;
+    panel.innerHTML = html;
+    panel.__wardHtml = html;
+  }
 
-    safeExposeGlobals({ renderColonyWardView });
+  // modules/ui/colony-ward-panel.mjs
+  function createColonyWardPanel(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null };
+    const handlers = { renderColonyWardView };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(void 0, runtime);
+    runtime.api = { renderColonyWardView: runtime.handlers.renderColonyWardView };
+    return runtime.api;
+  }
+
+  // modules/colony-ward-ui-classic.mjs
+  var colonyWardPanel = createColonyWardPanel({
+    get document() {
+      return document;
+    },
+    get colonyWardsUi() {
+      return colonyWardsUi;
+    }
+  });
+  safeExposeGlobals({
+    renderColonyWardView: colonyWardPanel.renderColonyWardView
+  });
 })();

@@ -1,545 +1,708 @@
-// 아틀라스 후반부 (docs/atlas-pinnacles-20261002.md 2-1, 3절): 세계수의 그림자(정점)를 처음 쓰러뜨리면 아틀라스가 깨어나 넓어진다.
-// 리그닌 이야기에 맞춘 최종 보스 다섯(정원사의 메아리, 밑거름의 장로, 나이테를 엮는 자, 화로의 괴브니우, 혈맥의 케르눈노스)과, 지도 속 콘텐츠 방마다의
-// 리그 우두머리. 싸움은 아틀라스 지도 장치 런 그대로다(포털 · 보관 · 정산, js/atlas-run.js) — 다만 지도석 대신 재료를 바친다.
-// 재료(items)와 진행(처치, 마름, 목격)은 루프를 넘어 남고 시대 재생 때 사라진다. 수치는 모두 첫 제안값이다.
-const ATLAS_ENDGAME = Object.freeze({
+// GENERATED from modules/data/atlas-endgame.mjs. Edit the ESM source; run npm run build:modules.
+(() => {
+  // modules/data/atlas-endgame.mjs
+  var ATLAS_ENDGAME = Object.freeze({
     // 후반부 재료. 지역 수호자 가위 조각 다섯(정원사), 마름 조각 넷(장로), 초대장(나이테), 잉걸(대사제), 허기의 즙(혈맥의 케르눈노스),
     // 리그 조각 넷(지도 속 방에서).
     items: Object.freeze({
-        shearRoots: Object.freeze({ name: '뿌리 가위 조각', from: '수호자 「검은 뿌리」' }),
-        shearTrunk: Object.freeze({ name: '줄기 가위 조각', from: '수호자 「나이테 왕」' }),
-        shearCanopy: Object.freeze({ name: '가지 가위 조각', from: '수호자 「폭풍 날개」' }),
-        shearGarden: Object.freeze({ name: '정원 가위 조각', from: '수호자 「잿불 정원사」' }),
-        shearSanctum: Object.freeze({ name: '성소 가위 조각', from: '수호자 「서리 눈」' }),
-        rotHusk: Object.freeze({ name: '껍질 마름 조각', from: '껍질의 사도' }),
-        rotSap: Object.freeze({ name: '수액 마름 조각', from: '수액의 사도' }),
-        rotRoot: Object.freeze({ name: '뿌리 마름 조각', from: '뿌리의 사도' }),
-        rotSeed: Object.freeze({ name: '씨앗 마름 조각', from: '씨앗의 사도' }),
-        ringInvite: Object.freeze({ name: '나이테 초대장', from: '후반부 보스를 다섯 번 쓰러뜨릴 때마다' }),
-        ember: Object.freeze({ name: '성화 잉걸', from: '지도 속 붉은 제단' }),
-        ichor: Object.freeze({ name: '허기의 즙', from: '지도 속 푸른 제단' }),
-        voidSplinter: Object.freeze({ name: '공허 조각', from: '지도 속 공허 균열' }),
-        royalHoney: Object.freeze({ name: '왕실 꿀', from: '지도 속 벌집' }),
-        vaultKey: Object.freeze({ name: '금고 열쇠 조각', from: '지도 속 보물 방' }),
-        starShard: Object.freeze({ name: '별 조각', from: '지도 속 운석 분화구' }),
-        // 루프 30 뒤 방 넷의 리그 조각(2026-10-09).
-        emberCinder: Object.freeze({ name: '타다 남은 불씨', from: '지도 속 잿불 터' }),
-        amberDrop: Object.freeze({ name: '굳은 수액 방울', from: '지도 속 수액 상처' }),
-        witheredPetal: Object.freeze({ name: '시든 꽃잎', from: '지도 속 시든 정원' }),
-        saplingBud: Object.freeze({ name: '어린 눈', from: '지도 속 묘목장' })
+      shearRoots: Object.freeze({ name: "뿌리 가위 조각", from: "수호자 「검은 뿌리」" }),
+      shearTrunk: Object.freeze({ name: "줄기 가위 조각", from: "수호자 「나이테 왕」" }),
+      shearCanopy: Object.freeze({ name: "가지 가위 조각", from: "수호자 「폭풍 날개」" }),
+      shearGarden: Object.freeze({ name: "정원 가위 조각", from: "수호자 「잿불 정원사」" }),
+      shearSanctum: Object.freeze({ name: "성소 가위 조각", from: "수호자 「서리 눈」" }),
+      rotHusk: Object.freeze({ name: "껍질 마름 조각", from: "껍질의 사도" }),
+      rotSap: Object.freeze({ name: "수액 마름 조각", from: "수액의 사도" }),
+      rotRoot: Object.freeze({ name: "뿌리 마름 조각", from: "뿌리의 사도" }),
+      rotSeed: Object.freeze({ name: "씨앗 마름 조각", from: "씨앗의 사도" }),
+      ringInvite: Object.freeze({ name: "나이테 초대장", from: "후반부 보스를 다섯 번 쓰러뜨릴 때마다" }),
+      ember: Object.freeze({ name: "성화 잉걸", from: "지도 속 붉은 제단" }),
+      ichor: Object.freeze({ name: "허기의 즙", from: "지도 속 푸른 제단" }),
+      voidSplinter: Object.freeze({ name: "공허 조각", from: "지도 속 공허 균열" }),
+      royalHoney: Object.freeze({ name: "왕실 꿀", from: "지도 속 벌집" }),
+      vaultKey: Object.freeze({ name: "금고 열쇠 조각", from: "지도 속 보물 방" }),
+      starShard: Object.freeze({ name: "별 조각", from: "지도 속 운석 분화구" }),
+      // 루프 30 뒤 방 넷의 리그 조각(2026-10-09).
+      emberCinder: Object.freeze({ name: "타다 남은 불씨", from: "지도 속 잿불 터" }),
+      amberDrop: Object.freeze({ name: "굳은 수액 방울", from: "지도 속 수액 상처" }),
+      witheredPetal: Object.freeze({ name: "시든 꽃잎", from: "지도 속 시든 정원" }),
+      saplingBud: Object.freeze({ name: "어린 눈", from: "지도 속 묘목장" })
     }),
     itemCap: 99,
     stories: Object.freeze({
-    "apex_gardener": {
+      "apex_gardener": {
         "story": "버려진 가지를 잘라 내던 정원사의 판결이, 주인 없는 왕관 안에서 아직 되풀이된다.",
         "entry": "뿌리가 없는 가지여. 이번에는 어디까지 살아남겠느냐.",
         "fall": "닫힌 가위 사이로 작은 새눈이 돋는다. 판결의 목소리는 더는 들리지 않는다."
-    },
-    "apex_compost": {
+      },
+      "apex_compost": {
         "story": "우물에 버려진 생명들이 하나의 장로를 이루었다. 썩음은 끝이 아니라, 새로운 입이 자라는 자리였다.",
         "entry": "너도 이곳에서 먹고 자랐다. 이제 돌려다오.",
         "fall": "겹겹의 껍질이 무너지자, 썩은 심장만 천천히 고동친다."
-    },
-    "apex_weaver": {
+      },
+      "apex_weaver": {
         "story": "세계수가 기억한 싸움을 나이테에 엮는 자. 오래된 승리도 그 손에 닿으면 다시 넘어야 할 문이 된다.",
         "entry": "네가 베어 낸 이름들을, 아직 기억하느냐.",
         "fall": "팽팽하던 실이 풀린다. 남은 반지 하나에는 다른 반지의 무늬가 떠오른다."
-    },
-    "apex_archbishop": {
+      },
+      "apex_archbishop": {
         "story": "어머니 나무보다 오래된 화로. 괴브니우는 태초의 검은 잉걸을 지킨다.",
         "entry": "검은 불꽃의 잉걸을 지키는 화로의 괴브니우가 제단 위에서 강림한다.",
         "fall": "화로의 파수꾼이 물러나고 제단 위에 꺼지지 않는 검은 잉걸이 남는다."
-    },
-    "apex_devourer": {
+      },
+      "apex_devourer": {
         "story": "세계수에 기대지 않는 군집의 생명. 케르눈노스는 그 혈맥을 다스린다.",
         "entry": "자립의 군집과 혈맥을 다스리는 케르눈노스가 심재를 뚫고 모습을 드러낸다.",
         "fall": "케르눈노스가 힘을 거두며 스스로 순환하는 고대의 생명 핵이 쏟아진다."
-    }
-}),
+      }
+    }),
     // 단계마다 다른 연계: 특수기 세 번이 첫 수, 연계, 마무리(sequences의 모양 셋). 예고와 공격 뒤 쉬는 시간(ms)은 combo, 마무리는 더 길다.
     combo: Object.freeze({ warningMs: 1900, recoveryMs: 1100, finisherWarningMs: 2200, finisherRecoveryMs: 2600 }),
     // 투기장 장판(arenas[].element의 지대)이 예고되는 간격과 예고 시간(ms). 지대가 남는 시간과 피해는 COMBAT_GRID_CONFIG.ground.
-    arenaHazard: Object.freeze({ pattern: 'pool', warningMs: 1900, intervalMs: 6800 }),
+    arenaHazard: Object.freeze({ pattern: "pool", warningMs: 1900, intervalMs: 6800 }),
     sequences: Object.freeze({
-        prune: ['lane', 'fan', 'wave'], graft: ['split', 'lane', 'pulse'], verdict: ['wave', 'beam', 'pulse'],
-        decay: ['ring', 'lane', 'pulse'], swarm: ['fan', 'wave', 'split'], compost: ['pulse', 'lane', 'wave'],
-        weave: ['fan', 'beam', 'wave'], echo: ['impact', 'split', 'pulse'], memory: ['beam', 'wave', 'pulse'],
-        pyre: ['ring', 'fan', 'wave'], hymn: ['split', 'wave', 'beam'], blackSun: ['beam', 'fan', 'pulse'],
-        gnaw: ['charge', 'wave', 'lane'], tendril: ['lane', 'split', 'wave'], hunger: ['pulse', 'charge', 'wave']
+      prune: ["lane", "fan", "wave"],
+      graft: ["split", "lane", "pulse"],
+      verdict: ["wave", "beam", "pulse"],
+      decay: ["ring", "lane", "pulse"],
+      swarm: ["fan", "wave", "split"],
+      compost: ["pulse", "lane", "wave"],
+      weave: ["fan", "beam", "wave"],
+      echo: ["impact", "split", "pulse"],
+      memory: ["beam", "wave", "pulse"],
+      pyre: ["ring", "fan", "wave"],
+      hymn: ["split", "wave", "beam"],
+      blackSun: ["beam", "fan", "pulse"],
+      gnaw: ["charge", "wave", "lane"],
+      tendril: ["lane", "split", "wave"],
+      hunger: ["pulse", "charge", "wave"]
     }),
     arenas: Object.freeze({
-        apex_gardener: { element: 'cold', hint: '가지치기의 연쇄 균열 → 갈래 베기 → 십자 강타. 빙결 지대를 벗어난 뒤 마무리의 빈틈을 노립니다.' },
-        apex_compost: { element: 'chaos', hint: '썩음 웅덩이와 사도의 갈래 공격이 겹칩니다. 부식 지대 밖에서 삼키기가 끝난 뒤 반격합니다.' },
-        apex_weaver: { element: 'cold', hint: '갈래 사격과 광선, 목격한 보스의 메아리가 이어집니다. 마지막 파동 뒤 공격이 멎습니다.' },
-        apex_archbishop: { element: 'fire', hint: '성화가 남은 바닥을 피하며 갈래 사격과 광선을 견딥니다. 검은 태양이 꺼지면 반격합니다.' },
-        apex_devourer: { element: 'chaos', hint: '돌진 경로와 뿌리 촉수가 번갈아 열립니다. 부식 지대를 벗어나 삼키기 뒤의 긴 빈틈을 노립니다.' }
+      apex_gardener: { element: "cold", hint: "가지치기의 연쇄 균열 → 갈래 베기 → 십자 강타. 빙결 지대를 벗어난 뒤 마무리의 빈틈을 노립니다." },
+      apex_compost: { element: "chaos", hint: "썩음 웅덩이와 사도의 갈래 공격이 겹칩니다. 부식 지대 밖에서 삼키기가 끝난 뒤 반격합니다." },
+      apex_weaver: { element: "cold", hint: "갈래 사격과 광선, 목격한 보스의 메아리가 이어집니다. 마지막 파동 뒤 공격이 멎습니다." },
+      apex_archbishop: { element: "fire", hint: "성화가 남은 바닥을 피하며 갈래 사격과 광선을 견딥니다. 검은 태양이 꺼지면 반격합니다." },
+      apex_devourer: { element: "chaos", hint: "돌진 경로와 뿌리 촉수가 번갈아 열립니다. 부식 지대를 벗어나 삼키기 뒤의 긴 빈틈을 노립니다." }
     }),
     // 지역 수호자 → 깨어난 뒤 처치마다 주는 가위 조각(지역 id).
-    guardianShears: Object.freeze({ roots: 'shearRoots', trunk: 'shearTrunk', canopy: 'shearCanopy', garden: 'shearGarden', sanctum: 'shearSanctum' }),
+    guardianShears: Object.freeze({ roots: "shearRoots", trunk: "shearTrunk", canopy: "shearCanopy", garden: "shearGarden", sanctum: "shearSanctum" }),
     // 특수기: every 번째 공격마다 telegraph 모양(data/constants.js bossPatternProfiles)으로 피해 × damageMul. 나머지 공격은 전조.
     // damageMul은 기존 보스 양식의 최고치(1.55)를 넘지 않는다 — 전투력 추정(getMaximumBossPatternDamageMultiplier)이 그대로 맞는다.
     mechanics: Object.freeze({
-        prune: Object.freeze({ name: '가지치기', every: 3, telegraph: 'lane', damageMul: 1.5 }),
-        graft: Object.freeze({ name: '접붙이기', every: 3, telegraph: 'split', damageMul: 1.4 }),
-        verdict: Object.freeze({ name: '밑거름의 판결', every: 4, telegraph: 'pulse', damageMul: 1.55 }),
-        decay: Object.freeze({ name: '썩음 번짐', every: 3, telegraph: 'ring', damageMul: 1.45 }),
-        swarm: Object.freeze({ name: '사도들의 행진', every: 3, telegraph: 'wave', damageMul: 1.4 }),
-        compost: Object.freeze({ name: '밑거름 삼키기', every: 2, telegraph: 'pulse', damageMul: 1.35 }),
-        weave: Object.freeze({ name: '나이테 엮기', every: 3, telegraph: 'fan', damageMul: 1.4 }),
-        echo: Object.freeze({ name: '엮인 기억', every: 3, telegraph: 'impact', damageMul: 1.45 }),
-        memory: Object.freeze({ name: '되감긴 나이테', every: 2, telegraph: 'wave', damageMul: 1.4 }),
-        pyre: Object.freeze({ name: '성화', every: 3, telegraph: 'ring', damageMul: 1.5 }),
-        hymn: Object.freeze({ name: '부제들의 성가', every: 3, telegraph: 'fan', damageMul: 1.35 }),
-        blackSun: Object.freeze({ name: '검은 태양', every: 3, telegraph: 'beam', damageMul: 1.55 }),
-        gnaw: Object.freeze({ name: '갉아먹기', every: 3, telegraph: 'charge', damageMul: 1.5 }),
-        tendril: Object.freeze({ name: '뿌리 촉수', every: 3, telegraph: 'lane', damageMul: 1.4 }),
-        hunger: Object.freeze({ name: '모두 삼키기', every: 2, telegraph: 'pulse', damageMul: 1.4 }),
-        rift: Object.freeze({ name: '공허 가르기', every: 3, telegraph: 'beam', damageMul: 1.45 }),
-        sting: Object.freeze({ name: '여왕의 독침', every: 3, telegraph: 'split', damageMul: 1.4 }),
-        vault: Object.freeze({ name: '금고 봉인', every: 4, telegraph: 'ring', damageMul: 1.5 }),
-        starfall: Object.freeze({ name: '별똥 비', every: 3, telegraph: 'impact', damageMul: 1.5 }),
-        // 루프 30 뒤 방 넷의 리그 우두머리(2026-10-09).
-        cinderRain: Object.freeze({ name: '잿불 비', every: 3, telegraph: 'impact', damageMul: 1.5 }),
-        ashTide: Object.freeze({ name: '재의 물결', every: 3, telegraph: 'wave', damageMul: 1.45 }),
-        amberSeal: Object.freeze({ name: '호박 굳히기', every: 4, telegraph: 'ring', damageMul: 1.55 }),
-        sapBurst: Object.freeze({ name: '수액 분출', every: 3, telegraph: 'split', damageMul: 1.4 }),
-        witherBloom: Object.freeze({ name: '시든 꽃가루', every: 3, telegraph: 'pulse', damageMul: 1.4 }),
-        thornLash: Object.freeze({ name: '가시 채찍', every: 3, telegraph: 'lane', damageMul: 1.45 }),
-        saplingRush: Object.freeze({ name: '묘목 돌진', every: 3, telegraph: 'charge', damageMul: 1.45 }),
-        rootSnare: Object.freeze({ name: '뿌리 올가미', every: 3, telegraph: 'fan', damageMul: 1.4 })
+      prune: Object.freeze({ name: "가지치기", every: 3, telegraph: "lane", damageMul: 1.5 }),
+      graft: Object.freeze({ name: "접붙이기", every: 3, telegraph: "split", damageMul: 1.4 }),
+      verdict: Object.freeze({ name: "밑거름의 판결", every: 4, telegraph: "pulse", damageMul: 1.55 }),
+      decay: Object.freeze({ name: "썩음 번짐", every: 3, telegraph: "ring", damageMul: 1.45 }),
+      swarm: Object.freeze({ name: "사도들의 행진", every: 3, telegraph: "wave", damageMul: 1.4 }),
+      compost: Object.freeze({ name: "밑거름 삼키기", every: 2, telegraph: "pulse", damageMul: 1.35 }),
+      weave: Object.freeze({ name: "나이테 엮기", every: 3, telegraph: "fan", damageMul: 1.4 }),
+      echo: Object.freeze({ name: "엮인 기억", every: 3, telegraph: "impact", damageMul: 1.45 }),
+      memory: Object.freeze({ name: "되감긴 나이테", every: 2, telegraph: "wave", damageMul: 1.4 }),
+      pyre: Object.freeze({ name: "성화", every: 3, telegraph: "ring", damageMul: 1.5 }),
+      hymn: Object.freeze({ name: "부제들의 성가", every: 3, telegraph: "fan", damageMul: 1.35 }),
+      blackSun: Object.freeze({ name: "검은 태양", every: 3, telegraph: "beam", damageMul: 1.55 }),
+      gnaw: Object.freeze({ name: "갉아먹기", every: 3, telegraph: "charge", damageMul: 1.5 }),
+      tendril: Object.freeze({ name: "뿌리 촉수", every: 3, telegraph: "lane", damageMul: 1.4 }),
+      hunger: Object.freeze({ name: "모두 삼키기", every: 2, telegraph: "pulse", damageMul: 1.4 }),
+      rift: Object.freeze({ name: "공허 가르기", every: 3, telegraph: "beam", damageMul: 1.45 }),
+      sting: Object.freeze({ name: "여왕의 독침", every: 3, telegraph: "split", damageMul: 1.4 }),
+      vault: Object.freeze({ name: "금고 봉인", every: 4, telegraph: "ring", damageMul: 1.5 }),
+      starfall: Object.freeze({ name: "별똥 비", every: 3, telegraph: "impact", damageMul: 1.5 }),
+      // 루프 30 뒤 방 넷의 리그 우두머리(2026-10-09).
+      cinderRain: Object.freeze({ name: "잿불 비", every: 3, telegraph: "impact", damageMul: 1.5 }),
+      ashTide: Object.freeze({ name: "재의 물결", every: 3, telegraph: "wave", damageMul: 1.45 }),
+      amberSeal: Object.freeze({ name: "호박 굳히기", every: 4, telegraph: "ring", damageMul: 1.55 }),
+      sapBurst: Object.freeze({ name: "수액 분출", every: 3, telegraph: "split", damageMul: 1.4 }),
+      witherBloom: Object.freeze({ name: "시든 꽃가루", every: 3, telegraph: "pulse", damageMul: 1.4 }),
+      thornLash: Object.freeze({ name: "가시 채찍", every: 3, telegraph: "lane", damageMul: 1.45 }),
+      saplingRush: Object.freeze({ name: "묘목 돌진", every: 3, telegraph: "charge", damageMul: 1.45 }),
+      rootSnare: Object.freeze({ name: "뿌리 올가미", every: 3, telegraph: "fan", damageMul: 1.4 })
     }),
     // 최종 보스. tier = 기본 등급(씨앗마다 2씩 오른다, 24까지). act = 투기장 액트 지도(보스 방 앞에서 시작), bossAct = 그림(액트 보스 0~9).
     // how: 최종 보기 카드의 한 줄(바칠 재료를 얻는 곳).
     // unlock: 'awakened'(그림자 첫 처치) 또는 { kill: 노드 id }. entry: 바칠 재료. stages: 차례로 나오는 몸(4까지) — name, bossAct, mechanic,
     // echo(나이테: 목격한 보스의 메아리, 번호는 최근 순). 투기장의 장판은 arenas.
     apexes: Object.freeze([
-        Object.freeze({
-            id: 'apex_gardener', name: '정원사의 메아리', domain: '정원사의 정원', act: 6, bossAct: 5, bodyVisual: 'apex_gardener', ele: 'phys', tier: 18,
-            how: '깨어난 뒤 지역 수호자를 쓰러뜨리면 그 지역의 가위 조각을 줍니다.',
-            unlock: 'awakened', entry: Object.freeze([['shearRoots', 1], ['shearTrunk', 1], ['shearCanopy', 1], ['shearGarden', 1], ['shearSanctum', 1]]),
-            // 피해 1.6이면 초당 받는 피해가 T20 장로, 혈맥의 케르눈노스보다 컸다(2026-10-10 실측). 첫 최종 보스라 정점과 T20 사이로 내렸다.
-            hpMul: 5, damageMul: 1.4,
-            stages: Object.freeze([
-                Object.freeze({ name: '정원사의 메아리', bossAct: 5, mechanic: 'prune' }),
-                Object.freeze({ name: '접붙이는 정원사', bossAct: 5, mechanic: 'graft' }),
-                Object.freeze({ name: '판결하는 정원사', bossAct: 5, mechanic: 'verdict' })
-            ]),
-            rewards: Object.freeze([['goldenRule', 3], ['sapBud', 4], ['formlessDew', 10], ['omenPruning', 1]]), unique: '정원사의 가지 왕관'
-        }),
-        Object.freeze({
-            id: 'apex_compost', name: '밑거름의 장로', domain: '밑거름의 우물', act: 5, bossAct: 0, bodyVisual: 'apex_compost', ele: 'chaos', tier: 20,
-            how: '마름이 번진 지도의 사도를 쓰러뜨리면 마름 조각을 줍니다.',
-            unlock: Object.freeze({ kill: 'apex_gardener' }), entry: Object.freeze([['rotHusk', 1], ['rotSap', 1], ['rotRoot', 1], ['rotSeed', 1]]),
-            hpMul: 5.5, damageMul: 1.7,
-            stages: Object.freeze([
-                Object.freeze({ name: '밑거름의 장로', bossAct: 0, mechanic: 'decay' }),
-                Object.freeze({ name: '마름의 사도들', bossAct: 6, mechanic: 'swarm' }),
-                Object.freeze({ name: '깨어난 장로', bossAct: 0, bodyVisual: 'apex_compost-stage3', mechanic: 'compost' })
-            ]),
-            rewards: Object.freeze([['goldenRule', 3], ['blightSpore', 6], ['emberBranch', 3], ['omenCompost', 1]]), unique: '장로의 썩은 심장'
-        }),
-        Object.freeze({
-            id: 'apex_weaver', name: '나이테를 엮는 자', domain: '나이테의 방', act: 10, bossAct: 8, bodyVisual: 'apex_weaver', ele: 'chaos', tier: 22,
-            how: '후반부 보스를 다섯 번 쓰러뜨릴 때마다 초대장을 받습니다.',
-            unlock: 'awakened', entry: Object.freeze([['ringInvite', 1]]),
-            hpMul: 6, damageMul: 1.75,
-            stages: Object.freeze([
-                Object.freeze({ name: '나이테를 엮는 자', bossAct: 8, mechanic: 'weave' }),
-                Object.freeze({ echo: 0, mechanic: 'echo' }),
-                Object.freeze({ echo: 1, mechanic: 'echo' }),
-                Object.freeze({ name: '나이테를 엮는 자', bossAct: 8, mechanic: 'memory' })
-            ]),
-            rewards: Object.freeze([['goldenRule', 5], ['sapBud', 6], ['emberBranch', 4], ['omenWeave', 1]]), unique: '엮인 나이테'
-        }),
-        Object.freeze({
-            id: 'apex_archbishop', name: '화로의 괴브니우', domain: '태초의 검은 화로', act: 2, bossAct: 1, bodyVisual: 'apex_archbishop', ele: 'fire', tier: 20,
-            how: '지도 속 붉은 제단을 비우면 성화 잉걸을 줍니다.',
-            unlock: 'awakened', entry: Object.freeze([['ember', 10]]),
-            hpMul: 6, damageMul: 1.7,
-            stages: Object.freeze([
-                Object.freeze({ name: '화로의 괴브니우', bossAct: 1, mechanic: 'pyre' }),
-                Object.freeze({ name: '검은 불꽃의 화로', bossAct: 1, mechanic: 'hymn' }),
-                Object.freeze({ name: '화로의 괴브니우', bossAct: 1, mechanic: 'blackSun' })
-            ]),
-            rewards: Object.freeze([['goldenRule', 3], ['emberBranch', 6], ['magicBud', 30], ['omenPyre', 1]]), unique: '대사제의 성화 장갑'
-        }),
-        Object.freeze({
-            id: 'apex_devourer', name: '혈맥의 케르눈노스', domain: '자립하는 혈맥의 심장', act: 3, bossAct: 2, bodyVisual: 'apex_devourer', ele: 'chaos', tier: 20,
-            how: '지도 속 푸른 제단을 비우면 허기의 즙을 줍니다.',
-            unlock: 'awakened', entry: Object.freeze([['ichor', 10]]),
-            hpMul: 6, damageMul: 1.7,
-            stages: Object.freeze([
-                Object.freeze({ name: '혈맥의 케르눈노스', bossAct: 2, bodyVisual: 'apex_devourer', mechanic: 'gnaw' }),
-                Object.freeze({ name: '자립의 군집', bossAct: 2, bodyVisual: 'apex_devourer', mechanic: 'tendril' }),
-                Object.freeze({ name: '혈맥의 군주', bossAct: 2, bodyVisual: 'apex_devourer', mechanic: 'hunger' })
-            ]),
-            rewards: Object.freeze([['goldenRule', 3], ['formlessDew', 16], ['sapBud', 4], ['omenHunger', 1]]), unique: '갉는 자의 이빨띠'
-        }),
-        Object.freeze({
-            "id": "pinnacle_underking",
+      Object.freeze({
+        id: "apex_gardener",
+        name: "정원사의 메아리",
+        domain: "정원사의 정원",
+        act: 6,
+        bossAct: 5,
+        bodyVisual: "apex_gardener",
+        ele: "phys",
+        tier: 18,
+        how: "깨어난 뒤 지역 수호자를 쓰러뜨리면 그 지역의 가위 조각을 줍니다.",
+        unlock: "awakened",
+        entry: Object.freeze([["shearRoots", 1], ["shearTrunk", 1], ["shearCanopy", 1], ["shearGarden", 1], ["shearSanctum", 1]]),
+        // 피해 1.6이면 초당 받는 피해가 T20 장로, 혈맥의 케르눈노스보다 컸다(2026-10-10 실측). 첫 최종 보스라 정점과 T20 사이로 내렸다.
+        hpMul: 5,
+        damageMul: 1.4,
+        stages: Object.freeze([
+          Object.freeze({ name: "정원사의 메아리", bossAct: 5, mechanic: "prune" }),
+          Object.freeze({ name: "접붙이는 정원사", bossAct: 5, mechanic: "graft" }),
+          Object.freeze({ name: "판결하는 정원사", bossAct: 5, mechanic: "verdict" })
+        ]),
+        rewards: Object.freeze([["goldenRule", 3], ["sapBud", 4], ["formlessDew", 10], ["omenPruning", 1]]),
+        unique: "정원사의 가지 왕관"
+      }),
+      Object.freeze({
+        id: "apex_compost",
+        name: "밑거름의 장로",
+        domain: "밑거름의 우물",
+        act: 5,
+        bossAct: 0,
+        bodyVisual: "apex_compost",
+        ele: "chaos",
+        tier: 20,
+        how: "마름이 번진 지도의 사도를 쓰러뜨리면 마름 조각을 줍니다.",
+        unlock: Object.freeze({ kill: "apex_gardener" }),
+        entry: Object.freeze([["rotHusk", 1], ["rotSap", 1], ["rotRoot", 1], ["rotSeed", 1]]),
+        hpMul: 5.5,
+        damageMul: 1.7,
+        stages: Object.freeze([
+          Object.freeze({ name: "밑거름의 장로", bossAct: 0, mechanic: "decay" }),
+          Object.freeze({ name: "마름의 사도들", bossAct: 6, mechanic: "swarm" }),
+          Object.freeze({ name: "깨어난 장로", bossAct: 0, bodyVisual: "apex_compost-stage3", mechanic: "compost" })
+        ]),
+        rewards: Object.freeze([["goldenRule", 3], ["blightSpore", 6], ["emberBranch", 3], ["omenCompost", 1]]),
+        unique: "장로의 썩은 심장"
+      }),
+      Object.freeze({
+        id: "apex_weaver",
+        name: "나이테를 엮는 자",
+        domain: "나이테의 방",
+        act: 10,
+        bossAct: 8,
+        bodyVisual: "apex_weaver",
+        ele: "chaos",
+        tier: 22,
+        how: "후반부 보스를 다섯 번 쓰러뜨릴 때마다 초대장을 받습니다.",
+        unlock: "awakened",
+        entry: Object.freeze([["ringInvite", 1]]),
+        hpMul: 6,
+        damageMul: 1.75,
+        stages: Object.freeze([
+          Object.freeze({ name: "나이테를 엮는 자", bossAct: 8, mechanic: "weave" }),
+          Object.freeze({ echo: 0, mechanic: "echo" }),
+          Object.freeze({ echo: 1, mechanic: "echo" }),
+          Object.freeze({ name: "나이테를 엮는 자", bossAct: 8, mechanic: "memory" })
+        ]),
+        rewards: Object.freeze([["goldenRule", 5], ["sapBud", 6], ["emberBranch", 4], ["omenWeave", 1]]),
+        unique: "엮인 나이테"
+      }),
+      Object.freeze({
+        id: "apex_archbishop",
+        name: "화로의 괴브니우",
+        domain: "태초의 검은 화로",
+        act: 2,
+        bossAct: 1,
+        bodyVisual: "apex_archbishop",
+        ele: "fire",
+        tier: 20,
+        how: "지도 속 붉은 제단을 비우면 성화 잉걸을 줍니다.",
+        unlock: "awakened",
+        entry: Object.freeze([["ember", 10]]),
+        hpMul: 6,
+        damageMul: 1.7,
+        stages: Object.freeze([
+          Object.freeze({ name: "화로의 괴브니우", bossAct: 1, mechanic: "pyre" }),
+          Object.freeze({ name: "검은 불꽃의 화로", bossAct: 1, mechanic: "hymn" }),
+          Object.freeze({ name: "화로의 괴브니우", bossAct: 1, mechanic: "blackSun" })
+        ]),
+        rewards: Object.freeze([["goldenRule", 3], ["emberBranch", 6], ["magicBud", 30], ["omenPyre", 1]]),
+        unique: "대사제의 성화 장갑"
+      }),
+      Object.freeze({
+        id: "apex_devourer",
+        name: "혈맥의 케르눈노스",
+        domain: "자립하는 혈맥의 심장",
+        act: 3,
+        bossAct: 2,
+        bodyVisual: "apex_devourer",
+        ele: "chaos",
+        tier: 20,
+        how: "지도 속 푸른 제단을 비우면 허기의 즙을 줍니다.",
+        unlock: "awakened",
+        entry: Object.freeze([["ichor", 10]]),
+        hpMul: 6,
+        damageMul: 1.7,
+        stages: Object.freeze([
+          Object.freeze({ name: "혈맥의 케르눈노스", bossAct: 2, bodyVisual: "apex_devourer", mechanic: "gnaw" }),
+          Object.freeze({ name: "자립의 군집", bossAct: 2, bodyVisual: "apex_devourer", mechanic: "tendril" }),
+          Object.freeze({ name: "혈맥의 군주", bossAct: 2, bodyVisual: "apex_devourer", mechanic: "hunger" })
+        ]),
+        rewards: Object.freeze([["goldenRule", 3], ["formlessDew", 16], ["sapBud", 4], ["omenHunger", 1]]),
+        unique: "갉는 자의 이빨띠"
+      }),
+      Object.freeze({
+        "id": "pinnacle_underking",
+        "name": "태양의 존재, 벨라-루",
+        "domain": "태초의 용광로",
+        "act": 7,
+        "bossAct": 9,
+        "bodyVisual": "pinnacle_underking",
+        "ele": "fire",
+        "tier": 22,
+        "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
+        "unlock": "awakened",
+        "entry": [
+          [
+            "ember",
+            6
+          ],
+          [
+            "ichor",
+            6
+          ]
+        ],
+        "hpMul": 6,
+        "damageMul": 1.7,
+        "stages": [
+          {
             "name": "태양의 존재, 벨라-루",
-            "domain": "태초의 용광로",
-            "act": 7,
             "bossAct": 9,
-            "bodyVisual": "pinnacle_underking",
-            "ele": "fire",
-            "tier": 22,
-            "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
-            "unlock": "awakened",
-            "entry": [
-                [
-                    "ember",
-                    6
-                ],
-                [
-                    "ichor",
-                    6
-                ]
-            ],
-            "hpMul": 6,
-            "damageMul": 1.7,
-            "stages": [
-                {
-                    "name": "태양의 존재, 벨라-루",
-                    "bossAct": 9,
-                    "mechanic": "pyre"
-                },
-                {
-                    "name": "태양의 존재, 벨라-루",
-                    "bossAct": 9,
-                    "mechanic": "blackSun"
-                }
-            ],
-            "rewards": [
-                [
-                    "goldenRule",
-                    3
-                ],
-                [
-                    "sapBud",
-                    4
-                ]
-            ]
-        }),
-        Object.freeze({
-            "id": "pinnacle_leviathan",
+            "mechanic": "pyre"
+          },
+          {
+            "name": "태양의 존재, 벨라-루",
+            "bossAct": 9,
+            "mechanic": "blackSun"
+          }
+        ],
+        "rewards": [
+          [
+            "goldenRule",
+            3
+          ],
+          [
+            "sapBud",
+            4
+          ]
+        ]
+      }),
+      Object.freeze({
+        "id": "pinnacle_leviathan",
+        "name": "심연의 비포르네우스",
+        "domain": "기억이 잠긴 해구",
+        "act": 5,
+        "bossAct": 9,
+        "bodyVisual": "pinnacle_leviathan",
+        "ele": "cold",
+        "tier": 20,
+        "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
+        "unlock": "awakened",
+        "entry": [
+          [
+            "voidSplinter",
+            8
+          ]
+        ],
+        "hpMul": 6,
+        "damageMul": 1.7,
+        "stages": [
+          {
             "name": "심연의 비포르네우스",
-            "domain": "기억이 잠긴 해구",
-            "act": 5,
             "bossAct": 9,
-            "bodyVisual": "pinnacle_leviathan",
-            "ele": "cold",
-            "tier": 20,
-            "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
-            "unlock": "awakened",
-            "entry": [
-                [
-                    "voidSplinter",
-                    8
-                ]
-            ],
-            "hpMul": 6,
-            "damageMul": 1.7,
-            "stages": [
-                {
-                    "name": "심연의 비포르네우스",
-                    "bossAct": 9,
-                    "mechanic": "rift"
-                },
-                {
-                    "name": "심연의 비포르네우스",
-                    "bossAct": 9,
-                    "mechanic": "swarm"
-                }
-            ],
-            "rewards": [
-                [
-                    "goldenRule",
-                    3
-                ],
-                [
-                    "sapBud",
-                    4
-                ]
-            ]
-        }),
-        Object.freeze({
-            "id": "pinnacle_sky",
+            "mechanic": "rift"
+          },
+          {
+            "name": "심연의 비포르네우스",
+            "bossAct": 9,
+            "mechanic": "swarm"
+          }
+        ],
+        "rewards": [
+          [
+            "goldenRule",
+            3
+          ],
+          [
+            "sapBud",
+            4
+          ]
+        ]
+      }),
+      Object.freeze({
+        "id": "pinnacle_sky",
+        "name": "창공의 엘라하",
+        "domain": "창공의 경계",
+        "act": 8,
+        "bossAct": 9,
+        "bodyVisual": "pinnacle_sky",
+        "ele": "light",
+        "tier": 20,
+        "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
+        "unlock": "awakened",
+        "entry": [
+          [
+            "starShard",
+            8
+          ]
+        ],
+        "hpMul": 6,
+        "damageMul": 1.7,
+        "stages": [
+          {
             "name": "창공의 엘라하",
-            "domain": "창공의 경계",
-            "act": 8,
             "bossAct": 9,
-            "bodyVisual": "pinnacle_sky",
-            "ele": "light",
-            "tier": 20,
-            "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
-            "unlock": "awakened",
-            "entry": [
-                [
-                    "starShard",
-                    8
-                ]
-            ],
-            "hpMul": 6,
-            "damageMul": 1.7,
-            "stages": [
-                {
-                    "name": "창공의 엘라하",
-                    "bossAct": 9,
-                    "mechanic": "starfall"
-                },
-                {
-                    "name": "창공의 엘라하",
-                    "bossAct": 9,
-                    "mechanic": "verdict"
-                }
-            ],
-            "rewards": [
-                [
-                    "goldenRule",
-                    3
-                ],
-                [
-                    "sapBud",
-                    4
-                ]
-            ]
-        }),
-        Object.freeze({
-            "id": "cosmos_astra",
+            "mechanic": "starfall"
+          },
+          {
+            "name": "창공의 엘라하",
+            "bossAct": 9,
+            "mechanic": "verdict"
+          }
+        ],
+        "rewards": [
+          [
+            "goldenRule",
+            3
+          ],
+          [
+            "sapBud",
+            4
+          ]
+        ]
+      }),
+      Object.freeze({
+        "id": "cosmos_astra",
+        "name": "달의 존재, 아리안로드",
+        "domain": "성간의 은빛 차륜",
+        "act": 10,
+        "bossAct": 9,
+        "bodyVisual": "cosmos_astra",
+        "ele": "chaos",
+        "tier": 22,
+        "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
+        "unlock": "awakened",
+        "entry": [
+          [
+            "voidSplinter",
+            6
+          ],
+          [
+            "starShard",
+            6
+          ]
+        ],
+        "hpMul": 6,
+        "damageMul": 1.7,
+        "stages": [
+          {
             "name": "달의 존재, 아리안로드",
-            "domain": "성간의 은빛 차륜",
-            "act": 10,
             "bossAct": 9,
-            "bodyVisual": "cosmos_astra",
-            "ele": "chaos",
-            "tier": 22,
-            "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
-            "unlock": "awakened",
-            "entry": [
-                [
-                    "voidSplinter",
-                    6
-                ],
-                [
-                    "starShard",
-                    6
-                ]
-            ],
-            "hpMul": 6,
-            "damageMul": 1.7,
-            "stages": [
-                {
-                    "name": "달의 존재, 아리안로드",
-                    "bossAct": 9,
-                    "mechanic": "weave"
-                },
-                {
-                    "name": "달의 존재, 아리안로드",
-                    "bossAct": 9,
-                    "mechanic": "memory"
-                }
-            ],
-            "rewards": [
-                [
-                    "goldenRule",
-                    3
-                ],
-                [
-                    "sapBud",
-                    4
-                ]
-            ]
-        }),
-        Object.freeze({
-            "id": "woodsman",
+            "mechanic": "weave"
+          },
+          {
+            "name": "달의 존재, 아리안로드",
+            "bossAct": 9,
+            "mechanic": "memory"
+          }
+        ],
+        "rewards": [
+          [
+            "goldenRule",
+            3
+          ],
+          [
+            "sapBud",
+            4
+          ]
+        ]
+      }),
+      Object.freeze({
+        "id": "woodsman",
+        "name": "나무꾼",
+        "domain": "규율의 수확지",
+        "act": 10,
+        "bossAct": 9,
+        "bodyVisual": "woodsman",
+        "ele": "phys",
+        "tier": 24,
+        "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
+        "unlock": "awakened",
+        "entry": [
+          [
+            "ringInvite",
+            1
+          ]
+        ],
+        "hpMul": 8,
+        "damageMul": 1.9,
+        "stages": [
+          {
             "name": "나무꾼",
-            "domain": "규율의 수확지",
-            "act": 10,
             "bossAct": 9,
-            "bodyVisual": "woodsman",
-            "ele": "phys",
-            "tier": 24,
-            "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
-            "unlock": "awakened",
-            "entry": [
-                [
-                    "ringInvite",
-                    1
-                ]
-            ],
-            "hpMul": 8,
-            "damageMul": 1.9,
-            "stages": [
-                {
-                    "name": "나무꾼",
-                    "bossAct": 9,
-                    "mechanic": "prune"
-                },
-                {
-                    "name": "나무꾼",
-                    "bossAct": 9,
-                    "mechanic": "hymn"
-                },
-                {
-                    "name": "나무꾼",
-                    "bossAct": 9,
-                    "mechanic": "blackSun"
-                }
-            ],
-            "rewards": [
-                [
-                    "goldenRule",
-                    5
-                ],
-                [
-                    "sapBud",
-                    4
-                ]
-            ]
-        }),
-        Object.freeze({
-            "id": "pinnacle_observer",
+            "mechanic": "prune"
+          },
+          {
+            "name": "나무꾼",
+            "bossAct": 9,
+            "mechanic": "hymn"
+          },
+          {
+            "name": "나무꾼",
+            "bossAct": 9,
+            "mechanic": "blackSun"
+          }
+        ],
+        "rewards": [
+          [
+            "goldenRule",
+            5
+          ],
+          [
+            "sapBud",
+            4
+          ]
+        ]
+      }),
+      Object.freeze({
+        "id": "pinnacle_observer",
+        "name": "경계의 관측자 베일라",
+        "domain": "최초의 시작점",
+        "act": 10,
+        "bossAct": 9,
+        "bodyVisual": "pinnacle_observer",
+        "ele": "chaos",
+        "tier": 24,
+        "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
+        "unlock": "awakened",
+        "entry": [
+          [
+            "ringInvite",
+            1
+          ]
+        ],
+        "hpMul": 8,
+        "damageMul": 1.9,
+        "stages": [
+          {
             "name": "경계의 관측자 베일라",
-            "domain": "최초의 시작점",
-            "act": 10,
             "bossAct": 9,
-            "bodyVisual": "pinnacle_observer",
-            "ele": "chaos",
-            "tier": 24,
-            "how": "아틀라스 지도 속 콘텐츠 방에서 입장 재료를 모읍니다.",
-            "unlock": "awakened",
-            "entry": [
-                [
-                    "ringInvite",
-                    1
-                ]
-            ],
-            "hpMul": 8,
-            "damageMul": 1.9,
-            "stages": [
-                {
-                    "name": "경계의 관측자 베일라",
-                    "bossAct": 9,
-                    "mechanic": "weave"
-                },
-                {
-                    "name": "경계의 관측자 베일라",
-                    "bossAct": 9,
-                    "mechanic": "echo"
-                },
-                {
-                    "name": "경계의 관측자 베일라",
-                    "bossAct": 9,
-                    "mechanic": "verdict"
-                }
-            ],
-            "rewards": [
-                [
-                    "goldenRule",
-                    5
-                ],
-                [
-                    "sapBud",
-                    4
-                ]
-            ]
-        }),
+            "mechanic": "weave"
+          },
+          {
+            "name": "경계의 관측자 베일라",
+            "bossAct": 9,
+            "mechanic": "echo"
+          },
+          {
+            "name": "경계의 관측자 베일라",
+            "bossAct": 9,
+            "mechanic": "verdict"
+          }
+        ],
+        "rewards": [
+          [
+            "goldenRule",
+            5
+          ],
+          [
+            "sapBud",
+            4
+          ]
+        ]
+      })
     ]),
     // 리그 우두머리: 지도 속 콘텐츠 방(data/atlas.js encounters)이 깨어난 뒤 그 리그의 조각도 준다. 조각 need개로 우두머리와 싸운다.
     // need는 제단 재료(잉걸 10)와 지도 수가 비슷하도록: 방이 제단보다 드물고(5~9 %), 방마다 조각 3 + 0.15 × 등급.
     leagues: Object.freeze([
-        Object.freeze({
-            id: 'league_breach', room: 'breach', name: '공허 균열', boss: '공허를 여는 자', act: 8, bossAct: 7, ele: 'chaos', tier: 16, bodyVisual: 'league_breach',
-            how: '지도 속 공허 균열을 비우면 공허 조각을 줍니다.',
-            item: 'voidSplinter', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
-            stages: Object.freeze([
-                Object.freeze({ name: '공허를 여는 자', bossAct: 7, mechanic: 'rift' }),
-                Object.freeze({ name: '열린 공허의 군주', bossAct: 7, mechanic: 'rift' })
-            ]),
-            rewards: Object.freeze([['voidChisel', 8], ['jewelShard', 4]]), unique: '대균열의 왕관'
-        }),
-        Object.freeze({
-            id: 'league_hive', room: 'hive', name: '벌집', boss: '벌집 여왕', act: 9, bossAct: 8, ele: 'chaos', tier: 16, bodyVisual: 'hive-queen',
-            how: '지도 속 벌집을 비우면 왕실 꿀을 줍니다.',
-            item: 'royalHoney', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
-            stages: Object.freeze([
-                Object.freeze({ name: '벌집 여왕', bossAct: 8, mechanic: 'sting' }),
-                Object.freeze({ name: '분노한 벌집 여왕', bossAct: 8, bodyVisual: 'league_hive-stage2', mechanic: 'sting' })
-            ]),
-            rewards: Object.freeze([['venomStinger', 3], ['enchantedHoney', 1], ['pollen', 30]]), unique: '벌집 여왕의 명령'
-        }),
-        Object.freeze({
-            id: 'league_treasure', room: 'treasure', name: '보물 방', boss: '금고지기', act: 4, bossAct: 3, ele: 'phys', tier: 16, bodyVisual: 'league_treasure',
-            how: '지도 속 보물 방을 비우면 금고 열쇠 조각을 줍니다.',
-            item: 'vaultKey', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
-            stages: Object.freeze([
-                Object.freeze({ name: '금고지기', bossAct: 3, mechanic: 'vault' }),
-                Object.freeze({ name: '봉인을 푼 금고지기', bossAct: 3, mechanic: 'vault' })
-            ]),
-            rewards: Object.freeze([['magicBud', 30], ['formlessDew', 10], ['sapBud', 3], ['goldenRule', 1]]), unique: '금고지기의 열쇠꾸러미'
-        }),
-        Object.freeze({
-            id: 'league_meteor', room: 'meteor', name: '운석 분화구', boss: '검은 별의 심장', act: 7, bossAct: 9, ele: 'light', tier: 16, bodyVisual: 'league_meteor',
-            how: '지도 속 운석 분화구를 비우면 별 조각을 줍니다.',
-            item: 'starShard', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.5, damageMul: 1.45,
-            stages: Object.freeze([
-                Object.freeze({ name: '검은 별의 심장', bossAct: 9, mechanic: 'starfall' }),
-                Object.freeze({ name: '타오르는 검은 별', bossAct: 9, bodyVisual: 'league_meteor-stage2', mechanic: 'starfall' })
-            ]),
-            rewards: Object.freeze([['skyEssence', 6], ['goldenRule', 1]]), unique: '낙성의 발자취'
-        }),
-        // 루프 30 뒤 방 넷(2026-10-09): 그 방의 지역 투기장(act)과 원소, 18등급. 카드는 방이 나오는 루프(minLoop)부터 열린다
-        // (js/atlas-endgame.js unlocked). 고유는 이 우두머리만 준다(data/items.js 리그 우두머리 고유).
-        Object.freeze({
-            id: 'league_ember', room: 'emberField', name: '잿불 터', boss: '잿불 군주', act: 2, bossAct: 4, ele: 'fire', tier: 18, bodyVisual: 'league_ember',
-            how: '지도 속 잿불 터를 비우면 타다 남은 불씨를 줍니다.',
-            item: 'emberCinder', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
-            stages: Object.freeze([
-                Object.freeze({ name: '잿불 군주', bossAct: 4, mechanic: 'cinderRain' }),
-                Object.freeze({ name: '다시 타오른 잿불 군주', bossAct: 4, mechanic: 'ashTide' })
-            ]),
-            rewards: Object.freeze([['burningEmberBranch', 2], ['emberBranch', 8], ['goldenRule', 1]]), unique: '잿불 군주의 심장'
-        }),
-        Object.freeze({
-            id: 'league_sap', room: 'sapWound', name: '수액 상처', boss: '호박 거인', act: 7, bossAct: 6, ele: 'phys', tier: 18, bodyVisual: 'league_sap',
-            how: '지도 속 수액 상처를 비우면 굳은 수액 방울을 줍니다.',
-            item: 'amberDrop', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
-            stages: Object.freeze([
-                Object.freeze({ name: '호박 거인', bossAct: 6, mechanic: 'amberSeal' }),
-                Object.freeze({ name: '금이 간 호박 거인', bossAct: 6, mechanic: 'sapBurst' })
-            ]),
-            rewards: Object.freeze([['catalystCrit', 2], ['catalystSummon', 1], ['sapBud', 2]]), unique: '뿌리에 얽힌 시간'
-        }),
-        Object.freeze({
-            id: 'league_withered', room: 'witheredGarden', name: '시든 정원', boss: '시든 꽃의 여왕', act: 1, bossAct: 0, ele: 'chaos', tier: 18, bodyVisual: 'league_withered',
-            how: '지도 속 시든 정원을 비우면 시든 꽃잎을 줍니다.',
-            item: 'witheredPetal', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
-            stages: Object.freeze([
-                Object.freeze({ name: '시든 꽃의 여왕', bossAct: 0, mechanic: 'witherBloom' }),
-                Object.freeze({ name: '가시를 두른 여왕', bossAct: 0, mechanic: 'thornLash' })
-            ]),
-            rewards: Object.freeze([['oilFire', 2], ['oilCold', 2], ['oilLight', 2], ['oilChaos', 2]]), unique: Object.freeze(['마른 꽃잎 고리', '감기는 덩굴손'])
-        }),
-        Object.freeze({
-            id: 'league_nursery', room: 'nursery', name: '묘목장', boss: '묘목장의 어미나무', act: 3, bossAct: 8, ele: 'light', tier: 18, bodyVisual: 'league_nursery',
-            how: '지도 속 묘목장을 비우면 어린 눈을 줍니다.',
-            item: 'saplingBud', need: 12, shards: Object.freeze([3, 0.15]), hpMul: 3.6, damageMul: 1.45,
-            stages: Object.freeze([
-                Object.freeze({ name: '묘목장의 어미나무', bossAct: 8, mechanic: 'saplingRush' }),
-                Object.freeze({ name: '뿌리를 뻗은 어미나무', bossAct: 8, bodyVisual: 'league_nursery-stage2', mechanic: 'rootSnare' })
-            ]),
-            rewards: Object.freeze([['blightSpore', 6], ['magicBud', 20], ['sapBud', 2]]), unique: Object.freeze(['어미나무의 손길', '떨어지지 않는 열매'])
-        })
+      Object.freeze({
+        id: "league_breach",
+        room: "breach",
+        name: "공허 균열",
+        boss: "공허를 여는 자",
+        act: 8,
+        bossAct: 7,
+        ele: "chaos",
+        tier: 16,
+        bodyVisual: "league_breach",
+        how: "지도 속 공허 균열을 비우면 공허 조각을 줍니다.",
+        item: "voidSplinter",
+        need: 12,
+        shards: Object.freeze([3, 0.15]),
+        hpMul: 3.5,
+        damageMul: 1.45,
+        stages: Object.freeze([
+          Object.freeze({ name: "공허를 여는 자", bossAct: 7, mechanic: "rift" }),
+          Object.freeze({ name: "열린 공허의 군주", bossAct: 7, mechanic: "rift" })
+        ]),
+        rewards: Object.freeze([["voidChisel", 8], ["jewelShard", 4]]),
+        unique: "대균열의 왕관"
+      }),
+      Object.freeze({
+        id: "league_hive",
+        room: "hive",
+        name: "벌집",
+        boss: "벌집 여왕",
+        act: 9,
+        bossAct: 8,
+        ele: "chaos",
+        tier: 16,
+        bodyVisual: "hive-queen",
+        how: "지도 속 벌집을 비우면 왕실 꿀을 줍니다.",
+        item: "royalHoney",
+        need: 12,
+        shards: Object.freeze([3, 0.15]),
+        hpMul: 3.5,
+        damageMul: 1.45,
+        stages: Object.freeze([
+          Object.freeze({ name: "벌집 여왕", bossAct: 8, mechanic: "sting" }),
+          Object.freeze({ name: "분노한 벌집 여왕", bossAct: 8, bodyVisual: "league_hive-stage2", mechanic: "sting" })
+        ]),
+        rewards: Object.freeze([["venomStinger", 3], ["enchantedHoney", 1], ["pollen", 30]]),
+        unique: "벌집 여왕의 명령"
+      }),
+      Object.freeze({
+        id: "league_treasure",
+        room: "treasure",
+        name: "보물 방",
+        boss: "금고지기",
+        act: 4,
+        bossAct: 3,
+        ele: "phys",
+        tier: 16,
+        bodyVisual: "league_treasure",
+        how: "지도 속 보물 방을 비우면 금고 열쇠 조각을 줍니다.",
+        item: "vaultKey",
+        need: 12,
+        shards: Object.freeze([3, 0.15]),
+        hpMul: 3.5,
+        damageMul: 1.45,
+        stages: Object.freeze([
+          Object.freeze({ name: "금고지기", bossAct: 3, mechanic: "vault" }),
+          Object.freeze({ name: "봉인을 푼 금고지기", bossAct: 3, mechanic: "vault" })
+        ]),
+        rewards: Object.freeze([["magicBud", 30], ["formlessDew", 10], ["sapBud", 3], ["goldenRule", 1]]),
+        unique: "금고지기의 열쇠꾸러미"
+      }),
+      Object.freeze({
+        id: "league_meteor",
+        room: "meteor",
+        name: "운석 분화구",
+        boss: "검은 별의 심장",
+        act: 7,
+        bossAct: 9,
+        ele: "light",
+        tier: 16,
+        bodyVisual: "league_meteor",
+        how: "지도 속 운석 분화구를 비우면 별 조각을 줍니다.",
+        item: "starShard",
+        need: 12,
+        shards: Object.freeze([3, 0.15]),
+        hpMul: 3.5,
+        damageMul: 1.45,
+        stages: Object.freeze([
+          Object.freeze({ name: "검은 별의 심장", bossAct: 9, mechanic: "starfall" }),
+          Object.freeze({ name: "타오르는 검은 별", bossAct: 9, bodyVisual: "league_meteor-stage2", mechanic: "starfall" })
+        ]),
+        rewards: Object.freeze([["skyEssence", 6], ["goldenRule", 1]]),
+        unique: "낙성의 발자취"
+      }),
+      // 루프 30 뒤 방 넷(2026-10-09): 그 방의 지역 투기장(act)과 원소, 18등급. 카드는 방이 나오는 루프(minLoop)부터 열린다
+      // (js/atlas-endgame.js unlocked). 고유는 이 우두머리만 준다(data/items.js 리그 우두머리 고유).
+      Object.freeze({
+        id: "league_ember",
+        room: "emberField",
+        name: "잿불 터",
+        boss: "잿불 군주",
+        act: 2,
+        bossAct: 4,
+        ele: "fire",
+        tier: 18,
+        bodyVisual: "league_ember",
+        how: "지도 속 잿불 터를 비우면 타다 남은 불씨를 줍니다.",
+        item: "emberCinder",
+        need: 12,
+        shards: Object.freeze([3, 0.15]),
+        hpMul: 3.6,
+        damageMul: 1.45,
+        stages: Object.freeze([
+          Object.freeze({ name: "잿불 군주", bossAct: 4, mechanic: "cinderRain" }),
+          Object.freeze({ name: "다시 타오른 잿불 군주", bossAct: 4, mechanic: "ashTide" })
+        ]),
+        rewards: Object.freeze([["burningEmberBranch", 2], ["emberBranch", 8], ["goldenRule", 1]]),
+        unique: "잿불 군주의 심장"
+      }),
+      Object.freeze({
+        id: "league_sap",
+        room: "sapWound",
+        name: "수액 상처",
+        boss: "호박 거인",
+        act: 7,
+        bossAct: 6,
+        ele: "phys",
+        tier: 18,
+        bodyVisual: "league_sap",
+        how: "지도 속 수액 상처를 비우면 굳은 수액 방울을 줍니다.",
+        item: "amberDrop",
+        need: 12,
+        shards: Object.freeze([3, 0.15]),
+        hpMul: 3.6,
+        damageMul: 1.45,
+        stages: Object.freeze([
+          Object.freeze({ name: "호박 거인", bossAct: 6, mechanic: "amberSeal" }),
+          Object.freeze({ name: "금이 간 호박 거인", bossAct: 6, mechanic: "sapBurst" })
+        ]),
+        rewards: Object.freeze([["catalystCrit", 2], ["catalystSummon", 1], ["sapBud", 2]]),
+        unique: "뿌리에 얽힌 시간"
+      }),
+      Object.freeze({
+        id: "league_withered",
+        room: "witheredGarden",
+        name: "시든 정원",
+        boss: "시든 꽃의 여왕",
+        act: 1,
+        bossAct: 0,
+        ele: "chaos",
+        tier: 18,
+        bodyVisual: "league_withered",
+        how: "지도 속 시든 정원을 비우면 시든 꽃잎을 줍니다.",
+        item: "witheredPetal",
+        need: 12,
+        shards: Object.freeze([3, 0.15]),
+        hpMul: 3.6,
+        damageMul: 1.45,
+        stages: Object.freeze([
+          Object.freeze({ name: "시든 꽃의 여왕", bossAct: 0, mechanic: "witherBloom" }),
+          Object.freeze({ name: "가시를 두른 여왕", bossAct: 0, mechanic: "thornLash" })
+        ]),
+        rewards: Object.freeze([["oilFire", 2], ["oilCold", 2], ["oilLight", 2], ["oilChaos", 2]]),
+        unique: Object.freeze(["마른 꽃잎 고리", "감기는 덩굴손"])
+      }),
+      Object.freeze({
+        id: "league_nursery",
+        room: "nursery",
+        name: "묘목장",
+        boss: "묘목장의 어미나무",
+        act: 3,
+        bossAct: 8,
+        ele: "light",
+        tier: 18,
+        bodyVisual: "league_nursery",
+        how: "지도 속 묘목장을 비우면 어린 눈을 줍니다.",
+        item: "saplingBud",
+        need: 12,
+        shards: Object.freeze([3, 0.15]),
+        hpMul: 3.6,
+        damageMul: 1.45,
+        stages: Object.freeze([
+          Object.freeze({ name: "묘목장의 어미나무", bossAct: 8, mechanic: "saplingRush" }),
+          Object.freeze({ name: "뿌리를 뻗은 어미나무", bossAct: 8, bodyVisual: "league_nursery-stage2", mechanic: "rootSnare" })
+        ]),
+        rewards: Object.freeze([["blightSpore", 6], ["magicBud", 20], ["sapBud", 2]]),
+        unique: Object.freeze(["어미나무의 손길", "떨어지지 않는 열매"])
+      })
     ]),
     // 정원사를 처음 쓰러뜨린 뒤부터 지도를 마칠 때마다 그 지역의 마름이 1씩 오른다(10까지). 마름 n인 지역의 지도는 n × chancePerLevel %로
     // 보스 대신 마름의 사도가 지키고, 사도는 자기 마름 조각을 준다.
     blight: Object.freeze({ max: 10, perMap: 1, chancePerLevel: 8, hpMul: 1.6, damageMul: 1.25 }),
     apostles: Object.freeze([
-        Object.freeze({ id: 'apostleRoot', name: '뿌리의 사도', item: 'rotRoot', bossAct: 0, regions: Object.freeze(['roots']) }),
-        Object.freeze({ id: 'apostleHusk', name: '껍질의 사도', item: 'rotHusk', bossAct: 6, regions: Object.freeze(['trunk', 'sanctum']) }),
-        Object.freeze({ id: 'apostleSeed', name: '씨앗의 사도', item: 'rotSeed', bossAct: 8, regions: Object.freeze(['canopy']) }),
-        Object.freeze({ id: 'apostleSap', name: '수액의 사도', item: 'rotSap', bossAct: 4, regions: Object.freeze(['garden']) })
+      Object.freeze({ id: "apostleRoot", name: "뿌리의 사도", item: "rotRoot", bossAct: 0, regions: Object.freeze(["roots"]) }),
+      Object.freeze({ id: "apostleHusk", name: "껍질의 사도", item: "rotHusk", bossAct: 6, regions: Object.freeze(["trunk", "sanctum"]) }),
+      Object.freeze({ id: "apostleSeed", name: "씨앗의 사도", item: "rotSeed", bossAct: 8, regions: Object.freeze(["canopy"]) }),
+      Object.freeze({ id: "apostleSap", name: "수액의 사도", item: "rotSap", bossAct: 4, regions: Object.freeze(["garden"]) })
     ]),
     // 나이테를 엮는 자는 깨어난 뒤의 후반부 보스(수호자 · 정점 · 사도 · 최종 보스 · 리그 우두머리) 처치를 목격한다.
     // per번마다 초대장 하나(재료 한도까지). 싸움의 메아리는 가장 최근에 목격한 보스들이다(keep개를 기억, 생명력 × echoHpMul).
@@ -547,10 +710,14 @@ const ATLAS_ENDGAME = Object.freeze({
     // 제단: 깨어난 뒤 지도마다 chance %로 붉은 제단(대사제)과 푸른 제단(혈맥의 케르눈노스) 방이 콘텐츠 방과 따로 altarLimit개까지 생긴다
     // (data/atlas.js encounters, js/atlas-encounters.js roll). 방을 비우면 그 재료.
     altars: Object.freeze({
-        redAltar: Object.freeze({ item: 'ember', amount: Object.freeze([2, 0.12]) }),
-        blueAltar: Object.freeze({ item: 'ichor', amount: Object.freeze([2, 0.12]) })
+      redAltar: Object.freeze({ item: "ember", amount: Object.freeze([2, 0.12]) }),
+      blueAltar: Object.freeze({ item: "ichor", amount: Object.freeze([2, 0.12]) })
     }),
     // 처음 쓰러뜨리면 고유 장비가 반드시, 그 뒤로는 uniqueChance로.
     uniqueChance: Object.freeze({ apex: 0.25, league: 0.15 })
-});
-safeExposeData({ ATLAS_ENDGAME });
+  });
+
+  // modules/data/atlas-endgame.mjs:classic
+  Object.assign(globalThis, { ATLAS_ENDGAME });
+  if (typeof safeExposeData === "function") safeExposeData({ ATLAS_ENDGAME });
+})();

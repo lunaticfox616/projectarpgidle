@@ -1,40 +1,33 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/combat-clock*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-/** @returns {number} Game time in milliseconds; wall time only initializes legacy saves. */
-function getCombatTime() {
-    return typeof game !== 'undefined' && game && Number.isFinite(game.combatTimeMs) && game.combatTimeMs > 0 ? game.combatTimeMs : Date.now();
-}
-
-/**
- * @param {{lastAtMs: number|null, remainderMs: number}} clock Scheduler-owned monotonic clock.
- * @param {number} nowMs performance.now(), not a save timestamp.
- * @param {boolean} paused Paused time is discarded, including visibility/selection pauses.
- * @returns {number} Fixed 100 ms steps, capped at ten per browser callback.
- */
-function takeForegroundCombatSteps(clock, nowMs, paused) {
-    if (!Number.isFinite(nowMs)) throw new TypeError('Combat scheduler requires a finite timestamp');
+  // modules/common/combat-clock.mjs
+  function readCombatTime(game, wallClockNow) {
+    return typeof game !== "undefined" && game && Number.isFinite(game.combatTimeMs) && game.combatTimeMs > 0 ? game.combatTimeMs : wallClockNow();
+  }
+  function takeCombatSteps(clock, nowMs, paused, multiplier = 1) {
+    if (!Number.isFinite(nowMs)) throw new TypeError("Combat scheduler requires a finite timestamp");
     let elapsed = clock.lastAtMs === null ? 0 : Math.max(0, nowMs - clock.lastAtMs);
     clock.lastAtMs = nowMs;
-    if (paused) { clock.remainderMs = 0; return 0; }
-    clock.remainderMs += Math.min(1000, elapsed) /* @dev-only */ * testCombatSpeed /* @end-dev-only */;
+    if (paused) {
+      clock.remainderMs = 0;
+      return 0;
+    }
+    clock.remainderMs += Math.min(1e3, elapsed) * multiplier;
     let steps = Math.floor(clock.remainderMs / 100);
     clock.remainderMs -= steps * 100;
     return steps;
-}
+  }
 
-exposeFileGlobals({ getCombatTime, takeForegroundCombatSteps });
+  // modules/combat-clock-classic.mjs
+  var getCombatTime = () => readCombatTime(window.GameModules.state.game, Date.now);
+  var stepMultiplier = 1;
+  var takeForegroundCombatSteps = (clock, nowMs, paused) => takeCombatSteps(clock, nowMs, paused, stepMultiplier);
+  /* @dev-only */
+  function setTestCombatSpeed(multiplier) {
+    stepMultiplier = Math.max(1, Math.min(8, Math.floor(Number(multiplier) || 1)));
+    return stepMultiplier;
+  }
+  safeExposeGlobals({ setTestCombatSpeed });
+  /* @end-dev-only */
+  safeExposeGlobals({ getCombatTime, takeForegroundCombatSteps });
 })();
-/* @dev-only */
-// Local test panel only (js/dev-test-panel-ui.js): more fixed steps per callback. Never saved; 1 in normal play.
-// A release build removes this block and the multiplier in takeForegroundCombatSteps (scripts/lib/release-bundle.js),
-// so no console line can speed combat there.
-let testCombatSpeed = 1;
-function setTestCombatSpeed(multiplier) {
-    testCombatSpeed = Math.max(1, Math.min(8, Math.floor(Number(multiplier) || 1)));
-    return testCombatSpeed;
-}
-safeExposeGlobals({ setTestCombatSpeed });
-/* @end-dev-only */
-
-
-safeExposeGlobals({ getCombatTime, takeForegroundCombatSteps });

@@ -63,7 +63,7 @@ async function measure(browser, name, inputState) {
     let scenario = { name };
     if (name === 'endgame') {
         // 합성 엔드게임 빌드(레벨 100, 소환수 8, 장비·생장판 가득)로 혼돈 지역에서 몹을 계속 상대한다.
-        await page.evaluate(() => { clearInterval(gameTickHandle); gameTickHandle = null; });
+        await page.evaluate(() => { window.GameModules.application.timers.stopCombat(); });
         scenario = { name, ...(await page.evaluate(require('./lib/offline-endgame-fixture'))) };
         await page.evaluate(() => {
             game.settings.pauseGameOnOverlay = false;

@@ -1,117 +1,230 @@
-/** 거래 창 (메뉴의 거래 단추, 2026-11-06 사용자: "거래소에서 이름 바꾸고 탭 안에 NPC와 장비 전당을 집어넣고", "NPC 안에 암거래상도", 같은 날
- * "장비 탭에 있는 거래를 탭 하나 새로 만들어서"): NPC(만난 NPC와
- * 암거래상의 카드, js/npc-roster-ui.js, 재화 교환은 베일라의 창 js/orga-exchange-ui.js), 가판대(js/player-stall-ui.js), 장비 전당
- * (js/player-exchange.js). 열린 칸만 보이고, 고른 칸이 닫히면 첫 열린 칸을 본다. 암거래상(js/black-market-ui.js)은 거래소 해금 뒤 NPC 칸의
- * 카드로 서고, 누르면 NPC 창 모양의 창이 뜨며 #market-panel-black 판이 그 안으로 옮겨 갔다가 창을 닫으면 돌아온다. 거래 자체는 각 모듈의 몫이다. */
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/market-ui*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function marketPickHallItem(itemId) {
-    hideItemTooltip();
-    window.closeCraftItemPickerOverlay();
-    selectPlayerHallItem(itemId);
-}
+  // modules/ui/view-events.mjs
+  function listenView(runtime, target, type, listener, options) {
+    target.addEventListener(type, listener, options);
+    runtime.listeners.push({ target, type, listener, options });
+  }
+  function releaseViewEvents(runtime) {
+    runtime.active = false;
+    for (const { target, type, listener, options } of runtime.listeners) {
+      target.removeEventListener(type, listener, options);
+    }
+    runtime.listeners.length = 0;
+  }
+  function releaseViewTarget(runtime, target) {
+    const retained = [];
+    for (const binding of runtime.listeners) {
+      if (binding.target === target) target.removeEventListener(binding.type, binding.listener, binding.options);
+      else retained.push(binding);
+    }
+    runtime.listeners = retained;
+  }
 
-function renderMarketUI() {
-    const panel = document.getElementById('ui-market-panel');
+  // modules/ui/market-actions.mjs
+  function moveTab(runtime, event) {
+    const buttons = [...event.currentTarget.querySelectorAll("button:not([hidden])")];
+    const index = buttons.indexOf(runtime.deps.document.activeElement), count = buttons.length;
+    const next = { ArrowLeft: (index + count - 1) % count, ArrowRight: (index + 1) % count, Home: 0, End: count - 1 }[event.key];
+    if (next === void 0) return;
+    event.preventDefault();
+    buttons[next].click();
+    buttons[next].focus();
+  }
+  function openSections(runtime) {
+    const market = (0, runtime.deps.isMarketUnlocked)();
+    const open2 = { npc: runtime.deps.contentProgression.npcsMet(runtime.deps.game) || market, stall: market, hall: runtime.deps.contentProgression.isUnlocked("hall") };
+    return runtime.state.MARKET_SECTIONS.filter((id) => open2[id]);
+  }
+  function show(runtime, section) {
+    if (!runtime.state.MARKET_SECTIONS.includes(section)) return;
+    runtime.state.view_section = section;
+    if (section === "hall") (0, runtime.deps.loadPlayerExchange)();
+    renderMarketUI(runtime);
+  }
+  function open(runtime, section) {
+    runtime.state.view_section = runtime.state.MARKET_SECTIONS.includes(section) ? section : runtime.state.view_section;
+    (0, runtime.deps.switchTab)("tab-trade");
+    show(runtime, runtime.state.view_section);
+  }
+  function openHallPicker(runtime) {
+    runtime.deps.window.openCraftItemPickerOverlay("inventory", {
+      title: (0, runtime.deps._t)("장비 전당에 전시할 장비 선택"),
+      desc: (0, runtime.deps._t)("장비를 누르면 전시할 장비로 고릅니다."),
+      picks: { inventory: runtime.handlers.marketPickHallItem, blocked: runtime.deps.hallItemIssue }
+    });
+  }
+  function blackCardHtml(runtime) {
+    if (!(0, runtime.deps.isMarketUnlocked)()) return "";
+    return `<li class="npc-roster-item" data-tone="crimson"><button type="button" class="npc-roster-card is-black" data-black-open>
+            <span class="npc-roster-face is-black-trader"><img class="npc-roster-portrait" src="${runtime.state.MARKET_BLACK_FACE}" alt=""></span>
+            <span class="npc-roster-text"><strong>${(0, runtime.deps._t)("암거래상")}</strong><span class="npc-roster-tags"><em class="is-shop">${(0, runtime.deps._t)("공격 룬, 제작 베이스, 고유 장비")}</em></span></span></button>
+            <span class="npc-roster-actions"><button type="button" data-black-open>${(0, runtime.deps._t)("상점")}</button></span></li>`;
+  }
+  function openBlack(runtime) {
+    if (!runtime.active) return;
+    const board = runtime.deps.document.getElementById("market-panel-black"), home = runtime.deps.document.getElementById("market-panel-npc");
+    if (!(0, runtime.deps.isMarketUnlocked)() || !board || !home || runtime.deps.document.getElementById("black-market-dialog")) return;
+    const dialog = runtime.deps.document.createElement("dialog");
+    dialog.id = "black-market-dialog";
+    dialog.className = "npc-dialog is-shop is-black";
+    dialog.dataset.tone = "crimson";
+    dialog.setAttribute("aria-labelledby", "black-market-name");
+    dialog.innerHTML = `<figure class="npc-dialog-figure is-black-trader"><img class="npc-dialog-portrait" src="${runtime.state.MARKET_BLACK_FACE}" alt=""></figure>
+            <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who"><h2 id="black-market-name">${(0, runtime.deps._t)("암거래상")}</h2></div>
+            <button type="button" class="npc-dialog-close" data-black-close>${(0, runtime.deps._t)("닫기")}</button></header></div>`;
+    dialog.querySelector(".npc-dialog-main").append(board);
+    board.hidden = false;
+    runtime.blackDialog = { dialog, board, home };
+    listenView(runtime, dialog, "click", (event) => {
+      if (event.target.closest("[data-black-close]")) dialog.close();
+    });
+    listenView(runtime, dialog, "close", () => {
+      closeMarketBlackDialog(runtime);
+      if (runtime.active) renderMarketUI(runtime);
+    }, { once: true });
+    runtime.deps.document.body.append(dialog);
+    (0, runtime.deps.refreshBlackMarket)(false);
+    runtime.deps.blackMarketUi.render();
+    dialog.showModal();
+  }
+  function closeMarketBlackDialog(runtime) {
+    const owned = runtime.blackDialog;
+    if (!owned) return;
+    runtime.blackDialog = null;
+    releaseViewTarget(runtime, owned.dialog);
+    owned.board.hidden = true;
+    owned.home.append(owned.board);
+    if (owned.dialog.open) owned.dialog.close();
+    owned.dialog.remove();
+  }
+  function marketPickHallItem(runtime, itemId) {
+    (0, runtime.deps.hideItemTooltip)();
+    runtime.deps.window.closeCraftItemPickerOverlay();
+    (0, runtime.deps.selectPlayerHallItem)(itemId);
+  }
+  function renderMarketUI(runtime) {
+    if (!runtime.active) return;
+    const panel = runtime.deps.document.getElementById("ui-market-panel");
     if (!panel) return;
-    const open = marketUi.openSections();
-    if (!open.includes(marketUi.section)) marketUi.section = open[0] || 'npc';
-    if (isMarketUnlocked()) refreshBlackMarket(false);
-    panel.style.setProperty('--market-tabs', String(Math.max(1, open.length))); // css/themes/pixel.css .market-tabs
-    for (const button of panel.querySelectorAll('[data-market-section]')) {
-        const id = button.dataset.marketSection, active = id === marketUi.section;
-        button.hidden = !open.includes(id);
-        button.setAttribute('aria-selected', String(active));
-        button.tabIndex = active ? 0 : -1;
-        document.getElementById('market-panel-' + id).hidden = !active;
+    const open2 = runtime.api.openSections();
+    if (!open2.includes(runtime.api.section)) runtime.api.section = open2[0] || "npc";
+    if ((0, runtime.deps.isMarketUnlocked)()) (0, runtime.deps.refreshBlackMarket)(false);
+    panel.style.setProperty("--market-tabs", String(Math.max(1, open2.length)));
+    for (const button of panel.querySelectorAll("[data-market-section]")) {
+      const id = button.dataset.marketSection, active = id === runtime.api.section;
+      button.hidden = !open2.includes(id);
+      button.setAttribute("aria-selected", String(active));
+      button.tabIndex = active ? 0 : -1;
+      runtime.deps.document.getElementById("market-panel-" + id).hidden = !active;
     }
-    renderMarketSection(marketUi.section);
-}
-
-/** The shown section's own drawing (the hall draws itself when it loads, js/player-exchange.js); the black market while its window is open. */
-function renderMarketSection(section) {
-    if (section === 'npc') {
-        if (game.noti) game.noti.npcs = false;
-        npcRosterUi.render();
+    renderMarketSection(runtime, runtime.api.section);
+  }
+  function renderMarketSection(runtime, section) {
+    if (section === "npc") {
+      if (runtime.deps.game.noti) runtime.deps.game.noti.npcs = false;
+      runtime.deps.npcRosterUi.render();
     }
-    if (section === 'stall') playerStallUi.render();
-    if (document.getElementById('black-market-dialog')?.open) blackMarketUi.render();
-}
+    if (section === "stall") runtime.deps.playerStallUi.render();
+    if (runtime.deps.document.getElementById("black-market-dialog")?.open) runtime.deps.blackMarketUi.render();
+  }
 
-exposeFileGlobals({ marketPickHallItem, renderMarketUI });
+  // modules/ui/market-view.mjs
+  function createMarketView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null, active: true, listeners: [] };
+    const handlers = { marketPickHallItem, moveTab, openSections, show, open, openHallPicker, blackCardHtml, openBlack, renderMarketUI };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(void 0, runtime);
+    initialize(runtime);
+    runtime.api = MarketViewApi(runtime);
+    installMarketViewEvents(runtime);
+    return runtime.api;
+  }
+  function initialize(runtime) {
+    runtime.state.MARKET_SECTIONS = Object.freeze(["npc", "stall", "hall"]);
+    runtime.state.MARKET_BLACK_FACE = "assets/stage-npcs/black-market-portrait.webp";
+    runtime.state.view_section = "npc";
+  }
+  function installMarketViewEvents(runtime) {
+    listenView(runtime, runtime.deps.document, "click", (event) => {
+      if (event.target.closest?.("[data-black-open]")) runtime.api.openBlack();
+    });
+  }
+  function MarketViewApi(runtime) {
+    return {
+      get section() {
+        return runtime.state.view_section;
+      },
+      set section(value) {
+        runtime.state.view_section = value;
+      },
+      moveTab: runtime.handlers.moveTab,
+      openSections: runtime.handlers.openSections,
+      show: runtime.handlers.show,
+      open: runtime.handlers.open,
+      openHallPicker: runtime.handlers.openHallPicker,
+      blackCardHtml: runtime.handlers.blackCardHtml,
+      openBlack: runtime.handlers.openBlack,
+      marketPickHallItem: runtime.handlers.marketPickHallItem,
+      renderMarketUI: runtime.handlers.renderMarketUI,
+      dispose: () => disposeMarketView(runtime)
+    };
+  }
+  function disposeMarketView(runtime) {
+    releaseViewEvents(runtime);
+    closeMarketBlackDialog(runtime);
+  }
+
+  // modules/market-ui-classic.mjs
+  var marketUi = createMarketView({
+    get document() {
+      return document;
+    },
+    get isMarketUnlocked() {
+      return isMarketUnlocked;
+    },
+    get contentProgression() {
+      return contentProgression;
+    },
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get loadPlayerExchange() {
+      return loadPlayerExchange;
+    },
+    get switchTab() {
+      return switchTab;
+    },
+    get window() {
+      return window;
+    },
+    get _t() {
+      return _t;
+    },
+    get hallItemIssue() {
+      return hallItemIssue;
+    },
+    get refreshBlackMarket() {
+      return refreshBlackMarket;
+    },
+    get blackMarketUi() {
+      return blackMarketUi;
+    },
+    get hideItemTooltip() {
+      return hideItemTooltip;
+    },
+    get selectPlayerHallItem() {
+      return selectPlayerHallItem;
+    },
+    get playerStallUi() {
+      return playerStallUi;
+    },
+    get npcRosterUi() {
+      return npcRosterUi;
+    }
+  });
+  safeExposeGlobals({
+    marketUi,
+    marketPickHallItem: marketUi.marketPickHallItem,
+    renderMarketUI: marketUi.renderMarketUI
+  });
 })();
-const MARKET_SECTIONS = Object.freeze(['npc', 'stall', 'hall']);
-const MARKET_BLACK_FACE = 'assets/stage-npcs/black-market-portrait.webp';
-const marketUi = {
-    section: 'npc',
-    moveTab(event) {
-        const buttons = [...event.currentTarget.querySelectorAll('button:not([hidden])')];
-        const index = buttons.indexOf(document.activeElement), count = buttons.length;
-        const next = {ArrowLeft:(index+count-1)%count, ArrowRight:(index+1)%count, Home:0, End:count-1}[event.key];
-        if (next === undefined) return;
-        event.preventDefault();buttons[next].click();buttons[next].focus();
-    },
-    /** The sections open now, in order (the NPC section also holds the black market once 거래소 is unlocked). */
-    openSections() {
-        const market = isMarketUnlocked();
-        const open = { npc: contentProgression.npcsMet(game) || market, stall: market, hall: contentProgression.isUnlocked('hall') };
-        return MARKET_SECTIONS.filter(id => open[id]);
-    },
-    show(section) {
-        if (!MARKET_SECTIONS.includes(section)) return;
-        this.section = section;
-        if (section === 'hall') loadPlayerExchange();
-        renderMarketUI();
-    },
-    /** From elsewhere (a death hint, the loop's stall and hall checks, an old 장비 칸 address): the 거래 window on that section. */
-    open(section) {
-        this.section = MARKET_SECTIONS.includes(section) ? section : this.section;
-        switchTab('tab-trade');
-        this.show(this.section);
-    },
-    /** 장비 전당의 등록(js/player-exchange.js renderHallStands, 2026-11-06 사용자: "내 템 전부 보여주는 게 아니라 등록 누르면 내 인벤토리 똑같이
-     * 보여주고 골라서 등록"): the bag picker with the real bag (js/craft-picker-host-ui.js). Gear that cannot go on show is dimmed and says why
-     * (hallItemIssue); a press on gear that can chooses it and closes the picker. */
-    openHallPicker() {
-        window.openCraftItemPickerOverlay('inventory', { title: _t('장비 전당에 전시할 장비 선택'), desc: _t('장비를 누르면 전시할 장비로 고릅니다.'),
-            picks: { inventory: marketPickHallItem, blocked: hallItemIssue } });
-    },
-    /** The black market's card in the NPC section (js/npc-roster-ui.js), once 거래소 is unlocked. */
-    blackCardHtml() {
-        if (!isMarketUnlocked()) return '';
-        return `<li class="npc-roster-item" data-tone="crimson"><button type="button" class="npc-roster-card is-black" data-black-open>
-            <span class="npc-roster-face is-black-trader"><img class="npc-roster-portrait" src="${MARKET_BLACK_FACE}" alt=""></span>
-            <span class="npc-roster-text"><strong>${_t('암거래상')}</strong><span class="npc-roster-tags"><em class="is-shop">${_t('공격 룬, 제작 베이스, 고유 장비')}</em></span></span></button>
-            <span class="npc-roster-actions"><button type="button" data-black-open>${_t('상점')}</button></span></li>`;
-    },
-    /** The black market in a window shaped like an NPC's: its board moves in and goes back when the window closes. */
-    openBlack() {
-        const board = document.getElementById('market-panel-black'), home = document.getElementById('market-panel-npc');
-        if (!isMarketUnlocked() || !board || !home || document.getElementById('black-market-dialog')) return;
-        const dialog = document.createElement('dialog');
-        dialog.id = 'black-market-dialog';
-        dialog.className = 'npc-dialog is-shop is-black';
-        dialog.dataset.tone = 'crimson';
-        dialog.setAttribute('aria-labelledby', 'black-market-name');
-        dialog.innerHTML = `<figure class="npc-dialog-figure is-black-trader"><img class="npc-dialog-portrait" src="${MARKET_BLACK_FACE}" alt=""></figure>
-            <div class="npc-dialog-main"><header class="npc-dialog-head"><div class="npc-dialog-who"><h2 id="black-market-name">${_t('암거래상')}</h2></div>
-            <button type="button" class="npc-dialog-close" data-black-close>${_t('닫기')}</button></header></div>`;
-        dialog.querySelector('.npc-dialog-main').append(board);
-        board.hidden = false;
-        dialog.addEventListener('click', event => { if (event.target.closest('[data-black-close]')) dialog.close(); });
-        dialog.addEventListener('close', () => {
-            board.hidden = true;
-            home.append(board);
-            dialog.remove();
-            renderMarketUI();
-        }, { once: true });
-        document.body.append(dialog);
-        refreshBlackMarket(false);
-        blackMarketUi.render();
-        dialog.showModal();
-    }
-};
-
-
-document.addEventListener('click', event => { if (event.target.closest?.('[data-black-open]')) marketUi.openBlack(); });
-safeExposeGlobals({marketUi, renderMarketUI});

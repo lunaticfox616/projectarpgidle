@@ -12,7 +12,7 @@ const output = path.resolve(process.env.VFX_CAPTURE_OUTPUT || 'artifacts/all-ski
 function captureSkill(request) {
     const name = typeof request === 'string' ? request : request.name;
     clearBattleVisualBacklog();
-    pendingSkillStageHits = [];
+    window.GameModules.state.combat.pendingSkillStageHits = [];
     game.activeSkill = name;
     game.summons = [];
     game.gridPlayer = { gx: 3, gy: 4, gridMoveTimer: 0 };
@@ -36,7 +36,7 @@ function captureSkill(request) {
     } else performPlayerAttack(stats, { skillName: name, forcedCrit: false });
     const initial = battleFx.map(fx => ({ type: fx.type, pattern: fx.patternKind, footprint: fx.attackFootprint }));
     const baseTime = getCombatTime();
-    const firstArrival = pendingSkillStageHits.length ? Math.min(...pendingSkillStageHits.map(row => row.at)) - baseTime : 0;
+    const firstArrival = window.GameModules.state.combat.pendingSkillStageHits.length ? Math.min(...window.GameModules.state.combat.pendingSkillStageHits.map(row => row.at)) - baseTime : 0;
     if (request.prepareOnly) return {baseTime, firstArrival};
     const samples = name === '지진 파쇄'
         ? [firstArrival + 70, firstArrival + SKILL_DB[name].aftershockDelayMs + 70, firstArrival + SKILL_DB[name].aftershockDelayMs + 220]
@@ -77,11 +77,10 @@ async function capture(browser, mobile) {
     await page.goto(`http://127.0.0.1:${process.env.PLAYWRIGHT_PORT}/`);
     await page.locator('#btn-startup-guest').click();
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     const names = await page.evaluate(() => {
         // The fixture owns the clock. combatHalted alone is cleared by normal-zone recovery.
-        clearInterval(gameTickHandle);
-        gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         const requestFrame = window.requestAnimationFrame.bind(window);
         window.requestAnimationFrame = callback => callback === gameLoop ? 0 : requestFrame(callback);
         const image = battleAssets.images.skillFxImpactFlare;

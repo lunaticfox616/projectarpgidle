@@ -21,7 +21,7 @@ function damageCase(extraElement,physicalTakenMul) {
         addedDamagePctByElement:{},finalDamageMultiplier:1});
     enemy.physicalDamageTakenMul=physicalTakenMul;
     r.performPlayerAttack(stats,{forcedCrit:false});
-    run('pendingSkillStageHits.forEach(row=>{row.at=0;});processPendingSkillStageHits();');
+    run("window.GameModules.state.combat.pendingSkillStageHits.forEach(row=>{row.at=0;});processPendingSkillStageHits();");
     return {extraElement,physicalTakenMul,damage:enemy.maxHp-enemy.hp};
 }
 
@@ -63,7 +63,7 @@ function flatDpsCase(value) {
     const displayed=stats.totalDps;
     stats.minDmgRoll=100;stats.maxDmgRoll=100;stats.passiveAlwaysHit=true;
     r.performPlayerAttack(stats,{forcedCrit:false});
-    run('pendingSkillStageHits.forEach(row=>{row.at=0;});processPendingSkillStageHits();');
+    run("window.GameModules.state.combat.pendingSkillStageHits.forEach(row=>{row.at=0;});processPendingSkillStageHits();");
     return {fireFlatDmg:value,displayedDps:displayed,flatDamage:stats.flatElementHitDamage.fire,actualHit:enemy.maxHp-enemy.hp};
 }
 
@@ -82,9 +82,9 @@ function queuePressureCase() {
     state.gemData['화염 폭풍핵']={level:1,exp:0,quality:0};
     const stats=r.getPlayerStats();
     r.performPlayerAttack(stats,{forcedCrit:false});
-    const stagesPerCast=run('pendingSkillStageHits.length');
+    const stagesPerCast=run("window.GameModules.state.combat.pendingSkillStageHits.length");
     for(let cast=1;cast<42;cast++) r.performPlayerAttack(stats,{forcedCrit:false});
-    return {casts:42,expectedStages:stagesPerCast*42,remainingStages:run('pendingSkillStageHits.length')};
+    return {casts:42,expectedStages:stagesPerCast*42,remainingStages:run("window.GameModules.state.combat.pendingSkillStageHits.length")};
 }
 
 function auditCombat() {

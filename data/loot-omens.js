@@ -1,16 +1,7 @@
-// 지도 기운과 보물 무리(2026-10-09 사용자 "POE식으로 정말 다양한 아이템 종류가 매판 다르게 드랍되는 느낌", docs/endgame-loot-20261009.md).
-// 기운: 아틀라스 지도석(지도 노드의 것)마다 하나가 붙어 그 지도에서 무엇이 잘 나오는지 정한다(js/loot-omens.js). 지도석 희귀도가 세기를
-// 정한다(strength, 타락이면 corrupted만큼 더). weight는 뽑힐 비중이고, 그 기운이 줄 것이 아직 하나도 열리지 않았으면 뽑히지 않는다.
-//   drops: 처치마다 chance[등급] × 세기로 목록에서 가중치로 하나를 떨어뜨린다(보스는 bossRolls번 더). '@jewel'은 재화가 아니라 주얼
-//          한 개, '@seed'는 그루터기 함 씨앗 한 개(처치 드랍 씨앗과 같은 굴림). [키, 가중치, 개수]. gemMul: 그 지도 몬스터의 룬 보상 확률 배율(세기만큼). jewel: 그 지도의 '@jewel'이 희귀(rare),
-//          고유(unique)일 확률(세기를 곱한다).
-//   gear: 장비 기대 개수 배율(quantity), 부위 가중치(slots), 고유 확률 배율(unique), 드랍 변형 배율(variant: 복제, 묶음, 타락).
-//          배율은 세기만큼 커진다: 1 + (값 − 1) × 세기.
-//   bonus: 그 지도 런의 아틀라스 효과(data/atlas-passives.js labels의 키)에 값 × 세기를 더한다.
-// 보물 무리: 지도의 보통 무리가 treasure.packChance로 "보물을 품은" 무리가 되고, 금빛 테를 두른 그 무리의 일반 몬스터 하나가 쓰러지면
-// 기운 하나의 목록에서 rolls번, 희귀 장비 rareGear개, uniqueChance로 고유 하나를 쏟아낸다. 그중 golden.chance는 황금 보물이다.
-// 모든 수치는 첫 제안값이다(드랍 시뮬레이터 `npm run drop:sim`, 명령줄 `node scripts/drop-simulate.js`).
-const LOOT_OMENS = Object.freeze({
+// GENERATED from modules/data/loot-omens.mjs. Edit the ESM source; run npm run build:modules.
+(() => {
+  // modules/data/loot-omens.mjs
+  var LOOT_OMENS = Object.freeze({
     strength: Object.freeze({ normal: 1, magic: 1.5, rare: 2, corrupted: 0.5 }),
     chance: Object.freeze({ regular: 0.05, elite: 0.3, boss: 1 }),
     bossRolls: 3,
@@ -23,89 +14,248 @@ const LOOT_OMENS = Object.freeze({
     killGearMul: 2.2,
     // 지도 보스의 보상(2026-10-09 사용자: 보스가 클라이맥스가 아니다): 장비 items개(extraChance로 하나 더), 앞의 장비부터 minimum의 희귀도
     // 이상. 고유 몫은 보물 무리와 상자에 있으므로 일반 몬스터의 희귀도 띠로 굴린다. 지도와 수호자 지도의 보스만(기억 싸움, 최종 싸움은 없다).
-    mapBoss: Object.freeze({ items: 2, extraChance: 0.5, minimum: Object.freeze(['rare', 'magic']) }),
+    mapBoss: Object.freeze({ items: 2, extraChance: 0.5, minimum: Object.freeze(["rare", "magic"]) }),
     // 좋은 희귀(2026-10-09): 그 장비가 가질 수 있는 가장 높은 band개 등급(affixTierCap에서 band − 1 아래까지) 안의 옵션이 good줄 이상이면
     // 좋은 발견(js/loot.js lootMoments, 반짝임). 16등급 지도에서 희귀의 약 10%다. 2026-10-16 사용자 "단순한 희귀한 아이템에 빛기둥 없애고, 황금률같은
     // 고급 아이템에만 빛기둥": 줄이 더 많아도 큰 발견(빛기둥)이 되지 않는다. 옵션 등급 상한이 minCap보다 낮은 장비(초반 지역)는 따지지 않는다.
     fineRare: Object.freeze({ band: 4, good: 2, minCap: 12 }),
     list: Object.freeze([
-        { id: 'fossil', name: '화석 광맥', note: '화석이 자주 나옵니다', kind: 'drops', weight: 8, tone: '#c9a46a', drops: Object.freeze([
-            ['fossil', 40], ['fossilJagged', 6], ['fossilBound', 6], ['fossilGale', 6], ['fossilPrismatic', 5], ['fossilBulwark', 5],
-            ['fossilWedge', 5], ['fossilOld', 5], ['fossilRift', 5], ['fossilPrimal', 3], ['fossilAncientPrimal', 1], ['fossilPrimordial', 0.6],
-            ['fossilAbyssal', 0.4]]) },
-        { id: 'tools', name: '장인의 연장', note: '숫돌, 뿌리철, 보석연마제가 나옵니다', kind: 'drops', weight: 6, tone: '#b8b0a0', drops: Object.freeze([
-            ['deepWhetstone', 4], ['rootIron', 4], ['jewelPolish', 4], ['abyssCatalyst', 0.4]]) },
-        { id: 'hive', name: '벌집 향기', note: '꽃가루와 벌집 재료가 나옵니다', kind: 'drops', weight: 6, tone: '#ffd25e', drops: Object.freeze([
-            ['pollen', 10, 3], ['beeswax', 4], ['venomStinger', 2], ['hiveKey', 0.6], ['enchantedHoney', 0.3]]) },
-        { id: 'sky', name: '별똥 비', note: '창공의 정수와 각성 잔향이 나옵니다', kind: 'drops', weight: 6, tone: '#8fd3ff', drops: Object.freeze([
-            ['skyEssence', 10], ['condensedSkyPower', 2], ['awakenedEcho', 1.2]]) },
-        // 물리 꽃 묶음(2026-11-04): 씨앗과 룬 강화 재료.
-        { id: 'seeds', name: '씨앗 비', note: '그루터기 함 씨앗이 자주 나옵니다', kind: 'drops', weight: 5, tone: '#c9a27a', drops: Object.freeze([
-            ['@seed', 1]]) },
-        { id: 'cores', name: '군주의 잔해', note: '군주의 핵과 창공의 정수가 나옵니다', kind: 'drops', weight: 3, tone: '#e4ba79', drops: Object.freeze([
-            ['bossCore', 2], ['skyEssence', 6]]) },
-        { id: 'under', name: '지하 광맥', note: '지하계 광석과 지하석 조각이 나옵니다', kind: 'drops', weight: 6, tone: '#d8a060', drops: Object.freeze([
-            ['underCopper', 8], ['underSilver', 4], ['underGold', 2], ['runeShard', 3]]) },
-        { id: 'seal', name: '봉인된 숨결', note: '봉인편린이 나옵니다', kind: 'drops', weight: 6, tone: '#c58cff', drops: Object.freeze([
-            ['sealShard', 10], ['strongSealShard', 3], ['radiantSealShard', 0.25]]) },
-        { id: 'ocean', name: '밀려온 물결', note: '암초 조각과 심해의 파편이 나옵니다', kind: 'drops', weight: 5, tone: '#6fa8d8', drops: Object.freeze([
-            ['reefFragment', 6], ['oceanRerollShard', 3]]) },
-        { id: 'ember', name: '잿불 기운', note: '잿불가지가 나옵니다', kind: 'drops', weight: 5, tone: '#ff8a3d', drops: Object.freeze([
-            ['emberBranch', 10], ['burningEmberBranch', 0.3]]) },
-        { id: 'keys', name: '열쇠 꾸러미', note: '보스 열쇠와 입장 증표가 나옵니다', kind: 'drops', weight: 5, tone: '#e8c27a', drops: Object.freeze([
-            ['bossKeyFlame', 3], ['bossKeyFrost', 3], ['bossKeyStorm', 3], ['chaosKey', 2], ['coreKey', 1.5], ['trialKey3', 1], ['rivalKey', 0.6],
-            ['beastKeyCerberus', 0.4]]) },
-        { id: 'orbs', name: '재화 소나기', note: '제작 재화가 쏟아집니다', kind: 'drops', weight: 4, tone: '#f3d28c', drops: Object.freeze([
-            ['magicBud', 10, 2], ['formlessDew', 5], ['blightSpore', 3], ['sapBud', 1.5], ['pruningShears', 1], ['goldenRule', 0.15],
-            ['fairyRing', 0.01]]) },
-        // 2026-10-10 사용자: 룬의 정원, 보석 광맥, 지도 제작자가 밋밋하면 상향. 룬 보상, 좋은 주얼, 높고 희귀한 지도석이 눈에 띄게 늘었다.
-        { id: 'gems', name: '룬의 정원', note: '룬과 각성 잔향이 자주 나옵니다', kind: 'drops', weight: 5, tone: '#7fd99a', drops: Object.freeze([
-            ['awakenedEcho', 3]]), gemMul: 4 },
-        { id: 'jewels', name: '보석 광맥', note: '주얼이 많이, 더 좋게 나옵니다', kind: 'drops', weight: 5, tone: '#78cfff', drops: Object.freeze([
-            ['jewelShard', 6], ['@jewel', 5]]), jewel: Object.freeze({ rare: 0.35, unique: 0.03 }) },
-        { id: 'armory', name: '무기고', note: '무기가 많이 나옵니다', kind: 'gear', weight: 6, tone: '#e0a070',
-            gear: Object.freeze({ quantity: 1.7, slots: Object.freeze({ 무기: 6 }) }) },
-        { id: 'jewelry', name: '장신구 함', note: '목걸이, 반지, 허리띠가 많이 나옵니다', kind: 'gear', weight: 6, tone: '#e8c27a',
-            gear: Object.freeze({ quantity: 1.7, slots: Object.freeze({ 목걸이: 3, 반지: 3, 허리띠: 3 }) }) },
-        { id: 'armour', name: '갑주 창고', note: '방어구가 많이 나옵니다', kind: 'gear', weight: 6, tone: '#a8b8c8',
-            gear: Object.freeze({ quantity: 1.7, slots: Object.freeze({ 투구: 2, 갑옷: 2, 장갑: 2, 신발: 2, 방패: 2 }) }) },
-        { id: 'unique', name: '고유의 메아리', note: '고유 장비가 더 자주 나옵니다', kind: 'gear', weight: 3, tone: '#ffb35c',
-            gear: Object.freeze({ quantity: 1.2, unique: 3 }) },
-        { id: 'corrupt', name: '타락한 땅', note: '타락 장비가 자주 나옵니다', kind: 'gear', weight: 4, tone: '#e7685c',
-            gear: Object.freeze({ quantity: 1.3, variant: Object.freeze({ corrupted: 6 }) }) },
-        { id: 'twins', name: '쌍둥이 그림자', note: '같은 장비가 겹쳐 나옵니다', kind: 'gear', weight: 4, tone: '#c8b0e8',
-            gear: Object.freeze({ quantity: 1.3, variant: Object.freeze({ duplicate: 6, bundle: 6 }) }) },
-        { id: 'maps', name: '지도 제작자', note: '지도석이 많이, 더 좋고 높게 나옵니다', kind: 'bonus', weight: 5, tone: '#d9b066',
-            bonus: Object.freeze({ mapDrop: 120, mapRarity: 120, mapQuality: 25, mapTierUp: 20 }) },
-        { id: 'fragments', name: '각인 무덤', note: '각인이 자주 나옵니다', kind: 'bonus', weight: 4, tone: '#b8a1df',
-            bonus: Object.freeze({ fragmentDrop: 250 }) },
-        { id: 'chests', name: '보급 행렬', note: '보급 상자가 늘고 좋아집니다', kind: 'bonus', weight: 5, tone: '#e8c27a',
-            bonus: Object.freeze({ chestExtra: 2, chestGrade: 80 }) },
-        { id: 'rooms', name: '붐비는 방', note: '콘텐츠 방이 하나 더, 황금 방이 잘 생깁니다', kind: 'bonus', weight: 4, tone: '#ffd75e',
-            bonus: Object.freeze({ encounterExtra: 1, goldenRoom: 10 }) },
-        { id: 'elites', name: '정예 행렬', note: '정예가 늘고 희귀도가 오릅니다', kind: 'bonus', weight: 5, tone: '#ff9a76',
-            bonus: Object.freeze({ extraElite: 40, rarity: 20 }) },
-        { id: 'dreams', name: '보스의 꿈', note: '보스의 기억과 변이체가 잘 나옵니다', kind: 'bonus', weight: 3, tone: '#a8c0ff', minLoop: 33,
-            bonus: Object.freeze({ memoryDrop: 150, variantChance: 15 }) },
-        // 제작 뿌리(2026-10-18, data/items.js CRAFT_OMENS): 최종 보스를 하나라도 쓰러뜨린 뒤에 붙는다(needsFallenApex).
-        { id: 'craftOmens', name: '뿌리의 메아리', note: '10등급 이상 지도에서 뿌리를 품은 몬스터가 자주 나옵니다', kind: 'bonus', weight: 3, tone: '#b98cff',
-            needsFallenApex: true, bonus: Object.freeze({ omenBearer: 400 }) }
+      { id: "fossil", name: "화석 광맥", note: "화석이 자주 나옵니다", kind: "drops", weight: 8, tone: "#c9a46a", drops: Object.freeze([
+        ["fossil", 40],
+        ["fossilJagged", 6],
+        ["fossilBound", 6],
+        ["fossilGale", 6],
+        ["fossilPrismatic", 5],
+        ["fossilBulwark", 5],
+        ["fossilWedge", 5],
+        ["fossilOld", 5],
+        ["fossilRift", 5],
+        ["fossilPrimal", 3],
+        ["fossilAncientPrimal", 1],
+        ["fossilPrimordial", 0.6],
+        ["fossilAbyssal", 0.4]
+      ]) },
+      { id: "tools", name: "장인의 연장", note: "숫돌, 뿌리철, 보석연마제가 나옵니다", kind: "drops", weight: 6, tone: "#b8b0a0", drops: Object.freeze([
+        ["deepWhetstone", 4],
+        ["rootIron", 4],
+        ["jewelPolish", 4],
+        ["abyssCatalyst", 0.4]
+      ]) },
+      { id: "hive", name: "벌집 향기", note: "꽃가루와 벌집 재료가 나옵니다", kind: "drops", weight: 6, tone: "#ffd25e", drops: Object.freeze([
+        ["pollen", 10, 3],
+        ["beeswax", 4],
+        ["venomStinger", 2],
+        ["hiveKey", 0.6],
+        ["enchantedHoney", 0.3]
+      ]) },
+      { id: "sky", name: "별똥 비", note: "창공의 정수와 각성 잔향이 나옵니다", kind: "drops", weight: 6, tone: "#8fd3ff", drops: Object.freeze([
+        ["skyEssence", 10],
+        ["condensedSkyPower", 2],
+        ["awakenedEcho", 1.2]
+      ]) },
+      // 물리 꽃 묶음(2026-11-04): 씨앗과 룬 강화 재료.
+      { id: "seeds", name: "씨앗 비", note: "그루터기 함 씨앗이 자주 나옵니다", kind: "drops", weight: 5, tone: "#c9a27a", drops: Object.freeze([
+        ["@seed", 1]
+      ]) },
+      { id: "cores", name: "군주의 잔해", note: "군주의 핵과 창공의 정수가 나옵니다", kind: "drops", weight: 3, tone: "#e4ba79", drops: Object.freeze([
+        ["bossCore", 2],
+        ["skyEssence", 6]
+      ]) },
+      { id: "under", name: "지하 광맥", note: "지하계 광석과 지하석 조각이 나옵니다", kind: "drops", weight: 6, tone: "#d8a060", drops: Object.freeze([
+        ["underCopper", 8],
+        ["underSilver", 4],
+        ["underGold", 2],
+        ["runeShard", 3]
+      ]) },
+      { id: "seal", name: "봉인된 숨결", note: "봉인편린이 나옵니다", kind: "drops", weight: 6, tone: "#c58cff", drops: Object.freeze([
+        ["sealShard", 10],
+        ["strongSealShard", 3],
+        ["radiantSealShard", 0.25]
+      ]) },
+      { id: "ocean", name: "밀려온 물결", note: "암초 조각과 심해의 파편이 나옵니다", kind: "drops", weight: 5, tone: "#6fa8d8", drops: Object.freeze([
+        ["reefFragment", 6],
+        ["oceanRerollShard", 3]
+      ]) },
+      { id: "ember", name: "잿불 기운", note: "잿불가지가 나옵니다", kind: "drops", weight: 5, tone: "#ff8a3d", drops: Object.freeze([
+        ["emberBranch", 10],
+        ["burningEmberBranch", 0.3]
+      ]) },
+      { id: "keys", name: "열쇠 꾸러미", note: "보스 열쇠와 입장 증표가 나옵니다", kind: "drops", weight: 5, tone: "#e8c27a", drops: Object.freeze([
+        ["bossKeyFlame", 3],
+        ["bossKeyFrost", 3],
+        ["bossKeyStorm", 3],
+        ["chaosKey", 2],
+        ["coreKey", 1.5],
+        ["trialKey3", 1],
+        ["rivalKey", 0.6],
+        ["beastKeyCerberus", 0.4]
+      ]) },
+      { id: "orbs", name: "재화 소나기", note: "제작 재화가 쏟아집니다", kind: "drops", weight: 4, tone: "#f3d28c", drops: Object.freeze([
+        ["magicBud", 10, 2],
+        ["formlessDew", 5],
+        ["blightSpore", 3],
+        ["sapBud", 1.5],
+        ["pruningShears", 1],
+        ["goldenRule", 0.15],
+        ["fairyRing", 0.01]
+      ]) },
+      // 2026-10-10 사용자: 룬의 정원, 보석 광맥, 지도 제작자가 밋밋하면 상향. 룬 보상, 좋은 주얼, 높고 희귀한 지도석이 눈에 띄게 늘었다.
+      { id: "gems", name: "룬의 정원", note: "룬과 각성 잔향이 자주 나옵니다", kind: "drops", weight: 5, tone: "#7fd99a", drops: Object.freeze([
+        ["awakenedEcho", 3]
+      ]), gemMul: 4 },
+      { id: "jewels", name: "보석 광맥", note: "주얼이 많이, 더 좋게 나옵니다", kind: "drops", weight: 5, tone: "#78cfff", drops: Object.freeze([
+        ["jewelShard", 6],
+        ["@jewel", 5]
+      ]), jewel: Object.freeze({ rare: 0.35, unique: 0.03 }) },
+      {
+        id: "armory",
+        name: "무기고",
+        note: "무기가 많이 나옵니다",
+        kind: "gear",
+        weight: 6,
+        tone: "#e0a070",
+        gear: Object.freeze({ quantity: 1.7, slots: Object.freeze({ 무기: 6 }) })
+      },
+      {
+        id: "jewelry",
+        name: "장신구 함",
+        note: "목걸이, 반지, 허리띠가 많이 나옵니다",
+        kind: "gear",
+        weight: 6,
+        tone: "#e8c27a",
+        gear: Object.freeze({ quantity: 1.7, slots: Object.freeze({ 목걸이: 3, 반지: 3, 허리띠: 3 }) })
+      },
+      {
+        id: "armour",
+        name: "갑주 창고",
+        note: "방어구가 많이 나옵니다",
+        kind: "gear",
+        weight: 6,
+        tone: "#a8b8c8",
+        gear: Object.freeze({ quantity: 1.7, slots: Object.freeze({ 투구: 2, 갑옷: 2, 장갑: 2, 신발: 2, 방패: 2 }) })
+      },
+      {
+        id: "unique",
+        name: "고유의 메아리",
+        note: "고유 장비가 더 자주 나옵니다",
+        kind: "gear",
+        weight: 3,
+        tone: "#ffb35c",
+        gear: Object.freeze({ quantity: 1.2, unique: 3 })
+      },
+      {
+        id: "corrupt",
+        name: "타락한 땅",
+        note: "타락 장비가 자주 나옵니다",
+        kind: "gear",
+        weight: 4,
+        tone: "#e7685c",
+        gear: Object.freeze({ quantity: 1.3, variant: Object.freeze({ corrupted: 6 }) })
+      },
+      {
+        id: "twins",
+        name: "쌍둥이 그림자",
+        note: "같은 장비가 겹쳐 나옵니다",
+        kind: "gear",
+        weight: 4,
+        tone: "#c8b0e8",
+        gear: Object.freeze({ quantity: 1.3, variant: Object.freeze({ duplicate: 6, bundle: 6 }) })
+      },
+      {
+        id: "maps",
+        name: "지도 제작자",
+        note: "지도석이 많이, 더 좋고 높게 나옵니다",
+        kind: "bonus",
+        weight: 5,
+        tone: "#d9b066",
+        bonus: Object.freeze({ mapDrop: 120, mapRarity: 120, mapQuality: 25, mapTierUp: 20 })
+      },
+      {
+        id: "fragments",
+        name: "각인 무덤",
+        note: "각인이 자주 나옵니다",
+        kind: "bonus",
+        weight: 4,
+        tone: "#b8a1df",
+        bonus: Object.freeze({ fragmentDrop: 250 })
+      },
+      {
+        id: "chests",
+        name: "보급 행렬",
+        note: "보급 상자가 늘고 좋아집니다",
+        kind: "bonus",
+        weight: 5,
+        tone: "#e8c27a",
+        bonus: Object.freeze({ chestExtra: 2, chestGrade: 80 })
+      },
+      {
+        id: "rooms",
+        name: "붐비는 방",
+        note: "콘텐츠 방이 하나 더, 황금 방이 잘 생깁니다",
+        kind: "bonus",
+        weight: 4,
+        tone: "#ffd75e",
+        bonus: Object.freeze({ encounterExtra: 1, goldenRoom: 10 })
+      },
+      {
+        id: "elites",
+        name: "정예 행렬",
+        note: "정예가 늘고 희귀도가 오릅니다",
+        kind: "bonus",
+        weight: 5,
+        tone: "#ff9a76",
+        bonus: Object.freeze({ extraElite: 40, rarity: 20 })
+      },
+      {
+        id: "dreams",
+        name: "보스의 꿈",
+        note: "보스의 기억과 변이체가 잘 나옵니다",
+        kind: "bonus",
+        weight: 3,
+        tone: "#a8c0ff",
+        minLoop: 33,
+        bonus: Object.freeze({ memoryDrop: 150, variantChance: 15 })
+      },
+      // 제작 뿌리(2026-10-18, data/items.js CRAFT_OMENS): 최종 보스를 하나라도 쓰러뜨린 뒤에 붙는다(needsFallenApex).
+      {
+        id: "craftOmens",
+        name: "뿌리의 메아리",
+        note: "10등급 이상 지도에서 뿌리를 품은 몬스터가 자주 나옵니다",
+        kind: "bonus",
+        weight: 3,
+        tone: "#b98cff",
+        needsFallenApex: true,
+        bonus: Object.freeze({ omenBearer: 400 })
+      }
     ].map(Object.freeze)),
     // 꽃으로 기운 바꾸기(2026-11-02 사용자): 보관함의 다 자란 꽃 하나로 지도석의 기운을 그 꽃 색의 묶음 안에서 다시 굴린다(지금 기운은 빼고, weight대로).
     // 황금 꽃은 묶음 안에서 직접 고른다(js/atlas.js changeOmen). 기운마다 한 묶음에 든다. label은 단추에 쓰는 묶음 이름이다.
     flowers: Object.freeze({
-        physical: Object.freeze({ label: '그루터기', omens: Object.freeze(['seeds', 'cores', 'sky']) }),
-        fire: Object.freeze({ label: '장비', omens: Object.freeze(['armory', 'jewelry', 'armour', 'unique', 'corrupt', 'twins', 'ember']) }),
-        cold: Object.freeze({ label: '제작', omens: Object.freeze(['orbs', 'tools', 'fossil', 'jewels', 'seal', 'craftOmens']) }),
-        lightning: Object.freeze({ label: '지도와 콘텐츠', omens: Object.freeze(['maps', 'rooms', 'keys', 'chests', 'fragments', 'hive', 'ocean']) }),
-        chaos: Object.freeze({ label: '룬과 보스', omens: Object.freeze(['gems', 'dreams', 'elites', 'under']) })
+      physical: Object.freeze({ label: "그루터기", omens: Object.freeze(["seeds", "cores", "sky"]) }),
+      fire: Object.freeze({ label: "장비", omens: Object.freeze(["armory", "jewelry", "armour", "unique", "corrupt", "twins", "ember"]) }),
+      cold: Object.freeze({ label: "제작", omens: Object.freeze(["orbs", "tools", "fossil", "jewels", "seal", "craftOmens"]) }),
+      lightning: Object.freeze({ label: "지도와 콘텐츠", omens: Object.freeze(["maps", "rooms", "keys", "chests", "fragments", "hive", "ocean"]) }),
+      chaos: Object.freeze({ label: "룬과 보스", omens: Object.freeze(["gems", "dreams", "elites", "under"]) })
     }),
-    treasure: Object.freeze({ packChance: 0.035, rolls: 8, rareGear: 1, uniqueChance: 0.1, prefix: '보물을 품은', outline: '#ffd75e',
-        sparks: '#fff1a8',
-        // 황금 보물(체이싱 티어의 갈래): 보물 무리 중 chance가 황금 보물이 되어 rolls번, 고유 하나, jackpot 중 하나(요정의 고리나 체이싱 고유
-        // '@chase')를 쏟는다. 무리 키의 해시로 정해진다(Math.random을 쓰지 않음).
-        golden: Object.freeze({ chance: 0.04, rolls: 16, prefix: '황금 보물을 품은', outline: '#fff6d8', sparks: '#ffd75e',
-            jackpot: Object.freeze([['fairyRing', 1], ['@chase', 1]]) }) }),
+    treasure: Object.freeze({
+      packChance: 0.035,
+      rolls: 8,
+      rareGear: 1,
+      uniqueChance: 0.1,
+      prefix: "보물을 품은",
+      outline: "#ffd75e",
+      sparks: "#fff1a8",
+      // 황금 보물(체이싱 티어의 갈래): 보물 무리 중 chance가 황금 보물이 되어 rolls번, 고유 하나, jackpot 중 하나(요정의 고리나 체이싱 고유
+      // '@chase')를 쏟는다. 무리 키의 해시로 정해진다(Math.random을 쓰지 않음).
+      golden: Object.freeze({
+        chance: 0.04,
+        rolls: 16,
+        prefix: "황금 보물을 품은",
+        outline: "#fff6d8",
+        sparks: "#ffd75e",
+        jackpot: Object.freeze([["fairyRing", 1], ["@chase", 1]])
+      })
+    }),
     // 발견 등급(js/loot.js lootMoments): 바닥 빛기둥과 소리(js/battle-ground-loot-ui.js), 지도 결과, 드랍 시뮬레이터가 같은 표를 쓴다.
     // jackpot(화면 이름은 체이싱 티어)은 숨 쉬는 굵은 붉은 금빛 빛기둥과 빛살, 붉은 금빛 알림, great는 빛기둥과 큰 소리, good은 반짝임.
     // 재화는 아래 목록이고(어느 콘텐츠에서나 드문 것만 jackpot과
@@ -113,12 +263,45 @@ const LOOT_OMENS = Object.freeze({
     // 장비는 체이싱 고유 jackpot, 고유와 모든 줄이 특출한 베이스 great, 특출 줄과 타락과 소켓 good. 주얼은 고유 great, 희귀 good.
     // 야생 고유 부적 great. 보물 무리의 보물은 great, 황금 보물은 jackpot.
     moments: Object.freeze({
-        jackpot: Object.freeze(['fairyRing', 'ouroboros', 'memoryImprint']),
-        great: Object.freeze(['goldenRule', 'burningEmberBranch', 'enchantedHoney', 'abyssCatalyst', 'beastKeyCerberus', 'rivalKey', 'radiantSealShard',
-            'omenPruning', 'omenCompost', 'omenWeave', 'omenPyre', 'omenHunger']),
-        good: Object.freeze(['sapBud', 'fossilPrimal', 'fossilAncientPrimal', 'fossilPrimordial', 'fossilAbyssal', 'awakenedEcho', 'condensedSkyPower',
-            'chaosKey', 'coreKey', 'strongSealShard', 'underGold', 'venomStinger', 'hiveKey', 'pruningShears', 'trialKey3', 'bossKeyFlame', 'bossKeyFrost',
-            'bossKeyStorm'])
+      jackpot: Object.freeze(["fairyRing", "ouroboros", "memoryImprint"]),
+      great: Object.freeze([
+        "goldenRule",
+        "burningEmberBranch",
+        "enchantedHoney",
+        "abyssCatalyst",
+        "beastKeyCerberus",
+        "rivalKey",
+        "radiantSealShard",
+        "omenPruning",
+        "omenCompost",
+        "omenWeave",
+        "omenPyre",
+        "omenHunger"
+      ]),
+      good: Object.freeze([
+        "sapBud",
+        "fossilPrimal",
+        "fossilAncientPrimal",
+        "fossilPrimordial",
+        "fossilAbyssal",
+        "awakenedEcho",
+        "condensedSkyPower",
+        "chaosKey",
+        "coreKey",
+        "strongSealShard",
+        "underGold",
+        "venomStinger",
+        "hiveKey",
+        "pruningShears",
+        "trialKey3",
+        "bossKeyFlame",
+        "bossKeyFrost",
+        "bossKeyStorm"
+      ])
     })
-});
-safeExposeData({ LOOT_OMENS });
+  });
+
+  // modules/data/loot-omens.mjs:classic
+  Object.assign(globalThis, { LOOT_OMENS });
+  if (typeof safeExposeData === "function") safeExposeData({ LOOT_OMENS });
+})();

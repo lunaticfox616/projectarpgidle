@@ -1,49 +1,11 @@
 const assert = require('assert');
-const fs = require('fs');
 const vm = require('vm');
+const { buildGameRuntime } = require('./lib/game-runtime');
 
-const passiveSource = ['js/passives.js', 'js/battle-assets.js', 'js/item-rolls.js'].map(file => fs.readFileSync(file, 'utf8')).join('\n');
-const itemSource = fs.readFileSync('js/items.js', 'utf8');
-const uiSource = fs.readFileSync('js/ui.js', 'utf8');
-
-function extract(source, startNeedle, endNeedle) {
-    const start = source.indexOf(startNeedle);
-    const end = source.indexOf(endNeedle, start);
-    assert(start >= 0 && end > start, `source block not found: ${startNeedle}`);
-    return source.slice(start, end);
-}
-
-const salvageBlock = extract(passiveSource, 'function isChaseUniqueItem', 'function salvageItem(');
-const awarded = {};
-const salvageContext = {
-    UNIQUE_DB: [],
-    ORB_DB: {
-        magicBud: { name: '마법의 새싹' },
-        formlessDew: { name: '형체 없는 이슬' },
-        sapBud: { name: '수액 봉오리' },
-        goldenRule: { name: '황금률' }
-    },
-    getCanonicalCurrencyKey(key) {
-        const aliases = { transmute: 'magicBud', alteration: 'magicBud', alchemy: 'formlessDew', chaos: 'formlessDew', exalted: 'sapBud', divine: 'goldenRule' };
-        return aliases[key] || key;
-    },
-    getItemCraftTier(item) { return item.hiddenTier || 1; },
-    getItemExplicitOptionCount(item) { return (item.stats || []).length; },
-    awardCurrency(key, amount) { awarded[key] = (awarded[key] || 0) + amount; },
-    _t: (key, params) => String(key).replace(/\{(\w+)\}/g, (match, name) => (params && name in params ? params[name] : match)),   // 원문 언어 그대로(js/i18n.js 없이)
-    addLog() {},
-    game: { jewelInventory: [] },
-    bagItems: { isSpecial: () => false }, // 주얼, 코어, 액막이 해체는 js/bag-items.js가 따로 맡는다
-    safeExposeGlobals(map) { Object.assign(salvageContext, map); },
-    exposeFileGlobals(map) { Object.assign(salvageContext, map); },
-    Math: Object.create(Math)
-};
+// Exercise the production salvage path; only its random boundary is deterministic.
+const salvageContext = buildGameRuntime();
+salvageContext.Math = Object.create(Math);
 salvageContext.Math.random = () => 0.99;
-vm.createContext(salvageContext);
-vm.runInContext(extract(fs.readFileSync('data/items.js', 'utf8'), 'const WALLET_CURRENCY_INFO =', '// Natural drops require'), salvageContext, { filename: 'currency-display.js' });
-// Salvage hands socketed jewels back first (js/equipment-sockets.js returnJewels).
-vm.runInContext(fs.readFileSync('js/equipment-sockets.js', 'utf8'), salvageContext, { filename: 'equipment-sockets.js' });
-vm.runInContext(salvageBlock, salvageContext, { filename: 'salvage-economy.js' });
 
 let rewards = salvageContext.salvageItemObject({ rarity: 'magic', name: '마법', stats: [], hiddenTier: 1 }, true);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(rewards)), { magicBud: 1 }, 'magic salvage must return the consolidated magic currency');
@@ -64,7 +26,6 @@ assert.strictEqual(salvageContext.formatSalvageRewardSummary({ alteration: 1, tr
 
 // Confirmation-time target changes are exercised against the full runtime below.
 
-const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(jewelId)', 'function isChaseUniqueItem');
 (async () => {
     const runtime = require('./lib/game-runtime').buildGameRuntime();
     const run = code => vm.runInContext(code, runtime);
@@ -76,46 +37,43 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
     assert.strictEqual(run('JSON.stringify(game.inventory)'), equipmentBefore, 'a key that is no craft currency changes nothing');
     assert.strictEqual(run('game.currencies.divine'), 1, 'a key that is no craft currency spends nothing');
     // A unique jewel asks first; if it left the bag while the question was open (for example into a socket), nothing is salvaged.
-    const uniqueJewel = { id: 7, name: '확인 대상', rarity: 'unique', slot: '주얼' };
-    const salvaged = [];
-    const jewelSalvageContext = {
-        game: { inventory: [uniqueJewel, { id: 8, name: '남는 주얼', rarity: 'magic', slot: '주얼' }] },
-        bagItems: {
-            jewels: () => jewelSalvageContext.game.inventory.slice(),
-            take: jewel => {
-                const index = jewelSalvageContext.game.inventory.indexOf(jewel);
-                if (index >= 0) jewelSalvageContext.game.inventory.splice(index, 1);
-                return index >= 0;
-            }
-        },
-        getJewelSalvageShardGain: () => 18,
-        requestGameConfirmation: async () => { jewelSalvageContext.game.inventory.shift(); return true; },
-        salvageJewelObject: jewel => salvaged.push(jewel.id),
-        dispatchRuntimeEvent() {}, // No browser event target in this extracted jewel-salvage fixture.
-        updateStaticUI() {},
-    _t: (key, params) => String(key).replace(/\{(\w+)\}/g, (match, name) => (params && name in params ? params[name] : match)),   // 원문 언어 그대로(js/i18n.js 없이)
-    };
-    vm.createContext(jewelSalvageContext);
-    vm.runInContext(extract(fs.readFileSync('js/utils.js', 'utf8'), 'function getLastBatchim(word)', 'function stripDecorativeEmoji'), jewelSalvageContext, { filename: 'utils-particles.js' });
-    vm.runInContext(jewelSalvageBlock, jewelSalvageContext, { filename: 'jewel-salvage.js' });
-    assert.strictEqual(await jewelSalvageContext.salvageJewel(7), false, 'a jewel that left the store during confirmation is not salvaged');
-    assert.deepStrictEqual(salvaged, []);
-    assert.strictEqual(await jewelSalvageContext.salvageJewel(8), true, 'ordinary jewels salvage without a question');
-    assert.deepStrictEqual(salvaged, [8]);
-    assert.deepStrictEqual(Array.from(jewelSalvageContext.game.inventory), []);
-
-    // Enabled/disabled controls and payment are exercised in crafting-workspace.spec.js.
-    assert(uiSource.includes('confirmedSalvageTargets(targetItems)'), 'search-based equipment salvage should keep a confirmation-time target snapshot');
+    const jewelRun = code => vm.runInContext(code, runtime);
+    jewelRun(`game.inventory=[{id:7,name:'확인 대상',rarity:'unique',slot:'주얼'}, {id:8,name:'남는 주얼',rarity:'magic',slot:'주얼'}];
+        game.currencies.jewelShard=0;
+        requestGameConfirmation=async()=>{game.inventory.shift();return true;};`);
+    assert.strictEqual(await runtime.salvageJewel(7), false, 'a jewel removed during confirmation is not salvaged');
+    assert.strictEqual(jewelRun('game.currencies.jewelShard'), 0, 'no reward is minted for a missing jewel');
+    assert.strictEqual(await runtime.salvageJewel(8), true, 'ordinary jewels salvage without a question');
+    assert.strictEqual(jewelRun('game.currencies.jewelShard'), 5, 'the real reward is awarded once');
+    assert.strictEqual(jewelRun('game.inventory.length'), 0);
 
     // 제작 연구(js/crafting-goal-options.js rehearse): practice rolls a copy only. Nothing in the save changes and no item id is taken,
     // so a practice result can never become a second item or cost anything (2026-10-18 check).
     const { run: runGame } = require('./lib/replay-fixture')(41);
+    // The production search action must recheck protection after an asynchronous confirmation.
+    const salvagePending = runGame(`(() => {
+        game.inventory=[]; getSearchFilterState().equip='';
+        const base=BASE_ITEM_DB.find(row=>row.slot==='투구' && !row.dropOnly);
+        globalThis.salvageFixtureItems=Array.from({length:4},()=>createItemFromBase(base,'normal',1));
+        game.inventory.push(...salvageFixtureItems.slice(0,3));
+        globalThis.salvageFixtureConfirm=requestGameConfirmation;
+        requestGameConfirmation=()=>new Promise(resolve=>{globalThis.answerSalvageFixture=resolve;});
+        return bulkSalvageEquipBySearch(false);
+    })()`);
+    assert.strictEqual(runGame('typeof answerSalvageFixture'), 'function', 'search salvage asks before removing equipment');
+    runGame(`salvageFixtureItems[0].locked=true; game.inventory.splice(1,1);
+        game.inventory.push(salvageFixtureItems[3]); answerSalvageFixture(true);`);
+    await salvagePending;
+    assert.strictEqual(runGame(`game.inventory.length===2 && game.inventory.includes(salvageFixtureItems[0]) && game.inventory.includes(salvageFixtureItems[3])`), true,
+        'confirmation preserves newly locked and newly acquired equipment and ignores an item that left the bag');
+    runGame(`requestGameConfirmation=salvageFixtureConfirm;
+        delete globalThis.salvageFixtureConfirm; delete globalThis.answerSalvageFixture; delete globalThis.salvageFixtureItems;`);
     runGame(`game=mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',level:90,season:12});game.inventory=[];
         globalThis.__item=createItemFromBase(BASE_ITEM_DB.find(base=>base.slot==='투구'&&(base.reqTier||1)<=15&&!base.dropOnly),'rare',15);
         addItemToInventory(__item,{ignoreFilter:true,ignoreAutoSalvage:true,skipAutoEquip:true});`);
-    assert.strictEqual(runGame(`(()=>{const before=JSON.stringify(game),id=itemIdCounter,recipe={key:'formlessDew',kind:'reroll',label:''};
+    assert.strictEqual(runGame(`(()=>{const before=JSON.stringify(game),id=window.GameModules.state.session.itemIdCounter,recipe={key:'formlessDew',kind:'reroll',label:''};
         for(let i=0;i<200;i++)['none','fire'].forEach(mode=>craftingGoalOptions.rehearse(__item,recipe,mode));
-        return JSON.stringify(game)===before&&itemIdCounter===id;})()`), true, 'crafting practice must leave the save and item ids untouched');
+        return JSON.stringify(game)===before&&window.GameModules.state.session.itemIdCounter===id;})()`), true, 'crafting practice must leave the save and item ids untouched');
     // 제작 뿌리(data/items.js CRAFT_OMENS): the craft the armed omen changes spends exactly one and disarms it; another craft leaves it
     // armed; practice with it spends nothing (2026-10-18).
     assert.strictEqual(runGame(`(()=>{selectForCrafting(__item.id,false);game.currencies.formlessDew=3;game.currencies.pruningShears=2;game.currencies.omenCompost=2;
@@ -126,10 +84,10 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
         return practiced&&kept&&spent&&game.currencies.omenCompost===1&&game.currencies.formlessDew===1;})()`), true,
         'a craft omen is spent once by the craft it changes, never by another craft or by practice');
     // 성화의 뿌리 pick and 기억 조각칼 only rewrite the same item: the bag keeps its count and no item id is taken (2026-10-18).
-    assert.strictEqual(runGame(`(()=>{const bag=game.inventory.length,id=itemIdCounter;game.currencies.formlessDew=2;game.currencies.omenPyre=1;game.currencies.memoryImprint=1;
+    assert.strictEqual(runGame(`(()=>{const bag=game.inventory.length,id=window.GameModules.state.session.itemIdCounter;game.currencies.formlessDew=2;game.currencies.omenPyre=1;game.currencies.memoryImprint=1;
         equipmentCrafting.engrave(game,__item);equipmentCrafting.armOmen(game,'omenPyre');useCurrency('formlessDew');
         const picked=equipmentCrafting.pickChoice(game,1)===__item,restored=equipmentCrafting.restoreImprint(__item).ok;
-        return picked&&restored&&game.inventory.length===bag&&itemIdCounter===id&&game.currencies.omenPyre===0&&game.currencies.memoryImprint===0;})()`), true,
+        return picked&&restored&&game.inventory.length===bag&&window.GameModules.state.session.itemIdCounter===id&&game.currencies.omenPyre===0&&game.currencies.memoryImprint===0;})()`), true,
         'a 성화의 뿌리 pick and a 기억 조각칼 restore change the same item and cost one each');
     // 허기의 뿌리: each supported currency changes only the chosen side, pays once, and refuses an empty target before payment.
     for (const side of ['prefix','suffix']) for (const key of ['formlessDew','sapBud','goldenRule','blightSpore','pruningShears']) {
@@ -160,7 +118,7 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
                 (CRAFT_OMENS.effects[k].effect==='side'?['prefix','suffix']:['prefix']).map(side=>equipmentCrafting.omenSpec(k,side)))];
             for(const omen of omens)for(const mode of ['none','fire']){
                 const context={item,recipe,mode,omen}, label=[key,rarity,omen?.key,omen?.side,mode].join('/');
-                const before=JSON.stringify([game,item]), id=itemIdCounter, study=craftingGoalOptions.study(context);
+                const before=JSON.stringify([game,item]), id=window.GameModules.state.session.itemIdCounter, study=craftingGoalOptions.study(context);
                 const allowed=study.rows.filter(row=>row.allowed);
                 if(omen?.effect==='side'&&allowed.some(row=>row.kind!==omen.side))failures.push(label+': opposite side advertised');
                 if(!study.reason)for(let n=0;n<3;n++){
@@ -173,7 +131,7 @@ const jewelSalvageBlock = extract(passiveSource, 'async function salvageJewel(je
                 }
                 else {let refused=false;try{craftingGoalOptions.rehearseStudy(context);}catch(error){refused=error.message===study.reason;}
                     if(!refused)failures.push(label+': blocked study accepted');}
-                if(JSON.stringify([game,item])!==before||itemIdCounter!==id)failures.push(label+': research changed live state');
+                if(JSON.stringify([game,item])!==before||window.GameModules.state.session.itemIdCounter!==id)failures.push(label+': research changed live state');
             }
         }
         const unsupported={item:__item,recipe:{key:'unregisteredFutureCurrency',kind:'reroll'},mode:'none',omen:null};

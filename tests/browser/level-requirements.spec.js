@@ -12,7 +12,7 @@ test('requirements identify the usable glove slot and equip it in the real game'
         await pickClass(page);
     }
     const candidateId = await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle = null; game.combatHalted = true;
+        window.GameModules.application.timers.stopCombat(); game.combatHalted = true;
         game.level = 100; game.actRewardBonuses = [{ stat: 'strength', value: 6 }, { stat: 'intelligence', value: 50 }];
         const bases = BASE_ITEM_DB.filter(base => base.slot === '장갑' && base.baseStats.some(stat => stat.id === 'armor'));
         const low = bases.find(base => base.reqTier <= 2), high = bases.find(base => base.reqTier >= 7 && base.reqTier <= 10);
@@ -24,7 +24,7 @@ test('requirements identify the usable glove slot and equip it in the real game'
         return candidate.id;
     });
     await page.waitForFunction(() => {
-        if (uiRefreshQueued || uiRefreshRunning) return false;
+        if (window.GameModules.uiRuntime.status().queued || window.GameModules.uiRuntime.status().running) return false;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         return true;
     });

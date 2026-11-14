@@ -1,48 +1,111 @@
-// 묘목장과 고대 씨앗(12번 루프 39, 42, 2026-10-08, data/stump-nursery.js): 묘목 무리의 처치 드롭(js/combat-skill-effects.js recordKillProgress),
-// 묘목장 정리의 선물(js/atlas-run.js clearRoom), 최종 보스의 고대 씨앗(js/atlas-endgame.js onComplete). 받은 것은 그루터기 함 보관함으로
-// 가고(stumpBox.createItem), 그 소식은 보통 드롭처럼 'stump-box-changed'로 알린다. 보관함이 가득 차면 고대 씨앗은 그래도 들어가고(보스 부적처럼),
-// 보통 씨앗은 드롭처럼 거름이 된다(stumpBox.compostOverflow). 고대 씨앗의 효과는 js/stump-box.js가 계산한다.
-const stumpNursery = (() => {
-    const N = STUMP_NURSERY;
-    const open = state => contentProgression.holds('nursery', state);
-    const ancientOpen = state => contentProgression.holds('ancientSeed', state);
-    const acquired = state => !!(state.stumpBox && state.stumpBox.acquired);
-    const between = ([min, max], random) => min + random() * (max - min);
-    const COLORS = Object.freeze(Object.keys(STUMP_BOX_COLORS));
-    const anyColor = random => COLORS[Math.min(COLORS.length - 1, Math.floor(random() * COLORS.length))];
-    /** The colour a nursery in this zone grows: the map region's (the trunk: any). */
-    const colorOf = (zone, random) => N.regionColors[zone && zone.atlasRegion] || anyColor(random);
+// GENERATED from modules/stump-nursery*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/stump-nursery-rules.mjs
+  function nurseryOpen(env, state) {
+    return env.deps.contentProgression.holds("nursery", state);
+  }
+  function nurseryAncientOpen(env, state) {
+    return env.deps.contentProgression.holds("ancientSeed", state);
+  }
+  function nurseryAcquired(state) {
+    return !!(state.stumpBox && state.stumpBox.acquired);
+  }
+  function nurseryBetween([min, max], random) {
+    return min + random() * (max - min);
+  }
+  function nurseryAnyColor(env, random) {
+    return env.COLORS[Math.min(env.COLORS.length - 1, Math.floor(random() * env.COLORS.length))];
+  }
+  function nurseryColorOf(env, zone, random) {
+    return env.N.regionColors[zone && zone.atlasRegion] || nurseryAnyColor(env, random);
+  }
+  function* nurseryGive(env, state, spec, random) {
+    const item = env.deps.stumpBox.createItem(state, spec, spec.ancient === true);
+    const compost = item ? null : env.deps.stumpBox.compostOverflow(state, spec, random);
+    yield { kind: "dispatchRuntimeEvent", args: ["stump-box-changed", { ripened: compost ? compost.ripened : [], drop: item, compost }] };
+    return item;
+  }
+  function nurseryNurserySpec(env, zone, roll, random) {
+    return {
+      family: "seed",
+      color: nurseryColorOf(env, zone, random),
+      roll: nurseryBetween(roll, random),
+      golden: random() < env.deps.STUMP_BOX_RIPENING.golden.dropChance * env.N.goldenMul
+    };
+  }
+  function nurseryAncientSpec(env, color, random) {
+    return { family: "seed", color, roll: nurseryBetween(env.N.ancient.roll, random), ancient: true };
+  }
+  function* nurseryOnKilled(env, state, enemy, random = Math.random) {
+    if (!enemy || enemy.atlasEncounter !== "nursery" || enemy.isBoss || !nurseryAcquired(state)) return null;
+    if (random() >= env.N.killChance[enemy.isElite ? "elite" : "normal"]) return null;
+    return yield* nurseryGive(env, state, nurseryNurserySpec(env, env.deps.getZone(state.currentZoneId), env.N.killRoll, random), random);
+  }
+  function* nurseryClearGift(env, state, zone, random = Math.random) {
+    if (!nurseryAcquired(state)) return [];
+    const ancient = nurseryAncientOpen(env, state) && random() < env.N.ancient.roomChance;
+    const out = [yield* nurseryGive(env, state, ancient ? nurseryAncientSpec(env, nurseryColorOf(env, zone, random), random) : nurseryNurserySpec(env, zone, env.N.clearRoll, random), random)];
+    if (random() < env.N.scarChance && env.deps.stumpBox.devourOpen(state)) out.push(env.deps.stumpBox.rollScarDrop(state, () => 0));
+    return out.filter(Boolean);
+  }
+  function* nurseryAncientFromBoss(env, state, random = Math.random) {
+    if (!nurseryAcquired(state) || !nurseryAncientOpen(env, state) || random() >= env.N.ancient.apexChance) return null;
+    return yield* nurseryGive(env, state, nurseryAncientSpec(env, nurseryAnyColor(env, random), random), random);
+  }
 
-    function give(state, spec, random) {
-        const item = stumpBox.createItem(state, spec, spec.ancient === true);
-        const compost = item ? null : stumpBox.compostOverflow(state, spec, random);
-        dispatchRuntimeEvent('stump-box-changed', { ripened: compost ? compost.ripened : [], drop: item, compost });
-        return item;
+  // modules/domain/stump-nursery.mjs
+  function createStumpNursery(deps) {
+    const env = { deps };
+    env.N = env.deps.STUMP_NURSERY;
+    env.COLORS = Object.freeze(Object.keys(env.deps.STUMP_BOX_COLORS));
+    return Object.freeze({
+      open: (...args) => nurseryOpen(env, ...args),
+      ancientOpen: (...args) => nurseryAncientOpen(env, ...args),
+      colorOf: (...args) => nurseryColorOf(env, ...args),
+      onKilled: (...args) => nurseryOnKilled(env, ...args),
+      clearGift: (...args) => nurseryClearGift(env, ...args),
+      ancientFromBoss: (...args) => nurseryAncientFromBoss(env, ...args)
+    });
+  }
+
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/ui/runtime-event-commands.mjs
+  function runRuntimeEventCommands(commands, dispatch) {
+    return consumeDomainCommands(commands, { dispatchRuntimeEvent: dispatch });
+  }
+
+  // modules/stump-nursery-classic.mjs
+  var rules = createStumpNursery({
+    get contentProgression() {
+      return contentProgression;
+    },
+    get stumpBox() {
+      return stumpBox;
+    },
+    get STUMP_BOX_RIPENING() {
+      return STUMP_BOX_RIPENING;
+    },
+    get getZone() {
+      return getZone;
+    },
+    get STUMP_NURSERY() {
+      return STUMP_NURSERY;
+    },
+    get STUMP_BOX_COLORS() {
+      return STUMP_BOX_COLORS;
     }
-    function nurserySpec(zone, roll, random) {
-        return { family: 'seed', color: colorOf(zone, random), roll: between(roll, random),
-            golden: random() < STUMP_BOX_RIPENING.golden.dropChance * N.goldenMul };
-    }
-    const ancientSpec = (color, random) => ({ family: 'seed', color, roll: between(N.ancient.roll, random), ancient: true });
-    /** A nursery pack kill (data/atlas.js encounters.nursery): by chance a seed of the region's colour. */
-    function onKilled(state, enemy, random = Math.random) {
-        if (!enemy || enemy.atlasEncounter !== 'nursery' || enemy.isBoss || !acquired(state)) return null;
-        if (random() >= N.killChance[enemy.isElite ? 'elite' : 'normal']) return null;
-        return give(state, nurserySpec(getZone(state.currentZoneId), N.killRoll, random), random);
-    }
-    /** An emptied nursery: one seed for sure (from loop 42 sometimes an ancient seed), and by chance a scar. @returns {object[]} */
-    function clearGift(state, zone, random = Math.random) {
-        if (!acquired(state)) return [];
-        const ancient = ancientOpen(state) && random() < N.ancient.roomChance;
-        const out = [give(state, ancient ? ancientSpec(colorOf(zone, random), random) : nurserySpec(zone, N.clearRoll, random), random)];
-        if (random() < N.scarChance && stumpBox.devourOpen(state)) out.push(stumpBox.rollScarDrop(state, () => 0));
-        return out.filter(Boolean);
-    }
-    /** A final boss falls: from loop 42, by chance, an ancient seed of any colour. */
-    function ancientFromBoss(state, random = Math.random) {
-        if (!acquired(state) || !ancientOpen(state) || random() >= N.ancient.apexChance) return null;
-        return give(state, ancientSpec(anyColor(random), random), random);
-    }
-    return Object.freeze({ open, ancientOpen, colorOf, onKilled, clearGift, ancientFromBoss });
+  });
+  var stumpNursery = Object.freeze({
+    ...rules,
+    onKilled: (...args) => runRuntimeEventCommands(rules.onKilled(...args), dispatchRuntimeEvent),
+    clearGift: (...args) => runRuntimeEventCommands(rules.clearGift(...args), dispatchRuntimeEvent),
+    ancientFromBoss: (...args) => runRuntimeEventCommands(rules.ancientFromBoss(...args), dispatchRuntimeEvent)
+  });
+  safeExposeGlobals({ stumpNursery });
 })();
-safeExposeGlobals({ stumpNursery });

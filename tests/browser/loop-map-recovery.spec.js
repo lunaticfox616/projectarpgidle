@@ -6,14 +6,14 @@ test('discovered map persists and an earned early loop remains actionable after 
     await page.route('https://**', route => route.fulfill({ status: 204, body: '' }));
     await page.goto('/'); await page.locator('#btn-startup-guest').click();
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         game.maxZoneId = 1; checkUnlocks(); updateStaticUI();
     });
     await page.waitForFunction(() => {
-        if (uiRefreshRunning || uiRefreshQueued) return false;
+        if (window.GameModules.uiRuntime.status().running || window.GameModules.uiRuntime.status().queued) return false;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); return true;
     });
     const map = page.locator('#btn-tab-map');
@@ -22,7 +22,7 @@ test('discovered map persists and an earned early loop remains actionable after 
     await page.evaluate(() => {
         game = mergeDefaults(JSON.parse(JSON.stringify(game))); checkUnlocks(); updateStaticUI();
     });
-    await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await expect(map).toBeVisible(); await expect(page.locator('#tab-map')).toBeVisible();
     await page.evaluate(() => {
         game.abyssClearedDepths = [getSeasonAbyssDepthCap(game.season)];
@@ -32,7 +32,7 @@ test('discovered map persists and an earned early loop remains actionable after 
     });
     // 불러온 저장은 액트 1의 이야기 카드를 다시 띄울 수 있다: 카드는 닫고 그 뒤의 루프 진행 단추를 본다.
     await page.waitForFunction(() => {
-        if (uiRefreshRunning || uiRefreshQueued) return false;
+        if (window.GameModules.uiRuntime.status().running || window.GameModules.uiRuntime.status().queued) return false;
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false); return true;
     });
     const organize = page.locator('#btn-close-all-windows');
@@ -46,7 +46,7 @@ test('discovered map persists and an earned early loop remains actionable after 
     await advance.click(); await page.locator('#game-dialog-confirm').click();
     await expect.poll(() => page.evaluate(() => game.season)).toBe(2);
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await expect(map).toBeVisible(); await expect(advance).toBeHidden();
     expect(await page.evaluate(() => [game.seasonPoints, game.abyssClearedDepths])).toEqual([1, []]);
     expect(errors).toEqual([]);

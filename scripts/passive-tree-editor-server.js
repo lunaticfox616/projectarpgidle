@@ -10,6 +10,7 @@ const { pathToFileURL } = require('url');
 const { execFile } = require('child_process');
 const { buildGameRuntime } = require('./lib/game-runtime');
 const { buildRuntimeTree, serializeRuntimeModule } = require('./build-passive-tree-runtime');
+const { readDataSource, writeDataSource } = require('./lib/data-authoring.cjs');
 const { sanitizeIconName, validatePassiveTree } = require('./lib/passive-tree-editor-model');
 const { ARCHETYPE_PROFILES, PASSIVE_TYPE_MULTIPLIER, STAT_META, ZONE_PALETTES, passiveValueStep } = require('./lib/passive-tree-option-catalog');
 const { refreshDistances } = require('./lib/passive-tree-v23-options');
@@ -248,16 +249,16 @@ async function handleArea(action, payload) {
 
 async function applyTree(tree) {
     const previousSource = fs.readFileSync(SOURCE_FILE);
-    const previousRuntime = fs.readFileSync(RUNTIME_FILE);
+    const previousRuntime = readDataSource(RUNTIME_FILE);
     const runtimeSource = serializeRuntimeModule(buildRuntimeTree(tree));
     try {
         saveSourceTree(tree);
-        atomicWrite(RUNTIME_FILE, runtimeSource);
+        writeDataSource(RUNTIME_FILE, runtimeSource);
         const smoke = await runSmoke('smoke-passive-respec-points.js');
         return { smoke };
     } catch (error) {
         atomicWrite(SOURCE_FILE, previousSource);
-        atomicWrite(RUNTIME_FILE, previousRuntime);
+        writeDataSource(RUNTIME_FILE, previousRuntime);
         throw error;
     }
 }

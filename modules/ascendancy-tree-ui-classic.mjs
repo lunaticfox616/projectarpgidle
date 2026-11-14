@@ -1,0 +1,47 @@
+import { windowCancelAnimationFrame, windowGetComputedStyle, windowMatchMedia, windowRequestAnimationFrame } from './browser/window-methods.mjs';
+import { createAscendTreeView } from './ui/ascend-tree-view.mjs';
+
+// Removed when application composition directly supplies these browser/domain dependencies.
+const ascendancyTreeUi = createAscendTreeView({
+    get rules() { return window.GameModules.loopInvestmentRules.ascend; },
+    get ASCENDANCY_NODE_DEFS() { return ASCENDANCY_NODE_DEFS; },
+    get ASCENDANCY_NODE_FALLBACK() { return ASCENDANCY_NODE_FALLBACK; },
+    get CLASS_KEYSTONE_PICK_LIMIT() { return CLASS_KEYSTONE_PICK_LIMIT; },
+    get CLASS_TEMPLATES() { return CLASS_TEMPLATES; },
+    get P_STATS() { return P_STATS; },
+    get _t() { return _t; },
+    get addLog() { return addLog; },
+    get askRefundAscendNode() { return window.GameModules.loopInvestmentView.askRefundAscendNode; },
+    get buildStatPreviewParts() { return buildStatPreviewParts; },
+    get buyAscend() { return window.GameModules.loopInvestmentView.buyAscend; },
+    get buyAscendKeystone() { return window.GameModules.loopInvestmentView.buyAscendKeystone; },
+    get document() { return document; },
+    get escapeHTML() { return escapeHTML; },
+    get formatValue() { return formatValue; },
+    get game() { return window.GameModules.state.game; },
+    get getAscendancyPlanContinueHtml() { return window.GameModules.loopInvestmentView.getAscendancyPlanContinueHtml; },
+    get getClassKeystoneDefs() { return getClassKeystoneDefs; },
+    get getClassTreeDef() { return getClassTreeDef; },
+    get getComputedStyle() { return windowGetComputedStyle; },
+    get getItemStatToneColor() { return getItemStatToneColor; },
+    get getStatName() { return getStatName; },
+    get innerHeight() { return innerHeight; },
+    get isAscendKeystoneRequirementMet() { return window.GameModules.loopInvestmentView.isAscendKeystoneRequirementMet; },
+    get isAscendNodeRequirementMet() { return window.GameModules.loopInvestmentView.isAscendNodeRequirementMet; },
+    get matchMedia() { return typeof matchMedia === 'undefined' ? undefined : windowMatchMedia; },
+    get passiveNodes() { return window.GameModules.passiveScene.nodes; },
+    get previewBuildStats() { return previewBuildStats; },
+    get refundAscendKeystone() { return window.GameModules.loopInvestmentView.refundAscendKeystone; },
+    get renderPixelIcon() { return renderPixelIcon; },
+    get requestAnimationFrame() { return windowRequestAnimationFrame; },
+    get showInfoTooltipHtml() { return typeof showInfoTooltipHtml === 'undefined' ? undefined : showInfoTooltipHtml; },
+    get statToneText() { return statToneText; },
+    get uiDisplay() { return uiDisplay; },
+    get cancelAnimationFrame() { return windowCancelAnimationFrame; },
+    get hideInfoTooltip() { return hideInfoTooltip; },
+    get resetAscendKeystones() { return window.GameModules.loopInvestmentView.resetAscendKeystones; },
+    get resetAscendNodes() { return window.GameModules.loopInvestmentView.resetAscendNodes; },
+    get continueLastLoopAscendPlan() { return window.GameModules.loopInvestmentView.continueLastLoopAscendPlan; },
+});
+window.GameModules.ascendTreeView = ascendancyTreeUi;
+safeExposeGlobals({ ascendancyTreeUi });

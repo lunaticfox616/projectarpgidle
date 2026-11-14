@@ -1,17 +1,21 @@
 """Build pixel-identical WebP runtime copies; keep PNG masters for art tools."""
 import hashlib
 import json
-import re
+import subprocess
 from pathlib import Path
-from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def effect_paths():
+    script = "const { loadVfxAssetCatalog } = require('./scripts/lib/skill-vfx-editor-model'); console.log(JSON.stringify(loadVfxAssetCatalog(process.cwd()).map(asset => asset.path)))"
+    entries = json.loads(subprocess.check_output(['node', '-e', script], cwd=ROOT, text=True, encoding='utf-8'))
+    return {path for path in entries if path.startswith('assets/effects/') and path.endswith('.png')}
+
+
 def build():
-    paths = set()
-    for file in ['js/battle-assets.js', 'data/skills.js']:
-        paths.update(re.findall(r"skillFx\w+:\s*'(assets/effects/[^']+\.png)'", (ROOT / file).read_text(encoding='utf-8')))
+    from PIL import Image
+    paths = effect_paths()
     rows = []
     for path in sorted(paths):
         source = ROOT / path

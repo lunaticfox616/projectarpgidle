@@ -1,298 +1,320 @@
-// Per-tick inputs and the kept calculation of the stat calculator (getPlayerStats, 2026-10-08), for settlements and normal play.
-//
-// How it stays correct, and what new content has to do (scripts/smoke-player-stat-cache.js enforces 1 to 5):
-// 1. Values that change during a fight (clock, the hero's life and charges, timed buffs, enemies) are read only through
-//    playerStatTick. The calculation records which tick values it read (tick.get), or for a value it only compares with a
-//    threshold, the answer of that comparison (tick.when); a kept calculation is used only while they are all the same.
-// 2. Build values are listed in BUILD_STAT_FIELDS / BUILD_STAT_PARTS (data/build-stat-inputs.js). The equipment evaluation
-//    re-reads that build signature on every call in normal play, and a settlement cannot edit its build between events.
-// 3. Other game fields the calculation reads are listed in PLAYER_STAT_CONTEXT_FIELDS, and their values are part of the key.
-// 4. The calculation writes to game only what PLAYER_STAT_DERIVED_WRITES lists; anything for every call goes in finishPlayerStats.
-// 5. Module state outside game that the calculation reads (a test level, a memo) is listed with its reason in the smoke's
-//    MODULE_STATE; whatever changes a real input there calls playerStatCache.invalidate().
-// 6. Kill handling and map completion are bracketed (js/combat.js), player input drops kept calculations (js/main.js), and any
-//    other code that edits the build in place calls playerStatCache.invalidate(). Events are synchronous: one left open by an
-//    error is closed once the stack unwinds.
-// 7. Callers may change the top level of the stats they get, sSkill and breakdowns; other nested objects are shared with the
-//    kept calculation and must be copied before changing.
-// As a last guard, every PLAYER_STAT_SELF_CHECK_ANSWERS kept answers a fresh calculation is compared; a difference is repaired at
-// once and reported in the console.
-const playerStatTick = (() => {
-    /** Charges that last until a time: the old in-place shape `(until || 0) > now ? clamp(floor(stacks)) : 0`. */
-    function timedStacks(expiresAt, stacks, max, now) {
-        return (expiresAt || 0) > now ? Math.max(0, Math.min(max, Math.floor(stacks || 0))) : 0;
-    }
-    function countInventoryRarity() {
-        let inv = Array.isArray(game.inventory) ? game.inventory : [];
-        let r = { normal: 0, magic: 0, rare: 0, unique: 0 };
-        inv.forEach(item => { let k = (item && item.rarity) || 'normal'; if (r[k] !== undefined) r[k]++; });
-        return r;
-    }
-    // Each reader is the expression the calculation used to evaluate in place, moved here unchanged. A reader with a side effect
-    // (expiry cleanup, the last-hit clock) still runs on every call that needs its value, because a kept calculation is checked
-    // by reading its values again.
-    const READERS = Object.freeze({
-        inventoryRarity: () => countInventoryRarity(),
-        eliteTraitBuff: now => {
-            const buff = game.uniqueEliteTraitBuff;
-            return buff && (buff.expiresAt || 0) > now ? buff : null;
-        },
-        incidentBreath: now => {
-            const breath = game.incidentBreath; // 세계수의 숨결(js/combat-incidents.js breathe)
-            return breath && (breath.until || 0) > now ? breath : null;
-        },
-        cycleBuffEffects: now => getActivePassiveCycleBuffEffects(now),
-        fanaticismStacks: () => ensurePassiveSpecializationState().fanaticism.stacks,
-        playerAilmentCount: () => (game.playerAilments || []).filter(row => row && row.time > 0).length,
-        leechActive: () => Array.isArray(game.playerLeechInstances)
-            && game.playerLeechInstances.some(instance => instance && Number(instance.remaining) > 0),
-        evasionDanceStacks: now => {
-            const state = game.uniqueEvasionDanceState || {};
-            return (state.expiresAt || 0) > now ? Math.floor(state.stacks || 0) : null;
-        },
-        shadowStealth: now => (game.shadowStealthExpiresAt || 0) > now,
-        killMoveStacks: now => {
-            const state = game.uniqueKillMoveStacksState;
-            return state && (state.expiresAt || 0) > now ? Math.max(0, Math.floor(state.stacks || 0)) : null;
-        },
-        regionMoveBonus: now => regionAffixEffects.moveBonus(now),
-        leechEfficiency: now => !!game.uniqueLeechEfficiencyUntil && now < game.uniqueLeechEfficiencyUntil,
-        aliveEnemies: () => (game.enemies || []).filter(e => e && e.hp > 0).length,
-        meleeArmorAmpStacks: now => ((game.uniqueMeleeArmorAmpExpiresAt || 0) > now ? Math.floor(game.uniqueMeleeArmorAmpStacks || 0) : null),
-        targetCurseCount: () => {
-            const target = (game.enemies || []).find(x => x && x.hp > 0), debuffs = game.enemyConditionDebuffs;
-            return target && debuffs && Array.isArray(debuffs[target.id]) ? debuffs[target.id].length : 0;
-        },
-        warriorRhythmStacks: now => timedStacks(game.warriorRhythmExpiresAt, game.warriorRhythmStacks, 5, now)
-            + timedStacks(game.warriorRhythmDoubleExpiresAt, game.warriorRhythmDoubleStacks, 5, now),
-        warriorRageStacks: now => getWarriorRageStacks(now),
-        warriorRageMultiplier: now => getWarriorRagePhysicalDamageMultiplier(now),
-        gladiatorFlurryStacks: now => timedStacks(game.gladiatorFlurryExpiresAt, game.gladiatorFlurryStacks, 12, now),
-        gladiatorVeteranCrit: () => Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0)),
-        gladiatorSwiftGuard: () => !!game.gladiatorSwiftGuardReady,
-        assassinBlurred: () => !!game.assassinBlurred,
-        sinceHitSeconds: now => {
-            if (!Number.isFinite(game.playerLastHitAt) || game.playerLastHitAt <= 0) game.playerLastHitAt = now;
-            return Math.floor(Math.max(0, (now - Math.floor(game.playerLastHitAt || 0)) / 1000));
-        },
-        crusaderAegis: now => (game.crusaderLightningAegisUntil || 0) > now,
-        elementalistOverload: () => getElementalistOverloadStacks(),
-        guardianEnduranceStacks: now => timedStacks(game.guardianEnduranceExpiresAt, game.guardianEnduranceStacks, 5, now),
-        warriorUnyielding: now => ascendancyNodeRules.unyieldingActive(now),
-        bladedancerFlowStacks: now => ascendancyNodeRules.flowStacks(now),
-        grovewardenRooted: now => ascendancyNodeRules.rooted(now),
-        playerHp: () => game.playerHp,
-        playerEnergyShield: () => game.playerEnergyShield || 0,
-        summonDeathDamagePct: now => ((game.summonDeathDamageBuffExpiresAt || 0) > now ? Math.max(0, Number(game.summonDeathDamageBuffPct || 0)) : 0),
-        summonCritAspd: now => ((game.summonCritAspdExpiresAt || 0) > now
-            ? Math.max(0, Math.floor(game.summonCritAspdStacks || 0)) * Math.max(0, Number(game.summonCritAspdPerStack || 0)) : 0),
-        mistralStacks: now => getTalentMistralStackCount(now),
-        mossRecoveryOccupied: () => getMossRecoveryOccupied()
+// GENERATED from modules/player-stat-cache*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/player-stat-readers.mjs
+  function timedStacks(expiresAt, stacks, max, now) {
+    return (expiresAt || 0) > now ? Math.max(0, Math.min(max, Math.floor(stacks || 0))) : 0;
+  }
+  function countInventoryRarity(owner) {
+    const inventory = Array.isArray(owner.inventory) ? owner.inventory : [], result = { normal: 0, magic: 0, rare: 0, unique: 0 };
+    inventory.forEach((item) => {
+      const rarity = item && item.rarity || "normal";
+      if (result[rarity] !== void 0) result[rarity]++;
     });
+    return result;
+  }
+  var PLAYER_STAT_READERS = Object.freeze({
+    inventoryRarity: (owner) => countInventoryRarity(owner),
+    eliteTraitBuff: (owner, now) => {
+      const buff = owner.uniqueEliteTraitBuff;
+      return buff && (buff.expiresAt || 0) > now ? buff : null;
+    },
+    incidentBreath: (owner, now) => {
+      const breath = owner.incidentBreath;
+      return breath && (breath.until || 0) > now ? breath : null;
+    },
+    cycleBuffEffects: (owner, now, deps) => deps.cycleBuffEffects(owner, now),
+    fanaticismStacks: (owner, now, deps) => deps.specialization(owner).fanaticism.stacks,
+    playerAilmentCount: (owner) => (owner.playerAilments || []).filter((row) => row && row.time > 0).length,
+    leechActive: (owner) => Array.isArray(owner.playerLeechInstances) && owner.playerLeechInstances.some((instance) => instance && Number(instance.remaining) > 0),
+    evasionDanceStacks: (owner, now) => {
+      const state = owner.uniqueEvasionDanceState || {};
+      return (state.expiresAt || 0) > now ? Math.floor(state.stacks || 0) : null;
+    },
+    shadowStealth: (owner, now) => (owner.shadowStealthExpiresAt || 0) > now,
+    killMoveStacks: (owner, now) => {
+      const state = owner.uniqueKillMoveStacksState;
+      return state && (state.expiresAt || 0) > now ? Math.max(0, Math.floor(state.stacks || 0)) : null;
+    },
+    regionMoveBonus: (owner, now, deps) => deps.regionAffixEffects.moveBonus(owner, now),
+    leechEfficiency: (owner, now) => !!owner.uniqueLeechEfficiencyUntil && now < owner.uniqueLeechEfficiencyUntil,
+    aliveEnemies: (owner) => (owner.enemies || []).filter((e) => e && e.hp > 0).length,
+    meleeArmorAmpStacks: (owner, now) => (owner.uniqueMeleeArmorAmpExpiresAt || 0) > now ? Math.floor(owner.uniqueMeleeArmorAmpStacks || 0) : null,
+    targetCurseCount: (owner) => {
+      const target = (owner.enemies || []).find((x) => x && x.hp > 0), debuffs = owner.enemyConditionDebuffs;
+      return target && debuffs && Array.isArray(debuffs[target.id]) ? debuffs[target.id].length : 0;
+    },
+    warriorRhythmStacks: (owner, now) => timedStacks(owner.warriorRhythmExpiresAt, owner.warriorRhythmStacks, 5, now) + timedStacks(owner.warriorRhythmDoubleExpiresAt, owner.warriorRhythmDoubleStacks, 5, now),
+    warriorRageStacks: (owner, now, deps) => deps.rageStacks(owner, now),
+    warriorRageMultiplier: (owner, now, deps) => deps.rageMultiplier(owner, now),
+    gladiatorFlurryStacks: (owner, now) => timedStacks(owner.gladiatorFlurryExpiresAt, owner.gladiatorFlurryStacks, 12, now),
+    gladiatorVeteranCrit: (owner) => Math.max(0, Math.floor(owner.gladiatorVeteranCritBonus || 0)),
+    gladiatorSwiftGuard: (owner) => !!owner.gladiatorSwiftGuardReady,
+    assassinBlurred: (owner) => !!owner.assassinBlurred,
+    sinceHitSeconds: (owner, now) => {
+      if (!Number.isFinite(owner.playerLastHitAt) || owner.playerLastHitAt <= 0) owner.playerLastHitAt = now;
+      return Math.floor(Math.max(0, (now - Math.floor(owner.playerLastHitAt || 0)) / 1e3));
+    },
+    crusaderAegis: (owner, now) => (owner.crusaderLightningAegisUntil || 0) > now,
+    elementalistOverload: (owner, now, deps) => deps.overload(owner),
+    guardianEnduranceStacks: (owner, now) => timedStacks(owner.guardianEnduranceExpiresAt, owner.guardianEnduranceStacks, 5, now),
+    warriorUnyielding: (owner, now, deps) => deps.ascendancyNodeRules.unyieldingActive(owner, now),
+    bladedancerFlowStacks: (owner, now, deps) => deps.ascendancyNodeRules.flowStacks(owner, now),
+    grovewardenRooted: (owner, now, deps) => deps.ascendancyNodeRules.rooted(owner, now),
+    playerHp: (owner) => owner.playerHp,
+    playerEnergyShield: (owner) => owner.playerEnergyShield || 0,
+    summonDeathDamagePct: (owner, now) => (owner.summonDeathDamageBuffExpiresAt || 0) > now ? Math.max(0, Number(owner.summonDeathDamageBuffPct || 0)) : 0,
+    summonCritAspd: (owner, now) => (owner.summonCritAspdExpiresAt || 0) > now ? Math.max(0, Math.floor(owner.summonCritAspdStacks || 0)) * Math.max(0, Number(owner.summonCritAspdPerStack || 0)) : 0,
+    mistralStacks: (owner, now, deps) => deps.mistralStacks(owner, now),
+    mossRecoveryOccupied: (owner, now, deps) => deps.mossRecovery(owner)
+  });
+
+  // modules/domain/player-stat-tick.mjs
+  var fingerprint = (value) => value !== null && typeof value === "object" ? JSON.stringify(value) : value;
+  function createPlayerStatTick(deps) {
     let observer = null;
-    /** Objects compare by content: a reader may build a new array or hand out a live buff each call. */
-    function fingerprint(value) {
-        return value !== null && typeof value === 'object' ? JSON.stringify(value) : value;
-    }
-    function readValue(name, now) {
-        if (!observer) return READERS[name](now);
-        observer.reading(true);
-        try { return READERS[name](now); } finally { observer.reading(false); }
-    }
-    /**
-     * One call's values: each reader runs at most once. What the calculation used since restart() is what a kept calculation
-     * needs: the values it read (`get`), and for a value it only compared with a threshold (`when`), the answer of that test,
-     * so the hero's life moving above a threshold keeps the calculation.
-     */
-    function create() {
-        const now = getCombatTime(), values = new Map(), read = new Set(), tests = [];
-        const value = name => {
-            if (!values.has(name)) values.set(name, readValue(name, now));
-            return values.get(name);
-        };
-        return {
-            get(name) {
-                read.add(name);
-                return value(name);
-            },
-            /** @param {string} name @param {(value: unknown) => boolean} test The calculation's own comparison, unchanged. */
-            when(name, test) {
-                const result = test(value(name));
-                tests.push([name, test, result]);
-                return result;
-            },
-            restart() { read.clear(); tests.length = 0; },
-            reads() { return { values: [...read].map(name => [name, fingerprint(values.get(name))]), tests: tests.slice() }; }
-        };
-    }
-    function matches(tick, reads) {
-        return reads.values.every(([name, print]) => Object.is(fingerprint(tick.get(name)), print))
-            && reads.tests.every(([name, test, result]) => tick.when(name, test) === result);
-    }
-    /** Tests only: told when a reader starts and ends, so reads inside readers can be told apart. */
-    function observe(next) { observer = next || null; }
-    return Object.freeze({ create, matches, observe, names: Object.keys(READERS) });
-})();
-
-const playerStatCache = (() => {
-    const CONTEXT_NAMES = Object.keys(PLAYER_STAT_CONTEXT_FIELDS);
-    const kept = new WeakMap(); // state -> [lean entry, entry with breakdowns]
-    // Inside a kill or a map completion (eventDepth > 0) the key above cannot tell whether the build changed since the last call,
-    // and after one it has moved on (generation, memo, status) whether the build changed or not. A settlement state's calculation
-    // is also kept under the whole build signature (getPersistentBuildSignature: every build field) with the context fields and the
-    // zone: inside an event, and for the first call after one, a calculation whose signature and tick reads still hold is the
-    // answer. A projected map's completion asked for the same stats four times (startMoving twice, the arrival, the chest rules)
-    // and the next map's start once more, each a full calculation (2026-10-27: 8% of an 8-hour settlement). The signature costs a
-    // tenth of a calculation, so it is compared last, after the cheap context and the tick reads. Normal play is unchanged.
-    const signed = new WeakMap(); // settlement state -> [lean entry, entry with breakdowns]
-    // Settlement replay states (js/combat-replay.js createCombatReplay): only game logic edits them, between bracketed events.
-    const settlementStates = new WeakSet();
-    // answers: kept calculations handed out; misses: calculations kept for later; bypassed: calculated without keeping.
-    const health = { answers: 0, misses: 0, bypassed: 0, checks: 0, repairs: 0, lastRepair: [] };
-    // Kill handling and map completion change build inputs (experience and gem levels, mastery, the stump, rewards, trials):
-    // stats asked for inside are calculated fresh and not kept, and a calculation kept before one ends is not used after it.
-    let eventDepth = 0, generation = 0, closeCheckPending = false;
-    let verifier = null, observer = null, disabled = false, warned = false;
-    /** A settlement state, or a normal-play state whose equipment evaluation re-reads the build signature on every call outside a
-     * tick. A live state with the background flag set by hand (tests, tools) is neither: its build may be edited in place. */
-    function usable(state) {
-        return !disabled && eventDepth === 0 && (settlementStates.has(state) || !state.isBackgroundCalculation);
-    }
-    /** The zone the hero fights in, without its map layout block: exploration carries the run seed (js/content-maps.js runSeed, with
-     * the next monster id), so with it every spawn and every new map made a kept calculation look stale; no stat reads it. */
-    function zonePrint(state) {
-        return JSON.stringify(getZone(state.currentZoneId) || null, (key, value) => (key === 'exploration' ? undefined : value));
-    }
-    function context(includeBreakdowns, memo, status) {
-        return { includeBreakdowns: !!includeBreakdowns, memo, status, generation, activeSkill: game.activeSkill,
-            zone: zonePrint(game), fields: JSON.stringify(CONTEXT_NAMES.map(name => game[name])) };
-    }
-    function sameContext(a, b) {
-        return Object.keys(a).every(key => a[key] === b[key]);
-    }
-    function calculate(includeBreakdowns, tick) {
-        if (!observer) return equipmentStatCalculator(includeBreakdowns, false, true, tick);
-        observer.calculating(true);
-        try { return equipmentStatCalculator(includeBreakdowns, false, true, tick); } finally { observer.calculating(false); }
-    }
-    function slotsOf(state) {
-        let slots = kept.get(state);
-        if (!slots) kept.set(state, slots = [null, null]);
-        return slots;
-    }
-    /**
-     * Stats for one call, inside combatEquipmentStats.read (disabled gear already masked).
-     * @param {boolean} includeBreakdowns
-     * @param {Map<string, unknown>|null} memo The settlement build memo, read before the gear mask; null outside settlements.
-     * @param {object} status The equipment evaluation the mask came from (a new one when the build changes).
-     */
-    function read(includeBreakdowns, memo, status) {
-        const tick = playerStatTick.create(), state = game;
-        if (!usable(state)) {
-            if (!disabled && settlementStates.has(state)) return readSigned(includeBreakdowns, tick, state, null);
-            health.bypassed++;
-            return finishPlayerStats(calculate(includeBreakdowns, tick), includeBreakdowns);
+    const readValue = (name, state, now) => {
+      if (!observer) return PLAYER_STAT_READERS[name](state, now, deps);
+      observer.reading(true);
+      try {
+        return PLAYER_STAT_READERS[name](state, now, deps);
+      } finally {
+        observer.reading(false);
+      }
+    };
+    const create = (state) => {
+      const now = deps.now(), values = /* @__PURE__ */ new Map(), read = /* @__PURE__ */ new Set(), tests = [];
+      const value = (name) => {
+        if (!values.has(name)) values.set(name, readValue(name, state, now));
+        return values.get(name);
+      };
+      return {
+        get(name) {
+          read.add(name);
+          return value(name);
+        },
+        when(name, test) {
+          const result = test(value(name));
+          tests.push([name, test, result]);
+          return result;
+        },
+        restart() {
+          read.clear();
+          tests.length = 0;
+        },
+        reads() {
+          return { values: [...read].map((name) => [name, fingerprint(values.get(name))]), tests: tests.slice() };
         }
-        const slots = slotsOf(state), slot = includeBreakdowns ? 1 : 0, current = context(includeBreakdowns, memo, status);
-        const entry = slots[slot];
-        if (entry && sameContext(entry.context, current) && playerStatTick.matches(tick, entry.reads)) return answer(entry, includeBreakdowns);
-        if (settlementStates.has(state)) return readSigned(includeBreakdowns, tick, state, current);
-        health.misses++;
-        tick.restart();
-        const core = calculate(includeBreakdowns, tick);
-        slots[slot] = { context: current, core, reads: tick.reads(), answers: 0 };
-        return finishPlayerStats(core, includeBreakdowns);
-    }
-    /** The cheap part of a signed entry's key: breakdowns or not, the zone the hero fights in and the context fields. */
-    function settlementContext(includeBreakdowns, state) {
-        return JSON.stringify([!!includeBreakdowns, CONTEXT_NAMES.map(name => state[name])]) + zonePrint(state);
-    }
-    /** Whether a signed entry answers this call: its cheap context and tick reads first, the whole build signature last. */
-    function matchesSigned(entry, settlement, tick, state) {
-        return !!entry && entry.settlement === settlement && playerStatTick.matches(tick, entry.reads)
-            && entry.signature === getPersistentBuildSignature(state);
-    }
-    /**
-     * A settlement state's stats by the signed key: inside an event (current null; a fresh calculation counts as bypassed and is
-     * signed), or on the first call after one (current: the normal key the answer is then kept under, so the calls that follow need
-     * no signature; a fresh calculation counts as a miss and is not signed). The signature is read after the calculation, whose
-     * normalising writes (PLAYER_STAT_DERIVED_WRITES) may reshape a build field.
-     */
-    function readSigned(includeBreakdowns, tick, state, current) {
-        let slots = signed.get(state);
-        if (!slots) signed.set(state, slots = [null, null]);
-        const slot = includeBreakdowns ? 1 : 0, settlement = settlementContext(includeBreakdowns, state), entry = slots[slot];
-        if (matchesSigned(entry, settlement, tick, state)) {
-            if (current) slotsOf(state)[slot] = { context: current, core: entry.core, reads: entry.reads, answers: 0 };
-            return answer(entry, includeBreakdowns);
-        }
-        if (current) health.misses++; else health.bypassed++;
-        tick.restart();
-        const core = calculate(includeBreakdowns, tick), reads = tick.reads();
-        if (current) slotsOf(state)[slot] = { context: current, core, reads, answers: 0 };
-        else slots[slot] = { settlement, signature: getPersistentBuildSignature(state), core, reads, answers: 0 };
-        return finishPlayerStats(core, includeBreakdowns);
-    }
-    function answer(entry, includeBreakdowns) {
-        health.answers++;
-        if (++entry.answers % PLAYER_STAT_SELF_CHECK_ANSWERS === 0) selfCheck(entry, includeBreakdowns);
-        const stats = finishPlayerStats(entry.core, includeBreakdowns);
-        if (verifier) verifier(stats, entry, () => finishPlayerStats(calculate(includeBreakdowns, playerStatTick.create()), includeBreakdowns));
-        return stats;
-    }
-    function changedKeys(before, after) {
-        return Object.keys({ ...before, ...after }).filter(key => JSON.stringify(before[key]) !== JSON.stringify(after[key])).slice(0, 8);
-    }
-    /** The last guard: a kept calculation that went stale (an input changed without the notice above) is repaired and reported. */
-    function selfCheck(entry, includeBreakdowns) {
-        health.checks++;
-        const tick = playerStatTick.create(), fresh = calculate(includeBreakdowns, tick);
-        if (JSON.stringify(fresh.stats) === JSON.stringify(entry.core.stats)) return;
-        health.repairs++;
-        health.lastRepair = changedKeys(entry.core.stats, fresh.stats);
-        entry.core = fresh;
-        entry.reads = tick.reads();
-        if (warned) return;
-        warned = true;
-        console.warn('[player stat cache] kept stats went stale and were recalculated (an input changed without notice, see js/player-stat-cache.js):',
-            health.lastRepair.join(', '));
-    }
-    /** A settlement's replay state may keep calculations (js/combat-replay.js). */
-    function adopt(state) { settlementStates.add(state); }
-    function beginEvent() {
-        eventDepth++;
-        if (closeCheckPending) return;
-        closeCheckPending = true;
-        Promise.resolve().then(closeAbandonedEvents);
-    }
-    function endEvent() {
-        eventDepth = Math.max(0, eventDepth - 1);
-        generation++;
-    }
-    /** Events run synchronously, so one still open after the stack has unwound ended by an error: keeping resumes, reported. */
-    function closeAbandonedEvents() {
-        closeCheckPending = false;
-        if (eventDepth === 0) return;
-        eventDepth = 0;
-        generation++;
-        console.warn('[player stat cache] a kill or map completion ended by an error; kept stat calculations resume');
-    }
-    /** @template T @param {() => T} work @returns {T} */
-    function during(work) {
-        beginEvent();
-        try { return work(); } finally { endEvent(); }
-    }
-    /** Player input, or code that edits the build in place outside kill handling and map completion: drop kept calculations. */
-    function invalidate() { generation++; }
-    /** Tests only (scripts/smoke-player-stat-cache.js): called on every kept answer with a way to calculate it fresh. */
-    function verify(callback) { verifier = typeof callback === 'function' ? callback : null; }
-    /** Tests only: told when a calculation starts and ends. */
-    function observe(next) { observer = next || null; }
-    /** Tests only: calculate every call, to compare a settlement with and without kept calculations. */
-    function setDisabled(flag) { disabled = !!flag; }
-    /** Kept answers, misses, bypassed calls, self-checks and repairs so far (tests and the console). */
-    function report() { return { ...health, lastRepair: [...health.lastRepair] }; }
-    return Object.freeze({ read, adopt, beginEvent, endEvent, during, invalidate, verify, observe, setDisabled, report });
-})();
+      };
+    };
+    const matches = (tick2, reads) => reads.values.every(([name, print]) => Object.is(fingerprint(tick2.get(name)), print)) && reads.tests.every(([name, test, result]) => tick2.when(name, test) === result);
+    return Object.freeze({ create, matches, observe: (next) => {
+      observer = next || null;
+    }, names: Object.keys(PLAYER_STAT_READERS) });
+  }
 
-safeExposeGlobals({ playerStatTick, playerStatCache });
+  // modules/domain/player-stat-cache.mjs
+  var PlayerStatCache = class {
+    constructor(config, deps) {
+      this.deps = deps;
+      this.CONTEXT_NAMES = Object.keys(config.contextFields);
+      this.selfCheckAnswers = config.selfCheckAnswers;
+      this.kept = /* @__PURE__ */ new WeakMap();
+      this.signed = /* @__PURE__ */ new WeakMap();
+      this.settlementStates = /* @__PURE__ */ new WeakSet();
+      this.health = { answers: 0, misses: 0, bypassed: 0, checks: 0, repairs: 0, lastRepair: [] };
+      this.eventDepth = 0;
+      this.generation = 0;
+      this.closeCheckPending = false;
+      this.verifier = null;
+      this.observer = null;
+      this.disabled = false;
+      this.warned = false;
+    }
+    usable(state) {
+      return !this.disabled && this.eventDepth === 0 && (this.settlementStates.has(state) || !state.isBackgroundCalculation);
+    }
+    zonePrint(state) {
+      return JSON.stringify(this.deps.zone(state.currentZoneId) || null, (key, value) => key === "exploration" ? void 0 : value);
+    }
+    context(includeBreakdowns, memo, status, state) {
+      return {
+        includeBreakdowns: !!includeBreakdowns,
+        memo,
+        status,
+        generation: this.generation,
+        activeSkill: state.activeSkill,
+        zone: this.zonePrint(state),
+        fields: JSON.stringify(this.CONTEXT_NAMES.map((name) => state[name]))
+      };
+    }
+    sameContext(a, b) {
+      return Object.keys(a).every((key) => a[key] === b[key]);
+    }
+    calculate(includeBreakdowns, tick2, state) {
+      if (!this.observer) return this.deps.calculate(state, includeBreakdowns, tick2);
+      this.observer.calculating(true);
+      try {
+        return this.deps.calculate(state, includeBreakdowns, tick2);
+      } finally {
+        this.observer.calculating(false);
+      }
+    }
+    slotsOf(state) {
+      let slots = this.kept.get(state);
+      if (!slots) this.kept.set(state, slots = [null, null]);
+      return slots;
+    }
+    read(includeBreakdowns, memo, status, state) {
+      const tick2 = this.deps.tick.create(state);
+      if (!this.usable(state)) {
+        if (!this.disabled && this.settlementStates.has(state)) return this.readSigned(includeBreakdowns, tick2, state, null);
+        this.health.bypassed++;
+        return this.deps.finish(this.calculate(includeBreakdowns, tick2, state), includeBreakdowns);
+      }
+      const slots = this.slotsOf(state), slot = includeBreakdowns ? 1 : 0, current = this.context(includeBreakdowns, memo, status, state);
+      const entry = slots[slot];
+      if (entry && this.sameContext(entry.context, current) && this.deps.tick.matches(tick2, entry.reads)) return this.answer(entry, includeBreakdowns, state);
+      if (this.settlementStates.has(state)) return this.readSigned(includeBreakdowns, tick2, state, current);
+      this.health.misses++;
+      tick2.restart();
+      const core = this.calculate(includeBreakdowns, tick2, state);
+      slots[slot] = { context: current, core, reads: tick2.reads(), answers: 0 };
+      return this.deps.finish(core, includeBreakdowns);
+    }
+    settlementContext(includeBreakdowns, state) {
+      return JSON.stringify([!!includeBreakdowns, this.CONTEXT_NAMES.map((name) => state[name])]) + this.zonePrint(state);
+    }
+    matchesSigned(entry, settlement, tick2, state) {
+      return !!entry && entry.settlement === settlement && this.deps.tick.matches(tick2, entry.reads) && entry.signature === this.deps.signature(state);
+    }
+    readSigned(includeBreakdowns, tick2, state, current) {
+      let slots = this.signed.get(state);
+      if (!slots) this.signed.set(state, slots = [null, null]);
+      const slot = includeBreakdowns ? 1 : 0, settlement = this.settlementContext(includeBreakdowns, state), entry = slots[slot];
+      if (this.matchesSigned(entry, settlement, tick2, state)) {
+        if (current) this.slotsOf(state)[slot] = { context: current, core: entry.core, reads: entry.reads, answers: 0 };
+        return this.answer(entry, includeBreakdowns, state);
+      }
+      if (current) this.health.misses++;
+      else this.health.bypassed++;
+      tick2.restart();
+      const core = this.calculate(includeBreakdowns, tick2, state), reads = tick2.reads();
+      if (current) this.slotsOf(state)[slot] = { context: current, core, reads, answers: 0 };
+      else slots[slot] = { settlement, signature: this.deps.signature(state), core, reads, answers: 0 };
+      return this.deps.finish(core, includeBreakdowns);
+    }
+    answer(entry, includeBreakdowns, state) {
+      this.health.answers++;
+      if (++entry.answers % this.selfCheckAnswers === 0) this.selfCheck(entry, includeBreakdowns, state);
+      const stats = this.deps.finish(entry.core, includeBreakdowns);
+      if (this.verifier) this.verifier(stats, entry, () => this.deps.finish(this.calculate(includeBreakdowns, this.deps.tick.create(state), state), includeBreakdowns));
+      return stats;
+    }
+    changedKeys(before, after) {
+      return Object.keys({ ...before, ...after }).filter((key) => JSON.stringify(before[key]) !== JSON.stringify(after[key])).slice(0, 8);
+    }
+    selfCheck(entry, includeBreakdowns, state) {
+      this.health.checks++;
+      const tick2 = this.deps.tick.create(state), fresh = this.calculate(includeBreakdowns, tick2, state);
+      if (JSON.stringify(fresh.stats) === JSON.stringify(entry.core.stats)) return;
+      this.health.repairs++;
+      this.health.lastRepair = this.changedKeys(entry.core.stats, fresh.stats);
+      entry.core = fresh;
+      entry.reads = tick2.reads();
+      if (this.warned) return;
+      this.warned = true;
+      this.deps.warn(
+        "[player stat cache] kept stats went stale and were recalculated (an input changed without notice, see js/player-stat-cache.js):",
+        this.health.lastRepair.join(", ")
+      );
+    }
+    adopt(state) {
+      this.settlementStates.add(state);
+    }
+    beginEvent() {
+      this.eventDepth++;
+      if (this.closeCheckPending) return;
+      this.closeCheckPending = true;
+      this.deps.defer(() => this.closeAbandonedEvents());
+    }
+    endEvent() {
+      this.eventDepth = Math.max(0, this.eventDepth - 1);
+      this.generation++;
+    }
+    closeAbandonedEvents() {
+      this.closeCheckPending = false;
+      if (this.eventDepth === 0) return;
+      this.eventDepth = 0;
+      this.generation++;
+      this.deps.warn("[player stat cache] a kill or map completion ended by an error; kept stat calculations resume");
+    }
+    during(work) {
+      this.beginEvent();
+      try {
+        return work();
+      } finally {
+        this.endEvent();
+      }
+    }
+    invalidate() {
+      this.generation++;
+    }
+    verify(callback) {
+      this.verifier = typeof callback === "function" ? callback : null;
+    }
+    observe(next) {
+      this.observer = next || null;
+    }
+    setDisabled(flag) {
+      this.disabled = !!flag;
+    }
+    report() {
+      return { ...this.health, lastRepair: [...this.health.lastRepair] };
+    }
+  };
+  function createPlayerStatCache(config, deps) {
+    const runtime = new PlayerStatCache(config, deps);
+    return Object.freeze({
+      read: runtime.read.bind(runtime),
+      adopt: runtime.adopt.bind(runtime),
+      beginEvent: runtime.beginEvent.bind(runtime),
+      endEvent: runtime.endEvent.bind(runtime),
+      during: runtime.during.bind(runtime),
+      invalidate: runtime.invalidate.bind(runtime),
+      verify: runtime.verify.bind(runtime),
+      observe: runtime.observe.bind(runtime),
+      setDisabled: runtime.setDisabled.bind(runtime),
+      report: runtime.report.bind(runtime)
+    });
+  }
+
+  // modules/player-stat-cache-classic.mjs
+  var tick = createPlayerStatTick({
+    now: () => getCombatTime(),
+    cycleBuffEffects: (owner, now) => getActivePassiveCycleBuffEffects(now),
+    specialization: () => ensurePassiveSpecializationState(),
+    rageStacks: (owner, now) => getWarriorRageStacks(now),
+    rageMultiplier: (owner, now) => getWarriorRagePhysicalDamageMultiplier(now),
+    overload: () => getElementalistOverloadStacks(),
+    mistralStacks: (owner, now) => getTalentMistralStackCount(now),
+    mossRecovery: () => getMossRecoveryOccupied(),
+    regionAffixEffects: { moveBonus: (owner, now) => regionAffixEffects.moveBonus(now) },
+    ascendancyNodeRules: {
+      unyieldingActive: (owner, now) => ascendancyNodeRules.unyieldingActive(now),
+      flowStacks: (owner, now) => ascendancyNodeRules.flowStacks(now),
+      rooted: (owner, now) => ascendancyNodeRules.rooted(now)
+    }
+  });
+  var playerStatTick = Object.freeze({ ...tick, create: () => tick.create(game) });
+  var cache = createPlayerStatCache({ contextFields: PLAYER_STAT_CONTEXT_FIELDS, selfCheckAnswers: PLAYER_STAT_SELF_CHECK_ANSWERS }, {
+    tick,
+    zone: (id) => getZone(id),
+    signature: (state) => getPersistentBuildSignature(state),
+    calculate: (state, includeBreakdowns, inputTick) => equipmentStatCalculator(includeBreakdowns, false, true, inputTick),
+    finish: (core, includeBreakdowns) => finishPlayerStats(core, includeBreakdowns),
+    defer: (callback) => Promise.resolve().then(callback),
+    warn: (...args) => console.warn(...args)
+  });
+  var playerStatCache = Object.freeze({ ...cache, read: (includeBreakdowns, memo, status, state = game) => cache.read(includeBreakdowns, memo, status, state) });
+  safeExposeGlobals({ playerStatTick, playerStatCache });
+})();

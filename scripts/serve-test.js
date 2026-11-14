@@ -11,6 +11,7 @@ const MIME = {
     '.css': 'text/css; charset=utf-8',
     '.html': 'text/html; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
+    '.mjs': 'text/javascript; charset=utf-8',
     '.json': 'application/json; charset=utf-8',
     '.png': 'image/png',
     '.webp': 'image/webp',
@@ -51,12 +52,14 @@ function close(server) {
 }
 
 async function setupPlaywrightServer() {
+    await require('./build-modules').buildModules();
     let server = await listen(createTestServer());
     return () => close(server);
 }
 
 if (require.main === module) {
-    listen(createTestServer()).then(() => console.log(`Playwright server: http://127.0.0.1:${PORT}`));
+    setupPlaywrightServer().then(() => console.log(`Playwright server: http://127.0.0.1:${PORT}`))
+        .catch(error => { console.error(error); process.exitCode = 1; });
 } else {
     module.exports = setupPlaywrightServer;
 }

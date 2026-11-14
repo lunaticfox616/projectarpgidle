@@ -11,6 +11,7 @@
  * 전달본의 코드는 실행하지 않는다.
  */
 'use strict';
+const { readDataSource, writeDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -157,7 +158,7 @@ const sourceSheets = ['vfx.png', 'vfx2.png', 'vfx3.png', 'vfx4.png'].map(name =>
 function sourceSheet(index) { return sourceSheets[index].read || (sourceSheets[index].read = readPng(path.join(sim, sourceSheets[index].name))); }
 
 // 표부터 읽어 이미 있는 칸을 안다
-const tableFile = path.join(root, 'data/stage-skill-vfx.js'), tableText = fs.readFileSync(tableFile, 'utf8');
+const tableFile = path.join(root, 'data/stage-skill-vfx.js'), tableText = readDataSource(tableFile);
 const sandbox = { safeExposeData: data => Object.assign(sandbox, data) };
 vm.runInNewContext(tableText, sandbox);
 const old = JSON.parse(JSON.stringify(sandbox.STAGE_SKILL_VFX));
@@ -279,5 +280,5 @@ ${rows(table.atlas, '        ')}
 });
 safeExposeData({ STAGE_SKILL_VFX });
 `;
-fs.writeFileSync(tableFile, text);
+writeDataSource(tableFile, text);
 console.log(`그림 ${sheet.width}×${sheet.height} ${(fs.statSync(pictureFile).size / 1048576).toFixed(2)}MB, 새 칸 묶음 ${Object.keys(atlasAdded).join(', ')}, 띠 ${Object.keys(rawTable).join(', ')}, 판 ${table.version}`);

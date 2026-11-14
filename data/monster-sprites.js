@@ -1,92 +1,159 @@
-// 액트 몬스터 도트 시트(받은 묶음, 2026-10-02): 외형마다 대기 · 공격 시트 한 장씩, 열 = 시간순, 도트 = 바닥 칸/16.
-// 묶음마다 칸 크기 · 행 순서 · 동작 시간이 다르다(이름과 공격 방식은 data/bosses.js ACT_MONSTER_VISUALS).
-//   뿌리층 슬라임 · 웜 · 개미(rignin-monsters-idle-attack-v1): 칸 48, 행 위 · 아래 · 왼쪽 · 오른쪽, 몸 가운데가 칸 가운데.
-//   철퇴 부제사 · 성수 부제녀(rignin-deacons-idle-attack-v2): 칸 79, 행 아래 · 왼쪽 · 오른쪽 · 위, 발밑 (39, 39).
-//   무기 뿌리촉수(rignin-weapon-root-tentacles-idle-attack-v1): 칸 64, 행 위 · 아래 · 왼쪽 · 오른쪽. 뿌리 밑동 자리가 그림마다,
-//   방향마다 달라 시트가 방향별 발 자리(feet, 받은 묶음의 rootAnchor)를 가진다. 없으면 종류의 feet를 쓴다.
-//   영역 몬스터(2026-10-02, 그리기 도구로 다시 그림): 칸 48(보스 64), 행 위 · 아래 · 왼쪽 · 오른쪽, 발 자리는 그림마다 하나.
-//   벌집(2026-10-06, 같은 도구): 전투벌 · 수벌 · 정찰벌 · 꿀주머니 벌 · 수호벌 · 근위벌 · 여왕. 떠서 나는 벌이라 발 자리는 그림자 자리다.
-// feet = 칸 안에서 발 자리(도트 가장자리 좌표) — 전장의 발 자리(칸 가운데보다 0.22칸 아래)에 맞춘다. 벌레는 위에서 본
-// 그림이라 몸 가운데(24, 24)를 칸 가운데에 두도록 4도트 아래를 발로 잡는다. height = 발에서 그림 맨 위까지(대기 0번,
-// 네 방향 중 가장 높은 곳) — 체력바를 그 위에 둔다.
-const MONSTER_SPRITE_KINDS = Object.freeze({
+// GENERATED from modules/data/monster-sprites.mjs. Edit the ESM source; run npm run build:modules.
+(() => {
+  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\weapon-categories.mjs
+  var WEAPON_CATEGORIES = globalThis.WEAPON_CATEGORIES;
+
+  // modules/data/monster-sprites.mjs
+  var MONSTER_SPRITE_KINDS = Object.freeze({
     bug: Object.freeze({
-        frame: 48, rows: Object.freeze(['up', 'down', 'left', 'right']), feet: Object.freeze([24, 28]), shadow: 0.3,
-        idleMs: Object.freeze([220, 180, 220, 180]), attackMs: Object.freeze([100, 90, 80, 70, 110, 150]), impactFrame: 3
+      frame: 48,
+      rows: Object.freeze(["up", "down", "left", "right"]),
+      feet: Object.freeze([24, 28]),
+      shadow: 0.3,
+      idleMs: Object.freeze([220, 180, 220, 180]),
+      attackMs: Object.freeze([100, 90, 80, 70, 110, 150]),
+      impactFrame: 3
     }),
     deaconMelee: Object.freeze({
-        frame: 79, rows: Object.freeze(['down', 'left', 'right', 'up']), feet: Object.freeze([39.5, 40]), shadow: 0.24,
-        idleMs: Object.freeze([100, 100, 100, 100]), attackMs: Object.freeze([150, 70, 150, 80, 90, 120]), impactFrame: 2
+      frame: 79,
+      rows: Object.freeze(["down", "left", "right", "up"]),
+      feet: Object.freeze([39.5, 40]),
+      shadow: 0.24,
+      idleMs: Object.freeze([100, 100, 100, 100]),
+      attackMs: Object.freeze([150, 70, 150, 80, 90, 120]),
+      impactFrame: 2
     }),
     deaconRanged: Object.freeze({
-        frame: 79, rows: Object.freeze(['down', 'left', 'right', 'up']), feet: Object.freeze([39.5, 40]), shadow: 0.24,
-        idleMs: Object.freeze([100, 100, 100, 100]), attackMs: Object.freeze([110, 100, 200, 60, 90, 130]), impactFrame: 3
+      frame: 79,
+      rows: Object.freeze(["down", "left", "right", "up"]),
+      feet: Object.freeze([39.5, 40]),
+      shadow: 0.24,
+      idleMs: Object.freeze([100, 100, 100, 100]),
+      attackMs: Object.freeze([110, 100, 200, 60, 90, 130]),
+      impactFrame: 3
     }),
     root: Object.freeze({
-        frame: 64, rows: Object.freeze(['up', 'down', 'left', 'right']), feet: Object.freeze([32, 49]), shadow: 0.3,
-        idleMs: Object.freeze([220, 180, 220, 180]), attackMs: Object.freeze([100, 90, 80, 70, 110, 150]), impactFrame: 3
+      frame: 64,
+      rows: Object.freeze(["up", "down", "left", "right"]),
+      feet: Object.freeze([32, 49]),
+      shadow: 0.3,
+      idleMs: Object.freeze([220, 180, 220, 180]),
+      attackMs: Object.freeze([100, 90, 80, 70, 110, 150]),
+      impactFrame: 3
     }),
     realm: Object.freeze({
-        frame: 48, rows: Object.freeze(['up', 'down', 'left', 'right']), feet: Object.freeze([24, 32]), shadow: 0.3,
-        idleMs: Object.freeze([220, 180, 220, 180]), attackMs: Object.freeze([100, 90, 80, 70, 110, 150]), impactFrame: 3
+      frame: 48,
+      rows: Object.freeze(["up", "down", "left", "right"]),
+      feet: Object.freeze([24, 32]),
+      shadow: 0.3,
+      idleMs: Object.freeze([220, 180, 220, 180]),
+      attackMs: Object.freeze([100, 90, 80, 70, 110, 150]),
+      impactFrame: 3
     }),
     realmBoss: Object.freeze({
-        frame: 64, rows: Object.freeze(['up', 'down', 'left', 'right']), feet: Object.freeze([32, 46]), shadow: 0.42,
-        idleMs: Object.freeze([240, 200, 240, 200]), attackMs: Object.freeze([120, 110, 90, 80, 130, 170]), impactFrame: 3
+      frame: 64,
+      rows: Object.freeze(["up", "down", "left", "right"]),
+      feet: Object.freeze([32, 46]),
+      shadow: 0.42,
+      idleMs: Object.freeze([240, 200, 240, 200]),
+      attackMs: Object.freeze([120, 110, 90, 80, 130, 170]),
+      impactFrame: 3
     })
-});
-
-const MONSTER_SPRITE_SHEETS = Object.freeze(Object.fromEntries([
-    ['act1-slime', 'bug', 'bugs/act1-slime', 12], ['act1-worm', 'bug', 'bugs/act1-worm', 13], ['act1-ant', 'bug', 'bugs/act1-ant', 17],
-    ['act3-slime', 'bug', 'bugs/act3-slime', 15], ['act3-worm', 'bug', 'bugs/act3-worm', 14], ['act3-ant', 'bug', 'bugs/act3-ant', 18],
-    ['act4-slime', 'bug', 'bugs/act4-slime', 15], ['act4-worm', 'bug', 'bugs/act4-worm', 14], ['act4-ant', 'bug', 'bugs/act4-ant', 21],
-    ['act5-slime', 'bug', 'bugs/act5-slime', 19], ['act5-worm', 'bug', 'bugs/act5-worm', 16], ['act5-ant', 'bug', 'bugs/act5-ant', 22],
-    ...[2, 6, 7, 8].flatMap(act => [
-        [`deacon-act${act}-melee`, 'deaconMelee', `deacons/act${act}-melee`, 24],
-        [`deacon-act${act}-ranged`, 'deaconRanged', `deacons/act${act}-ranged`, 24]
+  });
+  var MONSTER_SPRITE_SHEETS = Object.freeze(Object.fromEntries([
+    ["act1-slime", "bug", "bugs/act1-slime", 12],
+    ["act1-worm", "bug", "bugs/act1-worm", 13],
+    ["act1-ant", "bug", "bugs/act1-ant", 17],
+    ["act3-slime", "bug", "bugs/act3-slime", 15],
+    ["act3-worm", "bug", "bugs/act3-worm", 14],
+    ["act3-ant", "bug", "bugs/act3-ant", 18],
+    ["act4-slime", "bug", "bugs/act4-slime", 15],
+    ["act4-worm", "bug", "bugs/act4-worm", 14],
+    ["act4-ant", "bug", "bugs/act4-ant", 21],
+    ["act5-slime", "bug", "bugs/act5-slime", 19],
+    ["act5-worm", "bug", "bugs/act5-worm", 16],
+    ["act5-ant", "bug", "bugs/act5-ant", 22],
+    ...[2, 6, 7, 8].flatMap((act) => [
+      [`deacon-act${act}-melee`, "deaconMelee", `deacons/act${act}-melee`, 24],
+      [`deacon-act${act}-ranged`, "deaconRanged", `deacons/act${act}-ranged`, 24]
     ]),
     ...Object.entries({
-        greatsword: { up: [35, 49], down: [36, 48], left: [39, 48], right: [23, 48] },
-        scimitar: { up: [36.5, 49], down: [36, 48], left: [34.5, 48], right: [26.5, 48] },
-        shortbow: { up: [35, 49], down: [33, 48], left: [30, 49], right: [32, 49] },
-        orb: { up: [34.5, 49], down: [32, 49], left: [33, 48], right: [30, 48] },
-        flask: { up: [30, 49], down: [31, 49], left: [35, 49], right: [29, 49] },
-        censer: { up: [34, 49], down: [35, 49], left: [37.5, 48], right: [24.5, 49] }
-    }).map(([weapon, feet]) => [`root-${weapon}`, 'root', `roots/${WEAPON_CATEGORIES[weapon].root}`, 31, feet]),
-        ['underworld-beetle', 'realm', 'realms/underworld/beetle', 17, [24, 32]], ['underworld-hound', 'realm', 'realms/underworld/hound', 22, [24, 31]], ['underworld-king', 'realmBoss', 'realms/underworld/king', 42, [32, 46]],
-        ['cosmos-star', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['cosmos-ooze', 'realm', 'realms/cosmos/ooze', 24, [24, 32]], ['cosmos-sentinel', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]], ['cosmos-colossus', 'realmBoss', 'realms/cosmos/colossus', 43, [32, 46]],
-        // 운석 전용 역할은 고유 ID로 공격 유형과 표기를 분리하고, 그림은 이미 있는 우주계 시트를 빌린다.
-        ['meteor-shard', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['meteor-melt', 'realm', 'realms/cosmos/ooze', 24, [24, 32]],
-        ['meteor-sentinel', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]],
-        // 대균열 전용 ID는 전투 역할을 구별한다. 낡은 시점 그림은 가까운 종족의 시트를 빌린다.
-        ['breach-scout', 'realm', 'realms/cosmos/star', 22, [24, 33]], ['breach-reflux', 'realm', 'realms/sky/imp', 25, [24, 36]],
-        ['breach-veil', 'realm', 'realms/cosmos/sentinel', 30, [24, 36]], ['breach-venom', 'realm', 'realms/ocean/oracle', 26, [24, 37]],
-        ['grand_breach_guardian', 'realmBoss', 'realms/cosmos/colossus', 43, [32, 46]],
-        ['ocean-angler', 'realm', 'realms/ocean/angler', 28, [24, 32]], ['ocean-crab', 'realm', 'realms/ocean/crab', 19, [24, 33]], ['ocean-shell', 'realm', 'realms/ocean/shell', 14, [24, 31]], ['ocean-oracle', 'realm', 'realms/ocean/oracle', 26, [24, 37]], ['ocean-leviathan', 'realmBoss', 'realms/ocean/leviathan', 42, [32, 47]],
-        ['hive-worker', 'realm', 'realms/hive/worker', 24, [24, 34]], ['hive-drone', 'realm', 'realms/hive/drone', 25, [24, 34]],
-        ['hive-scout', 'realm', 'realms/hive/scout', 23, [24, 34]], ['hive-nurse', 'realm', 'realms/hive/nurse', 24, [24, 34]],
-        ['hive-guard', 'realm', 'realms/hive/guard', 27, [24, 34]], ['hive-royal', 'realm', 'realms/hive/royal', 27, [24, 34]],
-        ['hive-queen', 'realmBoss', 'realms/hive/queen', 40, [32, 46]],
-        ['sky-imp', 'realm', 'realms/sky/imp', 25, [24, 36]], ['sky-roc', 'realm', 'realms/sky/roc', 24, [24, 33]], ['sky-harpy', 'realm', 'realms/sky/harpy', 28, [24, 34]], ['sky-griffin', 'realm', 'realms/sky/griffin', 29, [24, 33]], ['sky-titan', 'realmBoss', 'realms/sky/titan', 44, [32, 46]]
-].map(([id, kind, stem, height, feet]) => [id, Object.freeze({
-    id, kind, height, feet: feet ? Object.freeze(feet) : null, idle: `assets/enemies/${stem}-idle.png`, attack: `assets/enemies/${stem}-attack.png`
-})])));
+      greatsword: { up: [35, 49], down: [36, 48], left: [39, 48], right: [23, 48] },
+      scimitar: { up: [36.5, 49], down: [36, 48], left: [34.5, 48], right: [26.5, 48] },
+      shortbow: { up: [35, 49], down: [33, 48], left: [30, 49], right: [32, 49] },
+      orb: { up: [34.5, 49], down: [32, 49], left: [33, 48], right: [30, 48] },
+      flask: { up: [30, 49], down: [31, 49], left: [35, 49], right: [29, 49] },
+      censer: { up: [34, 49], down: [35, 49], left: [37.5, 48], right: [24.5, 49] }
+    }).map(([weapon, feet]) => [`root-${weapon}`, "root", `roots/${WEAPON_CATEGORIES[weapon].root}`, 31, feet]),
+    ["underworld-beetle", "realm", "realms/underworld/beetle", 17, [24, 32]],
+    ["underworld-hound", "realm", "realms/underworld/hound", 22, [24, 31]],
+    ["underworld-king", "realmBoss", "realms/underworld/king", 42, [32, 46]],
+    ["cosmos-star", "realm", "realms/cosmos/star", 22, [24, 33]],
+    ["cosmos-ooze", "realm", "realms/cosmos/ooze", 24, [24, 32]],
+    ["cosmos-sentinel", "realm", "realms/cosmos/sentinel", 30, [24, 36]],
+    ["cosmos-colossus", "realmBoss", "realms/cosmos/colossus", 43, [32, 46]],
+    // 운석 전용 역할은 고유 ID로 공격 유형과 표기를 분리하고, 그림은 이미 있는 우주계 시트를 빌린다.
+    ["meteor-shard", "realm", "realms/cosmos/star", 22, [24, 33]],
+    ["meteor-melt", "realm", "realms/cosmos/ooze", 24, [24, 32]],
+    ["meteor-sentinel", "realm", "realms/cosmos/sentinel", 30, [24, 36]],
+    // 대균열 전용 ID는 전투 역할을 구별한다. 낡은 시점 그림은 가까운 종족의 시트를 빌린다.
+    ["breach-scout", "realm", "realms/cosmos/star", 22, [24, 33]],
+    ["breach-reflux", "realm", "realms/sky/imp", 25, [24, 36]],
+    ["breach-veil", "realm", "realms/cosmos/sentinel", 30, [24, 36]],
+    ["breach-venom", "realm", "realms/ocean/oracle", 26, [24, 37]],
+    ["grand_breach_guardian", "realmBoss", "realms/cosmos/colossus", 43, [32, 46]],
+    ["ocean-angler", "realm", "realms/ocean/angler", 28, [24, 32]],
+    ["ocean-crab", "realm", "realms/ocean/crab", 19, [24, 33]],
+    ["ocean-shell", "realm", "realms/ocean/shell", 14, [24, 31]],
+    ["ocean-oracle", "realm", "realms/ocean/oracle", 26, [24, 37]],
+    ["ocean-leviathan", "realmBoss", "realms/ocean/leviathan", 42, [32, 47]],
+    ["hive-worker", "realm", "realms/hive/worker", 24, [24, 34]],
+    ["hive-drone", "realm", "realms/hive/drone", 25, [24, 34]],
+    ["hive-scout", "realm", "realms/hive/scout", 23, [24, 34]],
+    ["hive-nurse", "realm", "realms/hive/nurse", 24, [24, 34]],
+    ["hive-guard", "realm", "realms/hive/guard", 27, [24, 34]],
+    ["hive-royal", "realm", "realms/hive/royal", 27, [24, 34]],
+    ["hive-queen", "realmBoss", "realms/hive/queen", 40, [32, 46]],
+    ["sky-imp", "realm", "realms/sky/imp", 25, [24, 36]],
+    ["sky-roc", "realm", "realms/sky/roc", 24, [24, 33]],
+    ["sky-harpy", "realm", "realms/sky/harpy", 28, [24, 34]],
+    ["sky-griffin", "realm", "realms/sky/griffin", 29, [24, 33]],
+    ["sky-titan", "realmBoss", "realms/sky/titan", 44, [32, 46]]
+  ].map(([id, kind, stem, height, feet]) => [id, Object.freeze({
+    id,
+    kind,
+    height,
+    feet: feet ? Object.freeze(feet) : null,
+    idle: `assets/enemies/${stem}-idle.png`,
+    attack: `assets/enemies/${stem}-attack.png`
+  })])));
+  var MONSTER_STAGE_KIND = Object.freeze({
+    frame: 96,
+    stage: true,
+    shadow: 0.3,
+    idleMs: Object.freeze([170, 170, 170, 170, 170, 170]),
+    attackMs: Object.freeze([100, 90, 80, 70, 110, 150]),
+    impactFrame: 3
+  });
+  var MONSTER_STAGE_SHEETS = Object.freeze(Object.fromEntries([
+    ["act1-slime", 53, [44, 84]],
+    ["act1-ant", 41, [42, 84]],
+    ["act1-worm", 29, [46, 84]],
+    ...Object.entries({ fire: 74, ice: 66, lightning: 60, poison: 66, holy: 72, void: 60 }).map(([element, height]) => ["wisp-" + element, height, [48, 84]]),
+    ["breach-scout", 60, [48, 84], "wisp-void"],
+    ["breach-reflux", 60, [48, 84], "wisp-void"],
+    ["breach-veil", 60, [48, 84], "wisp-void"],
+    ["breach-venom", 66, [48, 84], "wisp-poison"]
+  ].map(([id, height, feet, source = id]) => [id, Object.freeze({
+    id,
+    kind: "stage",
+    height,
+    feet: Object.freeze(feet),
+    idle: `assets/enemies/stage/${source}-idle.png`,
+    attack: `assets/enemies/stage/${source}-attack.png`
+  })])));
 
-// 옆에서 보는 무대의 몬스터 시트(docs/stage-view-20261011.md): 오른쪽을 보는 가로 한 줄, 캐릭터와 같은 밀도(칸 너비 = 64도트).
-// 무대가 켜져 있고 여기에 그림이 있는 몬스터만 이 시트로 그린다(왼쪽은 좌우 반전). 없는 몬스터는 위 시트의 좌우 줄을 그대로 쓴다.
-// 그림은 node scripts/build-stage-monsters.cjs가 그린다(생김새와 색은 위 시트의 기존 그림을 따른다). [id, 발에서 그림 맨 위까지(도트), 발 자리].
-const MONSTER_STAGE_KIND = Object.freeze({
-    frame: 96, stage: true, shadow: 0.3,
-    idleMs: Object.freeze([170, 170, 170, 170, 170, 170]), attackMs: Object.freeze([100, 90, 80, 70, 110, 150]), impactFrame: 3
-});
-// 속성 위습 여섯 장(wisp-fire …)은 위습 외형 18종이 나눠 쓴다: 외형 id → 속성은 data/wisp-sprites.js WISP_SPRITE_BY_VISUAL.
-const MONSTER_STAGE_SHEETS = Object.freeze(Object.fromEntries([
-    ['act1-slime', 53, [44, 84]], ['act1-ant', 41, [42, 84]], ['act1-worm', 29, [46, 84]],
-    ...Object.entries({ fire: 74, ice: 66, lightning: 60, poison: 66, holy: 72, void: 60 }).map(([element, height]) => ['wisp-' + element, height, [48, 84]]),
-    ['breach-scout', 60, [48, 84], 'wisp-void'], ['breach-reflux', 60, [48, 84], 'wisp-void'],
-    ['breach-veil', 60, [48, 84], 'wisp-void'], ['breach-venom', 66, [48, 84], 'wisp-poison']
-].map(([id, height, feet, source = id]) => [id, Object.freeze({
-    id, kind: 'stage', height, feet: Object.freeze(feet), idle: `assets/enemies/stage/${source}-idle.png`, attack: `assets/enemies/stage/${source}-attack.png`
-})])));
-
-safeExposeData({ MONSTER_SPRITE_KINDS, MONSTER_SPRITE_SHEETS, MONSTER_STAGE_KIND, MONSTER_STAGE_SHEETS });
+  // modules/data/monster-sprites.mjs:classic
+  Object.assign(globalThis, { MONSTER_SPRITE_KINDS, MONSTER_SPRITE_SHEETS, MONSTER_STAGE_KIND, MONSTER_STAGE_SHEETS });
+  if (typeof safeExposeData === "function") safeExposeData({ MONSTER_SPRITE_KINDS, MONSTER_SPRITE_SHEETS, MONSTER_STAGE_KIND, MONSTER_STAGE_SHEETS });
+})();

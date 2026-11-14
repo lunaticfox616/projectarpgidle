@@ -97,12 +97,27 @@ function ownerName(node,fallback) {
 
 function recordFinding(findings,row,message,source) {
     const node = source.getNodeByRangeIndex(source.getIndexFromLoc({line:message.line,column:Math.max(0,message.column-1)}));
+    // esbuild expands each literal property onto its own line. Original module
+    // length/complexity is checked by build:modules; do not count generated data
+    // formatting as a new algorithm. Calls, spreads, getters and branches stay checked.
+    if (message.ruleId === 'max-lines-per-function' && isGeneratedLiteralFactory(row, node)) return;
     const owner = ownerName(node,row.file);
     const key = `${owner}|${message.ruleId}|${message.message.replace(/\b\d+\b/g,'#')}`;
     const metric = /^(complexity|max-depth|max-lines-per-function|max-params)$/.test(message.ruleId)
         ? Number((message.message.match(/\b\d+\b/) || [0])[0]) : 0;
     const entry = findings[key] || {count:0,max:0};
     entry.count++; entry.max = Math.max(entry.max,metric); findings[key] = entry;
+}
+
+function isGeneratedLiteralFactory(row, node) {
+    if (!row.source.startsWith('// GENERATED from modules/')) return false;
+    while (node && !/Function/.test(node.type)) node = node.parent;
+    if (!node || node.params.length || node.async || node.generator || node.body.body?.length !== 1) return false;
+    const statement = node.body.body[0];
+    if (statement.type !== 'ReturnStatement' || statement.argument?.type !== 'ObjectExpression') return false;
+    return statement.argument.properties.every(property => property.type === 'Property'
+        && property.kind === 'init' && !property.computed && !property.method
+        && property.value.type === 'Literal' && !property.value.regex);
 }
 
 function collectEdges(row,source,owners,edges,order) {
@@ -169,18 +184,19 @@ function cyclePath(edge,calls) {
 
 const closesCycle=(edge,calls)=>!!cyclePath(edge,calls);
 
-// 브라우저 기본 툴팁은 쓰지 않는다(2026-10-31 사용자, 기준선 없이 0개): 설명은 data-tip으로 단다(js/plain-tip-ui.js).
+// 브라우저 기본 툴팁은 쓰지 않는다(2026-10-31 사용자, 기준선 없이 0개): 설명은 data-tip으로 단다(modules/browser/plain-tip.mjs).
 const NATIVE_TIP_MARKUP = /(?<![\w-])title=|<title[\s>]/;
 const DATA_TITLE_OWNERS = new Set(['node','pick','activeTutorial']);   // 패시브 노드와 튜토리얼의 제목 칸: 화면 속성이 아니다
 function isNativeTooltip(node) {
     if (node.type === 'Literal') return typeof node.value === 'string' && NATIVE_TIP_MARKUP.test(node.value);
     if (node.type === 'TemplateElement') return NATIVE_TIP_MARKUP.test(node.value.raw);
-    if (node.type === 'AssignmentExpression') return node.left.type === 'MemberExpression' && node.left.property.name === 'title' && !DATA_TITLE_OWNERS.has(node.left.object.name);
+    // esbuild may suffix these data bindings (activeTutorial2) to avoid adapter globals.
+    if (node.type === 'AssignmentExpression') return node.left.type === 'MemberExpression' && node.left.property.name === 'title' && !DATA_TITLE_OWNERS.has(node.left.object.name?.replace(/\d+$/, ''));
     if (node.type === 'CallExpression') return node.callee.type === 'MemberExpression' && node.callee.property.name === 'setAttribute' && node.arguments[0]?.value === 'title';
     return false;
 }
 function nativeTooltipFailures(rows,html) {
-    const hint = '브라우저 기본 툴팁 금지, data-tip을 쓴다(js/plain-tip-ui.js)';
+    const hint = '브라우저 기본 툴팁 금지, data-tip을 쓴다(modules/browser/plain-tip.mjs)';
     const failures = html.replace(/<title>[^<]*<\/title>/,'').split(/\r?\n/).flatMap((line,index) => (NATIVE_TIP_MARKUP.test(line) ? [`index.html:${index+1}: ${hint}`] : []));
     for (const row of rows.filter(row => row.file.startsWith('js/'))) walk(row.ast, node => { if (isNativeTooltip(node)) failures.push(`${row.file}:${node.loc.start.line}: ${hint}`); });
     return failures;

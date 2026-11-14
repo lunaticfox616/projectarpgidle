@@ -13,6 +13,7 @@ const http = require('http');
 const path = require('path');
 const { execFile } = require('child_process');
 const model = require('./lib/story-line-editor-model');
+const { writeDataSource } = require('./lib/data-authoring.cjs');
 const { createZipArchive } = require('./lib/zip-archive');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -124,7 +125,7 @@ async function save(changes) {
     const at = stamp(), backups = plan.files.map(file => backup(file, texts[file], at)), written = [];
     try {
         for (const file of plan.files) {
-            atomicWrite(path.join(ROOT, file), plan.texts[file]);
+            writeDataSource(path.join(ROOT, file), plan.texts[file]);
             written.push(file);
         }
         const back = model.readTexts(ROOT), differs = plan.files.filter(file => back[file] !== plan.texts[file]);
@@ -134,7 +135,7 @@ async function save(changes) {
         const bible = syncBible(plan, at);
         return { saved: plan.changed.length, files: plan.files, backups, check: check.output.split('\n').pop(), bible };
     } catch (error) {
-        written.forEach(file => atomicWrite(path.join(ROOT, file), texts[file]));
+        written.forEach(file => writeDataSource(path.join(ROOT, file), texts[file]));
         throw error;
     }
 }

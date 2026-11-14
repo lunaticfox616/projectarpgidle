@@ -1,750 +1,1179 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/canvas-battlefield*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function getCanvasRuntimeFunction(name) {
-    if (typeof window === 'undefined') return null;
-    let provider = window[name];
-    if (typeof provider !== 'function' || provider.__placeholderGlobal === true) return null;
-    return provider;
-}
-
-// 전장 글자도 갈무리11의 12px 격자를 쓴다. 독립 제목은 실제 Bold, 본문은 Regular.
-// 흐린 그림자(shadowBlur) 대신 한 도트 어긋난 검은 글자를 먼저 찍는다.
-/** 전장·피드백·결투 캔버스의 글꼴 목록. 언어별 CJK 보조 글꼴이 붙으므로 상수가 아니라 그릴 때마다 읽는다. */
-function battlePixelFont() { return i18n.fontFamily("'Galmuri11', 'Galmuri14'"); }
-
-function fillPixelText(ctx, text, x, y, color) {
-    ctx.fillStyle = '#000';
-    drawCrispCanvasText(ctx, text, x + 1, y + 1);
-    ctx.fillStyle = color;
-    drawCrispCanvasText(ctx, text, x, y);
-}
-
-/** Centred pixel text whose keywords and numbers take the item tone colours (js/stat-tone-text-ui.js segments, 2026-10-06);
- * the rest keeps baseColor. Drawn piece by piece from the left edge of the whole line. */
-function fillPixelToneText(ctx, text, centerX, y, baseColor) {
-    const parts = statToneText.segments(text), widths = parts.map(part => ctx.measureText(part.text).width);
-    let x = Math.round(centerX - widths.reduce((sum, w) => sum + w, 0) / 2);
-    const align = ctx.textAlign;
-    ctx.textAlign = 'left';
-    parts.forEach((part, index) => {
-        fillPixelText(ctx, part.text, x, y, part.color || baseColor);
+  // modules/rendering/battlefield-text.mjs
+  var BattlefieldText = class {
+    constructor(deps) {
+      this.deps = deps;
+    }
+    font() {
+      return this.deps.i18n.fontFamily("'Galmuri11', 'Galmuri14'");
+    }
+    fill(ctx, text2, x, y, color) {
+      ctx.fillStyle = "#000";
+      this.deps.drawText(ctx, text2, x + 1, y + 1);
+      ctx.fillStyle = color;
+      this.deps.drawText(ctx, text2, x, y);
+    }
+    tone(ctx, text2, centerX, y, baseColor) {
+      const parts = this.deps.tones.segments(text2), widths = parts.map((part) => ctx.measureText(part.text).width);
+      let x = Math.round(centerX - widths.reduce((sum, w) => sum + w, 0) / 2);
+      const align = ctx.textAlign;
+      ctx.textAlign = "left";
+      parts.forEach((part, index) => {
+        this.fill(ctx, part.text, x, y, part.color || baseColor);
         x += widths[index];
+      });
+      ctx.textAlign = align;
+    }
+  };
+
+  // modules/rendering/skill-effect-images.mjs
+  var SkillEffectImages = class {
+    constructor(createCanvas) {
+      this.createCanvas = createCanvas;
+      this.cache = /* @__PURE__ */ new WeakMap();
+    }
+    use(ctx, image, filter) {
+      filter = filter || "none";
+      if (!image || filter === "none" || !image.width || !image.height) {
+        ctx.filter = filter;
+        return image;
+      }
+      let byFilter = this.cache.get(image);
+      if (!byFilter) this.cache.set(image, byFilter = /* @__PURE__ */ new Map());
+      let baked = byFilter.get(filter);
+      if (!baked) {
+        baked = this.createCanvas();
+        baked.width = image.width;
+        baked.height = image.height;
+        const bakeCtx = baked.getContext("2d");
+        bakeCtx.filter = filter;
+        bakeCtx.drawImage(image, 0, 0);
+        byFilter.set(filter, baked);
+      }
+      ctx.filter = "none";
+      return baked;
+    }
+    dispose() {
+      this.cache = /* @__PURE__ */ new WeakMap();
+    }
+  };
+
+  // modules/common/numbers.mjs
+  function clampNumber(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+  function lerpNumber(start, end, t) {
+    return start + (end - start) * t;
+  }
+  function approachNumber(current, target, rate, dt) {
+    if (!Number.isFinite(current)) return target;
+    if (!Number.isFinite(target)) return current;
+    let blend = 1 - Math.exp(-Math.max(0, rate || 0) * Math.max(0, dt || 0));
+    return current + (target - current) * blend;
+  }
+
+  // modules/rendering/skill-sprite-geometry.mjs
+  function drawSkillSpriteFrame(ctx, image, frame, place) {
+    let columns = place.columns || 4, rows = place.rows || 4;
+    let sx = Math.round(frame % columns * image.naturalWidth / columns), sy = Math.round(Math.floor(frame / columns) * image.naturalHeight / rows);
+    let sw = Math.round((frame % columns + 1) * image.naturalWidth / columns) - sx;
+    let sh = Math.round((Math.floor(frame / columns) + 1) * image.naturalHeight / rows) - sy;
+    ctx.translate(place.x, place.y);
+    ctx.rotate(place.angle);
+    ctx.drawImage(image, sx, sy, sw, sh, -place.width / 2, -place.height / 2, place.width, place.height);
+  }
+
+  // modules/rendering/slash-vfx.mjs
+  function queueContinuousSlashVfx(list, fx, positions, timing2) {
+    const group = fx.damageTextGroupId || `hit:${fx.id}`;
+    const repeatIndex = fx.repeatIndex || 0;
+    if (list.some((effect) => effect.family === "continuousSlash" && effect.vfxGroupId === group && effect.repeatIndex === repeatIndex)) return;
+    const { source, target } = positions;
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const rotation = Math.atan2(dy, dx);
+    const scale = clampNumber(timing2.scale, 0.7, 1.16);
+    const followUp = repeatIndex % 2 === 1;
+    const arcs = list.filter((effect) => effect.family === "continuousSlash");
+    if (arcs.length >= 4) list.splice(list.indexOf(arcs[0]), 1);
+    list.push({
+      family: "continuousSlash",
+      skillName: fx.skillName,
+      vfxGroupId: group,
+      footprint: fx.footprint,
+      imageKey: "skillFxDoubleSlash",
+      repeatIndex,
+      // Both native hits resolve in one combat tick. Only their presentation is staggered.
+      startAt: timing2.now + (followUp ? 65 : 0),
+      duration: 190,
+      x: target.x - Math.cos(rotation) * 10 * scale,
+      y: target.y - 24 * scale - Math.sin(rotation) * 10 * scale,
+      rotation,
+      sweep: followUp ? -1 : 1,
+      size: clampNumber(Math.hypot(dx, dy) * 2.3, 156 * scale, 220 * scale) * (followUp ? 0.94 : 1)
     });
-    ctx.textAlign = align;
-}
-
-function getCanvasPlayerStats(fallback = {}) {
-    let provider = getCanvasRuntimeFunction('getPlayerStats');
-    if (!provider) return fallback;
-    let now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-    let wallNow = getCombatTime();
-    if (typeof game !== 'undefined' && game.lastCombatStats && (wallNow - (game.lastCombatStatsAt || 0) < 250)) {
-        __canvasStatsCache = game.lastCombatStats;
-        __canvasStatsCacheAt = now;
-        return __canvasStatsCache;
+  }
+  function drawSwordSlashVfx(ctx, effect, image, t) {
+    const size = effect.size;
+    const frame = t < 0.12 ? 0 : Math.min(3, 1 + Math.floor((t - 0.12) / 0.3));
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 0.98 * Math.pow(Math.min(1, (1 - t) / 0.68), 1.6);
+    ctx.filter = "none";
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate(effect.rotation + (t * 0.18 - 0.09) * effect.sweep);
+    ctx.scale(1, effect.sweep);
+    if (image) drawSkillSpriteFrame(ctx, image, frame, {
+      columns: 2,
+      rows: 2,
+      x: -size * 0.36,
+      y: 0,
+      width: size,
+      height: size * 0.96,
+      angle: 0
+    });
+    else {
+      ctx.strokeStyle = "#ffe2a0";
+      ctx.lineWidth = Math.max(2, size * 0.045);
+      ctx.beginPath();
+      ctx.arc(-size * 0.46, 0, size * 0.46, -1.1, 1.1);
+      ctx.stroke();
     }
-    if (__canvasStatsCache && (now - __canvasStatsCacheAt) < CANVAS_STATS_CACHE_MS) return __canvasStatsCache;
-    let result = provider() || fallback;
-    __canvasStatsCache = result;
-    __canvasStatsCacheAt = now;
-    return result;
-}
-
-function getCanvasSkillTargets(stats) {
-    let provider = getCanvasRuntimeFunction('getSkillTargets');
-    return provider ? (provider(stats) || []) : [];
-}
-
-function getBattleVfxDensity() {
-    return clampNumber(Number(battleVisualState.vfxDensity) || 1, 0.42, 1);
-}
-
-/** frameMs: time since the last drawn frame; targetMs: the cadence the frame loop asked for (js/ui.js renderBattlefieldThrottled:
- * 30 fps on phones and in arenas, slower while resting), rounded up to whole 60 Hz frames. Only lateness against that cadence reads
- * as load, as a 60 Hz frame time: an on-time 30 fps frame used to read as overload, so every phone fight and every resting PC drew
- * the fewest effects (2026-10-07 review). */
-function getBattleFrameLoadMs(frameMs, targetMs) {
-    const expected = Math.max(16.7, Math.ceil(((Number(targetMs) || 16.7) - 0.5) / 16.7) * 16.7);
-    return clampNumber(16.7 + Math.max(0, (Number(frameMs) || 16.7) - expected), 1, 50);
-}
-
-function updateBattleVfxDensity(frameMs, enemyCount, targetMs) {
-    let elapsed = getBattleFrameLoadMs(frameMs, targetMs);
-    let previousEma = clampNumber(Number(battleVisualState.frameTimeEma) || 16.7, 1, 50);
-    let ema = previousEma * 0.92 + elapsed * 0.08;
-    let crowdTarget = enemyCount >= 8 ? 0.62 : (enemyCount >= 5 ? 0.78 : 1);
-    let frameTarget = ema >= 32 ? 0.42 : (ema >= 24 ? 0.56 : (ema >= 18 ? 0.74 : 1));
-    let target = Math.min(crowdTarget, frameTarget, elapsed >= 45 ? 0.48 : 1);
-    let current = getBattleVfxDensity();
-    battleVisualState.frameTimeEma = ema;
-    battleVisualState.vfxDensity = target < current
-        ? Math.max(target, current - 0.08)
-        : Math.min(target, current + 0.012);
-    return battleVisualState.vfxDensity;
-}
-
-function trimBattleSkillEffects(list) {
-    let cap = Math.max(24, Math.round(BATTLE_SKILL_EFFECT_CAP * getBattleVfxDensity()));
-    if (list.length > cap) list.splice(0, list.length - cap);
-}
-
-// Attack impact effects expand to a circular reach. Physical keeps its full
-// shockwave; every other element is capped to roughly the monster's footprint
-// so the rings/glow do not balloon past the target. When the enemy object is
-// unavailable (ghost/fallback position) we fall back to a much smaller scale.
-function getAttackFxSpawnOpts(fx, enemy, skillVisual, viewportScale) {
-    const skillProfile = fx.skillName ? getSkillGemVfxProfile(fx.skillName) : null;
-    // 스킬 전용 이미지/절차형 이펙트가 적중 실루엣을 이미 담당한다. 같은 적중에
-    // 입자 엔진까지 겹치면 단일 공격부터 고해상도 캔버스 비용이 두 배로 뛴다.
-    if (skillProfile) return null;
-    let variant = (skillVisual && skillVisual.variant) || 'melee';
-    if (fx.chain) variant = 'chain';
-    else if (fx.pierce || fx.penetrate) variant = 'pierce';
-    else if (fx.slam) variant = 'slam';
-    const opts = {
-        crit: !!fx.crit,
-        variant
-    };
-    const element = String(fx.element || 'phys').toLowerCase();
-    const screenMul = clampNumber(Number(viewportScale) || 1, 0.68, 1.18);
-    if (element === 'phys' || element === 'physical') opts.scale = 0.68 * screenMul;
-    else if (enemy) opts.scale = (enemy.isBoss ? 0.82 : (enemy.isElite ? 0.6 : 0.44)) * screenMul;
-    else opts.scale = 0.4 * screenMul;
-    if (fx.impactTier === 'heavy') opts.scale *= 1.04;
-    else if (fx.impactTier === 'annihilate') {
-        // 원킬은 이미 피해 숫자·히트스톱·사망 모션으로 충분히 구분된다. 입자 엔진까지
-        // 크게 키우면 다중 처치 순간 할당량이 폭증하므로 크기와 밀도를 오히려 낮춘다.
-        opts.scale *= 0.82;
-        opts.densityMul = 0.48;
-    }
-    opts.densityMul = (Number(opts.densityMul) || 1) * getBattleVfxDensity();
-    return opts;
-}
-
-function requestBattleHitStop(fx) {
-    if (!fx || fx.dot || battleVisualState.lastHitStopFxId === fx.id) return;
-    const profile = getBattleFeedbackProfile(fx), killStopMs = getKillHitStopMs(fx);
-    const duration = Math.max(profile.hitStopMs, killStopMs);
-    battleVisualState.lastHitStopFxId = fx.id;
-    if (duration <= 0) return;
-    const now=performance.now();
-    if (now < battleVisualState.nextHitStopAt && killStopMs < KILL_HIT_STOP_MS.boss) return;
-    battleVisualState.nextHitStopAt=now+250;
-    battleVisualState.hitStopRemainingMs = Math.max(Number(battleVisualState.hitStopRemainingMs) || 0, duration);
-}
-
-/** The death effect starts on the killing hit (getBattleFxStart), so a death stamped with this hit's start is its kill. */
-function getKillHitStopMs(fx) {
-    if (fx.enemyId === undefined || fx.enemyId === null) return 0;
-    const death = battleFx.find(other => other && other.type === 'enemyDeath' && other.enemyId === fx.enemyId
-        && Math.abs(Number(other.start) - Number(fx.start)) < 1);
-    if (!death) return 0;
-    return death.boss ? KILL_HIT_STOP_MS.boss : (death.elite ? KILL_HIT_STOP_MS.elite : 0);
-}
-
-/** 몬스터가 쓰러지는 연출(전투 효과 enemyDeath). 바닥 반응과 맞은 번쩍임은 모두 같다. 쓰러짐 그림이 있는 스토리 보스는 그 그림을 제자리에서
- * 끝까지 보여 준다(drawBossDefeat). 그 밖에는 예전처럼 밀리며 바래 사라진다(쓰러짐 그림이 없는 보스는 예전 길이 BOSS_DEATH_LEGACY_MS로).
- * at = { enemy (그 몬스터의 자리, 없으면 그리지 않는다), playerPos, gridProj, now }. */
-function drawEnemyDeathFx(ctx, fx, t, at) {
-    const enemy = at.enemy;
-    if (!enemy) return;
-    const deathEnemy = enemy.enemy || {}, isBossDeath = !!(fx.boss || deathEnemy.isBoss), elite = !!fx.elite;
-    const legacyT = isBossDeath ? Math.min(1, t * fx.duration / BOSS_DEATH_LEGACY_MS) : t;
-    const deathMotion = getEnemyDeathMotion(enemy, at.playerPos, legacyT, isBossDeath, elite);
-    if (uiDisplay.reducedEffects()) Object.assign(deathMotion, { x: enemy.x, y: enemy.y, scaleX: 1, scaleY: 1, impactAlpha: 0 });
-    drawEnemyDeathGroundReaction(ctx, enemy, deathMotion, fx.color, isBossDeath, elite);
-    drawEnemyDeathContactFlash(ctx, enemy, deathMotion, fx.color, isBossDeath, elite);
-    if (!(isBossDeath && drawBossDefeat(ctx, fx, t, at))) drawEnemyDeathAfterimage(ctx, fx, deathMotion, at);
-    worldTreeSkillFx.feedback.death(ctx, fx, legacyT, enemy);
-}
-
-/** 스토리 보스의 쓰러짐 그림(js/canvas-stage-roster.js drawDeath): 서 있던 자리에서 쓰러져 누운 채 머물다 끝에서 흐려진다. 다시 일어나는
- * 보스(js/canvas-stage-story.js revive, 액트 2 부제녀)는 쓰러짐 뒤에 일어나는 그림을 잇고 선 채로 흐려진다. 그림이 없으면 false. */
-function drawBossDefeat(ctx, fx, t, at) {
-    const enemy = at.enemy, deathEnemy = enemy.enemy || {}, rise = stageStory.revive(deathEnemy);
-    const fadeFrom = rise ? rise.fadeFrom / rise.total : BOSS_DEFEAT_FADE_FROM;
-    const p = { x: enemy.x, y: enemy.y, tile: at.gridProj && at.gridProj.tileW, now: at.now,
-        facing: resolveEnemyFacingDirection(enemy, at.playerPos), deathMs: t * fx.duration, spawnScale: getBossDrawScale(deathEnemy) };
-    ctx.save();
-    ctx.globalAlpha = t < fadeFrom ? 1 : Math.max(0, (1 - t) / (1 - fadeFrom));
-    const drawn = (rise && p.deathMs >= rise.start && stageStory.drawRevive(ctx, deathEnemy, p, rise)) || stageRoster.drawDeath(ctx, deathEnemy, p);
     ctx.restore();
-    return drawn;
-}
+  }
 
-/** 예전 사라짐: 맞은 쪽으로 조금 밀리며 바래고 흐려지는 잔상. */
-function drawEnemyDeathAfterimage(ctx, fx, deathMotion, at) {
-    const enemy = at.enemy, deathEnemy = enemy.enemy || {}, isBossDeath = !!(fx.boss || deathEnemy.isBoss), dissolve = deathMotion.dissolve;
-    ctx.save();
-    ctx.globalAlpha = Math.pow(1 - dissolve, 1.62) * (isBossDeath ? 0.98 : (fx.elite ? 0.94 : 0.9));
-    ctx.translate(deathMotion.x, deathMotion.y);
-    ctx.scale(deathMotion.scaleX, deathMotion.scaleY);
-    ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + deathMotion.impactAlpha * 0.45 + dissolve * 0.16})`;
-    drawEnemyAfterimage(ctx, deathEnemy, { x: 0, y: 0, scale: isBossDeath ? 3.65 : (fx.elite ? 2.1 : 1.9), flash: deathMotion.impactAlpha > 0.45,
-        gridProj: at.gridProj, now: at.now, facing: resolveEnemyFacingDirection(enemy, at.playerPos) });
-    ctx.restore();
-}
-
-function getEnemyDeathMotion(enemyPos, playerPos, progress, boss, elite) {
-    let t = clampNumber(Number(progress) || 0, 0, 1);
-    let dx = Number(enemyPos && enemyPos.x) - Number(playerPos && playerPos.x);
-    let dy = Number(enemyPos && enemyPos.y) - Number(playerPos && playerPos.y);
-    let distance = Math.hypot(dx, dy);
-    if (!Number.isFinite(distance) || distance < 0.01) { dx = 1; dy = 0; distance = 1; }
-    let directionX = dx / distance;
-    let directionY = dy / distance;
-    let impactPhase = clampNumber(t / 0.16, 0, 1);
-    let knockbackDistance = boss ? 4 : (elite ? 6 : 8);
-    let knockback = (1 - Math.pow(1 - impactPhase, 3)) * knockbackDistance;
-    let dissolve = clampNumber((t - 0.08) / 0.92, 0, 1);
-    let uniformScale = 1 - dissolve * (boss ? 0.035 : 0.055);
-    return {
-        x: Number(enemyPos && enemyPos.x) + directionX * knockback,
-        y: Number(enemyPos && enemyPos.y) + directionY * knockback + dissolve * (boss ? 3 : 2),
-        scaleX: uniformScale,
-        scaleY: uniformScale,
-        directionX: directionX,
-        directionY: directionY,
-        dissolve: dissolve,
-        impactAlpha: Math.max(0, 1 - t / 0.18)
-    };
-}
-
-function drawEnemyDeathGroundReaction(ctx, enemy, motion, color, boss, elite) {
-    if (motion.impactAlpha <= 0) return;
-    let size = boss ? 27 : (elite ? 21 : 16);
-    ctx.save();
-    ctx.globalAlpha = motion.impactAlpha * (boss ? 0.34 : 0.24);
-    ctx.strokeStyle = color || '#d8d1c7';
-    ctx.lineWidth = boss ? 3 : 2;
-    ctx.beginPath();
-    ctx.ellipse(enemy.x, enemy.y + 12, size * (1.2 - motion.impactAlpha * 0.28), size * 0.3, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-}
-
-function drawEnemyDeathContactFlash(ctx, enemy, motion, color, boss, elite) {
-    if (motion.impactAlpha <= 0) return;
-    let reach = boss ? 24 : (elite ? 18 : 13);
-    let centerY = enemy.y - (boss ? 15 : (elite ? 11 : 8));
-    ctx.save();
-    ctx.translate(enemy.x, centerY);
-    ctx.rotate(Math.atan2(motion.directionY, motion.directionX) + Math.PI / 2);
-    ctx.globalAlpha = motion.impactAlpha * (boss ? 0.9 : 0.72);
-    ctx.strokeStyle = '#fff8de';
-    ctx.lineWidth = boss ? 3.2 : 2.2;
-    ctx.beginPath();
-    ctx.moveTo(-reach, 0);
-    ctx.lineTo(reach, 0);
-    ctx.moveTo(-reach * 0.42, -4);
-    ctx.lineTo(reach * 0.42, 4);
-    ctx.stroke();
-    ctx.globalAlpha *= 0.42;
-    ctx.strokeStyle = color || '#d8d1c7';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(-reach * 0.72, -5);
-    ctx.lineTo(reach * 0.72, 5);
-    ctx.stroke();
-    ctx.restore();
-}
-
-function getSkillGemVfxProfile(skillName) {
-    let profiles = typeof SKILL_GEM_VFX_PROFILES !== 'undefined' ? SKILL_GEM_VFX_PROFILES : null;
-    return profiles && profiles[skillName] ? profiles[skillName] : null;
-}
-
-function normalizeSkillGemVfxElement(element, accent) {
-    if (accent === 'blood') return 'blood';
-    let key = String(element || 'phys').toLowerCase();
-    if (key === 'lightning') return 'light';
-    if (key === 'physical') return 'phys';
-    return ['phys', 'fire', 'cold', 'light', 'chaos', 'blood'].includes(key) ? key : 'phys';
-}
-
-function getSkillProjectileVfxStyle(skillName, element) {
-    let profile = getSkillGemVfxProfile(skillName);
+  // modules/rendering/skill-effect-look.mjs
+  var SKILL_EFFECT_IMAGES = /* @__PURE__ */ Object.freeze({
+    whirlwind: "skillFxWhirlwind",
+    chainPrimary: "skillFxChainPrimary",
+    chain: "skillFxChainPrimary",
+    chainJump: "skillFxChainJump",
+    slamPrimary: "skillFxSlamPrimary",
+    slamAftershock: "skillFxSlamAftershock",
+    meteorProjectile: "skillFxMeteorProjectile",
+    meteorImpact: "skillFxMeteorImpact",
+    meteorGround: "skillFxMeteorGround",
+    slash: "skillFxContinuousSlash",
+    basicSlash: "skillFxBasicSlash",
+    continuousSlash: "skillFxDoubleSlash",
+    slam: "skillFxSlamPrimary",
+    projectile: "skillFxProjectile",
+    venomFang: "skillFxVenomFang",
+    frostField: "skillFxFrostField",
+    blizzardAmbient: "skillFxBlizzardAmbient",
+    blizzardImpact: "skillFxBlizzardImpact",
+    frostWave: "skillFxFrostWave",
+    chaosBoomerang: "skillFxChaosBoomerang",
+    frostBurst: "skillFxFrostBurst",
+    frostWaveRing: "skillFxFrostWaveRing",
+    burst: "skillFxImpactFlare",
+    radialWave: "skillFxRadialWave",
+    rune: "skillFxBurst",
+    dot: "skillFxDotField",
+    summon: "skillFxSummonStrike"
+  });
+  function vfxElement(element, accent) {
+    if (accent === "blood") return "blood";
+    const key = String(element || "phys").toLowerCase();
+    if (key === "lightning") return "light";
+    if (key === "physical") return "phys";
+    return ["phys", "fire", "cold", "light", "chaos", "blood"].includes(key) ? key : "phys";
+  }
+  function projectileStyle(profile, element) {
     if (profile && profile.projectileStyle) return profile.projectileStyle;
-    return normalizeSkillGemVfxElement(element, profile && profile.accent);
-}
+    return vfxElement(element, profile && profile.accent);
+  }
+  function skillEffectFilter(element, imageKey) {
+    const key = vfxElement(element);
+    if (imageKey === "skillFxChainPrimary" || imageKey === "skillFxChainJump") {
+      if (key === "light") return "none";
+      if (key === "chaos") return "hue-rotate(78deg) saturate(1.35) brightness(0.94)";
+    }
+    return {
+      fire: "sepia(0.65) saturate(3.2) hue-rotate(338deg) brightness(1.12)",
+      cold: "sepia(0.65) saturate(2.8) hue-rotate(155deg) brightness(1.18)",
+      light: "sepia(0.55) saturate(2.8) hue-rotate(172deg) brightness(1.2)",
+      chaos: "sepia(0.7) saturate(3.4) hue-rotate(232deg) brightness(1.08)",
+      blood: "sepia(0.8) saturate(4) hue-rotate(315deg) brightness(0.96)"
+    }[key] || "none";
+  }
+  function drawnEffectFilter(effect) {
+    return effect.family === "continuousSlash" || effect.skillName === "기본 공격" ? "none" : effect.filter;
+  }
+  function skillEffectBaseSize(family, stage) {
+    if (stage === "slamAftershock") return 132;
+    if (stage === "slamPrimary") return 104;
+    if (stage === "chainPrimary") return 82;
+    if (family === "whirlwind") return 118;
+    if (family === "projectile" || stage === "chainJump") return 44;
+    if (family === "dot") return 116;
+    if (family === "burst") return 94;
+    if (family === "summon") return 78;
+    return 82;
+  }
+  function skillEffectFamily(profile, stage) {
+    const family = profile && profile.family || "slash";
+    if (stage === "chainPrimary" && profile && profile.primaryFamily) return profile.primaryFamily;
+    if (stage === "chainJump") return "chain";
+    return family;
+  }
+  function skillEffectImage(family, stage) {
+    if (stage === "chainJump") return SKILL_EFFECT_IMAGES.chainJump;
+    if (stage === "slamPrimary") return SKILL_EFFECT_IMAGES.slamPrimary;
+    if (stage === "slamAftershock") return SKILL_EFFECT_IMAGES.slamAftershock;
+    if (family === "chain" && stage === "chainPrimary") return SKILL_EFFECT_IMAGES.chainPrimary;
+    if (family === "projectile") return SKILL_EFFECT_IMAGES.burst;
+    return SKILL_EFFECT_IMAGES[family] || null;
+  }
+  function patternImage(pattern, element) {
+    if (pattern === "mine") return SKILL_EFFECT_IMAGES.rune;
+    if (pattern === "field") return !element || element === "cold" ? SKILL_EFFECT_IMAGES.frostField : SKILL_EFFECT_IMAGES.dot;
+    if (pattern === "moving") return !element || element === "cold" ? SKILL_EFFECT_IMAGES.frostWave : SKILL_EFFECT_IMAGES.projectile;
+    if (pattern === "boomerang") return SKILL_EFFECT_IMAGES.chaosBoomerang;
+    return null;
+  }
+  function combatTravelImage(fx, profile) {
+    const element = fx.element ? vfxElement(fx.element) : null;
+    const config = profile || {};
+    const asset = SKILL_EFFECT_IMAGES[config.projectileAsset] || SKILL_EFFECT_IMAGES[config.combatAsset];
+    if (asset) return asset;
+    const pattern = patternImage(fx.patternKind, element);
+    if (pattern) return pattern;
+    if (fx.owner === "enemy" && fx.delivery === "magicCell") return "bossTelegraphPulse";
+    if (fx.delivery !== "magicCell") return SKILL_EFFECT_IMAGES.projectile;
+    return SKILL_EFFECT_IMAGES[config.family] || SKILL_EFFECT_IMAGES.burst;
+  }
+  function specializedTravelImage(key) {
+    return [
+      SKILL_EFFECT_IMAGES.frostField,
+      SKILL_EFFECT_IMAGES.frostWave,
+      SKILL_EFFECT_IMAGES.chaosBoomerang,
+      SKILL_EFFECT_IMAGES.venomFang
+    ].includes(key);
+  }
 
-function drawPolygonPath(ctx, points) {
+  // modules/rendering/skill-effect-queue.mjs
+  function effectScale(profile, viewportScale) {
+    return Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
+  }
+  function repeatsFor(profile, density) {
+    const repeats = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
+    return density < 0.84 ? 1 : repeats;
+  }
+  function targetKey(target) {
+    if (target && target.enemy && target.enemy.id != null) return `enemy:${target.enemy.id}`;
+    return `cell:${Math.round(Number(target && target.x) || 0)}:${Math.round(Number(target && target.y) || 0)}`;
+  }
+  function reuseStormImpact(list, profile, fx, target, now) {
+    const key = targetKey(target);
+    const active = list.filter((effect) => effect && effect.family === "stormStrike" && effect.skillName === fx.skillName && now - effect.startAt <= effect.duration);
+    let reusable = active.find((effect) => effect.targetKey === key);
+    const cap = Math.max(1, Math.floor(Number(profile.maxActiveImpacts) || 4));
+    if (!reusable && active.length >= cap) {
+      reusable = active.reduce((oldest, effect) => effect.startAt < oldest.startAt ? effect : oldest);
+    }
+    if (!reusable) return false;
+    Object.assign(reusable, {
+      targetKey: key,
+      startAt: now,
+      x: target.x,
+      y: target.y - 5,
+      seed: Math.max(1, Number(fx.id) || 1)
+    });
+    return true;
+  }
+  function hitSpark(fx, profile, target, now) {
+    const element = vfxElement(fx.element, profile.accent);
+    return {
+      family: "hitSpark",
+      skillName: fx.skillName,
+      imageKey: SKILL_EFFECT_IMAGES.burst,
+      startAt: now,
+      duration: 130,
+      x: target.x,
+      y: target.y,
+      size: 24,
+      alpha: 0.64,
+      rotation: (Number(fx.id) || 0) * 0.7,
+      seed: Number(fx.id) || 1,
+      filter: skillEffectFilter(element, SKILL_EFFECT_IMAGES.burst)
+    };
+  }
+  function hitOrigin(fx, scene, ghosts) {
+    const source = scene.playerPos || { x: scene.enemyPos.x - 70, y: scene.enemyPos.y };
+    if (String(fx.stageKind || "primary") !== "chainJump" || fx.chainFromEnemyId == null) return source;
+    return scene.enemyPosMap && scene.enemyPosMap[fx.chainFromEnemyId] || ghosts && ghosts[fx.chainFromEnemyId] || source;
+  }
+  function hitDuration(family, connector2) {
+    if (family === "dot") return 720;
+    if (family === "whirlwind") return 260;
+    return connector2 ? 170 : 300;
+  }
+  function hitAlpha(family, crowded) {
+    if (family === "dot") return 0.4;
+    if (family === "whirlwind") return 0.62;
+    return crowded ? 0.58 : 0.82;
+  }
+  function hitGeometry(fx, layout, offset) {
+    const { family, connector: connector2, source, target, seed } = layout;
+    const baseRotation = Math.atan2(target.y - source.y, target.x - source.x);
+    let rotation = connector2 ? baseRotation : baseRotation + Math.PI * 0.28 + offset * 0.16;
+    if (family === "whirlwind") rotation = (Number(fx.stageIndex) || 0) * (Math.PI / 4) + seed * 0.031;
+    return {
+      x: family === "whirlwind" ? source.x : target.x + (connector2 ? 0 : offset * 5),
+      y: family === "whirlwind" ? source.y - 3 : target.y - (connector2 ? 8 : 5) + Math.abs(offset) * 2,
+      fromX: source.x + (family === "projectile" ? 15 : 0),
+      fromY: source.y - (family === "projectile" ? 18 : 7),
+      toX: target.x,
+      toY: target.y - 8,
+      connector: connector2,
+      rotation
+    };
+  }
+  function hitEffect(fx, profile, layout, repeat) {
+    const { family, stageKind, imageKey, now, crowded, scale, seed } = layout;
+    const offset = repeat - (layout.repeats - 1) / 2;
+    const element = vfxElement(fx.element, profile.accent);
+    return {
+      skillName: fx.skillName,
+      vfxGroupId: fx.damageTextGroupId || "",
+      repeatIndex: Number(fx.repeatIndex) || 0,
+      element,
+      family,
+      footprint: fx.footprint,
+      stageKind,
+      imageKey,
+      startAt: now + repeat * 44,
+      duration: hitDuration(family, layout.connector),
+      ...hitGeometry(fx, layout, offset),
+      size: skillEffectBaseSize(family, stageKind) * scale * (1 - Math.abs(offset) * 0.08),
+      alpha: hitAlpha(family, crowded),
+      filter: skillEffectFilter(element, imageKey),
+      seed: seed + repeat * 17,
+      targetKey: family === "stormStrike" ? targetKey(layout.target) : ""
+    };
+  }
+  function projectileTargets(entries, positions, source, skill, density) {
+    let targets = (entries || []).map((entry) => {
+      const id = entry && entry.enemy ? entry.enemy.id : null;
+      return id == null ? null : positions[id];
+    }).filter(Boolean);
+    if (skill.targetMode === "chain") return targets.slice(0, 1);
+    if (skill.targetMode === "pierce") {
+      targets.sort((a, b) => Math.hypot(a.x - source.x, a.y - source.y) - Math.hypot(b.x - source.x, b.y - source.y));
+      return targets.length > 0 ? [targets[targets.length - 1]] : [];
+    }
+    const cap = skill.projectilePattern && skill.projectilePattern.kind === "fan" ? 8 : 4;
+    return targets.slice(0, Math.max(2, Math.round(cap * density)));
+  }
+  function projectileTiming(fx, piercePath, entries) {
+    const impactAt = Number(fx.impactAt) || fx.start + fx.duration;
+    const count = piercePath ? Math.max(1, Math.min(12, (entries || []).length)) : 1;
+    return {
+      arriveAt: impactAt + (piercePath ? (count - 1) * 30 : 0),
+      releaseAt: Math.max(fx.start + 80, impactAt - 82)
+    };
+  }
+  function projectileGeometry(source, target, lane) {
+    return {
+      fromX: source.x + 13,
+      fromY: source.y - 20 + lane,
+      toX: target.x,
+      toY: target.y - 9 + lane,
+      rotation: Math.atan2(target.y - 9 + lane - (source.y - 20 + lane), target.x - (source.x + 13))
+    };
+  }
+  function projectileEffect(fx, profile, layout, target, index) {
+    const { targetIndex, repeat } = index;
+    const { imageKey, imageProjectile, arriveAt, piercePath } = layout;
+    const startAt = Math.min(arriveAt - 58, layout.releaseAt + repeat * 20);
+    const lane = (repeat - (layout.repeats - 1) / 2) * 4;
+    const element = vfxElement(fx.element, profile.accent);
+    return {
+      skillName: fx.skillName,
+      element,
+      projectileStyle: projectileStyle(profile, fx.element),
+      family: "projectile",
+      stageKind: "projectileTravel",
+      imageKey,
+      imageProjectile,
+      projectileWidth: Number(profile.projectileWidth) || 58,
+      projectileHeight: Number(profile.projectileHeight) || 26,
+      startAt,
+      arriveAt,
+      duration: Math.max(70, arriveAt - startAt),
+      ...projectileGeometry(layout.source, target, lane),
+      travel: true,
+      piercePath,
+      connector: false,
+      size: skillEffectBaseSize("projectile", "projectileTravel") * layout.scale * (1 - targetIndex * 0.035),
+      alpha: imageProjectile ? 0.94 : piercePath ? 0.78 : 0.72,
+      filter: profile.projectileAsset ? "none" : skillEffectFilter(element, imageKey),
+      seed: Math.max(1, Number(fx.id) || 1) + targetIndex * 19 + repeat * 7
+    };
+  }
+  var SkillEffectQueue = class {
+    constructor(deps, timing2) {
+      this.deps = deps;
+      this.timing = timing2;
+    }
+    list() {
+      const visual = this.deps.visual();
+      return visual.skillEffects || (visual.skillEffects = []);
+    }
+    matchingTravel(skillName, now) {
+      return (this.deps.visual().skillEffects || []).some((effect) => effect && effect.travel && effect.skillName === skillName && Math.abs((Number(effect.arriveAt) || 0) - now) <= 150);
+    }
+    groupSize(fx, stageKind) {
+      if (!fx || !fx.damageTextGroupId) return 0;
+      return (this.deps.effects() || []).reduce((count, row) => count + (row && row.type === "hit" && row.damageTextGroupId === fx.damageTextGroupId && row.skillName === fx.skillName && String(row.stageKind || "primary") === stageKind ? 1 : 0), 0);
+    }
+    merge(list, fx, profile, target, now) {
+      if (!fx.damageTextGroupId) return false;
+      if (!["slash", "slam", "whirlwind", "burst", "dot", "charge"].includes(profile.family)) return false;
+      list.push(hitSpark(fx, this.deps.profile(fx.skillName), target, now));
+      if (fx.stageKind === "earthSpikes") return true;
+      this.timing.trim(list);
+      if (["burst", "dot"].includes(profile.family) && this.deps.delivery(this.deps.skills[fx.skillName]) === "magicCell") return true;
+      return !!list.find((effect) => effect.vfxGroupId === fx.damageTextGroupId && effect.skillName === fx.skillName && effect.repeatIndex === (Number(fx.repeatIndex) || 0) && effect.stageKind === String(fx.stageKind || "primary"));
+    }
+    continuous(list, fx, scene) {
+      queueContinuousSlashVfx(list, fx, {
+        source: scene.playerPos || { x: scene.enemyPos.x - 70, y: scene.enemyPos.y },
+        target: scene.enemyPos
+      }, { now: scene.now, scale: scene.viewportScale || 1 });
+      this.timing.trim(list);
+    }
+    stageHit(fx, scene) {
+      const { enemyPos, playerPos, enemyPosMap, now } = scene;
+      if (this.deps.rules) this.deps.rules.hit(fx, enemyPosMap);
+      if (!this.deps.tree.queueHit(fx, enemyPos, playerPos || enemyPos, now)) return false;
+      this.timing.trim(this.deps.visual().skillEffects);
+      return true;
+    }
+    hit(fx, scene) {
+      if (!fx || fx.dot || !fx.skillName) return;
+      if (this.stageHit(fx, scene)) return;
+      const profile = this.deps.profile(fx.skillName);
+      if (!profile) return;
+      const stageKind = String(fx.stageKind || "primary");
+      if (profile.impactVfx === false || stageKind.startsWith("meteor")) return;
+      this.profileHit(fx, scene, profile, stageKind);
+    }
+    profileHit(fx, scene, profile, stageKind) {
+      const list = this.list();
+      if (profile.family === "continuousSlash") {
+        this.continuous(list, fx, scene);
+        return;
+      }
+      const crowded = this.groupSize(fx, stageKind) >= 5;
+      const family = skillEffectFamily(profile, stageKind);
+      if (profile.family === "projectile" && stageKind !== "chainJump" && this.matchingTravel(fx.skillName, scene.now)) return;
+      if (this.merge(list, fx, profile, scene.enemyPos, scene.now)) return;
+      const layout = this.hitLayout(fx, profile, scene, { family, stageKind, crowded });
+      if (family === "stormStrike" && reuseStormImpact(list, profile, fx, layout.target, scene.now)) return;
+      for (let repeat = 0; repeat < layout.repeats; repeat++) list.push(hitEffect(fx, profile, layout, repeat));
+      this.timing.trim(list);
+    }
+    hitLayout(fx, profile, scene, kind) {
+      const { family, stageKind, crowded } = kind;
+      const source = hitOrigin(fx, scene, this.deps.visual().enemyGhostPos);
+      const target = scene.enemyPos || { x: source.x + 70, y: source.y };
+      let scale = effectScale(profile, scene.viewportScale);
+      if (target.enemy && target.enemy.isBoss) scale *= 1.08;
+      if (crowded) scale *= 0.82;
+      let repeats = repeatsFor(profile, this.timing.density());
+      if (crowded || family === "whirlwind" || ["chainJump", "slamAftershock", "slamPrimary"].includes(stageKind)) repeats = 1;
+      return {
+        ...kind,
+        source,
+        target,
+        scale,
+        repeats,
+        now: scene.now,
+        connector: stageKind === "chainJump",
+        imageKey: fx.skillName === "기본 공격" ? "skillFxBasicSlash" : skillEffectImage(family, stageKind),
+        seed: Math.max(1, Number(fx.id) || 1)
+      };
+    }
+    launch(fx, scene) {
+      if (!fx || fx.skillProjectileQueued || !fx.projectile || !fx.skillName) return;
+      fx.skillProjectileQueued = true;
+      const profile = this.deps.profile(fx.skillName);
+      if (!profile || profile.family !== "projectile") return;
+      const skill = this.deps.skills && this.deps.skills[fx.skillName] || {};
+      const density = this.timing.density();
+      const targets = projectileTargets(scene.targetEntries, scene.enemyPosMap, scene.playerPos, skill, density);
+      if (targets.length <= 0) return;
+      this.launchTargets(fx, scene, profile, targets, { skill, density });
+    }
+    launchTargets(fx, scene, profile, targets, settings) {
+      const piercePath = settings.skill.targetMode === "pierce";
+      const layout = {
+        ...projectileTiming(fx, piercePath, scene.targetEntries),
+        piercePath,
+        source: scene.playerPos,
+        imageKey: SKILL_EFFECT_IMAGES[profile.projectileAsset] || SKILL_EFFECT_IMAGES.projectile,
+        imageProjectile: !profile.projectileStyle,
+        scale: effectScale(profile, scene.viewportScale),
+        repeats: repeatsFor(profile, settings.density)
+      };
+      const list = this.list();
+      targets.forEach((target, targetIndex) => {
+        for (let repeat = 0; repeat < layout.repeats; repeat++) {
+          list.push(projectileEffect(fx, profile, layout, target, { targetIndex, repeat }));
+        }
+      });
+      this.timing.trim(list);
+    }
+  };
+
+  // modules/rendering/element-projectile.mjs
+  function polygon(ctx, points) {
     if (!points.length) return;
     ctx.beginPath();
     ctx.moveTo(points[0][0], points[0][1]);
-    points.slice(1).forEach(point => ctx.lineTo(point[0], point[1]));
+    points.slice(1).forEach((point) => ctx.lineTo(point[0], point[1]));
     ctx.closePath();
-}
-
-function drawElementProjectileVfx(ctx, style, width, height, progress) {
-    let color = getElementColor(style === 'shield' ? 'phys' : style);
-    ctx.filter = 'none';
+  }
+  function fire(ctx, width, height) {
+    polygon(ctx, [[-width * 0.54, 0], [-width * 0.12, -height * 0.38], [width * 0.18, 0], [-width * 0.12, height * 0.38]]);
+    ctx.globalAlpha *= 0.52;
+    ctx.fill();
+    ctx.globalAlpha /= 0.52;
+    ctx.beginPath();
+    ctx.arc(width * 0.2, 0, height * 0.31, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  function cold(ctx, width, height) {
+    polygon(ctx, [[-width * 0.46, 0], [width * 0.08, -height * 0.22], [width * 0.5, 0], [width * 0.08, height * 0.22]]);
+    ctx.fill();
+    ctx.strokeStyle = "#e9fbff";
+    ctx.stroke();
+  }
+  function light(ctx, width, height, progress) {
+    ctx.beginPath();
+    for (let step = 0; step <= 6; step++) {
+      const x = -width * 0.5 + width * step / 6;
+      const y = step === 0 || step === 6 ? 0 : (step + Math.floor(progress * 8)) % 2 ? -height * 0.24 : height * 0.24;
+      if (step === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = "#f8f2a0";
+    ctx.stroke();
+  }
+  function chaos(ctx, width, height) {
+    ctx.beginPath();
+    ctx.arc(0, 0, height * 0.38, -2.35, 2.35);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-width * 0.45, 0);
+    ctx.lineTo(width * 0.42, 0);
+    ctx.stroke();
+  }
+  function shield(ctx, height, progress) {
+    const radius = height * 0.42;
+    const points = Array.from({ length: 8 }, (_, index) => {
+      const angle = index * Math.PI / 4 + progress * Math.PI * 3;
+      return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+    });
+    polygon(ctx, points);
+    ctx.globalAlpha *= 0.56;
+    ctx.fill();
+    ctx.globalAlpha /= 0.56;
+    ctx.stroke();
+  }
+  function paintElementProjectile(ctx, pose, color) {
+    const { style, width, height, progress } = pose;
+    ctx.filter = "none";
     ctx.shadowBlur = 0;
     ctx.fillStyle = color;
     ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(1.5, height * 0.09);
-    if (style === 'fire') {
-        drawPolygonPath(ctx, [[-width * 0.54, 0], [-width * 0.12, -height * 0.38], [width * 0.18, 0], [-width * 0.12, height * 0.38]]);
-        ctx.globalAlpha *= 0.52;
-        ctx.fill();
-        ctx.globalAlpha /= 0.52;
-        ctx.beginPath(); ctx.arc(width * 0.2, 0, height * 0.31, 0, Math.PI * 2); ctx.fill();
-    } else if (style === 'cold') {
-        drawPolygonPath(ctx, [[-width * 0.46, 0], [width * 0.08, -height * 0.22], [width * 0.5, 0], [width * 0.08, height * 0.22]]);
-        ctx.fill(); ctx.strokeStyle = '#e9fbff'; ctx.stroke();
-    } else if (style === 'light') {
-        ctx.beginPath();
-        for (let step = 0; step <= 6; step++) {
-            let x = -width * 0.5 + width * step / 6;
-            let y = step === 0 || step === 6 ? 0 : ((step + Math.floor(progress * 8)) % 2 ? -height * 0.24 : height * 0.24);
-            if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = '#f8f2a0'; ctx.stroke();
-    } else if (style === 'chaos') {
-        ctx.beginPath(); ctx.arc(0, 0, height * 0.38, -2.35, 2.35); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-width * 0.45, 0); ctx.lineTo(width * 0.42, 0); ctx.stroke();
-    } else if (style === 'shield') {
-        let radius = height * 0.42;
-        let points = Array.from({ length: 8 }, (_, index) => {
-            let angle = index * Math.PI / 4 + progress * Math.PI * 3;
-            return [Math.cos(angle) * radius, Math.sin(angle) * radius];
-        });
-        drawPolygonPath(ctx, points); ctx.globalAlpha *= 0.56; ctx.fill(); ctx.globalAlpha /= 0.56; ctx.stroke();
-    } else {
-        drawPolygonPath(ctx, [[-width * 0.48, -height * 0.08], [width * 0.22, -height * 0.08], [width * 0.5, 0], [width * 0.22, height * 0.08], [-width * 0.48, height * 0.08]]);
-        ctx.fill();
+    if (style === "fire") fire(ctx, width, height);
+    else if (style === "cold") cold(ctx, width, height);
+    else if (style === "light") light(ctx, width, height, progress);
+    else if (style === "chaos") chaos(ctx, width, height);
+    else if (style === "shield") shield(ctx, height, progress);
+    else {
+      polygon(ctx, [[-width * 0.48, -height * 0.08], [width * 0.22, -height * 0.08], [width * 0.5, 0], [width * 0.22, height * 0.08], [-width * 0.48, height * 0.08]]);
+      ctx.fill();
     }
     ctx.shadowBlur = 0;
-}
+  }
 
-function getSkillGemVfxFilter(element, imageKey) {
-    let key = normalizeSkillGemVfxElement(element);
-    if (imageKey === 'skillFxChainPrimary' || imageKey === 'skillFxChainJump') {
-        if (key === 'light') return 'none';
-        if (key === 'chaos') return 'hue-rotate(78deg) saturate(1.35) brightness(0.94)';
+  // modules/rendering/skill-effect-layer.mjs
+  function fadeAt(effect, progress) {
+    if (effect.travel) return Math.min(1, progress / 0.12) * Math.min(1, (1 - progress) / 0.1);
+    if (effect.family === "dot") return Math.min(1, progress / 0.16) * Math.min(1, (1 - progress) / 0.28);
+    return Math.min(1, progress / 0.045) * Math.pow(1 - progress, 1.1);
+  }
+  function connector(ctx, effect, image, progress) {
+    const reveal = Math.min(1, progress / 0.22);
+    const fromX = effect.toX + (effect.fromX - effect.toX) * reveal;
+    const fromY = effect.toY + (effect.fromY - effect.toY) * reveal;
+    const dx = effect.toX - fromX, dy = effect.toY - fromY;
+    const length = Math.max(8, Math.hypot(dx, dy));
+    const thickness = Math.max(12, effect.size * (0.36 + Math.sin(progress * Math.PI) * 0.12));
+    ctx.translate((fromX + effect.toX) / 2, (fromY + effect.toY) / 2);
+    ctx.rotate(Math.atan2(dy, dx));
+    if (image) ctx.drawImage(image, -length / 2, -thickness / 2, length, thickness);
+  }
+  var SkillEffectLayer = class {
+    constructor(deps, images2, impacts2) {
+      this.deps = deps;
+      this.images = images2;
+      this.impacts = impacts2;
     }
-    return ({
-        fire: 'sepia(0.65) saturate(3.2) hue-rotate(338deg) brightness(1.12)',
-        cold: 'sepia(0.65) saturate(2.8) hue-rotate(155deg) brightness(1.18)',
-        light: 'sepia(0.55) saturate(2.8) hue-rotate(172deg) brightness(1.2)',
-        chaos: 'sepia(0.7) saturate(3.4) hue-rotate(232deg) brightness(1.08)',
-        blood: 'sepia(0.8) saturate(4) hue-rotate(315deg) brightness(0.96)'
-    })[key] || 'none';
-}
-
-/**
- * Set ctx.filter for one image draw and return the image to draw. A loaded image gets a cached
- * pre-filtered copy (ctx.filter becomes 'none'); a missing image keeps the live filter so the
- * procedural fallback is tinted as before.
- * @param {CanvasRenderingContext2D} ctx
- * @param {CanvasImageSource|null} image
- * @param {string} filter CSS filter string or 'none'.
- */
-function useFilteredVfxImage(ctx, image, filter) {
-    filter = filter || 'none';
-    if (!image || filter === 'none' || !image.width || !image.height) {
-        ctx.filter = filter;
-        return image;
+    noteGround(list, projection) {
+      const origin = projection.cellToScreen(0, 0);
+      for (const effect of list) {
+        if (effect.spawnGround || this.deps.atlas[effect.skillName] || effect.family !== "slash" && effect.family !== "hitSpark") continue;
+        effect.spawnGround = { x: origin.x, y: origin.y, tileW: projection.tileW, tileH: projection.tileH };
+      }
     }
-    let byFilter = filteredVfxImageCache.get(image);
-    if (!byFilter) filteredVfxImageCache.set(image, byFilter = new Map());
-    let baked = byFilter.get(filter);
-    if (!baked) {
-        baked = document.createElement('canvas');
-        baked.width = image.width;
-        baked.height = image.height;
-        let bakeCtx = baked.getContext('2d');
-        bakeCtx.filter = filter;
-        bakeCtx.drawImage(image, 0, 0);
-        byFilter.set(filter, baked);
+    followGround(ctx, projection, effect, now) {
+      const anchor = effect.spawnGround;
+      if (!anchor || anchor.tileW !== projection.tileW || anchor.tileH !== projection.tileH) return this.effect(ctx, effect, now);
+      const origin = projection.cellToScreen(0, 0);
+      if (origin.x === anchor.x && origin.y === anchor.y) return this.effect(ctx, effect, now);
+      ctx.save();
+      ctx.translate(origin.x - anchor.x, origin.y - anchor.y);
+      try {
+        this.effect(ctx, effect, now);
+      } finally {
+        ctx.restore();
+      }
     }
-    ctx.filter = 'none';
-    return baked;
-}
-
-/** Sword-slash sprites clear ctx.filter themselves, so their effect.filter never tinted them. */
-function getDrawnSkillEffectFilter(effect) {
-    return effect.family === 'continuousSlash' || effect.skillName === '기본 공격' ? 'none' : effect.filter;
-}
-
-function getSkillGemVfxBaseSize(family, stageKind) {
-    if (stageKind === 'slamAftershock') return 132;
-    if (stageKind === 'slamPrimary') return 104;
-    if (stageKind === 'chainPrimary') return 82;
-    if (family === 'whirlwind') return 118;
-    if (family === 'projectile' || stageKind === 'chainJump') return 44;
-    if (family === 'dot') return 116;
-    if (family === 'burst') return 94;
-    if (family === 'summon') return 78;
-    return 82;
-}
-
-function getSkillGemVfxStageFamily(profile, stageKind) {
-    let family = (profile && profile.family) || 'slash';
-    if (stageKind === 'chainPrimary' && profile && profile.primaryFamily) return profile.primaryFamily;
-    if (stageKind === 'chainJump') return 'chain';
-    return family;
-}
-
-function hasMatchingTravelProjectile(skillName, now) {
-    return (battleVisualState.skillEffects || []).some(effect => effect
-        && effect.travel
-        && effect.skillName === skillName
-        && Math.abs((Number(effect.arriveAt) || 0) - now) <= 150);
-}
-
-function reuseStormStrikeImpact(list, profile, fx, target, now) {
-    let targetKey = target && target.enemy && target.enemy.id != null
-        ? `enemy:${target.enemy.id}`
-        : `cell:${Math.round(Number(target && target.x) || 0)}:${Math.round(Number(target && target.y) || 0)}`;
-    let active = list.filter(effect => effect && effect.family === 'stormStrike'
-        && effect.skillName === fx.skillName && now - effect.startAt <= effect.duration);
-    let reusable = active.find(effect => effect.targetKey === targetKey);
-    let cap = Math.max(1, Math.floor(Number(profile.maxActiveImpacts) || 4));
-    if (!reusable && active.length >= cap) {
-        reusable = active.reduce((oldest, effect) => effect.startAt < oldest.startAt ? effect : oldest);
+    draw(ctx, now, projection) {
+      this.deps.remake.begin(ctx, projection);
+      this.deps.tree.castFrame(ctx, projection, "foreground");
+      const list = this.deps.effects() || [];
+      this.deps.tree.drawQueued(ctx, list, now, "foreground");
+      if (this.deps.stage) {
+        this.deps.stage.draw(ctx, "top", projection);
+        this.deps.sigil.draw(ctx, projection);
+      }
+      this.deps.bossMoves.drawAir(ctx, projection);
+      list.forEach((effect) => this.followGround(ctx, projection, effect, now));
     }
-    if (!reusable) return false;
-    reusable.targetKey = targetKey;
-    reusable.startAt = now;
-    reusable.x = target.x;
-    reusable.y = target.y - 5;
-    reusable.seed = Math.max(1, Number(fx.id) || 1);
-    return true;
-}
-
-function getBattleHitVfxGroupSize(fx, stageKind) {
-    if (!fx || !fx.damageTextGroupId) return 0;
-    return (battleFx || []).reduce((count, row) => count + (row
-        && row.type === 'hit'
-        && row.damageTextGroupId === fx.damageTextGroupId
-        && row.skillName === fx.skillName
-        && String(row.stageKind || 'primary') === stageKind ? 1 : 0), 0);
-}
-
-function getSkillGemVfxStageImageKey(family, stageKind) {
-    if (stageKind === 'chainJump') return SKILL_GEM_VFX_IMAGE_KEYS.chainJump;
-    if (stageKind === 'slamPrimary') return SKILL_GEM_VFX_IMAGE_KEYS.slamPrimary;
-    if (stageKind === 'slamAftershock') return SKILL_GEM_VFX_IMAGE_KEYS.slamAftershock;
-    if (family === 'chain' && stageKind === 'chainPrimary') return SKILL_GEM_VFX_IMAGE_KEYS.chainPrimary;
-    if (family === 'projectile') return SKILL_GEM_VFX_IMAGE_KEYS.burst;
-    // 전용 절삭·낙뢰·돌진은 이미지가 아닌 아래의 절차적 렌더러가 소유한다.
-    return SKILL_GEM_VFX_IMAGE_KEYS[family] || null;
-}
-
-/** One small contact per victim; the enclosing cast retains its own geometry. */
-function queueSkillHitSpark(list, fx, target, now) {
-    let profile = getSkillGemVfxProfile(fx.skillName);
-    let element = normalizeSkillGemVfxElement(fx.element, profile.accent);
-    list.push({ family: 'hitSpark', skillName: fx.skillName, imageKey: SKILL_GEM_VFX_IMAGE_KEYS.burst,
-        startAt: now, duration: 130, x: target.x, y: target.y, size: 24, alpha: 0.64,
-        rotation: (Number(fx.id) || 0) * 0.7, seed: Number(fx.id) || 1,
-        filter: getSkillGemVfxFilter(element, SKILL_GEM_VFX_IMAGE_KEYS.burst) });
-}
-
-/** Merge only confirmed victims of the same combat stage and real repeat. */
-function mergeSkillCastVfx(list, fx, profile, target, now) {
-    if (!fx.damageTextGroupId) return false;
-    if (!['slash', 'slam', 'whirlwind', 'burst', 'dot', 'charge'].includes(profile.family)) return false;
-    queueSkillHitSpark(list, fx, target, now);
-    if (fx.stageKind === 'earthSpikes') return true;
-    trimBattleSkillEffects(list);
-    // Area spells already have one cast image in the combat-travel layer.
-    if (['burst', 'dot'].includes(profile.family) && getSkillCombatDelivery(SKILL_DB[fx.skillName]) === 'magicCell') return true;
-    let cast = list.find(effect => effect.vfxGroupId === fx.damageTextGroupId
-        && effect.skillName === fx.skillName && effect.repeatIndex === (Number(fx.repeatIndex) || 0)
-        && effect.stageKind === String(fx.stageKind || 'primary'));
-    if (!cast) return false;
-    return true;
-}
-
-function queueSkillGemVfx(fx, enemyPos, playerPos, enemyPosMap, now, viewportScale) {
-    if (!fx || fx.dot || !fx.skillName) return;
-    // 옆에서 보는 무대의 새 스킬 이펙트: 맞은 적마다의 타격 클립과 연쇄 번개(js/canvas-stage-skill-rules.js).
-    if (typeof stageSkillRules === 'object') stageSkillRules.hit(fx, enemyPosMap);
-    if (worldTreeSkillFx.queueHit(fx, enemyPos, playerPos || enemyPos, now)) {
-        trimBattleSkillEffects(battleVisualState.skillEffects);
+    effect(ctx, effect, now) {
+      const image = this.deps.image(effect.imageKey);
+      const elapsed = now - effect.startAt;
+      if (elapsed < 0 || elapsed > effect.duration) return;
+      const progress = clampNumber(elapsed / Math.max(1, effect.duration), 0, 1);
+      if (this.deps.atlas[effect.skillName]) return;
+      if (this.impacts.footprint(ctx, effect, image, progress)) return;
+      if (effect.family === "continuousSlash") {
+        drawSwordSlashVfx(ctx, effect, image, progress);
         return;
+      }
+      this.paint(ctx, effect, image, progress);
     }
-    let profile = getSkillGemVfxProfile(fx.skillName);
-    if (!profile) return;
-    let stageKind = String(fx.stageKind || 'primary');
-    if (profile.impactVfx === false || stageKind.startsWith('meteor')) return;
-    let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
-    if (profile.family === 'continuousSlash') {
-        queueContinuousSlashVfx(list, fx, { source: playerPos || { x: enemyPos.x - 70, y: enemyPos.y }, target: enemyPos }, { now, scale: viewportScale || 1 });
-        trimBattleSkillEffects(list);
+    paint(ctx, effect, image, progress) {
+      const imageProjectile = !!(effect.travel && effect.imageProjectile);
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fadeAt(effect, progress), 0, imageProjectile ? 0.94 : 0.82);
+      image = this.images.use(ctx, image, imageProjectile ? "none" : drawnEffectFilter(effect));
+      ctx.imageSmoothingEnabled = false;
+      if (effect.travel) this.travel(ctx, effect, image, progress, imageProjectile);
+      else if (effect.connector) connector(ctx, effect, image, progress);
+      else if (image || effect.skillName === "기본 공격") this.impacts.image(ctx, image, effect, progress);
+      else this.impacts.procedural(ctx, effect, progress);
+      ctx.restore();
+    }
+    travel(ctx, effect, image, progress, imageProjectile) {
+      const x = effect.fromX + (effect.toX - effect.fromX) * progress;
+      const y = effect.fromY + (effect.toY - effect.fromY) * progress;
+      const width = imageProjectile ? effect.projectileWidth : effect.size * 1.52;
+      const height = imageProjectile ? effect.projectileHeight : effect.size * 0.52;
+      ctx.translate(x, y);
+      ctx.rotate(effect.rotation || 0);
+      if (imageProjectile && image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
+      else {
+        const style = effect.projectileStyle || effect.element;
+        paintElementProjectile(ctx, { style, width, height, progress }, this.deps.color(style === "shield" ? "phys" : style));
+      }
+    }
+  };
+
+  // modules/rendering/skill-impact.mjs
+  function drawIaiSkillVfx(ctx, effect, progress) {
+    let length = Math.max(54, Math.hypot(effect.toX - effect.fromX, effect.toY - effect.fromY));
+    let reveal = 0.65 + Math.min(1, progress / 0.18) * 0.35;
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate(effect.rotation || 0);
+    ctx.strokeStyle = effect.element === "chaos" ? "#d88cff" : "#f5f7ff";
+    ctx.lineWidth = Math.max(2, effect.size * 0.045);
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.moveTo(-length * 0.55 * reveal, 0);
+    ctx.lineTo(length * 0.55 * reveal, 0);
+    ctx.stroke();
+    ctx.globalAlpha *= 0.34;
+    ctx.beginPath();
+    ctx.moveTo(-length * 0.42, 6);
+    ctx.lineTo(length * 0.48, -4);
+    ctx.stroke();
+  }
+  function drawStormStrikeVfx(ctx, effect, progress) {
+    let height = Math.max(70, effect.size * 1.15);
+    ctx.translate(effect.x, effect.y);
+    ctx.strokeStyle = "#f5ef91";
+    ctx.lineWidth = Math.max(2, effect.size * 0.035);
+    ctx.shadowColor = "#8edcff";
+    ctx.shadowBlur = 5;
+    ctx.beginPath();
+    for (let step = 0; step <= 5; step++) {
+      let y = -height + height * step / 5;
+      let x = step === 0 || step === 5 ? 0 : ((effect.seed + step) % 3 - 1) * effect.size * 0.1;
+      if (step === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = "#f8fcff";
+    ctx.lineWidth *= 0.4;
+    ctx.globalAlpha *= 0.9 - progress * 0.2;
+    ctx.stroke();
+  }
+  function drawCoreSkillVfx(ctx, effect, progress, color) {
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate(progress * Math.PI * 1.4 + effect.seed * 0.01);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.shadowColor = ctx.strokeStyle;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(0, 0, effect.size * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha *= 0.58;
+    for (let ring = 1; ring <= 2; ring++) {
+      ctx.beginPath();
+      ctx.arc(0, 0, effect.size * (0.22 + ring * 0.11), ring * 0.5, Math.PI * 1.55 + ring * 0.4);
+      ctx.stroke();
+    }
+  }
+  function drawShieldChargeImpactVfx(ctx, effect, progress) {
+    let pulse = Math.sin(progress * Math.PI);
+    let size = Math.max(54, effect.size || 82);
+    ctx.translate(effect.x, effect.y);
+    ctx.rotate(Math.atan2(effect.toY - effect.fromY, effect.toX - effect.fromX));
+    ctx.shadowColor = "#bde8ff";
+    ctx.shadowBlur = 10 * pulse;
+    ctx.strokeStyle = "#e8f5ff";
+    ctx.lineWidth = Math.max(2, size * 0.045);
+    ctx.globalAlpha *= 0.4 + pulse * 0.5;
+    for (let layer = 0; layer < 3; layer++) {
+      let reach = size * (0.2 + layer * 0.12 + progress * 0.12);
+      let spread = size * (0.24 + layer * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(reach - size * 0.1, -spread);
+      ctx.bezierCurveTo(reach + size * 0.16, -spread * 0.55, reach + size * 0.2, spread * 0.55, reach - size * 0.1, spread);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#91b5c8";
+    ctx.shadowBlur = 4;
+    for (let shard = 0; shard < 6; shard++) {
+      let lane = shard - 2.5;
+      let distance = size * (0.14 + progress * (0.22 + shard % 3 * 0.05));
+      ctx.save();
+      ctx.translate(distance, lane * size * 0.095);
+      ctx.rotate(lane * 0.34 + progress * 0.8);
+      ctx.fillRect(-size * 0.055, -size * 0.022, size * 0.11, size * 0.044);
+      ctx.restore();
+    }
+    ctx.globalAlpha *= 0.45;
+    ctx.fillStyle = "#7d91a0";
+    ctx.beginPath();
+    ctx.ellipse(size * 0.08, size * 0.28, size * (0.32 + progress * 0.18), size * 0.075, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  var SkillImpactRenderer = class {
+    constructor(deps, images2) {
+      this.deps = deps;
+      this.images = images2;
+    }
+    procedural(ctx, effect, progress) {
+      if (effect.family === "iai") drawIaiSkillVfx(ctx, effect, progress);
+      else if (effect.family === "stormStrike") drawStormStrikeVfx(ctx, effect, progress);
+      else if (effect.family === "fireCore" || effect.family === "mine") drawCoreSkillVfx(ctx, effect, progress, this.deps.color(effect.element));
+      else if (effect.family === "charge") drawShieldChargeImpactVfx(ctx, effect, progress);
+      else return false;
+      return true;
+    }
+    image(ctx, image, effect, progress) {
+      if (effect.skillName === "기본 공격") {
+        const angle = Math.atan2(effect.toY - effect.fromY, effect.toX - effect.fromX);
+        drawSwordSlashVfx(ctx, {
+          ...effect,
+          rotation: angle,
+          sweep: 1,
+          size: effect.size * 1.6,
+          x: effect.x - Math.cos(angle) * 8,
+          y: effect.y - 14 - Math.sin(angle) * 8
+        }, image, progress);
         return;
+      }
+      if (!image) return this.procedural(ctx, effect, progress);
+      let grow = 0.8 + (1 - Math.pow(1 - progress, 3)) * 0.36;
+      let size = effect.size * grow;
+      ctx.translate(effect.x, effect.y);
+      if (effect.family === "slash") {
+        let angle = Math.atan2(effect.toY - effect.fromY, effect.toX - effect.fromX);
+        ctx.translate(-Math.cos(angle) * 8, -14 - Math.sin(angle) * 8);
+        ctx.rotate(angle + (Math.min(1, progress / 0.36) - 1) * 0.65 + (effect.seed % 3 - 1) * 0.12);
+        size *= 2;
+        ctx.drawImage(image, -size * 0.79, -size * 0.48, size, size * 0.96);
+        return;
+      }
+      if (["slam", "dot", "whirlwind"].includes(effect.family)) {
+        ctx.scale(1, 0.64);
+        if (effect.family === "whirlwind") ctx.rotate(effect.rotation + progress * 2.4);
+        ctx.drawImage(image, -size / 2, -size / 2, size, size);
+        return;
+      }
+      ctx.translate(0, -12);
+      ctx.rotate((effect.rotation || 0) + progress * 0.18);
+      let height = effect.family === "summon" ? size * 0.68 : size;
+      ctx.drawImage(image, -size / 2, -height / 2, size, height);
     }
-    let hitGroupSize = getBattleHitVfxGroupSize(fx, stageKind);
-    let crowdedImpact = hitGroupSize >= 5;
-    let family = getSkillGemVfxStageFamily(profile, stageKind);
-    if (profile.family === 'projectile' && stageKind !== 'chainJump' && hasMatchingTravelProjectile(fx.skillName, now)) return;
-    if (mergeSkillCastVfx(list, fx, profile, enemyPos, now)) return;
-    let imageKey = fx.skillName === '기본 공격' ? 'skillFxBasicSlash' : getSkillGemVfxStageImageKey(family, stageKind);
-    let connector = stageKind === 'chainJump';
-    let source = playerPos || { x: enemyPos.x - 70, y: enemyPos.y };
-    if (stageKind === 'chainJump' && fx.chainFromEnemyId != null) {
-        source = (enemyPosMap && enemyPosMap[fx.chainFromEnemyId])
-            || (battleVisualState.enemyGhostPos && battleVisualState.enemyGhostPos[fx.chainFromEnemyId])
-            || source;
+    footprint(ctx, effect, image, progress) {
+      if (this.deps.signature(ctx, effect, progress)) return true;
+      let footprint = effect.footprint;
+      if (!footprint || ["projectile", "chain", "summon", "stormStrike"].includes(effect.family)) return false;
+      ctx.save();
+      let fade = Math.min(1, progress / 0.045) * Math.pow(1 - progress, 1.1);
+      this.deps.ground(ctx, footprint, this.deps.color(effect.element), fade);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = (effect.alpha || 0.82) * fade;
+      image = this.images.use(ctx, image, drawnEffectFilter(effect));
+      ctx.imageSmoothingEnabled = false;
+      let fitted = { ...effect, size: Math.min(footprint.width, footprint.height) };
+      if (effect.family === "continuousSlash") drawSwordSlashVfx(ctx, fitted, image, progress);
+      else if (effect.family === "slash") this.image(ctx, image, fitted, progress);
+      else if (image) ctx.drawImage(
+        image,
+        footprint.x - footprint.width * 0.56,
+        footprint.y - footprint.height * 0.56,
+        footprint.width * 1.12,
+        footprint.height * 1.12
+      );
+      else this.procedural(ctx, fitted, progress);
+      ctx.restore();
+      return true;
     }
-    let target = enemyPos || { x: source.x + 70, y: source.y };
-    let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
-    if (target.enemy && target.enemy.isBoss) scale *= 1.08;
-    if (crowdedImpact) scale *= 0.82;
-    let repeatCount = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
-    if (crowdedImpact) repeatCount = 1;
-    if (getBattleVfxDensity() < 0.84) repeatCount = 1;
-    if (stageKind === 'chainJump' || stageKind === 'slamAftershock' || stageKind === 'slamPrimary' || family === 'whirlwind') repeatCount = 1;
-    let seed = Math.max(1, Number(fx.id) || 1);
-    if (family === 'stormStrike' && reuseStormStrikeImpact(list, profile, fx, target, now)) return;
-    for (let repeat = 0; repeat < repeatCount; repeat++) {
-        let repeatOffset = repeat - (repeatCount - 1) / 2;
-        let baseRotation = Math.atan2(target.y - source.y, target.x - source.x);
-        let rotation = connector ? baseRotation : baseRotation + Math.PI * 0.28 + repeatOffset * 0.16;
-        if (family === 'whirlwind') rotation = (Number(fx.stageIndex) || 0) * (Math.PI / 4) + seed * 0.031;
-        list.push({
-            skillName: fx.skillName,
-            vfxGroupId: fx.damageTextGroupId || '',
-            repeatIndex: Number(fx.repeatIndex) || 0,
-            element: normalizeSkillGemVfxElement(fx.element, profile.accent),
-            family: family,
-            footprint: fx.footprint,
-            stageKind: stageKind,
-            imageKey: imageKey,
-            startAt: now + repeat * 44,
-            duration: family === 'dot' ? 720 : (family === 'whirlwind' ? 260 : (connector ? 170 : 300)),
-            x: family === 'whirlwind' ? source.x : target.x + (connector ? 0 : repeatOffset * 5),
-            y: family === 'whirlwind' ? source.y - 3 : target.y - (connector ? 8 : 5) + Math.abs(repeatOffset) * 2,
-            fromX: source.x + (family === 'projectile' ? 15 : 0),
-            fromY: source.y - (family === 'projectile' ? 18 : 7),
-            toX: target.x,
-            toY: target.y - 8,
-            connector: connector,
-            rotation: rotation,
-            size: getSkillGemVfxBaseSize(family, stageKind) * scale * (1 - Math.abs(repeatOffset) * 0.08),
-            alpha: family === 'dot' ? 0.4 : (family === 'whirlwind' ? 0.62 : (crowdedImpact ? 0.58 : 0.82)),
-            filter: getSkillGemVfxFilter(normalizeSkillGemVfxElement(fx.element, profile.accent), imageKey),
-            seed: seed + repeat * 17,
-            targetKey: family !== 'stormStrike' ? '' : (target.enemy && target.enemy.id != null
-                ? `enemy:${target.enemy.id}`
-                : `cell:${Math.round(Number(target.x) || 0)}:${Math.round(Number(target.y) || 0)}`)
-        });
-    }
-    trimBattleSkillEffects(list);
-}
+  };
 
-function queueSkillGemProjectileLaunch(swingFx, targetEntries, playerPos, enemyPosMap, viewportScale) {
-    if (!swingFx || swingFx.skillProjectileQueued || !swingFx.projectile || !swingFx.skillName) return;
-    swingFx.skillProjectileQueued = true;
-    let profile = getSkillGemVfxProfile(swingFx.skillName);
-    if (!profile || profile.family !== 'projectile') return;
-    let skill = (typeof SKILL_DB !== 'undefined' && SKILL_DB[swingFx.skillName]) || {};
-    let targets = (targetEntries || []).map(entry => {
-        let enemyId = entry && entry.enemy ? entry.enemy.id : null;
-        return enemyId == null ? null : enemyPosMap[enemyId];
-    }).filter(Boolean);
-    let isPiercePath = skill.targetMode === 'pierce';
-    let density = getBattleVfxDensity();
-    if (skill.targetMode === 'chain') targets = targets.slice(0, 1);
-    else if (isPiercePath) {
-        // 관통은 대상 수만큼 탄환을 복제하지 않는다. 한 발이 같은 직선의 마지막 적까지 통과한다.
-        targets.sort((a, b) => Math.hypot(a.x - playerPos.x, a.y - playerPos.y) - Math.hypot(b.x - playerPos.x, b.y - playerPos.y));
-        targets = targets.length > 0 ? [targets[targets.length - 1]] : [];
-    } else {
-        let targetCap = skill.projectilePattern && skill.projectilePattern.kind === 'fan' ? 8 : 4;
-        targetCap = Math.max(2, Math.round(targetCap * density));
-        targets = targets.slice(0, targetCap);
-    }
-    if (targets.length <= 0) return;
-    let imageKey = SKILL_GEM_VFX_IMAGE_KEYS[profile.projectileAsset] || SKILL_GEM_VFX_IMAGE_KEYS.projectile;
-    let imageProjectile = !profile.projectileStyle;
-    let dedicatedProjectileImage = !!profile.projectileAsset;
-    let baseImpactAt = Number(swingFx.impactAt) || (swingFx.start + swingFx.duration);
-    let piercedTargetCount = isPiercePath ? Math.max(1, Math.min(12, (targetEntries || []).length)) : 1;
-    let arriveAt = baseImpactAt + (isPiercePath ? (piercedTargetCount - 1) * 30 : 0);
-    // 공격 모션의 막바지에 빠르게 발사해 직선으로 꽂히며, 마지막 관통 피해와 도착 시점을 맞춘다.
-    let releaseAt = Math.max(swingFx.start + 80, baseImpactAt - 82);
-    let scale = Math.max(0.45, Number(profile.scale) || 1) * clampNumber(Number(viewportScale) || 1, 0.7, 1.16);
-    let repeats = Math.max(1, Math.min(3, Math.floor(Number(profile.repeats) || 1)));
-    if (density < 0.84) repeats = 1;
-    let list = battleVisualState.skillEffects || (battleVisualState.skillEffects = []);
-    targets.forEach((target, targetIndex) => {
-        for (let repeat = 0; repeat < repeats; repeat++) {
-            let stagger = repeat * 20;
-            let startAt = Math.min(arriveAt - 58, releaseAt + stagger);
-            let laneOffset = (repeat - (repeats - 1) / 2) * 4;
-            list.push({
-                skillName: swingFx.skillName,
-                element: normalizeSkillGemVfxElement(swingFx.element, profile.accent),
-                projectileStyle: getSkillProjectileVfxStyle(swingFx.skillName, swingFx.element),
-                family: 'projectile',
-                stageKind: 'projectileTravel',
-                imageKey: imageKey,
-                imageProjectile: imageProjectile,
-                projectileWidth: Number(profile.projectileWidth) || 58,
-                projectileHeight: Number(profile.projectileHeight) || 26,
-                startAt: startAt,
-                arriveAt: arriveAt,
-                duration: Math.max(70, arriveAt - startAt),
-                fromX: playerPos.x + 13,
-                fromY: playerPos.y - 20 + laneOffset,
-                toX: target.x,
-                toY: target.y - 9 + laneOffset,
-                travel: true,
-                piercePath: isPiercePath,
-                connector: false,
-                rotation: Math.atan2((target.y - 9 + laneOffset) - (playerPos.y - 20 + laneOffset), target.x - (playerPos.x + 13)),
-                size: getSkillGemVfxBaseSize('projectile', 'projectileTravel') * scale * (1 - targetIndex * 0.035),
-                alpha: imageProjectile ? 0.94 : (isPiercePath ? 0.78 : 0.72),
-                filter: dedicatedProjectileImage ? 'none' : getSkillGemVfxFilter(normalizeSkillGemVfxElement(swingFx.element, profile.accent), imageKey),
-                seed: Math.max(1, Number(swingFx.id) || 1) + targetIndex * 19 + repeat * 7
-            });
-        }
-    });
-    trimBattleSkillEffects(list);
-}
-
-function getCombatTravelScreenPos(gridProj, cell, fallback) {
-    if (!cell || !gridProj) return fallback;
+  // modules/rendering/combat-effect-geometry.mjs
+  function combatScreenPoint(gridProj, cell, fallback2) {
+    if (!cell || !gridProj) return fallback2;
     let pos = gridProj.cellToScreen(cell.gx, cell.gy);
     return { x: pos.x, y: pos.y - 10 };
-}
-
-function getCombatTravelImageKey(fx) {
-    let element = fx.element ? normalizeSkillGemVfxElement(fx.element) : null;
-    let profile = getSkillGemVfxProfile(fx.skillName);
-    let projectileImageKey = profile && SKILL_GEM_VFX_IMAGE_KEYS[profile.projectileAsset];
-    if (projectileImageKey) return projectileImageKey;
-    let combatImageKey = profile && SKILL_GEM_VFX_IMAGE_KEYS[profile.combatAsset];
-    if (combatImageKey) return combatImageKey;
-    if (fx.patternKind === 'mine') return SKILL_GEM_VFX_IMAGE_KEYS.rune;
-    if (fx.patternKind === 'field') return !element || element === 'cold' ? SKILL_GEM_VFX_IMAGE_KEYS.frostField : SKILL_GEM_VFX_IMAGE_KEYS.dot;
-    if (fx.patternKind === 'moving') return !element || element === 'cold' ? SKILL_GEM_VFX_IMAGE_KEYS.frostWave : SKILL_GEM_VFX_IMAGE_KEYS.projectile;
-    if (fx.patternKind === 'boomerang') return SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang;
-    if (fx.owner === 'enemy' && fx.delivery === 'magicCell') return 'bossTelegraphPulse';
-    if (fx.delivery !== 'magicCell') return SKILL_GEM_VFX_IMAGE_KEYS.projectile;
-    let family = profile && profile.family;
-    return SKILL_GEM_VFX_IMAGE_KEYS[family] || SKILL_GEM_VFX_IMAGE_KEYS.burst;
-}
-
-function isSpecializedCombatTravelImage(imageKey) {
-    return [SKILL_GEM_VFX_IMAGE_KEYS.frostField, SKILL_GEM_VFX_IMAGE_KEYS.frostWave,
-        SKILL_GEM_VFX_IMAGE_KEYS.chaosBoomerang, SKILL_GEM_VFX_IMAGE_KEYS.venomFang].includes(imageKey);
-}
-
-function getCombatAreaBounds(targets) {
+  }
+  function combatEffectBounds(targets) {
     let bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
-    targets.forEach(target => {
-        bounds.minX = Math.min(bounds.minX, target.x);
-        bounds.maxX = Math.max(bounds.maxX, target.x);
-        bounds.minY = Math.min(bounds.minY, target.y);
-        bounds.maxY = Math.max(bounds.maxY, target.y);
+    targets.forEach((target) => {
+      bounds.minX = Math.min(bounds.minX, target.x);
+      bounds.maxX = Math.max(bounds.maxX, target.x);
+      bounds.minY = Math.min(bounds.minY, target.y);
+      bounds.maxY = Math.max(bounds.maxY, target.y);
     });
     bounds.x = (bounds.minX + bounds.maxX) / 2;
     bounds.y = (bounds.minY + bounds.maxY) / 2;
     return bounds;
-}
-
-function getRadialBurstScreenRadius(fx, gridProj) {
+  }
+  function radialEffectRadius(fx, gridProj, profiles) {
     if (!gridProj) return 120;
-    let profiles = typeof SKILL_GRID_DB !== 'undefined' ? SKILL_GRID_DB : null;
     let profile = profiles && profiles[fx.skillName];
     let radius = Math.max(1, Number(profile && profile.radius) || 1);
-    return profile && profile.shape === 'circle' ? (radius + 0.5) * gridProj.tileW : Math.hypot(gridProj.tileW * radius, gridProj.tileH * radius);
-}
+    return profile && profile.shape === "circle" ? (radius + 0.5) * gridProj.tileW : Math.hypot(gridProj.tileW * radius, gridProj.tileH * radius);
+  }
+  function channelEffectGeometry(source, aim, targets) {
+    let dx = aim.x - source.x;
+    let dy = aim.y - source.y;
+    let aimLength = Math.max(1, Math.hypot(dx, dy));
+    let unitX = dx / aimLength;
+    let unitY = dy / aimLength;
+    let length = aimLength;
+    let halfWidth = 18;
+    targets.forEach((target) => {
+      let offsetX = target.x - source.x;
+      let offsetY = target.y - source.y;
+      length = Math.max(length, offsetX * unitX + offsetY * unitY + 26);
+      halfWidth = Math.max(halfWidth, Math.abs(offsetX * unitY - offsetY * unitX) + 22);
+    });
+    length = Math.max(52, length);
+    return {
+      x: source.x + unitX * length / 2,
+      y: source.y + unitY * length / 2,
+      angle: Math.atan2(dy, dx),
+      length,
+      width: halfWidth * 2
+    };
+  }
 
-function drawFrostBurstCombatFx(ctx, fx, now, arriveAt, targets) {
-    let burstImage = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.frostBurst);
-    let waveImage = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.frostWaveRing);
-    if (!burstImage && !waveImage) return false;
-    let bounds = getCombatAreaBounds(targets);
-    let center = fx.screenAim && Number.isFinite(fx.screenAim.x) && Number.isFinite(fx.screenAim.y)
-        ? fx.screenAim : { x: bounds.x, y: bounds.y };
-    let chargeMs = 160;
-    let waveMs = Math.max(120, Number(fx.waveDurationMs) || 255);
-    let elapsed = now - arriveAt;
-    if (elapsed < -chargeMs || elapsed > waveMs + 180) return true;
+  // modules/rendering/meteor-spell.mjs
+  function drawMeteorDescent(ctx, bounds, progress, image) {
+    let eased = progress * progress * progress;
+    let x = bounds.x - (1 - eased) * 54;
+    let y = bounds.y - (1 - eased) * 120;
     ctx.save();
-    ctx.translate(center.x, center.y);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.filter = 'none';
+    ctx.translate(x, y);
+    ctx.rotate(Math.atan2(120, 54));
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 0.72 + progress * 0.24;
     ctx.imageSmoothingEnabled = false;
-    if (burstImage && elapsed < 0) {
-        let charge = clampNumber((elapsed + chargeMs) / chargeMs, 0, 1);
-        let size = 34 + charge * 20;
-        ctx.globalAlpha = 0.32 + charge * 0.5;
-        ctx.drawImage(burstImage, -size / 2, -size / 2, size, size);
+    if (image) {
+      ctx.drawImage(image, -104, -28, 128, 34);
+      ctx.restore();
+      return;
     }
-    if (waveImage && elapsed >= 0) {
-        let progress = clampNumber(elapsed / waveMs, 0, 1);
-        let radius = Math.max(60, Number(fx.screenRadius) || 120);
-        let size = Math.max(1, radius * progress * 2);
-        ctx.globalAlpha = elapsed <= waveMs ? 0.88
-            : clampNumber((waveMs + 180 - elapsed) / 180, 0, 1) * 0.72;
-        ctx.drawImage(waveImage, -size / 2, -size / 2, size, size);
-    }
-    if (burstImage && elapsed >= 0 && elapsed <= 120) {
-        let burst = clampNumber(elapsed / 120, 0, 1);
-        let size = 54 + burst * 42;
-        ctx.globalAlpha = (1 - burst) * 0.9;
-        ctx.drawImage(burstImage, -size / 2, -size / 2, size, size);
-    }
+    ctx.fillStyle = "#8f1d0b";
+    ctx.beginPath();
+    ctx.moveTo(-92, -5);
+    ctx.lineTo(-18, -15);
+    ctx.lineTo(5, 0);
+    ctx.lineTo(-22, 15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#ff8a24";
+    ctx.beginPath();
+    ctx.moveTo(-68, 0);
+    ctx.lineTo(-12, -9);
+    ctx.lineTo(8, 0);
+    ctx.lineTo(-12, 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#2d201d";
+    ctx.beginPath();
+    ctx.moveTo(-12, -13);
+    ctx.lineTo(8, -16);
+    ctx.lineTo(19, -4);
+    ctx.lineTo(15, 12);
+    ctx.lineTo(-3, 17);
+    ctx.lineTo(-18, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#ffc15a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-8, -9);
+    ctx.lineTo(2, 0);
+    ctx.lineTo(-5, 11);
+    ctx.stroke();
     ctx.restore();
-    return true;
-}
+  }
+  var MeteorSpellPainter = class {
+    constructor(deps) {
+      this.deps = deps;
+    }
+    ground(ctx, bounds, now, endAt) {
+      let fade = clampNumber((endAt - now) / 380, 0, 1);
+      let image = this.deps.image(SKILL_EFFECT_IMAGES.meteorGround);
+      let spanX = bounds.maxX - bounds.minX;
+      let spanY = bounds.maxY - bounds.minY;
+      let width = bounds.width || Math.max(150, spanX + 82, (spanY + 48) * 2.2);
+      let height = bounds.height || width * 173 / 448;
+      ctx.save();
+      ctx.translate(bounds.x, bounds.y);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.imageSmoothingEnabled = false;
+      if (image) {
+        ctx.globalAlpha = fade * (0.44 + Math.sin(now / 130) * 0.04);
+        ctx.drawImage(image, -width / 2, -height / 2 + 8, width, height);
+        ctx.restore();
+        return;
+      }
+      ctx.globalAlpha = 0.16 * fade;
+      ctx.fillStyle = "#7a1508";
+      ctx.beginPath();
+      ctx.moveTo(-width * 0.5, 2);
+      ctx.lineTo(-width * 0.26, -height * 0.42);
+      ctx.lineTo(width * 0.18, -height * 0.35);
+      ctx.lineTo(width * 0.5, 4);
+      ctx.lineTo(width * 0.22, height * 0.42);
+      ctx.lineTo(-width * 0.32, height * 0.34);
+      ctx.closePath();
+      ctx.fill();
+      for (let flame = 0; flame < 7; flame++) {
+        let phase = flame / 6;
+        let x = (phase - 0.5) * width * 0.82;
+        let y = Math.sin(flame * 2.1) * height * 0.22;
+        let flicker = 9 + (now / 70 + flame * 3) % 7;
+        ctx.globalAlpha = (0.34 + flame % 2 * 0.1) * fade;
+        ctx.fillStyle = flame % 2 ? "#ffb22d" : "#ff5725";
+        ctx.beginPath();
+        ctx.moveTo(x - 6, y + 6);
+        ctx.lineTo(x - 2, y - flicker);
+        ctx.lineTo(x + 2, y - flicker * 0.45);
+        ctx.lineTo(x + 6, y + 6);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    impact(ctx, bounds, now, arriveAt) {
+      let burst = clampNumber((now - arriveAt) / 220, 0, 1);
+      if (burst >= 1) return;
+      let image = this.deps.image(SKILL_EFFECT_IMAGES.meteorImpact);
+      let span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      let width = Math.max(154, span + 72) * (0.78 + burst * 0.22);
+      let height = width * 281 / 384;
+      ctx.save();
+      ctx.translate(bounds.x, bounds.y);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = Math.pow(1 - burst, 0.72);
+      ctx.imageSmoothingEnabled = false;
+      if (image) {
+        ctx.drawImage(image, -width / 2, -height * 0.68, width, height);
+        ctx.restore();
+        return;
+      }
+      ctx.fillStyle = "#ffd27a";
+      for (let shard = 0; shard < 8; shard++) {
+        let angle = -2.75 + shard * 0.7;
+        let inner = 10 + burst * 18;
+        let outer = 28 + burst * (36 + shard % 3 * 8);
+        let side = angle + 0.1;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
+        ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
+        ctx.lineTo(Math.cos(side) * (inner + 5), Math.sin(side) * (inner + 5));
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.fillStyle = "#fff0b8";
+      ctx.beginPath();
+      ctx.moveTo(-14, 8);
+      ctx.lineTo(0, -26 * (1 - burst));
+      ctx.lineTo(14, 8);
+      ctx.lineTo(0, 17);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    draw(ctx, fx, now, arriveAt, targets) {
+      let bounds = combatEffectBounds(targets);
+      let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
+      if (now < arriveAt) {
+        drawMeteorDescent(ctx, bounds, progress, this.deps.image(SKILL_EFFECT_IMAGES.meteorProjectile));
+        return;
+      }
+      this.ground(ctx, bounds, now, fx.start + fx.duration);
+      this.impact(ctx, bounds, now, arriveAt);
+    }
+  };
 
-function drawSpriteSheetFrame(ctx, image, frameIndex, columns, rows, x, y, width, height) {
+  // modules/rendering/area-spell.mjs
+  function drawSpriteSheetFrame(ctx, image, frameIndex, placement) {
+    const { columns, rows, x, y, width, height } = placement;
     let sourceWidth = Math.max(1, Number(image.naturalWidth) || Number(image.width) || 1) / columns;
     let sourceHeight = Math.max(1, Number(image.naturalHeight) || Number(image.height) || 1) / rows;
     let frame = Math.max(0, Math.floor(frameIndex)) % (columns * rows);
-    let sourceX = (frame % columns) * sourceWidth;
+    let sourceX = frame % columns * sourceWidth;
     let sourceY = Math.floor(frame / columns) * sourceHeight;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight,
-        x - width / 2, y - height / 2, width, height);
-}
-
-function drawBlizzardFallbackFx(ctx, bounds, now) {
+    ctx.drawImage(
+      image,
+      sourceX,
+      sourceY,
+      sourceWidth,
+      sourceHeight,
+      x - width / 2,
+      y - height / 2,
+      width,
+      height
+    );
+  }
+  function drawBlizzardFallbackFx(ctx, bounds, now) {
     ctx.save();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = '#ccefff';
+    ctx.globalCompositeOperation = "source-over";
+    ctx.strokeStyle = "#ccefff";
     ctx.lineWidth = 2;
     for (let streak = 0; streak < 4; streak++) {
-        let offset = ((now / 12 + streak * 47) % 180) - 90;
-        let y = bounds.y - 24 + streak * 16;
-        ctx.globalAlpha = 0.18 + streak * 0.04;
-        ctx.beginPath();
-        ctx.moveTo(bounds.x + offset - 28, y + 8);
-        ctx.lineTo(bounds.x + offset + 28, y - 8);
-        ctx.stroke();
+      let offset = (now / 12 + streak * 47) % 180 - 90;
+      let y = bounds.y - 24 + streak * 16;
+      ctx.globalAlpha = 0.18 + streak * 0.04;
+      ctx.beginPath();
+      ctx.moveTo(bounds.x + offset - 28, y + 8);
+      ctx.lineTo(bounds.x + offset + 28, y - 8);
+      ctx.stroke();
     }
     ctx.restore();
-}
-
-function drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets) {
-    let bounds = getCombatAreaBounds(targets);
-    let width = Math.max(148, bounds.maxX - bounds.minX + 112);
-    let height = Math.max(98, bounds.maxY - bounds.minY + 82);
-    let ambient = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.blizzardAmbient);
-    let impact = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.blizzardImpact);
-    let fadeIn = clampNumber((now - fx.start) / 120, 0, 1);
-    let fadeOut = clampNumber((fx.start + fx.duration - now) / 180, 0, 1);
-    if (ambient) {
+  }
+  function frostCharge(ctx, image, elapsed, chargeMs) {
+    if (!(image && elapsed < 0)) return;
+    const charge = clampNumber((elapsed + chargeMs) / chargeMs, 0, 1);
+    const size = 34 + charge * 20;
+    ctx.globalAlpha = 0.32 + charge * 0.5;
+    ctx.drawImage(image, -size / 2, -size / 2, size, size);
+  }
+  function frostWave(ctx, image, fx, elapsed, waveMs) {
+    if (!(image && elapsed >= 0)) return;
+    const progress = clampNumber(elapsed / waveMs, 0, 1);
+    const radius = Math.max(60, Number(fx.screenRadius) || 120);
+    const size = Math.max(1, radius * progress * 2);
+    ctx.globalAlpha = elapsed <= waveMs ? 0.88 : clampNumber((waveMs + 180 - elapsed) / 180, 0, 1) * 0.72;
+    ctx.drawImage(image, -size / 2, -size / 2, size, size);
+  }
+  function frostContact(ctx, image, elapsed) {
+    if (!(image && elapsed >= 0 && elapsed <= 120)) return;
+    const burst = clampNumber(elapsed / 120, 0, 1);
+    const size = 54 + burst * 42;
+    ctx.globalAlpha = (1 - burst) * 0.9;
+    ctx.drawImage(image, -size / 2, -size / 2, size, size);
+  }
+  var AreaSpellPainter = class {
+    constructor(deps) {
+      this.deps = deps;
+    }
+    frost(ctx, fx, now, arriveAt, targets) {
+      let burstImage = this.deps.image(SKILL_EFFECT_IMAGES.frostBurst);
+      let waveImage = this.deps.image(SKILL_EFFECT_IMAGES.frostWaveRing);
+      if (!burstImage && !waveImage) return false;
+      let bounds = combatEffectBounds(targets);
+      let center = fx.screenAim && Number.isFinite(fx.screenAim.x) && Number.isFinite(fx.screenAim.y) ? fx.screenAim : { x: bounds.x, y: bounds.y };
+      let chargeMs = 160;
+      let waveMs = Math.max(120, Number(fx.waveDurationMs) || 255);
+      let elapsed = now - arriveAt;
+      if (elapsed < -chargeMs || elapsed > waveMs + 180) return true;
+      ctx.save();
+      ctx.translate(center.x, center.y);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.filter = "none";
+      ctx.imageSmoothingEnabled = false;
+      frostCharge(ctx, burstImage, elapsed, chargeMs);
+      frostWave(ctx, waveImage, fx, elapsed, waveMs);
+      frostContact(ctx, burstImage, elapsed);
+      ctx.restore();
+      return true;
+    }
+    blizzard(ctx, fx, now, arriveAt, targets) {
+      let bounds = combatEffectBounds(targets);
+      let width = Math.max(148, bounds.maxX - bounds.minX + 112);
+      let height = Math.max(98, bounds.maxY - bounds.minY + 82);
+      let ambient = this.deps.image(SKILL_EFFECT_IMAGES.blizzardAmbient);
+      let impact = this.deps.image(SKILL_EFFECT_IMAGES.blizzardImpact);
+      let fadeIn = clampNumber((now - fx.start) / 120, 0, 1);
+      let fadeOut = clampNumber((fx.start + fx.duration - now) / 180, 0, 1);
+      if (ambient) {
         ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 0.24 * fadeIn * fadeOut;
         let ambientFrame = Math.floor(now / 105) % 16;
-        drawSpriteSheetFrame(ctx, ambient, ambientFrame, 4, 4, bounds.x, bounds.y, width, height);
+        drawSpriteSheetFrame(ctx, ambient, ambientFrame, { columns: 4, rows: 4, x: bounds.x, y: bounds.y, width, height });
         ctx.restore();
-    } else {
+      } else {
         drawBlizzardFallbackFx(ctx, bounds, now);
-    }
-    let elapsed = Math.max(0, now - arriveAt);
-    let hitIndex = Math.floor(elapsed / 300);
-    let hitElapsed = elapsed - hitIndex * 300;
-    if (impact && hitIndex < 4 && hitElapsed < 240) {
+      }
+      let elapsed = Math.max(0, now - arriveAt);
+      let hitIndex = Math.floor(elapsed / 300);
+      let hitElapsed = elapsed - hitIndex * 300;
+      if (impact && hitIndex < 4 && hitElapsed < 240) {
         let targetIndex = (Math.max(0, Number(fx.id) || 0) + hitIndex * 3) % targets.length;
         let target = targets[targetIndex];
         let impactFrames = [2, 5, 10, 13];
@@ -756,1678 +1185,1871 @@ function drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets) {
         ctx.save();
         ctx.translate(target.x + direction * (1 - arrival) * 24, target.y - 8 - (1 - arrival) * 42);
         ctx.rotate(direction * (1 - arrival) * 0.14);
-        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = Math.min(1, phase / 0.12) * Math.pow(1 - phase, 0.65) * fadeOut;
-        drawSpriteSheetFrame(ctx, impact, impactFrame, 4, 4,
-            0, 0, impactSize * (0.62 + arrival * 0.48), impactSize * (0.62 + arrival * 0.48));
+        drawSpriteSheetFrame(ctx, impact, impactFrame, {
+          columns: 4,
+          rows: 4,
+          x: 0,
+          y: 0,
+          width: impactSize * (0.62 + arrival * 0.48),
+          height: impactSize * (0.62 + arrival * 0.48)
+        });
         ctx.restore();
+      }
     }
-}
-
-function getChannelEffectGeometry(source, aim, targets) {
-    let dx = aim.x - source.x;
-    let dy = aim.y - source.y;
-    let aimLength = Math.max(1, Math.hypot(dx, dy));
-    let unitX = dx / aimLength;
-    let unitY = dy / aimLength;
-    let length = aimLength;
-    let halfWidth = 18;
-    targets.forEach(target => {
-        let offsetX = target.x - source.x;
-        let offsetY = target.y - source.y;
-        length = Math.max(length, offsetX * unitX + offsetY * unitY + 26);
-        halfWidth = Math.max(halfWidth, Math.abs(offsetX * unitY - offsetY * unitX) + 22);
-    });
-    length = Math.max(52, length);
-    return {
-        x: source.x + unitX * length / 2,
-        y: source.y + unitY * length / 2,
-        angle: Math.atan2(dy, dx),
-        length,
-        width: halfWidth * 2
-    };
-}
-
-function drawChannelCombatFx(ctx, fx, now, targets) {
-    let source = fx.screenSource;
-    if (!source || targets.length <= 0) return;
-    let aim = fx.screenAim || targets[0];
-    let geometry = getChannelEffectGeometry(source, aim, targets);
-    let profile = getSkillGemVfxProfile(fx.skillName);
-    let imageKey = profile && SKILL_GEM_VFX_IMAGE_KEYS[profile.channelAsset];
-    let image = getSkillGemVfxImage(imageKey);
-    let fadeOut = clampNumber((fx.start + fx.duration - now) / 160, 0, 1)
-        * (0.88 + Math.sin((now - fx.start) / 48) * 0.12);
-    ctx.save();
-    ctx.translate(geometry.x, geometry.y);
-    ctx.rotate(geometry.angle);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.68 * fadeOut;
-    ctx.filter = 'none';
-    ctx.imageSmoothingEnabled = false;
-    if (image) ctx.drawImage(image, -geometry.length / 2, -geometry.width / 2, geometry.length, geometry.width);
-    else {
-        ctx.fillStyle = getElementColor(fx.element);
+    channel(ctx, fx, now, targets) {
+      let source = fx.screenSource;
+      if (!source || targets.length <= 0) return;
+      let aim = fx.screenAim || targets[0];
+      let geometry = channelEffectGeometry(source, aim, targets);
+      let profile = this.deps.profile(fx.skillName);
+      let imageKey = profile && SKILL_EFFECT_IMAGES[profile.channelAsset];
+      let image = this.deps.image(imageKey);
+      let fadeOut = clampNumber((fx.start + fx.duration - now) / 160, 0, 1) * (0.88 + Math.sin((now - fx.start) / 48) * 0.12);
+      ctx.save();
+      ctx.translate(geometry.x, geometry.y);
+      ctx.rotate(geometry.angle);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.68 * fadeOut;
+      ctx.filter = "none";
+      ctx.imageSmoothingEnabled = false;
+      if (image) ctx.drawImage(image, -geometry.length / 2, -geometry.width / 2, geometry.length, geometry.width);
+      else {
+        ctx.fillStyle = this.deps.color(fx.element);
         ctx.fillRect(-geometry.length / 2, -3, geometry.length, 6);
+      }
+      ctx.restore();
     }
-    ctx.restore();
-}
+  };
 
-function drawMeteorDescent(ctx, bounds, progress) {
-    let eased = progress * progress * progress;
-    let x = bounds.x - (1 - eased) * 54;
-    let y = bounds.y - (1 - eased) * 120;
-    let image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.meteorProjectile);
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(Math.atan2(120, 54));
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.72 + progress * 0.24;
-    ctx.imageSmoothingEnabled = false;
-    if (image) {
-        ctx.drawImage(image, -104, -28, 128, 34);
-        ctx.restore();
-        return;
-    }
-    ctx.fillStyle = '#8f1d0b';
-    ctx.beginPath(); ctx.moveTo(-92, -5); ctx.lineTo(-18, -15); ctx.lineTo(5, 0);
-    ctx.lineTo(-22, 15); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#ff8a24';
-    ctx.beginPath(); ctx.moveTo(-68, 0); ctx.lineTo(-12, -9); ctx.lineTo(8, 0);
-    ctx.lineTo(-12, 9); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#2d201d';
-    ctx.beginPath(); ctx.moveTo(-12, -13); ctx.lineTo(8, -16); ctx.lineTo(19, -4);
-    ctx.lineTo(15, 12); ctx.lineTo(-3, 17); ctx.lineTo(-18, 5); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = '#ffc15a'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(-8, -9); ctx.lineTo(2, 0); ctx.lineTo(-5, 11); ctx.stroke();
-    ctx.restore();
-}
-
-function drawMeteorBurningGround(ctx, bounds, now, endAt) {
-    let fade = clampNumber((endAt - now) / 380, 0, 1);
-    let image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.meteorGround);
-    let spanX = bounds.maxX - bounds.minX;
-    let spanY = bounds.maxY - bounds.minY;
-    let width = bounds.width || Math.max(150, spanX + 82, (spanY + 48) * 2.2);
-    let height = bounds.height || width * 173 / 448;
-    ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'source-over';
-    ctx.imageSmoothingEnabled = false;
-    if (image) {
-        ctx.globalAlpha = fade * (0.44 + Math.sin(now / 130) * 0.04);
-        ctx.drawImage(image, -width / 2, -height / 2 + 8, width, height);
-        ctx.restore();
-        return;
-    }
-    ctx.globalAlpha = 0.16 * fade; ctx.fillStyle = '#7a1508';
-    ctx.beginPath(); ctx.moveTo(-width * 0.5, 2); ctx.lineTo(-width * 0.26, -height * 0.42);
-    ctx.lineTo(width * 0.18, -height * 0.35); ctx.lineTo(width * 0.5, 4);
-    ctx.lineTo(width * 0.22, height * 0.42); ctx.lineTo(-width * 0.32, height * 0.34); ctx.closePath(); ctx.fill();
-    for (let flame = 0; flame < 7; flame++) {
-        let phase = flame / 6;
-        let x = (phase - 0.5) * width * 0.82;
-        let y = Math.sin(flame * 2.1) * height * 0.22;
-        let flicker = 9 + ((now / 70 + flame * 3) % 7);
-        ctx.globalAlpha = (0.34 + (flame % 2) * 0.1) * fade;
-        ctx.fillStyle = flame % 2 ? '#ffb22d' : '#ff5725';
-        ctx.beginPath(); ctx.moveTo(x - 6, y + 6); ctx.lineTo(x - 2, y - flicker);
-        ctx.lineTo(x + 2, y - flicker * 0.45); ctx.lineTo(x + 6, y + 6); ctx.closePath(); ctx.fill();
-    }
-    ctx.restore();
-}
-
-function drawMeteorImpact(ctx, bounds, now, arriveAt) {
-    let burst = clampNumber((now - arriveAt) / 220, 0, 1);
-    if (burst >= 1) return;
-    let image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.meteorImpact);
-    let span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-    let width = Math.max(154, span + 72) * (0.78 + burst * 0.22);
-    let height = width * 281 / 384;
-    ctx.save(); ctx.translate(bounds.x, bounds.y); ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = Math.pow(1 - burst, 0.72);
-    ctx.imageSmoothingEnabled = false;
-    if (image) {
-        ctx.drawImage(image, -width / 2, -height * 0.68, width, height);
-        ctx.restore();
-        return;
-    }
-    ctx.fillStyle = '#ffd27a';
-    for (let shard = 0; shard < 8; shard++) {
-        let angle = -2.75 + shard * 0.7;
-        let inner = 10 + burst * 18;
-        let outer = 28 + burst * (36 + (shard % 3) * 8);
-        let side = angle + 0.1;
-        ctx.beginPath(); ctx.moveTo(Math.cos(angle) * inner, Math.sin(angle) * inner);
-        ctx.lineTo(Math.cos(angle) * outer, Math.sin(angle) * outer);
-        ctx.lineTo(Math.cos(side) * (inner + 5), Math.sin(side) * (inner + 5)); ctx.closePath(); ctx.fill();
-    }
-    ctx.fillStyle = '#fff0b8';
-    ctx.beginPath(); ctx.moveTo(-14, 8); ctx.lineTo(0, -26 * (1 - burst));
-    ctx.lineTo(14, 8); ctx.lineTo(0, 17); ctx.closePath(); ctx.fill();
-    ctx.restore();
-}
-
-function drawMeteorCombatFx(ctx, fx, now, arriveAt, targets) {
-    let bounds = getCombatAreaBounds(targets);
-    let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
-    if (now < arriveAt) {
-        drawMeteorDescent(ctx, bounds, progress);
-        return;
-    }
-    drawMeteorBurningGround(ctx, bounds, now, fx.start + fx.duration);
-    drawMeteorImpact(ctx, bounds, now, arriveAt);
-}
-
-function drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element) {
-    if (targets.length <= 0) return;
-    let profile = getSkillGemVfxProfile(fx.skillName);
-    if (profile && profile.family === 'stormStrike') return;
-    if (fx.patternKind === 'meteor') {
-        drawMeteorCombatFx(ctx, fx, now, arriveAt, targets);
-        return;
-    }
-    if (fx.patternKind === 'field' && fx.skillName === '난타 눈보라') {
-        drawBlizzardCombatFx(ctx, fx, now, arriveAt, targets);
-        return;
-    }
-    if (fx.patternKind === 'channel') {
-        drawChannelCombatFx(ctx, fx, now, targets);
-        return;
-    }
-    if (fx.patternKind === 'radialBurst' && drawFrostBurstCombatFx(ctx, fx, now, arriveAt, targets)) return;
-    let image = getSkillGemVfxImage(imageKey);
-    let progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
-    let fade = now <= arriveAt ? 0.24 + progress * 0.42
-        : clampNumber((fx.start + fx.duration - now) / 260, 0, 1) * 0.48;
-    let { drawTargets, size } = getCombatCellVfxLayout(fx, targets);
-    let fieldImpact = fx.patternKind === 'field';
-    if (fieldImpact) {
-        let bounds = getCombatAreaBounds(targets);
-        drawTargets = [fx.screenFootprint || { x: bounds.x, y: bounds.y }];
-        let span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-        size = clampNumber(span + 78, 110, 360);
-        fade = (0.28 + Math.sin(now / 180) * 0.04)
-            * clampNumber((fx.start + fx.duration - now) / 220, 0, 1);
-    } else if (drawTargets.length >= 4) {
-        size *= 0.82;
-        fade *= 0.78;
-    }
-    drawTargets.forEach(target => {
-        ctx.save();
-        ctx.translate(target.x, target.y);
-        ctx.rotate(fieldImpact ? Math.sin(now / 900) * 0.025 : progress * 0.2);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = fade;
-        let cellImage = useCombatCellImage(ctx, image, fx, now >= arriveAt,
-            isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey));
-        ctx.imageSmoothingEnabled = false;
-        if (cellImage) drawCombatCellImage(ctx, cellImage, { fieldImpact, size, progress, fade, fx, now, arriveAt });
-        else {
-            ctx.strokeStyle = getElementColor(element);
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            if (element === 'light') {
-                for (let step = 0; step <= 5; step++) {
-                    let y = -size * 0.34 + size * 0.68 * step / 5;
-                    let x = step === 0 || step === 5 ? 0 : ((step + Math.floor(progress * 7)) % 2 ? -size * 0.12 : size * 0.12);
-                    if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-                }
-            } else {
-                ctx.arc(0, 0, size * (0.24 + progress * 0.15), 0, Math.PI * 2);
-            }
-            ctx.stroke();
-        }
-        ctx.restore();
-    });
-}
-
-/** Keep one blast at its aim point; enemy warnings and chain bolts retain their cells. */
-function getCombatCellVfxLayout(fx, targets) {
-    if (fx.screenFootprint) return { drawTargets: [fx.screenFootprint], size: fx.screenFootprint.width };
-    let grid = SKILL_GRID_DB[fx.skillName];
-    if (fx.owner === 'enemy' || !grid || !['blast', 'nova'].includes(grid.kind)) {
-        return { drawTargets: targets, size: fx.owner === 'enemy' ? 92 : 78 };
-    }
-    let bounds = getCombatAreaBounds(targets);
-    let center = grid.kind === 'nova' ? fx.screenSource : fx.screenAim;
-    center = center || { x: bounds.x, y: bounds.y };
-    let reach = targets.reduce((max, target) => Math.max(max, Math.hypot(target.x - center.x, target.y - center.y)), 0);
-    return { drawTargets: [center], size: clampNumber(reach * 2 + 64, 88, 300) };
-}
-
-/**
- * Render the existing cell image; timing is visual milliseconds, never combat state.
- * @param {CanvasRenderingContext2D} ctx
- * @param {CanvasImageSource} image
- * @param {{fieldImpact: boolean, size: number, progress: number, fx: {patternKind?: string|null}, now: number, arriveAt: number}} view
- */
-/** A landed mine swaps to the shock ring; either image draws with the element tint baked in. */
-function useCombatCellImage(ctx, image, fx, landed, filter) {
-    if (image && landed && fx.patternKind === 'mine') image = getSkillGemVfxImage(SKILL_GEM_VFX_IMAGE_KEYS.radialWave) || image;
-    return useFilteredVfxImage(ctx, image, filter);
-}
-
-function drawCombatCellImage(ctx, image, view) {
-    let { fieldImpact, size, progress, fx, now, arriveAt } = view;
+  // modules/rendering/combat-cell-effect.mjs
+  function drawCellImage(ctx, image, view) {
+    const { fieldImpact, size, progress, fx, now, arriveAt } = view;
     if (fx.screenFootprint) {
-        let { width, height } = fx.screenFootprint;
-        ctx.drawImage(image, -width / 2, -height / 2, width, height);
-        return;
+      const { width: width2, height } = fx.screenFootprint;
+      ctx.drawImage(image, -width2 / 2, -height / 2, width2, height);
+      return;
     }
-    let elapsed = Math.max(0, now - arriveAt);
-    let expansion = 0.82 + (1 - Math.exp(-elapsed / 65)) * 0.3;
+    const elapsed = Math.max(0, now - arriveAt);
+    const expansion = 0.82 + (1 - Math.exp(-elapsed / 65)) * 0.3;
     if (fieldImpact) {
-        ctx.drawImage(image, -size / 2, -size * 0.38, size, size * 0.76);
-        return;
+      ctx.drawImage(image, -size / 2, -size * 0.38, size, size * 0.76);
+      return;
     }
-    if (fx.patternKind === 'mine' && now < arriveAt) {
-        let width = size * (0.62 + progress * 0.12);
-        ctx.drawImage(image, -width / 2, -width * 0.32, width, width * 0.64);
-        return;
+    if (fx.patternKind === "mine" && now < arriveAt) {
+      const width2 = size * (0.62 + progress * 0.12);
+      ctx.drawImage(image, -width2 / 2, -width2 * 0.32, width2, width2 * 0.64);
+      return;
     }
-    let width = size * expansion;
+    const width = size * expansion;
     ctx.drawImage(image, -width / 2, -width * 0.56, width, width);
-}
-
-function drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, imageKey, element) {
-    if (now < launchAt || now > arriveAt || !source) return;
-    let progress = clampNumber((now - launchAt) / Math.max(1, arriveAt - launchAt), 0, 1);
-    if (enemyProjectileSprites.draw(ctx, fx, source, targets, progress)) return;
-    let profile = getSkillGemVfxProfile(fx.skillName) || {};
-    let image = getSkillGemVfxImage(imageKey);
-    let dedicatedProjectileImage = !!profile.projectileAsset;
-    let playerProjectile = fx.owner === 'player';
-    let useProjectileImage = !!image && !profile.projectileStyle;
-    let width = dedicatedProjectileImage ? (Number(profile.projectileWidth) || 58) : (fx.patternKind === 'moving' ? 112 : (fx.patternKind === 'boomerang' ? 72 : 64));
-    let height = dedicatedProjectileImage ? (Number(profile.projectileHeight) || 26) : (fx.patternKind === 'moving' ? 58 : (fx.patternKind === 'boomerang' ? 48 : 24));
-    targets.forEach(target => {
-        let x = source.x + (target.x - source.x) * progress;
-        let y = source.y + (target.y - source.y) * progress;
-        let angle = Math.atan2(target.y - source.y, target.x - source.x);
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(angle);
-        if (fx.patternKind === 'boomerang' && !useProjectileImage) ctx.rotate(progress * Math.PI * 3);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = useProjectileImage ? 0.94 : 0.82;
-        let filter = dedicatedProjectileImage || isSpecializedCombatTravelImage(imageKey) ? 'none' : getSkillGemVfxFilter(element, imageKey);
-        let drawnImage = useFilteredVfxImage(ctx, useProjectileImage ? image : null, filter);
-        ctx.imageSmoothingEnabled = false;
-        if (useProjectileImage) ctx.drawImage(drawnImage, -width / 2, -height / 2, width, height);
-        else if (playerProjectile) drawElementProjectileVfx(ctx, getSkillProjectileVfxStyle(fx.skillName, element), width, height, progress);
-        else { ctx.fillStyle = getElementColor(element); ctx.fillRect(-12, -3, 24, 6); }
-        ctx.restore();
-    });
-}
-
-/** Interpolate one moving image through its immutable cast-time waypoints. */
-function drawCombatPathFx(ctx, fx, now, gridProj) {
-    if (fx.enemyFlight?.finished) return;
-    const releaseAt = fx.start + fx.releaseDelayMs;
-    const elapsed = now - releaseAt, path = fx.travelPath;
-    const next = path.findIndex(point => point.offsetMs > elapsed);
-    const index = next < 0 ? path.length - 1 : Math.max(1, next);
-    const source = getCombatTravelScreenPos(gridProj, path[index - 1]);
-    const target = getCombatTravelScreenPos(gridProj, path[index]);
-    drawCombatMovingFx(ctx, fx, now, releaseAt + path[index - 1].offsetMs,
-        releaseAt + path[index].offsetMs, source, [target], getCombatTravelImageKey(fx),
-        normalizeSkillGemVfxElement(fx.element));
-}
-
-/** Boss shots (2026-10-06): leave the body centre (half the drawn height above the feet) instead of the anchor cell's corner,
- * and the sprite grows with the tile (js/canvas-enemy-projectiles.js reads fx.screenShotScale). */
-/** A boss shot leaves the middle of the body. Once the boss is gone (slain mid-flight) the shot keeps that offset from its source
- * cell instead of jumping back to the cell (2026-10-07 review: 33 px in one frame). */
-function prepareBossShot(fx, gridProj, enemyPosMap) {
-    const entry = fx.owner === 'enemy' && enemyPosMap ? enemyPosMap[fx.sourceId] : null;
-    const cell = getCombatTravelScreenPos(gridProj, fx.sourceCell, null);
-    if (!entry || !entry.enemy || !entry.enemy.isBoss) return fx.bossShotOffset && cell ? { x: cell.x + fx.bossShotOffset.x, y: cell.y + fx.bossShotOffset.y } : null;
-    fx.screenShotScale = clampNumber(gridProj.tileW / 48, 0.75, 2) * 1.6;
-    const origin = stageRoster.headOrigin(fx.sourceId, fx.cerberusHead,
-        { x: entry.x, y: entry.y - Math.max(24, (enemyDrawnHeights.get(entry.enemy) || 0) * 0.5) });
-    if (cell) fx.bossShotOffset = { x: origin.x - cell.x, y: origin.y - cell.y };
-    return origin;
-}
-
-function drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap) {
-    stageSkillRules.repeat(fx, now); // 이중 발동, 이중 시전의 두 번째 발동이 떠나는 순간의 잔상(js/canvas-stage-skill-rules.js)
-    if (worldTreeSkillFx.travel(ctx, fx, now, gridProj)) return;
-    if (fx.travelPath) return drawCombatPathFx(ctx, fx, now, gridProj);
-    let launchAt = fx.start + Math.max(0, Number(fx.releaseDelayMs) || 0);
-    let arriveAt = launchAt + Math.max(1, Number(fx.flightMs) || 1);
-    let source = prepareBossShot(fx, gridProj, enemyPosMap) || getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos);
-    let targets = (fx.targetCells || []).map((cell, index) => {
-        let current = fx.owner === 'player' && fx.delivery === 'projectileTarget'
-            ? enemyPosMap[(fx.targetIds || [])[index]] : null;
-        if (fx.owner === 'enemy' && fx.delivery === 'projectileTarget') {
-            const victim = fx.targetType === 'player' ? game.gridPlayer : game.summons.find(unit => unit.id === fx.targetId);
-            return getCombatTravelScreenPos(gridProj, victim || cell, playerPos);
-        }
-        return current ? { x: current.x, y: current.y - 10 } : getCombatTravelScreenPos(gridProj, cell, playerPos);
-    }).filter(Boolean);
-    let imageKey = getCombatTravelImageKey(fx);
-    let element = normalizeSkillGemVfxElement(fx.element, fx.element);
-    if (drawSkillSignatureTravel(ctx, fx, { now, launchAt, arriveAt, source, targets }, gridProj)) return;
-    if (fx.delivery === 'magicCell') {
-        fx.screenSource = source;
-        fx.screenAim = getCombatTravelScreenPos(gridProj, fx.aimCell, targets[0]);
-        fx.screenFootprint = projectSkillFootprint(enemyProjectileSprites.groundArea(fx), gridProj);
-        if (fx.patternKind === 'radialBurst') fx.screenRadius = getRadialBurstScreenRadius(fx, gridProj);
-        drawFootprintCombatCell(ctx, fx, { now, arriveAt, targets, imageKey, element, playerPoint: playerPos });
-    }
-    else drawCombatMovingFx(ctx, fx, now, launchAt, arriveAt, source, targets, imageKey, element);
-}
-
-/** Ground spells belong below actors; vertical fire remains in the foreground. */
-function isGroundSkillCast(fx) {
-    if (fx.type !== 'combatTravel' || fx.delivery !== 'magicCell') return false;
-    if (enemyProjectileSprites.isGround(fx)) return true;
-    if ([10, 28, 29, 32].includes(SKILL_FX_ATLAS[fx.skillName]?.id)) return true;
-    let profile = getSkillGemVfxProfile(fx.skillName);
-    return ['gravity', 'erosion', 'decay', 'resonance', 'mine'].includes(profile?.signature);
-}
-
-/** Preserve special spell animation while fitting its range to the cast-time grid snapshot. */
-function drawFootprintCombatCell(ctx, fx, view) {
-    let { now, arriveAt, targets, imageKey, element } = view;
-    let footprint = fx.screenFootprint;
-    if (!footprint) return drawCombatCellFx(ctx, fx, now, arriveAt, targets, imageKey, element);
-    if (enemyProjectileSprites.isGround(fx)) return enemyProjectileSprites.drawGround(ctx, fx, footprint, view);
-    if (fx.patternKind === 'earthSpikes') return drawEarthSpikeField(ctx, footprint, { now, arriveAt, start: fx.start, end: fx.start + fx.duration, playerPoint: view.playerPoint }, { spike: getSkillGemVfxImage('skillFxEarthSpike'), crack: getSkillGemVfxImage('skillFxEarthCrack') });
-    ctx.save();
-    let fade = clampNumber((fx.start + fx.duration - now) / 180, 0, 1);
-    drawSkillFootprintGround(ctx, footprint, getElementColor(element), fade);
-    drawCombatCellFx(ctx, fx, now, arriveAt, footprint.points, imageKey, element);
-    ctx.restore();
-}
-
-function drawIaiSkillVfx(ctx, effect, progress) {
-    let length = Math.max(54, Math.hypot(effect.toX - effect.fromX, effect.toY - effect.fromY));
-    let reveal = 0.65 + Math.min(1, progress / 0.18) * 0.35;
-    ctx.translate(effect.x, effect.y);
-    ctx.rotate(effect.rotation || 0);
-    ctx.strokeStyle = effect.element === 'chaos' ? '#d88cff' : '#f5f7ff';
-    ctx.lineWidth = Math.max(2, effect.size * 0.045);
-    ctx.shadowColor = ctx.strokeStyle;
-    ctx.shadowBlur = 6;
-    ctx.beginPath(); ctx.moveTo(-length * 0.55 * reveal, 0); ctx.lineTo(length * 0.55 * reveal, 0); ctx.stroke();
-    ctx.globalAlpha *= 0.34;
-    ctx.beginPath(); ctx.moveTo(-length * 0.42, 6); ctx.lineTo(length * 0.48, -4); ctx.stroke();
-}
-
-function drawStormStrikeVfx(ctx, effect, progress) {
-    let height = Math.max(70, effect.size * 1.15);
-    ctx.translate(effect.x, effect.y);
-    ctx.strokeStyle = '#f5ef91';
-    ctx.lineWidth = Math.max(2, effect.size * 0.035);
-    ctx.shadowColor = '#8edcff';
-    ctx.shadowBlur = 5;
+  }
+  function fallback(ctx, layout, element, color) {
+    const { size, progress } = layout;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    for (let step = 0; step <= 5; step++) {
-        let y = -height + height * step / 5;
-        let x = step === 0 || step === 5 ? 0 : (((effect.seed + step) % 3) - 1) * effect.size * 0.1;
-        if (step === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
+    if (element === "light") {
+      for (let step = 0; step <= 5; step++) {
+        const y = -size * 0.34 + size * 0.68 * step / 5;
+        const x = step === 0 || step === 5 ? 0 : (step + Math.floor(progress * 7)) % 2 ? -size * 0.12 : size * 0.12;
+        if (step === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+    } else ctx.arc(0, 0, size * (0.24 + progress * 0.15), 0, Math.PI * 2);
     ctx.stroke();
-    ctx.strokeStyle = '#f8fcff';
-    ctx.lineWidth *= 0.4;
-    ctx.globalAlpha *= 0.9 - progress * 0.2;
-    ctx.stroke();
-}
-
-function drawCoreSkillVfx(ctx, effect, progress) {
-    ctx.translate(effect.x, effect.y);
-    ctx.rotate(progress * Math.PI * 1.4 + effect.seed * 0.01);
-    ctx.strokeStyle = getElementColor(effect.element);
-    ctx.fillStyle = ctx.strokeStyle;
-    ctx.shadowColor = ctx.strokeStyle;
-    ctx.shadowBlur = 12;
-    ctx.beginPath(); ctx.arc(0, 0, effect.size * 0.18, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha *= 0.58;
-    for (let ring = 1; ring <= 2; ring++) {
-        ctx.beginPath();
-        ctx.arc(0, 0, effect.size * (0.22 + ring * 0.11), ring * 0.5, Math.PI * 1.55 + ring * 0.4);
-        ctx.stroke();
+  }
+  var CombatCellEffect = class {
+    constructor(deps, images2, spells, meteor) {
+      this.deps = deps;
+      this.images = images2;
+      this.spells = spells;
+      this.meteor = meteor;
     }
-}
-
-function drawShieldChargeImpactVfx(ctx, effect, progress) {
-    let pulse = Math.sin(progress * Math.PI);
-    let size = Math.max(54, effect.size || 82);
-    ctx.translate(effect.x, effect.y);
-    ctx.rotate(Math.atan2(effect.toY - effect.fromY, effect.toX - effect.fromX));
-    ctx.shadowColor = '#bde8ff';
-    ctx.shadowBlur = 10 * pulse;
-    ctx.strokeStyle = '#e8f5ff';
-    ctx.lineWidth = Math.max(2, size * 0.045);
-    ctx.globalAlpha *= 0.4 + pulse * 0.5;
-    for (let layer = 0; layer < 3; layer++) {
-        let reach = size * (0.2 + layer * 0.12 + progress * 0.12);
-        let spread = size * (0.24 + layer * 0.08);
-        ctx.beginPath();
-        ctx.moveTo(reach - size * 0.1, -spread);
-        ctx.bezierCurveTo(reach + size * 0.16, -spread * 0.55, reach + size * 0.2, spread * 0.55, reach - size * 0.1, spread);
-        ctx.stroke();
+    special(ctx, fx, view) {
+      const { now, arriveAt, targets } = view;
+      const profile = this.deps.profile(fx.skillName);
+      if (profile && profile.family === "stormStrike") return true;
+      if (fx.patternKind === "meteor") {
+        this.meteor.draw(ctx, fx, now, arriveAt, targets);
+        return true;
+      }
+      if (fx.patternKind === "field" && fx.skillName === "난타 눈보라") {
+        this.spells.blizzard(ctx, fx, now, arriveAt, targets);
+        return true;
+      }
+      if (fx.patternKind === "channel") {
+        this.spells.channel(ctx, fx, now, targets);
+        return true;
+      }
+      return fx.patternKind === "radialBurst" && this.spells.frost(ctx, fx, now, arriveAt, targets);
     }
-    ctx.fillStyle = '#91b5c8';
-    ctx.shadowBlur = 4;
-    for (let shard = 0; shard < 6; shard++) {
-        let lane = shard - 2.5;
-        let distance = size * (0.14 + progress * (0.22 + (shard % 3) * 0.05));
-        ctx.save();
-        ctx.translate(distance, lane * size * 0.095);
-        ctx.rotate(lane * 0.34 + progress * 0.8);
-        ctx.fillRect(-size * 0.055, -size * 0.022, size * 0.11, size * 0.044);
-        ctx.restore();
+    layout(fx, targets) {
+      if (fx.screenFootprint) return { drawTargets: [fx.screenFootprint], size: fx.screenFootprint.width };
+      const grid = this.deps.grids[fx.skillName];
+      if (fx.owner === "enemy" || !grid || !["blast", "nova"].includes(grid.kind)) {
+        return { drawTargets: targets, size: fx.owner === "enemy" ? 92 : 78 };
+      }
+      const bounds = combatEffectBounds(targets);
+      let center = grid.kind === "nova" ? fx.screenSource : fx.screenAim;
+      center = center || { x: bounds.x, y: bounds.y };
+      const reach = targets.reduce((max, target) => Math.max(max, Math.hypot(target.x - center.x, target.y - center.y)), 0);
+      return { drawTargets: [center], size: clampNumber(reach * 2 + 64, 88, 300) };
     }
-    ctx.globalAlpha *= 0.45;
-    ctx.fillStyle = '#7d91a0';
-    ctx.beginPath();
-    ctx.ellipse(size * 0.08, size * 0.28, size * (0.32 + progress * 0.18), size * 0.075, 0, 0, Math.PI * 2);
-    ctx.fill();
-}
-
-function drawProceduralSkillImpact(ctx, effect, progress) {
-    if (effect.family === 'iai') drawIaiSkillVfx(ctx, effect, progress);
-    else if (effect.family === 'stormStrike') drawStormStrikeVfx(ctx, effect, progress);
-    else if (effect.family === 'fireCore' || effect.family === 'mine') drawCoreSkillVfx(ctx, effect, progress);
-    else if (effect.family === 'charge') drawShieldChargeImpactVfx(ctx, effect, progress);
-    else return false;
-    return true;
-}
-
-function drawPlayerMobilityFx(ctx, fx, progress, gridProj) {
-    if (!gridProj || !fx.fromCell || !fx.toCell) return;
-    worldTreeSkillFx.mobility(ctx, fx, progress, gridProj);
-}
-
-function drawTrialTrapGridFx(ctx, fx, progress, gridProj, warning) {
-    if (fx.type === 'bossAreaImpact') return bossAttackView.drawImpact(ctx, fx, progress, gridProj);
-    if (!gridProj || !Array.isArray(fx.targetCells)) return;
-    // 원소마다 바닥에서 솟는 실체(js/canvas-trial-traps.js; 바닥 부분은 drawBattleGroundLayer가 인물 아래에 그렸다).
-    if (trialTrapArt.drawRise(ctx, fx, progress, gridProj)) return;
-    let halfW = gridProj.tileW / 2;
-    let halfH = gridProj.tileH / 2;
-    let pulse = 0.5 + Math.sin(progress * Math.PI * 8) * 0.5;
-    ctx.save();
-    ctx.globalCompositeOperation = 'source-over';
-    fx.targetCells.forEach(cell => {
-        let pos = gridProj.cellToScreen(cell.gx, cell.gy);
-        ctx.beginPath();
-        ctx.rect(pos.x - halfW, pos.y - halfH, gridProj.tileW, gridProj.tileH);
-        ctx.globalAlpha = warning ? 0.1 + pulse * 0.16 : (1 - progress) * 0.5;
-        ctx.fillStyle = fx.color || '#ffd36b';
-        ctx.fill();
-        ctx.globalAlpha = warning ? 0.48 + pulse * 0.38 : (1 - progress) * 0.95;
-        ctx.strokeStyle = warning ? (fx.color || '#ffd36b') : '#fff3c6';
-        ctx.lineWidth = warning ? 2 : 2.6;
-        ctx.setLineDash(warning ? [5, 4] : []);
-        ctx.stroke();
-        if (warning) return;
-        ctx.setLineDash([]);
-        ctx.beginPath();
-        ctx.moveTo(pos.x - halfW * 0.3, pos.y - halfH * 0.3);
-        ctx.lineTo(pos.x + halfW * 0.3, pos.y + halfH * 0.3);
-        ctx.moveTo(pos.x + halfW * 0.3, pos.y - halfH * 0.3);
-        ctx.lineTo(pos.x - halfW * 0.3, pos.y + halfH * 0.3);
-        ctx.stroke();
-    });
-    ctx.restore();
-}
-
-/**
- * Draw a local impact from the queued effect without changing it.
- * @param {CanvasRenderingContext2D} ctx
- * @param {CanvasImageSource} image
- * @param {Readonly<{family: string, size: number, x: number, y: number, fromX: number, fromY: number, toX: number, toY: number, rotation: number, seed: number}>} effect
- * @param {number} progress Normalized visual lifetime, 0..1.
- */
-function drawSkillImpactImage(ctx, image, effect, progress) {
-    if (effect.skillName === '기본 공격') {
-        const angle = Math.atan2(effect.toY - effect.fromY, effect.toX - effect.fromX);
-        drawSwordSlashVfx(ctx, { ...effect, rotation: angle, sweep: 1, size: effect.size * 1.6,
-            x: effect.x - Math.cos(angle) * 8, y: effect.y - 14 - Math.sin(angle) * 8 }, image, progress);
-        return;
+    fieldLayout(fx, view, layout) {
+      const bounds = combatEffectBounds(view.targets);
+      layout.drawTargets = [fx.screenFootprint || { x: bounds.x, y: bounds.y }];
+      const span = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
+      layout.size = clampNumber(span + 78, 110, 360);
+      layout.fade = (0.28 + Math.sin(view.now / 180) * 0.04) * clampNumber((fx.start + fx.duration - view.now) / 220, 0, 1);
     }
-    if (!image) return drawProceduralSkillImpact(ctx, effect, progress);
-    let grow = 0.8 + (1 - Math.pow(1 - progress, 3)) * 0.36;
-    let size = effect.size * grow;
-    ctx.translate(effect.x, effect.y);
-    if (effect.family === 'slash') {
-        let angle = Math.atan2(effect.toY - effect.fromY, effect.toX - effect.fromX);
-        ctx.translate(-Math.cos(angle) * 8, -14 - Math.sin(angle) * 8);
-        ctx.rotate(angle + (Math.min(1, progress / 0.36) - 1) * 0.65 + (effect.seed % 3 - 1) * 0.12);
-        size *= 2;
-        ctx.drawImage(image, -size * 0.79, -size * 0.48, size, size * 0.96);
-        return;
+    draw(ctx, fx, view) {
+      const { targets, now, arriveAt } = view;
+      if (targets.length <= 0 || this.special(ctx, fx, view)) return;
+      const image = this.deps.image(view.imageKey);
+      const progress = clampNumber((now - fx.start) / Math.max(1, arriveAt - fx.start), 0, 1);
+      const fade = now <= arriveAt ? 0.24 + progress * 0.42 : clampNumber((fx.start + fx.duration - now) / 260, 0, 1) * 0.48;
+      const layout = { ...this.layout(fx, targets), progress, fade, fieldImpact: fx.patternKind === "field" };
+      if (layout.fieldImpact) this.fieldLayout(fx, view, layout);
+      else if (layout.drawTargets.length >= 4) {
+        layout.size *= 0.82;
+        layout.fade *= 0.78;
+      }
+      layout.drawTargets.forEach((target) => this.paint(ctx, fx, view, { image, layout, target }));
     }
-    if (['slam', 'dot', 'whirlwind'].includes(effect.family)) {
-        ctx.scale(1, 0.64);
-        if (effect.family === 'whirlwind') ctx.rotate(effect.rotation + progress * 2.4);
-        ctx.drawImage(image, -size / 2, -size / 2, size, size);
-        return;
+    image(ctx, image, fx, landed, filter) {
+      if (image && landed && fx.patternKind === "mine") image = this.deps.image(SKILL_EFFECT_IMAGES.radialWave) || image;
+      return this.images.use(ctx, image, filter);
     }
-    ctx.translate(0, -12);
-    ctx.rotate((effect.rotation || 0) + progress * 0.18);
-    let height = effect.family === 'summon' ? size * 0.68 : size;
-    ctx.drawImage(image, -size / 2, -height / 2, size, height);
-}
-
-/** Return true only when a large effect was fitted to the cast-time attack footprint. */
-function drawFootprintSkillImpact(ctx, effect, image, progress) {
-    if (drawSkillSignatureImpact(ctx, effect, progress)) return true;
-    let footprint = effect.footprint;
-    if (!footprint || ['projectile', 'chain', 'summon', 'stormStrike'].includes(effect.family)) return false;
-    ctx.save();
-    let fade = Math.min(1, progress / 0.045) * Math.pow(1 - progress, 1.1);
-    drawSkillFootprintGround(ctx, footprint, getElementColor(effect.element), fade);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = (effect.alpha || 0.82) * fade;
-    image = useFilteredVfxImage(ctx, image, getDrawnSkillEffectFilter(effect));
-    ctx.imageSmoothingEnabled = false;
-    let fitted = { ...effect, size: Math.min(footprint.width, footprint.height) };
-    if (effect.family === 'continuousSlash') drawSwordSlashVfx(ctx, fitted, image, progress);
-    else if (effect.family === 'slash') drawSkillImpactImage(ctx, image, fitted, progress);
-    else if (image) ctx.drawImage(image, footprint.x - footprint.width * 0.56,
-        footprint.y - footprint.height * 0.56, footprint.width * 1.12, footprint.height * 1.12);
-    else drawProceduralSkillImpact(ctx, fitted, progress);
-    ctx.restore();
-    return true;
-}
-
-function getEnemyTelegraphColor(enemy) {
-    let element = String((enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele)) || 'phys').toLowerCase();
-    if (element === 'fire') return { edge: '#ff7b4d', fill: 'rgba(255,76,38,0.18)' };
-    if (element === 'cold') return { edge: '#85d8ff', fill: 'rgba(81,188,255,0.17)' };
-    if (element === 'light' || element === 'lightning') return { edge: '#ffe873', fill: 'rgba(255,222,68,0.17)' };
-    if (element === 'chaos') return { edge: '#cb80ff', fill: 'rgba(169,66,255,0.18)' };
-    return { edge: '#ffb26b', fill: 'rgba(255,135,59,0.16)' };
-}
-
-function drawBossPatternLabel(ctx, entry, enemy) {
-    if (!enemy.patternTelegraphKey && !enemy.attackCast && !(enemy.castInterruptedUntil > getCombatTime())) return;
-    const cast = enemyAttackRules.castBar(enemy,getCombatTime(),pendingEnemyCombatAttacks.find(attack => attack.enemyId === enemy.id));
-    if (!cast) return;
-    if (cast.fatal) { drawObserverFatalCast(ctx, entry, enemy, cast); return; }
-    ctx.save();
-    const width = enemy.isBoss ? 84 : 60;
-    const viewWidth = ctx.canvas.width / ctx.getTransform().a;
-    const x = Math.round(clampNumber(entry.x-width/2,6,Math.max(6,viewWidth-width-6)));
-    const y = Math.round(Math.max(6, entry.y - (woodsmanView.active(enemy) ? 20 : getEnemyFieldBarLift(enemy) + 13)));
-    reserveBossText(enemy, { x: x - 3, y: y - 3, w: width + 6, h: 14 });
-    const edge = cast.cancelled ? '#a8706a' : '#8e7951';
-    ctx.globalAlpha = 0.96;
-    ctx.fillStyle = '#111310';
-    ctx.beginPath();
-    ctx.roundRect(x+0.5,y+0.5,width-1,7,3.5);
-    ctx.fill();
-    ctx.strokeStyle = edge;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.roundRect(x+2,y+2,width-4,4,2);
-    ctx.clip();
-    const progressWidth = Math.round((width-4)*cast.progress);
-    ctx.fillStyle = '#b69a60';
-    ctx.fillRect(x+2,y+2,progressWidth,4);
-    ctx.fillStyle = '#ead8a7';
-    ctx.fillRect(x+2,y+2,progressWidth,1);
-    ctx.restore();
-}
-
-function drawObserverFatalCast(ctx, entry, enemy, cast) {
-    const width = 116, viewWidth = ctx.canvas.width / ctx.getTransform().a;
-    const x = Math.round(clampNumber(entry.x - width / 2, 4, viewWidth - width - 4));
-    const y = Math.round(Math.max(28, entry.y - getEnemyFieldBarLift(enemy) - 16));
-    reserveBossText(enemy, { x, y: y - 21, w: width, h: 32 });
-    ctx.save();
-    ctx.fillStyle = '#230b15';
-    ctx.fillRect(x, y, width, 10);
-    ctx.strokeStyle = '#ff7188';
-    ctx.strokeRect(x + .5, y + .5, width - 1, 9);
-    ctx.fillStyle = '#ef365d';
-    ctx.fillRect(x + 2, y + 2, (width - 4) * cast.progress, 6);
-    ctx.fillStyle = '#ffe4e8';
-    ctx.strokeStyle = '#2a0d1a';
-    ctx.lineWidth = 3;
-    ctx.font = `bold 13px ${battlePixelFont()}`;
-    ctx.textAlign = 'center';
-    ctx.strokeText(cast.label, x + width / 2, y - 4);
-    ctx.fillText(cast.label, x + width / 2, y - 4);
-    ctx.restore();
-}
-
-/** The same immutable cell snapshot drives the red warning, impact and collision. */
-function drawBossPatternArea(ctx, area, projection, alpha = 3, outlineOnly = false) {
-    if (!area || area.woodsman || area.observerMove) return;
-    let footprint = projectSkillFootprint(area, projection);
-    if (footprint) drawSkillFootprintGround(ctx, footprint, outlineOnly ? '#ff9970' : '#ff684f', alpha, outlineOnly);
-}
-
-function drawEnemyAttackTelegraphs(ctx, layout, gridUnitScale, projection, pendingAttacks) {
-    woodsmanView.field(ctx, projection);
-    sideEncounterCanvas.pendingWarnings(ctx, projection, pendingAttacks.filter(attack => !attack.bossPattern?.area?.woodsman));
-    bossMoveView.drawGround(ctx, projection); // boss moves: each stage's warning and the bursts out of the ground (js/canvas-boss-moves.js)
-    if (game.currentZoneId === BEYOND_BOUNDARY_UNLOCK_BOSS_ID) bossMoveView.drawObserverWarnings(ctx, layout, projection);
-    (layout || []).forEach(entry => {
-        let enemy = entry.enemy;
-        if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
-        let frozen = (enemy.ailments || []).some(ailment => ['freeze','stun','silence'].includes(ailment.type) && ailment.time > 0);
-        if (frozen) return;
-        if (enemy.isBoss) {
-            drawBossPatternArea(ctx, enemy.patternArea, projection, bossAttackView.groundAlpha(enemy));
-            return;
-        }
-        if (!enemy.isElite) return;
-        let threshold = 0.84;
-        let charge = Number(enemy.attackTimer) || 0;
-        if (charge < threshold) return;
-        let progress = clampNumber((charge - threshold) / Math.max(0.001, 1 - threshold), 0, 1);
-        let palette = getEnemyTelegraphColor(enemy);
-        let radiusX = 29 * gridUnitScale;
-        let radiusY = radiusX * 0.43;
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = palette.fill;
-        ctx.strokeStyle = palette.edge;
-        ctx.lineWidth = 1.35;
-        ctx.globalAlpha = 0.18 + progress * 0.28;
-        ctx.beginPath();
-        ctx.ellipse(entry.x, entry.y + 8, radiusX * (0.84 + progress * 0.16), radiusY, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.globalAlpha = 0.08 + progress * 0.18;
-        ctx.setLineDash([3, 5]);
-        ctx.beginPath();
-        ctx.ellipse(entry.x, entry.y + 8, radiusX * 0.68, radiusY * 0.68, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
-    });
-    bossAttackView.drawMarks(ctx, { layout, projection, pending: pendingAttacks }); // lines and fans, landings: on the floor, under the actors
-}
-
-/** The player's bar floats just above the drawn head — Hana sprites scale with the tile (×3~×5), so a fixed offset
- * cut across the face on large screens. Legacy sprites keep the old offset. */
-/** Player bar fill by remaining life: green from 60%, amber from 35%, red below. Below 35% the bar also thickens and pulses
- * so the warning does not rest on colour alone (drawLowHealthEdge adds the screen-edge pulse at the same threshold). */
-function getPlayerHealthBarLook(hpPct, now) {
-    if (hpPct >= 0.6) return { fill: '#20bf6b', height: 6, alpha: 0.97 };
-    if (hpPct >= 0.35) return { fill: '#e0a530', height: 6, alpha: 0.97 };
-    return { fill: '#e2453c', height: 8, alpha: 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(now / 140)) };
-}
-
-function drawBattlefieldPlayerHealthBar(ctx, scene) {
-    // 2026-10-04 visibility: 64 -> 48px wide so the bar covers less of the field; the height stays readable.
-    const look = getPlayerHealthBarLook(scene.hpPct, scene.now);
-    const width = 48, height = look.height, head = getHeroHeadY(scene.now), playerPos = scene.light;
-    const x = Math.round(playerPos.x - width / 2), y = Math.round(head === null ? playerPos.y - 82 * HERO_SIZE_SCALE : head - 10) - (height - 6);
-    ctx.save();
-    ctx.globalAlpha = look.alpha;
-    ctx.fillStyle = 'rgba(6, 5, 4, 0.72)';
-    ctx.fillRect(x, y, width, height);
-    if (scene.ghostPct > scene.hpPct + 0.003) {
-        ctx.fillStyle = 'rgba(255, 126, 76, 0.58)';
-        ctx.fillRect(x, y, Math.max(1, Math.round(width * scene.ghostPct)), height);
+    paint(ctx, fx, view, cell) {
+      const { image, layout, target } = cell;
+      const { now, arriveAt, imageKey, element } = view;
+      ctx.save();
+      ctx.translate(target.x, target.y);
+      ctx.rotate(layout.fieldImpact ? Math.sin(now / 900) * 0.025 : layout.progress * 0.2);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = layout.fade;
+      const cellImage = this.image(
+        ctx,
+        image,
+        fx,
+        now >= arriveAt,
+        specializedTravelImage(imageKey) ? "none" : skillEffectFilter(element, imageKey)
+      );
+      ctx.imageSmoothingEnabled = false;
+      if (cellImage) drawCellImage(ctx, cellImage, { ...layout, fx, now, arriveAt });
+      else fallback(ctx, layout, element, this.deps.color(element));
+      ctx.restore();
     }
-    ctx.fillStyle = look.fill;
-    ctx.fillRect(x, y, Math.max(2, Math.round(width * scene.hpPct)), height);
-    if (scene.esPct > 0) {
-        ctx.fillStyle = 'rgba(75,123,236,0.85)';
-        ctx.fillRect(x, y, Math.max(1, Math.round(width * scene.esPct)), height);
+    footprint(ctx, fx, view) {
+      const footprint = fx.screenFootprint;
+      if (!footprint) return this.draw(ctx, fx, view);
+      if (this.deps.enemyProjectiles.isGround(fx)) return this.deps.enemyProjectiles.drawGround(ctx, fx, footprint, view);
+      if (fx.patternKind === "earthSpikes") {
+        return this.deps.earthSpikes(
+          ctx,
+          footprint,
+          {
+            now: view.now,
+            arriveAt: view.arriveAt,
+            start: fx.start,
+            end: fx.start + fx.duration,
+            playerPoint: view.playerPoint
+          },
+          { spike: this.deps.image("skillFxEarthSpike"), crack: this.deps.image("skillFxEarthCrack") }
+        );
+      }
+      ctx.save();
+      const fade = clampNumber((fx.start + fx.duration - view.now) / 180, 0, 1);
+      this.deps.footprintGround(ctx, footprint, this.deps.color(view.element), fade);
+      this.draw(ctx, fx, { ...view, targets: footprint.points });
+      ctx.restore();
     }
-    ctx.strokeStyle = 'rgba(6, 5, 4, 0.9)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x - 0.5, y - 0.5, width + 1, height + 1);
-    ctx.restore();
-}
+  };
 
-// 정예는 일반 무리와 한눈에 구분되도록 체력바 위에 특성 이름표를 단다(보스는 상단 대형 바가 맡는다).
-// 일반 · 정예 막대는 칸보다 좁게: 이웃한 두 적의 막대가 맞붙어 한 줄로 읽혔다(검토 4차).
-/** 칸 폭을 넘지 않는다: 휴대폰은 칸이 좁아 이웃한 적의 막대가 한 줄로 이어져 보였다(검토 5차). */
-function getEnemyFieldBarWidth(enemy, tileW) {
+  // modules/rendering/combat-travel-effect.mjs
+  function projectileSize(fx, profile) {
+    if (profile.projectileAsset) return { width: Number(profile.projectileWidth) || 58, height: Number(profile.projectileHeight) || 26 };
+    if (fx.patternKind === "moving") return { width: 112, height: 58 };
+    return fx.patternKind === "boomerang" ? { width: 72, height: 48 } : { width: 64, height: 24 };
+  }
+  function cachedBossSource(fx, cell) {
+    return fx.bossShotOffset && cell ? { x: cell.x + fx.bossShotOffset.x, y: cell.y + fx.bossShotOffset.y } : null;
+  }
+  var CombatTravelEffect = class {
+    constructor(deps, images2, cells) {
+      this.deps = deps;
+      this.images = images2;
+      this.cells = cells;
+    }
+    moving(ctx, fx, flight) {
+      const { now, launchAt, arriveAt, source, targets, imageKey } = flight;
+      if (now < launchAt || now > arriveAt || !source) return;
+      const progress = clampNumber((now - launchAt) / Math.max(1, arriveAt - launchAt), 0, 1);
+      if (this.deps.enemyProjectiles.draw(ctx, fx, source, targets, progress)) return;
+      const profile = this.deps.profile(fx.skillName) || {};
+      const image = this.deps.image(imageKey);
+      const look = {
+        ...projectileSize(fx, profile),
+        image,
+        profile,
+        progress,
+        useImage: !!image && !profile.projectileStyle
+      };
+      targets.forEach((target) => this.projectile(ctx, fx, flight, look, target));
+    }
+    projectile(ctx, fx, flight, look, target) {
+      const { source, element, imageKey } = flight;
+      const { progress, profile, image, width, height, useImage } = look;
+      ctx.save();
+      ctx.translate(source.x + (target.x - source.x) * progress, source.y + (target.y - source.y) * progress);
+      ctx.rotate(Math.atan2(target.y - source.y, target.x - source.x));
+      if (fx.patternKind === "boomerang" && !useImage) ctx.rotate(progress * Math.PI * 3);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = useImage ? 0.94 : 0.82;
+      const filter = profile.projectileAsset || specializedTravelImage(imageKey) ? "none" : skillEffectFilter(element, imageKey);
+      const drawnImage = this.images.use(ctx, useImage ? image : null, filter);
+      ctx.imageSmoothingEnabled = false;
+      if (useImage) ctx.drawImage(drawnImage, -width / 2, -height / 2, width, height);
+      else if (fx.owner === "player") {
+        const style = projectileStyle(this.deps.profile(fx.skillName), element);
+        paintElementProjectile(ctx, { style, width, height, progress }, this.deps.color(style === "shield" ? "phys" : style));
+      } else {
+        ctx.fillStyle = this.deps.color(element);
+        ctx.fillRect(-12, -3, 24, 6);
+      }
+      ctx.restore();
+    }
+    path(ctx, fx, now, projection) {
+      if (fx.enemyFlight?.finished) return;
+      const releaseAt = fx.start + fx.releaseDelayMs;
+      const elapsed = now - releaseAt, path = fx.travelPath;
+      const next = path.findIndex((point) => point.offsetMs > elapsed);
+      const index = next < 0 ? path.length - 1 : Math.max(1, next);
+      const source = combatScreenPoint(projection, path[index - 1]);
+      const target = combatScreenPoint(projection, path[index]);
+      this.moving(ctx, fx, {
+        now,
+        launchAt: releaseAt + path[index - 1].offsetMs,
+        arriveAt: releaseAt + path[index].offsetMs,
+        source,
+        targets: [target],
+        imageKey: combatTravelImage(fx, this.deps.profile(fx.skillName)),
+        element: vfxElement(fx.element)
+      });
+    }
+    bossSource(fx, projection, positions) {
+      const entry = fx.owner === "enemy" && positions ? positions[fx.sourceId] : null;
+      const cell = combatScreenPoint(projection, fx.sourceCell, null);
+      if (!entry || !entry.enemy || !entry.enemy.isBoss) return cachedBossSource(fx, cell);
+      fx.screenShotScale = clampNumber(projection.tileW / 48, 0.75, 2) * 1.6;
+      const origin = this.deps.headOrigin(
+        fx.sourceId,
+        fx.cerberusHead,
+        { x: entry.x, y: entry.y - Math.max(24, (this.deps.drawnHeight(entry.enemy) || 0) * 0.5) }
+      );
+      if (cell) fx.bossShotOffset = { x: origin.x - cell.x, y: origin.y - cell.y };
+      return origin;
+    }
+    target(fx, scene, cell, index) {
+      const { projection, playerPos, enemyPosMap } = scene;
+      const current = fx.owner === "player" && fx.delivery === "projectileTarget" ? enemyPosMap[(fx.targetIds || [])[index]] : null;
+      if (fx.owner === "enemy" && fx.delivery === "projectileTarget") {
+        const game = this.deps.game();
+        const victim = fx.targetType === "player" ? game.gridPlayer : game.summons.find((unit) => unit.id === fx.targetId);
+        return combatScreenPoint(projection, victim || cell, playerPos);
+      }
+      return current ? { x: current.x, y: current.y - 10 } : combatScreenPoint(projection, cell, playerPos);
+    }
+    draw(ctx, fx, scene) {
+      const { now, projection, playerPos, enemyPosMap } = scene;
+      this.deps.rules.repeat(fx, now);
+      if (this.deps.tree.travel(ctx, fx, now, projection)) return;
+      if (fx.travelPath) return this.path(ctx, fx, now, projection);
+      const launchAt = fx.start + Math.max(0, Number(fx.releaseDelayMs) || 0);
+      const arriveAt = launchAt + Math.max(1, Number(fx.flightMs) || 1);
+      const source = this.bossSource(fx, projection, enemyPosMap) || combatScreenPoint(projection, fx.sourceCell, playerPos);
+      const targets = (fx.targetCells || []).map((cell, index) => this.target(fx, scene, cell, index)).filter(Boolean);
+      const imageKey = combatTravelImage(fx, this.deps.profile(fx.skillName));
+      const element = vfxElement(fx.element, fx.element);
+      if (this.deps.signature(ctx, fx, { now, launchAt, arriveAt, source, targets }, projection)) return;
+      if (fx.delivery === "magicCell") this.cell(ctx, fx, scene, { now, arriveAt, source, targets, imageKey, element });
+      else this.moving(ctx, fx, { now, launchAt, arriveAt, source, targets, imageKey, element });
+    }
+    cell(ctx, fx, scene, flight) {
+      fx.screenSource = flight.source;
+      fx.screenAim = combatScreenPoint(scene.projection, fx.aimCell, flight.targets[0]);
+      fx.screenFootprint = this.deps.footprint(this.deps.enemyProjectiles.groundArea(fx), scene.projection);
+      if (fx.patternKind === "radialBurst") fx.screenRadius = radialEffectRadius(fx, scene.projection, this.deps.grids);
+      this.cells.footprint(ctx, fx, { ...flight, playerPoint: scene.playerPos });
+    }
+    isGround(fx) {
+      if (fx.type !== "combatTravel" || fx.delivery !== "magicCell") return false;
+      if (this.deps.enemyProjectiles.isGround(fx)) return true;
+      if ([10, 28, 29, 32].includes(this.deps.atlas[fx.skillName]?.id)) return true;
+      return ["gravity", "erosion", "decay", "resonance", "mine"].includes(this.deps.profile(fx.skillName)?.signature);
+    }
+  };
+
+  // modules/rendering/battlefield-body.mjs
+  var BattlefieldBody = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.heights = /* @__PURE__ */ new WeakMap();
+    }
+    note(enemy, height) {
+      if (enemy && height > 0) this.heights.set(enemy, height);
+    }
+    drawnHeight(enemy) {
+      return this.heights.get(enemy);
+    }
+    /** Bar lift in CSS px: clear the drawn head, preserving the old minimum and floating wisps. */
+    barLift(enemy, bodyHeight) {
+      const base = enemy.isBoss ? 106 : this.deps.wispBarLift(enemy) || 56;
+      const drawn = bodyHeight ?? this.heights.get(enemy) ?? 0;
+      return Math.max(base, Math.round(drawn + 10));
+    }
+    enemyHeight(pos) {
+      return pos.enemy ? this.barLift(pos.enemy) - 10 : 46;
+    }
+    heroHeight(pos, now) {
+      const head = this.deps.heroHeadY(now);
+      return head === null ? 82 * this.deps.heroSizeScale : pos.y - head;
+    }
+    dispose() {
+      this.heights = /* @__PURE__ */ new WeakMap();
+    }
+  };
+  function damageBodyY(feetY, height) {
+    return Math.round(feetY - height * 0.5);
+  }
+  function bodyCueAnchor(pos, height) {
+    return { x: Math.round(pos.x), y: Math.round(pos.y - height * (pos.enemy?.isBoss ? 0.64 : 0.92)) };
+  }
+  function bodyCueFromFx(fx, pos, height, start) {
+    const value = fx.text || "회피!", color = fx.color || "#c4e2ff";
+    const bodyCue = fx.type === "enemyEvade" || fx.bodyCue === true;
+    const actor = fx.enemyId == null ? "hero" : "enemy:" + fx.enemyId;
+    return {
+      start,
+      ...bodyCueAnchor(pos, height),
+      value,
+      miss: true,
+      bodyCue,
+      color,
+      aggregateKey: bodyCue ? `cue:${actor}:${value}:${color}` : ""
+    };
+  }
+
+  // modules/rendering/battlefield-labels.mjs
+  var SHORT_TRAITS = Object.freeze({
+    critResist: "치명저항",
+    critDamageResist: "치명피해저항",
+    comboGuard: "연타저항",
+    heavySlow: "강타",
+    fast: "속공",
+    energyShield: "보호막",
+    evasion: "회피",
+    armor: "장갑"
+  });
+  var COSMOS_METADATA = /^우주계:\s*\S+\s+\d+등급\/\d+(?:\.\d+)?g$/;
+  var BattlefieldLabels = class {
+    constructor(deps, text2) {
+      this.deps = deps;
+      this.text = text2;
+      this.cache = /* @__PURE__ */ new WeakMap();
+      this.names = new Map(deps.mechanics.map((row) => [row.name, SHORT_TRAITS[row.id]]));
+      this.habitats = new Set(Object.values(deps.habitats).map((row) => row.name));
+    }
+    combatLabel(part) {
+      const match = /^우주계:\s*(.+)$/.exec(part);
+      return match && this.names.get(match[1].replace(/\s+\d+%$/, "")) || part;
+    }
+    compact(raw) {
+      const parts = raw.split(",").map((part) => part.trim()), cosmos = parts.some((part) => COSMOS_METADATA.test(part));
+      const labels2 = parts.map((part) => {
+        if (cosmos && (COSMOS_METADATA.test(part) || part.startsWith("탐사:") || this.habitats.has(part))) return null;
+        return this.combatLabel(part);
+      }).filter(Boolean);
+      if (labels2.length === parts.length && labels2.every((label, index) => label === parts[index])) return raw;
+      return labels2.join(" · ") || "정예";
+    }
+    presentation(enemy) {
+      const raw = String(enemy.traitName || "정예"), previous = this.cache.get(enemy);
+      if (previous?.raw === raw) return previous;
+      const result = { raw, label: this.compact(raw), color: this.deps.tones.lineColor(raw, "#f3d77a") };
+      this.cache.set(enemy, result);
+      return result;
+    }
+    /** Remeasure with the current font; never cache fallback-font widths. */
+    fit(ctx, label) {
+      if (ctx.measureText(label).width <= 150) return label;
+      const glyphs = Array.from(label);
+      let low = 0, high = glyphs.length;
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        if (ctx.measureText(glyphs.slice(0, mid).join("") + "…").width <= 150) low = mid;
+        else high = mid - 1;
+      }
+      return glyphs.slice(0, low).join("") + "…";
+    }
+    draw(ctx, centerX, bottomY, enemy) {
+      if (!enemy.isElite || enemy.isBoss) return;
+      const presentation = this.presentation(enemy);
+      ctx.save();
+      ctx.font = `12px ${this.text.font()}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      const label = this.fit(ctx, presentation.label);
+      const width = Math.ceil(ctx.measureText(label).width) + 10;
+      const x = Math.round(centerX), y = Math.round(bottomY);
+      ctx.fillStyle = "rgba(10, 9, 6, 0.82)";
+      ctx.fillRect(Math.round(x - width / 2), y - 17, width, 16);
+      this.text.fill(ctx, label, x, y - 3, presentation.color);
+      ctx.restore();
+    }
+    dispose() {
+      this.cache = /* @__PURE__ */ new WeakMap();
+    }
+  };
+
+  // modules/rendering/battlefield-bars.mjs
+  function playerBarLook(hpPct, now) {
+    if (hpPct >= 0.6) return { fill: "#20bf6b", height: 6, alpha: 0.97 };
+    if (hpPct >= 0.35) return { fill: "#e0a530", height: 6, alpha: 0.97 };
+    return { fill: "#e2453c", height: 8, alpha: 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(now / 140)) };
+  }
+  function enemyBarWidth(enemy, tileW) {
     if (enemy.isBoss) return 96;
-    // 2026-10-04 visibility: narrower (40 -> 32, elite 54 -> 44) so packed rows read as separate bars.
     const base = enemy.isElite ? 44 : 32;
     return tileW > 0 ? Math.min(base, Math.max(18, Math.floor(tileW * 0.84))) : base;
-}
-
-function getEnemyFieldBarEdge(enemy, targeted) {
-    if (targeted) return 'rgba(255, 224, 130, 0.95)';
-    return enemy.isElite ? 'rgba(232, 196, 96, 0.8)' : 'rgba(255,255,255,0.14)';
-}
-
-function drawEliteNameplate(ctx, centerX, bottomY, enemy) {
-    if (!enemy.isElite || enemy.isBoss) return;
-    const presentation = drawEliteNameplate.presentation(enemy);
-    let label = presentation.label;
-    ctx.save();
-    ctx.font = `12px ${battlePixelFont()}`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    // Measure the current font each paint: a cached fallback-font width stays wrong after Galmuri loads.
-    if (ctx.measureText(label).width > 150) {
-        const glyphs = Array.from(label);
-        let low = 0, high = glyphs.length;
-        while (low < high) {
-            const mid = Math.ceil((low + high) / 2);
-            if (ctx.measureText(glyphs.slice(0, mid).join('') + '…').width <= 150) low = mid;
-            else high = mid - 1;
-        }
-        label = glyphs.slice(0, low).join('') + '…';
+  }
+  function enemyBarEdge(enemy, targeted) {
+    if (targeted) return "rgba(255, 224, 130, 0.95)";
+    return enemy.isElite ? "rgba(232, 196, 96, 0.8)" : "rgba(255,255,255,0.14)";
+  }
+  var BattlefieldBars = class {
+    constructor(deps, body2, labels2, text2) {
+      this.deps = deps;
+      this.body = body2;
+      this.labels = labels2;
+      this.text = text2;
+      this.tops = /* @__PURE__ */ new Map();
+      this.bossRects = [];
     }
-    const width = Math.ceil(ctx.measureText(label).width) + 10;
-    const x = Math.round(centerX), y = Math.round(bottomY);
-    ctx.fillStyle = 'rgba(10, 9, 6, 0.82)';
-    ctx.fillRect(Math.round(x - width / 2), y - 17, width, 16);
-    // 특성 이름은 그 특성의 색(화염 장막은 화염 색, 2026-10-06), 핵심어가 없으면 예전 금빛.
-    fillPixelText(ctx, label, x, y - 3, presentation.color);
-    ctx.restore();
-}
+    dispose() {
+      this.tops.clear();
+      this.bossRects.length = 0;
+    }
+    exclusions(extra) {
+      return this.bossRects.concat(extra);
+    }
+    reserve(enemy, rect) {
+      if (enemy.isBoss) this.bossRects.push(rect);
+    }
+    player(ctx, scene) {
+      const look = playerBarLook(scene.hpPct, scene.now);
+      const width = 48, height = look.height, head = this.deps.heroHeadY(scene.now), pos = scene.light;
+      const top = head === null ? pos.y - 82 * this.deps.heroSizeScale : head - 10;
+      const x = Math.round(pos.x - width / 2), y = Math.round(top) - (height - 6);
+      ctx.save();
+      ctx.globalAlpha = look.alpha;
+      ctx.fillStyle = "rgba(6, 5, 4, 0.72)";
+      ctx.fillRect(x, y, width, height);
+      if (scene.ghostPct > scene.hpPct + 3e-3) {
+        ctx.fillStyle = "rgba(255, 126, 76, 0.58)";
+        ctx.fillRect(x, y, Math.max(1, Math.round(width * scene.ghostPct)), height);
+      }
+      ctx.fillStyle = look.fill;
+      ctx.fillRect(x, y, Math.max(2, Math.round(width * scene.hpPct)), height);
+      if (scene.esPct > 0) {
+        ctx.fillStyle = "rgba(75,123,236,0.85)";
+        ctx.fillRect(x, y, Math.max(1, Math.round(width * scene.esPct)), height);
+      }
+      ctx.strokeStyle = "rgba(6, 5, 4, 0.9)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - 0.5, y - 0.5, width + 1, height + 1);
+      ctx.restore();
+    }
+    shown(enemy, targeted) {
+      if (this.deps.woodsmanActive(enemy)) return false;
+      return targeted || enemy.isElite || enemy.isBoss || enemy.hp < enemy.maxHp || (enemy.energyShield || 0) < (enemy.maxEnergyShield || 0);
+    }
+    layout(entry, tileW) {
+      const enemy = entry.enemy, width = enemyBarWidth(enemy, tileW);
+      const x = Math.round(entry.x - width / 2), baseY = Math.round(entry.y - this.body.barLift(enemy));
+      const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
+      const reserved = this.deps.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
+      this.tops.set(enemy, reserved.y);
+      this.reserve(enemy, reserved);
+      return { x, y: reserved.y + nameHeight, width, baseY };
+    }
+    healthFill(ctx, enemy, rect) {
+      const { x, y, width } = rect, pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
+      const ghost = this.deps.damageGhost;
+      const ghostPct = ghost ? ghost(enemy.id, pct * 100) / 100 : pct;
+      if (ghostPct > pct + 2e-3) {
+        ctx.fillStyle = "#ffd79a";
+        ctx.fillRect(x + Math.round(width * pct), y, Math.max(2, Math.round(width * (ghostPct - pct))), 6);
+      }
+      ctx.fillStyle = "#e94f64";
+      ctx.fillRect(x, y, Math.max(2, Math.round(width * pct)), 6);
+    }
+    shieldFill(ctx, enemy, rect) {
+      const pct = (enemy.maxEnergyShield || 0) > 0 ? clampNumber((enemy.energyShield || 0) / Math.max(1, enemy.maxEnergyShield), 0, 1) : 0;
+      if (pct > 0) {
+        ctx.fillStyle = "rgba(92, 184, 255, 0.92)";
+        ctx.fillRect(rect.x, rect.y - 4, Math.max(2, Math.round(rect.width * pct)), 3);
+      }
+      return pct;
+    }
+    enemy(ctx, entry, targeted, tileW) {
+      const enemy = entry.enemy;
+      if (!this.shown(enemy, targeted)) {
+        this.cast(ctx, entry, enemy);
+        return;
+      }
+      const rect = this.layout(entry, tileW), { x, y, width, baseY } = rect;
+      ctx.save();
+      ctx.globalAlpha = 0.96;
+      if (y < baseY) {
+        ctx.strokeStyle = "rgba(224,204,159,0.4)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(entry.x, y + 8);
+        ctx.lineTo(entry.x, baseY + 6);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(12, 8, 10, 0.82)";
+      ctx.fillRect(x, y, width, 6);
+      this.healthFill(ctx, enemy, rect);
+      const esPct = this.shieldFill(ctx, enemy, rect);
+      ctx.strokeStyle = enemyBarEdge(enemy, targeted);
+      const edge = targeted ? 1 : 0.5;
+      ctx.lineWidth = edge * 2;
+      ctx.strokeRect(x - edge, y - edge, width + edge * 2, 6 + edge * 2);
+      ctx.restore();
+      this.labels.draw(ctx, entry.x, y - (esPct > 0 ? 6 : 2), enemy);
+      this.cast(ctx, entry, enemy);
+    }
+    enemies(ctx, layout, targetIds, tileW) {
+      this.dispose();
+      (layout || []).forEach((entry) => this.enemy(ctx, entry, targetIds.includes(entry.enemy.id), tileW));
+    }
+    lockOn(ctx, scene, locked) {
+      const entry = locked ? this.deps.drawnEntry(locked) : null;
+      if (!entry) return;
+      const top = this.tops.has(locked) ? this.tops.get(locked) : entry.y - this.body.barLift(locked);
+      this.deps.arrow(ctx, entry.x, top - 3, this.deps.actorScale(scene.tileW));
+    }
+    cast(ctx, entry, enemy) {
+      if (!enemy.patternTelegraphKey && !enemy.attackCast && !(enemy.castInterruptedUntil > this.deps.combatTime())) return;
+      const cast = this.deps.castBar(enemy, this.deps.combatTime(), this.deps.pendingAttacks().find((attack) => attack.enemyId === enemy.id));
+      if (!cast) return;
+      if (cast.fatal) {
+        this.fatalCast(ctx, entry, enemy, cast);
+        return;
+      }
+      ctx.save();
+      const width = enemy.isBoss ? 84 : 60, viewWidth = ctx.canvas.width / ctx.getTransform().a;
+      const x = Math.round(clampNumber(entry.x - width / 2, 6, Math.max(6, viewWidth - width - 6)));
+      const y = Math.round(Math.max(6, entry.y - (this.deps.woodsmanActive(enemy) ? 20 : this.body.barLift(enemy) + 13)));
+      this.reserve(enemy, { x: x - 3, y: y - 3, w: width + 6, h: 14 });
+      const edge = cast.cancelled ? "#a8706a" : "#8e7951";
+      ctx.globalAlpha = 0.96;
+      ctx.fillStyle = "#111310";
+      ctx.beginPath();
+      ctx.roundRect(x + 0.5, y + 0.5, width - 1, 7, 3.5);
+      ctx.fill();
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.roundRect(x + 2, y + 2, width - 4, 4, 2);
+      ctx.clip();
+      const progressWidth = Math.round((width - 4) * cast.progress);
+      ctx.fillStyle = "#b69a60";
+      ctx.fillRect(x + 2, y + 2, progressWidth, 4);
+      ctx.fillStyle = "#ead8a7";
+      ctx.fillRect(x + 2, y + 2, progressWidth, 1);
+      ctx.restore();
+    }
+    fatalCast(ctx, entry, enemy, cast) {
+      const width = 116, viewWidth = ctx.canvas.width / ctx.getTransform().a;
+      const x = Math.round(clampNumber(entry.x - width / 2, 4, viewWidth - width - 4));
+      const y = Math.round(Math.max(28, entry.y - this.body.barLift(enemy) - 16));
+      this.reserve(enemy, { x, y: y - 21, w: width, h: 32 });
+      ctx.save();
+      ctx.fillStyle = "#230b15";
+      ctx.fillRect(x, y, width, 10);
+      ctx.strokeStyle = "#ff7188";
+      ctx.strokeRect(x + 0.5, y + 0.5, width - 1, 9);
+      ctx.fillStyle = "#ef365d";
+      ctx.fillRect(x + 2, y + 2, (width - 4) * cast.progress, 6);
+      ctx.fillStyle = "#ffe4e8";
+      ctx.strokeStyle = "#2a0d1a";
+      ctx.lineWidth = 3;
+      ctx.font = `bold 13px ${this.text.font()}`;
+      ctx.textAlign = "center";
+      ctx.strokeText(cast.label, x + width / 2, y - 4);
+      ctx.fillText(cast.label, x + width / 2, y - 4);
+      ctx.restore();
+    }
+  };
 
-function noteEnemyDrawnHeight(enemy, height) { if (enemy && height > 0) enemyDrawnHeights.set(enemy, height); }
+  // modules/rendering/battlefield-feedback-timing.mjs
+  var STATS_CACHE_MS = 150;
+  var SKILL_EFFECT_CAP = 56;
+  var KILL_HIT_STOP_MS = Object.freeze({ elite: 45, boss: 110 });
+  function battleFrameLoad(frameMs, targetMs) {
+    const expected = Math.max(16.7, Math.ceil(((Number(targetMs) || 16.7) - 0.5) / 16.7) * 16.7);
+    return clampNumber(16.7 + Math.max(0, (Number(frameMs) || 16.7) - expected), 1, 50);
+  }
+  function impactVariant(fx, visual) {
+    if (fx.chain) return "chain";
+    if (fx.pierce || fx.penetrate) return "pierce";
+    if (fx.slam) return "slam";
+    return visual && visual.variant || "melee";
+  }
+  function impactScale(element, enemy, scale) {
+    const screen2 = clampNumber(Number(scale) || 1, 0.68, 1.18);
+    if (element === "phys" || element === "physical") return 0.68 * screen2;
+    if (!enemy) return 0.4 * screen2;
+    return (enemy.isBoss ? 0.82 : enemy.isElite ? 0.6 : 0.44) * screen2;
+  }
+  var BattlefieldFeedbackTiming = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.dispose();
+    }
+    dispose() {
+      this.owner = null;
+      this.cachedStats = null;
+      this.cachedAt = 0;
+    }
+    recentStats(owner, wallNow) {
+      return owner && owner.lastCombatStats && wallNow - (owner.lastCombatStatsAt || 0) < 250;
+    }
+    stats(fallback2 = {}) {
+      const provider = this.deps.playerStats;
+      if (!provider) return fallback2;
+      const owner = this.deps.game(), now = this.deps.now(), wallNow = this.deps.combatTime();
+      if (owner !== this.owner) {
+        this.dispose();
+        this.owner = owner;
+      }
+      if (this.recentStats(owner, wallNow)) {
+        this.cachedStats = owner.lastCombatStats;
+        this.cachedAt = now;
+        return this.cachedStats;
+      }
+      if (this.cachedStats && now - this.cachedAt < STATS_CACHE_MS) return this.cachedStats;
+      this.cachedStats = provider() || fallback2;
+      this.cachedAt = now;
+      return this.cachedStats;
+    }
+    targets(stats) {
+      const provider = this.deps.skillTargets;
+      return provider ? provider(stats) || [] : [];
+    }
+    density() {
+      return clampNumber(Number(this.deps.visual().vfxDensity) || 1, 0.42, 1);
+    }
+    updateDensity(frameMs, enemyCount, targetMs) {
+      const visual = this.deps.visual(), elapsed = battleFrameLoad(frameMs, targetMs);
+      const previousEma = clampNumber(Number(visual.frameTimeEma) || 16.7, 1, 50);
+      const ema = previousEma * 0.92 + elapsed * 0.08;
+      const crowd = enemyCount >= 8 ? 0.62 : enemyCount >= 5 ? 0.78 : 1;
+      const frame = ema >= 32 ? 0.42 : ema >= 24 ? 0.56 : ema >= 18 ? 0.74 : 1;
+      const target = Math.min(crowd, frame, elapsed >= 45 ? 0.48 : 1), current = this.density();
+      visual.frameTimeEma = ema;
+      visual.vfxDensity = target < current ? Math.max(target, current - 0.08) : Math.min(target, current + 0.012);
+      return visual.vfxDensity;
+    }
+    trim(list) {
+      const cap = Math.max(24, Math.round(SKILL_EFFECT_CAP * this.density()));
+      if (list.length > cap) list.splice(0, list.length - cap);
+    }
+    spawnOptions(fx, enemy, visual, viewportScale) {
+      if (fx.skillName && this.deps.skillProfile(fx.skillName)) return null;
+      const options = { crit: !!fx.crit, variant: impactVariant(fx, visual) };
+      options.scale = impactScale(String(fx.element || "phys").toLowerCase(), enemy, viewportScale);
+      if (fx.impactTier === "heavy") options.scale *= 1.04;
+      else if (fx.impactTier === "annihilate") {
+        options.scale *= 0.82;
+        options.densityMul = 0.48;
+      }
+      options.densityMul = (Number(options.densityMul) || 1) * this.density();
+      return options;
+    }
+    killStopMs(fx) {
+      if (fx.enemyId === void 0 || fx.enemyId === null) return 0;
+      const death2 = this.deps.effects().find((other) => other && other.type === "enemyDeath" && other.enemyId === fx.enemyId && Math.abs(Number(other.start) - Number(fx.start)) < 1);
+      if (!death2) return 0;
+      return death2.boss ? KILL_HIT_STOP_MS.boss : death2.elite ? KILL_HIT_STOP_MS.elite : 0;
+    }
+    hitStop(fx) {
+      const visual = this.deps.visual();
+      if (!fx || fx.dot || visual.lastHitStopFxId === fx.id) return;
+      const profile = this.deps.feedbackProfile(fx), killStopMs = this.killStopMs(fx);
+      const duration = Math.max(profile.hitStopMs, killStopMs);
+      visual.lastHitStopFxId = fx.id;
+      if (duration <= 0) return;
+      const now = this.deps.now();
+      if (now < visual.nextHitStopAt && killStopMs < KILL_HIT_STOP_MS.boss) return;
+      visual.nextHitStopAt = now + 250;
+      visual.hitStopRemainingMs = Math.max(Number(visual.hitStopRemainingMs) || 0, duration);
+    }
+  };
 
-/** Bar height above the feet: clear of the drawn sprite (bosses grow with the tile), never below the old fixed lift; a wisp
- * floats its body higher (js/canvas-wisp-actors.js). */
-function getEnemyFieldBarLift(enemy, bodyHeight) {
-    const base = enemy.isBoss ? 106 : (wispActors.barLift(enemy) || 56);
-    const drawn = bodyHeight ?? enemyDrawnHeights.get(enemy) ?? 0;
-    return Math.max(base, Math.round(drawn + 10));
-}
-
-/** Damage numbers pop centred on the unit's body and rise from there (2026-10-05 user request): beside the body they read as
- * belonging to the neighbour, and over the head they drifted too far from the hit.
- * @param {number} feetY the unit's screen y at its feet in CSS px
- * @param {number} bodyHeight the unit's drawn height in CSS px */
-function getDamageTextBodyY(feetY, bodyHeight) {
-    return Math.round(feetY - bodyHeight * 0.5);
-}
-
-/** 회피 · 막아냄 같은 짧은 판정 글씨의 자리: 몸 위쪽(머리 높이) 가운데 — 몸통 가운데의 대미지 숫자와 겹치지 않는다. */
-function getBodyCueAnchor(pos, bodyHeight) {
-    return { x: Math.round(pos.x), y: Math.round(pos.y - bodyHeight * (pos.enemy?.isBoss ? 0.64 : 0.92)) };
-}
-
-/** The drawn body height an enemy's numbers and cues centre on: its bar lift less the gap (46 for a ghost left without its enemy). */
-function getEnemyBodyHeight(enemyPos) {
-    return enemyPos.enemy ? getEnemyFieldBarLift(enemyPos.enemy) - 10 : 46;
-}
-
-/** The hero's drawn body height: feet to the drawn head, or the old fixed height before the sprite has drawn. */
-function getHeroBodyHeight(playerPos, now) {
-    const head = getHeroHeadY(now);
-    return head === null ? 82 * HERO_SIZE_SCALE : playerPos.y - head;
-}
-
-/** An untouched ordinary monster carries no bar: a pack walking in reads as monsters, not a row of full red strips (2026-10-04
- * visibility). The bar appears on the first hit or while targeted; elites and bosses always show theirs. */
-function isEnemyFieldBarShown(enemy, targeted) {
-    if (woodsmanView.active(enemy)) return false; // The giant already has the fixed boss HUD; keep its face clear.
-    return targeted || enemy.isElite || enemy.isBoss || enemy.hp < enemy.maxHp || (enemy.energyShield || 0) < (enemy.maxEnergyShield || 0);
-}
-
-function reserveBossText(enemy, box) { if (enemy.isBoss) bossTextExclusions.push(box); }
-
-function drawBattlefieldEnemyHealthBars(ctx, layout, targetIds, tileW) {
-    enemyFieldBarTops.clear();
-    bossTextExclusions.length = 0;
-    (layout || []).forEach(entry => {
-        let enemy = entry.enemy;
-        if (!isEnemyFieldBarShown(enemy, targetIds.includes(enemy.id))) {
-            drawBossPatternLabel(ctx, entry, enemy);
-            return;
-        }
-        let pct = clampNumber(enemy.hp / enemy.maxHp, 0, 1);
-        let width = getEnemyFieldBarWidth(enemy, tileW);
-        let x = Math.round(entry.x - width / 2);
-        let baseY = Math.round(entry.y - getEnemyFieldBarLift(enemy));
-        const nameHeight = enemy.isElite && !enemy.isBoss ? 24 : 6;
-        const reserved = drawBattlePlayerFigure.readability.place({ x: x - 3, y: baseY - nameHeight, w: width + 6, h: nameHeight + 10 }, !enemy.isBoss);
-        enemyFieldBarTops.set(enemy, reserved.y);
-        reserveBossText(enemy, reserved);
-        let y = reserved.y + nameHeight;
-        let targeted = targetIds.includes(enemy.id);
-        ctx.save();
-        ctx.globalAlpha = 0.96;
-        if (y < baseY) {
-            ctx.strokeStyle = 'rgba(224,204,159,0.4)'; ctx.lineWidth = 1;
-            ctx.beginPath(); ctx.moveTo(entry.x, y + 8); ctx.lineTo(entry.x, baseY + 6); ctx.stroke();
-        }
-        ctx.fillStyle = 'rgba(12, 8, 10, 0.82)'; // 빈 몫도 보이게: 깎인 막대끼리 이어 보이지 않는다
-        ctx.fillRect(x, y, width, 6);
-        let ghostPct = typeof updateEnemyHpDamageGhost === 'function' ? updateEnemyHpDamageGhost(enemy.id, pct * 100) / 100 : pct;
-        if (ghostPct > pct + 0.002) {
-            ctx.fillStyle = '#ffd79a';
-            ctx.fillRect(x + Math.round(width * pct), y, Math.max(2, Math.round(width * (ghostPct - pct))), 6);
-        }
-        // 조준한 적도 체력은 같은 빨강: 노란 막대는 무엇인지 알 수 없었다(검토 5차) — 조준은 금빛 두꺼운 테로만 보인다.
-        ctx.fillStyle = '#e94f64';
-        ctx.fillRect(x, y, Math.max(2, Math.round(width * pct)), 6);
-        let esPct = (enemy.maxEnergyShield || 0) > 0 ? clampNumber((enemy.energyShield || 0) / Math.max(1, enemy.maxEnergyShield), 0, 1) : 0;
-        if (esPct > 0) {
-            ctx.fillStyle = 'rgba(92, 184, 255, 0.92)';
-            ctx.fillRect(x, y - 4, Math.max(2, Math.round(width * esPct)), 3);
-        }
-        ctx.strokeStyle = getEnemyFieldBarEdge(enemy, targeted);
-        let edge = targeted ? 1 : 0.5;
-        ctx.lineWidth = edge * 2;
-        ctx.strokeRect(x - edge, y - edge, width + edge * 2, 6 + edge * 2);
-        ctx.restore();
-        drawEliteNameplate(ctx, entry.x, y - (esPct > 0 ? 6 : 2), enemy);
-        drawBossPatternLabel(ctx, entry, enemy);
-    });
-}
-
-function drawDamageImpactAccent(ctx, fx, t, enemyPosMap, playerPos) {
-    worldTreeSkillFx.feedback.contact(ctx, fx, t * fx.duration, { enemies: enemyPosMap, player: playerPos });
-}
-
-// 레벨업: 발밑 고리 + 금빛 기둥 + 떠오르는 레벨 글자. 지속 시간과 호출 시점은 전투 쪽 fx가 소유한다.
-function drawLevelUpFx(ctx, fx, t, playerPos, now) {
-    const fade = t < 0.4 ? 1 : Math.max(0, (1 - t) / 0.6);
-    const cx = playerPos.x, footY = playerPos.y + 2;
-    const reduced = worldTreeSkillFx.feedback.reduced();
-    ctx.save();
-    ctx.globalAlpha = 0.95 * fade;
-    ctx.globalCompositeOperation = 'lighter';
-    const pillarHeight = reduced ? 0 : 70 + 20 * Math.min(1, t * 2.4);
-    const pillar = ctx.createLinearGradient(cx, footY, cx, footY - pillarHeight);
-    pillar.addColorStop(0, 'rgba(255,214,120,0.85)');
-    pillar.addColorStop(0.45, 'rgba(255,229,154,0.4)');
-    pillar.addColorStop(1, 'rgba(255,240,200,0)');
-    ctx.fillStyle = pillar;
-    const pillarWidth = 12 * (1 - t * 0.45);
-    ctx.fillRect(cx - pillarWidth / 2, footY - pillarHeight, pillarWidth, pillarHeight);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 0.85 * fade;
-    ctx.strokeStyle = '#ffe59a';
-    ctx.lineWidth = 2 * (1 - t) + 0.8;
-    ctx.beginPath();
-    const radius = reduced ? 24 : 18 + t * 25;
-    ctx.ellipse(cx, footY, radius, radius * 0.36, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    // The stage hero changes size with the viewport. Keep the label above its head and health bar, not on its torso.
-    const head = getHeroHeadY(now) ?? playerPos.y - 82 * HERO_SIZE_SCALE;
-    drawLevelUpLabel(ctx, fx, { x: cx, y: Math.max(26, head - 28), alpha: fade });
-    ctx.restore();
-}
-
-function drawLevelUpLabel(ctx, fx, pos) {
-    ctx.globalAlpha = pos.alpha;
-    ctx.font = `24px ${battlePixelFont()}`;
-    ctx.textAlign = 'center';
-    ctx.lineWidth = 4;
-    ctx.lineJoin = 'miter';
-    ctx.strokeStyle = 'rgba(25,9,0,.92)';
-    const label = _t('레벨 {level}', { level: fx.level || '' });
-    const x = Math.round(pos.x), y = Math.round(pos.y);
-    drawCrispCanvasText(ctx, label, x, y, 'strokeText');
-    ctx.fillStyle = '#ffe9a8';
-    drawCrispCanvasText(ctx, label, x, y);
-}
-
-function getBattlefieldClientPoint(canvas, clientX, clientY) {
-    if (!canvas) return null;
-    let rect = canvas.getBoundingClientRect();
-    return {
-        x:(clientX - rect.left) * ((canvas.clientWidth || rect.width) / Math.max(1, rect.width)),
-        y:(clientY - rect.top) * ((canvas.clientHeight || rect.height) / Math.max(1, rect.height))
-    };
-}
-
-function selectPlayerSwingEffects(effects, now, durationScale) {
-    let latest = null;
-    let frame = null;
-    let frameProgress = -1;
-    let safeDurationScale = Math.max(1, Math.min(1.6, Number(durationScale) || 1));
+  // modules/rendering/battlefield-motion.mjs
+  function swingProgress(fx, now, durationScale) {
+    if (!fx || fx.type !== "playerSwing") return null;
+    const duration = Math.max(1, Number(fx.duration) || 1) * durationScale;
+    const age = now - Number(fx.start);
+    return Number.isFinite(age) && age >= 0 && age <= duration ? age / duration : null;
+  }
+  function selectSwingEffects(effects, now, durationScale) {
+    let latest = null, frame = null, frameProgress = -1;
+    const scale = Math.max(1, Math.min(1.6, Number(durationScale) || 1));
     for (let index = effects.length - 1; index >= 0; index--) {
-        let fx = effects[index];
-        if (!fx || fx.type !== 'playerSwing') continue;
-        let duration = Math.max(1, Number(fx.duration) || 1) * safeDurationScale;
-        let age = now - Number(fx.start);
-        if (!Number.isFinite(age) || age < 0 || age > duration) continue;
-        if (!latest) latest = fx;
-        let progress = age / duration;
-        if (progress <= frameProgress) continue;
-        frame = fx;
-        frameProgress = progress;
+      const fx = effects[index], progress = swingProgress(fx, now, scale);
+      if (progress === null) continue;
+      if (!latest) latest = fx;
+      if (progress <= frameProgress) continue;
+      frame = fx;
+      frameProgress = progress;
     }
     return { latest, frame };
-}
-
-function getPlayableHeroAttackDurationScale(heroId) {
-    let classDefinitions = typeof PLAYER_CLASS_DEFS !== 'undefined' ? PLAYER_CLASS_DEFS : null;
-    let talentDefinitions = typeof HERO_SELECTION_DEFS !== 'undefined' ? HERO_SELECTION_DEFS : null;
-    let definition = (classDefinitions && classDefinitions[heroId]) || (talentDefinitions && talentDefinitions[heroId]);
-    return clampNumber(Number(definition && definition.attackAnimationDurationScale) || 1, 1, 1.6);
-}
-
-function getPlayerGridMoveDurationMs(moveSpeed, distance) {
-    let speed = clampNumber(Number(moveSpeed) || 100, 60, 320);
-    let stepMs = COMBAT_GRID_CONFIG.playerMoveIntervalSec * 1000 * (100 / speed);
-    return clampNumber(stepMs * 0.82 * Math.sqrt(Math.max(1, Number(distance) || 1)), 140, 520);
-}
-
-/**
- * 논리 칸 변경을 한 번의 화면 이동으로 변환한다.
- * 진행도만 오르거나 같은 칸에 머무는 동안에는 새 이동을 만들지 않는다.
- */
-function updatePlayerGridVisualMotion(gridProj, playerCell, now, moveSpeed) {
-    if (actExplorationState.current(game)) return getExplorationPlayerVisualMotion(gridProj, playerCell);
-    let currentCell = { gx: playerCell.gx, gy: playerCell.gy };
-    let state = battleVisualState.playerGridMotion;
-    if (!state) {
-        state = {
-            lastCell: currentCell, fromCell: currentCell, toCell: currentCell,
-            startedAt: now, durationMs: 0, holdUntil: now, direction: 'east'
-        };
-        battleVisualState.playerGridMotion = state;
+  }
+  function recentBattleEffect(effects, type, now, withinMs) {
+    for (let index = effects.length - 1; index >= 0; index--) {
+      const fx = effects[index];
+      if (fx && fx.type === type && now >= fx.start && now - fx.start < withinMs) return fx;
     }
-    let changed = state.lastCell.gx !== currentCell.gx || state.lastCell.gy !== currentCell.gy;
-    if (changed) {
-        let distance = Math.max(
-            Math.abs(currentCell.gx - state.lastCell.gx),
-            Math.abs(currentCell.gy - state.lastCell.gy)
-        );
-        const teleport = battleFx.some(fx => {
-            if(fx.type !== 'playerMobility' || !fx.instant || !fx.fromCell || !fx.toCell) return false;
-            return now >= fx.start && now < fx.start + fx.duration
-                && gridCellKey(fx.fromCell.gx,fx.fromCell.gy) === gridCellKey(state.lastCell.gx,state.lastCell.gy)
-                && gridCellKey(fx.toCell.gx,fx.toCell.gy) === gridCellKey(currentCell.gx,currentCell.gy);
-        });
-        let durationMs = teleport ? 0 : getPlayerGridMoveDurationMs(moveSpeed, distance);
-        state = {
-            lastCell: currentCell,
-            fromCell: state.lastCell,
-            toCell: currentCell,
-            startedAt: now,
-            durationMs,
-            holdUntil: now + durationMs + Math.min(70, durationMs * 0.14),
-            direction: getCardinalMoveDirection(state.lastCell, currentCell)
-        };
-        battleVisualState.playerGridMotion = state;
-        battleVisualState.playerFacingDirection = state.direction;
+    return null;
+  }
+  function activeReturn(effects, type, now) {
+    for (let index = (effects || []).length - 1; index >= 0; index--) {
+      const fx = effects[index];
+      if (!fx || fx.type !== type) continue;
+      const duration = Math.max(1, Number(fx.duration) || 720);
+      const progress = (Number(now) - Number(fx.start)) / duration;
+      if (!Number.isFinite(progress) || progress < 0 || progress > 1) continue;
+      return { progress: clampNumber(progress, 0, 1), cell: fx.cell };
     }
-    let progress = state.durationMs > 0
-        ? clampNumber((now - state.startedAt) / state.durationMs, 0, 1)
-        : 1;
-    let eased = progress * progress * (3 - 2 * progress);
-    let from = gridProj.cellToScreen(state.fromCell.gx, state.fromCell.gy);
-    let to = gridProj.cellToScreen(state.toCell.gx, state.toCell.gy);
-    let groundOffsetY = Number(gridProj.actorGroundOffsetY) || 0;
-    from.y += groundOffsetY;
-    to.y += groundOffsetY;
-    let moving = progress < 1;
+    return null;
+  }
+  function returnArrival(effects, now) {
+    const active = activeReturn(effects, "playerReturnWarp", now);
+    if (!active) return null;
+    const reveal = clampNumber(active.progress / 0.34, 0, 1);
     return {
-        position: { x: lerpNumber(from.x, to.x, eased), y: lerpNumber(from.y, to.y, eased) },
-        targetPosition: to,
-        progress,
-        direction: state.direction,
-        animating: moving || (!moving && now < state.holdUntil)
+      progress: active.progress,
+      actorAlpha: 1 - Math.pow(1 - reveal, 3),
+      whiteShroud: Math.sin(clampNumber(active.progress / 0.62, 0, 1) * Math.PI),
+      ringScale: 0.55 + (1 - Math.pow(1 - active.progress, 2)) * 1.25,
+      fade: 1 - active.progress,
+      cell: active.cell
     };
-}
+  }
+  function returnDeparture(effects, now) {
+    const active = activeReturn(effects, "playerReturnDepart", now);
+    if (!active) return null;
+    const vanish = clampNumber((active.progress - 0.66) / 0.34, 0, 1);
+    return {
+      progress: active.progress,
+      actorAlpha: 1 - vanish * vanish * (3 - 2 * vanish),
+      whiteShroud: Math.sin(active.progress * Math.PI),
+      fade: Math.sin(active.progress * Math.PI),
+      cell: active.cell
+    };
+  }
 
-function getExplorationPlayerVisualMotion(projection, player) {
-    const run = actExplorationState.current(game);
-    const cell = getPlayerDisplacementCell(player) || getStageKickoffCell(player) || actExplorationMotion.position(run, player);
-    const position = projection.cellToScreen(cell.gx, cell.gy);
-    position.y += Number(projection.actorGroundOffsetY) || 0;
-    // 걸음 도중에 게임이 멈추면(선택 창, 안내, 창 열림) 걷는 그림도 멈춘다: 멈춘 화면에서 제자리걸음을 하지 않는다.
-    return {position, targetPosition: position, direction: run.motionDirection,
+  // modules/rendering/player-grid-motion.mjs
+  function cardinalDirection(from, to) {
+    const dx = Number(to.gx) - Number(from.gx), dy = Number(to.gy) - Number(from.gy);
+    if (Math.abs(dy) > Math.abs(dx)) return dy > 0 ? "south" : "north";
+    return dx < 0 ? "west" : "east";
+  }
+  function displayedStep(projection, state, now) {
+    const progress = state.durationMs > 0 ? clampNumber((now - state.startedAt) / state.durationMs, 0, 1) : 1;
+    const eased = progress * progress * (3 - 2 * progress);
+    const from = projection.cellToScreen(state.fromCell.gx, state.fromCell.gy);
+    const to = projection.cellToScreen(state.toCell.gx, state.toCell.gy);
+    const ground2 = Number(projection.actorGroundOffsetY) || 0;
+    from.y += ground2;
+    to.y += ground2;
+    const moving = progress < 1;
+    return {
+      position: { x: lerpNumber(from.x, to.x, eased), y: lerpNumber(from.y, to.y, eased) },
+      targetPosition: to,
+      progress,
+      direction: state.direction,
+      animating: moving || !moving && now < state.holdUntil
+    };
+  }
+  var PlayerGridMotion = class {
+    constructor(deps) {
+      this.deps = deps;
+    }
+    attackDurationScale(heroId) {
+      const classes = this.deps.classes, talents = this.deps.heroes;
+      const definition = classes && classes[heroId] || talents && talents[heroId];
+      return clampNumber(Number(definition && definition.attackAnimationDurationScale) || 1, 1, 1.6);
+    }
+    moveDuration(moveSpeed, distance) {
+      const speed = clampNumber(Number(moveSpeed) || 100, 60, 320);
+      const stepMs = this.deps.moveIntervalSec * 1e3 * (100 / speed);
+      return clampNumber(stepMs * 0.82 * Math.sqrt(Math.max(1, Number(distance) || 1)), 140, 520);
+    }
+    teleported(fx, from, to, now) {
+      if (fx.type !== "playerMobility" || !fx.instant || !fx.fromCell || !fx.toCell) return false;
+      return now >= fx.start && now < fx.start + fx.duration && this.deps.cellKey(fx.fromCell.gx, fx.fromCell.gy) === this.deps.cellKey(from.gx, from.gy) && this.deps.cellKey(fx.toCell.gx, fx.toCell.gy) === this.deps.cellKey(to.gx, to.gy);
+    }
+    nextStep(previous, current, now, speed) {
+      const distance = Math.max(Math.abs(current.gx - previous.gx), Math.abs(current.gy - previous.gy));
+      const teleport = this.deps.effects().some((fx) => this.teleported(fx, previous, current, now));
+      const durationMs = teleport ? 0 : this.moveDuration(speed, distance);
+      return {
+        lastCell: current,
+        fromCell: previous,
+        toCell: current,
+        startedAt: now,
+        durationMs,
+        holdUntil: now + durationMs + Math.min(70, durationMs * 0.14),
+        direction: cardinalDirection(previous, current)
+      };
+    }
+    update(projection, player, now, speed) {
+      if (this.deps.run()) return this.exploring(projection, player);
+      const cell = { gx: player.gx, gy: player.gy }, visual = this.deps.visual();
+      let state = visual.playerGridMotion;
+      if (!state) {
+        state = { lastCell: cell, fromCell: cell, toCell: cell, startedAt: now, durationMs: 0, holdUntil: now, direction: "east" };
+        visual.playerGridMotion = state;
+      }
+      if (state.lastCell.gx !== cell.gx || state.lastCell.gy !== cell.gy) {
+        state = this.nextStep(state.lastCell, cell, now, speed);
+        visual.playerGridMotion = state;
+        visual.playerFacingDirection = state.direction;
+      }
+      return displayedStep(projection, state, now);
+    }
+    exploring(projection, player) {
+      const run = this.deps.run();
+      const cell = this.displacedCell(player) || this.kickoffCell(player) || this.deps.explorationMotion.position(run, player);
+      const position = projection.cellToScreen(cell.gx, cell.gy);
+      position.y += Number(projection.actorGroundOffsetY) || 0;
+      return {
+        position,
+        targetPosition: position,
+        direction: run.motionDirection,
         progress: run.motion ? run.motion.elapsed / run.motion.duration : 1,
-        animating: (run.motion || actExplorationMotion.freeMoving(run)) && !isForegroundGameplayPausedForBackground()};
-}
-
-function getPlayerDisplacementCell(player) {
-    const now = battleVisualState.visualNow;
-    const hit = findRecentBattleFx('playerHit', now, 220);
-    if (!hit?.displaceFrom || hit.displaceTo.gx !== player.gx || hit.displaceTo.gy !== player.gy) return null;
-    const t = clampNumber((now - hit.start) / 180, 0, 1), left = (1 - t) ** 2;
-    return { gx: player.gx + (hit.displaceFrom.gx - player.gx) * left, gy: player.gy + (hit.displaceFrom.gy - player.gy) * left };
-}
-
-/** 그림자 점멸이 박차고 나가는 동안(2026-10-20 스킬룬 전달본 v42, data/stage-view.js kickoffMs) 무대의 주인공 그림이 서 있는 칸: 떠난 칸.
- * 게임의 칸은 이미 닿는 칸이다(그림만 늦게 나타난다). 그때가 아니면 null. */
-function getStageKickoffCell(player) {
-    const now = battleVisualState.visualNow;
-    if (!Number.isFinite(now)) return null;
-    const move = battleFx.find(fx => fx && fx.type === 'playerMobility' && fx.kickoff && fx.fromCell && fx.toCell
-        && now >= fx.start && now < fx.start + STAGE_VIEW.kickoffMs && fx.toCell.gx === player.gx && fx.toCell.gy === player.gy);
-    return move ? { gx: move.fromCell.gx, gy: move.fromCell.gy } : null;
-}
-
-/** 몸이 뜨는 이동 룬(도약 강타, 섬머솔트 슬래시)을 쓰는 동안 주인공의 땅 위 자리는 떠난 칸에서 닿는 칸으로 공중 시간 동안 옮겨 간다
- * (js/canvas-stage-skill-runes.js heroAir). 발밑 고리와 주인공을 따라가는 연출이 이 자리를 쓰고, 높이와 돌기는 몸 그림에만 준다
- * (js/canvas-battle-units.js drawStageHeroAloft). 게임의 칸은 이미 닿는 칸이다(그림만 늦게 따라간다). */
-function getStageHeroAirGround(playerPos, now, gridProj) {
-    const air = (typeof stageSkillRunes === 'object') ? stageSkillRunes.heroAir(now) : null;
-    battleVisualState.playerAir = air;
-    if (!air) return playerPos;
-    const at = gridProj.cellToScreen(air.gx, air.gy);
-    return { x: at.x, y: at.y + (Number(gridProj.actorGroundOffsetY) || 0) };
-}
-
-function getCardinalMoveDirection(fromCell, toCell) {
-    let dx = Number(toCell.gx) - Number(fromCell.gx);
-    let dy = Number(toCell.gy) - Number(fromCell.gy);
-    if (Math.abs(dy) > Math.abs(dx)) return dy > 0 ? 'south' : 'north';
-    return dx < 0 ? 'west' : 'east';
-}
-
-function getPlayerReturnWarpPresentation(effects, now) {
-    let activeFx = null;
-    for (let index = (effects || []).length - 1; index >= 0; index--) {
-        let fx = effects[index];
-        if (!fx || fx.type !== 'playerReturnWarp') continue;
-        let duration = Math.max(1, Number(fx.duration) || 720);
-        let progress = (Number(now) - Number(fx.start)) / duration;
-        if (!Number.isFinite(progress) || progress < 0 || progress > 1) continue;
-        activeFx = { progress: clampNumber(progress, 0, 1), cell: fx.cell };
-        break;
+        animating: (run.motion || this.deps.explorationMotion.freeMoving(run)) && !this.deps.paused()
+      };
     }
-    if (!activeFx) return null;
-    let reveal = clampNumber(activeFx.progress / 0.34, 0, 1);
-    let easedReveal = 1 - Math.pow(1 - reveal, 3);
-    return {
-        progress: activeFx.progress,
-        actorAlpha: easedReveal,
-        whiteShroud: Math.sin(clampNumber(activeFx.progress / 0.62, 0, 1) * Math.PI),
-        ringScale: 0.55 + (1 - Math.pow(1 - activeFx.progress, 2)) * 1.25,
-        fade: 1 - activeFx.progress,
-        cell: activeFx.cell
-    };
-}
-
-function getPlayerReturnDeparturePresentation(effects, now) {
-    let activeFx = null;
-    for (let index = (effects || []).length - 1; index >= 0; index--) {
-        let fx = effects[index];
-        if (!fx || fx.type !== 'playerReturnDepart') continue;
-        let duration = Math.max(1, Number(fx.duration) || 720);
-        let progress = (Number(now) - Number(fx.start)) / duration;
-        if (!Number.isFinite(progress) || progress < 0 || progress > 1) continue;
-        activeFx = { progress: clampNumber(progress, 0, 1), cell: fx.cell };
-        break;
+    displacedCell(player) {
+      const now = this.deps.visual().visualNow, hit = recentBattleEffect(this.deps.effects(), "playerHit", now, 220);
+      if (!hit?.displaceFrom || hit.displaceTo.gx !== player.gx || hit.displaceTo.gy !== player.gy) return null;
+      const t = clampNumber((now - hit.start) / 180, 0, 1), left = (1 - t) ** 2;
+      return { gx: player.gx + (hit.displaceFrom.gx - player.gx) * left, gy: player.gy + (hit.displaceFrom.gy - player.gy) * left };
     }
-    if (!activeFx) return null;
-    let vanish = clampNumber((activeFx.progress - 0.66) / 0.34, 0, 1);
-    let easedVanish = vanish * vanish * (3 - 2 * vanish);
-    return {
-        progress: activeFx.progress,
-        actorAlpha: 1 - easedVanish,
-        whiteShroud: Math.sin(activeFx.progress * Math.PI),
-        fade: Math.sin(activeFx.progress * Math.PI),
-        cell: activeFx.cell
-    };
-}
+    kickoffCell(player) {
+      const now = this.deps.visual().visualNow;
+      if (!Number.isFinite(now)) return null;
+      const move = this.deps.effects().find((fx) => fx && fx.type === "playerMobility" && fx.kickoff && fx.fromCell && fx.toCell && now >= fx.start && now < fx.start + this.deps.kickoffMs && fx.toCell.gx === player.gx && fx.toCell.gy === player.gy);
+      return move ? { gx: move.fromCell.gx, gy: move.fromCell.gy } : null;
+    }
+    /** Airborne runes move the displayed ground anchor; only the body renderer applies height/rotation. */
+    airGround(playerPos, now, projection) {
+      const air = this.deps.runes ? this.deps.runes.heroAir(now) : null;
+      this.deps.visual().playerAir = air;
+      if (!air) return playerPos;
+      const at = projection.cellToScreen(air.gx, air.gy);
+      return { x: at.x, y: at.y + (Number(projection.actorGroundOffsetY) || 0) };
+    }
+  };
 
-function getPlayableHeroWalkMotion(heroId, moveProgress, advanceBlend) {
-    let blend = clampNumber(Number(advanceBlend) || 0, 0, 1);
-    if (blend <= 0) return { x: 0, y: 0 };
-    let phase = clampNumber(Number(moveProgress) || 0, 0, 1) * Math.PI * 2;
-    let heavyStep = ['hero2', 'hero5', 'hero8'].includes(heroId) ? 1.16 : 1;
-    return {
-        x: Math.sin(phase) * 0.9 * heavyStep * blend,
-        y: -Math.abs(Math.sin(phase * 2)) * 1.15 * heavyStep * blend
-    };
-}
-
-function sortBattleActorsByDepth(actors) {
-    return (actors || []).slice().sort((left, right) => {
-        let depthDifference = Number(left.y) - Number(right.y);
-        if (Math.abs(depthDifference) > 0.01) return depthDifference;
-        if (left.kind !== right.kind) return left.kind === 'player' ? 1 : -1;
-        return Number(left.id) - Number(right.id);
-    });
-}
-
-function drawPlayerReturnWarpEffect(ctx, position, warp, frontLayer) {
-    if (!warp || uiDisplay.reducedEffects()) return;
-    let ringRadius = 22 * warp.ringScale;
-    let beamAlpha = Math.sin(warp.progress * Math.PI) * 0.42;
-    ctx.save();
-    if (!frontLayer) {
+  // modules/rendering/player-return-effect.mjs
+  var PlayerReturnEffect = class {
+    constructor(deps) {
+      this.deps = deps;
+    }
+    arrival(ctx, position, warp, frontLayer) {
+      if (!warp || this.deps.reducedEffects()) return;
+      let ringRadius = 22 * warp.ringScale;
+      let beamAlpha = Math.sin(warp.progress * Math.PI) * 0.42;
+      ctx.save();
+      if (!frontLayer) {
         let beam = ctx.createLinearGradient(position.x, position.y - 68, position.x, position.y + 8);
-        beam.addColorStop(0, 'rgba(137, 218, 255, 0)');
+        beam.addColorStop(0, "rgba(137, 218, 255, 0)");
         beam.addColorStop(0.58, `rgba(137, 218, 255, ${beamAlpha})`);
-        beam.addColorStop(1, 'rgba(184, 156, 255, 0)');
+        beam.addColorStop(1, "rgba(184, 156, 255, 0)");
         ctx.fillStyle = beam;
         ctx.fillRect(position.x - 7, position.y - 68, 14, 76);
         ctx.globalAlpha = warp.fade * 0.42;
-        ctx.fillStyle = '#79cfff';
+        ctx.fillStyle = "#79cfff";
         ctx.beginPath();
         ctx.ellipse(position.x, position.y + 7, ringRadius, ringRadius * 0.32, 0, 0, Math.PI * 2);
         ctx.fill();
-    }
-    ctx.globalAlpha = warp.fade * (frontLayer ? 0.9 : 0.68);
-    ctx.strokeStyle = frontLayer ? '#e8e2ff' : '#86d9ff';
-    ctx.lineWidth = frontLayer ? 2.1 : 2.8;
-    ctx.beginPath();
-    const arcStart = frontLayer ? 0 : Math.PI;
-    ctx.ellipse(position.x, position.y + 7, ringRadius, ringRadius * 0.32, 0, arcStart, arcStart + Math.PI);
-    ctx.stroke();
-    if (frontLayer) {
+      }
+      ctx.globalAlpha = warp.fade * (frontLayer ? 0.9 : 0.68);
+      ctx.strokeStyle = frontLayer ? "#e8e2ff" : "#86d9ff";
+      ctx.lineWidth = frontLayer ? 2.1 : 2.8;
+      ctx.beginPath();
+      const arcStart = frontLayer ? 0 : Math.PI;
+      ctx.ellipse(position.x, position.y + 7, ringRadius, ringRadius * 0.32, 0, arcStart, arcStart + Math.PI);
+      ctx.stroke();
+      if (frontLayer) {
         for (let spark = 0; spark < 4; spark++) {
-            let angle = spark * Math.PI / 2 + warp.progress * 0.55;
-            let reach = ringRadius * (0.72 + spark * 0.055);
-            ctx.beginPath();
-            ctx.moveTo(position.x + Math.cos(angle) * reach, position.y + 7 + Math.sin(angle) * reach * 0.32);
-            ctx.lineTo(position.x + Math.cos(angle) * (reach + 7), position.y + 7 + Math.sin(angle) * (reach + 7) * 0.32);
-            ctx.stroke();
+          let angle = spark * Math.PI / 2 + warp.progress * 0.55;
+          let reach = ringRadius * (0.72 + spark * 0.055);
+          ctx.beginPath();
+          ctx.moveTo(position.x + Math.cos(angle) * reach, position.y + 7 + Math.sin(angle) * reach * 0.32);
+          ctx.lineTo(position.x + Math.cos(angle) * (reach + 7), position.y + 7 + Math.sin(angle) * (reach + 7) * 0.32);
+          ctx.stroke();
         }
+      }
+      ctx.restore();
     }
-    ctx.restore();
-}
-
-function drawPlayerReturnDepartureEffect(ctx, position, departure, frontLayer) {
-    if (!departure || uiDisplay.reducedEffects()) return;
-    ctx.save();
-    if (!frontLayer) {
+    departure(ctx, position, departure, frontLayer) {
+      if (!departure || this.deps.reducedEffects()) return;
+      ctx.save();
+      if (!frontLayer) {
         let beam = ctx.createLinearGradient(position.x, position.y - 76, position.x, position.y + 8);
-        beam.addColorStop(0, 'rgba(164, 229, 255, 0)');
+        beam.addColorStop(0, "rgba(164, 229, 255, 0)");
         beam.addColorStop(0.72, `rgba(164, 229, 255, ${departure.fade * 0.28})`);
-        beam.addColorStop(1, 'rgba(210, 177, 255, 0)');
+        beam.addColorStop(1, "rgba(210, 177, 255, 0)");
         ctx.fillStyle = beam;
         ctx.fillRect(position.x - 7, position.y - 76, 14, 84);
         ctx.globalAlpha = departure.fade * 0.35;
-        ctx.strokeStyle = '#91ddff';
+        ctx.strokeStyle = "#91ddff";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(position.x, position.y + 7, 22 - departure.progress * 6, 6, 0, 0, Math.PI * 2);
         ctx.stroke();
-    } else {
-        ctx.lineCap = 'round';
+      } else {
+        ctx.lineCap = "round";
         ctx.lineWidth = 1.7;
         for (let spark = 0; spark < 7; spark++) {
-            let phase = (departure.progress * 1.45 + spark * 0.17) % 1;
-            let x = position.x + (spark - 3) * 5 + Math.sin((phase + spark) * 3.2) * 2;
-            let y = position.y + 6 - phase * 76;
-            ctx.globalAlpha = Math.sin(phase * Math.PI) * departure.fade * 0.82;
-            ctx.strokeStyle = spark % 2 ? '#d8c5ff' : '#b3edff';
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, y - 7 - spark % 3);
-            ctx.stroke();
+          let phase = (departure.progress * 1.45 + spark * 0.17) % 1;
+          let x = position.x + (spark - 3) * 5 + Math.sin((phase + spark) * 3.2) * 2;
+          let y = position.y + 6 - phase * 76;
+          ctx.globalAlpha = Math.sin(phase * Math.PI) * departure.fade * 0.82;
+          ctx.strokeStyle = spark % 2 ? "#d8c5ff" : "#b3edff";
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x, y - 7 - spark % 3);
+          ctx.stroke();
         }
+      }
+      ctx.restore();
     }
-    ctx.restore();
-}
-
-function drawPlayerReturnWhiteShroud(ctx, position, strength, frontLayer) {
-    if (uiDisplay.reducedEffects()) return;
-    let alpha = clampNumber(Number(strength) || 0, 0, 1);
-    if (alpha <= 0.01) return;
-    ctx.save();
-    if (!frontLayer) {
+    shroud(ctx, position, strength, frontLayer) {
+      if (this.deps.reducedEffects()) return;
+      let alpha = clampNumber(Number(strength) || 0, 0, 1);
+      if (alpha <= 0.01) return;
+      ctx.save();
+      if (!frontLayer) {
         let halo = ctx.createRadialGradient(position.x, position.y - 25, 2, position.x, position.y - 22, 29);
         halo.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.34})`);
         halo.addColorStop(0.58, `rgba(232, 247, 255, ${alpha * 0.18})`);
-        halo.addColorStop(1, 'rgba(216, 238, 255, 0)');
+        halo.addColorStop(1, "rgba(216, 238, 255, 0)");
         ctx.fillStyle = halo;
         ctx.beginPath();
         ctx.ellipse(position.x, position.y - 22, 27, 43, 0, 0, Math.PI * 2);
         ctx.fill();
-    } else {
+      } else {
         ctx.globalAlpha = alpha * 0.2;
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = "#ffffff";
         ctx.beginPath();
         ctx.ellipse(position.x, position.y - 22, 15, 36, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = alpha * 0.62;
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = "#ffffff";
         ctx.lineWidth = 1.4;
-        ctx.lineCap = 'round';
+        ctx.lineCap = "round";
         for (let streak = -2; streak <= 2; streak++) {
-            let x = position.x + streak * 6;
-            ctx.beginPath();
-            ctx.moveTo(x, position.y + 3 - Math.abs(streak) * 4);
-            ctx.lineTo(x + streak, position.y - 37 - Math.abs(streak) * 3);
-            ctx.stroke();
+          let x = position.x + streak * 6;
+          ctx.beginPath();
+          ctx.moveTo(x, position.y + 3 - Math.abs(streak) * 4);
+          ctx.lineTo(x + streak, position.y - 37 - Math.abs(streak) * 3);
+          ctx.stroke();
         }
+      }
+      ctx.restore();
     }
+  };
+
+  // modules/rendering/enemy-death.mjs
+  var LEGACY_BOSS_DEATH_MS = 840;
+  var BOSS_FADE_FROM = 0.78;
+  function knockbackDirection(enemy, player) {
+    let x = Number(enemy && enemy.x) - Number(player && player.x);
+    let y = Number(enemy && enemy.y) - Number(player && player.y);
+    let length = Math.hypot(x, y);
+    if (!Number.isFinite(length) || length < 0.01) {
+      x = 1;
+      y = 0;
+      length = 1;
+    }
+    return { x: x / length, y: y / length };
+  }
+  function deathMotion(enemy, player, progress, boss, elite) {
+    const t = clampNumber(Number(progress) || 0, 0, 1), direction = knockbackDirection(enemy, player);
+    const impactPhase = clampNumber(t / 0.16, 0, 1), distance = boss ? 4 : elite ? 6 : 8;
+    const knockback = (1 - Math.pow(1 - impactPhase, 3)) * distance;
+    const dissolve = clampNumber((t - 0.08) / 0.92, 0, 1), scale = 1 - dissolve * (boss ? 0.035 : 0.055);
+    return {
+      x: Number(enemy && enemy.x) + direction.x * knockback,
+      y: Number(enemy && enemy.y) + direction.y * knockback + dissolve * (boss ? 3 : 2),
+      scaleX: scale,
+      scaleY: scale,
+      directionX: direction.x,
+      directionY: direction.y,
+      dissolve,
+      impactAlpha: Math.max(0, 1 - t / 0.18)
+    };
+  }
+  function groundReaction(ctx, enemy, motion, look) {
+    if (motion.impactAlpha <= 0) return;
+    const size = look.boss ? 27 : look.elite ? 21 : 16;
+    ctx.save();
+    ctx.globalAlpha = motion.impactAlpha * (look.boss ? 0.34 : 0.24);
+    ctx.strokeStyle = look.color || "#d8d1c7";
+    ctx.lineWidth = look.boss ? 3 : 2;
+    ctx.beginPath();
+    ctx.ellipse(enemy.x, enemy.y + 12, size * (1.2 - motion.impactAlpha * 0.28), size * 0.3, 0, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
-}
+  }
+  function contactFlash(ctx, enemy, motion, look) {
+    if (motion.impactAlpha <= 0) return;
+    const reach = look.boss ? 24 : look.elite ? 18 : 13, centerY = enemy.y - (look.boss ? 15 : look.elite ? 11 : 8);
+    ctx.save();
+    ctx.translate(enemy.x, centerY);
+    ctx.rotate(Math.atan2(motion.directionY, motion.directionX) + Math.PI / 2);
+    ctx.globalAlpha = motion.impactAlpha * (look.boss ? 0.9 : 0.72);
+    ctx.strokeStyle = "#fff8de";
+    ctx.lineWidth = look.boss ? 3.2 : 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-reach, 0);
+    ctx.lineTo(reach, 0);
+    ctx.moveTo(-reach * 0.42, -4);
+    ctx.lineTo(reach * 0.42, 4);
+    ctx.stroke();
+    ctx.globalAlpha *= 0.42;
+    ctx.strokeStyle = look.color || "#d8d1c7";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-reach * 0.72, -5);
+    ctx.lineTo(reach * 0.72, 5);
+    ctx.stroke();
+    ctx.restore();
+  }
+  var EnemyDeathRenderer = class {
+    constructor(deps) {
+      this.deps = deps;
+    }
+    draw(ctx, fx, t, at) {
+      const enemy = at.enemy;
+      if (!enemy) return;
+      const dead = enemy.enemy || {}, boss = !!(fx.boss || dead.isBoss), elite = !!fx.elite;
+      const legacyT = boss ? Math.min(1, t * fx.duration / LEGACY_BOSS_DEATH_MS) : t;
+      const motion = deathMotion(enemy, at.playerPos, legacyT, boss, elite);
+      if (this.deps.reducedEffects()) Object.assign(motion, { x: enemy.x, y: enemy.y, scaleX: 1, scaleY: 1, impactAlpha: 0 });
+      const look = { color: fx.color, boss, elite };
+      groundReaction(ctx, enemy, motion, look);
+      contactFlash(ctx, enemy, motion, look);
+      if (!(boss && this.boss(ctx, fx, t, at))) this.afterimage(ctx, fx, motion, at);
+      this.deps.feedback.death(ctx, fx, legacyT, enemy);
+    }
+    boss(ctx, fx, t, at) {
+      const enemy = at.enemy, dead = enemy.enemy || {}, rise = this.deps.story.revive(dead);
+      const fadeFrom = rise ? rise.fadeFrom / rise.total : BOSS_FADE_FROM;
+      const pose = {
+        x: enemy.x,
+        y: enemy.y,
+        tile: at.gridProj && at.gridProj.tileW,
+        now: at.now,
+        facing: this.deps.facing(enemy, at.playerPos),
+        deathMs: t * fx.duration,
+        spawnScale: this.deps.bossScale(dead)
+      };
+      ctx.save();
+      ctx.globalAlpha = t < fadeFrom ? 1 : Math.max(0, (1 - t) / (1 - fadeFrom));
+      const drawn = rise && pose.deathMs >= rise.start && this.deps.story.drawRevive(ctx, dead, pose, rise) || this.deps.roster.drawDeath(ctx, dead, pose);
+      ctx.restore();
+      return drawn;
+    }
+    afterimage(ctx, fx, motion, at) {
+      const enemy = at.enemy, dead = enemy.enemy || {}, boss = !!(fx.boss || dead.isBoss), dissolve = motion.dissolve;
+      ctx.save();
+      ctx.globalAlpha = Math.pow(1 - dissolve, 1.62) * (boss ? 0.98 : fx.elite ? 0.94 : 0.9);
+      ctx.translate(motion.x, motion.y);
+      ctx.scale(motion.scaleX, motion.scaleY);
+      ctx.filter = `grayscale(${Math.floor(dissolve * 78)}%) saturate(${1 - dissolve * 0.62}) brightness(${1 + motion.impactAlpha * 0.45 + dissolve * 0.16})`;
+      this.deps.drawAfterimage(ctx, dead, {
+        x: 0,
+        y: 0,
+        scale: boss ? 3.65 : fx.elite ? 2.1 : 1.9,
+        flash: motion.impactAlpha > 0.45,
+        gridProj: at.gridProj,
+        now: at.now,
+        facing: this.deps.facing(enemy, at.playerPos)
+      });
+      ctx.restore();
+    }
+  };
 
-function drawBattlePlayerBody(ctx,state,position) {
-    const previous=ctx.battleActorAlpha;
-    ctx.battleActorAlpha=state.actorAlpha;
-    try {
-        drawPlayerSprite(ctx,position.x,position.y,2.15*state.gridUnitScale,state.playerFlash,
-            state.swingPower,state.currentSkillVisual,state.now,state.motionState);
-    } finally {ctx.battleActorAlpha=previous;}
-}
-
-function getEnemyAttackMotion(fx, enemyPos, playerPos, now, distance) {
-    if (!fx || !enemyPos || !playerPos) return null;
-    let duration = Math.max(1, Number(fx.motionMs) || Number(fx.duration) || 220);
-    let progress = (Number(now) - Number(fx.start)) / duration;
-    if (!(progress >= 0 && progress <= 1)) return null;
-    let dx = Number(playerPos.x) - Number(enemyPos.x);
-    let dy = Number(playerPos.y) - Number(enemyPos.y);
-    let length = Math.hypot(dx, dy);
-    if (length < 0.01) return { progress, x: 0, y: 0 };
-    let stride = Math.sin(progress * Math.PI) * Math.max(0, Number(distance) || 0);
-    return { progress, x: dx / length * stride, y: dy / length * stride };
-}
-
-/** The damage a hit took, on the hero's body. Hits landing together add up into one number ("-60 2타"), like dealt hits: in a
- * crowd up to ten stacked over the hero and hid it (2026-10-19). Blocked hits keep their own number. */
-function spawnHeroHurtText(fx, playerPos, now) {
-    spawnDamageText({
-        start: now,
-        x: playerPos.x,
-        y: getDamageTextBodyY(playerPos.y, getHeroBodyHeight(playerPos, now)),
-        value: fx.damage,
-        enemyHit: true,
-        deflected: !!fx.deflected,
-        aggregateKey: `hurt:${fx.deflected ? 'block' : 'hit'}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
-    });
-}
-
-/** The damage a summon took, on its body (on the hero when the summon is gone), added up per summon like the hero's. */
-function spawnSummonHurtText(fx, gridProj, playerPos, now) {
-    const summon = (game.summons || []).find(row => row && row.id === fx.summonId);
-    const at = summon && gridProj && hasGridCell(summon) ? gridProj.cellToScreen(summon.gx, summon.gy) : playerPos;
-    spawnDamageText({
-        start: now,
-        x: at.x,
-        y: getDamageTextBodyY(at.y, 34),
-        value: fx.damage,
-        enemyHit: true,
-        aggregateKey: `summon:${fx.summonId}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
-    });
-}
-
-/** Out fast, back slowly: 0 to 1 over the first fifth of the flinch, then eases home. */
-function getHitRecoilCurve(t) {
+  // modules/rendering/battlefield-hit-feedback.mjs
+  var ENEMY_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
+  var HERO_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
+  var HURT_TEXT_MERGE_MS = 400;
+  function recoilCurve(t) {
     if (!(t >= 0 && t < 1)) return 0;
     return t < 0.2 ? t / 0.2 : Math.pow(1 - (t - 0.2) / 0.8, 2);
-}
-
-/** Offset of `at` pushed away from `from` by `reach` px. The board is seen from above at a slant, so a vertical push is shorter. */
-function getRecoilOffset(at, from, reach) {
+  }
+  function recoilOffset(at, from, reach) {
     const dx = at.x - from.x, dy = at.y - from.y, length = Math.hypot(dx, dy);
     if (!(length > 0.01) || !(reach > 0)) return null;
     return { x: dx / length * reach, y: dy / length * reach * 0.6 };
-}
-
-function getEnemyHitRecoilReach(fx) {
-    if (fx.impactTier === 'heavy' || fx.impactTier === 'annihilate') return ENEMY_HIT_RECOIL.heavy;
-    return fx.crit ? ENEMY_HIT_RECOIL.crit : ENEMY_HIT_RECOIL.normal;
-}
-
-function getEnemyHitRecoil(fx, state, tile) {
-    const entry = fx.type === 'hit' && !fx.dot && fx.damage > 0 && state.enemyPosMap[fx.enemyId];
-    const push = entry ? getHitRecoilCurve((state.now - fx.start) / ENEMY_HIT_RECOIL.ms) : 0;
+  }
+  function enemyReach(fx) {
+    if (fx.impactTier === "heavy" || fx.impactTier === "annihilate") return ENEMY_RECOIL.heavy;
+    return fx.crit ? ENEMY_RECOIL.crit : ENEMY_RECOIL.normal;
+  }
+  function enemyRecoil(fx, state, tile) {
+    const entry = fx.type === "hit" && !fx.dot && fx.damage > 0 && state.enemyPosMap[fx.enemyId];
+    const push = entry ? recoilCurve((state.now - fx.start) / ENEMY_RECOIL.ms) : 0;
     const weight = entry && entry.enemy && entry.enemy.isBoss ? 0.5 : 1;
-    return push > 0 ? getRecoilOffset(entry, state.playerPos, tile * getEnemyHitRecoilReach(fx) * push * weight) : null;
-}
-
-/** Direct-hit flash in visual ms. Independent of skill-effect duration; DoT must not leave a monster permanently white. */
-function getEnemyHitFlash(fx, now) {
-    if (fx.dot || !['hit', 'enemyDeath'].includes(fx.type)) return 0;
-    if (fx.type === 'hit' && !(fx.damage > 0)) return 0;
-    const age = now - fx.start, duration = fx.crit ? 140 : 110;
-    if (age < 0 || age >= duration) return 0;
-    const strength = game.settings.hitEmphasis === 'mild' || uiDisplay.reducedEffects() ? 0.42 : 0.92;
-    return strength * Math.min(1, (duration - age) / (duration - 40));
-}
-
-/** At least 80 ms of original art between pulses, even when a rapid skill keeps landing hits. */
-function buildEnemyHitFlashMap(effects, now) {
-    const pulses = battleVisualState.enemyHitPulses, result = new Map();
-    pulses.forEach((pulse, id) => { if (now < pulse.start || now - pulse.start > 1000) pulses.delete(id); });
-    for (let i = effects.length - 1; i >= 0; i--) {
+    return push > 0 ? recoilOffset(entry, state.playerPos, tile * enemyReach(fx) * push * weight) : null;
+  }
+  function attackMotion(fx, enemy, target, now, distance) {
+    if (!fx || !enemy || !target) return null;
+    const duration = Math.max(1, Number(fx.motionMs) || Number(fx.duration) || 220);
+    const progress = (Number(now) - Number(fx.start)) / duration;
+    if (!(progress >= 0 && progress <= 1)) return null;
+    const dx = Number(target.x) - Number(enemy.x), dy = Number(target.y) - Number(enemy.y);
+    const length = Math.hypot(dx, dy);
+    if (length < 0.01) return { progress, x: 0, y: 0 };
+    const stride = Math.sin(progress * Math.PI) * Math.max(0, Number(distance) || 0);
+    return { progress, x: dx / length * stride, y: dy / length * stride };
+  }
+  function overlaps(a, b) {
+    return Math.abs(a.x - b.x) < a.halfW + b.halfW && a.top < b.bottom && b.top < a.bottom;
+  }
+  var BattlefieldHitFeedback = class {
+    constructor(deps, body2) {
+      this.deps = deps;
+      this.body = body2;
+      this.softened = /* @__PURE__ */ new WeakSet();
+    }
+    heroText(fx, player, now) {
+      this.deps.damageText({
+        start: now,
+        x: player.x,
+        y: damageBodyY(player.y, this.body.heroHeight(player, now)),
+        value: fx.damage,
+        enemyHit: true,
+        deflected: !!fx.deflected,
+        aggregateKey: `hurt:${fx.deflected ? "block" : "hit"}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
+      });
+    }
+    summonText(fx, projection, player, now) {
+      const summon = (this.deps.game().summons || []).find((row) => row && row.id === fx.summonId);
+      const at = summon && projection && this.deps.hasCell(summon) ? projection.cellToScreen(summon.gx, summon.gy) : player;
+      this.deps.damageText({
+        start: now,
+        x: at.x,
+        y: damageBodyY(at.y, 34),
+        value: fx.damage,
+        enemyHit: true,
+        aggregateKey: `summon:${fx.summonId}:${Math.floor(fx.start / HURT_TEXT_MERGE_MS)}`
+      });
+    }
+    flash(fx, now) {
+      if (fx.dot || !["hit", "enemyDeath"].includes(fx.type)) return 0;
+      if (fx.type === "hit" && !(fx.damage > 0)) return 0;
+      const age = now - fx.start, duration = fx.crit ? 140 : 110;
+      if (age < 0 || age >= duration) return 0;
+      const strength = this.deps.mildHits() ? 0.42 : 0.92;
+      return strength * Math.min(1, (duration - age) / (duration - 40));
+    }
+    /** Keep at least 80 ms of original art between direct-hit pulses, including rapid skills. */
+    flashes(effects, now) {
+      const pulses = this.deps.visual().enemyHitPulses, result = /* @__PURE__ */ new Map();
+      pulses.forEach((pulse, id) => {
+        if (now < pulse.start || now - pulse.start > 1e3) pulses.delete(id);
+      });
+      for (let i = effects.length - 1; i >= 0; i--) {
         const fx = effects[i];
-        if (fx?.enemyId == null || !getEnemyHitFlash(fx, now)) continue;
+        if (fx?.enemyId == null || !this.flash(fx, now)) continue;
         const previous = pulses.get(fx.enemyId);
         if (!previous || fx.start - previous.start >= 220) pulses.set(fx.enemyId, fx);
+      }
+      for (const [id, pulse] of pulses) result.set(id, this.flash(pulse, now));
+      return result;
     }
-    for (const [id, pulse] of pulses) result.set(id, getEnemyHitFlash(pulse, now));
-    return result;
-}
-
-/** Each enemy's flinch this frame, from its latest direct hit (damage over time does not flinch). */
-function buildEnemyHitRecoilMap(effects, state) {
-    const result = {}, tile = state.gridProj ? state.gridProj.tileW : 48;
-    for (let index = (effects || []).length - 1; index >= 0; index--) {
-        const fx = effects[index], offset = fx && !(fx.enemyId in result) && getEnemyHitRecoil(fx, state, tile);
+    recoils(effects, state) {
+      const result = {}, tile = state.gridProj ? state.gridProj.tileW : 48;
+      for (let index = (effects || []).length - 1; index >= 0; index--) {
+        const fx = effects[index], offset = fx && !(fx.enemyId in result) && enemyRecoil(fx, state, tile);
         if (offset) result[fx.enemyId] = offset;
+      }
+      return result;
     }
-    return result;
-}
-
-/** The newest effect of a type that started within the last `withinMs`. */
-function findRecentBattleFx(type, now, withinMs) {
-    for (let index = battleFx.length - 1; index >= 0; index--) {
-        const fx = battleFx[index];
-        if (fx && fx.type === type && now >= fx.start && now - fx.start < withinMs) return fx;
+    hurtOffset(at, from, hit, state) {
+      const life = clampNumber(HERO_RECOIL.min + (Number(hit.damageRatio) || 0) * HERO_RECOIL.perLife, HERO_RECOIL.min, HERO_RECOIL.max);
+      const push = recoilCurve((state.now - hit.start) / HERO_RECOIL.ms);
+      return recoilOffset(at, from, (state.gridProj ? state.gridProj.tileW : 48) * life * push);
     }
-    return null;
-}
-
-/** Where the hero is drawn while a hit knocks it back from its attacker. */
-function getPlayerHurtPosition(state) {
-    const at = state.playerPos, hit = findRecentBattleFx('playerHit', state.now, PLAYER_HURT_RECOIL.ms);
-    const from = hit && Number(hit.damage) > 0 && state.enemyPosMap && state.enemyPosMap[hit.enemyId];
-    if (!from) return at;
-    const life = clampNumber(PLAYER_HURT_RECOIL.min + (Number(hit.damageRatio) || 0) * PLAYER_HURT_RECOIL.perLife, PLAYER_HURT_RECOIL.min, PLAYER_HURT_RECOIL.max);
-    const push = getHitRecoilCurve((state.now - hit.start) / PLAYER_HURT_RECOIL.ms);
-    const offset = getRecoilOffset(at, from, (state.gridProj ? state.gridProj.tileW : 48) * life * push);
-    return offset ? { ...at, x: at.x + offset.x, y: at.y + offset.y } : at;
-}
-
-function buildEnemyAttackMotionMap(effects, enemyPosMap, playerPos, now, gridProj) {
-    let result = {};
-    // A release keeps its fixed aim for the whole attack clip, even after its short legacy lunge ends.
-    function releaseAim(fx, entry) {
-        if (now < fx.start || now - fx.start > fx.duration) return null;
-        const cell = fx.targetCell, point = cell && gridProj ? gridProj.cellToScreen(cell.gx, cell.gy) : null;
-        if (point) point.y += Number(gridProj.actorGroundOffsetY) || 0;
-        entry.actualAim = point || playerPos;
-        const ghost = battleVisualState.enemyGhostPos[entry.enemy.id];
-        if (ghost) ghost.actualAim = { ...entry.actualAim };
-        return entry.actualAim;
+    hurtPosition(state) {
+      const at = state.playerPos, hit = recentBattleEffect(this.deps.effects(), "playerHit", state.now, HERO_RECOIL.ms);
+      const from = hit && Number(hit.damage) > 0 && state.enemyPosMap && state.enemyPosMap[hit.enemyId];
+      if (!from) return at;
+      const offset = this.hurtOffset(at, from, hit, state);
+      return offset ? { ...at, x: at.x + offset.x, y: at.y + offset.y } : at;
     }
-    (effects || []).forEach(fx => {
-        if (!fx || fx.type !== 'enemyAttack' || fx.enemyId == null) return;
-        let entry = enemyPosMap[fx.enemyId];
+    /** Fixed release aim lasts for the whole clip, even after the short legacy lunge ends. */
+    releaseAim(fx, entry, view) {
+      const { now, projection, player } = view;
+      if (now < fx.start || now - fx.start > fx.duration) return null;
+      const cell = fx.targetCell, point = cell && projection ? projection.cellToScreen(cell.gx, cell.gy) : null;
+      if (point) point.y += Number(projection.actorGroundOffsetY) || 0;
+      entry.actualAim = point || player;
+      const ghost = this.deps.visual().enemyGhostPos[entry.enemy.id];
+      if (ghost) ghost.actualAim = { ...entry.actualAim };
+      return entry.actualAim;
+    }
+    attackMotions(effects, entries, player, now, projection) {
+      const result = {}, view = { player, now, projection };
+      (effects || []).forEach((fx) => {
+        if (!fx || fx.type !== "enemyAttack" || fx.enemyId == null) return;
+        const entry = entries[fx.enemyId];
         if (!entry) return;
-        let distance = entry.enemy.isBoss ? 10 : (entry.enemy.isElite ? 8 : 6);
-        let motion = getEnemyAttackMotion(fx, entry, releaseAim(fx, entry) || playerPos, now, distance);
+        const distance = entry.enemy.isBoss ? 10 : entry.enemy.isElite ? 8 : 6;
+        const motion = attackMotion(fx, entry, this.releaseAim(fx, entry, view) || player, now, distance);
         if (motion) result[fx.enemyId] = motion;
+      });
+      return result;
+    }
+    crowdBody(entry, tile) {
+      const size = this.deps.roster.bodySize(entry.enemy, tile) || { halfW: tile * 0.45 * this.deps.footprint(entry.enemy).columns, h: this.body.enemyHeight(entry) };
+      return {
+        id: entry.enemy.id,
+        x: entry.x,
+        top: entry.y - size.h,
+        bottom: entry.y,
+        halfW: size.halfW,
+        pulse: this.deps.visual().enemyHitPulses.get(entry.enemy.id)
+      };
+    }
+    markCrowdGroups(bodies) {
+      const remaining = new Set(bodies);
+      for (const first of remaining) {
+        const group = [first];
+        remaining.delete(first);
+        for (let i = 0; i < group.length; i++) {
+          remaining.forEach((other) => {
+            if (!overlaps(group[i], other)) return;
+            group.push(other);
+            remaining.delete(other);
+          });
+        }
+        if (group.length >= 3) group.forEach((row) => this.softened.add(row.pulse));
+      }
+    }
+    /** Latch per pulse: a neighbour finishing its flash must not brighten this enemy again. */
+    softenCrowd(flashes, entries, tile) {
+      const targets = entries.filter((entry) => entry.enemy.hp > 0 && !entry.enemy.isBoss && flashes.get(entry.enemy.id) > 0);
+      if (targets.length >= 3) this.markCrowdGroups(targets.map((entry) => this.crowdBody(entry, tile)));
+      for (const { enemy } of targets) if (this.softened.has(this.deps.visual().enemyHitPulses.get(enemy.id))) {
+        flashes.set(enemy.id, flashes.get(enemy.id) * 0.4);
+      }
+    }
+    dispose() {
+      this.softened = /* @__PURE__ */ new WeakSet();
+    }
+  };
+
+  // modules/rendering/enemy-facing.mjs
+  var STAGE_SIDE_DEAD_PX = 10;
+  var SPRITE_SIDE_DEAD_ZONE = 0.25;
+  var EnemyFacing = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.sides = /* @__PURE__ */ new WeakMap();
+    }
+    stageSide(entry, player) {
+      if (entry.heading) return entry.heading;
+      const held = this.deps.bossMoves.heldSide(entry.enemy);
+      if (held) return held;
+      const rescue = entry.enemy && entry.enemy.rescue;
+      if (rescue) return rescue.gx < entry.enemy.gx ? "west" : "east";
+      const target = entry.actualAim || player, dx = Number(target.x) - Number(entry.x);
+      if (Math.abs(dx) <= STAGE_SIDE_DEAD_PX) return "south";
+      return dx < 0 ? "west" : "east";
+    }
+    direction(entry, player) {
+      if (!entry || !player) return "south";
+      if (this.deps.mobility.equipped() === "암살" && entry.enemy?.facingDirection) {
+        return { 2: "south", 4: "west", 6: "east", 8: "north" }[entry.enemy.facingDirection];
+      }
+      return this.stageSide(entry, player);
+    }
+    note(enemy, entry, player, tile) {
+      if (!enemy || !enemy.bossAssetKey || !entry || !player) return;
+      const dx = Number((entry.actualAim || player).x) - Number(entry.x);
+      if (Math.abs(dx) > (Number(tile) || 0) * SPRITE_SIDE_DEAD_ZONE) this.sides.set(enemy, dx > 0 ? "east" : "west");
+    }
+    mirror(enemy) {
+      return !!enemy && this.sides.get(enemy) === "east" && !this.deps.frontFacing.includes(enemy.bossAssetKey);
+    }
+    copy(from, to) {
+      if (this.sides.has(from)) this.sides.set(to, this.sides.get(from));
+      return to;
+    }
+    dispose() {
+      this.sides = /* @__PURE__ */ new WeakMap();
+    }
+  };
+
+  // modules/rendering/battlefield-enemies.mjs
+  var SPAWN_STAMP_FUTURE_MS = 1e3;
+  var SIGHT_GATED_FX = /* @__PURE__ */ new Set(["hit", "enemyEvade", "statusText"]);
+  function sortBattleActorsByDepth(actors) {
+    return (actors || []).slice().sort((left, right) => {
+      const difference = Number(left.y) - Number(right.y);
+      if (Math.abs(difference) > 0.01) return difference;
+      if (left.kind !== right.kind) return left.kind === "player" ? 1 : -1;
+      return Number(left.id) - Number(right.id);
     });
-    return result;
-}
-
-function resolveStageEnemySide(enemyPos, playerPos) {
-    if (enemyPos.heading) return enemyPos.heading;
-    const held = bossMoveView.heldSide(enemyPos.enemy);
-    if (held) return held;
-    // 액트 1 입구 방의 첫 몬스터는 하켄을 치는 동안 하켄 쪽을 본다(js/combat-encounters.js strikeRescueTarget).
-    const rescue = enemyPos.enemy && enemyPos.enemy.rescue;
-    if (rescue) return rescue.gx < enemyPos.enemy.gx ? 'west' : 'east';
-    const target = enemyPos.actualAim || playerPos, dx = Number(target.x) - Number(enemyPos.x);
-    if (Math.abs(dx) <= STAGE_SIDE_DEAD_PX) return 'south';
-    return dx < 0 ? 'west' : 'east';
-}
-
-function resolveEnemyFacingDirection(enemyPos, playerPos) {
-    if (!enemyPos || !playerPos) return 'south';
-    if (mobilitySkill.equipped()==='암살' && enemyPos.enemy?.facingDirection) return ({2:'south',4:'west',6:'east',8:'north'})[enemyPos.enemy.facingDirection];
-    return resolveStageEnemySide(enemyPos, playerPos);
-}
-
-function noteEnemySpriteSide(enemy, enemyPos, playerPos, tile) {
-    if (!enemy || !enemy.bossAssetKey || !enemyPos || !playerPos) return;
-    const dx = Number((enemyPos.actualAim || playerPos).x) - Number(enemyPos.x);
-    if (Math.abs(dx) > (Number(tile) || 0) * ENEMY_SPRITE_SIDE_DEAD_ZONE) enemySpriteSides.set(enemy, dx > 0 ? 'east' : 'west');
-}
-
-function shouldMirrorEnemySprite(enemy) {
-    return !!enemy && enemySpriteSides.get(enemy) === 'east' && !BOSS_ASSET_FRONT_FACING.includes(enemy.bossAssetKey);
-}
-
-/** The death and hit ghosts draw a copy of the enemy: it keeps the side the living one faced (2026-10-07 review: a boss slain
- * from its right fell with its back turned, the copy had no side of its own). */
-function copyEnemySpriteSide(from, to) {
-    if (enemySpriteSides.has(from)) enemySpriteSides.set(to, enemySpriteSides.get(from));
-    return to;
-}
-
-/** 0 → 1 while an enemy appears: its spawn stamp, or a boss rising through its entrance (js/canvas-boss-entrance.js).
- * A stamp well ahead of the clock came from another clock (an older session's save, a combat-clock stamp) and would keep
- * the body at alpha 0, so it counts as already appeared. */
-function getEnemySpawnAge(enemy, now, duration) {
-    const rising = bossEntranceView.enemyAge(enemy, now);
-    if (rising !== null) return rising;
-    if (!enemy.spawnStamp || enemy.spawnStamp > now + ENEMY_SPAWN_STAMP_FUTURE_MS) return 1;
-    return clampNumber((now - enemy.spawnStamp) / duration, 0, 1);
-}
-
-/** 예전 그림(한 장의 큰 그림에서 잘라 쓰는 것)을 그리는 배율: 적이 많을수록 조금 작게, 보스와 정예는 크게. */
-function getEnemyCrowdScale(enemy, count) {
-    const row = count >= 9 ? [3.25, 1.72, 1.46] : (count >= 6 ? [3.45, 1.9, 1.62] : [3.65, 2.2, 1.95]);
-    return enemy.isBoss ? row[0] : (enemy.isElite ? row[1] : row[2]);
-}
-
-/** 무대에서 입장 중인 적: 제 크기와 제자리에, 입장이 정한 모습(검은 형체, 속성 색 테, 드러나는 순간의 흰빛)으로 그린다. */
-function drawEnteringEnemyActor(ctx, entry, state, veil) {
-    ctx.save();
-    ctx.globalAlpha = veil.alpha;
-    drawEnemyActorSprite(ctx, entry, state, { y: entry.y, scale: getEnemyCrowdScale(entry.enemy, state.enemyCount) * state.gridUnitScale, spawnScale: 1, veil });
-    ctx.restore();
-}
-
-/** 입장 중인 적의 모습(js/canvas-boss-entrance.js stageLook)을 시트 그리기에 넘기는 값으로: 흰빛, 검은 형체, 테. 입장 중이 아니면 모두 없다. */
-function getEnemyVeilPose(veil) {
+  }
+  function crowdScale(enemy, count) {
+    const row = count >= 9 ? [3.25, 1.72, 1.46] : count >= 6 ? [3.45, 1.9, 1.62] : [3.65, 2.2, 1.95];
+    return enemy.isBoss ? row[0] : enemy.isElite ? row[1] : row[2];
+  }
+  function veilPose(veil) {
     if (!veil) return { flash: 0, shade: 0, rim: null };
     return { flash: veil.flash, shade: veil.shade, rim: veil.rim > 0 ? { color: veil.color, alpha: veil.rim } : null };
-}
-
-/** 잿불 터 무리(data/atlas.js encounters sparks): 몸에서 불씨 도트 셋이 떠올라 꺼진다. 그림만 그린다. */
-function drawEncounterSparks(ctx, entry, state, color) {
-    const tile = (state.gridProj && state.gridProj.tileW) || 32, dot = Math.max(1, Math.round(tile / 16)), seed = Math.abs(entry.enemy.id || 0) * 97;
-    ctx.save();
-    ctx.fillStyle = color;
-    const alpha = ctx.globalAlpha;
-    for (let index = 0; index < 3; index++) {
-        const t = ((state.now + seed + index * 433) % 1300) / 1300, size = dot * (t < 0.5 ? 2 : 1);
-        const x = entry.x + Math.sin((seed + index * 71) % 628 / 100 + t * 3) * tile * 0.22, y = entry.y - tile * (0.3 + t * 0.9);
+  }
+  var BattlefieldEnemies = class {
+    constructor(deps, facing2) {
+      this.deps = deps;
+      this.facing = facing2;
+    }
+    bossScale(enemy) {
+      return enemy && enemy.isBoss ? this.deps.bossDrawScale : 1;
+    }
+    /** Old-session/future stamps must not leave a restored enemy invisible indefinitely. */
+    spawnAge(enemy, now, duration) {
+      const rising = this.deps.entrance.enemyAge(enemy, now);
+      if (rising !== null) return rising;
+      if (!enemy.spawnStamp || enemy.spawnStamp > now + SPAWN_STAMP_FUTURE_MS) return 1;
+      return clampNumber((now - enemy.spawnStamp) / duration, 0, 1);
+    }
+    entering(ctx, entry, state, veil) {
+      ctx.save();
+      ctx.globalAlpha = veil.alpha;
+      this.sprite(ctx, entry, state, { y: entry.y, scale: crowdScale(entry.enemy, state.enemyCount) * state.gridUnitScale, spawnScale: 1, veil });
+      ctx.restore();
+    }
+    sprite(ctx, entry, state, pose) {
+      const enemy = entry.enemy, veil = veilPose(pose.veil), facing2 = this.facing.direction(entry, state.playerPos);
+      const flash = Math.max(state.enemyHitFlashes.get(enemy.id) || 0, veil.flash);
+      const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
+      const x = entry.x + recoil.x, y = pose.y + recoil.y, boss = this.bossScale(enemy);
+      const sheet = {
+        x,
+        y,
+        tile,
+        now: state.now,
+        facing: facing2,
+        flash,
+        spawnScale: pose.spawnScale * boss,
+        moving: entry.moving === true,
+        shade: veil.shade,
+        rim: veil.rim,
+        awakened: pose.awakened,
+        openingFrame: pose.openingFrame
+      };
+      if (this.deps.wisps.draw(ctx, enemy, sheet) || this.deps.monsters.draw(ctx, enemy, sheet)) return;
+      this.facing.note(enemy, entry, state.playerPos, tile);
+      this.deps.drawSprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing2);
+    }
+    afterimage(ctx, enemy, pose) {
+      if (this.deps.woodsman.owns(enemy)) return;
+      const tile = pose.gridProj && pose.gridProj.tileW, boss = this.bossScale(enemy);
+      const sheet = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash, spawnScale: boss, afterimage: true };
+      if (this.deps.wisps.draw(ctx, enemy, sheet) || this.deps.monsters.draw(ctx, enemy, sheet)) return;
+      this.deps.drawSprite(ctx, enemy, pose.x, pose.y, pose.scale * boss, !!pose.flash, pose.now);
+    }
+    sparks(ctx, entry, state, color) {
+      const tile = state.gridProj && state.gridProj.tileW || 32, dot = Math.max(1, Math.round(tile / 16));
+      const seed = Math.abs(entry.enemy.id || 0) * 97;
+      ctx.save();
+      ctx.fillStyle = color;
+      const alpha = ctx.globalAlpha;
+      for (let index = 0; index < 3; index++) {
+        const t = (state.now + seed + index * 433) % 1300 / 1300, size = dot * (t < 0.5 ? 2 : 1);
+        const x = entry.x + Math.sin((seed + index * 71) % 628 / 100 + t * 3) * tile * 0.22;
+        const y = entry.y - tile * (0.3 + t * 0.9);
         ctx.globalAlpha = alpha * (1 - t) * 0.9;
         ctx.fillRect(Math.round(x), Math.round(y), size, size);
+      }
+      ctx.restore();
     }
-    ctx.restore();
-}
-
-/** An enemy drawn once more after it left the field (death dissolve, pending-hit ghost): sheet monsters from their sheets,
- * the rest from the atlas. pose = { x, y, scale (atlas), flash, gridProj, now, facing }. */
-function drawEnemyAfterimage(ctx, enemy, pose) {
-    if (woodsmanBattle.owns(enemy)) return;
-    const tile = pose.gridProj && pose.gridProj.tileW, boss = getBossDrawScale(enemy);
-    const sheetPose = { x: pose.x, y: pose.y, tile, now: pose.now, facing: pose.facing, flash: !!pose.flash, spawnScale: boss, afterimage: true };
-    if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
-    drawEnemySprite(ctx, enemy, pose.x, pose.y, pose.scale * boss, !!pose.flash, pose.now);
-}
-
-/** Where an enemy is drawn this frame: { enemy, x, y, moving }. A step on the grid must not look like a jump, so its picture
- * glides from the cell it left: on the top-down field toward the new cell, most of the way at once (the wave judgement,
- * js/combat-tick.js pickWaveFrontTargets, counts with the same glide); on the stage at a walk over the whole step
- * (js/canvas-stage-stride.js), with no follower in screen space, so a scrolling room does not drag the monsters.
- * frame = { now, deltaSec, gridProj }. */
-function glideBattleEnemy(entry, frame) {
-    const id = entry.enemy.id;
-    {
-        const stride = stageStride.read(entry.enemy, frame.now) || { dx: 0, dy: 0, moving: false };
-        const at = { x: entry.x + stride.dx * frame.gridProj.tileW, y: entry.y + stride.dy * frame.gridProj.tileH };
-        battleVisualState.enemySmoothPos[id] = at;
-        // 가는 쪽: 그려진 자리가 제 칸보다 왼쪽에 남아 있으면 오른쪽으로 걷는 중이다(위아래로만 걸으면 없다)
-        const heading = stride.moving && Math.abs(stride.dx) > 0.02 ? (stride.dx < 0 ? 'east' : 'west') : null;
-        return { enemy: entry.enemy, x: at.x, y: at.y, moving: stride.moving, heading };
+    draw(ctx, entry, state) {
+      if (this.deps.woodsmanView.active(entry.enemy)) return;
+      const enemy = entry.enemy, veil = this.deps.entrance.stageLook(enemy, state.now);
+      if (veil) {
+        this.entering(ctx, entry, state, veil);
+        return;
+      }
+      const duration = enemy.isBoss ? 640 : enemy.isElite ? 460 : 360;
+      const age = this.spawnAge(enemy, state.now, duration), eased = 1 - Math.pow(1 - age, 3);
+      let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + eased * (enemy.isBoss ? 0.54 : 0.32);
+      if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
+      const scale = crowdScale(enemy, state.enemyCount), observer = this.deps.entrance.observer;
+      const awakening = observer.frame(enemy), awakened = observer.body(awakening);
+      observer.seal(ctx, entry, awakening);
+      ctx.save();
+      ctx.globalAlpha = eased * this.deps.ambush.alphaOf(enemy, state.now) * this.deps.bossMoves.shiftAlpha(enemy);
+      this.sprite(ctx, entry, state, {
+        y: entry.y - (1 - eased) * (enemy.isBoss ? 28 : 18),
+        scale: scale * state.gridUnitScale * spawnScale,
+        spawnScale,
+        ...awakened
+      });
+      if (enemy.encounterSparks) this.sparks(ctx, entry, state, enemy.encounterSparks);
+      ctx.restore();
+      observer.globe(ctx, enemy, awakening);
+      observer.caption(ctx, entry, awakening);
     }
-}
-
-function noteStageHeroBehindFrames(playerPos, gridProj) {
-    if (typeof messageFrames !== 'object' || !messageFrames.isActive()) return;
-    messageFrames.heroAt(playerPos.x, playerPos.y, playerPos.y - STAGE_HERO_TALL_DOTS * stageActors.scaleFor(gridProj.tileW));
-}
-
-/** 보스는 BOSS_DRAW_SCALE배로 그린다(살아 있는 모습, 사라지는 잔상, 쓰러지는 모습 모두). 일반 몬스터는 1. */
-function getBossDrawScale(enemy) {
-    return enemy && enemy.isBoss ? BOSS_DRAW_SCALE : 1;
-}
-
-/** Wisps, act monsters, roots and realm sets draw from their own 16-dot sheets (js/canvas-wisp-actors.js,
- * js/canvas-monster-actors.js); story bosses keep their atlas sprites. */
-function drawEnemyActorSprite(ctx, entry, state, pose) {
-    const enemy = entry.enemy, veil = getEnemyVeilPose(pose.veil), facing = resolveEnemyFacingDirection(entry, state.playerPos);
-    const flash = Math.max(state.enemyHitFlashes.get(enemy.id) || 0, veil.flash);
-    const tile = state.gridProj && state.gridProj.tileW, recoil = (state.enemyHitRecoil || {})[enemy.id] || { x: 0, y: 0 };
-    const x = entry.x + recoil.x, y = pose.y + recoil.y, boss = getBossDrawScale(enemy);
-    const sheetPose = { x, y, tile, now: state.now, facing, flash, spawnScale: pose.spawnScale * boss, moving: entry.moving === true,
-        shade: veil.shade, rim: veil.rim, awakened: pose.awakened, openingFrame: pose.openingFrame };
-    if (wispActors.draw(ctx, enemy, sheetPose) || monsterActors.draw(ctx, enemy, sheetPose)) return;
-    noteEnemySpriteSide(enemy, entry, state.playerPos, tile);
-    drawEnemySprite(ctx, enemy, x, y, pose.scale * boss, flash, state.now, entry.moving, state.enemyAttackMotions[enemy.id], facing);
-}
-
-function buildBattleEnemyPosMap(layout, fxList, now, gridProj) {
-    const map = {}, hidden = new Set();
-    layout.forEach(entry => {
+    /** Project the grid stride each frame; no screen-space follower that drags during camera scroll. */
+    glide(entry, frame) {
+      const stride = this.deps.stride.read(entry.enemy, frame.now) || { dx: 0, dy: 0, moving: false };
+      const at = { x: entry.x + stride.dx * frame.gridProj.tileW, y: entry.y + stride.dy * frame.gridProj.tileH };
+      this.deps.visual().enemySmoothPos[entry.enemy.id] = at;
+      const heading = stride.moving && Math.abs(stride.dx) > 0.02 ? stride.dx < 0 ? "east" : "west" : null;
+      return { enemy: entry.enemy, x: at.x, y: at.y, moving: stride.moving, heading };
+    }
+    /** All living positions remain targetable; unseen enemies get neither ghosts nor one-shot combat text. */
+    positions(layout, effects, now, projection) {
+      const map = {}, hidden = /* @__PURE__ */ new Set(), visual = this.deps.visual();
+      layout.forEach((entry) => {
         map[entry.enemy.id] = entry;
-        const cell = enemyAttackRules.aimCell(entry.enemy);
-        if (cell && gridProj) {
-            entry.actualAim = gridProj.cellToScreen(cell.gx, cell.gy);
-            entry.actualAim.y += Number(gridProj.actorGroundOffsetY) || 0;
+        const cell = this.deps.attackRules.aimCell(entry.enemy);
+        if (cell && projection) {
+          entry.actualAim = projection.cellToScreen(cell.gx, cell.gy);
+          entry.actualAim.y += Number(projection.actorGroundOffsetY) || 0;
         }
         if (!entry.seen) {
-            hidden.add(entry.enemy.id);
-            delete battleVisualState.enemyGhostPos[entry.enemy.id];
-            return;
+          hidden.add(entry.enemy.id);
+          delete visual.enemyGhostPos[entry.enemy.id];
+          return;
         }
-        battleVisualState.enemyGhostPos[entry.enemy.id] = { x: entry.x, y: entry.y, actualAim: entry.actualAim && { ...entry.actualAim },
-            stamp: now, enemy: copyEnemySpriteSide(entry.enemy, { ...entry.enemy }) };
-    });
-    if (hidden.size) fxList.forEach(fx => { if (fx && SIGHT_GATED_FX.has(fx.type) && hidden.has(fx.enemyId)) battleVisualState.processedFxIds.add(fx.id); });
-    return map;
-}
-
-/** Register bodies after drawing: a foreground body never fades a seal drawn behind it. Hidden enemies never reach here. */
-function noteStageActorBody(actor, state) {
-    const tile = state.gridProj.tileW;
-    if (actor.kind === 'player') {
-        stageDoorMarks.seal.body({ ...state.playerPos, halfW: tile * .4, h: getHeroBodyHeight(state.playerPos, state.now) });
-    } else if (actor.kind === 'enemy' && actor.entry.enemy.hp > 0) {
-        const entry = actor.entry, size = stageRoster.bodySize(entry.enemy, tile)
-            || { halfW: tile * .45 * getGridUnitFootprint(entry.enemy).columns, h: getEnemyFieldBarLift(entry.enemy) - 10 };
-        stageDoorMarks.seal.body({ x: entry.x, y: entry.y, ...size });
+        visual.enemyGhostPos[entry.enemy.id] = {
+          x: entry.x,
+          y: entry.y,
+          actualAim: entry.actualAim && { ...entry.actualAim },
+          stamp: now,
+          enemy: this.facing.copy(entry.enemy, { ...entry.enemy })
+        };
+      });
+      if (hidden.size) effects.forEach((fx) => {
+        if (fx && SIGHT_GATED_FX.has(fx.type) && hidden.has(fx.enemyId)) visual.processedFxIds.add(fx.id);
+      });
+      return map;
     }
-}
+  };
 
-function drawBattleActorLayer(ctx, enemyEntries, state) {
-    state = { ...state, enemyHitRecoil: buildEnemyHitRecoilMap(battleFx, state) };
-    const view = { width: state.width, height: state.height, tile: state.gridProj.tileW };
-    // 서서 기다리는 무리도 그림이 화면에 걸치는 것만 그린다(이어진 지도에서는 발견한 곳의 무리가 모두 온다).
-    const waiting=getBattleLayout(actExplorationView.waitingEnemies(),0,0,state.gridProj).filter(entry => battleDrawList.touchesView(entry, view));
-    // 달려오는 몬스터도 시야 안에 들어와야 보이고(entry.seen), 그 가운데 그림이 화면에 걸치는 것만 그린다(entry.drawn). 화면 밖의 보이는
-    // 몬스터는 보는 쪽만 이어 적는다.
-    const seen = [];
-    for (const entry of enemyEntries || []) {
-        if (entry.drawn) seen.push(entry);
-        else if (entry.seen) battleDrawList.keepFacing(entry, state.playerPos, view.tile);
+  // modules/rendering/battlefield-screen.mjs
+  var HURT_EDGE = Object.freeze({ ms: 300, min: 0.16, perLife: 3, max: 0.7 });
+  function shakeStrength(fx, profile) {
+    if (fx.type === "enemyDeath") return fx.boss ? 8.2 : fx.elite ? 3.1 : 0.8;
+    if (fx.type === "enemySpawn") return fx.boss ? 2.8 : fx.elite ? 0.8 : 0;
+    return Math.max(0, Number(profile && profile.shake) || 0);
+  }
+  function effectShake(fx, now, profileFor) {
+    if (!fx || fx.dot || !["hit", "playerHit", "enemyDeath", "enemySpawn", "bossAreaImpact"].includes(fx.type)) return null;
+    const profile = profileFor ? profileFor(fx) : null;
+    const duration = Math.max(80, Number(profile && profile.duration) || 110), age = now - fx.start;
+    if (age < 0 || age > duration) return null;
+    return shakeStrength(fx, profile) * (1 - age / duration);
+  }
+  var BattlefieldScreen = class {
+    constructor(deps, bars2) {
+      this.deps = deps;
+      this.bars = bars2;
     }
-    buildEnemyHitFlashMap.crowd(state.enemyHitFlashes, seen, view.tile);
-    battleDrawList.noteDrawn(seen.concat(waiting), state.gridProj.tileW); // 누른 몬스터 찾기(락온)와 락온 표시의 자리
-    let actors = seen.concat(waiting).map(entry => ({
-        kind: 'enemy', id: entry.enemy.id, y: entry.y, entry
-    }));
-    actors.push({ kind: 'player', id: -1, y: state.playerPos.y });
-    actExplorationView.appendScenery(actors,state);
-    woodsmanView.stumps(actors, state.gridProj);
-    actors.push(...trialTrapArt.riseActors(battleFx, state.now, state.gridProj)); // trap blades, flames, frost: in depth order
-    bossEntranceView.drawGround(ctx, state);
-    const sceneryDim = bossEntranceView.sceneryDim(state.now);
-    sortBattleActorsByDepth(actors).forEach(actor => {
-        if (actor.kind === 'player') drawBattlePlayerActor(ctx, state);
-        else if (actor.kind === 'trapRise' || actor.kind === 'woodsmanStump') actor.draw(ctx);
-        else if (actor.kind === 'gate' || actor.kind === 'scenery' || actor.kind === 'object') {
-            // 깊이 순서는 그대로 유지한다. 배경 위에 그려지는 문·소품에도 같은 입장 어둠을 적용하고, 인물은 밝게 남긴다.
-            ctx.save();
-            if (sceneryDim && !actor.npc) ctx.filter = `brightness(${1 - sceneryDim})`;
-            actExplorationView.drawScenery(ctx,actor,state);
-            ctx.restore();
-        }
-        else drawBattleEnemyActor(ctx, actor.entry, state);
-        noteStageActorBody(actor, state);
-    });
-    drawBattlePlayerFigure.readability.begin(state, seen.concat(waiting));
-}
+    shake(now) {
+      if (this.deps.feedback.reduced()) return { x: 0, y: 0 };
+      const game = this.deps.game();
+      if (typeof game !== "undefined" && game.settings && game.settings.cameraShake === false) return { x: 0, y: 0 };
+      let amplitude = Math.max(this.deps.entrance.shake(now), this.deps.projectileImpact.shake(now));
+      (this.deps.effects() || []).forEach((fx) => {
+        const strength = effectShake(fx, now, this.deps.feedbackProfile);
+        if (strength !== null) amplitude = Math.max(amplitude, strength);
+      });
+      const k = Math.max(1, Number(this.deps.renderScale()) || 1);
+      return {
+        x: Math.round(Math.sin(now * 0.72) * amplitude * k) / k,
+        y: Math.round(Math.cos(now * 0.94) * amplitude * 0.56 * k) / k
+      };
+    }
+    hurtEdge(ctx, width, height, now) {
+      if (this.deps.reducedEffects()) return;
+      const hit = recentBattleEffect(this.deps.effects(), "playerHit", now, HURT_EDGE.ms);
+      if (!hit || !(Number(hit.damage) > 0)) return;
+      const fade = 1 - (now - hit.start) / HURT_EDGE.ms;
+      const strength = clampNumber(HURT_EDGE.min + (Number(hit.damageRatio) || 0) * HURT_EDGE.perLife, HURT_EDGE.min, HURT_EDGE.max);
+      const edge = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.3, width / 2, height / 2, Math.max(width, height) * 0.72);
+      edge.addColorStop(0, "rgba(150,12,18,0)");
+      edge.addColorStop(1, `rgba(176,16,24,${(strength * fade * fade).toFixed(3)})`);
+      ctx.save();
+      ctx.fillStyle = edge;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
+    /** Environment shading is below actors and warnings; damage edges are applied later. */
+    grade(ctx, width, height) {
+      ctx.save();
+      const edgeX = Math.max(72, width * 0.2), edgeY = Math.max(58, height * 0.18);
+      const left = ctx.createLinearGradient(0, 0, edgeX, 0);
+      left.addColorStop(0, "rgba(1,3,7,0.32)");
+      left.addColorStop(1, "rgba(1,3,7,0)");
+      ctx.fillStyle = left;
+      ctx.fillRect(0, 0, edgeX, height);
+      const right = ctx.createLinearGradient(width, 0, width - edgeX, 0);
+      right.addColorStop(0, "rgba(1,3,7,0.32)");
+      right.addColorStop(1, "rgba(1,3,7,0)");
+      ctx.fillStyle = right;
+      ctx.fillRect(width - edgeX, 0, edgeX, height);
+      const top = ctx.createLinearGradient(0, 0, 0, edgeY);
+      top.addColorStop(0, "rgba(1,3,7,0.24)");
+      top.addColorStop(1, "rgba(1,3,7,0)");
+      ctx.fillStyle = top;
+      ctx.fillRect(0, 0, width, edgeY);
+      const bottom = ctx.createLinearGradient(0, height, 0, height - edgeY);
+      bottom.addColorStop(0, "rgba(1,3,7,0.38)");
+      bottom.addColorStop(1, "rgba(1,3,7,0)");
+      ctx.fillStyle = bottom;
+      ctx.fillRect(0, height - edgeY, width, edgeY);
+      ctx.restore();
+    }
+    lightingEnabled() {
+      const body2 = this.deps.documentBody();
+      return !!body2 && body2.dataset.uiSkin === "rift" && !body2.classList.contains("high-contrast");
+    }
+    finish(ctx, scene) {
+      this.deps.redrawn.drawLayer("fore", scene.now);
+      this.deps.summons.drawLayer("fore", scene.now);
+      this.deps.remake.end();
+      if (typeof this.deps.ocean === "object") this.deps.ocean.front(ctx, scene);
+      this.lighting(ctx, scene);
+      this.deps.readability.draw(ctx);
+      if (scene.observerScene) return;
+      if (!this.deps.actors.down()) this.bars.player(ctx, scene);
+      const locked = this.deps.exploration.lockedEnemy(this.deps.exploration.current(this.deps.game()));
+      this.bars.enemies(ctx, scene.layout.filter((entry) => entry.drawn), locked ? scene.targets.concat(locked.id) : scene.targets, scene.tileW);
+      this.bars.lockOn(ctx, scene, locked);
+    }
+    lightFocus(scene) {
+      const { width, height, light: light2 } = scene, room = this.deps.roomGlow();
+      if (room) return { x: room.x, y: room.y, inner: room.radius, outer: room.radius + Math.max(width, height) * 0.3 };
+      return { x: light2.x, y: light2.y - 18, inner: Math.min(width, height) * 0.16, outer: Math.max(width, height) * 0.56 };
+    }
+    lighting(ctx, scene) {
+      if (!this.lightingEnabled() || !scene.light) return;
+      const { width, height, light: light2 } = scene, cy = light2.y - 18;
+      const focus = this.lightFocus(scene), inner = Math.min(width, height) * 0.16;
+      ctx.save();
+      const dark = ctx.createRadialGradient(focus.x, focus.y, focus.inner, focus.x, focus.y, focus.outer);
+      dark.addColorStop(0, "rgba(4,5,7,0)");
+      dark.addColorStop(0.42, "rgba(4,5,7,0.16)");
+      dark.addColorStop(1, "rgba(3,4,6,0.48)");
+      ctx.fillStyle = dark;
+      ctx.fillRect(-40, -40, width + 80, height + 80);
+      const radius = inner * 1.5, warm = ctx.createRadialGradient(light2.x, cy, 0, light2.x, cy, radius);
+      warm.addColorStop(0, "rgba(255,190,105,0.112)");
+      warm.addColorStop(1, "rgba(255,190,105,0)");
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = warm;
+      ctx.fillRect(light2.x - radius, cy - radius, radius * 2, radius * 2);
+      ctx.restore();
+      this.lowHealth(ctx, scene);
+    }
+    lowHealth(ctx, scene) {
+      const hpPct = Number(scene.hpPct);
+      if (!(hpPct < 0.35)) return;
+      const { width, height, now } = scene, danger = (0.35 - Math.max(0, hpPct)) / 0.35;
+      const pulse = 0.7 + 0.3 * Math.sin(now * 6e-3);
+      const edge = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.34, width / 2, height / 2, Math.max(width, height) * 0.72);
+      edge.addColorStop(0, "rgba(120,10,16,0)");
+      edge.addColorStop(1, `rgba(158,14,22,${((0.36 + 0.4 * danger) * pulse).toFixed(3)})`);
+      ctx.save();
+      ctx.fillStyle = edge;
+      ctx.fillRect(-40, -40, width + 80, height + 80);
+      ctx.restore();
+    }
+  };
 
-// Phase-2 extracted battlefield canvas renderer block.
-function drawLootHighlightLabel(ctx, fx, position, progress) {
-    if (!fx.reason) return;
+  // modules/rendering/battlefield-boss-banner.mjs
+  var BANNER_MS = 2600;
+  var BANNER_SHADE = Object.freeze({ reach: 150, height: 44 });
+  var DEFENSE_LABELS = Object.freeze([["dr", "물리 피해 감소"], ["resF", "화염 저항"], ["resC", "냉기 저항"], ["resL", "번개 저항"]]);
+  function elementLabel(element) {
+    if (element === "fire") return "화염";
+    if (element === "cold") return "냉기";
+    if (element === "light") return "번개";
+    if (element === "chaos") return "공허";
+    return "물리";
+  }
+  function defenseHighlights(enemy) {
+    if (!enemy || !enemy.isBoss) return [];
+    const rows = DEFENSE_LABELS.map(([key, label]) => ({ label, value: Math.floor(Number(enemy[key]) || 0) }));
+    const floor = Math.min(...rows.map((row) => row.value));
+    return rows.filter((row) => row.value >= 40 && row.value - floor >= 15).sort((a, b) => b.value - a.value).map((row) => `${row.label} ${row.value}%`);
+  }
+  function guardTraits(enemy, tags) {
+    if ((enemy.firstHitGuard || 0) > 0 && !enemy.firstHitConsumed) tags.push(`첫타보호 ${Math.floor((enemy.firstHitGuard || 0) * 100)}%`);
+    if ((enemy.hitRateGuard || 0) > 0) tags.push(`연타경감 ${Math.floor((enemy.hitRateGuard || 0) * 100)}%/후속타`);
+  }
+  function leechTrait(enemy, tags) {
+    if ((enemy.leechEffMul || 1) <= 0) tags.push("흡혈불가");
+    else if ((enemy.leechEffMul || 1) < 1) tags.push(`흡혈저항 ${Math.floor((enemy.leechEffMul || 1) * 100)}%`);
+  }
+  function bannerAlpha(age) {
+    if (age < 260) return age / 260;
+    return Math.min(1, Math.max(0, (BANNER_MS - age) / 640));
+  }
+  function bannerPlate(ctx, mid, cy, half) {
+    const rx = half + BANNER_SHADE.reach, ry = BANNER_SHADE.height;
+    const shade = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
+    shade.addColorStop(0, "rgba(6,4,4,0.84)");
+    shade.addColorStop(0.55, "rgba(6,4,4,0.6)");
+    shade.addColorStop(1, "rgba(6,4,4,0)");
     ctx.save();
-    ctx.globalAlpha = Math.min(1, (1 - progress) * 3);
-    ctx.font = `12px ${battlePixelFont()}`;
-    ctx.textAlign = 'center';
-    const name = String(fx.itemName || '').slice(0, 24);
-    const width = Math.min(250, Math.max(ctx.measureText(name).width, ctx.measureText(fx.reason).width) + 24);
-    const top = position.y - 66;
-    ctx.fillStyle = 'rgba(15,23,22,0.94)';
-    ctx.fillRect(position.x - width / 2, top, width, 43);
-    ctx.fillStyle = fx.color;
-    ctx.fillRect(position.x - width / 2, top, 3, 43);
-    drawCrispCanvasText(ctx, fx.reason, position.x, top + 15);
-    ctx.fillStyle = '#f4eedf';
-    // 칸보다 긴 이름만 줄여 그린다(줄이면 도트가 번진다).
-    if (ctx.measureText(name).width <= width - 16) drawCrispCanvasText(ctx, name, position.x, top + 32);
-    else ctx.fillText(name, position.x, top + 32, width - 16);
+    ctx.translate(mid, cy - 3);
+    ctx.scale(rx / ry, 1);
+    ctx.fillStyle = shade;
+    ctx.fillRect(-ry, -ry, ry * 2, ry * 2);
     ctx.restore();
-}
+  }
+  function bannerRule(ctx, left, right, y) {
+    const span = right - left, solid = span * 0.6, dotted = (span - solid) / 2;
+    ctx.fillStyle = "rgba(216,166,74,0.9)";
+    ctx.fillRect(left + dotted, y, solid, 2);
+    for (let x = 0; x < dotted; x += 4) {
+      ctx.fillRect(left + dotted - 4 - x, y, 2, 2);
+      ctx.fillRect(right - dotted + 2 + x, y, 2, 2);
+    }
+  }
+  var BattlefieldBossBanner = class {
+    constructor(deps, body2, text2) {
+      this.deps = deps;
+      this.body = body2;
+      this.text = text2;
+    }
+    displayName(enemy) {
+      if (!enemy) return this.deps._t("미확인 적");
+      return this.deps.stripEmoji(this.deps.i18n.enemyName(enemy.name)) || this.deps._t("미확인 적");
+    }
+    traits(enemy) {
+      if (!enemy) return ["일반"];
+      const tags = [elementLabel(enemy.ele), ...defenseHighlights(enemy)];
+      if (enemy.traitName) tags.push(enemy.traitName);
+      guardTraits(enemy, tags);
+      leechTrait(enemy, tags);
+      return Array.from(new Set(tags.filter(Boolean)));
+    }
+    update(enemies2, now) {
+      const revealed = this.deps.entrance.revealedBoss(now);
+      const boss = (revealed && revealed.redEntrance ? revealed : null) || (enemies2 || []).find((enemy) => enemy && enemy.isBoss) || revealed;
+      const visual = this.deps.visual();
+      visual.bossBannerFor = null;
+      if (!boss) return null;
+      if (visual.bossAnnounceId !== boss.id) {
+        visual.bossAnnounceId = boss.id;
+        visual.bossAnnounceStart = now;
+      }
+      const age = now - visual.bossAnnounceStart;
+      if (age < 0 || age > BANNER_MS) return null;
+      visual.bossBannerFor = boss.id;
+      return { boss, age };
+    }
+    drawnSpans(boss) {
+      const entry = this.deps.drawnEntry(boss);
+      return entry ? [[entry.y - this.body.barLift(boss) - 14, entry.y + 8]] : [];
+    }
+    y(area, banner2, down) {
+      const visual = this.deps.visual(), held = visual.bossBannerY;
+      if (held && held.start === visual.bossAnnounceStart) return held.y;
+      const spans = this.deps.entrance.enteringSpans(banner2.boss).concat(this.drawnSpans(banner2.boss));
+      const y = this.deps.entrance.bannerLine(area, spans, { up: 38, down });
+      if (spans.length) visual.bossBannerY = { start: visual.bossAnnounceStart, y };
+      return y;
+    }
+    subLines(ctx, boss, width) {
+      const head = [this.deps._t("{ele} 속성 보스", { ele: elementLabel(boss.ele) })], defenses = defenseHighlights(boss);
+      ctx.font = `12px ${this.text.font()}`;
+      const one = [...head, ...defenses].join(", ");
+      return !defenses.length || ctx.measureText(one).width <= width - 24 ? [one] : [head.join(", "), defenses.join(", ")];
+    }
+    draw(ctx, area, banner2) {
+      if (this.deps.bossMoves.observer.sceneActive()) return;
+      this.deps.entrance.drawScreen(ctx, area);
+      if (!banner2) return;
+      const { width } = area, lines = this.subLines(ctx, banner2.boss, width);
+      const cy = this.y(area, banner2, 32 + (lines.length - 1) * 14);
+      ctx.save();
+      ctx.globalAlpha = bannerAlpha(banner2.age);
+      ctx.textAlign = "center";
+      ctx.font = `700 24px ${this.text.font()}`;
+      const name = this.displayName(banner2.boss);
+      const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60), mid = Math.round(width / 2);
+      bannerPlate(ctx, mid, cy, Math.round(half + 36));
+      bannerRule(ctx, Math.round(mid - half), Math.round(mid + half), cy + 10);
+      ctx.lineWidth = 4;
+      ctx.lineJoin = "miter";
+      ctx.strokeStyle = "rgba(12,4,4,.95)";
+      this.deps.drawText(ctx, name, mid, cy, "strokeText");
+      ctx.fillStyle = banner2.boss.redEntrance ? "#ff6a4e" : "#f0c46a";
+      this.deps.drawText(ctx, name, mid, cy);
+      ctx.font = `12px ${this.text.font()}`;
+      lines.forEach((line, index) => this.text.tone(ctx, line, mid, cy + 25 + index * 14, "#d98a6a"));
+      ctx.restore();
+    }
+  };
 
-function drawLegacyHitFeedback(ctx, fx, progress, playerPos, enemyPosMap) {
-    if (!SKILL_FX_ATLAS[fx.skillName]) drawBattleHitFx(ctx, fx, progress, playerPos, enemyPosMap);
-    drawDamageImpactAccent(ctx, fx, progress, enemyPosMap, playerPos);
-}
-
-/** Regular monsters still on the map run (waiting packs included, the boss's stage not), or null outside a map. */
-function getMapMonstersLeft() {
-    const run = typeof actExplorationState === 'object' ? actExplorationState.current(game) : null;
-    if (!run || !Array.isArray(run.packs)) return null;
-    return run.packs.filter(pack => pack && pack.stage === null).reduce((sum, pack) => sum + (pack.aliveIds || []).length, 0);
-}
-
-/** The battlefield's corner caption. The monster count used to sit there all the time ("몬스터 수 3마리"); it now shows only
- * when a few regular monsters are left on the map, to find the stragglers (2026-10-07 user request). Empty hides the box.
- * (A failed-asset line used to sit here too but the chain always overwrote it; the loading screen reports that failure.) */
-function getBattlefieldCaption() {
-    if (game.isTownReturning && game.moveTimer > 0) return '마을로 귀환 중...';
-    if (game.woodsmanEntrancePending) return '혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.';
-    if (game.moveTimer > 0) return '';
-    const left = getMapMonstersLeft();
-    return [getWorldTreeBarkEffect().on ? '세계수 껍질 구간' : '', left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? _t('몬스터 {left}마리 남음', { left }) : ''].filter(Boolean).join(', ');
-}
-
-/** A monster's arrival: widening rings and a floor glow at its feet, rays too for a boss. */
-function drawEnemySpawnFx(ctx, fx, t, enemy) {
-    if (!enemy) return;
-    const look = fx.boss ? ENEMY_SPAWN_LOOK.boss : ENEMY_SPAWN_LOOK.plain, colour = fx.color || '#9ed6ff';
-    ctx.save();
-    ctx.globalAlpha = (1 - t) * look.alpha;
-    ctx.strokeStyle = colour;
-    ctx.lineWidth = look.width;
-    for (let ring = 0; ring < look.rings; ring++) {
+  // modules/rendering/battlefield-event-effects.mjs
+  var ENEMY_SPAWN_LOOK = Object.freeze({
+    boss: Object.freeze({ alpha: 0.72, width: 4, rings: 3, radius: 15, grow: 34, glow: 0.28, rx: 28, ry: 12, rays: true }),
+    plain: Object.freeze({ alpha: 0.5, width: 3, rings: 2, radius: 10, grow: 22, glow: 0.18, rx: 18, ry: 8, rays: false })
+  });
+  var LOOT_CELEBRATION_LOOK = Object.freeze({
+    unique: Object.freeze({ beam: 220, half: 7, width: 4, rings: 3, grow: 44, sparks: 10 }),
+    other: Object.freeze({ beam: 145, half: 4, width: 3, rings: 2, grow: 30, sparks: 6 })
+  });
+  var LOOT_CELEBRATION_INTENSITY = Object.freeze({ unique: 1, rare: 0.72 });
+  var BattlefieldEventEffects = class {
+    constructor(deps, text2) {
+      this.deps = deps;
+      this.text = text2;
+    }
+    mobility(ctx, fx, progress, gridProj) {
+      if (!gridProj || !fx.fromCell || !fx.toCell) return;
+      this.deps.tree.mobility(ctx, fx, progress, gridProj);
+    }
+    contact(ctx, fx, t, enemyPosMap, playerPos) {
+      this.deps.tree.feedback.contact(ctx, fx, t * fx.duration, { enemies: enemyPosMap, player: playerPos });
+    }
+    levelUp(ctx, fx, t, playerPos, now) {
+      const fade = t < 0.4 ? 1 : Math.max(0, (1 - t) / 0.6);
+      const cx = playerPos.x, footY = playerPos.y + 2;
+      const reduced = this.deps.tree.feedback.reduced();
+      ctx.save();
+      ctx.globalAlpha = 0.95 * fade;
+      ctx.globalCompositeOperation = "lighter";
+      const pillarHeight = reduced ? 0 : 70 + 20 * Math.min(1, t * 2.4);
+      const pillar = ctx.createLinearGradient(cx, footY, cx, footY - pillarHeight);
+      pillar.addColorStop(0, "rgba(255,214,120,0.85)");
+      pillar.addColorStop(0.45, "rgba(255,229,154,0.4)");
+      pillar.addColorStop(1, "rgba(255,240,200,0)");
+      ctx.fillStyle = pillar;
+      const pillarWidth = 12 * (1 - t * 0.45);
+      ctx.fillRect(cx - pillarWidth / 2, footY - pillarHeight, pillarWidth, pillarHeight);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 0.85 * fade;
+      ctx.strokeStyle = "#ffe59a";
+      ctx.lineWidth = 2 * (1 - t) + 0.8;
+      ctx.beginPath();
+      const radius = reduced ? 24 : 18 + t * 25;
+      ctx.ellipse(cx, footY, radius, radius * 0.36, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      const head = this.deps.headY(now) ?? playerPos.y - 82 * this.deps.heroScale;
+      this.levelLabel(ctx, fx, { x: cx, y: Math.max(26, head - 28), alpha: fade });
+      ctx.restore();
+    }
+    levelLabel(ctx, fx, pos) {
+      ctx.globalAlpha = pos.alpha;
+      ctx.font = `24px ${this.text.font()}`;
+      ctx.textAlign = "center";
+      ctx.lineWidth = 4;
+      ctx.lineJoin = "miter";
+      ctx.strokeStyle = "rgba(25,9,0,.92)";
+      const label = this.deps._t("레벨 {level}", { level: fx.level || "" });
+      const x = Math.round(pos.x), y = Math.round(pos.y);
+      this.deps.drawText(ctx, label, x, y, "strokeText");
+      ctx.fillStyle = "#ffe9a8";
+      this.deps.drawText(ctx, label, x, y);
+    }
+    lootLabel(ctx, fx, position, progress) {
+      if (!fx.reason) return;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (1 - progress) * 3);
+      ctx.font = `12px ${this.text.font()}`;
+      ctx.textAlign = "center";
+      const name = String(fx.itemName || "").slice(0, 24);
+      const width = Math.min(250, Math.max(ctx.measureText(name).width, ctx.measureText(fx.reason).width) + 24);
+      const top = position.y - 66;
+      ctx.fillStyle = "rgba(15,23,22,0.94)";
+      ctx.fillRect(position.x - width / 2, top, width, 43);
+      ctx.fillStyle = fx.color;
+      ctx.fillRect(position.x - width / 2, top, 3, 43);
+      this.deps.drawText(ctx, fx.reason, position.x, top + 15);
+      ctx.fillStyle = "#f4eedf";
+      if (ctx.measureText(name).width <= width - 16) this.deps.drawText(ctx, name, position.x, top + 32);
+      else ctx.fillText(name, position.x, top + 32, width - 16);
+      ctx.restore();
+    }
+    legacyHit(ctx, fx, progress, playerPos, enemyPosMap) {
+      if (!this.deps.atlas[fx.skillName]) this.deps.hitFx(ctx, fx, progress, playerPos, enemyPosMap);
+      this.contact(ctx, fx, progress, enemyPosMap, playerPos);
+    }
+    spawn(ctx, fx, t, enemy) {
+      if (!enemy) return;
+      const look = fx.boss ? ENEMY_SPAWN_LOOK.boss : ENEMY_SPAWN_LOOK.plain, colour = fx.color || "#9ed6ff";
+      ctx.save();
+      ctx.globalAlpha = (1 - t) * look.alpha;
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = look.width;
+      for (let ring = 0; ring < look.rings; ring++) {
         ctx.beginPath();
         ctx.arc(enemy.x, enemy.y - 4, look.radius + t * look.grow + ring * 6, 0, Math.PI * 2);
         ctx.stroke();
+      }
+      ctx.fillStyle = colour;
+      ctx.globalAlpha = (1 - t) * look.glow;
+      ctx.beginPath();
+      ctx.ellipse(enemy.x, enemy.y + 8, look.rx, look.ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (look.rays) this.spawnRays(ctx, t, enemy);
+      ctx.restore();
     }
-    ctx.fillStyle = colour;
-    ctx.globalAlpha = (1 - t) * look.glow;
-    ctx.beginPath();
-    ctx.ellipse(enemy.x, enemy.y + 8, look.rx, look.ry, 0, 0, Math.PI * 2);
-    ctx.fill();
-    if (look.rays) drawEnemySpawnRays(ctx, t, enemy);
-    ctx.restore();
-}
-
-function drawEnemySpawnRays(ctx, t, enemy) {
-    ctx.globalAlpha = (1 - t) * 0.5;
-    for (let ray = 0; ray < 8; ray++) {
+    spawnRays(ctx, t, enemy) {
+      ctx.globalAlpha = (1 - t) * 0.5;
+      for (let ray = 0; ray < 8; ray++) {
         const angle = ray * Math.PI / 4 + t * 0.6;
         ctx.beginPath();
         ctx.moveTo(enemy.x + Math.cos(angle) * 24, enemy.y - 5 + Math.sin(angle) * 12);
         ctx.lineTo(enemy.x + Math.cos(angle) * (46 + t * 18), enemy.y - 5 + Math.sin(angle) * (24 + t * 10));
         ctx.stroke();
+      }
     }
-}
-
-/** Motes flying from the fallen monster (or the field's right side) to the hero. path = { from, to, width, height }. */
-function drawLootPickupFx(ctx, fx, t, path) {
-    const { from, to, width, height } = path;
-    const startX = from ? from.x : width * 0.72, startY = from ? from.y - 10 : height * 0.62, endX = to.x, endY = to.y - 24;
-    ctx.save();
-    ctx.globalAlpha = 1 - t * 0.2;
-    ctx.fillStyle = fx.color || '#9ed6ff';
-    ctx.shadowColor = fx.color || '#9ed6ff';
-    ctx.shadowBlur = fx.tier === 'unique' ? 18 : 10;
-    for (let mote = 0; mote < 4; mote++) {
+    pickup(ctx, fx, t, path) {
+      const { from, to, width, height } = path;
+      const startX = from ? from.x : width * 0.72, startY = from ? from.y - 10 : height * 0.62, endX = to.x, endY = to.y - 24;
+      ctx.save();
+      ctx.globalAlpha = 1 - t * 0.2;
+      ctx.fillStyle = fx.color || "#9ed6ff";
+      ctx.shadowColor = fx.color || "#9ed6ff";
+      ctx.shadowBlur = fx.tier === "unique" ? 18 : 10;
+      for (let mote = 0; mote < 4; mote++) {
         const delay = mote * 0.045;
         const mt = clampNumber((t - delay) / Math.max(0.1, 1 - delay), 0, 1);
         const mx = startX + (endX - startX) * mt + Math.sin(mt * 12 + mote) * (4 - mote * 0.6);
@@ -2436,1333 +3058,1723 @@ function drawLootPickupFx(ctx, fx, t, path) {
         ctx.beginPath();
         ctx.arc(mx, my, 3.5 - mote * 0.45, 0, Math.PI * 2);
         ctx.fill();
+      }
+      ctx.restore();
     }
-    ctx.restore();
-}
-
-/** A good drop's beam, rings, sparks and name over where the monster fell. area = { width, height }. */
-function drawLootCelebrationFx(ctx, fx, t, enemy, area) {
-    const cx = enemy ? enemy.x : area.width * 0.72, cy = enemy ? enemy.y - 10 : area.height * 0.62;
-    const look = fx.tier === 'unique' ? LOOT_CELEBRATION_LOOK.unique : LOOT_CELEBRATION_LOOK.other;
-    const intensity = LOOT_CELEBRATION_INTENSITY[fx.tier] || 0.5, colour = fx.color || '#ffcf6b';
-    ctx.save();
-    const beamHeight = look.beam * (0.82 + 0.18 * Math.sin(t * Math.PI));
-    const beam = ctx.createLinearGradient(cx, cy, cx, cy - beamHeight);
-    beam.addColorStop(0, colour);
-    beam.addColorStop(0.28, colour);
-    beam.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.globalAlpha = intensity * (1 - t) * 0.72;
-    ctx.fillStyle = beam;
-    ctx.fillRect(cx - look.half, cy - beamHeight, look.half * 2, beamHeight);
-    ctx.globalAlpha = intensity * 0.58 * (1 - t);
-    ctx.strokeStyle = colour;
-    ctx.lineWidth = look.width;
-    for (let ring = 0; ring < look.rings; ring++) {
+    celebrate(ctx, fx, t, enemy, area) {
+      const cx = enemy ? enemy.x : area.width * 0.72, cy = enemy ? enemy.y - 10 : area.height * 0.62;
+      const look = fx.tier === "unique" ? LOOT_CELEBRATION_LOOK.unique : LOOT_CELEBRATION_LOOK.other;
+      const intensity = LOOT_CELEBRATION_INTENSITY[fx.tier] || 0.5, colour = fx.color || "#ffcf6b";
+      ctx.save();
+      const beamHeight = look.beam * (0.82 + 0.18 * Math.sin(t * Math.PI));
+      const beam = ctx.createLinearGradient(cx, cy, cx, cy - beamHeight);
+      beam.addColorStop(0, colour);
+      beam.addColorStop(0.28, colour);
+      beam.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.globalAlpha = intensity * (1 - t) * 0.72;
+      ctx.fillStyle = beam;
+      ctx.fillRect(cx - look.half, cy - beamHeight, look.half * 2, beamHeight);
+      ctx.globalAlpha = intensity * 0.58 * (1 - t);
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = look.width;
+      for (let ring = 0; ring < look.rings; ring++) {
         ctx.beginPath();
         ctx.arc(cx, cy, 13 + ring * 8 + t * look.grow, 0, Math.PI * 2);
         ctx.stroke();
+      }
+      this.sparks(ctx, { x: cx, y: cy }, t, look.sparks);
+      this.lootLabel(ctx, fx, { x: Math.max(130, Math.min(area.width - 130, cx)), y: Math.max(74, cy) }, t);
+      ctx.restore();
     }
-    drawLootCelebrationSparks(ctx, { x: cx, y: cy }, t, look.sparks);
-    drawLootHighlightLabel(ctx, fx, { x: Math.max(130, Math.min(area.width - 130, cx)), y: Math.max(74, cy) }, t);
-    ctx.restore();
-}
-
-function drawLootCelebrationSparks(ctx, at, t, count) {
-    for (let spark = 0; spark < count; spark++) {
+    sparks(ctx, at, t, count) {
+      for (let spark = 0; spark < count; spark++) {
         const angle = spark * (Math.PI * 2 / count) + t;
         const reach = 18 + t * 48;
         ctx.beginPath();
         ctx.moveTo(at.x + Math.cos(angle) * reach, at.y + Math.sin(angle) * reach * 0.42);
         ctx.lineTo(at.x + Math.cos(angle) * (reach + 8), at.y + Math.sin(angle) * (reach + 8) * 0.42);
         ctx.stroke();
+      }
     }
-}
+  };
 
-function beginBattlefieldFrame() {
-    stageDoorMarks.begin();
-    worldTreeSkillFx.beginFrame();
-}
-
-/** targetFrameMs: the drawing cadence of the frame loop (js/ui.js renderBattlefieldThrottled), for the effect density.
- * @returns {(boolean|undefined)} true when the frame was drawn to the end (a hidden canvas or art still loading returns early):
- *   only such draws are counted as battlefield frames (js/battle-frame-stats.js). */
-function renderBattlefield(forceWhenHidden, targetFrameMs) {
-    beginBattlefieldFrame();
-    const canvas = document.getElementById('battlefield-canvas');
-    if (!canvas) return;
-    const box = battleCanvasBox.read(canvas);
-    if (!forceWhenHidden && box.width === 0) return;
-    if (!battleAssets.ready && !battleAssets.loading && !battleAssets.failed && window.__battleAssetAutoloadEnabled !== false) initBattleAssets();
-    const expectedScale = uiDisplay.battleRenderScale;
-    const baseWidth = box.width || Math.round((canvas.width || 960) / expectedScale) || 960;
-    const baseHeight = box.height || Math.round((canvas.height || 540) / expectedScale) || 540;
-    const expectedWidth = Math.max(1, Math.round(baseWidth * expectedScale));
-    const expectedHeight = Math.max(1, Math.round(baseHeight * expectedScale));
-    if (canvas.width !== expectedWidth || canvas.height !== expectedHeight) resizeBattlefieldCanvas();
-    let ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const renderScale = clampNumber(Number(canvas.dataset.renderScale) || 1, 1, 2);
-    const view = battleCanvasBox.read(canvas); // measured again only when the resize above changed it
-    const width = Math.max(1, view.width || Math.round(canvas.width / renderScale) || canvas.width);
-    const height = Math.max(1, view.height || Math.round(canvas.height / renderScale) || canvas.height);
-    const wallNow = performance.now(), observerScene = bossMoveView.observerScene(wallNow);
-    const { now, rawDeltaMs, deltaMs } = worldTreeSkillFx.feedback.advanceClock(wallNow, !!observerScene);
-    worldTreeSkillFx.feedback.begin(now);
-    const deltaSec = deltaMs / 1000;
-    battleVisualState.lastNow = now;
-    cleanupBattleFx(now);
-    let activeEnemyCount = (game.enemies || []).reduce((count, enemy) => count + (enemy && enemy.hp > 0 ? 1 : 0), 0);
-    let vfxDensity = updateBattleVfxDensity(rawDeltaMs, activeEnemyCount, targetFrameMs);
-    if (typeof attackFxUpdate === 'function') attackFxUpdate(deltaMs);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = vfxDensity < 0.7 ? 'medium' : 'high';
-
-    const cameraShake = getBattleCameraShake(now);
-    ctx.translate(cameraShake.x, cameraShake.y);
-
-    let currentZone = getZone(game.currentZoneId);
-    let zoneTheme = getBattleZoneTheme(currentZone);
-    let gridProj = getBattleGridProjection(width, height, 'grid-contain');
-    bossMoveView.observerCamera(ctx, observerScene, width, height, gridProj);
-    drawBattleBackdrop(ctx, width, height, zoneTheme, now, currentZone, gridProj);
-    let framePlayerStats = getCanvasPlayerStats();
-    let currentTargets = getCanvasSkillTargets(framePlayerStats);
-    let appearanceId = typeof getHeroAppearanceId === 'function' ? getHeroAppearanceId() : game.selectedHeroId;
-    let attackAnimationDurationScale = getPlayableHeroAttackDurationScale(appearanceId);
-    let swingEffects = selectPlayerSwingEffects(battleFx, now, attackAnimationDurationScale);
-    let latestSwingFx = swingEffects.latest;
-    let swingFx = swingEffects.frame;
-    let playerFlash = false;
-    let playerDownActive = false;
-    let enemyHitFlashes = buildEnemyHitFlashMap(battleFx, now);
-    for (let i = battleFx.length - 1; i >= 0; i--) {
-        let fx = battleFx[i];
-        if (!fx) continue;
-        let age = now - fx.start;
-        if (age < 0 || age > fx.duration) continue;
-        if (fx.type === 'playerHit') playerFlash = true;
-        else if (fx.type === 'playerDown') playerDownActive = true;
+  // modules/rendering/enemy-telegraphs.mjs
+  function attackElement(enemy) {
+    return String(enemy && (enemy.attackElement || enemy.element || enemy.damageElement || enemy.ele) || "phys").toLowerCase();
+  }
+  function enemyTelegraphColor(enemy) {
+    const element = attackElement(enemy);
+    if (element === "fire") return { edge: "#ff7b4d", fill: "rgba(255,76,38,0.18)" };
+    if (element === "cold") return { edge: "#85d8ff", fill: "rgba(81,188,255,0.17)" };
+    if (element === "light" || element === "lightning") return { edge: "#ffe873", fill: "rgba(255,222,68,0.17)" };
+    if (element === "chaos") return { edge: "#cb80ff", fill: "rgba(169,66,255,0.18)" };
+    return { edge: "#ffb26b", fill: "rgba(255,135,59,0.16)" };
+  }
+  function trapCross(ctx, pos, halfW, halfH) {
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(pos.x - halfW * 0.3, pos.y - halfH * 0.3);
+    ctx.lineTo(pos.x + halfW * 0.3, pos.y + halfH * 0.3);
+    ctx.moveTo(pos.x + halfW * 0.3, pos.y - halfH * 0.3);
+    ctx.lineTo(pos.x - halfW * 0.3, pos.y + halfH * 0.3);
+    ctx.stroke();
+  }
+  function trapCell(ctx, fx, cell, projection, phase) {
+    const { progress, warning, pulse } = phase, halfW = projection.tileW / 2, halfH = projection.tileH / 2;
+    const pos = projection.cellToScreen(cell.gx, cell.gy);
+    ctx.beginPath();
+    ctx.rect(pos.x - halfW, pos.y - halfH, projection.tileW, projection.tileH);
+    ctx.globalAlpha = warning ? 0.1 + pulse * 0.16 : (1 - progress) * 0.5;
+    ctx.fillStyle = fx.color || "#ffd36b";
+    ctx.fill();
+    ctx.globalAlpha = warning ? 0.48 + pulse * 0.38 : (1 - progress) * 0.95;
+    ctx.strokeStyle = warning ? fx.color || "#ffd36b" : "#fff3c6";
+    ctx.lineWidth = warning ? 2 : 2.6;
+    ctx.setLineDash(warning ? [5, 4] : []);
+    ctx.stroke();
+    if (!warning) trapCross(ctx, pos, halfW, halfH);
+  }
+  function eliteRing(ctx, entry, scale) {
+    const charge = Number(entry.enemy.attackTimer) || 0, threshold = 0.84;
+    if (charge < threshold) return;
+    const progress = clampNumber((charge - threshold) / Math.max(1e-3, 1 - threshold), 0, 1);
+    const palette = enemyTelegraphColor(entry.enemy), rx = 29 * scale, ry = rx * 0.43;
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = palette.fill;
+    ctx.strokeStyle = palette.edge;
+    ctx.lineWidth = 1.35;
+    ctx.globalAlpha = 0.18 + progress * 0.28;
+    ctx.beginPath();
+    ctx.ellipse(entry.x, entry.y + 8, rx * (0.84 + progress * 0.16), ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 0.08 + progress * 0.18;
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath();
+    ctx.ellipse(entry.x, entry.y + 8, rx * 0.68, ry * 0.68, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  var EnemyTelegraphs = class {
+    constructor(deps) {
+      this.deps = deps;
     }
-    let currentSkill = SKILL_DB[game.activeSkill] || SKILL_DB['기본 공격'];
-    let skillAreaCells = getCanvasSkillAreaCells(game.activeSkill || '기본 공격', currentSkill, currentTargets);
-    drawBattleGridFloor(ctx, gridProj, zoneTheme, currentTargets, skillAreaCells);
-    if (!battleAssets.ready && battleAssets.loading) {
-        ctx.save();
-        ctx.fillStyle = 'rgba(6,10,16,0.55)';
-        ctx.fillRect(0, 0, width, height);
-        ctx.fillStyle = 'rgba(201, 223, 244, 0.82)';
-        ctx.font = `700 24px ${battlePixelFont()}`;
-        ctx.textAlign = 'center';
-        drawCrispCanvasText(ctx, '전장을 준비하는 중...', width / 2, height / 2);
-        ctx.restore();
-        document.getElementById('ui-battlefield-caption').innerText = _t('전장을 준비하는 중...');
+    trap(ctx, fx, progress, projection, warning) {
+      if (fx.type === "bossAreaImpact") return this.deps.bossAttacks.drawImpact(ctx, fx, progress, projection);
+      if (!projection || !Array.isArray(fx.targetCells)) return;
+      if (this.deps.traps.drawRise(ctx, fx, progress, projection)) return;
+      const phase = { progress, warning, pulse: 0.5 + Math.sin(progress * Math.PI * 8) * 0.5 };
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      fx.targetCells.forEach((cell) => trapCell(ctx, fx, cell, projection, phase));
+      ctx.restore();
+    }
+    pattern(ctx, area, projection, alpha = 3, outlineOnly = false) {
+      if (!area || area.woodsman || area.observerMove) return;
+      const footprint = this.deps.projectFootprint(area, projection);
+      if (footprint) this.deps.drawFootprint(ctx, footprint, outlineOnly ? "#ff9970" : "#ff684f", alpha, outlineOnly);
+    }
+    enemy(ctx, entry, scale, projection) {
+      const enemy = entry.enemy;
+      if (!enemy || enemy.noAttack || enemy.hp <= 0 || !Number.isFinite(Number(enemy.attackTimer))) return;
+      const frozen = (enemy.ailments || []).some((ailment) => ["freeze", "stun", "silence"].includes(ailment.type) && ailment.time > 0);
+      if (frozen) return;
+      if (enemy.isBoss) {
+        this.pattern(ctx, enemy.patternArea, projection, this.deps.bossAttacks.groundAlpha(enemy));
         return;
+      }
+      if (enemy.isElite) eliteRing(ctx, entry, scale);
     }
-    let enemies = (game.enemies || []).filter(enemy => enemy.hp > 0);
-    let swingPower = swingFx ? Math.sin(((now - swingFx.start) / (swingFx.duration * attackAnimationDurationScale)) * Math.PI) : 0;
-    let currentSkillVisual = getBattleSkillVisual(game.activeSkill, currentSkill);
-    battleVisualState.playerAttackBlend = approachNumber(battleVisualState.playerAttackBlend || 0, swingFx ? 1 : 0, swingFx ? 4 : 3, deltaSec);
-    if (swingFx && Number.isFinite(swingFx.motionVariantSeed)) {
-        battleVisualState.playerAttackMotionSeed = swingFx.motionVariantSeed;
+    draw(ctx, layout, scale, projection, pending) {
+      this.deps.woodsman.field(ctx, projection);
+      this.deps.sideEncounters.pendingWarnings(ctx, projection, pending.filter((attack) => !attack.bossPattern?.area?.woodsman));
+      this.deps.bossMoves.drawGround(ctx, projection);
+      if (this.deps.observerZone()) this.deps.bossMoves.drawObserverWarnings(ctx, layout, projection);
+      (layout || []).forEach((entry) => this.enemy(ctx, entry, scale, projection));
+      this.deps.bossAttacks.drawMarks(ctx, { layout, projection, pending });
     }
-    battleVisualState.playerHurtBlend = approachNumber(battleVisualState.playerHurtBlend || 0, playerFlash ? 1 : 0, playerFlash ? 6.5 : 4.2, deltaSec);
-    battleVisualState.playerDownBlend = approachNumber(battleVisualState.playerDownBlend || 0, playerDownActive ? 1 : 0, playerDownActive ? 7.5 : 4.8, deltaSec);
-    let layout = getBattleLayout(enemies, width, height, gridProj);
-    let attackBlend = battleVisualState.playerAttackBlend || 0;
-    let hurtBlend = battleVisualState.playerHurtBlend || 0;
-    let downBlend = battleVisualState.playerDownBlend || 0;
-    let playerCell = hasGridCell(game.gridPlayer) ? game.gridPlayer : COMBAT_GRID_CONFIG.playerSpawn;
-    let playerMoveSpeed = Number(framePlayerStats.moveSpeed) || Number(framePlayerStats.move) || 100;
-    let playerMotion = updatePlayerGridVisualMotion(gridProj, playerCell, now, playerMoveSpeed);
-    let advanceBlend = playerMotion.animating ? 1 : 0;
-    let playerPos = getStageHeroAirGround({
-        x: playerMotion.position.x,
-        y: playerMotion.position.y + downBlend * 0.6
-    }, now, gridProj);
-    let playerMotionState = {
-        playerStats: framePlayerStats,
-        advanceBlend,
-        moveProgress: playerMotion.progress,
-        moveDirection: playerMotion.direction,
-        attackBlend,
-        attackActive: !!swingFx,
-        attackProgress: swingFx
-            ? clampNumber((now - swingFx.start) / Math.max(1, swingFx.duration * attackAnimationDurationScale), 0, 0.999)
-            : 0,
-        attackVariantSeed: battleVisualState.playerAttackMotionSeed,
-        hurtBlend,
-        downBlend
-    };
-    battleVisualState.playerPos = { x: playerPos.x, y: playerPos.y };
-    noteStageHeroBehindFrames(playerPos, gridProj);
-    if (!battleVisualState.enemySmoothPos) battleVisualState.enemySmoothPos = {};
-    const glideFrame = { now, deltaSec, gridProj };
-    // 자리 목록은 모든 적을 담고, 그릴 적은 따로 가른다(js/canvas-battle-draw-list.js: 보이는 적, 그 가운데 그림이 화면에 걸치는 적).
-    let dynamicLayout = battleDrawList.markDrawn(layout.map(entry => glideBattleEnemy(entry, glideFrame)), { width, height, tile: gridProj.tileW });
-    let enemyPosMap = buildBattleEnemyPosMap(dynamicLayout, battleFx, now, gridProj);
-    playerMotionState.attackDirection = resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap);
-    const stageStrikeSide = resolveStageStrikeSide(now);
-    if (playerMotion.animating) battleVisualState.playerFacingDirection = playerMotion.direction;
-    else if (stageStrikeSide) battleVisualState.playerFacingDirection = stageStrikeSide;
-    else if (swingFx) battleVisualState.playerFacingDirection = playerMotionState.attackDirection;
-    playerMotionState.facingDirection = battleVisualState.playerFacingDirection || playerMotionState.attackDirection;
+  };
 
-    // getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운 함수다.
-    // 한 프레임 안에서는 결과가 동일하므로 프레임당 1회만 계산해 재사용한다.
-    if (latestSwingFx && latestSwingFx.id !== battleVisualState.lastAutoSwingId && now >= (battleVisualState.lastAutoSkillAt || 0)) {
-        playSkillFromActiveGem(latestSwingFx.skillName || '기본 공격');
-        battleVisualState.lastAutoSwingId = latestSwingFx.id;
-        const _atkInterval = Math.min(600, Math.max(120, (1 / Math.max(0.1, framePlayerStats.aspd)) * 100));
-        battleVisualState.lastAutoSkillAt = now + _atkInterval;
+  // modules/rendering/battlefield-ground.mjs
+  var CELL_TONES = {
+    enemy: { fill: "rgba(170, 52, 40, 0.24)", line: "rgba(226, 116, 94, 0.55)" },
+    summon: { fill: "rgba(110, 200, 140, 0.18)", line: "rgba(150, 230, 176, 0.5)" },
+    area: { fill: "rgba(214, 170, 92, 0.12)", line: "rgba(233, 203, 137, 0.42)" },
+    target: { fill: "rgba(233, 180, 84, 0.2)", line: "rgba(246, 214, 146, 0.9)" }
+  };
+  var RING_LOOKS = /* @__PURE__ */ new Map([[CELL_TONES.summon, "summon"], [CELL_TONES.target, "target"]]);
+  var AREA_ALPHA = 0.6;
+  var BattlefieldGround = class {
+    constructor(deps, screen2, travel) {
+      this.deps = deps;
+      this.screen = screen2;
+      this.travel = travel;
     }
-    if (latestSwingFx && latestSwingFx.projectile && !latestSwingFx.combatTravel) {
-        const viewportProjectileFxScale = Math.min(width / 960, height / 540);
-        queueSkillGemProjectileLaunch(latestSwingFx, currentTargets, playerPos, enemyPosMap, viewportProjectileFxScale);
+    gravity(ctx, projection) {
+      const field = this.deps.cosmos.gravityView();
+      if (!field) return;
+      const center = projection.cellToScreen(field.gx, field.gy), radius = projection.tileW * (2.8 - field.progress * 2);
+      ctx.save();
+      ctx.strokeStyle = "#bba2ef";
+      ctx.fillStyle = "#29203f";
+      ctx.globalAlpha = 0.3 + field.progress * 0.4;
+      ctx.beginPath();
+      ctx.ellipse(center.x, center.y, radius, radius * 0.65, 0, 0, Math.PI * 2);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(center.x, center.y, projection.tileW * 0.35, projection.tileH * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
     }
-    let gridUnitScale = clampNumber(gridProj.tileW / 46, 0.48, Math.max(1.3, gridProj.unitScaleCap || 0));
-    drawBattleGroundLayer(ctx, battleFx, { now, width, height, gridProj, playerPos, enemyPosMap });
-    bossAttackView.drawGround(ctx, gridProj);
-
-    battleFx.forEach(fx => {
-        if (battleVisualState.processedFxIds.has(fx.id)) return;
-        if (now < fx.start) return;
-        worldTreeSkillFx.feedback.observe(fx, now);
-        let handled = false;
-        if (fx.type === 'hit') {
-            requestBattleHitStop(fx);
-            let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
-            if (typeof fx.damage === 'number') {
-                spawnDamageText.fromHit(fx, enemyPos.x, getDamageTextBodyY(enemyPos.y, getEnemyBodyHeight(enemyPos)), now);
-            }
-            if (!fx.dot && fx.skillName) {
-                const viewportSkillFxScale = Math.min(width / 960, height / 540);
-                queueSkillGemVfx({ ...fx, combatFx:fx, footprint: projectSkillFootprint(fx.attackFootprint, gridProj, fx.sourceCell) }, enemyPos, getCombatTravelScreenPos(gridProj, fx.sourceCell, playerPos), enemyPosMap, now, viewportSkillFxScale);
-                drawSkillGemVfxLayer.ground.note(battleVisualState.skillEffects || [], gridProj);
-            }
-            if (!fx.dot && !SKILL_FX_ATLAS[fx.skillName] && typeof attackFxSpawn === 'function') {
-                const viewportFxScale = Math.min(width / 960, height / 540);
-                const attackFxOpts = getAttackFxSpawnOpts(fx, enemyPos.enemy, currentSkillVisual, viewportFxScale);
-                if (attackFxOpts) attackFxSpawn(fx.element || 'phys', enemyPos.x, enemyPos.y - 6, attackFxOpts);
-            }
-            handled = true;
-        } else if (fx.type === 'playerHit') {
-            requestBattleHitStop(fx);
-            let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId];
-            if (typeof fx.damage === 'number') spawnHeroHurtText(fx, playerPos, now);
-            handled = true;
-        } else if (fx.type === 'summonHit') {
-            if (typeof fx.damage === 'number') spawnSummonHurtText(fx, gridProj, playerPos, now);
-            handled = true;
-        } else if (fx.type === 'enemyEvade') {
-            let enemyPos = enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId] || { x: width * 0.72, y: height * 0.58 };
-            spawnDamageText(getBodyCueAnchor.fromFx(fx, enemyPos, getEnemyBodyHeight(enemyPos), now));
-            handled = true;
-        } else if (fx.type === 'statusText') {
-            let enemyPos = fx.enemyId ? (enemyPosMap[fx.enemyId] || battleVisualState.enemyGhostPos[fx.enemyId]) : null;
-            let anchorPos = enemyPos || playerPos;
-            // 짧은 글씨는 모두 그 몸의 머리 위 가운데에 뜬다. 회피, 막아냄, 성채화(bodyCue)는 대미지 숫자와 같은 크기 결이다(2026-10-06
-            // 사용자 요청: 몸 옆에 11px로 작게 떴다). 2026-10-19: 나머지(무효, 죽음 저항, 밀려남, 경계하는 무리의 "!")도 발에서 40px 위
-            // 몸 오른쪽을 떠나 머리 위로 왔다. "!"는 달려오는 몬스터의 머리 위에 서야 했다.
-            const bodyHeight = enemyPos ? getEnemyBodyHeight(enemyPos) : getHeroBodyHeight(playerPos, now);
-            spawnDamageText(getBodyCueAnchor.fromFx(fx, anchorPos, bodyHeight, now));
-            handled = true;
-        } else if (fx.type === 'enemyDeath') {
-            if (now - fx.start < 500 && typeof playUiFeedbackSound === 'function') {
-                playUiFeedbackSound(fx.boss ? 'killBoss' : (fx.elite ? 'killElite' : 'kill'));
-            }
-            handled = true;
-        } else {
-            handled = true;
+    grid(ctx, projection, targets, areaCells) {
+      this.gravity(ctx, projection);
+      const map = this.deps.gridSize(), run = this.deps.exploration.current(this.deps.game());
+      if (map.tiles) {
+        const sealed = this.deps.exploration.gateSealed(run);
+        areaCells = areaCells.filter((cell) => this.deps.walkable(map, cell, sealed));
+      }
+      ctx.save();
+      this.occupants(ctx, { projection, targets, areaCells });
+      ctx.restore();
+    }
+    occupants(ctx, layers) {
+      const { projection, targets, areaCells } = layers;
+      if (!projection) return;
+      (areaCells || []).forEach((cell) => this.areaCell(ctx, projection, cell));
+      (this.deps.game().summons || []).forEach((summon) => {
+        if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) this.unitRing(ctx, projection, summon, CELL_TONES.summon);
+      });
+      const locked = this.deps.exploration.lockedEnemy(this.deps.exploration.current(this.deps.game()));
+      (this.deps.game().enemies || []).forEach((enemy) => {
+        if (enemy && enemy.hp > 0 && this.deps.explorationView.inSight(enemy)) {
+          this.unitRing(ctx, projection, enemy, enemy === locked ? CELL_TONES.target : CELL_TONES.enemy);
         }
-        if (handled) battleVisualState.processedFxIds.add(fx.id);
-    });
-    cleanupBattleVisualState(now);
-    ctx = battleGroundLoot.actorContext(canvas, ctx, now, gridProj);
-    (battleVisualState.projectiles || []).forEach(projectile => drawVisualProjectile(ctx, projectile, now));
-    drawEnemyAttackTelegraphs(ctx, dynamicLayout, gridUnitScale, gridProj, pendingEnemyCombatAttacks);
-    let enemyAttackMotions = bossAttackView.addMotions(buildEnemyAttackMotionMap(battleFx, enemyPosMap, playerPos, now, gridProj), dynamicLayout, playerPos, now, gridProj.tileW);
-    let attachGridEffectPosition = effect => {
-        if (!effect) return null;
-        let cell = hasGridCell(effect.cell) ? effect.cell : COMBAT_GRID_CONFIG.playerSpawn;
-        let anchor = gridProj.cellToScreen(cell.gx, cell.gy);
-        effect.position = { x: anchor.x, y: anchor.y + (Number(gridProj.actorGroundOffsetY) || 0) };
-        return effect;
-    };
-    let returnWarp = attachGridEffectPosition(getPlayerReturnWarpPresentation(battleFx, now));
-    let returnDeparture = attachGridEffectPosition(getPlayerReturnDeparturePresentation(battleFx, now));
-
-    drawBattleActorLayer(ctx, dynamicLayout, {
-        now, width, height, gridProj, gridUnitScale, enemyHitFlashes, enemyCount: dynamicLayout.length,
-        playerPos, currentTargets, enemyPosMap,
-        playerFlash, swingPower, currentSkillVisual, motionState: playerMotionState,
-        enemyAttackMotions, returnWarp, returnDeparture
-    });
-
-    let pendingGhostIds = new Set();
-    battleFx.forEach(fx => {
-        if (!fx || fx.type !== 'hit' || now >= fx.start || enemyPosMap[fx.enemyId] || pendingGhostIds.has(fx.enemyId)) return;
-        let ghost = battleVisualState.enemyGhostPos[fx.enemyId];
-        if (!ghost || !ghost.enemy) return;
-        pendingGhostIds.add(fx.enemyId);
-        drawEnemyAfterimage(ctx, ghost.enemy, { x: ghost.x, y: ghost.y, scale: (ghost.enemy.isBoss ? 3.65 : (ghost.enemy.isElite ? 2.2 : 1.95)) * gridUnitScale,
-            gridProj, now, facing: resolveEnemyFacingDirection(ghost, playerPos) });
-    });
-
-    // 반투명 스킬 이미지는 몬스터 위에 표시해 투사체 이동과 적중점을 읽기 쉽게 한다.
-    // 생명력 바와 피해 숫자는 뒤에서 그려지므로 항상 스킬 이미지보다 위에 남는다.
-    drawSkillGemVfxLayer(ctx, now, gridProj);
-    woodsmanView.foreground(ctx, gridProj);
-    if (typeof attackFxDraw === 'function') attackFxDraw(ctx);
-
-    let pStatsNow = framePlayerStats;
-    let playerHpPct = clampNumber((game.playerHp || 0) / Math.max(1, pStatsNow.maxHp || 1), 0, 1);
-    if (!Number.isFinite(battleVisualState.playerHpGhostPct)) battleVisualState.playerHpGhostPct = playerHpPct;
-    if (!Number.isFinite(battleVisualState.playerHpLastPct)) battleVisualState.playerHpLastPct = playerHpPct;
-    if (!Number.isFinite(battleVisualState.playerHpGhostHoldUntil)) battleVisualState.playerHpGhostHoldUntil = 0;
-    if (playerHpPct < battleVisualState.playerHpLastPct - 0.001) {
-        battleVisualState.playerHpGhostPct = Math.max(battleVisualState.playerHpGhostPct, battleVisualState.playerHpLastPct);
-        battleVisualState.playerHpGhostHoldUntil = now + 260;
-    } else if (playerHpPct > battleVisualState.playerHpGhostPct) {
-        battleVisualState.playerHpGhostPct = playerHpPct;
+      });
+      (targets || []).forEach((hit) => this.targetBrackets(ctx, projection, hit && hit.enemy));
     }
-    if (now >= battleVisualState.playerHpGhostHoldUntil && battleVisualState.playerHpGhostPct > playerHpPct) {
-        battleVisualState.playerHpGhostPct = Math.max(playerHpPct, battleVisualState.playerHpGhostPct - 0.34 * deltaSec);
+    playerRing(ctx, projection, feet) {
+      if (!projection || !feet) return;
+      return this.deps.rings.ring(
+        ctx,
+        { x: feet.x, y: feet.y, dot: this.deps.actors.scaleFor(projection.tileW) },
+        { tone: "player", rx: 22, turning: true }
+      );
     }
-    battleVisualState.playerHpLastPct = playerHpPct;
-    let playerHpGhostPct = clampNumber(battleVisualState.playerHpGhostPct, playerHpPct, 1);
-    let playerEsPct = (pStatsNow.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, pStatsNow.energyShield), 0, 1) : 0;
-    currentTargets = currentTargets.map(hit => hit.enemy && hit.enemy.id).filter(Boolean);
-    battleFx.filter(fx => !isGroundSkillCast(fx) && !fx.loot && !fx.groundLoot).forEach(fx => {
-        if (now < fx.start) return;
-        let t = clampNumber((now - fx.start) / fx.duration, 0, 1);
-        bossAttackView.drawHeadRelease(ctx, fx, now);
-        bossMoveView.drawWoodsmanFx(ctx, fx, now, gridProj);
-        let ghostEnemy = (fx.enemyId && !enemyPosMap[fx.enemyId]) ? battleVisualState.enemyGhostPos[fx.enemyId] : null;
-        if (ghostEnemy && !enemyPosMap[fx.enemyId]) {
-            enemyPosMap[fx.enemyId] = { enemy: ghostEnemy.enemy || { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghostEnemy.x, y: ghostEnemy.y, actualAim: ghostEnemy.actualAim };
-        }
-        if (fx.type === 'playerSwing') {
-            worldTreeSkillFx.swing(ctx, fx, now, gridProj);
-        } else if (fx.type === 'playerMobility') {
-            drawPlayerMobilityFx(ctx, fx, t, gridProj);
-        } else if (fx.type === 'combatTravel') {
-            drawCombatTravelFx(ctx, fx, now, gridProj, playerPos, enemyPosMap);
-        } else if (fx.type === 'hit') {
-            drawLegacyHitFeedback(ctx, fx, t, playerPos, enemyPosMap);
-        } else if (fx.type === 'levelUp') {
-            drawLevelUpFx(ctx, fx, t, playerPos, now);
-        } else if (fx.type === 'objectReward') {
-            worldTreeSkillFx.feedback.object(ctx, fx, t, gridProj);
-        } else if (fx.type === 'playerHit') {
-            return;
-        } else if (fx.type === 'ambushBlink') {
-            enemyAmbushView.draw(ctx, fx, now, gridProj);
-        } else if (fx.type === 'enemySpawn') {
-            drawEnemySpawnFx(ctx, fx, t, enemyPosMap[fx.enemyId]);
-        } else if (fx.type === 'enemyDeath') {
-            drawEnemyDeathFx(ctx, fx, t, { enemy: enemyPosMap[fx.enemyId], playerPos, gridProj, now });
-        } else if (['bossAreaImpact', 'trialTrapWarning', 'trialTrap'].includes(fx.type)) {
-            drawTrialTrapGridFx(ctx, fx, t, gridProj, fx.type === 'trialTrapWarning');
-        } else if (fx.type === 'lootPickup') {
-            drawLootPickupFx(ctx, fx, t, { from: enemyPosMap[fx.enemyId], to: playerPos, width, height });
-        } else if (fx.type === 'lootCelebration') {
-            drawLootCelebrationFx(ctx, fx, t, enemyPosMap[fx.enemyId], { width, height });
-        }
-    });
-    const lightScene = { width, height, light: playerPos, hpPct: playerHpPct, ghostPct: playerHpGhostPct, esPct: playerEsPct, now, layout: dynamicLayout, targets: currentTargets, tileW: gridProj.tileW, projection: gridProj, pending: pendingEnemyCombatAttacks, observerScene };
-    drawBattleLightingAndBars(ctx, lightScene);
-    if (typeof stageScene === 'object') stageScene.drawMarks(ctx, gridProj);
-    drawDamageTexts(ctx, now, bossTextExclusions.concat(view.enemyOverlays.map(rect => ({ ...rect, x: rect.x - cameraShake.x, y: rect.y - cameraShake.y }))));
-    actTitleCard.draw(ctx, lightScene); // over the damage numbers: a speech bubble above the hero stays readable
-    ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
-    drawPlayerHurtEdge(ctx, width, height, now);
-    worldTreeSkillFx.feedback.screen(ctx, { width, height, now });
-    drawBossAnnouncement(ctx, { width, height, now }, updateBossAnnouncement(enemies, now));
-    if (typeof stageRoomsView === 'object') stageRoomsView.drawOverlay(ctx, view, gridProj);
-    bossMoveView.drawObserverTransition(ctx, observerScene, width, height);
-
-    // DOM은 그림을 다 그린 뒤에 만진다: 그리는 도중에 쓰면 다음 ctx.font나 ctx.filter가 문서 스타일을 다시 계산했다.
-    bossMoveView.syncObserverHud(observerScene);
-    setElementText(document.getElementById('ui-battlefield-caption'), getBattlefieldCaption());
-    if (typeof actExplorationView === 'object' && actExplorationView.objects) actExplorationView.objects.flushButtons();
-    stageWarmup.afterBattleDraw(ctx); // 낀 룬의 이펙트를 미리 준비해 둔다(전투에서 처음 그릴 때 그림을 푸느라 멈추지 않게)
-    return true;
-}
-
-function getBattleCameraShake(now) {
-    if (worldTreeSkillFx.feedback.reduced()) return { x: 0, y: 0 };
-    if (typeof game !== 'undefined' && game.settings && game.settings.cameraShake === false) return { x: 0, y: 0 };
-    let amplitude = Math.max(bossEntranceView.shake(now), stageProjectileImpact.shake(now));
-    (battleFx || []).forEach(fx => {
-        if (!fx || fx.dot || !['hit', 'playerHit', 'enemyDeath', 'enemySpawn', 'bossAreaImpact'].includes(fx.type)) return;
-        let profile = typeof getBattleFeedbackProfile === 'function' ? getBattleFeedbackProfile(fx) : null;
-        let duration = Math.max(80, Number(profile && profile.duration) || 110);
-        let age = now - fx.start;
-        if (age < 0 || age > duration) return;
-        let hitStrength = Math.max(0, Number(profile && profile.shake) || 0);
-        let strength = fx.type === 'enemyDeath'
-            ? (fx.boss ? 8.2 : (fx.elite ? 3.1 : 0.8))
-            : (fx.type === 'enemySpawn'
-                ? (fx.boss ? 2.8 : (fx.elite ? 0.8 : 0))
-                : hitStrength);
-        amplitude = Math.max(amplitude, strength * (1 - age / duration));
-    });
-    // Whole device pixels: a fractional offset would resample every nearest-neighbour sprite and tile unevenly.
-    const k = Math.max(1, Number(typeof uiDisplay === 'object' && uiDisplay && uiDisplay.battleRenderScale) || 1);
-    return {
-        x: Math.round(Math.sin(now * 0.72) * amplitude * k) / k,
-        y: Math.round(Math.cos(now * 0.94) * amplitude * 0.56 * k) / k
-    };
-}
-
-function drawPlayerHurtEdge(ctx, width, height, now) {
-    if (uiDisplay.reducedEffects()) return;
-    const hit = findRecentBattleFx('playerHit', now, PLAYER_HURT_EDGE.ms);
-    if (!hit || !(Number(hit.damage) > 0)) return;
-    const fade = 1 - (now - hit.start) / PLAYER_HURT_EDGE.ms;
-    const strength = clampNumber(PLAYER_HURT_EDGE.min + (Number(hit.damageRatio) || 0) * PLAYER_HURT_EDGE.perLife, PLAYER_HURT_EDGE.min, PLAYER_HURT_EDGE.max);
-    const edge = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.3, width / 2, height / 2, Math.max(width, height) * 0.72);
-    edge.addColorStop(0, 'rgba(150,12,18,0)');
-    edge.addColorStop(1, `rgba(176,16,24,${(strength * fade * fade).toFixed(3)})`);
-    ctx.save();
-    ctx.fillStyle = edge;
-    ctx.fillRect(0, 0, width, height);
-    ctx.restore();
-}
-
-/** Environment edge shade stays below combat bodies and warnings; the damage vignette remains a final screen effect. */
-function drawBattleScreenGrade(ctx, width, height) {
-    ctx.save();
-    let edgeSizeX = Math.max(72, width * 0.2);
-    let edgeSizeY = Math.max(58, height * 0.18);
-    let leftEdge = ctx.createLinearGradient(0, 0, edgeSizeX, 0);
-    leftEdge.addColorStop(0, 'rgba(1,3,7,0.32)');
-    leftEdge.addColorStop(1, 'rgba(1,3,7,0)');
-    ctx.fillStyle = leftEdge;
-    ctx.fillRect(0, 0, edgeSizeX, height);
-    let rightEdge = ctx.createLinearGradient(width, 0, width - edgeSizeX, 0);
-    rightEdge.addColorStop(0, 'rgba(1,3,7,0.32)');
-    rightEdge.addColorStop(1, 'rgba(1,3,7,0)');
-    ctx.fillStyle = rightEdge;
-    ctx.fillRect(width - edgeSizeX, 0, edgeSizeX, height);
-    let topEdge = ctx.createLinearGradient(0, 0, 0, edgeSizeY);
-    topEdge.addColorStop(0, 'rgba(1,3,7,0.24)');
-    topEdge.addColorStop(1, 'rgba(1,3,7,0)');
-    ctx.fillStyle = topEdge;
-    ctx.fillRect(0, 0, width, edgeSizeY);
-    let bottomEdge = ctx.createLinearGradient(0, height, 0, height - edgeSizeY);
-    bottomEdge.addColorStop(0, 'rgba(1,3,7,0.38)');
-    bottomEdge.addColorStop(1, 'rgba(1,3,7,0)');
-    ctx.fillStyle = bottomEdge;
-    ctx.fillRect(0, height - edgeSizeY, width, edgeSizeY);
-    ctx.restore();
-}
-
-// 균열 등불(rift) 스킨의 조명 패스. 플레이어 주변만 밝히고 바깥을 눌러 시선을 전투로 모은다.
-// 렌더링 전용이며 판정·좌표·프레임 예산 계약에 영향을 주지 않는다(그라디언트 채우기 2~3회).
-// 체력바·피해 숫자보다 먼저 그려 숫자 가독성은 유지하고, 다른 스킨에서는 그리지 않는다.
-function isBattleLightingEnabled() {
-    const body = typeof document !== 'undefined' ? document.body : null;
-    return !!body && body.dataset.uiSkin === 'rift' && !body.classList.contains('high-contrast');
-}
-
-// 조명은 체력바·피해 숫자 아래에 깔린다. 순서: 조명 → 플레이어 바 → 적 바.
-function drawBattleLightingAndBars(ctx, scene) {
-    redrawnSkillFx.drawLayer('fore', scene.now);
-    wispSummonFx.drawLayer('fore', scene.now);
-    fxRemake.end(); // foreground skill effects opened in drawSkillGemVfxLayer, re-dotted below the lighting
-    if (typeof stageOcean === 'object') stageOcean.front(ctx, scene); // 심해: 영웅 머리 위 거품과 가까운 입자(조명을 같이 받는다)
-    drawBattleLightingPass(ctx, scene);
-    drawBattlePlayerFigure.readability.draw(ctx);
-    if (scene.observerScene) return;
-    if (!stageActors.down()) drawBattlefieldPlayerHealthBar(ctx, scene); // not over the first start's lying hero (js/opening-journey-ui.js)
-    // 락온한 몬스터(js/act-exploration-state.js lockOn)는 겨눈 적처럼 막대가 늘 보이고 금빛 테를 두른다. 그 위에 화살표가 선다.
-    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
-    drawBattlefieldEnemyHealthBars(ctx, scene.layout.filter(entry => entry.drawn), locked ? scene.targets.concat(locked.id) : scene.targets, scene.tileW);
-    drawLockOnMark(ctx, scene, locked);
-}
-
-/** The gold arrow over the locked-on monster (js/canvas-target-marks.js): above its bar and elite nameplate, or above where the bar
- * would stand for a monster still waiting in its pack. None for a monster not drawn this frame. */
-function drawLockOnMark(ctx, scene, locked) {
-    const entry = locked ? battleDrawList.drawnEntry(locked) : null;
-    if (!entry) return;
-    const top = enemyFieldBarTops.has(locked) ? enemyFieldBarTops.get(locked) : entry.y - getEnemyFieldBarLift(locked);
-    targetMarks.arrow(ctx, entry.x, top - 3, stageActors.scaleFor(scene.tileW));
-}
-
-/** Only the existing cast boundary returns above foreground effects; never duplicate its opaque fill. */
-/** Where the dark vignette opens: around the hero, or over the whole boss room while the hero stands in it. */
-function getBattleLightFocus(scene) {
-    const { width, height, light } = scene;
-    const room = typeof actExplorationView === 'object' ? actExplorationView.bossRoomGlow() : null;
-    if (room) return { x: room.x, y: room.y, inner: room.radius, outer: room.radius + Math.max(width, height) * 0.3 };
-    return { x: light.x, y: light.y - 18, inner: Math.min(width, height) * 0.16, outer: Math.max(width, height) * 0.56 };
-}
-
-function drawBattleLightingPass(ctx, scene) {
-    if (!isBattleLightingEnabled() || !scene.light) return;
-    const { width, height, light } = scene;
-    const cy = light.y - 18;
-    const focus = getBattleLightFocus(scene), inner = Math.min(width, height) * 0.16;
-    ctx.save();
-    const dark = ctx.createRadialGradient(focus.x, focus.y, focus.inner, focus.x, focus.y, focus.outer);
-    dark.addColorStop(0, 'rgba(4,5,7,0)');
-    // 2026-10-02: a little lighter (0.24 / 0.62) so the map reads brighter; the hero's pool of light stays the same.
-    dark.addColorStop(0.42, 'rgba(4,5,7,0.16)');
-    dark.addColorStop(1, 'rgba(3,4,6,0.48)');
-    ctx.fillStyle = dark;
-    ctx.fillRect(-40, -40, width + 80, height + 80);
-    const glowRadius = inner * 1.5;
-    const warm = ctx.createRadialGradient(light.x, cy, 0, light.x, cy, glowRadius);
-    // 2026-10-04 visibility: bloom at 70% (0.16 -> 0.112) so it stops washing out the hero's surroundings.
-    warm.addColorStop(0, 'rgba(255,190,105,0.112)');
-    warm.addColorStop(1, 'rgba(255,190,105,0)');
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = warm;
-    ctx.fillRect(light.x - glowRadius, cy - glowRadius, glowRadius * 2, glowRadius * 2);
-    ctx.restore();
-    drawLowHealthEdge(ctx, scene);
-}
-
-// 체력 35% 미만: 화면 가장자리에 붉은 맥동. 낮을수록 짙어진다.
-function drawLowHealthEdge(ctx, scene) {
-    const hpPct = Number(scene.hpPct);
-    if (!(hpPct < 0.35)) return;
-    const { width, height, now } = scene;
-    const danger = (0.35 - Math.max(0, hpPct)) / 0.35;
-    const pulse = 0.7 + 0.3 * Math.sin(now * 0.006);
-    const edge = ctx.createRadialGradient(width / 2, height / 2, Math.min(width, height) * 0.34, width / 2, height / 2, Math.max(width, height) * 0.72);
-    edge.addColorStop(0, 'rgba(120,10,16,0)');
-    edge.addColorStop(1, `rgba(158,14,22,${((0.36 + 0.4 * danger) * pulse).toFixed(3)})`);
-    ctx.save();
-    ctx.fillStyle = edge;
-    ctx.fillRect(-40, -40, width + 80, height + 80);
-    ctx.restore();
-}
-
-function updateBossAnnouncement(enemies, now) {
-    const revealed = bossEntranceView.revealedBoss(now);
-    const boss = (revealed && revealed.redEntrance ? revealed : null) || (enemies || []).find(enemy => enemy && enemy.isBoss) || revealed; // 들이닥치는 보스는 싸우는 보스를 앞서 이름이 뜬다
-    battleVisualState.bossBannerFor = null; // the boss whose name is up: the camera keeps it in view (js/canvas-act-exploration.js)
-    if (!boss) return null;
-    if (battleVisualState.bossAnnounceId !== boss.id) {
-        battleVisualState.bossAnnounceId = boss.id;
-        battleVisualState.bossAnnounceStart = now;
+    footprint(projection, unit, walking = false) {
+      const cells = this.deps.unitCells(unit);
+      if (cells.length <= 0) return null;
+      const points = cells.map((cell) => projection.cellToScreen(cell.gx, cell.gy));
+      const xs = points.map((p) => p.x), ys = points.map((p) => p.y);
+      const stride = walking ? this.deps.stride.read(unit, this.deps.visual().visualNow) : null;
+      const dx = stride ? stride.dx * projection.tileW : 0, dy = stride ? stride.dy * projection.tileH : 0;
+      const left = Math.min(...xs) - projection.tileW / 2 + dx, right = Math.max(...xs) + projection.tileW / 2 + dx;
+      const top = Math.min(...ys) - projection.tileH / 2 + dy, bottom = Math.max(...ys) + projection.tileH / 2 + dy;
+      return { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2 };
     }
-    const age = now - battleVisualState.bossAnnounceStart;
-    if (age < 0 || age > BOSS_BANNER_MS) return null;
-    battleVisualState.bossBannerFor = boss.id;
-    return { boss, age };
-}
-
-function getBossBannerAlpha(age) {
-    if (age < 260) return age / 260;
-    return Math.min(1, Math.max(0, (BOSS_BANNER_MS - age) / 640));
-}
-
-/** The band's centre line, chosen once per banner: out of the way of the boss (where it rises through its entrance and where it was
- * drawn this frame; 2026-10-19: the entrance alone guessed 2.6 tiles, and the band lay across a taller boss's head for its first
- * 2.6 s) and of the hero. */
-function getBossBannerY(area, banner, down) {
-    const held = battleVisualState.bossBannerY;
-    if (held && held.start === battleVisualState.bossAnnounceStart) return held.y;
-    const spans = bossEntranceView.enteringSpans(banner.boss).concat(drawnBossSpans(banner.boss));
-    const y = bossEntranceView.bannerLine(area, spans, { up: 38, down });
-    // Held once the boss's place is known: on the board a revealed boss is drawn a few frames after its name comes up.
-    if (spans.length) battleVisualState.bossBannerY = { start: battleVisualState.bossAnnounceStart, y };
-    return y;
-}
-
-/** A standing boss's drawn span, from its overhead bar to its feet, as this frame drew it; none while it is not drawn. */
-function drawnBossSpans(boss) {
-    const entry = typeof battleDrawList === 'object' ? battleDrawList.drawnEntry(boss) : null;
-    return entry ? [[entry.y - getEnemyFieldBarLift(boss) - 14, entry.y + 8]] : [];
-}
-
-function drawBossAnnouncement(ctx, area, banner) {
-    if (bossMoves.observer.sceneActive()) return;
-    bossEntranceView.drawScreen(ctx, area);
-    if (!banner) return;
-    const { width } = area;
-    const lines = getBossBannerSubLines(ctx, banner.boss, width);
-    const cy = getBossBannerY(area, banner, 32 + (lines.length - 1) * 14);
-    ctx.save();
-    ctx.globalAlpha = getBossBannerAlpha(banner.age);
-    ctx.textAlign = 'center';
-    // 좁은 화면(휴대폰)에서는 제목 글꼴의 자모가 벌어져 "잔ㄱㅏㅈㅣ"처럼 읽혔다(검토 8차) — 본문 도트 글꼴로.
-    ctx.font = `700 24px ${battlePixelFont()}`;
-    const name = getEnemyDisplayName(banner.boss);
-    const half = Math.min(width * 0.42, ctx.measureText(name).width / 2 + 60);
-    const mid = Math.round(width / 2);
-    drawBossBannerPlate(ctx, mid, cy, Math.round(half + 36));
-    drawBossBannerRule(ctx, Math.round(mid - half), Math.round(mid + half), cy + 10);
-    ctx.lineWidth = 4;
-    ctx.lineJoin = 'miter';
-    ctx.strokeStyle = 'rgba(12,4,4,.95)';
-    drawCrispCanvasText(ctx, name, mid, cy, 'strokeText');
-    ctx.fillStyle = banner.boss.redEntrance ? '#ff6a4e' : '#f0c46a';
-    drawCrispCanvasText(ctx, name, mid, cy);
-    ctx.font = `12px ${battlePixelFont()}`;
-    lines.forEach((line, index) => fillPixelToneText(ctx, line, mid, cy + 25 + index * 14, '#d98a6a'));
-    ctx.restore();
-}
-
-/** The band's small lines: element and standout defenses, the defenses on a line of their own when the screen is too narrow
- * for one (2026-10-19: with two of them the line was 371 px wide, wider than a 360 px phone). */
-function getBossBannerSubLines(ctx, boss, width) {
-    const head = [_t('{ele} 속성 보스', { ele: getElementLabel(boss.ele) })], defenses = getEnemyDefenseHighlights(boss);
-    ctx.font = `12px ${battlePixelFont()}`;
-    const one = [...head, ...defenses].join(', ');
-    return !defenses.length || ctx.measureText(one).width <= width - 24 ? [one] : [head.join(', '), defenses.join(', ')];
-}
-
-function drawBossBannerPlate(ctx, mid, cy, half) {
-    const rx = half + BOSS_BANNER_SHADE.reach, ry = BOSS_BANNER_SHADE.height;
-    const shade = ctx.createRadialGradient(0, 0, 0, 0, 0, ry);
-    shade.addColorStop(0, 'rgba(6,4,4,0.84)');
-    shade.addColorStop(0.55, 'rgba(6,4,4,0.6)');
-    shade.addColorStop(1, 'rgba(6,4,4,0)');
-    ctx.save();
-    ctx.translate(mid, cy - 3);
-    ctx.scale(rx / ry, 1);
-    ctx.fillStyle = shade;
-    ctx.fillRect(-ry, -ry, ry * 2, ry * 2);
-    ctx.restore();
-}
-
-function drawBossBannerRule(ctx, left, right, y) {
-    // 가운데는 금빛 2px 선, 양 끝은 2px 점선으로 흩어진다(도트식 그라디언트).
-    const span = right - left, solid = span * 0.6, dotted = (span - solid) / 2;
-    ctx.fillStyle = 'rgba(216,166,74,0.9)';
-    ctx.fillRect(left + dotted, y, solid, 2);
-    for (let x = 0; x < dotted; x += 4) {
-        ctx.fillRect(left + dotted - 4 - x, y, 2, 2);
-        ctx.fillRect(right - dotted + 2 + x, y, 2, 2);
+    unitRing(ctx, projection, unit, tone) {
+      if (unit.isBoss && tone === CELL_TONES.enemy) return;
+      const box = this.footprint(projection, unit, tone !== CELL_TONES.summon);
+      if (!box) return;
+      const rx = (box.right - box.left) * 0.4;
+      const cy = box.bottom - projection.tileH * 0.5 + (Number(projection.actorGroundOffsetY) || 0);
+      const dot = this.deps.actors.scaleFor(projection.tileW), look = RING_LOOKS.get(tone) || "enemy";
+      return this.deps.rings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: look, rx: Math.round(rx / dot * 0.86), turning: look === "target" });
     }
-}
-
-function getElementLabel(ele) {
-    if (ele === 'fire') return '화염';
-    if (ele === 'cold') return '냉기';
-    if (ele === 'light') return '번개';
-    if (ele === 'chaos') return '공허';
-    return '물리';
-}
-
-/** The name in the current language (the saved name is the Korean source, js/i18n.js enemyName) without colour emoji: the pixel font
- * draws them as a broken box (the beehive queen's crown did, 2026-10-06). */
-function getEnemyDisplayName(enemy) {
-    if (!enemy) return _t('미확인 적');
-    return stripDecorativeEmoji(i18n.enemyName(enemy.name)) || _t('미확인 적');
-}
-
-function getEnemyDefenseHighlights(enemy) {
-    if (!enemy || !enemy.isBoss) return [];
-    const rows = ENEMY_DEFENSE_LABELS.map(([key, label]) => ({ label, value: Math.floor(Number(enemy[key]) || 0) }));
-    const floor = Math.min(...rows.map(row => row.value));
-    return rows.filter(row => row.value >= 40 && row.value - floor >= 15).sort((a, b) => b.value - a.value)
-        .map(row => `${row.label} ${row.value}%`);
-}
-
-function getEnemyTraitSummary(enemy) {
-    let tags = [];
-    if (!enemy) return ['일반'];
-    tags.push(getElementLabel(enemy.ele));
-    tags.push(...getEnemyDefenseHighlights(enemy));
-    if (enemy.traitName) tags.push(enemy.traitName);
-    if ((enemy.firstHitGuard || 0) > 0 && !enemy.firstHitConsumed) tags.push(`첫타보호 ${Math.floor((enemy.firstHitGuard || 0) * 100)}%`);
-    if ((enemy.hitRateGuard || 0) > 0) tags.push(`연타경감 ${Math.floor((enemy.hitRateGuard || 0) * 100)}%/후속타`);
-    if ((enemy.leechEffMul || 1) <= 0) tags.push('흡혈불가');
-    else if ((enemy.leechEffMul || 1) < 1) tags.push(`흡혈저항 ${Math.floor((enemy.leechEffMul || 1) * 100)}%`);
-    return Array.from(new Set(tags.filter(Boolean)));
-}
-
-function getSummonSpriteFrameRectByName(name, image) {
-    const span = image && image.width && image.height ? SUMMON1_FRAMES[String(name || '').trim()] : null;
-    if (!span) return null;
-    const scale = image.width / SUMMON1_CANONICAL_WIDTH, sx = clampNumber(Math.round(span[0] * scale), 0, image.width - 1);
-    return { sx, sy: 0, sw: Math.max(1, clampNumber(Math.round(span[1] * scale), 0, image.width) - sx), sh: image.height };
-}
-
-function resolvePlayerAttackDirection(playerPos, currentTargets, enemyPosMap) {
-    let primary = currentTargets && currentTargets[0] ? currentTargets[0].enemy : null;
-    let anchor = primary ? enemyPosMap[primary.id] : null;
-    if (!anchor) return battleVisualState.playerAttackDirection || 'east';
-    let dx = Number(anchor.x) - Number(playerPos.x);
-    let direction = resolveStageAttackSide(dx);
-    battleVisualState.playerAttackDirection = direction;
-    return direction;
-}
-
-/** 옆에서 보는 무대: 주인공이 지금 치고 있는 쪽. 가장 늦게 시작한 공격이 겨냥한 칸(combatTravel 기록의 aimCell)이나, 그런 기록을 남기지
- * 않는 따로 시전하는 룬(js/skill-gem-casts.js)이 겨냥한 자리를 주인공이 지금 선 칸에서 본 쪽이다. 지금 선 칸에서 보므로 적 옆으로
- * 건너가 치는 이동기(그림자 점멸, 암살)는 건너간 뒤의 쪽을 답한다. 겨냥한 칸이 같은 세로줄이거나 치는 중이 아니면 null.
- * 주인공 그림과 주인공에게 붙는 스킬 이펙트(js/canvas-stage-skill-kit.js heroFace)가 이 한 값으로 같은 쪽을 본다. */
-function resolveStageStrikeSide(now) {
-    const hero = game.gridPlayer, side = cell => (cell && cell.gx !== hero.gx ? (cell.gx < hero.gx ? 'west' : 'east') : null);
-    // 막 쓴 따로 시전하는 룬이 먼저다: 그 룬을 쓰는 동안에도 기본 공격은 다른 적을 겨냥해 이어질 수 있다(암살로 건너가 뒤를 베는 순간)
-    const cast = resolveStageNativeCastSide(side);
-    if (cast) return cast;
-    for (let index = battleFx.length - 1; index >= 0; index--) {
-        const strike = stageStrikeOf(battleFx[index], now, side);
-        if (strike !== undefined) return strike;
+    areaCell(ctx, projection, cell) {
+      if (!this.deps.hasCell(cell)) return;
+      const at = projection.cellToScreen(cell.gx, cell.gy), inset = Math.min(projection.tileW, projection.tileH) * 0.08;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = CELL_TONES.area.fill;
+      ctx.globalAlpha = AREA_ALPHA;
+      ctx.beginPath();
+      ctx.ellipse(at.x, at.y, projection.tileW / 2 - inset, projection.tileH / 2 - inset, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
-    return null;
-}
-
-/** 무대의 주인공이 볼 쪽을 정하는 공격 기록이면 그 쪽('west', 'east', 겨냥한 칸이 같은 세로줄이면 null), 아니면 undefined. 옆으로만 치는 룬
- * (js/combat-grid.js band)은 대상을 고를 때 정한 쪽을 본다: 대상이 바로 위나 아래에 서 있어도 띠를 치는 쪽이다. */
-function stageStrikeOf(fx, now, side) {
-    if (!fx || fx.start > now) return undefined;
-    const band = stageBandSideOf(fx);
-    if (band) return band < 0 ? 'west' : 'east';
-    return fx.type === 'combatTravel' && fx.owner === 'player' && fx.aimCell ? side(fx.aimCell) : undefined;
-}
-
-/** 휘두름 기록(bandSide)이나 주인공 공격 단계 기록(attackFootprint.band)이 남긴 칠 쪽(1, -1). 없으면 0. */
-function stageBandSideOf(fx) {
-    if (fx.type === 'playerSwing') return fx.bandSide || 0;
-    const footprint = fx.type === 'combatTravel' && fx.owner === 'player' ? fx.attackFootprint : null;
-    return footprint && footprint.band ? footprint.band.side : 0;
-}
-
-function resolveStageNativeCastSide(side) {
-    const clock = getCombatTime(), cast = latestStageNativeCast(clock), aimed = cast ? side(cast.aim) : null;
-    if (aimed) stageNativeCastFace = { side: aimed, until: cast.at + STAGE_NATIVE_CAST_FACE_MS };
-    // 암살은 베는 연출이 끝나기 전에 기록이 치워진다: 그동안 기본 공격의 다음 대상 쪽으로 돌아서면 등 뒤에서 베는 꼴이 된다
-    const kept = stageNativeCastFace;
-    if (kept && clock >= kept.until - STAGE_NATIVE_CAST_FACE_MS && clock <= kept.until) return kept.side;
-    stageNativeCastFace = null;
-    return null;
-}
-
-/** 막 쓴(STAGE_NATIVE_CAST_FACE_MS 안의) 따로 시전하는 룬의 기록: 주 스킬 자리의 것이 먼저, 없으면 이동기 자리의 것. */
-function latestStageNativeCast(clock) {
-    for (const state of [skillGemCombatRuntime, mobilitySkill.castState()]) {
-        const cast = state && state.casts.length ? state.casts[state.casts.length - 1] : null;
-        if (cast && cast.aim && clock >= cast.at && clock - cast.at <= STAGE_NATIVE_CAST_FACE_MS) return cast;
-    }
-    return null;
-}
-
-/** 옆에서 보는 무대의 주인공은 왼쪽이나 오른쪽만 본다: 대상이 선 쪽을 본다. 위에서 보는 전장의 규칙(대상이 다른 줄에 있으면 위나 아래)을
- * 그대로 쓰면 무대의 주인공은 그때 직전 방향을 지켜, 왼쪽 위의 적을 치면서 오른쪽을 보고 서 있었고 스킬 이펙트만 왼쪽에 나왔다
- * (2026-10-13 사용자: 이펙트가 "반대로 나오고"). 대상이 거의 같은 세로줄이면 직전에 보던 쪽을 지킨다. */
-function resolveStageAttackSide(dx) {
-    const last = battleVisualState.playerAttackDirection;
-    if (Math.abs(dx) <= STAGE_ATTACK_SIDE_DEAD_PX) return last === 'west' || last === 'east' ? last : (stageActors.facing() < 0 ? 'west' : 'east');
-    return dx < 0 ? 'west' : 'east';
-}
-
-// ACT 배경의 9x8 직교 그리드. 유닛 점유 칸과 플레이어의 현재 공격 칸을 함께 표시한다.
-function drawCosmosGravityField(ctx, proj) {
-    const field = cosmosRouteRuntime.gravityView();
-    if (!field) return;
-    const center = proj.cellToScreen(field.gx,field.gy);
-    const radius = proj.tileW*(2.8-field.progress*2);
-    ctx.save();
-    ctx.strokeStyle = '#bba2ef';
-    ctx.fillStyle = '#29203f';
-    ctx.globalAlpha = .3+field.progress*.4;
-    ctx.beginPath();
-    ctx.ellipse(center.x,center.y,radius,radius*.65,0,0,Math.PI*2);
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(center.x,center.y,proj.tileW*.35,proj.tileH*.25,0,0,Math.PI*2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-}
-
-function drawBattleGridFloor(ctx, proj, theme, skillTargets, skillAreaCells) {
-    drawCosmosGravityField(ctx,proj);
-    const map=getCombatGridSize(),run=actExplorationState.current(game);
-    if(map.tiles) {
-        const sealed=actExplorationState.gateSealed(run);
-        skillAreaCells=skillAreaCells.filter(cell=>actExplorationMap.walkable(map,cell,sealed));
-    }
-    ctx.save();
-    drawRiftCombatOccupants(ctx, { proj, skillTargets, skillAreaCells });
-    ctx.restore();
-}
-
-function drawRiftCombatOccupants(ctx, layers) {
-    const proj = layers.proj;
-    if (!proj) return;
-    (layers.skillAreaCells || []).forEach(cell => drawRiftAreaCell(ctx, proj, cell));
-    (game.summons || []).forEach(summon => {
-        if (summon && !summon.isGhost && summon.alive && (summon.hp || 0) > 0) drawRiftUnitRing(ctx, proj, summon, RIFT_CELL_TONES.summon);
-    });
-    const locked = actExplorationState.lockedEnemy(actExplorationState.current(game));
-    (game.enemies || []).forEach(enemy => {
-        if (enemy && enemy.hp > 0 && actExplorationView.inSight(enemy)) drawRiftUnitRing(ctx, proj, enemy, enemy === locked ? RIFT_CELL_TONES.target : RIFT_CELL_TONES.enemy);
-    });
-    (layers.skillTargets || []).forEach(hit => drawRiftTargetBrackets(ctx, proj, hit && hit.enemy));
-}
-
-/** The player's foot ring sits under the drawn figure, not on the hit cell: while walking, the body glides between
- * cells and the cell changes halfway, so a cell ring jumped ahead of the character. */
-function drawRiftPlayerRing(ctx, proj, feet) {
-    if (!proj || !feet) return;
-    // 옆에서 보는 무대: 도트로 찍는 발밑 고리(js/canvas-stage-rings.js)
-    return stageRings.ring(ctx, { x: feet.x, y: feet.y, dot: stageActors.scaleFor(proj.tileW) }, { tone: 'player', rx: 22, turning: true });
-}
-
-/** The screen box of a unit's cells. walking: an enemy on the stage is drawn short of its cell while it walks there
- * (js/canvas-stage-stride.js), and its ring and target marks go with the picture, as the hero's ring does (2026-10-13 사용자). */
-function getRiftUnitFootprintBox(proj, unit, walking = false) {
-    const cells = getGridUnitCells(unit);
-    if (cells.length <= 0) return null;
-    const points = cells.map(cell => proj.cellToScreen(cell.gx, cell.gy));
-    const xs = points.map(p => p.x), ys = points.map(p => p.y), stride = walking ? stageStride.read(unit, battleVisualState.visualNow) : null;
-    const dx = stride ? stride.dx * proj.tileW : 0, dy = stride ? stride.dy * proj.tileH : 0;
-    const left = Math.min(...xs) - proj.tileW / 2 + dx, right = Math.max(...xs) + proj.tileW / 2 + dx;
-    const top = Math.min(...ys) - proj.tileH / 2 + dy, bottom = Math.max(...ys) + proj.tileH / 2 + dy;
-    return { left, right, top, bottom, cx: (left + right) / 2, cy: (top + bottom) / 2 };
-}
-
-/** A unit's foot ring: an enemy's, a summon's, or the locked-on enemy's (RIFT_CELL_TONES.target: gold, turning like the hero's). */
-function drawRiftUnitRing(ctx, proj, unit, tone) {
-    // Boss bodies already cast a ground shadow. Keep red floor marks exclusive to attacks; manual lock-on stays gold.
-    if (unit.isBoss && tone === RIFT_CELL_TONES.enemy) return;
-    const box = getRiftUnitFootprintBox(proj, unit, tone !== RIFT_CELL_TONES.summon);
-    if (!box) return;
-    const rx = (box.right - box.left) * 0.4;
-    const cy = box.bottom - proj.tileH * 0.5 + (Number(proj.actorGroundOffsetY) || 0);
-    const dot = stageActors.scaleFor(proj.tileW), look = RIFT_RING_LOOKS.get(tone) || 'enemy';
-    return stageRings.ring(ctx, { x: box.cx, y: cy, dot }, { tone: look, rx: Math.round(rx / dot * 0.86), turning: look === 'target' });
-}
-
-function drawRiftAreaCell(ctx, proj, cell) {
-    if (!hasGridCell(cell)) return;
-    const c = proj.cellToScreen(cell.gx, cell.gy);
-    const inset = Math.min(proj.tileW, proj.tileH) * 0.08;
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = RIFT_CELL_TONES.area.fill;
-    drawStageAreaCell(ctx, c, proj, inset); return;
-}
-
-function drawStageAreaCell(ctx, c, proj, inset) {
-    ctx.globalAlpha = STAGE_AREA_CELL_ALPHA;
-    ctx.beginPath();
-    ctx.ellipse(c.x, c.y, proj.tileW / 2 - inset, proj.tileH / 2 - inset, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-}
-
-// 조준 대상: 발자국 상자의 네 모서리에만 짧은 꺾쇠를 긋는다.
-function drawRiftTargetBrackets(ctx, proj, unit) {
-    const box = getRiftUnitFootprintBox(proj, unit, true);
-    if (!box) return;
-    const arm = Math.min(box.right - box.left, box.bottom - box.top) * 0.22;
-    const corners = [[box.left, box.top, 1, 1], [box.right, box.top, -1, 1], [box.left, box.bottom, 1, -1], [box.right, box.bottom, -1, -1]];
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = RIFT_CELL_TONES.target.line;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    corners.forEach(([x, y, dx, dy]) => {
+    targetBrackets(ctx, projection, unit) {
+      const box = this.footprint(projection, unit, true);
+      if (!box) return;
+      const arm = Math.min(box.right - box.left, box.bottom - box.top) * 0.22;
+      const corners = [[box.left, box.top, 1, 1], [box.right, box.top, -1, 1], [box.left, box.bottom, 1, -1], [box.right, box.bottom, -1, -1]];
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = CELL_TONES.target.line;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      corners.forEach(([x, y, dx, dy]) => {
         ctx.moveTo(x, y + dy * arm);
         ctx.lineTo(x, y);
         ctx.lineTo(x + dx * arm, y);
-    });
-    ctx.stroke();
-}
-
-function getCanvasSkillAreaCells(skillName, skillDef, skillTargets) {
-    let playerCell = hasGridCell(game.gridPlayer) ? game.gridPlayer : null;
-    let targetHits = (skillTargets || []).filter(hit => hit && hasGridCell(hit.enemy));
-    if (!playerCell || targetHits.length <= 0) return [];
-    let profile = getSkillGridProfile(skillName, skillDef);
-    if (profile.kind === 'chain') return targetHits.map(hit => ({ gx: hit.enemy.gx, gy: hit.enemy.gy }));
-    let cells = getGridAttackAreaCells(profile, playerCell, targetHits[0].enemy);
-    let seen = new Set();
-    return cells.filter(cell => {
-        let key = gridCellKey(cell.gx, cell.gy);
+      });
+      ctx.stroke();
+    }
+    skillAreaCells(name, definition, targets) {
+      const player = this.deps.game().gridPlayer;
+      const cell = this.deps.hasCell(player) ? player : null;
+      const hits2 = (targets || []).filter((hit) => hit && this.deps.hasCell(hit.enemy));
+      if (!cell || hits2.length <= 0) return [];
+      const profile = this.deps.skillProfile(name, definition);
+      if (profile.kind === "chain") return hits2.map((hit) => ({ gx: hit.enemy.gx, gy: hit.enemy.gy }));
+      const cells = this.deps.attackArea(profile, cell, hits2[0].enemy), seen = /* @__PURE__ */ new Set();
+      return cells.filter((point) => {
+        const key = this.deps.cellKey(point.gx, point.gy);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
-    });
-}
-
-exposeFileGlobals({ battlePixelFont, drawEnemyDeathFx, drawBossDefeat, normalizeSkillGemVfxElement, drawElementProjectileVfx, useFilteredVfxImage, getDrawnSkillEffectFilter, queueSkillGemVfx, drawMeteorDescent, prepareBossShot, drawCombatTravelFx, isGroundSkillCast, drawProceduralSkillImpact, drawTrialTrapGridFx, drawSkillImpactImage, drawFootprintSkillImpact, getEnemyTelegraphColor, drawBossPatternArea, drawEnemyAttackTelegraphs, drawEliteNameplate, noteEnemyDrawnHeight, getEnemyFieldBarLift, getBodyCueAnchor, getEnemyBodyHeight, getBattlefieldClientPoint, updatePlayerGridVisualMotion, getStageHeroAirGround, getPlayableHeroWalkMotion, drawPlayerReturnWarpEffect, drawPlayerReturnDepartureEffect, drawPlayerReturnWhiteShroud, drawBattlePlayerBody, buildEnemyHitFlashMap, getPlayerHurtPosition, resolveEnemyFacingDirection, noteEnemySpriteSide, shouldMirrorEnemySprite, getEnemySpawnAge, getEnemyCrowdScale, drawEnteringEnemyActor, drawEncounterSparks, getBossDrawScale, drawEnemyActorSprite, buildBattleEnemyPosMap, drawBattleActorLayer, getMapMonstersLeft, renderBattlefield, getBattleCameraShake, drawBattleScreenGrade, drawBattleLightingAndBars, drawLockOnMark, updateBossAnnouncement, drawBossAnnouncement, getEnemyDisplayName, getEnemyTraitSummary, getSummonSpriteFrameRectByName, resolveStageStrikeSide, drawRiftPlayerRing });
-})();
-
-// 렌더 전용 짧은 캐시. getPlayerStats()는 장비/패시브 전체를 재계산하는 무거운
-// 함수인데, 렌더 경로는 결과를 읽기만 하고(HP/ES 바, 스킬 타겟, 공속 타이밍) 이
-// 값들은 천천히 변하므로 ~150ms 캐시해도 시각적으로 무해하다. 전투 틱(coreLoop)과
-// updateCombatUI는 별도로 getPlayerStats()를 직접 호출하므로 이 캐시의 영향을 받지 않는다.
-let __canvasStatsCache = null;
-let __canvasStatsCacheAt = 0;
-const CANVAS_STATS_CACHE_MS = 150;
-
-
-const BATTLE_SKILL_EFFECT_CAP = 56;
-
-
-// Finishing blows on elites and bosses hold the frame a little longer. Ordinary kills stay fluid: an idle fight
-// kills constantly, and a stop on each would read as stutter.
-const KILL_HIT_STOP_MS = Object.freeze({ elite: 45, boss: 110 });
-
-/** 쓰러짐 그림이 없는 보스의 사라짐 길이(ms). 보스의 쓰러짐 효과는 쓰러짐 그림을 보여 주려고 1.6초다(js/combat-kill-rewards.js handleEnemyDeath). */
-const BOSS_DEATH_LEGACY_MS = 840;
-/** 쓰러진 보스가 흐려지기 시작하는 때(효과 길이의 비율): 그 앞까지는 쓰러짐 그림의 마지막 장(누운 모습)이 또렷하다. */
-const BOSS_DEFEAT_FADE_FROM = 0.78;
-
-
-const SKILL_GEM_VFX_IMAGE_KEYS = Object.freeze({
-    whirlwind: 'skillFxWhirlwind',
-    chainPrimary: 'skillFxChainPrimary',
-    chain: 'skillFxChainPrimary',
-    chainJump: 'skillFxChainJump',
-    slamPrimary: 'skillFxSlamPrimary',
-    slamAftershock: 'skillFxSlamAftershock',
-    meteorProjectile: 'skillFxMeteorProjectile',
-    meteorImpact: 'skillFxMeteorImpact',
-    meteorGround: 'skillFxMeteorGround',
-    slash: 'skillFxContinuousSlash',
-    basicSlash: 'skillFxBasicSlash',
-    continuousSlash: 'skillFxDoubleSlash',
-    slam: 'skillFxSlamPrimary',
-    projectile: 'skillFxProjectile',
-    venomFang: 'skillFxVenomFang',
-    frostField: 'skillFxFrostField',
-    blizzardAmbient: 'skillFxBlizzardAmbient',
-    blizzardImpact: 'skillFxBlizzardImpact',
-    frostWave: 'skillFxFrostWave',
-    chaosBoomerang: 'skillFxChaosBoomerang',
-    frostBurst: 'skillFxFrostBurst',
-    frostWaveRing: 'skillFxFrostWaveRing',
-    burst: 'skillFxImpactFlare',
-    radialWave: 'skillFxRadialWave',
-    rune: 'skillFxBurst',
-    dot: 'skillFxDotField',
-    summon: 'skillFxSummonStrike'
-});
-
-
-// Color-only VFX filters are fixed per image, so bake each (image, filter) pair once.
-// A live ctx.filter forces an offscreen pass on every draw, which dominated busy endgame frames.
-const filteredVfxImageCache = new WeakMap();
-
-
-/** Shade the environment, then paint ground spells and summons before the main actor layer. */
-function drawBattleGroundLayer(ctx, effects, view) {
-    drawBattleScreenGrade(ctx, view.width, view.height);
-    drawRiftPlayerRing(ctx, view.gridProj, view.playerPos);
-    sideEncounterCanvas.portals(ctx, view.gridProj, getCombatTime());
-    trialTrapArt.drawGround(ctx, effects, view.now, view.gridProj); // trap cracks, glow, frost, rune, puddle, scorch
-    fxRemake.begin(ctx, view.gridProj);
-    if (typeof stageSkillVfx === 'object') stageSkillVfx.tick(view.now); // 무대의 새 스킬 이펙트(js/canvas-stage-skill-vfx.js): 프레임마다 시계를 맞춘다
-    if (typeof stageBlessing === 'object') stageBlessing.frame(view.now); // 사역룬 가호의 발밑(js/canvas-stage-blessing.js)
-    worldTreeSkillFx.castFrame(ctx,view.gridProj,'ground');
-    worldTreeSkillFx.drawQueued(ctx, battleVisualState.skillEffects || [], view.now, 'ground');
-    for (let fx of effects) {
-        if (!isGroundSkillCast(fx)) continue;
-        drawCombatTravelFx(ctx, fx, view.now, view.gridProj, view.playerPos, view.enemyPosMap);
+      });
     }
-    redrawnSkillFx.drawLayer('ground', view.now);
-    wispSummonFx.drawLayer('ground', view.now);
-    fxRemake.end();
-    if (typeof stageSkillVfx === 'object') stageSkillVfx.draw(ctx, 'ground', view.gridProj);
-    if (typeof stageBlessing === 'object') stageBlessing.draw(ctx, view.gridProj);
-    if (typeof stageOcean === 'object') stageOcean.ground(ctx, view); // 심해: 발밑 먼지와 공기 기둥
-    if (typeof stageIncidents === 'object') stageIncidents.ground(ctx, view); // 잔잔한 사건: 별똥별
-    drawActiveSummons(ctx, view.playerPos, view.now, view.gridProj);
-}
-
-
-function drawSkillGemVfxLayer(ctx, now, gridProj) {
-    fxRemake.begin(ctx, gridProj); // stays open through the battleFx overlay loop; closed in drawBattleLightingAndBars
-    worldTreeSkillFx.castFrame(ctx,gridProj,'foreground');
-    let list = battleVisualState.skillEffects || [];
-    worldTreeSkillFx.drawQueued(ctx, list, now, 'foreground');
-    if (typeof stageSkillVfx === 'object') { stageSkillVfx.draw(ctx, 'top', gridProj); stageSkillSigil.draw(ctx, gridProj); }
-    bossMoveView.drawAir(ctx, gridProj); // boss moves: the charge at the hand, shots, beams (js/canvas-boss-moves.js)
-    const spriteRenderers = {continuousSlash:drawSwordSlashVfx};
-    list.forEach(drawSkillGemVfxLayer.ground.follow(ctx, gridProj, effect => {
-        let image = getSkillGemVfxImage(effect.imageKey);
-        let elapsed = now - effect.startAt;
-        if (elapsed < 0 || elapsed > effect.duration) return;
-        let t = clampNumber(elapsed / Math.max(1, effect.duration), 0, 1);
-        if (SKILL_FX_ATLAS[effect.skillName]) return;
-        if (drawFootprintSkillImpact(ctx, effect, image, t)) return;
-        const spriteRenderer = spriteRenderers[effect.family];
-        if (spriteRenderer) return spriteRenderer(ctx, effect, image, t);
-        let fade = Math.min(1, t / 0.045) * Math.pow(1 - t, 1.1);
-        if (effect.family === 'dot') fade = Math.min(1, t / 0.16) * Math.min(1, (1 - t) / 0.28);
-        if (effect.travel) fade = Math.min(1, t / 0.12) * Math.min(1, (1 - t) / 0.1);
-        ctx.save();
-        let imageProjectile = !!(effect.travel && effect.imageProjectile);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.globalAlpha = clampNumber((effect.alpha || 0.7) * fade, 0, imageProjectile ? 0.94 : 0.82);
-        image = useFilteredVfxImage(ctx, image, imageProjectile ? 'none' : getDrawnSkillEffectFilter(effect));
-        ctx.imageSmoothingEnabled = false;
-        if (effect.travel) {
-            // 모든 플레이어 투사체는 포물선 없이 실제 발사선 위를 빠르게 이동한다.
-            let travelProgress = t;
-            let x = effect.fromX + (effect.toX - effect.fromX) * travelProgress;
-            let y = effect.fromY + (effect.toY - effect.fromY) * travelProgress;
-            let width = imageProjectile ? effect.projectileWidth : effect.size * 1.52;
-            let height = imageProjectile ? effect.projectileHeight : effect.size * 0.52;
-            ctx.translate(x, y);
-            ctx.rotate(effect.rotation || 0);
-            if (imageProjectile && image) ctx.drawImage(image, -width / 2, -height / 2, width, height);
-            else drawElementProjectileVfx(ctx, effect.projectileStyle || effect.element, width, height, t);
-        } else if (effect.connector) {
-            let reveal = Math.min(1, t / 0.22);
-            let fromX = effect.toX + (effect.fromX - effect.toX) * reveal;
-            let fromY = effect.toY + (effect.fromY - effect.toY) * reveal;
-            let dx = effect.toX - fromX;
-            let dy = effect.toY - fromY;
-            let length = Math.max(8, Math.hypot(dx, dy));
-            let thickness = Math.max(12, effect.size * (0.36 + Math.sin(t * Math.PI) * 0.12));
-            ctx.translate((fromX + effect.toX) / 2, (fromY + effect.toY) / 2);
-            ctx.rotate(Math.atan2(dy, dx));
-            if (image) ctx.drawImage(image, -length / 2, -thickness / 2, length, thickness);
-        } else {
-            if (image || effect.skillName === '기본 공격') drawSkillImpactImage(ctx, image, effect, t);
-            else drawProceduralSkillImpact(ctx, effect, t);
-        }
-        ctx.restore();
-    }));
-}
-
-/** Common slashes and hit sparks keep their cast-time pixels and footprint. Move only the drawing context with the camera,
- * never their shared geometry or atlas-owned effects. A changed zoom/depth keeps the existing presentation until expiry. */
-drawSkillGemVfxLayer.ground = (() => {
-    function note(list, projection) {
-        const origin = projection.cellToScreen(0, 0);
-        for (const effect of list) {
-            if (effect.spawnGround || SKILL_FX_ATLAS[effect.skillName] || (effect.family !== 'slash' && effect.family !== 'hitSpark')) continue;
-            effect.spawnGround = { x: origin.x, y: origin.y, tileW: projection.tileW, tileH: projection.tileH };
-        }
+    /** Ground-only remake scope closes before actors; the front scope is independently closed by the lighting pass. */
+    draw(ctx, effects, view) {
+      this.screen.grade(ctx, view.width, view.height);
+      this.playerRing(ctx, view.gridProj, view.playerPos);
+      this.deps.sideEncounters.portals(ctx, view.gridProj, this.deps.combatTime());
+      this.deps.traps.drawGround(ctx, effects, view.now, view.gridProj);
+      this.deps.remake.begin(ctx, view.gridProj);
+      if (typeof this.deps.stageEffects === "object") this.deps.stageEffects.tick(view.now);
+      if (typeof this.deps.blessing === "object") this.deps.blessing.frame(view.now);
+      this.deps.tree.castFrame(ctx, view.gridProj, "ground");
+      this.deps.tree.drawQueued(ctx, this.deps.visual().skillEffects || [], view.now, "ground");
+      for (const fx of effects) {
+        if (!this.travel.isGround(fx)) continue;
+        this.travel.draw(ctx, fx, { now: view.now, projection: view.gridProj, playerPos: view.playerPos, enemyPosMap: view.enemyPosMap });
+      }
+      this.deps.redrawn.drawLayer("ground", view.now);
+      this.deps.summons.drawLayer("ground", view.now);
+      this.deps.remake.end();
+      if (typeof this.deps.stageEffects === "object") this.deps.stageEffects.draw(ctx, "ground", view.gridProj);
+      if (typeof this.deps.blessing === "object") this.deps.blessing.draw(ctx, view.gridProj);
+      if (typeof this.deps.ocean === "object") this.deps.ocean.ground(ctx, view);
+      if (typeof this.deps.incidents === "object") this.deps.incidents.ground(ctx, view);
+      this.deps.drawSummons(ctx, view.playerPos, view.now, view.gridProj);
     }
-    function follow(ctx, projection, paint) {
-        return effect => {
-            const anchor = effect.spawnGround;
-            if (!anchor || anchor.tileW !== projection.tileW || anchor.tileH !== projection.tileH) return paint(effect);
-            const now = projection.cellToScreen(0, 0);
-            if (now.x === anchor.x && now.y === anchor.y) return paint(effect);
-            ctx.save();
-            ctx.translate(now.x - anchor.x, now.y - anchor.y);
-            try { paint(effect); } finally { ctx.restore(); }
-        };
+  };
+
+  // modules/rendering/player-facing.mjs
+  var SIDE_DEAD_PX = 10;
+  var NATIVE_CAST_FACE_MS = 700;
+  function bandSide(fx) {
+    if (fx.type === "playerSwing") return fx.bandSide || 0;
+    const footprint = fx.type === "combatTravel" && fx.owner === "player" ? fx.attackFootprint : null;
+    return footprint && footprint.band ? footprint.band.side : 0;
+  }
+  function strikeOf(fx, now, side) {
+    if (!fx || fx.start > now) return void 0;
+    const band = bandSide(fx);
+    if (band) return band < 0 ? "west" : "east";
+    return fx.type === "combatTravel" && fx.owner === "player" && fx.aimCell ? side(fx.aimCell) : void 0;
+  }
+  var PlayerFacing = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.nativeCastFace = null;
     }
-    return Object.freeze({ note, follow });
-})();
-
-
-/** Read-only labels from the saved wording, never from the current zone. Unknown traits keep their text. */
-drawEliteNameplate.presentation = (() => {
-    const cache = new WeakMap();
-    const short = { critResist: '치명저항', critDamageResist: '치명피해저항', comboGuard: '연타저항', heavySlow: '강타',
-        fast: '속공', energyShield: '보호막', evasion: '회피', armor: '장갑' };
-    const names = new Map(COSMOS_MECHANIC_DB.map(row => [row.name, short[row.id]]));
-    const habitats = new Set(Object.values(COSMOS_ROUTE_G1.habitats).map(row => row.name));
-    const metadata = /^우주계:\s*\S+\s+\d+등급\/\d+(?:\.\d+)?g$/;
-    function combatLabel(part) {
-        const match = /^우주계:\s*(.+)$/.exec(part);
-        return match && names.get(match[1].replace(/\s+\d+%$/, '')) || part;
+    attackDirection(player, targets, entries) {
+      const primary = targets && targets[0] ? targets[0].enemy : null;
+      const anchor = primary ? entries[primary.id] : null;
+      if (!anchor) return this.deps.visual().playerAttackDirection || "east";
+      const direction = this.attackSide(Number(anchor.x) - Number(player.x));
+      this.deps.visual().playerAttackDirection = direction;
+      return direction;
     }
-    function compact(raw) {
-        const parts = raw.split(',').map(part => part.trim()), cosmos = parts.some(part => metadata.test(part));
-        const labels = parts.map(part => {
-            if (cosmos && (metadata.test(part) || part.startsWith('탐사:') || habitats.has(part))) return null;
-            return combatLabel(part);
-        }).filter(Boolean);
-        if (labels.length === parts.length && labels.every((label, index) => label === parts[index])) return raw;
-        return labels.join(' · ') || '정예';
+    strikeSide(now) {
+      const hero = this.deps.game().gridPlayer;
+      const side = (cell) => cell && cell.gx !== hero.gx ? cell.gx < hero.gx ? "west" : "east" : null;
+      const cast = this.nativeSide(side);
+      if (cast) return cast;
+      const effects = this.deps.effects();
+      for (let index = effects.length - 1; index >= 0; index--) {
+        const strike = strikeOf(effects[index], now, side);
+        if (strike !== void 0) return strike;
+      }
+      return null;
     }
-    return enemy => {
-        const raw = String(enemy.traitName || '정예'), previous = cache.get(enemy);
-        if (previous?.raw === raw) return previous;
-        const presentation = { raw, label: compact(raw), color: statToneText.lineColor(raw, '#f3d77a') };
-        cache.set(enemy, presentation);
-        return presentation;
-    };
-})();
+    nativeSide(side) {
+      const clock = this.deps.combatTime(), cast = this.latestCast(clock), aimed = cast ? side(cast.aim) : null;
+      if (aimed) this.nativeCastFace = { side: aimed, until: cast.at + NATIVE_CAST_FACE_MS };
+      const kept = this.nativeCastFace;
+      if (kept && clock >= kept.until - NATIVE_CAST_FACE_MS && clock <= kept.until) return kept.side;
+      this.nativeCastFace = null;
+      return null;
+    }
+    latestCast(clock) {
+      for (const state of [this.deps.skillRuntime(), this.deps.mobility.castState()]) {
+        const cast = state && state.casts.length ? state.casts[state.casts.length - 1] : null;
+        if (cast && cast.aim && clock >= cast.at && clock - cast.at <= NATIVE_CAST_FACE_MS) return cast;
+      }
+      return null;
+    }
+    attackSide(dx) {
+      const last = this.deps.visual().playerAttackDirection;
+      if (Math.abs(dx) <= SIDE_DEAD_PX) return last === "west" || last === "east" ? last : this.deps.actors.facing() < 0 ? "west" : "east";
+      return dx < 0 ? "west" : "east";
+    }
+    dispose() {
+      this.nativeCastFace = null;
+    }
+  };
 
-/** Atlas sprites' drawn height this frame (js/ui.js drawEnemySprite), weakly keyed so dead enemies drop out. */
-const enemyDrawnHeights = new WeakMap();
-
-
-/** Only repeated body judgments share a lifetime; alerts and different actors keep their own labels. */
-getBodyCueAnchor.fromFx = function (fx, pos, bodyHeight, start) {
-    const value = fx.text || '회피!', color = fx.color || '#c4e2ff';
-    const bodyCue = fx.type === 'enemyEvade' || fx.bodyCue === true;
-    const actor = fx.enemyId == null ? 'hero' : 'enemy:' + fx.enemyId;
-    return { start, ...getBodyCueAnchor(pos, bodyHeight), value, miss: true, bodyCue, color,
-        aggregateKey: bodyCue ? `cue:${actor}:${value}:${color}` : '' };
-};
-
-
-/** This frame's top of each drawn enemy bar with its elite nameplate (screen px): the lock-on arrow stands over it (drawLockOnMark). */
-const enemyFieldBarTops = new Map();
-
-/** Actual HP/cast rectangles, recorded as they draw, including screen-edge clamping. */
-const bossTextExclusions = [];
-
-
-function drawBattlePlayerActor(ctx, state) {
-    state = worldTreeSkillFx.actorState(state);
-    let position = getPlayerHurtPosition(state);
-    let returnWarp = state.returnWarp;
-    let returnDeparture = state.returnDeparture;
-    let warpPosition = returnWarp && returnWarp.position ? returnWarp.position : position;
-    let departurePosition = returnDeparture && returnDeparture.position ? returnDeparture.position : position;
-    let transition = returnWarp || returnDeparture;
-    let transitionPosition = returnWarp ? warpPosition : departurePosition;
-    let facingLeft = isBattlePlayerMirrored(state.motionState);
-    drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, false);
-    drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, false);
-    drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, false);
-    ctx.save();
-    if (transition) ctx.globalAlpha = transition.actorAlpha;
-    if (facingLeft) {
+  // modules/rendering/battlefield-actors.mjs
+  var HERO_TALL_DOTS = 118;
+  function transitionPositions(state, position) {
+    const warp = state.returnWarp, departure = state.returnDeparture;
+    const warpPosition = warp && warp.position ? warp.position : position;
+    const departurePosition = departure && departure.position ? departure.position : position;
+    return { warp, departure, warpPosition, departurePosition };
+  }
+  var BattlefieldActors = class {
+    constructor(deps, hits2, body2, returning2) {
+      this.deps = deps;
+      this.hits = hits2;
+      this.body = body2;
+      this.returning = returning2;
+    }
+    markHero(playerPos, projection) {
+      const frames = this.deps.messageFrames;
+      if (typeof frames !== "object" || !frames.isActive()) return;
+      frames.heroAt(playerPos.x, playerPos.y, playerPos.y - HERO_TALL_DOTS * this.deps.actors.scaleFor(projection.tileW));
+    }
+    noteBody(actor, state) {
+      const tile = state.gridProj.tileW;
+      if (actor.kind === "player") {
+        this.deps.doors.seal.body({ ...state.playerPos, halfW: tile * 0.4, h: this.body.heroHeight(state.playerPos, state.now) });
+      } else if (actor.kind === "enemy" && actor.entry.enemy.hp > 0) {
+        const entry = actor.entry, size = this.deps.roster.bodySize(entry.enemy, tile) || { halfW: tile * 0.45 * this.deps.footprint(entry.enemy).columns, h: this.body.barLift(entry.enemy) - 10 };
+        this.deps.doors.seal.body({ x: entry.x, y: entry.y, ...size });
+      }
+    }
+    visible(entries, state) {
+      const view = { width: state.width, height: state.height, tile: state.gridProj.tileW };
+      const waiting = this.deps.layout(this.deps.exploration.waitingEnemies(), 0, 0, state.gridProj).filter((entry) => this.deps.drawList.touchesView(entry, view));
+      const seen = [];
+      for (const entry of entries || []) {
+        if (entry.drawn) seen.push(entry);
+        else if (entry.seen) this.deps.drawList.keepFacing(entry, state.playerPos, view.tile);
+      }
+      this.hits.softenCrowd(state.enemyHitFlashes, seen, view.tile);
+      const visible = seen.concat(waiting);
+      this.deps.drawList.noteDrawn(visible, view.tile);
+      return visible;
+    }
+    draw(ctx, entries, state) {
+      state = { ...state, enemyHitRecoil: this.hits.recoils(this.deps.effects(), state) };
+      const visible = this.visible(entries, state);
+      const actors = visible.map((entry) => ({ kind: "enemy", id: entry.enemy.id, y: entry.y, entry }));
+      actors.push({ kind: "player", id: -1, y: state.playerPos.y });
+      this.deps.exploration.appendScenery(actors, state);
+      this.deps.woodsman.stumps(actors, state.gridProj);
+      actors.push(...this.deps.traps.riseActors(this.deps.effects(), state.now, state.gridProj));
+      this.deps.entrance.drawGround(ctx, state);
+      const dim = this.deps.entrance.sceneryDim(state.now);
+      for (const actor of sortBattleActorsByDepth(actors)) {
+        this.drawActor(ctx, actor, state, dim);
+        this.noteBody(actor, state);
+      }
+      this.deps.readability.begin(state, visible);
+    }
+    drawActor(ctx, actor, state, dim) {
+      if (actor.kind === "player") return this.deps.drawPlayer(ctx, state);
+      if (actor.kind === "trapRise" || actor.kind === "woodsmanStump") return actor.draw(ctx);
+      if (actor.kind !== "gate" && actor.kind !== "scenery" && actor.kind !== "object") return this.deps.drawEnemy(ctx, actor.entry, state);
+      ctx.save();
+      if (dim && !actor.npc) ctx.filter = `brightness(${1 - dim})`;
+      this.deps.exploration.drawScenery(ctx, actor, state);
+      ctx.restore();
+    }
+    player(ctx, input) {
+      const state = this.deps.tree.actorState(input), position = this.hits.hurtPosition(state);
+      const { warp, departure, warpPosition, departurePosition } = transitionPositions(state, position);
+      const transition = warp || departure, transitionPosition = warp ? warpPosition : departurePosition;
+      const facingLeft = this.deps.mirrored(state.motionState);
+      this.returning.shroud(ctx, transitionPosition, transition && transition.whiteShroud, false);
+      this.returning.arrival(ctx, warpPosition, warp, false);
+      this.returning.departure(ctx, departurePosition, departure, false);
+      ctx.save();
+      if (transition) ctx.globalAlpha = transition.actorAlpha;
+      if (facingLeft) {
         ctx.translate(position.x * 2, 0);
         ctx.scale(-1, 1);
+      }
+      this.deps.tintedPlayer(ctx, state, position);
+      ctx.restore();
+      this.returning.shroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
+      this.returning.arrival(ctx, warpPosition, warp, true);
+      this.returning.departure(ctx, departurePosition, departure, true);
     }
-    drawTintedBattlePlayerFigure(ctx, state, position);
-    ctx.restore();
-    drawPlayerReturnWhiteShroud(ctx, transitionPosition, transition && transition.whiteShroud, true);
-    drawPlayerReturnWarpEffect(ctx, warpPosition, returnWarp, true);
-    drawPlayerReturnDepartureEffect(ctx, departurePosition, returnDeparture, true);
-}
+  };
 
-
-// 타격감(2026-10-04): a struck enemy flinches away from the hero for a moment, further on a crit or a heavy blow (tiles).
-const ENEMY_HIT_RECOIL = Object.freeze({ ms: 170, normal: 0.085, crit: 0.14, heavy: 0.17 });
-// 피격감(2026-10-04): the hero is knocked back from the attacker, further the more life the hit took (tiles).
-const PLAYER_HURT_RECOIL = Object.freeze({ ms: 170, min: 0.035, perLife: 0.5, max: 0.13 });
-// The hero's and each summon's incoming damage numbers add up per this many ms of combat (dealt hits: 250 per skill and target).
-const HURT_TEXT_MERGE_MS = 400;
-
-
-/** Overlapping hit silhouettes should still read as a pack of monsters. Latch per pulse so a neighbour's
- * flash ending cannot make this body brighten again. The original FX, pulse timing and entrance veil stay intact. */
-buildEnemyHitFlashMap.crowd = (() => {
-    const softened = new WeakSet();
-    function body(entry, tile) {
-        const size = (stageRoster.bodySize(entry.enemy, tile))
-            || { halfW: tile * .45 * getGridUnitFootprint(entry.enemy).columns, h: getEnemyBodyHeight(entry) };
-        return { id: entry.enemy.id, x: entry.x, top: entry.y - size.h, bottom: entry.y, halfW: size.halfW,
-            pulse: battleVisualState.enemyHitPulses.get(entry.enemy.id) };
+  // modules/rendering/battlefield-player-frame.mjs
+  function blendValue(current, active, rates, delta) {
+    return approachNumber(current || 0, active ? 1 : 0, active ? rates[0] : rates[1], delta);
+  }
+  var BLEND_RATES = Object.freeze({ attack: [4, 3], hurt: [6.5, 4.2], down: [7.5, 4.8] });
+  function playerHits(effects, now) {
+    let flash = false, down = false;
+    for (let index = effects.length - 1; index >= 0; index--) {
+      const effect = effects[index];
+      if (!effect) continue;
+      const age = now - effect.start;
+      if (age < 0 || age > effect.duration) continue;
+      if (effect.type === "playerHit") flash = true;
+      else if (effect.type === "playerDown") down = true;
     }
-    function overlaps(a, b) {
-        return Math.abs(a.x - b.x) < a.halfW + b.halfW && a.top < b.bottom && b.top < a.bottom;
+    return { flash, down };
+  }
+  var BattlefieldPlayerFrame = class {
+    constructor(deps, timing2, movement2, facing2) {
+      this.deps = deps;
+      this.timing = timing2;
+      this.movement = movement2;
+      this.facing = facing2;
     }
-    function markGroups(bodies) {
-        const remaining = new Set(bodies);
-        for (const first of remaining) {
-            const group = [first];
-            remaining.delete(first);
-            for (let i = 0; i < group.length; i++) {
-                remaining.forEach(other => {
-                    if (!overlaps(group[i], other)) return;
-                    group.push(other);
-                    remaining.delete(other);
-                });
-            }
-            if (group.length >= 3) group.forEach(row => softened.add(row.pulse));
-        }
+    read(now) {
+      const game = this.deps.game(), stats = this.timing.stats(), targets = this.timing.targets(stats);
+      const appearance = this.deps.appearance ? this.deps.appearance() : game.selectedHeroId;
+      const durationScale = this.movement.attackDurationScale(appearance), effects = this.deps.effects();
+      const swings = selectSwingEffects(effects, now, durationScale);
+      const skill = this.deps.skills[game.activeSkill] || this.deps.skills["기본 공격"];
+      return { stats, targets, durationScale, swings, skill, ...playerHits(effects, now) };
     }
-    return function (flashes, entries, tile) {
-        const targets = entries.filter(entry => entry.enemy.hp > 0 && !entry.enemy.isBoss && flashes.get(entry.enemy.id) > 0);
-        if (targets.length >= 3) markGroups(targets.map(entry => body(entry, tile)));
-        for (const { enemy } of targets) if (softened.has(battleVisualState.enemyHitPulses.get(enemy.id))) {
-            flashes.set(enemy.id, flashes.get(enemy.id) * .4);
-        }
-    };
+    blend(player, frame) {
+      const visual = this.deps.visual(), swing = player.swings.frame, delta = frame.deltaSec;
+      visual.playerAttackBlend = blendValue(visual.playerAttackBlend, swing, BLEND_RATES.attack, delta);
+      if (swing && Number.isFinite(swing.motionVariantSeed)) visual.playerAttackMotionSeed = swing.motionVariantSeed;
+      visual.playerHurtBlend = blendValue(visual.playerHurtBlend, player.flash, BLEND_RATES.hurt, delta);
+      visual.playerDownBlend = blendValue(visual.playerDownBlend, player.down, BLEND_RATES.down, delta);
+    }
+    place(player, frame) {
+      const visual = this.deps.visual(), game = this.deps.game(), swing = player.swings.frame;
+      const attackBlend = visual.playerAttackBlend || 0, hurtBlend = visual.playerHurtBlend || 0, downBlend = visual.playerDownBlend || 0;
+      const cell = this.deps.hasCell(game.gridPlayer) ? game.gridPlayer : this.deps.spawn;
+      const speed = Number(player.stats.moveSpeed) || Number(player.stats.move) || 100;
+      const motion = this.movement.update(frame.gridProj, cell, frame.now, speed);
+      const pos = this.movement.airGround({ x: motion.position.x, y: motion.position.y + downBlend * 0.6 }, frame.now, frame.gridProj);
+      const state = {
+        playerStats: player.stats,
+        advanceBlend: motion.animating ? 1 : 0,
+        moveProgress: motion.progress,
+        moveDirection: motion.direction,
+        attackBlend,
+        attackActive: !!swing,
+        attackProgress: swing ? clampNumber((frame.now - swing.start) / Math.max(1, swing.duration * player.durationScale), 0, 0.999) : 0,
+        attackVariantSeed: visual.playerAttackMotionSeed,
+        hurtBlend,
+        downBlend
+      };
+      visual.playerPos = { x: pos.x, y: pos.y };
+      return { pos, motion, state };
+    }
+    direction(player, actor, enemies2, now) {
+      const visual = this.deps.visual();
+      actor.state.attackDirection = this.facing.attackDirection(actor.pos, player.targets, enemies2);
+      const strike = this.facing.strikeSide(now);
+      if (actor.motion.animating) visual.playerFacingDirection = actor.motion.direction;
+      else if (strike) visual.playerFacingDirection = strike;
+      else if (player.swings.frame) visual.playerFacingDirection = actor.state.attackDirection;
+      actor.state.facingDirection = visual.playerFacingDirection || actor.state.attackDirection;
+    }
+    healthGhost(hp, frame) {
+      const visual = this.deps.visual();
+      if (!Number.isFinite(visual.playerHpGhostPct)) visual.playerHpGhostPct = hp;
+      if (!Number.isFinite(visual.playerHpLastPct)) visual.playerHpLastPct = hp;
+      if (!Number.isFinite(visual.playerHpGhostHoldUntil)) visual.playerHpGhostHoldUntil = 0;
+      if (hp < visual.playerHpLastPct - 1e-3) {
+        visual.playerHpGhostPct = Math.max(visual.playerHpGhostPct, visual.playerHpLastPct);
+        visual.playerHpGhostHoldUntil = frame.now + 260;
+      } else if (hp > visual.playerHpGhostPct) visual.playerHpGhostPct = hp;
+      if (frame.now >= visual.playerHpGhostHoldUntil && visual.playerHpGhostPct > hp) {
+        visual.playerHpGhostPct = Math.max(hp, visual.playerHpGhostPct - 0.34 * frame.deltaSec);
+      }
+      visual.playerHpLastPct = hp;
+      return clampNumber(visual.playerHpGhostPct, hp, 1);
+    }
+    health(stats, frame) {
+      const game = this.deps.game();
+      const hp = clampNumber((game.playerHp || 0) / Math.max(1, stats.maxHp || 1), 0, 1);
+      const ghost = this.healthGhost(hp, frame);
+      const es = (stats.energyShield || 0) > 0 ? clampNumber((game.playerEnergyShield || 0) / Math.max(1, stats.energyShield), 0, 1) : 0;
+      return { hpPct: hp, ghostPct: ghost, esPct: es };
+    }
+  };
+
+  // modules/rendering/battlefield-frame-effects.mjs
+  var BattlefieldFrameEffects = class {
+    constructor(deps, parts) {
+      this.deps = deps;
+      this.parts = parts;
+      const { events: events2, death: death2, travel, telegraphs: telegraphs2 } = parts;
+      this.painters = {
+        playerSwing: (ctx, fx, t, v) => deps.tree.swing(ctx, fx, v.now, v.gridProj),
+        playerMobility: (ctx, fx, t, v) => events2.mobility(ctx, fx, t, v.gridProj),
+        combatTravel: (ctx, fx, t, v) => travel.draw(ctx, fx, { now: v.now, projection: v.gridProj, playerPos: v.playerPos, enemyPosMap: v.enemyPosMap }),
+        hit: (ctx, fx, t, v) => events2.legacyHit(ctx, fx, t, v.playerPos, v.enemyPosMap),
+        levelUp: (ctx, fx, t, v) => events2.levelUp(ctx, fx, t, v.playerPos, v.now),
+        objectReward: (ctx, fx, t, v) => deps.tree.feedback.object(ctx, fx, t, v.gridProj),
+        ambushBlink: (ctx, fx, t, v) => deps.ambush.draw(ctx, fx, v.now, v.gridProj),
+        enemySpawn: (ctx, fx, t, v) => events2.spawn(ctx, fx, t, v.enemyPosMap[fx.enemyId]),
+        enemyDeath: (ctx, fx, t, v) => death2.draw(ctx, fx, t, { enemy: v.enemyPosMap[fx.enemyId], playerPos: v.playerPos, gridProj: v.gridProj, now: v.now }),
+        bossAreaImpact: (ctx, fx, t, v) => telegraphs2.trap(ctx, fx, t, v.gridProj, false),
+        trialTrapWarning: (ctx, fx, t, v) => telegraphs2.trap(ctx, fx, t, v.gridProj, true),
+        trialTrap: (ctx, fx, t, v) => telegraphs2.trap(ctx, fx, t, v.gridProj, false),
+        lootPickup: (ctx, fx, t, v) => events2.pickup(ctx, fx, t, { from: v.enemyPosMap[fx.enemyId], to: v.playerPos, width: v.width, height: v.height }),
+        lootCelebration: (ctx, fx, t, v) => events2.celebrate(ctx, fx, t, v.enemyPosMap[fx.enemyId], v)
+      };
+    }
+    autoSwing(player, view) {
+      const latest = player.swings.latest, visual = this.deps.visual();
+      if (latest && latest.id !== visual.lastAutoSwingId && view.now >= (visual.lastAutoSkillAt || 0)) {
+        this.deps.playSkill(latest.skillName || "기본 공격");
+        visual.lastAutoSwingId = latest.id;
+        const interval = Math.min(600, Math.max(120, 1 / Math.max(0.1, player.stats.aspd) * 100));
+        visual.lastAutoSkillAt = view.now + interval;
+      }
+      if (latest && latest.projectile && !latest.combatTravel) {
+        this.parts.queue.launch(latest, {
+          targetEntries: player.targets,
+          playerPos: view.playerPos,
+          enemyPosMap: view.enemyPosMap,
+          viewportScale: Math.min(view.width / 960, view.height / 540)
+        });
+      }
+    }
+    enemyPosition(fx, view) {
+      return view.enemyPosMap[fx.enemyId] || this.deps.visual().enemyGhostPos[fx.enemyId];
+    }
+    hit(fx, view) {
+      const { timing: timing2, body: body2, queue, layer } = this.parts;
+      timing2.hitStop(fx);
+      const enemy = this.enemyPosition(fx, view) || { x: view.width * 0.72, y: view.height * 0.58 };
+      if (typeof fx.damage === "number") this.deps.damageText.fromHit(fx, enemy.x, damageBodyY(enemy.y, body2.enemyHeight(enemy)), view.now);
+      if (!fx.dot && fx.skillName) {
+        queue.hit({ ...fx, combatFx: fx, footprint: this.deps.projectFootprint(fx.attackFootprint, view.gridProj, fx.sourceCell) }, {
+          enemyPos: enemy,
+          playerPos: combatScreenPoint(view.gridProj, fx.sourceCell, view.playerPos),
+          enemyPosMap: view.enemyPosMap,
+          now: view.now,
+          viewportScale: Math.min(view.width / 960, view.height / 540)
+        });
+        layer.noteGround(this.deps.visual().skillEffects || [], view.gridProj);
+      }
+      this.hitParticles(fx, enemy, view);
+    }
+    hitParticles(fx, enemy, view) {
+      if (fx.dot || this.deps.atlas[fx.skillName] || typeof this.deps.spawnAttack !== "function") return;
+      const options = this.parts.timing.spawnOptions(fx, enemy.enemy, view.currentSkillVisual, Math.min(view.width / 960, view.height / 540));
+      if (options) this.deps.spawnAttack(fx.element || "phys", enemy.x, enemy.y - 6, options);
+    }
+    status(fx, view) {
+      const enemy = fx.enemyId ? this.enemyPosition(fx, view) : null, anchor = enemy || view.playerPos;
+      const height = enemy ? this.parts.body.enemyHeight(enemy) : this.parts.body.heroHeight(view.playerPos, view.now);
+      this.deps.damageText(bodyCueFromFx(fx, anchor, height, view.now));
+    }
+    observe(fx, view) {
+      const { timing: timing2, hits: hits2, body: body2 } = this.parts;
+      this.deps.tree.feedback.observe(fx, view.now);
+      if (fx.type === "hit") this.hit(fx, view);
+      else if (fx.type === "playerHit") {
+        timing2.hitStop(fx);
+        if (typeof fx.damage === "number") hits2.heroText(fx, view.playerPos, view.now);
+      } else if (fx.type === "summonHit") {
+        if (typeof fx.damage === "number") hits2.summonText(fx, view.gridProj, view.playerPos, view.now);
+      } else if (fx.type === "enemyEvade") {
+        const enemy = this.enemyPosition(fx, view) || { x: view.width * 0.72, y: view.height * 0.58 };
+        this.deps.damageText(bodyCueFromFx(fx, enemy, body2.enemyHeight(enemy), view.now));
+      } else if (fx.type === "statusText") this.status(fx, view);
+      else if (fx.type === "enemyDeath") this.deathSound(fx, view.now);
+    }
+    deathSound(fx, now) {
+      if (now - fx.start < 500 && typeof this.deps.playFeedback === "function") {
+        this.deps.playFeedback(fx.boss ? "killBoss" : fx.elite ? "killElite" : "kill");
+      }
+    }
+    consume(effects, view) {
+      const processed = this.deps.visual().processedFxIds;
+      effects.forEach((fx) => {
+        if (processed.has(fx.id) || view.now < fx.start) return;
+        this.observe(fx, view);
+        processed.add(fx.id);
+      });
+      this.deps.cleanupVisual(view.now);
+    }
+    afterimages(ctx, view) {
+      const pending = /* @__PURE__ */ new Set();
+      for (const fx of this.deps.effects()) {
+        if (!fx || fx.type !== "hit" || view.now >= fx.start || view.enemyPosMap[fx.enemyId] || pending.has(fx.enemyId)) continue;
+        const ghost = this.deps.visual().enemyGhostPos[fx.enemyId];
+        if (!ghost || !ghost.enemy) continue;
+        pending.add(fx.enemyId);
+        this.drawAfterimage(ctx, ghost, view);
+      }
+    }
+    drawAfterimage(ctx, ghost, view) {
+      const scale = (ghost.enemy.isBoss ? 3.65 : ghost.enemy.isElite ? 2.2 : 1.95) * view.gridUnitScale;
+      this.parts.enemies.afterimage(ctx, ghost.enemy, {
+        x: ghost.x,
+        y: ghost.y,
+        scale,
+        gridProj: view.gridProj,
+        now: view.now,
+        facing: this.parts.facing.direction(ghost, view.playerPos)
+      });
+    }
+    retainGhost(fx, view) {
+      const ghost = fx.enemyId && !view.enemyPosMap[fx.enemyId] ? this.deps.visual().enemyGhostPos[fx.enemyId] : null;
+      if (!ghost || view.enemyPosMap[fx.enemyId]) return;
+      view.enemyPosMap[fx.enemyId] = { enemy: ghost.enemy || { id: fx.enemyId, hp: 0, maxHp: 1 }, x: ghost.x, y: ghost.y, actualAim: ghost.actualAim };
+    }
+    draw(ctx, view) {
+      const effects = this.deps.effects().filter((fx) => !this.parts.travel.isGround(fx) && !fx.loot && !fx.groundLoot);
+      for (const fx of effects) {
+        if (view.now < fx.start) continue;
+        const t = clampNumber((view.now - fx.start) / fx.duration, 0, 1);
+        this.deps.bossAttacks.drawHeadRelease(ctx, fx, view.now);
+        this.deps.bossMoves.drawWoodsmanFx(ctx, fx, view.now, view.gridProj);
+        this.retainGhost(fx, view);
+        const paint = this.painters[fx.type];
+        if (paint) paint(ctx, fx, t, view);
+      }
+    }
+  };
+
+  // modules/rendering/battlefield-renderer.mjs
+  var MAP_MONSTERS_LEFT_HINT = 5;
+  var BattlefieldRenderer = class {
+    constructor(deps, parts) {
+      this.deps = deps;
+      this.parts = parts;
+    }
+    resize(canvas, box) {
+      const scale = this.deps.display.battleRenderScale;
+      const width = box.width || Math.round((canvas.width || 960) / scale) || 960;
+      const height = box.height || Math.round((canvas.height || 540) / scale) || 540;
+      if (canvas.width !== Math.max(1, Math.round(width * scale)) || canvas.height !== Math.max(1, Math.round(height * scale))) this.deps.resize();
+    }
+    open(forceWhenHidden) {
+      const canvas = this.deps.document.getElementById("battlefield-canvas");
+      if (!canvas) return null;
+      const box = this.deps.canvasBox.read(canvas);
+      if (!forceWhenHidden && box.width === 0) return null;
+      this.loadAssets();
+      this.resize(canvas, box);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      const renderScale = clampNumber(Number(canvas.dataset.renderScale) || 1, 1, 2);
+      const view = this.deps.canvasBox.read(canvas);
+      const width = Math.max(1, view.width || Math.round(canvas.width / renderScale) || canvas.width);
+      const height = Math.max(1, view.height || Math.round(canvas.height / renderScale) || canvas.height);
+      return { canvas, ctx, renderScale, box: view, width, height };
+    }
+    loadAssets() {
+      const assets = this.deps.assets;
+      if (!assets.ready && !assets.loading && !assets.failed && this.deps.autoload()) this.deps.initAssets();
+    }
+    clock(view, cadence) {
+      const wallNow = this.deps.now(), observerScene = this.deps.bossMoves.observerScene(wallNow);
+      const time = this.deps.tree.feedback.advanceClock(wallNow, !!observerScene);
+      this.deps.tree.feedback.begin(time.now);
+      this.deps.visual().lastNow = time.now;
+      this.deps.cleanupFx(time.now);
+      const count = (this.deps.game().enemies || []).reduce((sum, enemy) => sum + (enemy && enemy.hp > 0 ? 1 : 0), 0);
+      const density = this.parts.timing.updateDensity(time.rawDeltaMs, count, cadence);
+      if (typeof this.deps.updateAttacks === "function") this.deps.updateAttacks(time.deltaMs);
+      Object.assign(view, time, { observerScene, density, deltaSec: time.deltaMs / 1e3 });
+    }
+    backdrop(view) {
+      const { ctx, canvas, renderScale, width, height, now } = view;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = view.density < 0.7 ? "medium" : "high";
+      view.cameraShake = this.parts.screen.shake(now);
+      ctx.translate(view.cameraShake.x, view.cameraShake.y);
+      const zone = this.deps.zone(this.deps.game().currentZoneId), theme = this.deps.theme(zone);
+      view.gridProj = this.deps.projection(width, height, "grid-contain");
+      this.deps.bossMoves.observerCamera(ctx, view.observerScene, width, height, view.gridProj);
+      this.deps.backdrop(ctx, width, height, theme, now, zone, view.gridProj);
+    }
+    loading(view) {
+      if (this.deps.assets.ready || !this.deps.assets.loading) return false;
+      const { ctx, width, height } = view;
+      ctx.save();
+      ctx.fillStyle = "rgba(6,10,16,0.55)";
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = "rgba(201, 223, 244, 0.82)";
+      ctx.font = `700 24px ${this.parts.text.font()}`;
+      ctx.textAlign = "center";
+      this.deps.drawText(ctx, "전장을 준비하는 중...", width / 2, height / 2);
+      ctx.restore();
+      this.deps.document.getElementById("ui-battlefield-caption").innerText = this.deps._t("전장을 준비하는 중...");
+      return true;
+    }
+    position(view, player) {
+      const game = this.deps.game(), visual = this.deps.visual(), swing = player.swings.frame;
+      const enemies2 = (game.enemies || []).filter((enemy) => enemy.hp > 0);
+      view.enemies = enemies2;
+      view.swingPower = swing ? Math.sin((view.now - swing.start) / (swing.duration * player.durationScale) * Math.PI) : 0;
+      view.currentSkillVisual = this.deps.skillVisual(game.activeSkill, player.skill);
+      this.parts.player.blend(player, view);
+      const layout = this.deps.layout(enemies2, view.width, view.height, view.gridProj);
+      const hero = this.parts.player.place(player, view);
+      view.playerPos = hero.pos;
+      this.parts.actors.markHero(hero.pos, view.gridProj);
+      if (!visual.enemySmoothPos) visual.enemySmoothPos = {};
+      const glide = { now: view.now, deltaSec: view.deltaSec, gridProj: view.gridProj };
+      view.layout = this.deps.drawList.markDrawn(
+        layout.map((entry) => this.parts.enemies.glide(entry, glide)),
+        { width: view.width, height: view.height, tile: view.gridProj.tileW }
+      );
+      view.enemyPosMap = this.parts.enemies.positions(view.layout, this.deps.effects(), view.now, view.gridProj);
+      this.parts.player.direction(player, hero, view.enemyPosMap, view.now);
+      view.motionState = hero.state;
+    }
+    returnPosition(effect, projection) {
+      if (!effect) return null;
+      const cell = this.deps.hasCell(effect.cell) ? effect.cell : this.deps.spawn;
+      const anchor = projection.cellToScreen(cell.gx, cell.gy);
+      effect.position = { x: anchor.x, y: anchor.y + (Number(projection.actorGroundOffsetY) || 0) };
+      return effect;
+    }
+    actors(view, player) {
+      view.ctx = this.deps.loot.actorContext(view.canvas, view.ctx, view.now, view.gridProj);
+      const { ctx, gridProj, now, playerPos, enemyPosMap } = view;
+      (this.deps.visual().projectiles || []).forEach((projectile) => this.deps.projectile(ctx, projectile, now));
+      this.parts.telegraphs.draw(ctx, view.layout, view.gridUnitScale, gridProj, this.deps.pending());
+      const motions = this.parts.hits.attackMotions(this.deps.effects(), enemyPosMap, playerPos, now, gridProj);
+      const enemyAttackMotions = this.deps.bossAttacks.addMotions(motions, view.layout, playerPos, now, gridProj.tileW);
+      const returnWarp = this.returnPosition(returnArrival(this.deps.effects(), now), gridProj);
+      const returnDepartureEffect = this.returnPosition(returnDeparture(this.deps.effects(), now), gridProj);
+      this.parts.actors.draw(ctx, view.layout, {
+        now,
+        width: view.width,
+        height: view.height,
+        gridProj,
+        gridUnitScale: view.gridUnitScale,
+        enemyHitFlashes: view.enemyHitFlashes,
+        enemyCount: view.layout.length,
+        playerPos,
+        currentTargets: player.targets,
+        enemyPosMap,
+        playerFlash: player.flash,
+        swingPower: view.swingPower,
+        currentSkillVisual: view.currentSkillVisual,
+        motionState: view.motionState,
+        enemyAttackMotions,
+        returnWarp,
+        returnDeparture: returnDepartureEffect
+      });
+    }
+    foreground(view, player) {
+      const { ctx, now, gridProj } = view;
+      this.parts.frameEffects.afterimages(ctx, view);
+      this.deps.frontSkills(ctx, now, gridProj);
+      this.deps.woodsman.foreground(ctx, gridProj);
+      if (typeof this.deps.drawAttacks === "function") this.deps.drawAttacks(ctx);
+      const health = this.parts.player.health(player.stats, view);
+      const targets = player.targets.map((hit) => hit.enemy && hit.enemy.id).filter(Boolean);
+      this.parts.frameEffects.draw(ctx, view);
+      return {
+        width: view.width,
+        height: view.height,
+        light: view.playerPos,
+        ...health,
+        now,
+        layout: view.layout,
+        targets,
+        tileW: gridProj.tileW,
+        projection: gridProj,
+        pending: this.deps.pending(),
+        observerScene: view.observerScene
+      };
+    }
+    overlays(view, scene) {
+      const { ctx, now, gridProj, width, height, renderScale, cameraShake } = view;
+      this.parts.screen.finish(ctx, scene);
+      if (typeof this.deps.stageScene === "object") this.deps.stageScene.drawMarks(ctx, gridProj);
+      const exclusions = view.box.enemyOverlays.map((rect) => ({ ...rect, x: rect.x - cameraShake.x, y: rect.y - cameraShake.y }));
+      this.deps.drawDamage(ctx, now, this.parts.bars.exclusions(exclusions));
+      this.deps.titleCard.draw(ctx, scene);
+      ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+      this.parts.screen.hurtEdge(ctx, width, height, now);
+      this.deps.tree.feedback.screen(ctx, { width, height, now });
+      this.parts.banner.draw(ctx, { width, height, now }, this.parts.banner.update(view.enemies, now));
+      if (typeof this.deps.rooms === "object") this.deps.rooms.drawOverlay(ctx, view.box, gridProj);
+      this.deps.bossMoves.drawObserverTransition(ctx, view.observerScene, width, height);
+    }
+    monstersLeft() {
+      const exploration = this.deps.explorationState;
+      const run = typeof exploration === "object" ? exploration.current(this.deps.game()) : null;
+      if (!run || !Array.isArray(run.packs)) return null;
+      return run.packs.filter((pack) => pack && pack.stage === null).reduce((sum, pack) => sum + (pack.aliveIds || []).length, 0);
+    }
+    caption() {
+      const game = this.deps.game();
+      if (game.isTownReturning && game.moveTimer > 0) return "마을로 귀환 중...";
+      if (game.woodsmanEntrancePending) return "혼돈 밖이 침묵합니다… 나무꾼이 다가옵니다.";
+      if (game.moveTimer > 0) return "";
+      const left = this.monstersLeft();
+      return [
+        this.deps.barkEffect().on ? "세계수 껍질 구간" : "",
+        left > 0 && left <= MAP_MONSTERS_LEFT_HINT ? this.deps._t("몬스터 {left}마리 남음", { left }) : ""
+      ].filter(Boolean).join(", ");
+    }
+    flush(view) {
+      this.deps.bossMoves.syncObserverHud(view.observerScene);
+      this.deps.setText(this.deps.document.getElementById("ui-battlefield-caption"), this.caption());
+      const exploration = this.deps.explorationView;
+      if (typeof exploration === "object" && exploration.objects) exploration.objects.flushButtons();
+      this.deps.warmup.afterBattleDraw(view.ctx);
+    }
+    /** Only completed frames count toward performance statistics. Hidden/missing/loading surfaces return early. */
+    render(forceWhenHidden, targetFrameMs) {
+      this.deps.doors.begin();
+      this.deps.tree.beginFrame();
+      const view = this.open(forceWhenHidden);
+      if (!view) return;
+      this.clock(view, targetFrameMs);
+      this.backdrop(view);
+      const player = this.parts.player.read(view.now);
+      view.enemyHitFlashes = this.parts.hits.flashes(this.deps.effects(), view.now);
+      const cells = this.parts.ground.skillAreaCells(this.deps.game().activeSkill || "기본 공격", player.skill, player.targets);
+      this.parts.ground.grid(view.ctx, view.gridProj, player.targets, cells);
+      if (this.loading(view)) return;
+      this.position(view, player);
+      this.parts.frameEffects.autoSwing(player, view);
+      view.gridUnitScale = clampNumber(view.gridProj.tileW / 46, 0.48, Math.max(1.3, view.gridProj.unitScaleCap || 0));
+      this.deps.drawGround(view.ctx, this.deps.effects(), view);
+      this.deps.bossAttacks.drawGround(view.ctx, view.gridProj);
+      this.parts.frameEffects.consume(this.deps.effects(), view);
+      this.actors(view, player);
+      this.overlays(view, this.foreground(view, player));
+      this.flush(view);
+      return true;
+    }
+  };
+
+  // modules/canvas-battlefield-classic.mjs
+  var text = new BattlefieldText({
+    get i18n() {
+      return i18n;
+    },
+    get tones() {
+      return statToneText;
+    },
+    get drawText() {
+      return drawCrispCanvasText;
+    }
+  });
+  var body = new BattlefieldBody({
+    get wispBarLift() {
+      return wispActors.barLift;
+    },
+    get heroHeadY() {
+      return getHeroHeadY;
+    },
+    get heroSizeScale() {
+      return HERO_SIZE_SCALE;
+    }
+  });
+  var labels = new BattlefieldLabels({
+    get mechanics() {
+      return COSMOS_MECHANIC_DB;
+    },
+    get habitats() {
+      return COSMOS_ROUTE_G1.habitats;
+    },
+    get tones() {
+      return statToneText;
+    }
+  }, text);
+  var bars = new BattlefieldBars({
+    get heroHeadY() {
+      return getHeroHeadY;
+    },
+    get heroSizeScale() {
+      return HERO_SIZE_SCALE;
+    },
+    get woodsmanActive() {
+      return woodsmanView.active;
+    },
+    get readability() {
+      return drawBattlePlayerFigure.readability;
+    },
+    get damageGhost() {
+      return typeof updateEnemyHpDamageGhost === "function" ? updateEnemyHpDamageGhost : null;
+    },
+    get drawnEntry() {
+      return battleDrawList.drawnEntry;
+    },
+    get arrow() {
+      return targetMarks.arrow;
+    },
+    get actorScale() {
+      return stageActors.scaleFor;
+    },
+    get combatTime() {
+      return getCombatTime;
+    },
+    get castBar() {
+      return enemyAttackRules.castBar;
+    },
+    pendingAttacks: () => window.GameModules.state.combat.pendingEnemyCombatAttacks
+  }, body, labels, text);
+  var runtimeFunction = (name) => {
+    const provider = window[name];
+    return typeof provider === "function" && provider.__placeholderGlobal !== true ? provider : null;
+  };
+  var screen = new BattlefieldScreen({
+    game: () => window.GameModules.state.game,
+    effects: () => battleFx,
+    get feedback() {
+      return worldTreeSkillFx.feedback;
+    },
+    get feedbackProfile() {
+      return typeof getBattleFeedbackProfile === "function" ? getBattleFeedbackProfile : null;
+    },
+    get entrance() {
+      return bossEntranceView;
+    },
+    get projectileImpact() {
+      return stageProjectileImpact;
+    },
+    renderScale: () => typeof uiDisplay === "object" && uiDisplay && uiDisplay.battleRenderScale,
+    reducedEffects: () => uiDisplay.reducedEffects(),
+    documentBody: () => typeof document !== "undefined" ? document.body : null,
+    roomGlow: () => typeof actExplorationView === "object" ? actExplorationView.bossRoomGlow() : null,
+    get redrawn() {
+      return redrawnSkillFx;
+    },
+    get summons() {
+      return wispSummonFx;
+    },
+    get remake() {
+      return fxRemake;
+    },
+    get ocean() {
+      return typeof stageOcean === "object" ? stageOcean : void 0;
+    },
+    get readability() {
+      return drawBattlePlayerFigure.readability;
+    },
+    get actors() {
+      return stageActors;
+    },
+    get exploration() {
+      return actExplorationState;
+    }
+  }, bars);
+  var banner = new BattlefieldBossBanner({
+    visual: () => battleVisualState,
+    get entrance() {
+      return bossEntranceView;
+    },
+    get bossMoves() {
+      return bossMoves;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get _t() {
+      return _t;
+    },
+    get stripEmoji() {
+      return stripDecorativeEmoji;
+    },
+    get drawText() {
+      return drawCrispCanvasText;
+    },
+    drawnEntry: (boss) => typeof battleDrawList === "object" ? battleDrawList.drawnEntry(boss) : null
+  }, body, text);
+  var timing = new BattlefieldFeedbackTiming({
+    get playerStats() {
+      return runtimeFunction("getPlayerStats");
+    },
+    get skillTargets() {
+      return runtimeFunction("getSkillTargets");
+    },
+    game: () => window.GameModules.state.game,
+    now: () => typeof performance !== "undefined" && performance.now ? performance.now() : Date.now(),
+    get combatTime() {
+      return getCombatTime;
+    },
+    visual: () => battleVisualState,
+    effects: () => battleFx,
+    skillProfile: (name) => getSkillGemVfxProfile(name),
+    get feedbackProfile() {
+      return getBattleFeedbackProfile;
+    }
+  });
+  var movement = new PlayerGridMotion({
+    get classes() {
+      return typeof PLAYER_CLASS_DEFS === "undefined" ? null : PLAYER_CLASS_DEFS;
+    },
+    get heroes() {
+      return typeof HERO_SELECTION_DEFS === "undefined" ? null : HERO_SELECTION_DEFS;
+    },
+    get moveIntervalSec() {
+      return COMBAT_GRID_CONFIG.playerMoveIntervalSec;
+    },
+    get cellKey() {
+      return gridCellKey;
+    },
+    effects: () => battleFx,
+    visual: () => battleVisualState,
+    run: () => actExplorationState.current(window.GameModules.state.game),
+    get explorationMotion() {
+      return actExplorationMotion;
+    },
+    get paused() {
+      return isForegroundGameplayPausedForBackground;
+    },
+    get kickoffMs() {
+      return STAGE_VIEW.kickoffMs;
+    },
+    get runes() {
+      return typeof stageSkillRunes === "object" ? stageSkillRunes : null;
+    }
+  });
+  var returning = new PlayerReturnEffect({ reducedEffects: () => uiDisplay.reducedEffects() });
+  var playerFacing = new PlayerFacing({
+    game: () => window.GameModules.state.game,
+    visual: () => battleVisualState,
+    effects: () => battleFx,
+    get combatTime() {
+      return getCombatTime;
+    },
+    skillRuntime: () => window.GameModules.state.combat.skillGemCombatRuntime,
+    get mobility() {
+      return mobilitySkill;
+    },
+    get actors() {
+      return stageActors;
+    }
+  });
+  var events = new BattlefieldEventEffects({
+    get tree() {
+      return worldTreeSkillFx;
+    },
+    get headY() {
+      return getHeroHeadY;
+    },
+    get heroScale() {
+      return HERO_SIZE_SCALE;
+    },
+    get _t() {
+      return _t;
+    },
+    get drawText() {
+      return drawCrispCanvasText;
+    },
+    get atlas() {
+      return SKILL_FX_ATLAS;
+    },
+    get hitFx() {
+      return drawBattleHitFx;
+    }
+  }, text);
+  var telegraphs = new EnemyTelegraphs({
+    get bossAttacks() {
+      return bossAttackView;
+    },
+    get traps() {
+      return trialTrapArt;
+    },
+    get projectFootprint() {
+      return projectSkillFootprint;
+    },
+    get drawFootprint() {
+      return drawSkillFootprintGround;
+    },
+    get woodsman() {
+      return woodsmanView;
+    },
+    get sideEncounters() {
+      return sideEncounterCanvas;
+    },
+    get bossMoves() {
+      return bossMoveView;
+    },
+    observerZone: () => window.GameModules.state.game.currentZoneId === BEYOND_BOUNDARY_UNLOCK_BOSS_ID
+  });
+  var facing = new EnemyFacing({
+    get bossMoves() {
+      return bossMoveView;
+    },
+    get mobility() {
+      return mobilitySkill;
+    },
+    get frontFacing() {
+      return BOSS_ASSET_FRONT_FACING;
+    }
+  });
+  var enemies = new BattlefieldEnemies({
+    get bossDrawScale() {
+      return BOSS_DRAW_SCALE;
+    },
+    get entrance() {
+      return bossEntranceView;
+    },
+    get wisps() {
+      return wispActors;
+    },
+    get monsters() {
+      return monsterActors;
+    },
+    get woodsman() {
+      return woodsmanBattle;
+    },
+    get woodsmanView() {
+      return woodsmanView;
+    },
+    get ambush() {
+      return enemyAmbushView;
+    },
+    get bossMoves() {
+      return bossMoveView;
+    },
+    get stride() {
+      return stageStride;
+    },
+    get attackRules() {
+      return enemyAttackRules;
+    },
+    get drawSprite() {
+      return drawEnemySprite;
+    },
+    visual: () => battleVisualState
+  }, facing);
+  var hits = new BattlefieldHitFeedback({
+    game: () => window.GameModules.state.game,
+    visual: () => battleVisualState,
+    effects: () => battleFx,
+    mildHits: () => window.GameModules.state.game.settings.hitEmphasis === "mild" || uiDisplay.reducedEffects(),
+    get damageText() {
+      return spawnDamageText;
+    },
+    get hasCell() {
+      return hasGridCell;
+    },
+    get roster() {
+      return stageRoster;
+    },
+    get footprint() {
+      return getGridUnitFootprint;
+    }
+  }, body);
+  var death = new EnemyDeathRenderer({
+    reducedEffects: () => uiDisplay.reducedEffects(),
+    get story() {
+      return stageStory;
+    },
+    get roster() {
+      return stageRoster;
+    },
+    get feedback() {
+      return worldTreeSkillFx.feedback;
+    },
+    facing: facing.direction.bind(facing),
+    bossScale: enemies.bossScale.bind(enemies),
+    drawAfterimage: enemies.afterimage.bind(enemies)
+  });
+  var images = new SkillEffectImages(() => document.createElement("canvas"));
+  var impacts = new SkillImpactRenderer({
+    get color() {
+      return getElementColor;
+    },
+    get signature() {
+      return drawSkillSignatureImpact;
+    },
+    get ground() {
+      return drawSkillFootprintGround;
+    }
+  }, images);
+  var effectQueue = new SkillEffectQueue({
+    profile: (name) => getSkillGemVfxProfile(name),
+    visual: () => battleVisualState,
+    effects: () => battleFx,
+    get skills() {
+      return typeof SKILL_DB === "undefined" ? null : SKILL_DB;
+    },
+    get rules() {
+      return typeof stageSkillRules === "object" ? stageSkillRules : null;
+    },
+    get tree() {
+      return worldTreeSkillFx;
+    },
+    get delivery() {
+      return getSkillCombatDelivery;
+    }
+  }, timing);
+  var effectLayer = new SkillEffectLayer({
+    effects: () => battleVisualState.skillEffects,
+    get image() {
+      return getSkillGemVfxImage;
+    },
+    get atlas() {
+      return SKILL_FX_ATLAS;
+    },
+    get remake() {
+      return fxRemake;
+    },
+    get tree() {
+      return worldTreeSkillFx;
+    },
+    get stage() {
+      return typeof stageSkillVfx === "object" ? stageSkillVfx : null;
+    },
+    get sigil() {
+      return stageSkillSigil;
+    },
+    get bossMoves() {
+      return bossMoveView;
+    },
+    get color() {
+      return getElementColor;
+    }
+  }, images, impacts);
+  var spellSources = {
+    profile: (name) => getSkillGemVfxProfile(name),
+    get image() {
+      return getSkillGemVfxImage;
+    },
+    get color() {
+      return getElementColor;
+    },
+    get grids() {
+      return typeof SKILL_GRID_DB === "undefined" ? null : SKILL_GRID_DB;
+    },
+    get enemyProjectiles() {
+      return enemyProjectileSprites;
+    },
+    get earthSpikes() {
+      return drawEarthSpikeField;
+    },
+    get footprintGround() {
+      return drawSkillFootprintGround;
+    }
+  };
+  var cellEffects = new CombatCellEffect(
+    spellSources,
+    images,
+    new AreaSpellPainter(spellSources),
+    new MeteorSpellPainter(spellSources)
+  );
+  var travelEffects = new CombatTravelEffect({
+    profile: (name) => getSkillGemVfxProfile(name),
+    get image() {
+      return getSkillGemVfxImage;
+    },
+    get color() {
+      return getElementColor;
+    },
+    get grids() {
+      return typeof SKILL_GRID_DB === "undefined" ? null : SKILL_GRID_DB;
+    },
+    get enemyProjectiles() {
+      return enemyProjectileSprites;
+    },
+    get rules() {
+      return stageSkillRules;
+    },
+    get tree() {
+      return worldTreeSkillFx;
+    },
+    get atlas() {
+      return SKILL_FX_ATLAS;
+    },
+    get signature() {
+      return drawSkillSignatureTravel;
+    },
+    get footprint() {
+      return projectSkillFootprint;
+    },
+    game: () => window.GameModules.state.game,
+    drawnHeight: (enemy) => body.drawnHeight(enemy),
+    headOrigin: (...args) => stageRoster.headOrigin(...args)
+  }, images, cellEffects);
+  var ground = new BattlefieldGround({
+    get cosmos() {
+      return cosmosRouteRuntime;
+    },
+    get gridSize() {
+      return getCombatGridSize;
+    },
+    get exploration() {
+      return actExplorationState;
+    },
+    game: () => window.GameModules.state.game,
+    get walkable() {
+      return actExplorationMap.walkable;
+    },
+    get explorationView() {
+      return actExplorationView;
+    },
+    get rings() {
+      return stageRings;
+    },
+    get actors() {
+      return stageActors;
+    },
+    get unitCells() {
+      return getGridUnitCells;
+    },
+    get stride() {
+      return stageStride;
+    },
+    visual: () => battleVisualState,
+    get hasCell() {
+      return hasGridCell;
+    },
+    get skillProfile() {
+      return getSkillGridProfile;
+    },
+    get attackArea() {
+      return getGridAttackAreaCells;
+    },
+    get cellKey() {
+      return gridCellKey;
+    },
+    get sideEncounters() {
+      return sideEncounterCanvas;
+    },
+    get combatTime() {
+      return getCombatTime;
+    },
+    get traps() {
+      return trialTrapArt;
+    },
+    get remake() {
+      return fxRemake;
+    },
+    get stageEffects() {
+      return typeof stageSkillVfx === "object" ? stageSkillVfx : void 0;
+    },
+    get blessing() {
+      return typeof stageBlessing === "object" ? stageBlessing : void 0;
+    },
+    get tree() {
+      return worldTreeSkillFx;
+    },
+    get redrawn() {
+      return redrawnSkillFx;
+    },
+    get summons() {
+      return wispSummonFx;
+    },
+    get ocean() {
+      return typeof stageOcean === "object" ? stageOcean : void 0;
+    },
+    get incidents() {
+      return typeof stageIncidents === "object" ? stageIncidents : void 0;
+    },
+    get drawSummons() {
+      return drawActiveSummons;
+    }
+  }, screen, travelEffects);
+  var actorLayer = new BattlefieldActors({
+    get messageFrames() {
+      return typeof messageFrames === "object" ? messageFrames : void 0;
+    },
+    get actors() {
+      return stageActors;
+    },
+    get doors() {
+      return stageDoorMarks;
+    },
+    get roster() {
+      return stageRoster;
+    },
+    get footprint() {
+      return getGridUnitFootprint;
+    },
+    get layout() {
+      return getBattleLayout;
+    },
+    get exploration() {
+      return actExplorationView;
+    },
+    get drawList() {
+      return battleDrawList;
+    },
+    effects: () => battleFx,
+    get woodsman() {
+      return woodsmanView;
+    },
+    get traps() {
+      return trialTrapArt;
+    },
+    get entrance() {
+      return bossEntranceView;
+    },
+    get readability() {
+      return drawBattlePlayerFigure.readability;
+    },
+    get drawPlayer() {
+      return window.drawBattlePlayerActor;
+    },
+    get drawEnemy() {
+      return window.drawBattleEnemyActor;
+    },
+    get tree() {
+      return worldTreeSkillFx;
+    },
+    get mirrored() {
+      return isBattlePlayerMirrored;
+    },
+    get tintedPlayer() {
+      return drawTintedBattlePlayerFigure;
+    }
+  }, hits, body, returning);
+  var playerFrame = new BattlefieldPlayerFrame({
+    game: () => window.GameModules.state.game,
+    visual: () => battleVisualState,
+    effects: () => battleFx,
+    get appearance() {
+      return typeof getHeroAppearanceId === "function" ? getHeroAppearanceId : null;
+    },
+    get skills() {
+      return SKILL_DB;
+    },
+    get hasCell() {
+      return hasGridCell;
+    },
+    get spawn() {
+      return COMBAT_GRID_CONFIG.playerSpawn;
+    }
+  }, timing, movement, playerFacing);
+  var frameEffects = new BattlefieldFrameEffects({
+    get tree() {
+      return worldTreeSkillFx;
+    },
+    get ambush() {
+      return enemyAmbushView;
+    },
+    visual: () => battleVisualState,
+    effects: () => battleFx,
+    get playSkill() {
+      return playSkillFromActiveGem;
+    },
+    get damageText() {
+      return spawnDamageText;
+    },
+    get projectFootprint() {
+      return projectSkillFootprint;
+    },
+    get atlas() {
+      return SKILL_FX_ATLAS;
+    },
+    get spawnAttack() {
+      return typeof attackFxSpawn === "function" ? attackFxSpawn : void 0;
+    },
+    get playFeedback() {
+      return typeof playUiFeedbackSound === "function" ? playUiFeedbackSound : void 0;
+    },
+    get cleanupVisual() {
+      return cleanupBattleVisualState;
+    },
+    get bossAttacks() {
+      return bossAttackView;
+    },
+    get bossMoves() {
+      return bossMoveView;
+    }
+  }, { events, death, travel: travelEffects, telegraphs, timing, body, queue: effectQueue, layer: effectLayer, hits, enemies, facing });
+  var renderer = new BattlefieldRenderer({
+    game: () => window.GameModules.state.game,
+    visual: () => battleVisualState,
+    effects: () => battleFx,
+    get document() {
+      return document;
+    },
+    get display() {
+      return uiDisplay;
+    },
+    get resize() {
+      return resizeBattlefieldCanvas;
+    },
+    get canvasBox() {
+      return window.GameModules.battlefieldPresentation.canvasBox;
+    },
+    get assets() {
+      return battleAssets;
+    },
+    autoload: () => window.__battleAssetAutoloadEnabled !== false,
+    get initAssets() {
+      return initBattleAssets;
+    },
+    now: () => performance.now(),
+    get bossMoves() {
+      return bossMoveView;
+    },
+    get tree() {
+      return worldTreeSkillFx;
+    },
+    get cleanupFx() {
+      return cleanupBattleFx;
+    },
+    get updateAttacks() {
+      return typeof attackFxUpdate === "function" ? attackFxUpdate : void 0;
+    },
+    get zone() {
+      return getZone;
+    },
+    get theme() {
+      return getBattleZoneTheme;
+    },
+    get projection() {
+      return getBattleGridProjection;
+    },
+    get backdrop() {
+      return drawBattleBackdrop;
+    },
+    get drawText() {
+      return drawCrispCanvasText;
+    },
+    get _t() {
+      return _t;
+    },
+    get skillVisual() {
+      return getBattleSkillVisual;
+    },
+    get layout() {
+      return getBattleLayout;
+    },
+    get drawList() {
+      return battleDrawList;
+    },
+    get hasCell() {
+      return hasGridCell;
+    },
+    get spawn() {
+      return COMBAT_GRID_CONFIG.playerSpawn;
+    },
+    get loot() {
+      return battleGroundLoot;
+    },
+    get projectile() {
+      return drawVisualProjectile;
+    },
+    pending: () => window.GameModules.state.combat.pendingEnemyCombatAttacks,
+    get bossAttacks() {
+      return bossAttackView;
+    },
+    get frontSkills() {
+      return window.drawSkillGemVfxLayer;
+    },
+    get woodsman() {
+      return woodsmanView;
+    },
+    get drawAttacks() {
+      return typeof attackFxDraw === "function" ? attackFxDraw : void 0;
+    },
+    get stageScene() {
+      return typeof stageScene === "object" ? stageScene : void 0;
+    },
+    get drawDamage() {
+      return drawDamageTexts;
+    },
+    get titleCard() {
+      return actTitleCard;
+    },
+    get rooms() {
+      return typeof stageRoomsView === "object" ? stageRoomsView : void 0;
+    },
+    get explorationState() {
+      return typeof actExplorationState === "object" ? actExplorationState : void 0;
+    },
+    get barkEffect() {
+      return getWorldTreeBarkEffect;
+    },
+    get setText() {
+      return setElementText;
+    },
+    get explorationView() {
+      return typeof actExplorationView === "object" ? actExplorationView : void 0;
+    },
+    get warmup() {
+      return stageWarmup;
+    },
+    get doors() {
+      return stageDoorMarks;
+    },
+    get drawGround() {
+      return window.drawBattleGroundLayer;
+    }
+  }, {
+    timing,
+    screen,
+    player: playerFrame,
+    actors: actorLayer,
+    enemies,
+    telegraphs,
+    hits,
+    frameEffects,
+    bars,
+    banner,
+    text,
+    ground
+  });
+  var getSkillGemVfxProfile = (name) => {
+    const profiles = typeof SKILL_GEM_VFX_PROFILES === "undefined" ? null : SKILL_GEM_VFX_PROFILES;
+    return profiles && profiles[name] ? profiles[name] : null;
+  };
+  var battlePixelFont = text.font.bind(text);
+  var drawEnemyDeathFx = death.draw.bind(death);
+  var drawBossDefeat = death.boss.bind(death);
+  var drawCombatTravelFx = (ctx, fx, ...view) => {
+    const [now, projection, playerPos, enemyPosMap] = view;
+    return travelEffects.draw(ctx, fx, { now, projection, playerPos, enemyPosMap });
+  };
+  var isGroundSkillCast = travelEffects.isGround.bind(travelEffects);
+  var drawTrialTrapGridFx = telegraphs.trap.bind(telegraphs);
+  var getEnemyTelegraphColor = enemyTelegraphColor;
+  var drawBossPatternArea = telegraphs.pattern.bind(telegraphs);
+  var drawEnemyAttackTelegraphs = telegraphs.draw.bind(telegraphs);
+  var drawEliteNameplate = labels.draw.bind(labels);
+  var noteEnemyDrawnHeight = body.note.bind(body);
+  var getEnemyFieldBarLift = body.barLift.bind(body);
+  var getBodyCueAnchor = Object.assign((pos, height) => bodyCueAnchor(pos, height), { fromFx: bodyCueFromFx });
+  var getEnemyBodyHeight = body.enemyHeight.bind(body);
+  var updatePlayerGridVisualMotion = movement.update.bind(movement);
+  var getStageHeroAirGround = movement.airGround.bind(movement);
+  var drawPlayerReturnWarpEffect = returning.arrival.bind(returning);
+  var drawPlayerReturnDepartureEffect = returning.departure.bind(returning);
+  var drawPlayerReturnWhiteShroud = returning.shroud.bind(returning);
+  var getPlayerHurtPosition = hits.hurtPosition.bind(hits);
+  var resolveEnemyFacingDirection = facing.direction.bind(facing);
+  var noteEnemySpriteSide = facing.note.bind(facing);
+  var shouldMirrorEnemySprite = facing.mirror.bind(facing);
+  var getBossDrawScale = enemies.bossScale.bind(enemies);
+  var drawBattleActorLayer = actorLayer.draw.bind(actorLayer);
+  var getMapMonstersLeft = renderer.monstersLeft.bind(renderer);
+  var renderBattlefield = renderer.render.bind(renderer);
+  var getBattleCameraShake = screen.shake.bind(screen);
+  var drawBattleScreenGrade = screen.grade.bind(screen);
+  var drawBattleLightingAndBars = screen.finish.bind(screen);
+  var drawLockOnMark = bars.lockOn.bind(bars);
+  var updateBossAnnouncement = banner.update.bind(banner);
+  var drawBossAnnouncement = banner.draw.bind(banner);
+  var getEnemyDisplayName = banner.displayName.bind(banner);
+  var getEnemyTraitSummary = banner.traits.bind(banner);
+  var resolveStageStrikeSide = playerFacing.strikeSide.bind(playerFacing);
+  var drawBattleGroundLayer = ground.draw.bind(ground);
+  var drawSkillGemVfxLayer = effectLayer.draw.bind(effectLayer);
+  var drawBattlePlayerActor = actorLayer.player.bind(actorLayer);
+  var drawBattleEnemyActor = enemies.draw.bind(enemies);
+  drawEliteNameplate.presentation = labels.presentation.bind(labels);
+  window.GameModules.battlefieldHud = Object.freeze({
+    drawnEnemyHeight: body.drawnHeight.bind(body),
+    dispose: () => {
+      timing.dispose();
+      body.dispose();
+      labels.dispose();
+      bars.dispose();
+      images.dispose();
+      hits.dispose();
+      facing.dispose();
+      playerFacing.dispose();
+    }
+  });
+  safeExposeGlobals({ battlePixelFont, drawEnemyDeathFx, drawBossDefeat, drawCombatTravelFx, isGroundSkillCast, drawTrialTrapGridFx, getEnemyTelegraphColor, drawBossPatternArea, drawEnemyAttackTelegraphs, drawEliteNameplate, noteEnemyDrawnHeight, getEnemyFieldBarLift, getBodyCueAnchor, getEnemyBodyHeight, updatePlayerGridVisualMotion, getStageHeroAirGround, drawPlayerReturnWarpEffect, drawPlayerReturnDepartureEffect, drawPlayerReturnWhiteShroud, getPlayerHurtPosition, resolveEnemyFacingDirection, noteEnemySpriteSide, shouldMirrorEnemySprite, getBossDrawScale, drawBattleActorLayer, getMapMonstersLeft, getBattleCameraShake, drawBattleScreenGrade, drawBattleLightingAndBars, drawLockOnMark, updateBossAnnouncement, drawBossAnnouncement, getEnemyDisplayName, getEnemyTraitSummary, resolveStageStrikeSide, drawBattleGroundLayer, drawSkillGemVfxLayer, drawBattlePlayerActor, drawBattleEnemyActor });
+  safeExposeGlobals({ renderBattlefield });
 })();
-
-
-/** 옆에서 보는 무대의 몬스터는 왼쪽이나 오른쪽만 본다(2026-10-13 사용자: 걸어올 때 좌우가 맞지 않는다. 전에는 주인공이 위아래로 더
- * 멀면 위나 아래를 본다고 답했고, 무대는 그때 직전 방향을 지켜서 처음 나온 몬스터가 등을 보이며 걸어왔다).
- * 걷는 동안에는 가는 쪽(enemyPos.heading, glideBattleEnemy), 서 있거나 때릴 때는 기록된 실제 목표(없으면 주인공)를 본다. 위아래로만 걷거나
- * 주인공과 거의 같은 세로줄에 서 있으면 'south'를 답한다: 무대는 그때 직전 방향을 지킨다(stageView.facing). */
-const STAGE_SIDE_DEAD_PX = 10;
-
-
-// 왼쪽을 보고 그린 보스 그림(data BOSS_ASSET_FRONT_FACING 밖)은 주인공이 오른쪽에 서면 좌우를 뒤집는다.
-// 위아래 방향 대신 가로 거리만 본다: 오른쪽 아래의 주인공도 오른쪽이다. 보스 기둥을 지나갈 때 떨지 않게
-// 4분의 1칸 안에서는 직전 방향을 지키고, 쓰러지는 잔상도 마지막 방향을 쓴다.
-const ENEMY_SPRITE_SIDE_DEAD_ZONE = 0.25;
-const enemySpriteSides = new WeakMap();
-
-
-const ENEMY_SPAWN_STAMP_FUTURE_MS = 1000;
-
-function drawBattleEnemyActor(ctx, entry, state) {
-    if (woodsmanView.active(entry.enemy)) return;
-    let enemy = entry.enemy;
-    // 무대의 보스 입장: 그림을 키우며 띄우지 않고 제 크기로 선 검은 형체가 드러난다(js/canvas-boss-entrance.js stageLook)
-    const veil = bossEntranceView.stageLook(enemy, state.now);
-    if (veil) { drawEnteringEnemyActor(ctx, entry, state, veil); return; }
-    let spawnDuration = enemy.isBoss ? 640 : (enemy.isElite ? 460 : 360);
-    let age = getEnemySpawnAge(enemy, state.now, spawnDuration);
-    let easedAge = 1 - Math.pow(1 - age, 3);
-    let spawnScale = (enemy.isBoss ? 0.46 : 0.68) + easedAge * (enemy.isBoss ? 0.54 : 0.32);
-    if (enemy.isBoss) spawnScale += Math.sin(age * Math.PI) * 0.08;
-    const crowdScale = getEnemyCrowdScale(enemy, state.enemyCount);
-    const awakening = bossEntranceView.observer.frame(enemy);
-    const awakenedBody = bossEntranceView.observer.body(awakening);
-    bossEntranceView.observer.seal(ctx, entry, awakening);
-    ctx.save();
-    ctx.globalAlpha = easedAge * enemyAmbushView.alphaOf(enemy, state.now) * bossMoveView.shiftAlpha(enemy); // 기습 정예와 순간이동하는 보스는 사라졌다 나타나는 동안 숨는다(js/canvas-enemy-ambush.js, js/canvas-boss-moves.js)
-    drawEnemyActorSprite(ctx, entry, state, { y: entry.y - (1 - easedAge) * (enemy.isBoss ? 28 : 18), scale: crowdScale * state.gridUnitScale * spawnScale,
-        spawnScale, ...awakenedBody });
-    if (enemy.encounterSparks) drawEncounterSparks(ctx, entry, state, enemy.encounterSparks);
-    ctx.restore();
-    bossEntranceView.observer.globe(ctx, enemy, awakening);
-    bossEntranceView.observer.caption(ctx, entry, awakening);
-}
-
-
-/** 옆에서 보는 무대: 주인공이 전투 기록이나 채팅 창 뒤에 서면 그 창이 옅어진다(js/message-frames-ui.js heroAt). 주인공의 키는 그림의
- * 도트 수로 어림한다(머리 위의 체력 막대까지, 2026-10-20 새 주인공은 키 약 110도트). 위에서 보는 전장에서는 주인공이 늘 화면 가운데라 쓰지 않는다. */
-const STAGE_HERO_TALL_DOTS = 118;
-
-
-/** This frame's enemy screen positions and their after-image ghosts: every living enemy, on the screen or not (hits, projectiles
- * and chains aim by this list). On an exploration map an enemy out of the hero's sight (entry.seen, js/canvas-battle-draw-list.js)
- * gets no ghost, and its one-time combat text (hit numbers, evades, the alert "!") is skipped: a monster running in from the fog
- * stays unseen until it steps into sight (2026-10-09 사용자). */
-const SIGHT_GATED_FX = new Set(['hit', 'enemyEvade', 'statusText']);
-
-
-/** The battlefield canvas's CSS box ({width, height, left, top}; width 0 = hidden, display:none here or above), measured once and
- * again only after it resizes, or a second later for a move without a resize. Reading offsetParent and clientWidth every frame
- * forced a style and layout pass right after the tick had touched the HUD (2026-10-07 frame drops: 1.5 s of 14 s on a 4x-throttled
- * phone in the endgame, with the reads in canvas-fx-remake.js boardView and battle-ground-loot-ui.js). A ResizeObserver, or
- * resizeBattlefieldCanvas, marks it stale. */
-const battleCanvasBox = (() => {
-    const MAX_AGE_MS = 1000;
-    let observed = null, box = null, observer = null, hudObserver = null;
-    function watch(canvas) {
-        if (observed === canvas) return;
-        observed = canvas; box = null;
-        if (observer) observer.disconnect();
-        if (hudObserver) hudObserver.disconnect();
-        const hud = document.getElementById('ui-enemy-list');
-        const observeSizes = () => {
-            box = null;
-            if (!observer) return;
-            observer.disconnect(); observer.observe(canvas);
-            if (hud) [hud, ...hud.querySelectorAll('.enemy-nameplate, .enemy-health-frame, .enemy-hud-meta, .enemy-ailments')].forEach(part => observer.observe(part));
-        };
-        if (typeof ResizeObserver === 'function') {
-            observer = new ResizeObserver(() => { box = null; }); observeSizes();
-        }
-        if (hud && typeof MutationObserver === 'function') {
-            // 같은 값을 다시 넣은 속성(틱마다 hidden = true)은 바뀐 것이 아니다: 그때마다 상자를 버리면 거의 매 프레임 배치를 다시 쟀다
-            const changed = row => (row.type === 'attributes' ? row.oldValue !== row.target.getAttribute(row.attributeName)
-                : [...row.addedNodes, ...row.removedNodes].some(node => node.nodeType === 1));
-            hudObserver = new MutationObserver(rows => { if (rows.some(changed)) observeSizes(); });
-            hudObserver.observe(hud, { childList: true, subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class', 'hidden'] });
-        }
-        document.addEventListener('scroll', forget, { capture: true, passive: true });
-    }
-    /** HUD children can extend outside their card. Convert their viewport bounds through CSS zoom, once per cached layout. */
-    function enemyOverlays(canvas) {
-        const hud = document.querySelector('#ui-enemy-list:not([hidden])');
-        if (!hud) return [];
-        const view = canvas.getBoundingClientRect();
-        if (!view.width || !view.height) return [];
-        const sx = canvas.clientWidth / view.width, sy = canvas.clientHeight / view.height;
-        return [...hud.querySelectorAll('.enemy-nameplate, .enemy-health-frame, .enemy-hud-meta, .enemy-ailments')].map(element => {
-            const rect = element.getBoundingClientRect();
-            const x = Math.max(0, (rect.left - view.left) * sx), y = Math.max(0, (rect.top - view.top) * sy);
-            const right = Math.min(canvas.clientWidth, (rect.right - view.left) * sx);
-            const bottom = Math.min(canvas.clientHeight, (rect.bottom - view.top) * sy);
-            return { x, y, w: right - x, h: bottom - y };
-        }).filter(rect => rect.w > 0 && rect.h > 0);
-    }
-    function measure(canvas, now) {
-        if (canvas.offsetParent === null) return { width: 0, height: 0, left: 0, top: 0, at: now, enemyOverlays: [] };
-        return { width: canvas.clientWidth, height: canvas.clientHeight, left: canvas.offsetLeft, top: canvas.offsetTop, at: now, enemyOverlays: enemyOverlays(canvas) };
-    }
-    function read(canvas) {
-        watch(canvas);
-        const now = performance.now();
-        if (!box || now - box.at >= MAX_AGE_MS || typeof ResizeObserver !== 'function') box = measure(canvas, now);
-        return box;
-    }
-    function forget() { box = null; }
-    return Object.freeze({ read, forget });
-})();
-
-const MAP_MONSTERS_LEFT_HINT = 5;
-
-
-// A monster's arrival: rings, a floor glow and, for a boss, rays (the values renderBattlefield drew inline until 2026-10-19).
-const ENEMY_SPAWN_LOOK = Object.freeze({
-    boss: Object.freeze({ alpha: 0.72, width: 4, rings: 3, radius: 15, grow: 34, glow: 0.28, rx: 28, ry: 12, rays: true }),
-    plain: Object.freeze({ alpha: 0.5, width: 3, rings: 2, radius: 10, grow: 22, glow: 0.18, rx: 18, ry: 8, rays: false })
-});
-
-
-// A good drop's beam, rings and sparks: a unique's are taller and more; its strength by tier (others 0.5).
-const LOOT_CELEBRATION_LOOK = Object.freeze({
-    unique: Object.freeze({ beam: 220, half: 7, width: 4, rings: 3, grow: 44, sparks: 10 }),
-    other: Object.freeze({ beam: 145, half: 4, width: 3, rings: 2, grow: 30, sparks: 6 })
-});
-const LOOT_CELEBRATION_INTENSITY = Object.freeze({ unique: 1, rare: 0.72 });
-
-
-/** Edge shading over the battlefield. 2026-10-02: a little lighter (sides 0.44, top 0.34, bottom 0.5 before) so the map reads brighter. */
-// 피격감(2026-10-04): every hit on the hero flashes the screen edge red for a moment, stronger the more life it took.
-const PLAYER_HURT_EDGE = Object.freeze({ ms: 300, min: 0.16, perLife: 3, max: 0.7 });
-
-
-// 보스가 처음 전장에 보이면 이름 배너를 잠깐 띄운다. 표시 전용이며 등장·판정 시점은 전투 쪽이 소유한다.
-const BOSS_BANNER_MS = 2600;
-
-
-/** 이름 뒤의 그늘: 이름 둘레가 가장 짙고 위아래와 양옆 모두 둥글게 옅어져 사라지는 납작한 타원. 2026-10-16 사용자 "보스 등장씬에서
- * 보스 밑의 까만색이 네모낳게 보임": 예전 판(높이 66px, 위아래가 딱 끊기고 청동 선이 둘린 어둠)이 등장하는 보스 발밑의 검은 네모로 읽혔다.
- * reach: 이름 너비 바깥으로 그늘이 옅어지는 거리(px), height: 그늘의 위아래 반지름(px). */
-const BOSS_BANNER_SHADE = Object.freeze({ reach: 150, height: 44 });
-
-
-// A boss's standout defenses (its one or two specialties, js/combat-enemy-build.js getBossDefenseTargets) as the live values, traits and zone
-// wards included: at least 40% and 15 points above its weakest of the four. Early bosses whose defenses are all low show none.
-const ENEMY_DEFENSE_LABELS = Object.freeze([['dr', '물리 피해 감소'], ['resF', '화염 저항'], ['resC', '냉기 저항'], ['resL', '번개 저항']]);
-
-
-// summon1.png(가로 540 기준 7칸, 수동 분석 경계) 중 아직 쓰는 칸: 방어 소환수 수액 골렘(마지막 칸). 공격 소환수는 위습이라
-// 무대의 스킬 그림으로 그린다(js/canvas-stage-skill-casts.js wispBody) — 그 밖의 이름은 칸이 없다(시트를 불러오는 동안 점으로 표시).
-const SUMMON1_CANONICAL_WIDTH = 540;
-const SUMMON1_FRAMES = Object.freeze({ '수액 골렘 소환': Object.freeze([464, 540]) });
-
-
-const STAGE_ATTACK_SIDE_DEAD_PX = 10;     // 대상이 이만큼(px) 안의 같은 세로줄이면 직전에 보던 쪽을 지킨다
-const STAGE_NATIVE_CAST_FACE_MS = 700;    // 따로 시전하는 룬을 쓴 뒤 그 겨냥한 쪽을 보는 동안
-let stageNativeCastFace = null;           // { side, until }: 막 쓴 따로 시전하는 룬이 겨냥한 쪽(그 룬의 기록이 치워진 뒤에도 연출이 끝날 때까지 지킨다)
-
-
-// 칸 표시: 네모 칸 대신 발밑 타원과 모서리 표식만 그린다. 칸 판정과 범위 계산은 그대로이고 그리는 모양만 바꾼다.
-// 고대비 모드도 같다(2026-10-16 사용자: 발밑이 네모로 바뀌고 캐릭터를 따라가지 않고 칸 단위로 옮겨 갔다. 고대비는 조명만 끈다).
-const RIFT_CELL_TONES = {
-    player: { fill: 'rgba(120, 210, 196, 0.22)', line: 'rgba(160, 236, 222, 0.7)' },
-    enemy: { fill: 'rgba(170, 52, 40, 0.24)', line: 'rgba(226, 116, 94, 0.55)' },
-    summon: { fill: 'rgba(110, 200, 140, 0.18)', line: 'rgba(150, 230, 176, 0.5)' },
-    area: { fill: 'rgba(214, 170, 92, 0.12)', line: 'rgba(233, 203, 137, 0.42)' },
-    target: { fill: 'rgba(233, 180, 84, 0.2)', line: 'rgba(246, 214, 146, 0.9)' }
-};
-/** The stage ring (js/canvas-stage-rings.js) each cell tone draws as; anything else is an enemy's. */
-const RIFT_RING_LOOKS = new Map([[RIFT_CELL_TONES.summon, 'summon'], [RIFT_CELL_TONES.target, 'target']]);
-
-
-/** 옆에서 보는 무대: 스킬이 닿는 칸을 네모로 칠하면 그린 바닥 위에 상자가 얹힌 듯 보였다(2026-10-13 따로 맡긴 검토: "발밑에 황토색
- * 사각형"). 칸에 눕힌 옅은 타원으로 그린다: 닿는 칸은 그대로 읽히고 바닥의 얼룩처럼 놓인다. */
-const STAGE_AREA_CELL_ALPHA = 0.6;
-
-
-safeExposeGlobals({
-    renderBattlefield, getPlayableHeroWalkMotion
-});

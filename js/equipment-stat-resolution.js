@@ -1,131 +1,124 @@
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/equipment-stat-resolution*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-/**
- * 현재 플레이어에게 스탯을 제공하는 모든 아이템(장착한 장비)을 반환한다.
- * @returns {Array<[string, object]>}
- */
-function getPlayerStatSourceItemEntries() {
-    const memo = getBackgroundBuildMemo(game);
-    if (memo?.has('equipment-sources')) return memo.get('equipment-sources');
-    let entries = [];
-    Object.entries(combatEquipmentStats.activeEquipment(game) || {}).forEach(([slotKey, item]) => {
-        if (item && !bagItems.isSpecial(item)) entries.push([slotKey, item]); // 코어와 액막이는 따로 더한다(coreItems.stats, colonyWardBonus)
-    });
-    memo?.set('equipment-sources', entries);
-    return entries;
-}
-
-function getEquipmentMirrorSource(slotKey, item, ownerState) {
-    if (!item || item.uniqueEffectKey !== 'mirrorOppositeRing') return { slot: null, item: null };
-    let oppositeSlot = slotKey === '반지1' ? '반지2' : slotKey === '반지2' ? '반지1' : null;
-    let equipment = combatEquipmentStats.activeEquipment(ownerState);
-    let oppositeItem = oppositeSlot && equipment ? equipment[oppositeSlot] : null;
-    if (!oppositeItem || oppositeItem.uniqueEffectKey === 'mirrorOppositeRing') return { slot: null, item: null };
-    return { slot: oppositeSlot, item: oppositeItem };
-}
-
-function scaleEquipmentStatLines(stats, multiplier) {
-    const scaleLine = stat => {
-        let value = Number(stat.val);
-        return Number.isFinite(value) ? { ...stat, val: value * multiplier } : { ...stat };
+  // modules/domain/equipment-stat-resolution.mjs
+  function getUniqueImplicitMultiplier(item) {
+    return item.rarity === "unique" && item.uniqueEffectKey === "implicitAmp" ? Math.max(1, Number((item.uniqueEffectParams || {}).mul) || 2) : 1;
+  }
+  function scaleLines(stats, multiplier) {
+    const scale = (stat) => {
+      const value = Number(stat.val);
+      return Number.isFinite(value) ? { ...stat, val: value * multiplier } : { ...stat };
     };
-    return (Array.isArray(stats) ? stats : []).filter(Boolean).map(stat => {
-        const result = scaleLine(stat);
-        if (stat.extraStats) result.extraStats = stat.extraStats.map(scaleLine);
-        return result;
+    return (Array.isArray(stats) ? stats : []).filter(Boolean).map((stat) => {
+      const result = scale(stat);
+      if (stat.extraStats) result.extraStats = stat.extraStats.map(scale);
+      return result;
     });
-}
-
-function getEquipmentStatMultiplier(item, ownerState) {
-    // Only a warrior-w6 weapon can differ from 1. Check that first: resolving the active
-    // equipment re-validates the whole build and this runs for every item in every stat pass.
-    let warriorKeystone = (ownerState.ascendClass === 'warrior' && (ownerState.ascendKeystones || []).includes('w6'))
-        || (ownerState.cosmosTwinKeystones || []).includes('w6');
-    if (item.slot !== '무기' || !warriorKeystone) return 1;
-    let equipment = combatEquipmentStats.activeEquipment(ownerState);
-    let offhand = equipment && equipment['방패'];
-    let dualWielding = !!(equipment && equipment['무기'] && offhand && offhand.slot === '무기');
-    return dualWielding ? 1.5 : 1;
-}
-
-/** "이 장비의 기본 옵션 효과 N배" (implicitAmp, 수평 베이스 고유 2026-10-09): the multiplier of the item's own base lines. A mirrored
- * ring's copy keeps its source's value. */
-function getUniqueImplicitMultiplier(item) {
-    return item.rarity === 'unique' && item.uniqueEffectKey === 'implicitAmp'
-        ? Math.max(1, Number((item.uniqueEffectParams || {}).mul) || 2) : 1;
-}
-
-function resolveEquipmentBaseStats(item, mirrorItem, itemMultiplier) {
-    // Limit break and corruption (TAINTED_CRAFT_OUTCOMES.quality.cap) may push quality past the usual 20%.
-    let qualityCap = item.qualityLockedByLimitBreak || item.corrupted ? 30 : 20;
-    let qualityValue = Math.max(0, Math.min(qualityCap, Math.floor(Number(item.quality) || 0)));
-    let qualityMultiplier = 1 + qualityValue / 100;
-    let qualityMode = getItemQualityAttributeMode(item);
-    let baseMultiplier = qualityMode === 'base' ? qualityMultiplier : 1;
-    let own = scaleEquipmentStatLines(item.baseStats, getUniqueImplicitMultiplier(item));
-    let source = [...own, ...((mirrorItem && mirrorItem.baseStats) || [])];
-    let scaled = source.filter(Boolean).map(stat => {
-        let value = Number(stat.val);
-        return Number.isFinite(value) ? { ...stat, val: Number((value * baseMultiplier).toFixed(2)) } : { ...stat };
-    });
-    return { stats: scaleEquipmentStatLines(scaled, itemMultiplier), qualityMode, qualityMultiplier };
-}
-
-function scaleExplicitEquipmentStat(stat, modifiers) {
-    const {qualityMode, qualityMultiplier, riftMultiplier, kaleidoscopeMultiplier} = modifiers;
-    const qualityScale = qualityMode !== 'base' && isQualityAttributeStat(qualityMode, stat.id) ? qualityMultiplier : 1;
-    const excluded = stat.id === 'fossilRiftBlank' || stat.id === 'fossilRiftAmp';
-    const result = { ...stat };
-    if (!excluded && Number.isFinite(Number(stat.val))) {
-        result.val = Number((Number(stat.val) * riftMultiplier * qualityScale * kaleidoscopeMultiplier).toFixed(2));
+  }
+  function warriorWeapon(item, owner) {
+    const warrior = owner.ascendClass === "warrior" && (owner.ascendKeystones || []).includes("w6") || (owner.cosmosTwinKeystones || []).includes("w6");
+    return item.slot === "무기" && warrior;
+  }
+  function needsEquipmentStatView(item, owner) {
+    return item.uniqueEffectKey === "mirrorOppositeRing" || warriorWeapon(item, owner);
+  }
+  function mirrorSource(slot, item, equipment) {
+    if (item.uniqueEffectKey !== "mirrorOppositeRing") return { slot: null, item: null };
+    const opposite = slot === "반지1" ? "반지2" : slot === "반지2" ? "반지1" : null;
+    const source = opposite && equipment ? equipment[opposite] : null;
+    if (!source || source.uniqueEffectKey === "mirrorOppositeRing") return { slot: null, item: null };
+    return { slot: opposite, item: source };
+  }
+  function itemMultiplier(item, owner, equipment) {
+    if (!warriorWeapon(item, owner)) return 1;
+    const offhand = equipment && equipment["방패"];
+    return equipment && equipment["무기"] && offhand && offhand.slot === "무기" ? 1.5 : 1;
+  }
+  var EquipmentStatResolution = class {
+    constructor(deps) {
+      this.deps = deps;
     }
-    return result;
-}
-
-function resolveEquipmentExplicitStats(item, mirrorItem, itemMultiplier, qualityMode, qualityMultiplier) {
-    let riftRow = (item.stats || []).find(stat => stat && stat.id === 'fossilRiftAmp');
-    let riftMultiplier = 1 + Math.max(0, Number(riftRow && riftRow.val) || 0) / 100;
-    let kaleidoscopeMultiplier = item.uniqueEffectKey === 'kaleidoscopeShield'
-        ? Math.max(1, Number((item.uniqueEffectParams || {}).explicitStatMultiplier) || 2) : 1;
-    let source = [...(item.stats || []), ...((mirrorItem && mirrorItem.stats) || [])];
-    const modifiers = {qualityMode, qualityMultiplier, riftMultiplier, kaleidoscopeMultiplier};
-    let stats = source.filter(Boolean).map(stat => {
-        const result = scaleExplicitEquipmentStat(stat, modifiers);
-        if (stat.extraStats) result.extraStats = stat.extraStats.map(extra => scaleExplicitEquipmentStat(extra, modifiers));
+    baseStats(item, mirror, multiplier) {
+      const cap = item.qualityLockedByLimitBreak || item.corrupted ? 30 : 20;
+      const quality = Math.max(0, Math.min(cap, Math.floor(Number(item.quality) || 0)));
+      const qualityMultiplier = 1 + quality / 100;
+      const qualityMode = this.deps.qualityMode(item);
+      const baseMultiplier = qualityMode === "base" ? qualityMultiplier : 1;
+      const own = scaleLines(item.baseStats, getUniqueImplicitMultiplier(item));
+      const source = [...own, ...mirror && mirror.baseStats || []];
+      const scaled = source.filter(Boolean).map((stat) => {
+        const value = Number(stat.val);
+        return Number.isFinite(value) ? { ...stat, val: Number((value * baseMultiplier).toFixed(2)) } : { ...stat };
+      });
+      return { stats: scaleLines(scaled, multiplier), qualityMode, qualityMultiplier };
+    }
+    explicitLine(stat, modifiers) {
+      const { qualityMode, qualityMultiplier, riftMultiplier, kaleidoscopeMultiplier } = modifiers;
+      const qualityScale = qualityMode !== "base" && this.deps.qualityStat(qualityMode, stat.id) ? qualityMultiplier : 1;
+      const excluded = stat.id === "fossilRiftBlank" || stat.id === "fossilRiftAmp";
+      const result = { ...stat };
+      if (!excluded && Number.isFinite(Number(stat.val))) {
+        result.val = Number((Number(stat.val) * riftMultiplier * qualityScale * kaleidoscopeMultiplier).toFixed(2));
+      }
+      return result;
+    }
+    explicitModifiers(item, base) {
+      const riftRow = (item.stats || []).find((stat) => stat && stat.id === "fossilRiftAmp");
+      const riftMultiplier = 1 + Math.max(0, Number(riftRow && riftRow.val) || 0) / 100;
+      const kaleidoscopeMultiplier = item.uniqueEffectKey === "kaleidoscopeShield" ? Math.max(1, Number((item.uniqueEffectParams || {}).explicitStatMultiplier) || 2) : 1;
+      return { qualityMode: base.qualityMode, qualityMultiplier: base.qualityMultiplier, riftMultiplier, kaleidoscopeMultiplier };
+    }
+    explicitStats(item, mirror, multiplier, base) {
+      const modifiers = this.explicitModifiers(item, base);
+      const source = [...item.stats || [], ...mirror && mirror.stats || []];
+      const stats = source.filter(Boolean).map((stat) => {
+        const result = this.explicitLine(stat, modifiers);
+        if (stat.extraStats) result.extraStats = stat.extraStats.map((extra) => this.explicitLine(extra, modifiers));
         return result;
-    });
-    let copiedSpecials = mirrorItem ? [mirrorItem.underEnchant, mirrorItem.chaosInfusion].filter(Boolean) : [];
-    let immutableStats = getImmutableItemSpecialStats(item);
-    return scaleEquipmentStatLines([
-        ...stats, item.underEnchant, item.chaosInfusion, ...copiedSpecials, ...immutableStats
-    ].filter(Boolean), itemMultiplier);
-}
+      });
+      const copied = mirror ? [mirror.underEnchant, mirror.chaosInfusion].filter(Boolean) : [];
+      const immutable = this.deps.immutableStats(item);
+      return scaleLines([...stats, item.underEnchant, item.chaosInfusion, ...copied, ...immutable].filter(Boolean), multiplier);
+    }
+    resolve(slot, item, owner, equipment) {
+      const mirror = mirrorSource(slot, item, equipment);
+      const multiplier = itemMultiplier(item, owner, equipment);
+      const base = this.baseStats(item, mirror.item, multiplier);
+      return {
+        baseStats: base.stats,
+        explicitStats: this.explicitStats(item, mirror.item, multiplier, base),
+        mirrorSourceItem: mirror.item,
+        mirrorSourceSlot: mirror.slot
+      };
+    }
+  };
+  function createEquipmentStatResolution(deps) {
+    const runtime = new EquipmentStatResolution(deps);
+    return Object.freeze({ resolve: runtime.resolve.bind(runtime) });
+  }
 
-/**
- * 품질·특수 제작·복제를 포함한 아이템 옵션의 단일 해석 경계다.
- * @param {string} slotKey
- * @param {object} item
- * @param {object} ownerState
- * @returns {{baseStats:Array<object>, explicitStats:Array<object>, mirrorSourceItem:object|null, mirrorSourceSlot:string|null}}
- */
-function getResolvedEquipmentStatLists(slotKey, item, ownerState) {
-    let source = ownerState || game;
-    const memo = getBackgroundBuildMemo(source);
-    const key = `equipment:${slotKey}`;
+  // modules/equipment-stat-resolution-classic.mjs
+  var resolution = createEquipmentStatResolution({
+    qualityMode: (item) => getItemQualityAttributeMode(item),
+    qualityStat: (mode, id) => isQualityAttributeStat(mode, id),
+    immutableStats: (item) => getImmutableItemSpecialStats(item)
+  });
+  var getPlayerStatSourceItemEntries = (owner = game) => {
+    const memo = getBackgroundBuildMemo(owner);
+    if (memo?.has("equipment-sources")) return memo.get("equipment-sources");
+    const entries = Object.entries(combatEquipmentStats.activeEquipment(owner) || {}).filter(([, item]) => item && !bagItems.isSpecial(item));
+    memo?.set("equipment-sources", entries);
+    return entries;
+  };
+  var getResolvedEquipmentStatLists = (slot, item, owner) => {
+    const source = owner || game;
+    const memo = getBackgroundBuildMemo(source), key = `equipment:${slot}`;
     const cached = memo?.get(key);
     if (cached && cached.item === item) return cached.result;
-    let mirror = getEquipmentMirrorSource(slotKey, item, source);
-    let itemMultiplier = getEquipmentStatMultiplier(item, source);
-    let base = resolveEquipmentBaseStats(item, mirror.item, itemMultiplier);
-    let baseStats = base.stats;
-    let explicitStats = resolveEquipmentExplicitStats(item, mirror.item, itemMultiplier, base.qualityMode, base.qualityMultiplier);
-    let result = { baseStats, explicitStats, mirrorSourceItem: mirror.item, mirrorSourceSlot: mirror.slot };
+    const equipment = needsEquipmentStatView(item, source) ? combatEquipmentStats.activeEquipment(source) : null;
+    const result = resolution.resolve(slot, item, source, equipment);
     memo?.set(key, { item, result });
     return result;
-}
-
-exposeFileGlobals({ getPlayerStatSourceItemEntries, getUniqueImplicitMultiplier, getResolvedEquipmentStatLists });
+  };
+  safeExposeGlobals({ getPlayerStatSourceItemEntries, getResolvedEquipmentStatLists, getUniqueImplicitMultiplier });
 })();
-
-
-safeExposeGlobals({ getPlayerStatSourceItemEntries, getResolvedEquipmentStatLists, getUniqueImplicitMultiplier });

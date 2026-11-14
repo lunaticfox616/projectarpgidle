@@ -1,453 +1,557 @@
-(function () {
-    'use strict';
-
-    const FILTER_IDS = Object.freeze(['all', 'balanced', 'damage', 'defense', 'special', 'keep']);
-    // Editable stat inputs. Combat timers, HP, buffs and enemies belong to the frozen
-    /**
-     * @typedef {Object} EquipmentTriageResult
-     * @property {'balanced'|'damage'|'defense'|'keep'} kind
-     * @property {number} dpsGainPct
-     * @property {number} ehpGainPct
-     * @property {boolean} special
-     * @property {string} dpsSlot
-     * @property {string} ehpSlot
-     * @property {boolean} upgrade one slot gains over 1% on one side (attack or survival) and the other side keeps 99%
-     */
-    const state = {
-        status: 'idle', filter: 'all', results: new Map(), signature: '', token: 0, work: null,
-        lastSyncAt: 0, timer: null, autoTimer: null
-    };
-    // result → the analyzed copy as JSON; a bag item whose JSON differs is analyzed again (changedIds).
-    const analyzedAs = new WeakMap();
-
-    // The bag is left out: picking up, crafting or salvaging keeps the results, and only the bag items added or changed are
-    // analyzed again (changedIds). The one stat that counts bag items (the old box jewel, js/combat.js) drifts until the next full run.
-    function getBuildSignature() {
-        return getPersistentBuildSignature(game, false);
+// GENERATED from modules/equipment-triage*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/equipment-triage-analysis.mjs
+  function freezeInventoryRecord(value) {
+    if (!value || typeof value !== "object") return value;
+    Object.values(value).forEach(freezeInventoryRecord);
+    return Object.freeze(value);
+  }
+  var EquipmentTriageAnalysis = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.analyzedAs = /* @__PURE__ */ new WeakMap();
+      this.analyzable = (item) => !!item && item.id !== void 0 && !this.deps.bagItems.isJewel(item);
     }
-
-    function getDamageScore(stats) {
-        return Math.max(0, Number(stats && stats.totalDps) || Number(stats && stats.dps) || 0);
+    getDamageScore(stats) {
+      return Math.max(0, Number(stats && stats.totalDps) || Number(stats && stats.dps) || 0);
     }
+    getEhpScore(stats) {
+      if (typeof this.deps.calculatePlayerEhpProfile !== "function") {
+        return Math.max(1, Number(stats && stats.maxHp) + Number(stats && stats.energyShield) || 1);
+      }
+      const profile = this.deps.calculatePlayerEhpProfile(stats || {});
+      const values = Object.values(profile.elements || {}).map((row) => Number(row && row.entropy) || 0).filter((value) => value > 0);
+      return values.length > 0 ? Math.min(...values) : Math.max(1, Number(profile.pool) || 1);
+    }
+    getCandidateSlots(item) {
+      if (!item) return [];
+      const slots = typeof this.deps.getEquipCandidateSlots === "function" ? this.deps.getEquipCandidateSlots(item) : [item.slot];
+      return Array.from(new Set(slots.filter(Boolean)));
+    }
+    evaluateCandidateSlot(item, slot, work) {
+      const after = this.readSnapshotStats(work.snapshot, item, slot);
+      return {
+        slot,
+        dpsRatio: this.getDamageScore(after) / work.baseline.dps,
+        ehpRatio: this.getEhpScore(after) / work.baseline.ehp
+      };
+    }
+    createAnalysisWork(owner, readCombatTime, only = null) {
+      const inventory = freezeInventoryRecord(JSON.parse(JSON.stringify(owner.inventory)));
+      const exploration = owner.actExploration === void 0 ? void 0 : JSON.parse(JSON.stringify(owner.actExploration));
+      const snapshot = {
+        inventory,
+        exploration,
+        gameJson: JSON.stringify({ ...owner, inventory: void 0, actExploration: void 0, combatTimeMs: readCombatTime() })
+      };
+      const items = inventory.filter((item) => this.analyzable(item) && (!only || only.has(String(item.id)))).map((item) => ({ item, slots: this.getCandidateSlots(item), key: JSON.stringify(item) }));
+      return { items, index: 0, snapshot, baseline: this.createBaseline(snapshot) };
+    }
+    isSpecialCandidate(item) {
+      return !!(item && (item.rarity === "unique" || item.encroached || item.corrupted || item.loopSealed || item.fusedRelic || item.dropOnly || item.cosmosChase || item.ultraRare));
+    }
+    percentGain(ratio) {
+      return Math.max(0, Math.round((Math.max(0, Number(ratio) || 1) - 1) * 1e3) / 10);
+    }
+    classifyCandidate(candidate, work) {
+      const { item, slots } = candidate;
+      const rows = slots.map((slot) => this.evaluateCandidateSlot(item, slot, work));
+      const bestDps = rows.reduce(
+        (best, row) => row.dpsRatio > best.dpsRatio ? row : best,
+        { slot: "", dpsRatio: 1, ehpRatio: 1 }
+      );
+      const bestEhp = rows.reduce(
+        (best, row) => row.ehpRatio > best.ehpRatio ? row : best,
+        { slot: "", dpsRatio: 1, ehpRatio: 1 }
+      );
+      const balanced = rows.filter((row) => row.dpsRatio >= 1.01 && row.ehpRatio >= 1.01).sort((a, b) => Math.min(b.dpsRatio, b.ehpRatio) - Math.min(a.dpsRatio, a.ehpRatio))[0] || null;
+      const dpsGainPct = this.percentGain(bestDps.dpsRatio);
+      const ehpGainPct = this.percentGain(bestEhp.ehpRatio);
+      let kind = balanced ? "balanced" : dpsGainPct >= 1 ? "damage" : ehpGainPct >= 1 ? "defense" : "keep";
+      const upgrade = rows.some((row) => row.dpsRatio >= 1.01 && row.ehpRatio >= 0.99 || row.ehpRatio >= 1.01 && row.dpsRatio >= 0.99);
+      const result = {
+        kind,
+        dpsGainPct,
+        ehpGainPct,
+        upgrade,
+        special: this.isSpecialCandidate(item),
+        dpsSlot: balanced ? balanced.slot : bestDps.slot,
+        ehpSlot: balanced ? balanced.slot : bestEhp.slot
+      };
+      this.analyzedAs.set(result, candidate.key);
+      return result;
+    }
+    createBaseline(snapshot) {
+      const stats = this.readSnapshotStats(snapshot);
+      return { dps: Math.max(1, this.getDamageScore(stats)), ehp: Math.max(1, this.getEhpScore(stats)) };
+    }
+    readSnapshotStats(snapshot, item, slot) {
+      const owner = JSON.parse(snapshot.gameJson);
+      owner.inventory = snapshot.inventory;
+      if (snapshot.exploration !== void 0) owner.actExploration = snapshot.exploration;
+      if (item) owner.equipment[slot] = JSON.parse(JSON.stringify(item));
+      return this.deps.readStats(owner);
+    }
+  };
+  function createEquipmentTriageAnalysis(deps) {
+    const instance = new EquipmentTriageAnalysis(deps);
+    return Object.freeze({
+      createWork: instance.createAnalysisWork.bind(instance),
+      classify: instance.classifyCandidate.bind(instance),
+      analyzable: instance.analyzable,
+      candidateSlots: instance.getCandidateSlots.bind(instance),
+      analyzedKey: (result) => instance.analyzedAs.get(result)
+    });
+  }
 
-    function getEhpScore(stats) {
-        if (typeof calculatePlayerEhpProfile !== 'function') {
-            return Math.max(1, Number(stats && stats.maxHp) + Number(stats && stats.energyShield) || 1);
+  // modules/domain/equipment-triage.mjs
+  var EQUIPMENT_TRIAGE_FILTER_IDS = Object.freeze(["all", "balanced", "damage", "defense", "special", "keep"]);
+  var EquipmentTriage = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.analysis = createEquipmentTriageAnalysis(this.deps);
+      this.state = { status: "idle", filter: "all", results: /* @__PURE__ */ new Map(), signature: "", token: 0, work: null, lastSyncAt: 0 };
+      this.freshGearAt = 0;
+      this.getBuildSignature = (owner) => this.deps.getPersistentBuildSignature(owner, false);
+    }
+    getCounts() {
+      const rows = Array.from(this.state.results.values());
+      return {
+        all: rows.length,
+        balanced: rows.filter((row) => row.kind === "balanced").length,
+        damage: rows.filter((row) => row.dpsGainPct >= 1).length,
+        defense: rows.filter((row) => row.ehpGainPct >= 1).length,
+        special: rows.filter((row) => row.special).length,
+        keep: rows.filter((row) => row.kind === "keep" && !row.special).length
+      };
+    }
+    getRecommendedCandidate(owner) {
+      if (this.state.status !== "ready" || ["special", "keep"].includes(this.state.filter)) return null;
+      const candidates = (Array.isArray(owner.inventory) ? owner.inventory : []).map((item) => ({ item, result: this.getResult(item) }));
+      const ranked = candidates.map((candidate) => {
+        const result = candidate.result;
+        if (!result) return null;
+        if (this.state.filter === "damage" && result.dpsGainPct >= 1) return { ...candidate, slot: result.dpsSlot, score: result.dpsGainPct };
+        if (this.state.filter === "defense" && result.ehpGainPct >= 1) return { ...candidate, slot: result.ehpSlot, score: result.ehpGainPct };
+        if (["all", "balanced"].includes(this.state.filter) && result.kind === "balanced") {
+          return { ...candidate, slot: result.dpsSlot, score: Math.min(result.dpsGainPct, result.ehpGainPct) };
         }
-        const profile = calculatePlayerEhpProfile(stats || {});
-        const values = Object.values(profile.elements || {})
-            .map(row => Number(row && row.entropy) || 0).filter(value => value > 0);
-        return values.length > 0 ? Math.min(...values) : Math.max(1, Number(profile.pool) || 1);
+        return null;
+      }).filter(Boolean).sort((a, b) => b.score - a.score);
+      return ranked[0] || null;
     }
-
-    /** Bag items the analysis tries on: not jewels (they go into sockets, not slots); cores and wards try their own slots. */
-    const analyzable = item => !!item && item.id !== undefined && !bagItems.isJewel(item);
-
-    function getCandidateSlots(item) {
-        if (!item) return [];
-        const slots = typeof getEquipCandidateSlots === 'function'
-            ? getEquipCandidateSlots(item) : [item.slot];
-        return Array.from(new Set(slots.filter(Boolean)));
+    matchesFilter(result) {
+      if (this.state.filter === "all") return true;
+      if (!result) return false;
+      if (this.state.filter === "balanced") return result.kind === "balanced";
+      if (this.state.filter === "damage") return result.dpsGainPct >= 1;
+      if (this.state.filter === "defense") return result.ehpGainPct >= 1;
+      if (this.state.filter === "special") return result.special;
+      return result.kind === "keep" && !result.special;
     }
-
-    // A fresh copy per slot also isolates normalization and stat-provider side effects.
-    // The live game is restored synchronously before rendering or scheduling another job.
-    function readSnapshotStats(snapshot, item, slot) {
-        const liveGame = game;
-        try {
-            game = JSON.parse(snapshot.gameJson);
-            game.inventory = snapshot.inventory;
-            if (snapshot.exploration !== undefined) game.actExploration = snapshot.exploration;
-            if (item) game.equipment[slot] = JSON.parse(JSON.stringify(item));
-            return getPlayerStats(false);
-        } finally {
-            game = liveGame;
-        }
+    filterRows(rows) {
+      if (this.state.status !== "ready" || this.state.filter === "all") return rows;
+      return rows.map((row) => ({
+        ...row,
+        filterActive: true,
+        filterMatched: row.filterMatched !== false && this.matchesFilter(this.getResult(row.item))
+      }));
     }
-
-    function evaluateCandidateSlot(item, slot, work) {
-        const after = readSnapshotStats(work.snapshot, item, slot);
-        return { slot, dpsRatio: getDamageScore(after) / work.baseline.dps,
-            ehpRatio: getEhpScore(after) / work.baseline.ehp };
+    getResult(item) {
+      if (this.state.status !== "ready" || !item || item.id === void 0) return null;
+      return this.state.results.get(String(item.id)) || null;
     }
-
-    function freezeInventoryRecord(value) {
-        if (!value || typeof value !== 'object') return value;
-        Object.values(value).forEach(freezeInventoryRecord);
-        return Object.freeze(value);
+    currentFilter() {
+      return this.state.status === "ready" ? this.state.filter : "all";
     }
-
-    /** @param {Set<string>|null} only ids of the bag items to analyze, null for all; the snapshot always holds the whole bag */
-    function createAnalysisWork(only = null) {
-        // Stat providers only read inventory (e.g. the old-box jewel's rarity bonus).
-        // Share its isolated, immutable copy; reparsing hundreds of full items per slot
-        // would cost more than the numeric-only evaluation saves. The exploration run is no stat input
-        // (js/combat-equipment-stats.js permanentSnapshot): one copy, shared by every slot.
-        const inventory = freezeInventoryRecord(JSON.parse(JSON.stringify(game.inventory)));
-        const exploration = game.actExploration === undefined ? undefined : JSON.parse(JSON.stringify(game.actExploration));
-        const snapshot = { inventory, exploration,
-            gameJson: JSON.stringify({ ...game, inventory: undefined, actExploration: undefined, combatTimeMs: getCombatTime() }) };
-        const items = inventory.filter(item => analyzable(item) && (!only || only.has(String(item.id))))
-            .map(item => ({ item, slots: getCandidateSlots(item), key: JSON.stringify(item) }));
-        return { items, index: 0, snapshot, baseline: createBaseline(snapshot) };
+    clearResults(status) {
+      this.state.token += 1;
+      this.state.status = status;
+      this.state.filter = "all";
+      this.state.results = /* @__PURE__ */ new Map();
+      this.state.signature = "";
+      this.state.work = null;
+      this.state.lastSyncAt = 0;
     }
-
-    function isSpecialCandidate(item) {
-        return !!(item && (item.rarity === 'unique' || item.encroached || item.corrupted
-            || item.loopSealed || item.fusedRelic || item.dropOnly || item.cosmosChase || item.ultraRare));
+    sync(owner, force, now) {
+      if (this.state.status !== "ready" && this.state.status !== "running") return false;
+      if (!force && now - this.state.lastSyncAt < 500) return false;
+      this.state.lastSyncAt = now;
+      return this.getBuildSignature(owner) !== this.state.signature;
     }
-
-    function percentGain(ratio) {
-        return Math.max(0, Math.round((Math.max(0, Number(ratio) || 1) - 1) * 1000) / 10);
+    prepareStart() {
+      this.state.status = "running";
+      this.state.filter = "all";
+      this.state.results = /* @__PURE__ */ new Map();
     }
-
-    /** @returns {EquipmentTriageResult} */
-    function classifyCandidate(candidate, work) {
-        const { item, slots } = candidate;
-        const rows = slots.map(slot => evaluateCandidateSlot(item, slot, work));
-        const bestDps = rows.reduce((best, row) => row.dpsRatio > best.dpsRatio ? row : best,
-            { slot: '', dpsRatio: 1, ehpRatio: 1 });
-        const bestEhp = rows.reduce((best, row) => row.ehpRatio > best.ehpRatio ? row : best,
-            { slot: '', dpsRatio: 1, ehpRatio: 1 });
-        const balanced = rows.filter(row => row.dpsRatio >= 1.01 && row.ehpRatio >= 1.01)
-            .sort((a, b) => Math.min(b.dpsRatio, b.ehpRatio) - Math.min(a.dpsRatio, a.ehpRatio))[0] || null;
-        const dpsGainPct = percentGain(bestDps.dpsRatio);
-        const ehpGainPct = percentGain(bestEhp.ehpRatio);
-        let kind = balanced ? 'balanced' : (dpsGainPct >= 1 ? 'damage' : (ehpGainPct >= 1 ? 'defense' : 'keep'));
-        const upgrade = rows.some(row => (row.dpsRatio >= 1.01 && row.ehpRatio >= 0.99) || (row.ehpRatio >= 1.01 && row.dpsRatio >= 0.99));
-        const result = {
-            kind, dpsGainPct, ehpGainPct, upgrade, special: isSpecialCandidate(item),
-            dpsSlot: balanced ? balanced.slot : bestDps.slot,
-            ehpSlot: balanced ? balanced.slot : bestEhp.slot
-        };
-        analyzedAs.set(result, candidate.key);
-        return result;
+    begin(owner, readCombatTime, ids, clock) {
+      this.state.token += 1;
+      if (!ids) this.state.signature = this.getBuildSignature(owner);
+      this.state.work = this.analysis.createWork(owner, readCombatTime, ids);
+      this.state.lastSyncAt = clock();
     }
-
-    function createBaseline(snapshot) {
-        const stats = readSnapshotStats(snapshot);
-        return { dps: Math.max(1, getDamageScore(stats)), ehp: Math.max(1, getEhpScore(stats)) };
+    finish(owner, token, clock) {
+      if (token !== this.state.token || !this.state.work) return false;
+      if (this.getBuildSignature(owner) !== this.state.signature) return "stale";
+      this.state.status = "ready";
+      this.state.work = null;
+      this.state.lastSyncAt = clock();
+      return true;
     }
-
-    function getCounts() {
-        const rows = Array.from(state.results.values());
-        return {
-            all: rows.length,
-            balanced: rows.filter(row => row.kind === 'balanced').length,
-            damage: rows.filter(row => row.dpsGainPct >= 1).length,
-            defense: rows.filter(row => row.ehpGainPct >= 1).length,
-            special: rows.filter(row => row.special).length,
-            keep: rows.filter(row => row.kind === 'keep' && !row.special).length
-        };
+    /** At least three items per chunk; after that yield when 10 ms has elapsed. */
+    step(token, clock, started) {
+      if (token !== this.state.token || !this.state.work) return;
+      const first = this.state.work.index;
+      do {
+        const candidate = this.state.work.items[this.state.work.index++];
+        this.state.results.set(String(candidate.item.id), this.analysis.classify(candidate, this.state.work));
+      } while (this.state.work.index < this.state.work.items.length && (this.state.work.index - first < 3 || clock() - started < 10));
     }
-
-    function getStatusCopy() {
-        if (state.status === 'running') return _t('{index}/{length} 분석 중', { index: state.work.index, length: state.work.items.length });
-        if (state.status === 'ready') {
-            const counts = getCounts();
-            return _t('{all}개 완료, 균형 {balanced}, 공격 {damage}, 생존 {defense}', { all: counts.all, balanced: counts.balanced, damage: counts.damage, defense: counts.defense });
-        }
-        if (state.status === 'error') return _t('분석 중 오류가 발생했습니다. 다시 시도하세요.');
-        if (state.status === 'stale') return _t('세팅이 바뀌어 다시 분석합니다.');
-        if (state.status === 'cancelled') return _t('분석을 중단했습니다.');
-        return _t('분석 시작 시점의 세팅/전투 상태로 비교합니다.');
+    changedIds(owner) {
+      const live = /* @__PURE__ */ new Map();
+      (owner.inventory || []).forEach((item) => {
+        if (this.analysis.analyzable(item)) live.set(String(item.id), item);
+      });
+      Array.from(this.state.results.keys()).forEach((id) => {
+        if (!live.has(id)) this.state.results.delete(id);
+      });
+      const changed = Array.from(live).filter(([id, item]) => this.analysis.analyzedKey(this.state.results.get(id)) !== JSON.stringify(item));
+      return new Set(changed.map(([id]) => id));
     }
-
-    function getFilterOptionsHtml(counts) {
-        const labels = {
-            all: _t('전체'), balanced: _t('균형 상승'), damage: _t('공격 상승'), defense: _t('생존 상승'),
-            special: _t('특수 장비'), keep: _t('현 세팅 유지')
-        };
-        return FILTER_IDS.map(id => `<option value="${id}" ${state.filter === id ? 'selected' : ''}>${labels[id]} ${counts[id] || 0}</option>`).join('');
+    setFilter(filterId) {
+      if (this.state.status !== "ready" || !EQUIPMENT_TRIAGE_FILTER_IDS.includes(filterId)) return false;
+      this.state.filter = filterId;
+      return true;
     }
-
-    function isInventoryNearFull() {
-        if (typeof getInventoryLimit !== 'function' || typeof getInventoryUsedCellCount !== 'function') return false;
-        const limit = Math.max(1, Math.floor(getInventoryLimit(game)));
-        return getInventoryUsedCellCount(game) >= Math.floor(limit * 0.9);
+    rate(owner, item, readCombatTime) {
+      return this.analysis.analyzable(item) ? this.analysis.classify(
+        { item, slots: this.analysis.candidateSlots(item), key: "" },
+        this.analysis.createWork(owner, readCombatTime, /* @__PURE__ */ new Set())
+      ) : null;
     }
-
-    function getRecommendedCandidate() {
-        if (state.status !== 'ready' || ['special', 'keep'].includes(state.filter)) return null;
-        const candidates = (Array.isArray(game.inventory) ? game.inventory : []).map(item => ({ item, result: getResult(item) }));
-        const ranked = candidates.map(candidate => {
-            const result = candidate.result;
-            if (!result) return null;
-            if (state.filter === 'damage' && result.dpsGainPct >= 1) return { ...candidate, slot: result.dpsSlot, score: result.dpsGainPct };
-            if (state.filter === 'defense' && result.ehpGainPct >= 1) return { ...candidate, slot: result.ehpSlot, score: result.ehpGainPct };
-            if (['all', 'balanced'].includes(state.filter) && result.kind === 'balanced') {
-                return { ...candidate, slot: result.dpsSlot, score: Math.min(result.dpsGainPct, result.ehpGainPct) };
-            }
-            return null;
-        }).filter(Boolean).sort((a, b) => b.score - a.score);
-        return ranked[0] || null;
+    /** Four newly acquired items per four seconds; never during background settlement. */
+    checkFreshGear(owner, now, readCombatTime) {
+      if (now < this.freshGearAt || owner.isBackgroundCalculation) return;
+      this.freshGearAt = now + 4e3;
+      const ids = new Set(this.deps.takeFreshGearIds(4).map(String));
+      if (!ids.size) return;
+      const work = this.analysis.createWork(owner, readCombatTime, ids);
+      const keep = this.state.status === "ready" && !this.state.work && this.getBuildSignature(owner) === this.state.signature;
+      const results = work.items.map((candidate) => [String(candidate.item.id), this.analysis.classify(candidate, work)]);
+      if (keep) results.forEach(([id, result]) => this.state.results.set(id, result));
+      if (results.some(([, result]) => result.upgrade)) owner.noti.items = true;
     }
+  };
+  function createEquipmentTriage(deps) {
+    const instance = new EquipmentTriage(deps);
+    return Object.freeze({
+      view: instance.state,
+      getCounts: instance.getCounts.bind(instance),
+      getRecommendedCandidate: instance.getRecommendedCandidate.bind(instance),
+      filterRows: instance.filterRows.bind(instance),
+      currentFilter: instance.currentFilter.bind(instance),
+      getResult: instance.getResult.bind(instance),
+      clearResults: instance.clearResults.bind(instance),
+      sync: instance.sync.bind(instance),
+      prepareStart: instance.prepareStart.bind(instance),
+      begin: instance.begin.bind(instance),
+      finish: instance.finish.bind(instance),
+      step: instance.step.bind(instance),
+      changedIds: instance.changedIds.bind(instance),
+      setFilter: instance.setFilter.bind(instance),
+      rate: instance.rate.bind(instance),
+      checkFreshGear: instance.checkFreshGear.bind(instance)
+    });
+  }
 
-    /** 전체 목록의 추천은 공격·생존 동시 상승만 다룬다. 단일 축의 상승까지 없다고 말하지 않는다. */
-    function getRecommendTitle(recommendation) {
-        if (recommendation) return state.filter === 'all' ? _t('공격과 생존이 함께 오르는 장비만 추천합니다.') : _t('현재 판단 기준에서 가장 높은 장비를 추천합니다.');
-        if (state.status !== 'ready') return _t('현재 세팅으로 일괄 분석을 완료하면 추천을 확인할 수 있습니다.');
-        if (['all', 'balanced'].includes(state.filter)) return _t('공격과 생존이 함께 오르는 장비가 없습니다. 공격 상승/생존 상승 필터로 각각 비교할 수 있습니다.');
-        if (['special', 'keep'].includes(state.filter)) return _t('이 목록에서는 장비를 직접 선택해 효과를 비교하세요.');
-        return _t('선택한 판단 기준에서 상승하는 장비가 없습니다.');
+  // modules/ui/equipment-triage.mjs
+  var EquipmentTriageUi = class {
+    constructor(model, deps) {
+      this.model = model;
+      this.deps = deps;
+      this.state = this.model.view;
+      this.getCounts = this.model.getCounts;
+      this.getRecommendedCandidate = () => this.model.getRecommendedCandidate(this.deps.getOwner());
+      this.changedIds = () => this.model.changedIds(this.deps.getOwner());
+      this.AUTO_DELAY_MS = 300;
+      this.timer = null;
+      this.autoTimer = null;
+      this.autoArmed = false;
+      this.wantsFullRun = () => ["idle", "stale"].includes(this.state.status) || this.autoArmed && ["cancelled", "error"].includes(this.state.status);
     }
-
-    /** 단추 글에도 까닭을 붙인다 — 휴대폰에는 title이 뜨지 않는다(검토 5차). */
-    function getRecommendLabel(recommendation) {
-        if (recommendation) return ['all', 'balanced'].includes(state.filter) ? _t('균형 추천 교체') : _t('추천 교체');
-        if (state.status === 'running') return _t('분석 중');
-        if (state.status !== 'ready') return state.status === 'idle' ? _t('분석 먼저') : _t('재분석 필요');
-        return { all: _t('균형 상승 없음'), balanced: _t('균형 상승 없음'), damage: _t('공격 상승 없음'),
-            defense: _t('생존 상승 없음'), special: _t('직접 비교'), keep: _t('직접 비교') }[state.filter];
+    getStatusCopy() {
+      if (this.state.status === "running") return this.deps._t("{index}/{length} 분석 중", { index: this.state.work.index, length: this.state.work.items.length });
+      if (this.state.status === "ready") {
+        const counts = this.getCounts();
+        return this.deps._t("{all}개 완료, 균형 {balanced}, 공격 {damage}, 생존 {defense}", { all: counts.all, balanced: counts.balanced, damage: counts.damage, defense: counts.defense });
+      }
+      if (this.state.status === "error") return this.deps._t("분석 중 오류가 발생했습니다. 다시 시도하세요.");
+      if (this.state.status === "stale") return this.deps._t("세팅이 바뀌어 다시 분석합니다.");
+      if (this.state.status === "cancelled") return this.deps._t("분석을 중단했습니다.");
+      return this.deps._t("분석 시작 시점의 세팅/전투 상태로 비교합니다.");
     }
-
-    function render() {
-        const host = document.getElementById('ui-equipment-triage');
-        if (!host) return;
-        const counts = getCounts();
-        const running = state.status === 'running';
-        const ready = state.status === 'ready';
-        const recommendation = getRecommendedCandidate();
-        // 가방이 거의 차면 자동해체로 바로 간다(자동해체는 장비창 도구 줄의 해체 단추 창에 있다)
-        const autoSalvageButton = isInventoryNearFull()
-            ? `<button type="button" onclick="equipmentWindowUi.openSalvage()">${_t('자동 해체 설정')}</button>` : '';
-        const fillable = countFillableEmptySlots();
-        const fillButton = fillable ? `<button type="button" class="equipment-fill-empty" onclick="fillEmptyEquipmentSlots()">${_t('빈 칸 채우기 {fillable}', { fillable })}</button>` : '';
-        const html = `<div class="equipment-triage-copy" data-tip="${_t('분석 시작 시점의 세팅/전투 상태를 기준으로 비교합니다.')}"><strong>${_t('현재 세팅 분석')}</strong><small>${getStatusCopy()}</small></div>
-            <div class="equipment-triage-controls">
-                <label>${_t('판단')} <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? '' : 'disabled'}>${getFilterOptionsHtml(counts)}</select></label>
-                <button type="button" onclick="equipmentTriage.${running ? 'cancel' : 'start'}()">${running ? _t('분석 중단') : (state.status === 'idle' ? _t('일괄 분석') : _t('다시 분석'))}</button>
-                <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? '' : 'disabled'} data-tip="${getRecommendTitle(recommendation)}">${getRecommendLabel(recommendation)}</button>
-                ${fillButton}${autoSalvageButton}
-            </div>`;
-        // 언어도 넣는다: 언어를 바꿔도 같은 서명이면 그리지 않아 앞 언어의 글이 남았다(2026-11-05 검토)
-        const renderSignature = `${i18n.language}|${state.status}|${state.filter}|${state.work ? state.work.index : 0}|${JSON.stringify(counts)}|${recommendation ? recommendation.item.id : ''}|${isInventoryNearFull()}|${fillable}`;
-        if (host.dataset.renderSig === renderSignature) return;
-        host.innerHTML = html;
-        host.dataset.renderSig = renderSignature;
+    getFilterOptionsHtml(counts) {
+      const labels = {
+        all: this.deps._t("전체"),
+        balanced: this.deps._t("균형 상승"),
+        damage: this.deps._t("공격 상승"),
+        defense: this.deps._t("생존 상승"),
+        special: this.deps._t("특수 장비"),
+        keep: this.deps._t("현 세팅 유지")
+      };
+      return EQUIPMENT_TRIAGE_FILTER_IDS.map((id) => `<option value="${id}" ${this.state.filter === id ? "selected" : ""}>${labels[id]} ${counts[id] || 0}</option>`).join("");
     }
-
-    function clearResults(status) {
-        clearTimeout(state.timer);
-        clearTimeout(state.autoTimer);
-        state.timer = null;
-        state.autoTimer = null;
-        state.token += 1;
-        state.status = status;
-        state.filter = 'all';
-        state.results = new Map();
-        state.signature = '';
-        state.work = null;
-        state.lastSyncAt = 0;
-        render();
+    isInventoryNearFull() {
+      if (typeof this.deps.getInventoryLimit !== "function" || typeof this.deps.getInventoryUsedCellCount !== "function") return false;
+      const limit = Math.max(1, Math.floor(this.deps.getInventoryLimit(this.deps.getOwner())));
+      return this.deps.getInventoryUsedCellCount(this.deps.getOwner()) >= Math.floor(limit * 0.9);
     }
-
-    function sync(force) {
-        if (state.status !== 'ready' && state.status !== 'running') return;
-        let now = Date.now();
-        if (!force && now - state.lastSyncAt < 500) return;
-        state.lastSyncAt = now;
-        if (getBuildSignature() === state.signature) return;
-        clearResults('stale');
+    getRecommendTitle(recommendation) {
+      if (recommendation) return this.state.filter === "all" ? this.deps._t("공격과 생존이 함께 오르는 장비만 추천합니다.") : this.deps._t("현재 판단 기준에서 가장 높은 장비를 추천합니다.");
+      if (this.state.status !== "ready") return this.deps._t("현재 세팅으로 일괄 분석을 완료하면 추천을 확인할 수 있습니다.");
+      if (["all", "balanced"].includes(this.state.filter)) return this.deps._t("공격과 생존이 함께 오르는 장비가 없습니다. 공격 상승/생존 상승 필터로 각각 비교할 수 있습니다.");
+      if (["special", "keep"].includes(this.state.filter)) return this.deps._t("이 목록에서는 장비를 직접 선택해 효과를 비교하세요.");
+      return this.deps._t("선택한 판단 기준에서 상승하는 장비가 없습니다.");
     }
-
-    function failAnalysis(error) {
-        console.error('equipment triage failed:', error);
-        clearResults('error');
-        if (typeof showGameToast === 'function') {
-            showGameToast(_t('장비 분석에 실패했습니다. 다시 시도해 주세요.'), { tone: 'error', duration: 3200 });
-        }
+    getRecommendLabel(recommendation) {
+      if (recommendation) return ["all", "balanced"].includes(this.state.filter) ? this.deps._t("균형 추천 교체") : this.deps._t("추천 교체");
+      if (this.state.status === "running") return this.deps._t("분석 중");
+      if (this.state.status !== "ready") return this.state.status === "idle" ? this.deps._t("분석 먼저") : this.deps._t("재분석 필요");
+      return {
+        all: this.deps._t("균형 상승 없음"),
+        balanced: this.deps._t("균형 상승 없음"),
+        damage: this.deps._t("공격 상승 없음"),
+        defense: this.deps._t("생존 상승 없음"),
+        special: this.deps._t("직접 비교"),
+        keep: this.deps._t("직접 비교")
+      }[this.state.filter];
     }
-
-    function finishAnalysis(token) {
-        if (token !== state.token || !state.work) return;
-        if (getBuildSignature() !== state.signature) {
-            clearResults('stale');
-            return;
-        }
-        state.status = 'ready';
-        state.work = null;
-        state.lastSyncAt = Date.now();
-        render();
-        if (typeof updateStaticUI === 'function') updateStaticUI();
+    render() {
+      const host = this.deps.document.getElementById("ui-equipment-triage");
+      if (!host) return;
+      const counts = this.getCounts();
+      const running = this.state.status === "running";
+      const ready = this.state.status === "ready";
+      const recommendation = this.getRecommendedCandidate();
+      const autoSalvageButton = this.isInventoryNearFull() ? `<button type="button" onclick="equipmentWindowUi.openSalvage()">${this.deps._t("자동 해체 설정")}</button>` : "";
+      const fillable = this.deps.countFillableEmptySlots();
+      const fillButton = fillable ? `<button type="button" class="equipment-fill-empty" onclick="fillEmptyEquipmentSlots()">${this.deps._t("빈 칸 채우기 {fillable}", { fillable })}</button>` : "";
+      const html = `<div class="equipment-triage-copy" data-tip="${this.deps._t("분석 시작 시점의 세팅/전투 상태를 기준으로 비교합니다.")}"><strong>${this.deps._t("현재 세팅 분석")}</strong><small>${this.getStatusCopy()}</small></div>
+          <div class="equipment-triage-controls">
+              <label>${this.deps._t("판단")} <select onchange="equipmentTriage.setFilter(this.value)" ${ready ? "" : "disabled"}>${this.getFilterOptionsHtml(counts)}</select></label>
+              <button type="button" onclick="equipmentTriage.${running ? "cancel" : "start"}()">${running ? this.deps._t("분석 중단") : this.state.status === "idle" ? this.deps._t("일괄 분석") : this.deps._t("다시 분석")}</button>
+              <button type="button" onclick="equipmentTriage.equipRecommended()" ${recommendation ? "" : "disabled"} data-tip="${this.getRecommendTitle(recommendation)}">${this.getRecommendLabel(recommendation)}</button>
+              ${fillButton}${autoSalvageButton}
+          </div>`;
+      const renderSignature = this.renderSignature(counts, recommendation, fillable);
+      if (host.dataset.renderSig === renderSignature) return;
+      host.innerHTML = html;
+      host.dataset.renderSig = renderSignature;
     }
-
-    // A chunk runs at least three items, then more until 10 ms have passed, and yields to drawing and the game tick. 2026-11-07, 120
-    // items: on this PC three items fill about 10 ms either way; at a quarter of the CPU (a phone) one item passes 10 ms, and a time
-    // budget alone drew the battle between every item and finished in 8.9 s instead of 5.6 s.
-    const CHUNK_MIN_ITEMS = 3;
-    const CHUNK_BUDGET_MS = 10;
-    function runChunk(token) {
-        if (token !== state.token || !state.work) return;
-        state.timer = null;
-        const started = performance.now(), first = state.work.index;
-        try {
-            sync();
-            if (!state.work) return;
-            do {
-                const candidate = state.work.items[state.work.index++];
-                state.results.set(String(candidate.item.id), classifyCandidate(candidate, state.work));
-            } while (state.work.index < state.work.items.length
-                && (state.work.index - first < CHUNK_MIN_ITEMS || performance.now() - started < CHUNK_BUDGET_MS));
-        } catch (error) {
-            failAnalysis(error);
-            return;
-        }
-        render();
-        if (state.work.index >= state.work.items.length) return finishAnalysis(token);
-        state.timer = setTimeout(() => runChunk(token), 0);
+    renderSignature(counts, recommendation, fillable) {
+      return `${this.deps.i18n.language}|${this.state.status}|${this.state.filter}|${this.state.work ? this.state.work.index : 0}|${JSON.stringify(counts)}|${recommendation ? recommendation.item.id : ""}|${this.isInventoryNearFull()}|${fillable}`;
     }
-
-    function cancel() {
-        if (state.status !== 'running') return false;
-        clearResults('cancelled');
+    failAnalysis(error) {
+      this.deps.console.error("equipment triage failed:", error);
+      this.clearResults("error");
+      if (typeof this.deps.showGameToast === "function") {
+        this.deps.showGameToast(this.deps._t("장비 분석에 실패했습니다. 다시 시도해 주세요."), { tone: "error", duration: 3200 });
+      }
+    }
+    cancel() {
+      if (this.state.status !== "running") return false;
+      this.clearResults("cancelled");
+      return true;
+    }
+    later(run, wait = this.AUTO_DELAY_MS) {
+      this.autoTimer = this.deps.setTimeout(() => {
+        this.autoTimer = null;
+        if (!this.state.work) run();
+      }, wait);
+    }
+    autoStart() {
+      this.sync(true);
+      if (this.deps.getOwner().itemSubtab !== "item-tab-equip") return;
+      const opening = this.autoArmed;
+      const full = this.wantsFullRun();
+      this.autoArmed = false;
+      if (this.autoTimer || this.state.work) return;
+      if (full) {
+        this.later(() => {
+          if (this.state.status !== "ready") this.start();
+        }, opening ? 0 : this.AUTO_DELAY_MS);
+        return;
+      }
+      const changed = this.state.status === "ready" ? this.changedIds() : /* @__PURE__ */ new Set();
+      if (changed.size) this.later(() => {
+        this.sync(true);
+        if (this.state.status === "ready") this.begin(changed);
+      }, opening ? 0 : this.AUTO_DELAY_MS);
+    }
+    equipRecommended() {
+      this.sync(true);
+      const recommendation = this.getRecommendedCandidate();
+      if (!recommendation || typeof this.deps.equipItemById !== "function") return false;
+      const equipped = this.deps.equipItemById(recommendation.item.id, recommendation.slot);
+      if (!equipped) return false;
+      if (typeof this.deps.showGameToast === "function") {
+        this.deps.showGameToast(this.deps._t("{item} 장착, {slot}", { item: this.deps._t(recommendation.item.name || "추천 장비"), slot: this.deps._t(recommendation.slot) }), { tone: "success" });
+      }
+      this.start();
+      return true;
+    }
+    clearResults(status) {
+      this.deps.clearTimeout(this.timer);
+      this.deps.clearTimeout(this.autoTimer);
+      this.timer = null;
+      this.autoTimer = null;
+      this.model.clearResults(status);
+      this.render();
+    }
+    sync(force) {
+      if (this.model.sync(this.deps.getOwner(), force, this.deps.Date.now())) this.clearResults("stale");
+    }
+    finishAnalysis(token) {
+      const result = this.model.finish(this.deps.getOwner(), token, () => this.deps.Date.now());
+      if (result === "stale") return this.clearResults("stale");
+      if (!result) return;
+      this.render();
+      if (typeof this.deps.updateStaticUI === "function") this.deps.updateStaticUI();
+    }
+    runChunk(token) {
+      if (token !== this.state.token || !this.state.work) return;
+      this.timer = null;
+      const started = this.deps.performance.now();
+      try {
+        this.sync();
+        if (!this.state.work) return;
+        this.model.step(token, () => this.deps.performance.now(), started);
+      } catch (error) {
+        this.failAnalysis(error);
+        return;
+      }
+      this.render();
+      if (this.state.work.index >= this.state.work.items.length) return this.finishAnalysis(token);
+      this.timer = this.deps.setTimeout(() => this.runChunk(token), 0);
+    }
+    begin(ids) {
+      try {
+        this.model.begin(this.deps.getOwner(), () => this.deps.getCombatTime(), ids, () => this.deps.Date.now());
+      } catch (error) {
+        this.failAnalysis(error);
+        return false;
+      }
+      this.render();
+      if (!this.state.work.items.length) {
+        this.finishAnalysis(this.state.token);
         return true;
+      }
+      const token = this.state.token;
+      this.timer = this.deps.setTimeout(() => this.runChunk(token), 0);
+      return true;
     }
-
-    // ids: a top-up over these bag items while the results stay on screen (the status stays 'ready'); null: the whole bag.
-    function begin(ids) {
-        state.token += 1;
-        try {
-            if (!ids) state.signature = getBuildSignature();
-            state.work = createAnalysisWork(ids);
-            state.lastSyncAt = Date.now();
-        } catch (error) {
-            failAnalysis(error);
-            return false;
-        }
-        render();
-        if (state.work.items.length === 0) {
-            finishAnalysis(state.token);
-            return true;
-        }
-        const token = state.token;
-        state.timer = setTimeout(() => runChunk(token), 0);
-        return true;
+    start() {
+      if (this.state.status === "running") return false;
+      this.deps.clearTimeout(this.autoTimer);
+      this.autoTimer = null;
+      this.model.prepareStart();
+      return this.begin(null);
     }
-
-    function start() {
-        if (state.status === 'running') return false;
-        clearTimeout(state.autoTimer);
-        state.autoTimer = null;
-        state.status = 'running';
-        state.filter = 'all';
-        state.results = new Map();
-        return begin(null);
+    setFilter(filterId) {
+      this.sync(true);
+      if (!this.model.setFilter(filterId)) return false;
+      this.render();
+      if (typeof this.deps.updateStaticUI === "function") this.deps.updateStaticUI();
+      return true;
     }
-
-    // 자동 분석(2026-10-10 사용자): 장비 창을 열면 한 번, 창이 보이는 동안 장착이 바뀌어 결과가 낡으면 한 번 더 분석한다. 가방에 새로
-    // 들어오거나 바뀐 장비는 그것만 따로 분석하고 나머지 결과는 그대로 둔다. 직접 멈춘 분석과 실패한 분석은 창을 다시 열 때까지 다시 돌리지 않는다.
-    const AUTO_DELAY_MS = 300;
-    let autoArmed = false;
-    /** The equipment window was just opened (js/ui.js switchTab, switchItemSubtab). */
-    function onOpen() { autoArmed = true; }
-    const wantsFullRun = () => ['idle', 'stale'].includes(state.status) || (autoArmed && ['cancelled', 'error'].includes(state.status));
-
-    /** Drops the results of items that left the bag; returns the ids of bag items added or changed since their analysis. */
-    function changedIds() {
-        const live = new Map();
-        (game.inventory || []).forEach(item => { if (analyzable(item)) live.set(String(item.id), item); });
-        Array.from(state.results.keys()).forEach(id => { if (!live.has(id)) state.results.delete(id); });
-        const changed = Array.from(live).filter(([id, item]) => analyzedAs.get(state.results.get(id)) !== JSON.stringify(item));
-        return new Set(changed.map(([id]) => id));
+    onOpen() {
+      this.autoArmed = true;
     }
+  };
+  function createEquipmentTriageUi(model, deps) {
+    const instance = new EquipmentTriageUi(model, deps);
+    return Object.freeze({
+      render: instance.render.bind(instance),
+      start: instance.start.bind(instance),
+      cancel: instance.cancel.bind(instance),
+      autoStart: instance.autoStart.bind(instance),
+      onOpen: instance.onOpen.bind(instance),
+      setFilter: instance.setFilter.bind(instance),
+      filterRows: instance.model.filterRows,
+      currentFilter: instance.model.currentFilter,
+      getResult: instance.model.getResult,
+      equipRecommended: instance.equipRecommended.bind(instance),
+      rate: (item) => instance.model.rate(instance.deps.getOwner(), item, () => instance.deps.getCombatTime()),
+      checkFreshGear: () => instance.model.checkFreshGear(instance.deps.getOwner(), instance.deps.Date.now(), () => instance.deps.getCombatTime())
+    });
+  }
 
-    /** Runs run after the wait (ms). Opening the window waits 0: the 300 ms there only delayed the results (2026-11-07). The wait stays
-     * for changes while the window shows, which come in bursts. */
-    function later(run, wait = AUTO_DELAY_MS) {
-        state.autoTimer = setTimeout(() => {
-            state.autoTimer = null;
-            if (!state.work) run();
-        }, wait);
+  // modules/equipment-triage-classic.mjs
+  var analysis = createEquipmentTriage({
+    get bagItems() {
+      return bagItems;
+    },
+    get calculatePlayerEhpProfile() {
+      return typeof calculatePlayerEhpProfile === "function" ? calculatePlayerEhpProfile : void 0;
+    },
+    get getEquipCandidateSlots() {
+      return typeof getEquipCandidateSlots === "function" ? getEquipCandidateSlots : void 0;
+    },
+    get getPersistentBuildSignature() {
+      return getPersistentBuildSignature;
+    },
+    get takeFreshGearIds() {
+      return takeFreshGearIds;
+    },
+    readStats: (owner) => combatEquipmentStats.read(false, owner)
+  });
+  var equipmentTriage = createEquipmentTriageUi(analysis, {
+    getOwner: () => game,
+    get document() {
+      return document;
+    },
+    get i18n() {
+      return i18n;
+    },
+    get _t() {
+      return _t;
+    },
+    get Date() {
+      return Date;
+    },
+    get performance() {
+      return performance;
+    },
+    get console() {
+      return console;
+    },
+    get setTimeout() {
+      return setTimeout.bind(globalThis);
+    },
+    get clearTimeout() {
+      return clearTimeout.bind(globalThis);
+    },
+    get getCombatTime() {
+      return getCombatTime;
+    },
+    get getInventoryLimit() {
+      return typeof getInventoryLimit === "function" ? getInventoryLimit : void 0;
+    },
+    get getInventoryUsedCellCount() {
+      return typeof getInventoryUsedCellCount === "function" ? getInventoryUsedCellCount : void 0;
+    },
+    get countFillableEmptySlots() {
+      return countFillableEmptySlots;
+    },
+    get updateStaticUI() {
+      return typeof updateStaticUI === "function" ? updateStaticUI : void 0;
+    },
+    get showGameToast() {
+      return typeof showGameToast === "function" ? showGameToast : void 0;
+    },
+    get equipItemById() {
+      return typeof equipItemById === "function" ? equipItemById : void 0;
     }
-
-    /** The equipment window's refresh while it shows (js/ui.js updateStaticUI): one analysis when due, else a top-up of new bag items. */
-    function autoStart() {
-        sync(true);
-        if (game.itemSubtab !== 'item-tab-equip') return;
-        const opening = autoArmed;
-        const full = wantsFullRun();
-        autoArmed = false;
-        if (state.autoTimer || state.work) return;
-        if (full) {
-            later(() => { if (state.status !== 'ready') start(); }, opening ? 0 : AUTO_DELAY_MS);
-            return;
-        }
-        const changed = state.status === 'ready' ? changedIds() : new Set();
-        if (changed.size) later(() => { sync(true); if (state.status === 'ready') begin(changed); }, opening ? 0 : AUTO_DELAY_MS);
-    }
-
-    function setFilter(filterId) {
-        sync(true);
-        if (state.status !== 'ready' || !FILTER_IDS.includes(filterId)) return false;
-        state.filter = filterId;
-        render();
-        if (typeof updateStaticUI === 'function') updateStaticUI();
-        return true;
-    }
-
-    function matchesFilter(result) {
-        if (state.filter === 'all') return true;
-        if (!result) return false;
-        if (state.filter === 'balanced') return result.kind === 'balanced';
-        if (state.filter === 'damage') return result.dpsGainPct >= 1;
-        if (state.filter === 'defense') return result.ehpGainPct >= 1;
-        if (state.filter === 'special') return result.special;
-        return result.kind === 'keep' && !result.special;
-    }
-
-    function filterRows(rows) {
-        if (state.status !== 'ready' || state.filter === 'all') return rows;
-        return rows.map(row => ({ ...row, filterActive: true,
-            filterMatched: row.filterMatched !== false && matchesFilter(getResult(row.item)) }));
-    }
-
-    function getResult(item) {
-        if (state.status !== 'ready' || !item || item.id === undefined) return null;
-        return state.results.get(String(item.id)) || null;
-    }
-
-    /** A ware off an NPC's shelf (js/npc-shop-ui.js) rated as a bag item would be, against a snapshot of the build now; not kept. */
-    function rate(item) {
-        return analyzable(item) ? classifyCandidate({ item, slots: getCandidateSlots(item), key: '' }, createAnalysisWork(new Set())) : null;
-    }
-
-    // 더 좋은 장비 알림(2026-10-26 사용자: "더 좋은 장비 획득 시 장비 탭에 알람"): 주운 장비를 몇 개씩 지금 세팅에 대어 보고(4초에 4개까지),
-    // 하나라도 upgrade면 장비 단추에 점을 켠다. 결과가 지금 세팅의 분석과 같으면 그 결과에도 넣어 창을 열 때 다시 재지 않는다.
-    const FRESH_GEAR_BATCH = 4, FRESH_GEAR_GAP_MS = 4000;
-    let freshGearAt = 0;
-    /** The UI refresh (js/ui.js performUpdateStaticUI); does nothing during an away settlement. */
-    function checkFreshGear() {
-        const now = Date.now();
-        if (now < freshGearAt || game.isBackgroundCalculation) return;
-        freshGearAt = now + FRESH_GEAR_GAP_MS;
-        const ids = new Set(takeFreshGearIds(FRESH_GEAR_BATCH).map(String));
-        if (!ids.size) return;
-        const work = createAnalysisWork(ids);
-        const keep = state.status === 'ready' && !state.work && getBuildSignature() === state.signature;
-        const results = work.items.map(candidate => [String(candidate.item.id), classifyCandidate(candidate, work)]);
-        if (keep) results.forEach(([id, result]) => state.results.set(id, result));
-        if (results.some(([, result]) => result.upgrade)) game.noti.items = true;
-    }
-
-    function equipRecommended() {
-        sync(true);
-        const recommendation = getRecommendedCandidate();
-        if (!recommendation || typeof equipItemById !== 'function') return false;
-        const equipped = equipItemById(recommendation.item.id, recommendation.slot);
-        if (!equipped) return false;
-        if (typeof showGameToast === 'function') {
-            showGameToast(_t('{item} 장착, {slot}', { item: _t(recommendation.item.name || '추천 장비'), slot: _t(recommendation.slot) }), { tone: 'success' });
-        }
-        start();
-        return true;
-    }
-
-    /** The 판단 filter the bag dims by now ('all' when none or while the analysis is not ready). */
-    function currentFilter() {
-        return state.status === 'ready' ? state.filter : 'all';
-    }
-
-    const equipmentTriage = Object.freeze({ render, start, cancel, autoStart, onOpen, setFilter, filterRows, currentFilter, getResult, equipRecommended, rate, checkFreshGear });
-    safeExposeGlobals({ equipmentTriage });
-}());
+  });
+  safeExposeGlobals({ equipmentTriage });
+})();

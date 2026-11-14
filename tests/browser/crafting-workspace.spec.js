@@ -8,9 +8,9 @@ async function setup(page) {
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle=null;
+        window.GameModules.application.timers.stopCombat();
         game.season=30; game.contentProgression.inherited=CONTENT_UNLOCK_CATALOG.map(row=>row.id);contentProgression.sync();
         const item=createItemFromBase(BASE_ITEM_DB.find(row=>row.slot==='무기'),'rare',12);
         item.stats=[{id:'flatDmg',statName:'기본 피해',val:10,valMin:8,valMax:12,tier:1}];
@@ -23,7 +23,7 @@ async function setup(page) {
 }
 async function settle(page) {
     await page.waitForFunction(() => {
-        if(uiRefreshRunning||uiRefreshQueued)return false;
+        if(window.GameModules.uiRuntime.status().running||window.GameModules.uiRuntime.status().queued)return false;
         tutorialQueue.length=0;if(activeTutorial)dismissTutorial(false);return true;
     });
 }

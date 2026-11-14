@@ -1,347 +1,492 @@
-// Combat progression adapter: authored exploration -> existing grid movement and enemies.
-// It never rolls enemies, rewards, attacks or runs a second combat loop.
-const actExplorationProgress = (() => {
-    // A move command that makes no progress for this many 20 ms steps (its cell taken, or out of reach) is dropped:
-    // the hero stays as close as it got and, with auto-move on, goes back to exploring.
-    const COMMAND_GIVE_UP_STEPS=15;
-    const commandStalls=new WeakMap(); // run → steps the command has not advanced (transient, like the discovery memos)
-    // After the last boss falls, auto-move walks to what it dropped before the map completes. A pile the hero cannot reach is
-    // collected from where it stands; manual movement waits for a click or an explicit step onto the pile, at most
-    // MANUAL_LOOT_WAIT_MS of combat time (leaving collects what is left: a hero left alone in 직접 이동 kept the map forever).
-    const MANUAL_LOOT_WAIT_MS=20000;
-    const lootWalks=new WeakMap(); // run → {stalls, clearedAt} (transient, like the discovery memos)
-    const walkedMs=new WeakMap(); // run → ms the hero walked since the last combat tick took it (takeWalkedMs, transient)
-    const inscriptionVisits=new WeakMap(); // run → last settled cell/room checked, never part of a save
-    // 자동 이동의 유예(2026-10-24 사용자: "자동사냥 켰을때 이동하기까지 약간의 유예, 자동 상태에서 마우스나 wasd로 조작했을 때 다시
-    // 이동하기까지도 약간의 유예"): 자동을 켠 뒤 AUTO_START_GRACE_MS, 직접 내린 명령(클릭, WASD, 락온)이 끝난 뒤 AUTO_RESUME_GRACE_MS
-    // 동안은 자동으로 걷거나 다가가지 않고 제자리에서 사거리 안만 친다. 화면 앞의 조작에 맞춘 것이라 방치 정산에는 없다.
-    const AUTO_START_GRACE_MS=1000,AUTO_RESUME_GRACE_MS=1500;
-    const autoHolds=new WeakMap(); // run → movement-clock ms until which auto-move waits (transient, never saved)
-    const manualSteerHolds=new WeakMap(); // A locked target must not keep renewing the WASD release grace.
-    const clockOf=run=>run.motionTimeMs||getCombatTime();
-    function holdAuto(run,ms) {autoHolds.set(run,Math.max(autoHolds.get(run)||0,clockOf(run)+ms));}
-    function autoHeld(run) {return !game.isBackgroundCalculation && (autoHolds.get(run)||0)>clockOf(run);}
-    /** While a manual order (click, WASD, lock-on) is under way the grace keeps moving on, so AUTO_RESUME_GRACE_MS counts from the
-     * moment it ends; with no order, auto-move waits out the grace. @returns {boolean} true while auto-move waits. */
-    function waitsForAutoGrace(run) {
-        if(run.destination || actExplorationState.lockedEnemy(run)){holdAuto(run,AUTO_RESUME_GRACE_MS);return false;}
-        return runMode(run)!=='manual' && autoHeld(run);
+// GENERATED from modules/act-exploration-progress*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/combat/exploration-progress-rules.mjs
+  var AUTO_RESUME_GRACE_MS = 1500;
+  var AUTO_START_GRACE_MS = 1e3;
+  var COMMAND_GIVE_UP_STEPS = 15;
+  function progressClockOf(env, run) {
+    return run.motionTimeMs || env.deps.getCombatTime();
+  }
+  function progressHoldAuto(env, run, ms) {
+    env.memo.autoHolds.set(run, Math.max(env.memo.autoHolds.get(run) || 0, progressClockOf(env, run) + ms));
+  }
+  function progressAutoHeld(env, run) {
+    return !env.owner.isBackgroundCalculation && (env.memo.autoHolds.get(run) || 0) > progressClockOf(env, run);
+  }
+  function progressWaitsForAutoGrace(env, run) {
+    if (run.destination || env.deps.actExplorationState.lockedEnemy(run)) {
+      progressHoldAuto(env, run, AUTO_RESUME_GRACE_MS);
+      return false;
     }
-    /** Auto-move was just turned on (js/act-exploration-ui.js toggleAuto, mode): it starts walking after the grace. */
-    function holdAutoStart(run) {if(run)holdAuto(run,AUTO_START_GRACE_MS);}
-    function holdAutoManual(run) {
-        holdAuto(run,AUTO_RESUME_GRACE_MS);
-        manualSteerHolds.set(run,clockOf(run)+AUTO_RESUME_GRACE_MS);
+    return progressRunMode(env, run) !== "manual" && progressAutoHeld(env, run);
+  }
+  function progressHoldAutoStart(env, run) {
+    if (run) progressHoldAuto(env, run, AUTO_START_GRACE_MS);
+  }
+  function progressHoldAutoManual(env, run) {
+    progressHoldAuto(env, run, AUTO_RESUME_GRACE_MS);
+    env.memo.manualSteerHolds.set(run, progressClockOf(env, run) + AUTO_RESUME_GRACE_MS);
+  }
+  function progressClearManualSteerHold(env, run) {
+    return env.memo.manualSteerHolds.delete(run);
+  }
+  function progressStartMode(settings) {
+    return settings.autoMove === false ? "manual" : settings.actExplorationMode;
+  }
+  function progressRunMode(env, run, state = env.owner) {
+    if (run.mode !== "manual" || !state.isBackgroundCalculation) return run.mode;
+    return state.settings.actExplorationMode === "full" ? "full" : "direct";
+  }
+  function progressHoldPosition(env, requested) {
+    const run = env.deps.actExplorationState.current(env.owner);
+    if (!run) return !!requested;
+    const locked = !!env.deps.actExplorationState.lockedEnemy(run);
+    return requested || progressRunMode(env, run) === "manual" && !locked || !!run.destination || progressHoldsManualSteer(env, run, locked);
+  }
+  function progressHoldsManualSteer(env, run, locked) {
+    return locked ? (env.memo.manualSteerHolds.get(run) || 0) > progressClockOf(env, run) : progressAutoHeld(env, run);
+  }
+
+  // modules/combat/exploration-progress-loot.mjs
+  var GREED_PICKUP_RANGE = 999;
+  var MANUAL_LOOT_WAIT_MS = 2e4;
+  function progressWalkStep(env, target, stats) {
+    const interval = env.deps.COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / stats.moveSpeed;
+    const diagonal = stats.moveSpeed >= env.deps.COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed && !env.owner.enemies.some((enemy) => enemy.hp > 0);
+    return !!target && env.deps.beginExplorationGridStep(target, interval, void 0, diagonal);
+  }
+  function progressPickupRange(env, stats) {
+    if (env.deps.blessingGreed(env.owner)) return GREED_PICKUP_RANGE;
+    return stats.moveSpeed >= env.deps.COMBAT_GRID_CONFIG.explorationWidePickupMoveSpeed ? 1 : 0;
+  }
+  function* progressPickUp(env, run, stats) {
+    const range = progressPickupRange(env, stats);
+    const rows = env.owner.isBackgroundCalculation ? env.deps.ground.takeAll(run) : env.deps.ground.takeNear(run, env.owner.gridPlayer, env.deps.getCombatTime(), range);
+    if (rows.length) yield { kind: "collectExplorationFloorLoot", args: [rows] };
+  }
+  function* progressWalkToLoot(env, run, stats) {
+    const now = env.deps.getCombatTime(), pile = env.deps.ground.nearest(run, env.owner.gridPlayer, now);
+    if (!pile) return env.deps.ground.falling(run, now);
+    const memo2 = env.memo.lootWalks.get(run) || { stalls: 0 };
+    env.memo.lootWalks.set(run, memo2);
+    if (env.deps.isPlayerAttackRecovering(run.motionTimeMs)) return true;
+    memo2.stalls = progressWalkStep(env, env.deps.actExplorationDoors.toward(run, pile), stats) ? 0 : memo2.stalls + 1;
+    if (memo2.stalls >= COMMAND_GIVE_UP_STEPS) {
+      memo2.stalls = 0;
+      yield { kind: "collectExplorationFloorLoot", args: [env.deps.ground.takeAt(run, pile)] };
     }
-    const clearManualSteerHold=run=>manualSteerHolds.delete(run);
-    const ground=actExplorationState.groundLoot;
-    function advance(stats) {
-        const run=actExplorationState.current(game);
-        if(!run)return false;
-        tick(getCombatTime(),stats);
-        return true;
+    return true;
+  }
+  function progressCollectingLoot(env, run) {
+    if (run.status !== "cleared" || run.completionApplied || env.owner.isBackgroundCalculation || !env.deps.ground.nearest(run, env.owner.gridPlayer)) return false;
+    if (progressRunMode(env, run) !== "manual") return true;
+    const memo2 = env.memo.lootWalks.get(run) || { stalls: 0 };
+    env.memo.lootWalks.set(run, memo2);
+    const now = env.deps.getCombatTime();
+    if (memo2.clearedAt === void 0) memo2.clearedAt = now;
+    return now - memo2.clearedAt < MANUAL_LOOT_WAIT_MS;
+  }
+  function progressCanMove(env, run) {
+    return !!run && (run.status === "active" || progressCollectingLoot(env, run));
+  }
+  function* progressCollectPile(env, cell) {
+    const run = env.deps.actExplorationState.current(env.owner);
+    const rows = run ? env.deps.ground.takeAt(run, cell) : [];
+    if (rows.length) {
+      yield { kind: "collectExplorationFloorLoot", args: [rows] };
+      yield { kind: "queueImportantSave", args: [220] };
     }
-    /** Foreground frames and offline combat ticks advance the same 20 ms movement clock. */
-    /** A live run walks; a cleared one (its boss down) finishes the step it was taking, so the hero can still fight, and with
-     * auto-move picks up the floor items before the map completes. */
-    const stepsLeft=run=>canMove(run) || (run.status==='cleared' && (run.motion || actExplorationMotion.freeMoving(run)));
-    function tick(now,stats) {
-        const run=actExplorationState.current(game);
-        if(!run || !stepsLeft(run))return;
-        if(game.combatHalted || game.moveTimer>0) {
-            actExplorationMotion.rebase(run,now);
-            return;
-        }
-        if(run.arrival)delete run.arrival; // laid out during the move; from here it is the act's live run
-        actExplorationDoors.sendStraysBack(run); // 방 단위 무대: 다른 방에서 싸움에 든 몬스터는 제 무리로 돌아간다
-        if(!run.motionTimeMs)run.motionTimeMs=now;
-        // Combat replay supplies fixed ticks. A restored/stalled foreground clock must not
-        // turn one frame into an unbounded movement-only catch-up loop.
-        if(now-run.motionTimeMs>1000)actExplorationMotion.rebase(run,now-100);
-        while(run.motionTimeMs+20<=now) {
-            run.motionTimeMs+=20;
-            stepFrame(run,stats);
-        }
+    return rows.length;
+  }
+
+  // modules/combat/exploration-progress-lifecycle.mjs
+  function* progressRecordVisitedInscription(env, run) {
+    if (!env.deps.JOURNAL_DB["inscription_" + run.zoneId]) return;
+    const hero = env.owner.gridPlayer, prior = env.memo.inscriptionVisits.get(run);
+    if (prior && prior.gx === hero.gx && prior.gy === hero.gy) return;
+    const room = env.deps.actExplorationDoors.room(run);
+    env.memo.inscriptionVisits.set(run, { gx: hero.gx, gy: hero.gy, roomId: room?.id });
+    if (room && room.id !== prior?.roomId) yield* progressRecordInscription(env, run, false);
+  }
+  function* progressRecordInscription(env, run, completed) {
+    const id = "inscription_" + run.zoneId, entry = env.deps.JOURNAL_DB[id];
+    if (!entry || entry.afterClear !== completed || env.owner.journalEntries.includes(id)) return;
+    if (!env.deps.actExplorationDoors.stageMap(run)) return;
+    if (!completed && env.deps.actExplorationDoors.room(run)?.role !== "optional") return;
+    env.deps.unlockJournalEntry(id);
+    if (!env.owner.isBackgroundCalculation) yield { kind: "queueImportantSave", args: [220] };
+  }
+  function progressLive(env, state = env.owner) {
+    const run = env.deps.actExplorationState.current(state);
+    return run && !run.arrival ? run : null;
+  }
+  function progressCanFinish(env) {
+    const run = progressLive(env);
+    if (run) return run.status === "cleared" && !run.completionApplied && !progressCollectingLoot(env, run);
+    return env.owner.runProgress >= 100 && env.owner.encounterIndex >= env.owner.encounterPlan.length && env.owner.enemies.length === 0;
+  }
+  function* progressBeginCompletion(env, zone) {
+    const run = progressLive(env);
+    if (!run) return true;
+    if (!progressCanFinish(env)) return false;
+    env.deps.actExplorationMotion.cancel(run);
+    env.deps.actExplorationState.retireCombat(env.owner);
+    run.completionApplied = true;
+    yield* progressRecordInscription(env, run, true);
+    env.owner.runProgress = 100;
+    if (Number.isFinite(zone.maxKills)) env.owner.killsInZone = Math.max(env.owner.killsInZone, zone.maxKills - 1);
+    return true;
+  }
+  function progressShouldTrackStall(env) {
+    return !progressLive(env) && env.owner.moveTimer <= 0 && env.owner.enemies.length === 0;
+  }
+  function progressWaiting(env, state) {
+    const run = env.deps.actExplorationState.current(state);
+    return !!(run && (run.status === "failed" || run.completionApplied && !run.departure));
+  }
+  function progressDeferDeparture(env, state) {
+    const run = state.actExploration;
+    if (!run?.completionApplied || state.isBackgroundCalculation) return false;
+    run.departure = { zoneId: state.currentZoneId, remainingMs: env.deps.actExplorationState.settlementMs };
+    state.currentZoneId = run.zoneId;
+    state.combatHalted = false;
+    return true;
+  }
+  function* progressDepart(env, state) {
+    const run = state.actExploration;
+    if (run && ["colony_run", "grand_breach_run"].includes(run.zoneId)) env.deps.ground.discardEncounter(state, run.zoneId);
+    else if (run && state === env.owner) {
+      const rows = env.deps.ground.takeAll(run);
+      if (rows.length) yield { kind: "collectExplorationFloorLoot", args: [rows] };
+    } else if (run) env.deps.ground.settleOnLoad(state, run);
+    state.actExploration = null;
+  }
+  function progressStopAfterCompletion(env, state) {
+    state.combatHalted = true;
+    state.enemies = [];
+    state.encounterPlan = [];
+    state.encounterIndex = 0;
+    state.runProgress = env.deps.actExplorationState.current(state)?.completionApplied ? 100 : 0;
+  }
+  function* progressReconcileDeparture(env, state) {
+    if (state.actExploration && !env.deps.actExplorationState.current(state)) yield* progressDepart(env, state);
+  }
+  function progressDefeat(env, state) {
+    const run = env.deps.actExplorationState.current(state);
+    if (run && !run.completionApplied) {
+      env.deps.actExplorationMotion.cancel(run);
+      run.status = "failed";
     }
-    /** One 20 ms movement frame: the step, the approach after a finished step, and the walked time (takeWalkedMs). */
-    function stepFrame(run,stats) {
-        const walking=run.motion;
-        const freeWalking=actExplorationMotion.freeBusy(run);
-        step(run,stats);
-        continueApproachAfterStep(run,walking,stats);
-        if(freeWalking && !actExplorationMotion.freeBusy(run))continuePlayerExplorationApproach(stats);
-        if(walking || actExplorationMotion.freeMoving(run))walkedMs.set(run,(walkedMs.get(run)||0)+20);
+  }
+
+  // modules/combat/exploration-progress-movement.mjs
+  function* progressAdvance(env, stats) {
+    const run = env.deps.actExplorationState.current(env.owner);
+    if (!run) return false;
+    yield* progressTick(env, env.deps.getCombatTime(), stats);
+    return true;
+  }
+  function progressStepsLeft(env, run) {
+    return progressCanMove(env, run) || run.status === "cleared" && (run.motion || env.deps.actExplorationMotion.freeMoving(run));
+  }
+  function* progressTick(env, now, stats) {
+    const run = env.deps.actExplorationState.current(env.owner);
+    if (!run || !progressStepsLeft(env, run)) return;
+    if (env.owner.combatHalted || env.owner.moveTimer > 0) {
+      env.deps.actExplorationMotion.rebase(run, now);
+      return;
     }
-    /** A step that ends goes on toward the fight at once, on a foreground frame and inside a combat tick alike. Waiting for
-     * the next 100 ms tick (offline replay) locked the hero and an enemy across a blocked cell into mirrored steps: no kill
-     * for minutes (2026-10-07). */
-    function continueApproachAfterStep(run,walking,stats) {
-        if(walking && walking.elapsed===walking.duration && !run.motion)continuePlayerExplorationApproach(stats);
+    if (run.arrival) delete run.arrival;
+    env.deps.actExplorationDoors.sendStraysBack(run);
+    if (!run.motionTimeMs) run.motionTimeMs = now;
+    if (now - run.motionTimeMs > 1e3) env.deps.actExplorationMotion.rebase(run, now - 100);
+    while (run.motionTimeMs + 20 <= now) {
+      run.motionTimeMs += 20;
+      yield* progressStepFrame(env, run, stats);
     }
-    function step(run,stats) {
-        actExplorationProgress.objects.step(run,20);
-        const from=advanceMovement(run,stats);
-        swapSummonOutOfHeroTile(from);
-        if(run.motion || actExplorationMotion.freeBusy(run))return;
-        if(!explore(run,stats)){walkClearedCommand(run,stats);return;}
-        actExplorationDoors.cross(run); // 방 단위 무대: 열린 문 칸에 서 있으면 이어진 방으로 옮겨진 뒤 그 방을 본다
-        actExplorationState.discover(run,game.gridPlayer,stats);
-        recordVisitedInscription(run);
-        const opened=actExplorationState.entrance(run);
-        wakeBosses(actExplorationState.engage(game,run.motionTimeMs));
-        announceAlerted(actExplorationState.wake(game,actExplorationState.alerted(game)));
-        const entrance=watchEntrance(run,opened);
-        const cleared=run.packs.filter(pack=>pack.aliveIds.length===0).length;
-        // 벌집 원정(한 줄 지도)의 진행도는 갈림길 수다(js/ui.js): 방은 처음부터 비어 있어 방 수로 세면 맞지 않는다
-        if(!(run.source && run.source.chain===true))game.runProgress=Math.min(99,100*cleared/run.packs.length);
-        if(holdsOrDetours(run,entrance,stats))return;
-        const target=actExplorationState.destination(run,game.gridPlayer,runMode(run));
-        if(!target)return;
-        if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
-        walk(run,target,stats);
+  }
+  function* progressStepFrame(env, run, stats) {
+    const walking = run.motion;
+    const freeWalking = env.deps.actExplorationMotion.freeBusy(run);
+    yield* progressStep(env, run, stats);
+    progressContinueApproachAfterStep(env, run, walking, stats);
+    if (freeWalking && !env.deps.actExplorationMotion.freeBusy(run)) env.deps.continuePlayerExplorationApproach(stats);
+    if (walking || env.deps.actExplorationMotion.freeMoving(run)) env.memo.walkedMs.set(run, (env.memo.walkedMs.get(run) || 0) + 20);
+  }
+  function progressContinueApproachAfterStep(env, run, walking, stats) {
+    if (walking && walking.elapsed === walking.duration && !run.motion) env.deps.continuePlayerExplorationApproach(stats);
+  }
+  function* progressStep(env, run, stats) {
+    env.deps.objects.step(run, 20);
+    const from = progressAdvanceMovement(env, run, stats);
+    env.deps.swapSummonOutOfHeroTile(from);
+    if (run.motion || env.deps.actExplorationMotion.freeBusy(run)) return;
+    if (!(yield* progressExplore(env, run, stats))) {
+      yield* progressWalkClearedCommand(env, run, stats);
+      return;
     }
-    function advanceMovement(run,stats) {
-        const motion=actExplorationMotion, player=game.gridPlayer;
-        if(bossMoves.observer.playerBoundary(run)){
-            const from={gx:player.gx,gy:player.gy};
-            const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed/actExplorationDoors.pace(run);
-            const point=motion.takeDirectAim(run) || motion.preciseTarget(run,player);
-            if(point)motion.startFree(run,player,point,interval);
-            let blocked;
-            motion.advanceFree(run,player,interval,cell=>{
-                blocked ||= getHeroStepBlockedCells();
-                return canPlaceGridFootprint(blocked,cell.gx,cell.gy,{columns:1,rows:1});
-            });
-            return from;
-        }
-        motion.stopFree(run);
-        const from=run.motion&&run.motion.from;
-        motion.advance(run,player,run.motionTimeMs,canEnterMotionTile(run));
-        return from;
+    env.deps.actExplorationDoors.cross(run);
+    env.deps.actExplorationState.discover(run, env.owner.gridPlayer, stats);
+    yield* progressRecordVisitedInscription(env, run);
+    const opened = env.deps.actExplorationState.entrance(run);
+    progressWakeBosses(env, env.deps.actExplorationState.engage(env.owner, run.motionTimeMs));
+    yield* progressAnnounceAlerted(env.deps.actExplorationState.wake(env.owner, env.deps.actExplorationState.alerted(env.owner)));
+    const entrance = yield* progressWatchEntrance(env, run, opened);
+    const cleared = run.packs.filter((pack) => pack.aliveIds.length === 0).length;
+    if (!(run.source && run.source.chain === true)) env.owner.runProgress = Math.min(99, 100 * cleared / run.packs.length);
+    if (yield* progressHoldsOrDetours(env, run, entrance, stats)) return;
+    const target = env.deps.actExplorationState.destination(run, env.owner.gridPlayer, progressRunMode(env, run));
+    if (!target) return;
+    if (target.gx === env.owner.gridPlayer.gx && target.gy === env.owner.gridPlayer.gy) {
+      run.destination = null;
+      return;
     }
-    /** 복원 첫 걸음과 방을 바꿀 때 확인한다. 옛 방문 목록에 있는 방도 다시 들어서면 기록할 수 있다. */
-    function recordVisitedInscription(run) {
-        if(!JOURNAL_DB['inscription_'+run.zoneId])return;
-        const hero=game.gridPlayer,prior=inscriptionVisits.get(run);
-        if(prior && prior.gx===hero.gx && prior.gy===hero.gy)return;
-        const room=actExplorationDoors.room(run);
-        inscriptionVisits.set(run,{gx:hero.gx,gy:hero.gy,roomId:room?.id});
-        if(room && room.id!==prior?.roomId)recordInscription(run,false);
+    progressWalk(env, run, target, stats);
+  }
+  function progressAdvanceMovement(env, run, stats) {
+    const motion = env.deps.actExplorationMotion, player = env.owner.gridPlayer;
+    if (env.deps.bossMoves.observer.playerBoundary(run)) {
+      const from2 = { gx: player.gx, gy: player.gy };
+      const interval = env.deps.COMBAT_GRID_CONFIG.playerMoveIntervalSec * 100 / stats.moveSpeed / env.deps.actExplorationDoors.pace(run);
+      const point = motion.takeDirectAim(run) || motion.preciseTarget(run, player);
+      if (point) motion.startFree(run, player, point, interval);
+      let blocked;
+      motion.advanceFree(run, player, interval, (cell) => {
+        blocked || (blocked = env.deps.getHeroStepBlockedCells());
+        return env.deps.canPlaceGridFootprint(blocked, cell.gx, cell.gy, { columns: 1, rows: 1 });
+      });
+      return from2;
     }
-    /** 기존 비문을 실제 방문/클리어 때 한 번 기록한다. 그림 그리기나 반복 프레임에는 저장을 쓰지 않는다. */
-    function recordInscription(run,completed) {
-        const id='inscription_'+run.zoneId,entry=JOURNAL_DB[id];
-        if(!entry || entry.afterClear!==completed || game.journalEntries.includes(id))return;
-        if(!actExplorationDoors.stageMap(run))return;
-        if(!completed && actExplorationDoors.room(run)?.role!=='optional')return;
-        unlockJournalEntry(id);
-        if(!game.isBackgroundCalculation)queueImportantSave(220);
+    motion.stopFree(run);
+    const from = run.motion && run.motion.from;
+    motion.advance(run, player, run.motionTimeMs, progressCanEnterMotionTile(env, run));
+    return from;
+  }
+  function* progressWalkClearedCommand(env, run, stats) {
+    if (run.status !== "cleared" || run.motion) return;
+    if (progressCollectingLoot(env, run)) env.deps.actExplorationDoors.cross(run);
+    yield* progressRecordVisitedInscription(env, run);
+    const target = run.destination;
+    if (!target) return;
+    if (target.gx === env.owner.gridPlayer.gx && target.gy === env.owner.gridPlayer.gy) {
+      run.destination = null;
+      return;
     }
-    /** A loot-waiting map may cross internal room doors, but never engages new packs or advances to another map. */
-    function walkClearedCommand(run,stats) {
-        if(run.status!=='cleared'||run.motion)return;
-        if(collectingLoot(run))actExplorationDoors.cross(run);
-        recordVisitedInscription(run);
-        const target=run.destination;
-        if(!target)return;
-        if(target.gx===game.gridPlayer.gx && target.gy===game.gridPlayer.gy){run.destination=null;return;}
-        walk(run,target,stats);
+    progressWalk(env, run, target, stats);
+  }
+  function progressWalk(env, run, target, stats) {
+    if (env.deps.isPlayerAttackRecovering(run.motionTimeMs)) return;
+    const stepped = progressWalkStep(env, env.deps.actExplorationDoors.toward(run, target), stats);
+    if (stepped || target !== run.destination) {
+      env.memo.commandStalls.delete(run);
+      return;
     }
-    function walk(run,target,stats) {
-        // 공격 후딜(js/combat.js isPlayerAttackRecovering): 명령은 그대로 두고 멈춘 걸음으로도 세지 않는다. 후딜이 끝나는 프레임에 걷는다.
-        if(isPlayerAttackRecovering(run.motionTimeMs))return;
-        const stepped=walkStep(actExplorationDoors.toward(run,target),stats);
-        if(stepped || target!==run.destination){commandStalls.delete(run);return;}
-        const stalls=(commandStalls.get(run)||0)+1;
-        commandStalls.set(run,stalls);
-        if(stalls>=COMMAND_GIVE_UP_STEPS){run.destination=null;actExplorationProgress.objects.cancel(run);commandStalls.delete(run);}
+    const stalls = (env.memo.commandStalls.get(run) || 0) + 1;
+    env.memo.commandStalls.set(run, stalls);
+    if (stalls >= COMMAND_GIVE_UP_STEPS) {
+      run.destination = null;
+      env.deps.objects.cancel(run);
+      env.memo.commandStalls.delete(run);
     }
-    /** The player stands still at the threshold while the boss rises. A fight pauses the automatic walk, never a command; once
-     * nothing fights, auto-move first walks to floor items. Returns whether this step's exploration walk is skipped. */
-    function holdsOrDetours(run,entrance,stats) {
-        if(entrance)return true;
-        if(waitsForAutoGrace(run))return true;
-        if(run.destination)return false;
-        if(actExplorationDoors.fightingHere(run))return true;
-        return runMode(run)!=='manual' && walkToLoot(run,stats);
+  }
+  function* progressHoldsOrDetours(env, run, entrance, stats) {
+    if (entrance) return true;
+    if (progressWaitsForAutoGrace(env, run)) return true;
+    if (run.destination) return false;
+    if (env.deps.actExplorationDoors.fightingHere(run)) return true;
+    return progressRunMode(env, run) !== "manual" && (yield* progressWalkToLoot(env, run, stats));
+  }
+  function* progressExplore(env, run, stats) {
+    yield* progressPickUp(env, run, stats);
+    if (run.status === "cleared" && progressCollectingLoot(env, run) && progressRunMode(env, run) !== "manual") yield* progressWalkToLoot(env, run, stats);
+    return run.status === "active";
+  }
+  function* progressWatchEntrance(env, run, opened) {
+    const entrance = env.deps.actExplorationState.entrance(run);
+    if (!entrance || entrance === opened) return entrance;
+    const pack = run.packs.find((row) => row.key === entrance.key);
+    env.deps.roomInvaders.onBossEntrance(run, pack);
+    const holdMs = env.deps.woodsmanBattle.introduction() ? env.deps.WOODSMAN_BATTLE.intro.revealMs : entrance.holdMs;
+    yield { kind: "addBattleFx", args: ["bossEntrance", { enemies: pack.waiting, enemyIds: pack.waiting.map((enemy) => enemy.id), holdMs, duration: holdMs + 600, red: pack.waiting.some((enemy) => enemy.redEntrance) }] };
+    return entrance;
+  }
+  function* progressAnnounceAlerted(woken) {
+    if (woken.length) yield { kind: "dispatchRuntimeEvent", args: ["exploration-alert", { enemyIds: woken.map((enemy) => enemy.id) }] };
+  }
+  function progressWakeBosses(env, woken) {
+    const zone = env.deps.getZone(env.owner.currentZoneId);
+    for (const enemy of woken) if (enemy.isBoss && !enemy.roomInvader && !enemy.uninvited) {
+      env.deps.restartHiddenJournalBossRun(enemy, zone);
+      env.deps.beginRoomBossRules(zone);
     }
-    /** Floor pickups on every settled step; a cleared map only walks to its floor items. Returns whether exploration goes on. */
-    const GREED_PICKUP_RANGE=999;
-    function pickupRange(stats) {
-        if(window.GameModules.combat.supports.blessingGreed(game))return GREED_PICKUP_RANGE;
-        return stats.moveSpeed>=COMBAT_GRID_CONFIG.explorationWidePickupMoveSpeed?1:0;
+  }
+  function progressCanEnterMotionTile(env, run) {
+    const motion = run.motion;
+    if (!motion || motion.elapsed >= motion.duration / 2 || run.motionTimeMs - motion.startedAt < motion.duration / 2) return true;
+    return env.deps.canPlaceGridFootprint(env.deps.getHeroStepBlockedCells(), motion.to.gx, motion.to.gy, { columns: 1, rows: 1 });
+  }
+  function progressMoving(env) {
+    const run = env.deps.actExplorationState.current(env.owner);
+    return !!run?.motion || env.deps.actExplorationMotion.freeMoving(run);
+  }
+  function progressTakeWalkedMs(env) {
+    const run = env.deps.actExplorationState.current(env.owner), ms = run ? env.memo.walkedMs.get(run) || 0 : 0;
+    if (run) env.memo.walkedMs.delete(run);
+    return ms;
+  }
+
+  // modules/act-exploration-progress-classic.mjs
+  var memo = { commandStalls: /* @__PURE__ */ new WeakMap(), lootWalks: /* @__PURE__ */ new WeakMap(), walkedMs: /* @__PURE__ */ new WeakMap(), inscriptionVisits: /* @__PURE__ */ new WeakMap(), autoHolds: /* @__PURE__ */ new WeakMap(), manualSteerHolds: /* @__PURE__ */ new WeakMap() };
+  var deps = {
+    get getCombatTime() {
+      return getCombatTime;
+    },
+    get actExplorationState() {
+      return actExplorationState;
+    },
+    get COMBAT_GRID_CONFIG() {
+      return COMBAT_GRID_CONFIG;
+    },
+    get beginExplorationGridStep() {
+      return beginExplorationGridStep;
+    },
+    get isPlayerAttackRecovering() {
+      return isPlayerAttackRecovering;
+    },
+    get actExplorationDoors() {
+      return actExplorationDoors;
+    },
+    get JOURNAL_DB() {
+      return JOURNAL_DB;
+    },
+    get unlockJournalEntry() {
+      return unlockJournalEntry;
+    },
+    get actExplorationMotion() {
+      return actExplorationMotion;
+    },
+    get continuePlayerExplorationApproach() {
+      return continuePlayerExplorationApproach;
+    },
+    get swapSummonOutOfHeroTile() {
+      return swapSummonOutOfHeroTile;
+    },
+    get bossMoves() {
+      return bossMoves;
+    },
+    get getHeroStepBlockedCells() {
+      return getHeroStepBlockedCells;
+    },
+    get canPlaceGridFootprint() {
+      return canPlaceGridFootprint;
+    },
+    get roomInvaders() {
+      return roomInvaders;
+    },
+    get woodsmanBattle() {
+      return woodsmanBattle;
+    },
+    get WOODSMAN_BATTLE() {
+      return WOODSMAN_BATTLE;
+    },
+    get getZone() {
+      return getZone;
+    },
+    get restartHiddenJournalBossRun() {
+      return restartHiddenJournalBossRun;
+    },
+    get beginRoomBossRules() {
+      return beginRoomBossRules;
+    },
+    ground: actExplorationState.groundLoot,
+    get objects() {
+      return actExplorationProgress.objects;
+    },
+    get blessingGreed() {
+      return window.GameModules.combat.supports.blessingGreed;
     }
-    function explore(run,stats) {
-        pickUp(run,stats);
-        if(run.status==='cleared' && collectingLoot(run) && runMode(run)!=='manual')walkToLoot(run,stats);
-        return run.status==='active';
+  };
+  var effects = { get queueImportantSave() {
+    return queueImportantSave;
+  }, get addBattleFx() {
+    return addBattleFx;
+  }, get dispatchRuntimeEvent() {
+    return dispatchRuntimeEvent;
+  }, get collectExplorationFloorLoot() {
+    return collectExplorationFloorLoot;
+  } };
+  function present(iterator) {
+    let step = iterator.next();
+    while (!step.done) {
+      const command = step.value;
+      step = iterator.next(effects[command.kind](...command.args));
     }
-    /** One exploration step at the movement stat's pace. Out of combat (no living enemy) a fast enough hero also steps diagonally
-     * (2026-11-04 사용자: 대각선 걸음은 전투 밖에서만; 전에는 적이 없으면 누구나 걸음 시간 0.75배). */
-    function walkStep(target,stats) {
-        const interval=COMBAT_GRID_CONFIG.playerMoveIntervalSec*100/stats.moveSpeed;
-        const diagonal=stats.moveSpeed>=COMBAT_GRID_CONFIG.explorationDiagonalMoveSpeed && !game.enemies.some(enemy=>enemy.hp>0);
-        return !!target && beginExplorationGridStep(target,interval,undefined,diagonal);
+    return step.value;
+  }
+  var actExplorationProgress = {
+    advance(stats) {
+      return present(progressAdvance({ owner: game, deps, memo }, stats));
+    },
+    tick(now, stats) {
+      return present(progressTick({ owner: game, deps, memo }, now, stats));
+    },
+    moving() {
+      return progressMoving({ owner: game, deps, memo });
+    },
+    takeWalkedMs() {
+      return progressTakeWalkedMs({ owner: game, deps, memo });
+    },
+    collectPile(cell) {
+      return present(progressCollectPile({ owner: game, deps, memo }, cell));
+    },
+    canMove(run) {
+      return progressCanMove({ owner: game, deps, memo }, run);
+    },
+    canFinish() {
+      return progressCanFinish({ owner: game, deps, memo });
+    },
+    beginCompletion(zone) {
+      return present(progressBeginCompletion({ owner: game, deps, memo }, zone));
+    },
+    shouldTrackStall() {
+      return progressShouldTrackStall({ owner: game, deps, memo });
+    },
+    holdPosition(requested) {
+      return progressHoldPosition({ owner: game, deps, memo }, requested);
+    },
+    holdAutoStart(run) {
+      return progressHoldAutoStart({ owner: game, deps, memo }, run);
+    },
+    holdAutoManual(run) {
+      return progressHoldAutoManual({ owner: game, deps, memo }, run);
+    },
+    clearManualSteerHold(run) {
+      return progressClearManualSteerHold({ owner: game, deps, memo }, run);
+    },
+    runMode(run, state = game) {
+      return progressRunMode({ owner: game, deps, memo }, run, state);
+    },
+    startMode(settings) {
+      return progressStartMode(settings);
+    },
+    waiting(state) {
+      return progressWaiting({ owner: game, deps, memo }, state);
+    },
+    deferDeparture(state) {
+      return progressDeferDeparture({ owner: game, deps, memo }, state);
+    },
+    stopAfterCompletion(state) {
+      return progressStopAfterCompletion({ owner: game, deps, memo }, state);
+    },
+    depart(state) {
+      return present(progressDepart({ owner: game, deps, memo }, state));
+    },
+    reconcileDeparture(state) {
+      return present(progressReconcileDeparture({ owner: game, deps, memo }, state));
+    },
+    defeat(state) {
+      return progressDefeat({ owner: game, deps, memo }, state);
     }
-    /** Floor items on the hero's cell are picked up, and from the eight around it at COMBAT_GRID_CONFIG.explorationWidePickupMoveSpeed
-     * (2026-11-04 사용자); an offline replay walks no detours and picks everything up at once. 탐욕의 광기(2026-11-08 전달본 V3.13)가 걸려 있으면
-     * 맵에 내려앉은 아이템을 걷지 않고 모두 줍는다(GREED_PICKUP_RANGE칸). */
-    function pickUp(run,stats) {
-        const range=pickupRange(stats);
-        const rows=game.isBackgroundCalculation?ground.takeAll(run):ground.takeNear(run,game.gridPlayer,getCombatTime(),range);
-        if(rows.length)collectExplorationFloorLoot(rows);
-    }
-    /** Auto-move heads for the nearest floor pile once nothing fights. A pile it cannot get closer to for COMMAND_GIVE_UP_STEPS
-     * steps is collected from where the hero stands, so a walled-off drop never holds the map. Only a drop that has landed is
-     * walked to: while something is still falling the hero waits where it stands. Returns whether it walked or waited. */
-    function walkToLoot(run,stats) {
-        const now=getCombatTime(),pile=ground.nearest(run,game.gridPlayer,now);
-        if(!pile)return ground.falling(run,now);
-        const memo=lootWalks.get(run)||{stalls:0};lootWalks.set(run,memo);
-        if(isPlayerAttackRecovering(run.motionTimeMs))return true;
-        memo.stalls=walkStep(actExplorationDoors.toward(run,pile),stats)?0:memo.stalls+1;
-        if(memo.stalls>=COMMAND_GIVE_UP_STEPS){memo.stalls=0;collectExplorationFloorLoot(ground.takeAt(run,pile));}
-        return true;
-    }
-    /** A cleared map stays put until every floor item is collected; in manual mode for MANUAL_LOOT_WAIT_MS at most. */
-    function collectingLoot(run) {
-        if(run.status!=='cleared' || run.completionApplied || game.isBackgroundCalculation || !ground.nearest(run,game.gridPlayer))return false;
-        if(runMode(run)!=='manual')return true;
-        const memo=lootWalks.get(run)||{stalls:0};lootWalks.set(run,memo);
-        const now=getCombatTime();
-        if(memo.clearedAt===undefined)memo.clearedAt=now;
-        return now-memo.clearedAt<MANUAL_LOOT_WAIT_MS;
-    }
-    /** Movement controls stay available while a cleared map waits for floor pickups. Completion/failed maps accept no new walk. */
-    function canMove(run) {
-        return !!run && (run.status==='active' || collectingLoot(run));
-    }
-    /** The mode a new run starts in: the chosen route (보스 직행 · 전체 탐색) while auto-move is on, else 직접 이동. */
-    function startMode(settings) {
-        return settings.autoMove===false?'manual':settings.actExplorationMode;
-    }
-    /** A newly opened boss entrance cues its presentation (js/canvas-boss-entrance.js) with the rising enemies. */
-    function watchEntrance(run,opened) {
-        const entrance=actExplorationState.entrance(run);
-        if(!entrance || entrance===opened)return entrance;
-        const pack=run.packs.find(row=>row.key===entrance.key);
-        roomInvaders.onBossEntrance(run,pack); // 보스 방의 불청객: 같은 보스가 하나 더 서면 함께 떠오른다
-        const holdMs=woodsmanBattle.introduction()?WOODSMAN_BATTLE.intro.revealMs:entrance.holdMs;
-        addBattleFx('bossEntrance',{enemies:pack.waiting,enemyIds:pack.waiting.map(enemy=>enemy.id),holdMs,duration:holdMs+600,red:pack.waiting.some(enemy=>enemy.redEntrance)});
-        return entrance;
-    }
-    /** A listening pack (data ACT_EXPLORATION_ALERT) heard the fight and runs at the hero; the view marks it (js/canvas-combat-feedback.js). */
-    function announceAlerted(woken) {
-        if(woken.length)dispatchRuntimeEvent('exploration-alert',{enemyIds:woken.map(enemy=>enemy.id)});
-    }
-    /** Bosses wait in their room from the map's creation: their hidden-journal count (no hit) starts as they wake. */
-    function wakeBosses(woken) {
-        const zone=getZone(game.currentZoneId);
-        for(const enemy of woken)if(enemy.isBoss && !enemy.roomInvader && !enemy.uninvited){restartHiddenJournalBossRun(enemy,zone);beginRoomBossRules(zone);}
-    }
-    /** Occupancy matters only when the authoritative hit cell crosses the tile boundary. */
-    function canEnterMotionTile(run) {
-        const motion=run.motion;
-        if(!motion || motion.elapsed>=motion.duration/2 || run.motionTimeMs-motion.startedAt<motion.duration/2)return true;
-        return canPlaceGridFootprint(getHeroStepBlockedCells(),motion.to.gx,motion.to.gy,{columns:1,rows:1});
-    }
-    function moving() {
-        const run=actExplorationState.current(game);
-        return !!run?.motion || actExplorationMotion.freeMoving(run);
-    }
-    /** The ms the hero walked (20 ms movement frames) since the last call, then 0: each combat tick takes it (js/combat.js
-     * getWalkingChargeScale). */
-    function takeWalkedMs() {
-        const run=actExplorationState.current(game),ms=run?walkedMs.get(run)||0:0;
-        if(run)walkedMs.delete(run);
-        return ms;
-    }
-    /** A click on a floor pile (js/battle-ground-loot-ui.js) picks it up at once, wherever the hero stands. */
-    function collectPile(cell) {
-        const run=actExplorationState.current(game);
-        const rows=run?ground.takeAt(run,cell):[];
-        if(rows.length){collectExplorationFloorLoot(rows);queueImportantSave(220);}
-        return rows.length;
-    }
-    /** The current run once it has begun. A map laid out during the move toward the act (arrival) is only the
-     * scenery of the wait: completion and stall checks still belong to whatever encounter is actually running. */
-    function live(state=game) {
-        const run=actExplorationState.current(state);
-        return run && !run.arrival ? run : null;
-    }
-    function canFinish() {
-        const run=live();
-        if(run)return run.status==='cleared' && !run.completionApplied && !collectingLoot(run);
-        return game.runProgress>=100 && game.encounterIndex>=game.encounterPlan.length && game.enemies.length===0;
-    }
-    /** Drops are already owned. Completion only commits the encounter's progression. */
-    function beginCompletion(zone) {
-        const run=live();
-        if(!run)return true;
-        if(!canFinish())return false;
-        actExplorationMotion.cancel(run);
-        actExplorationState.retireCombat(game);
-        run.completionApplied=true;
-        recordInscription(run,true);
-        game.runProgress=100;
-        // Act 4's two actual boss kills happen within this one map, not two new maps (zones without kill counts skip it).
-        if(Number.isFinite(zone.maxKills))game.killsInZone=Math.max(game.killsInZone,zone.maxKills-1);
-        return true;
-    }
-    function shouldTrackStall() {
-        return !live() && game.moveTimer<=0 && game.enemies.length===0;
-    }
-    /** Auto-move off (mode manual) is a choice made in front of the screen: offline replay always walks, with the saved
-     * route preference (직행 · 전체). The run keeps 'manual', so the hero stands again once the player is back. */
-    function runMode(run,state=game) {
-        if(run.mode!=='manual' || !state.isBackgroundCalculation)return run.mode;
-        return state.settings.actExplorationMode==='full' ? 'full' : 'direct';
-    }
-    /** The hero neither chases nor sidesteps: a hazard asked for it, auto-move is off, or a move command is under way
-     * (the command walks in step; the combat engagement only fights what is in reach). */
-    /** 영웅이 제자리에서 사거리 안만 치는가: 위험을 피하라는 요청, 걷는 명령, 직접 이동. 직접 이동이라도 락온한 몬스터
-     * (js/act-exploration-state.js lockOn)가 살아 있으면 그 명령으로 보고 다가가 싸운다. */
-    function holdPosition(requested) {
-        const run=actExplorationState.current(game);
-        if(!run)return !!requested;
-        const locked=!!actExplorationState.lockedEnemy(run);
-        // 자동 이동의 유예 동안도 제자리(락온한 몬스터는 명령이라 다가간다)
-        return requested || (runMode(run)==='manual' && !locked) || !!run.destination || holdsManualSteer(run,locked);
-    }
-    function holdsManualSteer(run,locked) {return locked ? (manualSteerHolds.get(run)||0)>clockOf(run) : autoHeld(run);}
-    function waiting(state) {
-        const run=actExplorationState.current(state);
-        return !!(run && (run.status==='failed' || (run.completionApplied && !run.departure)));
-    }
-    /** Rewards/story have committed. Keep the old map visible before the already-selected exit. */
-    function deferDeparture(state) {
-        const run=state.actExploration;
-        if(!run?.completionApplied || state.isBackgroundCalculation)return false;
-        run.departure={zoneId:state.currentZoneId,remainingMs:actExplorationState.settlementMs};
-        state.currentZoneId=run.zoneId;
-        state.combatHalted=false;
-        return true;
-    }
-    /** Ordinary maps settle their floor on departure. A colony or breach departure abandons that encounter's uncollected loot. */
-    function depart(state) {
-        const run=state.actExploration;
-        if(run && ['colony_run','grand_breach_run'].includes(run.zoneId))ground.discardEncounter(state,run.zoneId);
-        else if(run && state===game){const rows=ground.takeAll(run);if(rows.length)collectExplorationFloorLoot(rows);}
-        else if(run)ground.settleOnLoad(state,run);
-        state.actExploration=null;
-    }
-    function stopAfterCompletion(state) {
-        state.combatHalted=true;
-        state.enemies=[];state.encounterPlan=[];state.encounterIndex=0;
-        state.runProgress=actExplorationState.current(state)?.completionApplied?100:0;
-    }
-    function reconcileDeparture(state) {
-        if(state.actExploration && !actExplorationState.current(state))depart(state);
-    }
-    function defeat(state) {
-        const run=actExplorationState.current(state);
-        if(run && !run.completionApplied){actExplorationMotion.cancel(run);run.status='failed';}
-    }
-    return {advance,tick,moving,takeWalkedMs,collectPile,canMove,canFinish,beginCompletion,shouldTrackStall,holdPosition,holdAutoStart,holdAutoManual,clearManualSteerHold,runMode,startMode,waiting,deferDeparture,stopAfterCompletion,depart,reconcileDeparture,defeat};
+  };
+  safeExposeGlobals({ actExplorationProgress });
 })();
-safeExposeGlobals({actExplorationProgress});

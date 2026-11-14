@@ -1,1183 +1,2307 @@
-// 주인공의 공격: 키스톤 배율, 투사체 발사, 스킬 적중과 지속 피해 (2026-11-10에 js/combat.js에서 그대로 옮겼다. js/combat.js 뒤에 옮기기 전과 같은 순서로 읽는다.)
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/combat-player-attack*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-/** 포션 스킬 키스톤의 명중 피해 배율: 폭발성 증류 ×0.75, 과잉 투여 ×1.5. */
-function getPotionKeystoneHitScale(flags) {
-    return (flags.explosiveDistill ? 0.75 : 1) * (flags.potionOverdose ? 1.5 : 1);
-}
+  // modules/common/stat-bucket.mjs
+  function createEmptyStatBucket() {
+    return {
+      flatDmg: 0,
+      weaponFlatDmgPct: 0,
+      pctDmg: 0,
+      flatHp: 0,
+      pctHp: 0,
+      aspd: 0,
+      crit: 0,
+      move: 0,
+      cooldownRecovery: 0,
+      cooldownReduction: 0,
+      mobilityCooldownRecovery: 0,
+      mobilityCooldownReduction: 0,
+      cooldownReductionCapBonus: 0,
+      sight: 0,
+      sightCap: 0,
+      chestGrade: 0,
+      gemLevel: 0,
+      elementalGemLevel: 0,
+      fireGemLevel: 0,
+      coldGemLevel: 0,
+      lightGemLevel: 0,
+      chaosGemLevel: 0,
+      physGemLevel: 0,
+      projectileGemLevel: 0,
+      meleeGemLevel: 0,
+      slamGemLevel: 0,
+      spellGemLevel: 0,
+      dotGemLevel: 0,
+      aoeGemLevel: 0,
+      strGemLevel: 0,
+      dexGemLevel: 0,
+      intGemLevel: 0,
+      suppCap: 0,
+      runeResonancePower: 0,
+      regenFlat: 0,
+      dr: 0,
+      physIgnore: 0,
+      resPen: 0,
+      resF: 0,
+      resC: 0,
+      resL: 0,
+      maxResAll: 0,
+      maxResF: 0,
+      maxResC: 0,
+      maxResL: 0,
+      maxResChaos: 0,
+      resChaos: 0,
+      leech: 0,
+      leechRateCap: 0,
+      leechTotalCap: 0,
+      leechInstanceCap: 0,
+      leechKeepFullLife: 0,
+      critDmg: 0,
+      regen: 0,
+      regenSuppress: 0,
+      ds: 0,
+      expGain: 0,
+      minDmgRoll: 0,
+      maxDmgRoll: 0,
+      slamEchoChance: 0,
+      slamEchoDamagePct: 0,
+      doubleDamageChance: 0,
+      blockChanceMax: 0,
+      physFlatTakenReduce: 0,
+      fireFlatTakenReduce: 0,
+      coldFlatTakenReduce: 0,
+      lightFlatTakenReduce: 0,
+      chaosFlatTakenReduce: 0,
+      allFlatTakenReduce: 0,
+      physTakenAsFire: 0,
+      physTakenAsCold: 0,
+      physTakenAsLight: 0,
+      physTakenAsChaos: 0,
+      addedFireDamagePct: 0,
+      addedColdDamagePct: 0,
+      addedLightDamagePct: 0,
+      addedChaosDamagePct: 0,
+      addedPhysDamagePct: 0,
+      fireFlatDmg: 0,
+      coldFlatDmg: 0,
+      lightFlatDmg: 0,
+      chaosFlatDmg: 0,
+      physFlatDmg: 0,
+      meleePctDmg: 0,
+      slamPctDmg: 0,
+      projectilePctDmg: 0,
+      physPctDmg: 0,
+      elementalPctDmg: 0,
+      firePctDmg: 0,
+      coldPctDmg: 0,
+      lightPctDmg: 0,
+      chaosPctDmg: 0,
+      aoePctDmg: 0,
+      dotPctDmg: 0,
+      spellPctDmg: 0,
+      shieldPctDmg: 0,
+      minePctDmg: 0,
+      potionPctDmg: 0,
+      mobilityPctDmg: 0,
+      channelingPctDmg: 0,
+      igniteChance: 0,
+      chillChance: 0,
+      freezeChance: 0,
+      shockChance: 0,
+      poisonChance: 0,
+      bleedChance: 0,
+      spellFlatDmg: 0,
+      spellFlatPct: 0,
+      targetAny: 0,
+      targetProjectile: 0,
+      targetSlam: 0,
+      projectileExtraShots: 0,
+      projectileExtraChance: 0,
+      projectileChain: 0,
+      igniteDurationPct: 0,
+      chillDurationPct: 0,
+      freezeDurationPct: 0,
+      shockDurationPct: 0,
+      poisonDurationPct: 0,
+      bleedDurationPct: 0,
+      skillDelayReduce: 0,
+      attackPctDmg: 0,
+      spellLeech: 0,
+      spellCritDmg: 0,
+      spellRepeatChance: 0,
+      strength: 0,
+      dexterity: 0,
+      intelligence: 0,
+      accuracy: 0,
+      mystique: 0,
+      devotion: 0,
+      cycle: 0,
+      ailmentDamagePct: 0,
+      ailmentPotencyPct: 0,
+      armor: 0,
+      evasion: 0,
+      energyShield: 0,
+      armorPct: 0,
+      evasionPct: 0,
+      energyShieldPct: 0,
+      energyShieldRegen: 0,
+      energyShieldRechargeFaster: 0,
+      deflectChance: 0,
+      deflectDamageReduce: 0,
+      blockChance: 0,
+      blockChancePct: 0,
+      ailResIgnite: 0,
+      ailResShock: 0,
+      ailResFreeze: 0,
+      ailResPoison: 0,
+      ailResBleed: 0,
+      chillEffectReducePct: 0,
+      freezeDurationReducePct: 0,
+      shockEffectReducePct: 0,
+      igniteDamageReducePct: 0,
+      bleedDamageReducePct: 0,
+      poisonDamageReducePct: 0,
+      dotTakenDamageReducePct: 0,
+      takenDamageReduceWhen2EnemiesPct: 0,
+      takenDamageReduceWhen1EnemyPct: 0,
+      genericTakenDamageReducePct: 0,
+      critTakenDamageReducePct: 0,
+      igniteTakenDurationReducePct: 0,
+      shockTakenDurationReducePct: 0,
+      coldTakenDurationReducePct: 0,
+      poisonTakenDurationReducePct: 0,
+      bleedTakenDurationReducePct: 0,
+      shockedEnemyHitDamageMorePct: 0,
+      shockedEnemyHitDamagePct: 0,
+      igniteDamageMultiplierPct: 0,
+      poisonDamageMultiplierPct: 0,
+      accuracyBonusPct: 0,
+      chillEffect: 0,
+      shockEffect: 0,
+      summonFlatDmg: 0,
+      summonPctDmg: 0,
+      summonAspd: 0,
+      summonHpPct: 0,
+      summonCrit: 0,
+      summonCritDmg: 0,
+      summonCap: 0,
+      summonEfficiency: 0,
+      summonGuardRedirectPct: 0,
+      summonResPen: 0,
+      summonGemLevel: 0,
+      curseCap: 0,
+      oxygenMax: 0,
+      oxygenRegen: 0,
+      oceanPressureResist: 0,
+      oceanDepthGainPct: 0,
+      oceanRareFishChancePct: 0,
+      bossDamagePct: 0,
+      eliteDamagePct: 0,
+      firstStrikeDamagePct: 0,
+      cullStrikePct: 0,
+      echoPower: 0,
+      chaosErosion: 0,
+      chaosErosionCap: 0,
+      // 우주계 보스 유물석과 보스 부적의 줄(js/combat.js가 reward에서 읽는다): 통에 없어 addStatToBucket이 버렸다(2026-10-20).
+      firstHitDamageMorePct: 0,
+      cosmosAlwaysFirstHitChancePct: 0,
+      uniqueInstantLeechPct: 0,
+      cosmosLightningVariance: 0,
+      cosmosBossDamageMorePct: 0,
+      regionPoisonSpread: 0,
+      regionChaosShred: 0,
+      regionPoisonedLeech: 0,
+      regionChaosOvercap: 0,
+      regionBlockEmpower: 0,
+      regionArmorToPhys: 0,
+      regionBleedingDamage: 0,
+      regionLowLifeDR: 0,
+      regionShockChain: 0,
+      regionCritMove: 0,
+      regionShockSpread: 0,
+      regionShockedLightPen: 0,
+      regionIgniteSpread: 0,
+      regionFullLifeFire: 0,
+      regionIgniteDuration: 0,
+      regionIgnitedDamage: 0,
+      regionFrozenCritDamage: 0,
+      regionShatter: 0,
+      regionChillOnHit: 0,
+      regionChilledAttackerDR: 0
+    };
+  }
+  var DIRECT_STAT_BUCKET_KEYS = new Set(Object.keys(createEmptyStatBucket()).filter((key) => key !== "oxygenMax" && key !== "oxygenRegen"));
+  var COMPOSITE_STAT_BUCKET_LINES = Object.freeze({
+    resAll: [["resF", 1, 0], ["resC", 1, 0], ["resL", 1, 0]],
+    moveEvasion: [["move", 1, 0], ["evasionPct", 1, 0]],
+    hpArmor: [["flatHp", 1, 0], ["armor", 2, 0]],
+    aspdMove: [["aspd", 1, 0], ["move", 1, 0]],
+    chaosResElemPenalty: [["resChaos", 1, 0], ["resF", -1, 0], ["resC", -1, 0], ["resL", -1, 0]],
+    deflectMajor: [["deflectChance", 1, 0], ["deflectDamageReduce", 0, 3]],
+    targetCount: [["targetAny", 1, 0]]
+  });
+  function addStatToBucket(bucket, statId, value) {
+    value = Number(value);
+    if (typeof statId !== "string" || !Number.isFinite(value)) return;
+    if (DIRECT_STAT_BUCKET_KEYS.has(statId)) {
+      bucket[statId] += value;
+      return;
+    }
+    if (!Object.hasOwn(COMPOSITE_STAT_BUCKET_LINES, statId)) return;
+    for (const [key, multiplier, flat] of COMPOSITE_STAT_BUCKET_LINES[statId]) {
+      bucket[key] += value * multiplier + flat;
+    }
+  }
 
-/** 키스톤의 공격 · 시전 속도 감폭: 한 번의 중량 ×0.7, 과잉 투여(포션 스킬) ×0.75. 감폭이 없으면 그대로. */
-function scaleKeystoneAttackSpeed(aspd, flags) {
+  // modules/combat/player-hit-modifiers.mjs
+  function castGetPotionKeystoneHitScale(flags) {
+    return (flags.explosiveDistill ? 0.75 : 1) * (flags.potionOverdose ? 1.5 : 1);
+  }
+  function castScaleKeystoneAttackSpeed(aspd, flags) {
     const scale = (flags.maximumRoll ? 0.7 : 1) * (flags.potionOverdose ? 0.75 : 1);
     return scale < 1 ? Math.max(0.1, aspd * scale) : aspd;
-}
-
-/** 천 개의 유리병(고유 허리띠): 예전 물약 넷의 약한 상시 효과. */
-function addThousandBottlesStats(bucket) {
-    addStatToBucket(bucket, 'armorPct', 25);
-    addStatToBucket(bucket, 'resAll', 12);
-    addStatToBucket(bucket, 'aspd', 8);
-    addStatToBucket(bucket, 'pctDmg', 10);
-}
-
-function getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, skillName) {
+  }
+  function castAddThousandBottlesStats(bucket) {
+    addStatToBucket(bucket, "armorPct", 25);
+    addStatToBucket(bucket, "resAll", 12);
+    addStatToBucket(bucket, "aspd", 8);
+    addStatToBucket(bucket, "pctDmg", 10);
+  }
+  function castGetPassiveKeystoneHitMultiplier(env2, pStats, target, contact) {
     const flags = pStats.passiveKeystoneFlags || {};
-    let multiplier = 1;
-    if (flags.farshot && game.gridPlayer && Number.isFinite(target.gx)) {
-        let distance = getGridUnitDistance(game.gridPlayer, target);
-        multiplier *= distance >= 3 ? 1.25 : (distance <= 1 ? 0.75 : 1);
-    }
-    if (flags.projectileFormation && targetIndex > 0) multiplier *= 0.6;
-    multiplier *= getPotionKeystoneHitScale(flags);
-    if (flags.erosionLegacy && pStats.sSkill.ele === 'chaos') multiplier *= 0.85;
+    let multiplier = castFarshotMultiplier(env2, target, flags);
+    if (flags.projectileFormation && contact.targetIndex > 0) multiplier *= 0.6;
+    multiplier *= castGetPotionKeystoneHitScale(flags);
+    if (flags.erosionLegacy && pStats.sSkill.ele === "chaos") multiplier *= 0.85;
     if (flags.openingHunt) {
-        multiplier *= target.passiveOpeningHuntConsumed ? 0.8 : 2;
-        target.passiveOpeningHuntConsumed = true;
+      multiplier *= target.passiveOpeningHuntConsumed ? 0.8 : 2;
+      target.passiveOpeningHuntConsumed = true;
     }
     if (!flags.channelPath) return multiplier;
-    if (!(pStats.sSkill.tags || []).includes('channeling')) {
-        game.passiveChannelPath = null;
-        return multiplier * 0.8;
+    return multiplier * castChannelPathMultiplier(env2, pStats, target, contact);
+  }
+  function castFarshotMultiplier(env2, target, flags) {
+    if (!flags.farshot || !env2.owner.gridPlayer || !Number.isFinite(target.gx)) return 1;
+    const distance = env2.deps.getGridUnitDistance(env2.owner.gridPlayer, target);
+    return distance >= 3 ? 1.25 : distance <= 1 ? 0.75 : 1;
+  }
+  function castChannelPathMultiplier(env2, pStats, target, { hitIndex, targetIndex, skillName }) {
+    if (!(pStats.sSkill.tags || []).includes("channeling")) {
+      env2.owner.passiveChannelPath = null;
+      return 0.8;
     }
-    let state = game.passiveChannelPath || {};
+    let state = env2.owner.passiveChannelPath || {};
     if (hitIndex === 0 && targetIndex === 0) {
-        let sameTarget = state.skillName === skillName && String(state.targetId) === String(target.id);
-        state = { skillName, targetId: target.id, stacks: sameTarget ? Math.min(6, (state.stacks || 0) + 1) : 1 };
-        game.passiveChannelPath = state;
+      let sameTarget = state.skillName === skillName && String(state.targetId) === String(target.id);
+      state = { skillName, targetId: target.id, stacks: sameTarget ? Math.min(6, (state.stacks || 0) + 1) : 1 };
+      env2.owner.passiveChannelPath = state;
     }
-    return multiplier * (1 + Math.max(0, state.stacks || 0) * 0.07);
-}
+    return 1 + Math.max(0, state.stacks || 0) * 0.07;
+  }
 
-/** Emit confirmed hit presentation, carrying the immutable cast-time attack cells. */
-function addPlayerHitVisualFx(pStats, options, targetEnemy, hit) {
+  // modules/combat/player-cast-effects.mjs
+  function* castAddPlayerHitVisualFx(env2, pStats, options, targetEnemy, hit) {
     let { stageKind, stageLabel, stageCount, skillName, hitCrit, hitIdx, hitElement, dealtToEnemy, dmg, isStageReplay } = hit;
-    addBattleFx('hit', {
-        enemyId: targetEnemy.id, targetCell: hasGridCell(targetEnemy) ? getGridUnitCenter(targetEnemy) : null, channelId: options.channelId, color: getElementColor(hitElement), crit: hitCrit,
-        projectile: (pStats.sSkill.tags || []).includes('projectile'),
-        pierce: pStats.sSkill.targetMode === 'pierce' || stageKind === 'piercePrimary' || stageKind === 'pierceThrough',
-        chain: pStats.sSkill.targetMode === 'chain' || stageKind === 'chainJump',
-        slam: stageKind === 'slamPrimary' || stageKind === 'slamAftershock',
-        stageKind, stageLabel, stageIndex: Math.max(0, Math.floor(Number(options.stageIndex) || 0)),
-        repeatIndex: hitIdx, stageCount, chainFromEnemyId: options.chainFromEnemyId,
-        skillName: pStats.sSkill.visualName || skillName, damage: dealtToEnemy, rawDamage: dmg,
-        damageTextGroupId: options.damageTextGroupId || '', attackFootprint: options.attackFootprint, sourceCell: options.sourceCell,
-        duration: 320, element: hitElement, syncToSwing: !isStageReplay, resolvedSkillContact: isStageReplay
-    });
-}
+    yield { kind: "addBattleFx", args: ["hit", {
+      enemyId: targetEnemy.id,
+      targetCell: env2.deps.hasGridCell(targetEnemy) ? env2.deps.getGridUnitCenter(targetEnemy) : null,
+      channelId: options.channelId,
+      color: env2.deps.getElementColor(hitElement),
+      crit: hitCrit,
+      projectile: (pStats.sSkill.tags || []).includes("projectile"),
+      pierce: pStats.sSkill.targetMode === "pierce" || stageKind === "piercePrimary" || stageKind === "pierceThrough",
+      chain: pStats.sSkill.targetMode === "chain" || stageKind === "chainJump",
+      slam: stageKind === "slamPrimary" || stageKind === "slamAftershock",
+      stageKind,
+      stageLabel,
+      stageIndex: Math.max(0, Math.floor(Number(options.stageIndex) || 0)),
+      repeatIndex: hitIdx,
+      stageCount,
+      chainFromEnemyId: options.chainFromEnemyId,
+      skillName: pStats.sSkill.visualName || skillName,
+      damage: dealtToEnemy,
+      rawDamage: dmg,
+      damageTextGroupId: options.damageTextGroupId || "",
+      attackFootprint: options.attackFootprint,
+      sourceCell: options.sourceCell,
+      duration: 320,
+      element: hitElement,
+      syncToSwing: !isStageReplay,
+      resolvedSkillContact: isStageReplay
+    }] };
+  }
+  function* castNoteNativeGemSwing(env2, name, stats) {
+    const cast = env2.nativeCasts.casts.at(-1), swing = cast && (cast.move ? cast.move.swing : cast.swing);
+    if (!swing || env2.owner.isBackgroundCalculation) return;
+    yield { kind: "addBattleFx", args: ["playerSwing", {
+      skillName: name,
+      element: stats.sSkill.ele,
+      color: env2.deps.getElementColor(stats.sSkill.ele),
+      pose: swing.pose,
+      contactFrame: swing.contactFrame,
+      sourceCell: env2.deps.copyCombatGridCell(env2.owner.gridPlayer),
+      impactDelayMs: swing.impact - cast.at,
+      duration: Math.max(80, swing.until - cast.at)
+    }] };
+  }
+  function* castNoteNativeGemArrivalSwing(env2, command) {
+    if (env2.owner.isBackgroundCalculation) return;
+    yield { kind: "addBattleFx", args: ["playerSwing", {
+      skillName: command.name,
+      element: command.element,
+      color: env2.deps.getElementColor(command.element),
+      pose: command.swing.pose,
+      sourceCell: env2.deps.copyCombatGridCell(env2.owner.gridPlayer),
+      impactDelayMs: command.swing.impactDelayMs,
+      duration: command.swing.duration
+    }] };
+  }
 
-/** Combat owns damage and movement; gem controllers only return scheduled commands. */
-function startSkillGemCombat(stats, options) {
-    skillGemCombatRuntime ??= skillGemCasts.createState();
-    const name=options.skillName || game.activeSkill;
-    initializeSkillGemFacing();
-    if (skillGemRuntimeChanged(name)) skillGemCombatRuntime=skillGemCasts.createState();
-    const started=skillGemCasts.start(skillGemCombatRuntime,{id:stats.sSkill.nativeCastId,name,stats,
-        source:game.gridPlayer,enemies:game.enemies,now:getCombatTime(),visuals:!game.isBackgroundCalculation,
-        attackOptions:{forcedCrit:options.forcedCrit,forcedElement:options.forcedElement,
-            attackDamageMultiplier:options.attackDamageMultiplier,talentAttackMultiplier:options.talentAttackMultiplier,
-            passiveKarmaContext:options.passiveKarmaContext}});
-    if (!started) return;
-    noteNativeGemSwing(name, stats);
-    noteCombatTacticAttack(300);
-}
-
-/** 이동기 4종 swing their weapon once at the move's key moment (the tear, the puff, the release, the slam); 암살 kicks off before it
- * vanishes (cast.swing, pose 'kickoff'). */
-function noteNativeGemSwing(name, stats) {
-    const cast = skillGemCombatRuntime.casts.at(-1), swing = cast && (cast.move ? cast.move.swing : cast.swing);
-    if (!swing || game.isBackgroundCalculation) return;
-    addBattleFx('playerSwing', { skillName: name, element: stats.sSkill.ele, color: getElementColor(stats.sSkill.ele), pose: swing.pose, contactFrame: swing.contactFrame,
-        sourceCell: copyCombatGridCell(game.gridPlayer), impactDelayMs: swing.impact - cast.at, duration: Math.max(80, swing.until - cast.at) });
-}
-
-/** 전도성 난격: each arrival strikes at once, so the hero shows the rune's 단타 pose beside the foe (js/skill-gem-casts.js 70); 암살's
- * arrival stabs; 작살화살's pose command hauls on the rope (pose 'pull'). */
-function noteNativeGemArrivalSwing(command) {
-    if (game.isBackgroundCalculation) return;
-    addBattleFx('playerSwing', { skillName: command.name, element: command.element, color: getElementColor(command.element), pose: command.swing.pose,
-        sourceCell: copyCombatGridCell(game.gridPlayer), impactDelayMs: command.swing.impactDelayMs, duration: command.swing.duration });
-}
-
-function shouldDeferNativeGemCast(stats,options) {
-    if (options.stageReplay || !stats.sSkill.nativeCastId) return false;
-    if (hasPlayerChannelBreakingAilment() || game.combatHalted) return true;
-    if (!skillGemCombatRuntime) return false;
-    return skillGemCasts.singleCast.has(stats.sSkill.nativeCastId) && skillGemCombatRuntime.casts.some(c=>c.id===stats.sSkill.nativeCastId);
-}
-
-function getAttackProjectileShots(stats) {
-    return stats.sSkill.nativeCastId ? stats.projectileExtraShots : rollProjectileExtraShots(stats.projectileExtraShots);
-}
-
-function updateSkillGemCombat(stats) {
-    const runtime=skillGemCombatRuntime;
-    if (!runtime) return;
-    if (game.combatHalted || game.playerHp<=0 || skillGemRuntimeChanged(game.activeSkill)) {
-        skillGemCombatRuntime=null;cancelCombatChannel();return;
-    }
-    const commands=skillGemCasts.update(runtime,{source:game.gridPlayer,enemies:game.enemies.concat(getSplashDormantEnemies()),now:getCombatTime()});
-    for (const command of commands) applySkillGemCommand(command,stats);
-}
-
-/** The main gem's native casts, then the mobility slot's own (js/mobility-skill.js). */
-function advanceSkillGemCasts(stats) {
-    window.GameModules.combat.supports.tickDots();
-    updateSkillGemCombat(stats);
-    mobilitySkill.advance();
-}
-
-function skillGemRuntimeChanged(name) {
-    return !!skillGemCombatRuntime.lastSkill && skillGemCombatRuntime.lastSkill!==name;
-}
-
-function initializeSkillGemFacing() {
-    for (const enemy of game.enemies) if (!enemy.facingDirection) enemy.facingDirection=skillGemCasts.facing(enemy,game.gridPlayer);
-}
-
-/** 석화(79 석화 혼합물, 2026-11-01): 움직이지도 공격하지도 못한다. 행동을 멈추는 일은 기절과 같고(js/enemy-attack-rules.js), 밀리지 않고(pushEnemyAwayOnHit) 그림은 돌빛이다.
- * 보스는 굳지 않는다: 던지는 간격이 굳는 시간보다 짧아 보스의 패턴이 통째로 멈추기 때문이다. 이미 굳었으면 시간만 다시 채운다. */
-function petrifyEnemy(enemy,at,seconds) {
+  // modules/combat/player-cast-controls.mjs
+  function castPetrifyEnemy(enemy, at, seconds) {
     if (enemy.isBoss) return;
-    enemy.ailments=Array.isArray(enemy.ailments)?enemy.ailments:[];
-    const row=enemy.ailments.find(ail=>ail && ail.petrified);
-    if (row) row.time=Math.max(row.time || 0,seconds);
-    else enemy.ailments.push({type:'stun',time:seconds,power:0,petrified:true,petrifiedAt:at});
-}
-
-function enemyTimeSlowed(enemy) {
-    const left=(Number(enemy.timeSlowUntil)||0)-getCombatTime();
-    return left>0 && left<=TIME_SLOW_MS;
-}
-
-/** 끌어당김 한 번: 보스와 굳은 적은 끌려오지 않는다(밀어내기와 같다, canPushEnemy). */
-function pullEnemyToward(enemy,command) {
-    if (!canPushEnemy(enemy)) return;
-    const goal=command.column===undefined ? command.center : { gx: command.column, gy: enemy.gy };
-    for (let step=0; step<command.cells; step++) if (!gridStepToward(enemy,goal.gx,goal.gy,getGridBlockedCells(enemy))) break;
-}
-
-function applySkillGemCommand(command,stats) {
-    if (command.type==='pose') return noteNativeGemArrivalSwing(command);
-    if (command.type === 'bellToll') {
-        if (!game.isBackgroundCalculation) addBattleFx('bellToll', { duration: 180 });
-        return;
+    enemy.ailments = Array.isArray(enemy.ailments) ? enemy.ailments : [];
+    const row = enemy.ailments.find((ail) => ail && ail.petrified);
+    if (row) row.time = Math.max(row.time || 0, seconds);
+    else enemy.ailments.push({ type: "stun", time: seconds, power: 0, petrified: true, petrifiedAt: at });
+  }
+  function castEnemyTimeSlowed(env2, enemy) {
+    const left = (Number(enemy.timeSlowUntil) || 0) - env2.deps.getCombatTime();
+    return left > 0 && left <= TIME_SLOW_MS;
+  }
+  function castPullEnemyToward(env2, enemy, command) {
+    if (!env2.deps.canPushEnemy(enemy)) return;
+    const goal = command.column === void 0 ? command.center : { gx: command.column, gy: enemy.gy };
+    for (let step = 0; step < command.cells; step++) if (!env2.deps.gridStepToward(enemy, goal.gx, goal.gy, env2.deps.getGridBlockedCells(enemy))) break;
+  }
+  var TIME_SLOW_MS = 1300;
+  var TIME_SLOW_MOVE = 0.3;
+  var castIsEnemyPetrified = (enemy) => Array.isArray(enemy.ailments) && enemy.ailments.some((ail) => ail && ail.petrified && ail.time > 0);
+  var CAST_MARKS = Object.freeze({
+    mist(_env, command, targets) {
+      for (const enemy of targets) enemy.holyMistUntil = command.at + 4e3;
+    },
+    petrify(_env, command, targets) {
+      for (const enemy of targets) castPetrifyEnemy(enemy, command.at, command.ms / 1e3);
+    },
+    timeSlow(_env, command, targets) {
+      for (const enemy of targets) enemy.timeSlowUntil = command.at + command.ms;
+    },
+    pull(env2, command, targets) {
+      for (const enemy of targets) castPullEnemyToward(env2, enemy, command);
+    },
+    weaken(_env, command, targets) {
+      for (const enemy of targets) enemy.voidWeakUntil = command.at + command.ms;
     }
-    if (command.type==='teleport') {
-        if (!skillGemCasts.free(command.to,game.enemies.filter(e=>e.hp>0))) return;
-        actExplorationMotion.cancel(game.actExploration);
-        Object.assign(game.gridPlayer,command.to);
-        addBattleFx('playerMobility',{skillName:command.name,fromCell:command.from,toCell:command.to,instant:true,duration:180});
-        if (command.swing) noteNativeGemArrivalSwing(command);
-        return;
+  });
+
+  // modules/combat/player-attack-execution.mjs
+  function* castPerformPlayerAttack(env2, pStats, attackOptions) {
+    const result = env2.resolver.resolve(env2.owner, pStats, attackOptions);
+    if (!result) return;
+    if (result.hitLog) yield { kind: "addLog", args: [result.hitLog.line, "attack-player", result.hitLog.options] };
+    env2.deps.performTalentMoonReturn(result.pStats, result.options, result.talentMoonPrimaryHit);
+    (env2.owner.enemies || []).slice().forEach((enemy) => {
+      if (enemy && enemy.hp <= 0) env2.deps.handleEnemyDeath(enemy, result.pStats);
+    });
+  }
+
+  // modules/combat/player-cast-commands.mjs
+  function* castApplySkillGemCommand(env2, command, stats) {
+    if (command.type === "pose") return yield* castNoteNativeGemArrivalSwing(env2, command);
+    if (command.type === "bellToll") {
+      if (!env2.owner.isBackgroundCalculation) yield { kind: "addBattleFx", args: ["bellToll", { duration: 180 }] };
+      return;
     }
-    actExplorationProgress.objects.area(command.splashCells);
-    actExplorationState.wake(game,getSplashDormantEnemies().filter(e=>command.targets.includes(e.id)));
-    const targets=game.enemies.filter(e=>e.hp>0 && command.targets.includes(e.id));
-    if (SKILL_GEM_MARKS[command.type]) return SKILL_GEM_MARKS[command.type](command,targets);
-    if (command.type==='dot') return applySkillGemDot(command,targets);
+    if (command.type === "teleport") {
+      if (!env2.deps.skillGemCasts.free(command.to, env2.owner.enemies.filter((e) => e.hp > 0))) return;
+      env2.deps.actExplorationMotion.cancel(env2.owner.actExploration);
+      Object.assign(env2.owner.gridPlayer, command.to);
+      yield { kind: "addBattleFx", args: ["playerMobility", { skillName: command.name, fromCell: command.from, toCell: command.to, instant: true, duration: 180 }] };
+      if (command.swing) yield* castNoteNativeGemArrivalSwing(env2, command);
+      return;
+    }
+    env2.deps.actExplorationProgress.objects.area(command.splashCells);
+    env2.deps.actExplorationState.wake(env2.owner, env2.deps.getSplashDormantEnemies().filter((e) => command.targets.includes(e.id)));
+    const targets = env2.owner.enemies.filter((e) => e.hp > 0 && command.targets.includes(e.id));
+    if (CAST_MARKS[command.type]) return CAST_MARKS[command.type](env2, command, targets);
+    if (command.type === "dot") return yield* castApplySkillGemDot(env2, command, targets);
     if (!targets.length) return;
-    applySkillGemContact(command,targets,stats);
-}
-
-function applySkillGemDot(command,targets) {
+    yield* castApplySkillGemContact(env2, command, targets, stats);
+  }
+  function* castApplySkillGemDot(env2, command, targets) {
     for (const enemy of targets) {
-        const stats=command.stats,mitigation=getEffectiveEnemyMitigation('chaos',getZone(game.currentZoneId).tier,enemy,stats);
-        const attackMultiplier=command.attackOptions?.attackDamageMultiplier ?? 1;
-        const damage=applyDamageToEnemyResource(enemy,Math.floor(Math.max(1,Math.floor(stats.baseDmg*stats.dotDamageScale*attackMultiplier*(1-mitigation/100)))*loopMutation.takenMul(enemy,'chaos')));
-        addBattleFx('hit',{enemyId:enemy.id,damage,element:'chaos',color:getElementColor('chaos'),duration:240,
-            noLine:true,dot:true,resolvedSkillContact:true});
-        if (enemy.hp<=0) handleEnemyDeath(enemy,stats);
+      const stats = command.stats, mitigation = env2.deps.getEffectiveEnemyMitigation("chaos", env2.deps.getZone(env2.owner.currentZoneId).tier, enemy, stats);
+      const attackMultiplier = command.attackOptions?.attackDamageMultiplier ?? 1;
+      const damage = env2.deps.applyDamageToEnemyResource(enemy, Math.floor(Math.max(1, Math.floor(stats.baseDmg * stats.dotDamageScale * attackMultiplier * (1 - mitigation / 100))) * env2.deps.loopMutation.takenMul(enemy, "chaos")));
+      yield { kind: "addBattleFx", args: ["hit", {
+        enemyId: enemy.id,
+        damage,
+        element: "chaos",
+        color: env2.deps.getElementColor("chaos"),
+        duration: 240,
+        noLine: true,
+        dot: true,
+        resolvedSkillContact: true
+      }] };
+      if (enemy.hp <= 0) env2.deps.handleEnemyDeath(enemy, stats);
     }
-}
-
-function applySkillGemContact(command,targets) {
-    const stats=command.stats;
-    const before=targets.map(e=>e.hp+(e.energyShield||0));
-    performPlayerAttack({...stats,projectileExtraShots:0},{...command.attackOptions,stageReplay:true,skillName:command.name,
-        sourceCell:command.sourceCell,targetEntries:targets.map(e=>({enemyId:e.id,mult:1})),stageRepeatOnce:true,
-        restrictRandomTargets:true,skipSlamEcho:true,skipGridControl:true,
-        hitDamageMultiplier:(command.bonus?PROJECTILE_BONUS_SHOT_DAMAGE_PCT/100:1)*(command.damagePct??100)/100,damageTextGroupId:command.key});
-    window.GameModules.combat.supports.repeatNative(command, targets);
-    window.GameModules.combat.supports.augmentNative(command, targets);
+  }
+  function* castApplySkillGemContact(env2, command, targets) {
+    const stats = command.stats;
+    const before = targets.map((e) => e.hp + (e.energyShield || 0));
+    yield* castPerformPlayerAttack(env2, { ...stats, projectileExtraShots: 0 }, {
+      ...command.attackOptions,
+      stageReplay: true,
+      skillName: command.name,
+      sourceCell: command.sourceCell,
+      targetEntries: targets.map((e) => ({ enemyId: e.id, mult: 1 })),
+      stageRepeatOnce: true,
+      restrictRandomTargets: true,
+      skipSlamEcho: true,
+      skipGridControl: true,
+      hitDamageMultiplier: (command.bonus ? env2.deps.PROJECTILE_BONUS_SHOT_DAMAGE_PCT / 100 : 1) * (command.damagePct ?? 100) / 100,
+      damageTextGroupId: command.key
+    });
+    env2.deps.supports.repeatNative(command, targets);
+    env2.deps.supports.augmentNative(command, targets);
     if (!command.ailment) return;
-    targets.forEach((enemy,i)=>{
-        if (enemy.hp<=0 || enemy.hp+(enemy.energyShield||0)>=before[i]) return;
-        const ele=command.ailment==='poison'?'chaos':'phys';
-        applyEnemyAilmentFromHit(enemy,{...stats,sSkill:{...stats.sSkill,ele}},stats.baseDmg,false,{primaryAilmentChance:1});
-        if (enemy.hp<=0) handleEnemyDeath(enemy,stats); // 촉매 ct8 터뜨림이 쓰러뜨린 적(타격의 죽음 처리는 이미 지났다)
+    targets.forEach((enemy, i) => {
+      if (enemy.hp <= 0 || enemy.hp + (enemy.energyShield || 0) >= before[i]) return;
+      const ele = command.ailment === "poison" ? "chaos" : "phys";
+      env2.deps.applyEnemyAilmentFromHit(enemy, { ...stats, sSkill: { ...stats.sSkill, ele } }, stats.baseDmg, false, { primaryAilmentChance: 1 });
+      if (enemy.hp <= 0) env2.deps.handleEnemyDeath(enemy, stats);
     });
-}
+  }
 
-function getDefeatRecoveryZoneId() {
-    let frontier = Math.max(0, Math.floor(Number(game.maxZoneId) || 0));
-    return getZone(frontier) ? frontier : 0;
-}
-
-function recordPlayerDefeatStart(zone, options) {
-    cosmosRouteRuntime.leave(game, 'failed');
-    resetHiddenJournalBossRun();
-    addBattleFx('playerDown', { color: '#ff6b6b', duration: 600 });
-    dispatchRuntimeEvent('player-defeated', {
-        zoneId: zone && zone.id,
-        zoneType: zone && zone.type,
-        contentContext: getEncounterTelemetryContext(zone),
-        background: !!game.isBackgroundCalculation,
-        noToast: !!options.noToast
+  // modules/combat/player-cast-runtime.mjs
+  function* castStartSkillGemCombat(env2, stats, options) {
+    env2.nativeCasts ?? (env2.nativeCasts = env2.deps.skillGemCasts.createState());
+    const name = options.skillName || env2.owner.activeSkill;
+    castInitializeSkillGemFacing(env2);
+    if (castSkillGemRuntimeChanged(env2, name)) env2.nativeCasts = env2.deps.skillGemCasts.createState();
+    const started = env2.deps.skillGemCasts.start(env2.nativeCasts, {
+      id: stats.sSkill.nativeCastId,
+      name,
+      stats,
+      source: env2.owner.gridPlayer,
+      enemies: env2.owner.enemies,
+      now: env2.deps.getCombatTime(),
+      visuals: !env2.owner.isBackgroundCalculation,
+      attackOptions: {
+        forcedCrit: options.forcedCrit,
+        forcedElement: options.forcedElement,
+        attackDamageMultiplier: options.attackDamageMultiplier,
+        talentAttackMultiplier: options.talentAttackMultiplier,
+        passiveKarmaContext: options.passiveKarmaContext
+      }
     });
-}
+    if (!started) return;
+    yield* castNoteNativeGemSwing(env2, name, stats);
+    env2.deps.noteCombatTacticAttack(300);
+  }
+  function castShouldDeferNativeGemCast(env2, stats, options) {
+    if (options.stageReplay || !stats.sSkill.nativeCastId) return false;
+    if (env2.deps.hasPlayerChannelBreakingAilment() || env2.owner.combatHalted) return true;
+    if (!env2.nativeCasts) return false;
+    return env2.deps.skillGemCasts.singleCast.has(stats.sSkill.nativeCastId) && env2.nativeCasts.casts.some((c) => c.id === stats.sSkill.nativeCastId);
+  }
+  function castGetAttackProjectileShots(env2, stats) {
+    return stats.sSkill.nativeCastId ? stats.projectileExtraShots : env2.deps.rollProjectileExtraShots(stats.projectileExtraShots);
+  }
+  function* castUpdateSkillGemCombat(env2, stats) {
+    const runtime = env2.nativeCasts;
+    if (!runtime) return;
+    if (env2.owner.combatHalted || env2.owner.playerHp <= 0 || castSkillGemRuntimeChanged(env2, env2.owner.activeSkill)) {
+      env2.nativeCasts = null;
+      env2.deps.cancelCombatChannel();
+      return;
+    }
+    const commands = env2.deps.skillGemCasts.update(runtime, { source: env2.owner.gridPlayer, enemies: env2.owner.enemies.concat(env2.deps.getSplashDormantEnemies()), now: env2.deps.getCombatTime() });
+    for (const command of commands) yield* castApplySkillGemCommand(env2, command, stats);
+  }
+  function* castAdvanceSkillGemCasts(env2, stats) {
+    env2.deps.supports.tickDots();
+    yield* castUpdateSkillGemCombat(env2, stats);
+    env2.deps.mobilitySkill.advance();
+  }
+  function castSkillGemRuntimeChanged(env2, name) {
+    return !!env2.nativeCasts.lastSkill && env2.nativeCasts.lastSkill !== name;
+  }
+  function castInitializeSkillGemFacing(env2) {
+    for (const enemy of env2.owner.enemies) if (!enemy.facingDirection) enemy.facingDirection = env2.deps.skillGemCasts.facing(enemy, env2.owner.gridPlayer);
+  }
 
-/** 자동 진행(다음 지역) 중 스토리 액트에서 쓰러지면 바로 앞 액트로 물러난다 — 같은 무리에 거듭 쓰러지며 탐험 전리품을
- * 잃던 반복을 끊는다. ACT_RETREAT_LEVELS만큼 오르면 holdActRetreat가 다시 앞 액트로 보낸다. Returns the retreat zone name ('' = stays). */
-function retreatAfterActDefeat(zone) {
-    if (zone?.type !== 'act' || !(zone.id > 0)) return '';
-    if ((game.settings.mapCompleteAction || 'nextZone') !== 'nextZone') return '';
-    const target = getZone(zone.id - 1);
-    if (target?.type !== 'act') return '';
-    game.actRetreat = { frontierZoneId: zone.id, level: game.level };
-    game.currentZoneId = target.id;
-    game.killsInZone = 0;
+  // modules/combat/player-defeat-progress.mjs
+  function castGetDefeatRecoveryZoneId(env2) {
+    let frontier = Math.max(0, Math.floor(Number(env2.owner.maxZoneId) || 0));
+    return env2.deps.getZone(frontier) ? frontier : 0;
+  }
+  function* castRecordPlayerDefeatStart(env2, zone, options) {
+    env2.deps.cosmosRouteRuntime.leave(env2.owner, "failed");
+    env2.deps.resetHiddenJournalBossRun();
+    yield { kind: "addBattleFx", args: ["playerDown", { color: "#ff6b6b", duration: 600 }] };
+    yield { kind: "dispatchRuntimeEvent", args: ["player-defeated", {
+      zoneId: zone && zone.id,
+      zoneType: zone && zone.type,
+      contentContext: env2.deps.getEncounterTelemetryContext(zone),
+      background: !!env2.owner.isBackgroundCalculation,
+      noToast: !!options.noToast
+    }] };
+  }
+  function castRetreatAfterActDefeat(env2, zone) {
+    if (zone?.type !== "act" || !(zone.id > 0)) return "";
+    if ((env2.owner.settings.mapCompleteAction || "nextZone") !== "nextZone") return "";
+    const target = env2.deps.getZone(zone.id - 1);
+    if (target?.type !== "act") return "";
+    env2.owner.actRetreat = { frontierZoneId: zone.id, level: env2.owner.level };
+    env2.owner.currentZoneId = target.id;
+    env2.owner.killsInZone = 0;
     return target.name;
-}
+  }
+  function castGetCampaignResistPenalty(env2, maxZoneId) {
+    return env2.deps.CAMPAIGN_RESIST_PENALTY.zones.filter((zoneId) => maxZoneId >= zoneId).length * env2.deps.CAMPAIGN_RESIST_PENALTY.each;
+  }
 
-/** 지금까지 연 구역의 캠페인 패널티(모든 원소 저항과 카오스 저항에서 뺄 값). */
-function getCampaignResistPenalty(maxZoneId) {
-    return CAMPAIGN_RESIST_PENALTY.zones.filter(zoneId => maxZoneId >= zoneId).length * CAMPAIGN_RESIST_PENALTY.each;
-}
-
-exposeFileGlobals({ scaleKeystoneAttackSpeed, addThousandBottlesStats, getPassiveKeystoneHitMultiplier, addPlayerHitVisualFx, startSkillGemCombat, noteNativeGemSwing, shouldDeferNativeGemCast, getAttackProjectileShots, updateSkillGemCombat, advanceSkillGemCasts, skillGemRuntimeChanged, petrifyEnemy, enemyTimeSlowed, pullEnemyToward, getDefeatRecoveryZoneId, recordPlayerDefeatStart, retreatAfterActDefeat, getCampaignResistPenalty });
-})();
-
-
-const isEnemyPetrified=enemy=>Array.isArray(enemy.ailments) && enemy.ailments.some(ail=>ail && ail.petrified && ail.time>0);
-/** 시간의 사선(80)의 이동 둔화가 남은 적인가: 저장에서 불러와 전투 시계가 앞서가도 그 길이 안에서만 믿는다. */
-const TIME_SLOW_MS=1300,TIME_SLOW_MOVE=0.3;
-/** 사슬처럼 따로 시전하는 룬이 적에게 남기는 표시(피해 없음). 끌어당김(2026-11-08 전달본 V3.13의 특이점 분리, 공허의 빙의)은 그 칸 쪽으로 cells걸음까지,
- * column이 있으면 그 세로줄 쪽으로(같은 줄을 지킨다). 약화(공허의 빙의)는 받는 피해를 늘린다(applyVoidWeakMitigation). */
-const SKILL_GEM_MARKS=Object.freeze({
-    mist(command,targets) { for (const enemy of targets) enemy.holyMistUntil=command.at+4000; },
-    petrify(command,targets) { for (const enemy of targets) petrifyEnemy(enemy,command.at,command.ms/1000); },
-    timeSlow(command,targets) { for (const enemy of targets) enemy.timeSlowUntil=command.at+command.ms; },
-    pull(command,targets) { for (const enemy of targets) pullEnemyToward(enemy,command); },
-    weaken(command,targets) { for (const enemy of targets) enemy.voidWeakUntil=command.at+command.ms; }
-});
-
-
-function performPlayerAttack(pStats, attackOptions) {
-    let options = attackOptions || {};
-    if (window.GameModules.combat.supports.deferAttack(pStats, options)) return;
-    // 예약된 시간차 타격은 같은 카운터를 공유하되, 다음 공격은 항상 새 카운터로 시작한다.
-    let attackHitGuardCounts = options.attackHitGuardCounts instanceof Map ? options.attackHitGuardCounts : new Map();
-    let isStageReplay = !!options.stageReplay;
-    if (!isStageReplay) pStats = { ...pStats, projectileExtraShots: getAttackProjectileShots(pStats) };
-    if (!isStageReplay && typeof isTalentPlayerAttackDisabled === 'function' && isTalentPlayerAttackDisabled()) return;
-    let skillName = options.skillName || game.activeSkill;
-    let channelContinuationRequested = !isStageReplay && consumeCombatChannelContinuation(skillName);
-    if (!isStageReplay && Array.isArray(game.queenBees) && game.queenBees.length > 0) {
-        let now = getCombatTime();
-        game.queenBees = game.queenBees.filter(bee => bee && (bee.expiresAt || 0) > now && (bee.attacksLeft || 0) > 0);
-        game.queenBees.forEach(bee => {
-            if (now < (bee.nextAt || 0)) return;
-            bee.nextAt = now + 1000;
-            bee.attacksLeft = Math.max(0, Math.floor((bee.attacksLeft || 0) - 1));
-            let target = (game.enemies || []).find(e => e && e.hp > 0);
-            if (!target) return;
-            let beeDmg = Math.max(1, Math.floor((pStats.baseDmg || 1) * ((bee.hitPct || 125) / 100)));
-            applyDamageToEnemyResource(target, beeDmg);
-        });
+  // modules/domain/player-attack-preparation.mjs
+  function startAttack(c) {
+    c.options = c.attackOptions || {};
+    if (c.deps.supports.deferAttack(c.pStats, c.options)) return false;
+    c.attackHitGuardCounts = c.options.attackHitGuardCounts instanceof Map ? c.options.attackHitGuardCounts : /* @__PURE__ */ new Map();
+    c.isStageReplay = !!c.options.stageReplay;
+    if (!c.isStageReplay) c.pStats = { ...c.pStats, projectileExtraShots: c.deps.getAttackProjectileShots(c.pStats) };
+    if (!c.isStageReplay && typeof c.deps.isTalentPlayerAttackDisabled === "function" && c.deps.isTalentPlayerAttackDisabled()) return false;
+    c.skillName = c.options.skillName || c.owner.activeSkill;
+    c.channelContinuationRequested = !c.isStageReplay && c.deps.consumeCombatChannelContinuation(c.skillName);
+  }
+  function tickQueenBees(c) {
+    if (!c.isStageReplay && Array.isArray(c.owner.queenBees) && c.owner.queenBees.length > 0) {
+      let now = c.deps.getCombatTime();
+      c.owner.queenBees = c.owner.queenBees.filter((bee) => bee && (bee.expiresAt || 0) > now && (bee.attacksLeft || 0) > 0);
+      c.owner.queenBees.forEach((bee) => {
+        if (now < (bee.nextAt || 0)) return;
+        bee.nextAt = now + 1e3;
+        bee.attacksLeft = Math.max(0, Math.floor((bee.attacksLeft || 0) - 1));
+        let target = (c.owner.enemies || []).find((e) => e && e.hp > 0);
+        if (!target) return;
+        let beeDmg = Math.max(1, Math.floor((c.pStats.baseDmg || 1) * ((bee.hitPct || 125) / 100)));
+        c.deps.applyDamageToEnemyResource(target, beeDmg);
+      });
     }
-    if (!isStageReplay) prepareTalentPlayerAttackContext(pStats);
-    // 14 콜로세움 브레이커: 5처치 충전 시 다음 공격을 투기장 일격(광역 5 + 피해 120% 증폭, 단일이면 +20%)으로
-    let colosseumStrikeMul = Math.max(0, Number(options.attackDamageMultiplier) || 1), colosseumSavedTargets = null;
-    if (!isStageReplay && typeof isTalentCardActive === 'function' && isTalentCardActive('hero2__gladiator') && game.talentRuntime && game.talentRuntime.colosseumReady) {
-        game.talentRuntime.colosseumReady = false;
-        let aliveCount = (game.enemies || []).filter(e => e && e.hp > 0).length;
-        colosseumStrikeMul = 2.2 * (aliveCount <= 1 ? 1.2 : 1);
-        colosseumSavedTargets = pStats.sSkill.targets;
-        pStats.sSkill.targets = Math.max(5, pStats.sSkill.targets || 1);
+  }
+  function prepareTalentAttack(c) {
+    if (!c.isStageReplay) c.deps.prepareTalentPlayerAttackContext(c.pStats);
+    c.colosseumStrikeMul = Math.max(0, Number(c.options.attackDamageMultiplier) || 1);
+    c.colosseumSavedTargets = null;
+  }
+  function prepareColosseumStrike(c) {
+    if (!c.isStageReplay && typeof c.deps.isTalentCardActive === "function" && c.deps.isTalentCardActive("hero2__gladiator") && c.owner.talentRuntime && c.owner.talentRuntime.colosseumReady) {
+      c.owner.talentRuntime.colosseumReady = false;
+      let aliveCount = (c.owner.enemies || []).filter((e) => e && e.hp > 0).length;
+      c.colosseumStrikeMul = 2.2 * (aliveCount <= 1 ? 1.2 : 1);
+      c.colosseumSavedTargets = c.pStats.sSkill.targets;
+      c.pStats.sSkill.targets = Math.max(5, c.pStats.sSkill.targets || 1);
     }
-    let targets = isStageReplay ? (options.targetEntries || []).map(entry => {
-        let enemy = (game.enemies || []).find(row => row && row.id === entry.enemyId && row.hp > 0);
-        return enemy ? { enemy: enemy, mult: Math.max(0, Number(entry.mult) || 1) } : null;
-    }).filter(Boolean) : getAttackTargets(pStats);
-    if (colosseumSavedTargets !== null) pStats.sSkill.targets = colosseumSavedTargets;
-    if (targets.length === 0) return;
-    let passiveKarmaContext = options.passiveKarmaContext || null;
-    if (!isStageReplay && typeof beginPassiveKarmaAttack === 'function') {
-        passiveKarmaContext = beginPassiveKarmaAttack(targets[0].enemy, getCombatTime());
+  }
+  function selectAttackTargets(c) {
+    c.targets = c.isStageReplay ? (c.options.targetEntries || []).map((entry) => {
+      let enemy = (c.owner.enemies || []).find((row) => row && row.id === entry.enemyId && row.hp > 0);
+      return enemy ? { enemy, mult: Math.max(0, Number(entry.mult) || 1) } : null;
+    }).filter(Boolean) : c.deps.getAttackTargets(c.pStats);
+    if (c.colosseumSavedTargets !== null) c.pStats.sSkill.targets = c.colosseumSavedTargets;
+    if (c.targets.length === 0) return false;
+  }
+  function beginAttackMobility(c) {
+    c.passiveKarmaContext = c.options.passiveKarmaContext || null;
+    if (!c.isStageReplay && typeof c.deps.beginPassiveKarmaAttack === "function") {
+      c.passiveKarmaContext = c.deps.beginPassiveKarmaAttack(c.targets[0].enemy, c.deps.getCombatTime());
     }
-    if (!isStageReplay) colosseumStrikeMul *= consumeLoneEvasionCounterMultiplier(pStats, getCombatTime());
-    let { landingMs, kickoff } = beginSkillMobility(pStats, targets[0].enemy, isStageReplay);
-    let talentMoonReturn = !isStageReplay && typeof getTalentMoonReturnConfig === 'function'
-        ? getTalentMoonReturnConfig(targets)
-        : null;
-    let pendingStages = [];
-    let stageKind = options.stageKind || 'primary';
-    let stageLabel = options.stageLabel || '직격';
-    let stageCount = Math.max(1, Math.floor(Number(options.stageCount) || 1));
-    let stageDamageMultiplier = Number.isFinite(Number(options.hitDamageMultiplier)) ? Math.max(0, Number(options.hitDamageMultiplier)) : 1;
-    if (!isStageReplay && typeof buildSkillHitSequence === 'function') {
-        let sequence = buildSkillHitSequence(skillName, pStats.sSkill, targets);
-        if (sequence.length > 0) {
-            let firstStage = sequence[0];
-            stageKind = firstStage.kind;
-            stageLabel = firstStage.label;
-            stageCount = sequence.length;
-            stageDamageMultiplier = Math.max(0, Number(firstStage.damageMultiplier) || 0);
-            pendingStages = sequence;
-        }
+    if (!c.isStageReplay) c.colosseumStrikeMul *= c.deps.consumeLoneEvasionCounterMultiplier(c.pStats, c.deps.getCombatTime());
+    ({ landingMs: c.landingMs, kickoff: c.kickoff } = c.deps.beginSkillMobility(c.pStats, c.targets[0].enemy, c.isStageReplay));
+    c.talentMoonReturn = !c.isStageReplay && typeof c.deps.getTalentMoonReturnConfig === "function" ? c.deps.getTalentMoonReturnConfig(c.targets) : null;
+  }
+  function selectHitSequence(c) {
+    c.pendingStages = [];
+    c.stageKind = c.options.stageKind || "primary";
+    c.stageLabel = c.options.stageLabel || "직격";
+    c.stageCount = Math.max(1, Math.floor(Number(c.options.stageCount) || 1));
+    c.stageDamageMultiplier = Number.isFinite(Number(c.options.hitDamageMultiplier)) ? Math.max(0, Number(c.options.hitDamageMultiplier)) : 1;
+    if (!c.isStageReplay && typeof c.deps.buildSkillHitSequence === "function") {
+      let sequence = c.deps.buildSkillHitSequence(c.skillName, c.pStats.sSkill, c.targets);
+      if (sequence.length > 0) {
+        let firstStage = sequence[0];
+        c.stageKind = firstStage.kind;
+        c.stageLabel = firstStage.label;
+        c.stageCount = sequence.length;
+        c.stageDamageMultiplier = Math.max(0, Number(firstStage.damageMultiplier) || 0);
+        c.pendingStages = sequence;
+      }
     }
-    let isDotSkill = window.GameModules.combat.supports.nativeDot(pStats.sSkill);
-    let previousFanaticismStacks = Math.max(0, Number(pStats.passiveFanaticismStacks) || 0);
-    let currentFanaticismStacks = !isStageReplay && typeof recordPassiveFanaticSkillUse === 'function'
-        ? recordPassiveFanaticSkillUse(skillName, pStats.devotion) : previousFanaticismStacks;
-
-    // 키스톤으로 보장된 치명타(암살자 a5, 촉매 ct7 공격 스킬)는 적 치명타 저항 굴림도 무시한다.
-    let guaranteedCrit = (hasKeystone('a5'))
-        || (hasKeystone('ct7') && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('attack'));
-    let isCrit = options.forcedCrit !== undefined ? !!options.forcedCrit
-        : (guaranteedCrit || (typeof rollTalentPlayerCrit === 'function' ? rollTalentPlayerCrit(pStats.crit) : Math.random() < (pStats.crit / 100)));
-    if (!isStageReplay && typeof talentOnPlayerAttack === 'function') talentOnPlayerAttack(pStats, isCrit);
-    if (!isStageReplay && hasKeystone('w2') && isCrit) {
-        let now = getCombatTime();
-        let active = (game.warriorRhythmExpiresAt || 0) > now;
-        let stacks = active ? Math.max(0, Math.min(5, Math.floor(game.warriorRhythmStacks || 0))) : 0;
-        game.warriorRhythmStacks = Math.min(5, stacks + 1);
-        game.warriorRhythmExpiresAt = now + 2000;
+  }
+  function recordFanaticism(c) {
+    c.isDotSkill = c.deps.supports.nativeDot(c.pStats.sSkill);
+    c.previousFanaticismStacks = Math.max(0, Number(c.pStats.passiveFanaticismStacks) || 0);
+    c.currentFanaticismStacks = !c.isStageReplay && typeof c.deps.recordPassiveFanaticSkillUse === "function" ? c.deps.recordPassiveFanaticSkillUse(c.skillName, c.pStats.devotion) : c.previousFanaticismStacks;
+  }
+  function rollAttackCritical(c) {
+    c.guaranteedCrit = c.deps.hasKeystone("a5") || c.deps.hasKeystone("ct7") && Array.isArray(c.pStats.sSkill.tags) && c.pStats.sSkill.tags.includes("attack");
+    c.isCrit = c.options.forcedCrit !== void 0 ? !!c.options.forcedCrit : c.guaranteedCrit || (typeof c.deps.rollTalentPlayerCrit === "function" ? c.deps.rollTalentPlayerCrit(c.pStats.crit) : c.deps.random() < c.pStats.crit / 100);
+    if (!c.isStageReplay && typeof c.deps.talentOnPlayerAttack === "function") c.deps.talentOnPlayerAttack(c.pStats, c.isCrit);
+  }
+  function recordWarriorRhythm(c) {
+    if (!c.isStageReplay && c.deps.hasKeystone("w2") && c.isCrit) {
+      let now = c.deps.getCombatTime();
+      let active = (c.owner.warriorRhythmExpiresAt || 0) > now;
+      let stacks = active ? Math.max(0, Math.min(5, Math.floor(c.owner.warriorRhythmStacks || 0))) : 0;
+      c.owner.warriorRhythmStacks = Math.min(5, stacks + 1);
+      c.owner.warriorRhythmExpiresAt = now + 2e3;
     }
-    if (!isStageReplay && hasKeystone('g3')) {
-        game.gladiatorVeteranCritBonus = Math.max(0, Math.floor(game.gladiatorVeteranCritBonus || 0));
-        if (isCrit) game.gladiatorVeteranCritBonus = 0;
-        else game.gladiatorVeteranCritBonus = Math.min(100, game.gladiatorVeteranCritBonus + 5);
+  }
+  function recordVeteranCritical(c) {
+    if (!c.isStageReplay && c.deps.hasKeystone("g3")) {
+      c.owner.gladiatorVeteranCritBonus = Math.max(0, Math.floor(c.owner.gladiatorVeteranCritBonus || 0));
+      if (c.isCrit) c.owner.gladiatorVeteranCritBonus = 0;
+      else c.owner.gladiatorVeteranCritBonus = Math.min(100, c.owner.gladiatorVeteranCritBonus + 5);
     }
-    let preloadElementalistStacks = getElementalistOverloadStacks();
-    if (!isStageReplay && hasKeystone('e8')) {
-        recordElementalistOverloadAttack(isCrit);
+  }
+  function recordOverload(c) {
+    c.preloadElementalistStacks = c.deps.getElementalistOverloadStacks();
+    if (!c.isStageReplay && c.deps.hasKeystone("e8")) {
+      c.deps.recordElementalistOverloadAttack(c.isCrit);
     }
-    if (currentFanaticismStacks !== previousFanaticismStacks) {
-        let previousMultiplier = 1 + previousFanaticismStacks * 0.015;
-        let currentMultiplier = 1 + currentFanaticismStacks * 0.015;
-        colosseumStrikeMul *= currentMultiplier / previousMultiplier;
+    if (c.currentFanaticismStacks !== c.previousFanaticismStacks) {
+      let previousMultiplier = 1 + c.previousFanaticismStacks * 0.015;
+      let currentMultiplier = 1 + c.currentFanaticismStacks * 0.015;
+      c.colosseumStrikeMul *= currentMultiplier / previousMultiplier;
     }
-    let riderCompassReady = !!(pStats.uniqueRiderCompass && (game.lastMoveEndedAt || 0) > 0 && !game.uniqueRiderCompassConsumed);
-    // This multiplier travels with the cast. Per-contact critical rolls remain in the hit resolver.
-    // 피의 계약(워록 wlk7): 공격마다 생명력의 4%를 소모 가능하면 소모하여 해당 공격의 피해를 1.5배로 만든다.
-    if (!isStageReplay && hasKeystone('wlk7')) {
-        let bloodPactCost = Math.floor((pStats.maxHp || game.playerHp || 1) * 0.04);
-        if (bloodPactCost > 0 && (game.playerHp || 0) > bloodPactCost) {
-            game.playerHp -= bloodPactCost;
-            colosseumStrikeMul *= 1 + ASCENDANCY_KEYSTONE_VALUES.wlk7.bloodPactMorePct / 100;
-        }
+  }
+  function prepareRiderCompass(c) {
+    c.riderCompassReady = !!(c.pStats.uniqueRiderCompass && (c.owner.lastMoveEndedAt || 0) > 0 && !c.owner.uniqueRiderCompassConsumed);
+  }
+  function consumeBloodPact(c) {
+    if (!c.isStageReplay && c.deps.hasKeystone("wlk7")) {
+      let bloodPactCost = Math.floor((c.pStats.maxHp || c.owner.playerHp || 1) * 0.04);
+      if (bloodPactCost > 0 && (c.owner.playerHp || 0) > bloodPactCost) {
+        c.owner.playerHp -= bloodPactCost;
+        c.colosseumStrikeMul *= 1 + c.deps.ASCENDANCY_KEYSTONE_VALUES.wlk7.bloodPactMorePct / 100;
+      }
     }
-    // 공허 특이점(워록 wlk6): 공격 피해가 100%~(100+(저항관통+치명타 피해 배율)의 rangePct%)% 사이에서 균등 분포로 결정된다.
-    if (!isStageReplay && hasKeystone('wlk6')) {
-        let singularityMaxPct = 100 + (Math.max(0, pStats.resPen || 0) + Math.max(0, pStats.critDmg || 0)) * ASCENDANCY_KEYSTONE_VALUES.wlk6.rangePct / 100;
-        let singularityPct = 100 + Math.random() * Math.max(0, singularityMaxPct - 100);
-        colosseumStrikeMul *= singularityPct / 100;
+  }
+  function rollSingularity(c) {
+    if (!c.isStageReplay && c.deps.hasKeystone("wlk6")) {
+      let singularityMaxPct = 100 + (Math.max(0, c.pStats.resPen || 0) + Math.max(0, c.pStats.critDmg || 0)) * c.deps.ASCENDANCY_KEYSTONE_VALUES.wlk6.rangePct / 100;
+      let singularityPct = 100 + c.deps.random() * Math.max(0, singularityMaxPct - 100);
+      c.colosseumStrikeMul *= singularityPct / 100;
     }
-    let getHitElement = () => {
-        let pool = Array.isArray(pStats.sSkill.randomElementPool) ? pStats.sSkill.randomElementPool.filter(Boolean) : null;
-        if (pool && pool.length > 0) return pool[Math.floor(Math.random() * pool.length)];
-        return pStats.sSkill.ele || 'phys';
+  }
+  function selectAttackElement(c) {
+    c.getHitElement = () => {
+      let pool = Array.isArray(c.pStats.sSkill.randomElementPool) ? c.pStats.sSkill.randomElementPool.filter(Boolean) : null;
+      if (pool && pool.length > 0) return pool[Math.floor(c.deps.random() * pool.length)];
+      return c.pStats.sSkill.ele || "phys";
     };
-    let swingElement = options.forcedElement || getHitElement();
-    if (!['phys','fire','cold','light','chaos'].includes(swingElement)) swingElement = (pStats.sSkill && pStats.sSkill.ele) || 'phys';
-    if (typeof getTalentDamageConversion === 'function') swingElement = getTalentDamageConversion(swingElement).element;
-    let talentAttackMul = Number.isFinite(Number(options.talentAttackMultiplier))
-        ? Math.max(0, Number(options.talentAttackMultiplier))
-        : getTalentPlayerAttackDamageMultiplier();
-    if (!isStageReplay) {
-        queuePlayerAttackSequence(pStats, pendingStages, {
-            skillName, forcedCrit: isCrit, forcedElement: swingElement, stageCount,
-            talentAttackMultiplier: talentAttackMul, attackDamageMultiplier: colosseumStrikeMul,
-            talentMoonReturn, attackHitGuardCounts, passiveKarmaContext,
-            channelContinuation: channelContinuationRequested, repeatChannelCast: !!options.repeatChannelCast, landingMs, kickoff
-        });
-        return;
+    c.swingElement = c.options.forcedElement || c.getHitElement();
+    if (!["phys", "fire", "cold", "light", "chaos"].includes(c.swingElement)) c.swingElement = c.pStats.sSkill && c.pStats.sSkill.ele || "phys";
+    if (typeof c.deps.getTalentDamageConversion === "function") c.swingElement = c.deps.getTalentDamageConversion(c.swingElement).element;
+  }
+  function readTalentAttackMultiplier(c) {
+    c.talentAttackMul = Number.isFinite(Number(c.options.talentAttackMultiplier)) ? Math.max(0, Number(c.options.talentAttackMultiplier)) : c.deps.getTalentPlayerAttackDamageMultiplier();
+  }
+  function queueInitialCast(c) {
+    if (!c.isStageReplay) {
+      c.deps.queuePlayerAttackSequence(c.pStats, c.pendingStages, {
+        skillName: c.skillName,
+        forcedCrit: c.isCrit,
+        forcedElement: c.swingElement,
+        stageCount: c.stageCount,
+        talentAttackMultiplier: c.talentAttackMul,
+        attackDamageMultiplier: c.colosseumStrikeMul,
+        talentMoonReturn: c.talentMoonReturn,
+        attackHitGuardCounts: c.attackHitGuardCounts,
+        passiveKarmaContext: c.passiveKarmaContext,
+        channelContinuation: c.channelContinuationRequested,
+        repeatChannelCast: !!c.options.repeatChannelCast,
+        landingMs: c.landingMs,
+        kickoff: c.kickoff
+      });
+      return false;
     }
-
-    let zoneTier = getZone(game.currentZoneId).tier;
-    let slamEchoPct = 0;
-    let slamEchoDelayMs = 1000;
-    let slamEchoGuaranteed = false;
-    let passiveSlamEchoChance = Math.max(0, Math.min(100, pStats.slamEchoChance || 0)) / 100;
-    if (passiveSlamEchoChance > 0 && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('slam')) slamEchoPct = Math.max(slamEchoPct, Math.max(0.25, (Number(pStats.slamEchoDamagePct || 0) / 100)));
-    talismanCombat.active().forEach(({ delta }) => {
-        if (delta.slamEchoPct) { slamEchoPct = Math.max(slamEchoPct, delta.slamEchoPct); slamEchoGuaranteed = true; }
-        if (delta.slamEchoDelaySec) slamEchoDelayMs = Math.max(100, Math.floor(delta.slamEchoDelaySec * 1000));
+  }
+  function prepareSlamEcho(c) {
+    c.zoneTier = c.deps.getZone(c.owner.currentZoneId).tier;
+    c.slamEchoPct = 0;
+    c.slamEchoDelayMs = 1e3;
+    c.slamEchoGuaranteed = false;
+    c.passiveSlamEchoChance = Math.max(0, Math.min(100, c.pStats.slamEchoChance || 0)) / 100;
+    if (c.passiveSlamEchoChance > 0 && Array.isArray(c.pStats.sSkill.tags) && c.pStats.sSkill.tags.includes("slam")) c.slamEchoPct = Math.max(c.slamEchoPct, Math.max(0.25, Number(c.pStats.slamEchoDamagePct || 0) / 100));
+    c.deps.talismanCombat.active().forEach(({ delta }) => {
+      if (delta.slamEchoPct) {
+        c.slamEchoPct = Math.max(c.slamEchoPct, delta.slamEchoPct);
+        c.slamEchoGuaranteed = true;
+      }
+      if (delta.slamEchoDelaySec) c.slamEchoDelayMs = Math.max(100, Math.floor(delta.slamEchoDelaySec * 1e3));
     });
-    let hits = [];
-    let totalLeechableDamage = 0;
-    let totalChaosDamage = 0;
-    let talentMoonPrimaryHit = false;
-    let hasSkillConditionalFeedback = !!(pStats.sSkill.activeAilmentDamageMore
-        || (pStats.sSkill.consumeAilmentDamageMore || []).length
-        || pStats.sSkill.fullLifeDamageMorePct || pStats.sSkill.distanceDamageMoreCapPct);
-    let isProjectileSkill = Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('projectile');
-    let isFanProjectile = isProjectileSkill && pStats.sSkill.projectilePattern && pStats.sSkill.projectilePattern.kind === 'fan';
-    let projectileBonusShots = isProjectileSkill && !isFanProjectile ? Math.max(0, Math.floor(pStats.projectileExtraShots || 0)) : 0;
-    let curseProjectileExtraHits = 0;
-    if (isProjectileSkill) {
-        let aliveEnemies = (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
-        for (let enemy of aliveEnemies) {
-            let fx = getEnemyConditionDebuffFactor(enemy);
-            curseProjectileExtraHits = Math.max(curseProjectileExtraHits, Math.max(0, Math.floor(fx.projectileExtraHits || 0)));
-        }
+    c.hits = [];
+    c.totalLeechableDamage = 0;
+    c.totalChaosDamage = 0;
+    c.talentMoonPrimaryHit = false;
+  }
+  function prepareProjectileFeedback(c) {
+    c.hasSkillConditionalFeedback = hasConditionalCue(c.pStats.sSkill);
+    c.isProjectileSkill = Array.isArray(c.pStats.sSkill.tags) && c.pStats.sSkill.tags.includes("projectile");
+    c.isFanProjectile = c.isProjectileSkill && c.pStats.sSkill.projectilePattern && c.pStats.sSkill.projectilePattern.kind === "fan";
+    c.projectileBonusShots = c.isProjectileSkill && !c.isFanProjectile ? Math.max(0, Math.floor(c.pStats.projectileExtraShots || 0)) : 0;
+    c.curseProjectileExtraHits = 0;
+  }
+  function hasConditionalCue(skill) {
+    return !!(skill.activeAilmentDamageMore || (skill.consumeAilmentDamageMore || []).length || skill.fullLifeDamageMorePct || skill.distanceDamageMoreCapPct);
+  }
+  function readCurseProjectileRepeats(c) {
+    if (c.isProjectileSkill) {
+      let aliveEnemies = (c.owner.enemies || []).filter((enemy) => enemy && enemy.hp > 0);
+      for (let enemy of aliveEnemies) {
+        let fx = c.deps.getEnemyConditionDebuffFactor(enemy);
+        c.curseProjectileExtraHits = Math.max(c.curseProjectileExtraHits, Math.max(0, Math.floor(fx.projectileExtraHits || 0)));
+      }
     }
-    let projectileRepeatPct = isProjectileSkill ? Math.max(0, Number(pStats.uniqueProjectileDoubleStrikePct) || 0) : 0;
-    let uniqueProjectileExtraHits = Math.floor(projectileRepeatPct / 100);
-    if (isProjectileSkill && Math.random() * 100 < (projectileRepeatPct % 100)) uniqueProjectileExtraHits += 1;
-    let chanceProjExtraShots = (isProjectileSkill && pStats.uniqueProjExtraShotChance && Math.random() * 100 < Number(pStats.uniqueProjExtraShotChance.chance || 0)) ? Math.max(0, Math.floor(pStats.uniqueProjExtraShotChance.shots || 0)) : 0;
-    let addedProjectileRepeatCount = projectileBonusShots + chanceProjExtraShots + curseProjectileExtraHits + uniqueProjectileExtraHits;
-    let nativeRepeats = options.stageRepeatOnce ? 1 : Math.max(1, Math.floor(pStats.sSkill.multiHit || 1));
-    let repeats = Math.max(1, Math.min(12, nativeRepeats + addedProjectileRepeatCount));
-    let baseRepeats = nativeRepeats;
-    if (hasKeystone('h7')) {
-        pStats.sSkill.targets = 1;
+  }
+  function rollProjectileRepeats(c) {
+    c.projectileRepeatPct = c.isProjectileSkill ? Math.max(0, Number(c.pStats.uniqueProjectileDoubleStrikePct) || 0) : 0;
+    c.uniqueProjectileExtraHits = Math.floor(c.projectileRepeatPct / 100);
+    if (c.isProjectileSkill && c.deps.random() * 100 < c.projectileRepeatPct % 100) c.uniqueProjectileExtraHits += 1;
+    c.chanceProjExtraShots = c.isProjectileSkill && c.pStats.uniqueProjExtraShotChance && c.deps.random() * 100 < Number(c.pStats.uniqueProjExtraShotChance.chance || 0) ? Math.max(0, Math.floor(c.pStats.uniqueProjExtraShotChance.shots || 0)) : 0;
+  }
+  function countAttackRepeats(c) {
+    c.addedProjectileRepeatCount = c.projectileBonusShots + c.chanceProjExtraShots + c.curseProjectileExtraHits + c.uniqueProjectileExtraHits;
+    c.nativeRepeats = c.options.stageRepeatOnce ? 1 : Math.max(1, Math.floor(c.pStats.sSkill.multiHit || 1));
+    c.repeats = Math.max(1, Math.min(12, c.nativeRepeats + c.addedProjectileRepeatCount));
+    c.baseRepeats = c.nativeRepeats;
+    if (c.deps.hasKeystone("h7")) {
+      c.pStats.sSkill.targets = 1;
     }
-    let perEnemyHitCount = new Map();
-    let originalPierceTargets = new Set(targets.map(entry => entry && entry.enemy).filter(Boolean));
-    let pierceOverkillCarryStartedTargets = new Set();
-    let hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: new Set() };
-    let attackFeedbackGroup = options.damageTextGroupId ? String(options.damageTextGroupId) : '';
-    let attackFeedbackKeys = new Set();
-    function showAttackFeedback(enemy, cue) {
-        if (!cue || !cue.key || !cue.text || attackFeedbackKeys.has(cue.key)) return;
-        attackFeedbackKeys.add(cue.key);
-        addBattleFx('statusText', {
-            enemyId: enemy && enemy.id,
-            text: cue.text,
-            color: cue.color || '#f3d9a4',
-            duration: 900,
-            dedupeKey: attackFeedbackGroup ? `attack:${attackFeedbackGroup}:${cue.key}` : '',
-            dedupeWindowMs: 1400
+  }
+  function createHitTracking(c) {
+    c.perEnemyHitCount = /* @__PURE__ */ new Map();
+    c.originalPierceTargets = new Set(c.targets.map((entry) => entry && entry.enemy).filter(Boolean));
+    c.pierceOverkillCarryStartedTargets = /* @__PURE__ */ new Set();
+    c.hitSummary = { totalHits: 0, totalDamage: 0, uniqueTargets: /* @__PURE__ */ new Set() };
+    c.attackFeedbackGroup = c.options.damageTextGroupId ? String(c.options.damageTextGroupId) : "";
+    c.attackFeedbackKeys = /* @__PURE__ */ new Set();
+  }
+  function preparePlayerCast(c) {
+    if (startAttack(c) === false) return false;
+    tickQueenBees(c);
+    prepareTalentAttack(c);
+    prepareColosseumStrike(c);
+    if (selectAttackTargets(c) === false) return false;
+    beginAttackMobility(c);
+    selectHitSequence(c);
+    recordFanaticism(c);
+    rollAttackCritical(c);
+    recordWarriorRhythm(c);
+    recordVeteranCritical(c);
+    recordOverload(c);
+    prepareRiderCompass(c);
+    consumeBloodPact(c);
+    rollSingularity(c);
+    selectAttackElement(c);
+    readTalentAttackMultiplier(c);
+    if (queueInitialCast(c) === false) return false;
+    prepareSlamEcho(c);
+    prepareProjectileFeedback(c);
+    readCurseProjectileRepeats(c);
+    rollProjectileRepeats(c);
+    countAttackRepeats(c);
+    createHitTracking(c);
+  }
+
+  // modules/domain/player-attack-target.mjs
+  function readHitTarget(c, h) {
+    h.targetEnemy = h.hit.enemy;
+  }
+  function pickRandomHitTarget(c, h) {
+    if (c.pStats.sSkill.randomTargetEachHit) {
+      let alive = c.options.restrictRandomTargets ? c.targets.map((entry) => entry.enemy).filter((enemy) => enemy && enemy.hp > 0) : (c.owner.enemies || []).filter((enemy) => enemy && enemy.hp > 0);
+      if (alive.length <= 0) return false;
+      let eligible = alive.filter((enemy) => (c.perEnemyHitCount.get(enemy.id) || 0) < 2);
+      if (eligible.length > 0) h.targetEnemy = eligible[Math.floor(c.deps.random() * eligible.length)];
+      else if (!c.randomTargetCapFallbackUsed) {
+        c.randomTargetCapFallbackUsed = true;
+        h.targetEnemy = alive[Math.floor(c.deps.random() * alive.length)];
+      } else return false;
+    }
+  }
+  function guardRepeatedTarget(c, h) {
+    if (!h.targetEnemy || h.targetEnemy.hp <= 0) return false;
+    c.deps.transferPassiveChaosErosionToTarget(h.targetEnemy, c.pStats);
+    h.priorGuardedHits = Math.max(0, Math.floor(Number(c.attackHitGuardCounts.get(h.targetEnemy.id)) || 0));
+    h.nextHitCount = (c.perEnemyHitCount.get(h.targetEnemy.id) || 0) + 1;
+    if (c.pStats.passiveKeystoneFlags && c.pStats.passiveKeystoneFlags.projectileFormation && h.nextHitCount > 1) return false;
+    c.perEnemyHitCount.set(h.targetEnemy.id, h.nextHitCount);
+  }
+  function readTargetResistance(c, h) {
+    h.hitElement = c.swingElement;
+    h.curseFx = c.deps.getEnemyConditionDebuffFactor(h.targetEnemy, c.pStats);
+    h.enemyRes = c.deps.getHitEnemyResistance(h.hitElement, c.zoneTier, h.targetEnemy, c.pStats, h.curseFx) - c.deps.ascendancyNodeRules.armorBreak(h.targetEnemy, h.hitElement, c.deps.getCombatTime());
+    if (c.deps.getPassiveChaosConversionShare(c.pStats, h.hitElement) > 0) {
+      let chaosShare = c.deps.getPassiveChaosConversionShare(c.pStats, h.hitElement);
+      let chaosRes = c.deps.getEffectiveEnemyMitigation("chaos", c.zoneTier, h.targetEnemy, c.pStats) - (h.curseFx.resChaosShred || 0);
+      h.enemyRes = h.enemyRes * (1 - chaosShare) + chaosRes * chaosShare;
+    }
+  }
+  function applyJudgmentResistance(c, h) {
+    if (h.targetEnemy && Array.isArray(h.targetEnemy.ailments)) {
+      let cj = h.targetEnemy.ailments.find((a) => a && a.type === "cosmosJudgment" && (a.time || 0) > 0);
+      if (cj) h.enemyRes -= Math.max(0, Number(cj.power || 0));
+    }
+  }
+  function applyStackedResistance(c, h) {
+    if (h.targetEnemy && Array.isArray(h.targetEnemy.ailments)) {
+      let rs = h.targetEnemy.ailments.find((a) => a && a.type === "realmAllResDown" && (a.time || 0) > 0);
+      if (rs) h.enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number(c.pStats.uniqueAllResDownOnHit && c.pStats.uniqueAllResDownOnHit.perHit || 0));
+    }
+  }
+  function selectContactCritical(c, h) {
+    h.hitCrit = c.isCrit;
+    h.passiveGuaranteedCrit = false;
+    if (c.pStats.passiveKeystoneFlags && (c.pStats.passiveKeystoneFlags.explosiveDistill || c.pStats.passiveKeystoneFlags.taintedWarhead)) h.hitCrit = false;
+    if (c.pStats.passiveKeystoneFlags && c.pStats.passiveKeystoneFlags.fullEvasion && (c.pStats.sSkill.tags || []).includes("melee") && c.owner.passiveFullEvasionCritReady) {
+      h.hitCrit = true;
+      h.passiveGuaranteedCrit = true;
+      c.owner.passiveFullEvasionCritReady = false;
+    }
+  }
+  function invertTargetResistance(c, h) {
+    h.invertEnemyResistance = false;
+    if (["fire", "cold", "light"].includes(h.hitElement) && typeof c.deps.getPreciseTalentRatio === "function" && c.deps.random() < 0.15 * c.deps.getPreciseTalentRatio("hero3__inquisitor")) h.invertEnemyResistance = true;
+    if (h.invertEnemyResistance) h.enemyRes = -h.enemyRes;
+  }
+  function stackTargetResistanceLoss(c, h) {
+    if (c.pStats.uniqueAllResDownOnHit && h.targetEnemy) {
+      c.deps.getCombatTime();
+      h.targetEnemy.ailments = Array.isArray(h.targetEnemy.ailments) ? h.targetEnemy.ailments : [];
+      let row = h.targetEnemy.ailments.find((a) => a && a.type === "realmAllResDown");
+      if (!row) {
+        row = { type: "realmAllResDown", stacks: 0, time: 0 };
+        h.targetEnemy.ailments.push(row);
+      }
+      row.stacks = Math.min(Math.max(1, Math.floor(c.pStats.uniqueAllResDownOnHit.max || 4)), Math.max(0, Math.floor(row.stacks || 0)) + 1);
+      row.time = Math.max(row.time || 0, Number(c.pStats.uniqueAllResDownOnHit.duration || 5));
+    }
+  }
+  function selectPlayerContact(c, h) {
+    readHitTarget(c, h);
+    if (pickRandomHitTarget(c, h) === false) return false;
+    if (guardRepeatedTarget(c, h) === false) return false;
+    readTargetResistance(c, h);
+    applyJudgmentResistance(c, h);
+    applyStackedResistance(c, h);
+    selectContactCritical(c, h);
+    invertTargetResistance(c, h);
+    stackTargetResistanceLoss(c, h);
+  }
+
+  // modules/domain/player-attack-damage-base.mjs
+  function rollHunterCritical(c, h) {
+    h.hitBaseDamage = c.pStats.baseDmg;
+    h.ailmentBaseDamage = c.pStats.baseDmg;
+    if (c.deps.hasKeystone("h8")) {
+      let critCount = 0;
+      let critChancePct = Math.max(0, Number(c.pStats.crit) || 0);
+      while (critChancePct > 0) {
+        let slice = Math.min(100, critChancePct);
+        if (c.deps.random() * 100 < slice) critCount++;
+        critChancePct -= 100;
+      }
+      if (critCount > 0) {
+        h.hitCrit = true;
+        let critMul = Math.max(1, c.pStats.critDmg / 100);
+        h.hitBaseDamage = Math.floor(h.hitBaseDamage * (1 + (critMul - 1) * critCount));
+      }
+    } else {
+      h.hitBaseDamage = h.hitCrit ? Math.floor(c.pStats.baseDmg * (c.pStats.critDmg / 100)) : c.pStats.baseDmg;
+    }
+  }
+  function clearForbiddenCritical(c, h) {
+    if (c.pStats.passiveKeystoneFlags && (c.pStats.passiveKeystoneFlags.explosiveDistill || c.pStats.passiveKeystoneFlags.taintedWarhead)) {
+      h.hitCrit = false;
+      h.hitBaseDamage = c.pStats.baseDmg;
+    }
+  }
+  function resistCriticalChance(c, h) {
+    if (h.hitCrit && !c.guaranteedCrit && !h.passiveGuaranteedCrit && (h.targetEnemy.critResistPct || 0) > 0 && c.deps.random() * 100 < Math.max(0, Math.min(95, h.targetEnemy.critResistPct || 0))) {
+      h.hitCrit = false;
+      h.hitBaseDamage = c.pStats.baseDmg;
+    }
+  }
+  function scaleTalentCritical(c, h) {
+    h.talentCritDmgMultiplier = typeof c.deps.getTalentCritDamageMultiplier === "function" ? c.deps.getTalentCritDamageMultiplier(h.hitCrit) : 1;
+    if (h.talentCritDmgMultiplier !== 1) h.hitBaseDamage = Math.floor(h.hitBaseDamage * h.talentCritDmgMultiplier);
+    if (h.hitCrit && (h.targetEnemy.critDamageResistPct || 0) > 0) {
+      let critResist = Math.max(0, Math.min(95, Number(h.targetEnemy.critDamageResistPct || 0))) / 100;
+      let basePart = Math.max(1, Math.floor(c.pStats.baseDmg || 1));
+      h.hitBaseDamage = Math.max(1, Math.floor(basePart + Math.max(0, h.hitBaseDamage - basePart) * (1 - critResist)));
+    }
+  }
+  function consumeRiderCompass(c, h) {
+    if (c.riderCompassReady) {
+      h.hitBaseDamage = Math.floor(h.hitBaseDamage * 2);
+      h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * 2);
+      c.riderCompassReady = false;
+      c.owner.uniqueRiderCompassConsumed = true;
+    }
+  }
+  function scaleCriticalAndElement(c, h) {
+    if (h.hitCrit && c.deps.hasKeystone("a7") && (c.owner.enemies || []).filter((e) => e && e.hp > 0).length === 1) h.hitBaseDamage *= 1 + c.deps.ASCENDANCY_KEYSTONE_VALUES.a7.extraHitPct / 100;
+    if (h.hitCrit) h.hitBaseDamage *= c.deps.getGemCritHitPerkMul(c.skillName, c.pStats);
+    h.randomElementPct = c.pStats.randomElementDamagePct && Number(c.pStats.randomElementDamagePct[h.hitElement]) ? Number(c.pStats.randomElementDamagePct[h.hitElement]) : 0;
+    if (h.randomElementPct) {
+      h.hitBaseDamage = Math.floor(h.hitBaseDamage * (1 + h.randomElementPct / 100));
+      h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * (1 + h.randomElementPct / 100));
+    }
+  }
+  function scalePhysicalHit(c, h) {
+    if (h.hitElement === "phys") {
+      let physMul = Math.max(0, Number(c.pStats.warriorPhysDamageMultiplier) || 1);
+      h.hitBaseDamage = Math.floor(h.hitBaseDamage * physMul);
+      h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * physMul);
+    }
+  }
+  function scaleLoneHunter(c, h) {
+    if (c.deps.hasKeystone("h1")) {
+      let aliveCnt = (c.owner.enemies || []).filter((e) => e && e.hp > 0).length;
+      let hunterMul = 1 + (aliveCnt === 1 ? c.deps.ASCENDANCY_KEYSTONE_VALUES.h1.singleMorePct : c.deps.ASCENDANCY_KEYSTONE_VALUES.h1.multiMorePct) / 100;
+      h.hitBaseDamage = Math.floor(h.hitBaseDamage * hunterMul);
+      h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * hunterMul);
+    }
+  }
+  function scaleAilmentAndBossHit(c, h) {
+    [h.hitBaseDamage, h.ailmentBaseDamage] = c.deps.applyAilingTargetDamage(c.pStats, h.targetEnemy, h.hitElement, h.hitCrit, [h.hitBaseDamage, h.ailmentBaseDamage]);
+    if (h.targetEnemy.isBoss) {
+      let bossMul = Math.max(0, Number(c.pStats.bossDamageDealtMultiplier) || 1);
+      bossMul *= 1 + Math.max(0, Number(c.pStats.bossDamagePct) || 0) / 100;
+      h.hitBaseDamage = Math.floor(h.hitBaseDamage * bossMul * (1 + Math.max(0, c.pStats.cosmosBossDamageMorePct || 0) / 100));
+      h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * bossMul * (1 + Math.max(0, c.pStats.cosmosBossDamageMorePct || 0) / 100));
+    } else if (h.targetEnemy.isElite && (c.pStats.eliteDamagePct || 0) > 0) {
+      let eliteMul = 1 + Math.max(0, Number(c.pStats.eliteDamagePct) || 0) / 100;
+      h.hitBaseDamage = Math.floor(h.hitBaseDamage * eliteMul);
+      h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * eliteMul);
+    }
+  }
+  function consumeSwiftOpening(c, h) {
+    if (c.deps.hasKeystone("g5") && c.owner.gladiatorSwiftOpeningReady) {
+      h.hitBaseDamage = Math.floor(h.hitBaseDamage * 1.3);
+      h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * 1.3);
+      c.owner.gladiatorSwiftOpeningReady = false;
+    }
+  }
+  function scaleTalentHit(c, h) {
+    h.talentKeystoneMul = 1;
+    if (typeof c.deps.getTalentPrecisePlayerHitMultiplier === "function") {
+      h.talentKeystoneMul *= c.deps.getTalentPrecisePlayerHitMultiplier(h.hitElement);
+    }
+    if (typeof c.deps.getTalentButcherBossMultiplier === "function") h.talentKeystoneMul *= c.deps.getTalentButcherBossMultiplier(h.targetEnemy);
+    h.talentHitMul = c.talentAttackMul * h.talentKeystoneMul * (c.colosseumStrikeMul || 1);
+    h.talentHitMul *= c.deps.getPassiveKeystoneHitMultiplier(c.pStats, h.targetEnemy, h.hitIdx, h.targetIndex, c.skillName) * c.deps.ascendancyNodeRules.blastMultiplier(c.pStats, h.hitEntries.length);
+    h.hitBaseDamage = Math.floor(h.hitBaseDamage * h.talentHitMul);
+    h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * h.talentHitMul);
+  }
+  function advanceOrbitMultiplier(c, h) {
+    if (c.pStats.cosmosOrbitCycle && h.targetEnemy) {
+      let cycle = c.pStats.cosmosOrbitCycle;
+      let current = Number.isFinite(h.targetEnemy.cosmosOrbitMul) ? h.targetEnemy.cosmosOrbitMul : Number(cycle.high || 1.3);
+      h.hitBaseDamage = Math.floor(h.hitBaseDamage * current);
+      h.ailmentBaseDamage = Math.floor(h.ailmentBaseDamage * current);
+      advanceOrbitState(h.targetEnemy, cycle, current);
+    }
+  }
+  function advanceOrbitState(enemy, cycle, current) {
+    let dir = Number.isFinite(enemy.cosmosOrbitDir) ? enemy.cosmosOrbitDir : -1;
+    let next = current + dir * Math.max(0.01, Number(cycle.step || 0.2));
+    if (next <= Number(cycle.low || 0.7)) {
+      next = Number(cycle.low || 0.7);
+      dir = 1;
+    }
+    if (next >= Number(cycle.high || 1.3)) {
+      next = Number(cycle.high || 1.3);
+      dir = -1;
+    }
+    enemy.cosmosOrbitMul = Number(next.toFixed(2));
+    enemy.cosmosOrbitDir = dir;
+  }
+  function rollHitDamage(c, h) {
+    h.dmg = Math.floor(h.hitBaseDamage * (h.hit.mult || 1));
+    h.ailmentSourceDamage = Math.floor(h.ailmentBaseDamage * (h.hit.mult || 1));
+    h.dmg = Math.floor(h.dmg * c.stageDamageMultiplier);
+    h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * c.stageDamageMultiplier);
+    h.repeatDamageMultiplier = c.deps.getSkillRepeatDamageMultiplier(c.pStats.sSkill, h.hitIdx, c.baseRepeats);
+    h.dmg = Math.floor(h.dmg * h.repeatDamageMultiplier);
+    h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * h.repeatDamageMultiplier);
+    if (!Number.isFinite(h.dmg)) h.dmg = 0;
+    h.minRoll = Math.max(1, Math.floor(c.pStats.minDmgRoll || 80));
+    h.maxRoll = Math.max(h.minRoll, Math.floor(c.pStats.maxDmgRoll || 100));
+    h.rollPct = h.minRoll + c.deps.random() * (h.maxRoll - h.minRoll);
+    if (c.pStats.uniqueCeilingSmashDouble && h.rollPct >= 140 && c.deps.random() < 0.15) {
+      h.dmg *= 2;
+      h.ailmentSourceDamage *= 2;
+    }
+  }
+  function scaleUnderdogRoll(c, h) {
+    if ((c.pStats.uniqueUnderdogMorePct || 0) > 0 && h.rollPct < h.maxRoll) {
+      let underdogMul = 1 + Math.max(0, c.pStats.uniqueUnderdogMorePct) / 100;
+      h.dmg = Math.floor(h.dmg * underdogMul);
+      h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * underdogMul);
+    }
+    h.dmg = Math.floor(h.dmg * (h.rollPct / 100));
+    h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * (h.rollPct / 100));
+  }
+  function scaleChaosRoll(c, h) {
+    if (h.hitElement === "chaos") {
+      let chaosMultiplier = Math.max(0, Number(c.pStats.chaosDamageMultiplier) || 1);
+      h.dmg = Math.floor(h.dmg * chaosMultiplier);
+      h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * chaosMultiplier);
+    } else if (c.deps.getPassiveChaosConversionShare(c.pStats, h.hitElement) > 0) {
+      let chaosShare = c.deps.getPassiveChaosConversionShare(c.pStats, h.hitElement);
+      let convertedMultiplier = 1 - chaosShare + Math.max(0, Number(c.pStats.chaosDamageMultiplier) || 1) * chaosShare;
+      h.dmg = Math.floor(h.dmg * convertedMultiplier);
+      h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * convertedMultiplier);
+    }
+  }
+  function rollFirstHit(c, h) {
+    h.cosmosFirstHitRoll = c.pStats.cosmosAlwaysFirstHit || (c.pStats.cosmosAlwaysFirstHitChancePct || 0) > 0 && c.deps.random() * 100 < (c.pStats.cosmosAlwaysFirstHitChancePct || 0);
+    if ((c.pStats.firstHitDamageMorePct || 0) > 0 && (h.cosmosFirstHitRoll || !h.targetEnemy.firstHitConsumed)) {
+      let firstMul = 1 + Math.max(0, Number(c.pStats.firstHitDamageMorePct || 0)) / 100;
+      h.dmg = Math.floor(h.dmg * firstMul);
+      h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * firstMul);
+    }
+  }
+  function applyFirstHitGuard(c, h) {
+    if ((h.targetEnemy.firstHitGuard || 0) > 0 && (h.cosmosFirstHitRoll || !h.targetEnemy.firstHitConsumed)) {
+      h.dmg = Math.floor(h.dmg * (1 - h.targetEnemy.firstHitGuard));
+      h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * (1 - h.targetEnemy.firstHitGuard));
+      if (!h.cosmosFirstHitRoll) h.targetEnemy.firstHitConsumed = true;
+    }
+  }
+  function applyRepeatedHitGuard(c, h) {
+    h.hitGuard = Math.max(0, Number(h.targetEnemy.hitRateGuard) || 0) * Math.min(5, h.priorGuardedHits);
+    if (h.hitGuard > 0) {
+      let hitGuardMul = Math.max(0.2, 1 - h.hitGuard);
+      h.dmg = Math.floor(h.dmg * hitGuardMul);
+      h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * hitGuardMul);
+    }
+  }
+  function applyBurstGuard(c, h) {
+    h.burstHits = Math.max(0, (h.targetEnemy.recentHitsTaken || 0) - 2);
+    if ((h.targetEnemy.comboTakenLessPct || 0) > 0 && h.burstHits > 0) {
+      let comboLess = Math.max(0, Math.min(85, Number(h.targetEnemy.comboTakenLessPct || 0) * Math.min(5, h.burstHits) / 5));
+      h.dmg = Math.floor(h.dmg * (1 - comboLess / 100));
+      h.ailmentSourceDamage = Math.floor(h.ailmentSourceDamage * (1 - comboLess / 100));
+    }
+    h.damageBeforeMitigation = h.dmg;
+    h.addedDamageSource = h.damageBeforeMitigation;
+  }
+  function rollPlayerContact(c, h) {
+    rollHunterCritical(c, h);
+    clearForbiddenCritical(c, h);
+    resistCriticalChance(c, h);
+    scaleTalentCritical(c, h);
+    consumeRiderCompass(c, h);
+    scaleCriticalAndElement(c, h);
+    scalePhysicalHit(c, h);
+    scaleLoneHunter(c, h);
+    scaleAilmentAndBossHit(c, h);
+    consumeSwiftOpening(c, h);
+    scaleTalentHit(c, h);
+    advanceOrbitMultiplier(c, h);
+    rollHitDamage(c, h);
+    scaleUnderdogRoll(c, h);
+    scaleChaosRoll(c, h);
+    rollFirstHit(c, h);
+    applyFirstHitGuard(c, h);
+    applyRepeatedHitGuard(c, h);
+    applyBurstGuard(c, h);
+  }
+
+  // modules/domain/enemy-mitigation.mjs
+  var CURSE_ELEMENT_SHRED_KEYS = Object.freeze({ fire: "resFShred", cold: "resCShred", light: "resLShred", chaos: "resChaosShred", phys: "physDrShred" });
+
+  // modules/domain/player-attack-mitigation.mjs
+  function prepareConditionalHit(c, h) {
+    h.ailmentDamageBeforeCritMitigation = Math.max(0, Math.floor(h.ailmentSourceDamage));
+    h.skillConditionalCues = c.hasSkillConditionalFeedback ? [] : null;
+    h.skillConditionalMultiplier = c.deps.getSkillConditionalDamageMultiplier(
+      c.pStats.sSkill,
+      h.targetEnemy,
+      h.skillConditionalCues ? (cue) => h.skillConditionalCues.push(cue) : null
+    );
+    h.dmg = Math.floor(h.dmg * h.skillConditionalMultiplier);
+    h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * h.skillConditionalMultiplier);
+    h.dmg = Math.floor(h.dmg * Math.max(0, c.pStats.instantDamageMultiplier || 1));
+    rollConditionalDamage(c, h);
+    h.enemyTotalEvadeChance = c.deps.getEnemyTotalEvadeChance(h.targetEnemy, c.pStats.accuracy);
+  }
+  function rollConditionalDamage(c, h) {
+    if ((c.pStats.cosmosLightningVariance || 0) > 0 && h.hitElement === "light") h.dmg = Math.floor(h.dmg * (0.8 + c.deps.random() * 0.7));
+    if ((c.pStats.uniqueDoubleDamageChancePct || 0) > 0 && c.deps.random() < (c.pStats.uniqueDoubleDamageChancePct || 0) / 100) h.dmg = Math.floor(h.dmg * Math.max(1, c.pStats.uniqueDoubleDamageMultiplier || 2));
+  }
+  function evadeContact(c, h) {
+    if (!c.pStats.passiveAlwaysHit && !(typeof c.deps.getTalentAlwaysHit === "function" && c.deps.getTalentAlwaysHit()) && c.deps.resolveEntropyEvasion(h.targetEnemy, h.enemyTotalEvadeChance, c.deps.getCombatTime())) {
+      c.deps.addBattleFx("enemyEvade", { enemyId: h.targetEnemy.id, text: c.deps._t("회피!"), color: "#c4e2ff", duration: 260 });
+      c.deps.addEvasionCombatLog(h.targetEnemy, false);
+      return false;
+    }
+    if ((h.targetEnemy.hitRateGuard || 0) > 0) c.attackHitGuardCounts.set(h.targetEnemy.id, h.priorGuardedHits + 1);
+  }
+  function convertMainDamage(c, h) {
+    h.talentConversion = c.deps.supports.splitConversion(typeof c.deps.getTalentDamageConversion === "function" ? c.deps.getTalentDamageConversion(h.hitElement) : { mainPct: 1, added: {} }, c.pStats, h.hitElement);
+    h.wisdomMainMultiplier = c.deps.getPassiveWisdomLeapDamageMultiplier(c.pStats, h.hitElement);
+    h.dmg = Math.floor(h.dmg * Math.max(0, Number(h.talentConversion.mainPct) || 0) * (1 - h.enemyRes / 100) * h.wisdomMainMultiplier * c.deps.mutationHitScale(h.targetEnemy, h.hitElement));
+    h.damageBeforeMitigation = Math.floor(h.damageBeforeMitigation * h.wisdomMainMultiplier);
+    h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * h.wisdomMainMultiplier);
+  }
+  function applyPhysicalMitigation(c, h) {
+    if (h.hitElement === "phys") {
+      let physicalTakenMul = h.targetEnemy.physicalDamageTakenMul || 1;
+      h.dmg = Math.floor(h.dmg * physicalTakenMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * physicalTakenMul);
+    }
+    if ((h.targetEnemy.armorGuard || 0) > 0 && h.hitElement === "phys") {
+      let armorGuardMul = Math.max(0.2, 1 - h.targetEnemy.armorGuard);
+      h.dmg = Math.floor(h.dmg * armorGuardMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * armorGuardMul);
+    }
+  }
+  function applyElementMitigation(c, h) {
+    if (h.hitElement === "light") {
+      let lightTakenMul = h.curseFx.lightTakenMul || 1;
+      h.dmg = Math.floor(h.dmg * lightTakenMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * lightTakenMul);
+    }
+    applyChaosTaken(c, h);
+  }
+  function applyChaosTaken(c, h) {
+    if (h.hitElement === "chaos") {
+      let chaosTakenMul = h.curseFx.chaosTakenMul || 1;
+      if (c.deps.hasKeystone("wlk9") && h.targetEnemy && h.targetEnemy.hp > 0) {
+        c.owner.enemyWitherStacks = c.owner.enemyWitherStacks && typeof c.owner.enemyWitherStacks === "object" ? c.owner.enemyWitherStacks : {};
+        let wStacks = Math.max(0, Math.min(10, Math.floor(c.owner.enemyWitherStacks[h.targetEnemy.id] || 0)));
+        chaosTakenMul *= 1 + wStacks * c.deps.ASCENDANCY_KEYSTONE_VALUES.wlk9.chaosTakenPctPerStack / 100;
+        c.owner.enemyWitherStacks[h.targetEnemy.id] = Math.min(10, wStacks + 1);
+      }
+      h.dmg = Math.floor(h.dmg * chaosTakenMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * chaosTakenMul);
+    }
+  }
+  function addConvertedElements(c, h) {
+    h.addedDamagePctByElement = c.pStats && c.pStats.addedDamagePctByElement || {};
+    for (const element of ["phys", "fire", "cold", "light", "chaos"]) {
+      const pct = addedElementPercent(c, h, element);
+      const wisdom = c.deps.getPassiveWisdomLeapDamageMultiplier(c.pStats, element);
+      const raw = Math.floor(h.addedDamageSource * pct / 100 * wisdom);
+      if (raw <= 0) continue;
+      const damage = mitigateAddedElement(c, h, element, raw, h.hitElement !== "phys");
+      if (damage > 0) h.dmg += damage;
+    }
+  }
+  function addedElementPercent(c, h, element) {
+    let pct = Math.max(0, Number(h.addedDamagePctByElement[element] || 0) + Number(h.talentConversion.added && h.talentConversion.added[element] || 0));
+    if (h.hitElement === "phys" && element === "fire") pct += Math.max(0, Number(c.pStats.passiveCycleAddedFireFromPhysicalPct) || 0);
+    return pct;
+  }
+  function addFlatElements(c, h) {
+    h.flatElementHitDamage = c.pStats && c.pStats.flatElementHitDamage || {};
+    for (const element of ["phys", "fire", "cold", "light", "chaos"]) {
+      const base = Math.max(0, Number(h.flatElementHitDamage[element]) || 0);
+      if (base <= 0) continue;
+      const wisdom = c.deps.getPassiveWisdomLeapDamageMultiplier(c.pStats, element);
+      const raw = base * wisdom * (h.hitCrit ? Math.max(1, (Number(c.pStats.critDmg) || 100) / 100) * h.talentCritDmgMultiplier : 1) * (h.rollPct / 100) * (h.hit.mult || 1) * h.repeatDamageMultiplier;
+      const damage = mitigateAddedElement(c, h, element, raw, true);
+      if (damage > 0) h.dmg += damage;
+    }
+  }
+  function mitigateAddedElement(c, h, element, raw, scaleWarrior) {
+    const resistance = c.deps.getEffectiveEnemyMitigation(element, c.zoneTier, h.targetEnemy, c.pStats) - (h.curseFx.resShred || 0) - (h.curseFx[CURSE_ELEMENT_SHRED_KEYS[element]] || 0);
+    let damage = Math.floor(raw * (1 - resistance / 100) * c.deps.loopMutation.takenMul(h.targetEnemy, element));
+    if (element === "phys") return mitigateAddedPhysical(c, h, damage, scaleWarrior);
+    if (element === "light") damage = Math.floor(damage * (h.curseFx.lightTakenMul || 1));
+    if (element === "chaos") damage = Math.floor(damage * (h.curseFx.chaosTakenMul || 1));
+    return damage;
+  }
+  function mitigateAddedPhysical(c, h, damage, scaleWarrior) {
+    if (scaleWarrior) damage = Math.floor(damage * Math.max(0, Number(c.pStats.warriorPhysDamageMultiplier) || 1));
+    return Math.floor(damage * (h.targetEnemy.physicalDamageTakenMul || 1) * Math.max(0.2, 1 - (h.targetEnemy.armorGuard || 0)));
+  }
+  function applyCurseTaken(c, h) {
+    h.dmg = Math.floor(h.dmg * (h.curseFx.mul || 1));
+    h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * (h.curseFx.mul || 1));
+    if ((c.pStats.sSkill.tags || []).includes("projectile")) {
+      let projectileTakenMul = (h.curseFx.projectileTakenMul || 1) * (h.targetEnemy.projectileDamageTakenMul || 1);
+      h.dmg = Math.floor(h.dmg * projectileTakenMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * projectileTakenMul);
+    }
+    applySpellCurseTaken(c, h);
+  }
+  function applySpellCurseTaken(c, h) {
+    if ((c.pStats.sSkill.tags || []).includes("spell")) {
+      let spellTakenMul = h.targetEnemy.spellDamageTakenMul || 1;
+      h.dmg = Math.floor(h.dmg * spellTakenMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * spellTakenMul);
+    }
+    if (h.hitCrit) h.dmg = Math.floor(h.dmg * (h.curseFx.critDmgTakenMul || 1));
+  }
+  function applyShockIncrease(c, h) {
+    h.enemyShockTakenIncreasePct = c.deps.getActiveEnemyShockTakenDamageIncreasePct(h.targetEnemy, c.pStats);
+    if (h.enemyShockTakenIncreasePct > 0) {
+      let enemyShockTakenMul = 1 + h.enemyShockTakenIncreasePct / 100;
+      h.dmg = Math.floor(h.dmg * enemyShockTakenMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * enemyShockTakenMul);
+    }
+    h.shockedIncreaseMul = c.deps.getShockedEnemyHitDamageIncreaseMultiplier(h.targetEnemy, c.pStats);
+    if (h.shockedIncreaseMul > 1) {
+      h.dmg = Math.floor(h.dmg * h.shockedIncreaseMul);
+    }
+  }
+  function applyShockedMore(c, h) {
+    if ((c.pStats.shockedEnemyHitDamageMorePct || 0) > 0 && Array.isArray(h.targetEnemy.ailments) && h.targetEnemy.ailments.some((a) => a && a.type === "shock" && (a.time || 0) > 0)) {
+      let shockedMore = 1 + Math.max(0, Number(c.pStats.shockedEnemyHitDamageMorePct || 0)) / 100;
+      h.dmg = Math.floor(h.dmg * shockedMore);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * shockedMore);
+    }
+  }
+  function applyBleedingWeight(c, h) {
+    if (c.pStats.uniqueBleedWeightOnBleedingHit && Array.isArray(h.targetEnemy.ailments) && h.targetEnemy.ailments.some((a) => a && a.type === "bleed" && (a.time || 0) > 0)) {
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * 2);
+    }
+  }
+  function applyBleedingMore(c, h) {
+    if ((c.pStats.uniqueBleedingEnemyDamageMorePct || 0) > 0 && Array.isArray(h.targetEnemy.ailments) && h.targetEnemy.ailments.some((a) => a && a.type === "bleed" && (a.time || 0) > 0)) {
+      let bleedingMore = 1 + Math.max(0, Number(c.pStats.uniqueBleedingEnemyDamageMorePct) || 0) / 100;
+      h.dmg = Math.floor(h.dmg * bleedingMore);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * bleedingMore);
+    }
+  }
+  function applyArmorAmplifier(c) {
+    if (c.pStats.uniqueMeleeArmorAmp && Array.isArray(c.pStats.sSkill.tags) && c.pStats.sSkill.tags.includes("melee")) {
+      let now = c.deps.getCombatTime();
+      let active = (c.owner.uniqueMeleeArmorAmpExpiresAt || 0) > now;
+      let stacks = active ? Math.max(0, Math.floor(c.owner.uniqueMeleeArmorAmpStacks || 0)) : 0;
+      c.owner.uniqueMeleeArmorAmpStacks = Math.min(Math.floor(c.pStats.uniqueMeleeArmorAmp.maxStacks || 3), stacks + 1);
+      c.owner.uniqueMeleeArmorAmpExpiresAt = now + Math.floor((c.pStats.uniqueMeleeArmorAmp.duration || 2) * 1e3);
+    }
+  }
+  function applyFinalTaken(c, h) {
+    h.keystoneTakenMul = c.deps.getKeystoneEnemyTakenMultiplier(h.targetEnemy, h.hitElement);
+    h.dmg = Math.floor(h.dmg * h.keystoneTakenMul);
+    h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * h.keystoneTakenMul);
+    h.dmg = Math.floor(h.dmg * (c.deps.getAbyssMonsterScales(c.deps.getZone(c.owner.currentZoneId)).playerDamageMul || 1));
+    if (h.targetEnemy.isBoss && (c.pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
+      let talismanBossMul = 1 + (c.pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100;
+      h.dmg = Math.floor(h.dmg * talismanBossMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * talismanBossMul);
+    }
+    h.finalDamageMul = Number(c.pStats.finalDamageMultiplier);
+    if (!Number.isFinite(h.finalDamageMul)) h.finalDamageMul = 1;
+    h.finalDamageMul = Math.max(0, h.finalDamageMul);
+    h.dmg = Math.floor(h.dmg * h.finalDamageMul);
+    h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * h.finalDamageMul);
+  }
+  function applyKarmaAndTrueDamage(c, h) {
+    if (c.passiveKarmaContext && String(c.passiveKarmaContext.targetId) === String(h.targetEnemy.id)) {
+      let karmaMul = Math.max(1, Number(c.passiveKarmaContext.multiplier) || 1);
+      h.dmg = Math.floor(h.dmg * karmaMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * karmaMul);
+    }
+    if ((c.pStats.passiveOmniscientTrueDamagePct || 0) > 0) {
+      h.dmg += Math.floor(Math.max(0, Number(c.pStats.baseDmg) || 0) * c.pStats.passiveOmniscientTrueDamagePct / 100);
+    }
+    if (!Number.isFinite(h.dmg) || h.dmg < 0) h.dmg = 0;
+  }
+  function applyHunterVulnerability(c, h) {
+    if (c.deps.hasKeystone("h2") && h.targetEnemy) {
+      h.targetEnemy.ailments = Array.isArray(h.targetEnemy.ailments) ? h.targetEnemy.ailments : [];
+      let weak = h.targetEnemy.ailments.find((a) => a && a.type === "hunterExpose");
+      if (weak) weak.time = 3;
+      else h.targetEnemy.ailments.push({ type: "hunterExpose", time: 3, power: 1 });
+    }
+    if (c.deps.hasKeystone("h2") && Array.isArray(h.targetEnemy.ailments) && h.targetEnemy.ailments.some((a) => a && a.type === "hunterExpose" && (a.time || 0) > 0)) {
+      h.dmg = Math.floor(h.dmg * (1 + c.deps.ASCENDANCY_KEYSTONE_VALUES.h2.takenMorePct / 100));
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * (1 + c.deps.ASCENDANCY_KEYSTONE_VALUES.h2.takenMorePct / 100));
+    }
+  }
+  function refreshHitCurse(c, h) {
+    if (h.targetEnemy && h.targetEnemy.id && c.pStats.uniqueCursedTakenAndRefresh) {
+      let refreshSec = Math.max(0, Number(c.pStats.uniqueCursedTakenAndRefresh.refreshSec || 0));
+      if (refreshSec > 0 && c.owner.enemyConditionDebuffs && Array.isArray(c.owner.enemyConditionDebuffs[h.targetEnemy.id])) {
+        let nextExpire = c.deps.getCombatTime() + Math.floor(refreshSec * 1e3);
+        c.owner.enemyConditionDebuffs[h.targetEnemy.id] = c.owner.enemyConditionDebuffs[h.targetEnemy.id].map((deb) => {
+          if (!deb) return deb;
+          if ((deb.expiresAt || 0) > c.deps.getCombatTime()) deb.expiresAt = Math.max(deb.expiresAt || 0, nextExpire);
+          return deb;
         });
+      }
     }
-    function applyPierceOverkillCarry(sourceEnemy, carryDamage, hitElement, hitCrit, ailmentCarrySourceDamage) {
-        let hunterSinglePierce = hasKeystone('h4') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1;
-        if ((!pStats.sSkill.pierceOverkillCarry && !hunterSinglePierce) || carryDamage <= 0) return;
-        let remainingDamage = Math.max(0, Math.floor(carryDamage));
-        let remainingAilmentSourceDamage = Math.max(0, Math.floor(Number(ailmentCarrySourceDamage !== undefined ? ailmentCarrySourceDamage : carryDamage) || 0));
-        let visited = new Set(sourceEnemy && sourceEnemy.id ? [sourceEnemy.id] : []);
-        let chainSource = sourceEnemy;
-        let chainLimit = Math.max(1, Math.min(12, Math.floor(pStats.sSkill.targets || 1)));
-        for (let chainIdx = 0; chainIdx < chainLimit && remainingDamage > 0; chainIdx++) {
-            let chainTarget = (game.enemies || []).find(enemy => enemy && enemy.hp > 0 && !visited.has(enemy.id)
-                && (!pStats.sSkill.pierceOverkillCarry || !originalPierceTargets.has(enemy)));
-            if (!chainTarget) return;
-            visited.add(chainTarget.id);
-            let zone = getZone(game.currentZoneId);
-            let chainRes = getEffectiveEnemyMitigation(hitElement, zone.tier, chainTarget, pStats);
-            let chainDamage = Math.floor(remainingDamage * (1 - chainRes / 100) * mutationHitScale(chainTarget, hitElement));
-            if ((pStats.sSkill.tags || []).includes('projectile')) chainDamage = Math.floor(chainDamage * (chainTarget.projectileDamageTakenMul || 1));
-            if (hitElement === 'phys') chainDamage = Math.floor(chainDamage * (chainTarget.physicalDamageTakenMul || 1));
-            let dealtToChain = applyDamageToEnemyResource(chainTarget, Math.max(1, chainDamage));
-            maybeUnlockChaosRealmFromWoodsman(chainTarget);
-            chainTarget.recentHitsTaken = (chainTarget.recentHitsTaken || 0) + 1;
-            chainTarget.recentHitsTimer = 1.8;
-            totalLeechableDamage += dealtToChain * (chainTarget && chainTarget.leechEffMul !== undefined ? chainTarget.leechEffMul : 1);
-            hits.push(dealtToChain);
-            notePlayerHitSummary(hitSummary, chainTarget, dealtToChain);
-            addBattleFx('hit', {
-                enemyId: chainTarget.id,
-                color: getElementColor(hitElement),
-                crit: hitCrit,
-                projectile: true,
-                chain: true,
-                stageKind: 'chainJump',
-                chainFromEnemyId: chainSource && chainSource.id,
-                skillName: skillName,
-                damage: dealtToChain,
-                duration: 320,
-                element: hitElement,
-                syncToSwing: true
-            });
-            applyEnemyAilmentFromHit(chainTarget, { ...pStats, sSkill: { ...pStats.sSkill, ele: hitElement } }, remainingDamage, hitCrit, {
-                ailmentSourceDamage: remainingAilmentSourceDamage,
-                critDotBonusPct: hitCrit ? 50 : 0
-            });
-            if (chainTarget.hp <= 0) {
-                let prevRemainingDamage = remainingDamage;
-                remainingDamage = Math.max(0, Math.floor((remainingDamage - dealtToChain) * 0.8));
-                let carryRatio = prevRemainingDamage > 0 ? (remainingDamage / prevRemainingDamage) : 0;
-                remainingAilmentSourceDamage = Math.max(0, Math.floor(remainingAilmentSourceDamage * carryRatio));
-            } else {
-                remainingDamage = 0;
-                remainingAilmentSourceDamage = 0;
-            }
-            chainSource = chainTarget;
-        }
+  }
+  function applyFirstStrikeAndDistance(c, h) {
+    h.talentWasFull = h.targetEnemy.hp >= (h.targetEnemy.maxHp || h.targetEnemy.hp || 1);
+    if (h.talentWasFull && (c.pStats.firstStrikeDamagePct || 0) > 0) {
+      let firstStrikeMul = 1 + Math.max(0, Number(c.pStats.firstStrikeDamagePct) || 0) / 100;
+      h.dmg = Math.floor(h.dmg * firstStrikeMul);
+      h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * firstStrikeMul);
     }
-    let randomTargetCapFallbackUsed = false;
-    for (let hitIdx = 0; hitIdx < repeats; hitIdx++) {
-        let hitEntries = pStats.sSkill.randomTargetEachHit ? [{ mult: 1 }] : targets;
-        hitEntries.forEach((hit, targetIndex) => {
-            let targetEnemy = hit.enemy;
-            if (pStats.sSkill.randomTargetEachHit) {
-                let alive = options.restrictRandomTargets
-                    ? targets.map(entry => entry.enemy).filter(enemy => enemy && enemy.hp > 0)
-                    : (game.enemies || []).filter(enemy => enemy && enemy.hp > 0);
-                if (alive.length <= 0) return;
-                let eligible = alive.filter(enemy => (perEnemyHitCount.get(enemy.id) || 0) < 2);
-                if (eligible.length > 0) targetEnemy = eligible[Math.floor(Math.random() * eligible.length)];
-                else if (!randomTargetCapFallbackUsed) {
-                    randomTargetCapFallbackUsed = true;
-                    targetEnemy = alive[Math.floor(Math.random() * alive.length)];
-                } else return;
-            }
-            if (!targetEnemy || targetEnemy.hp <= 0) return;
-            transferPassiveChaosErosionToTarget(targetEnemy, pStats);
-            let priorGuardedHits = Math.max(0, Math.floor(Number(attackHitGuardCounts.get(targetEnemy.id)) || 0));
-            let nextHitCount = (perEnemyHitCount.get(targetEnemy.id) || 0) + 1;
-            if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.projectileFormation && nextHitCount > 1) return;
-            perEnemyHitCount.set(targetEnemy.id, nextHitCount);
-            let hitElement = swingElement;
-            let curseFx = getEnemyConditionDebuffFactor(targetEnemy, pStats);
-            let enemyRes = getHitEnemyResistance(hitElement, zoneTier, targetEnemy, pStats, curseFx) - ascendancyNodeRules.armorBreak(targetEnemy, hitElement, getCombatTime());
-            if (getPassiveChaosConversionShare(pStats, hitElement) > 0) {
-                let chaosShare = getPassiveChaosConversionShare(pStats, hitElement);
-                let chaosRes = getEffectiveEnemyMitigation('chaos', zoneTier, targetEnemy, pStats) - (curseFx.resChaosShred || 0);
-                enemyRes = enemyRes * (1 - chaosShare) + chaosRes * chaosShare;
-            }
-            if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let cj = targetEnemy.ailments.find(a => a && a.type === 'cosmosJudgment' && (a.time || 0) > 0); if (cj) enemyRes -= Math.max(0, Number(cj.power || 0)); }
-            if (targetEnemy && Array.isArray(targetEnemy.ailments)) { let rs = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown' && (a.time || 0) > 0); if (rs) enemyRes -= Math.max(0, Math.floor(rs.stacks || 0)) * Math.max(0, Number((pStats.uniqueAllResDownOnHit && pStats.uniqueAllResDownOnHit.perHit) || 0)); }
-            let hitCrit = isCrit;
-            let passiveGuaranteedCrit = false;
-            if (pStats.passiveKeystoneFlags && (pStats.passiveKeystoneFlags.explosiveDistill
-                || pStats.passiveKeystoneFlags.taintedWarhead)) hitCrit = false;
-            if (pStats.passiveKeystoneFlags && pStats.passiveKeystoneFlags.fullEvasion
-                && (pStats.sSkill.tags || []).includes('melee') && game.passiveFullEvasionCritReady) {
-                hitCrit = true;
-                passiveGuaranteedCrit = true;
-                game.passiveFullEvasionCritReady = false;
-            }
-            let invertEnemyResistance = false;
-            if (['fire', 'cold', 'light'].includes(hitElement) && typeof getPreciseTalentRatio === 'function'
-                && Math.random() < 0.15 * getPreciseTalentRatio('hero3__inquisitor')) invertEnemyResistance = true;
-            if (invertEnemyResistance) enemyRes = -enemyRes;
-            if (pStats.uniqueAllResDownOnHit && targetEnemy) {
-                let now = getCombatTime();
-                targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
-                let row = targetEnemy.ailments.find(a => a && a.type === 'realmAllResDown');
-                if (!row) { row = { type: 'realmAllResDown', stacks: 0, time: 0 }; targetEnemy.ailments.push(row); }
-                row.stacks = Math.min(Math.max(1, Math.floor(pStats.uniqueAllResDownOnHit.max || 4)), Math.max(0, Math.floor(row.stacks || 0)) + 1);
-                row.time = Math.max(row.time || 0, Number(pStats.uniqueAllResDownOnHit.duration || 5));
-            }
-            let hitBaseDamage = pStats.baseDmg;
-            let ailmentBaseDamage = pStats.baseDmg;
-            if (hasKeystone('h8')) {
-                let critCount = 0;
-                let critChancePct = Math.max(0, Number(pStats.crit) || 0);
-                while (critChancePct > 0) {
-                    let slice = Math.min(100, critChancePct);
-                    if (Math.random() * 100 < slice) critCount++;
-                    critChancePct -= 100;
-                }
-                if (critCount > 0) {
-                    hitCrit = true;
-                    let critMul = Math.max(1, pStats.critDmg / 100);
-                    hitBaseDamage = Math.floor(hitBaseDamage * (1 + ((critMul - 1) * critCount)));
-                }
-            } else {
-                hitBaseDamage = hitCrit ? Math.floor(pStats.baseDmg * (pStats.critDmg / 100)) : pStats.baseDmg;
-            }
-            if (pStats.passiveKeystoneFlags && (pStats.passiveKeystoneFlags.explosiveDistill
-                || pStats.passiveKeystoneFlags.taintedWarhead)) {
-                hitCrit = false;
-                hitBaseDamage = pStats.baseDmg;
-            }
-            if (hitCrit && !guaranteedCrit && !passiveGuaranteedCrit && (targetEnemy.critResistPct || 0) > 0 && Math.random() * 100 < Math.max(0, Math.min(95, targetEnemy.critResistPct || 0))) {
-                hitCrit = false;
-                hitBaseDamage = pStats.baseDmg;
-            }
-            let talentCritDmgMultiplier = typeof getTalentCritDamageMultiplier === 'function' ? getTalentCritDamageMultiplier(hitCrit) : 1;
-            if (talentCritDmgMultiplier !== 1) hitBaseDamage = Math.floor(hitBaseDamage * talentCritDmgMultiplier);
-            if (hitCrit && (targetEnemy.critDamageResistPct || 0) > 0) {
-                let critResist = Math.max(0, Math.min(95, Number(targetEnemy.critDamageResistPct || 0))) / 100;
-                let basePart = Math.max(1, Math.floor(pStats.baseDmg || 1));
-                hitBaseDamage = Math.max(1, Math.floor(basePart + Math.max(0, hitBaseDamage - basePart) * (1 - critResist)));
-            }
-            if (riderCompassReady) {
-                hitBaseDamage = Math.floor(hitBaseDamage * 2);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * 2);
-                riderCompassReady = false;
-                game.uniqueRiderCompassConsumed = true;
-            }
-            if (hitCrit && hasKeystone('a7') && (game.enemies || []).filter(e => e && e.hp > 0).length === 1) hitBaseDamage *= 1 + ASCENDANCY_KEYSTONE_VALUES.a7.extraHitPct / 100;
-            if (hitCrit) hitBaseDamage *= getGemCritHitPerkMul(skillName, pStats);
-            let randomElementPct = pStats.randomElementDamagePct && Number(pStats.randomElementDamagePct[hitElement]) ? Number(pStats.randomElementDamagePct[hitElement]) : 0;
-            if (randomElementPct) {
-                hitBaseDamage = Math.floor(hitBaseDamage * (1 + randomElementPct / 100));
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * (1 + randomElementPct / 100));
-            }
-            if (hitElement === 'phys') {
-                let physMul = Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1);
-                hitBaseDamage = Math.floor(hitBaseDamage * physMul);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * physMul);
-            }
-            if (hasKeystone('h1')) {
-                let aliveCnt = (game.enemies || []).filter(e => e && e.hp > 0).length;
-                let hunterMul = 1 + (aliveCnt === 1 ? ASCENDANCY_KEYSTONE_VALUES.h1.singleMorePct : ASCENDANCY_KEYSTONE_VALUES.h1.multiMorePct) / 100;
-                hitBaseDamage = Math.floor(hitBaseDamage * hunterMul);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * hunterMul);
-            }
-            // Soulbinder sb7 player gain is baked into pStats.baseDmg as flat attack power (see getPlayerStats),
-            // so the player hit no longer needs a separate summon→player multiplier here.
-            [hitBaseDamage, ailmentBaseDamage] = applyAilingTargetDamage(pStats, targetEnemy, hitElement, hitCrit, [hitBaseDamage, ailmentBaseDamage]);
-            if (targetEnemy.isBoss) {
-                let bossMul = Math.max(0, Number(pStats.bossDamageDealtMultiplier) || 1);
-                 bossMul *= (1 + Math.max(0, Number(pStats.bossDamagePct) || 0) / 100);
-                 hitBaseDamage = Math.floor(hitBaseDamage * bossMul * (1 + Math.max(0, pStats.cosmosBossDamageMorePct || 0) / 100));
-                 ailmentBaseDamage = Math.floor(ailmentBaseDamage * bossMul * (1 + Math.max(0, pStats.cosmosBossDamageMorePct || 0) / 100));
-            } else if (targetEnemy.isElite && (pStats.eliteDamagePct || 0) > 0) {
-                let eliteMul = 1 + Math.max(0, Number(pStats.eliteDamagePct) || 0) / 100;
-                  hitBaseDamage = Math.floor(hitBaseDamage * eliteMul);
-                  ailmentBaseDamage = Math.floor(ailmentBaseDamage * eliteMul);
-            }
-            if (hasKeystone('g5') && game.gladiatorSwiftOpeningReady) {
-                hitBaseDamage = Math.floor(hitBaseDamage * 1.30);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * 1.30);
-                game.gladiatorSwiftOpeningReady = false;
-            }
-            let talentKeystoneMul = 1;
-            if (typeof getTalentPrecisePlayerHitMultiplier === 'function') {
-                talentKeystoneMul *= getTalentPrecisePlayerHitMultiplier(hitElement);
-            }
-            if (typeof getTalentButcherBossMultiplier === 'function') talentKeystoneMul *= getTalentButcherBossMultiplier(targetEnemy);
-            let talentHitMul = talentAttackMul * talentKeystoneMul * (colosseumStrikeMul || 1);
-            talentHitMul *= getPassiveKeystoneHitMultiplier(pStats, targetEnemy, hitIdx, targetIndex, skillName) * ascendancyNodeRules.blastMultiplier(pStats, hitEntries.length);
-            hitBaseDamage = Math.floor(hitBaseDamage * talentHitMul);
-            ailmentBaseDamage = Math.floor(ailmentBaseDamage * talentHitMul);
-            if (pStats.cosmosOrbitCycle && targetEnemy) {
-                let cycle = pStats.cosmosOrbitCycle;
-                let current = Number.isFinite(targetEnemy.cosmosOrbitMul) ? targetEnemy.cosmosOrbitMul : Number(cycle.high || 1.3);
-                hitBaseDamage = Math.floor(hitBaseDamage * current);
-                ailmentBaseDamage = Math.floor(ailmentBaseDamage * current);
-                let dir = Number.isFinite(targetEnemy.cosmosOrbitDir) ? targetEnemy.cosmosOrbitDir : -1;
-                let next = current + (dir * Math.max(0.01, Number(cycle.step || 0.2)));
-                if (next <= Number(cycle.low || 0.7)) { next = Number(cycle.low || 0.7); dir = 1; }
-                if (next >= Number(cycle.high || 1.3)) { next = Number(cycle.high || 1.3); dir = -1; }
-                targetEnemy.cosmosOrbitMul = Number(next.toFixed(2));
-                targetEnemy.cosmosOrbitDir = dir;
-            }
-            let dmg = Math.floor(hitBaseDamage * (hit.mult || 1));
-            let ailmentSourceDamage = Math.floor(ailmentBaseDamage * (hit.mult || 1));
-            dmg = Math.floor(dmg * stageDamageMultiplier);
-            ailmentSourceDamage = Math.floor(ailmentSourceDamage * stageDamageMultiplier);
-            let repeatDamageMultiplier = getSkillRepeatDamageMultiplier(pStats.sSkill, hitIdx, baseRepeats);
-            dmg = Math.floor(dmg * repeatDamageMultiplier);
-            ailmentSourceDamage = Math.floor(ailmentSourceDamage * repeatDamageMultiplier);
-            if (!Number.isFinite(dmg)) dmg = 0;
-            let minRoll = Math.max(1, Math.floor(pStats.minDmgRoll || 80));
-            let maxRoll = Math.max(minRoll, Math.floor(pStats.maxDmgRoll || 100));
-            let rollPct = minRoll + Math.random() * (maxRoll - minRoll);
-            if (pStats.uniqueCeilingSmashDouble && rollPct >= 140 && Math.random() < 0.15) {
-                dmg *= 2;
-                ailmentSourceDamage *= 2;
-            }
-            // 언더독: 이번 타격이 최대 피해 보정으로 굴리지 못했다면 피해 증폭
-            if ((pStats.uniqueUnderdogMorePct || 0) > 0 && rollPct < maxRoll) {
-                let underdogMul = 1 + Math.max(0, pStats.uniqueUnderdogMorePct) / 100;
-                dmg = Math.floor(dmg * underdogMul);
-                ailmentSourceDamage = Math.floor(ailmentSourceDamage * underdogMul);
-            }
-            dmg = Math.floor(dmg * (rollPct / 100));
-            ailmentSourceDamage = Math.floor(ailmentSourceDamage * (rollPct / 100));
-            if (hitElement === 'chaos') {
-                let chaosMultiplier = Math.max(0, Number(pStats.chaosDamageMultiplier) || 1);
-                dmg = Math.floor(dmg * chaosMultiplier);
-                ailmentSourceDamage = Math.floor(ailmentSourceDamage * chaosMultiplier);
-            } else if (getPassiveChaosConversionShare(pStats, hitElement) > 0) {
-                let chaosShare = getPassiveChaosConversionShare(pStats, hitElement);
-                let convertedMultiplier = 1 - chaosShare + Math.max(0, Number(pStats.chaosDamageMultiplier) || 1) * chaosShare;
-                dmg = Math.floor(dmg * convertedMultiplier);
-                ailmentSourceDamage = Math.floor(ailmentSourceDamage * convertedMultiplier);
-            }
-            let cosmosFirstHitRoll = pStats.cosmosAlwaysFirstHit || ((pStats.cosmosAlwaysFirstHitChancePct || 0) > 0 && Math.random() * 100 < (pStats.cosmosAlwaysFirstHitChancePct || 0));
-            if ((pStats.firstHitDamageMorePct || 0) > 0 && (cosmosFirstHitRoll || !targetEnemy.firstHitConsumed)) {
-                let firstMul = 1 + Math.max(0, Number(pStats.firstHitDamageMorePct || 0)) / 100;
-                dmg = Math.floor(dmg * firstMul);
-                ailmentSourceDamage = Math.floor(ailmentSourceDamage * firstMul);
-            }
-            if ((targetEnemy.firstHitGuard || 0) > 0 && (cosmosFirstHitRoll || !targetEnemy.firstHitConsumed)) {
-                dmg = Math.floor(dmg * (1 - targetEnemy.firstHitGuard));
-                ailmentSourceDamage = Math.floor(ailmentSourceDamage * (1 - targetEnemy.firstHitGuard));
-                if (!cosmosFirstHitRoll) targetEnemy.firstHitConsumed = true;
-            }
-            let hitGuard = Math.max(0, Number(targetEnemy.hitRateGuard) || 0) * Math.min(5, priorGuardedHits);
-            if (hitGuard > 0) {
-                let hitGuardMul = Math.max(0.2, 1 - hitGuard);
-                dmg = Math.floor(dmg * hitGuardMul);
-                ailmentSourceDamage = Math.floor(ailmentSourceDamage * hitGuardMul);
-            }
-            let burstHits = Math.max(0, (targetEnemy.recentHitsTaken || 0) - 2);
-            if ((targetEnemy.comboTakenLessPct || 0) > 0 && burstHits > 0) {
-                let comboLess = Math.max(0, Math.min(85, Number(targetEnemy.comboTakenLessPct || 0) * Math.min(5, burstHits) / 5));
-                dmg = Math.floor(dmg * (1 - comboLess / 100));
-                ailmentSourceDamage = Math.floor(ailmentSourceDamage * (1 - comboLess / 100));
-            }
-            let damageBeforeMitigation = dmg;
-            let addedDamageSource = damageBeforeMitigation;
-            let ailmentDamageBeforeCritMitigation = Math.max(0, Math.floor(ailmentSourceDamage));
-            let skillConditionalCues = hasSkillConditionalFeedback ? [] : null;
-            let skillConditionalMultiplier = getSkillConditionalDamageMultiplier(pStats.sSkill, targetEnemy,
-                skillConditionalCues ? cue => skillConditionalCues.push(cue) : null);
-            dmg = Math.floor(dmg * skillConditionalMultiplier);
-            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * skillConditionalMultiplier);
-            dmg = Math.floor(dmg * Math.max(0, pStats.instantDamageMultiplier || 1));
-            if ((pStats.cosmosLightningVariance || 0) > 0 && hitElement === 'light') dmg = Math.floor(dmg * (0.8 + Math.random() * 0.7));
-            if ((pStats.uniqueDoubleDamageChancePct || 0) > 0 && Math.random() < ((pStats.uniqueDoubleDamageChancePct || 0) / 100)) dmg = Math.floor(dmg * Math.max(1, pStats.uniqueDoubleDamageMultiplier || 2));
-            let enemyTotalEvadeChance = getEnemyTotalEvadeChance(targetEnemy, pStats.accuracy);
-            if (!pStats.passiveAlwaysHit && !(typeof getTalentAlwaysHit === 'function' && getTalentAlwaysHit())
-                && resolveEntropyEvasion(targetEnemy, enemyTotalEvadeChance, getCombatTime())) {
-                addBattleFx('enemyEvade', { enemyId: targetEnemy.id, text: _t('회피!'), color: '#c4e2ff', duration: 260 });
-                addEvasionCombatLog(targetEnemy, false);
-                return;
-            }
-            if ((targetEnemy.hitRateGuard || 0) > 0) attackHitGuardCounts.set(targetEnemy.id, priorGuardedHits + 1);
-            let talentConversion = window.GameModules.combat.supports.splitConversion(typeof getTalentDamageConversion === 'function'
-                ? getTalentDamageConversion(hitElement)
-                : { mainPct: 1, added: {} }, pStats, hitElement);
-            let wisdomMainMultiplier = getPassiveWisdomLeapDamageMultiplier(pStats, hitElement);
-            dmg = Math.floor(dmg * Math.max(0, Number(talentConversion.mainPct) || 0)
-                * (1 - (enemyRes / 100)) * wisdomMainMultiplier * mutationHitScale(targetEnemy, hitElement));
-            damageBeforeMitigation = Math.floor(damageBeforeMitigation * wisdomMainMultiplier);
-            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * wisdomMainMultiplier);
-            // Resolve each element before combining the damage portions.
-            if (hitElement === 'phys') {
-                let physicalTakenMul = targetEnemy.physicalDamageTakenMul || 1;
-                dmg = Math.floor(dmg * physicalTakenMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * physicalTakenMul);
-            }
-            if ((targetEnemy.armorGuard || 0) > 0 && hitElement === 'phys') {
-                let armorGuardMul = Math.max(0.2, 1 - targetEnemy.armorGuard);
-                dmg = Math.floor(dmg * armorGuardMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * armorGuardMul);
-            }
-            if (hitElement === 'light') {
-                let lightTakenMul = curseFx.lightTakenMul || 1;
-                dmg = Math.floor(dmg * lightTakenMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * lightTakenMul);
-            }
-            if (hitElement === 'chaos') {
-                let chaosTakenMul = curseFx.chaosTakenMul || 1;
-                // 시체 역병(워록 wlk9): 위축 중첩만큼 받는 카오스 피해 증가, 적중 시 1중첩 추가(최대 10)
-                if (hasKeystone('wlk9') && targetEnemy && targetEnemy.hp > 0) {
-                    game.enemyWitherStacks = (game.enemyWitherStacks && typeof game.enemyWitherStacks === 'object') ? game.enemyWitherStacks : {};
-                    let wStacks = Math.max(0, Math.min(10, Math.floor(game.enemyWitherStacks[targetEnemy.id] || 0)));
-                    chaosTakenMul *= (1 + wStacks * ASCENDANCY_KEYSTONE_VALUES.wlk9.chaosTakenPctPerStack / 100);
-                    game.enemyWitherStacks[targetEnemy.id] = Math.min(10, wStacks + 1);
-                }
-                dmg = Math.floor(dmg * chaosTakenMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * chaosTakenMul);
-            }
-            let addedDamagePctByElement = (pStats && pStats.addedDamagePctByElement) || {};
-            ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {
-                let addPct = Math.max(0, Number(addedDamagePctByElement[addEle] || 0)
-                    + Number(talentConversion.added && talentConversion.added[addEle] || 0));
-                if (hitElement === 'phys' && addEle === 'fire') {
-                    addPct += Math.max(0, Number(pStats.passiveCycleAddedFireFromPhysicalPct) || 0);
-                }
-                let wisdomAddedMultiplier = getPassiveWisdomLeapDamageMultiplier(pStats, addEle);
-                let rawAdded = Math.floor(addedDamageSource * addPct / 100 * wisdomAddedMultiplier);
-                if (rawAdded <= 0) return;
-                let addRes = getEffectiveEnemyMitigation(addEle, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
-                if (addEle === 'fire') addRes -= (curseFx.resFShred || 0);
-                if (addEle === 'cold') addRes -= (curseFx.resCShred || 0);
-                if (addEle === 'light') addRes -= (curseFx.resLShred || 0);
-                if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
-                if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
-                let mitigatedAdded = Math.floor(rawAdded * (1 - (addRes / 100)) * loopMutation.takenMul(targetEnemy, addEle));
-                if (addEle === 'phys') {
-                    if (hitElement !== 'phys') mitigatedAdded = Math.floor(mitigatedAdded * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
-                    mitigatedAdded = Math.floor(mitigatedAdded * (targetEnemy.physicalDamageTakenMul || 1) * Math.max(0.2, 1 - (targetEnemy.armorGuard || 0)));
-                }
-                if (addEle === 'light') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.lightTakenMul || 1));
-                if (addEle === 'chaos') mitigatedAdded = Math.floor(mitigatedAdded * (curseFx.chaosTakenMul || 1));
-                if (mitigatedAdded > 0) dmg += mitigatedAdded;
-            });
-            // 속성별 기본 피해(flat): 각 속성을 실제 타입으로 적용한다. 치명타/굴림/반복 보정을 함께 받고
-            // 해당 속성의 적 저항으로 경감된다.
-            let flatElementHitDamage = (pStats && pStats.flatElementHitDamage) || {};
-            ['phys', 'fire', 'cold', 'light', 'chaos'].forEach(addEle => {
-                let flatBase = Math.max(0, Number(flatElementHitDamage[addEle]) || 0);
-                if (flatBase <= 0) return;
-                let wisdomFlatMultiplier = getPassiveWisdomLeapDamageMultiplier(pStats, addEle);
-                let flatPortion = flatBase * wisdomFlatMultiplier
-                    * (hitCrit ? Math.max(1, (Number(pStats.critDmg) || 100) / 100) * talentCritDmgMultiplier : 1)
-                    * (rollPct / 100) * (hit.mult || 1) * repeatDamageMultiplier;
-                let addRes = getEffectiveEnemyMitigation(addEle, zoneTier, targetEnemy, pStats) - (curseFx.resShred || 0);
-                if (addEle === 'fire') addRes -= (curseFx.resFShred || 0);
-                if (addEle === 'cold') addRes -= (curseFx.resCShred || 0);
-                if (addEle === 'light') addRes -= (curseFx.resLShred || 0);
-                if (addEle === 'chaos') addRes -= (curseFx.resChaosShred || 0);
-                if (addEle === 'phys') addRes -= (curseFx.physDrShred || 0);
-                let mitigatedFlat = Math.floor(flatPortion * (1 - (addRes / 100)) * loopMutation.takenMul(targetEnemy, addEle));
-                if (addEle === 'phys') {
-                    mitigatedFlat = Math.floor(mitigatedFlat * Math.max(0, Number(pStats.warriorPhysDamageMultiplier) || 1));
-                    mitigatedFlat = Math.floor(mitigatedFlat * (targetEnemy.physicalDamageTakenMul || 1) * Math.max(0.2, 1 - (targetEnemy.armorGuard || 0)));
-                }
-                if (addEle === 'light') mitigatedFlat = Math.floor(mitigatedFlat * (curseFx.lightTakenMul || 1));
-                if (addEle === 'chaos') mitigatedFlat = Math.floor(mitigatedFlat * (curseFx.chaosTakenMul || 1));
-                if (mitigatedFlat > 0) dmg += mitigatedFlat;
-            });
-            dmg = Math.floor(dmg * (curseFx.mul || 1));
-            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * (curseFx.mul || 1));
-            if ((pStats.sSkill.tags || []).includes('projectile')) {
-                let projectileTakenMul = (curseFx.projectileTakenMul || 1) * (targetEnemy.projectileDamageTakenMul || 1);
-                dmg = Math.floor(dmg * projectileTakenMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * projectileTakenMul);
-            }
-            if ((pStats.sSkill.tags || []).includes('spell')) {
-                let spellTakenMul = targetEnemy.spellDamageTakenMul || 1;
-                dmg = Math.floor(dmg * spellTakenMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * spellTakenMul);
-            }
-            if (hitCrit) dmg = Math.floor(dmg * (curseFx.critDmgTakenMul || 1));
-            let enemyShockTakenIncreasePct = getActiveEnemyShockTakenDamageIncreasePct(targetEnemy, pStats);
-            if (enemyShockTakenIncreasePct > 0) {
-                let enemyShockTakenMul = 1 + enemyShockTakenIncreasePct / 100;
-                dmg = Math.floor(dmg * enemyShockTakenMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * enemyShockTakenMul);
-            }
-            let shockedIncreaseMul = getShockedEnemyHitDamageIncreaseMultiplier(targetEnemy, pStats);
-            if (shockedIncreaseMul > 1) {
-                dmg = Math.floor(dmg * shockedIncreaseMul);
-            }
-            if ((pStats.shockedEnemyHitDamageMorePct || 0) > 0 && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'shock' && (a.time || 0) > 0)) {
-                let shockedMore = 1 + Math.max(0, Number(pStats.shockedEnemyHitDamageMorePct || 0)) / 100;
-                dmg = Math.floor(dmg * shockedMore);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * shockedMore);
-            }
-            if (pStats.uniqueBleedWeightOnBleedingHit && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'bleed' && (a.time || 0) > 0)) {
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * 2);
-            }
-            if ((pStats.uniqueBleedingEnemyDamageMorePct || 0) > 0 && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'bleed' && (a.time || 0) > 0)) {
-                let bleedingMore = 1 + Math.max(0, Number(pStats.uniqueBleedingEnemyDamageMorePct) || 0) / 100;
-                dmg = Math.floor(dmg * bleedingMore);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * bleedingMore);
-            }
-            if (pStats.uniqueMeleeArmorAmp && Array.isArray(pStats.sSkill.tags) && pStats.sSkill.tags.includes('melee')) {
-                let now = getCombatTime();
-                let active = (game.uniqueMeleeArmorAmpExpiresAt || 0) > now;
-                let stacks = active ? Math.max(0, Math.floor(game.uniqueMeleeArmorAmpStacks || 0)) : 0;
-                game.uniqueMeleeArmorAmpStacks = Math.min(Math.floor(pStats.uniqueMeleeArmorAmp.maxStacks || 3), stacks + 1);
-                game.uniqueMeleeArmorAmpExpiresAt = now + Math.floor((pStats.uniqueMeleeArmorAmp.duration || 2) * 1000);
-            }
-            let keystoneTakenMul = getKeystoneEnemyTakenMultiplier(targetEnemy, hitElement);
-            dmg = Math.floor(dmg * keystoneTakenMul);
-            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * keystoneTakenMul);
-            dmg = Math.floor(dmg * (getAbyssMonsterScales(getZone(game.currentZoneId)).playerDamageMul || 1));
-            if (targetEnemy.isBoss && (pStats.damageScales || {}).talismanBossFinalDmgBonusPct) {
-                let talismanBossMul = 1 + ((pStats.damageScales.talismanBossFinalDmgBonusPct || 0) / 100);
-                dmg = Math.floor(dmg * talismanBossMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * talismanBossMul);
-            }
-            let finalDamageMul = Number(pStats.finalDamageMultiplier);
-            if (!Number.isFinite(finalDamageMul)) finalDamageMul = 1;
-            finalDamageMul = Math.max(0, finalDamageMul);
-            dmg = Math.floor(dmg * finalDamageMul);
-            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * finalDamageMul);
-            if (passiveKarmaContext && String(passiveKarmaContext.targetId) === String(targetEnemy.id)) {
-                let karmaMul = Math.max(1, Number(passiveKarmaContext.multiplier) || 1);
-                dmg = Math.floor(dmg * karmaMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * karmaMul);
-            }
-            if ((pStats.passiveOmniscientTrueDamagePct || 0) > 0) {
-                dmg += Math.floor(Math.max(0, Number(pStats.baseDmg) || 0) * pStats.passiveOmniscientTrueDamagePct / 100);
-            }
-            if (!Number.isFinite(dmg) || dmg < 0) dmg = 0;
-            if (hasKeystone('h2') && targetEnemy) {
-                targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
-                let weak = targetEnemy.ailments.find(a => a && a.type === 'hunterExpose');
-                if (weak) weak.time = 3;
-                else targetEnemy.ailments.push({ type: 'hunterExpose', time: 3, power: 1 });
-            }
-            if (hasKeystone('h2') && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'hunterExpose' && (a.time || 0) > 0)) {
-                dmg = Math.floor(dmg * (1 + ASCENDANCY_KEYSTONE_VALUES.h2.takenMorePct / 100));
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * (1 + ASCENDANCY_KEYSTONE_VALUES.h2.takenMorePct / 100));
-            }
-            if (targetEnemy && targetEnemy.id && pStats.uniqueCursedTakenAndRefresh) {
-                let refreshSec = Math.max(0, Number(pStats.uniqueCursedTakenAndRefresh.refreshSec || 0));
-                if (refreshSec > 0 && game.enemyConditionDebuffs && Array.isArray(game.enemyConditionDebuffs[targetEnemy.id])) {
-                    let nextExpire = getCombatTime() + Math.floor(refreshSec * 1000);
-                    game.enemyConditionDebuffs[targetEnemy.id] = game.enemyConditionDebuffs[targetEnemy.id].map(deb => {
-                        if (!deb) return deb;
-                        if ((deb.expiresAt || 0) > getCombatTime()) deb.expiresAt = Math.max(deb.expiresAt || 0, nextExpire);
-                        return deb;
-                    });
-                }
-            }
-            let talentWasFull = targetEnemy.hp >= (targetEnemy.maxHp || targetEnemy.hp || 1);
-            // 선제 타격: 생명력이 가득 찬 적에게 가하는 첫 타에 추가 피해
-            if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
-                let firstStrikeMul = 1 + Math.max(0, Number(pStats.firstStrikeDamagePct) || 0) / 100;
-                dmg = Math.floor(dmg * firstStrikeMul);
-                ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * firstStrikeMul);
-            }
-            let directHitDistanceMul = getGridDirectHitDistanceMultiplier(game.gridPlayer, targetEnemy);
-            dmg = Math.floor(dmg * directHitDistanceMul);
-            damageBeforeMitigation = Math.floor(damageBeforeMitigation * directHitDistanceMul);
-            ailmentDamageBeforeCritMitigation = Math.floor(ailmentDamageBeforeCritMitigation * directHitDistanceMul);
-            targetEnemy.lastHitElement = hitElement;
-            let moonShadowRatio = hitCrit && typeof getPreciseTalentRatio === 'function'
-                ? 0.20 * getPreciseTalentRatio('hero3__assassin') : 0;
-            let normalDamage = moonShadowRatio > 0 ? Math.floor(dmg * (1 - moonShadowRatio)) : dmg;
-            let dealtToEnemy = window.GameModules.combat.supports.dealHit(targetEnemy, pStats, normalDamage);
-            if (dealtToEnemy > 0) {
-                if (skillConditionalCues) skillConditionalCues.forEach(cue => showAttackFeedback(targetEnemy, cue));
-                if (stageKind === 'slamAftershock') {
-                    showAttackFeedback(targetEnemy, { key:'slam-aftershock', text:stageLabel || '여진', color:'#f0bd79' });
-                }
-                if (talentWasFull && (pStats.firstStrikeDamagePct || 0) > 0) {
-                    showAttackFeedback(targetEnemy, {
-                        key: 'first-strike',
-                        text: _t('선제 타격'),   // 2026-11-05 사용자: 수치 없이 이름만(전: 선제 타격: 피해 n% 증폭)
-                        color: '#ffd27a'
-                    });
-                }
-            }
-            if (moonShadowRatio > 0) {
-                let trueDamage = Math.max(0, Math.floor(damageBeforeMitigation * moonShadowRatio));
-                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, trueDamage);
-            }
-            // 거역의 번개: 카오스 피해를 받은 적은 생명력 재생이 줄어든다(getTalentEnemyRegenMultiplier).
-            if (dealtToEnemy > 0 && hitElement === 'chaos') targetEnemy.talentHitByChaos = true;
-            if (dealtToEnemy > 0 && options.talentMoonReturn && targetEnemy.id === options.talentMoonReturn.targetId) {
-                talentMoonPrimaryHit = true;
-            }
-            if (pStats.uniqueRiftWaveOnHit && dealtToEnemy > 0 && Math.random() * 100 < Math.max(0, Number(pStats.uniqueRiftWaveOnHit.chance) || 0)) {
-                let waveDamage = Math.max(1, Math.floor(dealtToEnemy * Math.max(0, Number(pStats.uniqueRiftWaveOnHit.damagePct) || 0) / 100));
-                (game.enemies || []).forEach(otherEnemy => {
-                    if (!otherEnemy || otherEnemy.hp <= 0 || otherEnemy.id === targetEnemy.id) return;
-                    let waveDealt = applyDamageToEnemyResource(otherEnemy, waveDamage);
-                    if (waveDealt > 0) {
-                        addBattleFx('hit', { enemyId: otherEnemy.id, color: '#a879ff', damage: waveDealt, duration: 210, element: 'chaos', syncToSwing: true });
-                        if (otherEnemy.hp <= 0) handleEnemyDeath(otherEnemy, pStats);
-                    }
-                });
-            }
-            // 처형 일격(장비 옵션): 생명력이 일정 % 이하인 일반/정예 몬스터 즉시 처치(보스 제외)
-            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && (pStats.cullStrikePct || 0) > 0) {
-                let cullThr = Math.max(0, Math.min(20, Number(pStats.cullStrikePct) || 0)) / 100;
-                if (cullThr > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp || 1)) <= cullThr) {
-                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, getEnemyLifeAndShield(targetEnemy));
-                    showAttackFeedback(targetEnemy, { key:'cull', text:_t('처형'), color:'#ff9b79' });
-                }
-            }
-            // 우주 먼지: 공격 시 일정 확률로 일반(비정예/비보스) 적 즉시 처치
-            if (dmg > 0 && targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.isElite && !targetEnemy.elite
-                && (pStats.uniqueInstakillNormalPct || 0) > 0 && Math.random() * 100 < pStats.uniqueInstakillNormalPct) {
-                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, getEnemyLifeAndShield(targetEnemy));
-                showAttackFeedback(targetEnemy, { key:'instant-kill', text:_t('즉시 처치'), color:'#d7b0ff' });
-            }
-            // 스팅어: 남아 있는 지속 피해 총량이 생명력과 에너지 보호막을 덮으면 즉시 마무리한다.
-            if (dmg > 0 && targetEnemy.hp > 0 && typeof getTalentDotOccupancyDamage === 'function'
-                && getTalentDotOccupancyDamage(targetEnemy, pStats) >= getEnemyLifeAndShield(targetEnemy)) {
-                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, getEnemyLifeAndShield(targetEnemy));
-                showAttackFeedback(targetEnemy, { key:'dot-execute', text:_t('지속 피해 처형'), color:'#c88cff' });
-            }
-            // 8 심문궁: 표식 누적(쿨타임 아닐 때), 5초 후 processTalentInquisitorMarks에서 폭발
-            if (dmg > 0 && targetEnemy.hp > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__inquisitor')) {
-                game.talentInquisitorMarks = (game.talentInquisitorMarks && typeof game.talentInquisitorMarks === 'object') ? game.talentInquisitorMarks : {};
-                let nowMk = getCombatTime();
-                let mk = game.talentInquisitorMarks[targetEnemy.id] || { accumulated: 0, explodeAt: 0, cooldownUntil: 0 };
-                if ((mk.cooldownUntil || 0) <= nowMk) {
-                    if (!mk.explodeAt) mk.explodeAt = nowMk + 5000;
-                    mk.accumulated = (mk.accumulated || 0) + dealtToEnemy;
-                    game.talentInquisitorMarks[targetEnemy.id] = mk;
-                }
-            }
-            // 6 헥스보우: 저주 걸린 적 공격 시 저주 제거 + 0.2배 광역 폭발
-            if (dmg > 0 && typeof isTalentCardActive === 'function' && isTalentCardActive('hero1__warlock')
-                && game.enemyConditionDebuffs && Array.isArray(game.enemyConditionDebuffs[targetEnemy.id])
-                && game.enemyConditionDebuffs[targetEnemy.id].some(d => d && (d.expiresAt || 0) > getCombatTime())) {
-                let activeCurses = game.enemyConditionDebuffs[targetEnemy.id];
-                let consumedCurseIndex = activeCurses.findIndex(d => d && (d.expiresAt || 0) > getCombatTime());
-                if (consumedCurseIndex >= 0) activeCurses.splice(consumedCurseIndex, 1);
-                let splash = Math.max(1, Math.floor(dmg * 0.2));
-                (game.enemies || []).forEach(e => {
-                    if (!e || e.hp <= 0) return;
-                    applyDamageToEnemyResource(e, splash);
-                    addBattleFx('hit', { enemyId: e.id, color: getElementColor('chaos'), damage: splash, duration: 220, syncToSwing: true });
-                    if (e.hp <= 0) handleEnemyDeath(e, pStats);
-                });
-            }
-            if (targetEnemy.hp <= 0) targetEnemy.lastOverkillDamage = Math.max(0, dmg - dealtToEnemy);
-            if (pStats.uniqueMaxRollBonusHit && rollPct >= 130 && dealtToEnemy > 0 && targetEnemy.hp > 0) {
-                let bonus = Math.max(1, Math.floor(dealtToEnemy * 0.5));
-                dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
-            }
-            if (hasKeystone('r5') && targetEnemy.hp > 0) {
-                game.rangerWeakpointMarks = game.rangerWeakpointMarks || {};
-                let mark = game.rangerWeakpointMarks[targetEnemy.id] || { hits: 0 };
-                mark.hits = Math.max(0, Math.floor(mark.hits || 0)) + 1;
-                if (mark.hits >= 3) {
-                    mark.hits = 0;
-                    let bonus = getRangerWeakpointBonus(targetEnemy, dmg);
-                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, bonus);
-                    addBattleFx('hit', { enemyId: targetEnemy.id, color: getElementColor('phys'), damage: bonus, duration: 280, element: 'phys', syncToSwing: true });
-                }
-                game.rangerWeakpointMarks[targetEnemy.id] = mark;
-            }
-            maybeUnlockChaosRealmFromWoodsman(targetEnemy);
-            if (targetEnemy.hp <= 0 && dmg > dealtToEnemy) {
-                let overkillDamage = dmg - dealtToEnemy;
-                let ailmentOverkillSourceDamage = dmg > 0 ? Math.floor(ailmentDamageBeforeCritMitigation * (overkillDamage / dmg)) : 0;
-                let isOriginalPierceTarget = originalPierceTargets.size === 0 || originalPierceTargets.has(targetEnemy);
-                let canStartPierceCarry = !pStats.sSkill.pierceOverkillCarry
-                    || (isOriginalPierceTarget && !pierceOverkillCarryStartedTargets.has(targetEnemy));
-                if (canStartPierceCarry) {
-                    if (pStats.sSkill.pierceOverkillCarry) pierceOverkillCarryStartedTargets.add(targetEnemy);
-                    applyPierceOverkillCarry(targetEnemy, overkillDamage, hitElement, hitCrit, ailmentOverkillSourceDamage);
-                }
-            }
-            if (!options.skipSlamEcho && slamEchoPct > 0 && (pStats.sSkill.tags || []).includes('slam') && dmg > 0 && targetEnemy.hp > 0 && (slamEchoGuaranteed || passiveSlamEchoChance <= 0 || Math.random() < passiveSlamEchoChance)) {
-                let slamEchoBaseDamage = stageKind === 'slamPrimary'
-                    ? Math.floor(dmg / Math.max(0.01, stageDamageMultiplier))
-                    : dmg;
-                game.pendingSlamEchoHits = Array.isArray(game.pendingSlamEchoHits) ? game.pendingSlamEchoHits : [];
-                game.pendingSlamEchoHits.push({
-                    at: getCombatTime() + slamEchoDelayMs,
-                    enemyId: targetEnemy.id,
-                    damage: Math.max(1, Math.floor(slamEchoBaseDamage * slamEchoPct)),
-                    element: hitElement
-                });
-            }
-            if ((pStats.damageScales || {}).talismanBossFinalDmgBonusPct && targetEnemy.hp > 0 && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) <= 0.05) {
-                targetEnemy.hp = 0;
-                showAttackFeedback(targetEnemy, { key:'boss-finish', text:_t('마무리'), color:'#f4c779' });
-            }
-            if (targetEnemy.hp > 0 && !targetEnemy.isBoss && !targetEnemy.isElite && !targetEnemy.elite
-                && getCombatTalentCardLevel('hero2__assassin') > 0) {
-                let butcherRow = game.talentButcherMarks && game.talentButcherMarks[targetEnemy.id];
-                let butcherLifeRatio = targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp);
-                if (butcherRow && butcherRow.hits >= 4 && butcherLifeRatio <= 0.30) {
-                    targetEnemy.hp = 0;
-                    showAttackFeedback(targetEnemy, { key:'butcher-execute', text:_t('처형'), color:'#ff9b79' });
-                }
-            }
-            updateTalentButcherHitMark(targetEnemy);
-            if (canApplyTalentExecuteThreshold(targetEnemy, pStats.sSkill.executeThreshold) && targetEnemy.hp > 0
-                && (targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < pStats.sSkill.executeThreshold) {
-                targetEnemy.hp = 0;
-                showAttackFeedback(targetEnemy, { key:'skill-execute', text:_t('처형'), color:'#ff9b79' });
-            }
-            if (hasKeystone('g6') && targetEnemy.hp > 0) {
-                let executeThreshold = targetEnemy.isBoss ? 0.10 : 0.20;
-                if ((targetEnemy.hp / Math.max(1, targetEnemy.maxHp || targetEnemy.hp)) < executeThreshold) {
-                    targetEnemy.hp = 0;
-                    showAttackFeedback(targetEnemy, { key:'gladiator-execute', text:_t('처형'), color:'#ff9b79' });
-                }
-            }
-            if ((pStats.regenSuppress || 0) > 0) targetEnemy.regenSuppressPct = Math.min(95, (targetEnemy.regenSuppressPct || 0) + pStats.regenSuppress);
-            targetEnemy.recentHitsTaken = (targetEnemy.recentHitsTaken || 0) + 1;
-            targetEnemy.recentHitsTimer = 1.8;
-            if (pStats.uniqueChaosResDownOnHit) {
-                game.enemyUniqueChaosResDown = game.enemyUniqueChaosResDown || {};
-                let row = game.enemyUniqueChaosResDown[targetEnemy.id] || { stacks: 0, perHit: pStats.uniqueChaosResDownOnHit.perHit, maxStacks: pStats.uniqueChaosResDownOnHit.maxStacks };
-                row.stacks = Math.min(row.maxStacks, Math.max(0, row.stacks + 1));
-                row.perHit = pStats.uniqueChaosResDownOnHit.perHit;
-                row.maxStacks = pStats.uniqueChaosResDownOnHit.maxStacks;
-                game.enemyUniqueChaosResDown[targetEnemy.id] = row;
-            }
+    h.directHitDistanceMul = c.deps.getGridDirectHitDistanceMultiplier(c.owner.gridPlayer, h.targetEnemy);
+    h.dmg = Math.floor(h.dmg * h.directHitDistanceMul);
+    h.damageBeforeMitigation = Math.floor(h.damageBeforeMitigation * h.directHitDistanceMul);
+    h.ailmentDamageBeforeCritMitigation = Math.floor(h.ailmentDamageBeforeCritMitigation * h.directHitDistanceMul);
+  }
+  function mitigatePlayerContact(c, h) {
+    prepareConditionalHit(c, h);
+    if (evadeContact(c, h) === false) return false;
+    convertMainDamage(c, h);
+    applyPhysicalMitigation(c, h);
+    applyElementMitigation(c, h);
+    addConvertedElements(c, h);
+    addFlatElements(c, h);
+    applyCurseTaken(c, h);
+    applyShockIncrease(c, h);
+    applyShockedMore(c, h);
+    applyBleedingWeight(c, h);
+    applyBleedingMore(c, h);
+    applyArmorAmplifier(c, h);
+    applyFinalTaken(c, h);
+    applyKarmaAndTrueDamage(c, h);
+    applyHunterVulnerability(c, h);
+    refreshHitCurse(c, h);
+    applyFirstStrikeAndDistance(c, h);
+  }
 
-            if (pStats.uniqueStackingElementalResDownOnHit && ['fire','cold','light'].includes(hitElement)) {
-                game.enemyUniqueElementalResDown = game.enemyUniqueElementalResDown || {};
-                let row = game.enemyUniqueElementalResDown[targetEnemy.id] || { stacks: 0, perHit: pStats.uniqueStackingElementalResDownOnHit.perHit, max: pStats.uniqueStackingElementalResDownOnHit.max };
-                row.stacks = Math.min(Math.ceil(row.max / Math.max(1,row.perHit)), Math.max(0, row.stacks + 1));
-                row.perHit = pStats.uniqueStackingElementalResDownOnHit.perHit;
-                row.max = pStats.uniqueStackingElementalResDownOnHit.max;
-                game.enemyUniqueElementalResDown[targetEnemy.id] = row;
-            }
-            if (pStats.uniqueQueenBeeSummon && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueQueenBeeSummon.chance || 0) / 100))) {
-                let bees = game.queenBees || [];
-                bees.push({ expiresAt: getCombatTime() + Math.max(1000, Math.floor((pStats.uniqueQueenBeeSummon.attacks || 3) * 1000)), nextAt: getCombatTime() + 1000, attacksLeft: Math.max(1, Math.floor(pStats.uniqueQueenBeeSummon.attacks || 3)), hitPct: Math.max(1, Number(pStats.uniqueQueenBeeSummon.hitPct || 125)) });
-                while (bees.length > Math.max(1, Math.floor(pStats.uniqueQueenBeeSummon.maxBees || 10))) bees.shift();
-                game.queenBees = bees;
-            }
-            if (hitCrit && pStats.uniqueMeteorFootsteps && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueMeteorFootsteps.chance || 0) / 100))) {
-                let meteor = Math.max(1, Math.floor(dmg * (Math.max(1, Number(pStats.uniqueMeteorFootsteps.damagePct || 180)) / 100)));
-                (game.enemies || []).forEach(e => { if (!e || e.hp <= 0) return; applyDamageToEnemyResource(e, meteor); });
-            }
-            if (pStats.uniqueShockTracer && Array.isArray(targetEnemy.ailments) && targetEnemy.ailments.some(a => a && a.type === 'shock' && (a.time || 0) > 0)) {
-                let now = getCombatTime();
-                game.uniqueShockTracerNextAt = Number(game.uniqueShockTracerNextAt || 0);
-                if (now >= game.uniqueShockTracerNextAt) {
-                    let icdMs = Math.max(100, Math.floor((Number(pStats.uniqueShockTracer.icdSec || 0.5)) * 1000));
-                    game.uniqueShockTracerNextAt = now + icdMs;
-                    let strikePct = Math.max(1, Number(pStats.uniqueShockTracer.strikeDamagePct || 500));
-                    let strike = Math.max(1, Math.floor(dmg * (strikePct / 100)));
-                    dealtToEnemy += applyDamageToEnemyResource(targetEnemy, strike);
-                }
-            }
-            if (pStats.uniqueDragonVeinGuard && Math.random() < Math.max(0, Math.min(1, (pStats.uniqueDragonVeinGuard.chance || 0) / 100))) {
-                let guardAmt = Math.max(1, Math.floor((pStats.maxHp || 0) * Math.max(0, Number(pStats.uniqueDragonVeinGuard.hpPct || 8)) / 100));
-                game.playerUniqueGuard = { amount: guardAmt, expiresAt: getCombatTime() + Math.max(500, Math.floor((pStats.uniqueDragonVeinGuard.duration || 2) * 1000)) };
-            }
-
-            totalLeechableDamage += dealtToEnemy * (targetEnemy && targetEnemy.leechEffMul !== undefined ? targetEnemy.leechEffMul : 1);
-            if (hitElement === 'chaos') totalChaosDamage += dealtToEnemy;
-            hits.push(dealtToEnemy);
-            notePlayerHitSummary(hitSummary, targetEnemy, dealtToEnemy);
-            addPlayerHitVisualFx(pStats, options, targetEnemy, {
-                stageKind, stageLabel, stageCount, skillName, hitCrit, hitIdx,
-                hitElement, dealtToEnemy, dmg, isStageReplay
-            });
-            if (hitCrit && hasKeystone('a3')) {
-                let now = getCombatTime();
-                game.enemyKeystoneDebuffs = game.enemyKeystoneDebuffs || {};
-                let list = (game.enemyKeystoneDebuffs[targetEnemy.id] || []).filter(row => row && (row.expiresAt || 0) > now);
-                list.push({ type: 'a3', expiresAt: now + 5000 });
-                while (list.filter(row => row.type === 'a3').length > 10) { let idx=list.findIndex(row=>row.type==='a3'); if (idx>=0) list.splice(idx,1); else break; }
-                game.enemyKeystoneDebuffs[targetEnemy.id] = list;
-                targetEnemy.ailments = Array.isArray(targetEnemy.ailments) ? targetEnemy.ailments : [];
-                let stacks = list.filter(row => row.type === 'a3').length;
-                let mark = targetEnemy.ailments.find(ail => ail && ail.type === 'assassinWeakness');
-                if (mark) { mark.time = 5; mark.power = stacks; }
-                else targetEnemy.ailments.push({ type: 'assassinWeakness', time: 5, power: stacks });
-            }
-            if (isDotSkill) applySkillDotFromHit(targetEnemy, damageBeforeMitigation, pStats);
-            let ailmentType = getAilmentTypeFromElement(hitElement);
-            let conditionAilmentTakenMul = curseFx && curseFx.ailmentTakenMul ? (curseFx.ailmentTakenMul[ailmentType] || 1) : 1;
-            let ailmentStats = getSkillAilmentStats(pStats, hitElement, curseFx);
-            applyEnemyAilmentFromHit(targetEnemy, ailmentStats, dmg, hitCrit, {
-                ailmentSourceDamage: Math.floor(ailmentDamageBeforeCritMitigation * conditionAilmentTakenMul),
-                critDotBonusPct: hitCrit ? 50 : 0,
-                primaryAilmentChance: options.primaryAilmentChance,
-                additionalAilmentChances: regionAffixEffects.extraAilmentChances(pStats)
-            });
-            spreadSkillAilmentOnHit(targetEnemy, pStats.sSkill, pStats);
-            applySkillPeriodicOnHit(targetEnemy, pStats.sSkill, dealtToEnemy, pStats.sSkill.visualName || skillName);
-            applySkillGridControlOnHit(targetEnemy, pStats.sSkill, options);
-            applySupportEchoOnHit(targetEnemy, pStats, dealtToEnemy);
-            applySupportChaosErosionOnHit(targetEnemy, pStats, hitElement);
-            applyCosmosJudgmentOnHit(targetEnemy, pStats, hitElement);
-            regionAffixEffects.afterHit(pStats, targetEnemy, { crit: hitCrit, damage: dealtToEnemy });
-            if (pStats.uniqueAlwaysShock && !pStats.cosmosCometChillNoFreeze) {
-                let shockStats = { ...pStats, sSkill: { ...pStats.sSkill, ele: 'light' } };
-                let shockHit = Math.max(1, Math.floor(dmg * 0.25 * (1 + Math.max(0, Number(pStats.shockEffectBonusPct)||0)/100)));
-                applyEnemyAilmentFromHit(targetEnemy, shockStats, shockHit, true);
-            }
+  // modules/domain/player-attack-on-hit.mjs
+  function dealContactDamage(c, h) {
+    h.targetEnemy.lastHitElement = h.hitElement;
+    h.moonShadowRatio = h.hitCrit && typeof c.deps.getPreciseTalentRatio === "function" ? 0.2 * c.deps.getPreciseTalentRatio("hero3__assassin") : 0;
+    h.normalDamage = h.moonShadowRatio > 0 ? Math.floor(h.dmg * (1 - h.moonShadowRatio)) : h.dmg;
+    h.dealtToEnemy = c.deps.supports.dealHit(h.targetEnemy, c.pStats, h.normalDamage);
+  }
+  function showConditionalFeedback(c, h) {
+    if (h.dealtToEnemy > 0) {
+      if (h.skillConditionalCues) h.skillConditionalCues.forEach((cue) => c.showAttackFeedback(h.targetEnemy, cue));
+      if (c.stageKind === "slamAftershock") {
+        c.showAttackFeedback(h.targetEnemy, { key: "slam-aftershock", text: c.stageLabel || "여진", color: "#f0bd79" });
+      }
+      if (h.talentWasFull && (c.pStats.firstStrikeDamagePct || 0) > 0) {
+        c.showAttackFeedback(h.targetEnemy, {
+          key: "first-strike",
+          text: c.deps._t("선제 타격"),
+          // 2026-11-05 사용자: 수치 없이 이름만(전: 선제 타격: 피해 n% 증폭)
+          color: "#ffd27a"
         });
+      }
     }
-    const instantLeechRecovered = applyPlayerHitLeech(pStats, totalLeechableDamage, totalChaosDamage);
-
-    if (!isStageReplay && isCrit && (pStats.uniqueEsRecoverOnCritPct || 0) > 0 && (pStats.energyShield || 0) > 0) {
-        let recover = Math.max(1, Math.floor((pStats.energyShield || 0) * ((pStats.uniqueEsRecoverOnCritPct || 0) / 100)));
-        game.playerEnergyShield = Math.min(getPlayerEnergyShieldRecoveryCap(pStats), Math.max(0, (game.playerEnergyShield || 0) + recover));
+  }
+  function dealShadowDamage(c, h) {
+    if (h.moonShadowRatio > 0) {
+      let trueDamage = Math.max(0, Math.floor(h.damageBeforeMitigation * h.moonShadowRatio));
+      h.dealtToEnemy += c.deps.applyDamageToEnemyResource(h.targetEnemy, trueDamage);
     }
-    let firstResolvedSkillHit = !isStageReplay || Number(options.stageIndex) === 0;
-    if (firstResolvedSkillHit && isCrit && hitSummary.totalDamage > 0) advanceEnergyShieldRechargeOnCrit(pStats, getCombatTime());
+    if (h.dealtToEnemy > 0 && h.hitElement === "chaos") h.targetEnemy.talentHitByChaos = true;
+    if (h.dealtToEnemy > 0 && c.options.talentMoonReturn && h.targetEnemy.id === c.options.talentMoonReturn.targetId) {
+      c.talentMoonPrimaryHit = true;
+    }
+  }
+  function triggerRiftWave(c, h) {
+    if (c.pStats.uniqueRiftWaveOnHit && h.dealtToEnemy > 0 && c.deps.random() * 100 < Math.max(0, Number(c.pStats.uniqueRiftWaveOnHit.chance) || 0)) {
+      let waveDamage = Math.max(1, Math.floor(h.dealtToEnemy * Math.max(0, Number(c.pStats.uniqueRiftWaveOnHit.damagePct) || 0) / 100));
+      (c.owner.enemies || []).forEach((otherEnemy) => {
+        if (!otherEnemy || otherEnemy.hp <= 0 || otherEnemy.id === h.targetEnemy.id) return;
+        let waveDealt = c.deps.applyDamageToEnemyResource(otherEnemy, waveDamage);
+        if (waveDealt > 0) {
+          c.deps.addBattleFx("hit", { enemyId: otherEnemy.id, color: "#a879ff", damage: waveDealt, duration: 210, element: "chaos", syncToSwing: true });
+          if (otherEnemy.hp <= 0) c.deps.handleEnemyDeath(otherEnemy, c.pStats);
+        }
+      });
+    }
+  }
+  function executeCullStrike(c, h) {
+    if (h.dmg > 0 && h.targetEnemy.hp > 0 && !h.targetEnemy.isBoss && (c.pStats.cullStrikePct || 0) > 0) {
+      let cullThr = Math.max(0, Math.min(20, Number(c.pStats.cullStrikePct) || 0)) / 100;
+      if (cullThr > 0 && withinCullThreshold(h.targetEnemy, cullThr)) {
+        h.dealtToEnemy += c.deps.applyDamageToEnemyResource(h.targetEnemy, c.deps.getEnemyLifeAndShield(h.targetEnemy));
+        c.showAttackFeedback(h.targetEnemy, { key: "cull", text: c.deps._t("처형"), color: "#ff9b79" });
+      }
+    }
+  }
+  function withinCullThreshold(enemy, threshold) {
+    return enemy.hp / Math.max(1, enemy.maxHp || enemy.hp || 1) <= threshold;
+  }
+  function executeNormalMonster(c, h) {
+    if (h.dmg > 0 && h.targetEnemy.hp > 0 && !h.targetEnemy.isBoss && !h.targetEnemy.isElite && !h.targetEnemy.elite && (c.pStats.uniqueInstakillNormalPct || 0) > 0 && c.deps.random() * 100 < c.pStats.uniqueInstakillNormalPct) {
+      h.dealtToEnemy += c.deps.applyDamageToEnemyResource(h.targetEnemy, c.deps.getEnemyLifeAndShield(h.targetEnemy));
+      c.showAttackFeedback(h.targetEnemy, { key: "instant-kill", text: c.deps._t("즉시 처치"), color: "#d7b0ff" });
+    }
+  }
+  function executeOccupiedDot(c, h) {
+    if (h.dmg > 0 && h.targetEnemy.hp > 0 && typeof c.deps.getTalentDotOccupancyDamage === "function" && c.deps.getTalentDotOccupancyDamage(h.targetEnemy, c.pStats) >= c.deps.getEnemyLifeAndShield(h.targetEnemy)) {
+      h.dealtToEnemy += c.deps.applyDamageToEnemyResource(h.targetEnemy, c.deps.getEnemyLifeAndShield(h.targetEnemy));
+      c.showAttackFeedback(h.targetEnemy, { key: "dot-execute", text: c.deps._t("지속 피해 처형"), color: "#c88cff" });
+    }
+  }
+  function accumulateInquisitorMark(c, h) {
+    if (h.dmg > 0 && h.targetEnemy.hp > 0 && typeof c.deps.isTalentCardActive === "function" && c.deps.isTalentCardActive("hero1__inquisitor")) {
+      c.owner.talentInquisitorMarks = c.owner.talentInquisitorMarks && typeof c.owner.talentInquisitorMarks === "object" ? c.owner.talentInquisitorMarks : {};
+      let nowMk = c.deps.getCombatTime();
+      let mk = c.owner.talentInquisitorMarks[h.targetEnemy.id] || { accumulated: 0, explodeAt: 0, cooldownUntil: 0 };
+      chargeInquisitorMark(c, h, mk, nowMk);
+    }
+  }
+  function chargeInquisitorMark(c, h, mk, nowMk) {
+    if ((mk.cooldownUntil || 0) <= nowMk) {
+      if (!mk.explodeAt) mk.explodeAt = nowMk + 5e3;
+      mk.accumulated = (mk.accumulated || 0) + h.dealtToEnemy;
+      c.owner.talentInquisitorMarks[h.targetEnemy.id] = mk;
+    }
+  }
+  function detonateHexbowCurse(c, h) {
+    if (h.dmg > 0 && typeof c.deps.isTalentCardActive === "function" && c.deps.isTalentCardActive("hero1__warlock") && c.owner.enemyConditionDebuffs && Array.isArray(c.owner.enemyConditionDebuffs[h.targetEnemy.id]) && c.owner.enemyConditionDebuffs[h.targetEnemy.id].some((d) => d && (d.expiresAt || 0) > c.deps.getCombatTime())) {
+      let activeCurses = c.owner.enemyConditionDebuffs[h.targetEnemy.id];
+      let consumedCurseIndex = activeCurses.findIndex((d) => d && (d.expiresAt || 0) > c.deps.getCombatTime());
+      if (consumedCurseIndex >= 0) activeCurses.splice(consumedCurseIndex, 1);
+      let splash = Math.max(1, Math.floor(h.dmg * 0.2));
+      (c.owner.enemies || []).forEach((e) => {
+        if (!e || e.hp <= 0) return;
+        c.deps.applyDamageToEnemyResource(e, splash);
+        c.deps.addBattleFx("hit", { enemyId: e.id, color: c.deps.getElementColor("chaos"), damage: splash, duration: 220, syncToSwing: true });
+        if (e.hp <= 0) c.deps.handleEnemyDeath(e, c.pStats);
+      });
+    }
+  }
+  function applyMaxRollBonus(c, h) {
+    if (h.targetEnemy.hp <= 0) h.targetEnemy.lastOverkillDamage = Math.max(0, h.dmg - h.dealtToEnemy);
+    if (c.pStats.uniqueMaxRollBonusHit && h.rollPct >= 130 && h.dealtToEnemy > 0 && h.targetEnemy.hp > 0) {
+      let bonus = Math.max(1, Math.floor(h.dealtToEnemy * 0.5));
+      h.dealtToEnemy += c.deps.applyDamageToEnemyResource(h.targetEnemy, bonus);
+    }
+  }
+  function applyRangerWeakpoint(c, h) {
+    if (c.deps.hasKeystone("r5") && h.targetEnemy.hp > 0) {
+      c.owner.rangerWeakpointMarks = c.owner.rangerWeakpointMarks || {};
+      let mark = c.owner.rangerWeakpointMarks[h.targetEnemy.id] || { hits: 0 };
+      mark.hits = Math.max(0, Math.floor(mark.hits || 0)) + 1;
+      if (mark.hits >= 3) {
+        mark.hits = 0;
+        let bonus = c.deps.getRangerWeakpointBonus(h.targetEnemy, h.dmg);
+        h.dealtToEnemy += c.deps.applyDamageToEnemyResource(h.targetEnemy, bonus);
+        c.deps.addBattleFx("hit", { enemyId: h.targetEnemy.id, color: c.deps.getElementColor("phys"), damage: bonus, duration: 280, element: "phys", syncToSwing: true });
+      }
+      c.owner.rangerWeakpointMarks[h.targetEnemy.id] = mark;
+    }
+    c.deps.maybeUnlockChaosRealmFromWoodsman(h.targetEnemy);
+  }
+  function carryPierceOverkill(c, h) {
+    if (h.targetEnemy.hp <= 0 && h.dmg > h.dealtToEnemy) {
+      let overkillDamage = h.dmg - h.dealtToEnemy;
+      let ailmentOverkillSourceDamage = h.dmg > 0 ? Math.floor(h.ailmentDamageBeforeCritMitigation * (overkillDamage / h.dmg)) : 0;
+      let isOriginalPierceTarget = c.originalPierceTargets.size === 0 || c.originalPierceTargets.has(h.targetEnemy);
+      let canStartPierceCarry = !c.pStats.sSkill.pierceOverkillCarry || isOriginalPierceTarget && !c.pierceOverkillCarryStartedTargets.has(h.targetEnemy);
+      if (canStartPierceCarry) {
+        if (c.pStats.sSkill.pierceOverkillCarry) c.pierceOverkillCarryStartedTargets.add(h.targetEnemy);
+        c.applyPierceOverkillCarry(h.targetEnemy, overkillDamage, h.hitElement, h.hitCrit, ailmentOverkillSourceDamage);
+      }
+    }
+  }
+  function scheduleSlamEcho(c, h) {
+    if (c.options.skipSlamEcho || !(c.slamEchoPct > 0) || !(c.pStats.sSkill.tags || []).includes("slam")) return;
+    rollSlamEcho(c, h);
+  }
+  function rollSlamEcho(c, h) {
+    if (h.dmg > 0 && h.targetEnemy.hp > 0 && (c.slamEchoGuaranteed || c.passiveSlamEchoChance <= 0 || c.deps.random() < c.passiveSlamEchoChance)) {
+      let slamEchoBaseDamage = c.stageKind === "slamPrimary" ? Math.floor(h.dmg / Math.max(0.01, c.stageDamageMultiplier)) : h.dmg;
+      c.owner.pendingSlamEchoHits = Array.isArray(c.owner.pendingSlamEchoHits) ? c.owner.pendingSlamEchoHits : [];
+      c.owner.pendingSlamEchoHits.push({
+        at: c.deps.getCombatTime() + c.slamEchoDelayMs,
+        enemyId: h.targetEnemy.id,
+        damage: Math.max(1, Math.floor(slamEchoBaseDamage * c.slamEchoPct)),
+        element: h.hitElement
+      });
+    }
+  }
+  function executeTalismanBoss(c, h) {
+    if ((c.pStats.damageScales || {}).talismanBossFinalDmgBonusPct && h.targetEnemy.hp > 0 && h.targetEnemy.hp / Math.max(1, h.targetEnemy.maxHp || h.targetEnemy.hp) <= 0.05) {
+      h.targetEnemy.hp = 0;
+      c.showAttackFeedback(h.targetEnemy, { key: "boss-finish", text: c.deps._t("마무리"), color: "#f4c779" });
+    }
+  }
+  function executeTalentChain(c, h) {
+    if (h.targetEnemy.hp > 0 && !h.targetEnemy.isBoss && !h.targetEnemy.isElite && !h.targetEnemy.elite && c.deps.getCombatTalentCardLevel("hero2__assassin") > 0) {
+      executeButcherMark(c, h);
+    }
+  }
+  function executeButcherMark(c, h) {
+    let butcherRow = c.owner.talentButcherMarks && c.owner.talentButcherMarks[h.targetEnemy.id];
+    let butcherLifeRatio = h.targetEnemy.hp / Math.max(1, h.targetEnemy.maxHp || h.targetEnemy.hp);
+    if (butcherRow && butcherRow.hits >= 4 && butcherLifeRatio <= 0.3) {
+      h.targetEnemy.hp = 0;
+      c.showAttackFeedback(h.targetEnemy, { key: "butcher-execute", text: c.deps._t("처형"), color: "#ff9b79" });
+    }
+  }
+  function executeSkillThreshold(c, h) {
+    c.deps.updateTalentButcherHitMark(h.targetEnemy);
+    if (c.deps.canApplyTalentExecuteThreshold(h.targetEnemy, c.pStats.sSkill.executeThreshold) && h.targetEnemy.hp > 0 && h.targetEnemy.hp / Math.max(1, h.targetEnemy.maxHp || h.targetEnemy.hp) < c.pStats.sSkill.executeThreshold) {
+      h.targetEnemy.hp = 0;
+      c.showAttackFeedback(h.targetEnemy, { key: "skill-execute", text: c.deps._t("처형"), color: "#ff9b79" });
+    }
+  }
+  function executeGladiator(c, h) {
+    if (c.deps.hasKeystone("g6") && h.targetEnemy.hp > 0) {
+      let executeThreshold = h.targetEnemy.isBoss ? 0.1 : 0.2;
+      if (h.targetEnemy.hp / Math.max(1, h.targetEnemy.maxHp || h.targetEnemy.hp) < executeThreshold) {
+        h.targetEnemy.hp = 0;
+        c.showAttackFeedback(h.targetEnemy, { key: "gladiator-execute", text: c.deps._t("처형"), color: "#ff9b79" });
+      }
+    }
+  }
+  function applyPlayerContact(c, h) {
+    dealContactDamage(c, h);
+    showConditionalFeedback(c, h);
+    dealShadowDamage(c, h);
+    triggerRiftWave(c, h);
+    executeCullStrike(c, h);
+    executeNormalMonster(c, h);
+    executeOccupiedDot(c, h);
+    accumulateInquisitorMark(c, h);
+    detonateHexbowCurse(c, h);
+    applyMaxRollBonus(c, h);
+    applyRangerWeakpoint(c, h);
+    carryPierceOverkill(c, h);
+    scheduleSlamEcho(c, h);
+    executeTalismanBoss(c, h);
+    executeTalentChain(c, h);
+    executeSkillThreshold(c, h);
+    executeGladiator(c, h);
+  }
 
-    const hitLog = getPlayerHitCombatLog(hitSummary, { skillName, swingElement, isCrit, isDotSkill, targets, pStats, instantLeechRecovered });
-    if (hitLog) addLog(hitLog.line, 'attack-player', hitLog.options);
-
-    performTalentMoonReturn(pStats, options, talentMoonPrimaryHit);
-
-    (game.enemies || []).slice().forEach(enemy => {
-        if (enemy && enemy.hp <= 0) handleEnemyDeath(enemy, pStats);
+  // modules/domain/player-attack-hit-effects.mjs
+  function recordRecentHit(c, h) {
+    if ((c.pStats.regenSuppress || 0) > 0) h.targetEnemy.regenSuppressPct = Math.min(95, (h.targetEnemy.regenSuppressPct || 0) + c.pStats.regenSuppress);
+    h.targetEnemy.recentHitsTaken = (h.targetEnemy.recentHitsTaken || 0) + 1;
+    h.targetEnemy.recentHitsTimer = 1.8;
+  }
+  function stackChaosResistanceLoss(c, h) {
+    if (c.pStats.uniqueChaosResDownOnHit) {
+      c.owner.enemyUniqueChaosResDown = c.owner.enemyUniqueChaosResDown || {};
+      let row = c.owner.enemyUniqueChaosResDown[h.targetEnemy.id] || { stacks: 0, perHit: c.pStats.uniqueChaosResDownOnHit.perHit, maxStacks: c.pStats.uniqueChaosResDownOnHit.maxStacks };
+      row.stacks = Math.min(row.maxStacks, Math.max(0, row.stacks + 1));
+      row.perHit = c.pStats.uniqueChaosResDownOnHit.perHit;
+      row.maxStacks = c.pStats.uniqueChaosResDownOnHit.maxStacks;
+      c.owner.enemyUniqueChaosResDown[h.targetEnemy.id] = row;
+    }
+  }
+  function stackElementResistanceLoss(c, h) {
+    if (c.pStats.uniqueStackingElementalResDownOnHit && ["fire", "cold", "light"].includes(h.hitElement)) {
+      c.owner.enemyUniqueElementalResDown = c.owner.enemyUniqueElementalResDown || {};
+      let row = c.owner.enemyUniqueElementalResDown[h.targetEnemy.id] || { stacks: 0, perHit: c.pStats.uniqueStackingElementalResDownOnHit.perHit, max: c.pStats.uniqueStackingElementalResDownOnHit.max };
+      row.stacks = Math.min(Math.ceil(row.max / Math.max(1, row.perHit)), Math.max(0, row.stacks + 1));
+      row.perHit = c.pStats.uniqueStackingElementalResDownOnHit.perHit;
+      row.max = c.pStats.uniqueStackingElementalResDownOnHit.max;
+      c.owner.enemyUniqueElementalResDown[h.targetEnemy.id] = row;
+    }
+  }
+  function summonQueenBee(c) {
+    if (c.pStats.uniqueQueenBeeSummon && c.deps.random() < Math.max(0, Math.min(1, (c.pStats.uniqueQueenBeeSummon.chance || 0) / 100))) {
+      let bees = c.owner.queenBees || [];
+      bees.push({ expiresAt: c.deps.getCombatTime() + Math.max(1e3, Math.floor((c.pStats.uniqueQueenBeeSummon.attacks || 3) * 1e3)), nextAt: c.deps.getCombatTime() + 1e3, attacksLeft: Math.max(1, Math.floor(c.pStats.uniqueQueenBeeSummon.attacks || 3)), hitPct: Math.max(1, Number(c.pStats.uniqueQueenBeeSummon.hitPct || 125)) });
+      while (bees.length > Math.max(1, Math.floor(c.pStats.uniqueQueenBeeSummon.maxBees || 10))) bees.shift();
+      c.owner.queenBees = bees;
+    }
+  }
+  function triggerMeteor(c, h) {
+    if (h.hitCrit && c.pStats.uniqueMeteorFootsteps && c.deps.random() < Math.max(0, Math.min(1, (c.pStats.uniqueMeteorFootsteps.chance || 0) / 100))) {
+      let meteor = Math.max(1, Math.floor(h.dmg * (Math.max(1, Number(c.pStats.uniqueMeteorFootsteps.damagePct || 180)) / 100)));
+      (c.owner.enemies || []).forEach((e) => {
+        if (!e || e.hp <= 0) return;
+        c.deps.applyDamageToEnemyResource(e, meteor);
+      });
+    }
+  }
+  function triggerShockTracer(c, h) {
+    if (c.pStats.uniqueShockTracer && Array.isArray(h.targetEnemy.ailments) && h.targetEnemy.ailments.some((a) => a && a.type === "shock" && (a.time || 0) > 0)) {
+      let now = c.deps.getCombatTime();
+      c.owner.uniqueShockTracerNextAt = Number(c.owner.uniqueShockTracerNextAt || 0);
+      if (now >= c.owner.uniqueShockTracerNextAt) {
+        let icdMs = Math.max(100, Math.floor(Number(c.pStats.uniqueShockTracer.icdSec || 0.5) * 1e3));
+        c.owner.uniqueShockTracerNextAt = now + icdMs;
+        let strikePct = Math.max(1, Number(c.pStats.uniqueShockTracer.strikeDamagePct || 500));
+        let strike = Math.max(1, Math.floor(h.dmg * (strikePct / 100)));
+        h.dealtToEnemy += c.deps.applyDamageToEnemyResource(h.targetEnemy, strike);
+      }
+    }
+  }
+  function grantDragonGuard(c) {
+    if (c.pStats.uniqueDragonVeinGuard && c.deps.random() < Math.max(0, Math.min(1, (c.pStats.uniqueDragonVeinGuard.chance || 0) / 100))) {
+      let guardAmt = Math.max(1, Math.floor((c.pStats.maxHp || 0) * Math.max(0, Number(c.pStats.uniqueDragonVeinGuard.hpPct || 8)) / 100));
+      c.owner.playerUniqueGuard = { amount: guardAmt, expiresAt: c.deps.getCombatTime() + Math.max(500, Math.floor((c.pStats.uniqueDragonVeinGuard.duration || 2) * 1e3)) };
+    }
+  }
+  function recordContactSummary(c, h) {
+    c.totalLeechableDamage += h.dealtToEnemy * (h.targetEnemy && h.targetEnemy.leechEffMul !== void 0 ? h.targetEnemy.leechEffMul : 1);
+    if (h.hitElement === "chaos") c.totalChaosDamage += h.dealtToEnemy;
+    c.hits.push(h.dealtToEnemy);
+    c.deps.notePlayerHitSummary(c.hitSummary, h.targetEnemy, h.dealtToEnemy);
+    c.deps.addPlayerHitVisualFx(c.pStats, c.options, h.targetEnemy, {
+      stageKind: c.stageKind,
+      stageLabel: c.stageLabel,
+      stageCount: c.stageCount,
+      skillName: c.skillName,
+      hitCrit: h.hitCrit,
+      hitIdx: h.hitIdx,
+      hitElement: h.hitElement,
+      dealtToEnemy: h.dealtToEnemy,
+      dmg: h.dmg,
+      isStageReplay: c.isStageReplay
     });
-}
+  }
+  function stackAssassinWeakness(c, h) {
+    if (h.hitCrit && c.deps.hasKeystone("a3")) {
+      let now = c.deps.getCombatTime();
+      c.owner.enemyKeystoneDebuffs = c.owner.enemyKeystoneDebuffs || {};
+      let list = (c.owner.enemyKeystoneDebuffs[h.targetEnemy.id] || []).filter((row) => row && (row.expiresAt || 0) > now);
+      list.push({ type: "a3", expiresAt: now + 5e3 });
+      while (list.filter((row) => row.type === "a3").length > 10) {
+        let idx = list.findIndex((row) => row.type === "a3");
+        if (idx >= 0) list.splice(idx, 1);
+        else break;
+      }
+      c.owner.enemyKeystoneDebuffs[h.targetEnemy.id] = list;
+      h.targetEnemy.ailments = Array.isArray(h.targetEnemy.ailments) ? h.targetEnemy.ailments : [];
+      let stacks = list.filter((row) => row.type === "a3").length;
+      let mark = h.targetEnemy.ailments.find((ail) => ail && ail.type === "assassinWeakness");
+      if (mark) {
+        mark.time = 5;
+        mark.power = stacks;
+      } else h.targetEnemy.ailments.push({ type: "assassinWeakness", time: 5, power: stacks });
+    }
+  }
+  function applyContactAilments(c, h) {
+    if (c.isDotSkill) c.deps.applySkillDotFromHit(h.targetEnemy, h.damageBeforeMitigation, c.pStats);
+    h.ailmentType = c.deps.getAilmentTypeFromElement(h.hitElement);
+    h.conditionAilmentTakenMul = h.curseFx && h.curseFx.ailmentTakenMul ? h.curseFx.ailmentTakenMul[h.ailmentType] || 1 : 1;
+    h.ailmentStats = c.deps.getSkillAilmentStats(c.pStats, h.hitElement, h.curseFx);
+    c.deps.applyEnemyAilmentFromHit(h.targetEnemy, h.ailmentStats, h.dmg, h.hitCrit, {
+      ailmentSourceDamage: Math.floor(h.ailmentDamageBeforeCritMitigation * h.conditionAilmentTakenMul),
+      critDotBonusPct: h.hitCrit ? 50 : 0,
+      primaryAilmentChance: c.options.primaryAilmentChance,
+      additionalAilmentChances: c.deps.regionAffixEffects.extraAilmentChances(c.pStats)
+    });
+    c.deps.spreadSkillAilmentOnHit(h.targetEnemy, c.pStats.sSkill, c.pStats);
+    c.deps.applySkillPeriodicOnHit(h.targetEnemy, c.pStats.sSkill, h.dealtToEnemy, c.pStats.sSkill.visualName || c.skillName);
+    c.deps.applySkillGridControlOnHit(h.targetEnemy, c.pStats.sSkill, c.options);
+    c.deps.applySupportEchoOnHit(h.targetEnemy, c.pStats, h.dealtToEnemy);
+    c.deps.applySupportChaosErosionOnHit(h.targetEnemy, c.pStats, h.hitElement);
+    c.deps.applyCosmosJudgmentOnHit(h.targetEnemy, c.pStats, h.hitElement);
+    c.deps.regionAffixEffects.afterHit(c.pStats, h.targetEnemy, { crit: h.hitCrit, damage: h.dealtToEnemy });
+  }
+  function applyAlwaysShock(c, h) {
+    if (c.pStats.uniqueAlwaysShock && !c.pStats.cosmosCometChillNoFreeze) {
+      let shockStats = { ...c.pStats, sSkill: { ...c.pStats.sSkill, ele: "light" } };
+      let shockHit = Math.max(1, Math.floor(h.dmg * 0.25 * (1 + Math.max(0, Number(c.pStats.shockEffectBonusPct) || 0) / 100)));
+      c.deps.applyEnemyAilmentFromHit(h.targetEnemy, shockStats, shockHit, true);
+    }
+  }
+  function finishPlayerContact(c, h) {
+    recordRecentHit(c, h);
+    stackChaosResistanceLoss(c, h);
+    stackElementResistanceLoss(c, h);
+    summonQueenBee(c, h);
+    triggerMeteor(c, h);
+    triggerShockTracer(c, h);
+    grantDragonGuard(c, h);
+    recordContactSummary(c, h);
+    stackAssassinWeakness(c, h);
+    applyContactAilments(c, h);
+    applyAlwaysShock(c, h);
+  }
 
+  // modules/domain/player-attack-carry.mjs
+  function showAttackFeedback(c, enemy, cue) {
+    if (!cue || !cue.key || !cue.text || c.attackFeedbackKeys.has(cue.key)) return;
+    c.attackFeedbackKeys.add(cue.key);
+    c.deps.addBattleFx("statusText", {
+      enemyId: enemy && enemy.id,
+      text: cue.text,
+      color: cue.color || "#f3d9a4",
+      duration: 900,
+      dedupeKey: c.attackFeedbackGroup ? `attack:${c.attackFeedbackGroup}:${cue.key}` : "",
+      dedupeWindowMs: 1400
+    });
+  }
+  function applyPierceOverkillCarry(c, carry) {
+    const hunterSingle = c.deps.hasKeystone("h4") && (c.owner.enemies || []).filter((e) => e && e.hp > 0).length === 1;
+    if (!c.pStats.sSkill.pierceOverkillCarry && !hunterSingle || carry.carryDamage <= 0) return;
+    runPierceCarry(c, carry);
+  }
+  function runPierceCarry(c, carry) {
+    const { sourceEnemy, carryDamage, ailmentCarrySourceDamage } = carry;
+    const chain = {
+      remaining: Math.max(0, Math.floor(carryDamage)),
+      ailment: Math.max(0, Math.floor(Number(ailmentCarrySourceDamage !== void 0 ? ailmentCarrySourceDamage : carryDamage) || 0)),
+      visited: new Set(sourceEnemy && sourceEnemy.id ? [sourceEnemy.id] : []),
+      source: sourceEnemy
+    };
+    const limit = Math.max(1, Math.min(12, Math.floor(c.pStats.sSkill.targets || 1)));
+    for (let index = 0; index < limit && chain.remaining > 0; index++) {
+      const target = pickCarryTarget(c, chain.visited);
+      if (!target) return;
+      chain.visited.add(target.id);
+      const damage = resolveCarryDamage(c, carry.hitElement, target, chain.remaining);
+      const dealt = c.deps.applyDamageToEnemyResource(target, Math.max(1, damage));
+      recordCarryHit(c, carry, chain, target, dealt);
+      advanceCarry(chain, target, dealt);
+    }
+  }
+  function pickCarryTarget(c, visited) {
+    return (c.owner.enemies || []).find((enemy) => enemy && enemy.hp > 0 && !visited.has(enemy.id) && (!c.pStats.sSkill.pierceOverkillCarry || !c.originalPierceTargets.has(enemy)));
+  }
+  function resolveCarryDamage(c, element, target, remaining) {
+    const zone = c.deps.getZone(c.owner.currentZoneId);
+    const resistance = c.deps.getEffectiveEnemyMitigation(element, zone.tier, target, c.pStats);
+    let damage = Math.floor(remaining * (1 - resistance / 100) * c.deps.mutationHitScale(target, element));
+    if ((c.pStats.sSkill.tags || []).includes("projectile")) damage = Math.floor(damage * (target.projectileDamageTakenMul || 1));
+    if (element === "phys") damage = Math.floor(damage * (target.physicalDamageTakenMul || 1));
+    return damage;
+  }
+  function recordCarryHit(c, carry, chain, target, dealt) {
+    c.deps.maybeUnlockChaosRealmFromWoodsman(target);
+    target.recentHitsTaken = (target.recentHitsTaken || 0) + 1;
+    target.recentHitsTimer = 1.8;
+    c.totalLeechableDamage += dealt * (target && target.leechEffMul !== void 0 ? target.leechEffMul : 1);
+    c.hits.push(dealt);
+    c.deps.notePlayerHitSummary(c.hitSummary, target, dealt);
+    c.deps.addBattleFx("hit", {
+      enemyId: target.id,
+      color: c.deps.getElementColor(carry.hitElement),
+      crit: carry.hitCrit,
+      projectile: true,
+      chain: true,
+      stageKind: "chainJump",
+      chainFromEnemyId: chain.source && chain.source.id,
+      skillName: c.skillName,
+      damage: dealt,
+      duration: 320,
+      element: carry.hitElement,
+      syncToSwing: true
+    });
+    c.deps.applyEnemyAilmentFromHit(target, { ...c.pStats, sSkill: { ...c.pStats.sSkill, ele: carry.hitElement } }, chain.remaining, carry.hitCrit, {
+      ailmentSourceDamage: chain.ailment,
+      critDotBonusPct: carry.hitCrit ? 50 : 0
+    });
+  }
+  function advanceCarry(chain, target, dealt) {
+    if (target.hp <= 0) {
+      const previous = chain.remaining;
+      chain.remaining = Math.max(0, Math.floor((chain.remaining - dealt) * 0.8));
+      const ratio = previous > 0 ? chain.remaining / previous : 0;
+      chain.ailment = Math.max(0, Math.floor(chain.ailment * ratio));
+    } else {
+      chain.remaining = 0;
+      chain.ailment = 0;
+    }
+    chain.source = target;
+  }
 
-safeExposeGlobals({ performPlayerAttack });
+  // modules/domain/player-attack-finish.mjs
+  function finishAttackRecovery(c) {
+    c.instantLeechRecovered = c.deps.applyPlayerHitLeech(c.pStats, c.totalLeechableDamage, c.totalChaosDamage);
+    recoverAttackCriticalShield(c);
+    c.firstResolvedSkillHit = !c.isStageReplay || Number(c.options.stageIndex) === 0;
+    if (c.firstResolvedSkillHit && c.isCrit && c.hitSummary.totalDamage > 0) c.deps.advanceEnergyShieldRechargeOnCrit(c.pStats, c.deps.getCombatTime());
+    c.hitLog = c.deps.getPlayerHitCombatLog(c.hitSummary, { skillName: c.skillName, swingElement: c.swingElement, isCrit: c.isCrit, isDotSkill: c.isDotSkill, targets: c.targets, pStats: c.pStats, instantLeechRecovered: c.instantLeechRecovered });
+  }
+  function recoverAttackCriticalShield(c) {
+    if (!c.isStageReplay && c.isCrit && (c.pStats.uniqueEsRecoverOnCritPct || 0) > 0 && (c.pStats.energyShield || 0) > 0) {
+      let recover = Math.max(1, Math.floor((c.pStats.energyShield || 0) * ((c.pStats.uniqueEsRecoverOnCritPct || 0) / 100)));
+      c.owner.playerEnergyShield = Math.min(c.deps.getPlayerEnergyShieldRecoveryCap(c.pStats), Math.max(0, (c.owner.playerEnergyShield || 0) + recover));
+    }
+  }
+
+  // modules/domain/player-attack.mjs
+  function resolvePlayerAttack(owner, pStats, attackOptions, deps2) {
+    const c = { owner, pStats, attackOptions, deps: deps2 };
+    if (preparePlayerCast(c) === false) return;
+    c.showAttackFeedback = (enemy, cue) => showAttackFeedback(c, enemy, cue);
+    c.applyPierceOverkillCarry = (sourceEnemy, carryDamage, hitElement, hitCrit, ailmentCarrySourceDamage) => applyPierceOverkillCarry(c, { sourceEnemy, carryDamage, hitElement, hitCrit, ailmentCarrySourceDamage });
+    c.randomTargetCapFallbackUsed = false;
+    for (let hitIdx = 0; hitIdx < c.repeats; hitIdx++) {
+      const hitEntries = c.pStats.sSkill.randomTargetEachHit ? [{ mult: 1 }] : c.targets;
+      hitEntries.forEach((hit, targetIndex) => {
+        const h = { hitIdx, hitEntries, hit, targetIndex };
+        resolvePlayerContact(c, h);
+      });
+    }
+    finishAttackRecovery(c);
+    return { pStats: c.pStats, options: c.options, hitLog: c.hitLog, talentMoonPrimaryHit: c.talentMoonPrimaryHit };
+  }
+  function createPlayerAttackResolver(deps2) {
+    return Object.freeze({ resolve: (owner, stats, options) => resolvePlayerAttack(owner, stats, options, deps2) });
+  }
+  function resolvePlayerContact(c, h) {
+    if (selectPlayerContact(c, h) === false) return;
+    rollPlayerContact(c, h);
+    if (mitigatePlayerContact(c, h) === false) return;
+    applyPlayerContact(c, h);
+    finishPlayerContact(c, h);
+  }
+
+  // modules/combat-player-attack-classic.mjs
+  var resolver = createPlayerAttackResolver({
+    get getAttackProjectileShots() {
+      return getAttackProjectileShots;
+    },
+    get isTalentPlayerAttackDisabled() {
+      return typeof isTalentPlayerAttackDisabled === "undefined" ? void 0 : isTalentPlayerAttackDisabled;
+    },
+    get consumeCombatChannelContinuation() {
+      return consumeCombatChannelContinuation;
+    },
+    get getCombatTime() {
+      return getCombatTime;
+    },
+    get applyDamageToEnemyResource() {
+      return applyDamageToEnemyResource;
+    },
+    get prepareTalentPlayerAttackContext() {
+      return prepareTalentPlayerAttackContext;
+    },
+    get isTalentCardActive() {
+      return typeof isTalentCardActive === "undefined" ? void 0 : isTalentCardActive;
+    },
+    get getAttackTargets() {
+      return getAttackTargets;
+    },
+    get beginPassiveKarmaAttack() {
+      return typeof beginPassiveKarmaAttack === "undefined" ? void 0 : beginPassiveKarmaAttack;
+    },
+    get consumeLoneEvasionCounterMultiplier() {
+      return consumeLoneEvasionCounterMultiplier;
+    },
+    get beginSkillMobility() {
+      return beginSkillMobility;
+    },
+    get getTalentMoonReturnConfig() {
+      return typeof getTalentMoonReturnConfig === "undefined" ? void 0 : getTalentMoonReturnConfig;
+    },
+    get buildSkillHitSequence() {
+      return typeof buildSkillHitSequence === "undefined" ? void 0 : buildSkillHitSequence;
+    },
+    get recordPassiveFanaticSkillUse() {
+      return typeof recordPassiveFanaticSkillUse === "undefined" ? void 0 : recordPassiveFanaticSkillUse;
+    },
+    get hasKeystone() {
+      return hasKeystone;
+    },
+    get rollTalentPlayerCrit() {
+      return typeof rollTalentPlayerCrit === "undefined" ? void 0 : rollTalentPlayerCrit;
+    },
+    get talentOnPlayerAttack() {
+      return typeof talentOnPlayerAttack === "undefined" ? void 0 : talentOnPlayerAttack;
+    },
+    get getElementalistOverloadStacks() {
+      return getElementalistOverloadStacks;
+    },
+    get recordElementalistOverloadAttack() {
+      return recordElementalistOverloadAttack;
+    },
+    get ASCENDANCY_KEYSTONE_VALUES() {
+      return ASCENDANCY_KEYSTONE_VALUES;
+    },
+    get getTalentDamageConversion() {
+      return typeof getTalentDamageConversion === "undefined" ? void 0 : getTalentDamageConversion;
+    },
+    get getTalentPlayerAttackDamageMultiplier() {
+      return getTalentPlayerAttackDamageMultiplier;
+    },
+    get queuePlayerAttackSequence() {
+      return queuePlayerAttackSequence;
+    },
+    get getZone() {
+      return getZone;
+    },
+    get talismanCombat() {
+      return talismanCombat;
+    },
+    get getEnemyConditionDebuffFactor() {
+      return getEnemyConditionDebuffFactor;
+    },
+    get addBattleFx() {
+      return addBattleFx;
+    },
+    get getEffectiveEnemyMitigation() {
+      return getEffectiveEnemyMitigation;
+    },
+    get mutationHitScale() {
+      return mutationHitScale;
+    },
+    get maybeUnlockChaosRealmFromWoodsman() {
+      return maybeUnlockChaosRealmFromWoodsman;
+    },
+    get notePlayerHitSummary() {
+      return notePlayerHitSummary;
+    },
+    get getElementColor() {
+      return getElementColor;
+    },
+    get applyEnemyAilmentFromHit() {
+      return applyEnemyAilmentFromHit;
+    },
+    get transferPassiveChaosErosionToTarget() {
+      return transferPassiveChaosErosionToTarget;
+    },
+    get getHitEnemyResistance() {
+      return getHitEnemyResistance;
+    },
+    get ascendancyNodeRules() {
+      return ascendancyNodeRules;
+    },
+    get getPassiveChaosConversionShare() {
+      return getPassiveChaosConversionShare;
+    },
+    get getPreciseTalentRatio() {
+      return typeof getPreciseTalentRatio === "undefined" ? void 0 : getPreciseTalentRatio;
+    },
+    get getTalentCritDamageMultiplier() {
+      return typeof getTalentCritDamageMultiplier === "undefined" ? void 0 : getTalentCritDamageMultiplier;
+    },
+    get getGemCritHitPerkMul() {
+      return getGemCritHitPerkMul;
+    },
+    get applyAilingTargetDamage() {
+      return applyAilingTargetDamage;
+    },
+    get getTalentPrecisePlayerHitMultiplier() {
+      return typeof getTalentPrecisePlayerHitMultiplier === "undefined" ? void 0 : getTalentPrecisePlayerHitMultiplier;
+    },
+    get getTalentButcherBossMultiplier() {
+      return typeof getTalentButcherBossMultiplier === "undefined" ? void 0 : getTalentButcherBossMultiplier;
+    },
+    get getPassiveKeystoneHitMultiplier() {
+      return getPassiveKeystoneHitMultiplier;
+    },
+    get getSkillRepeatDamageMultiplier() {
+      return getSkillRepeatDamageMultiplier;
+    },
+    get getSkillConditionalDamageMultiplier() {
+      return getSkillConditionalDamageMultiplier;
+    },
+    get getEnemyTotalEvadeChance() {
+      return getEnemyTotalEvadeChance;
+    },
+    get getTalentAlwaysHit() {
+      return typeof getTalentAlwaysHit === "undefined" ? void 0 : getTalentAlwaysHit;
+    },
+    get resolveEntropyEvasion() {
+      return resolveEntropyEvasion;
+    },
+    get _t() {
+      return _t;
+    },
+    get addEvasionCombatLog() {
+      return addEvasionCombatLog;
+    },
+    get getPassiveWisdomLeapDamageMultiplier() {
+      return getPassiveWisdomLeapDamageMultiplier;
+    },
+    get loopMutation() {
+      return loopMutation;
+    },
+    get getActiveEnemyShockTakenDamageIncreasePct() {
+      return getActiveEnemyShockTakenDamageIncreasePct;
+    },
+    get getShockedEnemyHitDamageIncreaseMultiplier() {
+      return getShockedEnemyHitDamageIncreaseMultiplier;
+    },
+    get getKeystoneEnemyTakenMultiplier() {
+      return getKeystoneEnemyTakenMultiplier;
+    },
+    get getAbyssMonsterScales() {
+      return getAbyssMonsterScales;
+    },
+    get getGridDirectHitDistanceMultiplier() {
+      return getGridDirectHitDistanceMultiplier;
+    },
+    get handleEnemyDeath() {
+      return handleEnemyDeath;
+    },
+    get getEnemyLifeAndShield() {
+      return getEnemyLifeAndShield;
+    },
+    get getTalentDotOccupancyDamage() {
+      return typeof getTalentDotOccupancyDamage === "undefined" ? void 0 : getTalentDotOccupancyDamage;
+    },
+    get getRangerWeakpointBonus() {
+      return getRangerWeakpointBonus;
+    },
+    get getCombatTalentCardLevel() {
+      return getCombatTalentCardLevel;
+    },
+    get updateTalentButcherHitMark() {
+      return updateTalentButcherHitMark;
+    },
+    get canApplyTalentExecuteThreshold() {
+      return canApplyTalentExecuteThreshold;
+    },
+    get addPlayerHitVisualFx() {
+      return addPlayerHitVisualFx;
+    },
+    get applySkillDotFromHit() {
+      return applySkillDotFromHit;
+    },
+    get getAilmentTypeFromElement() {
+      return getAilmentTypeFromElement;
+    },
+    get getSkillAilmentStats() {
+      return getSkillAilmentStats;
+    },
+    get regionAffixEffects() {
+      return regionAffixEffects;
+    },
+    get spreadSkillAilmentOnHit() {
+      return spreadSkillAilmentOnHit;
+    },
+    get applySkillPeriodicOnHit() {
+      return applySkillPeriodicOnHit;
+    },
+    get applySkillGridControlOnHit() {
+      return applySkillGridControlOnHit;
+    },
+    get applySupportEchoOnHit() {
+      return applySupportEchoOnHit;
+    },
+    get applySupportChaosErosionOnHit() {
+      return applySupportChaosErosionOnHit;
+    },
+    get applyCosmosJudgmentOnHit() {
+      return applyCosmosJudgmentOnHit;
+    },
+    get applyPlayerHitLeech() {
+      return applyPlayerHitLeech;
+    },
+    get getPlayerEnergyShieldRecoveryCap() {
+      return getPlayerEnergyShieldRecoveryCap;
+    },
+    get advanceEnergyShieldRechargeOnCrit() {
+      return advanceEnergyShieldRechargeOnCrit;
+    },
+    get getPlayerHitCombatLog() {
+      return getPlayerHitCombatLog;
+    },
+    get supports() {
+      return window.GameModules.combat.supports;
+    },
+    random: () => Math.random()
+  });
+  var deps = {
+    get getGridUnitDistance() {
+      return getGridUnitDistance;
+    },
+    get hasGridCell() {
+      return hasGridCell;
+    },
+    get getGridUnitCenter() {
+      return getGridUnitCenter;
+    },
+    get getElementColor() {
+      return getElementColor;
+    },
+    get copyCombatGridCell() {
+      return copyCombatGridCell;
+    },
+    get skillGemCasts() {
+      return skillGemCasts;
+    },
+    get getCombatTime() {
+      return getCombatTime;
+    },
+    get noteCombatTacticAttack() {
+      return noteCombatTacticAttack;
+    },
+    get hasPlayerChannelBreakingAilment() {
+      return hasPlayerChannelBreakingAilment;
+    },
+    get rollProjectileExtraShots() {
+      return rollProjectileExtraShots;
+    },
+    get cancelCombatChannel() {
+      return cancelCombatChannel;
+    },
+    get getSplashDormantEnemies() {
+      return getSplashDormantEnemies;
+    },
+    get supports() {
+      return window.GameModules.combat.supports;
+    },
+    get mobilitySkill() {
+      return mobilitySkill;
+    },
+    get canPushEnemy() {
+      return canPushEnemy;
+    },
+    get gridStepToward() {
+      return gridStepToward;
+    },
+    get getGridBlockedCells() {
+      return getGridBlockedCells;
+    },
+    get actExplorationMotion() {
+      return actExplorationMotion;
+    },
+    get actExplorationProgress() {
+      return actExplorationProgress;
+    },
+    get actExplorationState() {
+      return actExplorationState;
+    },
+    get getEffectiveEnemyMitigation() {
+      return getEffectiveEnemyMitigation;
+    },
+    get getZone() {
+      return getZone;
+    },
+    get applyDamageToEnemyResource() {
+      return applyDamageToEnemyResource;
+    },
+    get loopMutation() {
+      return loopMutation;
+    },
+    get handleEnemyDeath() {
+      return handleEnemyDeath;
+    },
+    get PROJECTILE_BONUS_SHOT_DAMAGE_PCT() {
+      return PROJECTILE_BONUS_SHOT_DAMAGE_PCT;
+    },
+    get applyEnemyAilmentFromHit() {
+      return applyEnemyAilmentFromHit;
+    },
+    get cosmosRouteRuntime() {
+      return cosmosRouteRuntime;
+    },
+    get resetHiddenJournalBossRun() {
+      return resetHiddenJournalBossRun;
+    },
+    get getEncounterTelemetryContext() {
+      return getEncounterTelemetryContext;
+    },
+    get CAMPAIGN_RESIST_PENALTY() {
+      return CAMPAIGN_RESIST_PENALTY;
+    },
+    get performTalentMoonReturn() {
+      return performTalentMoonReturn;
+    }
+  };
+  var env = {
+    get owner() {
+      return game;
+    },
+    deps,
+    resolver,
+    get nativeCasts() {
+      return window.GameModules.state.combat.skillGemCombatRuntime;
+    },
+    set nativeCasts(value) {
+      window.GameModules.state.combat.skillGemCombatRuntime = value;
+    }
+  };
+  var presentation = {
+    get addBattleFx() {
+      return addBattleFx;
+    },
+    get addLog() {
+      return addLog;
+    },
+    get dispatchRuntimeEvent() {
+      return dispatchRuntimeEvent;
+    }
+  };
+  function runPlayerCastEffects(commands) {
+    for (const command of commands) {
+      presentation[command.kind](...command.args);
+    }
+  }
+  var playerCastRuntime = {
+    scaleKeystoneAttackSpeed(aspd, flags) {
+      return castScaleKeystoneAttackSpeed(aspd, flags);
+    },
+    addThousandBottlesStats(bucket) {
+      return castAddThousandBottlesStats(bucket);
+    },
+    getPassiveKeystoneHitMultiplier(pStats, target, hitIndex, targetIndex, skillName) {
+      return castGetPassiveKeystoneHitMultiplier(env, pStats, target, { hitIndex, targetIndex, skillName });
+    },
+    addPlayerHitVisualFx(pStats, options, targetEnemy, hit) {
+      return runPlayerCastEffects(castAddPlayerHitVisualFx(env, pStats, options, targetEnemy, hit));
+    },
+    startSkillGemCombat(stats, options) {
+      return runPlayerCastEffects(castStartSkillGemCombat(env, stats, options));
+    },
+    noteNativeGemSwing(name, stats) {
+      return runPlayerCastEffects(castNoteNativeGemSwing(env, name, stats));
+    },
+    shouldDeferNativeGemCast(stats, options) {
+      return castShouldDeferNativeGemCast(env, stats, options);
+    },
+    getAttackProjectileShots(stats) {
+      return castGetAttackProjectileShots(env, stats);
+    },
+    updateSkillGemCombat(stats) {
+      return runPlayerCastEffects(castUpdateSkillGemCombat(env, stats));
+    },
+    advanceSkillGemCasts(stats) {
+      return runPlayerCastEffects(castAdvanceSkillGemCasts(env, stats));
+    },
+    skillGemRuntimeChanged(name) {
+      return castSkillGemRuntimeChanged(env, name);
+    },
+    petrifyEnemy(enemy, at, seconds) {
+      return castPetrifyEnemy(enemy, at, seconds);
+    },
+    enemyTimeSlowed(enemy) {
+      return castEnemyTimeSlowed(env, enemy);
+    },
+    pullEnemyToward(enemy, command) {
+      return castPullEnemyToward(env, enemy, command);
+    },
+    getDefeatRecoveryZoneId() {
+      return castGetDefeatRecoveryZoneId(env);
+    },
+    recordPlayerDefeatStart(zone, options) {
+      return runPlayerCastEffects(castRecordPlayerDefeatStart(env, zone, options));
+    },
+    retreatAfterActDefeat(zone) {
+      return castRetreatAfterActDefeat(env, zone);
+    },
+    getCampaignResistPenalty(maxZoneId) {
+      return castGetCampaignResistPenalty(env, maxZoneId);
+    },
+    performPlayerAttack(pStats, attackOptions) {
+      return runPlayerCastEffects(castPerformPlayerAttack(env, pStats, attackOptions));
+    }
+  };
+  safeExposeGlobals({
+    scaleKeystoneAttackSpeed: playerCastRuntime.scaleKeystoneAttackSpeed,
+    addThousandBottlesStats: playerCastRuntime.addThousandBottlesStats,
+    getPassiveKeystoneHitMultiplier: playerCastRuntime.getPassiveKeystoneHitMultiplier,
+    addPlayerHitVisualFx: playerCastRuntime.addPlayerHitVisualFx,
+    startSkillGemCombat: playerCastRuntime.startSkillGemCombat,
+    noteNativeGemSwing: playerCastRuntime.noteNativeGemSwing,
+    shouldDeferNativeGemCast: playerCastRuntime.shouldDeferNativeGemCast,
+    getAttackProjectileShots: playerCastRuntime.getAttackProjectileShots,
+    updateSkillGemCombat: playerCastRuntime.updateSkillGemCombat,
+    advanceSkillGemCasts: playerCastRuntime.advanceSkillGemCasts,
+    skillGemRuntimeChanged: playerCastRuntime.skillGemRuntimeChanged,
+    petrifyEnemy: playerCastRuntime.petrifyEnemy,
+    enemyTimeSlowed: playerCastRuntime.enemyTimeSlowed,
+    pullEnemyToward: playerCastRuntime.pullEnemyToward,
+    getDefeatRecoveryZoneId: playerCastRuntime.getDefeatRecoveryZoneId,
+    recordPlayerDefeatStart: playerCastRuntime.recordPlayerDefeatStart,
+    retreatAfterActDefeat: playerCastRuntime.retreatAfterActDefeat,
+    getCampaignResistPenalty: playerCastRuntime.getCampaignResistPenalty,
+    performPlayerAttack: playerCastRuntime.performPlayerAttack,
+    isEnemyPetrified: castIsEnemyPetrified,
+    TIME_SLOW_MOVE
+  });
+})();

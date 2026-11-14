@@ -1,168 +1,232 @@
-// 기억 던전(12번 루프 21, 2026-10-08, data/memory-dungeon.js): 아틀라스 보스의 기억(1~5단계)을 모으고, 그 보스만 있는 투기장 싸움을
-// 연다. 상태는 game.atlas.memory { tickets: {노드 id: [1단계 수, ..., 5단계 수]}, best: {노드 id: 이긴 가장 높은 단계} }: 루프와
-// 시대 재생을 넘어 남는다. 싸움은 지도 장치 런 그대로(js/atlas.js beginMemory, 지도석의 memory 단계)이고, 여기서는 여는 조건,
-// 등급, 보스 배수와 특수기, 기억 떨어뜨리기, 보상만 정한다. 보상 지급과 기록은 js/atlas-run.js와 js/memory-dungeon-ui.js.
-const memoryDungeon = (() => {
-    const M = MEMORY_DUNGEON;
-    const defaults = () => ({ tickets: {}, best: {}, variants: {} });
-    const ledger = state => state.atlas.memory;
-    const open = state => contentProgression.holds('memoryDungeon', state);
-    const validTier = value => Number.isInteger(value) && value >= 1 && value <= M.tiers;
-    const emptyRow = () => Array(M.tiers).fill(0);
-    /** The highest tier that drops and opens now: 3, then 5 with the 기억 던전 4, 5 unlock. */
-    const maxTier = state => (contentProgression.holds('memoryDeep', state) ? M.tiers : M.highTiers.from - 1);
+// GENERATED from modules/memory-dungeon*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/memory-dungeon-ledger.mjs
+  function memoryArenaDefaults() {
+    return { tickets: {}, best: {}, variants: {} };
+  }
+  function memoryArenaLedger(state) {
+    return state.atlas.memory;
+  }
+  function memoryArenaEmptyRow(env) {
+    return Array(env.M.tiers).fill(0);
+  }
+  function memoryArenaCount(state, nodeId, tier) {
+    return (memoryArenaLedger(state).tickets[nodeId] || [])[tier - 1] || 0;
+  }
+  function memoryArenaGive(env, state, nodeId, tier, force = false) {
+    const book = memoryArenaLedger(state), row = book.tickets[nodeId] || memoryArenaEmptyRow(env);
+    if (row[tier - 1] >= (force ? env.refundCap : env.M.ticketCap)) return false;
+    row[tier - 1] += 1;
+    book.tickets[nodeId] = row;
+    return true;
+  }
+  function memoryArenaTake(state, nodeId, tier) {
+    const row = memoryArenaLedger(state).tickets[nodeId];
+    row[tier - 1] -= 1;
+    if (row.every((value) => value <= 0)) delete memoryArenaLedger(state).tickets[nodeId];
+  }
+  function memoryArenaSpend(state, nodeId, tier) {
+    return memoryArenaTake(state, nodeId, tier);
+  }
+  function memoryArenaRefund(env, state, map) {
+    return memoryArenaGive(env, state, map.node, map.memory, true);
+  }
+  function memoryArenaTotal(state) {
+    return Object.values(memoryArenaLedger(state).tickets).reduce((sum, row) => sum + row.reduce((a, b) => a + b, 0), 0);
+  }
 
-    function count(state, nodeId, tier) {
-        return ((ledger(state).tickets[nodeId] || [])[tier - 1]) || 0;
-    }
-    // A single open fight can refund one spent memory after a new drop filled its slot. Keep that reserved memory across saves.
-    const refundCap = M.ticketCap + 1;
-    /** Normal drops stop at ticketCap; only a cancelled fight's refund may use its one reserved slot. */
-    function give(state, nodeId, tier, force = false) {
-        const book = ledger(state), row = book.tickets[nodeId] || emptyRow();
-        if (row[tier - 1] >= (force ? refundCap : M.ticketCap)) return false;
-        row[tier - 1] += 1;
-        book.tickets[nodeId] = row;
-        return true;
-    }
-    function take(state, nodeId, tier) {
-        const row = ledger(state).tickets[nodeId];
-        row[tier - 1] -= 1;
-        if (row.every(value => value <= 0)) delete ledger(state).tickets[nodeId];
-    }
+  // modules/domain/memory-dungeon-access.mjs
+  function memoryArenaOpen(env, state) {
+    return env.deps.contentProgression.holds("memoryDungeon", state);
+  }
+  function memoryArenaValidTier(env, value) {
+    return Number.isInteger(value) && value >= 1 && value <= env.M.tiers;
+  }
+  function memoryArenaMaxTier(env, state) {
+    return env.deps.contentProgression.holds("memoryDeep", state) ? env.M.tiers : env.M.highTiers.from - 1;
+  }
+  function memoryArenaEntryReason(env, state, nodeId, tier) {
+    if (!memoryArenaOpen(env, state)) return "기억 던전 해금 뒤에 열립니다.";
+    if (!env.deps.atlas.node(nodeId) || !memoryArenaValidTier(env, tier)) return "없는 기억입니다.";
+    if (tier > memoryArenaMaxTier(env, state)) return env.deps._t("{tier}단계는 기억 던전 4, 5 해금 뒤에 도전할 수 있습니다.", { tier });
+    const lock = env.deps.atlas.lockReason(state);
+    if (lock) return lock;
+    if (state.atlas.run) return env.deps.atlas.runOpenReason(state);
+    return memoryArenaCount(state, nodeId, tier) > 0 ? "" : "그 단계의 기억이 없습니다.";
+  }
+  function memoryArenaMapTier(env, state, node, tier) {
+    return Math.min(env.deps.ATLAS.tierCap, env.deps.atlas.effectiveTier(state, node) + env.M.fight.tierStep * tier);
+  }
 
-    /** '' when the memory fight can open now, otherwise why not. */
-    function entryReason(state, nodeId, tier) {
-        if (!open(state)) return '기억 던전 해금 뒤에 열립니다.';
-        if (!atlas.node(nodeId) || !validTier(tier)) return '없는 기억입니다.';
-        if (tier > maxTier(state)) return _t('{tier}단계는 기억 던전 4, 5 해금 뒤에 도전할 수 있습니다.', { tier });
-        const lock = atlas.lockReason(state);
-        if (lock) return lock;
-        if (state.atlas.run) return atlas.runOpenReason(state);
-        return count(state, nodeId, tier) > 0 ? '' : '그 단계의 기억이 없습니다.';
+  // modules/domain/memory-dungeon-restore.mjs
+  function memoryArenaNormalizeRow(env, raw) {
+    const row = memoryArenaEmptyRow(env).map((zero, index) => Math.max(0, Math.min(env.refundCap, Math.floor(Number(Array.isArray(raw) ? raw[index] : 0) || 0))));
+    return row.some((value) => value > 0) ? row : null;
+  }
+  function memoryArenaNormalizeTickets(env, raw) {
+    const out = {};
+    for (const [id, row] of Object.entries(raw && typeof raw === "object" ? raw : {})) {
+      const kept = env.deps.atlas.node(id) ? memoryArenaNormalizeRow(env, row) : null;
+      if (kept) out[id] = kept;
     }
-    const spend = (state, nodeId, tier) => take(state, nodeId, tier);
-    /** Travel failed or a new loop closed the fight before it ended: the memory comes back (past the cap, it was held a moment ago). */
-    const refund = (state, map) => give(state, map.node, map.memory, true);
+    return out;
+  }
+  function memoryArenaNormalizeBest(env, raw) {
+    return Object.fromEntries(Object.entries(raw && typeof raw === "object" ? raw : {}).filter(([id, tier]) => env.deps.atlas.node(id) && memoryArenaValidTier(env, tier)));
+  }
+  function memoryArenaNormalizeVariants(env, raw) {
+    return typeof env.deps.bossVariants === "object" ? env.deps.bossVariants.normalizeKills(raw) : {};
+  }
+  function memoryArenaNormalize(env, raw) {
+    const source = raw && typeof raw === "object" ? raw : {};
+    return { tickets: memoryArenaNormalizeTickets(env, source.tickets), best: memoryArenaNormalizeBest(env, source.best), variants: memoryArenaNormalizeVariants(env, source.variants) };
+  }
 
-    // ---------------------------------------------------------------- the fight
-    /** The memory map's tier: the node's tier + tierStep × tier, under the atlas cap. */
-    const mapTier = (state, node, tier) => Math.min(ATLAS.tierCap, atlas.effectiveTier(state, node) + M.fight.tierStep * tier);
-    /** Boss multipliers of a memory map (1 for any other map). */
-    function boost(map) {
-        const tier = map && map.memory;
-        return validTier(tier) ? { hp: M.fight.hpMul[tier - 1], damage: M.fight.damageMul[tier - 1] } : { hp: 1, damage: 1 };
-    }
-    const zoneName = (map, node) => (validTier(map.memory) ? _t('{name}: 기억 {memory}단계', { name: node.name, memory: map.memory }) : node.name);
-    /** A memory fight's boss (js/combat-encounters.js createActExplorationPack): its name says whose memory, tinted; a boss without its own special
-     * (map bosses, guardians, the shadow) takes the memory special. */
-    function tuneBoss(enemy, tier) {
-        enemy.name = `${enemy.name}의 기억`;   // 한국어 원문으로 둔다: 보여 줄 때 옮긴다(js/i18n.js enemyName)
-        enemy.bossVisualTint = M.fight.tint;
-        if (!enemy.apexMechanic) Object.assign(enemy, { patternMode: 'apex', apexMechanic: M.fight.mechanic });
-        // 보스 변이체(루프 33): 3단계부터 기억의 보스가 변이체로 다시 불려 나올 수 있다(js/boss-variants.js recall).
-        if (typeof bossVariants === 'object') bossVariants.recall(enemy, tier);
-        return enemy;
-    }
+  // modules/domain/memory-dungeon-fight.mjs
+  function memoryArenaBoost(env, map) {
+    const tier = map && map.memory;
+    return memoryArenaValidTier(env, tier) ? { hp: env.M.fight.hpMul[tier - 1], damage: env.M.fight.damageMul[tier - 1] } : { hp: 1, damage: 1 };
+  }
+  function memoryArenaZoneName(env, map, node) {
+    return memoryArenaValidTier(env, map.memory) ? env.deps._t("{name}: 기억 {memory}단계", { name: node.name, memory: map.memory }) : node.name;
+  }
+  function memoryArenaTuneBoss(env, enemy, tier) {
+    enemy.name = `${enemy.name}의 기억`;
+    enemy.bossVisualTint = env.M.fight.tint;
+    if (!enemy.apexMechanic) Object.assign(enemy, { patternMode: "apex", apexMechanic: env.M.fight.mechanic });
+    if (typeof env.deps.bossVariants === "object") env.deps.bossVariants.recall(enemy, tier);
+    return enemy;
+  }
 
-    // ---------------------------------------------------------------- a boss falls
-    /** The entry snapshot's 되감긴 기억 bonus survives closing the run before completion rewards are settled. */
-    const memoryDropMul = bonus => 1 + (Number(bonus.memoryDrop) || 0) / 100;
-    /** The memory a fallen atlas boss leaves: tier 1 by chance after an ordinary fight, the next tier by the ladder after a memory fight. */
-    function rollTicket(state, node, map, random, bonus) {
-        const tier = validTier(map.memory) ? map.memory + 1 : 1;
-        if (!open(state) || tier > maxTier(state)) return null;
-        const chance = tier > 1 ? M.ladder[tier - 2] : (M.ticketDrop[node.kind] || 0) * memoryDropMul(bonus);
-        return random() < chance && give(state, node.id, tier) ? { node: node.id, name: node.boss, tier } : null;
-    }
-    /** The boss's own unique: one of them when random is given (a boss may have two, data/atlas-endgame.js), else their names for show. */
-    function ownUnique(node, random = null) {
-        const list = [].concat((atlasEndgame.def(node.id) || {}).unique || []);
-        if (!list.length) return null;
-        return random ? list[Math.floor(random() * list.length)] : list.join(' 또는 ');
-    }
-    /** Shared reward expectations for settlement and the pre-entry preview; deriving them never rolls entropy. */
-    function rewardExpectations(tier, mapTierValue) {
-        const scale = Math.max(M.rewardScale.min, Math.min(M.rewardScale.max, mapTierValue / M.rewardTier));
-        return [...M.rewards.map(([key, base, perTier]) => [key, base + perTier * tier]), ['burningEmberBranch', M.burning[tier - 1]]]
-            .map(([key, expected]) => [key, expected * scale]);
-    }
-    /** Currency for a won tier. Keep one random draw per configured reward, including currently locked ones. */
-    function rolledRewards(state, tier, mapTierValue, random) {
-        return rewardExpectations(tier, mapTierValue)
-            .map(([key, expected]) => [key, Math.floor(expected) + Number(random() < expected % 1)])
-            .filter(([key, amount]) => amount > 0 && contentProgression.canDropCurrency(key, state));
-    }
-    /** A won memory fight: its spoils (currency by tier, a unique by chance, a rare piece from gearFrom) and the best tier record. */
-    function spoils(state, node, tier, random) {
-        const own = ownUnique(node, random), book = ledger(state), best = (book.best[node.id] || 0) < tier;
-        if (best) book.best[node.id] = tier;
-        const unique = random() < M.uniqueChance[own ? 'own' : 'other'][tier - 1] ? (own || 'any') : null;
-        return { tier, rewards: rolledRewards(state, tier, mapTier(state, node, tier), random), unique, gear: tier >= M.gearFrom, best };
-    }
-    /** Boss down in an atlas run (js/atlas.js complete): the memory it leaves and, after a memory fight, its spoils.
-     * @returns {{ticket: ?object, spoils: ?object}} */
-    function settle(state, node, map, random = Math.random, bonus = {}) {
-        const fight = validTier(map.memory) ? spoils(state, node, map.memory, random) : null;
-        return { ticket: rollTicket(state, node, map, random, bonus), spoils: fight };
-    }
+  // modules/domain/memory-dungeon-rewards.mjs
+  function memoryArenaMemoryDropMul(bonus) {
+    return 1 + (Number(bonus.memoryDrop) || 0) / 100;
+  }
+  function memoryArenaRollTicket(env, state, node, map, ...selection) {
+    const [random, bonus] = selection;
+    const tier = memoryArenaValidTier(env, map.memory) ? map.memory + 1 : 1;
+    if (!memoryArenaOpen(env, state) || tier > memoryArenaMaxTier(env, state)) return null;
+    const chance = tier > 1 ? env.M.ladder[tier - 2] : (env.M.ticketDrop[node.kind] || 0) * memoryArenaMemoryDropMul(bonus);
+    return random() < chance && memoryArenaGive(env, state, node.id, tier) ? { node: node.id, name: node.boss, tier } : null;
+  }
+  function memoryArenaOwnUnique(env, node, random = null) {
+    const list = [].concat((env.deps.atlasEndgame.def(node.id) || {}).unique || []);
+    if (!list.length) return null;
+    return random ? list[Math.floor(random() * list.length)] : list.join(" 또는 ");
+  }
+  function memoryArenaRewardExpectations(env, tier, mapTierValue) {
+    const scale = Math.max(env.M.rewardScale.min, Math.min(env.M.rewardScale.max, mapTierValue / env.M.rewardTier));
+    return [...env.M.rewards.map(([key, base, perTier]) => [key, base + perTier * tier]), ["burningEmberBranch", env.M.burning[tier - 1]]].map(([key, expected]) => [key, expected * scale]);
+  }
+  function memoryArenaRolledRewards(env, state, tier, mapTierValue, random) {
+    return memoryArenaRewardExpectations(env, tier, mapTierValue).map(([key, expected]) => [key, Math.floor(expected) + Number(random() < expected % 1)]).filter(([key, amount]) => amount > 0 && env.deps.contentProgression.canDropCurrency(key, state));
+  }
+  function memoryArenaSpoils(env, state, node, tier, random) {
+    const own = memoryArenaOwnUnique(env, node, random), book = memoryArenaLedger(state), best = (book.best[node.id] || 0) < tier;
+    if (best) book.best[node.id] = tier;
+    const unique = random() < env.M.uniqueChance[own ? "own" : "other"][tier - 1] ? own || "any" : null;
+    return { tier, rewards: memoryArenaRolledRewards(env, state, tier, memoryArenaMapTier(env, state, node, tier), random), unique, gear: tier >= env.M.gearFrom, best };
+  }
+  function memoryArenaSettle(env, state, node, map, ...selection) {
+    const [random = Math.random, bonus = {}] = selection;
+    const fight = memoryArenaValidTier(env, map.memory) ? memoryArenaSpoils(env, state, node, map.memory, random) : null;
+    return { ticket: memoryArenaRollTicket(env, state, node, map, random, bonus), spoils: fight };
+  }
 
-    function nextMemoryPreview(state, node, tier) {
-        if (tier >= M.tiers) return null;
-        const nextTier = tier + 1, have = count(state, node.id, nextTier);
-        const reason = nextTier > maxTier(state) ? _t('{nextTier}단계 기억은 기억 던전 4, 5 해금 뒤에 얻을 수 있습니다.', { nextTier })
-            : have >= M.ticketCap ? _t('다음 단계 기억의 보관 한도 {ticketCap}개에 도달했습니다.', { ticketCap: M.ticketCap }) : '';
-        return { tier: nextTier, chance: reason ? 0 : M.ladder[tier - 1], reason, have, cap: M.ticketCap };
-    }
-    /** Read-only preparation for a held memory or a past record. Choosing it never consumes a memory or advances random rolls. */
-    function preview(state, nodeId, tier) {
-        const node = atlas.node(nodeId);
-        if (!node || !validTier(tier)) return null;
-        const map = atlasMaps.create(nodeId, mapTier(state, node, tier), 'normal', () => 0), own = ownUnique(node);
-        map.memory = tier;
-        const rewards = rewardExpectations(tier, map.tier).filter(([key, expected]) => expected > 0 && contentProgression.canDropCurrency(key, state))
-            .map(([key, expected]) => ({ key, min: Math.floor(expected), max: Math.ceil(expected), extraChance: expected % 1 }));
-        return { node, tier, have: count(state, nodeId, tier), map, best: ledger(state).best[nodeId] || 0,
-            reason: entryReason(state, nodeId, tier), rewards,
-            unique: { name: own, chance: M.uniqueChance[own ? 'own' : 'other'][tier - 1], swapChance: M.swap[tier - 1] },
-            gear: tier >= M.gearFrom, next: nextMemoryPreview(state, node, tier) };
-    }
+  // modules/domain/memory-dungeon-preview.mjs
+  function memoryArenaNextMemoryPreview(env, state, node, tier) {
+    if (tier >= env.M.tiers) return null;
+    const nextTier = tier + 1, have = memoryArenaCount(state, node.id, nextTier);
+    const reason = nextTier > memoryArenaMaxTier(env, state) ? env.deps._t("{nextTier}단계 기억은 기억 던전 4, 5 해금 뒤에 얻을 수 있습니다.", { nextTier }) : have >= env.M.ticketCap ? env.deps._t("다음 단계 기억의 보관 한도 {ticketCap}개에 도달했습니다.", { ticketCap: env.M.ticketCap }) : "";
+    return { tier: nextTier, chance: reason ? 0 : env.M.ladder[tier - 1], reason, have, cap: env.M.ticketCap };
+  }
+  function memoryArenaPreview(env, state, nodeId, tier) {
+    const node = env.deps.atlas.node(nodeId);
+    if (!node || !memoryArenaValidTier(env, tier)) return null;
+    const map = env.deps.atlasMaps.create(nodeId, memoryArenaMapTier(env, state, node, tier), "normal", () => 0), own = memoryArenaOwnUnique(env, node);
+    map.memory = tier;
+    const rewards = memoryArenaRewardExpectations(env, tier, map.tier).filter(([key, expected]) => expected > 0 && env.deps.contentProgression.canDropCurrency(key, state)).map(([key, expected]) => ({ key, min: Math.floor(expected), max: Math.ceil(expected), extraChance: expected % 1 }));
+    return {
+      node,
+      tier,
+      have: memoryArenaCount(state, nodeId, tier),
+      map,
+      best: memoryArenaLedger(state).best[nodeId] || 0,
+      reason: memoryArenaEntryReason(env, state, nodeId, tier),
+      rewards,
+      unique: { name: own, chance: env.M.uniqueChance[own ? "own" : "other"][tier - 1], swapChance: env.M.swap[tier - 1] },
+      gear: tier >= env.M.gearFrom,
+      next: memoryArenaNextMemoryPreview(env, state, node, tier)
+    };
+  }
+  function memoryArenaOverview(env, state) {
+    const book = memoryArenaLedger(state), ids = /* @__PURE__ */ new Set([...Object.keys(book.tickets), ...Object.keys(book.best)]);
+    return [...ids].map((id) => {
+      const node = env.deps.atlas.node(id), row = book.tickets[id] || memoryArenaEmptyRow(env);
+      return {
+        node,
+        counts: row.slice(),
+        best: memoryArenaLedger(state).best[id] || 0,
+        unique: memoryArenaOwnUnique(env, node),
+        tiers: row.map((have, index) => ({ tier: index + 1, have, mapTier: memoryArenaMapTier(env, state, node, index + 1), reason: memoryArenaEntryReason(env, state, id, index + 1) }))
+      };
+    }).sort((a, b) => b.counts.findLastIndex((value) => value > 0) - a.counts.findLastIndex((value) => value > 0) || a.node.boss.localeCompare(b.node.boss));
+  }
 
-    // ---------------------------------------------------------------- save boundary and view
-    function normalizeRow(raw) {
-        const row = emptyRow().map((zero, index) => Math.max(0, Math.min(refundCap, Math.floor(Number(Array.isArray(raw) ? raw[index] : 0) || 0))));
-        return row.some(value => value > 0) ? row : null;
+  // modules/domain/memory-dungeon.mjs
+  function createMemoryDungeon(deps) {
+    const env = { deps };
+    env.M = env.deps.MEMORY_DUNGEON;
+    env.refundCap = env.M.ticketCap + 1;
+    return Object.freeze({
+      defaults: memoryArenaDefaults,
+      normalize: (...args) => memoryArenaNormalize(env, ...args),
+      open: (...args) => memoryArenaOpen(env, ...args),
+      validTier: (...args) => memoryArenaValidTier(env, ...args),
+      maxTier: (...args) => memoryArenaMaxTier(env, ...args),
+      count: memoryArenaCount,
+      total: memoryArenaTotal,
+      give: (...args) => memoryArenaGive(env, ...args),
+      entryReason: (...args) => memoryArenaEntryReason(env, ...args),
+      spend: memoryArenaSpend,
+      refund: (...args) => memoryArenaRefund(env, ...args),
+      mapTier: (...args) => memoryArenaMapTier(env, ...args),
+      boost: (...args) => memoryArenaBoost(env, ...args),
+      zoneName: (...args) => memoryArenaZoneName(env, ...args),
+      tuneBoss: (...args) => memoryArenaTuneBoss(env, ...args),
+      settle: (...args) => memoryArenaSettle(env, ...args),
+      overview: (...args) => memoryArenaOverview(env, ...args),
+      preview: (...args) => memoryArenaPreview(env, ...args)
+    });
+  }
+
+  // modules/memory-dungeon-classic.mjs
+  var rules = createMemoryDungeon({
+    get contentProgression() {
+      return contentProgression;
+    },
+    get atlas() {
+      return atlas;
+    },
+    get _t() {
+      return _t;
+    },
+    get ATLAS() {
+      return ATLAS;
+    },
+    get bossVariants() {
+      return typeof bossVariants === "undefined" ? void 0 : bossVariants;
+    },
+    get atlasEndgame() {
+      return atlasEndgame;
+    },
+    get atlasMaps() {
+      return atlasMaps;
+    },
+    get MEMORY_DUNGEON() {
+      return MEMORY_DUNGEON;
     }
-    function normalizeTickets(raw) {
-        const out = {};
-        for (const [id, row] of Object.entries(raw && typeof raw === 'object' ? raw : {})) {
-            const kept = atlas.node(id) ? normalizeRow(row) : null;
-            if (kept) out[id] = kept;
-        }
-        return out;
-    }
-    function normalizeBest(raw) {
-        return Object.fromEntries(Object.entries(raw && typeof raw === 'object' ? raw : {}).filter(([id, tier]) => atlas.node(id) && validTier(tier)));
-    }
-    /** The boss variant record (12번 루프 33, js/boss-variants.js) lives with the memories. */
-    const normalizeVariants = raw => (typeof bossVariants === 'object' ? bossVariants.normalizeKills(raw) : {});
-    /** Known nodes only, whole counts including one reserved refund, best tiers 1..5. Older rows need no migration. */
-    function normalize(raw) {
-        const source = raw && typeof raw === 'object' ? raw : {};
-        return { tickets: normalizeTickets(source.tickets), best: normalizeBest(source.best), variants: normalizeVariants(source.variants) };
-    }
-    /** Held memories and past victories: spending the last ticket must not hide a boss's best-tier record. */
-    function overview(state) {
-        const book = ledger(state), ids = new Set([...Object.keys(book.tickets), ...Object.keys(book.best)]);
-        return [...ids].map(id => {
-            const node = atlas.node(id), row = book.tickets[id] || emptyRow();
-            return { node, counts: row.slice(), best: ledger(state).best[id] || 0, unique: ownUnique(node),
-                tiers: row.map((have, index) => ({ tier: index + 1, have, mapTier: mapTier(state, node, index + 1), reason: entryReason(state, id, index + 1) })) };
-        }).sort((a, b) => b.counts.findLastIndex(value => value > 0) - a.counts.findLastIndex(value => value > 0) || a.node.boss.localeCompare(b.node.boss));
-    }
-    /** How many memories are held (the atlas's 기억 tab shows it). */
-    const total = state => Object.values(ledger(state).tickets).reduce((sum, row) => sum + row.reduce((a, b) => a + b, 0), 0);
-    return Object.freeze({ defaults, normalize, open, validTier, maxTier, count, total, give, entryReason, spend, refund, mapTier, boost, zoneName, tuneBoss,
-        settle, overview, preview });
+  });
+  var memoryDungeon = rules;
+  safeExposeGlobals({ memoryDungeon });
 })();
-safeExposeGlobals({ memoryDungeon });

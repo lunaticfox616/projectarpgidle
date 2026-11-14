@@ -8,6 +8,7 @@
  *
  * --save    a save as JSON (a saved game object, e.g. tests/fixtures/world-tree-atlas/*.json), or none for a brand new game.
  * --query   a query string for the game page, e.g. dev=1 for the local test panel (js/dev-test-panel-ui.js).
+ * --root    . (default), dist or www; tests an existing release build without modifying it.
  * --script  the body of an async function run in the page once the game is up; what it returns is printed as JSON. It may call
  *           `await window.__shot(name)` for a screenshot at <out>-NN-<name>.png (out defaults to probe-output/shot).
  * The save goes in before the page's own scripts run (addInitScript, once per tab), the title screen's 이어하기 is pressed, and the
@@ -22,9 +23,12 @@ const os = require('os');
 const path = require('path');
 const { chromium } = require('@playwright/test');
 
-const ROOT = path.resolve(__dirname, '..');
+const REPOSITORY_ROOT = path.resolve(__dirname, '..');
+const rootOption = option('root', '.');
+if (!['.', 'dist', 'www'].includes(rootOption)) throw new Error('--root must be ., dist or www');
+const ROOT = path.join(REPOSITORY_ROOT, rootOption);
 const ORIGIN = 'http://127.0.0.1:4391';
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png',
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png',
     '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav' };
 
 function option(name, fallback) {
@@ -69,6 +73,7 @@ async function closeLoadCards(page) {
 }
 
 async function main() {
+    if (rootOption === '.') await require('./build-modules').buildModules();
     try { os.setPriority(0, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch (error) { console.warn('priority unchanged:', error.message); }
     const savePath = option('save', 'none'), scriptPath = option('script', null), out = option('out', path.join(ROOT, 'probe-output', 'shot'));
     const [width, height] = option('size', '1280x720').split('x').map(Number);

@@ -1,307 +1,309 @@
-// 전적 기록 도메인 — "내가 얼마나 나아졌는가"를 남기는 계층.
-//
-// 역할 분리: 이 파일은 게임 상태에서 기록을 적립하고 화면이 쓸 읽기 모델을 만든다.
-// DOM에 접근하지 않고, 기록 외의 게임 상태를 바꾸지 않는다. 화면 조립은 js/records-ui.js가 한다.
-//
-// 왜 별도 상태가 필요한가:
-//   - 시간(루프 소요·액트 돌파)은 지금까지 아무 데도 기록되지 않았다.
-//   - 최고 층수는 대부분 이미 있지만 일부는 루프 정산에서 초기화된다(군락지 파도 등).
-//     그래서 "이번 루프 최고"와 "역대 최고"를 구분해 따로 적립해야 한다.
-//
-// 기존 세이브에는 과거 시간 데이터가 없다. 없는 것을 지어내지 않고 startedAt을 남겨
-// 화면이 "언제부터의 기록인지"를 그대로 밝힌다.
-// 이 파일의 함수들: 밖에서 이름으로 부르는 것만 끝의 exposeFileGlobals가 전역으로 내놓는다(scripts/privatize-functions.cjs).
+// GENERATED from modules/records*.mjs. Edit the ESM sources; run npm run build:modules.
 (() => {
-function createDefaultRecordsState(now) {
+  // modules/domain/records-rules.mjs
+  function recordKeepIncidentCounts(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  }
+  function recordCreateDefaultRecordsState(env, now) {
     return {
-        version: RECORDS_VERSION,
-        startedAt: now,
-        currentLoop: null,
-        loops: [],
-        actBest: {},
-        echo: { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0, last: null, previous: null },
-        best: {},
-        clearedFloorBests: true,
-        clearedColonyBests: true,
-        incidents: {}
+      version: env.RECORDS_VERSION,
+      startedAt: now,
+      currentLoop: null,
+      loops: [],
+      actBest: {},
+      echo: { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0, last: null, previous: null },
+      best: {},
+      clearedFloorBests: true,
+      clearedColonyBests: true,
+      incidents: {}
     };
-}
-
-/** 층 기록이 다음에 열린 층이던 저장(clearedFloorBests)과 군락지 기록이 들어선 웨이브이던 저장(clearedColonyBests)을 한 번씩 낮춘다.
- * 표식은 예전 판이 지우지 않아, 판을 오가도 두 번 낮추지 않는다. */
-function keepClearedBests(records) {
-    lowerBestsOnce(records, 'clearedFloorBests', RECORD_CLEARED_FLOOR_KEYS);
-    lowerBestsOnce(records, 'clearedColonyBests', ['colonyWave']);
-}
-
-function lowerBestsOnce(records, flag, keys) {
+  }
+  function recordKeepClearedBests(env, records) {
+    recordLowerBestsOnce(records, "clearedFloorBests", env.RECORD_CLEARED_FLOOR_KEYS);
+    recordLowerBestsOnce(records, "clearedColonyBests", ["colonyWave"]);
+  }
+  function recordLowerBestsOnce(records, flag, keys) {
     if (records[flag] === true) return;
-    keys.forEach(key => {
-        if (records.best[key] !== undefined) records.best[key] = Math.max(0, toPositiveInt(records.best[key]) - 1);
+    keys.forEach((key) => {
+      if (records.best[key] !== void 0) records.best[key] = Math.max(0, recordToPositiveInt(records.best[key]) - 1);
     });
     records[flag] = true;
-}
-
-function toPositiveInt(value) {
+  }
+  function recordToPositiveInt(value) {
     let num = Math.floor(Number(value) || 0);
     return num > 0 ? num : 0;
-}
-
-/** @returns {{damage:number,dps:number,seconds:number}|null} Recent measurement, or null for older/invalid records. */
-function normalizeEchoMeasurement(raw) {
+  }
+  function recordNormalizeEchoMeasurement(raw) {
     if (!raw || !Number.isFinite(raw.damage) || raw.damage < 0 || !Number.isFinite(raw.seconds) || raw.seconds <= 0 || raw.seconds > 30) return null;
     const damage = Math.floor(raw.damage);
     const dps = damage / raw.seconds;
     return Number.isFinite(dps) ? { damage, seconds: raw.seconds, dps } : null;
-}
-
-function ensureRecordsState(state) {
-    let g = state || (typeof game !== 'undefined' ? game : null);
-    if (!g) return createDefaultRecordsState(Date.now());
-    let now = Date.now();
-    if (!g.records || typeof g.records !== 'object') g.records = createDefaultRecordsState(now);
+  }
+  function recordEnsureRecordsState(env, state) {
+    let g = state;
+    if (!g) return recordCreateDefaultRecordsState(env, env.deps.clockNow());
+    let now = env.deps.clockNow();
+    if (!g.records || typeof g.records !== "object") g.records = recordCreateDefaultRecordsState(env, now);
     let r = g.records;
-    r.version = RECORDS_VERSION;
-    r.startedAt = toPositiveInt(r.startedAt) || now;
-    r.loops = Array.isArray(r.loops) ? r.loops.filter(row => row && typeof row === 'object') : [];
-    r.actBest = (r.actBest && typeof r.actBest === 'object') ? r.actBest : {};
-    r.best = (r.best && typeof r.best === 'object') ? r.best : {};
-    // 잔잔한 사건을 겪은 횟수(recordIncident): 매 틱 부르므로 모양만 지킨다. 값은 셀 때와 읽을 때(getRecordsView) 0 이상의 정수로 읽는다.
-    r.incidents = keepIncidentCounts(r.incidents);
-    keepClearedBests(r);
-    r.echo = (r.echo && typeof r.echo === 'object') ? r.echo : { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 };
+    r.version = env.RECORDS_VERSION;
+    r.startedAt = recordToPositiveInt(r.startedAt) || now;
+    recordRestoreCollections(env, r);
+    recordRestoreEcho(r);
+    recordRestoreCurrentLoop(r, g, now);
+    return r;
+  }
+  function recordRestoreCollections(env, r) {
+    r.loops = Array.isArray(r.loops) ? r.loops.filter((row) => row && typeof row === "object") : [];
+    r.actBest = r.actBest && typeof r.actBest === "object" ? r.actBest : {};
+    r.best = r.best && typeof r.best === "object" ? r.best : {};
+    r.incidents = recordKeepIncidentCounts(r.incidents);
+    recordKeepClearedBests(env, r);
+  }
+  function recordRestoreEcho(r) {
+    r.echo = r.echo && typeof r.echo === "object" ? r.echo : { bestDps: 0, bestDamage: 0, runs: 0, lastAt: 0 };
     r.echo.bestDps = Math.max(0, Number(r.echo.bestDps) || 0);
     r.echo.bestDamage = Math.max(0, Number(r.echo.bestDamage) || 0);
-    r.echo.runs = toPositiveInt(r.echo.runs);
-    r.echo.lastAt = toPositiveInt(r.echo.lastAt);
-    r.echo.last = normalizeEchoMeasurement(r.echo.last);
-    r.echo.previous = normalizeEchoMeasurement(r.echo.previous);
-    if (r.currentLoop && typeof r.currentLoop === 'object') {
-        r.currentLoop.startedAt = toPositiveInt(r.currentLoop.startedAt) || now;
-        r.currentLoop.actClears = (r.currentLoop.actClears && typeof r.currentLoop.actClears === 'object')
-            ? r.currentLoop.actClears : {};
-        r.currentLoop.activeMs = Math.max(0, Math.floor(Number(r.currentLoop.activeMs) || 0));
-        // 기준점은 여기서 되돌리지 않는다. ensureRecordsState는 매 틱 호출되므로 되돌리면
-        // 델타가 항상 0이 된다. 불러온 직후의 큰 간격은 RECORDS_ACTIVE_TICK_MAX_MS 상한이
-        // 걸러 주므로 값만 정규화한다.
-        r.currentLoop.lastTickAt = toPositiveInt(r.currentLoop.lastTickAt);
+    r.echo.runs = recordToPositiveInt(r.echo.runs);
+    r.echo.lastAt = recordToPositiveInt(r.echo.lastAt);
+    r.echo.last = recordNormalizeEchoMeasurement(r.echo.last);
+    r.echo.previous = recordNormalizeEchoMeasurement(r.echo.previous);
+  }
+  function recordRestoreCurrentLoop(r, g, now) {
+    if (r.currentLoop && typeof r.currentLoop === "object") {
+      r.currentLoop.startedAt = recordToPositiveInt(r.currentLoop.startedAt) || now;
+      r.currentLoop.actClears = r.currentLoop.actClears && typeof r.currentLoop.actClears === "object" ? r.currentLoop.actClears : {};
+      r.currentLoop.activeMs = Math.max(0, Math.floor(Number(r.currentLoop.activeMs) || 0));
+      r.currentLoop.lastTickAt = recordToPositiveInt(r.currentLoop.lastTickAt);
     } else {
-        // 진행 중인 루프 기록이 없으면 지금부터 센다(기존 세이브의 첫 진입 경로).
-        r.currentLoop = { loop: Math.max(1, Math.floor((g.season || 1))), startedAt: now, activeMs: 0, lastTickAt: now, actClears: {} };
+      r.currentLoop = { loop: Math.max(1, Math.floor(g.season || 1)), startedAt: now, activeMs: 0, lastTickAt: now, actClears: {} };
     }
-    return r;
-}
-
-// ── 최고 기록 적립 ──────────────────────────────────────────────────
-// The chaos depth starts at 20, so 20 is no progress (floor records keep the floor cleared: 0 is none).
-// Filter a copy so reading a legacy record never rewrites the save.
-function getAchievedRecordBests(best) {
+  }
+  function recordGetAchievedRecordBests(best) {
     const baselines = { abyssDepth: 20 };
-    return Object.fromEntries(Object.entries(best).filter(([key, value]) => toPositiveInt(value) > (baselines[key] || 0)));
-}
-
-// 루프 정산이 초기화하는 값(군락지 파도 등)이 있으므로, 현재값을 주기적으로 훑어
-// 역대 최고를 단조 증가로 남긴다. 값을 읽기만 하고 원본은 건드리지 않는다.
-function getRecordBestSources(g) {
-    let chaosRealm = (g.chaosRealm && typeof g.chaosRealm === 'object') ? g.chaosRealm : {};
-    let underworld = (g.underworldProgress && typeof g.underworldProgress === 'object') ? g.underworldProgress : {};
-    let ocean = (g.ocean && typeof g.ocean === 'object') ? g.ocean : {};
-    let colony = (g.colony && typeof g.colony === 'object') ? g.colony : {};
-    return getAchievedRecordBests({
-        actZone: toPositiveInt(g.maxZoneId),
-        level: toPositiveInt(g.level),
-        loop: Math.max(1, Math.floor(g.season || 1)),
-        abyssDepth: toPositiveInt(g.abyssEndlessDepth),
-        // 층 콘텐츠는 다음에 열린 층을 들고 있어(돌파 층 + 1) 하나 뺀다.
-        labyrinthFloor: Math.max(0, toPositiveInt(g.labyrinthUnlockedMaxFloor || g.labyrinthFloor) - 1),
-        chaosRealmFloor: Math.max(0, toPositiveInt(chaosRealm.highestFloor) - 1),
-        skyFloor: getClearedSkyTowerFloor(g),
-        underworldFloor: Math.max(0, toPositiveInt(underworld.highestFloor) - 1),
-        oceanBoundary: Math.max(toPositiveInt(ocean.depthM), toPositiveInt(ocean.checkpointM)),
-        // 군락지는 들어선 웨이브를 들고 있어(깬 웨이브 + 1) 하나 뺀다.
-        colonyWave: Math.max(0, Math.max(toPositiveInt(colony.highestWave), toPositiveInt(colony.wave)) - 1)
+    return Object.fromEntries(Object.entries(best).filter(([key, value]) => recordToPositiveInt(value) > (baselines[key] || 0)));
+  }
+  function recordGetRecordBestSources(env, g) {
+    let chaosRealm = g.chaosRealm && typeof g.chaosRealm === "object" ? g.chaosRealm : {};
+    let underworld = g.underworldProgress && typeof g.underworldProgress === "object" ? g.underworldProgress : {};
+    let ocean = g.ocean && typeof g.ocean === "object" ? g.ocean : {};
+    return recordGetAchievedRecordBests({
+      actZone: recordToPositiveInt(g.maxZoneId),
+      level: recordToPositiveInt(g.level),
+      loop: Math.max(1, Math.floor(g.season || 1)),
+      abyssDepth: recordToPositiveInt(g.abyssEndlessDepth),
+      // 층 콘텐츠는 다음에 열린 층을 들고 있어(돌파 층 + 1) 하나 뺀다.
+      labyrinthFloor: Math.max(0, recordToPositiveInt(g.labyrinthUnlockedMaxFloor || g.labyrinthFloor) - 1),
+      chaosRealmFloor: Math.max(0, recordToPositiveInt(chaosRealm.highestFloor) - 1),
+      skyFloor: env.deps.getClearedSkyTowerFloor(g),
+      underworldFloor: Math.max(0, recordToPositiveInt(underworld.highestFloor) - 1),
+      oceanBoundary: Math.max(recordToPositiveInt(ocean.depthM), recordToPositiveInt(ocean.checkpointM)),
+      // 군락지는 들어선 웨이브를 들고 있어(깬 웨이브 + 1) 하나 뺀다.
+      colonyWave: recordCompletedColonyWave(g)
     });
-}
-
-// 실제 경과(벽시계)와 활동 시간을 나눠 센다.
-//
-// 방치형은 자리를 비운 동안 게임이 그만큼 진행되지 않는다. 복귀 정산은 실제 경과의 일부(효율 30~75%)만,
-// 그것도 한도(3~24시간)까지만 시뮬레이션한다(js/away-settlement-ui.js calculateBackgroundProgressMs, data/offline-progress.js).
-// 그래서 벽시계로 잰 "루프 소요 시간"은 사실상 "얼마나 자리를 안 비웠나"를 재게 되어
-// 루프끼리 비교하는 의미가 사라진다. 틱이 실제로 돈 시간만 따로 적립해 비교에 쓴다.
-// 전투 시계가 있는 저장은 실제로 실행한 틱 시간만 적립한다.
-function tickRecordActiveTime(records, now = Date.now()) {
+  }
+  function recordCompletedColonyWave(g) {
+    const colony = g.colony && typeof g.colony === "object" ? g.colony : {};
+    return Math.max(0, Math.max(recordToPositiveInt(colony.highestWave), recordToPositiveInt(colony.wave)) - 1);
+  }
+  function recordTickRecordActiveTime(env, records, now = env.deps.clockNow()) {
     let last = Math.floor(Number(records.currentLoop.lastTickAt) || 0) || now;
     let delta = now - last;
-    if (delta > 0 && delta <= RECORDS_ACTIVE_TICK_MAX_MS) {
-        records.currentLoop.activeMs = Math.max(0, Math.floor(records.currentLoop.activeMs || 0)) + delta;
+    if (delta > 0 && delta <= env.RECORDS_ACTIVE_TICK_MAX_MS) {
+      records.currentLoop.activeMs = Math.max(0, Math.floor(records.currentLoop.activeMs || 0)) + delta;
     }
     records.currentLoop.lastTickAt = now;
-}
-
-// 매 틱 호출된다. 최댓값 비교와 시간 적립만 하므로 비용은 무시할 수 있다.
-function trackRecordBests(state) {
-    let g = state || (typeof game !== 'undefined' ? game : null);
+  }
+  function recordTrackRecordBests(env, state) {
+    let g = state;
     if (!g) return null;
-    let r = ensureRecordsState(g);
-    tickRecordActiveTime(r, g.combatTimeMs || Date.now());
-    let sources = getRecordBestSources(g);
-    Object.keys(sources).forEach(key => {
-        let next = sources[key];
-        if (next > toPositiveInt(r.best[key])) r.best[key] = next;
+    let r = recordEnsureRecordsState(env, g);
+    recordTickRecordActiveTime(env, r, g.combatTimeMs || env.deps.clockNow());
+    let sources = recordGetRecordBestSources(env, g);
+    Object.keys(sources).forEach((key) => {
+      let next = sources[key];
+      if (next > recordToPositiveInt(r.best[key])) r.best[key] = next;
     });
     return r.best;
-}
-
-// ── 액트 돌파 시간 ──────────────────────────────────────────────────
-// 이번 루프의 "활동 시간" 기준으로 남긴다. 벽시계로 재면 자리를 비운 시간이 그대로
-// 섞여 루프끼리 비교가 무의미해진다.
-function recordActClear(zoneId, state) {
-    let g = state || (typeof game !== 'undefined' ? game : null);
+  }
+  function recordRecordActClear(env, zoneId, state) {
+    let g = state;
     if (!g) return;
     let id = Math.floor(Number(zoneId));
     if (!Number.isFinite(id) || id < 0) return;
-    let r = ensureRecordsState(g);
-    if (r.currentLoop.actClears[id] !== undefined) return; // 루프당 첫 돌파만 남긴다.
+    let r = recordEnsureRecordsState(env, g);
+    if (r.currentLoop.actClears[id] !== void 0) return;
     let elapsed = Math.max(0, Math.floor(r.currentLoop.activeMs || 0));
     r.currentLoop.actClears[id] = elapsed;
-    let best = toPositiveInt(r.actBest[id]);
+    let best = recordToPositiveInt(r.actBest[id]);
     if (!best || elapsed < best) r.actBest[id] = elapsed;
-}
-
-// ── 나무꾼의 잔상 ───────────────────────────────────────────────────
-// 잔상은 이미 자체 최고 DPS를 들고 있지만 그건 현재 판 상태다. 전적에는 시도 횟수와
-// 마지막 측정 시각까지 남겨, 빌드를 바꿔가며 잰 흐름을 볼 수 있게 한다.
-function recordWoodsmanEchoRun(totalDamage, dps, state, seconds = 30) {
-    let g = state || (typeof game !== 'undefined' ? game : null);
+  }
+  function recordRecordWoodsmanEchoRun(env, totalDamage, dps, state, seconds = 30) {
+    let g = state;
     if (!g) return;
-    let r = ensureRecordsState(g);
+    let r = recordEnsureRecordsState(env, g);
     r.echo.previous = r.echo.last;
-    r.echo.last = normalizeEchoMeasurement({ damage: totalDamage, seconds });
-    r.echo.runs = toPositiveInt(r.echo.runs) + 1;
-    r.echo.lastAt = Date.now();
+    r.echo.last = recordNormalizeEchoMeasurement({ damage: totalDamage, seconds });
+    r.echo.runs = recordToPositiveInt(r.echo.runs) + 1;
+    r.echo.lastAt = env.deps.clockNow();
     r.echo.bestDps = Math.max(r.echo.bestDps, Math.max(0, Number(dps) || 0));
     r.echo.bestDamage = Math.max(r.echo.bestDamage, Math.max(0, Number(totalDamage) || 0));
-}
-
-// ── 잔잔한 사건 ─────────────────────────────────────────────────────
-// 금빛 수액 슬라임을 잡았다, 별똥별이 떨어졌다 같은 사건마다 한 번. 루프를 넘겨도 남는다.
-function recordIncident(kind, state) {
-    let g = state || (typeof game !== 'undefined' ? game : null);
-    if (!g || !ACT_EXPLORATION_INCIDENTS.records.some(([key]) => key === kind)) return;
-    let r = ensureRecordsState(g);
-    r.incidents[kind] = toPositiveInt(r.incidents[kind]) + 1;
-}
-
-// ── 루프 경계 ───────────────────────────────────────────────────────
-// 루프 정산이 상태를 초기화하기 "전에" 호출해야 한다. 그래야 이번 루프의 도달
-// 기록(액트·혼돈 깊이)을 그대로 남길 수 있다.
-function closeLoopRecord(path, state) {
-    let g = state || (typeof game !== 'undefined' ? game : null);
+  }
+  function recordRecordIncident(env, kind, state) {
+    let g = state;
+    if (!g || !env.deps.ACT_EXPLORATION_INCIDENTS.records.some(([key]) => key === kind)) return;
+    let r = recordEnsureRecordsState(env, g);
+    r.incidents[kind] = recordToPositiveInt(r.incidents[kind]) + 1;
+  }
+  function recordCloseLoopRecord(env, path, state) {
+    let g = state;
     if (!g) return null;
-    let r = ensureRecordsState(g);
-    trackRecordBests(g);
-    let now = Date.now();
-    let progress = (g.loopProgressCurrent && typeof g.loopProgressCurrent === 'object') ? g.loopProgressCurrent : {};
-    tickRecordActiveTime(r);
+    let r = recordEnsureRecordsState(env, g);
+    recordTrackRecordBests(env, g);
+    let now = env.deps.clockNow();
+    let progress = g.loopProgressCurrent && typeof g.loopProgressCurrent === "object" ? g.loopProgressCurrent : {};
+    recordTickRecordActiveTime(env, r);
     let row = {
-        loop: Math.max(1, Math.floor(r.currentLoop.loop || g.season || 1)),
-        // activeMs = 게임이 실제로 굴러간 시간(루프 비교용), durationMs = 벽시계 경과.
-        activeMs: Math.max(0, Math.floor(r.currentLoop.activeMs || 0)),
-        durationMs: Math.max(0, now - r.currentLoop.startedAt),
-        endedAt: now,
-        maxZoneId: toPositiveInt(g.maxZoneId),
-        level: toPositiveInt(g.level),
-        bestAbyssDepth: toPositiveInt(progress.bestAbyssDepth),
-        deaths: toPositiveInt(g.loopDeaths),
-        kills: toPositiveInt(g.loopKills),
-        path: String(path || 'chaos'),
-        actClears: { ...r.currentLoop.actClears }
+      loop: Math.max(1, Math.floor(r.currentLoop.loop || g.season || 1)),
+      // activeMs = 게임이 실제로 굴러간 시간(루프 비교용), durationMs = 벽시계 경과.
+      activeMs: Math.max(0, Math.floor(r.currentLoop.activeMs || 0)),
+      durationMs: Math.max(0, now - r.currentLoop.startedAt),
+      endedAt: now,
+      maxZoneId: recordToPositiveInt(g.maxZoneId),
+      level: recordToPositiveInt(g.level),
+      bestAbyssDepth: recordToPositiveInt(progress.bestAbyssDepth),
+      deaths: recordToPositiveInt(g.loopDeaths),
+      kills: recordToPositiveInt(g.loopKills),
+      path: String(path || "chaos"),
+      actClears: { ...r.currentLoop.actClears }
     };
     r.loops.unshift(row);
-    if (r.loops.length > RECORDS_LOOP_HISTORY_LIMIT) r.loops.length = RECORDS_LOOP_HISTORY_LIMIT;
+    if (r.loops.length > env.RECORDS_LOOP_HISTORY_LIMIT) r.loops.length = env.RECORDS_LOOP_HISTORY_LIMIT;
     r.currentLoop = { loop: row.loop + 1, startedAt: now, activeMs: 0, lastTickAt: now, actClears: {} };
     return row;
-}
-
-// ── 화면이 쓰는 읽기 모델 ───────────────────────────────────────────
-// UI는 이 결과만 읽는다. 화면이 게임 상태를 직접 훑지 않게 해서, 표시 형식이 바뀌어도
-// 기록 규칙은 그대로 두고, 기록 규칙이 바뀌어도 화면은 한 곳만 고치면 되게 한다.
-/** Compare two full 30-second measurements only; an early target defeat has a different time window. */
-function echoMeasurementChange(echo) {
+  }
+  function recordEchoMeasurementChange(echo) {
     const { last, previous } = echo;
     if (!last || !previous || last.seconds !== 30 || previous.seconds !== 30 || previous.dps <= 0) return null;
     const change = (last.dps / previous.dps - 1) * 100;
     return Number.isFinite(change) ? change : null;
-}
-
-function echoRecordsView(echo) {
-    return { ...echo, last: echo.last && { ...echo.last }, previous: echo.previous && { ...echo.previous }, changePct: echoMeasurementChange(echo) };
-}
-
-function getRecordsView(state) {
-    let g = state || (typeof game !== 'undefined' ? game : null);
+  }
+  function recordEchoRecordsView(echo) {
+    return { ...echo, last: echo.last && { ...echo.last }, previous: echo.previous && { ...echo.previous }, changePct: recordEchoMeasurementChange(echo) };
+  }
+  function recordGetRecordsView(env, state) {
+    let g = state;
     if (!g) return null;
-    let r = ensureRecordsState(g);
-    let now = Date.now();
+    let r = recordEnsureRecordsState(env, g);
+    let now = env.deps.clockNow();
     let loops = r.loops.slice();
-    // 최단·평균은 활동 시간으로 낸다. 벽시계로 내면 "자리를 덜 비운 루프"가 1등이 된다.
-    let finished = loops.filter(row => row && Math.floor(row.activeMs || 0) > 0);
-    let fastest = finished.length ? finished.reduce((a, b) => (a.activeMs <= b.activeMs ? a : b)) : null;
-    let averageMs = finished.length
-        ? Math.round(finished.reduce((sum, row) => sum + Math.floor(row.activeMs || 0), 0) / finished.length)
-        : 0;
+    let finished = loops.filter((row) => row && Math.floor(row.activeMs || 0) > 0);
+    let fastest = finished.length ? finished.reduce((a, b) => a.activeMs <= b.activeMs ? a : b) : null;
+    let averageMs = finished.length ? Math.round(finished.reduce((sum, row) => sum + Math.floor(row.activeMs || 0), 0) / finished.length) : 0;
     return {
-        startedAt: r.startedAt,
-        trackedForMs: Math.max(0, now - r.startedAt),
-        currentLoop: {
-            loop: r.currentLoop.loop,
-            activeMs: Math.max(0, Math.floor(r.currentLoop.activeMs || 0)),
-            elapsedMs: Math.max(0, now - r.currentLoop.startedAt),
-            actClears: { ...r.currentLoop.actClears }
-        },
-        loops,
-        loopSummary: {
-            count: finished.length,
-            fastestMs: fastest ? fastest.activeMs : 0,
-            fastestLoop: fastest ? fastest.loop : 0,
-            averageMs
-        },
-        actBest: { ...r.actBest },
-        echo: echoRecordsView(r.echo),
-        best: getAchievedRecordBests(r.best),
-        incidents: ACT_EXPLORATION_INCIDENTS.records.map(([key, name, hidden]) => ({ key, name, hidden, count: toPositiveInt(r.incidents[key]) }))
+      startedAt: r.startedAt,
+      trackedForMs: Math.max(0, now - r.startedAt),
+      currentLoop: {
+        loop: r.currentLoop.loop,
+        activeMs: Math.max(0, Math.floor(r.currentLoop.activeMs || 0)),
+        elapsedMs: Math.max(0, now - r.currentLoop.startedAt),
+        actClears: { ...r.currentLoop.actClears }
+      },
+      loops,
+      loopSummary: {
+        count: finished.length,
+        fastestMs: fastest ? fastest.activeMs : 0,
+        fastestLoop: fastest ? fastest.loop : 0,
+        averageMs
+      },
+      actBest: { ...r.actBest },
+      echo: recordEchoRecordsView(r.echo),
+      best: recordGetAchievedRecordBests(r.best),
+      incidents: env.deps.ACT_EXPLORATION_INCIDENTS.records.map(([key, name, hidden]) => ({ key, name, hidden, count: recordToPositiveInt(r.incidents[key]) }))
     };
-}
+  }
 
-exposeFileGlobals({ createDefaultRecordsState, ensureRecordsState, tickRecordActiveTime, trackRecordBests, recordActClear, recordWoodsmanEchoRun, recordIncident, closeLoopRecord, getRecordsView });
-})();
+  // modules/domain/records.mjs
+  function createPlayerRecords(deps) {
+    const env = { deps };
+    env.RECORDS_VERSION = 1;
+    env.RECORDS_LOOP_HISTORY_LIMIT = 30;
+    env.RECORDS_ACTIVE_TICK_MAX_MS = 5e3;
+    env.RECORD_CLEARED_FLOOR_KEYS = Object.freeze(["labyrinthFloor", "chaosRealmFloor", "skyFloor", "underworldFloor"]);
+    return Object.freeze({
+      createDefaultRecordsState: (...args) => recordCreateDefaultRecordsState(env, ...args),
+      ensureRecordsState: (...args) => recordEnsureRecordsState(env, ...args),
+      tickRecordActiveTime: (...args) => recordTickRecordActiveTime(env, ...args),
+      trackRecordBests: (...args) => recordTrackRecordBests(env, ...args),
+      recordActClear: (...args) => recordRecordActClear(env, ...args),
+      recordWoodsmanEchoRun: (...args) => recordRecordWoodsmanEchoRun(env, ...args),
+      recordIncident: (...args) => recordRecordIncident(env, ...args),
+      closeLoopRecord: (...args) => recordCloseLoopRecord(env, ...args),
+      getRecordsView: (...args) => recordGetRecordsView(env, ...args),
+      RECORDS_VERSION: env.RECORDS_VERSION,
+      RECORDS_LOOP_HISTORY_LIMIT: env.RECORDS_LOOP_HISTORY_LIMIT,
+      RECORDS_ACTIVE_TICK_MAX_MS: env.RECORDS_ACTIVE_TICK_MAX_MS,
+      RECORD_CLEARED_FLOOR_KEYS: env.RECORD_CLEARED_FLOOR_KEYS,
+      keepIncidentCounts: recordKeepIncidentCounts
+    });
+  }
 
-const RECORDS_VERSION = 1;
-// 최근 루프 목록의 보관 개수. 저장 용량을 위해 상한을 둔다(오래된 것부터 버린다).
-const RECORDS_LOOP_HISTORY_LIMIT = 30;
-// 한 틱에서 이 이상 벌어진 간격은 "게임이 굴러간 시간"이 아니라 자리를 비운 구간으로 본다.
-// 포그라운드 틱은 100ms, 백그라운드 정산도 100ms 스텝으로 시뮬레이션 시계를 밀어 준다.
-const RECORDS_ACTIVE_TICK_MAX_MS = 5000;
-// 층 기록은 돌파한 층을 남긴다(2026-10-19 사용자 결정). 전에는 다음에 열린 층이라 한 층 높았다. 군락지 기록도 깬 웨이브를 남긴다
-// (2026-10-20, 전에는 들어선 웨이브라 하나 높았다).
-const RECORD_CLEARED_FLOOR_KEYS = Object.freeze(['labyrinthFloor', 'chaosRealmFloor', 'skyFloor', 'underworldFloor']);
-
-
-/** 잔잔한 사건을 겪은 횟수의 모양(열쇠마다 수인 객체), 아니면 빈 객체. */
-const keepIncidentCounts = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
-
-
-safeExposeGlobals({
+  // modules/records-classic.mjs
+  var rules = createPlayerRecords({
+    clockNow: () => Date.now(),
+    get getClearedSkyTowerFloor() {
+      return getClearedSkyTowerFloor;
+    },
+    get ACT_EXPLORATION_INCIDENTS() {
+      return ACT_EXPLORATION_INCIDENTS;
+    }
+  });
+  var {
+    createDefaultRecordsState,
+    tickRecordActiveTime,
+    RECORDS_VERSION,
+    RECORDS_LOOP_HISTORY_LIMIT,
+    RECORDS_ACTIVE_TICK_MAX_MS,
+    RECORD_CLEARED_FLOOR_KEYS,
+    keepIncidentCounts
+  } = rules;
+  function resolveRecordOwner(state) {
+    return state || (typeof game !== "undefined" ? game : null);
+  }
+  function ensureRecordsState(state) {
+    return rules.ensureRecordsState(resolveRecordOwner(state));
+  }
+  function trackRecordBests(state) {
+    return rules.trackRecordBests(resolveRecordOwner(state));
+  }
+  function recordActClear(zoneId, state) {
+    return rules.recordActClear(zoneId, resolveRecordOwner(state));
+  }
+  function recordWoodsmanEchoRun(totalDamage, dps, state, seconds = 30) {
+    return rules.recordWoodsmanEchoRun(totalDamage, dps, resolveRecordOwner(state), seconds);
+  }
+  function recordIncident(kind, state) {
+    return rules.recordIncident(kind, resolveRecordOwner(state));
+  }
+  function closeLoopRecord(path, state) {
+    return rules.closeLoopRecord(path, resolveRecordOwner(state));
+  }
+  function getRecordsView(state) {
+    return rules.getRecordsView(resolveRecordOwner(state));
+  }
+  safeExposeGlobals({
+    createDefaultRecordsState,
     ensureRecordsState,
+    tickRecordActiveTime,
     trackRecordBests,
     recordActClear,
     recordWoodsmanEchoRun,
     recordIncident,
     closeLoopRecord,
     getRecordsView,
-    createDefaultRecordsState,
-    tickRecordActiveTime,
+    RECORDS_VERSION,
     RECORDS_LOOP_HISTORY_LIMIT,
-    RECORDS_ACTIVE_TICK_MAX_MS
-});
+    RECORDS_ACTIVE_TICK_MAX_MS,
+    RECORD_CLEARED_FLOOR_KEYS,
+    keepIncidentCounts
+  });
+})();

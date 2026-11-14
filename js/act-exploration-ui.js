@@ -1,406 +1,639 @@
-// Exploration controls render the domain snapshot; destination selection stays in the domain.
-const actExplorationUi=(()=>{
-    let departurePending=false,approvedDeparture=null;
-    let gateHintRun=null;
-    // 약도가 보여 주는 것의 요약(2026-10-13 성능 작업, docs/stage-render-performance-20261013.md). 프레임마다 읽어 앞의 것과 견주고 바뀐
-    // 부분만 다시 그린다. 수와 참조만 담는다: 예전에는 프레임마다 모든 무리의 상태를 문자열로 이어 붙여 견줬다. 저장하지 않는다.
-    //   BASE  지도 바탕이 바뀌는 것: 탐험, 지도, 무리(packDigest), 가 본 방의 수, 발견한 칸의 목록, 진행 상태, 닫힌 관문
-    //   MODES 단추가 바뀌는 것: 탐험 방식과 자동 이동의 단축키
-    //   MARK  표식만 바뀌는 것: 주인공의 칸, 이동 명령의 자리, 큰 지도가 열렸는가
-    const BASE=['run','map','packs','visited','discovered','status','sealed'],MODES=['run','status','mode','hotkey','locked'],MARK=['gx','gy','goalX','goalY','large'];
-    let shown={},baseRev=0;
-    /** 무리마다 살아 있는 수를 한 수로 접는다: 처치, 물건에서 나온 덧무리, 불러온 탐험이 모두 이 수를 바꾼다. */
-    function packDigest(run) {
-        let digest=run.packs.length;
-        for(const pack of run.packs)digest=(Math.imul(digest,31)+pack.aliveIds.length)|0;
-        return digest;
+// GENERATED from modules/act-exploration-ui*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/browser/window-methods.mjs
+  var windowCancelAnimationFrame = (...args) => globalThis.cancelAnimationFrame(...args);
+  var windowClearInterval = (...args) => globalThis.clearInterval(...args);
+  var windowRequestAnimationFrame = (...args) => globalThis.requestAnimationFrame(...args);
+  var windowSetInterval = (...args) => globalThis.setInterval(...args);
+
+  // modules/ui/act-exploration-minimap.mjs
+  function mapView(runtime, canvas, map) {
+    if (canvas.id !== "act-exploration-map") return { x0: 0, y0: 0, cols: map.columns, rows: map.rows, scale: 10, markerScale: 1 };
+    const cols = Math.min(runtime.state.MINI_VIEW, map.columns), rows = Math.min(runtime.state.MINI_VIEW, map.rows);
+    const x0 = Math.max(0, Math.min(map.columns - cols, runtime.deps.game.gridPlayer.gx - Math.floor(cols / 2)));
+    const y0 = Math.max(0, Math.min(map.rows - rows, runtime.deps.game.gridPlayer.gy - Math.floor(rows / 2)));
+    return { x0, y0, cols, rows, scale: 8, markerScale: Math.max(1, Math.max(cols, rows) / runtime.state.MINI_MARKER_BASE) };
+  }
+  function draw(runtime, canvas, run, map) {
+    const view = mapView(runtime, canvas, map), scale = view.scale, ss = 2, width = view.cols * scale * ss, height = view.rows * scale * ss;
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
     }
-    function summaryOf(run,map) {
-        const hero=game.gridPlayer,goal=actExplorationState.markedDestination(run);
-        return {run,map,packs:packDigest(run),visited:run.visitedRooms.length,discovered:run.discovered,status:run.status,sealed:!!run.sealed,
-            mode:run.mode,hotkey:autoKey(),locked:autoLocked(),gx:hero.gx,gy:hero.gy,goalX:goal?goal.gx:-1,goalY:goal?goal.gy:-1,
-            large:document.getElementById('act-exploration-dialog').open};
+    canvas.dataset.view = [view.x0, view.y0, view.cols, view.rows].join(",");
+    const ctx = canvas.getContext("2d"), seen = runtime.deps.actExplorationSight.seenCells(run);
+    ctx.setTransform(ss, 0, 0, ss, -view.x0 * scale * ss, -view.y0 * scale * ss);
+    drawFog(runtime, ctx, map, scale);
+    drawTerrain(runtime, ctx, map, seen, scale);
+    runtime.handlers.drawMarkers(ctx, run, map, seen, view);
+  }
+  function drawFog(runtime, ctx, map, scale) {
+    ctx.fillStyle = runtime.state.MAP_INK.fog;
+    ctx.fillRect(0, 0, map.columns * scale, map.rows * scale);
+    ctx.fillStyle = runtime.state.MAP_INK.grid;
+    for (let gx = 0; gx < map.columns; gx += 4) ctx.fillRect(gx * scale, 0, 0.5, map.rows * scale);
+    for (let gy = 0; gy < map.rows; gy += 4) ctx.fillRect(0, gy * scale, map.columns * scale, 0.5);
+  }
+  function drawTerrain(runtime, ctx, map, seen, scale) {
+    for (const id of seen) {
+      const gx = id % map.columns, gy = Math.floor(id / map.columns);
+      ctx.fillStyle = map.tiles[id] ? runtime.state.MAP_INK.floor : runtime.state.MAP_INK.wall;
+      ctx.fillRect(gx * scale, gy * scale, scale, scale);
     }
-    const summaryDiffers=(fields,now)=>fields.some(field=>now[field]!==shown[field]);
-    function render() {
-        const panel=document.getElementById('act-exploration-panel');if(!panel)return;
-        // toggleAttribute leaves an unchanged flag alone, so per-frame calls do not restyle the page.
-        const run=actExplorationState.current(game);panel.toggleAttribute('hidden',!run);
-        document.getElementById('btn-act-exploration-map').toggleAttribute('hidden',!run);
-        document.getElementById('btn-act-exploration-auto').toggleAttribute('hidden',!run);
-        if(!run){shown={};if(gateHintRun)syncGateHint(null,0);return;}
-        refreshMaps(run,actExplorationMap.forRun(run));
+    ctx.fillStyle = runtime.state.MAP_INK.edge;
+    for (const id of seen) if (map.tiles[id]) runtime.handlers.drawFloorEdges(ctx, map, seen, id, scale);
+  }
+  function createDrawFloorEdges(runtime) {
+    return function drawFloorEdges(ctx, map, seen, id, scale) {
+      const gx = id % map.columns, gy = Math.floor(id / map.columns), w = 0.7;
+      for (const [dx, dy] of runtime.state.EDGE_SIDES) {
+        if (!isSeenWallOrEdge(runtime, map, seen, gx + dx, gy + dy)) continue;
+        const x = gx * scale + (dx > 0 ? scale - w : 0), y = gy * scale + (dy > 0 ? scale - w : 0);
+        ctx.fillRect(x, y, dx ? w : scale, dy ? w : scale);
+      }
+    };
+  }
+  function isSeenWallOrEdge(runtime, map, seen, gx, gy) {
+    if (gx < 0 || gy < 0 || gx >= map.columns || gy >= map.rows) return true;
+    const id = gy * map.columns + gx;
+    return seen.has(id) && !map.tiles[id];
+  }
+  function drawDiamond(runtime, ctx, { x, y, r, fill }) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r, y);
+    ctx.lineTo(x, y + r);
+    ctx.lineTo(x - r, y);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = "#140d08";
+    ctx.stroke();
+  }
+  function packMark(runtime, pack) {
+    if (pack.stage !== null) return "#e78077";
+    if (runtime.state.ENCOUNTER_MARKS[pack.encounter]) return runtime.state.ENCOUNTER_MARKS[pack.encounter];
+    return pack.eliteIds.some((id) => pack.aliveIds.includes(id)) ? "#e1bd62" : "#ae9073";
+  }
+  function createDrawMarkers(runtime) {
+    return function drawMarkers(ctx, run, map, seen, view) {
+      const scale = view.scale, at = (v) => v * scale + scale / 2, r = Math.max(3, scale * 0.8) * view.markerScale;
+      for (const pack of run.packs) {
+        const room = runtime.deps.actExplorationState.packPosition(map, pack);
+        if (!pack.aliveIds.length || !seen.has(runtime.deps.actExplorationMap.index(map, room))) continue;
+        drawDiamond(runtime, ctx, { x: at(room.gx), y: at(room.gy), r, fill: packMark(runtime, pack) });
+      }
+      const command = runtime.deps.actExplorationState.markedDestination(run);
+      if (command) {
+        ctx.beginPath();
+        ctx.arc(at(command.gx), at(command.gy), r + 1, 0, Math.PI * 2);
+        ctx.setLineDash([2, 1.5]);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "#f3e5b4";
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      drawPlayerMarker(runtime, ctx, at(runtime.deps.game.gridPlayer.gx), at(runtime.deps.game.gridPlayer.gy), r);
+    };
+  }
+  function drawPlayerMarker(runtime, ctx, x, y, r) {
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, r * 2.4);
+    glow.addColorStop(0, "rgba(145,236,223,.55)");
+    glow.addColorStop(1, "rgba(145,236,223,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(x - r * 2.4, y - r * 2.4, r * 4.8, r * 4.8);
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.7, 0, Math.PI * 2);
+    ctx.fillStyle = "#91ecdf";
+    ctx.fill();
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = "#0b1a17";
+    ctx.stroke();
+  }
+
+  // modules/browser/battle-canvas-box.mjs
+  function battlefieldClientPoint(canvas, clientX, clientY) {
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) * ((canvas.clientWidth || rect.width) / Math.max(1, rect.width)),
+      y: (clientY - rect.top) * ((canvas.clientHeight || rect.height) / Math.max(1, rect.height))
+    };
+  }
+
+  // modules/ui/act-exploration-actions.mjs
+  function packDigest(runtime, run) {
+    let digest = run.packs.length;
+    for (const pack of run.packs) digest = Math.imul(digest, 31) + pack.aliveIds.length | 0;
+    return digest;
+  }
+  function summaryOf(runtime, run, map) {
+    const hero = runtime.deps.game.gridPlayer, goal = runtime.deps.actExplorationState.markedDestination(run);
+    return {
+      run,
+      map,
+      packs: packDigest(runtime, run),
+      visited: run.visitedRooms.length,
+      discovered: run.discovered,
+      status: run.status,
+      sealed: !!run.sealed,
+      mode: run.mode,
+      hotkey: autoKey(runtime),
+      locked: autoLocked(runtime),
+      gx: hero.gx,
+      gy: hero.gy,
+      goalX: goal ? goal.gx : -1,
+      goalY: goal ? goal.gy : -1,
+      large: runtime.deps.document.getElementById("act-exploration-dialog").open
+    };
+  }
+  function render(runtime) {
+    const panel = runtime.deps.document.getElementById("act-exploration-panel");
+    if (!panel) return;
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    panel.toggleAttribute("hidden", !run);
+    runtime.deps.document.getElementById("btn-act-exploration-map").toggleAttribute("hidden", !run);
+    runtime.deps.document.getElementById("btn-act-exploration-auto").toggleAttribute("hidden", !run);
+    if (!run) {
+      runtime.state.shown = {};
+      if (runtime.state.gateHintRun) syncGateHint(runtime, null, 0);
+      return;
     }
-    /** 요약이 앞의 것과 같으면 아무것도 하지 않는다. 다르면 바뀐 부분(바탕, 단추, 표식)만 다시 그린다. */
-    function refreshMaps(run,map) {
-        const now=summaryOf(run,map),base=summaryDiffers(BASE,now),modes=summaryDiffers(MODES,now);
-        if(!base&&!modes&&!summaryDiffers(MARK,now))return;
-        const wasLarge=shown.large;
-        shown=now;
-        if(base){baseRev++;renderSeal(run);renderProgress(run);}
-        if(modes)renderModes(run);
-        paintMiniMap(document.getElementById('act-exploration-map'),run,map);
-        refreshLargeMap(run,map,wasLarge);
+    refreshMaps(runtime, run, runtime.deps.actExplorationMap.forRun(run));
+  }
+  function refreshMaps(runtime, run, map) {
+    const now = summaryOf(runtime, run, map), base = summaryDiffers(runtime, runtime.state.BASE, now), modes = summaryDiffers(runtime, runtime.state.MODES, now);
+    if (!base && !modes && !summaryDiffers(runtime, runtime.state.MARK, now)) return;
+    const wasLarge = runtime.state.shown.large;
+    runtime.state.shown = now;
+    if (base) {
+      runtime.state.baseRev++;
+      renderSeal(runtime, run);
+      renderProgress(runtime, run);
     }
-    /** 닫혀 있는 큰 지도는 그리지 않는다. 여는 순간(요약의 large가 바뀐다) 그때의 상태로 그리고, 닫으면 캔버스를 놓는다. */
-    function refreshLargeMap(run,map,wasLarge) {
-        if(shown.large)paintMiniMap(document.getElementById('act-exploration-map-large'),run,map);
-        else if(wasLarge)releaseLarge();
+    if (modes) renderModes(runtime, run);
+    paintMiniMap(runtime, runtime.deps.document.getElementById("act-exploration-map"), run, map);
+    refreshLargeMap(runtime, run, map, wasLarge);
+  }
+  function refreshLargeMap(runtime, run, map, wasLarge) {
+    if (runtime.state.shown.large) paintMiniMap(runtime, runtime.deps.document.getElementById("act-exploration-map-large"), run, map);
+    else if (wasLarge) releaseLarge(runtime);
+  }
+  function renderSeal(runtime, run) {
+    const remaining = runtime.deps.actExplorationState.remainingElites(run), seal = runtime.deps.document.getElementById("act-exploration-seal");
+    seal.textContent = remaining ? "정예 " + remaining : (0, runtime.deps._t)("관문 개방");
+    seal.setAttribute("aria-label", sealText(runtime, run, remaining));
+    syncGateHint(runtime, run, remaining);
+  }
+  function syncGateHint(runtime, run, remaining) {
+    if (runtime.state.gateHintRun !== run || !remaining) runtime.state.gateHintRun = null;
+    const pending = !!runtime.state.gateHintRun, dialog = runtime.deps.document.getElementById("act-exploration-dialog");
+    runtime.deps.document.getElementById("btn-act-exploration-map").classList.toggle("tutorial-callout", pending && !dialog.open);
+    runtime.deps.document.getElementById("act-exploration-elite-guide").hidden = !pending;
+  }
+  function guideBlockedGate(runtime, run, cell) {
+    const key = "tutorial_elite_gate";
+    if (runtime.deps.game.isGuideReplay || runtime.deps.game.seenTutorials.includes(key)) return false;
+    const map = runtime.deps.actExplorationMap.forRun(run);
+    const atGate = runtime.deps.actExplorationMap.walkable(map, cell) && !runtime.deps.actExplorationMap.walkable(map, cell, true);
+    if (!atGate && (!map.stage || runtime.deps.actExplorationRooms.roomAt(map, cell)?.role !== "boss")) return false;
+    const remaining = runtime.deps.actExplorationState.remainingElites(run);
+    if (!remaining) return false;
+    runtime.deps.game.seenTutorials.push(key);
+    runtime.state.gateHintRun = run;
+    syncGateHint(runtime, run, remaining);
+    (0, runtime.deps.showGameToast)((0, runtime.deps._t)("보스 관문을 열려면 남은 정예를 처치하세요. 탐험 지도에서 금빛 표식을 찾을 수 있습니다."), { tone: "warning", duration: 6500 });
+    (0, runtime.deps.queueImportantSave)(180);
+    return true;
+  }
+  function paintMiniMap(runtime, canvas, run, map) {
+    if (map.stage) runtime.deps.actExplorationRoomsUi.draw(canvas, run, map, runtime.state.baseRev);
+    else draw(runtime, canvas, run, map);
+  }
+  function releaseLarge(runtime) {
+    const canvas = runtime.deps.document.getElementById("act-exploration-map-large");
+    canvas.width = canvas.height = 1;
+    runtime.deps.actExplorationRoomsUi.forgetMapBase(canvas);
+  }
+  function renderModes(runtime, run) {
+    for (const button of runtime.deps.document.querySelectorAll("[data-exploration-mode]")) {
+      button.setAttribute("aria-pressed", String(button.dataset.explorationMode === run.mode));
+      button.disabled = run.status !== "active";
     }
-    function renderSeal(run) {
-        const remaining=actExplorationState.remainingElites(run),seal=document.getElementById('act-exploration-seal');
-        // '봉인 n'은 무엇을 세는지 보이지 않았다(검토 4차): 남은 정예 수와, 다 잡으면 무엇이 열리는지.
-        seal.textContent=remaining?'정예 '+remaining:_t('관문 개방');
-        // 설명은 hint가 창 안에 띄운다(data-tip은 몸에 붙은 툴팁이라 크게 보기 창 뒤에 깔렸다).
-        seal.setAttribute('aria-label',sealText(run,remaining));
-        syncGateHint(run,remaining);
+    const auto = runtime.deps.document.getElementById("btn-act-exploration-auto"), on = run.mode !== "manual", key = autoKey(runtime), locked = autoLocked(runtime);
+    auto.setAttribute("aria-pressed", String(on));
+    auto.disabled = run.status !== "active";
+    auto.classList.toggle("is-locked", locked);
+    auto.querySelector("b").textContent = locked ? (0, runtime.deps._t)("자동 잠김") : (0, runtime.deps._t)("자동");
+    auto.setAttribute("aria-label", (on ? "자동 이동 켜짐" : "자동 이동 꺼짐(클릭한 곳으로만 이동)") + ", 눌러서 바꾸기" + (key ? " (" + key + ")" : ""));
+    const cap = auto.querySelector(".combat-hud-key");
+    cap.textContent = key;
+    cap.hidden = !key;
+    if (key) auto.setAttribute("aria-keyshortcuts", key);
+    else auto.removeAttribute("aria-keyshortcuts");
+  }
+  function autoKey(runtime) {
+    return runtime.deps.hotkeyBindings.label(runtime.deps.hotkeyBindings.codeFor(runtime.deps.game.settings.hotkeyOverrides, "combat:autoMove"));
+  }
+  function renderProgress(runtime, run) {
+    const panel = runtime.deps.document.getElementById("act-exploration-panel");
+    if (!panel) return;
+    panel.style.setProperty("--explore-pct", Math.round(runtime.deps.actExplorationSight.exploredShare(run) * 100) + "%");
+  }
+  function mode(runtime, value) {
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    if (!run || run.status !== "active") return;
+    if (!["direct", "full", "manual"].includes(value)) throw Error("알 수 없는 탐험 방식");
+    if (value !== "manual" && autoLocked(runtime)) {
+      (0, runtime.deps.showGameToast)((0, runtime.deps._t)("자동 사냥은 첫 무기를 장착하면 열립니다."), { tone: "warning", duration: 2e3 });
+      return;
     }
-    function syncGateHint(run,remaining) {
-        if(gateHintRun!==run || !remaining)gateHintRun=null;
-        const pending=!!gateHintRun, dialog=document.getElementById('act-exploration-dialog');
-        document.getElementById('btn-act-exploration-map').classList.toggle('tutorial-callout',pending&&!dialog.open);
-        document.getElementById('act-exploration-elite-guide').hidden=!pending;
+    run.mode = value;
+    run.destination = null;
+    runtime.deps.game.settings.autoMove = value !== "manual";
+    if (value !== "manual") runtime.deps.actExplorationProgress.holdAutoStart(run);
+    if (value !== "manual") runtime.deps.game.settings.actExplorationMode = value;
+    render(runtime);
+  }
+  function toggleAuto(runtime) {
+    if (autoLocked(runtime)) {
+      (0, runtime.deps.showGameToast)((0, runtime.deps._t)("자동 사냥은 첫 무기를 장착하면 열립니다."), { tone: "warning", duration: 2e3 });
+      return false;
     }
-    function guideBlockedGate(run,cell) {
-        const key='tutorial_elite_gate';
-        if(game.isGuideReplay || game.seenTutorials.includes(key))return false;
-        const map=actExplorationMap.forRun(run);
-        const atGate=actExplorationMap.walkable(map,cell) && !actExplorationMap.walkable(map,cell,true);
-        if(!atGate && (!map.stage || actExplorationRooms.roomAt(map,cell)?.role!=='boss'))return false;
-        const remaining=actExplorationState.remainingElites(run);
-        if(!remaining)return false;
-        game.seenTutorials.push(key);
-        gateHintRun=run;
-        syncGateHint(run,remaining);
-        showGameToast(_t('보스 관문을 열려면 남은 정예를 처치하세요. 탐험 지도에서 금빛 표식을 찾을 수 있습니다.'),{tone:'warning',duration:6500});
-        queueImportantSave(180);
-        return true;
+    const on = runtime.deps.game.settings.autoMove === false, run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    runtime.deps.game.settings.autoMove = on;
+    if (run && run.status === "active") {
+      run.mode = runtime.deps.actExplorationProgress.startMode(runtime.deps.game.settings);
+      if (on) runtime.deps.actExplorationProgress.holdAutoStart(run);
     }
-    /** 약도 한 장: 방 단위 무대는 방과 길의 약도(바탕과 표식을 따로 그린다), 이어진 지도는 주인공 둘레의 지형. */
-    function paintMiniMap(canvas,run,map) {
-        if(map.stage)actExplorationRoomsUi.draw(canvas,run,map,baseRev);
-        else draw(canvas,run,map);
+    (0, runtime.deps.showGameToast)(on ? "자동 이동을 켰습니다" : "자동 이동을 껐습니다. 클릭한 곳으로만 움직입니다", { duration: 1800 });
+    render(runtime);
+    return on;
+  }
+  function lockOnAt(runtime, point) {
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    if (!run || run.status !== "active") return false;
+    const enemy = runtime.deps.battleDrawList.enemyAt(point);
+    if (!enemy) return false;
+    if (!runtime.deps.actExplorationState.lockOn(run, enemy)) (0, runtime.deps.showGameToast)((0, runtime.deps._t)("그곳으로는 갈 수 없습니다"), { tone: "warning", duration: 1400 });
+    else runtime.deps.actExplorationProgress.clearManualSteerHold(run);
+    render(runtime);
+    return true;
+  }
+  function hover(runtime, canvas, event) {
+    if (!runtime.active) return;
+    const queued = runtime.state.hovering;
+    runtime.state.hovering = { canvas, event };
+    if (!queued) runtime.hoverFrameId = (0, runtime.deps.requestAnimationFrame)(runtime.handlers.hoverFrame);
+  }
+  function hoverFrame(runtime) {
+    runtime.hoverFrameId = null;
+    const { canvas, event } = runtime.state.hovering;
+    runtime.state.hovering = null;
+    const point = event ? battlefieldClientPoint(canvas, event.clientX, event.clientY) : null, npc = point ? runtime.deps.actTitleCard.npcAt(point) : null;
+    runtime.deps.actTitleCard.hover(npc);
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game), enemy = point && run && run.status === "active" ? runtime.deps.battleDrawList.enemyAt(point) : null;
+    const cursor = npc || enemy || runtime.deps.stageDoorMarks.targetAt(point) ? "pointer" : "";
+    if (canvas.style.cursor !== cursor) canvas.style.cursor = cursor;
+  }
+  function commandMove(runtime, cell, point) {
+    if (runtime.deps.bossMoves.observer.sceneActive()) return false;
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    if (!runtime.deps.actExplorationProgress.canMove(run) || !cell) return false;
+    const accepted = runtime.deps.actExplorationState.selectDestination(run, cell);
+    if (accepted && point && runtime.deps.bossMoves.observer.playerBoundary(run)) runtime.deps.actExplorationMotion.aimFree(run, point);
+    if (!accepted && !guideBlockedGate(runtime, run, cell)) (0, runtime.deps.showGameToast)((0, runtime.deps._t)("그곳으로는 갈 수 없습니다"), { tone: "warning", duration: 1400 });
+    render(runtime);
+    return accepted;
+  }
+  function choose(runtime, event) {
+    if (event.currentTarget.id === "act-exploration-map" && runtime.deps.window.matchMedia("(max-width: 1080px)").matches) return expand(runtime);
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    if (!runtime.deps.actExplorationProgress.canMove(run)) return;
+    const map = runtime.deps.actExplorationMap.forRun(run), rect = event.currentTarget.getBoundingClientRect();
+    if (map.stage) {
+      commandMove(runtime, runtime.deps.actExplorationRoomsUi.pick(event, run, map));
+      return;
     }
-    /** 닫힌 큰 지도의 캔버스를 줄여 메모리를 돌려준다(1120×800이면 3.4MB, 바탕까지 두 장). 다시 열면 그때 제 크기로 그린다. */
-    function releaseLarge() {
-        const canvas=document.getElementById('act-exploration-map-large');
-        canvas.width=canvas.height=1;
-        actExplorationRoomsUi.forgetMapBase(canvas);
+    const view = mapView(runtime, event.currentTarget, map);
+    const cell = {
+      gx: view.x0 + Math.floor((event.clientX - rect.left) / rect.width * view.cols),
+      gy: view.y0 + Math.floor((event.clientY - rect.top) / rect.height * view.rows)
+    };
+    commandMove(runtime, cell);
+  }
+  function press(runtime, direction, down) {
+    const index = runtime.state.held.indexOf(direction);
+    if (index >= 0) runtime.state.held.splice(index, 1);
+    if (down && runtime.state.STEPS[direction]) runtime.state.held.push(direction);
+    if (!direction) runtime.state.held.length = 0;
+  }
+  function holdMove(runtime, direction, down) {
+    if (!runtime.active) return false;
+    press(runtime, direction, down);
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    if (!runtime.deps.actExplorationProgress.canMove(run)) {
+      runtime.state.held.length = 0;
+      stopWalking(runtime, null);
+      return false;
     }
-    /** 크게 보기 창의 탐험 방식 단추와 미니맵의 자동 이동 단추(같은 상태: 직접 이동 = 자동 이동 꺼짐). */
-    function renderModes(run) {
-        for(const button of document.querySelectorAll('[data-exploration-mode]')) {
-            button.setAttribute('aria-pressed',String(button.dataset.explorationMode===run.mode));
-            button.disabled=run.status!=='active';
-        }
-        const auto=document.getElementById('btn-act-exploration-auto'),on=run.mode!=='manual',key=autoKey(),locked=autoLocked();
-        auto.setAttribute('aria-pressed',String(on));
-        auto.disabled=run.status!=='active';
-        auto.classList.toggle('is-locked',locked);
-        // 켜짐과 꺼짐은 단추 앞의 초록 점이 말한다(css/act-exploration.css, 2026-11-03 사용자: 켬/끔 글자는 빼기). 잠김만 글자로 남긴다.
-        auto.querySelector('b').textContent=locked?_t('자동 잠김'):_t('자동');
-        auto.setAttribute('aria-label',(on?'자동 이동 켜짐':'자동 이동 꺼짐(클릭한 곳으로만 이동)')+', 눌러서 바꾸기'+(key?' ('+key+')':''));
-        const cap=auto.querySelector('.combat-hud-key');
-        cap.textContent=key;cap.hidden=!key;
-        if(key)auto.setAttribute('aria-keyshortcuts',key);else auto.removeAttribute('aria-keyshortcuts');
+    if ((0, runtime.deps.isForegroundGameplayPausedForBackground)()) return nudge(runtime, run, down && direction);
+    if (!runtime.state.held.length) {
+      stopWalking(runtime, run);
+      return true;
     }
-    function autoKey() {return hotkeyBindings.label(hotkeyBindings.codeFor(game.settings.hotkeyOverrides,'combat:autoMove'));}
-    // 미니맵 둘레 고리: 밝혀낸 바닥 비율. 글자 없이 고리로만 보인다(남은 정예 수는 크게 보기 창의 봉인 표시).
-    // 표시 전용이며 탐험 규칙과 무관하다.
-    function renderProgress(run) {
-        const panel=document.getElementById('act-exploration-panel');if(!panel)return;
-        panel.style.setProperty('--explore-pct',Math.round(actExplorationSight.exploredShare(run)*100)+'%');
+    steer(runtime);
+    runtime.state.walkTimer = runtime.state.walkTimer || (0, runtime.deps.setInterval)(runtime.handlers.steer, runtime.state.WALK_TICK_MS);
+    return true;
+  }
+  function nudge(runtime, run, direction) {
+    runtime.state.held.length = 0;
+    runtime.deps.actExplorationMotion.setFreeInput(run, runtime.deps.game.gridPlayer, 0, 0);
+    if (runtime.state.walkTimer) {
+      (0, runtime.deps.clearInterval)(runtime.state.walkTimer);
+      runtime.state.walkTimer = null;
     }
-    // 지도 그리기: 안개 격자 → 밝혀낸 지형(바닥·벽·경계선) → 표식. 표시 전용이며 좌표·선택 규칙은 그대로다.
-    // 캔버스는 2배로 그려 CSS 축소 시 표식 윤곽이 뭉개지지 않게 한다.
-    // 전장 위 미니맵은 플레이어 주변 MINI_VIEW칸만, 크게 보기 창은 지도 전체를 그린다(클릭 좌표는 같은 창(view)으로 환산).
-    // 가시성 정리(2026-10-04 사용자 요청): 바닥은 한 색(체크무늬 없음), 경계선은 확인한 벽과 지도 끝에만, 보이는 범위는 13 → 19칸.
-    // 칸이 작아진 만큼 표식(markerScale)은 키워서 화면에서 예전 크기를 유지한다.
-    const MAP_INK={fog:'#050807',grid:'rgba(201,164,92,.06)',floor:'#7d7152',wall:'#26342c',edge:'rgba(240,214,150,.85)'};
-    const MINI_VIEW=19,MINI_MARKER_BASE=13;
-    function mapView(canvas,map) {
-        if(canvas.id!=='act-exploration-map')return {x0:0,y0:0,cols:map.columns,rows:map.rows,scale:10,markerScale:1};
-        const cols=Math.min(MINI_VIEW,map.columns),rows=Math.min(MINI_VIEW,map.rows);
-        const x0=Math.max(0,Math.min(map.columns-cols,game.gridPlayer.gx-Math.floor(cols/2)));
-        const y0=Math.max(0,Math.min(map.rows-rows,game.gridPlayer.gy-Math.floor(rows/2)));
-        return {x0,y0,cols,rows,scale:8,markerScale:Math.max(1,Math.max(cols,rows)/MINI_MARKER_BASE)};
+    if (!runtime.state.STEPS[direction]) return true;
+    const [dx, dy] = runtime.state.STEPS[direction], from = run.destination || footing(runtime, run);
+    runtime.deps.actExplorationState.selectDestination(run, { gx: from.gx + dx, gy: from.gy + dy });
+    render(runtime);
+    return true;
+  }
+  function steer(runtime) {
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game), direction = runtime.state.held[runtime.state.held.length - 1];
+    if (!runtime.deps.actExplorationProgress.canMove(run) || !direction) {
+      runtime.state.held.length = 0;
+      return stopWalking(runtime, run);
     }
-    /** 이어진 지도의 약도. 작은 약도는 주인공이 한 칸 걸을 때마다 보이는 창이 통째로 움직이므로 바탕을 따로 두지 않고 다시 그린다.
-     * 캔버스 크기는 달라질 때만 넣는다(넣을 때마다 캔버스가 새로 잡힌다). */
-    function draw(canvas,run,map) {
-        const view=mapView(canvas,map),scale=view.scale,ss=2,width=view.cols*scale*ss,height=view.rows*scale*ss;
-        if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
-        canvas.dataset.view=[view.x0,view.y0,view.cols,view.rows].join(',');
-        const ctx=canvas.getContext('2d'),seen=actExplorationSight.seenCells(run);
-        ctx.setTransform(ss,0,0,ss,-view.x0*scale*ss,-view.y0*scale*ss);
-        drawFog(ctx,map,scale);
-        drawTerrain(ctx,map,seen,scale);
-        drawMarkers(ctx,run,map,seen,view);
+    if (runtime.deps.bossMoves.observer.sceneActive()) return;
+    if (runtime.deps.bossMoves.observer.playerBoundary(run)) {
+      steerFree(runtime, run);
+      return;
     }
-    function drawFog(ctx,map,scale) {
-        ctx.fillStyle=MAP_INK.fog;ctx.fillRect(0,0,map.columns*scale,map.rows*scale);
-        ctx.fillStyle=MAP_INK.grid;
-        for(let gx=0;gx<map.columns;gx+=4)ctx.fillRect(gx*scale,0,.5,map.rows*scale);
-        for(let gy=0;gy<map.rows;gy+=4)ctx.fillRect(0,gy*scale,map.columns*scale,.5);
+    const [dx, dy] = runtime.state.STEPS[direction], from = footing(runtime, run);
+    let reached = 0;
+    while (reached < runtime.state.WALK_REACH && runtime.deps.actExplorationState.selectDestination(run, { gx: from.gx + dx * (reached + 1), gy: from.gy + dy * (reached + 1) }, runtime.state.KEYED)) reached++;
+    if (!reached) runtime.deps.actExplorationState.selectDestination(run, from, runtime.state.KEYED);
+    render(runtime);
+  }
+  function steerFree(runtime, run) {
+    if ((0, runtime.deps.isForegroundGameplayPausedForBackground)()) {
+      runtime.deps.actExplorationMotion.setFreeInput(run, runtime.deps.game.gridPlayer, 0, 0);
+      return;
     }
-    function drawTerrain(ctx,map,seen,scale) {
-        for(const id of seen) {
-            const gx=id%map.columns,gy=Math.floor(id/map.columns);
-            ctx.fillStyle=map.tiles[id]?MAP_INK.floor:MAP_INK.wall;
-            ctx.fillRect(gx*scale,gy*scale,scale,scale);
-        }
-        ctx.fillStyle=MAP_INK.edge;
-        for(const id of seen)if(map.tiles[id])drawFloorEdges(ctx,map,seen,id,scale);
+    const dx = Number(runtime.state.held.includes("right")) - Number(runtime.state.held.includes("left"));
+    const dy = Number(runtime.state.held.includes("down")) - Number(runtime.state.held.includes("up"));
+    run.destination = null;
+    runtime.deps.actExplorationProgress.objects.cancel(run);
+    runtime.deps.actExplorationProgress.holdAutoManual(run);
+    runtime.deps.actExplorationMotion.setFreeInput(run, runtime.deps.game.gridPlayer, dx, dy);
+  }
+  function stopWalking(runtime, run) {
+    if (runtime.state.walkTimer) {
+      (0, runtime.deps.clearInterval)(runtime.state.walkTimer);
+      runtime.state.walkTimer = null;
     }
-    // 바닥 칸의 네 변 중 확인한 벽이나 지도 끝과 맞닿은 쪽에만 얇은 금빛 경계를 긋는다.
-    // 아직 밝히지 않은 칸 쪽은 긋지 않는다(예전에는 탐험 경계마다 선이 생겨 벽처럼 보였다).
-    const EDGE_SIDES=[[0,-1],[1,0],[0,1],[-1,0]];
-    function drawFloorEdges(ctx,map,seen,id,scale) {
-        const gx=id%map.columns,gy=Math.floor(id/map.columns),w=.7;
-        for(const [dx,dy] of EDGE_SIDES) {
-            if(!isSeenWallOrEdge(map,seen,gx+dx,gy+dy))continue;
-            const x=gx*scale+(dx>0?scale-w:0),y=gy*scale+(dy>0?scale-w:0);
-            ctx.fillRect(x,y,dx?w:scale,dy?w:scale);
-        }
+    runtime.deps.actExplorationMotion.setFreeInput(run, runtime.deps.game.gridPlayer, 0, 0);
+    if (runtime.deps.bossMoves.observer.sceneActive()) return;
+    if (runtime.deps.bossMoves.observer.playerBoundary(run)) return;
+    if (runtime.deps.actExplorationProgress.canMove(run) && run.destination) runtime.deps.actExplorationState.selectDestination(run, footing(runtime, run), runtime.state.KEYED);
+  }
+  function expand(runtime) {
+    const dialog = runtime.deps.document.getElementById("act-exploration-dialog");
+    dialog.showModal();
+    if (runtime.state.gateHintRun) {
+      syncGateHint(runtime, runtime.state.gateHintRun, runtime.deps.actExplorationState.remainingElites(runtime.state.gateHintRun));
+      runtime.gateDialog = dialog;
+      dialog.addEventListener("close", runtime.handlers.closeExplorationGateHint, { once: true });
     }
-    function isSeenWallOrEdge(map,seen,gx,gy) {
-        if(gx<0||gy<0||gx>=map.columns||gy>=map.rows)return true;
-        const id=gy*map.columns+gx;
-        return seen.has(id)&&!map.tiles[id];
+    render(runtime);
+  }
+  function sealText(runtime, run, remaining) {
+    if (remaining) return (0, runtime.deps._t)("남은 정예 {remaining}, 모두 처치하면 보스 관문이 열립니다", { remaining });
+    return run.sealed ? (0, runtime.deps._t)("관문이 아직 닫혀 있습니다.") : (0, runtime.deps._t)("보스 관문이 열렸습니다.");
+  }
+  function hint(runtime, event) {
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    if (!run) return;
+    const rect = event.currentTarget.getBoundingClientRect(), count = runtime.deps.actExplorationState.remainingElites(run);
+    hostTooltipIn(runtime, event.currentTarget.closest("dialog"));
+    (0, runtime.deps.showInfoTooltipHtml)(rect.left, rect.bottom, (0, runtime.deps.escapeHTML)(sealText(runtime, run, count)), "#b79c58", "act-gate-" + count + (run.sealed ? "s" : ""));
+  }
+  function hostTooltipIn(runtime, dialog) {
+    const tip = runtime.deps.document.getElementById("info-tooltip");
+    if (!dialog?.open || tip.parentElement === dialog) return;
+    dialog.append(tip);
+    runtime.tooltipDialog = dialog;
+    runtime.tooltip = tip;
+    dialog.addEventListener("close", runtime.handlers.restoreExplorationTooltip, { once: true });
+  }
+  function departureClick(runtime, event) {
+    const button = event.target.closest("[onclick], [data-exploration-departure]");
+    if (!button?.hasAttribute("data-exploration-departure") || button.disabled) return;
+    if (button === runtime.state.approvedDeparture) {
+      runtime.state.approvedDeparture = null;
+      return;
     }
-    function drawDiamond(ctx,{x,y,r,fill}) {
-        ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();
-        ctx.fillStyle=fill;ctx.fill();ctx.lineWidth=.8;ctx.strokeStyle='#140d08';ctx.stroke();
+    const run = runtime.deps.actExplorationState.current(runtime.deps.game);
+    if (!run || run.completionApplied || run.status !== "active") return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!runtime.state.departurePending) confirmDeparture(runtime, button, run);
+  }
+  async function confirmDeparture(runtime, button, run) {
+    runtime.state.departurePending = true;
+    const origin = { state: runtime.deps.game, run, zoneId: runtime.deps.game.currentZoneId, season: runtime.deps.game.season };
+    try {
+      const copy = departureCopy(runtime, button);
+      const accepted = await (0, runtime.deps.requestGameConfirmation)(copy.message, { title: copy.title, tone: "danger", confirmLabel: copy.confirm, cancelLabel: copy.cancel });
+      if (!accepted || !departureStillCurrent(runtime, origin)) return;
+      if (!button.isConnected || button.disabled) {
+        (0, runtime.deps.showGameToast)((0, runtime.deps._t)("이동할 화면이 변경되었습니다. 목적지를 다시 선택하세요."), { tone: "warning" });
+        return;
+      }
+      runtime.state.approvedDeparture = button;
+      button.click();
+    } catch (error) {
+      runtime.deps.console.error("탐험 이동 확인 실패:", error);
+      (0, runtime.deps.showGameToast)((0, runtime.deps._t)("이동 확인에 실패했습니다. 탐험은 유지됩니다."), { tone: "danger" });
+    } finally {
+      runtime.state.approvedDeparture = null;
+      runtime.state.departurePending = false;
     }
-    // Atlas content rooms keep their own colour on the minimap (the rest: boss red, elite gold, pack brown).
-    const ENCOUNTER_MARKS={breach:'#b58ce0',hive:'#79a8e8',treasure:'#8fd08a',meteor:'#f2efe6',redAltar:'#f07a2a',blueAltar:'#3f6dff'};
-    function packMark(pack) {
-        if(pack.stage!==null)return '#e78077';
-        if(ENCOUNTER_MARKS[pack.encounter])return ENCOUNTER_MARKS[pack.encounter];
-        return pack.eliteIds.some(id=>pack.aliveIds.includes(id))?'#e1bd62':'#ae9073';
+  }
+  function departureStillCurrent(runtime, origin) {
+    return runtime.active && runtime.deps.game === origin.state && runtime.deps.game.actExploration === origin.run && runtime.deps.game.currentZoneId === origin.zoneId && runtime.deps.game.season === origin.season;
+  }
+  function departureMessage() {
+    return "탐험 진행이 초기화됩니다. 이미 획득한 아이템과 재화는 유지됩니다.";
+  }
+  function departureCopy(runtime, button) {
+    const own = button.dataset;
+    return { title: own.departureTitle || "탐험을 포기하고 이동할까요?", message: own.departureMessage || departureMessage(), confirm: own.departureConfirm || "포기하고 이동", cancel: own.departureCancel || "계속 탐험" };
+  }
+  function summaryDiffers(runtime, fields, now) {
+    return fields.some((field) => now[field] !== runtime.state.shown[field]);
+  }
+  function autoLocked(runtime) {
+    return typeof runtime.deps.openingJourney === "object" && runtime.deps.openingJourney.autoLocked();
+  }
+  function footing(runtime, run) {
+    return run.motion ? run.motion.to : runtime.deps.game.gridPlayer;
+  }
+  function closeExplorationGateHint(runtime) {
+    runtime.gateDialog = null;
+    runtime.state.gateHintRun = null;
+    syncGateHint(runtime, null, 0);
+  }
+  function restoreExplorationTooltip(runtime) {
+    runtime.tooltipDialog?.removeEventListener("close", runtime.handlers.restoreExplorationTooltip);
+    if (runtime.tooltip) {
+      (0, runtime.deps.hideInfoTooltip)();
+      runtime.deps.document.body.append(runtime.tooltip);
     }
-    function drawMarkers(ctx,run,map,seen,view) {
-        const scale=view.scale,at=v=>v*scale+scale/2,r=Math.max(3,scale*.8)*view.markerScale;
-        for(const pack of run.packs) {
-            const room=actExplorationState.packPosition(map,pack);
-            if(!pack.aliveIds.length||!seen.has(actExplorationMap.index(map,room)))continue;
-            drawDiamond(ctx,{x:at(room.gx),y:at(room.gy),r,fill:packMark(pack)});
-        }
-        const command=actExplorationState.markedDestination(run);
-        if(command) {
-            ctx.beginPath();ctx.arc(at(command.gx),at(command.gy),r+1,0,Math.PI*2);
-            ctx.setLineDash([2,1.5]);ctx.lineWidth=1;ctx.strokeStyle='#f3e5b4';ctx.stroke();ctx.setLineDash([]);
-        }
-        drawPlayerMarker(ctx,at(game.gridPlayer.gx),at(game.gridPlayer.gy),r);
+    runtime.tooltipDialog = runtime.tooltip = null;
+  }
+
+  // modules/ui/act-exploration-view.mjs
+  function createActExplorationView(deps) {
+    const runtime = { deps, state: {}, handlers: {}, api: null, active: true, hoverFrameId: null, gateDialog: null, tooltipDialog: null, tooltip: null };
+    const handlers = { closeExplorationGateHint, restoreExplorationTooltip, hoverFrame, steer, render, mode, toggleAuto, commandMove, lockOnAt, hover, choose, holdMove, expand, hint, departureClick };
+    for (const [name, handler] of Object.entries(handlers)) runtime.handlers[name] = handler.bind(void 0, runtime);
+    initialize(runtime);
+    runtime.handlers.drawFloorEdges = createDrawFloorEdges(runtime);
+    runtime.handlers.drawMarkers = createDrawMarkers(runtime);
+    runtime.api = { render: runtime.handlers.render, mode: runtime.handlers.mode, toggleAuto: runtime.handlers.toggleAuto, commandMove: runtime.handlers.commandMove, lockOnAt: runtime.handlers.lockOnAt, hover: runtime.handlers.hover, choose: runtime.handlers.choose, holdMove: runtime.handlers.holdMove, expand: runtime.handlers.expand, hint: runtime.handlers.hint, departurePending: () => runtime.state.departurePending };
+    runtime.deps.document.addEventListener("click", runtime.handlers.departureClick, true);
+    runtime.api.dispose = () => disposeActExplorationView(runtime);
+    return runtime.api;
+  }
+  function initialize(runtime) {
+    runtime.state.departurePending = false;
+    runtime.state.approvedDeparture = null;
+    runtime.state.gateHintRun = null;
+    runtime.state.BASE = ["run", "map", "packs", "visited", "discovered", "status", "sealed"];
+    runtime.state.MODES = ["run", "status", "mode", "hotkey", "locked"];
+    runtime.state.MARK = ["gx", "gy", "goalX", "goalY", "large"];
+    runtime.state.shown = {};
+    runtime.state.baseRev = 0;
+    runtime.state.MAP_INK = { fog: "#050807", grid: "rgba(201,164,92,.06)", floor: "#7d7152", wall: "#26342c", edge: "rgba(240,214,150,.85)" };
+    runtime.state.MINI_VIEW = 19;
+    runtime.state.MINI_MARKER_BASE = 13;
+    runtime.state.EDGE_SIDES = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+    runtime.state.ENCOUNTER_MARKS = { breach: "#b58ce0", hive: "#79a8e8", treasure: "#8fd08a", meteor: "#f2efe6", redAltar: "#f07a2a", blueAltar: "#3f6dff" };
+    runtime.state.hovering = null;
+    runtime.state.STEPS = Object.freeze({ up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] });
+    runtime.state.WALK_REACH = 4;
+    runtime.state.WALK_TICK_MS = 90;
+    runtime.state.held = [];
+    runtime.state.walkTimer = null;
+    runtime.state.KEYED = Object.freeze({ unmarked: true });
+  }
+  function disposeActExplorationView(runtime) {
+    runtime.active = false;
+    runtime.deps.document.removeEventListener("click", runtime.handlers.departureClick, true);
+    if (runtime.hoverFrameId !== null) runtime.deps.cancelAnimationFrame(runtime.hoverFrameId);
+    runtime.hoverFrameId = null;
+    runtime.state.hovering = null;
+    runtime.state.held.length = 0;
+    stopWalking(runtime, runtime.deps.actExplorationState.current(runtime.deps.game));
+    runtime.gateDialog?.removeEventListener("close", runtime.handlers.closeExplorationGateHint);
+    runtime.gateDialog = null;
+    runtime.state.gateHintRun = null;
+    restoreExplorationTooltip(runtime);
+    runtime.state.shown = {};
+  }
+
+  // modules/act-exploration-ui-classic.mjs
+  var actExplorationUi = createActExplorationView({
+    get game() {
+      return window.GameModules.state.game;
+    },
+    get actExplorationState() {
+      return actExplorationState;
+    },
+    get document() {
+      return document;
+    },
+    get actExplorationMap() {
+      return actExplorationMap;
+    },
+    get _t() {
+      return _t;
+    },
+    get actExplorationRooms() {
+      return actExplorationRooms;
+    },
+    get showGameToast() {
+      return showGameToast;
+    },
+    get queueImportantSave() {
+      return queueImportantSave;
+    },
+    get actExplorationRoomsUi() {
+      return actExplorationRoomsUi;
+    },
+    get hotkeyBindings() {
+      return hotkeyBindings;
+    },
+    get actExplorationSight() {
+      return actExplorationSight;
+    },
+    get actExplorationProgress() {
+      return actExplorationProgress;
+    },
+    get battleDrawList() {
+      return battleDrawList;
+    },
+    get cancelAnimationFrame() {
+      return windowCancelAnimationFrame;
+    },
+    get requestAnimationFrame() {
+      return windowRequestAnimationFrame;
+    },
+    get actTitleCard() {
+      return actTitleCard;
+    },
+    get stageDoorMarks() {
+      return stageDoorMarks;
+    },
+    get bossMoves() {
+      return bossMoves;
+    },
+    get actExplorationMotion() {
+      return actExplorationMotion;
+    },
+    get window() {
+      return window;
+    },
+    get isForegroundGameplayPausedForBackground() {
+      return isForegroundGameplayPausedForBackground;
+    },
+    get setInterval() {
+      return windowSetInterval;
+    },
+    get clearInterval() {
+      return windowClearInterval;
+    },
+    get showInfoTooltipHtml() {
+      return showInfoTooltipHtml;
+    },
+    get escapeHTML() {
+      return escapeHTML;
+    },
+    get hideInfoTooltip() {
+      return hideInfoTooltip;
+    },
+    get requestGameConfirmation() {
+      return requestGameConfirmation;
+    },
+    get console() {
+      return console;
+    },
+    get openingJourney() {
+      return typeof openingJourney === "undefined" ? void 0 : openingJourney;
     }
-    function drawPlayerMarker(ctx,x,y,r) {
-        const glow=ctx.createRadialGradient(x,y,0,x,y,r*2.4);
-        glow.addColorStop(0,'rgba(145,236,223,.55)');glow.addColorStop(1,'rgba(145,236,223,0)');
-        ctx.fillStyle=glow;ctx.fillRect(x-r*2.4,y-r*2.4,r*4.8,r*4.8);
-        ctx.beginPath();ctx.arc(x,y,r*.7,0,Math.PI*2);
-        ctx.fillStyle='#91ecdf';ctx.fill();ctx.lineWidth=.8;ctx.strokeStyle='#0b1a17';ctx.stroke();
-    }
-    function mode(value) {
-        const run=actExplorationState.current(game);if(!run||run.status!=='active')return;
-        if(!['direct','full','manual'].includes(value))throw Error('알 수 없는 탐험 방식');
-        if(value!=='manual' && autoLocked()){showGameToast(_t('자동 사냥은 첫 무기를 장착하면 열립니다.'),{tone:'warning',duration:2000});return;}
-        run.mode=value;run.destination=null;
-        game.settings.autoMove=value!=='manual';
-        if(value!=='manual')actExplorationProgress.holdAutoStart(run);
-        if(value!=='manual')game.settings.actExplorationMode=value;
-        render();
-    }
-    /** 처음 시작하는 플레이어의 첫 장면 동안(js/opening-journey-ui.js) 자동 사냥은 꺼진 채 잠긴다: 시작 룬 안내까지 마치면 열린다. */
-    const autoLocked=()=>typeof openingJourney==='object' && openingJourney.autoLocked();
-    /** 미니맵의 자동 이동 단추·단축키: 켜면 고른 탐험 방식(보스 직행 · 전체 탐색), 끄면 직접 이동. 걷던 이동 명령은 그대로 간다. */
-    function toggleAuto() {
-        if(autoLocked()){showGameToast(_t('자동 사냥은 첫 무기를 장착하면 열립니다.'),{tone:'warning',duration:2000});return false;}
-        const on=game.settings.autoMove===false,run=actExplorationState.current(game);
-        game.settings.autoMove=on;
-        if(run&&run.status==='active'){run.mode=actExplorationProgress.startMode(game.settings);if(on)actExplorationProgress.holdAutoStart(run);}
-        showGameToast(on?'자동 이동을 켰습니다':'자동 이동을 껐습니다. 클릭한 곳으로만 움직입니다',{duration:1800});
-        render();
-        return on;
-    }
-    /** 전장을 누른 자리에 그려진 몬스터가 있으면 그 몬스터를 락온한다(js/act-exploration-state.js lockOn, 2026-10-17 사용자 "몬스터(락온기능)").
-     * @param {?{x:number,y:number}} point 전장의 CSS px @returns {boolean} 몬스터를 눌렀는지(눌렀으면 바닥 이동 명령은 없다) */
-    function lockOnAt(point) {
-        const run=actExplorationState.current(game);if(!run||run.status!=='active')return false;
-        const enemy=battleDrawList.enemyAt(point);if(!enemy)return false;
-        if(!actExplorationState.lockOn(run,enemy))showGameToast(_t('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
-        else actExplorationProgress.clearManualSteerHold(run);
-        render();
-        return true;
-    }
-    // 전장 위의 마우스(2026-10-17 사용자 "NPC위에 마우스올리면 테두리강조"): 말을 걸 수 있는 NPC 위면 그 NPC에 밝은 테를 두르고
-    // (js/canvas-act-title-card.js hover), NPC나 락온할 몬스터 위면 손가락 커서. 마우스가 움직이는 동안 프레임마다 한 번만 잰다.
-    let hovering=null;
-    /** @param {HTMLCanvasElement} canvas 전장 @param {?PointerEvent} event null이면 마우스가 전장을 떠났다 */
-    function hover(canvas,event) {
-        const queued=hovering;hovering={canvas,event};
-        if(!queued)requestAnimationFrame(hoverFrame);
-    }
-    function hoverFrame() {
-        const {canvas,event}=hovering;hovering=null;
-        const point=event?getBattlefieldClientPoint(canvas,event.clientX,event.clientY):null,npc=point?actTitleCard.npcAt(point):null;
-        actTitleCard.hover(npc);
-        const run=actExplorationState.current(game),enemy=point&&run&&run.status==='active'?battleDrawList.enemyAt(point):null;
-        const cursor=npc||enemy||stageDoorMarks.targetAt(point)?'pointer':'';
-        if(canvas.style.cursor!==cursor)canvas.style.cursor=cursor;
-    }
-    /** An explicit move order (minimap, large map, battlefield click): walk there; auto-move stays as it was. */
-    function commandMove(cell,point) {
-        if(bossMoves.observer.sceneActive())return false;
-        const run=actExplorationState.current(game);if(!actExplorationProgress.canMove(run)||!cell)return false;
-        const accepted=actExplorationState.selectDestination(run,cell);
-        if(accepted && point && bossMoves.observer.playerBoundary(run))actExplorationMotion.aimFree(run,point);
-        if(!accepted && !guideBlockedGate(run,cell))showGameToast(_t('그곳으로는 갈 수 없습니다'),{tone:'warning',duration:1400});
-        render();
-        return accepted;
-    }
-    // 모바일의 작은 미니맵은 손가락으로 칸을 고르기 어려워, 누르면 크게 보기 창을 연다(칸 선택은 큰 지도에서).
-    function choose(event) {
-        if(event.currentTarget.id==='act-exploration-map'&&window.matchMedia('(max-width: 1080px)').matches)return expand();
-        const run=actExplorationState.current(game);if(!actExplorationProgress.canMove(run))return;
-        const map=actExplorationMap.forRun(run),rect=event.currentTarget.getBoundingClientRect();
-        if(map.stage){commandMove(actExplorationRoomsUi.pick(event,run,map));return;}
-        const view=mapView(event.currentTarget,map);
-        const cell={gx:view.x0+Math.floor((event.clientX-rect.left)/rect.width*view.cols),
-            gy:view.y0+Math.floor((event.clientY-rect.top)/rect.height*view.rows)};
-        commandMove(cell);
-    }
-    // ── 키보드로 걷기(WASD와 방향키, js/hotkeys-ui.js가 누름과 뗌을 넘긴다, 2026-10-09) ──
-    // 누르는 동안 그쪽으로 곧게 WALK_REACH칸 앞까지 이동 명령을 다시 걸어 끊김 없이 걷고, 떼면 들어가던 칸에서 멈춘다(걸음은 반을 지나면
-    // 칸이 바뀌므로 지금 칸으로 돌리면 되돌아 걷는다). 여러 방향을 누르면 마지막에 누른 쪽이다. 벽이나 안개, 물건 앞에서는 선다.
-    const STEPS=Object.freeze({up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}),WALK_REACH=4,WALK_TICK_MS=90;
-    const held=[];let walkTimer=null;
-    const KEYED=Object.freeze({unmarked:true});
-    function press(direction,down) {
-        const index=held.indexOf(direction);
-        if(index>=0)held.splice(index,1);
-        if(down&&STEPS[direction])held.push(direction);
-        if(!direction)held.length=0;
-    }
-    /** @param {?string} direction up/down/left/right; null with down false lets go of every key (window blur).
-     * @returns {boolean} whether an exploring or loot-waiting map took the key. */
-    function holdMove(direction,down) {
-        press(direction,down);
-        const run=actExplorationState.current(game);
-        if(!actExplorationProgress.canMove(run)){held.length=0;stopWalking(null);return false;}
-        if(isForegroundGameplayPausedForBackground())return nudge(run,down&&direction);
-        if(!held.length){stopWalking(run);return true;}
-        steer();
-        walkTimer=walkTimer||setInterval(steer,WALK_TICK_MS);
-        return true;
-    }
-    /** Paused (the large map with "pause while a window is open"): nothing walks, so each press moves the destination one cell like a
-     * click on the map, and the hero walks there once the game runs again. */
-    function nudge(run,direction) {
-        held.length=0;
-        actExplorationMotion.setFreeInput(run,game.gridPlayer,0,0);
-        if(walkTimer){clearInterval(walkTimer);walkTimer=null;}
-        if(!STEPS[direction])return true;
-        const [dx,dy]=STEPS[direction],from=run.destination||footing(run);
-        actExplorationState.selectDestination(run,{gx:from.gx+dx,gy:from.gy+dy});
-        render();
-        return true;
-    }
-    /** The cell the hero stands on, or the one it is stepping into. */
-    const footing=run=>(run.motion?run.motion.to:game.gridPlayer);
-    function steer() {
-        const run=actExplorationState.current(game),direction=held[held.length-1];
-        if(!actExplorationProgress.canMove(run)||!direction){held.length=0;return stopWalking(run);}
-        if(bossMoves.observer.sceneActive())return;
-        if(bossMoves.observer.playerBoundary(run)){steerFree(run);return;}
-        const [dx,dy]=STEPS[direction],from=footing(run);
-        let reached=0;
-        // 키보드로 거는 명령은 화면에 표시하지 않는다(KEYED: 클릭한 자리가 아니라 누른 방향의 몇 칸 앞이다)
-        while(reached<WALK_REACH&&actExplorationState.selectDestination(run,{gx:from.gx+dx*(reached+1),gy:from.gy+dy*(reached+1)},KEYED))reached++;
-        if(!reached)actExplorationState.selectDestination(run,from,KEYED);
-        render();
-    }
-    function steerFree(run) {
-        if(isForegroundGameplayPausedForBackground()){actExplorationMotion.setFreeInput(run,game.gridPlayer,0,0);return;}
-        const dx=Number(held.includes('right'))-Number(held.includes('left'));
-        const dy=Number(held.includes('down'))-Number(held.includes('up'));
-        run.destination=null;
-        actExplorationProgress.objects.cancel(run);
-        actExplorationProgress.holdAutoManual(run);
-        actExplorationMotion.setFreeInput(run,game.gridPlayer,dx,dy);
-    }
-    function stopWalking(run) {
-        if(walkTimer){clearInterval(walkTimer);walkTimer=null;}
-        actExplorationMotion.setFreeInput(run,game.gridPlayer,0,0);
-        if(bossMoves.observer.sceneActive())return;
-        if(bossMoves.observer.playerBoundary(run))return;
-        if(actExplorationProgress.canMove(run)&&run.destination)actExplorationState.selectDestination(run,footing(run),KEYED);
-    }
-    function expand(){
-        const dialog=document.getElementById('act-exploration-dialog');
-        dialog.showModal();
-        if(gateHintRun){
-            syncGateHint(gateHintRun,actExplorationState.remainingElites(gateHintRun));
-            dialog.addEventListener('close',()=>{gateHintRun=null;syncGateHint(null,0);},{once:true});
-        }
-        render();
-    }
-    function sealText(run,remaining) {
-        if(remaining)return _t('남은 정예 {remaining}, 모두 처치하면 보스 관문이 열립니다', { remaining });
-        return run.sealed?_t('관문이 아직 닫혀 있습니다.'):_t('보스 관문이 열렸습니다.');
-    }
-    /** 정예, 관문 칸의 설명. 크게 보기 창은 맨 위 층(showModal)이라 몸에 붙은 #info-tooltip이 창 뒤에 깔려 읽을 수 없었다(2026-11-08
-     * 사용자): 창이 열린 동안 툴팁을 창 안으로 옮기고, 창이 닫히면 몸으로 돌려놓는다. */
-    function hint(event) {
-        const run=actExplorationState.current(game);if(!run)return;
-        const rect=event.currentTarget.getBoundingClientRect(),count=actExplorationState.remainingElites(run);
-        hostTooltipIn(event.currentTarget.closest('dialog'));
-        showInfoTooltipHtml(rect.left,rect.bottom,escapeHTML(sealText(run,count)),'#b79c58','act-gate-'+count+(run.sealed?'s':''));
-    }
-    function hostTooltipIn(dialog) {
-        const tip=document.getElementById('info-tooltip');
-        if(!dialog?.open || tip.parentElement===dialog)return;
-        dialog.append(tip);
-        dialog.addEventListener('close',()=>{hideInfoTooltip();document.body.append(tip);},{once:true});
-    }
-    // Only explicit travel controls participate. Automatic travel and combat never depend on this UI.
-    function departureClick(event) {
-        const button=event.target.closest('[onclick], [data-exploration-departure]');
-        if(!button?.hasAttribute('data-exploration-departure') || button.disabled)return;
-        if(button===approvedDeparture){approvedDeparture=null;return;}
-        const run=actExplorationState.current(game);
-        if(!run || run.completionApplied || run.status!=='active')return;
-        event.preventDefault();event.stopImmediatePropagation();
-        if(!departurePending)confirmDeparture(button,run);
-    }
-    async function confirmDeparture(button,run) {
-        departurePending=true;
-        const origin={state:game,run,zoneId:game.currentZoneId,season:game.season};
-        try {
-            const copy=departureCopy(button);
-            const accepted=await requestGameConfirmation(copy.message,{title:copy.title,tone:'danger',confirmLabel:copy.confirm,cancelLabel:copy.cancel});
-            if(!accepted || !departureStillCurrent(origin))return;
-            if(!button.isConnected || button.disabled) {
-                showGameToast(_t('이동할 화면이 변경되었습니다. 목적지를 다시 선택하세요.'),{tone:'warning'});return;
-            }
-            approvedDeparture=button;button.click();
-        } catch(error) {
-            console.error('탐험 이동 확인 실패:',error);
-            showGameToast(_t('이동 확인에 실패했습니다. 탐험은 유지됩니다.'),{tone:'danger'});
-        } finally {approvedDeparture=null;departurePending=false;}
-    }
-    function departureStillCurrent(origin) {
-        return game===origin.state && game.actExploration===origin.run &&
-            game.currentZoneId===origin.zoneId && game.season===origin.season;
-    }
-    function departureMessage() {
-        return '탐험 진행이 초기화됩니다. 이미 획득한 아이템과 재화는 유지됩니다.';
-    }
-    /** The dialog's words; a button may name its own (data-departure-title, -message, -confirm, -cancel), as the ocean's surfacing does. */
-    function departureCopy(button) {
-        const own=button.dataset;
-        return {title:own.departureTitle||'탐험을 포기하고 이동할까요?',message:own.departureMessage||departureMessage(),confirm:own.departureConfirm||'포기하고 이동',cancel:own.departureCancel||'계속 탐험'};
-    }
-    document.addEventListener('click',departureClick,true);
-    return {render,mode,toggleAuto,commandMove,lockOnAt,hover,choose,holdMove,expand,hint,departurePending:()=>departurePending};
+  });
+  safeExposeGlobals({ actExplorationUi });
 })();
-safeExposeGlobals({actExplorationUi});

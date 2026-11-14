@@ -1,70 +1,95 @@
-/** 시대 재생 (docs/atlas-endgame-20260930.md 1 · 5절): 아틀라스 위의 환생 층. 씨앗 4개를 모으면 아틀라스 진행(완료 · 보너스 · 패시브 ·
- * 씨앗)을 되돌리고 세계수 정수를 받아 영구 특전(지도 드롭 · 수량 · 패시브 포인트 · 시작 지도석 · 각인 홈 · 루프 시작 보급)을 산다.
- * 상태는 game.atlas.epoch {count, essence, perks:{id: rank}} — 루프와 시대를 넘어 남는다.
- */
-const atlasEpoch = (() => {
-    const PERKS = new Map(ATLAS.epoch.perks.map(perk => [perk.id, perk]));
-    const ledger = state => state.atlas.epoch;
-    const rank = (state, id) => ledger(state).perks[id] || 0;
-    const mapNodes = state => state.atlas.completed.filter(id => (atlas.node(id) || {}).kind === 'map').length;
+// GENERATED from modules/atlas-epoch*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/atlas-epoch-rules.mjs
+  function atlasEraLedger(state) {
+    return state.atlas.epoch;
+  }
+  function atlasEraRank(state, id) {
+    return atlasEraLedger(state).perks[id] || 0;
+  }
+  function atlasEraMapNodes(env, state) {
+    return state.atlas.completed.filter((id) => (env.deps.atlas.node(id) || {}).kind === "map").length;
+  }
+  function atlasEraReason(env, state) {
+    if (state.atlas.seeds < env.deps.ATLAS.seeds.max) return env.deps._t("세계수 씨앗 {max}개가 필요합니다(지금 {seeds}개). 정점을 쓰러뜨리면 하나씩 얻습니다.", { max: env.deps.ATLAS.seeds.max, seeds: state.atlas.seeds });
+    return env.deps.atlas.runOpenReason(state);
+  }
+  function atlasEraEssenceFor(env, state) {
+    const rule = env.deps.ATLAS.epoch.essence;
+    return rule.base + Math.floor(atlasEraMapNodes(env, state) / rule.perCompleted) + Math.floor(state.atlas.bonus.length / rule.perBonus) + state.atlas.seeds * rule.perSeed;
+  }
+  function atlasEraRebirth(env, state) {
+    const why = atlasEraReason(env, state);
+    if (why) return why;
+    const epoch = atlasEraLedger(state), gained = atlasEraEssenceFor(env, state);
+    epoch.count += 1;
+    epoch.essence += gained;
+    Object.assign(state.atlas, { completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, lastResult: null, starterSeason: 0 });
+    env.deps.atlasEndgame.reset(state);
+    env.deps.atlas.setLoadout(state, state.atlas.loadout);
+    return "";
+  }
+  function atlasEraCost(env, state, id) {
+    return (atlasEraRank(state, id) + 1) * env.deps.ATLAS.epoch.costStep;
+  }
+  function atlasEraBuyReason(env, state, id) {
+    const perk = env.PERKS.get(id);
+    if (!perk) return "없는 특전입니다.";
+    if (atlasEraRank(state, id) >= perk.max) return "이미 가장 높은 단계입니다.";
+    return atlasEraLedger(state).essence >= atlasEraCost(env, state, id) ? "" : env.deps._t("세계수 정수가 부족합니다(필요 {state}).", { state: atlasEraCost(env, state, id) });
+  }
+  function atlasEraBuy(env, state, id) {
+    const why = atlasEraBuyReason(env, state, id);
+    if (why) return why;
+    atlasEraLedger(state).essence -= atlasEraCost(env, state, id);
+    atlasEraLedger(state).perks[id] = atlasEraRank(state, id) + 1;
+    return "";
+  }
+  function atlasEraEffects(env, state) {
+    return env.deps.ATLAS.epoch.perks.filter((perk) => perk.effect && atlasEraRank(state, perk.id)).map((perk) => Object.fromEntries(Object.entries(perk.effect).map(([key, value]) => [key, value * atlasEraRank(state, perk.id)])));
+  }
+  function atlasEraPoints(env, state) {
+    return env.deps.ATLAS.epoch.perks.reduce((sum, perk) => sum + (perk.points || 0) * atlasEraRank(state, perk.id), 0);
+  }
+  function atlasEraOffline(env, state) {
+    return env.deps.ATLAS.epoch.perks.reduce((sum, perk) => sum + (perk.offline || 0) * atlasEraRank(state, perk.id), 0);
+  }
+  function atlasEraSupply(env, state) {
+    const perk = env.PERKS.get("supply"), level = atlasEraRank(state, "supply");
+    return level ? perk.supply.map(([key, amount]) => [key, amount * level]) : [];
+  }
+  function atlasEraNormalize(env, raw) {
+    const source = raw && typeof raw === "object" ? raw : {}, perks = {};
+    for (const perk of env.deps.ATLAS.epoch.perks) {
+      const value = Math.floor(Number(source.perks && source.perks[perk.id]) || 0);
+      if (value > 0) perks[perk.id] = Math.min(perk.max, value);
+    }
+    const count = (value) => Math.max(0, Math.min(1e6, Math.floor(Number(value) || 0)));
+    return { count: count(source.count), essence: count(source.essence), perks };
+  }
 
-    function reason(state) {
-        if (state.atlas.seeds < ATLAS.seeds.max) return _t('세계수 씨앗 {max}개가 필요합니다(지금 {seeds}개). 정점을 쓰러뜨리면 하나씩 얻습니다.', { max: ATLAS.seeds.max, seeds: state.atlas.seeds });
-        return atlas.runOpenReason(state);
+  // modules/domain/atlas-epoch.mjs
+  function createAtlasEpoch(deps) {
+    const env = { deps };
+    env.PERKS = new Map(env.deps.ATLAS.epoch.perks.map((perk) => [perk.id, perk]));
+    return Object.freeze({ perks: env.PERKS, rank: atlasEraRank, reason: (...args) => atlasEraReason(env, ...args), essenceFor: (...args) => atlasEraEssenceFor(env, ...args), rebirth: (...args) => atlasEraRebirth(env, ...args), cost: (...args) => atlasEraCost(env, ...args), buyReason: (...args) => atlasEraBuyReason(env, ...args), buy: (...args) => atlasEraBuy(env, ...args), effects: (...args) => atlasEraEffects(env, ...args), points: (...args) => atlasEraPoints(env, ...args), offline: (...args) => atlasEraOffline(env, ...args), supply: (...args) => atlasEraSupply(env, ...args), normalize: (...args) => atlasEraNormalize(env, ...args) });
+  }
+
+  // modules/atlas-epoch-classic.mjs
+  var rules = createAtlasEpoch({
+    get atlas() {
+      return atlas;
+    },
+    get ATLAS() {
+      return ATLAS;
+    },
+    get _t() {
+      return _t;
+    },
+    get atlasEndgame() {
+      return atlasEndgame;
     }
-    function essenceFor(state) {
-        const rule = ATLAS.epoch.essence;
-        return rule.base + Math.floor(mapNodes(state) / rule.perCompleted) + Math.floor(state.atlas.bonus.length / rule.perBonus)
-            + state.atlas.seeds * rule.perSeed;
-    }
-    /** 시대 재생: 진행을 되돌리고 정수를 받는다. 해금 · 자동 지도 · 각인 홈 설정 · 특전은 남는다. @returns {string} '' when done. */
-    function rebirth(state) {
-        const why = reason(state);
-        if (why) return why;
-        const epoch = ledger(state), gained = essenceFor(state);
-        epoch.count += 1;
-        epoch.essence += gained;
-        Object.assign(state.atlas, { completed: [], bonus: [], passives: [], seeds: 0, stash: [], fragments: {}, lastResult: null, starterSeason: 0 });
-        atlasEndgame.reset(state); // 후반부(깨어남 · 처치 · 재료 · 마름 · 목격)도 처음부터
-        atlas.setLoadout(state, state.atlas.loadout); // the passive slot is gone with the passives
-        return '';
-    }
-    const cost = (state, id) => (rank(state, id) + 1) * ATLAS.epoch.costStep;
-    function buyReason(state, id) {
-        const perk = PERKS.get(id);
-        if (!perk) return '없는 특전입니다.';
-        if (rank(state, id) >= perk.max) return '이미 가장 높은 단계입니다.';
-        return ledger(state).essence >= cost(state, id) ? '' : _t('세계수 정수가 부족합니다(필요 {state}).', { state: cost(state, id) });
-    }
-    function buy(state, id) {
-        const why = buyReason(state, id);
-        if (why) return why;
-        ledger(state).essence -= cost(state, id);
-        ledger(state).perks[id] = rank(state, id) + 1;
-        return '';
-    }
-    /** Effect objects for the atlas bonus sum (keys shared with the passives): each perk's effect × its rank. */
-    function effects(state) {
-        return ATLAS.epoch.perks.filter(perk => perk.effect && rank(state, perk.id))
-            .map(perk => Object.fromEntries(Object.entries(perk.effect).map(([key, value]) => [key, value * rank(state, perk.id)])));
-    }
-    const points = state => ATLAS.epoch.perks.reduce((sum, perk) => sum + (perk.points || 0) * rank(state, perk.id), 0);
-    /** 고요한 시대: 방치 효율(data/offline-progress.js)에 더하는 비율. */
-    const offline = state => ATLAS.epoch.perks.reduce((sum, perk) => sum + (perk.offline || 0) * rank(state, perk.id), 0);
-    /** 시작 보급: 새 루프의 빈 지갑에 들어가는 재화. */
-    function supply(state) {
-        const perk = PERKS.get('supply'), level = rank(state, 'supply');
-        return level ? perk.supply.map(([key, amount]) => [key, amount * level]) : [];
-    }
-    function normalize(raw) {
-        const source = raw && typeof raw === 'object' ? raw : {}, perks = {};
-        for (const perk of ATLAS.epoch.perks) {
-            const value = Math.floor(Number(source.perks && source.perks[perk.id]) || 0);
-            if (value > 0) perks[perk.id] = Math.min(perk.max, value);
-        }
-        const count = value => Math.max(0, Math.min(1e6, Math.floor(Number(value) || 0)));
-        return { count: count(source.count), essence: count(source.essence), perks };
-    }
-    return Object.freeze({ perks: PERKS, rank, reason, essenceFor, rebirth, cost, buyReason, buy, effects, points, offline, supply, normalize });
+  });
+  var atlasEpoch = rules;
+  safeExposeGlobals({ atlasEpoch });
 })();
-safeExposeGlobals({ atlasEpoch });

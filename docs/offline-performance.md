@@ -25,6 +25,24 @@
 이 방치 캐시는 포그라운드 계산에 적용하지 않는다. 공용 빌드 서명은 장비 분석·요구조건 검사에서도 사용한다.
 정산 중 사용자 입력은 원본 상태를 보며 복제된 빌드를 수정하지 않는다.
 
+### 전투 상태와 전경 스케줄러 소유 (2026-11-13)
+
+지연 타격·채널·전술·함정의 일시 상태는 `modules/state/combat-runtime.mjs`의 인스턴스가 소유한다.
+현재 게임과 공격 게이지·진행 정체 횟수·아이템 번호·기준 시각은 `modules/state/game-state.mjs`가 소유한다.
+남은 클래식 `game`과 `window.GameState`는 이 소유자를 함께 가리킨다. 불러오기 시 게임 교체와 전투 시계 복원은 별개다.
+재생기는 기존 `captureCombatRuntime`/`restoreCombatRuntime` 진입점을 통해 같은 스냅샷 항목과 참조를 주고받는다.
+한 시전의 공유 참조를 유지하는 `structuredClone`은 여전히 재생 생성 경계에서 실행하며, 종료·예외 시 원본 복원은
+재생기의 `try/finally`가 책임진다. 이 상태를 영구 저장에 추가하지 않는다.
+실제 전투와 빠른 정산의 선택은 `modules/combat/replay.mjs`, 속도 측정·지도별 정산은 `replay-projection.mjs`에 있다.
+정산 규칙은 `replay-rules.mjs`, 프레임 양보·일시중지 대기는 `modules/browser/replay-scheduler.mjs`가 맡는다.
+기존 두 클래식 파일 중 `js/combat-replay.js`만 생성 출력으로 남는다. 빠른 정산이 실제 재생기를 역으로 호출하지 않는다.
+전경 실행은 `modules/application/foreground-loop.mjs`, 전투·자동 저장 예약은 `modules/browser/gameplay-timers.mjs`,
+입력 전후 능력치 무효화 리스너는 `modules/browser/application-events.mjs`가 소유한다. `js/main.js`는 빌드 출력이다.
+저장 직렬화는 `modules/persistence/save-codec.mjs`, 저장 가능 여부와 불러오기·전투 상태 복원 순서는
+`modules/application/game-save.mjs`가 소유한다. 정산 중/실패 상태에서 저장을 거절하는 기존 조건은 유지한다.
+앱의 최종 종료는 예약 저장 취소와 쓰기 차단을 탭 인계 표시 해제보다 먼저 수행한다.
+이번 소유권 전환은 정적 항목·순서 대조와 빌드·구조 검사만 끝났으며, 정산 결과·저장·성능의 실행 비교는 최종 통합 검증에 남아 있다.
+
 ## 복귀 결과 안내 대조 (2026-10-13)
 
 방치 결과에서 사망 횟수만 보고 임시 전리품이 소멸했다고 쓰던 이전 안내를 제거했다. 현재 사망 처리도
@@ -67,8 +85,10 @@ npm test
 npm run check:architecture
 ```
 
-`--baseline`은 HEAD 원본 모듈을 별도 런타임에 읽으며 작업 파일이나 플레이어 저장을
-되돌리지 않는다. 브라우저 실행 간 보상 수치는 화면/난수 타이밍 때문에 직접 비교하지 않는다.
+`--baseline`은 `scripts/lib/head-runtime.cjs`를 통해 HEAD의 로드 목록과 전체 게임 코드를 함께 읽는다.
+Node 비교는 해당 커밋의 VM 로더와 모든 입력 스크립트를, 브라우저 비교는 해당 커밋의 HTML·JS·CSS를 사용한다.
+일부 전투 파일만 HEAD로 바꾸면 새 어댑터와 옛 전역 노출이 섞일 수 있으므로 버전을 혼용하지 않는다.
+작업 파일이나 플레이어 저장을 되돌리지 않는다. 브라우저 실행 간 보상 수치는 화면/난수 타이밍 때문에 직접 비교하지 않는다.
 
 회귀 검사는 상세 설명 유무의 능력치 일치, 버프 적용·만료, 보상 직후 젬 보너스 갱신,
 생장판 무효화, 실행권 반환 중 상태 격리, 중복 정산, 저장 실패 롤백을 포함한다.
@@ -112,7 +132,7 @@ UI가 `getControl` 콜백으로 선택을 전달하고, 재생기는 청크 사�
 도는 재생은 막힌 칸을 사이에 둔 적과 거울처럼 한 칸씩 오갔다(제작 T15 혼돈 20 재생 10분: 16~68마리 → 483~509마리). 이제
 `actExplorationProgress.tick`이 걸음이 끝난 20ms 단계에서 이어 간다. 검사: `scripts/smoke-background-exploration-approach.js`.
 
-방식(`js/combat-replay-projection.js`, 규칙 `data/offline-progress.js` `OFFLINE_PROJECTION`):
+방식(`modules/combat/replay-projection.mjs`, 규칙 `modules/data/offline-progress.mjs` `OFFLINE_PROJECTION`):
 - 정산 경로(`startBackgroundCombatReturn` → `simulateBackgroundCombatChunked({project:true})`)만 투영한다. 진단용
   `simulateBackgroundCombat`는 끝까지 실제 전투다.
 - 실제 전투가 지도 한 바퀴(조우 시작부터 다음 조우 시작, 이동과 사망 포함)씩 기록한다: 무리 종류(보스 단계, 콘텐츠 방, 정예,
@@ -274,7 +294,7 @@ node scripts/benchmark-offline-browser.js --max --endgame --throttle=4
   읽는다. 서명이나 장비 칸이 바뀌면 평가 객체가 바뀌고, 캐시 키가 그 객체를 본다. 그래서 입력이 없는 코드 경로(나무꾼 빌드 잠금,
   자동 착용, 장비 비교용 임시 착용)가 빌드를 바꿔도 다음 계산이 바로 맞다.
 - 서명 밖 값은 `PLAYER_STAT_CONTEXT_FIELDS`(구역, 층, 시련, 무기 숙련)의 값을 키에 넣는다. 목록에 더하면 키에 저절로 들어간다.
-- 플레이어 입력(누르기, 떼기, 클릭, 키, 바꾸기, 놓기)은 처리기가 돌기 전과 다 돈 뒤에 한 번씩 세대를 바꾼다(`js/main.js`).
+- 플레이어 입력(누르기, 떼기, 클릭, 키, 바꾸기, 놓기)은 처리기가 돌기 전과 다 돈 뒤에 한 번씩 세대를 바꾼다(`modules/browser/application-events.mjs`).
   확인 창을 거쳐 늦게 적용되는 패시브 찍기도 뒤의 한 번이 덮는다.
 - 상태 객체를 통째로 바꾸는 경로(불러오기, 초기화, 클라우드, 장비 비교용 임시 상태)는 새 객체라 처음부터 계산한다.
 - 받은 능력치는 겉과 `sSkill`, `breakdowns`를 복사해 넘긴다. 깊은 복사는 시작 전사 정산을 6~8% 늦춰서 하지 않았다. 대신 안쪽

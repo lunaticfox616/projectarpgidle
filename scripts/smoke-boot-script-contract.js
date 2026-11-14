@@ -8,6 +8,8 @@ const vm = require('vm');
 const assert = require('assert');
 const espree = require('espree');
 const { LOAD_ORDER } = require('./lib/game-runtime');
+// A hand-edited or outdated generated adapter must not pass while the ESM source differs.
+require('node:child_process').execFileSync(process.execPath, [require.resolve('./build-modules'), '--check'], { stdio: 'pipe' });
 
 const html = fs.readFileSync('index.html', 'utf8');
 const sources = [];
@@ -21,7 +23,7 @@ while ((match = scriptTag.exec(html)) !== null) {
     sources.push(src);
 }
 assert(sources.length >= 10, `index.html에서 로컬 스크립트를 찾지 못했습니다 (${sources.length}개)`);
-assert(sources.includes('js/ui.js'), 'js/ui.js가 index.html에 연결되어 있어야 합니다');
+assert(sources.includes('js/ui-runtime-ui.js'), '화면 갱신 진입점이 index.html에 연결되어 있어야 합니다');
 assert(sources.includes('js/ui-window-manager.js'), '창 관리자가 index.html에 연결되어 있어야 합니다');
 
 // 공용 테스트 런타임도 실제 페이지의 파일 순서를 따라야 한다.
@@ -30,6 +32,20 @@ assert.deepStrictEqual(sources.filter(src => LOAD_ORDER.includes(src)), LOAD_ORD
 assert(sources.indexOf('js/social.js') < sources.indexOf('js/ui-window-manager.js')
     && sources.indexOf('js/ui-window-manager.js') < sources.indexOf('js/main.js'),
     '창 관리자는 소셜 UI 이후, 부트스트랩 이전에 로드돼야 합니다');
+
+// Generated literal formatting must not reject a short ESM data factory, while
+// the same guard still rejects authored long functions and generated algorithms.
+const { analyze } = require('./check-runtime-architecture');
+const literalFields = Array.from({ length: 70 }, (_, index) => `field${index}: 0`).join(',\n');
+const factorySource = body => `(() => { function makeValues(){\n${body}\n} return makeValues; })();`;
+const hasLengthFinding = source => Object.keys(analyze([{ file:'js/generated-check.js', source,
+    ast:espree.parse(source,{ecmaVersion:'latest',loc:true,range:true}) }]).findings)
+    .some(key => key.includes('|max-lines-per-function|'));
+const generatedHeader = '// GENERATED from modules/example.mjs.\n';
+assert(!hasLengthFinding(generatedHeader + factorySource(`return {\n${literalFields}\n};`)), 'generated literal data is not algorithm length');
+assert(hasLengthFinding(factorySource(`return {\n${literalFields}\n};`)), 'authored source length still checked');
+assert(hasLengthFinding(generatedHeader + factorySource(`return {\n${literalFields},\ncomputed: Math.random()\n};`)), 'generated calculations still checked');
+assert(hasLengthFinding(generatedHeader + factorySource(`let total = 0;\n${'total++;\n'.repeat(70)}return total;`)), 'generated statement length still checked');
 
 // (1) 파일 단독 파싱: SyntaxError면 해당 파일 전체(모든 전역 함수)가 사라져 부팅이 죽는다.
 for (const src of sources) {
@@ -74,4 +90,47 @@ for (const src of sources) {
     }
 }
 
-console.log(`smoke-boot-script-contract passed (${sources.length} scripts)`);
+// Release packaging must preserve initialization and save semantics, not merely parse.
+(async () => {
+    const { describeScript, packClassicScripts } = require('./lib/classic-bundles');
+    const { stripDevOnly } = require('./lib/release-bundle');
+    const { buildGameRuntime } = require('./lib/game-runtime');
+    const rows = LOAD_ORDER.map(file => describeScript(file, stripDevOnly(fs.readFileSync(file, 'utf8'), file)));
+    const packed = await packClassicScripts(rows);
+    for (const row of packed) espree.parse(row.code, { ecmaVersion: 2020, sourceType: 'script' });
+    const oldRuntime = buildGameRuntime(Object.fromEntries(rows.map(row => [row.file, row.code])));
+    const newRuntime = buildGameRuntime({}, null, {}, packed);
+    const snapshots = [oldRuntime, newRuntime].map(runtime => {
+        let seed = 7;
+        runtime.Math = Object.create(Math);
+        runtime.Math.random = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 0x100000000);
+        runtime.Date = class extends Date { static now() { return 1800000000000; } };
+        return vm.runInContext(`
+            game = mergeDefaults({heroSelectionInitialized:true,selectedHeroId:'hero1',selectedClassId:'warrior',
+                level:37,exp:1234,season:2,currentZoneId:3,maxZoneId:5,currencies:{dew:117,sap:7}});
+            game = mergeDefaults(JSON.parse(serializeSaveState(game)));
+            JSON.stringify([serializeSaveState(game),getPlayerStats(),typeof saveGame,typeof loadGame]);
+        `, runtime);
+    });
+    assert.strictEqual(snapshots[1], snapshots[0], 'packaging changed restored state or player stats');
+    const boundary = [
+        "var observed=[]; observed.push(typeof later);",
+        "function later(){return 7;} observed.push(later()); const privateValue=11;",
+        "'use strict'; (function(){observed.push(this===undefined);})();",
+        "observed.push(privateValue, typeof window.privateValue);"
+    ].map((code, index) => describeScript(`boundary-${index}.js`, code));
+    const context = vm.createContext({}); context.window = context;
+    for (const row of await packClassicScripts(boundary)) vm.runInContext(row.code, context);
+    assert.strictEqual(vm.runInContext('JSON.stringify(observed)', context), '["undefined",7,true,11,"undefined"]',
+        'packaging changed function hoisting, strict mode or lexical visibility');
+    // Public callback keys and accessors are called later by HTML/other scripts;
+    // local implementation names may be compacted without changing that API.
+    const callbacks = [
+        "const publicHandlers = (() => { let total = 2; const addFromButton = amount => total += amount; return { addFromButton, get value(){return total;} }; })();",
+        "const exportedCallback = publicHandlers.addFromButton; exportedCallback(3);"
+    ].map((code, index) => describeScript(`callbacks-${index}.js`, code));
+    for (const row of await packClassicScripts(callbacks)) vm.runInContext(row.code, context);
+    assert.strictEqual(vm.runInContext('publicHandlers.addFromButton(7); publicHandlers.value', context), 12,
+        'packaging broke a later inline callback or accessor');
+    console.log(`smoke-boot-script-contract passed (${sources.length} scripts; bundled boot/save parity)`);
+})().catch(error => { console.error(error); process.exitCode = 1; });

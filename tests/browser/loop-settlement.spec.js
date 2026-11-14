@@ -8,9 +8,9 @@ test('loop settlement shows real progress and preserves preparation and deferral
     await page.goto('/');
     await page.locator('#btn-startup-guest').click();
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => battleAssets.ready && !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => battleAssets.ready && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(() => {
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        window.GameModules.application.timers.stopCombat();
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         game.unlocks.items = true; game.level = 63; game.loopKills = 456;
         ensureRecordsState(); game.records.currentLoop.activeMs = 3600000;
@@ -51,7 +51,7 @@ test('loop settlement shows real progress and preserves preparation and deferral
     await expect(ready).not.toBeVisible();
     await expect(page.locator('#loop-hero-select-overlay')).toBeVisible();
     await pickClass(page, 'warrior');
-    await page.waitForFunction(() => !uiRefreshRunning && !uiRefreshQueued);
+    await page.waitForFunction(() => !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
     await page.evaluate(() => {
         tutorialQueue.length = 0; if (activeTutorial) dismissTutorial(false);
         game.season = 10; game.abyssEndlessDepth = 20;

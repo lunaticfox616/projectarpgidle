@@ -1,73 +1,108 @@
-/** 무대 그림을 불러와 미리 풀어 두는 한곳 (2026-10-14, docs/stage-render-performance-20261013.md 7번 "처음 그릴 때의 끊김").
- * 불러온 그림(Image)은 처음 그려지는 프레임에서야 풀리고, 푸는 동안 그 프레임이 멈춘다(느린 기기에서 시트 한 장에 15~40ms,
- * 스킬 이펙트 원본 한 장에 300ms 넘게). 여기서 연 그림은 파일을 받아 메인 스레드 밖에서 풀어 둔 것(ImageBitmap)이라 처음 그려도
- * 멈추지 않는다. 대신 풀린 화소를 계속 들고 있다(가로 × 세로 × 4바이트). 그래서 쓰는 쪽이 지금 쓰는 것만 열고, 쓰지 않게 되면 닫는다:
- *   주인공      지금 직업과 무기 자세의 그림(js/canvas-stage-actors.js)
- *   몬스터      지금 지도의 무리와 화면에 나와 있는 것(js/canvas-stage-roster.js)
- *   스킬 이펙트  낀 룬이 쓰는 클립을 자르는 동안의 원본(js/canvas-stage-skill-vfx.js)
- * 밖에서 풀 수 없는 곳(file: 주소, createImageBitmap이나 fetch가 없는 브라우저, 받기에 실패한 때)에서는 예전처럼 Image로 불러온다:
- * 그림은 같고, 처음 그릴 때 풀린다. 받지 못한 그림(앞단의 503, 끊긴 연결)은 js/stage-asset-retry.js의 간격으로 다시 받는다: 기다리는
- * 동안 failed가 참이고 ready는 거짓이다(2026-11-11 사용자: 그림이 가끔 안 나오고 예전 그림으로 돌아갔다). 게임 상태를 읽지 않는다.
- */
-const stagePictures = (() => {
-    const canDecodeAway = () => typeof createImageBitmap === 'function' && typeof fetch === 'function' && location.protocol !== 'file:';
+// GENERATED from modules/canvas-stage-pictures*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/browser/stage-pictures.mjs
+  var StagePictures = class {
+    constructor(deps) {
+      this.deps = deps;
+      this.canDecodeAway = () => typeof this.deps.createImageBitmap === "function" && typeof this.deps.fetch === "function" && this.deps.location.protocol !== "file:";
+    }
     /** 그림이 왔다: source는 drawImage에 넘기는 것(ImageBitmap 또는 Image). */
-    function pictureArrived(row, source, width, height) {
-        if (row.closed) return;
-        Object.assign(row, { source, width, height, ready: width > 0, failed: !(width > 0) });
+    pictureArrived(row, source, width, height) {
+      if (row.closed) return;
+      Object.assign(row, { source, width, height, ready: width > 0, failed: !(width > 0) });
     }
     /** 받지 못했다: 잠시 뒤 같은 그림을 다시 받는다(닫은 그림은 그만둔다). 다시 받기는 그 그림을 연 곳이 준 row.restart가 한다. */
-    function retryPicture(row) {
-        row.failed = true;
-        const wait = stageAssetRetry.waitMs(row.tries);
-        row.tries += 1;
-        setTimeout(() => {
-            if (row.closed) return;
-            row.failed = false;
-            row.restart(stageAssetRetry.retryUrl(row.url, row.tries));
-        }, wait);
+    retryPicture(row) {
+      row.failed = true;
+      const wait = this.deps.stageAssetRetry.waitMs(row.tries);
+      row.tries += 1;
+      this.deps.setTimeout(() => {
+        if (row.closed) return;
+        row.failed = false;
+        row.restart(this.deps.stageAssetRetry.retryUrl(row.url, row.tries));
+      }, wait);
     }
     /** 예전 방식: Image로 불러온다(처음 그릴 때 풀린다). */
-    function loadPlainPicture(row, url) {
-        const image = new Image();
-        image.decoding = 'async';
-        image.onload = () => pictureArrived(row, image, image.naturalWidth, image.naturalHeight);
-        image.onerror = () => { if (!row.closed) retryPicture(row); };
-        image.src = url;
-        row.plain = image;
+    loadPlainPicture(row, url) {
+      const image = new this.deps.Image();
+      image.decoding = "async";
+      image.onload = () => this.pictureArrived(row, image, image.naturalWidth, image.naturalHeight);
+      image.onerror = () => {
+        if (!row.closed) this.retryPicture(row);
+      };
+      image.src = url;
+      row.plain = image;
     }
     /** 파일을 받아 메인 스레드 밖에서 푼다. 받은 응답이 실패(404, 503)면 다시 받고, 받기 자체가 안 되면 예전 방식으로 불러온다. */
-    function decodePictureAway(row, url) {
-        fetch(url).then(response => (response.ok ? response.blob() : null)).then(blob => {
-            if (!blob) { if (!row.closed) retryPicture(row); return null; }
-            return createImageBitmap(blob);
-        }).then(bitmap => {
-            if (!bitmap) return;
-            if (row.closed) { bitmap.close(); return; }
-            pictureArrived(row, bitmap, bitmap.width, bitmap.height);
-        }).catch(() => { if (!row.closed && !row.failed) loadPlainPicture(row, url); });
+    decodePictureAway(row, url) {
+      this.deps.fetch(url).then((response) => response.ok ? response.blob() : null).then((blob) => {
+        if (!blob) {
+          if (!row.closed) this.retryPicture(row);
+          return null;
+        }
+        return this.deps.createImageBitmap(blob);
+      }).then((bitmap) => {
+        if (!bitmap) return;
+        if (row.closed) {
+          bitmap.close();
+          return;
+        }
+        this.pictureArrived(row, bitmap, bitmap.width, bitmap.height);
+      }).catch(() => {
+        if (!row.closed && !row.failed) this.loadPlainPicture(row, url);
+      });
     }
-    function startPicture(row, url) {
-        if (canDecodeAway()) decodePictureAway(row, url);
-        else loadPlainPicture(row, url);
+    startPicture(row, url) {
+      if (this.canDecodeAway()) this.decodePictureAway(row, url);
+      else this.loadPlainPicture(row, url);
     }
     /** @param {string} url 그림의 주소
      * @returns {{url:string, source:?CanvasImageSource, ready:boolean, failed:boolean, width:number, height:number}} 그림 한 장.
      *   ready가 참이 되면 source를 그릴 수 있다. 다 쓰면 closePicture로 닫는다. */
-    function openPicture(url) {
-        const row = { url, source: null, ready: false, failed: false, width: 0, height: 0, closed: false, plain: null, tries: 0, restart: null };
-        row.restart = next => startPicture(row, next);
-        startPicture(row, url);
-        return row;
+    openPicture(url) {
+      const row = { url, source: null, ready: false, failed: false, width: 0, height: 0, closed: false, plain: null, tries: 0, restart: null };
+      row.restart = (next) => this.startPicture(row, next);
+      this.startPicture(row, url);
+      return row;
     }
     /** 풀어 둔 화소를 놓는다. 닫은 그림은 다시 쓰지 않는다. */
-    function closePicture(row) {
-        row.closed = true;
-        row.ready = false;
-        if (row.source && typeof row.source.close === 'function') row.source.close();
-        if (row.plain) row.plain.src = '';
-        row.source = null;
+    closePicture(row) {
+      row.closed = true;
+      row.ready = false;
+      if (row.source && typeof row.source.close === "function") row.source.close();
+      if (row.plain) row.plain.src = "";
+      row.source = null;
     }
-    return Object.freeze({ openPicture, closePicture });
+  };
+  function createStagePictures(deps) {
+    const instance = new StagePictures(deps);
+    return Object.freeze({ openPicture: instance.openPicture.bind(instance), closePicture: instance.closePicture.bind(instance) });
+  }
+
+  // modules/canvas-stage-pictures-classic.mjs
+  var native = createStagePictures({
+    get createImageBitmap() {
+      return typeof createImageBitmap === "function" ? createImageBitmap.bind(globalThis) : void 0;
+    },
+    get fetch() {
+      return typeof fetch === "function" ? fetch.bind(globalThis) : void 0;
+    },
+    get location() {
+      return location;
+    },
+    get stageAssetRetry() {
+      return stageAssetRetry;
+    },
+    get setTimeout() {
+      return setTimeout.bind(globalThis);
+    },
+    get Image() {
+      return Image;
+    }
+  });
+  var stagePictures = Object.freeze({
+    openPicture: native.openPicture,
+    closePicture: native.closePicture
+  });
+  safeExposeGlobals({ stagePictures });
 })();
-safeExposeGlobals({ stagePictures });

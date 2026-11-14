@@ -19,8 +19,13 @@
 
 - 탐험 중 장비·주얼·코어·야생 부적과 몬스터·상자 재화는 `run.groundLoot`에 칸별로 남고, 같은 칸으로 이동하거나
   전리품 표시를 클릭하면 획득한다. 같은 칸·같은 재화는 수량을 합친다. 재화 수량 보정은 드롭 때
-  한 번 계산하고 줍기 때 확정량만 지급한다. 소유·저장은 `js/exploration-ground-loot.js`,
-  지급 연결은 `js/combat.js`의 `collectExplorationFloorLoot`와 `keepCurrencyDrop`이 담당한다.
+  한 번 계산하고 줍기 때 확정량만 지급한다. 칸별 저장·낙하 시각·줍기 소유자는
+  `modules/domain/exploration-ground-loot.mjs`이며, 기존 `js/exploration-ground-loot.js`는 생성 출력이다.
+  즉시 지급·바닥 배치·콘텐츠 보관과 수령 순서는 `modules/domain/loot-delivery.mjs`가 소유한다.
+  `modules/compat/combat-kill-rewards-runtime.js`의 `collectExplorationFloorLoot`와 `keepCurrencyDrop`은
+  현재 상태·기존 보관처 연결과 알림을 담당하며 `js/combat-kill-rewards.js`로 빌드된다.
+  처치의 보상 추첨·지급 순서는 `modules/domain/kill-loot.mjs`와 `enemy-drop-rolls.mjs`가 담당한다.
+  지급 결과의 알림과 기존 해금 점검을 처리한 뒤 다음 보상을 추첨하므로 난수·보관·룬 단계 순서를 유지한다.
 - 바닥 이름표(2026-10-17): 좌우 가장자리에서는 위·아래 이름 묶음만 화면 안쪽으로 옮기며, 그림과
   클릭으로 받는 칸은 그대로다. 더미 지점이 이름 안에 최소 12 CSS px 남도록 제한하므로 화면 끝에
   걸친 더미는 일부 잘릴 수 있다. 겹침 검사는 이동한 이름의 위치를 사용하고, 수량·내용·화면 크기 변경과
@@ -28,6 +33,13 @@
   뒤집고 그 방향으로 겹침을 피한다. 화면 위아래가 모두 좁을 때는 덜 잘리는 쪽을 사용하며, 화면 밖
   더미를 안으로 끌어오지는 않는다. 기존 옆 이름 묶음의 가림 규칙은 유지하며, 화면 끝에 걸친 옆 이름이나
   주요 이름 아래의 추가 이름은 잘릴 수 있다. 추가 줄을 놓을 공간이 없으면 완전한 겹침 해소도 보장하지 않는다.
+- 표시 모듈 전환(2026-11-14): `modules/ui/ground-loot-view.mjs`가 전리품 DOM·이벤트·타이머를 소유하고,
+  이름표 배치·품목 표현·낙하 계산은 `ground-loot-layout.mjs`, `ground-loot-presentation.mjs`,
+  `ground-loot-motion.mjs`가 담당한다. `js/battle-ground-loot-ui.js`는 생성 출력이다.
+  저장/탐험이 교체되면 이전 이름표의 줍기와 지연 연출은 적용하지 않는다. 앱 종료 때 구독과 타이머를
+  해제하며, 캔버스가 교체되면 이전 표시를 제거한다. 같은 탐험의 탭 복귀에서는 착지 기록을 유지한다.
+  표시 계층은 재화를 지급하지 않고 기존 `actExplorationProgress.collectPile`에 클릭 요청만 보낸다.
+  이번 구조 교체의 실제 클릭·저장 복원·PC/모바일 화면 검증은 전체 ESM 전환의 마지막 통합 단계에 남아 있다.
 - 필터 제외·자동해체 장비는 기존 정책으로 처리하며 바닥 장비로 남지 않는다. 실제 줍기는 기존
   인벤토리·자동 장착·초과 보관 경로를 사용한다. 주얼·코어·야생 부적은 굴린 결과를 보관했다가
   `receiveJewelDrop`·`coreItems.keep`·`talismans.receiveWild`로 받고, 알림도 줍기 때 발생한다.

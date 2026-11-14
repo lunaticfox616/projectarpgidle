@@ -1,120 +1,188 @@
-// 탐험 권역 허브(js/exploration-atlas-ui.js): 권역별 콘텐츠 입구 묶음. 이동만 하고, 입장 조건 · 비용 · 전투는 각 콘텐츠가 맡는다.
-// 권역 카드와 나무 띠의 그림(landscape, actLandscapes)은 그 권역의 무대 지역 그림에서 바닥 위 풍경만 잘라 냈다
-// (assets/ui/region-cards, 2026-10-21: 예전 전장의 판 그림을 뺐다).
-const EXPLORATION_REGIONS = Object.freeze({
+// GENERATED from modules/data/exploration-regions.mjs. Edit the ESM source; run npm run build:modules.
+(() => {
+  // modules/data/exploration-regions.mjs
+  var EXPLORATION_REGIONS = Object.freeze({
     regions: [
-        // 2026-10-25 사용자: 나무(사냥)와 탐험이 허브에서는 따로인데 안의 위 탭에서는 하나였다. 세계수 아틀라스도 따로 탭을 쓴다.
-        {id:'tree',name:'나무',landscape:'assets/ui/region-cards/act-01.webp?v=20261030',routes:['map-explore-hunting'],sideRoutes:[]},
-        {id:'trail',name:'탐험',landscape:'assets/ui/region-cards/act-01.webp?v=20261030',routes:['map-explore-root-boss','map-explore-trials','map-explore-beehive','map-explore-colony'],sideRoutes:['map-explore-beehive','map-explore-colony']},
-        // 세계수 아틀라스의 그림은 타이틀의 세계수(assets/background/title-worldtree-v1.webp)를 다른 권역 카드와 같은 1200x430으로 잘랐다.
-        {id:'worldtree',name:'세계수 아틀라스',landscape:'assets/ui/region-cards/worldtree.webp',routes:['map-explore-worldtree'],sideRoutes:[]},
-        {id:'roots',name:'혼돈의 뿌리',landscape:'assets/ui/region-cards/roots.webp',routes:['map-explore-chaos','map-tab-chaos-realm','map-explore-labyrinth','map-explore-voidrift','map-explore-timerift','map-explore-beyond'],sideRoutes:['map-explore-voidrift','map-explore-timerift']},
-        {id:'underworld',name:'지하계',landscape:'assets/ui/region-cards/underworld.webp',routes:['map-tab-underworld'],sideRoutes:[]},
-        {id:'sky',name:'창공',landscape:'assets/ui/region-cards/sky.webp',routes:['map-tab-sky','map-explore-meteor'],sideRoutes:['map-explore-meteor']},
-        {id:'sea',name:'심해',landscape:'assets/ui/region-cards/sea.webp',routes:['map-tab-ocean','map-tab-fishing'],sideRoutes:['map-tab-fishing']},
-        {id:'cosmos',name:'우주계',landscape:'assets/ui/region-cards/cosmos.webp',routes:['map-tab-cosmos'],sideRoutes:[]}
+      // 2026-10-25 사용자: 나무(사냥)와 탐험이 허브에서는 따로인데 안의 위 탭에서는 하나였다. 세계수 아틀라스도 따로 탭을 쓴다.
+      { id: "tree", name: "나무", landscape: "assets/ui/region-cards/act-01.webp?v=20261030", routes: ["map-explore-hunting"], sideRoutes: [] },
+      { id: "trail", name: "탐험", landscape: "assets/ui/region-cards/act-01.webp?v=20261030", routes: ["map-explore-root-boss", "map-explore-trials", "map-explore-beehive", "map-explore-colony"], sideRoutes: ["map-explore-beehive", "map-explore-colony"] },
+      // 세계수 아틀라스의 그림은 타이틀의 세계수(assets/background/title-worldtree-v1.webp)를 다른 권역 카드와 같은 1200x430으로 잘랐다.
+      { id: "worldtree", name: "세계수 아틀라스", landscape: "assets/ui/region-cards/worldtree.webp", routes: ["map-explore-worldtree"], sideRoutes: [] },
+      { id: "roots", name: "혼돈의 뿌리", landscape: "assets/ui/region-cards/roots.webp", routes: ["map-explore-chaos", "map-tab-chaos-realm", "map-explore-labyrinth", "map-explore-voidrift", "map-explore-timerift", "map-explore-beyond"], sideRoutes: ["map-explore-voidrift", "map-explore-timerift"] },
+      { id: "underworld", name: "지하계", landscape: "assets/ui/region-cards/underworld.webp", routes: ["map-tab-underworld"], sideRoutes: [] },
+      { id: "sky", name: "창공", landscape: "assets/ui/region-cards/sky.webp", routes: ["map-tab-sky", "map-explore-meteor"], sideRoutes: ["map-explore-meteor"] },
+      { id: "sea", name: "심해", landscape: "assets/ui/region-cards/sea.webp", routes: ["map-tab-ocean", "map-tab-fishing"], sideRoutes: ["map-tab-fishing"] },
+      { id: "cosmos", name: "우주계", landscape: "assets/ui/region-cards/cosmos.webp", routes: ["map-tab-cosmos"], sideRoutes: [] }
     ],
     /** 나무 띠의 그림: 액트 순서(1부터)마다 하나. */
-    actLandscapes: Object.freeze(Array.from({ length: 10 }, (_, i) => 'assets/ui/region-cards/act-' + String(i + 1).padStart(2, '0') + '.webp?v=20261030')),
+    actLandscapes: Object.freeze(Array.from({ length: 10 }, (_, i) => "assets/ui/region-cards/act-" + String(i + 1).padStart(2, "0") + ".webp?v=20261030")),
     // 해금 순간에는 경로, 지도에서는 보상, 입장 화면에서는 다음 행동에 필요한 내용을 읽는다.
     guides: Object.freeze({
-        'outside-chaos': { title: '혼돈 밖', noticeKey: 'unlock_outside_chaos', path: '루프 → 루프 패시브 → 심화 등반과 영구 강화 → 혼돈 밖 진입',
-            notice: '나무꾼에게 최대 생명력의 10% 이상 피해를 준 전투를 마치면 혼돈계 해금 기록을 얻습니다.',
-            reward: '혼돈계 해금에 필요한 나무꾼 기록, 심화 루프 포인트' },
-        'map-tab-chaos-realm': { path: '지도 → 탐험 → 혼돈계',
-            goal: '층을 클리어해 더 깊은 층을 여세요.', entry: '이번 루프 혼돈 20층 클리어',
-            reward: '루프가 바뀌어도 유지되는 등반 기록과 영구 보너스' },
-        'map-tab-underworld': { path: '지도 → 탐험 → 지하계 → 탐사', page: 'entry',
-            goal: '더 깊은 층을 공략하고 10층 단위 보상으로 새 지하석을 여세요.', entry: '이번 루프 혼돈 20층 클리어',
-            notice: '10층을 돌파하면 첫 지하석과 장착 슬롯을 얻습니다.',
-            reward: '지하석과 룬 강화 재료' },
-        'map-tab-cosmos': { path: '지도 → 탐험 → 우주계 → 별 지도', page: 'route',
-            goal: '첫 은하를 골라 항로를 출발하세요. 이어지는 천체를 공략하고 다음 은하를 여세요.',
-            notice: '1은하에서 탐사를 시작하세요. 은하 보스를 꺾으면 우주석을 얻습니다.',
-            reward: '창공의 정수, 은하 보스의 우주석' },
-        'map-tab-sky': { path: '지도 → 탐험 → 창공',
-            goal: '창공의 탑에서 더 높은 층을 클리어해 등반 기록을 올리세요.', entry: '이번 루프 혼돈 진입',
-            notice: '탑을 등반해 응축된 창공의 정수를 모으고 공격 룬이나 창공석을 강화하세요.',
-            reward: '응축된 창공의 정수로 하는 영구 룬 강화' },
-        'map-tab-ocean': { path: '지도 → 탐험 → 심해',
-            goal: '잠수를 시작하고 산소와 수압을 살피며 다음 체크포인트에 도달하세요.',
-            reward: '심해 재화와 영구 탐사 강화' },
-        'map-tab-fishing': { path: '지도 → 탐험 → 심해 → 낚시',
-            goal: '낚시터를 고르고 어획물을 모아 수집 보상을 받으세요.',
-            reward: '어획물과 영구 수집 보상' },
-        'map-explore-worldtree': { title: '세계수 아틀라스', noticeKey: 'unlock_world_tree_atlas', path: '지도 → 탐험 → 아틀라스',
-            goal: '지도석을 골라 지도에 입장하고 보스를 물리쳐 연결된 길을 여세요.',
-            reward: '지도석, 아틀라스 패시브 포인트, 지역 전용 보상' },
-        'atlas-memory': { title: '기억 던전', mapRoute: 'map-explore-worldtree', atlasView: 'memory',
-            path: '지도 → 탐험 → 아틀라스 → 기억',
-            goal: '아틀라스 보스가 남긴 기억으로 같은 보스에게 다시 도전하세요.',
-            reward: '기억 전용 고유 장비와 제작 재화' },
-        'atlas-epoch': { title: '시대 재생', mapRoute: 'map-explore-worldtree', atlasView: 'epoch',
-            path: '지도 → 탐험 → 아틀라스 → 시대',
-            goal: '세계수 씨앗을 모아 아틀라스 진행을 되돌리고 영구 특전을 여세요.',
-            reward: '세계수 정수와 아틀라스 영구 특전' },
-        'atlas-board': { title: '나이테 원정', mapRoute: 'map-explore-worldtree', atlasView: 'board',
-            path: '지도 → 탐험 → 아틀라스 → 나이테 원정',
-            goal: '심재 주사위로 전진하며 지도를 클리어하세요. 마지막 문지기를 물리치면 보관 보상을 받습니다.',
-            reward: '원정에서 모은 제작 재화와 희귀 이상 장비' },
-        'atlas-late': { title: '깨어난 아틀라스', noticeKey: 'atlas_awakened', mapRoute: 'map-explore-worldtree', atlasView: 'late',
-            path: '지도 → 탐험 → 아틀라스 → 최종',
-            goal: '도전할 보스를 고르고 카드에 표시된 입장 재료를 모으세요.',
-            reward: '최종 보스 전용 재화와 고유 장비' },
-        'map-tab-pvp': { path: '지도 → 탐험 → 대전',
-            goal: '상대의 기록을 골라 대전하세요.',
-            reward: '대전 기록' },
-        'map-explore-timerift': { path: '지도 → 탐험 → 시간의 균열',
-            goal: '과거를 클리어해 제단을 열고 같은 부위의 고유 장비와 희귀 장비를 올리세요. 미래를 클리어하면 융합이 끝납니다.',
-            reward: '두 장비를 합친 융합 유물' },
-        'map-explore-meteor': { path: '지도 → 탐험 → 유성 낙하 지역',
-            goal: '액트 7 이후 사냥터에서 하늘의 균열 게이지를 채우세요. 100%가 되면 원정에 한 번 입장할 수 있습니다.',
-            reward: '희귀 이상 장비와 운석 전용 고유 장비' },
-        'map-explore-chaos': { path: '지도 → 탐험 → 혼돈의 뿌리',
-            goal: '이번 루프에 필요한 층을 클리어하세요. 루프 10부터 혼돈 20층을 클리어하면 21층 이후의 심화층으로 갈 수 있습니다.',
-            reward: '루프 진행 조건과 심화 루프 포인트' },
-        'map-explore-labyrinth': { path: '지도 → 탐험 → 고대 미궁',
-            goal: '입장 가능한 층을 골라 탐험하세요. 층을 클리어하면 다음 층을 열 수 있습니다.',
-            reward: '제작용 화석, 지하계 해금에 필요한 100층 도달 기록' },
-        'map-explore-voidrift': { path: '지도 → 탐험 → 대균열',
-            goal: '공허 균열을 클리어해 대균열 입장 기회를 얻으세요. 대균열에서는 제한 시간 안에 지배자에게 도전합니다.',
-            reward: '공허의 끌과 대균열 장비 보상' },
-        'map-explore-root-boss': { path: '지도 → 탐험 → 강대한 적',
-            goal: '도전할 적을 고르고 카드의 입장 조건과 필요한 표식을 확인하세요.',
-            reward: '보스별 고유 장비와 군주의 핵' },
-        'map-explore-trials': { path: '지도 → 탐험 → 전직 시련',
-            goal: '열린 시련을 선택하세요. 다음 시련의 조건은 각 카드에서 확인할 수 있습니다.',
-            reward: '전직 포인트와 스킬룬' },
-        'map-explore-beehive': { path: '지도 → 탐험 → 숨겨진 벌집',
-            goal: '벌집 열쇠로 원정에 입장해 갈림길을 지나 여왕벌에게 도전하세요.',
-            reward: '마력 깃든 벌꿀, 독벌침, 벌집 고유 장비' },
-        'map-explore-colony': { path: '지도 → 탐험 → 군락지',
-            goal: '핵을 지키며 몰려오는 무리를 막고 더 높은 웨이브에 도전하세요.',
-            reward: '군락지 액막이와 수호판 성장 재료' },
-        'map-explore-beyond': { path: '지도 → 탐험 → 그 밖의 곳 → 경계 너머',
-            goal: '도전할 단계와 성장시킬 경계 인장을 골라 전투를 시작하세요.',
-            reward: '경계 인장 성장' }
+      "outside-chaos": {
+        title: "혼돈 밖",
+        noticeKey: "unlock_outside_chaos",
+        path: "루프 → 루프 패시브 → 심화 등반과 영구 강화 → 혼돈 밖 진입",
+        notice: "나무꾼에게 최대 생명력의 10% 이상 피해를 준 전투를 마치면 혼돈계 해금 기록을 얻습니다.",
+        reward: "혼돈계 해금에 필요한 나무꾼 기록, 심화 루프 포인트"
+      },
+      "map-tab-chaos-realm": {
+        path: "지도 → 탐험 → 혼돈계",
+        goal: "층을 클리어해 더 깊은 층을 여세요.",
+        entry: "이번 루프 혼돈 20층 클리어",
+        reward: "루프가 바뀌어도 유지되는 등반 기록과 영구 보너스"
+      },
+      "map-tab-underworld": {
+        path: "지도 → 탐험 → 지하계 → 탐사",
+        page: "entry",
+        goal: "더 깊은 층을 공략하고 10층 단위 보상으로 새 지하석을 여세요.",
+        entry: "이번 루프 혼돈 20층 클리어",
+        notice: "10층을 돌파하면 첫 지하석과 장착 슬롯을 얻습니다.",
+        reward: "지하석과 룬 강화 재료"
+      },
+      "map-tab-cosmos": {
+        path: "지도 → 탐험 → 우주계 → 별 지도",
+        page: "route",
+        goal: "첫 은하를 골라 항로를 출발하세요. 이어지는 천체를 공략하고 다음 은하를 여세요.",
+        notice: "1은하에서 탐사를 시작하세요. 은하 보스를 꺾으면 우주석을 얻습니다.",
+        reward: "창공의 정수, 은하 보스의 우주석"
+      },
+      "map-tab-sky": {
+        path: "지도 → 탐험 → 창공",
+        goal: "창공의 탑에서 더 높은 층을 클리어해 등반 기록을 올리세요.",
+        entry: "이번 루프 혼돈 진입",
+        notice: "탑을 등반해 응축된 창공의 정수를 모으고 공격 룬이나 창공석을 강화하세요.",
+        reward: "응축된 창공의 정수로 하는 영구 룬 강화"
+      },
+      "map-tab-ocean": {
+        path: "지도 → 탐험 → 심해",
+        goal: "잠수를 시작하고 산소와 수압을 살피며 다음 체크포인트에 도달하세요.",
+        reward: "심해 재화와 영구 탐사 강화"
+      },
+      "map-tab-fishing": {
+        path: "지도 → 탐험 → 심해 → 낚시",
+        goal: "낚시터를 고르고 어획물을 모아 수집 보상을 받으세요.",
+        reward: "어획물과 영구 수집 보상"
+      },
+      "map-explore-worldtree": {
+        title: "세계수 아틀라스",
+        noticeKey: "unlock_world_tree_atlas",
+        path: "지도 → 탐험 → 아틀라스",
+        goal: "지도석을 골라 지도에 입장하고 보스를 물리쳐 연결된 길을 여세요.",
+        reward: "지도석, 아틀라스 패시브 포인트, 지역 전용 보상"
+      },
+      "atlas-memory": {
+        title: "기억 던전",
+        mapRoute: "map-explore-worldtree",
+        atlasView: "memory",
+        path: "지도 → 탐험 → 아틀라스 → 기억",
+        goal: "아틀라스 보스가 남긴 기억으로 같은 보스에게 다시 도전하세요.",
+        reward: "기억 전용 고유 장비와 제작 재화"
+      },
+      "atlas-epoch": {
+        title: "시대 재생",
+        mapRoute: "map-explore-worldtree",
+        atlasView: "epoch",
+        path: "지도 → 탐험 → 아틀라스 → 시대",
+        goal: "세계수 씨앗을 모아 아틀라스 진행을 되돌리고 영구 특전을 여세요.",
+        reward: "세계수 정수와 아틀라스 영구 특전"
+      },
+      "atlas-board": {
+        title: "나이테 원정",
+        mapRoute: "map-explore-worldtree",
+        atlasView: "board",
+        path: "지도 → 탐험 → 아틀라스 → 나이테 원정",
+        goal: "심재 주사위로 전진하며 지도를 클리어하세요. 마지막 문지기를 물리치면 보관 보상을 받습니다.",
+        reward: "원정에서 모은 제작 재화와 희귀 이상 장비"
+      },
+      "atlas-late": {
+        title: "깨어난 아틀라스",
+        noticeKey: "atlas_awakened",
+        mapRoute: "map-explore-worldtree",
+        atlasView: "late",
+        path: "지도 → 탐험 → 아틀라스 → 최종",
+        goal: "도전할 보스를 고르고 카드에 표시된 입장 재료를 모으세요.",
+        reward: "최종 보스 전용 재화와 고유 장비"
+      },
+      "map-tab-pvp": {
+        path: "지도 → 탐험 → 대전",
+        goal: "상대의 기록을 골라 대전하세요.",
+        reward: "대전 기록"
+      },
+      "map-explore-timerift": {
+        path: "지도 → 탐험 → 시간의 균열",
+        goal: "과거를 클리어해 제단을 열고 같은 부위의 고유 장비와 희귀 장비를 올리세요. 미래를 클리어하면 융합이 끝납니다.",
+        reward: "두 장비를 합친 융합 유물"
+      },
+      "map-explore-meteor": {
+        path: "지도 → 탐험 → 유성 낙하 지역",
+        goal: "액트 7 이후 사냥터에서 하늘의 균열 게이지를 채우세요. 100%가 되면 원정에 한 번 입장할 수 있습니다.",
+        reward: "희귀 이상 장비와 운석 전용 고유 장비"
+      },
+      "map-explore-chaos": {
+        path: "지도 → 탐험 → 혼돈의 뿌리",
+        goal: "이번 루프에 필요한 층을 클리어하세요. 루프 10부터 혼돈 20층을 클리어하면 21층 이후의 심화층으로 갈 수 있습니다.",
+        reward: "루프 진행 조건과 심화 루프 포인트"
+      },
+      "map-explore-labyrinth": {
+        path: "지도 → 탐험 → 고대 미궁",
+        goal: "입장 가능한 층을 골라 탐험하세요. 층을 클리어하면 다음 층을 열 수 있습니다.",
+        reward: "제작용 화석, 지하계 해금에 필요한 100층 도달 기록"
+      },
+      "map-explore-voidrift": {
+        path: "지도 → 탐험 → 대균열",
+        goal: "공허 균열을 클리어해 대균열 입장 기회를 얻으세요. 대균열에서는 제한 시간 안에 지배자에게 도전합니다.",
+        reward: "공허의 끌과 대균열 장비 보상"
+      },
+      "map-explore-root-boss": {
+        path: "지도 → 탐험 → 강대한 적",
+        goal: "도전할 적을 고르고 카드의 입장 조건과 필요한 표식을 확인하세요.",
+        reward: "보스별 고유 장비와 군주의 핵"
+      },
+      "map-explore-trials": {
+        path: "지도 → 탐험 → 전직 시련",
+        goal: "열린 시련을 선택하세요. 다음 시련의 조건은 각 카드에서 확인할 수 있습니다.",
+        reward: "전직 포인트와 스킬룬"
+      },
+      "map-explore-beehive": {
+        path: "지도 → 탐험 → 숨겨진 벌집",
+        goal: "벌집 열쇠로 원정에 입장해 갈림길을 지나 여왕벌에게 도전하세요.",
+        reward: "마력 깃든 벌꿀, 독벌침, 벌집 고유 장비"
+      },
+      "map-explore-colony": {
+        path: "지도 → 탐험 → 군락지",
+        goal: "핵을 지키며 몰려오는 무리를 막고 더 높은 웨이브에 도전하세요.",
+        reward: "군락지 액막이와 수호판 성장 재료"
+      },
+      "map-explore-beyond": {
+        path: "지도 → 탐험 → 그 밖의 곳 → 경계 너머",
+        goal: "도전할 단계와 성장시킬 경계 인장을 골라 전투를 시작하세요.",
+        reward: "경계 인장 성장"
+      }
     }),
     // Short activity identities for the region chooser; entry/rewards stay in their domains. landscape: the card's picture, cut from
     // the stage region picture of that content like the region cards (2026-10-26 사용자: 권역 고르기 카드에 지도 그림).
     activities: {
-        'map-explore-root-boss': {kind:'보스전',tone:'boss',landscape:'assets/ui/region-cards/act-07.webp?v=20261030'},
-        'map-explore-trials': {kind:'전직 도전',tone:'trial',landscape:'assets/ui/region-cards/trial-01.webp'},
-        'map-explore-beehive': {kind:'',tone:'choice',landscape:'assets/ui/region-cards/beehive.webp'},
-        'map-explore-colony': {kind:'',tone:'survival',landscape:'assets/ui/region-cards/colony.webp'},
-        'map-explore-worldtree': {kind:'지도 공략',tone:'choice'},
-        'map-explore-chaos': {kind:'루프 등반',tone:'climb',landscape:'assets/ui/region-cards/chaos.webp'},
-        'map-tab-chaos-realm': {kind:'영구 등반',tone:'climb',landscape:'assets/ui/region-cards/roots.webp'},
-        'map-explore-labyrinth': {kind:'미궁 등반',tone:'trial',landscape:'assets/ui/region-cards/labyrinth.webp'},
-        'map-explore-voidrift': {kind:'대량 섬멸',tone:'survival',landscape:'assets/ui/region-cards/void.webp'},
-        'map-explore-timerift': {kind:'시간압 전투',tone:'survival',landscape:'assets/ui/region-cards/rift-past.webp'},
-        'map-explore-beyond': {kind:'최종 도전',tone:'boss',landscape:'assets/ui/region-cards/beyond.webp'},
-        'map-tab-underworld': {kind:'지하 탐사',tone:'climb'},
-        'map-tab-sky': {kind:'탑 등반',tone:'climb',landscape:'assets/ui/region-cards/sky.webp'},
-        'map-explore-meteor': {kind:'운석 원정',tone:'boss',landscape:'assets/ui/region-cards/meteor.webp'},
-        'map-tab-ocean': {kind:'심도 탐사',tone:'climb',landscape:'assets/ui/region-cards/sea.webp'},
-        'map-tab-fishing': {kind:'낚시',tone:'rest',landscape:'assets/ui/region-cards/fishing.webp'},
-        'map-tab-cosmos': {kind:'항로 탐사',tone:'choice'}
+      "map-explore-root-boss": { kind: "보스전", tone: "boss", landscape: "assets/ui/region-cards/act-07.webp?v=20261030" },
+      "map-explore-trials": { kind: "전직 도전", tone: "trial", landscape: "assets/ui/region-cards/trial-01.webp" },
+      "map-explore-beehive": { kind: "", tone: "choice", landscape: "assets/ui/region-cards/beehive.webp" },
+      "map-explore-colony": { kind: "", tone: "survival", landscape: "assets/ui/region-cards/colony.webp" },
+      "map-explore-worldtree": { kind: "지도 공략", tone: "choice" },
+      "map-explore-chaos": { kind: "루프 등반", tone: "climb", landscape: "assets/ui/region-cards/chaos.webp" },
+      "map-tab-chaos-realm": { kind: "영구 등반", tone: "climb", landscape: "assets/ui/region-cards/roots.webp" },
+      "map-explore-labyrinth": { kind: "미궁 등반", tone: "trial", landscape: "assets/ui/region-cards/labyrinth.webp" },
+      "map-explore-voidrift": { kind: "대량 섬멸", tone: "survival", landscape: "assets/ui/region-cards/void.webp" },
+      "map-explore-timerift": { kind: "시간압 전투", tone: "survival", landscape: "assets/ui/region-cards/rift-past.webp" },
+      "map-explore-beyond": { kind: "최종 도전", tone: "boss", landscape: "assets/ui/region-cards/beyond.webp" },
+      "map-tab-underworld": { kind: "지하 탐사", tone: "climb" },
+      "map-tab-sky": { kind: "탑 등반", tone: "climb", landscape: "assets/ui/region-cards/sky.webp" },
+      "map-explore-meteor": { kind: "운석 원정", tone: "boss", landscape: "assets/ui/region-cards/meteor.webp" },
+      "map-tab-ocean": { kind: "심도 탐사", tone: "climb", landscape: "assets/ui/region-cards/sea.webp" },
+      "map-tab-fishing": { kind: "낚시", tone: "rest", landscape: "assets/ui/region-cards/fishing.webp" },
+      "map-tab-cosmos": { kind: "항로 탐사", tone: "choice" }
     }
-});
-safeExposeData({ EXPLORATION_REGIONS });
+  });
+
+  // modules/data/exploration-regions.mjs:classic
+  Object.assign(globalThis, { EXPLORATION_REGIONS });
+  if (typeof safeExposeData === "function") safeExposeData({ EXPLORATION_REGIONS });
+})();

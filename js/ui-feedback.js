@@ -1,17 +1,170 @@
-(function () {
-    'use strict';
+// GENERATED from modules/ui-feedback*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  var __defProp = Object.defineProperty;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-    let dialogQueue = [];
-    let activeDialog = null;
-    let previousFocus = null;
+  // modules/common/text.mjs
+  function escapeHTML(value) {
+    return String(value == null ? "" : value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function stripDecorativeEmoji(value) {
+    return String(value == null ? "" : value).replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u{1F000}-\u{1FAFF}\uFE0F\u200D]/gu, "").replace(/\s{2,}/g, " ").trim();
+  }
 
+  // modules/browser/dialog-inputs.mjs
+  var DIALOG_TITLES = /* @__PURE__ */ new Map([["number", "수량 선택"], ["choice", "대상 선택"], ["text", "입력"]]);
+  var dialogFiniteNumber = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+  function dialogLabels(source) {
+    return {
+      title: source.title || DIALOG_TITLES.get(source.type) || "확인",
+      kicker: source.kicker || (source.tone === "danger" ? "주의가 필요한 작업" : ""),
+      message: source.message || "",
+      confirmLabel: source.confirmLabel || "확인",
+      cancelLabel: source.cancelLabel || "취소",
+      placeholder: source.placeholder || ""
+    };
+  }
+  function dialogLimits(source) {
+    return {
+      min: dialogFiniteNumber(source.min, 0),
+      max: dialogFiniteNumber(source.max, 100),
+      step: Number.isFinite(Number(source.step)) && Number(source.step) > 0 ? Number(source.step) : 1,
+      maxLength: dialogFiniteNumber(source.maxLength, 120)
+    };
+  }
+  function normalizeDialogOptions(options) {
+    const source = typeof options === "string" ? { message: options } : options || {};
+    return {
+      type: source.type || "confirm",
+      tone: source.tone || "default",
+      ...dialogLabels(source),
+      ...dialogLimits(source),
+      value: source.value,
+      choices: Array.isArray(source.choices) ? source.choices : [],
+      validate: typeof source.validate === "function" ? source.validate : null,
+      submitOnChoice: source.submitOnChoice === true,
+      summaryHtml: source.summaryHtml,
+      dismissOnBackdrop: source.dismissOnBackdrop !== false,
+      resolve: source.resolve,
+      reject: source.reject
+    };
+  }
+  function clampDialogNumber(value, dialog) {
+    let number = Number(value);
+    if (!Number.isFinite(number)) number = Number.isFinite(Number(dialog.value)) ? Number(dialog.value) : dialog.min;
+    number = Math.max(dialog.min, Math.min(dialog.max, number));
+    let steps = Math.round((number - dialog.min) / dialog.step);
+    return Number((dialog.min + steps * dialog.step).toFixed(6));
+  }
+  function buildDialogControl(dialog, translate) {
+    if (dialog.type === "number") {
+      let initial = clampDialogNumber(dialog.value, dialog);
+      return `<div class="game-number-picker">
+                <button type="button" class="game-number-stepper" data-step-direction="-1" aria-label="${translate("감소")}">−</button>
+                <input id="game-dialog-number" class="game-number-input" type="number" min="${dialog.min}" max="${dialog.max}" step="${dialog.step}" value="${initial}">
+                <button type="button" class="game-number-stepper" data-step-direction="1" aria-label="${translate("증가")}">＋</button>
+                <input id="game-dialog-range" class="game-number-range" type="range" min="${dialog.min}" max="${dialog.max}" step="${dialog.step}" value="${initial}">
+                <div class="game-number-bounds"><span>${dialog.min}</span><strong id="game-dialog-number-preview">${initial}</strong><span>${dialog.max}</span></div>
+            </div>`;
+    }
+    if (dialog.type === "text") {
+      return `<label class="game-text-field"><span>${translate("입력값")}</span><input id="game-dialog-text" type="text" maxlength="${dialog.maxLength}" value="${escapeHTML(dialog.value || "")}" placeholder="${escapeHTML(dialog.placeholder)}" autocomplete="off"></label>`;
+    }
+    if (dialog.type === "choice") {
+      return `<div class="game-choice-grid">${dialog.choices.map((choice, index) => {
+        const entry = choice && typeof choice === "object" ? choice : { value: choice, label: choice };
+        const { value, label, detail } = entry;
+        let detailHtml = entry.detailHtml || (detail ? `<span>${escapeHTML(detail)}</span>` : "");
+        return `<button type="button" class="game-choice-option" data-choice-index="${index}" data-choice-value="${escapeHTML(value)}" aria-pressed="${index === 0 ? "true" : "false"}"><strong>${escapeHTML(label)}</strong>${detailHtml}</button>`;
+      }).join("")}</div>`;
+    }
+    return dialog.summaryHtml || "";
+  }
 
-    function ensureFeedbackRoot() {
-        let root = document.getElementById('game-feedback-root');
-        if (root) return root;
-        root = document.createElement('div');
-        root.id = 'game-feedback-root';
-        root.innerHTML = `
+  // modules/browser/bound-picker.mjs
+  function bindGamePicker(overlay, options) {
+    const document2 = overlay.ownerDocument;
+    let closed = false;
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-labelledby", options.titleId);
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      overlay.onclick = null;
+      overlay.onkeydown = null;
+      closeButton.onclick = null;
+      overlay.remove();
+      options.onClose?.();
+      document2.querySelector(options.returnSelector)?.focus({ preventScroll: true });
+    };
+    overlay.onclick = (event) => {
+      if (event.target === overlay) close();
+    };
+    overlay.onkeydown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        close();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const controls = [...overlay.querySelectorAll("button:not(:disabled),select:not(:disabled)")].filter((control) => control.getClientRects().length);
+      const first = controls[0], last = controls[controls.length - 1];
+      const target = event.shiftKey ? last : first;
+      if (document2.activeElement !== (event.shiftKey ? first : last)) return;
+      event.preventDefault();
+      target.focus();
+    };
+    const closeButton = overlay.querySelector(options.closeSelector);
+    closeButton.onclick = close;
+    closeButton.focus({ preventScroll: true });
+    return close;
+  }
+
+  // modules/browser/feedback.mjs
+  var TOAST_MARKS = Object.freeze({ success: "✓", danger: "!", warning: "△", chase: "★" });
+  var Feedback = class {
+    constructor({ window: window2, document: document2 }, inputs) {
+      __publicField(this, "dialogQueue", []);
+      __publicField(this, "activeDialog", null);
+      __publicField(this, "previousFocus", null);
+      __publicField(this, "liveDocument", () => typeof this.document !== "undefined" && !!this.document.body && this.document.body.isConnected === true);
+      __publicField(this, "heldToasts", []);
+      __publicField(this, "heldToastWatch", null);
+      this.window = window2;
+      this.document = document2;
+      this.inputs = inputs;
+      this.disposed = false;
+      this.frames = /* @__PURE__ */ new Set();
+      this.timers = /* @__PURE__ */ new Set();
+      for (const name of ["ensureFeedbackRoot", "requestGameDialog", "requestGameConfirmation", "requestGameNumber", "requestGameText", "requestGameChoice", "showNextDialog", "bindDialogControl", "getActiveDialogValue", "submitActiveDialog", "finishDialog", "handleDialogKeydown", "cycleDialogFocus", "dismissGameToast", "toastText", "trimToasts", "holdToastUntilEntry", "showGameToast", "renderGameToast"]) this[name] = this[name].bind(this);
+    }
+    frame(callback) {
+      if (this.disposed) return null;
+      const id = this.window.requestAnimationFrame(() => {
+        this.frames.delete(id);
+        if (!this.disposed) callback();
+      });
+      this.frames.add(id);
+      return id;
+    }
+    later(callback, ms) {
+      if (this.disposed) return null;
+      const id = this.window.setTimeout(() => {
+        this.timers.delete(id);
+        if (!this.disposed) callback();
+      }, ms);
+      this.timers.add(id);
+      return id;
+    }
+    ensureFeedbackRoot() {
+      let root = this.document.getElementById("game-feedback-root");
+      if (root) return root;
+      root = this.document.createElement("div");
+      root.id = "game-feedback-root";
+      root.innerHTML = `
             <dialog id="game-dialog-overlay" class="game-dialog-overlay" aria-labelledby="game-dialog-title" aria-hidden="true" inert>
                 <section id="game-dialog-card" class="game-dialog-card">
                     <div class="game-dialog-kicker" id="game-dialog-kicker"></div>
@@ -22,350 +175,292 @@
                         <div class="game-dialog-error" id="game-dialog-error" role="alert" hidden></div>
                     </div>
                     <div class="game-dialog-actions">
-                        <button type="button" class="game-dialog-btn game-dialog-btn-secondary" id="game-dialog-cancel">${_t('취소')}</button>
-                        <button type="button" class="game-dialog-btn game-dialog-btn-primary" id="game-dialog-confirm">${_t('확인')}</button>
+                        <button type="button" class="game-dialog-btn game-dialog-btn-secondary" id="game-dialog-cancel">${this.inputs.translate("취소")}</button>
+                        <button type="button" class="game-dialog-btn game-dialog-btn-primary" id="game-dialog-confirm">${this.inputs.translate("확인")}</button>
                     </div>
                 </section>
             </dialog>
             <div id="game-toast-region" class="game-toast-region" role="status" aria-live="polite" aria-atomic="false"></div>`;
-        document.body.appendChild(root);
-        root.querySelector('#game-dialog-overlay').addEventListener('cancel', event => {
-            event.preventDefault();
-            finishDialog(null, false);
-        });
-        root.querySelector('#game-dialog-overlay').addEventListener('close', event => {
-            if (!event.target.open) finishDialog(null, false);
-        });
-        root.querySelector('#game-dialog-overlay').addEventListener('pointerdown', event => {
-            if (event.target === event.currentTarget && activeDialog && activeDialog.dismissOnBackdrop !== false) finishDialog(null, false);
-        });
-        root.querySelector('#game-dialog-cancel').addEventListener('click', () => finishDialog(null, false));
-        root.querySelector('#game-dialog-confirm').addEventListener('click', () => submitActiveDialog());
-        document.addEventListener('keydown', handleDialogKeydown, true);
-        return root;
-    }
-
-
-    function normalizeDialogOptions(options) {
-        let source = typeof options === 'string' ? { message: options } : (options || {});
-        return {
-            type: source.type || 'confirm',
-            tone: source.tone || 'default',
-            title: source.title || (source.type === 'number' ? '수량 선택' : source.type === 'choice' ? '대상 선택' : source.type === 'text' ? '입력' : '확인'),
-            kicker: source.kicker || (source.tone === 'danger' ? '주의가 필요한 작업' : ''),
-            message: source.message || '',
-            confirmLabel: source.confirmLabel || '확인',
-            cancelLabel: source.cancelLabel || '취소',
-            min: Number.isFinite(Number(source.min)) ? Number(source.min) : 0,
-            max: Number.isFinite(Number(source.max)) ? Number(source.max) : 100,
-            step: Number.isFinite(Number(source.step)) && Number(source.step) > 0 ? Number(source.step) : 1,
-            value: source.value,
-            placeholder: source.placeholder || '',
-            maxLength: Number.isFinite(Number(source.maxLength)) ? Number(source.maxLength) : 120,
-            choices: Array.isArray(source.choices) ? source.choices : [],
-            validate: typeof source.validate === 'function' ? source.validate : null,
-            submitOnChoice: source.submitOnChoice === true,
-            // Internal presentation HTML only (a confirm's summary under the message, e.g. what a salvage takes); callers escape any external text.
-            summaryHtml: source.summaryHtml,
-            dismissOnBackdrop: source.dismissOnBackdrop !== false,
-            resolve: source.resolve
-        };
-    }
-
-    function requestGameDialog(options) {
-        return new Promise(resolve => {
-            dialogQueue.push(normalizeDialogOptions({ ...(options || {}), resolve }));
-            showNextDialog();
-        });
-    }
-
-    function requestGameConfirmation(message, options) {
-        return requestGameDialog({ ...(options || {}), type: 'confirm', message });
-    }
-
-    function requestGameNumber(options) {
-        return requestGameDialog({ ...(options || {}), type: 'number' });
-    }
-
-    function requestGameText(options) {
-        return requestGameDialog({ ...(options || {}), type: 'text' });
-    }
-
-    function requestGameChoice(options) {
-        return requestGameDialog({ ...(options || {}), type: 'choice' });
-    }
-
-    function showNextDialog() {
-        if (activeDialog || dialogQueue.length === 0) return;
-        ensureFeedbackRoot();
-        activeDialog = dialogQueue.shift();
-        previousFocus = document.activeElement;
-        let overlay = document.getElementById('game-dialog-overlay');
-        let card = document.getElementById('game-dialog-card');
-        let control = document.getElementById('game-dialog-control');
-        let cancel = document.getElementById('game-dialog-cancel');
-        let confirm = document.getElementById('game-dialog-confirm');
-        card.dataset.tone = activeDialog.tone;
-        document.getElementById('game-dialog-kicker').textContent = activeDialog.kicker;
-        document.getElementById('game-dialog-title').textContent = _t(activeDialog.title);
-        document.getElementById('game-dialog-message').innerHTML = escapeHTML(activeDialog.message).replace(/\n/g, '<br>');
-        cancel.textContent = activeDialog.cancelLabel;
-        confirm.textContent = activeDialog.confirmLabel;
-        cancel.style.display = activeDialog.type === 'notice' ? 'none' : '';
-        confirm.style.display = activeDialog.type === 'choice' && activeDialog.submitOnChoice ? 'none' : '';
-        control.innerHTML = buildDialogControl(activeDialog);
-        document.getElementById('game-dialog-error').hidden = true;
-        bindDialogControl(activeDialog, control);
-        overlay.inert = false;
-        overlay.classList.add('active');
-        overlay.setAttribute('aria-hidden', 'false');
-        overlay.showModal();
-        document.body.classList.add('game-dialog-open');
-        playUiFeedbackSound(activeDialog.tone === 'danger' ? 'danger' : 'open');
-        requestAnimationFrame(() => {
-            let focusTarget = control.querySelector('input:not([type="range"]),button[aria-pressed="true"]') || confirm;
-            focusTarget.focus({ preventScroll: true });
-            if (focusTarget.select) focusTarget.select();
-        });
-    }
-
-    function buildDialogControl(dialog) {
-        if (dialog.type === 'number') {
-            let initial = clampDialogNumber(dialog.value, dialog);
-            return `<div class="game-number-picker">
-                <button type="button" class="game-number-stepper" data-step-direction="-1" aria-label="${_t('감소')}">−</button>
-                <input id="game-dialog-number" class="game-number-input" type="number" min="${dialog.min}" max="${dialog.max}" step="${dialog.step}" value="${initial}">
-                <button type="button" class="game-number-stepper" data-step-direction="1" aria-label="${_t('증가')}">＋</button>
-                <input id="game-dialog-range" class="game-number-range" type="range" min="${dialog.min}" max="${dialog.max}" step="${dialog.step}" value="${initial}">
-                <div class="game-number-bounds"><span>${dialog.min}</span><strong id="game-dialog-number-preview">${initial}</strong><span>${dialog.max}</span></div>
-            </div>`;
-        }
-        if (dialog.type === 'text') {
-            return `<label class="game-text-field"><span>${_t('입력값')}</span><input id="game-dialog-text" type="text" maxlength="${dialog.maxLength}" value="${escapeHTML(dialog.value || '')}" placeholder="${escapeHTML(dialog.placeholder)}" autocomplete="off"></label>`;
-        }
-        if (dialog.type === 'choice') {
-            return `<div class="game-choice-grid">${dialog.choices.map((choice, index) => {
-                const entry = choice && typeof choice === 'object' ? choice : {value:choice,label:choice};
-                const {value,label,detail} = entry;
-                // Internal presentation HTML only; callers must escape any external text.
-                let detailHtml = entry.detailHtml || (detail ? `<span>${escapeHTML(detail)}</span>` : '');
-                return `<button type="button" class="game-choice-option" data-choice-index="${index}" data-choice-value="${escapeHTML(value)}" aria-pressed="${index === 0 ? 'true' : 'false'}"><strong>${escapeHTML(label)}</strong>${detailHtml}</button>`;
-            }).join('')}</div>`;
-        }
-        return dialog.summaryHtml || '';
-    }
-
-    function bindDialogControl(dialog, control) {
-        if (dialog.type === 'number') {
-            let input = control.querySelector('#game-dialog-number');
-            let range = control.querySelector('#game-dialog-range');
-            let preview = control.querySelector('#game-dialog-number-preview');
-            let sync = (value, keepInputText) => {
-                let next = clampDialogNumber(value, dialog);
-                // 타이핑 중에는 입력 칸을 강제로 고치지 않는다. min이 21일 때
-                // "2"를 치는 순간 21로 덮어써 버리면 숫자를 직접 입력할 수 없다.
-                if (!keepInputText) input.value = String(next);
-                range.value = String(next);
-                preview.textContent = String(next);
-            };
-            input.addEventListener('input', () => sync(input.value, true));
-            input.addEventListener('change', () => sync(input.value));
-            range.addEventListener('input', () => sync(range.value));
-            control.querySelectorAll('[data-step-direction]').forEach(button => button.addEventListener('click', () => {
-                sync(Number(input.value) + Number(button.dataset.stepDirection || 0) * dialog.step);
-                playUiFeedbackSound('open');
-            }));
-        } else if (dialog.type === 'choice') {
-            control.querySelectorAll('.game-choice-option').forEach(button => button.addEventListener('click', () => {
-                control.querySelectorAll('.game-choice-option').forEach(row => row.setAttribute('aria-pressed', 'false'));
-                button.setAttribute('aria-pressed', 'true');
-                playUiFeedbackSound('open');
-                if (dialog.submitOnChoice) submitActiveDialog();
-            }));
-        }
-    }
-
-    function clampDialogNumber(value, dialog) {
-        let number = Number(value);
-        if (!Number.isFinite(number)) number = Number.isFinite(Number(dialog.value)) ? Number(dialog.value) : dialog.min;
-        number = Math.max(dialog.min, Math.min(dialog.max, number));
-        let steps = Math.round((number - dialog.min) / dialog.step);
-        return Number((dialog.min + steps * dialog.step).toFixed(6));
-    }
-
-    function getActiveDialogValue() {
-        if (!activeDialog) return null;
-        if (activeDialog.type === 'confirm') return true;
-        if (activeDialog.type === 'number') {
-            return clampDialogNumber(document.getElementById('game-dialog-number').value, activeDialog);
-        }
-        if (activeDialog.type === 'text') return document.getElementById('game-dialog-text').value;
-        if (activeDialog.type === 'choice') {
-            let selected = document.querySelector('#game-dialog-control .game-choice-option[aria-pressed="true"]');
-            if (!selected) return null;
-            let index = Math.max(0, Math.floor(Number(selected.dataset.choiceIndex) || 0));
-            let choice = activeDialog.choices[index];
-            return choice && typeof choice === 'object' ? choice.value : choice;
-        }
-        return true;
-    }
-
-    function submitActiveDialog() {
-        if (!activeDialog) return;
-        let value = getActiveDialogValue();
-        let validation = activeDialog.validate ? activeDialog.validate(value) : true;
-        if (validation !== true) {
-            let error = document.getElementById('game-dialog-error');
-            error.textContent = typeof validation === 'string' ? validation : _t('입력값을 확인해주세요.');
-            error.hidden = false;
-            error.scrollIntoView({ block: 'nearest' });
-            playUiFeedbackSound('danger');
-            return;
-        }
-        finishDialog(value, true);
-    }
-
-    function finishDialog(value, confirmed) {
-        if (!activeDialog) return;
-        let finished = activeDialog;
-        activeDialog = null;
-        let overlay = document.getElementById('game-dialog-overlay');
-        let focused = document.activeElement;
-        let restoreTarget = previousFocus && previousFocus.focus && !overlay.contains(previousFocus) ? previousFocus : null;
-        overlay.close();
-        if (restoreTarget) restoreTarget.focus({ preventScroll: true });
-        else if (focused && overlay.contains(focused) && focused.blur) focused.blur();
-        previousFocus = null;
-        overlay.inert = true;
-        overlay.classList.remove('active');
-        overlay.setAttribute('aria-hidden', 'true');
-        document.body.classList.remove('game-dialog-open');
-        playUiFeedbackSound(confirmed ? 'confirm' : 'cancel');
-        finished.resolve(confirmed ? value : null);
-        requestAnimationFrame(showNextDialog);
-    }
-
-    function handleDialogKeydown(event) {
-        if (!activeDialog || !event.target.closest?.('#game-dialog-overlay')) return;
-        if (event.key === 'Enter' && !event.shiftKey && !event.target.closest('button')) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            submitActiveDialog();
-            return;
-        }
-        if (event.key !== 'Tab') return;
-        cycleDialogFocus(event);
-    }
-
-    function cycleDialogFocus(event) {
-        let card = document.getElementById('game-dialog-card');
-        let focusable = [...card.querySelectorAll('button:not([disabled]),input:not([disabled])')].filter(element => element.getClientRects().length);
-        if (focusable.length <= 0) return;
-        let current = focusable.indexOf(document.activeElement);
-        let next = event.shiftKey ? current - 1 : current + 1;
-        if (next < 0) next = focusable.length - 1;
-        if (next >= focusable.length) next = 0;
+      this.document.body.appendChild(root);
+      this.ownedRoot = root;
+      root.querySelector("#game-dialog-overlay").addEventListener("cancel", (event) => {
         event.preventDefault();
-        focusable[next].focus();
+        this.finishDialog(null, false);
+      });
+      root.querySelector("#game-dialog-overlay").addEventListener("close", (event) => {
+        if (!event.target.open) this.finishDialog(null, false);
+      });
+      root.querySelector("#game-dialog-overlay").addEventListener("pointerdown", (event) => {
+        if (event.target === event.currentTarget && this.activeDialog && this.activeDialog.dismissOnBackdrop !== false) this.finishDialog(null, false);
+      });
+      root.querySelector("#game-dialog-cancel").addEventListener("click", () => this.finishDialog(null, false));
+      root.querySelector("#game-dialog-confirm").addEventListener("click", () => this.submitActiveDialog());
+      this.document.addEventListener("keydown", this.handleDialogKeydown, true);
+      return root;
     }
-
-    function dismissGameToast(toast, fadeMs) {
-        if (toast.classList.contains('is-dismissed')) return;
-        toast.classList.add('is-dismissed');
-        toast.classList.remove('active');
-        setTimeout(() => toast.remove(), fadeMs);
+    requestGameDialog(options) {
+      if (this.disposed) return Promise.resolve(null);
+      return new Promise((resolve, reject) => {
+        this.dialogQueue.push(normalizeDialogOptions({ ...options || {}, resolve, reject }));
+        this.showNextDialog();
+      });
     }
-
-    /** 알림 글: 도트 UI에 컬러 이모지를 섞지 않는다(기록 줄은 decorateCombatLogMessage가 같은 일을 한다). */
-    function toastText(message) {
-        return typeof stripDecorativeEmoji === 'function' ? stripDecorativeEmoji(message) : String(message);
+    requestGameConfirmation(message, options) {
+      return this.requestGameDialog({ ...options || {}, type: "confirm", message });
     }
-
-    const TOAST_MARKS = Object.freeze({ success: '✓', danger: '!', warning: '△', chase: '★' });
-    /** Four notices at most: the oldest ordinary one goes first, a chase-tier one only when every notice is chase-tier. */
-    function trimToasts(region) {
-        while (region.children.length > 4) (region.querySelector('.game-toast:not(.game-toast-chase)') || region.firstElementChild).remove();
+    requestGameNumber(options) {
+      return this.requestGameDialog({ ...options || {}, type: "number" });
     }
-    /** 살아 있는 문서인지(노드 검사 런타임의 가짜 문서에는 알림을 띄우지 않는다). */
-    const liveDocument = () => typeof document !== 'undefined' && !!document.body && document.body.isConnected === true;
-    /** 로그인 화면(시작 화면이 떠 있는 동안 body.startup-active, js/startup-screen-ui.js setStartupOverlayActive)에 온 알림은 접속한 뒤에 띄운다
-     * (2026-11-08 사용자: 아직 접속하지 않았는데 로그인 화면에 알림이 떴다. 저장된 로그인으로 켜면 채팅 확인이 먼저 돈다). 알림 칸처럼
-     * 넷까지만 들고, 시작 화면이 닫히면 온 순서대로 띄운다. */
-    const heldToasts = [];
-    let heldToastWatch = null;
-    function holdToastUntilEntry(message, options) {
-        heldToasts.push([message, options]);
-        if (heldToasts.length > 4) heldToasts.shift();
-        if (heldToastWatch) return;
-        heldToastWatch = new MutationObserver(() => {
-            if (document.body.classList.contains('startup-active')) return;
-            heldToastWatch.disconnect();
-            heldToastWatch = null;
-            heldToasts.splice(0).forEach(([text, opts]) => renderGameToast(text, opts));
-        });
-        heldToastWatch.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    requestGameText(options) {
+      return this.requestGameDialog({ ...options || {}, type: "text" });
     }
-    function showGameToast(message, options) {
-        if (!message || !liveDocument()) return null;
-        if (document.body.classList.contains('guide-replay-active')) return null;
-        if (!document.body.classList.contains('startup-active')) return renderGameToast(message, options);
-        holdToastUntilEntry(message, options);
-        return null;
+    requestGameChoice(options) {
+      return this.requestGameDialog({ ...options || {}, type: "choice" });
     }
-    function renderGameToast(message, options) {
-        ensureFeedbackRoot();
-        let opts = typeof options === 'string' ? { tone: options } : (options || {});
-        let region = document.getElementById('game-toast-region');
-        let toast = document.createElement('div');
-        let tone = opts.tone || 'info';
-        toast.className = `game-toast game-toast-${tone}`;
-        toast.innerHTML = `<span class="game-toast-mark">${TOAST_MARKS[tone] || '◆'}</span><span>${escapeHTML(toastText(message))}</span>`;
-        region.appendChild(toast);
-        trimToasts(region);
-        requestAnimationFrame(() => toast.classList.add('active'));
-        let duration = Math.max(1600, Number(opts.duration) || (tone === 'danger' ? 4300 : 2800));
-        // A click clears it at once; otherwise it fades out on its own.
-        toast.addEventListener('click', () => dismissGameToast(toast, 90));
-        setTimeout(() => dismissGameToast(toast, 220), duration);
-        if (tone === 'success') playUiFeedbackSound('success');
-        else if (tone === 'danger') playUiFeedbackSound('danger');
-        return toast;
+    showNextDialog() {
+      if (this.disposed || this.activeDialog || this.dialogQueue.length === 0) return;
+      this.activeDialog = this.dialogQueue.shift();
+      try {
+        this.openDialog();
+      } catch (error) {
+        const failed = this.activeDialog;
+        this.activeDialog = null;
+        this.closeDialogSurface();
+        failed.reject(error);
+        this.frame(this.showNextDialog);
+      }
     }
-
-    /** Binds an already-mounted picker; returns its close action for successful selections.
-     * @param {HTMLElement} overlay
-     * @param {{titleId:string, closeSelector:string, returnSelector:string, onClose?:()=>void}} options
-     * @returns {()=>void}
-     */
-    function bindGamePicker(overlay, options) {
-        overlay.setAttribute('role', 'dialog');
-        overlay.setAttribute('aria-modal', 'true');
-        overlay.setAttribute('aria-labelledby', options.titleId);
-        const close = () => {
-            overlay.remove();
-            options.onClose?.();
-            document.querySelector(options.returnSelector)?.focus({preventScroll:true});
+    openDialog() {
+      this.ensureFeedbackRoot();
+      this.previousFocus = this.document.activeElement;
+      let overlay = this.document.getElementById("game-dialog-overlay");
+      let card = this.document.getElementById("game-dialog-card");
+      let control = this.document.getElementById("game-dialog-control");
+      let cancel = this.document.getElementById("game-dialog-cancel");
+      let confirm = this.document.getElementById("game-dialog-confirm");
+      card.dataset.tone = this.activeDialog.tone;
+      this.document.getElementById("game-dialog-kicker").textContent = this.activeDialog.kicker;
+      this.document.getElementById("game-dialog-title").textContent = this.inputs.translate(this.activeDialog.title);
+      this.document.getElementById("game-dialog-message").innerHTML = escapeHTML(this.activeDialog.message).replace(/\n/g, "<br>");
+      cancel.textContent = this.activeDialog.cancelLabel;
+      confirm.textContent = this.activeDialog.confirmLabel;
+      cancel.style.display = this.activeDialog.type === "notice" ? "none" : "";
+      confirm.style.display = this.activeDialog.type === "choice" && this.activeDialog.submitOnChoice ? "none" : "";
+      control.innerHTML = buildDialogControl(this.activeDialog, this.inputs.translate);
+      this.document.getElementById("game-dialog-error").hidden = true;
+      this.bindDialogControl(this.activeDialog, control);
+      overlay.inert = false;
+      overlay.classList.add("active");
+      overlay.setAttribute("aria-hidden", "false");
+      overlay.showModal();
+      this.document.body.classList.add("game-dialog-open");
+      this.inputs.sound(this.activeDialog.tone === "danger" ? "danger" : "open");
+      const opened = this.activeDialog;
+      this.frame(() => {
+        if (this.activeDialog !== opened) return;
+        let focusTarget = control.querySelector('input:not([type="range"]),button[aria-pressed="true"]') || confirm;
+        focusTarget.focus({ preventScroll: true });
+        if (focusTarget.select) focusTarget.select();
+      });
+    }
+    bindDialogControl(dialog, control) {
+      if (dialog.type === "number") {
+        let input = control.querySelector("#game-dialog-number");
+        let range = control.querySelector("#game-dialog-range");
+        let preview = control.querySelector("#game-dialog-number-preview");
+        let sync = (value, keepInputText) => {
+          let next = clampDialogNumber(value, dialog);
+          if (!keepInputText) input.value = String(next);
+          range.value = String(next);
+          preview.textContent = String(next);
         };
-        overlay.onclick = event => { if (event.target === overlay) close(); };
-        overlay.onkeydown = event => {
-            if (event.key === 'Escape') {
-                event.preventDefault(); event.stopPropagation(); close(); return;
-            }
-            if (event.key !== 'Tab') return;
-            const controls = [...overlay.querySelectorAll('button:not(:disabled),select:not(:disabled)')]
-                .filter(control => control.getClientRects().length);
-            const first = controls[0], last = controls[controls.length-1];
-            const target = event.shiftKey ? last : first;
-            if (document.activeElement !== (event.shiftKey ? first : last)) return;
-            event.preventDefault(); target.focus();
-        };
-        const closeButton = overlay.querySelector(options.closeSelector);
-        closeButton.onclick = close;
-        closeButton.focus({preventScroll:true});
-        return close;
+        input.addEventListener("input", () => sync(input.value, true));
+        input.addEventListener("change", () => sync(input.value));
+        range.addEventListener("input", () => sync(range.value));
+        control.querySelectorAll("[data-step-direction]").forEach((button) => button.addEventListener("click", () => {
+          sync(Number(input.value) + Number(button.dataset.stepDirection || 0) * dialog.step);
+          this.inputs.sound("open");
+        }));
+      } else if (dialog.type === "choice") {
+        control.querySelectorAll(".game-choice-option").forEach((button) => button.addEventListener("click", () => {
+          control.querySelectorAll(".game-choice-option").forEach((row) => row.setAttribute("aria-pressed", "false"));
+          button.setAttribute("aria-pressed", "true");
+          this.inputs.sound("open");
+          if (dialog.submitOnChoice) this.submitActiveDialog();
+        }));
+      }
     }
+    getActiveDialogValue() {
+      if (!this.activeDialog) return null;
+      if (this.activeDialog.type === "confirm") return true;
+      if (this.activeDialog.type === "number") {
+        return clampDialogNumber(this.document.getElementById("game-dialog-number").value, this.activeDialog);
+      }
+      if (this.activeDialog.type === "text") return this.document.getElementById("game-dialog-text").value;
+      if (this.activeDialog.type === "choice") {
+        let selected = this.document.querySelector('#game-dialog-control .game-choice-option[aria-pressed="true"]');
+        if (!selected) return null;
+        let index = Math.max(0, Math.floor(Number(selected.dataset.choiceIndex) || 0));
+        let choice = this.activeDialog.choices[index];
+        return choice && typeof choice === "object" ? choice.value : choice;
+      }
+      return true;
+    }
+    submitActiveDialog() {
+      if (!this.activeDialog) return;
+      let value = this.getActiveDialogValue();
+      let validation = this.activeDialog.validate ? this.activeDialog.validate(value) : true;
+      if (validation !== true) {
+        let error = this.document.getElementById("game-dialog-error");
+        error.textContent = typeof validation === "string" ? validation : this.inputs.translate("입력값을 확인해주세요.");
+        error.hidden = false;
+        error.scrollIntoView({ block: "nearest" });
+        this.inputs.sound("danger");
+        return;
+      }
+      this.finishDialog(value, true);
+    }
+    finishDialog(value, confirmed) {
+      if (!this.activeDialog) return;
+      let finished = this.activeDialog;
+      this.activeDialog = null;
+      this.closeDialogSurface();
+      this.inputs.sound(confirmed ? "confirm" : "cancel");
+      finished.resolve(confirmed ? value : null);
+      this.frame(this.showNextDialog);
+    }
+    restoreDialogFocus(overlay) {
+      let focused = this.document.activeElement;
+      let restoreTarget = this.previousFocus && this.previousFocus.focus && !overlay.contains(this.previousFocus) ? this.previousFocus : null;
+      if (restoreTarget) restoreTarget.focus({ preventScroll: true });
+      else if (focused && overlay.contains(focused) && focused.blur) focused.blur();
+      this.previousFocus = null;
+    }
+    closeDialogSurface() {
+      const overlay = this.document.getElementById("game-dialog-overlay");
+      if (overlay) {
+        overlay.close();
+        this.restoreDialogFocus(overlay);
+        overlay.inert = true;
+        overlay.classList.remove("active");
+        overlay.setAttribute("aria-hidden", "true");
+      }
+      this.document.body?.classList.remove("game-dialog-open");
+    }
+    handleDialogKeydown(event) {
+      if (!this.activeDialog || !event.target.closest?.("#game-dialog-overlay")) return;
+      if (event.key === "Enter" && !event.shiftKey && !event.target.closest("button")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.submitActiveDialog();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      this.cycleDialogFocus(event);
+    }
+    cycleDialogFocus(event) {
+      let card = this.document.getElementById("game-dialog-card");
+      let focusable = [...card.querySelectorAll("button:not([disabled]),input:not([disabled])")].filter((element) => element.getClientRects().length);
+      if (focusable.length <= 0) return;
+      let current = focusable.indexOf(this.document.activeElement);
+      let next = event.shiftKey ? current - 1 : current + 1;
+      if (next < 0) next = focusable.length - 1;
+      if (next >= focusable.length) next = 0;
+      event.preventDefault();
+      focusable[next].focus();
+    }
+    dismissGameToast(toast, fadeMs) {
+      if (toast.classList.contains("is-dismissed")) return;
+      toast.classList.add("is-dismissed");
+      toast.classList.remove("active");
+      this.later(() => toast.remove(), fadeMs);
+    }
+    toastText(message) {
+      return stripDecorativeEmoji(message);
+    }
+    trimToasts(region) {
+      while (region.children.length > 4) (region.querySelector(".game-toast:not(.game-toast-chase)") || region.firstElementChild).remove();
+    }
+    holdToastUntilEntry(message, options) {
+      this.heldToasts.push([message, options]);
+      if (this.heldToasts.length > 4) this.heldToasts.shift();
+      if (this.heldToastWatch) return;
+      this.heldToastWatch = new this.window.MutationObserver(() => {
+        if (this.document.body.classList.contains("startup-active")) return;
+        this.heldToastWatch.disconnect();
+        this.heldToastWatch = null;
+        this.heldToasts.splice(0).forEach(([text, opts]) => this.renderGameToast(text, opts));
+      });
+      this.heldToastWatch.observe(this.document.body, { attributes: true, attributeFilter: ["class"] });
+    }
+    showGameToast(message, options) {
+      if (this.disposed || !message || !this.liveDocument()) return null;
+      if (this.document.body.classList.contains("guide-replay-active")) return null;
+      if (!this.document.body.classList.contains("startup-active")) return this.renderGameToast(message, options);
+      this.holdToastUntilEntry(message, options);
+      return null;
+    }
+    renderGameToast(message, options) {
+      this.ensureFeedbackRoot();
+      let opts = typeof options === "string" ? { tone: options } : options || {};
+      let region = this.document.getElementById("game-toast-region");
+      let toast = this.document.createElement("div");
+      let tone = opts.tone || "info";
+      toast.className = `game-toast game-toast-${tone}`;
+      toast.innerHTML = `<span class="game-toast-mark">${TOAST_MARKS[tone] || "◆"}</span><span>${escapeHTML(this.toastText(message))}</span>`;
+      region.appendChild(toast);
+      this.trimToasts(region);
+      this.frame(() => toast.classList.add("active"));
+      let duration = Math.max(1600, Number(opts.duration) || (tone === "danger" ? 4300 : 2800));
+      toast.addEventListener("click", () => this.dismissGameToast(toast, 90));
+      this.later(() => this.dismissGameToast(toast, 220), duration);
+      if (tone === "success") this.inputs.sound("success");
+      else if (tone === "danger") this.inputs.sound("danger");
+      return toast;
+    }
+    dispose() {
+      if (this.disposed) return;
+      this.disposed = true;
+      this.heldToastWatch?.disconnect();
+      this.heldToastWatch = null;
+      this.heldToasts.length = 0;
+      this.frames.forEach((id) => this.window.cancelAnimationFrame(id));
+      this.timers.forEach((id) => this.window.clearTimeout(id));
+      this.frames.clear();
+      this.timers.clear();
+      this.document.removeEventListener("keydown", this.handleDialogKeydown, true);
+      const active = this.activeDialog;
+      this.activeDialog = null;
+      if (active) {
+        this.closeDialogSurface();
+        active.resolve(null);
+      }
+      this.previousFocus = null;
+      this.dialogQueue.splice(0).forEach((dialog) => dialog.resolve(null));
+      this.ownedRoot?.remove();
+      this.ownedRoot = null;
+    }
+  };
+  function createFeedback(env, inputs) {
+    const feedback2 = new Feedback(env, inputs);
+    return Object.freeze({
+      requestGameDialog: feedback2.requestGameDialog,
+      requestGameConfirmation: feedback2.requestGameConfirmation,
+      requestGameNumber: feedback2.requestGameNumber,
+      requestGameText: feedback2.requestGameText,
+      requestGameChoice: feedback2.requestGameChoice,
+      bindGamePicker,
+      showGameToast: feedback2.showGameToast,
+      dispose: () => feedback2.dispose()
+    });
+  }
 
-    let exports = { requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, bindGamePicker, showGameToast };
-    if (typeof safeExposeGlobals === 'function') safeExposeGlobals(exports);
-    else Object.assign(window, exports);
-}());
+  // modules/ui-feedback-classic.mjs
+  var feedback = createFeedback({ window, document }, {
+    translate: (...args) => _t(...args),
+    sound: (kind) => playUiFeedbackSound(kind)
+  });
+  var { requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, bindGamePicker: bindGamePicker2, showGameToast } = feedback;
+  requestGameDialog.dispose = feedback.dispose;
+  safeExposeGlobals({ requestGameDialog, requestGameConfirmation, requestGameNumber, requestGameText, requestGameChoice, bindGamePicker: bindGamePicker2, showGameToast });
+})();

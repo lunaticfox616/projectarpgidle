@@ -1,62 +1,77 @@
-/** 효과 확장 규칙 (data/skill-effect-expansion.js). The resolved active skill carries its level (skill.effectExpansion) and
- * every hit shape grows from it: grid profiles and authored stage grids here, native gem numbers in skill-gem-casts.js,
- * fixed-size redrawn art in canvas-redrawn-skill-fx.js. Items, inner growth and the keystone that grant the level are not
- * in the game yet; 넓은 판정 supplies +1. The local test panel can also set a level (never saved).
- */
-const skillEffectExpansion = (() => {
+// GENERATED from modules/skill-effect-expansion*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/skill-effect-expansion.mjs
+  function effectExpansionKind(name, rules) {
+    return Object.hasOwn(rules.kinds, name) ? rules.kinds[name] : null;
+  }
+  function effectExpansionPotionNode(skill, hasKeystone2) {
+    return hasKeystone2("bm1") && Array.isArray(skill.tags) && skill.tags.includes("potion") ? 1 : 0;
+  }
+  function effectExpansionApply(skill, name, level, ports) {
+    const rules = ports.readRules();
+    const kind = skill.supportEffects?.spreadRadius ? "radius" : effectExpansionKind(name, rules);
+    const n = kind ? Math.min(rules.max, Math.max(level, skill.supportExpansion || 0, effectExpansionPotionNode(skill, ports.hasKeystone))) : 0;
+    skill.effectExpansion = n;
+    skill.effectExpansionKind = kind;
+    skill.effectExpansionFromSupport = n > 0 && level < n;
+    effectExpansionApplyGrowth(skill, kind, n, rules);
+    return skill;
+  }
+  function effectExpansionApplyGrowth(skill, kind, n, rules) {
+    if (kind === "targets" && n) skill.targets = Math.max(1, Math.floor(skill.targets || 1)) + n;
+    if (n >= rules.penaltyFrom) skill.dmg = (skill.dmg || skill.baseDmg || 1) * (1 - rules.damagePenaltyPct / 100);
+  }
+  function effectExpansionExtra(skill) {
+    return Number(skill && skill.effectExpansion) || 0;
+  }
+  function effectExpansionWidened(profile, n) {
+    const radius = (profile.radius || 0) + n;
+    return { ...profile, radius, range: profile.kind === "nova" ? Math.max(profile.range || 0, radius) : profile.range };
+  }
+  function effectExpansionGrid(profile, skill) {
+    const n = effectExpansionExtra(skill), kind = skill && skill.effectExpansionKind;
+    if (!n || !profile) return profile;
+    if (kind === "radius" || kind === "lance") return effectExpansionWidened(profile, n);
+    return kind === "cone" || kind === "range" ? { ...profile, range: (profile.range || 0) + n } : profile;
+  }
+  function effectExpansionStageGrid(own, skill) {
+    const n = effectExpansionExtra(skill), kind = skill && skill.effectExpansionKind;
+    if (!n || !own) return own;
+    if (kind === "radius" && own.radius > 0) return { ...own, radius: own.radius + n };
+    return kind === "cone" && own.range > 0 ? { ...own, range: own.range + n } : own;
+  }
+  function createSkillEffectExpansion(ports) {
     let testLevel = 0;
-    const rules = () => SKILL_EFFECT_EXPANSION;
-    function clampLevel(n) { return Math.max(0, Math.min(rules().max, Math.floor(Number(n) || 0))); }
-    function kindOf(name) { return Object.hasOwn(rules().kinds, name) ? rules().kinds[name] : null; }
-    function resolvedKind(skill, name) { return skill.supportEffects?.spreadRadius ? 'radius' : kindOf(name); }
-    /** The player's 효과 확장 level (0–2). */
-    function level() { return testLevel; }
-    /* @dev-only */
-    /** Local test panel only. The level is a stat input outside the save, so kept stat calculations are dropped. */
-    function setTestLevel(n) {
-        testLevel = clampLevel(n);
-        playerStatCache.invalidate();
+    return Object.freeze({
+      level() {
         return testLevel;
-    }
-    /* @end-dev-only */
-    /** Stamps +N on the resolved active skill: its level and kind, N more targets for target gems, the keystone's cost. */
-    function applyToSkill(skill, name) {
-        const kind = resolvedKind(skill, name);
-        const n = kind ? Math.min(rules().max, Math.max(level(), skill.supportExpansion || 0, potionNode(skill))) : 0;
-        skill.effectExpansion = n;
-        skill.effectExpansionKind = kind;
-        // 넓은 판정(보조룬)이 준 +1인가: 신성한 기도는 그때 창을 늘리지 않는다(js/skill-gem-casts.js lancePlan)
-        skill.effectExpansionFromSupport = n > 0 && level() < n;
-        if (kind === 'targets' && n) skill.targets = Math.max(1, Math.floor(skill.targets || 1)) + n;
-        if (n >= rules().penaltyFrom) skill.dmg = (skill.dmg || skill.baseDmg || 1) * (1 - rules().damagePenaltyPct / 100);
-        return skill;
-    }
-    /** 불붙은 병(폭약술사 bm1, 2026-11-11): 포션 스킬의 +1. 다른 +1과 겹치지 않는다(넓은 판정과 같다). */
-    function potionNode(skill) {
-        return hasKeystone('bm1') && Array.isArray(skill.tags) && skill.tags.includes('potion') ? 1 : 0;
-    }
-    /** Cells (or targets) a resolved skill grows by. */
-    function extra(skill) { return Number(skill && skill.effectExpansion) || 0; }
-    /** Area gems: a wider radius; an area around the caster (nova) also reaches as far as it grew. */
-    function widened(profile, n) {
-        const radius = (profile.radius || 0) + n;
-        return { ...profile, radius, range: profile.kind === 'nova' ? Math.max(profile.range || 0, radius) : profile.range };
-    }
-    /** A grid profile grown by the skill's expansion — a copy; SKILL_GRID_DB rows are never touched. */
-    function grid(profile, skill) {
-        const n = extra(skill), kind = skill && skill.effectExpansionKind;
-        if (!n || !profile) return profile;
-        if (kind === 'radius' || kind === 'lance') return widened(profile, n);   // 신성한 기도: 찾는 범위도 N칸 넓어진다
-        return kind === 'cone' || kind === 'range' ? { ...profile, range: (profile.range || 0) + n } : profile;
-    }
-    /** An authored stage's own grid grows too when it has a size: its radius (area gems) or reach (cones). A stage kept at
-     * radius 0 (혈기 폭쇄's first hit) stays on its one cell. */
-    function stageGrid(own, skill) {
-        const n = extra(skill), kind = skill && skill.effectExpansionKind;
-        if (!n || !own) return own;
-        if (kind === 'radius' && own.radius > 0) return { ...own, radius: own.radius + n };
-        return kind === 'cone' && own.range > 0 ? { ...own, range: own.range + n } : own;
-    }
-    return Object.freeze({ level, /* @dev-only */ setTestLevel, /* @end-dev-only */ kindOf, applyToSkill, extra, grid, stageGrid });
+      },
+      /* @dev-only */
+      setTestLevel(n) {
+        testLevel = Math.max(0, Math.min(ports.readRules().max, Math.floor(Number(n) || 0)));
+        ports.invalidateStats();
+        return testLevel;
+      },
+      /* @end-dev-only */
+      kindOf(name) {
+        return effectExpansionKind(name, ports.readRules());
+      },
+      applyToSkill(skill, name) {
+        return effectExpansionApply(skill, name, testLevel, ports);
+      },
+      extra: effectExpansionExtra,
+      grid: effectExpansionGrid,
+      stageGrid: effectExpansionStageGrid
+    });
+  }
+
+  // modules/skill-effect-expansion-classic.mjs
+  var skillEffectExpansion = createSkillEffectExpansion({
+    readRules: () => SKILL_EFFECT_EXPANSION,
+    get hasKeystone() {
+      return hasKeystone;
+    },
+    invalidateStats: () => playerStatCache.invalidate()
+  });
+  safeExposeGlobals({ skillEffectExpansion });
 })();
-safeExposeGlobals({ skillEffectExpansion });

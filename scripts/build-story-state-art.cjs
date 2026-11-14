@@ -12,6 +12,7 @@
  * 검수(넘으면 멈춘다): 알파는 0과 255만, 그림이 칸 가장자리에 닿지 않는다, 다시 칠한 프레임은 원본과 크기, 알파가 같다.
  */
 'use strict';
+const { writeDataSource } = require('./lib/data-authoring.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -104,5 +105,5 @@ const out = path.join(root, 'assets/stage-story');
 fs.mkdirSync(out, { recursive: true });
 for (const name of fs.readdirSync(out)) if (name.endsWith('.png') && !built.some(row => row.id + '.png' === name)) fs.unlinkSync(path.join(out, name));
 for (const row of built) fs.writeFileSync(path.join(out, row.id + '.png'), row.png);
-fs.writeFileSync(path.join(root, 'data/stage-story-art.js'), table);
+writeDataSource(path.join(root, 'data/stage-story-art.js'), table);
 console.log(`${built.length}묶음(다시 칠한 묶음 ${built.filter(row => row.recolored).length}), 다시 일어나는 보스 ${revives.length}, 그림 지문 ${version}`);

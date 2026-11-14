@@ -1,0 +1,9 @@
+export const BLACK_MARKET_BASE_SLOT_COUNT = 6;
+export const BLACK_MARKET_MAX_SLOT_COUNT = 50;
+export const BLACK_MARKET_MAX_EXTRA_SLOTS = Math.max(0, BLACK_MARKET_MAX_SLOT_COUNT - BLACK_MARKET_BASE_SLOT_COUNT);
+export const BLACK_MARKET_CHASE_UNIQUE_CHANCE = 0.0016;
+export const BLACK_MARKET_BASE_CRAFT_TIER = 15;
+export const BLACK_MARKET_MAX_LOCKED_OFFERS = 3;
+export const BLACK_MARKET_INSIGHT_TARGET = 5;
+export const BLACK_MARKET_EQUIPMENT_SLOTS = ['무기','투구','갑옷','장갑','신발','목걸이','반지','허리띠','방패'];
+export const BLACK_MARKET_SHELF = Object.freeze({ columns: 10, rows: 4 });

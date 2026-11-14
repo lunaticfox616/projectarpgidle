@@ -62,7 +62,7 @@ const newSkillLab = (() => {
         lab.cancel(); lab.mist.clear(); lab.history.length = 0; lab.reaction.reset();
         game.currentZoneId = 1; game.maxZoneId = 1; game.enemies = []; game.encounterPlan = [];
         resetCombatTacticsRuntime(); resetCombatChannelRuntime();
-        game.playerCastDelayUntil = 0; pendingSkillStageHits = []; battleFx = []; pTimer = 0;
+        game.playerCastDelayUntil = 0; window.GameModules.state.combat.pendingSkillStageHits = []; battleFx = []; window.GameModules.state.session.pTimer = 0;
         startEncounterRun(); game.moveTimer = 0;
         game.gridPlayer = {gx:3, gy:4, gridMoveTimer:0};
         const cells = lab.bossMode ? [[5,3]] : [[4,4], [5,3], [5,5], [6,4], [2,3], [2,5]];
@@ -86,15 +86,15 @@ const newSkillLab = (() => {
         if(activeTutorial) dismissTutorial(false);
     }
     async function boot() {
-        await wait(() => window.__startupFirstPaintDone && document.getElementById('btn-startup-guest'));
+        await wait(() => window.GameModules.application.startup.firstPaintDone && document.getElementById('btn-startup-guest'));
         document.getElementById('btn-startup-guest').click();
         await wait(() => document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]'));
         document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]').click();
         // 좁은 화면(휴대폰 배치)은 첫 누름이 고르기다: 보이는 "이 직업으로 시작"으로 정한다.
         const start = document.getElementById('loop-hero-select-start');
         if (start.getClientRects().length) start.click();
-        await wait(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
-        clearInterval(gameTickHandle); gameTickHandle = null; quiet();
+        await wait(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && window.GameModules.uiRuntime.status().idle);
+        window.GameModules.application.timers.stopCombat(); quiet();
         game.season = 2; game.level = 30;
         game.contentProgression.inherited = CONTENT_UNLOCK_CATALOG.map(s => s.id); contentProgression.sync();
         game.seenTutorials.push(...STORY_JOURNAL_SCENES.map(s => 'story_' + s.id), 'story_illustrations_v1', 'tutorial_starter_gem_equip');
@@ -106,7 +106,7 @@ const newSkillLab = (() => {
         lab.report({skills:lab.items, active:game.activeSkill, hint:SKILL_DB[game.activeSkill].desc});
         setInterval(() => {
             if(document.hidden || !lab.ready) return;
-            if(game.combatHalted && combatChannelRuntime.skillName === '인과') lab.cancel();
+            if(game.combatHalted && window.GameModules.state.combat.combatChannelRuntime.skillName === '인과') lab.cancel();
             try {if(!game.combatHalted) coreLoop(getCombatTime() + 100); refreshCombatTickUi(); quiet();}
             catch(error) {lab.fail(error);}
         }, 100);

@@ -620,9 +620,9 @@ for (const kind of json('KNITTING.list')) {
 // The fossil boots keep the shared pool contract (same-effect normal lines may coexist) for every class and draw.
 // Mapstone exchanges are all-or-nothing, including the atlas's UID counter.
 run("game.knitting.counts['cartographer-rubbing']=5;game.atlas.stash=Array.from({length:ATLAS.stashCap-1},()=>atlasMaps.create('roots_0',1,'normal',()=>0))");
-const mapStock=json('({atlas:game.atlas,knitting:game.knitting,counter:itemIdCounter})');
+const mapStock=json('({atlas:game.atlas,knitting:game.knitting,counter:window.GameModules.state.session.itemIdCounter})');
 assert.equal(run("knittingRewards.knit('cartographer-rubbing').ok"),false);
-assert.deepEqual(json('({atlas:game.atlas,knitting:game.knitting,counter:itemIdCounter})'),mapStock);
+assert.deepEqual(json('({atlas:game.atlas,knitting:game.knitting,counter:window.GameModules.state.session.itemIdCounter})'),mapStock);
 run('game.atlas.stash=[]');
 assert(run("knittingRewards.knit('cartographer-rubbing').ok"));
 assert.equal(run('game.atlas.stash.length'),2);
@@ -637,9 +637,9 @@ for (const cls of ['warrior', 'wanderer', 'archer', 'occultist', 'alchemist', 'c
 run(`game.inventory=Array.from({length:getInventoryLimit(game)},()=>createItemFromBase(BASE_ITEM_DB.find(row=>row.id==='ruby_ring'),'rare',3));
     game.knitting.counts['buried-print']=6;`);
 
-const stocked = json('({inventory:game.inventory,knitting:game.knitting,counter:itemIdCounter})');
+const stocked = json('({inventory:game.inventory,knitting:game.knitting,counter:window.GameModules.state.session.itemIdCounter})');
 assert.equal(json("knittingRewards.knit('buried-print')").ok, false);
-assert.deepEqual(json('({inventory:game.inventory,knitting:game.knitting,counter:itemIdCounter})'), stocked, 'a full bag consumes no stock or item ids');
+assert.deepEqual(json('({inventory:game.inventory,knitting:game.knitting,counter:window.GameModules.state.session.itemIdCounter})'), stocked, 'a full bag consumes no stock or item ids');
 run("game.inventory=[];game.woodsmanBuildLock=true;game.knitting.counts['first-row']=4");
 assert.equal(json("knittingRewards.knit('first-row')").ok, false);
 run("game.woodsmanBuildLock=false;game.knitting.seen=['unravelled','clock-seam','last-hem'];game.knitting.counts.unravelled=3");

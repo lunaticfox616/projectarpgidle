@@ -130,11 +130,11 @@
         const moved = game.gridPlayer.gx !== channelCell.gx || game.gridPlayer.gy !== channelCell.gy;
         const valid = game.activeSkill === '인과' && game.playerHp > 0 && !game.combatHalted
             && !hasPlayerChannelBreakingAilment() && !moved && alive().length > 0;
-        if(!valid || !combatChannelRuntime.id || combatChannelRuntime.skillName !== '인과') {
+        if(!valid || !window.GameModules.state.combat.combatChannelRuntime.id || window.GameModules.state.combat.combatChannelRuntime.skillName !== '인과') {
             cancelCombatChannel(); return false;
         }
         // Keep the existing movement lock while concentration continues, without periodic recasts.
-        combatChannelRuntime.endAt = now + 5000;
+        window.GameModules.state.combat.combatChannelRuntime.endAt = now + 5000;
         return true;
     }
     function startCausality() {

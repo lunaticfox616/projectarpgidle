@@ -1,0 +1,61 @@
+import { restoreInitialSnapshot, restoreRuneAndCurrencyMigrations, restoreSavedMetadata, restoreCarriedEquipment, restoreGemRecords, restoreLegacyZoneIds } from './restore-identity.mjs';
+import { restorePassiveAllocation, restorePassiveChoices, restorePassiveLayout, restoreActRewards, restoreSeasonUnlocks, restoreEndlessDepths, restoreJewelsAndEngravings, restoreAscendancyProgress, restoreAscendancyCaps, restoreVoidPassives } from './restore-progression.mjs';
+import { restoreCraftAndMapTabs, restoreRetiredCraftPanels, restoreCodexAndColony, restoreBeehiveRun, restoreJournalAndNpcs } from './restore-content.mjs';
+import { restorePassiveEvolution, restoreDisplaySettings, restoreAutomation, restoreHeroIdentity, restoreHeroAppearance } from './restore-settings.mjs';
+import { restoreDamageHistory, restoreEnemyRecords, restoreEnemyRuntimeMaps, restoreLevelAndPointBudgets, restorePassiveDisplay, restorePlayerResources } from './restore-battle.mjs';
+import { restoreRealmDefaults, restoreUnderworldProgress, restoreChaosProgress, restoreSkyAndWoodsmanScores, restoreEchoAndLoopRecords, restoreLoopGatesAndSkillSlots } from './restore-realms.mjs';
+import { restoreSummonCounts, restoreSummonCapacity } from './restore-loadout.mjs';
+import { restoreNumericZones, restoreActiveLocation, restoreProgressionCaps, restoreStumpAndSaveVersion } from './restore-location.mjs';
+import { restoreRetiredSystems, finishRestoredSave } from './restore-finish.mjs';
+
+/** One load owns this transient context. It is never stored or shared with another load.
+ * Order is part of the save contract: exploration restoration precedes stored gear and stall escrow checks. */
+export function restoreSavedGame(deps, save) {
+    const context = { save };
+    restoreInitialSnapshot(deps, context);
+    restoreRuneAndCurrencyMigrations(deps, context);
+    restoreSavedMetadata(deps, context);
+    restoreCarriedEquipment(deps, context);
+    restoreGemRecords(deps, context);
+    restoreLegacyZoneIds(deps, context);
+    restorePassiveAllocation(deps, context);
+    restorePassiveChoices(deps, context);
+    restorePassiveLayout(deps, context);
+    restoreActRewards(deps, context);
+    restoreSeasonUnlocks(context);
+    restoreEndlessDepths(deps, context);
+    restoreJewelsAndEngravings(deps, context);
+    restoreAscendancyProgress(deps, context);
+    restoreAscendancyCaps(deps, context);
+    restoreVoidPassives(deps, context);
+    restoreCraftAndMapTabs(deps, context);
+    restoreRetiredCraftPanels(context);
+    restoreCodexAndColony(deps, context);
+    restoreBeehiveRun(deps, context);
+    restoreJournalAndNpcs(deps, context);
+    restorePassiveEvolution(context);
+    restoreDisplaySettings(deps, context);
+    restoreAutomation(deps, context);
+    restoreHeroIdentity(deps, context);
+    restoreHeroAppearance(deps, context);
+    restoreDamageHistory(deps, context);
+    restoreEnemyRecords(deps, context);
+    restoreEnemyRuntimeMaps(context);
+    restoreLevelAndPointBudgets(deps, context);
+    restorePassiveDisplay(deps, context);
+    restorePlayerResources(deps, context);
+    restoreRealmDefaults(deps, context);
+    restoreUnderworldProgress(deps, context);
+    restoreChaosProgress(deps, context);
+    restoreSkyAndWoodsmanScores(deps, context);
+    restoreEchoAndLoopRecords(deps, context);
+    restoreLoopGatesAndSkillSlots(deps, context);
+    restoreSummonCounts(deps, context);
+    restoreSummonCapacity(deps, context);
+    restoreNumericZones(deps, context);
+    restoreActiveLocation(deps, context);
+    restoreProgressionCaps(deps, context);
+    restoreStumpAndSaveVersion(deps, context);
+    restoreRetiredSystems(deps, context);
+    return finishRestoredSave(deps, context);
+}

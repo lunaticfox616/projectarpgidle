@@ -1,6 +1,6 @@
 # 캐릭터 총 스탯 계산 계약
 
-현재 소유·입력 설명은 2026-10-06 main `4fd7c494`와 대조했다. 날짜별 벤치마크는 과거 측정이다.
+현재 소유·입력 설명은 2026-11-14 ES module 전환 작업본과 대조했다. 날짜별 벤치마크는 과거 측정이다.
 
 `getPlayerStats(includeBreakdowns)`가 전투와 UI에 제공하는 총 스탯의 진입점이다.
 장비 비교·실시간 전투·방치 재생이 같은 계산을 사용한다. `false`는 수치만,
@@ -8,23 +8,97 @@
 
 ## 계산 순서와 책임
 
-1. `combat-equipment-stats.js`: 장비 요구조건을 만족하는 격리된 장비 뷰를 평가한다.
-   `combat.js`의 계산 본문에서 우주계 쌍둥이 키스톤 등 파생 상태와 장비 입력을 해석한다.
-2. `combat-build-stats.js`: 장비 출처별 합산. 장비 기본/명시 옵션 버킷과 로컬 방어를 분리한다.
-3. `combat.js`: 주얼·고유 효과·일반 패시브 등 기존 변환. 이어서 `combat-build-stats.js`의
-   루프 패시브 → 전직 노드 합산을 호출한다.
-4. 액트 보상 → 루프·심화 투자 → 혼돈계 영구 보너스 → 지하계 룬 → 코어·그루터기 함 등
-   성장 출처를 합산한다. 루프 투자와 룬의 합산 책임은 `combat-build-stats.js`에 있다.
-5. `combat.js`: 공용 보조를 현재 스킬의 변환 후 태그로 걸러 계산한다(`combat-support-runes.js`). 자신의 스탯에 비례하는 보조는 보조를 제외한 출처를 읽는다.
+1. `modules/domain/equipment-requirements.mjs`: 장비 요구조건을 만족하는 격리된 장비 뷰를 평가한다.
+   `js/combat-equipment-stats.js`는 기존 진입점을 연결하는 classic 어댑터의 생성 출력이다.
+   `modules/player-stats-classic.mjs`는 기존 진입점·tick 생성·캐시 밖 마무리만 연결한다.
+   이전 compat 본문과 private mount는 제거했다. 장착·캐시 계산은 같은 함수의 고정 참조를 쓰며,
+   룬 표시에서 공개 `getPlayerStats`를 교체해 계측하는 경계는 유지한다.
+   `modules/domain/player-stat-pipeline.mjs`가 계산 전체의 순서와 두 장착 요구치 반환 경로를 소유한다.
+   `player-stat-pipeline-sources/defense/damage/finish.mjs`는 출처 준비 → 공격·방어 변환 → 전직 → DPS → 액막이 순서로 실행된다.
+   호출마다 만든 임시 계산 객체는 저장하거나 재사용하지 않는다. 후속 평가가 앞선 평가의 버킷을 변경하지 않는다.
+   우주계 쌍둥이 키스톤 갱신과 재능·콘텐츠 서비스 연결은 classic 어댑터의 명시적 연결 함수가 맡는다.
+   재능 카드 상태/캐시와 정밀 효과 계산은 `modules/domain/talent-card-*.mjs`, `talent-precise-*.mjs`로 전환했다.
+   전직 노드의 전투 중첩·시간 제한은 `modules/domain/ascendancy-rule-*.mjs`의 서비스 하나가 소유하며,
+   기존 틱 읽기 포트와 전투 재생용 `capture/restore`를 유지한다. 저장 형식이나 캐시 입력을 추가하지 않는다.
+   classic 조립부의 연결은 유지한다. 2026-11-14 전체 스모크에서 캐시·재계산과 전투 재생을,
+   실제 PC 브라우저에서 장비 장착·패시브 할당·입력 후 캐시 무효화와 재계산 동등성을 확인했다.
+   `modules/domain/player-stat-inputs.mjs`가 기본값·출처 버킷을 만들고 검증된 장비 뷰의 옵션, 주얼·거울 복제와 고유 효과를 준비한다.
+   기본 버킷은 `modules/common/stat-bucket.mjs`의 객체 리터럴에서 매번 새로 만든다. 공유 기본값 복사보다
+   실제 능력치 계산의 시간·할당량이 적었다(2026-11-14 비교는 README의 후속 최적화 측정).
+   이전 결과와 출처 읽기 함수가 버킷을 보관할 수 있으므로 객체 풀로 재사용하지 않는다.
+   `js/player-stats.js`는 이 원본과 native 계산을 결합한 생성 출력이며 직접 편집하지 않는다.
+   품질·특수 제작·복제 옵션 줄은 `modules/domain/equipment-stat-resolution.mjs`에서 계산한다.
+2. `modules/domain/combat-build-stats.mjs`: 장비 출처별 합산. 장비 기본/명시 옵션 버킷과 로컬 방어를 분리한다.
+   기존 `js/combat-build-stats.js`는 classic 어댑터의 생성 출력이다. 원본은 소유 상태와 평가 memo를 입력받는다.
+3. `modules/domain/player-unique-effects.mjs`: 수집된 고유 효과와 주얼 보너스. 명시적 상태·효과·보상 버킷을 받아
+   호출별 결과를 만든다. `modules/domain/player-growth-stats.mjs`가 일반/공허 패시브를 변환하고,
+   출처별 합산 모듈의 루프 패시브 → 전직 노드 합산을 호출한다.
+   노드 효과·키스톤 버킷 변환·계시 보정·공허 노드 계산은 `modules/domain/passive-rules.mjs`가 조립하는
+   `passive-node-effects.mjs`, `passive-keystone-buckets.mjs`, `passive-stat-rules.mjs`, `passive-void-count.mjs`가 소유한다.
+   상태는 호출 입력이며, `passive-rules-classic.mjs`가 현재 게임과 기존 상수를 연결한다.
+   `void-passive-state.mjs`와 `void-passive-stats.mjs`는 공허 옵션 정규화와 초월 능력치·보유 개수를 계산한다.
+   기존 개수 조회는 현재 게임에만 정규화를 실행했으므로, 조립부가 그 여부를 명시해 별도 평가 상태를 같은 조건으로 읽는다.
+   `passive-allocation-*.mjs`의 포인트 반환·성좌 각성과 `void-passive-changes.mjs`·`void-passive-crafting.mjs`의 제작 상태 변경은
+   계산 캐시에 넣지 않는다. 포인트를 바꾼 뒤 연결을 정산하고, 화면 갱신·로그·저장 요청은 조립부가 처리한다.
+   순환·업보·광신의 실시간 상태 변경은 별도 전투 이벤트 경계에 유지한다. 이 코드 이동은 캐시 입력을 줄인다는 뜻이 아니다.
+   새 원본을 따라가는 능력치 입력 검사와 캐시 동등성 검증은 최종 통합 검증에서 확인해야 한다.
+4. 성장 합산 모듈이 액트 보상 → 루프·심화 투자 → 혼돈계 영구 보너스 → 지하계 룬 → 시간제 버프 → 코어·그루터기 함 →
+   유물석 → 저널·경계·영웅 → 별 축복 → 부적 순서를 유지한다. 루프 투자와 룬의 숫자 합산 책임은 `combat-build-stats.mjs`에 있다.
+5. `player-stat-inputs.mjs`가 젬 평가 컨텍스트·주 스킬·보조값·가호·속성 능력치·대상 수를 원래 순서대로 조립한다.
+   공용 보조를 현재 스킬의 변환 후 태그로 걸러 계산한다(`combat-support-runes.js`).
+   보조·가호가 힘/민첩/지능을 주지 않으면 장착 요구치의 빠른 계산은 이 단계 전에 반환한다.
+   입력의 출처 읽기 함수는 한 평가 동안 같은 버킷을 참조한다. 보조 제외 합계·전체 합계·대상 수·소환 한도의 출처가 다르다.
+   `modules/domain/player-passive-stats.mjs`가 속성 우선순위·계산용 태그·보조 슬롯·공명을 계산한다.
+   자신의 스탯에 비례하는 보조는 보조를 제외한 출처를 읽는다.
    `supportValues`는 개별 소환 계산에 쓰는 원값이다. 소환 피해 공유에서는 주 공격에 더했던 태그 보조를 빼고 각 소환수에 맞는 보조만 다시 더한다.
    사역룬은 소환 칸에서 고정 피해·방어 버프를 제공하고, 보조를 받거나 물리 개체를 만들지 않는다.
 6. 별자리·실시간 버프·재능·속성 변환과 최종 방어/공격 계산을 코드의 순서로 수행한다.
    별쐐기·생장판·독립 플라스크는 현재 합산 출처가 아니다. 부적 효과는 `talismanEffects`/`talismanCombat`이 연결한다.
+   `modules/domain/player-stat-math.mjs`가 기본 무기/주문/속성 피해·생명력·속도·방어·흡수 계산을 소유한다.
+   `modules/domain/player-ascendancy-stats.mjs`가 그 뒤의 키스톤을 원래 순서로 적용하며, 직업이 다른 쌍둥이 키스톤도 포함한다.
+   `player-ascendancy-nodes.mjs`는 시간·생명력에 따른 전직 노드 배율을 같은 tick으로 읽는다.
+   소환 공유는 상대 보너스를 더하기 전 공격력을 사용하고, 최후의 저항의 생명력 기준은 변환 시점에 보관한다.
+   `modules/domain/player-stat-final.mjs`는 지역 중력/수압/해류, 전직 뒤 상한과 방어 변환, 액막이·상태이상 방지·막기를 소유한다.
+   각 함수는 원래 파이프라인의 위치에서 호출한다. 특히 지역 속도와 피해 배율, 기본/기타 막기 출처를 합치지 않는다.
+   `modules/domain/player-dps-estimate.mjs`가 주 스킬의 타격·추가 피해·투사체·중첩 지속 피해 기대값을 계산한다.
+   부채꼴의 단일 대상/무리 DPS를 구분하고, 시간형 시전은 일반 중첩 대신 고유 틱 수와 간격을 사용한다.
+   입력 스킬과 저장 상태는 유지하며, 호출별 `damageScales`에만 계산 근거를 기록한다.
+   `modules/domain/player-stat-result.mjs`가 최종 능력치 필드를 조립하고 재능 후처리를 같은 순서로 호출한다.
+   소환 능력치의 출처와 상한은 주 공격과 구별한다. 중간 단계의 값을 최종 결과로 사용하지 않는다.
+   `player-stat-descriptions.mjs`와 공격·생존·저항 설명 모듈이 요청된 상세 설명을 조립한다.
+   화염 부패 설명은 액막이의 생명력/재생 보정 전 시점에 만들고 이후 설명에 합친다. 계산 끝의 값으로 다시 만들지 않는다.
 7. 총 스탯 결과에 재능 후처리와 소환 DPS를 반영하고, 요청한 경우만 설명을 조립한다.
+   `modules/domain/player-stat-finish.mjs`는 코어 결과를 복사하고 최후의 저항 정화·소환 DPS·면역을 매 호출 반영한다.
+   이 단계는 현재 시각과 상태를 읽으므로 코어 캐시 안으로 옮기지 않는다.
+   소환 한도·직접/소환/총 DPS 설명의 후처리는 `player-stat-extra-descriptions.mjs`가 기존 설명을 갱신한다.
+   현재 게임을 읽는 재능·시계·표시 함수는 classic 어댑터의 명시적 포트이며, 해당 소비자 전환 전까지 유지한다.
 
 출처별 버킷을 하나로 일찍 합치면 로컬 방어·배율·출처 표시가 달라질 수 있다.
 `sumNonSupportStat`과 `sumStatAcrossBuckets`의 포함 출처도 같지 않다.
 합산 순서, 내림 시점, 상한 적용 순서는 게임 규칙이며 구조 정리만을 위해 변경하지 않는다.
+
+### 전투 효과와 룬 표시의 별도 실행 경계
+
+`modules/domain/player-combat-effects.mjs`는 막기 회복·1회 반격 소모·치명타/파괴 시 보호막 재충전·정예 특성 흡수를
+명시적인 소유 상태와 전투 시각(ms)으로 처리한다. 이 상태 변경은 공격/피격/처치 이벤트에서 실행하며 총 능력치 캐시에 넣지 않는다.
+반격은 지역 막기 강화와 같은 시각으로 각각 한 번 소모한다. 정예 특성은 복사하고, 로그와 돌 보호막의 화면 효과는 기존 classic 경계가 맡는다.
+
+`modules/domain/gem-presentation.mjs`는 공격/보조 룬의 레벨·등급·품질·코어·각인과 표시 수치를 조립한다.
+룬 기록 정규화는 기존 `modules/state/gem-records.mjs`를 공유하며, 보조 등급 UI 읽기의 저장 정규화도 유지한다.
+장비 미리보기의 상태 교체와 연결된 현재 소유 상태를 호출마다 넘긴다. 레벨/등급 계산은 전투에서도 쓰므로
+캐시 입력 검사는 native 계산 단계의 명시적 상태 읽기·쓰기와 시계 접근을 확인한다. 생성된 IIFE의 private 함수명을
+한 스코프로 합쳐 추적하지 않는다. 연결 서비스는 실제 계산을 실행하며 캐시 사용/미사용 정산과 빌드 편집 결과를 비교한다.
+`player-stat-values.mjs`는 재사용 대기시간·수압·대상 수 등 부가 수치의 상태 없는 계산을 소유한다.
+기존 공개 이름과 스크립트 순서는 유지하며, 소비자와 부팅을 전환하는 5·6단계에서 classic 연결부를 제거한다.
+
+### 흡수·회복·보호막의 실행 경계 (2026-11-13)
+
+`modules/domain/player-recovery-caps.mjs`는 회복 한도를 계산한다. 기존 `getPlayerRecoveryHpCap` 경계에서
+절반 생명력 키스톤을 판정하고, 능력치 계산에는 `tick.get('mossRecoveryOccupied')`를 넘긴다.
+전투 회복 호출만 현재 이끼 점유량을 읽으며, 흡수·손실 회복 대기열과 보호막 잔량을 총 능력치 캐시에 넣지 않는다.
+`player-recovery.mjs`와 `player-wards.mjs`는 전달받은 상태만 수정하고 상태 객체를 보관하지 않는다.
+저장 상태가 교체되면 기존 공개 래퍼가 다음 호출에 새 상태를 전달한다. 초 단위 회복 시간과 밀리초 보호막 시각을 구별한다.
+재생 로그와 흡수 효과는 `js/combat.js`에 남겨 도메인이 UI를 호출하지 않게 한다.
 
 ### 완갑과 대검의 막기 (2026-10-23)
 
@@ -63,6 +137,11 @@ pixel-v1, pixel-v2의 PNG는 도트 하나를 3×3 점으로 키운 파일이고
 ## 상태와 재사용 범위
 
 - 합산 함수는 호출자가 소유한 출력 버킷만 수정한다. 투자·노드·룬 입력을 변경하지 않는다.
+- ESM 옵션 해석은 이미 검증한 장비 뷰를 받으며 요구치 평가를 다시 호출하지 않는다. 기존 장비 평가의 전역 게임 교체는
+  아직 classic 경계에 남아 있다. 재능 고유 효과 수집과 패시브 버킷 변환도 어댑터에 남겨 호출 순서를 유지한다.
+  요구치 빠른 경로는 별자리 추가 → 패시브 변환 → 각 버킷의 속성 합 순서이며, 합산 모듈에 실시간 상태 조회를 추가하지 않는다.
+- 성장/기본 수치 모듈은 호출별 버킷·상태·평가를 입력받는다. 어댑터에 남은 재능·콘텐츠 helper는 현재 게임을 읽으므로
+  다른 상태의 미리보기는 기존 격리 경계를 이용한다. 이 helper와 소비자를 함께 옮긴 뒤 어댑터를 제거한다.
 - 총 스탯 진입점 전체는 아직 순수 함수가 아니다. 우주계 쌍둥이 파생 상태, 만료 버프,
   대상 디버프 정리 등이 있다. 호출이 완전한 읽기 전용이라고 가정하지 않는다.
 - 기존 방치 장비 캐시는 유지한다. 캐시 버킷은 평가마다 `Object.create`로 분리하고 변환 결과가
@@ -71,22 +150,29 @@ pixel-v1, pixel-v2의 PNG는 도트 하나를 3×3 점으로 키운 파일이고
   대상·플레이어 스탯·시간은 이 평가에 공통이다. 다음 호출에는 새 Map을 사용한다.
   같은 피해를 소환수 수만큼 더하는 순서는 유지한다. 실제 공격 판정/난수에는 사용하지 않는다.
 - 소환 설명은 수치 계산 뒤 별도 함수에서 생성한다. 설명의 기존 표기식도 보존한다.
-- 총 결과의 재사용은 `js/player-stat-cache.js`가 맡는다. 새 입력과 상태 변경은 아래 작업 규칙을 따라야 캐시가 낡은 값을
+- 총 결과의 재사용은 `modules/domain/player-stat-cache.mjs`가 맡는다. `player-stat-tick.mjs`는 한 평가의 시각·읽은 값·조건을,
+  `player-stat-readers.mjs`는 전투 중 바뀌는 입력의 읽기를 소유한다. 각각 명시적으로 받은 상태를 사용한다.
+  `build-memo.mjs`는 정산 상태와 장비 뷰별 memo, 한 번의 동기 화면 갱신 범위, 영구 빌드 지문을 소유한다.
+  `js/player-stat-cache.js`·`js/background-build-cache.js`는 같은 인스턴스와 기존 호출 이름을 연결하는 생성 출력이다.
+  새 입력과 상태 변경은 아래 작업 규칙을 따라야 캐시가 낡은 값을
   돌려주지 않는다(2026-10-27: 전에는 "총 결과를 장기 캐시하지 않는다"고 적혀 있었으나 그 뒤 캐시가 생겼다).
 
 ## 계산에 입력을 더할 때 (작업 규칙)
 
 2026-10-27 회고에서 `AGENTS.md`에 있던 규칙을 그대로 옮겼다.
 
-능력치 계산(`getPlayerStats`)은 정산과 평소 플레이에서 다시 쓰인다(`js/player-stat-cache.js`). 계산에 새 입력을 더할 때
-싸우는 동안 바뀌는 값은 `playerStatTick` 읽기 함수로 읽고(경계값과 비교만 하면 `tick.when`), 빌드 값은
+능력치 계산(`getPlayerStats`)은 정산과 평소 플레이에서 다시 쓰인다. 계산에 새 입력을 더할 때
+싸우는 동안 바뀌는 값은 `modules/domain/player-stat-readers.mjs`의 `playerStatTick` 읽기 함수로 읽고(경계값과 비교만 하면 `tick.when`), 빌드 값은
 `data/build-stat-inputs.js`의 `BUILD_STAT_FIELDS`나 `BUILD_STAT_PARTS`에, 그 밖의 값은 `PLAYER_STAT_CONTEXT_FIELDS`에 이유와
 함께 넣는다. 계산 안에서 `game`에 쓰는 값은 `PLAYER_STAT_DERIVED_WRITES`만 되고, 매 호출 처리는 `finishPlayerStats`에 둔다.
 플레이어 입력, 처치, 지도 완료 밖에서 빌드나 계산이 읽는 모듈 상태를 바꾸는 코드는 `playerStatCache.invalidate()`를 부른다.
 받은 능력치의 안쪽 객체(`sSkill`, `breakdowns` 말고)는 복사한 뒤 고친다. `scripts/smoke-player-stat-cache.js`가 이 규칙을
-검사하고, 실패 메시지가 고칠 곳을 알려 준다.
-찍거나 장착하기 전에 보여 줄 값(스킬트리, 전직, 상점 미리보기)은 `previewBuildStats(edit)`(`js/passives.js`)로 게임 사본에서 잰다.
+검사하고, 실패 메시지가 고칠 곳을 알려 준다. 고유 효과·패시브·성장·기본 수치·전직·후속 보정 native 모듈의 `owner` 읽기/쓰기도 같은 필드 규칙으로 검사한다.
+찍거나 장착하기 전에 보여 줄 값(스킬트리, 전직, 상점 미리보기)은 `previewBuildStats(edit)`로 게임 사본에서 잰다.
+원본은 `modules/application/build-stat-preview.mjs`이고 `modules/passive-rules-classic.mjs`가 기존 이름을 연결한다.
 살아 있는 `game`의 빌드를 잠시 바꿨다 되돌리면 계산이 쓴 칸(`PLAYER_STAT_DERIVED_WRITES`)이 남을 수 있다.
+새 공격 룬 획득 시 DPS 비교 알림(`modules/ui/loot-rune-notices.mjs`)도 같은 미리보기 경로를 쓴다.
+예약한 알림은 같은 저장이 활성 상태인 동안에만 계산하며, 앱 종료·저장 교체 후에는 실행하지 않는다.
 
 ## 검사와 과거 측정
 
@@ -158,9 +244,15 @@ idle callback(미지원 환경에서는 타이머)으로 슬롯 하나씩 처리
 ## 장비 일괄 분석의 비교 조건
 
 `equipmentTriage`는 시작 시 전체 게임 상태와 전투 시각을 캡처한다. 기준 수치와 각 후보 슬롯은
-동일한 원본 스냅샷의 새 복사본에서 `getPlayerStats(false)`로 계산한다. 계산 함수가 파생 상태를
-정규화하거나 상태이상을 해제해도 다음 후보 및 실제 게임에는 전파되지 않는다. 전역 `game` 교체는
-동기 계산 안에서만 일어나고 `finally`에서 원래 객체를 복원한다. 저장 형식과 로드 순서는 바꾸지 않는다.
+동일한 원본 스냅샷의 새 복사본을 `combatEquipmentStats.read(false, owner)`에 넘겨 계산한다.
+비교 원본은 `modules/domain/equipment-triage-analysis.mjs`, 결과·작업 상태는
+`modules/domain/equipment-triage.mjs`, 타이머·화면·장착 요청은 `modules/ui/equipment-triage.mjs`가 소유한다.
+계산 함수가 파생 상태를 정규화하거나 상태이상을 해제해도 다음 후보 및 실제 게임에는 전파되지 않도록
+슬롯별 소유 상태를 격리한다. 분석 도메인 자체는 전역 `game`을 교체하지 않는다. 아직 현재 게임을 참조하는
+계산기 연결부(`modules/combat-equipment-stats-classic.mjs`)에서만 동기 계산 동안 `game`과 `GameState.game`을
+맞추고 `finally`에서 각각 원래 객체로 복원한다. 이 연결부는 최종 모듈 조립 때 제거할 대상이다.
+저장 형식과 로드 순서는 바꾸지 않는다. 2026-11-13 분리의 정적 빌드·구조 검사는 통과했으며,
+아래 분석·중단·복원 행동의 재검증은 전체 전환의 마지막 통합 검사에 포함한다.
 탐험 진행(`actExploration`, 방 지도로 방 무대에서 저장의 약 60%)은 스탯 입력이 아니고 계산이 쓰지도 않아, 분석 시작 때 한 번만
 복사해 모든 슬롯이 함께 쓰고 장착 조건 판정의 `permanentSnapshot`도 복사 없이 참조한다(2026-11-07).
 장착 조건이 보는 힘, 민첩, 지능(`getPlayerStats`의 `attributesOnly`)은 보조룬과 가호 계산을 건너뛰고 `readRequirementAttributes`가

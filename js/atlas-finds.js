@@ -1,103 +1,178 @@
-/** 아틀라스 처치에 덧붙는 발견(docs/endgame-loot-20261009.md 3절): 지도 기운의 처치 드랍과 보물 무리의 보물. js/atlas-run.js onKill이
- * 처치마다 부르고, js/combat-encounters.js createActExplorationPack이 무리를 만들 때 보물 무리를 꾸민다. 규칙은 js/loot-omens.js가 정하고, 받는
- * 길은 보통 처치와 같다: 재화는 keepCurrencyDrop(지도 바닥 더미), 장비는 keepEquipmentDrop, 주얼은 바닥이나 주얼함.
- * 보물이 터지면 'atlas-find' 이벤트로 알린다(기록과 화면은 UI가).
- */
-const atlasFinds = (() => {
-    /** One omen draw: a currency (count), '@jewel' or '@seed'. Returns whether something was granted. */
-    function grantOmenDrop(enemy, zone, [key, count]) {
-        if (key === '@jewel') return grantOmenJewel(enemy, zone);
-        if (key === '@seed') return grantOmenSeed(enemy);
-        return keepCurrencyDrop(enemy, key, count).gain > 0;
+// GENERATED from modules/atlas-finds*.mjs. Edit the ESM sources; run npm run build:modules.
+(() => {
+  // modules/domain/atlas-finds-memory.mjs
+  function* atlasFindReceiveMemoryLeaf(env, owner, id) {
+    const result = env.deps.memoryLeaves.receive(owner, id);
+    if (!result) return result;
+    env.deps.combatLootReceipts.leaf(owner, id);
+    yield { kind: "atlasFindEffectDispatchRuntimeEvent", args: ["memory-leaf", result] };
+    return result;
+  }
+  function* atlasFindGrantMemoryLeaf(env, owner, enemy, id) {
+    const run = env.deps.explorationFloorFor(enemy);
+    if (run) env.deps.actExplorationState.groundLoot.placeLeaf(run, enemy, id);
+    else yield* atlasFindReceiveMemoryLeaf(env, owner, id);
+  }
+
+  // modules/domain/atlas-finds-drops.mjs
+  function* atlasFindGrantOmenDrop(env, owner, enemy, zone, [key, count]) {
+    if (key === "@jewel") return yield* atlasFindGrantOmenJewel(env, enemy, zone);
+    if (key === "@seed") return yield* atlasFindGrantOmenSeed(env, owner, enemy);
+    return (yield { kind: "atlasFindEffectKeepCurrencyDrop", args: [enemy, key, count] }).gain > 0;
+  }
+  function* atlasFindGrantOmenJewel(env, enemy, zone) {
+    const jewel = yield { kind: "atlasFindEffectGenerateJewelDrop", args: [zone, env.deps.lootOmens.jewelOdds(zone)] };
+    if (yield { kind: "atlasFindEffectPlaceFloorItem", args: [enemy, "jewel", jewel] }) return true;
+    const receipt = yield { kind: "atlasFindEffectReceiveJewelDrop", args: [jewel] };
+    if (receipt.stored) yield { kind: "atlasFindEffectQueueEnemyGroundLoot", args: [enemy, { item: jewel, itemKind: "jewel", color: env.deps.getJewelLootColor(jewel) }] };
+    yield { kind: "atlasFindEffectDispatchRuntimeEvent", args: ["jewel-drop-received", receipt] };
+    return true;
+  }
+  function* atlasFindGrantOmenSeed(env, owner, enemy) {
+    const spec = env.deps.stumpBox.seedDropSpec(owner, Math.random);
+    if (yield { kind: "atlasFindEffectPlaceFloorItem", args: [enemy, "stump", spec] }) return true;
+    const { item, compost } = env.deps.stumpBox.receiveDrop(owner, spec);
+    yield { kind: "atlasFindEffectDispatchRuntimeEvent", args: ["stump-box-changed", { ripened: compost ? compost.ripened : [], drop: item, compost }] };
+    return true;
+  }
+  function* atlasFindGrantTreasureUnique(env, enemy, zone, name = null) {
+    const itemLevel = env.deps.levelProgression.itemLevel(zone, enemy);
+    const cap = Math.min(env.deps.getRealmEquipmentHiddenTierCap(zone), env.deps.levelProgression.maxDropTier(itemLevel));
+    const item = env.deps.levelProgression.stampItem(yield { kind: "atlasFindEffectGenerateUniqueItem", args: [cap, null, name, zone] }, itemLevel);
+    return (yield { kind: "atlasFindEffectKeepEquipmentDrop", args: [enemy, item, { guaranteedKeep: true }] }) ? [item] : [];
+  }
+  function atlasFindChaseName(env) {
+    return env.deps.rndChoice(env.deps.UNIQUE_DB.filter((row) => row.ultraRare && !row.dropOnly).map((row) => row.name));
+  }
+  function* atlasFindGrantGoldenJackpot(env, owner, enemy, zone) {
+    const key = env.deps.lootOmens.goldenJackpot(owner, Math.random);
+    if (key === "@chase") return yield* atlasFindGrantTreasureUnique(env, enemy, zone, atlasFindChaseName(env));
+    yield { kind: "atlasFindEffectKeepCurrencyDrop", args: [enemy, key, 1] };
+    return [];
+  }
+
+  // modules/domain/atlas-finds-treasure.mjs
+  function* atlasFindBurstTreasure(env, owner, enemy, zone) {
+    const rules2 = env.deps.LOOT_OMENS.treasure, golden = !!enemy.goldenTreasure, { omen, drops } = env.deps.lootOmens.treasureDrops(zone, owner, Math.random, golden);
+    let granted = 0;
+    for (const drop of drops) if (yield* atlasFindGrantOmenDrop(env, owner, enemy, zone, drop)) granted++;
+    const items = [];
+    for (let i = 0; i < rules2.rareGear; i++) items.push(...yield { kind: "atlasFindEffectGrantEquipmentPick", args: [enemy, zone, "rare"] });
+    if (golden || Math.random() < rules2.uniqueChance) items.push(...yield* atlasFindGrantTreasureUnique(env, enemy, zone));
+    if (golden) items.push(...yield* atlasFindGrantGoldenJackpot(env, owner, enemy, zone));
+    owner.atlas.tally.treasure += 1;
+    owner.atlas.tally.golden += Number(golden);
+    yield { kind: "atlasFindEffectDispatchRuntimeEvent", args: ["atlas-find", {
+      kind: "treasure",
+      golden,
+      omen: omen ? omen.id : null,
+      name: enemy.name,
+      count: granted + items.length + Number(golden),
+      unique: items.some((item) => item.rarity === "unique"),
+      cell: { gx: enemy.gx, gy: enemy.gy }
+    }] };
+  }
+  function* atlasFindGrantBossReward(env, enemy, zone) {
+    const rules2 = env.deps.LOOT_OMENS.mapBoss, count = rules2.items + Number(Math.random() < rules2.extraChance);
+    const roller = { ...enemy, isBoss: false, isElite: false, uniqueChanceMul: 1, atlasInfluence: env.deps.itemInfluences.bossInfluence(zone) };
+    for (let i = 0; i < count; i++) yield { kind: "atlasFindEffectGrantEquipmentPick", args: [roller, zone, rules2.minimum[i] || null] };
+  }
+  function atlasFindDressTreasurePack(env, zone, pack) {
+    if (pack.alert || !env.deps.lootOmens.isTreasurePack(zone, pack)) return;
+    const golden = env.deps.lootOmens.isGoldenTreasure(pack), rules2 = golden ? env.deps.LOOT_OMENS.treasure.golden : env.deps.LOOT_OMENS.treasure;
+    const leader = pack.waiting.find((enemy) => !enemy.isElite) || pack.waiting[0];
+    pack.treasure = true;
+    Object.assign(leader, {
+      treasureCarrier: true,
+      goldenTreasure: golden,
+      name: `${rules2.prefix} ${leader.name}`,
+      encounterOutline: rules2.outline,
+      encounterSparks: rules2.sparks
+    });
+  }
+
+  // modules/domain/atlas-finds-kills.mjs
+  function* atlasFindOnAtlasKill(env, owner, zone, enemy) {
+    if (!zone || zone.type !== "atlasMap") return;
+    for (const drop of env.deps.lootOmens.killDrops(zone, enemy, owner, Math.random)) yield* atlasFindGrantOmenDrop(env, owner, enemy, zone, drop);
+    for (const drop of env.deps.lootOmens.strayDrops(zone, enemy, owner, Math.random)) yield* atlasFindGrantOmenDrop(env, owner, enemy, zone, drop);
+    const leaf = env.deps.memoryLeaves.rollKill(owner, zone, enemy, Math.random);
+    if (leaf) yield* atlasFindGrantMemoryLeaf(env, owner, enemy, leaf);
+    if (enemy.treasureCarrier) yield* atlasFindBurstTreasure(env, owner, enemy, zone);
+    if (enemy.isBoss && env.MAP_BOSS_KINDS.has(zone.atlasKind) && !zone.memoryTier) yield* atlasFindGrantBossReward(env, enemy, zone);
+  }
+
+  // modules/domain/atlas-finds.mjs
+  function createAtlasFinds(deps) {
+    const env = { deps };
+    env.MAP_BOSS_KINDS = /* @__PURE__ */ new Set(["map", "guardian"]);
+    return Object.freeze({ onAtlasKill: (...args) => atlasFindOnAtlasKill(env, ...args), dressTreasurePack: (...args) => atlasFindDressTreasurePack(env, ...args), receiveMemoryLeaf: (...args) => atlasFindReceiveMemoryLeaf(env, ...args) });
+  }
+
+  // modules/common/consume-commands.mjs
+  function consumeDomainCommands(commands, effects2) {
+    let step = commands.next();
+    while (!step.done) step = commands.next(effects2[step.value.kind](...step.value.args));
+    return step.value;
+  }
+
+  // modules/atlas-finds-classic.mjs
+  var rules = createAtlasFinds({
+    get lootOmens() {
+      return lootOmens;
+    },
+    get getJewelLootColor() {
+      return getJewelLootColor;
+    },
+    get stumpBox() {
+      return stumpBox;
+    },
+    get levelProgression() {
+      return levelProgression;
+    },
+    get getRealmEquipmentHiddenTierCap() {
+      return getRealmEquipmentHiddenTierCap;
+    },
+    get rndChoice() {
+      return rndChoice;
+    },
+    get UNIQUE_DB() {
+      return UNIQUE_DB;
+    },
+    get LOOT_OMENS() {
+      return LOOT_OMENS;
+    },
+    get itemInfluences() {
+      return itemInfluences;
+    },
+    get memoryLeaves() {
+      return memoryLeaves;
+    },
+    get combatLootReceipts() {
+      return combatLootReceipts;
+    },
+    get explorationFloorFor() {
+      return explorationFloorFor;
+    },
+    get actExplorationState() {
+      return actExplorationState;
     }
-    function grantOmenJewel(enemy, zone) {
-        const jewel = generateJewelDrop(zone, lootOmens.jewelOdds(zone));
-        if (placeFloorItem(enemy, 'jewel', jewel)) return true;
-        const receipt = receiveJewelDrop(jewel);
-        if (receipt.stored) queueEnemyGroundLoot(enemy, { item: jewel, itemKind: 'jewel', color: getJewelLootColor(jewel) });
-        dispatchRuntimeEvent('jewel-drop-received', receipt);
-        return true;
-    }
-    /** 씨앗 비(data/loot-omens.js): a stump seed rolled as a kill's, on the floor like one (js/combat-skill-effects.js layStumpDrop), else into the box. */
-    function grantOmenSeed(enemy) {
-        const spec = stumpBox.seedDropSpec(game, Math.random);
-        if (placeFloorItem(enemy, 'stump', spec)) return true;
-        const { item, compost } = stumpBox.receiveDrop(game, spec);
-        dispatchRuntimeEvent('stump-box-changed', { ripened: compost ? compost.ripened : [], drop: item, compost });
-        return true;
-    }
-    /** A unique of the zone's pools at the kill's item level (as an equipment drop rolling unique would make it), or the named one. */
-    function grantTreasureUnique(enemy, zone, name = null) {
-        const itemLevel = levelProgression.itemLevel(zone, enemy);
-        const cap = Math.min(getRealmEquipmentHiddenTierCap(zone), levelProgression.maxDropTier(itemLevel));
-        const item = levelProgression.stampItem(generateUniqueItem(cap, null, name, zone), itemLevel);
-        return keepEquipmentDrop(enemy, item, { guaranteedKeep: true }) ? [item] : [];
-    }
-    const chaseName = () => rndChoice(UNIQUE_DB.filter(row => row.ultraRare && !row.dropOnly).map(row => row.name));
-    /** A golden treasure's jackpot: one rare currency or a chase unique. @returns {object[]} the chase unique, if that was it */
-    function grantGoldenJackpot(enemy, zone) {
-        const key = lootOmens.goldenJackpot(game, Math.random);
-        if (key === '@chase') return grantTreasureUnique(enemy, zone, chaseName());
-        keepCurrencyDrop(enemy, key, 1);
-        return [];
-    }
-    /** The treasure carrier fell: rolls draws from one drops omen, rare gear and sometimes a unique, all on its cell. Golden treasure
-     * rolls more, always holds a unique and adds a jackpot. */
-    function burstTreasure(enemy, zone) {
-        const rules = LOOT_OMENS.treasure, golden = !!enemy.goldenTreasure, { omen, drops } = lootOmens.treasureDrops(zone, game, Math.random, golden);
-        const granted = drops.filter(drop => grantOmenDrop(enemy, zone, drop)).length;
-        const items = [];
-        for (let i = 0; i < rules.rareGear; i++) items.push(...grantEquipmentPick(enemy, zone, 'rare'));
-        if (golden || Math.random() < rules.uniqueChance) items.push(...grantTreasureUnique(enemy, zone));
-        if (golden) items.push(...grantGoldenJackpot(enemy, zone));
-        game.atlas.tally.treasure += 1;
-        game.atlas.tally.golden += Number(golden);
-        dispatchRuntimeEvent('atlas-find', { kind: 'treasure', golden, omen: omen ? omen.id : null, name: enemy.name,
-            count: granted + items.length + Number(golden), unique: items.some(item => item.rarity === 'unique'), cell: { gx: enemy.gx, gy: enemy.gy } });
-    }
-    const MAP_BOSS_KINDS = new Set(['map', 'guardian']);
-    /** The map boss's own reward (data/loot-omens.js mapBoss): its pieces roll an ordinary monster's rarity bands, the first ones at least
-     * the listed rarities, so the boss pile always holds gear without drawing on the unique budget. */
-    function grantBossReward(enemy, zone) {
-        const rules = LOOT_OMENS.mapBoss, count = rules.items + Number(Math.random() < rules.extraChance);
-        // 수호자와 사도의 보상 장비는 그 영향을 띤다(js/item-influences.js onDrop).
-        const roller = { ...enemy, isBoss: false, isElite: false, uniqueChanceMul: 1, atlasInfluence: itemInfluences.bossInfluence(zone) };
-        for (let i = 0; i < count; i++) grantEquipmentPick(roller, zone, rules.minimum[i] || null);
-    }
-    /** A picked-up memory leaf (js/memory-leaves.js): counted, then announced ('memory-leaf', js/memory-leaves-ui.js). */
-    function receiveMemoryLeaf(id) {
-        const result = memoryLeaves.receive(game, id);
-        if (!result) return result;
-        combatLootReceipts.leaf(game, id);
-        dispatchRuntimeEvent('memory-leaf', result);
-        return result;
-    }
-    /** A leaf waits on the map floor like other drops (offline or off a map it is received at once). */
-    function grantMemoryLeaf(enemy, id) {
-        const run = explorationFloorFor(enemy);
-        if (run) actExplorationState.groundLoot.placeLeaf(run, enemy, id);
-        else receiveMemoryLeaf(id);
-    }
-    /** Every kill in an atlas map: the map omen's drops, a memory leaf now and then, and the treasure when the carrier falls. */
-    function onAtlasKill(zone, enemy) {
-        if (!zone || zone.type !== 'atlasMap') return;
-        lootOmens.killDrops(zone, enemy, game, Math.random).forEach(drop => grantOmenDrop(enemy, zone, drop));
-        lootOmens.strayDrops(zone, enemy, game, Math.random).forEach(drop => grantOmenDrop(enemy, zone, drop));
-        const leaf = memoryLeaves.rollKill(game, zone, enemy, Math.random);
-        if (leaf) grantMemoryLeaf(enemy, leaf);
-        if (enemy.treasureCarrier) burstTreasure(enemy, zone);
-        if (enemy.isBoss && MAP_BOSS_KINDS.has(zone.atlasKind) && !zone.memoryTier) grantBossReward(enemy, zone);
-    }
-    /** An ordinary atlas pack that carries treasure (lootOmens.isTreasurePack): one of its ordinary monsters shines gold (an elite keeps
-     * its trait colour, js/ui.js getEnemyOutlineStyle, so it carries the treasure only in a pack of elites). */
-    function dressTreasurePack(zone, pack) {
-        if (pack.alert || !lootOmens.isTreasurePack(zone, pack)) return;
-        const golden = lootOmens.isGoldenTreasure(pack), rules = golden ? LOOT_OMENS.treasure.golden : LOOT_OMENS.treasure;
-        const leader = pack.waiting.find(enemy => !enemy.isElite) || pack.waiting[0];
-        pack.treasure = true;
-        Object.assign(leader, { treasureCarrier: true, goldenTreasure: golden, name: `${rules.prefix} ${leader.name}`, encounterOutline: rules.outline,
-            encounterSparks: rules.sparks });
-    }
-    return Object.freeze({ onAtlasKill, dressTreasurePack, receiveMemoryLeaf });
+  });
+  var effects = {
+    atlasFindEffectKeepCurrencyDrop: (...args) => keepCurrencyDrop(...args),
+    atlasFindEffectGenerateJewelDrop: (...args) => generateJewelDrop(...args),
+    atlasFindEffectPlaceFloorItem: (...args) => placeFloorItem(...args),
+    atlasFindEffectReceiveJewelDrop: (...args) => receiveJewelDrop(...args),
+    atlasFindEffectQueueEnemyGroundLoot: (...args) => queueEnemyGroundLoot(...args),
+    atlasFindEffectDispatchRuntimeEvent: (...args) => dispatchRuntimeEvent(...args),
+    atlasFindEffectGenerateUniqueItem: (...args) => generateUniqueItem(...args),
+    atlasFindEffectKeepEquipmentDrop: (...args) => keepEquipmentDrop(...args),
+    atlasFindEffectGrantEquipmentPick: (...args) => grantEquipmentPick(...args)
+  };
+  var atlasFinds = Object.freeze({
+    onAtlasKill: (...args) => consumeDomainCommands(rules.onAtlasKill(game, ...args), effects),
+    dressTreasurePack: (...args) => rules.dressTreasurePack(...args),
+    receiveMemoryLeaf: (...args) => consumeDomainCommands(rules.receiveMemoryLeaf(game, ...args), effects)
+  });
+  safeExposeGlobals({ atlasFinds });
 })();
-safeExposeGlobals({ atlasFinds });
