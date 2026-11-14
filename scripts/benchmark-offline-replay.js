@@ -5,13 +5,17 @@ const { performance } = require('node:perf_hooks');
 const fixture = require('./lib/replay-fixture');
 const durationMs = Number(process.env.REPLAY_DURATION_MS || 180000);
 const output = process.argv[2] || 'artifacts/offline-replay-benchmark.json';
-const cases = ['starter', 'summoner', 'void-passives', 'endgame'].filter(name => !process.env.REPLAY_CASE || name === process.env.REPLAY_CASE);
+const cases = ['starter', 'summoner', 'void-passives', 'endgame', 'karma-history'].filter(name => !process.env.REPLAY_CASE || name === process.env.REPLAY_CASE);
 const baselineRuntime = process.argv.includes('--baseline') ? require('./lib/head-runtime.cjs').createHeadRuntime() : undefined;
 if (!cases.length) throw new Error('Unknown REPLAY_CASE');
 
 async function measure(name) {
     const { runtime: r, run } = fixture(17, undefined, baselineRuntime);
     if (name === 'endgame') run(`(${require('./lib/offline-endgame-fixture').toString()})()`);
+    // Large legacy combat history must not be revalidated/copied on every stat read (2026-11-15).
+    // Synthetic IDs only; no player save is needed or shipped with this benchmark.
+    if (name === 'karma-history') run(`game.passiveSpecialization.karma.byEnemy =
+        Object.fromEntries(Array.from({length:32000},(_,i)=>['retired_'+i,1+i%500]));`);
     if (name === 'summoner') run(`
         game.selectedClassId='occultist';game.selectedHeroId='hero9';game.level=8;
         game.skills=['기본 공격','냉기 위습 소환'];game.gemData={'냉기 위습 소환':{level:3,exp:0}};

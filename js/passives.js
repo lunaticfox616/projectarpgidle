@@ -2510,13 +2510,15 @@
     let fanaticism = source.fanaticism && typeof source.fanaticism === "object" ? source.fanaticism : {};
     const karma = normalizeKarma(source);
     const cycleBuffs = normalizeCycleBuffs(env, source);
-    return {
+    const state = {
       revelation,
       keystoneChoices: { ...choices, wisdom_leap_element: wisdom },
       cycleBuffs,
       fanaticism: { skillName: String(fanaticism.skillName || ""), stacks: Math.max(0, Math.floor(fanaticism.stacks || 0)) },
       karma
     };
+    env.normalizedSpecializations.add(state);
+    return state;
   }
   function specializationChoices(env, source, options) {
     let choices = source.keystoneChoices && typeof source.keystoneChoices === "object" ? source.keystoneChoices : {};
@@ -2556,12 +2558,13 @@
     return (Array.isArray(source.cycleBuffs) ? source.cycleBuffs : []).filter((buff) => buff && env.deps.PASSIVE_CYCLE_BUFF_EFFECTS[buff.type] && Number.isFinite(Number(buff.cycle)) && Number.isFinite(Number(buff.expiresAt))).map((buff) => ({ type: buff.type, cycle: Math.max(0, Number(buff.cycle)), expiresAt: Math.max(0, Number(buff.expiresAt)) }));
   }
   function passiveRuleEnsurePassiveSpecializationState(env, owner) {
-    owner.passiveSpecialization = passiveRuleNormalizePassiveSpecializationState(
-      env,
-      owner.passiveSpecialization,
-      { migrateWisdomBranchChoice: true, passiveIds: owner.passives }
-    );
-    return owner.passiveSpecialization;
+    let state = owner.passiveSpecialization;
+    if (!env.normalizedSpecializations.has(state)) {
+      state = passiveRuleNormalizePassiveSpecializationState(env, state);
+      owner.passiveSpecialization = state;
+    }
+    state.keystoneChoices.wisdom_leap_element = passiveRuleGetPassiveWisdomElementFromNodeIds(env, owner.passives);
+    return state;
   }
 
   // modules/domain/passive-keystone-lookup.mjs
@@ -2994,7 +2997,7 @@
 
   // modules/domain/passive-rules.mjs
   function createPassiveRules(deps) {
-    const env = { deps };
+    const env = { deps, normalizedSpecializations: /* @__PURE__ */ new WeakSet() };
     env.passiveTreeAdjacencyCache = { signature: "", map: /* @__PURE__ */ new Map() };
     return Object.freeze({
       getClassKeystoneDefs: (...args) => passiveRuleGetClassKeystoneDefs(env, ...args),

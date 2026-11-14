@@ -12,13 +12,15 @@ export function passiveRuleNormalizePassiveSpecializationState(env, value, optio
     let fanaticism = source.fanaticism && typeof source.fanaticism === 'object' ? source.fanaticism : {};
     const karma = normalizeKarma(source);
     const cycleBuffs = normalizeCycleBuffs(env, source);
-    return {
+    const state = {
         revelation,
         keystoneChoices: { ...choices, wisdom_leap_element: wisdom },
         cycleBuffs,
         fanaticism: { skillName: String(fanaticism.skillName || ''), stacks: Math.max(0, Math.floor(fanaticism.stacks || 0)) },
         karma
     };
+    env.normalizedSpecializations.add(state);
+    return state;
 }
 
 function specializationChoices(env, source, options) {
@@ -66,7 +68,15 @@ function normalizeCycleBuffs(env, source) {
 }
 
 export function passiveRuleEnsurePassiveSpecializationState(env, owner) {
-    owner.passiveSpecialization = passiveRuleNormalizePassiveSpecializationState(env, owner.passiveSpecialization,
-        { migrateWisdomBranchChoice: true, passiveIds: owner.passives });
-    return owner.passiveSpecialization;
+    let state = owner.passiveSpecialization;
+    // Save restoration normalizes once. JSON replay/preview copies and replaced states cross
+    // this boundary again; the weak set never retains an old save or caches combat values.
+    if (!env.normalizedSpecializations.has(state)) {
+        state = passiveRuleNormalizePassiveSpecializationState(env, state);
+        owner.passiveSpecialization = state;
+    }
+    // Allocation may change without replacing the state. Combat writers already validate
+    // karma, cycle buffs and fanaticism, so do not copy their growing histories on reads.
+    state.keystoneChoices.wisdom_leap_element = passiveRuleGetPassiveWisdomElementFromNodeIds(env, owner.passives);
+    return state;
 }

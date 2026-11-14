@@ -22,13 +22,14 @@ export function getHotkeyLabel(runtime, actionId) {
 
 export function renderCombatSkillSlot(runtime, entry) {
     let name = (0, runtime.deps.escapeHTML)((0, runtime.deps._t)(entry.name));
+    const gemName = (0, runtime.deps.escapeHTML)(entry.name);
     let art = (0, runtime.deps.renderSkillGemArt)(entry.name, 'combat-skill-gem-art', { eager: true });
     let cooldown = entry.kind === 'mobility' ? '<span class="player-hud-skill-cooldown" aria-hidden="true" hidden></span>' : '';
     // 이동 스킬 칸은 누르거나 단축키(기본 E)로 쓴다: 키 표시는 자동 이동 단추와 같다.
     let key = entry.hotkey ? (0, runtime.deps.escapeHTML)(entry.hotkey) : '';
     let keyAttrs = key ? ` aria-keyshortcuts="${key}"` : '';
     let keyCap = key ? `<i class="combat-hud-key" aria-hidden="true">${key}</i>` : '';
-    return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${name}" data-slot-kind="${entry.kind}"${keyAttrs} data-info-tooltip-anchor="1" aria-label="${runtime.state.COMBAT_SKILL_SLOT_LABELS[entry.kind]}, ${name}">${art}${cooldown}${keyCap}</button>`;
+    return `<button type="button" class="player-hud-skill-slot ${entry.kind}" data-gem-name="${gemName}" data-slot-kind="${entry.kind}"${keyAttrs} data-info-tooltip-anchor="1" aria-label="${runtime.state.COMBAT_SKILL_SLOT_LABELS[entry.kind]}, ${name}">${art}${cooldown}${keyCap}</button>`;
 }
 
 export function bindCombatSkillSlot(runtime, button) {
