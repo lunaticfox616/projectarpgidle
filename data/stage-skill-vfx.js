@@ -1,6 +1,6 @@
 // GENERATED from modules/data/stage-skill-vfx.mjs. Edit the ESM source; run npm run build:modules.
 (() => {
-  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\skills.mjs
+  // classic-data:modules/data/skills.mjs
   var BASIC_SKILL_ROWS = globalThis.BASIC_SKILL_ROWS;
 
   // modules/data/stage-skill-vfx.mjs

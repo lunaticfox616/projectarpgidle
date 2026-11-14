@@ -1,6 +1,6 @@
 // GENERATED from modules/data/unique-equipment.mjs. Edit the ESM source; run npm run build:modules.
 (() => {
-  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\items.mjs
+  // classic-data:modules/data/items.mjs
   var UNIQUE_DB = globalThis.UNIQUE_DB;
 
   // modules/data/unique-equipment.mjs
