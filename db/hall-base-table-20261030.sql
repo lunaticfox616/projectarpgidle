@@ -3,7 +3,7 @@
 --   표를 비우고 다시 채우므로 여러 번 실행해도 같다. 게임의 베이스(BASE_ITEM_DB)가 바뀌면 다시 만들어 다시 실행한다.
 --   한 묶음이라 중간에 실패하면 표는 이전 그대로다. 표가 비어 있는 동안 베이스 줄은 장비가 들고 온 범위로만 검사하는데, saveVersion 20
 --   세이브의 베이스 줄은 범위를 들고 오지 않으므로 그동안은 값 천만·티어 20 검사만 받는다(거절은 없다).
--- 행: 1086개.
+-- 행: 1155개.
 
 begin;
 
@@ -124,9 +124,15 @@ insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('ember_censer', 'flatDmg', 28, 43),
     ('ember_censer', 'lightPctDmg', 11, 16),
     ('ember_censer', 'regen', 0.3, 0.5),
+    ('thundercloud_censer', 'flatDmg', 36, 55),
+    ('thundercloud_censer', 'lightPctDmg', 12, 19),
+    ('thundercloud_censer', 'regen', 0.3, 0.5),
     ('chapel_censer', 'flatDmg', 56, 84),
     ('chapel_censer', 'lightPctDmg', 16, 24),
     ('chapel_censer', 'regen', 0.4, 0.6),
+    ('thunder_censer', 'flatDmg', 78, 117),
+    ('thunder_censer', 'lightPctDmg', 19, 28),
+    ('thunder_censer', 'regen', 0.4, 0.6),
     ('sunrise_censer', 'flatDmg', 112, 168),
     ('sunrise_censer', 'lightPctDmg', 22, 33),
     ('sunrise_censer', 'regen', 0.5, 0.7),
@@ -213,15 +219,15 @@ insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('phase_boots', 'resC', 6, 9),
     ('ranger_guard_helm', 'flatHp', 22, 33),
     ('ranger_guard_helm', 'armor', 33, 50),
-    ('ranger_guard_helm', 'evasion', 33, 50),
+    ('ranger_guard_helm', 'evasion', 33, 50);
+
+insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('mistwatch_hood', 'flatHp', 35, 52),
     ('mistwatch_hood', 'armor', 54, 81),
     ('mistwatch_hood', 'evasion', 56, 84),
     ('phantom_guard_helm', 'flatHp', 49, 74),
     ('phantom_guard_helm', 'armor', 76, 115),
-    ('phantom_guard_helm', 'evasion', 78, 117);
-
-insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
+    ('phantom_guard_helm', 'evasion', 78, 117),
     ('phantom_guard_helm', 'resC', 6, 9),
     ('nightward_crown', 'flatHp', 62, 93),
     ('nightward_crown', 'armor', 99, 148),
@@ -415,15 +421,15 @@ insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('valor_amulet', 'flatHp', 19, 28),
     ('valor_amulet', 'crit', 4, 6),
     ('sageking_charm', 'crit', 4, 6),
-    ('sageking_charm', 'resAll', 4, 7),
+    ('sageking_charm', 'resAll', 4, 7);
+
+insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('sageking_charm', 'pctDmg', 6, 9),
     ('constellation_core', 'gemLevel', 1, 1),
     ('constellation_core', 'pctDmg', 9, 14),
     ('constellation_core', 'resAll', 4, 7),
     ('copper_ring', 'flatDmg', 1, 1),
-    ('summoner_loop', 'summonPctDmg', 8, 12);
-
-insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
+    ('summoner_loop', 'summonPctDmg', 8, 12),
     ('summoner_loop', 'summonEfficiency', 4, 6),
     ('opal_ring', 'pctDmg', 4, 7),
     ('sapphire_band', 'resAll', 4, 7),
@@ -617,15 +623,15 @@ insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('astral_barrier', 'energyShield', 189, 284),
     ('parry_round_t1', 'armor', 11, 16),
     ('parry_round_t1', 'baseBlockChance', 8, 12),
-    ('parry_iron_t4', 'armor', 24, 36),
+    ('parry_iron_t4', 'armor', 24, 36);
+
+insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('parry_iron_t4', 'baseBlockChance', 8, 13),
     ('parry_rune_t8', 'armor', 41, 62),
     ('parry_rune_t8', 'baseBlockChance', 9, 14),
     ('parry_sentinel_t12', 'armor', 60, 91),
     ('parry_sentinel_t12', 'baseBlockChance', 10, 15),
-    ('parry_seraph_t16', 'armor', 81, 122);
-
-insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
+    ('parry_seraph_t16', 'armor', 81, 122),
     ('parry_seraph_t16', 'baseBlockChance', 11, 16),
     ('parry_astral_t20', 'armor', 105, 158),
     ('parry_astral_t20', 'baseBlockChance', 12, 18),
@@ -819,15 +825,15 @@ insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('spellward_tome', 'spellPctDmg', 11, 16),
     ('arcane_bulwark_tome', 'energyShield', 300, 450),
     ('arcane_bulwark_tome', 'spellPctDmg', 16, 24),
-    ('oath_shield', 'armor', 152, 228),
+    ('oath_shield', 'armor', 152, 228);
+
+insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('oath_shield', 'maxResAll', 1, 1),
     ('covenant_shield', 'armor', 192, 288),
     ('covenant_shield', 'maxResAll', 1, 2),
     ('lifewall_shield', 'armor', 120, 180),
     ('lifewall_shield', 'flatHp', 48, 72),
-    ('lifewall_shield', 'regenFlat', 32, 48);
-
-insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
+    ('lifewall_shield', 'regenFlat', 32, 48),
     ('lifecitadel_shield', 'armor', 152, 228),
     ('lifecitadel_shield', 'flatHp', 64, 96),
     ('lifecitadel_shield', 'regenFlat', 48, 72),
@@ -917,6 +923,69 @@ insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('phoenix_censer', 'flatDmg', 110, 165),
     ('phoenix_censer', 'firePctDmg', 20, 31),
     ('phoenix_censer', 'regen', 0.4, 0.6),
+    ('kindling_censer', 'flatDmg', 11, 16),
+    ('kindling_censer', 'firePctDmg', 5, 8),
+    ('kindling_censer', 'regen', 0.2, 0.2),
+    ('bonfire_censer', 'flatDmg', 27, 40),
+    ('bonfire_censer', 'firePctDmg', 8, 13),
+    ('bonfire_censer', 'regen', 0.2, 0.4),
+    ('beacon_censer', 'flatDmg', 64, 96),
+    ('beacon_censer', 'firePctDmg', 13, 20),
+    ('beacon_censer', 'regen', 0.2, 0.4),
+    ('stone_censer', 'flatDmg', 11, 16),
+    ('stone_censer', 'physPctDmg', 5, 8),
+    ('stone_censer', 'regen', 0.2, 0.2),
+    ('bronze_censer', 'flatDmg', 27, 40),
+    ('bronze_censer', 'physPctDmg', 8, 13),
+    ('bronze_censer', 'regen', 0.2, 0.4),
+    ('iron_censer', 'flatDmg', 36, 55),
+    ('iron_censer', 'physPctDmg', 10, 15),
+    ('iron_censer', 'regen', 0.2, 0.4),
+    ('steel_censer', 'flatDmg', 64, 96),
+    ('steel_censer', 'physPctDmg', 13, 20),
+    ('steel_censer', 'regen', 0.2, 0.4),
+    ('flail_censer', 'flatDmg', 88, 132),
+    ('flail_censer', 'physPctDmg', 16, 24),
+    ('flail_censer', 'regen', 0.3, 0.5),
+    ('bellringer_censer', 'flatDmg', 110, 165),
+    ('bellringer_censer', 'physPctDmg', 20, 31),
+    ('bellringer_censer', 'regen', 0.4, 0.6),
+    ('candle_censer', 'flatDmg', 36, 55),
+    ('candle_censer', 'physPctDmg', 6, 9),
+    ('candle_censer', 'firePctDmg', 6, 9),
+    ('candle_censer', 'regen', 0.2, 0.2),
+    ('chandelier_censer', 'flatDmg', 88, 132),
+    ('chandelier_censer', 'physPctDmg', 9, 14),
+    ('chandelier_censer', 'firePctDmg', 9, 14),
+    ('chandelier_censer', 'regen', 0.2, 0.4),
+    ('relic_censer', 'flatDmg', 110, 165),
+    ('relic_censer', 'physPctDmg', 12, 19),
+    ('relic_censer', 'firePctDmg', 12, 19),
+    ('relic_censer', 'regen', 0.3, 0.5),
+    ('rod_censer', 'flatDmg', 36, 55),
+    ('rod_censer', 'physPctDmg', 6, 9),
+    ('rod_censer', 'lightPctDmg', 6, 9),
+    ('rod_censer', 'regen', 0.2, 0.2),
+    ('ironbolt_censer', 'flatDmg', 88, 132),
+    ('ironbolt_censer', 'physPctDmg', 9, 14),
+    ('ironbolt_censer', 'lightPctDmg', 9, 14),
+    ('ironbolt_censer', 'regen', 0.2, 0.4),
+    ('thunderiron_censer', 'flatDmg', 110, 165),
+    ('thunderiron_censer', 'physPctDmg', 12, 19),
+    ('thunderiron_censer', 'lightPctDmg', 12, 19),
+    ('thunderiron_censer', 'regen', 0.3, 0.5),
+    ('firebolt_censer', 'flatDmg', 36, 55),
+    ('firebolt_censer', 'firePctDmg', 6, 9),
+    ('firebolt_censer', 'lightPctDmg', 6, 9),
+    ('firebolt_censer', 'regen', 0.2, 0.2),
+    ('firestorm_censer', 'flatDmg', 88, 132),
+    ('firestorm_censer', 'firePctDmg', 9, 14),
+    ('firestorm_censer', 'lightPctDmg', 9, 14),
+    ('firestorm_censer', 'regen', 0.2, 0.4),
+    ('skyfire_censer', 'flatDmg', 110, 165),
+    ('skyfire_censer', 'firePctDmg', 12, 19),
+    ('skyfire_censer', 'lightPctDmg', 12, 19),
+    ('skyfire_censer', 'regen', 0.3, 0.5),
     ('chaos_realm_fang', 'flatDmg', 74, 111),
     ('chaos_realm_fang', 'chaosPctDmg', 19, 28),
     ('chaos_realm_fang', 'resChaos', 6, 9),
@@ -958,7 +1027,9 @@ insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('gen__energyShield_t16', 'flatHp', 51, 76),
     ('gen__energyShield_t16', 'energyShield', 384, 576),
     ('gen__energyShield_t16', 'resAll', 4, 7),
-    ('gen__energyShield_t20', 'flatHp', 64, 96),
+    ('gen__energyShield_t20', 'flatHp', 64, 96);
+
+insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('gen__energyShield_t20', 'energyShield', 480, 720),
     ('gen__energyShield_t20', 'resAll', 7, 10),
     ('gen__armor_evasion_t20', 'flatHp', 83, 124),
@@ -1027,9 +1098,7 @@ insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
     ('gen__evasion_t8', 'aspd', 4, 7),
     ('gen__evasion_t8', 'evasion', 58, 87),
     ('gen__evasion_t16_1', 'aspd', 6, 9),
-    ('gen__evasion_t16_1', 'evasion', 112, 168);
-
-insert into public.hall_base_table (base_id, stat_id, min_val, max_val) values
+    ('gen__evasion_t16_1', 'evasion', 112, 168),
     ('gen__evasion_t16_1', 'resAll', 4, 7),
     ('gen__evasion_t20_2', 'aspd', 7, 10),
     ('gen__evasion_t20_2', 'evasion', 140, 210),

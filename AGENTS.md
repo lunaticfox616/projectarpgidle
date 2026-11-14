@@ -178,6 +178,7 @@ mock은 시간·난수, 네트워크, 브라우저 스토리지, DOM/canvas 같�
 우려가 없으면 같은 전체 검사를 반복하지 않는다. JS를 고친 커밋은 커밋 전에 구조·복잡도 래칫
 (`npm run check:architecture`, 필터 없는 `npm test`의 끝에도 돈다)을 통과해야 한다. 한 줄 수정도 복잡도와 계층 규칙에 걸린다.
 `db/*.sql`을 고치면 `npm run check:db`가 한 번 실행하는 묶음 파일과 원본 파일의 함수·정책 본문이 같은지 본다(같은 `npm test` 끝에 돈다).
+추가 옵션(MOD_DB, 화석 전용 줄, 바다의 작업대 줄)이나 베이스(BASE_ITEM_DB)를 고치면 서버의 전당 검사 표가 달라진다. 같은 `npm test` 끝의 검사가 멈추면 `node scripts/export-hall-affix-table.cjs`로 `db/hall-affix-table-20261030.sql`과 `db/hall-base-table-20261030.sql`을 다시 만들고, 사용자에게 두 파일을 Supabase SQL Editor에서 다시 실행해 달라고 알린다(실행 전까지 새 줄은 예전 범위 검사만 받는다).
 
 ```powershell
 npm test

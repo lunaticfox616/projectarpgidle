@@ -133,10 +133,12 @@ async function main() {
 // 전체 실행의 마지막에 구조·복잡도 래칫과 db 거울 검사를 함께 돈다(2026-10-27 회고: 한 줄 JS 수정이 래칫에 걸린 채 커밋됐다.
 // CI는 잡지만 커밋 전에 `npm test`만 돌린 쪽은 몰랐다). 이름을 골라 돌릴 때는 빠른 반복이라 건너뛴다.
 function runFinalChecks() {
-    for (const [title, script] of [['구조·복잡도 래칫(check:architecture)', 'check-runtime-architecture.js'], ['db 거울 검사(check:db)', 'check-db-mirror.js'],
-        ['언어 계약 검사(check:i18n)', 'check-i18n.js'], ['타입 래칫(check:types)', 'check-types.js']]) {
+    for (const [title, script, ...args] of [['구조·복잡도 래칫(check:architecture)', 'check-runtime-architecture.js'], ['db 거울 검사(check:db)', 'check-db-mirror.js'],
+        ['언어 계약 검사(check:i18n)', 'check-i18n.js'], ['타입 래칫(check:types)', 'check-types.js'],
+        // 서버의 전당 검사 표(db/hall-*-table-*.sql)는 게임 데이터의 사본이다: 옵션이나 베이스를 고치고 다시 만들지 않으면 여기서 멈춘다.
+        ['전당 검사 표(db)와 게임 데이터', 'export-hall-affix-table.cjs', '--check']]) {
         console.log(`\n${title}`);
-        let result = require('child_process').spawnSync(process.execPath, [path.join(SCRIPT_DIR, script)], { stdio: 'inherit', cwd: REPO_ROOT });
+        let result = require('child_process').spawnSync(process.execPath, [path.join(SCRIPT_DIR, script), ...args], { stdio: 'inherit', cwd: REPO_ROOT });
         if (result.status !== 0) process.exit(result.status || 1);
     }
 }

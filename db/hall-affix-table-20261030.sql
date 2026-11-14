@@ -2,7 +2,7 @@
 -- 적용: db/hall-watch-20261030.sql(표와 검사 함수를 만든다)을 먼저 실행한 뒤, 이 파일 내용을 Supabase SQL Editor에 붙여 넣고 Run.
 --   표를 비우고 다시 채우므로 여러 번 실행해도 같다. 게임의 추가 옵션(MOD_DB, 화석 전용 줄, 바다의 작업대 줄)이 바뀌면 다시 만들어 다시 실행한다.
 --   한 묶음이라 중간에 실패하면 표는 이전 그대로다. 표가 비어 있는 동안 전당 등록 검사는 예전 범위 검사만 한다.
--- 행: 3412개.
+-- 행: 3452개.
 
 begin;
 
@@ -2189,6 +2189,46 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('censerLightGemLevel', 'lightGemLevel', 18, 3, 3, array['무기']::text[]),
     ('censerLightGemLevel', 'lightGemLevel', 19, 3, 3, array['무기']::text[]),
     ('censerLightGemLevel', 'lightGemLevel', 20, 4, 4, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 1, 1, 1, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 2, 1, 1, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 3, 1, 1, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 4, 1, 1, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 5, 1, 1, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 6, 1, 1, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 7, 1, 1, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 8, 1, 1, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 9, 2, 2, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 10, 2, 2, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 11, 2, 2, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 12, 2, 2, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 13, 2, 2, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 14, 2, 2, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 15, 2, 2, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 16, 3, 3, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 17, 3, 3, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 18, 3, 3, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 19, 3, 3, array['무기']::text[]),
+    ('censerFireGemLevel', 'fireGemLevel', 20, 4, 4, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 1, 1, 1, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 2, 1, 1, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 3, 1, 1, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 4, 1, 1, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 5, 1, 1, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 6, 1, 1, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 7, 1, 1, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 8, 1, 1, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 9, 2, 2, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 10, 2, 2, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 11, 2, 2, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 12, 2, 2, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 13, 2, 2, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 14, 2, 2, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 15, 2, 2, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 16, 3, 3, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 17, 3, 3, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 18, 3, 3, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 19, 3, 3, array['무기']::text[]),
+    ('censerPhysGemLevel', 'physGemLevel', 20, 4, 4, array['무기']::text[]),
     ('censerRegen', 'regen', 1, 0.3, 0.3, array['무기']::text[]),
     ('censerRegen', 'regen', 2, 0.3, 0.4, array['무기']::text[]),
     ('censerRegen', 'regen', 3, 0.4, 0.5, array['무기']::text[]),
@@ -2201,7 +2241,9 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('censerRegen', 'regen', 10, 1.1, 1.2, array['무기']::text[]),
     ('censerRegen', 'regen', 11, 1.2, 1.3, array['무기']::text[]),
     ('censerRegen', 'regen', 12, 1.3, 1.4, array['무기']::text[]),
-    ('censerRegen', 'regen', 13, 1.4, 1.5, array['무기']::text[]),
+    ('censerRegen', 'regen', 13, 1.4, 1.5, array['무기']::text[]);
+
+insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
     ('censerRegen', 'regen', 14, 1.5, 1.6, array['무기']::text[]),
     ('censerRegen', 'regen', 15, 1.6, 1.7, array['무기']::text[]),
     ('censerRegen', 'regen', 16, 1.7, 1.8, array['무기']::text[]),
@@ -2241,9 +2283,7 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('armorTakenReduce', 'genericTakenDamageReducePct', 10, 2, 3, array['갑옷']::text[]),
     ('armorTakenReduce', 'genericTakenDamageReducePct', 11, 2, 3, array['갑옷']::text[]),
     ('armorTakenReduce', 'genericTakenDamageReducePct', 12, 2, 3, array['갑옷']::text[]),
-    ('armorTakenReduce', 'genericTakenDamageReducePct', 13, 3, 4, array['갑옷']::text[]);
-
-insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
+    ('armorTakenReduce', 'genericTakenDamageReducePct', 13, 3, 4, array['갑옷']::text[]),
     ('armorTakenReduce', 'genericTakenDamageReducePct', 14, 3, 4, array['갑옷']::text[]),
     ('armorTakenReduce', 'genericTakenDamageReducePct', 15, 3, 4, array['갑옷']::text[]),
     ('armorTakenReduce', 'genericTakenDamageReducePct', 16, 3, 4, array['갑옷']::text[]),
@@ -2403,7 +2443,9 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('armorDeflectReduce', 'deflectDamageReduce', 10, 11, 12, array['갑옷']::text[]),
     ('armorDeflectReduce', 'deflectDamageReduce', 11, 12, 13, array['갑옷']::text[]),
     ('armorDeflectReduce', 'deflectDamageReduce', 12, 13, 14, array['갑옷']::text[]),
-    ('armorDeflectReduce', 'deflectDamageReduce', 13, 14, 15, array['갑옷']::text[]),
+    ('armorDeflectReduce', 'deflectDamageReduce', 13, 14, 15, array['갑옷']::text[]);
+
+insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
     ('armorDeflectReduce', 'deflectDamageReduce', 14, 15, 16, array['갑옷']::text[]),
     ('armorDeflectReduce', 'deflectDamageReduce', 15, 16, 17, array['갑옷']::text[]),
     ('armorDeflectReduce', 'deflectDamageReduce', 16, 17, 18, array['갑옷']::text[]),
@@ -2443,9 +2485,7 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('armorIgniteDuration', 'igniteTakenDurationReducePct', 10, 14, 15, array['갑옷']::text[]),
     ('armorIgniteDuration', 'igniteTakenDurationReducePct', 11, 16, 17, array['갑옷']::text[]),
     ('armorIgniteDuration', 'igniteTakenDurationReducePct', 12, 17, 18, array['갑옷']::text[]),
-    ('armorIgniteDuration', 'igniteTakenDurationReducePct', 13, 18, 19, array['갑옷']::text[]);
-
-insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
+    ('armorIgniteDuration', 'igniteTakenDurationReducePct', 13, 18, 19, array['갑옷']::text[]),
     ('armorIgniteDuration', 'igniteTakenDurationReducePct', 14, 20, 21, array['갑옷']::text[]),
     ('armorIgniteDuration', 'igniteTakenDurationReducePct', 15, 21, 22, array['갑옷']::text[]),
     ('armorIgniteDuration', 'igniteTakenDurationReducePct', 16, 22, 23, array['갑옷']::text[]),
@@ -2605,7 +2645,9 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('regionChaosOvercap', 'regionChaosOvercap', 10, 1.4, 1.5, array['갑옷','방패','목걸이']::text[]),
     ('regionChaosOvercap', 'regionChaosOvercap', 11, 1.5, 1.6, array['갑옷','방패','목걸이']::text[]),
     ('regionChaosOvercap', 'regionChaosOvercap', 12, 1.6, 1.7, array['갑옷','방패','목걸이']::text[]),
-    ('regionChaosOvercap', 'regionChaosOvercap', 13, 1.7, 1.8, array['갑옷','방패','목걸이']::text[]),
+    ('regionChaosOvercap', 'regionChaosOvercap', 13, 1.7, 1.8, array['갑옷','방패','목걸이']::text[]);
+
+insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
     ('regionChaosOvercap', 'regionChaosOvercap', 14, 1.8, 1.9, array['갑옷','방패','목걸이']::text[]),
     ('regionChaosOvercap', 'regionChaosOvercap', 15, 1.9, 2, array['갑옷','방패','목걸이']::text[]),
     ('regionChaosOvercap', 'regionChaosOvercap', 16, 2, 2.1, array['갑옷','방패','목걸이']::text[]),
@@ -2645,9 +2687,7 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('regionArmorToPhys', 'regionArmorToPhys', 10, 2.1, 2.2, array['갑옷','방패','투구']::text[]),
     ('regionArmorToPhys', 'regionArmorToPhys', 11, 2.3, 2.4, array['갑옷','방패','투구']::text[]),
     ('regionArmorToPhys', 'regionArmorToPhys', 12, 2.4, 2.6, array['갑옷','방패','투구']::text[]),
-    ('regionArmorToPhys', 'regionArmorToPhys', 13, 2.6, 2.8, array['갑옷','방패','투구']::text[]);
-
-insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
+    ('regionArmorToPhys', 'regionArmorToPhys', 13, 2.6, 2.8, array['갑옷','방패','투구']::text[]),
     ('regionArmorToPhys', 'regionArmorToPhys', 14, 2.8, 2.9, array['갑옷','방패','투구']::text[]),
     ('regionArmorToPhys', 'regionArmorToPhys', 15, 3, 3.1, array['갑옷','방패','투구']::text[]),
     ('regionArmorToPhys', 'regionArmorToPhys', 16, 3.1, 3.3, array['갑옷','방패','투구']::text[]),
@@ -2807,7 +2847,9 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('regionFullLifeFire', 'regionFullLifeFire', 10, 71, 76, array['투구','갑옷','목걸이']::text[]),
     ('regionFullLifeFire', 'regionFullLifeFire', 11, 77, 82, array['투구','갑옷','목걸이']::text[]),
     ('regionFullLifeFire', 'regionFullLifeFire', 12, 83, 89, array['투구','갑옷','목걸이']::text[]),
-    ('regionFullLifeFire', 'regionFullLifeFire', 13, 90, 95, array['투구','갑옷','목걸이']::text[]),
+    ('regionFullLifeFire', 'regionFullLifeFire', 13, 90, 95, array['투구','갑옷','목걸이']::text[]);
+
+insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
     ('regionFullLifeFire', 'regionFullLifeFire', 14, 96, 101, array['투구','갑옷','목걸이']::text[]),
     ('regionFullLifeFire', 'regionFullLifeFire', 15, 102, 108, array['투구','갑옷','목걸이']::text[]),
     ('regionFullLifeFire', 'regionFullLifeFire', 16, 109, 114, array['투구','갑옷','목걸이']::text[]),
@@ -2847,9 +2889,7 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('regionIgnitedDamage', 'regionIgnitedDamage', 10, 71, 76, array['무기','장갑','반지']::text[]),
     ('regionIgnitedDamage', 'regionIgnitedDamage', 11, 77, 82, array['무기','장갑','반지']::text[]),
     ('regionIgnitedDamage', 'regionIgnitedDamage', 12, 83, 89, array['무기','장갑','반지']::text[]),
-    ('regionIgnitedDamage', 'regionIgnitedDamage', 13, 90, 95, array['무기','장갑','반지']::text[]);
-
-insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
+    ('regionIgnitedDamage', 'regionIgnitedDamage', 13, 90, 95, array['무기','장갑','반지']::text[]),
     ('regionIgnitedDamage', 'regionIgnitedDamage', 14, 96, 101, array['무기','장갑','반지']::text[]),
     ('regionIgnitedDamage', 'regionIgnitedDamage', 15, 102, 108, array['무기','장갑','반지']::text[]),
     ('regionIgnitedDamage', 'regionIgnitedDamage', 16, 109, 114, array['무기','장갑','반지']::text[]),
@@ -3009,7 +3049,9 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('guardianMaxResAll', 'maxResAll', 10, 1.4, 1.5, array['투구','갑옷','허리띠']::text[]),
     ('guardianMaxResAll', 'maxResAll', 11, 1.5, 1.6, array['투구','갑옷','허리띠']::text[]),
     ('guardianMaxResAll', 'maxResAll', 12, 1.6, 1.7, array['투구','갑옷','허리띠']::text[]),
-    ('guardianMaxResAll', 'maxResAll', 13, 1.7, 1.8, array['투구','갑옷','허리띠']::text[]),
+    ('guardianMaxResAll', 'maxResAll', 13, 1.7, 1.8, array['투구','갑옷','허리띠']::text[]);
+
+insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
     ('guardianMaxResAll', 'maxResAll', 14, 1.8, 1.9, array['투구','갑옷','허리띠']::text[]),
     ('guardianMaxResAll', 'maxResAll', 15, 1.9, 2, array['투구','갑옷','허리띠']::text[]),
     ('guardianMaxResAll', 'maxResAll', 16, 2, 2.1, array['투구','갑옷','허리띠']::text[]),
@@ -3049,9 +3091,7 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('guardianBoss', 'bossDamagePct', 10, 20, 21, array['무기','장갑','목걸이','반지']::text[]),
     ('guardianBoss', 'bossDamagePct', 11, 22, 23, array['무기','장갑','목걸이','반지']::text[]),
     ('guardianBoss', 'bossDamagePct', 12, 24, 25, array['무기','장갑','목걸이','반지']::text[]),
-    ('guardianBoss', 'bossDamagePct', 13, 26, 27, array['무기','장갑','목걸이','반지']::text[]);
-
-insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
+    ('guardianBoss', 'bossDamagePct', 13, 26, 27, array['무기','장갑','목걸이','반지']::text[]),
     ('guardianBoss', 'bossDamagePct', 14, 28, 28, array['무기','장갑','목걸이','반지']::text[]),
     ('guardianBoss', 'bossDamagePct', 15, 29, 30, array['무기','장갑','목걸이','반지']::text[]),
     ('guardianBoss', 'bossDamagePct', 16, 31, 32, array['무기','장갑','목걸이','반지']::text[]),
@@ -3211,7 +3251,9 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('blightElite', 'eliteDamagePct', 10, 20, 21, array['투구','목걸이','신발']::text[]),
     ('blightElite', 'eliteDamagePct', 11, 22, 23, array['투구','목걸이','신발']::text[]),
     ('blightElite', 'eliteDamagePct', 12, 24, 25, array['투구','목걸이','신발']::text[]),
-    ('blightElite', 'eliteDamagePct', 13, 26, 27, array['투구','목걸이','신발']::text[]),
+    ('blightElite', 'eliteDamagePct', 13, 26, 27, array['투구','목걸이','신발']::text[]);
+
+insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
     ('blightElite', 'eliteDamagePct', 14, 28, 28, array['투구','목걸이','신발']::text[]),
     ('blightElite', 'eliteDamagePct', 15, 29, 30, array['투구','목걸이','신발']::text[]),
     ('blightElite', 'eliteDamagePct', 16, 31, 32, array['투구','목걸이','신발']::text[]),
@@ -3251,9 +3293,7 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('blightChaosRes', 'maxResChaos', 10, 1.6, 1.7, array['갑옷','방패','허리띠']::text[]),
     ('blightChaosRes', 'maxResChaos', 11, 1.8, 1.9, array['갑옷','방패','허리띠']::text[]),
     ('blightChaosRes', 'maxResChaos', 12, 1.9, 2, array['갑옷','방패','허리띠']::text[]),
-    ('blightChaosRes', 'maxResChaos', 13, 2, 2.1, array['갑옷','방패','허리띠']::text[]);
-
-insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
+    ('blightChaosRes', 'maxResChaos', 13, 2, 2.1, array['갑옷','방패','허리띠']::text[]),
     ('blightChaosRes', 'maxResChaos', 14, 2.1, 2.2, array['갑옷','방패','허리띠']::text[]),
     ('blightChaosRes', 'maxResChaos', 15, 2.3, 2.4, array['갑옷','방패','허리띠']::text[]),
     ('blightChaosRes', 'maxResChaos', 16, 2.4, 2.5, array['갑옷','방패','허리띠']::text[]),
@@ -3413,7 +3453,9 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('fossilPrismNeedle', 'resPen', 10, 9, 10, array['무기','목걸이','반지']::text[]),
     ('fossilPrismNeedle', 'resPen', 11, 9, 11, array['무기','목걸이','반지']::text[]),
     ('fossilPrismNeedle', 'resPen', 12, 10, 12, array['무기','목걸이','반지']::text[]),
-    ('fossilPrismNeedle', 'resPen', 13, 11, 12, array['무기','목걸이','반지']::text[]),
+    ('fossilPrismNeedle', 'resPen', 13, 11, 12, array['무기','목걸이','반지']::text[]);
+
+insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
     ('fossilPrismNeedle', 'resPen', 14, 11, 13, array['무기','목걸이','반지']::text[]),
     ('fossilPrismNeedle', 'resPen', 15, 12, 14, array['무기','목걸이','반지']::text[]),
     ('fossilPrismNeedle', 'resPen', 16, 13, 14, array['무기','목걸이','반지']::text[]),
@@ -3453,9 +3495,7 @@ insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, sl
     ('fossilSkyCeil', 'maxDmgRoll', 10, 8, 9, array['무기','장갑']::text[]),
     ('fossilSkyCeil', 'maxDmgRoll', 11, 8, 10, array['무기','장갑']::text[]),
     ('fossilSkyCeil', 'maxDmgRoll', 12, 9, 10, array['무기','장갑']::text[]),
-    ('fossilSkyCeil', 'maxDmgRoll', 13, 9, 11, array['무기','장갑']::text[]);
-
-insert into public.hall_affix_table (mod_id, stat_id, tier, min_val, max_val, slots) values
+    ('fossilSkyCeil', 'maxDmgRoll', 13, 9, 11, array['무기','장갑']::text[]),
     ('fossilSkyCeil', 'maxDmgRoll', 14, 10, 11, array['무기','장갑']::text[]),
     ('fossilSkyCeil', 'maxDmgRoll', 15, 11, 12, array['무기','장갑']::text[]),
     ('fossilSkyCeil', 'maxDmgRoll', 16, 11, 13, array['무기','장갑']::text[]),
