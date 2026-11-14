@@ -67,7 +67,13 @@
         }
     }
     async function start() {
-        await waitFor(() => window.__startupFirstPaintDone && document.getElementById('btn-startup-guest'));
+        // The start screen is ready when the guest button can be pressed (the old window.__startupFirstPaintDone flag went with the ESM move).
+        // Pressed as a player could: the start screen is shown (the boot has loaded the save) and the button is visible and enabled.
+        await waitFor(() => {
+            const guest = document.getElementById('btn-startup-guest');
+            return guest && !guest.disabled && guest.offsetParent && window.GameModules?.application
+                && !document.documentElement.classList.contains('app-preload') && isStartupOverlayOpen();
+        });
         document.getElementById('btn-startup-guest').click();
         await waitFor(() => document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]'));
         document.querySelector('#loop-hero-select-overlay [data-class-id="warrior"]').click();
@@ -77,8 +83,10 @@
         // Then the window asks for the basic skill's element (js/passives.js, 2026-11-09): the first one offered.
         await waitFor(() => document.querySelector('#loop-hero-select-overlay .basic-skill-choice'));
         document.querySelector('#loop-hero-select-overlay .basic-skill-choice').click();
-        await waitFor(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen() && !uiRefreshRunning && !uiRefreshQueued);
-        clearInterval(gameTickHandle); gameTickHandle = null;
+        // The same public handles the browser checks use: the UI refresh state and the combat timer belong to modules now.
+        await waitFor(() => battleAssets.ready && !isStartupOverlayOpen() && !isLoadingOverlayOpen()
+            && !window.GameModules.uiRuntime.status().running && !window.GameModules.uiRuntime.status().queued);
+        window.GameModules.application.timers.stopCombat();
         new MutationObserver(skipNotices).observe(document.getElementById('tutorial-overlay'), { attributes:true, attributeFilter:['class'] });
         game.season = 2; game.seasonPoints = 10; game.loopDeepPoints = 10;
         ready = true; refresh();

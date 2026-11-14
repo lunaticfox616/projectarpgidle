@@ -97,17 +97,14 @@
         parent.postMessage({type:'worldtree-lab-status',message},origin);
     }
     function reviewChase() {
-        // 이 재현은 9×8 판의 칸 자리로 짠 것이다: 방 단위 무대에서는 군락지가 제 지도를 걸으므로(2026-10-13) 방 단위를 끄고 판에서 연다.
-        seed('realms');game.settings.stageRooms='off';game.currencies.colonyTrace=1;startColonyRun();
-        const cells=[[6,1],[5,1],[5,6],[1,6],[1,3],[4,1],[2,5],[6,6],[7,2],[4,6],[6,2],[3,6],[6,3]];
-        game.enemies=cells.map(([gx,gy],index)=>Object.assign(createEnemy(getZone('colony_run'),{},index),{
-            gx,gy,hp:1000,maxHp:1000,isBoss:false,ailments:[{type:'freeze',time:30}]
-        }));
-        game.gridPlayer={gx:4,gy:3,gridMoveTimer:0};game.combatTacticsUnlocked=false;
-        resetCombatTacticsRuntime();game.colony.requiredKills=13;game.colony.wave=8;
+        // 예전에는 9×8 판의 칸 자리로 짠 재현이었다. 그 판은 없어졌고(2026-11-10) 군락지는 제 지도를 걷는다: 군락지가 내놓은 무리를
+        // 그 자리에 30초 얼려 두고, 근접 주인공이 다가가 잡는지 본다.
+        seed('realms');game.currencies.colonyTrace=1;startColonyRun();
+        game.enemies.forEach(enemy=>Object.assign(enemy,{hp:1000,maxHp:1000,isBoss:false,ailments:[{type:'freeze',time:30}]}));
+        game.combatTacticsUnlocked=false;resetCombatTacticsRuntime();
         closeAllWindows();switchTab('tab-battle');battle=true;
         parent.postMessage({type:'worldtree-view-status',battle},origin);
-        parent.postMessage({type:'worldtree-lab-status',message:'멈춤 좌표 재현 · 적 13마리 30초 동결 · 실제 접근/공격 · 밸런스 검증 아님'},origin);
+        parent.postMessage({type:'worldtree-lab-status',message:`멈춤 좌표 재현 · 적 ${game.enemies.length}마리 30초 동결 · 실제 접근/공격 · 밸런스 검증 아님`},origin);
     }
     function reviewTrade() {
         seed('realms');
