@@ -74,7 +74,7 @@ data -> utils -> state/save -> domain(items/skills/passives/core-cube)
 ```
 
 오른쪽 계층은 왼쪽을 사용할 수 있지만 반대 방향 의존은 금지한다. 도메인은 UI 전용 함수나 DOM에
-의존하지 않는다. 양방향 호출과 이벤트·콜백으로 숨긴 순환 의존도 금지한다. `modules/`의 import는 `npm run check:architecture`가 계층 방향과 순환을 본다(`scripts/lib/module-graph.js`의 순서와 예외 목록). 어디서도 읽지 않는 export는 `node scripts/report-unused-exports.js`가 찾는다. 공통 shape는 가장 낮은
+의존하지 않는다. 양방향 호출과 이벤트·콜백으로 숨긴 순환 의존도 금지한다. `modules/`의 import는 `npm run check:architecture`가 계층 방향과 순환을 본다(`scripts/lib/module-graph.js`의 순서와 예외 목록). 어디서도 읽지 않는 export는 `node scripts/report-unused-exports.js`가 찾는다. 계층 폴더의 원본은 `npm run check:types`가 TypeScript 검사기로 읽는다(JSDoc 타입, 기준선 `scripts/type-check-baseline.json`에 없는 새 지적만 실패, 필터 없는 `npm test` 끝에도 돈다). 공통 shape는 가장 낮은
 공통 계층이 소유한다: 정적 정의는 `modules/data/`, 런타임 상태는 `modules/state/`, 도메인 비종속 변환은
 `modules/common/`이 단일 출처다. 서버 호출 함수 `cloudJsonRequest`는 `js/cloud-save-ui.js`(계정과 서버 저장, ui 계층)에 있어, 도메인 파일(`js/social.js`,
 `js/ghost-pvp.js`)의 새 함수가 부르면 래칫의 layer 위반이다. 새 서버 호출은 ui 파일(`js/cloud-tools-ui.js` 등)에 둔다.
