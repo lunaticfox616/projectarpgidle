@@ -97,12 +97,27 @@ function ownerName(node,fallback) {
 
 function recordFinding(findings,row,message,source) {
     const node = source.getNodeByRangeIndex(source.getIndexFromLoc({line:message.line,column:Math.max(0,message.column-1)}));
+    // esbuild expands each literal property onto its own line. Original module
+    // length/complexity is checked by build:modules; do not count generated data
+    // formatting as a new algorithm. Calls, spreads, getters and branches stay checked.
+    if (message.ruleId === 'max-lines-per-function' && isGeneratedLiteralFactory(row, node)) return;
     const owner = ownerName(node,row.file);
     const key = `${owner}|${message.ruleId}|${message.message.replace(/\b\d+\b/g,'#')}`;
     const metric = /^(complexity|max-depth|max-lines-per-function|max-params)$/.test(message.ruleId)
         ? Number((message.message.match(/\b\d+\b/) || [0])[0]) : 0;
     const entry = findings[key] || {count:0,max:0};
     entry.count++; entry.max = Math.max(entry.max,metric); findings[key] = entry;
+}
+
+function isGeneratedLiteralFactory(row, node) {
+    if (!row.source.startsWith('// GENERATED from modules/')) return false;
+    while (node && !/Function/.test(node.type)) node = node.parent;
+    if (!node || node.params.length || node.async || node.generator || node.body.body?.length !== 1) return false;
+    const statement = node.body.body[0];
+    if (statement.type !== 'ReturnStatement' || statement.argument?.type !== 'ObjectExpression') return false;
+    return statement.argument.properties.every(property => property.type === 'Property'
+        && property.kind === 'init' && !property.computed && !property.method
+        && property.value.type === 'Literal' && !property.value.regex);
 }
 
 function collectEdges(row,source,owners,edges,order) {

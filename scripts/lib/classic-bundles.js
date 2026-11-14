@@ -17,8 +17,10 @@ function describeScript(file, code) {
         declaresFunction: body.some(node => node.type === 'FunctionDeclaration') };
 }
 
-/** Retain function-instantiation and strict-mode boundaries. No identifier mangling,
- * scope wrapping, tree shaking or syntax optimization across classic files. */
+/** Retain function-instantiation, strict-mode and shared lexical boundaries.
+ * Transform script (no format/wrapper): esbuild preserves top-level binding names.
+ * Only inner bindings/syntax are compacted; no property mangling or tree shaking.
+ * Runtime callbacks use explicit export keys, never Function.name/toString. */
 async function packClassicScripts(scripts) {
     const groups = [];
     let group = [], bytes = 0;
@@ -34,9 +36,9 @@ async function packClassicScripts(scripts) {
         if (first.boundary || first.strict || rows.length === 1) return { rows, file: first.file, code: first.code };
         const file = `js/boot/runtime-${String(index + 1).padStart(2, '0')}.js`;
         const source = rows.map(row => `// ${row.file}\n${row.code}`).join('\n;\n');
-        const result = await esbuild.transform(source, { loader: 'js', target: 'esnext', charset: 'utf8',
+        const result = await esbuild.transform(source, { loader: 'js', target: 'es2020', charset: 'utf8',
             sourcefile: file.replace('.js', '.sources.js'), sourcemap: 'external', sourcesContent: true,
-            minifyWhitespace: true, minifyIdentifiers: false, minifySyntax: false,
+            minifyWhitespace: true, minifyIdentifiers: true, minifySyntax: true,
             treeShaking: false, legalComments: 'inline' });
         return { rows, file, code: result.code + `\n//# sourceMappingURL=${path.basename(file)}.map\n`, map: result.map };
     }));

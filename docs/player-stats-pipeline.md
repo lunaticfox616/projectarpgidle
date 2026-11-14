@@ -23,6 +23,9 @@
    classic 조립부의 연결은 유지한다. 2026-11-14 전체 스모크에서 캐시·재계산과 전투 재생을,
    실제 PC 브라우저에서 장비 장착·패시브 할당·입력 후 캐시 무효화와 재계산 동등성을 확인했다.
    `modules/domain/player-stat-inputs.mjs`가 기본값·출처 버킷을 만들고 검증된 장비 뷰의 옵션, 주얼·거울 복제와 고유 효과를 준비한다.
+   기본 버킷은 `modules/common/stat-bucket.mjs`의 객체 리터럴에서 매번 새로 만든다. 공유 기본값 복사보다
+   실제 능력치 계산의 시간·할당량이 적었다(2026-11-14 비교는 README의 후속 최적화 측정).
+   이전 결과와 출처 읽기 함수가 버킷을 보관할 수 있으므로 객체 풀로 재사용하지 않는다.
    `js/player-stats.js`는 이 원본과 native 계산을 결합한 생성 출력이며 직접 편집하지 않는다.
    품질·특수 제작·복제 옵션 줄은 `modules/domain/equipment-stat-resolution.mjs`에서 계산한다.
 2. `modules/domain/combat-build-stats.mjs`: 장비 출처별 합산. 장비 기본/명시 옵션 버킷과 로컬 방어를 분리한다.

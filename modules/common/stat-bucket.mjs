@@ -18,7 +18,10 @@ const TAGGED_DAMAGE_STAT_BY_TAG = {
     channeling: 'channelingPctDmg'
 };
 
-const STAT_BUCKET_DEFAULTS = {
+// Construct fresh fields directly: copying a shared template churned allocations in real stat evaluations.
+// Never pool these buckets; results and source readers may still reference an earlier evaluation.
+function createEmptyStatBucket() {
+    return {
         flatDmg: 0, weaponFlatDmgPct: 0, pctDmg: 0, flatHp: 0, pctHp: 0, aspd: 0, crit: 0, move: 0, cooldownRecovery: 0, cooldownReduction: 0, mobilityCooldownRecovery: 0, mobilityCooldownReduction: 0, cooldownReductionCapBonus: 0, sight: 0, sightCap: 0, chestGrade: 0, gemLevel: 0, elementalGemLevel: 0, fireGemLevel: 0, coldGemLevel: 0, lightGemLevel: 0, chaosGemLevel: 0, physGemLevel: 0, projectileGemLevel: 0, meleeGemLevel: 0, slamGemLevel: 0, spellGemLevel: 0, dotGemLevel: 0, aoeGemLevel: 0, strGemLevel: 0, dexGemLevel: 0, intGemLevel: 0, suppCap: 0, runeResonancePower: 0, regenFlat: 0,
         dr: 0, physIgnore: 0, resPen: 0, resF: 0, resC: 0, resL: 0, maxResAll: 0, maxResF: 0, maxResC: 0, maxResL: 0, maxResChaos: 0, resChaos: 0, leech: 0, leechRateCap: 0, leechTotalCap: 0, leechInstanceCap: 0, leechKeepFullLife: 0, critDmg: 0, regen: 0, regenSuppress: 0, ds: 0, expGain: 0,
         minDmgRoll: 0, maxDmgRoll: 0, slamEchoChance: 0, slamEchoDamagePct: 0, doubleDamageChance: 0, blockChanceMax: 0,
@@ -49,9 +52,7 @@ const STAT_BUCKET_DEFAULTS = {
         regionBleedingDamage: 0, regionLowLifeDR: 0, regionShockChain: 0, regionCritMove: 0, regionShockSpread: 0, regionShockedLightPen: 0,
         regionIgniteSpread: 0, regionFullLifeFire: 0, regionIgniteDuration: 0, regionIgnitedDamage: 0, regionFrozenCritDamage: 0, regionShatter: 0,
         regionChillOnHit: 0, regionChilledAttackerDR: 0
-};
-function createEmptyStatBucket() {
-    return { ...STAT_BUCKET_DEFAULTS };
+    };
 }
 
 // Bucket shape is the source for direct additions. Oxygen uses its separate resource rules.

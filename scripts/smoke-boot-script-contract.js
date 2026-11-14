@@ -33,6 +33,20 @@ assert(sources.indexOf('js/social.js') < sources.indexOf('js/ui-window-manager.j
     && sources.indexOf('js/ui-window-manager.js') < sources.indexOf('js/main.js'),
     '창 관리자는 소셜 UI 이후, 부트스트랩 이전에 로드돼야 합니다');
 
+// Generated literal formatting must not reject a short ESM data factory, while
+// the same guard still rejects authored long functions and generated algorithms.
+const { analyze } = require('./check-runtime-architecture');
+const literalFields = Array.from({ length: 70 }, (_, index) => `field${index}: 0`).join(',\n');
+const factorySource = body => `(() => { function makeValues(){\n${body}\n} return makeValues; })();`;
+const hasLengthFinding = source => Object.keys(analyze([{ file:'js/generated-check.js', source,
+    ast:espree.parse(source,{ecmaVersion:'latest',loc:true,range:true}) }]).findings)
+    .some(key => key.includes('|max-lines-per-function|'));
+const generatedHeader = '// GENERATED from modules/example.mjs.\n';
+assert(!hasLengthFinding(generatedHeader + factorySource(`return {\n${literalFields}\n};`)), 'generated literal data is not algorithm length');
+assert(hasLengthFinding(factorySource(`return {\n${literalFields}\n};`)), 'authored source length still checked');
+assert(hasLengthFinding(generatedHeader + factorySource(`return {\n${literalFields},\ncomputed: Math.random()\n};`)), 'generated calculations still checked');
+assert(hasLengthFinding(generatedHeader + factorySource(`let total = 0;\n${'total++;\n'.repeat(70)}return total;`)), 'generated statement length still checked');
+
 // (1) 파일 단독 파싱: SyntaxError면 해당 파일 전체(모든 전역 함수)가 사라져 부팅이 죽는다.
 for (const src of sources) {
     const code = fs.readFileSync(src, 'utf8');
@@ -83,6 +97,7 @@ for (const src of sources) {
     const { buildGameRuntime } = require('./lib/game-runtime');
     const rows = LOAD_ORDER.map(file => describeScript(file, stripDevOnly(fs.readFileSync(file, 'utf8'), file)));
     const packed = await packClassicScripts(rows);
+    for (const row of packed) espree.parse(row.code, { ecmaVersion: 2020, sourceType: 'script' });
     const oldRuntime = buildGameRuntime(Object.fromEntries(rows.map(row => [row.file, row.code])));
     const newRuntime = buildGameRuntime({}, null, {}, packed);
     const snapshots = [oldRuntime, newRuntime].map(runtime => {
@@ -108,5 +123,14 @@ for (const src of sources) {
     for (const row of await packClassicScripts(boundary)) vm.runInContext(row.code, context);
     assert.strictEqual(vm.runInContext('JSON.stringify(observed)', context), '["undefined",7,true,11,"undefined"]',
         'packaging changed function hoisting, strict mode or lexical visibility');
+    // Public callback keys and accessors are called later by HTML/other scripts;
+    // local implementation names may be compacted without changing that API.
+    const callbacks = [
+        "const publicHandlers = (() => { let total = 2; const addFromButton = amount => total += amount; return { addFromButton, get value(){return total;} }; })();",
+        "const exportedCallback = publicHandlers.addFromButton; exportedCallback(3);"
+    ].map((code, index) => describeScript(`callbacks-${index}.js`, code));
+    for (const row of await packClassicScripts(callbacks)) vm.runInContext(row.code, context);
+    assert.strictEqual(vm.runInContext('publicHandlers.addFromButton(7); publicHandlers.value', context), 12,
+        'packaging broke a later inline callback or accessor');
     console.log(`smoke-boot-script-contract passed (${sources.length} scripts; bundled boot/save parity)`);
 })().catch(error => { console.error(error); process.exitCode = 1; });
