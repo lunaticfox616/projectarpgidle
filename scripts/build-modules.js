@@ -405,7 +405,7 @@ function compileEntry({ name, globals, mount, output = `js/${name}.js` }) {
 function removeOrphans(outputs) {
     const keep = new Set(outputs);
     for (const dir of ['js', 'data', 'data/locales']) {
-        for (const name of fs.readdirSync(path.join(ROOT, dir))) {
+        for (const name of fs.existsSync(path.join(ROOT, dir)) ? fs.readdirSync(path.join(ROOT, dir)) : []) {
             const file = `${dir}/${name}`;
             if (!name.endsWith('.js') || keep.has(file)) continue;
             const head = fs.readFileSync(path.join(ROOT, file), 'utf8').slice(0, 40);
@@ -422,7 +422,8 @@ async function buildModules({ check = false } = {}) {
         const target = path.join(ROOT, output);
         const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8').replace(/\r\n/g, '\n') : '';
         if (check && current !== generated) throw new Error(`${output} is stale. Run npm run build:modules before testing or shipping.`);
-        if (!check && current !== generated) fs.writeFileSync(target, generated);
+        // A fresh checkout has no data/locales directory: nothing tracked lives there.
+        if (!check && current !== generated) { fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, generated); }
         return { output, bytes: Buffer.byteLength(generated), checked: check };
     });
     // The outputs are not in the repository; the stamp tells the tools they match the sources (scripts/lib/ensure-modules.js).
