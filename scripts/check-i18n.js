@@ -18,6 +18,7 @@
  *   node scripts/check-i18n.js --import en 파일
  *       표의 en 칸이 채워진 줄을 data/locales/en.js에 넣는다(있는 열쇠는 값을 바꾸고, 새 열쇠는 날짜 블록으로 끝에 더한다). 넣은 뒤 검사가 돈다.
  */
+require('./lib/ensure-modules').ensureModules();
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');

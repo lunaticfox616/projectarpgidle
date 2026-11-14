@@ -400,17 +400,34 @@ function compileEntry({ name, globals, mount, output = `js/${name}.js` }) {
     return { output, generated: compiled };
 }
 
+/** A generated file whose entry is gone (a renamed or removed module, another branch's build) would still be read by the
+ * tools that scan js/ and copied into releases. Only files that carry the generated banner are removed. */
+function removeOrphans(outputs) {
+    const keep = new Set(outputs);
+    for (const dir of ['js', 'data', 'data/locales']) {
+        for (const name of fs.readdirSync(path.join(ROOT, dir))) {
+            const file = `${dir}/${name}`;
+            if (!name.endsWith('.js') || keep.has(file)) continue;
+            const head = fs.readFileSync(path.join(ROOT, file), 'utf8').slice(0, 40);
+            if (head.startsWith('// GENERATED from ')) fs.rmSync(path.join(ROOT, file));
+        }
+    }
+}
+
 async function buildModules({ check = false } = {}) {
     // Validate every entry/import before writing any output, so a failed build cannot half-update the game.
     lintModules(dataEntries.map(entry => entry.source), null, []);
     const bundles = [...ENTRIES.map(compileEntry), ...await Promise.all(dataEntries.map(compileData))];
-    return bundles.map(({ output, generated }) => {
+    const written = bundles.map(({ output, generated }) => {
         const target = path.join(ROOT, output);
         const current = fs.existsSync(target) ? fs.readFileSync(target, 'utf8').replace(/\r\n/g, '\n') : '';
         if (check && current !== generated) throw new Error(`${output} is stale. Run npm run build:modules before testing or shipping.`);
         if (!check && current !== generated) fs.writeFileSync(target, generated);
         return { output, bytes: Buffer.byteLength(generated), checked: check };
     });
+    // The outputs are not in the repository; the stamp tells the tools they match the sources (scripts/lib/ensure-modules.js).
+    if (!check) { removeOrphans(written.map(row => row.output)); require('./lib/ensure-modules').writeStamp(written.map(row => row.output)); }
+    return written;
 }
 
 if (require.main === module) {

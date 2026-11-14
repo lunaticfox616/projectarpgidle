@@ -60,3 +60,12 @@ __pycache__/
 /desktop/stage/
 /desktop/out/
 artifacts/i18n/
+
+# The classic runtime files are build output of modules/ (npm run build:modules; tools build them on demand,
+# scripts/lib/ensure-modules.js). Only the three hand-kept files below stay in the repository.
+/js/*.js
+!/js/bootstrap.js
+/data/*.js
+!/data/pixel-icons.js
+/data/locales/*.js
+/.modules-build.json

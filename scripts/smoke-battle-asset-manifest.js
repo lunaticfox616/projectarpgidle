@@ -1,4 +1,5 @@
 const assert = require('assert');
+require('./lib/ensure-modules').ensureModules();
 const fs = require('fs');
 const path = require('path');
 const { decodeVfxData, loadVfxAssetCatalog } = require('./lib/skill-vfx-editor-model');

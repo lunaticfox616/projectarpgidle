@@ -102,6 +102,8 @@ async function main() {
 
     console.log(`검사 ${files.length}개 실행 (동시 ${concurrency}, 타임아웃 ${Math.round(timeoutMs / 1000)}초)`);
     let startedAt = Date.now();
+    // One build before the parallel checks, so they do not each rebuild js/ and data/ at the same time.
+    require('./lib/ensure-modules').ensureModules();
     let results = await runAll(files, { timeoutMs, concurrency });
     process.stdout.write('\n');
 

@@ -1,4 +1,5 @@
 'use strict';
+require('./lib/ensure-modules').ensureModules();
 const fs = require('fs');
 const cp = require('child_process');
 const {Linter} = require('eslint');
