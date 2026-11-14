@@ -62,14 +62,15 @@ export function stumpBarPlace(runtime, a, b) {
     return high - low === 1 ? `grid-column:${col * 2 + 2};grid-row:${row * 2 + 1}` : `grid-column:${col * 2 + 1};grid-row:${row * 2 + 2}`;
 }
 
-/** The board's synergies drawn over the frame (2026-11-04 사용자: 해당 칸 묶어서 강조): each 공명 line in its colour, each 규율 line in
-* its five colours, a green knot on the bar between a 상생 pair. */
+/** The board's synergies drawn over the frame (2026-11-04 사용자: 해당 칸 묶어서 강조): each 공명 line in its colour, each 계열 공명 line as a
+* dashed bark line just inside the cells, each 규율 line in its five colours, a green knot on the bar between a 상생 pair. */
 export function stumpLinksHtml(runtime, result) {
     const toneOf = cell => itemTone(runtime, runtime.deps.stumpBox.itemById(runtime.deps.game, runtime.deps.game.stumpBox.board[cell]));
     const resonance = result.groups.resonance.map(line => `<span class="stump-link is-resonance" style="--stump-tone:${line.color ? stumpTone(runtime, line.color) : '#f3d28c'};${stumpSpanPlace(runtime, line.cells)}"></span>`);
+    const kin = result.groups.kin.map(line => `<span class="stump-link is-kin" style="${stumpSpanPlace(runtime, line.cells)}"></span>`);
     const discipline = result.groups.discipline.map(line => `<span class="stump-link is-discipline" style="--rule-tones:linear-gradient(${line.axis === 'row' ? 90 : 180}deg,${line.cells.map(toneOf).join(',')});${stumpSpanPlace(runtime, line.cells)}"></span>`);
     const feed = result.groups.feed.map(([a, b]) => `<span class="stump-link is-feed" style="${stumpBarPlace(runtime, a, b)}"></span>`);
-    return resonance.concat(discipline, feed).join('');
+    return resonance.concat(kin, discipline, feed).join('');
 }
 
 export function stumpBoardHtml(runtime, result) {

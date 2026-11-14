@@ -31,7 +31,7 @@
     const out = [];
     if (item.albino) out.push(albinoBadge(runtime, item));
     if (isGolden(runtime, item)) out.push(["is-golden", (0, runtime.deps._t)("황금 ×{mul}", { mul: runtime.deps.STUMP_BOX_RIPENING.golden.mul })]);
-    if (item.ancient) out.push(["is-ancient", (0, runtime.deps._t)("고대: 공명, 규율에서 어느 색이든, 이웃 접붙이기 +{graftRanks}", { graftRanks: runtime.deps.STUMP_BOX_ANCIENT.graftRanks })]);
+    if (item.ancient) out.push(["is-ancient", (0, runtime.deps._t)("고대: 공명, 규율에서 어느 색이든, 계열 공명에서 어느 종류든, 이웃 접붙이기 +{graftRanks}", { graftRanks: runtime.deps.STUMP_BOX_ANCIENT.graftRanks })]);
     if (item.harvest && item.harvest.bonus) out.push(["is-bumper", (0, runtime.deps._t)("풍작 +{round}%", { round: Math.round(item.harvest.bonus * 100) })]);
     if (item.harvest && item.harvest.lines.length >= 3) out.push(["is-bloom", "만개"]);
     return out;

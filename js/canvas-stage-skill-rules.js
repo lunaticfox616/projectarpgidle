@@ -95,7 +95,7 @@
         return;
       }
       if (gem.map.after && Number(event.stageIndex) > 0) {
-        this.rulePlayAfter(gem, s, look);
+        if (!this.deps.stageSkillRunes.remade(gem)) this.rulePlayAfter(gem, s, look);
         return;
       }
       for (const [hook, play] of this.STAGE_PLAYS) if (gem.map[hook]) play(s);

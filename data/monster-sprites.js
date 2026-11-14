@@ -1,6 +1,6 @@
 // GENERATED from modules/data/monster-sprites.mjs. Edit the ESM source; run npm run build:modules.
 (() => {
-  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\weapon-categories.mjs
+  // classic-data:modules/data/weapon-categories.mjs
   var WEAPON_CATEGORIES = globalThis.WEAPON_CATEGORIES;
 
   // modules/data/monster-sprites.mjs

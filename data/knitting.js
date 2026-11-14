@@ -1,6 +1,6 @@
 // GENERATED from modules/data/knitting.mjs. Edit the ESM source; run npm run build:modules.
 (() => {
-  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\atlas.mjs
+  // classic-data:modules/data/atlas.mjs
   var ATLAS = globalThis.ATLAS;
 
   // modules/data/knitting.mjs

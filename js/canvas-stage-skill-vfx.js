@@ -222,6 +222,7 @@
       this.assets = assets;
       this.HIT = Object.freeze({ scale: 0.65, alpha: 0.82, frames: 7, gap: 160, max: 5, longest: 240, tail: 85, widest: 76 });
       this.MAX_LIVE = 120;
+      this.MINOR_MAX = 36;
       this.clock = 0;
       this.lastProjection = null;
       this.live = [];
@@ -246,7 +247,8 @@
         tail: 0,
         flat: 0,
         pocket: null,
-        order: null
+        order: null,
+        minor: false
       });
       this.vfxRowLife = (clip, o, frames, ms) => {
         const whole = clip.loop ? o.life : frames * ms;
@@ -307,13 +309,26 @@
         pocket: o.pocket
       };
     }
+    /** 새 클립이 들 자리(2026-11-13 전달본 이펙트 사라짐 수정안 B): 작은 표시(minor)는 MINOR_MAX개까지만 떠 있고, 상한이 차면
+     * 스킬의 클립은 가장 오래된 작은 표시를 내보내고 든다. 전에는 공격이 빠르면 적중 불티가 상한을 다 차지해 시전의 클립이 통째로 안 나왔다. */
+    vfxRoomFor(o) {
+      const minor = !!(o.hit || o.minor);
+      if (minor && this.live.reduce((n, row) => n + (row.minor ? 1 : 0), 0) >= this.MINOR_MAX) return false;
+      if (this.live.length < this.MAX_LIVE) return true;
+      const i = minor ? -1 : this.live.findIndex((row) => row.minor);
+      if (i < 0) return false;
+      this.live.splice(i, 1);
+      return true;
+    }
     vfxPlay(ref, at, options) {
       const text = String(Array.isArray(ref) ? ref[0] : ref), [name, rampName] = text.split("@"), clip = this.deps.STAGE_SKILL_VFX.clips[name];
-      if (!clip || this.live.length >= this.MAX_LIVE) return null;
+      if (!clip) return null;
       const o = this.vfxOptions(options);
+      if (!this.vfxRoomFor(o)) return null;
       if (rampName !== void 0) o.ramp = rampName;
       const row = this.vfxClipRow(name, clip, at, o);
       if (o.hit && !this.vfxStyleHit(row)) return null;
+      row.minor = !!(o.hit || o.minor);
       this.live.push(row);
       this.assets.vfxAskStrip(clip.a + "|" + o.ramp);
       return row;

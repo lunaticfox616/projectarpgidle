@@ -494,6 +494,7 @@
     }
     /** 베인 적마다(가까운 6명까지) 별을 지운 큰 베기 자국: 쓴 자리에서 먼 적일수록 늦게(도트/8 ms, 0.12초까지). */
     issenCut(c) {
+      if (this.deps.stageSkillStrokes.remakes.ready("issen")) return true;
       const strip = c.first ? this.cutStrip(c.gem.map.cut, c.view.now) : null;
       if (!strip) return true;
       const from = c.event.sourceCell, face = c.event.issenFace || c.look.face;

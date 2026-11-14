@@ -20,7 +20,7 @@ export function placementStatusRows(runtime, before, after) {
     const enabled = [...before.suppressed].filter(id => after.board.includes(id) && !after.suppressed.has(id));
     if (disabled.length) rows.push(`<li class="is-bad">비활성화: ${escStump(runtime, placementItemNames(runtime, disabled))}</li>`);
     if (enabled.length) rows.push(`<li class="is-good">비활성화 해제: ${escStump(runtime, placementItemNames(runtime, enabled))}</li>`);
-    [['resonance', '줄'], ['discipline', '줄'], ['feed', '쌍']].forEach(([key, unit]) => {
+    [['resonance', '줄'], ['kin', '줄'], ['discipline', '줄'], ['feed', '쌍']].forEach(([key, unit]) => {
         const from = before.groups[key].length, to = after.groups[key].length;
         if (from !== to) rows.push(`<li class="${to > from ? 'is-good' : 'is-bad'}">${runtime.deps.STUMP_BOX_SYNERGY[key].label}: ${from}${unit} → ${to}${unit}</li>`);
     });

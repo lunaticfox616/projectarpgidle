@@ -31,6 +31,7 @@
   var STUMP_BOX_STORAGE_BASE = 50;
   var STUMP_BOX_SYNERGY = Object.freeze({
     resonance: Object.freeze({ label: "공명", length: 3, bonusPct: 10 }),
+    kin: Object.freeze({ label: "계열 공명", length: 3, bonusPct: 10 }),
     feed: Object.freeze({ label: "상생", bonusPct: 10 }),
     discipline: Object.freeze({ label: "규율", bonusPct: 15 })
   });

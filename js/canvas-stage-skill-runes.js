@@ -93,6 +93,8 @@
       this.rowsOf = (footprint) => footprint && footprint.band ? footprint.band.rows : 0;
       this.reachCellsOf = (footprint, fallback) => footprint && footprint.band ? footprint.band.reach : Math.max(1, Math.round((footprint && footprint.cone && footprint.cone.length || fallback) - 0.5));
       this.drawsSwing = (gem) => !!(gem.map.xcut || gem.map.vcut || gem.map.fan || gem.map.icering || gem.map.swing === "rise");
+      this.REMAKE = Object.freeze({ 2: "slam", 85: "issen" });
+      this.RM = this.ST.remakes;
       this.VICTIM_PLAYS = Object.freeze([
         (gem, hit, o) => gem.map.swing === "rise" && o.first && this.ST.upCut(this.K.at(hit.victim), hit.look.face, this.followEnemy(hit.fx.enemyId)),
         (gem, hit, o) => gem.map.fuse && o.lead && this.ST.fuse(this.K.at(hit.victim), Math.max(120, this.stageGapMs(gem, 0)), this.followEnemy(hit.fx.enemyId)),
@@ -101,7 +103,8 @@
         (gem, hit) => gem.map.rod && hit.fx.stageKind === "fieldStart" && gem.map.tick && this.runeRodTick(gem.map.tick, hit),
         (gem, hit) => gem.map.gash && this.runeGashPull(hit.fx, hit),
         (gem, hit) => gem.map.pillars && Number(hit.fx.stageIndex) > 0 && !Number(hit.fx.repeatIndex) && this.runePillarHit(gem, hit),
-        (gem, hit) => gem.map.mark && gem.map.bolt && !Number(hit.fx.repeatIndex) && this.runeGuillotineBolt(gem, hit)
+        (gem, hit) => gem.map.mark && gem.map.bolt && !Number(hit.fx.repeatIndex) && this.runeGuillotineBolt(gem, hit),
+        (gem, hit, o, owner) => this.runeRemade(gem) && this.runeRemadeHit(owner, gem, hit)
       ]);
       this.PFX_WAVE_ALPHA = 0.55;
       this.PFX_WAVE_FRAMES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 9, 12, 15, 18, 21, 22, 23, 25, 27, 29]);
@@ -147,8 +150,37 @@
       else if (map.swing === "rise") this.ST.riseSwing(this.K.at(hero), look.face, reach * 0.85, this.followHero);
       else if (map.fan) this.runeFan(gem, fx, look);
       else if (map.icering) this.runeIceRing(gem, fx, look);
+      else if (this.REMAKE[gem.id] === "slam" && this.runeRemade(gem)) this.runeSlam(owner, fx, look);
       else return !!map.drag;
       return true;
+    }
+    /** 리메이크 그림으로 그리는 룬인가(그 그림이 준비됐을 때만). */
+    runeRemade(gem) {
+      return !!this.REMAKE[gem.id] && this.RM.ready(this.REMAKE[gem.id]);
+    }
+    /** 리메이크 연출이 가리지 않을 몸들: 주인공(그려진 자리)과 살아 있는 몬스터. */
+    bodiesOf(owner) {
+      return () => [{ ...this.K.heroDrawn(), player: true }, ...(owner.enemies || []).filter((enemy) => enemy && enemy.hp > 0).map((enemy) => this.K.enemySpot(enemy))];
+    }
+    /** 강타(전달본 V3.19.2): 크게 휘도는 반달 검격 대신 맞은 적 바로 위에서 짧고 굵게 내려찍고, 그 바닥에 균열과 파편이 인다.
+     * 맞은 적이 없으면 몸 앞(전방 1.25칸의 3/4, 80도트까지)에서. */
+    runeSlam(owner, fx, look) {
+      const enemy = this.K.enemy(fx.enemyId), hero = this.K.heroSpot();
+      const at = enemy ? this.K.enemySpot(enemy) : { gx: hero.gx + look.face * Math.min(80, 1.25 * this.WIDE * 0.75) / this.WIDE, gy: hero.gy };
+      this.RM.slam(this.K.at(at), { face: look.face, hit: !!enemy, anchor: () => at, actors: this.bodiesOf(owner) });
+    }
+    /** 리메이크 룬의 맞은 적마다: 강타는 짧은 접촉 불꽃(여진이면 옅게)과 여진의 들썩임, 일섬은 몸통을 가르는 베임과 붉은 잔상(몸을 따라간다). */
+    runeRemadeHit(owner, gem, hit) {
+      const face = hit.look.face, actors = this.bodiesOf(owner), spot = hit.victim;
+      if (this.REMAKE[gem.id] === "issen") {
+        const follow = this.followEnemy(hit.fx.enemyId);
+        let last = spot;
+        this.RM.issenHit(this.K.at(spot), { face, follow, actors, anchor: () => last = follow() || last });
+        return;
+      }
+      const after = Number(hit.fx.stageIndex) > 0;
+      this.RM.slamContact(this.K.at(spot), { face, after, actors, anchor: () => spot });
+      if (after) this.RM.slamAfter(this.K.at(spot), { face, actors, anchor: () => spot });
     }
     /** 불사르기: 쐐기 끝까지 번지는 불길 앞면과, 무기 앞에서 쐐기 끝 다섯 방향으로 뿜어지는 불길 클립(가운데가 크고 멀리). 옆으로 치는 띠면
      * 불길이 첫 칸 안에 위아래 줄까지 번지고 클립도 그 줄들의 몸 높이로 뿜어진다. */
@@ -238,13 +270,21 @@
     }
     /** 부싯돌 베기: 떠나는 순간 휘두르고, 지나간 바닥이 그을리고, 나는 동안 바닥에 선 초승달 불길이 손 높이보다 낮게 달린다. */
     runeFlint(owner, gem, event, view, hooks) {
-      const elapsed = view.now - event.at, lift = event.aloft ? this.deps.PROJECTILE_FLIGHT_LIFT : 0;
+      const elapsed = view.now - event.at, lift = event.aloft ? this.deps.PROJECTILE_FLIGHT_LIFT : 0, remade = this.RM.ready("flint");
       if (this.firstSight(event, view.now)) {
         const from = { gx: event.sourceCell.gx, gy: event.sourceCell.gy + lift }, face = this.faceOf(event), L = Math.hypot((event.targetCells[0].gx - event.sourceCell.gx) * this.WIDE, (event.targetCells[0].gy - event.sourceCell.gy) * this.DEEP);
-        hooks.swing(owner, gem, { face, ramp: this.K.ramp(gem, event.element) });
-        this.ST.scorch(this.K.at(from), face, event.duration, (t) => L * Math.min(1, t / Math.max(1, event.duration)));
+        if (remade) this.runeFlintStart(event, face);
+        else {
+          hooks.swing(owner, gem, { face, ramp: this.K.ramp(gem, event.element) });
+          this.ST.scorch(this.K.at(from), face, event.duration, (t) => L * Math.min(1, t / Math.max(1, event.duration)));
+        }
       }
       if (elapsed < 0 || elapsed >= event.duration) return;
+      if (remade) {
+        const ago = (ms) => this.K.screen(view.projection, this.K.along(event, Math.max(0, elapsed - ms)));
+        this.RM.flintWave(view.ctx, { t: elapsed, face: this.K.along(event, elapsed).face, dot: ago(0).dot, ago });
+        return;
+      }
       const spot = this.K.along(event, elapsed), at = this.K.screen(view.projection, { gx: spot.gx, gy: spot.gy + lift }), ctx = view.ctx;
       ctx.save();
       ctx.translate(Math.round(at.x), Math.round(at.y));
@@ -253,6 +293,15 @@
       this.deps.stageSkillVfx.stamp(ctx, gem.map.flintTail, elapsed, { x: -25, y: -3, dot: 1, face: 1, alpha: 0.38 });
       this.deps.stageSkillVfx.stamp(ctx, gem.map.flintBlade, 0, { x: 0, y: 0, dot: 1, face: 1 });
       ctx.restore();
+    }
+    /** 부싯돌 베기(전달본 V3.18.1)가 떠나는 순간: 몸 앞의 낮은 발화(몸을 가리던 발사 초승달 대신)와, 실제로 지나간 바닥 길의 잿불. */
+    runeFlintStart(event, face) {
+      const from = event.sourceCell;
+      this.RM.flintLaunch(this.K.at(this.K.heroSpot()), face);
+      this.RM.flintScorch(this.K.at(from), { flight: event.duration, face, path: (ms) => {
+        const spot = this.K.along(event, Math.min(ms, event.duration));
+        return { x: (spot.gx - from.gx) * this.WIDE, y: (spot.gy - from.gy) * this.DEEP };
+      } });
     }
     /** 피뢰침: 검끝에서 번개가 치고, 검끝에 구슬이 맺혀 따라다니고, 틱마다 발밑에 번개 금이 퍼진다. */
     runeRod(gem, event) {
@@ -331,8 +380,9 @@
     /** 시전 시작: 부싯돌 베기는 타격 전까지 무기 끝이 바닥을 긁어 불티가 튄다. */
     runeWindup(gem, fx) {
       if (!gem.map.drag) return;
-      const hero = this.K.heroSpot();
-      this.ST.dragSpark(this.K.at(hero), this.K.heroFace(), Math.max(200, Number(fx.impactDelayMs) || 0), hero.gx * 13 + hero.gy);
+      const hero = this.K.heroSpot(), wind = Math.max(200, Number(fx.impactDelayMs) || 0);
+      if (this.RM.ready("flint")) this.RM.flintDrag(this.K.at(hero), this.K.heroFace(), wind);
+      else this.ST.dragSpark(this.K.at(hero), this.K.heroFace(), wind, hero.gx * 13 + hero.gy);
     }
     /** 이동 칸의 룬: 박차고 나가는 먼지, 달리는 동안의 공기 활(돌진)이나 무기 궤적(섬머솔트 슬래시), 착지 자리의 충격.
      * @param {{from:object, to:object, ms:?number}} move 떠난 칸, 닿는 칸, 옮겨 가는 시간 */
@@ -371,6 +421,7 @@
       return pool[this.POOL_OF[element]];
     }
     runeHitRef(gem, element) {
+      if (this.runeRemade(gem)) return null;
       const bow = this.runeBow(gem);
       if (bow) return bow.exp;
       const refs = this.runeHitRefs(gem, element);
@@ -380,7 +431,7 @@
   function createStageSkillRunes(deps) {
     const motion = createStageRuneAir(deps);
     const instance = new StageSkillRunes(deps, motion);
-    return Object.freeze({ heroAir: motion.runeHeroAir, swing: instance.runeSwing.bind(instance), drawsSwing: instance.drawsSwing, victim: instance.runeVictim.bind(instance), claim: instance.runeClaim.bind(instance), windup: instance.runeWindup.bind(instance), moves: instance.runeMoves, mobility: instance.runeMobility.bind(instance), bow: instance.runeBow.bind(instance), bowFlash: instance.runeBowFlash, hitRef: instance.runeHitRef.bind(instance), hitRefs: instance.runeHitRefs.bind(instance) });
+    return Object.freeze({ heroAir: motion.runeHeroAir, swing: instance.runeSwing.bind(instance), drawsSwing: instance.drawsSwing, victim: instance.runeVictim.bind(instance), claim: instance.runeClaim.bind(instance), windup: instance.runeWindup.bind(instance), moves: instance.runeMoves, mobility: instance.runeMobility.bind(instance), bow: instance.runeBow.bind(instance), bowFlash: instance.runeBowFlash, hitRef: instance.runeHitRef.bind(instance), hitRefs: instance.runeHitRefs.bind(instance), remade: instance.runeRemade.bind(instance) });
   }
 
   // modules/canvas-stage-skill-runes-classic.mjs
@@ -437,7 +488,8 @@
     bowFlash: native.bowFlash,
     hitRef: native.hitRef,
     hitRefs: native.hitRefs,
-    heroAir: native.heroAir
+    heroAir: native.heroAir,
+    remade: native.remade
   });
   safeExposeGlobals({ stageSkillRunes });
 })();

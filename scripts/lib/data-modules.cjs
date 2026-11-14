@@ -23,10 +23,11 @@ function sharedDataPlugin(owner) {
                 throw new Error(`${owner.source}: data dependency must be a registered earlier table: ${args.path}`);
             for (const name of imports.get(resolved) || []) if (!entry.names.includes(name))
                 throw new Error(`${owner.source}: ${entry.source} does not export ${name}`);
-            return { path: resolved, namespace: 'classic-data' };
+            // 출력의 주석에 남는 경로라 저장소 기준 상대 경로로 둔다(절대 경로면 작업본마다 출력이 달라 --check가 실패했다)
+            return { path: path.relative(ROOT, resolved).split(path.sep).join('/'), namespace: 'classic-data' };
         });
         builder.onLoad({ filter: /.*/, namespace: 'classic-data' }, args => ({
-            contents: imports.get(args.path).map(name => `export const ${name} = globalThis.${name};`).join('\n'),
+            contents: imports.get(path.resolve(ROOT, args.path)).map(name => `export const ${name} = globalThis.${name};`).join('\n'),
             loader: 'js'
         }));
     } };

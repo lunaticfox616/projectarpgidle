@@ -44,7 +44,7 @@ function initializeStumpConstants(runtime) {
     runtime.state.STORAGE_PAGE_CELLS = 100;
     runtime.state.STORAGE_STATES = { all: '모든 상태', ripe: '성장 완료', unripe: '성장 전', locked: '잠금' };
     runtime.state.STORAGE_SORTS = { manual: '직접 배치', 'quality-desc': '품질 높은 순', 'quality-asc': '품질 낮은 순', name: '이름순', recent: '최근 획득순' };
-    runtime.state.NO_EFFECT = Object.freeze({ suppressed: new Set(), stoppedBy: {}, synergy: {}, groups: { resonance: [], discipline: [], feed: [] },
+    runtime.state.NO_EFFECT = Object.freeze({ suppressed: new Set(), stoppedBy: {}, synergy: {}, groups: { resonance: [], kin: [], discipline: [], feed: [] },
         resonant: new Set(), values: {}, extras: {} });
     runtime.state.FRAME_NAME_TONES = Object.freeze({ '그루터기 함': '#e8a95a', '조합창': '#6fd0e6', '생육함': '#8fd17a' });
     runtime.state.FRAME_BUTTONS = Object.freeze({

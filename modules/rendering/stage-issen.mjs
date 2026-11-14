@@ -63,6 +63,8 @@ class StageIssen {
 
     /** 베인 적마다(가까운 6명까지) 별을 지운 큰 베기 자국: 쓴 자리에서 먼 적일수록 늦게(도트/8 ms, 0.12초까지). */
     issenCut(c) {
+        // 전달본 V3.20.3: 맞은 적마다의 베임과 붉은 잔상(js/canvas-stage-skill-runes.js runeRemadeHit)이 이 가로 베기 자국을 대신한다
+        if (this.deps.stageSkillStrokes.remakes.ready('issen')) return true;
         const strip = c.first ? this.cutStrip(c.gem.map.cut, c.view.now) : null;
         if (!strip) return true;   // 별을 지운 베기 자국을 만들 수 없으면 그 자국만 빠진다
         const from = c.event.sourceCell, face = c.event.issenFace || c.look.face;

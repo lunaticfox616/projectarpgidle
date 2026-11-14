@@ -1,9 +1,9 @@
 // GENERATED from modules/data/bosses.mjs. Edit the ESM source; run npm run build:modules.
 (() => {
-  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\constants.mjs
+  // classic-data:modules/data/constants.mjs
   var COMBAT_GRID_CONFIG = globalThis.COMBAT_GRID_CONFIG;
 
-  // classic-data:C:\Users\pjh46\.codex\worktrees\esm-pilot-20261112\pr-repo\modules\data\maps.mjs
+  // classic-data:modules/data/maps.mjs
   var STORY_ACTS = globalThis.STORY_ACTS;
 
   // modules/data/bosses.mjs

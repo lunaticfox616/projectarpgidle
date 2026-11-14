@@ -358,19 +358,24 @@
   function stumpSynergyCells(box) {
     return box.board.map((id) => {
       const item = id === null ? null : stumpFindItem(box, id);
-      return item && item.color ? { item, color: item.color, grown: stumpIsMature(item), ancient: !!item.ancient } : null;
+      return item && item.color ? { item, color: item.color, kind: stumpYieldKind(item), grown: stumpIsMature(item), ancient: !!item.ancient } : null;
     });
   }
-  function stumpSharedColor(run) {
-    const colors = new Set(run.filter((at) => !at.ancient).map((at) => at.color));
-    return colors.size > 1 ? null : [...colors][0] || "";
+  function stumpRuns(env, length) {
+    return env.LINES.flatMap((line) => [...Array(env.deps.STUMP_BOX_SIZE - length + 1).keys()].map((start) => line.cells.slice(start, start + length)));
   }
-  function stumpCrowded(env, cells, run, color) {
-    return run.some((cell) => stumpNeighbors(env, cell).some((at) => !run.includes(at) && cells[at] && !cells[at].ancient && cells[at].color === color));
+  function stumpSharedTrait(run, trait) {
+    const values = new Set(run.filter((at) => !at.ancient).map((at) => at[trait]));
+    return values.size > 1 ? null : [...values][0] || "";
+  }
+  function stumpCrowded(env, cells, run, trait, value) {
+    return run.some((cell) => stumpNeighbors(env, cell).some((at) => !run.includes(at) && cells[at] && !cells[at].ancient && cells[at][trait] === value));
   }
   function stumpResonanceLines(env, cells) {
-    const length = env.deps.STUMP_BOX_SYNERGY.resonance.length;
-    return env.LINES.flatMap((line) => [...Array(env.deps.STUMP_BOX_SIZE - length + 1).keys()].map((start) => line.cells.slice(start, start + length))).filter((run) => run.every((cell) => cells[cell] && cells[cell].grown)).map((run) => ({ cells: run, color: stumpSharedColor(run.map((cell) => cells[cell])) })).filter((run) => run.color === "" || run.color !== null && !stumpCrowded(env, cells, run.cells, run.color)).map((run) => ({ color: run.color || null, cells: run.cells }));
+    return stumpRuns(env, env.deps.STUMP_BOX_SYNERGY.resonance.length).filter((run) => run.every((cell) => cells[cell] && cells[cell].grown)).map((run) => ({ cells: run, color: stumpSharedTrait(run.map((cell) => cells[cell]), "color") })).filter((run) => run.color === "" || run.color !== null && !stumpCrowded(env, cells, run.cells, "color", run.color)).map((run) => ({ color: run.color || null, cells: run.cells }));
+  }
+  function stumpKinLines(env, cells, stopped) {
+    return stumpRuns(env, env.deps.STUMP_BOX_SYNERGY.kin.length).filter((run) => run.every((cell) => cells[cell] && cells[cell].grown && !stopped.has(cell))).map((run) => ({ kind: stumpSharedTrait(run.map((cell) => cells[cell]), "kind"), cells: run })).filter((run) => run.kind && !stumpCrowded(env, cells, run.cells, "kind", run.kind));
   }
   function stumpFiveElementsAt(env, cells, immune, cell) {
     const at = cells[cell], near = stumpNeighbors(env, cell).filter((next) => cells[next]);
@@ -400,14 +405,13 @@
     const sameAcross = (cell, axis) => !cells[cell].ancient && stumpCrossNeighbors(env, cell, axis).some((at) => cells[at] && !cells[at].ancient && cells[at].color === cells[cell].color);
     return env.LINES.filter((line) => line.cells.every((cell) => cells[cell] && cells[cell].grown && !stopped.has(cell)) && stumpAllColors(line.cells.map((cell) => cells[cell])) && !line.cells.some((cell) => sameAcross(cell, line.axis)));
   }
-  function stumpSynergyTags(env, cells, resonance, links, discipline) {
+  function stumpSynergyTags(env, cells, groups) {
     const tags = {}, add = (name) => (cell) => {
       const id = cells[cell].item.id;
       (tags[id] = tags[id] || /* @__PURE__ */ new Set()).add(name);
     };
-    resonance.forEach((line) => line.cells.forEach(add("resonance")));
-    links.flat().forEach(add("feed"));
-    discipline.forEach((line) => line.cells.forEach(add("discipline")));
+    ["resonance", "kin", "discipline"].forEach((name) => groups[name].forEach((line) => line.cells.forEach(add(name))));
+    groups.feed.flat().forEach(add("feed"));
     return Object.fromEntries(Object.entries(tags).map(([id, set]) => [id, env.SYNERGY_ORDER.filter((name) => set.has(name))]));
   }
   function stumpBoardEffects(env, box) {
@@ -416,12 +420,12 @@
     const cells = stumpSynergyCells(box), resonance = stumpResonanceLines(env, cells);
     const { stopped, links } = stumpFiveElements(env, cells, new Set(resonance.flatMap((line) => line.cells)));
     const discipline = stumpDisciplineLines(env, cells, stopped).map((line) => ({ axis: line.axis, cells: line.cells }));
-    const idOf = (cell) => cells[cell].item.id;
+    const groups = { resonance, kin: stumpKinLines(env, cells, stopped), discipline, feed: links }, idOf = (cell) => cells[cell].item.id;
     const value = {
       suppressed: new Set([...stopped.keys()].map(idOf)),
       stoppedBy: Object.fromEntries([...stopped].map(([cell, why]) => [idOf(cell), why])),
-      synergy: stumpSynergyTags(env, cells, resonance, links, discipline),
-      groups: { resonance, discipline, feed: links },
+      synergy: stumpSynergyTags(env, cells, groups),
+      groups,
       resonant: new Set(resonance.map((line) => line.color).filter(Boolean))
     };
     env.effectsMemo = { key, box, value };
@@ -1449,7 +1453,7 @@
       Object.freeze({ test: (item) => !!item.albino, reason: "알비노는 그루터기 함 전체에 하나만 놓을 수 있습니다." }),
       Object.freeze({ test: (item) => item.family === "scar", reason: "불씨의 흉터는 그루터기 함에 하나만 놓을 수 있습니다." })
     ]);
-    env.SYNERGY_ORDER = Object.freeze(["resonance", "feed", "discipline"]);
+    env.SYNERGY_ORDER = Object.freeze(["resonance", "kin", "feed", "discipline"]);
     env.LINES = Object.freeze([...Array(env.deps.STUMP_BOX_SIZE).keys()].flatMap((at) => [
       { axis: "row", cells: [...Array(env.deps.STUMP_BOX_SIZE).keys()].map((step) => at * env.deps.STUMP_BOX_SIZE + step) },
       { axis: "col", cells: [...Array(env.deps.STUMP_BOX_SIZE).keys()].map((step) => step * env.deps.STUMP_BOX_SIZE + at) }

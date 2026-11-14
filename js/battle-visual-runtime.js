@@ -606,6 +606,7 @@
   }
 
   // modules/rendering/battle-effect-queue.mjs
+  var SKILL_CUES = /* @__PURE__ */ new Set(["playerSwing", "combatTravel"]);
   var BattleEffectQueue = class {
     constructor(deps, runtime2) {
       this.deps = deps;
@@ -760,7 +761,18 @@
         ...payload
       });
       let queueCap = this.getCurrentBattleFxQueueCap();
-      if (this.runtime.fx.length > queueCap) this.runtime.fx.splice(0, this.runtime.fx.length - queueCap);
+      if (this.runtime.fx.length > queueCap) this.trimCues(queueCap, now);
+    }
+    /** 대기열이 넘치면(2026-11-13 전달본 이펙트 사라짐 수정안 A): 끝난 기록을 먼저 걷고, 스킬 그림을 이끄는 기록은 적 수와 상관없이
+     * BATTLE_FX_QUEUE_CAP까지, 그 밖(타격, 글자, 알림)은 지금 상한까지 남기고 오래된 것부터 덜어 낸다. 전에는 종류를 가리지 않고 덜어,
+     * 공격이 빠르면 타격 기록이 앞의 휘두름과 날아가는 발을 밀어내 그 시전의 투사체와 이펙트가 통째로 안 나왔다. */
+    trimCues(cap, now) {
+      this.cleanupBattleFx(now);
+      let skill = 0, other = 0;
+      for (const fx of this.runtime.fx) if (SKILL_CUES.has(fx.type)) skill++;
+      else other++;
+      let dropSkill = Math.max(0, skill - BATTLE_FX_QUEUE_CAP), dropOther = Math.max(0, other - cap);
+      if (dropSkill || dropOther) this.runtime.fx = this.runtime.fx.filter((fx) => (SKILL_CUES.has(fx.type) ? dropSkill-- : dropOther--) <= 0);
     }
     currentCueTime() {
       let wallNow = this.deps.performance.now();

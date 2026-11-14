@@ -179,10 +179,11 @@
     return "루프가 바뀌면 봉인 칸에 있는 아이템을 빼고 그루터기 함, 보관함, 생육함의 아이템이 모두 사라집니다.";
   }
   function stumpRulesHtml(runtime) {
-    const { resonance, feed, discipline } = runtime.deps.STUMP_BOX_SYNERGY;
+    const { resonance, kin, feed, discipline } = runtime.deps.STUMP_BOX_SYNERGY;
     const rules = [
       "그루터기 함에 있는 그루터기 아이템만 처치 시 경험치를 얻습니다.",
       (0, runtime.deps._t)("공명: 성장 완료된 같은 색 {length}개가 가로나 세로로 한 줄이면 그 {length2}개 +{bonusPct}%. 옆에 같은 색이 하나라도 더 있으면 사라집니다.", { length: resonance.length, length2: resonance.length, bonusPct: resonance.bonusPct }),
+      (0, runtime.deps._t)("계열 공명: 성장 완료된 꽃, 열매, 덩굴, 뿌리 가운데 같은 종류 {length}개가 색과 상관없이 가로나 세로로 한 줄이면 그 {length2}개 +{bonusPct}%. 옆에 같은 종류가 하나라도 더 있으면 사라지고, 비활성화된 아이템은 세지 않습니다.", { length: kin.length, length2: kin.length, bonusPct: kin.bonusPct }),
       "반극: 공명 중인 아이템은 비활성화되지 않고, 옆에서 그 색을 비활성화하는 아이템이 대신 비활성화됩니다.",
       "비활성화: 물리는 카오스를, 카오스는 냉기를, 냉기는 화염을, 화염은 번개를, 번개는 물리를 비활성화합니다.",
       (0, runtime.deps._t)("상생: 화염은 물리, 카오스는 화염, 번개는 카오스, 냉기는 번개, 물리는 냉기가 옆에 있으면 비활성화되지 않고, 둘 다 +{bonusPct}%", { bonusPct: feed.bonusPct }),
@@ -297,9 +298,10 @@
   function stumpLinksHtml(runtime, result) {
     const toneOf = (cell) => itemTone(runtime, runtime.deps.stumpBox.itemById(runtime.deps.game, runtime.deps.game.stumpBox.board[cell]));
     const resonance = result.groups.resonance.map((line) => `<span class="stump-link is-resonance" style="--stump-tone:${line.color ? stumpTone(runtime, line.color) : "#f3d28c"};${stumpSpanPlace(runtime, line.cells)}"></span>`);
+    const kin = result.groups.kin.map((line) => `<span class="stump-link is-kin" style="${stumpSpanPlace(runtime, line.cells)}"></span>`);
     const discipline = result.groups.discipline.map((line) => `<span class="stump-link is-discipline" style="--rule-tones:linear-gradient(${line.axis === "row" ? 90 : 180}deg,${line.cells.map(toneOf).join(",")});${stumpSpanPlace(runtime, line.cells)}"></span>`);
     const feed = result.groups.feed.map(([a, b]) => `<span class="stump-link is-feed" style="${stumpBarPlace(runtime, a, b)}"></span>`);
-    return resonance.concat(discipline, feed).join("");
+    return resonance.concat(kin, discipline, feed).join("");
   }
   function stumpBoardHtml(runtime, result) {
     const cube = runtime.state.frameView === "cube", shown = onNursery(runtime) ? runtime.state.NO_EFFECT : result;
@@ -549,7 +551,7 @@
     const enabled = [...before.suppressed].filter((id) => after.board.includes(id) && !after.suppressed.has(id));
     if (disabled.length) rows.push(`<li class="is-bad">비활성화: ${escStump(runtime, placementItemNames(runtime, disabled))}</li>`);
     if (enabled.length) rows.push(`<li class="is-good">비활성화 해제: ${escStump(runtime, placementItemNames(runtime, enabled))}</li>`);
-    [["resonance", "줄"], ["discipline", "줄"], ["feed", "쌍"]].forEach(([key, unit]) => {
+    [["resonance", "줄"], ["kin", "줄"], ["discipline", "줄"], ["feed", "쌍"]].forEach(([key, unit]) => {
       const from = before.groups[key].length, to = after.groups[key].length;
       if (from !== to) rows.push(`<li class="${to > from ? "is-good" : "is-bad"}">${runtime.deps.STUMP_BOX_SYNERGY[key].label}: ${from}${unit} → ${to}${unit}</li>`);
     });
@@ -1433,7 +1435,7 @@
       suppressed: /* @__PURE__ */ new Set(),
       stoppedBy: {},
       synergy: {},
-      groups: { resonance: [], discipline: [], feed: [] },
+      groups: { resonance: [], kin: [], discipline: [], feed: [] },
       resonant: /* @__PURE__ */ new Set(),
       values: {},
       extras: {}

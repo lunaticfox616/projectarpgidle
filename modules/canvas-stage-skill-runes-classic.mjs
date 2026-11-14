@@ -27,6 +27,7 @@ const stageSkillRunes = Object.freeze({
     bowFlash: native.bowFlash,
     hitRef: native.hitRef,
     hitRefs: native.hitRefs,
-    heroAir: native.heroAir
+    heroAir: native.heroAir,
+    remade: native.remade
 });
 safeExposeGlobals({ stageSkillRunes });
